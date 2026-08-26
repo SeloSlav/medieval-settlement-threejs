@@ -83,6 +83,7 @@ painting, sepia-only drawing, detailed scenery, fantasy ornament, UI chrome
 | --- | --- |
 | `founders-camp.webp` | Vermilion-pennant pavilion sheltering a heavy locked treasury chest, backed by crossed survey stakes and a rolled map. |
 | `residence.webp` | Lit household hearth interlocked with a large iron house key, split firewood, and a folded blanket. |
+| `backyard-extension.webp` | Low woven-wattle enclosure and gate interlocking one compact household plot: a young fruit tree, short vegetable furrows, and a hen. Reserved for backyard-extension hover cards rather than the main build menu. |
 | `water-well.webp` | Bucket and rope on a timber windlass over a circular limestone curb with visible blue water. |
 | `stable.webp` | Horned ox head fitted beneath a heavy timber yoke, with leather harness, iron chain, bell, and a small hay bed. |
 | `town-hall.webp` | Open blank ledger, quill, wax seal, civic handbell, and a restrained stack of coins. |

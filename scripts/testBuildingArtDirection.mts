@@ -19,7 +19,11 @@ import {
   isSharedBackyardGardenMaterial,
 } from '../src/residences/backyardGardenMesh.ts';
 import { createResidenceMesh } from '../src/residences/ResidenceMarkers.ts';
-import { BUILD_MENU_ENTRIES, renderBuildMenuCards } from '../src/ui/buildMenuCards.ts';
+import {
+  BACKYARD_EXTENSION_CARD_ART,
+  BUILD_MENU_ENTRIES,
+  renderBuildMenuCards,
+} from '../src/ui/buildMenuCards.ts';
 import { disposeObject3D } from '../src/utils/dispose.ts';
 import { createSpinningRettingHouseMesh } from '../src/buildings/meshes/spinningRettingHouseMesh.ts';
 
@@ -46,9 +50,12 @@ const uniqueUrls = new Set(urls);
 if (uniqueUrls.size !== urls.length) {
   throw new Error('Every construction-menu entry must reference its own named art asset.');
 }
+if (uniqueUrls.has(BACKYARD_EXTENSION_CARD_ART)) {
+  throw new Error('Backyard-extension card art must stay out of the main construction menu.');
+}
 
 const hashes = new Map<string, string>();
-for (const url of urls) {
+for (const url of [...urls, BACKYARD_EXTENSION_CARD_ART]) {
   const file = resolve('public', url.replace(/^\//, '').replace(/^assets\//, 'assets/'));
   const bytes = readFileSync(file);
   if (bytes.toString('ascii', 0, 4) !== 'RIFF' || bytes.toString('ascii', 8, 12) !== 'WEBP') {

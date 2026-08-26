@@ -30,6 +30,7 @@ import type {
   VineyardParcelState,
 } from '../resources/types.ts';
 import { backyardGardenPlacement } from '../residences/backyardPosition.ts';
+import { layoutFromBurgageZone } from '../residences/burgageZoneLayout.ts';
 import { backyardGardenLabel } from '../residences/backyardGarden.ts';
 import { backyardGardenPhenology } from '../economy/backyardGardenTick.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
@@ -83,6 +84,7 @@ import {
   MAX_VILLAGERS_TOTAL,
   computeVillagerSlots,
   findNearestRoadEdgePath,
+  type HomePlotLeisureArea,
   pickIdleDuration,
   pickIdleOffset,
   pickVillagerAppearanceSeed,
@@ -411,6 +413,7 @@ export class VillagerRenderer {
   private residences = new Map<string, ResidenceState>();
   private buildings = new Map<string, BuildingState>();
   private backyardWorksites = new Map<string, BackyardWorksite>();
+  private homePlotLeisureAreas = new Map<string, HomePlotLeisureArea>();
   private marketStallDutyByWorker = new Map<string, MarketStallDuty>();
   private workerTargets = new Map<string, WorkerTarget[]>();
   private foundingCamp: BuildingState | null = null;
@@ -720,6 +723,20 @@ export class VillagerRenderer {
     this.buildings = new Map(buildings.map((building) => [building.id, building]));
     const month = options.foragingMonth ?? this.clock?.month ?? 1;
     const zonesById = new Map(burgageZones.map((zone) => [zone.id, zone]));
+    const zoneLayouts = new Map(
+      burgageZones.map((zone) => [zone.id, layoutFromBurgageZone(zone)]),
+    );
+    this.homePlotLeisureAreas = new Map();
+    for (const residence of residences) {
+      const parcel = zoneLayouts.get(residence.zoneId)?.parcels.find(
+        (candidate) => candidate.index === residence.parcelIndex,
+      );
+      if (!parcel) continue;
+      this.homePlotLeisureAreas.set(residence.id, {
+        polygon: parcel.polygon,
+        backyardDepth: parcel.backyardDepth,
+      });
+    }
     this.backyardWorksites = new Map();
     for (const garden of backyardGardens) {
       const residence = this.residences.get(garden.residenceId);
@@ -1039,6 +1056,9 @@ export class VillagerRenderer {
         const homeResidence = assignment.homeResidenceId
           ? this.residences.get(assignment.homeResidenceId) ?? null
           : null;
+        const nearestEdge = homeResidence && this.roadNetwork
+          ? findNearestRoadEdgePath(this.roadNetwork, homeResidence.x, homeResidence.z)
+          : null;
         const origin = homeResidence
           ? residenceDoorPosition(homeResidence)
           : this.foundingCamp
@@ -1089,7 +1109,7 @@ export class VillagerRenderer {
           idleOffset,
           pathSeed: appearanceSeed ^ 0x27d4eb2d,
           idleDirty: false,
-          nearestEdge: null,
+          nearestEdge,
           x: origin.x,
           z: origin.z,
           y: this.resolveGroundY(origin.x, origin.z) + 0.02,
@@ -1111,7 +1131,12 @@ export class VillagerRenderer {
         agent.workplaceId = assignment.buildingId;
         agent.workplaceSlot = assignment.slotIndex;
         agent.slotIndex = assignment.slotIndex;
-        agent.nearestEdge = null;
+        const homeResidence = assignment.homeResidenceId
+          ? this.residences.get(assignment.homeResidenceId) ?? null
+          : null;
+        agent.nearestEdge = homeResidence && this.roadNetwork
+          ? findNearestRoadEdgePath(this.roadNetwork, homeResidence.x, homeResidence.z)
+          : null;
         if (agent.appearanceSeed !== appearanceSeed) {
           const colors = pickVillagerColors(appearanceSeed);
           agent.appearanceSeed = appearanceSeed;
@@ -2130,11 +2155,10 @@ export class VillagerRenderer {
         if (agent.routinePhase === 'work' && agent.role === 'worker') {
           this.tryBeginWorkerWalk(agent);
         } else if (agent.routinePhase === 'home_outdoors') {
-          if (agent.role !== 'founder' && !this.holidayObservance) {
+          if (agent.role !== 'founder') {
             const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
             if (residence && !this.tryBeginBackyardWork(agent, residence)) {
-              if (agent.role === 'resident') this.tryBeginWalk(agent, residence);
-              else agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.7;
+              this.tryBeginWalk(agent, residence);
             }
           } else {
             agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.7;
@@ -2315,18 +2339,15 @@ export class VillagerRenderer {
     agent.displayPathCursor = agent.simPathCursor;
   }
 
-  private tryBeginWalk(agent: VillagerAgent, residence: ResidenceState): void {
-    if (!this.roadNetwork || this.roadNetwork.edges.size === 0) {
-      agent.idleRemaining = pickIdleDuration(agent.pathSeed);
-      return;
-    }
-
+  private tryBeginWalk(agent: VillagerAgent, residence: ResidenceState): boolean {
     const candidatePath = pickVillagerWalkPath(
       residence,
       [...this.residences.values()],
       this.roadNetwork,
       agent.pathSeed,
       agent.nearestEdge,
+      this.homePlotLeisureAreas.get(residence.id) ?? null,
+      { x: agent.x, z: agent.z },
     );
     agent.pathSeed = (agent.pathSeed * 1_664_525) ^ 0x7feb352d;
 
@@ -2334,7 +2355,7 @@ export class VillagerRenderer {
     const pathDistance = path ? polylineLengthXZ(path) : 0;
     if (!path || pathDistance < 4) {
       agent.idleRemaining = pickIdleDuration(agent.pathSeed);
-      return;
+      return false;
     }
 
     agent.mode = 'walk';
@@ -2346,6 +2367,7 @@ export class VillagerRenderer {
     agent.displayPathCursor = 0;
     this.clearWorkerActivity(agent);
     agent.idleDirty = false;
+    return true;
   }
 
   private tryBeginWorkerWalk(agent: VillagerAgent): void {
@@ -3920,11 +3942,7 @@ export class VillagerRenderer {
     this.clearPath(agent);
     agent.routinePhase = homeState;
     if (residence && backyard) {
-      agent.x = backyard.x;
-      agent.z = backyard.z;
-      agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
-      agent.yaw = backyard.yaw;
-      agent.idleDirty = false;
+      this.placeHomeIdle(agent, residence);
     } else if (residence) this.placeIdle(agent, residence);
     else if (this.foundingCamp) this.placeFounderIdle(agent, this.foundingCamp);
     agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.7;
@@ -4120,7 +4138,7 @@ export class VillagerRenderer {
     this.clearWorkerActivity(agent);
     agent.idleRemaining = pickIdleDuration(agent.pathSeed);
     agent.idleDirty = true;
-    this.placeIdle(agent, residence);
+    this.placeHomeIdle(agent, residence);
     agent.idleDirty = false;
   }
 
@@ -4160,6 +4178,21 @@ export class VillagerRenderer {
     agent.z = door.z + offsetZ;
     agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
     agent.yaw = residence.yaw + agent.idleOffset.yaw;
+  }
+
+  private placeHomeIdle(agent: VillagerAgent, residence: ResidenceState): void {
+    const backyard = agent.routinePhase === 'home_outdoors' && this.holidayObservance
+      ? holidayBackyardPosition(residence, agent.personIdentity)
+      : null;
+    if (!backyard) {
+      this.placeIdle(agent, residence);
+      return;
+    }
+    agent.x = backyard.x;
+    agent.z = backyard.z;
+    agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
+    agent.yaw = backyard.yaw;
+    agent.idleDirty = false;
   }
 
   private advanceCampAmbientCycle(dtSeconds: number): void {

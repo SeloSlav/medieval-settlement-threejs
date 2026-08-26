@@ -1916,7 +1916,7 @@ pub fn step_granary(
         CommodityKind::Flax,
         &["spinning_retting_house"],
     );
-    for duty in granary_dispatch_order(granary.granary_households_first) {
+    for duty in granary_dispatch_order(true) {
         match duty {
             GranaryDispatchDuty::Households => {
                 // Oats are ready household food after threshing, but the

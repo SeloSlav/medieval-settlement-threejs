@@ -24,7 +24,6 @@ import {
   storehouseStockTarget,
 } from '../src/economy/storehousePolicy.ts';
 import { computeSettlementLaborPlan } from '../src/economy/settlementLabor.ts';
-import { renderStorehouseStockTargetControls } from '../src/resources/inspector/storehouseRenderer.ts';
 import { renderStorehouseNetworkRows } from '../src/resources/inspector/townHallRenderer.ts';
 import type { BuildingState } from '../src/resources/types.ts';
 
@@ -65,25 +64,6 @@ assert.equal(
   ),
   0,
 );
-const legacyControls = renderStorehouseStockTargetControls(legacyStorehouse);
-assert.match(legacyControls, /aria-label="Timber collection limit"/);
-assert.match(legacyControls, /100 stored · limit 360 · 260 room/);
-assert.match(
-  legacyControls,
-  /data-storehouse-stock-kind="timber" data-storehouse-stock-target="100"[^>]*disabled/,
-  'missing saves must render the original fill-to-capacity policy as selected',
-);
-assert.match(legacyControls, /aria-label="Iron collection limit"/);
-assert.match(legacyControls, /aria-label="Charcoal collection limit"/);
-assert.match(legacyControls, /aria-label="Clay collection limit"/);
-assert.match(legacyControls, /aria-label="Salt collection limit"/);
-assert.match(legacyControls, />25%<\/button>/);
-assert.doesNotMatch(
-  legacyControls,
-  /Â/,
-  'stock-target controls must not expose a double-decoded separator',
-);
-
 const distributedStorehouse = makeStorehouse({
   storehouseTimberTargetPercent: 25,
   storehouseStoneTargetPercent: 50,
@@ -100,18 +80,6 @@ const distributedStorehouse = makeStorehouse({
   clay: 45,
   salt: 108,
 });
-const distributedControls = renderStorehouseStockTargetControls(distributedStorehouse);
-assert.match(distributedControls, /120 stored · limit 90 · 30 over limit/);
-assert.match(
-  distributedControls,
-  /data-storehouse-stock-kind="timber" data-storehouse-stock-target="25"[^>]*disabled/,
-);
-assert.match(distributedControls, /90 stored · limit 180 · 90 room/);
-assert.match(distributedControls, /210 stored · limit 210 · limit reached/);
-assert.match(distributedControls, /50 stored · limit 45 · 5 over limit/);
-assert.match(distributedControls, /45 stored · limit 90 · 45 room/);
-assert.match(distributedControls, /108 stored · limit 108 · limit reached/);
-
 const storehouseMesh = createBuildingMesh('village_storehouse');
 const timberBay = storehouseMesh.getObjectByName('StorehouseTimberStockpile');
 const stoneBay = storehouseMesh.getObjectByName('StorehouseStoneStockpile');
@@ -404,20 +372,16 @@ assert.match(buildingSync, /storehouseIronTargetPercent: row\.storehouseIronTarg
 assert.match(buildingSync, /storehouseCharcoalTargetPercent: row\.storehouseCharcoalTargetPercent/);
 assert.match(inspectorActions, /onSetStorehouseStockTarget/);
 assert.match(storehouseInspectorSource, /data-inspector-panel-title="Accepted goods"/);
-assert.match(storehouseInspectorSource, /data-inspector-panel-title="Collection limits"/);
+assert.doesNotMatch(
+  storehouseInspectorSource,
+  /data-inspector-panel-title="Collection limits"|data-storehouse-stock-target|renderStorehouseStockTargetControls/,
+  'Storehouse collection-limit cards and buttons must stay out of the inspector',
+);
 assert.match(
   storehouseInspectorSource,
   /Choose which goods this Storehouse may collect; disabling a good stops new intake but leaves existing stock usable\./,
 );
-assert.match(
-  storehouseInspectorSource,
-  /Fullest producer first · nearest compatible idle depot/,
-);
-assert.match(
-  inspectorSource,
-  /building\.kind === 'village_storehouse'[\s\S]{0,900}data-storehouse-stock-target[\s\S]{0,500}onSetStorehouseStockTarget/,
-  'target buttons must dispatch only from the village-storehouse click branch',
-);
+assert.match(inspectorSource, /onSetStorehouseStockTarget/);
 
 const started = performance.now();
 let checksum = 0;

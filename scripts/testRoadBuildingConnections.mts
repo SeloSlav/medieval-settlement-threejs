@@ -360,6 +360,36 @@ assert(renderedCore?.geometry.getAttribute('position').count > 4);
 assert(renderedBlend?.geometry.getAttribute('position').count > 12);
 assert.equal(renderedCore.userData.fpNoCollision, true);
 assert.equal(renderedBlend.userData.fpNoCollision, true);
+const spurTerminalV = wellPlan.length / 5.8;
+const renderedCoreUvs = renderedCore.geometry.getAttribute('uv');
+let coreExtendsPastBuildingEntrance = false;
+let coreExtendsPastRoadJoin = false;
+for (let index = 0; index < renderedCoreUvs.count; index += 1) {
+  coreExtendsPastBuildingEntrance ||= renderedCoreUvs.getY(index) > spurTerminalV + 1e-6;
+  coreExtendsPastRoadJoin ||= renderedCoreUvs.getY(index) < -1e-6;
+}
+assert(
+  coreExtendsPastBuildingEntrance,
+  'the exposed building end should use a rounded opaque cap instead of a straight cut',
+);
+assert.equal(
+  coreExtendsPastRoadJoin,
+  false,
+  'the road-side join should remain open beneath the main road instead of adding a doubled cap',
+);
+const renderedBlendUvs = renderedBlend.geometry.getAttribute('uv');
+const renderedBlendFade = renderedBlend.geometry.getAttribute('edgeFade');
+let featherExtendsPastBuildingEntrance = false;
+for (let index = 0; index < renderedBlendUvs.count; index += 1) {
+  featherExtendsPastBuildingEntrance ||= (
+    renderedBlendUvs.getY(index) > spurTerminalV + 1e-6
+    && renderedBlendFade.getX(index) === 0
+  );
+}
+assert(
+  featherExtendsPastBuildingEntrance,
+  'the rounded building end should carry the shoulder all the way to zero opacity',
+);
 accessSpurs.sync([connectedWell, disconnectedWell], accessNetwork);
 assert.equal(
   accessSpurs.group.children[0],

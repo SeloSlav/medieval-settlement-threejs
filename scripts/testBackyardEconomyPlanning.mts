@@ -658,6 +658,7 @@ assert.equal(emptyBackyardView.detailsHtml, '');
 function assertCompactBackyardOptions(
   markup: string,
   expectedCostLabel: string,
+  expectedArt?: string,
 ): void {
   const options = [...markup.matchAll(
     /<button\b[^>]*\bbackyard-picker-option[^>]*>([\s\S]*?)<\/button>/g,
@@ -671,6 +672,9 @@ function assertCompactBackyardOptions(
     assert.doesNotMatch(contents, /backyard-picker-option__(?:cost|funding)|resource-cost/);
     assert.match(tag, /data-tooltip="[^"]+"/);
     assert.match(tag, new RegExp(`data-tooltip-cost-label="${expectedCostLabel}"`));
+    if (expectedArt) {
+      assert.match(tag, new RegExp(`data-tooltip-art="${expectedArt.replaceAll('/', '\\/')}"`));
+    }
     const encodedCost = tag.match(/data-tooltip-cost="([^"]+)"/)?.[1] ?? '';
     assert.ok(
       (decodeResourceCostTooltip(encodedCost)?.items.length ?? 0) > 0,
@@ -679,7 +683,11 @@ function assertCompactBackyardOptions(
   }
 }
 
-assertCompactBackyardOptions(emptyBackyardView.supplementalPanelHtml, 'Extension cost');
+assertCompactBackyardOptions(
+  emptyBackyardView.supplementalPanelHtml,
+  'Extension cost',
+  '/assets/ui/build-menu/cards/backyard-extension.webp',
+);
 
 const compactCardContext = {
   gameState: splitState as GameState,

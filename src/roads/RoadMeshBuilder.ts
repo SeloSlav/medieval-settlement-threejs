@@ -216,6 +216,7 @@ export class RoadMeshBuilder {
       width,
       this.materials.road,
       bridgeBlends,
+      { start: false, end: true },
     );
     core.geometry.translate(0, BUILDING_ACCESS_SPUR_Y_LIFT, 0);
     core.name = `Building access spur core ${seed}`;
@@ -230,6 +231,7 @@ export class RoadMeshBuilder {
       ribbonPath,
       width,
       `building-access:${seed}`,
+      { start: false, end: true },
     );
     edgeBlend.geometry.translate(0, BUILDING_ACCESS_SPUR_Y_LIFT, 0);
     edgeBlend.name = `Building access spur blend ${seed}`;

@@ -220,8 +220,8 @@ assert.match(expandedEconomy, /food_claim_count_for_supplier/);
 assert.match(expandedEconomy, /institutional_food_surplus/);
 assert.match(
   expandedEconomy,
-  /for duty in granary_dispatch_order\(granary\.granary_households_first\)/,
-  'the authoritative granary must execute its saved distribution order',
+  /for duty in granary_dispatch_order\(true\)/,
+  'the authoritative granary must use an automatic distribution order instead of its legacy player setting',
 );
 assert.match(
   expandedEconomy,
@@ -319,17 +319,15 @@ assert.match(harvestInspector, /Local food reserve/);
 assert.match(harvestInspector, /central surplus/);
 assert.match(livestockInspector, /Linked pasture herds/);
 assert.doesNotMatch(livestockInspector, /Animal Feed store|Fresh-food store|Preserved store/);
-assert.match(granaryInspector, /Household priority/);
-assert.match(granaryInspector, /data-granary-households-first/);
-assert.match(granaryInspector, /data-granary-households-first="true"/);
-assert.match(granaryInspector, /data-granary-households-first="false"/);
-assert.match(granaryInspector, /New Granaries prioritize household Marketplace stalls by default/);
-assert.doesNotMatch(granaryInspector, /type="checkbox" data-granary-households-first/);
+assert.match(granaryInspector, /Automatic routing/);
+assert.doesNotMatch(
+  granaryInspector,
+  /Household priority|Dispatch priority|Next seed cart|Next grain cart|Next preservation buffer|data-granary-households-first|data-granary-fresh-food-target|data-granary-grain-reserve|data-inspector-panel-title="Protected grain/,
+);
 assert.match(buildingReducers, /granary_households_first: true/);
 assert.match(granaryInspector, /critical company before this working batch/);
 assert.match(granaryInspector, /Smokehouse batch → routine company reserve → enabled granary intake/);
 assert.match(granaryInspector, /Producer-owned carts protect local Marketplace reserves/);
-assert.match(granaryInspector, /data-inspector-panel-title="Protected grain/);
 assert.match(guardhouseInspector, /becomes an emergency claim/);
 assert.match(guardhouseInspector, /None until polearms arm the company/);
 assert.match(

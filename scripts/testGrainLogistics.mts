@@ -853,25 +853,20 @@ assert.match(
   'routine pull-based targets still require assigned labor',
 );
 
-assert.match(expandedInspector, /Central grain reserve/);
-assert.match(expandedInspector, /data-granary-grain-reserve/);
-assert.match(expandedInspector, /Linked farmsteads may draw through the floor/);
+assert.match(expandedInspector, /Automatic routing/);
+assert.doesNotMatch(
+  expandedInspector,
+  /Central grain reserve|data-granary-grain-reserve|Next seed cart|Next grain cart|Next preservation buffer/,
+);
 assert.match(expandedInspector, /Grain working buffer/);
-assert.match(expandedInspector, /edibleFoodStock\(building\) > 0[\s\S]*granaryExportableGrain/);
 assert.match(expandedInspector, /getNextFarmGrainDispatch/);
 assert.match(expandedInspector, /getNextFarmBarleyDispatch/);
 assert.match(expandedInspector, /getNextGranaryGrainDispatch/);
-assert.match(expandedInspector, /seedGrainSourceCoveragePlan/);
-assert.match(expandedInspector, /Next seed cart/);
-assert.match(expandedInspector, /least-covered eligible holding goes first/);
 assert.match(expandedInspector, /Waiting for an assigned granary hauler/);
-assert.match(expandedInspector, /Next grain cart/);
 assert.doesNotMatch(expandedInspector, /staffingPriorityLabel|processor work priority/);
 assert.match(expandedInspector, /getNextDirectProcessorInputDispatch/);
 assert.match(expandedInspector, /central flour reserve after active bakery buffers/);
 assert.match(expandedInspector, /emergency overflow because no granary can receive flour/);
-assert.match(expandedInspector, /Next preservation buffer/);
-assert.match(expandedInspector, /critical, preempts food cart/);
 assert.match(expandedInspector, /Spring crop labor/);
 assert.match(expandedInspector, /Seed grain/);
 assert.match(expandedInspector, /Barley seed/);

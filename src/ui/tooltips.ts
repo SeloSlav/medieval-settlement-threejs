@@ -121,6 +121,7 @@ export function mountTooltips(root: HTMLElement): () => void {
         'data-tooltip-cost',
         'data-tooltip-cost-label',
         'data-tooltip-cost-affordable',
+        'data-tooltip-art',
         'data-tooltip-placement',
         'data-tooltip-variant',
         'data-tooltip-season',
@@ -307,6 +308,10 @@ function renderTooltipContent(
     ? readSeasonTooltipItems(body)
     : [];
   tooltip.classList.toggle('ui-tooltip--season-almanac', seasonItems.length > 0);
+  const artSource = seasonItems.length === 0
+    ? anchor.dataset.tooltipArt?.trim() ?? ''
+    : '';
+  tooltip.classList.toggle('has-art', artSource.length > 0);
   if (seasonItems.length > 0) {
     renderSeasonAlmanacTooltip(
       tooltip,
@@ -318,6 +323,22 @@ function renderTooltipContent(
   }
 
   const fragment = document.createDocumentFragment();
+  if (artSource) {
+    const art = document.createElement('img');
+    art.className = 'ui-tooltip__art';
+    art.src = artSource;
+    art.alt = '';
+    art.width = 320;
+    art.height = 480;
+    art.decoding = 'async';
+    art.draggable = false;
+    art.addEventListener('error', () => {
+      art.remove();
+      tooltip.classList.remove('has-art');
+      positionTooltip(anchor, tooltip);
+    }, { once: true });
+    fragment.appendChild(art);
+  }
   if (title) {
     const titleElement = document.createElement('strong');
     titleElement.className = 'ui-tooltip__title';

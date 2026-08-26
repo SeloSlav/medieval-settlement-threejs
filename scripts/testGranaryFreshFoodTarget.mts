@@ -76,31 +76,20 @@ assert.equal(granaryFreshFoodTarget(Number.NaN, 75), 0);
 const defaultPanel = renderGranaryPolicyPanel(makeGranary());
 assert.equal(
   (defaultPanel.match(/class="inspector-action-panel"/g) ?? []).length,
-  4,
-  'granary choices must render as four separate policy cards',
+  1,
+  'the Granary inspector should expose only its accepted-goods controls',
 );
 assert.match(defaultPanel, /data-inspector-panel-title="Accepted goods"/);
 assert.match(defaultPanel, /Choose which goods this Granary may collect; disabling a good stops new intake but leaves existing stock usable\./);
-assert.match(defaultPanel, /data-inspector-panel-title="Delivery order · Households first"/);
-assert.match(defaultPanel, /data-granary-households-first="true" aria-pressed="true" disabled>Households first<\/button>/);
-assert.match(defaultPanel, /data-granary-households-first="false" aria-pressed="false" >Smokehouses first<\/button>/);
-assert.match(defaultPanel, /New Granaries prioritize household Marketplace stalls by default/);
-assert.match(defaultPanel, /data-inspector-panel-title="Fresh-food limit · 255"/);
-assert.match(defaultPanel, /data-inspector-panel-title="Protected grain · 0"/);
-assert.doesNotMatch(defaultPanel, /type="checkbox"[^>]*data-granary-households-first/);
-assert.doesNotMatch(defaultPanel, /Cured provisions retain best in their smokehouse loft/);
-assert.match(
+assert.doesNotMatch(
   defaultPanel,
-  /data-granary-fresh-food-target="75"[^>]*disabled/,
-  'missing saves must render the legacy 75% policy as selected',
+  /Delivery order|Fresh-food limit|Protected grain|data-granary-households-first|data-granary-fresh-food-target|data-granary-grain-reserve/,
+  'automatic Granary policy must not render manual priority, intake-limit, or reserve controls',
 );
-assert.match(defaultPanel, /Collect up to 255 fresh food \(75% of 340 capacity\); outgoing carts can still use it\./);
-assert.match(defaultPanel, /data-granary-fresh-food-target="75" aria-pressed="true"/);
 const smokehouseFirstPanel = renderGranaryPolicyPanel(makeGranary({
   granaryHouseholdsFirst: false,
 }));
-assert.match(smokehouseFirstPanel, /data-inspector-panel-title="Delivery order · Smokehouses first"/);
-assert.match(smokehouseFirstPanel, /data-granary-households-first="false" aria-pressed="true" disabled>Smokehouses first<\/button>/);
+assert.equal(smokehouseFirstPanel, defaultPanel);
 const localOnlyPanel = renderGranaryPolicyPanel(makeGranary({
   granaryAcceptsFreshFood: false,
 }));
@@ -113,9 +102,7 @@ assert.match(localOnlyPanel, /disabling a good stops new intake but leaves exist
 const deepReservePanel = renderGranaryPolicyPanel(makeGranary({
   granaryFreshFoodTargetPercent: 90,
 }));
-assert.match(deepReservePanel, /data-granary-fresh-food-target="90"[^>]*disabled/);
-assert.match(deepReservePanel, /data-inspector-panel-title="Fresh-food limit · 306"/);
-assert.match(deepReservePanel, /retaining headroom for incoming harvest carts/);
+assert.equal(deepReservePanel, defaultPanel);
 
 const tableSource = readFileSync('server/src/tables.rs', 'utf8');
 const serverPolicySource = readFileSync('server/src/granary_policy.rs', 'utf8');
@@ -169,11 +156,7 @@ assert.match(
   /granaryHouseholdsFirst: true/,
   'the local placement fallback must use the same household-first default',
 );
-assert.match(
-  inspectorSource,
-  /building\.kind === 'granary'[\s\S]{0,1400}data-granary-fresh-food-target[\s\S]{0,400}onSetGranaryFreshFoodTarget/,
-  'the intake buttons must dispatch only from the granary click branch',
-);
+assert.doesNotMatch(defaultPanel, /data-granary-fresh-food-target/);
 
 const started = performance.now();
 let checksum = 0;

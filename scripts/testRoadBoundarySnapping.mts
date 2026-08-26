@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import * as THREE from 'three';
 import {
   ROAD_BOUNDARY_CENTERLINE_OFFSET,
+  buildRoadBoundaryToRoadPath,
   buildRoadBoundaryPath,
   findRoadBoundarySnap,
 } from '../src/roads/RoadBoundarySnap.ts';
@@ -54,7 +56,83 @@ for (const point of turn.slice(southTangentIndex, eastTangentIndex + 1)) {
 
 const north = findRoadBoundarySnap({ x: 20, z: 20.3 }, [zone]);
 assert(north);
-assert.equal(buildRoadBoundaryPath(south, north), null, 'opposite edges should not choose a route for the player');
+const oppositeRoute = buildRoadBoundaryPath(south, north);
+assert(oppositeRoute, 'opposite edges should follow the shorter outside perimeter');
+
+// Screenshot regression: clicking near both rear corners often classifies the
+// two anchors against the opposing side edges. The route must still recognize
+// that the rear perimeter is much shorter than the frontage-side alternative.
+const westNearSouth = findRoadBoundarySnap({ x: -0.4, z: 2 }, [zone]);
+const eastNearSouth = findRoadBoundarySnap({ x: 40.4, z: 2 }, [zone]);
+assert(westNearSouth);
+assert(eastNearSouth);
+assert.equal(westNearSouth.edgeIndex, 3);
+assert.equal(eastNearSouth.edgeIndex, 1);
+const rearWrap = buildRoadBoundaryPath(westNearSouth, eastNearSouth);
+assert(rearWrap);
+assert(
+  rearWrap.some((point) => Math.abs(point.x - 20) < 2.2 && Math.abs(point.z + offset) < 1e-9),
+  'opposing side snaps near the rear must route along the rear boundary rail',
+);
+
+const sampledRearWrap = new THREE.CatmullRomCurve3(
+  rearWrap.map((point) => new THREE.Vector3(point.x, 0, point.z)),
+  false,
+  'centripetal',
+  0.45,
+);
+for (let index = 0; index <= 320; index += 1) {
+  const point = sampledRearWrap.getPoint(index / 320);
+  if (point.x < 5 || point.x > 35) continue;
+  assert(
+    Math.abs(point.z + offset) < 0.08,
+    `the sampled rear run bowed away from its rail at ${point.x}, ${point.z}`,
+  );
+}
+
+// Boundary-to-road regression: a node on the road-facing side must not pull a
+// free diagonal across the residence block. Follow the parallel side rail and
+// make only the short final handoff into the existing road node.
+const northWest = findRoadBoundarySnap({ x: 4, z: 20.4 }, [zone]);
+assert(northWest);
+const eastRoadNode = {
+  point: { x: 45, z: 7 },
+  tangents: [{ x: 0, z: 1 }],
+};
+const roadHandoff = buildRoadBoundaryToRoadPath(northWest, eastRoadNode);
+assert(roadHandoff);
+assert(
+  roadHandoff.some((point) => (
+    Math.abs(point.x - (40 + offset)) < 1e-9
+    && point.z > 10
+    && point.z < 19
+  )),
+  'the road handoff should turn onto the residence side parallel to the road',
+);
+assert.deepEqual(roadHandoff.at(-1), eastRoadNode.point);
+const firstEastRailIndex = roadHandoff.findIndex((point) => (
+  Math.abs(point.x - (40 + offset)) < 1e-9
+));
+assert(firstEastRailIndex > 0);
+assert(
+  roadHandoff.slice(0, firstEastRailIndex).every((point) => point.z >= 20 - 1e-9),
+  'the approach should stay on the north residence border before the right-angle turn',
+);
+const sampledRoadHandoff = new THREE.CatmullRomCurve3(
+  roadHandoff.map((point) => new THREE.Vector3(point.x, 0, point.z)),
+  false,
+  'centripetal',
+  0.45,
+);
+for (let index = 0; index <= 320; index += 1) {
+  const point = sampledRoadHandoff.getPoint(index / 320);
+  if (point.x >= 6 && point.x <= 34) {
+    assert(point.z >= 21.95, 'the sampled handoff cut diagonally across the residence block');
+  }
+  if (point.z >= 9 && point.z <= 17) {
+    assert(point.x >= 41.95, 'the sampled handoff left the road-parallel side rail');
+  }
+}
 
 const clockwiseZone = makeZone('clockwise', [
   { x: 0, z: 0 },

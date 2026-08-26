@@ -35,7 +35,6 @@ import {
 } from '../../economy/carpenterSupport.ts';
 import { roadDeliveryTripSeconds } from '../../logistics/deliveryLogistics.ts';
 import {
-  granaryDispatchPriorityLabel,
   institutionalFoodDutyLabel,
   institutionalFoodSurplus,
 } from '../../logistics/foodLogistics.ts';
@@ -107,13 +106,7 @@ import {
   preservedFoodStock,
 } from '../../economy/foodInventory.ts';
 import {
-  GRANARY_FRESH_FOOD_TARGET_PRESETS,
-  GRANARY_GRAIN_RESERVE_PRESETS,
   granaryExportableGrain,
-  granaryFreshFoodTarget,
-  granaryReserveLabel,
-  normalizeGranaryFreshFoodTargetPercent,
-  normalizeGranaryGrainReserve,
 } from '../../economy/granaryPolicy.ts';
 import {
   GRANARY_STORAGE_GROUPS,
@@ -136,7 +129,6 @@ import {
 } from '../../farming/threshingPriority.ts';
 import { cropLabel } from '../../farming/farmFieldMath.ts';
 import {
-  seedGrainSourceCoveragePlan,
   type SeedGrainSourceCoveragePlan,
 } from '../../economy/marketplaceSeedCoverage.ts';
 import { computeCattleFieldSupport } from '../../farming/cattleFieldSupport.ts';
@@ -598,9 +590,7 @@ function outboundTripTarget(
       )
       : null;
     const householdTarget = householdFoodTarget ?? curedHouseholdTarget;
-    const foodTarget = building.granaryHouseholdsFirst === true
-      ? householdTarget ?? preservationTarget
-      : preservationTarget ?? householdTarget;
+    const foodTarget = householdTarget ?? preservationTarget;
     if (foodTarget) return foodTarget;
     return grainDispatch?.target ?? null;
   }
@@ -870,43 +860,6 @@ function renderLogisticsRows(
   return `${householdTerritoryRows}<li><span>Deliveries</span><span>Ready — awaiting cargo or destination</span></li>`;
 }
 
-function formatGranarySeedCart(
-  plan: SeedGrainSourceCoveragePlan | null,
-  building: BuildingState,
-  context: InspectorRenderContext,
-): string {
-  if (plan === null) return 'No seed forecast';
-  if (!plan.sourceOperational) return 'Blocked while this granary is fire-disabled';
-  if (plan.sourceBusy) {
-    return 'Cart occupied &middot; least-covered holding recalculates when it returns';
-  }
-  if (plan.nextDispatchBuildingId === null) {
-    if (plan.inboundBlockedHoldings > 0) {
-      return `${plan.inboundBlockedHoldings} short holding${plan.inboundBlockedHoldings === 1 ? '' : 's'} already receiving grain &middot; no duplicate cart`;
-    }
-    if (plan.laborBlockedHoldings > 0) {
-      return `${plan.laborBlockedHoldings} short holding${plan.laborBlockedHoldings === 1 ? '' : 's'} blocked by missing farm labor`;
-    }
-    if (plan.fireBlockedHoldings > 0) {
-      return `${plan.fireBlockedHoldings} short holding${plan.fireBlockedHoldings === 1 ? '' : 's'} blocked by fire`;
-    }
-    if (plan.connectedHoldings <= 0) return 'No active field claim on this road branch';
-    if (plan.seedShortfall <= 0.05) return 'Reachable field claims covered';
-    return 'No safe staffed road-reachable holding eligible';
-  }
-  const inspect = `<button type="button" class="inspector-jump-button" data-inspect-building="${plan.nextDispatchBuildingId}" aria-label="Inspect next granary seed-cart holding">Inspect holding</button>`;
-  const distance = plan.nextDispatchDistance === null
-    ? ''
-    : ` &middot; ${plan.nextDispatchDistance.toFixed(0)} m road`;
-  if (breadGrainStock(building) <= 0.05 || plan.nextDispatchAmount <= 0.05) {
-    return `Awaiting physical grain &middot; next holding ${Math.round(plan.nextDispatchStock)} / ${Math.ceil(plan.nextDispatchRequired)} onsite${distance} ${inspect}`;
-  }
-  const collection = building.assignedLabor <= 0
-    ? ' &middot; waiting for an assigned granary hauler'
-    : '';
-  return `${Math.round(plan.nextDispatchAmount)} grain &rarr; ${context.worldQueries.getBuildingLabel('threshing_barn')} at ${Math.round(plan.nextDispatchStock)} / ${Math.ceil(plan.nextDispatchRequired)} onsite${distance}${collection} ${inspect}`;
-}
-
 function renderCivicReceiptRows(
   building: BuildingState,
   context: InspectorRenderContext,
@@ -1027,19 +980,9 @@ export function renderExpandedBuildingInspector(
             }
     : null;
   const fallbackActive = definition.acceptsLabor ? building.assignedLabor > 0 : true;
-  const granarySeedPlan = building.kind === 'granary'
-    ? seedGrainSourceCoveragePlan(
-        building,
-        context.gameState,
-        (_source, farmstead) => context.worldQueries.getRoadPathDistance(
-          building.x,
-          building.z,
-          farmstead.x,
-          farmstead.z,
-        ),
-      )
-    : null;
-  const logisticsRows = renderLogisticsRows(building, context, granarySeedPlan);
+  const logisticsRows = building.kind === 'granary'
+    ? ''
+    : renderLogisticsRows(building, context);
   const clock = gameClock(context.gameState.tick);
   const environment = environmentFor(
     context.gameState.seed,
@@ -1265,78 +1208,6 @@ export function renderExpandedBuildingInspector(
         { held: 'Secular levy held', collection: 'Levy collection' },
       )
     : '';
-  const granaryGrainDispatch = building.kind === 'granary'
-    ? context.worldQueries.getNextGranaryGrainDispatch(building)
-    : null;
-  const granaryGuardFoodDispatch = building.kind === 'granary' && context.conflictEnabled
-    ? context.worldQueries.getNextGranaryGuardFoodDispatch(building)
-    : null;
-  const granaryInstitutionalFood = building.kind === 'granary'
-    ? institutionalFoodSurplus(
-        edibleFoodStock(building),
-        context.worldQueries.getClaimedResidencesForFoodSupplier(building).length,
-        buildingStorageCaps('granary').food ?? 0,
-      )
-    : 0;
-  const granaryPreservationDispatch = building.kind === 'granary'
-    ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'food')
-    : null;
-  const granaryPreservationDispatchLabel = building.kind === 'granary'
-    ? granaryInstitutionalFood <= 1e-6
-      ? edibleFoodStock(building) > 1e-6
-        ? 'Household reserve holds current fresh food'
-        : 'No fresh food available'
-      : granaryPreservationDispatch
-        ? granaryPreservationDispatch.duty === 'working-buffer'
-          ? `${context.worldQueries.getBuildingLabel(granaryPreservationDispatch.target.kind)} · ${Math.round(preservableFoodStock(granaryPreservationDispatch.target))} / ${Math.ceil(granaryPreservationDispatch.desiredStock)} preservable food`
-          : `${context.worldQueries.getBuildingLabel(granaryPreservationDispatch.target.kind)} · active buffers covered · nearest overflow route`
-        : 'No smokehouse can currently receive fresh food'
-    : '';
-  const granaryExportableStock = building.kind === 'granary'
-    ? granaryExportableGrain(
-        breadGrainStock(building),
-        building.granaryGrainReserve ?? 0,
-      )
-    : 0;
-  const granaryFoodTargetPercent = building.kind === 'granary'
-    ? normalizeGranaryFreshFoodTargetPercent(building.granaryFreshFoodTargetPercent)
-    : 75;
-  const granaryFoodTarget = building.kind === 'granary'
-    ? granaryFreshFoodTarget(
-        buildingStorageCaps('granary').food ?? 0,
-        granaryFoodTargetPercent,
-      )
-    : 0;
-  const granaryGrainDispatchLabel = building.kind === 'granary'
-    ? granaryGrainDispatch
-      ? `${context.worldQueries.getBuildingLabel(granaryGrainDispatch.target.kind)} · ${Math.round(Math.max(0, granaryGrainDispatch.target[granaryGrainDispatch.commodity] ?? 0))} / ${Math.ceil(granaryGrainDispatch.desiredStock)} ${granaryGrainDispatch.commodity.replace(/([A-Z])/g, ' $1').toLowerCase()} · ${granaryGrainDispatch.runwayCycles.toFixed(1)} cycles${
-          granaryGrainDispatch.runwayCycles < GRAIN_CRITICAL_RUNWAY_CYCLES
-            ? ' · critical, preempts food cart'
-            : ' · after available food duty'
-        }`
-      : building.assignedLabor <= 0
-        ? 'Waiting for an assigned granary hauler'
-        : granaryExportableStock <= 1e-6
-          ? breadGrainStock(building) > 1e-6
-            ? 'Strategic floor holds current grain'
-            : 'No exportable grain'
-          : 'No staffed road-linked processor below buffer'
-    : '';
-  const granaryGuardFoodDispatchLabel = building.kind === 'granary' && context.conflictEnabled
-    ? granaryGuardFoodDispatch
-      ? `${context.worldQueries.getBuildingLabel(granaryGuardFoodDispatch.target.kind)} · ${Math.round(edibleFoodStock(granaryGuardFoodDispatch.target))} / ${Math.ceil(granaryGuardFoodDispatch.desiredStock)} · ${granaryGuardFoodDispatch.runwayDays.toFixed(1)} days`
-      : building.assignedLabor <= 0
-        ? 'Waiting for an assigned granary hauler'
-        : granaryInstitutionalFood <= 1e-6
-          ? edibleFoodStock(building) > 1e-6
-            ? 'Household reserve holds current food'
-            : 'No food available'
-          : `No armed company below ${GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS}-day emergency floor`
-    : '';
-  const granaryMilitaryRows = building.kind === 'granary' && context.conflictEnabled
-    ? `<li><span>Next guard cart</span><span>${granaryGuardFoodDispatchLabel}</span></li>
-      <li><span>Emergency arbitration</span><span>Guard under ${GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS} days vs priority-selected processor under ${GRAIN_CRITICAL_RUNWAY_CYCLES} cycle · lower relative runway first</span></li>`
-    : '';
   const preservedStorageCapacity =
     buildingStorageCaps(building.kind).preservedFood ?? 0;
   const preservedStorageFactor =
@@ -1352,15 +1223,7 @@ export function renderExpandedBuildingInspector(
     : '';
   const granaryRows = building.kind === 'granary'
     ? `<li><span>Labor roles</span><span>${building.assignedLabor} assigned food keeper${building.assignedLabor === 1 ? '' : 's'} and handcart hauler${building.assignedLabor === 1 ? '' : 's'} · no baking work</span></li>
-      <li><span>Central grain reserve</span><span>${granaryReserveLabel(building)}</span></li>
-      <li><span>Seed exception</span><span>Linked farmsteads may draw through the floor; least-covered eligible holding goes first</span></li>
-      <li><span>Next seed cart</span><span>${formatGranarySeedCart(granarySeedPlan, building, context)}</span></li>
-      <li><span>Next grain cart</span><span>${granaryGrainDispatchLabel}</span></li>
-      ${granaryMilitaryRows}
-      <li><span>Fresh-food intake</span><span>${building.granaryAcceptsFreshFood === false ? `Local delivery only · ${granaryFoodTargetPercent}% target retained` : `Centralize to ${granaryFoodTargetPercent}% capacity · ${granaryFoodTarget.toFixed(0)} food`}</span></li>
-      <li><span>Dispatch priority</span><span>${granaryDispatchPriorityLabel(building.granaryHouseholdsFirst === true)}</span></li>
-      <li><span>Next preservation buffer</span><span>${granaryPreservationDispatchLabel}</span></li>
-      <li><span>Household priority</span><span>Protect one market-allocation batch per claimed home · capped at 50% source storage</span></li>
+      <li><span>Automatic routing</span><span>Critical shortages, stock runway, road distance, and stable ties choose every cart destination</span></li>
       <li><span>Sheltered storage</span><span>${Math.round((1 - FRESH_FOOD_STORAGE_GRANARY_FACTOR) * 100)}% less spoilage · ${formatFreshFoodLoss(freshFoodStock(building) * environment.freshFoodSpoilageFractionPerDay * FRESH_FOOD_STORAGE_GRANARY_FACTOR)}</span></li>`
     : '';
   const processorGrainKind = dominantBreadGrainKind(building);
@@ -1768,49 +1631,10 @@ function renderFarmsteadPlanning(
 }
 
 export function renderGranaryPolicyPanel(building: BuildingState): string {
-  const householdsFirst = building.granaryHouseholdsFirst === true;
-  const grainReserve = normalizeGranaryGrainReserve(building.granaryGrainReserve ?? 0);
-  const freshFoodTargetPercent = normalizeGranaryFreshFoodTargetPercent(
-    building.granaryFreshFoodTargetPercent,
-  );
-  const freshFoodCapacity = buildingStorageCaps('granary').food ?? 0;
-  const freshFoodTarget = granaryFreshFoodTarget(
-    freshFoodCapacity,
-    freshFoodTargetPercent,
-  );
-  const deliveryPriority = householdsFirst ? 'Households first' : 'Smokehouses first';
   return `
     <div class="inspector-action-panel" data-inspector-panel-title="Accepted goods">
       <p class="inspector-action-panel__hint">Choose which goods this Granary may collect; disabling a good stops new intake but leaves existing stock usable.</p>
       ${renderStorageAcceptanceControls(building, GRANARY_STORAGE_GROUPS)}
-    </div>
-    <div class="inspector-action-panel" data-inspector-panel-title="Delivery order · ${deliveryPriority}">
-      <p class="inspector-action-panel__hint">Choose which shortage receives the first eligible cart. New Granaries prioritize household Marketplace stalls by default; if that destination has no shortage, delivery falls through to the other.</p>
-      <div class="resource-action-row granary-delivery-order" role="group" aria-label="Granary delivery order">
-        <button type="button" class="resource-action-button${householdsFirst ? ' is-selected' : ''}" data-granary-households-first="true" aria-pressed="${householdsFirst}" ${householdsFirst ? 'disabled' : ''}>Households first</button>
-        <button type="button" class="resource-action-button${householdsFirst ? '' : ' is-selected'}" data-granary-households-first="false" aria-pressed="${!householdsFirst}" ${householdsFirst ? '' : 'disabled'}>Smokehouses first</button>
-      </div>
-    </div>
-    <div class="inspector-action-panel" data-inspector-panel-title="Fresh-food limit · ${freshFoodTarget.toFixed(0)}">
-      <p class="inspector-action-panel__hint">Collect up to ${freshFoodTarget.toFixed(0)} fresh food (${freshFoodTargetPercent}% of ${freshFoodCapacity.toFixed(0)} capacity); outgoing carts can still use it.</p>
-      <div class="resource-action-row">${GRANARY_FRESH_FOOD_TARGET_PRESETS
-        .map((preset) => {
-          const selected = freshFoodTargetPercent === preset.percent;
-          return `<button type="button" class="resource-action-button${selected ? ' is-selected' : ''}" data-granary-fresh-food-target="${preset.percent}" aria-pressed="${selected}" title="${preset.hint}" ${selected ? 'disabled' : ''}>${preset.percent}% · ${preset.label}</button>`;
-        })
-        .join('')}</div>
-    </div>
-    <div class="inspector-action-panel" data-inspector-panel-title="Protected grain · ${grainReserve}">
-      <p class="inspector-action-panel__hint">Reserve this grain for linked farms; mills, monasteries, and foreign trade can use only the rest.</p>
-      <div class="resource-action-row">${GRANARY_GRAIN_RESERVE_PRESETS
-        .map((preset) => {
-          const selected = grainReserve === preset.reserve;
-          const title = preset.reserve === 0
-            ? 'Do not protect grain from processors or trade.'
-            : `Protect ${preset.reserve} grain for linked farms.`;
-          return `<button type="button" class="resource-action-button${selected ? ' is-selected' : ''}" data-granary-grain-reserve="${preset.reserve}" aria-pressed="${selected}" title="${title}" ${selected ? 'disabled' : ''}>${preset.reserve} · ${preset.label}</button>`;
-        })
-        .join('')}</div>
     </div>
   `;
 }

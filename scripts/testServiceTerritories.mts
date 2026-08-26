@@ -209,9 +209,9 @@ assert.match(
 assert.doesNotMatch(upgrades, /PRESERVED_FOOD_PRODUCER_KINDS/);
 assert.doesNotMatch(upgrades, /"smokehouse",\s*"granary",\s*"monastery"/);
 const storehouseInspector = fs.readFileSync('src/resources/inspector/storehouseRenderer.ts', 'utf8');
-assert.match(storehouseInspector, /Duty priority/);
 assert.match(storehouseInspector, /Fuel territory/);
-assert.match(storehouseInspector, /winter fuel floor/);
+assert.match(storehouseInspector, /Marketplace fuel reserve ready/);
+assert.doesNotMatch(storehouseInspector, /Duty priority|Next fuel delivery|Collection ceilings/);
 const residenceInspector = fs.readFileSync('src/resources/inspector/residenceRenderer.ts', 'utf8');
 assert.match(residenceInspector, /Heating supplier/);
 assert.match(residenceInspector, /Connected Marketplace checks/);

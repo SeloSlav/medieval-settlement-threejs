@@ -15,9 +15,14 @@ export const ROAD_BOUNDARY_CENTERLINE_OFFSET = ROAD_WIDTH * 0.5;
 /** Collinear controls keep Catmull-Rom smoothing flat along long plot edges. */
 export const ROAD_BOUNDARY_SUPPORT_SPACING = 4.25;
 
+/** Maximum gap bridged from a parallel residence rail into a snapped road. */
+export const ROAD_BOUNDARY_ROAD_HANDOFF_DISTANCE = 14;
+
 const SHARED_EDGE_QUANTIZATION = 0.05;
 const MIN_EDGE_LENGTH = 1e-5;
 const CORNER_ARC_CONTROL_SPACING = 1.1;
+const THREE_DEGREES_30 = Math.PI / 6;
+const ROAD_PARALLEL_ALIGNMENT_COSINE = Math.cos(THREE_DEGREES_30);
 
 export type RoadBoundarySnap = {
   zoneId: string;
@@ -27,6 +32,11 @@ export type RoadBoundarySnap = {
   corners: readonly Point2[];
   outwardNormals: readonly Point2[];
   offset: number;
+};
+
+export type RoadAlignmentTarget = {
+  point: Point2;
+  tangents: readonly Point2[];
 };
 
 type BoundaryEdge = {
@@ -82,9 +92,10 @@ export function findRoadBoundarySnap(
 
 /**
  * Expand two snaps on the same perimeter into spline controls. Same-edge runs
- * receive collinear supports; adjacent edges receive a short constant-radius
- * turn around their shared plot corner. Opposite or unrelated edges are left
- * to the player's authored straight segment.
+ * receive collinear supports. Different edges follow the shorter of the two
+ * outside perimeter routes, with constant-radius controls around every crossed
+ * corner. This matters when a click near either end of a rear boundary is
+ * classified against the adjoining side edge rather than the rear edge itself.
  */
 export function buildRoadBoundaryPath(
   start: RoadBoundarySnap,
@@ -97,24 +108,118 @@ export function buildRoadBoundaryPath(
     return subdividePolylineSegment(start.point, end.point, supportSpacing);
   }
 
+  const forward = buildDirectionalBoundaryPath(start, end, 1, supportSpacing);
+  const backward = buildDirectionalBoundaryPath(start, end, -1, supportSpacing);
+  if (!forward) return backward;
+  if (!backward) return forward;
+  return polylineLength(forward) <= polylineLength(backward) ? forward : backward;
+}
+
+/**
+ * Route a boundary-snapped road into an existing road snap without cutting
+ * diagonally across the residence block. The handoff selects a nearby plot
+ * edge parallel to the snapped road, follows the shorter outside perimeter to
+ * it, then makes only the final short connection into the road point.
+ */
+export function buildRoadBoundaryToRoadPath(
+  start: RoadBoundarySnap,
+  target: RoadAlignmentTarget,
+  supportSpacing = ROAD_BOUNDARY_SUPPORT_SPACING,
+  maxHandoffDistance = ROAD_BOUNDARY_ROAD_HANDOFF_DISTANCE,
+): Point2[] | null {
   const edgeCount = start.corners.length;
-  const forward = end.edgeIndex === (start.edgeIndex + 1) % edgeCount;
-  const backward = start.edgeIndex === (end.edgeIndex + 1) % edgeCount;
-  if (!forward && !backward) return null;
+  if (edgeCount < 3 || start.outwardNormals.length !== edgeCount) return null;
+  const tangents = target.tangents
+    .map(normalizePoint)
+    .filter((tangent) => Math.hypot(tangent.x, tangent.z) > MIN_EDGE_LENGTH);
+  if (tangents.length === 0) return null;
 
-  const cornerIndex = forward ? end.edgeIndex : start.edgeIndex;
-  const corner = start.corners[cornerIndex];
-  const startNormal = start.outwardNormals[start.edgeIndex];
-  const endNormal = start.outwardNormals[end.edgeIndex];
-  if (!corner || !startNormal || !endNormal) return null;
+  let best: { path: Point2[]; score: number } | null = null;
+  for (let edgeIndex = 0; edgeIndex < edgeCount; edgeIndex += 1) {
+    const edgeStart = start.corners[edgeIndex];
+    const edgeEnd = start.corners[(edgeIndex + 1) % edgeCount];
+    const normal = start.outwardNormals[edgeIndex];
+    if (!edgeStart || !edgeEnd || !normal) continue;
+    const edgeDirection = normalizePoint({
+      x: edgeEnd.x - edgeStart.x,
+      z: edgeEnd.z - edgeStart.z,
+    });
+    const alignment = tangents.reduce(
+      (maximum, tangent) => Math.max(maximum, Math.abs(
+        edgeDirection.x * tangent.x + edgeDirection.z * tangent.z
+      )),
+      0,
+    );
+    if (alignment < ROAD_PARALLEL_ALIGNMENT_COSINE) continue;
 
+    const railStart = addScaled(edgeStart, normal, start.offset);
+    const railEnd = addScaled(edgeEnd, normal, start.offset);
+    const handoffPoint = closestPointOnSegment(target.point, railStart, railEnd);
+    const handoffDistance = Math.hypot(
+      handoffPoint.x - target.point.x,
+      handoffPoint.z - target.point.z,
+    );
+    if (handoffDistance > Math.max(0, maxHandoffDistance)) continue;
+
+    const handoffSnap: RoadBoundarySnap = {
+      ...start,
+      edgeIndex,
+      point: handoffPoint,
+      distance: handoffDistance,
+    };
+    const path = buildRoadBoundaryPath(start, handoffSnap, supportSpacing);
+    if (!path) continue;
+    appendSubdividedSegment(
+      path,
+      path[path.length - 1],
+      target.point,
+      supportSpacing,
+    );
+    const score = polylineLength(path) + (1 - alignment) * 8;
+    if (!best || score < best.score) best = { path, score };
+  }
+  return best?.path ?? null;
+}
+
+function buildDirectionalBoundaryPath(
+  start: RoadBoundarySnap,
+  end: RoadBoundarySnap,
+  direction: 1 | -1,
+  supportSpacing: number,
+): Point2[] | null {
+  const edgeCount = start.corners.length;
+  if (start.outwardNormals.length !== edgeCount) return null;
   const radius = Math.max(0, Math.min(start.offset, end.offset));
   if (radius <= MIN_EDGE_LENGTH) return null;
-  const arcStart = addScaled(corner, startNormal, radius);
-  const arcEnd = addScaled(corner, endNormal, radius);
-  const result = subdividePolylineSegment(start.point, arcStart, supportSpacing);
-  appendCornerArc(result, corner, startNormal, endNormal, radius);
-  appendSubdividedSegment(result, arcEnd, end.point, supportSpacing);
+
+  const result: Point2[] = [{ ...start.point }];
+  let edgeIndex = start.edgeIndex;
+  for (let step = 0; step < edgeCount && edgeIndex !== end.edgeIndex; step += 1) {
+    const nextEdgeIndex = modulo(edgeIndex + direction, edgeCount);
+    const cornerIndex = direction > 0 ? nextEdgeIndex : edgeIndex;
+    const corner = start.corners[cornerIndex];
+    const currentNormal = start.outwardNormals[edgeIndex];
+    const nextNormal = start.outwardNormals[nextEdgeIndex];
+    if (!corner || !currentNormal || !nextNormal) return null;
+
+    const currentTangent = addScaled(corner, currentNormal, radius);
+    appendSubdividedSegment(
+      result,
+      result[result.length - 1],
+      currentTangent,
+      supportSpacing,
+    );
+    appendCornerArc(result, corner, currentNormal, nextNormal, radius);
+    edgeIndex = nextEdgeIndex;
+  }
+
+  if (edgeIndex !== end.edgeIndex) return null;
+  appendSubdividedSegment(
+    result,
+    result[result.length - 1],
+    end.point,
+    supportSpacing,
+  );
   return result;
 }
 
@@ -224,6 +329,12 @@ function addScaled(point: Point2, direction: Point2, scale: number): Point2 {
   };
 }
 
+function normalizePoint(point: Point2): Point2 {
+  const length = Math.hypot(point.x, point.z);
+  if (length <= MIN_EDGE_LENGTH) return { x: 0, z: 0 };
+  return { x: point.x / length, z: point.z / length };
+}
+
 function closestPointOnSegment(point: Point2, start: Point2, end: Point2): Point2 {
   const dx = end.x - start.x;
   const dz = end.z - start.z;
@@ -243,6 +354,21 @@ function signedArea(points: readonly Point2[]): number {
     area += points[index].x * next.z - next.x * points[index].z;
   }
   return area * 0.5;
+}
+
+function polylineLength(points: readonly Point2[]): number {
+  let length = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    length += Math.hypot(
+      points[index].x - points[index - 1].x,
+      points[index].z - points[index - 1].z,
+    );
+  }
+  return length;
+}
+
+function modulo(value: number, divisor: number): number {
+  return ((value % divisor) + divisor) % divisor;
 }
 
 function undirectedEdgeKey(start: Point2, end: Point2): string {

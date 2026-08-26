@@ -76,6 +76,9 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   swineherd: '/assets/ui/build-menu/cards/swineherd.webp',
 };
 
+/** Card-language artwork reserved for the residence inspector, not the build palette. */
+export const BACKYARD_EXTENSION_CARD_ART = '/assets/ui/build-menu/cards/backyard-extension.webp';
+
 type BuildCardResourceFlow = readonly [
   inputs: readonly ResourceCostKind[],
   outputs: readonly ResourceCostKind[],

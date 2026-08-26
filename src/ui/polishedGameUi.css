@@ -2159,11 +2159,6 @@ select:focus-visible {
   line-height: 1.18;
 }
 
-.resource-inspector-panel[data-inspector-target='building'] .resource-inspector-status {
-  max-height: 2.65em;
-  overflow: hidden;
-}
-
 .resource-inspector-panel[data-inspector-target='building'] .resource-inspector-status[data-tooltip],
 .resource-inspector-panel[data-inspector-target='building'] [data-inspector-labor-label][data-tooltip] {
   cursor: help;

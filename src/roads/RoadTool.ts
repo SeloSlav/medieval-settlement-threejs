@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
-import type { RoadNetwork, RoadNetworkSnapshot } from './RoadNetwork.ts';
+import type { RoadNetwork, RoadNetworkSnapshot, SnapTarget } from './RoadNetwork.ts';
 import type { RoadSelection } from './RoadSelection.ts';
 import type { SceneManager } from '../scene/SceneManager.ts';
 import { RoadPreview } from './RoadPreview.ts';
@@ -16,10 +16,13 @@ import {
 import { ROAD_WIDTH } from './roadDimensions.ts';
 import { RoadNodeSnapMarkers } from './RoadNodeSnapMarkers.ts';
 import {
+  buildRoadBoundaryToRoadPath,
   buildRoadBoundaryPath,
   findRoadBoundarySnap,
+  type RoadAlignmentTarget,
   type RoadBoundarySnap,
 } from './RoadBoundarySnap.ts';
+import { getEdgePath, inwardDirectionAtNode } from './roadEndpoint.ts';
 import type { BurgageZoneState } from '../resources/types.ts';
 import {
   alignSecondWallAnchorParallel,
@@ -101,6 +104,7 @@ export class RoadTool {
   private readonly anchorScratch: THREE.Vector3[] = [];
   private readonly curveScratch: number[] = [];
   private readonly boundarySnapScratch: Array<RoadBoundarySnap | null> = [];
+  private readonly roadAlignmentSnapScratch: Array<RoadAlignmentTarget | null> = [];
   private readonly projectScratch = new THREE.Vector3();
   private cachedPreviewSignature = '';
   private readonly cachedPreviewPath: THREE.Vector3[] = [];
@@ -108,6 +112,8 @@ export class RoadTool {
   private hoverWallRoadSnap: DryStoneWallRoadSnap | null = null;
   private hoverBoundarySnap: RoadBoundarySnap | null = null;
   private pointBoundarySnaps: Array<RoadBoundarySnap | null> = [];
+  private hoverRoadAlignmentSnap: RoadAlignmentTarget | null = null;
+  private pointRoadAlignmentSnaps: Array<RoadAlignmentTarget | null> = [];
   private wallStartTangent: THREE.Vector3 | null = null;
   private readonly deleteRaycaster = new THREE.Raycaster();
   private readonly deletePointer = new THREE.Vector2();
@@ -425,6 +431,7 @@ export class RoadTool {
       this.preview.updateCursor(null);
       this.options.sceneManager.dryStoneWallRenderer.setPreviewCursor(null);
       this.hoverBoundarySnap = null;
+      this.hoverRoadAlignmentSnap = null;
       return;
     }
     this.buildingConnections.setCursor(this.mode === 'road' ? hit : null);
@@ -511,6 +518,9 @@ export class RoadTool {
     }
     this.points.push(point.clone());
     this.pointBoundarySnaps.push(this.mode === 'road' ? this.hoverBoundarySnap : null);
+    this.pointRoadAlignmentSnaps.push(
+      this.mode === 'road' ? this.hoverRoadAlignmentSnap : null,
+    );
     if (
       this.mode === 'dry-stone-wall'
       && this.points.length === 1
@@ -529,6 +539,7 @@ export class RoadTool {
     if (!this.hasDraft()) return;
     this.points.pop();
     this.pointBoundarySnaps.pop();
+    this.pointRoadAlignmentSnaps.pop();
     if (this.segmentCurves.length >= this.points.length) this.segmentCurves.pop();
     this.pendingCurve = 0;
     this.hoverPoint = null;
@@ -694,12 +705,17 @@ export class RoadTool {
     this.boundarySnapScratch.push(...this.pointBoundarySnaps);
     if (hover) this.boundarySnapScratch.push(this.hoverBoundarySnap);
 
+    this.roadAlignmentSnapScratch.length = 0;
+    this.roadAlignmentSnapScratch.push(...this.pointRoadAlignmentSnaps);
+    if (hover) this.roadAlignmentSnapScratch.push(this.hoverRoadAlignmentSnap);
+
     this.cachedPreviewPath.length = 0;
     const path = this.buildPathFromAnchorsInto(
       this.anchorScratch,
       this.curveScratch,
       this.cachedPreviewPath,
       this.boundarySnapScratch,
+      this.roadAlignmentSnapScratch,
     );
     this.cachedPreviewSignature = signature;
     return { anchors: this.anchorScratch, path };
@@ -731,6 +747,16 @@ export class RoadTool {
         hash = (hash * 31 + snap.zoneId.charCodeAt(index)) | 0;
       }
     }
+    const roadSnaps = hover
+      ? [...this.pointRoadAlignmentSnaps, this.hoverRoadAlignmentSnap]
+      : this.pointRoadAlignmentSnaps;
+    for (const snap of roadSnaps) {
+      if (!snap) continue;
+      for (const tangent of snap.tangents) {
+        hash = (hash * 31 + Math.round(tangent.x * 100)) | 0;
+        hash = (hash * 31 + Math.round(tangent.z * 100)) | 0;
+      }
+    }
     return `${hash}`;
   }
 
@@ -751,6 +777,7 @@ export class RoadTool {
   private applySnap(point: THREE.Vector3): THREE.Vector3 {
     if (this.mode === 'dry-stone-wall') {
       this.hoverBoundarySnap = null;
+      this.hoverRoadAlignmentSnap = null;
       const roadside = findDryStoneWallRoadSnap(
         this.options.network,
         this.options.sceneManager.terrain,
@@ -779,6 +806,11 @@ export class RoadTool {
       this.hoverBoundarySnap = snap === draftSnap
         ? draftSnap.boundarySnap
         : null;
+      this.hoverRoadAlignmentSnap = snap === draftSnap
+        ? draftSnap.roadAlignmentSnap
+        : snap === networkSnap
+          ? this.resolveRoadAlignmentSnap(networkSnap)
+          : null;
       return snap.point.clone();
     }
     const boundarySnap = findRoadBoundarySnap(
@@ -787,6 +819,7 @@ export class RoadTool {
     );
     if (boundarySnap) {
       this.hoverBoundarySnap = boundarySnap;
+      this.hoverRoadAlignmentSnap = null;
       return this.options.sceneManager.terrain.getPointAt(
         boundarySnap.point.x,
         boundarySnap.point.z,
@@ -794,17 +827,50 @@ export class RoadTool {
       );
     }
     this.hoverBoundarySnap = null;
+    this.hoverRoadAlignmentSnap = null;
     return this.options.sceneManager.terrain.getPointAt(point.x, point.z, 0);
+  }
+
+  private resolveRoadAlignmentSnap(snap: SnapTarget): RoadAlignmentTarget | null {
+    const tangents: Array<{ x: number; z: number }> = [];
+    if (snap.kind === 'node') {
+      const node = this.options.network.nodes.get(snap.nodeId);
+      if (!node) return null;
+      for (const incident of this.options.network.getIncidents(node)) {
+        const direction = inwardDirectionAtNode(incident.edge, node.id);
+        tangents.push({ x: direction.x, z: direction.z });
+      }
+    } else {
+      const edge = this.options.network.edges.get(snap.edgeId);
+      if (!edge) return null;
+      const path = getEdgePath(edge);
+      if (path.length < 2) return null;
+      const scaledIndex = THREE.MathUtils.clamp(snap.t, 0, 1) * (path.length - 1);
+      const index = Math.min(path.length - 2, Math.floor(scaledIndex));
+      const dx = path[index + 1].x - path[index].x;
+      const dz = path[index + 1].z - path[index].z;
+      const length = Math.hypot(dx, dz);
+      if (length > 1e-5) tangents.push({ x: dx / length, z: dz / length });
+    }
+    return tangents.length > 0
+      ? { point: { x: snap.point.x, z: snap.point.z }, tangents }
+      : null;
   }
 
   private findDraftSnap(
     point: THREE.Vector3,
     maxDistance: number,
-  ): { point: THREE.Vector3; distance: number; boundarySnap: RoadBoundarySnap | null } | null {
+  ): {
+    point: THREE.Vector3;
+    distance: number;
+    boundarySnap: RoadBoundarySnap | null;
+    roadAlignmentSnap: RoadAlignmentTarget | null;
+  } | null {
     let best: {
       point: THREE.Vector3;
       distance: number;
       boundarySnap: RoadBoundarySnap | null;
+      roadAlignmentSnap: RoadAlignmentTarget | null;
     } | null = null;
     const lastIndex = this.points.length - 1;
     for (let i = 0; i < this.points.length; i++) {
@@ -812,7 +878,12 @@ export class RoadTool {
       const anchor = this.points[i];
       const distance = distanceXZ(point, anchor);
       if (distance <= maxDistance && (!best || distance < best.distance)) {
-        best = { point: anchor, distance, boundarySnap: this.pointBoundarySnaps[i] ?? null };
+        best = {
+          point: anchor,
+          distance,
+          boundarySnap: this.pointBoundarySnaps[i] ?? null,
+          roadAlignmentSnap: this.pointRoadAlignmentSnaps[i] ?? null,
+        };
       }
     }
     return best;
@@ -821,6 +892,7 @@ export class RoadTool {
   private cancelDraft(notify = true): void {
     this.points = [];
     this.pointBoundarySnaps = [];
+    this.pointRoadAlignmentSnaps = [];
     this.segmentCurves = [];
     this.pendingCurve = 0;
     this.hoverPoint = null;
@@ -828,6 +900,7 @@ export class RoadTool {
     this.validationDirty = true;
     this.hoverWallRoadSnap = null;
     this.hoverBoundarySnap = null;
+    this.hoverRoadAlignmentSnap = null;
     this.wallStartTangent = null;
     this.resetHoverPreviewCache();
     this.preview.clear();
@@ -841,6 +914,7 @@ export class RoadTool {
       this.points,
       this.segmentCurves,
       this.pointBoundarySnaps,
+      this.pointRoadAlignmentSnaps,
     );
   }
 
@@ -848,8 +922,15 @@ export class RoadTool {
     anchors: THREE.Vector3[],
     curves: number[],
     boundarySnaps: Array<RoadBoundarySnap | null> = [],
+    roadAlignmentSnaps: Array<RoadAlignmentTarget | null> = [],
   ): THREE.Vector3[] {
-    return this.buildPathFromAnchorsInto(anchors, curves, [], boundarySnaps);
+    return this.buildPathFromAnchorsInto(
+      anchors,
+      curves,
+      [],
+      boundarySnaps,
+      roadAlignmentSnaps,
+    );
   }
 
   private buildPathFromAnchorsInto(
@@ -857,6 +938,7 @@ export class RoadTool {
     curves: number[],
     out: THREE.Vector3[],
     boundarySnaps: Array<RoadBoundarySnap | null> = [],
+    roadAlignmentSnaps: Array<RoadAlignmentTarget | null> = [],
   ): THREE.Vector3[] {
     out.length = 0;
     if (anchors.length === 0) return out;
@@ -869,19 +951,26 @@ export class RoadTool {
       const curve = curves[i] ?? 0;
       const boundaryStart = boundarySnaps[i] ?? null;
       const boundaryEnd = boundarySnaps[i + 1] ?? null;
-      const boundaryPath = Math.abs(curve) <= CURVE_EPSILON
-        && this.mode === 'road'
-        && boundaryStart
-        && boundaryEnd
-        ? buildRoadBoundaryPath(boundaryStart, boundaryEnd)
-        : null;
-      if (boundaryPath) {
-        for (let pathIndex = 1; pathIndex < boundaryPath.length; pathIndex += 1) {
-          if (pathIndex === boundaryPath.length - 1) {
+      const roadStart = roadAlignmentSnaps[i] ?? null;
+      const roadEnd = roadAlignmentSnaps[i + 1] ?? null;
+      let constrainedPath: Array<{ x: number; z: number }> | null = null;
+      if (Math.abs(curve) <= CURVE_EPSILON && this.mode === 'road') {
+        if (boundaryStart && boundaryEnd) {
+          constrainedPath = buildRoadBoundaryPath(boundaryStart, boundaryEnd);
+        } else if (boundaryStart && roadEnd) {
+          constrainedPath = buildRoadBoundaryToRoadPath(boundaryStart, roadEnd);
+        } else if (roadStart && boundaryEnd) {
+          constrainedPath = buildRoadBoundaryToRoadPath(boundaryEnd, roadStart);
+          constrainedPath?.reverse();
+        }
+      }
+      if (constrainedPath) {
+        for (let pathIndex = 1; pathIndex < constrainedPath.length; pathIndex += 1) {
+          if (pathIndex === constrainedPath.length - 1) {
             out.push(b.clone());
             continue;
           }
-          const point = boundaryPath[pathIndex];
+          const point = constrainedPath[pathIndex];
           const clamped = terrain.clampXZ(point.x, point.z);
           terrain.getPointAtInto(clamped.x, clamped.z, midpointScratch, 0);
           if (distanceXZ(out[out.length - 1], midpointScratch) >= 0.1) {
@@ -933,6 +1022,7 @@ export class RoadTool {
       [...this.points, hover],
       [...this.segmentCurves, this.pendingCurve],
       [...this.pointBoundarySnaps, this.hoverBoundarySnap],
+      [...this.pointRoadAlignmentSnaps, this.hoverRoadAlignmentSnap],
     );
     if (path.length < 2) return null;
 
