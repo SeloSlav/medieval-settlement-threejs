@@ -213,6 +213,9 @@ export const Building = __t.object("Building", {
   wax: __t.f64(),
   candles: __t.f64(),
   apiaryWaxCycleProgress: __t.u8(),
+  pelts: __t.f64(),
+  yarn: __t.f64(),
+  linen: __t.f64(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -620,6 +623,9 @@ export const PlayerResources = __t.object("PlayerResources", {
   pearCider: __t.f64(),
   wax: __t.f64(),
   candles: __t.f64(),
+  pelts: __t.f64(),
+  yarn: __t.f64(),
+  linen: __t.f64(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 

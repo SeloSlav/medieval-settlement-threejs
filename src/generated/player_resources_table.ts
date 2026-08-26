@@ -133,4 +133,7 @@ export default __t.row({
   pearCider: __t.f64().name("pear_cider"),
   wax: __t.f64(),
   candles: __t.f64(),
+  pelts: __t.f64(),
+  yarn: __t.f64(),
+  linen: __t.f64(),
 });

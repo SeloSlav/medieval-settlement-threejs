@@ -3,9 +3,8 @@ use spacetimedb::ReducerContext;
 use crate::balance_generated::{TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC};
 use crate::db::*;
 use crate::devotional_candle_policy::{
-    chapel_candle_use_due, devotional_candle_contract_ready,
-    monastery_candle_use_due, DEVOTIONAL_CANDLE_CONTRACT_GOLD,
-    DEVOTIONAL_CANDLE_CONTRACT_UNITS,
+    chapel_candle_use_due, devotional_candle_contract_ready, monastery_candle_use_due,
+    DEVOTIONAL_CANDLE_CONTRACT_GOLD, DEVOTIONAL_CANDLE_CONTRACT_UNITS,
 };
 use crate::economy::{
     building_commodity_room, building_commodity_stock, chapel_coffer_gold,
@@ -25,9 +24,9 @@ use crate::tables::Building;
 fn institution_available_gold(institution: &Building) -> f64 {
     match institution.kind.as_str() {
         "chapel" => chapel_coffer_gold(institution),
-        "monastery" => whole_units(
-            (institution.gold - institution.civic_receipts_gold.max(0.0)).max(0.0),
-        ),
+        "monastery" => {
+            whole_units((institution.gold - institution.civic_receipts_gold.max(0.0)).max(0.0))
+        }
         _ => 0.0,
     }
 }

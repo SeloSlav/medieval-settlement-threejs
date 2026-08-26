@@ -164,6 +164,7 @@ import {
 import { civicReceiptCollectionPlan } from '../../economy/civicReceipts.ts';
 import {
   normalizeWeaverInputPolicy,
+  SPINNING_RETTING_INPUT_POLICY_PRESETS,
   WEAVER_INPUT_POLICY_PRESETS,
   weaverFibreDeliveryPreferenceLabel,
 } from '../../economy/weaverInputPolicy.ts';
@@ -246,7 +247,8 @@ const PROCESS: Record<string, string> = {
   apiary: 'April-September forage + a healthy overwintered colony → physical honey for household food or luxury comfort and Mead-selected Brewhouses, with nearby orchard and vineyard pollination',
   monastery: 'A self-governing 68 × 53 m walled estate raises mixed orchard and garden crops alongside cattle, sheep, eggs, milk, meat, honey, and cheese; orchard fruit becomes house cider, apiary honey becomes mead, and player-drawn vineyards produce town-market wine',
   carpenter: 'Timber + smith-forged ironwork → polearms and cartwright support',
-  weaver: 'Annual sheep fleece or flax + hauled water → finished clothing → tier-2+ Marketplace stalls, then Trading Post export',
+  spinning_retting_house: 'Annual sheep fleece → yarn, or harvested flax + hauled water → linen; prepared fibre moves physically to a Weaver, Storehouse, or Trading Post',
+  weaver: 'Yarn or linen + loom labor → finished clothing → tier-2+ Marketplace stalls, then Trading Post export',
   tannery: 'Livestock hides + hauled water + firewood → tanned leather for Cobbler workshops and trade; hunted pelts bypass the Tannery',
   cobbler: 'Tanned leather + cobbler labor → finished shoes → Tier 3+ Marketplace stalls, then Trading Post export',
   chandlery: '2 beeswax + 1 firewood + chandler labor → 6 candle lots for prosperous households and regional trade',
@@ -267,6 +269,7 @@ const OUTBOUND_SUPPLY_KINDS = new Set<BuildingKind>([
   'tannery',
   'cobbler',
   'chandlery',
+  'spinning_retting_house',
   'weaver',
   'clay_pit',
   'charcoal_burner',
@@ -320,6 +323,8 @@ function buildingHasOutboundStock(
         || building.wine > 6 + 1e-6;
     case 'carpenter':
       return (building.polearms ?? 0) > 0;
+    case 'spinning_retting_house':
+      return (building.yarn ?? 0) > 0 || (building.linen ?? 0) > 0;
     case 'weaver':
       return (building.cloth ?? 0) > 0;
     case 'clay_pit':
@@ -358,6 +363,8 @@ function outboundDestinationLabel(building: BuildingState): string {
       return 'Vineyard wine to the nearest granary by monk handcart · other surplus to a regional merchant';
     case 'carpenter':
       return 'Nearest road-linked guardhouse';
+    case 'spinning_retting_house':
+      return 'Lowest-runway Weaver working buffer, then staffed Storehouse or Trading Post overflow';
     case 'weaver':
       return 'Staffed Storehouse for Marketplace clothing stalls, then road-linked export market';
     case 'clay_pit':
@@ -388,6 +395,8 @@ function cargoPerTripLabel(building: BuildingState): string | null {
       return `4 fresh or 3 cured per market-stall haul · ${GRAIN_TRANSFER_PER_TRIP} per bulk haul`;
     case 'smokehouse':
       return `3 per cured-food haul · ${GRAIN_TRANSFER_PER_TRIP} per granary haul`;
+    case 'spinning_retting_house':
+      return `${TEXTILE_TRANSFER_PER_TRIP} yarn or linen per handcart`;
     case 'weaver':
       return `${TEXTILE_TRANSFER_PER_TRIP} clothing per Storehouse or market haul`;
     case 'chandlery':
@@ -407,16 +416,18 @@ function cargoPerTripLabel(building: BuildingState): string | null {
 function outboundTargetKinds(kind: BuildingKind): BuildingKind[] {
   switch (kind) {
     case 'threshing_barn':
-      return ['pastoral_farmstead', 'watermill', 'windmill', 'brewery', 'granary', 'monastery', 'weaver'];
+      return ['pastoral_farmstead', 'watermill', 'windmill', 'brewery', 'granary', 'monastery', 'spinning_retting_house'];
     case 'watermill':
     case 'windmill':
       return ['bakery', 'granary'];
     case 'granary':
-      return ['bakery', 'brewery', 'weaver', 'smokehouse'];
+      return ['bakery', 'brewery', 'spinning_retting_house', 'smokehouse'];
     case 'apiary':
       return ['marketplace'];
     case 'carpenter':
       return ['guardhouse'];
+    case 'spinning_retting_house':
+      return ['weaver', 'village_storehouse', 'trading_post'];
     case 'weaver':
       return ['marketplace'];
     case 'clay_pit':
@@ -470,6 +481,19 @@ function outboundTripTarget(
   }
   if (building.kind === 'monastery' && building.wine > 6 + 1e-6) {
     return context.worldQueries.findNearestRoadLinkedBuilding(building, ['granary']);
+  }
+  if (building.kind === 'spinning_retting_house') {
+    const selected = processorOutputCommodityForBuilding(building) === 'linen'
+      ? 'linen'
+      : 'yarn';
+    const alternate = selected === 'yarn' ? 'linen' : 'yarn';
+    return context.worldQueries.getNextDirectProcessorInputDispatch(
+      building,
+      selected,
+    )?.target ?? context.worldQueries.getNextDirectProcessorInputDispatch(
+      building,
+      alternate,
+    )?.target ?? null;
   }
   if (building.kind === 'weaver') {
     return context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(building, 'cloth')
@@ -669,6 +693,17 @@ function renderLogisticsRows(
   const ironworkDispatch = building.kind === 'smithy'
     ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'ironwork')
     : null;
+  const textileCommodity = building.kind === 'spinning_retting_house'
+    ? (building.linen ?? 0) > (building.yarn ?? 0)
+      ? 'linen' as const
+      : 'yarn' as const
+    : null;
+  const textileDispatch = textileCommodity
+    ? context.worldQueries.getNextDirectProcessorInputDispatch(
+        building,
+        textileCommodity,
+      )
+    : null;
   const materialDispatch = building.kind === 'clay_pit'
     ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'clay')
     : building.kind === 'charcoal_burner'
@@ -721,6 +756,10 @@ function renderLogisticsRows(
         ? ironworkDispatch.duty === 'working-buffer'
           ? `${context.worldQueries.getBuildingLabel(ironworkDispatch.target.kind)} · ${Math.round(ironworkDispatch.target.ironwork ?? 0)} / ${Math.ceil(ironworkDispatch.desiredStock)} ironwork · ${ironworkDispatch.runwayCycles.toFixed(1)} cycles`
           : `${context.worldQueries.getBuildingLabel(ironworkDispatch.target.kind)} · maintained buffers covered · nearest overflow route`
+      : textileDispatch && textileCommodity
+        ? textileDispatch.duty === 'working-buffer'
+          ? `${context.worldQueries.getBuildingLabel(textileDispatch.target.kind)} · ${weaverFibreDeliveryPreferenceLabel(textileDispatch.target.weaverInputPolicy, textileCommodity)} · ${Math.round(textileDispatch.target[textileCommodity] ?? 0)} / ${Math.ceil(textileDispatch.desiredStock)} ${textileCommodity} · ${textileDispatch.runwayCycles.toFixed(1)} cycles`
+          : `${context.worldQueries.getBuildingLabel(textileDispatch.target.kind)} · active Weaver buffers covered · nearest textile overflow route`
       : potteryDestination
         ? potteryDestination
       : materialDispatch && materialCommodity
@@ -1822,13 +1861,21 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
         `;
       })()
     : '';
-  const weaverInputPolicy = building.kind === 'weaver'
+  const textileInputPolicy = building.kind === 'spinning_retting_house'
     ? `
-      <p class="resource-inspector-note">Fibre preference · steers matching raw-fibre carts between active looms, then decides which complete onsite recipe is consumed first.</p>
+      <p class="resource-inspector-note">Raw-fibre preference · steers wool and flax carts between active fibre workshops, then chooses which complete onsite recipe runs first.</p>
+      <div class="resource-action-row">${SPINNING_RETTING_INPUT_POLICY_PRESETS
+        .map((preset) => `<button type="button" class="resource-action-button" data-weaver-input-policy="${preset.policy}" title="${preset.hint}" ${normalizeWeaverInputPolicy(building.weaverInputPolicy) === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
+        .join('')}</div>
+      <p class="inspector-action-panel__hint">Wool produces yarn without water. Flax produces linen only when well water is staged. A ready alternate recipe remains a fallback, and finished yarn or linen is physically hauled onward rather than becoming clothing here.</p>
+    `
+    : building.kind === 'weaver'
+    ? `
+      <p class="resource-inspector-note">Prepared-fibre preference · steers matching yarn and linen carts between active looms, then decides which complete onsite recipe is consumed first.</p>
       <div class="resource-action-row">${WEAVER_INPUT_POLICY_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-weaver-input-policy="${preset.policy}" title="${preset.hint}" ${normalizeWeaverInputPolicy(building.weaverInputPolicy) === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">Matching specialization wins a contested working-buffer cart; Auto forms the neutral middle pool. The same order governs scarce well water once flax is physically staged. Covered buffers and ready alternate recipes remain fallbacks so neither carts nor crews deadlock. Wool avoids a water haul; flax turns planned field fibre and well capacity into clothing while preserving annual fleece.</p>
+      <p class="inspector-action-panel__hint">Matching specialization wins a contested working-buffer cart; Auto forms the neutral middle pool. Covered buffers and a ready alternate fibre remain fallbacks so neither carts nor crews deadlock. Water is no longer needed here because flax retting happens upstream.</p>
     `
     : '';
   const potteryDispatchPolicy = building.kind === 'potter_kiln'
@@ -1857,7 +1904,7 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
       <div class="resource-action-row">${PROCESSOR_OUTPUT_TARGET_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-processor-output-target="${preset.percent}" title="${preset.hint}" ${percent === preset.percent ? 'disabled' : ''}>${preset.label} · ${preset.percent}%</button>`)
         .join('')}</div>
-      ${weaverInputPolicy}
+      ${textileInputPolicy}
       ${breweryRecipePolicy}
       ${potterFiringPolicy}
       ${potteryDispatchPolicy}

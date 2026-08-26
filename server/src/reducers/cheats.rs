@@ -33,7 +33,10 @@ fn physical_resource_stock(ctx: &ReducerContext, owner: spacetimedb::Identity) -
         stock.polearms += building.polearms.max(0.0);
         stock.wool += building.wool.max(0.0);
         stock.flax += building.flax.max(0.0);
+        stock.yarn += building.yarn.max(0.0);
+        stock.linen += building.linen.max(0.0);
         stock.cloth += building.cloth.max(0.0);
+        stock.pelts += building.pelts.max(0.0);
         stock.meat += building.meat.max(0.0);
         stock.fish += building.fish.max(0.0);
         stock.berries += building.berries.max(0.0);
@@ -113,7 +116,10 @@ pub fn grant_cheat_resources(ctx: &ReducerContext, amount: f64) -> Result<(), St
     );
     resources.wool = top_up_ledger(resources.wool, physical.map_or(0.0, |s| s.wool), amount);
     resources.flax = top_up_ledger(resources.flax, physical.map_or(0.0, |s| s.flax), amount);
+    resources.yarn = top_up_ledger(resources.yarn, physical.map_or(0.0, |s| s.yarn), amount);
+    resources.linen = top_up_ledger(resources.linen, physical.map_or(0.0, |s| s.linen), amount);
     resources.cloth = top_up_ledger(resources.cloth, physical.map_or(0.0, |s| s.cloth), amount);
+    resources.pelts = top_up_ledger(resources.pelts, physical.map_or(0.0, |s| s.pelts), amount);
     resources.meat = top_up_ledger(resources.meat, physical.map_or(0.0, |s| s.meat), amount);
     resources.fish = top_up_ledger(resources.fish, physical.map_or(0.0, |s| s.fish), amount);
     resources.berries = top_up_ledger(

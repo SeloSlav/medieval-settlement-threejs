@@ -177,4 +177,7 @@ export default __t.row({
   wax: __t.f64(),
   candles: __t.f64(),
   apiaryWaxCycleProgress: __t.u8().name("apiary_wax_cycle_progress"),
+  pelts: __t.f64(),
+  yarn: __t.f64(),
+  linen: __t.f64(),
 });

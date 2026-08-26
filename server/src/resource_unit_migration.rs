@@ -200,6 +200,8 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
             monastery_scriptorium_roof_tiles_saved_total,
             ironwork,
             wool,
+            yarn,
+            linen,
             cloth,
             barley,
             malt,
@@ -258,6 +260,9 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
             aronia_jam,
             rosehip_jam,
             pear_cider,
+            wax,
+            candles,
+            pelts,
         );
         retire_legacy_vegetable_stock(
             &mut row.vegetables,
@@ -295,6 +300,8 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
             woodcutter_timber_reserve,
             granary_grain_reserve,
             wool,
+            yarn,
+            linen,
             cloth,
             chapel_monastery_tithe_due,
             civic_receipts_gold,
@@ -358,6 +365,9 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
             rosehip_jam,
             pear_cider,
             animal_feed,
+            wax,
+            candles,
+            pelts,
         );
         retire_legacy_vegetable_stock(
             &mut row.vegetables,

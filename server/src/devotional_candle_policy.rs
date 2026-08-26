@@ -115,8 +115,18 @@ mod tests {
     #[test]
     fn full_or_well_stocked_institutions_do_not_duplicate_orders() {
         assert!(!devotional_candle_contract_ready("chapel", 5.0, 3.0, 500.0));
-        assert!(!devotional_candle_contract_ready("monastery", 12.0, 4.0, 500.0));
-        assert!(devotional_candle_contract_ready("monastery", 8.0, 8.0, 500.0));
+        assert!(!devotional_candle_contract_ready(
+            "monastery",
+            12.0,
+            4.0,
+            500.0
+        ));
+        assert!(devotional_candle_contract_ready(
+            "monastery",
+            8.0,
+            8.0,
+            500.0
+        ));
     }
 
     #[test]

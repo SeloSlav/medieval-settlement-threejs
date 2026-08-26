@@ -245,29 +245,69 @@ assert.match(policyPanel ?? '', /data-weaver-input-policy="2"/);
 assert.match(policyPanel ?? '', /Matching specialization wins a contested working-buffer cart/);
 assert.match(policyPanel ?? '', /Covered buffers and ready alternate recipes remain fallbacks/);
 
-const emptyVisual = buildingMarkerSignatures(
+const emptyWeaverVisual = buildingMarkerSignatures(
   new Map([['weaver-1', weaver()]]),
 ).visual;
-const firstBundle = buildingMarkerSignatures(
-  new Map([['weaver-1', weaver({ wool: 1 })]]),
+const firstYarnBundle = buildingMarkerSignatures(
+  new Map([['weaver-1', weaver({ yarn: 1 })]]),
 ).visual;
-const sameBundle = buildingMarkerSignatures(
-  new Map([['weaver-1', weaver({ wool: 2 })]]),
+const sameYarnBundle = buildingMarkerSignatures(
+  new Map([['weaver-1', weaver({ yarn: 2 })]]),
 ).visual;
 const firstClothBundle = buildingMarkerSignatures(
-  new Map([['weaver-1', weaver({ wool: 2, cloth: 1 })]]),
+  new Map([['weaver-1', weaver({ yarn: 2, cloth: 1 })]]),
 ).visual;
-const firstFlaxBundle = buildingMarkerSignatures(
-  new Map([['weaver-1', weaver({ flax: 1 })]]),
+const firstLinenBundle = buildingMarkerSignatures(
+  new Map([['weaver-1', weaver({ linen: 1 })]]),
 ).visual;
-assert.notEqual(firstBundle, emptyVisual);
+const legacyRawWeaverVisual = buildingMarkerSignatures(
+  new Map([['weaver-1', weaver({ wool: 1, flax: 1 })]]),
+).visual;
+assert.notEqual(firstYarnBundle, emptyWeaverVisual);
 assert.equal(
-  sameBundle,
-  firstBundle,
+  sameYarnBundle,
+  firstYarnBundle,
   'small textile stock changes inside one bundle must not rebuild the workshop mesh',
 );
-assert.notEqual(firstClothBundle, sameBundle);
-assert.notEqual(firstFlaxBundle, emptyVisual);
+assert.notEqual(firstClothBundle, sameYarnBundle);
+assert.notEqual(firstLinenBundle, emptyWeaverVisual);
+assert.equal(
+  legacyRawWeaverVisual,
+  emptyWeaverVisual,
+  'raw Wool and Flax must no longer drive Weaver stock props',
+);
+
+const spinner = (partial: Partial<BuildingState> = {}): BuildingState => weaver({
+  id: 'spinner-1',
+  kind: 'spinning_retting_house',
+  ...partial,
+});
+const emptySpinnerVisual = buildingMarkerSignatures(
+  new Map([['spinner-1', spinner()]]),
+).visual;
+const firstSpinnerWoolBundle = buildingMarkerSignatures(
+  new Map([['spinner-1', spinner({ wool: 1 })]]),
+).visual;
+const sameSpinnerWoolBundle = buildingMarkerSignatures(
+  new Map([['spinner-1', spinner({ wool: 2 })]]),
+).visual;
+assert.equal(
+  firstSpinnerWoolBundle,
+  sameSpinnerWoolBundle,
+  'small raw-fibre changes inside one bundle must not rebuild the Spinning & Retting House mesh',
+);
+for (const [resource, visual] of [
+  ['wool', firstSpinnerWoolBundle],
+  ['flax', buildingMarkerSignatures(new Map([['spinner-1', spinner({ flax: 1 })]])).visual],
+  ['yarn', buildingMarkerSignatures(new Map([['spinner-1', spinner({ yarn: 1 })]])).visual],
+  ['linen', buildingMarkerSignatures(new Map([['spinner-1', spinner({ linen: 1 })]])).visual],
+] as const) {
+  assert.notEqual(
+    visual,
+    emptySpinnerVisual,
+    `${resource} must drive a distinct Spinning & Retting House stock prop signature`,
+  );
+}
 
 const textileState = {
   stockpile: createEmptyStockpile(),
