@@ -392,6 +392,17 @@ function assertTierOneFacadeTimbers(root: THREE.Object3D): void {
     Number(sidePlates.userData.residenceSideFrameRoofClearanceMeters) >= 0.24,
     'side wall plates must remain recessed beneath the thatch edge',
   );
+  const threshold = namedMesh(root, 'Residence sill-flush ground-level door threshold');
+  const frameBounds = new THREE.Box3().setFromObject(frame);
+  const thresholdBounds = new THREE.Box3().setFromObject(threshold);
+  assert.ok(
+    Math.abs(thresholdBounds.min.y - frameBounds.min.y) <= 0.001,
+    'the stone threshold underside must be flush with the lower timber sill underside',
+  );
+  assert.equal(
+    threshold.userData.residenceThresholdAlignment,
+    'lower-timber-sill-underside',
+  );
   assert.equal(
     frame.geometry.userData.residenceHewnTimberTint,
     'smoke-darkened-oak',

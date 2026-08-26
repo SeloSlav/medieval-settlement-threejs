@@ -268,6 +268,18 @@ function addPlankDoor(
       framePart.name = 'Residence door hewn jamb';
     } else if (framePart.userData.facadeOpeningRole === 'door-lintel') {
       framePart.name = 'Residence door hewn lintel';
+    } else if (
+      framePart.userData.facadeOpeningRole === 'door-threshold'
+      && entranceAccess === 'ground-level'
+    ) {
+      // The Tier 1 sill is centred 0.08 m above the foundation with a
+      // 0.17 m section, placing its underside 0.085 m below the door origin.
+      // Continue that construction line through the threshold instead of
+      // leaving a bright stone block perched above the sill.
+      framePart.position.y = -0.035;
+      framePart.name = 'Residence sill-flush ground-level door threshold';
+      framePart.userData.residenceThresholdBottomOffsetMeters = -0.085;
+      framePart.userData.residenceThresholdAlignment = 'lower-timber-sill-underside';
     }
   }
 }

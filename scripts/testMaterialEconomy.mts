@@ -176,7 +176,11 @@ assert.equal(
   'tile firing must replace rather than supplement vessel output',
 );
 assert.ok(SMOKEHOUSE_SALT_PER_CYCLE > 0);
-assert.ok(SMOKEHOUSE_POTTERY_PER_CYCLE > 0);
+assert.equal(
+  SMOKEHOUSE_POTTERY_PER_CYCLE,
+  0,
+  'whole-unit smokehouse recipes must not restore fractional pottery consumption',
+);
 assert.equal(
   directlyDispatchedProcessorInputPerCycle('potter_kiln', 'clay'),
   POTTER_CLAY_PER_CYCLE,
