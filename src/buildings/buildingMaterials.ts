@@ -1,11 +1,12 @@
 import * as THREE from 'three';
-import { loadBitmapTexture } from '../utils/textureLoad.ts';
+import { MeshStandardNodeMaterial } from 'three/webgpu';
 import { prepareBuildingGeometryUvs } from './buildingMetricUvs.ts';
 import {
   applyBuildingMaterialAtlas,
   disposeBuildingMaterialAtlas,
   getBuildingMaterialAtlasStats,
   initializeBuildingMaterialAtlas,
+  type BuildingAtlasMaterial,
   type BuildingMaterialAtlasTile,
 } from './buildingMaterialAtlas.ts';
 import { disposeSharedWellWaterMaterial } from './WellWaterMaterial.ts';
@@ -84,6 +85,7 @@ export type BuildingMaterialKey =
   | 'timberMid'
   | 'timberLight'
   | 'timberWeathered'
+  | 'stackedTimber'
   | 'clayRed'
   | 'clayDark'
   | 'shingle'
@@ -118,34 +120,28 @@ type BuildingWeatheringProfile =
   | 'thatch';
 
 const MATERIAL_DEFINITIONS: Record<BuildingMaterialKey, MaterialDefinition> = {
-  // White limewash keeps the plaster relief maps, but not the source set's
-  // charcoal-grey diffuse. This is the principal bright wall value.
-  plasterWhite: { color: 0xfff4de, roughness: 0.96, metalness: 0, textureFamily: 'plaster', normalScale: 0.3, weathering: 'plaster', useDiffuseMap: false, uniformIndirectLight: true },
-  plasterYellow: { color: 0xeadc9f, roughness: 0.93, metalness: 0, textureFamily: 'plaster', normalScale: 0.42, weathering: 'plaster' },
-  plasterGrey: { color: 0xb8b4af, roughness: 0.94, metalness: 0, textureFamily: 'plaster', normalScale: 0.46, weathering: 'plaster' },
-  plasterOrange: { color: 0xe6b17e, roughness: 0.93, metalness: 0, textureFamily: 'plaster', normalScale: 0.44, weathering: 'plaster' },
-  masonryLight: { color: 0xf3eadb, roughness: 0.96, metalness: 0, textureFamily: 'masonry', normalScale: 0.76, weathering: 'masonry', uniformIndirectLight: true },
-  masonryMid: { color: 0xd8d0c2, roughness: 0.97, metalness: 0, textureFamily: 'masonry', normalScale: 0.82, weathering: 'masonry', uniformIndirectLight: true },
-  masonryDark: { color: 0x858688, roughness: 0.98, metalness: 0, textureFamily: 'masonry', normalScale: 0.82, weathering: 'masonry' },
-  timberDark: { color: 0xa07a5d, roughness: 0.94, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.76, weathering: 'timber', uniformIndirectLight: true },
-  timberMid: { color: 0xaa866b, roughness: 0.9, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.58, weathering: 'timber' },
-  timberLight: { color: 0xc2a184, roughness: 0.9, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.55, weathering: 'timber' },
-  timberWeathered: { color: 0xd4c0a9, roughness: 0.96, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.86, weathering: 'timber', uniformIndirectLight: true },
-  clayRed: { color: 0xffffff, roughness: 0.84, metalness: 0.01, textureFamily: 'clayTiles', normalScale: 0.74, weathering: 'roof' },
-  clayDark: { color: 0xc58f84, roughness: 0.88, metalness: 0.01, textureFamily: 'clayTiles', normalScale: 0.78, weathering: 'roof' },
-  // Split shingles keep the shared wood relief/roughness maps, while their
-  // silver-brown age variation comes from the batched vertex-color channel
-  // and one deterministic short-shingle map shared by every roof role.
-  // Omitting the broad-plank diffuse prevents the roof from collapsing into
-  // a handful of long boards; the darker base keeps it distinct from plaster.
-  shingle: { color: 0x928e85, roughness: 0.99, metalness: 0, textureFamily: 'woodPlanks', normalScale: 1.05, weathering: 'shingle', useDiffuseMap: false, uniformIndirectLight: true },
-  thatch: { color: GORSKI_PALETTE.thatch, roughness: 1, metalness: 0, normalScale: 0.62, weathering: 'thatch', uniformIndirectLight: true },
-  slate: { color: 0x737980, roughness: 0.91, metalness: 0.02, textureFamily: 'masonry', normalScale: 0.48, weathering: 'roof' },
-  metalIron: { color: 0x4a4846, roughness: 0.55, metalness: 0.72 },
+  plasterWhite: { color: 0xfff4de, roughness: 0.96, metalness: 0, atlasTile: 'lime-plaster', atlasMetersPerTile: 2.6, atlasTintStrength: 0.18, textureFamily: 'plaster', normalScale: 0.3, weathering: 'plaster', useDiffuseMap: false, uniformIndirectLight: true },
+  plasterYellow: { color: 0xeadc9f, roughness: 0.93, metalness: 0, atlasTile: 'lime-plaster', atlasMetersPerTile: 2.6, atlasTintStrength: 0.48, textureFamily: 'plaster', normalScale: 0.42, weathering: 'plaster' },
+  plasterGrey: { color: 0xb8b4af, roughness: 0.94, metalness: 0, atlasTile: 'lime-plaster', atlasMetersPerTile: 2.6, atlasTintStrength: 0.42, textureFamily: 'plaster', normalScale: 0.46, weathering: 'plaster' },
+  plasterOrange: { color: 0xe6b17e, roughness: 0.93, metalness: 0, atlasTile: 'lime-plaster', atlasMetersPerTile: 2.6, atlasTintStrength: 0.5, textureFamily: 'plaster', normalScale: 0.44, weathering: 'plaster' },
+  masonryLight: { color: 0xf3eadb, roughness: 0.96, metalness: 0, atlasTile: 'limestone-ashlar', atlasMetersPerTile: 2.4, atlasTintStrength: 0.16, textureFamily: 'masonry', normalScale: 0.76, weathering: 'masonry', uniformIndirectLight: true },
+  masonryMid: { color: 0xd8d0c2, roughness: 0.97, metalness: 0, atlasTile: 'fieldstone-mortar', atlasMetersPerTile: 2.4, atlasTintStrength: 0.2, textureFamily: 'masonry', normalScale: 0.82, weathering: 'masonry', uniformIndirectLight: true },
+  masonryDark: { color: 0x858688, roughness: 0.98, metalness: 0, atlasTile: 'quarry-stone', atlasMetersPerTile: 2.4, atlasTintStrength: 0.36, textureFamily: 'masonry', normalScale: 0.82, weathering: 'masonry' },
+  timberDark: { color: 0xa07a5d, roughness: 0.94, metalness: 0, atlasTile: 'rough-hewn-timber', atlasMetersPerTile: 2, atlasTintStrength: 0.28, textureFamily: 'woodPlanks', normalScale: 0.76, weathering: 'timber', uniformIndirectLight: true },
+  timberMid: { color: 0xaa866b, roughness: 0.9, metalness: 0, atlasTile: 'rough-hewn-timber', atlasMetersPerTile: 2, atlasTintStrength: 0.2, textureFamily: 'woodPlanks', normalScale: 0.58, weathering: 'timber' },
+  timberLight: { color: 0xc2a184, roughness: 0.9, metalness: 0, atlasTile: 'sawn-planks', atlasMetersPerTile: 2, atlasTintStrength: 0.22, textureFamily: 'woodPlanks', normalScale: 0.55, weathering: 'timber' },
+  timberWeathered: { color: 0xd4c0a9, roughness: 0.96, metalness: 0, atlasTile: 'weathered-planks', atlasMetersPerTile: 2, atlasTintStrength: 0.18, textureFamily: 'woodPlanks', normalScale: 0.86, weathering: 'timber', uniformIndirectLight: true },
+  stackedTimber: { color: 0xc09269, roughness: 0.95, metalness: 0, atlasTile: 'stacked-log-wall', atlasMetersPerTile: 2, atlasTintStrength: 0.18, textureFamily: 'woodPlanks', normalScale: 0.76, weathering: 'timber', uniformIndirectLight: true },
+  clayRed: { color: 0xffffff, roughness: 0.84, metalness: 0.01, atlasTile: 'clay-roof-tiles', atlasMetersPerTile: 2.2, atlasTintStrength: 0, textureFamily: 'clayTiles', normalScale: 0.74, weathering: 'roof' },
+  clayDark: { color: 0xc58f84, roughness: 0.88, metalness: 0.01, atlasTile: 'clay-roof-tiles', atlasMetersPerTile: 2.2, atlasTintStrength: 0.32, textureFamily: 'clayTiles', normalScale: 0.78, weathering: 'roof' },
+  shingle: { color: 0x928e85, roughness: 0.99, metalness: 0, atlasTile: 'split-shingles', atlasMetersPerTile: 2, atlasTintStrength: 0.28, textureFamily: 'woodPlanks', normalScale: 1.05, weathering: 'shingle', useDiffuseMap: false, uniformIndirectLight: true },
+  thatch: { color: GORSKI_PALETTE.thatch, roughness: 1, metalness: 0, atlasTile: 'thatch-roof', atlasMetersPerTile: 1.4, atlasTintStrength: 0.22, normalScale: 0.62, weathering: 'thatch', uniformIndirectLight: true },
+  slate: { color: 0x737980, roughness: 0.91, metalness: 0.02, atlasTile: 'slate-roof', atlasMetersPerTile: 2.2, atlasTintStrength: 0.24, textureFamily: 'masonry', normalScale: 0.48, weathering: 'roof' },
+  metalIron: { color: 0x4a4846, roughness: 0.55, metalness: 0.72, atlasTile: 'wrought-iron', atlasMetersPerTile: 1.2, atlasTintStrength: 0.18, normalScale: 0.54 },
   glass: { color: 0x3d4747, roughness: 0.4, metalness: 0.03 },
-  moss: { color: GORSKI_PALETTE.moss, roughness: 0.98, metalness: 0 },
-  grassRoof: { color: GORSKI_PALETTE.grassRoof, roughness: 0.99, metalness: 0 },
-  interiorDark: { color: GORSKI_PALETTE.interiorDark, roughness: 1, metalness: 0 },
+  moss: { color: GORSKI_PALETTE.moss, roughness: 0.98, metalness: 0, atlasTile: 'mossy-surface', atlasMetersPerTile: 1.4, atlasTintStrength: 0.28, normalScale: 0.55 },
+  grassRoof: { color: GORSKI_PALETTE.grassRoof, roughness: 0.99, metalness: 0, atlasTile: 'turf-roof', atlasMetersPerTile: 1.4, atlasTintStrength: 0.24, normalScale: 0.54 },
+  interiorDark: { color: GORSKI_PALETTE.interiorDark, roughness: 1, metalness: 0, atlasTile: 'rough-hewn-timber', atlasMetersPerTile: 2, atlasTintStrength: 0.82, normalScale: 0.34 },
 };
 
 const TEXTURE_METERS: Record<TextureFamily, number> = {
@@ -161,34 +157,13 @@ type BuildingTextureSet = {
   roughnessMap: THREE.Texture;
 };
 
-const BUILDING_TEXTURE_URLS: Record<TextureFamily, { map: string; normalMap: string; roughnessMap: string }> = {
-  plaster: {
-    map: '/textures/buildings/plaster_diff.jpg',
-    normalMap: '/textures/buildings/plaster_nor_gl.png',
-    roughnessMap: '/textures/buildings/plaster_rough.jpg',
-  },
-  masonry: {
-    map: '/textures/buildings/masonry_diff.jpg',
-    normalMap: '/textures/buildings/masonry_nor_gl.png',
-    roughnessMap: '/textures/buildings/masonry_rough.jpg',
-  },
-  clayTiles: {
-    map: '/textures/buildings/clay_tiles_diff.jpg',
-    normalMap: '/textures/buildings/clay_tiles_nor_gl.png',
-    roughnessMap: '/textures/buildings/clay_tiles_rough.jpg',
-  },
-  woodPlanks: {
-    map: '/textures/buildings/wood_planks_diff.jpg',
-    normalMap: '/textures/buildings/wood_planks_nor_gl.png',
-    roughnessMap: '/textures/buildings/wood_planks_rough.jpg',
-  },
-};
-
-const materialCache = new Map<BuildingMaterialKey, THREE.MeshStandardMaterial>();
+const materialCache = new Map<BuildingMaterialKey, BuildingAtlasMaterial>();
 const DEFAULT_BUILDING_INDIRECT_INTENSITY = 0.11;
 let buildingIndirectIntensity = DEFAULT_BUILDING_INDIRECT_INTENSITY;
 export type BuildingDetailMaterialKey =
   | 'brass'
+  | 'firedClay'
+  | 'wicker'
   | 'paintRed'
   | 'paintBlue'
   | 'paintOchre'
@@ -200,35 +175,40 @@ export type BuildingDetailMaterialKey =
   | 'crop';
 
 type DetailMaterialDefinition = Omit<THREE.MeshStandardMaterialParameters, 'normalScale'> & {
+  atlasTile?: BuildingMaterialAtlasTile;
+  atlasMetersPerTile?: number;
+  atlasTintStrength?: number;
   textureFamily?: TextureFamily;
   buildingNormalScale?: number;
 };
 
 const DETAIL_MATERIAL_DEFINITIONS: Record<BuildingDetailMaterialKey, DetailMaterialDefinition> = {
-  brass: { color: 0x9b7134, roughness: 0.48, metalness: 0.72 },
-  paintRed: { color: 0xb75a4d, roughness: 0.89, metalness: 0, textureFamily: 'woodPlanks', buildingNormalScale: 0.22 },
-  paintBlue: { color: 0x668996, roughness: 0.9, metalness: 0, textureFamily: 'woodPlanks', buildingNormalScale: 0.22 },
-  paintOchre: { color: 0xd4ae62, roughness: 0.91, metalness: 0, textureFamily: 'woodPlanks', buildingNormalScale: 0.22 },
+  brass: { color: 0x9b7134, roughness: 0.48, metalness: 0.72, atlasTile: 'aged-brass', atlasMetersPerTile: 1.2, atlasTintStrength: 0.16, buildingNormalScale: 0.5 },
+  firedClay: { color: 0xd47d50, roughness: 0.88, metalness: 0, atlasTile: 'fired-clay', atlasMetersPerTile: 1.2, atlasTintStrength: 0.2, buildingNormalScale: 0.55 },
+  wicker: { color: 0xc19a69, roughness: 0.94, metalness: 0, atlasTile: 'wicker-weave', atlasMetersPerTile: 1.1, atlasTintStrength: 0.16, buildingNormalScale: 0.58 },
+  paintRed: { color: 0xb75a4d, roughness: 0.89, metalness: 0, atlasTile: 'weathered-planks', atlasMetersPerTile: 2, atlasTintStrength: 0.72, textureFamily: 'woodPlanks', buildingNormalScale: 0.22 },
+  paintBlue: { color: 0x668996, roughness: 0.9, metalness: 0, atlasTile: 'weathered-planks', atlasMetersPerTile: 2, atlasTintStrength: 0.72, textureFamily: 'woodPlanks', buildingNormalScale: 0.22 },
+  paintOchre: { color: 0xd4ae62, roughness: 0.91, metalness: 0, atlasTile: 'weathered-planks', atlasMetersPerTile: 2, atlasTintStrength: 0.68, textureFamily: 'woodPlanks', buildingNormalScale: 0.22 },
   water: { color: 0x315868, roughness: 0.32, metalness: 0.04 },
   smoke: { color: 0x77736d, roughness: 1, metalness: 0, transparent: true, opacity: 0.28, depthWrite: false },
-  earth: { color: 0x6d5235, roughness: 1, metalness: 0 },
-  canvas: { color: 0xc8b58d, roughness: 0.98, metalness: 0, side: THREE.DoubleSide },
+  earth: { color: 0x6d5235, roughness: 1, metalness: 0, atlasTile: 'packed-earth', atlasMetersPerTile: 2, atlasTintStrength: 0.24, buildingNormalScale: 0.52 },
+  canvas: { color: 0xc8b58d, roughness: 0.98, metalness: 0, atlasTile: 'linen-canvas', atlasMetersPerTile: 1.2, atlasTintStrength: 0.2, buildingNormalScale: 0.46, side: THREE.DoubleSide },
   foliage: { color: 0x526f3b, roughness: 1, metalness: 0 },
   crop: { color: 0xb69a48, roughness: 1, metalness: 0 },
 };
 
-const detailMaterialCache = new Map<BuildingDetailMaterialKey, THREE.MeshStandardMaterial>();
-let textureSets: Record<TextureFamily, BuildingTextureSet> | null = null;
+const detailMaterialCache = new Map<BuildingDetailMaterialKey, BuildingAtlasMaterial>();
 let textureLoadPromise: Promise<void> | null = null;
 let splitWoodShingleMap: THREE.DataTexture | null = null;
 let proceduralThatchTextureSet: BuildingTextureSet | null = null;
 
-export function sharedBuildingMaterial(key: BuildingMaterialKey): THREE.MeshStandardMaterial {
+export function sharedBuildingMaterial(key: BuildingMaterialKey): BuildingAtlasMaterial {
   const cached = materialCache.get(key);
   if (cached) return cached;
 
   const definition = MATERIAL_DEFINITIONS[key];
-  const material = new THREE.MeshStandardMaterial({
+  const material = new MeshStandardNodeMaterial() as BuildingAtlasMaterial;
+  material.setValues({
     color: definition.color,
     roughness: definition.roughness,
     metalness: definition.metalness,
@@ -244,7 +224,9 @@ export function sharedBuildingMaterial(key: BuildingMaterialKey): THREE.MeshStan
     definition.uniformIndirectLight === true;
   material.vertexColors = definition.weathering !== undefined;
   material.normalScale.setScalar(definition.normalScale ?? 1);
-  if (definition.textureFamily) {
+  if (definition.atlasMetersPerTile) {
+    material.userData.metricUvMeters = definition.atlasMetersPerTile;
+  } else if (definition.textureFamily) {
     material.userData.metricUvMeters = TEXTURE_METERS[definition.textureFamily];
   }
   if (key === 'shingle') configureSplitWoodShingleSurface(material);
@@ -267,79 +249,61 @@ export function setBuildingIndirectLightIntensity(intensity: number): void {
 }
 
 /** Shared non-structural materials used by building props and painted trim. */
-export function sharedBuildingDetailMaterial(key: BuildingDetailMaterialKey): THREE.MeshStandardMaterial {
+export function sharedBuildingDetailMaterial(key: BuildingDetailMaterialKey): BuildingAtlasMaterial {
   const cached = detailMaterialCache.get(key);
   if (cached) return cached;
   const definition = DETAIL_MATERIAL_DEFINITIONS[key];
-  const { textureFamily, buildingNormalScale, ...parameters } = definition;
-  const material = new THREE.MeshStandardMaterial(parameters);
+  const {
+    atlasTile,
+    atlasMetersPerTile,
+    atlasTintStrength,
+    textureFamily,
+    buildingNormalScale,
+    ...parameters
+  } = definition;
+  const material = new MeshStandardNodeMaterial() as BuildingAtlasMaterial;
+  material.setValues(parameters);
   material.name = `Shared building detail material: ${key}`;
   material.userData.sharedBuildingMaterial = true;
-  if (textureFamily) material.userData.metricUvMeters = TEXTURE_METERS[textureFamily];
+  if (atlasMetersPerTile) material.userData.metricUvMeters = atlasMetersPerTile;
+  else if (textureFamily) material.userData.metricUvMeters = TEXTURE_METERS[textureFamily];
+  material.userData.buildingMaterialAtlasTile = atlasTile;
+  material.userData.buildingMaterialAtlasTintStrength = atlasTintStrength;
   detailMaterialCache.set(key, material);
   applyDetailTextureSet(material, definition);
   return material;
 }
 
-/** Loads the four 1K CC0 texture sets once and attaches them to all shared materials. */
+/** Loads the three-texture, twenty-surface building atlas once. */
 export function initializeBuildingMaterialLibrary(
   maxAnisotropy = 8,
   preloadTexture?: (texture: THREE.Texture) => void,
 ): Promise<void> {
-  if (textureSets) {
-    preloadBuildingTextureSets(textureSets, preloadTexture);
-    return Promise.resolve();
-  }
   if (textureLoadPromise) {
-    return preloadTexture
-      ? textureLoadPromise.then(() => {
-          if (textureSets) preloadBuildingTextureSets(textureSets, preloadTexture);
-        })
-      : textureLoadPromise;
+    return initializeBuildingMaterialAtlas(maxAnisotropy, preloadTexture);
   }
-
-  const anisotropy = Math.max(1, Math.min(8, maxAnisotropy));
-  textureLoadPromise = Promise.all(
-    (Object.keys(BUILDING_TEXTURE_URLS) as TextureFamily[]).map(async (family) => {
-      const urls = BUILDING_TEXTURE_URLS[family];
-      const [map, normalMap, roughnessMap] = await Promise.all([
-        loadBitmapTexture(urls.map, anisotropy, { srgb: true, anisotropyLimit: 8 }),
-        loadBitmapTexture(urls.normalMap, anisotropy, { anisotropyLimit: 8 }),
-        loadBitmapTexture(urls.roughnessMap, anisotropy, { anisotropyLimit: 8 }),
-      ]);
-      map.name = `Building ${family} diffuse`;
-      normalMap.name = `Building ${family} normal`;
-      roughnessMap.name = `Building ${family} roughness`;
-      preloadTexture?.(map);
-      preloadTexture?.(normalMap);
-      preloadTexture?.(roughnessMap);
-      return [family, { map, normalMap, roughnessMap }] as const;
-    }),
-  ).then((entries) => {
-    textureSets = Object.fromEntries(entries) as Record<TextureFamily, BuildingTextureSet>;
+  textureLoadPromise = initializeBuildingMaterialAtlas(maxAnisotropy, preloadTexture).then(() => {
     for (const [key, material] of materialCache) {
       applyTextureSet(material, MATERIAL_DEFINITIONS[key]);
     }
     for (const [key, material] of detailMaterialCache) {
       applyDetailTextureSet(material, DETAIL_MATERIAL_DEFINITIONS[key]);
     }
-  }).catch((error) => {
+    // The deterministic startup fallbacks have been superseded by the atlas.
+    // Release them immediately so the library settles at three resident maps.
+    splitWoodShingleMap?.dispose();
+    splitWoodShingleMap = null;
+    if (proceduralThatchTextureSet) {
+      proceduralThatchTextureSet.map.dispose();
+      proceduralThatchTextureSet.normalMap.dispose();
+      proceduralThatchTextureSet.roughnessMap.dispose();
+      proceduralThatchTextureSet = null;
+    }
+  }).catch((error: unknown) => {
     textureLoadPromise = null;
     throw error;
   });
   return textureLoadPromise;
-}
-
-function preloadBuildingTextureSets(
-  sets: Record<TextureFamily, BuildingTextureSet>,
-  preloadTexture?: (texture: THREE.Texture) => void,
-): void {
-  if (!preloadTexture) return;
-  for (const set of Object.values(sets)) {
-    preloadTexture(set.map);
-    preloadTexture(set.normalMap);
-    preloadTexture(set.roughnessMap);
-  }
 }
 
 export function disposeBuildingMaterialLibrary(): void {
@@ -348,15 +312,7 @@ export function disposeBuildingMaterialLibrary(): void {
   materialCache.clear();
   detailMaterialCache.clear();
   disposeSharedWellWaterMaterial();
-  if (textureSets) {
-    const textures = new Set<THREE.Texture>();
-    for (const set of Object.values(textureSets)) {
-      textures.add(set.map);
-      textures.add(set.normalMap);
-      textures.add(set.roughnessMap);
-    }
-    for (const texture of textures) texture.dispose();
-  }
+  disposeBuildingMaterialAtlas();
   splitWoodShingleMap?.dispose();
   splitWoodShingleMap = null;
   if (proceduralThatchTextureSet) {
@@ -365,41 +321,29 @@ export function disposeBuildingMaterialLibrary(): void {
     proceduralThatchTextureSet.roughnessMap.dispose();
     proceduralThatchTextureSet = null;
   }
-  textureSets = null;
   textureLoadPromise = null;
 }
 
 export function getBuildingMaterialLibraryStats(): { constructionMaterials: number; detailMaterials: number; textures: number; loaded: boolean } {
-  const loadedTextureCount = textureSets
-    ? new Set(
-      Object.values(textureSets)
-        .flatMap((set) => [set.map, set.normalMap, set.roughnessMap]),
-    ).size
-    : 0;
+  const atlas = getBuildingMaterialAtlasStats();
   return {
     constructionMaterials: materialCache.size,
     detailMaterials: detailMaterialCache.size,
     textures:
-      loadedTextureCount
+      atlas.textures
       + (splitWoodShingleMap ? 1 : 0)
       + (proceduralThatchTextureSet ? 3 : 0),
-    loaded: textureSets !== null,
+    loaded: atlas.loaded,
   };
 }
 
-function applyTextureSet(material: THREE.MeshStandardMaterial, definition: MaterialDefinition): void {
-  if (!definition.textureFamily || !textureSets) return;
-  const set = textureSets[definition.textureFamily];
-  material.map = definition.weathering === 'shingle'
-    ? getSplitWoodShingleMap()
-    : definition.useDiffuseMap === false
-      ? null
-      : set.map;
-  material.emissiveMap = definition.uniformIndirectLight === true ? null : set.map;
-  material.normalMap = set.normalMap;
-  material.roughnessMap = set.roughnessMap;
-  material.normalScale.setScalar(definition.normalScale ?? 1);
-  material.needsUpdate = true;
+function applyTextureSet(material: BuildingAtlasMaterial, definition: MaterialDefinition): void {
+  if (!definition.atlasTile) return;
+  applyBuildingMaterialAtlas(material, {
+    tile: definition.atlasTile,
+    tintStrength: definition.atlasTintStrength,
+    normalStrength: definition.normalScale,
+  });
 }
 
 const SPLIT_SHINGLE_TEXTURE_SIZE = 256;
@@ -409,7 +353,7 @@ const SPLIT_SHINGLE_WIDTH_METERS = 0.4;
 const SPLIT_SHINGLE_BUTT_LENGTH_VARIATION = 0.1;
 
 function configureSplitWoodShingleSurface(
-  material: THREE.MeshStandardMaterial,
+  material: BuildingAtlasMaterial,
 ): void {
   material.map = getSplitWoodShingleMap();
   material.userData.buildingUsesProceduralShingleMap = true;
@@ -556,7 +500,7 @@ const THATCH_BUNDLES_ACROSS_TILE = 11;
 const THATCH_COURSES_PER_TILE = 6;
 
 function configureProceduralThatchSurface(
-  material: THREE.MeshStandardMaterial,
+  material: BuildingAtlasMaterial,
 ): void {
   const textures = getProceduralThatchTextureSet();
   material.map = textures.map;
@@ -768,65 +712,69 @@ function configureBuildingIndirectLight(
 }
 
 function applyDetailTextureSet(
-  material: THREE.MeshStandardMaterial,
+  material: BuildingAtlasMaterial,
   definition: DetailMaterialDefinition,
 ): void {
-  if (!definition.textureFamily || !textureSets) return;
-  const set = textureSets[definition.textureFamily];
-  material.map = set.map;
-  material.normalMap = set.normalMap;
-  material.roughnessMap = set.roughnessMap;
-  material.normalScale.setScalar(definition.buildingNormalScale ?? 1);
-  material.needsUpdate = true;
+  if (!definition.atlasTile) return;
+  applyBuildingMaterialAtlas(material, {
+    tile: definition.atlasTile,
+    tintStrength: definition.atlasTintStrength,
+    normalStrength: definition.buildingNormalScale,
+  });
 }
 
 export function quarryRockMaterial(
   shade: keyof typeof QUARRY_ROCK_PALETTE = 'mid',
-): THREE.MeshStandardMaterial {
+): BuildingAtlasMaterial {
   if (shade === 'light' || shade === 'cut' || shade === 'dust') return sharedBuildingMaterial('masonryLight');
   if (shade === 'dark' || shade === 'spoil') return sharedBuildingMaterial('masonryDark');
   return sharedBuildingMaterial('masonryMid');
 }
 
-export function stoneMaterial(shade: 'light' | 'mid' | 'mortar' = 'mid'): THREE.MeshStandardMaterial {
+export function stoneMaterial(shade: 'light' | 'mid' | 'mortar' = 'mid'): BuildingAtlasMaterial {
   if (shade === 'light') return sharedBuildingMaterial('masonryLight');
   if (shade === 'mortar') return sharedBuildingMaterial('masonryDark');
   return sharedBuildingMaterial('masonryMid');
 }
 
-export function timberMaterial(shade: 'dark' | 'mid' | 'light' | 'weathered' = 'mid'): THREE.MeshStandardMaterial {
+export function timberMaterial(shade: 'dark' | 'mid' | 'light' | 'weathered' = 'mid'): BuildingAtlasMaterial {
   if (shade === 'dark') return sharedBuildingMaterial('timberDark');
   if (shade === 'light') return sharedBuildingMaterial('timberLight');
   if (shade === 'weathered') return sharedBuildingMaterial('timberWeathered');
   return sharedBuildingMaterial('timberMid');
 }
 
-export function tileMaterial(variant: 0 | 1 | 2 = 0): THREE.MeshStandardMaterial {
+/** Horizontal log courses for authored wall volumes, never individual beams. */
+export function stackedTimberWallMaterial(): BuildingAtlasMaterial {
+  return sharedBuildingMaterial('stackedTimber');
+}
+
+export function tileMaterial(variant: 0 | 1 | 2 = 0): BuildingAtlasMaterial {
   return sharedBuildingMaterial(variant === 1 ? 'clayDark' : 'clayRed');
 }
 
-export function shingleMaterial(): THREE.MeshStandardMaterial {
+export function shingleMaterial(): BuildingAtlasMaterial {
   return sharedBuildingMaterial('shingle');
 }
 
-export function residenceFacadeMaterial(facade: ResidenceFacadeColor): THREE.MeshStandardMaterial {
+export function residenceFacadeMaterial(facade: ResidenceFacadeColor): BuildingAtlasMaterial {
   if (facade === 'yellow') return sharedBuildingMaterial('plasterYellow');
   if (facade === 'grey') return sharedBuildingMaterial('plasterGrey');
   if (facade === 'lightOrange' || facade === 'orange') return sharedBuildingMaterial('plasterOrange');
   return sharedBuildingMaterial('plasterWhite');
 }
 
-export function residenceRoofMaterial(roof: ResidenceRoofColor): THREE.MeshStandardMaterial {
+export function residenceRoofMaterial(roof: ResidenceRoofColor): BuildingAtlasMaterial {
   if (roof === 'red') return sharedBuildingMaterial('clayRed');
   if (roof === 'brown') return sharedBuildingMaterial('shingle');
   return sharedBuildingMaterial('slate');
 }
 
-export function mossMaterial(kind: 'moss' | 'grass' = 'moss'): THREE.MeshStandardMaterial {
+export function mossMaterial(kind: 'moss' | 'grass' = 'moss'): BuildingAtlasMaterial {
   return sharedBuildingMaterial(kind === 'grass' ? 'grassRoof' : 'moss');
 }
 
-export function metalMaterial(shade: 'iron' | 'steel' = 'iron'): THREE.MeshStandardMaterial {
+export function metalMaterial(shade: 'iron' | 'steel' = 'iron'): BuildingAtlasMaterial {
   void shade;
   return sharedBuildingMaterial('metalIron');
 }

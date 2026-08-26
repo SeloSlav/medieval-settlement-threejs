@@ -154,6 +154,7 @@
     "test:backyard-gardens": "npx tsx scripts/testBackyardGardenVisuals.mts",
     "test:residence-terrain": "node --experimental-strip-types scripts/testResidenceTerrainAdaptation.mts",
     "test:building-art": "npx tsx scripts/testBuildingArtDirection.mts",
+    "test:building-material-atlas": "node --experimental-strip-types scripts/testBuildingMaterialAtlas.mts",
     "test:static-fixture-batch": "npx tsx scripts/testStaticFixtureBatch.mts",
     "test:static-shadow-batch": "npx tsx scripts/testStaticInstancedShadowBatch.mts",
     "test:building-shadow-batch": "npx tsx scripts/testBuildingShadowBatch.mts",

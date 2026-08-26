@@ -1,25 +1,27 @@
 import * as THREE from 'three';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import type { BuildingKind } from '../resources/types.ts';
+import { prepareBuildingGeometryUvs } from './buildingMetricUvs.ts';
+import {
+  metalMaterial,
+  sharedBuildingDetailMaterial,
+  stoneMaterial,
+  timberMaterial,
+} from './buildingMaterials.ts';
 
 const CONSTRUCTION_SITE_MATERIALS = {
-  stone: new THREE.MeshStandardMaterial({ color: 0x77746c, roughness: 0.94 }),
-  paleStone: new THREE.MeshStandardMaterial({ color: 0x9a9588, roughness: 0.96 }),
-  timber: new THREE.MeshStandardMaterial({ color: 0x6d4527, roughness: 0.9 }),
-  cutWood: new THREE.MeshStandardMaterial({ color: 0xc39158, roughness: 0.86 }),
-  rope: new THREE.MeshStandardMaterial({ color: 0x9a8057, roughness: 1 }),
-  iron: new THREE.MeshStandardMaterial({
-    color: 0x343b3b,
-    roughness: 0.62,
-    metalness: 0.48,
-  }),
-  firedClay: new THREE.MeshStandardMaterial({ color: 0x9b4f35, roughness: 0.9 }),
+  stone: stoneMaterial('mid'),
+  paleStone: stoneMaterial('light'),
+  timber: timberMaterial('mid'),
+  cutWood: timberMaterial('light'),
+  rope: sharedBuildingDetailMaterial('wicker'),
+  iron: metalMaterial('iron'),
+  firedClay: sharedBuildingDetailMaterial('firedClay'),
 } as const;
 
-for (const [key, material] of Object.entries(CONSTRUCTION_SITE_MATERIALS)) {
-  material.name = `Shared construction-site material: ${key}`;
-  material.userData.sharedConstructionSiteMaterial = true;
-}
+const CONSTRUCTION_SITE_MATERIAL_SET = new Set<THREE.Material>(
+  Object.values(CONSTRUCTION_SITE_MATERIALS),
+);
 
 const STONE = CONSTRUCTION_SITE_MATERIALS.stone;
 const PALE_STONE = CONSTRUCTION_SITE_MATERIALS.paleStone;
@@ -32,10 +34,7 @@ const ROOF_PLATE_Y = 4.25;
 const ROOF_RIDGE_Y = 5.45;
 
 export function isSharedConstructionSiteMaterial(material: THREE.Material): boolean {
-  return material.userData.sharedConstructionSiteMaterial === true
-    && Object.values(CONSTRUCTION_SITE_MATERIALS).includes(
-      material as (typeof CONSTRUCTION_SITE_MATERIALS)[keyof typeof CONSTRUCTION_SITE_MATERIALS],
-    );
+  return CONSTRUCTION_SITE_MATERIAL_SET.has(material);
 }
 
 export function getConstructionSiteMaterialLibraryStats(): { materials: number } {
@@ -152,7 +151,7 @@ function addRoofTileStack(
   stack.position.set(x, 0, z);
   for (let layer = 0; layer < visibleLayers; layer += 1) {
     for (let tile = 0; tile < 4; tile += 1) {
-      const piece = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.07, 0.56), FIRED_CLAY);
+      const piece = constructionMesh(new THREE.BoxGeometry(0.3, 0.07, 0.56), FIRED_CLAY);
       piece.name = `Construction roof tile ${layer * 4 + tile + 1}`;
       piece.position.set((tile - 1.5) * 0.27, 0.06 + layer * 0.08, 0);
       stack.add(piece);
@@ -223,7 +222,7 @@ function addRoofRafter(
   const rise = ROOF_RIDGE_Y - ROOF_PLATE_Y;
   const length = Math.hypot(halfWidth, rise);
   const pitch = Math.atan2(rise, halfWidth);
-  const beam = new THREE.Mesh(new THREE.BoxGeometry(length, 0.22, 0.24), TIMBER);
+  const beam = constructionMesh(new THREE.BoxGeometry(length, 0.22, 0.24), TIMBER);
   beam.name = 'Construction roof rafter';
   beam.position.set(
     side * halfWidth * 0.5,
@@ -246,7 +245,7 @@ function addScaffolding(
   }
   addBeam(root, halfWidth * 1.7, 0.13, 0.13, 0, scaffoldHeight * 0.55, halfDepth + 1, TIMBER);
   addBeam(root, halfWidth * 1.55, 0.11, 0.85, 0, scaffoldHeight * 0.58, halfDepth + 1, CUT_WOOD);
-  const lash = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.025, 5, 9), ROPE);
+  const lash = constructionMesh(new THREE.TorusGeometry(0.15, 0.025, 5, 9), ROPE);
   lash.position.set(-halfWidth * 0.72, scaffoldHeight * 0.55, halfDepth + 1);
   lash.rotation.x = Math.PI / 2;
   root.add(lash);
@@ -263,12 +262,12 @@ function addStakeLine(root: THREE.Group, halfWidth: number, halfDepth: number): 
 function addTimberPile(root: THREE.Group, x: number, z: number, ratio: number): void {
   const count = Math.min(9, Math.ceil(THREE.MathUtils.clamp(ratio, 0, 1) * 9));
   for (let index = 0; index < count; index += 1) {
-    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.19, 2.3, 8), TIMBER);
+    const log = constructionMesh(new THREE.CylinderGeometry(0.17, 0.19, 2.3, 8), TIMBER);
     log.name = 'Construction timber pile log';
     log.rotation.z = Math.PI / 2;
     log.position.set(x, 0.25 + Math.floor(index / 3) * 0.32, z + (index % 3 - 1) * 0.42);
     root.add(log);
-    const end = new THREE.Mesh(new THREE.CircleGeometry(0.165, 8), CUT_WOOD);
+    const end = constructionMesh(new THREE.CircleGeometry(0.165, 8), CUT_WOOD);
     end.name = 'Construction timber pile cut end';
     end.rotation.y = Math.PI / 2;
     end.position.set(x + 1.16, log.position.y, log.position.z);
@@ -280,7 +279,7 @@ function addStonePile(root: THREE.Group, x: number, z: number, ratio: number): v
   const count = Math.min(10, Math.ceil(THREE.MathUtils.clamp(ratio, 0, 1) * 10));
   for (let index = 0; index < count; index += 1) {
     const size = 0.34 + (index % 3) * 0.08;
-    const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(size, 0), index % 2 ? STONE : PALE_STONE);
+    const stone = constructionMesh(new THREE.DodecahedronGeometry(size, 0), index % 2 ? STONE : PALE_STONE);
     stone.name = 'Construction stone pile piece';
     stone.scale.y = 0.65 + (index % 2) * 0.18;
     stone.rotation.set(index * 0.3, index * 0.71, index * 0.19);
@@ -308,17 +307,17 @@ function addFittingsCrate(
   const crate = new THREE.Group();
   crate.name = 'Construction fittings crate';
   crate.position.set(x, 0, z);
-  const box = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.76, 0.9), CUT_WOOD);
+  const box = constructionMesh(new THREE.BoxGeometry(1.35, 0.76, 0.9), CUT_WOOD);
   box.name = 'Construction fittings crate box';
   box.position.y = 0.43;
   crate.add(box);
   for (let index = 0; index < visibleBands; index += 1) {
-    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.82, 0.96), IRON);
+    const strap = constructionMesh(new THREE.BoxGeometry(0.09, 0.82, 0.96), IRON);
     strap.name = `Construction iron strap ${index + 1}`;
     strap.position.set((index - 1) * 0.42, 0.45, 0);
     crate.add(strap);
   }
-  const hinge = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.12), IRON);
+  const hinge = constructionMesh(new THREE.BoxGeometry(0.5, 0.08, 0.12), IRON);
   hinge.name = 'Construction iron hinge';
   hinge.position.set(0, 0.82, 0.12);
   crate.add(hinge);
@@ -335,8 +334,15 @@ function addBeam(
   z: number,
   material: THREE.Material,
 ): THREE.Mesh {
-  const beam = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
+  const beam = constructionMesh(new THREE.BoxGeometry(width, height, depth), material);
   beam.position.set(x, y, z);
   root.add(beam);
   return beam;
+}
+
+function constructionMesh(
+  geometry: THREE.BufferGeometry,
+  material: THREE.Material,
+): THREE.Mesh {
+  return new THREE.Mesh(prepareBuildingGeometryUvs(geometry, material), material);
 }

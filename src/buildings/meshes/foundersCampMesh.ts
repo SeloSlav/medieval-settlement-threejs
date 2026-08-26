@@ -561,7 +561,7 @@ function addFoundingProvisions(parent: THREE.Group): void {
   const basket = addMesh(
     provisions,
     new THREE.CylinderGeometry(0.43, 0.32, 0.58, 10, 1, true),
-    timberMaterial('light'),
+    sharedBuildingDetailMaterial('wicker'),
     new THREE.Vector3(7.55, 0.3, -0.95),
   );
   basket.name = 'Woven provision basket';
@@ -569,7 +569,7 @@ function addFoundingProvisions(parent: THREE.Group): void {
   const basketRim = addMesh(
     provisions,
     new THREE.TorusGeometry(0.43, 0.045, 5, 10),
-    timberMaterial('dark'),
+    sharedBuildingDetailMaterial('wicker'),
     new THREE.Vector3(7.55, 0.59, -0.95),
     new THREE.Euler(Math.PI * 0.5, 0, 0),
   );

@@ -23,7 +23,7 @@ import {
 } from '../bulkStockpileVisuals.ts';
 
 const CLAY = sharedBuildingDetailMaterial('earth');
-const FIRED_CLAY = sharedBuildingDetailMaterial('paintRed');
+const FIRED_CLAY = sharedBuildingDetailMaterial('firedClay');
 const CHARCOAL = sharedBuildingMaterial('interiorDark');
 const IRON_BLOOM = metalMaterial('iron');
 const IRON_ORE = sharedBuildingDetailMaterial('paintRed');
@@ -145,7 +145,7 @@ function addIronChargeSegment(
   const basket = addMesh(
     segment,
     new THREE.CylinderGeometry(0.31, 0.24, 0.34, 9, 1, true),
-    timberMaterial('dark'),
+    sharedBuildingDetailMaterial('wicker'),
     new THREE.Vector3(0, 0.2, 0),
   );
   basket.name = 'Iron ore basket';

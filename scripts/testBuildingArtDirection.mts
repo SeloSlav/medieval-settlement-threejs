@@ -721,11 +721,11 @@ for (const kind of BUILDING_KINDS) {
 }
 
 const stats = getBuildingMaterialLibraryStats();
-if (stats.constructionMaterials > 20) {
-  throw new Error(`Shared construction palette grew beyond 20 materials (${stats.constructionMaterials}).`);
+if (stats.constructionMaterials > 22) {
+  throw new Error(`Shared construction palette grew beyond 22 materials (${stats.constructionMaterials}).`);
 }
-if (stats.detailMaterials > 10) {
-  throw new Error(`Shared building-detail palette grew beyond 10 materials (${stats.detailMaterials}).`);
+if (stats.detailMaterials > 12) {
+  throw new Error(`Shared building-detail palette grew beyond 12 materials (${stats.detailMaterials}).`);
 }
 const backyardMaterialStats = getBackyardGardenMaterialLibraryStats();
 if (backyardMaterialStats.meshMaterials > 34 || backyardMaterialStats.spriteMaterials > 3) {
@@ -816,8 +816,8 @@ for (const tier of [1, 2, 3] as const) {
 }
 
 const finalStats = getBuildingMaterialLibraryStats();
-if (finalStats.constructionMaterials < 15 || finalStats.constructionMaterials > 20 || finalStats.detailMaterials !== 10) {
-  throw new Error(`Expected a 15–20 construction + 10 detail shared palette; found ${finalStats.constructionMaterials} + ${finalStats.detailMaterials}.`);
+if (finalStats.constructionMaterials < 15 || finalStats.constructionMaterials > 22 || finalStats.detailMaterials !== 12) {
+  throw new Error(`Expected a 15–22 construction + 12 detail shared palette; found ${finalStats.constructionMaterials} + ${finalStats.detailMaterials}.`);
 }
 const finalMaterialCeiling =
   finalStats.constructionMaterials

@@ -165,9 +165,11 @@ function testConstructionMarkerReplacementAndInspectorRefresh(): void {
   assert.equal(completedMarker.getObjectByName('Construction site'), undefined);
   assert.equal(countDirectLifecycleRoots(parent, 'Construction site'), 0);
   assert.equal(
-    [...collectMaterials(parent)].some(isSharedConstructionSiteMaterial),
+    [...collectMaterials(completedMarker)].some(
+      (material) => material.name.startsWith('Shared construction-site material:'),
+    ),
     false,
-    'atomic completion must leave no site material in the rendered building graph',
+    'atomic completion must leave no legacy construction-only material in the rendered building graph',
   );
   assert.equal(inspector.lastRendered(), buildingTargetSignature(completed));
 

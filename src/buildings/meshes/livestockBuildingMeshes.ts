@@ -256,9 +256,9 @@ export function createSwineherdMesh(): THREE.Group {
 
   // Mast baskets and a rough stone wash trough reinforce the forest-seasonal identity.
   for (const [x, z] of [[-4.3, 3.4], [-3.5, 3.7]] as const) {
-    addMesh(group, new THREE.CylinderGeometry(0.34, 0.43, 0.75, 9), timberMaterial('light'), new THREE.Vector3(x, 0.38, z));
+    addMesh(group, new THREE.CylinderGeometry(0.34, 0.43, 0.75, 9), sharedBuildingDetailMaterial('wicker'), new THREE.Vector3(x, 0.38, z));
     for (let band = 0; band < 3; band++) {
-      addMesh(group, new THREE.TorusGeometry(0.38 - band * 0.025, 0.025, 4, 10), timberMaterial('dark'), new THREE.Vector3(x, 0.2 + band * 0.23, z), new THREE.Euler(Math.PI * 0.5, 0, 0));
+      addMesh(group, new THREE.TorusGeometry(0.38 - band * 0.025, 0.025, 4, 10), sharedBuildingDetailMaterial('wicker'), new THREE.Vector3(x, 0.2 + band * 0.23, z), new THREE.Euler(Math.PI * 0.5, 0, 0));
     }
   }
   addMesh(group, new THREE.BoxGeometry(2.1, 0.52, 1.0), stoneMaterial('mortar'), new THREE.Vector3(-4.0, 0.28, -3.4));

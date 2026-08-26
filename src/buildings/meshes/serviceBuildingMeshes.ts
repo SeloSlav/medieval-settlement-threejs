@@ -198,7 +198,7 @@ export function createWellMesh(): THREE.Group {
   addMesh(
     group,
     new THREE.CylinderGeometry(0.27, 0.22, 0.42, 10),
-    metalMaterial('iron'),
+    timberMaterial('weathered'),
     new THREE.Vector3(0, 1.03, 0),
   );
 
@@ -451,14 +451,14 @@ function addWickerFishTrap(group: THREE.Group, x: number, z: number, scale = 1):
   addMesh(
     group,
     new THREE.CylinderGeometry(0.32 * scale, 0.48 * scale, 1.1 * scale, 10, 1, true),
-    timberMaterial('light'),
+    sharedBuildingDetailMaterial('wicker'),
     new THREE.Vector3(x, 0.55 * scale, z),
   );
   for (const y of [0.18, 0.5, 0.84]) {
     addMesh(
       group,
       new THREE.TorusGeometry((0.44 - y * 0.12) * scale, 0.025 * scale, 5, 10),
-      timberMaterial('dark'),
+      sharedBuildingDetailMaterial('wicker'),
       new THREE.Vector3(x, y * scale, z),
       new THREE.Euler(Math.PI * 0.5, 0, 0),
     );

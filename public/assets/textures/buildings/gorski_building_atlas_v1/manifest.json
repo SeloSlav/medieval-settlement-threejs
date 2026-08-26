@@ -1,0 +1,463 @@
+{
+  "id": "gorski-building-atlas-v1",
+  "generator": "fal-ai/patina/material",
+  "generatedAt": "2026-08-26T17:50:50.763Z",
+  "dimensions": {
+    "width": 2560,
+    "height": 2048
+  },
+  "grid": {
+    "columns": 5,
+    "rows": 4,
+    "cellSize": 512,
+    "gutter": 32,
+    "contentSize": 448
+  },
+  "channels": {
+    "albedo": "sRGB RGB",
+    "normal": "OpenGL tangent-space RGB; Patina green flipped, mean tilt removed, Z reconstructed",
+    "material": "R=roughness, G=metalness, B=height-derived ambient occlusion, A=centered height"
+  },
+  "files": {
+    "building_albedo_atlas.png": {
+      "bytes": 8844922,
+      "sha256": "2cecf1e0dd8e05c017a91697a1051f79803935e1cf6e318ac775771f2e065ee9"
+    },
+    "building_normal_atlas.png": {
+      "bytes": 6179569,
+      "sha256": "532e8c777e9aef7ef36e61cc465cfac0e9af5ecfbdcb3f62923cfc888c6530f7"
+    },
+    "building_material_atlas.png": {
+      "bytes": 6888608,
+      "sha256": "cea66b22363c64056151df8e88d2aacd9a8edd00405dd88ea20f1936a93a71f8"
+    }
+  },
+  "tiles": [
+    {
+      "id": "lime-plaster",
+      "label": "Hand-trowelled lime plaster",
+      "patinaCandidate": "building-lime-plaster",
+      "index": 0,
+      "column": 0,
+      "rowTopToBottom": 0,
+      "metersPerTile": 2.6,
+      "contentPixels": {
+        "x": 32,
+        "y": 32,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.84,
+        0.98
+      ],
+      "metalness": 0,
+      "normalStrength": 0.48
+    },
+    {
+      "id": "limestone-ashlar",
+      "label": "Limestone ashlar masonry",
+      "patinaCandidate": "building-limestone-ashlar",
+      "index": 1,
+      "column": 1,
+      "rowTopToBottom": 0,
+      "metersPerTile": 2.4,
+      "contentPixels": {
+        "x": 544,
+        "y": 32,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.78,
+        0.96
+      ],
+      "metalness": 0,
+      "normalStrength": 0.68
+    },
+    {
+      "id": "fieldstone-mortar",
+      "label": "Fieldstone and lime mortar",
+      "patinaCandidate": "building-fieldstone-mortar",
+      "index": 2,
+      "column": 2,
+      "rowTopToBottom": 0,
+      "metersPerTile": 2.4,
+      "contentPixels": {
+        "x": 1056,
+        "y": 32,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.82,
+        0.98
+      ],
+      "metalness": 0,
+      "normalStrength": 0.72
+    },
+    {
+      "id": "quarry-stone",
+      "label": "Rough quarry stone",
+      "patinaCandidate": "building-quarry-stone",
+      "index": 3,
+      "column": 3,
+      "rowTopToBottom": 0,
+      "metersPerTile": 2.4,
+      "contentPixels": {
+        "x": 1568,
+        "y": 32,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.8,
+        0.97
+      ],
+      "metalness": 0,
+      "normalStrength": 0.72
+    },
+    {
+      "id": "rough-hewn-timber",
+      "label": "Rough-hewn structural timber",
+      "patinaCandidate": "building-rough-hewn-timber",
+      "index": 4,
+      "column": 4,
+      "rowTopToBottom": 0,
+      "metersPerTile": 2,
+      "contentPixels": {
+        "x": 2080,
+        "y": 32,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.72,
+        0.94
+      ],
+      "metalness": 0,
+      "normalStrength": 0.62
+    },
+    {
+      "id": "sawn-planks",
+      "label": "Sawn oak planks",
+      "patinaCandidate": "building-sawn-planks",
+      "index": 5,
+      "column": 0,
+      "rowTopToBottom": 1,
+      "metersPerTile": 2,
+      "contentPixels": {
+        "x": 32,
+        "y": 544,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.68,
+        0.91
+      ],
+      "metalness": 0,
+      "normalStrength": 0.56
+    },
+    {
+      "id": "weathered-planks",
+      "label": "Weathered exterior planks",
+      "patinaCandidate": "building-weathered-planks",
+      "index": 6,
+      "column": 1,
+      "rowTopToBottom": 1,
+      "metersPerTile": 2,
+      "contentPixels": {
+        "x": 544,
+        "y": 544,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.79,
+        0.97
+      ],
+      "metalness": 0,
+      "normalStrength": 0.66
+    },
+    {
+      "id": "stacked-log-wall",
+      "label": "Stacked timber wall",
+      "patinaCandidate": "building-stacked-log-wall",
+      "index": 7,
+      "column": 2,
+      "rowTopToBottom": 1,
+      "metersPerTile": 2,
+      "contentPixels": {
+        "x": 1056,
+        "y": 544,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.76,
+        0.96
+      ],
+      "metalness": 0,
+      "normalStrength": 0.65
+    },
+    {
+      "id": "wicker-weave",
+      "label": "Wattle and wicker weave",
+      "patinaCandidate": "building-wicker-weave",
+      "index": 8,
+      "column": 3,
+      "rowTopToBottom": 1,
+      "metersPerTile": 1.1,
+      "contentPixels": {
+        "x": 1568,
+        "y": 544,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.8,
+        0.98
+      ],
+      "metalness": 0,
+      "normalStrength": 0.58
+    },
+    {
+      "id": "split-shingles",
+      "label": "Split wooden roof shingles",
+      "patinaCandidate": "building-split-shingles",
+      "index": 9,
+      "column": 4,
+      "rowTopToBottom": 1,
+      "metersPerTile": 2.2,
+      "contentPixels": {
+        "x": 2080,
+        "y": 544,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.82,
+        0.99
+      ],
+      "metalness": 0,
+      "normalStrength": 0.72
+    },
+    {
+      "id": "clay-roof-tiles",
+      "label": "Handmade clay roof tiles",
+      "patinaCandidate": "building-clay-roof-tiles",
+      "index": 10,
+      "column": 0,
+      "rowTopToBottom": 2,
+      "metersPerTile": 2.2,
+      "contentPixels": {
+        "x": 32,
+        "y": 1056,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.7,
+        0.92
+      ],
+      "metalness": 0,
+      "normalStrength": 0.72
+    },
+    {
+      "id": "thatch-roof",
+      "label": "Bundled reed thatch",
+      "patinaCandidate": "building-thatch-roof",
+      "index": 11,
+      "column": 1,
+      "rowTopToBottom": 2,
+      "metersPerTile": 1.6,
+      "contentPixels": {
+        "x": 544,
+        "y": 1056,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.88,
+        1
+      ],
+      "metalness": 0,
+      "normalStrength": 0.78
+    },
+    {
+      "id": "slate-roof",
+      "label": "Hand-split slate roof",
+      "patinaCandidate": "building-slate-roof",
+      "index": 12,
+      "column": 2,
+      "rowTopToBottom": 2,
+      "metersPerTile": 2.2,
+      "contentPixels": {
+        "x": 1056,
+        "y": 1056,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.72,
+        0.93
+      ],
+      "metalness": 0.02,
+      "normalStrength": 0.64
+    },
+    {
+      "id": "packed-earth",
+      "label": "Packed workshop earth",
+      "patinaCandidate": "building-packed-earth",
+      "index": 13,
+      "column": 3,
+      "rowTopToBottom": 2,
+      "metersPerTile": 2,
+      "contentPixels": {
+        "x": 1568,
+        "y": 1056,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.84,
+        0.99
+      ],
+      "metalness": 0,
+      "normalStrength": 0.52
+    },
+    {
+      "id": "linen-canvas",
+      "label": "Heavy linen canvas",
+      "patinaCandidate": "building-linen-canvas",
+      "index": 14,
+      "column": 4,
+      "rowTopToBottom": 2,
+      "metersPerTile": 1.2,
+      "contentPixels": {
+        "x": 2080,
+        "y": 1056,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.86,
+        0.99
+      ],
+      "metalness": 0,
+      "normalStrength": 0.46
+    },
+    {
+      "id": "wrought-iron",
+      "label": "Hand-forged wrought iron",
+      "patinaCandidate": "building-wrought-iron",
+      "index": 15,
+      "column": 0,
+      "rowTopToBottom": 3,
+      "metersPerTile": 1.2,
+      "contentPixels": {
+        "x": 32,
+        "y": 1568,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.42,
+        0.68
+      ],
+      "metalness": [
+        0.72,
+        0.94
+      ],
+      "normalStrength": 0.54
+    },
+    {
+      "id": "aged-brass",
+      "label": "Hammered aged brass",
+      "patinaCandidate": "building-aged-brass",
+      "index": 16,
+      "column": 1,
+      "rowTopToBottom": 3,
+      "metersPerTile": 1.2,
+      "contentPixels": {
+        "x": 544,
+        "y": 1568,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.34,
+        0.62
+      ],
+      "metalness": [
+        0.68,
+        0.92
+      ],
+      "normalStrength": 0.5
+    },
+    {
+      "id": "fired-clay",
+      "label": "Unglazed fired clay",
+      "patinaCandidate": "building-fired-clay",
+      "index": 17,
+      "column": 2,
+      "rowTopToBottom": 3,
+      "metersPerTile": 1.2,
+      "contentPixels": {
+        "x": 1056,
+        "y": 1568,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.74,
+        0.94
+      ],
+      "metalness": 0,
+      "normalStrength": 0.55
+    },
+    {
+      "id": "mossy-surface",
+      "label": "Thin roof and wall moss",
+      "patinaCandidate": "building-mossy-surface",
+      "index": 18,
+      "column": 3,
+      "rowTopToBottom": 3,
+      "metersPerTile": 1.4,
+      "contentPixels": {
+        "x": 1568,
+        "y": 1568,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.88,
+        1
+      ],
+      "metalness": 0,
+      "normalStrength": 0.55
+    },
+    {
+      "id": "turf-roof",
+      "label": "Short turf roof",
+      "patinaCandidate": "building-turf-roof",
+      "index": 19,
+      "column": 4,
+      "rowTopToBottom": 3,
+      "metersPerTile": 1.4,
+      "contentPixels": {
+        "x": 2080,
+        "y": 1568,
+        "width": 448,
+        "height": 448
+      },
+      "roughnessRange": [
+        0.86,
+        0.99
+      ],
+      "metalness": 0,
+      "normalStrength": 0.54
+    }
+  ]
+}

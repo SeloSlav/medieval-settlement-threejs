@@ -5,6 +5,7 @@ import {
   residenceFacadeMaterial,
   sharedBuildingDetailMaterial,
   shingleMaterial,
+  stackedTimberWallMaterial,
   stoneMaterial,
   tileMaterial,
   timberMaterial,
@@ -68,7 +69,7 @@ export const LOCAL_RECEIPT_VISUAL_CAPACITY = STOREHOUSE_HAUL_PER_WORKER;
 const earth = sharedBuildingDetailMaterial('earth');
 const crop = sharedBuildingDetailMaterial('crop');
 const leaf = sharedBuildingDetailMaterial('foliage');
-const canvas = residenceFacadeMaterial('yellow');
+const canvas = sharedBuildingDetailMaterial('canvas');
 const copper = sharedBuildingDetailMaterial('brass');
 const hiveBlue = sharedBuildingDetailMaterial('paintBlue');
 const hiveRed = sharedBuildingDetailMaterial('paintRed');
@@ -89,7 +90,7 @@ function addSack(group: THREE.Group, x: number, z: number, scale = 1): void {
 }
 
 function addSaltSack(group: THREE.Group, scale = 1): void {
-  const saltCanvas = residenceFacadeMaterial('white');
+  const saltCanvas = canvas;
   const body = addMesh(
     group,
     new THREE.SphereGeometry(0.31 * scale, 8, 6),
@@ -106,7 +107,7 @@ function addSaltSack(group: THREE.Group, scale = 1): void {
 }
 
 function addPotteryVessel(group: THREE.Group, scale = 1): void {
-  const firedClay = residenceFacadeMaterial('orange');
+  const firedClay = sharedBuildingDetailMaterial('firedClay');
   addMesh(
     group,
     new THREE.SphereGeometry(0.23 * scale, 9, 7),
@@ -737,7 +738,7 @@ export function createBakeryMesh(): THREE.Group {
 export function createSmokehouseMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Smokehouse';
-  const shell = addGableShell(group, { width: 6.4, depth: 5.5, stoneHeight: 1.5, wallHeight: 2.25, ridgeHeight: 2.2, wallMaterial: timberMaterial('dark'), roofMaterial: shingleMaterial(), stoneGroundFloor: true });
+  const shell = addGableShell(group, { width: 6.4, depth: 5.5, stoneHeight: 1.5, wallHeight: 2.25, ridgeHeight: 2.2, wallMaterial: stackedTimberWallMaterial(), roofMaterial: shingleMaterial(), stoneGroundFloor: true });
   addPlankDoor(group, -1.0, 1.53, shell.frontZ + 0.03, 0.92, 1.78);
   addSmallWindow(group, 1.25, 2.55, shell.frontZ + 0.03, 0.58, 0.72);
   addChimney(group, 1.85, -1.4, 5.4);
