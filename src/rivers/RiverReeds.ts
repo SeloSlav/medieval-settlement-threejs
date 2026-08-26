@@ -12,7 +12,10 @@ import {
   reedLodOpacity,
   resolveReedLod,
 } from '../grass/grassLodMath.ts';
-import type { RendererBackendKind } from '../scene/RendererBackend.ts';
+import {
+  supportsNodeMaterials,
+  type RendererBackendKind,
+} from '../scene/RendererBackend.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import {
   addSeedThreeGroundCoverInstanceAttributes,
@@ -27,6 +30,7 @@ import {
   ensureCattailEmergenceHeightMeters,
 } from './RiverReedHeight.ts';
 import { getStillWaterSurfaceY } from './RiverWaterLevel.ts';
+import { applyPainterlyVegetationMaterial } from '../vegetation/painterly/painterlyVegetationMaterial.ts';
 
 type ReedPlacement = {
   x: number;
@@ -132,6 +136,9 @@ export async function createRiverReeds(
     [0.28, 0.42, 0.13],
     0.22,
   );
+  if (supportsNodeMaterials(rendererBackend)) {
+    applyPainterlyVegetationMaterial(material, 'ground-cover');
+  }
   material.transparent = false;
   material.opacity = 0;
   material.alphaTest = 0.32;

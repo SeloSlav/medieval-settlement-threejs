@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { MeshStandardNodeMaterial } from 'three/webgpu';
+import { applyPainterlyVegetationMaterial } from '../vegetation/painterly/painterlyVegetationMaterial.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { sampleTerrainMeshAttributeX } from '../terrain/TerrainMeshHeight.ts';
 import { mulberry32 } from '../utils/random.ts';
@@ -229,19 +231,19 @@ export function disposeForestFloorTwigTextures(textures: ForestFloorTwigTextures
 export function createForestFloorTwigMaterial(
   textures: ForestFloorTwigTextures,
 ): THREE.MeshStandardMaterial {
-  const material = new THREE.MeshStandardMaterial({
-    name: 'Pale shared-beech forest-floor twigs',
-    map: textures.albedo,
-    normalMap: textures.normal,
-    roughnessMap: textures.roughness,
-    vertexColors: true,
-    color: 0xffffff,
-    roughness: 1,
-    metalness: 0,
-  });
+  const material = new MeshStandardNodeMaterial() as unknown as THREE.MeshStandardMaterial;
+  material.name = 'Pale shared-beech forest-floor twigs';
+  material.map = textures.albedo;
+  material.normalMap = textures.normal;
+  material.roughnessMap = textures.roughness;
+  material.vertexColors = true;
+  material.color.setHex(0xffffff);
+  material.roughness = 1;
+  material.metalness = 0;
   material.normalScale.set(0.48, 0.48);
   material.userData.barkPreset = FOREST_FLOOR_TWIG_BARK_PRESET_KEY;
   material.userData.textureOwnership = textures.ownership;
+  applyPainterlyVegetationMaterial(material, 'twig');
   return material;
 }
 

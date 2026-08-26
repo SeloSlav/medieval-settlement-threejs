@@ -30,6 +30,7 @@ import type { RoadWeatherUniforms } from '../roads/RoadSurfaceMaterial.ts';
 import type { TextureSet } from '../roads/RoadTextureLoader.ts';
 import type { TerrainBlendTextureSet } from '../roads/RoadTextureLoader.ts';
 import { ForestCanopyOcclusionMap } from './ForestCanopyOcclusion.ts';
+import { applyPainterlyVegetationMaterial } from '../vegetation/painterly/painterlyVegetationMaterial.ts';
 
 type TslNode = {
   abs(): TslNode;
@@ -1252,6 +1253,7 @@ export function createTerrainGrassMaterial(
     snowNodes.aoNode,
     snowNodes.mask,
   ) as TslNode;
+  applyPainterlyVegetationMaterial(material, 'terrain-ground');
   return material;
 }
 
@@ -1584,5 +1586,6 @@ export function createTerrainGrassMaterialWithRiverShore(
     snowNodes.mask,
   ) as TslNode).mul(canopyAoFactor) as TslNode;
   material.userData.forestCanopyOcclusionMap = canopyOcclusion;
+  applyPainterlyVegetationMaterial(material, 'terrain-ground');
   return material;
 }

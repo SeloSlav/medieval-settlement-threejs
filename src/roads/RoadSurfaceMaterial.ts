@@ -15,6 +15,7 @@ import {
   vec3,
 } from 'three/tsl';
 import type { TextureSet } from './RoadTextureLoader.ts';
+import { applyPainterlyVegetationMaterial } from '../vegetation/painterly/painterlyVegetationMaterial.ts';
 
 type TslNode = {
   add(value: TslNode): TslNode;
@@ -234,6 +235,7 @@ export function createRoadCoreMaterial(
     material.roughnessNode = applyRoadWeatherRoughness(dirtRoughness, weather);
     if (dirtTextures.ao) material.aoNode = (texture(dirtTextures.ao, uv() as TslNode) as TslNode).r;
   }
+  applyPainterlyVegetationMaterial(material, 'road-ground');
   return material;
 }
 
@@ -265,6 +267,7 @@ export function createRoadEdgeMaterial(
     opacity = opacity.mul(edgeKeep) as TslNode;
   }
   material.opacityNode = opacity;
+  applyPainterlyVegetationMaterial(material, 'road-ground');
   return material;
 }
 
@@ -293,5 +296,6 @@ export function createRiverBankMaterial(textures: TextureSet): MeshStandardNodeM
   );
   if (textures.ao) material.aoNode = (texture(textures.ao, uv() as TslNode) as TslNode).r;
   material.opacityNode = buildRiverBankOpacityNode();
+  applyPainterlyVegetationMaterial(material, 'river-bank');
   return material;
 }

@@ -38,6 +38,7 @@ import {
   seedThreeBarkUrl,
   seedThreeLeafUrl,
 } from '../vegetation/seedthree/seedThreeTextures.ts';
+import { applyPainterlyVegetationMaterial } from '../vegetation/painterly/painterlyVegetationMaterial.ts';
 import { createForestFloorPlacementMask } from './ForestFloorPlacementMask.ts';
 import type { ForestTreePlacement } from './forestPlacements.ts';
 
@@ -676,6 +677,7 @@ function createNettleFoliageMaterial(
   material.userData.forestSeasonalAutumnColor = autumn;
   material.userData.forestSeasonalDormancy = dormancy;
   material.userData.forestSnowCoverage = snowCoverage;
+  applyPainterlyVegetationMaterial(material, 'shrub-leaf');
   return material;
 }
 
@@ -711,6 +713,7 @@ function createNettleBranchMaterial(
     material,
     tsl.texture(textures.albedo).rgb.mul(tsl.uniform(material.color)),
   );
+  applyPainterlyVegetationMaterial(material, 'bark');
   return material;
 }
 

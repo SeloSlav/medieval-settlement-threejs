@@ -72,6 +72,7 @@ import { applyShadowPreferences as syncShadowCasters } from './applyShadowPrefer
 import { TREE_SHADOW_CAST_LAYER } from './SceneLayers.ts';
 import { subscribeShadowPreferences } from './shadowPreference.ts';
 import { areDistantCanopyCardsEnabled } from './distantCanopyCardPreference.ts';
+import { setPainterlyVegetationLightDirection } from '../vegetation/painterly/painterlyVegetationMaterial.ts';
 import { applyMaxAnisotropy, beginProgressiveStartupTextureLoad, type SceneStartupTextures } from './startupTextures.ts';
 import { HydrologyOverlay } from '../hydrology/HydrologyOverlay.ts';
 import { CropSuitabilityOverlay } from '../farming/CropSuitabilityOverlay.ts';
@@ -329,6 +330,7 @@ export class SceneManager {
     this.camera.layers.disable(TREE_SHADOW_CAST_LAYER);
     this.sunDirection.setFromSphericalCoords(1, THREE.MathUtils.degToRad(43), THREE.MathUtils.degToRad(225));
     this.shadowKeyDirection.copy(this.sunDirection);
+    setPainterlyVegetationLightDirection(this.shadowKeyDirection);
     this.terrain = terrain;
     this.fairTerrainMaterial = terrain.mesh.material as THREE.Material;
     this.terrainProjector = new TerrainProjector(this.terrain, this.camera, this.renderer.domElement);
@@ -1133,6 +1135,7 @@ export class SceneManager {
       .multiplyScalar(1 - moonBlend)
       .addScaledVector(MOON_KEY_DIRECTION, moonBlend)
       .normalize();
+    setPainterlyVegetationLightDirection(this.shadowKeyDirection);
     this.sky.updateAtmosphere(state.dawnAmount, state.duskAmount);
     this.sky.updateSiderealAngle(state.siderealAngle);
     this.sunLight.color.setHex(blendColorHex(

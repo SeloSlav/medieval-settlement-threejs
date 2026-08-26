@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { MeshStandardNodeMaterial } from 'three/webgpu';
+import { normalMap, texture, uniform, vec2 } from 'three/tsl';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   BACKYARD_GARDEN_DEFINITIONS,
@@ -16,6 +18,7 @@ import {
   deciduousFoliageForClock,
   type DeciduousFoliagePresentation,
 } from '../world/deciduousFoliagePolicy.ts';
+import { applyPainterlyVegetationMaterial } from '../vegetation/painterly/painterlyVegetationMaterial.ts';
 
 export type BackyardGardenMeshOptions = {
   width?: number;
@@ -175,17 +178,42 @@ if (GARDEN_BED_SOIL_TEXTURES.roughness) {
   GARDEN_BED_SOIL_TEXTURES.roughness.colorSpace = THREE.NoColorSpace;
 }
 
+function createGardenSoilMaterial(): MeshStandardNodeMaterial {
+  const material = new MeshStandardNodeMaterial();
+  material.name = 'Textured dark garden-bed soil';
+  const tint = new THREE.Color(0x8b7765);
+  material.color.copy(tint);
+  // NodeMaterial does not consume the classic map slots automatically. Keep
+  // explicit nodes so the same authored albedo/normal/roughness inputs remain
+  // authoritative before the optional painter wrapper is installed.
+  if (GARDEN_BED_SOIL_TEXTURES.albedo) {
+    const albedo = texture(GARDEN_BED_SOIL_TEXTURES.albedo) as {
+      rgb: { mul(value: unknown): unknown };
+    };
+    material.colorNode = albedo.rgb.mul(uniform(tint));
+  }
+  if (GARDEN_BED_SOIL_TEXTURES.normal) {
+    material.normalNode = normalMap(
+      texture(GARDEN_BED_SOIL_TEXTURES.normal),
+      vec2(0.38, 0.38),
+    );
+  }
+  if (GARDEN_BED_SOIL_TEXTURES.roughness) {
+    material.roughnessNode = (texture(GARDEN_BED_SOIL_TEXTURES.roughness) as {
+      r: unknown;
+    }).r;
+  }
+  // The painter adapter reads this only to retain texture alpha. The garden
+  // source is opaque, but recording the classic slot also preserves tooling.
+  Object.assign(material, { map: GARDEN_BED_SOIL_TEXTURES.albedo });
+  material.roughnessMap = GARDEN_BED_SOIL_TEXTURES.roughness;
+  material.roughness = 1;
+  material.metalness = 0;
+  return material;
+}
+
 const MATERIALS = {
-  gardenSoil: new THREE.MeshStandardMaterial({
-    name: 'Textured dark garden-bed soil',
-    color: 0x8b7765,
-    map: GARDEN_BED_SOIL_TEXTURES.albedo,
-    normalMap: GARDEN_BED_SOIL_TEXTURES.normal,
-    normalScale: new THREE.Vector2(0.38, 0.38),
-    roughnessMap: GARDEN_BED_SOIL_TEXTURES.roughness,
-    roughness: 1,
-    metalness: 0,
-  }),
+  gardenSoil: createGardenSoilMaterial(),
   darkSoil: new THREE.MeshStandardMaterial({ color: 0x35271d, roughness: 0.98 }),
   timber: sharedBuildingMaterial('timberMid'),
   darkTimber: sharedBuildingMaterial('timberDark'),
@@ -299,6 +327,9 @@ const MATERIALS = {
 
 MATERIALS.gardenSoil.userData.metricUvMeters = 2.2;
 MATERIALS.gardenSoil.userData.pbrTexturePaths = GARDEN_BED_SOIL_TEXTURE_PATHS;
+applyPainterlyVegetationMaterial(MATERIALS.gardenSoil, 'terrain-ground', {
+  textureScale: 1.35,
+});
 
 const FLOWER_MATERIALS = [
   new THREE.MeshStandardMaterial({ color: 0xb83f55, roughness: 0.78 }),

@@ -42,6 +42,7 @@ import {
   isBerryFruitVisible,
   resolveBerryClumpPosition,
 } from './berryPatchPresentation.ts';
+import { applyPainterlyVegetationMaterial } from '../vegetation/painterly/painterlyVegetationMaterial.ts';
 
 type BerryClumpPlacement = {
   nodeId: string;
@@ -468,6 +469,7 @@ function createRaspberryBranchMaterial(
     snowAmount,
   ) as never;
   material.userData.raspberrySnowCoverage = snowCoverage;
+  applyPainterlyVegetationMaterial(material, 'bark');
   return material;
 }
 
@@ -556,6 +558,7 @@ function createRaspberryFoliageMaterial(
   material.userData.raspberrySeasonalAutumnColor = autumnColor;
   material.userData.raspberrySeasonalDormancy = dormancy;
   material.userData.raspberrySnowCoverage = snowCoverage;
+  applyPainterlyVegetationMaterial(material, 'shrub-leaf');
   return material;
 }
 
