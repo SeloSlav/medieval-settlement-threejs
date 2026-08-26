@@ -253,36 +253,18 @@ const distantSmokehouse = building('smokehouse', {
   processorOutputTargetPercent: 75,
   pottery: 0,
 });
-const potteryBufferTarget = selectDirectProcessorInputTarget(
+const potteryOverflowTarget = selectDirectProcessorInputTarget(
   [nearbyMarket, distantSmokehouse],
   'potter',
   'pottery',
   (candidate) => candidate.x,
 );
 assert.equal(
-  potteryBufferTarget?.target.id,
-  distantSmokehouse.id,
-  'preservation vessels must reach a staffed smokehouse before nearer market exports',
-);
-assert.equal(potteryBufferTarget?.duty, 'working-buffer');
-assert.equal(
-  potteryBufferTarget?.desiredStock,
-  SMOKEHOUSE_POTTERY_PER_CYCLE * 3,
-);
-
-distantSmokehouse.pottery = potteryBufferTarget?.desiredStock ?? 0;
-const potteryExportTarget = selectDirectProcessorInputTarget(
-  [nearbyMarket, distantSmokehouse],
-  'potter',
-  'pottery',
-  (candidate) => candidate.x,
-);
-assert.equal(
-  potteryExportTarget?.target.id,
+  potteryOverflowTarget?.target.id,
   nearbyMarket.id,
-  'pottery should become export stock once preservation buffers are covered',
+  'without a whole-unit preservation recipe, pottery should follow the nearest overflow route',
 );
-assert.equal(potteryExportTarget?.duty, 'workshop-overflow');
+assert.equal(potteryOverflowTarget?.duty, 'workshop-overflow');
 
 const lowPriorityNearSmithy = building('smithy', {
   id: 'near-smithy',
@@ -406,20 +388,8 @@ marketMaterialTarget = selectMarketplaceMaterialInputTarget(
 );
 assert.equal(
   marketMaterialTarget?.commodity,
-  'pottery',
-  'uncommitted market pottery must return to an uncovered preservation-vessel buffer',
-);
-
-highPrioritySaltTarget.pottery = SMOKEHOUSE_POTTERY_PER_CYCLE * 3;
-marketMaterialTarget = selectMarketplaceMaterialInputTarget(
-  [lowPriorityIronTarget, highPrioritySaltTarget],
-  materialMarket,
-  (candidate) => candidate.x,
-);
-assert.equal(
-  marketMaterialTarget?.commodity,
   'iron',
-  'covered salt and pottery buffers must release the market cart to the smithy',
+  'covered salt demand must release the market cart to the smithy when preservation uses no pottery',
 );
 
 highPrioritySaltTarget.salt = 0;
@@ -533,6 +503,8 @@ assert.deepEqual(
     'charcoal_burner',
     'smithy',
     'potter_kiln',
+    'granary',
+    'spinning_retting_house',
     'village_storehouse',
   ],
 );
@@ -544,12 +516,16 @@ assert.deepEqual(
         ? { iron: 12, salt: 0 }
         : kind === 'mine'
           ? { iron: 0, salt: 0, clay: 12 }
+        : kind === 'granary'
+          ? { flax: 12 }
+        : kind === 'spinning_retting_house'
+          ? { yarn: 12, linen: 0 }
         : kind === 'village_storehouse'
           ? { iron: 12, clay: 0, salt: 0 }
           : undefined,
     )
   ),
-  ['iron', 'clay', 'clay', 'charcoal', 'ironwork', 'pottery', 'iron'],
+  ['iron', 'clay', 'clay', 'charcoal', 'ironwork', 'pottery', 'flax', 'yarn', 'iron'],
 );
 assert.deepEqual(
   localMaterialInputCommodities('stone_quarry', {

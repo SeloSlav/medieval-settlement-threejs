@@ -140,6 +140,9 @@ for (const seed of seeds) {
 const auditedWoodResidence = createResidenceMesh(7, 2);
 assertSplitShingleWeathering(auditedWoodResidence);
 assertWarmShingleBackFaceFinish(auditedWoodResidence);
+assertNamedPart(auditedWoodResidence, 'Residence door hewn jamb');
+assertNamedPart(auditedWoodResidence, 'Residence door hewn lintel');
+assertNamedPart(auditedWoodResidence, 'Residence door threshold');
 
 for (const tier of [1, 2, 3, 4] as const) {
   for (let seed = 0; seed < 64; seed += 1) {
@@ -385,23 +388,24 @@ function assertTierOneFacadeTimbers(root: THREE.Object3D): void {
   );
   assert.ok(
     Number(tieBeam.userData.residenceDoorHeadClearanceMeters) >= 0.1,
-    'the front/rear tie beam must clear the top of the tier-one door casing',
+    'the front/rear tie beam must clear the top of the tier-one door opening',
   );
   const sidePlates = namedMesh(root, 'Residence recessed side wall plates below thatch');
   assert.ok(
     Number(sidePlates.userData.residenceSideFrameRoofClearanceMeters) >= 0.24,
     'side wall plates must remain recessed beneath the thatch edge',
   );
-  const threshold = namedMesh(root, 'Residence sill-flush ground-level door threshold');
-  const frameBounds = new THREE.Box3().setFromObject(frame);
-  const thresholdBounds = new THREE.Box3().setFromObject(threshold);
-  assert.ok(
-    Math.abs(thresholdBounds.min.y - frameBounds.min.y) <= 0.001,
-    'the stone threshold underside must be flush with the lower timber sill underside',
-  );
+  const doorFrameRoles = new Set(['door-jamb', 'door-lintel', 'door-threshold']);
+  const retainedDoorFrameParts: THREE.Object3D[] = [];
+  root.traverse((object) => {
+    if (doorFrameRoles.has(String(object.userData.facadeOpeningRole))) {
+      retainedDoorFrameParts.push(object);
+    }
+  });
   assert.equal(
-    threshold.userData.residenceThresholdAlignment,
-    'lower-timber-sill-underside',
+    retainedDoorFrameParts.length,
+    0,
+    'tier-one doors must omit the complete pale jamb, lintel, and threshold surround',
   );
   assert.equal(
     frame.geometry.userData.residenceHewnTimberTint,
