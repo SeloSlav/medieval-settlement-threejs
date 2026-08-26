@@ -516,17 +516,17 @@ function buildGrassBlendNodes(
       .add((sub(float(1) as TslNode, densePatch) as TslNode).mul(float(0.1) as TslNode)) as TslNode,
   ) as TslNode;
   const overviewLightWeight = w.x
-    .mul(float(0.25) as TslNode)
-    .add(lightOverlap.mul(float(0.68) as TslNode))
-    .add(float(0.08) as TslNode) as TslNode;
+    .mul(float(0.75) as TslNode)
+    .add(lightOverlap.mul(float(0.35) as TslNode))
+    .add(float(0.04) as TslNode) as TslNode;
   const overviewDarkWeight = w.y
-    .mul(float(0.18) as TslNode)
-    .add(darkOverlap.mul(float(0.62) as TslNode))
-    .add(float(0.035) as TslNode) as TslNode;
+    .mul(float(0.68) as TslNode)
+    .add(darkOverlap.mul(float(0.32) as TslNode))
+    .add(float(0.025) as TslNode) as TslNode;
   const overviewDryWeight = w.z
-    .mul(float(0.15) as TslNode)
-    .add(dryOverlap.mul(float(0.58) as TslNode))
-    .add(float(0.035) as TslNode) as TslNode;
+    .mul(float(0.62) as TslNode)
+    .add(dryOverlap.mul(float(0.3) as TslNode))
+    .add(float(0.025) as TslNode) as TslNode;
   const overviewWeightSum = max(
     overviewLightWeight.add(overviewDarkWeight).add(overviewDryWeight),
     float(0.0001) as TslNode,
@@ -535,9 +535,10 @@ function buildGrassBlendNodes(
   const overviewDark = overviewDarkWeight.div(overviewWeightSum) as TslNode;
   const overviewDry = overviewDryWeight.div(overviewWeightSum) as TslNode;
 
-  // Linear-space target families: fresh meadow green, shaded dark grass, and
-  // a restrained green-dry layer. The authored albedos still supply the grain,
-  // with a stable base preventing their distant mip averages from flattening.
+  // Linear-space family anchors keep extreme lighting and weather transitions
+  // bounded, but the authored Patina albedos retain their actual chroma and
+  // clump structure at strategic zoom. The former luminance-only remap made all
+  // three sources look like the same green material.
   const overviewLightColor = vec3(0.12, 0.24, 0.045) as TslNode;
   const overviewDarkColor = vec3(0.022, 0.052, 0.01) as TslNode;
   const overviewDryColor = vec3(0.2, 0.225, 0.065) as TslNode;
@@ -545,50 +546,14 @@ function buildGrassBlendNodes(
     .mul(overviewLight)
     .add(overviewDarkColor.mul(overviewDark))
     .add(overviewDryColor.mul(overviewDry));
-  const meadowGrain = smoothstep(
-    float(0.025) as TslNode,
-    float(0.22) as TslNode,
-    meadowColor.r
-      .mul(float(0.299) as TslNode)
-      .add(meadowColor.g.mul(float(0.587) as TslNode))
-      .add(meadowColor.b.mul(float(0.114) as TslNode)) as TslNode,
-  ) as TslNode;
-  const denseGrain = smoothstep(
-    float(0.018) as TslNode,
-    float(0.16) as TslNode,
-    denseColor.r
-      .mul(float(0.299) as TslNode)
-      .add(denseColor.g.mul(float(0.587) as TslNode))
-      .add(denseColor.b.mul(float(0.114) as TslNode)) as TslNode,
-  ) as TslNode;
-  const dryGrain = smoothstep(
-    float(0.04) as TslNode,
-    float(0.32) as TslNode,
-    dryColor.r
-      .mul(float(0.299) as TslNode)
-      .add(dryColor.g.mul(float(0.587) as TslNode))
-      .add(dryColor.b.mul(float(0.114) as TslNode)) as TslNode,
-  ) as TslNode;
-  const overviewSampleColor = (mix(
-    overviewLightColor.mul(float(0.62) as TslNode),
-    overviewLightColor.mul(float(1.38) as TslNode),
-    meadowGrain,
-  ) as TslNode)
+  const overviewSourceColor = meadowColor.rgb
     .mul(overviewLight)
-    .add((mix(
-      overviewDarkColor.mul(float(0.6) as TslNode),
-      overviewDarkColor.mul(float(1.4) as TslNode),
-      denseGrain,
-    ) as TslNode).mul(overviewDark))
-    .add((mix(
-      overviewDryColor.mul(float(0.62) as TslNode),
-      overviewDryColor.mul(float(1.38) as TslNode),
-      dryGrain,
-    ) as TslNode).mul(overviewDry));
+    .add(denseColor.rgb.mul(overviewDark))
+    .add(dryColor.rgb.mul(overviewDry));
   const overviewTexturedColor = mix(
     overviewBaseColor,
-    overviewSampleColor,
-    float(0.88) as TslNode,
+    overviewSourceColor,
+    float(0.78) as TslNode,
   ) as TslNode;
   const grassColorNode = mix(
     overviewTexturedColor,

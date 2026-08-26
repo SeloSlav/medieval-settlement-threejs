@@ -94,11 +94,11 @@ assert.match(ecologySource, /const dryOverlap = smoothstep/);
 assert.match(ecologySource, /const overviewLightWeight =/);
 assert.match(ecologySource, /const overviewDarkWeight =/);
 assert.match(ecologySource, /const overviewDryWeight =/);
-assert.match(ecologySource, /const meadowGrain = smoothstep/);
-assert.match(ecologySource, /const denseGrain = smoothstep/);
-assert.match(ecologySource, /const dryGrain = smoothstep/);
+assert.match(ecologySource, /const overviewSourceColor = meadowColor\.rgb/);
+assert.match(ecologySource, /denseColor\.rgb\.mul\(overviewDark\)/);
+assert.match(ecologySource, /dryColor\.rgb\.mul\(overviewDry\)/);
 assert.match(ecologySource, /const overviewTexturedColor = mix/);
-assert.match(ecologySource, /float\(0\.88\)/);
+assert.match(ecologySource, /float\(0\.78\)/);
 assert.match(ecologySource, /const grassStableColorNode = mix/);
 assert.match(
   ecologySource,
