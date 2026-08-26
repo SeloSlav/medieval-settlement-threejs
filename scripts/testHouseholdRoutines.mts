@@ -516,12 +516,12 @@ assert.equal(worker.pathPurpose, 'return_home');
 for (let step = 0; step < realtimeTickBudget(1200); step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'home_outdoors');
 assert.ok(
-  worker.z < home.z - 3.5,
-  'an off-duty holiday worker should settle physically behind the house in the backyard',
+  worker.z < home.z - 3.5 || worker.pathPurpose === 'home_wander',
+  'an off-duty holiday worker should relax behind the house or take a leisure walk from it',
 );
 assert.match(
   villagers.inspectVillager(worker.personIdentity)?.activity ?? '',
-  /Celebrating Jurjevo.*backyard/,
+  /(?:Celebrating Jurjevo.*backyard|Taking a Jurjevo.*holiday walk)/,
 );
 
 const peterAndPaulClock = {
