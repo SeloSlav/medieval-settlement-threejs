@@ -500,7 +500,7 @@ export function createFishingCampMesh(): THREE.Group {
     stoneHeight: 0.62,
     wallHeight: 2.42,
     ridgeHeight: 2.08,
-    wallMaterial: residenceFacadeMaterial('grey'),
+    wallMaterial: residenceFacadeMaterial('white'),
     roofMaterial: shingleMaterial(),
   });
   addPlankDoor(group, -1.05, 0.66, shell.frontZ + 0.02, 0.94, 1.84);

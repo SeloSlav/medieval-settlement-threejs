@@ -270,8 +270,7 @@ pub fn withdraw_delivery_cargo_with_source(
     kind: ResidenceNeedKind,
     amount: f64,
 ) -> (f64, Option<CommodityKind>) {
-    const FIREWOOD_SOURCES: [CommodityKind; 2] =
-        [CommodityKind::Charcoal, CommodityKind::Firewood];
+    const FIREWOOD_SOURCES: [CommodityKind; 2] = [CommodityKind::Charcoal, CommodityKind::Firewood];
     const WATER_SOURCES: [CommodityKind; 1] = [CommodityKind::Water];
     const FOOD_SOURCES: [CommodityKind; 0] = [];
     const BEVERAGE_SOURCES: [CommodityKind; 4] = [

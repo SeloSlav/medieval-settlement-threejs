@@ -16,8 +16,7 @@ use crate::balance_generated::{
 use crate::db::*;
 use crate::economy::{
     building_commodity_stock, deposit_building_commodity, deposit_residence_commodity,
-    residence_food_progression_required_slots, withdraw_building_commodity,
-    CommodityKind,
+    residence_food_progression_required_slots, withdraw_building_commodity, CommodityKind,
 };
 use crate::pantry_safeguard_policy::{
     daily_market_issue_target_days, emergency_pantry_rule, normalize_pantry_safeguard_policy,
@@ -475,13 +474,7 @@ fn distribute_to_residence(
     };
     if delivered > 1e-9 {
         if let Some(commodity) = source_commodity {
-            apply_need_delivery_from_commodity(
-                ctx,
-                residence_id,
-                need_kind,
-                delivered,
-                commodity,
-            );
+            apply_need_delivery_from_commodity(ctx, residence_id, need_kind, delivered, commodity);
         } else {
             apply_need_delivery(ctx, residence_id, need_kind, delivered);
         }

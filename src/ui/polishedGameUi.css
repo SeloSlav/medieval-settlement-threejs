@@ -2092,6 +2092,21 @@ select:focus-visible {
   filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78));
 }
 
+.residence-need-icon .residence-need-icon__source--action {
+  display: grid;
+  place-items: center;
+}
+
+.residence-need-icon .residence-need-icon__source--action .inspector-action-icon {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78));
+}
+
 .residence-need-icon.is-met {
   border-color: rgba(153, 194, 113, 0.5);
   background:
@@ -2110,6 +2125,11 @@ select:focus-visible {
 }
 
 .residence-need-icon.is-unmet .residence-need-icon__source .resource-cost__icon {
+  opacity: 1;
+  filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78));
+}
+
+.residence-need-icon.is-unmet .residence-need-icon__source--action .inspector-action-icon {
   opacity: 1;
   filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78));
 }

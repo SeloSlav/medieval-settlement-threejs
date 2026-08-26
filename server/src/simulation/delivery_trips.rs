@@ -27,12 +27,12 @@ use crate::economy::{
     building_commodity_stock, chapel_coffer_gold, chapel_monastery_tithe_due,
     credit_local_household_income, credit_local_purchase_receipt, credit_marketplace_receipt_gold,
     credit_residence_wealth, credit_treasury_commodity, deposit_building_commodity,
-    deposit_residence_commodity,
-    private_export_proceeds, record_parish_ledger, record_private_export_income,
-    restore_local_civic_receipts, restore_private_export_proceeds, settle_regional_market_export,
-    settlement_economic_activity_tax_rate, settlement_town_hall_tax_collection_multiplier,
-    storage_accepts_commodity, taxed_economic_activity, withdraw_building_commodity,
-    withdraw_coffer_in_place, withdraw_private_export_proceeds, CommodityKind, ParishLedgerKind,
+    deposit_residence_commodity, private_export_proceeds, record_parish_ledger,
+    record_private_export_income, restore_local_civic_receipts, restore_private_export_proceeds,
+    settle_regional_market_export, settlement_economic_activity_tax_rate,
+    settlement_town_hall_tax_collection_multiplier, storage_accepts_commodity,
+    taxed_economic_activity, withdraw_building_commodity, withdraw_coffer_in_place,
+    withdraw_private_export_proceeds, CommodityKind, ParishLedgerKind,
 };
 use crate::fire_policy::fire_response_load;
 use crate::monastery_estate_policy::playable_half_for_monastery_map_size;
@@ -2557,10 +2557,9 @@ fn unload_commodity_to_building(
             .find(&trip.building_id)
             .is_some_and(|origin| origin.kind == "trading_post");
     if devotional_candle_delivery {
-        if let Some(payment) = super::devotional_candles::settle_devotional_candle_delivery(
-            &mut target,
-            trip.amount,
-        ) {
+        if let Some(payment) =
+            super::devotional_candles::settle_devotional_candle_delivery(&mut target, trip.amount)
+        {
             trip.cargo_kind = CommodityKind::Gold.as_u8();
             trip.amount = payment;
             ctx.db.building().id().update(target);

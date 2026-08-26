@@ -99,10 +99,13 @@ import {
   type ConstructionPriority,
 } from '../../logistics/constructionPriority.ts';
 import {
+  isResourceCostKind,
   renderBuildingResourceCost,
   renderResourceCost,
+  resourceCostLabel,
   type ResourceCostKind,
 } from '../../ui/resourceCost.ts';
+import { cargoKindFromId } from '../../logistics/deliveryTrips.ts';
 import {
   renderInspectorResourceStrip,
   type InspectorResourceTokenOptions,
@@ -145,6 +148,23 @@ const RESIDENCE_NEED_ICON_RESOURCES: Record<ResidenceNeedKind, ResourceCostKind>
   ale: 'ale',
   pottery: 'pottery',
   luxury: 'candles',
+};
+
+const NEED_SOURCE_FLOWER_LUXURY = 65_534;
+const PRESERVED_NEED_SOURCE_KINDS = new Set<ResourceCostKind>([
+  'preservedFood',
+  'curedMeat',
+  'smokedFish',
+  'cheese',
+  'aroniaJam',
+  'rosehipJam',
+]);
+const AGGREGATE_NEED_SOURCE_KINDS: Partial<
+  Record<ResidenceNeedKind, readonly ResourceCostKind[]>
+> = {
+  firewood: ['firewood', 'charcoal'],
+  ale: ['ale', 'cider', 'pearCider', 'mead'],
+  luxury: ['candles', 'wine', 'honey'],
 };
 
 export function renderResidenceInspector(
@@ -916,38 +936,39 @@ function renderResidenceTierNeedsRow(
 ): string {
   if (residence.tier === 0) return '';
   const tier = residence.tier;
-  const foodSources = residenceFoodNeedSources(residence);
-  const primaryFoodSource = foodSources[0] ?? null;
-  const foodResourcesAttribute = foodSources.length > 0
-    ? ` data-tooltip-resources="${encodeURIComponent(JSON.stringify(
-        foodSources.map(({ kind, amount }) => ({ kind, amount })),
-      ))}"`
-    : '';
   const needStates = activeResidenceNeedKinds(tier).map((kind) => ({
     kind,
     met: residenceNeedIsMet(residence, kind),
+    source: residenceNeedSource(residence, kind),
   }));
-  const needs = needStates.map(({ kind, met }) => {
+  const needs = needStates.map(({ kind, met, source }) => {
     const occupied = residence.population > 0;
     const label = residenceNeedIconLabel(kind);
     const churchRequirement = kind === 'church'
       ? ` A staffed level-${requiredChapelTierForResidence(tier)} parish is required.`
       : '';
-    const foodSupplyDetail = kind === 'food'
-      ? foodSources.length > 0
-        ? ` Pantry: ${foodSources.map(({ label: sourceLabel, amount }) => `${sourceLabel} ${amount.toFixed(1)}`).join(', ')}.`
+    const foodSupplyDetail = kind === 'food' && !source
+      ? residenceFoodNeedSources(residence).length > 0
+        ? ''
         : ' Pantry empty. The Founders’ Camp does not serve homes directly; use a staffed, road-linked Marketplace food stall or the household’s own food-producing backyard.'
       : '';
     const detail = occupied
-      ? `${met ? 'Met' : 'Not currently met'} for this Tier ${tier} household.${churchRequirement}${foodSupplyDetail}`
+      ? `${met ? 'Met' : 'Not currently met'} for this Tier ${tier} household.${churchRequirement}${source?.detail ?? foodSupplyDetail}`
       : `Inactive until this Tier ${tier} residence is occupied.${churchRequirement}`;
-    const foodSourceMarkup = kind === 'food' && primaryFoodSource
-      ? `<span class="resource-cost__item residence-need-icon__source" data-resource-cost="${primaryFoodSource.kind}" data-residence-need-source="${primaryFoodSource.kind}" aria-hidden="true"><span class="resource-cost__icon"></span></span>`
+    const resourcesAttribute = source?.resources && source.resources.length > 0
+      ? ` data-tooltip-resources="${encodeURIComponent(JSON.stringify(
+          source.resources.map(({ kind: sourceKind, amount }) => ({ kind: sourceKind, amount })),
+        ))}"`
       : '';
-    const sourceAria = kind === 'food' && primaryFoodSource
-      ? `; main pantry food ${primaryFoodSource.label}`
+    const sourceMarkup = source?.resourceKind
+      ? `<span class="resource-cost__item residence-need-icon__source" data-resource-cost="${source.resourceKind}" data-residence-need-source="${source.key}" aria-hidden="true"><span class="resource-cost__icon"></span></span>`
+      : source?.actionIcon
+        ? `<span class="residence-need-icon__source residence-need-icon__source--action" data-residence-need-source="${source.key}" aria-hidden="true"><span class="inspector-action-icon" data-action-icon="${source.actionIcon}"></span></span>`
+        : '';
+    const sourceAria = source
+      ? `; ${source.ariaLabel}`
       : '';
-    return `<span class="residence-need-icon ${met ? 'is-met' : 'is-unmet'}" role="listitem" tabindex="0" data-residence-need="${kind}" data-residence-need-state="${met ? 'met' : 'unmet'}" data-tooltip-title="${label}" data-tooltip="${detail}"${kind === 'food' ? foodResourcesAttribute : ''} aria-label="${label}: ${met ? 'met' : 'not met'}${sourceAria}"><span class="resource-cost__item residence-need-icon__symbol" data-resource-cost="${RESIDENCE_NEED_ICON_RESOURCES[kind]}" aria-hidden="true"><span class="resource-cost__icon"></span></span>${foodSourceMarkup}</span>`;
+    return `<span class="residence-need-icon ${met ? 'is-met' : 'is-unmet'}" role="listitem" tabindex="0" data-residence-need="${kind}" data-residence-need-state="${met ? 'met' : 'unmet'}" data-tooltip-title="${label}" data-tooltip="${detail}"${resourcesAttribute} aria-label="${label}: ${met ? 'met' : 'not met'}${sourceAria}"><span class="resource-cost__item residence-need-icon__symbol" data-resource-cost="${RESIDENCE_NEED_ICON_RESOURCES[kind]}" aria-hidden="true"><span class="resource-cost__icon"></span></span>${sourceMarkup}</span>`;
   });
   const metCount = needStates.filter(({ met }) => met).length;
   const roof = tier >= 4
@@ -964,6 +985,98 @@ type ResidenceFoodNeedSource = {
   amount: number;
   mealEquivalent: number;
 };
+
+export type ResidenceNeedSource = {
+  key: string;
+  label: string;
+  ariaLabel: string;
+  detail: string;
+  resourceKind?: ResourceCostKind;
+  actionIcon?: 'luxury-flowers';
+  resources?: ResidenceFoodNeedSource[];
+};
+
+/** Returns the household-held or latest delivered source for every need with substitutes. */
+export function residenceNeedSource(
+  residence: ResidenceState,
+  kind: ResidenceNeedKind,
+): ResidenceNeedSource | null {
+  const foodSources = residenceFoodNeedSources(residence);
+  if (kind === 'food') {
+    const primary = foodSources[0];
+    return primary
+      ? {
+          key: primary.kind,
+          label: primary.label,
+          resourceKind: primary.kind,
+          ariaLabel: `main pantry food ${primary.label}`,
+          detail: ` Pantry: ${formatNeedSourceInventory(foodSources)}.`,
+          resources: foodSources,
+        }
+      : null;
+  }
+  if (kind === 'foodVariety') {
+    const primary = foodSources[0];
+    const groups = presentFoodCategories(residence, residence.population)
+      .map((category) => FOOD_CATEGORY_LABELS[category]);
+    return primary
+      ? {
+          key: primary.kind,
+          label: primary.label,
+          resourceKind: primary.kind,
+          ariaLabel: `representative pantry item ${primary.label}`,
+          detail: ` Qualifying food groups: ${groups.length > 0 ? groups.join(', ') : 'none'}. Pantry: ${formatNeedSourceInventory(foodSources)}.`,
+          resources: foodSources,
+        }
+      : null;
+  }
+  if (kind === 'preservedFood') {
+    const sources = foodSources.filter(({ kind: sourceKind }) =>
+      PRESERVED_NEED_SOURCE_KINDS.has(sourceKind));
+    const primary = sources[0];
+    return primary
+      ? {
+          key: primary.kind,
+          label: primary.label,
+          resourceKind: primary.kind,
+          ariaLabel: `main cured provision ${primary.label}`,
+          detail: ` Cured stores: ${formatNeedSourceInventory(sources)}.`,
+          resources: sources,
+        }
+      : null;
+  }
+
+  const need = getNeed(residence.needs, kind);
+  if (need.stock <= 1e-6 || need.sourceKind == null) return null;
+  if (kind === 'luxury' && need.sourceKind === NEED_SOURCE_FLOWER_LUXURY) {
+    return {
+      key: 'luxuryFlowers',
+      label: 'Luxury flowers',
+      actionIcon: 'luxury-flowers',
+      ariaLabel: 'met by the household’s cultivated luxury flowers',
+      detail: ' Household source: cultivated luxury flowers from its upgraded flower garden.',
+    };
+  }
+  const sourceKind = cargoKindFromId(need.sourceKind);
+  const validSources = AGGREGATE_NEED_SOURCE_KINDS[kind];
+  if (!sourceKind || !isResourceCostKind(sourceKind) || !validSources?.includes(sourceKind)) {
+    return null;
+  }
+  const label = resourceCostLabel(sourceKind);
+  return {
+    key: sourceKind,
+    label,
+    resourceKind: sourceKind,
+    ariaLabel: `latest supply ${label}`,
+    detail: ` Latest household supply: ${label}.`,
+  };
+}
+
+function formatNeedSourceInventory(sources: readonly ResidenceFoodNeedSource[]): string {
+  return sources
+    .map(({ label, amount }) => `${label} ${amount.toFixed(1)}`)
+    .join(', ');
+}
 
 export function residenceFoodNeedSources(residence: ResidenceState): ResidenceFoodNeedSource[] {
   const namedSources = NAMED_FOOD_KINDS.flatMap((kind) => {

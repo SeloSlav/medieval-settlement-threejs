@@ -86,6 +86,8 @@ pub mod simulation {
 
 #[path = "../../src/labor_steward_policy.rs"]
 pub mod labor_steward_policy;
+#[path = "../../src/raid_agent_policy.rs"]
+pub mod raid_agent_policy;
 #[path = "../../src/season_policy.rs"]
 pub mod season_policy;
 #[path = "../../src/seasonal_labor_policy.rs"]
@@ -94,8 +96,6 @@ pub mod seasonal_labor_policy;
 pub mod security_policy;
 #[path = "../../src/wind_policy.rs"]
 pub mod wind_policy;
-#[path = "../../src/raid_agent_policy.rs"]
-pub mod raid_agent_policy;
 
 #[path = "../../src/resource_units.rs"]
 pub mod resource_units;

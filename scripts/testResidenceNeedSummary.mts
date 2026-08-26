@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import {
   residenceFoodNeedSources,
   residenceNeedIsMet,
+  residenceNeedSource,
 } from '../src/resources/inspector/residenceRenderer.ts';
 import type { ResidenceState } from '../src/resources/types.ts';
 import { createDefaultNeeds } from '../src/residences/residenceNeedState.ts';
@@ -45,6 +46,8 @@ assert.deepEqual(
   'the visible sub-icon should select the pantry food with the most meal-equivalents',
 );
 assert.equal(residenceNeedIsMet(stockedHome, 'food'), true);
+assert.equal(residenceNeedSource(stockedHome, 'food')?.key, 'oatGrain');
+assert.equal(residenceNeedSource(stockedHome, 'foodVariety')?.key, 'oatGrain');
 stockedHome.needs.food.deficitTicks = 1;
 assert.equal(
   residenceNeedIsMet(stockedHome, 'food'),
@@ -58,6 +61,26 @@ assert.equal(residenceNeedIsMet(tierThreeHome, 'church'), false);
 tierThreeHome.needs.church.stock = 2;
 assert.equal(residenceNeedIsMet(tierThreeHome, 'church'), true);
 
+const alternativeHome = residence({
+  tier: 4,
+  curedMeat: 2,
+  smokedFish: 5,
+});
+alternativeHome.needs.firewood = { stock: 8, deficitTicks: 0, sourceKind: 22 };
+alternativeHome.needs.ale = { stock: 4, deficitTicks: 0, sourceKind: 57 };
+alternativeHome.needs.preservedFood.stock = 7;
+alternativeHome.needs.luxury = { stock: 1, deficitTicks: 0, sourceKind: 65_534 };
+assert.equal(residenceNeedSource(alternativeHome, 'firewood')?.key, 'charcoal');
+assert.equal(
+  residenceNeedSource(alternativeHome, 'ale')?.key,
+  'pearCider',
+  'commodity 57 must remain pear cider rather than colliding with the Luxury need id',
+);
+assert.equal(residenceNeedSource(alternativeHome, 'preservedFood')?.key, 'smokedFish');
+assert.equal(residenceNeedSource(alternativeHome, 'luxury')?.key, 'luxuryFlowers');
+alternativeHome.needs.luxury.sourceKind = 8;
+assert.equal(residenceNeedSource(alternativeHome, 'luxury')?.key, 'honey');
+
 const css = readFileSync(new URL('../src/ui/polishedGameUi.css', import.meta.url), 'utf8');
 assert.doesNotMatch(
   css,
@@ -65,5 +88,12 @@ assert.doesNotMatch(
   'live inspector refreshes must not restart a hover border/background effect',
 );
 assert.match(css, /residence-need-icon__source[\s\S]{0,220}width: 15px/);
+assert.match(css, /residence-need-icon__source--action[\s\S]{0,220}inspector-action-icon/);
+
+const residenceNeedBinding = readFileSync(
+  new URL('../src/generated/residence_need_table.ts', import.meta.url),
+  'utf8',
+);
+assert.match(residenceNeedBinding, /sourceKind:\s*__t\.u16\(\)\.name\("source_kind"\)/);
 
 console.log('residence need summary tests passed');
