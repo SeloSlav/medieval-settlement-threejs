@@ -113,7 +113,7 @@ export function renderGuardhouseInspector(
     buildings: context.gameState.buildings.values(),
     trips: context.gameState.deliveryTrips.values(),
     physicalEconomy: context.gameState.physicalFoundingSiteEnabled === true,
-    freeHaulers: context.populationStats.available,
+    freeHaulers: context.populationStats.idle,
     getRoadPathDistance: (ax, az, bx, bz) =>
       context.worldQueries.getRoadPathDistance(ax, az, bx, bz),
   });

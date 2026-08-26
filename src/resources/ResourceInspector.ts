@@ -1811,8 +1811,8 @@ export class ResourceInspector {
     const laborSub = this.stockpileRoot.querySelector<HTMLElement>('[data-stockpile="labor-sub"]');
     if (laborSub) {
       laborSub.textContent = starterCampCreated && population.assigned > 0
-        ? `${population.assigned} assigned`
-        : 'available';
+        ? `${population.assigned} in workplaces`
+        : 'reserve';
     }
   }
 
@@ -2455,7 +2455,9 @@ export class ResourceInspector {
     if (view.labor.visible) {
       const laborLabel = view.labor.label ?? 'Workforce';
       this.laborLabel.textContent = target.kind === 'building'
-        ? `${laborLabel} · ${this.populationStats.available} free`
+        ? `${laborLabel} · ${target.building.constructionComplete === false
+            ? this.populationStats.idle
+            : this.populationStats.available} ${target.building.constructionComplete === false ? 'idle' : 'reserve'}`
         : laborLabel;
       this.laborCount.textContent = view.labor.maxCount == null
         ? view.labor.count.toString()

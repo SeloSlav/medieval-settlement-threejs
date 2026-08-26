@@ -118,7 +118,7 @@ export function renderConstructionInspector(
     statusText = `${settlementSchedule.laborPauseLabel ?? 'Scheduled labor pause'} — builders and material carts resume after the observance`;
     statusState = 'warning';
   } else if (building.assignedLabor <= 0) {
-    const availableBuilders = Math.max(0, context.populationStats.available);
+    const availableBuilders = Math.max(0, context.populationStats.idle);
     const queueGuidance = availableBuilders > 0
       ? `${availableBuilders} free worker${availableBuilders === 1 ? '' : 's'} will be called automatically when this priority tier reaches a productive slot`
       : 'the next free worker will be called automatically when this priority tier reaches a productive slot';

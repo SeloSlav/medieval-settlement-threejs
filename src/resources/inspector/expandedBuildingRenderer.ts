@@ -825,7 +825,7 @@ function renderLogisticsRows(
     : logisticsWorkplace?.kind === 'village_storehouse'
       || logisticsWorkplace?.kind === 'marketplace'
       ? logisticsWorkplace.assignedLabor > 0
-      : context.populationStats.available > 0;
+      : context.populationStats.idle > 0;
   if (!logisticsLaborAvailable) {
     const laborMessage = logisticsWorkplace?.kind === 'granary'
       ? 'Waiting for an assigned granary hauler'

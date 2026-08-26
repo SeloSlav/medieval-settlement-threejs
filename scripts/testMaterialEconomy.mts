@@ -674,6 +674,7 @@ const localIronReserveMarket = building('trading_post', {
   iron: 0,
   marketplaceIronTarget: 24,
 });
+console.log('material-economy checkpoint: local reserve assignments');
 let localIronReserveAssignments = assignLocalMaterialInputTargets(
   [reserveIronMine],
   [localIronReserveMarket, hungryReserveSmithy],
@@ -818,6 +819,7 @@ assert.ok(
   'a deeper iron charge must also show the bloom/bar form accepted from trade or prior consolidation',
 );
 
+console.log('material-economy checkpoint: building visuals');
 const buildingVisuals = [
   {
     kind: 'stone_quarry',
@@ -984,6 +986,7 @@ for (const spec of buildingVisuals) {
   assert.ok(segments.every((segment) => !segment.visible));
 }
 
+console.log('material-economy checkpoint: charcoal visuals');
 const charcoalClampMesh = createBuildingMesh('charcoal_burner');
 const charcoalClampSmoke = charcoalClampMesh.getObjectByName(
   CHARCOAL_CLAMP_SMOKE_NAME,
@@ -1146,6 +1149,7 @@ const simulationReducerSource = readFileSync(
   'server/src/reducers/simulation.rs',
   'utf8',
 );
+console.log('material-economy checkpoint: source contracts');
 const rustFunctionSection = (name: string, nextName: string): string => {
   const start = expandedEconomySource.indexOf(`pub fn ${name}`);
   const end = expandedEconomySource.indexOf(`pub fn ${nextName}`, start + 1);
@@ -1303,6 +1307,7 @@ assert.match(
   /candidate\.building\.kind == "trading_post"[\s\S]*deferred_pottery_exports\.push/,
   'authority must defer Trading Post overflow until both local duties have a chance',
 );
+console.log('material-economy checkpoint: generated source contracts');
 const generatedBuildingTable = readFileSync('src/generated/building_table.ts', 'utf8');
 const generatedPotteryReducer = readFileSync(
   'src/generated/set_pottery_dispatch_policy_reducer.ts',

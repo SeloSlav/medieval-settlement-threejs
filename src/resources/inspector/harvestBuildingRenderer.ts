@@ -231,7 +231,7 @@ export function renderHarvestBuildingInspector(
     : true;
   const crew = foodLaborSplit(
     building.assignedLabor,
-    context.populationStats.available,
+    context.populationStats.idle,
   );
   const claimedResidences = context.worldQueries.getClaimedResidencesForFoodSupplier(building);
   const foodCapacity = buildingStorageCaps(building.kind).food ?? 0;
@@ -439,7 +439,7 @@ export function renderHarvestBuildingInspector(
       ${buildingCostRows(cost)}
       ${buildingExtentRow(building.kind)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
-      <li><span>Labor roles</span><span>${formatFoodCrewSplit(building.assignedLabor, context.populationStats.available)}</span></li>
+      <li><span>Labor roles</span><span>${formatFoodCrewSplit(building.assignedLabor, context.populationStats.idle)}</span></li>
       <li><span>Harvest interval</span><span>${processingWorkers > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${processingWorkers} harvesting / ${building.assignedLabor} assigned)</span></li>
       <li><span>Food territory</span><span>${edibleFoodStock(building) <= 1e-6 ? 'Yielding while stores are empty' : claimedResidences.length === 0 ? 'None in range' : `${claimedResidences.length} claimed`}</span></li>
       <li><span>Local food reserve</span><span>${Math.round(localFoodReserve)} protected · ${Math.round(institutionalSurplus)} central surplus</span></li>

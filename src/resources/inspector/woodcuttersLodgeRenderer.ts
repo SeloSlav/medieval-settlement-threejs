@@ -50,7 +50,7 @@ export function renderWoodcuttersLodgeInspector(
   const definition = getBuildingDefinition(building.kind);
   const crew = lodgeLaborSplit(
     building.assignedLabor,
-    context.populationStats.available,
+    context.populationStats.idle,
   );
   const crewLabel = formatLodgeCrewSplit(crew, building.assignedLabor);
   const connectedMills = context.worldQueries.getRoadConnectedMills(building);

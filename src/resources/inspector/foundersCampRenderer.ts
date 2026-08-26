@@ -209,7 +209,7 @@ export function renderFoundersCampInspector(
     state: context.gameState,
     camp: building,
     activeTrip,
-    availableLabor: context.populationStats.available,
+    availableLabor: context.populationStats.idle,
     roadPathDistance: (ax, az, bx, bz) =>
       context.worldQueries.getLocalDeliveryDistance(ax, az, bx, bz),
   });
