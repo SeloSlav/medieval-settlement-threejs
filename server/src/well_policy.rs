@@ -227,7 +227,7 @@ mod tests {
     }
 
     #[test]
-    fn industrial_water_honors_loom_policy_inside_one_work_tier() {
+    fn industrial_water_honors_fibre_house_policy_inside_one_work_tier() {
         let selected = select_industrial_water_candidate([
             IndustrialWaterCandidate {
                 building_id: 8,

@@ -492,108 +492,206 @@ assert.equal(
   lowPriorityEmptyBakery.id,
   'an inbound flour cart must prevent duplicate source dispatch',
 );
-const highPriorityWeaver = processorInputDestination('12', 'weaver', 50, 3, 1, 3);
-const lowPriorityWeaver = processorInputDestination('11', 'weaver', 5, 0, 1, 1);
+const highPrioritySpinner = processorInputDestination(
+  '12',
+  'spinning_retting_house',
+  50,
+  3,
+  1,
+  3,
+);
+const lowPrioritySpinner = processorInputDestination(
+  '11',
+  'spinning_retting_house',
+  5,
+  0,
+  1,
+  1,
+);
 assert.equal(
   selectDirectProcessorInputTarget(
-    [lowPriorityWeaver, highPriorityWeaver],
+    [lowPrioritySpinner, highPrioritySpinner],
     'pastoral-farmstead',
     'wool',
     (target) => target.x,
   )?.target.id,
-  lowPriorityWeaver.id,
-  'annual fleece should restore the lowest loom runway',
+  lowPrioritySpinner.id,
+  'annual fleece should restore the lowest spinning-house runway',
 );
-const woolFirstWeaver = {
-  ...processorInputDestination('wool-first', 'weaver', 80, 0),
+const woolFirstSpinner = {
+  ...processorInputDestination('wool-first', 'spinning_retting_house', 80, 0),
   weaverInputPolicy: WEAVER_INPUT_POLICY_WOOL_FIRST,
 };
-const flaxFirstWeaver = {
-  ...processorInputDestination('flax-first', 'weaver', 5, 0),
+const flaxFirstSpinner = {
+  ...processorInputDestination('flax-first', 'spinning_retting_house', 5, 0),
   weaverInputPolicy: WEAVER_INPUT_POLICY_FLAX_FIRST,
 };
-const automaticWeaver = {
-  ...processorInputDestination('automatic', 'weaver', 2, 0),
+const automaticSpinner = {
+  ...processorInputDestination('automatic', 'spinning_retting_house', 2, 0),
   weaverInputPolicy: WEAVER_INPUT_POLICY_AUTO,
 };
 const specializedWoolDispatch = selectDirectProcessorInputTarget(
-  [flaxFirstWeaver, automaticWeaver, woolFirstWeaver],
+  [flaxFirstSpinner, automaticSpinner, woolFirstSpinner],
   'pastoral-farmstead',
   'wool',
   (target) => target.x,
 );
 assert.equal(
   specializedWoolDispatch?.target.id,
-  woolFirstWeaver.id,
-  'equal-priority fleece carts should replenish a wool-first loom before nearer neutral or flax-first looms',
+  woolFirstSpinner.id,
+  'equal-priority fleece carts should replenish a wool-first spinner before nearer neutral or flax-first shops',
 );
 assert.equal(specializedWoolDispatch?.inputPreferenceRank, 0);
 assert.equal(
   selectDirectProcessorInputTarget(
-    [woolFirstWeaver, automaticWeaver, flaxFirstWeaver],
+    [woolFirstSpinner, automaticSpinner, flaxFirstSpinner],
     'farmstead',
     'flax',
     (target) => target.x,
   )?.target.id,
-  flaxFirstWeaver.id,
-  'equal-priority flax carts should replenish a flax-first loom',
+  flaxFirstSpinner.id,
+  'equal-priority flax carts should replenish a flax-first retting house',
 );
-const highPriorityFlaxFirstWeaver = {
-  ...flaxFirstWeaver,
+const highPriorityFlaxFirstSpinner = {
+  ...flaxFirstSpinner,
   id: 'high-priority-flax-first',
   constructionPriority: 3,
 };
-const lowPriorityWoolFirstWeaver = {
-  ...woolFirstWeaver,
+const lowPriorityWoolFirstSpinner = {
+  ...woolFirstSpinner,
   id: 'low-priority-wool-first',
   constructionPriority: 1,
 };
 assert.equal(
   selectDirectProcessorInputTarget(
-    [lowPriorityWoolFirstWeaver, highPriorityFlaxFirstWeaver],
+    [lowPriorityWoolFirstSpinner, highPriorityFlaxFirstSpinner],
     'pastoral-farmstead',
     'wool',
     (target) => target.x,
   )?.target.id,
-  lowPriorityWoolFirstWeaver.id,
-  'loom specialization should not be overridden by legacy completed-building priority',
+  lowPriorityWoolFirstSpinner.id,
+  'raw-fibre specialization should not be overridden by legacy completed-building priority',
 );
-const bufferedWoolFirstWeaver = {
-  ...woolFirstWeaver,
+const bufferedWoolFirstSpinner = {
+  ...woolFirstSpinner,
   id: 'buffered-wool-first',
   wool: 9,
 };
 assert.equal(
   selectDirectProcessorInputTarget(
-    [bufferedWoolFirstWeaver, flaxFirstWeaver],
+    [bufferedWoolFirstSpinner, flaxFirstSpinner],
     'pastoral-farmstead',
     'wool',
     (target) => target.x,
   )?.target.id,
-  flaxFirstWeaver.id,
-  'an uncovered fallback loom must receive wool after the matching working buffer is covered',
+  flaxFirstSpinner.id,
+  'an uncovered fallback spinner must receive wool after the matching working buffer is covered',
 );
-const idleWoolFirstWeaver = {
-  ...woolFirstWeaver,
+const idleWoolFirstSpinner = {
+  ...woolFirstSpinner,
   id: 'idle-wool-first',
   x: 80,
   assignedLabor: 0,
 };
-const idleNearFlaxFirstWeaver = {
-  ...flaxFirstWeaver,
+const idleNearFlaxFirstSpinner = {
+  ...flaxFirstSpinner,
   id: 'idle-near-flax-first',
   x: 5,
   assignedLabor: 0,
 };
 assert.equal(
   selectDirectProcessorInputTarget(
-    [idleWoolFirstWeaver, idleNearFlaxFirstWeaver],
+    [idleWoolFirstSpinner, idleNearFlaxFirstSpinner],
     'pastoral-farmstead',
     'wool',
     (target) => target.x,
   )?.target.id,
-  idleNearFlaxFirstWeaver.id,
+  idleNearFlaxFirstSpinner.id,
   'last-resort workshop overflow should keep using the shortest road regardless of specialization',
+);
+
+const highPriorityWeaver = processorInputDestination('prepared-12', 'weaver', 50, 2, 1, 3);
+const lowPriorityWeaver = processorInputDestination('prepared-11', 'weaver', 5, 0, 1, 1);
+assert.equal(
+  selectDirectProcessorInputTarget(
+    [lowPriorityWeaver, highPriorityWeaver],
+    'spinning-retting-house',
+    'yarn',
+    (target) => target.x,
+  )?.target.id,
+  lowPriorityWeaver.id,
+  'prepared yarn should restore the lowest Weaver runway',
+);
+const yarnFirstWeaver = {
+  ...processorInputDestination('yarn-first', 'weaver', 80, 0),
+  weaverInputPolicy: WEAVER_INPUT_POLICY_WOOL_FIRST,
+};
+const linenFirstWeaver = {
+  ...processorInputDestination('linen-first', 'weaver', 5, 0),
+  weaverInputPolicy: WEAVER_INPUT_POLICY_FLAX_FIRST,
+};
+const automaticWeaver = {
+  ...processorInputDestination('prepared-automatic', 'weaver', 2, 0),
+  weaverInputPolicy: WEAVER_INPUT_POLICY_AUTO,
+};
+const specializedYarnDispatch = selectDirectProcessorInputTarget(
+  [linenFirstWeaver, automaticWeaver, yarnFirstWeaver],
+  'spinning-retting-house',
+  'yarn',
+  (target) => target.x,
+);
+assert.equal(
+  specializedYarnDispatch?.target.id,
+  yarnFirstWeaver.id,
+  'equal-priority yarn carts should replenish a yarn-first Weaver before nearer neutral or linen-first looms',
+);
+assert.equal(specializedYarnDispatch?.inputPreferenceRank, 0);
+assert.equal(
+  selectDirectProcessorInputTarget(
+    [yarnFirstWeaver, automaticWeaver, linenFirstWeaver],
+    'spinning-retting-house',
+    'linen',
+    (target) => target.x,
+  )?.target.id,
+  linenFirstWeaver.id,
+  'equal-priority linen carts should replenish a linen-first Weaver',
+);
+const bufferedYarnFirstWeaver = {
+  ...yarnFirstWeaver,
+  id: 'buffered-yarn-first',
+  yarn: 6,
+};
+assert.equal(
+  selectDirectProcessorInputTarget(
+    [bufferedYarnFirstWeaver, linenFirstWeaver],
+    'spinning-retting-house',
+    'yarn',
+    (target) => target.x,
+  )?.target.id,
+  linenFirstWeaver.id,
+  'an uncovered fallback Weaver must receive yarn after the matching working buffer is covered',
+);
+const idleYarnFirstWeaver = {
+  ...yarnFirstWeaver,
+  id: 'idle-yarn-first',
+  x: 80,
+  assignedLabor: 0,
+};
+const idleNearLinenFirstWeaver = {
+  ...linenFirstWeaver,
+  id: 'idle-near-linen-first',
+  x: 5,
+  assignedLabor: 0,
+};
+assert.equal(
+  selectDirectProcessorInputTarget(
+    [idleYarnFirstWeaver, idleNearLinenFirstWeaver],
+    'spinning-retting-house',
+    'yarn',
+    (target) => target.x,
+  )?.target.id,
+  idleNearLinenFirstWeaver.id,
+  'prepared-fibre overflow should keep using the shortest road regardless of specialization',
 );
 const highPrioritySmokehouse = processorInputDestination('14', 'smokehouse', 50, 3, 1, 3);
 const lowPrioritySmokehouse = processorInputDestination('13', 'smokehouse', 5, 0, 1, 1);
@@ -787,8 +885,8 @@ assert.match(farmsteadStep, /dispatch_farmstead_typed_grain/);
 assert.doesNotMatch(farmsteadStep, /request_connected_seed_grain/);
 assert.match(
   farmsteadStep,
-  /dispatch_to_building\([\s\S]{0,200}CommodityKind::Flax,[\s\S]{0,80}&\["weaver", "granary"\]/,
-  'field flax must leave the farmstead as its distinct physical commodity for weavers or granary storage',
+  /dispatch_to_building\([\s\S]{0,200}CommodityKind::Flax,[\s\S]{0,80}&\["spinning_retting_house", "granary"\]/,
+  'field flax must leave the threshing barn as its distinct physical commodity for retting or granary storage',
 );
 assert.doesNotMatch(
   farmsteadStep,
@@ -870,8 +968,11 @@ assert.match(expandedSimulation, /processor_input_per_cycle_for_dispatch\(target
 assert.match(supplyPolicy, /\("bakery", "ryeFlour" \| "maslinFlour"\)/);
 assert.match(supplyPolicy, /\("brewery", "barley"\)/);
 assert.match(supplyPolicy, /\("smokehouse", "food" \| "meat" \| "fish" \| "milk"\)/);
-assert.match(supplyPolicy, /\("weaver", "wool"\)/);
-assert.match(supplyPolicy, /\("weaver", "flax"\)/);
+assert.match(supplyPolicy, /\("spinning_retting_house", "wool"\)/);
+assert.match(supplyPolicy, /\("spinning_retting_house", "flax"\)/);
+assert.match(supplyPolicy, /\("spinning_retting_house", "water"\)/);
+assert.match(supplyPolicy, /\("weaver", "yarn"\)/);
+assert.match(supplyPolicy, /\("weaver", "linen"\)/);
 assert.match(
   supplyPolicy,
   /\("pastoral_farmstead", "oatGrain"\) => LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE/,
@@ -881,7 +982,53 @@ assert.match(expandedSimulation, /select_processor_input_dispatch_candidate/);
 assert.match(
   expandedSimulation,
   /CONSTRUCTION_PRIORITY_NORMAL/,
-  'source-dispatched flour, fresh food, and wool must use neutral operating order',
+  'source-dispatched flour, fresh food, raw fibre, and prepared fibre must use neutral operating order',
+);
+const spinningRettingStep = functionSection('step_spinning_retting_house', 'step_weaver');
+assert.match(spinningRettingStep, /weaver_uses_flax/);
+assert.match(
+  spinningRettingStep,
+  /CommodityKind::Flax,[\s\S]{0,100}SPINNING_RETTING_FLAX_PER_CYCLE[\s\S]{0,140}CommodityKind::Water,[\s\S]{0,100}SPINNING_RETTING_FLAX_WATER_PER_CYCLE/,
+  'the retting route must consume both physical flax and water',
+);
+assert.match(
+  spinningRettingStep,
+  /CommodityKind::Linen, SPINNING_RETTING_LINEN_PER_CYCLE/,
+  'the wet fibre route must yield prepared linen',
+);
+assert.match(
+  spinningRettingStep,
+  /CommodityKind::Wool, SPINNING_RETTING_WOOL_PER_CYCLE/,
+  'the dry fibre route must consume wool',
+);
+assert.match(
+  spinningRettingStep,
+  /CommodityKind::Yarn, SPINNING_RETTING_YARN_PER_CYCLE/,
+  'the dry fibre route must yield yarn',
+);
+assert.match(
+  spinningRettingStep,
+  /for commodity in \[CommodityKind::Yarn, CommodityKind::Linen\][\s\S]*&\["weaver"\][\s\S]*&\["village_storehouse"\][\s\S]*&\["trading_post"\]/,
+  'prepared fibres must travel physically to Weavers, storage, or regional trade',
+);
+const weaverStep = functionSection('step_weaver', 'step_tannery');
+assert.match(weaverStep, /weaver_uses_linen/);
+assert.match(weaverStep, /CommodityKind::Yarn, WEAVER_YARN_PER_CYCLE/);
+assert.match(weaverStep, /CommodityKind::Linen, WEAVER_LINEN_PER_CYCLE/);
+assert.match(
+  weaverStep,
+  /CommodityKind::Cloth, WEAVER_CLOTH_PER_CYCLE/,
+  'the Weaver must turn either prepared-fibre route into finished clothing',
+);
+assert.match(
+  expandedSimulation,
+  /\("trading_post", CommodityKind::Wool \| CommodityKind::Flax\)[\s\S]{0,120}\["spinning_retting_house", "village_storehouse"\]/,
+  'imported raw fibres must stage at the fibre workshop or the correct storehouse',
+);
+assert.match(
+  expandedSimulation,
+  /\("trading_post", CommodityKind::Yarn \| CommodityKind::Linen\)[\s\S]{0,120}\["weaver", "village_storehouse"\]/,
+  'imported prepared fibres must stage at the Weaver or the correct storehouse',
 );
 assert.match(expandedSimulation, /granary_typed_grain_surplus\(source, commodity\)/);
 assert.doesNotMatch(expandedSimulation, /fn request_connected_seed_grain/);
