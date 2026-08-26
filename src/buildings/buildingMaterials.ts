@@ -151,12 +151,6 @@ const TEXTURE_METERS: Record<TextureFamily, number> = {
   woodPlanks: 2,
 };
 
-type BuildingTextureSet = {
-  map: THREE.Texture;
-  normalMap: THREE.Texture;
-  roughnessMap: THREE.Texture;
-};
-
 const materialCache = new Map<BuildingMaterialKey, BuildingAtlasMaterial>();
 const DEFAULT_BUILDING_INDIRECT_INTENSITY = 0.11;
 let buildingIndirectIntensity = DEFAULT_BUILDING_INDIRECT_INTENSITY;
@@ -200,7 +194,6 @@ const DETAIL_MATERIAL_DEFINITIONS: Record<BuildingDetailMaterialKey, DetailMater
 const detailMaterialCache = new Map<BuildingDetailMaterialKey, BuildingAtlasMaterial>();
 let textureLoadPromise: Promise<void> | null = null;
 let splitWoodShingleMap: THREE.DataTexture | null = null;
-let proceduralThatchTextureSet: BuildingTextureSet | null = null;
 
 export function sharedBuildingMaterial(key: BuildingMaterialKey): BuildingAtlasMaterial {
   const cached = materialCache.get(key);
@@ -231,14 +224,7 @@ export function sharedBuildingMaterial(key: BuildingMaterialKey): BuildingAtlasM
   }
   if (key === 'shingle') configureSplitWoodShingleSurface(material);
   materialCache.set(key, material);
-  // Thatch owns a dedicated fibre/course/roughness texture set. It must not
-  // receive the generic atlas colorNode, which would take render ownership
-  // away from those reed maps and make the roof read as a flat board field.
-  if (key === 'thatch') {
-    configureProceduralThatchSurface(material);
-  } else {
-    applyTextureSet(material, definition);
-  }
+  applyTextureSet(material, definition);
   return material;
 }
 
@@ -299,12 +285,6 @@ export function initializeBuildingMaterialLibrary(
     // Release them immediately so the library settles at three resident maps.
     splitWoodShingleMap?.dispose();
     splitWoodShingleMap = null;
-    if (proceduralThatchTextureSet) {
-      proceduralThatchTextureSet.map.dispose();
-      proceduralThatchTextureSet.normalMap.dispose();
-      proceduralThatchTextureSet.roughnessMap.dispose();
-      proceduralThatchTextureSet = null;
-    }
   }).catch((error: unknown) => {
     textureLoadPromise = null;
     throw error;
@@ -321,12 +301,6 @@ export function disposeBuildingMaterialLibrary(): void {
   disposeBuildingMaterialAtlas();
   splitWoodShingleMap?.dispose();
   splitWoodShingleMap = null;
-  if (proceduralThatchTextureSet) {
-    proceduralThatchTextureSet.map.dispose();
-    proceduralThatchTextureSet.normalMap.dispose();
-    proceduralThatchTextureSet.roughnessMap.dispose();
-    proceduralThatchTextureSet = null;
-  }
   textureLoadPromise = null;
 }
 
@@ -335,10 +309,7 @@ export function getBuildingMaterialLibraryStats(): { constructionMaterials: numb
   return {
     constructionMaterials: materialCache.size,
     detailMaterials: detailMaterialCache.size,
-    textures:
-      atlas.textures
-      + (splitWoodShingleMap ? 1 : 0)
-      + (proceduralThatchTextureSet ? 3 : 0),
+    textures: atlas.textures + (splitWoodShingleMap ? 1 : 0),
     loaded: atlas.loaded,
   };
 }

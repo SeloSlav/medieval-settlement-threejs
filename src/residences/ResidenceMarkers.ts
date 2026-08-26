@@ -798,26 +798,26 @@ function addTierOneRubbleFooting(
       const heightVariation = tierOneCraftVariation(seed, ordinal++, 0.055);
       const centerVariation = tierOneCraftVariation(seed, ordinal++, 0.045);
       const verticalVariation = tierOneCraftVariation(seed, ordinal++, 0.032);
-      const stoneSpan = nominal * (0.88 + widthVariation);
-      const stoneHeight = foundationHeight * 0.46 + heightVariation;
+      const stoneSpan = nominal * (0.72 + widthVariation);
+      const stoneHeight = foundationHeight * 0.78 + heightVariation;
       const along = -span * 0.5 + nominal * (index + 0.5) + centerVariation;
       const stone = new THREE.IcosahedronGeometry(0.5, 0);
       if (face === 'front-back') {
-        stone.scale(stoneSpan, stoneHeight, 0.34);
+        stone.scale(stoneSpan, stoneHeight, 0.42);
         stone.rotateY(tierOneCraftVariation(seed, ordinal++, 0.14));
         stone.rotateZ(tierOneCraftVariation(seed, ordinal++, 0.075));
         stone.translate(
           along,
-          foundationHeight * 0.64 + verticalVariation,
+          foundationHeight * 0.5 + verticalVariation,
           fixed,
         );
       } else {
-        stone.scale(0.34, stoneHeight, stoneSpan);
+        stone.scale(0.42, stoneHeight, stoneSpan);
         stone.rotateY(tierOneCraftVariation(seed, ordinal++, 0.14));
         stone.rotateX(tierOneCraftVariation(seed, ordinal++, 0.075));
         stone.translate(
           fixed,
-          foundationHeight * 0.64 + verticalVariation,
+          foundationHeight * 0.5 + verticalVariation,
           along,
         );
       }
@@ -833,7 +833,12 @@ function addTierOneRubbleFooting(
   const footingGeometry = mergeGeometries(parts, false);
   for (const part of parts) part.dispose();
   if (!footingGeometry) throw new Error('Could not merge tier-one rubble footing.');
-  const footing = addMesh(group, footingGeometry, material, new THREE.Vector3());
+  const footing = addMesh(
+    group,
+    applyTierOneRubbleTint(footingGeometry, seed),
+    material,
+    new THREE.Vector3(),
+  );
   footing.name = 'Residence low rubble fieldstone footing';
   footing.userData.residenceFoundationConstruction = 'rough-laid-rubble-course';
   footing.userData.residenceFoundationStoneCount = parts.length - 1;
@@ -843,6 +848,24 @@ function addTierOneRubbleFooting(
 function tierOneCraftVariation(seed: number, ordinal: number, amount: number): number {
   const wave = Math.sin((seed + 17) * 12.9898 + (ordinal + 3) * 78.233) * 43_758.5453;
   return ((wave - Math.floor(wave)) * 2 - 1) * amount;
+}
+
+function applyTierOneRubbleTint(
+  geometry: THREE.BufferGeometry,
+  seed: number,
+): THREE.BufferGeometry {
+  const position = geometry.getAttribute('position');
+  const colors = new Float32Array(position.count * 3);
+  for (let index = 0; index < position.count; index += 1) {
+    const variation = 0.6 + tierOneCraftVariation(seed, index, 0.08);
+    colors[index * 3] = variation * 0.92;
+    colors[index * 3 + 1] = variation * 0.9;
+    colors[index * 3 + 2] = variation * 0.84;
+  }
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.userData.buildingWeatheringProfile = 'masonry';
+  geometry.userData.residenceRubbleTint = 'damp-fieldstone';
+  return geometry;
 }
 
 function applyTierOneHewnTimberTint(
@@ -891,22 +914,6 @@ function applyTierOneDaubTint(
   return geometry;
 }
 
-function frontBackBracePart(
-  z: number,
-  fromX: number,
-  fromY: number,
-  toX: number,
-  toY: number,
-): BoxPart {
-  const dx = toX - fromX;
-  const dy = toY - fromY;
-  return {
-    size: [Math.hypot(dx, dy), 0.13, 0.13],
-    position: [(fromX + toX) * 0.5, (fromY + toY) * 0.5, z],
-    rotation: [0, 0, Math.atan2(dy, dx)],
-  };
-}
-
 function sideBracePart(
   x: number,
   fromZ: number,
@@ -937,6 +944,8 @@ function addTierOneTimberConstruction(
   const halfW = width * 0.5;
   const halfD = depth * 0.5;
   const wallHeight = wallTop - foundationHeight;
+  const sideFrameTop = wallTop - 0.25;
+  const sideFrameHeight = sideFrameTop - foundationHeight;
   const parts: BoxPart[] = [
     {
       size: [width + 0.08, 0.17, 0.16],
@@ -958,8 +967,8 @@ function addTierOneTimberConstruction(
   for (const x of [-halfW, halfW]) {
     for (const z of [-halfD, halfD]) {
       parts.push({
-        size: [0.18, wallHeight + 0.1, 0.18],
-        position: [x, foundationHeight + wallHeight * 0.5, z],
+        size: [0.18, sideFrameHeight, 0.18],
+        position: [x, foundationHeight + sideFrameHeight * 0.5, z],
       });
     }
   }
@@ -968,28 +977,19 @@ function addTierOneTimberConstruction(
       size: [0.16, wallHeight, 0.14],
       position: [0, foundationHeight + wallHeight * 0.5, z],
     });
-    for (const side of [-1, 1] as const) {
-      parts.push(frontBackBracePart(
-        z,
-        side * (halfW - 0.1),
-        wallTop - 0.22,
-        side * (halfW * 0.62),
-        wallTop - 0.78,
-      ));
-    }
   }
   for (const x of [-halfW - 0.035, halfW + 0.035]) {
     parts.push({
-      size: [0.14, wallHeight, 0.16],
-      position: [x, foundationHeight + wallHeight * 0.5, 0.42],
+      size: [0.14, sideFrameHeight, 0.16],
+      position: [x, foundationHeight + sideFrameHeight * 0.5, 0.42],
     });
     for (const zSide of [-1, 1] as const) {
       parts.push(sideBracePart(
         x,
         zSide * (halfD - 0.1),
-        wallTop - 0.22,
+        sideFrameTop - 0.1,
         zSide * (halfD * 0.68),
-        wallTop - 0.72,
+        sideFrameTop - 0.62,
       ));
     }
   }
@@ -1000,7 +1000,7 @@ function addTierOneTimberConstruction(
     new THREE.Vector3(),
   );
   construction.name = 'Residence hand-hewn sill post and brace frame';
-  construction.userData.residenceFacadeTimberRhythm = 'sill-post-knee-brace-frame';
+  construction.userData.residenceFacadeTimberRhythm = 'sill-post-side-brace-frame';
   construction.userData.residenceFacadeTimberRole = 'load-bearing-frame';
 
   const gableParts: BoxPart[] = [];
