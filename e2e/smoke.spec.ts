@@ -435,6 +435,45 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(fuelStores).toHaveAttribute('open', '');
   await expect(fuelStores.getByRole('heading', { name: 'Fuel supply' })).toBeVisible();
   await expect(page.locator('#ui-tooltip')).toBeHidden();
+  const supplyCardPresentation = await page.locator('[data-settlement-hud]').evaluate((hud) => {
+    const foodGrid = hud.querySelector<HTMLElement>('[data-food-breakdown]')!;
+    const fuelGrid = hud.querySelector<HTMLElement>('[data-fuel-breakdown]')!;
+    const timberPanel = hud.querySelector<HTMLElement>(
+      '[data-resource-card="timber"] .settlement-hud__resource-panel',
+    )!;
+    const headerMetrics = [foodGrid, fuelGrid, timberPanel].map((panel) => {
+      const title = panel.querySelector<HTMLElement>('.settlement-hud__people-header strong')!;
+      const meta = panel.querySelector<HTMLElement>('.settlement-hud__people-header span')!;
+      return {
+        titleSize: Number.parseFloat(getComputedStyle(title).fontSize),
+        metaSize: Number.parseFloat(getComputedStyle(meta).fontSize),
+        metaTransform: getComputedStyle(meta).textTransform,
+      };
+    });
+    const smallCopy = [
+      ...foodGrid.querySelectorAll<HTMLElement>('.settlement-hud__supply-line'),
+      ...fuelGrid.querySelectorAll<HTMLElement>('.settlement-hud__supply-line'),
+      ...timberPanel.querySelectorAll<HTMLElement>(
+        '.settlement-hud__resource-detail, .settlement-hud__resource-note',
+      ),
+    ].map((element) => Number.parseFloat(getComputedStyle(element).fontSize));
+    return {
+      foodWidth: Number.parseFloat(getComputedStyle(foodGrid).width),
+      fuelWidth: Number.parseFloat(getComputedStyle(fuelGrid).width),
+      headerMetrics,
+      minimumCopySize: Math.min(...smallCopy),
+    };
+  });
+  expect(supplyCardPresentation.foodWidth).toBeGreaterThanOrEqual(350);
+  expect(supplyCardPresentation.fuelWidth).toBeGreaterThanOrEqual(300);
+  expect(new Set(supplyCardPresentation.headerMetrics.map(({ titleSize }) => titleSize)).size).toBe(1);
+  expect(new Set(supplyCardPresentation.headerMetrics.map(({ metaSize }) => metaSize)).size).toBe(1);
+  expect(supplyCardPresentation.headerMetrics.map(({ metaTransform }) => metaTransform)).toEqual([
+    'none',
+    'none',
+    'none',
+  ]);
+  expect(supplyCardPresentation.minimumCopySize).toBeGreaterThanOrEqual(12);
   await foodSummary.hover();
   await expect(foodStores).toHaveAttribute('open', '');
   const foodGrid = foodStores.locator('[data-food-breakdown]');

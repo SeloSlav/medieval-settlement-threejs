@@ -1521,11 +1521,28 @@ select:focus-visible {
 }
 
 .settlement-hud__food-grid {
-  grid-template-columns: repeat(4, 70px);
+  grid-template-columns: repeat(4, minmax(76px, 1fr));
+  width: min(356px, calc(100vw - 28px));
 }
 
 .settlement-hud__fuel-grid {
-  grid-template-columns: repeat(2, 104px);
+  grid-template-columns: repeat(2, minmax(126px, 1fr));
+  width: min(310px, calc(100vw - 28px));
+}
+
+.settlement-hud__supply-header {
+  padding: 1px 2px 7px;
+}
+
+.settlement-hud__supply-header > span {
+  flex: 0 0 auto;
+  overflow: visible;
+  color: #9f947f;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-overflow: clip;
+  text-transform: none;
+  white-space: nowrap;
 }
 
 .settlement-hud__supply-summary {
@@ -1548,6 +1565,11 @@ select:focus-visible {
   color: #a9a18f;
   font-size: 8px;
   line-height: 1.35;
+}
+
+.settlement-hud__food-grid .settlement-hud__supply-summary span,
+.settlement-hud__fuel-grid .settlement-hud__supply-summary span {
+  max-width: none;
 }
 
 .settlement-hud__supply-summary .settlement-hud__supply-line {

@@ -413,7 +413,7 @@ const SETTLEMENT_HUD_HTML = `
           data-fuel-breakdown
           aria-label="Household fuel stores"
         >
-          <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2">
+          <div class="settlement-hud__stores-grid-header settlement-hud__people-header settlement-hud__supply-header" role="heading" aria-level="2">
             <strong>Fuel supply</strong>
             <span data-fuel-stores-mode-label>Available surplus</span>
           </div>
@@ -463,7 +463,7 @@ const SETTLEMENT_HUD_HTML = `
           data-food-breakdown
           aria-label="Food stores by commodity"
         >
-          <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2">
+          <div class="settlement-hud__stores-grid-header settlement-hud__people-header settlement-hud__supply-header" role="heading" aria-level="2">
             <strong>Food supply</strong>
             <span data-food-stores-mode-label>Available surplus</span>
           </div>
@@ -853,7 +853,6 @@ export class SettlementHud {
   private specialtyStoresCloseTimer: number | null = null;
   private displayedPeopleSignature: string | null = null;
   private displayedAnimalsSignature: string | null = null;
-  private animalsTooltipText = 'Build a Stable and purchase an ox to begin the draft-animal roster.';
   private displayedClockDate: string | null = null;
   private displayedClockFullDate: string | null = null;
   private displayedClockTime: string | null = null;
@@ -1203,14 +1202,8 @@ export class SettlementHud {
       `${view.automatic} automatic`,
     ].filter((part): part is string => part !== null).join(', ');
     this.animalsSummary.setAttribute('aria-label', summary);
-    this.animalsTooltipText = !hasLivestock
-      ? 'Build livestock holdings or a Stable to begin the ledger.'
-      : `${knownHeads} known herd heads · ${view.posted} oxen posted · ${view.automatic} oxen on Auto.`;
-    if (this.animals.open) {
-      delete this.animalsSummary.dataset.tooltip;
-    } else {
-      this.animalsSummary.dataset.tooltip = this.animalsTooltipText;
-    }
+    delete this.animalsSummary.dataset.tooltipTitle;
+    delete this.animalsSummary.dataset.tooltip;
 
     this.animalsList.replaceChildren();
     if (view.entries.length === 0) {
@@ -1878,10 +1871,9 @@ export class SettlementHud {
       this.foodStores.open = false;
       this.fuelStores.open = false;
       this.specialtyStores.open = false;
-      delete this.animalsSummary.dataset.tooltip;
-    } else {
-      this.animalsSummary.dataset.tooltip = this.animalsTooltipText;
     }
+    delete this.animalsSummary.dataset.tooltipTitle;
+    delete this.animalsSummary.dataset.tooltip;
     this.animalsSummary.setAttribute('aria-expanded', String(open));
   };
 

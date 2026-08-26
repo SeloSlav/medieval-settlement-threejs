@@ -9,6 +9,9 @@ assert.match(
   /@import url\('\.\/ui\/tutorialOverlay\.css'\);\s*@import url\('\/src\/ui\/readability\.css'\);/,
   'the readability layer must load last so compact skins cannot shrink text afterward',
 );
+assert.match(readability, /--ui-readable-body:\s*14px/);
+assert.match(readability, /--ui-readable-secondary:\s*13px/);
+assert.match(readability, /--ui-readable-caption:\s*12px/);
 
 assert.match(readability, /\.noble-hud__report-copy > strong\s*\{[^}]*font-size:\s*13px;/s);
 assert.match(readability, /\.noble-hud__report-detail\s*\{[^}]*font-size:\s*12px;/s);

@@ -3,9 +3,9 @@
  * no longer relying on 6–10px type for information the player must read. */
 
 :root {
-  --ui-readable-body: 13px;
-  --ui-readable-secondary: 12px;
-  --ui-readable-caption: 11px;
+  --ui-readable-body: 14px;
+  --ui-readable-secondary: 13px;
+  --ui-readable-caption: 12px;
 }
 
 [data-ui-root] small {
@@ -211,6 +211,8 @@
 .settlement-hud__animals-section .settlement-hud__animals-empty,
 .settlement-hud__animal-ledger-copy small,
 .settlement-hud__supply-summary span,
+.settlement-hud__resource-detail,
+.settlement-hud__resource-context,
 .settlement-hud__fire-alert span,
 .settlement-hud__security-alert span,
 .settlement-hud__welfare-alert span {
@@ -231,6 +233,9 @@
 .settlement-hud__food-breakdown-eyebrow,
 .settlement-hud__food-breakdown-columns,
 .settlement-hud__stores-grid-header span,
+.settlement-hud__resource-reading span,
+.settlement-hud__resource-transit > span,
+.settlement-hud__resource-note,
 .settlement-hud__totals-mode-label,
 .settlement-hud__label {
   font-size: var(--ui-readable-caption);
