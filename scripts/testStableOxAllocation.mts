@@ -189,6 +189,11 @@ assert.match(renderer, /quaternius-bull\.glb/);
 assert.match(renderer, /idle[^\n]*eat[^\n]*walk|idle\/eating\/walk/);
 assert.match(renderer, /getWorkerPose/);
 assert.match(renderer, /getDeliveryPose/);
+assert.match(
+  renderer,
+  /moving:\s*tripPose\.moving/,
+  'a cart ox should stop walking when its cart stops to unload',
+);
 assert.match(renderer, /Draft ox oak yoke/);
 assert.match(
   renderer,
