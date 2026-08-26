@@ -1,0 +1,88 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Hand-forged wrought iron",
+  "requestId": "01a03f2b-6a1f-7d73-ad22-915bbe739c4f",
+  "requestedInput": {
+    "prompt": "Flat orthographic seamless hand-forged wrought-iron material from a medieval Croatian settlement. Dense charcoal-black iron, subtle hammer scale, shallow forging dimples, fine linear slag grain, worn grey highlights, and extremely restrained reddish oxidation in recesses at 1 millimeter to 8 centimeter scale. Mostly metallic moderately rough surface for straps, tools, hinges, hoops, grates, nails, and fittings. No perforations, separate objects, heavy orange rust, polished chrome, reflections of a room, perspective, shadows, borders, text, or obvious repeating motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 732016,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 732016,
+  "returnedPrompt": "High-resolution 4k photograph of a flat orthographic hand-forged wrought-iron surface. The texture features dense charcoal-black iron with subtle hammer scale, shallow forging dimples, and fine linear slag grain. Worn grey metallic highlights accent the moderately rough surface, with extremely restrained reddish oxidation tucked into deep recesses. The material represents medieval craftsmanship suitable for iron straps and fittings. Uniform ambient lighting eliminates shadows and highlights, ensuring a consistent matte metallic finish across the entire plane. The composition is a solid, continuous sheet of forged metal without perforations or distinct objects, capturing authentic historical textures from 1 millimeter to 8 centimeter scale with immense detail and no repeating motifs.",
+  "timings": {
+    "texture_generation": 26.481592782998632,
+    "pbr_prediction": 11.463723847999063
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea2e/ZhN9WbhapW0prAxM23E-B_yU4g2mPM.png",
+      "content_type": "image/png",
+      "file_name": "ZhN9WbhapW0prAxM23E-B_yU4g2mPM.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea2f/-aDyL2ucqC0Yyk1XqEpiP_plStLWHH.png",
+      "content_type": "image/png",
+      "file_name": "-aDyL2ucqC0Yyk1XqEpiP_plStLWHH.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea2f/7UnkfpWB_baHlDU4P9tUO_D9HLb1xx.png",
+      "content_type": "image/png",
+      "file_name": "7UnkfpWB_baHlDU4P9tUO_D9HLb1xx.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea2f/cQd7BUo2MSrXV5ErA6C90_qa43sMlT.png",
+      "content_type": "image/png",
+      "file_name": "cQd7BUo2MSrXV5ErA6C90_qa43sMlT.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea2f/8yIjlrTLyOfE7xV4Hr1aG_K86Rm8qf.png",
+      "content_type": "image/png",
+      "file_name": "8yIjlrTLyOfE7xV4Hr1aG_K86Rm8qf.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea2f/GC0jHrZxVINpASYMRTHJO_I4qn6poo.png",
+      "content_type": "image/png",
+      "file_name": "GC0jHrZxVINpASYMRTHJO_I4qn6poo.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-26T17:43:52.552Z"
+}

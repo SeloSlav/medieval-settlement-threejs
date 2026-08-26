@@ -1,0 +1,88 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Rough-hewn structural timber",
+  "requestId": "01a03f29-4df5-79f2-9930-da8da8485fcb",
+  "requestedInput": {
+    "prompt": "Flat orthographic seamless material of hand-hewn oak structural timber in Croatia around 1550. Long grain running vertically, shallow adze scallops, tight growth lines, occasional small knots and restrained splits, warm medium brown heartwood with natural lighter sap streaks at millimeter to meter scale. Dry rough non-metallic surface for beams, posts, fences, rails, benches, carts, handles, logs, and stacked timber. No separate boards, plank joints, bark sheets, cut log ends, nails, paint, deep black cracks, perspective, shadows, borders, text, or obvious repeated knot pattern.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 732005,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 732005,
+  "returnedPrompt": "High-resolution 4k photograph of a seamless orthographic texture featuring authentic 16th-century Croatian hand-hewn oak. The surface shows a vertical long grain with shallow, rhythmic adze scallops and tight growth rings. The warm medium brown heartwood is accented by natural lighter sap streaks. A dry, rough, non-metallic finish reveals occasional small knots and restrained structural splits. Uniform flat lighting emphasizes the wood's organic fiber and heritage craftsmanship. The texture represents a single massive timber face, perfect for structural beams and posts, exhibiting a consistent and natural appearance without visible joints, bark, or artificial coatings. Realistic wood grain, intricate fiber detail, historical building material.",
+  "timings": {
+    "texture_generation": 8.667404327003169,
+    "pbr_prediction": 17.179862368000613
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea1e/4Exyx1WJtzmHvKK8bMtf3_XHIQtlAA.png",
+      "content_type": "image/png",
+      "file_name": "4Exyx1WJtzmHvKK8bMtf3_XHIQtlAA.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea35/DBZnklHpM6kJNyd8Gc_9Z_1cNNhG6n.png",
+      "content_type": "image/png",
+      "file_name": "DBZnklHpM6kJNyd8Gc_9Z_1cNNhG6n.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea20/xHVeMKaDAKj_9b5d-sp8P_h3dvFtSZ.png",
+      "content_type": "image/png",
+      "file_name": "xHVeMKaDAKj_9b5d-sp8P_h3dvFtSZ.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea20/wDVPIJcKDNiIwN5kHPCiN_NRURdK25.png",
+      "content_type": "image/png",
+      "file_name": "wDVPIJcKDNiIwN5kHPCiN_NRURdK25.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea20/nYfKHyeViTuOhCmckvMBL_SNabk3CT.png",
+      "content_type": "image/png",
+      "file_name": "nYfKHyeViTuOhCmckvMBL_SNabk3CT.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea20/_8t3LQSft-Rd18c6wrpDT_Q2bkvcr5.png",
+      "content_type": "image/png",
+      "file_name": "_8t3LQSft-Rd18c6wrpDT_Q2bkvcr5.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-26T17:41:21.903Z"
+}

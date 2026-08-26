@@ -332,11 +332,7 @@ function renderEmptyBackyardPicker(
         ? 'Reclamation pile blocks rebuilding'
         : 'Choose an extension',
     statusState: underConstruction || blockingPile ? 'warning' : 'neutral',
-    detailsHtml: `
-      <li><span>Population</span><span>${residence.population}</span></li>
-      <li><span>Available stone</span><span>${Math.floor(totals.stone)}</span></li>
-      <li><span>Available treasury</span><span>${Math.floor(totals.gold)} gold</span></li>
-    `,
+    detailsHtml: '',
     demolish: { visible: false, hint: '' },
     labor: hiddenLabor(),
     supplementalPanelHtml: `<ul class="backyard-picker-list">${options}</ul>`,

@@ -1,0 +1,88 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Hand-trowelled lime plaster",
+  "requestId": "01a03f28-48f4-7f02-93ec-7e647168576c",
+  "requestedInput": {
+    "prompt": "Flat orthographic seamless medieval hand-trowelled lime plaster material from inland Croatia around 1550. Warm pale limestone-white limewash, fine sand aggregate, shallow overlapping trowel sweeps, tiny pores, restrained hairline age crazing and softly mottled mineral variation at 1 millimeter to 20 centimeter scale. Dry rough non-metallic wall surface, evenly lit and neutral enough for game-material tinting. No bricks, exposed stones, timber, ivy, moss, dirt bands, painted motifs, hard directional light, cast shadows, perspective, borders, labels, text, focal damage, or obvious repeating motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 732001,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 732001,
+  "returnedPrompt": "High-resolution 4k photograph of a flat orthographic medieval hand-trowelled lime plaster texture. The surface features warm pale limestone-white limewash with a fine sand aggregate and subtle overlapping trowel sweeps. Visible details include tiny pores, restrained hairline age crazing, and soft mottled mineral variations. The material represents authentic 16th-century Croatian masonry with a dry, rough, non-metallic finish. Uniform lighting, neutral exposure, and balanced tonality suitable for game engine shaders. The composition is a clean, continuous expanse of plaster with no directional shadows, providing a consistent and high-quality architectural surface. Architectural visualization, macro detail, soft matte finish, historical building material.",
+  "timings": {
+    "texture_generation": 11.101005892996909,
+    "pbr_prediction": 54.70709673099918
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea18/F8C15iYN5Tp9kkM6MLNgp_3UuzTIl9.png",
+      "content_type": "image/png",
+      "file_name": "F8C15iYN5Tp9kkM6MLNgp_3UuzTIl9.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea1d/ESv8JR1UIdPv1cyPibXIB_y7B2HGKK.png",
+      "content_type": "image/png",
+      "file_name": "ESv8JR1UIdPv1cyPibXIB_y7B2HGKK.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea1d/8jnVyOYhcYR9aYsD1Ph0j_ACQg1sLF.png",
+      "content_type": "image/png",
+      "file_name": "8jnVyOYhcYR9aYsD1Ph0j_ACQg1sLF.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea32/W8nwCz-_UbJYz77J2In6u_aZ1Iq66G.png",
+      "content_type": "image/png",
+      "file_name": "W8nwCz-_UbJYz77J2In6u_aZ1Iq66G.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea1d/b-vR07uGrq6Ui5NDSisBK_mlPk8Ydd.png",
+      "content_type": "image/png",
+      "file_name": "b-vR07uGrq6Ui5NDSisBK_mlPk8Ydd.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea1d/eqzj2O7BplONlwdEaB_TF_tIHi2wyp.png",
+      "content_type": "image/png",
+      "file_name": "eqzj2O7BplONlwdEaB_TF_tIHi2wyp.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-26T17:40:55.973Z"
+}

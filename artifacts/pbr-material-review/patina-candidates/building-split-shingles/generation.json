@@ -1,0 +1,88 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Split wooden roof shingles",
+  "requestId": "01a03f2a-3b71-7fa1-9bcb-2276d26fc750",
+  "requestedInput": {
+    "prompt": "Flat orthographic seamless medieval split-oak roof-shingle material viewed square to the roof plane. Short overlapping shingle courses, irregular 20 to 40 centimeter widths, staggered butt joints, hand-split vertical grain, slightly uneven lower edges, restrained silver-brown weathering and shallow course relief. Dry rough non-metallic roof surface under uniform neutral illumination. No broad modern boards, asphalt shingles, nails in a rigid grid, moss carpet, leaves, roof ridge, perspective, shadows, borders, text, or obvious repeating rows.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 732010,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 732010,
+  "returnedPrompt": "High-resolution 4k photograph of a flat orthographic seamless medieval split-oak roof shingle texture. The surface features short overlapping courses of hand-split oak with vertical grain and slightly uneven lower edges. Shingles vary in width between 20 to 40 centimeters with realistic staggered butt joints and shallow course relief. The material shows restrained silver-brown weathering on a dry, rough, non-metallic surface. Captured under uniform neutral illumination to minimize deep shadows and highlights. The composition is a perfectly flat, top-down view square to the roof plane, emphasizing natural wood fiber textures and organic variations in the timber without any modern elements or debris.",
+  "timings": {
+    "texture_generation": 12.716405750004924,
+    "pbr_prediction": 9.997725307999644
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea25/otP-LZl-l0v2se72sBj7f_9yDhwkFD.png",
+      "content_type": "image/png",
+      "file_name": "otP-LZl-l0v2se72sBj7f_9yDhwkFD.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea3b/z4ycFogp-6bhIy0Cv9kEo_U28dFnPp.png",
+      "content_type": "image/png",
+      "file_name": "z4ycFogp-6bhIy0Cv9kEo_U28dFnPp.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea26/lzH_yDs801gxXJFTMjO70_WgFzeQkq.png",
+      "content_type": "image/png",
+      "file_name": "lzH_yDs801gxXJFTMjO70_WgFzeQkq.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea26/dM2FxVY6BPJRBTcOlnbOv_1Nu9S9Wl.png",
+      "content_type": "image/png",
+      "file_name": "dM2FxVY6BPJRBTcOlnbOv_1Nu9S9Wl.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea26/hvmrjqGwjhT2Fws3OnJ0u_g70l8lvW.png",
+      "content_type": "image/png",
+      "file_name": "hvmrjqGwjhT2Fws3OnJ0u_g70l8lvW.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea26/fxo7ERk3YopINy15-hVlX_tyUneqSD.png",
+      "content_type": "image/png",
+      "file_name": "fxo7ERk3YopINy15-hVlX_tyUneqSD.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-26T17:42:20.748Z"
+}

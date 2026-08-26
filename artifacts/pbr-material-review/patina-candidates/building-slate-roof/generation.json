@@ -1,0 +1,88 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Hand-split slate roof",
+  "requestId": "01a03f2a-cc95-7e03-b89a-dccf01ebb9e1",
+  "requestedInput": {
+    "prompt": "Flat orthographic seamless medieval hand-split slate roof material from a mountain settlement. Overlapping irregular small slate plates, staggered courses, chipped hand-cut edges, fine layered mineral grain, muted charcoal-grey, blue-grey, and warm weathered variation with shallow readable relief. Dry rough non-metallic roof under uniform neutral illumination. No modern uniform rectangles, shiny wet reflections, snow, moss carpet, roof ridge, perspective, cast shadows, borders, text, or obvious repeating rows.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 732013,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 732013,
+  "returnedPrompt": "High-resolution 4k orthographic photograph of a seamless medieval hand-split slate roof texture. The surface features small, irregular slate plates in staggered courses with authentic chipped, hand-cut edges and a fine layered mineral grain. A muted palette of charcoal-grey, blue-grey, and warm weathered earth tones provides natural variation. The material displays a dry, rough, non-metallic finish with shallow readable relief and realistic depth. Uniform, neutral ambient lighting ensures flat, even illumination across the entire 1024x1024 field. The composition focuses on the organic, overlapping layout typical of a rugged mountain settlement, emphasizing detailed stone textures, matte surfaces, and a clean, top-down perspective suitable for high-quality architectural visualization and environment mapping.",
+  "timings": {
+    "texture_generation": 23.73578057099803,
+    "pbr_prediction": 6.903461651003454
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea29/nV9JjjEwmtez_iyzKZ2EB_pMpzKzuY.png",
+      "content_type": "image/png",
+      "file_name": "nV9JjjEwmtez_iyzKZ2EB_pMpzKzuY.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea40/SMCBfRJ67EqLEc02VtoQ__qVtUfkTU.png",
+      "content_type": "image/png",
+      "file_name": "SMCBfRJ67EqLEc02VtoQ__qVtUfkTU.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea2a/J2obzKRUcBHJVMTcyLR41_hHWnUPDd.png",
+      "content_type": "image/png",
+      "file_name": "J2obzKRUcBHJVMTcyLR41_hHWnUPDd.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea2a/FvrWD3L2bfVR1E2LxZ0wR_hb9Qrjt5.png",
+      "content_type": "image/png",
+      "file_name": "FvrWD3L2bfVR1E2LxZ0wR_hb9Qrjt5.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea2a/_0LZLVysfzI7Kt_L1Z2r-_nmHRvD9w.png",
+      "content_type": "image/png",
+      "file_name": "_0LZLVysfzI7Kt_L1Z2r-_nmHRvD9w.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea2a/T32LQUMRFiba6MovoZ2RI_Blor1YrB.png",
+      "content_type": "image/png",
+      "file_name": "T32LQUMRFiba6MovoZ2RI_Blor1YrB.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-26T17:43:04.514Z"
+}

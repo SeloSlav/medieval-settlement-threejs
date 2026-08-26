@@ -653,7 +653,7 @@ const emptyBackyardView = renderBackyardInspector(
 );
 assert.doesNotMatch(emptyBackyardView.detailsHtml, /<span>Parcel<\/span>/);
 assert.doesNotMatch(emptyBackyardView.detailsHtml, /<span>Available timber<\/span>/);
-assert.match(emptyBackyardView.detailsHtml, /<span>Population<\/span>/);
+assert.equal(emptyBackyardView.detailsHtml, '');
 
 function assertCompactBackyardOptions(
   markup: string,

@@ -274,6 +274,26 @@ export function refreshPainterlyMaterial(material: THREE.Material): void {
   if (enabled) installPainterlyGraph(record);
 }
 
+/**
+ * Mutate a material's native node recipe without losing an active painterly
+ * wrapper. Async texture libraries use this when their real PBR graph arrives
+ * after the experimental scene-wide pass has already registered the material.
+ */
+export function mutatePainterlyMaterialSource(
+  material: THREE.Material,
+  mutate: () => void,
+): void {
+  const record = recordsByMaterial.get(material);
+  if (!record) {
+    mutate();
+    return;
+  }
+  if (record.installed) restoreNativeGraph(record);
+  mutate();
+  record.original = captureOriginalState(record.material);
+  if (enabled) installPainterlyGraph(record);
+}
+
 /** Give a NodeMaterial clone a clean native recipe and its source paint role. */
 export function inheritPainterlyVegetationMaterial(
   source: THREE.Material,

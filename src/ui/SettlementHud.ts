@@ -1546,7 +1546,7 @@ export class SettlementHud {
       foodHasDemand,
     );
     this.foodSupplyUse.textContent = foodHasDemand
-      ? `${formatFoodDemandSource(provisioning)} · ${formatSupplyAmount(provisioning.grossFoodDemandPerDay)} meals / day`
+      ? formatFoodDemandSource(provisioning)
       : 'No current food demand.';
     this.foodSupplyTotal.textContent = foodHasDemand
       ? `${formatSupplyAmount(provisioning.usableFoodStock)} usable meals after storage and spoilage.`
@@ -1565,7 +1565,7 @@ export class SettlementHud {
       fuelHasDemand,
     );
     this.fuelSupplyUse.textContent = fuelHasDemand
-      ? `${formatResidenceResidents(provisioning.heatedResidents)} · ${formatSupplyAmount(provisioning.currentFirewoodPerDay)} fuel / day`
+      ? formatResidenceResidents(provisioning.heatedResidents)
       : 'No current household fuel demand.';
     this.fuelSupplyTotal.textContent = fuelHasDemand
       ? `${formatSupplyAmount(provisioning.usableFirewoodStock)} usable · ${formatSupplyAmount(provisioning.householdFirewoodStock)} firewood + ${formatSupplyAmount(provisioning.householdCharcoalStock)} charcoal. Charcoal counts double.`
@@ -2291,10 +2291,8 @@ function formatSupplyMonthsRemaining(days: number, hasDemand: boolean): string {
   if (!hasDemand) return 'No current consumption';
   if (!Number.isFinite(days)) return 'No projected shortage';
   const months = Math.max(0, days) / CALENDAR_DAYS_PER_MONTH;
-  if (months < 0.05) return 'Less than 0.1 month remaining';
-  const value = months < 10
-    ? Number(months.toFixed(1)).toString()
-    : Math.floor(months).toString();
+  if (months < 1) return 'Less than 1 month remaining';
+  const value = Math.round(months).toString();
   return `About ${value} ${value === '1' ? 'month' : 'months'} remaining`;
 }
 
@@ -2326,6 +2324,5 @@ function supplyRunwayLevel(
 
 function formatSupplyAmount(amount: number): string {
   if (!Number.isFinite(amount)) return '0';
-  if (Math.abs(amount) < 10) return amount.toFixed(1);
   return Math.round(amount).toString();
 }

@@ -1,0 +1,88 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Limestone ashlar masonry",
+  "requestId": "01a03f28-48f5-7351-8a46-55ad9444acc4",
+  "requestedInput": {
+    "prompt": "Flat orthographic seamless wall material of hand-dressed pale karst limestone ashlar in inland Croatia around 1550. Irregular rectangular blocks from 20 to 55 centimeters wide, shallow recessed lime-mortar joints, chipped arrises, fine chalky pores, restrained warm grey-beige stone variation, sober church and civic masonry. Dry rough non-metallic surface under uniform neutral illumination. No modern saw cuts, repeating brick grid, huge cracks, carved ornament, moss carpet, ivy, soot, perspective, cast shadows, borders, text, or obvious repeating motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 732002,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 732002,
+  "returnedPrompt": "High-resolution 4k photograph of a flat orthographic seamless wall material featuring hand-dressed pale karst limestone ashlar. The masonry consists of irregular rectangular blocks ranging from 20 to 55 centimeters in width with shallow recessed lime-mortar joints and authentic chipped arrises. The stone exhibits fine chalky pores and a restrained warm grey-beige color palette with subtle natural variation, typical of 16th-century Croatian civic architecture. The texture is a dry, rough, non-metallic surface captured under perfectly uniform neutral illumination. The composition is a straight-on elevation view of sober, historic masonry with clean transitions, maintaining a consistent and realistic distribution of stone shapes and soft mineral tones across the entire surface.",
+  "timings": {
+    "texture_generation": 10.966852552999626,
+    "pbr_prediction": 47.061976210003195
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea18/47fAun5IbjM9yeWM9q5Br_jMeGVN9j.png",
+      "content_type": "image/png",
+      "file_name": "47fAun5IbjM9yeWM9q5Br_jMeGVN9j.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea1d/yeNk1WWLfkebMz8c9VMwj_9lYo8PoK.png",
+      "content_type": "image/png",
+      "file_name": "yeNk1WWLfkebMz8c9VMwj_9lYo8PoK.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea1d/O2hVGTWlrvDLowLh5d0U6_bhyZauL0.png",
+      "content_type": "image/png",
+      "file_name": "O2hVGTWlrvDLowLh5d0U6_bhyZauL0.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea1d/bNhYsLEjcOpoA9wJNmtTj_l3SsUpRi.png",
+      "content_type": "image/png",
+      "file_name": "bNhYsLEjcOpoA9wJNmtTj_l3SsUpRi.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea1d/t1t_edAqe8xm2ceYLKfkP_Z5y74omS.png",
+      "content_type": "image/png",
+      "file_name": "t1t_edAqe8xm2ceYLKfkP_Z5y74omS.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea32/ve7xBt_FAghotg-NgVhEv_4b6RTRVF.png",
+      "content_type": "image/png",
+      "file_name": "ve7xBt_FAghotg-NgVhEv_4b6RTRVF.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-26T17:40:46.978Z"
+}

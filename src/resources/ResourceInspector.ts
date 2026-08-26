@@ -2624,6 +2624,9 @@ export class ResourceInspector {
     this.detailList.innerHTML = detailsHtml;
     const rows = [...this.detailList.children]
       .filter((element): element is HTMLElement => element instanceof HTMLElement);
+    const detailsSection = this.detailList.closest<HTMLElement>('.resource-inspector-details');
+    if (detailsSection) detailsSection.hidden = rows.length === 0;
+    if (rows.length === 0) return;
     const ranked = rows.map((row, index) => {
       const label = row.firstElementChild?.textContent?.trim() ?? '';
       const value = row.lastElementChild?.textContent?.trim() ?? '';

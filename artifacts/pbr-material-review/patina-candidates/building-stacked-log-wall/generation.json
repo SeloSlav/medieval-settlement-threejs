@@ -1,0 +1,88 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Stacked timber wall",
+  "requestId": "01a03f29-d197-7ba0-bfb9-672cf7078daf",
+  "requestedInput": {
+    "prompt": "Flat orthographic seamless medieval stacked-log wall material in inland Croatia. Horizontal courses of hand-peeled oak and fir logs 18 to 28 centimeters thick, irregular hewn faces, long grain, occasional knots, narrow moss-free clay-and-fiber chinking, naturally staggered course diameters and warm brown variation. Dry rough non-metallic wall surface for log sheds, timber stacks, palisades, and rustic outbuildings. No round cut ends facing camera, cabin corner notches, modern milled logs, deep black gaps, ivy, perspective, shadows, borders, text, or obvious repeating course sequence.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 732008,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 732008,
+  "returnedPrompt": "A high-resolution 4k orthographic photograph of a traditional medieval Croatian log wall. The surface features horizontal courses of hand-peeled oak and fir timber, ranging from 18 to 28 centimeters in thickness. The logs display irregular hewn faces, visible long grain, and occasional natural knots with a warm brown color palette. Narrow, flush joints are filled with traditional clay and fiber chinking. The texture shows naturally staggered diameters and a dry, rough, non-metallic finish suitable for rustic palisades and timber outbuildings. Uniform, flat lighting captures every detail of the wood grain without deep shadows or perspective distortion, ensuring a perfectly continuous and realistic medieval building material.",
+  "timings": {
+    "texture_generation": 8.486996216000989,
+    "pbr_prediction": 10.9306211899966
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea37/vnjR-KiI8E2OTDDtC2yyR_jFIeMSTV.png",
+      "content_type": "image/png",
+      "file_name": "vnjR-KiI8E2OTDDtC2yyR_jFIeMSTV.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea38/ythGPsDhfZbG-HeEcjclj_cccOlPxO.png",
+      "content_type": "image/png",
+      "file_name": "ythGPsDhfZbG-HeEcjclj_cccOlPxO.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea38/B8mDmAFILzLOKDqKt664i_JXwigeGF.png",
+      "content_type": "image/png",
+      "file_name": "B8mDmAFILzLOKDqKt664i_JXwigeGF.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea23/WxnhlUrLiHZruZMIeza83_PA9NLtIG.png",
+      "content_type": "image/png",
+      "file_name": "WxnhlUrLiHZruZMIeza83_PA9NLtIG.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea23/rXCjzw99JTDRe_MI6s40e_jTYf7zd0.png",
+      "content_type": "image/png",
+      "file_name": "rXCjzw99JTDRe_MI6s40e_jTYf7zd0.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea23/O0eCVn-nZ4VCuIaD-Y5Gi_MxHRFt3F.png",
+      "content_type": "image/png",
+      "file_name": "O0eCVn-nZ4VCuIaD-Y5Gi_MxHRFt3F.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-26T17:41:49.717Z"
+}

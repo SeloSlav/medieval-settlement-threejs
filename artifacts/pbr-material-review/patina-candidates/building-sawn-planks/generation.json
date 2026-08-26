@@ -1,0 +1,88 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Sawn oak planks",
+  "requestId": "01a03f29-6d81-7441-bfe7-3a9c93ad148d",
+  "requestedInput": {
+    "prompt": "Flat orthographic seamless medieval sawn oak plank surface with boards running vertically. Boards 18 to 32 centimeters wide, narrow dark joints, restrained alternating grain, small knots, saw texture, slightly uneven edges and warm honey-brown variation suitable for doors, floors, tables, barrels, buckets, and wall boards. Dry rough non-metallic wood under uniform neutral illumination. No modern tongue-and-groove, glossy varnish, nails in a rigid grid, cut log ends, perspective, cast shadows, borders, text, or obvious repeating motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 732006,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 732006,
+  "returnedPrompt": "High-resolution 4k photograph of a flat orthographic medieval sawn oak plank surface. The texture features vertical boards between 18 and 32 centimeters wide with narrow dark joints and slightly uneven edges. The wood displays a warm honey-brown color variation with restrained alternating grain and occasional small knots. A subtle, dry saw-cut texture is visible across the surface. Uniform neutral illumination eliminates cast shadows and highlights the rough, non-metallic organic quality of the timber. Professional quality, sharp details, top-down view, suitable for historical architectural elements like heavy doors, rustic flooring, and medieval barrels. Perfect consistency across the plane without repeating artifacts.",
+  "timings": {
+    "texture_generation": 9.321524942999531,
+    "pbr_prediction": 16.133980295002402
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea1f/qvNi0GJC8Rhin8u6ZUAdb_hyU9RjBJ.png",
+      "content_type": "image/png",
+      "file_name": "qvNi0GJC8Rhin8u6ZUAdb_hyU9RjBJ.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea21/KzNitsS7RJDiXv7YE8QUP_QAigzOnb.png",
+      "content_type": "image/png",
+      "file_name": "KzNitsS7RJDiXv7YE8QUP_QAigzOnb.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea21/uZPaaKP6PVxOPEy6wZBlk_zPyE8Nfa.png",
+      "content_type": "image/png",
+      "file_name": "uZPaaKP6PVxOPEy6wZBlk_zPyE8Nfa.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea36/bZcPqlD9fL-q_8TGtvW4c_6iOAtoKz.png",
+      "content_type": "image/png",
+      "file_name": "bZcPqlD9fL-q_8TGtvW4c_6iOAtoKz.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea21/G6B4I7FXIXS_AzOFt1Ua3_qGSOVnc8.png",
+      "content_type": "image/png",
+      "file_name": "G6B4I7FXIXS_AzOFt1Ua3_qGSOVnc8.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea21/QC58d3-EiaqFHqTJtiW6s_yzRkhCW8.png",
+      "content_type": "image/png",
+      "file_name": "QC58d3-EiaqFHqTJtiW6s_yzRkhCW8.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-26T17:41:30.691Z"
+}

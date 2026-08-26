@@ -1,6 +1,13 @@
 import * as THREE from 'three';
 import { loadBitmapTexture } from '../utils/textureLoad.ts';
 import { prepareBuildingGeometryUvs } from './buildingMetricUvs.ts';
+import {
+  applyBuildingMaterialAtlas,
+  disposeBuildingMaterialAtlas,
+  getBuildingMaterialAtlasStats,
+  initializeBuildingMaterialAtlas,
+  type BuildingMaterialAtlasTile,
+} from './buildingMaterialAtlas.ts';
 import { disposeSharedWellWaterMaterial } from './WellWaterMaterial.ts';
 
 export const GORSKI_PALETTE = {
@@ -92,6 +99,9 @@ type MaterialDefinition = {
   color: number;
   roughness: number;
   metalness: number;
+  atlasTile?: BuildingMaterialAtlasTile;
+  atlasMetersPerTile?: number;
+  atlasTintStrength?: number;
   textureFamily?: TextureFamily;
   normalScale?: number;
   weathering?: BuildingWeatheringProfile;

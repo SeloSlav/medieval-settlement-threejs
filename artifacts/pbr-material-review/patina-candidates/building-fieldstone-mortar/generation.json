@@ -1,0 +1,88 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Fieldstone and lime mortar wall",
+  "requestId": "01a03f28-48e7-74d1-9aec-19f0ef2780e0",
+  "requestedInput": {
+    "prompt": "Flat orthographic seamless medieval fieldstone wall material from Gorski Kotar around 1550. Closely fitted irregular fist-sized limestone pieces in broad pale lime mortar, mixed cool grey and warm beige stones, weather-softened faces, shallow joints and modest chips at 2 to 35 centimeter scale. Dry rough non-metallic foundation, well, enclosure, and humble church wall surface with uniform neutral illumination. No regular brick courses, large boulders, deep black gaps, ivy, heavy moss, ground plane, perspective, shadows, borders, text, or obvious repeating motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 732003,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 732003,
+  "returnedPrompt": "Flat orthographic architectural photograph of a seamless 16th-century medieval fieldstone wall from Gorski Kotar. The surface features closely fitted, irregular fist-sized limestone pieces embedded in broad, pale lime mortar. The stones exhibit a natural blend of cool grey and warm beige tones with weather-softened faces and modest chips, varying from 2 to 35 centimeters in scale. A dry, rough, non-metallic texture suitable for a humble church foundation or enclosure. The image features uniform, neutral, flat lighting to eliminate shadows and depth, ensuring a perfectly consistent material surface. High-resolution 4k texture, sharp detail, macro photography of traditional masonry, matte finish, authentic historical lime-based stonework.",
+  "timings": {
+    "texture_generation": 9.15089586799877,
+    "pbr_prediction": 40.97267798100074
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea18/XRjnCiWZbKCX7T9fTmMj2_09lzvy5L.png",
+      "content_type": "image/png",
+      "file_name": "XRjnCiWZbKCX7T9fTmMj2_09lzvy5L.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea1c/dQXqzsRFuOVwo6Km4OwNd_jYN5CDDB.png",
+      "content_type": "image/png",
+      "file_name": "dQXqzsRFuOVwo6Km4OwNd_jYN5CDDB.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea1c/rj2Nj68XMmTbBPeab0kld_CcaVDD4m.png",
+      "content_type": "image/png",
+      "file_name": "rj2Nj68XMmTbBPeab0kld_CcaVDD4m.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea31/HHabbun2mOff3LXRdAYcA_ifeEk0cD.png",
+      "content_type": "image/png",
+      "file_name": "HHabbun2mOff3LXRdAYcA_ifeEk0cD.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea1c/j8m8K89uV6N9MCX3HgvKS_rCLe2pm7.png",
+      "content_type": "image/png",
+      "file_name": "j8m8K89uV6N9MCX3HgvKS_rCLe2pm7.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea31/iyhwLv1DYXpXWL7boh54I_VodW6LTo.png",
+      "content_type": "image/png",
+      "file_name": "iyhwLv1DYXpXWL7boh54I_VodW6LTo.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-26T17:40:40.704Z"
+}

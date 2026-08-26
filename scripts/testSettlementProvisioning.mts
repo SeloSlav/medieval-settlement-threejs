@@ -167,6 +167,19 @@ assert.match(
   /return `\$\{Math\.round\(months\)\} mo`;/,
   'the compact food and fuel runway buttons must show nearest whole months',
 );
+assert.doesNotMatch(
+  settlementHud,
+  /meals \/ day|fuel \/ day|Less than 0\.1 month|amount\.toFixed\(1\)/,
+  'food and fuel hover cards must not expose redundant fractional rates or amounts',
+);
+assert.match(
+  settlementHud,
+  /foodSupplyUse\.textContent = foodHasDemand[\s\S]{0,120}\? formatFoodDemandSource\(provisioning\)/,
+);
+assert.match(
+  settlementHud,
+  /fuelSupplyUse\.textContent = fuelHasDemand[\s\S]{0,120}\? formatResidenceResidents\(provisioning\.heatedResidents\)/,
+);
 assert.match(settlementHud, /usable meal-equivalents are forecast against that rate/);
 assert.match(settlementHud, /firewood \+.*charcoal =.*fuel-equivalents owned;.*usable by residences/);
 assert.match(settlementHud, /occupied residences/);

@@ -1,0 +1,88 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Unglazed fired clay",
+  "requestId": "01a03f2b-de4f-7d43-9dd3-bebb9fc7a1f6",
+  "requestedInput": {
+    "prompt": "Flat orthographic seamless medieval unglazed fired-clay material. Fine porous terracotta body, subtle hand-smoothed arcs, tiny grit inclusions, small firing freckles, restrained warm red-orange, sienna, and dusty buff variation at 1 millimeter to 10 centimeter scale. Dry rough non-metallic ceramic for pots, kiln pieces, chimney caps, and clay construction details. No separate pottery objects, glaze, painted decoration, bricks, deep cracks, perspective, shadows, borders, text, or motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 732018,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 732018,
+  "returnedPrompt": "High-resolution 4k photograph of a flat orthographic seamless medieval unglazed fired-clay material. The texture features a fine porous terracotta body with subtle hand-smoothed arcs and tiny grit inclusions. Small firing freckles and restrained color variations of warm red-orange, sienna, and dusty buff are visible from a 1 millimeter to 10 centimeter scale. A dry, rough, non-metallic ceramic surface suitable for kiln pieces and clay construction. Uniform soft lighting across the entire surface ensures a clean, professional finish with no deep cracks, perspective, or shadows. Pure material study of raw, unglazed earth.",
+  "timings": {
+    "texture_generation": 10.971624265999708,
+    "pbr_prediction": 21.51739997700497
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea44/MMAlYfuBArvZviMprzgA2_9fccWwUw.png",
+      "content_type": "image/png",
+      "file_name": "MMAlYfuBArvZviMprzgA2_9fccWwUw.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea32/4lvPWmLAaCg6pU_72RyjZ_W5hC6SGj.png",
+      "content_type": "image/png",
+      "file_name": "4lvPWmLAaCg6pU_72RyjZ_W5hC6SGj.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea32/e3HcSwsfIol_Tu2jqd0lD_XyuoD1vd.png",
+      "content_type": "image/png",
+      "file_name": "e3HcSwsfIol_Tu2jqd0lD_XyuoD1vd.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea32/oBkk1HlqNr6De2m1dbqyL_Bim2JW41.png",
+      "content_type": "image/png",
+      "file_name": "oBkk1HlqNr6De2m1dbqyL_Bim2JW41.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea47/wMywo6dM00BDnW87wXkCS_PATEbqC6.png",
+      "content_type": "image/png",
+      "file_name": "wMywo6dM00BDnW87wXkCS_PATEbqC6.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea32/CS1zLl45MGOMnIX1olpy2_cKdCD2Yk.png",
+      "content_type": "image/png",
+      "file_name": "CS1zLl45MGOMnIX1olpy2_cKdCD2Yk.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-26T17:44:18.422Z"
+}

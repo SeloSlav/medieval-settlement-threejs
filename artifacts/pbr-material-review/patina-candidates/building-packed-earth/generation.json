@@ -1,0 +1,88 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Packed workshop earth",
+  "requestId": "01a03f2a-d3db-7b71-b1e2-0f6fb4b7817a",
+  "requestedInput": {
+    "prompt": "Flat top-down seamless medieval packed-earth floor and daub material from inland Croatia. Dense cool brown clay soil, fine straw fibers, compacted shallow scuffs, tiny gravel grains, subtle dry crumb texture, muted umber and grey-ochre variation at 1 millimeter to 8 centimeter scale. Dry rough non-metallic surface for workshop floors, clay infill, hearth surrounds, and construction props. No footprints, wheel ruts, puddles, grass, leaves, large stones, deep cracks, perspective, shadows, borders, text, or motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 732014,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 732014,
+  "returnedPrompt": "High-resolution 4k photograph of a flat top-down medieval packed-earth and daub floor. The surface consists of dense cool brown clay soil mixed with fine straw fibers and tiny gravel grains. Features a highly compacted texture with subtle shallow scuffs and a dry crumbly finish. Color palette includes muted umber, grey-ochre, and earthy tan variations ranging from 1 millimeter to 8 centimeter details. Uniform, flat lighting captures the rough, non-metallic matte surface characteristic of inland Croatian historical workshops. The composition is a perfectly even overhead view of clay infill and earth, showing a consistent and natural distribution of materials without deep crevices or large obstructions. Extremely detailed, sharp focus, professional material study.",
+  "timings": {
+    "texture_generation": 29.993407080000907,
+    "pbr_prediction": 8.048588069999823
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea2a/kyfVRxjCF0zw49DGjBO87_gBA4U9Xw.png",
+      "content_type": "image/png",
+      "file_name": "kyfVRxjCF0zw49DGjBO87_gBA4U9Xw.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea2b/D_GNhS_4yFhbd1Ev1Lbnc_HmVTOtXs.png",
+      "content_type": "image/png",
+      "file_name": "D_GNhS_4yFhbd1Ev1Lbnc_HmVTOtXs.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea2b/OwfGDHcy5OTRZrTiweJ8U_NUb9OGHk.png",
+      "content_type": "image/png",
+      "file_name": "OwfGDHcy5OTRZrTiweJ8U_NUb9OGHk.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea2b/XE9eKQxoB6GhuxsfTbaUt_nuOu06dP.png",
+      "content_type": "image/png",
+      "file_name": "XE9eKQxoB6GhuxsfTbaUt_nuOu06dP.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea2b/gQQHwcjtVfPp-IOE354Yg_382EvgeN.png",
+      "content_type": "image/png",
+      "file_name": "gQQHwcjtVfPp-IOE354Yg_382EvgeN.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea2b/M-X34lakP93dy40n4oNLe_eUBOatd2.png",
+      "content_type": "image/png",
+      "file_name": "M-X34lakP93dy40n4oNLe_eUBOatd2.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-26T17:43:15.238Z"
+}

@@ -1,0 +1,88 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Bundled reed thatch roof",
+  "requestId": "01a03f2a-99c7-7fb0-84aa-30684368a2cb",
+  "requestedInput": {
+    "prompt": "Flat orthographic seamless medieval bundled reed-thatch roof material viewed square to the slope. Dense short straw and reed fibers running vertically down slope, overlapping tied courses, broken fiber tips, weathered grey-straw and muted ochre variation, subtle bundle ridges at 2 millimeter to 30 centimeter scale. Very rough dry non-metallic roof surface under uniform neutral illumination. No loose hay pile, woven mat, long looping hairs, green grass, flowers, roof ridge, perspective, cast shadows, borders, text, or obvious repeated bands.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 732012,
+    "num_images": 1,
+    "enable_prompt_expansion": true,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 732012,
+  "returnedPrompt": "High-resolution 4k photograph of a professional-grade medieval bundled reed-thatch roof, captured in a flat orthographic top-down perspective. The surface features dense, short straw and reed fibers aligned vertically, showing weathered grey-straw tones and muted ochre variations. Visible textures include broken fiber tips and tightly packed overlapping tied courses with subtle bundle ridges. The material is a very rough, dry, non-metallic architectural surface. Uniform neutral overcast lighting eliminates harsh shadows and highlights. The texture is consistent and clean, displaying realistic natural fiber scattering and organic bundling without any perspective distortion or artificial patterns. Detailed macro photography of traditional rustic roofing material.",
+  "timings": {
+    "texture_generation": 19.795193074001872,
+    "pbr_prediction": 7.161047158995643
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea28/BUv6-f8cIFrWfKrApuGpo_FpTWrLaf.png",
+      "content_type": "image/png",
+      "file_name": "BUv6-f8cIFrWfKrApuGpo_FpTWrLaf.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea29/zeEVIOEiCj-vgH8m37KTH_o6Bcmlha.png",
+      "content_type": "image/png",
+      "file_name": "zeEVIOEiCj-vgH8m37KTH_o6Bcmlha.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea29/hpOg64TaSM92ogJn1p0sM_FKq94Iw9.png",
+      "content_type": "image/png",
+      "file_name": "hpOg64TaSM92ogJn1p0sM_FKq94Iw9.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea29/kFnIOB8zr3bhsNYcjJIsN_4xiuj0WY.png",
+      "content_type": "image/png",
+      "file_name": "kFnIOB8zr3bhsNYcjJIsN_4xiuj0WY.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea29/tzYbtkOQrdSFjQOYIpWuQ_Vc3pdtNR.png",
+      "content_type": "image/png",
+      "file_name": "tzYbtkOQrdSFjQOYIpWuQ_Vc3pdtNR.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa7ea29/Swi2Ua9TKfDcNFYVGC6xZ_siOSiN8Q.png",
+      "content_type": "image/png",
+      "file_name": "Swi2Ua9TKfDcNFYVGC6xZ_siOSiN8Q.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-26T17:42:49.124Z"
+}
