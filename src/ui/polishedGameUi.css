@@ -1016,6 +1016,10 @@ select:focus-visible {
   background: rgba(157, 117, 50, 0.07);
 }
 
+.settlement-hud__resource-context[hidden] {
+  display: none;
+}
+
 .settlement-hud__resource-note {
   padding-top: 6px;
   border-top: 1px solid rgba(220, 191, 127, 0.12);

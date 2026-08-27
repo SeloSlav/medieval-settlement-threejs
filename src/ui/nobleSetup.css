@@ -1433,21 +1433,7 @@
   vector-effect: non-scaling-stroke;
 }
 
-.noble-hud.is-first-person {
-  pointer-events: none;
-  background: none;
-  box-shadow: none;
-}
-
-.noble-hud.is-first-person::before,
-.noble-hud.is-first-person .noble-hud__portrait-shell,
-.noble-hud.is-first-person .noble-hud__identity,
-.noble-hud.is-first-person .noble-hud__reports {
-  display: none;
-}
-
 .noble-hud.is-first-person .noble-hud__eye {
-  pointer-events: auto;
   border-color: rgba(209, 83, 62, 0.88);
   color: #f0d794;
   background:

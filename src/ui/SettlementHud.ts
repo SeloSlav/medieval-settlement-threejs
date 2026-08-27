@@ -108,7 +108,7 @@ const SETTLEMENT_HUD_HTML = `
               <strong data-stockpile-transit="gold"></strong>
             </div>
             <p class="settlement-hud__resource-detail" data-resource-card-detail="gold">${HUD_RESOURCE_CARD_PRESENTATION.gold.surplusDetail}</p>
-            <p class="settlement-hud__resource-context" data-resource-card-context="gold">Spendable gold across every community lockbox and Town Hall treasury.</p>
+            <p class="settlement-hud__resource-context" data-resource-card-context="gold" hidden></p>
             <p class="settlement-hud__resource-note">Activate to locate physical holdings in the world.</p>
           </section>
         </div>
@@ -1590,9 +1590,11 @@ export class SettlementHud {
     );
     delete this.goldStat.dataset.tooltipTitle;
     delete this.goldStat.dataset.tooltip;
-    this.goldCardContext.textContent = provisioning.armedGuards > 0
+    const hasGuardWageContext = provisioning.armedGuards > 0;
+    this.goldCardContext.hidden = !hasGuardWageContext;
+    this.goldCardContext.textContent = hasGuardWageContext
       ? `Guard wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day; current funds cover ${formatProvisionRunway(provisioning.guardWageRunwayDays)}.`
-      : 'Spendable gold across every community lockbox and Town Hall treasury.';
+      : '';
   }
 
   private setSupplyRunway(
