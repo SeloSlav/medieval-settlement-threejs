@@ -8,6 +8,11 @@ import {
 import type { FarmFieldState, GraveyardState } from '../src/resources/types.ts';
 import { BurialMarkers } from '../src/residences/BurialMarkers.ts';
 import {
+  collectGraveSiteVegetationClearancePolygons,
+  GRAVE_SITE_VEGETATION_CLEARANCE_RADIUS,
+  visibleGraveSitePlacements,
+} from '../src/residences/graveyardLayout.ts';
+import {
   hashParcelSeed,
   organicParcelBoundaryPoints,
   organicParcelEdgePoints,
@@ -250,6 +255,35 @@ assert.ok(
   graveyardMarker.getObjectByName('Graveyard boundary posts') instanceof THREE.InstancedMesh,
   'removing the ground sheet must retain the authored graveyard boundary',
 );
+const occupiedGraveyard = { ...graveyard, burials: 3 };
+const graveSites = visibleGraveSitePlacements(occupiedGraveyard);
+const graveSiteClearance = collectGraveSiteVegetationClearancePolygons([occupiedGraveyard]);
+assert.equal(graveSites.length, 3);
+assert.equal(
+  graveSiteClearance.length,
+  graveSites.length,
+  'only occupied, visibly marked graves should clear grass and wildflowers',
+);
+for (let index = 0; index < graveSites.length; index += 1) {
+  const site = graveSites[index]!;
+  const polygon = graveSiteClearance[index]!;
+  assert.ok(isPointInPolygon2(site, polygon), 'each clearing must be centered on its grave mound/cross');
+  assert.ok(
+    polygon.every((point) => (
+      Math.abs(Math.hypot(point.x - site.x, point.z - site.z)
+        - GRAVE_SITE_VEGETATION_CLEARANCE_RADIUS) < 1e-9
+    )),
+    'grave vegetation clearing must keep the authored radial extent',
+  );
+}
+assert.equal(
+  collectGraveSiteVegetationClearancePolygons([{ ...graveyard, burials: 0 }]).length,
+  0,
+  'unused graveyard capacity must retain its natural meadow cover',
+);
+burialMarkers.sync([occupiedGraveyard], [], () => 0);
+const occupiedMounds = burialRoot.getObjectByName('Instanced grave mounds') as THREE.InstancedMesh;
+assert.equal(occupiedMounds.count, graveSites.length);
 burialMarkers.dispose();
 
 console.log('farm-field visual tests passed');

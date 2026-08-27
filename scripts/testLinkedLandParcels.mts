@@ -201,6 +201,19 @@ assert.match(
 assert.doesNotMatch(tool, /GRAVEYARD_ADJACENCY_DISTANCE/);
 assert.doesNotMatch(tool, /VINEYARD_MONASTERY_ADJACENCY_DISTANCE/);
 
+const snapshotApplier = source('src/app/spacetimeSnapshotApplier.ts');
+assert.match(
+  snapshotApplier,
+  /collectGraveSiteVegetationClearancePolygons[\s\S]*setForestClearanceSources/,
+  'occupied grave sites should feed the live vegetation-clearance refresh',
+);
+const sceneManager = source('src/scene/SceneManager.ts');
+assert.match(
+  sceneManager,
+  /syncPlacementClearance\(\[[\s\S]*graveSiteVegetationClearancePolygons/,
+  'grave-site circles should clear the shared grass and wildflower stream',
+);
+
 const burgageTool = source('src/residences/BurgageTool.ts');
 assert.match(burgageTool, /snapBurgageFrontagePoint/);
 assert.match(burgageTool, /snapBurgageBoundaryDraftPoint/);
