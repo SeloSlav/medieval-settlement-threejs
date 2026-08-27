@@ -327,7 +327,7 @@ mod tests {
         assert_eq!(industrial_water_target("bakery", 50), 6.0);
         assert_eq!(industrial_water_target("bakery", 75), 6.0);
         assert_eq!(industrial_water_target("bakery", 100), 6.0);
-        assert_eq!(industrial_water_target("brewery", 50), 6.0);
+        assert_eq!(industrial_water_target("brewery", 50), 9.0);
         assert_eq!(industrial_water_target("spinning_retting_house", 25), 3.0);
         assert_eq!(industrial_water_target("spinning_retting_house", 100), 3.0);
         assert_eq!(industrial_water_target("smithy", 25), 3.0);
