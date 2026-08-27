@@ -388,6 +388,7 @@ export class App {
               farmFields: this.gameState.farmFields.values(),
               pastures: this.gameState.pastures.values(),
               vineyardParcels: this.gameState.vineyardParcels?.values() ?? [],
+              graveyards: this.gameState.graveyards?.values() ?? [],
               deliveryTrips: this.gameState.deliveryTrips.values(),
               fireIncidents: this.gameState.fireIncidents.values(),
               roadNetwork: this.roadNetwork,

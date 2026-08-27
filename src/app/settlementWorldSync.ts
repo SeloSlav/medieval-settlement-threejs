@@ -57,8 +57,9 @@ export function syncSettlementWorld(
   const previousGraveyards = previous?.graveyards ?? new Map();
   const corpses = state.corpses ?? new Map();
   const previousCorpses = previous?.corpses ?? new Map();
-  const burialsChanged = !previous
-    || !mapEntriesShareValues(graveyards, previousGraveyards)
+  const graveyardsChanged = !previous
+    || !mapEntriesShareValues(graveyards, previousGraveyards);
+  const burialsChanged = graveyardsChanged
     || !mapEntriesShareValues(corpses, previousCorpses);
   const livestockChanged = !previous || !mapEntriesShareValues(
     state.livestockHerds,
@@ -167,6 +168,7 @@ export function syncSettlementWorld(
     || workerFieldsChanged
     || workerPasturesChanged
     || vineyardsChanged
+    || graveyardsChanged
     || workerCartCrewsChanged
     || fireIncidentsChanged
     || gardensChanged
@@ -183,6 +185,7 @@ export function syncSettlementWorld(
       farmFields: state.farmFields.values(),
       pastures: state.pastures.values(),
       vineyardParcels: state.vineyardParcels?.values() ?? [],
+      graveyards: graveyards.values(),
       backyardGardens: state.backyardGardens.values(),
       burgageZones: state.burgageZones.values(),
       deliveryTrips: state.deliveryTrips.values(),

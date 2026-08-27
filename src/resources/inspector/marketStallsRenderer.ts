@@ -47,7 +47,10 @@ import {
   renderInspectorResourceStrip,
   type InspectorResourceTokenOptions,
 } from './inspectorResourceTokens.ts';
-import { marketplaceServiceResidenceIds } from '../serviceCoverage.ts';
+import {
+  marketplaceResidenceFulfillment,
+  marketplaceServiceResidenceIds,
+} from '../serviceCoverage.ts';
 
 export function renderMarketStallsInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -115,6 +118,15 @@ export function renderMarketStallsInspector(
     serviceMarkets,
     building.id,
     (ax, az, bx, bz) => context.worldQueries.getRoadPathDistance(ax, az, bx, bz),
+  );
+  const serviceResidenceIdSet = new Set(serviceResidenceIds);
+  const marketplaceFulfillment = new Map(
+    eligibleResidences
+      .filter((residence) => serviceResidenceIdSet.has(residence.id))
+      .map((residence) => [
+        residence.id,
+        marketplaceResidenceFulfillment(residence),
+      ] as const),
   );
   let roadConnectedHomes = 0;
   let roadConnectedPopulation = 0;
@@ -314,6 +326,7 @@ export function renderMarketStallsInspector(
     serviceCoverage: {
       kind: 'marketplace',
       residenceIds: serviceResidenceIds,
+      marketplaceFulfillment,
     },
   };
 }

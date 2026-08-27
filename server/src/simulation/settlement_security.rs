@@ -671,7 +671,6 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
     RaidPortableStores {
         timber: building.timber,
         firewood: building.firewood,
-        food: building.food,
         rye_sheaves: building.rye_sheaves,
         oat_sheaves: building.oat_sheaves,
         barley_sheaves: building.barley_sheaves,
@@ -1084,7 +1083,6 @@ fn treasury_portable_stores(
     RaidPortableStores {
         timber: raidable_treasury_timber(treasury.timber, reserved_timber),
         firewood: treasury.firewood,
-        food: treasury.food,
         rye_sheaves: treasury.rye_sheaves,
         oat_sheaves: treasury.oat_sheaves,
         barley_sheaves: treasury.barley_sheaves,
@@ -1209,7 +1207,7 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     let stores = stores.normalized_whole();
     building.timber = stores.timber;
     building.firewood = stores.firewood;
-    building.food = stores.food;
+    building.food = 0.0;
     building.rye_sheaves = stores.rye_sheaves;
     building.oat_sheaves = stores.oat_sheaves;
     building.barley_sheaves = stores.barley_sheaves;

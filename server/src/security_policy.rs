@@ -247,7 +247,6 @@ pub fn assign_refuge_households(
 pub struct RaidPortableStores {
     pub timber: f64,
     pub firewood: f64,
-    pub food: f64,
     pub rye_sheaves: f64,
     pub oat_sheaves: f64,
     pub barley_sheaves: f64,
@@ -336,7 +335,6 @@ impl RaidPortableStores {
         normalize!(
             timber,
             firewood,
-            food,
             rye_sheaves,
             oat_sheaves,
             barley_sheaves,
@@ -407,7 +405,6 @@ impl RaidPortableStores {
     pub fn raid_value(self) -> f64 {
         positive_store(self.timber)
             + positive_store(self.firewood)
-            + positive_store(self.food)
             + positive_store(self.rye_sheaves)
             + positive_store(self.oat_sheaves)
             + positive_store(self.barley_sheaves)
@@ -476,7 +473,6 @@ impl RaidPortableStores {
     pub fn goods_amount(self) -> f64 {
         positive_store(self.timber)
             + positive_store(self.firewood)
-            + positive_store(self.food)
             + positive_store(self.rye_sheaves)
             + positive_store(self.oat_sheaves)
             + positive_store(self.barley_sheaves)
@@ -561,7 +557,6 @@ impl RaidPortableStores {
 
         plunder_good!(timber);
         plunder_good!(firewood);
-        plunder_good!(food);
         plunder_good!(rye_sheaves);
         plunder_good!(oat_sheaves);
         plunder_good!(barley_sheaves);
@@ -643,7 +638,6 @@ impl RaidPortableStores {
         Self {
             timber: removed!(timber),
             firewood: removed!(firewood),
-            food: removed!(food),
             rye_sheaves: removed!(rye_sheaves),
             oat_sheaves: removed!(oat_sheaves),
             barley_sheaves: removed!(barley_sheaves),
@@ -1298,7 +1292,7 @@ mod tests {
     #[test]
     fn raid_plunder_separates_goods_from_gold_and_clamps_the_loss() {
         let stores = RaidPortableStores {
-            food: 8.0,
+            rye_bread: 8.0,
             polearms: 2.0,
             gold: 5.0,
             ..RaidPortableStores::default()

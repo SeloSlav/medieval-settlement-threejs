@@ -1988,7 +1988,6 @@ fn reclamation_from_raid_stores(stores: RaidPortableStores) -> ReclamationStock 
     ReclamationStock {
         timber: stores.timber,
         firewood: stores.firewood,
-        food: stores.food,
         rye_sheaves: stores.rye_sheaves,
         oat_sheaves: stores.oat_sheaves,
         barley_sheaves: stores.barley_sheaves,

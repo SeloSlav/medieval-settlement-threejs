@@ -1,10 +1,16 @@
 import type {
   BuildingKind,
+  ResidenceState,
 } from './types.ts';
 import type {
   MarketStallRoadDistance,
 } from '../economy/marketStallAssignments.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
+import {
+  activeResidenceNeedKinds,
+  getNeedStock,
+  type ResidenceNeedKind,
+} from '../residences/residenceNeedState.ts';
 
 export type ServiceCoverageBuildingKind = Extract<
   BuildingKind,
@@ -14,7 +20,23 @@ export type ServiceCoverageBuildingKind = Extract<
 export type ServiceCoverageView = {
   kind: ServiceCoverageBuildingKind;
   residenceIds: readonly string[];
+  marketplaceFulfillment?: ReadonlyMap<string, MarketplaceServiceFulfillment>;
 };
+
+export type MarketplaceServiceFulfillment =
+  | 'fulfilled'
+  | 'partial'
+  | 'unfulfilled';
+
+const MARKETPLACE_FULFILLED_NEEDS = new Set<ResidenceNeedKind>([
+  'food',
+  'firewood',
+  'preservedFood',
+  'cloth',
+  'shoes',
+  'pottery',
+  'luxury',
+]);
 
 export function serviceCoverageLabel(kind: ServiceCoverageBuildingKind): string {
   switch (kind) {
@@ -74,4 +96,19 @@ export function marketplaceServiceResidenceIds(
     if (nearestMarketplaceId === marketplaceId) residenceIds.push(residence.id);
   }
   return residenceIds;
+}
+
+/** Traffic-light state from the household buffers a local Marketplace fills. */
+export function marketplaceResidenceFulfillment(
+  residence: Pick<ResidenceState, 'needs' | 'tier'>,
+): MarketplaceServiceFulfillment {
+  const activeNeeds = activeResidenceNeedKinds(residence.tier)
+    .filter((kind) => MARKETPLACE_FULFILLED_NEEDS.has(kind));
+  const fulfilledNeeds = activeNeeds.filter(
+    (kind) => getNeedStock(residence.needs, kind) > 1e-6,
+  ).length;
+  if (activeNeeds.length > 0 && fulfilledNeeds === activeNeeds.length) {
+    return 'fulfilled';
+  }
+  return fulfilledNeeds > 0 ? 'partial' : 'unfulfilled';
 }

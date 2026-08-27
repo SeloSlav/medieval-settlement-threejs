@@ -1703,6 +1703,13 @@ export class VillagerRenderer {
               ? this.backyardWorksites.get(agent.residenceId) ?? null
               : null,
             this.essentialSabbathDutyFor(workplace),
+            Boolean(
+              this.clock?.isSunday
+              && this.sabbathPausedToday
+              && this.holidayObservance === null
+              && this.clock.hour + this.clock.minute / 60
+                >= SABBATH_DEVOTION_START_HOUR
+            ),
           ),
       activityState: onDuty ? 'active' : 'ready',
       workplaceLabel: 'Workplace',
@@ -5103,6 +5110,7 @@ function describeVillagerActivity(
   marketStallDuty: MarketStallDuty | null = null,
   backyardWorksite: BackyardWorksite | null = null,
   essentialSabbathDuty: EssentialSabbathDuty | null = null,
+  sabbathRestAtHome = false,
 ): string {
   const workplaceLabel = workplace
     ? isResidenceUpgradeWorkplaceId(workplace.id)
@@ -5317,6 +5325,7 @@ function describeVillagerActivity(
       return agent.mode === 'walk' ? 'Walking near home' : 'Outside at home';
     case 'indoors':
       if (residenceFireDisabled) return 'Evacuating a fire-disabled home';
+      if (sabbathRestAtHome) return 'Resting at home after Sabbath devotions';
       return agent.role === 'worker' && workplaceFireDisabled
         ? `At home — ${workplaceLabel} is closed by fire`
         : 'At home';
