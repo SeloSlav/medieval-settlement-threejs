@@ -353,7 +353,7 @@ targetHeldClayState.quarries.set(
 );
 const targetHeldClayPit = building('target-held-clay', 'stone_quarry', 1);
 targetHeldClayPit.processorOutputTargetPercent = 25;
-targetHeldClayPit.clay = 45;
+targetHeldClayPit.clay = 180;
 targetHeldClayPit.ironwork = 1;
 targetHeldClayState.buildings.set(targetHeldClayPit.id, targetHeldClayPit);
 const heldClayProduction = computeSettlementProductionCapacity(
@@ -365,9 +365,9 @@ assert.equal(heldClayProduction.toolEligibleSites, 1);
 assert.equal(
   heldClayProduction.maintainedToolIronworkPerDay,
   0,
-  'a target-held surface Mining Camp performs no current work and therefore wears no tools',
+  'a full surface Mining Camp performs no current work and therefore wears no tools',
 );
-targetHeldClayPit.clay = 44;
+targetHeldClayPit.clay = 179;
 const reopenedClayProduction = computeSettlementProductionCapacity(
   targetHeldClayState,
   false,
@@ -375,7 +375,7 @@ const reopenedClayProduction = computeSettlementProductionCapacity(
 approx(
   heldClayProduction.clayOutputPerDay,
   reopenedClayProduction.clayOutputPerDay,
-  'yard targets pause current extraction but must not erase sustainable clay capacity',
+  'yard fullness pauses current extraction but must not erase sustainable clay capacity',
 );
 assert.ok(
   reopenedClayProduction.maintainedToolIronworkPerDay > 0,
@@ -396,7 +396,7 @@ targetHeldMineState.quarries.set(
 );
 const targetHeldMine = building('target-held-mine', 'mine', 1);
 targetHeldMine.processorOutputTargetPercent = 25;
-targetHeldMine.iron = 60;
+targetHeldMine.iron = 240;
 targetHeldMine.ironwork = 1;
 targetHeldMine.timber = 1;
 targetHeldMineState.buildings.set(targetHeldMine.id, targetHeldMine);
@@ -409,9 +409,9 @@ assert.equal(heldMineProduction.toolEligibleSites, 1);
 assert.equal(
   heldMineProduction.maintainedToolIronworkPerDay,
   0,
-  'target-held Mineworks performs no current work and therefore wears no tools',
+  'full Mineworks performs no current work and therefore wears no tools',
 );
-targetHeldMine.iron = 59;
+targetHeldMine.iron = 239;
 const reopenedMineProduction = computeSettlementProductionCapacity(
   targetHeldMineState,
   false,

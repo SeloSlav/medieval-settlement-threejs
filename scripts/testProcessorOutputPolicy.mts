@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
   EXTRACTION_OUTPUT_TARGET_KINDS,
-  EXTRACTION_OUTPUT_TARGET_PRESETS,
   extractionAcceptsMaintenance,
   extractionOutputCommodity,
   extractionOutputHeadroom,
@@ -37,7 +36,6 @@ import {
   BREWERY_MEAD_PER_CYCLE,
 } from '../src/generated/gameBalance.ts';
 import { selectDirectProcessorInputTarget } from '../src/logistics/processorInputLogistics.ts';
-import { renderExtractionStockTargetPanel } from '../src/resources/inspector/extractionStockTargetRenderer.ts';
 import type { BuildingKind, BuildingState } from '../src/resources/types.ts';
 
 function processor(
@@ -118,13 +116,9 @@ assert.deepEqual(
   EXTRACTION_OUTPUT_TARGET_KINDS,
   ['stone_quarry', 'large_quarry', 'mine', 'clay_pit'],
 );
-assert.deepEqual(
-  EXTRACTION_OUTPUT_TARGET_PRESETS.map((preset) => preset.percent),
-  [25, 50, 75, 100],
-);
 for (const kind of EXTRACTION_OUTPUT_TARGET_KINDS) {
   assert.equal(isExtractionOutputTargetKind(kind), true);
-  assert.equal(isProductionOutputTargetKind(kind), true);
+  assert.equal(isProductionOutputTargetKind(kind), false);
   assert.equal(isProcessorOutputTargetKind(kind), false);
 }
 assert.equal(isProductionOutputTargetKind('smithy'), true);
@@ -158,8 +152,8 @@ assert.equal(
 );
 
 const leanQuarry = processor('quarry', 'stone_quarry', 25);
-leanQuarry.stone = 44;
-assert.equal(extractionOutputTarget('stone_quarry', 'stone', 25), 45);
+leanQuarry.stone = 179;
+assert.equal(extractionOutputTarget('stone_quarry', 'stone'), 180);
 assert.equal(extractionOutputHeadroom(leanQuarry, 'stone'), 1);
 assert.equal(extractionOutputCommodity('stone_quarry'), 'stone');
 assert.equal(extractionOutputCommodity('large_quarry'), 'stone');
@@ -169,48 +163,39 @@ assert.equal(extractionOutputCommodity('mine', 'salt'), 'salt');
 assert.equal(extractionOutputCommodity('mine', 'clay'), 'clay');
 assert.equal(extractionOutputCommodity('mine'), null);
 assert.equal(extractionAcceptsMaintenance(leanQuarry), true);
-leanQuarry.stone = 45;
+leanQuarry.stone = 180;
 assert.equal(extractionOutputHeadroom(leanQuarry, 'stone'), 0);
 assert.equal(
   extractionAcceptsMaintenance(leanQuarry),
   true,
-  'a target-held quarry may stockpile replacement tools before extraction resumes',
+  'a full quarry may still stockpile replacement tools',
 );
-leanQuarry.stone = 44;
+leanQuarry.stone = 179;
 assert.equal(
   extractionAcceptsMaintenance(leanQuarry),
   true,
   'drawing one unit from the yard must immediately reopen tool maintenance',
 );
-leanQuarry.stone = 45;
+leanQuarry.stone = 180;
 const leanIronMine = processor('iron-mine', 'mine', 25);
-leanIronMine.iron = 60;
+leanIronMine.iron = 240;
 assert.equal(extractionAcceptsMaintenance(leanIronMine, 'iron'), true);
-leanIronMine.iron = 59;
+leanIronMine.iron = 239;
 assert.equal(extractionAcceptsMaintenance(leanIronMine, 'iron'), true);
 assert.equal(
   extractionAcceptsMaintenance(leanIronMine, null),
   false,
   'Mineworks without a rich iron, salt, or clay seam must not absorb smithy output',
 );
-const quarryPanel = renderExtractionStockTargetPanel(leanQuarry, 'stone') ?? '';
-assert.match(quarryPanel, /stone 45 \/ 45/);
-assert.match(quarryPanel, /Extraction paused at target/);
+assert.equal(extractionOutputTarget('large_quarry', 'stone'), 360);
+assert.equal(extractionOutputTarget('clay_pit', 'clay'), 180);
+assert.equal(extractionOutputTarget('mine', 'iron'), 240);
+assert.equal(extractionOutputTarget('mine', 'salt'), 240);
+assert.equal(extractionOutputTarget('mine', 'clay'), 240);
 assert.equal(
-  (quarryPanel.match(/data-processor-output-target=/g) ?? []).length,
-  4,
-);
-assert.match(quarryPanel, /Lean · 25%/);
-assert.match(quarryPanel, /Fill · 100%/);
-assert.equal(extractionOutputTarget('large_quarry', 'stone', 25), 90);
-assert.equal(extractionOutputTarget('clay_pit', 'clay', 25), 45);
-assert.equal(extractionOutputTarget('mine', 'iron', 25), 60);
-assert.equal(extractionOutputTarget('mine', 'salt', 25), 60);
-assert.equal(extractionOutputTarget('mine', 'clay', 25), 60);
-assert.equal(
-  extractionOutputTarget('mine', 'salt', undefined),
+  extractionOutputTarget('mine', 'salt'),
   240,
-  'legacy extraction sites must keep filling their physical yards',
+  'extraction sites must always fill their physical yards regardless of legacy policy state',
 );
 assert.deepEqual(
   processorInputCommodities('smithy'),
@@ -313,7 +298,7 @@ const openToolQuarry = processor('open-tool-quarry', 'stone_quarry', 25);
 openToolQuarry.stone = 44;
 openToolQuarry.ironwork = 0;
 const heldToolQuarry = processor('held-tool-quarry', 'stone_quarry', 25);
-heldToolQuarry.stone = 45;
+heldToolQuarry.stone = 180;
 heldToolQuarry.ironwork = 0;
 const extractionToolTarget = selectDirectProcessorInputTarget(
   [heldToolQuarry, openToolQuarry],
@@ -326,7 +311,7 @@ const extractionToolTarget = selectDirectProcessorInputTarget(
 assert.equal(
   extractionToolTarget?.target.id,
   heldToolQuarry.id,
-  'tool-rack stockpiling must be independent of the selected finished-stone yard target',
+  'tool-rack stockpiling must be independent of finished-stone yard fullness',
 );
 
 const candidates = Array.from({ length: 100_000 }, (_, index) => {
@@ -350,7 +335,7 @@ assert.ok(
 
 const extractionCandidates = Array.from({ length: 100_000 }, (_, index) => {
   const building = processor(`mine-${index}`, 'mine', 25);
-  building.iron = index % 2 === 0 ? 60 : 59;
+  building.iron = index % 2 === 0 ? 240 : 239;
   return building;
 });
 const extractionStarted = performance.now();
@@ -381,10 +366,11 @@ const inspector = readFileSync(
   'src/resources/inspector/expandedBuildingRenderer.ts',
   'utf8',
 );
-const extractionInspector = readFileSync(
-  'src/resources/inspector/extractionStockTargetRenderer.ts',
-  'utf8',
-);
+const extractionInspectors = [
+  'src/resources/inspector/stoneQuarryRenderer.ts',
+  'src/resources/inspector/largeQuarryRenderer.ts',
+  'src/resources/inspector/mineralMineRenderer.ts',
+].map((path) => readFileSync(path, 'utf8')).join('\n');
 const worldQueries = readFileSync('src/resources/WorldQueries.ts', 'utf8');
 
 assert.match(
@@ -417,10 +403,8 @@ assert.match(inspector, /stages \$\{stagingLabel\}/);
 assert.match(inspector, /sets both the on-site input staging depth and the finished-goods ceiling/);
 assert.match(inspector, /Routine input top-ups stop at the staged-cycle target/);
 assert.match(inspector, /last-resort overflow when normal storage cannot receive its cargo/);
-assert.match(extractionInspector, /data-processor-output-target/);
-assert.match(extractionInspector, /on-site output ceiling, not a protected reserve/);
-assert.match(extractionInspector, /preserve finite deposits/);
-assert.match(extractionInspector, /avoid timber-support and tool wear/);
+assert.doesNotMatch(extractionInspectors, /data-processor-output-target/);
+assert.doesNotMatch(inspector, /renderExtractionStockTargetPanel/);
 assert.match(
   worldQueries,
   /acceptsMaterialInput[\s\S]*extractionAcceptsMaintenance/,
@@ -435,9 +419,9 @@ assert.equal(
     ) ?? []
   ).length,
   2,
-  'authoritative candidate selection and launch revalidation must both reject tool carts to target-held extraction yards',
+  'authoritative candidate selection and launch revalidation must both reject tool carts to invalid extraction yards',
 );
-assert.match(economy, /uses_extraction_target/);
+assert.match(economy, /uses_output_target/);
 assert.match(economy, /process_batch\([\s\S]*Some\(target_percent\)/);
 
 console.log(

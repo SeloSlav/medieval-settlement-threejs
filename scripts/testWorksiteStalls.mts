@@ -41,7 +41,7 @@ partialMill.ryeGrain = 0.1;
 const suppliedMill = building('40', 'watermill', 2, 60, 0);
 const fullQuarry = building('50', 'stone_quarry', 4, 100, 0);
 fullQuarry.processorOutputTargetPercent = 25;
-fullQuarry.stone = 45;
+fullQuarry.stone = 180;
 fullQuarry.workRadius = 80;
 const exhaustedQuarry = building('60', 'stone_quarry', 3, 0, 0);
 exhaustedQuarry.workRadius = 20;
@@ -158,7 +158,7 @@ assert.equal(
 const materialState = emptyGameState();
 const fullClayPit = building('material-clay', 'stone_quarry', 3, 0, 0);
 fullClayPit.processorOutputTargetPercent = 25;
-fullClayPit.clay = 45;
+fullClayPit.clay = 180;
 const saltAndPotteryStarvedSmokehouse = building(
   'material-smokehouse',
   'smokehouse',
@@ -370,7 +370,7 @@ exhaustedIronMine.workRadius = 30;
 const fullSaltMine = building('pit-20-full', 'stone_quarry', 4, 100, 0);
 fullSaltMine.workRadius = 30;
 fullSaltMine.processorOutputTargetPercent = 25;
-fullSaltMine.salt = 45;
+fullSaltMine.salt = 180;
 const richIronMine = building('mine-30-rich', 'mine', 2, 200, 0);
 richIronMine.timber = 1;
 const mineralOnlyStoneCamp = building(

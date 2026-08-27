@@ -322,13 +322,13 @@ assert.ok(clayMineworks);
 assert.ok(ironSurfacePit);
 assert.ok(deepIronMine);
 assert.ok(richSaltSurfacePit);
-Object.assign(stoneCamp, { processorOutputTargetPercent: 25, stone: 45 });
-Object.assign(deepStoneQuarry, { processorOutputTargetPercent: 25, stone: 110 });
-Object.assign(claySurfacePit, { processorOutputTargetPercent: 25, clay: 45 });
-Object.assign(clayMineworks, { processorOutputTargetPercent: 25, clay: 60 });
-Object.assign(ironSurfacePit, { processorOutputTargetPercent: 25, iron: 45 });
-Object.assign(deepIronMine, { processorOutputTargetPercent: 25, iron: 60 });
-Object.assign(richSaltSurfacePit, { processorOutputTargetPercent: 25, salt: 45 });
+Object.assign(stoneCamp, { processorOutputTargetPercent: 25, stone: 180 });
+Object.assign(deepStoneQuarry, { processorOutputTargetPercent: 25, stone: 360 });
+Object.assign(claySurfacePit, { processorOutputTargetPercent: 25, clay: 180 });
+Object.assign(clayMineworks, { processorOutputTargetPercent: 25, clay: 240 });
+Object.assign(ironSurfacePit, { processorOutputTargetPercent: 25, iron: 180 });
+Object.assign(deepIronMine, { processorOutputTargetPercent: 25, iron: 240 });
+Object.assign(richSaltSurfacePit, { processorOutputTargetPercent: 25, salt: 180 });
 const targetHeldPlan = computeSettlementGeologyPlan(state, false);
 assert.deepEqual(
   [
@@ -338,7 +338,7 @@ assert.deepEqual(
     targetHeldPlan.salt.operatingExtractionSites,
   ],
   [0, 0, 0, 0],
-  'yard ceilings must remove deliberately held works from current extraction forecasts',
+  'physically full yards must remove works from current extraction forecasts',
 );
 assert.deepEqual(
   [
@@ -349,20 +349,20 @@ assert.deepEqual(
   ],
   [2, 2, 2, 1],
 );
-assert.equal(targetHeldPlan.stone.yardTarget, 135);
-assert.equal(targetHeldPlan.stone.yardStock, 155);
+assert.equal(targetHeldPlan.stone.yardTarget, 540);
+assert.equal(targetHeldPlan.stone.yardStock, 540);
 assert.equal(targetHeldPlan.stone.yardHeadroom, 0);
 assert.equal(
   targetHeldPlan.stone.yardSurplusAboveTarget,
-  20,
-  'lowering a target must report, not erase, output already held above it',
+  0,
+  'legacy extraction target values must not lower physical yard capacity',
 );
 assert.equal(targetHeldPlan.stone.finiteExtractionPerDay, 0);
 assert.equal(targetHeldPlan.stone.deepExtractionPerDay, 0);
 assert.equal(targetHeldPlan.stone.deepSupportTimberPerDay, 0);
 assert.equal(targetHeldPlan.iron.deepSupportTimberPerDay, 0);
 assert.equal(targetHeldPlan.stone.firstTargetPausedBuildingId, 'stone-camp');
-stoneCamp.stone = 44;
+stoneCamp.stone = 179;
 const reopenedYardPlan = computeSettlementGeologyPlan(state, false);
 assert.equal(reopenedYardPlan.stone.yardHeadroom, 1);
 assert.equal(reopenedYardPlan.stone.staffedTargetPausedSites, 1);

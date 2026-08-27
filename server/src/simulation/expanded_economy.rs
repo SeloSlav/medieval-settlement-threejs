@@ -67,8 +67,8 @@ use crate::economy::{
     withdraw_building_edible_food, CommodityKind, FRESH_FOOD_COMMODITIES,
 };
 use crate::extraction_policy::{
-    extraction_site_accepts_commodity, mineworks_clay_commodity, mineworks_geological_commodity,
-    mining_camp_clay_commodity, mining_camp_geological_commodity, quarry_geological_commodity,
+    mineworks_clay_commodity, mineworks_geological_commodity, mining_camp_clay_commodity,
+    mining_camp_geological_commodity, quarry_geological_commodity,
 };
 use crate::farm_work_policy::{
     farm_field_effective_labor, field_task_rank, threshing_preempts_fields,

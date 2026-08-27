@@ -1459,7 +1459,7 @@ const inspectorMiningPit = mineBuilding({
   assignedLabor: 2,
   iron: 12,
 });
-const miningPitInspector = renderStoneQuarryInspector(
+let miningPitInspector = renderStoneQuarryInspector(
   buildingTarget(inspectorMiningPit),
   inspectorContext(inspectorGameState(inspectorMiningPit, [ordinaryIronDeposit])),
 );
@@ -1505,7 +1505,7 @@ const recalledHeldMine = {
   ...recalledUnsupportedMine,
   id: 'mine-recalled-at-target',
   processorOutputTargetPercent: 25,
-  salt: 60,
+  salt: 240,
 };
 mineInspector = renderMineralMineInspector(
   buildingTarget(recalledHeldMine),
@@ -1685,7 +1685,7 @@ const recalledHeldLargeQuarry = {
   ...recalledUnsupportedLargeQuarry,
   id: 'large-quarry-recalled-at-target',
   processorOutputTargetPercent: 25,
-  stone: 90,
+  stone: 360,
 };
 supportedLargeQuarryInspector = renderLargeQuarryInspector(
   buildingTarget(recalledHeldLargeQuarry),
@@ -1715,7 +1715,7 @@ const recalledHeldStoneCamp = mineBuilding({
   assignedLabor: 0,
   workRadius: 40,
   processorOutputTargetPercent: 25,
-  stone: 45,
+  stone: 180,
 });
 let stoneCampInspector = renderStoneQuarryInspector(
   buildingTarget(recalledHeldStoneCamp),
