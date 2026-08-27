@@ -875,9 +875,7 @@ splitFuelHome.needs.food.stock = householdFoodUnitsPerMonthForTier(
   splitFuelHome.tier,
 );
 splitFuelHome.food = splitFuelHome.needs.food.stock;
-splitFuelHome.needs.firewood.stock = householdFirewoodUnitsPerDay(
-  WINTER_FIREWOOD_DEMAND_MULTIPLIER,
-) * 0.5;
+splitFuelHome.needs.firewood.stock = householdFirewoodUnitsPerMonth();
 splitFuelHome.needs.water.stock = 4 * RESIDENCE_WATER_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY;
 splitFuelHome.needs.cloth.stock = 4 * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY;
 splitFuelHome.needs.ale.stock = 4 * RESIDENCE_ALE_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY;
@@ -910,7 +908,9 @@ assert.equal(splitFuel.roadBranches?.foodSuppliedBranches, 1);
 assert.equal(splitFuel.roadBranches?.firewoodSuppliedBranches, 0);
 assert.equal(splitFuel.roadBranches?.firewoodUnservedBranches, 1);
 assert.equal(splitFuel.roadBranches?.firewoodUnservedHouseholds, 1);
-assert.ok((splitFuel.roadBranches?.worstWinterFirewoodRunwayDays ?? 99) < 1);
+assert.ok(Math.abs(
+  (splitFuel.roadBranches?.worstWinterFirewoodRunwayDays ?? 0) - 15,
+) < 1e-9);
 assert.equal(
   settlementProvisionLevel(splitFuel, 10),
   'ready',

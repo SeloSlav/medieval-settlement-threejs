@@ -10,6 +10,7 @@ import {
   snapBurgageFrontagePoint,
 } from '../src/residences/burgagePlotSnap.ts';
 import type { BurgageZoneState } from '../src/resources/types.ts';
+import { renderGraveyardInspector } from '../src/resources/inspector/graveyardRenderer.ts';
 import { convexPolygonsOverlap2 } from '../src/utils/polygonGeometry.ts';
 
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -213,6 +214,49 @@ assert.match(
   /syncPlacementClearance\(\[[\s\S]*graveSiteVegetationClearancePolygons/,
   'grave-site circles should clear the shared grass and wildflower stream',
 );
+
+const graveyardInspector = renderGraveyardInspector(
+  {
+    kind: 'graveyard',
+    graveyard: {
+      id: 'graveyard-card-test',
+      chapelId: 'chapel-card-test',
+      corners: parcel,
+      area: 400,
+      averageSlopeDegrees: 1.5,
+      capacity: 24,
+      burials: 7,
+    },
+    chapel: { id: 'chapel-card-test', kind: 'chapel' },
+  } as Parameters<typeof renderGraveyardInspector>[0],
+  {
+    gameState: {
+      corpses: new Map([
+        ['incoming', { graveyardId: 'graveyard-card-test', state: 2 }],
+        ['waiting', { graveyardId: 'graveyard-card-test', state: 0 }],
+      ]),
+    },
+    worldQueries: { getBuildingLabel: () => 'Church' },
+  } as Parameters<typeof renderGraveyardInspector>[1],
+);
+assert.match(graveyardInspector.detailsHtml, /Total grave spots<\/span><strong>24/);
+assert.match(graveyardInspector.detailsHtml, /Dead resting here<\/span><strong>7/);
+assert.match(graveyardInspector.detailsHtml, /Open grave spots<\/span><span>17/);
+assert.match(graveyardInspector.detailsHtml, /Incoming burials<\/span><span>1/);
+assert.equal(graveyardInspector.title, 'Burial ground');
+
+const worldQueries = source('src/resources/WorldQueries.ts');
+assert.match(
+  worldQueries,
+  /graveyardTarget[\s\S]*isPointInPolygon2\(\{ x, z \}, graveyard\.corners\)[\s\S]*kind: 'graveyard'/,
+  'clicking inside a burial-ground polygon should resolve an inspectable graveyard target',
+);
+const inspector = source('src/resources/ResourceInspector.ts');
+assert.match(inspector, /graveyard:[^\n]*target\.graveyard\.id/);
+assert.match(inspector, /build-menu\/cards\/burial-ground\.webp/);
+const burialArt = readFileSync(new URL('../public/assets/ui/build-menu/cards/burial-ground.webp', import.meta.url));
+assert.equal(burialArt.subarray(0, 4).toString('ascii'), 'RIFF');
+assert.equal(burialArt.subarray(8, 12).toString('ascii'), 'WEBP');
 
 const burgageTool = source('src/residences/BurgageTool.ts');
 assert.match(burgageTool, /snapBurgageFrontagePoint/);

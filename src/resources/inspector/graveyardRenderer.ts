@@ -11,7 +11,7 @@ export function renderGraveyardInspector(
   const burials = Math.max(0, Math.min(capacity, Math.floor(graveyard.burials)));
   const available = Math.max(0, capacity - burials);
   let incoming = 0;
-  for (const corpse of context.gameState.corpses.values()) {
+  for (const corpse of context.gameState.corpses?.values() ?? []) {
     if (corpse.graveyardId === graveyard.id && corpse.state !== 0) incoming += 1;
   }
   const removable = burials === 0 && incoming === 0;
