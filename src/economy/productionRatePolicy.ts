@@ -66,11 +66,13 @@ export function productionRatePlan(
         * CIVILIAN_TOOL_IRONWORK_PER_CYCLE
         * throughputMultiplier
       : 0;
+  const annualWorkerEquivalent = building.kind === 'woodcutters_lodge'
+    ? (workerCount > 0 ? 1 : 0)
+    : workerCount;
   return {
     percent,
     throughputMultiplier,
-    ironworkPerYear: ironworkPerWorkerYear * workerCount,
+    ironworkPerYear: ironworkPerWorkerYear * annualWorkerEquivalent,
     ironworkPerWorkerYear,
   };
 }
-

@@ -10,7 +10,10 @@ import { clayBankYieldAt } from '../src/economy/clayBankPolicy.ts';
 import { computeSettlementGrainPlan } from '../src/economy/settlementGrainPlan.ts';
 import { computeSettlementSeedProcurementPlan } from '../src/economy/settlementSeedProcurement.ts';
 import { buildSettlementFarmPlan } from '../src/farming/farmWorkPlanning.ts';
-import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
+import {
+  tripDeliveryRemainingSeconds,
+  type DeliveryTripState,
+} from '../src/logistics/deliveryTrips.ts';
 import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import {
   BAKERY_FIREWOOD_PER_CYCLE,
@@ -1210,7 +1213,10 @@ approx(
 approx(suppliedProduction.millInputBuffer.onsiteDays, smallMillOnsiteDays);
 assert.equal(suppliedProduction.millInputBuffer.inTransitAmount, 30);
 assert.equal(suppliedProduction.millInputBuffer.inTransitTrips, 1);
-assert.equal(suppliedProduction.millInputBuffer.nextDeliverySeconds, 6);
+assert.equal(
+  suppliedProduction.millInputBuffer.nextDeliverySeconds,
+  tripDeliveryRemainingSeconds(timelyGrain),
+);
 assert.equal(suppliedProduction.millInputBuffer.deliveryGap, false);
 
 const lateState = emptyGameState();

@@ -123,7 +123,7 @@ for (const tableName of subscriptions) {
 const building = rustTables.get('building');
 assert.ok(building, 'building table must be subscribed and public');
 assert.deepEqual(
-  building.fields.slice(-12),
+  building.fields.slice(-15),
   [
     { name: 'tree_work_area_x', type: 'f64' },
     { name: 'tree_work_area_z', type: 'f64' },
@@ -137,6 +137,9 @@ assert.deepEqual(
     { name: 'pelts', type: 'f64' },
     { name: 'yarn', type: 'f64' },
     { name: 'linen', type: 'f64' },
+    { name: 'milk_use_policy', type: 'u8' },
+    { name: 'smokehouse_recipe_policy', type: 'u8' },
+    { name: 'production_rate_percent', type: 'u8' },
   ],
   'new commodity fields must append without reordering saved Building fields',
 );

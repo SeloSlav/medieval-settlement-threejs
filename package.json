@@ -83,6 +83,7 @@
     "test:material-economy": "npx tsx scripts/testMaterialEconomy.mts",
     "test:commodity-graph": "npx tsx scripts/testCommodityGraph.mts",
     "test:civilian-tool-economy": "npx tsx scripts/testCivilianToolEconomy.mts",
+    "test:production-rate": "npx tsx scripts/testProductionRatePolicy.mts",
     "test:village-economy": "npx tsx scripts/testVillageEconomy.mts",
     "test:chapel-community": "npx tsx scripts/testChapelCommunity.mts",
     "test:chapel-upgrade": "npx tsx scripts/testChapelUpgrade.mts",

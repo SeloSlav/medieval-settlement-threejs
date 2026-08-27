@@ -98,7 +98,11 @@ assert.match(
 
 const inspector = readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8');
 assert.match(inspector, /data-brewery-recipe-policy/);
-assert.match(inspector, /mead uses 1 honey/i);
+assert.match(
+  inspector,
+  /BREWERY_HONEY_PER_MEAD_CYCLE.*honey.*BREWERY_MEAD_PER_CYCLE.*mead/,
+  'the compact Mead recipe button must expose its conversion in the tooltip',
+);
 assert.match(inspector, /staffed Tavern/);
 const buildCards = readFileSync('src/ui/buildMenuCards.ts', 'utf8');
 assert.match(buildCards, /Brews ale, presses distinct apple or pear cider, or ferments mead/);

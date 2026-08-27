@@ -27,9 +27,10 @@ export function withBuildingProductionRate(
     compact: true,
     suffix: '/worker-year',
   });
-  const normalYearlyWear = plan.throughputMultiplier > 1e-9
-    ? plan.ironworkPerYear / plan.throughputMultiplier
-    : plan.ironworkPerWorkerYear * Math.max(0, building.assignedLabor);
+  const normalYearlyWear = productionRatePlan({
+    ...building,
+    productionRatePercent: 50,
+  })?.ironworkPerYear ?? 0;
   const panel = `
     <div class="inspector-action-panel" data-inspector-panel-title="Production rate">
       <label class="city-admin-panel__slider-label">
@@ -50,4 +51,3 @@ export function withBuildingProductionRate(
     supplementalPanelHtml: `${panel}${view.supplementalPanelHtml ?? ''}`,
   };
 }
-
