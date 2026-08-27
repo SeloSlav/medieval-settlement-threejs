@@ -1,9 +1,17 @@
 import * as THREE from 'three';
+import { timberMaterial } from '../buildings/buildingMaterials.ts';
 import type { CorpseState, GraveyardState } from '../resources/types.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
+import type { Point2 } from '../utils/polygonGeometry.ts';
+import {
+  BURGAGE_WOOD_FENCE_STYLE,
+  createBurgageFenceBoxGeometry,
+  sampleTerrainFenceBays,
+} from './BurgageFencing.ts';
 import { visibleGraveSitePlacements } from './graveyardLayout.ts';
 
 const CART_FORWARD_EPSILON_SQ = 0.0025;
+const LOCAL_FENCE_RAIL_AXIS = new THREE.Vector3(0, 0, 1);
 
 function setInstance(
   mesh: THREE.InstancedMesh,
@@ -22,35 +30,160 @@ function setInstance(
   mesh.setMatrixAt(index, matrix);
 }
 
+type GraveyardFenceRun = readonly [Point2, Point2];
+
+function splitFenceEdgeAroundOpening(start: Point2, end: Point2): GraveyardFenceRun[] {
+  const dx = end.x - start.x;
+  const dz = end.z - start.z;
+  const length = Math.hypot(dx, dz);
+  if (length < 0.5) return [];
+
+  const openingWidth = Math.min(BURGAGE_WOOD_FENCE_STYLE.openingWidth, length * 0.42);
+  const halfOpeningFraction = openingWidth / length * 0.5;
+  const openingStartT = 0.5 - halfOpeningFraction;
+  const openingEndT = 0.5 + halfOpeningFraction;
+  return [
+    [start, { x: start.x + dx * openingStartT, z: start.z + dz * openingStartT }],
+    [{ x: start.x + dx * openingEndT, z: start.z + dz * openingEndT }, end],
+  ];
+}
+
+function createGraveyardFence(
+  graveyard: GraveyardState,
+  getHeightAt: (x: number, z: number) => number,
+): THREE.Group {
+  const fence = new THREE.Group();
+  fence.name = 'Graveyard wooden fencing';
+  fence.userData.openingCount = 4;
+  fence.userData.openingWidth = BURGAGE_WOOD_FENCE_STYLE.openingWidth;
+  fence.userData.hasLintels = false;
+
+  const runs: GraveyardFenceRun[] = [];
+  for (let edge = 0; edge < 4; edge += 1) {
+    const start = graveyard.corners[edge];
+    const end = graveyard.corners[(edge + 1) % 4];
+    runs.push(...splitFenceEdgeAroundOpening(start, end));
+  }
+  const bayRuns = runs
+    .map(([start, end]) => sampleTerrainFenceBays(start, end, getHeightAt))
+    .filter((bays) => bays.length > 0);
+
+  const uniquePosts = new Map<string, { point: Point2; groundHeight: number }>();
+  let railCount = 0;
+  for (const bays of bayRuns) {
+    const first = bays[0];
+    uniquePosts.set(
+      `${first.start.x.toFixed(5)},${first.start.z.toFixed(5)}`,
+      { point: first.start, groundHeight: first.startGroundHeight },
+    );
+    for (const bay of bays) {
+      uniquePosts.set(
+        `${bay.end.x.toFixed(5)},${bay.end.z.toFixed(5)}`,
+        { point: bay.end, groundHeight: bay.endGroundHeight },
+      );
+      railCount += BURGAGE_WOOD_FENCE_STYLE.railHeights.length;
+    }
+  }
+
+  const fenceMaterial = timberMaterial('mid');
+  const posts = new THREE.InstancedMesh(
+    createBurgageFenceBoxGeometry(),
+    fenceMaterial,
+    uniquePosts.size,
+  );
+  posts.name = 'Graveyard boundary posts';
+  posts.castShadow = false;
+  posts.receiveShadow = false;
+  posts.frustumCulled = false;
+
+  const matrix = new THREE.Matrix4();
+  const position = new THREE.Vector3();
+  const quaternion = new THREE.Quaternion();
+  const scale = new THREE.Vector3();
+  const postMeshHeight = (
+    BURGAGE_WOOD_FENCE_STYLE.postHeight + BURGAGE_WOOD_FENCE_STYLE.postBuryDepth
+  );
+  let postIndex = 0;
+  for (const { point, groundHeight } of uniquePosts.values()) {
+    position.set(
+      point.x,
+      groundHeight + (
+        BURGAGE_WOOD_FENCE_STYLE.postHeight - BURGAGE_WOOD_FENCE_STYLE.postBuryDepth
+      ) * 0.5,
+      point.z,
+    );
+    quaternion.identity();
+    scale.set(
+      BURGAGE_WOOD_FENCE_STYLE.postWidth,
+      postMeshHeight,
+      BURGAGE_WOOD_FENCE_STYLE.postWidth,
+    );
+    matrix.compose(position, quaternion, scale);
+    posts.setMatrixAt(postIndex, matrix);
+    postIndex += 1;
+  }
+  posts.instanceMatrix.needsUpdate = true;
+
+  const rails = new THREE.InstancedMesh(
+    createBurgageFenceBoxGeometry(),
+    fenceMaterial,
+    railCount,
+  );
+  rails.name = 'Graveyard boundary rails';
+  rails.castShadow = false;
+  rails.receiveShadow = false;
+  rails.frustumCulled = false;
+
+  const railDirection = new THREE.Vector3();
+  let railIndex = 0;
+  for (const bays of bayRuns) {
+    for (const bay of bays) {
+      railDirection.set(
+        bay.end.x - bay.start.x,
+        bay.endGroundHeight - bay.startGroundHeight,
+        bay.end.z - bay.start.z,
+      );
+      const railLength = railDirection.length();
+      if (railLength <= 1e-6) continue;
+      quaternion.setFromUnitVectors(
+        LOCAL_FENCE_RAIL_AXIS,
+        railDirection.multiplyScalar(1 / railLength),
+      );
+      position.set(
+        (bay.start.x + bay.end.x) * 0.5,
+        (bay.startGroundHeight + bay.endGroundHeight) * 0.5,
+        (bay.start.z + bay.end.z) * 0.5,
+      );
+      for (const railHeight of BURGAGE_WOOD_FENCE_STYLE.railHeights) {
+        position.y = (
+          (bay.startGroundHeight + bay.endGroundHeight) * 0.5
+          + BURGAGE_WOOD_FENCE_STYLE.terrainLift
+          + railHeight
+        );
+        scale.set(
+          BURGAGE_WOOD_FENCE_STYLE.railWidth,
+          BURGAGE_WOOD_FENCE_STYLE.railHeight,
+          railLength + BURGAGE_WOOD_FENCE_STYLE.railEndOverlap,
+        );
+        matrix.compose(position, quaternion, scale);
+        rails.setMatrixAt(railIndex, matrix);
+        railIndex += 1;
+      }
+    }
+  }
+  rails.instanceMatrix.needsUpdate = true;
+
+  fence.add(posts, rails);
+  return fence;
+}
+
 function createGraveyard(
   graveyard: GraveyardState,
   getHeightAt: (x: number, z: number) => number,
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = `Graveyard ${graveyard.id}`;
-  const postTransforms: Array<[number, number, number]> = [];
-  for (let edge = 0; edge < 4; edge += 1) {
-    const start = graveyard.corners[edge];
-    const end = graveyard.corners[(edge + 1) % 4];
-    const distance = Math.hypot(end.x - start.x, end.z - start.z);
-    const segments = Math.max(1, Math.ceil(distance / 3.2));
-    for (let index = 0; index <= segments; index += 1) {
-      const t = index / segments;
-      const x = start.x + (end.x - start.x) * t;
-      const z = start.z + (end.z - start.z) * t;
-      postTransforms.push([x, getHeightAt(x, z) + 0.28, z]);
-    }
-  }
-  const posts = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(0.11, 0.55, 0.11),
-    new THREE.MeshStandardMaterial({ color: 0x716248, roughness: 1 }),
-    postTransforms.length,
-  );
-  posts.name = 'Graveyard boundary posts';
-  posts.castShadow = true;
-  postTransforms.forEach(([x, y, z], index) => setInstance(posts, index, x, y, z));
-  posts.instanceMatrix.needsUpdate = true;
-  group.add(posts);
+  group.add(createGraveyardFence(graveyard, getHeightAt));
 
   const graveSites = visibleGraveSitePlacements(graveyard);
   const visible = graveSites.length;

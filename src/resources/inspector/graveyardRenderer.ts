@@ -6,7 +6,7 @@ export function renderGraveyardInspector(
   target: Extract<InspectableTarget, { kind: 'graveyard' }>,
   context: InspectorRenderContext,
 ): InspectorView {
-  const { graveyard, chapel } = target;
+  const { graveyard } = target;
   const capacity = Math.max(0, Math.floor(graveyard.capacity));
   const burials = Math.max(0, Math.min(capacity, Math.floor(graveyard.burials)));
   const available = Math.max(0, capacity - burials);
@@ -31,7 +31,6 @@ export function renderGraveyardInspector(
       <li><span>Grave spots</span><strong>${capacity} total / ${available} open</strong></li>
       <li><span>Dead resting here</span><strong>${burials}</strong></li>
       ${incoming > 0 ? `<li><span>Incoming burials</span><span>${incoming}</span></li>` : ''}
-      <li><span>Linked church</span><span>${chapel ? context.worldQueries.getBuildingLabel(chapel.kind) : 'Missing'}</span></li>
     `,
     demolish: {
       visible: removable,

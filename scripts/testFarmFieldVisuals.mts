@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import { timberMaterial } from '../src/buildings/buildingMaterials.ts';
 import {
   FarmFieldMarkers,
   FarmFieldPreview,
@@ -7,6 +8,7 @@ import {
 } from '../src/farming/FarmFieldMarkers.ts';
 import type { FarmFieldState, GraveyardState } from '../src/resources/types.ts';
 import { BurialMarkers } from '../src/residences/BurialMarkers.ts';
+import { BURGAGE_WOOD_FENCE_STYLE } from '../src/residences/BurgageFencing.ts';
 import {
   collectGraveSiteVegetationClearancePolygons,
   GRAVE_SITE_VEGETATION_CLEARANCE_RADIUS,
@@ -254,6 +256,63 @@ assert.equal(
 assert.ok(
   graveyardMarker.getObjectByName('Graveyard boundary posts') instanceof THREE.InstancedMesh,
   'removing the ground sheet must retain the authored graveyard boundary',
+);
+const graveyardFence = graveyardMarker.getObjectByName('Graveyard wooden fencing') as THREE.Group;
+const graveyardFencePosts = graveyardFence.getObjectByName(
+  'Graveyard boundary posts',
+) as THREE.InstancedMesh;
+const graveyardFenceRails = graveyardFence.getObjectByName(
+  'Graveyard boundary rails',
+) as THREE.InstancedMesh;
+assert.equal(graveyardFence.userData.openingCount, 4, 'each graveyard side needs an entrance gap');
+assert.equal(graveyardFence.userData.hasLintels, false, 'graveyard entrances must remain unframed');
+assert.equal(graveyardFence.children.length, 2, 'graveyard fencing should contain posts and rails only');
+assert.equal(graveyardFencePosts.material, timberMaterial('mid'));
+assert.equal(graveyardFenceRails.material, timberMaterial('mid'));
+assert.ok(graveyardFenceRails.count > 0, 'graveyard boundaries must include residence-style timber rails');
+
+const postPosition = new THREE.Vector3();
+const postMatrix = new THREE.Matrix4();
+const graveyardPostPositions = Array.from({ length: graveyardFencePosts.count }, (_, index) => {
+  graveyardFencePosts.getMatrixAt(index, postMatrix);
+  return postPosition.setFromMatrixPosition(postMatrix).clone();
+});
+const openingHalfWidth = BURGAGE_WOOD_FENCE_STYLE.openingWidth * 0.5;
+for (const opening of [
+  { center: new THREE.Vector2(7, 0), tangent: new THREE.Vector2(1, 0) },
+  { center: new THREE.Vector2(14, 4.5), tangent: new THREE.Vector2(0, 1) },
+  { center: new THREE.Vector2(7, 9), tangent: new THREE.Vector2(1, 0) },
+  { center: new THREE.Vector2(0, 4.5), tangent: new THREE.Vector2(0, 1) },
+]) {
+  const edgePosts = graveyardPostPositions.filter((point) => {
+    const dx = point.x - opening.center.x;
+    const dz = point.z - opening.center.y;
+    return Math.abs(dx * -opening.tangent.y + dz * opening.tangent.x) < 1e-5;
+  });
+  const along = edgePosts.map((point) => (
+    (point.x - opening.center.x) * opening.tangent.x
+      + (point.z - opening.center.y) * opening.tangent.y
+  ));
+  assert.ok(
+    along.some((distance) => Math.abs(distance + openingHalfWidth) < 1e-5)
+      && along.some((distance) => Math.abs(distance - openingHalfWidth) < 1e-5),
+    'every edge must terminate cleanly at both sides of its centered entrance',
+  );
+  assert.ok(
+    along.every((distance) => Math.abs(distance) >= openingHalfWidth - 1e-5),
+    'fence posts must not intrude into any graveyard entrance',
+  );
+}
+const railPosition = new THREE.Vector3();
+let highestRailCenter = -Infinity;
+for (let index = 0; index < graveyardFenceRails.count; index += 1) {
+  graveyardFenceRails.getMatrixAt(index, postMatrix);
+  railPosition.setFromMatrixPosition(postMatrix);
+  highestRailCenter = Math.max(highestRailCenter, railPosition.y);
+}
+assert.ok(
+  highestRailCenter < BURGAGE_WOOD_FENCE_STYLE.postHeight,
+  'no high rail or lintel should bridge a graveyard entrance',
 );
 const occupiedGraveyard = { ...graveyard, burials: 3 };
 const graveSites = visibleGraveSitePlacements(occupiedGraveyard);
