@@ -29,7 +29,7 @@ use crate::simulation::delivery_cargo::{
 use crate::simulation::residence_needs::state::{migrate_and_sync_food_inventory, persist_needs};
 use crate::simulation::residence_needs::{
     apply_need_delivery, apply_need_delivery_from_commodity, load_needs, need_stock,
-    sync_food_need_rows, ResidenceNeedKind,
+    relieve_food_deficit_from_stocked_pantry, sync_food_need_rows, ResidenceNeedKind,
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, Residence};
@@ -538,6 +538,7 @@ fn distribute_food_to_residence(
         }
         ctx.db.residence().id().update(residence.clone());
         sync_food_need_rows(ctx, &residence);
+        relieve_food_deficit_from_stocked_pantry(ctx, &residence);
     }
 }
 

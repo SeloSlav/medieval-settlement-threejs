@@ -2,8 +2,8 @@ import type { DeliveryCargoKind } from '../logistics/deliveryTrips.ts';
 import {
   CALENDAR_SECONDS_PER_DAY,
   EVENING_MEAL_PER_PERSON,
-  FOOD_CATEGORY_QUALIFYING_DAYS,
   RESIDENCE_FOOD_PER_PERSON_PER_SEC,
+  RESIDENCE_FOOD_UNITS_PER_SLOT_PER_MONTH,
 } from '../generated/gameBalance.ts';
 
 export const FRESH_FOOD_KINDS = [
@@ -268,8 +268,11 @@ export function householdFoodPerDay(population: number): number {
     * (RESIDENCE_FOOD_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY + EVENING_MEAL_PER_PERSON);
 }
 
-export function foodCategoryQualifyingStock(population: number): number {
-  return householdFoodPerDay(population) * FOOD_CATEGORY_QUALIFYING_DAYS;
+export function foodCategoryQualifyingStock(_population: number): number {
+  // Food categories back the discrete household bill. Keep this threshold in
+  // the same whole-unit terms as the authoritative simulation so one bread or
+  // other full meal satisfies a Tier-1 household regardless of headcount.
+  return Math.max(1, Math.floor(RESIDENCE_FOOD_UNITS_PER_SLOT_PER_MONTH));
 }
 
 export function foodCategoryStocks(

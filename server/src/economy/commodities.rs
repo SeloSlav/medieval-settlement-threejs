@@ -1,5 +1,6 @@
 use spacetimedb::ReducerContext;
 
+use crate::balance_generated::RESIDENCE_FOOD_UNITS_PER_SLOT_PER_MONTH;
 use crate::building_defs::building_def;
 use crate::db::*;
 pub use crate::food_demand_policy::household_food_units_per_day_for_tier;
@@ -1187,7 +1188,7 @@ pub fn residence_edible_food_stock(residence: &Residence) -> f64 {
 }
 
 pub fn food_category_qualifying_stock(_population: u32) -> f64 {
-    1.0
+    whole_units(RESIDENCE_FOOD_UNITS_PER_SLOT_PER_MONTH).max(1.0)
 }
 
 pub fn residence_food_category_stock(residence: &Residence, category: FoodCategory) -> f64 {
@@ -1546,8 +1547,8 @@ mod tests {
     }
 
     #[test]
-    fn a_category_needs_one_household_day_of_meals() {
-        assert!((food_category_qualifying_stock(1) - 1.0 / 3.0).abs() < 1e-9);
-        assert!((food_category_qualifying_stock(6) - 2.0).abs() < 1e-9);
+    fn a_category_needs_one_monthly_bill_unit() {
+        assert_eq!(food_category_qualifying_stock(1), 1.0);
+        assert_eq!(food_category_qualifying_stock(6), 1.0);
     }
 }

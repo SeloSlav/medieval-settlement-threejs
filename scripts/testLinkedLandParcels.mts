@@ -188,6 +188,16 @@ for (const link of [
   /parcel\.monasteryId === this\.farmsteadId/,
 ]) assert.match(tool, link);
 assert.match(tool, /snapLandParcelDraftPoint\([\s\S]*this\.points[\s\S]*linked/);
+assert.match(
+  tool,
+  /this\.mode !== 'graveyard'[\s\S]*originFootprintPreview\.show\(null\)/,
+  'only graveyard placement should retain the linked building exclusion footprint',
+);
+assert.match(
+  tool,
+  /buildingFootprintPolygonFromState\([\s\S]*originFootprintPreview\.show/,
+  'graveyard placement should show the exact placed church footprint',
+);
 assert.doesNotMatch(tool, /GRAVEYARD_ADJACENCY_DISTANCE/);
 assert.doesNotMatch(tool, /VINEYARD_MONASTERY_ADJACENCY_DISTANCE/);
 

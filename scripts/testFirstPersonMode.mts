@@ -5,6 +5,8 @@ const controller = readFileSync('src/camera/FirstPersonController.ts', 'utf8');
 const placement = readFileSync('src/camera/FirstPersonPlacement.ts', 'utf8');
 const bootstrap = readFileSync('src/app/appBootstrap.ts', 'utf8');
 const controls = readFileSync('src/ui/gameControlsReference.ts', 'utf8');
+const settlementHud = readFileSync('src/ui/SettlementHud.ts', 'utf8');
+const nobleHudStyles = readFileSync('src/ui/nobleSetup.css', 'utf8');
 
 assert.match(
   controller,
@@ -51,6 +53,31 @@ assert.match(
   bootstrap,
   /hasLockedPlacement\(\) \? 'default' : 'none'/,
   'the native cursor must return as soon as the world pin is locked',
+);
+assert.match(
+  bootstrap,
+  /onModeChange: \(active\) => \{[\s\S]{0,320}active && spacetimeStore\.snapshot\.gameSpeed !== 1[\s\S]{0,100}requestGameSpeed\(1\)/,
+  'entering first-person mode must restore normal simulation speed',
+);
+assert.match(
+  settlementHud,
+  /class="noble-hud__eye-exit-mark"[\s\S]{0,120}M3 16 25 2/,
+  'the lord-view eye must include a dedicated diagonal exit mark',
+);
+assert.match(
+  settlementHud,
+  /setFirstPersonActive\(active: boolean\)[\s\S]{0,180}nobleHud\.classList\.toggle\('is-first-person', active\)/,
+  'first-person mode must retain the noble eye through its focused HUD state',
+);
+assert.doesNotMatch(
+  settlementHud,
+  /setFirstPersonActive\(active: boolean\)[\s\S]{0,180}nobleHud\.hidden = active/,
+  'first-person mode must not hide the eye with the rest of the noble HUD',
+);
+assert.match(
+  nobleHudStyles,
+  /\.noble-hud\.is-first-person \.noble-hud__eye-exit-mark\s*\{\s*opacity: 1/,
+  'the red exit slash must appear while lord view is active',
 );
 assert.match(
   placement,

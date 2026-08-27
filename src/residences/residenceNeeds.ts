@@ -29,6 +29,8 @@ import {
 } from '../logistics/specialtyLogistics.ts';
 import type { ResidenceState } from '../resources/types.ts';
 import {
+  edibleFoodMealEquivalents,
+  foodCategoryQualifyingStock,
   FOOD_PROGRESSION_SLOT_LABELS,
   foodProgressionStatus,
 } from '../economy/foodInventory.ts';
@@ -104,6 +106,18 @@ export function residenceNeedsStatus(
   if (deficitWarning) return deficitWarning;
 
   return describeActiveNeeds(residence);
+}
+
+/** A delivered whole meal immediately stops an old food deficit harming health. */
+export function residenceHasUsableFood(residence: ResidenceState): boolean {
+  return edibleFoodMealEquivalents(residence) + 1e-6
+    >= foodCategoryQualifyingStock(residence.population);
+}
+
+/** True only while the recorded food deficit is still physically unresolved. */
+export function residenceFoodShortageActive(residence: ResidenceState): boolean {
+  return getNeed(residence.needs, 'food').deficitTicks > 0
+    && !residenceHasUsableFood(residence);
 }
 
 function evaluateNeedRecovery(
@@ -258,6 +272,7 @@ function describeDeficitWarning(
   if (residence.tier === 0) return null;
   const unmetKinds = activeNeedKinds(residence)
     .filter((kind) => getNeed(residence.needs, kind).deficitTicks > 0)
+    .filter((kind) => kind !== 'food' || residenceFoodShortageActive(residence));
   if (unmetKinds.length === 0) return null;
 
   const foodMissing = unmetKinds.includes('food');

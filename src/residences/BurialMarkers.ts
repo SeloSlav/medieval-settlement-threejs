@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import type { CorpseState, GraveyardState } from '../resources/types.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 
-const SOIL_LIFT = 0.055;
 const MAX_VISIBLE_GRAVES = 180;
 const CART_FORWARD_EPSILON_SQ = 0.0025;
 
@@ -44,26 +43,6 @@ function createGraveyard(
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = `Graveyard ${graveyard.id}`;
-  const vertices: number[] = [];
-  for (const corner of graveyard.corners) {
-    vertices.push(corner.x, getHeightAt(corner.x, corner.z) + SOIL_LIFT, corner.z);
-  }
-  const soilGeometry = new THREE.BufferGeometry();
-  soilGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-  soilGeometry.setIndex([0, 3, 1, 1, 3, 2]);
-  soilGeometry.computeVertexNormals();
-  const soil = new THREE.Mesh(
-    soilGeometry,
-    new THREE.MeshStandardMaterial({
-      color: 0x4c4030,
-      roughness: 1,
-      polygonOffset: true,
-      polygonOffsetFactor: -2,
-    }),
-  );
-  soil.receiveShadow = true;
-  group.add(soil);
-
   const postTransforms: Array<[number, number, number]> = [];
   for (let edge = 0; edge < 4; edge += 1) {
     const start = graveyard.corners[edge];

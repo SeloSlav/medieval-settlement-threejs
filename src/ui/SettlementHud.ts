@@ -126,6 +126,7 @@ const SETTLEMENT_HUD_HTML = `
         <svg viewBox="0 0 28 18" aria-hidden="true">
           <path d="M1.5 9s4.4-7 12.5-7 12.5 7 12.5 7-4.4 7-12.5 7S1.5 9 1.5 9Z" />
           <circle cx="14" cy="9" r="3.3" />
+          <path class="noble-hud__eye-exit-mark" d="M3 16 25 2" />
         </svg>
       </button>
     </aside>
@@ -1106,7 +1107,7 @@ export class SettlementHud {
 
   setFirstPersonActive(active: boolean): void {
     this.root.hidden = active;
-    this.nobleHud.hidden = active;
+    this.nobleHud.classList.toggle('is-first-person', active);
     this.vitals.hidden = active;
     this.nobleEye.classList.toggle('is-active', active);
     this.nobleEye.setAttribute('aria-pressed', String(active));
@@ -1114,6 +1115,12 @@ export class SettlementHud {
       'aria-label',
       active ? 'Exit first-person view' : 'Enter first-person view',
     );
+    this.nobleEye.dataset.tooltipTitle = active
+      ? 'Exit First-Person View'
+      : 'First-Person View';
+    this.nobleEye.dataset.tooltip = active
+      ? 'Return to the overhead estate view.'
+      : 'Choose a point in your estate to enter first-person view.';
   }
 
   private readonly onNobleEyeClick = (): void => {
@@ -1548,8 +1555,15 @@ export class SettlementHud {
     this.foodSupplyUse.textContent = foodHasDemand
       ? formatFoodDemandSource(provisioning)
       : 'No current food demand.';
+    const foodReadyHouseholds = Math.max(
+      0,
+      provisioning.householdBufferHouseholds - provisioning.householdBufferFoodShortHomes,
+    );
+    const householdFoodCoverage = provisioning.householdBufferHouseholds > 0
+      ? ` · ${foodReadyHouseholds}/${provisioning.householdBufferHouseholds} household pantries can cover their next food bill.`
+      : '';
     this.foodSupplyTotal.textContent = foodHasDemand
-      ? `${formatSupplyAmount(provisioning.usableFoodStock)} usable meals after storage and spoilage.`
+      ? `${formatSupplyAmount(provisioning.usableFoodStock)} settlement-wide usable meals after storage and spoilage${householdFoodCoverage}`
       : `${formatSupplyAmount(provisioning.usableFoodStock)} usable meals stored.`;
     this.foodStat.setAttribute(
       'aria-label',

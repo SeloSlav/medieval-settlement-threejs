@@ -35,7 +35,10 @@ import type { TreeRegistry } from '../resources/TreeRegistry.ts';
 import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { convexPolygonsOverlap2, type Point2 } from '../utils/polygonGeometry.ts';
-import { FarmFieldPreview } from './FarmFieldMarkers.ts';
+import {
+  FarmFieldPreview,
+  LandParcelOriginFootprintPreview,
+} from './FarmFieldMarkers.ts';
 import {
   cropHarvestUnit,
   cropLabel,
@@ -162,6 +165,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 export class FarmFieldTool {
   private readonly options: FarmFieldToolOptions;
   private readonly preview: FarmFieldPreview;
+  private readonly originFootprintPreview: LandParcelOriginFootprintPreview;
   private enabled = false;
   private mode: LandParcelMode = 'field';
   private farmsteadId: string | null = null;
@@ -182,6 +186,7 @@ export class FarmFieldTool {
   constructor(options: FarmFieldToolOptions) {
     this.options = options;
     this.preview = new FarmFieldPreview(options.getHeightAt);
+    this.originFootprintPreview = new LandParcelOriginFootprintPreview(options.getHeightAt);
     this.secondaryClickGesture = new SecondaryClickGesture({
       onClick: this.onSecondaryClick,
     });
@@ -193,7 +198,7 @@ export class FarmFieldTool {
   }
 
   attachTo(parent: THREE.Group): void {
-    parent.add(this.preview.group);
+    parent.add(this.preview.group, this.originFootprintPreview.group);
   }
 
   isEnabled(): boolean {
@@ -212,6 +217,7 @@ export class FarmFieldTool {
       this.clearDraft();
     }
     this.setEnabled(true);
+    this.refreshOriginFootprintPreview();
   }
 
   getFarmsteadId(): string | null {
@@ -242,6 +248,7 @@ export class FarmFieldTool {
       this.secondaryClickGesture.cancel();
       this.clearDraft();
       this.farmsteadId = null;
+      this.originFootprintPreview.show(null);
     }
     else this.pointerDirty = true;
     this.options.onModeChanged();
@@ -534,6 +541,7 @@ export class FarmFieldTool {
     this.options.domElement.removeEventListener('mouseleave', this.onPointerLeave);
     window.removeEventListener('keydown', this.onKeyDown, { capture: true });
     this.preview.dispose();
+    this.originFootprintPreview.dispose();
   }
 
   private readonly onPointerEnter = (): void => {
@@ -636,6 +644,25 @@ export class FarmFieldTool {
       [],
       this.mode,
     );
+  }
+
+  private refreshOriginFootprintPreview(): void {
+    if (!this.enabled || this.mode !== 'graveyard' || !this.farmsteadId) {
+      this.originFootprintPreview.show(null);
+      return;
+    }
+    const chapel = this.options.getState().buildings.get(this.farmsteadId);
+    if (!chapel || chapel.kind !== 'chapel') {
+      this.originFootprintPreview.show(null);
+      return;
+    }
+    const footprint = buildingFootprintPolygonFromState(
+      chapel,
+      this.options.getRoadNetwork?.(),
+    );
+    this.originFootprintPreview.show(footprint.length === 4
+      ? footprint as FarmFieldCorners
+      : null);
   }
 
   private refreshPreview(): void {

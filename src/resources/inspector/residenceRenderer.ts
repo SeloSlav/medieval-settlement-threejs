@@ -123,6 +123,7 @@ import {
 import {
   RESIDENCE_FIREWOOD_CAPACITY,
   activeResidenceNeedKinds,
+  residenceFoodShortageActive,
   residenceNeedCategory,
   residenceNeedsStatus,
   getNeed,
@@ -574,24 +575,34 @@ export function renderResidenceInspector(
   const householdGoodsSection = residenceNeedCategory('cloth').label;
   const faithAndCommunitySection = residenceNeedCategory('church').label;
   const hungerDays = (residence.hungerTicks ?? 0) * SIM_TICK_SECONDS / CALENDAR_SECONDS_PER_DAY;
+  const malnutrition = Math.max(0, residence.malnutrition ?? 0);
+  const foodShortageActive = residenceFoodShortageActive(residence);
+  const recoveringFromHunger = !foodShortageActive
+    && (hungerDays > 0.05 || malnutrition >= 0.005);
+  const activeHungerDays = foodShortageActive ? hungerDays : 0;
   const coldExposureDays = environment.season === 'winter'
     ? getNeed(residence.needs, 'firewood').deficitTicks
       * SIM_TICK_SECONDS / CALENDAR_SECONDS_PER_DAY
     : 0;
-  const healthLabel = hungerDays >= STARVATION_DEATH_START_DAYS
-    ? `Starving · ${hungerDays.toFixed(1)} days without enough food`
+  const healthLabel = activeHungerDays >= STARVATION_DEATH_START_DAYS
+    ? `Starving · ${activeHungerDays.toFixed(1)} accumulated shortage days`
     : coldExposureDays >= COLD_EXPOSURE_DEATH_START_DAYS
       ? `Freezing · ${coldExposureDays.toFixed(1)} consecutive winter days without heat`
-      : hungerDays >= MALNUTRITION_DAYS
-        ? `Malnourished · ${hungerDays.toFixed(1)} shortage days`
+      : activeHungerDays >= MALNUTRITION_DAYS
+        ? `Malnourished · ${activeHungerDays.toFixed(1)} accumulated shortage days`
         : coldExposureDays >= COLD_EXPOSURE_WARNING_DAYS
           ? `Cold-exposed · ${coldExposureDays.toFixed(1)} winter days without heat`
-          : hungerDays >= HUNGER_WARNING_DAYS
-            ? `Hungry · ${hungerDays.toFixed(1)} shortage days`
+          : activeHungerDays >= HUNGER_WARNING_DAYS
+            ? `Hungry · ${activeHungerDays.toFixed(1)} accumulated shortage days`
             : (residence.sickPopulation ?? 0) > 0
               ? `${residence.sickPopulation} sick`
-              : 'Well';
-  const healthWarning = hungerDays >= HUNGER_WARNING_DAYS
+              : recoveringFromHunger
+                ? hungerDays > 0.05
+                  ? `Recovering · food need currently met · ${hungerDays.toFixed(1)} shortage-days remain`
+                  : `Recovering · food need currently met · ${Math.round(malnutrition * 100)}% malnutrition remains`
+                : 'Well';
+  const healthWarning = activeHungerDays >= HUNGER_WARNING_DAYS
+    || recoveringFromHunger
     || coldExposureDays >= COLD_EXPOSURE_WARNING_DAYS
     || (residence.sickPopulation ?? 0) > 0;
   const remedyDailyDemand = (residence.sickPopulation ?? 0) * HERB_TREATMENT_PER_SICK_DAY;
@@ -605,21 +616,24 @@ export function renderResidenceInspector(
       : `${Math.round(residence.remedyStock ?? 0)} at home · no current treatment demand`;
   const householdCorpses = Array.from((context.gameState.corpses ?? new Map()).values())
     .filter((corpse) => corpse.residenceId === residence.id);
-  const compactHealthLabel = hungerDays >= STARVATION_DEATH_START_DAYS
-    ? `Starving · ${hungerDays.toFixed(1)}d`
+  const compactHealthLabel = activeHungerDays >= STARVATION_DEATH_START_DAYS
+    ? `Starving · ${activeHungerDays.toFixed(1)}d elapsed`
     : coldExposureDays >= COLD_EXPOSURE_DEATH_START_DAYS
       ? `Freezing · ${coldExposureDays.toFixed(1)}d`
-      : hungerDays >= MALNUTRITION_DAYS
-        ? `Malnourished · ${hungerDays.toFixed(1)}d`
+      : activeHungerDays >= MALNUTRITION_DAYS
+        ? `Malnourished · ${activeHungerDays.toFixed(1)}d elapsed`
         : coldExposureDays >= COLD_EXPOSURE_WARNING_DAYS
           ? `Cold · ${coldExposureDays.toFixed(1)}d`
-          : hungerDays >= HUNGER_WARNING_DAYS
-            ? `Hungry · ${hungerDays.toFixed(1)}d`
+          : activeHungerDays >= HUNGER_WARNING_DAYS
+            ? `Hungry · ${activeHungerDays.toFixed(1)}d elapsed`
             : (residence.sickPopulation ?? 0) > 0
               ? `Sick · ${residence.sickPopulation}`
-              : 'Well';
+              : recoveringFromHunger
+                ? 'Recovering · food met'
+                : 'Well';
   const shortageNeedLabels = activeResidenceNeedKinds(residence.tier)
     .filter((kind) => getNeed(residence.needs, kind).deficitTicks > 0)
+    .filter((kind) => kind !== 'food' || foodShortageActive)
     .map(compactNeedLabel);
   const settlersWaitingForVitalSupplies = residence.tier > 0
     && settlersRemaining > 0
@@ -641,11 +655,6 @@ export function renderResidenceInspector(
             : shortageNeedLabels.length > 0
               ? `Shortage · ${shortageNeedLabels.join(' · ')}`
               : 'Needs met';
-  const foodStandard = foodProgressionStatus(
-    residence,
-    residence.population,
-    Math.max(1, residence.tier) as 1 | 2 | 3 | 4,
-  );
   const pantryResources = NAMED_FOOD_KINDS.flatMap((kind) => {
     const amount = Math.max(0, residence[kind] ?? 0);
     return amount > 1e-6 ? [{ kind, amount }] : [];
@@ -658,9 +667,9 @@ export function renderResidenceInspector(
           amount: householdFreshMeals,
           title: 'Fresh food',
           amountLabel: `Stock · cap ${RESIDENCE_FOOD_CAPACITY}`,
-          detail: `${foodRunwayLabel} runway · ${foodSupplierLabel} · standard ${foodStandard.satisfiedSlots.length}/${foodStandard.requiredSlots.length}`,
+          detail: `${foodRunwayLabel} runway · ${foodSupplierLabel}`,
           resources: pantryResources,
-          className: getNeed(residence.needs, 'food').deficitTicks > 0 ? 'is-warning' : '',
+          className: foodShortageActive ? 'is-warning' : '',
         },
         ...(residence.tier >= 4
           ? [{
@@ -777,7 +786,7 @@ export function renderResidenceInspector(
     `
     : `
       <li data-residence-summary data-inspector-primary data-inspector-detail="Parcel #${residence.parcelIndex + 1} · ${residenceCount} residence${residenceCount === 1 ? '' : 's'} · ${settlersRemaining} vacancies"><span>Population</span><span>${residence.population} / ${capacity}</span></li>
-      <li data-residence-summary data-inspector-primary data-inspector-detail="Malnutrition ${Math.round((residence.malnutrition ?? 0) * 100)}% · sick ${residence.sickPopulation ?? 0} · deaths ${residence.deathsTotal ?? 0}"><span>Health</span><span>${compactHealthLabel}</span></li>
+      <li data-residence-summary data-inspector-primary data-inspector-detail="Food need ${foodShortageActive ? 'currently unmet' : 'currently met'} · accumulated shortage ${hungerDays.toFixed(1)}d · malnutrition ${Math.round(malnutrition * 100)}% · sick ${residence.sickPopulation ?? 0} · deaths ${residence.deathsTotal ?? 0}"><span>Health</span><span>${compactHealthLabel}</span></li>
       ${renderResidenceTierNeedsRow(residence, roadAccess)}
       <li data-residence-summary data-inspector-primary data-inspector-resource-strip data-inspector-section="Stores"><span>Stores</span>${renderInspectorResourceStrip(householdTokens, { ariaLabel: 'Household stores' })}</li>
     `;
@@ -817,7 +826,7 @@ export function renderResidenceInspector(
       <li><span>Parcel</span><span>#${residence.parcelIndex + 1}</span></li>
       <li data-inspector-primary><span>Population</span><span>${initialConstruction ? `0 / ${capacity} · founders remain at camp` : `${residence.population} / ${capacity}`}</span></li>
       <li data-inspector-primary><span>Health</span><span>${healthLabel}</span></li>
-      <li><span>Malnutrition</span><span>${Math.round((residence.malnutrition ?? 0) * 100)}%</span></li>
+      <li><span>Malnutrition</span><span>${Math.round(malnutrition * 100)}%</span></li>
       ${environment.season === 'winter' && residence.tier > 0 ? `<li><span>Cold exposure</span><span>${coldExposureDays > 0 ? `${coldExposureDays.toFixed(1)} consecutive unheated days · mortality risk begins after ${COLD_EXPOSURE_DEATH_START_DAYS} days` : 'Heated · no current exposure'}</span></li>` : ''}
       <li><span>Unable to work</span><span>${residence.sickPopulation ?? 0} sick resident${(residence.sickPopulation ?? 0) === 1 ? '' : 's'}</span></li>
       <li><span>Herbal remedies</span><span>${remedySupplyLabel} · treatment speeds recovery and reduces mortality</span></li>

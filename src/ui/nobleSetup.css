@@ -1424,6 +1424,42 @@
   stroke-width: 1.4;
 }
 
+.noble-hud__eye-exit-mark {
+  opacity: 0;
+  stroke: #d84c3f;
+  stroke-linecap: round;
+  stroke-width: 2.6;
+  transition: opacity 120ms ease-out;
+  vector-effect: non-scaling-stroke;
+}
+
+.noble-hud.is-first-person {
+  pointer-events: none;
+  background: none;
+  box-shadow: none;
+}
+
+.noble-hud.is-first-person::before,
+.noble-hud.is-first-person .noble-hud__portrait-shell,
+.noble-hud.is-first-person .noble-hud__identity,
+.noble-hud.is-first-person .noble-hud__reports {
+  display: none;
+}
+
+.noble-hud.is-first-person .noble-hud__eye {
+  pointer-events: auto;
+  border-color: rgba(209, 83, 62, 0.88);
+  color: #f0d794;
+  background:
+    radial-gradient(circle, rgba(190, 60, 43, 0.2), transparent 68%),
+    rgba(44, 31, 27, 0.96);
+  box-shadow: 0 0 12px rgba(190, 60, 43, 0.22);
+}
+
+.noble-hud.is-first-person .noble-hud__eye-exit-mark {
+  opacity: 1;
+}
+
 .noble-hud__eye:hover:not(:disabled),
 .noble-hud__eye:focus-visible,
 .noble-hud__eye.is-active {

@@ -104,22 +104,27 @@ assert.equal(
   1,
   'fresh and preserved hedgerow fruit remain one dietary category',
 );
-assert.ok(Math.abs(foodCategoryQualifyingStock(1) - 1 / 3) < 1e-9);
-assert.ok(Math.abs(foodCategoryQualifyingStock(6) - 2) < 1e-9);
+assert.equal(foodCategoryQualifyingStock(1), 1);
+assert.equal(foodCategoryQualifyingStock(6), 1);
 assert.equal(
-  foodVarietyCount({ cabbage: 0.3 }, 1),
+  foodVarietyCount({ cabbage: 0.9 }, 1),
   0,
   'a token amount must not qualify a category',
 );
 assert.equal(
-  foodVarietyCount({ cabbage: 0.4 }, 1),
+  foodVarietyCount({ cabbage: 1 }, 1),
   1,
-  'cabbage must qualify the vegetable category once a full household-day is stocked',
+  'one monthly bill unit must qualify the vegetable category',
 );
 assert.equal(
-  foodVarietyCount({ milk: 0.63, cheese: 0.5 }, 1),
+  foodVarietyCount({ milk: 0.63, cheese: 0.5 }, 6),
   1,
   'close substitutes may combine to qualify their one shared category',
+);
+assert.equal(
+  foodProgressionStatus({ ryeBread: 1 }, 3, 1).ready,
+  true,
+  'one rye bread must satisfy a full Tier-1 household food category',
 );
 assert.deepEqual(
   foodProgressionStatus({ ryeBread: 2, cabbage: 2, apples: 2 }, 1, 3).satisfiedSlots,

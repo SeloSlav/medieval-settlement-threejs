@@ -3,8 +3,10 @@ import * as THREE from 'three';
 import {
   FarmFieldMarkers,
   FarmFieldPreview,
+  LandParcelOriginFootprintPreview,
 } from '../src/farming/FarmFieldMarkers.ts';
-import type { FarmFieldState } from '../src/resources/types.ts';
+import type { FarmFieldState, GraveyardState } from '../src/resources/types.ts';
+import { BurialMarkers } from '../src/residences/BurialMarkers.ts';
 import {
   hashParcelSeed,
   organicParcelBoundaryPoints,
@@ -194,5 +196,60 @@ preview.show([
 ], true, 'fallow', [], 'vineyard');
 assert.equal(previewGuides.visible, true, 'vineyard placement should preview the growing-row direction');
 preview.dispose();
+
+const chapelFootprint = new LandParcelOriginFootprintPreview((x, z) => x * 0.01 + z * 0.02);
+visualRoot.add(chapelFootprint.group);
+chapelFootprint.show([
+  { x: 4, z: 5 },
+  { x: 12, z: 5 },
+  { x: 12, z: 13 },
+  { x: 4, z: 13 },
+]);
+const chapelFootprintFill = chapelFootprint.group
+  .getObjectByName('Linked chapel blocked footprint fill') as THREE.Mesh;
+const chapelFootprintBorder = chapelFootprint.group
+  .getObjectByName('Linked chapel blocked footprint border') as THREE.Mesh;
+assert.equal(chapelFootprint.group.visible, true);
+assert.ok(chapelFootprintFill.geometry.getAttribute('position').count > 0);
+assert.ok(chapelFootprintBorder.geometry.getAttribute('position').count > 0);
+for (const mesh of [chapelFootprintFill, chapelFootprintBorder]) {
+  const material = mesh.material as THREE.MeshBasicMaterial;
+  assert.equal(material.color.getHex(), 0xff3e35, 'the church exclusion footprint must stay red');
+  assert.equal(material.transparent, true);
+  assert.ok(material.opacity > 0 && material.opacity < 1, 'the church footprint must remain translucent');
+}
+chapelFootprint.show(null);
+assert.equal(chapelFootprint.group.visible, false, 'the warning must hide outside linked placement');
+chapelFootprint.dispose();
+
+const burialRoot = new THREE.Group();
+const burialMarkers = new BurialMarkers(burialRoot);
+const graveyard: GraveyardState = {
+  id: 'graveyard-visual-test',
+  chapelId: 'chapel-visual-test',
+  corners: [
+    { x: 0, z: 0 },
+    { x: 14, z: 0 },
+    { x: 14, z: 9 },
+    { x: 0, z: 9 },
+  ],
+  area: 126,
+  averageSlopeDegrees: 2,
+  capacity: 24,
+  burials: 0,
+};
+burialMarkers.sync([graveyard], [], () => 0);
+const graveyardMarker = burialRoot.getObjectByName(`Graveyard ${graveyard.id}`) as THREE.Group;
+assert.ok(graveyardMarker);
+assert.equal(
+  graveyardMarker.children.some((child) => child instanceof THREE.Mesh && !child.isInstancedMesh),
+  false,
+  'an empty graveyard should preserve the native terrain instead of covering it with a dirt sheet',
+);
+assert.ok(
+  graveyardMarker.getObjectByName('Graveyard boundary posts') instanceof THREE.InstancedMesh,
+  'removing the ground sheet must retain the authored graveyard boundary',
+);
+burialMarkers.dispose();
 
 console.log('farm-field visual tests passed');

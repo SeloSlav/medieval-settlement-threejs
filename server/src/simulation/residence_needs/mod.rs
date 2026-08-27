@@ -28,9 +28,9 @@ use spacetimedb::ReducerContext;
 use crate::db::*;
 use crate::economy::{
     building_edible_food_stock, food_category, reconcile_building_labor, residence_commodity_stock,
-    residence_food_progression_slots, withdraw_building_edible_food, withdraw_residence_commodity,
-    CommodityKind, FoodCategory, EDIBLE_COMMODITIES, FRESH_FOOD_COMMODITIES,
-    PRESERVED_FOOD_COMMODITIES,
+    residence_edible_food_stock, residence_food_progression_slots, withdraw_building_edible_food,
+    withdraw_residence_commodity, CommodityKind, FoodCategory, EDIBLE_COMMODITIES,
+    FRESH_FOOD_COMMODITIES, PRESERVED_FOOD_COMMODITIES,
 };
 use crate::monastery_estate_policy::{
     monastery_infirmary_mortality_multiplier, monastery_infirmary_recovery_multiplier,
@@ -207,11 +207,15 @@ pub fn step_residence_needs(
     let previous_effective_workers = residence
         .population
         .saturating_sub(residence.sick_population);
+    let food_shortage_harms_health = food_shortage_harms_health(
+        food_unmet,
+        residence_edible_food_stock(&residence),
+    );
     update_health(
         ctx,
         tick,
         &mut residence,
-        food_unmet,
+        food_shortage_harms_health,
         water_unmet,
         cold_unmet,
         cold_exposure_ticks,
@@ -241,6 +245,10 @@ pub fn step_residence_needs(
     if next_effective_workers < previous_effective_workers {
         reconcile_building_labor(ctx, owner);
     }
+}
+
+fn food_shortage_harms_health(food_unmet: bool, edible_food_stock: f64) -> bool {
+    food_unmet && edible_food_stock + 1e-6 < 1.0
 }
 
 fn residence_has_flower_luxury(ctx: &ReducerContext, residence: &Residence) -> bool {
@@ -385,6 +393,30 @@ fn consume_monthly_food_slots(residence: &mut Residence, tier: u8) -> MonthlyFoo
         preserved_slot_met,
         slots_consumed,
     }
+}
+
+/// A market refill should end an old food-shortage state as soon as the
+/// physical pantry can pay the household's next bill. The preview runs the
+/// exact category-aware bill against a clone, so it neither consumes stock nor
+/// lets a token amount of the wrong food hide a real shortage.
+pub fn relieve_food_deficit_from_stocked_pantry(
+    ctx: &ReducerContext,
+    residence: &Residence,
+) {
+    let mut pantry_preview = residence.clone();
+    if !consume_monthly_food_slots(&mut pantry_preview, residence.tier).all_slots_met {
+        return;
+    }
+
+    let mut needs = load_needs(ctx, residence.id);
+    let Some(food_need) = find_need_mut(&mut needs, ResidenceNeedKind::Food) else {
+        return;
+    };
+    if food_need.deficit_ticks == 0 {
+        return;
+    }
+    food_need.deficit_ticks = 0;
+    persist_needs(ctx, residence.id, &needs);
 }
 
 fn whole_daily_spoilage_loss(
@@ -812,7 +844,9 @@ fn apply_delivery_for_kind(kind: ResidenceNeedKind, need: &NeedState, delivered:
 
 #[cfg(test)]
 mod tests {
-    use super::{need_relief_without_delivery, NeedState, ResidenceNeedKind};
+    use super::{
+        food_shortage_harms_health, need_relief_without_delivery, NeedState, ResidenceNeedKind,
+    };
 
     #[test]
     fn communal_meal_clears_deficit_without_teleporting_pantry_stock() {
@@ -825,5 +859,12 @@ mod tests {
         let after = need_relief_without_delivery(&before);
         assert_eq!(after.stock, before.stock);
         assert_eq!(after.deficit_ticks, 0);
+    }
+
+    #[test]
+    fn stocked_food_stops_an_old_deficit_harming_health() {
+        assert!(food_shortage_harms_health(true, 0.0));
+        assert!(!food_shortage_harms_health(true, 1.0));
+        assert!(!food_shortage_harms_health(false, 0.0));
     }
 }

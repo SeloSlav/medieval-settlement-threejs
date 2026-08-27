@@ -111,6 +111,7 @@ import {
   isConstructionResourceShortfallMessage,
 } from '../ui/toastMessages.ts';
 import { renameSettlement } from '../data/spacetimeReducers.ts';
+import type { GameSpeed } from '../world/gameSpeed.ts';
 
 const REPORT_FOCUS_ZOOM_PERCENT = 50;
 
@@ -900,6 +901,13 @@ export async function bootstrapAppSession(
     }
   };
 
+  const requestGameSpeed = (speed: GameSpeed): void => {
+    void spacetimeStore.setGameSpeed(speed).catch((error) => {
+      const message = error instanceof Error ? error.message : 'Could not change game speed.';
+      toastManager?.show(message, { variant: 'error', durationMs: 4500 });
+    });
+  };
+
   toolbar = new BuildToolbar(uiRoot, {
     onOpenRoads: toggleRoadTool,
     onSetRoadSnap: (enabled) => buildingTool.setRoadSnapEnabled(enabled),
@@ -1045,12 +1053,7 @@ export async function bootstrapAppSession(
       sceneManager.setMapOverlaySelection(selection);
       toolbar.setMapOverlaySelection(selection);
     },
-    onSetGameSpeed: (speed) => {
-      void spacetimeStore.setGameSpeed(speed).catch((error) => {
-        const message = error instanceof Error ? error.message : 'Could not change game speed.';
-        toastManager?.show(message, { variant: 'error', durationMs: 4500 });
-      });
-    },
+    onSetGameSpeed: requestGameSpeed,
     onMenuOpenChange: (open) => {
       firstPersonController.onMenuOpenChange(open);
       cameraController.setInputEnabled(
@@ -1562,6 +1565,9 @@ export async function bootstrapAppSession(
     onModeChange: (active) => {
       if (active && cameraController.isIllustratedMapActive()) {
         cameraController.applyRtsOrbitView();
+      }
+      if (active && spacetimeStore.snapshot.gameSpeed !== 1) {
+        requestGameSpeed(1);
       }
       cameraController.setInputEnabled(
         !active

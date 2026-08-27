@@ -1052,6 +1052,107 @@ export class FarmFieldMarkers {
   }
 }
 
+/** Persistent exclusion overlay for the building that owns a linked parcel. */
+export class LandParcelOriginFootprintPreview {
+  readonly group = new THREE.Group();
+  private readonly getHeightAt: (x: number, z: number) => number;
+  private readonly fill: THREE.Mesh;
+  private readonly border: THREE.Mesh;
+  private lastSignature = '';
+
+  constructor(getHeightAt: (x: number, z: number) => number) {
+    this.getHeightAt = getHeightAt;
+    this.group.name = 'Linked land-parcel origin footprint warning';
+    this.group.frustumCulled = false;
+    this.group.visible = false;
+
+    this.fill = new THREE.Mesh(
+      new THREE.BufferGeometry(),
+      new THREE.MeshBasicMaterial({
+        color: 0xff3e35,
+        transparent: true,
+        opacity: 0.28,
+        depthTest: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -4,
+        polygonOffsetUnits: -4,
+        fog: false,
+        toneMapped: false,
+      }),
+    );
+    this.fill.name = 'Linked chapel blocked footprint fill';
+    this.fill.renderOrder = 16;
+    this.fill.frustumCulled = false;
+    this.group.add(this.fill);
+
+    this.border = new THREE.Mesh(
+      new THREE.BufferGeometry(),
+      new THREE.MeshBasicMaterial({
+        color: 0xff3e35,
+        transparent: true,
+        opacity: 0.94,
+        depthTest: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -5,
+        polygonOffsetUnits: -5,
+        fog: false,
+        toneMapped: false,
+      }),
+    );
+    this.border.name = 'Linked chapel blocked footprint border';
+    this.border.renderOrder = 17;
+    this.border.frustumCulled = false;
+    this.group.add(this.border);
+  }
+
+  show(corners: FarmFieldCorners | null): void {
+    if (!corners) {
+      this.lastSignature = '';
+      this.group.visible = false;
+      return;
+    }
+    const signature = corners
+      .map((point) => `${point.x.toFixed(3)},${point.z.toFixed(3)}`)
+      .join('|');
+    if (signature === this.lastSignature) {
+      this.group.visible = true;
+      return;
+    }
+    this.lastSignature = signature;
+    this.group.visible = true;
+    updateTerrainQuadGeometry(
+      this.fill.geometry,
+      corners,
+      this.getHeightAt,
+      0.12,
+      7,
+      7,
+    );
+    updateTerrainRibbonGeometry(
+      this.border.geometry,
+      polygonSegments(corners),
+      this.getHeightAt,
+      {
+        width: 0.3,
+        lift: 0.18,
+        sampleSpacing: 0.75,
+      },
+    );
+  }
+
+  dispose(): void {
+    clearOverlayGeometry(this.fill.geometry);
+    clearOverlayGeometry(this.border.geometry);
+    disposeObject3D(this.group, true);
+    this.group.removeFromParent();
+    this.group.clear();
+  }
+}
+
 export class FarmFieldPreview {
   readonly group = new THREE.Group();
   private readonly getHeightAt: (x: number, z: number) => number;
