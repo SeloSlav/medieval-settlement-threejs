@@ -114,19 +114,21 @@ export function renderMineralMineInspector(
       ? 'Stopped - no rich iron, salt, or clay deposit beneath the shaft'
       : targetReached
           ? `Paused - ${resource} yard target reached (${stock.toFixed(0)} / ${yardTarget.toFixed(0)})`
-          : !onsiteSupportReady
+          : building.assignedLabor === 0
+            ? 'Idle - assign at least 1 miner to request timber supports'
+            : !onsiteSupportReady
             ? supportRecovering
               ? `Waiting - timber supports are approaching the rich deep ${resource} shaft`
               : `Stopped - rich deep ${resource} shaft awaits timber supports`
             : onsiteLabor === 0
-              ? building.assignedLabor > 0
-                ? 'Extraction paused - the full roster is away with its cart'
-                : 'Idle - assign miners'
+              ? 'Extraction paused - the full roster is away with its cart'
               : `Extracting rich deep ${resource} - source does not deplete`,
     statusState: active
       ? 'active'
       : targetReached
         ? 'idle'
+        : building.assignedLabor === 0
+          ? 'idle'
         : sourceUsable && (onsiteSupportReady || supportRecovering)
           ? 'idle'
           : 'warning',

@@ -1497,9 +1497,10 @@ mineInspector = renderMineralMineInspector(
 );
 assert.match(
   mineInspector.statusText,
-  /awaits timber supports/,
-  'missing deep-shaft supports must remain visible after the labor steward releases miners',
+  /assign at least 1 miner to request timber supports/,
+  'an unstaffed Mineworks must explain that its crew initiates support requests',
 );
+assert.equal(mineInspector.statusState, 'idle');
 const recalledHeldMine = {
   ...recalledUnsupportedMine,
   id: 'mine-recalled-at-target',
