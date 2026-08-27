@@ -1511,7 +1511,7 @@ mineInspector = renderMineralMineInspector(
   buildingTarget(recalledHeldMine),
   inspectorContext(inspectorGameState(recalledHeldMine, [richSaltDeposit])),
 );
-assert.match(mineInspector.statusText, /salt yard target reached/);
+assert.match(mineInspector.statusText, /salt yard full/);
 assert.equal(mineInspector.statusState, 'idle');
 assert.match(mineInspector.detailsHtml, /Production interval<\/span><span>paused/);
 const inboundSupportTrip: DeliveryTripState = {
@@ -1693,7 +1693,7 @@ supportedLargeQuarryInspector = renderLargeQuarryInspector(
     inspectorGameState(recalledHeldLargeQuarry, [richStoneAtQuarry]),
   ),
 );
-assert.match(supportedLargeQuarryInspector.statusText, /stone yard target reached/);
+assert.match(supportedLargeQuarryInspector.statusText, /stone yard full/);
 assert.equal(supportedLargeQuarryInspector.statusState, 'idle');
 assert.match(
   supportedLargeQuarryInspector.detailsHtml,
@@ -1721,7 +1721,7 @@ let stoneCampInspector = renderStoneQuarryInspector(
   buildingTarget(recalledHeldStoneCamp),
   inspectorContext(inspectorGameState(recalledHeldStoneCamp, [surfaceStone])),
 );
-assert.match(stoneCampInspector.statusText, /stone yard target reached/);
+assert.match(stoneCampInspector.statusText, /stone yard full/);
 assert.equal(stoneCampInspector.statusState, 'idle');
 assert.match(stoneCampInspector.detailsHtml, /Harvest interval<\/span><span>paused/);
 const recalledSourceLessStoneCamp = {

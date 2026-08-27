@@ -53,22 +53,6 @@ pub fn mineworks_clay_commodity(node_kind: &str, node_id: &str) -> Option<Commod
     (node_kind == "clay" && node_id.starts_with("clay-rich-")).then_some(CommodityKind::Clay)
 }
 
-pub fn extraction_site_accepts_commodity(kind: &str, commodity: CommodityKind) -> bool {
-    match kind {
-        "stone_quarry" => matches!(
-            commodity,
-            CommodityKind::Stone | CommodityKind::Iron | CommodityKind::Salt | CommodityKind::Clay
-        ),
-        "large_quarry" => commodity == CommodityKind::Stone,
-        "mine" => matches!(
-            commodity,
-            CommodityKind::Iron | CommodityKind::Salt | CommodityKind::Clay
-        ),
-        LEGACY_CLAY_PIT_KIND => commodity == CommodityKind::Clay,
-        _ => false,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -124,36 +108,5 @@ mod tests {
         );
         assert_eq!(mineworks_geological_commodity("quarry-7", true), None);
         assert_eq!(mineworks_clay_commodity("clay", "clay-7"), None);
-    }
-
-    #[test]
-    fn output_identity_matches_each_current_site() {
-        for commodity in [
-            CommodityKind::Stone,
-            CommodityKind::Iron,
-            CommodityKind::Salt,
-            CommodityKind::Clay,
-        ] {
-            assert!(extraction_site_accepts_commodity("stone_quarry", commodity));
-        }
-        assert!(extraction_site_accepts_commodity(
-            "large_quarry",
-            CommodityKind::Stone
-        ));
-        assert!(!extraction_site_accepts_commodity(
-            "large_quarry",
-            CommodityKind::Iron
-        ));
-        for commodity in [
-            CommodityKind::Iron,
-            CommodityKind::Salt,
-            CommodityKind::Clay,
-        ] {
-            assert!(extraction_site_accepts_commodity("mine", commodity));
-        }
-        assert!(!extraction_site_accepts_commodity(
-            "mine",
-            CommodityKind::Stone
-        ));
     }
 }

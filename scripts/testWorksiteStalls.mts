@@ -424,11 +424,11 @@ assert.equal(
   mineralPlan.sites.find((site) => site.buildingId === fullSaltMine.id)
     ?.targetLabor,
   0,
-  'a Mining Camp at its selected yard target must not retain a producer for its salt cart',
+  'a Mining Camp with a full physical yard must not retain a producer for its salt cart',
 );
 assert.equal(
   mineralPlan.sites.find((site) => site.buildingId === fullSaltMine.id)?.detail,
-  'local salt yard target reached',
+  'local salt yard is full',
 );
 assert.equal(
   mineralPlan.sites.some((site) => site.buildingId === richIronMine.id),
@@ -622,11 +622,11 @@ const serverPolicy = readFileSync(
 );
 assert.match(expandedEconomy, /processor_input_runway_cycles\(stock, per_cycle\)/);
 assert.match(expandedEconomy, /processor_output_headroom/);
-assert.match(stoneQuarrySimulation, /processor_output_headroom/);
+assert.match(stoneQuarrySimulation, /building_commodity_room/);
 assert.match(
   stoneQuarrySimulation,
   /available \+ 1e-6 < batch \|\| room \+ 1e-6 < batch/,
-  'Mining Camps must refuse a whole extraction batch when either the finite surface reserve or selected yard headroom is too small',
+  'Mining Camps must refuse a whole extraction batch when either the finite surface reserve or physical yard room is too small',
 );
 assert.match(stoneQuarrySimulation, /nearest_surface_deposit/);
 assert.match(largeQuarrySimulation, /RICH_DEPOSIT_CENTER_TOLERANCE: f64 = 2\.5/);

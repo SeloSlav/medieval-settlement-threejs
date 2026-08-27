@@ -455,7 +455,7 @@ function clayPitStall(
     buildingId: building.id,
     kind: 'clay_pit',
     reason: 'output_blocked',
-    detail: 'local clay yard target reached',
+    detail: 'local clay yard is full',
     assignedLabor,
     assignedWorkers: assignedLabor,
     targetLabor,
@@ -524,7 +524,7 @@ function mineStall(
     return {
       ...base,
       reason: 'output_blocked',
-      detail: `local ${source.resource} yard target reached`,
+      detail: `local ${source.resource} yard is full`,
     };
   }
   if (!richMineSupportsReady(building.timber)) {
@@ -571,7 +571,7 @@ function quarryStall(
     return {
       ...base,
       reason: 'output_blocked',
-      detail: `local ${source.resource} yard target reached`,
+      detail: `local ${source.resource} yard is full`,
     };
   }
 

@@ -140,10 +140,9 @@ pub fn processor_input_staging_cycles(percent: u8) -> f64 {
 mod tests {
     use super::{
         is_processor_output_target_kind, is_production_output_target_kind,
-        is_valid_processor_output_target_percent,
-        normalize_processor_output_target_percent, processor_input_kinds,
-        processor_input_staging_cycles, processor_output_headroom, processor_output_kind,
-        processor_output_target, ProcessorInputKind, ProcessorOutputKind,
+        is_valid_processor_output_target_percent, normalize_processor_output_target_percent,
+        processor_input_kinds, processor_input_staging_cycles, processor_output_headroom,
+        processor_output_kind, processor_output_target, ProcessorInputKind, ProcessorOutputKind,
         PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES, PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
     };
 

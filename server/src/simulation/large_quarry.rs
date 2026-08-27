@@ -8,8 +8,7 @@ use crate::civilian_tool_policy::{civilian_tool_throughput_multiplier, civilian_
 use crate::constants::TICK_DT;
 use crate::db::*;
 use crate::economy::{
-    building_commodity_room, deposit_building_commodity,
-    withdraw_building_commodity, CommodityKind,
+    building_commodity_room, deposit_building_commodity, withdraw_building_commodity, CommodityKind,
 };
 use crate::extraction_policy::quarry_geological_commodity;
 use crate::simulation::delivery_trips::onsite_building_labor;

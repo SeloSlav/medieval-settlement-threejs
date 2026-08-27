@@ -485,10 +485,10 @@ function formatGeologicalResourcePlan(
     : '';
   const yardInspect = plan.firstTargetPausedBuildingId === null
     ? ''
-    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstTargetPausedBuildingId}" aria-label="Inspect extraction work paused at its yard target">Inspect held yard</button>`;
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstTargetPausedBuildingId}" aria-label="Inspect extraction work paused at its full yard">Inspect full yard</button>`;
   const yardStatus = plan.extractionSites === 0
     ? 'no extraction yard built'
-    : `${Math.round(plan.yardStock)} held against ${Math.ceil(plan.yardTarget)} chosen yard target &middot; ${Math.floor(plan.yardHeadroom)} aggregate headroom${
+    : `${Math.round(plan.yardStock)} held against ${Math.ceil(plan.yardTarget)} physical yard capacity &middot; ${Math.floor(plan.yardHeadroom)} aggregate headroom${
         plan.yardSurplusAboveTarget > 0.05
           ? ` &middot; ${Math.round(plan.yardSurplusAboveTarget)} remains physically above newly lowered targets`
           : ''
@@ -2708,7 +2708,7 @@ export function renderTownHallInspector(
         ${!staffedTownHallAvailable && worksiteStalls.reclaimableWorkers > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to issue a settlement-wide stalled-production recall.</p>' : ''}
       </div>
       <div class="inspector-action-panel" data-inspector-panel-title="Deploy production labor">
-        <p class="inspector-action-panel__hint">Deploy free labor to completed production sites that can accept work: workshops below their output ceiling, extraction works on usable deposits with room below their chosen yard target, and hunting halls with harvestable game above their reserve. Sites share workers round-robin in stable worksite order. This manual order may pre-staff an empty workshop in preparation for future carts. Existing crews are never displaced.${productionLaborStewardEnabled ? ' The daily steward is stricter and calls workshops only when every recipe input is present or already inbound.' : ' Future hiring remains manual.'}</p>
+        <p class="inspector-action-panel__hint">Deploy free labor to completed production sites that can accept work: workshops below their output ceiling, extraction works on usable deposits with room in their physical yards, and hunting halls with harvestable game above their reserve. Sites share workers round-robin in stable worksite order. This manual order may pre-staff an empty workshop in preparation for future carts. Existing crews are never displaced.${productionLaborStewardEnabled ? ' The daily steward is stricter and calls workshops only when every recipe input is present or already inbound.' : ' Future hiring remains manual.'}</p>
         <button type="button" class="resource-action-button" data-call-up-target-ready-processor-labor ${staffedTownHallAvailable && productionLaborCallup.callupWorkers > 0 ? '' : 'disabled'}>
           ${productionLaborCallup.callupWorkers > 0
             ? `Deploy ${productionLaborCallup.callupWorkers} production ${productionLaborCallup.callupWorkers === 1 ? 'worker' : 'workers'}`

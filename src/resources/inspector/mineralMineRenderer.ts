@@ -60,12 +60,12 @@ export function renderMineralMineInspector(
       ? 'rock salt'
       : 'deep clay';
   const stock = Math.max(0, building[resource] ?? 0);
-  const yardTarget = extractionOutputTarget(
+  const yardCapacity = extractionOutputTarget(
     'mine',
     resource,
   );
   const outputHeadroom = extractionOutputHeadroom(building, resource) ?? 0;
-  const targetReached = outputHeadroom <= 1e-6;
+  const yardFull = outputHeadroom <= 1e-6;
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
   const inboundSupply = context.worldQueries.getInboundSupplyTrip(building);
   const inboundSupportTimber = inboundSupply?.cargoKind === 'timber'
@@ -80,7 +80,7 @@ export function renderMineralMineInspector(
   const active = onsiteLabor > 0
     && sourceUsable
     && onsiteSupportReady
-    && !targetReached;
+    && !yardFull;
   const throughput = (deposit ? RICH_MINE_THROUGHPUT_MULTIPLIER : 1)
     * civilianToolThroughputMultiplier(building.ironwork ?? 0);
   const cycleSeconds = laborScaledInterval(
@@ -110,8 +110,8 @@ export function renderMineralMineInspector(
     title: context.worldQueries.getBuildingLabel(building.kind),
     statusText: deposit === null
       ? 'Stopped - no rich iron, salt, or clay deposit beneath the shaft'
-      : targetReached
-          ? `Paused - ${resource} yard target reached (${stock.toFixed(0)} / ${yardTarget.toFixed(0)})`
+      : yardFull
+          ? `Paused - ${resource} yard full (${stock.toFixed(0)} / ${yardCapacity.toFixed(0)})`
           : building.assignedLabor === 0
             ? 'Idle - assign at least 1 miner to request timber supports'
             : !onsiteSupportReady
@@ -123,7 +123,7 @@ export function renderMineralMineInspector(
               : `Extracting rich deep ${resource} - source does not deplete`,
     statusState: active
       ? 'active'
-      : targetReached
+      : yardFull
         ? 'idle'
         : building.assignedLabor === 0
           ? 'idle'
@@ -147,7 +147,7 @@ export function renderMineralMineInspector(
           ? ` - ${Math.round((RICH_MINE_THROUGHPUT_MULTIPLIER - 1) * 100)}% faster deep working with maintained timber cribs`
           : ''
       }</span></li>
-      <li><span>Yard ceiling</span><span>${stock.toFixed(0)} / ${yardTarget.toFixed(0)} ${resource} · ${outputHeadroom.toFixed(0)} headroom</span></li>
+      <li><span>Yard capacity</span><span>${stock.toFixed(0)} / ${yardCapacity.toFixed(0)} ${resource} · ${outputHeadroom.toFixed(0)} headroom</span></li>
       <li><span>Production interval</span><span>${
         active
           ? `${cycleSeconds.toFixed(1)}s`

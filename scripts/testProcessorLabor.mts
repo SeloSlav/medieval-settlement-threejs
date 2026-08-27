@@ -510,7 +510,7 @@ assert.match(inspector.supplementalPanelHtml ?? '', /Deploy 3 production workers
 assert.match(inspector.supplementalPanelHtml ?? '', /Sites share workers round-robin in stable worksite order/);
 assert.match(
   inspector.supplementalPanelHtml ?? '',
-  /extraction works on usable deposits with room below their chosen yard target/,
+  /extraction works on usable deposits with room in their physical yards/,
 );
 assert.match(inspector.supplementalPanelHtml ?? '', /every recipe input is present or already inbound/);
 assert.match(inspector.supplementalPanelHtml ?? '', /data-policy-production-labor-steward/);

@@ -419,7 +419,7 @@ const reopenedMineProduction = computeSettlementProductionCapacity(
 approx(
   heldMineProduction.localIronOutputPerDay,
   reopenedMineProduction.localIronOutputPerDay,
-  'yard targets pause current extraction but must not create false iron import demand',
+  'yard fullness pauses current extraction but must not create false iron import demand',
 );
 assert.ok(
   reopenedMineProduction.maintainedToolIronworkPerDay > 0,
@@ -2396,7 +2396,7 @@ assert.match(townHallRenderer, /racks reorder below/);
 assert.match(townHallRenderer, /target-held sites wear nothing until work resumes/);
 assert.match(townHallRenderer, /deep workings need/);
 assert.match(townHallRenderer, /Inspect support/);
-assert.match(townHallRenderer, /chosen yard target/);
+assert.match(townHallRenderer, /physical yard capacity/);
 assert.match(townHallRenderer, /remains physically above newly lowered targets/);
 assert.match(townHallRenderer, /operating \/ \$\{/);
 
