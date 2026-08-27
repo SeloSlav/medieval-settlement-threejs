@@ -398,7 +398,11 @@ assert.match(
 assert.match(generatedTable, /processorOutputTargetPercent:[\s\S]*processor_output_target_percent/);
 assert.match(generatedReducer, /buildingId:[\s\S]*targetPercent/);
 assert.match(sync, /processorOutputTargetPercent: row\.processorOutputTargetPercent/);
-assert.match(inspector, /data-processor-output-target/);
+assert.doesNotMatch(
+  inspector,
+  /data-processor-output-target/,
+  'workshop inspectors must not expose stock-policy buttons',
+);
 assert.match(inspector, /stages \$\{stagingLabel\}/);
 assert.match(inspector, /sets both the on-site input staging depth and the finished-goods ceiling/);
 assert.match(inspector, /Routine input top-ups stop at the staged-cycle target/);

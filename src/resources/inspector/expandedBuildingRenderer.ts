@@ -146,7 +146,6 @@ import { GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS } from '../../security/frontierSec
 import {
   isProcessorOutputTargetKind,
   normalizeProcessorOutputTargetPercent,
-  PROCESSOR_OUTPUT_TARGET_PRESETS,
   processorInputStagingCycles,
   processorOutputCommodity,
   processorOutputCommodityForBuilding,
@@ -1723,9 +1722,6 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
   return `
     <div class="inspector-action-panel" data-inspector-panel-title="Production policy">
       <p class="resource-inspector-note">Stock policy · stages ${stagingLabel} · finished ${label} ${stock.toFixed(0)} / ${target.toFixed(0)} · ${pressure}</p>
-      <div class="resource-action-row">${PROCESSOR_OUTPUT_TARGET_PRESETS
-        .map((preset) => `<button type="button" class="resource-action-button" data-processor-output-target="${preset.percent}" title="${preset.hint}" ${percent === preset.percent ? 'disabled' : ''}>${preset.label} · ${preset.percent}%</button>`)
-        .join('')}</div>
       ${textileInputPolicy}
       ${breweryRecipePolicy}
       ${potterFiringPolicy}

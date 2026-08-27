@@ -585,20 +585,20 @@ export function renderResidenceInspector(
       * SIM_TICK_SECONDS / CALENDAR_SECONDS_PER_DAY
     : 0;
   const healthLabel = activeHungerDays >= STARVATION_DEATH_START_DAYS
-    ? `Starving · ${activeHungerDays.toFixed(1)} accumulated shortage days`
+    ? `Starving · ${activeHungerDays.toFixed(0)} accumulated shortage days`
     : coldExposureDays >= COLD_EXPOSURE_DEATH_START_DAYS
       ? `Freezing · ${coldExposureDays.toFixed(1)} consecutive winter days without heat`
       : activeHungerDays >= MALNUTRITION_DAYS
-        ? `Malnourished · ${activeHungerDays.toFixed(1)} accumulated shortage days`
+        ? `Malnourished · ${activeHungerDays.toFixed(0)} accumulated shortage days`
         : coldExposureDays >= COLD_EXPOSURE_WARNING_DAYS
           ? `Cold-exposed · ${coldExposureDays.toFixed(1)} winter days without heat`
           : activeHungerDays >= HUNGER_WARNING_DAYS
-            ? `Hungry · ${activeHungerDays.toFixed(1)} accumulated shortage days`
+            ? `Hungry · ${activeHungerDays.toFixed(0)} accumulated shortage days`
             : (residence.sickPopulation ?? 0) > 0
               ? `${residence.sickPopulation} sick`
               : recoveringFromHunger
                 ? hungerDays > 0.05
-                  ? `Recovering · food need currently met · ${hungerDays.toFixed(1)} shortage-days remain`
+                  ? `Recovering · food need currently met · ${hungerDays.toFixed(0)} shortage-days remain`
                   : `Recovering · food need currently met · ${Math.round(malnutrition * 100)}% malnutrition remains`
                 : 'Well';
   const healthWarning = activeHungerDays >= HUNGER_WARNING_DAYS
@@ -617,15 +617,15 @@ export function renderResidenceInspector(
   const householdCorpses = Array.from((context.gameState.corpses ?? new Map()).values())
     .filter((corpse) => corpse.residenceId === residence.id);
   const compactHealthLabel = activeHungerDays >= STARVATION_DEATH_START_DAYS
-    ? `Starving · ${activeHungerDays.toFixed(1)}d elapsed`
+    ? `Starving · ${activeHungerDays.toFixed(0)}d elapsed`
     : coldExposureDays >= COLD_EXPOSURE_DEATH_START_DAYS
       ? `Freezing · ${coldExposureDays.toFixed(1)}d`
       : activeHungerDays >= MALNUTRITION_DAYS
-        ? `Malnourished · ${activeHungerDays.toFixed(1)}d elapsed`
+        ? `Malnourished · ${activeHungerDays.toFixed(0)}d elapsed`
         : coldExposureDays >= COLD_EXPOSURE_WARNING_DAYS
           ? `Cold · ${coldExposureDays.toFixed(1)}d`
           : activeHungerDays >= HUNGER_WARNING_DAYS
-            ? `Hungry · ${activeHungerDays.toFixed(1)}d elapsed`
+            ? `Hungry · ${activeHungerDays.toFixed(0)}d elapsed`
             : (residence.sickPopulation ?? 0) > 0
               ? `Sick · ${residence.sickPopulation}`
               : recoveringFromHunger
@@ -786,7 +786,7 @@ export function renderResidenceInspector(
     `
     : `
       <li data-residence-summary data-inspector-primary data-inspector-detail="Parcel #${residence.parcelIndex + 1} · ${residenceCount} residence${residenceCount === 1 ? '' : 's'} · ${settlersRemaining} vacancies"><span>Population</span><span>${residence.population} / ${capacity}</span></li>
-      <li data-residence-summary data-inspector-primary data-inspector-detail="Food need ${foodShortageActive ? 'currently unmet' : 'currently met'} · accumulated shortage ${hungerDays.toFixed(1)}d · malnutrition ${Math.round(malnutrition * 100)}% · sick ${residence.sickPopulation ?? 0} · deaths ${residence.deathsTotal ?? 0}"><span>Health</span><span>${compactHealthLabel}</span></li>
+      <li data-residence-summary data-inspector-primary data-inspector-detail="Food need ${foodShortageActive ? 'currently unmet' : 'currently met'} · accumulated shortage ${hungerDays.toFixed(0)}d · malnutrition ${Math.round(malnutrition * 100)}% · sick ${residence.sickPopulation ?? 0} · deaths ${residence.deathsTotal ?? 0}"><span>Health</span><span>${compactHealthLabel}</span></li>
       ${renderResidenceTierNeedsRow(residence, roadAccess)}
       <li data-residence-summary data-inspector-primary data-inspector-resource-strip data-inspector-section="Stores"><span>Stores</span>${renderInspectorResourceStrip(householdTokens, { ariaLabel: 'Household stores' })}</li>
     `;
