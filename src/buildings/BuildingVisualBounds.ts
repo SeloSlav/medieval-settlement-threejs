@@ -1,5 +1,5 @@
 import type { BuildingKind } from '../resources/types.ts';
-import { getBuildingFootprintHalfExtents } from './BuildingTerrainLayout.ts';
+import { getBuildingFootprintHalfExtents } from './BuildingFootprint.ts';
 
 /**
  * Local X/Z envelope used by road-link markers. Bounds include the exact

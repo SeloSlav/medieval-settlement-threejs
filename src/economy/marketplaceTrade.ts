@@ -32,7 +32,6 @@ const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   stone: 'Stone',
   firewood: 'Firewood',
   water: 'Water',
-  food: 'Mixed provisions',
   ryeSheaves: 'Rye sheaves',
   oatSheaves: 'Oat sheaves',
   barleySheaves: 'Barley sheaves',
@@ -329,8 +328,9 @@ export function marketplaceResourceRoom(
   resource: TradeResourceKind,
 ): number {
   const storageResource = tradeStorageResource(resource);
-  const cap = (BUILDING_STORAGE_CAPS.trading_post as Record<string, number | undefined>)[storageResource] ?? 0;
-  const stock = storageResource === 'food'
+  const storageKey = storageResource === 'freshFood' ? 'food' : storageResource;
+  const cap = (BUILDING_STORAGE_CAPS.trading_post as Record<string, number | undefined>)[storageKey] ?? 0;
+  const stock = storageResource === 'freshFood'
     ? freshFoodStock(building)
     : storageResource === 'preservedFood'
       ? preservedFoodStock(building)
@@ -342,21 +342,28 @@ export function marketplaceResourceRoom(
   return Math.max(0, cap - stock);
 }
 
-function tradeStorageResource(resource: TradeResourceKind): TradeResourceKind | 'grain' | 'flour' {
+function tradeStorageResource(
+  resource: TradeResourceKind,
+): TradeResourceKind | 'freshFood' | 'grain' | 'flour' {
   if (
-    resource === 'food'
-    || resource === 'meat'
+    resource === 'meat'
     || resource === 'fish'
     || resource === 'berries'
     || resource === 'mushrooms'
     || resource === 'milk'
     || resource === 'apples'
+    || resource === 'pears'
     || resource === 'cherries'
+    || resource === 'aronia'
+    || resource === 'rosehips'
+    || resource === 'cabbage'
+    || resource === 'carrots'
+    || resource === 'beetroot'
     || resource === 'eggs'
     || resource === 'grapes'
     || resource === 'ryeBread'
     || resource === 'maslinBread'
-  ) return 'food';
+  ) return 'freshFood';
   if (
     resource === 'preservedFood'
     || resource === 'curedMeat'
@@ -420,7 +427,7 @@ export function canReceiveWaterCommodityTrade(
 
 export function formatTradeAvailabilitySummary(availability: MarketplaceTradeAvailability): string {
   const parts = (
-    ['gold', 'timber', 'stone', 'firewood', 'food', 'iron', 'salt', 'pottery'] as const
+    ['gold', 'timber', 'stone', 'firewood', 'ryeBread', 'iron', 'salt', 'pottery'] as const
   ).map((resource) => {
     const amount = Math.round(availability[resource]);
     return `${tradeResourceLabel(resource)} ${amount}`;

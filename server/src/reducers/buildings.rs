@@ -60,6 +60,7 @@ use crate::monastery_estate_policy::{
     monastery_estate_fits_map, monastery_estate_is_near_map_edge,
     playable_half_for_monastery_map_size,
 };
+use crate::livestock_policy::is_valid_milk_use_policy;
 use crate::placement_validation::{
     building_footprints_too_close, building_overlaps_residence_zone,
     building_overlaps_resource_deposit, building_overlaps_road_surface,
@@ -67,13 +68,11 @@ use crate::placement_validation::{
     zone_overlaps_building_footprint,
 };
 use crate::potter_firing_policy::{is_valid_potter_firing_policy, potter_fires_roof_tiles};
-use crate::pottery_dispatch_policy::is_valid_pottery_dispatch_policy;
 use crate::processor_labor_policy::{
     processor_callup_targets, production_steward_callup_allowed, ProcessorCallupCandidate,
 };
 use crate::processor_output_policy::{
-    is_processor_output_target_kind, is_production_output_target_kind,
-    is_valid_processor_output_target_percent, processor_input_kinds, processor_output_headroom,
+    is_processor_output_target_kind, processor_input_kinds, processor_output_headroom,
     processor_output_kind, ProcessorInputKind, ProcessorOutputKind,
     PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
 };
@@ -2340,13 +2339,13 @@ pub fn set_storehouse_stock_target(
 }
 
 #[reducer]
-pub fn set_processor_output_target(
+pub fn set_livestock_milk_use_policy(
     ctx: &ReducerContext,
     building_id: u64,
-    target_percent: u8,
+    milk_use_policy: u8,
 ) -> Result<(), String> {
-    if !is_valid_processor_output_target_percent(target_percent) {
-        return Err("Production stock target must be 25%, 50%, 75%, or 100%.".to_string());
+    if !is_valid_milk_use_policy(milk_use_policy) {
+        return Err("Milk use must be Fresh milk, Balanced, or Cheese first.".to_string());
     }
     let owner = ctx.sender();
     let mut building = ctx
@@ -2354,14 +2353,14 @@ pub fn set_processor_output_target(
         .building()
         .id()
         .find(&building_id)
-        .ok_or_else(|| "Production site not found.".to_string())?;
+        .ok_or_else(|| "Pastoral holding not found.".to_string())?;
     if building.owner != owner
+        || building.kind != "pastoral_farmstead"
         || !building.construction_complete
-        || !is_production_output_target_kind(&building.kind)
     {
-        return Err("You do not own this completed production site.".to_string());
+        return Err("You do not own this completed pastoral holding.".to_string());
     }
-    building.processor_output_target_percent = target_percent;
+    building.milk_use_policy = milk_use_policy;
     ctx.db.building().id().update(building);
     Ok(())
 }
@@ -2442,33 +2441,6 @@ pub fn set_weaver_input_policy(
         return Err("You do not own this completed textile workshop.".to_string());
     }
     building.weaver_input_policy = input_policy;
-    ctx.db.building().id().update(building);
-    Ok(())
-}
-
-#[reducer]
-pub fn set_pottery_dispatch_policy(
-    ctx: &ReducerContext,
-    building_id: u64,
-    dispatch_policy: u8,
-) -> Result<(), String> {
-    if !is_valid_pottery_dispatch_policy(dispatch_policy) {
-        return Err(
-            "Pottery dispatch policy must be Market wares first or Preservation first.".to_string(),
-        );
-    }
-    let owner = ctx.sender();
-    let mut building = ctx
-        .db
-        .building()
-        .id()
-        .find(&building_id)
-        .ok_or_else(|| "Potter kiln not found.".to_string())?;
-    if building.owner != owner || building.kind != "potter_kiln" || !building.construction_complete
-    {
-        return Err("You do not own this completed potter kiln.".to_string());
-    }
-    building.pottery_dispatch_policy = dispatch_policy;
     ctx.db.building().id().update(building);
     Ok(())
 }

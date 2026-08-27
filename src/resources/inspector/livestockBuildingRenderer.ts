@@ -1,6 +1,6 @@
 import {
   LIVESTOCK_MILK_USE_PRESETS,
-  livestockMilkUsePolicy,
+  livestockMilkUsePolicyForBuilding,
   livestockWaterRequiredPerCycle,
 } from '../../economy/livestockPolicy.ts';
 import {
@@ -95,7 +95,7 @@ export function renderLivestockBuildingInspector(
   const onsiteLabor = laborForecast?.onsiteHumanWorkers
     ?? onsiteBuildingLabor(building, activeTrip);
   const pairedOxen = laborForecast?.pairedOxen ?? 0;
-  const milkUse = livestockMilkUsePolicy(building.processorOutputTargetPercent);
+  const milkUse = livestockMilkUsePolicyForBuilding(building);
   const waterStock = Math.max(0, building.water ?? 0);
   const underSupplied = totalHead > totalSupplied + 1e-6;
   const waterShort = waterPerCycle > waterStock + 1e-6;
@@ -142,7 +142,7 @@ export function renderLivestockBuildingInspector(
     ? `<div class="inspector-action-panel" data-inspector-panel-title="Milk use">
         <p class="resource-inspector-note">This holding-wide policy applies to milk arriving from all linked cattle and sheep pastures.</p>
         <div class="resource-action-row">${LIVESTOCK_MILK_USE_PRESETS
-          .map((preset) => `<button type="button" class="resource-action-button" data-processor-output-target="${preset.value}" ${milkUse.value === preset.value ? 'disabled' : ''}>${preset.label}</button>`)
+          .map((preset) => `<button type="button" class="resource-action-button" data-livestock-milk-use="${preset.value}" ${milkUse.value === preset.value ? 'disabled' : ''}>${preset.label}</button>`)
           .join('')}</div>
         <p class="inspector-action-panel__hint">${milkUse.hint}</p>
       </div>`

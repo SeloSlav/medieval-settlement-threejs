@@ -45,6 +45,7 @@ import {
   isLivestockHaymakingMonth,
   livestockCareCapacity,
   livestockMilkAllocationPerCycle,
+  livestockMilkUsePolicyForBuilding,
   livestockDairySaltPerCycle,
   livestockStorageSecuredCullHeads,
   pendingLivestockCullHeads,
@@ -278,15 +279,16 @@ export function projectLivestockFodderHolding(
   const productiveHeads = herd.species === 'swine'
     ? 0
     : careSupportedHeads * Math.min(1, Math.max(0, herd.health));
+  const milkUsePolicy = livestockMilkUsePolicyForBuilding(building).value;
   const dairyPreservedFoodPerCycle = livestockMilkAllocationPerCycle(
     herd.species,
     productiveHeads,
-    building.processorOutputTargetPercent,
+    milkUsePolicy,
   ).cheese;
   const dairySaltPerCycle = livestockDairySaltPerCycle(
     herd.species,
     productiveHeads,
-    building.processorOutputTargetPercent,
+    milkUsePolicy,
   );
   const dairySaltStock = herd.species === 'swine'
     ? 0
@@ -294,7 +296,7 @@ export function projectLivestockFodderHolding(
   const dairySaltTarget = herd.species === 'swine' || onsiteHumanWorkers <= 0
     ? 0
     : LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE
-      * farmhouseCheeseSaltStagingCycles(building.processorOutputTargetPercent);
+      * farmhouseCheeseSaltStagingCycles(milkUsePolicy);
   const dairySaltPerDay = dairySaltPerCycle * cyclesPerDay;
   const fodderValuePerHead = FODDER_VALUE_PER_UNSUPPORTED_HEAD[herd.species];
   const hayPerHead = HAY_PER_UNSUPPORTED_HEAD[herd.species];

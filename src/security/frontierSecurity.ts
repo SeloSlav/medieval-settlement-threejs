@@ -1330,7 +1330,6 @@ function portableRaidValue(stores: PortableRaidStoresLike): number {
 const RAID_PORTABLE_STORE_SUMMARY = [
   ['timber', 'timber', 1],
   ['firewood', 'firewood', 1],
-  ['food', 'food', 1],
   ['ryeSheaves', 'rye sheaves', 1],
   ['oatSheaves', 'oat sheaves', 1],
   ['barleySheaves', 'barley sheaves', 1],

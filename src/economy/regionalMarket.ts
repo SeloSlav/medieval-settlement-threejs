@@ -69,7 +69,6 @@ export function priceMultiplierFor(
     case 'water':
     case 'charcoal':
       return state.firewoodPriceMult;
-    case 'food':
     case 'ryeSheaves':
     case 'oatSheaves':
     case 'barleySheaves':
@@ -177,7 +176,7 @@ export function formatRegionalRateSummary(state: RegionalMarketState): string {
     ['Stone', 'stone'],
     ['Iron', 'iron'],
     ['Firewood', 'firewood'],
-    ['Food & seed grain', 'food'],
+    ['Food & seed grain', 'ryeGrain'],
     ['Salt', 'salt'],
   ];
   const bulkRates = rates

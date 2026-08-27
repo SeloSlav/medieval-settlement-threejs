@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { BUILDING_CARD_ART } from '../resources/buildingCardArt.ts';
 import type { BuildingKind } from '../resources/types.ts';
 import { prepareBuildingGeometryUvs } from './buildingMetricUvs.ts';
-import { getBuildingFootprintHalfExtents } from './BuildingTerrainLayout.ts';
+import { getBuildingFootprintHalfExtents } from './BuildingFootprint.ts';
 import {
   metalMaterial,
   sharedBuildingDetailMaterial,

@@ -180,7 +180,7 @@ const STOCKED_PREVIEW_PREFIXES = [
   'MonasteryWineSegment',
 ] as const;
 const COLS = compareServiceCoverage
-  ? 2
+  ? 3
   : compareChurchTiers
     ? 3
   : compareResidences
@@ -204,7 +204,7 @@ if (compareServiceCoverage) {
   const subtitle = document.querySelector('header p');
   if (heading) heading.textContent = 'Service Territory Readability';
   if (subtitle) {
-    subtitle.textContent = 'Actual assignments · one instanced draw per overlay';
+    subtitle.textContent = 'Translucent full-home assignment overlays · Marketplace fulfillment traffic lights';
   }
 } else if (compareChurchTiers) {
   const heading = document.querySelector('h1');
@@ -245,7 +245,11 @@ const viewSpecs = constructionKind
       },
       {
         mesh: createServiceCoveragePreview('marketplace'),
-        label: 'Marketplace · 4 assigned homes · 1 outside the territory',
+        label: 'Marketplace · green fulfilled · yellow partial · red unfulfilled',
+      },
+      {
+        mesh: createServiceCoveragePreview('chapel'),
+        label: 'Church · 4 tier-qualified parish homes · 1 outside the territory',
       },
     ]
   : compareChurchTiers
@@ -537,11 +541,11 @@ document.body.dataset.painterlySurfaceCoverage = painterlySurfaceCoverage ? 'tru
 window.addEventListener('resize', render);
 
 function createServiceCoveragePreview(
-  kind: 'well' | 'marketplace',
+  kind: 'well' | 'marketplace' | 'chapel',
 ): THREE.Group {
   const group = new THREE.Group();
   const markers = new ResidenceMarkers(group);
-  const prefix = kind === 'well' ? 'water' : 'market';
+  const prefix = kind === 'well' ? 'water' : kind === 'chapel' ? 'church' : 'market';
   const homes = [
     { x: -8.5, z: -6.5, tier: 1 as const },
     { x: 8.5, z: -6.5, tier: 2 as const },
@@ -567,6 +571,14 @@ function createServiceCoveragePreview(
   markers.setServiceCoverageHighlights(
     new Set(homes.slice(0, 4).map((home) => home.id)),
     kind,
+    kind === 'marketplace'
+      ? new Map([
+          [homes[0]!.id, 'fulfilled' as const],
+          [homes[1]!.id, 'partial' as const],
+          [homes[2]!.id, 'unfulfilled' as const],
+          [homes[3]!.id, 'fulfilled' as const],
+        ])
+      : undefined,
   );
   group.userData.residenceMarkers = markers;
 
