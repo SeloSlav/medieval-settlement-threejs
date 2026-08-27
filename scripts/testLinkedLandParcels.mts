@@ -239,10 +239,9 @@ const graveyardInspector = renderGraveyardInspector(
     worldQueries: { getBuildingLabel: () => 'Church' },
   } as Parameters<typeof renderGraveyardInspector>[1],
 );
-assert.match(graveyardInspector.detailsHtml, /Grave spots<\/span><strong>24 total \/ 17 open/);
-assert.match(graveyardInspector.detailsHtml, /Dead resting here<\/span><strong>7/);
-assert.doesNotMatch(graveyardInspector.detailsHtml, /Open grave spots/);
-assert.match(graveyardInspector.detailsHtml, /Incoming burials<\/span><span>1/);
+assert.match(graveyardInspector.detailsHtml, /Burials<\/span><strong>7 buried \/ 24 total/);
+assert.equal((graveyardInspector.detailsHtml.match(/<li>/g) ?? []).length, 1);
+assert.match(graveyardInspector.statusText, /17 grave spots remain · 1 incoming/);
 assert.doesNotMatch(graveyardInspector.detailsHtml, /Linked church/);
 assert.equal(graveyardInspector.title, 'Burial ground');
 

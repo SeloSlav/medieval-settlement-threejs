@@ -28,9 +28,7 @@ export function renderGraveyardInspector(
           : `${available} grave spot${available === 1 ? '' : 's'} remain${incoming > 0 ? ` · ${incoming} incoming` : ''}`,
     statusState: capacity <= 0 || available <= 0 ? 'warning' : burials > 0 || incoming > 0 ? 'active' : 'idle',
     detailsHtml: `
-      <li><span>Grave spots</span><strong>${capacity} total / ${available} open</strong></li>
-      <li><span>Dead resting here</span><strong>${burials}</strong></li>
-      ${incoming > 0 ? `<li><span>Incoming burials</span><span>${incoming}</span></li>` : ''}
+      <li><span>Burials</span><strong>${burials} buried / ${capacity} total</strong></li>
     `,
     demolish: {
       visible: removable,
