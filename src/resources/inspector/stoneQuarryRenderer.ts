@@ -36,25 +36,25 @@ export function renderStoneQuarryInspector(
     ? nearestDeposit.resource
     : 'stone';
   const stock = Math.max(0, building[resource] ?? 0);
-  const yardTarget = extractionOutputTarget(
+  const yardCapacity = extractionOutputTarget(
     'stone_quarry',
     resource,
   );
   const outputHeadroom = extractionOutputHeadroom(building, resource) ?? 0;
-  const targetReached = outputHeadroom <= 1e-6;
+  const yardFull = outputHeadroom <= 1e-6;
   const onsiteLabor = onsiteBuildingLabor(
     building,
     context.worldQueries.getActiveDeliveryTrip(building),
   );
-  const active = onsiteLabor > 0 && nearestDeposit != null && !targetReached;
+  const active = onsiteLabor > 0 && nearestDeposit != null && !yardFull;
   const cycleSeconds = laborScaledInterval(definition.harvestInterval, onsiteLabor)
     / civilianToolThroughputMultiplier(building.ironwork ?? 0);
 
   return {
     eyebrow: 'Surface extraction camp',
     title: label,
-    statusText: targetReached
-      ? `Paused - ${resource} yard target reached (${stock.toFixed(0)} / ${yardTarget.toFixed(0)})`
+    statusText: yardFull
+      ? `Paused - ${resource} yard full (${stock.toFixed(0)} / ${yardCapacity.toFixed(0)})`
       : nearestDeposit == null
         ? 'Stopped - no unexhausted surface deposit in range'
         : onsiteLabor === 0
@@ -64,7 +64,7 @@ export function renderStoneQuarryInspector(
           : `Extracting surface ${resource} — ${Math.round(nearestDeposit.remaining)} left at site`,
     statusState: active
       ? 'active'
-      : !targetReached && nearestDeposit == null
+      : !yardFull && nearestDeposit == null
         ? 'warning'
         : 'idle',
     detailsHtml: `
@@ -74,7 +74,7 @@ export function renderStoneQuarryInspector(
       <li><span>Placement</span><span>Freely sited within ${definition.workRadius} m of a surface deposit · never snaps to its center</span></li>
       <li><span>Source</span><span>${nearestDeposit == null ? 'No unexhausted deposit in range' : `${nearestDeposit.isRich ? 'Rich' : 'Ordinary'} ${resource} surface deposit · finite`}</span></li>
       <li><span>Harvest interval</span><span>${active ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
-      <li><span>Yard ceiling</span><span>${stock.toFixed(0)} / ${yardTarget.toFixed(0)} ${resource} · ${outputHeadroom.toFixed(0)} headroom</span></li>
+      <li><span>Yard capacity</span><span>${stock.toFixed(0)} / ${yardCapacity.toFixed(0)} ${resource} · ${outputHeadroom.toFixed(0)} headroom</span></li>
     `,
     demolish: {
       visible: true,

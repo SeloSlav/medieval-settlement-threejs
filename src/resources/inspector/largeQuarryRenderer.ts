@@ -40,12 +40,12 @@ export function renderLargeQuarryInspector(
   );
   const resource = 'stone' as const;
   const stock = Math.max(0, building[resource] ?? 0);
-  const yardTarget = extractionOutputTarget(
+  const yardCapacity = extractionOutputTarget(
     'large_quarry',
     resource,
   );
   const outputHeadroom = extractionOutputHeadroom(building, resource) ?? 0;
-  const targetReached = outputHeadroom <= 1e-6;
+  const yardFull = outputHeadroom <= 1e-6;
   const onsiteLabor = onsiteBuildingLabor(
     building,
     context.worldQueries.getActiveDeliveryTrip(building),
@@ -64,15 +64,15 @@ export function renderLargeQuarryInspector(
   const active = onsiteLabor > 0
     && richDeposit != null
     && onsiteSupportsReady
-    && !targetReached;
+    && !yardFull;
   const cycleSeconds = laborScaledInterval(definition.harvestInterval, onsiteLabor)
     / civilianToolThroughputMultiplier(building.ironwork ?? 0);
 
   return {
     eyebrow: 'Deep stone quarry',
     title: context.worldQueries.getBuildingLabel(building.kind),
-    statusText: targetReached
-      ? `Paused - ${resource} yard target reached (${stock.toFixed(0)} / ${yardTarget.toFixed(0)})`
+    statusText: yardFull
+      ? `Paused - ${resource} yard full (${stock.toFixed(0)} / ${yardCapacity.toFixed(0)})`
       : !richDeposit
         ? 'Stopped — no rich stone deposit beneath the quarry'
         : !onsiteSupportsReady
@@ -86,7 +86,7 @@ export function renderLargeQuarryInspector(
             : 'Cutting rich stone from the non-depleting underground source',
     statusState: active
       ? 'active'
-      : targetReached
+      : yardFull
         ? 'idle'
         : richDeposit == null || (!onsiteSupportsReady && !supportsRecovering)
           ? 'warning'
@@ -102,7 +102,7 @@ export function renderLargeQuarryInspector(
           : ''
       } / ${formatResourceCostAmount(LARGE_QUARRY_SUPPORT_TARGET)} timber target · ${supportRunway.toFixed(1)} batches</span></li>
       <li><span>Support wear</span><span>${renderResourceAmount('timber', LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE, { compact: true, suffix: 'per completed underground batch' })} · nearest lumber mill or storehouse supplies it; roads make the haul faster</span></li>
-      <li><span>Yard ceiling</span><span>${stock.toFixed(0)} / ${yardTarget.toFixed(0)} ${resource} · ${outputHeadroom.toFixed(0)} headroom</span></li>
+      <li><span>Yard capacity</span><span>${stock.toFixed(0)} / ${yardCapacity.toFixed(0)} ${resource} · ${outputHeadroom.toFixed(0)} headroom</span></li>
       <li><span>Production interval</span><span>${active ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       ${buildingRoadAccessRow(context.worldQueries, building)}
     `,
