@@ -405,7 +405,7 @@ assert.match(rendered, /30-day winter fallback/);
 assert.match(rendered, /Reserve completion/);
 assert.match(rendered, /Salt supply/);
 assert.match(rendered, /no staffed same-branch salt extraction site/);
-assert.match(rendered, /Preserving vessels/);
+assert.doesNotMatch(rendered, /Preserving vessels/);
 assert.match(rendered, /data-inspect-residence="recipe-home"/);
 assert.match(rendered, /data-inspect-building="recipe-smokehouse"/);
 assert.match(rendered, /data-inspect-building="recipe-market"/);
@@ -414,7 +414,7 @@ assert.match(
   new RegExp(`&asymp; ${(recipePlan.saltImportLots * 14).toFixed(0)} gold`),
 );
 assert.match(rendered, /repeated imports can tighten the regional rate/);
-assert.match(rendered, /kiln cart priorities decide/);
+assert.doesNotMatch(rendered, /pottery|kiln cart priorities decide/i);
 assert.match(rendered, /including cured-stock aging while the reserve builds/);
 assert.doesNotMatch(rendered, /Adriatic salt burden/);
 

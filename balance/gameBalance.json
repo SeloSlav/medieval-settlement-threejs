@@ -19,6 +19,7 @@
   },
   "workforce": {
     "averageWalkSpeedMps": 1.225,
+    "movementSpeedMultiplier": 2,
     "roadSpeedMultiplier": 1.25
   },
   "seasons": {
