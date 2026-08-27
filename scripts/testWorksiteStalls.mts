@@ -12,6 +12,7 @@ import {
 } from '../src/economy/breweryRecipePolicy.ts';
 import {
   BUILDING_DEFINITIONS,
+  BUILDING_STORAGE_CAPS,
   type BuildingKind,
 } from '../src/generated/gameBalance.ts';
 import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
@@ -33,7 +34,7 @@ const state = emptyGameState();
 
 const cappedBrewery = building('10', 'brewery', 3, 0, 0);
 cappedBrewery.processorOutputTargetPercent = 25;
-cappedBrewery.ale = 50;
+cappedBrewery.ale = BUILDING_STORAGE_CAPS.brewery.ale;
 const starvedWeaver = building('20', 'weaver', 2, 20, 0);
 starvedWeaver.constructionPriority = 3;
 const partialMill = building('30', 'watermill', 1, 40, 0);
@@ -166,7 +167,7 @@ const saltAndPotteryStarvedSmokehouse = building(
   20,
   0,
 );
-saltAndPotteryStarvedSmokehouse.food = 12;
+saltAndPotteryStarvedSmokehouse.meat = 12;
 saltAndPotteryStarvedSmokehouse.firewood = 6;
 const charcoalStarvedSmithy = building('material-smithy', 'smithy', 2, 40, 0);
 charcoalStarvedSmithy.iron = 8;
@@ -206,7 +207,7 @@ assert.equal(
   materialPlan.sites.find(
     (site) => site.buildingId === saltAndPotteryStarvedSmokehouse.id,
   )?.detail,
-  'missing salt and pottery on site',
+  'no salt on site',
   'the labor steward must not treat fresh food and firewood as a complete preservation recipe',
 );
 assert.equal(
@@ -238,15 +239,6 @@ materialState.deliveryTrips.set(
     'material-market',
     saltAndPotteryStarvedSmokehouse.id,
     'salt',
-  ),
-);
-materialState.deliveryTrips.set(
-  'material-pottery-inbound',
-  trip(
-    'material-pottery-inbound',
-    'material-potter',
-    saltAndPotteryStarvedSmokehouse.id,
-    'pottery',
   ),
 );
 const recoveringMaterialPlan = computeSettlementWorksiteStallPlan(
@@ -289,7 +281,6 @@ const typedSmokehouse = building('recipe-typed-smokehouse', 'smokehouse', 1, 140
 typedSmokehouse.meat = 0.1;
 typedSmokehouse.firewood = 0.1;
 typedSmokehouse.salt = 0.1;
-typedSmokehouse.pottery = 0.1;
 const recoveringTypedSmokehouse = building(
   'recipe-recovering-smokehouse',
   'smokehouse',
@@ -315,7 +306,7 @@ recipeState.deliveryTrips.set(
   'recipe-bakery-water',
   trip('recipe-bakery-water', 'well', recoveringBakery.id, 'water'),
 );
-for (const commodity of ['firewood', 'salt', 'pottery'] as const) {
+for (const commodity of ['firewood', 'salt'] as const) {
   recipeState.deliveryTrips.set(
     `recipe-smokehouse-${commodity}`,
     trip(

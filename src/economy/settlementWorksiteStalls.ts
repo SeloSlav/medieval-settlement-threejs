@@ -295,7 +295,6 @@ function processorInputRecipes(
         ['meat', 'fish', 'milk'],
         ['firewood'],
         ['salt'],
-        ['pottery'],
       ]];
     case 'spinning_retting_house':
       return [

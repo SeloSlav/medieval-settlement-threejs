@@ -241,7 +241,7 @@ const PROCESS: Record<string, string> = {
   bakery: 'Flour + automatic well service + firewood + baker labor -> bread for Marketplace stalls and institutions',
   brewery: 'Barley → malt → ale, 4 apples → 1 apple cider, 4 pears → 1 pear cider, or 1 honey → 1 mead; each finished beverage remains distinct and goes to staffed Taverns',
   tavern: 'Receives ale, apple cider, pear cider, and mead, then serves any of them as the residential Beverage service',
-  smokehouse: 'Meat, fish, or milk + firewood + local or imported salt + pottery vessels -> cured meat, smoked fish, or cheese',
+  smokehouse: 'Meat, fish, or milk + firewood + local or imported salt -> cured meat, smoked fish, or cheese',
   apiary: 'April-September forage + a healthy overwintered colony → physical honey for household food or luxury comfort and Mead-selected Brewhouses, with nearby orchard and vineyard pollination',
   monastery: 'A self-governing 68 × 53 m walled estate raises mixed orchard and garden crops alongside cattle, sheep, eggs, milk, meat, honey, and cheese; orchard fruit becomes house cider, apiary honey becomes mead, and player-drawn vineyards produce town-market wine',
   carpenter: 'Timber + smith-forged ironwork → polearms and cartwright support',

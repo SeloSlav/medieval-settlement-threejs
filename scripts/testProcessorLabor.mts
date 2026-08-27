@@ -238,7 +238,7 @@ const incompleteSmokehouse = building(
   'smokehouse',
   0,
 );
-incompleteSmokehouse.food = 12;
+incompleteSmokehouse.meat = 12;
 incompleteSmokehouse.firewood = 6;
 const incompleteSmithy = building('material-40-smithy', 'smithy', 0);
 incompleteSmithy.iron = 8;
@@ -304,7 +304,7 @@ assert.equal(
     (assignment) => assignment.buildingId === incompleteSmokehouse.id,
   ),
   false,
-  'the daily steward must require salt and pottery as well as food and fuel',
+  'the daily steward must require salt as well as fresh food and fuel',
 );
 assert.equal(
   materialStrictCallup.assignments.some(
@@ -320,15 +320,6 @@ materialCallupState.deliveryTrips.set(
     'market',
     incompleteSmokehouse.id,
     'salt',
-  ),
-);
-materialCallupState.deliveryTrips.set(
-  'material-pottery-cart',
-  deliveryTrip(
-    'material-pottery-cart',
-    suppliedPotter.id,
-    incompleteSmokehouse.id,
-    'pottery',
   ),
 );
 materialCallupState.deliveryTrips.set(
@@ -360,7 +351,7 @@ assert.ok(
   recoveringMaterialCallup.assignments.some(
     (assignment) => assignment.buildingId === incompleteSmokehouse.id,
   ),
-  'all missing preservation inputs approaching by cart should make the workshop operationally ready',
+  'the missing preservation salt approaching by cart should make the workshop operationally ready',
 );
 assert.ok(
   recoveringMaterialCallup.assignments.some(
@@ -492,7 +483,7 @@ assert.match(inspector.detailsHtml, /supplied sites fill fairly/);
 assert.match(inspector.detailsHtml, /Dawn labor review/);
 assert.match(
   inspector.detailsHtml,
-  /Next dawn: production release 3\/deploy 3.*6 free after review/,
+  /Next dawn: production release 3\/deploy 3.*6 idle after review/,
 );
 assert.match(
   inspector.detailsHtml,

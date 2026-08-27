@@ -111,7 +111,7 @@ assert.equal(industrialWaterTarget('bakery', 25), 6);
 assert.equal(industrialWaterTarget('bakery', 50), 6);
 assert.equal(industrialWaterTarget('bakery', 75), 6);
 assert.equal(industrialWaterTarget('bakery', 100), 6);
-assert.equal(industrialWaterTarget('brewery', 50), 6);
+assert.equal(industrialWaterTarget('brewery', 50), 9);
 assert.equal(industrialWaterTarget('spinning_retting_house', 25), 3);
 assert.equal(industrialWaterTarget('spinning_retting_house', 50), 3);
 assert.equal(industrialWaterTarget('spinning_retting_house', 100), 3);

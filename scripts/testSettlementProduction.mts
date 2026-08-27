@@ -81,10 +81,9 @@ brewery.firewood = 15;
 brewery.ale = 140;
 state.buildings.set(brewery.id, brewery);
 const smokehouse = building('smokehouse', 'smokehouse', 1);
-smokehouse.food = 70;
+smokehouse.meat = 70;
 smokehouse.firewood = 17.5;
 smokehouse.salt = 8.75;
-smokehouse.pottery = 4.375;
 smokehouse.preservedFood = 127.5;
 state.buildings.set(smokehouse.id, smokehouse);
 const spinner = building('spinner', 'spinning_retting_house', 1);
@@ -1246,11 +1245,11 @@ const targetedProduction = computeSettlementProductionCapacity(targetedState, fa
 assert.ok(targetedProduction.millOutputRoom);
 approx(
   targetedProduction.millOutputRoom.days,
-  (260 * 0.25 - targetedMill.ryeFlour)
+  (260 - targetedMill.ryeFlour)
     / (millCycles * WATERMILL_RYE_FLOUR_PER_CYCLE),
-  'Town Hall output runway should end at the selected 25% ceiling, not physical capacity',
+  'legacy 25% values should no longer reduce the Town Hall physical-capacity runway',
 );
-assert.equal(targetedProduction.millOutputRoom.targetPercent, 25);
+assert.equal(targetedProduction.millOutputRoom.targetPercent, 100);
 
 const splitChainState = emptyGameState();
 const splitMill = building('split-mill', 'watermill', 1);

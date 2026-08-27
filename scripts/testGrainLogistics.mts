@@ -255,13 +255,13 @@ const leanBufferedMill = grainDestination('lean-mill', 'watermill', 3, 3, 1, 25)
 const deepBufferedMill = grainDestination('deep-mill', 'watermill', 4, 3, 1, 75);
 assert.equal(
   grainDispatchDuty(leanBufferedMill),
-  'workshop-overflow',
-  'Lean should stop staging grain after one complete cycle',
+  'working-buffer',
+  'legacy Lean rows should use the automatic three-cycle buffer',
 );
 assert.equal(
   grainDispatchDuty(deepBufferedMill),
   'working-buffer',
-  'Deep should keep staging the same mill toward three cycles',
+  'legacy Deep rows should use the same automatic three-cycle buffer',
 );
 assert.equal(
   selectGrainDispatchTarget(
@@ -269,8 +269,8 @@ assert.equal(
     'farm',
     (target) => target.x,
   )?.target.id,
-  deepBufferedMill.id,
-  'policy depth should affect real grain cart eligibility',
+  leanBufferedMill.id,
+  'legacy policy depth should not affect cart eligibility, leaving route distance to decide',
 );
 assert.equal(
   selectGrainDispatchTarget(
@@ -714,8 +714,8 @@ assert.equal(
     'ryeFlour',
     (target) => target.x,
   )?.target.id,
-  deepBakery.id,
-  'a one-cycle Lean bakery should stop claiming flour while a Deep bakery keeps staging',
+  leanBakery.id,
+  'legacy Lean and Deep bakeries share the same buffer, leaving route distance to decide',
 );
 assert.equal(
   selectDirectProcessorInputTarget(
@@ -724,8 +724,8 @@ assert.equal(
     'ryeFlour',
     (target) => target.x,
   )?.desiredStock,
-  BUILDING_STORAGE_CAPS.bakery.flour,
-  'covered Lean workshops remain eligible only as ordinary overflow storage',
+  9,
+  'legacy Lean workshops should still stage the automatic three-cycle flour buffer',
 );
 
 const perfTargets = Array.from({ length: 100_000 }, (_, index) =>

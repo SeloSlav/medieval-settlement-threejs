@@ -714,7 +714,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="salt">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="salt" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pottery" data-tooltip="Fired vessels used by households and smokehouses.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pottery" data-tooltip="Fired vessels used by prosperous households and regional trade.">
         <span class="settlement-hud__label">Pottery</span>
         <strong class="settlement-hud__value" data-stockpile="pottery">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="pottery" hidden></span>

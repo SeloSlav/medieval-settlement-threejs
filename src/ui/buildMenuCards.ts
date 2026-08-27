@@ -102,7 +102,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   bakery: ['Bakery', 'Bakes rye or maslin flour into bread for the settlement.', flow(['ryeFlour', 'maslinFlour', 'water', 'firewood'], ['ryeBread', 'maslinBread'])],
   brewery: ['Brewhouse', 'Brews ale, presses distinct apple or pear cider, or ferments mead.', flow(['barley', 'apples', 'pears', 'honey', 'water', 'firewood'], ['ale', 'cider', 'pearCider', 'mead'])],
   tavern: ['Tavern', 'Serves ale, apple cider, pear cider, and mead to satisfy household thirst.', flow(['ale', 'cider', 'pearCider', 'mead'], [])],
-  smokehouse: ['Smokehouse', 'Preserves fresh food with firewood, salt, and pottery.', flow(['food', 'firewood', 'salt', 'pottery'], ['preservedFood'])],
+  smokehouse: ['Smokehouse', 'Preserves fresh food with firewood and salt.', flow(['food', 'firewood', 'salt'], ['preservedFood'])],
   apiary: ['Forest apiary', 'Keeps bees for food, luxury honey, and mead throughout the warm season.', flow([], ['honey'])],
   carpenter: ['Carpenter & wheelwright', 'Crafts frames and carts that lower building costs and hasten deliveries.'],
   spinning_retting_house: ['Spinning & Retting House', 'Spins sheep fleece into yarn or rets flax with water into linen.', flow(['wool', 'flax', 'water'], ['yarn', 'linen'])],

@@ -68,7 +68,7 @@ function grainInputPerCycle(
     : WATERMILL_GRAIN_PER_CYCLE;
 }
 
-/** Mirrors the authoritative stock-policy working buffer for grain processors. */
+/** Mirrors the authoritative automatic working buffer for grain processors. */
 export function grainInputTarget(
   kind: GrainProcessorKind,
   productivity = 1,
