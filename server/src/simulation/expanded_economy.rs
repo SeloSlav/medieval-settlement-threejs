@@ -981,7 +981,7 @@ pub fn step_marketplace_material_dispatch(
         let Some(network) = tick.road_network(marketplace.owner) else {
             continue;
         };
-        const DISPATCHABLE_INPUTS: [CommodityKind; 34] = [
+        const DISPATCHABLE_INPUTS: [CommodityKind; 33] = [
             CommodityKind::RyeSheaves,
             CommodityKind::OatSheaves,
             CommodityKind::BarleySheaves,
@@ -5061,7 +5061,7 @@ fn dispatch_to_building_where_limited(
     };
     let source_stock = building_commodity_stock(source, commodity);
     let transferable = if commodity.is_edible() {
-        institutional_source_food_surplus(ctx, tick, source, commodity, source_stock)
+        institutional_source_food_surplus(ctx, tick, source, source_stock)
     } else {
         source_stock
     }
@@ -5366,7 +5366,6 @@ fn institutional_source_food_surplus(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     source: &Building,
-    commodity: CommodityKind,
     stock: f64,
 ) -> f64 {
     let claimed_households = tick.food_claim_count_for_supplier(ctx, source.owner, source.id);
@@ -5379,7 +5378,7 @@ fn institutional_source_food_surplus(
     let generic_surplus = institutional_food_surplus(
         dispatchable_stock,
         claimed_households,
-        building_commodity_cap(&source.kind, commodity),
+        building_commodity_cap(&source.kind, CommodityKind::Meat),
     );
     let policy_surplus = match source.kind.as_str() {
         "apiary" => (source.honey - apiary_honey_reserve(source.apiary_harvest_policy)).max(0.0),

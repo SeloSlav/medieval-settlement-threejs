@@ -1414,7 +1414,7 @@ fn processor_recipe_availability(
         apples: available(CommodityKind::Apples),
         pears: available(CommodityKind::Pears),
         honey: available(CommodityKind::Honey),
-        food: crate::economy::building_preservable_food_stock(building),
+        food: crate::economy::building_preservable_food_stock(building) > 1e-6,
         meat: available(CommodityKind::Meat),
         fish: available(CommodityKind::Fish),
         milk: available(CommodityKind::Milk),

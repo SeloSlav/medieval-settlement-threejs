@@ -1290,7 +1290,6 @@ fn retain_unplundered_treasury_stores(
 
     subtract_loss!(timber);
     subtract_loss!(firewood);
-    subtract_loss!(food);
     subtract_loss!(rye_sheaves);
     subtract_loss!(oat_sheaves);
     subtract_loss!(barley_sheaves);

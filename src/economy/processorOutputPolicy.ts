@@ -92,28 +92,6 @@ export type ProcessorInputCommodity =
 
 export const PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT = 100;
 export const PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES = 3;
-export const PROCESSOR_OUTPUT_TARGET_PRESETS = [
-  {
-    percent: 25,
-    label: 'Lean',
-    hint: 'Stages one input cycle and keeps only a small finished-goods buffer.',
-  },
-  {
-    percent: 50,
-    label: 'Balanced',
-    hint: 'Stages two input cycles and maintains a practical finished-goods buffer.',
-  },
-  {
-    percent: 75,
-    label: 'Deep',
-    hint: 'Stages three input cycles and builds a strong seasonal reserve.',
-  },
-  {
-    percent: 100,
-    label: 'Fill',
-    hint: 'Stages the legacy three input cycles and produces until physical capacity.',
-  },
-] as const;
 
 const OUTPUT_BY_KIND: Record<
   ProcessorOutputTargetKind,
@@ -165,20 +143,10 @@ export function isExtractionOutputTargetKind(
   return (EXTRACTION_OUTPUT_TARGET_KINDS as readonly BuildingKind[]).includes(kind);
 }
 
-export function isProductionOutputTargetKind(
-  kind: BuildingKind,
-): kind is ProcessorOutputTargetKind {
-  return isProcessorOutputTargetKind(kind);
-}
-
 export function normalizeProcessorOutputTargetPercent(
-  percent: number | undefined,
+  _percent: number | undefined,
 ): number {
-  if (!Number.isFinite(percent)) return PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT;
-  const rounded = Math.round(percent as number);
-  return PROCESSOR_OUTPUT_TARGET_PRESETS.some((preset) => preset.percent === rounded)
-    ? rounded
-    : PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT;
+  return PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT;
 }
 
 export function processorOutputCommodity(
@@ -236,19 +204,9 @@ export function processorOutputTarget(
 }
 
 export function processorInputStagingCycles(
-  percent: number | undefined,
+  _percent: number | undefined,
 ): number {
-  switch (normalizeProcessorOutputTargetPercent(percent)) {
-    case 25:
-      return 1;
-    case 50:
-      return 2;
-    case 75:
-    case 100:
-      return PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES;
-    default:
-      return PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES;
-  }
+  return PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES;
 }
 
 export function processorOutputTargetForBuilding(

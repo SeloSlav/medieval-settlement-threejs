@@ -79,6 +79,7 @@ import { gameClock } from '../world/gameCalendar.ts';
 import { environmentFor } from '../world/seasonPolicy.ts';
 import {
   serviceCoverageLabel,
+  type MarketplaceServiceFulfillment,
   type ServiceCoverageView,
 } from './serviceCoverage.ts';
 import { PlayerAuthoredHoverOutline } from './PlayerAuthoredHoverOutline.ts';
@@ -318,6 +319,7 @@ type ResourceInspectorOptions = {
   onServiceCoverageChange?: (
     residenceIds: ReadonlySet<string>,
     kind: ServiceCoverageView['kind'] | null,
+    marketplaceFulfillment: ServiceCoverageView['marketplaceFulfillment'],
   ) => void;
   onTargetSelected?: (target: InspectableTarget) => void;
   onSelectionChange?: (target: InspectableTarget | null) => void;
@@ -404,6 +406,10 @@ export class ResourceInspector {
   private heroImageRequestId = 0;
   private serviceCoverageBuildingId: string | null = null;
   private serviceCoverageResidenceIds = new Set<string>();
+  private serviceCoverageMarketplaceFulfillment = new Map<
+    string,
+    MarketplaceServiceFulfillment
+  >();
   private serviceCoverageProjection: ServiceCoverageView | null = null;
   private renderedIdentity = '';
   private renderedSupplementalPanelHtml = '';
@@ -2571,21 +2577,39 @@ export class ResourceInspector {
   ): void {
     if (this.serviceCoverageBuildingId == null) return;
     const residenceIds = new Set(projection.residenceIds);
-    if (setsHaveSameValues(this.serviceCoverageResidenceIds, residenceIds)) return;
+    const marketplaceFulfillment = new Map(projection.marketplaceFulfillment ?? []);
+    if (
+      setsHaveSameValues(this.serviceCoverageResidenceIds, residenceIds)
+      && mapsHaveSameValues(
+        this.serviceCoverageMarketplaceFulfillment,
+        marketplaceFulfillment,
+      )
+    ) return;
     this.serviceCoverageResidenceIds = residenceIds;
-    this.options.onServiceCoverageChange?.(residenceIds, projection.kind);
+    this.serviceCoverageMarketplaceFulfillment = marketplaceFulfillment;
+    this.options.onServiceCoverageChange?.(
+      residenceIds,
+      projection.kind,
+      marketplaceFulfillment,
+    );
   }
 
   private clearServiceCoverage(): void {
     if (
       this.serviceCoverageBuildingId == null
       && this.serviceCoverageResidenceIds.size === 0
+      && this.serviceCoverageMarketplaceFulfillment.size === 0
     ) {
       return;
     }
     this.serviceCoverageBuildingId = null;
     this.serviceCoverageResidenceIds = new Set();
-    this.options.onServiceCoverageChange?.(this.serviceCoverageResidenceIds, null);
+    this.serviceCoverageMarketplaceFulfillment = new Map();
+    this.options.onServiceCoverageChange?.(
+      this.serviceCoverageResidenceIds,
+      null,
+      this.serviceCoverageMarketplaceFulfillment,
+    );
   }
 
   private applyPresentation(target: InspectableTarget): void {
@@ -2876,6 +2900,17 @@ function setsHaveSameValues<T>(
   if (left.size !== right.size) return false;
   for (const value of left) {
     if (!right.has(value)) return false;
+  }
+  return true;
+}
+
+function mapsHaveSameValues<K, V>(
+  left: ReadonlyMap<K, V>,
+  right: ReadonlyMap<K, V>,
+): boolean {
+  if (left.size !== right.size) return false;
+  for (const [key, value] of left) {
+    if (right.get(key) !== value) return false;
   }
   return true;
 }

@@ -31,7 +31,10 @@ import { RESIDENCE_FIREWOOD_CAPACITY } from '../generated/gameBalance.ts';
 import { hashStringSeed } from '../utils/random.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
 import { residenceWindowActivity } from './householdRoutine.ts';
-import type { ServiceCoverageView } from '../resources/serviceCoverage.ts';
+import type {
+  MarketplaceServiceFulfillment,
+  ServiceCoverageView,
+} from '../resources/serviceCoverage.ts';
 import { batchResidenceStaticMeshes } from './staticResidenceBatch.ts';
 import { ResidenceStaticBatches } from './ResidenceStaticBatches.ts';
 
@@ -2550,16 +2553,19 @@ export class ResidenceMarkers {
   private readonly shadowProxyBatch: BatchedBuildingShadowProxies;
   private readonly onShadowCastersChanged?: () => void;
   private readonly serviceCoverageRoot: THREE.Group;
-  private readonly serviceCoverageGeometry: THREE.RingGeometry;
-  private readonly serviceCoverageMaterial: THREE.MeshBasicMaterial;
-  private serviceCoverageMesh: THREE.InstancedMesh<
-    THREE.RingGeometry,
-    THREE.MeshBasicMaterial
-  >;
-  private serviceCoverageCapacity = 1;
+  private readonly serviceCoverageMaterials = new Map<number, THREE.MeshBasicMaterial>();
+  private readonly serviceCoverageMeshes = new Map<
+    string,
+    THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>
+  >();
   private readonly meshes = new Map<string, THREE.Group>();
+  private readonly residenceStates = new Map<string, ResidenceState>();
   private serviceCoverageIds = new Set<string>();
   private serviceCoverageKind: ServiceCoverageView['kind'] | null = null;
+  private serviceCoverageMarketplaceFulfillment = new Map<
+    string,
+    MarketplaceServiceFulfillment
+  >();
   private serviceCoverageDirty = false;
   private readonly smokeEmitters = new Map<string, ChimneySmokeEmitter>();
   private readonly smokeEligible = new Map<string, boolean>();
@@ -2593,25 +2599,6 @@ export class ResidenceMarkers {
     );
     this.serviceCoverageRoot = new THREE.Group();
     this.serviceCoverageRoot.name = 'Residence service coverage';
-    this.serviceCoverageGeometry = new THREE.RingGeometry(0.78, 1, 40);
-    this.serviceCoverageGeometry.name = 'Served residence halo geometry';
-    this.serviceCoverageMaterial = new THREE.MeshBasicMaterial({
-      color: 0xe7c45c,
-      opacity: 0.74,
-      transparent: true,
-      depthTest: true,
-      depthWrite: false,
-      polygonOffset: true,
-      polygonOffsetFactor: -4,
-      polygonOffsetUnits: -4,
-      side: THREE.DoubleSide,
-      toneMapped: false,
-    });
-    this.serviceCoverageMaterial.name = 'Served residence halo material';
-    this.serviceCoverageMesh = this.createServiceCoverageMesh(
-      this.serviceCoverageCapacity,
-    );
-    this.serviceCoverageRoot.add(this.serviceCoverageMesh);
     parent.add(this.root);
     parent.add(this.serviceCoverageRoot);
   }
@@ -2619,16 +2606,21 @@ export class ResidenceMarkers {
   setServiceCoverageHighlights(
     residenceIds: ReadonlySet<string>,
     kind: ServiceCoverageView['kind'] | null,
+    marketplaceFulfillment: ServiceCoverageView['marketplaceFulfillment'] = new Map(),
   ): void {
     if (
       setsEqual(this.serviceCoverageIds, residenceIds)
       && this.serviceCoverageKind === kind
+      && mapsEqual(
+        this.serviceCoverageMarketplaceFulfillment,
+        marketplaceFulfillment,
+      )
     ) {
       return;
     }
     this.serviceCoverageIds = new Set(residenceIds);
     this.serviceCoverageKind = kind;
-    this.serviceCoverageMaterial.color.setHex(serviceCoverageColor(kind));
+    this.serviceCoverageMarketplaceFulfillment = new Map(marketplaceFulfillment);
     this.serviceCoverageDirty = true;
     this.syncServiceCoverageHighlights();
   }

@@ -163,6 +163,10 @@ function addBuildingCardIcon(
 
   const icon = new THREE.Sprite(material);
   icon.name = 'Construction intended building card artwork';
+  // THREE shares one module-level sprite geometry by default. Construction
+  // markers are replaced as progress advances, so give the icon disposable
+  // per-site geometry rather than invalidating every other sprite on cleanup.
+  icon.geometry = icon.geometry.clone();
   const iconWidth = THREE.MathUtils.clamp(
     Math.min(halfWidth, halfDepth) * 0.52,
     0.72,
@@ -180,6 +184,8 @@ function constructionCardIconMaterial(kind: BuildingKind): THREE.SpriteMaterial 
 
   const texture = new THREE.TextureLoader().load(BUILDING_CARD_ART[kind]);
   texture.colorSpace = THREE.SRGBColorSpace;
+  texture.generateMipmaps = false;
+  texture.minFilter = THREE.LinearFilter;
   texture.name = `Construction ${kind} card artwork`;
   const material = new THREE.SpriteMaterial({
     map: texture,

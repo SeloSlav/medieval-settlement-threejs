@@ -162,7 +162,7 @@ type LivestockSpeciesBalance = {
   matureTreesPerHead?: number;
 };
 
-type TradeResource = 'timber' | 'stone' | 'firewood' | 'food'
+type TradeResource = 'timber' | 'stone' | 'firewood'
   | 'ryeGrain' | 'oatGrain' | 'maslinGrain'
   | 'ryeFlour' | 'maslinFlour'
   | 'ryeBread' | 'maslinBread'

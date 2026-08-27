@@ -1240,8 +1240,12 @@ export async function bootstrapAppSession(
         cameraController.focusWorldPosition(x, z);
       }
     },
-    onServiceCoverageChange: (residenceIds, kind) => {
-      residenceMarkers.setServiceCoverageHighlights(residenceIds, kind);
+    onServiceCoverageChange: (residenceIds, kind, marketplaceFulfillment) => {
+      residenceMarkers.setServiceCoverageHighlights(
+        residenceIds,
+        kind,
+        marketplaceFulfillment,
+      );
     },
     onTargetSelected: (target) => {
       if (
