@@ -36,9 +36,15 @@ export function productionRateMultiplier(percent: number | undefined): number {
   return normalizeProductionRatePercent(percent) / DEFAULT_PRODUCTION_RATE_PERCENT;
 }
 
+/** Yearly ironwork demand rises with the square of production pace. */
+export function maintenanceRateMultiplier(percent: number | undefined): number {
+  return productionRateMultiplier(percent) ** 2;
+}
+
 export type ProductionRatePlan = {
   percent: number;
   throughputMultiplier: number;
+  maintenanceMultiplier: number;
   ironworkPerYear: number;
   ironworkPerWorkerYear: number;
 };
@@ -55,16 +61,17 @@ export function productionRatePlan(
   if (!isProductionRateBuilding(building.kind)) return null;
   const percent = normalizeProductionRatePercent(building.productionRatePercent);
   const throughputMultiplier = productionRateMultiplier(percent);
+  const maintenanceMultiplier = maintenanceRateMultiplier(percent);
   const definition = getBuildingDefinition(building.kind);
   const workerCount = Math.max(0, building.assignedLabor);
   const ironworkPerWorkerYear = building.kind === 'threshing_barn'
-    ? 365 * FARM_TOOL_IRONWORK_PER_WORKER_DAY * throughputMultiplier
+    ? 365 * FARM_TOOL_IRONWORK_PER_WORKER_DAY * maintenanceMultiplier
     : definition.harvestInterval > 1e-6
       ? 365 * CALENDAR_SECONDS_PER_DAY
         / definition.harvestInterval
         * CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER
         * CIVILIAN_TOOL_IRONWORK_PER_CYCLE
-        * throughputMultiplier
+        * maintenanceMultiplier
       : 0;
   const annualWorkerEquivalent = building.kind === 'woodcutters_lodge'
     ? (workerCount > 0 ? 1 : 0)
@@ -72,6 +79,7 @@ export function productionRatePlan(
   return {
     percent,
     throughputMultiplier,
+    maintenanceMultiplier,
     ironworkPerYear: ironworkPerWorkerYear * annualWorkerEquivalent,
     ironworkPerWorkerYear,
   };

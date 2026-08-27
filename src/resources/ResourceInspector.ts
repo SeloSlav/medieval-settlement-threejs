@@ -74,6 +74,7 @@ import {
 import { isProcessorOutputTargetKind } from '../economy/processorOutputPolicy.ts';
 import {
   isProductionRateBuilding,
+  maintenanceRateMultiplier,
   productionRateMultiplier,
 } from '../economy/productionRatePolicy.ts';
 import { computeSettlementProductionCapacity } from '../economy/settlementProduction.ts';
@@ -1690,6 +1691,7 @@ export class ResourceInspector {
     } else if (input.matches('[data-production-rate-slider]')) {
       const percent = Math.max(0, Math.min(100, Math.round(Number(input.value))));
       const multiplier = productionRateMultiplier(percent);
+      const maintenanceMultiplier = maintenanceRateMultiplier(percent);
       const value = input.closest<HTMLElement>('.inspector-action-panel')
         ?.querySelector<HTMLElement>('[data-production-rate-value]');
       const maintenance = input.closest<HTMLElement>('.inspector-action-panel')
@@ -1697,11 +1699,11 @@ export class ResourceInspector {
       const normalAnnual = Math.max(0, Number(input.dataset.ironworkPerYearAtNormal));
       if (value) {
         value.textContent = multiplier <= 1e-9
-          ? `${percent}% · Paused`
-          : `${percent}% · ${multiplier.toFixed(multiplier % 1 === 0 ? 0 : 1)}× pace`;
+          ? `${percent}% · Paused · 0× upkeep`
+          : `${percent}% · ${multiplier.toFixed(multiplier % 1 === 0 ? 0 : 1)}× pace · ${maintenanceMultiplier.toFixed(maintenanceMultiplier % 1 === 0 ? 0 : 2)}× upkeep`;
       }
       if (maintenance) {
-        maintenance.textContent = `Ironwork upkeep: ${(normalAnnual * multiplier).toFixed(1)}/year maximum at current roster. Actual consumption follows completed work.`;
+        maintenance.textContent = `Ironwork upkeep: ${(normalAnnual * maintenanceMultiplier).toFixed(1)}/year maximum at current roster. Upkeep scales with pace squared; actual consumption follows completed work.`;
       }
     } else if (input.matches('[data-harvest-reserve-slider]')) {
       const reserve = Math.max(0, Math.round(Number(input.value)));

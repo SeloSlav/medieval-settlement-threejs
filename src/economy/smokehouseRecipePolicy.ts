@@ -73,6 +73,20 @@ export function smokehouseRecipeInput(
   return 'meat';
 }
 
+/**
+ * Whether the Smokehouse should actively request this food input. Storage
+ * acceptance is deliberately broader so alternate stock already on site or in
+ * transit remains valid after a recipe change.
+ */
+export function smokehouseRecipeRequestsInput(
+  policy: number | undefined,
+  input: SmokehouseRecipeInput,
+): boolean {
+  const normalized = normalizeSmokehouseRecipePolicy(policy);
+  return normalized === SMOKEHOUSE_RECIPE_AUTO
+    || smokehouseRecipeInput(normalized) === input;
+}
+
 export function smokehouseRecipeOutput(
   policy: Exclude<SmokehouseRecipePolicy, typeof SMOKEHOUSE_RECIPE_AUTO>,
 ): SmokehouseRecipeOutput {

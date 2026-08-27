@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import {
   DEFAULT_PRODUCTION_RATE_PERCENT,
   isProductionRateBuilding,
+  maintenanceRateMultiplier,
   normalizeProductionRatePercent,
   productionRateMultiplier,
   productionRatePlan,
@@ -18,6 +19,11 @@ assert.equal(normalizeProductionRatePercent(160), 100);
 assert.equal(productionRateMultiplier(0), 0);
 assert.equal(productionRateMultiplier(50), 1);
 assert.equal(productionRateMultiplier(100), 2);
+assert.equal(maintenanceRateMultiplier(0), 0);
+assert.equal(maintenanceRateMultiplier(25), 0.25);
+assert.equal(maintenanceRateMultiplier(50), 1);
+assert.equal(maintenanceRateMultiplier(75), 2.25);
+assert.equal(maintenanceRateMultiplier(100), 4);
 
 for (const kind of [
   'lumber_mill',
@@ -46,8 +52,9 @@ const doublePlan = productionRatePlan({ ...normalBuilding, productionRatePercent
 assert.equal(pausedPlan?.ironworkPerYear, 0);
 assert.ok((normalPlan?.ironworkPerYear ?? 0) > 0);
 assert.ok(Math.abs(
-  (doublePlan?.ironworkPerYear ?? 0) - (normalPlan?.ironworkPerYear ?? 0) * 2,
+  (doublePlan?.ironworkPerYear ?? 0) - (normalPlan?.ironworkPerYear ?? 0) * 4,
 ) < 1e-9);
+assert.equal(doublePlan?.maintenanceMultiplier, 4);
 
 const view: InspectorView = {
   eyebrow: 'Building',
@@ -69,6 +76,8 @@ assert.match(rendered, /type="range" data-production-rate-slider/);
 assert.match(rendered, /min="0" max="100"/);
 assert.match(rendered, /value="50"/);
 assert.match(rendered, /Ironwork upkeep:/);
+assert.match(rendered, /2× pace \/ 4× upkeep/);
+assert.match(rendered, /pace squared/);
 assert.match(rendered, /\/year maximum at current roster/);
 
 const table = readFileSync(new URL('../server/src/tables.rs', import.meta.url), 'utf8');
@@ -79,4 +88,3 @@ assert.match(reducer, /pub fn set_building_production_rate/);
 assert.match(simulation, /production_rate_multiplier\([\s\S]*production_rate_percent/);
 
 console.log('Production rate policy tests passed.');
-

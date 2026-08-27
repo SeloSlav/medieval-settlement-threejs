@@ -13,6 +13,10 @@ function formatRateMultiplier(multiplier: number): string {
     : `${multiplier.toFixed(multiplier % 1 === 0 ? 0 : 1)}× pace`;
 }
 
+function formatMaintenanceMultiplier(multiplier: number): string {
+  return `${multiplier.toFixed(multiplier % 1 === 0 ? 0 : 2)}× upkeep`;
+}
+
 export function withBuildingProductionRate(
   view: InspectorView,
   building: BuildingState,
@@ -35,14 +39,14 @@ export function withBuildingProductionRate(
     <div class="inspector-action-panel" data-inspector-panel-title="Production rate">
       <label class="city-admin-panel__slider-label">
         <span>Production rate</span>
-        <strong data-production-rate-value>${plan.percent}% · ${formatRateMultiplier(plan.throughputMultiplier)}</strong>
+        <strong data-production-rate-value>${plan.percent}% · ${formatRateMultiplier(plan.throughputMultiplier)} · ${formatMaintenanceMultiplier(plan.maintenanceMultiplier)}</strong>
       </label>
       <input class="city-admin-panel__slider" type="range" data-production-rate-slider
         data-ironwork-per-year-at-normal="${normalYearlyWear}"
         min="${MIN_PRODUCTION_RATE_PERCENT}" max="${MAX_PRODUCTION_RATE_PERCENT}" step="5" value="${plan.percent}" />
-      <div class="city-admin-panel__range-hints"><span>Paused</span><span>50% · normal</span><span>100% · double</span></div>
+      <div class="city-admin-panel__range-hints"><span>Paused</span><span>50% · normal</span><span>100% · 2× pace / 4× upkeep</span></div>
       <p class="inspector-action-panel__hint" data-production-rate-maintenance>
-        Ironwork upkeep: ${yearlyWear} · ${perWorkerWear}. Actual consumption follows completed work, so blocked, empty, unstaffed, seasonal, and full sites wear less.
+        Ironwork upkeep: ${yearlyWear} · ${perWorkerWear}. Upkeep scales with pace squared; actual consumption follows completed work, so blocked, empty, unstaffed, seasonal, and full sites wear less.
       </p>
     </div>
   `;

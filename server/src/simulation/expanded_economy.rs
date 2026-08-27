@@ -127,8 +127,9 @@ use crate::resource_units::{
 };
 use crate::season_policy::{EnvironmentState, WeatherKind};
 use crate::smokehouse_recipe_policy::{
-    normalize_smokehouse_recipe_policy, SMOKEHOUSE_RECIPE_AUTO, SMOKEHOUSE_RECIPE_CHEESE,
-    SMOKEHOUSE_RECIPE_CURED_MEAT, SMOKEHOUSE_RECIPE_SMOKED_FISH,
+    normalize_smokehouse_recipe_policy, smokehouse_recipe_requests_input,
+    SMOKEHOUSE_RECIPE_AUTO, SMOKEHOUSE_RECIPE_CHEESE, SMOKEHOUSE_RECIPE_CURED_MEAT,
+    SMOKEHOUSE_RECIPE_SMOKED_FISH,
 };
 use crate::simulation::delivery_trips::{
     building_has_active_trip, building_has_conflicting_inbound_supply_trip,
@@ -437,11 +438,17 @@ fn institutional_food_target_plan(
                 desired_stock,
             ))
         }
-        "smokehouse" if commodity.preservation_output().is_some() => {
+        "smokehouse" if smokehouse_requests_food_input(target, commodity) => {
             let per_cycle = SMOKEHOUSE_FOOD_PER_CYCLE;
             let desired_stock =
                 processor_input_target(per_cycle, target.processor_output_target_percent);
-            let stock = building_preservable_food_stock(target);
+            let stock = if normalize_smokehouse_recipe_policy(target.smokehouse_recipe_policy)
+                == SMOKEHOUSE_RECIPE_AUTO
+            {
+                building_preservable_food_stock(target)
+            } else {
+                building_commodity_stock(target, commodity)
+            };
             if desired_stock <= 1e-6 || stock + 1e-6 >= desired_stock {
                 return None;
             }
@@ -1213,6 +1220,9 @@ fn marketplace_material_target(
     target: &Building,
     commodity: CommodityKind,
 ) -> Option<(f64, f64)> {
+    if !processor_requests_input(target, commodity) {
+        return None;
+    }
     if target.kind == "smithy" && commodity == CommodityKind::Charcoal {
         if target.assigned_labor == 0 {
             return None;
@@ -4507,6 +4517,31 @@ pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityK
     ) > 1e-6
 }
 
+fn smokehouse_input_recipe(commodity: CommodityKind) -> Option<u8> {
+    match commodity {
+        CommodityKind::Meat => Some(SMOKEHOUSE_RECIPE_CURED_MEAT),
+        CommodityKind::Fish => Some(SMOKEHOUSE_RECIPE_SMOKED_FISH),
+        CommodityKind::Milk => Some(SMOKEHOUSE_RECIPE_CHEESE),
+        _ => None,
+    }
+}
+
+fn smokehouse_requests_food_input(building: &Building, commodity: CommodityKind) -> bool {
+    let Some(input_recipe) = smokehouse_input_recipe(commodity) else {
+        return false;
+    };
+    smokehouse_recipe_requests_input(building.smokehouse_recipe_policy, input_recipe)
+}
+
+/// Demand is narrower than physical acceptance for focused recipe buildings.
+/// A non-selected Smokehouse ingredient may remain stored or finish an already
+/// active trip, but no new supply trip should be created for it.
+fn processor_requests_input(building: &Building, commodity: CommodityKind) -> bool {
+    building.kind != "smokehouse"
+        || smokehouse_input_recipe(commodity).is_none()
+        || smokehouse_requests_food_input(building, commodity)
+}
+
 fn commodity_transfer_per_trip(commodity: CommodityKind) -> f64 {
     match commodity {
         CommodityKind::Wool
@@ -5024,6 +5059,7 @@ fn dispatch_to_building_where_limited(
                         && !tick.marketplace_stall_accepts_commodity_from(
                             ctx, &target, source.id, commodity,
                         ))
+                    || !processor_requests_input(&target, commodity)
                     || !processor_accepts_input(&target, commodity)
                     || building_commodity_room(&target, commodity) <= 1e-6
                     || building_has_conflicting_inbound_supply_trip(ctx, &target, commodity)
@@ -5359,6 +5395,7 @@ fn request_connected_commodity_with_source_availability(
     if !target.construction_complete
         || target.assigned_labor == 0
         || labor_and_logistics_paused(ctx, tick, target.owner, clock)
+        || !processor_requests_input(target, commodity)
         || !processor_accepts_input(target, commodity)
         || building_has_inbound_supply_trip(ctx, target.id)
         || building_commodity_stock(&target, commodity) + 1e-6 >= desired
