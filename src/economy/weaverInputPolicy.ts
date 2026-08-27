@@ -96,6 +96,28 @@ export function weaverFibreDeliveryPreferenceRank(
   return matches ? 0 : 2;
 }
 
+export function spinningRettingRecipeRequestsInput(
+  policy: number | undefined,
+  input: 'wool' | 'flax' | 'water',
+): boolean {
+  const normalized = normalizeWeaverInputPolicy(policy);
+  if (normalized === WEAVER_INPUT_POLICY_AUTO) return true;
+  return input === 'wool'
+    ? normalized === WEAVER_INPUT_POLICY_WOOL_FIRST
+    : normalized === WEAVER_INPUT_POLICY_FLAX_FIRST;
+}
+
+export function weaverRecipeRequestsInput(
+  policy: number | undefined,
+  input: 'yarn' | 'linen',
+): boolean {
+  const normalized = normalizeWeaverInputPolicy(policy);
+  return normalized === WEAVER_INPUT_POLICY_AUTO
+    || (input === 'yarn'
+      ? normalized === WEAVER_INPUT_POLICY_WOOL_FIRST
+      : normalized === WEAVER_INPUT_POLICY_FLAX_FIRST);
+}
+
 export function weaverFibreDeliveryPreferenceLabel(
   policy: number | undefined,
   commodity: WeaverFibreCommodity,
@@ -108,7 +130,7 @@ export function weaverFibreDeliveryPreferenceLabel(
     case 1:
       return 'Auto pool';
     default:
-      return 'Fallback route';
+      return 'Stored alternate';
   }
 }
 

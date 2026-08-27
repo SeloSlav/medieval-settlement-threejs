@@ -11,6 +11,15 @@ export type BreweryRecipePolicy =
   | typeof BREWERY_RECIPE_AUTO
   | typeof BREWERY_RECIPE_PEAR_CIDER;
 
+export type BreweryRecipeInput =
+  | 'barley'
+  | 'malt'
+  | 'water'
+  | 'firewood'
+  | 'apples'
+  | 'pears'
+  | 'honey';
+
 export const BREWERY_RECIPE_PRESETS = [
   {
     policy: BREWERY_RECIPE_ALE,
@@ -53,6 +62,31 @@ export function normalizeBreweryRecipePolicy(
 export function breweryRecipePolicyLabel(policy: number | undefined): string {
   const normalized = normalizeBreweryRecipePolicy(policy);
   return BREWERY_RECIPE_PRESETS.find((preset) => preset.policy === normalized)?.label ?? 'Ale';
+}
+
+/**
+ * Recipe focus governs new supply requests, not physical storage. Auto may
+ * stage every route; a focused Brewery requests only its selected recipe.
+ */
+export function breweryRecipeRequestsInput(
+  policy: number | undefined,
+  input: BreweryRecipeInput,
+): boolean {
+  const normalized = normalizeBreweryRecipePolicy(policy);
+  if (normalized === BREWERY_RECIPE_AUTO) return true;
+  switch (input) {
+    case 'barley':
+    case 'malt':
+    case 'water':
+    case 'firewood':
+      return normalized === BREWERY_RECIPE_ALE;
+    case 'apples':
+      return normalized === BREWERY_RECIPE_CIDER;
+    case 'pears':
+      return normalized === BREWERY_RECIPE_PEAR_CIDER;
+    case 'honey':
+      return normalized === BREWERY_RECIPE_MEAD;
+  }
 }
 
 export type BreweryBeverageCommodity = 'ale' | 'cider' | 'pearCider' | 'mead';

@@ -202,7 +202,7 @@ assert.equal(
 );
 assert.equal(
   weaverFibreDeliveryPreferenceLabel(WEAVER_INPUT_POLICY_WOOL_FIRST, 'flax'),
-  'Fallback route',
+  'Stored alternate',
 );
 assert.equal(
   weaverUsesFlax(weaver({
@@ -1020,6 +1020,11 @@ assert.match(
 assert.match(
   expandedEconomy,
   /weaver_fibre_delivery_preference_rank\([\s\S]*target\.weaver_input_policy/,
+);
+assert.match(
+  expandedEconomy,
+  /fn processor_requests_input[\s\S]*textile_recipe_requests_route\(building\.weaver_input_policy, false\)[\s\S]*textile_recipe_requests_route\(building\.weaver_input_policy, true\)/,
+  'focused textile recipes must request only their selected raw and prepared fibre routes',
 );
 assert.match(
   expandedEconomy,

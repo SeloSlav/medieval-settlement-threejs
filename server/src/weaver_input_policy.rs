@@ -34,6 +34,18 @@ pub fn weaver_fibre_delivery_preference_rank(policy: u8, flax: bool) -> u8 {
     }
 }
 
+/// Whether a textile workshop should create new demand for a route. Physical
+/// storage remains permissive so existing stock and already-inbound carts are
+/// retained when the player changes recipes.
+pub fn textile_recipe_requests_route(policy: u8, flax_route: bool) -> bool {
+    match normalize_weaver_input_policy(policy) {
+        WEAVER_INPUT_POLICY_AUTO => true,
+        WEAVER_INPUT_POLICY_WOOL_FIRST => !flax_route,
+        WEAVER_INPUT_POLICY_FLAX_FIRST => flax_route,
+        _ => unreachable!("weaver input policy is normalized"),
+    }
+}
+
 /// Explicit buttons select one recipe. Auto alone may switch to whichever
 /// complete route has the deeper working stock.
 pub fn weaver_uses_flax(
@@ -83,7 +95,8 @@ pub fn weaver_uses_linen(
 mod tests {
     use super::{
         is_valid_weaver_input_policy, normalize_weaver_input_policy,
-        weaver_fibre_delivery_preference_rank, weaver_uses_flax, weaver_uses_linen,
+        textile_recipe_requests_route, weaver_fibre_delivery_preference_rank, weaver_uses_flax,
+        weaver_uses_linen,
         WEAVER_INPUT_POLICY_AUTO, WEAVER_INPUT_POLICY_FLAX_FIRST, WEAVER_INPUT_POLICY_WOOL_FIRST,
     };
 
@@ -167,5 +180,27 @@ mod tests {
             2
         );
         assert_eq!(weaver_fibre_delivery_preference_rank(99, true), 1);
+    }
+
+    #[test]
+    fn explicit_textile_recipes_request_only_their_selected_route() {
+        assert!(textile_recipe_requests_route(WEAVER_INPUT_POLICY_AUTO, false));
+        assert!(textile_recipe_requests_route(WEAVER_INPUT_POLICY_AUTO, true));
+        assert!(textile_recipe_requests_route(
+            WEAVER_INPUT_POLICY_WOOL_FIRST,
+            false
+        ));
+        assert!(!textile_recipe_requests_route(
+            WEAVER_INPUT_POLICY_WOOL_FIRST,
+            true
+        ));
+        assert!(!textile_recipe_requests_route(
+            WEAVER_INPUT_POLICY_FLAX_FIRST,
+            false
+        ));
+        assert!(textile_recipe_requests_route(
+            WEAVER_INPUT_POLICY_FLAX_FIRST,
+            true
+        ));
     }
 }

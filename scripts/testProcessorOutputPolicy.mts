@@ -20,11 +20,15 @@ import {
   processorOutputCommodityForBuilding,
   processorOutputHeadroom,
   processorOutputTargetForBuilding,
+  processorRequestsInput,
 } from '../src/economy/processorOutputPolicy.ts';
 import {
+  BREWERY_RECIPE_ALE,
   BREWERY_RECIPE_AUTO,
   BREWERY_RECIPE_CIDER,
   BREWERY_RECIPE_MEAD,
+  BREWERY_RECIPE_PEAR_CIDER,
+  breweryRecipeRequestsInput,
   selectedBreweryRecipePolicy,
 } from '../src/economy/breweryRecipePolicy.ts';
 import {
@@ -36,6 +40,17 @@ import {
   selectedSmokehouseRecipePolicy,
   smokehouseRecipeRequestsInput,
 } from '../src/economy/smokehouseRecipePolicy.ts';
+import {
+  POTTER_FIRE_ROOF_TILES,
+  POTTER_FIRE_VESSELS,
+} from '../src/economy/potterFiringPolicy.ts';
+import {
+  WEAVER_INPUT_POLICY_AUTO,
+  WEAVER_INPUT_POLICY_FLAX_FIRST,
+  WEAVER_INPUT_POLICY_WOOL_FIRST,
+  spinningRettingRecipeRequestsInput,
+  weaverRecipeRequestsInput,
+} from '../src/economy/weaverInputPolicy.ts';
 import {
   BREWERY_APPLES_PER_CIDER_CYCLE,
   BREWERY_CIDER_PER_CYCLE,
@@ -151,6 +166,26 @@ assert.equal(
   BREWERY_RECIPE_CIDER,
   'Auto must choose the greatest complete-batch readiness',
 );
+for (const input of ['barley', 'malt', 'water', 'firewood', 'apples', 'pears', 'honey'] as const) {
+  assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_AUTO, input), true);
+}
+for (const input of ['barley', 'malt', 'water', 'firewood'] as const) {
+  assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_ALE, input), true);
+  assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_CIDER, input), false);
+}
+assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_CIDER, 'apples'), true);
+assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_CIDER, 'pears'), false);
+assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_MEAD, 'honey'), true);
+assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_MEAD, 'apples'), false);
+assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_PEAR_CIDER, 'pears'), true);
+assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_PEAR_CIDER, 'apples'), false);
+assert.equal(processorRequestsInput(ciderBrewery, 'apples'), true);
+assert.equal(processorRequestsInput(ciderBrewery, 'barley'), false);
+assert.equal(
+  processorAcceptsInput(ciderBrewery, 'barley'),
+  true,
+  'recipe focus must suppress new demand without rejecting physically valid alternate stock',
+);
 const breweryRecipePanel = renderProcessorOutputTargetPanel(processor('brewery-panel', 'brewery'));
 assert.match(breweryRecipePanel ?? '', /resource-action-button--icon/);
 assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="0"[^>]*data-tooltip="3 barley \+ 3 water \+ 1 firewood → 4 ale"/);
@@ -248,6 +283,45 @@ assert.deepEqual(
   ['clay', 'firewood', 'water'],
   'the pottery stock policy must stage clay, fuel, and puddling water together',
 );
+assert.deepEqual(
+  processorInputCommodities('brewery'),
+  ['barley', 'malt', 'apples', 'pears', 'honey', 'water', 'firewood'],
+);
+const yarnSpinner = processor('yarn-spinner', 'spinning_retting_house');
+yarnSpinner.weaverInputPolicy = WEAVER_INPUT_POLICY_WOOL_FIRST;
+assert.equal(spinningRettingRecipeRequestsInput(yarnSpinner.weaverInputPolicy, 'wool'), true);
+assert.equal(spinningRettingRecipeRequestsInput(yarnSpinner.weaverInputPolicy, 'flax'), false);
+assert.equal(spinningRettingRecipeRequestsInput(yarnSpinner.weaverInputPolicy, 'water'), false);
+assert.equal(processorRequestsInput(yarnSpinner, 'wool'), true);
+assert.equal(processorRequestsInput(yarnSpinner, 'flax'), false);
+assert.equal(processorRequestsInput(yarnSpinner, 'water'), false);
+const linenSpinner = processor('linen-spinner', 'spinning_retting_house');
+linenSpinner.weaverInputPolicy = WEAVER_INPUT_POLICY_FLAX_FIRST;
+assert.equal(spinningRettingRecipeRequestsInput(linenSpinner.weaverInputPolicy, 'wool'), false);
+assert.equal(spinningRettingRecipeRequestsInput(linenSpinner.weaverInputPolicy, 'flax'), true);
+assert.equal(spinningRettingRecipeRequestsInput(linenSpinner.weaverInputPolicy, 'water'), true);
+const autoSpinner = processor('auto-spinner', 'spinning_retting_house');
+autoSpinner.weaverInputPolicy = WEAVER_INPUT_POLICY_AUTO;
+assert.equal(processorRequestsInput(autoSpinner, 'wool'), true);
+assert.equal(processorRequestsInput(autoSpinner, 'flax'), true);
+assert.equal(processorRequestsInput(autoSpinner, 'water'), true);
+const yarnWeaver = processor('yarn-weaver', 'weaver');
+yarnWeaver.weaverInputPolicy = WEAVER_INPUT_POLICY_WOOL_FIRST;
+assert.equal(weaverRecipeRequestsInput(yarnWeaver.weaverInputPolicy, 'yarn'), true);
+assert.equal(weaverRecipeRequestsInput(yarnWeaver.weaverInputPolicy, 'linen'), false);
+assert.equal(processorRequestsInput(yarnWeaver, 'yarn'), true);
+assert.equal(processorRequestsInput(yarnWeaver, 'linen'), false);
+const linenWeaver = processor('linen-weaver', 'weaver');
+linenWeaver.weaverInputPolicy = WEAVER_INPUT_POLICY_FLAX_FIRST;
+assert.equal(weaverRecipeRequestsInput(linenWeaver.weaverInputPolicy, 'yarn'), false);
+assert.equal(weaverRecipeRequestsInput(linenWeaver.weaverInputPolicy, 'linen'), true);
+for (const policy of [POTTER_FIRE_VESSELS, POTTER_FIRE_ROOF_TILES]) {
+  const kiln = processor(`kiln-${policy}`, 'potter_kiln');
+  kiln.potterFiringPolicy = policy;
+  assert.equal(processorRequestsInput(kiln, 'clay'), true);
+  assert.equal(processorRequestsInput(kiln, 'firewood'), true);
+  assert.equal(processorRequestsInput(kiln, 'water'), true);
+}
 assert.deepEqual(processorInputCommodities('tannery'), ['hides', 'water', 'firewood']);
 assert.deepEqual(processorInputCommodities('cobbler'), ['leather']);
 assert.deepEqual(
@@ -427,13 +501,17 @@ assert.match(economy, /!processor_accepts_input\(&target, commodity\)/);
 assert.match(economy, /!processor_accepts_input\(target, commodity\)/);
 assert.match(
   economy,
-  /fn processor_requests_input[\s\S]*?smokehouse_requests_food_input/,
+  /fn processor_requests_input[\s\S]*?"brewery"[\s\S]*?"smokehouse"[\s\S]*?"spinning_retting_house"[\s\S]*?"weaver"[\s\S]*?"potter_kiln"/,
   'active recipe demand must remain separate from physical cargo acceptance',
 );
 assert.match(
   economy,
   /fn dispatch_to_building_where_limited[\s\S]*?!processor_requests_input\(&target, commodity\)[\s\S]*?!processor_accepts_input\(&target, commodity\)/,
   'new generic supply trips must satisfy both focused demand and physical storage acceptance',
+);
+assert.match(
+  well,
+  /!processor_requests_input\(&candidate, CommodityKind::Water\)/,
 );
 assert.match(
   well,
@@ -454,7 +532,7 @@ assert.doesNotMatch(extractionInspectors, /data-processor-output-target/);
 assert.doesNotMatch(inspector, /renderExtractionStockTargetPanel/);
 assert.match(
   worldQueries,
-  /acceptsMaterialInput[\s\S]*extractionAcceptsMaintenance/,
+  /acceptsMaterialInput[\s\S]*processorRequestsInput[\s\S]*extractionAcceptsMaintenance/,
   'client-side cart previews must mirror authoritative maintenance gating',
 );
 assert.match(economy, /fn production_output_target_applies/);

@@ -44,8 +44,9 @@ use crate::balance_generated::{
     WEAVER_LINEN_PER_CYCLE, WEAVER_YARN_PER_CYCLE, WINTER_PASTURE_CAPACITY_MULTIPLIER,
 };
 use crate::brewery_recipe_policy::{
-    normalize_brewery_recipe_policy, BREWERY_RECIPE_ALE, BREWERY_RECIPE_AUTO, BREWERY_RECIPE_CIDER,
-    BREWERY_RECIPE_MEAD, BREWERY_RECIPE_PEAR_CIDER,
+    brewery_recipe_requests_input, normalize_brewery_recipe_policy, BREWERY_RECIPE_ALE,
+    BREWERY_RECIPE_AUTO, BREWERY_RECIPE_CIDER, BREWERY_RECIPE_MEAD,
+    BREWERY_RECIPE_PEAR_CIDER,
 };
 use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
@@ -169,7 +170,8 @@ use crate::supply_policy::{
 use crate::tables::{farm_field, Building, FarmField, ForagingNode, Residence};
 use crate::vineyard::fermentable_grapes;
 use crate::weaver_input_policy::{
-    weaver_fibre_delivery_preference_rank, weaver_uses_flax, weaver_uses_linen,
+    textile_recipe_requests_route, weaver_fibre_delivery_preference_rank, weaver_uses_flax,
+    weaver_uses_linen,
 };
 
 struct RoutedBuilding {
@@ -1135,6 +1137,7 @@ pub fn step_marketplace_material_dispatch(
             || labor_and_logistics_paused(ctx, tick, marketplace.owner, clock)
             || building_has_active_trip(ctx, marketplace.id)
             || building_has_inbound_supply_trip(ctx, target.id)
+            || !processor_requests_input(&target, candidate.commodity)
             || !processor_accepts_input(&target, candidate.commodity)
             || trading_post_exports_commodity(ctx, marketplace.id, candidate.commodity)
         {
@@ -1299,6 +1302,7 @@ pub fn step_local_material_dispatch(
                     || target.kind == "trading_post"
                     || !target.construction_complete
                     || tick.building_disabled_by_fire(ctx, target.id)
+                    || !processor_requests_input(&target, commodity)
                     || !processor_accepts_input(&target, commodity)
                     || !extraction_accepts_maintenance_input(ctx, &target, commodity)
                     || building_commodity_room(&target, commodity) <= 1e-6
@@ -1409,6 +1413,7 @@ fn dispatch_local_material_candidates(
             || (source.kind == "trading_post"
                 && trading_post_exports_commodity(ctx, source.id, commodity))
             || target.kind == "trading_post"
+            || !processor_requests_input(&target, commodity)
             || !processor_accepts_input(&target, commodity)
             || !extraction_accepts_maintenance_input(ctx, &target, commodity)
         {
@@ -4533,13 +4538,56 @@ fn smokehouse_requests_food_input(building: &Building, commodity: CommodityKind)
     smokehouse_recipe_requests_input(building.smokehouse_recipe_policy, input_recipe)
 }
 
+fn brewery_input_recipe(commodity: CommodityKind) -> Option<u8> {
+    match commodity {
+        CommodityKind::Barley
+        | CommodityKind::Malt
+        | CommodityKind::Water
+        | CommodityKind::Firewood => Some(BREWERY_RECIPE_ALE),
+        CommodityKind::Apples => Some(BREWERY_RECIPE_CIDER),
+        CommodityKind::Pears => Some(BREWERY_RECIPE_PEAR_CIDER),
+        CommodityKind::Honey => Some(BREWERY_RECIPE_MEAD),
+        _ => None,
+    }
+}
+
 /// Demand is narrower than physical acceptance for focused recipe buildings.
-/// A non-selected Smokehouse ingredient may remain stored or finish an already
-/// active trip, but no new supply trip should be created for it.
-fn processor_requests_input(building: &Building, commodity: CommodityKind) -> bool {
-    building.kind != "smokehouse"
-        || smokehouse_input_recipe(commodity).is_none()
-        || smokehouse_requests_food_input(building, commodity)
+/// A non-selected ingredient may remain stored or finish an already active
+/// trip, but no new supply trip should be created for it.
+pub(crate) fn processor_requests_input(
+    building: &Building,
+    commodity: CommodityKind,
+) -> bool {
+    match building.kind.as_str() {
+        "brewery" => brewery_input_recipe(commodity)
+            .map(|recipe| brewery_recipe_requests_input(building.brewery_recipe_policy, recipe))
+            .unwrap_or(true),
+        "smokehouse" => {
+            smokehouse_input_recipe(commodity).is_none()
+                || smokehouse_requests_food_input(building, commodity)
+        }
+        "spinning_retting_house" => match commodity {
+            CommodityKind::Wool => {
+                textile_recipe_requests_route(building.weaver_input_policy, false)
+            }
+            CommodityKind::Flax | CommodityKind::Water => {
+                textile_recipe_requests_route(building.weaver_input_policy, true)
+            }
+            _ => true,
+        },
+        "weaver" => match commodity {
+            CommodityKind::Yarn => {
+                textile_recipe_requests_route(building.weaver_input_policy, false)
+            }
+            CommodityKind::Linen => {
+                textile_recipe_requests_route(building.weaver_input_policy, true)
+            }
+            _ => true,
+        },
+        // Both kiln recipes consume the same clay, water, and firewood.
+        "potter_kiln" => true,
+        _ => true,
+    }
 }
 
 fn commodity_transfer_per_trip(commodity: CommodityKind) -> f64 {

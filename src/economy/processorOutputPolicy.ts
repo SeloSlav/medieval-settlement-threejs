@@ -6,12 +6,20 @@ import {
   normalizePotterFiringPolicy,
   POTTER_FIRE_ROOF_TILES,
 } from './potterFiringPolicy.ts';
-import { breweryPolicyOutput } from './breweryRecipePolicy.ts';
+import {
+  breweryPolicyOutput,
+  breweryRecipeRequestsInput,
+  type BreweryRecipeInput,
+} from './breweryRecipePolicy.ts';
 import {
   selectedSmokehouseRecipePolicy,
   smokehouseRecipeOutput,
 } from './smokehouseRecipePolicy.ts';
-import { weaverUsesFlax } from './weaverInputPolicy.ts';
+import {
+  spinningRettingRecipeRequestsInput,
+  weaverRecipeRequestsInput,
+  weaverUsesFlax,
+} from './weaverInputPolicy.ts';
 import {
   isStorageCommodity,
   storageAcceptsCommodity,
@@ -75,6 +83,7 @@ export type ProcessorInputCommodity =
   | 'oatGrain'
   | 'maslinGrain'
   | 'barley'
+  | 'malt'
   | 'apples'
   | 'pears'
   | 'honey'
@@ -126,7 +135,7 @@ const INPUTS_BY_KIND: Record<
   watermill: ['ryeGrain', 'maslinGrain'],
   windmill: ['ryeGrain', 'maslinGrain'],
   bakery: ['ryeFlour', 'maslinFlour', 'water', 'firewood'],
-  brewery: ['barley', 'apples', 'honey', 'water', 'firewood'],
+  brewery: ['barley', 'malt', 'apples', 'pears', 'honey', 'water', 'firewood'],
   smokehouse: ['food', 'firewood', 'salt'],
   spinning_retting_house: ['wool', 'flax', 'water'],
   weaver: ['yarn', 'linen'],
@@ -350,6 +359,34 @@ export function processorUsesInput(
 ): boolean {
   return isProcessorOutputTargetKind(kind)
     && INPUTS_BY_KIND[kind].includes(commodity);
+}
+
+/**
+ * New logistics demand is narrower than physical acceptance for a focused
+ * recipe. Existing alternate stock and already-inbound cargo remain valid.
+ */
+export function processorRequestsInput(
+  building: Pick<BuildingState, 'kind' | 'breweryRecipePolicy' | 'weaverInputPolicy'>,
+  commodity: ProcessorInputCommodity,
+): boolean {
+  if (building.kind === 'brewery') {
+    return !processorUsesInput('brewery', commodity)
+      || breweryRecipeRequestsInput(
+        building.breweryRecipePolicy,
+        commodity as BreweryRecipeInput,
+      );
+  }
+  if (building.kind === 'spinning_retting_house') {
+    return commodity !== 'wool' && commodity !== 'flax' && commodity !== 'water'
+      || spinningRettingRecipeRequestsInput(building.weaverInputPolicy, commodity);
+  }
+  if (building.kind === 'weaver') {
+    return commodity !== 'yarn' && commodity !== 'linen'
+      || weaverRecipeRequestsInput(building.weaverInputPolicy, commodity);
+  }
+  // Smokehouse food demand is typed at the dispatch source; both kiln recipes
+  // share all inputs, so neither needs filtering here.
+  return true;
 }
 
 export function processorAcceptsInput(

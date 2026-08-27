@@ -80,6 +80,7 @@ import {
 import {
   extractionAcceptsMaintenance,
   processorAcceptsInput,
+  processorRequestsInput,
 } from '../economy/processorOutputPolicy.ts';
 import { edibleFoodStock } from '../economy/foodInventory.ts';
 import {
@@ -677,6 +678,7 @@ export class WorldQueries {
           candidate.kind === 'spinning_retting_house'
           && (candidate.flax ?? 0) <= 1e-6
         )
+        || !processorRequestsInput(candidate, 'water')
         || !processorAcceptsInput(candidate, 'water')
         || !isWithinWellServiceRadius(well, candidate)
         || candidate.water + 1e-6 >= desiredStock
@@ -1442,6 +1444,7 @@ export class WorldQueries {
         return storageAcceptsCommodity(target, material);
       }
       if (isStorageCommodity(material) && !storageAcceptsCommodity(target, material)) return false;
+      if (!processorRequestsInput(target, material)) return false;
       if (!processorAcceptsInput(target, material)) return false;
       if (material !== 'ironwork') return true;
       const deposit = target.kind === 'mine'
@@ -1621,7 +1624,8 @@ export class WorldQueries {
       ),
       (market) => !activeSources.has(market.id),
       (target) => inboundTargets.has(target.id),
-      (target, commodity) => processorAcceptsInput(target, commodity),
+      (target, commodity) => processorRequestsInput(target, commodity)
+        && processorAcceptsInput(target, commodity),
       (market, commodity) =>
         reservations.get(market.id) === commodity,
     );

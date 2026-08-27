@@ -16,7 +16,7 @@ use crate::resource_units::{whole_room, whole_units};
 use crate::roads::RoadNetwork;
 use crate::season_policy::{EnvironmentState, WeatherKind};
 use crate::simulation::delivery_trips::{available_free_haulers, building_has_inbound_supply_trip};
-use crate::simulation::expanded_economy::processor_accepts_input;
+use crate::simulation::expanded_economy::{processor_accepts_input, processor_requests_input};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::tick_context::SimTickContext;
@@ -186,6 +186,7 @@ fn select_industrial_water_target(
                     || desired_stock <= 1e-6
                     || !candidate.construction_complete
                     || candidate.assigned_labor == 0
+                    || !processor_requests_input(&candidate, CommodityKind::Water)
                     || !processor_accepts_input(&candidate, CommodityKind::Water)
                     || candidate.water + 1e-6 >= desired_stock
                     || building_has_inbound_supply_trip(ctx, candidate.id)

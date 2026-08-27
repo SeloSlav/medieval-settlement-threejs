@@ -295,6 +295,11 @@ assert.match(wellSimulation, /candidate\.water\.max\(0\.0\) \/ desired_stock/);
 assert.match(wellSimulation, /target\.processor_output_target_percent/);
 assert.match(
   wellSimulation,
+  /!processor_requests_input\(&candidate, CommodityKind::Water\)/,
+  'focused dry recipes must not create automatic well demand',
+);
+assert.match(
+  wellSimulation,
   /candidate\.kind == "spinning_retting_house" && candidate\.flax <= 1e-6/,
   'automatic well service should skip a fibre house that has no flax to ret',
 );
