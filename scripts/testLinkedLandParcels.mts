@@ -243,6 +243,7 @@ assert.match(graveyardInspector.detailsHtml, /Grave spots<\/span><strong>24 tota
 assert.match(graveyardInspector.detailsHtml, /Dead resting here<\/span><strong>7/);
 assert.doesNotMatch(graveyardInspector.detailsHtml, /Open grave spots/);
 assert.match(graveyardInspector.detailsHtml, /Incoming burials<\/span><span>1/);
+assert.doesNotMatch(graveyardInspector.detailsHtml, /Linked church/);
 assert.equal(graveyardInspector.title, 'Burial ground');
 
 const worldQueries = source('src/resources/WorldQueries.ts');
