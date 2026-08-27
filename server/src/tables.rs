@@ -1128,6 +1128,11 @@ pub struct Building {
     /// processor percentage until the player next chooses a milk recipe.
     #[default(0u8)]
     pub milk_use_policy: u8,
+    /// Smokehouse active recipe: 0 automatic, 1 cured meat, 2 smoked fish,
+    /// 3 cheese. Appended so established smokehouses preserve automatic
+    /// processing while gaining an explicit focus control.
+    #[default(0u8)]
+    pub smokehouse_recipe_policy: u8,
 }
 
 /// One persistent import/export instruction for one Trading Post commodity.

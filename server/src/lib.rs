@@ -63,6 +63,7 @@ mod security_policy;
 mod settlement_policy;
 mod settlements;
 mod simulation;
+mod smokehouse_recipe_policy;
 mod specialty_trade_policy;
 mod storage_acceptance_policy;
 mod storehouse_policy;

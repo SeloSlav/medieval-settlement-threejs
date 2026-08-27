@@ -408,6 +408,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         yarn: resources.yarn.max(0.0),
         linen: resources.linen.max(0.0),
         milk_use_policy: crate::livestock_policy::MILK_USE_BALANCED,
+        smokehouse_recipe_policy: crate::smokehouse_recipe_policy::SMOKEHOUSE_RECIPE_AUTO,
     });
 
     resources.timber = 0.0;
