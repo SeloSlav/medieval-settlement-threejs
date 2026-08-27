@@ -1,24 +1,9 @@
 import * as THREE from 'three';
 import type { CorpseState, GraveyardState } from '../resources/types.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
+import { visibleGraveSitePlacements } from './graveyardLayout.ts';
 
-const MAX_VISIBLE_GRAVES = 180;
 const CART_FORWARD_EPSILON_SQ = 0.0025;
-
-function bilinear(
-  corners: GraveyardState['corners'],
-  u: number,
-  v: number,
-): { x: number; z: number } {
-  const topX = corners[0].x + (corners[1].x - corners[0].x) * u;
-  const topZ = corners[0].z + (corners[1].z - corners[0].z) * u;
-  const bottomX = corners[3].x + (corners[2].x - corners[3].x) * u;
-  const bottomZ = corners[3].z + (corners[2].z - corners[3].z) * u;
-  return {
-    x: topX + (bottomX - topX) * v,
-    z: topZ + (bottomZ - topZ) * v,
-  };
-}
 
 function setInstance(
   mesh: THREE.InstancedMesh,
@@ -67,7 +52,8 @@ function createGraveyard(
   posts.instanceMatrix.needsUpdate = true;
   group.add(posts);
 
-  const visible = Math.min(graveyard.burials, MAX_VISIBLE_GRAVES);
+  const graveSites = visibleGraveSitePlacements(graveyard);
+  const visible = graveSites.length;
   if (visible > 0) {
     const mounds = new THREE.InstancedMesh(
       new THREE.BoxGeometry(0.48, 0.09, 1.05),
@@ -90,34 +76,14 @@ function createGraveyard(
     heads.castShadow = true;
     arms.castShadow = true;
 
-    const columns = Math.max(
-      2,
-      Math.floor(Math.sqrt(Math.max(1, graveyard.capacity) * 1.45)),
-    );
-    const rows = Math.max(1, Math.ceil(graveyard.capacity / columns));
-    for (let index = 0; index < visible; index += 1) {
-      const column = index % columns;
-      const row = Math.floor(index / columns);
-      const u = (column + 0.5) / columns;
-      const v = (row + 0.5) / rows;
-      const point = bilinear(graveyard.corners, 0.08 + u * 0.84, 0.08 + v * 0.84);
-      const next = bilinear(
-        graveyard.corners,
-        0.08 + u * 0.84,
-        Math.min(0.92, 0.08 + v * 0.84 + 0.02),
-      );
-      const rowLength = Math.max(1e-6, Math.hypot(next.x - point.x, next.z - point.z));
-      const rowX = (next.x - point.x) / rowLength;
-      const rowZ = (next.z - point.z) / rowLength;
-      const yaw = Math.atan2(rowX, rowZ);
-      const moundY = getHeightAt(point.x, point.z);
-      setInstance(mounds, index, point.x, moundY + 0.08, point.z, yaw);
+    for (let index = 0; index < graveSites.length; index += 1) {
+      const site = graveSites[index]!;
+      const moundY = getHeightAt(site.x, site.z);
+      setInstance(mounds, index, site.x, moundY + 0.08, site.z, site.yaw);
 
-      const headX = point.x - rowX * 0.38;
-      const headZ = point.z - rowZ * 0.38;
-      const headY = getHeightAt(headX, headZ);
-      setInstance(heads, index, headX, headY + 0.36, headZ, yaw);
-      setInstance(arms, index, headX, headY + 0.49, headZ, yaw);
+      const headY = getHeightAt(site.headX, site.headZ);
+      setInstance(heads, index, site.headX, headY + 0.36, site.headZ, site.yaw);
+      setInstance(arms, index, site.headX, headY + 0.49, site.headZ, site.yaw);
     }
     mounds.instanceMatrix.needsUpdate = true;
     heads.instanceMatrix.needsUpdate = true;

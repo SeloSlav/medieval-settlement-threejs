@@ -7,6 +7,7 @@ import {
 } from '../src/resources/inspector/residenceRenderer.ts';
 import type { ResidenceState } from '../src/resources/types.ts';
 import { createDefaultNeeds } from '../src/residences/residenceNeedState.ts';
+import { residenceFoodShortageActive } from '../src/residences/residenceNeeds.ts';
 
 function residence(overrides: Partial<ResidenceState> = {}): ResidenceState {
   return {
@@ -53,6 +54,22 @@ assert.equal(
   residenceNeedIsMet(stockedHome, 'food'),
   false,
   'stock must not conceal an already-recorded failed food bill',
+);
+assert.equal(
+  residenceFoodShortageActive(stockedHome),
+  false,
+  'a full meal in the pantry must stop an old failed bill presenting as active starvation',
+);
+const unfedHome = residence();
+unfedHome.needs.food.deficitTicks = 1;
+assert.equal(residenceFoodShortageActive(unfedHome), true);
+
+const fullTierOneHome = residence({ population: 3, ryeBread: 1 });
+fullTierOneHome.needs.food.deficitTicks = 1;
+assert.equal(
+  residenceFoodShortageActive(fullTierOneHome),
+  false,
+  'one rye bread must recover a full Tier-1 household from active starvation',
 );
 
 const tierThreeHome = residence({ tier: 3 });

@@ -88,7 +88,18 @@ export function getForestClearanceSignature(state: GameState): string {
     .map((garden) => `${garden.id}:${garden.residenceId}:${garden.kind}`)
     .sort()
     .join('|');
-  return `${buildings}§${residences}§${farmFields}§${backyardGardens}`;
+  const graveSites = [...(state.graveyards?.values() ?? [])]
+    .map((graveyard) => [
+      graveyard.id,
+      graveyard.capacity,
+      graveyard.burials,
+      graveyard.corners
+        .map((corner) => `${corner.x.toFixed(2)},${corner.z.toFixed(2)}`)
+        .join('-'),
+    ].join(':'))
+    .sort()
+    .join('|');
+  return `${buildings}§${residences}§${farmFields}§${backyardGardens}§${graveSites}`;
 }
 
 export function syncBuildingTerrainLayout(

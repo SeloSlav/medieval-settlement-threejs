@@ -16,6 +16,7 @@ import {
 } from '../fires/fireIncident.ts';
 import { collectOccupiedParcelPolygons } from '../residences/burgageZoneLayout.ts';
 import { collectBackyardGardenClearancePolygons } from '../residences/backyardPosition.ts';
+import { collectGraveSiteVegetationClearancePolygons } from '../residences/graveyardLayout.ts';
 import { syncSettlementWorld, type SettlementWorldSyncTargets } from './settlementWorldSync.ts';
 import {
   collectPlacedBuildingSources,
@@ -122,6 +123,7 @@ export class SpacetimeSnapshotApplier {
     }
     const burgageZonesChanged = !previous || state.burgageZones !== previous.burgageZones;
     const farmFieldsChanged = !previous || state.farmFields !== previous.farmFields;
+    const graveyardsChanged = !previous || state.graveyards !== previous.graveyards;
     const quarriesChanged = !previous || state.quarries !== previous.quarries;
     const foragingChanged = !previous
       || state.foragingNodes !== previous.foragingNodes
@@ -266,7 +268,13 @@ export class SpacetimeSnapshotApplier {
     }
 
     let forestClearanceChanged = false;
-    if (buildingsChanged || residencesChanged || farmFieldsChanged || backyardCollidersChanged) {
+    if (
+      buildingsChanged
+      || residencesChanged
+      || farmFieldsChanged
+      || backyardCollidersChanged
+      || graveyardsChanged
+    ) {
       const forestSignature = getForestClearanceSignature(state);
       if (forestSignature !== this.lastForestClearanceSignature) {
         this.lastForestClearanceSignature = forestSignature;
@@ -308,6 +316,9 @@ export class SpacetimeSnapshotApplier {
         gameState.backyardGardens.values(),
         gameState.residences.values(),
         gameState.burgageZones.values(),
+      ),
+      collectGraveSiteVegetationClearancePolygons(
+        gameState.graveyards?.values() ?? [],
       ),
     );
   }

@@ -39,7 +39,7 @@ for (const token of [
 
 const needs = read('server/src/simulation/residence_needs/mod.rs');
 for (const token of [
-  'consume_food_with_preserved',
+  'consume_monthly_food_slots',
   'starvation_death_chance',
   'cold_exposure_death_chance',
   'insert_corpse',
@@ -49,6 +49,8 @@ for (const token of [
   'next_malnutrition',
   'nearby_waiting_corpses',
   'if food_unmet',
+  'food_shortage_harms_health',
+  'relieve_food_deficit_from_stocked_pantry',
   'environment.season == Season::Winter',
   'death_cause = Some(2)',
 ]) {
@@ -119,6 +121,19 @@ assert.doesNotMatch(residence, /data-residence-decay-repair/);
 assert.match(residence, /Herbal remedies/);
 assert.match(residence, /Seasonal ration rotation/);
 assert.match(residence, /replaces the same amount of fresh food rather than adding a second meal/);
+assert.match(residence, /Recovering · food need currently met/);
+assert.match(residence, /accumulated shortage days/);
+assert.match(residence, /Starving · \$\{activeHungerDays\.toFixed\(1\)\}d elapsed/);
+assert.doesNotMatch(residence, /days without enough food/);
+const householdDistribution = read('server/src/simulation/household_distribution.rs');
+assert.match(
+  householdDistribution,
+  /sync_food_need_rows\(ctx, &residence\);\s*relieve_food_deficit_from_stocked_pantry\(ctx, &residence\);/,
+  'a market refill must immediately relieve a payable stale food deficit',
+);
+const hud = read('src/ui/SettlementHud.ts');
+assert.match(hud, /settlement-wide usable meals/);
+assert.match(hud, /household pantries can cover their next food bill/);
 const residenceSync = read('src/data/spacetimeTableSync/syncResidences.ts');
 assert.match(residenceSync, /abandoned: false/);
 assert.match(residenceSync, /condition: 0/);
