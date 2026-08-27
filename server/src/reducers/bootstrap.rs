@@ -304,6 +304,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         storehouse_charcoal_target_percent: 25,
         processor_output_target_percent: PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
         production_rate_percent: DEFAULT_PRODUCTION_RATE_PERCENT,
+        production_maintenance_progress: 0.0,
         guardhouse_food_reserve: 0,
         marketplace_seed_grain_target: 0,
         marketplace_pending_trade_code: 0,

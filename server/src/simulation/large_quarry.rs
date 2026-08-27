@@ -11,6 +11,7 @@ use crate::economy::{
     building_commodity_room, deposit_building_commodity, withdraw_building_commodity, CommodityKind,
 };
 use crate::extraction_policy::quarry_geological_commodity;
+use crate::production_maintenance::charge_completed_production_maintenance;
 use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::expanded_economy::request_connected_commodity;
 use crate::simulation::game_calendar::GameClock;
@@ -105,9 +106,8 @@ pub fn step_large_quarry(
         LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
     );
     if tools_maintained {
-        withdraw_building_commodity(
+        charge_completed_production_maintenance(
             &mut updated,
-            CommodityKind::Ironwork,
             CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
         );
     }

@@ -7,8 +7,9 @@ use crate::constants::{MILL_WATER_PER_HARVEST, TICK_DT};
 use crate::db::*;
 use crate::economy::{
     building_storage_caps, building_water_storage_cap, deposit_building,
-    withdraw_building_commodity, withdraw_building_water, CommodityKind,
+    withdraw_building_water,
 };
+use crate::production_maintenance::charge_completed_production_maintenance;
 use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::spatial::find_nearest_mature_tree;
@@ -98,9 +99,8 @@ pub fn step_lumber_mill(
 
     let (_, mut harvested) = withdraw_building_water(&updated, MILL_WATER_PER_HARVEST);
     if tools_maintained {
-        withdraw_building_commodity(
+        charge_completed_production_maintenance(
             &mut harvested,
-            CommodityKind::Ironwork,
             CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
         );
     }

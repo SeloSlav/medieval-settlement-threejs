@@ -8,10 +8,9 @@ use crate::building_defs::building_def;
 use crate::civilian_tool_policy::{civilian_tool_throughput_multiplier, civilian_tools_maintained};
 use crate::constants::TICK_DT;
 use crate::db::*;
-use crate::economy::{
-    building_commodity_room, deposit_building_commodity, withdraw_building_commodity, CommodityKind,
-};
+use crate::economy::{building_commodity_room, deposit_building_commodity, CommodityKind};
 use crate::extraction_policy::{mining_camp_clay_commodity, mining_camp_geological_commodity};
+use crate::production_maintenance::charge_completed_production_maintenance;
 use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::SimTickContext;
@@ -105,9 +104,8 @@ pub fn step_stone_quarry(
         return;
     }
     if tools_maintained {
-        withdraw_building_commodity(
+        charge_completed_production_maintenance(
             &mut updated,
-            CommodityKind::Ironwork,
             CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
         );
     }

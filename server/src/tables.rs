@@ -1136,6 +1136,10 @@ pub struct Building {
     /// sites. 50 is normal, 0 pauses, and 100 doubles normal throughput.
     #[default(50u8)]
     pub production_rate_percent: u8,
+    /// Fractional tool wear and temporarily unpaid whole-unit wear for the
+    /// production-rate maintenance curve. Inventory itself remains integral.
+    #[default(0.0)]
+    pub production_maintenance_progress: f64,
 }
 
 /// One persistent import/export instruction for one Trading Post commodity.

@@ -10,9 +10,10 @@ use crate::constants::{
 use crate::db::*;
 use crate::economy::{
     available_unreserved_building_timber, building_storage_caps, deposit_building,
-    withdraw_building, withdraw_building_commodity, CommodityKind,
+    withdraw_building,
 };
 use crate::ox_policy::ox_amplified_worker_count;
+use crate::production_maintenance::charge_completed_production_maintenance;
 use crate::simulation::delivery_trips::{
     building_has_active_trip, building_has_inbound_supply_trip, onsite_building_labor,
     try_start_timber_supply_trip,
@@ -199,9 +200,8 @@ fn process_timber_to_firewood(
         return (lodge, false);
     }
     if tools_maintained {
-        withdraw_building_commodity(
+        charge_completed_production_maintenance(
             &mut processed,
-            CommodityKind::Ironwork,
             CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
         );
     }

@@ -958,6 +958,7 @@ pub(crate) fn place_building_internal(
         storehouse_charcoal_target_percent: 25,
         processor_output_target_percent: PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
         production_rate_percent: DEFAULT_PRODUCTION_RATE_PERCENT,
+        production_maintenance_progress: 0.0,
         gold: 0.0,
         // A paid expedition's people arrive only when construction completes.
         founding_shelter_active: false,

@@ -1207,6 +1207,7 @@ pub fn insert_reclamation_pile(
             crate::processor_output_policy::PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
         production_rate_percent:
             crate::production_rate_policy::DEFAULT_PRODUCTION_RATE_PERCENT,
+        production_maintenance_progress: 0.0,
         guardhouse_food_reserve: 0,
         marketplace_seed_grain_target: 0,
         founding_shelter_active: false,

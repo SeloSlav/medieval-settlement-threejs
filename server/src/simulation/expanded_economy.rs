@@ -120,6 +120,7 @@ use crate::processor_output_policy::{
     processor_input_staging_cycles, processor_output_headroom, processor_output_kind,
     ProcessorOutputKind,
 };
+use crate::production_maintenance::charge_completed_production_maintenance;
 use crate::residence_consumption_policy::daily_household_bill_due;
 use crate::resource_units::{
     deterministic_whole_lot, periodic_whole_units, whole_cost, whole_units,
@@ -802,9 +803,8 @@ pub fn step_watermill(
     if tools_maintained && flour_after > flour_before + 1e-6 {
         let completed_cycle_share =
             ((flour_after - flour_before) / output_per_cycle).clamp(0.0, 1.0);
-        withdraw_building_commodity(
+        charge_completed_production_maintenance(
             &mut mill,
-            CommodityKind::Ironwork,
             CIVILIAN_TOOL_IRONWORK_PER_CYCLE * completed_cycle_share,
         );
     }
@@ -849,9 +849,8 @@ pub fn step_windmill(
     if tools_maintained && flour_after > flour_before + 1e-6 {
         let completed_cycle_share =
             ((flour_after - flour_before) / output_per_cycle).clamp(0.0, 1.0);
-        withdraw_building_commodity(
+        charge_completed_production_maintenance(
             &mut mill,
-            CommodityKind::Ironwork,
             CIVILIAN_TOOL_IRONWORK_PER_CYCLE * completed_cycle_share,
         );
     }
@@ -1781,9 +1780,8 @@ pub fn step_mine(
         );
     }
     if tools_maintained && produced > 1e-6 {
-        withdraw_building_commodity(
+        charge_completed_production_maintenance(
             &mut mine,
-            CommodityKind::Ironwork,
             CIVILIAN_TOOL_IRONWORK_PER_CYCLE * produced / base_batch,
         );
     }
@@ -2395,9 +2393,8 @@ fn step_farmstead_fields(
         let completed_stage =
             field.stage != stage_before || field.harvest_count != harvest_count_before;
         if farm_tools_ready && completed_stage {
-            withdraw_building_commodity(
+            charge_completed_production_maintenance(
                 farmstead,
-                CommodityKind::Ironwork,
                 farm_tool_ironwork_per_completed_stage(),
             );
         }
@@ -3098,9 +3095,8 @@ pub fn step_clay_pit(
         ctx.db.foraging_node().node_id().update(deposit);
     }
     if tools_maintained && clay_produced > 1e-6 {
-        withdraw_building_commodity(
+        charge_completed_production_maintenance(
             &mut clay_pit,
-            CommodityKind::Ironwork,
             CIVILIAN_TOOL_IRONWORK_PER_CYCLE * clay_produced / CLAY_PIT_CLAY_PER_CYCLE,
         );
     }
