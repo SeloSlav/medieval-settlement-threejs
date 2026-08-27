@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -2895,6 +2896,7 @@ const tsOutDir = join(projectRoot, 'src/generated');
 const tsOut = join(tsOutDir, 'gameBalance.ts');
 
 writeFileSync(rustOut, generateRust());
+execFileSync('rustfmt', ['--edition', '2021', rustOut], { stdio: 'inherit' });
 mkdirSync(tsOutDir, { recursive: true });
 writeFileSync(tsOut, generateTypeScript());
 
