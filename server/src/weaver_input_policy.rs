@@ -22,8 +22,8 @@ pub fn normalize_weaver_input_policy(policy: u8) -> u8 {
 }
 
 /// Lower ranks win when equal-priority active textile workshops compete for a
-/// route-specific cart. Automatic workshops remain a neutral middle pool and the opposite
-/// specialization remains eligible as a fallback.
+/// route-specific cart. Automatic workshops remain a neutral middle pool and
+/// the opposite ingredient may still be stored for a later recipe change.
 pub fn weaver_fibre_delivery_preference_rank(policy: u8, flax: bool) -> u8 {
     match normalize_weaver_input_policy(policy) {
         WEAVER_INPUT_POLICY_AUTO => 1,
@@ -34,10 +34,8 @@ pub fn weaver_fibre_delivery_preference_rank(policy: u8, flax: bool) -> u8 {
     }
 }
 
-/// A preference never stalls a stocked loom: the selected fibre is used when
-/// it can complete a cycle, then the alternate route may keep the crew
-/// productive. With neither route ready, the preferred route remains visible
-/// as the current blocker.
+/// Explicit buttons select one recipe. Auto alone may switch to whichever
+/// complete route has the deeper working stock.
 pub fn weaver_uses_flax(
     policy: u8,
     wool: f64,
@@ -50,12 +48,9 @@ pub fn weaver_uses_flax(
     let wool_cycles = wool.max(0.0) / wool_per_cycle.max(1e-6);
     let flax_cycles =
         (flax.max(0.0) / flax_per_cycle.max(1e-6)).min(water.max(0.0) / water_per_cycle.max(1e-6));
-    let wool_ready = wool_cycles + 1e-9 >= 1.0;
-    let flax_ready = flax_cycles + 1e-9 >= 1.0;
-
     match normalize_weaver_input_policy(policy) {
-        WEAVER_INPUT_POLICY_WOOL_FIRST => !wool_ready && flax_ready,
-        WEAVER_INPUT_POLICY_FLAX_FIRST => flax_ready || !wool_ready,
+        WEAVER_INPUT_POLICY_WOOL_FIRST => false,
+        WEAVER_INPUT_POLICY_FLAX_FIRST => true,
         WEAVER_INPUT_POLICY_AUTO => {
             (flax > 1e-6 && wool <= 1e-6) || flax_cycles > wool_cycles + 1e-9
         }
@@ -74,12 +69,9 @@ pub fn weaver_uses_linen(
 ) -> bool {
     let yarn_cycles = yarn.max(0.0) / yarn_per_cycle.max(1e-6);
     let linen_cycles = linen.max(0.0) / linen_per_cycle.max(1e-6);
-    let yarn_ready = yarn_cycles + 1e-9 >= 1.0;
-    let linen_ready = linen_cycles + 1e-9 >= 1.0;
-
     match normalize_weaver_input_policy(policy) {
-        WEAVER_INPUT_POLICY_WOOL_FIRST => !yarn_ready && linen_ready,
-        WEAVER_INPUT_POLICY_FLAX_FIRST => linen_ready || !yarn_ready,
+        WEAVER_INPUT_POLICY_WOOL_FIRST => false,
+        WEAVER_INPUT_POLICY_FLAX_FIRST => true,
         WEAVER_INPUT_POLICY_AUTO => {
             (linen > 1e-6 && yarn <= 1e-6) || linen_cycles > yarn_cycles + 1e-9
         }
@@ -113,9 +105,9 @@ mod tests {
     }
 
     #[test]
-    fn preferences_fall_back_instead_of_idling_a_stocked_loom() {
-        assert!(uses_flax(WEAVER_INPUT_POLICY_WOOL_FIRST, 0.0, 3.0, 1.0));
-        assert!(!uses_flax(WEAVER_INPUT_POLICY_FLAX_FIRST, 3.0, 3.0, 0.0));
+    fn explicit_recipes_do_not_fall_back_to_alternate_stock() {
+        assert!(!uses_flax(WEAVER_INPUT_POLICY_WOOL_FIRST, 0.0, 3.0, 1.0));
+        assert!(uses_flax(WEAVER_INPUT_POLICY_FLAX_FIRST, 3.0, 3.0, 0.0));
         assert!(uses_flax(WEAVER_INPUT_POLICY_FLAX_FIRST, 0.0, 0.0, 0.0));
     }
 
@@ -135,7 +127,7 @@ mod tests {
             2.0,
             2.0,
         ));
-        assert!(weaver_uses_linen(
+        assert!(!weaver_uses_linen(
             WEAVER_INPUT_POLICY_WOOL_FIRST,
             0.0,
             2.0,

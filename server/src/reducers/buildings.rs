@@ -79,6 +79,7 @@ use crate::processor_output_policy::{
 use crate::resource_units::{whole_cost, whole_units};
 use crate::roads::load_owner_road_network;
 use crate::seasonal_labor_policy::seasonal_production_active;
+use crate::smokehouse_recipe_policy::is_valid_smokehouse_recipe_policy;
 use crate::simulation::{
     building_fire_state, building_has_active_trip, building_has_inbound_commodity_trip,
     building_has_inbound_supply_trip, call_up_active_seasonal_labor_for_settlement,
@@ -1048,6 +1049,7 @@ pub(crate) fn place_building_internal(
         yarn: 0.0,
         linen: 0.0,
         milk_use_policy: crate::livestock_policy::MILK_USE_BALANCED,
+        smokehouse_recipe_policy: crate::smokehouse_recipe_policy::SMOKEHOUSE_RECIPE_AUTO,
     });
 
     if is_founders_camp_expansion {
@@ -2386,6 +2388,33 @@ pub fn set_brewery_recipe_policy(
         return Err("You do not own this completed brewhouse.".to_string());
     }
     building.brewery_recipe_policy = recipe_policy;
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_smokehouse_recipe_policy(
+    ctx: &ReducerContext,
+    building_id: u64,
+    recipe_policy: u8,
+) -> Result<(), String> {
+    if !is_valid_smokehouse_recipe_policy(recipe_policy) {
+        return Err(
+            "Smokehouse recipe must be Auto, Cured Meat, Smoked Fish, or Cheese.".to_string(),
+        );
+    }
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Smokehouse not found.".to_string())?;
+    if building.owner != owner || building.kind != "smokehouse" || !building.construction_complete
+    {
+        return Err("You do not own this completed smokehouse.".to_string());
+    }
+    building.smokehouse_recipe_policy = recipe_policy;
     ctx.db.building().id().update(building);
     Ok(())
 }

@@ -26,13 +26,13 @@ export const SPINNING_RETTING_INPUT_POLICY_PRESETS = [
   },
   {
     policy: WEAVER_INPUT_POLICY_WOOL_FIRST,
-    label: 'Wool first',
-    hint: 'Prioritizes wool carts, yields contested well water, and preserves flax while a complete dry wool cycle is ready.',
+    label: 'Yarn',
+    hint: 'Spin wool into yarn only. Flax and water may still be stored for a later recipe change.',
   },
   {
     policy: WEAVER_INPUT_POLICY_FLAX_FIRST,
-    label: 'Flax first',
-    hint: 'Prioritizes flax carts and automatic well service while preserving wool when a complete wet cycle is ready.',
+    label: 'Linen',
+    hint: 'Ret flax into linen only. Wool may still be stored for a later recipe change.',
   },
 ] as const;
 
@@ -44,13 +44,13 @@ export const WEAVER_INPUT_POLICY_PRESETS = [
   },
   {
     policy: WEAVER_INPUT_POLICY_WOOL_FIRST,
-    label: 'Yarn first',
-    hint: 'Prioritizes yarn carts and preserves linen while a complete yarn cycle is ready.',
+    label: 'Yarn clothing',
+    hint: 'Weave clothing from yarn only. Linen may still be stored for a later recipe change.',
   },
   {
     policy: WEAVER_INPUT_POLICY_FLAX_FIRST,
-    label: 'Linen first',
-    hint: 'Prioritizes linen carts and preserves yarn while a complete linen cycle is ready.',
+    label: 'Linen clothing',
+    hint: 'Weave clothing from linen only. Yarn may still be stored for a later recipe change.',
   },
 ] as const;
 
@@ -123,14 +123,11 @@ export function weaverUsesFlax(
     flax / Math.max(1e-6, SPINNING_RETTING_FLAX_PER_CYCLE),
     water / Math.max(1e-6, SPINNING_RETTING_FLAX_WATER_PER_CYCLE),
   );
-  const woolReady = woolCycles + 1e-9 >= 1;
-  const flaxReady = flaxCycles + 1e-9 >= 1;
-
   switch (normalizeWeaverInputPolicy(building.weaverInputPolicy)) {
     case WEAVER_INPUT_POLICY_WOOL_FIRST:
-      return !woolReady && flaxReady;
+      return false;
     case WEAVER_INPUT_POLICY_FLAX_FIRST:
-      return flaxReady || !woolReady;
+      return true;
     case WEAVER_INPUT_POLICY_AUTO:
     default:
       return (flax > 1e-6 && wool <= 1e-6)
@@ -145,14 +142,11 @@ export function weaverUsesLinen(
   const linen = Math.max(0, building.linen ?? 0);
   const yarnCycles = yarn / Math.max(1e-6, WEAVER_YARN_PER_CYCLE);
   const linenCycles = linen / Math.max(1e-6, WEAVER_LINEN_PER_CYCLE);
-  const yarnReady = yarnCycles + 1e-9 >= 1;
-  const linenReady = linenCycles + 1e-9 >= 1;
-
   switch (normalizeWeaverInputPolicy(building.weaverInputPolicy)) {
     case WEAVER_INPUT_POLICY_WOOL_FIRST:
-      return !yarnReady && linenReady;
+      return false;
     case WEAVER_INPUT_POLICY_FLAX_FIRST:
-      return linenReady || !yarnReady;
+      return true;
     case WEAVER_INPUT_POLICY_AUTO:
     default:
       return (linen > 1e-6 && yarn <= 1e-6)

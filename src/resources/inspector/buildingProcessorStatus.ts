@@ -74,7 +74,9 @@ import {
 } from './buildingWaterStatus.ts';
 import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
 import {
+  normalizeWeaverInputPolicy,
   spinningRettingInputPolicyLabel,
+  WEAVER_INPUT_POLICY_AUTO,
   weaverInputPolicyLabel,
   weaverUsesFlax,
   weaverUsesLinen,
@@ -814,7 +816,7 @@ function getSpinningRettingStatus(
   );
   const detailHtml = waterRows + `
     <li><span>Inputs per cycle</span><span>${renderResourceCost(processorInputCost([input]), { compact: true })}</span></li>
-    <li><span>Input policy</span><span>${spinningRettingInputPolicyLabel(building.weaverInputPolicy)} · a complete alternate raw-fibre recipe remains a fallback</span></li>
+    <li><span>Active recipe</span><span>${spinningRettingInputPolicyLabel(building.weaverInputPolicy)}${normalizeWeaverInputPolicy(building.weaverInputPolicy) === WEAVER_INPUT_POLICY_AUTO ? ' · chooses the deepest complete route' : ' · alternate ingredients remain stored'}</span></li>
     <li><span>Selected textile route</span><span>${usesFlax ? 'Ret flax with hauled water → linen' : 'Spin annual sheep fleece → yarn'} · ${formatInputCycleCoverage(routeCycles)}</span></li>
     <li><span>${usesFlax ? 'Flax' : 'Wool'} working stock</span><span>${Math.round(stockAmount(building, input.key))} onsite · ${input.required.toFixed(1)} per cycle · ${input.hint}</span></li>
     <li><span>Alternative input</span><span>${usesFlax ? `${Math.round(Math.max(0, building.wool ?? 0))} wool` : `${Math.round(Math.max(0, building.flax ?? 0))} flax + ${Math.round(Math.max(0, building.water))} water`} onsite</span></li>
@@ -889,7 +891,7 @@ function getWeaverStatus(
     'None - all wet flax preparation happens at the Spinning & Retting House',
   ) + `
     <li><span>Inputs per cycle</span><span>${renderResourceCost(processorInputCost([input]), { compact: true })}</span></li>
-    <li><span>Input policy</span><span>${weaverInputPolicyLabel(building.weaverInputPolicy)} · ready alternate prepared fibre remains a fallback</span></li>
+    <li><span>Active recipe</span><span>${weaverInputPolicyLabel(building.weaverInputPolicy)}${normalizeWeaverInputPolicy(building.weaverInputPolicy) === WEAVER_INPUT_POLICY_AUTO ? ' · chooses the deepest complete route' : ' · alternate ingredients remain stored'}</span></li>
     <li><span>Selected loom route</span><span>${usesLinen ? 'Linen → clothing' : 'Yarn → clothing'} · ${formatInputCycleCoverage(routeCycles)}</span></li>
     <li><span>${usesLinen ? 'Linen' : 'Yarn'} working stock</span><span>${Math.round(stockAmount(building, input.key))} onsite · ${input.required.toFixed(1)} per cycle · ${input.hint}</span></li>
     <li><span>Alternative input</span><span>${Math.round(Math.max(0, building[usesLinen ? 'yarn' : 'linen'] ?? 0))} ${usesLinen ? 'yarn' : 'linen'} onsite</span></li>

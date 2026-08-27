@@ -125,6 +125,10 @@ use crate::resource_units::{
     deterministic_whole_lot, periodic_whole_units, whole_cost, whole_units,
 };
 use crate::season_policy::{EnvironmentState, WeatherKind};
+use crate::smokehouse_recipe_policy::{
+    normalize_smokehouse_recipe_policy, SMOKEHOUSE_RECIPE_AUTO, SMOKEHOUSE_RECIPE_CHEESE,
+    SMOKEHOUSE_RECIPE_CURED_MEAT, SMOKEHOUSE_RECIPE_SMOKED_FISH,
+};
 use crate::simulation::delivery_trips::{
     building_has_active_trip, building_has_conflicting_inbound_supply_trip,
     building_has_inbound_commodity_trip, building_has_inbound_supply_trip,
@@ -2803,17 +2807,7 @@ pub fn step_spinning_retting_house(
     clock: &GameClock,
     building: Building,
 ) {
-    let yarn_headroom = processor_output_headroom(
-        building.yarn,
-        building_commodity_cap(&building.kind, CommodityKind::Yarn),
-        building.processor_output_target_percent,
-    );
-    let linen_headroom = processor_output_headroom(
-        building.linen,
-        building_commodity_cap(&building.kind, CommodityKind::Linen),
-        building.processor_output_target_percent,
-    );
-    let mut uses_flax = weaver_uses_flax(
+    let uses_flax = weaver_uses_flax(
         building.weaver_input_policy,
         building.wool,
         building.flax,
@@ -2822,15 +2816,6 @@ pub fn step_spinning_retting_house(
         SPINNING_RETTING_FLAX_PER_CYCLE,
         SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
     );
-    if yarn_headroom + 1e-6 < SPINNING_RETTING_YARN_PER_CYCLE
-        && linen_headroom + 1e-6 >= SPINNING_RETTING_LINEN_PER_CYCLE
-    {
-        uses_flax = true;
-    } else if linen_headroom + 1e-6 < SPINNING_RETTING_LINEN_PER_CYCLE
-        && yarn_headroom + 1e-6 >= SPINNING_RETTING_YARN_PER_CYCLE
-    {
-        uses_flax = false;
-    }
     let (inputs, output) = if uses_flax {
         (
             [
@@ -2989,19 +2974,7 @@ pub fn step_smokehouse(
     building: Building,
 ) {
     let mut smokehouse = building;
-    let selected_input = [
-        CommodityKind::Meat,
-        CommodityKind::Fish,
-        CommodityKind::Milk,
-    ]
-    .into_iter()
-    .find(|commodity| {
-        building_commodity_stock(&smokehouse, *commodity) + 1e-6 >= SMOKEHOUSE_FOOD_PER_CYCLE
-    });
-    if let Some(input) = selected_input {
-        let output = input
-            .preservation_output()
-            .expect("smokehouse input must retain a preservation identity");
+    if let Some((input, output)) = selected_smokehouse_recipe(&smokehouse) {
         smokehouse = step_processor(
             ctx,
             tick,
@@ -3036,6 +3009,38 @@ pub fn step_smokehouse(
         );
     }
     ctx.db.building().id().update(smokehouse);
+}
+
+fn selected_smokehouse_recipe(
+    smokehouse: &Building,
+) -> Option<(CommodityKind, CommodityKind)> {
+    let policy = normalize_smokehouse_recipe_policy(smokehouse.smokehouse_recipe_policy);
+    let recipe = |input: CommodityKind| {
+        let output = input
+            .preservation_output()
+            .expect("smokehouse recipe input must retain a preservation identity");
+        (input, output)
+    };
+    if policy != SMOKEHOUSE_RECIPE_AUTO {
+        return Some(recipe(match policy {
+            SMOKEHOUSE_RECIPE_SMOKED_FISH => CommodityKind::Fish,
+            SMOKEHOUSE_RECIPE_CHEESE => CommodityKind::Milk,
+            SMOKEHOUSE_RECIPE_CURED_MEAT => CommodityKind::Meat,
+            _ => unreachable!("smokehouse recipe policy is normalized"),
+        }));
+    }
+    [CommodityKind::Meat, CommodityKind::Fish, CommodityKind::Milk]
+        .into_iter()
+        .map(recipe)
+        .find(|(input, output)| {
+            building_commodity_stock(smokehouse, *input) + 1e-6 >= SMOKEHOUSE_FOOD_PER_CYCLE
+                && processor_output_headroom(
+                    building_commodity_stock(smokehouse, *output),
+                    building_commodity_cap(&smokehouse.kind, *output),
+                    smokehouse.processor_output_target_percent,
+                ) + 1e-6
+                    >= SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE
+        })
 }
 
 pub fn step_clay_pit(
@@ -4462,57 +4467,15 @@ pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityK
                 && building_commodity_room(building, CommodityKind::AnimalFeed) > 1e-6;
         }
     }
-    if building.kind == "smokehouse" && processor_uses_input(&building.kind, commodity) {
-        return processor_output_headroom(
-            crate::economy::building_preserved_food_stock(building),
-            building_commodity_cap(&building.kind, CommodityKind::PreservedFood),
-            building.processor_output_target_percent,
-        ) > 1e-6;
-    }
-    if building.kind == "brewery" && processor_uses_input(&building.kind, commodity) {
-        let policy = normalize_brewery_recipe_policy(building.brewery_recipe_policy);
-        let recipe_accepts = match policy {
-            BREWERY_RECIPE_CIDER => commodity == CommodityKind::Apples,
-            BREWERY_RECIPE_PEAR_CIDER => commodity == CommodityKind::Pears,
-            BREWERY_RECIPE_MEAD => commodity == CommodityKind::Honey,
-            BREWERY_RECIPE_AUTO => true,
-            _ => matches!(
-                commodity,
-                CommodityKind::Barley
-                    | CommodityKind::Malt
-                    | CommodityKind::Water
-                    | CommodityKind::Firewood
-            ),
-        };
-        if !recipe_accepts {
-            return false;
-        }
-        let output = match policy {
-            BREWERY_RECIPE_CIDER => CommodityKind::Cider,
-            BREWERY_RECIPE_PEAR_CIDER => CommodityKind::PearCider,
-            BREWERY_RECIPE_MEAD => CommodityKind::Mead,
-            BREWERY_RECIPE_AUTO => match commodity {
-                CommodityKind::Apples => CommodityKind::Cider,
-                CommodityKind::Pears => CommodityKind::PearCider,
-                CommodityKind::Honey => CommodityKind::Mead,
-                _ => CommodityKind::Ale,
-            },
-            _ => CommodityKind::Ale,
-        };
-        return brewery_output_headroom(building, output) > 1e-6;
-    }
-    if building.kind == "spinning_retting_house" && processor_uses_input(&building.kind, commodity)
+    if matches!(
+        building.kind.as_str(),
+        "brewery" | "smokehouse" | "spinning_retting_house" | "weaver" | "potter_kiln"
+    ) && processor_uses_input(&building.kind, commodity)
     {
-        let output = if commodity == CommodityKind::Wool {
-            CommodityKind::Yarn
-        } else {
-            CommodityKind::Linen
-        };
-        return processor_output_headroom(
-            building_commodity_stock(building, output),
-            building_commodity_cap(&building.kind, output),
-            building.processor_output_target_percent,
-        ) > 1e-6;
+        // A recipe choice controls production, not intake. Alternate valid
+        // ingredients may still be delivered and held for the player's next
+        // selection, bounded by their ordinary physical storage capacity.
+        return building_commodity_room(building, commodity) > 1e-6;
     }
     if !processor_uses_input(&building.kind, commodity) {
         return true;

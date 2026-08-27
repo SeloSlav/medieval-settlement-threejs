@@ -797,10 +797,9 @@ pub struct Building {
     /// disrupted frontier plan cannot silently reassign itself.
     #[default(0u64)]
     pub guardhouse_muster_watchtower_id: u64,
-    /// Fibre route preference for weavers: 0 automatically uses the deeper
-    /// staged route, 1 prefers ready wool, and 2 prefers ready flax plus
-    /// water. The alternate route remains a fallback so a stocked loom does
-    /// not idle. Ignored by other building kinds.
+    /// Fibre recipe for textile workshops: 0 automatically uses the deeper
+    /// staged route, 1 uses the wool/yarn route, and 2 uses the flax/linen
+    /// route. Alternate ingredients remain storable. Ignored by other kinds.
     #[default(0u8)]
     pub weaver_input_policy: u8,
     /// Locally raised ore or imported regional blooms and bars.
