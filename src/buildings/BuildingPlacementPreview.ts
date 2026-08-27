@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {
   polygonSegments,
+  updateTerrainCircleFillGeometry,
   updateTerrainCircleRibbonGeometry,
   updateTerrainQuadGeometry,
   updateTerrainRibbonGeometry,
@@ -42,6 +43,8 @@ const GHOST_OUTLINE_MIN_SPAN = 0.45;
 const GHOST_OUTLINE_MAX_PARTS = 128;
 const PREVIEW_RENDER_ORDER = 12;
 const WILDLIFE_WARNING_COLOR = 0xff5d50;
+const WILDLIFE_WARNING_FILL_LIFT = 0.12;
+const WILDLIFE_WARNING_FILL_OPACITY = 0.28;
 const WILDLIFE_WARNING_LIFT = 0.19;
 const WILDLIFE_WARNING_WIDTH = 0.82;
 const LOGGING_WORK_EXTENT_COLOR = 0xd7b463;
@@ -259,6 +262,10 @@ export function updateBuildingPreviewAppearance(
         material.color.setHex(WILDLIFE_WARNING_COLOR);
         material.opacity = 0.9;
         break;
+      case 'wildlife-habitat-warning-fill':
+        material.color.setHex(WILDLIFE_WARNING_COLOR);
+        material.opacity = WILDLIFE_WARNING_FILL_OPACITY;
+        break;
       case 'logging-work-extent':
         material.color.setHex(LOGGING_WORK_EXTENT_COLOR);
         material.opacity = 0.76;
@@ -393,13 +400,20 @@ function updateWildlifeWarningGeometry(
   if (!(warnings instanceof THREE.Group)) return;
   const habitats = wildlifePreview?.habitats ?? [];
   while (warnings.children.length < habitats.length) {
-    warnings.add(createTerrainWarningRing(
+    const warning = createTerrainWarningRing(
       'Game habitat disturbance warning',
       'wildlife-habitat-warning',
       WILDLIFE_WARNING_COLOR,
       0.9,
       PREVIEW_RENDER_ORDER + 4,
+    );
+    warning.add(createTerrainWarningFill(
+      'Game habitat disturbance fill',
+      WILDLIFE_WARNING_COLOR,
+      WILDLIFE_WARNING_FILL_OPACITY,
+      PREVIEW_RENDER_ORDER + 3,
     ));
+    warnings.add(warning);
   }
 
   for (let index = 0; index < warnings.children.length; index += 1) {
@@ -417,6 +431,24 @@ function updateWildlifeWarningGeometry(
     warning.userData.directBuildingRisk = habitat.directBuildingRisk;
     warning.userData.huntingReach = habitat.huntingReach;
     warning.userData.loggingReach = habitat.loggingReach;
+    const fill = warning.children.find((child) =>
+      child.userData.previewRole === 'wildlife-habitat-warning-fill'
+    );
+    if (fill instanceof THREE.Mesh) {
+      fill.name = `Game habitat disturbance fill ${habitat.nodeId}`;
+      fill.userData.nodeId = habitat.nodeId;
+      fill.userData.habitatRadius = habitat.radius;
+      updateTerrainCircleFillGeometry(
+        fill.geometry,
+        { x: habitat.x, z: habitat.z },
+        habitat.radius,
+        getHeightAt,
+        {
+          lift: WILDLIFE_WARNING_FILL_LIFT,
+          radialSpacing: 4.5,
+        },
+      );
+    }
     updateTerrainCircleRibbonGeometry(
       warning.geometry,
       { x: habitat.x, z: habitat.z },
@@ -458,6 +490,33 @@ function createTerrainWarningRing(
   ring.renderOrder = renderOrder;
   ring.frustumCulled = false;
   return ring;
+}
+
+function createTerrainWarningFill(
+  name: string,
+  color: number,
+  opacity: number,
+  renderOrder: number,
+): THREE.Mesh {
+  const fill = new THREE.Mesh(
+    new THREE.BufferGeometry(),
+    new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity,
+      depthTest: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    }),
+  );
+  fill.name = name;
+  fill.userData.previewRole = 'wildlife-habitat-warning-fill';
+  fill.renderOrder = renderOrder;
+  fill.frustumCulled = false;
+  return fill;
 }
 
 function createBuildingGhost(kind: BuildingKind): THREE.Group {

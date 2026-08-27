@@ -1289,6 +1289,30 @@ function testPlacementPreviewShowsAdvisoryWildlifeWarnings(): void {
   const habitatMaterial = habitatRing.material as THREE.MeshBasicMaterial;
   const advisoryOpacity = habitatMaterial.opacity;
   assert.equal(habitatMaterial.color.getHex(), 0xff5d50);
+  const habitatFill = habitatRing.children.find((child) =>
+    child.userData.previewRole === 'wildlife-habitat-warning-fill'
+  );
+  assert(habitatFill instanceof THREE.Mesh);
+  assert.equal(habitatFill.name, 'Game habitat disturbance fill hunter-relevant');
+  const habitatFillPositions = habitatFill.geometry.getAttribute('position') as THREE.BufferAttribute;
+  assert(
+    habitatFillPositions.count > habitatPositions.count,
+    'the habitat warning should fill the full disturbed terrain area, not only draw a ring',
+  );
+  for (let index = 0; index < habitatFillPositions.count; index += 1) {
+    assert.ok(
+      Math.abs(
+        habitatFillPositions.getY(index)
+        - (heightAt(habitatFillPositions.getX(index), habitatFillPositions.getZ(index)) + 0.12)
+      ) < 1e-5,
+      'game habitat warning fill vertices must follow the sampled terrain',
+    );
+  }
+  const habitatFillMaterial = habitatFill.material as THREE.MeshBasicMaterial;
+  assert.equal(habitatFillMaterial.color.getHex(), 0xff5d50);
+  assert.equal(habitatFillMaterial.transparent, true);
+  assert.equal(habitatFillMaterial.opacity, 0.28);
+  assert.equal(habitatFillMaterial.depthWrite, false);
   updateBuildingPreviewAppearance(hunterPreview, false);
   assert.equal(
     habitatMaterial.color.getHex(),
@@ -1296,6 +1320,12 @@ function testPlacementPreviewShowsAdvisoryWildlifeWarnings(): void {
     'an advisory habitat warning must stay red independently of placement validity',
   );
   assert.equal(habitatMaterial.opacity, advisoryOpacity);
+  assert.equal(
+    habitatFillMaterial.color.getHex(),
+    0xff5d50,
+    'the habitat warning fill must stay red independently of placement validity',
+  );
+  assert.equal(habitatFillMaterial.opacity, 0.28);
 
   assert.deepEqual(
     validateBuildingPlacement('hunters_hall', 0, 0, {

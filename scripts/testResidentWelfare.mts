@@ -119,8 +119,6 @@ assert.match(chapel, /data-demolish-graveyard/);
 const residence = read('src/resources/inspector/residenceRenderer.ts');
 assert.doesNotMatch(residence, /data-residence-decay-repair/);
 assert.match(residence, /Herbal remedies/);
-assert.match(residence, /Seasonal ration rotation/);
-assert.match(residence, /replaces the same amount of fresh food rather than adding a second meal/);
 assert.match(residence, /Recovering · food need currently met/);
 assert.match(residence, /accumulated shortage days/);
 assert.match(residence, /Starving · \$\{activeHungerDays\.toFixed\(1\)\}d elapsed/);

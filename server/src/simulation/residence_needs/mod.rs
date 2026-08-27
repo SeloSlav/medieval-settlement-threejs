@@ -399,10 +399,7 @@ fn consume_monthly_food_slots(residence: &mut Residence, tier: u8) -> MonthlyFoo
 /// physical pantry can pay the household's next bill. The preview runs the
 /// exact category-aware bill against a clone, so it neither consumes stock nor
 /// lets a token amount of the wrong food hide a real shortage.
-pub fn relieve_food_deficit_from_stocked_pantry(
-    ctx: &ReducerContext,
-    residence: &Residence,
-) {
+pub fn relieve_food_deficit_from_stocked_pantry(ctx: &ReducerContext, residence: &Residence) {
     let mut pantry_preview = residence.clone();
     if !consume_monthly_food_slots(&mut pantry_preview, residence.tier).all_slots_met {
         return;
