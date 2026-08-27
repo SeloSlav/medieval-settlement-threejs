@@ -11,6 +11,7 @@ import { computeSettlementGrainPlan } from '../src/economy/settlementGrainPlan.t
 import { computeSettlementSeedProcurementPlan } from '../src/economy/settlementSeedProcurement.ts';
 import { buildSettlementFarmPlan } from '../src/farming/farmWorkPlanning.ts';
 import {
+  deliveryTripTravelSpeed,
   tripDeliveryRemainingSeconds,
   type DeliveryTripState,
 } from '../src/logistics/deliveryTrips.ts';
@@ -1224,9 +1225,12 @@ const lateMill = building('late-mill', 'watermill', 1);
 lateMill.ryeGrain = 3;
 lateState.buildings.set(lateMill.id, lateMill);
 const lateGrain = deliveryTrip('late-grain', lateMill.id, 30, 'outbound');
-lateGrain.pathDistance = smallMillOnsiteDays * CALENDAR_SECONDS_PER_DAY + 100;
 lateGrain.speedMps = 1;
 lateGrain.unloadSeconds = 1;
+lateGrain.pathDistance = smallMillOnsiteDays
+  * CALENDAR_SECONDS_PER_DAY
+  * deliveryTripTravelSpeed(lateGrain)
+  + 100;
 lateState.deliveryTrips.set(lateGrain.id, lateGrain);
 const lateProduction = computeSettlementProductionCapacity(lateState, false);
 assert.ok(lateProduction.millInputBuffer);
@@ -1238,7 +1242,7 @@ approx(
 assert.equal(lateProduction.millInputBuffer.deliveryGap, true);
 assert.equal(
   lateProduction.millInputBuffer.nextDeliverySeconds,
-  lateGrain.pathDistance + lateGrain.unloadSeconds,
+  tripDeliveryRemainingSeconds(lateGrain),
 );
 
 const targetedState = emptyGameState();
