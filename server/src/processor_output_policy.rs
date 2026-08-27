@@ -1,9 +1,9 @@
-//! Output ceilings for staffed processing workshops and extraction yards.
+//! Output ceilings for staffed processing workshops.
 //!
-//! The ceiling controls new production and, for conversion workshops, their
-//! input deliveries. Extraction sites do not stage inputs. It is not a
-//! protected reserve: household, institutional, and market carts may still
-//! draw goods below it, at which point production resumes.
+//! The ceiling controls new production and workshop input deliveries. It is
+//! not a protected reserve: household, institutional, and market carts may
+//! still draw goods below it, at which point production resumes. Extraction
+//! yards always use their full physical capacity and do not use this policy.
 
 pub const PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT: u8 = 100;
 pub const PROCESSOR_OUTPUT_TARGET_PERCENTS: [u8; 4] = [25, 50, 75, 100];
@@ -91,14 +91,8 @@ pub fn is_processor_output_target_kind(kind: &str) -> bool {
     processor_output_kind(kind).is_some()
 }
 
-pub fn is_extraction_output_target_kind(kind: &str) -> bool {
-    matches!(kind, "stone_quarry" | "large_quarry" | "mine" | "clay_pit")
-}
-
 pub fn is_production_output_target_kind(kind: &str) -> bool {
-    is_processor_output_target_kind(kind)
-        || is_extraction_output_target_kind(kind)
-        || kind == "pastoral_farmstead"
+    is_processor_output_target_kind(kind) || kind == "pastoral_farmstead"
 }
 
 pub fn is_valid_processor_output_target_percent(percent: u8) -> bool {
@@ -145,8 +139,8 @@ pub fn processor_input_staging_cycles(percent: u8) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        is_extraction_output_target_kind, is_processor_output_target_kind,
-        is_production_output_target_kind, is_valid_processor_output_target_percent,
+        is_processor_output_target_kind, is_production_output_target_kind,
+        is_valid_processor_output_target_percent,
         normalize_processor_output_target_percent, processor_input_kinds,
         processor_input_staging_cycles, processor_output_headroom, processor_output_kind,
         processor_output_target, ProcessorInputKind, ProcessorOutputKind,
@@ -224,13 +218,11 @@ mod tests {
     }
 
     #[test]
-    fn geological_worksites_share_the_ceiling_without_becoming_processors() {
+    fn geological_worksites_do_not_expose_workshop_output_targets() {
         for kind in ["stone_quarry", "large_quarry", "mine", "clay_pit"] {
-            assert!(is_extraction_output_target_kind(kind));
-            assert!(is_production_output_target_kind(kind));
+            assert!(!is_production_output_target_kind(kind));
             assert!(!is_processor_output_target_kind(kind));
         }
-        assert!(!is_extraction_output_target_kind("hunters_hall"));
         assert!(is_production_output_target_kind("smithy"));
         assert!(is_production_output_target_kind("pastoral_farmstead"));
         assert!(!is_processor_output_target_kind("pastoral_farmstead"));
