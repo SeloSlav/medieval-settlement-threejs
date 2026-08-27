@@ -407,6 +407,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         pelts: resources.pelts.max(0.0),
         yarn: resources.yarn.max(0.0),
         linen: resources.linen.max(0.0),
+        milk_use_policy: crate::livestock_policy::MILK_USE_BALANCED,
     });
 
     resources.timber = 0.0;

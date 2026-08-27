@@ -79,6 +79,7 @@ function buildingStateFromRow(
     treeWorkAreaRadius: number;
     settlementId: bigint;
     animalFeed: number;
+    milkUsePolicy: number;
     yarn: number;
     linen: number;
   }>;
@@ -207,10 +208,10 @@ function buildingStateFromRow(
     storehouseClayTargetPercent: row.storehouseClayTargetPercent,
     storehouseSaltTargetPercent: row.storehouseSaltTargetPercent,
     processorOutputTargetPercent: row.processorOutputTargetPercent,
+    milkUsePolicy: Number(materialRow.milkUsePolicy ?? 0),
     breweryRecipePolicy: Number(materialRow.breweryRecipePolicy ?? 0),
     threshingPriority: row.threshingPriority,
     weaverInputPolicy: row.weaverInputPolicy,
-    potteryDispatchPolicy: row.potteryDispatchPolicy,
     potterFiringPolicy: Number(materialRow.potterFiringPolicy ?? 0),
     granaryAcceptsFreshFood: row.granaryAcceptsFreshFood,
     granaryHouseholdsFirst: row.granaryHouseholdsFirst,

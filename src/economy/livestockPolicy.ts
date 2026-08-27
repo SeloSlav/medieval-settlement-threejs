@@ -44,7 +44,7 @@ import {
   SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
   SWINE_WATER_PER_HEAD_PER_CYCLE,
 } from '../generated/gameBalance.ts';
-import type { LivestockHerdState, LivestockSpecies } from '../resources/types.ts';
+import type { BuildingState, LivestockHerdState, LivestockSpecies } from '../resources/types.ts';
 
 export type LivestockPolicyDefinition = {
   minimumReserve: number;
@@ -81,6 +81,25 @@ export const LIVESTOCK_MILK_USE_PRESETS = [
 
 export type LivestockMilkUsePolicy =
   (typeof LIVESTOCK_MILK_USE_PRESETS)[number];
+
+export function isLivestockMilkUsePolicyValue(value: number | undefined): boolean {
+  return LIVESTOCK_MILK_USE_PRESETS.some((preset) => preset.value === value);
+}
+
+/**
+ * New rows own a dedicated milk-use field. A zero or missing value identifies
+ * an older row and falls back to the former overloaded workshop percentage so
+ * Fresh milk and Cheese first choices survive the additive schema migration.
+ */
+export function livestockMilkUsePolicyForBuilding(
+  building: Pick<BuildingState, 'milkUsePolicy' | 'processorOutputTargetPercent'>,
+): LivestockMilkUsePolicy {
+  return livestockMilkUsePolicy(
+    isLivestockMilkUsePolicyValue(building.milkUsePolicy)
+      ? building.milkUsePolicy
+      : building.processorOutputTargetPercent,
+  );
+}
 
 const POLICY_BY_SPECIES: Record<LivestockSpecies, LivestockPolicyDefinition> = {
   cattle: {

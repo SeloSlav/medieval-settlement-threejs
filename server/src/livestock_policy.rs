@@ -17,6 +17,10 @@ pub const MILK_USE_FRESH: u8 = 25;
 pub const MILK_USE_BALANCED: u8 = 50;
 pub const MILK_USE_CHEESE_FIRST: u8 = 75;
 
+pub fn is_valid_milk_use_policy(configured: u8) -> bool {
+    matches!(configured, MILK_USE_FRESH | MILK_USE_BALANCED | MILK_USE_CHEESE_FIRST)
+}
+
 /// Oats staged at a pastoral holding with live animals have crossed the
 /// food-versus-fodder boundary and belong to its feed workshop. Once the herd
 /// is empty, those physical oat units return to ordinary food and trade flows.
@@ -43,6 +47,17 @@ pub fn normalize_milk_use_policy(configured: u8) -> u8 {
     match configured {
         MILK_USE_FRESH | MILK_USE_CHEESE_FIRST => configured,
         _ => MILK_USE_BALANCED,
+    }
+}
+
+/// A zero-valued dedicated field identifies an older building row. Its former
+/// workshop percentage is read once as the compatibility source so established
+/// Fresh milk and Cheese first choices survive the additive schema migration.
+pub fn effective_milk_use_policy(configured: u8, legacy_configured: u8) -> u8 {
+    if is_valid_milk_use_policy(configured) {
+        configured
+    } else {
+        normalize_milk_use_policy(legacy_configured)
     }
 }
 
@@ -269,7 +284,8 @@ mod tests {
         farmhouse_cheese_salt_staging_cycles, haymaking_share, is_autumn_cull_month,
         is_haymaking_month, is_shearing_month, livestock_cycles_per_calendar_day,
         livestock_feed_oat_exportable_stock, livestock_holding_protects_feed_oats,
-        livestock_milk_allocation, normalize_milk_use_policy, pending_cull_heads,
+        effective_milk_use_policy, livestock_milk_allocation, normalize_milk_use_policy,
+        pending_cull_heads,
         projected_winter_animal_feed, retain_priority_candidate, sheep_fleece_output,
         storage_secured_pending_cull_heads, MILK_USE_BALANCED, MILK_USE_CHEESE_FIRST,
         MILK_USE_FRESH,
@@ -333,6 +349,15 @@ mod tests {
         let salt_limited = livestock_milk_allocation(MILK_USE_CHEESE_FIRST, 4.2, 1.2, 0.5);
         assert!((salt_limited.0 - 4.9).abs() < 1e-9);
         assert!((salt_limited.1 - 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn dedicated_milk_policy_falls_back_to_legacy_rows_only_when_unset() {
+        assert_eq!(effective_milk_use_policy(0, MILK_USE_FRESH), MILK_USE_FRESH);
+        assert_eq!(
+            effective_milk_use_policy(MILK_USE_CHEESE_FIRST, MILK_USE_FRESH),
+            MILK_USE_CHEESE_FIRST
+        );
     }
 
     #[test]

@@ -132,7 +132,7 @@ import { normalizeMarketplaceIronTarget } from './marketplaceMaterialProcurement
 import { weaverUsesFlax, weaverUsesLinen } from './weaverInputPolicy.ts';
 import { largeQuarrySupportsReady } from './largeQuarrySupportPolicy.ts';
 import { richMineSupportsReady } from './mineSupportPolicy.ts';
-import { preservedFoodStock } from './foodInventory.ts';
+import { preservableFoodStock, preservedFoodStock } from './foodInventory.ts';
 import { windSiteThroughputMultiplier } from '../wind/windField.ts';
 
 export type SettlementProductionCapacity = {
@@ -1458,10 +1458,11 @@ function completedProcessorOverview(
           'preservedFood',
           cycles * SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
         );
-        let runway = buildingInputRunway(
+        let runway = groupedBuildingInputRunway(
           deliveries,
           building,
-          'food',
+          ['meat', 'fish', 'milk'],
+          preservableFoodStock(building),
           cycles * SMOKEHOUSE_FOOD_PER_CYCLE,
         );
         let limitingInput: ProcessorInput = 'fresh food';

@@ -329,6 +329,7 @@ mod tests {
             pelts: 0.0,
             yarn: 0.0,
             linen: 0.0,
+            milk_use_policy: crate::livestock_policy::MILK_USE_BALANCED,
         }
     }
 

@@ -168,7 +168,6 @@ function marketStallDisplayKind(
   commodityKind: MarketStallCommodityKind,
 ): MarketStallDisplayKind {
   switch (commodityKind) {
-    case 'food':
     case 'oatGrain': return 'provisions';
     case 'ryeBread':
     case 'maslinBread': return 'bread';

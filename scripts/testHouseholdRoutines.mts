@@ -425,10 +425,11 @@ assert.ok(
 );
 gameSpeed = 1;
 for (let step = 0; step < realtimeTickBudget(600); step++) villagers.tick(0.05);
-assert.equal(worker.routinePhase, 'home_outdoors');
-assert.ok(
-  worker.pathPurpose === null || worker.pathPurpose === 'home_wander',
-  'an off-duty worker at home may already have started a leisure walk',
+assert.equal(worker.routinePhase, 'indoors');
+assert.equal(
+  worker.pathPurpose,
+  null,
+  'after Sabbath devotions the off-duty worker should remain at rest inside the home',
 );
 
 villagers.setSchedule({

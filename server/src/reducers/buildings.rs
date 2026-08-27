@@ -1048,6 +1048,7 @@ pub(crate) fn place_building_internal(
         pelts: 0.0,
         yarn: 0.0,
         linen: 0.0,
+        milk_use_policy: crate::livestock_policy::MILK_USE_BALANCED,
     });
 
     if is_founders_camp_expansion {

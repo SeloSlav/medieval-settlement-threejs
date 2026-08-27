@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { ResidenceMarkers } from '../src/residences/ResidenceMarkers.ts';
 import { createDefaultNeeds } from '../src/residences/residenceNeedState.ts';
 import {
+  marketplaceResidenceFulfillment,
   marketplaceServiceResidenceIds,
   serviceCoverageLabel,
 } from '../src/resources/serviceCoverage.ts';
@@ -58,6 +59,15 @@ assert.equal(serviceCoverageLabel('well'), 'water service');
 assert.equal(serviceCoverageLabel('marketplace'), 'market service');
 assert.equal(serviceCoverageLabel('chapel'), 'church service');
 
+const fulfillmentHome = residence('fulfillment-home', 0, 0, 3);
+assert.equal(marketplaceResidenceFulfillment(fulfillmentHome), 'unfulfilled');
+fulfillmentHome.needs.food.stock = 4;
+assert.equal(marketplaceResidenceFulfillment(fulfillmentHome), 'partial');
+fulfillmentHome.needs.firewood.stock = 4;
+fulfillmentHome.needs.cloth.stock = 1;
+fulfillmentHome.needs.shoes.stock = 1;
+assert.equal(marketplaceResidenceFulfillment(fulfillmentHome), 'fulfilled');
+
 const parent = new THREE.Group();
 const markers = new ResidenceMarkers(parent);
 const homes = [
@@ -72,55 +82,84 @@ markers.setServiceCoverageHighlights(
 
 const coverageRoot = parent.getObjectByName('Residence service coverage');
 assert.ok(coverageRoot instanceof THREE.Group);
-let halo = coverageRoot.getObjectByName('Served residence ground halos');
-assert.ok(halo instanceof THREE.InstancedMesh);
-assert.equal(halo.count, 2);
+let firstOverlay = coverageRoot.getObjectByName('Served residence mesh overlay:home-a');
+let secondOverlay = coverageRoot.getObjectByName('Served residence mesh overlay:home-b');
+assert.ok(firstOverlay instanceof THREE.Mesh);
+assert.ok(secondOverlay instanceof THREE.Mesh);
 assert.equal(
-  coverageRoot.children.filter((child) => child instanceof THREE.InstancedMesh).length,
-  1,
-  'any number of served homes must remain one instanced draw submission',
+  coverageRoot.children.filter((child) => child instanceof THREE.Mesh).length,
+  2,
+  'each served home must receive one merged full-structure overlay mesh',
 );
 assert.equal(
-  (halo.material as THREE.MeshBasicMaterial).color.getHex(),
+  (firstOverlay.material as THREE.MeshBasicMaterial).color.getHex(),
   0x57c9ff,
-  'well territory must use a readable water-blue halo',
+  'well territory must use a readable water-blue house tint',
+);
+assert.equal((firstOverlay.material as THREE.MeshBasicMaterial).transparent, true);
+assert.ok((firstOverlay.material as THREE.MeshBasicMaterial).opacity < 0.5);
+assert.ok(firstOverlay.geometry.getAttribute('position').count > 100);
+assert.equal(firstOverlay.position.x, homes[0].x);
+assert.equal(firstOverlay.position.y, 2.5);
+assert.equal(firstOverlay.position.z, homes[0].z);
+
+markers.setServiceCoverageHighlights(
+  new Set(['home-a', 'home-b']),
+  'marketplace',
+  new Map([
+    ['home-a', 'fulfilled'],
+    ['home-b', 'unfulfilled'],
+  ]),
+);
+firstOverlay = coverageRoot.getObjectByName('Served residence mesh overlay:home-a');
+secondOverlay = coverageRoot.getObjectByName('Served residence mesh overlay:home-b');
+assert.ok(firstOverlay instanceof THREE.Mesh);
+assert.ok(secondOverlay instanceof THREE.Mesh);
+assert.equal(
+  (firstOverlay.material as THREE.MeshBasicMaterial).color.getHex(),
+  0x62d27b,
+  'a fully supplied Marketplace home must be green',
+);
+assert.equal(
+  (secondOverlay.material as THREE.MeshBasicMaterial).color.getHex(),
+  0xe6655e,
+  'a wholly unfulfilled Marketplace home must be red',
 );
 
-const firstMatrix = new THREE.Matrix4();
-halo.getMatrixAt(0, firstMatrix);
-const firstPosition = new THREE.Vector3();
-firstPosition.setFromMatrixPosition(firstMatrix);
-assert.equal(firstPosition.x, homes[0].x);
-assert.equal(firstPosition.z, homes[0].z);
-assert.ok(firstPosition.y > 2.5, 'halos should sit slightly above the leveled home pad');
-
-markers.setServiceCoverageHighlights(new Set(['home-b']), 'marketplace');
-halo = coverageRoot.getObjectByName('Served residence ground halos');
-assert.ok(halo instanceof THREE.InstancedMesh);
-assert.equal(halo.count, 1);
+markers.setServiceCoverageHighlights(
+  new Set(['home-b']),
+  'marketplace',
+  new Map([['home-b', 'partial']]),
+);
+secondOverlay = coverageRoot.getObjectByName('Served residence mesh overlay:home-b');
+assert.ok(secondOverlay instanceof THREE.Mesh);
 assert.equal(
-  (halo.material as THREE.MeshBasicMaterial).color.getHex(),
-  0xe7c45c,
-  'market territory must use a distinct trade-gold halo',
+  (secondOverlay.material as THREE.MeshBasicMaterial).color.getHex(),
+  0xefc84f,
+  'a partly supplied Marketplace home must be yellow',
 );
 
 markers.setServiceCoverageHighlights(new Set(['home-b']), 'chapel');
-halo = coverageRoot.getObjectByName('Served residence ground halos');
-assert.ok(halo instanceof THREE.InstancedMesh);
-assert.equal(halo.count, 1);
+secondOverlay = coverageRoot.getObjectByName('Served residence mesh overlay:home-b');
+assert.ok(secondOverlay instanceof THREE.Mesh);
 assert.equal(
-  (halo.material as THREE.MeshBasicMaterial).color.getHex(),
+  (secondOverlay.material as THREE.MeshBasicMaterial).color.getHex(),
   0xc89cff,
-  'church territory must use a distinct parish-violet halo',
+  'church territory must use a distinct parish-purple house tint',
 );
 
 markers.syncResidences([homes[0]], () => 2.5);
-halo = coverageRoot.getObjectByName('Served residence ground halos');
-assert.ok(halo instanceof THREE.InstancedMesh);
-assert.equal(halo.count, 0, 'a removed covered residence must disappear immediately');
+assert.equal(
+  coverageRoot.getObjectByName('Served residence mesh overlay:home-b'),
+  undefined,
+  'a removed covered residence overlay must disappear immediately',
+);
 
+markers.setServiceCoverageHighlights(new Set(['home-a']), 'well');
+firstOverlay = coverageRoot.getObjectByName('Served residence mesh overlay:home-a');
+assert.ok(firstOverlay instanceof THREE.Mesh && firstOverlay.visible);
 markers.setServiceCoverageHighlights(new Set(), null);
-assert.equal(halo.count, 0);
+assert.equal(firstOverlay.visible, false);
 markers.dispose();
 assert.equal(parent.getObjectByName('Residence service coverage'), undefined);
 
@@ -153,4 +192,4 @@ assert.doesNotMatch(
 assert.match(marketInspectorSource, /serviceCoverage:[\s\S]*kind: 'marketplace'/);
 assert.match(chapelInspectorSource, /serviceCoverage:[\s\S]*kind: 'chapel'/);
 
-console.log('Service coverage projection and instanced-overlay checks passed.');
+console.log('Service coverage projection and translucent mesh-overlay checks passed.');

@@ -179,7 +179,6 @@ function inputAmount(
 }
 
 function inputLabel(commodity: DeliveryCargoKind): string {
-  if (commodity === 'food') return 'mixed fresh food';
   return commodity.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
 }
 
@@ -293,7 +292,7 @@ function processorInputRecipes(
     }
     case 'smokehouse':
       return [[
-        ['food', 'meat', 'fish', 'milk'],
+        ['meat', 'fish', 'milk'],
         ['firewood'],
         ['salt'],
         ['pottery'],
@@ -309,7 +308,9 @@ function processorInputRecipes(
         [['linen']],
       ];
     default:
-      return [[...processorInputCommodities(building.kind).map(
+      return [[...processorInputCommodities(building.kind)
+        .filter((commodity) => commodity !== 'food')
+        .map(
         (commodity): ProcessorInputRequirement => [commodity],
       )]];
   }
@@ -347,13 +348,12 @@ function missingRecipeRequirements(
 
 function requirementLabel(requirement: ProcessorInputRequirement): string {
   if (
-    requirement.length === 4
-    && requirement.includes('food')
+    requirement.length === 3
     && requirement.includes('meat')
     && requirement.includes('fish')
     && requirement.includes('milk')
   ) {
-    return 'fresh meat, fish, milk, or mixed food';
+    return 'fresh meat, fish, or milk';
   }
   return requirement.map(inputLabel).join(' or ');
 }

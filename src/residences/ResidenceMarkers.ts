@@ -2717,6 +2717,7 @@ export class ResidenceMarkers {
     const nextIds = new Set<string>();
     for (const residence of residences) {
       nextIds.add(residence.id);
+      this.residenceStates.set(residence.id, residence);
       let marker = this.meshes.get(residence.id);
       if (
         marker
@@ -2730,6 +2731,7 @@ export class ResidenceMarkers {
         }
         this.root.remove(marker);
         this.staticBatches.removeResidence(residence.id);
+        this.removeServiceCoverageMesh(residence.id);
         disposeGroup(marker);
         this.meshes.delete(residence.id);
         this.smokeEmitters.get(residence.id)?.dispose();
@@ -2836,8 +2838,10 @@ export class ResidenceMarkers {
       this.root.remove(marker);
       this.staticBatches.removeResidence(id);
       this.shadowProxyBatch.remove(id);
+      this.removeServiceCoverageMesh(id);
       disposeGroup(marker);
       this.meshes.delete(id);
+      this.residenceStates.delete(id);
       this.smokeEmitters.get(id)?.dispose();
       this.smokeEmitters.delete(id);
       this.smokeEligible.delete(id);
@@ -2856,60 +2860,94 @@ export class ResidenceMarkers {
   }
 
   private syncServiceCoverageHighlights(): void {
-    this.ensureServiceCoverageCapacity(this.serviceCoverageIds.size);
-    const position = new THREE.Vector3();
-    const scale = new THREE.Vector3();
-    const groundRotation = new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(-Math.PI / 2, 0, 0),
-    );
-    const matrix = new THREE.Matrix4();
+    for (const [id, overlay] of this.serviceCoverageMeshes) {
+      if (!this.serviceCoverageIds.has(id)) overlay.visible = false;
+    }
     let index = 0;
     for (const id of this.serviceCoverageIds) {
       const source = this.meshes.get(id);
-      if (!source || !source.visible) continue;
-      const radius = serviceCoverageRadius(
-        Number(source.userData.residenceTier ?? 1),
+      if (!source || !source.visible) {
+        const overlay = this.serviceCoverageMeshes.get(id);
+        if (overlay) overlay.visible = false;
+        continue;
+      }
+      const overlay = this.ensureServiceCoverageMesh(id);
+      if (!overlay) continue;
+      overlay.position.copy(source.position);
+      overlay.quaternion.copy(source.quaternion);
+      overlay.scale.copy(source.scale);
+      overlay.material = this.serviceCoverageMaterialFor(
+        serviceCoverageColor(
+          this.serviceCoverageKind,
+          this.serviceCoverageMarketplaceFulfillment.get(id),
+        ),
       );
-      position.copy(source.position);
-      position.y += 0.11;
-      scale.set(radius, radius, radius);
-      matrix.compose(position, groundRotation, scale);
-      this.serviceCoverageMesh.setMatrixAt(index, matrix);
+      overlay.visible = true;
+      overlay.userData.serviceCoverageKind = this.serviceCoverageKind;
+      overlay.userData.serviceCoverageResidenceId = id;
+      overlay.userData.marketplaceFulfillment =
+        this.serviceCoverageMarketplaceFulfillment.get(id) ?? null;
       index += 1;
     }
-    this.serviceCoverageMesh.count = index;
-    this.serviceCoverageMesh.instanceMatrix.needsUpdate = true;
-    this.serviceCoverageMesh.computeBoundingSphere();
-    this.serviceCoverageMesh.userData.serviceCoverageKind =
-      this.serviceCoverageKind;
+    this.serviceCoverageRoot.userData.serviceCoverageKind = this.serviceCoverageKind;
+    this.serviceCoverageRoot.userData.visibleResidenceCount = index;
     this.serviceCoverageDirty = false;
   }
 
-  private ensureServiceCoverageCapacity(required: number): void {
-    if (required <= this.serviceCoverageCapacity) return;
-    let capacity = this.serviceCoverageCapacity;
-    while (capacity < required) capacity *= 2;
-    this.serviceCoverageRoot.remove(this.serviceCoverageMesh);
-    this.serviceCoverageCapacity = capacity;
-    this.serviceCoverageMesh = this.createServiceCoverageMesh(capacity);
-    this.serviceCoverageRoot.add(this.serviceCoverageMesh);
+  private ensureServiceCoverageMesh(
+    residenceId: string,
+  ): THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | null {
+    const existing = this.serviceCoverageMeshes.get(residenceId);
+    if (existing) return existing;
+    const residence = this.residenceStates.get(residenceId);
+    if (!residence) return null;
+    const geometry = createResidenceCoverageGeometry(residence);
+    if (!geometry) return null;
+    const overlay = new THREE.Mesh(
+      geometry,
+      this.serviceCoverageMaterialFor(
+        serviceCoverageColor(
+          this.serviceCoverageKind,
+          this.serviceCoverageMarketplaceFulfillment.get(residenceId),
+        ),
+      ),
+    );
+    overlay.name = `Served residence mesh overlay:${residenceId}`;
+    overlay.castShadow = false;
+    overlay.receiveShadow = false;
+    overlay.renderOrder = 18;
+    overlay.frustumCulled = true;
+    this.serviceCoverageMeshes.set(residenceId, overlay);
+    this.serviceCoverageRoot.add(overlay);
+    return overlay;
   }
 
-  private createServiceCoverageMesh(
-    capacity: number,
-  ): THREE.InstancedMesh<THREE.RingGeometry, THREE.MeshBasicMaterial> {
-    const mesh = new THREE.InstancedMesh(
-      this.serviceCoverageGeometry,
-      this.serviceCoverageMaterial,
-      capacity,
-    );
-    mesh.name = 'Served residence ground halos';
-    mesh.count = 0;
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
-    mesh.renderOrder = 18;
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    return mesh;
+  private serviceCoverageMaterialFor(color: number): THREE.MeshBasicMaterial {
+    const existing = this.serviceCoverageMaterials.get(color);
+    if (existing) return existing;
+    const material = new THREE.MeshBasicMaterial({
+      color,
+      opacity: 0.46,
+      transparent: true,
+      depthTest: true,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -4,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+    });
+    material.name = `Served residence translucent material:${color.toString(16)}`;
+    this.serviceCoverageMaterials.set(color, material);
+    return material;
+  }
+
+  private removeServiceCoverageMesh(residenceId: string): void {
+    const overlay = this.serviceCoverageMeshes.get(residenceId);
+    if (!overlay) return;
+    overlay.removeFromParent();
+    overlay.geometry.dispose();
+    this.serviceCoverageMeshes.delete(residenceId);
   }
 
   private applyWindowGlowForResidence(marker: THREE.Group, residenceId: string): void {
@@ -3007,36 +3045,108 @@ export class ResidenceMarkers {
     this.fireDisabledResidenceIds.clear();
     this.serviceCoverageIds.clear();
     this.serviceCoverageKind = null;
+    this.serviceCoverageMarketplaceFulfillment.clear();
+    for (const overlay of this.serviceCoverageMeshes.values()) {
+      overlay.geometry.dispose();
+      overlay.removeFromParent();
+    }
+    this.serviceCoverageMeshes.clear();
+    for (const material of this.serviceCoverageMaterials.values()) {
+      material.dispose();
+    }
+    this.serviceCoverageMaterials.clear();
     for (const marker of this.meshes.values()) {
       disposeGroup(marker);
     }
     this.meshes.clear();
+    this.residenceStates.clear();
     this.staticBatches.dispose();
     this.shadowProxyBatch.dispose();
-    this.serviceCoverageGeometry.dispose();
-    this.serviceCoverageMaterial.dispose();
     this.serviceCoverageRoot.removeFromParent();
     this.root.removeFromParent();
   }
 }
 
+function createResidenceCoverageGeometry(
+  residence: ResidenceState,
+): THREE.BufferGeometry | null {
+  const appearanceSeed = hashStringSeed(residence.id);
+  const source = residence.tier === 0
+    ? createInitialResidenceConstructionMesh(appearanceSeed)
+    : createResidenceMesh(appearanceSeed, residence.tier, residence.tier >= 4);
+  syncFirewoodPile(source, getNeedStock(residence.needs, 'firewood'));
+  syncInitialResidenceConstruction(source, residence);
+  syncResidenceUpgradeWorks(source, residence);
+  source.updateWorldMatrix(true, true);
+
+  const rootInverse = source.matrixWorld.clone().invert();
+  const transformed: THREE.BufferGeometry[] = [];
+  const relative = new THREE.Matrix4();
+  const instance = new THREE.Matrix4();
+  source.traverseVisible((object) => {
+    const mesh = object as THREE.Mesh<THREE.BufferGeometry, THREE.Material>;
+    if (!mesh.isMesh || !mesh.geometry.getAttribute('position')) return;
+    const material = mesh.material;
+    if (
+      (Array.isArray(material) && material.every((candidate) => !candidate.visible))
+      || (!Array.isArray(material) && !material.visible)
+    ) return;
+    if ((mesh as THREE.InstancedMesh).isInstancedMesh) {
+      const instanced = mesh as THREE.InstancedMesh<THREE.BufferGeometry>;
+      for (let index = 0; index < instanced.count; index += 1) {
+        instanced.getMatrixAt(index, instance);
+        relative
+          .multiplyMatrices(rootInverse, instanced.matrixWorld)
+          .multiply(instance);
+        transformed.push(coverageGeometryPart(instanced.geometry, relative));
+      }
+      return;
+    }
+    relative.multiplyMatrices(rootInverse, mesh.matrixWorld);
+    transformed.push(coverageGeometryPart(mesh.geometry, relative));
+  });
+
+  const merged = transformed.length > 0
+    ? mergeGeometries(transformed, false)
+    : null;
+  for (const geometry of transformed) geometry.dispose();
+  disposeGroup(source);
+  if (!merged) return null;
+  merged.name = `Served residence mesh geometry:${residence.id}`;
+  merged.computeBoundingBox();
+  merged.computeBoundingSphere();
+  return merged;
+}
+
+function coverageGeometryPart(
+  source: THREE.BufferGeometry,
+  transform: THREE.Matrix4,
+): THREE.BufferGeometry {
+  const geometry = source.index ? source.toNonIndexed() : source.clone();
+  for (const attribute of Object.keys(geometry.attributes)) {
+    if (attribute !== 'position') geometry.deleteAttribute(attribute);
+  }
+  geometry.clearGroups();
+  geometry.applyMatrix4(transform);
+  return geometry;
+}
+
 function serviceCoverageColor(
   kind: ServiceCoverageView['kind'] | null,
+  marketplaceFulfillment?: MarketplaceServiceFulfillment,
 ): number {
   switch (kind) {
     case 'well': return 0x57c9ff;
     case 'chapel': return 0xc89cff;
     case 'marketplace':
-    case null: return 0xe7c45c;
+      switch (marketplaceFulfillment) {
+        case 'fulfilled': return 0x62d27b;
+        case 'unfulfilled': return 0xe6655e;
+        case 'partial':
+        case undefined: return 0xefc84f;
+      }
+    case null: return 0xefc84f;
   }
-}
-
-function serviceCoverageRadius(tier: number): number {
-  if (tier >= 4) return 5.9;
-  if (tier >= 3) return 5.25;
-  if (tier === 2) return 4.55;
-  if (tier === 1) return 3.85;
-  return 3.35;
 }
 
 function setsEqual<T>(left: ReadonlySet<T>, right: ReadonlySet<T>): boolean {
@@ -3044,6 +3154,15 @@ function setsEqual<T>(left: ReadonlySet<T>, right: ReadonlySet<T>): boolean {
   if (left.size !== right.size) return false;
   for (const value of left) {
     if (!right.has(value)) return false;
+  }
+  return true;
+}
+
+function mapsEqual<K, V>(left: ReadonlyMap<K, V>, right: ReadonlyMap<K, V>): boolean {
+  if (left === right) return true;
+  if (left.size !== right.size) return false;
+  for (const [key, value] of left) {
+    if (right.get(key) !== value) return false;
   }
   return true;
 }

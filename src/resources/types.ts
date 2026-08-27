@@ -225,14 +225,14 @@ export type BuildingState = {
   storehouseClayTargetPercent?: number;
   storehouseSaltTargetPercent?: number;
   processorOutputTargetPercent?: number;
+  /** Dedicated pastoral holding milk allocation; 0/missing reads the legacy field. */
+  milkUsePolicy?: number;
   /** 0 ale, 1 apple cider, 2 mead, 3 automatic, 4 pear cider. */
   breweryRecipePolicy?: number;
   /** 1 fields first, 2 demand-aware automatic, 3 thresh before non-harvest fieldwork. */
   threshingPriority?: number;
   /** Generic textile route preference: 0 auto, 1 first route, 2 second route. */
   weaverInputPolicy?: number;
-  /** 0 storehouse market wares first, 1 preservation vessels first; potter kilns only. */
-  potteryDispatchPolicy?: number;
   /** 0 household/preserving vessels, 1 fired roof tiles; potter kilns only. */
   potterFiringPolicy?: number;
   granaryAcceptsFreshFood?: boolean;

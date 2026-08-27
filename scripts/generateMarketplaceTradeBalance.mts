@@ -1,5 +1,5 @@
 export const MARKETPLACE_TRADE_RESOURCES = [
-  'timber', 'stone', 'firewood', 'water', 'food',
+  'timber', 'stone', 'firewood', 'water',
   'ryeGrain', 'oatGrain', 'maslinGrain',
   'ryeFlour', 'maslinFlour',
   'ryeBread', 'maslinBread', 'ale', 'cider', 'pearCider',
@@ -64,7 +64,6 @@ const LEGACY_PENDING_TRADE_CODES: Readonly<Record<string, number>> = {
   sell_timber: 1,
   sell_stone: 2,
   sell_firewood: 3,
-  sell_food: 4,
   timber_for_stone: 5,
   stone_for_timber: 6,
   timber_for_firewood: 7,

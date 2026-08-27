@@ -38,7 +38,6 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
     case 'stone':
     case 'firewood':
       return 'a Storehouse with intake enabled';
-    case 'food':
     case 'ryeBread':
     case 'maslinBread':
     case 'meat':

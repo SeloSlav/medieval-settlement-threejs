@@ -99,7 +99,7 @@ const POLEARM_RAID_VALUE_MULTIPLIER = 4;
 
 type GuardhouseFoodCandidateLike = Pick<
   BuildingState,
-  'id' | 'kind' | 'food' | 'polearms' | 'assignedLabor' | 'constructionComplete'
+  'id' | 'kind' | 'polearms' | 'assignedLabor' | 'constructionComplete'
   | 'guardhouseFoodReserve'
 > & FoodInventoryLike;
 
@@ -513,7 +513,6 @@ export function raidTargetCanShelter(
 type PortableRaidStoresLike = {
   timber: number;
   firewood: number;
-  food: number;
   ryeSheaves?: number;
   oatSheaves?: number;
   barleySheaves?: number;
@@ -1281,7 +1280,6 @@ export function frontierDefenseFireSignature(
 function portableRaidValue(stores: PortableRaidStoresLike): number {
   return positivePortableAmount(stores.timber)
     + positivePortableAmount(stores.firewood)
-    + positivePortableAmount(stores.food)
     + positivePortableAmount(stores.ryeSheaves)
     + positivePortableAmount(stores.oatSheaves)
     + positivePortableAmount(stores.barleySheaves)
@@ -1401,7 +1399,6 @@ function portableRaidSummary(storesLike: PortableRaidStoresLike | undefined): st
 const DELIVERY_CARGO_RAID_VALUE: Partial<Record<DeliveryCargoKind, number>> = {
   timber: 1,
   firewood: 1,
-  food: 1,
   ryeSheaves: 1,
   oatSheaves: 1,
   barleySheaves: 1,

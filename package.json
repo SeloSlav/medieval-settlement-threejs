@@ -20,6 +20,7 @@
     "test:build-menus": "npx tsx scripts/testBuildMenuCategories.mts",
     "test:wayside-shrine": "npx tsx scripts/testWaysideShrine.mts",
     "test:wayside-shrine-devotion": "npx tsx scripts/testWaysideShrineDevotion.mts",
+    "test:sabbath-devotion": "npx tsx scripts/testSabbathDevotion.mts",
     "test:e2e": "node node_modules/@playwright/test/cli.js test",
     "smoketest": "node node_modules/@playwright/test/cli.js test e2e/smoke.spec.ts",
     "generate:world-bootstrap": "node --experimental-strip-types scripts/generateWorldBootstrap.mts",

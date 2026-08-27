@@ -1,12 +1,10 @@
-//! Output ceilings for staffed processing workshops.
+//! Automatic output capacity and input staging for processing workshops.
 //!
-//! The ceiling controls new production and workshop input deliveries. It is
-//! not a protected reserve: household, institutional, and market carts may
-//! still draw goods below it, at which point production resumes. Extraction
-//! yards always use their full physical capacity and do not use this policy.
+//! Workshops produce up to physical capacity and stage three complete input
+//! cycles. The legacy percentage column remains in stored rows for additive
+//! schema compatibility, but no longer changes workshop behavior.
 
 pub const PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT: u8 = 100;
-pub const PROCESSOR_OUTPUT_TARGET_PERCENTS: [u8; 4] = [25, 50, 75, 100];
 pub const PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES: f64 = 3.0;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -74,7 +72,7 @@ pub fn processor_input_kinds(kind: &str) -> &'static [ProcessorInputKind] {
         "watermill" | "windmill" => &[Grain],
         "bakery" => &[Flour, Water, Firewood],
         "brewery" => &[Barley, Water, Firewood, Apples, Honey],
-        "smokehouse" => &[Food, Firewood, Salt, Pottery],
+        "smokehouse" => &[Food, Firewood, Salt],
         "spinning_retting_house" => &[Wool, Flax, Water],
         "weaver" => &[Yarn, Linen],
         "charcoal_burner" => &[Firewood],
@@ -91,22 +89,8 @@ pub fn is_processor_output_target_kind(kind: &str) -> bool {
     processor_output_kind(kind).is_some()
 }
 
-pub fn is_production_output_target_kind(kind: &str) -> bool {
-    is_processor_output_target_kind(kind) || kind == "pastoral_farmstead"
-}
-
-pub fn is_valid_processor_output_target_percent(percent: u8) -> bool {
-    PROCESSOR_OUTPUT_TARGET_PERCENTS.contains(&percent)
-}
-
-/// Invalid legacy or externally-authored values retain the former
-/// fill-to-capacity behavior.
-pub fn normalize_processor_output_target_percent(percent: u8) -> u8 {
-    if is_valid_processor_output_target_percent(percent) {
-        percent
-    } else {
-        PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT
-    }
+pub fn normalize_processor_output_target_percent(_percent: u8) -> u8 {
+    PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT
 }
 
 pub fn processor_output_target(capacity: f64, percent: u8) -> f64 {
@@ -123,24 +107,14 @@ pub fn processor_output_headroom(stock: f64, capacity: f64, percent: u8) -> f64 
     (processor_output_target(capacity, percent) - stock.max(0.0)).max(0.0)
 }
 
-/// The existing output policy also controls how much of every production
-/// input is staged at the workshop. Lean branches turn carts around after one
-/// cycle, balanced branches keep two, and deep/fill policies retain the
-/// legacy three-cycle working stock.
-pub fn processor_input_staging_cycles(percent: u8) -> f64 {
-    match normalize_processor_output_target_percent(percent) {
-        25 => 1.0,
-        50 => 2.0,
-        75 | 100 => PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES,
-        _ => unreachable!("normalized processor output target is always a preset"),
-    }
+pub fn processor_input_staging_cycles(_percent: u8) -> f64 {
+    PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        is_processor_output_target_kind, is_production_output_target_kind,
-        is_valid_processor_output_target_percent, normalize_processor_output_target_percent,
+        is_processor_output_target_kind, normalize_processor_output_target_percent,
         processor_input_kinds, processor_input_staging_cycles, processor_output_headroom,
         processor_output_kind, processor_output_target, ProcessorInputKind, ProcessorOutputKind,
         PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES, PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
@@ -155,27 +129,23 @@ mod tests {
     }
 
     #[test]
-    fn production_targets_use_four_readable_steps() {
-        for percent in [25, 50, 75, 100] {
-            assert!(is_valid_processor_output_target_percent(percent));
-            assert_eq!(normalize_processor_output_target_percent(percent), percent);
+    fn legacy_percentages_all_resolve_to_physical_capacity() {
+        for percent in [0, 25, 50, 75, 100, 255] {
+            assert_eq!(normalize_processor_output_target_percent(percent), 100);
         }
-        assert!(!is_valid_processor_output_target_percent(24));
-        assert!(!is_valid_processor_output_target_percent(101));
     }
 
     #[test]
-    fn production_stops_at_the_selected_ceiling_and_resumes_below_it() {
-        assert_eq!(processor_output_target(240.0, 25), 60.0);
-        assert_eq!(processor_output_headroom(45.0, 240.0, 25), 15.0);
-        assert_eq!(processor_output_headroom(60.0, 240.0, 25), 0.0);
-        assert_eq!(processor_output_headroom(90.0, 240.0, 25), 0.0);
+    fn production_uses_physical_capacity() {
+        assert_eq!(processor_output_target(240.0, 25), 240.0);
+        assert_eq!(processor_output_headroom(45.0, 240.0, 25), 195.0);
+        assert_eq!(processor_output_headroom(240.0, 240.0, 25), 0.0);
     }
 
     #[test]
-    fn stock_policy_scales_input_staging_without_changing_the_legacy_default() {
-        assert_eq!(processor_input_staging_cycles(25), 1.0);
-        assert_eq!(processor_input_staging_cycles(50), 2.0);
+    fn workshops_stage_three_input_cycles_automatically() {
+        assert_eq!(processor_input_staging_cycles(25), 3.0);
+        assert_eq!(processor_input_staging_cycles(50), 3.0);
         assert_eq!(processor_input_staging_cycles(75), 3.0);
         assert_eq!(processor_input_staging_cycles(100), 3.0);
         assert_eq!(processor_input_staging_cycles(0), 3.0);
@@ -183,7 +153,7 @@ mod tests {
     }
 
     #[test]
-    fn only_staffed_conversion_workshops_use_the_policy() {
+    fn only_staffed_conversion_workshops_use_automatic_capacity() {
         for kind in [
             "watermill",
             "windmill",
@@ -217,13 +187,10 @@ mod tests {
     }
 
     #[test]
-    fn geological_worksites_do_not_expose_workshop_output_targets() {
+    fn geological_worksites_do_not_use_workshop_output_capacity() {
         for kind in ["stone_quarry", "large_quarry", "mine", "clay_pit"] {
-            assert!(!is_production_output_target_kind(kind));
             assert!(!is_processor_output_target_kind(kind));
         }
-        assert!(is_production_output_target_kind("smithy"));
-        assert!(is_production_output_target_kind("pastoral_farmstead"));
         assert!(!is_processor_output_target_kind("pastoral_farmstead"));
     }
 
@@ -241,7 +208,7 @@ mod tests {
         );
         assert_eq!(
             processor_input_kinds("smokehouse"),
-            &[Food, Firewood, Salt, Pottery]
+            &[Food, Firewood, Salt]
         );
         assert_eq!(
             processor_input_kinds("spinning_retting_house"),

@@ -99,8 +99,8 @@ use crate::hydrology::{
     sample_world_groundwater_score,
 };
 use crate::livestock_policy::{
-    farmhouse_cheese_salt_staging_cycles, livestock_cycles_per_calendar_day,
-    normalize_milk_use_policy, projected_winter_animal_feed, MILK_USE_FRESH,
+    effective_milk_use_policy, farmhouse_cheese_salt_staging_cycles,
+    livestock_cycles_per_calendar_day, projected_winter_animal_feed, MILK_USE_FRESH,
 };
 use crate::marketplace_procurement_policy::{
     normalize_marketplace_iron_target, normalize_marketplace_salt_target,
@@ -116,7 +116,6 @@ use crate::monastery_hospitality_policy::{
     monastery_pilgrimage_gold,
 };
 use crate::potter_firing_policy::potter_fires_roof_tiles;
-use crate::pottery_dispatch_policy::pottery_households_first;
 use crate::processor_output_policy::{
     processor_input_staging_cycles, processor_output_headroom, processor_output_kind,
     ProcessorOutputKind,
@@ -4490,7 +4489,10 @@ pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityK
     }
     if building.kind == "pastoral_farmstead" {
         if commodity == CommodityKind::Salt {
-            return normalize_milk_use_policy(building.processor_output_target_percent)
+            return effective_milk_use_policy(
+                building.milk_use_policy,
+                building.processor_output_target_percent,
+            )
                 != MILK_USE_FRESH
                 && building_commodity_room(building, CommodityKind::Cheese) > 1e-6;
         }
@@ -5191,7 +5193,11 @@ fn processor_input_target_percent_for_building(
     commodity: CommodityKind,
 ) -> u8 {
     if building.kind == "pastoral_farmstead" && commodity == CommodityKind::Salt {
-        if farmhouse_cheese_salt_staging_cycles(building.processor_output_target_percent) > 0.0 {
+        let milk_use = effective_milk_use_policy(
+            building.milk_use_policy,
+            building.processor_output_target_percent,
+        );
+        if farmhouse_cheese_salt_staging_cycles(milk_use) > 0.0 {
             100
         } else {
             25
@@ -5207,8 +5213,12 @@ fn processor_input_target_for_building(
     per_cycle: f64,
 ) -> f64 {
     if building.kind == "pastoral_farmstead" && commodity == CommodityKind::Salt {
+        let milk_use = effective_milk_use_policy(
+            building.milk_use_policy,
+            building.processor_output_target_percent,
+        );
         per_cycle.max(0.0)
-            * farmhouse_cheese_salt_staging_cycles(building.processor_output_target_percent)
+            * farmhouse_cheese_salt_staging_cycles(milk_use)
     } else {
         processor_input_target(per_cycle, building.processor_output_target_percent)
     }

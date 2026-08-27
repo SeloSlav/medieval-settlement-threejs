@@ -38,9 +38,10 @@ use crate::economy::{
 use crate::farming::{centroid, point_in_field};
 use crate::livestock_policy::{
     can_cull_one, cattle_manure_output, essential_livestock_care_labor, haymaking_share,
-    is_haymaking_month, is_shearing_month, livestock_cycles_per_calendar_day,
-    livestock_milk_allocation, projected_winter_animal_feed, retain_priority_candidate,
-    sheep_fleece_output, storage_secured_pending_cull_heads,
+    effective_milk_use_policy, is_haymaking_month, is_shearing_month,
+    livestock_cycles_per_calendar_day, livestock_milk_allocation,
+    projected_winter_animal_feed, retain_priority_candidate, sheep_fleece_output,
+    storage_secured_pending_cull_heads,
 };
 use crate::ox_policy::ox_amplified_worker_count;
 use crate::reducers::livestock::{
@@ -608,7 +609,10 @@ fn run_livestock_cycle(
             .min(farmstead_salted_output_capacity(building)),
     );
     let (_, expected_cheese) = livestock_milk_allocation(
-        building.processor_output_target_percent,
+        effective_milk_use_policy(
+            building.milk_use_policy,
+            building.processor_output_target_percent,
+        ),
         base_milk,
         base_cheese,
         cheese_capacity,

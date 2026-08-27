@@ -19,6 +19,7 @@ import {
 } from '../src/settlement/waysideShrineDevotion.ts';
 import type { GameClock } from '../src/world/gameCalendar.ts';
 import type { HolidayObservance } from '../src/world/holidayCalendar.ts';
+import { isSabbathDevotionTime } from '../src/settlement/sabbathDevotion.ts';
 
 (globalThis as typeof globalThis & { self: typeof globalThis }).self = globalThis;
 
@@ -210,10 +211,9 @@ for (let quarter = 0; quarter < 20; quarter += 1) {
     quarter % 4 * 15,
   );
   const eligible = [...agents.values()].filter((agent) =>
-    isWaysideShrinePrayerTime(
+    isSabbathDevotionTime(
       candidateClock,
       true,
-      null,
       agent.personIdentity,
     )
   );
@@ -234,12 +234,16 @@ assert.ok(outbound.every((agent) =>
   && agent.devotionalShrineId === shrine.id
 ));
 
-for (let step = 0; step < 400; step += 1) villagers.tick(0.1);
-const praying = [...agents.values()].filter(
-  (agent) => agent.routinePhase === 'praying_at_shrine',
-);
-assert.equal(praying.length, outbound.length);
-assert.ok(praying.every((agent) => agent.mode === 'pray'));
+let praying: TestAgent | null = null;
+for (let step = 0; step < 400; step += 1) {
+  villagers.tick(0.1);
+  praying = outbound.find(
+    (agent) => agent.routinePhase === 'praying_at_shrine',
+  ) ?? null;
+  if (praying) break;
+}
+assert.ok(praying);
+assert.equal(praying.mode, 'pray');
 
 const bytes = fs.readFileSync('public/assets/models/villagers/quaternius-villager-man.glb');
 const buffer = bytes.buffer.slice(

@@ -1121,6 +1121,11 @@ pub struct Building {
     /// Retted flax intermediate. Appended after all existing fields for additive save compatibility.
     #[default(0.0)]
     pub linen: f64,
+    /// Pastoral holding milk allocation: 25 fresh, 50 balanced, 75 cheese first.
+    /// Zero identifies a pre-migration row and reads the former overloaded
+    /// processor percentage until the player next chooses a milk recipe.
+    #[default(0u8)]
+    pub milk_use_policy: u8,
 }
 
 /// One persistent import/export instruction for one Trading Post commodity.

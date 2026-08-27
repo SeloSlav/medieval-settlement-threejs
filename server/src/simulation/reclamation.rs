@@ -1301,6 +1301,7 @@ pub fn insert_reclamation_pile(
         pelts: stock.pelts.max(0.0),
         yarn: stock.yarn.max(0.0),
         linen: stock.linen.max(0.0),
+        milk_use_policy: crate::livestock_policy::MILK_USE_BALANCED,
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id
