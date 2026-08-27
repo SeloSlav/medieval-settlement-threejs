@@ -24,12 +24,11 @@ use crate::db::*;
 use crate::economy::{
     assign_building_labor as set_building_labor, available_building_labor,
     available_workplace_labor, building_commodity_cap, building_commodity_stock, building_cost,
-    building_salvage_refund,
-    construction_treasury_reservation, credit_treasury_commodity, guardhouse_roster_count,
-    guardhouse_roster_floors, initial_construction_labor, spend_aggregate_ironwork,
-    preempt_flexible_labor_for_workplace_callup, spend_aggregate_roof_tiles,
-    spend_aggregate_stone, spend_aggregate_timber, spend_treasury_gold, total_ironwork,
-    total_roof_tiles, total_stone, total_timber, CommodityKind,
+    building_salvage_refund, construction_treasury_reservation, credit_treasury_commodity,
+    guardhouse_roster_count, guardhouse_roster_floors, initial_construction_labor,
+    preempt_flexible_labor_for_workplace_callup, spend_aggregate_ironwork,
+    spend_aggregate_roof_tiles, spend_aggregate_stone, spend_aggregate_timber, spend_treasury_gold,
+    total_ironwork, total_roof_tiles, total_stone, total_timber, CommodityKind,
 };
 use crate::extraction_policy::{
     mineworks_clay_commodity, mineworks_geological_commodity, mining_camp_clay_commodity,
@@ -1929,10 +1928,12 @@ fn call_up_target_ready_processor_labor_for_owner_with_policy(
         .iter()
         .map(|candidate| (candidate.building_id, candidate.assigned_labor))
         .collect::<HashMap<_, _>>();
-    let called_up = targets.iter().fold(0_u32, |total, (building_id, target_labor)| {
-        let current = current_labor.get(building_id).copied().unwrap_or(0);
-        total.saturating_add(target_labor.saturating_sub(current))
-    });
+    let called_up = targets
+        .iter()
+        .fold(0_u32, |total, (building_id, target_labor)| {
+            let current = current_labor.get(building_id).copied().unwrap_or(0);
+            total.saturating_add(target_labor.saturating_sub(current))
+        });
     preempt_flexible_labor_for_workplace_callup(ctx, owner, called_up);
     for (building_id, target_labor) in targets {
         let Some(mut building) = ctx.db.building().id().find(&building_id) else {

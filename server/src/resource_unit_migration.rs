@@ -49,8 +49,7 @@ fn retire_legacy_vegetable_stock(
     carrots: &mut f64,
     beetroot: &mut f64,
 ) {
-    let (legacy_cabbage, legacy_carrots, legacy_beetroot) =
-        split_legacy_vegetables(*vegetables);
+    let (legacy_cabbage, legacy_carrots, legacy_beetroot) = split_legacy_vegetables(*vegetables);
     *vegetables = 0.0;
     *cabbage = whole_units(*cabbage + legacy_cabbage);
     *carrots = whole_units(*carrots + legacy_carrots);
@@ -509,7 +508,8 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
         if row.carried_loot_json.is_empty() {
             continue;
         }
-        let Ok(mut stores) = serde_json::from_str::<RaidPortableStores>(&row.carried_loot_json) else {
+        let Ok(mut stores) = serde_json::from_str::<RaidPortableStores>(&row.carried_loot_json)
+        else {
             continue;
         };
         retire_legacy_vegetable_stock(

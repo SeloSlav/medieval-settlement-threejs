@@ -292,7 +292,8 @@ fn preempt_flexible_labor_to_capacity(
             break;
         }
         let released = residence.upgrade_assigned_labor.min(excess);
-        residence.upgrade_assigned_labor = residence.upgrade_assigned_labor.saturating_sub(released);
+        residence.upgrade_assigned_labor =
+            residence.upgrade_assigned_labor.saturating_sub(released);
         excess = excess.saturating_sub(released);
         ctx.db.residence().id().update(residence);
     }
@@ -337,8 +338,7 @@ pub fn preempt_flexible_labor_for_workplace_callup(
     owner: spacetimedb::Identity,
     added_workplace_labor: u32,
 ) {
-    let reserve_after = available_workplace_labor(ctx, owner)
-        .saturating_sub(added_workplace_labor);
+    let reserve_after = available_workplace_labor(ctx, owner).saturating_sub(added_workplace_labor);
     preempt_flexible_labor_to_capacity(ctx, owner, reserve_after);
 }
 
@@ -494,9 +494,10 @@ pub fn assign_building_labor(
     }
 
     let population = total_population(ctx, owner);
-    let current_commitment = building
-        .assigned_labor
-        .max(guardhouse_roster_floor(ctx, owner, building.id));
+    let current_commitment =
+        building
+            .assigned_labor
+            .max(guardhouse_roster_floor(ctx, owner, building.id));
     let assigned_elsewhere = if building.construction_complete {
         total_workplace_labor(ctx, owner).saturating_sub(current_commitment)
     } else {

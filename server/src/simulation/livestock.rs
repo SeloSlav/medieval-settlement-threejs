@@ -263,81 +263,77 @@ fn step_livestock_building(
     // accelerating gestation, thirst, or milk production.
     building.action_cooldown = (building.action_cooldown - TICK_DT).max(0.0);
     if building.action_cooldown <= 1e-6 {
-            let (cycle_care_labor, cycle_productive_labor) = if paused {
-                (care_labor, 0)
-            } else {
-                let paired_oxen = crate::simulation::paired_production_ox_count(
-                    ctx,
-                    tick,
-                    &building,
-                    onsite_labor,
-                );
-                let amplified_labor = ox_amplified_worker_count(onsite_labor, paired_oxen);
-                (
-                    essential_livestock_care_labor(amplified_labor, false),
-                    amplified_labor,
-                )
-            };
-            let mut next_building = building.clone();
-            let mut next_parcels = parcels.clone();
-            prepare_animal_feed(&mut next_building, cycle_productive_labor);
-            let cycle_inputs = allocate_holding_cycle_inputs(
-                &mut next_building,
-                &next_parcels,
+        let (cycle_care_labor, cycle_productive_labor) = if paused {
+            (care_labor, 0)
+        } else {
+            let paired_oxen =
+                crate::simulation::paired_production_ox_count(ctx, tick, &building, onsite_labor);
+            let amplified_labor = ox_amplified_worker_count(onsite_labor, paired_oxen);
+            (
+                essential_livestock_care_labor(amplified_labor, false),
+                amplified_labor,
+            )
+        };
+        let mut next_building = building.clone();
+        let mut next_parcels = parcels.clone();
+        prepare_animal_feed(&mut next_building, cycle_productive_labor);
+        let cycle_inputs = allocate_holding_cycle_inputs(
+            &mut next_building,
+            &next_parcels,
+            environment,
+            cycle_care_labor,
+        );
+        let mut management_used = next_parcels
+            .iter()
+            .map(|parcel| {
+                parcel
+                    .herd
+                    .head_count
+                    .saturating_mul(management_units_per_head(parcel.herd.species))
+            })
+            .sum::<u32>();
+        let mut cull_available = cycle_productive_labor > 0;
+        let mut committed = true;
+        for (parcel, inputs) in next_parcels.iter_mut().zip(cycle_inputs) {
+            let units_per_head = management_units_per_head(parcel.herd.species);
+            let before_heads = parcel.herd.head_count;
+            let management_room_heads =
+                management_headroom(&next_building.kind, management_used, parcel.herd.species);
+            let local_limit = species_max_herd(parcel.herd.species)
+                .min(parcel.base_capacity.floor().clamp(0.0, u32::MAX as f64) as u32);
+            let breeding_limit =
+                local_limit.min(before_heads.saturating_add(management_room_heads));
+            committed &= run_livestock_cycle(
+                clock,
                 environment,
-                cycle_care_labor,
+                parcel.pasture.id,
+                parcel.base_capacity,
+                inputs,
+                cycle_productive_labor,
+                breeding_limit,
+                cull_available,
+                &mut next_building,
+                &mut parcel.herd,
             );
-            let mut management_used = next_parcels
-                .iter()
-                .map(|parcel| {
-                    parcel
-                        .herd
-                        .head_count
-                        .saturating_mul(management_units_per_head(parcel.herd.species))
-                })
-                .sum::<u32>();
-            let mut cull_available = cycle_productive_labor > 0;
-            let mut committed = true;
-            for (parcel, inputs) in next_parcels.iter_mut().zip(cycle_inputs) {
-                let units_per_head = management_units_per_head(parcel.herd.species);
-                let before_heads = parcel.herd.head_count;
-                let management_room_heads =
-                    management_headroom(&next_building.kind, management_used, parcel.herd.species);
-                let local_limit = species_max_herd(parcel.herd.species)
-                    .min(parcel.base_capacity.floor().clamp(0.0, u32::MAX as f64) as u32);
-                let breeding_limit =
-                    local_limit.min(before_heads.saturating_add(management_room_heads));
-                committed &= run_livestock_cycle(
-                    clock,
-                    environment,
-                    parcel.pasture.id,
-                    parcel.base_capacity,
-                    inputs,
-                    cycle_productive_labor,
-                    breeding_limit,
-                    cull_available,
-                    &mut next_building,
-                    &mut parcel.herd,
-                );
-                management_used = management_used
-                    .saturating_sub(before_heads.saturating_mul(units_per_head))
-                    .saturating_add(parcel.herd.head_count.saturating_mul(units_per_head));
-                if parcel.herd.last_culled > 0 {
-                    cull_available = false;
-                }
+            management_used = management_used
+                .saturating_sub(before_heads.saturating_mul(units_per_head))
+                .saturating_add(parcel.herd.head_count.saturating_mul(units_per_head));
+            if parcel.herd.last_culled > 0 {
+                cull_available = false;
             }
-            if committed {
-                building = next_building;
-                parcels = next_parcels;
-                building.action_cooldown = building_def(&building.kind)
-                    .map(|def| def.action_interval)
-                    .unwrap_or(10.0);
-            } else {
-                // Keep the complete husbandry transaction due. Inputs and
-                // outputs were evaluated on clones, so a blocked barn cannot
-                // consume feed or mint a partial production lot.
-                building.action_cooldown = 0.0;
-            }
+        }
+        if committed {
+            building = next_building;
+            parcels = next_parcels;
+            building.action_cooldown = building_def(&building.kind)
+                .map(|def| def.action_interval)
+                .unwrap_or(10.0);
+        } else {
+            // Keep the complete husbandry transaction due. Inputs and
+            // outputs were evaluated on clones, so a blocked barn cannot
+            // consume feed or mint a partial production lot.
+            building.action_cooldown = 0.0;
+        }
     }
 
     if !paused && onsite_labor > 0 {

@@ -991,11 +991,7 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::Remedies) => stores.remedies = amount,
         // Raiders do not select bulk stone or water as plunder even when a
         // settlement cart happens to be carrying it.
-        Some(
-            CommodityKind::Stone
-            | CommodityKind::Water
-            | CommodityKind::Manure,
-        ) | None => {}
+        Some(CommodityKind::Stone | CommodityKind::Water | CommodityKind::Manure) | None => {}
     }
     stores.normalized_whole()
 }
@@ -1068,11 +1064,7 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Pottery) => stores.pottery,
         Some(CommodityKind::RoofTiles) => stores.roof_tiles,
         Some(CommodityKind::Remedies) => stores.remedies,
-        Some(
-            CommodityKind::Stone
-            | CommodityKind::Water
-            | CommodityKind::Manure,
-        ) | None => 0.0,
+        Some(CommodityKind::Stone | CommodityKind::Water | CommodityKind::Manure) | None => 0.0,
     }
 }
 

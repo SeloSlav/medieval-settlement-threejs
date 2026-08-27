@@ -77,9 +77,7 @@ pub fn alternative_processor_recipe_ready(
                 && available.salt
                 && available.pottery,
         ),
-        "spinning_retting_house" => {
-            Some(available.wool || (available.flax && available.water))
-        }
+        "spinning_retting_house" => Some(available.wool || (available.flax && available.water)),
         "weaver" => Some(available.yarn || available.linen),
         _ => None,
     }

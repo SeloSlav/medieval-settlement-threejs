@@ -38,10 +38,7 @@ pub fn service_shortage_blocks_upgrade(kind: ResidenceNeedKind, deficit_ticks: u
 
 /// Every household-service clock runs continuously. Named holy days freeze
 /// them so no grace window expires during the calendar-wide observance.
-pub fn service_need_clock_active(
-    _kind: ResidenceNeedKind,
-    holiday_paused: bool,
-) -> bool {
+pub fn service_need_clock_active(_kind: ResidenceNeedKind, holiday_paused: bool) -> bool {
     !holiday_paused
 }
 
@@ -133,22 +130,13 @@ mod tests {
 
     #[test]
     fn ordinary_hours_run_every_service_clock_and_protected_days_freeze_them() {
-        assert!(service_need_clock_active(
-            ResidenceNeedKind::Church,
-            false
-        ));
-        assert!(service_need_clock_active(
-            ResidenceNeedKind::Church,
-            false
-        ));
+        assert!(service_need_clock_active(ResidenceNeedKind::Church, false));
+        assert!(service_need_clock_active(ResidenceNeedKind::Church, false));
         assert!(service_need_clock_active(
             ResidenceNeedKind::Firewood,
             false
         ));
-        assert!(!service_need_clock_active(
-            ResidenceNeedKind::Church,
-            true
-        ));
+        assert!(!service_need_clock_active(ResidenceNeedKind::Church, true));
         assert!(!service_need_clock_active(
             ResidenceNeedKind::Firewood,
             true

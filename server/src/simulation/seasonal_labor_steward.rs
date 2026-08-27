@@ -226,10 +226,12 @@ fn call_up_active_seasonal_labor_for_scope(
         .iter()
         .map(|candidate| (candidate.building_id, candidate.assigned_labor))
         .collect::<HashMap<_, _>>();
-    let called_up = targets.iter().fold(0_u32, |total, (building_id, target_labor)| {
-        let current = current_labor.get(building_id).copied().unwrap_or(0);
-        total.saturating_add(target_labor.saturating_sub(current))
-    });
+    let called_up = targets
+        .iter()
+        .fold(0_u32, |total, (building_id, target_labor)| {
+            let current = current_labor.get(building_id).copied().unwrap_or(0);
+            total.saturating_add(target_labor.saturating_sub(current))
+        });
     preempt_flexible_labor_for_workplace_callup(ctx, owner, called_up);
     for (building_id, target_labor) in targets {
         let Some(mut building) = ctx.db.building().id().find(&building_id) else {

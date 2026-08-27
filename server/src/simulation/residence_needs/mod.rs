@@ -207,10 +207,8 @@ pub fn step_residence_needs(
     let previous_effective_workers = residence
         .population
         .saturating_sub(residence.sick_population);
-    let food_shortage_harms_health = food_shortage_harms_health(
-        food_unmet,
-        residence_edible_food_stock(&residence),
-    );
+    let food_shortage_harms_health =
+        food_shortage_harms_health(food_unmet, residence_edible_food_stock(&residence));
     update_health(
         ctx,
         tick,

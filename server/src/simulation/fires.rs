@@ -682,12 +682,7 @@ fn building_flammability(building: &Building) -> f64 {
             + building.malt
             + building.flax)
             * 0.08
-        + (building.wool
-            + building.yarn
-            + building.linen
-            + building.cloth
-            + building.pelts)
-            * 0.08;
+        + (building.wool + building.yarn + building.linen + building.cloth + building.pelts) * 0.08;
     base * (1.0 + (stored_fuel / 160.0).clamp(0.0, 0.75))
 }
 

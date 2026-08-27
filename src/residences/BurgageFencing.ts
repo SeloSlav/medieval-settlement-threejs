@@ -19,14 +19,26 @@ import {
 const MAX_POSTS = 2048;
 const MAX_RAILS = 6144;
 const MAX_GATE_TIMBERS = 1024;
-const POST_SPACING = 2.2;
-const POST_HEIGHT = 1.08;
-const POST_BURY_DEPTH = 0.22;
-const RAIL_HEIGHTS = [0.34, 0.64, 0.9] as const;
-const RAIL_WIDTH = 0.105;
-const RAIL_HEIGHT = 0.09;
-const TERRAIN_LIFT = 0.06;
-const FRONT_GATE_WIDTH = 1.8;
+export const BURGAGE_WOOD_FENCE_STYLE = {
+  postSpacing: 2.2,
+  postHeight: 1.08,
+  postBuryDepth: 0.22,
+  postWidth: 0.13,
+  railHeights: [0.34, 0.64, 0.9] as const,
+  railWidth: 0.105,
+  railHeight: 0.09,
+  railEndOverlap: 0.04,
+  terrainLift: 0.06,
+  openingWidth: 1.8,
+} as const;
+const POST_SPACING = BURGAGE_WOOD_FENCE_STYLE.postSpacing;
+const POST_HEIGHT = BURGAGE_WOOD_FENCE_STYLE.postHeight;
+const POST_BURY_DEPTH = BURGAGE_WOOD_FENCE_STYLE.postBuryDepth;
+const RAIL_HEIGHTS = BURGAGE_WOOD_FENCE_STYLE.railHeights;
+const RAIL_WIDTH = BURGAGE_WOOD_FENCE_STYLE.railWidth;
+const RAIL_HEIGHT = BURGAGE_WOOD_FENCE_STYLE.railHeight;
+const TERRAIN_LIFT = BURGAGE_WOOD_FENCE_STYLE.terrainLift;
+const FRONT_GATE_WIDTH = BURGAGE_WOOD_FENCE_STYLE.openingWidth;
 const GATE_POST_HEIGHT = 1.84;
 const GATE_POST_BURY_DEPTH = 0.22;
 const GATE_POST_WIDTH = 0.19;
@@ -35,7 +47,7 @@ const GATE_BEAM_WIDTH = 0.15;
 const GATE_BEAM_HEIGHT = 0.13;
 const LOCAL_RAIL_AXIS = new THREE.Vector3(0, 0, 1);
 
-function createFenceBoxGeometry(): THREE.BoxGeometry {
+export function createBurgageFenceBoxGeometry(): THREE.BoxGeometry {
   const geometry = new THREE.BoxGeometry(1, 1, 1);
   const position = geometry.getAttribute('position');
   const colors = new Float32Array(position.count * 3);
@@ -270,7 +282,7 @@ export class BurgageFencing {
     this.root.frustumCulled = false;
 
     this.posts = new THREE.InstancedMesh(
-      createFenceBoxGeometry(),
+      createBurgageFenceBoxGeometry(),
       this.fenceMaterial,
       MAX_POSTS,
     );
@@ -282,7 +294,7 @@ export class BurgageFencing {
     this.posts.receiveShadow = false;
 
     this.rails = new THREE.InstancedMesh(
-      createFenceBoxGeometry(),
+      createBurgageFenceBoxGeometry(),
       this.fenceMaterial,
       MAX_RAILS,
     );
@@ -294,7 +306,7 @@ export class BurgageFencing {
     this.rails.receiveShadow = false;
 
     this.gateTimbers = new THREE.InstancedMesh(
-      createFenceBoxGeometry(),
+      createBurgageFenceBoxGeometry(),
       this.fenceMaterial,
       MAX_GATE_TIMBERS,
     );
@@ -347,7 +359,11 @@ export class BurgageFencing {
         const point = index === 0 ? bay.start : bay.end;
         const groundHeight = index === 0 ? bay.startGroundHeight : bay.endGroundHeight;
         const y = groundHeight + (POST_HEIGHT - POST_BURY_DEPTH) * 0.5;
-        this.scale.set(0.13, postMeshHeight, 0.13);
+        this.scale.set(
+          BURGAGE_WOOD_FENCE_STYLE.postWidth,
+          postMeshHeight,
+          BURGAGE_WOOD_FENCE_STYLE.postWidth,
+        );
         this.position.set(point.x, y, point.z);
         this.matrix.compose(this.position, this.quaternion, this.scale);
         this.posts.setMatrixAt(postCount, this.matrix);
@@ -374,7 +390,11 @@ export class BurgageFencing {
         );
 
         for (const railHeight of RAIL_HEIGHTS) {
-          this.scale.set(RAIL_WIDTH, RAIL_HEIGHT, railLength + 0.04);
+          this.scale.set(
+            RAIL_WIDTH,
+            RAIL_HEIGHT,
+            railLength + BURGAGE_WOOD_FENCE_STYLE.railEndOverlap,
+          );
           this.position.y = (
             (bay.startGroundHeight + bay.endGroundHeight) * 0.5
             + TERRAIN_LIFT

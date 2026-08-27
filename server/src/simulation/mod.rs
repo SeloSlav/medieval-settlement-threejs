@@ -58,8 +58,8 @@ pub use construction_labor_steward::step_construction_labor_stewards;
 pub use delivery_trips::{
     building_has_active_trip, building_has_inbound_commodity_trip,
     building_has_inbound_supply_trip, cancel_inbound_construction_trips_for_site,
-    cancel_trips_for_residence, drain_trips_for_building, preserve_in_transit_cart_labor,
-    preempt_free_hauler_trips, staffed_cart_workers_by_building, step_delivery_trips,
+    cancel_trips_for_residence, drain_trips_for_building, preempt_free_hauler_trips,
+    preserve_in_transit_cart_labor, staffed_cart_workers_by_building, step_delivery_trips,
     try_start_fire_response_trip,
 };
 pub use devotional_candles::step_devotional_candles;

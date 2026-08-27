@@ -28,9 +28,8 @@ export function renderGraveyardInspector(
           : `${available} grave spot${available === 1 ? '' : 's'} remain${incoming > 0 ? ` · ${incoming} incoming` : ''}`,
     statusState: capacity <= 0 || available <= 0 ? 'warning' : burials > 0 || incoming > 0 ? 'active' : 'idle',
     detailsHtml: `
-      <li><span>Total grave spots</span><strong>${capacity}</strong></li>
+      <li><span>Grave spots</span><strong>${capacity} total / ${available} open</strong></li>
       <li><span>Dead resting here</span><strong>${burials}</strong></li>
-      <li><span>Open grave spots</span><span>${available}</span></li>
       ${incoming > 0 ? `<li><span>Incoming burials</span><span>${incoming}</span></li>` : ''}
       <li><span>Linked church</span><span>${chapel ? context.worldQueries.getBuildingLabel(chapel.kind) : 'Missing'}</span></li>
     `,
