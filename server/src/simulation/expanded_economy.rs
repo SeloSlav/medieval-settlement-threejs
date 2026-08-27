@@ -1784,11 +1784,7 @@ pub fn step_mine(
         CommodityKind::Clay => MINE_CLAY_PER_CYCLE,
         _ => return,
     };
-    let output_headroom = processor_output_headroom(
-        building_commodity_stock(&building, commodity),
-        building_commodity_cap(&building.kind, commodity),
-        building.processor_output_target_percent,
-    );
+    let output_headroom = building_commodity_room(&building, commodity);
     if output_headroom > 1e-6 {
         request_connected_commodity(
             ctx,
@@ -4169,11 +4165,11 @@ fn step_simple_producer_at_rate(
     outputs: &[(CommodityKind, f64)],
     throughput_multiplier: f64,
 ) -> Building {
-    let uses_extraction_target = !outputs.is_empty()
+    let uses_output_target = !outputs.is_empty()
         && outputs
             .iter()
             .all(|(kind, _)| production_output_target_applies(&building.kind, *kind));
-    let output_ready = if uses_extraction_target {
+    let output_ready = if uses_output_target {
         outputs.iter().all(|(kind, _)| {
             processor_output_headroom(
                 building_commodity_stock(&building, *kind),
@@ -4203,7 +4199,7 @@ fn step_simple_producer_at_rate(
     ) else {
         return building;
     };
-    if uses_extraction_target {
+    if uses_output_target {
         let target_percent = building.processor_output_target_percent;
         if !process_batch(&mut building, &[], outputs, Some(target_percent)) {
             return building;
@@ -4356,7 +4352,6 @@ fn production_output_target_applies(kind: &str, commodity: CommodityKind) -> boo
             && matches!(commodity, CommodityKind::Yarn | CommodityKind::Linen))
         || (kind == "brewery" && commodity.is_beverage())
         || (kind == "smokehouse" && commodity.is_preserved_food())
-        || extraction_site_accepts_commodity(kind, commodity)
         || (kind == "potter_kiln" && commodity == CommodityKind::RoofTiles)
 }
 

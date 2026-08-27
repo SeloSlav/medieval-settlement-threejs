@@ -9,11 +9,10 @@ use crate::civilian_tool_policy::{civilian_tool_throughput_multiplier, civilian_
 use crate::constants::TICK_DT;
 use crate::db::*;
 use crate::economy::{
-    building_commodity_cap, building_commodity_stock, deposit_building_commodity,
+    building_commodity_room, deposit_building_commodity,
     withdraw_building_commodity, CommodityKind,
 };
 use crate::extraction_policy::{mining_camp_clay_commodity, mining_camp_geological_commodity};
-use crate::processor_output_policy::processor_output_headroom;
 use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::SimTickContext;
@@ -86,11 +85,7 @@ pub fn step_stone_quarry(
     };
     let commodity = deposit.commodity();
     let base_batch = extraction_batch(commodity);
-    let output_headroom = processor_output_headroom(
-        building_commodity_stock(&building, commodity),
-        building_commodity_cap(&building.kind, commodity),
-        building.processor_output_target_percent,
-    );
+    let output_headroom = building_commodity_room(&building, commodity);
     let batch = crate::resource_units::whole_cost(base_batch);
     let available = crate::resource_units::whole_units(deposit.remaining());
     let room = crate::resource_units::whole_units(output_headroom);

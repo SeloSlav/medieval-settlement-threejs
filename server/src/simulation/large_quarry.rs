@@ -8,11 +8,10 @@ use crate::civilian_tool_policy::{civilian_tool_throughput_multiplier, civilian_
 use crate::constants::TICK_DT;
 use crate::db::*;
 use crate::economy::{
-    building_commodity_cap, building_commodity_stock, deposit_building_commodity,
+    building_commodity_room, deposit_building_commodity,
     withdraw_building_commodity, CommodityKind,
 };
 use crate::extraction_policy::quarry_geological_commodity;
-use crate::processor_output_policy::processor_output_headroom;
 use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::expanded_economy::request_connected_commodity;
 use crate::simulation::game_calendar::GameClock;
@@ -48,11 +47,7 @@ pub fn step_large_quarry(
     let source_ready = rich_stone_beneath(ctx, building.x, building.z);
     let commodity = CommodityKind::Stone;
     let base_batch = STONE_PER_HARVEST;
-    let output_headroom = processor_output_headroom(
-        building_commodity_stock(&building, commodity),
-        building_commodity_cap(&building.kind, commodity),
-        building.processor_output_target_percent,
-    );
+    let output_headroom = building_commodity_room(&building, commodity);
     if source_ready && output_headroom > 1e-6 {
         request_connected_commodity(
             ctx,
