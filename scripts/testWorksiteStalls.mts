@@ -10,6 +10,7 @@ import {
   BREWERY_RECIPE_AUTO,
   BREWERY_RECIPE_CIDER,
 } from '../src/economy/breweryRecipePolicy.ts';
+import { SMOKEHOUSE_RECIPE_CURED_MEAT } from '../src/economy/smokehouseRecipePolicy.ts';
 import {
   BUILDING_DEFINITIONS,
   BUILDING_STORAGE_CAPS,
@@ -353,6 +354,20 @@ assert.equal(
   ),
   false,
   'typed fish plus all matching inbound preservation materials is a complete recovering recipe',
+);
+
+const focusedSmokehouseState = emptyGameState();
+const focusedSmokehouse = building('focused-smokehouse', 'smokehouse', 2, 0, 0);
+focusedSmokehouse.smokehouseRecipePolicy = SMOKEHOUSE_RECIPE_CURED_MEAT;
+focusedSmokehouse.fish = 12;
+focusedSmokehouse.firewood = 6;
+focusedSmokehouse.salt = 6;
+focusedSmokehouseState.buildings.set(focusedSmokehouse.id, focusedSmokehouse);
+const focusedSmokehousePlan = computeSettlementWorksiteStallPlan(focusedSmokehouseState, 7);
+assert.equal(
+  focusedSmokehousePlan.sites.find((site) => site.buildingId === focusedSmokehouse.id)?.detail,
+  'no meat on site',
+  'an explicit cured-meat recipe must not consume stored fish as a fallback',
 );
 
 const mineralState = emptyGameState();

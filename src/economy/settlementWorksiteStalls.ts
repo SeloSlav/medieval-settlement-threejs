@@ -461,17 +461,13 @@ function processorStall(
     return 'supply_en_route';
   }
   if (
-    (building.kind === 'brewery'
-      && normalizeBreweryRecipePolicy(building.breweryRecipePolicy) === BREWERY_RECIPE_AUTO)
-    || (building.kind === 'smokehouse'
-      && normalizeSmokehouseRecipePolicy(building.smokehouseRecipePolicy) === SMOKEHOUSE_RECIPE_AUTO)
+    building.kind === 'brewery'
+    && normalizeBreweryRecipePolicy(building.breweryRecipePolicy) === BREWERY_RECIPE_AUTO
   ) {
     return {
       ...base,
       reason: 'input_empty',
-      detail: building.kind === 'brewery'
-        ? 'no complete beverage recipe on site (ale needs barley or malt, water, and firewood; cider needs apples or pears; mead needs honey)'
-        : 'no complete preservation recipe on site (cured meat, smoked fish, or cheese also needs firewood and salt)',
+      detail: 'no complete beverage recipe on site (ale needs barley or malt, water, and firewood; cider needs apples or pears; mead needs honey)',
     };
   }
   const missingRequirements = recipes

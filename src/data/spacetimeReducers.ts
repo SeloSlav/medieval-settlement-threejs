@@ -700,6 +700,18 @@ export async function setBreweryRecipePolicy(
   });
 }
 
+export async function setBuildingProductionRate(
+  buildingId: string,
+  ratePercent: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid production building id.');
+  await callReducer('setBuildingProductionRate', 'set_building_production_rate', {
+    buildingId: serverId,
+    ratePercent: Math.max(0, Math.min(100, Math.round(ratePercent))),
+  });
+}
+
 export async function setSmokehouseRecipePolicy(
   buildingId: string,
   recipePolicy: number,

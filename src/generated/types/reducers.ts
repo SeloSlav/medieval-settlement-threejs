@@ -50,6 +50,7 @@ import SetAllStorageAcceptanceReducer from "../set_all_storage_acceptance_reduce
 import SetApiaryHarvestPolicyReducer from "../set_apiary_harvest_policy_reducer";
 import SetBreweryRecipePolicyReducer from "../set_brewery_recipe_policy_reducer";
 import SetBuildingOxenReducer from "../set_building_oxen_reducer";
+import SetBuildingProductionRateReducer from "../set_building_production_rate_reducer";
 import SetCarpenterCartServiceTargetReducer from "../set_carpenter_cart_service_target_reducer";
 import SetCarpenterPolearmReserveReducer from "../set_carpenter_polearm_reserve_reducer";
 import SetChapelParishPolicyReducer from "../set_chapel_parish_policy_reducer";
@@ -154,6 +155,7 @@ export type SetAllStorageAcceptanceParams = __Infer<typeof SetAllStorageAcceptan
 export type SetApiaryHarvestPolicyParams = __Infer<typeof SetApiaryHarvestPolicyReducer>;
 export type SetBreweryRecipePolicyParams = __Infer<typeof SetBreweryRecipePolicyReducer>;
 export type SetBuildingOxenParams = __Infer<typeof SetBuildingOxenReducer>;
+export type SetBuildingProductionRateParams = __Infer<typeof SetBuildingProductionRateReducer>;
 export type SetCarpenterCartServiceTargetParams = __Infer<typeof SetCarpenterCartServiceTargetReducer>;
 export type SetCarpenterPolearmReserveParams = __Infer<typeof SetCarpenterPolearmReserveReducer>;
 export type SetChapelParishPolicyParams = __Infer<typeof SetChapelParishPolicyReducer>;

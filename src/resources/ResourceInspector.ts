@@ -72,6 +72,10 @@ import {
   type StorageCommodity,
 } from '../economy/storageAcceptancePolicy.ts';
 import { isProcessorOutputTargetKind } from '../economy/processorOutputPolicy.ts';
+import {
+  isProductionRateBuilding,
+  productionRateMultiplier,
+} from '../economy/productionRatePolicy.ts';
 import { computeSettlementProductionCapacity } from '../economy/settlementProduction.ts';
 import { windWeatherThroughputMultiplier } from '../wind/windField.ts';
 import { settlementHasStaffedChapel } from '../logistics/landmarkAccess.ts';
@@ -204,6 +208,10 @@ type ResourceInspectorOptions = {
   onSetBreweryRecipePolicy?: (
     buildingId: string,
     recipePolicy: number,
+  ) => void | Promise<void>;
+  onSetBuildingProductionRate?: (
+    buildingId: string,
+    ratePercent: number,
   ) => void | Promise<void>;
   onSetSmokehouseRecipePolicy?: (
     buildingId: string,
@@ -1679,6 +1687,22 @@ export class ResourceInspector {
     } else if (input.matches('[data-policy-monastery-tithe]')) {
       const output = this.supplementalPanelSection.querySelector<HTMLElement>('[data-policy-monastery-tithe-value]');
       if (output) output.textContent = `${Math.round(Number(input.value))}%`;
+    } else if (input.matches('[data-production-rate-slider]')) {
+      const percent = Math.max(0, Math.min(100, Math.round(Number(input.value))));
+      const multiplier = productionRateMultiplier(percent);
+      const value = input.closest<HTMLElement>('.inspector-action-panel')
+        ?.querySelector<HTMLElement>('[data-production-rate-value]');
+      const maintenance = input.closest<HTMLElement>('.inspector-action-panel')
+        ?.querySelector<HTMLElement>('[data-production-rate-maintenance]');
+      const normalAnnual = Math.max(0, Number(input.dataset.ironworkPerYearAtNormal));
+      if (value) {
+        value.textContent = multiplier <= 1e-9
+          ? `${percent}% · Paused`
+          : `${percent}% · ${multiplier.toFixed(multiplier % 1 === 0 ? 0 : 1)}× pace`;
+      }
+      if (maintenance) {
+        maintenance.textContent = `Ironwork upkeep: ${(normalAnnual * multiplier).toFixed(1)}/year maximum at current roster. Actual consumption follows completed work.`;
+      }
     } else if (input.matches('[data-harvest-reserve-slider]')) {
       const reserve = Math.max(0, Math.round(Number(input.value)));
       const capacity = Math.max(0, Number(input.dataset.harvestReserveCapacity));
@@ -1716,6 +1740,17 @@ export class ResourceInspector {
     const input = event.target as HTMLInputElement;
     if (this.selectedTarget?.kind !== 'building') return;
     const building = this.selectedTarget.building;
+
+    if (
+      isProductionRateBuilding(building.kind)
+      && input.matches('[data-production-rate-slider]')
+    ) {
+      void this.options.onSetBuildingProductionRate?.(
+        building.id,
+        Number(input.value),
+      );
+      return;
+    }
 
     if (
       (

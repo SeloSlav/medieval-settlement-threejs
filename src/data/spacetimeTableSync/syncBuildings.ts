@@ -54,6 +54,7 @@ function buildingStateFromRow(
     mead: number;
     breweryRecipePolicy: number;
     smokehouseRecipePolicy: number;
+    productionRatePercent: number;
     monasteryOrchardPlanting: number;
     monasteryCroftPlanting: number;
     monasteryExtensions: number;
@@ -212,6 +213,7 @@ function buildingStateFromRow(
     milkUsePolicy: Number(materialRow.milkUsePolicy ?? 0),
     breweryRecipePolicy: Number(materialRow.breweryRecipePolicy ?? 0),
     smokehouseRecipePolicy: Number(materialRow.smokehouseRecipePolicy ?? 0),
+    productionRatePercent: Number(materialRow.productionRatePercent ?? 50),
     threshingPriority: row.threshingPriority,
     weaverInputPolicy: row.weaverInputPolicy,
     potterFiringPolicy: Number(materialRow.potterFiringPolicy ?? 0),

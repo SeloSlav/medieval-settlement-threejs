@@ -156,25 +156,25 @@ assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="0"[^>]*data-
 assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="1"[^>]*data-tooltip="4 apples → 1 apple cider"/);
 assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="4"[^>]*data-tooltip="4 pears → 1 pear cider"/);
 assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="2"[^>]*data-tooltip="1 honey → 1 mead"/);
-const smokehouse = processor('smokehouse-panel', 'smokehouse');
-smokehouse.meat = 3;
-smokehouse.fish = 6;
-smokehouse.milk = 9;
-smokehouse.smokehouseRecipePolicy = SMOKEHOUSE_RECIPE_AUTO;
+const recipeSmokehouse = processor('smokehouse-panel', 'smokehouse');
+recipeSmokehouse.meat = 3;
+recipeSmokehouse.fish = 6;
+recipeSmokehouse.milk = 9;
+recipeSmokehouse.smokehouseRecipePolicy = SMOKEHOUSE_RECIPE_AUTO;
 assert.equal(normalizeSmokehouseRecipePolicy(undefined), SMOKEHOUSE_RECIPE_AUTO);
 assert.equal(
-  selectedSmokehouseRecipePolicy(SMOKEHOUSE_RECIPE_AUTO, smokehouse),
+  selectedSmokehouseRecipePolicy(SMOKEHOUSE_RECIPE_AUTO, recipeSmokehouse),
   SMOKEHOUSE_RECIPE_CURED_MEAT,
   'automatic smokehouse production preserves the legacy meat-first order',
 );
-smokehouse.smokehouseRecipePolicy = SMOKEHOUSE_RECIPE_SMOKED_FISH;
-assert.equal(processorOutputCommodityForBuilding(smokehouse), 'smokedFish');
-smokehouse.smokehouseRecipePolicy = SMOKEHOUSE_RECIPE_CHEESE;
-assert.equal(processorOutputCommodityForBuilding(smokehouse), 'cheese');
-smokehouse.smokehouseRecipePolicy = SMOKEHOUSE_RECIPE_CURED_MEAT;
-assert.equal(processorOutputCommodityForBuilding(smokehouse), 'curedMeat');
-smokehouse.smokehouseRecipePolicy = SMOKEHOUSE_RECIPE_AUTO;
-const smokehouseRecipePanel = renderProcessorOutputTargetPanel(smokehouse);
+recipeSmokehouse.smokehouseRecipePolicy = SMOKEHOUSE_RECIPE_SMOKED_FISH;
+assert.equal(processorOutputCommodityForBuilding(recipeSmokehouse), 'smokedFish');
+recipeSmokehouse.smokehouseRecipePolicy = SMOKEHOUSE_RECIPE_CHEESE;
+assert.equal(processorOutputCommodityForBuilding(recipeSmokehouse), 'cheese');
+recipeSmokehouse.smokehouseRecipePolicy = SMOKEHOUSE_RECIPE_CURED_MEAT;
+assert.equal(processorOutputCommodityForBuilding(recipeSmokehouse), 'curedMeat');
+recipeSmokehouse.smokehouseRecipePolicy = SMOKEHOUSE_RECIPE_AUTO;
+const smokehouseRecipePanel = renderProcessorOutputTargetPanel(recipeSmokehouse);
 assert.match(smokehouseRecipePanel ?? '', /resource-action-button--icon/);
 assert.match(smokehouseRecipePanel ?? '', /data-smokehouse-recipe-policy="0"[^>]*disabled/);
 assert.match(smokehouseRecipePanel ?? '', /data-smokehouse-recipe-policy="1"[^>]*data-tooltip="3 meat \+ 1 firewood \+ 1 salt → 3 cured meat"/);

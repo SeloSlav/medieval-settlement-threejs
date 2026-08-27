@@ -31,6 +31,7 @@ import { withBuildingLocalStorage } from './buildingLocalStorageRenderer.ts';
 import { renderWaysideShrineInspector } from './waysideShrineRenderer.ts';
 import { renderStableInspector } from './stableRenderer.ts';
 import { withBuildingOxTeam } from './buildingOxTeamRenderer.ts';
+import { withBuildingProductionRate } from './buildingProductionRateRenderer.ts';
 
 export function renderBuildingInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -138,8 +139,9 @@ export function renderBuildingInspector(
     }
     }
   })();
+  const rateView = withBuildingProductionRate(view, building);
   const summaryView: InspectorView = {
-    ...view,
+    ...rateView,
     detailsHtml: '',
   };
   const storageView = withBuildingLocalStorage(summaryView, building);

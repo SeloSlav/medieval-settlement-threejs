@@ -182,4 +182,5 @@ export default __t.row({
   linen: __t.f64(),
   milkUsePolicy: __t.u8().name("milk_use_policy"),
   smokehouseRecipePolicy: __t.u8().name("smokehouse_recipe_policy"),
+  productionRatePercent: __t.u8().name("production_rate_percent"),
 });

@@ -1138,14 +1138,14 @@ mod tests {
     }
 
     #[test]
-    fn grain_processors_stage_inputs_from_their_stock_policy() {
+    fn grain_processors_use_the_automatic_three_cycle_buffer() {
         assert_eq!(
             GRAIN_PROCESSOR_KINDS,
             &["pastoral_farmstead", "watermill", "windmill"]
         );
         assert_eq!(GRAIN_CRITICAL_RUNWAY_CYCLES, 1.0);
-        assert_eq!(grain_input_target("watermill", 1.0, 25), 3.0);
-        assert_eq!(grain_input_target("watermill", 1.0, 50), 6.0);
+        assert_eq!(grain_input_target("watermill", 1.0, 25), 9.0);
+        assert_eq!(grain_input_target("watermill", 1.0, 50), 9.0);
         assert_eq!(grain_input_target("watermill", 1.0, 75), 9.0);
         assert_eq!(grain_input_target("watermill", 1.0, 100), 9.0);
         assert_eq!(grain_input_target("windmill", 1.0, 100), 9.0);
@@ -1335,8 +1335,8 @@ mod tests {
             0.0,
             "the marketplace remains overflow after preservation buffers",
         );
-        assert_eq!(processor_input_target(2.0, 25), 2.0);
-        assert_eq!(processor_input_target(2.0, 50), 4.0);
+        assert_eq!(processor_input_target(2.0, 25), 6.0);
+        assert_eq!(processor_input_target(2.0, 50), 6.0);
         assert_eq!(processor_input_target(2.0, 75), 6.0);
         assert_eq!(processor_input_target(2.0, 100), 6.0);
         assert_eq!(processor_input_runway_cycles(3.0, 2.0), 1.5);
@@ -1346,7 +1346,7 @@ mod tests {
         );
         assert_eq!(
             processor_input_dispatch_duty(2, 3.0, 2.0, 25),
-            ProcessorInputDispatchDuty::WorkshopOverflow
+            ProcessorInputDispatchDuty::WorkingBuffer
         );
         assert_eq!(
             processor_input_dispatch_duty(0, 0.0, 2.0, 100),

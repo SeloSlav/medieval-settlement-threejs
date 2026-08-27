@@ -218,6 +218,7 @@ export const Building = __t.object("Building", {
   linen: __t.f64(),
   milkUsePolicy: __t.u8(),
   smokehouseRecipePolicy: __t.u8(),
+  productionRatePercent: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 

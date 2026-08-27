@@ -226,6 +226,8 @@ export type BuildingState = {
   storehouseClayTargetPercent?: number;
   storehouseSaltTargetPercent?: number;
   processorOutputTargetPercent?: number;
+  /** 0 pauses, 50 is normal production, and 100 doubles normal production. */
+  productionRatePercent?: number;
   /** Dedicated pastoral holding milk allocation; 0/missing reads the legacy field. */
   milkUsePolicy?: number;
   /** 0 ale, 1 apple cider, 2 mead, 3 automatic, 4 pear cider. */

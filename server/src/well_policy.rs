@@ -322,17 +322,17 @@ mod tests {
     }
 
     #[test]
-    fn industrial_water_targets_follow_the_workshop_stock_policy() {
-        assert_eq!(industrial_water_target("bakery", 25), 2.0);
-        assert_eq!(industrial_water_target("bakery", 50), 4.0);
+    fn industrial_water_targets_use_the_automatic_three_cycle_buffer() {
+        assert_eq!(industrial_water_target("bakery", 25), 6.0);
+        assert_eq!(industrial_water_target("bakery", 50), 6.0);
         assert_eq!(industrial_water_target("bakery", 75), 6.0);
         assert_eq!(industrial_water_target("bakery", 100), 6.0);
         assert_eq!(industrial_water_target("brewery", 50), 6.0);
-        assert_eq!(industrial_water_target("spinning_retting_house", 25), 1.0);
+        assert_eq!(industrial_water_target("spinning_retting_house", 25), 3.0);
         assert_eq!(industrial_water_target("spinning_retting_house", 100), 3.0);
-        assert_eq!(industrial_water_target("smithy", 25), 1.0);
+        assert_eq!(industrial_water_target("smithy", 25), 3.0);
         assert_eq!(industrial_water_target("smithy", 100), 3.0);
-        assert_eq!(industrial_water_target("potter_kiln", 25), 1.0);
+        assert_eq!(industrial_water_target("potter_kiln", 25), 3.0);
         assert_eq!(industrial_water_target("potter_kiln", 100), 3.0);
         assert_eq!(industrial_water_target("watermill", 25), 0.0);
         assert_eq!(industrial_water_target("windmill", 25), 0.0);
