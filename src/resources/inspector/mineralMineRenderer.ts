@@ -38,7 +38,6 @@ import {
   extractionOutputHeadroom,
   extractionOutputTarget,
 } from '../../economy/processorOutputPolicy.ts';
-import { renderExtractionStockTargetPanel } from './extractionStockTargetRenderer.ts';
 
 export function renderMineralMineInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -64,7 +63,6 @@ export function renderMineralMineInspector(
   const yardTarget = extractionOutputTarget(
     'mine',
     resource,
-    building.processorOutputTargetPercent,
   );
   const outputHeadroom = extractionOutputHeadroom(building, resource) ?? 0;
   const targetReached = outputHeadroom <= 1e-6;
@@ -177,6 +175,5 @@ export function renderMineralMineInspector(
       context.populationStats,
       context.worldQueries,
     ),
-    supplementalPanelHtml: renderExtractionStockTargetPanel(building, resource) ?? undefined,
   };
 }

@@ -544,7 +544,6 @@ function recordExtractionYard(
   const target = extractionOutputTarget(
     building.kind as 'stone_quarry' | 'large_quarry' | 'mine' | 'clay_pit',
     commodity,
-    building.processorOutputTargetPercent,
   );
   const headroom = extractionOutputHeadroom(building, commodity) ?? 0;
   plan.yardStock += stock;

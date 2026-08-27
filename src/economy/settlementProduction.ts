@@ -837,9 +837,7 @@ function stockTargetHasRoom(
     || building.kind === 'mine'
     || building.kind === 'clay_pit'
   )
-    ? capacity * normalizeProcessorOutputTargetPercent(
-      building.processorOutputTargetPercent,
-    ) / 100
+    ? capacity
     : null;
   const target = extractionTarget
     ?? (policyTarget == null ? capacity : Math.min(capacity, policyTarget));

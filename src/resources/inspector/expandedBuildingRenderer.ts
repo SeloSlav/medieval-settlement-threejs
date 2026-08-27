@@ -185,7 +185,6 @@ import {
   clayBankYieldAt,
   clayBankYieldGrade,
 } from '../../economy/clayBankPolicy.ts';
-import { renderExtractionStockTargetPanel } from './extractionStockTargetRenderer.ts';
 import {
   FREE_CONSTRUCTION_COST_TOOLTIP,
   renderResourceCost,
@@ -1366,10 +1365,7 @@ export function renderExpandedBuildingInspector(
             ? renderApiaryHarvestPolicyPanel(building)
             : undefined;
   const processorPolicyPanelHtml = renderProcessorOutputTargetPanel(building);
-  const extractionPolicyPanelHtml = building.kind === 'clay_pit'
-    ? renderExtractionStockTargetPanel(building, 'clay')
-    : null;
-  const supplementalPanelHtml = `${buildingPolicyPanelHtml ?? ''}${processorPolicyPanelHtml ?? ''}${extractionPolicyPanelHtml ?? ''}`
+  const supplementalPanelHtml = `${buildingPolicyPanelHtml ?? ''}${processorPolicyPanelHtml ?? ''}`
     || undefined;
   const role = building.kind === 'carpenter' && !context.conflictEnabled
     ? 'Timber framing and cartwright support for road-linked building sites'

@@ -26,7 +26,6 @@ import {
   extractionOutputHeadroom,
   extractionOutputTarget,
 } from '../../economy/processorOutputPolicy.ts';
-import { renderExtractionStockTargetPanel } from './extractionStockTargetRenderer.ts';
 
 export function renderLargeQuarryInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -44,7 +43,6 @@ export function renderLargeQuarryInspector(
   const yardTarget = extractionOutputTarget(
     'large_quarry',
     resource,
-    building.processorOutputTargetPercent,
   );
   const outputHeadroom = extractionOutputHeadroom(building, resource) ?? 0;
   const targetReached = outputHeadroom <= 1e-6;
@@ -113,6 +111,5 @@ export function renderLargeQuarryInspector(
       hint: buildingDemolishHint(building.kind),
     },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
-    supplementalPanelHtml: renderExtractionStockTargetPanel(building, resource) ?? undefined,
   };
 }

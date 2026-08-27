@@ -115,29 +115,6 @@ export const PROCESSOR_OUTPUT_TARGET_PRESETS = [
   },
 ] as const;
 
-export const EXTRACTION_OUTPUT_TARGET_PRESETS = [
-  {
-    percent: 25,
-    label: 'Lean',
-    hint: 'Keeps a small working yard and preserves finite ground until consumers need it.',
-  },
-  {
-    percent: 50,
-    label: 'Balanced',
-    hint: 'Keeps a practical local buffer without tying up the full extraction crew.',
-  },
-  {
-    percent: 75,
-    label: 'Deep',
-    hint: 'Builds a strong construction or winter reserve near the source.',
-  },
-  {
-    percent: 100,
-    label: 'Fill',
-    hint: 'Retains the legacy behavior and works until the physical yard is full.',
-  },
-] as const;
-
 const OUTPUT_BY_KIND: Record<
   ProcessorOutputTargetKind,
   ProcessorOutputCommodity
@@ -190,8 +167,8 @@ export function isExtractionOutputTargetKind(
 
 export function isProductionOutputTargetKind(
   kind: BuildingKind,
-): kind is ProcessorOutputTargetKind | ExtractionOutputTargetKind {
-  return isProcessorOutputTargetKind(kind) || isExtractionOutputTargetKind(kind);
+): kind is ProcessorOutputTargetKind {
+  return isProcessorOutputTargetKind(kind);
 }
 
 export function normalizeProcessorOutputTargetPercent(
@@ -321,20 +298,18 @@ export function processorOutputHeadroom(
 export function extractionOutputTarget(
   kind: ExtractionOutputTargetKind,
   commodity: ExtractionOutputCommodity,
-  percent: number | undefined,
 ): number {
-  const capacity = (
+  return (
     BUILDING_STORAGE_CAPS[kind] as Partial<
       Record<ExtractionOutputCommodity, number>
     >
   )[commodity] ?? 0;
-  return processorOutputTarget(capacity, percent);
 }
 
 export function extractionOutputHeadroom(
   building: Pick<
     BuildingState,
-    'kind' | 'processorOutputTargetPercent' | ExtractionOutputCommodity
+    'kind' | ExtractionOutputCommodity
   >,
   commodity: ExtractionOutputCommodity,
 ): number | null {
@@ -342,7 +317,6 @@ export function extractionOutputHeadroom(
   const target = extractionOutputTarget(
     building.kind,
     commodity,
-    building.processorOutputTargetPercent,
   );
   return Math.max(0, target - Math.max(0, building[commodity] ?? 0));
 }

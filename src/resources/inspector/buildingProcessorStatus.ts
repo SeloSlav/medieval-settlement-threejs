@@ -465,7 +465,6 @@ function formatProcessorInputBufferRow(
     ? extractionOutputTarget(
         building.kind,
         profile.output,
-        building.processorOutputTargetPercent,
       )
     : null;
   const outputLimit = processorOutputTargetForBuilding(building)
