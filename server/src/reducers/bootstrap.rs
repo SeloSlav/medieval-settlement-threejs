@@ -242,7 +242,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         ),
         stone: first_camp_goods(resources.stone, STARTING_STONE, initial_goods_multiplier),
         water: resources.water.max(0.0),
-        food: resources.food.max(0.0),
+        food: 0.0,
         ale: resources.ale.max(0.0),
         preserved_food: resources.preserved_food.max(0.0),
         honey: resources.honey.max(0.0),
@@ -365,7 +365,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         rye_flour: resources.rye_flour.max(0.0),
         maslin_flour: resources.maslin_flour.max(0.0),
         rye_bread: first_camp_goods(
-            resources.rye_bread,
+            resources.rye_bread.max(0.0) + resources.food.max(0.0),
             STARTING_BREAD,
             initial_goods_multiplier,
         ),

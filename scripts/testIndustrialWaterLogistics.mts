@@ -107,20 +107,20 @@ assert.equal(industrialWaterRequirement('smithy'), 1);
 assert.equal(industrialWaterRequirement('potter_kiln'), 1);
 assert.equal(industrialWaterRequirement('lumber_mill'), 0);
 assert.equal(industrialWaterRequirement('watermill'), 0);
-assert.equal(industrialWaterTarget('bakery', 25), 2);
-assert.equal(industrialWaterTarget('bakery', 50), 4);
+assert.equal(industrialWaterTarget('bakery', 25), 6);
+assert.equal(industrialWaterTarget('bakery', 50), 6);
 assert.equal(industrialWaterTarget('bakery', 75), 6);
 assert.equal(industrialWaterTarget('bakery', 100), 6);
 assert.equal(industrialWaterTarget('brewery', 50), 6);
-assert.equal(industrialWaterTarget('spinning_retting_house', 25), 1);
-assert.equal(industrialWaterTarget('spinning_retting_house', 50), 2);
+assert.equal(industrialWaterTarget('spinning_retting_house', 25), 3);
+assert.equal(industrialWaterTarget('spinning_retting_house', 50), 3);
 assert.equal(industrialWaterTarget('spinning_retting_house', 100), 3);
 assert.equal(industrialWaterTarget('weaver', 100), 0);
-assert.equal(industrialWaterTarget('smithy', 25), 1);
-assert.equal(industrialWaterTarget('smithy', 50), 2);
+assert.equal(industrialWaterTarget('smithy', 25), 3);
+assert.equal(industrialWaterTarget('smithy', 50), 3);
 assert.equal(industrialWaterTarget('smithy', 100), 3);
-assert.equal(industrialWaterTarget('potter_kiln', 25), 1);
-assert.equal(industrialWaterTarget('potter_kiln', 50), 2);
+assert.equal(industrialWaterTarget('potter_kiln', 25), 3);
+assert.equal(industrialWaterTarget('potter_kiln', 50), 3);
 assert.equal(industrialWaterTarget('potter_kiln', 100), 3);
 assert.equal(
   industrialWaterInputPreferenceRank(

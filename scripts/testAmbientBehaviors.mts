@@ -30,6 +30,7 @@ import {
 } from '../src/settlement/SettlementCrowdRenderer.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import { SIM_REALTIME_RATE } from '../src/generated/gameBalance.ts';
+import { VISUAL_AGENT_PACE_MULTIPLIER } from '../src/world/visualAgentPacing.ts';
 
 const reusableSlots: AmbientBehaviorSlot[] = [
   {
@@ -289,7 +290,7 @@ assert.ok(
 );
 
 const tickVillagersBySimSeconds = (seconds: number): void => {
-  villagers.tick(seconds / SIM_REALTIME_RATE);
+  villagers.tick(seconds / (SIM_REALTIME_RATE * VISUAL_AGENT_PACE_MULTIPLIER));
 };
 
 for (let step = 0; step < 240; step += 1) tickVillagersBySimSeconds(0.05);

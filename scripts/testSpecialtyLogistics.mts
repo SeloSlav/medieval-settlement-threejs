@@ -356,7 +356,7 @@ assert.match(marketplaceCaravan, /ResidenceNeedKind::Pottery/);
 const expanded = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 assert.match(
   expanded,
-  /step_granary[\s\S]*?GranaryDispatchDuty::Households[\s\S]*?CommodityKind::Food[\s\S]*?CommodityKind::PreservedFood[\s\S]*?&\["marketplace"\]/,
+  /step_granary[\s\S]*?GranaryDispatchDuty::Households[\s\S]*?CommodityKind::RyeBread[\s\S]*?CommodityKind::PreservedFood[\s\S]*?&\["marketplace"\]/,
   'a granary must stock Marketplace food stalls with staple and cured goods',
 );
 assert.match(

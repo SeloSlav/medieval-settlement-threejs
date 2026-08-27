@@ -121,6 +121,7 @@ export type BuildingState = {
   firewood: number;
   stone: number;
   water: number;
+  /** Retired save-schema tombstone; runtime migration moves any value to rye bread. */
   food: number;
   ryeSheaves?: number;
   oatSheaves?: number;
@@ -448,8 +449,9 @@ export type ResidenceState = {
   tier: 0 | 1 | 2 | 3 | 4;
   settlementTicks: number;
   needs: ResidenceNeedsState;
-  /** Physical household pantry. `needs.food` is only the derived meal total. */
+  /** Retired save-schema tombstone; runtime migration moves any value to rye bread. */
   food?: number;
+  /** Physical household pantry. `needs.food` is only the derived meal total. */
   preservedFood?: number;
   honey?: number;
   oatGrain?: number;

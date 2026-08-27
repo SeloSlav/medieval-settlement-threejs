@@ -331,11 +331,14 @@ const policyPanel = renderProcessorOutputTargetPanel(weaver());
 assert.match(policyPanel ?? '', /data-weaver-input-policy="0"[^>]*disabled/);
 assert.match(policyPanel ?? '', /data-weaver-input-policy="1"/);
 assert.match(policyPanel ?? '', /data-weaver-input-policy="2"/);
-assert.match(policyPanel ?? '', /Matching specialization wins a contested working-buffer cart/);
-assert.match(policyPanel ?? '', /Water is no longer needed here/);
+assert.match(policyPanel ?? '', /resource-action-button--icon/);
+assert.match(policyPanel ?? '', /data-tooltip="2 yarn → 2 clothing"/);
+assert.match(policyPanel ?? '', /data-tooltip="2 linen → 2 clothing"/);
 const spinnerPolicyPanel = renderProcessorOutputTargetPanel(spinningHouse());
-assert.match(spinnerPolicyPanel ?? '', /Wool produces yarn without water/);
-assert.match(spinnerPolicyPanel ?? '', /Flax produces linen only when well water is staged/);
+assert.match(spinnerPolicyPanel ?? '', /data-tooltip="3 wool → 2 yarn"/);
+assert.match(spinnerPolicyPanel ?? '', /data-tooltip="3 flax \+ 1 water → 2 linen"/);
+assert.match(spinnerPolicyPanel ?? '', /data-resource-cost="yarn"/);
+assert.match(spinnerPolicyPanel ?? '', /data-resource-cost="linen"/);
 
 const emptyWeaverVisual = buildingMarkerSignatures(
   new Map([['weaver-1', weaver()]]),

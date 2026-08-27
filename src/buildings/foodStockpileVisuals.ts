@@ -48,14 +48,14 @@ export function foodStockpileVisualSignature(building: BuildingState): string {
   switch (building.kind) {
     case 'hunters_hall':
       return foodSupplierVisualSignature(
-        (building.meat ?? 0) + building.food,
+        building.meat ?? 0,
         BUILDING_STORAGE_CAPS.hunters_hall.food,
         HUNTERS_FOOD_VISUAL_SEGMENTS,
       );
     case 'foragers_shed':
       return `:food-store:${
         stockpileVisualLevel(
-          building.food + (building.berries ?? 0) + (building.mushrooms ?? 0),
+          (building.berries ?? 0) + (building.mushrooms ?? 0),
           BUILDING_STORAGE_CAPS.foragers_shed.food,
           FORAGERS_FOOD_VISUAL_SEGMENTS,
         )
@@ -68,7 +68,7 @@ export function foodStockpileVisualSignature(building: BuildingState): string {
       }`;
     case 'fishing_camp':
       return foodSupplierVisualSignature(
-        (building.fish ?? 0) + building.food,
+        building.fish ?? 0,
         BUILDING_STORAGE_CAPS.fishing_camp.food,
         FISHING_FOOD_VISUAL_SEGMENTS,
       );
@@ -178,7 +178,7 @@ export function syncFoodStockpileVisuals(
         marker,
         'HuntersFoodStockpile',
         'HuntersFoodSegment',
-        (building.meat ?? 0) + building.food,
+        building.meat ?? 0,
         BUILDING_STORAGE_CAPS.hunters_hall.food,
       );
       break;
@@ -187,7 +187,7 @@ export function syncFoodStockpileVisuals(
         marker,
         'ForagersFoodStockpile',
         'ForagersFoodSegment',
-        building.food + (building.berries ?? 0) + (building.mushrooms ?? 0),
+        (building.berries ?? 0) + (building.mushrooms ?? 0),
         BUILDING_STORAGE_CAPS.foragers_shed.food,
       );
       syncNamedStockpile(
@@ -203,7 +203,7 @@ export function syncFoodStockpileVisuals(
         marker,
         'FishingFoodStockpile',
         'FishingFoodSegment',
-        (building.fish ?? 0) + building.food,
+        building.fish ?? 0,
         BUILDING_STORAGE_CAPS.fishing_camp.food,
       );
       break;

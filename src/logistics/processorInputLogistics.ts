@@ -16,7 +16,6 @@ import {
   SMITHY_CHARCOAL_PER_CYCLE,
   SMOKEHOUSE_FIREWOOD_PER_CYCLE,
   SMOKEHOUSE_FOOD_PER_CYCLE,
-  SMOKEHOUSE_POTTERY_PER_CYCLE,
   SMOKEHOUSE_SALT_PER_CYCLE,
   SPINNING_RETTING_FLAX_PER_CYCLE,
   SPINNING_RETTING_WOOL_PER_CYCLE,
@@ -158,7 +157,7 @@ const TARGET_KINDS: Record<
   clay: ['potter_kiln'],
   salt: ['smokehouse', 'pastoral_farmstead', 'trading_post'],
   charcoal: ['smithy'],
-  pottery: ['smokehouse', 'village_storehouse', 'trading_post'],
+  pottery: ['village_storehouse', 'trading_post'],
   wax: ['chandlery'],
 };
 
@@ -220,9 +219,7 @@ export function directlyDispatchedProcessorInputPerCycle(
     case 'charcoal':
       return targetKind === 'smithy' ? SMITHY_CHARCOAL_PER_CYCLE : 0;
     case 'pottery':
-      return targetKind === 'smokehouse'
-        ? SMOKEHOUSE_POTTERY_PER_CYCLE
-        : 0;
+      return 0;
     case 'wax':
       return targetKind === 'chandlery' ? CHANDLERY_WAX_PER_CYCLE : 0;
   }
@@ -242,7 +239,7 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
 
 /**
  * Mirrors every source-side processor-input cart. Active processors receive
- * their selected stock-policy working buffers by lowest runway. Textile
+ * their automatic three-cycle working buffers by lowest runway. Textile
  * processors route matching raw or prepared fibres to their specialization before
  * lowest runway and route; staffed heavy-tool worksites use the same ordering
  * for replacement iron tools. Imported raw iron and salt stop at processor
@@ -250,8 +247,8 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
  * then may centralize
  * surplus up to a staffed Trading Post's selected reserve, where imports cover
  * only any remaining gap;
- * after the kiln's household-ware duty, pottery reaches staffed smokehouses
- * before becoming market export stock. Preserved food is a
+ * kiln pottery is collected into staffed local storage before becoming export
+ * stock. Preserved food is a
  * storage-only overflow route to the nearest granary that accepts perishable
  * surplus, never a processor input.
  * Flour centralizes at a staffed granary once bakery working buffers are

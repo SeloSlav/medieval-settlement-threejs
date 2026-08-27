@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type {
   MarketStallAssignment,
 } from '../economy/marketStallAssignments.ts';
-import type { BuildingState } from '../resources/types.ts';
+import type { BuildingState, ResidenceState } from '../resources/types.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 
 export const MARKETPLACE_SUPPLY_LINK_COLOR = 0xe7c45c;
@@ -26,6 +26,15 @@ export type MarketplaceSupplyLink = {
   marketplaceX: number;
   marketplaceZ: number;
   stallCount: number;
+};
+
+export type MarketplaceResidenceServiceLink = {
+  marketplaceId: string;
+  marketplaceX: number;
+  marketplaceZ: number;
+  residenceId: string;
+  residenceX: number;
+  residenceZ: number;
 };
 
 type MarketplaceSupplyLinksOptions = {
@@ -97,6 +106,34 @@ export function marketplaceSupplyLinksForSelection(
   );
 }
 
+export function marketplaceResidenceServiceLinks(
+  marketplace: BuildingState | null,
+  residences: Iterable<ResidenceState>,
+  residenceIds: ReadonlySet<string>,
+): MarketplaceResidenceServiceLink[] {
+  if (
+    marketplace?.kind !== 'marketplace'
+    || marketplace.constructionComplete === false
+    || residenceIds.size === 0
+  ) {
+    return [];
+  }
+
+  const links: MarketplaceResidenceServiceLink[] = [];
+  for (const residence of residences) {
+    if (!residenceIds.has(residence.id)) continue;
+    links.push({
+      marketplaceId: marketplace.id,
+      marketplaceX: marketplace.x,
+      marketplaceZ: marketplace.z,
+      residenceId: residence.id,
+      residenceX: residence.x,
+      residenceZ: residence.z,
+    });
+  }
+  return links.sort((left, right) => compareIds(left.residenceId, right.residenceId));
+}
+
 /**
  * A vertical quadratic arch. Its midpoint rises above both endpoints, so the
  * relationship remains visibly three-dimensional even over uneven terrain.
@@ -105,17 +142,46 @@ export function marketplaceSupplyArcPoints(
   link: MarketplaceSupplyLink,
   getHeightAt: (x: number, z: number) => number,
 ): THREE.Vector3[] {
-  const start = new THREE.Vector3(
+  return marketplaceArcPoints(
     link.sourceX,
-    getHeightAt(link.sourceX, link.sourceZ)
-      + MARKETPLACE_SUPPLY_LINK_ENDPOINT_LIFT,
     link.sourceZ,
+    link.marketplaceX,
+    link.marketplaceZ,
+    getHeightAt,
+  );
+}
+
+export function marketplaceResidenceServiceArcPoints(
+  link: MarketplaceResidenceServiceLink,
+  getHeightAt: (x: number, z: number) => number,
+): THREE.Vector3[] {
+  return marketplaceArcPoints(
+    link.marketplaceX,
+    link.marketplaceZ,
+    link.residenceX,
+    link.residenceZ,
+    getHeightAt,
+  );
+}
+
+function marketplaceArcPoints(
+  startX: number,
+  startZ: number,
+  endX: number,
+  endZ: number,
+  getHeightAt: (x: number, z: number) => number,
+): THREE.Vector3[] {
+  const start = new THREE.Vector3(
+    startX,
+    getHeightAt(startX, startZ)
+      + MARKETPLACE_SUPPLY_LINK_ENDPOINT_LIFT,
+    startZ,
   );
   const end = new THREE.Vector3(
-    link.marketplaceX,
-    getHeightAt(link.marketplaceX, link.marketplaceZ)
+    endX,
+    getHeightAt(endX, endZ)
       + MARKETPLACE_SUPPLY_LINK_ENDPOINT_LIFT,
-    link.marketplaceZ,
+    endZ,
   );
   const horizontalDistance = Math.hypot(
     end.x - start.x,
@@ -149,7 +215,12 @@ export class MarketplaceSupplyLinks {
     THREE.BufferGeometry,
     THREE.LineBasicMaterial
   >;
+  private readonly residenceServiceLine: THREE.LineSegments<
+    THREE.BufferGeometry,
+    THREE.LineBasicMaterial
+  >;
   private signature: string | null = null;
+  private residenceServiceSignature: string | null = null;
 
   constructor(options: MarketplaceSupplyLinksOptions) {
     this.terrain = options.terrain;
@@ -171,6 +242,19 @@ export class MarketplaceSupplyLinks {
     this.line.visible = false;
     this.line.userData.marketplaceSupplyLinks = [];
     this.group.add(this.line);
+
+    const residenceServiceMaterial = material.clone();
+    this.residenceServiceLine = new THREE.LineSegments(
+      new THREE.BufferGeometry(),
+      residenceServiceMaterial,
+    );
+    this.residenceServiceLine.name = 'Marketplace residence service arcs';
+    this.residenceServiceLine.renderOrder = 15;
+    this.residenceServiceLine.frustumCulled = false;
+    this.residenceServiceLine.raycast = () => {};
+    this.residenceServiceLine.visible = false;
+    this.residenceServiceLine.userData.marketplaceResidenceServiceLinks = [];
+    this.group.add(this.residenceServiceLine);
     options.parent.add(this.group);
   }
 
@@ -216,9 +300,54 @@ export class MarketplaceSupplyLinks {
     this.line.visible = vertices.length >= 2;
   }
 
+  syncResidenceService(
+    marketplace: BuildingState | null,
+    residences: Iterable<ResidenceState>,
+    residenceIds: ReadonlySet<string>,
+  ): void {
+    const links = marketplaceResidenceServiceLinks(
+      marketplace,
+      residences,
+      residenceIds,
+    );
+    const signature = this.createResidenceServiceSignature(links);
+    if (signature === this.residenceServiceSignature) return;
+    this.residenceServiceSignature = signature;
+    this.residenceServiceLine.userData.marketplaceResidenceServiceLinks = links.map(
+      (link) => ({
+        marketplaceId: link.marketplaceId,
+        residenceId: link.residenceId,
+      }),
+    );
+
+    if (links.length === 0) {
+      this.residenceServiceLine.visible = false;
+      return;
+    }
+
+    const vertices: THREE.Vector3[] = [];
+    for (const link of links) {
+      const points = marketplaceResidenceServiceArcPoints(
+        link,
+        this.terrain.getHeightAt.bind(this.terrain),
+      );
+      for (let index = 0; index < points.length - 1; index += 1) {
+        vertices.push(points[index], points[index + 1]);
+      }
+    }
+
+    const nextGeometry = new THREE.BufferGeometry().setFromPoints(vertices);
+    const previousGeometry = this.residenceServiceLine.geometry;
+    this.residenceServiceLine.geometry = nextGeometry;
+    previousGeometry.dispose();
+    this.residenceServiceLine.visible = vertices.length >= 2;
+  }
+
   dispose(): void {
     this.line.geometry.dispose();
     this.line.material.dispose();
+    this.residenceServiceLine.geometry.dispose();
+    this.residenceServiceLine.material.dispose();
     this.group.removeFromParent();
   }
 
@@ -233,6 +362,21 @@ export class MarketplaceSupplyLinks {
       link.marketplaceX.toFixed(3),
       link.marketplaceZ.toFixed(3),
       this.terrain.getHeightAt(link.marketplaceX, link.marketplaceZ).toFixed(3),
+    ].join(':')).join('|');
+  }
+
+  private createResidenceServiceSignature(
+    links: readonly MarketplaceResidenceServiceLink[],
+  ): string {
+    return links.map((link) => [
+      link.marketplaceId,
+      link.residenceId,
+      link.marketplaceX.toFixed(3),
+      link.marketplaceZ.toFixed(3),
+      this.terrain.getHeightAt(link.marketplaceX, link.marketplaceZ).toFixed(3),
+      link.residenceX.toFixed(3),
+      link.residenceZ.toFixed(3),
+      this.terrain.getHeightAt(link.residenceX, link.residenceZ).toFixed(3),
     ].join(':')).join('|');
   }
 }

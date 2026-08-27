@@ -71,6 +71,7 @@ import SetHarvestReservePercentReducer from "../set_harvest_reserve_percent_redu
 import SetLaborStewardReserveReducer from "../set_labor_steward_reserve_reducer";
 import SetLivestockBreedingReserveReducer from "../set_livestock_breeding_reserve_reducer";
 import SetLivestockHaymakingPercentReducer from "../set_livestock_haymaking_percent_reducer";
+import SetLivestockMilkUsePolicyReducer from "../set_livestock_milk_use_policy_reducer";
 import SetLivestockSpeciesReducer from "../set_livestock_species_reducer";
 import SetMarketplaceGoldReserveTargetReducer from "../set_marketplace_gold_reserve_target_reducer";
 import SetMarketplaceIronTargetReducer from "../set_marketplace_iron_target_reducer";
@@ -86,8 +87,6 @@ import SetMonasteryPolicyReducer from "../set_monastery_policy_reducer";
 import SetNightPoliciesReducer from "../set_night_policies_reducer";
 import SetPantrySafeguardPolicyReducer from "../set_pantry_safeguard_policy_reducer";
 import SetPotterFiringPolicyReducer from "../set_potter_firing_policy_reducer";
-import SetPotteryDispatchPolicyReducer from "../set_pottery_dispatch_policy_reducer";
-import SetProcessorOutputTargetReducer from "../set_processor_output_target_reducer";
 import SetProductionLaborStewardReducer from "../set_production_labor_steward_reducer";
 import SetResidenceUpgradePriorityReducer from "../set_residence_upgrade_priority_reducer";
 import SetSeasonalLaborStewardReducer from "../set_seasonal_labor_steward_reducer";
@@ -175,6 +174,7 @@ export type SetHarvestReservePercentParams = __Infer<typeof SetHarvestReservePer
 export type SetLaborStewardReserveParams = __Infer<typeof SetLaborStewardReserveReducer>;
 export type SetLivestockBreedingReserveParams = __Infer<typeof SetLivestockBreedingReserveReducer>;
 export type SetLivestockHaymakingPercentParams = __Infer<typeof SetLivestockHaymakingPercentReducer>;
+export type SetLivestockMilkUsePolicyParams = __Infer<typeof SetLivestockMilkUsePolicyReducer>;
 export type SetLivestockSpeciesParams = __Infer<typeof SetLivestockSpeciesReducer>;
 export type SetMarketplaceGoldReserveTargetParams = __Infer<typeof SetMarketplaceGoldReserveTargetReducer>;
 export type SetMarketplaceIronTargetParams = __Infer<typeof SetMarketplaceIronTargetReducer>;
@@ -190,8 +190,6 @@ export type SetMonasteryPolicyParams = __Infer<typeof SetMonasteryPolicyReducer>
 export type SetNightPoliciesParams = __Infer<typeof SetNightPoliciesReducer>;
 export type SetPantrySafeguardPolicyParams = __Infer<typeof SetPantrySafeguardPolicyReducer>;
 export type SetPotterFiringPolicyParams = __Infer<typeof SetPotterFiringPolicyReducer>;
-export type SetPotteryDispatchPolicyParams = __Infer<typeof SetPotteryDispatchPolicyReducer>;
-export type SetProcessorOutputTargetParams = __Infer<typeof SetProcessorOutputTargetReducer>;
 export type SetProductionLaborStewardParams = __Infer<typeof SetProductionLaborStewardReducer>;
 export type SetResidenceUpgradePriorityParams = __Infer<typeof SetResidenceUpgradePriorityReducer>;
 export type SetSeasonalLaborStewardParams = __Infer<typeof SetSeasonalLaborStewardReducer>;

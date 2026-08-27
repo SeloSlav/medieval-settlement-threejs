@@ -1240,11 +1240,21 @@ export async function bootstrapAppSession(
         cameraController.focusWorldPosition(x, z);
       }
     },
-    onServiceCoverageChange: (residenceIds, kind, marketplaceFulfillment) => {
+    onServiceCoverageChange: (
+      residenceIds,
+      kind,
+      marketplaceFulfillment,
+      serviceBuildingId,
+    ) => {
       residenceMarkers.setServiceCoverageHighlights(
         residenceIds,
         kind,
         marketplaceFulfillment,
+      );
+      buildingMarkers.setMarketplaceServiceCoverage(
+        kind === 'marketplace' ? serviceBuildingId : null,
+        residenceIds,
+        liveContext.gameState,
       );
     },
     onTargetSelected: (target) => {

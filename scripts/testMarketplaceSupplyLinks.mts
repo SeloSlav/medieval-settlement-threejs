@@ -7,17 +7,19 @@ import {
   MARKETPLACE_SUPPLY_LINK_COLOR,
   MARKETPLACE_SUPPLY_LINK_MIN_ARC_RISE,
   MarketplaceSupplyLinks,
+  marketplaceResidenceServiceArcPoints,
+  marketplaceResidenceServiceLinks,
   marketplaceSupplyArcPoints,
   marketplaceSupplyLinksForSelection,
 } from '../src/buildings/MarketplaceSupplyLinks.ts';
 import { BuildingMarkers } from '../src/buildings/BuildingMarkers.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
-import type { BuildingState, GameState } from '../src/resources/types.ts';
+import type { BuildingState, GameState, ResidenceState } from '../src/resources/types.ts';
 
 const marketNear = stallBuilding('market-10', 'marketplace', 10, 0, 0);
 const marketFar = stallBuilding('market-20', 'marketplace', 100, 0, 0);
 const granary = stallBuilding('granary-30', 'granary', 0, 0, 2, {
-  food: 20,
+  ryeBread: 20,
 });
 const storehouse = stallBuilding(
   'storehouse-40',
@@ -68,7 +70,7 @@ assert.deepEqual(
 
 const standbyOnlyBuildings = [
   marketNear,
-  { ...granary, food: 0 },
+  { ...granary, ryeBread: 0 },
 ];
 const standbyOnlyRoster = assignMarketplaceStallRoster(
   standbyOnlyBuildings,
@@ -121,18 +123,71 @@ assert.ok(
 assert.ok(Math.abs(midpoint.x - (start.x + end.x) * 0.5) < 1e-9);
 assert.ok(Math.abs(midpoint.z - (start.z + end.z) * 0.5) < 1e-9);
 
+const residences = [
+  { id: 'home-20', x: 14, z: 8 },
+  { id: 'home-10', x: 7, z: -6 },
+  { id: 'home-unserved', x: -20, z: 2 },
+] as ResidenceState[];
+const residenceServiceLinks = marketplaceResidenceServiceLinks(
+  marketNear,
+  residences,
+  new Set(['home-10', 'home-20']),
+);
+assert.deepEqual(
+  residenceServiceLinks.map((link) => [link.marketplaceId, link.residenceId]),
+  [
+    ['market-10', 'home-10'],
+    ['market-10', 'home-20'],
+  ],
+  'Marketplace coverage should produce one stable link to every home it actually serves',
+);
+const residenceArc = marketplaceResidenceServiceArcPoints(
+  residenceServiceLinks[0],
+  terrain.getHeightAt,
+);
+assert.equal(residenceArc[0].x, marketNear.x);
+assert.equal(residenceArc[0].z, marketNear.z);
+assert.equal(residenceArc.at(-1)?.x, residences[1].x);
+assert.equal(residenceArc.at(-1)?.z, residences[1].z);
+assert.ok(
+  residenceArc[Math.floor(residenceArc.length * 0.5)].y
+    >= Math.max(residenceArc[0].y, residenceArc.at(-1)?.y ?? -Infinity)
+      + MARKETPLACE_SUPPLY_LINK_MIN_ARC_RISE - 1e-9,
+  'Marketplace-to-home service links should use the same lifted curve as supply links',
+);
+
 const parent = new THREE.Group();
 const overlay = new MarketplaceSupplyLinks({ parent, terrain });
 overlay.sync(marketNear, buildings, roster.stalls);
+overlay.syncResidenceService(
+  marketNear,
+  residences,
+  new Set(['home-10', 'home-20']),
+);
 const root = parent.getObjectByName('Selected marketplace supply links');
 const lines = root?.getObjectByName('Selected marketplace supply arcs');
+const residenceLines = root?.getObjectByName('Marketplace residence service arcs');
 assert.ok(root instanceof THREE.Group);
 assert.ok(lines instanceof THREE.LineSegments);
+assert.ok(residenceLines instanceof THREE.LineSegments);
 assert.equal(lines.visible, true);
+assert.equal(residenceLines.visible, true);
 assert.equal(
   (lines.material as THREE.LineBasicMaterial).color.getHex(),
   MARKETPLACE_SUPPLY_LINK_COLOR,
   'market supply connections must use the requested yellow',
+);
+assert.equal(
+  (residenceLines.material as THREE.LineBasicMaterial).color.getHex(),
+  MARKETPLACE_SUPPLY_LINK_COLOR,
+  'Marketplace-to-home connections must use the same yellow as depot supply links',
+);
+assert.deepEqual(
+  residenceLines.userData.marketplaceResidenceServiceLinks,
+  [
+    { marketplaceId: 'market-10', residenceId: 'home-10' },
+    { marketplaceId: 'market-10', residenceId: 'home-20' },
+  ],
 );
 assert.deepEqual(
   lines.userData.marketplaceSupplyLinks,
@@ -159,6 +214,12 @@ assert.equal(
 );
 overlay.sync(null, buildings, roster.stalls);
 assert.equal(lines.visible, false, 'clearing or changing selection should hide the arcs');
+overlay.syncResidenceService(null, residences, new Set());
+assert.equal(
+  residenceLines.visible,
+  false,
+  'releasing Marketplace coverage should hide its residence arcs',
+);
 overlay.dispose();
 assert.equal(parent.getObjectByName('Selected marketplace supply links'), undefined);
 assert.equal(geometryDisposed, true);
@@ -177,6 +238,7 @@ const buildingMarkers = new BuildingMarkers({
 });
 const integrationState = {
   buildings: new Map(buildings.map((building) => [building.id, building])),
+  residences: new Map(residences.map((residence) => [residence.id, residence])),
   fireIncidents: new Map(),
 } as GameState;
 buildingMarkers.setBuildingSelectionOverlays(marketNear, integrationState);
@@ -185,6 +247,19 @@ const integratedLines = integrationParent
 assert.ok(integratedLines instanceof THREE.LineSegments);
 assert.equal(integratedLines.visible, true);
 assert.equal(integratedLines.userData.marketplaceSupplyLinks.length, 2);
+buildingMarkers.setMarketplaceServiceCoverage(
+  marketNear.id,
+  new Set(['home-10', 'home-20']),
+  integrationState,
+);
+const integratedResidenceLines = integrationParent
+  .getObjectByName('Marketplace residence service arcs');
+assert.ok(integratedResidenceLines instanceof THREE.LineSegments);
+assert.equal(integratedResidenceLines.visible, true);
+assert.equal(
+  integratedResidenceLines.userData.marketplaceResidenceServiceLinks.length,
+  2,
+);
 const fireDisabledIntegrationState = {
   ...integrationState,
   fireIncidents: new Map([[
@@ -209,6 +284,8 @@ assert.deepEqual(
 );
 buildingMarkers.setBuildingSelectionOverlays(null);
 assert.equal(integratedLines.visible, false);
+buildingMarkers.setMarketplaceServiceCoverage(null, new Set(), integrationState);
+assert.equal(integratedResidenceLines.visible, false);
 buildingMarkers.dispose();
 assert.equal(integrationParent.getObjectByName('Building markers'), undefined);
 

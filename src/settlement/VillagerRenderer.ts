@@ -185,9 +185,12 @@ import {
 } from './palisadedRefugeRally.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
 import {
+  VISUAL_AGENT_PACE_MULTIPLIER,
+  visualAgentDelta,
+} from '../world/visualAgentPacing.ts';
+import {
   CALENDAR_HOURS_PER_DAY,
   CALENDAR_SECONDS_PER_DAY,
-  SIM_REALTIME_RATE,
   STARTING_POPULATION,
 } from '../generated/gameBalance.ts';
 import {
@@ -1366,7 +1369,7 @@ export class VillagerRenderer {
   tick(dt: number, view?: CrowdViewState): void {
     this.lastView = view;
     const realDt = Math.max(0, dt);
-    const simulationDt = realDt * this.getGameSpeed() * SIM_REALTIME_RATE;
+    const simulationDt = visualAgentDelta(realDt, this.getGameSpeed());
     this.advanceCampAmbientCycle(simulationDt);
     this.advanceChapelAmbientCycle(simulationDt);
     this.advanceCombatAgentVisuals(simulationDt > 0 ? realDt : 0);
@@ -1737,8 +1740,9 @@ export class VillagerRenderer {
         } assigned`
         : 'Free labor pool',
       paceLabel: 'Walking pace',
-      pace: `${agent.walkSpeed.toFixed(1)} m/s off-road · ${
-        (agent.walkSpeed * PEDESTRIAN_ROAD_SPEED_MULTIPLIER).toFixed(1)
+      pace: `${(agent.walkSpeed * VISUAL_AGENT_PACE_MULTIPLIER).toFixed(1)} m/s off-road · ${
+        (agent.walkSpeed * PEDESTRIAN_ROAD_SPEED_MULTIPLIER
+          * VISUAL_AGENT_PACE_MULTIPLIER).toFixed(1)
       } m/s on roads`,
       position: { x: agent.x, y: agent.y, z: agent.z },
       route: this.inspectionRoute(agent),

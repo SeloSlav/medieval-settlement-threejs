@@ -4,9 +4,19 @@ import { DeliveryAgentRenderer } from '../src/logistics/DeliveryAgentRenderer.ts
 import { advanceDeliveryDisplayProgress } from '../src/logistics/deliveryPresentationMotion.ts';
 import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import { advanceOxFollowPosition } from '../src/settlement/oxFollowMotion.ts';
+import {
+  VISUAL_AGENT_PACE_MULTIPLIER,
+  visualAgentDelta,
+} from '../src/world/visualAgentPacing.ts';
 
 const AUTHORITY_INTERVAL_SECONDS = 0.2;
 const TEST_DURATION_SECONDS = 3;
+
+assert.equal(VISUAL_AGENT_PACE_MULTIPLIER, 2);
+assert.equal(visualAgentDelta(1, 0), 0);
+assert.equal(visualAgentDelta(1, 1), 1.5);
+assert.equal(visualAgentDelta(1, 4), 6);
+assert.equal(visualAgentDelta(1, 8), 12);
 
 for (const frameRate of [30, 60, 144]) {
   for (const speed of [1.2, 3, 12]) {
@@ -165,7 +175,7 @@ for (const oxId of [null, 'stable-ox-1'] as const) {
 
   const frameRate = 60;
   const dt = 1 / frameRate;
-  const expectedDelta = 4 * 0.75 * dt;
+  const expectedDelta = 4 * 0.75 * VISUAL_AGENT_PACE_MULTIPLIER * dt;
   const authorityInterval = 1.4;
   let nextAuthorityTime = authorityInterval;
   let previousX = renderer.inspectDeliveryAgent(trip.id)?.position.x ?? 0;

@@ -50,8 +50,8 @@ for (const [kind, expected] of expectedFirewoodPerCycle) {
 }
 assert.deepEqual(
   [25, 50, 75, 100].map((target) => processorInputTarget(1, target)),
-  [1, 2, 3, 3],
-  'output stock policy must also control the firewood working buffer',
+  [3, 3, 3, 3],
+  'legacy output percentages must not alter the automatic firewood working buffer',
 );
 
 const lowPriorityNear = building('10', 'bakery', {

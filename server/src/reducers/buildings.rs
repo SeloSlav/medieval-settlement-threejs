@@ -1377,7 +1377,6 @@ fn processor_input_commodity(kind: ProcessorInputKind) -> CommodityKind {
         // is the sentinel used by the smokehouse-only group checks below.
         ProcessorInputKind::Food => CommodityKind::Meat,
         ProcessorInputKind::Salt => CommodityKind::Salt,
-        ProcessorInputKind::Pottery => CommodityKind::Pottery,
         ProcessorInputKind::Wool => CommodityKind::Wool,
         ProcessorInputKind::Flax => CommodityKind::Flax,
         ProcessorInputKind::Yarn => CommodityKind::Yarn,

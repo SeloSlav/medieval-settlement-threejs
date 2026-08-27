@@ -1486,16 +1486,6 @@ function completedProcessorOverview(
           runway = saltRunway;
           limitingInput = 'salt';
         }
-        const potteryRunway = buildingInputRunway(
-          deliveries,
-          building,
-          'pottery',
-          cycles * SMOKEHOUSE_POTTERY_PER_CYCLE,
-        );
-        if (potteryRunway.days < runway.days) {
-          runway = potteryRunway;
-          limitingInput = 'pottery';
-        }
         smokehouseInputBuffer = updateFirstToStop(
           smokehouseInputBuffer,
           runway,
@@ -1976,8 +1966,8 @@ function completedProcessorOverview(
           branch.firstMarketId,
           building.id,
         );
-        // A staffed market can export pottery regardless of policy, but it
-        // sustains forge ore only when the player has selected the same
+        // A staffed market can export pottery automatically, but it sustains
+        // forge ore only when the player has selected the same
         // physical reserve that authorizes standing regional imports.
         const ironTarget = normalizeMarketplaceIronTarget(
           building.marketplaceIronTarget,

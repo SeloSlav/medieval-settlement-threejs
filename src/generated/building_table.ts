@@ -180,4 +180,5 @@ export default __t.row({
   pelts: __t.f64(),
   yarn: __t.f64(),
   linen: __t.f64(),
+  milkUsePolicy: __t.u8().name("milk_use_policy"),
 });

@@ -390,12 +390,12 @@ assert.equal(guardhouseFoodRunwayDays(6, 0, 0), Infinity);
 const emptyFarCompany = {
   ...building('empty-far-company', 'guardhouse', 80, 0, 6),
   polearms: 6,
-  food: 0,
+  ryeBread: 0,
 };
 const lowNearCompany = {
   ...building('low-near-company', 'guardhouse', 10, 0, 6),
   polearms: 6,
-  food: 1.35,
+  ryeBread: 1.35,
 };
 assert.equal(
   selectCriticalGuardhouseFoodTarget(
@@ -439,7 +439,7 @@ assert.equal(
 const deepCriticalCompany = {
   ...emptyFarCompany,
   id: 'deep-critical-company',
-  food: 1.35,
+  ryeBread: 1.35,
   guardhouseFoodReserve: GUARDHOUSE_FOOD_RESERVE_DEEP,
 };
 assert.equal(
@@ -832,7 +832,7 @@ refugeProjectionState.residences.set(
 );
 refugeProjectionState.deliveryTrips.set(
   'inside-refuge-cart',
-  deliveryTrip('inside-refuge-cart', 'food', 15, 125, 0),
+  deliveryTrip('inside-refuge-cart', 'ryeBread', 15, 125, 0),
 );
 assert.equal(palisadedRefugeEffectiveRadius(refuge), 68);
 assert.deepEqual(
@@ -1066,7 +1066,7 @@ const cartRiskState = emptyGameState();
 cartRiskState.buildings.set(tower.id, tower);
 cartRiskState.deliveryTrips.set(
   '30',
-  deliveryTrip('30', 'food', 60, 170, 0),
+  deliveryTrip('30', 'ryeBread', 60, 170, 0),
 );
 cartRiskState.deliveryTrips.set(
   '31',
@@ -1094,16 +1094,16 @@ assert.deepEqual(
   ],
   'loaded portable goods must remain raid targets, while bulk stone and water stay unattractive',
 );
-assert.equal(cartTargets[0]?.label, 'Loaded food handcart');
-assert.equal(cartTargets[0]?.portableSummary, '60 food on the road');
-assert.match(formatProjectedRaidTargets(cartTargets), /Loaded food handcart/);
+assert.equal(cartTargets[0]?.label, 'Loaded ryeBread handcart');
+assert.equal(cartTargets[0]?.portableSummary, '60 ryeBread on the road');
+assert.match(formatProjectedRaidTargets(cartTargets), /Loaded ryeBread handcart/);
 const foundingBootstrapState = emptyGameState();
 const foundingCamp = {
   ...building('founding-camp', 'founders_camp', 0, 0, 0),
-  food: 80,
+  ryeBread: 80,
   gold: 25,
 };
-const foundingCart = deliveryTrip('founding-cart', 'food', 40, 20, 0);
+const foundingCart = deliveryTrip('founding-cart', 'ryeBread', 40, 20, 0);
 foundingCart.buildingId = foundingCamp.id;
 foundingBootstrapState.buildings.set(foundingCamp.id, foundingCamp);
 foundingBootstrapState.deliveryTrips.set(foundingCart.id, foundingCart);
@@ -2718,10 +2718,10 @@ const smokehouseStepSource = expandedEconomy.slice(
   expandedEconomy.indexOf('pub fn step_smokehouse'),
   expandedEconomy.indexOf('pub fn step_apiary'),
 );
-assert.doesNotMatch(
+assert.match(
   smokehouseStepSource,
-  /dispatch_to_building\(\s*ctx,\s*tick,\s*clock,\s*&mut smokehouse,\s*CommodityKind::Food/,
-  'smokehouses must receive central food through the granary policy rather than pulling ahead of it',
+  /let selected_input = \[[\s\S]*?CommodityKind::Meat,[\s\S]*?CommodityKind::Fish,[\s\S]*?CommodityKind::Milk,[\s\S]*?\.preservation_output\(\)/,
+  'smokehouses must preserve concrete meat, fish, or milk inputs without an aggregate food commodity',
 );
 assert.match(
   smokehouseStepSource,
@@ -3095,7 +3095,7 @@ for (let index = 0; index < 100_000; index += 1) {
   const id = `${index + 1}`;
   cartProjectionPerfState.deliveryTrips.set(
     id,
-    deliveryTrip(id, 'food', index + 1, index % 500, Math.floor(index / 500) * 8),
+    deliveryTrip(id, 'ryeBread', index + 1, index % 500, Math.floor(index / 500) * 8),
   );
 }
 const cartProjectionStarted = performance.now();

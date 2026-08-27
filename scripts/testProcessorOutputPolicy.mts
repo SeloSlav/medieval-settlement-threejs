@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
   EXTRACTION_OUTPUT_TARGET_KINDS,
@@ -9,11 +9,9 @@ import {
   extractionOutputTarget,
   isExtractionOutputTargetKind,
   isProcessorOutputTargetKind,
-  isProductionOutputTargetKind,
   normalizeProcessorOutputTargetPercent,
   PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES,
   PROCESSOR_OUTPUT_TARGET_KINDS,
-  PROCESSOR_OUTPUT_TARGET_PRESETS,
   processorAcceptsInput,
   processorInputCommodities,
   processorInputStagingCycles,
@@ -36,6 +34,7 @@ import {
   BREWERY_MEAD_PER_CYCLE,
 } from '../src/generated/gameBalance.ts';
 import { selectDirectProcessorInputTarget } from '../src/logistics/processorInputLogistics.ts';
+import { renderProcessorOutputTargetPanel } from '../src/resources/inspector/expandedBuildingRenderer.ts';
 import type { BuildingKind, BuildingState } from '../src/resources/types.ts';
 
 function processor(
@@ -97,17 +96,13 @@ assert.deepEqual(
 assert.equal(normalizeProcessorOutputTargetPercent(undefined), 100);
 assert.equal(normalizeProcessorOutputTargetPercent(0), 100);
 assert.equal(PROCESSOR_INPUT_STAGING_DEFAULT_CYCLES, 3);
-assert.deepEqual(
-  PROCESSOR_OUTPUT_TARGET_PRESETS.map((preset) => [
-    preset.percent,
-    processorInputStagingCycles(preset.percent),
-  ]),
-  [[25, 1], [50, 2], [75, 3], [100, 3]],
-);
+for (const legacyPercent of [25, 50, 75, 100]) {
+  assert.equal(processorInputStagingCycles(legacyPercent), 3);
+}
 assert.equal(processorInputStagingCycles(undefined), 3);
 assert.equal(processorInputStagingCycles(0), 3);
-for (const percent of [25, 50, 75, 100]) {
-  assert.equal(normalizeProcessorOutputTargetPercent(percent), percent);
+for (const legacyPercent of [25, 50, 75, 100]) {
+  assert.equal(normalizeProcessorOutputTargetPercent(legacyPercent), 100);
 }
 assert.equal(isProcessorOutputTargetKind('watermill'), true);
 assert.equal(isProcessorOutputTargetKind('windmill'), true);
@@ -118,11 +113,8 @@ assert.deepEqual(
 );
 for (const kind of EXTRACTION_OUTPUT_TARGET_KINDS) {
   assert.equal(isExtractionOutputTargetKind(kind), true);
-  assert.equal(isProductionOutputTargetKind(kind), false);
   assert.equal(isProcessorOutputTargetKind(kind), false);
 }
-assert.equal(isProductionOutputTargetKind('smithy'), true);
-assert.equal(isProductionOutputTargetKind('hunters_hall'), false);
 assert.equal(processorOutputCommodity('watermill'), 'flour');
 assert.equal(processorOutputCommodity('windmill'), 'flour');
 assert.equal(processorOutputCommodity('bakery'), 'bread');
@@ -150,6 +142,13 @@ assert.equal(
   BREWERY_RECIPE_CIDER,
   'Auto must choose the greatest complete-batch readiness',
 );
+const breweryRecipePanel = renderProcessorOutputTargetPanel(processor('brewery-panel', 'brewery'));
+assert.match(breweryRecipePanel ?? '', /resource-action-button--icon/);
+assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="0"[^>]*data-tooltip="3 barley \+ 3 water \+ 1 firewood → 4 ale"/);
+assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="1"[^>]*data-tooltip="4 apples → 1 apple cider"/);
+assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="4"[^>]*data-tooltip="4 pears → 1 pear cider"/);
+assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="2"[^>]*data-tooltip="1 honey → 1 mead"/);
+assert.equal(renderProcessorOutputTargetPanel(processor('mill-panel', 'watermill')), null);
 
 const leanQuarry = processor('quarry', 'stone_quarry', 25);
 leanQuarry.stone = 179;
@@ -216,19 +215,19 @@ assert.deepEqual(
 );
 
 const mill = processor('mill', 'watermill', 25);
-assert.equal(processorOutputTargetForBuilding(mill), 65);
-mill.ryeFlour = 62;
+assert.equal(processorOutputTargetForBuilding(mill), 260);
+mill.ryeFlour = 257;
 assert.equal(processorOutputHeadroom(mill), 3);
 assert.equal(processorNeedsInputs(mill), true);
 assert.equal(processorAcceptsInput(mill, 'ryeGrain'), true);
 const windmill = processor('windmill', 'windmill', 25);
-assert.equal(processorOutputTargetForBuilding(windmill), 65);
+assert.equal(processorOutputTargetForBuilding(windmill), 260);
 assert.deepEqual(
   processorInputCommodities('windmill'),
   ['ryeGrain', 'maslinGrain'],
   'mills expose only their two genuinely millable alternative grains',
 );
-mill.ryeFlour = 65;
+mill.ryeFlour = 260;
 assert.equal(processorOutputHeadroom(mill), 0);
 assert.equal(processorNeedsInputs(mill), false);
 assert.equal(processorAcceptsInput(mill, 'ryeGrain'), false);
@@ -238,7 +237,7 @@ bakery.ryeBread = processorOutputTargetForBuilding(bakery) ?? 0;
 assert.equal(
   processorAcceptsInput(bakery, 'ryeFlour'),
   false,
-  'bakery flour should stop at the finished-food target',
+  'bakery flour should stop at physical finished-food capacity',
 );
 assert.equal(
   processorAcceptsInput(bakery, 'firewood'),
@@ -357,10 +356,6 @@ const reducer = readFileSync('server/src/reducers/buildings.rs', 'utf8');
 const economy = readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 const well = readFileSync('server/src/simulation/well.rs', 'utf8');
 const generatedTable = readFileSync('src/generated/building_table.ts', 'utf8');
-const generatedReducer = readFileSync(
-  'src/generated/set_processor_output_target_reducer.ts',
-  'utf8',
-);
 const sync = readFileSync('src/data/spacetimeTableSync/syncBuildings.ts', 'utf8');
 const inspector = readFileSync(
   'src/resources/inspector/expandedBuildingRenderer.ts',
@@ -377,10 +372,7 @@ assert.match(
   table,
   /#\[default\(100u8\)\]\s*pub processor_output_target_percent: u8/,
 );
-assert.match(
-  reducer,
-  /set_processor_output_target[\s\S]*is_valid_processor_output_target_percent[\s\S]*is_production_output_target_kind[\s\S]*processor_output_target_percent = target_percent/,
-);
+assert.doesNotMatch(reducer, /set_processor_output_target/);
 assert.match(
   economy,
   /process_batch\([\s\S]*output_target_percent: Option<u8>[\s\S]*processor_output_headroom/,
@@ -396,17 +388,16 @@ assert.match(
   /!processor_accepts_input\(&candidate, CommodityKind::Water\)/,
 );
 assert.match(generatedTable, /processorOutputTargetPercent:[\s\S]*processor_output_target_percent/);
-assert.match(generatedReducer, /buildingId:[\s\S]*targetPercent/);
+assert.equal(existsSync('src/generated/set_processor_output_target_reducer.ts'), false);
 assert.match(sync, /processorOutputTargetPercent: row\.processorOutputTargetPercent/);
 assert.doesNotMatch(
   inspector,
   /data-processor-output-target/,
   'workshop inspectors must not expose stock-policy buttons',
 );
-assert.match(inspector, /stages \$\{stagingLabel\}/);
-assert.match(inspector, /sets both the on-site input staging depth and the finished-goods ceiling/);
-assert.match(inspector, /Routine input top-ups stop at the staged-cycle target/);
-assert.match(inspector, /last-resort overflow when normal storage cannot receive its cargo/);
+assert.doesNotMatch(inspector, /Stock policy/);
+assert.doesNotMatch(inspector, /Production policy/);
+assert.match(inspector, /data-inspector-panel-title="Recipe"/);
 assert.doesNotMatch(extractionInspectors, /data-processor-output-target/);
 assert.doesNotMatch(inspector, /renderExtractionStockTargetPanel/);
 assert.match(

@@ -138,7 +138,7 @@ assert.match(granaryIntakePlan, /granary_fresh_food_target\(/);
 assert.match(granaryIntakePlan, /target\.granary_fresh_food_target_percent/);
 assert.doesNotMatch(
   granaryIntakePlan,
-  /CommodityKind::Food\) \* 0\.75/,
+  /granary_fresh_food_target\([^)]*\) \* 0\.75/,
   'authoritative intake must no longer use the old hard-coded target',
 );
 assert.match(generatedBuilding, /granaryFreshFoodTargetPercent/);

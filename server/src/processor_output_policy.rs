@@ -32,7 +32,6 @@ pub enum ProcessorInputKind {
     Barley,
     Food,
     Salt,
-    Pottery,
     Wool,
     Flax,
     Yarn,

@@ -455,7 +455,7 @@ function trip(id: string, buildingId: string): DeliveryTripState {
     residenceId: null,
     destinationKind: 'building',
     targetBuildingId: 'target',
-    cargoKind: 'food',
+    cargoKind: 'ryeBread',
     amount: 1,
     phase: 'outbound',
     x: 0,

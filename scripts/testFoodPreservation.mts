@@ -34,7 +34,7 @@ import type {
 } from '../src/resources/types.ts';
 
 const state = emptyGameState();
-state.stockpile.food = 10;
+state.stockpile.ryeBread = 10;
 state.buildings.set('granary', building('granary', 'granary', 20));
 state.buildings.set('market', building('market', 'marketplace', 10));
 state.buildings.set('smokehouse', building('smokehouse', 'smokehouse', 10));
@@ -43,12 +43,15 @@ state.residences.set('home', residence('home', 10));
 
 const ambientSpoilage = 0.01;
 const preservation = analyzeFreshFoodPreservation(state, ambientSpoilage);
-const expectedWeightedStock = 10 * FRESH_FOOD_STORAGE_TREASURY_FACTOR
+const ryeBreadSpoilageMultiplier = foodSpoilageMultiplier('ryeBread');
+const expectedWeightedStock = ryeBreadSpoilageMultiplier * (
+  10 * FRESH_FOOD_STORAGE_TREASURY_FACTOR
   + 20 * FRESH_FOOD_STORAGE_GRANARY_FACTOR
   + 10 * FRESH_FOOD_STORAGE_MARKETPLACE_FACTOR
   + 10 * FRESH_FOOD_STORAGE_SMOKEHOUSE_FACTOR
   + 10
-  + 10 * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR;
+  + 10 * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR
+);
 
 assert.equal(preservation.totalStock, 70);
 assert.equal(preservation.protectedStock, 40);
@@ -56,7 +59,12 @@ assert.ok(Math.abs(preservation.protectedShare - 4 / 7) < 1e-9);
 assert.ok(Math.abs(preservation.effectiveStorageFactor - expectedWeightedStock / 70) < 1e-9);
 assert.ok(Math.abs(preservation.spoilagePerDay - expectedWeightedStock * ambientSpoilage) < 1e-9);
 assert.equal(preservation.largestLossSite?.source, 'treasury');
-assert.ok(Math.abs((preservation.largestLossSite?.spoilagePerDay ?? 0) - 0.12) < 1e-9);
+assert.ok(
+  Math.abs(
+    (preservation.largestLossSite?.spoilagePerDay ?? 0)
+    - 0.12 * ryeBreadSpoilageMultiplier,
+  ) < 1e-9,
+);
 assert.deepEqual(preservation.granaryNetwork, {
   completedGranaries: 1,
   fireDisabledGranaries: 0,
@@ -171,7 +179,7 @@ const foundingWeatherState = emptyGameState();
 const weatherproofCamp = building('weatherproof-camp', 'founders_camp', 30);
 weatherproofCamp.preservedFood = 20;
 foundingWeatherState.buildings.set(weatherproofCamp.id, weatherproofCamp);
-const foundingFoodCart = deliveryTrip('founding-food-cart', 'food', 12, 'outbound');
+const foundingFoodCart = deliveryTrip('founding-rye-bread-cart', 'ryeBread', 12, 'outbound');
 foundingFoodCart.buildingId = weatherproofCamp.id;
 foundingWeatherState.deliveryTrips.set(foundingFoodCart.id, foundingFoodCart);
 const foundingCuredCart = deliveryTrip(
@@ -194,8 +202,8 @@ assert.equal(foundingWeather.preservedFood.protectedStock, 28);
 assert.equal(foundingWeather.preservedFood.spoilagePerDay, 0);
 
 const cartState = emptyGameState();
-cartState.deliveryTrips.set('outbound-food', deliveryTrip('outbound-food', 'food', 24, 'outbound'));
-cartState.deliveryTrips.set('returning-food', deliveryTrip('returning-food', 'food', 6, 'inbound'));
+cartState.deliveryTrips.set('outbound-food', deliveryTrip('outbound-food', 'ryeBread', 24, 'outbound'));
+cartState.deliveryTrips.set('returning-food', deliveryTrip('returning-food', 'ryeBread', 6, 'inbound'));
 cartState.deliveryTrips.set(
   'preserved-food',
   deliveryTrip('preserved-food', 'preservedFood', 40, 'outbound'),
@@ -207,7 +215,7 @@ assert.equal(cartPreservation.transitStock, 30);
 assert.ok(
   Math.abs(
     cartPreservation.transitSpoilagePerDay
-    - 30 * FRESH_FOOD_STORAGE_CART_FACTOR * ambientSpoilage
+    - 30 * ryeBreadSpoilageMultiplier * FRESH_FOOD_STORAGE_CART_FACTOR * ambientSpoilage
   ) < 1e-9,
 );
 assert.equal(cartPreservation.largestLossSite?.source, 'trip');
@@ -264,14 +272,19 @@ const hotspot = analyzeFreshFoodPreservation(hotspotState, 0.01);
 assert.equal(hotspot.largestLossSite?.source, 'building');
 assert.equal(hotspot.largestLossSite?.id, 'hunter-hotspot');
 assert.equal(hotspot.largestLossSite?.buildingKind, 'hunters_hall');
-assert.ok(Math.abs((hotspot.largestLossSite?.spoilagePerDay ?? 0) - 0.8) < 1e-9);
+assert.ok(
+  Math.abs(
+    (hotspot.largestLossSite?.spoilagePerDay ?? 0)
+    - 0.8 * ryeBreadSpoilageMultiplier,
+  ) < 1e-9,
+);
 const hotspotRows = renderFreshFoodPreservationRows(
   hotspot,
   (kind) => kind === 'hunters_hall' ? "Hunter's hall" : kind,
   () => null,
 );
 assert.match(hotspotRows, /Largest fresh-food loss/);
-assert.match(hotspotRows, /Hunter's hall · 80 food · 0\.8 food \/ day/);
+assert.match(hotspotRows, /Hunter's hall · 80 food · 0\.4 food \/ day/);
 assert.match(hotspotRows, /data-inspect-building="hunter-hotspot"/);
 assert.match(hotspotRows, /Granary intake network/);
 assert.match(hotspotRows, /20 \/ 255 sheltered toward selected targets/);
@@ -315,7 +328,7 @@ assert.match(deepGranaryRows, /306 \/ 306 sheltered toward selected targets/);
 assert.match(deepGranaryRows, /4 above targets from baking or earlier stock/);
 
 const fireQuarantineState = emptyGameState();
-fireQuarantineState.stockpile.food = 10;
+fireQuarantineState.stockpile.ryeBread = 10;
 fireQuarantineState.buildings.set(
   'fire-granary',
   building('fire-granary', 'granary', 20),
@@ -370,7 +383,7 @@ assert.ok(
 assert.ok(
   Math.abs(
     fireQuarantine.quarantinedSpoilagePerDay
-    - ambientSpoilage * (
+    - ambientSpoilage * ryeBreadSpoilageMultiplier * (
       20 * FRESH_FOOD_STORAGE_GRANARY_FACTOR
       + 30
     ),
@@ -380,7 +393,7 @@ assert.ok(
 assert.ok(
   Math.abs(
     fireQuarantine.usableSpoilageFractionPerDay
-    - ambientSpoilage * (
+    - ambientSpoilage * ryeBreadSpoilageMultiplier * (
       (
         10 * FRESH_FOOD_STORAGE_TREASURY_FACTOR
         + 10 * FRESH_FOOD_STORAGE_MARKETPLACE_FACTOR
@@ -401,10 +414,6 @@ assert.match(fireQuarantineRows, /90 inaccessible until recovery/);
 
 const residenceNeeds = readFileSync(
   new URL('../server/src/simulation/residence_needs/mod.rs', import.meta.url),
-  'utf8',
-);
-const residenceFood = readFileSync(
-  new URL('../server/src/simulation/residence_needs/food.rs', import.meta.url),
   'utf8',
 );
 const residenceProvisions = readFileSync(
@@ -448,7 +457,6 @@ const deliveryTrips = readFileSync(
   'utf8',
 );
 
-assert.match(residenceFood, /pub fn spoil\(/);
 assert.match(
   residenceNeeds,
   /general_consumption_paused[\s\S]*spoil_residence_food_inventory\(/,
@@ -522,7 +530,7 @@ assert.doesNotMatch(
 );
 assert.match(
   residenceNeeds,
-  /fn spoil_residence_food_inventory[\s\S]*preserved_food_spoilage_fraction_per_second[\s\S]*PRESERVED_FOOD_COMMODITIES[\s\S]*withdraw_residence_commodity[\s\S]*preserved_fraction/,
+  /fn spoil_residence_food_inventory[\s\S]*preserved_food_spoilage_fraction_per_second[\s\S]*PRESERVED_FOOD_COMMODITIES[\s\S]*preserved_fraction[\s\S]*withdraw_residence_commodity/,
   'household cupboard stock must age even while ordinary consumption is paused',
 );
 assert.match(townHallInspector, /Cured-food aging/);
@@ -567,7 +575,7 @@ assert.ok(
 const cartPerfState = emptyGameState();
 for (let index = 0; index < 100_000; index += 1) {
   const id = `food-cart-${index}`;
-  cartPerfState.deliveryTrips.set(id, deliveryTrip(id, 'food', 6, 'outbound'));
+  cartPerfState.deliveryTrips.set(id, deliveryTrip(id, 'ryeBread', 6, 'outbound'));
 }
 const cartStarted = performance.now();
 const cartPerfResult = analyzeFreshFoodPreservation(cartPerfState, 0.018);
@@ -600,7 +608,8 @@ function building(
     firewood: 0,
     stone: 0,
     water: 0,
-    food,
+    food: 0,
+    ryeBread: food,
     grain: 0,
     flour: 0,
     ale: 0,
@@ -640,7 +649,9 @@ function residence(id: string, food: number): ResidenceState {
     populationCapacity: 1,
     tier: 1,
     settlementTicks: 0,
-    food,
+    food: 0,
+    ryeBread: food,
+    foodInventoryMigrated: true,
     preservedFood: 0,
     needs: {
       firewood: { stock: 0, deficitSeconds: 0 },

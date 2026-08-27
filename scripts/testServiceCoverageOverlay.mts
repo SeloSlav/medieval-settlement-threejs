@@ -67,6 +67,12 @@ fulfillmentHome.needs.firewood.stock = 4;
 fulfillmentHome.needs.cloth.stock = 1;
 fulfillmentHome.needs.shoes.stock = 1;
 assert.equal(marketplaceResidenceFulfillment(fulfillmentHome), 'fulfilled');
+fulfillmentHome.needs.shoes.deficitTicks = 1;
+assert.equal(
+  marketplaceResidenceFulfillment(fulfillmentHome),
+  'partial',
+  'stock with an active shortage clock is not yet fulfilled',
+);
 
 const parent = new THREE.Group();
 const markers = new ResidenceMarkers(parent);
@@ -179,6 +185,10 @@ const chapelInspectorSource = fs.readFileSync(
   'src/resources/inspector/chapelRenderer.ts',
   'utf8',
 );
+const appBootstrapSource = fs.readFileSync(
+  'src/app/appBootstrap.ts',
+  'utf8',
+);
 assert.doesNotMatch(
   inspectorSource,
   /computeSettlementHouseholdMarketPlan/,
@@ -191,5 +201,20 @@ assert.doesNotMatch(
 );
 assert.match(marketInspectorSource, /serviceCoverage:[\s\S]*kind: 'marketplace'/);
 assert.match(chapelInspectorSource, /serviceCoverage:[\s\S]*kind: 'chapel'/);
+assert.match(
+  inspectorSource,
+  /window\.addEventListener\('keydown', this\.onWindowKeyDown\)/,
+  'Marketplace coverage should install the hold-Tab shortcut',
+);
+assert.match(
+  inspectorSource,
+  /event\.key !== 'Tab'[\s\S]*serviceCoverageTabPreviewBuildingId[\s\S]*endServiceCoverageTabPreview/,
+  'the Tab shortcut should be a momentary preview that ends on key release',
+);
+assert.match(
+  appBootstrapSource,
+  /setMarketplaceServiceCoverage\([\s\S]*kind === 'marketplace'/,
+  'Marketplace coverage should route the claimed homes into the world-space arc renderer',
+);
 
 console.log('Service coverage projection and translucent mesh-overlay checks passed.');

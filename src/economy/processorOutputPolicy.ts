@@ -120,7 +120,7 @@ const INPUTS_BY_KIND: Record<
   windmill: ['ryeGrain', 'maslinGrain'],
   bakery: ['ryeFlour', 'maslinFlour', 'water', 'firewood'],
   brewery: ['barley', 'apples', 'honey', 'water', 'firewood'],
-  smokehouse: ['food', 'firewood', 'salt', 'pottery'],
+  smokehouse: ['food', 'firewood', 'salt'],
   spinning_retting_house: ['wool', 'flax', 'water'],
   weaver: ['yarn', 'linen'],
   charcoal_burner: ['firewood'],

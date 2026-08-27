@@ -652,15 +652,15 @@ export async function setStorehouseStockTarget(
   });
 }
 
-export async function setProcessorOutputTarget(
+export async function setLivestockMilkUsePolicy(
   buildingId: string,
-  targetPercent: number,
+  milkUsePolicy: number,
 ): Promise<void> {
   const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) throw new Error('Invalid production site id.');
-  await callReducer('setProcessorOutputTarget', 'set_processor_output_target', {
+  if (serverId === null) throw new Error('Invalid pastoral holding id.');
+  await callReducer('setLivestockMilkUsePolicy', 'set_livestock_milk_use_policy', {
     buildingId: serverId,
-    targetPercent,
+    milkUsePolicy,
   });
 }
 
@@ -697,18 +697,6 @@ export async function setBreweryRecipePolicy(
   await callReducer('setBreweryRecipePolicy', 'set_brewery_recipe_policy', {
     buildingId: serverId,
     recipePolicy,
-  });
-}
-
-export async function setPotteryDispatchPolicy(
-  buildingId: string,
-  dispatchPolicy: number,
-): Promise<void> {
-  const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) throw new Error('Invalid potter kiln id.');
-  await callReducer('setPotteryDispatchPolicy', 'set_pottery_dispatch_policy', {
-    buildingId: serverId,
-    dispatchPolicy,
   });
 }
 

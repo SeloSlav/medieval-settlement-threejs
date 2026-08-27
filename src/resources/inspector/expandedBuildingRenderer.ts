@@ -8,6 +8,16 @@ import {
   CARPENTER_TIMBER_PER_POLEARM,
   APIARY_POLLINATION_BONUS_MAX,
   APIARY_WINTER_HONEY_REQUIRED,
+  BREWERY_ALE_PER_CYCLE,
+  BREWERY_APPLES_PER_CIDER_CYCLE,
+  BREWERY_BARLEY_PER_MALT_CYCLE,
+  BREWERY_BREWING_FIREWOOD_PER_CYCLE,
+  BREWERY_BREWING_WATER_PER_CYCLE,
+  BREWERY_CIDER_PER_CYCLE,
+  BREWERY_HONEY_PER_MEAD_CYCLE,
+  BREWERY_MALTING_FIREWOOD_PER_CYCLE,
+  BREWERY_MALTING_WATER_PER_CYCLE,
+  BREWERY_MEAD_PER_CYCLE,
   CANDLE_TRANSFER_PER_TRIP,
   FOOD_DELIVERY_SPEED_MPS,
   FOOD_DELIVERY_UNLOAD_SEC,
@@ -19,9 +29,22 @@ import {
   MONASTERY_HOSPITALITY_HONEY_PER_DAY,
   MONASTERY_HOSPITALITY_DRINK_PER_DAY,
   MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
+  POTTER_CLAY_PER_CYCLE,
+  POTTER_FIREWOOD_PER_CYCLE,
+  POTTER_POTTERY_PER_CYCLE,
+  POTTER_ROOF_TILES_PER_CYCLE,
+  POTTER_WATER_PER_CYCLE,
+  SPINNING_RETTING_FLAX_PER_CYCLE,
+  SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
+  SPINNING_RETTING_LINEN_PER_CYCLE,
+  SPINNING_RETTING_WOOL_PER_CYCLE,
+  SPINNING_RETTING_YARN_PER_CYCLE,
   TIMBER_DELIVERY_SPEED_MPS,
   TIMBER_DELIVERY_UNLOAD_SEC,
   TEXTILE_TRANSFER_PER_TRIP,
+  WEAVER_CLOTH_PER_CYCLE,
+  WEAVER_LINEN_PER_CYCLE,
+  WEAVER_YARN_PER_CYCLE,
   VINEYARD_FERMENTATION_SECONDS,
   VINEYARD_GRAPES_PER_FERMENTATION_BATCH,
   VINEYARD_WINE_PER_FERMENTATION_BATCH,
@@ -143,41 +166,26 @@ import {
 import { environmentFor } from '../../world/seasonPolicy.ts';
 import { buildingStorageCaps } from '../resourceTotals.ts';
 import { GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS } from '../../security/frontierSecurity.ts';
-import {
-  isProcessorOutputTargetKind,
-  normalizeProcessorOutputTargetPercent,
-  processorInputStagingCycles,
-  processorOutputCommodity,
-  processorOutputCommodityForBuilding,
-  processorOutputHeadroom,
-  processorOutputTargetForBuilding,
-} from '../../economy/processorOutputPolicy.ts';
+import { processorOutputCommodityForBuilding } from '../../economy/processorOutputPolicy.ts';
 import { civicReceiptCollectionPlan } from '../../economy/civicReceipts.ts';
 import {
   normalizeWeaverInputPolicy,
   SPINNING_RETTING_INPUT_POLICY_PRESETS,
+  WEAVER_INPUT_POLICY_AUTO,
+  WEAVER_INPUT_POLICY_FLAX_FIRST,
   WEAVER_INPUT_POLICY_PRESETS,
   weaverFibreDeliveryPreferenceLabel,
 } from '../../economy/weaverInputPolicy.ts';
 import {
-  normalizePotteryDispatchPolicy,
-  POTTERY_DISPATCH_HOUSEHOLDS_FIRST,
-  POTTERY_DISPATCH_POLICY_PRESETS,
-  potteryDispatchPolicyLabel,
-} from '../../economy/potteryDispatchPolicy.ts';
-import {
   normalizePotterFiringPolicy,
   POTTER_FIRING_POLICY_PRESETS,
-  POTTER_FIRE_ROOF_TILES,
   potterFiringPolicyLabel,
 } from '../../economy/potterFiringPolicy.ts';
 import {
   BREWERY_RECIPE_AUTO,
   BREWERY_RECIPE_PRESETS,
   breweryPolicyOutput,
-  breweryRecipePolicyLabel,
   normalizeBreweryRecipePolicy,
-  selectedBreweryRecipePolicy,
 } from '../../economy/breweryRecipePolicy.ts';
 import {
   CLAY_BANK_LEAN_YIELD_THRESHOLD,
@@ -516,16 +524,7 @@ function outboundTripTarget(
       building,
       'pottery',
     )?.target ?? null;
-    const preservationTarget = materialTarget?.kind === 'smokehouse'
-      ? materialTarget
-      : null;
-    const exportTarget = materialTarget?.kind === 'marketplace'
-      ? materialTarget
-      : null;
-    return normalizePotteryDispatchPolicy(building.potteryDispatchPolicy)
-      === POTTERY_DISPATCH_HOUSEHOLDS_FIRST
-      ? householdTarget ?? preservationTarget ?? exportTarget
-      : preservationTarget ?? householdTarget ?? exportTarget;
+    return householdTarget ?? materialTarget;
   }
   if (building.kind === 'granary') {
     if (
@@ -718,12 +717,7 @@ function renderLogisticsRows(
     ? `Parcel #${potteryHouseholdTarget.parcelIndex + 1} · lowest household pottery runway`
     : null;
   const potteryDestination = building.kind === 'potter_kiln'
-    ? normalizePotteryDispatchPolicy(building.potteryDispatchPolicy)
-        === POTTERY_DISPATCH_HOUSEHOLDS_FIRST
-      ? potteryHouseholdDestination ?? potteryMaterialDestination
-      : materialDispatch?.target.kind === 'smokehouse'
-        ? potteryMaterialDestination
-        : potteryHouseholdDestination ?? potteryMaterialDestination
+    ? potteryHouseholdDestination ?? potteryMaterialDestination
     : null;
   const flaxDispatch = building.kind === 'threshing_barn'
     ? context.worldQueries.getNextFarmFlaxDispatch(building)
@@ -790,7 +784,6 @@ function renderLogisticsRows(
     : '';
   const potteryTerritoryRows = building.kind === 'potter_kiln'
     ? `<li><span>Kiln firing</span><span>${potterFiringPolicyLabel(building.potterFiringPolicy)}</span></li>
-       <li><span>Kiln cart order</span><span>${potteryDispatchPolicyLabel(building.potteryDispatchPolicy)} · export always last</span></li>
        <li><span>Household-ware territory</span><span>Connected tier-4 homes draw pottery from stocked Marketplace goods stalls</span></li>
        <li><span>Physical pottery route</span><span>Kiln → staffed Storehouse → Marketplace stall · no routine home cart</span></li>`
     : '';
@@ -1635,98 +1628,107 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
 }
 
 export function renderProcessorOutputTargetPanel(building: BuildingState): string | null {
-  if (!isProcessorOutputTargetKind(building.kind)) return null;
-  const percent = normalizeProcessorOutputTargetPercent(
-    building.processorOutputTargetPercent,
-  );
-  const output = processorOutputCommodityForBuilding(building)
-    ?? processorOutputCommodity(building.kind);
-  const stagingCycles = processorInputStagingCycles(percent);
-  const stagingLabel = `${stagingCycles} input ${stagingCycles === 1 ? 'cycle' : 'cycles'}`;
-  const label = output === 'preservedFood' ? 'preserved staples' : output;
-  const stock = output === 'flour'
-    ? flourStock(building)
-    : output === 'bread'
-      ? breadStock(building)
-      : Math.max(0, building[output] ?? 0);
-  const target = processorOutputTargetForBuilding(building) ?? 0;
-  const headroom = processorOutputHeadroom(building) ?? 0;
-  const pressure = headroom > 0.05
-    ? `${headroom.toFixed(0)} production headroom`
-    : stock > target + 0.05
-      ? `${(stock - target).toFixed(0)} above target · still available`
-      : 'Production paused at target';
-  const breweryRecipePolicy = building.kind === 'brewery'
-    ? (() => {
-        const configured = normalizeBreweryRecipePolicy(building.breweryRecipePolicy);
-        const selected = selectedBreweryRecipePolicy(configured, building);
-        const active = configured === BREWERY_RECIPE_AUTO
-          ? `Auto currently selects ${breweryRecipePolicyLabel(selected)} from on-site stocks.`
-          : `${breweryRecipePolicyLabel(configured)} is the only recipe accepting new inputs.`;
-        return `
-          <p class="resource-inspector-note">Active recipe · choose which raw material this Brewery accepts and converts.</p>
-          <div class="resource-action-row">${BREWERY_RECIPE_PRESETS
-            .map((preset) => {
-              const output = breweryPolicyOutput(preset.policy);
-              const icon = output === 'cider'
-                ? renderResourceCost({ cider: 1 }, { compact: true })
-                : output === 'pearCider'
-                  ? renderResourceCost({ pearCider: 1 }, { compact: true })
-                : output === 'mead'
-                  ? renderResourceCost({ mead: 1 }, { compact: true })
-                  : renderResourceCost({ ale: 1 }, { compact: true });
-              return `<button type="button" class="resource-action-button" data-brewery-recipe-policy="${preset.policy}" title="${preset.hint}" ${configured === preset.policy ? 'disabled' : ''}>${preset.label} · ${icon}</button>`;
-            })
-            .join('')}</div>
-          <p class="inspector-action-panel__hint">${active} Apple cider uses 4 apples; pear cider uses 4 pears; mead uses 1 honey. All four beverages are hauled separately to a staffed Tavern and fulfill the same Beverage requirement.</p>
-        `;
-      })()
-    : '';
-  const textileInputPolicy = building.kind === 'spinning_retting_house'
-    ? `
-      <p class="resource-inspector-note">Raw-fibre preference · steers wool and flax carts between active fibre workshops, then chooses which complete onsite recipe runs first.</p>
-      <div class="resource-action-row">${SPINNING_RETTING_INPUT_POLICY_PRESETS
-        .map((preset) => `<button type="button" class="resource-action-button" data-weaver-input-policy="${preset.policy}" title="${preset.hint}" ${normalizeWeaverInputPolicy(building.weaverInputPolicy) === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
-        .join('')}</div>
-      <p class="inspector-action-panel__hint">Wool produces yarn without water. Flax produces linen only when well water is staged. A ready alternate recipe remains a fallback, and finished yarn or linen is physically hauled onward rather than becoming clothing here.</p>
-    `
-    : building.kind === 'weaver'
-    ? `
-      <p class="resource-inspector-note">Prepared-fibre preference · steers matching yarn and linen carts between active looms, then decides which complete onsite recipe is consumed first.</p>
-      <div class="resource-action-row">${WEAVER_INPUT_POLICY_PRESETS
-        .map((preset) => `<button type="button" class="resource-action-button" data-weaver-input-policy="${preset.policy}" title="${preset.hint}" ${normalizeWeaverInputPolicy(building.weaverInputPolicy) === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
-        .join('')}</div>
-      <p class="inspector-action-panel__hint">Matching specialization wins a contested working-buffer cart; Auto forms the neutral middle pool. Covered buffers and a ready alternate fibre remain fallbacks so neither carts nor crews deadlock. Water is no longer needed here because flax retting happens upstream.</p>
-    `
-    : '';
-  const potteryDispatchPolicy = building.kind === 'potter_kiln'
-    ? `
-      <p class="resource-inspector-note">Cart priority · chooses which local pottery shortage gets this kiln's one physical cart first.</p>
-      <div class="resource-action-row">${POTTERY_DISPATCH_POLICY_PRESETS
-        .map((preset) => `<button type="button" class="resource-action-button" data-pottery-dispatch-policy="${preset.policy}" title="${preset.hint}" ${normalizePotteryDispatchPolicy(building.potteryDispatchPolicy) === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
-        .join('')}</div>
-      <p class="inspector-action-panel__hint">Market-wares-first lets staffed storehouse workers collect pottery for household stalls before smokehouse packing stock. Preservation-first stages the smokehouse working buffer with the lowest runway before storehouse collection. Either order immediately falls through when its first duty has no reachable shortage, and Trading Post export always waits until both local duties are covered.</p>
-    `
-    : '';
-  const potterFiringPolicy = building.kind === 'potter_kiln'
-    ? `
-      <p class="resource-inspector-note">Firing order · one kiln output at a time. Changing it never converts stock already fired.</p>
-      <div class="resource-action-row">${POTTER_FIRING_POLICY_PRESETS
-        .map((preset) => `<button type="button" class="resource-action-button" data-potter-firing-policy="${preset.policy}" title="${preset.hint}" ${normalizePotterFiringPolicy(building.potterFiringPolicy) === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
-        .join('')}</div>
-      <p class="inspector-action-panel__hint">${normalizePotterFiringPolicy(building.potterFiringPolicy) === POTTER_FIRE_ROOF_TILES
-        ? 'Tile firing suspends new market and smokehouse vessel output. Existing vessels still dispatch; fired tiles remain stacked here until a tier-4 residence commissions a road-hauled roof project.'
-        : 'Vessel firing serves household breakage, preserving crocks, then export. Commissioned roof projects wait until this or another linked kiln fires enough physical tiles.'}</p>
-    `
-    : '';
+  const button = (
+    dataAttribute: string,
+    value: number,
+    label: string,
+    conversion: string,
+    icon: string,
+    selected: boolean,
+  ): string => `<button type="button" class="resource-action-button resource-action-button--icon" ${dataAttribute}="${value}" data-tooltip-title="${label}" data-tooltip="${conversion}" aria-label="${label}. ${conversion}" ${selected ? 'disabled' : ''}>${icon}<span>${label}</span></button>`;
+
+  let controls = '';
+  if (building.kind === 'brewery') {
+    const selected = normalizeBreweryRecipePolicy(building.breweryRecipePolicy);
+    controls = BREWERY_RECIPE_PRESETS.map((preset) => {
+      const output = breweryPolicyOutput(preset.policy);
+      const icon = preset.policy === BREWERY_RECIPE_AUTO
+        ? renderResourceCost({ ale: 1, cider: 1, pearCider: 1, mead: 1 }, { compact: true })
+        : renderResourceCost({ [output]: 1 }, { compact: true });
+      const conversion = output === 'cider'
+        ? `${BREWERY_APPLES_PER_CIDER_CYCLE} apples → ${BREWERY_CIDER_PER_CYCLE} apple cider`
+        : output === 'pearCider'
+          ? `${BREWERY_APPLES_PER_CIDER_CYCLE} pears → ${BREWERY_CIDER_PER_CYCLE} pear cider`
+          : output === 'mead'
+            ? `${BREWERY_HONEY_PER_MEAD_CYCLE} honey → ${BREWERY_MEAD_PER_CYCLE} mead`
+            : `${BREWERY_BARLEY_PER_MALT_CYCLE} barley + ${BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE} water + ${BREWERY_MALTING_FIREWOOD_PER_CYCLE + BREWERY_BREWING_FIREWOOD_PER_CYCLE} firewood → ${BREWERY_ALE_PER_CYCLE} ale`;
+      const tooltip = preset.policy === BREWERY_RECIPE_AUTO
+        ? `Auto: ${BREWERY_BARLEY_PER_MALT_CYCLE} barley + ${BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE} water + ${BREWERY_MALTING_FIREWOOD_PER_CYCLE + BREWERY_BREWING_FIREWOOD_PER_CYCLE} firewood → ${BREWERY_ALE_PER_CYCLE} ale; ${BREWERY_APPLES_PER_CIDER_CYCLE} apples → ${BREWERY_CIDER_PER_CYCLE} apple cider; ${BREWERY_APPLES_PER_CIDER_CYCLE} pears → ${BREWERY_CIDER_PER_CYCLE} pear cider; ${BREWERY_HONEY_PER_MEAD_CYCLE} honey → ${BREWERY_MEAD_PER_CYCLE} mead.`
+        : conversion;
+      return button(
+        'data-brewery-recipe-policy',
+        preset.policy,
+        preset.label,
+        tooltip,
+        icon,
+        selected === preset.policy,
+      );
+    }).join('');
+  } else if (building.kind === 'spinning_retting_house') {
+    const selected = normalizeWeaverInputPolicy(building.weaverInputPolicy);
+    controls = SPINNING_RETTING_INPUT_POLICY_PRESETS.map((preset) => {
+      const usesFlax = preset.policy === WEAVER_INPUT_POLICY_FLAX_FIRST;
+      const icon = preset.policy === WEAVER_INPUT_POLICY_AUTO
+        ? renderResourceCost({ yarn: 1, linen: 1 }, { compact: true })
+        : renderResourceCost({ [usesFlax ? 'linen' : 'yarn']: 1 }, { compact: true });
+      const conversion = usesFlax
+        ? `${SPINNING_RETTING_FLAX_PER_CYCLE} flax + ${SPINNING_RETTING_FLAX_WATER_PER_CYCLE} water → ${SPINNING_RETTING_LINEN_PER_CYCLE} linen`
+        : `${SPINNING_RETTING_WOOL_PER_CYCLE} wool → ${SPINNING_RETTING_YARN_PER_CYCLE} yarn`;
+      const tooltip = preset.policy === WEAVER_INPUT_POLICY_AUTO
+        ? `Auto: ${SPINNING_RETTING_WOOL_PER_CYCLE} wool → ${SPINNING_RETTING_YARN_PER_CYCLE} yarn; ${SPINNING_RETTING_FLAX_PER_CYCLE} flax + ${SPINNING_RETTING_FLAX_WATER_PER_CYCLE} water → ${SPINNING_RETTING_LINEN_PER_CYCLE} linen.`
+        : conversion;
+      return button(
+        'data-weaver-input-policy',
+        preset.policy,
+        preset.label,
+        tooltip,
+        icon,
+        selected === preset.policy,
+      );
+    }).join('');
+  } else if (building.kind === 'weaver') {
+    const selected = normalizeWeaverInputPolicy(building.weaverInputPolicy);
+    controls = WEAVER_INPUT_POLICY_PRESETS.map((preset) => {
+      const conversion = preset.policy === WEAVER_INPUT_POLICY_FLAX_FIRST
+        ? `${WEAVER_LINEN_PER_CYCLE} linen → ${WEAVER_CLOTH_PER_CYCLE} clothing`
+        : `${WEAVER_YARN_PER_CYCLE} yarn → ${WEAVER_CLOTH_PER_CYCLE} clothing`;
+      const tooltip = preset.policy === WEAVER_INPUT_POLICY_AUTO
+        ? `Auto: ${WEAVER_YARN_PER_CYCLE} yarn → ${WEAVER_CLOTH_PER_CYCLE} clothing; ${WEAVER_LINEN_PER_CYCLE} linen → ${WEAVER_CLOTH_PER_CYCLE} clothing.`
+        : conversion;
+      return button(
+        'data-weaver-input-policy',
+        preset.policy,
+        preset.label,
+        tooltip,
+        renderResourceCost({ cloth: 1 }, { compact: true }),
+        selected === preset.policy,
+      );
+    }).join('');
+  } else if (building.kind === 'potter_kiln') {
+    const selected = normalizePotterFiringPolicy(building.potterFiringPolicy);
+    controls = POTTER_FIRING_POLICY_PRESETS.map((preset) => {
+      const firesTiles = preset.policy !== 0;
+      const output = firesTiles ? 'roofTiles' : 'pottery';
+      const outputAmount = firesTiles
+        ? POTTER_ROOF_TILES_PER_CYCLE
+        : POTTER_POTTERY_PER_CYCLE;
+      const conversion = `${POTTER_CLAY_PER_CYCLE} clay + ${POTTER_FIREWOOD_PER_CYCLE} firewood + ${POTTER_WATER_PER_CYCLE} water → ${outputAmount} ${firesTiles ? 'roof tiles' : 'pottery'}`;
+      return button(
+        'data-potter-firing-policy',
+        preset.policy,
+        preset.label,
+        conversion,
+        renderResourceCost({ [output]: 1 }, { compact: true }),
+        selected === preset.policy,
+      );
+    }).join('');
+  } else {
+    return null;
+  }
+
   return `
-    <div class="inspector-action-panel" data-inspector-panel-title="Production policy">
-      <p class="resource-inspector-note">Stock policy · stages ${stagingLabel} · finished ${label} ${stock.toFixed(0)} / ${target.toFixed(0)} · ${pressure}</p>
-      ${textileInputPolicy}
-      ${breweryRecipePolicy}
-      ${potterFiringPolicy}
-      ${potteryDispatchPolicy}
-      <p class="inspector-action-panel__hint">This policy sets both the on-site input staging depth and the finished-goods ceiling. Routine input top-ups stop at the staged-cycle target; a producer may still use the workshop as last-resort overflow when normal storage cannot receive its cargo. Finished-goods deliveries may draw below the ceiling and restart work. It is not a protected reserve, and a cart already on the road may still arrive after you lower it.</p>
+    <div class="inspector-action-panel" data-inspector-panel-title="Recipe">
+      <div class="resource-action-row">${controls}</div>
     </div>
   `;
 }

@@ -4,6 +4,7 @@ import { createEmptyStockpile } from '../src/resources/types.ts';
 import { getBuildingProcessorStatus } from '../src/resources/inspector/buildingProcessorStatus.ts';
 import { WorldQueries } from '../src/resources/WorldQueries.ts';
 import type { RoadNetwork } from '../src/roads/RoadNetwork.ts';
+import { BUILDING_STORAGE_CAPS } from '../src/generated/gameBalance.ts';
 
 function emptyGameState(buildings: BuildingState[]): GameState {
   return {
@@ -336,7 +337,7 @@ const cappedBrewery = makeBuilding({
   z: 0,
   assignedLabor: 1,
   processorOutputTargetPercent: 25,
-  ale: 50,
+  ale: BUILDING_STORAGE_CAPS.brewery.ale,
 });
 assert.equal(
   getBuildingProcessorStatus(cappedBrewery, noWellQueries)?.statusText,
@@ -349,7 +350,7 @@ assert.equal(
 );
 assert.match(
   getBuildingProcessorStatus(cappedBrewery, noWellQueries)?.waterDetailHtml ?? '',
-  /Ale output room<\/span><span>0\.0 cycles · ale before 50 target/,
+  /Ale output room<\/span><span>0\.0 cycles · ale before 200 target/,
 );
 
 const recalledCappedBrewery = {
@@ -370,7 +371,7 @@ const recalledCappedClayPit = makeBuilding({
   z: 0,
   assignedLabor: 0,
   processorOutputTargetPercent: 25,
-  clay: 45,
+  clay: BUILDING_STORAGE_CAPS.clay_pit.clay,
 });
 assert.equal(
   getBuildingProcessorStatus(recalledCappedClayPit, noWellQueries)?.statusText,
@@ -385,7 +386,7 @@ const recalledCappedWeaver = makeBuilding({
   z: 0,
   assignedLabor: 0,
   processorOutputTargetPercent: 25,
-  cloth: 22.5,
+  cloth: BUILDING_STORAGE_CAPS.weaver.cloth,
 });
 assert.equal(
   getBuildingProcessorStatus(recalledCappedWeaver, noWellQueries)?.statusText,
@@ -447,8 +448,8 @@ assert.match(
   'brewing must report its physical firing-fuel bottleneck',
 );
 
-const leanBakery = makeBuilding({
-  id: 'bakery-lean',
+const bakeryWithOneCycle = makeBuilding({
+  id: 'bakery-one-cycle',
   kind: 'bakery',
   x: 0,
   z: 0,
@@ -459,9 +460,9 @@ const leanBakery = makeBuilding({
   water: 2,
 });
 assert.match(
-  getBuildingProcessorStatus(leanBakery, readyQueries)?.waterDetailHtml ?? '',
-  /On-site input buffer<\/span><span>1\.0 cycle on site \/ 1 cycle staged · rye flour limits/,
-  'the inspector should expose the selected input staging depth, not only output capacity',
+  getBuildingProcessorStatus(bakeryWithOneCycle, readyQueries)?.waterDetailHtml ?? '',
+  /On-site input buffer<\/span><span>1\.0 cycle on site \/ 3 cycles staged · rye flour limits/,
+  'the inspector should expose the automatic input staging depth',
 );
 
 const apiary = makeBuilding({

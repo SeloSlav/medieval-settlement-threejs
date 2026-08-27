@@ -243,7 +243,7 @@ export function createDeliveryCartWorkerVisual(
 
 export function updateDeliveryCartWorkerVisual(
   visual: DeliveryCartWorkerVisual,
-  dt: number,
+  animationDt: number,
   moving: boolean,
   travelSpeed: number,
 ): void {
@@ -255,9 +255,9 @@ export function updateDeliveryCartWorkerVisual(
   }
 
   visual.actions.walk.setEffectiveTimeScale(
-    THREE.MathUtils.clamp(travelSpeed / 1.05, 0.78, 1.65),
+    Math.max(0.78, travelSpeed / 1.05),
   );
-  visual.mixer.update(Math.min(0.08, Math.max(0, dt)));
+  visual.mixer.update(Math.max(0, animationDt));
   if (visual.pinsCartHandles) pinHandsToCartHandles(visual);
 }
 

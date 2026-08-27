@@ -126,16 +126,24 @@ pub fn persist_needs(ctx: &ReducerContext, residence_id: u64, needs: &[NeedState
     }
 }
 
-/// Move old pantry values out of need rows exactly once, then make the Food
-/// and PreservedFood rows derived read models over physical commodities.
+/// Move old pantry values into concrete commodities exactly once, then make
+/// the Food and PreservedFood rows derived read models.
 pub fn migrate_and_sync_food_inventory(
     _ctx: &ReducerContext,
     residence: &mut Residence,
     needs: &mut [NeedState],
 ) {
+    let legacy_food = whole_units(residence.food)
+        + if residence.food_inventory_migrated {
+            0.0
+        } else {
+            whole_units(need_stock(needs, ResidenceNeedKind::Food))
+        };
+    if legacy_food > 0.0 {
+        residence.rye_bread = whole_units(residence.rye_bread) + legacy_food;
+    }
+    residence.food = 0.0;
     if !residence.food_inventory_migrated {
-        residence.food =
-            whole_units(residence.food) + whole_units(need_stock(needs, ResidenceNeedKind::Food));
         residence.preserved_food = whole_units(residence.preserved_food)
             + whole_units(need_stock(needs, ResidenceNeedKind::PreservedFood));
         residence.food_inventory_migrated = true;

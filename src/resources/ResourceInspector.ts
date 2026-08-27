@@ -188,9 +188,9 @@ type ResourceInspectorOptions = {
     commodity: StorehouseCommodity,
     targetPercent: number,
   ) => void | Promise<void>;
-  onSetProcessorOutputTarget?: (
+  onSetLivestockMilkUsePolicy?: (
     buildingId: string,
-    targetPercent: number,
+    milkUsePolicy: number,
   ) => void | Promise<void>;
   onSetStorageCommodityAcceptance?: (
     buildingId: string,
@@ -208,10 +208,6 @@ type ResourceInspectorOptions = {
   onSetWeaverInputPolicy?: (
     buildingId: string,
     inputPolicy: number,
-  ) => void | Promise<void>;
-  onSetPotteryDispatchPolicy?: (
-    buildingId: string,
-    dispatchPolicy: number,
   ) => void | Promise<void>;
   onSetPotterFiringPolicy?: (
     buildingId: string,
@@ -320,6 +316,7 @@ type ResourceInspectorOptions = {
     residenceIds: ReadonlySet<string>,
     kind: ServiceCoverageView['kind'] | null,
     marketplaceFulfillment: ServiceCoverageView['marketplaceFulfillment'],
+    serviceBuildingId: string | null,
   ) => void;
   onTargetSelected?: (target: InspectableTarget) => void;
   onSelectionChange?: (target: InspectableTarget | null) => void;
@@ -411,6 +408,7 @@ export class ResourceInspector {
     MarketplaceServiceFulfillment
   >();
   private serviceCoverageProjection: ServiceCoverageView | null = null;
+  private serviceCoverageTabPreviewBuildingId: string | null = null;
   private renderedIdentity = '';
   private renderedSupplementalPanelHtml = '';
   private selectedX = 0;
@@ -692,6 +690,9 @@ export class ResourceInspector {
       'click',
       this.onServiceCoverageToggle,
     );
+    window.addEventListener('keydown', this.onWindowKeyDown);
+    window.addEventListener('keyup', this.onWindowKeyUp);
+    window.addEventListener('blur', this.onWindowBlur);
     this.closeButton.addEventListener('click', this.onCloseClick);
     this.resourceTotalsModeButton.addEventListener(
       'click',
@@ -715,16 +716,72 @@ export class ResourceInspector {
       return;
     }
 
-    if (this.serviceCoverageBuildingId === target.building.id) {
+    if (
+      this.serviceCoverageBuildingId === target.building.id
+      && this.serviceCoverageTabPreviewBuildingId == null
+    ) {
       this.clearServiceCoverage();
       this.syncServiceCoverageButton(target);
       return;
     }
 
+    this.serviceCoverageTabPreviewBuildingId = null;
     this.serviceCoverageBuildingId = target.building.id;
     this.refreshServiceCoverage(this.serviceCoverageProjection);
     this.syncServiceCoverageButton(target);
   };
+
+  private readonly onWindowKeyDown = (event: KeyboardEvent): void => {
+    if (
+      event.key !== 'Tab'
+      || event.altKey
+      || event.ctrlKey
+      || event.metaKey
+      || event.shiftKey
+      || isTextEntryElement(event.target)
+      || this.options.isBlocked()
+    ) {
+      return;
+    }
+
+    const target = this.selectedTarget;
+    const projection = this.serviceCoverageProjection;
+    if (
+      target?.kind !== 'building'
+      || target.building.kind !== 'marketplace'
+      || target.building.constructionComplete === false
+      || projection?.kind !== 'marketplace'
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    if (event.repeat || this.serviceCoverageBuildingId === target.building.id) return;
+    this.serviceCoverageTabPreviewBuildingId = target.building.id;
+    this.serviceCoverageBuildingId = target.building.id;
+    this.refreshServiceCoverage(projection);
+    this.syncServiceCoverageButton(target);
+  };
+
+  private readonly onWindowKeyUp = (event: KeyboardEvent): void => {
+    if (event.key !== 'Tab' || this.serviceCoverageTabPreviewBuildingId == null) return;
+    event.preventDefault();
+    this.endServiceCoverageTabPreview();
+  };
+
+  private readonly onWindowBlur = (): void => {
+    this.endServiceCoverageTabPreview();
+  };
+
+  private endServiceCoverageTabPreview(): void {
+    const previewBuildingId = this.serviceCoverageTabPreviewBuildingId;
+    if (previewBuildingId == null) return;
+    this.serviceCoverageTabPreviewBuildingId = null;
+    if (this.serviceCoverageBuildingId === previewBuildingId) {
+      this.clearServiceCoverage();
+      if (this.selectedTarget) this.syncServiceCoverageButton(this.selectedTarget);
+    }
+  }
 
   private readonly onResourceTotalsModeToggle = (): void => {
     this.resourceTotalsPresentation =
@@ -1435,24 +1492,19 @@ export class ResourceInspector {
           );
           return;
         }
-        const dispatchPolicy = (event.target as HTMLElement)
-          .closest<HTMLElement>('[data-pottery-dispatch-policy]')
-          ?.dataset.potteryDispatchPolicy;
-        if (dispatchPolicy != null) {
-          void this.options.onSetPotteryDispatchPolicy?.(
-            this.selectedTarget.building.id,
-            Number(dispatchPolicy),
-          );
-          return;
-        }
       }
-      const targetValue = (event.target as HTMLElement)
-        .closest<HTMLElement>('[data-processor-output-target]')
-        ?.dataset.processorOutputTarget;
-      if (targetValue != null) {
-        void this.options.onSetProcessorOutputTarget?.(
+    }
+    if (
+      this.selectedTarget?.kind === 'building'
+      && this.selectedTarget.building.kind === 'pastoral_farmstead'
+    ) {
+      const milkUsePolicy = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-livestock-milk-use]')
+        ?.dataset.livestockMilkUse;
+      if (milkUsePolicy != null) {
+        void this.options.onSetLivestockMilkUsePolicy?.(
           this.selectedTarget.building.id,
-          Number(targetValue),
+          Number(milkUsePolicy),
         );
         return;
       }
@@ -2069,6 +2121,9 @@ export class ResourceInspector {
       'click',
       this.onServiceCoverageToggle,
     );
+    window.removeEventListener('keydown', this.onWindowKeyDown);
+    window.removeEventListener('keyup', this.onWindowKeyUp);
+    window.removeEventListener('blur', this.onWindowBlur);
     this.closeButton.removeEventListener('click', this.onCloseClick);
     this.resourceTotalsModeButton.removeEventListener(
       'click',
@@ -2106,6 +2161,7 @@ export class ResourceInspector {
         || target.building.id !== this.serviceCoverageBuildingId
       )
     ) {
+      this.serviceCoverageTabPreviewBuildingId = null;
       this.clearServiceCoverage();
     }
     this.selectedTarget = target;
@@ -2149,6 +2205,7 @@ export class ResourceInspector {
   }
 
   clearSelection(hidePanel = true): void {
+    this.serviceCoverageTabPreviewBuildingId = null;
     this.clearServiceCoverage();
     this.serviceCoverageProjection = null;
     this.selectedTarget = null;
@@ -2564,9 +2621,10 @@ export class ResourceInspector {
     const count = active ? this.serviceCoverageResidenceIds.size : 0;
     const service = serviceCoverageLabel(projection.kind);
     const countLabel = `${count} served home${count === 1 ? '' : 's'}`;
+    const shortcut = projection.kind === 'marketplace' ? ' Hold Tab to preview.' : '';
     const label = active
       ? `Hide ${service} coverage (${countLabel})`
-      : `Show ${service} coverage`;
+      : `Show ${service} coverage.${shortcut}`;
     this.serviceCoverageButton.setAttribute('aria-pressed', String(active));
     this.serviceCoverageButton.setAttribute('aria-label', label);
     this.serviceCoverageButton.dataset.tooltip = label;
@@ -2591,6 +2649,7 @@ export class ResourceInspector {
       residenceIds,
       projection.kind,
       marketplaceFulfillment,
+      this.serviceCoverageBuildingId,
     );
   }
 
@@ -2609,6 +2668,7 @@ export class ResourceInspector {
       this.serviceCoverageResidenceIds,
       null,
       this.serviceCoverageMarketplaceFulfillment,
+      null,
     );
   }
 
@@ -2913,6 +2973,11 @@ function mapsHaveSameValues<K, V>(
     if (right.get(key) !== value) return false;
   }
   return true;
+}
+
+function isTextEntryElement(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.matches('input, textarea, select, [contenteditable="true"]');
 }
 
 function formatTransitAmount(amount: number): string {

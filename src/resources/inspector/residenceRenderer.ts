@@ -1093,12 +1093,6 @@ export function residenceFoodNeedSources(residence: ResidenceState): ResidenceFo
   });
   const legacyCandidates: ResidenceFoodNeedSource[] = [
     {
-      kind: 'food',
-      label: 'Mixed food',
-      amount: Math.max(0, residence.food ?? 0),
-      mealEquivalent: Math.max(0, residence.food ?? 0),
-    },
-    {
       kind: 'vegetables',
       label: 'Mixed vegetables',
       amount: Math.max(0, residence.vegetables ?? 0),
@@ -1362,9 +1356,6 @@ function householdFoodContentsRow(
     .map((kind) => ({ kind, amount: Math.max(0, residence[kind] ?? 0) }))
     .filter(({ amount }) => amount > 1e-6)
     .map(({ kind, amount }) => `${NAMED_FOOD_LABELS[kind]} ${amount.toFixed(1)}`);
-  if ((residence.food ?? 0) > 1e-6) {
-    contents.push(`Legacy mixed food ${residence.food!.toFixed(1)}`);
-  }
   if ((residence.preservedFood ?? 0) > 1e-6) {
     contents.push(`Legacy preserved staples ${residence.preservedFood!.toFixed(1)}`);
   }

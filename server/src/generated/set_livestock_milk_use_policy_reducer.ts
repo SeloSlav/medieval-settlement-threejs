@@ -12,5 +12,5 @@ import {
 
 export default {
   buildingId: __t.u64(),
-  targetPercent: __t.u8(),
+  milkUsePolicy: __t.u8(),
 };

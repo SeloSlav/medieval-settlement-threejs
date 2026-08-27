@@ -948,15 +948,21 @@ assert.equal(
 const serverPolicy = fs.readFileSync('server/src/livestock_policy.rs', 'utf8');
 const serverSimulation = fs.readFileSync('server/src/simulation/livestock.rs', 'utf8');
 const serverReducer = fs.readFileSync('server/src/reducers/livestock.rs', 'utf8');
+const serverBuildingReducer = fs.readFileSync('server/src/reducers/buildings.rs', 'utf8');
 const serverTables = fs.readFileSync('server/src/tables.rs', 'utf8');
 const serverDeliveryTrips = fs.readFileSync('server/src/simulation/delivery_trips.rs', 'utf8');
 const generatedHerd = fs.readFileSync('src/generated/pasture_herd_table.ts', 'utf8');
+const generatedBuilding = fs.readFileSync('src/generated/building_table.ts', 'utf8');
 const generatedReducer = fs.readFileSync(
   'src/generated/set_livestock_breeding_reserve_reducer.ts',
   'utf8',
 );
 const generatedHaymakingReducer = fs.readFileSync(
   'src/generated/set_livestock_haymaking_percent_reducer.ts',
+  'utf8',
+);
+const generatedMilkUseReducer = fs.readFileSync(
+  'src/generated/set_livestock_milk_use_policy_reducer.ts',
   'utf8',
 );
 const clientReducers = fs.readFileSync('src/data/spacetimeReducers.ts', 'utf8');
@@ -1091,8 +1097,12 @@ assert.doesNotMatch(
 );
 assert.match(generatedReducer, /breedingReserve/);
 assert.match(generatedHaymakingReducer, /haymakingPercent/);
+assert.match(generatedBuilding, /milkUsePolicy:[\s\S]*milk_use_policy/);
+assert.match(generatedMilkUseReducer, /buildingId:[\s\S]*milkUsePolicy/);
+assert.match(serverBuildingReducer, /set_livestock_milk_use_policy[\s\S]*building\.milk_use_policy = milk_use_policy/);
 assert.match(clientReducers, /setLivestockBreedingReserve/);
 assert.match(clientReducers, /setLivestockHaymakingPercent/);
+assert.match(clientReducers, /setLivestockMilkUsePolicy[\s\S]*set_livestock_milk_use_policy/);
 assert.ok(GAME_TABLE_SUBSCRIPTIONS.includes('pasture'));
 assert.ok(GAME_TABLE_SUBSCRIPTIONS.includes('pasture_herd'));
 assert.ok(!GAME_TABLE_SUBSCRIPTIONS.includes('livestock_herd'));
@@ -1108,7 +1118,8 @@ assert.match(livestockInspector, /Pasture hay reserves/);
 assert.doesNotMatch(livestockInspector, /Animal Feed store|Fresh-food store|Preserved store/);
 assert.match(livestockInspector, /Feed workshop/);
 assert.match(livestockInspector, /pigs do not consume raw oats/);
-assert.match(livestockInspector, /data-processor-output-target/);
+assert.match(livestockInspector, /data-livestock-milk-use/);
+assert.doesNotMatch(livestockInspector, /data-processor-output-target/);
 assert.match(livestockInspector, /LIVESTOCK_MILK_USE_PRESETS/);
 assert.match(townHallInspector, /computeSettlementLivestockFodderPlan/);
 assert.match(townHallInspector, /first winter Animal Feed shortfall/);

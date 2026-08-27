@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  FRESH_FOOD_KINDS,
   FOOD_MEAL_VALUES,
   NAMED_FOOD_KINDS,
   foodCategory,
@@ -25,7 +26,12 @@ import {
 } from '../src/logistics/deliveryTrips.ts';
 import { processorInputCommodityStock } from '../src/logistics/processorInputLogistics.ts';
 import { computeInTransitResourceTotals } from '../src/resources/resourceTotals.ts';
-import { MARKET_COMMODITIES } from '../src/generated/gameBalance.ts';
+import {
+  MARKET_COMMODITIES,
+  MARKETPLACE_TRADE_OFFERS,
+  TRADE_RESOURCE_KINDS,
+} from '../src/generated/gameBalance.ts';
+import { RESOURCE_KINDS } from '../src/resources/types.ts';
 
 const pantry = {
   ryeBread: 4,
@@ -71,6 +77,31 @@ assert.equal(foodSpoilageLabel('ryeBread'), 'Slow spoilage');
 assert.equal(foodSpoilageLabel('eggs'), 'Moderate spoilage');
 assert.equal(foodSpoilageLabel('milk'), 'Fast spoilage');
 assert.equal(NAMED_FOOD_KINDS.length, 24);
+assert.equal(
+  (FRESH_FOOD_KINDS as readonly string[]).includes('food'),
+  false,
+  'the retired aggregate food item must not appear in the fresh-food catalog',
+);
+assert.equal(
+  Object.hasOwn(FOOD_MEAL_VALUES, 'food'),
+  false,
+  'the retired aggregate food item must not have a meal value',
+);
+assert.equal(
+  (RESOURCE_KINDS as readonly string[]).includes('food'),
+  false,
+  'the retired aggregate food item must not be a client resource kind',
+);
+assert.equal(
+  (TRADE_RESOURCE_KINDS as readonly string[]).includes('food'),
+  false,
+  'the retired aggregate food item must not be tradable',
+);
+assert.equal(
+  MARKETPLACE_TRADE_OFFERS.some(({ id }) => ['buy_food', 'sell_food'].includes(id as string)),
+  false,
+  'legacy aggregate food offers must not be generated',
+);
 assert.equal(
   (NAMED_FOOD_KINDS as readonly string[]).includes('vegetables'),
   false,
@@ -188,6 +219,7 @@ const typedCargoKinds = [
   [61, 'aroniaJam'],
   [62, 'rosehipJam'],
 ] as const;
+assert.equal(cargoKindFromId(2), null, 'retired aggregate food cargo id 2 must stay unmapped');
 for (const [id, kind] of typedCargoKinds) {
   assert.equal(cargoKindFromId(id), kind, `cargo id ${id} must remain ${kind}`);
   assert.notEqual(cargoKindLabel(kind), 'Food');
@@ -263,6 +295,11 @@ const supplyPolicySource = readFileSync(
 assert.match(commoditiesSource, /Self::Meat => Some\(Self::CuredMeat\)/);
 assert.match(commoditiesSource, /Self::Fish => Some\(Self::SmokedFish\)/);
 assert.match(commoditiesSource, /Self::Milk => Some\(Self::Cheese\)/);
+assert.doesNotMatch(
+  commoditiesSource,
+  /CommodityKind::Food|\bFood\s*=\s*2\b/,
+  'the authoritative commodity enum must not restore the retired aggregate food item',
+);
 assert.match(
   commoditiesSource,
   /pub fn meal_value[\s\S]*Self::RosehipJam => 1\.0,[\s\S]*Self::OatGrain => OAT_GRAIN_MEAL_VALUE,[\s\S]*_ => 0\.0/,

@@ -8,7 +8,7 @@ import type {
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import {
   activeResidenceNeedKinds,
-  getNeedStock,
+  getNeed,
   type ResidenceNeedKind,
 } from '../residences/residenceNeedState.ts';
 
@@ -105,7 +105,10 @@ export function marketplaceResidenceFulfillment(
   const activeNeeds = activeResidenceNeedKinds(residence.tier)
     .filter((kind) => MARKETPLACE_FULFILLED_NEEDS.has(kind));
   const fulfilledNeeds = activeNeeds.filter(
-    (kind) => getNeedStock(residence.needs, kind) > 1e-6,
+    (kind) => {
+      const need = getNeed(residence.needs, kind);
+      return need.stock > 1e-6 && need.deficitTicks <= 0;
+    },
   ).length;
   if (activeNeeds.length > 0 && fulfilledNeeds === activeNeeds.length) {
     return 'fulfilled';

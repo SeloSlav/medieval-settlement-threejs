@@ -111,6 +111,8 @@ function gameState(partial: Partial<GameState> = {}): GameState {
 const household = residence({
   parcelIndex: 3,
   householdWealth: 80,
+  foodInventoryMigrated: true,
+  ryeBread: 10,
   needs: {
     ...createDefaultNeeds(),
     food: { stock: 10, deficitTicks: 0 },
@@ -123,14 +125,14 @@ const physicalFoodState = gameState({
       kind: 'granary',
       x: 5,
       z: 6,
-      food: 8,
+      ryeBread: 8,
     })],
     ['large-granary', building({
       id: 'large-granary',
       kind: 'granary',
       x: 15,
       z: 16,
-      food: 25,
+      ryeBread: 25,
     })],
   ]),
   residences: new Map([[household.id, household]]),
@@ -140,7 +142,7 @@ const physicalFoodState = gameState({
     residenceId: household.id,
     destinationKind: 'residence',
     targetBuildingId: null,
-    cargoKind: 'food',
+    cargoKind: 'ryeBread',
     amount: 99,
     phase: 'outbound',
     x: 12,
@@ -157,21 +159,21 @@ const physicalFoodState = gameState({
   }]]),
 });
 
-const ordinaryFoodCart = {
+const ryeBreadCart = {
   ...physicalFoodState.deliveryTrips.get('cart-1')!,
-  id: 'ordinary-food-cart',
-  cargoKind: 'food' as const,
+  id: 'rye-bread-cart',
+  cargoKind: 'ryeBread' as const,
   amount: 10,
 };
 const oatCart = {
-  ...ordinaryFoodCart,
+  ...ryeBreadCart,
   id: 'oat-cart',
   cargoKind: 'oatGrain' as const,
 };
 assert.equal(
-  computeInTransitResourceTotals([ordinaryFoodCart]).food,
+  computeInTransitResourceTotals([ryeBreadCart]).food,
   10,
-  'ten ordinary food units must remain ten in-transit meals',
+  'ten rye-bread units must remain ten in-transit meals',
 );
 const oatCartTotals = computeInTransitResourceTotals([oatCart]);
 assert.equal(oatCartTotals.oatGrain, 10);

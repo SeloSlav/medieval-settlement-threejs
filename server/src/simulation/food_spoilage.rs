@@ -256,7 +256,6 @@ fn normalize_building_food(building: &mut Building) {
         };
     }
     normalize!(
-        food,
         oat_grain,
         rye_bread,
         maslin_bread,
@@ -283,6 +282,45 @@ fn normalize_building_food(building: &mut Building) {
         aronia_jam,
         rosehip_jam,
     );
+}
+
+/// Convert the retired aggregate food column and cargo id into one concrete
+/// staple. The compatibility columns remain in the replicated schema, but
+/// they are emptied before any economy system can observe them as inventory.
+pub fn retire_legacy_food_items(ctx: &ReducerContext) {
+    for mut building in ctx
+        .db
+        .building()
+        .iter()
+        .filter(|building| building.food != 0.0 || !building.food.is_finite())
+        .collect::<Vec<Building>>()
+    {
+        building.rye_bread = whole_units(building.rye_bread) + whole_units(building.food);
+        building.food = 0.0;
+        ctx.db.building().id().update(building);
+    }
+    for mut trip in ctx
+        .db
+        .delivery_trip()
+        .iter()
+        .filter(|trip| trip.cargo_kind == 2)
+        .collect::<Vec<DeliveryTrip>>()
+    {
+        trip.cargo_kind = CommodityKind::RyeBread.as_u8();
+        trip.amount = whole_units(trip.amount);
+        ctx.db.delivery_trip().id().update(trip);
+    }
+    for mut resources in ctx
+        .db
+        .player_resources()
+        .iter()
+        .filter(|resources| resources.food != 0.0 || !resources.food.is_finite())
+        .collect::<Vec<PlayerResources>>()
+    {
+        resources.rye_bread = whole_units(resources.rye_bread) + whole_units(resources.food);
+        resources.food = 0.0;
+        ctx.db.player_resources().owner().update(resources);
+    }
 }
 
 fn hash_identity(owner: spacetimedb::Identity) -> u64 {

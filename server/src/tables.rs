@@ -101,7 +101,7 @@ pub struct PlayerResources {
     /// Treasury gold from taxed village economic activity.
     #[default(0.0)]
     pub gold: f64,
-    /// Treasury food from demolished suppliers and undeposited delivery overflow.
+    /// Retired save-schema tombstone; migration moves any value to rye bread.
     #[default(0.0)]
     pub food: f64,
     #[default(0.0)]
@@ -613,6 +613,7 @@ pub struct Building {
     pub firewood: f64,
     pub stone: f64,
     pub water: f64,
+    /// Retired save-schema tombstone; migration moves any value to rye bread.
     pub food: f64,
     #[default(0.0)]
     pub ale: f64,
@@ -854,6 +855,7 @@ pub struct Building {
     /// 1 stages smokehouse vessels first. Either order exports only after its
     /// two local duties. Appended so established kilns retain household-first.
     #[default(0u8)]
+    /// Deprecated compatibility column. Pottery routing is automatic.
     pub pottery_dispatch_policy: u8,
     /// Protected wheelwright repair-kit depth at a carpenter, measured in
     /// accelerated cart departures. Zero disables kit procurement and use
@@ -1593,11 +1595,12 @@ pub struct Residence {
     pub upgrade_delivered_roof_tiles: f64,
     #[default(0.0)]
     pub upgrade_reserved_roof_tiles: f64,
+    /// Retired save-schema tombstone; migration moves any value to rye bread.
+    #[default(0.0)]
+    pub food: f64,
     /// Physical pantry composition. Food-need rows retain only derived
     /// meal-equivalent availability and deficit state; these fields are the
     /// authoritative goods consumed by the household.
-    #[default(0.0)]
-    pub food: f64,
     #[default(0.0)]
     pub preserved_food: f64,
     #[default(0.0)]

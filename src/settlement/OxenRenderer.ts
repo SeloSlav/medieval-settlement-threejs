@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { SIM_REALTIME_RATE } from '../generated/gameBalance.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import { resolveRoadAwareGroundY } from '../roads/RoadSurfaceSampling.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
@@ -12,6 +11,10 @@ import {
   type SelectedAgentRoutePoint,
 } from '../scene/SelectedAgentRoute.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
+import {
+  VISUAL_AGENT_PACE_MULTIPLIER,
+  visualAgentDelta,
+} from '../world/visualAgentPacing.ts';
 import type { CrowdViewState } from './crowdView.ts';
 import {
   isAgentAnimalRenderingEnabled,
@@ -232,7 +235,7 @@ export class OxenRenderer {
     if (!renderEnabled || !this.latestInput) return;
 
     const realDt = Math.min(0.08, Math.max(0, dtSeconds));
-    const simulationDt = realDt * this.getGameSpeed() * SIM_REALTIME_RATE;
+    const simulationDt = visualAgentDelta(realDt, this.getGameSpeed());
     for (const visual of this.visuals.values()) {
       const stable = this.latestInput.buildings.get(visual.ox.stableId);
       if (!stable || stable.kind !== 'stable') {
@@ -637,7 +640,7 @@ export class OxenRenderer {
           ? `Paired with worker ${visual.assignment.workerSlot + 1}`
           : 'Unpaired',
       paceLabel: 'Walking pace',
-      pace: `${OX_WALK_SPEED.toFixed(1)} m/s`,
+      pace: `${(OX_WALK_SPEED * VISUAL_AGENT_PACE_MULTIPLIER).toFixed(1)} m/s`,
       position: {
         x: visual.root.position.x,
         y: visual.root.position.y,

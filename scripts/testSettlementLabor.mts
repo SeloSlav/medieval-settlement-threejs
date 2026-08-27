@@ -98,8 +98,8 @@ assert.equal(
 const haulageTrips = new Map<string, DeliveryTripState>([
   ['10', haulageTrip('10', 'firewood', 'outbound', 300, 1, 8, 100, 1, 30, 30)],
   ['2', haulageTrip('2', 'timber', 'inbound', 300, 1, 0, 250, 1, 20, 0)],
-  ['3', haulageTrip('3', 'food', 'unloading', 120, 2, 4, 120, 1, 60, 15)],
-  ['4', haulageTrip('4', 'food', 'inbound', 120, 1, 0, 20, 1, 20, 0)],
+  ['3', haulageTrip('3', 'ryeBread', 'unloading', 120, 2, 4, 120, 1, 60, 15)],
+  ['4', haulageTrip('4', 'ryeBread', 'inbound', 120, 1, 0, 20, 1, 20, 0)],
   ['5', {
     ...haulageTrip('5', 'water', 'outbound', 50, 1, 2, 0, 0, 10, 10),
     destinationKind: 'fire',
@@ -115,9 +115,9 @@ assert.equal(haulage.returningTrips, 2);
 assert.equal(haulage.loadedTrips, 3);
 assert.equal(haulage.emergencyTrips, 1);
 assert.equal(haulage.cargoInTransit, 14);
-assert.equal(haulage.cargoTrips.food, 2);
-assert.equal(haulage.cargoInTransitByKind.food, 4);
-assert.equal(haulage.busiestCargoKind, 'food');
+assert.equal(haulage.cargoTrips.ryeBread, 2);
+assert.equal(haulage.cargoInTransitByKind.ryeBread, 4);
+assert.equal(haulage.busiestCargoKind, 'ryeBread');
 assert.equal(haulage.busiestCargoTrips, 2);
 assert.equal(haulage.measuredTrips, 5);
 assert.equal(haulage.unresolvedTrips, 1);
@@ -361,7 +361,7 @@ const perfTrips = new Map<string, DeliveryTripState>();
 for (let index = 0; index < 100_000; index += 1) {
   perfTrips.set(
     String(index),
-    haulageTrip(String(index), 'food', 'outbound', 100, 1, 1, 0, 1, 10, 10),
+    haulageTrip(String(index), 'ryeBread', 'outbound', 100, 1, 1, 0, 1, 10, 10),
   );
 }
 const started = performance.now();
@@ -534,7 +534,7 @@ function trip(id: string, buildingId: string, deliveryWorkers: number): Delivery
     residenceId: null,
     destinationKind: 'building',
     targetBuildingId: 'target',
-    cargoKind: 'food',
+    cargoKind: 'ryeBread',
     amount: 1,
     phase: 'outbound',
     x: 0,

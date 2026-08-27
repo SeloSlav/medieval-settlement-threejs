@@ -213,6 +213,10 @@ export const Building = __t.object("Building", {
   wax: __t.f64(),
   candles: __t.f64(),
   apiaryWaxCycleProgress: __t.u8(),
+  pelts: __t.f64(),
+  yarn: __t.f64(),
+  linen: __t.f64(),
+  milkUsePolicy: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -620,6 +624,9 @@ export const PlayerResources = __t.object("PlayerResources", {
   pearCider: __t.f64(),
   wax: __t.f64(),
   candles: __t.f64(),
+  pelts: __t.f64(),
+  yarn: __t.f64(),
+  linen: __t.f64(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 
@@ -736,6 +743,7 @@ export const ResidenceNeed = __t.object("ResidenceNeed", {
   needKind: __t.u8(),
   stock: __t.f64(),
   deficitTicks: __t.u32(),
+  sourceKind: __t.u16(),
 });
 export type ResidenceNeed = __Infer<typeof ResidenceNeed>;
 

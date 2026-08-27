@@ -278,7 +278,7 @@ assert.match(
 );
 
 const state = emptyGameState();
-state.stockpile.food = 72;
+state.stockpile.ryeBread = 72;
 const expectedWinterFirewoodPerDay = 2
   * householdFirewoodUnitsPerDay(WINTER_FIREWOOD_DEMAND_MULTIPLIER);
 state.stockpile.firewood = expectedWinterFirewoodPerDay * (60 / 7);
@@ -286,7 +286,7 @@ state.stockpile.gold = 7;
 state.residences.set('tier-1', residence('tier-1', 1, 3));
 state.residences.set('tier-2', residence('tier-2', 2, 4));
 const guards = building('guards', 'guardhouse', 3, 2.9);
-guards.food = 9;
+guards.ryeBread = 9;
 state.buildings.set('guards', guards);
 
 const provisioning = computeSettlementProvisioning({
@@ -408,7 +408,7 @@ assert.equal(
 );
 
 const monthlySupplyState = emptyGameState();
-monthlySupplyState.stockpile.food = 100;
+monthlySupplyState.stockpile.ryeBread = 100;
 monthlySupplyState.stockpile.firewood = 100;
 monthlySupplyState.residences.set(
   'monthly-supply-home',
@@ -514,14 +514,14 @@ assert.equal(
 state.fireIncidents.clear();
 
 const displacedState = emptyGameState();
-displacedState.stockpile.food = 50;
+displacedState.stockpile.ryeBread = 50;
 const healthyHome = residence('healthy-home', 1, 4);
 healthyHome.needs.food.stock = 4;
-healthyHome.food = healthyHome.needs.food.stock;
+healthyHome.ryeBread = healthyHome.needs.food.stock;
 displacedState.residences.set(healthyHome.id, healthyHome);
 const fireDisabledHome = residence('fire-disabled-home', 2, 4);
 fireDisabledHome.needs.food.stock = 20;
-fireDisabledHome.food = fireDisabledHome.needs.food.stock;
+fireDisabledHome.ryeBread = fireDisabledHome.needs.food.stock;
 fireDisabledHome.needs.firewood.stock = 30;
 displacedState.residences.set(fireDisabledHome.id, fireDisabledHome);
 const emptySource = building('empty-source', 'granary', 1, 0);
@@ -532,7 +532,7 @@ displacedState.deliveryTrips.set('cart-to-fire-disabled-home', {
   residenceId: fireDisabledHome.id,
   destinationKind: 'residence',
   targetBuildingId: null,
-  cargoKind: 'food',
+  cargoKind: 'ryeBread',
   amount: 40,
   phase: 'outbound',
   x: 0,
@@ -593,10 +593,10 @@ assert.equal(settlementProvisionLevel(critical, 7), 'critical');
 assert.equal(shouldShowProvisioning(critical, 7), true);
 
 const locallyStarvedState = emptyGameState();
-locallyStarvedState.stockpile.food = 500;
+locallyStarvedState.stockpile.ryeBread = 500;
 locallyStarvedState.stockpile.gold = 500;
 const locallyStarvedGuards = building('starved-guards', 'guardhouse', 3, 3);
-locallyStarvedGuards.food = 0;
+locallyStarvedGuards.ryeBread = 0;
 locallyStarvedState.buildings.set(locallyStarvedGuards.id, locallyStarvedGuards);
 const locallyStarved = computeSettlementProvisioning({
   state: locallyStarvedState,
@@ -621,7 +621,7 @@ const splitBranchState = emptyGameState();
 const splitHome = residence('split-home', 1, 4);
 splitHome.x = 0;
 splitHome.needs.food.stock = householdFoodUnitsPerMonthForTier(splitHome.tier);
-splitHome.food = splitHome.needs.food.stock;
+splitHome.ryeBread = splitHome.needs.food.stock;
 splitHome.needs.firewood.stock = householdFirewoodUnitsPerMonth();
 splitHome.needs.water.stock = 4 * RESIDENCE_WATER_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY;
 splitBranchState.residences.set(splitHome.id, splitHome);
@@ -633,7 +633,7 @@ remoteGoodsStorehouse.x = 100;
 splitBranchState.buildings.set(remoteGoodsStorehouse.id, remoteGoodsStorehouse);
 const remoteFoodMarket = building('remote-food-market', 'marketplace', 1, 0);
 remoteFoodMarket.x = 100;
-remoteFoodMarket.food = 300;
+remoteFoodMarket.ryeBread = 300;
 remoteFoodMarket.firewood = 2_000;
 splitBranchState.buildings.set(remoteFoodMarket.id, remoteFoodMarket);
 const splitBranches = computeSettlementProvisioning({
@@ -667,7 +667,7 @@ splitBranchState.deliveryTrips.set('split-food-cart', {
   residenceId: splitHome.id,
   destinationKind: 'residence',
   targetBuildingId: null,
-  cargoKind: 'food',
+  cargoKind: 'ryeBread',
   amount: 30,
   phase: 'outbound',
   x: 100,
@@ -708,7 +708,7 @@ curedBranchHome.x = 7;
 curedBranchHome.needs.food.stock = householdFoodUnitsPerMonthForTier(
   curedBranchHome.tier,
 );
-curedBranchHome.food = curedBranchHome.needs.food.stock;
+curedBranchHome.ryeBread = curedBranchHome.needs.food.stock;
 curedBranchState.residences.set(curedBranchHome.id, curedBranchHome);
 const curedBranchSmokehouse = building(
   'cured-branch-market',
@@ -772,8 +772,8 @@ assert.ok(
   winterCuredBranch.preservedFoodSpoilageFractionPerDay
   < curedBranch.preservedFoodSpoilageFractionPerDay,
 );
-const originalCuredBranchTreasuryFood = curedBranchState.stockpile.food;
-curedBranchState.stockpile.food = 10_000;
+const originalCuredBranchTreasuryFood = curedBranchState.stockpile.ryeBread;
+curedBranchState.stockpile.ryeBread = 10_000;
 const longReserveTotals = {
   ...computeResourceTotals(curedBranchState),
   food: 10_000 + curedBranchHome.needs.food.stock,
@@ -803,7 +803,7 @@ assert.ok(
   winterLongReserve.foodRunwayDays > warmLongReserve.foodRunwayDays,
   `cold storage must extend the cured-food rotation phase before fresh demand rises (${winterLongReserve.foodRunwayDays} vs ${warmLongReserve.foodRunwayDays})`,
 );
-curedBranchState.stockpile.food = originalCuredBranchTreasuryFood;
+curedBranchState.stockpile.ryeBread = originalCuredBranchTreasuryFood;
 curedBranchState.fireIncidents.set('cured-store-fire', {
   id: 'cured-store-fire',
   targetKind: 'building',
@@ -874,7 +874,7 @@ splitFuelHome.x = 0;
 splitFuelHome.needs.food.stock = householdFoodUnitsPerMonthForTier(
   splitFuelHome.tier,
 );
-splitFuelHome.food = splitFuelHome.needs.food.stock;
+splitFuelHome.ryeBread = splitFuelHome.needs.food.stock;
 splitFuelHome.needs.firewood.stock = householdFirewoodUnitsPerMonth();
 splitFuelHome.needs.water.stock = 4 * RESIDENCE_WATER_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY;
 splitFuelHome.needs.cloth.stock = 4 * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY;
@@ -882,11 +882,11 @@ splitFuelHome.needs.ale.stock = 4 * RESIDENCE_ALE_PER_PERSON_PER_SEC * CALENDAR_
 splitFuelState.residences.set(splitFuelHome.id, splitFuelHome);
 const localGranary = building('local-granary', 'granary', 2, 0);
 localGranary.x = 0;
-localGranary.food = 300;
+localGranary.ryeBread = 300;
 splitFuelState.buildings.set(localGranary.id, localGranary);
 const localFoodMarket = building('local-food-market', 'marketplace', 0, 0);
 localFoodMarket.x = 0;
-localFoodMarket.food = 300;
+localFoodMarket.ryeBread = 300;
 splitFuelState.buildings.set(localFoodMarket.id, localFoodMarket);
 const remoteStorehouse = building('remote-storehouse', 'village_storehouse', 2, 0);
 remoteStorehouse.x = 100;
@@ -960,7 +960,7 @@ assert.equal(settlementProvisionLevel(criticalThreshold, 7), 'critical');
 assert.equal(shouldShowProvisioning(criticalThreshold, 7), true);
 
 const tierFourShortState = emptyGameState();
-tierFourShortState.stockpile.food = 500;
+tierFourShortState.stockpile.ryeBread = 500;
 tierFourShortState.residences.set('tier-4-short', residence('tier-4-short', 4, 5));
 const tierFourShort = computeSettlementProvisioning({
   state: tierFourShortState,
@@ -1098,7 +1098,7 @@ for (let branch = 0; branch < 100; branch += 1) {
   roadPerfState.buildings.set(granary.id, granary);
   const market = building(`perf-market-${branch}`, 'marketplace', 0, 0);
   market.x = branch;
-  market.food = 100_000;
+  market.ryeBread = 100_000;
   roadPerfState.buildings.set(market.id, market);
   for (let index = 0; index < 1_000; index += 1) {
     const home = residence(`road-home-${branch}-${index}`, 1, 4);
@@ -1143,7 +1143,7 @@ for (const [id, tier, population] of [
 ] as const) {
   const home = residence(id, tier, population);
   home.needs.food.stock = householdFoodUnitsPerMonthForTier(tier);
-  home.food = home.needs.food.stock;
+  home.ryeBread = home.needs.food.stock;
   if (tier >= 1) {
     home.needs.firewood.stock = householdFirewoodUnitsPerMonth();
   }
@@ -1259,13 +1259,13 @@ function residence(id: string, tier: number, population: number): ResidenceState
 
 function householdBufferState(readyHomes: number) {
   const state = emptyGameState();
-  state.stockpile.food = 500;
+  state.stockpile.ryeBread = 500;
   state.stockpile.firewood = 5_000;
   for (let index = 0; index < 5; index += 1) {
     const home = residence(`buffer-home-${index}`, 1, 3);
     if (index < readyHomes) {
       home.needs.food.stock = householdFoodUnitsPerMonthForTier(home.tier);
-      home.food = home.needs.food.stock;
+      home.ryeBread = home.needs.food.stock;
       home.needs.firewood.stock = householdFirewoodUnitsPerMonth();
       home.needs.water.stock = 3
         * RESIDENCE_WATER_PER_PERSON_PER_SEC

@@ -62,13 +62,13 @@ for (const [kind, containerName, segmentName, segmentCount] of stockGroups) {
 }
 
 const supplierExpectations = [
-  ['hunters_hall', 'HuntersFoodStockpile', 'HuntersFoodSegment', 51, 3],
-  ['foragers_shed', 'ForagersFoodStockpile', 'ForagersFoodSegment', 41, 3],
-  ['fishing_camp', 'FishingFoodStockpile', 'FishingFoodSegment', 81, 3],
+  ['hunters_hall', 'HuntersFoodStockpile', 'HuntersFoodSegment', 'meat', 51, 3],
+  ['foragers_shed', 'ForagersFoodStockpile', 'ForagersFoodSegment', 'berries', 41, 3],
+  ['fishing_camp', 'FishingFoodStockpile', 'FishingFoodSegment', 'fish', 81, 3],
 ] as const;
-for (const [kind, containerName, segmentName, food, expected] of supplierExpectations) {
+for (const [kind, containerName, segmentName, stockKind, amount, expected] of supplierExpectations) {
   const marker = createBuildingMesh(kind);
-  syncFoodStockpileVisuals(marker, building(kind, { food }));
+  syncFoodStockpileVisuals(marker, building(kind, { [stockKind]: amount }));
   assertVisibleSegments(marker, containerName, segmentName, expected);
   syncFoodStockpileVisuals(marker, building(kind));
   assertVisibleSegments(marker, containerName, segmentName, 0);
@@ -97,7 +97,7 @@ assert.notEqual(
 
 const smokehouse = building('smokehouse', {
   firewood: 14,
-  food: 61,
+  meat: 61,
   preservedFood: 61,
   salt: 14,
   pottery: 5,
@@ -150,7 +150,7 @@ const granary = building('granary', {
   barley: 160,
   ryeFlour: 130,
   flax: 90,
-  food: 261,
+  ryeBread: 261,
   preservedFood: 50,
 });
 const granaryMarker = createBuildingMesh('granary');
@@ -213,7 +213,10 @@ const perfBuildings = Array.from({ length: 100_000 }, (_, index) => {
   return building(kinds[index % kinds.length], {
     ryeGrain: index % 421,
     ryeFlour: index % 261,
-    food: index % 341,
+    ryeBread: index % 341,
+    meat: index % 341,
+    fish: index % 341,
+    berries: index % 341,
     firewood: index % 61,
     ale: index % 201,
     preservedFood: index % 181,
@@ -259,7 +262,10 @@ function building(
     | 'ryeGrain'
     | 'ryeFlour'
     | 'flax'
-    | 'food'
+    | 'ryeBread'
+    | 'meat'
+    | 'fish'
+    | 'berries'
     | 'firewood'
     | 'ale'
     | 'preservedFood'

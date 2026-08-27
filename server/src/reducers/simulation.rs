@@ -5,8 +5,9 @@ use crate::db::*;
 use crate::economy::step_regional_markets;
 use crate::frontier_economy_policy::{armed_guards, guardhouse_payroll_buckets};
 use crate::simulation::{
-    materialize_all_physical_resource_ledgers, retire_removed_buildings, step_apiary,
-    step_backyard_gardens, step_bakery, step_brewery, step_burials, step_carpenter, step_chandlery,
+    materialize_all_physical_resource_ledgers, retire_legacy_food_items, retire_removed_buildings,
+    step_apiary, step_backyard_gardens, step_bakery, step_brewery, step_burials, step_carpenter,
+    step_chandlery,
     step_chapel_parish, step_chapels, step_charcoal_burner, step_clay_pit, step_cobbler,
     step_construction_labor_stewards, step_construction_sites, step_delivery_trips,
     step_devotional_candles, step_fires, step_fishing_camp, step_foragers_shed,
@@ -79,6 +80,7 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     let step_budget = previous_credit + speed as u16 * BASE_SPEED_NUMERATOR;
     let substeps = step_budget / BASE_SPEED_DENOMINATOR;
     let next_credit = step_budget % BASE_SPEED_DENOMINATOR;
+    retire_legacy_food_items(ctx);
     let has_delivery_trips = ctx.db.delivery_trip().iter().next().is_some();
     let has_combat_agents = ctx.db.combat_agent().iter().next().is_some();
     let shared_road_networks = (has_delivery_trips || has_combat_agents || substeps > 0)

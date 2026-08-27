@@ -111,8 +111,8 @@ assert.equal(
 assert.equal(directlyDispatchedProcessorInputPerCycle('weaver', 'wool'), 0);
 assert.equal(directlyDispatchedProcessorInputPerCycle('weaver', 'flax'), 0);
 assert.equal(processorInputTarget(2), 6);
-assert.equal(processorInputTarget(2, 25), 2);
-assert.equal(processorInputTarget(2, 50), 4);
+assert.equal(processorInputTarget(2, 25), 6);
+assert.equal(processorInputTarget(2, 50), 6);
 assert.equal(processorInputTarget(2, 75), 6);
 assert.equal(processorInputRunwayCycles(3, 2), 1.5);
 assert.equal(GRANARY_GRAIN_RESERVE_MAX, BUILDING_STORAGE_CAPS.granary.grain);
@@ -123,8 +123,8 @@ assert.equal(granaryExportableGrain(150, 120), 30);
 assert.equal(granaryExportableGrain(90, 120), 0);
 assert.equal(grainInputTarget('watermill'), 9);
 assert.equal(grainInputTarget('pastoral_farmstead'), 3);
-assert.equal(grainInputTarget('watermill', 1, 25), 3);
-assert.equal(grainInputTarget('watermill', 1, 50), 6);
+assert.equal(grainInputTarget('watermill', 1, 25), 9);
+assert.equal(grainInputTarget('watermill', 1, 50), 9);
 assert.equal(grainInputTarget('watermill', 1, 75), 9);
 assert.ok(
   grainInputTarget('watermill') < BUILDING_STORAGE_CAPS.watermill.grain,

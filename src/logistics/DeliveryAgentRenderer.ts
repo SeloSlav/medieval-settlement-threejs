@@ -51,7 +51,7 @@ import {
 } from '../settlement/villagerPaths.ts';
 import type { VillagerModelVariant } from '../settlement/SettlementCrowdRenderer.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
-import { SIM_REALTIME_RATE } from '../generated/gameBalance.ts';
+import { visualAgentDelta } from '../world/visualAgentPacing.ts';
 import {
   createSelectedAgentRoute,
   SELECTED_AGENT_ROUTE_Y_OFFSET,
@@ -200,7 +200,7 @@ export class DeliveryAgentRenderer {
         + forwardZ * DELIVERY_OX_CART_FORMATION.ox.z
         + rightZ * DELIVERY_OX_CART_FORMATION.ox.x,
       yaw,
-      moving: visual.phase !== 'unloading',
+      moving: this.isVisualMoving(visual),
       active: true,
     };
   }
@@ -223,6 +223,7 @@ export class DeliveryAgentRenderer {
     if (!renderEnabled) return;
 
     const gameSpeed = this.getGameSpeed();
+    const animationDt = visualAgentDelta(dt, gameSpeed);
     for (const [tripId, visual] of this.visuals) {
       const currentSample = visual.polyline.length >= 2
         ? samplePolylineXZ(
@@ -235,11 +236,13 @@ export class DeliveryAgentRenderer {
         currentSample?.x ?? visual.serverX,
         currentSample?.z ?? visual.serverZ,
       ) ?? false;
-      const effectiveTravelSpeed = surfaceAdjustedTravelSpeed(
+      const surfaceTravelSpeed = surfaceAdjustedTravelSpeed(
         visual.travelSpeed,
         onRoadSurface,
         DELIVERY_ROAD_SPEED_MULTIPLIER,
-      ) * gameSpeed * SIM_REALTIME_RATE;
+      );
+      const effectiveTravelSpeed = surfaceTravelSpeed
+        * (dt > 0 ? animationDt / dt : 0);
       visual.displayProgress = advanceDeliveryDisplayProgress({
         displayProgress: visual.displayProgress,
         serverProgress: visual.serverProgress,
@@ -269,12 +272,13 @@ export class DeliveryAgentRenderer {
       visual.mesh.rotation.y = visual.phase === 'inbound'
         ? yaw + Math.PI
         : yaw;
+      const moving = this.isVisualMoving(visual);
       for (const worker of visual.workers) {
         updateDeliveryCartWorkerVisual(
           worker,
-          dt,
-          visual.phase !== 'unloading',
-          effectiveTravelSpeed,
+          animationDt,
+          moving,
+          surfaceTravelSpeed,
         );
       }
       if (this.selectedTripId === tripId) this.updateSelectedRoute(visual);
@@ -409,6 +413,11 @@ export class DeliveryAgentRenderer {
       return visual.pathDistance;
     }
     return progress;
+  }
+
+  private isVisualMoving(visual: TripVisual): boolean {
+    return visual.phase !== 'unloading'
+      && visual.displayProgress < visual.pathDistance - 1e-4;
   }
 
   private measurePolyline(polyline: readonly PointXZ[]): number {

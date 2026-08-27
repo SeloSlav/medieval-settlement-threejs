@@ -719,11 +719,11 @@ export class SpacetimeGameStore {
     );
   }
 
-  setProcessorOutputTarget(
+  setLivestockMilkUsePolicy(
     buildingId: string,
-    targetPercent: number,
+    milkUsePolicy: number,
   ): Promise<void> {
-    return spacetimeReducers.setProcessorOutputTarget(buildingId, targetPercent);
+    return spacetimeReducers.setLivestockMilkUsePolicy(buildingId, milkUsePolicy);
   }
 
   setStorageCommodityAcceptance(
@@ -754,13 +754,6 @@ export class SpacetimeGameStore {
     inputPolicy: number,
   ): Promise<void> {
     return spacetimeReducers.setWeaverInputPolicy(buildingId, inputPolicy);
-  }
-
-  setPotteryDispatchPolicy(
-    buildingId: string,
-    dispatchPolicy: number,
-  ): Promise<void> {
-    return spacetimeReducers.setPotteryDispatchPolicy(buildingId, dispatchPolicy);
   }
 
   setPotterFiringPolicy(

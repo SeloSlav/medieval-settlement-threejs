@@ -78,7 +78,7 @@ pub use fires::{
     FIRE_TARGET_RESIDENCE,
 };
 pub use fiscal_revenue::step_land_levies;
-pub use food_spoilage::step_fresh_food_spoilage;
+pub use food_spoilage::{retire_legacy_food_items, step_fresh_food_spoilage};
 pub use food_supplier::{step_fishing_camp, step_foragers_shed, step_hunters_hall};
 pub use foraging_respawn::step_foraging_lifecycle;
 pub use founding_site::step_founding_sites;

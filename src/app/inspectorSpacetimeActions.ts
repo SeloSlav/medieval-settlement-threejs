@@ -97,9 +97,9 @@ export type InspectorSpacetimeActions = {
     commodity: StorehouseCommodity,
     targetPercent: number,
   ) => Promise<void>;
-  onSetProcessorOutputTarget: (
+  onSetLivestockMilkUsePolicy: (
     buildingId: string,
-    targetPercent: number,
+    milkUsePolicy: number,
   ) => Promise<void>;
   onSetBreweryRecipePolicy: (
     buildingId: string,
@@ -108,10 +108,6 @@ export type InspectorSpacetimeActions = {
   onSetWeaverInputPolicy: (
     buildingId: string,
     inputPolicy: number,
-  ) => Promise<void>;
-  onSetPotteryDispatchPolicy: (
-    buildingId: string,
-    dispatchPolicy: number,
   ) => Promise<void>;
   onSetPotterFiringPolicy: (
     buildingId: string,
@@ -692,12 +688,12 @@ export function createInspectorSpacetimeActions(
         'Could not update the storehouse stock target.',
       );
     },
-    onSetProcessorOutputTarget: async (buildingId, targetPercent) => {
+    onSetLivestockMilkUsePolicy: async (buildingId, milkUsePolicy) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(
-        () => store.setProcessorOutputTarget(buildingId, targetPercent),
-        'Could not update the production stock target.',
+        () => store.setLivestockMilkUsePolicy(buildingId, milkUsePolicy),
+        'Could not update the milk-use recipe.',
       );
     },
     onSetStorageCommodityAcceptance: async (buildingId, commodity, accepts) => {
@@ -730,14 +726,6 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setWeaverInputPolicy(buildingId, inputPolicy),
         'Could not update the weaver input policy.',
-      );
-    },
-    onSetPotteryDispatchPolicy: async (buildingId, dispatchPolicy) => {
-      const store = requireReady();
-      if (!store) return;
-      await runReducer(
-        () => store.setPotteryDispatchPolicy(buildingId, dispatchPolicy),
-        'Could not update the pottery dispatch policy.',
       );
     },
     onSetPotterFiringPolicy: async (buildingId, firingPolicy) => {

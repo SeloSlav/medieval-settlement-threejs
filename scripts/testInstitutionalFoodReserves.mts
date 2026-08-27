@@ -91,7 +91,8 @@ assert.deepEqual(INSTITUTIONAL_FOOD_SOURCE_KINDS, [
 type InstitutionalTarget = {
   id: string;
   kind: BuildingKind;
-  food: number;
+  ryeBread: number;
+  meat: number;
   polearms?: number;
   assignedLabor: number;
   constructionComplete?: boolean;
@@ -110,7 +111,8 @@ const destination = (
 ): InstitutionalTarget => ({
   id,
   kind,
-  food,
+  ryeBread: kind === 'smokehouse' ? 0 : food,
+  meat: kind === 'smokehouse' ? food : 0,
   polearms: 0,
   assignedLabor: 2,
   constructionComplete: true,
@@ -245,12 +247,12 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(
   livestockSimulation,
-  /CommodityKind::Food,\s*&\["smokehouse"\]/,
+  /smokehouse/,
   'swine holdings must use the same shared producer-side arbitration',
 );
 assert.match(
   expandedEconomy,
-  /if commodity == CommodityKind::Food[\s\S]*?institutional_source_food_surplus/,
+  /if commodity\.is_edible\(\)[\s\S]*?institutional_source_food_surplus/,
   'producer-pushed food trips must use the same reserve policy',
 );
 assert.match(

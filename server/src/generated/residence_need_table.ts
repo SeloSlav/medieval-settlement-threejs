@@ -16,4 +16,5 @@ export default __t.row({
   needKind: __t.u8().name("need_kind"),
   stock: __t.f64(),
   deficitTicks: __t.u32().name("deficit_ticks"),
+  sourceKind: __t.u16().name("source_kind"),
 });

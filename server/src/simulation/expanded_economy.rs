@@ -30,7 +30,7 @@ use crate::balance_generated::{
     POTTER_WATER_PER_CYCLE, RICH_MINE_THROUGHPUT_MULTIPLIER, SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
     SHEEP_HAY_PER_UNSUPPORTED_HEAD, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE,
     SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE,
-    SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
+    SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
     SMOKEHOUSE_SALT_PER_CYCLE, SPINNING_RETTING_FLAX_PER_CYCLE,
     SPINNING_RETTING_FLAX_WATER_PER_CYCLE, SPINNING_RETTING_LINEN_PER_CYCLE,
     SPINNING_RETTING_WOOL_PER_CYCLE, SPINNING_RETTING_YARN_PER_CYCLE, SUMMER_DROUGHT_DURATION_DAYS,
@@ -1251,8 +1251,6 @@ pub fn step_local_material_dispatch(
     sources: Vec<Building>,
 ) {
     let mut candidates = Vec::new();
-    let mut deferred_pottery_local = Vec::new();
-    let mut deferred_pottery_exports = Vec::new();
     let market_fuel_shortfalls = marketplace_fuel_shortfalls(ctx, tick, environment);
 
     for source in &sources {
@@ -1322,30 +1320,12 @@ pub fn step_local_material_dispatch(
                     desired_stock,
                     runway_cycles,
                 };
-                if source.kind != "potter_kiln" {
-                    candidates.push(candidate);
-                    continue;
-                }
-                if candidate.building.kind == "trading_post" {
-                    deferred_pottery_exports.push(candidate);
-                    continue;
-                }
-                let market_wares_first = pottery_households_first(source.pottery_dispatch_policy);
-                let is_primary_local_duty = (market_wares_first
-                    && candidate.building.kind == "village_storehouse")
-                    || (!market_wares_first && candidate.building.kind == "smokehouse");
-                if is_primary_local_duty {
-                    candidates.push(candidate);
-                } else {
-                    deferred_pottery_local.push(candidate);
-                }
+                candidates.push(candidate);
             }
         }
     }
 
     sort_local_material_candidates(&mut candidates);
-    sort_local_material_candidates(&mut deferred_pottery_local);
-    sort_local_material_candidates(&mut deferred_pottery_exports);
 
     let mut used_sources = HashSet::new();
     let mut used_targets = HashSet::new();
@@ -1358,27 +1338,6 @@ pub fn step_local_material_dispatch(
         &mut used_targets,
     );
 
-    // A kiln's second local duty runs only if its preferred destination had no
-    // work. Storehouse keepers collect market wares; free haulers serve the
-    // smokehouse buffer. Production workers remain at the kiln in both cases.
-    dispatch_local_material_candidates(
-        ctx,
-        tick,
-        clock,
-        deferred_pottery_local,
-        &mut used_sources,
-        &mut used_targets,
-    );
-
-    // Only kilns still idle after both local duties may stage export stock.
-    dispatch_local_material_candidates(
-        ctx,
-        tick,
-        clock,
-        deferred_pottery_exports,
-        &mut used_sources,
-        &mut used_targets,
-    );
 }
 
 fn sort_local_material_candidates(candidates: &mut [LocalMaterialDispatchCandidate]) {
@@ -1539,7 +1498,7 @@ fn local_material_target_kinds(
             "carpenter",
         ]),
         ("potter_kiln", CommodityKind::Pottery) => {
-            Some(&["smokehouse", "village_storehouse", "trading_post"])
+            Some(&["village_storehouse", "trading_post"])
         }
         ("spinning_retting_house", CommodityKind::Yarn | CommodityKind::Linen) => {
             Some(&["weaver", "village_storehouse"])
@@ -1568,7 +1527,7 @@ fn local_material_target_kinds(
             "windmill",
             "carpenter",
         ]),
-        ("trading_post", CommodityKind::Pottery) => Some(&["smokehouse", "village_storehouse"]),
+        ("trading_post", CommodityKind::Pottery) => Some(&["village_storehouse"]),
         ("trading_post", CommodityKind::Wool | CommodityKind::Flax) => {
             Some(&["spinning_retting_house", "village_storehouse"])
         }
@@ -3052,7 +3011,6 @@ pub fn step_smokehouse(
                 (input, SMOKEHOUSE_FOOD_PER_CYCLE),
                 (CommodityKind::Firewood, SMOKEHOUSE_FIREWOOD_PER_CYCLE),
                 (CommodityKind::Salt, SMOKEHOUSE_SALT_PER_CYCLE),
-                (CommodityKind::Pottery, SMOKEHOUSE_POTTERY_PER_CYCLE),
             ],
             &[(output, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE)],
         );

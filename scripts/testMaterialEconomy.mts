@@ -69,14 +69,6 @@ import {
 } from '../src/economy/processorOutputPolicy.ts';
 import type { BuildingKind, BuildingState } from '../src/resources/types.ts';
 import {
-  normalizePotteryDispatchPolicy,
-  POTTERY_DISPATCH_HOUSEHOLDS_FIRST,
-  POTTERY_DISPATCH_POLICY_PRESETS,
-  POTTERY_DISPATCH_PRESERVATION_FIRST,
-  potteryDispatchOrder,
-  potteryDispatchPolicyLabel,
-} from '../src/economy/potteryDispatchPolicy.ts';
-import {
   normalizePotterFiringPolicy,
   POTTER_FIRE_ROOF_TILES,
   POTTER_FIRE_VESSELS,
@@ -210,34 +202,18 @@ assert.equal(
   0,
   'the Trading Post is export overflow, not a pottery processor',
 );
-assert.deepEqual(
-  potteryDispatchOrder(POTTERY_DISPATCH_HOUSEHOLDS_FIRST),
-  ['market-stalls', 'preservation', 'export'],
-);
-assert.deepEqual(
-  potteryDispatchOrder(POTTERY_DISPATCH_PRESERVATION_FIRST),
-  ['preservation', 'market-stalls', 'export'],
-);
-assert.equal(normalizePotteryDispatchPolicy(99), POTTERY_DISPATCH_HOUSEHOLDS_FIRST);
-assert.equal(potteryDispatchPolicyLabel(0), 'Market wares first');
-assert.equal(potteryDispatchPolicyLabel(1), 'Preservation first');
-assert.deepEqual(
-  POTTERY_DISPATCH_POLICY_PRESETS.map((preset) => preset.policy),
-  [POTTERY_DISPATCH_HOUSEHOLDS_FIRST, POTTERY_DISPATCH_PRESERVATION_FIRST],
-);
-const householdFirstPotterPanel = renderProcessorOutputTargetPanel(
-  building('potter_kiln', { potteryDispatchPolicy: POTTERY_DISPATCH_HOUSEHOLDS_FIRST }),
-);
-assert.match(householdFirstPotterPanel ?? '', /data-pottery-dispatch-policy="0"[^>]*disabled/);
-assert.match(householdFirstPotterPanel ?? '', /data-pottery-dispatch-policy="1"/);
-assert.match(householdFirstPotterPanel ?? '', /Trading Post export always waits until both local duties/);
+const vesselPotterPanel = renderProcessorOutputTargetPanel(building('potter_kiln'));
+assert.doesNotMatch(vesselPotterPanel ?? '', /data-pottery-dispatch-policy/);
+assert.match(vesselPotterPanel ?? '', /data-potter-firing-policy="0"[^>]*disabled/);
+assert.match(vesselPotterPanel ?? '', /data-tooltip="3 clay \+ 1 firewood \+ 1 water → 3 pottery"/);
+assert.match(vesselPotterPanel ?? '', /data-resource-cost="pottery"/);
 const tileFiringPotterPanel = renderProcessorOutputTargetPanel(
   building('potter_kiln', { potterFiringPolicy: POTTER_FIRE_ROOF_TILES }),
 );
 assert.match(tileFiringPotterPanel ?? '', /data-potter-firing-policy="1"[^>]*disabled/);
 assert.match(
   tileFiringPotterPanel ?? '',
-  /Tile firing suspends new market and smokehouse vessel output/,
+  /data-tooltip="3 clay \+ 1 firewood \+ 1 water → 4 roof tiles"/,
 );
 
 const nearbyMarket = building('trading_post', {
@@ -1278,44 +1254,16 @@ assert.match(
 );
 assert.match(
   localMaterialDispatchStep,
-  /pottery_households_first\(source\.pottery_dispatch_policy\)[\s\S]*"village_storehouse"[\s\S]*"smokehouse"/,
-  'market-wares-first kilns must prioritize staffed storehouse collection before preservation',
+  /\("potter_kiln", CommodityKind::Pottery\)[\s\S]*\["village_storehouse", "trading_post"\]/,
+  'kiln pottery must follow the automatic local-storage-then-export route',
 );
-const preservationPass = localMaterialDispatchStep.indexOf(
-  'dispatch_local_material_candidates(',
-);
-const preservationFallback = localMaterialDispatchStep.indexOf(
-  'deferred_pottery_local,',
-  preservationPass,
-);
-const deferredExportPass = localMaterialDispatchStep.indexOf(
-  'deferred_pottery_exports,',
-  preservationFallback,
-);
-assert.ok(
-  preservationPass >= 0
-    && preservationFallback > preservationPass
-    && deferredExportPass > preservationFallback,
-  'kilns must run preferred local duty, alternate local duty, then export in authority order',
-);
-assert.match(
-  localMaterialDispatchStep,
-  /candidate\.building\.kind == "trading_post"[\s\S]*deferred_pottery_exports\.push/,
-  'authority must defer Trading Post overflow until both local duties have a chance',
-);
+assert.doesNotMatch(localMaterialDispatchStep, /deferred_pottery|pottery_households_first/);
 const generatedBuildingTable = readFileSync('src/generated/building_table.ts', 'utf8');
-const generatedPotteryReducer = readFileSync(
-  'src/generated/set_pottery_dispatch_policy_reducer.ts',
-  'utf8',
-);
 assert.match(
   generatedBuildingTable,
   /potteryDispatchPolicy:[\s\S]*pottery_dispatch_policy/,
 );
-assert.match(
-  generatedPotteryReducer,
-  /buildingId:[\s\S]*dispatchPolicy:/,
-);
+assert.equal(existsSync('src/generated/set_pottery_dispatch_policy_reducer.ts'), false);
 assert.match(
   clayPitStep,
   /let Some\(mut deposit\) = clay_deposit_beneath[\s\S]*environment\.clay_pit_throughput_multiplier\(\)\s*\*\s*clay_bank_yield_multiplier_at_deposit\(\s*building\.x,\s*building\.z,\s*world_seed,\s*world_hydrology,\s*resource_abundance,\s*&deposit/,

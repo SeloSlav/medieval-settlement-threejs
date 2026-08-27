@@ -43,7 +43,6 @@ mod ox_policy;
 mod pantry_safeguard_policy;
 mod placement_validation;
 mod potter_firing_policy;
-mod pottery_dispatch_policy;
 mod processor_labor_policy;
 mod processor_output_policy;
 mod quarry_balance;

@@ -191,6 +191,21 @@ export class BuildingMarkers {
     this.syncMarketplaceSupplyLinks(building, gameState, fireDisabled);
   }
 
+  setMarketplaceServiceCoverage(
+    marketplaceId: string | null,
+    residenceIds: ReadonlySet<string>,
+    gameState?: GameState,
+  ): void {
+    const marketplace = marketplaceId == null
+      ? null
+      : gameState?.buildings.get(marketplaceId) ?? null;
+    this.marketplaceSupplyLinks.syncResidenceService(
+      marketplace?.kind === 'marketplace' ? marketplace : null,
+      gameState?.residences.values() ?? [],
+      residenceIds,
+    );
+  }
+
   syncBuildings(
     buildings: Iterable<BuildingState>,
     livestockHerds?: ReadonlyMap<string, LivestockHerdState>,

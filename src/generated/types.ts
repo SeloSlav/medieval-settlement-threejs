@@ -216,6 +216,7 @@ export const Building = __t.object("Building", {
   pelts: __t.f64(),
   yarn: __t.f64(),
   linen: __t.f64(),
+  milkUsePolicy: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 

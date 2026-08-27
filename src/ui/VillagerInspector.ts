@@ -21,6 +21,7 @@ import {
   type SelectedAgentRoute,
   updateSelectedAgentRoute,
 } from '../scene/SelectedAgentRoute.ts';
+import { VISUAL_AGENT_PACE_MULTIPLIER } from '../world/visualAgentPacing.ts';
 
 type VillagerInspectorOptions = {
   domElement: HTMLElement;
@@ -392,7 +393,7 @@ export class VillagerInspector {
     setTextIfChanged(this.workplace, originLabel);
     setTextIfChanged(this.household, presentation.routeTarget);
     setTextIfChanged(this.crew, presentation.cargoSummary);
-    const speed = deliveryTripTravelSpeed(trip);
+    const speed = deliveryTripTravelSpeed(trip) * VISUAL_AGENT_PACE_MULTIPLIER;
     setTextIfChanged(this.pace, `${speed.toFixed(1)} m/s`);
     setTextIfChanged(
       this.distance,

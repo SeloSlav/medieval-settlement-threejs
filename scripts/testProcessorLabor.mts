@@ -13,7 +13,11 @@ import {
   DEFAULT_PRODUCTION_LABOR_STEWARD_ENABLED,
   productionLaborStewardStatus,
 } from '../src/economy/laborSteward.ts';
-import { BUILDING_DEFINITIONS, type BuildingKind } from '../src/generated/gameBalance.ts';
+import {
+  BUILDING_DEFINITIONS,
+  BUILDING_STORAGE_CAPS,
+  type BuildingKind,
+} from '../src/generated/gameBalance.ts';
 import type { DeliveryCargoKind, DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import {
   computePopulationStats,
@@ -40,16 +44,16 @@ assert.match(productionLaborStewardStatus(true, false), /paused/);
 const recallState = emptyGameState();
 const brewery = building('10', 'brewery', 3);
 brewery.processorOutputTargetPercent = 50;
-brewery.ale = 100;
+brewery.ale = BUILDING_STORAGE_CAPS.brewery.ale;
 const weaver = building('20', 'weaver', 1);
 weaver.processorOutputTargetPercent = 25;
-weaver.cloth = 30;
+weaver.cloth = BUILDING_STORAGE_CAPS.weaver.cloth;
 const smokehouse = building('30', 'smokehouse', 2);
 smokehouse.processorOutputTargetPercent = 50;
 smokehouse.preservedFood = 20;
 const bakery = building('40', 'bakery', 3);
 bakery.processorOutputTargetPercent = 25;
-bakery.ryeBread = 25;
+bakery.ryeBread = BUILDING_STORAGE_CAPS.bakery.food;
 const carpenter = building('50', 'carpenter', 4);
 for (const site of [brewery, weaver, smokehouse, bakery, carpenter]) {
   recallState.buildings.set(site.id, site);
@@ -88,7 +92,7 @@ normalSmokehouse.constructionPriority = 2;
 const cappedWeaver = building('40', 'weaver', 0);
 cappedWeaver.constructionPriority = 3;
 cappedWeaver.processorOutputTargetPercent = 25;
-cappedWeaver.cloth = 30;
+cappedWeaver.cloth = BUILDING_STORAGE_CAPS.weaver.cloth;
 const unrelatedCarpenter = building('50', 'carpenter', 0);
 for (const site of [
   highMill,
@@ -374,7 +378,7 @@ assert.equal(legacyPriorityPlan.assignments[0]?.priority, 2);
 const stewardState = emptyGameState();
 const cappedStewardBrewery = building('brewery', 'brewery', 3);
 cappedStewardBrewery.processorOutputTargetPercent = 50;
-cappedStewardBrewery.ale = 100;
+cappedStewardBrewery.ale = BUILDING_STORAGE_CAPS.brewery.ale;
 const suppliedStewardMill = building('mill', 'watermill', 0);
 suppliedStewardMill.ryeGrain = 20;
 for (const site of [cappedStewardBrewery, suppliedStewardMill]) {
@@ -459,7 +463,7 @@ const renderedState = emptyGameState();
 const townHall = building('hall', 'town_hall', 1);
 const pausedBrewery = building('brewery', 'brewery', 3);
 pausedBrewery.processorOutputTargetPercent = 50;
-pausedBrewery.ale = 100;
+pausedBrewery.ale = BUILDING_STORAGE_CAPS.brewery.ale;
 const readyMill = building('mill', 'watermill', 0);
 readyMill.constructionPriority = 3;
 readyMill.ryeGrain = 20;
@@ -526,7 +530,7 @@ const perfState = emptyGameState();
 for (let index = 0; index < 100_000; index += 1) {
   const site = building(String(index), 'brewery', 3);
   site.processorOutputTargetPercent = 25;
-  site.ale = 50;
+  site.ale = BUILDING_STORAGE_CAPS.brewery.ale;
   perfState.buildings.set(site.id, site);
 }
 const recallStarted = performance.now();
@@ -596,7 +600,7 @@ const stewardPerfState = emptyGameState();
 for (let index = 0; index < 50_000; index += 1) {
   const capped = building(`capped-${index}`, 'brewery', 3);
   capped.processorOutputTargetPercent = 25;
-  capped.ale = 50;
+  capped.ale = BUILDING_STORAGE_CAPS.brewery.ale;
   stewardPerfState.buildings.set(capped.id, capped);
   const supplied = building(`supplied-${index}`, 'watermill', 0);
   supplied.ryeGrain = 20;
