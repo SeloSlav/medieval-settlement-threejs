@@ -16,6 +16,10 @@ import {
   selectInstitutionalFoodTarget,
 } from '../src/logistics/foodLogistics.ts';
 import type { BuildingKind } from '../src/resources/types.ts';
+import {
+  SMOKEHOUSE_RECIPE_AUTO,
+  SMOKEHOUSE_RECIPE_CURED_MEAT,
+} from '../src/economy/smokehouseRecipePolicy.ts';
 
 assert.equal(HOUSEHOLD_FOOD_RESERVE_PER_CLAIM, 6);
 assert.equal(HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION, 0.5);
@@ -93,11 +97,14 @@ type InstitutionalTarget = {
   kind: BuildingKind;
   ryeBread: number;
   meat: number;
+  fish?: number;
+  milk?: number;
   polearms?: number;
   assignedLabor: number;
   constructionComplete?: boolean;
   constructionPriority?: number;
   processorOutputTargetPercent?: number;
+  smokehouseRecipePolicy?: number;
   guardhousePayPriority?: number;
   guardhouseFoodReserve?: number;
   granaryAcceptsFreshFood?: boolean;
@@ -113,6 +120,8 @@ const destination = (
   kind,
   ryeBread: kind === 'smokehouse' ? 0 : food,
   meat: kind === 'smokehouse' ? food : 0,
+  fish: 0,
+  milk: 0,
   polearms: 0,
   assignedLabor: 2,
   constructionComplete: true,
@@ -154,6 +163,56 @@ const selectedPreservation = selectInstitutionalFoodTarget(
 );
 assert.equal(selectedPreservation?.target.id, 'smoke');
 assert.equal(selectedPreservation?.duty, 'preservation-buffer');
+
+const focusedSmokehouse = destination('focused-smoke', 'smokehouse', 0, {
+  fish: 9,
+  smokehouseRecipePolicy: SMOKEHOUSE_RECIPE_CURED_MEAT,
+});
+const fallbackGranary = destination('focused-granary', 'granary', 0);
+const fishOnlyDispatch = selectInstitutionalFoodTarget(
+  [focusedSmokehouse, fallbackGranary],
+  'fish-source',
+  false,
+  () => 20,
+  () => false,
+  () => true,
+  { fish: 6 },
+);
+assert.equal(
+  fishOnlyDispatch?.target.id,
+  fallbackGranary.id,
+  'a Cured Meat focus must leave newly offered fish for central storage',
+);
+const meatDispatch = selectInstitutionalFoodTarget(
+  [focusedSmokehouse, fallbackGranary],
+  'meat-source',
+  false,
+  () => 20,
+  () => false,
+  () => true,
+  { meat: 6 },
+);
+assert.equal(
+  meatDispatch?.target.id,
+  focusedSmokehouse.id,
+  'alternate fish already stored at a focused Smokehouse must not satisfy its meat buffer',
+);
+const autoSmokehouse = destination('auto-smoke', 'smokehouse', 0, {
+  smokehouseRecipePolicy: SMOKEHOUSE_RECIPE_AUTO,
+});
+assert.equal(
+  selectInstitutionalFoodTarget(
+    [autoSmokehouse, fallbackGranary],
+    'auto-fish-source',
+    false,
+    () => 20,
+    () => false,
+    () => true,
+    { fish: 6 },
+  )?.target.id,
+  autoSmokehouse.id,
+  'Auto must continue requesting any viable preservable ingredient',
+);
 assert.equal(
   selectInstitutionalFoodTarget(
     [routineGuard, destination('granary', 'granary', 0)],
@@ -234,6 +293,21 @@ assert.match(
   expandedEconomy,
   /pub fn step_institutional_food_dispatch\([\s\S]*?candidates\.sort_by\([\s\S]*?compare_institutional_food_dispatch_candidates/,
   'all producer carts must arbitrate institutional demand in one authoritative pass',
+);
+assert.match(
+  expandedEconomy,
+  /fn institutional_food_target_plan[\s\S]*?"smokehouse" if smokehouse_requests_food_input\(target, commodity\)/,
+  'direct fresh-food producers must offer a focused Smokehouse only its selected ingredient',
+);
+assert.match(
+  expandedEconomy,
+  /fn marketplace_material_target[\s\S]*?if !processor_requests_input\(target, commodity\)/,
+  'imported inputs must obey focused Smokehouse demand',
+);
+assert.match(
+  expandedEconomy,
+  /fn dispatch_to_building_where_limited[\s\S]*?!processor_requests_input\(&target, commodity\)[\s\S]*?!processor_accepts_input\(&target, commodity\)/,
+  'Granary and generic producer dispatch must distinguish active demand from physical acceptance',
 );
 assert.match(
   expandedEconomy,

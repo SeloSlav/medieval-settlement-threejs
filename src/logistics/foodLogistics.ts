@@ -37,6 +37,12 @@ import {
   preservableFoodStock,
   type FoodInventoryLike,
 } from '../economy/foodInventory.ts';
+import {
+  normalizeSmokehouseRecipePolicy,
+  SMOKEHOUSE_RECIPE_AUTO,
+  smokehouseRecipeInput,
+  smokehouseRecipeRequestsInput,
+} from '../economy/smokehouseRecipePolicy.ts';
 import { householdFoodUnitsPerDayForTier } from '../economy/householdBillDemand.ts';
 
 export {
@@ -76,6 +82,7 @@ type InstitutionalFoodDestinationLike = Pick<
   | 'constructionComplete'
   | 'constructionPriority'
   | 'processorOutputTargetPercent'
+  | 'smokehouseRecipePolicy'
   | 'guardhousePayPriority'
   | 'guardhouseFoodReserve'
   | 'granaryAcceptsFreshFood'
@@ -248,6 +255,7 @@ export function selectInstitutionalFoodTarget<
   routeDistanceFor: (target: T) => number | null,
   hasInboundSupply: (target: T) => boolean = () => false,
   acceptsFood: (target: T) => boolean = () => true,
+  sourceFood?: FoodInventoryLike,
 ): RoutedInstitutionalFoodDestination<T> | null {
   let best: RoutedInstitutionalFoodDestination<T> | null = null;
   for (const target of targets) {
@@ -261,6 +269,7 @@ export function selectInstitutionalFoodTarget<
       target,
       conflictEnabled,
       acceptsFood(target),
+      sourceFood,
     );
     if (plan == null) continue;
     const routeDistance = routeDistanceFor(target);
@@ -288,6 +297,7 @@ function institutionalFoodTargetPlan<T extends InstitutionalFoodDestinationLike>
   target: T,
   conflictEnabled: boolean,
   acceptsFood: boolean,
+  sourceFood: FoodInventoryLike | undefined,
 ): Omit<RoutedInstitutionalFoodDestination<T>, 'target' | 'routeDistance'> | null {
   if (target.kind === 'guardhouse' && conflictEnabled) {
     const stock = edibleFoodStock(target);
@@ -314,7 +324,19 @@ function institutionalFoodTargetPlan<T extends InstitutionalFoodDestinationLike>
     };
   }
   if (target.kind === 'smokehouse' && acceptsFood) {
-    const stock = preservableFoodStock(target);
+    const policy = normalizeSmokehouseRecipePolicy(target.smokehouseRecipePolicy);
+    const selectedInput = policy === SMOKEHOUSE_RECIPE_AUTO
+      ? null
+      : smokehouseRecipeInput(policy);
+    if (
+      sourceFood != null
+      && !(['meat', 'fish', 'milk'] as const).some((input) =>
+        smokehouseRecipeRequestsInput(policy, input)
+        && Math.max(0, sourceFood[input] ?? 0) > 1e-6)
+    ) return null;
+    const stock = selectedInput == null
+      ? preservableFoodStock(target)
+      : Math.max(0, target[selectedInput] ?? 0);
     const desiredStock = processorInputTarget(
       SMOKEHOUSE_FOOD_PER_CYCLE,
       target.processorOutputTargetPercent,

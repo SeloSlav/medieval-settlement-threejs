@@ -219,6 +219,7 @@ export const Building = __t.object("Building", {
   milkUsePolicy: __t.u8(),
   smokehouseRecipePolicy: __t.u8(),
   productionRatePercent: __t.u8(),
+  productionMaintenanceProgress: __t.f64(),
 });
 export type Building = __Infer<typeof Building>;
 

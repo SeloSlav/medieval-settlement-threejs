@@ -34,6 +34,7 @@ import {
   SMOKEHOUSE_RECIPE_SMOKED_FISH,
   normalizeSmokehouseRecipePolicy,
   selectedSmokehouseRecipePolicy,
+  smokehouseRecipeRequestsInput,
 } from '../src/economy/smokehouseRecipePolicy.ts';
 import {
   BREWERY_APPLES_PER_CIDER_CYCLE,
@@ -166,6 +167,15 @@ assert.equal(
   selectedSmokehouseRecipePolicy(SMOKEHOUSE_RECIPE_AUTO, recipeSmokehouse),
   SMOKEHOUSE_RECIPE_CURED_MEAT,
   'automatic smokehouse production preserves the legacy meat-first order',
+);
+assert.equal(smokehouseRecipeRequestsInput(SMOKEHOUSE_RECIPE_AUTO, 'meat'), true);
+assert.equal(smokehouseRecipeRequestsInput(SMOKEHOUSE_RECIPE_AUTO, 'fish'), true);
+assert.equal(smokehouseRecipeRequestsInput(SMOKEHOUSE_RECIPE_AUTO, 'milk'), true);
+assert.equal(smokehouseRecipeRequestsInput(SMOKEHOUSE_RECIPE_SMOKED_FISH, 'fish'), true);
+assert.equal(
+  smokehouseRecipeRequestsInput(SMOKEHOUSE_RECIPE_SMOKED_FISH, 'meat'),
+  false,
+  'explicit Smokehouse focus must not create new supply demand for alternate recipes',
 );
 recipeSmokehouse.smokehouseRecipePolicy = SMOKEHOUSE_RECIPE_SMOKED_FISH;
 assert.equal(processorOutputCommodityForBuilding(recipeSmokehouse), 'smokedFish');
@@ -415,6 +425,16 @@ assert.match(
 );
 assert.match(economy, /!processor_accepts_input\(&target, commodity\)/);
 assert.match(economy, /!processor_accepts_input\(target, commodity\)/);
+assert.match(
+  economy,
+  /fn processor_requests_input[\s\S]*?smokehouse_requests_food_input/,
+  'active recipe demand must remain separate from physical cargo acceptance',
+);
+assert.match(
+  economy,
+  /fn dispatch_to_building_where_limited[\s\S]*?!processor_requests_input\(&target, commodity\)[\s\S]*?!processor_accepts_input\(&target, commodity\)/,
+  'new generic supply trips must satisfy both focused demand and physical storage acceptance',
+);
 assert.match(
   well,
   /!processor_accepts_input\(&candidate, CommodityKind::Water\)/,

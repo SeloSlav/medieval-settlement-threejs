@@ -1550,7 +1550,8 @@ export class WorldQueries {
         target.z,
       ),
       (target) => inboundTargets.has(target.id),
-      (target) => processorAcceptsInput(target, 'food'),
+      (target) => target.kind === 'smokehouse' || processorAcceptsInput(target, 'food'),
+      source,
     );
   }
 

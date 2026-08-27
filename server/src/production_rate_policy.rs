@@ -40,7 +40,14 @@ pub fn maintenance_wear_per_completed_work(base_wear: f64, percent: u8) -> f64 {
     if !base_wear.is_finite() || base_wear <= 0.0 {
         return 0.0;
     }
-    base_wear * production_rate_multiplier(percent)
+    let pace = production_rate_multiplier(percent);
+    if pace <= f64::EPSILON {
+        0.0
+    } else {
+        // Annual wear is pace²; dividing by the pace-scaled number of cycles
+        // yields the additional wear charged to each completed cycle.
+        base_wear * maintenance_rate_multiplier(percent) / pace
+    }
 }
 
 #[cfg(test)]
