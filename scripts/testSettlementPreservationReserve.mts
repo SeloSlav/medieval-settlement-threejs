@@ -439,30 +439,22 @@ const residenceNeedAuthority = readFileSync(
 );
 assert.match(
   residenceNeedAuthority,
-  /\(food_unmet, backyard_jam_meal\)\s*=\s*consume_food_with_preserved/,
-  'the planner target must remain tied to the authoritative fallback meal path',
+  /monthly_food\s*=\s*Some\(consume_monthly_food_slots\(&mut residence, tier\)\)/,
+  'the planner target must remain tied to the authoritative monthly meal path',
 );
 assert.match(
   residenceNeedAuthority,
-  /kind == ResidenceNeedKind::PreservedFood[\s\S]*need\.stock/,
-  'preserved-food status should remain stock-aware after the shared meal withdrawal',
+  /ResidenceNeedKind::PreservedFood[\s\S]*preserved\.deficit_ticks\s*=\s*u32::from\(!result\.preserved_slot_met\)/,
+  'preserved-food status should remain tied to the shared monthly meal withdrawal',
 );
 assert.match(
   residenceNeedAuthority,
-  /consume_food_with_preserved[\s\S]*allocate_preserved_meal/,
+  /tier\s*>=\s*4[\s\S]*first_food_for_slot\(residence, \*slot, true\)[\s\S]*preserved_slot_met\s*=\s*true/,
 );
 assert.match(
   residenceNeedAuthority,
-  /preserved_food_demand\([\s\S]*environment\.preserved_food_demand_multiplier\(\)[\s\S]*allocation\.fresh_used[\s\S]*allocation\.preserved_used\(\)/,
-);
-const preservedMealPolicy = readFileSync(
-  new URL('../server/src/preserved_food_policy.rs', import.meta.url),
-  'utf8',
-);
-assert.match(preservedMealPolicy, /without inventing a second calorie demand/);
-assert.match(
-  preservedMealPolicy,
-  /fresh_used \+ plan\.preserved_used\(\), 3\.0/,
+  /all_slots_met:\s*slots_consumed as usize == slots\.len\(\) && preserved_slot_met/,
+  'the preserved ration must replace a normal category slot instead of adding a second meal',
 );
 
 const townHallSource = readFileSync(
@@ -486,7 +478,6 @@ assert.match(townHallSource, /winter design peak/);
 assert.match(townHallSource, /rotated rations displace the same fresh-food calories/);
 assert.match(residenceSource, /Prosperity planning load/);
 assert.match(residenceSource, /winter-peak preserved ration/);
-assert.match(residenceSource, /replaces the same amount of fresh food rather than adding a second meal/);
 
 const perfState = emptyGameState();
 perfState.physicalFoundingSiteEnabled = true;
