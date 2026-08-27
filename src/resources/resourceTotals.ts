@@ -129,8 +129,6 @@ export type ResourceTotals = {
   cheese: number;
   aroniaJam: number;
   rosehipJam: number;
-  /** Compatibility stock from old saves; never produced by the new economy. */
-  legacyFood: number;
   /** Compatibility cured stock from old saves; never produced by the new economy. */
   legacyPreservedFood: number;
 };
@@ -247,7 +245,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let stone = ledger?.stone ?? 0;
   let firewood = ledger?.firewood ?? 0;
   let water = ledger?.water ?? 0;
-  let legacyFood = ledger?.food ?? 0;
   let ryeSheaves = ledger?.ryeSheaves ?? 0;
   let oatSheaves = ledger?.oatSheaves ?? 0;
   let barleySheaves = ledger?.barleySheaves ?? 0;
@@ -324,7 +321,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let reservedIronwork = 0;
   let reservedGold = 0;
   let reservedRoofTiles = 0;
-  let reservedLegacyFood = 0;
   let reservedLegacyPreservedFood = 0;
   let reservedOatGrain = 0;
   let reservedHoney = 0;
@@ -357,7 +353,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     stone += building.stone;
     firewood += building.firewood;
     water += building.water;
-    legacyFood += building.food;
     ryeSheaves += building.ryeSheaves ?? 0;
     oatSheaves += building.oatSheaves ?? 0;
     barleySheaves += building.barleySheaves ?? 0;
@@ -432,7 +427,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     // the physical-storage ledger for inspection, but never advertise them as
     // food available to the town's household provisioning plan.
     if (building.kind === 'monastery') {
-      reservedLegacyFood += Math.max(0, building.food ?? 0);
       reservedLegacyPreservedFood += Math.max(0, building.preservedFood ?? 0);
       reservedOatGrain += Math.max(0, building.oatGrain ?? 0);
       reservedHoney += Math.max(0, building.honey ?? 0);
@@ -492,7 +486,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     water += householdWater;
     reservedFirewood += householdFirewood;
     reservedWater += householdWater;
-    const pantryLegacyFood = Math.max(0, residence.food ?? 0);
     const pantryLegacyPreserved = Math.max(0, residence.preservedFood ?? 0);
     const pantryOatGrain = Math.max(0, residence.oatGrain ?? 0);
     const pantryHoney = Math.max(0, residence.honey ?? 0);
@@ -519,7 +512,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     const pantryCheese = Math.max(0, residence.cheese ?? 0);
     const pantryAroniaJam = Math.max(0, residence.aroniaJam ?? 0);
     const pantryRosehipJam = Math.max(0, residence.rosehipJam ?? 0);
-    legacyFood += pantryLegacyFood;
     legacyPreservedFood += pantryLegacyPreserved;
     oatGrain += pantryOatGrain;
     honey += pantryHoney;
@@ -546,7 +538,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     cheese += pantryCheese;
     aroniaJam += pantryAroniaJam;
     rosehipJam += pantryRosehipJam;
-    reservedLegacyFood += pantryLegacyFood;
     reservedLegacyPreservedFood += pantryLegacyPreserved;
     reservedOatGrain += pantryOatGrain;
     reservedHoney += pantryHoney;
@@ -596,8 +587,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     + cheese * foodMealValue('cheese')
     + aroniaJam * foodMealValue('aroniaJam')
     + rosehipJam * foodMealValue('rosehipJam');
-  const storedFood = legacyFood * foodMealValue('food')
-    + oatGrain * foodMealValue('oatGrain')
+  const storedFood = oatGrain * foodMealValue('oatGrain')
     + ryeBread * foodMealValue('ryeBread')
     + maslinBread * foodMealValue('maslinBread')
     + meat * foodMealValue('meat')
@@ -688,10 +678,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     cheese,
     aroniaJam,
     rosehipJam,
-    legacyFood,
     legacyPreservedFood,
   };
-  const surplusLegacyFood = Math.max(0, legacyFood - reservedLegacyFood);
   const surplusLegacyPreservedFood = Math.max(
     0,
     legacyPreservedFood - reservedLegacyPreservedFood,
@@ -727,8 +715,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     + surplusCheese * foodMealValue('cheese')
     + surplusAroniaJam * foodMealValue('aroniaJam')
     + surplusRosehipJam * foodMealValue('rosehipJam');
-  const surplusFood = surplusLegacyFood * foodMealValue('food')
-    + surplusOatGrain * foodMealValue('oatGrain')
+  const surplusFood = surplusOatGrain * foodMealValue('oatGrain')
     + surplusRyeBread * foodMealValue('ryeBread')
     + surplusMaslinBread * foodMealValue('maslinBread')
     + surplusMeat * foodMealValue('meat')
@@ -790,7 +777,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     cheese: surplusCheese,
     aroniaJam: surplusAroniaJam,
     rosehipJam: surplusRosehipJam,
-    legacyFood: surplusLegacyFood,
     legacyPreservedFood: surplusLegacyPreservedFood,
   };
   cachedState = state;
@@ -821,9 +807,7 @@ export function computeInTransitResourceTotals(
   for (const trip of trips) {
     const amount = Number.isFinite(trip.amount) ? Math.max(0, trip.amount) : 0;
     if (amount <= 1e-6) continue;
-    if (trip.cargoKind === 'food') {
-      totals.legacyFood += amount;
-    } else if (trip.cargoKind === 'preservedFood') {
+    if (trip.cargoKind === 'preservedFood') {
       totals.legacyPreservedFood += amount;
     } else {
       totals[trip.cargoKind] += amount;
@@ -835,8 +819,7 @@ export function computeInTransitResourceTotals(
     + totals.cheese * foodMealValue('cheese')
     + totals.aroniaJam * foodMealValue('aroniaJam')
     + totals.rosehipJam * foodMealValue('rosehipJam');
-  totals.food = totals.legacyFood * foodMealValue('food')
-    + totals.oatGrain * foodMealValue('oatGrain')
+  totals.food = totals.oatGrain * foodMealValue('oatGrain')
     + totals.ryeBread * foodMealValue('ryeBread')
     + totals.maslinBread * foodMealValue('maslinBread')
     + totals.meat * foodMealValue('meat')
@@ -1241,7 +1224,6 @@ function emptyResourceTotals(): ResourceTotals {
     cheese: 0,
     aroniaJam: 0,
     rosehipJam: 0,
-    legacyFood: 0,
     legacyPreservedFood: 0,
   };
 }

@@ -2628,9 +2628,7 @@ export class ResidenceMarkers {
     }
     this.serviceCoverageIds = new Set(residenceIds);
     this.serviceCoverageKind = kind;
-    this.serviceCoverageMaterial.color.setHex(
-      kind === 'well' ? 0x57c9ff : 0xe7c45c,
-    );
+    this.serviceCoverageMaterial.color.setHex(serviceCoverageColor(kind));
     this.serviceCoverageDirty = true;
     this.syncServiceCoverageHighlights();
   }
@@ -3027,6 +3025,17 @@ export class ResidenceMarkers {
     this.serviceCoverageMaterial.dispose();
     this.serviceCoverageRoot.removeFromParent();
     this.root.removeFromParent();
+  }
+}
+
+function serviceCoverageColor(
+  kind: ServiceCoverageView['kind'] | null,
+): number {
+  switch (kind) {
+    case 'well': return 0x57c9ff;
+    case 'chapel': return 0xc89cff;
+    case 'marketplace':
+    case null: return 0xe7c45c;
   }
 }
 

@@ -4410,7 +4410,6 @@ impl TradeResource {
             Self::Stone => TradeResourceSpendScope::MarketAccessible,
             Self::Firewood => TradeResourceSpendScope::MarketAccessible,
             Self::Water => TradeResourceSpendScope::MarketAccessible,
-            Self::Food => TradeResourceSpendScope::MarketAccessible,
             Self::RyeGrain => TradeResourceSpendScope::MarketAccessible,
             Self::OatGrain => TradeResourceSpendScope::MarketAccessible,
             Self::MaslinGrain => TradeResourceSpendScope::MarketAccessible,
@@ -4570,24 +4569,6 @@ const TRADE_SELL_WATER: MarketplaceTradeOffer = MarketplaceTradeOffer {
         resource: TradeResource::Water,
         amount: 10.0,
         gold_yield: 4.0,
-    },
-};
-
-const TRADE_BUY_FOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
-    id: "buy_food",
-    kind: MarketplaceTradeKind::GoldBuy {
-        resource: TradeResource::Food,
-        amount: 10.0,
-        gold_cost: 13.0,
-    },
-};
-
-const TRADE_SELL_FOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
-    id: "sell_food",
-    kind: MarketplaceTradeKind::GoldSell {
-        resource: TradeResource::Food,
-        amount: 10.0,
-        gold_yield: 10.0,
     },
 };
 
@@ -5710,8 +5691,6 @@ const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[
     TRADE_SELL_FIREWOOD,
     TRADE_BUY_WATER,
     TRADE_SELL_WATER,
-    TRADE_BUY_FOOD,
-    TRADE_SELL_FOOD,
     TRADE_BUY_RYE_GRAIN,
     TRADE_SELL_RYE_GRAIN,
     TRADE_BUY_OAT_GRAIN,

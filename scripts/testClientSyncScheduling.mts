@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { syncSettlementWorld } from '../src/app/settlementWorldSync.ts';
 import { SpacetimeSnapshotApplier } from '../src/app/spacetimeSnapshotApplier.ts';
@@ -29,6 +30,7 @@ testSettlementSyncSkipsUnchangedDomains();
 testForestPhaseUpdatesCommitOncePerBatch();
 testTreeVisualSyncSkipsUnchangedSnapshots();
 testWorldGenerationReferenceStaysStableAcrossTicks();
+testPopulationAuthorityRefreshesResourceUi();
 testQuantizedStockVisualSignatures();
 testIssuedGuardPolearmAggregationReuse();
 testIssuedGuardPolearmSnapshotQuantization();
@@ -37,6 +39,15 @@ const markerSignatureElapsed = testBuildingMarkerSignatureScale();
 console.log(
   `client sync scheduling tests passed (${markerSignatureElapsed.toFixed(1)} ms for 100,000 dynamic building signatures)`,
 );
+
+function testPopulationAuthorityRefreshesResourceUi(): void {
+  const appSource = readFileSync('src/app/App.ts', 'utf8');
+  assert.match(
+    appSource,
+    /function resourceUiNeedsSync[\s\S]*current\.physicalFoundingSiteEnabled !== previous\.physicalFoundingSiteEnabled[\s\S]*current\.legacyUnhousedPopulationBonusEnabled !== previous\.legacyUnhousedPopulationBonusEnabled[\s\S]*current\.stockpile !== previous\.stockpile[\s\S]*current\.settlements !== previous\.settlements/,
+    'settlement population authority changes must refresh the inspector labor pool as well as the top HUD',
+  );
+}
 
 function testIssuedGuardPolearmAggregationReuse(): void {
   const agents = [

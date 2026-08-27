@@ -11,7 +11,6 @@ export type DeliveryTripPhase = (typeof DELIVERY_TRIP_PHASES)[number];
 export const DELIVERY_CARGO_KINDS = [
   'firewood',
   'water',
-  'food',
   'timber',
   'ale',
   'cider',
@@ -311,8 +310,6 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'firewood';
     case 1:
       return 'water';
-    case 2:
-      return 'food';
     case 3:
       return 'timber';
     case 4:
@@ -486,8 +483,6 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
       return 'Firewood';
     case 'water':
       return 'Water';
-    case 'food':
-      return 'Mixed provisions (legacy)';
     case 'timber':
       return 'Timber';
     case 'ryeSheaves':
@@ -970,8 +965,6 @@ export function cargoKindLabelForTrip(trip: DeliveryTripState): string {
       return 'Imported iron bars';
     case 'salt':
       return 'Adriatic salt';
-    case 'food':
-      return 'Imported provisions';
     case 'water':
       return 'Imported water';
     default:
@@ -989,7 +982,6 @@ export function cargoColor(kind: DeliveryCargoKind): number {
       return 0xc46a2e;
     case 'water':
       return 0x3f8fd6;
-    case 'food':
     case 'ryeBread':
     case 'maslinBread':
     case 'meat':

@@ -12,7 +12,6 @@ use crate::tables::{Building, Residence};
 pub enum CommodityKind {
     Firewood,
     Water,
-    Food,
     Timber,
     Ale,
     PreservedFood,
@@ -84,10 +83,9 @@ pub enum CommodityKind {
 /// Canonical exhaustive commodity iteration order. Systems that must prove a
 /// physical holder is empty (temporary camps, reclamation piles, diagnostics)
 /// use this list so adding a commodity cannot silently strand stock.
-pub const ALL_COMMODITIES: &[CommodityKind; 69] = &[
+pub const ALL_COMMODITIES: &[CommodityKind; 68] = &[
     CommodityKind::Firewood,
     CommodityKind::Water,
-    CommodityKind::Food,
     CommodityKind::Timber,
     CommodityKind::Ale,
     CommodityKind::PreservedFood,
@@ -156,8 +154,7 @@ pub const ALL_COMMODITIES: &[CommodityKind; 69] = &[
     CommodityKind::Linen,
 ];
 
-pub const FRESH_FOOD_COMMODITIES: [CommodityKind; 20] = [
-    CommodityKind::Food,
+pub const FRESH_FOOD_COMMODITIES: [CommodityKind; 19] = [
     CommodityKind::OatGrain,
     CommodityKind::RyeBread,
     CommodityKind::MaslinBread,
@@ -188,15 +185,13 @@ pub const PRESERVED_FOOD_COMMODITIES: [CommodityKind; 6] = [
     CommodityKind::RosehipJam,
 ];
 
-pub const PRESERVABLE_FOOD_COMMODITIES: [CommodityKind; 4] = [
-    CommodityKind::Food,
+pub const PRESERVABLE_FOOD_COMMODITIES: [CommodityKind; 3] = [
     CommodityKind::Meat,
     CommodityKind::Fish,
     CommodityKind::Milk,
 ];
 
-pub const EDIBLE_COMMODITIES: [CommodityKind; 27] = [
-    CommodityKind::Food,
+pub const EDIBLE_COMMODITIES: [CommodityKind; 26] = [
     CommodityKind::OatGrain,
     CommodityKind::RyeBread,
     CommodityKind::MaslinBread,
@@ -228,7 +223,7 @@ pub const EDIBLE_COMMODITIES: [CommodityKind; 27] = [
 /// Consume the shortest-lived foods first so mixed pantries and institutions
 /// naturally preserve durable reserves. Combined food buckets remain available
 /// for producers whose output is intentionally not crop-specific.
-pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 27] = [
+pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 26] = [
     CommodityKind::Meat,
     CommodityKind::Fish,
     CommodityKind::Milk,
@@ -248,7 +243,6 @@ pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 27] = [
     CommodityKind::RyeBread,
     CommodityKind::MaslinBread,
     CommodityKind::OatGrain,
-    CommodityKind::Food,
     CommodityKind::Cheese,
     CommodityKind::SmokedFish,
     CommodityKind::CuredMeat,
@@ -293,8 +287,7 @@ impl FoodCategory {
 
 pub fn food_category(kind: CommodityKind) -> Option<FoodCategory> {
     match kind {
-        CommodityKind::Food
-        | CommodityKind::OatGrain
+        CommodityKind::OatGrain
         | CommodityKind::RyeBread
         | CommodityKind::MaslinBread
         | CommodityKind::PreservedFood => Some(FoodCategory::Grains),
@@ -327,7 +320,6 @@ impl CommodityKind {
         match self {
             Self::Firewood => 0,
             Self::Water => 1,
-            Self::Food => 2,
             Self::Timber => 3,
             Self::Ale => 6,
             Self::PreservedFood => 7,
@@ -401,7 +393,6 @@ impl CommodityKind {
         match value {
             0 => Some(Self::Firewood),
             1 => Some(Self::Water),
-            2 => Some(Self::Food),
             3 => Some(Self::Timber),
             6 => Some(Self::Ale),
             7 => Some(Self::PreservedFood),
@@ -512,8 +503,7 @@ impl CommodityKind {
     /// oats: one whole oat unit remains edible but supplies only half a meal.
     pub fn meal_value(self) -> f64 {
         match self {
-            Self::Food
-            | Self::PreservedFood
+            Self::PreservedFood
             | Self::Honey
             | Self::Meat
             | Self::Fish
@@ -560,7 +550,7 @@ impl CommodityKind {
             Self::Milk => 2.4,
             Self::Apples => 0.75,
             Self::Pears => 0.8,
-            Self::Cherries | Self::Vegetables | Self::Food | Self::Cheese => 1.0,
+            Self::Cherries | Self::Vegetables | Self::Cheese => 1.0,
             Self::Cabbage => 0.8,
             Self::Carrots => 0.7,
             Self::Beetroot => 0.75,
@@ -577,7 +567,6 @@ impl CommodityKind {
 
     pub fn preservation_output(self) -> Option<Self> {
         match self {
-            Self::Food => Some(Self::PreservedFood),
             Self::Meat => Some(Self::CuredMeat),
             Self::Fish => Some(Self::SmokedFish),
             Self::Milk => Some(Self::Cheese),
@@ -590,7 +579,6 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
     match kind {
         CommodityKind::Firewood => building.firewood,
         CommodityKind::Water => building.water,
-        CommodityKind::Food => building.food,
         CommodityKind::Timber => building.timber,
         CommodityKind::Ale => building.ale,
         CommodityKind::Cider => building.cider,
@@ -672,7 +660,6 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
     match commodity {
         CommodityKind::Firewood => def.storage_firewood,
         CommodityKind::Water => def.storage_water,
-        CommodityKind::Food => def.storage_food,
         CommodityKind::Timber => def.storage_timber,
         CommodityKind::Ale => def.storage_ale,
         CommodityKind::Cider => def.storage_cider,
@@ -883,7 +870,6 @@ pub fn withdraw_building_commodity(
     match kind {
         CommodityKind::Firewood => building.firewood -= withdrawn,
         CommodityKind::Water => building.water -= withdrawn,
-        CommodityKind::Food => building.food -= withdrawn,
         CommodityKind::Timber => building.timber -= withdrawn,
         CommodityKind::Ale => building.ale -= withdrawn,
         CommodityKind::Cider => building.cider -= withdrawn,
@@ -963,7 +949,6 @@ pub fn deposit_building_commodity(
     match kind {
         CommodityKind::Firewood => building.firewood += deposited,
         CommodityKind::Water => building.water += deposited,
-        CommodityKind::Food => building.food += deposited,
         CommodityKind::Timber => building.timber += deposited,
         CommodityKind::Ale => building.ale += deposited,
         CommodityKind::Cider => building.cider += deposited,
@@ -1054,7 +1039,6 @@ pub fn credit_treasury_commodity(
     match kind {
         CommodityKind::Firewood => treasury.firewood += amount,
         CommodityKind::Water => treasury.water += amount,
-        CommodityKind::Food => treasury.food += amount,
         CommodityKind::Timber => treasury.timber += amount,
         CommodityKind::Ale => treasury.ale += amount,
         CommodityKind::Cider => treasury.cider += amount,
@@ -1137,7 +1121,6 @@ pub fn credit_treasury_commodity(
 
 pub fn residence_commodity_stock(residence: &Residence, kind: CommodityKind) -> f64 {
     match kind {
-        CommodityKind::Food => residence.food,
         CommodityKind::PreservedFood => residence.preserved_food,
         CommodityKind::Honey => residence.honey,
         CommodityKind::OatGrain => residence.oat_grain,
@@ -1281,7 +1264,6 @@ pub fn building_food_progression_met(building: &Building, population: u32, tier:
     let categories = building_food_category_mask(building, population);
     let qualifying_stock = food_category_qualifying_stock(population);
     let grain_stock = [
-        CommodityKind::Food,
         CommodityKind::OatGrain,
         CommodityKind::RyeBread,
         CommodityKind::MaslinBread,
@@ -1352,7 +1334,6 @@ pub fn food_commodity_advances_residence_progression(
 fn residence_grain_food_ready(residence: &Residence) -> bool {
     let qualifying_stock = food_category_qualifying_stock(residence.population);
     let grain_stock = [
-        CommodityKind::Food,
         CommodityKind::OatGrain,
         CommodityKind::RyeBread,
         CommodityKind::MaslinBread,
@@ -1366,8 +1347,7 @@ fn residence_grain_food_ready(residence: &Residence) -> bool {
 fn is_grain_food(commodity: CommodityKind) -> bool {
     matches!(
         commodity,
-        CommodityKind::Food
-            | CommodityKind::OatGrain
+        CommodityKind::OatGrain
             | CommodityKind::RyeBread
             | CommodityKind::MaslinBread
     )
@@ -1380,7 +1360,6 @@ pub fn withdraw_residence_commodity(
 ) -> f64 {
     let withdrawn = whole_transfer(residence_commodity_stock(residence, kind), amount);
     match kind {
-        CommodityKind::Food => residence.food -= withdrawn,
         CommodityKind::PreservedFood => residence.preserved_food -= withdrawn,
         CommodityKind::Honey => residence.honey -= withdrawn,
         CommodityKind::OatGrain => residence.oat_grain -= withdrawn,
@@ -1428,7 +1407,6 @@ pub fn deposit_residence_commodity(
     };
     let deposited = whole_units(room / kind.meal_value().max(1e-9)).min(whole_units(amount));
     match kind {
-        CommodityKind::Food => residence.food += deposited,
         CommodityKind::PreservedFood => residence.preserved_food += deposited,
         CommodityKind::Honey => residence.honey += deposited,
         CommodityKind::OatGrain => residence.oat_grain += deposited,

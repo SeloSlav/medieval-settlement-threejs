@@ -1300,7 +1300,7 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
     }
     match processor_output_kind(kind)? {
         ProcessorOutputKind::Flour => Some(CommodityKind::RyeFlour),
-        ProcessorOutputKind::Food => Some(CommodityKind::Food),
+        ProcessorOutputKind::Food => Some(CommodityKind::RyeBread),
         ProcessorOutputKind::Ale => Some(CommodityKind::Ale),
         ProcessorOutputKind::PreservedFood => Some(CommodityKind::PreservedFood),
         ProcessorOutputKind::TextileIntermediate => Some(CommodityKind::Yarn),
@@ -1373,7 +1373,9 @@ fn processor_input_commodity(kind: ProcessorInputKind) -> CommodityKind {
         ProcessorInputKind::Water => CommodityKind::Water,
         ProcessorInputKind::Firewood => CommodityKind::Firewood,
         ProcessorInputKind::Barley => CommodityKind::Barley,
-        ProcessorInputKind::Food => CommodityKind::Food,
+        // Fresh food is an input group rather than a physical commodity. Meat
+        // is the sentinel used by the smokehouse-only group checks below.
+        ProcessorInputKind::Food => CommodityKind::Meat,
         ProcessorInputKind::Salt => CommodityKind::Salt,
         ProcessorInputKind::Pottery => CommodityKind::Pottery,
         ProcessorInputKind::Wool => CommodityKind::Wool,
@@ -1412,7 +1414,7 @@ fn processor_recipe_availability(
         apples: available(CommodityKind::Apples),
         pears: available(CommodityKind::Pears),
         honey: available(CommodityKind::Honey),
-        food: available(CommodityKind::Food),
+        food: crate::economy::building_preservable_food_stock(building),
         meat: available(CommodityKind::Meat),
         fish: available(CommodityKind::Fish),
         milk: available(CommodityKind::Milk),
@@ -1454,7 +1456,7 @@ fn processor_stall_and_recovery(ctx: &ReducerContext, building: &Building) -> (b
         .map(processor_input_commodity)
         .filter(|commodity| {
             let stock_missing =
-                if building.kind == "smokehouse" && *commodity == CommodityKind::Food {
+                if building.kind == "smokehouse" && *commodity == CommodityKind::Meat {
                     crate::economy::building_preservable_food_stock(building) <= 1e-6
                 } else {
                     building_commodity_stock(building, *commodity) <= 1e-6
@@ -1469,9 +1471,8 @@ fn processor_stall_and_recovery(ctx: &ReducerContext, building: &Building) -> (b
         return (false, false);
     }
     let every_missing_input_en_route = missing_inputs.iter().all(|commodity| {
-        if building.kind == "smokehouse" && *commodity == CommodityKind::Food {
+        if building.kind == "smokehouse" && *commodity == CommodityKind::Meat {
             [
-                CommodityKind::Food,
                 CommodityKind::Meat,
                 CommodityKind::Fish,
                 CommodityKind::Milk,

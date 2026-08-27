@@ -45,14 +45,14 @@
 .settlement-map-icons {
   position: absolute;
   inset: 0;
-  z-index: 4;
+  z-index: 1;
   pointer-events: none;
   transition: opacity 0.18s ease;
 }
 
 .settlement-map-icon {
   position: fixed;
-  z-index: 4;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 7px;

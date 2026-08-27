@@ -71,6 +71,11 @@ const showClearedFoundingStockyard = lineupParams.get('mode') === 'cleared-stock
 const requestedKind = showClearedFoundingStockyard
   ? 'founders_camp'
   : lineupParams.get('kind');
+const requestedConstructionKind = lineupParams.get('construction');
+const constructionKind = requestedConstructionKind
+  && BUILDING_KINDS.includes(requestedConstructionKind as (typeof BUILDING_KINDS)[number])
+  ? requestedConstructionKind as (typeof BUILDING_KINDS)[number]
+  : null;
 const showStockedState = lineupParams.get('stocked') === '1'
   || showClearedFoundingStockyard;
 const showCampSeating = lineupParams.get('seating') === '1';
@@ -180,10 +185,12 @@ const COLS = compareServiceCoverage
     ? 3
   : compareResidences
     ? 4
+    : constructionKind
+      ? 1
     : selectedKinds.length === 1
       ? 1
       : 9;
-const ROWS = comparisonMode || selectedKinds.length === 1
+const ROWS = comparisonMode || constructionKind || selectedKinds.length === 1
   ? 1
   : Math.ceil((selectedKinds.length + 1) / COLS);
 const root = document.querySelector<HTMLElement>('#lineup-root');
@@ -225,7 +232,12 @@ renderer.toneMapping = presentationMode === 'no-post'
 renderer.toneMappingExposure = presentationMode === 'no-post' ? 1 : 1.08;
 root.prepend(renderer.domElement);
 
-const viewSpecs = compareServiceCoverage
+const viewSpecs = constructionKind
+  ? [{
+      mesh: createConstructionSiteMesh(constructionKind, 0.55, 1, 1, 1, 1),
+      label: `${getBuildingDefinition(constructionKind).label} construction · 55%`,
+    }]
+  : compareServiceCoverage
   ? [
       {
         mesh: createServiceCoveragePreview('well'),

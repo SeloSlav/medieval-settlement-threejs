@@ -1,5 +1,5 @@
 import type { BuildingKind } from '../resources/types.ts';
-import { getBuildingDefinition } from '../resources/buildings.ts';
+import { getBuildingFootprintHalfExtents } from './BuildingTerrainLayout.ts';
 
 /**
  * Local X/Z envelope used by road-link markers. Bounds include the exact
@@ -64,17 +64,15 @@ export const BUILDING_LOCAL_VISUAL_BOUNDS = {
 } as const satisfies Record<BuildingKind, BuildingLocalVisualBounds>;
 
 /**
- * Maximum local envelope of the generic construction-site mesh for a kind.
+ * Maximum local envelope of the footprint-sized construction mesh for a kind.
  * The dimensions cover every construction stage and all delivered-material
  * piles, with the same safety margin and outward rounding as the completed
- * visual bounds above.
+ * visual bounds above. The camera-facing card icon has no X/Z extent.
  */
 export function getConstructionSiteLocalVisualBounds(
   kind: BuildingKind,
 ): BuildingLocalVisualBounds {
-  const pickRadius = getBuildingDefinition(kind).pickRadius;
-  const halfWidth = Math.min(8.8, Math.max(3.4, pickRadius * 0.62));
-  const halfDepth = Math.min(7.2, Math.max(2.8, pickRadius * 0.48));
+  const { halfWidth, halfDepth } = getBuildingFootprintHalfExtents(kind);
   return {
     minX: -halfWidth - 2.35,
     maxX: halfWidth + 2.46,

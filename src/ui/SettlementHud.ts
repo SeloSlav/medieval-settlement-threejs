@@ -536,20 +536,6 @@ const SETTLEMENT_HUD_HTML = `
           `).join('')}
           <div
             class="settlement-hud__stat settlement-hud__stat--store settlement-hud__food-card settlement-hud__food-card--legacy"
-            data-food-breakdown-row="legacyFood"
-            data-food-resource="legacyFood"
-            data-tooltip-title="Legacy mixed food"
-            data-tooltip="Compatibility stock from an older save."
-            hidden
-          >
-            <span class="settlement-hud__label">Legacy mixed food</span>
-            <strong class="settlement-hud__value" data-food-breakdown-stored="legacyFood">0</strong>
-            <span class="settlement-hud__sub settlement-hud__sub--transit" data-food-breakdown-transit="legacyFood" hidden></span>
-            <span data-food-breakdown-homes="legacyFood" hidden>0</span>
-            <span data-food-breakdown-surplus="legacyFood" hidden>0</span>
-          </div>
-          <div
-            class="settlement-hud__stat settlement-hud__stat--store settlement-hud__food-card settlement-hud__food-card--legacy"
             data-food-breakdown-row="legacyPreservedFood"
             data-food-resource="legacyPreservedFood"
             data-tooltip-title="Legacy preserved staples"

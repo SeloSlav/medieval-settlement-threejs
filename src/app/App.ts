@@ -1670,7 +1670,10 @@ function isShowcaseMode(): boolean {
 
 function resourceUiNeedsSync(current: GameState, previous: GameState | null): boolean {
   return !previous
+    || current.physicalFoundingSiteEnabled !== previous.physicalFoundingSiteEnabled
+    || current.legacyUnhousedPopulationBonusEnabled !== previous.legacyUnhousedPopulationBonusEnabled
     || current.stockpile !== previous.stockpile
+    || current.settlements !== previous.settlements
     || current.quarries !== previous.quarries
     || current.foragingNodes !== previous.foragingNodes
     || current.trees !== previous.trees

@@ -925,7 +925,6 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
     match CommodityKind::from_u8(trip.cargo_kind) {
         Some(CommodityKind::Timber) => stores.timber = amount,
         Some(CommodityKind::Firewood) => stores.firewood = amount,
-        Some(CommodityKind::Food) => stores.food = amount,
         Some(CommodityKind::RyeBread) => stores.rye_bread = amount,
         Some(CommodityKind::MaslinBread) => stores.maslin_bread = amount,
         Some(CommodityKind::Meat) => stores.meat = amount,
@@ -1000,7 +999,6 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
     match CommodityKind::from_u8(cargo_kind) {
         Some(CommodityKind::Timber) => stores.timber,
         Some(CommodityKind::Firewood) => stores.firewood,
-        Some(CommodityKind::Food) => stores.food,
         Some(CommodityKind::RyeBread) => stores.rye_bread,
         Some(CommodityKind::MaslinBread) => stores.maslin_bread,
         Some(CommodityKind::Meat) => stores.meat,

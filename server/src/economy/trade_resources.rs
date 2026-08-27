@@ -8,7 +8,6 @@ pub fn trade_resource_for_commodity(commodity: CommodityKind) -> Option<TradeRes
         CommodityKind::Stone => TradeResource::Stone,
         CommodityKind::Firewood => TradeResource::Firewood,
         CommodityKind::Water => TradeResource::Water,
-        CommodityKind::Food => TradeResource::Food,
         CommodityKind::RyeSheaves => TradeResource::RyeSheaves,
         CommodityKind::OatSheaves => TradeResource::OatSheaves,
         CommodityKind::BarleySheaves => TradeResource::BarleySheaves,

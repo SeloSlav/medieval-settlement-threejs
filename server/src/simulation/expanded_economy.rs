@@ -450,7 +450,7 @@ fn institutional_food_target_plan(
         }
         "granary" if storage_accepts_commodity(target, commodity) => {
             let desired_stock = granary_fresh_food_target(
-                building_commodity_cap(&target.kind, CommodityKind::Food),
+                building_commodity_cap(&target.kind, commodity),
                 target.granary_fresh_food_target_percent,
             );
             let stock = building_fresh_food_stock(target);
@@ -993,7 +993,6 @@ pub fn step_marketplace_material_dispatch(
             CommodityKind::MaslinFlour,
             CommodityKind::Barley,
             CommodityKind::Malt,
-            CommodityKind::Food,
             CommodityKind::Meat,
             CommodityKind::Fish,
             CommodityKind::Milk,
@@ -1171,7 +1170,7 @@ pub fn step_marketplace_material_dispatch(
 
 fn marketplace_material_commodity_rank(commodity: CommodityKind) -> u8 {
     match commodity {
-        CommodityKind::Food | CommodityKind::Meat | CommodityKind::Fish | CommodityKind::Milk => 0,
+        CommodityKind::Meat | CommodityKind::Fish | CommodityKind::Milk => 0,
         CommodityKind::RyeGrain
         | CommodityKind::OatGrain
         | CommodityKind::MaslinGrain
@@ -1937,7 +1936,6 @@ pub fn step_granary(
                     CommodityKind::Eggs,
                     CommodityKind::RyeBread,
                     CommodityKind::MaslinBread,
-                    CommodityKind::Food,
                     CommodityKind::Cheese,
                     CommodityKind::SmokedFish,
                     CommodityKind::CuredMeat,
@@ -1977,7 +1975,6 @@ pub fn step_granary(
                     CommodityKind::Meat,
                     CommodityKind::Fish,
                     CommodityKind::Milk,
-                    CommodityKind::Food,
                 ] {
                     dispatch_to_building(
                         ctx,
@@ -3038,7 +3035,6 @@ pub fn step_smokehouse(
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
-        CommodityKind::Food,
     ]
     .into_iter()
     .find(|commodity| {
@@ -4332,7 +4328,7 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
     }
     match processor_output_kind(kind)? {
         ProcessorOutputKind::Flour => Some(CommodityKind::RyeFlour),
-        ProcessorOutputKind::Food => Some(CommodityKind::Food),
+        ProcessorOutputKind::Food => Some(CommodityKind::RyeBread),
         ProcessorOutputKind::Ale => Some(CommodityKind::Ale),
         ProcessorOutputKind::PreservedFood => Some(CommodityKind::PreservedFood),
         ProcessorOutputKind::TextileIntermediate => Some(CommodityKind::Yarn),
@@ -4446,8 +4442,7 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
         "smokehouse" => {
             matches!(
                 commodity,
-                CommodityKind::Food
-                    | CommodityKind::Meat
+                CommodityKind::Meat
                     | CommodityKind::Fish
                     | CommodityKind::Milk
                     | CommodityKind::Firewood
@@ -5065,8 +5060,8 @@ fn dispatch_to_building_where_limited(
         return;
     };
     let source_stock = building_commodity_stock(source, commodity);
-    let transferable = if commodity == CommodityKind::Food {
-        institutional_source_food_surplus(ctx, tick, source, source_stock)
+    let transferable = if commodity.is_edible() {
+        institutional_source_food_surplus(ctx, tick, source, commodity, source_stock)
     } else {
         source_stock
     }
@@ -5232,7 +5227,6 @@ fn directly_dispatched_commodity_name(commodity: CommodityKind) -> Option<&'stat
         CommodityKind::Malt => Some("malt"),
         CommodityKind::RyeFlour => Some("ryeFlour"),
         CommodityKind::MaslinFlour => Some("maslinFlour"),
-        CommodityKind::Food => Some("food"),
         CommodityKind::Meat => Some("meat"),
         CommodityKind::Fish => Some("fish"),
         CommodityKind::Milk => Some("milk"),
@@ -5372,6 +5366,7 @@ fn institutional_source_food_surplus(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     source: &Building,
+    commodity: CommodityKind,
     stock: f64,
 ) -> f64 {
     let claimed_households = tick.food_claim_count_for_supplier(ctx, source.owner, source.id);
@@ -5384,7 +5379,7 @@ fn institutional_source_food_surplus(
     let generic_surplus = institutional_food_surplus(
         dispatchable_stock,
         claimed_households,
-        building_commodity_cap(&source.kind, CommodityKind::Food),
+        building_commodity_cap(&source.kind, commodity),
     );
     let policy_surplus = match source.kind.as_str() {
         "apiary" => (source.honey - apiary_honey_reserve(source.apiary_harvest_policy)).max(0.0),

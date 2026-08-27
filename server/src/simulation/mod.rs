@@ -103,6 +103,7 @@ pub use production_labor_steward::{
     reconcile_target_production_labor_for_settlement, step_production_labor_stewards,
 };
 pub use raid_agents::{start_live_raid, step_live_raids, LiveRaidTarget};
+pub(crate) use reclamation::materialize_physical_resource_stock;
 pub use reclamation::{
     insert_reclamation_pile, materialize_all_physical_resource_ledgers,
     materialize_physical_construction_reservations, materialize_physical_resource_ledger,

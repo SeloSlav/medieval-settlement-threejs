@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import * as THREE from 'three';
+import { getBuildingFootprintHalfExtents } from '../src/buildings/BuildingTerrainLayout.ts';
 import {
   CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP,
   CARPENTER_CART_SERVICE_TARGET_TRIPS,
@@ -22,6 +23,7 @@ import {
 } from '../src/generated/gameBalance.ts';
 import { getBuildingDefinition } from '../src/resources/buildings.ts';
 import { getBuildingCost } from '../src/resources/buildingEconomy.ts';
+import { BUILDING_CARD_ART } from '../src/resources/buildingCardArt.ts';
 import {
   constructionVisualSignature,
   createConstructionSiteMesh,
@@ -238,6 +240,33 @@ assert.ok(
   mesh.children.some((child) => child.position.y > 2),
   'mid-stage site should contain raised timber framing',
 );
+assert.deepEqual(
+  mesh.userData.constructionFootprintHalfExtents,
+  getBuildingFootprintHalfExtents('village_storehouse'),
+  'construction framing must use the intended building footprint',
+);
+assert.deepEqual(mesh.userData.buildingCardIcon, {
+  kind: 'village_storehouse',
+  image: BUILDING_CARD_ART.village_storehouse,
+});
+assert.ok(
+  mesh.getObjectByName('Construction intended building card icon'),
+  'every construction site should identify the intended building with its card art',
+);
+
+for (const kind of ['well', 'wayside_shrine'] as const) {
+  const compactSite = createConstructionSiteMesh(kind, 0.55, 1, 1);
+  const footprint = getBuildingFootprintHalfExtents(kind);
+  assert.deepEqual(compactSite.userData.constructionFootprintHalfExtents, footprint);
+  assert.ok(
+    footprint.halfWidth < 2 && footprint.halfDepth < 2,
+    `${kind} construction should retain its compact authoritative footprint`,
+  );
+  assert.equal(
+    compactSite.getObjectByName('Construction intended building card icon')?.userData.cardArtUrl,
+    BUILDING_CARD_ART[kind],
+  );
+}
 
 const framedSite = createConstructionSiteMesh('village_storehouse', 0.75, 1, 1);
 const roofRafters = framedSite.children.filter(
@@ -486,6 +515,7 @@ assert.match(
 );
 
 const constructionInspector = read('src/resources/inspector/constructionRenderer.ts');
+const resourceInspector = read('src/resources/ResourceInspector.ts');
 assert.doesNotMatch(constructionInspector, /Waiting for a staffed material source/);
 assert.match(constructionInspector, /Unassigned hauler bringing/);
 assert.match(constructionInspector, /Site builder bringing/);
@@ -495,6 +525,16 @@ assert.match(constructionInspector, /No usable haul route to/);
 assert.match(constructionInspector, /Material source/);
 assert.match(constructionInspector, /routeDistance/);
 assert.match(constructionInspector, /Raid shelter/);
+assert.match(
+  constructionInspector,
+  /data-construction-summary><span>Stone hauled<\/span>/,
+  'construction material totals must be marked for the compact building card',
+);
+assert.match(
+  resourceInspector,
+  /row\.hasAttribute\('data-construction-summary'\)/,
+  'the compact building card must keep construction material totals visible',
+);
 assert.doesNotMatch(
   constructionInspector,
   /countActiveFreeConstructionHaulers/,
@@ -1106,6 +1146,7 @@ const constructionContext = (
       total: 9,
       assigned: 4,
       cartAssigned: 0,
+      idle: available,
       available,
       housingCapacity: 4,
       housed: 4,
@@ -1181,7 +1222,7 @@ assert.equal(
   'Unassigned worker fetching 5 ironwork from Forest bloomery & smithy',
   'a staffed producer keeps producing while a free settlement hauler moves its fittings',
 );
-assert.match(fittingsInspector.detailsHtml, /Ironwork fittings delivered/);
+assert.match(fittingsInspector.detailsHtml, /Ironwork hauled/);
 assert.match(fittingsInspector.detailsHtml, /1 \/ 6/);
 
 assert.equal(
@@ -1303,11 +1344,11 @@ assert.equal(
 );
 assert.match(
   routeAwareView.detailsHtml,
-  /data-inspector-primary><span>Timber delivered<\/span>/,
+  /data-inspector-primary data-construction-summary><span>Timber hauled<\/span>/,
 );
 assert.match(
   routeAwareView.detailsHtml,
-  /data-inspector-primary><span>Stone delivered<\/span>/,
+  /data-inspector-primary data-construction-summary><span>Stone hauled<\/span>/,
 );
 assert.match(routeAwareView.supplementalPanelHtml ?? '', /data-construction-priority="3"/);
 assert.match(routeAwareView.supplementalPanelHtml ?? '', /urgent sites claim available carts/);

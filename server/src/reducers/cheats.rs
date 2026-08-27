@@ -1,8 +1,10 @@
 use spacetimedb::{reducer, ReducerContext};
 
 use crate::db::*;
+use crate::economy::{building_commodity_stock, CommodityKind, ALL_COMMODITIES};
 use crate::lifecycle::ensure_player_resources;
-use crate::simulation::{materialize_physical_resource_ledger, ReclamationStock};
+use crate::simulation::{materialize_physical_resource_stock, ReclamationStock};
+use crate::tables::PlayerResources;
 
 const MAX_CHEAT_RESOURCE_AMOUNT: f64 = 1_000_000_000.0;
 
@@ -13,62 +15,127 @@ fn validated_cheat_amount(amount: f64) -> Result<f64, String> {
     Ok(amount.min(MAX_CHEAT_RESOURCE_AMOUNT).floor())
 }
 
-fn top_up_ledger(existing: f64, on_map: f64, target: f64) -> f64 {
-    existing.max((target - on_map.max(0.0)).max(0.0))
+fn missing_balance(in_ledger: f64, on_map: f64, target: f64) -> f64 {
+    (target - in_ledger.max(0.0) - on_map.max(0.0)).max(0.0)
 }
 
 fn physical_resource_stock(ctx: &ReducerContext, owner: spacetimedb::Identity) -> ReclamationStock {
     let mut stock = ReclamationStock::default();
     for building in ctx.db.building().owner().filter(&owner) {
-        stock.timber += building.timber.max(0.0);
-        stock.firewood += building.firewood.max(0.0);
-        stock.stone += building.stone.max(0.0);
-        stock.water += building.water.max(0.0);
-        stock.food += building.food.max(0.0);
-        stock.ale += building.ale.max(0.0);
-        stock.preserved_food += building.preserved_food.max(0.0);
-        stock.honey += building.honey.max(0.0);
-        stock.wine += building.wine.max(0.0);
-        stock.ironwork += building.ironwork.max(0.0);
-        stock.polearms += building.polearms.max(0.0);
-        stock.wool += building.wool.max(0.0);
-        stock.flax += building.flax.max(0.0);
-        stock.yarn += building.yarn.max(0.0);
-        stock.linen += building.linen.max(0.0);
-        stock.cloth += building.cloth.max(0.0);
-        stock.pelts += building.pelts.max(0.0);
-        stock.meat += building.meat.max(0.0);
-        stock.fish += building.fish.max(0.0);
-        stock.berries += building.berries.max(0.0);
-        stock.mushrooms += building.mushrooms.max(0.0);
-        stock.milk += building.milk.max(0.0);
-        stock.apples += building.apples.max(0.0);
-        stock.cherries += building.cherries.max(0.0);
-        stock.vegetables += building.vegetables.max(0.0);
-        stock.eggs += building.eggs.max(0.0);
-        stock.grapes += building.grapes.max(0.0);
-        stock.cured_meat += building.cured_meat.max(0.0);
-        stock.smoked_fish += building.smoked_fish.max(0.0);
-        stock.cheese += building.cheese.max(0.0);
-        stock.rye_sheaves += building.rye_sheaves.max(0.0);
-        stock.oat_sheaves += building.oat_sheaves.max(0.0);
-        stock.barley_sheaves += building.barley_sheaves.max(0.0);
-        stock.maslin_sheaves += building.maslin_sheaves.max(0.0);
-        stock.rye_grain += building.rye_grain.max(0.0);
-        stock.oat_grain += building.oat_grain.max(0.0);
-        stock.maslin_grain += building.maslin_grain.max(0.0);
-        stock.rye_flour += building.rye_flour.max(0.0);
-        stock.maslin_flour += building.maslin_flour.max(0.0);
-        stock.rye_bread += building.rye_bread.max(0.0);
-        stock.maslin_bread += building.maslin_bread.max(0.0);
-        if matches!(
-            building.kind.as_str(),
-            "founders_camp" | "salvage_pile" | "town_hall"
-        ) {
-            stock.gold += building.gold.max(0.0);
+        for commodity in ALL_COMMODITIES.iter().copied() {
+            let amount = if commodity == CommodityKind::Gold
+                && !matches!(
+                    building.kind.as_str(),
+                    "founders_camp" | "salvage_pile" | "town_hall"
+                ) {
+                0.0
+            } else {
+                building_commodity_stock(&building, commodity).max(0.0)
+            };
+            stock = stock.merged(ReclamationStock::from_commodity(commodity, amount));
         }
     }
     stock
+}
+
+fn cheat_top_up_stock(
+    in_ledger: ReclamationStock,
+    on_map: ReclamationStock,
+    target: f64,
+) -> ReclamationStock {
+    ALL_COMMODITIES
+        .iter()
+        .copied()
+        .fold(ReclamationStock::default(), |stock, commodity| {
+            stock.merged(ReclamationStock::from_commodity(
+                commodity,
+                missing_balance(
+                    in_ledger.amount(commodity),
+                    on_map.amount(commodity),
+                    target,
+                ),
+            ))
+        })
+}
+
+/// Legacy abstract-resource saves do not have physical holders for manure,
+/// remedies, or prepared feed. Every other canonical commodity still has a
+/// treasury slot, and this exhaustive match makes a new enum variant a compile
+/// error here until the cheat path deliberately handles it.
+fn resource_ledger_slot(
+    resources: &mut PlayerResources,
+    commodity: CommodityKind,
+) -> Option<&mut f64> {
+    match commodity {
+        CommodityKind::Firewood => Some(&mut resources.firewood),
+        CommodityKind::Water => Some(&mut resources.water),
+        CommodityKind::Timber => Some(&mut resources.timber),
+        CommodityKind::Ale => Some(&mut resources.ale),
+        CommodityKind::PreservedFood => Some(&mut resources.preserved_food),
+        CommodityKind::Honey => Some(&mut resources.honey),
+        CommodityKind::Wine => Some(&mut resources.wine),
+        CommodityKind::Stone => Some(&mut resources.stone),
+        CommodityKind::Ironwork => Some(&mut resources.ironwork),
+        CommodityKind::Polearms => Some(&mut resources.polearms),
+        CommodityKind::Wool => Some(&mut resources.wool),
+        CommodityKind::Cloth => Some(&mut resources.cloth),
+        CommodityKind::Gold => Some(&mut resources.gold),
+        CommodityKind::Barley => Some(&mut resources.barley),
+        CommodityKind::Malt => Some(&mut resources.malt),
+        CommodityKind::Flax => Some(&mut resources.flax),
+        CommodityKind::Iron => Some(&mut resources.iron),
+        CommodityKind::Clay => Some(&mut resources.clay),
+        CommodityKind::Salt => Some(&mut resources.salt),
+        CommodityKind::Charcoal => Some(&mut resources.charcoal),
+        CommodityKind::Pottery => Some(&mut resources.pottery),
+        CommodityKind::Manure => None,
+        CommodityKind::Remedies => None,
+        CommodityKind::RoofTiles => Some(&mut resources.roof_tiles),
+        CommodityKind::Meat => Some(&mut resources.meat),
+        CommodityKind::Fish => Some(&mut resources.fish),
+        CommodityKind::Berries => Some(&mut resources.berries),
+        CommodityKind::Mushrooms => Some(&mut resources.mushrooms),
+        CommodityKind::Milk => Some(&mut resources.milk),
+        CommodityKind::Apples => Some(&mut resources.apples),
+        CommodityKind::Cherries => Some(&mut resources.cherries),
+        CommodityKind::Vegetables => Some(&mut resources.vegetables),
+        CommodityKind::Eggs => Some(&mut resources.eggs),
+        CommodityKind::Grapes => Some(&mut resources.grapes),
+        CommodityKind::CuredMeat => Some(&mut resources.cured_meat),
+        CommodityKind::SmokedFish => Some(&mut resources.smoked_fish),
+        CommodityKind::Cheese => Some(&mut resources.cheese),
+        CommodityKind::RyeSheaves => Some(&mut resources.rye_sheaves),
+        CommodityKind::OatSheaves => Some(&mut resources.oat_sheaves),
+        CommodityKind::BarleySheaves => Some(&mut resources.barley_sheaves),
+        CommodityKind::MaslinSheaves => Some(&mut resources.maslin_sheaves),
+        CommodityKind::RyeGrain => Some(&mut resources.rye_grain),
+        CommodityKind::OatGrain => Some(&mut resources.oat_grain),
+        CommodityKind::MaslinGrain => Some(&mut resources.maslin_grain),
+        CommodityKind::RyeFlour => Some(&mut resources.rye_flour),
+        CommodityKind::MaslinFlour => Some(&mut resources.maslin_flour),
+        CommodityKind::RyeBread => Some(&mut resources.rye_bread),
+        CommodityKind::MaslinBread => Some(&mut resources.maslin_bread),
+        CommodityKind::Cider => Some(&mut resources.cider),
+        CommodityKind::Mead => Some(&mut resources.mead),
+        CommodityKind::Hides => Some(&mut resources.hides),
+        CommodityKind::Leather => Some(&mut resources.leather),
+        CommodityKind::Shoes => Some(&mut resources.shoes),
+        CommodityKind::Pears => Some(&mut resources.pears),
+        CommodityKind::Aronia => Some(&mut resources.aronia),
+        CommodityKind::Rosehips => Some(&mut resources.rosehips),
+        CommodityKind::Cabbage => Some(&mut resources.cabbage),
+        CommodityKind::Carrots => Some(&mut resources.carrots),
+        CommodityKind::Beetroot => Some(&mut resources.beetroot),
+        CommodityKind::AroniaJam => Some(&mut resources.aronia_jam),
+        CommodityKind::RosehipJam => Some(&mut resources.rosehip_jam),
+        CommodityKind::PearCider => Some(&mut resources.pear_cider),
+        CommodityKind::AnimalFeed => None,
+        CommodityKind::Wax => Some(&mut resources.wax),
+        CommodityKind::Candles => Some(&mut resources.candles),
+        CommodityKind::Pelts => Some(&mut resources.pelts),
+        CommodityKind::Yarn => Some(&mut resources.yarn),
+        CommodityKind::Linen => Some(&mut resources.linen),
+    }
 }
 
 /// Tops every treasury resource up to the requested amount for sandbox building.
@@ -83,137 +150,23 @@ pub fn grant_cheat_resources(ctx: &ReducerContext, amount: f64) -> Result<(), St
         return Err("Player resources not found.".to_string());
     };
 
-    let physical = resources
-        .physical_founding_site_enabled
-        .then(|| physical_resource_stock(ctx, owner));
-    resources.timber = top_up_ledger(resources.timber, physical.map_or(0.0, |s| s.timber), amount);
-    resources.stone = top_up_ledger(resources.stone, physical.map_or(0.0, |s| s.stone), amount);
-    resources.firewood = top_up_ledger(
-        resources.firewood,
-        physical.map_or(0.0, |s| s.firewood),
-        amount,
-    );
-    resources.water = top_up_ledger(resources.water, physical.map_or(0.0, |s| s.water), amount);
-    resources.gold = top_up_ledger(resources.gold, physical.map_or(0.0, |s| s.gold), amount);
-    resources.food = top_up_ledger(resources.food, physical.map_or(0.0, |s| s.food), amount);
-    resources.ale = top_up_ledger(resources.ale, physical.map_or(0.0, |s| s.ale), amount);
-    resources.preserved_food = top_up_ledger(
-        resources.preserved_food,
-        physical.map_or(0.0, |s| s.preserved_food),
-        amount,
-    );
-    resources.honey = top_up_ledger(resources.honey, physical.map_or(0.0, |s| s.honey), amount);
-    resources.wine = top_up_ledger(resources.wine, physical.map_or(0.0, |s| s.wine), amount);
-    resources.ironwork = top_up_ledger(
-        resources.ironwork,
-        physical.map_or(0.0, |s| s.ironwork),
-        amount,
-    );
-    resources.polearms = top_up_ledger(
-        resources.polearms,
-        physical.map_or(0.0, |s| s.polearms),
-        amount,
-    );
-    resources.wool = top_up_ledger(resources.wool, physical.map_or(0.0, |s| s.wool), amount);
-    resources.flax = top_up_ledger(resources.flax, physical.map_or(0.0, |s| s.flax), amount);
-    resources.yarn = top_up_ledger(resources.yarn, physical.map_or(0.0, |s| s.yarn), amount);
-    resources.linen = top_up_ledger(resources.linen, physical.map_or(0.0, |s| s.linen), amount);
-    resources.cloth = top_up_ledger(resources.cloth, physical.map_or(0.0, |s| s.cloth), amount);
-    resources.pelts = top_up_ledger(resources.pelts, physical.map_or(0.0, |s| s.pelts), amount);
-    resources.meat = top_up_ledger(resources.meat, physical.map_or(0.0, |s| s.meat), amount);
-    resources.fish = top_up_ledger(resources.fish, physical.map_or(0.0, |s| s.fish), amount);
-    resources.berries = top_up_ledger(
-        resources.berries,
-        physical.map_or(0.0, |s| s.berries),
-        amount,
-    );
-    resources.mushrooms = top_up_ledger(
-        resources.mushrooms,
-        physical.map_or(0.0, |s| s.mushrooms),
-        amount,
-    );
-    resources.milk = top_up_ledger(resources.milk, physical.map_or(0.0, |s| s.milk), amount);
-    resources.apples = top_up_ledger(resources.apples, physical.map_or(0.0, |s| s.apples), amount);
-    resources.cherries = top_up_ledger(
-        resources.cherries,
-        physical.map_or(0.0, |s| s.cherries),
-        amount,
-    );
-    resources.vegetables = top_up_ledger(
-        resources.vegetables,
-        physical.map_or(0.0, |s| s.vegetables),
-        amount,
-    );
-    resources.eggs = top_up_ledger(resources.eggs, physical.map_or(0.0, |s| s.eggs), amount);
-    resources.grapes = top_up_ledger(resources.grapes, physical.map_or(0.0, |s| s.grapes), amount);
-    resources.cured_meat = top_up_ledger(
-        resources.cured_meat,
-        physical.map_or(0.0, |s| s.cured_meat),
-        amount,
-    );
-    resources.smoked_fish = top_up_ledger(
-        resources.smoked_fish,
-        physical.map_or(0.0, |s| s.smoked_fish),
-        amount,
-    );
-    resources.cheese = top_up_ledger(resources.cheese, physical.map_or(0.0, |s| s.cheese), amount);
-    resources.rye_sheaves = top_up_ledger(
-        resources.rye_sheaves,
-        physical.map_or(0.0, |s| s.rye_sheaves),
-        amount,
-    );
-    resources.oat_sheaves = top_up_ledger(
-        resources.oat_sheaves,
-        physical.map_or(0.0, |s| s.oat_sheaves),
-        amount,
-    );
-    resources.barley_sheaves = top_up_ledger(
-        resources.barley_sheaves,
-        physical.map_or(0.0, |s| s.barley_sheaves),
-        amount,
-    );
-    resources.maslin_sheaves = top_up_ledger(
-        resources.maslin_sheaves,
-        physical.map_or(0.0, |s| s.maslin_sheaves),
-        amount,
-    );
-    resources.rye_grain = top_up_ledger(
-        resources.rye_grain,
-        physical.map_or(0.0, |s| s.rye_grain),
-        amount,
-    );
-    resources.oat_grain = top_up_ledger(
-        resources.oat_grain,
-        physical.map_or(0.0, |s| s.oat_grain),
-        amount,
-    );
-    resources.maslin_grain = top_up_ledger(
-        resources.maslin_grain,
-        physical.map_or(0.0, |s| s.maslin_grain),
-        amount,
-    );
-    resources.rye_flour = top_up_ledger(
-        resources.rye_flour,
-        physical.map_or(0.0, |s| s.rye_flour),
-        amount,
-    );
-    resources.maslin_flour = top_up_ledger(
-        resources.maslin_flour,
-        physical.map_or(0.0, |s| s.maslin_flour),
-        amount,
-    );
-    resources.rye_bread = top_up_ledger(
-        resources.rye_bread,
-        physical.map_or(0.0, |s| s.rye_bread),
-        amount,
-    );
-    resources.maslin_bread = top_up_ledger(
-        resources.maslin_bread,
-        physical.map_or(0.0, |s| s.maslin_bread),
-        amount,
-    );
-    ctx.db.player_resources().owner().update(resources);
-    materialize_physical_resource_ledger(ctx, owner)?;
+    if resources.physical_founding_site_enabled {
+        let additional_stock = cheat_top_up_stock(
+            ReclamationStock::from_resource_ledger(&resources),
+            physical_resource_stock(ctx, owner),
+            amount,
+        );
+        if !materialize_physical_resource_stock(ctx, owner, additional_stock)? {
+            return Err("Could not place cheat resources in physical storage.".to_string());
+        }
+    } else {
+        for commodity in ALL_COMMODITIES.iter().copied() {
+            if let Some(slot) = resource_ledger_slot(&mut resources, commodity) {
+                *slot = (*slot).max(amount);
+            }
+        }
+        ctx.db.player_resources().owner().update(resources);
+    }
     Ok(())
 }
 
@@ -234,8 +187,25 @@ mod tests {
 
     #[test]
     fn physical_cheat_top_up_only_grants_the_missing_balance() {
-        assert_eq!(top_up_ledger(0.0, 70.0, 100.0), 30.0);
-        assert_eq!(top_up_ledger(0.0, 100.0, 100.0), 0.0);
-        assert_eq!(top_up_ledger(12.0, 100.0, 100.0), 12.0);
+        assert_eq!(missing_balance(0.0, 70.0, 100.0), 30.0);
+        assert_eq!(missing_balance(0.0, 100.0, 100.0), 0.0);
+        assert_eq!(missing_balance(12.0, 80.0, 100.0), 8.0);
+    }
+
+    #[test]
+    fn physical_cheat_top_up_includes_every_canonical_commodity() {
+        let target = 250.0;
+        let top_up = cheat_top_up_stock(
+            ReclamationStock::default(),
+            ReclamationStock::default(),
+            target,
+        );
+        for commodity in ALL_COMMODITIES.iter().copied() {
+            assert_eq!(
+                top_up.amount(commodity),
+                target,
+                "cheat top-up omitted {commodity:?}",
+            );
+        }
     }
 }

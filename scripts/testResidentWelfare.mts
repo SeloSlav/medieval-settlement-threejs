@@ -121,7 +121,12 @@ assert.doesNotMatch(residence, /data-residence-decay-repair/);
 assert.match(residence, /Herbal remedies/);
 assert.match(residence, /Recovering · food need currently met/);
 assert.match(residence, /accumulated shortage days/);
-assert.match(residence, /Starving · \$\{activeHungerDays\.toFixed\(1\)\}d elapsed/);
+assert.match(residence, /Starving · \$\{activeHungerDays\.toFixed\(0\)\}d elapsed/);
+assert.doesNotMatch(
+  residence,
+  /(?:activeHungerDays|hungerDays)\.toFixed\(1\)/,
+  'residence shortage-day readouts must use whole days',
+);
 assert.doesNotMatch(residence, /days without enough food/);
 const householdDistribution = read('server/src/simulation/household_distribution.rs');
 assert.match(

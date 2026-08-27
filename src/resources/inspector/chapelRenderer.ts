@@ -70,6 +70,7 @@ export function renderChapelInspector(
 ): InspectorView {
   const { building } = target;
   const cost = getBuildingCost(building.kind);
+  const claimedResidences = context.worldQueries.getClaimedResidencesForChapel(building);
   const suspendedByFire = fireForTarget(
     context.gameState.fireIncidents.values(),
     'building',
@@ -262,5 +263,9 @@ export function renderChapelInspector(
     },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: collectPanelHtml,
+    serviceCoverage: {
+      kind: 'chapel',
+      residenceIds: claimedResidences.map((residence) => residence.id),
+    },
   };
 }

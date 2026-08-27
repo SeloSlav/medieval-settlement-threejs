@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import type { BuildingKind } from '../generated/gameBalance.ts';
 import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import type { SceneManager } from '../scene/SceneManager.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
@@ -17,10 +16,9 @@ import {
 
 const FOOD_BREAKDOWN_ROW_KINDS = [
   ...FOOD_RESOURCE_KINDS,
-  'legacyFood',
   'legacyPreservedFood',
 ] as const;
-type FoodBreakdownRowKind = FoodResourceKind | 'legacyFood' | 'legacyPreservedFood';
+type FoodBreakdownRowKind = FoodResourceKind | 'legacyPreservedFood';
 type FoodBreakdownRowElements = {
   row: HTMLElement;
   stored: HTMLElement;
@@ -91,6 +89,7 @@ import {
 import { AlertDialog } from '../ui/AlertDialog.ts';
 import { hasCustomTreeWorkArea } from './treeWorkArea.ts';
 import { resourceNodeArtUrl } from './resourceNodeArt.ts';
+import { BUILDING_CARD_ART } from './buildingCardArt.ts';
 
 const INSPECTOR_TOOLTIP_MAX_LENGTH = 120;
 
@@ -1911,9 +1910,7 @@ export class ResourceInspector {
       const stocked = stored + transit > 1e-6;
       const namedFood = (FOOD_RESOURCE_KINDS as readonly string[]).includes(kind);
       const visible = namedFood || stocked;
-      const inventoryKind = (kind === 'legacyFood'
-        ? 'food'
-        : kind === 'legacyPreservedFood'
+      const inventoryKind = (kind === 'legacyPreservedFood'
           ? 'preservedFood'
           : kind) as FoodInventoryKind;
       elements.row.hidden = !visible;
@@ -2677,7 +2674,8 @@ export class ResourceInspector {
       const compactRows = ranked
         .filter(({ row }) =>
           row.hasAttribute('data-local-storage')
-          || row.hasAttribute('data-fire-safety'))
+          || row.hasAttribute('data-fire-safety')
+          || row.hasAttribute('data-construction-summary'))
         .map(({ row }) => row);
       this.detailList.replaceChildren(...withInspectorSectionHeadings(compactRows));
       return;
@@ -2892,53 +2890,6 @@ type InspectorPresentation = {
   image?: string;
 };
 
-const BUILDING_INSPECTOR_ART = {
-  founders_camp: '/assets/ui/build-menu/cards/founders-camp.webp',
-  salvage_pile: '/assets/ui/build-menu/cards/village-storehouse.webp',
-  lumber_mill: '/assets/ui/build-menu/cards/lumber-mill.webp',
-  reforester: '/assets/ui/build-menu/cards/reforester.webp',
-  woodcutters_lodge: '/assets/ui/build-menu/cards/woodcutters-lodge.webp',
-  stone_quarry: '/assets/ui/build-menu/cards/stonecutters-camp.webp',
-  large_quarry: '/assets/ui/build-menu/cards/large-quarry.webp',
-  mine: '/assets/ui/build-menu/cards/iron-mine.webp',
-  clay_pit: '/assets/ui/build-menu/cards/clay-pit.webp',
-  charcoal_burner: '/assets/ui/build-menu/cards/charcoal-burner.webp',
-  smithy: '/assets/ui/build-menu/cards/smithy-bloomery.webp',
-  potter_kiln: '/assets/ui/build-menu/cards/potter-kiln.webp',
-  well: '/assets/ui/build-menu/cards/water-well.webp',
-  stable: '/assets/ui/build-menu/cards/stable.webp',
-  hunters_hall: '/assets/ui/build-menu/cards/hunter-hall.webp',
-  foragers_shed: '/assets/ui/build-menu/cards/foragers-hut.webp',
-  fishing_camp: '/assets/ui/build-menu/cards/fishing-camp.webp',
-  chapel: '/assets/ui/build-menu/cards/chapel.webp',
-  wayside_shrine: '/assets/ui/build-menu/cards/wayside-shrine.webp',
-  marketplace: '/assets/ui/build-menu/cards/market.webp',
-  trading_post: '/assets/ui/build-menu/cards/trading-post.webp',
-  town_hall: '/assets/ui/build-menu/cards/town-hall.webp',
-  village_storehouse: '/assets/ui/build-menu/cards/village-storehouse.webp',
-  watchtower: '/assets/ui/build-menu/cards/watchtower.webp',
-  guardhouse: '/assets/ui/build-menu/cards/guardhouse.webp',
-  palisaded_refuge: '/assets/ui/build-menu/cards/palisaded-refuge.webp',
-  threshing_barn: '/assets/ui/build-menu/cards/threshing-barn.webp',
-  pastoral_farmstead: '/assets/ui/build-menu/cards/pastoral-farmstead.webp',
-  swineherd: '/assets/ui/build-menu/cards/swineherd.webp',
-  monastery: '/assets/ui/build-menu/cards/monastery.webp',
-  brewery: '/assets/ui/build-menu/cards/brewery.webp',
-  tavern: '/assets/ui/build-menu/cards/tavern.webp',
-  smokehouse: '/assets/ui/build-menu/cards/smokehouse.webp',
-  granary: '/assets/ui/build-menu/cards/granary.webp',
-  bakery: '/assets/ui/build-menu/cards/bakery.webp',
-  apiary: '/assets/ui/build-menu/cards/apiary.webp',
-  watermill: '/assets/ui/build-menu/cards/watermill.webp',
-  windmill: '/assets/ui/build-menu/cards/windmill.webp',
-  carpenter: '/assets/ui/build-menu/cards/carpenter.webp',
-  spinning_retting_house: '/assets/ui/build-menu/cards/spinning-retting-house.webp',
-  weaver: '/assets/ui/build-menu/cards/weaver.webp',
-  tannery: '/assets/ui/build-menu/cards/tannery.webp',
-  cobbler: '/assets/ui/build-menu/cards/cobbler.webp',
-  chandlery: '/assets/ui/build-menu/cards/chandlery.webp',
-} satisfies Record<BuildingKind, string>;
-
 function inspectableIdentity(target: InspectableTarget | null): string {
   if (!target) return '';
   switch (target.kind) {
@@ -2956,7 +2907,7 @@ function inspectableIdentity(target: InspectableTarget | null): string {
 
 export function inspectablePresentation(target: InspectableTarget): InspectorPresentation {
   if (target.kind === 'building') {
-    const image = BUILDING_INSPECTOR_ART[target.building.kind];
+    const image = BUILDING_CARD_ART[target.building.kind];
     const civic = target.building.kind === 'founders_camp'
       || target.building.kind === 'town_hall'
       || target.building.kind === 'chapel'

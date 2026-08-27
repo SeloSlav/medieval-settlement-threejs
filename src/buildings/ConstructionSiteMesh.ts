@@ -1,7 +1,8 @@
 import * as THREE from 'three';
-import { getBuildingDefinition } from '../resources/buildings.ts';
+import { BUILDING_CARD_ART } from '../resources/buildingCardArt.ts';
 import type { BuildingKind } from '../resources/types.ts';
 import { prepareBuildingGeometryUvs } from './buildingMetricUvs.ts';
+import { getBuildingFootprintHalfExtents } from './BuildingTerrainLayout.ts';
 import {
   metalMaterial,
   sharedBuildingDetailMaterial,
@@ -32,6 +33,8 @@ const IRON = CONSTRUCTION_SITE_MATERIALS.iron;
 const FIRED_CLAY = CONSTRUCTION_SITE_MATERIALS.firedClay;
 const ROOF_PLATE_Y = 4.25;
 const ROOF_RIDGE_Y = 5.45;
+const CONSTRUCTION_CARD_ICON_Y = ROOF_RIDGE_Y + 1.05;
+const constructionCardIconMaterials = new Map<BuildingKind, THREE.SpriteMaterial>();
 
 export function isSharedConstructionSiteMaterial(material: THREE.Material): boolean {
   return CONSTRUCTION_SITE_MATERIAL_SET.has(material);
@@ -99,9 +102,7 @@ export function createConstructionSiteMesh(
 ): THREE.Group {
   const root = new THREE.Group();
   root.name = 'Construction site';
-  const definition = getBuildingDefinition(kind);
-  const halfWidth = THREE.MathUtils.clamp(definition.pickRadius * 0.62, 3.4, 8.8);
-  const halfDepth = THREE.MathUtils.clamp(definition.pickRadius * 0.48, 2.8, 7.2);
+  const { halfWidth, halfDepth } = getBuildingFootprintHalfExtents(kind);
   const clampedProgress = THREE.MathUtils.clamp(progress, 0, 1);
   const stage = Math.min(4, Math.floor(clampedProgress * 5));
   const remainingTimberRatio = constructionMaterialPileRatio(clampedProgress, timberRatio);
@@ -112,6 +113,11 @@ export function createConstructionSiteMesh(
   root.userData.constructionVisualContract = 'construction-site-lifecycle-v1';
   root.userData.constructionProgress = clampedProgress;
   root.userData.constructionStage = stage;
+  root.userData.constructionFootprintHalfExtents = { halfWidth, halfDepth };
+  root.userData.buildingCardIcon = {
+    kind,
+    image: BUILDING_CARD_ART[kind],
+  };
   root.userData.constructionMaterialPileRatios = {
     timber: remainingTimberRatio,
     stone: remainingStoneRatio,
@@ -128,6 +134,7 @@ export function createConstructionSiteMesh(
   addStonePile(root, -halfWidth - 1.25, halfDepth * 0.42, remainingStoneRatio);
   addFittingsCrate(root, halfWidth + 1.15, halfDepth * 0.62, remainingIronworkRatio);
   addRoofTileStack(root, -halfWidth - 1.2, -halfDepth * 0.55, remainingRoofTilesRatio);
+  addBuildingCardIcon(root, kind, halfWidth, halfDepth);
 
   root.traverse((object) => {
     if (object instanceof THREE.Mesh) {
@@ -136,6 +143,55 @@ export function createConstructionSiteMesh(
     }
   });
   return root;
+}
+
+function addBuildingCardIcon(
+  root: THREE.Group,
+  kind: BuildingKind,
+  halfWidth: number,
+  halfDepth: number,
+): void {
+  const anchor = new THREE.Group();
+  anchor.name = 'Construction intended building card icon';
+  anchor.position.y = CONSTRUCTION_CARD_ICON_Y;
+  anchor.userData.buildingKind = kind;
+  anchor.userData.cardArtUrl = BUILDING_CARD_ART[kind];
+  root.add(anchor);
+
+  const material = constructionCardIconMaterial(kind);
+  if (!material) return;
+
+  const icon = new THREE.Sprite(material);
+  icon.name = 'Construction intended building card artwork';
+  const iconWidth = THREE.MathUtils.clamp(
+    Math.min(halfWidth, halfDepth) * 0.52,
+    0.72,
+    1.18,
+  );
+  icon.scale.set(iconWidth, iconWidth * 1.5, 1);
+  icon.renderOrder = 80;
+  anchor.add(icon);
+}
+
+function constructionCardIconMaterial(kind: BuildingKind): THREE.SpriteMaterial | null {
+  if (typeof document === 'undefined' || typeof Image === 'undefined') return null;
+  const cached = constructionCardIconMaterials.get(kind);
+  if (cached) return cached;
+
+  const texture = new THREE.TextureLoader().load(BUILDING_CARD_ART[kind]);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.name = `Construction ${kind} card artwork`;
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+  });
+  material.name = `Shared construction ${kind} card icon`;
+  material.userData.sharedConstructionCardIcon = true;
+  constructionCardIconMaterials.set(kind, material);
+  return material;
 }
 
 function addRoofTileStack(

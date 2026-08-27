@@ -704,7 +704,13 @@ assert.match(SETTLEMENT_MAP_ICON_HTML.founders, /gk-icon--camp/);
 assert.doesNotMatch(SETTLEMENT_MAP_ICON_HTML.founders, /<svg|<path/);
 for (const tier of ['hamlet', 'village', 'town'] as const) {
   assert.match(SETTLEMENT_MAP_ICON_HTML[tier], /settlement-map-icon-art/);
-  assert.match(SETTLEMENT_MAP_ICON_HTML[tier], /<path/);
+  assert.match(SETTLEMENT_MAP_ICON_HTML[tier], /gk-icon--town-hall/);
+  assert.doesNotMatch(SETTLEMENT_MAP_ICON_HTML[tier], /<svg|<path/);
 }
+assert.match(
+  mapIconCss,
+  /\.settlement-map-icons\s*\{[\s\S]*?z-index:\s*1;[\s\S]*?\.settlement-map-icon\s*\{[\s\S]*?z-index:\s*1;/,
+  'community markers must stay below the game HUD stacking layers',
+);
 
 console.log('test:world-map passed');

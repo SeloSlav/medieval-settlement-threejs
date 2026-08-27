@@ -203,7 +203,6 @@ pub fn step_fresh_food_spoilage(
                 );
             };
         }
-        spoil_fresh!(food, CommodityKind::Food);
         spoil_fresh!(oat_grain, CommodityKind::OatGrain);
         spoil_fresh!(rye_bread, CommodityKind::RyeBread);
         spoil_fresh!(maslin_bread, CommodityKind::MaslinBread);

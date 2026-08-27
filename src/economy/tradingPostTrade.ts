@@ -28,7 +28,7 @@ export const TRADE_MODE_IMPORT: TradingPostTradeMode = 1;
 export const TRADE_MODE_EXPORT: TradingPostTradeMode = 2;
 
 export const TRADE_RESOURCE_COMMODITY_CODES: Record<TradeResourceKind, number> = {
-  firewood: 0, water: 1, food: 2, timber: 3, ale: 6, preservedFood: 7,
+  firewood: 0, water: 1, timber: 3, ale: 6, preservedFood: 7,
   honey: 8, wine: 9, stone: 10, polearms: 11, ironwork: 12, wool: 13,
   cloth: 14, barley: 16, malt: 17, flax: 18, iron: 19, clay: 20, salt: 21,
   charcoal: 22, pottery: 23, manure: 24, remedies: 25, roofTiles: 26,
@@ -51,7 +51,7 @@ export const TRADE_COMMODITY_BY_CODE = new Map<number, TradeResourceKind>(
 
 export const TRADE_RESOURCE_LABELS: Record<TradeResourceKind, string> = {
   timber: 'Timber', stone: 'Stone', firewood: 'Firewood', charcoal: 'Charcoal',
-  water: 'Water', food: 'Mixed provisions', ryeSheaves: 'Rye sheaves',
+  water: 'Water', ryeSheaves: 'Rye sheaves',
   oatSheaves: 'Oat sheaves', barleySheaves: 'Barley sheaves',
   maslinSheaves: 'Maslin sheaves', ryeGrain: 'Rye grain', oatGrain: 'Oats',
   maslinGrain: 'Maslin grain', barley: 'Barley grain', flax: 'Flax',
@@ -75,7 +75,7 @@ export const TRADING_POST_TRADE_CATEGORIES = [
   { label: 'Fuel & utilities', resources: ['firewood', 'charcoal', 'water'] },
   { label: 'Crops & harvest', resources: ['ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'flax', 'manure'] },
   { label: 'Milled & prepared staples', resources: ['ryeFlour', 'maslinFlour', 'malt', 'ryeBread', 'maslinBread'] },
-  { label: 'Fresh food', resources: ['food', 'meat', 'fish', 'berries', 'mushrooms', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes'] },
+  { label: 'Fresh food', resources: ['meat', 'fish', 'berries', 'mushrooms', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes'] },
   { label: 'Preserved provisions', resources: ['preservedFood', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam', 'honey'] },
   { label: 'Textiles & wares', resources: ['ale', 'cider', 'pearCider', 'wine', 'wool', 'yarn', 'linen', 'cloth', 'pelts', 'hides', 'leather', 'shoes', 'wax', 'candles', 'polearms', 'pottery', 'remedies'] },
 ] as const satisfies ReadonlyArray<{ label: string; resources: readonly TradeResourceKind[] }>;

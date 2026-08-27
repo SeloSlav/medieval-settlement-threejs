@@ -23,6 +23,7 @@ import type {
   BurgageZoneState,
   FarmFieldState,
   ForagingNodeState,
+  GraveyardState,
   PastureState,
   ResourceNodeState,
   ResidenceState,
@@ -140,6 +141,19 @@ import {
   type WaysideShrineClaim,
 } from './waysideShrineDevotion.ts';
 import {
+  DEVOTIONAL_PRAYER_SECONDS,
+  MAX_GRAVEYARD_VISITORS,
+  SABBATH_DEVOTION_START_HOUR,
+  graveyardDevotionPath,
+  graveyardPrayerPoint,
+  indexSabbathGraveyardsByChapel,
+  isSabbathDevotionTime,
+  operationalSabbathGraveyards,
+  pickSabbathGraveyard,
+  sabbathDevotionObservanceKey,
+  sabbathDevotionPreference,
+} from './sabbathDevotion.ts';
+import {
   claimFeastMonasteriesForResidences,
   isMonasteryFeastGatheringTime,
   monasteryFeastAttendancePath,
@@ -205,6 +219,9 @@ type VillagerRoutinePhase =
   | 'going_to_shrine'
   | 'praying_at_shrine'
   | 'returning_from_shrine'
+  | 'going_to_graveyard'
+  | 'praying_at_graveyard'
+  | 'returning_from_graveyard'
   | 'going_to_refuge'
   | 'at_refuge'
   | 'returning_from_refuge'
@@ -229,6 +246,8 @@ type VillagerPathPurpose =
   | 'return_from_feast'
   | 'wayside_shrine_prayer'
   | 'return_from_shrine'
+  | 'graveyard_prayer'
+  | 'return_from_graveyard'
   | 'refuge_rally'
   | 'return_from_refuge'
   | 'guard_muster'
@@ -330,6 +349,9 @@ type VillagerAgent = {
   massChapelId: string | null;
   devotionalShrineId: string | null;
   devotionalShrineSlot: number;
+  devotionalGraveyardId: string | null;
+  devotionalGraveyardSlot: number;
+  lastDevotionalVisitKey: string;
   refugeId: string | null;
   refugeSlot: number;
   musterTowerId: string | null;
@@ -433,6 +455,12 @@ export class VillagerRenderer {
   private waysideShrines: BuildingState[] = [];
   private waysideShrineClaims = new Map<string, WaysideShrineClaim>();
   private waysideShrineVisitorSlots = new Map<string, number>();
+  private graveyards = new Map<string, GraveyardState>();
+  private sabbathGraveyardsByChapel = new Map<string, GraveyardState[]>();
+  private graveyardVisitorSlots = new Map<
+    string,
+    { graveyardId: string; slot: number }
+  >();
   private feastMonasteries: BuildingState[] = [];
   private feastMonasteryClaims = new Map<string, FeastMonasteryClaim>();
   private monasteryFeastsEnabled = true;
@@ -690,6 +718,7 @@ export class VillagerRenderer {
     farmFields: Iterable<FarmFieldState>;
     pastures: Iterable<PastureState>;
     vineyardParcels?: Iterable<VineyardParcelState>;
+    graveyards?: Iterable<GraveyardState>;
     backyardGardens?: Iterable<BackyardGardenState>;
     burgageZones?: Iterable<BurgageZoneState>;
     deliveryTrips?: Iterable<DeliveryTripState>;
@@ -713,6 +742,7 @@ export class VillagerRenderer {
     const farmFields = [...options.farmFields];
     const pastures = [...options.pastures];
     const vineyardParcels = [...(options.vineyardParcels ?? [])];
+    const graveyards = [...(options.graveyards ?? [])];
     const backyardGardens = [...(options.backyardGardens ?? [])];
     const burgageZones = [...(options.burgageZones ?? [])];
     const deliveryTrips = [...(options.deliveryTrips ?? [])];
@@ -793,6 +823,16 @@ export class VillagerRenderer {
       ),
       this.waysideShrines,
       this.roadNetwork,
+    );
+    const operationalGraveyards = operationalSabbathGraveyards(
+      graveyards,
+      new Set(this.massChapels.map((chapel) => chapel.id)),
+    );
+    this.graveyards = new Map(
+      operationalGraveyards.map((graveyard) => [graveyard.id, graveyard]),
+    );
+    this.sabbathGraveyardsByChapel = indexSabbathGraveyardsByChapel(
+      operationalGraveyards,
     );
     this.feastMonasteries = operationalFeastMonasteries(
       physicalBuildings,
@@ -883,6 +923,9 @@ export class VillagerRenderer {
           massChapelId: null,
           devotionalShrineId: null,
           devotionalShrineSlot: -1,
+          devotionalGraveyardId: null,
+          devotionalGraveyardSlot: -1,
+          lastDevotionalVisitKey: '',
           refugeId: null,
           refugeSlot: -1,
           musterTowerId: null,
@@ -978,6 +1021,9 @@ export class VillagerRenderer {
             massChapelId: null,
             devotionalShrineId: null,
             devotionalShrineSlot: -1,
+            devotionalGraveyardId: null,
+            devotionalGraveyardSlot: -1,
+            lastDevotionalVisitKey: '',
             refugeId: null,
             refugeSlot: -1,
             musterTowerId: null,
@@ -1098,6 +1144,9 @@ export class VillagerRenderer {
           massChapelId: null,
           devotionalShrineId: null,
           devotionalShrineSlot: -1,
+          devotionalGraveyardId: null,
+          devotionalGraveyardSlot: -1,
+          lastDevotionalVisitKey: '',
           refugeId: null,
           refugeSlot: -1,
           musterTowerId: null,
@@ -1230,6 +1279,9 @@ export class VillagerRenderer {
           massChapelId: null,
           devotionalShrineId: null,
           devotionalShrineSlot: -1,
+          devotionalGraveyardId: null,
+          devotionalGraveyardSlot: -1,
+          lastDevotionalVisitKey: '',
           refugeId: null,
           refugeSlot: -1,
           musterTowerId: null,
@@ -1349,6 +1401,8 @@ export class VillagerRenderer {
         || agent.pathPurpose === 'return_from_feast'
         || agent.pathPurpose === 'wayside_shrine_prayer'
         || agent.pathPurpose === 'return_from_shrine'
+        || agent.pathPurpose === 'graveyard_prayer'
+        || agent.pathPurpose === 'return_from_graveyard'
         || agent.pathPurpose === 'refuge_rally'
         || agent.pathPurpose === 'return_from_refuge'
         || agent.pathPurpose === 'guard_muster'
@@ -2149,11 +2203,28 @@ export class VillagerRenderer {
       return;
     }
 
+    if (agent.mode === 'pray') {
+      agent.currentMoveSpeed = 0;
+      if (
+        agent.routinePhase === 'praying_at_shrine'
+        || agent.routinePhase === 'praying_at_graveyard'
+      ) {
+        agent.idleRemaining -= dt;
+        if (agent.idleRemaining <= 0) {
+          if (agent.routinePhase === 'praying_at_shrine') {
+            this.beginWaysideShrineReturn(agent);
+          } else {
+            this.beginGraveyardReturn(agent);
+          }
+        }
+      }
+      return;
+    }
+
     if (
       agent.mode === 'sit'
       || agent.mode === 'rest'
       || agent.mode === 'talk'
-      || agent.mode === 'pray'
     ) {
       agent.currentMoveSpeed = 0;
       return;
@@ -2238,6 +2309,12 @@ export class VillagerRenderer {
         case 'return_from_shrine':
           this.completeWaysideShrineReturn(agent);
           break;
+        case 'graveyard_prayer':
+          this.completeGraveyardArrival(agent);
+          break;
+        case 'return_from_graveyard':
+          this.completeGraveyardReturn(agent);
+          break;
         case 'refuge_rally':
           this.completeRefugeArrival(agent);
           break;
@@ -2301,6 +2378,7 @@ export class VillagerRenderer {
       || agent.routinePhase === 'at_mass'
       || agent.routinePhase === 'at_feast'
       || agent.routinePhase === 'praying_at_shrine'
+      || agent.routinePhase === 'praying_at_graveyard'
       || agent.routinePhase === 'at_refuge'
       || agent.routinePhase === 'at_muster'
     ) {
@@ -2775,7 +2853,7 @@ export class VillagerRenderer {
     const chapel = this.findMassChapel(agent);
     const sundayMassTime = isSundayMassTime(
       this.clock,
-      chapel != null,
+      chapel != null && this.sabbathPausedToday,
     );
     const holidayMassTime = Boolean(
       chapel
@@ -2792,6 +2870,26 @@ export class VillagerRenderer {
         && (agent.role !== 'worker' || !shouldWork)
       );
 
+    const devotionalVisitKey = this.currentDevotionalVisitKey();
+    const devotionalVisitCompleted = devotionalVisitKey !== ''
+      && agent.lastDevotionalVisitKey === devotionalVisitKey;
+    const waysideShrine = this.findWaysideShrine(agent);
+    const waysideShrineSlot = devotionalVisitCompleted
+      ? undefined
+      : this.waysideShrineVisitorSlots.get(agent.id);
+    const graveyardVisit = devotionalVisitCompleted
+      ? undefined
+      : this.graveyardVisitorSlots.get(agent.id);
+    const graveyard = graveyardVisit
+      ? this.graveyards.get(graveyardVisit.graveyardId) ?? null
+      : null;
+    const shouldVisitWaysideShrine = waysideShrine != null
+      && waysideShrineSlot !== undefined
+      && (agent.role !== 'worker' || !shouldWork);
+    const shouldVisitGraveyard = graveyard != null
+      && graveyardVisit !== undefined
+      && (agent.role !== 'worker' || !shouldWork);
+
     if (shouldAttendMass && chapel) {
       if (
         agent.routinePhase === 'going_to_mass'
@@ -2806,6 +2904,26 @@ export class VillagerRenderer {
       agent.routinePhase === 'going_to_mass'
       || agent.routinePhase === 'at_mass'
     ) {
+      if (
+        this.clock.isSunday
+        && this.sabbathPausedToday
+        && this.holidayObservance === null
+      ) {
+        if (shouldVisitWaysideShrine && waysideShrine) {
+          return this.beginWaysideShrineJourney(
+            agent,
+            waysideShrine,
+            waysideShrineSlot,
+          );
+        }
+        if (shouldVisitGraveyard && graveyard && graveyardVisit) {
+          return this.beginGraveyardJourney(
+            agent,
+            graveyard,
+            graveyardVisit.slot,
+          );
+        }
+      }
       return this.beginMassReturn(agent);
     }
     if (agent.routinePhase === 'returning_from_mass') return false;
@@ -2835,31 +2953,27 @@ export class VillagerRenderer {
     }
     if (agent.routinePhase === 'returning_from_feast') return false;
 
-    const waysideShrine = this.findWaysideShrine(agent);
-    const waysideShrineSlot = this.waysideShrineVisitorSlots.get(agent.id);
-    const shouldVisitWaysideShrine = waysideShrine != null
-      && waysideShrineSlot !== undefined
-      && (agent.role !== 'worker' || !shouldWork);
+    if (agent.routinePhase === 'going_to_shrine') return false;
+    if (agent.routinePhase === 'praying_at_shrine') return false;
     if (shouldVisitWaysideShrine && waysideShrine) {
-      if (
-        agent.routinePhase === 'going_to_shrine'
-        || agent.routinePhase === 'praying_at_shrine'
-      ) {
-        return false;
-      }
       return this.beginWaysideShrineJourney(
         agent,
         waysideShrine,
         waysideShrineSlot,
       );
     }
-    if (
-      agent.routinePhase === 'going_to_shrine'
-      || agent.routinePhase === 'praying_at_shrine'
-    ) {
-      return this.beginWaysideShrineReturn(agent);
-    }
     if (agent.routinePhase === 'returning_from_shrine') return false;
+
+    if (agent.routinePhase === 'going_to_graveyard') return false;
+    if (agent.routinePhase === 'praying_at_graveyard') return false;
+    if (shouldVisitGraveyard && graveyard && graveyardVisit) {
+      return this.beginGraveyardJourney(
+        agent,
+        graveyard,
+        graveyardVisit.slot,
+      );
+    }
+    if (agent.routinePhase === 'returning_from_graveyard') return false;
 
     if (
       !shouldWork
@@ -2941,6 +3055,18 @@ export class VillagerRenderer {
   }
 
   private householdHomeStateFor(agent: VillagerAgent): HouseholdHomeState {
+    const hour = this.clock
+      ? this.clock.hour + this.clock.minute / 60
+      : 0;
+    if (
+      agent.residenceId
+      && this.clock?.isSunday
+      && this.sabbathPausedToday
+      && this.holidayObservance === null
+      && hour >= SABBATH_DEVOTION_START_HOUR
+    ) {
+      return 'indoors';
+    }
     const presentationClock = this.householdPresentationClock ?? this.clock;
     return presentationClock
       ? householdMemberHomeState(agent.personIdentity, presentationClock)
@@ -3191,10 +3317,14 @@ export class VillagerRenderer {
 
   private refreshWaysideShrineVisitorRoster(): void {
     this.waysideShrineVisitorSlots.clear();
+    this.graveyardVisitorSlots.clear();
     if (
       !this.clock
       || this.frontierAlertActive
-      || this.waysideShrines.length === 0
+      || (
+        this.waysideShrines.length === 0
+        && this.sabbathGraveyardsByChapel.size === 0
+      )
     ) {
       return;
     }
@@ -3203,19 +3333,33 @@ export class VillagerRenderer {
       string,
       Array<{ agent: VillagerAgent; priority: number }>
     >();
+    const candidatesByGraveyard = new Map<
+      string,
+      Array<{ agent: VillagerAgent; priority: number }>
+    >();
+    const visitKey = this.currentDevotionalVisitKey();
     for (const agent of this.agents.values()) {
       const workplace = agent.role === 'worker' && agent.workplaceId
         ? this.buildings.get(agent.workplaceId) ?? null
         : null;
-      if (
-        agent.isSick
-        || (agent.role === 'worker' && this.shouldWorkerReportToWork(workplace))
-        || !isWaysideShrinePrayerTime(
+      const sabbathVisitTime = this.holidayObservance === null
+        && isSabbathDevotionTime(
+          this.clock,
+          this.sabbathPausedToday,
+          agent.personIdentity,
+        );
+      const holidayShrineTime = this.holidayObservance !== null
+        && isWaysideShrinePrayerTime(
           this.clock,
           this.sabbathPausedToday,
           this.holidayObservance,
           agent.personIdentity,
-        )
+        );
+      if (
+        agent.isSick
+        || (visitKey !== '' && agent.lastDevotionalVisitKey === visitKey)
+        || (agent.role === 'worker' && this.shouldWorkerReportToWork(workplace))
+        || (!sabbathVisitTime && !holidayShrineTime)
       ) {
         continue;
       }
@@ -3224,7 +3368,7 @@ export class VillagerRenderer {
       const attendingChurch = Boolean(
         chapel
         && (
-          isSundayMassTime(this.clock, true)
+          isSundayMassTime(this.clock, this.sabbathPausedToday)
           || (
             this.holidayObservance
             && holidayChapelActivityFor(
@@ -3247,6 +3391,28 @@ export class VillagerRenderer {
       }
 
       const shrine = this.findWaysideShrine(agent);
+      const graveyard = sabbathVisitTime
+        ? this.findSabbathGraveyard(agent)
+        : null;
+      const preference = sabbathVisitTime
+        ? sabbathDevotionPreference(
+            this.clock.totalDays,
+            agent.personIdentity,
+          )
+        : 'shrine';
+      if (graveyard && (!shrine || preference === 'graveyard')) {
+        const candidates = candidatesByGraveyard.get(graveyard.id) ?? [];
+        candidates.push({
+          agent,
+          priority: waysideShrineVisitorPriority(
+            this.clock,
+            null,
+            agent.personIdentity,
+          ),
+        });
+        candidatesByGraveyard.set(graveyard.id, candidates);
+        continue;
+      }
       if (!shrine) continue;
       const candidates = candidatesByShrine.get(shrine.id) ?? [];
       candidates.push({
@@ -3273,6 +3439,32 @@ export class VillagerRenderer {
         this.waysideShrineVisitorSlots.set(candidates[slot]!.agent.id, slot);
       }
     }
+    for (const [graveyardId, candidates] of candidatesByGraveyard) {
+      candidates.sort((left, right) =>
+        left.priority - right.priority
+        || left.agent.personIdentity.localeCompare(right.agent.personIdentity)
+      );
+      for (
+        let slot = 0;
+        slot < Math.min(MAX_GRAVEYARD_VISITORS, candidates.length);
+        slot += 1
+      ) {
+        this.graveyardVisitorSlots.set(candidates[slot]!.agent.id, {
+          graveyardId,
+          slot,
+        });
+      }
+    }
+  }
+
+  private currentDevotionalVisitKey(): string {
+    if (!this.clock) return '';
+    if (this.holidayObservance) {
+      return `holiday:${this.holidayObservance.historicalYear}:${this.holidayObservance.id}`;
+    }
+    return this.clock.isSunday && this.sabbathPausedToday
+      ? sabbathDevotionObservanceKey(this.clock)
+      : '';
   }
 
   private findWaysideShrine(agent: VillagerAgent): BuildingState | null {
@@ -3288,11 +3480,26 @@ export class VillagerRenderer {
     )?.shrine ?? null;
   }
 
+  private findSabbathGraveyard(agent: VillagerAgent): GraveyardState | null {
+    if (!this.clock) return null;
+    const chapel = this.findMassChapel(agent);
+    if (!chapel) return null;
+    return pickSabbathGraveyard(
+      this.sabbathGraveyardsByChapel.get(chapel.id) ?? [],
+      this.clock.totalDays,
+      agent.personIdentity,
+    );
+  }
+
   private beginWaysideShrineJourney(
     agent: VillagerAgent,
     shrine: BuildingState,
     visitorSlot: number,
   ): boolean {
+    this.chapelAmbientAssignments.delete(agent.id);
+    agent.massChapelId = null;
+    agent.devotionalGraveyardId = null;
+    agent.devotionalGraveyardSlot = -1;
     const destination = waysideShrinePrayerPoint(
       shrine,
       visitorSlot,
@@ -3346,7 +3553,8 @@ export class VillagerRenderer {
     agent.routinePhase = 'praying_at_shrine';
     agent.mode = 'pray';
     agent.currentMoveSpeed = 0;
-    agent.idleRemaining = 60;
+    agent.idleRemaining = DEVOTIONAL_PRAYER_SECONDS;
+    agent.lastDevotionalVisitKey = this.currentDevotionalVisitKey();
   }
 
   private beginWaysideShrineReturn(agent: VillagerAgent): boolean {
@@ -3381,6 +3589,100 @@ export class VillagerRenderer {
     agent.devotionalShrineSlot = -1;
     const homeState = this.householdHomeStateFor(agent);
     agent.routinePhase = 'returning_from_shrine';
+    this.transitionToHomeState(agent, homeState);
+    this.reconcileRoutine(agent);
+    this.syncCampAmbientAssignments();
+  }
+
+  private beginGraveyardJourney(
+    agent: VillagerAgent,
+    graveyard: GraveyardState,
+    visitorSlot: number,
+  ): boolean {
+    this.chapelAmbientAssignments.delete(agent.id);
+    agent.massChapelId = null;
+    agent.devotionalShrineId = null;
+    agent.devotionalShrineSlot = -1;
+    const destination = graveyardPrayerPoint(graveyard, visitorSlot);
+    const distance = Math.hypot(destination.x - agent.x, destination.z - agent.z);
+    agent.devotionalGraveyardId = graveyard.id;
+    agent.devotionalGraveyardSlot = visitorSlot;
+    if (distance < 0.25) {
+      this.completeGraveyardArrival(agent);
+      return true;
+    }
+    const path = graveyardDevotionPath(
+      { x: agent.x, z: agent.z },
+      graveyard,
+      visitorSlot,
+      this.roadNetwork,
+    );
+    if (!this.beginJourney(agent, path, 'graveyard_prayer')) {
+      agent.devotionalGraveyardId = null;
+      agent.devotionalGraveyardSlot = -1;
+      return false;
+    }
+    agent.routinePhase = 'going_to_graveyard';
+    return true;
+  }
+
+  private completeGraveyardArrival(agent: VillagerAgent): void {
+    this.clearPath(agent);
+    const graveyard = agent.devotionalGraveyardId
+      ? this.graveyards.get(agent.devotionalGraveyardId) ?? null
+      : null;
+    if (!graveyard) {
+      agent.devotionalGraveyardId = null;
+      agent.devotionalGraveyardSlot = -1;
+      return;
+    }
+    const prayerPoint = graveyardPrayerPoint(
+      graveyard,
+      agent.devotionalGraveyardSlot,
+    );
+    agent.x = prayerPoint.x;
+    agent.z = prayerPoint.z;
+    agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
+    agent.yaw = prayerPoint.yaw;
+    agent.routinePhase = 'praying_at_graveyard';
+    agent.mode = 'pray';
+    agent.currentMoveSpeed = 0;
+    agent.idleRemaining = DEVOTIONAL_PRAYER_SECONDS;
+    agent.lastDevotionalVisitKey = this.currentDevotionalVisitKey();
+  }
+
+  private beginGraveyardReturn(agent: VillagerAgent): boolean {
+    const residence = agent.residenceId
+      ? this.residences.get(agent.residenceId) ?? null
+      : null;
+    const destination = residence
+      ? residenceDoorPosition(residence)
+      : this.foundingCamp
+        ? this.foundingCampRestPosition(agent, this.foundingCamp)
+        : null;
+    if (!destination) {
+      this.completeGraveyardReturn(agent);
+      return true;
+    }
+    const path = pickWorkerTravelPath(
+      { x: agent.x, z: agent.z },
+      destination,
+      this.roadNetwork,
+    );
+    if (!path || !this.beginJourney(agent, path, 'return_from_graveyard')) {
+      this.completeGraveyardReturn(agent);
+      return true;
+    }
+    agent.routinePhase = 'returning_from_graveyard';
+    return true;
+  }
+
+  private completeGraveyardReturn(agent: VillagerAgent): void {
+    this.clearPath(agent);
+    agent.devotionalGraveyardId = null;
+    agent.devotionalGraveyardSlot = -1;
+    const homeState = this.householdHomeStateFor(agent);
+    agent.routinePhase = 'returning_from_graveyard';
     this.transitionToHomeState(agent, homeState);
     this.reconcileRoutine(agent);
     this.syncCampAmbientAssignments();
@@ -4088,6 +4390,17 @@ export class VillagerRenderer {
     }
     if (purpose === 'return_from_shrine') {
       this.completeWaysideShrineReturn(agent);
+      return;
+    }
+    if (purpose === 'graveyard_prayer') {
+      agent.devotionalGraveyardId = null;
+      agent.devotionalGraveyardSlot = -1;
+      agent.routinePhase = 'home_outdoors';
+      agent.idleRemaining = 1;
+      return;
+    }
+    if (purpose === 'return_from_graveyard') {
+      this.completeGraveyardReturn(agent);
       return;
     }
     if (purpose === 'fire_assembly') {
@@ -4845,6 +5158,12 @@ function describeVillagerActivity(
         : 'Praying at a wayside shrine on the Sabbath';
     case 'returning_from_shrine':
       return 'Walking home from the wayside shrine';
+    case 'going_to_graveyard':
+      return 'Walking from the Sunday congregation to the parish graveyard';
+    case 'praying_at_graveyard':
+      return 'Remembering the dead at the parish graveyard';
+    case 'returning_from_graveyard':
+      return 'Walking home from the parish graveyard';
     case 'going_to_muster':
       return 'Marching by road to the linked frontier watch';
     case 'at_muster':

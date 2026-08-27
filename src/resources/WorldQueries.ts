@@ -865,6 +865,27 @@ export class WorldQueries {
     );
   }
 
+  /** Homes whose tier-qualified nearest staffed parish is this church. */
+  getClaimedResidencesForChapel(chapel: BuildingState): ResidenceState[] {
+    if (chapel.kind !== 'chapel') return [];
+    const state = this.getGameState();
+    const fireDisabledResidences = fireDisabledResidenceIds(
+      state.fireIncidents.values(),
+    );
+    const residences = [...state.residences.values()].filter(
+      (residence) => !fireDisabledResidences.has(residence.id),
+    );
+    const claims = claimResidenceCommunityLandmarks(
+      this.getRoadNetwork(),
+      residences,
+      this.activeParishChapels(state),
+      [],
+    ).chapels;
+    return residences.filter(
+      (residence) => claims.get(residence.id)?.supplierId === chapel.id,
+    );
+  }
+
   countRoadConnectedPopulation(building: BuildingState): number {
     const state = this.getGameState();
     const network = this.getRoadNetwork();

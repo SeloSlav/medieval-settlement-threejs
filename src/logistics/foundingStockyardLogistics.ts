@@ -79,7 +79,6 @@ export const FOUNDING_RELOCATION_COMMODITIES: readonly FoundingRelocationCommodi
   );
 
 export const OCCUPIED_SHELTER_RELOCATION_COMMODITIES = [
-  'food',
   'ryeBread',
   'maslinBread',
   'firewood',
@@ -182,7 +181,6 @@ function foundingDestinationPriority(
     case 'stone':
     case 'firewood':
       return null;
-    case 'food':
     case 'meat':
     case 'fish':
     case 'berries':

@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
-import type { SettlementHouseholdMarketPlan } from '../src/economy/settlementHouseholdMarket.ts';
 import { ResidenceMarkers } from '../src/residences/ResidenceMarkers.ts';
 import { createDefaultNeeds } from '../src/residences/residenceNeedState.ts';
 import {
@@ -33,24 +32,31 @@ function residence(
   };
 }
 
-const branchPlan = {
-  branches: new Map([
-    ['market-a', { assignedResidenceIds: ['home-a', 'home-c'] }],
-    ['market-b', { assignedResidenceIds: ['home-b'] }],
-  ]),
-} as unknown as SettlementHouseholdMarketPlan;
+const markets = [
+  { id: 'market-a', x: 0, z: 0 },
+  { id: 'market-b', x: 20, z: 0 },
+];
+const marketHomes = [
+  { id: 'home-a', x: 2, z: 0 },
+  { id: 'home-b', x: 18, z: 0 },
+  { id: 'home-c', x: 10, z: 0 },
+  { id: 'home-unroaded', x: 0, z: 20 },
+];
+const roadDistance = (ax: number, az: number, bx: number, bz: number) =>
+  az === 20 ? null : Math.hypot(bx - ax, bz - az);
 
 assert.deepEqual(
-  marketplaceServiceResidenceIds(branchPlan, 'market-a'),
+  marketplaceServiceResidenceIds(marketHomes, markets, 'market-a', roadDistance),
   ['home-a', 'home-c'],
-  'coverage must use the household IDs already accumulated by the authoritative market branch plan',
+  'coverage must assign road-linked homes to the nearest stocked Marketplace and break ties by stable id',
 );
 assert.deepEqual(
-  marketplaceServiceResidenceIds(branchPlan, 'missing-market'),
+  marketplaceServiceResidenceIds(marketHomes, markets, 'missing-market', roadDistance),
   [],
 );
 assert.equal(serviceCoverageLabel('well'), 'water service');
 assert.equal(serviceCoverageLabel('marketplace'), 'market service');
+assert.equal(serviceCoverageLabel('chapel'), 'church service');
 
 const parent = new THREE.Group();
 const markers = new ResidenceMarkers(parent);
@@ -98,6 +104,16 @@ assert.equal(
   'market territory must use a distinct trade-gold halo',
 );
 
+markers.setServiceCoverageHighlights(new Set(['home-b']), 'chapel');
+halo = coverageRoot.getObjectByName('Served residence ground halos');
+assert.ok(halo instanceof THREE.InstancedMesh);
+assert.equal(halo.count, 1);
+assert.equal(
+  (halo.material as THREE.MeshBasicMaterial).color.getHex(),
+  0xc89cff,
+  'church territory must use a distinct parish-violet halo',
+);
+
 markers.syncResidences([homes[0]], () => 2.5);
 halo = coverageRoot.getObjectByName('Served residence ground halos');
 assert.ok(halo instanceof THREE.InstancedMesh);
@@ -116,15 +132,25 @@ const projectionSource = fs.readFileSync(
   'src/resources/serviceCoverage.ts',
   'utf8',
 );
+const marketInspectorSource = fs.readFileSync(
+  'src/resources/inspector/marketStallsRenderer.ts',
+  'utf8',
+);
+const chapelInspectorSource = fs.readFileSync(
+  'src/resources/inspector/chapelRenderer.ts',
+  'utf8',
+);
 assert.doesNotMatch(
   inspectorSource,
   /computeSettlementHouseholdMarketPlan/,
-  'the UI toggle must consume the inspector projection instead of repeating settlement routing',
+  'the UI toggle must consume the inspector projection instead of calculating territory itself',
 );
 assert.doesNotMatch(
   projectionSource,
-  /claimResidenceRoutesByNearestSupplier|computeSettlementHouseholdMarketPlan/,
-  'coverage extraction must not run a second route planner',
+  /computeSettlementHouseholdMarketPlan/,
+  'local Marketplace coverage must not be confused with regional Trading Post contingency routes',
 );
+assert.match(marketInspectorSource, /serviceCoverage:[\s\S]*kind: 'marketplace'/);
+assert.match(chapelInspectorSource, /serviceCoverage:[\s\S]*kind: 'chapel'/);
 
 console.log('Service coverage projection and instanced-overlay checks passed.');

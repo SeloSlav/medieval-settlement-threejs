@@ -25,8 +25,7 @@ const EPSILON: f64 = 1e-6;
 /// While founders still occupy the shelter, move a household food load before
 /// draining the much larger fuel pile. Ironwork remains eligible so the
 /// maintenance chain can bootstrap before every founder is housed.
-const OCCUPIED_SHELTER_RELOCATION_COMMODITIES: [CommodityKind; 5] = [
-    CommodityKind::Food,
+const OCCUPIED_SHELTER_RELOCATION_COMMODITIES: [CommodityKind; 4] = [
     CommodityKind::RyeBread,
     CommodityKind::MaslinBread,
     CommodityKind::Firewood,
@@ -436,7 +435,6 @@ mod tests {
         assert_eq!(
             founding_relocation_commodities(true),
             &[
-                CommodityKind::Food,
                 CommodityKind::RyeBread,
                 CommodityKind::MaslinBread,
                 CommodityKind::Firewood,

@@ -47,6 +47,7 @@ import {
   renderInspectorResourceStrip,
   type InspectorResourceTokenOptions,
 } from './inspectorResourceTokens.ts';
+import { marketplaceServiceResidenceIds } from '../serviceCoverage.ts';
 
 export function renderMarketStallsInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -83,6 +84,16 @@ export function renderMarketStallsInspector(
   ).length;
   const standbyWorkers = standbyFoodWorkers + standbyGoodsWorkers;
   const totalStalls = marketAssignments.length;
+  const serviceMarketIds = new Set(
+    stallAssignments.map((assignment) => assignment.marketplaceId),
+  );
+  const serviceMarkets = [...context.gameState.buildings.values()]
+    .filter((candidate) =>
+      candidate.kind === 'marketplace'
+      && candidate.constructionComplete !== false
+      && !fireDisabled.has(candidate.id)
+      && serviceMarketIds.has(candidate.id)
+    );
   const fuelMarkets = [...context.gameState.buildings.values()]
     .filter((candidate) =>
       candidate.kind === 'marketplace'
@@ -93,17 +104,22 @@ export function renderMarketStallsInspector(
         && worker.group === 'goods'
       )
     );
+  const eligibleResidences = [...context.gameState.residences.values()]
+    .filter((residence) =>
+      !residence.abandoned
+      && residence.population > 0
+      && !residenceFireDisabled.has(residence.id)
+    );
+  const serviceResidenceIds = marketplaceServiceResidenceIds(
+    eligibleResidences,
+    serviceMarkets,
+    building.id,
+    (ax, az, bx, bz) => context.worldQueries.getRoadPathDistance(ax, az, bx, bz),
+  );
   let roadConnectedHomes = 0;
   let roadConnectedPopulation = 0;
   let coveredHouseholds = 0;
-  for (const residence of context.gameState.residences.values()) {
-    if (
-      residence.abandoned
-      || residence.population <= 0
-      || residenceFireDisabled.has(residence.id)
-    ) {
-      continue;
-    }
+  for (const residence of eligibleResidences) {
     const distanceToMarket = context.worldQueries.getRoadPathDistance(
       residence.x,
       residence.z,
@@ -295,6 +311,10 @@ export function renderMarketStallsInspector(
       hint: buildingDemolishHint(building.kind),
     },
     labor: hiddenLabor(),
+    serviceCoverage: {
+      kind: 'marketplace',
+      residenceIds: serviceResidenceIds,
+    },
   };
 }
 

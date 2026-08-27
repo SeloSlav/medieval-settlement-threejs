@@ -18,6 +18,7 @@ import {
 } from '../src/resources/inspector/treeWorkAreaRenderer.ts';
 import { renderInspectorResourceToken } from '../src/resources/inspector/inspectorResourceTokens.ts';
 import { inspectablePresentation } from '../src/resources/ResourceInspector.ts';
+import { BUILDING_CARD_ART } from '../src/resources/buildingCardArt.ts';
 
 type SharpDecodeResult = {
   data: Uint8Array;
@@ -71,19 +72,12 @@ const lumberMillRenderer = readFileSync('src/resources/inspector/lumberMillRende
 const reforesterRenderer = readFileSync('src/resources/inspector/reforesterRenderer.ts', 'utf8');
 const harvestBuildingRenderer = readFileSync('src/resources/inspector/harvestBuildingRenderer.ts', 'utf8');
 
-const inspectorArtBlock = resourceInspector.match(
-  /const BUILDING_INSPECTOR_ART = \{([\s\S]*?)\}\s+satisfies Record<BuildingKind, string>;/,
-)?.[1] ?? '';
-const inspectorArtwork = new Map(
-  [...inspectorArtBlock.matchAll(/^\s{2}([a-z0-9_]+): '([^']+)',?$/gm)]
-    .map((match) => [match[1], match[2]] as const),
-);
 assert.deepEqual(
-  [...inspectorArtwork.keys()].sort(),
+  Object.keys(BUILDING_CARD_ART).sort(),
   [...BUILDING_KINDS].sort(),
   'every authoritative building kind must have explicit inspector artwork',
 );
-for (const [kind, url] of inspectorArtwork) {
+for (const [kind, url] of Object.entries(BUILDING_CARD_ART)) {
   const path = `public${url}`;
   assert.ok(existsSync(path), `${kind} inspector art must resolve: ${url}`);
   assert.ok(statSync(path).size > 20_000, `${kind} inspector art must be nonblank: ${url}`);
@@ -102,7 +96,11 @@ for (const [kind, expectedUrl] of Object.entries({
   bakery: '/assets/ui/build-menu/cards/bakery.webp',
   chandlery: '/assets/ui/build-menu/cards/chandlery.webp',
 })) {
-  assert.equal(inspectorArtwork.get(kind), expectedUrl, `${kind} must use the intended inspector art`);
+  assert.equal(
+    BUILDING_CARD_ART[kind as keyof typeof BUILDING_CARD_ART],
+    expectedUrl,
+    `${kind} must use the intended inspector art`,
+  );
 }
 assert.match(resourceInspector, /data-inspector-hero-image alt="" decoding="async"/);
 assert.match(resourceInspector, /this\.heroImage\.onerror = markArtUnavailable/);

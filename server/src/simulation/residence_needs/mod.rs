@@ -311,8 +311,7 @@ fn food_matches_slot(commodity: CommodityKind, slot: MonthlyFoodSlot) -> bool {
         MonthlyFoodSlot::Any => true,
         MonthlyFoodSlot::Grain => matches!(
             commodity,
-            CommodityKind::Food
-                | CommodityKind::OatGrain
+            CommodityKind::OatGrain
                 | CommodityKind::RyeBread
                 | CommodityKind::MaslinBread
                 | CommodityKind::PreservedFood

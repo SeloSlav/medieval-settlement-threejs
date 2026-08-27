@@ -116,7 +116,6 @@ function addCargo(
     case 'water':
       addWaterLoad(group);
       break;
-    case 'food':
     case 'ryeBread':
     case 'maslinBread':
     case 'meat':

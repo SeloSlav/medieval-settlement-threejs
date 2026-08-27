@@ -19,7 +19,6 @@ pub struct DeliveryCargoTotals {
     pub timber: f64,
     pub firewood: f64,
     pub water: f64,
-    pub food: f64,
     pub ale: f64,
     pub cider: f64,
     pub pear_cider: f64,
@@ -97,7 +96,6 @@ impl DeliveryCargoTotals {
             CommodityKind::Timber => self.timber += amount,
             CommodityKind::Firewood => self.firewood += amount,
             CommodityKind::Water => self.water += amount,
-            CommodityKind::Food => self.food += amount,
             CommodityKind::Ale => self.ale += amount,
             CommodityKind::Cider => self.cider += amount,
             CommodityKind::PearCider => self.pear_cider += amount,
@@ -339,13 +337,13 @@ pub fn residence_need_for_delivery_commodity(
 }
 
 /// Select one physical provision for a cart. Fast-spoiling foods leave first;
-/// durable and legacy mixed stores remain the fallback. A cart carries one
+/// durable stores remain the fallback. A cart carries one
 /// traceable commodity even though every edible type satisfies the Food need.
 pub fn selected_food_delivery_commodity(
     building: &Building,
     need_kind: ResidenceNeedKind,
 ) -> Option<CommodityKind> {
-    const FRESH_ORDER: [CommodityKind; 21] = [
+    const FRESH_ORDER: [CommodityKind; 20] = [
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
@@ -365,7 +363,6 @@ pub fn selected_food_delivery_commodity(
         CommodityKind::RyeBread,
         CommodityKind::MaslinBread,
         CommodityKind::OatGrain,
-        CommodityKind::Food,
         CommodityKind::Honey,
     ];
     const PRESERVED_ORDER: [CommodityKind; 6] = [
@@ -405,7 +402,6 @@ pub fn selected_food_delivery_commodity(
             PRESERVED_ORDER[4],
             PRESERVED_ORDER[5],
             FRESH_ORDER[19],
-            FRESH_ORDER[20],
         ],
         ResidenceNeedKind::PreservedFood => &PRESERVED_ORDER,
         _ => return None,
@@ -474,7 +470,7 @@ pub fn selected_food_delivery_commodity_for_residence(
     if need_kind != ResidenceNeedKind::Food {
         return selected_food_delivery_commodity(building, need_kind);
     }
-    const ORDER: [CommodityKind; 27] = [
+    const ORDER: [CommodityKind; 26] = [
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
@@ -494,7 +490,6 @@ pub fn selected_food_delivery_commodity_for_residence(
         CommodityKind::RyeBread,
         CommodityKind::MaslinBread,
         CommodityKind::OatGrain,
-        CommodityKind::Food,
         CommodityKind::AroniaJam,
         CommodityKind::RosehipJam,
         CommodityKind::Cheese,

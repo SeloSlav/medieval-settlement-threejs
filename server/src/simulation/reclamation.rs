@@ -27,10 +27,9 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 69] = [
+const RECOVERY_ORDER: [CommodityKind; 68] = [
     CommodityKind::Gold,
     CommodityKind::Remedies,
-    CommodityKind::Food,
     CommodityKind::RyeSheaves,
     CommodityKind::OatSheaves,
     CommodityKind::BarleySheaves,
@@ -105,7 +104,6 @@ pub struct ReclamationStock {
     pub firewood: f64,
     pub stone: f64,
     pub water: f64,
-    pub food: f64,
     pub ale: f64,
     pub cider: f64,
     pub pear_cider: f64,
@@ -190,10 +188,6 @@ impl ReclamationStock {
             },
             CommodityKind::Water => Self {
                 water: amount,
-                ..Self::default()
-            },
-            CommodityKind::Food => Self {
-                food: amount,
                 ..Self::default()
             },
             CommodityKind::Ale => Self {
@@ -469,7 +463,6 @@ impl ReclamationStock {
             firewood,
             stone,
             water,
-            food,
             ale,
             cider,
             pear_cider,
@@ -558,7 +551,6 @@ impl ReclamationStock {
             firewood: cargo.firewood,
             stone: cargo.stone,
             water: cargo.water,
-            food: cargo.food,
             ale: cargo.ale,
             cider: cargo.cider,
             pear_cider: cargo.pear_cider,
@@ -627,7 +619,7 @@ impl ReclamationStock {
         .normalized()
     }
 
-    pub fn commodities() -> [CommodityKind; 69] {
+    pub fn commodities() -> [CommodityKind; 68] {
         RECOVERY_ORDER
     }
 
@@ -645,7 +637,6 @@ impl ReclamationStock {
             firewood,
             stone,
             water,
-            food,
             ale,
             cider,
             pear_cider,
@@ -721,13 +712,12 @@ impl ReclamationStock {
             .all(|commodity| stock.amount(commodity) <= EPSILON)
     }
 
-    fn from_resource_ledger(resources: &PlayerResources) -> Self {
+    pub(crate) fn from_resource_ledger(resources: &PlayerResources) -> Self {
         Self {
             timber: resources.timber.max(0.0),
             firewood: resources.firewood.max(0.0),
             stone: resources.stone.max(0.0),
             water: resources.water.max(0.0),
-            food: resources.food.max(0.0),
             ale: resources.ale.max(0.0),
             cider: resources.cider.max(0.0),
             pear_cider: resources.pear_cider.max(0.0),
@@ -802,7 +792,6 @@ impl ReclamationStock {
             CommodityKind::Firewood => self.firewood,
             CommodityKind::Stone => self.stone,
             CommodityKind::Water => self.water,
-            CommodityKind::Food => self.food,
             CommodityKind::Ale => self.ale,
             CommodityKind::Cider => self.cider,
             CommodityKind::PearCider => self.pear_cider,
@@ -875,6 +864,7 @@ impl ReclamationStock {
     /// reclamation pile.
     pub fn replace_building_inventory(self, building: &mut Building) {
         let merged = self.normalized();
+        building.food = 0.0;
         macro_rules! replace_fields {
             ($($field:ident),+ $(,)?) => {
                 $(building.$field = merged.$field;)+
@@ -885,7 +875,6 @@ impl ReclamationStock {
             firewood,
             stone,
             water,
-            food,
             ale,
             cider,
             pear_cider,
@@ -1147,7 +1136,7 @@ pub fn insert_reclamation_pile(
         firewood: stock.firewood.max(0.0),
         stone: stock.stone.max(0.0),
         water: stock.water.max(0.0),
-        food: stock.food.max(0.0),
+        food: 0.0,
         ale: stock.ale.max(0.0),
         cider: stock.cider.max(0.0),
         pear_cider: stock.pear_cider.max(0.0),
@@ -1395,7 +1384,19 @@ pub fn materialize_physical_resource_ledger(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
 ) -> Result<bool, String> {
-    materialize_physical_resource_ledger_at(ctx, owner, None)
+    materialize_physical_resource_stock_at(ctx, owner, ReclamationStock::default(), None)
+}
+
+/// Merge an explicit stock grant with any legacy ledger balance and place the
+/// result in the owner's physical stores. Unlike `PlayerResources`, a
+/// `ReclamationStock` can represent every commodity, including physical-only
+/// goods such as manure, remedies, and prepared animal feed.
+pub(crate) fn materialize_physical_resource_stock(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    additional_stock: ReclamationStock,
+) -> Result<bool, String> {
+    materialize_physical_resource_stock_at(ctx, owner, additional_stock, None)
 }
 
 /// Variant used by the founding bootstrap when a legacy save contains only
@@ -1407,6 +1408,20 @@ pub fn materialize_physical_resource_ledger_at(
     owner: spacetimedb::Identity,
     fallback_position: Option<(f64, f64)>,
 ) -> Result<bool, String> {
+    materialize_physical_resource_stock_at(
+        ctx,
+        owner,
+        ReclamationStock::default(),
+        fallback_position,
+    )
+}
+
+fn materialize_physical_resource_stock_at(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    additional_stock: ReclamationStock,
+    fallback_position: Option<(f64, f64)>,
+) -> Result<bool, String> {
     let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) else {
         return Ok(false);
     };
@@ -1414,7 +1429,7 @@ pub fn materialize_physical_resource_ledger_at(
         return Ok(false);
     }
 
-    let stock = ReclamationStock::from_resource_ledger(&resources);
+    let stock = ReclamationStock::from_resource_ledger(&resources).merged(additional_stock);
     if stock.is_empty() {
         return Ok(true);
     }
@@ -1655,8 +1670,7 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
             "swineherd" => Some(1),
             _ => None,
         },
-        CommodityKind::Food
-        | CommodityKind::RyeBread
+        CommodityKind::RyeBread
         | CommodityKind::MaslinBread
         | CommodityKind::Meat
         | CommodityKind::Fish

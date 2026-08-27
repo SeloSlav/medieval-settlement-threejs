@@ -1,6 +1,7 @@
 import type { BuildingKind } from '../generated/gameBalance.ts';
 import { formatBuildingCost, getBuildingCost, residenceZoneCost } from '../resources/buildingEconomy.ts';
 import type { WorldMapSize } from '../world/worldGenerationSettings.ts';
+import { BUILDING_CARD_ART } from '../resources/buildingCardArt.ts';
 import { MENU_ACTION_TO_BUILDING_KIND } from './buildMenuMapping.ts';
 import {
   buildingResourceCostAmounts,
@@ -38,43 +39,14 @@ type DecorationArtKey = 'dry_stone_wall';
 type PlacementArtKey = PlayerPlaceableBuildingKind | 'residences' | DecorationArtKey;
 export type BuildMenuEntry = { kind: 'placement'; action: PlacementBuildMenuAction; artKey: PlacementArtKey };
 
-const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
-  founders_camp: '/assets/ui/build-menu/cards/founders-camp.webp',
-  lumber_mill: '/assets/ui/build-menu/cards/lumber-mill.webp', reforester: '/assets/ui/build-menu/cards/reforester.webp',
-  woodcutters_lodge: '/assets/ui/build-menu/cards/woodcutters-lodge.webp', stone_quarry: '/assets/ui/build-menu/cards/stonecutters-camp.webp',
-  large_quarry: '/assets/ui/build-menu/cards/large-quarry.webp',
-  mine: '/assets/ui/build-menu/cards/iron-mine.webp',
-  charcoal_burner: '/assets/ui/build-menu/cards/charcoal-burner.webp',
-  smithy: '/assets/ui/build-menu/cards/smithy-bloomery.webp',
-  potter_kiln: '/assets/ui/build-menu/cards/potter-kiln.webp',
-  well: '/assets/ui/build-menu/cards/water-well.webp', hunters_hall: '/assets/ui/build-menu/cards/hunter-hall.webp',
-  stable: '/assets/ui/build-menu/cards/stable.webp',
-  foragers_shed: '/assets/ui/build-menu/cards/foragers-hut.webp', chapel: '/assets/ui/build-menu/cards/chapel.webp',
-  wayside_shrine: '/assets/ui/build-menu/cards/wayside-shrine.webp',
-  dry_stone_wall: '/assets/ui/build-menu/cards/dry-stone-wall.webp',
-  fishing_camp: '/assets/ui/build-menu/cards/fishing-camp.webp',
-  marketplace: '/assets/ui/build-menu/cards/market.webp', residences: '/assets/ui/build-menu/cards/residence.webp',
-  trading_post: '/assets/ui/build-menu/cards/trading-post.webp',
-  town_hall: '/assets/ui/build-menu/cards/town-hall.webp', village_storehouse: '/assets/ui/build-menu/cards/village-storehouse.webp',
-  watchtower: '/assets/ui/build-menu/cards/watchtower.webp',
-  guardhouse: '/assets/ui/build-menu/cards/guardhouse.webp',
-  palisaded_refuge: '/assets/ui/build-menu/cards/palisaded-refuge.webp',
-  threshing_barn: '/assets/ui/build-menu/cards/threshing-barn.webp',
-  monastery: '/assets/ui/build-menu/cards/monastery.webp', brewery: '/assets/ui/build-menu/cards/brewery.webp',
-  tavern: '/assets/ui/build-menu/cards/tavern.webp',
-  smokehouse: '/assets/ui/build-menu/cards/smokehouse.webp', granary: '/assets/ui/build-menu/cards/granary.webp',
-  bakery: '/assets/ui/build-menu/cards/bakery.webp',
-  apiary: '/assets/ui/build-menu/cards/apiary.webp', watermill: '/assets/ui/build-menu/cards/watermill.webp',
-  windmill: '/assets/ui/build-menu/cards/windmill.webp',
-  carpenter: '/assets/ui/build-menu/cards/carpenter.webp',
-  spinning_retting_house: '/assets/ui/build-menu/cards/spinning-retting-house.webp',
-  weaver: '/assets/ui/build-menu/cards/weaver.webp',
-  tannery: '/assets/ui/build-menu/cards/tannery.webp',
-  cobbler: '/assets/ui/build-menu/cards/cobbler.webp',
-  chandlery: '/assets/ui/build-menu/cards/chandlery.webp',
-  pastoral_farmstead: '/assets/ui/build-menu/cards/pastoral-farmstead.webp',
-  swineherd: '/assets/ui/build-menu/cards/swineherd.webp',
-};
+const DECORATION_CARD_ART = '/assets/ui/build-menu/cards/dry-stone-wall.webp';
+const RESIDENCE_CARD_ART = '/assets/ui/build-menu/cards/residence.webp';
+
+function buildCardArtUrl(artKey: PlacementArtKey): string {
+  if (artKey === 'dry_stone_wall') return DECORATION_CARD_ART;
+  if (artKey === 'residences') return RESIDENCE_CARD_ART;
+  return BUILDING_CARD_ART[artKey];
+}
 
 /** Card-language artwork reserved for the residence inspector, not the build palette. */
 export const BACKYARD_EXTENSION_CARD_ART = '/assets/ui/build-menu/cards/backyard-extension.webp';
@@ -281,7 +253,7 @@ export function renderBuildMenuCards(
       : '';
     const ariaDisabledReason = disabledReason ? ` ${disabledReason}` : '';
     return `<button type="button" class="construction-card" data-action="${entry.action}" data-tooltip-placement="above" data-tooltip-title="${title}" data-tooltip="${tooltipDescription}" data-tooltip-cost="${tooltipCost}" data-tooltip-cost-affordable="true" data-tooltip-cost-shortages=""${flowAttribute}${disabledAttributes} aria-label="${title}. ${description} Cost: ${costText}.${ariaDisabledReason}">
-      <img class="construction-card__art" data-src="${BUILD_CARD_ART[entry.artKey]}" alt="" width="320" height="480" loading="lazy" decoding="async" draggable="false" />
+      <img class="construction-card__art" data-src="${buildCardArtUrl(entry.artKey)}" alt="" width="320" height="480" loading="lazy" decoding="async" draggable="false" />
       <span class="construction-card__art-fallback" aria-hidden="true" hidden></span>
       <span class="construction-card__caption" aria-hidden="true"><strong>${title}</strong><span class="construction-card__cost">${costMarkup}</span></span>
       <span class="construction-card__tooltip" role="tooltip"><span class="construction-card__tooltip-title">${title}</span><span class="construction-card__tooltip-desc">${description}</span><span class="construction-card__tooltip-cost">Cost: ${costMarkup}</span></span>

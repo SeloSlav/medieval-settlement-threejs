@@ -222,12 +222,12 @@ export function renderConstructionInspector(
     statusText,
     statusState,
     detailsHtml: `
-      <li data-inspector-primary><span>Builder progress</span><span>${progress}%</span></li>
-      <li data-inspector-primary><span>Queue priority</span><span>${constructionPriorityLabel(priority)}</span></li>
-      <li data-inspector-primary><span>Timber delivered</span><span>${formatAmount(building.constructionDeliveredTimber)} / ${formatAmount(building.constructionRequiredTimber)}</span></li>
-      <li data-inspector-primary><span>Stone delivered</span><span>${formatAmount(building.constructionDeliveredStone)} / ${formatAmount(building.constructionRequiredStone)}</span></li>
-      ${(building.constructionRequiredIronwork ?? 0) > 0 ? `<li><span>Ironwork fittings delivered</span><span>${formatAmount(building.constructionDeliveredIronwork ?? 0)} / ${formatAmount(building.constructionRequiredIronwork ?? 0)}</span></li>` : ''}
-      ${(building.constructionRequiredRoofTiles ?? 0) > 0 ? `<li><span>Fired roof tiles delivered</span><span>${formatAmount(building.constructionDeliveredRoofTiles ?? 0)} / ${formatAmount(building.constructionRequiredRoofTiles ?? 0)}</span></li>` : ''}
+      <li data-inspector-primary data-construction-summary><span>Builder progress</span><span>${progress}%</span></li>
+      <li data-inspector-primary data-construction-summary><span>Queue priority</span><span>${constructionPriorityLabel(priority)}</span></li>
+      ${building.constructionRequiredTimber > 0 ? `<li data-inspector-primary data-construction-summary><span>Timber hauled</span><span>${formatAmount(building.constructionDeliveredTimber)} / ${formatAmount(building.constructionRequiredTimber)}</span></li>` : ''}
+      ${building.constructionRequiredStone > 0 ? `<li data-inspector-primary data-construction-summary><span>Stone hauled</span><span>${formatAmount(building.constructionDeliveredStone)} / ${formatAmount(building.constructionRequiredStone)}</span></li>` : ''}
+      ${(building.constructionRequiredIronwork ?? 0) > 0 ? `<li data-inspector-primary data-construction-summary><span>Ironwork hauled</span><span>${formatAmount(building.constructionDeliveredIronwork ?? 0)} / ${formatAmount(building.constructionRequiredIronwork ?? 0)}</span></li>` : ''}
+      ${(building.constructionRequiredRoofTiles ?? 0) > 0 ? `<li data-inspector-primary data-construction-summary><span>Roof tiles hauled</span><span>${formatAmount(building.constructionDeliveredRoofTiles ?? 0)} / ${formatAmount(building.constructionRequiredRoofTiles ?? 0)}</span></li>` : ''}
       <li><span>Incoming haul</span><span>${incomingLabel}</span></li>
       <li><span>Material source</span><span>${nextSourceLabel}</span></li>
       <li><span>Reserved at stores</span><span>${formatAmount(timberPending)} timber · ${formatAmount(stonePending)} stone · ${formatAmount(ironworkPending)} ironwork · ${formatAmount(roofTilesPending)} roof tiles</span></li>

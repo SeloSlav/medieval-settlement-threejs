@@ -7,7 +7,6 @@ import {
 } from '../generated/gameBalance.ts';
 
 export const FRESH_FOOD_KINDS = [
-  'food',
   'oatGrain',
   'ryeBread',
   'maslinBread',
@@ -107,7 +106,6 @@ export type FoodInventoryLike = Partial<Record<FoodInventoryKind, number>>;
  * Keep this exhaustive table in parity with `CommodityKind::meal_value`.
  */
 export const FOOD_MEAL_VALUES: Readonly<Record<FoodInventoryKind, number>> = {
-  food: 1,
   oatGrain: 0.5,
   ryeBread: 1,
   maslinBread: 1,
@@ -138,7 +136,6 @@ export const FOOD_MEAL_VALUES: Readonly<Record<FoodInventoryKind, number>> = {
 
 /** Relative decay inside each food's fresh or preserved storage class. */
 export const FOOD_SPOILAGE_MULTIPLIERS: Readonly<Record<FoodInventoryKind, number>> = {
-  food: 1,
   oatGrain: 0.35,
   ryeBread: 0.55,
   maslinBread: 0.5,
@@ -225,7 +222,6 @@ export type FoodProgressionStatus = {
 
 export function foodCategory(kind: FoodInventoryKind): FoodCategory {
   switch (kind) {
-    case 'food':
     case 'oatGrain':
     case 'ryeBread':
     case 'maslinBread':
@@ -324,7 +320,7 @@ export function foodProgressionStatus(
         ? ['grains', 'produceAndForage', 'animalFoods', 'fish']
         : ['grains', 'produceAndForage', 'animalProduce', 'meat', 'fish'];
   const minimum = foodCategoryQualifyingStock(population);
-  const grainStock = (['food', 'oatGrain', 'ryeBread', 'maslinBread'] as const)
+  const grainStock = (['oatGrain', 'ryeBread', 'maslinBread'] as const)
     .reduce((total, kind) => total + finiteFood(inventory[kind]) * foodMealValue(kind), 0);
   const supplied = new Set<FoodProgressionSlot>();
 
@@ -418,8 +414,7 @@ export function preservedFoodSpoilageExposure(inventory: FoodInventoryLike): num
 
 /** Fresh inputs the smokehouse can actually cure, smoke, or turn into cheese. */
 export function preservableFoodStock(inventory: FoodInventoryLike): number {
-  return finiteFood(inventory.food)
-    + finiteFood(inventory.meat)
+  return finiteFood(inventory.meat)
     + finiteFood(inventory.fish)
     + finiteFood(inventory.milk);
 }
