@@ -263,6 +263,7 @@ export class WorldQueries {
     const residenceTarget = findNearestResidenceTarget(state, x, z);
     let fieldTarget: Extract<InspectableTarget, { kind: 'farm-field' }> | null = null;
     let pastureTarget: Extract<InspectableTarget, { kind: 'pasture' }> | null = null;
+    let graveyardTarget: Extract<InspectableTarget, { kind: 'graveyard' }> | null = null;
     for (const field of state.farmFields.values()) {
       if (!isPointInPolygon2({ x, z }, field.corners)) continue;
       fieldTarget = {
@@ -279,6 +280,15 @@ export class WorldQueries {
         pasture,
         farmstead: state.buildings.get(pasture.farmsteadId) ?? null,
         herd: state.livestockHerds.get(pasture.id) ?? null,
+      };
+      break;
+    }
+    for (const graveyard of state.graveyards?.values() ?? []) {
+      if (!isPointInPolygon2({ x, z }, graveyard.corners)) continue;
+      graveyardTarget = {
+        kind: 'graveyard',
+        graveyard,
+        chapel: state.buildings.get(graveyard.chapelId) ?? null,
       };
       break;
     }
@@ -316,6 +326,7 @@ export class WorldQueries {
 
     if (residenceTarget) return residenceTarget;
 
+    if (graveyardTarget) return graveyardTarget;
     if (pastureTarget) return pastureTarget;
     if (fieldTarget) return fieldTarget;
 
@@ -407,6 +418,17 @@ export class WorldQueries {
 
   getLivestockHerdForPasture(pastureId: string): LivestockHerdState | null {
     return this.getGameState().livestockHerds.get(pastureId) ?? null;
+  }
+
+  findGraveyardTarget(graveyardId: string): Extract<InspectableTarget, { kind: 'graveyard' }> | null {
+    const state = this.getGameState();
+    const graveyard = state.graveyards?.get(graveyardId);
+    if (!graveyard) return null;
+    return {
+      kind: 'graveyard',
+      graveyard,
+      chapel: state.buildings.get(graveyard.chapelId) ?? null,
+    };
   }
 
   getLivestockHerdsForBuilding(buildingId: string): LivestockHerdState[] {

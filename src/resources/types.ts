@@ -612,6 +612,11 @@ export type InspectableTarget =
       herd: LivestockHerdState | null;
     }
   | {
+      kind: 'graveyard';
+      graveyard: GraveyardState;
+      chapel: BuildingState | null;
+    }
+  | {
       kind: 'river';
       x: number;
       z: number;

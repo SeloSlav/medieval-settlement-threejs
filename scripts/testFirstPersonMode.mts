@@ -7,6 +7,7 @@ const bootstrap = readFileSync('src/app/appBootstrap.ts', 'utf8');
 const controls = readFileSync('src/ui/gameControlsReference.ts', 'utf8');
 const settlementHud = readFileSync('src/ui/SettlementHud.ts', 'utf8');
 const nobleHudStyles = readFileSync('src/ui/nobleSetup.css', 'utf8');
+const polishedGameStyles = readFileSync('src/ui/polishedGameUi.css', 'utf8');
 
 assert.match(
   controller,
@@ -67,17 +68,42 @@ assert.match(
 assert.match(
   settlementHud,
   /setFirstPersonActive\(active: boolean\)[\s\S]{0,180}nobleHud\.classList\.toggle\('is-first-person', active\)/,
-  'first-person mode must retain the noble eye through its focused HUD state',
+  'first-person mode must retain the noble HUD and mark its active state',
 );
 assert.doesNotMatch(
   settlementHud,
   /setFirstPersonActive\(active: boolean\)[\s\S]{0,180}nobleHud\.hidden = active/,
-  'first-person mode must not hide the eye with the rest of the noble HUD',
+  'first-person mode must not hide the noble HUD',
+);
+assert.doesNotMatch(
+  nobleHudStyles,
+  /\.noble-hud\.is-first-person[\s\S]{0,320}\.noble-hud__portrait-shell[\s\S]{0,160}display: none/,
+  'first-person mode must preserve the portrait, identity, treasury, and reports',
 );
 assert.match(
   nobleHudStyles,
   /\.noble-hud\.is-first-person \.noble-hud__eye-exit-mark\s*\{\s*opacity: 1/,
   'the red exit slash must appear while lord view is active',
+);
+assert.match(
+  settlementHud,
+  /data-resource-card-context="gold" hidden><\/p>/,
+  'the optional treasury context must start hidden instead of repeating the spendable-gold description',
+);
+assert.match(
+  settlementHud,
+  /goldCardContext\.hidden = !hasGuardWageContext/,
+  'the treasury context must appear only when it adds guard-wage information',
+);
+assert.doesNotMatch(
+  settlementHud,
+  /Spendable gold across every community lockbox and Town Hall treasury/,
+  'the treasury card must not repeat its spendable-gold description',
+);
+assert.match(
+  polishedGameStyles,
+  /\.settlement-hud__resource-context\[hidden\]\s*\{\s*display: none/,
+  'hidden treasury context must not reserve an empty styled row',
 );
 assert.match(
   placement,

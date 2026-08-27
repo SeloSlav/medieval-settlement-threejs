@@ -422,12 +422,12 @@ const monthlySupply = computeSettlementProvisioning({
   sabbathObserved: false,
 });
 assert.ok(
-  Math.abs(monthlySupply.foodRunwayWithoutSpoilageDays - 30) < 1e-6,
-  `100 meal-equivalents should feed 10 people for 30 days before spoilage (${monthlySupply.foodRunwayWithoutSpoilageDays})`,
+  Math.abs(monthlySupply.foodRunwayWithoutSpoilageDays - 3_000) < 1e-6,
+  `100 meal-equivalents should cover 100 monthly Tier-1 household bills (${monthlySupply.foodRunwayWithoutSpoilageDays})`,
 );
 assert.ok(
-  Math.abs(monthlySupply.currentFirewoodRunwayDays - 30) < 1e-6,
-  `100 firewood-equivalents should heat 10 people for 30 ordinary days (${monthlySupply.currentFirewoodRunwayDays})`,
+  Math.abs(monthlySupply.currentFirewoodRunwayDays - 3_000) < 1e-6,
+  `100 firewood-equivalents should cover 100 monthly household bills (${monthlySupply.currentFirewoodRunwayDays})`,
 );
 
 const monthlyCharcoalState = emptyGameState();
@@ -444,8 +444,8 @@ const monthlyCharcoal = computeSettlementProvisioning({
   sabbathObserved: false,
 });
 assert.ok(
-  Math.abs(monthlyCharcoal.currentFirewoodRunwayDays - 30) < 1e-6,
-  `50 charcoal should heat 10 people for 30 ordinary days (${monthlyCharcoal.currentFirewoodRunwayDays})`,
+  Math.abs(monthlyCharcoal.currentFirewoodRunwayDays - 3_000) < 1e-6,
+  `50 charcoal should cover 100 monthly household bills (${monthlyCharcoal.currentFirewoodRunwayDays})`,
 );
 
 const physicalPayrollState = emptyGameState();
@@ -825,7 +825,7 @@ assert.equal(
 assert.equal(quarantinedCuredBranch.usablePreservedFoodStock, 0);
 assert.equal(quarantinedCuredBranch.fireQuarantinedPreservedFoodStock, 14);
 assert.ok(Math.abs(
-  (quarantinedCuredBranch.roadBranches?.worstFoodRunwayDays ?? 0) - 1,
+  (quarantinedCuredBranch.roadBranches?.worstFoodRunwayDays ?? 0) - 30,
 ) < 1e-9);
 
 const reconnectedBranches = computeSettlementProvisioning({

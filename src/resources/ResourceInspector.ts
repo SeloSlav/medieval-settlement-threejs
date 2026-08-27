@@ -807,6 +807,10 @@ export class ResourceInspector {
         }
         if (target.kind === 'pasture') {
           await this.options.onDemolishPasture?.(target.pasture.id);
+          return;
+        }
+        if (target.kind === 'graveyard') {
+          await this.options.onDemolishGraveyard?.(target.graveyard.id);
         }
       },
       this.demolishHint.textContent?.trim() ?? '',
@@ -1576,6 +1580,8 @@ export class ResourceInspector {
         return 'Farm field';
       case 'pasture':
         return 'Pasture';
+      case 'graveyard':
+        return 'Burial ground';
       case 'quarry':
       case 'foraging':
       case 'river':
@@ -2035,6 +2041,11 @@ export class ResourceInspector {
       this.renderTarget(latest);
       return;
     }
+    if (this.selectedTarget.kind === 'graveyard' && latest.kind === 'graveyard' && latest.graveyard.id === this.selectedTarget.graveyard.id) {
+      this.selectedTarget = latest;
+      this.renderTarget(latest);
+      return;
+    }
     this.clearSelection(false);
   }
 
@@ -2117,6 +2128,10 @@ export class ResourceInspector {
       this.selectedZ = center.z;
     } else if (target.kind === 'pasture') {
       const center = target.pasture.corners.reduce((sum, point) => ({ x: sum.x + point.x / 4, z: sum.z + point.z / 4 }), { x: 0, z: 0 });
+      this.selectedX = center.x;
+      this.selectedZ = center.z;
+    } else if (target.kind === 'graveyard') {
+      const center = target.graveyard.corners.reduce((sum, point) => ({ x: sum.x + point.x / 4, z: sum.z + point.z / 4 }), { x: 0, z: 0 });
       this.selectedX = center.x;
       this.selectedZ = center.z;
     } else {
@@ -2220,6 +2235,8 @@ export class ResourceInspector {
         ? target.residence.settlementId
         : target.kind === 'farm-field' || target.kind === 'pasture'
           ? target.farmstead?.settlementId
+          : target.kind === 'graveyard'
+            ? target.chapel?.settlementId
           : undefined;
     const getEconomicActivityTaxRate = this.options.getEconomicActivityTaxRate;
     const getPantrySafeguardPolicy = this.options.getPantrySafeguardPolicy;
@@ -2423,7 +2440,8 @@ export class ResourceInspector {
       || target.kind === 'residence'
       || target.kind === 'backyard'
       || target.kind === 'farm-field'
-      || target.kind === 'pasture';
+      || target.kind === 'pasture'
+      || target.kind === 'graveyard';
     this.demolishHint.hidden = compactDemolition
       || view.demolish.hint.trim().length === 0;
     syncInspectorTooltip(
@@ -2929,6 +2947,7 @@ function inspectableIdentity(target: InspectableTarget | null): string {
     case 'backyard': return `backyard:${target.residence.id}`;
     case 'farm-field': return `field:${target.field.id}`;
     case 'pasture': return `pasture:${target.pasture.id}`;
+    case 'graveyard': return `graveyard:${target.graveyard.id}`;
     case 'quarry': return `quarry:${target.definition.id}`;
     case 'foraging': return `foraging:${target.definition.id}`;
     case 'river': return `river:${target.x.toFixed(1)}:${target.z.toFixed(1)}`;
@@ -2993,6 +3012,13 @@ export function inspectablePresentation(target: InspectableTarget): InspectorPre
         target.definition.resource,
         target.state.isRich === true,
       ),
+    };
+  }
+  if (target.kind === 'graveyard') {
+    return {
+      kind: 'civic',
+      symbol: '\u271D',
+      image: '/assets/ui/build-menu/cards/burial-ground.webp',
     };
   }
   if (target.kind === 'foraging') {
