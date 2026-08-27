@@ -184,10 +184,10 @@ import {
   palisadedRefugeRallyPosition,
 } from './palisadedRefugeRally.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
+import { agentPacedDelta } from '../world/agentPacing.ts';
 import {
   CALENDAR_HOURS_PER_DAY,
   CALENDAR_SECONDS_PER_DAY,
-  SIM_REALTIME_RATE,
   STARTING_POPULATION,
   WORKFORCE_MOVEMENT_SPEED_MULTIPLIER,
 } from '../generated/gameBalance.ts';
@@ -1366,8 +1366,8 @@ export class VillagerRenderer {
 
   tick(dt: number, view?: CrowdViewState): void {
     this.lastView = view;
-    const realDt = Math.max(0, dt);
-    const simulationDt = realDt * this.getGameSpeed() * SIM_REALTIME_RATE;
+    const realDt = Number.isFinite(dt) ? Math.max(0, dt) : 0;
+    const simulationDt = agentPacedDelta(realDt, this.getGameSpeed());
     this.advanceCampAmbientCycle(simulationDt);
     this.advanceChapelAmbientCycle(simulationDt);
     this.advanceCombatAgentVisuals(simulationDt > 0 ? realDt : 0);
@@ -1581,6 +1581,7 @@ export class VillagerRenderer {
         z: agent.z,
         yaw: agent.yaw,
         moving: agent.currentMoveSpeed > 0.05,
+        movementSpeed: agent.currentMoveSpeed * WORKFORCE_MOVEMENT_SPEED_MULTIPLIER,
         active,
         haulKind,
       };
@@ -2267,7 +2268,7 @@ export class VillagerRenderer {
       && isOnRoadSurface(currentPathPoint.x, currentPathPoint.z, this.roadNetwork),
     );
     agent.currentMoveSpeed = surfaceAdjustedTravelSpeed(
-      agent.walkSpeed * WORKFORCE_MOVEMENT_SPEED_MULTIPLIER,
+      agent.walkSpeed,
       onRoad,
       PEDESTRIAN_ROAD_SPEED_MULTIPLIER,
     );

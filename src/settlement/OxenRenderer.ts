@@ -11,10 +11,8 @@ import {
   type SelectedAgentRoutePoint,
 } from '../scene/SelectedAgentRoute.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
-import {
-  VISUAL_AGENT_PACE_MULTIPLIER,
-  visualAgentDelta,
-} from '../world/visualAgentPacing.ts';
+import { WORKFORCE_MOVEMENT_SPEED_MULTIPLIER } from '../generated/gameBalance.ts';
+import { agentPacedDelta } from '../world/agentPacing.ts';
 import type { CrowdViewState } from './crowdView.ts';
 import {
   isAgentAnimalRenderingEnabled,
@@ -61,6 +59,8 @@ export type OxFollowPose = Readonly<{
   z: number;
   yaw: number;
   moving: boolean;
+  /** World metres per simulation second while moving. */
+  movementSpeed?: number;
   active: boolean;
   /** Material collected by a worksite crew and currently returning with the ox. */
   haulKind?: OxDragLoadKind | null;
@@ -234,8 +234,13 @@ export class OxenRenderer {
     }
     if (!renderEnabled || !this.latestInput) return;
 
-    const realDt = Math.min(0.08, Math.max(0, dtSeconds));
-    const simulationDt = visualAgentDelta(realDt, this.getGameSpeed());
+    const realDt = Number.isFinite(dtSeconds)
+      ? Math.min(0.08, Math.max(0, dtSeconds))
+      : 0;
+    const simulationDt = agentPacedDelta(realDt, this.getGameSpeed());
+    const freeMovementSpeed = OX_WALK_SPEED;
+    const effectiveFreeMovementSpeed = freeMovementSpeed
+      * WORKFORCE_MOVEMENT_SPEED_MULTIPLIER;
     for (const visual of this.visuals.values()) {
       const stable = this.latestInput.buildings.get(visual.ox.stableId);
       if (!stable || stable.kind !== 'stable') {
@@ -264,7 +269,7 @@ export class OxenRenderer {
             visual,
             target.x,
             target.z,
-            OX_WALK_SPEED * simulationDt,
+            freeMovementSpeed * simulationDt,
           );
           visual.yaw = Math.atan2(dx, dz);
         } else if (distance <= 0.16) {
@@ -291,6 +296,18 @@ export class OxenRenderer {
       visual.root.rotation.y = visual.yaw;
       this.syncDragLoad(visual, target.haulKind);
 
+      const movementSpeed = target.attached
+        ? target.movementSpeed ?? (moving ? effectiveFreeMovementSpeed : 0)
+        : moving
+          ? effectiveFreeMovementSpeed
+          : 0;
+      visual.actions.walk.setEffectiveTimeScale(
+        0.96 * Math.max(
+          0.65,
+          movementSpeed
+            / (OX_WALK_SPEED * WORKFORCE_MOVEMENT_SPEED_MULTIPLIER),
+        ),
+      );
       visual.mixer.update(simulationDt);
     }
   }
@@ -465,6 +482,7 @@ export class OxenRenderer {
     yaw: number;
     moving: boolean;
     attached: boolean;
+    movementSpeed: number;
     groundOffset: number;
     haulKind: OxDragLoadKind | null;
   } {
@@ -475,6 +493,7 @@ export class OxenRenderer {
           ...tripPose,
           moving: tripPose.moving,
           attached: true,
+          movementSpeed: tripPose.movementSpeed ?? 0,
           groundOffset: 0,
           haulKind: null,
         };
@@ -500,6 +519,7 @@ export class OxenRenderer {
           yaw: workerPose.yaw,
           moving: workerPose.moving,
           attached: false,
+          movementSpeed: workerPose.movementSpeed ?? 0,
           groundOffset: 0,
           haulKind: workerPose.haulKind ?? null,
         };
@@ -513,6 +533,7 @@ export class OxenRenderer {
       yaw: rest.yaw,
       moving: false,
       attached: false,
+      movementSpeed: 0,
       groundOffset: rest.localGroundOffset,
       haulKind: null,
     };
@@ -640,7 +661,7 @@ export class OxenRenderer {
           ? `Paired with worker ${visual.assignment.workerSlot + 1}`
           : 'Unpaired',
       paceLabel: 'Walking pace',
-      pace: `${(OX_WALK_SPEED * VISUAL_AGENT_PACE_MULTIPLIER).toFixed(1)} m/s`,
+      pace: `${(OX_WALK_SPEED * WORKFORCE_MOVEMENT_SPEED_MULTIPLIER).toFixed(1)} m/s`,
       position: {
         x: visual.root.position.x,
         y: visual.root.position.y,

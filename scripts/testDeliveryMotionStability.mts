@@ -5,18 +5,19 @@ import { advanceDeliveryDisplayProgress } from '../src/logistics/deliveryPresent
 import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import { advanceOxFollowPosition } from '../src/settlement/oxFollowMotion.ts';
 import {
-  VISUAL_AGENT_PACE_MULTIPLIER,
-  visualAgentDelta,
-} from '../src/world/visualAgentPacing.ts';
+  SIM_REALTIME_RATE,
+  WORKFORCE_MOVEMENT_SPEED_MULTIPLIER,
+} from '../src/generated/gameBalance.ts';
+import { agentPacedDelta } from '../src/world/agentPacing.ts';
 
 const AUTHORITY_INTERVAL_SECONDS = 0.2;
 const TEST_DURATION_SECONDS = 3;
 
-assert.equal(VISUAL_AGENT_PACE_MULTIPLIER, 2);
-assert.equal(visualAgentDelta(1, 0), 0);
-assert.equal(visualAgentDelta(1, 1), 1.5);
-assert.equal(visualAgentDelta(1, 4), 6);
-assert.equal(visualAgentDelta(1, 8), 12);
+assert.equal(WORKFORCE_MOVEMENT_SPEED_MULTIPLIER, 2);
+assert.equal(agentPacedDelta(1, 0), 0);
+assert.equal(agentPacedDelta(1, 1), 1.5);
+assert.equal(agentPacedDelta(1, 4), 6);
+assert.equal(agentPacedDelta(1, 8), 12);
 
 for (const frameRate of [30, 60, 144]) {
   for (const speed of [1.2, 3, 12]) {
@@ -175,7 +176,10 @@ for (const oxId of [null, 'stable-ox-1'] as const) {
 
   const frameRate = 60;
   const dt = 1 / frameRate;
-  const expectedDelta = 4 * 0.75 * VISUAL_AGENT_PACE_MULTIPLIER * dt;
+  const expectedDelta = 4
+    * SIM_REALTIME_RATE
+    * WORKFORCE_MOVEMENT_SPEED_MULTIPLIER
+    * dt;
   const authorityInterval = 1.4;
   let nextAuthorityTime = authorityInterval;
   let previousX = renderer.inspectDeliveryAgent(trip.id)?.position.x ?? 0;
@@ -184,7 +188,13 @@ for (const oxId of [null, 'stable-ox-1'] as const) {
   for (let frame = 1; frame <= frameRate * 3; frame += 1) {
     const time = frame * dt;
     while (time + 1e-9 >= nextAuthorityTime) {
-      trip = { ...trip, progress: 4 * 0.75 * nextAuthorityTime };
+      trip = {
+        ...trip,
+        progress: 4
+          * SIM_REALTIME_RATE
+          * WORKFORCE_MOVEMENT_SPEED_MULTIPLIER
+          * nextAuthorityTime,
+      };
       renderer.syncTrips([trip]);
       nextAuthorityTime += authorityInterval;
     }

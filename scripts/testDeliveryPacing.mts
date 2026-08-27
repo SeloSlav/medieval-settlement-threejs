@@ -7,6 +7,7 @@ import {
   FOOD_DELIVERY_SPEED_MPS,
   SIM_REALTIME_RATE,
   SIM_TICK_SECONDS,
+  WORKFORCE_MOVEMENT_SPEED_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 import {
   cargoKindLabelForTrip,
@@ -37,8 +38,13 @@ assert.equal(
   'food handcarts should keep a believable base pace before game-speed scaling',
 );
 assert.ok(
-  Math.abs(FOOD_DELIVERY_SPEED_MPS * SIM_REALTIME_RATE - 1.2) < 1e-12,
-  'physical cart speed should advance with the same base realtime rate as the calendar',
+  Math.abs(
+    FOOD_DELIVERY_SPEED_MPS
+      * WORKFORCE_MOVEMENT_SPEED_MULTIPLIER
+      * SIM_REALTIME_RATE
+      - 2.4,
+  ) < 1e-12,
+  'physical cart speed should combine the shared movement pace with the base realtime rate',
 );
 assert.equal(
   FOOD_PER_DELIVERY,
@@ -155,9 +161,9 @@ const returningSaltMerchant: DeliveryTripState = {
   freeHaulerWorkers: 1,
 };
 assert.equal(deliveryTripHasVisibleCargo(returningSaltMerchant), false);
-assert.equal(deliveryTripTravelSpeed(returningSaltMerchant), 2.6);
+assert.equal(deliveryTripTravelSpeed(returningSaltMerchant), 5.2);
 assert.equal(deliveryTripHasVisibleCargo(loadedTrip), true);
-assert.equal(deliveryTripTravelSpeed(loadedTrip), 4);
+assert.equal(deliveryTripTravelSpeed(loadedTrip), 8);
 assert.equal(cargoKindLabelForTrip(returningSaltMerchant), 'Adriatic salt');
 assert.deepEqual(
   describeDeliveryTrip(returningSaltMerchant, 'Marketplace', 'Marketplace'),
@@ -311,7 +317,7 @@ assert.deepEqual(
 );
 assert.equal(
   tripDeliveryRemainingSeconds(loadedTrip),
-  31,
+  17.5,
   'delivery ETA should include remaining outbound travel and unloading, but not the empty return',
 );
 assert.equal(
@@ -319,7 +325,7 @@ assert.equal(
     ...loadedTrip,
     travelSpeedMultiplier: 0.72,
   }),
-  41.5,
+  22.75,
   'winter road conditions must lengthen both authoritative movement and client ETAs',
 );
 assert.equal(
@@ -496,6 +502,11 @@ assert.match(
   deliveryServer,
   /fn recall_trip_to_origin[\s\S]*restore_trip_target_reservation[\s\S]*prepare_trip_return_leg[\s\S]*delivery_trip\(\)\.id\(\)\.update\(trip\)/,
   'a cancelled delivery should turn around with the same trip row, cargo, and committed crew',
+);
+assert.match(
+  deliveryServer,
+  /trip\.speed_mps\s*\* WORKFORCE_MOVEMENT_SPEED_MULTIPLIER\s*\* workers/,
+  'authoritative cart progress must apply the generated shared movement multiplier exactly once',
 );
 assert.match(
   deliveryServer,

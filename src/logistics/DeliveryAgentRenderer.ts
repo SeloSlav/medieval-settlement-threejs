@@ -51,7 +51,11 @@ import {
 } from '../settlement/villagerPaths.ts';
 import type { VillagerModelVariant } from '../settlement/SettlementCrowdRenderer.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
-import { SIM_REALTIME_RATE } from '../generated/gameBalance.ts';
+import {
+  SIM_REALTIME_RATE,
+  WORKFORCE_MOVEMENT_SPEED_MULTIPLIER,
+} from '../generated/gameBalance.ts';
+import { agentPacedDelta } from '../world/agentPacing.ts';
 import {
   createSelectedAgentRoute,
   SELECTED_AGENT_ROUTE_Y_OFFSET,
@@ -226,7 +230,9 @@ export class DeliveryAgentRenderer {
     if (!renderEnabled) return;
 
     const realDt = Number.isFinite(dt) ? Math.max(0, dt) : 0;
-    const simulationDt = realDt * this.getGameSpeed() * SIM_REALTIME_RATE;
+    const gameSpeed = this.getGameSpeed();
+    const simulationDt = realDt * gameSpeed * SIM_REALTIME_RATE;
+    const animationDt = agentPacedDelta(realDt, gameSpeed);
     for (const [tripId, visual] of this.visuals) {
       const currentSample = visual.polyline.length >= 2
         ? samplePolylineXZ(
@@ -280,9 +286,9 @@ export class DeliveryAgentRenderer {
       for (const worker of visual.workers) {
         updateDeliveryCartWorkerVisual(
           worker,
-          simulationDt,
+          animationDt,
           moving,
-          surfaceTravelSpeed,
+          surfaceTravelSpeed / WORKFORCE_MOVEMENT_SPEED_MULTIPLIER,
         );
       }
       if (this.selectedTripId === tripId) this.updateSelectedRoute(visual);
