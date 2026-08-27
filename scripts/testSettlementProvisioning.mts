@@ -10,7 +10,6 @@ import {
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
   RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
-  RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
   RESIDENCE_WATER_PER_PERSON_PER_SEC,
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
@@ -31,8 +30,13 @@ import {
 } from '../src/economy/preservedFoodPolicy.ts';
 import {
   foodSpoilageMultiplier,
-  householdFoodPerDay,
 } from '../src/economy/foodInventory.ts';
+import {
+  householdFoodUnitsPerDay,
+  householdFoodUnitsPerDayForTier,
+  householdFoodUnitsPerMonth,
+  householdFoodUnitsPerMonthForTier,
+} from '../src/economy/householdBillDemand.ts';
 import { computeResourceTotals } from '../src/resources/resourceTotals.ts';
 import type {
   BuildingState,
@@ -55,10 +59,6 @@ const residenceNeeds = readFileSync(
   new URL('../server/src/simulation/residence_needs/mod.rs', import.meta.url),
   'utf8',
 );
-const serverPreservedFoodPolicy = readFileSync(
-  new URL('../server/src/preserved_food_policy.rs', import.meta.url),
-  'utf8',
-);
 const clientPreservedFoodPolicy = readFileSync(
   new URL('../src/economy/preservedFoodPolicy.ts', import.meta.url),
   'utf8',
@@ -79,8 +79,8 @@ const expandedEconomy = readFileSync(
   new URL('../server/src/simulation/expanded_economy.rs', import.meta.url),
   'utf8',
 );
-const tickContext = readFileSync(
-  new URL('../server/src/simulation/tick_context.rs', import.meta.url),
+const marketplaceStallPolicy = readFileSync(
+  new URL('../server/src/marketplace_stall_policy.rs', import.meta.url),
   'utf8',
 );
 const pantrySafeguardPolicy = readFileSync(
@@ -137,17 +137,27 @@ assert.doesNotMatch(
   /owner_observes_sabbath|protected_household_rest_day|protected_rest_day/,
   'observed Sunday must continue ordinary household bills, needs, and welfare progression',
 );
-for (const policySource of [
-  serverPreservedFoodPolicy,
-  clientPreservedFoodPolicy,
-]) {
-  assert.match(policySource, /preserved.*rotation/i);
-  assert.match(policySource, /preserved.*fallback/i);
-  assert.match(policySource, /fresh/i);
-}
+assert.match(clientPreservedFoodPolicy, /preserved.*rotation/i);
+assert.match(clientPreservedFoodPolicy, /preserved.*fallback/i);
+assert.match(clientPreservedFoodPolicy, /fresh/i);
 assert.match(
   clientPreservedFoodPolicy,
   /freshFoodRunwayWithPreservedRotation/,
+);
+assert.match(
+  residenceNeeds,
+  /Tier-four preserved food replaces one matching monthly category[\s\S]{0,120}never adds a sixth calorie charge/,
+  'authoritative tier-four consumption must replace a food slot with preserved food instead of adding another meal charge',
+);
+assert.match(
+  residenceNeeds,
+  /if tier >= 4[\s\S]{0,500}first_food_for_slot\(residence, \*slot, true\)[\s\S]{0,500}preserved_slot_met = true/,
+  'authoritative tier-four consumption must satisfy one matching monthly slot from preserved stock',
+);
+assert.match(
+  residenceNeeds,
+  /all_slots_met:\s*slots_consumed as usize == slots\.len\(\) && preserved_slot_met/,
+  'tier-four food needs must require both the normal category slots and the preserved replacement slot',
 );
 assert.match(
   authoritativeSimulation,
@@ -180,20 +190,23 @@ assert.match(
   settlementHud,
   /fuelSupplyUse\.textContent = fuelHasDemand[\s\S]{0,120}\? formatResidenceResidents\(provisioning\.heatedResidents\)/,
 );
-assert.match(settlementHud, /usable meal-equivalents are forecast against that rate/);
-assert.match(settlementHud, /firewood \+.*charcoal =.*fuel-equivalents owned;.*usable by residences/);
+assert.match(
+  settlementHud,
+  /settlement-wide usable meals after storage and spoilage/,
+);
+assert.match(settlementHud, /firewood \+.*charcoal\. Charcoal counts double/);
 assert.match(settlementHud, /occupied residences/);
 assert.match(settlementHud, /Workplaces can also draw from shared fuel stores/);
 assert.doesNotMatch(settlementHud, /burgage/i);
 assert.match(
   householdDistribution,
-  /fn market_issue_cycle[\s\S]*MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY[\s\S]*ticks_per_check[\s\S]*sim_tick % ticks_per_check[\s\S]*Some\(MarketIssueCycle::Routine\)/,
+  /fn market_issue_cycle[\s\S]*MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY[\s\S]*ticks_per_check[\s\S]*sim_tick % ticks_per_check[\s\S]*Some\(MarketIssueCycle::Daily\)/,
   'markets must check household needs several times per day without increasing the target lot',
 );
 assert.match(
   householdDistribution,
-  /MarketIssueCycle::Routine[\s\S]*daily_market_issue_target_days\([\s\S]*ResidenceNeedKind::Firewood[\s\S]*ResidenceNeedKind::Food[\s\S]*ResidenceNeedKind::PreservedFood/,
-  'routine checks must preserve daily lot targets and the Town Hall critical-food and heat safeguard',
+  /MarketIssueCycle::Daily[\s\S]*daily_market_issue_target_days\([\s\S]*ResidenceNeedKind::Firewood[\s\S]*ResidenceNeedKind::Food[\s\S]*ResidenceNeedKind::PreservedFood/,
+  'daily checks must preserve daily lot targets and the Town Hall critical-food and heat safeguard',
 );
 assert.match(
   supplyPolicy,
@@ -205,21 +218,23 @@ assert.match(
   /target\.kind == "marketplace" && commodity\.is_edible\(\)[\s\S]*marketplace_refill_request\(\s*target_stock,\s*routed_target\.desired_stock,\s*commodity_transfer_per_trip\(commodity\),\s*transferable/,
   'edible marketplace deliveries must use the useful-cart refill policy',
 );
-const stallCandidateSection = tickContext.indexOf('Vec::<MarketplaceStallCandidate>');
-const stallSortStart = tickContext.indexOf(
+const stallCandidateSection = marketplaceStallPolicy.indexOf(
+  'pub fn assign_marketplace_stall_candidates',
+);
+const stallSortStart = marketplaceStallPolicy.indexOf(
   'candidates.sort_by(|left, right| {',
   stallCandidateSection,
 );
-const stallSortEnd = tickContext.indexOf('            });', stallSortStart);
+const stallSortEnd = marketplaceStallPolicy.indexOf('    });', stallSortStart);
 assert.ok(stallCandidateSection >= 0 && stallSortStart >= 0 && stallSortEnd >= 0);
-const stallSort = tickContext.slice(stallSortStart, stallSortEnd);
+const stallSort = marketplaceStallPolicy.slice(stallSortStart, stallSortEnd);
 const needRankSortIndex = stallSort.indexOf('stall_need_rank');
 const sourceStockSortIndex = stallSort.indexOf('source_has_stock');
 assert.ok(
   needRankSortIndex >= 0
     && sourceStockSortIndex >= 0
-    && needRankSortIndex < sourceStockSortIndex,
-  'stall need priority must outrank source stock so a sole granary worker serves basic food first',
+    && sourceStockSortIndex < needRankSortIndex,
+  'stall allocation must prefer stocked sources before breaking ties by household-need priority',
 );
 assert.match(
   pantrySafeguardPolicy,
@@ -228,8 +243,8 @@ assert.match(
 );
 assert.match(
   householdDistribution,
-  /Allocate one household-day per pass/,
-  'scarce daily market stock must be rationed fairly across connected homes',
+  /Allocate one household bill per pass/,
+  'scarce market stock must be rationed fairly across connected homes',
 );
 assert.match(
   deliveryCargo,
@@ -301,9 +316,11 @@ assert.equal(provisioning.householdBufferAleShortHomes, 1);
 assert.equal(provisioning.householdBufferClothShortHomes, 1);
 assert.equal(provisioning.householdBufferPotteryShortHomes, 0);
 assert.match(formatHouseholdBufferReadiness(provisioning), /0 \/ 2 homes buffered/);
+const expectedHouseholdFoodPerDay = householdFoodUnitsPerDayForTier(1)
+  + householdFoodUnitsPerDayForTier(2);
 assert.ok(Math.abs(
   provisioning.householdFoodPerDay
-  - householdFoodPerDay(7),
+  - expectedHouseholdFoodPerDay,
 ) < 1e-9);
 assert.equal(
   provisioning.grossHouseholdFoodPerDay,
@@ -328,7 +345,7 @@ assert.ok(
 assert.ok(Math.abs(
   provisioning.foodRunwayDays
   - provisioning.foodStock
-    / (householdFoodPerDay(7) + provisioning.guardFoodPerDay),
+    / (expectedHouseholdFoodPerDay + provisioning.guardFoodPerDay),
 ) < 1e-9);
 assert.ok(Math.abs(
   provisioning.winterFirewoodPerDay
@@ -605,7 +622,7 @@ assert.equal(
 const splitBranchState = emptyGameState();
 const splitHome = residence('split-home', 1, 4);
 splitHome.x = 0;
-splitHome.needs.food.stock = householdFoodPerDay(4);
+splitHome.needs.food.stock = householdFoodUnitsPerMonthForTier(splitHome.tier);
 splitHome.food = splitHome.needs.food.stock;
 splitHome.needs.firewood.stock = 4 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 170;
 splitHome.needs.water.stock = 4 * RESIDENCE_WATER_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY;
@@ -638,7 +655,7 @@ assert.equal(splitBranches.roadBranches?.activeBranches, 1);
 assert.equal(splitBranches.roadBranches?.foodSuppliedBranches, 0);
 assert.equal(splitBranches.roadBranches?.foodUnservedBranches, 1);
 assert.equal(splitBranches.roadBranches?.foodUnservedHouseholds, 1);
-assert.ok((splitBranches.roadBranches?.worstFoodRunwayDays ?? 99) <= 1.01);
+assert.ok((splitBranches.roadBranches?.worstFoodRunwayDays ?? 99) <= 30.01);
 assert.equal(splitBranches.roadBranches?.firstExposedResidenceId, splitHome.id);
 assert.equal(
   settlementProvisionLevel(splitBranches, 7),
@@ -690,8 +707,9 @@ assert.equal(settlementProvisionLevel(splitWithArrival, 7), 'ready');
 const curedBranchState = emptyGameState();
 const curedBranchHome = residence('cured-branch-home', 4, 5);
 curedBranchHome.x = 7;
-curedBranchHome.needs.food.stock =
-  householdFoodPerDay(5);
+curedBranchHome.needs.food.stock = householdFoodUnitsPerMonthForTier(
+  curedBranchHome.tier,
+);
 curedBranchHome.food = curedBranchHome.needs.food.stock;
 curedBranchState.residences.set(curedBranchHome.id, curedBranchHome);
 const curedBranchSmokehouse = building(
@@ -855,7 +873,9 @@ assert.ok(
 const splitFuelState = emptyGameState();
 const splitFuelHome = residence('split-fuel-home', 2, 4);
 splitFuelHome.x = 0;
-splitFuelHome.needs.food.stock = householdFoodPerDay(4);
+splitFuelHome.needs.food.stock = householdFoodUnitsPerMonthForTier(
+  splitFuelHome.tier,
+);
 splitFuelHome.food = splitFuelHome.needs.food.stock;
 splitFuelHome.needs.firewood.stock = 4 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 50;
 splitFuelHome.needs.water.stock = 4 * RESIDENCE_WATER_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY;
@@ -959,9 +979,7 @@ assert.equal(tierFourShort.householdBufferPotteryShortHomes, 1);
 
 const seasonalRationState = emptyGameState();
 const seasonalRationHome = residence('seasonal-ration-home', 4, 5);
-seasonalRationHome.needs.preservedFood.stock = 5
-  * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
-  * CALENDAR_SECONDS_PER_DAY;
+seasonalRationHome.needs.preservedFood.stock = householdFoodUnitsPerMonth(1);
 seasonalRationHome.preservedFood = seasonalRationHome.needs.preservedFood.stock;
 seasonalRationState.residences.set(
   seasonalRationHome.id,
@@ -984,10 +1002,9 @@ const winterRationBuffer = computeSettlementProvisioning({
   sabbathObserved: false,
 });
 assert.equal(ordinaryRationBuffer.householdBufferPreservedFoodShortHomes, 0);
-assert.equal(winterRationBuffer.householdBufferPreservedFoodShortHomes, 1);
-const seasonalGrossFoodPerDay = householdFoodPerDay(5);
-const ordinaryPreservedRotationPerDay =
-  5 * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY;
+assert.equal(winterRationBuffer.householdBufferPreservedFoodShortHomes, 0);
+const seasonalGrossFoodPerDay = householdFoodUnitsPerDayForTier(4);
+const ordinaryPreservedRotationPerDay = householdFoodUnitsPerDay(1);
 assert.ok(Math.abs(
   ordinaryRationBuffer.grossHouseholdFoodPerDay - seasonalGrossFoodPerDay,
 ) < 1e-9);
@@ -1005,7 +1022,7 @@ assert.ok(Math.abs(
 ) < 1e-9);
 assert.ok(Math.abs(
   winterRationBuffer.householdPreservedFoodRotationPerDay
-    - ordinaryPreservedRotationPerDay,
+    - ordinaryPreservedRotationPerDay * 1.75,
 ) < 1e-9);
 
 const meal = allocatePreservedMeal(10, 10, 3, 0.8, true);
@@ -1125,7 +1142,7 @@ for (const [id, tier, population] of [
   ['prepared-4', 4, 5],
 ] as const) {
   const home = residence(id, tier, population);
-  home.needs.food.stock = householdFoodPerDay(population);
+  home.needs.food.stock = householdFoodUnitsPerMonthForTier(tier);
   home.food = home.needs.food.stock;
   if (tier >= 1) {
     home.needs.firewood.stock = population * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 170 * 1.15;
@@ -1144,9 +1161,7 @@ for (const [id, tier, population] of [
       * CALENDAR_SECONDS_PER_DAY;
   }
   if (tier >= 4) {
-    home.needs.preservedFood.stock = population
-      * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
-      * CALENDAR_SECONDS_PER_DAY;
+    home.needs.preservedFood.stock = householdFoodUnitsPerMonth(1);
     home.preservedFood = home.needs.preservedFood.stock;
     home.needs.pottery.stock = population
       * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
@@ -1249,7 +1264,7 @@ function householdBufferState(readyHomes: number) {
   for (let index = 0; index < 5; index += 1) {
     const home = residence(`buffer-home-${index}`, 1, 3);
     if (index < readyHomes) {
-      home.needs.food.stock = householdFoodPerDay(3);
+      home.needs.food.stock = householdFoodUnitsPerMonthForTier(home.tier);
       home.food = home.needs.food.stock;
       home.needs.firewood.stock = 3 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 170;
       home.needs.water.stock = 3
