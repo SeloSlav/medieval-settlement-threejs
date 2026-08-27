@@ -3,6 +3,7 @@ import { decodeRoutePolyline } from './routePolyline.ts';
 import { localDeliveryRoute } from './roadLogistics.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { PointXZ } from '../utils/pathGeometry.ts';
+import { WORKFORCE_MOVEMENT_SPEED_MULTIPLIER } from '../generated/gameBalance.ts';
 
 export const DELIVERY_TRIP_PHASES = ['outbound', 'unloading', 'inbound'] as const;
 export type DeliveryTripPhase = (typeof DELIVERY_TRIP_PHASES)[number];
@@ -177,6 +178,7 @@ export function deliveryTripTravelSpeed(
     ? 1
     : EMPTY_CART_SPEED_MULTIPLIER;
   return trip.speedMps
+    * WORKFORCE_MOVEMENT_SPEED_MULTIPLIER
     * Math.max(1, trip.deliveryWorkers)
     * Math.max(1e-6, trip.travelSpeedMultiplier)
     * loadMultiplier;

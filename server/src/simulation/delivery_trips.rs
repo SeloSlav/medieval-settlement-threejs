@@ -12,6 +12,7 @@ use crate::balance_generated::{
     HERB_TREATMENT_PER_SICK_DAY, HOUSEHOLD_MAX_WEALTH, REMEDIES_PER_DELIVERY,
     REMEDY_DELIVERY_SPEED_MPS, REMEDY_DELIVERY_TARGET_DAYS, REMEDY_DELIVERY_UNLOAD_SEC,
     STOREHOUSE_HAUL_PER_WORKER, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
+    WORKFORCE_MOVEMENT_SPEED_MULTIPLIER,
 };
 use crate::construction_priority::{
     construction_labor_ready, construction_supply_crew, ConstructionSupplyCrew,
@@ -2080,7 +2081,10 @@ fn step_one_trip(
     trip.progress = trip.progress.min(path_distance);
 
     let workers = trip.delivery_workers.max(1) as f64;
-    let base_travel_speed = trip.speed_mps * workers * trip.travel_speed_multiplier.max(1e-6);
+    let base_travel_speed = trip.speed_mps
+        * WORKFORCE_MOVEMENT_SPEED_MULTIPLIER
+        * workers
+        * trip.travel_speed_multiplier.max(1e-6);
 
     if base_travel_speed <= 1e-9 {
         return;

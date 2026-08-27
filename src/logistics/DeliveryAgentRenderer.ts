@@ -51,7 +51,7 @@ import {
 } from '../settlement/villagerPaths.ts';
 import type { VillagerModelVariant } from '../settlement/SettlementCrowdRenderer.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
-import { visualAgentDelta } from '../world/visualAgentPacing.ts';
+import { SIM_REALTIME_RATE } from '../generated/gameBalance.ts';
 import {
   createSelectedAgentRoute,
   SELECTED_AGENT_ROUTE_Y_OFFSET,
@@ -72,6 +72,7 @@ type TripVisual = {
   displayProgress: number;
   phase: DeliveryTripPhase;
   travelSpeed: number;
+  movementSpeed: number;
   serverX: number;
   serverZ: number;
   yaw: number;
@@ -163,6 +164,7 @@ export class DeliveryAgentRenderer {
         displayProgress: trip.progress,
         phase: trip.phase,
         travelSpeed: this.tripTravelSpeed(trip),
+        movementSpeed: 0,
         serverX: trip.x,
         serverZ: trip.z,
         yaw: 0,
@@ -201,6 +203,7 @@ export class DeliveryAgentRenderer {
         + rightZ * DELIVERY_OX_CART_FORMATION.ox.x,
       yaw,
       moving: this.isVisualMoving(visual),
+      movementSpeed: visual.movementSpeed,
       active: true,
     };
   }
@@ -222,8 +225,8 @@ export class DeliveryAgentRenderer {
     }
     if (!renderEnabled) return;
 
-    const gameSpeed = this.getGameSpeed();
-    const animationDt = visualAgentDelta(dt, gameSpeed);
+    const realDt = Number.isFinite(dt) ? Math.max(0, dt) : 0;
+    const simulationDt = realDt * this.getGameSpeed() * SIM_REALTIME_RATE;
     for (const [tripId, visual] of this.visuals) {
       const currentSample = visual.polyline.length >= 2
         ? samplePolylineXZ(
@@ -242,14 +245,14 @@ export class DeliveryAgentRenderer {
         DELIVERY_ROAD_SPEED_MULTIPLIER,
       );
       const effectiveTravelSpeed = surfaceTravelSpeed
-        * (dt > 0 ? animationDt / dt : 0);
+        * (realDt > 0 ? simulationDt / realDt : 0);
       visual.displayProgress = advanceDeliveryDisplayProgress({
         displayProgress: visual.displayProgress,
         serverProgress: visual.serverProgress,
         pathDistance: visual.pathDistance,
         phase: visual.phase,
         effectiveTravelSpeed,
-        deltaSeconds: dt,
+        deltaSeconds: realDt,
       });
 
       let x = visual.serverX;
@@ -273,10 +276,11 @@ export class DeliveryAgentRenderer {
         ? yaw + Math.PI
         : yaw;
       const moving = this.isVisualMoving(visual);
+      visual.movementSpeed = moving ? surfaceTravelSpeed : 0;
       for (const worker of visual.workers) {
         updateDeliveryCartWorkerVisual(
           worker,
-          animationDt,
+          simulationDt,
           moving,
           surfaceTravelSpeed,
         );
