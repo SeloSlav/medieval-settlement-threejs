@@ -45,6 +45,7 @@ mod placement_validation;
 mod potter_firing_policy;
 mod processor_labor_policy;
 mod processor_output_policy;
+mod production_rate_policy;
 mod quarry_balance;
 mod raid_agent_policy;
 mod reducers;

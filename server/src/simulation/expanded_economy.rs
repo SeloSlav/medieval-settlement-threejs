@@ -2315,8 +2315,15 @@ fn step_farmstead_fields(
         } else {
             0
         };
+    let production_rate = crate::production_rate_policy::production_rate_multiplier(
+        farmstead.production_rate_percent,
+    );
     let mut work_budget = if work_allowed && threshing_labor == 0 {
-        onsite_labor as f64 * FARM_WORK_METERS_PER_WORKER_PER_SEC * TICK_DT * farm_tool_throughput
+        onsite_labor as f64
+            * FARM_WORK_METERS_PER_WORKER_PER_SEC
+            * TICK_DT
+            * farm_tool_throughput
+            * production_rate
     } else {
         0.0
     };
@@ -4201,7 +4208,14 @@ fn step_processor_with_labor(
     if productive_labor <= 1e-9 {
         return building;
     }
-    building.action_cooldown = (building.action_cooldown - TICK_DT).max(0.0);
+    let selected_rate = crate::production_rate_policy::production_rate_multiplier(
+        building.production_rate_percent,
+    );
+    if selected_rate <= 1e-9 {
+        return building;
+    }
+    building.action_cooldown =
+        (building.action_cooldown - TICK_DT * selected_rate).max(0.0);
     if building.action_cooldown > 1e-6 {
         return building;
     }
@@ -4548,8 +4562,15 @@ fn cycle_labor_if_ready_at_rate(
         }
         productive_labor
     };
-    building.action_cooldown =
-        (building.action_cooldown - TICK_DT * throughput_multiplier.max(0.0)).max(0.0);
+    let selected_rate = crate::production_rate_policy::production_rate_multiplier(
+        building.production_rate_percent,
+    );
+    if selected_rate <= 1e-9 {
+        return None;
+    }
+    building.action_cooldown = (building.action_cooldown
+        - TICK_DT * throughput_multiplier.max(0.0) * selected_rate)
+        .max(0.0);
     if building.action_cooldown > 1e-6 {
         return None;
     }

@@ -230,6 +230,8 @@ export type BuildingState = {
   milkUsePolicy?: number;
   /** 0 ale, 1 apple cider, 2 mead, 3 automatic, 4 pear cider. */
   breweryRecipePolicy?: number;
+  /** 0 automatic, 1 cured meat, 2 smoked fish, 3 cheese. */
+  smokehouseRecipePolicy?: number;
   /** 1 fields first, 2 demand-aware automatic, 3 thresh before non-harvest fieldwork. */
   threshingPriority?: number;
   /** Generic textile route preference: 0 auto, 1 first route, 2 second route. */

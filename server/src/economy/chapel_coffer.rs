@@ -221,6 +221,7 @@ mod tests {
             storehouse_stone_target_percent: 100,
             storehouse_firewood_target_percent: 100,
             processor_output_target_percent: 100,
+            production_rate_percent: crate::production_rate_policy::DEFAULT_PRODUCTION_RATE_PERCENT,
             granary_accepts_fresh_food: true,
             granary_households_first: false,
             granary_grain_reserve: 0.0,

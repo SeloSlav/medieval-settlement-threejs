@@ -198,7 +198,7 @@ assert.equal(
 assert.equal(weaverFibreDeliveryPreferenceRank(99, 'flax'), 1);
 assert.equal(
   weaverFibreDeliveryPreferenceLabel(WEAVER_INPUT_POLICY_WOOL_FIRST, 'wool'),
-  'Wool first match',
+  'Yarn match',
 );
 assert.equal(
   weaverFibreDeliveryPreferenceLabel(WEAVER_INPUT_POLICY_WOOL_FIRST, 'flax'),
@@ -229,8 +229,8 @@ assert.equal(
     water: 0,
     weaverInputPolicy: WEAVER_INPUT_POLICY_FLAX_FIRST,
   })),
-  false,
-  'flax-first should fall back to a complete wool cycle instead of idling',
+  true,
+  'an explicit linen recipe must wait for water instead of producing yarn',
 );
 assert.equal(
   weaverUsesLinen(weaver({
@@ -246,8 +246,8 @@ assert.equal(
     linen: 0,
     weaverInputPolicy: WEAVER_INPUT_POLICY_FLAX_FIRST,
   })),
-  false,
-  'linen-first should fall back to a complete yarn cycle instead of idling',
+  true,
+  'an explicit linen-clothing recipe must not consume stored yarn',
 );
 
 const worldQueries = {} as WorldQueries;
@@ -297,7 +297,7 @@ const policyStatus = getBuildingProcessorStatus(
   flaxWorldQueries,
 );
 assert.equal(policyStatus?.statusText, 'Retting flax and dressing linen fibre');
-assert.match(policyStatus?.waterDetailHtml ?? '', /Input policy<\/span><span>Flax first/);
+assert.match(policyStatus?.waterDetailHtml ?? '', /Active recipe<\/span><span>Linen/);
 assert.match(policyStatus?.waterDetailHtml ?? '', /Selected textile route<\/span><span>Ret flax with hauled water/);
 assert.equal(
   getBuildingProcessorStatus(

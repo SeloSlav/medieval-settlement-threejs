@@ -18,6 +18,11 @@ export type SmokehouseRecipePolicy =
 
 export type SmokehouseRecipeInput = 'meat' | 'fish' | 'milk';
 export type SmokehouseRecipeOutput = 'curedMeat' | 'smokedFish' | 'cheese';
+export type SmokehouseRecipeInventory = {
+  meat?: number;
+  fish?: number;
+  milk?: number;
+};
 
 export const SMOKEHOUSE_RECIPE_PRESETS = [
   { policy: SMOKEHOUSE_RECIPE_AUTO, label: 'Auto' },
@@ -40,6 +45,24 @@ export function smokehouseRecipePolicyLabel(policy: number | undefined): string 
   const normalized = normalizeSmokehouseRecipePolicy(policy);
   return SMOKEHOUSE_RECIPE_PRESETS.find((preset) => preset.policy === normalized)?.label
     ?? 'Auto';
+}
+
+export function selectedSmokehouseRecipePolicy(
+  policy: number | undefined,
+  inventory: SmokehouseRecipeInventory,
+): Exclude<SmokehouseRecipePolicy, typeof SMOKEHOUSE_RECIPE_AUTO> {
+  const normalized = normalizeSmokehouseRecipePolicy(policy);
+  if (normalized !== SMOKEHOUSE_RECIPE_AUTO) return normalized;
+  if (Math.max(0, inventory.meat ?? 0) >= SMOKEHOUSE_FOOD_PER_CYCLE) {
+    return SMOKEHOUSE_RECIPE_CURED_MEAT;
+  }
+  if (Math.max(0, inventory.fish ?? 0) >= SMOKEHOUSE_FOOD_PER_CYCLE) {
+    return SMOKEHOUSE_RECIPE_SMOKED_FISH;
+  }
+  if (Math.max(0, inventory.milk ?? 0) >= SMOKEHOUSE_FOOD_PER_CYCLE) {
+    return SMOKEHOUSE_RECIPE_CHEESE;
+  }
+  return SMOKEHOUSE_RECIPE_CURED_MEAT;
 }
 
 export function smokehouseRecipeInput(

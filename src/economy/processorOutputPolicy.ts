@@ -7,6 +7,10 @@ import {
   POTTER_FIRE_ROOF_TILES,
 } from './potterFiringPolicy.ts';
 import { breweryPolicyOutput } from './breweryRecipePolicy.ts';
+import {
+  selectedSmokehouseRecipePolicy,
+  smokehouseRecipeOutput,
+} from './smokehouseRecipePolicy.ts';
 import { weaverUsesFlax } from './weaverInputPolicy.ts';
 import {
   isStorageCommodity,
@@ -50,6 +54,9 @@ export type ProcessorOutputCommodity =
   | 'pearCider'
   | 'mead'
   | 'preservedFood'
+  | 'curedMeat'
+  | 'smokedFish'
+  | 'cheese'
   | 'yarn'
   | 'linen'
   | 'cloth'
@@ -161,10 +168,14 @@ export function processorOutputCommodityForBuilding(
     | 'kind'
     | 'potterFiringPolicy'
     | 'breweryRecipePolicy'
+    | 'smokehouseRecipePolicy'
     | 'barley'
     | 'malt'
     | 'apples'
     | 'honey'
+    | 'meat'
+    | 'fish'
+    | 'milk'
     | 'wool'
     | 'flax'
     | 'water'
@@ -174,6 +185,11 @@ export function processorOutputCommodityForBuilding(
   if (!isProcessorOutputTargetKind(building.kind)) return null;
   if (building.kind === 'brewery') {
     return breweryPolicyOutput(building.breweryRecipePolicy, building);
+  }
+  if (building.kind === 'smokehouse') {
+    return smokehouseRecipeOutput(
+      selectedSmokehouseRecipePolicy(building.smokehouseRecipePolicy, building),
+    );
   }
   if (building.kind === 'spinning_retting_house') {
     return weaverUsesFlax(building) ? 'linen' : 'yarn';
@@ -216,10 +232,14 @@ export function processorOutputTargetForBuilding(
     | 'processorOutputTargetPercent'
     | 'potterFiringPolicy'
     | 'breweryRecipePolicy'
+    | 'smokehouseRecipePolicy'
     | 'barley'
     | 'malt'
     | 'apples'
     | 'honey'
+    | 'meat'
+    | 'fish'
+    | 'milk'
     | 'wool'
     | 'flax'
     | 'water'
@@ -233,6 +253,8 @@ export function processorOutputTargetForBuilding(
   >;
   const capacity = output === 'bread'
     ? capacities.food ?? 0
+    : output === 'curedMeat' || output === 'smokedFish' || output === 'cheese'
+      ? capacities.preservedFood ?? 0
     : capacities[output] ?? 0;
   return processorOutputTarget(capacity, building.processorOutputTargetPercent);
 }

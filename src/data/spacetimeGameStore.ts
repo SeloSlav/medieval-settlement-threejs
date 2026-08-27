@@ -749,6 +749,13 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setBreweryRecipePolicy(buildingId, recipePolicy);
   }
 
+  setSmokehouseRecipePolicy(
+    buildingId: string,
+    recipePolicy: number,
+  ): Promise<void> {
+    return spacetimeReducers.setSmokehouseRecipePolicy(buildingId, recipePolicy);
+  }
+
   setWeaverInputPolicy(
     buildingId: string,
     inputPolicy: number,

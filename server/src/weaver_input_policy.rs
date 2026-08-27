@@ -149,7 +149,7 @@ mod tests {
     }
 
     #[test]
-    fn fibre_delivery_ranks_match_specialized_looms_without_disabling_fallback() {
+    fn fibre_delivery_ranks_prefer_the_active_recipe_without_rejecting_storage() {
         assert_eq!(
             weaver_fibre_delivery_preference_rank(WEAVER_INPUT_POLICY_WOOL_FIRST, false),
             0

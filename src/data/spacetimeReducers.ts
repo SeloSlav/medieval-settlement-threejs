@@ -700,6 +700,18 @@ export async function setBreweryRecipePolicy(
   });
 }
 
+export async function setSmokehouseRecipePolicy(
+  buildingId: string,
+  recipePolicy: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid Smokehouse id.');
+  await callReducer('setSmokehouseRecipePolicy', 'set_smokehouse_recipe_policy', {
+    buildingId: serverId,
+    recipePolicy,
+  });
+}
+
 export async function setPotterFiringPolicy(
   buildingId: string,
   firingPolicy: number,

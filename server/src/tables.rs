@@ -1132,6 +1132,10 @@ pub struct Building {
     /// processing while gaining an explicit focus control.
     #[default(0u8)]
     pub smokehouse_recipe_policy: u8,
+    /// Player-selected operating pace for ironwork-maintained production
+    /// sites. 50 is normal, 0 pauses, and 100 doubles normal throughput.
+    #[default(50u8)]
+    pub production_rate_percent: u8,
 }
 
 /// One persistent import/export instruction for one Trading Post commodity.

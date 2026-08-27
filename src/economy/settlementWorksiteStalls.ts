@@ -33,6 +33,19 @@ import {
   BREWERY_RECIPE_PEAR_CIDER,
   normalizeBreweryRecipePolicy,
 } from './breweryRecipePolicy.ts';
+import {
+  normalizeSmokehouseRecipePolicy,
+  SMOKEHOUSE_RECIPE_AUTO,
+  SMOKEHOUSE_RECIPE_CHEESE,
+  SMOKEHOUSE_RECIPE_CURED_MEAT,
+  SMOKEHOUSE_RECIPE_SMOKED_FISH,
+} from './smokehouseRecipePolicy.ts';
+import {
+  normalizeWeaverInputPolicy,
+  WEAVER_INPUT_POLICY_AUTO,
+  WEAVER_INPUT_POLICY_FLAX_FIRST,
+  WEAVER_INPUT_POLICY_WOOL_FIRST,
+} from './weaverInputPolicy.ts';
 import { largeQuarrySupportsReady } from './largeQuarrySupportPolicy.ts';
 import { richMineSupportsReady } from './mineSupportPolicy.ts';
 import { freshFoodStock } from './foodInventory.ts';
@@ -290,22 +303,49 @@ function processorInputRecipes(
           return [ale];
       }
     }
-    case 'smokehouse':
-      return [[
-        ['meat', 'fish', 'milk'],
-        ['firewood'],
-        ['salt'],
-      ]];
-    case 'spinning_retting_house':
-      return [
-        [['wool']],
-        [['flax'], ['water']],
-      ];
-    case 'weaver':
-      return [
-        [['yarn']],
-        [['linen']],
-      ];
+    case 'smokehouse': {
+      const shared: ProcessorInputRecipe = [['firewood'], ['salt']];
+      const meat: ProcessorInputRecipe = [['meat'], ...shared];
+      const fish: ProcessorInputRecipe = [['fish'], ...shared];
+      const cheese: ProcessorInputRecipe = [['milk'], ...shared];
+      switch (normalizeSmokehouseRecipePolicy(building.smokehouseRecipePolicy)) {
+        case SMOKEHOUSE_RECIPE_CURED_MEAT:
+          return [meat];
+        case SMOKEHOUSE_RECIPE_SMOKED_FISH:
+          return [fish];
+        case SMOKEHOUSE_RECIPE_CHEESE:
+          return [cheese];
+        case SMOKEHOUSE_RECIPE_AUTO:
+        default:
+          return [meat, fish, cheese];
+      }
+    }
+    case 'spinning_retting_house': {
+      const wool: ProcessorInputRecipe = [['wool']];
+      const flax: ProcessorInputRecipe = [['flax'], ['water']];
+      switch (normalizeWeaverInputPolicy(building.weaverInputPolicy)) {
+        case WEAVER_INPUT_POLICY_WOOL_FIRST:
+          return [wool];
+        case WEAVER_INPUT_POLICY_FLAX_FIRST:
+          return [flax];
+        case WEAVER_INPUT_POLICY_AUTO:
+        default:
+          return [wool, flax];
+      }
+    }
+    case 'weaver': {
+      const yarn: ProcessorInputRecipe = [['yarn']];
+      const linen: ProcessorInputRecipe = [['linen']];
+      switch (normalizeWeaverInputPolicy(building.weaverInputPolicy)) {
+        case WEAVER_INPUT_POLICY_WOOL_FIRST:
+          return [yarn];
+        case WEAVER_INPUT_POLICY_FLAX_FIRST:
+          return [linen];
+        case WEAVER_INPUT_POLICY_AUTO:
+        default:
+          return [yarn, linen];
+      }
+    }
     default:
       return [[...processorInputCommodities(building.kind)
         .filter((commodity) => commodity !== 'food')
@@ -421,13 +461,17 @@ function processorStall(
     return 'supply_en_route';
   }
   if (
-    building.kind === 'brewery'
-    && normalizeBreweryRecipePolicy(building.breweryRecipePolicy) === BREWERY_RECIPE_AUTO
+    (building.kind === 'brewery'
+      && normalizeBreweryRecipePolicy(building.breweryRecipePolicy) === BREWERY_RECIPE_AUTO)
+    || (building.kind === 'smokehouse'
+      && normalizeSmokehouseRecipePolicy(building.smokehouseRecipePolicy) === SMOKEHOUSE_RECIPE_AUTO)
   ) {
     return {
       ...base,
       reason: 'input_empty',
-      detail: 'no complete beverage recipe on site (ale needs barley or malt, water, and firewood; cider needs apples or pears; mead needs honey)',
+      detail: building.kind === 'brewery'
+        ? 'no complete beverage recipe on site (ale needs barley or malt, water, and firewood; cider needs apples or pears; mead needs honey)'
+        : 'no complete preservation recipe on site (cured meat, smoked fish, or cheese also needs firewood and salt)',
     };
   }
   const missingRequirements = recipes

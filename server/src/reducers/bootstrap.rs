@@ -11,6 +11,7 @@ use crate::foraging_policy::preserves_runtime_location_during_bootstrap;
 use crate::granary_policy::GRANARY_FRESH_FOOD_TARGET_DEFAULT_PERCENT;
 use crate::lifecycle::ensure_player_resources;
 use crate::processor_output_policy::PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT;
+use crate::production_rate_policy::DEFAULT_PRODUCTION_RATE_PERCENT;
 use crate::quarry_balance::preserve_extracted_stone;
 use crate::reducers::buildings::next_available_building_id;
 use crate::simulation::materialize_physical_resource_ledger_at;
@@ -302,6 +303,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         storehouse_salt_target_percent: STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
         storehouse_charcoal_target_percent: 25,
         processor_output_target_percent: PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
+        production_rate_percent: DEFAULT_PRODUCTION_RATE_PERCENT,
         guardhouse_food_reserve: 0,
         marketplace_seed_grain_target: 0,
         marketplace_pending_trade_code: 0,

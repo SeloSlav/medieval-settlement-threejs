@@ -1205,6 +1205,8 @@ pub fn insert_reclamation_pile(
         storehouse_charcoal_target_percent: 25,
         processor_output_target_percent:
             crate::processor_output_policy::PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
+        production_rate_percent:
+            crate::production_rate_policy::DEFAULT_PRODUCTION_RATE_PERCENT,
         guardhouse_food_reserve: 0,
         marketplace_seed_grain_target: 0,
         founding_shelter_active: false,

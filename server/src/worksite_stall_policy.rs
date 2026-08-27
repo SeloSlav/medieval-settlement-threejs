@@ -9,6 +9,14 @@ use crate::brewery_recipe_policy::{
     normalize_brewery_recipe_policy, BREWERY_RECIPE_AUTO, BREWERY_RECIPE_CIDER,
     BREWERY_RECIPE_MEAD, BREWERY_RECIPE_PEAR_CIDER,
 };
+use crate::smokehouse_recipe_policy::{
+    normalize_smokehouse_recipe_policy, SMOKEHOUSE_RECIPE_AUTO, SMOKEHOUSE_RECIPE_CHEESE,
+    SMOKEHOUSE_RECIPE_CURED_MEAT, SMOKEHOUSE_RECIPE_SMOKED_FISH,
+};
+use crate::weaver_input_policy::{
+    normalize_weaver_input_policy, WEAVER_INPUT_POLICY_AUTO, WEAVER_INPUT_POLICY_FLAX_FIRST,
+    WEAVER_INPUT_POLICY_WOOL_FIRST,
+};
 
 pub const WORKSITE_SPATIAL_BUCKET_SIZE: f64 = 96.0;
 pub const RICH_DEPOSIT_CENTER_TOLERANCE: f64 = 2.5;
@@ -47,7 +55,7 @@ pub struct ProcessorRecipeAvailability {
 /// merging matching inbound carts to distinguish a stall from recovery.
 pub fn alternative_processor_recipe_ready(
     kind: &str,
-    brewery_recipe_policy: u8,
+    recipe_policy: u8,
     available: ProcessorRecipeAvailability,
 ) -> Option<bool> {
     let ale_ready = (available.barley || available.malt) && available.water && available.firewood;
@@ -63,7 +71,7 @@ pub fn alternative_processor_recipe_ready(
                 && available.firewood,
         ),
         "brewery" => Some(
-            match normalize_brewery_recipe_policy(brewery_recipe_policy) {
+            match normalize_brewery_recipe_policy(recipe_policy) {
                 BREWERY_RECIPE_CIDER => cider_ready,
                 BREWERY_RECIPE_PEAR_CIDER => pear_cider_ready,
                 BREWERY_RECIPE_MEAD => mead_ready,
@@ -71,14 +79,28 @@ pub fn alternative_processor_recipe_ready(
                 _ => ale_ready,
             },
         ),
-        "smokehouse" => Some(
-            (available.food || available.meat || available.fish || available.milk)
-                && available.firewood
-                && available.salt
-                && available.pottery,
-        ),
-        "spinning_retting_house" => Some(available.wool || (available.flax && available.water)),
-        "weaver" => Some(available.yarn || available.linen),
+        "smokehouse" => Some({
+            let recipe_ready = match normalize_smokehouse_recipe_policy(recipe_policy) {
+                SMOKEHOUSE_RECIPE_CURED_MEAT => available.meat,
+                SMOKEHOUSE_RECIPE_SMOKED_FISH => available.fish,
+                SMOKEHOUSE_RECIPE_CHEESE => available.milk,
+                SMOKEHOUSE_RECIPE_AUTO => available.meat || available.fish || available.milk,
+                _ => unreachable!("smokehouse recipe policy is normalized"),
+            };
+            recipe_ready && available.firewood && available.salt
+        }),
+        "spinning_retting_house" => Some(match normalize_weaver_input_policy(recipe_policy) {
+            WEAVER_INPUT_POLICY_WOOL_FIRST => available.wool,
+            WEAVER_INPUT_POLICY_FLAX_FIRST => available.flax && available.water,
+            WEAVER_INPUT_POLICY_AUTO => available.wool || (available.flax && available.water),
+            _ => unreachable!("textile recipe policy is normalized"),
+        }),
+        "weaver" => Some(match normalize_weaver_input_policy(recipe_policy) {
+            WEAVER_INPUT_POLICY_WOOL_FIRST => available.yarn,
+            WEAVER_INPUT_POLICY_FLAX_FIRST => available.linen,
+            WEAVER_INPUT_POLICY_AUTO => available.yarn || available.linen,
+            _ => unreachable!("textile recipe policy is normalized"),
+        }),
         _ => None,
     }
 }
@@ -395,12 +417,19 @@ mod tests {
             meat: true,
             firewood: true,
             salt: true,
-            pottery: true,
             ..Default::default()
         };
         assert_eq!(
             alternative_processor_recipe_ready("smokehouse", 0, typed_smokehouse),
             Some(true),
+        );
+        assert_eq!(
+            alternative_processor_recipe_ready(
+                "smokehouse",
+                SMOKEHOUSE_RECIPE_SMOKED_FISH,
+                typed_smokehouse,
+            ),
+            Some(false),
         );
         assert_eq!(
             alternative_processor_recipe_ready(
@@ -416,6 +445,18 @@ mod tests {
         );
         assert_eq!(
             alternative_processor_recipe_ready(
+                "spinning_retting_house",
+                WEAVER_INPUT_POLICY_WOOL_FIRST,
+                ProcessorRecipeAvailability {
+                    flax: true,
+                    water: true,
+                    ..Default::default()
+                },
+            ),
+            Some(false),
+        );
+        assert_eq!(
+            alternative_processor_recipe_ready(
                 "weaver",
                 0,
                 ProcessorRecipeAvailability {
@@ -424,6 +465,17 @@ mod tests {
                 },
             ),
             Some(true),
+        );
+        assert_eq!(
+            alternative_processor_recipe_ready(
+                "weaver",
+                WEAVER_INPUT_POLICY_WOOL_FIRST,
+                ProcessorRecipeAvailability {
+                    linen: true,
+                    ..Default::default()
+                },
+            ),
+            Some(false),
         );
     }
 

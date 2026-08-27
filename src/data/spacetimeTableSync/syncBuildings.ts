@@ -53,6 +53,7 @@ function buildingStateFromRow(
     pearCider: number;
     mead: number;
     breweryRecipePolicy: number;
+    smokehouseRecipePolicy: number;
     monasteryOrchardPlanting: number;
     monasteryCroftPlanting: number;
     monasteryExtensions: number;
@@ -210,6 +211,7 @@ function buildingStateFromRow(
     processorOutputTargetPercent: row.processorOutputTargetPercent,
     milkUsePolicy: Number(materialRow.milkUsePolicy ?? 0),
     breweryRecipePolicy: Number(materialRow.breweryRecipePolicy ?? 0),
+    smokehouseRecipePolicy: Number(materialRow.smokehouseRecipePolicy ?? 0),
     threshingPriority: row.threshingPriority,
     weaverInputPolicy: row.weaverInputPolicy,
     potterFiringPolicy: Number(materialRow.potterFiringPolicy ?? 0),

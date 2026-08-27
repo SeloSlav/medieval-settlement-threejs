@@ -92,6 +92,8 @@ pub mod raid_agent_policy;
 pub mod season_policy;
 #[path = "../../src/seasonal_labor_policy.rs"]
 pub mod seasonal_labor_policy;
+#[path = "../../src/smokehouse_recipe_policy.rs"]
+pub mod smokehouse_recipe_policy;
 #[path = "../../src/security_policy.rs"]
 pub mod security_policy;
 #[path = "../../src/wind_policy.rs"]
@@ -114,6 +116,9 @@ pub mod storage_acceptance_policy;
 
 #[path = "../../src/processor_output_policy.rs"]
 pub mod processor_output_policy;
+
+#[path = "../../src/production_rate_policy.rs"]
+pub mod production_rate_policy;
 
 #[path = "../../src/pantry_safeguard_policy.rs"]
 pub mod pantry_safeguard_policy;

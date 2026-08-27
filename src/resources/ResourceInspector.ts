@@ -205,6 +205,10 @@ type ResourceInspectorOptions = {
     buildingId: string,
     recipePolicy: number,
   ) => void | Promise<void>;
+  onSetSmokehouseRecipePolicy?: (
+    buildingId: string,
+    recipePolicy: number,
+  ) => void | Promise<void>;
   onSetWeaverInputPolicy?: (
     buildingId: string,
     inputPolicy: number,
@@ -1460,6 +1464,18 @@ export class ResourceInspector {
           ?.dataset.breweryRecipePolicy;
         if (recipePolicy != null) {
           void this.options.onSetBreweryRecipePolicy?.(
+            this.selectedTarget.building.id,
+            Number(recipePolicy),
+          );
+          return;
+        }
+      }
+      if (this.selectedTarget.building.kind === 'smokehouse') {
+        const recipePolicy = (event.target as HTMLElement)
+          .closest<HTMLElement>('[data-smokehouse-recipe-policy]')
+          ?.dataset.smokehouseRecipePolicy;
+        if (recipePolicy != null) {
+          void this.options.onSetSmokehouseRecipePolicy?.(
             this.selectedTarget.building.id,
             Number(recipePolicy),
           );

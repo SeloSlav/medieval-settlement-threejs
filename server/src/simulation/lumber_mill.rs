@@ -39,7 +39,14 @@ pub fn step_lumber_mill(
     }
 
     let tools_maintained = civilian_tools_maintained(building.ironwork);
-    let throughput_multiplier = civilian_tool_throughput_multiplier(building.ironwork);
+    let selected_rate = crate::production_rate_policy::production_rate_multiplier(
+        building.production_rate_percent,
+    );
+    if selected_rate <= 1e-9 {
+        return;
+    }
+    let throughput_multiplier =
+        civilian_tool_throughput_multiplier(building.ironwork) * selected_rate;
     let cooldown = (building.action_cooldown - TICK_DT * throughput_multiplier).max(0.0);
     if cooldown > 0.0 {
         ctx.db.building().id().update(Building {

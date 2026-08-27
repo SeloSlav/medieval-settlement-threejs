@@ -76,6 +76,10 @@ use crate::processor_output_policy::{
     processor_output_kind, ProcessorInputKind, ProcessorOutputKind,
     PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
 };
+use crate::production_rate_policy::{
+    is_production_rate_kind, is_valid_production_rate_percent,
+    DEFAULT_PRODUCTION_RATE_PERCENT,
+};
 use crate::resource_units::{whole_cost, whole_units};
 use crate::roads::load_owner_road_network;
 use crate::seasonal_labor_policy::seasonal_production_active;
@@ -104,7 +108,10 @@ use crate::tables::{
     farm_field, livestock_herd, pasture, pasture_herd, Building, ForagingNode, Quarry, WorldConfig,
 };
 use crate::tree_work_area_policy::{supports_tree_work_area, validate_tree_work_area};
-use crate::weaver_input_policy::is_valid_weaver_input_policy;
+use crate::weaver_input_policy::{
+    is_valid_weaver_input_policy, normalize_weaver_input_policy, WEAVER_INPUT_POLICY_AUTO,
+    WEAVER_INPUT_POLICY_FLAX_FIRST, WEAVER_INPUT_POLICY_WOOL_FIRST,
+};
 use crate::woodcutter_policy::normalize_woodcutter_timber_reserve;
 use crate::worksite_stall_policy::{
     alternative_processor_recipe_ready, is_production_labor_kind, stalled_labor_target,
@@ -950,6 +957,7 @@ pub(crate) fn place_building_internal(
         storehouse_salt_target_percent: STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
         storehouse_charcoal_target_percent: 25,
         processor_output_target_percent: PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
+        production_rate_percent: DEFAULT_PRODUCTION_RATE_PERCENT,
         gold: 0.0,
         // A paid expedition's people arrive only when construction completes.
         founding_shelter_active: false,
@@ -1352,7 +1360,14 @@ fn processor_output_room(building: &Building) -> Option<f64> {
                 building.processor_output_target_percent,
             )
         };
-        return Some(headroom(CommodityKind::Yarn).max(headroom(CommodityKind::Linen)));
+        return Some(match normalize_weaver_input_policy(building.weaver_input_policy) {
+            WEAVER_INPUT_POLICY_WOOL_FIRST => headroom(CommodityKind::Yarn),
+            WEAVER_INPUT_POLICY_FLAX_FIRST => headroom(CommodityKind::Linen),
+            WEAVER_INPUT_POLICY_AUTO => {
+                headroom(CommodityKind::Yarn).max(headroom(CommodityKind::Linen))
+            }
+            _ => unreachable!("textile recipe policy is normalized"),
+        });
     }
     let commodity = if building.kind == "potter_kiln"
         && potter_fires_roof_tiles(building.potter_firing_policy)
@@ -1433,10 +1448,15 @@ fn processor_stall_and_recovery(ctx: &ReducerContext, building: &Building) -> (b
         return (true, false);
     }
 
-    let brewery_policy = normalize_brewery_recipe_policy(building.brewery_recipe_policy);
+    let recipe_policy = match building.kind.as_str() {
+        "brewery" => normalize_brewery_recipe_policy(building.brewery_recipe_policy),
+        "smokehouse" => building.smokehouse_recipe_policy,
+        "spinning_retting_house" | "weaver" => building.weaver_input_policy,
+        _ => 0,
+    };
     if let Some(ready) = alternative_processor_recipe_ready(
         &building.kind,
-        brewery_policy,
+        recipe_policy,
         processor_recipe_availability(ctx, building, false),
     ) {
         if ready {
@@ -1444,7 +1464,7 @@ fn processor_stall_and_recovery(ctx: &ReducerContext, building: &Building) -> (b
         }
         let recovering = alternative_processor_recipe_ready(
             &building.kind,
-            brewery_policy,
+            recipe_policy,
             processor_recipe_availability(ctx, building, true),
         )
         .unwrap_or(false);
@@ -2420,6 +2440,36 @@ pub fn set_smokehouse_recipe_policy(
 }
 
 #[reducer]
+pub fn set_building_production_rate(
+    ctx: &ReducerContext,
+    building_id: u64,
+    rate_percent: u8,
+) -> Result<(), String> {
+    if !is_valid_production_rate_percent(rate_percent) {
+        return Err("Production rate must be between 0% and 100%.".to_string());
+    }
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Production building not found.".to_string())?;
+    if building.owner != owner
+        || !building.construction_complete
+        || !is_production_rate_kind(&building.kind)
+    {
+        return Err(
+            "You do not own this completed ironwork-maintained production building."
+                .to_string(),
+        );
+    }
+    building.production_rate_percent = rate_percent;
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
 pub fn set_threshing_priority(
     ctx: &ReducerContext,
     building_id: u64,
@@ -2453,7 +2503,7 @@ pub fn set_weaver_input_policy(
     input_policy: u8,
 ) -> Result<(), String> {
     if !is_valid_weaver_input_policy(input_policy) {
-        return Err("Textile input policy must be Auto, Wool first, or Flax first.".to_string());
+        return Err("Textile recipe must be Auto, Yarn, or Linen.".to_string());
     }
     let owner = ctx.sender();
     let mut building = ctx

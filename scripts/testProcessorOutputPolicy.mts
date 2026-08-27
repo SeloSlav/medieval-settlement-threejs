@@ -28,6 +28,14 @@ import {
   selectedBreweryRecipePolicy,
 } from '../src/economy/breweryRecipePolicy.ts';
 import {
+  SMOKEHOUSE_RECIPE_AUTO,
+  SMOKEHOUSE_RECIPE_CHEESE,
+  SMOKEHOUSE_RECIPE_CURED_MEAT,
+  SMOKEHOUSE_RECIPE_SMOKED_FISH,
+  normalizeSmokehouseRecipePolicy,
+  selectedSmokehouseRecipePolicy,
+} from '../src/economy/smokehouseRecipePolicy.ts';
+import {
   BREWERY_APPLES_PER_CIDER_CYCLE,
   BREWERY_CIDER_PER_CYCLE,
   BREWERY_HONEY_PER_MEAD_CYCLE,
@@ -148,6 +156,30 @@ assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="0"[^>]*data-
 assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="1"[^>]*data-tooltip="4 apples → 1 apple cider"/);
 assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="4"[^>]*data-tooltip="4 pears → 1 pear cider"/);
 assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="2"[^>]*data-tooltip="1 honey → 1 mead"/);
+const smokehouse = processor('smokehouse-panel', 'smokehouse');
+smokehouse.meat = 3;
+smokehouse.fish = 6;
+smokehouse.milk = 9;
+smokehouse.smokehouseRecipePolicy = SMOKEHOUSE_RECIPE_AUTO;
+assert.equal(normalizeSmokehouseRecipePolicy(undefined), SMOKEHOUSE_RECIPE_AUTO);
+assert.equal(
+  selectedSmokehouseRecipePolicy(SMOKEHOUSE_RECIPE_AUTO, smokehouse),
+  SMOKEHOUSE_RECIPE_CURED_MEAT,
+  'automatic smokehouse production preserves the legacy meat-first order',
+);
+smokehouse.smokehouseRecipePolicy = SMOKEHOUSE_RECIPE_SMOKED_FISH;
+assert.equal(processorOutputCommodityForBuilding(smokehouse), 'smokedFish');
+smokehouse.smokehouseRecipePolicy = SMOKEHOUSE_RECIPE_CHEESE;
+assert.equal(processorOutputCommodityForBuilding(smokehouse), 'cheese');
+smokehouse.smokehouseRecipePolicy = SMOKEHOUSE_RECIPE_CURED_MEAT;
+assert.equal(processorOutputCommodityForBuilding(smokehouse), 'curedMeat');
+smokehouse.smokehouseRecipePolicy = SMOKEHOUSE_RECIPE_AUTO;
+const smokehouseRecipePanel = renderProcessorOutputTargetPanel(smokehouse);
+assert.match(smokehouseRecipePanel ?? '', /resource-action-button--icon/);
+assert.match(smokehouseRecipePanel ?? '', /data-smokehouse-recipe-policy="0"[^>]*disabled/);
+assert.match(smokehouseRecipePanel ?? '', /data-smokehouse-recipe-policy="1"[^>]*data-tooltip="3 meat \+ 1 firewood \+ 1 salt → 3 cured meat"/);
+assert.match(smokehouseRecipePanel ?? '', /data-smokehouse-recipe-policy="2"[^>]*data-tooltip="3 fish \+ 1 firewood \+ 1 salt → 3 smoked fish"/);
+assert.match(smokehouseRecipePanel ?? '', /data-smokehouse-recipe-policy="3"[^>]*data-tooltip="3 milk \+ 1 firewood \+ 1 salt → 3 cheese"/);
 assert.equal(renderProcessorOutputTargetPanel(processor('mill-panel', 'watermill')), null);
 
 const leanQuarry = processor('quarry', 'stone_quarry', 25);

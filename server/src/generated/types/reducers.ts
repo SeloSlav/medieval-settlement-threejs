@@ -90,6 +90,7 @@ import SetPotterFiringPolicyReducer from "../set_potter_firing_policy_reducer";
 import SetProductionLaborStewardReducer from "../set_production_labor_steward_reducer";
 import SetResidenceUpgradePriorityReducer from "../set_residence_upgrade_priority_reducer";
 import SetSeasonalLaborStewardReducer from "../set_seasonal_labor_steward_reducer";
+import SetSmokehouseRecipePolicyReducer from "../set_smokehouse_recipe_policy_reducer";
 import SetStorageCommodityAcceptanceReducer from "../set_storage_commodity_acceptance_reducer";
 import SetStorehousePolicyReducer from "../set_storehouse_policy_reducer";
 import SetStorehouseStockTargetReducer from "../set_storehouse_stock_target_reducer";
@@ -193,6 +194,7 @@ export type SetPotterFiringPolicyParams = __Infer<typeof SetPotterFiringPolicyRe
 export type SetProductionLaborStewardParams = __Infer<typeof SetProductionLaborStewardReducer>;
 export type SetResidenceUpgradePriorityParams = __Infer<typeof SetResidenceUpgradePriorityReducer>;
 export type SetSeasonalLaborStewardParams = __Infer<typeof SetSeasonalLaborStewardReducer>;
+export type SetSmokehouseRecipePolicyParams = __Infer<typeof SetSmokehouseRecipePolicyReducer>;
 export type SetStorageCommodityAcceptanceParams = __Infer<typeof SetStorageCommodityAcceptanceReducer>;
 export type SetStorehousePolicyParams = __Infer<typeof SetStorehousePolicyReducer>;
 export type SetStorehouseStockTargetParams = __Infer<typeof SetStorehouseStockTargetReducer>;

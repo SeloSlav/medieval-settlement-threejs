@@ -105,6 +105,10 @@ export type InspectorSpacetimeActions = {
     buildingId: string,
     recipePolicy: number,
   ) => Promise<void>;
+  onSetSmokehouseRecipePolicy: (
+    buildingId: string,
+    recipePolicy: number,
+  ) => Promise<void>;
   onSetWeaverInputPolicy: (
     buildingId: string,
     inputPolicy: number,
@@ -718,6 +722,14 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setBreweryRecipePolicy(buildingId, recipePolicy),
         'Could not update the Brewery recipe.',
+      );
+    },
+    onSetSmokehouseRecipePolicy: async (buildingId, recipePolicy) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setSmokehouseRecipePolicy(buildingId, recipePolicy),
+        'Could not update the Smokehouse recipe.',
       );
     },
     onSetWeaverInputPolicy: async (buildingId, inputPolicy) => {

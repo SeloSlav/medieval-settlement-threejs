@@ -49,11 +49,17 @@ pub fn step_woodcutters_lodge(
     let mut lodge = building;
     let onsite_labor = onsite_building_labor(ctx, &lodge);
     let tools_maintained = civilian_tools_maintained(lodge.ironwork);
-    let throughput_multiplier = civilian_tool_throughput_multiplier(lodge.ironwork);
+    let selected_rate = crate::production_rate_policy::production_rate_multiplier(
+        lodge.production_rate_percent,
+    );
+    let throughput_multiplier =
+        civilian_tool_throughput_multiplier(lodge.ironwork) * selected_rate;
     if onsite_labor > 0 {
         lodge.action_cooldown = (lodge.action_cooldown - TICK_DT * throughput_multiplier).max(0.0);
     }
-    let process_ready = onsite_labor > 0 && lodge.action_cooldown <= 0.0;
+    let process_ready = selected_rate > 1e-9
+        && onsite_labor > 0
+        && lodge.action_cooldown <= 0.0;
     if process_ready {
         let paired_oxen =
             crate::simulation::paired_production_ox_count(ctx, tick, &lodge, onsite_labor);

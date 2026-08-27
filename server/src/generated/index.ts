@@ -116,6 +116,7 @@ import SetPotterFiringPolicyReducer from "./set_potter_firing_policy_reducer";
 import SetProductionLaborStewardReducer from "./set_production_labor_steward_reducer";
 import SetResidenceUpgradePriorityReducer from "./set_residence_upgrade_priority_reducer";
 import SetSeasonalLaborStewardReducer from "./set_seasonal_labor_steward_reducer";
+import SetSmokehouseRecipePolicyReducer from "./set_smokehouse_recipe_policy_reducer";
 import SetStorageCommodityAcceptanceReducer from "./set_storage_commodity_acceptance_reducer";
 import SetStorehousePolicyReducer from "./set_storehouse_policy_reducer";
 import SetStorehouseStockTargetReducer from "./set_storehouse_stock_target_reducer";
@@ -754,6 +755,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_production_labor_steward", SetProductionLaborStewardReducer),
   __reducerSchema("set_residence_upgrade_priority", SetResidenceUpgradePriorityReducer),
   __reducerSchema("set_seasonal_labor_steward", SetSeasonalLaborStewardReducer),
+  __reducerSchema("set_smokehouse_recipe_policy", SetSmokehouseRecipePolicyReducer),
   __reducerSchema("set_storage_commodity_acceptance", SetStorageCommodityAcceptanceReducer),
   __reducerSchema("set_storehouse_policy", SetStorehousePolicyReducer),
   __reducerSchema("set_storehouse_stock_target", SetStorehouseStockTargetReducer),

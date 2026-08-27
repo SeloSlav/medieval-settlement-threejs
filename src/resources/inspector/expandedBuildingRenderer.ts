@@ -188,6 +188,13 @@ import {
   normalizeBreweryRecipePolicy,
 } from '../../economy/breweryRecipePolicy.ts';
 import {
+  normalizeSmokehouseRecipePolicy,
+  SMOKEHOUSE_RECIPE_AUTO,
+  SMOKEHOUSE_RECIPE_PRESETS,
+  smokehouseRecipeConversion,
+  smokehouseRecipeOutput,
+} from '../../economy/smokehouseRecipePolicy.ts';
+import {
   CLAY_BANK_LEAN_YIELD_THRESHOLD,
   clayBankYieldAt,
   clayBankYieldGrade,
@@ -1657,6 +1664,27 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
         : conversion;
       return button(
         'data-brewery-recipe-policy',
+        preset.policy,
+        preset.label,
+        tooltip,
+        icon,
+        selected === preset.policy,
+      );
+    }).join('');
+  } else if (building.kind === 'smokehouse') {
+    const selected = normalizeSmokehouseRecipePolicy(building.smokehouseRecipePolicy);
+    controls = SMOKEHOUSE_RECIPE_PRESETS.map((preset) => {
+      const icon = preset.policy === SMOKEHOUSE_RECIPE_AUTO
+        ? renderResourceCost({ curedMeat: 1, smokedFish: 1, cheese: 1 }, { compact: true })
+        : renderResourceCost({ [smokehouseRecipeOutput(preset.policy)]: 1 }, { compact: true });
+      const tooltip = preset.policy === SMOKEHOUSE_RECIPE_AUTO
+        ? `Auto: ${SMOKEHOUSE_RECIPE_PRESETS
+            .filter((candidate) => candidate.policy !== SMOKEHOUSE_RECIPE_AUTO)
+            .map((candidate) => smokehouseRecipeConversion(candidate.policy))
+            .join('; ')}.`
+        : smokehouseRecipeConversion(preset.policy);
+      return button(
+        'data-smokehouse-recipe-policy',
         preset.policy,
         preset.label,
         tooltip,
