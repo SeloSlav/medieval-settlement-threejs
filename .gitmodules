@@ -2,3 +2,6 @@
 	path = vendor/seedthree
 	url = https://github.com/SeloSlav/SeedThree.git
 	ignore = all
+[submodule "vendor/architecture-kit-upstream"]
+	path = vendor/architecture-kit-upstream
+	url = https://github.com/Lunarsong/architecture-kit.git

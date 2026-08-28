@@ -2,7 +2,7 @@ import type { BuildingKind } from '../generated/gameBalance.ts';
 
 /**
  * Canonical card artwork for every authoritative building kind. The same
- * identity is reused by build menus, inspectors, and construction-site signs.
+ * identity is reused by build menus and inspectors.
  */
 export const BUILDING_CARD_ART = {
   founders_camp: '/assets/ui/build-menu/cards/founders-camp.webp',

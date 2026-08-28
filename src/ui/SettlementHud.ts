@@ -310,7 +310,7 @@ const SETTLEMENT_HUD_HTML = `
           <div class="settlement-hud__people-metrics">
             <span><strong data-people-total>0</strong>Total</span>
             <span><strong data-people-available>0</strong>Reserve</span>
-            <span><strong data-people-assigned>0</strong>Workplaces</span>
+            <span><strong data-people-assigned>0</strong>At work</span>
           </div>
           <dl class="settlement-hud__people-rows">
             <div data-people-icon="work"><dt>Workplaces</dt><dd data-people-workplaces>0</dd></div>

@@ -1,4 +1,4 @@
 interface:
   display_name: "Architecture Kit Codex"
-  short_description: "Build and validate modular Blender architecture kits"
-  default_prompt: "Use $architecture-kit-codex to build or extend a modular Blender architecture kit."
+  short_description: "Build and audit modular Blender architecture kits"
+  default_prompt: "Use $architecture-kit-codex to build, extend, and fully validate a reusable modular Blender architecture kit."

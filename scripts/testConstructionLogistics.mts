@@ -23,7 +23,6 @@ import {
 } from '../src/generated/gameBalance.ts';
 import { getBuildingDefinition } from '../src/resources/buildings.ts';
 import { getBuildingCost } from '../src/resources/buildingEconomy.ts';
-import { BUILDING_CARD_ART } from '../src/resources/buildingCardArt.ts';
 import {
   constructionVisualSignature,
   createConstructionSiteMesh,
@@ -245,14 +244,13 @@ assert.deepEqual(
   getBuildingFootprintHalfExtents('village_storehouse'),
   'construction framing must use the intended building footprint',
 );
-assert.deepEqual(mesh.userData.buildingCardIcon, {
-  kind: 'village_storehouse',
-  image: BUILDING_CARD_ART.village_storehouse,
-});
-assert.ok(
-  mesh.getObjectByName('Construction intended building card icon'),
-  'every construction site should identify the intended building with its card art',
+assert.equal(
+  mesh.getObjectByProperty('type', 'Sprite'),
+  undefined,
+  'construction sites must not float build-menu card artwork in the game world',
 );
+assert.equal(mesh.userData.buildingCardIcon, undefined);
+assert.equal(mesh.getObjectByName('Construction intended building card icon'), undefined);
 
 for (const kind of ['well', 'wayside_shrine'] as const) {
   const compactSite = createConstructionSiteMesh(kind, 0.55, 1, 1);
@@ -262,10 +260,8 @@ for (const kind of ['well', 'wayside_shrine'] as const) {
     footprint.halfWidth < 2 && footprint.halfDepth < 2,
     `${kind} construction should retain its compact authoritative footprint`,
   );
-  assert.equal(
-    compactSite.getObjectByName('Construction intended building card icon')?.userData.cardArtUrl,
-    BUILDING_CARD_ART[kind],
-  );
+  assert.equal(compactSite.getObjectByProperty('type', 'Sprite'), undefined);
+  assert.equal(compactSite.getObjectByName('Construction intended building card icon'), undefined);
 }
 
 const framedSite = createConstructionSiteMesh('village_storehouse', 0.75, 1, 1);

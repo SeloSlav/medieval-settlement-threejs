@@ -67,7 +67,7 @@ export const BUILDING_LOCAL_VISUAL_BOUNDS = {
  * Maximum local envelope of the footprint-sized construction mesh for a kind.
  * The dimensions cover every construction stage and all delivered-material
  * piles, with the same safety margin and outward rounding as the completed
- * visual bounds above. The camera-facing card icon has no X/Z extent.
+ * visual bounds above.
  */
 export function getConstructionSiteLocalVisualBounds(
   kind: BuildingKind,

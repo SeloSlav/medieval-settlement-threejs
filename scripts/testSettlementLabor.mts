@@ -443,6 +443,7 @@ assert.ok(
 );
 assert.match(settlementHud, /data-people-card="labor"/);
 assert.match(settlementHud, /Individual workforce/);
+assert.match(settlementHud, /data-people-assigned>0<\/strong>At work<\/span>/);
 assert.match(settlementHud, /data-resident-card/);
 assert.match(settlementHud, /Resident ledger/);
 assert.doesNotMatch(
