@@ -12,11 +12,11 @@
     "atlasMaterialsPacked": true
   },
   "counts": {
-    "architectureObjects": 133,
-    "meshes": 133,
-    "triangles": 25512,
+    "architectureObjects": 121,
+    "meshes": 121,
+    "triangles": 25320,
     "roofTriangles": 23856,
-    "roofTriangleShare": 0.9351,
+    "roofTriangleShare": 0.9422,
     "customApertureWallPieces": 9,
     "darkUnglazedApertures": 3
   },

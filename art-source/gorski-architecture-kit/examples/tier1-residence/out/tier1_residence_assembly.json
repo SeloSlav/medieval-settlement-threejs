@@ -47,7 +47,7 @@
     ],
     "maximumDropMetres": 0.128,
     "bearingLine": "roof plane intersects the continuous wall-head bearing at x = +/- 2.0 m",
-    "supports": "continuous timber wall-head courses, six common rafter pairs, three tie beams, four verge rafters, and eight short projecting lookouts"
+    "supports": "continuous timber wall-head courses, six inset common rafter pairs, and three tie beams; all roof supports terminate beneath the shingle skin"
   },
   "historicalMaterialDecision": {
     "primaryBody": "weathered horizontal timber boarding on a dark moisture-stained fieldstone footing",
@@ -356,7 +356,7 @@
       "location": [
         0.0,
         -0.112,
-        2.59
+        2.661
       ],
       "rotationZDegrees": 0.0
     },
@@ -1415,142 +1415,6 @@
         0.0,
         5.6,
         2.57
-      ],
-      "rotationZDegrees": 0.0
-    },
-    {
-      "name": "T1_VergeRafter_Front_Left",
-      "source": "assembly_custom_sloped_verge_rafter",
-      "collection": "T1_04_Frames",
-      "location": [
-        -1.34985,
-        -0.39,
-        3.34283
-      ],
-      "rotationZDegrees": 0.0,
-      "rotationYDegrees": -50.0
-    },
-    {
-      "name": "T1_VergeRafter_Front_Right",
-      "source": "assembly_custom_sloped_verge_rafter",
-      "collection": "T1_04_Frames",
-      "location": [
-        1.34985,
-        -0.39,
-        3.34239
-      ],
-      "rotationZDegrees": 0.0,
-      "rotationYDegrees": 50.0
-    },
-    {
-      "name": "T1_RoofLookout_Front_0_L",
-      "source": "assembly_custom_roof_lookout",
-      "collection": "T1_04_Frames",
-      "location": [
-        -0.92,
-        -0.2,
-        3.87709
-      ],
-      "rotationZDegrees": 0.0
-    },
-    {
-      "name": "T1_RoofLookout_Front_0_R",
-      "source": "assembly_custom_roof_lookout",
-      "collection": "T1_04_Frames",
-      "location": [
-        0.92,
-        -0.2,
-        3.87709
-      ],
-      "rotationZDegrees": 0.0
-    },
-    {
-      "name": "T1_RoofLookout_Front_1_L",
-      "source": "assembly_custom_roof_lookout",
-      "collection": "T1_04_Frames",
-      "location": [
-        -1.82,
-        -0.2,
-        2.80452
-      ],
-      "rotationZDegrees": 0.0
-    },
-    {
-      "name": "T1_RoofLookout_Front_1_R",
-      "source": "assembly_custom_roof_lookout",
-      "collection": "T1_04_Frames",
-      "location": [
-        1.82,
-        -0.2,
-        2.80452
-      ],
-      "rotationZDegrees": 0.0
-    },
-    {
-      "name": "T1_VergeRafter_Rear_Left",
-      "source": "assembly_custom_sloped_verge_rafter",
-      "collection": "T1_04_Frames",
-      "location": [
-        -1.34985,
-        7.39,
-        3.29911
-      ],
-      "rotationZDegrees": 0.0,
-      "rotationYDegrees": -50.0
-    },
-    {
-      "name": "T1_VergeRafter_Rear_Right",
-      "source": "assembly_custom_sloped_verge_rafter",
-      "collection": "T1_04_Frames",
-      "location": [
-        1.34985,
-        7.39,
-        3.29223
-      ],
-      "rotationZDegrees": 0.0,
-      "rotationYDegrees": 50.0
-    },
-    {
-      "name": "T1_RoofLookout_Rear_0_L",
-      "source": "assembly_custom_roof_lookout",
-      "collection": "T1_04_Frames",
-      "location": [
-        -0.92,
-        7.2,
-        3.87709
-      ],
-      "rotationZDegrees": 0.0
-    },
-    {
-      "name": "T1_RoofLookout_Rear_0_R",
-      "source": "assembly_custom_roof_lookout",
-      "collection": "T1_04_Frames",
-      "location": [
-        0.92,
-        7.2,
-        3.87709
-      ],
-      "rotationZDegrees": 0.0
-    },
-    {
-      "name": "T1_RoofLookout_Rear_1_L",
-      "source": "assembly_custom_roof_lookout",
-      "collection": "T1_04_Frames",
-      "location": [
-        -1.82,
-        7.2,
-        2.80452
-      ],
-      "rotationZDegrees": 0.0
-    },
-    {
-      "name": "T1_RoofLookout_Rear_1_R",
-      "source": "assembly_custom_roof_lookout",
-      "collection": "T1_04_Frames",
-      "location": [
-        1.82,
-        7.2,
-        2.80452
       ],
       "rotationZDegrees": 0.0
     },

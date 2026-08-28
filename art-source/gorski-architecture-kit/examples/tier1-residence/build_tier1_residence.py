@@ -17,9 +17,9 @@ ATLAS_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_buil
 OUT_BLEND = OUT_DIR / "tier1_residence_textured.blend"
 OUT_GLB = OUT_DIR / "tier1_residence_textured.glb"
 OUT_MANIFEST = OUT_DIR / "tier1_residence_assembly.json"
-OUT_RENDER = RENDER_DIR / "tier1_residence_hero_structural_v3.png"
-OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_structural_v3.png"
-OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_structural_v3.png"
+OUT_RENDER = RENDER_DIR / "tier1_residence_hero_structural_v8.png"
+OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_structural_v8.png"
+OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_structural_v8.png"
 
 WALL_BASE_Z = 0.35
 WALL_HEIGHT = 2.4
@@ -677,10 +677,17 @@ def place_shell() -> None:
     rear_gable = place("gable_infill_timber_4m", "T1_Gable_Rear", WALLS, (0.0, BUILDING_DEPTH + 0.01, WALL_TOP_Z), math.pi)
     remap_instance_material(front_gable, "timber_weathered", "timber_weathered_horizontal")
     remap_instance_material(rear_gable, "timber_weathered", "timber_weathered_horizontal")
+    # The reusable infill includes an exposed oak verge frame. On this deep-overhang
+    # house those strips intersect the shingle skin at both gable ends, so retain the
+    # boarding while the independent inset common rafters carry the roof below it.
+    remove_instance_material_geometry(front_gable, "oak_dark")
+    remove_instance_material_geometry(rear_gable, "oak_dark")
 
     # Only structurally legible sill, wall plate, and joiner posts remain on the front.
     place("frame_beam_4m_s0p16m", "T1_Front_Sill", FRAMES, (0.0, -0.112, WALL_BASE_Z))
-    place("frame_beam_4m_s0p16m", "T1_Front_WallPlate", FRAMES, (0.0, -0.112, WALL_TOP_Z - 0.16))
+    # The authored beam's bevel extends 0.089 m above its origin. Seat that top face
+    # directly against the gable baseline instead of leaving a visible shadow gap.
+    place("frame_beam_4m_s0p16m", "T1_Front_WallPlate", FRAMES, (0.0, -0.112, WALL_TOP_Z - 0.089))
     for x in (-2.0, 0.0, 2.0):
         place("frame_post_h2p4m_s0p16m", f"T1_Post_Front_{x:+.0f}", FRAMES, (x, -0.112, WALL_BASE_Z))
     for x in (-2.0, 2.0):
@@ -772,40 +779,6 @@ def place_roof_supports() -> None:
             0.0,
             "assembly_custom_roof_tie_beam",
         )
-
-    # Sloped verge rafters and short projecting lookouts carry the half-metre gable
-    # overhang. They use the same bearing geometry as the common rafter pairs.
-    for end_name, y in (("Front", -0.39), ("Rear", BUILDING_DEPTH + 0.39)):
-        for side in (-1.0, 1.0):
-            side_name = "Left" if side < 0.0 else "Right"
-            rafter_z = (EAVE_Z + RIDGE_Z) / 2.0 - 0.18 + roof_drop_interpolated(y, side)
-            rafter = make_custom_part(
-                f"T1_VergeRafter_{end_name}_{side_name}",
-                FRAMES,
-                [((0.0, 0.0, 0.0), (SLOPE_LENGTH - 0.05, 0.18, 0.16))],
-                "roof_support_dark",
-                (side * eave_x / 2.0, y, rafter_z),
-                0.0,
-                "assembly_custom_sloped_verge_rafter",
-            )
-            rafter.rotation_euler[1] = side * PITCH
-            rafter["rotation_y_degrees"] = round(math.degrees(side * PITCH), 4)
-            PLACEMENTS[-1]["rotationYDegrees"] = round(math.degrees(side * PITCH), 4)
-
-        lookout_direction = 1.0 if end_name == "Rear" else -1.0
-        for index, x_abs in enumerate((0.92, 1.82)):
-            for side in (-1.0, 1.0):
-                z = RIDGE_Z - x_abs * math.tan(PITCH) - 0.16
-                make_custom_part(
-                    f"T1_RoofLookout_{end_name}_{index}_{'L' if side < 0.0 else 'R'}",
-                    FRAMES,
-                    [((0.0, 0.0, 0.0), (0.11, 0.46, 0.11))],
-                    "roof_support_dark",
-                    (side * x_abs, (BUILDING_DEPTH if end_name == "Rear" else 0.0) + lookout_direction * 0.20, z),
-                    0.0,
-                    "assembly_custom_roof_lookout",
-                )
-
 
 def place_roof() -> None:
     # Full + half + quarter authored courses form a 4.2 m slope. On a four-metre
@@ -1046,7 +1019,7 @@ def write_manifest() -> None:
             "rightSlopeAdditionalEdgeDropsMetres": list(ROOF_RIGHT_SETTLEMENT_KNOTS),
             "maximumDropMetres": round(abs(min(ROOF_SETTLEMENT_KNOTS)) + abs(min(ROOF_RIGHT_SETTLEMENT_KNOTS)), 4),
             "bearingLine": "roof plane intersects the continuous wall-head bearing at x = +/- 2.0 m",
-            "supports": "continuous timber wall-head courses, six common rafter pairs, three tie beams, four verge rafters, and eight short projecting lookouts",
+            "supports": "continuous timber wall-head courses, six inset common rafter pairs, and three tie beams; all roof supports terminate beneath the shingle skin",
         },
         "historicalMaterialDecision": {
             "primaryBody": "weathered horizontal timber boarding on a dark moisture-stained fieldstone footing",
