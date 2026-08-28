@@ -20,6 +20,7 @@ import {
   VINEYARD_HARVEST_START_MONTH,
 } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
+import { buildingSharedStorageRoom } from './sharedStorageCapacity.ts';
 
 export const MARKETPLACE_SPECIALTY_EXPORT_POLICIES = [
   {
@@ -166,7 +167,10 @@ export function seasonalProducerOutputBlocker(
     const stock = finiteNonnegative(rawStock);
     const capacity = finiteNonnegative(rawCapacity);
     const batch = finiteNonnegative(rawBatch);
-    const room = Math.max(0, capacity - stock);
+    const room = Math.min(
+      Math.max(0, capacity - stock),
+      buildingSharedStorageRoom(building),
+    );
     if (room + 1e-6 < batch) {
       return {
         commodity,

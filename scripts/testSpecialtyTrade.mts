@@ -22,7 +22,7 @@ const apiary = getBuildingDefinition('apiary');
 assert.equal(apiary.requiresMatureTrees, true);
 assert.equal(apiary.workRadius, 48);
 assert.equal(BUILDING_KINDS.includes('vineyard' as never), false);
-assert.equal(BUILDING_STORAGE_CAPS.marketplace.ale, 140);
+assert.equal(BUILDING_STORAGE_CAPS.marketplace.ale, 120);
 assert.equal(BUILDING_STORAGE_CAPS.marketplace.cloth, 120);
 assert.equal(BUILDING_STORAGE_CAPS.marketplace.honey, 48);
 assert.equal(BUILDING_STORAGE_CAPS.marketplace.wine, 72);

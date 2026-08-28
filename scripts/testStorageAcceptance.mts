@@ -9,7 +9,7 @@ import {
   STOREHOUSE_STORAGE_GROUPS,
   storageAcceptsCommodity,
 } from '../src/economy/storageAcceptancePolicy.ts';
-import { BUILDING_STORAGE_CAPS } from '../src/generated/gameBalance.ts';
+import { BUILDING_KINDS, BUILDING_STORAGE_CAPS } from '../src/generated/gameBalance.ts';
 import {
   buildingSharedStorageCapacity,
   buildingSharedStorageRoom,
@@ -52,8 +52,8 @@ assert.equal(
 );
 assert.equal((STOREHOUSE_STORAGE_COMMODITIES as readonly string[]).includes('animalFeed'), false);
 assert.equal((GRANARY_STORAGE_COMMODITIES as readonly string[]).includes('animalFeed'), false);
-assert.equal(BUILDING_STORAGE_CAPS.pastoral_farmstead.animalFeed, 240);
-assert.equal(BUILDING_STORAGE_CAPS.swineherd.animalFeed, 180);
+assert.equal(BUILDING_STORAGE_CAPS.pastoral_farmstead.animalFeed, 100);
+assert.equal(BUILDING_STORAGE_CAPS.swineherd.animalFeed, 80);
 assert.equal(BUILDING_STORAGE_CAPS.granary.animalFeed ?? 0, 0);
 assert.equal(BUILDING_STORAGE_CAPS.village_storehouse.animalFeed ?? 0, 0);
 for (const commodity of [
@@ -67,17 +67,79 @@ assert.equal(BUILDING_STORAGE_CAPS.village_storehouse.total, 2500);
 assert.equal(BUILDING_STORAGE_CAPS.granary.mead, 2500);
 assert.equal(BUILDING_STORAGE_CAPS.granary.cider, 2500);
 assert.equal(BUILDING_STORAGE_CAPS.granary.pearCider, 2500);
-for (const kind of ['trading_post', 'tavern'] as const) {
-  assert.equal(BUILDING_STORAGE_CAPS[kind].cider, 180);
-  assert.equal(BUILDING_STORAGE_CAPS[kind].pearCider, 180);
-}
+assert.equal(BUILDING_STORAGE_CAPS.trading_post.cider, 180);
+assert.equal(BUILDING_STORAGE_CAPS.trading_post.pearCider, 180);
+assert.equal(BUILDING_STORAGE_CAPS.tavern.cider, 60);
+assert.equal(BUILDING_STORAGE_CAPS.tavern.pearCider, 60);
 assert.equal(buildingSharedStorageCapacity('granary'), 2500);
 assert.equal(buildingSharedStorageCapacity('village_storehouse'), 2500);
-assert.equal(buildingSharedStorageCapacity('marketplace'), null);
+assert.equal(buildingSharedStorageCapacity('marketplace'), 400);
+assert.equal(buildingSharedStorageCapacity('lumber_mill'), 50);
+
+const centralDepots = new Set(['granary', 'village_storehouse']);
+for (const kind of BUILDING_KINDS) {
+  const caps = BUILDING_STORAGE_CAPS[kind];
+  const hasLocalGoods = Object.entries(caps).some(
+    ([commodity, capacity]) => commodity !== 'total' && capacity > 0,
+  );
+  if (!hasLocalGoods) {
+    assert.equal(caps.total ?? 0, 0, `${kind} has no local goods and needs no capacity`);
+    continue;
+  }
+  assert.ok((caps.total ?? 0) > 0, `${kind} must define one combined local capacity`);
+  if (centralDepots.has(kind)) {
+    assert.equal(caps.total, 2500, `${kind} is a full-sized central depot`);
+  } else {
+    assert.ok((caps.total ?? 0) < 2500, `${kind} must never compete with a central depot`);
+  }
+}
+
+const productionCapacity = {
+  lumber_mill: 50,
+  woodcutters_lodge: 50,
+  stone_quarry: 120,
+  large_quarry: 100,
+  mine: 150,
+  clay_pit: 60,
+  charcoal_burner: 50,
+  smithy: 75,
+  potter_kiln: 100,
+  hunters_hall: 75,
+  foragers_shed: 60,
+  fishing_camp: 60,
+  threshing_barn: 200,
+  pastoral_farmstead: 250,
+  swineherd: 180,
+  brewery: 150,
+  smokehouse: 100,
+  bakery: 80,
+  apiary: 60,
+  watermill: 100,
+  windmill: 90,
+  carpenter: 80,
+  spinning_retting_house: 120,
+  weaver: 80,
+  tannery: 80,
+  cobbler: 60,
+  chandlery: 60,
+} as const;
+for (const [kind, capacity] of Object.entries(productionCapacity)) {
+  assert.equal(
+    BUILDING_STORAGE_CAPS[kind as keyof typeof BUILDING_STORAGE_CAPS].total,
+    capacity,
+    `${kind} must keep its authored working buffer`,
+  );
+  assert.ok(capacity >= 50 && capacity <= 250);
+}
+assert.equal(BUILDING_STORAGE_CAPS.founders_camp.total, 800);
+assert.equal(BUILDING_STORAGE_CAPS.salvage_pile.total, 500);
+assert.equal(BUILDING_STORAGE_CAPS.marketplace.total, 400);
+assert.equal(BUILDING_STORAGE_CAPS.trading_post.total, 600);
 const nearlyFullStorehouse = {
   ...storehouse,
   timber: 1400,
   stone: 1090,
+  gold: 999,
 } as BuildingState;
 assert.equal(buildingStoredResourceTotal(nearlyFullStorehouse), 2490);
 assert.equal(buildingSharedStorageRoom(nearlyFullStorehouse), 10);
@@ -85,6 +147,22 @@ assert.equal(buildingSharedStorageRoom({
   ...nearlyFullStorehouse,
   stone: 1100,
 }), 0);
+assert.equal(buildingSharedStorageRoom({
+  kind: 'lumber_mill',
+  timber: 35,
+  water: 12,
+  ironwork: 3,
+} as BuildingState), 0, 'all Lumber Mill goods share its 50-unit working yard');
+assert.equal(
+  buildingSharedStorageRoom({ ...storehouse, timber: 0, stone: 0 } as BuildingState),
+  2500,
+  'every Storehouse must own its own 2,500-unit capacity',
+);
+assert.equal(
+  buildingSharedStorageRoom({ kind: 'granary' } as BuildingState),
+  2500,
+  'every Granary must own its own 2,500-unit capacity',
+);
 assert.equal(storageAcceptsCommodity(storehouse, 'charcoal'), true);
 assert.equal(storageAcceptsCommodity(storehouse, 'remedies'), true);
 assert.equal(storageAcceptsCommodity(storehouse, 'wax'), true);
@@ -174,10 +252,24 @@ assert.match(
 const tradingPostTrade = readFileSync('server/src/simulation/trading_post_trade.rs', 'utf8');
 const expandedEconomy = readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 const commodities = readFileSync('server/src/economy/commodities.rs', 'utf8');
+const legacyStorage = readFileSync('server/src/economy/storage.rs', 'utf8');
+const lumberMill = readFileSync('server/src/simulation/lumber_mill.rs', 'utf8');
+const woodcuttersLodge = readFileSync('server/src/simulation/woodcutters_lodge.rs', 'utf8');
 assert.match(
   commodities,
   /building_commodity_room[\s\S]*\.min\(building_shared_storage_room\(building\)\)/,
   'every authoritative deposit must honor the shared building capacity',
+);
+assert.match(
+  legacyStorage,
+  /whole_room\(caps\.timber,[\s\S]*\.min\(building_shared_storage_room\(&next\)\)/,
+  'legacy timber, firewood, and stone deposits must also honor combined capacity',
+);
+assert.match(lumberMill, /building_commodity_room\(&building, CommodityKind::Timber\)/);
+assert.match(
+  woodcuttersLodge,
+  /withdraw_building\(&lodge, timber_needed[\s\S]*building_commodity_room\(&lodge_after_withdraw, CommodityKind::Firewood\)/,
+  'Woodcutters must free their timber input before checking combined room for firewood output',
 );
 assert.match(tradingPostTrade, /stage_one_export[\s\S]*try_start_building_supply_trip/);
 assert.match(tradingPostTrade, /settle_export[\s\S]*building_commodity_stock\(&post, commodity\)/);

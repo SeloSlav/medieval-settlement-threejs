@@ -4175,15 +4175,9 @@ fn step_simple_producer_at_rate(
     ) else {
         return building;
     };
-    if uses_output_target {
-        let target_percent = building.processor_output_target_percent;
-        if !process_batch(&mut building, &[], outputs, Some(target_percent)) {
-            return building;
-        }
-    } else {
-        for (kind, amount) in outputs {
-            deposit_building_commodity(&mut building, *kind, *amount);
-        }
+    let target_percent = uses_output_target.then_some(building.processor_output_target_percent);
+    if !process_batch(&mut building, &[], outputs, target_percent) {
+        return building;
     }
     reset_cycle(&mut building, labor);
     building
@@ -4277,35 +4271,47 @@ fn process_batch(
             return false;
         }
     }
+    // Inputs leave the same physical work yard before outputs enter it. Project
+    // the whole batch on a clone so input consumption can free combined room,
+    // while a failed multi-output batch cannot consume or silently lose goods.
+    let mut projected = building.clone();
+    for (kind, amount) in inputs {
+        withdraw_building_commodity(
+            &mut projected,
+            *kind,
+            crate::resource_units::whole_cost(*amount),
+        );
+    }
     for (kind, amount) in outputs {
         let produced = crate::resource_units::whole_cost(*amount);
         if produced > 0.0 {
+            let physical_room = building_commodity_room(&projected, *kind);
             let room = if output_target_percent.is_some()
                 && production_output_target_applies(&building.kind, *kind)
             {
                 processor_output_headroom(
-                    if building.kind == "smokehouse" && kind.is_preserved_food() {
-                        crate::economy::building_preserved_food_stock(building)
+                    if projected.kind == "smokehouse" && kind.is_preserved_food() {
+                        crate::economy::building_preserved_food_stock(&projected)
                     } else {
-                        building_commodity_stock(building, *kind)
+                        building_commodity_stock(&projected, *kind)
                     },
-                    building_commodity_cap(&building.kind, *kind),
+                    building_commodity_cap(&projected.kind, *kind),
                     output_target_percent.unwrap_or(100),
                 )
+                .min(physical_room)
             } else {
-                building_commodity_room(building, *kind)
+                physical_room
             };
             if room + 1e-6 < produced {
                 return false;
             }
+            let deposited = deposit_building_commodity(&mut projected, *kind, produced);
+            if (deposited - produced).abs() > 1e-6 {
+                return false;
+            }
         }
     }
-    for (kind, amount) in inputs {
-        withdraw_building_commodity(building, *kind, crate::resource_units::whole_cost(*amount));
-    }
-    for (kind, amount) in outputs {
-        deposit_building_commodity(building, *kind, crate::resource_units::whole_cost(*amount));
-    }
+    *building = projected;
     true
 }
 

@@ -161,6 +161,7 @@ def main() -> None:
             "gridM": spec.GRID,
             "axes": {"run": "+X", "depth": "+Y", "up": "+Z"},
             "scope": "modular components only; no finished individual building assemblies",
+            "vegetationOwner": "SeedThree; this kit contains no living vegetation or crop meshes",
             "generatedAt": datetime.now(timezone.utc).isoformat(),
         },
         "summary": {

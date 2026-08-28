@@ -61,7 +61,7 @@ for (const [kind, containerName, segmentName, segmentCount] of stockGroups) {
 const threshingMarker = createBuildingMesh('threshing_barn');
 syncSeasonalStockpileVisuals(
   threshingMarker,
-  building('threshing_barn', { grain: 150, barley: 100, flax: 91 }),
+  building('threshing_barn', { grain: 30, barley: 10, flax: 60 }),
 );
 assertVisibleSegments(
   threshingMarker,
@@ -79,7 +79,7 @@ assertVisibleSegments(
 const apiaryMarker = createBuildingMesh('apiary');
 syncSeasonalStockpileVisuals(
   apiaryMarker,
-  building('apiary', { honey: 47 }),
+  building('apiary', { honey: 30 }),
 );
 assertVisibleSegments(apiaryMarker, 'ApiaryHoneyStockpile', 'ApiaryHoneySegment', 2);
 
@@ -117,8 +117,8 @@ assert.equal(honeyBlocked?.commodity, 'honey');
 assert.ok(Math.abs((honeyBlocked?.missingRoom ?? 0) - 0.1) < 1e-9);
 
 const firstHoneyBand = building('apiary', { honey: 1 });
-const sameHoneyBand = building('apiary', { honey: 46 });
-const secondHoneyBand = building('apiary', { honey: 47 });
+const sameHoneyBand = building('apiary', { honey: 15 });
+const secondHoneyBand = building('apiary', { honey: 16 });
 const firstSignatures = buildingMarkerSignatures(
   new Map([[firstHoneyBand.id, firstHoneyBand]]),
 );

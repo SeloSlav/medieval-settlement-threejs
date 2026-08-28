@@ -116,7 +116,7 @@ assert.equal(surfaceRockCountForRemaining(40, 0, 4000), 0);
 
 assert.equal(BUILDING_DEFINITIONS.large_quarry.maxLabor, 6);
 assert.equal(BUILDING_DEFINITIONS.large_quarry.workRadius, 0);
-assert.equal(BUILDING_STORAGE_CAPS.large_quarry.stone, 360);
+assert.equal(BUILDING_STORAGE_CAPS.large_quarry.stone, 100);
 assert.equal(BUILDING_STORAGE_CAPS.large_quarry.timber, 12);
 assert.equal(BUILDING_DEFINITIONS.large_quarry.requiresRoad, true);
 assert.equal(LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE, 1);

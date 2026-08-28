@@ -152,6 +152,19 @@ def main() -> None:
         if not coverage.get("rationale"):
             errors.append(f"{category}: coverage rationale missing")
 
+    required_coverage_sets = {
+        "burgage thatch roof": (SUPPLEMENTAL_COVERAGE["residence_tier_0"], {"roof_thatch_panel_4m_full", "roof_thatch_ridge_4m", "roof_thatch_eave_edge_4m", "roof_thatch_smoke_vent"}),
+        "established shingle roof": (SUPPLEMENTAL_COVERAGE["residence_tier_2"], {"roof_shingle_panel_4m_full", "roof_shingle_ridge_4m", "roof_shingle_verge_edge_full", "roof_shingle_dormer_cap_1p2m"}),
+        "prosperous tile roof": (SUPPLEMENTAL_COVERAGE["residence_tier_3"], {"roof_tile_panel_4m_full", "roof_tile_ridge_4m", "roof_tile_eave_edge_4m", "roof_tile_chimney_flashing"}),
+        "high-status roof forms": (SUPPLEMENTAL_COVERAGE["residence_tier_4"], {"roof_tile_halfhip_end_2p4m", "roof_tile_hip_cap_full", "roof_tile_dormer_cap_1p2m"}),
+        "parish church exterior": (BUILDING_COVERAGE["chapel"], {"civic_chapel_facade_gable_4m", "civic_chapel_nave_bay_lancet_4m", "civic_chapel_apse_halfround", "opening_window_lancet_pair", "opening_window_oculus_stone", "opening_church_arch_door_double", "roof_tile_apse_halfcone_3m", "roof_tile_belfry_pyramid_2m", "civic_church_cross_iron_large"}),
+        "wayside shrine devotional set": (BUILDING_COVERAGE["wayside_shrine"], {"civic_shrine_plinth_stone", "civic_shrine_niche_stone", "opening_shrine_icon_insert", "civic_shrine_votive_ledge", "roof_shingle_shrine_gable_1p5m", "civic_shrine_iron_cross"}),
+    }
+    for requirement, (coverage, required_parts) in required_coverage_sets.items():
+        missing = sorted(required_parts - set(coverage["parts"]))
+        if missing:
+            errors.append(f"{requirement}: incomplete production vocabulary {missing}")
+
     family_counts = Counter(object_["gk_family"] for object_ in objects)
     expected_families = {"foundations", "walls", "frames", "openings", "roofs", "enclosures", "siteworks", "extraction", "production", "agriculture", "civic", "props"}
     missing_families = sorted(expected_families - set(family_counts))
@@ -159,9 +172,18 @@ def main() -> None:
         errors.append(f"required component families missing: {missing_families}")
     if any(count < 8 for count in family_counts.values()):
         errors.append(f"one or more component families are underdeveloped: {dict(family_counts)}")
+    production_minima = {"roofs": 100, "openings": 25, "civic": 45, "frames": 50, "extraction": 30, "enclosures": 30, "props": 35}
+    for family, minimum in production_minima.items():
+        if family_counts.get(family, 0) < minimum:
+            errors.append(f"{family}: production vocabulary has {family_counts.get(family, 0)} parts, expected at least {minimum}")
     forbidden_names = [object_.name for object_ in objects if any(token in object_.name.lower() for token in ("assembled_building", "finished_building", "complete_house"))]
     if forbidden_names:
         errors.append(f"finished-building assemblies found: {forbidden_names}")
+    vegetation_parts = sorted(object_["gk_id"] for object_ in objects if "agri_crop_strip" in object_["gk_id"] or "vegetation" in json.loads(object_.get("gk_tags", "[]")))
+    if vegetation_parts:
+        errors.append(f"living vegetation belongs to SeedThree, not this kit: {vegetation_parts}")
+    if "GK_Mat_foliage" in material_names or "GK_Mat_crop" in material_names:
+        errors.append("living vegetation/crop palette entries found; SeedThree owns those materials")
 
     metrics.update({
         "parts": len(objects),
@@ -173,6 +195,7 @@ def main() -> None:
         "supplementalCoverageKinds": len(SUPPLEMENTAL_COVERAGE),
         "nonmanifoldObjects": nonmanifold_objects,
         "uvMappedObjects": sum(1 for object_ in objects if object_.data.uv_layers),
+        "requiredProductionVocabularySets": len(required_coverage_sets),
     })
     report = {
         "schemaVersion": 1,
@@ -193,6 +216,8 @@ def main() -> None:
             "metric GK_UV0 coverage and texture contract metadata",
             "authored-fraction seam contracts",
             "minimum family breadth and no finished-building assemblies",
+            "named residence-roof, church, and shrine production vocabularies",
+            "no living vegetation or crop meshes (SeedThree ownership)",
         ],
     }
     args.report.resolve().write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

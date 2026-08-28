@@ -208,7 +208,7 @@ const granaryChannels = new Map(
 );
 assert.equal(
   granaryChannels.get('food')?.amount,
-  380,
+  280,
   'fresh-food occupancy should share one bucket across every fresh-food field',
 );
 assert.equal(
@@ -226,14 +226,30 @@ assert.equal(
   260,
   'the flour room should combine rye and maslin flour',
 );
+assert.equal(
+  granaryChannels.get('total')?.amount,
+  1100,
+  'the combined capacity must count each physical resource field once',
+);
 assert.deepEqual(
   fullStorageChannels(aggregatedGranary).map((channel) => channel.key),
-  ['food', 'grain', 'barley', 'flour'],
-  'all full aggregate buckets should be reported in stable storage-channel order',
+  [],
+  'individual Granary commodity groups must not be treated as separate full stores',
+);
+const fullMixedGranary = building({
+  id: 'granary-mixed-full',
+  kind: 'granary',
+  ryeGrain: 1250,
+  barley: 1250,
+});
+assert.deepEqual(
+  fullStorageChannels(fullMixedGranary).map((channel) => channel.key),
+  ['total'],
+  'a mixed 2,500-unit Granary inventory must fill that Granary alone',
 );
 assert.deepEqual(
   fullStorageChannels({
-    ...aggregatedGranary,
+    ...fullMixedGranary,
     constructionComplete: false,
   }),
   [],
@@ -266,18 +282,19 @@ assert.deepEqual(
 const fullSmithyOutput = building({
   id: 'full-smithy-output',
   kind: 'smithy',
-  ironwork: 72,
+  ironwork: 50,
+  iron: 25,
 });
-const smithyIronworkChannel = fullStorageChannels(fullSmithyOutput)
-  .find((channel) => channel.key === 'ironwork');
-assert.equal(smithyIronworkChannel?.purpose, 'working-stock');
-assert.equal(smithyIronworkChannel?.amount, 72);
-assert.equal(smithyIronworkChannel?.capacity, 72);
+const smithyCombinedChannel = fullStorageChannels(fullSmithyOutput)
+  .find((channel) => channel.key === 'total');
+assert.equal(smithyCombinedChannel?.purpose, 'working-stock');
+assert.equal(smithyCombinedChannel?.amount, 75);
+assert.equal(smithyCombinedChannel?.capacity, 75);
 assert.equal(
   deriveLordReportTransitions(
     gameState(91, { buildings: [fullSmithyOutput] }),
     gameState(90, {
-      buildings: [{ ...fullSmithyOutput, ironwork: 71 }],
+      buildings: [{ ...fullSmithyOutput, iron: 24 }],
     }),
   ).filter((entry) => entry.kind === 'storage').length,
   1,
@@ -287,7 +304,7 @@ assert.equal(
 const fullMarketplace = building({
   id: 'fully-stocked-marketplace',
   kind: 'marketplace',
-  food: 96,
+  berries: 96,
 });
 const marketplaceFoodChannel = storageOccupancyChannels(fullMarketplace)
   .find((channel) => channel.key === 'food');
@@ -302,7 +319,7 @@ assert.deepEqual(
   deriveLordReportTransitions(
     gameState(96, { buildings: [fullMarketplace] }),
     gameState(95, {
-      buildings: [{ ...fullMarketplace, food: 95 }],
+      buildings: [{ ...fullMarketplace, berries: 95 }],
     }),
   ),
   [],
@@ -312,11 +329,11 @@ assert.deepEqual(
 const nearlyFullLodge = building({
   id: 'lodge-full-edge',
   kind: 'woodcutters_lodge',
-  firewood: 119.99,
+  firewood: 49.99,
 });
 const fullLodge = building({
   ...nearlyFullLodge,
-  firewood: 120,
+  firewood: 50,
 });
 const firstFullReports = deriveLordReportTransitions(
   gameState(101, { buildings: [fullLodge] }),
@@ -327,7 +344,7 @@ assert.equal(firstFullReports[0]?.kind, 'storage');
 assert.equal(firstFullReports[0]?.target?.kind, 'building');
 assert.equal(firstFullReports[0]?.target?.id, fullLodge.id);
 assert.match(firstFullReports[0]?.title ?? '', /local storage is full/);
-assert.match(firstFullReports[0]?.detail ?? '', /Firewood store 120\/120/);
+assert.match(firstFullReports[0]?.detail ?? '', /Combined store 50\/50/);
 
 assert.deepEqual(
   deriveLordReportTransitions(
@@ -357,28 +374,27 @@ assert.equal(
 
 const twoChannelLodge = building({
   ...fullLodge,
-  timber: 60,
+  firewood: 26,
+  timber: 24,
 });
 const secondChannelReports = deriveLordReportTransitions(
   gameState(105, { buildings: [twoChannelLodge] }),
   gameState(104, { buildings: [fullLodge] }),
 );
-assert.equal(secondChannelReports.length, 1);
-assert.match(secondChannelReports[0]?.detail ?? '', /Timber store 60\/60/);
-assert.doesNotMatch(
-  secondChannelReports[0]?.detail ?? '',
-  /Firewood store/,
-  'a later bucket crossing should not repeat a bucket that was already full',
+assert.deepEqual(
+  secondChannelReports,
+  [],
+  'changing the mix inside an already-full combined yard must not create a second report',
 );
 
 const granaryBelowCapacity = building({
   id: 'granary-edge',
   kind: 'granary',
-  food: 339,
+  berries: 2499,
 });
 const granaryAtCapacity = building({
   ...granaryBelowCapacity,
-  food: 340,
+  berries: 2500,
 });
 const granaryFullReports = deriveLordReportTransitions(
   gameState(111, { buildings: [granaryAtCapacity] }),
@@ -389,11 +405,11 @@ assert.equal(granaryFullReports[0]?.title, 'Granary storage is full');
 const storehouseBelowCapacity = building({
   id: 'storehouse-edge',
   kind: 'village_storehouse',
-  timber: 359,
+  timber: 2499,
 });
 const storehouseAtCapacity = building({
   ...storehouseBelowCapacity,
-  timber: 360,
+  timber: 2500,
 });
 const storehouseFullReports = deriveLordReportTransitions(
   gameState(121, { buildings: [storehouseAtCapacity] }),

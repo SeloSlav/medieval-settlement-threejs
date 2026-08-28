@@ -70,9 +70,9 @@ assert.deepEqual(preservation.granaryNetwork, {
   fireDisabledGranaries: 0,
   collectingGranaries: 1,
   staffedCollectingGranaries: 1,
-  targetStock: 255,
+  targetStock: 1875,
   stockTowardTarget: 20,
-  targetShortfall: 235,
+  targetShortfall: 1855,
   stockAboveTarget: 0,
 });
 assert.equal(buildingFreshFoodStorageFactor('granary'), FRESH_FOOD_STORAGE_GRANARY_FACTOR);
@@ -287,8 +287,8 @@ assert.match(hotspotRows, /Largest fresh-food loss/);
 assert.match(hotspotRows, /Hunter's hall · 80 food · 0\.4 food \/ day/);
 assert.match(hotspotRows, /data-inspect-building="hunter-hotspot"/);
 assert.match(hotspotRows, /Granary intake network/);
-assert.match(hotspotRows, /20 \/ 255 sheltered toward selected targets/);
-assert.match(hotspotRows, /235 collection headroom/);
+assert.match(hotspotRows, /20 \/ 1875 sheltered toward selected targets/);
+assert.match(hotspotRows, /1855 collection headroom/);
 assert.match(hotspotRows, /1 \/ 1 collectors staffed/);
 
 const householdHotspotState = emptyGameState();
@@ -316,7 +316,7 @@ const disabledGranaryRows = renderFreshFoodPreservationRows(
 assert.match(disabledGranaryRows, /1 completed · fresh-food collection disabled at every granary/);
 
 const deepGranaryState = emptyGameState();
-const deepGranary = building('deep-granary', 'granary', 310);
+const deepGranary = building('deep-granary', 'granary', 2254);
 deepGranary.granaryFreshFoodTargetPercent = 90;
 deepGranaryState.buildings.set(deepGranary.id, deepGranary);
 const deepGranaryRows = renderFreshFoodPreservationRows(
@@ -324,7 +324,7 @@ const deepGranaryRows = renderFreshFoodPreservationRows(
   (kind) => kind,
   () => null,
 );
-assert.match(deepGranaryRows, /306 \/ 306 sheltered toward selected targets/);
+assert.match(deepGranaryRows, /2250 \/ 2250 sheltered toward selected targets/);
 assert.match(deepGranaryRows, /4 above targets from baking or earlier stock/);
 
 const fireQuarantineState = emptyGameState();

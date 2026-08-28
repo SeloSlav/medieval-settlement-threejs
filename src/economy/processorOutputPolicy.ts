@@ -24,6 +24,7 @@ import {
   isStorageCommodity,
   storageAcceptsCommodity,
 } from './storageAcceptancePolicy.ts';
+import { buildingSharedStorageRoom } from './sharedStorageCapacity.ts';
 
 export const PROCESSOR_OUTPUT_TARGET_KINDS = [
   'watermill',
@@ -296,10 +297,7 @@ export function extractionOutputTarget(
 }
 
 export function extractionOutputHeadroom(
-  building: Pick<
-    BuildingState,
-    'kind' | ExtractionOutputCommodity
-  >,
+  building: BuildingState,
   commodity: ExtractionOutputCommodity,
 ): number | null {
   if (!isExtractionOutputTargetKind(building.kind)) return null;
@@ -307,7 +305,10 @@ export function extractionOutputHeadroom(
     building.kind,
     commodity,
   );
-  return Math.max(0, target - Math.max(0, building[commodity] ?? 0));
+  return Math.min(
+    Math.max(0, target - Math.max(0, building[commodity] ?? 0)),
+    buildingSharedStorageRoom(building),
+  );
 }
 
 export function extractionOutputCommodity(
@@ -328,22 +329,17 @@ export function extractionOutputCommodity(
 }
 
 /**
- * Replacement tools are durable worksite reserves, so an extraction yard may
- * refill its rack even while finished output is held at the chosen ceiling.
- * Unknown mineral sites remain ineligible because they have no valid workface.
+ * Replacement tools are durable worksite reserves, but they still need room in
+ * the same physical yard. Unknown mineral sites remain ineligible because they
+ * have no valid workface.
  */
 export function extractionAcceptsMaintenance(
-  building: Pick<
-    BuildingState,
-    | 'kind'
-    | 'processorOutputTargetPercent'
-    | ExtractionOutputCommodity
-  >,
+  building: BuildingState,
   mineralResource: 'iron' | 'salt' | 'clay' | null = null,
 ): boolean {
   if (!isExtractionOutputTargetKind(building.kind)) return true;
   const output = extractionOutputCommodity(building.kind, mineralResource);
-  return output !== null;
+  return output !== null && buildingSharedStorageRoom(building) > 1e-6;
 }
 
 export function processorNeedsInputs(

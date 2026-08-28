@@ -118,10 +118,10 @@ assert.equal(MONASTERY_FEAST_DRINK, 10);
 assert.equal(MONASTERY_HOSPITALITY_HONEY_PER_DAY, 0.8);
 assert.equal(MONASTERY_HOSPITALITY_DRINK_PER_DAY, 0.5);
 assert.equal(MONASTERY_FEAST_HONEY, 4);
-assert.equal(BUILDING_STORAGE_CAPS.monastery.honey, 160);
-assert.equal(BUILDING_STORAGE_CAPS.monastery.cider, 80);
-assert.equal(BUILDING_STORAGE_CAPS.monastery.mead, 120);
-assert.equal(BUILDING_STORAGE_CAPS.monastery.wine, 120);
+assert.equal(BUILDING_STORAGE_CAPS.monastery.honey, 60);
+assert.equal(BUILDING_STORAGE_CAPS.monastery.cider, 40);
+assert.equal(BUILDING_STORAGE_CAPS.monastery.mead, 40);
+assert.equal(BUILDING_STORAGE_CAPS.monastery.wine, 60);
 assert.deepEqual(
   MONASTERY_FEASTS.map(({ month, monthDay }) => [month, monthDay]),
   [[1, 6], [6, 29], [8, 15], [9, 14], [12, 25]],

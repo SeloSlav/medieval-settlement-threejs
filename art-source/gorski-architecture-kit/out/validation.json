@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "validatedAt": "2026-08-28T08:21:14.344813+00:00",
+  "validatedAt": "2026-08-28T08:41:32.612489+00:00",
   "blend": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\out\\gorski_architecture_kit.blend",
   "manifest": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\out\\gorski_architecture_kit_manifest.json",
   "status": "pass",
   "metrics": {
-    "parts": 608,
+    "parts": 620,
     "families": {
       "agriculture": 38,
       "civic": 49,
       "enclosures": 32,
       "extraction": 33,
       "foundations": 42,
-      "frames": 44,
+      "frames": 56,
       "openings": 29,
       "production": 41,
       "props": 39,
@@ -20,13 +20,14 @@
       "siteworks": 38,
       "walls": 117
     },
-    "totalTriangles": 391016,
-    "sharedMaterials": 35,
+    "totalTriangles": 390136,
+    "sharedMaterials": 34,
     "buildingCatalogKinds": 44,
     "buildingCoverageKinds": 44,
     "supplementalCoverageKinds": 34,
     "nonmanifoldObjects": 0,
-    "uvMappedObjects": 608
+    "uvMappedObjects": 620,
+    "requiredProductionVocabularySets": 6
   },
   "errors": [],
   "warnings": [],
@@ -39,6 +40,8 @@
     "shared palette materials and required metadata",
     "metric GK_UV0 coverage and texture contract metadata",
     "authored-fraction seam contracts",
-    "minimum family breadth and no finished-building assemblies"
+    "minimum family breadth and no finished-building assemblies",
+    "named residence-roof, church, and shrine production vocabularies",
+    "no living vegetation or crop meshes (SeedThree ownership)"
   ]
 }

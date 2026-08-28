@@ -13,7 +13,7 @@ def register(registry: Registry) -> None:
         token = spec.width_token(length)
         add(registry, f"agri_hayrack_{token}", family, f"Slatted hayrack {length:g} m", ("agriculture", "hay", "rack", "pastoral"), lambda b, l=length: _hayrack(b, l), triangle_budget=6_200)
         add(registry, f"agri_vine_trellis_{token}", family, f"Vine trellis {length:g} m", ("agriculture", "vineyard", "trellis", "row"), lambda b, l=length: _trellis(b, l), triangle_budget=4_600)
-        add(registry, f"agri_crop_strip_{token}", family, f"Grain crop strip {length:g} m", ("agriculture", "grain-field", "crop", "state-prop"), lambda b, l=length: _crop_strip(b, l), triangle_budget=6_800)
+        add(registry, f"agri_seedthree_crop_anchor_{token}", family, f"SeedThree crop-row anchor {length:g} m", ("agriculture", "grain-field", "seedthree-interface", "no-vegetation"), lambda b, l=length: _seedthree_crop_anchor(b, l), triangle_budget=4_200)
 
     for crop in ("rye", "oats", "barley", "flax", "wheat", "fallow"):
         add(registry, f"agri_field_marker_{crop}", family, f"{crop.title()} field marker", ("agriculture", "field", crop, "marker"), lambda b, c=crop: _field_marker(b, c))
@@ -61,20 +61,22 @@ def _trellis(builder: MeshBuilder, length: float) -> None:
         builder.box((length, 0.025, 0.025), (0.0, 0.0, z), "rope")
 
 
-def _crop_strip(builder: MeshBuilder, length: float) -> None:
-    for row in (-0.45, -0.15, 0.15, 0.45):
-        count = max(4, round(length / 0.32))
-        for index in range(count):
-            x = -length * 0.5 + length * (index + 0.5) / count
-            h = 0.65 + builder.random.uniform(-0.08, 0.08)
-            builder.cone(0.025, 0.008, h, (x, row, h * 0.5), "crop", 5)
+def _seedthree_crop_anchor(builder: MeshBuilder, length: float) -> None:
+    """Non-living boundary/attachment points; SeedThree owns all crop plants."""
+    width = 1.18
+    for x in (-length * 0.5, length * 0.5):
+        for y in (-width * 0.5, width * 0.5):
+            builder.cone(0.045, 0.022, 0.42, (x, y, 0.21), "timber_cut", 6)
+    for y in (-width * 0.5, width * 0.5):
+        builder.box((length, 0.022, 0.022), (0.0, y, 0.24), "rope")
+    builder.box((0.10, width, 0.028), (-length * 0.5, 0.0, 0.05), "timber_weathered")
 
 
 def _field_marker(builder: MeshBuilder, crop: str) -> None:
     builder.cone(0.055, 0.025, 1.35, (0.0, 0.0, 0.675), "timber_cut", 6)
     width = 0.72 + 0.04 * len(crop)
     builder.box((width, 0.045, 0.32), (0.0, -0.03, 1.05), "timber_weathered")
-    color = "canvas_red" if crop in ("flax", "wheat") else "crop"
+    color = "canvas_red" if crop in ("flax", "wheat") else "straw_dry"
     builder.box((width * 0.60, 0.052, 0.035), (0.0, -0.058, 1.05), color)
 
 
@@ -87,7 +89,7 @@ def _orchard_guard(builder: MeshBuilder, tree: str) -> None:
             angle0 = math.tau * index / 7
             angle1 = math.tau * (index + 1) / 7
             builder.beam_between((0.48 * math.cos(angle0), 0.48 * math.sin(angle0), z), (0.48 * math.cos(angle1), 0.48 * math.sin(angle1), z), 0.035, "timber_cut")
-    marker = "canvas_red" if tree in ("cherry", "rosehip") else "crop"
+    marker = "canvas_red" if tree in ("cherry", "rosehip") else "straw_dry"
     builder.box((0.28, 0.04, 0.18), (0.0, -0.50, 0.88), marker)
 
 

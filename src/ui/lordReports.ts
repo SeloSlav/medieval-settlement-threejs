@@ -1,6 +1,10 @@
 import { flourStock, breadGrainBulkStock } from '../economy/cropGoods.ts';
 import { isCivilianToolSite } from '../economy/civilianToolPolicy.ts';
 import { freshFoodStock, preservedFoodStock } from '../economy/foodInventory.ts';
+import {
+  buildingSharedStorageCapacity,
+  buildingStoredResourceTotal,
+} from '../economy/sharedStorageCapacity.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import type { StorageCaps } from '../generated/gameBalance.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
@@ -44,17 +48,16 @@ export type LordReport = {
   targetLabel?: string;
 };
 
-type StorageOccupancyKey = Exclude<keyof StorageCaps, 'total'>;
-
 export type StorageOccupancyChannel = {
-  key: StorageOccupancyKey;
+  key: keyof StorageCaps;
   label: string;
   amount: number;
   capacity: number;
   purpose: 'working-stock' | 'maintenance-reserve';
 };
 
-const STORAGE_CHANNEL_LABELS: Record<StorageOccupancyKey, string> = {
+const STORAGE_CHANNEL_LABELS: Record<keyof StorageCaps, string> = {
+  total: 'Combined store',
   timber: 'Timber store',
   firewood: 'Firewood store',
   stone: 'Stone store',
@@ -95,7 +98,7 @@ const STORAGE_CHANNEL_LABELS: Record<StorageOccupancyKey, string> = {
   animalFeed: 'Animal feed store',
 };
 
-const STORAGE_CHANNEL_KEYS = Object.keys(STORAGE_CHANNEL_LABELS) as StorageOccupancyKey[];
+const STORAGE_CHANNEL_KEYS = Object.keys(STORAGE_CHANNEL_LABELS) as (keyof StorageCaps)[];
 const FULL_EPSILON = 1e-6;
 
 function finiteStock(value: number | undefined): number {
@@ -104,8 +107,9 @@ function finiteStock(value: number | undefined): number {
 
 function storageChannelAmount(
   building: BuildingState,
-  key: StorageOccupancyKey,
+  key: keyof StorageCaps,
 ): number {
+  if (key === 'total') return buildingStoredResourceTotal(building);
   if (key === 'food') return freshFoodStock(building);
   if (key === 'preservedFood') return preservedFoodStock(building);
   if (key === 'grain') return breadGrainBulkStock(building);
@@ -152,9 +156,12 @@ export function reportableStorageOccupancyChannels(
   // Marketplace bays are service inventory: reaching their target capacity
   // means the stall is fully stocked, not that local production is blocked.
   if (building.kind === 'marketplace') return [];
-  return storageOccupancyChannels(building).filter(
+  const channels = storageOccupancyChannels(building).filter(
     (channel) => channel.purpose === 'working-stock',
   );
+  return buildingSharedStorageCapacity(building.kind) == null
+    ? channels
+    : channels.filter((channel) => channel.key === 'total');
 }
 
 export function fullStorageChannels(

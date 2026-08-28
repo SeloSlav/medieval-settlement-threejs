@@ -60,7 +60,7 @@ Prefer a registry of semantic `PartDefinition` records and small deterministic m
 - canopies, stalls, wells, docks, bridges, walkways, culverts, grave markers, and camps;
 - mining and quarry collars, portals, supports, headframes, derricks, hoists, benches, and stockpiles;
 - production equipment whose silhouette communicates function;
-- agricultural, civic, religious, defence, storage, and logistics modules;
+- agricultural infrastructure, civic, religious, defence, storage, and logistics modules; when the project assigns vegetation to a separate generator, keep every living plant outside the architecture kit;
 - state props only when they support readable construction or gameplay states.
 
 Use plausible real construction and regional materials. Avoid importing a familiar style shorthand merely because it is easy to proceduralize.

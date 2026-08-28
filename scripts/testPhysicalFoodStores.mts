@@ -62,9 +62,9 @@ for (const [kind, containerName, segmentName, segmentCount] of stockGroups) {
 }
 
 const supplierExpectations = [
-  ['hunters_hall', 'HuntersFoodStockpile', 'HuntersFoodSegment', 'meat', 51, 3],
-  ['foragers_shed', 'ForagersFoodStockpile', 'ForagersFoodSegment', 'berries', 41, 3],
-  ['fishing_camp', 'FishingFoodStockpile', 'FishingFoodSegment', 'fish', 81, 3],
+  ['hunters_hall', 'HuntersFoodStockpile', 'HuntersFoodSegment', 'meat', 31, 3],
+  ['foragers_shed', 'ForagersFoodStockpile', 'ForagersFoodSegment', 'berries', 30, 3],
+  ['fishing_camp', 'FishingFoodStockpile', 'FishingFoodSegment', 'fish', 41, 3],
 ] as const;
 for (const [kind, containerName, segmentName, stockKind, amount, expected] of supplierExpectations) {
   const marker = createBuildingMesh(kind);
@@ -74,14 +74,14 @@ for (const [kind, containerName, segmentName, stockKind, amount, expected] of su
   assertVisibleSegments(marker, containerName, segmentName, 0);
 }
 
-const brewery = building('brewery', { barley: 71, malt: 13, ale: 67 });
+const brewery = building('brewery', { barley: 30, malt: 13, ale: 36 });
 const breweryMarker = createBuildingMesh('brewery');
 syncFoodStockpileVisuals(breweryMarker, brewery);
 assertVisibleSegments(breweryMarker, 'BreweryBarleyStockpile', 'BreweryBarleySegment', 2);
 assertVisibleSegments(breweryMarker, 'BreweryMaltStockpile', 'BreweryMaltSegment', 1);
 assertVisibleSegments(breweryMarker, 'BreweryAleStockpile', 'BreweryAleSegment', 2);
 
-const meadBrewery = building('brewery', { mead: 67 });
+const meadBrewery = building('brewery', { mead: 36 });
 syncFoodStockpileVisuals(breweryMarker, meadBrewery);
 assertVisibleSegments(
   breweryMarker,
@@ -96,11 +96,11 @@ assert.notEqual(
 );
 
 const smokehouse = building('smokehouse', {
-  firewood: 14,
-  meat: 61,
-  preservedFood: 61,
-  salt: 14,
-  pottery: 5,
+  firewood: 12,
+  meat: 30,
+  preservedFood: 36,
+  salt: 8,
+  pottery: 4,
 });
 const smokehouseMarker = createBuildingMesh('smokehouse');
 syncFoodStockpileVisuals(smokehouseMarker, smokehouse);
@@ -158,7 +158,7 @@ syncFoodStockpileVisuals(granaryMarker, granary);
 assertVisibleSegments(granaryMarker, 'GranaryGrainStockpile', 'GranaryGrainSegment', 1);
 assertVisibleSegments(granaryMarker, 'GranaryProvisionStockpile', 'GranaryProvisionSegment', 1);
 
-const watermill = building('watermill', { ryeGrain: 61, ryeFlour: 87 });
+const watermill = building('watermill', { ryeGrain: 30, ryeFlour: 36 });
 const watermillMarker = createBuildingMesh('watermill');
 syncFoodStockpileVisuals(watermillMarker, watermill);
 assertVisibleSegments(watermillMarker, 'WatermillGrainStockpile', 'WatermillGrainSegment', 2);

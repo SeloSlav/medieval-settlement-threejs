@@ -39,6 +39,19 @@ Historical support:
 
 ## Scope
 
-The current catalog contains 44 building kinds. Supplemental coverage must include five residence tiers, six crop kinds, all backyard specializations, road, bridge, pasture, vineyard, burial ground, and dry-stone wall systems.
+The current catalog contains 44 building kinds. Supplemental coverage must include five residence tiers, non-living placement/support coverage for all six crop kinds, all backyard specializations, road, bridge, pasture, vineyard, burial ground, and dry-stone wall systems.
 
 Keep the output modular. No completed residence, chapel, mill, mine, town hall, or other individual building assembly belongs in the library.
+
+## SeedThree vegetation boundary
+
+SeedThree is the sole owner of all living vegetation in the game. The architecture kit must not model crops, trees, saplings, bushes, vines, leaves, grass, flowers, herbs, moss clumps, or other growing plants.
+
+Agricultural coverage means only non-living architectural and gameplay interfaces such as:
+
+- field-edge and row markers;
+- deterministic SeedThree placement anchors and extents;
+- trellises, stakes, ropes, guards, cold frames, fences, and gates;
+- tools, baskets, presses, drying racks, and harvested/dried resource props that are no longer living plants.
+
+Do not use plant-like proxy meshes to make validation screenshots look populated. Keep those sheets intentionally sparse and let SeedThree populate them in the game. Validation must fail when living-vegetation part IDs, tags, or vegetation-only materials appear in the architecture kit.

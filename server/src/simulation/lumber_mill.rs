@@ -6,8 +6,8 @@ use crate::civilian_tool_policy::{civilian_tool_throughput_multiplier, civilian_
 use crate::constants::{MILL_WATER_PER_HARVEST, TICK_DT};
 use crate::db::*;
 use crate::economy::{
-    building_storage_caps, building_water_storage_cap, deposit_building,
-    withdraw_building_water,
+    building_commodity_room, building_storage_caps, building_water_storage_cap, deposit_building,
+    withdraw_building_water, CommodityKind,
 };
 use crate::production_maintenance::charge_completed_production_maintenance;
 use crate::simulation::delivery_trips::onsite_building_labor;
@@ -60,7 +60,7 @@ pub fn step_lumber_mill(
     let labor_interval = interval / productive_labor;
 
     let caps = building_storage_caps(&building.kind);
-    let timber_room = crate::resource_units::whole_room(caps.timber, building.timber);
+    let timber_room = building_commodity_room(&building, CommodityKind::Timber);
     if timber_room <= 1e-6 {
         ctx.db.building().id().update(building);
         return;

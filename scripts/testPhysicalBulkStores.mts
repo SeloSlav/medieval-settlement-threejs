@@ -98,7 +98,7 @@ for (const [kind, containerName, segmentName, segmentCount] of stockGroups) {
 const lodgeMarker = createBuildingMesh('woodcutters_lodge');
 syncBulkStockpileVisuals(
   lodgeMarker,
-  building('woodcutters_lodge', { firewood: 61 }),
+  building('woodcutters_lodge', { firewood: 31 }),
 );
 assertVisibleSegments(
   lodgeMarker,
@@ -150,7 +150,7 @@ assert.ok(
   miningCampBounds.max.y < 5.2,
   `the Mining Camp must retain a low camp silhouette, got ${miningCampBounds.max.y.toFixed(2)} m`,
 );
-syncBulkStockpileVisuals(quarryMarker, building('stone_quarry', { stone: 61 }));
+syncBulkStockpileVisuals(quarryMarker, building('stone_quarry', { stone: 31 }));
 assertVisibleSegments(
   quarryMarker,
   'StoneQuarryStockpile',
@@ -159,7 +159,7 @@ assertVisibleSegments(
 );
 syncBulkStockpileVisuals(
   quarryMarker,
-  building('stone_quarry', { iron: 61, salt: 1, clay: 121 }),
+  building('stone_quarry', { iron: 31, salt: 1, clay: 41 }),
 );
 assertVisibleSegments(
   quarryMarker,
@@ -181,7 +181,7 @@ assertVisibleSegments(
 );
 
 const mineMarker = createBuildingMesh('mine');
-syncBulkStockpileVisuals(mineMarker, building('mine', { clay: 81 }));
+syncBulkStockpileVisuals(mineMarker, building('mine', { clay: 31 }));
 assertVisibleSegments(
   mineMarker,
   'ClayMineStockpile',
@@ -208,7 +208,7 @@ assert.notEqual(
 const largeQuarryMarker = createBuildingMesh('large_quarry');
 syncBulkStockpileVisuals(
   largeQuarryMarker,
-  building('large_quarry', { stone: 181 }),
+  building('large_quarry', { stone: 51 }),
 );
 assertVisibleSegments(
   largeQuarryMarker,
@@ -246,8 +246,8 @@ assertVisibleSegments(
 
 const emptyLodge = building('woodcutters_lodge');
 const firstFirewoodBand = building('woodcutters_lodge', { firewood: 1 });
-const sameFirewoodBand = building('woodcutters_lodge', { firewood: 30 });
-const secondFirewoodBand = building('woodcutters_lodge', { firewood: 31 });
+const sameFirewoodBand = building('woodcutters_lodge', { firewood: 12 });
+const secondFirewoodBand = building('woodcutters_lodge', { firewood: 13 });
 const emptySignatures = buildingMarkerSignatures(new Map([[emptyLodge.id, emptyLodge]]));
 const firstSignatures = buildingMarkerSignatures(
   new Map([[firstFirewoodBand.id, firstFirewoodBand]]),

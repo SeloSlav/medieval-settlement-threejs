@@ -129,10 +129,11 @@ for (const kind of ['apiary', 'chandlery', 'marketplace', 'trading_post', 'villa
 }
 assert.deepEqual(BUILDING_STORAGE_CAPS.chandlery, {
   timber: 0,
-  firewood: 16,
+  firewood: 12,
   stone: 0,
-  wax: 48,
-  candles: 72,
+  total: 60,
+  wax: 24,
+  candles: 36,
 });
 assert.equal(BUILDING_STORAGE_CAPS.apiary.wax, 12);
 assert.ok((BUILDING_STORAGE_CAPS.marketplace.candles ?? 0) > 0);

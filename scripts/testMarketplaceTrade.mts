@@ -64,8 +64,8 @@ assert.equal(
 );
 assert.equal(BUILDING_STORAGE_CAPS.trading_post.cider, 180);
 assert.equal(BUILDING_STORAGE_CAPS.trading_post.pearCider, 180);
-assert.equal(BUILDING_STORAGE_CAPS.tavern.cider, 180);
-assert.equal(BUILDING_STORAGE_CAPS.tavern.pearCider, 180);
+assert.equal(BUILDING_STORAGE_CAPS.tavern.cider, 60);
+assert.equal(BUILDING_STORAGE_CAPS.tavern.pearCider, 60);
 
 const categorized = TRADING_POST_TRADE_CATEGORIES.flatMap((section) => section.resources);
 assert.deepEqual(

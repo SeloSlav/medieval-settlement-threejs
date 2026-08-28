@@ -44,6 +44,7 @@ import {
   preservedFoodStock,
   type FoodInventoryLike,
 } from '../economy/foodInventory.ts';
+import { buildingSharedStorageRoom } from '../economy/sharedStorageCapacity.ts';
 
 export const PROCESSOR_INPUT_BUFFER_CYCLES = 3;
 
@@ -292,7 +293,8 @@ export function selectDirectProcessorInputTarget<
     const capacity = (BUILDING_STORAGE_CAPS[target.kind] as Record<string, number | undefined>)[
       capacityKey
     ] ?? 0;
-    if (stock + 1e-6 >= capacity) continue;
+    const sharedRoom = buildingSharedStorageRoom(target);
+    if (stock + 1e-6 >= capacity || sharedRoom <= 1e-6) continue;
     const routeDistance = routeDistanceFor(target);
     if (routeDistance == null || !Number.isFinite(routeDistance)) continue;
 
@@ -343,13 +345,14 @@ export function selectDirectProcessorInputTarget<
     ) {
       continue;
     }
-    const desiredStock = toolRack
+    const uncappedDesiredStock = toolRack
       ? capacity
       : marketplaceReserveTarget != null
       ? Math.min(capacity, marketplaceReserveTarget)
       : duty === 'working-buffer'
         ? workingTarget
         : capacity;
+    const desiredStock = Math.min(uncappedDesiredStock, stock + sharedRoom);
     if (stock + 1e-6 >= desiredStock) continue;
     const candidate: RoutedProcessorInputDestination<T> = {
       target,

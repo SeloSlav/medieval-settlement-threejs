@@ -267,8 +267,8 @@ assert.equal(
   false,
   'Animal Feed must remain local livestock storage rather than a configurable central-store good',
 );
-assert.equal(BUILDING_STORAGE_CAPS.pastoral_farmstead.animalFeed, 240);
-assert.equal(BUILDING_STORAGE_CAPS.swineherd.animalFeed, 180);
+assert.equal(BUILDING_STORAGE_CAPS.pastoral_farmstead.animalFeed, 100);
+assert.equal(BUILDING_STORAGE_CAPS.swineherd.animalFeed, 80);
 assert.ok(
   (BUILDING_STORAGE_CAPS.salvage_pile.animalFeed ?? 0) > 0,
   'recovery piles need enough Animal Feed room to preserve stranded local fodder',

@@ -9,8 +9,8 @@ use crate::constants::{
 };
 use crate::db::*;
 use crate::economy::{
-    available_unreserved_building_timber, building_storage_caps, deposit_building,
-    withdraw_building,
+    available_unreserved_building_timber, building_commodity_room, building_storage_caps,
+    deposit_building, withdraw_building, CommodityKind,
 };
 use crate::ox_policy::ox_amplified_worker_count;
 use crate::production_maintenance::charge_completed_production_maintenance;
@@ -180,10 +180,7 @@ fn process_timber_to_firewood(
     let full_firewood_output = LODGE_FIREWOOD_PER_CYCLE * labor;
     let timber_needed = crate::resource_units::whole_cost(full_timber_needed);
     let firewood_output = crate::resource_units::whole_cost(full_firewood_output);
-    let output_room = crate::resource_units::whole_room(caps.firewood, lodge.firewood);
-
-    if output_room + 1e-6 < firewood_output
-        || lodge.timber + 1e-6 < timber_needed
+    if lodge.timber + 1e-6 < timber_needed
         || !woodcutter_can_process(
             available_unreserved_timber,
             lodge.woodcutter_timber_reserve,
@@ -194,6 +191,10 @@ fn process_timber_to_firewood(
     }
 
     let (_, _, _, lodge_after_withdraw) = withdraw_building(&lodge, timber_needed, 0.0, 0.0);
+    let output_room = building_commodity_room(&lodge_after_withdraw, CommodityKind::Firewood);
+    if output_room + 1e-6 < firewood_output {
+        return (lodge, false);
+    }
     let (_, firewood_added, _, mut processed) =
         deposit_building(&lodge_after_withdraw, caps, 0.0, firewood_output, 0.0);
     if firewood_added <= 0.0 {

@@ -9,7 +9,7 @@ use crate::residence_upgrade_policy::residence_project_active;
 use crate::resource_units::{whole_cost, whole_room, whole_transfer, whole_units};
 use crate::tables::{Building, Residence};
 
-use super::commodities::CommodityKind;
+use super::commodities::{building_shared_storage_room, CommodityKind};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct StorageCaps {
@@ -330,14 +330,17 @@ pub fn deposit_building(
     next.timber = whole_units(next.timber);
     next.firewood = whole_units(next.firewood);
     next.stone = whole_units(next.stone);
-    let timber_room = whole_room(caps.timber, next.timber);
-    let firewood_room = whole_room(caps.firewood, next.firewood);
-    let stone_room = whole_room(caps.stone, next.stone);
+    let timber_room = whole_room(caps.timber, next.timber).min(building_shared_storage_room(&next));
     let timber_deposited = whole_units(timber).min(timber_room);
-    let firewood_deposited = whole_units(firewood).min(firewood_room);
-    let stone_deposited = whole_units(stone).min(stone_room);
     next.timber += timber_deposited;
+
+    let firewood_room =
+        whole_room(caps.firewood, next.firewood).min(building_shared_storage_room(&next));
+    let firewood_deposited = whole_units(firewood).min(firewood_room);
     next.firewood += firewood_deposited;
+
+    let stone_room = whole_room(caps.stone, next.stone).min(building_shared_storage_room(&next));
+    let stone_deposited = whole_units(stone).min(stone_room);
     next.stone += stone_deposited;
     (timber_deposited, firewood_deposited, stone_deposited, next)
 }

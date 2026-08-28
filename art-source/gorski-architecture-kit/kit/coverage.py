@@ -136,7 +136,7 @@ SUPPLEMENTAL_COVERAGE = {
 }
 
 for crop in ("rye", "oats", "fallow", "barley", "flax", "wheat"):
-    SUPPLEMENTAL_COVERAGE[f"farm_crop_{crop}"] = _entry("agriculture", f"Authored {crop} field strip and marker.", f"agri_field_marker_{crop}", "agri_crop_strip_4m")
+    SUPPLEMENTAL_COVERAGE[f"farm_crop_{crop}"] = _entry("agriculture", f"Non-living {crop} marker and SeedThree attachment boundary; SeedThree owns every crop plant and growth state.", f"agri_field_marker_{crop}", "agri_seedthree_crop_anchor_4m")
 
 for garden in (
     "orchard", "apple_orchard", "cherry_orchard", "pear_orchard", "aronia_orchard", "rosehip_orchard",

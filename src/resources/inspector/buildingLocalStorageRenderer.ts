@@ -55,7 +55,7 @@ export function withBuildingLocalStorage(
     ? items.length > 0
       ? 'Exact goods physically stored at this building now.'
       : 'Nothing is currently stored at this building.'
-    : `Exact goods physically stored here. All accepted resources share this ${formatResourceCostAmount(capacity)}-unit capacity.`;
+    : `Exact goods physically stored here. This building has one combined ${formatResourceCostAmount(capacity)}-unit capacity for all accepted resources.`;
   const encodedItems = items.length > 0
     ? ` data-tooltip-resources="${encodeURIComponent(JSON.stringify(items))}"`
     : '';

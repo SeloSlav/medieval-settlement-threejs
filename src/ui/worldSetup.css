@@ -9,9 +9,23 @@
   background:
     linear-gradient(90deg, rgba(12, 11, 9, 0.42) 0%, rgba(12, 11, 9, 0.16) 48%, rgba(12, 11, 9, 0) 74%),
     linear-gradient(0deg, rgba(12, 11, 9, 0.25) 0%, rgba(12, 11, 9, 0) 52%),
-    url('/assets/ui/selo-empire-monastery-1550-4k.webp') center / cover no-repeat,
+    url('/assets/ui/selo-empire-map-creation-window.png') center / cover no-repeat,
     #171512;
   pointer-events: auto;
+}
+
+.world-setup-backdrop::before {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 58% 90% at 15% 50%,
+    rgba(0, 0, 0, 0.82) 0%,
+    rgba(0, 0, 0, 0.64) 48%,
+    rgba(0, 0, 0, 0.16) 80%,
+    transparent 100%
+  );
 }
 
 .world-setup-backdrop::after {

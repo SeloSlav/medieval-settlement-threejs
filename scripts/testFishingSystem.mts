@@ -117,7 +117,7 @@ assert.ok(RESOURCE_KINDS.includes('fish'));
 assert.equal(createEmptyStockpile().fish, 0);
 assert.equal(BUILDING_DEFINITIONS.fishing_camp.requiresFish, true);
 assert.equal(BUILDING_DEFINITIONS.fishing_camp.workRadius, 64);
-assert.equal(BUILDING_STORAGE_CAPS.fishing_camp.food, 120);
+assert.equal(BUILDING_STORAGE_CAPS.fishing_camp.food, 60);
 assert.ok(FISH_PER_HARVEST > 0);
 assert.ok(RICH_FISH_YIELD_MULTIPLIER > 1);
 assert.ok(RICH_FISH_REGROWTH_MULTIPLIER > 1);

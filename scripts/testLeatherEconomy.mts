@@ -36,16 +36,16 @@ assert.equal(LEATHER_TRANSFER_PER_TRIP, 12);
 assert.equal(RESIDENCE_SHOES_CAPACITY, 6);
 assert.ok(RESIDENCE_SHOES_PER_PERSON_PER_SEC > 0);
 
-assert.deepEqual(BUILDING_COSTS.tannery, { timber: 40, stone: 18, ironwork: 2 });
-assert.deepEqual(BUILDING_COSTS.cobbler, { timber: 34, stone: 16, ironwork: 1 });
+assert.deepEqual(BUILDING_COSTS.tannery, { timber: 40, stone: 18 });
+assert.deepEqual(BUILDING_COSTS.cobbler, { timber: 34, stone: 16 });
 assert.deepEqual(BUILDING_STORAGE_CAPS.tannery, {
-  timber: 0, firewood: 24, stone: 0, water: 36, hides: 90, leather: 90,
+  timber: 0, firewood: 12, stone: 0, total: 80, water: 18, hides: 36, leather: 48,
 });
 assert.deepEqual(BUILDING_STORAGE_CAPS.cobbler, {
-  timber: 0, firewood: 0, stone: 0, leather: 72, shoes: 96,
+  timber: 0, firewood: 0, stone: 0, total: 60, leather: 30, shoes: 36,
 });
 assert.deepEqual(BUILDING_STORAGE_CAPS.hunters_hall, {
-  timber: 0, firewood: 0, stone: 0, food: 100, pelts: 64,
+  timber: 0, firewood: 0, stone: 0, total: 75, food: 50, pelts: 30,
 });
 assert.equal(BUILDING_STORAGE_CAPS.village_storehouse.pelts, 2500);
 assert.equal(BUILDING_STORAGE_CAPS.trading_post.pelts, 160);

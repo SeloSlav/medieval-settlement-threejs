@@ -74,7 +74,7 @@ SHEETS = {
         "production_sawpit_frame", "production_tanning_frame_4m", "production_warp_weighted_loom", "production_screw_press",
     ],
     "agriculture": [
-        "agri_hayrack_4m", "agri_vine_trellis_6m", "agri_crop_strip_4m", "agri_field_marker_flax",
+        "agri_hayrack_4m", "agri_vine_trellis_6m", "agri_seedthree_crop_anchor_4m", "agri_field_marker_flax",
         "agri_orchard_guard_apple", "agri_threshed_floor_round", "agri_winnowing_screen", "agri_granary_stilt_set",
         "agri_grain_bin_large", "agri_livestock_trough_4m", "agri_goat_stand", "agri_pig_shelter",
         "agri_chicken_roost", "agri_apiary_stand_9", "agri_scarecrow", "agri_garden_coldframe",
@@ -122,7 +122,7 @@ OVERVIEW = [
 
 def _args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Render architecture kit overview and family contact sheets.")
-    parser.add_argument("--out", type=Path, default=ROOT / "renders")
+    parser.add_argument("--out", type=Path, default=ROOT / "renders-release")
     return parser.parse_args(sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else [])
 
 
@@ -186,7 +186,7 @@ def _setup_render() -> tuple[bpy.types.Object, bpy.types.Object, bpy.types.Mater
 
 
 def _add_ground(material: bpy.types.Material) -> bpy.types.Object:
-    bpy.ops.mesh.primitive_plane_add(size=85.0, location=(10.0, 8.0, -0.035))
+    bpy.ops.mesh.primitive_plane_add(size=140.0, location=(10.0, 8.0, -0.035))
     ground = bpy.context.active_object
     ground.name = "GK_RenderGround"
     ground.data.materials.append(material)
@@ -223,14 +223,20 @@ def _set_sheet(part_ids: list[str], title: str, camera: bpy.types.Object, label_
     for object_ in all_parts:
         object_.hide_render = True
     _clear_labels()
-    columns = 4
+    # Dense detail sheets need a wider contact-sheet grid. Keeping four columns
+    # for 24-36 parts forced the evidence camera to crop edge components even
+    # though the source library was complete.
+    columns = 4 if len(part_ids) <= 20 else 6
     x_step = 7.6
     y_step = 6.2
     rows = math.ceil(len(part_ids) / columns)
-    center = (11.4, (rows - 1) * y_step * 0.5, 1.7)
+    center = ((columns - 1) * x_step * 0.5, (rows - 1) * y_step * 0.5, 1.7)
     camera.location = (-16.0, -24.0, 25.0)
     _look_at(camera, center)
-    camera.data.ortho_scale = 39.0 if rows >= 4 else 34.0
+    if columns > 4:
+        camera.data.ortho_scale = max(52.0, rows * y_step + 16.0)
+    else:
+        camera.data.ortho_scale = max(34.0, rows * y_step + 8.0)
     for index, part_id in enumerate(part_ids):
         object_ = by_id[part_id]
         column = index % columns

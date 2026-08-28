@@ -228,8 +228,9 @@ assert.match(smokehouseRecipePanel ?? '', /data-smokehouse-recipe-policy="3"[^>]
 assert.equal(renderProcessorOutputTargetPanel(processor('mill-panel', 'watermill')), null);
 
 const leanQuarry = processor('quarry', 'stone_quarry', 25);
-leanQuarry.stone = 179;
-assert.equal(extractionOutputTarget('stone_quarry', 'stone'), 180);
+leanQuarry.stone = 59;
+leanQuarry.iron = 60;
+assert.equal(extractionOutputTarget('stone_quarry', 'stone'), 60);
 assert.equal(extractionOutputHeadroom(leanQuarry, 'stone'), 1);
 assert.equal(extractionOutputCommodity('stone_quarry'), 'stone');
 assert.equal(extractionOutputCommodity('large_quarry'), 'stone');
@@ -239,38 +240,39 @@ assert.equal(extractionOutputCommodity('mine', 'salt'), 'salt');
 assert.equal(extractionOutputCommodity('mine', 'clay'), 'clay');
 assert.equal(extractionOutputCommodity('mine'), null);
 assert.equal(extractionAcceptsMaintenance(leanQuarry), true);
-leanQuarry.stone = 180;
+leanQuarry.stone = 60;
 assert.equal(extractionOutputHeadroom(leanQuarry, 'stone'), 0);
 assert.equal(
   extractionAcceptsMaintenance(leanQuarry),
-  true,
-  'a full quarry may still stockpile replacement tools',
+  false,
+  'a physically full extraction yard must be hauled before tools can arrive',
 );
-leanQuarry.stone = 179;
+leanQuarry.stone = 59;
 assert.equal(
   extractionAcceptsMaintenance(leanQuarry),
   true,
   'drawing one unit from the yard must immediately reopen tool maintenance',
 );
-leanQuarry.stone = 180;
+leanQuarry.stone = 60;
 const leanIronMine = processor('iron-mine', 'mine', 25);
-leanIronMine.iron = 240;
-assert.equal(extractionAcceptsMaintenance(leanIronMine, 'iron'), true);
-leanIronMine.iron = 239;
+leanIronMine.iron = 75;
+leanIronMine.clay = 75;
+assert.equal(extractionAcceptsMaintenance(leanIronMine, 'iron'), false);
+leanIronMine.iron = 74;
 assert.equal(extractionAcceptsMaintenance(leanIronMine, 'iron'), true);
 assert.equal(
   extractionAcceptsMaintenance(leanIronMine, null),
   false,
   'Mineworks without a rich iron, salt, or clay seam must not absorb smithy output',
 );
-assert.equal(extractionOutputTarget('large_quarry', 'stone'), 360);
-assert.equal(extractionOutputTarget('clay_pit', 'clay'), 180);
-assert.equal(extractionOutputTarget('mine', 'iron'), 240);
-assert.equal(extractionOutputTarget('mine', 'salt'), 240);
-assert.equal(extractionOutputTarget('mine', 'clay'), 240);
+assert.equal(extractionOutputTarget('large_quarry', 'stone'), 100);
+assert.equal(extractionOutputTarget('clay_pit', 'clay'), 60);
+assert.equal(extractionOutputTarget('mine', 'iron'), 75);
+assert.equal(extractionOutputTarget('mine', 'salt'), 50);
+assert.equal(extractionOutputTarget('mine', 'clay'), 75);
 assert.equal(
   extractionOutputTarget('mine', 'salt'),
-  240,
+  50,
   'extraction sites must always fill their physical yards regardless of legacy policy state',
 );
 assert.deepEqual(
@@ -331,19 +333,19 @@ assert.deepEqual(
 );
 
 const mill = processor('mill', 'watermill', 25);
-assert.equal(processorOutputTargetForBuilding(mill), 260);
-mill.ryeFlour = 257;
+assert.equal(processorOutputTargetForBuilding(mill), 60);
+mill.ryeFlour = 57;
 assert.equal(processorOutputHeadroom(mill), 3);
 assert.equal(processorNeedsInputs(mill), true);
 assert.equal(processorAcceptsInput(mill, 'ryeGrain'), true);
 const windmill = processor('windmill', 'windmill', 25);
-assert.equal(processorOutputTargetForBuilding(windmill), 260);
+assert.equal(processorOutputTargetForBuilding(windmill), 54);
 assert.deepEqual(
   processorInputCommodities('windmill'),
   ['ryeGrain', 'maslinGrain'],
   'mills expose only their two genuinely millable alternative grains',
 );
-mill.ryeFlour = 260;
+mill.ryeFlour = 60;
 assert.equal(processorOutputHeadroom(mill), 0);
 assert.equal(processorNeedsInputs(mill), false);
 assert.equal(processorAcceptsInput(mill, 'ryeGrain'), false);
@@ -413,7 +415,8 @@ const openToolQuarry = processor('open-tool-quarry', 'stone_quarry', 25);
 openToolQuarry.stone = 44;
 openToolQuarry.ironwork = 0;
 const heldToolQuarry = processor('held-tool-quarry', 'stone_quarry', 25);
-heldToolQuarry.stone = 180;
+heldToolQuarry.stone = 60;
+heldToolQuarry.iron = 60;
 heldToolQuarry.ironwork = 0;
 const extractionToolTarget = selectDirectProcessorInputTarget(
   [heldToolQuarry, openToolQuarry],
@@ -425,8 +428,8 @@ const extractionToolTarget = selectDirectProcessorInputTarget(
 );
 assert.equal(
   extractionToolTarget?.target.id,
-  heldToolQuarry.id,
-  'tool-rack stockpiling must be independent of finished-stone yard fullness',
+  openToolQuarry.id,
+  'a full mixed extraction yard must be hauled before replacement tools arrive',
 );
 
 const candidates = Array.from({ length: 100_000 }, (_, index) => {
@@ -450,7 +453,7 @@ assert.ok(
 
 const extractionCandidates = Array.from({ length: 100_000 }, (_, index) => {
   const building = processor(`mine-${index}`, 'mine', 25);
-  building.iron = index % 2 === 0 ? 240 : 239;
+  building.iron = index % 2 === 0 ? 75 : 74;
   return building;
 });
 const extractionStarted = performance.now();
@@ -547,7 +550,15 @@ assert.equal(
   'authoritative candidate selection and launch revalidation must both reject tool carts to invalid extraction yards',
 );
 assert.match(economy, /uses_output_target/);
-assert.match(economy, /process_batch\([\s\S]*Some\(target_percent\)/);
+assert.match(
+  economy,
+  /let target_percent = uses_output_target\.then_some[\s\S]*process_batch\(&mut building, &\[\], outputs, target_percent\)/,
+);
+assert.match(
+  economy,
+  /let mut projected = building\.clone\(\)[\s\S]*building_commodity_room\(&projected, \*kind\)[\s\S]*\*building = projected/,
+  'processor batches must consume inputs first and atomically honor combined local capacity',
+);
 
 console.log(
   `processor output policy tests passed (${elapsed.toFixed(1)}ms processors; ${extractionElapsed.toFixed(1)}ms extraction for 100k checks each)`,

@@ -58,7 +58,7 @@ TRIANGLE_BUDGET_HERO = 8_000
 
 REGION = "Gorski Kotar and Croatian Littoral"
 ERA = "circa 1550"
-KIT_VERSION = "1.0.0"
+KIT_VERSION = "1.1.0"
 
 MATERIAL_SPECS = {
     "limestone_warm": ((0.62, 0.57, 0.46, 1.0), 0.91, 0.0),
@@ -92,8 +92,7 @@ MATERIAL_SPECS = {
     "canvas": ((0.63, 0.57, 0.42, 1.0), 0.97, 0.0),
     "canvas_red": ((0.42, 0.13, 0.08, 1.0), 0.96, 0.0),
     "leather": ((0.24, 0.12, 0.055, 1.0), 0.83, 0.0),
-    "crop": ((0.50, 0.43, 0.16, 1.0), 0.99, 0.0),
-    "foliage": ((0.20, 0.30, 0.12, 1.0), 0.99, 0.0),
+    "straw_dry": ((0.50, 0.43, 0.16, 1.0), 0.99, 0.0),
     "rope": ((0.43, 0.34, 0.20, 1.0), 0.96, 0.0),
     "plaster_inside": ((0.20, 0.08, 0.22, 1.0), 1.0, 0.0),
 }

@@ -38,7 +38,7 @@ def register(registry: Registry) -> None:
         add(registry, f"production_brew_vat_{size}", family, f"Coopered brewing vat {size}", ("production", "brewery", "vat", size), lambda b, s=size: _vat(b, s, False), triangle_budget=4_400)
         add(registry, f"production_dye_vat_{size}", family, f"Dyeing vat {size}", ("production", "weaver", "dye", "vat", size), lambda b, s=size: _vat(b, s, True), triangle_budget=4_600)
     add(registry, "production_brew_kettle", family, "Copper brewing kettle", ("production", "brewery", "kettle", "fired"), _brew_kettle, triangle_budget=4_800)
-    add(registry, "production_malt_rack_2m", family, "Malt drying rack 2 m", ("production", "brewery", "malt", "rack"), lambda b: _rack(b, 2.0, "crop"))
+    add(registry, "production_malt_rack_2m", family, "Malt drying rack 2 m", ("production", "brewery", "malt", "rack"), lambda b: _rack(b, 2.0, "straw_dry"))
     add(registry, "production_smoke_rack_2m", family, "Smokehouse hanging rack 2 m", ("production", "smokehouse", "rack", "food"), lambda b: _rack(b, 2.0, "leather"))
 
     add(registry, "production_carpenter_bench", family, "Carpenter shaving bench", ("production", "carpenter", "bench", "workstation"), _carpenter_bench)

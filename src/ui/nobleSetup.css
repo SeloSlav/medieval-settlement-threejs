@@ -173,7 +173,7 @@
   background:
     radial-gradient(circle at 68% 30%, rgba(184, 137, 62, 0.09), transparent 34%),
     linear-gradient(90deg, rgba(8, 9, 7, 0.88), rgba(11, 12, 10, 0.68) 45%, rgba(8, 9, 7, 0.82)),
-    url('/assets/ui/world-setup-gorski-kotar-1550.webp') center / cover no-repeat,
+    url('/assets/ui/selo-empire-map-creation-window.png') center / cover no-repeat,
     #11140f;
   font-family: Georgia, 'Times New Roman', serif;
   pointer-events: auto;
@@ -198,6 +198,13 @@
 }
 
 .noble-setup-backdrop::after {
+  background: radial-gradient(
+    ellipse 66% 68% at 50% 50%,
+    rgba(0, 0, 0, 0.76) 0%,
+    rgba(0, 0, 0, 0.58) 54%,
+    rgba(0, 0, 0, 0.18) 82%,
+    transparent 100%
+  );
   box-shadow: inset 0 0 180px 45px rgba(0, 0, 0, 0.76);
 }
 

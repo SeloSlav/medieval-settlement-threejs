@@ -41,8 +41,9 @@ assert.match(
 );
 assert.match(
   nobleProfile,
-  /id: 'daniciceva-udovica'[\s\S]*?title: 'Senj Uskok expedition leader and organizer'[\s\S]*?portrait: '\/assets\/ui\/noble-setup\/portraits\/daniciceva-udovica\.webp'/,
+  /id: 'doroteja-frankapan-slunjska'[\s\S]*?name: 'Doroteja Frankapan Slunjska'[\s\S]*?title: 'Slunj Frankapan noblewoman, widow of Stjepan Blagajski, and estate administrator'[\s\S]*?years: 'c\. 1550'[\s\S]*?portrait: '\/assets\/ui\/noble-setup\/portraits\/doroteja-frankapan-slunjska\.webp'/,
 );
+assert.doesNotMatch(nobleProfile, /daniciceva-udovica|Daničićeva udovica/);
 assert.match(
   nobleProfile,
   /id: 'filipa-lacea'[\s\S]*?title: 'Pula-born Neo-Latin poet and Renaissance humanist'[\s\S]*?portrait: '\/assets\/ui\/noble-setup\/portraits\/filipa-lacea\.webp'/,
@@ -178,6 +179,8 @@ assert.match(browserCoverage, /data-map-size-value/);
 assert.match(browserCoverage, /data-difficulty-preset-value/);
 assert.match(browserCoverage, /data-aquifer-networks-value/);
 assert.match(browserCoverage, /Lord of Bosiljevo, Ribnik, and Novigrad/);
+assert.match(browserCoverage, /doroteja-frankapan-slunjska/);
+assert.match(browserCoverage, /Doroteja Frankapan Slunjska/);
 assert.match(browserCoverage, /noble-setup-heraldry-profile/);
 assert.match(browserCoverage, /data-heraldry-preview-portrait/);
 
