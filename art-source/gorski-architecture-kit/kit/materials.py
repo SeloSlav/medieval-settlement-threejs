@@ -15,6 +15,9 @@ def create_materials() -> dict[str, bpy.types.Material]:
         material.use_nodes = True
         material["gk_material_key"] = key
         material["gk_palette_authority"] = "src/buildings/buildingMaterials.ts"
+        material["gk_uv_set"] = "GK_UV0"
+        material["gk_texture_contract"] = "tileable baseColor + tangent-space normal + ORM"
+        material["gk_texture_scale"] = "metric; authored per material in game atlas"
         bsdf = material.node_tree.nodes.get("Principled BSDF")
         if bsdf:
             bsdf.inputs["Base Color"].default_value = color

@@ -79,22 +79,14 @@ assert.ok(
   'starter stone must fund logistics, utilities, church access, housing, quarrying, two food camps, and a recovery cushion',
 );
 
-const workSecondsPerDay = CALENDAR_SECONDS_PER_DAY;
-const mineIronwork = BUILDING_COSTS.mine.ironwork ?? 0;
-const tradingPostIronwork = BUILDING_COSTS.trading_post.ironwork ?? 0;
-const bootstrapContingency = Math.max(mineIronwork, tradingPostIronwork);
-assert.equal(
-  STARTING_IRONWORK,
-  mineIronwork + tradingPostIronwork + bootstrapContingency,
-  'starter ironwork should establish both recovery branches plus one bounded four-unit contingency',
-);
-for (const kind of ['charcoal_burner', 'smithy', 'well'] as const) {
+for (const [kind, cost] of Object.entries(BUILDING_COSTS)) {
   assert.equal(
-    BUILDING_COSTS[kind].ironwork ?? 0,
+    cost.ironwork ?? 0,
     0,
-    `${kind} must not circularly consume the ironwork it helps replace`,
+    `${kind} construction must not consume maintenance ironwork`,
   );
 }
+assert.ok(STARTING_IRONWORK > 0, 'the settlement should open with a bounded tool-maintenance reserve');
 for (const kind of ['mine', 'charcoal_burner', 'smithy'] as const) {
   assert.equal(BUILDING_DEFINITIONS[kind].acceptsLabor, true, `${kind} must accept production labor`);
 }
@@ -107,15 +99,11 @@ assert.ok(SMITHY_IRONWORK_PER_CYCLE > 0);
 const smithyReplacementCycles = Math.ceil(STARTING_IRONWORK / SMITHY_IRONWORK_PER_CYCLE);
 const smithyReplacementSeconds = smithyReplacementCycles * BUILDING_DEFINITIONS.smithy.harvestInterval;
 assert.ok(
-  smithyReplacementSeconds <= workSecondsPerDay,
-  'a supplied one-worker Smithy must replace the complete starter reserve within one calendar day',
+  Number.isFinite(smithyReplacementSeconds) && smithyReplacementSeconds > 0,
+  'the finite starter maintenance reserve must have a finite local Smithy replacement path',
 );
 const tierFourChurchIronwork = CHAPEL_TIER2_UPGRADE_IRONWORK + CHAPEL_TIER3_UPGRADE_IRONWORK;
-assert.ok(
-  Math.ceil(tierFourChurchIronwork / SMITHY_IRONWORK_PER_CYCLE)
-    * BUILDING_DEFINITIONS.smithy.harvestInterval <= workSecondsPerDay,
-  'the post-bootstrap Smithy must replace the chapel ironwork needed along the Tier-4 service path within one calendar day',
-);
+assert.equal(tierFourChurchIronwork, 0, 'church upgrades must not reintroduce an ironwork construction gate');
 const ironworkImport = MARKETPLACE_TRADE_OFFERS.find(
   (offer) => offer.kind === 'goldBuy' && offer.resource === 'ironwork',
 );

@@ -95,6 +95,12 @@ def main() -> None:
             errors.append(f"{part_id}: non-kit or empty material slot")
         if not object_.get("gk_family") or not object_.get("gk_origin_contract"):
             errors.append(f"{part_id}: required family/origin metadata missing")
+        if len(object_.data.uv_layers) != 1 or object_.data.uv_layers[0].name != "GK_UV0":
+            errors.append(f"{part_id}: expected one metric GK_UV0 texture coordinate set")
+        elif len(object_.data.uv_layers[0].data) != len(object_.data.loops):
+            errors.append(f"{part_id}: incomplete GK_UV0 loop coverage")
+        if object_.get("gk_uv_contract") != "GK_UV0; metric planar projection; 1 UV unit per metre":
+            errors.append(f"{part_id}: UV contract metadata missing or drifted")
         if object_.get("gk_region") != spec.REGION or object_.get("gk_era") != spec.ERA:
             errors.append(f"{part_id}: region/era metadata drift")
         if len(object_.data.vertices) == 0 or len(object_.data.polygons) == 0:
@@ -123,6 +129,9 @@ def main() -> None:
             errors.append(f"{part_id}: {loose} loose vertices")
         tags = json.loads(object_.get("gk_tags", "[]"))
         seams = json.loads(object_.get("gk_seams", "[]"))
+        snap_sockets = json.loads(object_.get("gk_snap_sockets", "[]"))
+        if seams != snap_sockets:
+            errors.append(f"{part_id}: snap-socket metadata differs from authored seams")
         if "fraction-authored" in tags and len(seams) < 2:
             errors.append(f"{part_id}: authored fraction lacks seam contract")
 
@@ -163,6 +172,7 @@ def main() -> None:
         "buildingCoverageKinds": len(BUILDING_COVERAGE),
         "supplementalCoverageKinds": len(SUPPLEMENTAL_COVERAGE),
         "nonmanifoldObjects": nonmanifold_objects,
+        "uvMappedObjects": sum(1 for object_ in objects if object_.data.uv_layers),
     })
     report = {
         "schemaVersion": 1,
@@ -180,6 +190,7 @@ def main() -> None:
             "canonical transforms and unparented component ownership",
             "mesh finiteness, topology, degeneracy, and triangle budgets",
             "shared palette materials and required metadata",
+            "metric GK_UV0 coverage and texture contract metadata",
             "authored-fraction seam contracts",
             "minimum family breadth and no finished-building assemblies",
         ],

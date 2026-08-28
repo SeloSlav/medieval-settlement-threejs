@@ -3281,21 +3281,13 @@ select:focus-visible {
 
 .construction-menu__header {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: baseline;
   gap: 8px;
   min-height: 27px;
   padding: 1px 7px 5px;
   border-bottom: 1px solid rgba(222, 193, 132, 0.14);
   line-height: 1.1;
-}
-
-.construction-menu__header > span {
-  color: rgba(215, 190, 135, 0.72);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
 }
 
 .construction-menu__header > strong {
@@ -3397,7 +3389,7 @@ select:focus-visible {
 .build-menu-category__icon[data-build-category-icon='civic'] { --build-category-art: url('/assets/ui/build-menu/cards/town-hall.webp'); }
 .build-menu-category__icon[data-build-category-icon='trade'] { --build-category-art: url('/assets/ui/build-menu/cards/trading-post.webp'); }
 .build-menu-category__icon[data-build-category-icon='gathering'] { --build-category-art: url('/assets/ui/build-menu/cards/foragers-hut.webp'); }
-.build-menu-category__icon[data-build-category-icon='agriculture'] { --build-category-art: url('/assets/ui/build-menu/cards/grain-field.webp'); }
+.build-menu-category__icon[data-build-category-icon='agriculture'] { --build-category-art: url('/assets/ui/build-menu/cards/threshing-barn.webp'); }
 .build-menu-category__icon[data-build-category-icon='food'] { --build-category-art: url('/assets/ui/build-menu/cards/bakery.webp'); }
 .build-menu-category__icon[data-build-category-icon='industry'] { --build-category-art: url('/assets/ui/build-menu/cards/watermill.webp'); }
 .build-menu-category__icon[data-build-category-icon='faith'] { --build-category-art: url('/assets/ui/build-menu/cards/chapel.webp'); }

@@ -75,7 +75,9 @@ mod tests {
                     + stone_upgrade.ironwork
                     + stone_upgrade.roof_tiles
         );
-        assert!(stone_upgrade.ironwork > 0.0 && stone_upgrade.roof_tiles > 0.0);
+        assert_eq!(stone_upgrade.ironwork, 0.0);
+        assert_eq!(large_upgrade.ironwork, 0.0);
+        assert!(stone_upgrade.roof_tiles > 0.0);
         assert!(chapel_coffer_capacity_for_tier(1) < chapel_coffer_capacity_for_tier(2));
         assert!(chapel_coffer_capacity_for_tier(2) < chapel_coffer_capacity_for_tier(3));
         assert!(chapel_tithe_multiplier(1) < chapel_tithe_multiplier(2));

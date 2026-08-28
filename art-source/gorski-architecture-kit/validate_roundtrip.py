@@ -60,9 +60,11 @@ def main() -> None:
             errors.append(f"{part_id}: origin metadata lost in GLB")
         if not object_.material_slots:
             errors.append(f"{part_id}: materials lost in GLB")
+        if not object_.data.uv_layers:
+            errors.append(f"{part_id}: UV0 lost in GLB")
 
     report = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "validatedAt": datetime.now(timezone.utc).isoformat(),
         "status": "pass" if not errors else "fail",
         "glb": str(glb_path),

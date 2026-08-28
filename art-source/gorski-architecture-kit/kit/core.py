@@ -227,6 +227,7 @@ def create_part_object(definition: PartDefinition, materials: dict[str, bpy.type
     mesh = bpy.data.meshes.new(f"GK_Mesh_{definition.id}")
     mesh.from_pydata(builder.vertices, [], builder.faces)
     mesh.update(calc_edges=True)
+    _create_metric_uv0(mesh)
     object_ = bpy.data.objects.new(f"GK_{definition.id}", mesh)
     collection.objects.link(object_)
 
@@ -250,6 +251,7 @@ def create_part_object(definition: PartDefinition, materials: dict[str, bpy.type
     object_["gk_label"] = definition.label
     object_["gk_tags"] = json.dumps(definition.tags)
     object_["gk_seams"] = json.dumps(definition.seams)
+    object_["gk_snap_sockets"] = json.dumps(definition.seams)
     object_["gk_origin_contract"] = "canonical local origin; X run, Y depth, Z up"
     object_["gk_opening_contract"] = definition.opening_contract or ""
     object_["gk_allow_nonmanifold"] = definition.allow_nonmanifold
@@ -258,8 +260,33 @@ def create_part_object(definition: PartDefinition, materials: dict[str, bpy.type
     object_["gk_region"] = spec.REGION
     object_["gk_era"] = spec.ERA
     object_["gk_grid_m"] = spec.GRID
+    object_["gk_uv_contract"] = "GK_UV0; metric planar projection; 1 UV unit per metre"
+    object_["gk_texture_channels"] = "baseColor, normal, ORM"
+    object_["gk_runtime_contract"] = "independent mesh component; canonical origin; no non-uniform scale"
     object_.scale = (1.0, 1.0, 1.0)
     return object_
+
+
+def _create_metric_uv0(mesh: bpy.types.Mesh) -> None:
+    """Create deterministic metre-scaled UVs without operator/context dependence.
+
+    The kit intentionally uses a tiling/trim-sheet contract rather than unique
+    baked unwraps. Every polygon is projected through its dominant local axis,
+    so one UV unit always represents one metre on the component surface.
+    """
+    uv_layer = mesh.uv_layers.new(name="GK_UV0")
+    for polygon in mesh.polygons:
+        normal = polygon.normal
+        ax, ay, az = abs(normal.x), abs(normal.y), abs(normal.z)
+        for loop_index in polygon.loop_indices:
+            coordinate = mesh.vertices[mesh.loops[loop_index].vertex_index].co
+            if az >= ax and az >= ay:
+                uv = (coordinate.x, coordinate.y)
+            elif ay >= ax:
+                uv = (coordinate.x, coordinate.z)
+            else:
+                uv = (coordinate.y, coordinate.z)
+            uv_layer.data[loop_index].uv = uv
 
 
 def triangulated_face_count(object_: bpy.types.Object) -> int:

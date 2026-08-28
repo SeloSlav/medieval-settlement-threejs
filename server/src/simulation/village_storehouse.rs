@@ -9,7 +9,8 @@ use crate::balance_generated::{
 };
 use crate::db::*;
 use crate::economy::{
-    building_commodity_cap, building_commodity_stock, storage_accepts_commodity, CommodityKind,
+    building_commodity_cap, building_commodity_room, building_commodity_stock,
+    storage_accepts_commodity, CommodityKind,
 };
 use crate::fuel_reserve_policy::{
     combined_fuel_equivalent, fuel_runway_days, household_fuel_demand_for_households_per_day,
@@ -461,6 +462,7 @@ fn storehouse_collection_room(storehouse: &Building, commodity: CommodityKind) -
         building_commodity_cap(&storehouse.kind, commodity),
         percent,
     )
+    .min(building_commodity_room(storehouse, commodity))
 }
 
 fn overflow_source_commodities(source: &Building) -> &'static [CommodityKind] {

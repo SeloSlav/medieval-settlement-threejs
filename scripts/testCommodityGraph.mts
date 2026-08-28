@@ -325,6 +325,11 @@ for (const resource of constructionInputs) {
     `${resource} construction input needs a trade fallback`,
   );
 }
+assert.equal(
+  constructionInputs.has('ironwork'),
+  false,
+  'ironwork is a maintenance commodity and must not gate new construction',
+);
 
 // The local ironwork and roof-tile chains must be startable without consuming
 // their own outputs. This protects the intentional bootstrap independently of
@@ -409,10 +414,11 @@ assert.match(
   'local-only mead needs a Tavern/household consumption path',
 );
 
-const maxIronworkCost = Math.max(
-  ...Object.values(BUILDING_COSTS).map((cost) => cost.ironwork ?? 0),
+assert.equal(
+  Math.max(...Object.values(BUILDING_COSTS).map((cost) => cost.ironwork ?? 0)),
+  0,
+  'every building recipe must remain free of ironwork construction costs',
 );
-const starterIronworkCostRatio = STARTING_IRONWORK / Math.max(1, maxIronworkCost);
 assert.doesNotMatch(
   openingBalanceTestSource,
   /fiveYearEarlyToolWear|five years of the three opening heavy-tool sites/,
@@ -425,6 +431,6 @@ console.log(
     + `${TRADE_RESOURCE_KINDS.length} bidirectional trade fallbacks; `
     + `${new Set(storageCommodities).size} configurable storage goods; `
     + `${constructionInputs.size} construction inputs). `
-    + `Audit flag: starter ironwork ${STARTING_IRONWORK} = ${starterIronworkCostRatio.toFixed(1)}× `
-    + 'the largest building ironwork cost; bounded Smithy replacement is asserted.',
+    + `Audit flag: starter ironwork ${STARTING_IRONWORK} is reserved for maintenance; `
+    + 'bounded Smithy replacement is asserted.',
 );

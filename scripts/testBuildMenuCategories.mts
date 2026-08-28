@@ -104,18 +104,18 @@ assert.match(
 );
 assert.match(
   renderedCards,
-  /data-action="pastoral-farmstead"[\s\S]*?cattle and sheep graze[\s\S]*?cut (?:summer )?hay[\s\S]*?hay before (?:animal )?feed[\s\S]*?prepare animal feed from oats/i,
-  'the pastoral card must explain grazing, hay-before-feed winter order, and feed preparation',
+  /data-action="pastoral-farmstead"[\s\S]*?data-tooltip="Raises cattle and sheep for milk, wool, manure, and meat\."/,
+  'the pastoral card must summarize what the holding produces',
 );
 assert.match(
   renderedCards,
-  /data-action="swineherd"[\s\S]*?mast first, then prepared animal feed/i,
-  'the swineherd card must explain that winter mast is consumed before prepared feed',
+  /data-action="swineherd"[\s\S]*?data-tooltip="Raises woodland pigs for meat\."/,
+  'the swineherd card must summarize what the holding produces',
 );
 assert.match(
   renderedCards,
-  /data-action="stable"[\s\S]*?feed and water are abstracted[\s\S]*?never draw herd hay or (?:grain|Animal Feed)/i,
-  'the stable card must keep transport and production ox upkeep abstract',
+  /data-action="stable"[\s\S]*?data-tooltip="Houses oxen that assist with building, farm work, and hauling\."/,
+  'the stable card must summarize what its oxen do',
 );
 const cardResourceFlow = (action: string): { inputs: string[]; outputs: string[] } => {
   const encoded = renderedCards.match(
@@ -291,13 +291,13 @@ assert.equal(describeBuildingPlacementBlocker('insufficient_resources'), 'Site c
 const unaffordableCard = fakeBuildMenuCard('residences');
 syncBuildMenuCardAffordability(
   fakeBuildMenu(unaffordableCard),
-  { timber: residenceZoneCost(1).timber, stone: 0 },
+  { timber: residenceZoneCost(1).timber - 1, stone: 0 },
 );
 assert.equal(unaffordableCard.dataset.tooltipCostAffordable, 'false');
-assert.equal(unaffordableCard.dataset.tooltipCostShortages, 'stone');
+assert.equal(unaffordableCard.dataset.tooltipCostShortages, 'timber');
 assert.equal(unaffordableCard.classList.contains('is-unaffordable'), true);
-assert.equal(fakeCostItem(unaffordableCard, 'timber').classList.contains('is-unaffordable'), false);
-assert.equal(fakeCostItem(unaffordableCard, 'stone').classList.contains('is-unaffordable'), true);
+assert.equal(fakeCostItem(unaffordableCard, 'timber').classList.contains('is-unaffordable'), true);
+assert.equal(fakeCostItem(unaffordableCard, 'stone').classList.contains('is-unaffordable'), false);
 assert.match(unaffordableCard.getAttribute('aria-label') ?? '', /Not enough resources/);
 syncBuildMenuCardAffordability(
   fakeBuildMenu(unaffordableCard),
@@ -414,7 +414,7 @@ assert.equal(BUILDING_DEFINITIONS.village_storehouse.label, 'Storehouse');
 assert.equal(BUILDING_DEFINITIONS.granary.label, 'Granary');
 assert.match(
   renderedCards,
-  /data-action="marketplace"[^>]*data-tooltip="Required to distribute food to residences;/,
+  /data-action="marketplace"[^>]*data-tooltip="Distributes food, trades goods, and collects local taxes\."/,
 );
 assert.match(
   renderedCards,
@@ -426,7 +426,7 @@ assert.match(
 );
 assert.match(
   renderedCards,
-  /data-action="monastery"[^>]*data-tooltip="[^"]*hosts pilgrims[^"]*aids villagers[^"]*safeguards seed[^"]*charitable works\./,
+  /data-action="monastery"[^>]*data-tooltip="Hosts pilgrims and supports villagers through worship, feasts, seedkeeping, and charity\."/,
 );
 const monasteryCard = renderedCards.match(/<button[^>]*data-action="monastery"[^>]*>/)?.[0] ?? '';
 assert.doesNotMatch(
@@ -456,15 +456,19 @@ assert.equal(descriptions.length, BUILD_MENU_ENTRIES.length, 'every build card n
 for (const description of descriptions) {
   const sentenceCount = description.split(/[.!?]+(?:\s|$)/).filter(Boolean).length;
   const wordCount = description.trim().split(/\s+/).length;
-  assert.ok(sentenceCount <= 2, `build-card copy must stay within two sentences: ${description}`);
+  assert.equal(sentenceCount, 1, `build-card copy must be one sentence: ${description}`);
   assert.ok(wordCount <= 20, `build-card copy must stay quickly scannable: ${description}`);
   assert.doesNotMatch(description, /\bcost:/i, 'construction cost must not be repeated in tooltip prose');
   assert.doesNotMatch(
     description,
-    /\b(?:beyond the map|off[- ]map|does not|no practical benefit|fallback|non-depleting|requirement|unlocks?)\b/i,
-    `build-card copy must stay in-world and benefit-led: ${description}`,
+    /\b(?:abstracted|automatic assistance|beyond the map|does not|fallback|free|instantly|maintained|non-depleting|off[- ]map|replacement|requirement|required|seasonal|tier \d|unlocks?|wear)\b|without snapping|lower building costs|hasten deliveries|raise output|stays? separate|use\w* .+ before/i,
+    `build-card copy must describe the building's purpose instead of detailed mechanics: ${description}`,
   );
 }
+assert.match(renderedCards, /data-action="threshing-barn"[\s\S]*?data-tooltip="Cultivates grain and flax fields and threshes harvested sheaves\."/);
+assert.match(renderedCards, /data-action="pastoral-farmstead"[\s\S]*?data-tooltip="Raises cattle and sheep for milk, wool, manure, and meat\."/);
+assert.match(renderedCards, /data-action="swineherd"[\s\S]*?data-tooltip="Raises woodland pigs for meat\."/);
+assert.match(renderedCards, /data-action="stone-quarry"[\s\S]*?data-tooltip="Extracts stone, iron, salt, and clay from nearby surface deposits\."/);
 assert.ok(
   [...renderedCards.matchAll(/data-tooltip-flow="([^"]+)"/g)].length >= 20,
   'resource-producing build cards should expose compact icon flows',
@@ -494,6 +498,11 @@ assert.match(
 );
 assert.match(toolbarSource, /data-build-menu-cards/);
 assert.match(toolbarSource, /class="build-menu-categories"/);
+assert.doesNotMatch(
+  toolbarSource,
+  /construction-menu__header">\s*<span>Build<\/span>/,
+  'the category title must not repeat the word Build in the menu header',
+);
 assert.match(toolbarSource, /setBuildMenuCategory\(DEFAULT_BUILD_MENU_CATEGORY, true\)/);
 const buildMenuOpenSource = toolbarSource.match(
   /private setBuildMenuOpen\(open: boolean\): void \{[\s\S]*?\n  \}\n\n  private setBuildMenuCategory/,

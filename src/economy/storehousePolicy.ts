@@ -1,5 +1,6 @@
 import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
+import { buildingSharedStorageRoom } from './sharedStorageCapacity.ts';
 import { storageAcceptsCommodity } from './storageAcceptancePolicy.ts';
 
 export const STOREHOUSE_COMMODITIES = [
@@ -141,5 +142,8 @@ export function storehouseFilteredCollectionHeadroom(
   const stock = Number.isFinite(rawStock)
     ? Math.max(0, rawStock)
     : 0;
-  return Math.max(0, storehouseCommodityTarget(building, commodity) - stock);
+  return Math.min(
+    Math.max(0, storehouseCommodityTarget(building, commodity) - stock),
+    buildingSharedStorageRoom(building),
+  );
 }

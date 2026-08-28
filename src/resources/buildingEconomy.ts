@@ -86,16 +86,13 @@ export function canAffordResidenceZone(
 }
 
 export function formatBuildingCost(cost: BuildingResourceCost): string {
-  const fittings = (cost.ironwork ?? 0) > 0
-    ? `, ${cost.ironwork} ironwork`
-    : '';
-  const roofTiles = (cost.roofTiles ?? 0) > 0
-    ? `, ${cost.roofTiles} roof tiles`
-    : '';
-  const gold = (cost.gold ?? 0) > 0
-    ? `, ${cost.gold} gold`
-    : '';
-  return `${cost.timber} timber, ${cost.stone} stone${fittings}${roofTiles}${gold}`;
+  const parts: string[] = [];
+  if (cost.timber > 0) parts.push(`${cost.timber} timber`);
+  if (cost.stone > 0) parts.push(`${cost.stone} stone`);
+  if ((cost.ironwork ?? 0) > 0) parts.push(`${cost.ironwork} ironwork`);
+  if ((cost.roofTiles ?? 0) > 0) parts.push(`${cost.roofTiles} roof tiles`);
+  if ((cost.gold ?? 0) > 0) parts.push(`${cost.gold} gold`);
+  return parts.length > 0 ? parts.join(', ') : 'free';
 }
 
 export function getBackyardGardenCost(kind: BackyardGardenKind): BuildingResourceCost {

@@ -21,6 +21,7 @@ type BuildingBalance = {
   label: string;
   cost: { timber: number; stone: number; ironwork?: number; roofTiles?: number; gold?: number };
   storage: {
+    total?: number;
     timber: number;
     firewood: number;
     stone: number;
@@ -1681,6 +1682,7 @@ function generateRust(): string {
   lines.push('    pub cost_gold: f64,');
   lines.push('    pub cost_ironwork: f64,');
   lines.push('    pub cost_roof_tiles: f64,');
+  lines.push('    pub storage_total: f64,');
   lines.push('    pub storage_timber: f64,');
   lines.push('    pub storage_firewood: f64,');
   lines.push('    pub storage_stone: f64,');
@@ -1746,6 +1748,7 @@ function generateRust(): string {
     lines.push(`    cost_gold: ${rustF64(def.cost.gold ?? 0)},`);
     lines.push(`    cost_ironwork: ${rustF64(def.cost.ironwork ?? 0)},`);
     lines.push(`    cost_roof_tiles: ${rustF64(def.cost.roofTiles ?? 0)},`);
+    lines.push(`    storage_total: ${rustF64(def.storage.total ?? 0)},`);
     lines.push(`    storage_timber: ${rustF64(def.storage.timber)},`);
     lines.push(`    storage_firewood: ${rustF64(def.storage.firewood)},`);
     lines.push(`    storage_stone: ${rustF64(def.storage.stone)},`);
@@ -2638,6 +2641,7 @@ function generateTypeScript(): string {
     '};',
     '',
     'export type StorageCaps = {',
+    '  total?: number;',
     '  timber: number;',
     '  firewood: number;',
     '  stone: number;',
@@ -2745,6 +2749,7 @@ function generateTypeScript(): string {
   lines.push('export const BUILDING_STORAGE_CAPS = {');
 
   for (const [kind, def] of Object.entries(b.buildings)) {
+    const total = def.storage.total ?? 0;
     const water = def.storage.water ?? 0;
     const food = def.storage.food ?? 0;
     const grain = def.storage.grain ?? 0;
@@ -2781,6 +2786,7 @@ function generateTypeScript(): string {
     const remedies = def.storage.remedies ?? 0;
     const animalFeed = def.storage.animalFeed ?? 0;
     const extras: string[] = [];
+    if (total > 0) extras.push(`total: ${total}`);
     if (water > 0) extras.push(`water: ${water}`);
     if (food > 0) extras.push(`food: ${food}`);
     if (grain > 0) extras.push(`grain: ${grain}`);

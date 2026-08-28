@@ -1046,7 +1046,7 @@ assert.ok(
 const renderedCards = renderBuildMenuCards();
 assert.match(
   renderedCards,
-  /Forest bloomery & smithy[\s\S]*Forges ironwork, tools, fittings, and weapons from iron and charcoal/i,
+  /Smithy[\s\S]*Forges ironwork, tools, fittings, and weapons from iron and charcoal/i,
   'the smithy build card must describe its craft in one short sentence',
 );
 assert.match(

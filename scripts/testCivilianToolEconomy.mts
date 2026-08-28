@@ -149,10 +149,14 @@ assert.match(
 );
 assert.match(woodcutterInspector, /civilianToolRows\(building, context\.worldQueries\)/);
 assert.match(mineralMineInspector, /civilianToolRows\(building, context\.worldQueries\)/);
-assert.match(buildMenuCards, /replacement axes raise output but wear each cycle/);
-assert.match(buildMenuCards, /picks and hammer heads raise output but wear each cycle/);
-assert.match(buildMenuCards, /ploughshares, hoes, sickles, and scythes/);
-assert.match(buildMenuCards, /Smith-dressed millstones and maintained iron fittings raise output/);
+assert.match(buildMenuCards, /Fells mature trees and saws them into building timber\./);
+assert.match(buildMenuCards, /Splits timber into firewood for settlement hearths\./);
+assert.match(buildMenuCards, /Uses river power to grind rye and maslin grain into flour\./);
+assert.doesNotMatch(
+  buildMenuCards,
+  /raise output|wear each cycle|Smith-dressed millstones|ploughshares, hoes, sickles, and scythes/,
+  'build cards should state each building purpose while inspectors explain civilian-tool mechanics',
+);
 assert.match(farmsteadInspector, /Seasonal tool reserve/);
 assert.match(farmsteadInspector, /smith-dressed millstones and iron fittings/);
 assert.match(buildingCommon, /reorders below/);

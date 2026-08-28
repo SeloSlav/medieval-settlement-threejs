@@ -1,5 +1,9 @@
 import { edibleFoodStock } from '../../economy/foodInventory.ts';
 import {
+  buildingSharedStorageCapacity,
+  buildingStoredResourceTotal,
+} from '../../economy/sharedStorageCapacity.ts';
+import {
   RESOURCE_COST_KINDS,
   formatResourceCostAmount,
   type ResourceCostKind,
@@ -33,19 +37,25 @@ export function withBuildingLocalStorage(
   building: BuildingState,
 ): InspectorView {
   const items = buildingLocalStorageItems(building);
-  const total = items.reduce((sum, item) => sum + item.amount, 0);
+  const total = buildingStoredResourceTotal(building);
+  const capacity = buildingSharedStorageCapacity(building.kind);
   const food = Math.max(0, edibleFoodStock(building));
   const nonFood = Math.max(0, total - food);
-  const summary = food > 1e-6
+  const stockSummary = food > 1e-6
     ? nonFood > 1e-6
       ? `${formatResourceCostAmount(food)} food · ${formatResourceCostAmount(total)} total`
       : `${formatResourceCostAmount(food)} food`
     : total > 1e-6
       ? `${formatResourceCostAmount(total)} stored`
       : 'Empty';
-  const tooltip = items.length > 0
-    ? 'Exact goods physically stored at this building now.'
-    : 'Nothing is currently stored at this building.';
+  const summary = capacity == null
+    ? stockSummary
+    : `${formatResourceCostAmount(total)} / ${formatResourceCostAmount(capacity)} total`;
+  const tooltip = capacity == null
+    ? items.length > 0
+      ? 'Exact goods physically stored at this building now.'
+      : 'Nothing is currently stored at this building.'
+    : `Exact goods physically stored here. All accepted resources share this ${formatResourceCostAmount(capacity)}-unit capacity.`;
   const encodedItems = items.length > 0
     ? ` data-tooltip-resources="${encodeURIComponent(JSON.stringify(items))}"`
     : '';

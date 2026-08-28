@@ -126,15 +126,15 @@ export const LOW_TAX_PRODUCTIVITY_BOOST = 0.28;
 export const HIGH_TAX_PRODUCTIVITY_DRAG = 0.58;
 export const FOOD_SALE_GOLD_PER_UNIT = 0.35;
 export const RESIDENCE_TIMBER_COST = 5;
-export const RESIDENCE_STONE_COST = 6;
+export const RESIDENCE_STONE_COST = 0;
 export const RESIDENCE_TIER2_TIMBER_COST = 18;
-export const RESIDENCE_TIER2_STONE_COST = 14;
+export const RESIDENCE_TIER2_STONE_COST = 0;
 export const RESIDENCE_TIER2_GOLD_COST = 8;
 export const RESIDENCE_TIER3_TIMBER_COST = 28;
-export const RESIDENCE_TIER3_STONE_COST = 24;
+export const RESIDENCE_TIER3_STONE_COST = 0;
 export const RESIDENCE_TIER3_GOLD_COST = 22;
 export const RESIDENCE_TIER4_TIMBER_COST = 40;
-export const RESIDENCE_TIER4_STONE_COST = 38;
+export const RESIDENCE_TIER4_STONE_COST = 0;
 export const RESIDENCE_TIER4_GOLD_COST = 34;
 export const RESIDENCE_TILE_ROOF_TIMBER_COST = 12;
 export const RESIDENCE_TILE_ROOF_TILE_COST = 36;
@@ -303,11 +303,11 @@ export const CHAPEL_TIER2_TITHE_MULTIPLIER = 1.2;
 export const CHAPEL_TIER3_TITHE_MULTIPLIER = 1.45;
 export const CHAPEL_TIER2_UPGRADE_TIMBER = 12;
 export const CHAPEL_TIER2_UPGRADE_STONE = 30;
-export const CHAPEL_TIER2_UPGRADE_IRONWORK = 2;
+export const CHAPEL_TIER2_UPGRADE_IRONWORK = 0;
 export const CHAPEL_TIER2_UPGRADE_ROOF_TILES = 24;
 export const CHAPEL_TIER3_UPGRADE_TIMBER = 28;
 export const CHAPEL_TIER3_UPGRADE_STONE = 52;
-export const CHAPEL_TIER3_UPGRADE_IRONWORK = 4;
+export const CHAPEL_TIER3_UPGRADE_IRONWORK = 0;
 export const CHAPEL_TIER3_UPGRADE_ROOF_TILES = 48;
 export const CHAPEL_PRIEST_SALARY_GOLD_PER_DAY = 2.5;
 export const CHAPEL_UPKEEP_GOLD_PER_DAY = 0.35;
@@ -835,6 +835,7 @@ export type BuildingResourceCost = {
 };
 
 export type StorageCaps = {
+  total?: number;
   timber: number;
   firewood: number;
   stone: number;
@@ -1088,7 +1089,7 @@ export const BUILDING_DEFINITIONS = {
   },
   smithy: {
     kind: 'smithy',
-    label: "Forest bloomery & smithy",
+    label: "Smithy",
     workRadius: 0,
     pickRadius: 9,
     harvestInterval: 4200,
@@ -1741,8 +1742,8 @@ export const BUILDING_COSTS = {
   reforester: { timber: 35, stone: 10 },
   woodcutters_lodge: { timber: 24, stone: 6 },
   stone_quarry: { timber: 18, stone: 14 },
-  large_quarry: { timber: 90, stone: 70, ironwork: 6 },
-  mine: { timber: 60, stone: 45, ironwork: 4 },
+  large_quarry: { timber: 90, stone: 70 },
+  mine: { timber: 60, stone: 45 },
   clay_pit: { timber: 24, stone: 8 },
   charcoal_burner: { timber: 30, stone: 10 },
   smithy: { timber: 42, stone: 38 },
@@ -1752,33 +1753,33 @@ export const BUILDING_COSTS = {
   foragers_shed: { timber: 20, stone: 4 },
   fishing_camp: { timber: 24, stone: 6 },
   chapel: { timber: 24, stone: 2 },
-  wayside_shrine: { timber: 4, stone: 8, ironwork: 1 },
+  wayside_shrine: { timber: 4, stone: 8 },
   marketplace: { timber: 32, stone: 26 },
-  trading_post: { timber: 64, stone: 42, ironwork: 4 },
-  town_hall: { timber: 88, stone: 96, ironwork: 6 },
-  stable: { timber: 36, stone: 12, ironwork: 2 },
+  trading_post: { timber: 64, stone: 42 },
+  town_hall: { timber: 88, stone: 96 },
+  stable: { timber: 36, stone: 12 },
   village_storehouse: { timber: 54, stone: 28 },
-  watchtower: { timber: 48, stone: 18, ironwork: 2 },
-  guardhouse: { timber: 64, stone: 32, ironwork: 4 },
-  palisaded_refuge: { timber: 72, stone: 30, ironwork: 4 },
+  watchtower: { timber: 48, stone: 18 },
+  guardhouse: { timber: 64, stone: 32 },
+  palisaded_refuge: { timber: 72, stone: 30 },
   threshing_barn: { timber: 44, stone: 16 },
   pastoral_farmstead: { timber: 40, stone: 20 },
   swineherd: { timber: 34, stone: 10 },
-  monastery: { timber: 90, stone: 150, ironwork: 8, roofTiles: 72 },
-  brewery: { timber: 48, stone: 36, ironwork: 3 },
-  tavern: { timber: 42, stone: 28, ironwork: 2 },
-  smokehouse: { timber: 34, stone: 22, ironwork: 2 },
+  monastery: { timber: 90, stone: 150, roofTiles: 72 },
+  brewery: { timber: 48, stone: 36 },
+  tavern: { timber: 42, stone: 28 },
+  smokehouse: { timber: 34, stone: 22 },
   granary: { timber: 50, stone: 28 },
-  bakery: { timber: 36, stone: 30, ironwork: 2 },
+  bakery: { timber: 36, stone: 30 },
   apiary: { timber: 22, stone: 6 },
-  watermill: { timber: 58, stone: 42, ironwork: 6 },
-  windmill: { timber: 64, stone: 58, ironwork: 6 },
-  carpenter: { timber: 52, stone: 20, ironwork: 2 },
+  watermill: { timber: 58, stone: 42 },
+  windmill: { timber: 64, stone: 58 },
+  carpenter: { timber: 52, stone: 20 },
   spinning_retting_house: { timber: 36, stone: 14 },
   weaver: { timber: 38, stone: 16 },
-  tannery: { timber: 40, stone: 18, ironwork: 2 },
-  cobbler: { timber: 34, stone: 16, ironwork: 1 },
-  chandlery: { timber: 34, stone: 16, ironwork: 1 },
+  tannery: { timber: 40, stone: 18 },
+  cobbler: { timber: 34, stone: 16 },
+  chandlery: { timber: 34, stone: 16 },
 } as const satisfies Record<BuildingKind, BuildingResourceCost>;
 
 export const BUILDING_STORAGE_CAPS = {
@@ -1804,7 +1805,7 @@ export const BUILDING_STORAGE_CAPS = {
   trading_post: { timber: 180, firewood: 120, stone: 180, water: 72, food: 160, grain: 120, barley: 120, malt: 120, flour: 120, ale: 180, cider: 180, pearCider: 180, preservedFood: 120, honey: 140, wax: 160, candles: 160, wine: 160, wool: 120, yarn: 160, linen: 160, flax: 120, cloth: 160, pelts: 160, ironwork: 96, polearms: 48, iron: 96, clay: 120, salt: 120, charcoal: 120, pottery: 144, hides: 160, leather: 160, shoes: 160, roofTiles: 120, manure: 160, remedies: 72 },
   town_hall: { timber: 0, firewood: 0, stone: 0 },
   stable: { timber: 0, firewood: 0, stone: 0 },
-  village_storehouse: { timber: 360, firewood: 280, stone: 360, wax: 120, candles: 180, wool: 180, yarn: 180, linen: 180, cloth: 180, pelts: 180, iron: 180, clay: 180, salt: 144, charcoal: 280, pottery: 180, hides: 180, leather: 180, shoes: 180, remedies: 96 },
+  village_storehouse: { timber: 2500, firewood: 2500, stone: 2500, total: 2500, wax: 2500, candles: 2500, wool: 2500, yarn: 2500, linen: 2500, cloth: 2500, pelts: 2500, iron: 2500, clay: 2500, salt: 2500, charcoal: 2500, pottery: 2500, hides: 2500, leather: 2500, shoes: 2500, remedies: 2500 },
   watchtower: { timber: 0, firewood: 0, stone: 0 },
   guardhouse: { timber: 0, firewood: 0, stone: 0, food: 72, polearms: 12 },
   palisaded_refuge: { timber: 0, firewood: 0, stone: 0 },
@@ -1815,7 +1816,7 @@ export const BUILDING_STORAGE_CAPS = {
   brewery: { timber: 0, firewood: 40, stone: 0, water: 120, food: 96, barley: 96, malt: 48, ale: 200, cider: 200, pearCider: 200, mead: 200, honey: 72 },
   tavern: { timber: 0, firewood: 0, stone: 0, ale: 180, cider: 180, pearCider: 180, mead: 180 },
   smokehouse: { timber: 0, firewood: 40, stone: 0, food: 120, preservedFood: 180, salt: 24, pottery: 12 },
-  granary: { timber: 0, firewood: 0, stone: 0, food: 340, grain: 360, barley: 240, flour: 260, ale: 180, cider: 180, pearCider: 180, mead: 180, preservedFood: 180, honey: 96, wine: 180, flax: 180 },
+  granary: { timber: 0, firewood: 0, stone: 0, total: 2500, food: 2500, grain: 2500, barley: 2500, flour: 2500, ale: 2500, cider: 2500, pearCider: 2500, mead: 2500, preservedFood: 2500, honey: 2500, wine: 2500, flax: 2500 },
   bakery: { timber: 0, firewood: 36, stone: 0, water: 48, food: 100, flour: 96 },
   apiary: { timber: 0, firewood: 0, stone: 0, food: 40, honey: 140, wax: 12 },
   watermill: { timber: 0, firewood: 0, stone: 0, water: 80, grain: 180, flour: 260, ironwork: 3 },

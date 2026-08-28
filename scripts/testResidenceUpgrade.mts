@@ -96,6 +96,17 @@ const richTotals = {
   roofTiles: 1_000,
 };
 
+assert.deepEqual(
+  [
+    RESIDENCE_STONE_COST,
+    RESIDENCE_TIER2_STONE_COST,
+    RESIDENCE_TIER3_STONE_COST,
+    RESIDENCE_TIER4_STONE_COST,
+  ],
+  [0, 0, 0, 0],
+  'residence construction and promotion must use timber without a stone gate',
+);
+
 const tierOne = residence('tier-one', 1, 3);
 const tierTwoPlan = evaluateResidenceUpgrade(tierOne, richTotals, allServices);
 assert.ok(tierTwoPlan);
@@ -116,7 +127,6 @@ assert.deepEqual(
   tierTwoPlan.resources.map((resource) => resource.required),
   [
     RESIDENCE_TIER2_TIMBER_COST,
-    RESIDENCE_TIER2_STONE_COST,
     RESIDENCE_TIER2_GOLD_COST,
   ],
 );
@@ -334,7 +344,6 @@ assert.deepEqual(
   tierThreePlan.resources.map((resource) => resource.required),
   [
     RESIDENCE_TIER3_TIMBER_COST,
-    RESIDENCE_TIER3_STONE_COST,
     RESIDENCE_TIER3_GOLD_COST,
   ],
 );
@@ -446,7 +455,6 @@ assert.deepEqual(
   tierFourPlan.resources.map((resource) => resource.required),
   [
     RESIDENCE_TIER4_TIMBER_COST,
-    RESIDENCE_TIER4_STONE_COST,
     RESIDENCE_TIER4_GOLD_COST,
     RESIDENCE_TILE_ROOF_TILE_COST,
   ],

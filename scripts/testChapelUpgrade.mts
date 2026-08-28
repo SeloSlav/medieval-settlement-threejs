@@ -40,16 +40,17 @@ assert.deepEqual(tier2, {
   targetTier: 2,
   timber: 12,
   stone: 30,
-  ironwork: 2,
+  ironwork: 0,
   roofTiles: 24,
 });
 assert.deepEqual(tier3, {
   targetTier: 3,
   timber: 28,
   stone: 52,
-  ironwork: 4,
+  ironwork: 0,
   roofTiles: 48,
 });
+assert.equal(tier2.ironwork + tier3.ironwork, 0, 'church construction upgrades must not consume ironwork');
 assert.ok(
   tier3.timber + tier3.stone + tier3.ironwork + tier3.roofTiles
     > tier2.timber + tier2.stone + tier2.ironwork + tier2.roofTiles,

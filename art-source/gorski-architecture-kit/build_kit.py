@@ -134,6 +134,7 @@ def main() -> None:
             "label": definition.label,
             "tags": list(definition.tags),
             "seams": list(definition.seams),
+            "snapSockets": list(definition.seams),
             "openingContract": definition.opening_contract,
             "originContract": object_["gk_origin_contract"],
             "allowNonmanifold": definition.allow_nonmanifold,
@@ -142,13 +143,15 @@ def main() -> None:
             "dimensionsM": [round(value, 5) for value in _dimensions(object_)],
             "displayLocationM": [round(value, 5) for value in object_.location],
             "materials": [slot.material.get("gk_material_key", slot.material.name) for slot in object_.material_slots],
+            "uvLayers": [layer.name for layer in object_.data.uv_layers],
+            "textureContract": object_["gk_texture_channels"],
             "vertexHash": vertex_hash(object_),
             "provenance": definition.provenance,
         })
 
     family_counts = Counter(definition.family for definition in registry.definitions)
     manifest = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "kit": {
             "name": "Gorski Kotar / Primorje 1550 Modular Architecture Kit",
             "version": spec.KIT_VERSION,
@@ -169,6 +172,13 @@ def main() -> None:
         },
         "families": dict(sorted(family_counts.items())),
         "materials": {key: {"rgba": list(values[0]), "roughness": values[1], "metallic": values[2]} for key, values in spec.MATERIAL_SPECS.items()},
+        "texturing": {
+            "uvSet": "GK_UV0",
+            "scale": "1 UV unit per metre",
+            "workflow": "tileable/trim-sheet PBR",
+            "channels": ["baseColor", "normal", "ORM"],
+            "runtimeAuthority": "src/buildings/buildingMaterials.ts and src/buildings/buildingMaterialAtlas.ts"
+        },
         "coverage": ALL_COVERAGE,
         "parts": part_manifest,
         "sources": [

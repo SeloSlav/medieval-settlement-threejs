@@ -720,7 +720,7 @@ const buildCategoryArtwork = new Map([
   ['civic', 'town-hall.webp'],
   ['trade', 'trading-post.webp'],
   ['gathering', 'foragers-hut.webp'],
-  ['agriculture', 'grain-field.webp'],
+  ['agriculture', 'threshing-barn.webp'],
   ['food', 'bakery.webp'],
   ['industry', 'watermill.webp'],
   ['faith', 'chapel.webp'],

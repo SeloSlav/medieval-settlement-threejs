@@ -27,7 +27,7 @@ assert.match(
 );
 assert.match(
   readability,
-  /\.construction-menu__header > span,[\s\S]*?font-size:\s*var\(--ui-readable-secondary\);/,
+  /\.construction-menu__header > small,[\s\S]*?font-size:\s*var\(--ui-readable-secondary\);/,
 );
 
 const undersizedLiteral = /font-size\s*:\s*([0-9]+(?:\.[0-9]+)?)px/g;

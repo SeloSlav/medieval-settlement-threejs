@@ -313,7 +313,6 @@ export class BuildToolbar {
 
         <section class="construction-menu construction-menu--unified" id="build-menu" data-build-menu hidden aria-label="Build menu">
           <header class="construction-menu__header">
-            <span>Build</span>
             <strong data-build-category-title>Civic</strong>
             <small data-build-category-hint>Homes, water, and settlement government</small>
           </header>

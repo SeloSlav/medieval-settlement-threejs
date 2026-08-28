@@ -10,6 +10,11 @@ import {
   storageAcceptsCommodity,
 } from '../src/economy/storageAcceptancePolicy.ts';
 import { BUILDING_STORAGE_CAPS } from '../src/generated/gameBalance.ts';
+import {
+  buildingSharedStorageCapacity,
+  buildingSharedStorageRoom,
+  buildingStoredResourceTotal,
+} from '../src/economy/sharedStorageCapacity.ts';
 import type { BuildingState } from '../src/resources/types.ts';
 
 const all = (1n << 64n) - 1n;
@@ -57,11 +62,29 @@ for (const commodity of [
 ] as const) {
   assert.ok(GRANARY_STORAGE_COMMODITIES.includes(commodity));
 }
-assert.equal(BUILDING_STORAGE_CAPS.granary.mead, 180);
-for (const kind of ['granary', 'trading_post', 'tavern'] as const) {
+assert.equal(BUILDING_STORAGE_CAPS.granary.total, 2500);
+assert.equal(BUILDING_STORAGE_CAPS.village_storehouse.total, 2500);
+assert.equal(BUILDING_STORAGE_CAPS.granary.mead, 2500);
+assert.equal(BUILDING_STORAGE_CAPS.granary.cider, 2500);
+assert.equal(BUILDING_STORAGE_CAPS.granary.pearCider, 2500);
+for (const kind of ['trading_post', 'tavern'] as const) {
   assert.equal(BUILDING_STORAGE_CAPS[kind].cider, 180);
   assert.equal(BUILDING_STORAGE_CAPS[kind].pearCider, 180);
 }
+assert.equal(buildingSharedStorageCapacity('granary'), 2500);
+assert.equal(buildingSharedStorageCapacity('village_storehouse'), 2500);
+assert.equal(buildingSharedStorageCapacity('marketplace'), null);
+const nearlyFullStorehouse = {
+  ...storehouse,
+  timber: 1400,
+  stone: 1090,
+} as BuildingState;
+assert.equal(buildingStoredResourceTotal(nearlyFullStorehouse), 2490);
+assert.equal(buildingSharedStorageRoom(nearlyFullStorehouse), 10);
+assert.equal(buildingSharedStorageRoom({
+  ...nearlyFullStorehouse,
+  stone: 1100,
+}), 0);
 assert.equal(storageAcceptsCommodity(storehouse, 'charcoal'), true);
 assert.equal(storageAcceptsCommodity(storehouse, 'remedies'), true);
 assert.equal(storageAcceptsCommodity(storehouse, 'wax'), true);
@@ -150,6 +173,12 @@ assert.match(
 
 const tradingPostTrade = readFileSync('server/src/simulation/trading_post_trade.rs', 'utf8');
 const expandedEconomy = readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
+const commodities = readFileSync('server/src/economy/commodities.rs', 'utf8');
+assert.match(
+  commodities,
+  /building_commodity_room[\s\S]*\.min\(building_shared_storage_room\(building\)\)/,
+  'every authoritative deposit must honor the shared building capacity',
+);
 assert.match(tradingPostTrade, /stage_one_export[\s\S]*try_start_building_supply_trip/);
 assert.match(tradingPostTrade, /settle_export[\s\S]*building_commodity_stock\(&post, commodity\)/);
 assert.match(tradingPostTrade, /settle_import[\s\S]*building_commodity_room\(&post, commodity\)/);

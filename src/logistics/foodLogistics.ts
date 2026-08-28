@@ -7,6 +7,7 @@ import {
   SMOKEHOUSE_FOOD_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import { granaryFreshFoodTarget } from '../economy/granaryPolicy.ts';
+import { buildingSharedStorageRoom } from '../economy/sharedStorageCapacity.ts';
 import {
   normalizeStaffingPriority,
   type StaffingPriority,
@@ -354,10 +355,10 @@ function institutionalFoodTargetPlan<T extends InstitutionalFoodDestinationLike>
   }
   if (target.kind === 'granary' && target.granaryAcceptsFreshFood !== false) {
     const stock = freshFoodStock(target);
-    const desiredStock = granaryFreshFoodTarget(
+    const desiredStock = Math.min(granaryFreshFoodTarget(
       BUILDING_STORAGE_CAPS.granary.food ?? 0,
       target.granaryFreshFoodTargetPercent,
-    );
+    ), stock + buildingSharedStorageRoom(target));
     if (desiredStock <= 1e-6 || stock + 1e-6 >= desiredStock) return null;
     return {
       duty: 'granary-intake',

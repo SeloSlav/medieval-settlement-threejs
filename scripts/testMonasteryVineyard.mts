@@ -12,7 +12,7 @@ assert.equal(
   false,
   'a vineyard must not exist as a standalone building kind',
 );
-assert.equal(BUILDING_STORAGE_CAPS.granary.wine, 180);
+assert.equal(BUILDING_STORAGE_CAPS.granary.wine, 2500);
 assert.equal(BUILDING_STORAGE_CAPS.marketplace.wine, 72);
 
 const placement = source('server/src/reducers/vineyards.rs');

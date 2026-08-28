@@ -49,14 +49,18 @@ assert.equal(storehouseCollectionHeadroom(120, 360, 25), 0);
 
 const legacyStorehouse = makeStorehouse();
 assert.equal(storehouseCommodityTargetPercent(legacyStorehouse, 'timber'), 100);
-assert.equal(storehouseCommodityTarget(legacyStorehouse, 'timber'), 360);
-assert.equal(storehouseCommodityTarget(legacyStorehouse, 'stone'), 360);
-assert.equal(storehouseCommodityTarget(legacyStorehouse, 'firewood'), 280);
-assert.equal(storehouseCommodityTarget(legacyStorehouse, 'charcoal'), 70);
-assert.equal(storehouseCommodityTarget(legacyStorehouse, 'iron'), 180);
-assert.equal(storehouseCommodityTarget(legacyStorehouse, 'clay'), 180);
-assert.equal(storehouseCommodityTarget(legacyStorehouse, 'salt'), 144);
-assert.equal(storehouseFilteredCollectionHeadroom(legacyStorehouse, 'timber'), 260);
+assert.equal(storehouseCommodityTarget(legacyStorehouse, 'timber'), 2500);
+assert.equal(storehouseCommodityTarget(legacyStorehouse, 'stone'), 2500);
+assert.equal(storehouseCommodityTarget(legacyStorehouse, 'firewood'), 2500);
+assert.equal(storehouseCommodityTarget(legacyStorehouse, 'charcoal'), 625);
+assert.equal(storehouseCommodityTarget(legacyStorehouse, 'iron'), 2500);
+assert.equal(storehouseCommodityTarget(legacyStorehouse, 'clay'), 2500);
+assert.equal(storehouseCommodityTarget(legacyStorehouse, 'salt'), 2500);
+assert.equal(
+  storehouseFilteredCollectionHeadroom(legacyStorehouse, 'timber'),
+  2230,
+  'all stored commodity types must consume the same 2,500-unit depot capacity',
+);
 assert.equal(
   storehouseFilteredCollectionHeadroom(
     { ...legacyStorehouse, storehouseAcceptsTimber: false },
@@ -206,32 +210,32 @@ assert.equal(networkPlan.staffedDepots, 1);
 assert.deepEqual(networkPlan.commodities.timber, {
   acceptingDepots: 1,
   staffedAcceptingDepots: 1,
-  targetStock: 90,
-  stockTowardTarget: 90,
-  collectionHeadroom: 0,
-  stockAboveTarget: 30,
+  targetStock: 625,
+  stockTowardTarget: 120,
+  collectionHeadroom: 505,
+  stockAboveTarget: 0,
 });
-assert.equal(networkPlan.commodities.stone.targetStock, 180);
-assert.equal(networkPlan.commodities.stone.collectionHeadroom, 90);
-assert.equal(networkPlan.commodities.firewood.targetStock, 210);
-assert.equal(networkPlan.commodities.firewood.collectionHeadroom, 0);
-assert.equal(networkPlan.commodities.charcoal.targetStock, 70);
-assert.equal(networkPlan.commodities.charcoal.collectionHeadroom, 20);
-assert.equal(networkPlan.commodities.iron.targetStock, 45);
-assert.equal(networkPlan.commodities.iron.stockAboveTarget, 5);
-assert.equal(networkPlan.commodities.clay.targetStock, 90);
-assert.equal(networkPlan.commodities.clay.collectionHeadroom, 45);
-assert.equal(networkPlan.commodities.salt.targetStock, 108);
-assert.equal(networkPlan.commodities.salt.collectionHeadroom, 0);
+assert.equal(networkPlan.commodities.stone.targetStock, 1250);
+assert.equal(networkPlan.commodities.stone.collectionHeadroom, 1160);
+assert.equal(networkPlan.commodities.firewood.targetStock, 1875);
+assert.equal(networkPlan.commodities.firewood.collectionHeadroom, 1665);
+assert.equal(networkPlan.commodities.charcoal.targetStock, 625);
+assert.equal(networkPlan.commodities.charcoal.collectionHeadroom, 575);
+assert.equal(networkPlan.commodities.iron.targetStock, 625);
+assert.equal(networkPlan.commodities.iron.stockAboveTarget, 0);
+assert.equal(networkPlan.commodities.iron.collectionHeadroom, 575);
+assert.equal(networkPlan.commodities.clay.targetStock, 1250);
+assert.equal(networkPlan.commodities.clay.collectionHeadroom, 1205);
+assert.equal(networkPlan.commodities.salt.targetStock, 1875);
+assert.equal(networkPlan.commodities.salt.collectionHeadroom, 1767);
 const networkRows = renderStorehouseNetworkRows(networkPlan);
 assert.match(networkRows, /Material depots/);
 assert.match(networkRows, /1 completed/);
 assert.match(networkRows, /Timber depots/);
-assert.match(networkRows, /90 \/ 90 toward selected targets/);
-assert.match(networkRows, /30 above targets remains available/);
+assert.match(networkRows, /120 \/ 625 toward selected targets/);
 assert.match(networkRows, /Stone depots/);
 assert.match(networkRows, /Charcoal depots/);
-assert.match(networkRows, /90 collection headroom/);
+assert.match(networkRows, /1160 collection headroom/);
 assert.match(networkRows, /Iron depots/);
 assert.match(networkRows, /Clay depots/);
 assert.match(networkRows, /Salt depots/);
@@ -344,10 +348,10 @@ assert.match(
   /!source\.construction_complete[\s\S]*tick\.building_disabled_by_fire\(ctx, source\.id\)[\s\S]*building_has_active_trip\(ctx, source\.id\)/,
   'depots must not collect overflow from fire-disabled producers',
 );
-assert.doesNotMatch(
+assert.match(
   storehouseStep,
-  /building_commodity_room\(&storehouse/,
-  'authoritative collection must stop at policy headroom rather than physical room',
+  /\.min\(building_commodity_room\(storehouse, commodity\)\)/,
+  'authoritative collection must stop at both policy headroom and shared physical room',
 );
 assert.match(generatedBuilding, /storehouseTimberTargetPercent/);
 assert.match(generatedBuilding, /storehouseStoneTargetPercent/);

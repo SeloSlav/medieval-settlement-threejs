@@ -1847,18 +1847,18 @@ assert.match(
 );
 assert.match(
   uiSurfaces,
-  /Extracts rich iron, salt, or clay with timber-supported shafts/,
+  /Extracts iron, salt, and clay from rich underground deposits/,
   'the Mineworks card must identify all three of its rich physical outputs',
 );
 assert.match(
   uiSurfaces,
-  /Works nearby finite surface deposits without snapping/,
-  'the Mining Camp card must identify all supported finite surface materials',
+  /Extracts stone, iron, salt, and clay from nearby surface deposits/,
+  'the Mining Camp card must identify all supported surface materials',
 );
 assert.match(
   uiSurfaces,
-  /Cuts rich stone with timber-supported deep workings/,
-  'the Quarry card must reserve its supported deep workings for rich stone',
+  /Excavates stone from rich deposits/,
+  'the Quarry card must identify rich stone as its purpose',
 );
 assert.match(uiSurfaces, /Mineworks/);
 assert.doesNotMatch(

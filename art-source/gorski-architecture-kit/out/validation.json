@@ -1,31 +1,32 @@
 {
   "schemaVersion": 1,
-  "validatedAt": "2026-08-28T07:52:34.792563+00:00",
+  "validatedAt": "2026-08-28T08:21:14.344813+00:00",
   "blend": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\out\\gorski_architecture_kit.blend",
   "manifest": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\out\\gorski_architecture_kit_manifest.json",
   "status": "pass",
   "metrics": {
-    "parts": 543,
+    "parts": 608,
     "families": {
       "agriculture": 38,
-      "civic": 30,
+      "civic": 49,
       "enclosures": 32,
       "extraction": 33,
       "foundations": 42,
       "frames": 44,
-      "openings": 21,
+      "openings": 29,
       "production": 41,
       "props": 39,
-      "roofs": 68,
+      "roofs": 106,
       "siteworks": 38,
       "walls": 117
     },
-    "totalTriangles": 253488,
-    "sharedMaterials": 26,
+    "totalTriangles": 391016,
+    "sharedMaterials": 35,
     "buildingCatalogKinds": 44,
     "buildingCoverageKinds": 44,
     "supplementalCoverageKinds": 34,
-    "nonmanifoldObjects": 0
+    "nonmanifoldObjects": 0,
+    "uvMappedObjects": 608
   },
   "errors": [],
   "warnings": [],
@@ -36,6 +37,7 @@
     "canonical transforms and unparented component ownership",
     "mesh finiteness, topology, degeneracy, and triangle budgets",
     "shared palette materials and required metadata",
+    "metric GK_UV0 coverage and texture contract metadata",
     "authored-fraction seam contracts",
     "minimum family breadth and no finished-building assemblies"
   ]

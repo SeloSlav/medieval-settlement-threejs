@@ -12,6 +12,7 @@ import {
   isStorageCommodity,
   storageAcceptsCommodity,
 } from '../economy/storageAcceptancePolicy.ts';
+import { buildingSharedStorageRoom } from '../economy/sharedStorageCapacity.ts';
 import {
   freshFoodStock,
   isFreshFoodCargo,
@@ -345,7 +346,10 @@ function foundingDestinationRoom(
     : isPreservedFoodCargo(commodity)
       ? preservedFoodStock(building)
       : materialStock(building, commodity);
-  return Math.max(0, commodityCapacity(building, commodity) - occupied);
+  return Math.min(
+    Math.max(0, commodityCapacity(building, commodity) - occupied),
+    buildingSharedStorageRoom(building),
+  );
 }
 
 function compareStableBuildingIds(a: string, b: string): number {

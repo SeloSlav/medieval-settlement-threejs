@@ -72,9 +72,9 @@ const cards = renderBuildMenuCards(GATHERING_BUILD_MENU_ENTRIES);
 assert.match(cards, />Mining Camp</);
 assert.match(cards, />Quarry</);
 assert.match(cards, />Mineworks</);
-assert.match(cards, /nearby finite surface deposits without snapping/);
-assert.match(cards, /rich stone/);
-assert.match(cards, /rich iron, salt, or clay/);
+assert.match(cards, /stone, iron, salt, and clay from nearby surface deposits/);
+assert.match(cards, /stone from rich deposits/);
+assert.match(cards, /iron, salt, and clay from rich underground deposits/);
 assert.deepEqual(
   localMaterialInputCommodities('stone_quarry', { iron: 4, salt: 0, clay: 7 }),
   ['iron', 'clay'],

@@ -47,7 +47,7 @@ assert.deepEqual(BUILDING_STORAGE_CAPS.cobbler, {
 assert.deepEqual(BUILDING_STORAGE_CAPS.hunters_hall, {
   timber: 0, firewood: 0, stone: 0, food: 100, pelts: 64,
 });
-assert.equal(BUILDING_STORAGE_CAPS.village_storehouse.pelts, 180);
+assert.equal(BUILDING_STORAGE_CAPS.village_storehouse.pelts, 2500);
 assert.equal(BUILDING_STORAGE_CAPS.trading_post.pelts, 160);
 assert.deepEqual(
   MARKETPLACE_TRADE_OFFERS.filter((offer) => offer.resource === 'pelts'),

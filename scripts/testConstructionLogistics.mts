@@ -5,6 +5,7 @@ import { performance } from 'node:perf_hooks';
 import * as THREE from 'three';
 import { getBuildingFootprintHalfExtents } from '../src/buildings/BuildingTerrainLayout.ts';
 import {
+  BUILDING_COSTS,
   CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP,
   CARPENTER_CART_SERVICE_TARGET_TRIPS,
   CARPENTER_CART_SERVICE_TIMBER_PER_TRIP,
@@ -187,42 +188,11 @@ for (const kind of [
   assert.equal(getBuildingCost(kind).roofTiles ?? 0, 0, `${kind} has no fired-clay main roof`);
 }
 
-const fittingCosts = [
-  'large_quarry',
-  'chapel',
-  'town_hall',
-  'watchtower',
-  'guardhouse',
-  'palisaded_refuge',
-  'monastery',
-  'brewery',
-  'smokehouse',
-  'bakery',
-  'watermill',
-  'carpenter',
-] as const;
-assert.equal(
-  fittingCosts.reduce(
-    (total, kind) => total + (getBuildingCost(kind).ironwork ?? 0),
-    0,
-  ),
-  45,
-  'advanced civic, defensive, and processing buildout should create a modest but meaningful fittings demand',
-);
-for (const kind of [
-  'founders_camp',
-  'marketplace',
-  'lumber_mill',
-  'stone_quarry',
-  'smithy',
-  'charcoal_burner',
-  'clay_pit',
-  'potter_kiln',
-] as const) {
+for (const kind of Object.keys(BUILDING_COSTS) as (keyof typeof BUILDING_COSTS)[]) {
   assert.equal(
     getBuildingCost(kind).ironwork ?? 0,
     0,
-    `${kind} must remain free of circular ironwork bootstrap costs`,
+    `${kind} construction must not consume maintenance ironwork`,
   );
 }
 
@@ -1215,8 +1185,8 @@ const fittingsInspector = renderConstructionInspector(
 );
 assert.equal(
   fittingsInspector.statusText,
-  'Unassigned worker fetching 5 ironwork from Forest bloomery & smithy',
-  'a staffed producer keeps producing while a free settlement hauler moves its fittings',
+  'Unassigned worker fetching 5 ironwork from Smithy',
+  'a legacy or repair site can still receive an authored ironwork requirement',
 );
 assert.match(fittingsInspector.detailsHtml, /Ironwork hauled/);
 assert.match(fittingsInspector.detailsHtml, /1 \/ 6/);

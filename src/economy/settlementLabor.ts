@@ -1,6 +1,5 @@
 import {
   BUILDING_DEFINITIONS,
-  BUILDING_STORAGE_CAPS,
   CONSTRUCTION_MAX_BUILDERS,
   type BuildingKind,
 } from '../generated/gameBalance.ts';
@@ -18,9 +17,8 @@ import {
 import {
   STOREHOUSE_COMMODITIES,
   storehouseAcceptsCommodity,
-  storehouseCollectionHeadroom,
   storehouseCommodityTarget,
-  storehouseCommodityTargetPercent,
+  storehouseFilteredCollectionHeadroom,
   type StorehouseCommodity,
 } from './storehousePolicy.ts';
 
@@ -207,18 +205,15 @@ export function computeSettlementLaborPlan(input: {
         const network = storehouseNetwork.commodities[commodity];
         const target = storehouseCommodityTarget(building, commodity);
         const stock = Math.max(0, building[commodity] ?? 0);
-        const capacity = BUILDING_STORAGE_CAPS.village_storehouse[commodity] ?? 0;
-        const percent = storehouseCommodityTargetPercent(building, commodity);
         network.acceptingDepots += 1;
         if (building.assignedLabor > 0) {
           network.staffedAcceptingDepots += 1;
         }
         network.targetStock += target;
         network.stockTowardTarget += Math.min(stock, target);
-        network.collectionHeadroom += storehouseCollectionHeadroom(
-          stock,
-          capacity,
-          percent,
+        network.collectionHeadroom += storehouseFilteredCollectionHeadroom(
+          building,
+          commodity,
         );
         network.stockAboveTarget += Math.max(0, stock - target);
       }

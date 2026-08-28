@@ -745,6 +745,25 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
     }
 }
 
+pub fn building_total_commodity_stock(building: &Building) -> f64 {
+    ALL_COMMODITIES
+        .iter()
+        .copied()
+        .map(|kind| whole_units(building_commodity_stock(building, kind)))
+        .sum()
+}
+
+pub fn building_shared_storage_capacity(kind: &str) -> Option<f64> {
+    let capacity = building_def(kind)?.storage_total;
+    (capacity > 0.0).then_some(whole_units(capacity))
+}
+
+pub fn building_shared_storage_room(building: &Building) -> f64 {
+    building_shared_storage_capacity(&building.kind).map_or(f64::MAX, |capacity| {
+        whole_room(capacity, building_total_commodity_stock(building))
+    })
+}
+
 pub fn building_commodity_room(building: &Building, kind: CommodityKind) -> f64 {
     let occupied = if kind.is_bread_grain_bulk() {
         bread_grain_bulk_stock(building)
@@ -760,6 +779,7 @@ pub fn building_commodity_room(building: &Building, kind: CommodityKind) -> f64 
         building_commodity_stock(building, kind)
     };
     whole_room(building_commodity_cap(&building.kind, kind), occupied)
+        .min(building_shared_storage_room(building))
 }
 
 /// True when a completed storage building may receive a new physical cart of
@@ -1443,8 +1463,16 @@ mod tests {
     use std::collections::HashSet;
 
     use super::{
-        food_category, food_category_qualifying_stock, CommodityKind, FoodCategory, ALL_COMMODITIES,
+        building_shared_storage_capacity, food_category, food_category_qualifying_stock,
+        CommodityKind, FoodCategory, ALL_COMMODITIES,
     };
+
+    #[test]
+    fn shared_storage_capacity_is_authored_for_large_depots() {
+        assert_eq!(building_shared_storage_capacity("village_storehouse"), Some(2500.0));
+        assert_eq!(building_shared_storage_capacity("granary"), Some(2500.0));
+        assert_eq!(building_shared_storage_capacity("marketplace"), None);
+    }
 
     #[test]
     fn commodity_ids_remain_stable_and_round_trip() {
