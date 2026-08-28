@@ -38,19 +38,32 @@ import { isConstructionResourceShortfallMessage } from '../src/ui/toastMessages.
 import { resolveTooltipPosition } from '../src/ui/tooltips.ts';
 import { BUILDING_COSTS, BUILDING_DEFINITIONS } from '../src/generated/gameBalance.ts';
 
-const STONE_BUILDING_KINDS = new Set(['chapel', 'monastery', 'well', 'wayside_shrine']);
+const STONE_BUILDING_COSTS: Readonly<Record<string, number>> = {
+  potter_kiln: 16,
+  well: 30,
+  chapel: 24,
+  wayside_shrine: 8,
+  town_hall: 30,
+  village_storehouse: 16,
+  watchtower: 10,
+  guardhouse: 20,
+  monastery: 150,
+  brewery: 24,
+  tavern: 20,
+  granary: 30,
+  bakery: 20,
+};
 
 assert.deepEqual(BUILDING_COSTS.founders_camp, {
   timber: 0,
   stone: 0,
   gold: 1_000,
 });
-assert.equal(BUILDING_COSTS.chapel.stone, 24);
 for (const [kind, cost] of Object.entries(BUILDING_COSTS)) {
   assert.equal(
-    cost.stone > 0,
-    STONE_BUILDING_KINDS.has(kind),
-    `${kind} must ${STONE_BUILDING_KINDS.has(kind) ? '' : 'not '}have a stone construction cost`,
+    cost.stone,
+    STONE_BUILDING_COSTS[kind] ?? 0,
+    `${kind} must retain its authored stone construction cost`,
   );
 }
 

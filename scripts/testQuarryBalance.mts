@@ -3,6 +3,8 @@ import {
   BACKYARD_GARDEN_COSTS,
   BUILDING_COSTS,
   BUILDING_DEFINITIONS,
+  CHAPEL_TIER2_UPGRADE_STONE,
+  CHAPEL_TIER3_UPGRADE_STONE,
   LARGE_QUARRY_MAX_YIELD,
   RESIDENCE_STONE_COST,
   RESIDENCE_TIER2_STONE_COST,
@@ -21,6 +23,8 @@ const SMALL_QUARRY_MIN_ACTIVE_MINUTES = 60;
 
 const stoneForEveryBuilding = Object.values(BUILDING_COSTS)
   .reduce((total, cost) => total + cost.stone, 0);
+const stoneForFullyUpgradedChurch = CHAPEL_TIER2_UPGRADE_STONE
+  + CHAPEL_TIER3_UPGRADE_STONE;
 const stoneForTierThreeResidence = RESIDENCE_STONE_COST
   + RESIDENCE_TIER2_STONE_COST
   + RESIDENCE_TIER3_STONE_COST;
@@ -29,11 +33,13 @@ const mostExpensiveBackyardStoneCost = Math.max(
     .map((cost) => cost.stone),
 );
 
-// A mature build-out includes duplicates of every industry/service, one camp per
-// deposit, 64 fully upgraded homes, and the most stone-intensive backyard on every
-// plot. Deposits retain three such build-outs so demolition, redesign, trade, and
-// continued expansion do not turn stone into an early-game countdown.
-const matureSettlementStoneBudget = stoneForEveryBuilding * INFRASTRUCTURE_SETS
+// A mature build-out includes duplicates of every industry/service and fully
+// upgraded church, one camp per deposit, 64 fully upgraded homes, and the most
+// stone-intensive backyard on every plot. Deposits retain three such build-outs
+// so demolition, redesign, trade, and continued expansion do not turn stone into
+// an early-game countdown.
+const matureSettlementStoneBudget = (stoneForEveryBuilding + stoneForFullyUpgradedChurch)
+  * INFRASTRUCTURE_SETS
   + stoneForTierThreeResidence * MATURE_RESIDENCE_COUNT
   + mostExpensiveBackyardStoneCost * MATURE_RESIDENCE_COUNT
   + BUILDING_COSTS.stone_quarry.stone

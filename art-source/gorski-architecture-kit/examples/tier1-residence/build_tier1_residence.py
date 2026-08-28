@@ -17,9 +17,9 @@ ATLAS_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_buil
 OUT_BLEND = OUT_DIR / "tier1_residence_textured.blend"
 OUT_GLB = OUT_DIR / "tier1_residence_textured.glb"
 OUT_MANIFEST = OUT_DIR / "tier1_residence_assembly.json"
-OUT_RENDER = RENDER_DIR / "tier1_residence_hero_structural_v13.png"
-OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_structural_v13.png"
-OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_structural_v13.png"
+OUT_RENDER = RENDER_DIR / "tier1_residence_hero_structural_v14.png"
+OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_structural_v14.png"
+OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_structural_v14.png"
 
 WALL_BASE_Z = 0.35
 WALL_HEIGHT = 2.4
@@ -896,7 +896,7 @@ def place_roof() -> None:
 
     # A single authored shingle row laps across the full/half module boundary. It
     # conceals the otherwise ruler-straight joint that reads as an exposed purlin.
-    seam_panel_centre = -0.17
+    seam_panel_centre = -0.97
     seam_relief = 0.024
     for side in (-1.0, 1.0):
         side_name = "Left" if side < 0 else "Right"

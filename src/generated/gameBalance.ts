@@ -302,11 +302,11 @@ export const CHAPEL_TIER1_TITHE_MULTIPLIER = 1;
 export const CHAPEL_TIER2_TITHE_MULTIPLIER = 1.2;
 export const CHAPEL_TIER3_TITHE_MULTIPLIER = 1.45;
 export const CHAPEL_TIER2_UPGRADE_TIMBER = 12;
-export const CHAPEL_TIER2_UPGRADE_STONE = 30;
+export const CHAPEL_TIER2_UPGRADE_STONE = 60;
 export const CHAPEL_TIER2_UPGRADE_IRONWORK = 0;
 export const CHAPEL_TIER2_UPGRADE_ROOF_TILES = 24;
 export const CHAPEL_TIER3_UPGRADE_TIMBER = 28;
-export const CHAPEL_TIER3_UPGRADE_STONE = 52;
+export const CHAPEL_TIER3_UPGRADE_STONE = 120;
 export const CHAPEL_TIER3_UPGRADE_IRONWORK = 0;
 export const CHAPEL_TIER3_UPGRADE_ROOF_TILES = 48;
 export const CHAPEL_PRIEST_SALARY_GOLD_PER_DAY = 2.5;
@@ -1747,8 +1747,8 @@ export const BUILDING_COSTS = {
   clay_pit: { timber: 24, stone: 0 },
   charcoal_burner: { timber: 30, stone: 0 },
   smithy: { timber: 42, stone: 0 },
-  potter_kiln: { timber: 36, stone: 0 },
-  well: { timber: 18, stone: 22 },
+  potter_kiln: { timber: 36, stone: 16 },
+  well: { timber: 18, stone: 30 },
   hunters_hall: { timber: 30, stone: 0 },
   foragers_shed: { timber: 20, stone: 0 },
   fishing_camp: { timber: 24, stone: 0 },
@@ -1756,21 +1756,21 @@ export const BUILDING_COSTS = {
   wayside_shrine: { timber: 4, stone: 8 },
   marketplace: { timber: 32, stone: 0 },
   trading_post: { timber: 64, stone: 0 },
-  town_hall: { timber: 88, stone: 0 },
+  town_hall: { timber: 88, stone: 30 },
   stable: { timber: 36, stone: 0 },
-  village_storehouse: { timber: 54, stone: 0 },
-  watchtower: { timber: 48, stone: 0 },
-  guardhouse: { timber: 64, stone: 0 },
+  village_storehouse: { timber: 54, stone: 16 },
+  watchtower: { timber: 48, stone: 10 },
+  guardhouse: { timber: 64, stone: 20 },
   palisaded_refuge: { timber: 72, stone: 0 },
   threshing_barn: { timber: 44, stone: 0 },
   pastoral_farmstead: { timber: 40, stone: 0 },
   swineherd: { timber: 34, stone: 0 },
   monastery: { timber: 90, stone: 150, roofTiles: 72 },
-  brewery: { timber: 48, stone: 0 },
-  tavern: { timber: 42, stone: 0 },
+  brewery: { timber: 48, stone: 24 },
+  tavern: { timber: 42, stone: 20 },
   smokehouse: { timber: 34, stone: 0 },
-  granary: { timber: 50, stone: 0 },
-  bakery: { timber: 36, stone: 0 },
+  granary: { timber: 50, stone: 30 },
+  bakery: { timber: 36, stone: 20 },
   apiary: { timber: 22, stone: 0 },
   watermill: { timber: 58, stone: 0 },
   windmill: { timber: 64, stone: 0 },

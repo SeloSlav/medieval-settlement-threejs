@@ -626,11 +626,11 @@
     "chapelTier2TitheMultiplier": 1.2,
     "chapelTier3TitheMultiplier": 1.45,
     "chapelTier2UpgradeTimber": 12,
-    "chapelTier2UpgradeStone": 30,
+    "chapelTier2UpgradeStone": 60,
     "chapelTier2UpgradeIronwork": 0,
     "chapelTier2UpgradeRoofTiles": 24,
     "chapelTier3UpgradeTimber": 28,
-    "chapelTier3UpgradeStone": 52,
+    "chapelTier3UpgradeStone": 120,
     "chapelTier3UpgradeIronwork": 0,
     "chapelTier3UpgradeRoofTiles": 48,
     "chapelPriestSalaryGoldPerDay": 2.5,
@@ -1395,7 +1395,7 @@
     },
     "potter_kiln": {
       "label": "Potter's kiln",
-      "cost": { "timber": 36, "stone": 0 },
+      "cost": { "timber": 36, "stone": 16 },
       "storage": { "total": 100, "timber": 0, "firewood": 18, "stone": 0, "water": 9, "clay": 36, "pottery": 60, "roofTiles": 60 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1414,7 +1414,7 @@
     },
     "well": {
       "label": "Well",
-      "cost": { "timber": 18, "stone": 22 },
+      "cost": { "timber": 18, "stone": 30 },
       "storage": { "total": 100, "timber": 0, "firewood": 0, "stone": 0, "water": 100, "food": 0 },
       "workRadius": 90,
       "pickRadius": 6,
@@ -1553,7 +1553,7 @@
     },
     "town_hall": {
       "label": "Town Hall",
-      "cost": { "timber": 88, "stone": 0 },
+      "cost": { "timber": 88, "stone": 30 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 0, "food": 0 },
       "workRadius": 0,
       "pickRadius": 11,
@@ -1589,7 +1589,7 @@
     },
     "village_storehouse": {
       "label": "Storehouse",
-      "cost": { "timber": 54, "stone": 0 },
+      "cost": { "timber": 54, "stone": 16 },
       "storage": {
         "total": 2500,
         "timber": 2500,
@@ -1629,7 +1629,7 @@
     },
     "watchtower": {
       "label": "Frontier watchtower",
-      "cost": { "timber": 48, "stone": 0 },
+      "cost": { "timber": 48, "stone": 10 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 0, "food": 0 },
       "workRadius": 190,
       "pickRadius": 8,
@@ -1648,7 +1648,7 @@
     },
     "guardhouse": {
       "label": "Frontier guardhouse",
-      "cost": { "timber": 64, "stone": 0 },
+      "cost": { "timber": 64, "stone": 20 },
       "storage": { "total": 80, "timber": 0, "firewood": 0, "stone": 0, "food": 60, "polearms": 12 },
       "workRadius": 0,
       "pickRadius": 10,
@@ -1762,7 +1762,7 @@
     },
     "brewery": {
       "label": "Brewhouse",
-      "cost": { "timber": 48, "stone": 0 },
+      "cost": { "timber": 48, "stone": 24 },
       "storage": { "total": 150, "timber": 0, "firewood": 24, "stone": 0, "water": 60, "food": 40, "barley": 48, "malt": 36, "ale": 72, "cider": 72, "pearCider": 72, "mead": 72, "honey": 36 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1780,7 +1780,7 @@
     },
     "tavern": {
       "label": "Tavern",
-      "cost": { "timber": 42, "stone": 0 },
+      "cost": { "timber": 42, "stone": 20 },
       "storage": { "total": 120, "timber": 0, "firewood": 0, "stone": 0, "ale": 60, "cider": 60, "pearCider": 60, "mead": 60 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1817,7 +1817,7 @@
     },
     "granary": {
       "label": "Granary",
-      "cost": { "timber": 50, "stone": 0 },
+      "cost": { "timber": 50, "stone": 30 },
       "storage": { "total": 2500, "timber": 0, "firewood": 0, "stone": 0, "grain": 2500, "barley": 2500, "flax": 2500, "flour": 2500, "food": 2500, "preservedFood": 2500, "honey": 2500, "ale": 2500, "cider": 2500, "pearCider": 2500, "mead": 2500, "wine": 2500 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1835,7 +1835,7 @@
     },
     "bakery": {
       "label": "Village bakery",
-      "cost": { "timber": 36, "stone": 0 },
+      "cost": { "timber": 36, "stone": 20 },
       "storage": { "total": 80, "timber": 0, "firewood": 18, "stone": 0, "water": 24, "flour": 36, "food": 48 },
       "workRadius": 0,
       "pickRadius": 8,

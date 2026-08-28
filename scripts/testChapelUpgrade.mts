@@ -26,7 +26,7 @@ assert.equal(chapelTierDefinition(2).label, 'Small stone church');
 assert.equal(chapelTierDefinition(3).label, 'Large stone church');
 assert.deepEqual(
   getBuildingCost('chapel'),
-  { timber: 24, stone: 2 },
+  { timber: 24, stone: 24 },
   'the timber church must not require ironwork',
 );
 
@@ -39,14 +39,14 @@ assert.equal(tier3.targetTier, 3);
 assert.deepEqual(tier2, {
   targetTier: 2,
   timber: 12,
-  stone: 30,
+  stone: 60,
   ironwork: 0,
   roofTiles: 24,
 });
 assert.deepEqual(tier3, {
   targetTier: 3,
   timber: 28,
-  stone: 52,
+  stone: 120,
   ironwork: 0,
   roofTiles: 48,
 });
