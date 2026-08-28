@@ -574,6 +574,14 @@ On the server, `server/src/reducers/simulation.rs` runs each 200 ms tick: constr
 
 Texture assets are stored under `public/assets/textures`. The road surface uses a medieval dirt texture set with albedo, normal, roughness, ambient occlusion, height, rut mask, and edge mask maps. River bridge decks use a separate wood-log PBR set (procedurally generated via `scripts/generate_wood_logs_texture.py`). Terrain uses multiple manor grass PBR sets (meadow, dense, dry, blend) and prop textures for pine foliage and rocks. Build menu cards use Croatian naive art PNGs under `public/assets/ui/build-menu/`. Building meshes use procedural geometry with timber, stone, and shingle materials guided by [building visual language](docs/design/building-visual-language.md). Everything is loaded locally at runtime — no external asset CDN required.
 
+## License and Intellectual Property
+
+The original source code authored for this project is licensed under the [MIT License](https://opensource.org/license/mit). The MIT license applies to that code only. Third-party libraries and assets remain subject to their respective licenses and attribution requirements, as listed below or in the files accompanying them.
+
+**Selo Empire is an open-source codebase, not an open-content game.** Copyright © 2026 Martin Erlic. All rights are reserved in the project's original non-code creative content, including its artwork and visual assets, the specific creative expression of its art direction, narrative text, worldbuilding, lore, characters, setting material, and the selection and arrangement of those elements. The `Selo Empire` name, title, logo, and other branding are not licensed for reuse under the MIT code license.
+
+You may use, modify, distribute, and sell the MIT-licensed code in accordance with that license. However, this repository does not grant permission to copy, redistribute, or commercially release the game wholesale or substantially as-is with the reserved Selo Empire creative content or branding. A commercial game built from the MIT-licensed code must replace that reserved content and branding and must continue to comply with all applicable third-party licenses. No rights are claimed in third-party materials or in ideas, methods, styles, or other elements that applicable law does not protect.
+
 ## Third-Party Libraries and Assets
 
 Vegetation and sky rendering use vendored libraries under `vendor/`, while adapted third-party art is stored locally under `public/assets/third-party/`. License and attribution records are kept alongside each package or asset.
