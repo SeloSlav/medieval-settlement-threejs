@@ -1,5 +1,5 @@
 {
-  "id": "gorski-tier1-residence-atlas-preview-v2",
+  "id": "gorski-tier1-residence-atlas-preview-v3",
   "regionalContext": "Gorski Kotar, circa 1550",
   "sourceKit": "gorski-architecture-kit-1.1.0",
   "atlas": {
@@ -20,7 +20,7 @@
     "sideEaveOverhang": 0.6997,
     "gableEndOverhang": 0.5
   },
-  "roofFinish": "bundled-thatch",
+  "roofFinish": "hand-split softwood shingles",
   "roofIrregularity": {
     "method": "deterministic vertex sag with a zero-displacement envelope at every authored run boundary",
     "longitudinalSagRangeMetres": [
@@ -34,9 +34,9 @@
     "supports": "four sloped verge rafters and eight short projecting roof lookouts visibly carry the gable-end overhangs"
   },
   "historicalMaterialDecision": {
-    "primaryBody": "weathered horizontal timber boarding on a low fieldstone footing",
-    "publicFront": "rough warm daub within a restrained structural frame",
-    "roof": "dark bundled thatch retained as the game's humble Tier-1 progression cue; split softwood roofing is the better-documented Gorski Kotar norm",
+    "primaryBody": "weathered horizontal timber boarding on a dark moisture-stained fieldstone footing",
+    "publicFront": "rough warm daub with blotchy staining and heavier accumulation toward grade, within a restrained structural frame",
+    "roof": "irregular hand-split softwood shingles, replacing the earlier game-stylized thatch",
     "openings": "plain unglazed square light and ventilation holes; no decorative shutters or leaded glazing"
   },
   "atlasCoverage": {
@@ -45,22 +45,22 @@
       "lime-plaster",
       "rough-hewn-timber",
       "weathered-planks",
-      "thatch-roof",
-      "wicker-weave",
+      "split-shingles",
       "wrought-iron",
       "packed-earth"
     ],
     "sufficientForThisPass": true,
+    "variantPolicy": "weathered fieldstone and worn daub are named material variants over shared atlas tiles; the clean global tiles remain unchanged for maintained and later-tier buildings",
     "recommendedFutureTiles": [
       "riven-softwood-boarding: hand-split fir or pine boards with irregular adze edges",
       "clay-straw-daub: coarser earthen infill with visible straw and restrained cracking"
     ]
   },
-  "smokeExit": "bound-thatch hood; no later-tier masonry chimney",
+  "smokeExit": "open timber smoke hood with a split-shingle cap; no later-tier masonry chimney",
   "canonicalState": "neutral shell; no inventory, activity, or occupancy-driven dressing",
   "fixedArchitecture": {
-    "threshold": "limestone entrance step",
-    "smokeHood": "physical bound-thatch roof component only"
+    "threshold": "weathered fieldstone entrance step",
+    "smokeHood": "physical timber hood with split-shingle cap only"
   },
   "runtimeOwnedState": {
     "firewoodPile": "ResidenceMarkers.syncFirewoodPile controls visibility and fill scale from household firewood stock",
@@ -401,7 +401,7 @@
     },
     {
       "name": "T1_Roof_Left_4m_full",
-      "source": "roof_thatch_panel_4m_full",
+      "source": "roof_shingle_panel_4m_full",
       "collection": "T1_05_Roof",
       "location": [
         -1.92836,
@@ -412,7 +412,7 @@
     },
     {
       "name": "T1_Roof_Left_4m_half",
-      "source": "roof_thatch_panel_4m_half",
+      "source": "roof_shingle_panel_4m_half",
       "collection": "T1_05_Roof",
       "location": [
         -0.77135,
@@ -423,7 +423,7 @@
     },
     {
       "name": "T1_Roof_Left_4m_quarter",
-      "source": "roof_thatch_panel_4m_quarter",
+      "source": "roof_shingle_panel_4m_quarter",
       "collection": "T1_05_Roof",
       "location": [
         -0.19284,
@@ -434,7 +434,7 @@
     },
     {
       "name": "T1_Roof_Left_4m_full",
-      "source": "roof_thatch_panel_4m_full",
+      "source": "roof_shingle_panel_4m_full",
       "collection": "T1_05_Roof",
       "location": [
         -1.92836,
@@ -445,7 +445,7 @@
     },
     {
       "name": "T1_Roof_Left_4m_half",
-      "source": "roof_thatch_panel_4m_half",
+      "source": "roof_shingle_panel_4m_half",
       "collection": "T1_05_Roof",
       "location": [
         -0.77135,
@@ -456,7 +456,7 @@
     },
     {
       "name": "T1_Roof_Left_4m_quarter",
-      "source": "roof_thatch_panel_4m_quarter",
+      "source": "roof_shingle_panel_4m_quarter",
       "collection": "T1_05_Roof",
       "location": [
         -0.19284,
@@ -467,7 +467,7 @@
     },
     {
       "name": "T1_Roof_Right_4m_full",
-      "source": "roof_thatch_panel_4m_full",
+      "source": "roof_shingle_panel_4m_full",
       "collection": "T1_05_Roof",
       "location": [
         1.92836,
@@ -478,7 +478,7 @@
     },
     {
       "name": "T1_Roof_Right_4m_half",
-      "source": "roof_thatch_panel_4m_half",
+      "source": "roof_shingle_panel_4m_half",
       "collection": "T1_05_Roof",
       "location": [
         0.77135,
@@ -489,7 +489,7 @@
     },
     {
       "name": "T1_Roof_Right_4m_quarter",
-      "source": "roof_thatch_panel_4m_quarter",
+      "source": "roof_shingle_panel_4m_quarter",
       "collection": "T1_05_Roof",
       "location": [
         0.19284,
@@ -500,7 +500,7 @@
     },
     {
       "name": "T1_Roof_Right_4m_full",
-      "source": "roof_thatch_panel_4m_full",
+      "source": "roof_shingle_panel_4m_full",
       "collection": "T1_05_Roof",
       "location": [
         1.92836,
@@ -511,7 +511,7 @@
     },
     {
       "name": "T1_Roof_Right_4m_half",
-      "source": "roof_thatch_panel_4m_half",
+      "source": "roof_shingle_panel_4m_half",
       "collection": "T1_05_Roof",
       "location": [
         0.77135,
@@ -522,7 +522,7 @@
     },
     {
       "name": "T1_Roof_Right_4m_quarter",
-      "source": "roof_thatch_panel_4m_quarter",
+      "source": "roof_shingle_panel_4m_quarter",
       "collection": "T1_05_Roof",
       "location": [
         0.19284,
@@ -533,7 +533,7 @@
     },
     {
       "name": "T1_Eave_Left_4m",
-      "source": "roof_thatch_eave_edge_4m",
+      "source": "roof_shingle_eave_edge_4m",
       "collection": "T1_05_Roof",
       "location": [
         -2.69971,
@@ -544,7 +544,7 @@
     },
     {
       "name": "T1_Eave_Left_4m",
-      "source": "roof_thatch_eave_edge_4m",
+      "source": "roof_shingle_eave_edge_4m",
       "collection": "T1_05_Roof",
       "location": [
         -2.69971,
@@ -555,7 +555,7 @@
     },
     {
       "name": "T1_Eave_Right_4m",
-      "source": "roof_thatch_eave_edge_4m",
+      "source": "roof_shingle_eave_edge_4m",
       "collection": "T1_05_Roof",
       "location": [
         2.69971,
@@ -566,7 +566,7 @@
     },
     {
       "name": "T1_Eave_Right_4m",
-      "source": "roof_thatch_eave_edge_4m",
+      "source": "roof_shingle_eave_edge_4m",
       "collection": "T1_05_Roof",
       "location": [
         2.69971,
@@ -577,7 +577,7 @@
     },
     {
       "name": "T1_Ridge_4m",
-      "source": "roof_thatch_ridge_4m",
+      "source": "roof_shingle_ridge_4m",
       "collection": "T1_05_Roof",
       "location": [
         0.0,
@@ -588,7 +588,7 @@
     },
     {
       "name": "T1_Ridge_4m",
-      "source": "roof_thatch_ridge_4m",
+      "source": "roof_shingle_ridge_4m",
       "collection": "T1_05_Roof",
       "location": [
         0.0,
@@ -599,7 +599,7 @@
     },
     {
       "name": "T1_Ridge_Endcap_Front",
-      "source": "roof_thatch_ridge_endcap",
+      "source": "roof_shingle_ridge_endcap",
       "collection": "T1_05_Roof",
       "location": [
         0.0,
@@ -610,7 +610,7 @@
     },
     {
       "name": "T1_Ridge_Endcap_Rear",
-      "source": "roof_thatch_ridge_endcap",
+      "source": "roof_shingle_ridge_endcap",
       "collection": "T1_05_Roof",
       "location": [
         0.0,
@@ -620,7 +620,7 @@
       "rotationZDegrees": -90.0
     },
     {
-      "name": "T1_Thatch_Smoke_Vent",
+      "name": "T1_Shingled_Smoke_Hood",
       "source": "roof_thatch_smoke_vent",
       "collection": "T1_05_Roof",
       "location": [

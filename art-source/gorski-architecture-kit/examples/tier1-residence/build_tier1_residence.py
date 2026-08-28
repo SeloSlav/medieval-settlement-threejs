@@ -558,13 +558,17 @@ def make_aperture_wall(
 
 def place_shell() -> None:
     # A low rubble footing protects the timber body without turning Tier 1 into a stone house.
-    place("foundation_fieldstone_4m_h0p35m", "T1_Foundation_Front", FOUNDATION, (0.0, 0.0, 0.0))
-    place("foundation_fieldstone_4m_h0p35m", "T1_Foundation_Rear", FOUNDATION, (0.0, BUILDING_DEPTH, 0.0), math.pi)
+    front_foundation = place("foundation_fieldstone_4m_h0p35m", "T1_Foundation_Front", FOUNDATION, (0.0, 0.0, 0.0))
+    rear_foundation = place("foundation_fieldstone_4m_h0p35m", "T1_Foundation_Rear", FOUNDATION, (0.0, BUILDING_DEPTH, 0.0), math.pi)
+    remap_instance_material(front_foundation, "fieldstone", "fieldstone_weathered")
+    remap_instance_material(rear_foundation, "fieldstone", "fieldstone_weathered")
     for side, rotation in ((-2.0, -math.pi / 2.0), (2.0, math.pi / 2.0)):
         label = "Left" if side < 0 else "Right"
-        place("foundation_fieldstone_4m_h0p35m", f"T1_Foundation_{label}_A", FOUNDATION, (side, 2.0, 0.0), rotation)
-        place("foundation_fieldstone_2m_h0p35m", f"T1_Foundation_{label}_B", FOUNDATION, (side, 5.0, 0.0), rotation)
-        place("foundation_fieldstone_1m_h0p35m", f"T1_Foundation_{label}_C", FOUNDATION, (side, 6.5, 0.0), rotation)
+        side_a = place("foundation_fieldstone_4m_h0p35m", f"T1_Foundation_{label}_A", FOUNDATION, (side, 2.0, 0.0), rotation)
+        side_b = place("foundation_fieldstone_2m_h0p35m", f"T1_Foundation_{label}_B", FOUNDATION, (side, 5.0, 0.0), rotation)
+        side_c = place("foundation_fieldstone_1m_h0p35m", f"T1_Foundation_{label}_C", FOUNDATION, (side, 6.5, 0.0), rotation)
+        for footing in (side_a, side_b, side_c):
+            remap_instance_material(footing, "fieldstone", "fieldstone_weathered")
 
     # The public front retains humble daub, but the openings are literal voids rather than
     # decorative glazed/shuttered inserts. The low service door is the only articulated opening.
@@ -740,7 +744,7 @@ def place_roof() -> None:
             for course_name, centre in slope_courses:
                 (x, z), rotation = roof_transform(side, centre)
                 panel = place(
-                    f"roof_thatch_panel_{run_token}_{course_name}",
+                    f"roof_shingle_panel_{run_token}_{course_name}",
                     f"T1_Roof_{side_name}_{run_token}_{course_name}",
                     ROOF,
                     (x, y, z),
@@ -755,7 +759,7 @@ def place_roof() -> None:
         side_name = "Left" if side < 0 else "Right"
         for run_token, y in runs:
             eave = place(
-                f"roof_thatch_eave_edge_{run_token}",
+                f"roof_shingle_eave_edge_{run_token}",
                 f"T1_Eave_{side_name}_{run_token}",
                 ROOF,
                 (side * eave_x, y, eave_z),
@@ -764,23 +768,25 @@ def place_roof() -> None:
             deform_roof_run(eave, y, side, eave_edge=True)
 
     for run_token, y in runs:
-        ridge = place(f"roof_thatch_ridge_{run_token}", f"T1_Ridge_{run_token}", ROOF, (0.0, y, RIDGE_Z), math.pi / 2.0)
+        ridge = place(f"roof_shingle_ridge_{run_token}", f"T1_Ridge_{run_token}", ROOF, (0.0, y, RIDGE_Z), math.pi / 2.0)
         deform_roof_run(ridge, y)
 
-    place("roof_thatch_ridge_endcap", "T1_Ridge_Endcap_Front", ROOF, (0.0, -0.62, RIDGE_Z), math.pi / 2.0)
-    place("roof_thatch_ridge_endcap", "T1_Ridge_Endcap_Rear", ROOF, (0.0, BUILDING_DEPTH + 0.62, RIDGE_Z), -math.pi / 2.0)
+    place("roof_shingle_ridge_endcap", "T1_Ridge_Endcap_Front", ROOF, (0.0, -0.62, RIDGE_Z), math.pi / 2.0)
+    place("roof_shingle_ridge_endcap", "T1_Ridge_Endcap_Rear", ROOF, (0.0, BUILDING_DEPTH + 0.62, RIDGE_Z), -math.pi / 2.0)
 
-    # A bound-thatch smoke hood is the Tier-1 fire exit; a later masonry chimney would be anachronistic here.
+    # The existing open smoke hood is retained but receives a split-shingle cap. Runtime owns
+    # emitted smoke; a later masonry chimney remains intentionally absent at this tier.
     smoke_x = 0.72
     smoke_z = RIDGE_Z - smoke_x * math.tan(PITCH) - 0.05
-    place("roof_thatch_smoke_vent", "T1_Thatch_Smoke_Vent", ROOF, (smoke_x, 5.35, smoke_z - 0.10), math.pi / 2.0)
+    smoke_hood = place("roof_thatch_smoke_vent", "T1_Shingled_Smoke_Hood", ROOF, (smoke_x, 5.35, smoke_z - 0.10), math.pi / 2.0)
+    remap_instance_material(smoke_hood, "thatch_dark", "shingles_aged")
     place_roof_supports()
 
 
 def place_fixed_architecture() -> None:
     # Permanent entrance construction. Inventory-driven firewood is owned by ResidenceMarkers.
     threshold = place("foundation_steps_limestone_1", "T1_Threshold_Steps", FIXED_ARCHITECTURE, (-1.0, -0.56, 0.0))
-    remap_instance_material(threshold, "limestone_warm", "fieldstone")
+    remap_instance_material(threshold, "limestone_warm", "fieldstone_weathered")
 
 
 def remove_source_library_objects() -> None:
@@ -896,7 +902,7 @@ def render_alignment_views() -> None:
 
 def write_manifest() -> None:
     payload = {
-        "id": "gorski-tier1-residence-atlas-preview-v2",
+        "id": "gorski-tier1-residence-atlas-preview-v3",
         "regionalContext": "Gorski Kotar, circa 1550",
         "sourceKit": "gorski-architecture-kit-1.1.0",
         "atlas": {
@@ -917,7 +923,7 @@ def write_manifest() -> None:
             "sideEaveOverhang": round(SLOPE_LENGTH * math.cos(PITCH) - 2.0, 4),
             "gableEndOverhang": 0.5,
         },
-        "roofFinish": "bundled-thatch",
+        "roofFinish": "hand-split softwood shingles",
         "roofIrregularity": {
             "method": "deterministic vertex sag with a zero-displacement envelope at every authored run boundary",
             "longitudinalSagRangeMetres": [0.072, 0.105],
@@ -925,24 +931,25 @@ def write_manifest() -> None:
             "supports": "four sloped verge rafters and eight short projecting roof lookouts visibly carry the gable-end overhangs",
         },
         "historicalMaterialDecision": {
-            "primaryBody": "weathered horizontal timber boarding on a low fieldstone footing",
-            "publicFront": "rough warm daub within a restrained structural frame",
-            "roof": "dark bundled thatch retained as the game's humble Tier-1 progression cue; split softwood roofing is the better-documented Gorski Kotar norm",
+            "primaryBody": "weathered horizontal timber boarding on a dark moisture-stained fieldstone footing",
+            "publicFront": "rough warm daub with blotchy staining and heavier accumulation toward grade, within a restrained structural frame",
+            "roof": "irregular hand-split softwood shingles, replacing the earlier game-stylized thatch",
             "openings": "plain unglazed square light and ventilation holes; no decorative shutters or leaded glazing",
         },
         "atlasCoverage": {
-            "usedNow": ["fieldstone-mortar", "lime-plaster", "rough-hewn-timber", "weathered-planks", "thatch-roof", "wicker-weave", "wrought-iron", "packed-earth"],
+            "usedNow": ["fieldstone-mortar", "lime-plaster", "rough-hewn-timber", "weathered-planks", "split-shingles", "wrought-iron", "packed-earth"],
             "sufficientForThisPass": True,
+            "variantPolicy": "weathered fieldstone and worn daub are named material variants over shared atlas tiles; the clean global tiles remain unchanged for maintained and later-tier buildings",
             "recommendedFutureTiles": [
                 "riven-softwood-boarding: hand-split fir or pine boards with irregular adze edges",
                 "clay-straw-daub: coarser earthen infill with visible straw and restrained cracking",
             ],
         },
-        "smokeExit": "bound-thatch hood; no later-tier masonry chimney",
+        "smokeExit": "open timber smoke hood with a split-shingle cap; no later-tier masonry chimney",
         "canonicalState": "neutral shell; no inventory, activity, or occupancy-driven dressing",
         "fixedArchitecture": {
-            "threshold": "limestone entrance step",
-            "smokeHood": "physical bound-thatch roof component only",
+            "threshold": "weathered fieldstone entrance step",
+            "smokeHood": "physical timber hood with split-shingle cap only",
         },
         "runtimeOwnedState": {
             "firewoodPile": "ResidenceMarkers.syncFirewoodPile controls visibility and fill scale from household firewood stock",
@@ -965,9 +972,9 @@ def main() -> None:
     add_preview_staging()
     stage_render()
     scene = bpy.context.scene
-    scene["artifact_id"] = "gorski-tier1-residence-atlas-preview-v2"
+    scene["artifact_id"] = "gorski-tier1-residence-atlas-preview-v3"
     scene["architecture_context"] = "Gorski Kotar, circa 1550"
-    scene["roof_finish"] = "bundled-thatch"
+    scene["roof_finish"] = "hand-split softwood shingles"
     scene["atlas_id"] = ATLAS_MANIFEST["id"]
     scene["canonical_state"] = "neutral; runtime owns firewood, smoke emission, and window glow"
     scene["living_vegetation"] = "excluded; SeedThree-owned"

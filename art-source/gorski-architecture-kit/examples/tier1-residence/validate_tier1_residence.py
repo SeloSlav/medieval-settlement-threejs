@@ -71,11 +71,11 @@ def main() -> None:
     square_hole_walls = [source for source in sources if source == "assembly_custom_aperture_wall"]
     dark_apertures = [source for source in sources if source == "assembly_dark_unglazed_aperture"]
     window_inserts = [source for source in sources if source.startswith("opening_window_")]
-    roof_panels = [source for source in sources if source.startswith("roof_thatch_panel_")]
+    roof_panels = [source for source in sources if source.startswith("roof_shingle_panel_")]
     roof_triangles = sum(
         triangle_count(obj)
         for obj in meshes
-        if str(obj.get("source_component_id", "")).startswith("roof_thatch_")
+        if str(obj.get("source_component_id", "")).startswith(("roof_shingle_", "roof_thatch_smoke_vent"))
     )
     total_triangles = sum(triangle_count(obj) for obj in meshes)
 
@@ -85,12 +85,12 @@ def main() -> None:
         "allMeshesAreManifold": not nonmanifold,
         "threePlainSquareApertures": len(dark_apertures) == 3,
         "noDecorativeWindowInserts": not window_inserts,
-        "threeCourseRoofAcrossFourRuns": len(roof_panels) == 12,
+        "threeCourseShingleRoofAcrossFourRuns": len(roof_panels) == 12,
         "noRuntimeOrVegetationDressingAuthored": not forbidden_authored_state,
         "atlasMaterialsPacked": len(material_tiles) >= 7,
     }
     payload = {
-        "id": "gorski-tier1-residence-validation-v2",
+        "id": "gorski-tier1-residence-validation-v3",
         "passed": all(checks.values()),
         "checks": checks,
         "counts": {

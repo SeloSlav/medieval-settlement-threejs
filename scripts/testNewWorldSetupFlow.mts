@@ -132,12 +132,18 @@ assert.match(worldPanel, /Steadfast Castellan \(Normal\)/);
 assert.match(worldPanel, /Marcher Lord \(Hardcore\)/);
 assert.match(worldPanel, /No losses or raids; double supplies/);
 assert.match(worldPanel, /data-world-selector="approval-decline"/);
-assert.match(worldPanel, /world-setup-setting-row__icon--settlement[^>]*aria-label="Settlement mode"/);
-assert.match(worldPanel, /world-setup-setting-row__icon--approval[^>]*aria-label="Approval decline"/);
-assert.match(worldPanel, /world-setup-setting-row__icon--spoilage[^>]*aria-label="Food spoilage"/);
-assert.match(worldPanel, /world-setup-setting-row__icon--supplies[^>]*aria-label="First camp supplies"/);
-assert.match(worldPanel, /world-setup-setting-row__icon--weather[^>]*aria-label="Severe weather"/);
-assert.match(worldPanel, /world-setup-setting-row__icon--groundwater[^>]*aria-label="Groundwater"/);
+assert.match(worldPanel, /data-rule-icon="settlement"[^>]*aria-label="Settlement mode"/);
+assert.match(worldPanel, /data-rule-icon="approval"[^>]*aria-label="Approval decline"/);
+assert.match(worldPanel, /data-rule-icon="food"[^>]*aria-label="Food spoilage"/);
+assert.match(worldPanel, /data-rule-icon="supplies"[^>]*aria-label="First camp supplies"/);
+assert.match(worldPanel, /data-rule-icon="weather"[^>]*aria-label="Severe weather"/);
+assert.match(worldPanel, /data-rule-icon="groundwater"[^>]*aria-label="Groundwater"/);
+assert.match(worldPanel, /conflictModeIcon\.dataset\.state = this\.draft\.conflictMode/);
+assert.match(worldPanel, /approvalDeclineIcon\.dataset\.state = String\(this\.draft\.approvalDeclineRate\)/);
+assert.match(worldPanel, /foodSpoilageIcon\.dataset\.state = String\(this\.draft\.foodSpoilageRate\)/);
+assert.match(worldPanel, /initialGoodsIcon\.dataset\.state = String\(this\.draft\.initialGoodsMultiplier\)/);
+assert.match(worldPanel, /severeWeatherIcon\.dataset\.state = this\.draft\.severeWeatherEnabled \? 'on' : 'off'/);
+assert.match(worldPanel, /aquiferNetworksIcon\.dataset\.state = this\.draft\.wellAquiferNetworksEnabled \? 'aquifers' : 'even'/);
 assert.doesNotMatch(worldPanel, /world-setup-setting-row__label/);
 assert.match(worldPanel, /data-world-selector="food-spoilage"[\s\S]*Food never spoils/);
 assert.match(worldPanel, /data-world-selector="initial-goods"[\s\S]*Twice the goods in the original camp/);
@@ -175,6 +181,16 @@ assert.match(worldCss, /\.world-setup-difficulty-preset \.world-setup-arrow-sele
 assert.match(worldCss, /\.world-setup-setting-row__icon\s*\{[\s\S]*?background-size: contain/);
 assert.match(worldCss, /world-setup\/settlement-mode\.png/);
 assert.match(worldCss, /world-setup\/groundwater\.png/);
+assert.match(worldCss, /data-rule-icon='settlement'\]\[data-state='frontier'[\s\S]*?settlement-frontier\.png/);
+assert.match(worldCss, /data-rule-icon='approval'\]\[data-state='0'[\s\S]*?approval-disabled\.png/);
+assert.match(worldCss, /data-rule-icon='approval'\]\[data-state='50'[\s\S]*?approval-relaxed\.png/);
+assert.match(worldCss, /data-rule-icon='approval'\]\[data-state='150'[\s\S]*?approval-demanding\.png/);
+assert.match(worldCss, /data-rule-icon='food'\]\[data-state='0'[\s\S]*?food-none\.png/);
+assert.match(worldCss, /data-rule-icon='food'\]\[data-state='50'[\s\S]*?food-reduced\.png/);
+assert.match(worldCss, /data-rule-icon='food'\]\[data-state='100'[\s\S]*?food-normal\.png/);
+assert.match(worldCss, /data-rule-icon='supplies'\]\[data-state='1'[\s\S]*?supplies-normal\.png/);
+assert.match(worldCss, /data-rule-icon='weather'\]\[data-state='off'[\s\S]*?weather-normal\.png/);
+assert.match(worldCss, /data-rule-icon='groundwater'\]\[data-state='aquifers'[\s\S]*?groundwater-aquifers\.png/);
 assert.match(
   worldCss,
   /\.world-setup-backdrop\s*\{[\s\S]*?padding: clamp\(12px, 2\.4vw, 34px\);/,

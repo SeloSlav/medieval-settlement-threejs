@@ -220,7 +220,7 @@ export class WorldSetupPanel {
               </div>
               <div class="world-setup-setting-list">
                 <div class="world-setup-setting-row">
-                  <span class="world-setup-setting-row__icon world-setup-setting-row__icon--settlement" role="img" aria-label="Settlement mode"></span>
+                  <span class="world-setup-setting-row__icon" data-rule-icon="settlement" role="img" aria-label="Settlement mode"></span>
                   <div class="world-setup-arrow-select" data-world-selector="settlement-mode">
                     <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Previous settlement mode">‹</button>
                     <div class="world-setup-arrow-select__value" aria-live="polite">
@@ -235,7 +235,7 @@ export class WorldSetupPanel {
                   <p class="world-setup-slider-hint">Higher pressure means earlier, stronger raids.</p>
                 </div>
                 <div class="world-setup-setting-row">
-                  <span class="world-setup-setting-row__icon world-setup-setting-row__icon--approval" role="img" aria-label="Approval decline"></span>
+                  <span class="world-setup-setting-row__icon" data-rule-icon="approval" role="img" aria-label="Approval decline"></span>
                   <div class="world-setup-arrow-select" data-world-selector="approval-decline">
                     <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Lower approval decline">‹</button>
                     <div class="world-setup-arrow-select__value" aria-live="polite">
@@ -245,7 +245,7 @@ export class WorldSetupPanel {
                   </div>
                 </div>
                 <div class="world-setup-setting-row">
-                  <span class="world-setup-setting-row__icon world-setup-setting-row__icon--spoilage" role="img" aria-label="Food spoilage"></span>
+                  <span class="world-setup-setting-row__icon" data-rule-icon="food" role="img" aria-label="Food spoilage"></span>
                   <div class="world-setup-arrow-select" data-world-selector="food-spoilage">
                     <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Lower food spoilage">‹</button>
                     <div class="world-setup-arrow-select__value" aria-live="polite">
@@ -255,7 +255,7 @@ export class WorldSetupPanel {
                   </div>
                 </div>
                 <div class="world-setup-setting-row">
-                  <span class="world-setup-setting-row__icon world-setup-setting-row__icon--supplies" role="img" aria-label="First camp supplies"></span>
+                  <span class="world-setup-setting-row__icon" data-rule-icon="supplies" role="img" aria-label="First camp supplies"></span>
                   <div class="world-setup-arrow-select" data-world-selector="initial-goods">
                     <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Fewer first camp supplies">‹</button>
                     <div class="world-setup-arrow-select__value" aria-live="polite">
@@ -265,7 +265,7 @@ export class WorldSetupPanel {
                   </div>
                 </div>
                 <div class="world-setup-setting-row">
-                  <span class="world-setup-setting-row__icon world-setup-setting-row__icon--weather" role="img" aria-label="Severe weather"></span>
+                  <span class="world-setup-setting-row__icon" data-rule-icon="weather" role="img" aria-label="Severe weather"></span>
                   <div class="world-setup-arrow-select" data-world-selector="severe-weather">
                     <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Previous severe weather setting">‹</button>
                     <div class="world-setup-arrow-select__value" aria-live="polite">
@@ -275,7 +275,7 @@ export class WorldSetupPanel {
                   </div>
                 </div>
                 <div class="world-setup-setting-row">
-                  <span class="world-setup-setting-row__icon world-setup-setting-row__icon--groundwater" role="img" aria-label="Groundwater"></span>
+                  <span class="world-setup-setting-row__icon" data-rule-icon="groundwater" role="img" aria-label="Groundwater"></span>
                   <div class="world-setup-arrow-select" data-world-selector="groundwater">
                     <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Previous groundwater setting">‹</button>
                     <div class="world-setup-arrow-select__value" aria-live="polite">
@@ -343,24 +343,30 @@ export class WorldSetupPanel {
     const difficultyPresetValue = this.backdrop.querySelector<HTMLElement>('[data-difficulty-preset-value]')!;
     const difficultyPresetDescription = this.backdrop.querySelector<HTMLElement>('[data-difficulty-preset-description]')!;
     const conflictModeSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="settlement-mode"]')!;
+    const conflictModeIcon = this.backdrop.querySelector<HTMLElement>('[data-rule-icon="settlement"]')!;
     const conflictModeValue = this.backdrop.querySelector<HTMLElement>('[data-conflict-mode-value]')!;
     const conflictModeDescription = this.backdrop.querySelector<HTMLElement>('[data-conflict-mode-description]')!;
     const pressureControls = this.backdrop.querySelector<HTMLElement>('[data-pressure-controls]')!;
     const pressureSlider = this.backdrop.querySelector<HTMLInputElement>('#world-setup-pressure')!;
     const pressureValue = this.backdrop.querySelector<HTMLElement>('[data-pressure-value]')!;
     const approvalDeclineSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="approval-decline"]')!;
+    const approvalDeclineIcon = this.backdrop.querySelector<HTMLElement>('[data-rule-icon="approval"]')!;
     const approvalDeclineValue = this.backdrop.querySelector<HTMLElement>('[data-approval-decline-value]')!;
     const approvalDeclineDescription = this.backdrop.querySelector<HTMLElement>('[data-approval-decline-description]')!;
     const foodSpoilageSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="food-spoilage"]')!;
+    const foodSpoilageIcon = this.backdrop.querySelector<HTMLElement>('[data-rule-icon="food"]')!;
     const foodSpoilageValue = this.backdrop.querySelector<HTMLElement>('[data-food-spoilage-value]')!;
     const foodSpoilageDescription = this.backdrop.querySelector<HTMLElement>('[data-food-spoilage-description]')!;
     const initialGoodsSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="initial-goods"]')!;
+    const initialGoodsIcon = this.backdrop.querySelector<HTMLElement>('[data-rule-icon="supplies"]')!;
     const initialGoodsValue = this.backdrop.querySelector<HTMLElement>('[data-initial-goods-value]')!;
     const initialGoodsDescription = this.backdrop.querySelector<HTMLElement>('[data-initial-goods-description]')!;
     const severeWeatherSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="severe-weather"]')!;
+    const severeWeatherIcon = this.backdrop.querySelector<HTMLElement>('[data-rule-icon="weather"]')!;
     const severeWeatherValue = this.backdrop.querySelector<HTMLElement>('[data-severe-weather-value]')!;
     const severeWeatherDescription = this.backdrop.querySelector<HTMLElement>('[data-severe-weather-description]')!;
     const aquiferNetworksSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="groundwater"]')!;
+    const aquiferNetworksIcon = this.backdrop.querySelector<HTMLElement>('[data-rule-icon="groundwater"]')!;
     const aquiferNetworksValue = this.backdrop.querySelector<HTMLElement>('[data-aquifer-networks-value]')!;
     const aquiferNetworksDescription = this.backdrop.querySelector<HTMLElement>('[data-aquifer-networks-description]')!;
     const backButton = this.backdrop.querySelector<HTMLButtonElement>('[data-setup-back]')!;
@@ -404,6 +410,7 @@ export class WorldSetupPanel {
       pressureSlider.value = String(Math.max(10, this.draft.enemyPressure));
       pressureValue.textContent = pressureSlider.value;
       pressureControls.hidden = this.draft.conflictMode !== 'frontier';
+      conflictModeIcon.dataset.state = this.draft.conflictMode;
       conflictModeValue.dataset.value = this.draft.conflictMode;
       conflictModeValue.textContent = this.draft.conflictMode === 'frontier'
         ? 'Contested frontier'
@@ -414,11 +421,13 @@ export class WorldSetupPanel {
     };
 
     const syncHazardControls = (): void => {
+      severeWeatherIcon.dataset.state = this.draft.severeWeatherEnabled ? 'on' : 'off';
       severeWeatherValue.dataset.value = this.draft.severeWeatherEnabled ? 'on' : 'off';
       severeWeatherValue.textContent = this.draft.severeWeatherEnabled ? 'On' : 'Off';
       severeWeatherDescription.textContent = this.draft.severeWeatherEnabled
         ? 'Droughts, lightning, and fire.'
         : 'Normal rain and frost only.';
+      aquiferNetworksIcon.dataset.state = this.draft.wellAquiferNetworksEnabled ? 'aquifers' : 'even';
       aquiferNetworksValue.dataset.value = this.draft.wellAquiferNetworksEnabled ? 'aquifers' : 'even';
       aquiferNetworksValue.textContent = this.draft.wellAquiferNetworksEnabled ? 'Aquifers' : 'Even';
       aquiferNetworksDescription.textContent = this.draft.wellAquiferNetworksEnabled
@@ -440,13 +449,16 @@ export class WorldSetupPanel {
         150: ['Harsh', 'Food spoils 50% faster.'],
       };
       const approval = approvalCopy[this.draft.approvalDeclineRate];
+      approvalDeclineIcon.dataset.state = String(this.draft.approvalDeclineRate);
       approvalDeclineValue.dataset.value = String(this.draft.approvalDeclineRate);
       approvalDeclineValue.textContent = approval[0];
       approvalDeclineDescription.textContent = approval[1];
       const food = foodCopy[this.draft.foodSpoilageRate];
+      foodSpoilageIcon.dataset.state = String(this.draft.foodSpoilageRate);
       foodSpoilageValue.dataset.value = String(this.draft.foodSpoilageRate);
       foodSpoilageValue.textContent = food[0];
       foodSpoilageDescription.textContent = food[1];
+      initialGoodsIcon.dataset.state = String(this.draft.initialGoodsMultiplier);
       initialGoodsValue.dataset.value = String(this.draft.initialGoodsMultiplier);
       initialGoodsValue.textContent = this.draft.initialGoodsMultiplier === 2 ? 'Double' : 'Normal';
       initialGoodsDescription.textContent = this.draft.initialGoodsMultiplier === 2

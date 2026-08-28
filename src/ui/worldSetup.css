@@ -349,28 +349,68 @@
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.46));
 }
 
-.world-setup-setting-row__icon--settlement {
+.world-setup-setting-row__icon[data-rule-icon='settlement'][data-state='peaceful'] {
   background-image: url('/assets/ui/icons/world-setup/settlement-mode.png');
 }
 
-.world-setup-setting-row__icon--approval {
+.world-setup-setting-row__icon[data-rule-icon='settlement'][data-state='frontier'] {
+  background-image: url('/assets/ui/icons/world-setup/settlement-frontier.png');
+}
+
+.world-setup-setting-row__icon[data-rule-icon='approval'][data-state='0'] {
+  background-image: url('/assets/ui/icons/world-setup/approval-disabled.png');
+}
+
+.world-setup-setting-row__icon[data-rule-icon='approval'][data-state='50'] {
+  background-image: url('/assets/ui/icons/world-setup/approval-relaxed.png');
+}
+
+.world-setup-setting-row__icon[data-rule-icon='approval'][data-state='100'] {
   background-image: url('/assets/ui/icons/world-setup/approval-decline.png');
 }
 
-.world-setup-setting-row__icon--spoilage {
+.world-setup-setting-row__icon[data-rule-icon='approval'][data-state='150'] {
+  background-image: url('/assets/ui/icons/world-setup/approval-demanding.png');
+}
+
+.world-setup-setting-row__icon[data-rule-icon='food'][data-state='0'] {
+  background-image: url('/assets/ui/icons/world-setup/food-none.png');
+}
+
+.world-setup-setting-row__icon[data-rule-icon='food'][data-state='50'] {
+  background-image: url('/assets/ui/icons/world-setup/food-reduced.png');
+}
+
+.world-setup-setting-row__icon[data-rule-icon='food'][data-state='100'] {
+  background-image: url('/assets/ui/icons/world-setup/food-normal.png');
+}
+
+.world-setup-setting-row__icon[data-rule-icon='food'][data-state='150'] {
   background-image: url('/assets/ui/icons/world-setup/food-spoilage.png');
 }
 
-.world-setup-setting-row__icon--supplies {
+.world-setup-setting-row__icon[data-rule-icon='supplies'][data-state='1'] {
+  background-image: url('/assets/ui/icons/world-setup/supplies-normal.png');
+}
+
+.world-setup-setting-row__icon[data-rule-icon='supplies'][data-state='2'] {
   background-image: url('/assets/ui/icons/world-setup/first-camp-supplies.png');
 }
 
-.world-setup-setting-row__icon--weather {
+.world-setup-setting-row__icon[data-rule-icon='weather'][data-state='off'] {
+  background-image: url('/assets/ui/icons/world-setup/weather-normal.png');
+}
+
+.world-setup-setting-row__icon[data-rule-icon='weather'][data-state='on'] {
   background-image: url('/assets/ui/icons/world-setup/severe-weather.png');
 }
 
-.world-setup-setting-row__icon--groundwater {
+.world-setup-setting-row__icon[data-rule-icon='groundwater'][data-state='even'] {
   background-image: url('/assets/ui/icons/world-setup/groundwater.png');
+}
+
+.world-setup-setting-row__icon[data-rule-icon='groundwater'][data-state='aquifers'] {
+  background-image: url('/assets/ui/icons/world-setup/groundwater-aquifers.png');
 }
 
 .world-setup-setting-row .world-setup-arrow-select {
