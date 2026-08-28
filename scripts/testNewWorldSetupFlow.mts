@@ -156,6 +156,7 @@ assert.match(worldCss, /\.world-setup-actions\s*\{[\s\S]*?grid-template-rows: au
 assert.match(worldCss, /\.world-setup-actions__navigation\s*\{[\s\S]*?justify-content: space-between/);
 assert.match(worldCss, /\.world-setup-back\s*\{[\s\S]*?min-width: 210px/);
 assert.match(worldCss, /\.world-setup-column\s*\{[\s\S]*?overflow-y: auto/);
+assert.match(worldCss, /\.world-setup-map-size\s*\{[\s\S]*?position: sticky;[\s\S]*?top: 0/);
 assert.match(worldCss, /\.world-setup-setting-list\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
 assert.match(worldCss, /\.world-setup-column--rules\s*\{[\s\S]*?overflow: hidden/);
 assert.match(worldCss, /\.world-setup-game-rules\s*\{[\s\S]*?grid-template-rows: auto auto minmax\(0, 1fr\)/);

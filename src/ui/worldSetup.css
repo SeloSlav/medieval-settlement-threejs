@@ -580,6 +580,16 @@
     padding-right: 12px;
   }
 
+  .world-setup-map-size {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin-bottom: 0;
+    padding-bottom: 12px;
+    background: rgba(28, 30, 24, 0.98);
+    box-shadow: 0 8px 12px rgba(12, 14, 11, 0.22);
+  }
+
   .world-setup-column--rules {
     display: grid;
     padding: 0 18px 0 24px;
