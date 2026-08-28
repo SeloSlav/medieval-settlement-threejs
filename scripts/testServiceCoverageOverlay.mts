@@ -58,6 +58,7 @@ assert.deepEqual(
 assert.equal(serviceCoverageLabel('well'), 'water service');
 assert.equal(serviceCoverageLabel('marketplace'), 'market service');
 assert.equal(serviceCoverageLabel('chapel'), 'church service');
+assert.equal(serviceCoverageLabel('tavern'), 'beverage service');
 
 const fulfillmentHome = residence('fulfillment-home', 0, 0, 3);
 assert.equal(marketplaceResidenceFulfillment(fulfillmentHome), 'unfulfilled');
@@ -154,6 +155,15 @@ assert.equal(
   'church territory must use a distinct parish-purple house tint',
 );
 
+markers.setServiceCoverageHighlights(new Set(['home-b']), 'tavern');
+secondOverlay = coverageRoot.getObjectByName('Served residence mesh overlay:home-b');
+assert.ok(secondOverlay instanceof THREE.Mesh);
+assert.equal(
+  (secondOverlay.material as THREE.MeshBasicMaterial).color.getHex(),
+  0xff9b3d,
+  'tavern territory must use a distinct ale-orange house tint',
+);
+
 markers.syncResidences([homes[0]], () => 2.5);
 assert.equal(
   coverageRoot.getObjectByName('Served residence mesh overlay:home-b'),
@@ -185,6 +195,10 @@ const chapelInspectorSource = fs.readFileSync(
   'src/resources/inspector/chapelRenderer.ts',
   'utf8',
 );
+const expandedBuildingInspectorSource = fs.readFileSync(
+  'src/resources/inspector/expandedBuildingRenderer.ts',
+  'utf8',
+);
 const appBootstrapSource = fs.readFileSync(
   'src/app/appBootstrap.ts',
   'utf8',
@@ -201,6 +215,11 @@ assert.doesNotMatch(
 );
 assert.match(marketInspectorSource, /serviceCoverage:[\s\S]*kind: 'marketplace'/);
 assert.match(chapelInspectorSource, /serviceCoverage:[\s\S]*kind: 'chapel'/);
+assert.match(
+  expandedBuildingInspectorSource,
+  /getClaimedResidencesForSpecialtySupplier\(building, 'ale'\)[\s\S]*serviceCoverage:[\s\S]*kind: 'tavern'/,
+  'the Tavern inspector must project the occupied tier-2+ homes actually claimed by its stocked beverage service',
+);
 assert.match(
   inspectorSource,
   /window\.addEventListener\('keydown', this\.onWindowKeyDown\)/,

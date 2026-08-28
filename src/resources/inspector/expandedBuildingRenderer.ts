@@ -910,6 +910,16 @@ export function renderExpandedBuildingInspector(
   context: InspectorRenderContext,
 ): InspectorView {
   const { building } = target;
+  const tavernServiceResidenceIds = building.kind === 'tavern'
+    ? context.worldQueries
+        .getClaimedResidencesForSpecialtySupplier(building, 'ale')
+        .filter((residence) => (
+          residence.tier >= 2
+          && residence.population > 0
+          && !residence.abandoned
+        ))
+        .map((residence) => residence.id)
+    : null;
   const definition = getBuildingDefinition(building.kind);
   const processorStatus = getBuildingProcessorStatus(building, context.worldQueries, {
     matureTrees: target.matureTrees,
@@ -1388,6 +1398,14 @@ export function renderExpandedBuildingInspector(
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     ...(supplementalPanelHtml ? { supplementalPanelHtml } : {}),
+    ...(tavernServiceResidenceIds
+      ? {
+          serviceCoverage: {
+            kind: 'tavern',
+            residenceIds: tavernServiceResidenceIds,
+          },
+        }
+      : {}),
   };
 }
 

@@ -3138,6 +3138,7 @@ function serviceCoverageColor(
   switch (kind) {
     case 'well': return 0x57c9ff;
     case 'chapel': return 0xc89cff;
+    case 'tavern': return 0xff9b3d;
     case 'marketplace':
       switch (marketplaceFulfillment) {
         case 'fulfilled': return 0x62d27b;

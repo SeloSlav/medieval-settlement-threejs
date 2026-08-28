@@ -17,9 +17,9 @@ ATLAS_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_buil
 OUT_BLEND = OUT_DIR / "tier1_residence_textured.blend"
 OUT_GLB = OUT_DIR / "tier1_residence_textured.glb"
 OUT_MANIFEST = OUT_DIR / "tier1_residence_assembly.json"
-OUT_RENDER = RENDER_DIR / "tier1_residence_hero_structural_v8.png"
-OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_structural_v8.png"
-OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_structural_v8.png"
+OUT_RENDER = RENDER_DIR / "tier1_residence_hero_structural_v9.png"
+OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_structural_v9.png"
+OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_structural_v9.png"
 
 WALL_BASE_Z = 0.35
 WALL_HEIGHT = 2.4
@@ -780,6 +780,56 @@ def place_roof_supports() -> None:
             "assembly_custom_roof_tie_beam",
         )
 
+
+def cut_roof_smoke_aperture(smoke_x: float, smoke_y: float, smoke_surface_z: float) -> int:
+    """Boolean a real void through every overlapping shingle layer at the smoke exit."""
+    cutter_mesh = bpy.data.meshes.new("T1_Roof_Smoke_Aperture_Cutter_Mesh")
+    cutter_bmesh = bmesh.new()
+    bmesh.ops.create_cube(cutter_bmesh, size=1.0)
+    cutter_bmesh.to_mesh(cutter_mesh)
+    cutter_bmesh.free()
+    cutter = bpy.data.objects.new("T1_Roof_Smoke_Aperture_Cutter", cutter_mesh)
+    ROOF.objects.link(cutter)
+    cutter.location = (smoke_x, smoke_y, smoke_surface_z)
+    cutter.rotation_euler[1] = PITCH
+    # Local X follows the slope, Y follows the ridge, and local Z passes through
+    # every overlapping shingle box without cutting the inset supporting rafters.
+    cutter.scale = (0.38, 0.40, 0.72)
+    bpy.context.view_layer.update()
+
+    cutter_points = [cutter.matrix_world @ Vector(corner) for corner in cutter.bound_box]
+    cutter_min = Vector(tuple(min(point[axis] for point in cutter_points) for axis in range(3)))
+    cutter_max = Vector(tuple(max(point[axis] for point in cutter_points) for axis in range(3)))
+    cut_count = 0
+    for panel in tuple(ROOF.objects):
+        if panel.type != "MESH" or not panel.name.startswith("T1_Roof_Right_Run"):
+            continue
+        panel_points = [panel.matrix_world @ Vector(corner) for corner in panel.bound_box]
+        panel_min = Vector(tuple(min(point[axis] for point in panel_points) for axis in range(3)))
+        panel_max = Vector(tuple(max(point[axis] for point in panel_points) for axis in range(3)))
+        if any(panel_max[axis] < cutter_min[axis] or panel_min[axis] > cutter_max[axis] for axis in range(3)):
+            continue
+
+        polygon_count_before = len(panel.data.polygons)
+        modifier = panel.modifiers.new("T1_ActualSmokeAperture", "BOOLEAN")
+        modifier.operation = "DIFFERENCE"
+        modifier.solver = "EXACT"
+        modifier.object = cutter
+        bpy.context.view_layer.objects.active = panel
+        panel.select_set(True)
+        bpy.ops.object.modifier_apply(modifier=modifier.name)
+        panel.select_set(False)
+        if len(panel.data.polygons) != polygon_count_before:
+            panel["roof_aperture_id"] = "tier1-smoke-exit"
+            panel["roof_aperture_method"] = "boolean void through overlapping shingle layers"
+            cut_count += 1
+
+    bpy.data.objects.remove(cutter, do_unlink=True)
+    if cut_count == 0:
+        raise RuntimeError("Tier-1 smoke aperture cutter did not intersect any roof panel")
+    return cut_count
+
+
 def place_roof() -> None:
     # Full + half + quarter authored courses form a 4.2 m slope. On a four-metre
     # body this produces a roof-dominant 0.70 m side overhang without stretching geometry.
@@ -788,7 +838,7 @@ def place_roof() -> None:
     runs = tuple(("1m", float(index)) for index in range(8))
     # Small downslope overlaps keep the dark panel substrate from reading as a
     # misplaced batten where the authored full/half/quarter courses meet.
-    slope_courses = (("full", -0.9), ("half", 0.8), ("quarter", 1.68))
+    slope_courses = (("full", -0.82), ("half", 0.8), ("quarter", 1.68))
     for side in (-1.0, 1.0):
         side_name = "Left" if side < 0 else "Right"
         for run_index, (run_token, y) in enumerate(runs):

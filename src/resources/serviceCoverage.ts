@@ -14,7 +14,7 @@ import {
 
 export type ServiceCoverageBuildingKind = Extract<
   BuildingKind,
-  'well' | 'marketplace' | 'chapel'
+  'well' | 'marketplace' | 'chapel' | 'tavern'
 >;
 
 export type ServiceCoverageView = {
@@ -43,6 +43,7 @@ export function serviceCoverageLabel(kind: ServiceCoverageBuildingKind): string 
     case 'well': return 'water service';
     case 'marketplace': return 'market service';
     case 'chapel': return 'church service';
+    case 'tavern': return 'beverage service';
   }
 }
 
