@@ -69,22 +69,22 @@ ATLAS_IMAGES["material"].colorspace_settings.name = "Non-Color"
 
 
 MATERIAL_LOOKS = {
-    "limewash": ("lime-plaster", (0.72, 0.53, 0.30, 1.0), 0.34, 0.48),
+    "limewash": ("lime-plaster", (0.70, 0.52, 0.30, 1.0), 0.45, 0.48),
     "limewash_ochre": ("lime-plaster", (0.64, 0.42, 0.22, 1.0), 0.43, 0.48),
     "limewash_grey": ("lime-plaster", (0.60, 0.60, 0.53, 1.0), 0.30, 0.48),
-    "fieldstone": ("fieldstone-mortar", (0.72, 0.68, 0.56, 1.0), 0.15, 0.72),
+    "fieldstone": ("fieldstone-mortar", (0.56, 0.50, 0.40, 1.0), 0.45, 0.72),
     "quarry_stone": ("quarry-stone", (0.68, 0.67, 0.61, 1.0), 0.16, 0.72),
     "limestone_warm": ("limestone-ashlar", (0.86, 0.76, 0.56, 1.0), 0.18, 0.68),
-    "oak_dark": ("rough-hewn-timber", (0.40, 0.24, 0.12, 1.0), 0.52, 0.62),
+    "oak_dark": ("rough-hewn-timber", (0.25, 0.13, 0.058, 1.0), 0.65, 0.62),
     "timber_weathered": ("weathered-planks", (0.66, 0.49, 0.31, 1.0), 0.28, 0.66),
     "timber_cut": ("sawn-planks", (0.78, 0.54, 0.29, 1.0), 0.22, 0.56),
-    "thatch_dark": ("thatch-roof", (0.49, 0.35, 0.16, 1.0), 0.43, 0.78),
-    "thatch": ("thatch-roof", (0.79, 0.61, 0.29, 1.0), 0.22, 0.78),
-    "thatch_light": ("thatch-roof", (0.96, 0.78, 0.43, 1.0), 0.20, 0.78),
+    "thatch_dark": ("thatch-roof", (0.42, 0.28, 0.10, 1.0), 0.72, 0.78),
+    "thatch": ("thatch-roof", (0.74, 0.52, 0.17, 1.0), 0.62, 0.78),
+    "thatch_light": ("thatch-roof", (0.88, 0.68, 0.28, 1.0), 0.55, 0.78),
     "rope": ("wicker-weave", (0.67, 0.46, 0.22, 1.0), 0.30, 0.58),
     "iron": ("wrought-iron", (0.40, 0.43, 0.44, 1.0), 0.22, 0.54),
     "charcoal": ("wrought-iron", (0.08, 0.075, 0.065, 1.0), 0.70, 0.42),
-    "packed_earth": ("packed-earth", (0.66, 0.53, 0.38, 1.0), 0.14, 0.52),
+    "packed_earth": ("packed-earth", (0.43, 0.35, 0.27, 1.0), 0.52, 0.52),
 }
 
 
@@ -204,6 +204,8 @@ def glass_material() -> bpy.types.Material:
     principled.inputs["Base Color"].default_value = (0.035, 0.065, 0.075, 1.0)
     principled.inputs["Roughness"].default_value = 0.18
     principled.inputs["IOR"].default_value = 1.46
+    principled.inputs["Emission Color"].default_value = (0.20, 0.065, 0.012, 1.0)
+    principled.inputs["Emission Strength"].default_value = 0.34
     transmission = principled.inputs.get("Transmission Weight")
     if transmission is not None:
         transmission.default_value = 0.52
@@ -279,6 +281,8 @@ def place_shell() -> None:
 
     place("gable_infill_plaster_4m", "T1_Gable_Front", WALLS, (0.0, -0.01, WALL_TOP_Z))
     place("gable_infill_plaster_4m", "T1_Gable_Rear", WALLS, (0.0, BUILDING_DEPTH + 0.01, WALL_TOP_Z), math.pi)
+    place("frame_gable_truss_4m", "T1_Gable_Truss_Front", FRAMES, (0.0, -0.165, WALL_TOP_Z))
+    place("frame_gable_truss_4m", "T1_Gable_Truss_Rear", FRAMES, (0.0, BUILDING_DEPTH + 0.165, WALL_TOP_Z), math.pi)
 
     # Joiner posts and wall plates make the modular seams read as a coherent timber frame.
     for x in (-2.0, 0.0, 2.0):

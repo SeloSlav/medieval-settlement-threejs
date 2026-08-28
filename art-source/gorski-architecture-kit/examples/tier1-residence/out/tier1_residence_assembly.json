@@ -230,6 +230,28 @@
       "rotationZDegrees": 180.0
     },
     {
+      "name": "T1_Gable_Truss_Front",
+      "source": "frame_gable_truss_4m",
+      "collection": "T1_04_Frames",
+      "location": [
+        0.0,
+        -0.165,
+        3.05
+      ],
+      "rotationZDegrees": 0.0
+    },
+    {
+      "name": "T1_Gable_Truss_Rear",
+      "source": "frame_gable_truss_4m",
+      "collection": "T1_04_Frames",
+      "location": [
+        0.0,
+        6.165,
+        3.05
+      ],
+      "rotationZDegrees": 180.0
+    },
+    {
       "name": "T1_Post_Front_-2",
       "source": "frame_post_h2p4m_s0p16m",
       "collection": "T1_04_Frames",
