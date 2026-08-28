@@ -205,6 +205,13 @@ The confirmation screen previews:
 
 The confirmation dialog repeats the destination Age, approximate time jump, automatic capstone-tier residence conversion, immediate gentle need increase, major new systems, and any irreversible presentation changes. **Confirm Transition** plays a short chronicle, announcement, or map montage and then enters the new Age; **Cancel** returns to the current Age with readiness preserved. Any required Capstone Project has already been built and commissioned before eligibility, so confirmation never reveals a second project or resource checklist.
 
+Immediately after the new Age loads, show a brief **New Age narrator card** in the same style as the opening card that introduces the Habsburg, Venetian, and other regional context. It contains only two compact notes:
+
+- **The new narrative:** no more than two short sentences explaining the changed historical situation and the settlement's new role.
+- **Where to begin:** no more than three optional icon callouts pairing a key new resource with a useful early building or network. These are suggestions, not objectives or hidden requirements.
+
+The player can dismiss the card immediately and reread it later in the Chronicle.
+
 Age entry should feel soft in simulation terms and strong in presentation:
 
 - every capstone-tier residence automatically advances to the first tier of the new Age, and the remaining residence upgrades and Age-owned build cards unlock;
@@ -660,6 +667,8 @@ The Town Hall should eventually gain a compact **Age** panel showing:
 
 The top-right **Lord’s Profile** is the persistent access point after the player dismisses the initial announcement. It must show an **Age Ready** badge until the transition is used, link to the same Age preview as the Town Hall, and require the same final confirmation dialog. The announcement, Town Hall, and Lord’s Profile are three entrances to one authoritative transition state rather than separate progression systems.
 
+After confirmation, the New Age narrator card provides the short narrative reset and at most three suggested resource/building starting points; it must remain concise and must not become another progression checklist.
+
 A residential redevelopment preview must additionally show:
 
 - every input plot, residence, household, private outbuilding, and stored inventory affected;
@@ -699,7 +708,7 @@ This is a planning order, not an implementation commitment.
 1. **Lock the Croatian Frontier Tier 4 need contract.** Reconcile document drift against the authoritative server and define exactly which currently visible needs must remain satisfied.
 2. **Tune the Completion Cohort.** Playtest map-size floors, minimum occupancy, cap, and the provisional 120-day Maintenance Window.
 3. **Add authoritative Age and residence-tier state.** The server records `historicalAge`, current-Age `ageTier`, qualifying time per dwelling, project stages, commissioning state, and a latched `ageReady` transition entitlement; the client only displays or requests changes.
-4. **Prototype the Age Ready screen.** Preview the time jump, next tier band, upgrade forms, unlocks, mesh changes, stock normalization, and historical chronicle without changing gameplay yet. Provide **Advance Now** and **Stay in This Age**, then expose the preserved transition through the top-right Lord’s Profile and its confirmation dialog.
+4. **Prototype the Age Ready screen.** Preview the time jump, next tier band, upgrade forms, unlocks, mesh changes, stock normalization, and historical chronicle without changing gameplay yet. Provide **Advance Now** and **Stay in This Age**, expose the preserved transition through the top-right Lord’s Profile and its confirmation dialog, then show the brief New Age narrator card after an accepted transition.
 5. **Build the first vertical slice.** Croatian Frontier → The Karolina Road must prove automatic Tier 4→5 in-place conversion, immediate activation of the single copperware need, map and population preservation, the road survey/build system, the Karolina capstone, rakija ownership, legacy non-residential buildings, and the announcement transition.
 6. **Parameterize art and world rules by Age.** Build cards, architecture, props, residents, vehicles, roads, iconography, holidays, hazards, and environmental framing need Age-owned variants.
 7. **Build Age III as the rail-network slice.** Add Tiers 9–12, initial multi-plot terraces/row housing, rail terrain works, timetables, station/freight capstone, industry, municipal services, and acceptance tests.
@@ -729,6 +738,7 @@ This is a planning order, not an implementation commitment.
 - The Age Ready announcement offers **Advance Now** and **Stay in This Age**; choosing to stay preserves the earned transition indefinitely without changing the settlement.
 - An unused earned transition remains visible in the top-right Lord’s Profile and can be initiated there later only through an explicit confirmation dialog.
 - Later shortages, damage, or cohort changes do not revoke an already earned transition entitlement.
+- An accepted transition shows one dismissible New Age narrator card with at most two short narrative sentences and three optional resource/building starting suggestions, and the card remains available in the Chronicle.
 - Confirmation performs a soft time jump, automatically rolls capstone residences into the next tier, activates their gentle new need, and unlocks the remaining residence upgrades and Age-owned build options.
 - Declared visual-only mesh replacements preserve building state and gameplay values exactly.
 - Earlier buildings and roads remain useful and visually present unless the player replaces them.
