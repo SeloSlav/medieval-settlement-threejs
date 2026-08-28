@@ -1131,7 +1131,7 @@
   "buildings": {
     "founders_camp": {
       "label": "Founders' camp",
-      "cost": { "timber": 36, "stone": 12, "gold": 120 },
+      "cost": { "timber": 0, "stone": 0, "gold": 1000 },
       "storage": {
         "total": 1600,
         "timber": 800,
@@ -1236,7 +1236,7 @@
     },
     "lumber_mill": {
       "label": "Lumber mill",
-      "cost": { "timber": 30, "stone": 8 },
+      "cost": { "timber": 30, "stone": 0 },
       "storage": { "total": 50, "timber": 50, "firewood": 0, "stone": 0, "water": 12, "food": 0, "ironwork": 3 },
       "workRadius": 210,
       "pickRadius": 8,
@@ -1253,7 +1253,7 @@
     },
     "reforester": {
       "label": "Reforester",
-      "cost": { "timber": 35, "stone": 10 },
+      "cost": { "timber": 35, "stone": 0 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "food": 0 },
       "workRadius": 190,
       "pickRadius": 8,
@@ -1270,7 +1270,7 @@
     },
     "woodcutters_lodge": {
       "label": "Woodcutter's lodge",
-      "cost": { "timber": 24, "stone": 6 },
+      "cost": { "timber": 24, "stone": 0 },
       "storage": { "total": 50, "timber": 24, "firewood": 50, "stone": 0, "food": 0, "ironwork": 3 },
       "workRadius": 0,
       "pickRadius": 8,
@@ -1287,7 +1287,7 @@
     },
     "stone_quarry": {
       "label": "Mining Camp",
-      "cost": { "timber": 18, "stone": 14 },
+      "cost": { "timber": 18, "stone": 0 },
       "storage": { "total": 120, "timber": 0, "firewood": 0, "stone": 60, "food": 0, "ironwork": 3, "iron": 60, "salt": 40, "clay": 60 },
       "workRadius": 80,
       "pickRadius": 10,
@@ -1304,7 +1304,7 @@
     },
     "large_quarry": {
       "label": "Quarry",
-      "cost": { "timber": 90, "stone": 70 },
+      "cost": { "timber": 90, "stone": 0 },
       "storage": { "total": 100, "timber": 12, "firewood": 0, "stone": 100, "food": 0, "ironwork": 3 },
       "workRadius": 0,
       "pickRadius": 13,
@@ -1321,7 +1321,7 @@
     },
     "mine": {
       "label": "Mineworks",
-      "cost": { "timber": 60, "stone": 45 },
+      "cost": { "timber": 60, "stone": 0 },
       "storage": { "total": 150, "timber": 12, "firewood": 0, "stone": 0, "ironwork": 3, "iron": 75, "salt": 50, "clay": 75 },
       "workRadius": 0,
       "pickRadius": 11,
@@ -1338,7 +1338,7 @@
     },
     "clay_pit": {
       "label": "Clay pit",
-      "cost": { "timber": 24, "stone": 8 },
+      "cost": { "timber": 24, "stone": 0 },
       "storage": { "total": 60, "timber": 0, "firewood": 0, "stone": 0, "clay": 60, "ironwork": 3 },
       "workRadius": 0,
       "pickRadius": 10,
@@ -1357,7 +1357,7 @@
     },
     "charcoal_burner": {
       "label": "Charcoal burner's yard",
-      "cost": { "timber": 30, "stone": 10 },
+      "cost": { "timber": 30, "stone": 0 },
       "storage": { "total": 50, "timber": 0, "firewood": 30, "stone": 0, "charcoal": 40 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1376,7 +1376,7 @@
     },
     "smithy": {
       "label": "Smithy",
-      "cost": { "timber": 42, "stone": 38 },
+      "cost": { "timber": 42, "stone": 0 },
       "storage": { "total": 75, "timber": 0, "firewood": 0, "stone": 0, "water": 9, "iron": 30, "charcoal": 20, "ironwork": 50 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1395,7 +1395,7 @@
     },
     "potter_kiln": {
       "label": "Potter's kiln",
-      "cost": { "timber": 36, "stone": 24 },
+      "cost": { "timber": 36, "stone": 0 },
       "storage": { "total": 100, "timber": 0, "firewood": 18, "stone": 0, "water": 9, "clay": 36, "pottery": 60, "roofTiles": 60 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1431,7 +1431,7 @@
     },
     "hunters_hall": {
       "label": "Hunter's hall",
-      "cost": { "timber": 30, "stone": 10 },
+      "cost": { "timber": 30, "stone": 0 },
       "storage": { "total": 75, "timber": 0, "firewood": 0, "stone": 0, "food": 50, "pelts": 30 },
       "workRadius": 68,
       "pickRadius": 9,
@@ -1448,7 +1448,7 @@
     },
     "foragers_shed": {
       "label": "Forager's shed",
-      "cost": { "timber": 20, "stone": 4 },
+      "cost": { "timber": 20, "stone": 0 },
       "storage": { "total": 60, "timber": 0, "firewood": 0, "stone": 0, "food": 45, "remedies": 18 },
       "workRadius": 48,
       "pickRadius": 8,
@@ -1465,7 +1465,7 @@
     },
     "fishing_camp": {
       "label": "Fishing camp",
-      "cost": { "timber": 24, "stone": 6 },
+      "cost": { "timber": 24, "stone": 0 },
       "storage": { "total": 60, "timber": 0, "firewood": 0, "stone": 0, "food": 60 },
       "workRadius": 64,
       "pickRadius": 9,
@@ -1485,7 +1485,7 @@
     },
     "chapel": {
       "label": "Church",
-      "cost": { "timber": 24, "stone": 2 },
+      "cost": { "timber": 24, "stone": 24 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 0, "food": 0 },
       "workRadius": 0,
       "pickRadius": 10,
@@ -1519,7 +1519,7 @@
     },
     "marketplace": {
       "label": "Marketplace",
-      "cost": { "timber": 32, "stone": 26 },
+      "cost": { "timber": 32, "stone": 0 },
       "storage": { "total": 400, "timber": 0, "firewood": 80, "stone": 0, "water": 0, "food": 96, "preservedFood": 120, "grain": 96, "barley": 0, "ale": 120, "honey": 48, "wax": 96, "candles": 96, "wine": 72, "cloth": 120, "hides": 80, "leather": 96, "shoes": 96, "ironwork": 0, "iron": 0, "salt": 0, "charcoal": 80, "pottery": 96, "remedies": 48 },
       "workRadius": 0,
       "pickRadius": 8,
@@ -1536,7 +1536,7 @@
     },
     "trading_post": {
       "label": "Trading Post",
-      "cost": { "timber": 64, "stone": 42 },
+      "cost": { "timber": 64, "stone": 0 },
       "storage": { "total": 600, "timber": 180, "firewood": 120, "stone": 180, "water": 72, "food": 160, "preservedFood": 120, "grain": 120, "barley": 120, "malt": 120, "flax": 120, "flour": 120, "ale": 180, "cider": 180, "pearCider": 180, "honey": 140, "wax": 160, "candles": 160, "wine": 160, "wool": 120, "yarn": 160, "linen": 160, "cloth": 160, "pelts": 160, "hides": 160, "leather": 160, "shoes": 160, "ironwork": 96, "polearms": 48, "iron": 96, "clay": 120, "salt": 120, "charcoal": 120, "pottery": 144, "roofTiles": 120, "manure": 160, "remedies": 72 },
       "workRadius": 0,
       "pickRadius": 10,
@@ -1553,7 +1553,7 @@
     },
     "town_hall": {
       "label": "Town Hall",
-      "cost": { "timber": 88, "stone": 96 },
+      "cost": { "timber": 88, "stone": 0 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 0, "food": 0 },
       "workRadius": 0,
       "pickRadius": 11,
@@ -1570,7 +1570,7 @@
     },
     "stable": {
       "label": "Stable",
-      "cost": { "timber": 36, "stone": 12 },
+      "cost": { "timber": 36, "stone": 0 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 0, "food": 0 },
       "workRadius": 0,
       "pickRadius": 8,
@@ -1589,7 +1589,7 @@
     },
     "village_storehouse": {
       "label": "Storehouse",
-      "cost": { "timber": 54, "stone": 28 },
+      "cost": { "timber": 54, "stone": 0 },
       "storage": {
         "total": 2500,
         "timber": 2500,
@@ -1629,7 +1629,7 @@
     },
     "watchtower": {
       "label": "Frontier watchtower",
-      "cost": { "timber": 48, "stone": 18 },
+      "cost": { "timber": 48, "stone": 0 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 0, "food": 0 },
       "workRadius": 190,
       "pickRadius": 8,
@@ -1648,7 +1648,7 @@
     },
     "guardhouse": {
       "label": "Frontier guardhouse",
-      "cost": { "timber": 64, "stone": 32 },
+      "cost": { "timber": 64, "stone": 0 },
       "storage": { "total": 80, "timber": 0, "firewood": 0, "stone": 0, "food": 60, "polearms": 12 },
       "workRadius": 0,
       "pickRadius": 10,
@@ -1667,7 +1667,7 @@
     },
     "palisaded_refuge": {
       "label": "Palisaded refuge",
-      "cost": { "timber": 72, "stone": 30 },
+      "cost": { "timber": 72, "stone": 0 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 0, "food": 0 },
       "workRadius": 68,
       "pickRadius": 11,
@@ -1686,7 +1686,7 @@
     },
     "threshing_barn": {
       "label": "Farmstead and threshing barn",
-      "cost": { "timber": 44, "stone": 16 },
+      "cost": { "timber": 44, "stone": 0 },
       "storage": { "total": 200, "timber": 0, "firewood": 0, "stone": 0, "grain": 120, "barley": 90, "flax": 90, "manure": 60, "ironwork": 3 },
       "workRadius": 250,
       "pickRadius": 9,
@@ -1705,7 +1705,7 @@
     },
     "pastoral_farmstead": {
       "label": "Pastoral farmstead",
-      "cost": { "timber": 40, "stone": 20 },
+      "cost": { "timber": 40, "stone": 0 },
       "storage": { "total": 250, "timber": 0, "firewood": 0, "stone": 0, "water": 48, "food": 80, "grain": 100, "salt": 12, "preservedFood": 50, "wool": 80, "manure": 100, "animalFeed": 100 },
       "workRadius": 110,
       "pickRadius": 10,
@@ -1724,7 +1724,7 @@
     },
     "swineherd": {
       "label": "Woodland swineherd",
-      "cost": { "timber": 34, "stone": 10 },
+      "cost": { "timber": 34, "stone": 0 },
       "storage": { "total": 180, "timber": 0, "firewood": 0, "stone": 0, "water": 36, "food": 80, "grain": 80, "animalFeed": 80 },
       "workRadius": 120,
       "pickRadius": 9,
@@ -1762,7 +1762,7 @@
     },
     "brewery": {
       "label": "Brewhouse",
-      "cost": { "timber": 48, "stone": 36 },
+      "cost": { "timber": 48, "stone": 0 },
       "storage": { "total": 150, "timber": 0, "firewood": 24, "stone": 0, "water": 60, "food": 40, "barley": 48, "malt": 36, "ale": 72, "cider": 72, "pearCider": 72, "mead": 72, "honey": 36 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1780,7 +1780,7 @@
     },
     "tavern": {
       "label": "Tavern",
-      "cost": { "timber": 42, "stone": 28 },
+      "cost": { "timber": 42, "stone": 0 },
       "storage": { "total": 120, "timber": 0, "firewood": 0, "stone": 0, "ale": 60, "cider": 60, "pearCider": 60, "mead": 60 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1799,7 +1799,7 @@
     },
     "smokehouse": {
       "label": "Smokehouse",
-      "cost": { "timber": 34, "stone": 22 },
+      "cost": { "timber": 34, "stone": 0 },
       "storage": { "total": 100, "timber": 0, "firewood": 20, "stone": 0, "food": 48, "salt": 12, "pottery": 6, "preservedFood": 60 },
       "workRadius": 0,
       "pickRadius": 8,
@@ -1817,7 +1817,7 @@
     },
     "granary": {
       "label": "Granary",
-      "cost": { "timber": 50, "stone": 28 },
+      "cost": { "timber": 50, "stone": 0 },
       "storage": { "total": 2500, "timber": 0, "firewood": 0, "stone": 0, "grain": 2500, "barley": 2500, "flax": 2500, "flour": 2500, "food": 2500, "preservedFood": 2500, "honey": 2500, "ale": 2500, "cider": 2500, "pearCider": 2500, "mead": 2500, "wine": 2500 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1835,7 +1835,7 @@
     },
     "bakery": {
       "label": "Village bakery",
-      "cost": { "timber": 36, "stone": 30 },
+      "cost": { "timber": 36, "stone": 0 },
       "storage": { "total": 80, "timber": 0, "firewood": 18, "stone": 0, "water": 24, "flour": 36, "food": 48 },
       "workRadius": 0,
       "pickRadius": 8,
@@ -1853,7 +1853,7 @@
     },
     "apiary": {
       "label": "Forest apiary",
-      "cost": { "timber": 22, "stone": 6 },
+      "cost": { "timber": 22, "stone": 0 },
       "storage": { "total": 60, "timber": 0, "firewood": 0, "stone": 0, "food": 20, "honey": 45, "wax": 12 },
       "workRadius": 48,
       "pickRadius": 7,
@@ -1871,7 +1871,7 @@
     },
     "watermill": {
       "label": "Grain watermill",
-      "cost": { "timber": 58, "stone": 42 },
+      "cost": { "timber": 58, "stone": 0 },
       "storage": { "total": 100, "timber": 0, "firewood": 0, "stone": 0, "water": 24, "grain": 48, "flour": 60, "ironwork": 3 },
       "workRadius": 0,
       "pickRadius": 10,
@@ -1889,7 +1889,7 @@
     },
     "windmill": {
       "label": "Grain windmill",
-      "cost": { "timber": 64, "stone": 58 },
+      "cost": { "timber": 64, "stone": 0 },
       "storage": { "total": 90, "timber": 0, "firewood": 0, "stone": 0, "grain": 42, "flour": 54, "ironwork": 3 },
       "workRadius": 0,
       "pickRadius": 11,
@@ -1907,7 +1907,7 @@
     },
     "carpenter": {
       "label": "Carpenter and wheelwright",
-      "cost": { "timber": 52, "stone": 20 },
+      "cost": { "timber": 52, "stone": 0 },
       "storage": { "total": 80, "timber": 48, "firewood": 0, "stone": 0, "ironwork": 12, "polearms": 24 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1925,7 +1925,7 @@
     },
     "spinning_retting_house": {
       "label": "Spinning & Retting House",
-      "cost": { "timber": 36, "stone": 14 },
+      "cost": { "timber": 36, "stone": 0 },
       "storage": { "total": 120, "timber": 0, "firewood": 0, "stone": 0, "water": 18, "wool": 48, "flax": 48, "yarn": 48, "linen": 48 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1944,7 +1944,7 @@
     },
     "weaver": {
       "label": "Weaver's workshop",
-      "cost": { "timber": 38, "stone": 16 },
+      "cost": { "timber": 38, "stone": 0 },
       "storage": { "total": 80, "timber": 0, "firewood": 0, "stone": 0, "yarn": 36, "linen": 36, "cloth": 48 },
       "workRadius": 0,
       "pickRadius": 8,
@@ -1963,7 +1963,7 @@
     },
     "tannery": {
       "label": "Tannery",
-      "cost": { "timber": 40, "stone": 18 },
+      "cost": { "timber": 40, "stone": 0 },
       "storage": { "total": 80, "timber": 0, "firewood": 12, "stone": 0, "water": 18, "hides": 36, "leather": 48 },
       "workRadius": 0,
       "pickRadius": 9,
@@ -1982,7 +1982,7 @@
     },
     "cobbler": {
       "label": "Cobbler's workshop",
-      "cost": { "timber": 34, "stone": 16 },
+      "cost": { "timber": 34, "stone": 0 },
       "storage": { "total": 60, "timber": 0, "firewood": 0, "stone": 0, "leather": 30, "shoes": 36 },
       "workRadius": 0,
       "pickRadius": 8,
@@ -2001,7 +2001,7 @@
     },
     "chandlery": {
       "label": "Chandlery",
-      "cost": { "timber": 34, "stone": 16 },
+      "cost": { "timber": 34, "stone": 0 },
       "storage": { "total": 60, "timber": 0, "firewood": 12, "stone": 0, "wax": 24, "candles": 36 },
       "workRadius": 0,
       "pickRadius": 8,

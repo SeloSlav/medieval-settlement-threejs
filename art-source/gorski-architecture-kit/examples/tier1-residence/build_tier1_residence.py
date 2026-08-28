@@ -17,9 +17,9 @@ ATLAS_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_buil
 OUT_BLEND = OUT_DIR / "tier1_residence_textured.blend"
 OUT_GLB = OUT_DIR / "tier1_residence_textured.glb"
 OUT_MANIFEST = OUT_DIR / "tier1_residence_assembly.json"
-OUT_RENDER = RENDER_DIR / "tier1_residence_hero_structural_v9.png"
-OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_structural_v9.png"
-OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_structural_v9.png"
+OUT_RENDER = RENDER_DIR / "tier1_residence_hero_structural_v13.png"
+OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_structural_v13.png"
+OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_structural_v13.png"
 
 WALL_BASE_Z = 0.35
 WALL_HEIGHT = 2.4
@@ -29,6 +29,8 @@ PITCH = math.radians(50.0)
 SLOPE_LENGTH = 4.2
 SLOPE_MAX = SLOPE_LENGTH / 2.0
 ROOF_BEARING_X = 2.0
+SMOKE_APERTURE_X = 0.72
+SMOKE_APERTURE_Y = 5.05
 # The roof must meet the wall plate at the four-metre body edge. The additional
 # 0.70 m of horizontal roof projection is a true low eave, not an air gap.
 RIDGE_Z = WALL_TOP_Z + ROOF_BEARING_X * math.tan(PITCH)
@@ -788,7 +790,7 @@ def cut_roof_smoke_aperture(smoke_x: float, smoke_y: float, smoke_surface_z: flo
     half_slope = 0.20
     half_run = 0.21
     cut_panel_count = 0
-    nearest_components: list[tuple[float, str, float, float, tuple[float, float, float]]] = []
+    bpy.context.view_layer.update()
     for panel in tuple(ROOF.objects):
         if panel.type != "MESH" or not panel.name.startswith("T1_Roof_Right_Run"):
             continue
@@ -812,18 +814,6 @@ def cut_roof_smoke_aperture(smoke_x: float, smoke_y: float, smoke_surface_z: flo
             world_points = [panel.matrix_world @ vertex.co for vertex in component_vertices]
             slope_coordinates = [(point - aperture_center).dot(downslope) for point in world_points]
             run_coordinates = [point.y - smoke_y for point in world_points]
-            component_center = sum(world_points, Vector()) / len(world_points)
-            center_slope = (component_center - aperture_center).dot(downslope)
-            center_run = component_center.y - smoke_y
-            nearest_components.append(
-                (
-                    abs(center_slope) + abs(center_run),
-                    panel.name,
-                    center_slope,
-                    center_run,
-                    tuple(round(value, 4) for value in component_center),
-                )
-            )
             overlaps_slope = max(slope_coordinates) >= -half_slope and min(slope_coordinates) <= half_slope
             overlaps_run = max(run_coordinates) >= -half_run and min(run_coordinates) <= half_run
             if overlaps_slope and overlaps_run:
@@ -839,9 +829,37 @@ def cut_roof_smoke_aperture(smoke_x: float, smoke_y: float, smoke_surface_z: flo
         bm.free()
 
     if cut_panel_count == 0:
-        print("T1_SMOKE_APERTURE_NEAREST_COMPONENTS", sorted(nearest_components)[:12])
         raise RuntimeError("Tier-1 smoke aperture did not intersect any roof shingle solids")
     return cut_panel_count
+
+
+def keep_lowest_shingle_row(panel: bpy.types.Object) -> None:
+    """Reduce a quarter panel to its lowest authored row for a natural seam cover."""
+    bm = bmesh.new()
+    bm.from_mesh(panel.data)
+    remaining_faces = set(bm.faces)
+    vertices_to_remove = set()
+    while remaining_faces:
+        seed = remaining_faces.pop()
+        component_faces = {seed}
+        frontier = [seed]
+        while frontier:
+            face = frontier.pop()
+            for edge in face.edges:
+                for neighbour in edge.link_faces:
+                    if neighbour in remaining_faces:
+                        remaining_faces.remove(neighbour)
+                        component_faces.add(neighbour)
+                        frontier.append(neighbour)
+        component_vertices = {vertex for face in component_faces for vertex in face.verts}
+        centre_y = sum(vertex.co.y for vertex in component_vertices) / len(component_vertices)
+        if centre_y > -0.05:
+            vertices_to_remove.update(component_vertices)
+    if vertices_to_remove:
+        bmesh.ops.delete(bm, geom=list(vertices_to_remove), context="VERTS")
+    bm.to_mesh(panel.data)
+    panel.data.update()
+    bm.free()
 
 
 def place_roof() -> None:
@@ -875,6 +893,31 @@ def place_roof() -> None:
                 # false surface beam at every course junction.
                 remove_instance_material_geometry(panel, "oak_dark")
                 settle_roof_module(panel, run_index, side)
+
+    # A single authored shingle row laps across the full/half module boundary. It
+    # conceals the otherwise ruler-straight joint that reads as an exposed purlin.
+    seam_panel_centre = -0.17
+    seam_relief = 0.024
+    for side in (-1.0, 1.0):
+        side_name = "Left" if side < 0 else "Right"
+        for run_index, (run_token, y) in enumerate(runs):
+            cover_y = y + (0.30 if run_index == 0 else 0.0)
+            (x, z), rotation = roof_transform(side, seam_panel_centre)
+            x += side * math.sin(PITCH) * seam_relief
+            z += math.cos(PITCH) * seam_relief
+            cover = place(
+                f"roof_shingle_panel_{run_token}_quarter",
+                f"T1_RoofOverlapCourse_{side_name}_Run{run_index:02d}",
+                ROOF,
+                (x, cover_y, z),
+                rotation,
+            )
+            remove_instance_material_geometry(cover, "oak_dark")
+            keep_lowest_shingle_row(cover)
+            cover["source_component_id"] = "assembly_custom_shingle_overlap_course"
+            cover["assembly_role"] = "roof-course-junction"
+            PLACEMENTS[-1]["source"] = "assembly_custom_shingle_overlap_course"
+            settle_roof_module(cover, run_index, side)
 
     eave_x = SLOPE_MAX * 2.0 * math.cos(PITCH)
     eave_z = RIDGE_Z - SLOPE_MAX * 2.0 * math.sin(PITCH)
@@ -918,10 +961,6 @@ def place_roof() -> None:
 
     # A Tier-1 smoke exit is an actual void through the shingles. Runtime owns the emitted
     # smoke; no surface decal, projecting hood, cap, or later-tier chimney is authored.
-    smoke_x = 0.72
-    smoke_y = 5.35
-    smoke_surface_z = RIDGE_Z - smoke_x * math.tan(PITCH) + roof_drop_interpolated(smoke_y, 1.0)
-    cut_roof_smoke_aperture(smoke_x, smoke_y, smoke_surface_z)
     place_roof_supports()
 
 
@@ -1133,6 +1172,12 @@ def main() -> None:
     place_roof()
     place_fixed_architecture()
     remove_source_library_objects()
+    smoke_surface_z = (
+        RIDGE_Z
+        - SMOKE_APERTURE_X * math.tan(PITCH)
+        + roof_drop_interpolated(SMOKE_APERTURE_Y, 1.0)
+    )
+    cut_roof_smoke_aperture(SMOKE_APERTURE_X, SMOKE_APERTURE_Y, smoke_surface_z)
     add_preview_staging()
     stage_render()
     scene = bpy.context.scene

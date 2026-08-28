@@ -183,8 +183,7 @@ assert.equal(BUILDING_DEFINITIONS.palisaded_refuge.acceptsLabor, false);
 assert.equal(BUILDING_DEFINITIONS.palisaded_refuge.workRadius, 68);
 assert.deepEqual(BUILDING_COSTS.palisaded_refuge, {
   timber: 72,
-  stone: 30,
-  ironwork: 4,
+  stone: 0,
 });
 
 const activeRaid = syncActiveRaid(

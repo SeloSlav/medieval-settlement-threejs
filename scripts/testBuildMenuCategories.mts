@@ -36,7 +36,23 @@ import {
 } from '../src/ui/resourceCost.ts';
 import { isConstructionResourceShortfallMessage } from '../src/ui/toastMessages.ts';
 import { resolveTooltipPosition } from '../src/ui/tooltips.ts';
-import { BUILDING_DEFINITIONS } from '../src/generated/gameBalance.ts';
+import { BUILDING_COSTS, BUILDING_DEFINITIONS } from '../src/generated/gameBalance.ts';
+
+const STONE_BUILDING_KINDS = new Set(['chapel', 'monastery', 'well', 'wayside_shrine']);
+
+assert.deepEqual(BUILDING_COSTS.founders_camp, {
+  timber: 0,
+  stone: 0,
+  gold: 1_000,
+});
+assert.equal(BUILDING_COSTS.chapel.stone, 24);
+for (const [kind, cost] of Object.entries(BUILDING_COSTS)) {
+  assert.equal(
+    cost.stone > 0,
+    STONE_BUILDING_KINDS.has(kind),
+    `${kind} must ${STONE_BUILDING_KINDS.has(kind) ? '' : 'not '}have a stone construction cost`,
+  );
+}
 
 assert.deepEqual(keys(CIVIC_BUILD_MENU_ENTRIES), [
   'residences', 'well', 'stable', 'founders_camp', 'chapel', 'wayside_shrine', 'dry_stone_wall', 'monastery', 'marketplace', 'tavern', 'trading_post', 'town_hall',

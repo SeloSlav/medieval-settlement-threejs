@@ -36,8 +36,8 @@ assert.equal(LEATHER_TRANSFER_PER_TRIP, 12);
 assert.equal(RESIDENCE_SHOES_CAPACITY, 6);
 assert.ok(RESIDENCE_SHOES_PER_PERSON_PER_SEC > 0);
 
-assert.deepEqual(BUILDING_COSTS.tannery, { timber: 40, stone: 18 });
-assert.deepEqual(BUILDING_COSTS.cobbler, { timber: 34, stone: 16 });
+assert.deepEqual(BUILDING_COSTS.tannery, { timber: 40, stone: 0 });
+assert.deepEqual(BUILDING_COSTS.cobbler, { timber: 34, stone: 0 });
 assert.deepEqual(BUILDING_STORAGE_CAPS.tannery, {
   timber: 0, firewood: 12, stone: 0, total: 80, water: 18, hides: 36, leather: 48,
 });

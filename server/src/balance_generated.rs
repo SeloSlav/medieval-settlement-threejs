@@ -987,9 +987,9 @@ pub struct BuildingDef {
 
 const FOUNDERS_CAMP: BuildingDef = BuildingDef {
     kind: "founders_camp",
-    cost_timber: 36.0,
-    cost_stone: 12.0,
-    cost_gold: 120.0,
+    cost_timber: 0.0,
+    cost_stone: 0.0,
+    cost_gold: 1000.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
     storage_total: 1600.0,
@@ -1112,7 +1112,7 @@ const SALVAGE_PILE: BuildingDef = BuildingDef {
 const LUMBER_MILL: BuildingDef = BuildingDef {
     kind: "lumber_mill",
     cost_timber: 30.0,
-    cost_stone: 8.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -1174,7 +1174,7 @@ const LUMBER_MILL: BuildingDef = BuildingDef {
 const REFORESTER: BuildingDef = BuildingDef {
     kind: "reforester",
     cost_timber: 35.0,
-    cost_stone: 10.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -1236,7 +1236,7 @@ const REFORESTER: BuildingDef = BuildingDef {
 const WOODCUTTERS_LODGE: BuildingDef = BuildingDef {
     kind: "woodcutters_lodge",
     cost_timber: 24.0,
-    cost_stone: 6.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -1298,7 +1298,7 @@ const WOODCUTTERS_LODGE: BuildingDef = BuildingDef {
 const STONE_QUARRY: BuildingDef = BuildingDef {
     kind: "stone_quarry",
     cost_timber: 18.0,
-    cost_stone: 14.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -1360,7 +1360,7 @@ const STONE_QUARRY: BuildingDef = BuildingDef {
 const LARGE_QUARRY: BuildingDef = BuildingDef {
     kind: "large_quarry",
     cost_timber: 90.0,
-    cost_stone: 70.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -1422,7 +1422,7 @@ const LARGE_QUARRY: BuildingDef = BuildingDef {
 const MINE: BuildingDef = BuildingDef {
     kind: "mine",
     cost_timber: 60.0,
-    cost_stone: 45.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -1484,7 +1484,7 @@ const MINE: BuildingDef = BuildingDef {
 const CLAY_PIT: BuildingDef = BuildingDef {
     kind: "clay_pit",
     cost_timber: 24.0,
-    cost_stone: 8.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -1546,7 +1546,7 @@ const CLAY_PIT: BuildingDef = BuildingDef {
 const CHARCOAL_BURNER: BuildingDef = BuildingDef {
     kind: "charcoal_burner",
     cost_timber: 30.0,
-    cost_stone: 10.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -1608,7 +1608,7 @@ const CHARCOAL_BURNER: BuildingDef = BuildingDef {
 const SMITHY: BuildingDef = BuildingDef {
     kind: "smithy",
     cost_timber: 42.0,
-    cost_stone: 38.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -1670,7 +1670,7 @@ const SMITHY: BuildingDef = BuildingDef {
 const POTTER_KILN: BuildingDef = BuildingDef {
     kind: "potter_kiln",
     cost_timber: 36.0,
-    cost_stone: 24.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -1794,7 +1794,7 @@ const WELL: BuildingDef = BuildingDef {
 const HUNTERS_HALL: BuildingDef = BuildingDef {
     kind: "hunters_hall",
     cost_timber: 30.0,
-    cost_stone: 10.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -1856,7 +1856,7 @@ const HUNTERS_HALL: BuildingDef = BuildingDef {
 const FORAGERS_SHED: BuildingDef = BuildingDef {
     kind: "foragers_shed",
     cost_timber: 20.0,
-    cost_stone: 4.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -1918,7 +1918,7 @@ const FORAGERS_SHED: BuildingDef = BuildingDef {
 const FISHING_CAMP: BuildingDef = BuildingDef {
     kind: "fishing_camp",
     cost_timber: 24.0,
-    cost_stone: 6.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -1980,7 +1980,7 @@ const FISHING_CAMP: BuildingDef = BuildingDef {
 const CHAPEL: BuildingDef = BuildingDef {
     kind: "chapel",
     cost_timber: 24.0,
-    cost_stone: 2.0,
+    cost_stone: 24.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -2104,7 +2104,7 @@ const WAYSIDE_SHRINE: BuildingDef = BuildingDef {
 const MARKETPLACE: BuildingDef = BuildingDef {
     kind: "marketplace",
     cost_timber: 32.0,
-    cost_stone: 26.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -2166,7 +2166,7 @@ const MARKETPLACE: BuildingDef = BuildingDef {
 const TRADING_POST: BuildingDef = BuildingDef {
     kind: "trading_post",
     cost_timber: 64.0,
-    cost_stone: 42.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -2228,7 +2228,7 @@ const TRADING_POST: BuildingDef = BuildingDef {
 const TOWN_HALL: BuildingDef = BuildingDef {
     kind: "town_hall",
     cost_timber: 88.0,
-    cost_stone: 96.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -2290,7 +2290,7 @@ const TOWN_HALL: BuildingDef = BuildingDef {
 const STABLE: BuildingDef = BuildingDef {
     kind: "stable",
     cost_timber: 36.0,
-    cost_stone: 12.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -2352,7 +2352,7 @@ const STABLE: BuildingDef = BuildingDef {
 const VILLAGE_STOREHOUSE: BuildingDef = BuildingDef {
     kind: "village_storehouse",
     cost_timber: 54.0,
-    cost_stone: 28.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -2414,7 +2414,7 @@ const VILLAGE_STOREHOUSE: BuildingDef = BuildingDef {
 const WATCHTOWER: BuildingDef = BuildingDef {
     kind: "watchtower",
     cost_timber: 48.0,
-    cost_stone: 18.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -2476,7 +2476,7 @@ const WATCHTOWER: BuildingDef = BuildingDef {
 const GUARDHOUSE: BuildingDef = BuildingDef {
     kind: "guardhouse",
     cost_timber: 64.0,
-    cost_stone: 32.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -2538,7 +2538,7 @@ const GUARDHOUSE: BuildingDef = BuildingDef {
 const PALISADED_REFUGE: BuildingDef = BuildingDef {
     kind: "palisaded_refuge",
     cost_timber: 72.0,
-    cost_stone: 30.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -2600,7 +2600,7 @@ const PALISADED_REFUGE: BuildingDef = BuildingDef {
 const THRESHING_BARN: BuildingDef = BuildingDef {
     kind: "threshing_barn",
     cost_timber: 44.0,
-    cost_stone: 16.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -2662,7 +2662,7 @@ const THRESHING_BARN: BuildingDef = BuildingDef {
 const PASTORAL_FARMSTEAD: BuildingDef = BuildingDef {
     kind: "pastoral_farmstead",
     cost_timber: 40.0,
-    cost_stone: 20.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -2724,7 +2724,7 @@ const PASTORAL_FARMSTEAD: BuildingDef = BuildingDef {
 const SWINEHERD: BuildingDef = BuildingDef {
     kind: "swineherd",
     cost_timber: 34.0,
-    cost_stone: 10.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -2848,7 +2848,7 @@ const MONASTERY: BuildingDef = BuildingDef {
 const BREWERY: BuildingDef = BuildingDef {
     kind: "brewery",
     cost_timber: 48.0,
-    cost_stone: 36.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -2910,7 +2910,7 @@ const BREWERY: BuildingDef = BuildingDef {
 const TAVERN: BuildingDef = BuildingDef {
     kind: "tavern",
     cost_timber: 42.0,
-    cost_stone: 28.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -2972,7 +2972,7 @@ const TAVERN: BuildingDef = BuildingDef {
 const SMOKEHOUSE: BuildingDef = BuildingDef {
     kind: "smokehouse",
     cost_timber: 34.0,
-    cost_stone: 22.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -3034,7 +3034,7 @@ const SMOKEHOUSE: BuildingDef = BuildingDef {
 const GRANARY: BuildingDef = BuildingDef {
     kind: "granary",
     cost_timber: 50.0,
-    cost_stone: 28.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -3096,7 +3096,7 @@ const GRANARY: BuildingDef = BuildingDef {
 const BAKERY: BuildingDef = BuildingDef {
     kind: "bakery",
     cost_timber: 36.0,
-    cost_stone: 30.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -3158,7 +3158,7 @@ const BAKERY: BuildingDef = BuildingDef {
 const APIARY: BuildingDef = BuildingDef {
     kind: "apiary",
     cost_timber: 22.0,
-    cost_stone: 6.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -3220,7 +3220,7 @@ const APIARY: BuildingDef = BuildingDef {
 const WATERMILL: BuildingDef = BuildingDef {
     kind: "watermill",
     cost_timber: 58.0,
-    cost_stone: 42.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -3282,7 +3282,7 @@ const WATERMILL: BuildingDef = BuildingDef {
 const WINDMILL: BuildingDef = BuildingDef {
     kind: "windmill",
     cost_timber: 64.0,
-    cost_stone: 58.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -3344,7 +3344,7 @@ const WINDMILL: BuildingDef = BuildingDef {
 const CARPENTER: BuildingDef = BuildingDef {
     kind: "carpenter",
     cost_timber: 52.0,
-    cost_stone: 20.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -3406,7 +3406,7 @@ const CARPENTER: BuildingDef = BuildingDef {
 const SPINNING_RETTING_HOUSE: BuildingDef = BuildingDef {
     kind: "spinning_retting_house",
     cost_timber: 36.0,
-    cost_stone: 14.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -3468,7 +3468,7 @@ const SPINNING_RETTING_HOUSE: BuildingDef = BuildingDef {
 const WEAVER: BuildingDef = BuildingDef {
     kind: "weaver",
     cost_timber: 38.0,
-    cost_stone: 16.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -3530,7 +3530,7 @@ const WEAVER: BuildingDef = BuildingDef {
 const TANNERY: BuildingDef = BuildingDef {
     kind: "tannery",
     cost_timber: 40.0,
-    cost_stone: 18.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -3592,7 +3592,7 @@ const TANNERY: BuildingDef = BuildingDef {
 const COBBLER: BuildingDef = BuildingDef {
     kind: "cobbler",
     cost_timber: 34.0,
-    cost_stone: 16.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
@@ -3654,7 +3654,7 @@ const COBBLER: BuildingDef = BuildingDef {
 const CHANDLERY: BuildingDef = BuildingDef {
     kind: "chandlery",
     cost_timber: 34.0,
-    cost_stone: 16.0,
+    cost_stone: 0.0,
     cost_gold: 0.0,
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,

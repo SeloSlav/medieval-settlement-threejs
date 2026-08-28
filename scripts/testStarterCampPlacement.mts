@@ -64,14 +64,14 @@ assert.deepEqual(
 
 assert.deepEqual(
   BUILDING_COSTS.founders_camp,
-  { timber: 36, stone: 12, gold: 120 },
+  { timber: 0, stone: 0, gold: 1_000 },
   'later founders camps should carry their authored expansion cost',
 );
 const expansionPlacementContext = {
   ...bootstrapPlacementContext,
   mapSize: 'medium' as const,
   physicalFoundingSiteEnabled: true,
-  stockpile: { timber: 36, stone: 12, ironwork: 0, roofTiles: 0, gold: 119 },
+  stockpile: { timber: 0, stone: 0, ironwork: 0, roofTiles: 0, gold: 999 },
 };
 assert.deepEqual(
   validateBuildingPlacement('founders_camp', 40, -24, expansionPlacementContext),
@@ -81,23 +81,23 @@ assert.deepEqual(
 assert.deepEqual(
   validateBuildingPlacement('founders_camp', 40, -24, {
     ...expansionPlacementContext,
-    stockpile: { ...expansionPlacementContext.stockpile, gold: 120 },
+    stockpile: { ...expansionPlacementContext.stockpile, gold: 1_000 },
   }),
   { ok: true },
-  'a medium-map settlement with the full mixed-resource cost may place an expansion camp',
+  'a medium-map settlement with the full gold cost may place an expansion camp',
 );
 assert.deepEqual(
   validateBuildingPlacement('founders_camp', 40, -24, {
     ...expansionPlacementContext,
     mapSize: 'small',
-    stockpile: { ...expansionPlacementContext.stockpile, gold: 120 },
+    stockpile: { ...expansionPlacementContext.stockpile, gold: 1_000 },
   }),
   { ok: false, reason: 'founders_camp_disabled_small_map' },
   'small maps need a dedicated expansion-camp blocker rather than a misleading resource shortfall',
 );
 assert.equal(
   canAffordBuilding(
-    { timber: 36, stone: 12, ironwork: 0, roofTiles: 0, gold: 119 },
+    { timber: 0, stone: 0, ironwork: 0, roofTiles: 0, gold: 999 },
     'founders_camp',
   ),
   false,
@@ -105,21 +105,21 @@ assert.equal(
 );
 assert.equal(
   canAffordBuilding(
-    { timber: 36, stone: 12, ironwork: 0, roofTiles: 0, gold: 120 },
+    { timber: 0, stone: 0, ironwork: 0, roofTiles: 0, gold: 1_000 },
     'founders_camp',
   ),
   true,
 );
 assert.equal(
   buildingSalvageRefund('founders_camp').gold,
-  Math.round(120 * GOLD_SALVAGE_FRACTION),
+  Math.round(1_000 * GOLD_SALVAGE_FRACTION),
   'the client salvage estimate must include recoverable gold',
 );
 assert.equal(
   describeBuildingPlacementBlocker('founders_camp_disabled_small_map'),
   "Blocked: Additional Founders' Camps require a medium or large map",
 );
-assert.equal(isConstructionResourceShortfallMessage('Not enough gold (need 120 gold).'), true);
+assert.equal(isConstructionResourceShortfallMessage('Not enough gold (need 1000 gold).'), true);
 assert.match(
   describeToolbarStatus({
     canBuild: false,
@@ -129,7 +129,7 @@ assert.match(
     buildingCost: BUILDING_COSTS.founders_camp,
     placementResourceShortfall: true,
   }),
-  /Cost 36 timber, 12 stone, 120 gold/,
+  /Cost 1000 gold/,
   'the toolbar shortfall status must retain the gold component of an expansion camp cost',
 );
 
