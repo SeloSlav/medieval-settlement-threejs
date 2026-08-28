@@ -77,8 +77,9 @@ MATERIAL_LOOKS = {
     "limewash": ("lime-plaster", (0.70, 0.52, 0.30, 1.0), 0.45, 0.48),
     "limewash_ochre": ("lime-plaster", (0.64, 0.42, 0.22, 1.0), 0.43, 0.48),
     "limewash_grey": ("lime-plaster", (0.60, 0.60, 0.53, 1.0), 0.30, 0.48),
-    "daub_humble": ("lime-plaster", (0.50, 0.34, 0.19, 1.0), 0.52, 0.62),
+    "daub_humble": ("lime-plaster", (0.42, 0.29, 0.17, 1.0), 0.60, 0.68),
     "fieldstone": ("fieldstone-mortar", (0.56, 0.50, 0.40, 1.0), 0.45, 0.72),
+    "fieldstone_weathered": ("fieldstone-mortar", (0.30, 0.255, 0.20, 1.0), 0.82, 0.86),
     "quarry_stone": ("quarry-stone", (0.68, 0.67, 0.61, 1.0), 0.16, 0.72),
     "limestone_warm": ("limestone-ashlar", (0.86, 0.76, 0.56, 1.0), 0.18, 0.68),
     "oak_dark": ("rough-hewn-timber", (0.25, 0.13, 0.058, 1.0), 0.65, 0.62),
@@ -86,6 +87,9 @@ MATERIAL_LOOKS = {
     "timber_weathered": ("weathered-planks", (0.66, 0.49, 0.31, 1.0), 0.28, 0.66),
     "timber_weathered_horizontal": ("weathered-planks", (0.32, 0.20, 0.10, 1.0), 0.78, 0.72),
     "timber_cut": ("sawn-planks", (0.78, 0.54, 0.29, 1.0), 0.22, 0.56),
+    "shingles": ("split-shingles", (0.39, 0.27, 0.16, 1.0), 0.52, 0.82),
+    "shingles_aged": ("split-shingles", (0.25, 0.18, 0.12, 1.0), 0.66, 0.88),
+    "shingles_light": ("split-shingles", (0.56, 0.40, 0.23, 1.0), 0.44, 0.78),
     "thatch_dark": ("thatch-roof", (0.07, 0.055, 0.035, 1.0), 0.88, 0.84),
     "thatch": ("thatch-roof", (0.15, 0.115, 0.07, 1.0), 0.86, 0.84),
     "thatch_light": ("thatch-roof", (0.27, 0.21, 0.13, 1.0), 0.82, 0.84),
@@ -185,7 +189,7 @@ def atlas_material(key: str) -> bpy.types.Material:
 
     tint_node = nodes.new("ShaderNodeMixRGB")
     tint_node.blend_type = "MULTIPLY"
-    strong_atlas_grade = key in {"timber_weathered_horizontal", "roof_support_dark", "thatch_dark", "thatch", "thatch_light"}
+    strong_atlas_grade = key in {"fieldstone_weathered", "timber_weathered_horizontal", "roof_support_dark", "thatch_dark", "thatch", "thatch_light"}
     tint_node.inputs[0].default_value = 1.0 if strong_atlas_grade else tint_strength
     tint_node.inputs[2].default_value = tint
     tint_node.location = (70, 280)
@@ -204,7 +208,74 @@ def atlas_material(key: str) -> bpy.types.Material:
     ao_multiply.location = (330, 260)
     links.new(tint_node.outputs["Color"], ao_multiply.inputs[1])
     links.new(separate.outputs["Blue"], ao_multiply.inputs[2])
-    links.new(ao_multiply.outputs["Color"], principled.inputs["Base Color"])
+    base_color_output = ao_multiply.outputs["Color"]
+    if key in {"daub_humble", "fieldstone_weathered"}:
+        noise = nodes.new("ShaderNodeTexNoise")
+        noise.location = (90, 520)
+        noise.noise_dimensions = "3D"
+        noise.inputs["Scale"].default_value = 2.35 if key == "daub_humble" else 3.4
+        noise.inputs["Detail"].default_value = 5.0
+        noise.inputs["Roughness"].default_value = 0.72
+        links.new(uv.outputs["UV"], noise.inputs["Vector"])
+
+        noise_range = nodes.new("ShaderNodeMapRange")
+        noise_range.location = (300, 520)
+        noise_range.clamp = True
+        noise_range.inputs["From Min"].default_value = 0.34
+        noise_range.inputs["From Max"].default_value = 0.76
+        links.new(noise.outputs["Fac"], noise_range.inputs["Value"])
+
+        geometry = nodes.new("ShaderNodeNewGeometry")
+        geometry.location = (-140, 690)
+        position = nodes.new("ShaderNodeSeparateXYZ")
+        position.location = (70, 690)
+        links.new(geometry.outputs["Position"], position.inputs[0])
+        bottom = nodes.new("ShaderNodeMapRange")
+        bottom.location = (280, 690)
+        bottom.clamp = True
+        if key == "daub_humble":
+            bottom.inputs["From Min"].default_value = 0.20
+            bottom.inputs["From Max"].default_value = 1.80
+            bottom.inputs["To Min"].default_value = 1.0
+            bottom.inputs["To Max"].default_value = 0.0
+            stain = (0.24, 0.15, 0.08, 1.0)
+            base_bias = 0.14
+            bottom_strength = 0.64
+        else:
+            bottom.inputs["From Min"].default_value = 0.0
+            bottom.inputs["From Max"].default_value = WALL_BASE_Z
+            bottom.inputs["To Min"].default_value = 1.0
+            bottom.inputs["To Max"].default_value = 0.24
+            stain = (0.13, 0.12, 0.095, 1.0)
+            base_bias = 0.24
+            bottom_strength = 0.72
+        links.new(position.outputs["Z"], bottom.inputs["Value"])
+
+        bottom_scale = nodes.new("ShaderNodeMath")
+        bottom_scale.operation = "MULTIPLY"
+        bottom_scale.inputs[1].default_value = bottom_strength
+        bottom_scale.location = (470, 690)
+        links.new(bottom.outputs["Result"], bottom_scale.inputs[0])
+        bottom_bias = nodes.new("ShaderNodeMath")
+        bottom_bias.operation = "ADD"
+        bottom_bias.inputs[1].default_value = base_bias
+        bottom_bias.location = (630, 690)
+        links.new(bottom_scale.outputs[0], bottom_bias.inputs[0])
+        wear_mask = nodes.new("ShaderNodeMath")
+        wear_mask.operation = "MULTIPLY"
+        wear_mask.location = (780, 560)
+        links.new(noise_range.outputs["Result"], wear_mask.inputs[0])
+        links.new(bottom_bias.outputs[0], wear_mask.inputs[1])
+
+        wear_mix = nodes.new("ShaderNodeMixRGB")
+        wear_mix.blend_type = "MULTIPLY"
+        wear_mix.location = (500, 300)
+        wear_mix.inputs[2].default_value = stain
+        links.new(wear_mask.outputs[0], wear_mix.inputs[0])
+        links.new(ao_multiply.outputs["Color"], wear_mix.inputs[1])
+        base_color_output = wear_mix.outputs["Color"]
+        material["weathering"] = "low-frequency staining with world-height accumulation"
+    links.new(base_color_output, principled.inputs["Base Color"])
     links.new(separate.outputs["Red"], principled.inputs["Roughness"])
     links.new(separate.outputs["Green"], principled.inputs["Metallic"])
 

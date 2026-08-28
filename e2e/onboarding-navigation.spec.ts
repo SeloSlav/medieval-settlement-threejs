@@ -48,7 +48,9 @@ test('new-world setup moves backward and forward without losing choices', async 
   const heraldryBack = activeNobleSetup.getByRole('button', { name: 'Back to Legacy' });
   await expect(heraldryBack).toBeVisible();
   const heraldryBackBox = await heraldryBack.boundingBox();
+  const heraldryActionsBox = await activeNobleSetup.locator('.noble-setup-actions').boundingBox();
   expect(heraldryBackBox).not.toBeNull();
+  expect(heraldryActionsBox).not.toBeNull();
   await expectActiveStep(page, 'heraldry');
 
   const heraldryProfile = activeNobleSetup.locator('.noble-setup-heraldry-profile');
@@ -85,6 +87,8 @@ test('new-world setup moves backward and forward without losing choices', async 
   const mapBack = page.getByRole('button', { name: 'Back to Heraldry' });
   const mapStart = page.getByRole('button', { name: 'Start world' });
   const mapRandomize = page.getByRole('button', { name: 'Randomize seed' });
+  const mapSeedInput = page.getByRole('textbox', { name: 'World seed' });
+  const mapActions = page.locator('.world-setup-actions');
   const mapNavigation = page.locator('.world-setup-actions__navigation');
   await expect(mapBack).toBeVisible();
   await expect(mapStart).toBeVisible();
@@ -92,15 +96,23 @@ test('new-world setup moves backward and forward without losing choices', async 
   await expect(mapNavigation.locator('button')).toHaveCount(2);
   await expect(page.locator('[data-map-seed-section]')).not.toContainText('Back to Heraldry');
   await expect(page.locator('[data-map-size-value]')).toHaveAttribute('data-value', 'small');
-  const [mapBackBox, mapStartBox, mapRandomizeBox] = await Promise.all([
+  const [mapBackBox, mapStartBox, mapRandomizeBox, mapSeedInputBox, mapActionsBox] = await Promise.all([
     mapBack.boundingBox(),
     mapStart.boundingBox(),
     mapRandomize.boundingBox(),
+    mapSeedInput.boundingBox(),
+    mapActions.boundingBox(),
   ]);
   expect(mapBackBox).not.toBeNull();
   expect(mapStartBox).not.toBeNull();
   expect(mapRandomizeBox).not.toBeNull();
+  expect(mapSeedInputBox).not.toBeNull();
+  expect(mapActionsBox).not.toBeNull();
   expect(mapBackBox!.height).toBe(heraldryBackBox!.height);
+  expect(mapStartBox!.height).toBe(heraldryBackBox!.height);
+  expect(mapRandomizeBox!.height).toBe(heraldryBackBox!.height);
+  expect(mapSeedInputBox!.height).toBe(heraldryBackBox!.height);
+  expect(mapActionsBox!.height).toBe(heraldryActionsBox!.height);
   expect(mapBackBox!.x).toBeLessThan(mapStartBox!.x);
   expect(Math.abs(mapBackBox!.y - mapStartBox!.y)).toBeLessThan(2);
   expect(mapBackBox!.x + mapBackBox!.width).toBeLessThan(mapRandomizeBox!.x);

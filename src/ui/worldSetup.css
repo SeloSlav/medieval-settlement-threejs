@@ -475,6 +475,7 @@
   color: rgba(238, 232, 220, 0.78);
   font-size: 11px;
   font-weight: 700;
+  line-height: 1.15;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -484,6 +485,11 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
+}
+
+.world-setup-actions .world-setup-footer-seed__label,
+.world-setup-actions .world-setup-footer-seed__label small {
+  line-height: 1.15;
 }
 
 .world-setup-actions__navigation {
@@ -529,8 +535,9 @@
 
 .world-setup-start {
   min-width: 250px;
-  min-height: 40px;
-  padding: 9px 20px;
+  height: 38px;
+  min-height: 38px;
+  padding: 8px 20px;
   color: #18150f;
   font: 800 14px Georgia, 'Times New Roman', serif;
   letter-spacing: 0.025em;
@@ -696,11 +703,17 @@
     grid-template-columns: auto auto;
     justify-self: center;
     justify-content: center;
-    padding: 10px 12px;
+    padding: 9px 12px;
   }
 
   .world-setup-footer-seed .world-setup-seed-row {
     grid-template-columns: 140px auto;
+  }
+
+  .world-setup-seed-input,
+  .world-setup-randomize {
+    height: 38px;
+    padding-block: 8px;
   }
 
   .world-setup-footer-seed__label {
