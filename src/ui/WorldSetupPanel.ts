@@ -220,7 +220,7 @@ export class WorldSetupPanel {
               </div>
               <div class="world-setup-setting-list">
                 <div class="world-setup-setting-row">
-                  <div class="world-setup-setting-row__label"><strong>Settlement mode</strong></div>
+                  <span class="world-setup-setting-row__icon world-setup-setting-row__icon--settlement" role="img" aria-label="Settlement mode"></span>
                   <div class="world-setup-arrow-select" data-world-selector="settlement-mode">
                     <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Previous settlement mode">‹</button>
                     <div class="world-setup-arrow-select__value" aria-live="polite">
@@ -235,7 +235,7 @@ export class WorldSetupPanel {
                   <p class="world-setup-slider-hint">Higher pressure means earlier, stronger raids.</p>
                 </div>
                 <div class="world-setup-setting-row">
-                  <div class="world-setup-setting-row__label"><strong>Approval decline</strong></div>
+                  <span class="world-setup-setting-row__icon world-setup-setting-row__icon--approval" role="img" aria-label="Approval decline"></span>
                   <div class="world-setup-arrow-select" data-world-selector="approval-decline">
                     <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Lower approval decline">‹</button>
                     <div class="world-setup-arrow-select__value" aria-live="polite">
@@ -245,7 +245,7 @@ export class WorldSetupPanel {
                   </div>
                 </div>
                 <div class="world-setup-setting-row">
-                  <div class="world-setup-setting-row__label"><strong>Food spoilage</strong></div>
+                  <span class="world-setup-setting-row__icon world-setup-setting-row__icon--spoilage" role="img" aria-label="Food spoilage"></span>
                   <div class="world-setup-arrow-select" data-world-selector="food-spoilage">
                     <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Lower food spoilage">‹</button>
                     <div class="world-setup-arrow-select__value" aria-live="polite">
@@ -255,7 +255,7 @@ export class WorldSetupPanel {
                   </div>
                 </div>
                 <div class="world-setup-setting-row">
-                  <div class="world-setup-setting-row__label"><strong>First camp supplies</strong></div>
+                  <span class="world-setup-setting-row__icon world-setup-setting-row__icon--supplies" role="img" aria-label="First camp supplies"></span>
                   <div class="world-setup-arrow-select" data-world-selector="initial-goods">
                     <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Fewer first camp supplies">‹</button>
                     <div class="world-setup-arrow-select__value" aria-live="polite">
@@ -265,7 +265,7 @@ export class WorldSetupPanel {
                   </div>
                 </div>
                 <div class="world-setup-setting-row">
-                  <div class="world-setup-setting-row__label"><strong>Severe weather</strong></div>
+                  <span class="world-setup-setting-row__icon world-setup-setting-row__icon--weather" role="img" aria-label="Severe weather"></span>
                   <div class="world-setup-arrow-select" data-world-selector="severe-weather">
                     <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Previous severe weather setting">‹</button>
                     <div class="world-setup-arrow-select__value" aria-live="polite">
@@ -275,7 +275,7 @@ export class WorldSetupPanel {
                   </div>
                 </div>
                 <div class="world-setup-setting-row">
-                  <div class="world-setup-setting-row__label"><strong>Groundwater</strong></div>
+                  <span class="world-setup-setting-row__icon world-setup-setting-row__icon--groundwater" role="img" aria-label="Groundwater"></span>
                   <div class="world-setup-arrow-select" data-world-selector="groundwater">
                     <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Previous groundwater setting">‹</button>
                     <div class="world-setup-arrow-select__value" aria-live="polite">

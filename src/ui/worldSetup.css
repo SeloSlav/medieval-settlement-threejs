@@ -331,16 +331,46 @@
 
 .world-setup-setting-row {
   display: grid;
-  grid-template-columns: minmax(135px, 0.42fr) minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr);
   align-items: center;
   gap: 18px;
   padding: 8px 0;
   border-bottom: 1px solid rgba(238, 232, 220, 0.15);
 }
 
-.world-setup-setting-row__label strong {
-  color: rgba(238, 232, 220, 0.88);
-  font-size: 16px;
+.world-setup-setting-row__icon {
+  display: block;
+  width: 58px;
+  height: 58px;
+  justify-self: center;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.46));
+}
+
+.world-setup-setting-row__icon--settlement {
+  background-image: url('/assets/ui/icons/world-setup/settlement-mode.png');
+}
+
+.world-setup-setting-row__icon--approval {
+  background-image: url('/assets/ui/icons/world-setup/approval-decline.png');
+}
+
+.world-setup-setting-row__icon--spoilage {
+  background-image: url('/assets/ui/icons/world-setup/food-spoilage.png');
+}
+
+.world-setup-setting-row__icon--supplies {
+  background-image: url('/assets/ui/icons/world-setup/first-camp-supplies.png');
+}
+
+.world-setup-setting-row__icon--weather {
+  background-image: url('/assets/ui/icons/world-setup/severe-weather.png');
+}
+
+.world-setup-setting-row__icon--groundwater {
+  background-image: url('/assets/ui/icons/world-setup/groundwater.png');
 }
 
 .world-setup-setting-row .world-setup-arrow-select {
@@ -625,17 +655,13 @@
   }
 
   .world-setup-setting-row {
-    grid-template-columns: minmax(112px, 0.38fr) minmax(0, 1fr);
+    grid-template-columns: 58px minmax(0, 1fr);
     align-items: center;
     gap: 8px;
     min-width: 0;
     padding: 6px;
     border: 1px solid rgba(238, 232, 220, 0.12);
     background: rgba(255, 255, 255, 0.018);
-  }
-
-  .world-setup-setting-row__label strong {
-    font-size: 13px;
   }
 
   .world-setup-setting-row .world-setup-arrow-select {
@@ -655,7 +681,23 @@
 
   .world-setup-footer-seed {
     grid-column: 2;
-    padding: 10px 22px;
+    grid-template-columns: auto auto;
+    justify-self: center;
+    justify-content: center;
+    padding: 10px 12px;
+  }
+
+  .world-setup-footer-seed .world-setup-seed-row {
+    grid-template-columns: 140px auto;
+  }
+
+  .world-setup-footer-seed__label {
+    min-width: 130px;
+  }
+
+  .world-setup-footer-seed__label small,
+  .world-setup-randomize {
+    white-space: nowrap;
   }
 
   .world-setup-actions__navigation {
@@ -718,8 +760,13 @@
   }
 
   .world-setup-setting-row {
-    grid-template-columns: 1fr;
-    gap: 5px;
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .world-setup-setting-row__icon {
+    width: 48px;
+    height: 48px;
   }
 
   .world-setup-pressure {

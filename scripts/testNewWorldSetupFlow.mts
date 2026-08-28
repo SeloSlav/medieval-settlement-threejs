@@ -132,6 +132,13 @@ assert.match(worldPanel, /Steadfast Castellan \(Normal\)/);
 assert.match(worldPanel, /Marcher Lord \(Hardcore\)/);
 assert.match(worldPanel, /No losses or raids; double supplies/);
 assert.match(worldPanel, /data-world-selector="approval-decline"/);
+assert.match(worldPanel, /world-setup-setting-row__icon--settlement[^>]*aria-label="Settlement mode"/);
+assert.match(worldPanel, /world-setup-setting-row__icon--approval[^>]*aria-label="Approval decline"/);
+assert.match(worldPanel, /world-setup-setting-row__icon--spoilage[^>]*aria-label="Food spoilage"/);
+assert.match(worldPanel, /world-setup-setting-row__icon--supplies[^>]*aria-label="First camp supplies"/);
+assert.match(worldPanel, /world-setup-setting-row__icon--weather[^>]*aria-label="Severe weather"/);
+assert.match(worldPanel, /world-setup-setting-row__icon--groundwater[^>]*aria-label="Groundwater"/);
+assert.doesNotMatch(worldPanel, /world-setup-setting-row__label/);
 assert.match(worldPanel, /data-world-selector="food-spoilage"[\s\S]*Food never spoils/);
 assert.match(worldPanel, /data-world-selector="initial-goods"[\s\S]*Twice the goods in the original camp/);
 assert.match(worldPanel, /aria-label="Landscape"[\s\S]*aria-label="Gameplay rules"/);
@@ -154,10 +161,14 @@ assert.match(worldCss, /\.world-setup-column--rules\s*\{[\s\S]*?overflow: hidden
 assert.match(worldCss, /\.world-setup-game-rules\s*\{[\s\S]*?grid-template-rows: auto auto minmax\(0, 1fr\)/);
 assert.match(worldCss, /\.world-setup-setting-list\s*\{[\s\S]*?overflow-y: auto/);
 assert.match(worldCss, /\.world-setup-back\s*\{[\s\S]*?margin: 9px 0 9px 22px/);
+assert.match(worldCss, /\.world-setup-footer-seed\s*\{[\s\S]*?grid-template-columns: auto auto;[\s\S]*?justify-self: center/);
+assert.match(worldCss, /\.world-setup-footer-seed \.world-setup-seed-row\s*\{[\s\S]*?grid-template-columns: 160px auto/);
 assert.match(worldCss, /\.world-setup-section__title\s*\{[\s\S]*?font-size: 17px/);
 assert.match(worldCss, /\.world-setup-arrow-select__value span\s*\{[\s\S]*?font-size: 15px/);
 assert.match(worldCss, /\.world-setup-difficulty-preset \.world-setup-arrow-select\s*\{[\s\S]*?min-height: 64px/);
-assert.match(worldCss, /\.world-setup-setting-row__label strong\s*\{[\s\S]*?font-size: 16px/);
+assert.match(worldCss, /\.world-setup-setting-row__icon\s*\{[\s\S]*?background-size: contain/);
+assert.match(worldCss, /world-setup\/settlement-mode\.png/);
+assert.match(worldCss, /world-setup\/groundwater\.png/);
 assert.match(
   worldCss,
   /\.world-setup-backdrop\s*\{[\s\S]*?padding: clamp\(12px, 2\.4vw, 34px\);/,

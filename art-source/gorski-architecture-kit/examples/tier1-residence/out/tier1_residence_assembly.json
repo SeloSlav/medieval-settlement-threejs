@@ -1,5 +1,5 @@
 {
-  "id": "gorski-tier1-residence-atlas-preview-v1",
+  "id": "gorski-tier1-residence-atlas-preview-v2",
   "regionalContext": "Gorski Kotar, circa 1550",
   "sourceKit": "gorski-architecture-kit-1.1.0",
   "atlas": {
@@ -11,13 +11,39 @@
     "instanceUvPhase": "metric UVs are translated by snapped world placement so adjacent modules retain atlas continuity"
   },
   "dimensionsMetres": {
-    "width": 4.0,
-    "depth": 6.0,
+    "bodyWidth": 4.0,
+    "bodyDepth": 7.0,
     "foundationTop": 0.35,
-    "wallTop": 3.05,
-    "ridge": 5.82
+    "wallHeight": 2.4,
+    "wallTop": 2.75,
+    "ridge": 5.847386661099708,
+    "sideEaveOverhang": 0.6997,
+    "gableEndOverhang": 0.5
   },
   "roofFinish": "bundled-thatch",
+  "historicalMaterialDecision": {
+    "primaryBody": "weathered horizontal timber boarding on a low fieldstone footing",
+    "publicFront": "rough warm daub within a restrained structural frame",
+    "roof": "dark bundled thatch retained as the game's humble Tier-1 progression cue; split softwood roofing is the better-documented Gorski Kotar norm",
+    "openings": "plain unglazed square light and ventilation holes; no decorative shutters or leaded glazing"
+  },
+  "atlasCoverage": {
+    "usedNow": [
+      "fieldstone-mortar",
+      "lime-plaster",
+      "rough-hewn-timber",
+      "weathered-planks",
+      "thatch-roof",
+      "wicker-weave",
+      "wrought-iron",
+      "packed-earth"
+    ],
+    "sufficientForThisPass": true,
+    "recommendedFutureTiles": [
+      "riven-softwood-boarding: hand-split fir or pine boards with irregular adze edges",
+      "clay-straw-daub: coarser earthen infill with visible straw and restrained cracking"
+    ]
+  },
   "smokeExit": "bound-thatch hood; no later-tier masonry chimney",
   "canonicalState": "neutral shell; no inventory, activity, or occupancy-driven dressing",
   "fixedArchitecture": {
@@ -48,7 +74,7 @@
       "collection": "T1_01_Foundation",
       "location": [
         0.0,
-        6.0,
+        7.0,
         0.0
       ],
       "rotationZDegrees": 180.0
@@ -76,6 +102,17 @@
       "rotationZDegrees": -90.0
     },
     {
+      "name": "T1_Foundation_Left_C",
+      "source": "foundation_fieldstone_1m_h0p35m",
+      "collection": "T1_01_Foundation",
+      "location": [
+        -2.0,
+        6.5,
+        0.0
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
       "name": "T1_Foundation_Right_A",
       "source": "foundation_fieldstone_4m_h0p35m",
       "collection": "T1_01_Foundation",
@@ -98,8 +135,19 @@
       "rotationZDegrees": 90.0
     },
     {
+      "name": "T1_Foundation_Right_C",
+      "source": "foundation_fieldstone_1m_h0p35m",
+      "collection": "T1_01_Foundation",
+      "location": [
+        2.0,
+        6.5,
+        0.0
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
       "name": "T1_Wall_Front_Door",
-      "source": "wall_limewash_2m_door_service_host",
+      "source": "assembly_custom_aperture_wall",
       "collection": "T1_02_Walls",
       "location": [
         -1.0,
@@ -109,13 +157,24 @@
       "rotationZDegrees": 0.0
     },
     {
-      "name": "T1_Wall_Front_Window",
-      "source": "wall_limewash_2m_window_small_host",
+      "name": "T1_Wall_Front_SquareHole",
+      "source": "assembly_custom_aperture_wall",
       "collection": "T1_02_Walls",
       "location": [
         1.0,
         0.0,
         0.35
+      ],
+      "rotationZDegrees": 0.0
+    },
+    {
+      "name": "T1_Wall_Front_SquareHole_DarkInterior",
+      "source": "assembly_dark_unglazed_aperture",
+      "collection": "T1_03_Openings",
+      "location": [
+        1.0,
+        0.155,
+        1.58
       ],
       "rotationZDegrees": 0.0
     },
@@ -125,36 +184,25 @@
       "collection": "T1_03_Openings",
       "location": [
         -1.0,
-        -0.018,
-        0.35
-      ],
-      "rotationZDegrees": 0.0
-    },
-    {
-      "name": "T1_Window_Front",
-      "source": "opening_window_small_shuttered",
-      "collection": "T1_03_Openings",
-      "location": [
-        1.0,
-        -0.022,
-        0.35
+        -0.105,
+        0.33
       ],
       "rotationZDegrees": 0.0
     },
     {
       "name": "T1_Wall_Rear",
-      "source": "wall_limewash_4m_h2p7m",
+      "source": "assembly_custom_aperture_wall",
       "collection": "T1_02_Walls",
       "location": [
         0.0,
-        6.0,
+        7.0,
         0.35
       ],
       "rotationZDegrees": 180.0
     },
     {
       "name": "T1_Wall_Left_A",
-      "source": "wall_limewash_4m_h2p7m",
+      "source": "assembly_custom_aperture_wall",
       "collection": "T1_02_Walls",
       "location": [
         -2.0,
@@ -164,8 +212,8 @@
       "rotationZDegrees": -90.0
     },
     {
-      "name": "T1_Wall_Left_Window",
-      "source": "wall_limewash_2m_window_small_host",
+      "name": "T1_Wall_Left_SquareHole",
+      "source": "assembly_custom_aperture_wall",
       "collection": "T1_02_Walls",
       "location": [
         -2.0,
@@ -175,19 +223,30 @@
       "rotationZDegrees": -90.0
     },
     {
-      "name": "T1_Window_Left",
-      "source": "opening_window_small_shuttered",
+      "name": "T1_Wall_Left_SquareHole_DarkInterior",
+      "source": "assembly_dark_unglazed_aperture",
       "collection": "T1_03_Openings",
       "location": [
-        -2.0,
+        -1.845,
         5.0,
+        1.62
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Wall_Left_C",
+      "source": "assembly_custom_aperture_wall",
+      "collection": "T1_02_Walls",
+      "location": [
+        -2.0,
+        6.5,
         0.35
       ],
       "rotationZDegrees": -90.0
     },
     {
       "name": "T1_Wall_Right_A",
-      "source": "wall_limewash_4m_h2p7m",
+      "source": "assembly_custom_aperture_wall",
       "collection": "T1_02_Walls",
       "location": [
         2.0,
@@ -197,8 +256,8 @@
       "rotationZDegrees": 90.0
     },
     {
-      "name": "T1_Wall_Right_Window",
-      "source": "wall_limewash_2m_window_small_host",
+      "name": "T1_Wall_Right_SquareHole",
+      "source": "assembly_custom_aperture_wall",
       "collection": "T1_02_Walls",
       "location": [
         2.0,
@@ -208,177 +267,122 @@
       "rotationZDegrees": 90.0
     },
     {
-      "name": "T1_Window_Right",
-      "source": "opening_window_small_shuttered",
+      "name": "T1_Wall_Right_SquareHole_DarkInterior",
+      "source": "assembly_dark_unglazed_aperture",
       "collection": "T1_03_Openings",
       "location": [
-        2.0,
+        1.845,
         5.0,
+        1.62
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Wall_Right_C",
+      "source": "assembly_custom_aperture_wall",
+      "collection": "T1_02_Walls",
+      "location": [
+        2.0,
+        6.5,
         0.35
       ],
       "rotationZDegrees": 90.0
     },
     {
       "name": "T1_Gable_Front",
-      "source": "gable_infill_plaster_4m",
+      "source": "gable_infill_timber_4m",
       "collection": "T1_02_Walls",
       "location": [
         0.0,
         -0.01,
-        3.05
+        2.75
       ],
       "rotationZDegrees": 0.0
     },
     {
       "name": "T1_Gable_Rear",
-      "source": "gable_infill_plaster_4m",
+      "source": "gable_infill_timber_4m",
       "collection": "T1_02_Walls",
       "location": [
         0.0,
-        6.01,
-        3.05
+        7.01,
+        2.75
       ],
       "rotationZDegrees": 180.0
     },
     {
-      "name": "T1_Gable_KingPost_Front",
-      "source": "frame_post_h2p4m_s0p16m",
+      "name": "T1_Front_Sill",
+      "source": "frame_beam_4m_s0p16m",
       "collection": "T1_04_Frames",
       "location": [
         0.0,
-        -0.165,
-        3.01
+        -0.112,
+        0.35
       ],
       "rotationZDegrees": 0.0
     },
     {
-      "name": "T1_Gable_Collar_Front",
-      "source": "frame_beam_2m_s0p16m",
+      "name": "T1_Front_WallPlate",
+      "source": "frame_beam_4m_s0p16m",
       "collection": "T1_04_Frames",
       "location": [
         0.0,
-        -0.165,
-        4.24175
+        -0.112,
+        2.59
       ],
       "rotationZDegrees": 0.0
-    },
-    {
-      "name": "T1_Gable_Brace_Front_Left",
-      "source": "frame_brace_right_2m",
-      "collection": "T1_04_Frames",
-      "location": [
-        -1.7,
-        -0.165,
-        2.89
-      ],
-      "rotationZDegrees": 0.0
-    },
-    {
-      "name": "T1_Gable_Brace_Front_Right",
-      "source": "frame_brace_left_2m",
-      "collection": "T1_04_Frames",
-      "location": [
-        1.7,
-        -0.165,
-        2.89
-      ],
-      "rotationZDegrees": 0.0
-    },
-    {
-      "name": "T1_Gable_KingPost_Rear",
-      "source": "frame_post_h2p4m_s0p16m",
-      "collection": "T1_04_Frames",
-      "location": [
-        0.0,
-        6.165,
-        3.01
-      ],
-      "rotationZDegrees": 180.0
-    },
-    {
-      "name": "T1_Gable_Collar_Rear",
-      "source": "frame_beam_2m_s0p16m",
-      "collection": "T1_04_Frames",
-      "location": [
-        0.0,
-        6.165,
-        4.24175
-      ],
-      "rotationZDegrees": 180.0
-    },
-    {
-      "name": "T1_Gable_Brace_Rear_Left",
-      "source": "frame_brace_left_2m",
-      "collection": "T1_04_Frames",
-      "location": [
-        -1.7,
-        6.165,
-        2.89
-      ],
-      "rotationZDegrees": 180.0
-    },
-    {
-      "name": "T1_Gable_Brace_Rear_Right",
-      "source": "frame_brace_right_2m",
-      "collection": "T1_04_Frames",
-      "location": [
-        1.7,
-        6.165,
-        2.89
-      ],
-      "rotationZDegrees": 180.0
     },
     {
       "name": "T1_Post_Front_-2",
-      "source": "frame_post_h2p7m_s0p16m",
+      "source": "frame_post_h2p4m_s0p16m",
       "collection": "T1_04_Frames",
       "location": [
         -2.0,
-        -0.07,
+        -0.112,
         0.35
       ],
       "rotationZDegrees": 0.0
     },
     {
       "name": "T1_Post_Front_+0",
-      "source": "frame_post_h2p7m_s0p16m",
+      "source": "frame_post_h2p4m_s0p16m",
       "collection": "T1_04_Frames",
       "location": [
         0.0,
-        -0.07,
+        -0.112,
         0.35
       ],
       "rotationZDegrees": 0.0
     },
     {
       "name": "T1_Post_Front_+2",
-      "source": "frame_post_h2p7m_s0p16m",
+      "source": "frame_post_h2p4m_s0p16m",
       "collection": "T1_04_Frames",
       "location": [
         2.0,
-        -0.07,
+        -0.112,
         0.35
       ],
       "rotationZDegrees": 0.0
     },
     {
       "name": "T1_Post_Rear_-2",
-      "source": "frame_post_h2p7m_s0p16m",
+      "source": "frame_post_h2p4m_s0p16m",
       "collection": "T1_04_Frames",
       "location": [
         -2.0,
-        6.07,
+        7.112,
         0.35
       ],
       "rotationZDegrees": 180.0
     },
     {
       "name": "T1_Post_Rear_+2",
-      "source": "frame_post_h2p7m_s0p16m",
+      "source": "frame_post_h2p4m_s0p16m",
       "collection": "T1_04_Frames",
       "location": [
         2.0,
-        6.07,
+        7.112,
         0.35
       ],
       "rotationZDegrees": 180.0
@@ -388,9 +392,9 @@
       "source": "roof_thatch_panel_4m_full",
       "collection": "T1_05_Roof",
       "location": [
-        -1.54269,
-        2.0,
-        3.98149
+        -1.92836,
+        1.5,
+        3.54925
       ],
       "rotationZDegrees": -90.0
     },
@@ -399,31 +403,53 @@
       "source": "roof_thatch_panel_4m_half",
       "collection": "T1_05_Roof",
       "location": [
-        -0.38567,
-        2.0,
-        5.36037
+        -0.77135,
+        1.5,
+        4.92813
       ],
       "rotationZDegrees": -90.0
     },
     {
-      "name": "T1_Roof_Left_2m_full",
-      "source": "roof_thatch_panel_2m_full",
+      "name": "T1_Roof_Left_4m_quarter",
+      "source": "roof_thatch_panel_4m_quarter",
       "collection": "T1_05_Roof",
       "location": [
-        -1.54269,
-        5.0,
-        3.98149
+        -0.19284,
+        1.5,
+        5.61757
       ],
       "rotationZDegrees": -90.0
     },
     {
-      "name": "T1_Roof_Left_2m_half",
-      "source": "roof_thatch_panel_2m_half",
+      "name": "T1_Roof_Left_4m_full",
+      "source": "roof_thatch_panel_4m_full",
       "collection": "T1_05_Roof",
       "location": [
-        -0.38567,
-        5.0,
-        5.36037
+        -1.92836,
+        5.5,
+        3.54925
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_4m_half",
+      "source": "roof_thatch_panel_4m_half",
+      "collection": "T1_05_Roof",
+      "location": [
+        -0.77135,
+        5.5,
+        4.92813
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_4m_quarter",
+      "source": "roof_thatch_panel_4m_quarter",
+      "collection": "T1_05_Roof",
+      "location": [
+        -0.19284,
+        5.5,
+        5.61757
       ],
       "rotationZDegrees": -90.0
     },
@@ -432,9 +458,9 @@
       "source": "roof_thatch_panel_4m_full",
       "collection": "T1_05_Roof",
       "location": [
-        1.54269,
-        2.0,
-        3.98149
+        1.92836,
+        1.5,
+        3.54925
       ],
       "rotationZDegrees": 90.0
     },
@@ -443,31 +469,53 @@
       "source": "roof_thatch_panel_4m_half",
       "collection": "T1_05_Roof",
       "location": [
-        0.38567,
-        2.0,
-        5.36037
+        0.77135,
+        1.5,
+        4.92813
       ],
       "rotationZDegrees": 90.0
     },
     {
-      "name": "T1_Roof_Right_2m_full",
-      "source": "roof_thatch_panel_2m_full",
+      "name": "T1_Roof_Right_4m_quarter",
+      "source": "roof_thatch_panel_4m_quarter",
       "collection": "T1_05_Roof",
       "location": [
-        1.54269,
-        5.0,
-        3.98149
+        0.19284,
+        1.5,
+        5.61757
       ],
       "rotationZDegrees": 90.0
     },
     {
-      "name": "T1_Roof_Right_2m_half",
-      "source": "roof_thatch_panel_2m_half",
+      "name": "T1_Roof_Right_4m_full",
+      "source": "roof_thatch_panel_4m_full",
       "collection": "T1_05_Roof",
       "location": [
-        0.38567,
-        5.0,
-        5.36037
+        1.92836,
+        5.5,
+        3.54925
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_4m_half",
+      "source": "roof_thatch_panel_4m_half",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.77135,
+        5.5,
+        4.92813
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_4m_quarter",
+      "source": "roof_thatch_panel_4m_quarter",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.19284,
+        5.5,
+        5.61757
       ],
       "rotationZDegrees": 90.0
     },
@@ -476,20 +524,20 @@
       "source": "roof_thatch_eave_edge_4m",
       "collection": "T1_05_Roof",
       "location": [
-        -2.31404,
-        2.0,
-        3.06224
+        -2.69971,
+        1.5,
+        2.63
       ],
       "rotationZDegrees": -90.0
     },
     {
-      "name": "T1_Eave_Left_2m",
-      "source": "roof_thatch_eave_edge_2m",
+      "name": "T1_Eave_Left_4m",
+      "source": "roof_thatch_eave_edge_4m",
       "collection": "T1_05_Roof",
       "location": [
-        -2.31404,
-        5.0,
-        3.06224
+        -2.69971,
+        5.5,
+        2.63
       ],
       "rotationZDegrees": -90.0
     },
@@ -498,20 +546,20 @@
       "source": "roof_thatch_eave_edge_4m",
       "collection": "T1_05_Roof",
       "location": [
-        2.31404,
-        2.0,
-        3.06224
+        2.69971,
+        1.5,
+        2.63
       ],
       "rotationZDegrees": 90.0
     },
     {
-      "name": "T1_Eave_Right_2m",
-      "source": "roof_thatch_eave_edge_2m",
+      "name": "T1_Eave_Right_4m",
+      "source": "roof_thatch_eave_edge_4m",
       "collection": "T1_05_Roof",
       "location": [
-        2.31404,
-        5.0,
-        3.06224
+        2.69971,
+        5.5,
+        2.63
       ],
       "rotationZDegrees": 90.0
     },
@@ -521,19 +569,19 @@
       "collection": "T1_05_Roof",
       "location": [
         0.0,
-        2.0,
-        5.82
+        1.5,
+        5.84739
       ],
       "rotationZDegrees": 90.0
     },
     {
-      "name": "T1_Ridge_2m",
-      "source": "roof_thatch_ridge_2m",
+      "name": "T1_Ridge_4m",
+      "source": "roof_thatch_ridge_4m",
       "collection": "T1_05_Roof",
       "location": [
         0.0,
-        5.0,
-        5.82
+        5.5,
+        5.84739
       ],
       "rotationZDegrees": 90.0
     },
@@ -543,8 +591,8 @@
       "collection": "T1_05_Roof",
       "location": [
         0.0,
-        -0.12,
-        5.82
+        -0.62,
+        5.84739
       ],
       "rotationZDegrees": 90.0
     },
@@ -554,8 +602,8 @@
       "collection": "T1_05_Roof",
       "location": [
         0.0,
-        6.12,
-        5.82
+        7.62,
+        5.84739
       ],
       "rotationZDegrees": -90.0
     },
@@ -565,19 +613,8 @@
       "collection": "T1_05_Roof",
       "location": [
         0.72,
-        4.55,
-        4.91194
-      ],
-      "rotationZDegrees": 90.0
-    },
-    {
-      "name": "T1_Thatch_Repair_Patch",
-      "source": "roof_thatch_repair_patch_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        1.18916,
-        2.65,
-        4.42782
+        5.35,
+        4.93932
       ],
       "rotationZDegrees": 90.0
     },

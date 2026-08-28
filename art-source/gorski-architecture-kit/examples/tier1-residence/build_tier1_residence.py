@@ -20,11 +20,14 @@ OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front.png"
 OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side.png"
 
 WALL_BASE_Z = 0.35
-WALL_TOP_Z = 3.05
-RIDGE_Z = 5.82
-BUILDING_DEPTH = 6.0
+WALL_HEIGHT = 2.4
+WALL_TOP_Z = WALL_BASE_Z + WALL_HEIGHT
+BUILDING_DEPTH = 7.0
 PITCH = math.radians(50.0)
-SLOPE_MAX = 1.8
+SLOPE_LENGTH = 4.2
+SLOPE_MAX = SLOPE_LENGTH / 2.0
+EAVE_Z = WALL_TOP_Z - 0.12
+RIDGE_Z = EAVE_Z + SLOPE_LENGTH * math.sin(PITCH)
 
 
 def source_objects() -> dict[str, bpy.types.Object]:
@@ -74,19 +77,22 @@ MATERIAL_LOOKS = {
     "limewash": ("lime-plaster", (0.70, 0.52, 0.30, 1.0), 0.45, 0.48),
     "limewash_ochre": ("lime-plaster", (0.64, 0.42, 0.22, 1.0), 0.43, 0.48),
     "limewash_grey": ("lime-plaster", (0.60, 0.60, 0.53, 1.0), 0.30, 0.48),
+    "daub_humble": ("lime-plaster", (0.50, 0.34, 0.19, 1.0), 0.52, 0.62),
     "fieldstone": ("fieldstone-mortar", (0.56, 0.50, 0.40, 1.0), 0.45, 0.72),
     "quarry_stone": ("quarry-stone", (0.68, 0.67, 0.61, 1.0), 0.16, 0.72),
     "limestone_warm": ("limestone-ashlar", (0.86, 0.76, 0.56, 1.0), 0.18, 0.68),
     "oak_dark": ("rough-hewn-timber", (0.25, 0.13, 0.058, 1.0), 0.65, 0.62),
     "timber_weathered": ("weathered-planks", (0.66, 0.49, 0.31, 1.0), 0.28, 0.66),
+    "timber_weathered_horizontal": ("weathered-planks", (0.42, 0.26, 0.14, 1.0), 0.78, 0.72),
     "timber_cut": ("sawn-planks", (0.78, 0.54, 0.29, 1.0), 0.22, 0.56),
-    "thatch_dark": ("thatch-roof", (0.42, 0.28, 0.10, 1.0), 0.72, 0.78),
-    "thatch": ("thatch-roof", (0.74, 0.52, 0.17, 1.0), 0.62, 0.78),
-    "thatch_light": ("thatch-roof", (0.88, 0.68, 0.28, 1.0), 0.55, 0.78),
+    "thatch_dark": ("thatch-roof", (0.12, 0.09, 0.055, 1.0), 0.88, 0.84),
+    "thatch": ("thatch-roof", (0.24, 0.18, 0.10, 1.0), 0.86, 0.84),
+    "thatch_light": ("thatch-roof", (0.34, 0.27, 0.16, 1.0), 0.82, 0.84),
     "rope": ("wicker-weave", (0.67, 0.46, 0.22, 1.0), 0.30, 0.58),
     "iron": ("wrought-iron", (0.40, 0.43, 0.44, 1.0), 0.22, 0.54),
     "charcoal": ("wrought-iron", (0.08, 0.075, 0.065, 1.0), 0.70, 0.42),
-    "packed_earth": ("packed-earth", (0.43, 0.35, 0.27, 1.0), 0.52, 0.52),
+    "interior_dark": ("rough-hewn-timber", (0.035, 0.028, 0.020, 1.0), 0.92, 0.30),
+    "packed_earth": ("packed-earth", (0.35, 0.29, 0.23, 1.0), 0.58, 0.52),
 }
 
 
@@ -150,7 +156,19 @@ def atlas_material(key: str) -> bpy.types.Material:
     content_offset.location = (-390, 100)
     links.new(uv.outputs["UV"], metre_scale.inputs[0])
     links.new(metre_scale.outputs["Vector"], fractional.inputs[0])
-    links.new(fractional.outputs["Vector"], content_scale.inputs[0])
+    uv_source = fractional.outputs["Vector"]
+    if key == "timber_weathered_horizontal":
+        separate_uv = nodes.new("ShaderNodeSeparateXYZ")
+        separate_uv.location = (-740, -90)
+        combine_uv = nodes.new("ShaderNodeCombineXYZ")
+        combine_uv.location = (-650, -90)
+        links.new(fractional.outputs["Vector"], separate_uv.inputs[0])
+        links.new(separate_uv.outputs["Y"], combine_uv.inputs["X"])
+        links.new(separate_uv.outputs["X"], combine_uv.inputs["Y"])
+        links.new(separate_uv.outputs["Z"], combine_uv.inputs["Z"])
+        uv_source = combine_uv.outputs["Vector"]
+        material["uv_orientation"] = "horizontal-board rotation"
+    links.new(uv_source, content_scale.inputs[0])
     links.new(content_scale.outputs["Vector"], content_offset.inputs[0])
 
     textures = {}
@@ -220,6 +238,15 @@ def replace_materials(obj: bpy.types.Object) -> None:
             continue
         key = old.name.removeprefix("GK_Mat_")
         obj.data.materials[index] = atlas_material(key)
+
+
+def remap_instance_material(obj: bpy.types.Object, old_key: str, new_key: str) -> None:
+    if obj.type != "MESH":
+        return
+    expected = f"T1_Atlas_{old_key}"
+    for index, material in enumerate(obj.data.materials):
+        if material is not None and material.name == expected:
+            obj.data.materials[index] = atlas_material(new_key)
 
 
 def phase_metric_uvs(
@@ -295,51 +322,246 @@ def place(
     return obj
 
 
+def append_box(
+    vertices: list[tuple[float, float, float]],
+    faces: list[tuple[int, int, int, int]],
+    center: tuple[float, float, float],
+    size: tuple[float, float, float],
+) -> None:
+    cx, cy, cz = center
+    sx, sy, sz = (value / 2.0 for value in size)
+    offset = len(vertices)
+    vertices.extend(
+        (
+            (cx - sx, cy - sy, cz - sz),
+            (cx + sx, cy - sy, cz - sz),
+            (cx + sx, cy + sy, cz - sz),
+            (cx - sx, cy + sy, cz - sz),
+            (cx - sx, cy - sy, cz + sz),
+            (cx + sx, cy - sy, cz + sz),
+            (cx + sx, cy + sy, cz + sz),
+            (cx - sx, cy + sy, cz + sz),
+        )
+    )
+    faces.extend(
+        (
+            (offset + 0, offset + 3, offset + 2, offset + 1),
+            (offset + 4, offset + 5, offset + 6, offset + 7),
+            (offset + 0, offset + 1, offset + 5, offset + 4),
+            (offset + 1, offset + 2, offset + 6, offset + 5),
+            (offset + 2, offset + 3, offset + 7, offset + 6),
+            (offset + 3, offset + 0, offset + 4, offset + 7),
+        )
+    )
+
+
+def add_metric_uv_layer(mesh: bpy.types.Mesh) -> None:
+    uv_layer = mesh.uv_layers.new(name="GK_UV0")
+    for polygon in mesh.polygons:
+        normal = polygon.normal
+        ax, ay, az = abs(normal.x), abs(normal.y), abs(normal.z)
+        for loop_index in polygon.loop_indices:
+            point = mesh.vertices[mesh.loops[loop_index].vertex_index].co
+            if az >= ax and az >= ay:
+                u, v = point.x, point.y
+            elif ay >= ax:
+                u, v = point.x, point.z
+            else:
+                u, v = point.y, point.z
+            uv_layer.data[loop_index].uv = (u, v)
+
+
+def make_custom_part(
+    name: str,
+    target_collection: bpy.types.Collection,
+    boxes: list[tuple[tuple[float, float, float], tuple[float, float, float]]],
+    material_key: str,
+    location: tuple[float, float, float],
+    rotation_z: float,
+    source_id: str,
+) -> bpy.types.Object:
+    vertices: list[tuple[float, float, float]] = []
+    faces: list[tuple[int, int, int, int]] = []
+    for center, size in boxes:
+        if min(size) <= 0.0001:
+            continue
+        append_box(vertices, faces, center, size)
+    mesh = bpy.data.meshes.new(f"{name}_Mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    add_metric_uv_layer(mesh)
+    obj = bpy.data.objects.new(name, mesh)
+    target_collection.objects.link(obj)
+    obj.location = location
+    obj.rotation_euler = (0.0, 0.0, rotation_z)
+    obj.data.materials.append(atlas_material(material_key))
+    obj["t1_instance"] = True
+    obj["source_component_id"] = source_id
+    obj["assembly_role"] = target_collection.name
+    obj["custom_assembly_piece"] = True
+    phase_metric_uvs(obj, location, rotation_z)
+    PLACEMENTS.append(
+        {
+            "name": name,
+            "source": source_id,
+            "collection": target_collection.name,
+            "location": [round(value, 5) for value in location],
+            "rotationZDegrees": round(math.degrees(rotation_z), 5),
+        }
+    )
+    return obj
+
+
+def local_to_world(
+    origin: tuple[float, float, float],
+    rotation_z: float,
+    local_point: tuple[float, float, float],
+) -> tuple[float, float, float]:
+    cosine = math.cos(rotation_z)
+    sine = math.sin(rotation_z)
+    x, y, z = local_point
+    return (
+        origin[0] + x * cosine - y * sine,
+        origin[1] + x * sine + y * cosine,
+        origin[2] + z,
+    )
+
+
+def make_aperture_wall(
+    name: str,
+    width: float,
+    material_key: str,
+    location: tuple[float, float, float],
+    rotation_z: float = 0.0,
+    opening_width: float | None = None,
+    opening_height: float | None = None,
+    opening_sill: float = 0.0,
+    opening_x: float = 0.0,
+    dark_backing: bool = False,
+) -> bpy.types.Object:
+    depth = 0.20
+    if opening_width is None or opening_height is None:
+        boxes = [((0.0, 0.0, WALL_HEIGHT / 2.0), (width, depth, WALL_HEIGHT))]
+    else:
+        left = opening_x - opening_width / 2.0
+        right = opening_x + opening_width / 2.0
+        boxes = [
+            (((-width / 2.0 + left) / 2.0, 0.0, WALL_HEIGHT / 2.0), (left + width / 2.0, depth, WALL_HEIGHT)),
+            (((right + width / 2.0) / 2.0, 0.0, WALL_HEIGHT / 2.0), (width / 2.0 - right, depth, WALL_HEIGHT)),
+            ((opening_x, 0.0, opening_sill / 2.0), (opening_width, depth, opening_sill)),
+            (
+                (opening_x, 0.0, (opening_sill + opening_height + WALL_HEIGHT) / 2.0),
+                (opening_width, depth, WALL_HEIGHT - opening_sill - opening_height),
+            ),
+        ]
+    wall = make_custom_part(
+        name,
+        WALLS,
+        boxes,
+        material_key,
+        location,
+        rotation_z,
+        "assembly_custom_aperture_wall",
+    )
+    if dark_backing and opening_width is not None and opening_height is not None:
+        backing_center = local_to_world(
+            location,
+            rotation_z,
+            (opening_x, depth / 2.0 + 0.055, opening_sill + opening_height / 2.0),
+        )
+        make_custom_part(
+            f"{name}_DarkInterior",
+            OPENINGS,
+            [((0.0, 0.0, 0.0), (opening_width - 0.025, 0.025, opening_height - 0.025))],
+            "interior_dark",
+            backing_center,
+            rotation_z,
+            "assembly_dark_unglazed_aperture",
+        )
+    return wall
+
+
 def place_shell() -> None:
-    # Continuous rough-rubble footing.
+    # A low rubble footing protects the timber body without turning Tier 1 into a stone house.
     place("foundation_fieldstone_4m_h0p35m", "T1_Foundation_Front", FOUNDATION, (0.0, 0.0, 0.0))
     place("foundation_fieldstone_4m_h0p35m", "T1_Foundation_Rear", FOUNDATION, (0.0, BUILDING_DEPTH, 0.0), math.pi)
     for side, rotation in ((-2.0, -math.pi / 2.0), (2.0, math.pi / 2.0)):
         label = "Left" if side < 0 else "Right"
         place("foundation_fieldstone_4m_h0p35m", f"T1_Foundation_{label}_A", FOUNDATION, (side, 2.0, 0.0), rotation)
         place("foundation_fieldstone_2m_h0p35m", f"T1_Foundation_{label}_B", FOUNDATION, (side, 5.0, 0.0), rotation)
+        place("foundation_fieldstone_1m_h0p35m", f"T1_Foundation_{label}_C", FOUNDATION, (side, 6.5, 0.0), rotation)
 
-    # Front is deliberately asymmetric: a service door and one small shuttered aperture.
-    place("wall_limewash_2m_door_service_host", "T1_Wall_Front_Door", WALLS, (-1.0, 0.0, WALL_BASE_Z))
-    place("wall_limewash_2m_window_small_host", "T1_Wall_Front_Window", WALLS, (1.0, 0.0, WALL_BASE_Z))
-    place("opening_door_service_single", "T1_Door_Front", OPENINGS, (-1.0, -0.018, WALL_BASE_Z))
-    place("opening_window_small_shuttered", "T1_Window_Front", OPENINGS, (1.0, -0.022, WALL_BASE_Z))
+    # The public front retains humble daub, but the openings are literal voids rather than
+    # decorative glazed/shuttered inserts. The low service door is the only articulated opening.
+    make_aperture_wall(
+        "T1_Wall_Front_Door",
+        2.0,
+        "daub_humble",
+        (-1.0, 0.0, WALL_BASE_Z),
+        opening_width=1.08,
+        opening_height=2.02,
+    )
+    make_aperture_wall(
+        "T1_Wall_Front_SquareHole",
+        2.0,
+        "daub_humble",
+        (1.0, 0.0, WALL_BASE_Z),
+        opening_width=0.42,
+        opening_height=0.42,
+        opening_sill=1.02,
+        dark_backing=True,
+    )
+    place("opening_door_service_single", "T1_Door_Front", OPENINGS, (-1.0, -0.105, 0.33))
 
-    place("wall_limewash_4m_h2p7m", "T1_Wall_Rear", WALLS, (0.0, BUILDING_DEPTH, WALL_BASE_Z), math.pi)
-
+    # Horizontal plank boarding dominates the private sides and rear, following the regional
+    # timber-first material hierarchy and the lower, workaday burgage references.
+    make_aperture_wall(
+        "T1_Wall_Rear",
+        4.0,
+        "timber_weathered_horizontal",
+        (0.0, BUILDING_DEPTH, WALL_BASE_Z),
+        math.pi,
+    )
     for side, rotation in ((-2.0, -math.pi / 2.0), (2.0, math.pi / 2.0)):
         label = "Left" if side < 0 else "Right"
-        place("wall_limewash_4m_h2p7m", f"T1_Wall_{label}_A", WALLS, (side, 2.0, WALL_BASE_Z), rotation)
-        place("wall_limewash_2m_window_small_host", f"T1_Wall_{label}_Window", WALLS, (side, 5.0, WALL_BASE_Z), rotation)
-        place("opening_window_small_shuttered", f"T1_Window_{label}", OPENINGS, (side, 5.0, WALL_BASE_Z), rotation)
+        make_aperture_wall(
+            f"T1_Wall_{label}_A",
+            4.0,
+            "timber_weathered_horizontal",
+            (side, 2.0, WALL_BASE_Z),
+            rotation,
+        )
+        make_aperture_wall(
+            f"T1_Wall_{label}_SquareHole",
+            2.0,
+            "timber_weathered_horizontal",
+            (side, 5.0, WALL_BASE_Z),
+            rotation,
+            opening_width=0.38,
+            opening_height=0.38,
+            opening_sill=1.08,
+            dark_backing=True,
+        )
+        make_aperture_wall(
+            f"T1_Wall_{label}_C",
+            1.0,
+            "timber_weathered_horizontal",
+            (side, 6.5, WALL_BASE_Z),
+            rotation,
+        )
 
-    place("gable_infill_plaster_4m", "T1_Gable_Front", WALLS, (0.0, -0.01, WALL_TOP_Z))
-    place("gable_infill_plaster_4m", "T1_Gable_Rear", WALLS, (0.0, BUILDING_DEPTH + 0.01, WALL_TOP_Z), math.pi)
+    front_gable = place("gable_infill_timber_4m", "T1_Gable_Front", WALLS, (0.0, -0.01, WALL_TOP_Z))
+    rear_gable = place("gable_infill_timber_4m", "T1_Gable_Rear", WALLS, (0.0, BUILDING_DEPTH + 0.01, WALL_TOP_Z), math.pi)
+    remap_instance_material(front_gable, "timber_weathered", "timber_weathered_horizontal")
+    remap_instance_material(rear_gable, "timber_weathered", "timber_weathered_horizontal")
 
-    # The gable infill already owns the perimeter rafters. Add only a fitted king post,
-    # collar, and lower braces so no duplicate truss members pierce the roof skin.
-    gable_frame_z = WALL_TOP_Z - 0.04
-    collar_z = WALL_TOP_Z + math.tan(PITCH)
-    brace_z = WALL_TOP_Z - 0.16
-    place("frame_post_h2p4m_s0p16m", "T1_Gable_KingPost_Front", FRAMES, (0.0, -0.165, gable_frame_z))
-    place("frame_beam_2m_s0p16m", "T1_Gable_Collar_Front", FRAMES, (0.0, -0.165, collar_z))
-    place("frame_brace_right_2m", "T1_Gable_Brace_Front_Left", FRAMES, (-1.70, -0.165, brace_z))
-    place("frame_brace_left_2m", "T1_Gable_Brace_Front_Right", FRAMES, (1.70, -0.165, brace_z))
-    place("frame_post_h2p4m_s0p16m", "T1_Gable_KingPost_Rear", FRAMES, (0.0, BUILDING_DEPTH + 0.165, gable_frame_z), math.pi)
-    place("frame_beam_2m_s0p16m", "T1_Gable_Collar_Rear", FRAMES, (0.0, BUILDING_DEPTH + 0.165, collar_z), math.pi)
-    place("frame_brace_left_2m", "T1_Gable_Brace_Rear_Left", FRAMES, (-1.70, BUILDING_DEPTH + 0.165, brace_z), math.pi)
-    place("frame_brace_right_2m", "T1_Gable_Brace_Rear_Right", FRAMES, (1.70, BUILDING_DEPTH + 0.165, brace_z), math.pi)
-
-    # Full-height joiner posts meet the host walls' existing sill and wall-plate beams.
+    # Only structurally legible sill, wall plate, and joiner posts remain on the front.
+    place("frame_beam_4m_s0p16m", "T1_Front_Sill", FRAMES, (0.0, -0.112, WALL_BASE_Z))
+    place("frame_beam_4m_s0p16m", "T1_Front_WallPlate", FRAMES, (0.0, -0.112, WALL_TOP_Z - 0.16))
     for x in (-2.0, 0.0, 2.0):
-        place("frame_post_h2p7m_s0p16m", f"T1_Post_Front_{x:+.0f}", FRAMES, (x, -0.07, WALL_BASE_Z))
+        place("frame_post_h2p4m_s0p16m", f"T1_Post_Front_{x:+.0f}", FRAMES, (x, -0.112, WALL_BASE_Z))
     for x in (-2.0, 2.0):
-        place("frame_post_h2p7m_s0p16m", f"T1_Post_Rear_{x:+.0f}", FRAMES, (x, BUILDING_DEPTH + 0.07, WALL_BASE_Z), math.pi)
+        place("frame_post_h2p4m_s0p16m", f"T1_Post_Rear_{x:+.0f}", FRAMES, (x, BUILDING_DEPTH + 0.112, WALL_BASE_Z), math.pi)
 
 
 def roof_transform(side: float, slope_center: float) -> tuple[tuple[float, float], float]:
@@ -350,9 +572,11 @@ def roof_transform(side: float, slope_center: float) -> tuple[tuple[float, float
 
 
 def place_roof() -> None:
-    # The 3.6 m authored slope is made from a full and half panel—no stretched roof mesh.
-    runs = (("4m", 2.0), ("2m", 5.0))
-    slope_courses = (("full", -0.6), ("half", 1.2))
+    # Full + half + quarter authored courses form a 4.2 m slope. On a four-metre
+    # body this produces a roof-dominant 0.70 m side overhang without stretching geometry.
+    # Two four-metre runs extend 0.50 m beyond each gable end.
+    runs = (("4m", 1.5), ("4m", 5.5))
+    slope_courses = (("full", -0.9), ("half", 0.9), ("quarter", 1.8))
     for side in (-1.0, 1.0):
         side_name = "Left" if side < 0 else "Right"
         for run_token, y in runs:
@@ -383,22 +607,19 @@ def place_roof() -> None:
     for run_token, y in runs:
         place(f"roof_thatch_ridge_{run_token}", f"T1_Ridge_{run_token}", ROOF, (0.0, y, RIDGE_Z), math.pi / 2.0)
 
-    place("roof_thatch_ridge_endcap", "T1_Ridge_Endcap_Front", ROOF, (0.0, -0.12, RIDGE_Z), math.pi / 2.0)
-    place("roof_thatch_ridge_endcap", "T1_Ridge_Endcap_Rear", ROOF, (0.0, BUILDING_DEPTH + 0.12, RIDGE_Z), -math.pi / 2.0)
+    place("roof_thatch_ridge_endcap", "T1_Ridge_Endcap_Front", ROOF, (0.0, -0.62, RIDGE_Z), math.pi / 2.0)
+    place("roof_thatch_ridge_endcap", "T1_Ridge_Endcap_Rear", ROOF, (0.0, BUILDING_DEPTH + 0.62, RIDGE_Z), -math.pi / 2.0)
 
     # A bound-thatch smoke hood is the Tier-1 fire exit; a later masonry chimney would be anachronistic here.
     smoke_x = 0.72
     smoke_z = RIDGE_Z - smoke_x * math.tan(PITCH) - 0.05
-    place("roof_thatch_smoke_vent", "T1_Thatch_Smoke_Vent", ROOF, (smoke_x, 4.55, smoke_z), math.pi / 2.0)
-
-    patch_centre = -0.05
-    (patch_x, patch_z), patch_rotation = roof_transform(1.0, patch_centre)
-    place("roof_thatch_repair_patch_1m", "T1_Thatch_Repair_Patch", ROOF, (patch_x, 2.65, patch_z + 0.025), patch_rotation)
+    place("roof_thatch_smoke_vent", "T1_Thatch_Smoke_Vent", ROOF, (smoke_x, 5.35, smoke_z), math.pi / 2.0)
 
 
 def place_fixed_architecture() -> None:
     # Permanent entrance construction. Inventory-driven firewood is owned by ResidenceMarkers.
-    place("foundation_steps_limestone_1", "T1_Threshold_Steps", FIXED_ARCHITECTURE, (-1.0, -0.56, 0.0))
+    threshold = place("foundation_steps_limestone_1", "T1_Threshold_Steps", FIXED_ARCHITECTURE, (-1.0, -0.56, 0.0))
+    remap_instance_material(threshold, "limestone_warm", "quarry_stone")
 
 
 def remove_source_library_objects() -> None:
@@ -470,9 +691,9 @@ def stage_render() -> None:
     background.inputs["Strength"].default_value = 0.34
 
     key = add_light("T1_Key", "AREA", (-5.5, -5.5, 11.0), 1450.0, (1.0, 0.79, 0.57), 7.0)
-    point_camera(key, (0.0, 2.7, 2.2))
+    point_camera(key, (0.0, 3.2, 2.2))
     fill = add_light("T1_Fill", "AREA", (7.0, -1.0, 6.0), 900.0, (0.53, 0.69, 1.0), 5.0)
-    point_camera(fill, (0.0, 3.0, 2.0))
+    point_camera(fill, (0.0, 3.5, 2.0))
     rim = add_light("T1_Rim", "AREA", (-4.0, 9.0, 8.0), 1150.0, (0.72, 0.83, 1.0), 4.0)
     point_camera(rim, (0.0, 3.5, 3.0))
     sun = add_light("T1_Sun", "SUN", (0.0, 0.0, 10.0), 2.2, (1.0, 0.74, 0.48))
@@ -482,9 +703,9 @@ def stage_render() -> None:
     camera_data = bpy.data.cameras.new("T1_Hero_Camera")
     camera = bpy.data.objects.new("T1_Hero_Camera", camera_data)
     PREVIEW.objects.link(camera)
-    camera.location = (10.6, -12.6, 8.1)
-    camera_data.lens = 55.0
-    point_camera(camera, (0.0, 2.85, 2.65))
+    camera.location = (11.5, -14.5, 7.3)
+    camera_data.lens = 58.0
+    point_camera(camera, (0.0, 3.15, 2.55))
     camera["preview_only"] = True
     scene.camera = camera
 
@@ -497,8 +718,8 @@ def render_alignment_views() -> None:
     hero_lens = camera.data.lens
 
     for filepath, location, target, lens in (
-        (OUT_FRONT_RENDER, (0.0, -14.2, 4.9), (0.0, 1.85, 2.75), 58.0),
-        (OUT_SIDE_RENDER, (16.5, 3.0, 5.2), (0.0, 3.0, 2.65), 58.0),
+        (OUT_FRONT_RENDER, (0.0, -14.8, 4.25), (0.0, 0.8, 2.55), 60.0),
+        (OUT_SIDE_RENDER, (18.0, 3.5, 5.0), (0.0, 3.5, 2.45), 62.0),
     ):
         camera.location = location
         camera.data.lens = lens
@@ -514,7 +735,7 @@ def render_alignment_views() -> None:
 
 def write_manifest() -> None:
     payload = {
-        "id": "gorski-tier1-residence-atlas-preview-v1",
+        "id": "gorski-tier1-residence-atlas-preview-v2",
         "regionalContext": "Gorski Kotar, circa 1550",
         "sourceKit": "gorski-architecture-kit-1.1.0",
         "atlas": {
@@ -525,8 +746,31 @@ def write_manifest() -> None:
             "packing": "R roughness, G metalness, B AO, A centered height",
             "instanceUvPhase": "metric UVs are translated by snapped world placement so adjacent modules retain atlas continuity",
         },
-        "dimensionsMetres": {"width": 4.0, "depth": BUILDING_DEPTH, "foundationTop": WALL_BASE_Z, "wallTop": WALL_TOP_Z, "ridge": RIDGE_Z},
+        "dimensionsMetres": {
+            "bodyWidth": 4.0,
+            "bodyDepth": BUILDING_DEPTH,
+            "foundationTop": WALL_BASE_Z,
+            "wallHeight": WALL_HEIGHT,
+            "wallTop": WALL_TOP_Z,
+            "ridge": RIDGE_Z,
+            "sideEaveOverhang": round(SLOPE_LENGTH * math.cos(PITCH) - 2.0, 4),
+            "gableEndOverhang": 0.5,
+        },
         "roofFinish": "bundled-thatch",
+        "historicalMaterialDecision": {
+            "primaryBody": "weathered horizontal timber boarding on a low fieldstone footing",
+            "publicFront": "rough warm daub within a restrained structural frame",
+            "roof": "dark bundled thatch retained as the game's humble Tier-1 progression cue; split softwood roofing is the better-documented Gorski Kotar norm",
+            "openings": "plain unglazed square light and ventilation holes; no decorative shutters or leaded glazing",
+        },
+        "atlasCoverage": {
+            "usedNow": ["fieldstone-mortar", "lime-plaster", "rough-hewn-timber", "weathered-planks", "thatch-roof", "wicker-weave", "wrought-iron", "packed-earth"],
+            "sufficientForThisPass": True,
+            "recommendedFutureTiles": [
+                "riven-softwood-boarding: hand-split fir or pine boards with irregular adze edges",
+                "clay-straw-daub: coarser earthen infill with visible straw and restrained cracking",
+            ],
+        },
         "smokeExit": "bound-thatch hood; no later-tier masonry chimney",
         "canonicalState": "neutral shell; no inventory, activity, or occupancy-driven dressing",
         "fixedArchitecture": {
@@ -554,7 +798,7 @@ def main() -> None:
     add_preview_staging()
     stage_render()
     scene = bpy.context.scene
-    scene["artifact_id"] = "gorski-tier1-residence-atlas-preview-v1"
+    scene["artifact_id"] = "gorski-tier1-residence-atlas-preview-v2"
     scene["architecture_context"] = "Gorski Kotar, circa 1550"
     scene["roof_finish"] = "bundled-thatch"
     scene["atlas_id"] = ATLAS_MANIFEST["id"]
