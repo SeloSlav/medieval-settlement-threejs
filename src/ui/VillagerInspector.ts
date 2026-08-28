@@ -21,6 +21,7 @@ import {
   type SelectedAgentRoute,
   updateSelectedAgentRoute,
 } from '../scene/SelectedAgentRoute.ts';
+import type { AgentSelectionKind } from '../audio/AgentSelectionAudio.ts';
 
 type VillagerInspectorOptions = {
   domElement: HTMLElement;
@@ -32,6 +33,7 @@ type VillagerInspectorOptions = {
   selectionParent: THREE.Group;
   isBlocked: () => boolean;
   onSelectionChange?: (selected: boolean) => void;
+  onDirectAgentClick?: (kind: AgentSelectionKind) => void;
 };
 
 export function shouldDismissVillagerSelection(
@@ -236,6 +238,7 @@ export class VillagerInspector {
       this.selectedOxId = ox.oxId;
       this.panel.hidden = false;
       this.renderOx(ox);
+      this.options.onDirectAgentClick?.('ox');
       this.options.onSelectionChange?.(true);
       return;
     }
@@ -249,7 +252,9 @@ export class VillagerInspector {
     if (delivery) {
       event.preventDefault();
       event.stopImmediatePropagation();
-      this.selectDeliveryTrip(delivery.tripId);
+      if (this.selectDeliveryTrip(delivery.tripId)) {
+        this.options.onDirectAgentClick?.(delivery.modelVariant);
+      }
       return;
     }
 
@@ -269,6 +274,7 @@ export class VillagerInspector {
     this.selectedPersonIdentity = inspection.personIdentity;
     this.panel.hidden = false;
     this.renderVillager(inspection);
+    this.options.onDirectAgentClick?.(inspection.modelVariant);
     this.options.onSelectionChange?.(true);
   };
 

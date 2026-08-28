@@ -1783,7 +1783,7 @@ export const BUILDING_COSTS = {
 } as const satisfies Record<BuildingKind, BuildingResourceCost>;
 
 export const BUILDING_STORAGE_CAPS = {
-  founders_camp: { timber: 400, firewood: 240, stone: 280, total: 800, water: 120, food: 240, grain: 160, barley: 120, malt: 80, flour: 120, ale: 80, preservedFood: 120, honey: 80, wax: 80, candles: 80, wine: 80, wool: 120, yarn: 80, linen: 80, flax: 120, cloth: 80, pelts: 80, ironwork: 24, polearms: 80, iron: 80, clay: 80, salt: 80, charcoal: 80, pottery: 80, hides: 80, leather: 80, shoes: 80, roofTiles: 80 },
+  founders_camp: { timber: 800, firewood: 240, stone: 480, total: 1600, water: 120, food: 240, grain: 160, barley: 120, malt: 80, flour: 120, ale: 80, preservedFood: 120, honey: 80, wax: 80, candles: 80, wine: 80, wool: 120, yarn: 80, linen: 80, flax: 120, cloth: 80, pelts: 80, ironwork: 24, polearms: 80, iron: 80, clay: 80, salt: 80, charcoal: 80, pottery: 80, hides: 80, leather: 80, shoes: 80, roofTiles: 80 },
   salvage_pile: { timber: 500, firewood: 500, stone: 500, total: 500, water: 500, food: 500, grain: 500, barley: 500, malt: 500, flour: 500, ale: 500, preservedFood: 500, honey: 500, wax: 500, candles: 500, wine: 500, wool: 500, yarn: 500, linen: 500, flax: 500, cloth: 500, pelts: 500, ironwork: 500, polearms: 500, iron: 500, clay: 500, salt: 500, charcoal: 500, pottery: 500, hides: 500, leather: 500, shoes: 500, roofTiles: 500, manure: 500, remedies: 500, animalFeed: 500 },
   lumber_mill: { timber: 50, firewood: 0, stone: 0, total: 50, water: 12, ironwork: 3 },
   reforester: { timber: 0, firewood: 0, stone: 0 },

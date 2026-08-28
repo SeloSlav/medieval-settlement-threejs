@@ -1133,10 +1133,10 @@
       "label": "Founders' camp",
       "cost": { "timber": 36, "stone": 12, "gold": 120 },
       "storage": {
-        "total": 800,
-        "timber": 400,
+        "total": 1600,
+        "timber": 800,
         "firewood": 240,
-        "stone": 280,
+        "stone": 480,
         "water": 120,
         "food": 240,
         "grain": 160,

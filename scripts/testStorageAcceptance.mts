@@ -9,13 +9,24 @@ import {
   STOREHOUSE_STORAGE_GROUPS,
   storageAcceptsCommodity,
 } from '../src/economy/storageAcceptancePolicy.ts';
-import { BUILDING_KINDS, BUILDING_STORAGE_CAPS } from '../src/generated/gameBalance.ts';
+import {
+  BUILDING_KINDS,
+  BUILDING_STORAGE_CAPS,
+  STARTING_BREAD,
+  STARTING_FIREWOOD,
+  STARTING_GOLD,
+  STARTING_IRONWORK,
+  STARTING_STONE,
+  STARTING_TIMBER,
+} from '../src/generated/gameBalance.ts';
 import {
   buildingSharedStorageCapacity,
   buildingSharedStorageRoom,
   buildingStoredResourceTotal,
 } from '../src/economy/sharedStorageCapacity.ts';
 import type { BuildingState } from '../src/resources/types.ts';
+import { withBuildingLocalStorage } from '../src/resources/inspector/buildingLocalStorageRenderer.ts';
+import type { InspectorView } from '../src/resources/inspector/renderInspectableTarget.ts';
 
 const all = (1n << 64n) - 1n;
 const storehouse = {
@@ -131,7 +142,76 @@ for (const [kind, capacity] of Object.entries(productionCapacity)) {
   );
   assert.ok(capacity >= 50 && capacity <= 250);
 }
-assert.equal(BUILDING_STORAGE_CAPS.founders_camp.total, 800);
+assert.equal(BUILDING_STORAGE_CAPS.founders_camp.total, 1600);
+const normalStartingGoods = {
+  timber: STARTING_TIMBER,
+  stone: STARTING_STONE,
+  firewood: STARTING_FIREWOOD,
+  ryeBread: STARTING_BREAD,
+  ironwork: STARTING_IRONWORK,
+};
+const normalStartingGoodsTotal = Object.values(normalStartingGoods)
+  .reduce((total, amount) => total + amount, 0);
+for (const multiplier of [1, 2] as const) {
+  const startingCamp = {
+    kind: 'founders_camp',
+    timber: normalStartingGoods.timber * multiplier,
+    stone: normalStartingGoods.stone * multiplier,
+    firewood: normalStartingGoods.firewood * multiplier,
+    ryeBread: normalStartingGoods.ryeBread * multiplier,
+    ironwork: normalStartingGoods.ironwork * multiplier,
+    gold: STARTING_GOLD * multiplier,
+  } as BuildingState;
+  const storedTotal = buildingStoredResourceTotal(startingCamp);
+  assert.equal(
+    storedTotal,
+    normalStartingGoodsTotal * multiplier,
+    'dedicated treasury gold must not inflate the local working-goods total',
+  );
+  assert.ok(
+    storedTotal <= BUILDING_STORAGE_CAPS.founders_camp.total,
+    `Founders Camp shared storage must hold the ${multiplier === 1 ? 'normal' : 'doubled'} starting-goods option`,
+  );
+  for (const [resource, storageKey] of [
+    ['timber', 'timber'],
+    ['stone', 'stone'],
+    ['firewood', 'firewood'],
+    ['ryeBread', 'food'],
+    ['ironwork', 'ironwork'],
+  ] as const) {
+    assert.ok(
+      BUILDING_STORAGE_CAPS.founders_camp[storageKey] >= startingCamp[resource],
+      `Founders Camp ${resource} storage must hold its ${multiplier === 1 ? 'normal' : 'doubled'} starting allocation`,
+    );
+  }
+}
+const doubledCampStorageView = withBuildingLocalStorage({
+  eyebrow: '',
+  title: '',
+  statusText: '',
+  statusState: '',
+  detailsHtml: '',
+  demolish: { visible: false, hint: '' },
+  labor: {
+    visible: false,
+    count: 0,
+    hint: '',
+    decreaseDisabled: true,
+    increaseDisabled: true,
+  },
+} satisfies InspectorView, {
+  kind: 'founders_camp',
+  timber: STARTING_TIMBER * 2,
+  stone: STARTING_STONE * 2,
+  firewood: STARTING_FIREWOOD * 2,
+  ryeBread: STARTING_BREAD * 2,
+  ironwork: STARTING_IRONWORK * 2,
+  gold: STARTING_GOLD * 2,
+} as BuildingState);
+assert.match(doubledCampStorageView.detailsHtml, /Founding supplies/);
+assert.match(doubledCampStorageView.detailsHtml, /outbound only/);
+assert.match(doubledCampStorageView.detailsHtml, /does not accept deliveries/);
+assert.doesNotMatch(doubledCampStorageView.detailsHtml, /1600|capacity|Local storage/);
 assert.equal(BUILDING_STORAGE_CAPS.salvage_pile.total, 500);
 assert.equal(BUILDING_STORAGE_CAPS.marketplace.total, 400);
 assert.equal(BUILDING_STORAGE_CAPS.trading_post.total, 600);

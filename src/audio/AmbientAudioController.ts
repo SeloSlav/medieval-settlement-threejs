@@ -53,6 +53,10 @@ import {
 import { ForestWindAudio } from './ForestWindAudio.ts';
 import { forestWindTargetMix } from './forestWindRules.ts';
 import { setExternalSoundtrackActive } from './audioPlaybackState.ts';
+import {
+  AgentSelectionAudio,
+  type AgentSelectionKind,
+} from './AgentSelectionAudio.ts';
 
 export type AmbientAudioControllerConfig = {
   getCameraTarget: () => { x: number; z: number };
@@ -85,6 +89,7 @@ export class AmbientAudioController {
   private readonly riverAudio: RiverAudio;
   private readonly soundtrack = new SoundtrackAudio();
   private readonly uiAudio = new UiAudio();
+  private readonly agentSelectionAudio = new AgentSelectionAudio();
   private readonly fireAudio: FireAudio;
   private readonly buildingAudio = new BuildingAudio();
   private readonly worldFoley = new WorldFoleyAudio();
@@ -281,6 +286,7 @@ export class AmbientAudioController {
       enabled && this.musicEnabled && this.gameplayMusicActive,
     );
     this.uiAudio.setEnabled(enabled);
+    this.agentSelectionAudio.setEnabled(enabled);
     if (!enabled) {
       this.running = false;
       this.chapelBell.stop();
@@ -342,10 +348,15 @@ export class AmbientAudioController {
     this.fireAudio.setVolume(volume);
     this.chapelBell.setVolume(volume);
     this.uiAudio.setVolume(volume);
+    this.agentSelectionAudio.setVolume(volume);
   }
 
   playUiSound(id: UiSoundId): void {
     this.uiAudio.play(id);
+  }
+
+  playAgentSelection(kind: AgentSelectionKind): void {
+    this.agentSelectionAudio.play(kind);
   }
 
   playFootstep(event: FootstepEvent): void {
@@ -376,6 +387,7 @@ export class AmbientAudioController {
     this.worldFoley.dispose();
     this.soundtrack.dispose();
     this.uiAudio.dispose();
+    this.agentSelectionAudio.dispose();
     this.running = false;
     this.unlocked = false;
     this.schedule = null;

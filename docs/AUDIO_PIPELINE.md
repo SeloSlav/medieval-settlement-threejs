@@ -106,6 +106,11 @@ cost.
   to the instrumental score when a music cue is active.
 - Close workers retain small pooled one-shot effects so large settlements do
   not create an audio element per villager.
+- A direct world click on a villager, guard, founder, hauler, or other visible
+  person plays one randomized gender-matched selection line imported from Selo
+  Empire. Direct ox clicks use three short ElevenLabs-generated ox reactions.
+  These acknowledgements do not run during background sync or programmatic
+  inspector focus, and rapid clicks replace the previous cue.
 - The Settings menu persists a master Game audio switch; independent Ambience,
   Sound effects, and Music volume sliders; the Forest wind sounds toggle; and
   a Background music switch. Defaults are 80% ambience, 80% sound effects, and

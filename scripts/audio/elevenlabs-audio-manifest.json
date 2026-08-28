@@ -1272,6 +1272,36 @@
       "promptInfluence": 0.88
     },
     {
+      "id": "agent-selection-ox-1",
+      "group": "agent-selection-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/animals/ox_selected_1.mp3",
+      "prompt": "Photorealistic isolated close field recording of one calm adult draft ox acknowledging a nearby handler with a single low gentle moo, warm chest resonance and a soft breath at the end. One ox only, no herd, no human voice, no bell, no cart, no footsteps, no farm ambience, no music",
+      "durationSeconds": 2.5,
+      "loop": false,
+      "promptInfluence": 0.94
+    },
+    {
+      "id": "agent-selection-ox-2",
+      "group": "agent-selection-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/animals/ox_selected_2.mp3",
+      "prompt": "Photorealistic isolated close recording of one relaxed working ox giving a brief breathy nasal low and quiet snort when approached, natural heavy bovine character, restrained and friendly. One ox only, no moo chorus, no humans, no harness jingle, no stable ambience, no music",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.94
+    },
+    {
+      "id": "agent-selection-ox-3",
+      "group": "agent-selection-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/animals/ox_selected_3.mp3",
+      "prompt": "Photorealistic isolated field recording of one calm draft ox making a short soft questioning moo followed by one slow nostril exhale, close and dry, suitable as a game selection acknowledgement. One ox only, no other animals, no person, no yoke noise, no countryside background, no music",
+      "durationSeconds": 2.6,
+      "loop": false,
+      "promptInfluence": 0.94
+    },
+    {
       "id": "music-charter-beneath-firs",
       "group": "soundtrack",
       "kind": "music",

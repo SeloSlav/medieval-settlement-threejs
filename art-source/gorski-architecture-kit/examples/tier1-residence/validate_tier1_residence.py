@@ -72,6 +72,8 @@ def main() -> None:
     dark_apertures = [source for source in sources if source == "assembly_dark_unglazed_aperture"]
     window_inserts = [source for source in sources if source.startswith("opening_window_")]
     roof_panels = [source for source in sources if source.startswith("roof_shingle_panel_")]
+    roof_aperture_panels = [obj for obj in meshes if obj.get("roof_aperture_id") == "tier1-smoke-exit"]
+    surface_smoke_meshes = [source for source in sources if source == "assembly_dark_roof_smoke_opening"]
     roof_triangles = sum(
         triangle_count(obj)
         for obj in meshes
@@ -86,6 +88,7 @@ def main() -> None:
         "threePlainSquareApertures": len(dark_apertures) == 3,
         "noDecorativeWindowInserts": not window_inserts,
         "threeCourseShingleRoofAcrossEightRuns": len(roof_panels) == 48,
+        "actualRoofSmokeAperture": bool(roof_aperture_panels) and not surface_smoke_meshes,
         "noRuntimeOrVegetationDressingAuthored": not forbidden_authored_state,
         # The preview-only packed-earth plane is intentionally excluded from the
         # architecture object set; the shell itself uses six production atlas tiles.
@@ -103,6 +106,7 @@ def main() -> None:
             "roofTriangleShare": round(roof_triangles / total_triangles, 4) if total_triangles else 0.0,
             "customApertureWallPieces": len(square_hole_walls),
             "darkUnglazedApertures": len(dark_apertures),
+            "apertureCutRoofPanels": len(roof_aperture_panels),
         },
         "atlasTiles": material_tiles,
         "violations": {
@@ -110,6 +114,7 @@ def main() -> None:
             "missingMetricUv": missing_metric_uv,
             "nonmanifoldEdges": nonmanifold,
             "decorativeWindowInserts": window_inserts,
+            "surfaceSmokeMeshes": surface_smoke_meshes,
             "forbiddenAuthoredState": forbidden_authored_state,
         },
     }

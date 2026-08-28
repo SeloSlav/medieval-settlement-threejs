@@ -72,11 +72,11 @@
       "clay-straw-daub: coarser earthen infill with visible straw and restrained cracking"
     ]
   },
-  "smokeExit": "small unadorned opening in the shingle plane; no projecting hood, cap, or later-tier masonry chimney",
+  "smokeExit": "0.38 x 0.40 m Boolean void through every overlapping shingle layer; no surface decal, projecting hood, cap, or later-tier masonry chimney",
   "canonicalState": "neutral shell; no inventory, activity, or occupancy-driven dressing",
   "fixedArchitecture": {
     "threshold": "weathered fieldstone entrance step",
-    "smokeOpening": "small dark roof-plane aperture only"
+    "smokeOpening": "true mesh aperture cut through the shingle layers; empty in the neutral shell"
   },
   "runtimeOwnedState": {
     "firewoodPile": "ResidenceMarkers.syncFirewoodPile controls visibility and fill scale from household firewood stock",
@@ -420,9 +420,9 @@
       "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
-        -1.92836,
+        -1.87694,
         0.0,
-        2.83537
+        2.89666
       ],
       "rotationZDegrees": -90.0
     },
@@ -453,9 +453,9 @@
       "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
-        -1.92836,
+        -1.87694,
         1.0,
-        2.83537
+        2.89666
       ],
       "rotationZDegrees": -90.0
     },
@@ -486,9 +486,9 @@
       "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
-        -1.92836,
+        -1.87694,
         2.0,
-        2.83537
+        2.89666
       ],
       "rotationZDegrees": -90.0
     },
@@ -519,9 +519,9 @@
       "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
-        -1.92836,
+        -1.87694,
         3.0,
-        2.83537
+        2.89666
       ],
       "rotationZDegrees": -90.0
     },
@@ -552,9 +552,9 @@
       "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
-        -1.92836,
+        -1.87694,
         4.0,
-        2.83537
+        2.89666
       ],
       "rotationZDegrees": -90.0
     },
@@ -585,9 +585,9 @@
       "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
-        -1.92836,
+        -1.87694,
         5.0,
-        2.83537
+        2.89666
       ],
       "rotationZDegrees": -90.0
     },
@@ -618,9 +618,9 @@
       "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
-        -1.92836,
+        -1.87694,
         6.0,
-        2.83537
+        2.89666
       ],
       "rotationZDegrees": -90.0
     },
@@ -651,9 +651,9 @@
       "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
-        -1.92836,
+        -1.87694,
         7.0,
-        2.83537
+        2.89666
       ],
       "rotationZDegrees": -90.0
     },
@@ -684,9 +684,9 @@
       "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
-        1.92836,
+        1.87694,
         0.0,
-        2.83537
+        2.89666
       ],
       "rotationZDegrees": 90.0
     },
@@ -717,9 +717,9 @@
       "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
-        1.92836,
+        1.87694,
         1.0,
-        2.83537
+        2.89666
       ],
       "rotationZDegrees": 90.0
     },
@@ -750,9 +750,9 @@
       "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
-        1.92836,
+        1.87694,
         2.0,
-        2.83537
+        2.89666
       ],
       "rotationZDegrees": 90.0
     },
@@ -783,9 +783,9 @@
       "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
-        1.92836,
+        1.87694,
         3.0,
-        2.83537
+        2.89666
       ],
       "rotationZDegrees": 90.0
     },
@@ -816,9 +816,9 @@
       "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
-        1.92836,
+        1.87694,
         4.0,
-        2.83537
+        2.89666
       ],
       "rotationZDegrees": 90.0
     },
@@ -849,9 +849,9 @@
       "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
-        1.92836,
+        1.87694,
         5.0,
-        2.83537
+        2.89666
       ],
       "rotationZDegrees": 90.0
     },
@@ -882,9 +882,9 @@
       "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
-        1.92836,
+        1.87694,
         6.0,
-        2.83537
+        2.89666
       ],
       "rotationZDegrees": 90.0
     },
@@ -915,9 +915,9 @@
       "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
-        1.92836,
+        1.87694,
         7.0,
-        2.83537
+        2.89666
       ],
       "rotationZDegrees": 90.0
     },
@@ -1228,18 +1228,6 @@
         5.09551
       ],
       "rotationZDegrees": -90.0
-    },
-    {
-      "name": "T1_Roof_Smoke_Opening",
-      "source": "assembly_dark_roof_smoke_opening",
-      "collection": "T1_05_Roof",
-      "location": [
-        0.78894,
-        5.35,
-        4.2537
-      ],
-      "rotationZDegrees": 0.0,
-      "rotationYDegrees": 50.0
     },
     {
       "name": "T1_CommonRafter_00_Left",

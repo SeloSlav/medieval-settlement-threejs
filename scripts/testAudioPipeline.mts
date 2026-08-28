@@ -14,12 +14,18 @@ import {
   FARM_WORKERS_SINGING_CLIP,
   FIRE_CRACKLE_CLIP,
   MUSIC_TRACKS,
+  OX_SELECTION_CLIPS,
+  PERSON_SELECTION_CLIPS,
   RIVER_WATER_CLIP,
   UI_SOUNDS,
   WORKER_ACTIVITY_CLIPS,
   WORLD_FOLEY_CLIPS,
   type AudioClipDefinition,
 } from '../src/audio/audioCatalog.ts';
+import {
+  AgentSelectionAudio,
+  pickSelectionClipIndex,
+} from '../src/audio/AgentSelectionAudio.ts';
 import { BUILDING_KINDS } from '../src/generated/gameBalance.ts';
 import {
   BuildingAudio,
@@ -152,6 +158,8 @@ function runtimeClips(): AudioClipDefinition[] {
     FIRE_CRACKLE_CLIP,
     ...Object.values(MUSIC_TRACKS),
     ...Object.values(UI_SOUNDS),
+    ...Object.values(PERSON_SELECTION_CLIPS).flat(),
+    ...OX_SELECTION_CLIPS,
     ...Object.values(WORKER_ACTIVITY_CLIPS).flat(),
     ...Object.values(COMBAT_AUDIO_CLIPS).flat(),
     ...Object.values(BUILDING_AUDIO_CLIPS),
@@ -392,6 +400,92 @@ async function main(): Promise<void> {
     && buildingAudioTailGain(0) === 0,
     'Building Foley needs a smooth playback-only tail envelope',
   );
+  invariant(
+    PERSON_SELECTION_CLIPS.male.length === 6
+    && PERSON_SELECTION_CLIPS.female.length === 6
+    && OX_SELECTION_CLIPS.length === 3,
+    'Direct agent selection needs six legacy lines per voice and three ox reactions',
+  );
+  for (const voice of ['male', 'female'] as const) {
+    PERSON_SELECTION_CLIPS[voice].forEach((clip, index) => {
+      invariant(
+        clip.path === `/sounds/people/${voice}/person_selected_${index + 1}.mp3`,
+        `Unexpected ${voice} selection clip path at index ${index}`,
+      );
+    });
+  }
+  for (let previous = 0; previous < 6; previous += 1) {
+    for (const randomValue of [0, 0.2, 0.5, 0.8, 0.999999]) {
+      invariant(
+        pickSelectionClipIndex(6, previous, randomValue) !== previous,
+        'Random selection acknowledgements must avoid immediate repeats',
+      );
+    }
+  }
+  const selectionAudioDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Audio');
+  const selectionPlays: Array<{ src: string; volume: number; playbackRate: number }> = [];
+  class FakeSelectionAudioElement {
+    paused = true;
+    currentTime = 0;
+    preload = '';
+    src = '';
+    volume = 0;
+    playbackRate = 1;
+
+    pause(): void {
+      this.paused = true;
+    }
+
+    play(): Promise<void> {
+      this.paused = false;
+      selectionPlays.push({
+        src: this.src,
+        volume: this.volume,
+        playbackRate: this.playbackRate,
+      });
+      return Promise.resolve();
+    }
+
+    removeAttribute(name: string): void {
+      if (name === 'src') this.src = '';
+    }
+  }
+  Object.defineProperty(globalThis, 'Audio', {
+    configurable: true,
+    writable: true,
+    value: FakeSelectionAudioElement,
+  });
+  try {
+    const selectionMixer = new AgentSelectionAudio(() => 0);
+    selectionMixer.setVolume(0.5);
+    selectionMixer.play('man');
+    selectionMixer.play('man');
+    selectionMixer.play('woman');
+    selectionMixer.play('ox');
+    invariant(
+      selectionPlays.length === 4
+      && selectionPlays[0]?.src === PERSON_SELECTION_CLIPS.male[0]?.path
+      && selectionPlays[1]?.src === PERSON_SELECTION_CLIPS.male[1]?.path
+      && selectionPlays[2]?.src === PERSON_SELECTION_CLIPS.female[0]?.path
+      && selectionPlays[3]?.src === OX_SELECTION_CLIPS[0]?.path,
+      'Direct clicks must choose the matching person voice or ox clip without repeating',
+    );
+    invariant(
+      selectionPlays[0]?.volume === (PERSON_SELECTION_CLIPS.male[0]?.volume ?? 1) * 0.5
+      && selectionPlays.every((play) => play.playbackRate >= 0.96 && play.playbackRate <= 1.04),
+      'Selection acknowledgements must respect effects volume and restrained pitch variation',
+    );
+    selectionMixer.setEnabled(false);
+    selectionMixer.play('man');
+    invariant(selectionPlays.length === 4, 'Master audio mute must suppress selection cues');
+    selectionMixer.dispose();
+  } finally {
+    if (selectionAudioDescriptor) {
+      Object.defineProperty(globalThis, 'Audio', selectionAudioDescriptor);
+    } else {
+      delete (globalThis as { Audio?: unknown }).Audio;
+    }
+  }
   const buildingAudioDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Audio');
   const buildingPlayback: Array<{
     paused: boolean;

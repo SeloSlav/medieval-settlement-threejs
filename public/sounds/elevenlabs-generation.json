@@ -3,6 +3,17 @@
   "note": "Generated files only; the ElevenLabs API key is never stored here.",
   "generations": [
     {
+      "id": "agent-selection-ox-1",
+      "output": "public/sounds/animals/ox_selected_1.mp3",
+      "generatedAt": "2026-08-28T12:37:02.386Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "25",
+      "byteLength": 40586,
+      "sha256": "21fce7244541dd039f8a2d9993cc8b8f479a428ad1cc333c0a7d77f4d2457008"
+    },
+    {
       "id": "ambient-fire",
       "output": "public/sounds/ambient/fire_crackle.mp3",
       "generatedAt": "2026-07-28T05:56:59.092Z",

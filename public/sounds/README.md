@@ -18,6 +18,20 @@ This is a Selo Empire game asset, copyright Martin Erlic 2026, all rights
 reserved. It is not part of the source-code license. Reuse outside projects
 authorized by the copyright holder requires permission.
 
+## Villager selection voices
+
+`people/male/person_selected_1.mp3` through `person_selected_6.mp3` and
+`people/female/person_selected_1.mp3` through `person_selected_6.mp3` were
+copied unchanged from the matching `person_selected_*` files in Selo Empire.
+Only the direct-selection acknowledgement clips were imported; move, attack,
+annoyed, and death lines were deliberately excluded. These are Selo Empire
+game assets, copyright Martin Erlic 2026, all rights reserved, and follow the
+same reuse terms above.
+
+`animals/ox_selected_1.mp3` through `ox_selected_3.mp3` are generated locally
+through ElevenLabs. Their prompts, settings, and non-secret provenance live in
+the normal audio manifest and generation report.
+
 ## ElevenLabs generations
 
 Prompts and generation settings live in

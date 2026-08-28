@@ -782,52 +782,66 @@ def place_roof_supports() -> None:
 
 
 def cut_roof_smoke_aperture(smoke_x: float, smoke_y: float, smoke_surface_z: float) -> int:
-    """Boolean a real void through every overlapping shingle layer at the smoke exit."""
-    cutter_mesh = bpy.data.meshes.new("T1_Roof_Smoke_Aperture_Cutter_Mesh")
-    cutter_bmesh = bmesh.new()
-    bmesh.ops.create_cube(cutter_bmesh, size=1.0)
-    cutter_bmesh.to_mesh(cutter_mesh)
-    cutter_bmesh.free()
-    cutter = bpy.data.objects.new("T1_Roof_Smoke_Aperture_Cutter", cutter_mesh)
-    ROOF.objects.link(cutter)
-    cutter.location = (smoke_x, smoke_y, smoke_surface_z)
-    cutter.rotation_euler[1] = PITCH
-    # Local X follows the slope, Y follows the ridge, and local Z passes through
-    # every overlapping shingle box without cutting the inset supporting rafters.
-    cutter.scale = (0.38, 0.40, 0.72)
-    bpy.context.view_layer.update()
-
-    cutter_points = [cutter.matrix_world @ Vector(corner) for corner in cutter.bound_box]
-    cutter_min = Vector(tuple(min(point[axis] for point in cutter_points) for axis in range(3)))
-    cutter_max = Vector(tuple(max(point[axis] for point in cutter_points) for axis in range(3)))
-    cut_count = 0
+    """Remove complete closed shingle solids to leave a real, manifold smoke opening."""
+    aperture_center = Vector((smoke_x, smoke_y, smoke_surface_z))
+    downslope = Vector((math.cos(PITCH), 0.0, -math.sin(PITCH)))
+    half_slope = 0.20
+    half_run = 0.21
+    cut_panel_count = 0
+    nearest_components: list[tuple[float, str, float, float, tuple[float, float, float]]] = []
     for panel in tuple(ROOF.objects):
         if panel.type != "MESH" or not panel.name.startswith("T1_Roof_Right_Run"):
             continue
-        panel_points = [panel.matrix_world @ Vector(corner) for corner in panel.bound_box]
-        panel_min = Vector(tuple(min(point[axis] for point in panel_points) for axis in range(3)))
-        panel_max = Vector(tuple(max(point[axis] for point in panel_points) for axis in range(3)))
-        if any(panel_max[axis] < cutter_min[axis] or panel_min[axis] > cutter_max[axis] for axis in range(3)):
-            continue
+        bm = bmesh.new()
+        bm.from_mesh(panel.data)
+        remaining_faces = set(bm.faces)
+        vertices_to_remove = set()
+        while remaining_faces:
+            seed = remaining_faces.pop()
+            component_faces = {seed}
+            frontier = [seed]
+            while frontier:
+                face = frontier.pop()
+                for edge in face.edges:
+                    for neighbour in edge.link_faces:
+                        if neighbour in remaining_faces:
+                            remaining_faces.remove(neighbour)
+                            component_faces.add(neighbour)
+                            frontier.append(neighbour)
+            component_vertices = {vertex for face in component_faces for vertex in face.verts}
+            world_points = [panel.matrix_world @ vertex.co for vertex in component_vertices]
+            slope_coordinates = [(point - aperture_center).dot(downslope) for point in world_points]
+            run_coordinates = [point.y - smoke_y for point in world_points]
+            component_center = sum(world_points, Vector()) / len(world_points)
+            center_slope = (component_center - aperture_center).dot(downslope)
+            center_run = component_center.y - smoke_y
+            nearest_components.append(
+                (
+                    abs(center_slope) + abs(center_run),
+                    panel.name,
+                    center_slope,
+                    center_run,
+                    tuple(round(value, 4) for value in component_center),
+                )
+            )
+            overlaps_slope = max(slope_coordinates) >= -half_slope and min(slope_coordinates) <= half_slope
+            overlaps_run = max(run_coordinates) >= -half_run and min(run_coordinates) <= half_run
+            if overlaps_slope and overlaps_run:
+                vertices_to_remove.update(component_vertices)
 
-        polygon_count_before = len(panel.data.polygons)
-        modifier = panel.modifiers.new("T1_ActualSmokeAperture", "BOOLEAN")
-        modifier.operation = "DIFFERENCE"
-        modifier.solver = "EXACT"
-        modifier.object = cutter
-        bpy.context.view_layer.objects.active = panel
-        panel.select_set(True)
-        bpy.ops.object.modifier_apply(modifier=modifier.name)
-        panel.select_set(False)
-        if len(panel.data.polygons) != polygon_count_before:
+        if vertices_to_remove:
+            bmesh.ops.delete(bm, geom=list(vertices_to_remove), context="VERTS")
+            bm.to_mesh(panel.data)
+            panel.data.update()
             panel["roof_aperture_id"] = "tier1-smoke-exit"
-            panel["roof_aperture_method"] = "boolean void through overlapping shingle layers"
-            cut_count += 1
+            panel["roof_aperture_method"] = "removed intersecting closed shingle solids"
+            cut_panel_count += 1
+        bm.free()
 
-    bpy.data.objects.remove(cutter, do_unlink=True)
-    if cut_count == 0:
-        raise RuntimeError("Tier-1 smoke aperture cutter did not intersect any roof panel")
-    return cut_count
+    if cut_panel_count == 0:
+        print("T1_SMOKE_APERTURE_NEAREST_COMPONENTS", sorted(nearest_components)[:12])
+        raise RuntimeError("Tier-1 smoke aperture did not intersect any roof shingle solids")
+    return cut_panel_count
 
 
 def place_roof() -> None:
@@ -844,6 +858,11 @@ def place_roof() -> None:
         for run_index, (run_token, y) in enumerate(runs):
             for course_name, centre in slope_courses:
                 (x, z), rotation = roof_transform(side, centre)
+                # Each upslope module laps over the course below it. The small normal
+                # rise prevents the full/half boundary from exposing a timber-like band.
+                course_relief = {"full": 0.0, "half": 0.032, "quarter": 0.050}[course_name]
+                x += side * math.sin(PITCH) * course_relief
+                z += math.cos(PITCH) * course_relief
                 panel = place(
                     f"roof_shingle_panel_{run_token}_{course_name}",
                     f"T1_Roof_{side_name}_Run{run_index:02d}_{course_name}",
@@ -897,28 +916,12 @@ def place_roof() -> None:
         -math.pi / 2.0,
     )
 
-    # A Tier-1 smoke exit is only a small dark opening in the shingle plane. Runtime owns
-    # the emitted smoke; no projecting hood, cap, or later-tier masonry chimney is authored.
+    # A Tier-1 smoke exit is an actual void through the shingles. Runtime owns the emitted
+    # smoke; no surface decal, projecting hood, cap, or later-tier chimney is authored.
     smoke_x = 0.72
     smoke_y = 5.35
-    opening_relief = 0.09
     smoke_surface_z = RIDGE_Z - smoke_x * math.tan(PITCH) + roof_drop_interpolated(smoke_y, 1.0)
-    smoke_opening = make_custom_part(
-        "T1_Roof_Smoke_Opening",
-        ROOF,
-        [((0.0, 0.0, 0.0), (0.30, 0.34, 0.012))],
-        "interior_dark",
-        (
-            smoke_x + math.sin(PITCH) * opening_relief,
-            smoke_y,
-            smoke_surface_z + math.cos(PITCH) * opening_relief,
-        ),
-        0.0,
-        "assembly_dark_roof_smoke_opening",
-    )
-    smoke_opening.rotation_euler[1] = PITCH
-    smoke_opening["rotation_y_degrees"] = round(math.degrees(PITCH), 4)
-    PLACEMENTS[-1]["rotationYDegrees"] = round(math.degrees(PITCH), 4)
+    cut_roof_smoke_aperture(smoke_x, smoke_y, smoke_surface_z)
     place_roof_supports()
 
 
@@ -1086,11 +1089,11 @@ def write_manifest() -> None:
                 "clay-straw-daub: coarser earthen infill with visible straw and restrained cracking",
             ],
         },
-        "smokeExit": "small unadorned opening in the shingle plane; no projecting hood, cap, or later-tier masonry chimney",
+        "smokeExit": "approximately 0.40 x 0.42 m true void formed by removing every intersecting closed shingle solid; no surface decal, projecting hood, cap, or later-tier masonry chimney",
         "canonicalState": "neutral shell; no inventory, activity, or occupancy-driven dressing",
         "fixedArchitecture": {
             "threshold": "weathered fieldstone entrance step",
-            "smokeOpening": "small dark roof-plane aperture only",
+            "smokeOpening": "true mesh aperture through the overlapping shingle layers; empty in the neutral shell",
         },
         "runtimeOwnedState": {
             "firewoodPile": "ResidenceMarkers.syncFirewoodPile controls visibility and fill scale from household firewood stock",

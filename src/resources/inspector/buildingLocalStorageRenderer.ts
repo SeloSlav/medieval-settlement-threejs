@@ -37,8 +37,12 @@ export function withBuildingLocalStorage(
   building: BuildingState,
 ): InspectorView {
   const items = buildingLocalStorageItems(building);
+  const listedTotal = items.reduce((sum, item) => sum + item.amount, 0);
   const total = buildingStoredResourceTotal(building);
-  const capacity = buildingSharedStorageCapacity(building.kind);
+  const foundingSupplies = building.kind === 'founders_camp';
+  const capacity = foundingSupplies
+    ? null
+    : buildingSharedStorageCapacity(building.kind);
   const food = Math.max(0, edibleFoodStock(building));
   const nonFood = Math.max(0, total - food);
   const stockSummary = food > 1e-6
@@ -48,20 +52,29 @@ export function withBuildingLocalStorage(
     : total > 1e-6
       ? `${formatResourceCostAmount(total)} stored`
       : 'Empty';
-  const summary = capacity == null
-    ? stockSummary
-    : `${formatResourceCostAmount(total)} / ${formatResourceCostAmount(capacity)} total`;
-  const tooltip = capacity == null
+  const label = foundingSupplies ? 'Founding supplies' : 'Local storage';
+  const summary = foundingSupplies
     ? items.length > 0
-      ? 'Exact goods physically stored at this building now.'
-      : 'Nothing is currently stored at this building.'
-    : `Exact goods physically stored here. This building has one combined ${formatResourceCostAmount(capacity)}-unit capacity for all accepted resources.`;
+      ? `${formatResourceCostAmount(listedTotal)} remaining · outbound only`
+      : 'Empty · outbound only'
+    : capacity == null
+      ? stockSummary
+      : `${formatResourceCostAmount(total)} / ${formatResourceCostAmount(capacity)} total`;
+  const tooltip = foundingSupplies
+    ? items.length > 0
+      ? 'Take-only starter goods. Workers may use them for construction or haul them to compatible permanent storage; this camp does not accept deliveries.'
+      : 'This take-only founding yard is empty and does not accept deliveries.'
+    : capacity == null
+      ? items.length > 0
+        ? 'Exact goods physically stored at this building now.'
+        : 'Nothing is currently stored at this building.'
+      : `Exact goods physically stored here. This building has one combined ${formatResourceCostAmount(capacity)}-unit capacity for all accepted resources.`;
   const encodedItems = items.length > 0
     ? ` data-tooltip-resources="${encodeURIComponent(JSON.stringify(items))}"`
     : '';
 
   return {
     ...view,
-    detailsHtml: `<li data-inspector-primary data-local-storage tabindex="0" data-tooltip-title="Local storage" data-tooltip="${tooltip}"${encodedItems}><span>Local storage</span><span>${summary}</span></li>${view.detailsHtml}`,
+    detailsHtml: `<li data-inspector-primary data-local-storage tabindex="0" data-tooltip-title="${label}" data-tooltip="${tooltip}"${encodedItems}><span>${label}</span><span>${summary}</span></li>${view.detailsHtml}`,
   };
 }

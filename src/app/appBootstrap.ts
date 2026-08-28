@@ -1135,6 +1135,7 @@ export async function bootstrapAppSession(
     getState: () => liveContext.gameState,
     selectionParent: sceneManager.selectionGroup,
     isBlocked: () => isWorldInspectionBlocked(placementGate),
+    onDirectAgentClick: (kind) => ambientAudio.playAgentSelection(kind),
     onSelectionChange: (selected) => {
       if (selected) resourceInspector?.clearSelection();
     },

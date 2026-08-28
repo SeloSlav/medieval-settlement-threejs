@@ -38,6 +38,8 @@ export type UiSoundId =
   | 'confirm'
   | 'error';
 
+export type PersonSelectionVoice = 'male' | 'female';
+
 export type ChapelBellTier = 1 | 2 | 3;
 
 export type BuildingAudioKind = Exclude<
@@ -217,6 +219,33 @@ export const UI_SOUNDS: Record<UiSoundId, AudioClipDefinition> = {
   confirm: { path: '/sounds/ui/confirm.mp3', volume: 0.28 },
   error: { path: '/sounds/ui/error.mp3', volume: 0.3 },
 };
+
+function personSelectionVariants(
+  voice: PersonSelectionVoice,
+): readonly AudioClipDefinition[] {
+  return Array.from({ length: 6 }, (_, index) => ({
+    path: `/sounds/people/${voice}/person_selected_${index + 1}.mp3`,
+    volume: 0.6,
+  }));
+}
+
+/** Authorized Selo Empire acknowledgement lines, played only on direct agent clicks. */
+export const PERSON_SELECTION_CLIPS: Record<
+  PersonSelectionVoice,
+  readonly AudioClipDefinition[]
+> = {
+  male: personSelectionVariants('male'),
+  female: personSelectionVariants('female'),
+};
+
+/** Short ElevenLabs-generated ox reactions, played only on direct ox clicks. */
+export const OX_SELECTION_CLIPS: readonly AudioClipDefinition[] = Array.from(
+  { length: 3 },
+  (_, index) => ({
+    path: `/sounds/animals/ox_selected_${index + 1}.mp3`,
+    volume: 0.48,
+  }),
+);
 
 /** Selection-only character cues for finished buildings and occupied homes. */
 export const BUILDING_AUDIO_CLIPS: Record<
