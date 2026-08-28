@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from pathlib import Path
+import time
 
 import bmesh
 import bpy
@@ -11,15 +13,16 @@ from mathutils import Vector
 
 ROOT = Path(__file__).resolve().parents[4]
 EXAMPLE_DIR = Path(__file__).resolve().parent
-OUT_DIR = EXAMPLE_DIR / "out"
-RENDER_DIR = EXAMPLE_DIR / "renders"
+OUTPUT_ROOT = Path(os.environ.get("GK_TIER1_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
+OUT_DIR = OUTPUT_ROOT / "out"
+RENDER_DIR = OUTPUT_ROOT / "renders"
 ATLAS_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_building_atlas_v1"
-OUT_BLEND = OUT_DIR / "tier1_residence_textured.blend"
-OUT_GLB = OUT_DIR / "tier1_residence_textured.glb"
-OUT_MANIFEST = OUT_DIR / "tier1_residence_assembly.json"
-OUT_RENDER = RENDER_DIR / "tier1_residence_hero_structural_v18.png"
-OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_structural_v18.png"
-OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_structural_v18.png"
+OUT_BLEND = OUT_DIR / "tier1_residence_retopo_v25.blend"
+OUT_GLB = OUT_DIR / "tier1_residence_retopo_v25.glb"
+OUT_MANIFEST = OUT_DIR / "tier1_residence_assembly_v25.json"
+OUT_RENDER = RENDER_DIR / "tier1_residence_hero_retopo_v25.png"
+OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_retopo_v25.png"
+OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_retopo_v25.png"
 
 WALL_BASE_Z = 0.35
 WALL_HEIGHT = 2.4
@@ -125,10 +128,15 @@ def atlas_material(key: str) -> bpy.types.Material:
     atlas_width = ATLAS_MANIFEST["dimensions"]["width"]
     atlas_height = ATLAS_MANIFEST["dimensions"]["height"]
     content = tile["contentPixels"]
-    u_min = content["x"] / atlas_width
-    v_min = 1.0 - (content["y"] + content["height"]) / atlas_height
-    u_scale = content["width"] / atlas_width
-    v_scale = content["height"] / atlas_height
+    # Stay two pixels inside each tile's authored content rectangle.  Large
+    # retopologized surfaces cross many repeat boundaries; sampling exactly on
+    # the atlas edge otherwise pulls coloured texels from neighbouring tiles and
+    # creates false timber-like bands across the shingle roof.
+    atlas_inset = 2.0
+    u_min = (content["x"] + atlas_inset) / atlas_width
+    v_min = 1.0 - (content["y"] + content["height"] - atlas_inset) / atlas_height
+    u_scale = (content["width"] - atlas_inset * 2.0) / atlas_width
+    v_scale = (content["height"] - atlas_inset * 2.0) / atlas_height
     metres = float(tile["metersPerTile"])
 
     material = bpy.data.materials.new(material_name)
@@ -305,6 +313,98 @@ def atlas_material(key: str) -> bpy.types.Material:
     return material
 
 
+def direct_atlas_material(key: str) -> bpy.types.Material:
+    """glTF-compatible atlas material for geometry with final UVs already baked."""
+
+    material_name = f"T1_AtlasDirect_{key}"
+    existing = bpy.data.materials.get(material_name)
+    if existing is not None:
+        return existing
+    tile_id, tint, _tint_strength, normal_strength = MATERIAL_LOOKS[key]
+    tile = ATLAS_TILES[tile_id]
+    material = bpy.data.materials.new(material_name)
+    material.use_nodes = True
+    material.diffuse_color = tint
+    material["atlas_id"] = ATLAS_MANIFEST["id"]
+    material["atlas_tile"] = tile_id
+    material["metres_per_tile"] = float(tile["metersPerTile"])
+    material["atlas_uv_mode"] = "final tile coordinates baked into GK_UV0"
+    material["gltf_export_safe"] = True
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+    nodes.clear()
+
+    output = nodes.new("ShaderNodeOutputMaterial")
+    output.location = (660, 30)
+    principled = nodes.new("ShaderNodeBsdfPrincipled")
+    principled.location = (390, 30)
+    uv = nodes.new("ShaderNodeUVMap")
+    uv.uv_map = "GK_UV0"
+    uv.location = (-620, 80)
+    textures = {}
+    for index, channel in enumerate(("albedo", "normal", "material")):
+        texture = nodes.new("ShaderNodeTexImage")
+        texture.image = ATLAS_IMAGES[channel]
+        texture.extension = "EXTEND"
+        texture.interpolation = "Linear"
+        texture.location = (-390, 290 - index * 230)
+        links.new(uv.outputs["UV"], texture.inputs["Vector"])
+        textures[channel] = texture
+
+    channels = nodes.new("ShaderNodeSeparateColor")
+    channels.mode = "RGB"
+    channels.location = (-60, -210)
+    links.new(textures["material"].outputs["Color"], channels.inputs["Color"])
+    links.new(textures["albedo"].outputs["Color"], principled.inputs["Base Color"])
+    links.new(channels.outputs["Red"], principled.inputs["Roughness"])
+    links.new(channels.outputs["Green"], principled.inputs["Metallic"])
+    normal = nodes.new("ShaderNodeNormalMap")
+    normal.inputs["Strength"].default_value = normal_strength
+    normal.location = (90, -20)
+    links.new(textures["normal"].outputs["Color"], normal.inputs["Color"])
+    links.new(normal.outputs["Normal"], principled.inputs["Normal"])
+    links.new(principled.outputs["BSDF"], output.inputs["Surface"])
+    return material
+
+
+def bake_object_atlas_uvs(obj: bpy.types.Object, key: str) -> None:
+    """Map each already-subdivided face into one repeat of its atlas tile."""
+
+    uv_layer = obj.data.uv_layers.get("GK_UV0")
+    if uv_layer is None:
+        return
+    tile_id = MATERIAL_LOOKS[key][0]
+    tile = ATLAS_TILES[tile_id]
+    atlas_width = float(ATLAS_MANIFEST["dimensions"]["width"])
+    atlas_height = float(ATLAS_MANIFEST["dimensions"]["height"])
+    metres = float(tile["metersPerTile"])
+    # contentPixels is the exact seamless 448 px period; the surrounding 32 px
+    # on each side is wrapped mip padding. Sample the first/last pixel centres,
+    # preserving the authored seam while leaving the full gutter available to
+    # lower mip levels. Arbitrary multi-pixel insets select unrelated columns
+    # and create a false straight batten at every 2.2 m repeat boundary.
+    content = tile["contentPixels"]
+    texel_centre = 0.5
+    u_min = (content["x"] + texel_centre) / atlas_width
+    v_min = 1.0 - (content["y"] + content["height"] - texel_centre) / atlas_height
+    u_scale = (content["width"] - texel_centre * 2.0) / atlas_width
+    v_scale = (content["height"] - texel_centre * 2.0) / atlas_height
+    for polygon in obj.data.polygons:
+        raw = [uv_layer.data[index].uv.copy() for index in polygon.loop_indices]
+        if not raw:
+            continue
+        base_u = math.floor((min(value.x for value in raw) + 1.0e-6) / metres)
+        base_v = math.floor((min(value.y for value in raw) + 1.0e-6) / metres)
+        for loop_index, value in zip(polygon.loop_indices, raw):
+            repeat_u = max(0.0, min(1.0, value.x / metres - base_u))
+            repeat_v = max(0.0, min(1.0, value.y / metres - base_v))
+            uv_layer.data[loop_index].uv = (
+                u_min + repeat_u * u_scale,
+                v_min + repeat_v * v_scale,
+            )
+    obj.data.update()
+
+
 def glass_material() -> bpy.types.Material:
     existing = bpy.data.materials.get("T1_Glass")
     if existing is not None:
@@ -441,6 +541,21 @@ def place(
         }
     )
     return obj
+
+
+def mirror_instance_mesh_x(obj: bpy.types.Object) -> None:
+    """Mirror copied kit geometry while keeping the exported object scale at +1."""
+    if obj.type != "MESH":
+        return
+    for vertex in obj.data.vertices:
+        vertex.co.x *= -1.0
+    obj.data.flip_normals()
+    obj.data.update()
+    obj["mirrored_local_x"] = True
+    for placement in reversed(PLACEMENTS):
+        if placement["name"] == obj.name:
+            placement["mirroredLocalX"] = True
+            break
 
 
 def append_box(
@@ -602,19 +717,52 @@ def make_aperture_wall(
     return wall
 
 
+def inset_gable_under_roof(obj: bpy.types.Object) -> None:
+    """Bake a small clearance into gable infill so it cannot pierce the roof skin."""
+
+    if obj.type != "MESH":
+        return
+    for vertex in obj.data.vertices:
+        vertex.co.x *= 0.93
+        vertex.co.z *= 0.94
+    obj.data.update()
+    obj["roof_clearance_baked"] = True
+    obj["roof_clearance_note"] = "gable infill inset beneath overhanging shingle skin"
+
+
 def place_shell() -> None:
-    # A low rubble footing protects the timber body without turning Tier 1 into a stone house.
-    front_foundation = place("foundation_fieldstone_4m_h0p35m", "T1_Foundation_Front", FOUNDATION, (0.0, 0.0, 0.0))
-    rear_foundation = place("foundation_fieldstone_4m_h0p35m", "T1_Foundation_Rear", FOUNDATION, (0.0, BUILDING_DEPTH, 0.0), math.pi)
-    remap_instance_material(front_foundation, "fieldstone", "fieldstone_weathered")
-    remap_instance_material(rear_foundation, "fieldstone", "fieldstone_weathered")
+    # Four kit-authored L-corners own the turns of the low rubble footing. Mirrored copies
+    # have their mesh transforms baked so every exported instance retains unit scale.
+    corner_specs = (
+        ("Front_Left", (-1.0, 0.0, 0.0), 0.0, False),
+        ("Front_Right", (1.0, 0.0, 0.0), 0.0, True),
+        ("Rear_Left", (-1.0, BUILDING_DEPTH, 0.0), math.pi, True),
+        ("Rear_Right", (1.0, BUILDING_DEPTH, 0.0), math.pi, False),
+    )
+    for label, location, rotation, mirrored in corner_specs:
+        corner = place(
+            "foundation_corner_fieldstone_h0p35m",
+            f"T1_Foundation_Corner_{label}",
+            FOUNDATION,
+            location,
+            rotation,
+        )
+        if mirrored:
+            mirror_instance_mesh_x(corner)
+        remap_instance_material(corner, "fieldstone", "fieldstone_weathered")
+
+    # The corner returns overlap the single centre run slightly, as rubble masonry would;
+    # no exposed end face or open corner remains anywhere around the rectangular plinth.
     for side, rotation in ((-2.0, -math.pi / 2.0), (2.0, math.pi / 2.0)):
         label = "Left" if side < 0 else "Right"
-        side_a = place("foundation_fieldstone_4m_h0p35m", f"T1_Foundation_{label}_A", FOUNDATION, (side, 2.0, 0.0), rotation)
-        side_b = place("foundation_fieldstone_2m_h0p35m", f"T1_Foundation_{label}_B", FOUNDATION, (side, 5.0, 0.0), rotation)
-        side_c = place("foundation_fieldstone_1m_h0p35m", f"T1_Foundation_{label}_C", FOUNDATION, (side, 6.5, 0.0), rotation)
-        for footing in (side_a, side_b, side_c):
-            remap_instance_material(footing, "fieldstone", "fieldstone_weathered")
+        centre_run = place(
+            "foundation_fieldstone_4m_h0p35m",
+            f"T1_Foundation_{label}_Centre",
+            FOUNDATION,
+            (side, BUILDING_DEPTH / 2.0, 0.0),
+            rotation,
+        )
+        remap_instance_material(centre_run, "fieldstone", "fieldstone_weathered")
 
     # The public front retains humble daub, but the openings are literal voids rather than
     # decorative glazed/shuttered inserts. The low service door is the only articulated opening.
@@ -647,7 +795,9 @@ def place_shell() -> None:
         (0.0, BUILDING_DEPTH, WALL_BASE_Z),
         math.pi,
     )
-    for side, rotation in ((-2.0, -math.pi / 2.0), (2.0, math.pi / 2.0)):
+    # A 0.20 m side wall centred at +/-1.90 m places its exterior face exactly on
+    # the +/-2.00 m roof-bearing line instead of piercing the descending roof plane.
+    for side, rotation in ((-1.9, -math.pi / 2.0), (1.9, math.pi / 2.0)):
         label = "Left" if side < 0 else "Right"
         make_aperture_wall(
             f"T1_Wall_{label}_A",
@@ -681,9 +831,13 @@ def place_shell() -> None:
     remap_instance_material(rear_gable, "timber_weathered", "timber_weathered_horizontal")
     # The reusable infill includes an exposed oak verge frame. On this deep-overhang
     # house those strips intersect the shingle skin at both gable ends, so retain the
-    # boarding while the independent inset common rafters carry the roof below it.
+    # boarding while the visible wall plate and inset gable establish the exterior
+    # bearing line. Fully occluded common rafters belong to an interior/close-cutaway
+    # LOD and are deliberately omitted from this game shell.
     remove_instance_material_geometry(front_gable, "oak_dark")
     remove_instance_material_geometry(rear_gable, "oak_dark")
+    inset_gable_under_roof(front_gable)
+    inset_gable_under_roof(rear_gable)
 
     # Only structurally legible sill, wall plate, and joiner posts remain on the front.
     place("frame_beam_4m_s0p16m", "T1_Front_Sill", FRAMES, (0.0, -0.112, WALL_BASE_Z))
@@ -714,6 +868,11 @@ def roof_settlement_knot(knot_index: int, side: float = 0.0) -> float:
     return drop
 
 
+def roof_bearing_weight(world_x: float) -> float:
+    """Pin the roof to its wall plate while retaining ridge sag and hanging eaves."""
+    return min(1.0, abs(abs(world_x) - ROOF_BEARING_X) / 0.35)
+
+
 def settle_roof_module(obj: bpy.types.Object, run_index: int, side: float = 0.0) -> None:
     """Apply one continuous longitudinal profile to shingles and their substrate."""
     if obj.type != "MESH" or not obj.data.vertices:
@@ -724,9 +883,13 @@ def settle_roof_module(obj: bpy.types.Object, run_index: int, side: float = 0.0)
     span = max(max_x - min_x, 0.001)
     start_drop = roof_settlement_knot(run_index, side)
     end_drop = roof_settlement_knot(run_index + 1, side)
+    cosine = math.cos(obj.rotation_euler.z)
+    sine = math.sin(obj.rotation_euler.z)
     for vertex in obj.data.vertices:
         blend = (vertex.co.x - min_x) / span
-        vertex.co.z += start_drop * (1.0 - blend) + end_drop * blend
+        longitudinal_drop = start_drop * (1.0 - blend) + end_drop * blend
+        world_x = obj.location.x + vertex.co.x * cosine - vertex.co.y * sine
+        vertex.co.z += longitudinal_drop * roof_bearing_weight(world_x)
     obj.data.update()
     obj["roof_settlement_start_m"] = round(start_drop, 4)
     obj["roof_settlement_end_m"] = round(end_drop, 4)
@@ -741,145 +904,235 @@ def roof_drop_interpolated(y: float, side: float = 0.0) -> float:
     return roof_settlement_knot(lower, side) * (1.0 - blend) + roof_settlement_knot(upper, side) * blend
 
 
-def place_roof_supports() -> None:
-    # Repeated rafter pairs bear on the existing continuous timber wall-head courses
-    # and meet at the ridge. Their local
-    # settlement matches the shingle skin at the same longitudinal station.
-    eave_x = SLOPE_LENGTH * math.cos(PITCH)
-    common_rafter_stations = (0.05, 1.4, 2.8, 4.2, 5.6, 6.95)
-    rafter_clearance = 0.22
-    for station_index, y in enumerate(common_rafter_stations):
-        for side in (-1.0, 1.0):
-            side_name = "Left" if side < 0.0 else "Right"
-            rafter_x = side * eave_x / 2.0 - side * math.sin(PITCH) * rafter_clearance
-            rafter_z = (
-                (EAVE_Z + RIDGE_Z) / 2.0
-                - math.cos(PITCH) * rafter_clearance
-                + roof_drop_interpolated(y, side)
-            )
-            rafter = make_custom_part(
-                f"T1_CommonRafter_{station_index:02d}_{side_name}",
-                FRAMES,
-                [((0.0, 0.0, 0.0), (SLOPE_LENGTH - 0.05, 0.15, 0.17))],
-                "roof_support_dark",
-                (rafter_x, y, rafter_z),
-                0.0,
-                "assembly_custom_common_rafter",
-            )
-            rafter.rotation_euler[1] = side * PITCH
-            rafter["rotation_y_degrees"] = round(math.degrees(side * PITCH), 4)
-            PLACEMENTS[-1]["rotationYDegrees"] = round(math.degrees(side * PITCH), 4)
+def roof_eave_extension(run_y: float, side: float) -> float:
+    """Small continuous hand-cut variation along the hanging shingle edge."""
 
-    # Three tie beams connect opposing wall heads and make the roof thrust legible.
-    for station_index, y in enumerate((1.4, 3.5, 5.6)):
-        make_custom_part(
-            f"T1_RoofTieBeam_{station_index:02d}",
-            FRAMES,
-            [((0.0, 0.0, 0.0), (3.92, 0.16, 0.16))],
-            "oak_dark",
-            (0.0, y, WALL_TOP_Z - 0.18),
-            0.0,
-            "assembly_custom_roof_tie_beam",
+    primary = 0.050 * math.sin(run_y * 2.17 + side * 0.63)
+    secondary = 0.022 * math.sin(run_y * 5.31 - side * 0.42)
+    return primary + secondary
+
+
+def append_roof_skin_prism(
+    vertices: list[tuple[float, float, float]],
+    faces: list[tuple[int, int, int, int]],
+    side: float,
+    slope_min: float,
+    slope_max: float,
+    run_min: float,
+    run_max: float,
+) -> None:
+    """Append one closed, settlement-following low-poly shingle skin region."""
+    if slope_max - slope_min <= 0.001 or run_max - run_min <= 0.001:
+        return
+    run_stations = [run_min]
+    half_metre = math.ceil((run_min + 0.001) * 2.0) / 2.0
+    while half_metre < run_max - 0.001:
+        if half_metre > run_min + 0.001:
+            run_stations.append(half_metre)
+        half_metre += 0.5
+    for knot_index in range(len(ROOF_SETTLEMENT_KNOTS)):
+        knot_y = float(knot_index) - 0.5
+        if run_min + 0.001 < knot_y < run_max - 0.001:
+            run_stations.append(knot_y)
+    run_stations.append(run_max)
+    run_stations = sorted(set(round(value, 6) for value in run_stations))
+
+    top_offset = -0.006
+    bottom_offset = 0.038
+
+    def point(slope_distance: float, run_y: float, normal_offset: float) -> tuple[float, float, float]:
+        edge_weight = max(0.0, min(1.0, (slope_distance - (SLOPE_LENGTH - 0.58)) / 0.58))
+        effective_slope = slope_distance + roof_eave_extension(run_y, side) * edge_weight
+        world_x = side * effective_slope * math.cos(PITCH) - side * math.sin(PITCH) * normal_offset
+        return (
+            world_x,
+            run_y,
+            RIDGE_Z
+            - effective_slope * math.sin(PITCH)
+            + roof_drop_interpolated(run_y, side) * roof_bearing_weight(world_x)
+            - math.cos(PITCH) * normal_offset,
         )
 
+    start = len(vertices)
+    for run_y in run_stations:
+        vertices.extend(
+            (
+                point(slope_min, run_y, top_offset),
+                point(slope_max, run_y, top_offset),
+                point(slope_max, run_y, bottom_offset),
+                point(slope_min, run_y, bottom_offset),
+            )
+        )
+    for station_index in range(len(run_stations) - 1):
+        current = start + station_index * 4
+        following = current + 4
+        faces.extend(
+            (
+                (current + 0, current + 1, following + 1, following + 0),
+                (current + 3, following + 3, following + 2, current + 2),
+                (current + 0, following + 0, following + 3, current + 3),
+                (current + 1, current + 2, following + 2, following + 1),
+            )
+        )
+    final = start + (len(run_stations) - 1) * 4
+    faces.extend(
+        (
+            (start + 0, start + 3, start + 2, start + 1),
+            (final + 0, final + 1, final + 2, final + 3),
+        )
+    )
 
-def cut_roof_smoke_aperture(smoke_x: float, smoke_y: float, smoke_surface_z: float) -> int:
-    """Remove complete closed shingle solids to leave a real, manifold smoke opening."""
-    aperture_center = Vector((smoke_x, smoke_y, smoke_surface_z))
-    downslope = Vector((math.cos(PITCH), 0.0, -math.sin(PITCH)))
-    half_slope = 0.20
-    half_run = 0.21
-    cut_panel_count = 0
-    bpy.context.view_layer.update()
-    for panel in tuple(ROOF.objects):
-        if panel.type != "MESH" or not panel.name.startswith("T1_Roof_Right_Run"):
-            continue
-        bm = bmesh.new()
-        bm.from_mesh(panel.data)
-        remaining_faces = set(bm.faces)
-        vertices_to_remove = set()
-        while remaining_faces:
-            seed = remaining_faces.pop()
-            component_faces = {seed}
-            frontier = [seed]
-            while frontier:
-                face = frontier.pop()
-                for edge in face.edges:
-                    for neighbour in edge.link_faces:
-                        if neighbour in remaining_faces:
-                            remaining_faces.remove(neighbour)
-                            component_faces.add(neighbour)
-                            frontier.append(neighbour)
-            component_vertices = {vertex for face in component_faces for vertex in face.verts}
-            world_points = [panel.matrix_world @ vertex.co for vertex in component_vertices]
-            slope_coordinates = [(point - aperture_center).dot(downslope) for point in world_points]
-            run_coordinates = [point.y - smoke_y for point in world_points]
-            overlaps_slope = max(slope_coordinates) >= -half_slope and min(slope_coordinates) <= half_slope
-            overlaps_run = max(run_coordinates) >= -half_run and min(run_coordinates) <= half_run
-            if overlaps_slope and overlaps_run:
-                vertices_to_remove.update(component_vertices)
 
-        if vertices_to_remove:
-            bmesh.ops.delete(bm, geom=list(vertices_to_remove), context="VERTS")
-            bm.to_mesh(panel.data)
-            panel.data.update()
-            panel["roof_aperture_id"] = "tier1-smoke-exit"
-            panel["roof_aperture_method"] = "removed intersecting closed shingle solids"
-            cut_panel_count += 1
-        bm.free()
+def create_retopped_roof_skin(side: float) -> bpy.types.Object:
+    """Create one closed textured roof skin; the right side contains a true smoke hole."""
+    vertices: list[tuple[float, float, float]] = []
+    vertex_metric_uv: list[tuple[float, float]] = []
+    faces: list[tuple[int, ...]] = []
+    slope_min = 0.12
+    slope_max = SLOPE_LENGTH - 0.12
+    run_min = -0.40
+    run_max = BUILDING_DEPTH + 0.40
+    aperture_slope = SMOKE_APERTURE_X / math.cos(PITCH)
+    aperture_half_slope = 0.23
+    aperture_half_run = 0.24
+    aperture_slope_min = aperture_slope - aperture_half_slope
+    aperture_slope_max = aperture_slope + aperture_half_slope
+    aperture_run_min = SMOKE_APERTURE_Y - aperture_half_run
+    aperture_run_max = SMOKE_APERTURE_Y + aperture_half_run
 
-    if cut_panel_count == 0:
-        raise RuntimeError("Tier-1 smoke aperture did not intersect any roof shingle solids")
-    return cut_panel_count
+    slope_stations = {slope_min, slope_max, 2.2}
+    run_stations = {run_min, run_max, 0.0, 2.2, 4.4, 6.6}
+    cursor = math.ceil(slope_min * 2.0) / 2.0
+    while cursor < slope_max:
+        slope_stations.add(round(cursor, 6))
+        cursor += 0.5
+    cursor = math.ceil(run_min * 2.0) / 2.0
+    while cursor < run_max:
+        run_stations.add(round(cursor, 6))
+        cursor += 0.5
+    if side > 0.0:
+        slope_stations.update((aperture_slope_min, aperture_slope_max))
+        run_stations.update((aperture_run_min, aperture_run_max))
+    slope_values = sorted(value for value in slope_stations if slope_min <= value <= slope_max)
+    run_values = sorted(value for value in run_stations if run_min <= value <= run_max)
+
+    active_cells: set[tuple[int, int]] = set()
+    for slope_index in range(len(slope_values) - 1):
+        slope_centre = (slope_values[slope_index] + slope_values[slope_index + 1]) * 0.5
+        for run_index in range(len(run_values) - 1):
+            run_centre = (run_values[run_index] + run_values[run_index + 1]) * 0.5
+            inside_aperture = (
+                side > 0.0
+                and aperture_slope_min < slope_centre < aperture_slope_max
+                and aperture_run_min < run_centre < aperture_run_max
+            )
+            if not inside_aperture:
+                active_cells.add((slope_index, run_index))
+
+    top_offset = -0.006
+    bottom_offset = 0.038
+
+    def surface_point(slope_distance: float, run_y: float, normal_offset: float) -> tuple[float, float, float]:
+        edge_weight = max(0.0, min(1.0, (slope_distance - (SLOPE_LENGTH - 0.58)) / 0.58))
+        effective_slope = slope_distance + roof_eave_extension(run_y, side) * edge_weight
+        world_x = side * effective_slope * math.cos(PITCH) - side * math.sin(PITCH) * normal_offset
+        return (
+            world_x,
+            run_y,
+            RIDGE_Z
+            - effective_slope * math.sin(PITCH)
+            + roof_drop_interpolated(run_y, side) * roof_bearing_weight(world_x)
+            - math.cos(PITCH) * normal_offset,
+        )
+
+    vertex_indices: dict[tuple[int, int, int], int] = {}
+
+    def vertex_index(slope_index: int, run_index: int, layer: int) -> int:
+        key = (slope_index, run_index, layer)
+        existing = vertex_indices.get(key)
+        if existing is not None:
+            return existing
+        slope_distance = slope_values[slope_index]
+        run_y = run_values[run_index]
+        normal_offset = top_offset if layer == 0 else bottom_offset
+        index = len(vertices)
+        vertices.append(surface_point(slope_distance, run_y, normal_offset))
+        # Explicit roof-space metric UVs keep rows aligned across the settled
+        # surface and let every subdivided face fit inside a single atlas repeat.
+        vertex_metric_uv.append((run_y, slope_distance))
+        vertex_indices[key] = index
+        return index
+
+    for slope_index, run_index in sorted(active_cells):
+        p00 = vertex_index(slope_index, run_index, 0)
+        p10 = vertex_index(slope_index + 1, run_index, 0)
+        p11 = vertex_index(slope_index + 1, run_index + 1, 0)
+        p01 = vertex_index(slope_index, run_index + 1, 0)
+        b00 = vertex_index(slope_index, run_index, 1)
+        b10 = vertex_index(slope_index + 1, run_index, 1)
+        b11 = vertex_index(slope_index + 1, run_index + 1, 1)
+        b01 = vertex_index(slope_index, run_index + 1, 1)
+        top_order = (p00, p10, p11, p01) if side > 0.0 else (p00, p01, p11, p10)
+        bottom_by_top = {p00: b00, p10: b10, p11: b11, p01: b01}
+        faces.append(top_order)
+        faces.append(tuple(bottom_by_top[index] for index in reversed(top_order)))
+
+        boundary_edges = set()
+        if (slope_index, run_index - 1) not in active_cells:
+            boundary_edges.add(frozenset((p00, p10)))
+        if (slope_index + 1, run_index) not in active_cells:
+            boundary_edges.add(frozenset((p10, p11)))
+        if (slope_index, run_index + 1) not in active_cells:
+            boundary_edges.add(frozenset((p11, p01)))
+        if (slope_index - 1, run_index) not in active_cells:
+            boundary_edges.add(frozenset((p01, p00)))
+        for edge_index, start in enumerate(top_order):
+            end = top_order[(edge_index + 1) % len(top_order)]
+            if frozenset((start, end)) in boundary_edges:
+                faces.append((start, end, bottom_by_top[end], bottom_by_top[start]))
+
+    side_name = "Left" if side < 0.0 else "Right"
+    mesh = bpy.data.meshes.new(f"T1_RoofSkin_{side_name}_Mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    uv_layer = mesh.uv_layers.new(name="GK_UV0")
+    for polygon in mesh.polygons:
+        for loop_index in polygon.loop_indices:
+            uv_layer.data[loop_index].uv = vertex_metric_uv[mesh.loops[loop_index].vertex_index]
+    obj = bpy.data.objects.new(f"T1_RoofSkin_{side_name}", mesh)
+    ROOF.objects.link(obj)
+    bake_object_atlas_uvs(obj, "shingles")
+    obj.data.materials.append(direct_atlas_material("shingles"))
+    obj["t1_instance"] = True
+    obj["source_component_id"] = "assembly_custom_retopped_shingle_skin"
+    obj["assembly_role"] = ROOF.name
+    obj["custom_assembly_piece"] = True
+    obj["roof_topology"] = "connected subdivided closed skin; atlas supplies individual shingle relief"
+    obj["roof_grid_cells"] = len(active_cells)
+    if side > 0.0:
+        obj["roof_aperture_id"] = "tier1-smoke-exit"
+        obj["roof_aperture_method"] = "closed roof-skin regions arranged around rectangular void"
+    PLACEMENTS.append(
+        {
+            "name": obj.name,
+            "source": "assembly_custom_retopped_shingle_skin",
+            "collection": ROOF.name,
+            "location": [0.0, 0.0, 0.0],
+            "rotationZDegrees": 0.0,
+        }
+    )
+    return obj
 
 
 def place_roof() -> None:
-    # Full + half + quarter authored courses form a 4.2 m slope. On a four-metre
-    # body this produces a roof-dominant 0.70 m side overhang without stretching geometry.
-    # Eight one-metre runs extend 0.50 m beyond each gable end. Each complete module is
-    # settled as one unit so the imperfect silhouette never exposes the oak substrate.
+    # Two closed low-poly skins carry the production split-shingle atlas.  The
+    # texture/normal maps supply individual shingle relief while longitudinal
+    # settlement and the irregular hanging eave remain authored in the silhouette.
+    # This replaces 48 repeated solid shingle panels, which dominated the earlier
+    # 24k-triangle assembly without adding useful medium-distance shape information.
     runs = tuple(("1m", float(index)) for index in range(8))
-    # Small downslope overlaps keep the dark panel substrate from reading as a
-    # misplaced batten where the authored full/half/quarter courses meet.
-    slope_courses = (("full", -0.82), ("half", 0.8), ("quarter", 1.68))
     for side in (-1.0, 1.0):
-        side_name = "Left" if side < 0 else "Right"
-        for run_index, (run_token, y) in enumerate(runs):
-            for course_name, centre in slope_courses:
-                (x, z), rotation = roof_transform(side, centre)
-                # Each upslope module laps over the course below it. The small normal
-                # rise prevents the full/half boundary from exposing a timber-like band.
-                course_relief = {"full": 0.0, "half": 0.032, "quarter": 0.050}[course_name]
-                x += side * math.sin(PITCH) * course_relief
-                z += math.cos(PITCH) * course_relief
-                panel = place(
-                    f"roof_shingle_panel_{run_token}_{course_name}",
-                    f"T1_Roof_{side_name}_Run{run_index:02d}_{course_name}",
-                    ROOF,
-                    (x, y, z),
-                    rotation,
-                )
-                # The reusable panel's continuous backing closes incidental gaps between
-                # individually modelled shingles. Treat it as an aged shingle undercourse,
-                # not exposed structural oak; the smoke-aperture pass removes any backing
-                # component intersecting the real roof opening.
-                remap_instance_material(panel, "oak_dark", "shingles_aged")
-                settle_roof_module(panel, run_index, side)
-
-    eave_x = SLOPE_MAX * 2.0 * math.cos(PITCH)
-    eave_z = RIDGE_Z - SLOPE_MAX * 2.0 * math.sin(PITCH)
-    for side in (-1.0, 1.0):
-        rotation = math.pi / 2.0 if side > 0 else -math.pi / 2.0
-        side_name = "Left" if side < 0 else "Right"
-        for run_index, (run_token, y) in enumerate(runs):
-            eave = place(
-                f"roof_shingle_eave_edge_{run_token}",
-                f"T1_Eave_{side_name}_Run{run_index:02d}",
-                ROOF,
-                (side * eave_x, y, eave_z),
-                rotation,
-            )
-            settle_roof_module(eave, run_index, side)
+        create_retopped_roof_skin(side)
 
     for run_index, (run_token, y) in enumerate(runs):
         ridge = place(
@@ -908,7 +1161,6 @@ def place_roof() -> None:
 
     # A Tier-1 smoke exit is an actual void through the shingles. Runtime owns the emitted
     # smoke; no surface decal, projecting hood, cap, or later-tier chimney is authored.
-    place_roof_supports()
 
 
 def place_fixed_architecture() -> None:
@@ -1052,13 +1304,20 @@ def write_manifest() -> None:
             "gableEndOverhang": 0.5,
         },
         "roofFinish": "hand-split softwood shingles",
+        "eaveFinish": "raw hanging shingle edge; no applied fascia or paired eave-edge trim",
+        "foundationAssembly": {
+            "method": "four kit-authored L-corners with baked mirrored counterparts and two central side runs",
+            "cornerCount": 4,
+            "closedRectangle": True,
+        },
         "roofIrregularity": {
-            "method": "continuous piecewise-linear one-metre settlement; every shingle, substrate, ridge, and eave vertex follows the same longitudinal profile",
+            "method": "two closed retopologized roof skins with half-metre eave stations and continuous piecewise-linear settlement, attenuated to zero at the +/- 2.0 m wall-plate bearing",
+            "surfaceDetail": "the split-shingle atlas supplies individual shingle albedo, normal, roughness, and AO detail instead of thousands of repeated closed shingle solids",
             "moduleEdgeDropsMetres": list(ROOF_SETTLEMENT_KNOTS),
             "rightSlopeAdditionalEdgeDropsMetres": list(ROOF_RIGHT_SETTLEMENT_KNOTS),
             "maximumDropMetres": round(abs(min(ROOF_SETTLEMENT_KNOTS)) + abs(min(ROOF_RIGHT_SETTLEMENT_KNOTS)), 4),
-            "bearingLine": "roof plane intersects the continuous wall-head bearing at x = +/- 2.0 m",
-            "supports": "continuous timber wall-head courses, six inset common rafter pairs, and three tie beams; all roof supports terminate beneath the shingle skin",
+            "bearingLine": "roof settlement is pinned to zero at x = +/- 2.0 m; the 0.20 m side walls are inset so their exterior faces terminate on that line",
+            "supports": "continuous timber wall-head courses and inset boarded gables form the visible exterior bearing line; fully occluded common rafters are omitted from this exterior game LOD",
         },
         "historicalMaterialDecision": {
             "primaryBody": "weathered horizontal timber boarding on a dark moisture-stained fieldstone footing",
@@ -1075,11 +1334,11 @@ def write_manifest() -> None:
                 "clay-straw-daub: coarser earthen infill with visible straw and restrained cracking",
             ],
         },
-        "smokeExit": "approximately 0.40 x 0.42 m true void formed by removing every intersecting closed shingle solid; no surface decal, projecting hood, cap, or later-tier masonry chimney",
+        "smokeExit": "approximately 0.46 x 0.48 m true void bounded by closed roof-skin regions; no surface decal, projecting hood, cap, or later-tier masonry chimney",
         "canonicalState": "neutral shell; no inventory, activity, or occupancy-driven dressing",
         "fixedArchitecture": {
             "threshold": "weathered fieldstone entrance step",
-            "smokeOpening": "true mesh aperture through the overlapping shingle layers; empty in the neutral shell",
+            "smokeOpening": "true mesh aperture through the retopologized shingle skin; empty in the neutral shell",
         },
         "runtimeOwnedState": {
             "firewoodPile": "ResidenceMarkers.syncFirewoodPile controls visibility and fill scale from household firewood stock",
@@ -1093,6 +1352,8 @@ def write_manifest() -> None:
 
 
 def export_glb() -> None:
+    staged_path = OUT_GLB.with_name(f"{OUT_GLB.stem}.exporting{OUT_GLB.suffix}")
+    staged_path.unlink(missing_ok=True)
     bpy.ops.object.select_all(action="DESELECT")
     export_objects = [
         obj
@@ -1103,13 +1364,24 @@ def export_glb() -> None:
         obj.select_set(True)
     if export_objects:
         bpy.context.view_layer.objects.active = export_objects[0]
-    bpy.ops.export_scene.gltf(
-        filepath=str(OUT_GLB),
-        export_format="GLB",
-        use_selection=True,
-        export_yup=True,
-        export_apply=True,
-    )
+    try:
+        bpy.ops.export_scene.gltf(
+            filepath=str(staged_path),
+            export_format="GLB",
+            use_selection=True,
+            export_yup=True,
+            export_apply=True,
+        )
+        for attempt in range(12):
+            try:
+                staged_path.replace(OUT_GLB)
+                break
+            except PermissionError:
+                if attempt == 11:
+                    raise
+                time.sleep(0.25)
+    finally:
+        staged_path.unlink(missing_ok=True)
 
 
 def main() -> None:
@@ -1119,16 +1391,10 @@ def main() -> None:
     place_roof()
     place_fixed_architecture()
     remove_source_library_objects()
-    smoke_surface_z = (
-        RIDGE_Z
-        - SMOKE_APERTURE_X * math.tan(PITCH)
-        + roof_drop_interpolated(SMOKE_APERTURE_Y, 1.0)
-    )
-    cut_roof_smoke_aperture(SMOKE_APERTURE_X, SMOKE_APERTURE_Y, smoke_surface_z)
     add_preview_staging()
     stage_render()
     scene = bpy.context.scene
-    scene["artifact_id"] = "gorski-tier1-residence-atlas-preview-v3"
+    scene["artifact_id"] = "gorski-tier1-residence-atlas-preview-v5"
     scene["architecture_context"] = "Gorski Kotar, circa 1550"
     scene["roof_finish"] = "hand-split softwood shingles"
     scene["atlas_id"] = ATLAS_MANIFEST["id"]

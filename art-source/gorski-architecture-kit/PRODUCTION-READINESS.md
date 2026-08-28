@@ -23,7 +23,7 @@ SeedThree is the sole owner of living vegetation: crops, orchard trees, vines, f
 
 ## Evidence
 
-- `out/validation.json`: native Blender mesh, coverage, UV, snap-contract, named-vocabulary, family-minimum, and SeedThree-boundary checks.
+- `out/validation.json`: native Blender mesh, exact building/crop/backyard coverage, UV, snap-contract, named-vocabulary, family-minimum, and SeedThree-boundary checks.
 - `out/roundtrip-validation.json`: clean-scene GLB import, component/material/metadata/UV survival, and triangle budgets.
 - `renders-release/13-religious-detail.png`: church, monastery, shrine, opening, roof, trim, bell, and cross components.
 - `renders-release/14-residence-roof-progression.png`: thatch, shingle, tile, junction, dormer, half-hip, repair, and flashing progression.

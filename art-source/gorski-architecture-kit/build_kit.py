@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 import sys
+import time
 
 import bpy
 
@@ -71,21 +72,34 @@ def _arrange_family(objects: list[bpy.types.Object], start_y: float) -> float:
 
 
 def _export_glb(path: Path, objects: list[bpy.types.Object]) -> None:
+    staged_path = path.with_name(f"{path.stem}.exporting{path.suffix}")
+    staged_path.unlink(missing_ok=True)
     bpy.ops.object.select_all(action="DESELECT")
     for object_ in objects:
         object_.select_set(True)
     bpy.context.view_layer.objects.active = objects[0]
-    bpy.ops.export_scene.gltf(
-        filepath=str(path),
-        export_format="GLB",
-        use_selection=True,
-        export_apply=True,
-        export_extras=True,
-        export_yup=True,
-        export_materials="EXPORT",
-        export_cameras=False,
-        export_lights=False,
-    )
+    try:
+        bpy.ops.export_scene.gltf(
+            filepath=str(staged_path),
+            export_format="GLB",
+            use_selection=True,
+            export_apply=True,
+            export_extras=True,
+            export_yup=True,
+            export_materials="EXPORT",
+            export_cameras=False,
+            export_lights=False,
+        )
+        for attempt in range(12):
+            try:
+                staged_path.replace(path)
+                break
+            except PermissionError:
+                if attempt == 11:
+                    raise
+                time.sleep(0.25)
+    finally:
+        staged_path.unlink(missing_ok=True)
 
 
 def main() -> None:

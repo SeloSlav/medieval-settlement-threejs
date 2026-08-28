@@ -14,12 +14,12 @@
     },
     "scope": "modular components only; no finished individual building assemblies",
     "vegetationOwner": "SeedThree; this kit contains no living vegetation or crop meshes",
-    "generatedAt": "2026-08-28T08:41:08.687837+00:00"
+    "generatedAt": "2026-08-28T14:41:39.799472+00:00"
   },
   "summary": {
-    "partCount": 620,
+    "partCount": 623,
     "familyCount": 12,
-    "totalTriangles": 390136,
+    "totalTriangles": 394252,
     "buildingCategories": 44,
     "supplementalCategories": 34
   },
@@ -32,9 +32,9 @@
     "frames": 56,
     "openings": 29,
     "production": 41,
-    "props": 39,
+    "props": 41,
     "roofs": 106,
-    "siteworks": 38,
+    "siteworks": 39,
     "walls": 117
   },
   "materials": {
@@ -554,17 +554,16 @@
     },
     "hunters_hall": {
       "group": "subsistence",
-      "rationale": "Timber hall with hide handling and hunting tools.",
+      "rationale": "Open woodland hunting camp with a canvas shelter, hearth, processing canopy, and hunter tools.",
       "parts": [
-        "foundation_fieldstone_2m_h0p35m",
-        "wall_plank_4m_h2p4m",
-        "wall_plank_2m_window_small_host",
-        "opening_window_small_shuttered",
-        "opening_door_service_single",
-        "roof_shingle_panel_4m_full",
-        "production_tanning_frame_2m",
-        "prop_tool_rack_farm",
-        "prop_firewood_stack_small"
+        "site_tent_a_frame_large",
+        "site_canopy_canvas_4m_d2m",
+        "site_campfire_hearth",
+        "site_camp_cooking_tripod",
+        "prop_tool_rack_hunter",
+        "prop_camp_worktable",
+        "enclosure_split_rail_2m",
+        "prop_water_bucket_pair"
       ]
     },
     "foragers_shed": {
@@ -1415,7 +1414,7 @@
         "agri_compost_wattle_bin"
       ]
     },
-    "backyard_backyard_apiary": {
+    "backyard_apiary": {
       "group": "backyard",
       "rationale": "Reusable module for backyard apiary.",
       "parts": [
@@ -3339,7 +3338,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -610.0,
+        -618.0,
         0.0
       ],
       "materials": [
@@ -3387,7 +3386,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -610.0,
+        -618.0,
         0.0
       ],
       "materials": [
@@ -3435,7 +3434,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -610.0,
+        -618.0,
         0.0
       ],
       "materials": [
@@ -3483,7 +3482,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -610.0,
+        -618.0,
         0.0
       ],
       "materials": [
@@ -3531,7 +3530,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -610.0,
+        -618.0,
         0.0
       ],
       "materials": [
@@ -3579,7 +3578,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -610.0,
+        -618.0,
         0.0
       ],
       "materials": [
@@ -3627,7 +3626,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -610.0,
+        -618.0,
         0.0
       ],
       "materials": [
@@ -3675,7 +3674,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -610.0,
+        -618.0,
         0.0
       ],
       "materials": [
@@ -3724,7 +3723,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -618.0,
+        -626.0,
         0.0
       ],
       "materials": [
@@ -3773,7 +3772,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -618.0,
+        -626.0,
         0.0
       ],
       "materials": [
@@ -3822,7 +3821,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -618.0,
+        -626.0,
         0.0
       ],
       "materials": [
@@ -3870,7 +3869,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -618.0,
+        -626.0,
         0.0
       ],
       "materials": [
@@ -3918,7 +3917,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -618.0,
+        -626.0,
         0.0
       ],
       "materials": [
@@ -3967,7 +3966,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -618.0,
+        -626.0,
         0.0
       ],
       "materials": [
@@ -4016,7 +4015,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -618.0,
+        -626.0,
         0.0
       ],
       "materials": [
@@ -4065,7 +4064,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -618.0,
+        -626.0,
         0.0
       ],
       "materials": [
@@ -4114,7 +4113,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -626.0,
+        -634.0,
         0.0
       ],
       "materials": [
@@ -4163,7 +4162,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -626.0,
+        -634.0,
         0.0
       ],
       "materials": [
@@ -4212,7 +4211,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -626.0,
+        -634.0,
         0.0
       ],
       "materials": [
@@ -4260,7 +4259,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -626.0,
+        -634.0,
         0.0
       ],
       "materials": [
@@ -4308,7 +4307,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -626.0,
+        -634.0,
         0.0
       ],
       "materials": [
@@ -4356,7 +4355,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -626.0,
+        -634.0,
         0.0
       ],
       "materials": [
@@ -4404,7 +4403,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -626.0,
+        -634.0,
         0.0
       ],
       "materials": [
@@ -4452,7 +4451,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -626.0,
+        -634.0,
         0.0
       ],
       "materials": [
@@ -4500,7 +4499,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -634.0,
+        -642.0,
         0.0
       ],
       "materials": [
@@ -4548,7 +4547,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -634.0,
+        -642.0,
         0.0
       ],
       "materials": [
@@ -4597,7 +4596,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -634.0,
+        -642.0,
         0.0
       ],
       "materials": [
@@ -4646,7 +4645,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -634.0,
+        -642.0,
         0.0
       ],
       "materials": [
@@ -4695,7 +4694,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -634.0,
+        -642.0,
         0.0
       ],
       "materials": [
@@ -4743,7 +4742,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -634.0,
+        -642.0,
         0.0
       ],
       "materials": [
@@ -4791,7 +4790,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -634.0,
+        -642.0,
         0.0
       ],
       "materials": [
@@ -4840,7 +4839,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -634.0,
+        -642.0,
         0.0
       ],
       "materials": [
@@ -4889,7 +4888,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -642.0,
+        -650.0,
         0.0
       ],
       "materials": [
@@ -4938,7 +4937,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -642.0,
+        -650.0,
         0.0
       ],
       "materials": [
@@ -4987,7 +4986,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -642.0,
+        -650.0,
         0.0
       ],
       "materials": [
@@ -5036,7 +5035,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -642.0,
+        -650.0,
         0.0
       ],
       "materials": [
@@ -5085,7 +5084,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -642.0,
+        -650.0,
         0.0
       ],
       "materials": [
@@ -5133,7 +5132,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -642.0,
+        -650.0,
         0.0
       ],
       "materials": [
@@ -5181,7 +5180,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -642.0,
+        -650.0,
         0.0
       ],
       "materials": [
@@ -5229,7 +5228,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -642.0,
+        -650.0,
         0.0
       ],
       "materials": [
@@ -5277,7 +5276,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -650.0,
+        -658.0,
         0.0
       ],
       "materials": [
@@ -5325,7 +5324,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -650.0,
+        -658.0,
         0.0
       ],
       "materials": [
@@ -5373,7 +5372,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -650.0,
+        -658.0,
         0.0
       ],
       "materials": [
@@ -5421,7 +5420,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -650.0,
+        -658.0,
         0.0
       ],
       "materials": [
@@ -5470,7 +5469,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -650.0,
+        -658.0,
         0.0
       ],
       "materials": [
@@ -5519,7 +5518,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -650.0,
+        -658.0,
         0.0
       ],
       "materials": [
@@ -5568,7 +5567,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -650.0,
+        -658.0,
         0.0
       ],
       "materials": [
@@ -5616,7 +5615,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -650.0,
+        -658.0,
         0.0
       ],
       "materials": [
@@ -5664,7 +5663,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -658.0,
+        -666.0,
         0.0
       ],
       "materials": [
@@ -5713,7 +5712,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -658.0,
+        -666.0,
         0.0
       ],
       "materials": [
@@ -5762,7 +5761,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -658.0,
+        -666.0,
         0.0
       ],
       "materials": [
@@ -5811,7 +5810,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -658.0,
+        -666.0,
         0.0
       ],
       "materials": [
@@ -5860,7 +5859,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -658.0,
+        -666.0,
         0.0
       ],
       "materials": [
@@ -5909,7 +5908,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -658.0,
+        -666.0,
         0.0
       ],
       "materials": [
@@ -5958,7 +5957,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -658.0,
+        -666.0,
         0.0
       ],
       "materials": [
@@ -6006,7 +6005,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -658.0,
+        -666.0,
         0.0
       ],
       "materials": [
@@ -6054,7 +6053,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -666.0,
+        -674.0,
         0.0
       ],
       "materials": [
@@ -6102,7 +6101,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -666.0,
+        -674.0,
         0.0
       ],
       "materials": [
@@ -6150,7 +6149,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -666.0,
+        -674.0,
         0.0
       ],
       "materials": [
@@ -6198,7 +6197,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -666.0,
+        -674.0,
         0.0
       ],
       "materials": [
@@ -6246,7 +6245,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -666.0,
+        -674.0,
         0.0
       ],
       "materials": [
@@ -6294,7 +6293,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -666.0,
+        -674.0,
         0.0
       ],
       "materials": [
@@ -6342,7 +6341,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -666.0,
+        -674.0,
         0.0
       ],
       "materials": [
@@ -6390,7 +6389,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -666.0,
+        -674.0,
         0.0
       ],
       "materials": [
@@ -6438,7 +6437,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -674.0,
+        -682.0,
         0.0
       ],
       "materials": [
@@ -6486,7 +6485,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -674.0,
+        -682.0,
         0.0
       ],
       "materials": [
@@ -6534,7 +6533,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -674.0,
+        -682.0,
         0.0
       ],
       "materials": [
@@ -6582,7 +6581,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -674.0,
+        -682.0,
         0.0
       ],
       "materials": [
@@ -6630,7 +6629,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -674.0,
+        -682.0,
         0.0
       ],
       "materials": [
@@ -6678,7 +6677,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -674.0,
+        -682.0,
         0.0
       ],
       "materials": [
@@ -6726,7 +6725,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -674.0,
+        -682.0,
         0.0
       ],
       "materials": [
@@ -6774,7 +6773,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -674.0,
+        -682.0,
         0.0
       ],
       "materials": [
@@ -6822,7 +6821,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -682.0,
+        -690.0,
         0.0
       ],
       "materials": [
@@ -6870,7 +6869,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -682.0,
+        -690.0,
         0.0
       ],
       "materials": [
@@ -6918,7 +6917,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -682.0,
+        -690.0,
         0.0
       ],
       "materials": [
@@ -6966,7 +6965,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -682.0,
+        -690.0,
         0.0
       ],
       "materials": [
@@ -7014,7 +7013,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -682.0,
+        -690.0,
         0.0
       ],
       "materials": [
@@ -7062,7 +7061,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -682.0,
+        -690.0,
         0.0
       ],
       "materials": [
@@ -7110,7 +7109,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -682.0,
+        -690.0,
         0.0
       ],
       "materials": [
@@ -7158,7 +7157,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -682.0,
+        -690.0,
         0.0
       ],
       "materials": [
@@ -7206,7 +7205,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -690.0,
+        -698.0,
         0.0
       ],
       "materials": [
@@ -7254,7 +7253,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -690.0,
+        -698.0,
         0.0
       ],
       "materials": [
@@ -7302,7 +7301,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -690.0,
+        -698.0,
         0.0
       ],
       "materials": [
@@ -7350,7 +7349,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -690.0,
+        -698.0,
         0.0
       ],
       "materials": [
@@ -7398,7 +7397,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -690.0,
+        -698.0,
         0.0
       ],
       "materials": [
@@ -7446,7 +7445,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -690.0,
+        -698.0,
         0.0
       ],
       "materials": [
@@ -7494,7 +7493,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -690.0,
+        -698.0,
         0.0
       ],
       "materials": [
@@ -7542,7 +7541,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -690.0,
+        -698.0,
         0.0
       ],
       "materials": [
@@ -7590,7 +7589,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -698.0,
+        -706.0,
         0.0
       ],
       "materials": [
@@ -7638,7 +7637,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -698.0,
+        -706.0,
         0.0
       ],
       "materials": [
@@ -7686,7 +7685,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -698.0,
+        -706.0,
         0.0
       ],
       "materials": [
@@ -7735,7 +7734,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -698.0,
+        -706.0,
         0.0
       ],
       "materials": [
@@ -7784,7 +7783,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -698.0,
+        -706.0,
         0.0
       ],
       "materials": [
@@ -7832,7 +7831,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -698.0,
+        -706.0,
         0.0
       ],
       "materials": [
@@ -7881,7 +7880,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -698.0,
+        -706.0,
         0.0
       ],
       "materials": [
@@ -7930,7 +7929,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -698.0,
+        -706.0,
         0.0
       ],
       "materials": [
@@ -7978,7 +7977,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -706.0,
+        -714.0,
         0.0
       ],
       "materials": [
@@ -8027,7 +8026,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -706.0,
+        -714.0,
         0.0
       ],
       "materials": [
@@ -8076,7 +8075,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -706.0,
+        -714.0,
         0.0
       ],
       "materials": [
@@ -8124,7 +8123,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -706.0,
+        -714.0,
         0.0
       ],
       "materials": [
@@ -8173,7 +8172,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -706.0,
+        -714.0,
         0.0
       ],
       "materials": [
@@ -8222,7 +8221,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -706.0,
+        -714.0,
         0.0
       ],
       "materials": [
@@ -8270,7 +8269,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -706.0,
+        -714.0,
         0.0
       ],
       "materials": [
@@ -8319,7 +8318,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -706.0,
+        -714.0,
         0.0
       ],
       "materials": [
@@ -8368,7 +8367,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -714.0,
+        -722.0,
         0.0
       ],
       "materials": [
@@ -8416,7 +8415,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -714.0,
+        -722.0,
         0.0
       ],
       "materials": [
@@ -8465,7 +8464,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -714.0,
+        -722.0,
         0.0
       ],
       "materials": [
@@ -8514,7 +8513,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -714.0,
+        -722.0,
         0.0
       ],
       "materials": [
@@ -8562,7 +8561,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -714.0,
+        -722.0,
         0.0
       ],
       "materials": [
@@ -8611,7 +8610,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -714.0,
+        -722.0,
         0.0
       ],
       "materials": [
@@ -8660,7 +8659,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -714.0,
+        -722.0,
         0.0
       ],
       "materials": [
@@ -8706,7 +8705,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -714.0,
+        -722.0,
         0.0
       ],
       "materials": [
@@ -8753,7 +8752,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -722.0,
+        -730.0,
         0.0
       ],
       "materials": [
@@ -8800,7 +8799,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -722.0,
+        -730.0,
         0.0
       ],
       "materials": [
@@ -8847,7 +8846,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -722.0,
+        -730.0,
         0.0
       ],
       "materials": [
@@ -8894,7 +8893,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -722.0,
+        -730.0,
         0.0
       ],
       "materials": [
@@ -8941,7 +8940,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -722.0,
+        -730.0,
         0.0
       ],
       "materials": [
@@ -12808,7 +12807,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -446.0,
+        -454.0,
         0.0
       ],
       "materials": [
@@ -12860,7 +12859,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -446.0,
+        -454.0,
         0.0
       ],
       "materials": [
@@ -12912,7 +12911,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -446.0,
+        -454.0,
         0.0
       ],
       "materials": [
@@ -12964,7 +12963,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -446.0,
+        -454.0,
         0.0
       ],
       "materials": [
@@ -13016,7 +13015,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -446.0,
+        -454.0,
         0.0
       ],
       "materials": [
@@ -13068,7 +13067,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -446.0,
+        -454.0,
         0.0
       ],
       "materials": [
@@ -13120,7 +13119,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -446.0,
+        -454.0,
         0.0
       ],
       "materials": [
@@ -13172,7 +13171,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -446.0,
+        -454.0,
         0.0
       ],
       "materials": [
@@ -13224,7 +13223,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -454.0,
+        -462.0,
         0.0
       ],
       "materials": [
@@ -13276,7 +13275,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -454.0,
+        -462.0,
         0.0
       ],
       "materials": [
@@ -13328,7 +13327,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -454.0,
+        -462.0,
         0.0
       ],
       "materials": [
@@ -13380,7 +13379,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -454.0,
+        -462.0,
         0.0
       ],
       "materials": [
@@ -13427,7 +13426,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -454.0,
+        -462.0,
         0.0
       ],
       "materials": [
@@ -13472,7 +13471,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -454.0,
+        -462.0,
         0.0
       ],
       "materials": [
@@ -13517,7 +13516,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -454.0,
+        -462.0,
         0.0
       ],
       "materials": [
@@ -13562,7 +13561,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -454.0,
+        -462.0,
         0.0
       ],
       "materials": [
@@ -13608,7 +13607,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -462.0,
+        -470.0,
         0.0
       ],
       "materials": [
@@ -13655,7 +13654,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -462.0,
+        -470.0,
         0.0
       ],
       "materials": [
@@ -13702,7 +13701,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -462.0,
+        -470.0,
         0.0
       ],
       "materials": [
@@ -13749,7 +13748,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -462.0,
+        -470.0,
         0.0
       ],
       "materials": [
@@ -13790,7 +13789,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -462.0,
+        -470.0,
         0.0
       ],
       "materials": [
@@ -13830,7 +13829,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -462.0,
+        -470.0,
         0.0
       ],
       "materials": [
@@ -13882,7 +13881,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -462.0,
+        -470.0,
         0.0
       ],
       "materials": [
@@ -13934,7 +13933,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -462.0,
+        -470.0,
         0.0
       ],
       "materials": [
@@ -13986,7 +13985,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -470.0,
+        -478.0,
         0.0
       ],
       "materials": [
@@ -14038,7 +14037,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -470.0,
+        -478.0,
         0.0
       ],
       "materials": [
@@ -14090,7 +14089,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -470.0,
+        -478.0,
         0.0
       ],
       "materials": [
@@ -14142,7 +14141,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -470.0,
+        -478.0,
         0.0
       ],
       "materials": [
@@ -14194,7 +14193,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -470.0,
+        -478.0,
         0.0
       ],
       "materials": [
@@ -14246,7 +14245,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -470.0,
+        -478.0,
         0.0
       ],
       "materials": [
@@ -14298,7 +14297,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -470.0,
+        -478.0,
         0.0
       ],
       "materials": [
@@ -14350,7 +14349,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -470.0,
+        -478.0,
         0.0
       ],
       "materials": [
@@ -14402,7 +14401,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -478.0,
+        -486.0,
         0.0
       ],
       "materials": [
@@ -14454,7 +14453,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -478.0,
+        -486.0,
         0.0
       ],
       "materials": [
@@ -14501,7 +14500,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -478.0,
+        -486.0,
         0.0
       ],
       "materials": [
@@ -14546,7 +14545,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -478.0,
+        -486.0,
         0.0
       ],
       "materials": [
@@ -14591,7 +14590,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -478.0,
+        -486.0,
         0.0
       ],
       "materials": [
@@ -14637,7 +14636,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -478.0,
+        -486.0,
         0.0
       ],
       "materials": [
@@ -14684,7 +14683,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -478.0,
+        -486.0,
         0.0
       ],
       "materials": [
@@ -14731,7 +14730,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -478.0,
+        -486.0,
         0.0
       ],
       "materials": [
@@ -14778,7 +14777,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -486.0,
+        -494.0,
         0.0
       ],
       "materials": [
@@ -14825,7 +14824,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -486.0,
+        -494.0,
         0.0
       ],
       "materials": [
@@ -14866,7 +14865,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -486.0,
+        -494.0,
         0.0
       ],
       "materials": [
@@ -14906,7 +14905,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -486.0,
+        -494.0,
         0.0
       ],
       "materials": [
@@ -14958,7 +14957,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -486.0,
+        -494.0,
         0.0
       ],
       "materials": [
@@ -15010,7 +15009,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -486.0,
+        -494.0,
         0.0
       ],
       "materials": [
@@ -15062,7 +15061,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -486.0,
+        -494.0,
         0.0
       ],
       "materials": [
@@ -15114,7 +15113,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -486.0,
+        -494.0,
         0.0
       ],
       "materials": [
@@ -15166,7 +15165,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -494.0,
+        -502.0,
         0.0
       ],
       "materials": [
@@ -15218,7 +15217,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -494.0,
+        -502.0,
         0.0
       ],
       "materials": [
@@ -15270,7 +15269,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -494.0,
+        -502.0,
         0.0
       ],
       "materials": [
@@ -15322,7 +15321,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -494.0,
+        -502.0,
         0.0
       ],
       "materials": [
@@ -15374,7 +15373,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -494.0,
+        -502.0,
         0.0
       ],
       "materials": [
@@ -15426,7 +15425,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -494.0,
+        -502.0,
         0.0
       ],
       "materials": [
@@ -15478,7 +15477,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -494.0,
+        -502.0,
         0.0
       ],
       "materials": [
@@ -15530,7 +15529,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -494.0,
+        -502.0,
         0.0
       ],
       "materials": [
@@ -15577,7 +15576,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -502.0,
+        -510.0,
         0.0
       ],
       "materials": [
@@ -15623,7 +15622,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -502.0,
+        -510.0,
         0.0
       ],
       "materials": [
@@ -15669,7 +15668,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -502.0,
+        -510.0,
         0.0
       ],
       "materials": [
@@ -15715,7 +15714,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -502.0,
+        -510.0,
         0.0
       ],
       "materials": [
@@ -15762,7 +15761,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -502.0,
+        -510.0,
         0.0
       ],
       "materials": [
@@ -15810,7 +15809,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -502.0,
+        -510.0,
         0.0
       ],
       "materials": [
@@ -15858,7 +15857,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -502.0,
+        -510.0,
         0.0
       ],
       "materials": [
@@ -15906,7 +15905,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -502.0,
+        -510.0,
         0.0
       ],
       "materials": [
@@ -15948,7 +15947,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -510.0,
+        -518.0,
         0.0
       ],
       "materials": [
@@ -15988,7 +15987,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -510.0,
+        -518.0,
         0.0
       ],
       "materials": [
@@ -16035,7 +16034,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -510.0,
+        -518.0,
         0.0
       ],
       "materials": [
@@ -16079,7 +16078,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -510.0,
+        -518.0,
         0.0
       ],
       "materials": [
@@ -16123,7 +16122,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -510.0,
+        -518.0,
         0.0
       ],
       "materials": [
@@ -16168,7 +16167,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -510.0,
+        -518.0,
         0.0
       ],
       "materials": [
@@ -16212,7 +16211,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -510.0,
+        -518.0,
         0.0
       ],
       "materials": [
@@ -16256,7 +16255,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -510.0,
+        -518.0,
         0.0
       ],
       "materials": [
@@ -16300,7 +16299,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -518.0,
+        -526.0,
         0.0
       ],
       "materials": [
@@ -16345,7 +16344,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -518.0,
+        -526.0,
         0.0
       ],
       "materials": [
@@ -16389,7 +16388,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -518.0,
+        -526.0,
         0.0
       ],
       "materials": [
@@ -16433,7 +16432,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -518.0,
+        -526.0,
         0.0
       ],
       "materials": [
@@ -16477,7 +16476,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -518.0,
+        -526.0,
         0.0
       ],
       "materials": [
@@ -16522,7 +16521,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -518.0,
+        -526.0,
         0.0
       ],
       "materials": [
@@ -16566,7 +16565,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -518.0,
+        -526.0,
         0.0
       ],
       "materials": [
@@ -16610,7 +16609,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -518.0,
+        -526.0,
         0.0
       ],
       "materials": [
@@ -16654,7 +16653,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -526.0,
+        -534.0,
         0.0
       ],
       "materials": [
@@ -16699,7 +16698,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -526.0,
+        -534.0,
         0.0
       ],
       "materials": [
@@ -16737,7 +16736,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -526.0,
+        -534.0,
         0.0
       ],
       "materials": [
@@ -16775,7 +16774,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -526.0,
+        -534.0,
         0.0
       ],
       "materials": [
@@ -16813,7 +16812,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -526.0,
+        -534.0,
         0.0
       ],
       "materials": [
@@ -16851,7 +16850,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -526.0,
+        -534.0,
         0.0
       ],
       "materials": [
@@ -16896,7 +16895,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -526.0,
+        -534.0,
         0.0
       ],
       "materials": [
@@ -16941,7 +16940,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -526.0,
+        -534.0,
         0.0
       ],
       "materials": [
@@ -16986,7 +16985,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -534.0,
+        -542.0,
         0.0
       ],
       "materials": [
@@ -17025,7 +17024,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -534.0,
+        -542.0,
         0.0
       ],
       "materials": [
@@ -17066,7 +17065,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -534.0,
+        -542.0,
         0.0
       ],
       "materials": [
@@ -17105,7 +17104,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -534.0,
+        -542.0,
         0.0
       ],
       "materials": [
@@ -17144,7 +17143,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -534.0,
+        -542.0,
         0.0
       ],
       "materials": [
@@ -17185,7 +17184,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -534.0,
+        -542.0,
         0.0
       ],
       "materials": [
@@ -17227,7 +17226,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -534.0,
+        -542.0,
         0.0
       ],
       "materials": [
@@ -17269,7 +17268,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -534.0,
+        -542.0,
         0.0
       ],
       "materials": [
@@ -17310,7 +17309,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -542.0,
+        -550.0,
         0.0
       ],
       "materials": [
@@ -17351,7 +17350,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -542.0,
+        -550.0,
         0.0
       ],
       "materials": [
@@ -17392,7 +17391,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -542.0,
+        -550.0,
         0.0
       ],
       "materials": [
@@ -17439,7 +17438,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -542.0,
+        -550.0,
         0.0
       ],
       "materials": [
@@ -17480,7 +17479,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -542.0,
+        -550.0,
         0.0
       ],
       "materials": [
@@ -17522,7 +17521,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -542.0,
+        -550.0,
         0.0
       ],
       "materials": [
@@ -17569,7 +17568,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -542.0,
+        -550.0,
         0.0
       ],
       "materials": [
@@ -17610,7 +17609,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -542.0,
+        -550.0,
         0.0
       ],
       "materials": [
@@ -17650,7 +17649,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -550.0,
+        -558.0,
         0.0
       ],
       "materials": [
@@ -17689,7 +17688,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -550.0,
+        -558.0,
         0.0
       ],
       "materials": [
@@ -19138,7 +19137,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -564.0,
+        -572.0,
         0.0
       ],
       "materials": [
@@ -19173,15 +19172,15 @@
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
       "triangleBudget": 6400,
-      "triangles": 308,
+      "triangles": 496,
       "dimensionsM": [
         2.32,
-        2.34069,
-        2.69603
+        2.34,
+        2.63289
       ],
       "displayLocationM": [
         9.0,
-        -564.0,
+        -572.0,
         0.0
       ],
       "materials": [
@@ -19192,7 +19191,7 @@
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "409eacb58529b71a93e6bfcbfde38daca8b8279ed8a1b3a20bd3a18b3f558f93",
+      "vertexHash": "c7e42991d01ed9b3d13804c4b1ff0d9c5a31c073ff83feb38ccab85e27ee6850",
       "provenance": "authored"
     },
     {
@@ -19224,7 +19223,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -564.0,
+        -572.0,
         0.0
       ],
       "materials": [
@@ -19259,15 +19258,15 @@
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
       "triangleBudget": 6400,
-      "triangles": 308,
+      "triangles": 496,
       "dimensionsM": [
         4.32,
-        2.34069,
-        2.69603
+        2.34,
+        2.6332
       ],
       "displayLocationM": [
         27.0,
-        -564.0,
+        -572.0,
         0.0
       ],
       "materials": [
@@ -19278,7 +19277,7 @@
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "7e8cce5f3adba650430155f14219633152029bec00d7267604c7bf1d88d28a01",
+      "vertexHash": "de483cef454e7985252669ab100533413e696b1fd1231070bd05b8268b9b13a3",
       "provenance": "authored"
     },
     {
@@ -19310,7 +19309,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -564.0,
+        -572.0,
         0.0
       ],
       "materials": [
@@ -19345,15 +19344,15 @@
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
       "triangleBudget": 6400,
-      "triangles": 308,
+      "triangles": 496,
       "dimensionsM": [
         4.32,
-        4.33909,
-        2.73602
+        4.34,
+        2.6333
       ],
       "displayLocationM": [
         45.0,
-        -564.0,
+        -572.0,
         0.0
       ],
       "materials": [
@@ -19364,7 +19363,7 @@
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "d13ff9e151339c8c6f4198233ad910e37150c802d70f88edc71b0ddc954a8096",
+      "vertexHash": "5df42467b07c0076506ef72f4108104ecc798f17f5fde276094dabc3ab8e9ba0",
       "provenance": "authored"
     },
     {
@@ -19396,7 +19395,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -564.0,
+        -572.0,
         0.0
       ],
       "materials": [
@@ -19431,15 +19430,15 @@
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
       "triangleBudget": 6400,
-      "triangles": 308,
+      "triangles": 496,
       "dimensionsM": [
         6.32,
-        3.33989,
-        2.71602
+        3.34,
+        2.63338
       ],
       "displayLocationM": [
         63.0,
-        -564.0,
+        -572.0,
         0.0
       ],
       "materials": [
@@ -19450,7 +19449,7 @@
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "b5f04cc3ac700e819f2b658731303d5780452cc910e23746ef40ae9b6a5b52f6",
+      "vertexHash": "f62587d12c56c140aa0407f325b0bea4c09b15cf134087cb35d34c4de4b6c954",
       "provenance": "authored"
     },
     {
@@ -19486,7 +19485,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -572.0,
+        -580.0,
         0.0
       ],
       "materials": [
@@ -19531,7 +19530,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -572.0,
+        -580.0,
         0.0
       ],
       "materials": [
@@ -19576,7 +19575,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -572.0,
+        -580.0,
         0.0
       ],
       "materials": [
@@ -19623,7 +19622,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -572.0,
+        -580.0,
         0.0
       ],
       "materials": [
@@ -19670,7 +19669,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -572.0,
+        -580.0,
         0.0
       ],
       "materials": [
@@ -19715,7 +19714,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -572.0,
+        -580.0,
         0.0
       ],
       "materials": [
@@ -19760,7 +19759,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -572.0,
+        -580.0,
         0.0
       ],
       "materials": [
@@ -19807,7 +19806,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -572.0,
+        -580.0,
         0.0
       ],
       "materials": [
@@ -19854,7 +19853,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -580.0,
+        -588.0,
         0.0
       ],
       "materials": [
@@ -19899,7 +19898,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -580.0,
+        -588.0,
         0.0
       ],
       "materials": [
@@ -19944,7 +19943,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -580.0,
+        -588.0,
         0.0
       ],
       "materials": [
@@ -19991,7 +19990,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -580.0,
+        -588.0,
         0.0
       ],
       "materials": [
@@ -20038,7 +20037,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -580.0,
+        -588.0,
         0.0
       ],
       "materials": [
@@ -20083,7 +20082,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -580.0,
+        -588.0,
         0.0
       ],
       "materials": [
@@ -20128,7 +20127,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -580.0,
+        -588.0,
         0.0
       ],
       "materials": [
@@ -20175,7 +20174,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -580.0,
+        -588.0,
         0.0
       ],
       "materials": [
@@ -20214,7 +20213,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -588.0,
+        -596.0,
         0.0
       ],
       "materials": [
@@ -20254,7 +20253,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -588.0,
+        -596.0,
         0.0
       ],
       "materials": [
@@ -20294,7 +20293,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -588.0,
+        -596.0,
         0.0
       ],
       "materials": [
@@ -20333,7 +20332,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -588.0,
+        -596.0,
         0.0
       ],
       "materials": [
@@ -20372,7 +20371,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -588.0,
+        -596.0,
         0.0
       ],
       "materials": [
@@ -20411,7 +20410,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -588.0,
+        -596.0,
         0.0
       ],
       "materials": [
@@ -20443,15 +20442,15 @@
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
       "triangleBudget": 5200,
-      "triangles": 440,
+      "triangles": 628,
       "dimensionsM": [
         2.92,
-        2.14085,
-        2.69203
+        2.14,
+        2.63301
       ],
       "displayLocationM": [
         54.0,
-        -588.0,
+        -596.0,
         0.0
       ],
       "materials": [
@@ -20463,7 +20462,7 @@
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "22d2604bf1f436cde26a3373334b18bc670fc1ae4895d0506f17a6710891288c",
+      "vertexHash": "94a30891bee1fe3bcb56a2f314b3495b045dbcf5cb90ac6e95954136ab6c7d3a",
       "provenance": "authored"
     },
     {
@@ -20491,7 +20490,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -588.0,
+        -596.0,
         0.0
       ],
       "materials": [
@@ -20523,26 +20522,27 @@
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
       "triangleBudget": 5200,
-      "triangles": 220,
+      "triangles": 980,
       "dimensionsM": [
-        1.85468,
-        2.3,
-        1.80006
+        2.772,
+        3.79889,
+        1.82
       ],
       "displayLocationM": [
         0.0,
-        -596.0,
+        -604.0,
         0.0
       ],
       "materials": [
         "timber_cut",
-        "canvas"
+        "canvas",
+        "rope"
       ],
       "uvLayers": [
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "0753fab64a0ba5c9cbe3ebb71fcdd776ca6d4f31f965996cc4cc0f48c4c50add",
+      "vertexHash": "3ef8faa3e77c84c57b858b0e05599d27ef4e94ef72190bd33cfa67b170e1cb38",
       "provenance": "authored"
     },
     {
@@ -20562,26 +20562,27 @@
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
       "triangleBudget": 5200,
-      "triangles": 220,
+      "triangles": 980,
       "dimensionsM": [
-        2.45299,
-        3.2,
-        2.25053
+        3.372,
+        4.69889,
+        2.27
       ],
       "displayLocationM": [
         9.0,
-        -596.0,
+        -604.0,
         0.0
       ],
       "materials": [
         "timber_cut",
-        "canvas"
+        "canvas",
+        "rope"
       ],
       "uvLayers": [
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "c2fc0f82c6cc3d7c4c766e2b8f50206f01e625c39c5d392aeab5e561d322ddd7",
+      "vertexHash": "9f10e2713ba93da14d75ecfca48181ee00edb4978b693354a0e0b2bba01c6fa6",
       "provenance": "authored"
     },
     {
@@ -20609,7 +20610,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -596.0,
+        -604.0,
         0.0
       ],
       "materials": [
@@ -20621,6 +20622,46 @@
       ],
       "textureContract": "baseColor, normal, ORM",
       "vertexHash": "2a1b4a3e477ee70a84e8a8a94e5dde2ea6870df625e5b221af6369823ac57d34",
+      "provenance": "authored"
+    },
+    {
+      "id": "site_camp_cooking_tripod",
+      "name": "GK_site_camp_cooking_tripod",
+      "family": "siteworks",
+      "label": "Camp cooking tripod",
+      "tags": [
+        "site",
+        "camp",
+        "fire",
+        "tripod",
+        "cooking"
+      ],
+      "seams": [],
+      "snapSockets": [],
+      "openingContract": null,
+      "originContract": "canonical local origin; X run, Y depth, Z up",
+      "allowNonmanifold": false,
+      "triangleBudget": 3200,
+      "triangles": 244,
+      "dimensionsM": [
+        1.50194,
+        1.3205,
+        2.05247
+      ],
+      "displayLocationM": [
+        27.0,
+        -604.0,
+        0.0
+      ],
+      "materials": [
+        "timber_cut",
+        "iron"
+      ],
+      "uvLayers": [
+        "GK_UV0"
+      ],
+      "textureContract": "baseColor, normal, ORM",
+      "vertexHash": "ecbdae356122d8c91b3e746f87dd1e6a0f60877a99a53998f6aa52ab8f7bbf7c",
       "provenance": "authored"
     },
     {
@@ -20647,8 +20688,8 @@
         1.45
       ],
       "displayLocationM": [
-        27.0,
-        -596.0,
+        36.0,
+        -604.0,
         0.0
       ],
       "materials": [
@@ -20685,8 +20726,8 @@
         0.1975
       ],
       "displayLocationM": [
-        36.0,
-        -596.0,
+        45.0,
+        -604.0,
         0.0
       ],
       "materials": [
@@ -20724,8 +20765,8 @@
         0.99476
       ],
       "displayLocationM": [
-        45.0,
-        -596.0,
+        54.0,
+        -604.0,
         0.0
       ],
       "materials": [
@@ -28120,6 +28161,90 @@
       "provenance": "authored"
     },
     {
+      "id": "prop_tool_rack_hunter",
+      "name": "GK_prop_tool_rack_hunter",
+      "family": "props",
+      "label": "Hunter bow and snare rack",
+      "tags": [
+        "prop",
+        "tools",
+        "hunter",
+        "rack",
+        "bow",
+        "snare"
+      ],
+      "seams": [],
+      "snapSockets": [],
+      "openingContract": null,
+      "originContract": "canonical local origin; X run, Y depth, Z up",
+      "allowNonmanifold": false,
+      "triangleBudget": 5800,
+      "triangles": 1060,
+      "dimensionsM": [
+        2.24303,
+        0.1625,
+        2.18183
+      ],
+      "displayLocationM": [
+        0.0,
+        -424.0,
+        0.0
+      ],
+      "materials": [
+        "timber_cut",
+        "rope",
+        "iron"
+      ],
+      "uvLayers": [
+        "GK_UV0"
+      ],
+      "textureContract": "baseColor, normal, ORM",
+      "vertexHash": "bdf65cf64f855de427924b4ae05380351293b2d96f940c4bbee2ff84f8032326",
+      "provenance": "authored"
+    },
+    {
+      "id": "prop_camp_worktable",
+      "name": "GK_prop_camp_worktable",
+      "family": "props",
+      "label": "Camp field-dressing worktable",
+      "tags": [
+        "prop",
+        "camp",
+        "hunter",
+        "worktable",
+        "processing"
+      ],
+      "seams": [],
+      "snapSockets": [],
+      "openingContract": null,
+      "originContract": "canonical local origin; X run, Y depth, Z up",
+      "allowNonmanifold": false,
+      "triangleBudget": 3200,
+      "triangles": 352,
+      "dimensionsM": [
+        1.86481,
+        0.85254,
+        1.11183
+      ],
+      "displayLocationM": [
+        9.0,
+        -424.0,
+        0.0
+      ],
+      "materials": [
+        "timber_weathered",
+        "oak_dark",
+        "timber_cut",
+        "iron"
+      ],
+      "uvLayers": [
+        "GK_UV0"
+      ],
+      "textureContract": "baseColor, normal, ORM",
+      "vertexHash": "086a5cb3b38789c0d667050dff6093f752eeee225f7dee5be7a2152bbf8d7153",
+      "provenance": "authored"
+    },
+    {
       "id": "prop_signpost_town",
       "name": "GK_prop_signpost_town",
       "family": "props",
@@ -28143,7 +28268,7 @@
         2.25
       ],
       "displayLocationM": [
-        0.0,
+        18.0,
         -424.0,
         0.0
       ],
@@ -28182,7 +28307,7 @@
         2.25
       ],
       "displayLocationM": [
-        9.0,
+        27.0,
         -424.0,
         0.0
       ],
@@ -28221,7 +28346,7 @@
         2.25
       ],
       "displayLocationM": [
-        18.0,
+        36.0,
         -424.0,
         0.0
       ],
@@ -28260,7 +28385,7 @@
         2.25
       ],
       "displayLocationM": [
-        27.0,
+        45.0,
         -424.0,
         0.0
       ],
@@ -28299,7 +28424,7 @@
         2.25
       ],
       "displayLocationM": [
-        36.0,
+        54.0,
         -424.0,
         0.0
       ],
@@ -28338,7 +28463,7 @@
         2.25
       ],
       "displayLocationM": [
-        45.0,
+        63.0,
         -424.0,
         0.0
       ],
@@ -28377,8 +28502,8 @@
         1.4
       ],
       "displayLocationM": [
-        54.0,
-        -424.0,
+        0.0,
+        -432.0,
         0.0
       ],
       "materials": [
@@ -28418,8 +28543,8 @@
         0.57077
       ],
       "displayLocationM": [
-        63.0,
-        -424.0,
+        9.0,
+        -432.0,
         0.0
       ],
       "materials": [
@@ -28457,7 +28582,7 @@
         1.9
       ],
       "displayLocationM": [
-        0.0,
+        18.0,
         -432.0,
         0.0
       ],
@@ -28496,7 +28621,7 @@
         0.78
       ],
       "displayLocationM": [
-        9.0,
+        27.0,
         -432.0,
         0.0
       ],
@@ -28535,7 +28660,7 @@
         1.33956
       ],
       "displayLocationM": [
-        18.0,
+        36.0,
         -432.0,
         0.0
       ],
@@ -28574,7 +28699,7 @@
         0.61662
       ],
       "displayLocationM": [
-        27.0,
+        45.0,
         -432.0,
         0.0
       ],
@@ -28613,7 +28738,7 @@
         1.35
       ],
       "displayLocationM": [
-        36.0,
+        54.0,
         -432.0,
         0.0
       ],
@@ -28652,7 +28777,7 @@
         1.2918
       ],
       "displayLocationM": [
-        45.0,
+        63.0,
         -432.0,
         0.0
       ],
@@ -28692,8 +28817,8 @@
         1.28046
       ],
       "displayLocationM": [
-        54.0,
-        -432.0,
+        0.0,
+        -440.0,
         0.0
       ],
       "materials": [

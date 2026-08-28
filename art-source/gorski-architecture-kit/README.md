@@ -8,7 +8,7 @@ It intentionally contains no assembled finished buildings. The 620 components ar
 
 - 12 component families: foundations, walls, frames, openings, roofs, enclosures, site works, extraction, production, agriculture, civic, and props.
 - 44/44 authoritative `BUILDING_KINDS` from `src/generated/gameBalance.ts` have explicit multi-part coverage.
-- 34 supplemental categories cover five residence tiers, non-living SeedThree placement/support interfaces for six crop kinds, all backyard specializations, road, bridge, burial ground, pasture, vineyard, and dry-stone wall systems.
+- 34 supplemental categories cover five residence tiers, non-living SeedThree placement/support interfaces for all six authoritative `FARM_CROP_KINDS`, all 17 authoritative `BACKYARD_GARDEN_KINDS`, road, bridge, burial ground, pasture, vineyard, and dry-stone wall systems. Validation requires exact key equality with those generated catalogs, not only matching counts.
 - Mining includes shaft collars, headframes, portals, tunnel supports, hoists, ore buckets, sorting benches, survey stakes, stockpiles, and quarry-specific lifting/cutting equipment.
 - Enclosures include authored 1 m, 2 m, and 4 m spans, corners, person gates, and cart gates for split rail, wattle, dry stone, palisade, and parish-wall systems.
 - Roofs are construction-specific rather than recolored slabs: bound thatch with fringe/ridge/smoke-vent parts, overlapping split shingles, laid clay tiles, repair patches, eaves, verges, ridges, hips, half-hips, dormers, flashing, valleys, apse roofs, belfry roofs, and shrine roofs.

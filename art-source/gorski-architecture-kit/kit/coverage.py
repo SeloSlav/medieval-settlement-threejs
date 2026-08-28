@@ -70,7 +70,18 @@ BUILDING_COVERAGE = {
     "smithy": _entry("production", "Masonry workshop identified by open forge and tall flue.", WORKSHOP, "production_smithy_forge", "production_smithy_anvil_block", "prop_tool_rack_smith"),
     "potter_kiln": _entry("production", "Clay-working workshop with an external updraft kiln.", WORKSHOP, "production_potter_kiln_round", "extract_clay_pit_screen", "prop_crate_medium"),
     "well": _entry("infrastructure", "Stone curb, windlass shelter, and buckets.", "site_well_curb_r1m", "site_well_shelter_shingle", "prop_water_bucket_pair", "site_walkway_plank_2m"),
-    "hunters_hall": _entry("subsistence", "Timber hall with hide handling and hunting tools.", HUMBLE, "production_tanning_frame_2m", "prop_tool_rack_farm", "prop_firewood_stack_small"),
+    "hunters_hall": _entry(
+        "subsistence",
+        "Open woodland hunting camp with a canvas shelter, hearth, processing canopy, and hunter tools.",
+        "site_tent_a_frame_large",
+        "site_canopy_canvas_4m_d2m",
+        "site_campfire_hearth",
+        "site_camp_cooking_tripod",
+        "prop_tool_rack_hunter",
+        "prop_camp_worktable",
+        "enclosure_split_rail_2m",
+        "prop_water_bucket_pair",
+    ),
     "foragers_shed": _entry("subsistence", "Very small timber storage and drying shelter.", HUMBLE, "site_canopy_timber_2m_d2m", "production_malt_rack_2m", "prop_crate_small"),
     "fishing_camp": _entry("subsistence", "Riverside dock, dugout, and drying rack.", HUMBLE, "site_dock_segment_4m", "prop_boat_dugout", "prop_fish_drying_rack", "prop_tool_rack_fishing"),
     "chapel": _entry(
@@ -156,7 +167,11 @@ for garden in (
         signature = f"agri_orchard_guard_{tree}"
     else:
         signature = "agri_garden_coldframe"
-    SUPPLEMENTAL_COVERAGE[f"backyard_{garden}"] = _entry("backyard", f"Reusable module for {garden.replace('_', ' ')}.", signature, "enclosure_wattle_2m", "agri_compost_wattle_bin")
+    # Most game keys need the supplemental namespace prefix. `backyard_apiary`
+    # already carries it, so preserve that authoritative key instead of emitting
+    # the invalid `backyard_backyard_apiary` near-duplicate.
+    coverage_key = garden if garden.startswith("backyard_") else f"backyard_{garden}"
+    SUPPLEMENTAL_COVERAGE[coverage_key] = _entry("backyard", f"Reusable module for {garden.replace('_', ' ')}.", signature, "enclosure_wattle_2m", "agri_compost_wattle_bin")
 
 
 ALL_COVERAGE = {**BUILDING_COVERAGE, **SUPPLEMENTAL_COVERAGE}

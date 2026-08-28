@@ -1,10 +1,10 @@
 {
   "schemaVersion": 2,
-  "validatedAt": "2026-08-28T08:41:57.920294+00:00",
+  "validatedAt": "2026-08-28T14:41:48.594748+00:00",
   "status": "pass",
   "glb": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\out\\gorski_architecture_kit.glb",
-  "partsExpected": 620,
-  "partsImported": 620,
+  "partsExpected": 623,
+  "partsImported": 623,
   "familiesImported": {
     "agriculture": 38,
     "civic": 49,
@@ -14,12 +14,12 @@
     "frames": 56,
     "openings": 29,
     "production": 41,
-    "props": 39,
+    "props": 41,
     "roofs": 106,
-    "siteworks": 38,
+    "siteworks": 39,
     "walls": 117
   },
-  "totalImportedTriangles": 390136,
+  "totalImportedTriangles": 394252,
   "errors": [],
   "warnings": []
 }

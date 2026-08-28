@@ -21,8 +21,14 @@
     "gableEndOverhang": 0.5
   },
   "roofFinish": "hand-split softwood shingles",
+  "eaveFinish": "raw hanging shingle edge; no applied fascia or paired eave-edge trim",
+  "foundationAssembly": {
+    "method": "four kit-authored L-corners with baked mirrored counterparts and two central side runs",
+    "cornerCount": 4,
+    "closedRectangle": true
+  },
   "roofIrregularity": {
-    "method": "continuous piecewise-linear one-metre settlement; every shingle, substrate, ridge, and eave vertex follows the same longitudinal profile",
+    "method": "continuous piecewise-linear one-metre settlement, attenuated to zero at the +/- 2.0 m wall-plate bearing and retained toward the ridge and hanging eaves",
     "moduleEdgeDropsMetres": [
       0.0,
       -0.018,
@@ -46,7 +52,7 @@
       -0.006
     ],
     "maximumDropMetres": 0.128,
-    "bearingLine": "roof plane intersects the continuous wall-head bearing at x = +/- 2.0 m",
+    "bearingLine": "roof settlement is pinned to zero at x = +/- 2.0 m; the 0.20 m side walls are inset so their exterior faces terminate on that line",
     "supports": "continuous timber wall-head courses, six inset common rafter pairs, and three tie beams; all roof supports terminate beneath the shingle skin"
   },
   "historicalMaterialDecision": {
@@ -86,89 +92,69 @@
   "livingVegetation": "excluded; SeedThree-owned",
   "placements": [
     {
-      "name": "T1_Foundation_Front",
-      "source": "foundation_fieldstone_4m_h0p35m",
+      "name": "T1_Foundation_Corner_Front_Left",
+      "source": "foundation_corner_fieldstone_h0p35m",
       "collection": "T1_01_Foundation",
       "location": [
-        0.0,
+        -1.0,
         0.0,
         0.0
       ],
       "rotationZDegrees": 0.0
     },
     {
-      "name": "T1_Foundation_Rear",
-      "source": "foundation_fieldstone_4m_h0p35m",
+      "name": "T1_Foundation_Corner_Front_Right",
+      "source": "foundation_corner_fieldstone_h0p35m",
       "collection": "T1_01_Foundation",
       "location": [
+        1.0,
         0.0,
+        0.0
+      ],
+      "rotationZDegrees": 0.0,
+      "mirroredLocalX": true
+    },
+    {
+      "name": "T1_Foundation_Corner_Rear_Left",
+      "source": "foundation_corner_fieldstone_h0p35m",
+      "collection": "T1_01_Foundation",
+      "location": [
+        -1.0,
+        7.0,
+        0.0
+      ],
+      "rotationZDegrees": 180.0,
+      "mirroredLocalX": true
+    },
+    {
+      "name": "T1_Foundation_Corner_Rear_Right",
+      "source": "foundation_corner_fieldstone_h0p35m",
+      "collection": "T1_01_Foundation",
+      "location": [
+        1.0,
         7.0,
         0.0
       ],
       "rotationZDegrees": 180.0
     },
     {
-      "name": "T1_Foundation_Left_A",
+      "name": "T1_Foundation_Left_Centre",
       "source": "foundation_fieldstone_4m_h0p35m",
       "collection": "T1_01_Foundation",
       "location": [
         -2.0,
-        2.0,
+        3.5,
         0.0
       ],
       "rotationZDegrees": -90.0
     },
     {
-      "name": "T1_Foundation_Left_B",
-      "source": "foundation_fieldstone_2m_h0p35m",
-      "collection": "T1_01_Foundation",
-      "location": [
-        -2.0,
-        5.0,
-        0.0
-      ],
-      "rotationZDegrees": -90.0
-    },
-    {
-      "name": "T1_Foundation_Left_C",
-      "source": "foundation_fieldstone_1m_h0p35m",
-      "collection": "T1_01_Foundation",
-      "location": [
-        -2.0,
-        6.5,
-        0.0
-      ],
-      "rotationZDegrees": -90.0
-    },
-    {
-      "name": "T1_Foundation_Right_A",
+      "name": "T1_Foundation_Right_Centre",
       "source": "foundation_fieldstone_4m_h0p35m",
       "collection": "T1_01_Foundation",
       "location": [
         2.0,
-        2.0,
-        0.0
-      ],
-      "rotationZDegrees": 90.0
-    },
-    {
-      "name": "T1_Foundation_Right_B",
-      "source": "foundation_fieldstone_2m_h0p35m",
-      "collection": "T1_01_Foundation",
-      "location": [
-        2.0,
-        5.0,
-        0.0
-      ],
-      "rotationZDegrees": 90.0
-    },
-    {
-      "name": "T1_Foundation_Right_C",
-      "source": "foundation_fieldstone_1m_h0p35m",
-      "collection": "T1_01_Foundation",
-      "location": [
-        2.0,
-        6.5,
+        3.5,
         0.0
       ],
       "rotationZDegrees": 90.0
@@ -233,7 +219,7 @@
       "source": "assembly_custom_aperture_wall",
       "collection": "T1_02_Walls",
       "location": [
-        -2.0,
+        -1.9,
         2.0,
         0.35
       ],
@@ -244,7 +230,7 @@
       "source": "assembly_custom_aperture_wall",
       "collection": "T1_02_Walls",
       "location": [
-        -2.0,
+        -1.9,
         5.0,
         0.35
       ],
@@ -255,7 +241,7 @@
       "source": "assembly_dark_unglazed_aperture",
       "collection": "T1_03_Openings",
       "location": [
-        -1.845,
+        -1.745,
         5.0,
         1.62
       ],
@@ -266,7 +252,7 @@
       "source": "assembly_custom_aperture_wall",
       "collection": "T1_02_Walls",
       "location": [
-        -2.0,
+        -1.9,
         6.5,
         0.35
       ],
@@ -277,7 +263,7 @@
       "source": "assembly_custom_aperture_wall",
       "collection": "T1_02_Walls",
       "location": [
-        2.0,
+        1.9,
         2.0,
         0.35
       ],
@@ -288,7 +274,7 @@
       "source": "assembly_custom_aperture_wall",
       "collection": "T1_02_Walls",
       "location": [
-        2.0,
+        1.9,
         5.0,
         0.35
       ],
@@ -299,7 +285,7 @@
       "source": "assembly_dark_unglazed_aperture",
       "collection": "T1_03_Openings",
       "location": [
-        1.845,
+        1.745,
         5.0,
         1.62
       ],
@@ -310,7 +296,7 @@
       "source": "assembly_custom_aperture_wall",
       "collection": "T1_02_Walls",
       "location": [
-        2.0,
+        1.9,
         6.5,
         0.35
       ],
@@ -944,180 +930,26 @@
       "rotationZDegrees": 90.0
     },
     {
-      "name": "T1_Eave_Left_Run00",
-      "source": "roof_shingle_eave_edge_1m",
+      "name": "T1_RoofUndercourse_Left",
+      "source": "assembly_custom_shingle_undercourse",
       "collection": "T1_05_Roof",
       "location": [
-        -2.69971,
         0.0,
-        1.91612
-      ],
-      "rotationZDegrees": -90.0
-    },
-    {
-      "name": "T1_Eave_Left_Run01",
-      "source": "roof_shingle_eave_edge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        -2.69971,
-        1.0,
-        1.91612
-      ],
-      "rotationZDegrees": -90.0
-    },
-    {
-      "name": "T1_Eave_Left_Run02",
-      "source": "roof_shingle_eave_edge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        -2.69971,
-        2.0,
-        1.91612
-      ],
-      "rotationZDegrees": -90.0
-    },
-    {
-      "name": "T1_Eave_Left_Run03",
-      "source": "roof_shingle_eave_edge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        -2.69971,
-        3.0,
-        1.91612
-      ],
-      "rotationZDegrees": -90.0
-    },
-    {
-      "name": "T1_Eave_Left_Run04",
-      "source": "roof_shingle_eave_edge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        -2.69971,
-        4.0,
-        1.91612
-      ],
-      "rotationZDegrees": -90.0
-    },
-    {
-      "name": "T1_Eave_Left_Run05",
-      "source": "roof_shingle_eave_edge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        -2.69971,
-        5.0,
-        1.91612
-      ],
-      "rotationZDegrees": -90.0
-    },
-    {
-      "name": "T1_Eave_Left_Run06",
-      "source": "roof_shingle_eave_edge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        -2.69971,
-        6.0,
-        1.91612
-      ],
-      "rotationZDegrees": -90.0
-    },
-    {
-      "name": "T1_Eave_Left_Run07",
-      "source": "roof_shingle_eave_edge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        -2.69971,
-        7.0,
-        1.91612
-      ],
-      "rotationZDegrees": -90.0
-    },
-    {
-      "name": "T1_Eave_Right_Run00",
-      "source": "roof_shingle_eave_edge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        2.69971,
         0.0,
-        1.91612
+        0.0
       ],
-      "rotationZDegrees": 90.0
+      "rotationZDegrees": 0.0
     },
     {
-      "name": "T1_Eave_Right_Run01",
-      "source": "roof_shingle_eave_edge_1m",
+      "name": "T1_RoofUndercourse_Right",
+      "source": "assembly_custom_shingle_undercourse",
       "collection": "T1_05_Roof",
       "location": [
-        2.69971,
-        1.0,
-        1.91612
+        0.0,
+        0.0,
+        0.0
       ],
-      "rotationZDegrees": 90.0
-    },
-    {
-      "name": "T1_Eave_Right_Run02",
-      "source": "roof_shingle_eave_edge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        2.69971,
-        2.0,
-        1.91612
-      ],
-      "rotationZDegrees": 90.0
-    },
-    {
-      "name": "T1_Eave_Right_Run03",
-      "source": "roof_shingle_eave_edge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        2.69971,
-        3.0,
-        1.91612
-      ],
-      "rotationZDegrees": 90.0
-    },
-    {
-      "name": "T1_Eave_Right_Run04",
-      "source": "roof_shingle_eave_edge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        2.69971,
-        4.0,
-        1.91612
-      ],
-      "rotationZDegrees": 90.0
-    },
-    {
-      "name": "T1_Eave_Right_Run05",
-      "source": "roof_shingle_eave_edge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        2.69971,
-        5.0,
-        1.91612
-      ],
-      "rotationZDegrees": 90.0
-    },
-    {
-      "name": "T1_Eave_Right_Run06",
-      "source": "roof_shingle_eave_edge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        2.69971,
-        6.0,
-        1.91612
-      ],
-      "rotationZDegrees": 90.0
-    },
-    {
-      "name": "T1_Eave_Right_Run07",
-      "source": "roof_shingle_eave_edge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        2.69971,
-        7.0,
-        1.91612
-      ],
-      "rotationZDegrees": 90.0
+      "rotationZDegrees": 0.0
     },
     {
       "name": "T1_Ridge_Run00",

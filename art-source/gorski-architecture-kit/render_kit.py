@@ -4,6 +4,7 @@ import argparse
 import math
 from pathlib import Path
 import sys
+import time
 
 import bpy
 from mathutils import Vector
@@ -59,6 +60,7 @@ SHEETS = {
         "site_canopy_timber_4m_d4m", "site_canopy_canvas_4m_d2m", "site_walkway_plank_4m", "site_bridge_deck_4m",
         "site_bridge_railing_4m", "site_dock_segment_4m", "site_well_shelter_shingle", "site_well_curb_r1m",
         "site_market_stall_shingle", "site_market_stall_canvas", "site_tent_a_frame_large", "site_campfire_hearth",
+        "site_camp_cooking_tripod",
         "site_grave_marker_cross", "site_grave_marker_slab", "site_road_culvert_stone_2m", "site_walkway_plank_2m",
     ],
     "extraction": [
@@ -91,6 +93,7 @@ SHEETS = {
         "prop_log_stack_4p0m", "prop_ladder_4p0m", "prop_tool_rack_smith", "prop_signpost_mine",
         "prop_two_wheel_cart", "prop_sledge", "prop_fish_drying_rack", "prop_boat_dugout",
         "prop_firewood_chopping_block", "prop_water_bucket_pair", "prop_hitching_rail_2m", "prop_salvage_pile",
+        "prop_tool_rack_hunter", "prop_camp_worktable",
     ],
     "religious-detail": [
         "civic_chapel_nave_bay_plain_4m", "civic_chapel_nave_bay_lancet_4m", "civic_chapel_facade_gable_4m", "civic_chapel_apse_halfround",
@@ -260,6 +263,24 @@ def _set_sheet(part_ids: list[str], title: str, camera: bpy.types.Object, label_
         _face_camera(label, camera)
 
 
+def _render_atomic(scene: bpy.types.Scene, path: Path) -> None:
+    """Render through a sibling staging file so an image viewer cannot corrupt a sheet."""
+
+    staging = path.with_name(f"{path.stem}.exporting{path.suffix}")
+    scene.render.filepath = str(staging)
+    bpy.ops.render.render(write_still=True)
+    last_error: OSError | None = None
+    for attempt in range(8):
+        try:
+            staging.replace(path)
+            print(f"GK_RENDERED {path}")
+            return
+        except OSError as error:
+            last_error = error
+            time.sleep(0.15 * (attempt + 1))
+    raise RuntimeError(f"Unable to publish rendered sheet {path}: {last_error}")
+
+
 def main() -> None:
     args = _args()
     out_dir = args.out.resolve()
@@ -268,17 +289,13 @@ def main() -> None:
     ground = _add_ground(_ground_material())
 
     _set_sheet(OVERVIEW, "Gorski Kotar / Primorje 1550 modular component kit", camera, label_material)
-    bpy.context.scene.render.filepath = str(out_dir / "00-overview.png")
-    bpy.ops.render.render(write_still=True)
-    print(f"GK_RENDERED {bpy.context.scene.render.filepath}")
+    _render_atomic(bpy.context.scene, out_dir / "00-overview.png")
 
     for index, (family, part_ids) in enumerate(SHEETS.items(), start=1):
         _set_sheet(part_ids, f"{family} — modular components", camera, label_material)
         ground.hide_render = False
         path = out_dir / f"{index:02d}-{family}.png"
-        bpy.context.scene.render.filepath = str(path)
-        bpy.ops.render.render(write_still=True)
-        print(f"GK_RENDERED {path}")
+        _render_atomic(bpy.context.scene, path)
 
     print(f"GK_RENDER_OK sheets={len(SHEETS) + 1} out={out_dir}")
 

@@ -30,11 +30,11 @@ def _args() -> argparse.Namespace:
     return parser.parse_args(sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else [])
 
 
-def _catalog_building_kinds(path: Path) -> list[str]:
+def _catalog_const_values(path: Path, const_name: str) -> list[str]:
     source = path.read_text(encoding="utf-8")
-    match = re.search(r"export const BUILDING_KINDS\s*=\s*(\[[^;]+?\])\s+as const", source)
+    match = re.search(rf"export const {re.escape(const_name)}\s*=\s*(\[[^;]+?\])\s+as const", source)
     if not match:
-        raise ValueError(f"could not read BUILDING_KINDS from {path}")
+        raise ValueError(f"could not read {const_name} from {path}")
     return json.loads(match.group(1))
 
 
@@ -135,13 +135,34 @@ def main() -> None:
         if "fraction-authored" in tags and len(seams) < 2:
             errors.append(f"{part_id}: authored fraction lacks seam contract")
 
-    catalog_kinds = _catalog_building_kinds(args.catalog.resolve())
+    catalog_path = args.catalog.resolve()
+    catalog_kinds = _catalog_const_values(catalog_path, "BUILDING_KINDS")
+    farm_crop_kinds = _catalog_const_values(catalog_path, "FARM_CROP_KINDS")
+    backyard_garden_kinds = _catalog_const_values(catalog_path, "BACKYARD_GARDEN_KINDS")
     missing_coverage = sorted(set(catalog_kinds) - set(BUILDING_COVERAGE))
     extra_coverage = sorted(set(BUILDING_COVERAGE) - set(catalog_kinds))
     if missing_coverage:
         errors.append(f"in-game building kinds without kit coverage: {missing_coverage}")
     if extra_coverage:
         errors.append(f"coverage rows not in authoritative catalog: {extra_coverage}")
+
+    expected_supplemental = {
+        *(f"residence_tier_{tier}" for tier in range(5)),
+        "road",
+        "bridge",
+        "burial_ground",
+        "pasture",
+        "vineyard",
+        "dry_stone_wall",
+        *(f"farm_crop_{kind}" for kind in farm_crop_kinds),
+        *(kind if kind.startswith("backyard_") else f"backyard_{kind}" for kind in backyard_garden_kinds),
+    }
+    missing_supplemental = sorted(expected_supplemental - set(SUPPLEMENTAL_COVERAGE))
+    extra_supplemental = sorted(set(SUPPLEMENTAL_COVERAGE) - expected_supplemental)
+    if missing_supplemental:
+        errors.append(f"required supplemental categories without kit coverage: {missing_supplemental}")
+    if extra_supplemental:
+        errors.append(f"supplemental coverage rows not derived from the authoritative scope: {extra_supplemental}")
     for category, coverage in {**BUILDING_COVERAGE, **SUPPLEMENTAL_COVERAGE}.items():
         part_refs = coverage.get("parts", [])
         if len(part_refs) < 2:
@@ -193,12 +214,14 @@ def main() -> None:
         "buildingCatalogKinds": len(catalog_kinds),
         "buildingCoverageKinds": len(BUILDING_COVERAGE),
         "supplementalCoverageKinds": len(SUPPLEMENTAL_COVERAGE),
+        "farmCropCatalogKinds": len(farm_crop_kinds),
+        "backyardGardenCatalogKinds": len(backyard_garden_kinds),
         "nonmanifoldObjects": nonmanifold_objects,
         "uvMappedObjects": sum(1 for object_ in objects if object_.data.uv_layers),
         "requiredProductionVocabularySets": len(required_coverage_sets),
     })
     report = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "validatedAt": datetime.now(timezone.utc).isoformat(),
         "blend": bpy.data.filepath,
         "manifest": str(args.manifest.resolve()),
@@ -208,6 +231,7 @@ def main() -> None:
         "warnings": warnings,
         "checks": [
             "authoritative building-catalog coverage",
+            "exact authoritative crop/backyard and required supplemental coverage",
             "coverage references resolve to modular components",
             "unique ids and deterministic vertex hashes",
             "canonical transforms and unparented component ownership",

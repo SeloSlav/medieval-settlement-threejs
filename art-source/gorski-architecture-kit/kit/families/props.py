@@ -20,6 +20,8 @@ def register(registry: Registry) -> None:
 
     for trade in ("smith", "carpenter", "quarry", "farm", "tannery", "fishing"):
         add(registry, f"prop_tool_rack_{trade}", family, f"{trade.title()} tool rack", ("prop", "tools", trade, "rack"), lambda b, t=trade: _tool_rack(b, t), triangle_budget=5_000)
+    add(registry, "prop_tool_rack_hunter", family, "Hunter bow and snare rack", ("prop", "tools", "hunter", "rack", "bow", "snare"), _hunter_tool_rack, triangle_budget=5_800)
+    add(registry, "prop_camp_worktable", family, "Camp field-dressing worktable", ("prop", "camp", "hunter", "worktable", "processing"), _camp_worktable)
     for kind in ("town", "market", "tavern", "chapel", "mine", "mill"):
         add(registry, f"prop_signpost_{kind}", family, f"{kind.title()} signpost", ("prop", "wayfinding", "sign", kind), lambda b, k=kind: _signpost(b, k))
 
@@ -90,6 +92,44 @@ def _tool_rack(builder: MeshBuilder, trade: str) -> None:
         builder.box((0.06, 0.06, 1.28), (x, -0.05, 0.78), "iron", (0.0, 0.0, x * 0.08))
     color = "timber_cut" if trade in ("carpenter", "farm", "fishing") else "iron"
     builder.box((0.82, 0.08, 0.18), (0.0, -0.08, 0.32), color)
+
+
+def _hunter_tool_rack(builder: MeshBuilder) -> None:
+    for x in (-1.05, 1.05):
+        builder.beam_between((x, 0.0, 0.0), (x * 0.96, 0.0, 2.18), 0.11, "timber_cut")
+    builder.beam_between((-1.12, 0.0, 2.02), (1.12, 0.0, 2.10), 0.10, "timber_cut")
+
+    # Two recurved wooden bows and taut strings create a hunting-specific read
+    # without baking harvested animals or inventory state into the component.
+    for center_x, lean in ((-0.48, -0.035), (0.20, 0.045)):
+        top = (center_x - 0.10 + lean, -0.08, 1.90)
+        shoulder_top = (center_x - 0.22, -0.08, 1.55)
+        grip = (center_x, -0.08, 1.22)
+        shoulder_bottom = (center_x - 0.20, -0.08, 0.88)
+        bottom = (center_x - 0.08 - lean, -0.08, 0.55)
+        builder.beam_between(top, shoulder_top, 0.035, "timber_cut")
+        builder.beam_between(shoulder_top, grip, 0.035, "timber_cut")
+        builder.beam_between(grip, shoulder_bottom, 0.035, "timber_cut")
+        builder.beam_between(shoulder_bottom, bottom, 0.035, "timber_cut")
+        builder.beam_between(top, bottom, 0.015, "rope")
+
+    # Compact iron snare frames hang at the opposite end of the rack.
+    for index, x in enumerate((0.67, 0.93)):
+        z = 1.26 - index * 0.16
+        builder.box((0.34, 0.035, 0.035), (x, -0.09, z + 0.17), "iron")
+        builder.box((0.34, 0.035, 0.035), (x, -0.09, z - 0.17), "iron")
+        builder.box((0.035, 0.035, 0.34), (x - 0.17, -0.09, z), "iron")
+        builder.box((0.035, 0.035, 0.34), (x + 0.17, -0.09, z), "iron")
+        builder.cylinder(0.018, 0.42, (x, -0.09, z + 0.50), "rope", 6, "z")
+
+
+def _camp_worktable(builder: MeshBuilder) -> None:
+    builder.box((1.85, 0.82, 0.13), (0.0, 0.0, 0.88), "timber_weathered", (0.0, 0.012, -0.018))
+    for x, y in ((-0.74, -0.30), (-0.74, 0.30), (0.74, -0.30), (0.74, 0.30)):
+        builder.beam_between((x, y, 0.0), (x * 0.96, y * 0.96, 0.84), 0.11, "oak_dark")
+    builder.box((1.26, 0.48, 0.08), (-0.12, 0.02, 1.00), "timber_cut", (0.0, 0.0, 0.025))
+    builder.box((0.46, 0.045, 0.07), (0.48, -0.17, 1.07), "iron", (0.0, 0.0, -0.16))
+    builder.box((0.16, 0.07, 0.08), (0.78, -0.22, 1.07), "timber_cut", (0.0, 0.0, -0.16))
 
 
 def _signpost(builder: MeshBuilder, kind: str) -> None:

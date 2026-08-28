@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "validatedAt": "2026-08-28T14:51:42.593146+00:00",
+  "status": "pass",
+  "glb": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\examples\\hunters-camp\\out\\hunters_camp_textured.glb",
+  "meshesImported": 15,
+  "trianglesImported": 7344,
+  "sourceIds": [
+    "enclosure_split_rail_2m",
+    "enclosure_split_rail_2m",
+    "enclosure_split_rail_2m",
+    "enclosure_split_rail_2m",
+    "enclosure_split_rail_2m",
+    "prop_barrel_small",
+    "prop_camp_worktable",
+    "prop_crate_small",
+    "prop_firewood_chopping_block",
+    "prop_tool_rack_hunter",
+    "prop_water_bucket_pair",
+    "site_camp_cooking_tripod",
+    "site_campfire_hearth",
+    "site_canopy_canvas_4m_d2m",
+    "site_tent_a_frame_large"
+  ],
+  "errors": []
+}
