@@ -20,6 +20,10 @@ assert.match(noblePanel, /Continue to Map Generation/);
 assert.match(noblePanel, /HERALDRY_PRESETS\.findIndex/);
 assert.match(noblePanel, /aria-modal="true"/);
 assert.match(noblePanel, /this\.syncStep\(true\)/);
+assert.match(
+  noblePanel,
+  /classList\.add\('is-leaving'\);[\s\S]*?this\.resolve\(profile\);[\s\S]*?window\.setTimeout/,
+);
 assert.match(noblePanel, /mountTooltips\(this\.backdrop\)/);
 assert.match(noblePanel, /data-noble-description/);
 assert.match(noblePanel, /button\.dataset\.tooltipTitle = noble\.name/);
@@ -146,7 +150,7 @@ assert.match(worldCss, /\.world-setup-difficulty-preset \.world-setup-arrow-sele
 assert.match(worldCss, /\.world-setup-setting-row__label strong\s*\{[\s\S]*?font-size: 16px/);
 assert.match(
   worldCss,
-  /\.world-setup-backdrop\s*\{[\s\S]*?padding-bottom: clamp\(12px, 2\.4vw, 34px\);/,
+  /\.world-setup-backdrop\s*\{[\s\S]*?padding: clamp\(12px, 2\.4vw, 34px\);/,
 );
 assert.match(
   worldCss,

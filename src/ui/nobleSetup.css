@@ -196,7 +196,10 @@
   mix-blend-mode: soft-light;
 }
 
-.noble-setup-backdrop.is-leaving { opacity: 0; }
+.noble-setup-backdrop.is-leaving {
+  opacity: 0;
+  pointer-events: none;
+}
 
 .noble-setup-shell {
   position: relative;

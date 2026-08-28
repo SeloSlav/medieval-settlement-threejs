@@ -331,11 +331,14 @@ export class NobleSetupPanel {
       }
       setCurrentNobleProfile(this.draft);
       const profile = getCurrentNobleProfile();
+      this.disposeTooltips();
       this.backdrop.classList.add('is-leaving');
+      // Resolve while this panel is still covering the screen so the map setup
+      // mounts underneath it before the fade completes. Otherwise the persistent
+      // app loader flashes through during the handoff.
+      this.resolve(profile);
       window.setTimeout(() => {
-        this.disposeTooltips();
         this.backdrop.remove();
-        this.resolve(profile);
       }, 180);
     });
   }

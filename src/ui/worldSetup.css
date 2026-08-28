@@ -4,8 +4,7 @@
   z-index: 10001;
   display: grid;
   place-items: stretch start;
-  padding: clamp(22px, 4vw, 58px);
-  padding-bottom: clamp(12px, 2.4vw, 34px);
+  padding: clamp(12px, 2.4vw, 34px);
   background:
     linear-gradient(90deg, rgba(12, 11, 9, 0.42) 0%, rgba(12, 11, 9, 0.16) 48%, rgba(12, 11, 9, 0) 74%),
     linear-gradient(0deg, rgba(12, 11, 9, 0.25) 0%, rgba(12, 11, 9, 0) 52%),
