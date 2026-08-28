@@ -1,33 +1,33 @@
 # Ages and historical progression
 
 **Status:** Concept — planning only; no implementation is authorized by this document
-**Last updated:** 2026-08-23
+**Last updated:** 2026-08-27
 **Project:** Selo Empire
 
 ## Decision
 
 Selo Empire should progress through a small number of visually distinct historical **Ages**. An Age is not completed by filling a separate technology tree or proving an abstract list of supply chains. It is completed by building a meaningful cohort of that Age's best residences and continuously satisfying the needs those residences already expose to the player.
 
-For the current Medieval game, the capstone residence is the **Tier 4 home**. Supplying and maintaining enough occupied Tier 4 homes is itself proof that the settlement has built as much farming, processing, distribution, trade, infrastructure, and institutional capacity as it needs to advance. Optional industries and unused production routes do not become hidden blockers.
+For the current Croatian Frontier game, the capstone residence is the **Tier 4 home**. Supplying and maintaining enough occupied Tier 4 homes is itself proof that the settlement has built as much farming, processing, distribution, trade, infrastructure, and institutional capacity as it needs to advance. Optional industries and unused production routes do not become hidden blockers.
 
-The campaign has four playable Ages:
+The campaign has exactly four playable Ages:
 
-1. **Medieval Frontier**;
-2. **Railway and Industrial Municipality**;
-3. **Socialist Yugoslavia**;
-4. **Post-Yugoslav Reconstruction and Contemporary Life**.
+1. **Croatian Frontier — 1550**;
+2. **The Karolina Road — 1726**;
+3. **Railway and Industrial Municipality — 1873**;
+4. **Electrified Socialist Municipality — 1966**.
 
-Four Ages are enough. They create large, legible changes in architecture, transport, utilities, public space, residence forms, clothing, props, and production. Intermediate centuries and political periods still matter, but they are handled through the generational time jumps, chronicles, inherited conditions, and optional historical scenarios rather than becoming three additional progression ladders.
+Four Ages are enough. Together they form a specifically Gorski Kotar infrastructure ladder: pack trails and noble-estate roads become an engineered imperial road, then a mountain railway and industrial municipality, and finally an electrified, motorized, publicly serviced socialist municipality. Each entry must create a large, legible change in architecture, transport, utilities, public space, residence forms, clothing, props, production, and household expectations.
 
-The World Wars and the wars accompanying Yugoslavia's dissolution are **historical ruptures between Ages**, not prosperous production Ages the player is rewarded for reaching.
+Intermediate periods still matter, but they are handled through generational jumps, chronicles, inherited conditions, and optional historical scenarios rather than receiving additional progression ladders. The World Wars are **historical ruptures between Ages**, not prosperous production Ages the player is rewarded for reaching. The main progression ends in the mature socialist period; post-1990 history is outside this four-Age campaign rather than a fifth Age.
 
 An entered Age is permanent. Shortages can make households lose welfare and stop progress toward the next Age, but they cannot make the calendar run backward, delete knowledge, demote structures, or revoke an Age already reached.
 
 ## Geographic scope
 
-The current sandbox is Gorski Kotar, Croatia, circa 1500–1600. The first campaign should therefore remain locally grounded and follow the history of lands that later formed Yugoslavia. It should not claim that one Yugoslav sequence represents the whole Balkans: Albania, Bulgaria, Greece, Romania, and European Turkey require their own branches if they ever become playable.
+The current sandbox is Gorski Kotar, Croatia, in 1550. The four-Age campaign remains locally grounded in that region rather than becoming a generic history of Croatia, Yugoslavia, or the Balkans. Other localities require their own researched manifests if they ever become playable.
 
-The label **Medieval Frontier** is retained because it is the existing game's identity. Historically, the circa-1550 setting is early modern, although medieval institutions and material practices persist. Dates below are navigational frames for content and art direction, not claims that every locality changed at the same moment.
+The first Age is called **Croatian Frontier**. Historically, the 1550 setting is early modern and late Renaissance, although medieval institutions and material practices persist. The exact anchor years below are content and art-direction boundaries: they identify the historical transformation each Age owns without claiming that every village changed in a single year.
 
 ## Design principles
 
@@ -36,6 +36,7 @@ The label **Medieval Frontier** is retained because it is the existing game's id
 - **No parallel economy exam.** There is no separate requirement to operate every possible supply family. A chain matters to advancement only when it supplies a declared capstone-residence need.
 - **A cohort prevents showcase-house exploits.** One mansion surrounded by deprivation cannot advance the settlement.
 - **Ages are rare visual transformations.** Each Age must justify itself with a strongly different built environment and residence path. Historical periods that do not warrant that production scope are crossed in a time jump.
+- **No bridge-item leakage.** Assign a commodity or production chain to the earliest Age in which it has a clear, mature cultural and economic role. An isolated earlier attestation is not a reason to introduce a next-Age item near the end of the current roster.
 - **Advancement is earned, previewed, and player-triggered.** Eligibility produces an announcement and confirmation screen; the game never changes Age without the player's choice.
 - **History accumulates.** Roads, parcels, landmarks, workshops, ruins, and selected older production methods remain visible as the settlement changes.
 - **Residence Tier and Age are separate.** Tier describes prosperity within a residence family. Age determines which residence forms, upgrades, services, and visual language are available.
@@ -87,9 +88,9 @@ The residence need list is the contract. It may contain substitutable goods, but
 
 Transient cart timing or a one-tick service refresh should use the household system's normal grace behavior. A sustained failure stops that residence's qualifying timer. The UI must show which home failed, which need failed, and how much maintained time was lost; it must not expose an opaque civilization progress percentage.
 
-### Medieval completion cohort
+### Age I completion cohort
 
-For **Age I — Medieval Frontier**, the capstone is the existing **Tier 4 home**.
+For **Age I — Croatian Frontier**, the capstone is the existing **Tier 4 home**.
 
 The provisional cohort target remains scaled and capped:
 
@@ -97,13 +98,13 @@ The provisional cohort target remains scaled and capped:
 
 Suggested starting floors are 8 homes on a Small world, 12 on a Medium world, and 16 on a Large world. These are balance targets, not final constants. Using the trailing peak prevents demolition or short-term depopulation from lowering the target during proof.
 
-Every counted Medieval home must:
+Every counted Age I home must:
 
 - average at least the current Tier 1 household baseline of three residents across the window;
 - be at structural Tier 4;
 - maintain every need shown for a Tier 4 household, including its complete diet, cured provisions, beverage, cloth, shoes, pottery, luxury, water, fuel, faith/civic service, storage, and marketplace access where those remain part of the authoritative Tier 4 contract.
 
-Maintaining that cohort demonstrates all supply capacity actually necessary for Medieval completion. There are no additional permanent chain badges and no second checklist for unused industries.
+Maintaining that cohort demonstrates all supply capacity actually necessary for Age I completion. There are no additional permanent chain badges and no second checklist for unused industries.
 
 ### Later-Age capstones
 
@@ -151,7 +152,7 @@ The Age manifest must list every automatic mesh replacement. A visual swap may n
 
 Do not add a generic Tier 5, Tier 6, and Tier 7 merely to mirror chronology. There are only four Ages, and each later Age can introduce a specific residence upgrade path or new housing family when that produces a genuinely different settlement shape.
 
-- A Tier 4 Medieval home is never demoted merely by an Age transition or shortage.
+- A Tier 4 Croatian Frontier home is never demoted merely by an Age transition or shortage.
 - In a later Age it may remain a maintained historic home, receive a current-standard retrofit, or become the base for a newly unlocked upgrade.
 - New row houses, workers' housing, villas, and apartment blocks can express later standards without stretching one Medieval cottage mesh across five centuries.
 - Old homes remain occupied under the persistent-home philosophy; missing modern services reduce welfare and opportunity but do not erase tenure.
@@ -178,81 +179,79 @@ Before confirmation, the transition preview must state exactly how perishables, 
 
 ## Four-Age historical ladder
 
-This is the recommended spine for a Croatia/Yugoslav-region campaign. It is deliberately a visual-production ladder, not a claim that the centuries between its entries were historically empty.
+This is the final spine for the Gorski Kotar campaign. It is a visual, infrastructure, and production ladder, not a claim that the years between its anchors were historically empty.
 
-### Age I — Medieval Frontier
+### Age I — Croatian Frontier
 
-**Frame:** the current circa 1500–1600 Gorski Kotar sandbox, using the game's established Medieval label.
+**Anchor:** 1550.
 
-**Visual identity:** timber and masonry houses, shingle and tile roofs, household plots, handcart roads, mills, craft yards, Church and civic landmarks, frontier works, and an Adriatic-facing rural market network.
+**Historical identity:** a cold late-Renaissance Croatian mountain frontier shaped by Frankopan and Zrinski estates, nearby Habsburg–Ottoman conflict, Adriatic trade, forest subsistence, and older local institutions.
 
-**Capstone:** a maintained cohort of occupied Tier 4 Medieval homes.
+**Visual identity:** timber and masonry houses, shingle and tile roofs, household plots, pack trails and handcart roads, mills, craft yards, parish and estate landmarks, frontier works, and a small Adriatic-facing rural market network.
 
-Once that cohort qualifies, further Medieval work should prioritize polish, balance, resilience, historical texture, and readability rather than adding unrelated industries solely to delay advancement.
+**Economic identity:** household farming, forest extraction, pack-animal trade, hand production, preservation, ale, apple and pear cider, mead, and wine. Strong distilled spirits do not enter this Age's commodity roster merely because isolated sixteenth-century attestations exist.
 
-### Generational jump — imperial centuries, reform, and national movements
+**Capstone:** a maintained cohort of occupied Tier 4 Croatian Frontier homes.
 
-The first jump can cross much of the seventeenth through nineteenth centuries. Its chronicle records locality-specific changes in Ottoman, Habsburg, Venetian, Ragusan, and municipal rule; military-frontier obligations; trade; cadastral and property reform; literacy; schooling; print; migration; and national movements.
+Once that cohort qualifies, further Age I work should prioritize polish, balance, resilience, historical texture, and readability rather than absorbing industries whose mature identity belongs to Age II.
 
-Those histories shape the inherited map, population record, institutions, and transition choices. They do not each require their own full building ladder. Political overlays must change institutions, obligations, markets, and opportunities without assigning immutable bonuses to ethnic or religious groups.
+### Generational jump — from estate frontier to imperial corridor
 
-### Age II — Railway and Industrial Municipality
+The chronicle crosses the consolidation of the Military Frontier, the Zrinski and Frankopan period and its end, the wars of the seventeenth century, the 1699 settlement, Habsburg/Cameral control, migration, and the shift from threatened mountain estates toward an imperial route between the interior and the Adriatic. These changes shape inherited ownership, settlement records, landmarks, obligations, and road alignments without becoming a separate Age.
 
-**Frame:** approximately 1870–1941, with locally appropriate entry dates and an interwar chapter.
+### Age II — The Karolina Road
 
-**Visual identity:** engineered roads, rail corridors and stations, denser plastered streets, factories and depots, civic schools and offices, worker housing, early motor traffic, street lighting, piped utilities, and a visibly expanded town center.
+**Anchor:** 1726, when construction of the Karolina road began through Gorski Kotar.
 
-**New pressures:** bulk logistics, coal and machine maintenance, industrial employment, food supply for a denser town, sanitation, municipal finance, pollution, literacy, labor organization, electrification, uneven development, and interwar market shocks.
+**Historical identity:** an early-eighteenth-century Habsburg road frontier in which mercantilist policy and an engineered Karlovac–Adriatic connection begin reorganizing settlement and trade.
 
-**Capstone direction:** a maintained cohort of the Age's highest current-standard urban and/or upgraded household residences, supplied with the declared industrial-era utilities, goods, access, and civic services.
+**Visual identity:** surveyed road alignments, cut slopes, gravel and stone roadbeds, retaining walls, drainage, stone bridges, wagon yards, post stages, tollhouses, customs points, roadside inns, larger stables, sawmills, charcoal yards, and Baroque religious and administrative buildings.
 
-The 1912–1918 Balkan Wars and First World War are a historical rupture inside this broad frame or an authored scenario at its edge, depending on locality. Mobilization, requisition, shortages, refugees, casualties, and damaged transport are consequences to survive and remember, not optimization objectives.
+**Economic identity:** draft-animal and wagon logistics, road construction and maintenance, timber and sawn-lumber exports, charcoal, ironworking, grain and salt transit, imperial contracts, hospitality, and higher-value imported goods.
 
-### Historical rupture — occupation, resistance, and war
+**Signature commodity — rakija:** rakija belongs wholly to Age II, not as a late Age I bridge item. A distillery converts fermented fruit, cider, wine, or suitable by-products with firewood and copper equipment into a compact, durable, high-value spirit. It supports trade, hospitality, luxury, and remedies; it is not another interchangeable everyday thirst drink.
 
-**Frame:** 1941–1945.
+**New pressures:** road gradient, bridge and drainage upkeep, winter closure, wagon and draft-animal capacity, convoy safety, banditry and smuggling, toll policy, fire risk, and dependence on distant markets.
 
-This is a transition or carefully authored scenario, never an Age with an economic completion ladder. If represented, its focus is civilian survival, disrupted utilities, food and medical relief, displacement, destroyed networks, documentation, and remembrance.
+**Capstone direction:** a maintained cohort of prosperous roadside households, coachmasters, merchants, or upgraded Baroque homes supplied with dependable road access, fuel, varied food, household wares, hospitality goods, and the Age's declared civic and religious services.
 
-Occupation, genocide, collaboration, forced removal, and mass killing must never become rewarding optimization loops. A historical campaign requires precise local research; a broader sandbox may abstract the rupture but must not present the real violence as inevitable or morally interchangeable.
+### Generational jump — reform, the Lujzijana, and municipal modernization
 
-### Age III — Socialist Yugoslavia
+The 1777 administrative formation of Gorski Kotar, the Lujzijana road begun in 1803, Napoleonic and Habsburg reforms, the end of feudal obligations, literacy, schooling, cadastral administration, migration, and national movements appear in the chronicle and inherited map. The Lujzijana is an important engineered upgrade and route choice, but it is not a fifth Age or a near-duplicate road ladder.
 
-**Frame:** 1945–1991, with internal chapters rather than one frozen version of the state.
+### Age III — Railway and Industrial Municipality
 
-**Visual identity:** postwar reconstruction, electrified villages, mechanized agriculture, social housing and apartment districts, industrial plants, buses and paved streets, schools and clinics, civic monuments, tourism facilities, and late-century consumer modernization.
+**Anchor:** 1873, when the Karlovac–Rijeka railway opened through Gorski Kotar.
 
-**Chapter A — Reconstruction:** rebuilding, confiscation and nationalization, the collectivization drive and retreat, electrification, mechanized agriculture, heavy industry, public housing, health, education, and rapid urbanization. Postwar reprisals, displacement, and political repression must appear where locally relevant rather than being hidden by development totals.
+**Historical identity:** a steam-rail mountain corridor tying timber-producing settlements and municipal centers to Rijeka, Zagreb, Budapest, and wider export markets.
 
-**Chapter B — Self-management and Non-Alignment:** worker self-management, social ownership, decentralized municipalities, Non-Aligned diplomacy, trade with both Cold War blocs, consumer industry, tourism, and guest-worker remittances.
+**Visual identity:** cuttings, embankments, tunnels, rails, stations, water towers, signals, depots, warehouses, steam locomotives, industrial sawmills, denser plastered streets, civic schools and offices, worker housing, street lighting, and the beginnings of piped municipal services.
 
-**Late-Age pressures:** regional inequality, debt, inflation, unemployment, pollution, strikes, republican bargaining, media capture, and weakening federal legitimacy.
+**Economic identity:** timetable- and capacity-bound rail logistics, coal and water supply, machine maintenance, bulk timber and manufactured-wood export, industrial employment, municipal finance, print and education, larger shops, and early tourism.
 
-**Capstone direction:** a maintained cohort of fully serviced contemporary family homes and/or apartment dwellings, supported by utilities, public services, transport access, consumer supply, and a functioning local economy. Raw heavy-industry output alone cannot complete the Age.
+**New pressures:** rail bottlenecks, locomotive servicing, industrial fire, sanitation, worker housing, food supply for denser settlements, pollution, labor relations, market shocks, and uneven access between station towns and bypassed villages.
 
-The game should represent both real social development and the limits of one-party rule; neither nostalgia nor blanket caricature is an adequate design model.
+**Capstone direction:** a maintained cohort of industrial-era masonry homes, townhouses, or worker dwellings with reliable food and fuel distribution, sanitation, education, municipal services, consumer wares, and access to the road-and-rail network.
 
-### Historical rupture — dissolution and wars
+### Generational jump — wars, reconstruction, and socialist development
 
-**Frame:** 1991–2001, with different dates and experiences by locality.
+The First World War, interwar state, economic crisis, Second World War, occupation, resistance, civilian loss, postwar reprisals, reconstruction, nationalization, and early socialist reforms are historical ruptures and transition history rather than economic Ages. Any playable wartime scenario requires precise local research and must focus on civilian survival, disrupted networks, relief, and remembrance rather than rewarding violence.
 
-This is a transition or separately reviewed scenario rather than an Age to “win.” Appropriate systems include utility continuity, shelters, humanitarian supply, refugees and displaced households, ceasefires, documentation, return, repair, and institutional survival.
+### Age IV — Electrified Socialist Municipality
 
-Campaigns set in Gorski Kotar/Croatia, Bosnia and Herzegovina, Serbia, or Kosovo cannot share one generic event script. Any playable treatment needs precise place names, sourced facts, and review by historians and sensitivity readers from multiple successor societies.
+**Anchor:** 1966, representing the mature modernization drive and the 1966–76 investment period in which much of the region's tourism infrastructure expanded.
 
-### Age IV — Post-Yugoslav Reconstruction and Contemporary Life
+**Historical identity:** a self-managed Yugoslav municipality balancing public services, wood industry, transport, tourism, consumer modernization, and migration between mountain settlements and larger cities.
 
-**Frame:** beginning after the relevant locality's conflict or peaceful separation and continuing into the 2000s and beyond.
+**Visual identity:** paved motor roads, buses, trucks and private cars, power lines and substations, piped water and sewerage, district and household heating, mechanized forestry, wood-processing complexes, schools, clinics, municipal offices, social housing, apartment buildings, hotels, mountain lodges, reservoirs, recreational grounds, and civic monuments.
 
-**Visual identity:** repaired and reused historic fabric beside postwar housing, new private construction, renovated public space, modern roads and vehicles, telecommunications, tourism and service buildings, deindustrialized sites, logistics yards, renewable infrastructure, and contemporary domestic extensions.
+**Economic identity:** electricity, fuel and motor logistics, socially owned enterprises, mechanized forestry, higher-throughput wood products, construction materials, public-service staffing, domestic and international tourism, retail consumer goods, guest-worker remittances, and municipal investment.
 
-**New pressures:** reconstruction, privatization and deindustrialization, unemployment and new enterprise, international finance, diaspora and remittances, demographic decline, tourism, digital infrastructure, institutional trust, media ownership, minority rights, refugee return, memory politics, regional trade, and European integration where appropriate.
+**New pressures:** grid and utility maintenance, snow clearance, motor-road safety, housing allocation, enterprise productivity, public-service coverage, pollution and forest stewardship, investment tradeoffs, regional inequality, out-migration, labor shortages, debt, and inflation.
 
-**Capstone direction:** a maintained cohort of contemporary homes whose utilities, communications, access, public services, and material needs are reliable without concealing displacement, exclusion, or a collapsed local livelihood base.
+**Capstone direction:** a maintained cohort of fully serviced detached homes and/or apartment dwellings with electricity, safe water, sanitation, heating, communications, consumer supply, transit access, education, health care, and a functioning local employment base. Industrial output alone cannot complete the final Age.
 
-Nationalist mobilization is a political process shaped and amplified by parties and elites, institutions, media, insecurity, material conditions, and historical claims. It is never an inherent behavior attached to an ethnicity. Reaching this Age is the chronological campaign goal; maximizing nationalism, homogeneity, displacement, or territorial expansion is not a victory condition.
-
-Possible final outcomes describe how the community endured, such as resilient public services, productive local enterprise, safe return and reintegration, civic pluralism, diaspora connection, ecological repair, and regional cooperation. The sandbox remains open after an outcome is recorded.
+Age IV is the endgame. It may contain internal early, mature, and late-socialist chapters, but there is no fifth contemporary Age. Completing its capstone records an outcome for the community and leaves the sandbox running.
 
 ## Historical and ethical guardrails
 
