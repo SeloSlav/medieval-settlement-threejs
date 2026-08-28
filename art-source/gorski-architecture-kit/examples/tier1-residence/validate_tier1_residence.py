@@ -87,7 +87,9 @@ def main() -> None:
         "noDecorativeWindowInserts": not window_inserts,
         "threeCourseShingleRoofAcrossEightRuns": len(roof_panels) == 48,
         "noRuntimeOrVegetationDressingAuthored": not forbidden_authored_state,
-        "atlasMaterialsPacked": len(material_tiles) >= 7,
+        # The preview-only packed-earth plane is intentionally excluded from the
+        # architecture object set; the shell itself uses six production atlas tiles.
+        "atlasMaterialsPacked": len(material_tiles) >= 6,
     }
     payload = {
         "id": "gorski-tier1-residence-validation-v3",

@@ -1,5 +1,5 @@
 {
-  "id": "gorski-tier1-residence-validation-v2",
+  "id": "gorski-tier1-residence-validation-v3",
   "passed": true,
   "checks": {
     "allInstanceScalesAreOne": true,
@@ -7,16 +7,16 @@
     "allMeshesAreManifold": true,
     "threePlainSquareApertures": true,
     "noDecorativeWindowInserts": true,
-    "threeCourseRoofAcrossFourRuns": true,
+    "threeCourseShingleRoofAcrossEightRuns": true,
     "noRuntimeOrVegetationDressingAuthored": true,
     "atlasMaterialsPacked": true
   },
   "counts": {
-    "architectureObjects": 64,
-    "meshes": 64,
-    "triangles": 15652,
-    "roofTriangles": 14188,
-    "roofTriangleShare": 0.9065,
+    "architectureObjects": 118,
+    "meshes": 118,
+    "triangles": 25980,
+    "roofTriangles": 24516,
+    "roofTriangleShare": 0.9436,
     "customApertureWallPieces": 9,
     "darkUnglazedApertures": 3
   },
@@ -24,9 +24,8 @@
     "fieldstone-mortar",
     "lime-plaster",
     "rough-hewn-timber",
-    "thatch-roof",
+    "split-shingles",
     "weathered-planks",
-    "wicker-weave",
     "wrought-iron"
   ],
   "violations": {

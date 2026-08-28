@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { describeWorldDifficulty } from '../src/world/worldDifficulty.ts';
+import { DEFAULT_WORLD_GENERATION_SETTINGS } from '../src/world/worldGenerationSettings.ts';
 
 const noblePanel = readFileSync('src/ui/NobleSetupPanel.ts', 'utf8');
 const nobleProfile = readFileSync('src/ui/nobleProfile.ts', 'utf8');
 const worldPanel = readFileSync('src/ui/WorldSetupPanel.ts', 'utf8');
+const worldDifficulty = readFileSync('src/world/worldDifficulty.ts', 'utf8');
+const settlementHud = readFileSync('src/ui/SettlementHud.ts', 'utf8');
 const bootstrapFlow = readFileSync('src/app/worldBootstrapFlow.ts', 'utf8');
 const nobleCss = readFileSync('src/ui/nobleSetup.css', 'utf8');
 const worldCss = readFileSync('src/ui/worldSetup.css', 'utf8');
@@ -127,10 +131,10 @@ assert.match(
 );
 assert.match(worldPanel, /data-setup-heading/);
 assert.match(worldPanel, /data-world-selector="difficulty-preset"/);
-assert.match(worldPanel, /Pampered Page \(Easy\)/);
-assert.match(worldPanel, /Steadfast Castellan \(Normal\)/);
-assert.match(worldPanel, /Marcher Lord \(Hardcore\)/);
-assert.match(worldPanel, /No losses or raids; double supplies/);
+assert.match(worldDifficulty, /Pampered Page \(Easy\)/);
+assert.match(worldDifficulty, /Steadfast Castellan \(Normal\)/);
+assert.match(worldDifficulty, /Marcher Lord \(Hardcore\)/);
+assert.match(worldDifficulty, /No losses or raids; double supplies/);
 assert.match(worldPanel, /data-world-selector="approval-decline"/);
 assert.match(worldPanel, /data-rule-icon="settlement"[^>]*aria-label="Settlement mode"/);
 assert.match(worldPanel, /data-rule-icon="approval"[^>]*aria-label="Approval decline"/);
@@ -205,6 +209,12 @@ assert.match(
 );
 assert.doesNotMatch(worldPanel, /world-setup-logo/);
 assert.doesNotMatch(worldCss, /\.world-setup-logo/);
+assert.match(settlementHud, /data-world-difficulty-badge/);
+assert.match(settlementHud, /describeWorldDifficulty\(getActiveWorldGeneration\(\)\)/);
+assert.match(settlementHud, /difficultyBadge\.dataset\.tooltipTitle = difficulty\.title/);
+assert.match(settlementHud, /difficultyBadge\.dataset\.tooltip = difficulty\.summary/);
+assert.match(nobleCss, /\.noble-hud__title-row\s*\{[\s\S]*?display: flex/);
+assert.match(nobleCss, /\.noble-hud__difficulty\s*\{[\s\S]*?cursor: help/);
 assert.match(appShell, /class="app-loading-kicker">Medieval Croatia · 1550</);
 assert.match(appShell, /selo-empire-pauline-monastery-study\.png/);
 assert.doesNotMatch(appShell, /class="app-loading-kicker">[^<]*Gorski Kotar/i);
@@ -226,5 +236,22 @@ assert.match(browserCoverage, /data-aquifer-networks-value/);
 assert.match(browserCoverage, /Lord of Bosiljevo, Ribnik, and Novigrad/);
 assert.match(browserCoverage, /noble-setup-heraldry-profile/);
 assert.match(browserCoverage, /data-heraldry-preview-portrait/);
+
+const normalDifficulty = describeWorldDifficulty(DEFAULT_WORLD_GENERATION_SETTINGS);
+assert.equal(normalDifficulty.id, 'normal');
+assert.equal(normalDifficulty.badgeLabel, 'Normal');
+assert.match(normalDifficulty.summary, /Settlement: Peaceful/);
+assert.match(normalDifficulty.summary, /Approval decline: Normal/);
+
+const customDifficulty = describeWorldDifficulty({
+  ...DEFAULT_WORLD_GENERATION_SETTINGS,
+  severeWeatherEnabled: true,
+  foodSpoilageRate: 50,
+});
+assert.equal(customDifficulty.id, 'custom');
+assert.equal(customDifficulty.badgeLabel, 'Custom');
+assert.equal(customDifficulty.title, 'Custom Difficulty');
+assert.match(customDifficulty.summary, /Food spoilage: Reduced/);
+assert.match(customDifficulty.summary, /Weather: Severe/);
 
 console.log('new-world setup flow tests passed');

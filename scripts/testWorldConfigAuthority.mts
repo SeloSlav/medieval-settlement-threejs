@@ -412,6 +412,10 @@ async function testDifficultySetupContract(): Promise<void> {
     new URL('../src/ui/WorldSetupPanel.ts', import.meta.url),
     'utf8',
   );
+  const difficultySource = await readFile(
+    new URL('../src/world/worldDifficulty.ts', import.meta.url),
+    'utf8',
+  );
   const settingsSource = await readFile(
     new URL('../src/world/worldGenerationSettings.ts', import.meta.url),
     'utf8',
@@ -421,9 +425,9 @@ async function testDifficultySetupContract(): Promise<void> {
     'utf8',
   );
   assert.match(setupSource, /data-world-selector="difficulty-preset"/);
-  assert.match(setupSource, /id: 'easy'[\s\S]*approvalDeclineRate: 0[\s\S]*foodSpoilageRate: 0[\s\S]*initialGoodsMultiplier: 2/);
-  assert.match(setupSource, /id: 'normal'[\s\S]*approvalDeclineRate: 100[\s\S]*foodSpoilageRate: 100[\s\S]*initialGoodsMultiplier: 1/);
-  assert.match(setupSource, /id: 'hardcore'[\s\S]*enemyPressure: 100[\s\S]*severeWeatherEnabled: true[\s\S]*approvalDeclineRate: 150[\s\S]*foodSpoilageRate: 150/);
+  assert.match(difficultySource, /id: 'easy'[\s\S]*approvalDeclineRate: 0[\s\S]*foodSpoilageRate: 0[\s\S]*initialGoodsMultiplier: 2/);
+  assert.match(difficultySource, /id: 'normal'[\s\S]*approvalDeclineRate: 100[\s\S]*foodSpoilageRate: 100[\s\S]*initialGoodsMultiplier: 1/);
+  assert.match(difficultySource, /id: 'hardcore'[\s\S]*enemyPressure: 100[\s\S]*severeWeatherEnabled: true[\s\S]*approvalDeclineRate: 150[\s\S]*foodSpoilageRate: 150/);
   assert.match(setupSource, /difficultyPresetValue\.textContent = preset\?\.name \?\? 'Custom'/);
   assert.match(setupSource, /data-world-selector="approval-decline"/);
   assert.match(setupSource, /0: \['Disabled', 'No passive approval loss\.'\][\s\S]*150: \['Demanding'/);
