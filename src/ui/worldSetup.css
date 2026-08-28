@@ -505,6 +505,7 @@
 
 .world-setup-back {
   min-width: 210px;
+  height: 38px;
   min-height: 38px;
   padding: 8px 16px;
   border: 1px solid rgba(213, 190, 139, 0.32);
@@ -681,6 +682,7 @@
 
   .world-setup-footer-seed {
     grid-column: 2;
+    grid-row: 1;
     grid-template-columns: auto auto;
     justify-self: center;
     justify-content: center;
@@ -706,11 +708,13 @@
 
   .world-setup-back {
     grid-column: 1;
+    grid-row: 1;
     margin: 9px 0 9px 22px;
   }
 
   .world-setup-start {
     grid-column: 3;
+    grid-row: 1;
     margin: 9px 22px 9px 0;
   }
 }

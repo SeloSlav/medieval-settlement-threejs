@@ -298,7 +298,7 @@ export class WorldSetupPanel {
               </label>
               <div class="world-setup-seed-row">
                 <input id="world-setup-seed" class="world-setup-seed-input" type="text" inputmode="text" spellcheck="false" autocomplete="off" aria-label="World seed" data-seed-input value="${formatSeedHex(this.draft.seed)}" />
-                <button type="button" class="world-setup-randomize" data-randomize-seed>Randomize map</button>
+                <button type="button" class="world-setup-randomize" data-randomize-seed>Randomize seed</button>
               </div>
             </div>
             <nav class="world-setup-actions__navigation" aria-label="Setup navigation">

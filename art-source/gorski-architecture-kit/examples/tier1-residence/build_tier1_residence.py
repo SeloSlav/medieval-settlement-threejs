@@ -82,12 +82,13 @@ MATERIAL_LOOKS = {
     "quarry_stone": ("quarry-stone", (0.68, 0.67, 0.61, 1.0), 0.16, 0.72),
     "limestone_warm": ("limestone-ashlar", (0.86, 0.76, 0.56, 1.0), 0.18, 0.68),
     "oak_dark": ("rough-hewn-timber", (0.25, 0.13, 0.058, 1.0), 0.65, 0.62),
+    "roof_support_dark": ("rough-hewn-timber", (0.20, 0.105, 0.045, 1.0), 0.88, 0.62),
     "timber_weathered": ("weathered-planks", (0.66, 0.49, 0.31, 1.0), 0.28, 0.66),
-    "timber_weathered_horizontal": ("weathered-planks", (0.42, 0.26, 0.14, 1.0), 0.78, 0.72),
+    "timber_weathered_horizontal": ("weathered-planks", (0.32, 0.20, 0.10, 1.0), 0.78, 0.72),
     "timber_cut": ("sawn-planks", (0.78, 0.54, 0.29, 1.0), 0.22, 0.56),
-    "thatch_dark": ("thatch-roof", (0.12, 0.09, 0.055, 1.0), 0.88, 0.84),
-    "thatch": ("thatch-roof", (0.24, 0.18, 0.10, 1.0), 0.86, 0.84),
-    "thatch_light": ("thatch-roof", (0.34, 0.27, 0.16, 1.0), 0.82, 0.84),
+    "thatch_dark": ("thatch-roof", (0.07, 0.055, 0.035, 1.0), 0.88, 0.84),
+    "thatch": ("thatch-roof", (0.15, 0.115, 0.07, 1.0), 0.86, 0.84),
+    "thatch_light": ("thatch-roof", (0.27, 0.21, 0.13, 1.0), 0.82, 0.84),
     "rope": ("wicker-weave", (0.67, 0.46, 0.22, 1.0), 0.30, 0.58),
     "iron": ("wrought-iron", (0.40, 0.43, 0.44, 1.0), 0.22, 0.54),
     "charcoal": ("wrought-iron", (0.08, 0.075, 0.065, 1.0), 0.70, 0.42),
@@ -184,10 +185,13 @@ def atlas_material(key: str) -> bpy.types.Material:
 
     tint_node = nodes.new("ShaderNodeMixRGB")
     tint_node.blend_type = "MULTIPLY"
-    tint_node.inputs[0].default_value = tint_strength
+    strong_atlas_grade = key in {"timber_weathered_horizontal", "roof_support_dark", "thatch_dark", "thatch", "thatch_light"}
+    tint_node.inputs[0].default_value = 1.0 if strong_atlas_grade else tint_strength
     tint_node.inputs[2].default_value = tint
     tint_node.location = (70, 280)
     links.new(textures["albedo"].outputs["Color"], tint_node.inputs[1])
+    if strong_atlas_grade:
+        material["atlas_grade"] = "full multiply tint for aged Tier-1 finish"
 
     separate = nodes.new("ShaderNodeSeparateColor")
     separate.mode = "RGB"
@@ -571,6 +575,88 @@ def roof_transform(side: float, slope_center: float) -> tuple[tuple[float, float
     return (x, z), rotation
 
 
+def deform_roof_run(
+    obj: bpy.types.Object,
+    run_center_y: float,
+    side: float = 0.0,
+    eave_weighted: bool = False,
+    eave_edge: bool = False,
+) -> None:
+    """Add deterministic, seam-safe sag without opening cracks between roof courses.
+
+    The longitudinal envelope returns to zero at every authored four-metre run seam.
+    All courses in a run therefore keep matching boundaries, while the eave receives a
+    stronger side-specific droop so the silhouette does not remain bilaterally perfect.
+    """
+    if obj.type != "MESH" or not obj.data.vertices:
+        return
+    x_values = [vertex.co.x for vertex in obj.data.vertices]
+    y_values = [vertex.co.y for vertex in obj.data.vertices]
+    center_x = (min(x_values) + max(x_values)) / 2.0
+    half_x = max((max(x_values) - min(x_values)) / 2.0, 0.001)
+    min_y = min(y_values)
+    max_y = max(y_values)
+    y_span = max(max_y - min_y, 0.001)
+    rear_run = run_center_y > BUILDING_DEPTH / 2.0
+    shared_sag = 0.105 if rear_run else 0.072
+    phase = 1.37 if rear_run else 0.42
+    side_eave_drop = (0.038 if side < 0.0 else 0.076) * (1.12 if rear_run else 1.0)
+    maximum_drop = 0.0
+    for vertex in obj.data.vertices:
+        t = max(-1.0, min(1.0, (vertex.co.x - center_x) / half_x))
+        envelope = max(0.0, 1.0 - t * t)
+        drop = -shared_sag * envelope
+        drop += 0.020 * math.sin(t * math.tau + phase) * envelope
+        drop += (0.026 if rear_run else -0.018) * t * envelope
+        drop += 0.010 * math.sin(t * math.tau * 2.3 + phase * 0.7) * envelope
+        if eave_weighted:
+            toward_eave = (max_y - vertex.co.y) / y_span
+            drop -= side_eave_drop * envelope * toward_eave
+        elif eave_edge:
+            drop -= side_eave_drop * envelope
+        vertex.co.z += drop
+        maximum_drop = max(maximum_drop, -drop)
+    obj.data.update()
+    obj["roof_deformation"] = "deterministic longitudinal sag with seam-zero envelope"
+    obj["roof_maximum_drop_m"] = round(maximum_drop, 4)
+
+
+def place_roof_supports() -> None:
+    # Sloped verge rafters and short projecting lookouts make the half-metre gable
+    # overhang visibly load-bearing instead of reading as a detached dark roof plane.
+    eave_x = SLOPE_LENGTH * math.cos(PITCH)
+    rafter_z = (EAVE_Z + RIDGE_Z) / 2.0 - 0.11
+    for end_name, y in (("Front", -0.39), ("Rear", BUILDING_DEPTH + 0.39)):
+        for side in (-1.0, 1.0):
+            side_name = "Left" if side < 0.0 else "Right"
+            rafter = make_custom_part(
+                f"T1_VergeRafter_{end_name}_{side_name}",
+                FRAMES,
+                [((0.0, 0.0, 0.0), (SLOPE_LENGTH - 0.05, 0.18, 0.16))],
+                "roof_support_dark",
+                (side * eave_x / 2.0, y, rafter_z),
+                0.0,
+                "assembly_custom_sloped_verge_rafter",
+            )
+            rafter.rotation_euler[1] = side * PITCH
+            rafter["rotation_y_degrees"] = round(math.degrees(side * PITCH), 4)
+            PLACEMENTS[-1]["rotationYDegrees"] = round(math.degrees(side * PITCH), 4)
+
+        lookout_direction = 1.0 if end_name == "Rear" else -1.0
+        for index, x_abs in enumerate((0.92, 1.82)):
+            for side in (-1.0, 1.0):
+                z = RIDGE_Z - x_abs * math.tan(PITCH) - 0.16
+                make_custom_part(
+                    f"T1_RoofLookout_{end_name}_{index}_{'L' if side < 0.0 else 'R'}",
+                    FRAMES,
+                    [((0.0, 0.0, 0.0), (0.11, 0.46, 0.11))],
+                    "roof_support_dark",
+                    (side * x_abs, (BUILDING_DEPTH if end_name == "Rear" else 0.0) + lookout_direction * 0.20, z),
+                    0.0,
+                    "assembly_custom_roof_lookout",
+                )
+
+
 def place_roof() -> None:
     # Full + half + quarter authored courses form a 4.2 m slope. On a four-metre
     # body this produces a roof-dominant 0.70 m side overhang without stretching geometry.
@@ -582,13 +668,14 @@ def place_roof() -> None:
         for run_token, y in runs:
             for course_name, centre in slope_courses:
                 (x, z), rotation = roof_transform(side, centre)
-                place(
+                panel = place(
                     f"roof_thatch_panel_{run_token}_{course_name}",
                     f"T1_Roof_{side_name}_{run_token}_{course_name}",
                     ROOF,
                     (x, y, z),
                     rotation,
                 )
+                deform_roof_run(panel, y, side, eave_weighted=course_name == "full")
 
     eave_x = SLOPE_MAX * 2.0 * math.cos(PITCH)
     eave_z = RIDGE_Z - SLOPE_MAX * 2.0 * math.sin(PITCH)
@@ -596,16 +683,18 @@ def place_roof() -> None:
         rotation = math.pi / 2.0 if side > 0 else -math.pi / 2.0
         side_name = "Left" if side < 0 else "Right"
         for run_token, y in runs:
-            place(
+            eave = place(
                 f"roof_thatch_eave_edge_{run_token}",
                 f"T1_Eave_{side_name}_{run_token}",
                 ROOF,
                 (side * eave_x, y, eave_z),
                 rotation,
             )
+            deform_roof_run(eave, y, side, eave_edge=True)
 
     for run_token, y in runs:
-        place(f"roof_thatch_ridge_{run_token}", f"T1_Ridge_{run_token}", ROOF, (0.0, y, RIDGE_Z), math.pi / 2.0)
+        ridge = place(f"roof_thatch_ridge_{run_token}", f"T1_Ridge_{run_token}", ROOF, (0.0, y, RIDGE_Z), math.pi / 2.0)
+        deform_roof_run(ridge, y)
 
     place("roof_thatch_ridge_endcap", "T1_Ridge_Endcap_Front", ROOF, (0.0, -0.62, RIDGE_Z), math.pi / 2.0)
     place("roof_thatch_ridge_endcap", "T1_Ridge_Endcap_Rear", ROOF, (0.0, BUILDING_DEPTH + 0.62, RIDGE_Z), -math.pi / 2.0)
@@ -613,13 +702,14 @@ def place_roof() -> None:
     # A bound-thatch smoke hood is the Tier-1 fire exit; a later masonry chimney would be anachronistic here.
     smoke_x = 0.72
     smoke_z = RIDGE_Z - smoke_x * math.tan(PITCH) - 0.05
-    place("roof_thatch_smoke_vent", "T1_Thatch_Smoke_Vent", ROOF, (smoke_x, 5.35, smoke_z), math.pi / 2.0)
+    place("roof_thatch_smoke_vent", "T1_Thatch_Smoke_Vent", ROOF, (smoke_x, 5.35, smoke_z - 0.10), math.pi / 2.0)
+    place_roof_supports()
 
 
 def place_fixed_architecture() -> None:
     # Permanent entrance construction. Inventory-driven firewood is owned by ResidenceMarkers.
     threshold = place("foundation_steps_limestone_1", "T1_Threshold_Steps", FIXED_ARCHITECTURE, (-1.0, -0.56, 0.0))
-    remap_instance_material(threshold, "limestone_warm", "quarry_stone")
+    remap_instance_material(threshold, "limestone_warm", "fieldstone")
 
 
 def remove_source_library_objects() -> None:
@@ -718,8 +808,8 @@ def render_alignment_views() -> None:
     hero_lens = camera.data.lens
 
     for filepath, location, target, lens in (
-        (OUT_FRONT_RENDER, (0.0, -14.8, 4.25), (0.0, 0.8, 2.55), 60.0),
-        (OUT_SIDE_RENDER, (18.0, 3.5, 5.0), (0.0, 3.5, 2.45), 62.0),
+        (OUT_FRONT_RENDER, (0.0, -16.0, 4.55), (0.0, 0.8, 2.80), 58.0),
+        (OUT_SIDE_RENDER, (24.0, 3.5, 5.35), (0.0, 3.5, 2.75), 58.0),
     ):
         camera.location = location
         camera.data.lens = lens
@@ -757,6 +847,12 @@ def write_manifest() -> None:
             "gableEndOverhang": 0.5,
         },
         "roofFinish": "bundled-thatch",
+        "roofIrregularity": {
+            "method": "deterministic vertex sag with a zero-displacement envelope at every authored run boundary",
+            "longitudinalSagRangeMetres": [0.072, 0.105],
+            "sideSpecificEaveDroopRangeMetres": [0.038, 0.085],
+            "supports": "four sloped verge rafters and eight short projecting roof lookouts visibly carry the gable-end overhangs",
+        },
         "historicalMaterialDecision": {
             "primaryBody": "weathered horizontal timber boarding on a low fieldstone footing",
             "publicFront": "rough warm daub within a restrained structural frame",
@@ -809,7 +905,6 @@ def main() -> None:
     write_manifest()
     bpy.ops.render.render(write_still=True)
     render_alignment_views()
-    bpy.ops.wm.save_as_mainfile(filepath=str(OUT_BLEND))
     print(f"T1_BLEND={OUT_BLEND}")
     print(f"T1_RENDER={OUT_RENDER}")
     print(f"T1_PLACEMENTS={len(PLACEMENTS)}")

@@ -21,6 +21,18 @@
     "gableEndOverhang": 0.5
   },
   "roofFinish": "bundled-thatch",
+  "roofIrregularity": {
+    "method": "deterministic vertex sag with a zero-displacement envelope at every authored run boundary",
+    "longitudinalSagRangeMetres": [
+      0.072,
+      0.105
+    ],
+    "sideSpecificEaveDroopRangeMetres": [
+      0.038,
+      0.085
+    ],
+    "supports": "four sloped verge rafters and eight short projecting roof lookouts visibly carry the gable-end overhangs"
+  },
   "historicalMaterialDecision": {
     "primaryBody": "weathered horizontal timber boarding on a low fieldstone footing",
     "publicFront": "rough warm daub within a restrained structural frame",
@@ -614,9 +626,145 @@
       "location": [
         0.72,
         5.35,
-        4.93932
+        4.83932
       ],
       "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_VergeRafter_Front_Left",
+      "source": "assembly_custom_sloped_verge_rafter",
+      "collection": "T1_04_Frames",
+      "location": [
+        -1.34985,
+        -0.39,
+        4.12869
+      ],
+      "rotationZDegrees": 0.0,
+      "rotationYDegrees": -50.0
+    },
+    {
+      "name": "T1_VergeRafter_Front_Right",
+      "source": "assembly_custom_sloped_verge_rafter",
+      "collection": "T1_04_Frames",
+      "location": [
+        1.34985,
+        -0.39,
+        4.12869
+      ],
+      "rotationZDegrees": 0.0,
+      "rotationYDegrees": 50.0
+    },
+    {
+      "name": "T1_RoofLookout_Front_0_L",
+      "source": "assembly_custom_roof_lookout",
+      "collection": "T1_04_Frames",
+      "location": [
+        -0.92,
+        -0.2,
+        4.59097
+      ],
+      "rotationZDegrees": 0.0
+    },
+    {
+      "name": "T1_RoofLookout_Front_0_R",
+      "source": "assembly_custom_roof_lookout",
+      "collection": "T1_04_Frames",
+      "location": [
+        0.92,
+        -0.2,
+        4.59097
+      ],
+      "rotationZDegrees": 0.0
+    },
+    {
+      "name": "T1_RoofLookout_Front_1_L",
+      "source": "assembly_custom_roof_lookout",
+      "collection": "T1_04_Frames",
+      "location": [
+        -1.82,
+        -0.2,
+        3.5184
+      ],
+      "rotationZDegrees": 0.0
+    },
+    {
+      "name": "T1_RoofLookout_Front_1_R",
+      "source": "assembly_custom_roof_lookout",
+      "collection": "T1_04_Frames",
+      "location": [
+        1.82,
+        -0.2,
+        3.5184
+      ],
+      "rotationZDegrees": 0.0
+    },
+    {
+      "name": "T1_VergeRafter_Rear_Left",
+      "source": "assembly_custom_sloped_verge_rafter",
+      "collection": "T1_04_Frames",
+      "location": [
+        -1.34985,
+        7.39,
+        4.12869
+      ],
+      "rotationZDegrees": 0.0,
+      "rotationYDegrees": -50.0
+    },
+    {
+      "name": "T1_VergeRafter_Rear_Right",
+      "source": "assembly_custom_sloped_verge_rafter",
+      "collection": "T1_04_Frames",
+      "location": [
+        1.34985,
+        7.39,
+        4.12869
+      ],
+      "rotationZDegrees": 0.0,
+      "rotationYDegrees": 50.0
+    },
+    {
+      "name": "T1_RoofLookout_Rear_0_L",
+      "source": "assembly_custom_roof_lookout",
+      "collection": "T1_04_Frames",
+      "location": [
+        -0.92,
+        7.2,
+        4.59097
+      ],
+      "rotationZDegrees": 0.0
+    },
+    {
+      "name": "T1_RoofLookout_Rear_0_R",
+      "source": "assembly_custom_roof_lookout",
+      "collection": "T1_04_Frames",
+      "location": [
+        0.92,
+        7.2,
+        4.59097
+      ],
+      "rotationZDegrees": 0.0
+    },
+    {
+      "name": "T1_RoofLookout_Rear_1_L",
+      "source": "assembly_custom_roof_lookout",
+      "collection": "T1_04_Frames",
+      "location": [
+        -1.82,
+        7.2,
+        3.5184
+      ],
+      "rotationZDegrees": 0.0
+    },
+    {
+      "name": "T1_RoofLookout_Rear_1_R",
+      "source": "assembly_custom_roof_lookout",
+      "collection": "T1_04_Frames",
+      "location": [
+        1.82,
+        7.2,
+        3.5184
+      ],
+      "rotationZDegrees": 0.0
     },
     {
       "name": "T1_Threshold_Steps",

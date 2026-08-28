@@ -1,0 +1,121 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import bmesh
+import bpy
+
+
+EXAMPLE_DIR = Path(__file__).resolve().parent
+OUT_REPORT = EXAMPLE_DIR / "out" / "tier1_residence_validation.json"
+
+
+def architecture_objects() -> list[bpy.types.Object]:
+    return [
+        obj
+        for obj in bpy.data.objects
+        if obj.get("t1_instance") and not obj.get("preview_only")
+    ]
+
+
+def triangle_count(obj: bpy.types.Object) -> int:
+    if obj.type != "MESH":
+        return 0
+    return sum(max(0, len(polygon.vertices) - 2) for polygon in obj.data.polygons)
+
+
+def nonmanifold_edges(obj: bpy.types.Object) -> int:
+    if obj.type != "MESH":
+        return 0
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    count = sum(1 for edge in bm.edges if not edge.is_manifold)
+    bm.free()
+    return count
+
+
+def main() -> None:
+    objects = architecture_objects()
+    meshes = [obj for obj in objects if obj.type == "MESH"]
+    sources = [str(obj.get("source_component_id", "")) for obj in objects]
+    unit_scale_violations = [
+        obj.name
+        for obj in objects
+        if any(abs(value - 1.0) > 1.0e-6 for value in obj.scale)
+    ]
+    missing_metric_uv = [
+        obj.name
+        for obj in meshes
+        if obj.data.uv_layers.get("GK_UV0") is None
+    ]
+    nonmanifold = {
+        obj.name: count
+        for obj in meshes
+        if (count := nonmanifold_edges(obj)) > 0
+    }
+    material_tiles = sorted(
+        {
+            str(material.get("atlas_tile"))
+            for obj in meshes
+            for material in obj.data.materials
+            if material is not None and material.get("atlas_tile")
+        }
+    )
+    forbidden_tokens = ("vegetation", "crop", "firewoodpile", "smokeemitter", "windowglow")
+    forbidden_authored_state = [
+        obj.name
+        for obj in bpy.data.objects
+        if any(token in obj.name.lower() for token in forbidden_tokens)
+    ]
+    square_hole_walls = [source for source in sources if source == "assembly_custom_aperture_wall"]
+    dark_apertures = [source for source in sources if source == "assembly_dark_unglazed_aperture"]
+    window_inserts = [source for source in sources if source.startswith("opening_window_")]
+    roof_panels = [source for source in sources if source.startswith("roof_thatch_panel_")]
+    roof_triangles = sum(
+        triangle_count(obj)
+        for obj in meshes
+        if str(obj.get("source_component_id", "")).startswith("roof_thatch_")
+    )
+    total_triangles = sum(triangle_count(obj) for obj in meshes)
+
+    checks = {
+        "allInstanceScalesAreOne": not unit_scale_violations,
+        "allMeshesHaveMetricUv": not missing_metric_uv,
+        "allMeshesAreManifold": not nonmanifold,
+        "threePlainSquareApertures": len(dark_apertures) == 3,
+        "noDecorativeWindowInserts": not window_inserts,
+        "threeCourseRoofAcrossFourRuns": len(roof_panels) == 12,
+        "noRuntimeOrVegetationDressingAuthored": not forbidden_authored_state,
+        "atlasMaterialsPacked": len(material_tiles) >= 7,
+    }
+    payload = {
+        "id": "gorski-tier1-residence-validation-v2",
+        "passed": all(checks.values()),
+        "checks": checks,
+        "counts": {
+            "architectureObjects": len(objects),
+            "meshes": len(meshes),
+            "triangles": total_triangles,
+            "roofTriangles": roof_triangles,
+            "roofTriangleShare": round(roof_triangles / total_triangles, 4) if total_triangles else 0.0,
+            "customApertureWallPieces": len(square_hole_walls),
+            "darkUnglazedApertures": len(dark_apertures),
+        },
+        "atlasTiles": material_tiles,
+        "violations": {
+            "unitScale": unit_scale_violations,
+            "missingMetricUv": missing_metric_uv,
+            "nonmanifoldEdges": nonmanifold,
+            "decorativeWindowInserts": window_inserts,
+            "forbiddenAuthoredState": forbidden_authored_state,
+        },
+    }
+    OUT_REPORT.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    print(json.dumps(payload, indent=2))
+    if not payload["passed"]:
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()
