@@ -155,8 +155,8 @@ const granary = building('granary', {
 });
 const granaryMarker = createBuildingMesh('granary');
 syncFoodStockpileVisuals(granaryMarker, granary);
-assertVisibleSegments(granaryMarker, 'GranaryGrainStockpile', 'GranaryGrainSegment', 2);
-assertVisibleSegments(granaryMarker, 'GranaryProvisionStockpile', 'GranaryProvisionSegment', 2);
+assertVisibleSegments(granaryMarker, 'GranaryGrainStockpile', 'GranaryGrainSegment', 1);
+assertVisibleSegments(granaryMarker, 'GranaryProvisionStockpile', 'GranaryProvisionSegment', 1);
 
 const watermill = building('watermill', { ryeGrain: 61, ryeFlour: 87 });
 const watermillMarker = createBuildingMesh('watermill');
@@ -180,7 +180,7 @@ assertVisibleSegments(
 const emptyGranary = building('granary');
 const firstGrainSack = building('granary', { ryeGrain: 1 });
 const sameGrainBand = building('granary', { ryeGrain: 100 });
-const secondGrainBand = building('granary', { ryeGrain: 201 });
+const secondGrainBand = building('granary', { ryeGrain: 834 });
 const emptySignatures = buildingMarkerSignatures(
   new Map([[emptyGranary.id, emptyGranary]]),
 );

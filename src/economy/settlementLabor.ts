@@ -14,6 +14,7 @@ import {
   computeSettlementHaulagePlan,
   type SettlementHaulagePlan,
 } from './settlementHaulage.ts';
+import { buildingSharedStorageRoom } from './sharedStorageCapacity.ts';
 import {
   STOREHOUSE_COMMODITIES,
   storehouseAcceptsCommodity,
@@ -197,6 +198,7 @@ export function computeSettlementLaborPlan(input: {
 
     if (building.kind === 'village_storehouse') {
       storehouseNetwork.completedDepots += 1;
+      const sharedRoom = buildingSharedStorageRoom(building);
       if (building.assignedLabor > 0) {
         storehouseNetwork.staffedDepots += 1;
       }
@@ -214,6 +216,7 @@ export function computeSettlementLaborPlan(input: {
         network.collectionHeadroom += storehouseFilteredCollectionHeadroom(
           building,
           commodity,
+          sharedRoom,
         );
         network.stockAboveTarget += Math.max(0, stock - target);
       }

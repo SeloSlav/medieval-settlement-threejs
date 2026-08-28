@@ -44,15 +44,17 @@ export type LordReport = {
   targetLabel?: string;
 };
 
+type StorageOccupancyKey = Exclude<keyof StorageCaps, 'total'>;
+
 export type StorageOccupancyChannel = {
-  key: keyof StorageCaps;
+  key: StorageOccupancyKey;
   label: string;
   amount: number;
   capacity: number;
   purpose: 'working-stock' | 'maintenance-reserve';
 };
 
-const STORAGE_CHANNEL_LABELS: Record<keyof StorageCaps, string> = {
+const STORAGE_CHANNEL_LABELS: Record<StorageOccupancyKey, string> = {
   timber: 'Timber store',
   firewood: 'Firewood store',
   stone: 'Stone store',
@@ -93,7 +95,7 @@ const STORAGE_CHANNEL_LABELS: Record<keyof StorageCaps, string> = {
   animalFeed: 'Animal feed store',
 };
 
-const STORAGE_CHANNEL_KEYS = Object.keys(STORAGE_CHANNEL_LABELS) as (keyof StorageCaps)[];
+const STORAGE_CHANNEL_KEYS = Object.keys(STORAGE_CHANNEL_LABELS) as StorageOccupancyKey[];
 const FULL_EPSILON = 1e-6;
 
 function finiteStock(value: number | undefined): number {
@@ -102,7 +104,7 @@ function finiteStock(value: number | undefined): number {
 
 function storageChannelAmount(
   building: BuildingState,
-  key: keyof StorageCaps,
+  key: StorageOccupancyKey,
 ): number {
   if (key === 'food') return freshFoodStock(building);
   if (key === 'preservedFood') return preservedFoodStock(building);

@@ -128,7 +128,7 @@ export function foodStockpileVisualSignature(building: BuildingState): string {
       return `:food-store:${
         stockpileVisualLevel(
           breadGrainStock(building) + (building.barley ?? 0),
-          BUILDING_STORAGE_CAPS.granary.grain + BUILDING_STORAGE_CAPS.granary.barley,
+          granaryVisualCapacity(),
           GRANARY_GRAIN_VISUAL_SEGMENTS,
         )
       }:${
@@ -273,7 +273,7 @@ export function syncFoodStockpileVisuals(
         'GranaryGrainStockpile',
         'GranaryGrainSegment',
         breadGrainStock(building) + (building.barley ?? 0),
-        BUILDING_STORAGE_CAPS.granary.grain + BUILDING_STORAGE_CAPS.granary.barley,
+        granaryVisualCapacity(),
       );
       syncNamedStockpile(
         marker,
@@ -330,10 +330,12 @@ function granaryProvisionStock(building: BuildingState): number {
 }
 
 function granaryProvisionCapacity(): number {
-  return BUILDING_STORAGE_CAPS.granary.food
-    + BUILDING_STORAGE_CAPS.granary.flour
-    + BUILDING_STORAGE_CAPS.granary.flax
-    + BUILDING_STORAGE_CAPS.granary.preservedFood;
+  return granaryVisualCapacity();
+}
+
+function granaryVisualCapacity(): number {
+  return BUILDING_STORAGE_CAPS.granary.total
+    ?? BUILDING_STORAGE_CAPS.granary.grain;
 }
 
 function syncNamedStockpile(

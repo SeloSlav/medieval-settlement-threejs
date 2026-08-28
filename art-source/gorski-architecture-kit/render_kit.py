@@ -29,6 +29,8 @@ SHEETS = {
         "frame_beam_4m_s0p22m", "frame_beam_4m_s0p3m", "frame_brace_left_2m", "frame_brace_right_4m",
         "frame_portal_service", "frame_portal_house", "frame_portal_barn", "frame_portal_cart",
         "frame_balcony_2m", "frame_balcony_4m", "frame_lean_to_2m", "frame_lean_to_4m",
+        "frame_curved_bracket_left_1m", "frame_curved_bracket_right_2m", "frame_gable_truss_4m", "frame_arch_portal_2p4m",
+        "frame_lattice_panel_1m", "frame_scalloped_fascia_4m", "frame_eave_corbel_carved", "frame_gallery_post_cap",
     ],
     "openings": [
         "opening_window_tiny_plain", "opening_window_small_shuttered", "opening_window_domestic_plain", "opening_window_domestic_leaded",
@@ -99,6 +101,7 @@ SHEETS = {
         "roof_tile_apse_halfcone_3m", "roof_tile_belfry_pyramid_2m", "civic_church_cross_iron_large", "civic_church_cross_stone",
         "civic_shrine_niche_stone", "opening_shrine_icon_insert", "civic_shrine_votive_ledge", "civic_shrine_half_column_pair",
         "civic_shrine_canopy", "roof_shingle_shrine_gable_1p5m", "civic_shrine_iron_cross", "civic_shrine_plinth_stone",
+        "frame_lattice_panel_1m", "frame_scalloped_fascia_2m", "frame_curved_bracket_left_1m", "frame_eave_corbel_carved",
     ],
     "residence-roof-progression": [
         "roof_thatch_panel_4m_full", "roof_thatch_ridge_4m", "roof_thatch_eave_edge_4m", "roof_thatch_smoke_vent",

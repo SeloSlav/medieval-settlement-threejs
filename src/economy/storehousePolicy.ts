@@ -136,6 +136,7 @@ export function storehouseFilteredCollectionHeadroom(
       | 'kind' | 'storageAcceptanceMask' | 'granaryAcceptsFreshFood'
   >,
   commodity: StorehouseCommodity,
+  knownSharedRoom?: number,
 ): number {
   if (!storehouseAcceptsCommodity(building, commodity)) return 0;
   const rawStock = building[commodity] ?? 0;
@@ -144,6 +145,6 @@ export function storehouseFilteredCollectionHeadroom(
     : 0;
   return Math.min(
     Math.max(0, storehouseCommodityTarget(building, commodity) - stock),
-    buildingSharedStorageRoom(building),
+    knownSharedRoom ?? buildingSharedStorageRoom(building),
   );
 }

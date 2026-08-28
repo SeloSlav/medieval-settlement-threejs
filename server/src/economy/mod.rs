@@ -20,9 +20,8 @@ mod village_economy;
 pub use commodities::{
     building_commodity_cap, building_commodity_room, building_commodity_stock,
     building_edible_food_stock, building_food_progression_met, building_fresh_food_stock,
-    building_preservable_food_stock, building_preserved_food_stock,
-    building_shared_storage_capacity, building_shared_storage_room, building_total_commodity_stock,
-    credit_treasury_commodity, deposit_building_commodity, deposit_residence_commodity,
+    building_preservable_food_stock, building_preserved_food_stock, credit_treasury_commodity,
+    deposit_building_commodity, deposit_residence_commodity,
     first_building_edible_commodity, flour_bulk_stock, food_category,
     food_commodity_advances_residence_progression,
     household_food_units_per_day_for_tier, residence_commodity_stock, residence_edible_food_stock,
