@@ -576,7 +576,7 @@ Texture assets are stored under `public/assets/textures`. The road surface uses 
 
 ## License and Intellectual Property
 
-The original source code authored for this project is licensed under the [MIT License](https://opensource.org/license/mit). The MIT license applies to that code only. Third-party libraries and assets remain subject to their respective licenses and attribution requirements, as listed below or in the files accompanying them.
+The original source code authored for this project is licensed under the [MIT License](LICENSE). The MIT license applies to that code only. Original creative content and branding are governed by the separate [Selo Empire Creative Content and Branding License](LICENSE-ASSETS.md). Third-party libraries and assets remain subject to their respective licenses and attribution requirements, as listed below or in the files accompanying them.
 
 **Selo Empire is an open-source codebase, not an open-content game.** Copyright © 2026 Martin Erlic. All rights are reserved in the project's original non-code creative content, including its artwork and visual assets, the specific creative expression of its art direction, narrative text, worldbuilding, lore, characters, setting material, and the selection and arrangement of those elements. The `Selo Empire` name, title, logo, and other branding are not licensed for reuse under the MIT code license.
 

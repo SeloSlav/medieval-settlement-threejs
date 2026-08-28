@@ -15,6 +15,11 @@ import {
   WORLD_TERRAIN_PRESETS,
   type WorldTerrainPreset,
 } from '../world/worldTerrainPresets.ts';
+import {
+  difficultyPresetForSettings,
+  WORLD_DIFFICULTY_PRESET_ORDER,
+  WORLD_DIFFICULTY_PRESETS,
+} from '../world/worldDifficulty.ts';
 export type WorldSetupResult = {
   action: 'back' | 'start';
   settings: WorldGenerationSettings;
@@ -29,83 +34,6 @@ const CONFLICT_MODE_ORDER = ['peaceful', 'frontier'] as const;
 const DIFFICULTY_RATE_ORDER: readonly WorldDifficultyRate[] = [0, 50, 100, 150];
 const INITIAL_GOODS_ORDER = [1, 2] as const;
 const BOOLEAN_ORDER = [false, true] as const;
-
-type DifficultyPresetId = 'easy' | 'normal' | 'hardcore';
-type DifficultyRuleSettings = Pick<
-  WorldGenerationSettings,
-  | 'conflictMode'
-  | 'enemyPressure'
-  | 'severeWeatherEnabled'
-  | 'wellAquiferNetworksEnabled'
-  | 'approvalDeclineRate'
-  | 'foodSpoilageRate'
-  | 'initialGoodsMultiplier'
->;
-
-const DIFFICULTY_PRESETS: readonly {
-  id: DifficultyPresetId;
-  name: string;
-  description: string;
-  settings: DifficultyRuleSettings;
-}[] = [
-  {
-    id: 'easy',
-    name: 'Pampered Page (Easy)',
-    description: 'No losses or raids; double supplies.',
-    settings: {
-      conflictMode: 'peaceful',
-      enemyPressure: 0,
-      severeWeatherEnabled: false,
-      wellAquiferNetworksEnabled: false,
-      approvalDeclineRate: 0,
-      foodSpoilageRate: 0,
-      initialGoodsMultiplier: 2,
-    },
-  },
-  {
-    id: 'normal',
-    name: 'Steadfast Castellan (Normal)',
-    description: 'Standard losses and starting supplies.',
-    settings: {
-      conflictMode: 'peaceful',
-      enemyPressure: 0,
-      severeWeatherEnabled: false,
-      wellAquiferNetworksEnabled: false,
-      approvalDeclineRate: 100,
-      foodSpoilageRate: 100,
-      initialGoodsMultiplier: 1,
-    },
-  },
-  {
-    id: 'hardcore',
-    name: 'Marcher Lord (Hardcore)',
-    description: 'Maximum losses, raids, and severe weather.',
-    settings: {
-      conflictMode: 'frontier',
-      enemyPressure: 100,
-      severeWeatherEnabled: true,
-      wellAquiferNetworksEnabled: true,
-      approvalDeclineRate: 150,
-      foodSpoilageRate: 150,
-      initialGoodsMultiplier: 1,
-    },
-  },
-];
-const DIFFICULTY_PRESET_ORDER = DIFFICULTY_PRESETS.map((preset) => preset.id);
-
-function difficultyPresetForSettings(
-  settings: WorldGenerationSettings,
-): (typeof DIFFICULTY_PRESETS)[number] | undefined {
-  return DIFFICULTY_PRESETS.find((preset) => (
-    preset.settings.conflictMode === settings.conflictMode
-    && preset.settings.enemyPressure === settings.enemyPressure
-    && preset.settings.severeWeatherEnabled === settings.severeWeatherEnabled
-    && preset.settings.wellAquiferNetworksEnabled === settings.wellAquiferNetworksEnabled
-    && preset.settings.approvalDeclineRate === settings.approvalDeclineRate
-    && preset.settings.foodSpoilageRate === settings.foodSpoilageRate
-    && preset.settings.initialGoodsMultiplier === settings.initialGoodsMultiplier
-  ));
-}
 
 function cycleValue<T>(values: readonly T[], current: T, step: number): T {
   const currentIndex = Math.max(0, values.indexOf(current));
@@ -495,8 +423,8 @@ export class WorldSetupPanel {
     });
     bindArrowSelector(difficultyPresetSelector, (step) => {
       const currentPreset = difficultyPresetForSettings(this.draft)?.id ?? 'normal';
-      const nextPresetId = cycleValue(DIFFICULTY_PRESET_ORDER, currentPreset, step);
-      const nextPreset = DIFFICULTY_PRESETS.find((preset) => preset.id === nextPresetId)!;
+      const nextPresetId = cycleValue(WORLD_DIFFICULTY_PRESET_ORDER, currentPreset, step);
+      const nextPreset = WORLD_DIFFICULTY_PRESETS.find((preset) => preset.id === nextPresetId)!;
       Object.assign(this.draft, nextPreset.settings);
       syncGameplayControls();
     });

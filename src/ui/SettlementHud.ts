@@ -33,6 +33,8 @@ import {
 } from '../economy/settlementProvisioning.ts';
 import type { SettlementApproval } from '../economy/settlementApproval.ts';
 import type { AuthoritativeWorldGeneration } from '../world/worldConfigAuthority.ts';
+import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
+import { describeWorldDifficulty } from '../world/worldDifficulty.ts';
 import {
   FOOD_RESOURCE_KINDS,
   FOOD_RESOURCE_LABELS,
@@ -88,7 +90,15 @@ const SETTLEMENT_HUD_HTML = `
         <span class="noble-hud__shield" data-noble-hud-shield></span>
       </div>
       <div class="noble-hud__identity">
-        <strong data-noble-hud-name></strong>
+        <div class="noble-hud__title-row">
+          <strong class="noble-hud__name" data-noble-hud-name></strong>
+          <span
+            class="noble-hud__difficulty"
+            data-world-difficulty-badge
+            role="note"
+            tabindex="0"
+          ></span>
+        </div>
         <div class="settlement-hud__people-card settlement-hud__resource-card noble-hud__gold-card" data-hud-card data-resource-card="gold">
           <div class="settlement-hud__stat settlement-hud__stat--gold noble-hud__gold" tabindex="0" data-resource="gold" aria-describedby="settlement-gold-card">
             <span class="settlement-hud__label">Treasury</span>
@@ -877,6 +887,7 @@ export class SettlementHud {
     const noble = getNoble(profile.nobleId);
     const noblePortrait = this.mustElement('[data-noble-hud-portrait]') as HTMLImageElement;
     const nobleName = this.mustElement('[data-noble-hud-name]');
+    const difficultyBadge = this.mustElement('[data-world-difficulty-badge]');
     const nobleShieldMount = this.mustElement('[data-noble-hud-shield]');
     if (noble.portrait) {
       noblePortrait.src = noble.portrait;
@@ -886,6 +897,15 @@ export class SettlementHud {
       noblePortrait.alt = '';
     }
     nobleName.textContent = profile.displayName;
+    const difficulty = describeWorldDifficulty(getActiveWorldGeneration());
+    difficultyBadge.textContent = difficulty.badgeLabel;
+    difficultyBadge.dataset.difficulty = difficulty.id;
+    difficultyBadge.dataset.tooltipTitle = difficulty.title;
+    difficultyBadge.dataset.tooltip = difficulty.summary;
+    difficultyBadge.setAttribute(
+      'aria-label',
+      `Difficulty: ${difficulty.title}. ${difficulty.summary.replaceAll(' · ', '. ')}.`,
+    );
     const nobleShield = createHeraldryShield('heraldry-shield--hud');
     applyHeraldryToElement(nobleShield, profile.heraldry);
     nobleShieldMount.appendChild(nobleShield);

@@ -85,7 +85,7 @@ def main() -> None:
         "allMeshesAreManifold": not nonmanifold,
         "threePlainSquareApertures": len(dark_apertures) == 3,
         "noDecorativeWindowInserts": not window_inserts,
-        "threeCourseShingleRoofAcrossFourRuns": len(roof_panels) == 12,
+        "threeCourseShingleRoofAcrossEightRuns": len(roof_panels) == 48,
         "noRuntimeOrVegetationDressingAuthored": not forbidden_authored_state,
         "atlasMaterialsPacked": len(material_tiles) >= 7,
     }

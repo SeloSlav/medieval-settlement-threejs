@@ -22,15 +22,30 @@
   },
   "roofFinish": "hand-split softwood shingles",
   "roofIrregularity": {
-    "method": "deterministic vertex sag with a zero-displacement envelope at every authored run boundary",
-    "longitudinalSagRangeMetres": [
-      0.072,
-      0.105
+    "method": "continuous piecewise-linear one-metre settlement; every shingle, substrate, ridge, and eave vertex follows the same longitudinal profile",
+    "moduleEdgeDropsMetres": [
+      0.0,
+      -0.018,
+      -0.052,
+      -0.074,
+      -0.03,
+      -0.02,
+      -0.068,
+      -0.108,
+      -0.038
     ],
-    "sideSpecificEaveDroopRangeMetres": [
-      0.038,
-      0.085
+    "rightSlopeAdditionalEdgeDropsMetres": [
+      0.0,
+      -0.004,
+      -0.01,
+      -0.016,
+      -0.008,
+      -0.012,
+      -0.02,
+      -0.014,
+      -0.006
     ],
+    "maximumDropMetres": 0.128,
     "supports": "four sloped verge rafters and eight short projecting roof lookouts visibly carry the gable-end overhangs"
   },
   "historicalMaterialDecision": {
@@ -400,199 +415,793 @@
       "rotationZDegrees": 180.0
     },
     {
-      "name": "T1_Roof_Left_4m_full",
-      "source": "roof_shingle_panel_4m_full",
+      "name": "T1_Roof_Left_Run00_full",
+      "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
         -1.92836,
-        1.5,
+        0.0,
         3.54925
       ],
       "rotationZDegrees": -90.0
     },
     {
-      "name": "T1_Roof_Left_4m_half",
-      "source": "roof_shingle_panel_4m_half",
+      "name": "T1_Roof_Left_Run00_half",
+      "source": "roof_shingle_panel_1m_half",
       "collection": "T1_05_Roof",
       "location": [
         -0.77135,
-        1.5,
+        0.0,
         4.92813
       ],
       "rotationZDegrees": -90.0
     },
     {
-      "name": "T1_Roof_Left_4m_quarter",
-      "source": "roof_shingle_panel_4m_quarter",
+      "name": "T1_Roof_Left_Run00_quarter",
+      "source": "roof_shingle_panel_1m_quarter",
       "collection": "T1_05_Roof",
       "location": [
         -0.19284,
-        1.5,
+        0.0,
         5.61757
       ],
       "rotationZDegrees": -90.0
     },
     {
-      "name": "T1_Roof_Left_4m_full",
-      "source": "roof_shingle_panel_4m_full",
+      "name": "T1_Roof_Left_Run01_full",
+      "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
         -1.92836,
-        5.5,
+        1.0,
         3.54925
       ],
       "rotationZDegrees": -90.0
     },
     {
-      "name": "T1_Roof_Left_4m_half",
-      "source": "roof_shingle_panel_4m_half",
+      "name": "T1_Roof_Left_Run01_half",
+      "source": "roof_shingle_panel_1m_half",
       "collection": "T1_05_Roof",
       "location": [
         -0.77135,
-        5.5,
+        1.0,
         4.92813
       ],
       "rotationZDegrees": -90.0
     },
     {
-      "name": "T1_Roof_Left_4m_quarter",
-      "source": "roof_shingle_panel_4m_quarter",
+      "name": "T1_Roof_Left_Run01_quarter",
+      "source": "roof_shingle_panel_1m_quarter",
       "collection": "T1_05_Roof",
       "location": [
         -0.19284,
-        5.5,
+        1.0,
         5.61757
       ],
       "rotationZDegrees": -90.0
     },
     {
-      "name": "T1_Roof_Right_4m_full",
-      "source": "roof_shingle_panel_4m_full",
+      "name": "T1_Roof_Left_Run02_full",
+      "source": "roof_shingle_panel_1m_full",
+      "collection": "T1_05_Roof",
+      "location": [
+        -1.92836,
+        2.0,
+        3.54925
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_Run02_half",
+      "source": "roof_shingle_panel_1m_half",
+      "collection": "T1_05_Roof",
+      "location": [
+        -0.77135,
+        2.0,
+        4.92813
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_Run02_quarter",
+      "source": "roof_shingle_panel_1m_quarter",
+      "collection": "T1_05_Roof",
+      "location": [
+        -0.19284,
+        2.0,
+        5.61757
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_Run03_full",
+      "source": "roof_shingle_panel_1m_full",
+      "collection": "T1_05_Roof",
+      "location": [
+        -1.92836,
+        3.0,
+        3.54925
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_Run03_half",
+      "source": "roof_shingle_panel_1m_half",
+      "collection": "T1_05_Roof",
+      "location": [
+        -0.77135,
+        3.0,
+        4.92813
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_Run03_quarter",
+      "source": "roof_shingle_panel_1m_quarter",
+      "collection": "T1_05_Roof",
+      "location": [
+        -0.19284,
+        3.0,
+        5.61757
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_Run04_full",
+      "source": "roof_shingle_panel_1m_full",
+      "collection": "T1_05_Roof",
+      "location": [
+        -1.92836,
+        4.0,
+        3.54925
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_Run04_half",
+      "source": "roof_shingle_panel_1m_half",
+      "collection": "T1_05_Roof",
+      "location": [
+        -0.77135,
+        4.0,
+        4.92813
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_Run04_quarter",
+      "source": "roof_shingle_panel_1m_quarter",
+      "collection": "T1_05_Roof",
+      "location": [
+        -0.19284,
+        4.0,
+        5.61757
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_Run05_full",
+      "source": "roof_shingle_panel_1m_full",
+      "collection": "T1_05_Roof",
+      "location": [
+        -1.92836,
+        5.0,
+        3.54925
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_Run05_half",
+      "source": "roof_shingle_panel_1m_half",
+      "collection": "T1_05_Roof",
+      "location": [
+        -0.77135,
+        5.0,
+        4.92813
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_Run05_quarter",
+      "source": "roof_shingle_panel_1m_quarter",
+      "collection": "T1_05_Roof",
+      "location": [
+        -0.19284,
+        5.0,
+        5.61757
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_Run06_full",
+      "source": "roof_shingle_panel_1m_full",
+      "collection": "T1_05_Roof",
+      "location": [
+        -1.92836,
+        6.0,
+        3.54925
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_Run06_half",
+      "source": "roof_shingle_panel_1m_half",
+      "collection": "T1_05_Roof",
+      "location": [
+        -0.77135,
+        6.0,
+        4.92813
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_Run06_quarter",
+      "source": "roof_shingle_panel_1m_quarter",
+      "collection": "T1_05_Roof",
+      "location": [
+        -0.19284,
+        6.0,
+        5.61757
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_Run07_full",
+      "source": "roof_shingle_panel_1m_full",
+      "collection": "T1_05_Roof",
+      "location": [
+        -1.92836,
+        7.0,
+        3.54925
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_Run07_half",
+      "source": "roof_shingle_panel_1m_half",
+      "collection": "T1_05_Roof",
+      "location": [
+        -0.77135,
+        7.0,
+        4.92813
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Left_Run07_quarter",
+      "source": "roof_shingle_panel_1m_quarter",
+      "collection": "T1_05_Roof",
+      "location": [
+        -0.19284,
+        7.0,
+        5.61757
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Roof_Right_Run00_full",
+      "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
         1.92836,
-        1.5,
+        0.0,
         3.54925
       ],
       "rotationZDegrees": 90.0
     },
     {
-      "name": "T1_Roof_Right_4m_half",
-      "source": "roof_shingle_panel_4m_half",
+      "name": "T1_Roof_Right_Run00_half",
+      "source": "roof_shingle_panel_1m_half",
       "collection": "T1_05_Roof",
       "location": [
         0.77135,
-        1.5,
+        0.0,
         4.92813
       ],
       "rotationZDegrees": 90.0
     },
     {
-      "name": "T1_Roof_Right_4m_quarter",
-      "source": "roof_shingle_panel_4m_quarter",
+      "name": "T1_Roof_Right_Run00_quarter",
+      "source": "roof_shingle_panel_1m_quarter",
       "collection": "T1_05_Roof",
       "location": [
         0.19284,
-        1.5,
+        0.0,
         5.61757
       ],
       "rotationZDegrees": 90.0
     },
     {
-      "name": "T1_Roof_Right_4m_full",
-      "source": "roof_shingle_panel_4m_full",
+      "name": "T1_Roof_Right_Run01_full",
+      "source": "roof_shingle_panel_1m_full",
       "collection": "T1_05_Roof",
       "location": [
         1.92836,
-        5.5,
+        1.0,
         3.54925
       ],
       "rotationZDegrees": 90.0
     },
     {
-      "name": "T1_Roof_Right_4m_half",
-      "source": "roof_shingle_panel_4m_half",
+      "name": "T1_Roof_Right_Run01_half",
+      "source": "roof_shingle_panel_1m_half",
       "collection": "T1_05_Roof",
       "location": [
         0.77135,
-        5.5,
+        1.0,
         4.92813
       ],
       "rotationZDegrees": 90.0
     },
     {
-      "name": "T1_Roof_Right_4m_quarter",
-      "source": "roof_shingle_panel_4m_quarter",
+      "name": "T1_Roof_Right_Run01_quarter",
+      "source": "roof_shingle_panel_1m_quarter",
       "collection": "T1_05_Roof",
       "location": [
         0.19284,
-        5.5,
+        1.0,
         5.61757
       ],
       "rotationZDegrees": 90.0
     },
     {
-      "name": "T1_Eave_Left_4m",
-      "source": "roof_shingle_eave_edge_4m",
+      "name": "T1_Roof_Right_Run02_full",
+      "source": "roof_shingle_panel_1m_full",
+      "collection": "T1_05_Roof",
+      "location": [
+        1.92836,
+        2.0,
+        3.54925
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_Run02_half",
+      "source": "roof_shingle_panel_1m_half",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.77135,
+        2.0,
+        4.92813
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_Run02_quarter",
+      "source": "roof_shingle_panel_1m_quarter",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.19284,
+        2.0,
+        5.61757
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_Run03_full",
+      "source": "roof_shingle_panel_1m_full",
+      "collection": "T1_05_Roof",
+      "location": [
+        1.92836,
+        3.0,
+        3.54925
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_Run03_half",
+      "source": "roof_shingle_panel_1m_half",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.77135,
+        3.0,
+        4.92813
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_Run03_quarter",
+      "source": "roof_shingle_panel_1m_quarter",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.19284,
+        3.0,
+        5.61757
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_Run04_full",
+      "source": "roof_shingle_panel_1m_full",
+      "collection": "T1_05_Roof",
+      "location": [
+        1.92836,
+        4.0,
+        3.54925
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_Run04_half",
+      "source": "roof_shingle_panel_1m_half",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.77135,
+        4.0,
+        4.92813
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_Run04_quarter",
+      "source": "roof_shingle_panel_1m_quarter",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.19284,
+        4.0,
+        5.61757
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_Run05_full",
+      "source": "roof_shingle_panel_1m_full",
+      "collection": "T1_05_Roof",
+      "location": [
+        1.92836,
+        5.0,
+        3.54925
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_Run05_half",
+      "source": "roof_shingle_panel_1m_half",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.77135,
+        5.0,
+        4.92813
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_Run05_quarter",
+      "source": "roof_shingle_panel_1m_quarter",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.19284,
+        5.0,
+        5.61757
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_Run06_full",
+      "source": "roof_shingle_panel_1m_full",
+      "collection": "T1_05_Roof",
+      "location": [
+        1.92836,
+        6.0,
+        3.54925
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_Run06_half",
+      "source": "roof_shingle_panel_1m_half",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.77135,
+        6.0,
+        4.92813
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_Run06_quarter",
+      "source": "roof_shingle_panel_1m_quarter",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.19284,
+        6.0,
+        5.61757
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_Run07_full",
+      "source": "roof_shingle_panel_1m_full",
+      "collection": "T1_05_Roof",
+      "location": [
+        1.92836,
+        7.0,
+        3.54925
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_Run07_half",
+      "source": "roof_shingle_panel_1m_half",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.77135,
+        7.0,
+        4.92813
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Roof_Right_Run07_quarter",
+      "source": "roof_shingle_panel_1m_quarter",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.19284,
+        7.0,
+        5.61757
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Eave_Left_Run00",
+      "source": "roof_shingle_eave_edge_1m",
       "collection": "T1_05_Roof",
       "location": [
         -2.69971,
-        1.5,
+        0.0,
         2.63
       ],
       "rotationZDegrees": -90.0
     },
     {
-      "name": "T1_Eave_Left_4m",
-      "source": "roof_shingle_eave_edge_4m",
+      "name": "T1_Eave_Left_Run01",
+      "source": "roof_shingle_eave_edge_1m",
       "collection": "T1_05_Roof",
       "location": [
         -2.69971,
-        5.5,
+        1.0,
         2.63
       ],
       "rotationZDegrees": -90.0
     },
     {
-      "name": "T1_Eave_Right_4m",
-      "source": "roof_shingle_eave_edge_4m",
+      "name": "T1_Eave_Left_Run02",
+      "source": "roof_shingle_eave_edge_1m",
+      "collection": "T1_05_Roof",
+      "location": [
+        -2.69971,
+        2.0,
+        2.63
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Eave_Left_Run03",
+      "source": "roof_shingle_eave_edge_1m",
+      "collection": "T1_05_Roof",
+      "location": [
+        -2.69971,
+        3.0,
+        2.63
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Eave_Left_Run04",
+      "source": "roof_shingle_eave_edge_1m",
+      "collection": "T1_05_Roof",
+      "location": [
+        -2.69971,
+        4.0,
+        2.63
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Eave_Left_Run05",
+      "source": "roof_shingle_eave_edge_1m",
+      "collection": "T1_05_Roof",
+      "location": [
+        -2.69971,
+        5.0,
+        2.63
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Eave_Left_Run06",
+      "source": "roof_shingle_eave_edge_1m",
+      "collection": "T1_05_Roof",
+      "location": [
+        -2.69971,
+        6.0,
+        2.63
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Eave_Left_Run07",
+      "source": "roof_shingle_eave_edge_1m",
+      "collection": "T1_05_Roof",
+      "location": [
+        -2.69971,
+        7.0,
+        2.63
+      ],
+      "rotationZDegrees": -90.0
+    },
+    {
+      "name": "T1_Eave_Right_Run00",
+      "source": "roof_shingle_eave_edge_1m",
       "collection": "T1_05_Roof",
       "location": [
         2.69971,
-        1.5,
+        0.0,
         2.63
       ],
       "rotationZDegrees": 90.0
     },
     {
-      "name": "T1_Eave_Right_4m",
-      "source": "roof_shingle_eave_edge_4m",
+      "name": "T1_Eave_Right_Run01",
+      "source": "roof_shingle_eave_edge_1m",
       "collection": "T1_05_Roof",
       "location": [
         2.69971,
-        5.5,
+        1.0,
         2.63
       ],
       "rotationZDegrees": 90.0
     },
     {
-      "name": "T1_Ridge_4m",
-      "source": "roof_shingle_ridge_4m",
+      "name": "T1_Eave_Right_Run02",
+      "source": "roof_shingle_eave_edge_1m",
+      "collection": "T1_05_Roof",
+      "location": [
+        2.69971,
+        2.0,
+        2.63
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Eave_Right_Run03",
+      "source": "roof_shingle_eave_edge_1m",
+      "collection": "T1_05_Roof",
+      "location": [
+        2.69971,
+        3.0,
+        2.63
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Eave_Right_Run04",
+      "source": "roof_shingle_eave_edge_1m",
+      "collection": "T1_05_Roof",
+      "location": [
+        2.69971,
+        4.0,
+        2.63
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Eave_Right_Run05",
+      "source": "roof_shingle_eave_edge_1m",
+      "collection": "T1_05_Roof",
+      "location": [
+        2.69971,
+        5.0,
+        2.63
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Eave_Right_Run06",
+      "source": "roof_shingle_eave_edge_1m",
+      "collection": "T1_05_Roof",
+      "location": [
+        2.69971,
+        6.0,
+        2.63
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Eave_Right_Run07",
+      "source": "roof_shingle_eave_edge_1m",
+      "collection": "T1_05_Roof",
+      "location": [
+        2.69971,
+        7.0,
+        2.63
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Ridge_Run00",
+      "source": "roof_shingle_ridge_1m",
       "collection": "T1_05_Roof",
       "location": [
         0.0,
-        1.5,
+        0.0,
         5.84739
       ],
       "rotationZDegrees": 90.0
     },
     {
-      "name": "T1_Ridge_4m",
-      "source": "roof_shingle_ridge_4m",
+      "name": "T1_Ridge_Run01",
+      "source": "roof_shingle_ridge_1m",
       "collection": "T1_05_Roof",
       "location": [
         0.0,
-        5.5,
+        1.0,
+        5.84739
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Ridge_Run02",
+      "source": "roof_shingle_ridge_1m",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.0,
+        2.0,
+        5.84739
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Ridge_Run03",
+      "source": "roof_shingle_ridge_1m",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.0,
+        3.0,
+        5.84739
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Ridge_Run04",
+      "source": "roof_shingle_ridge_1m",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.0,
+        4.0,
+        5.84739
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Ridge_Run05",
+      "source": "roof_shingle_ridge_1m",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.0,
+        5.0,
+        5.84739
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Ridge_Run06",
+      "source": "roof_shingle_ridge_1m",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.0,
+        6.0,
+        5.84739
+      ],
+      "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_Ridge_Run07",
+      "source": "roof_shingle_ridge_1m",
+      "collection": "T1_05_Roof",
+      "location": [
+        0.0,
+        7.0,
         5.84739
       ],
       "rotationZDegrees": 90.0
@@ -615,7 +1224,7 @@
       "location": [
         0.0,
         7.62,
-        5.84739
+        5.80939
       ],
       "rotationZDegrees": -90.0
     },
@@ -626,7 +1235,7 @@
       "location": [
         0.72,
         5.35,
-        4.83932
+        4.85972
       ],
       "rotationZDegrees": 90.0
     },

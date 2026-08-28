@@ -87,9 +87,9 @@ MATERIAL_LOOKS = {
     "timber_weathered": ("weathered-planks", (0.66, 0.49, 0.31, 1.0), 0.28, 0.66),
     "timber_weathered_horizontal": ("weathered-planks", (0.32, 0.20, 0.10, 1.0), 0.78, 0.72),
     "timber_cut": ("sawn-planks", (0.78, 0.54, 0.29, 1.0), 0.22, 0.56),
-    "shingles": ("split-shingles", (0.39, 0.27, 0.16, 1.0), 0.52, 0.82),
-    "shingles_aged": ("split-shingles", (0.25, 0.18, 0.12, 1.0), 0.66, 0.88),
-    "shingles_light": ("split-shingles", (0.56, 0.40, 0.23, 1.0), 0.44, 0.78),
+    "shingles": ("split-shingles", (0.52, 0.39, 0.25, 1.0), 1.0, 0.82),
+    "shingles_aged": ("split-shingles", (0.34, 0.26, 0.18, 1.0), 1.0, 0.88),
+    "shingles_light": ("split-shingles", (0.67, 0.53, 0.35, 1.0), 1.0, 0.78),
     "thatch_dark": ("thatch-roof", (0.07, 0.055, 0.035, 1.0), 0.88, 0.84),
     "thatch": ("thatch-roof", (0.15, 0.115, 0.07, 1.0), 0.86, 0.84),
     "thatch_light": ("thatch-roof", (0.27, 0.21, 0.13, 1.0), 0.82, 0.84),
@@ -189,7 +189,17 @@ def atlas_material(key: str) -> bpy.types.Material:
 
     tint_node = nodes.new("ShaderNodeMixRGB")
     tint_node.blend_type = "MULTIPLY"
-    strong_atlas_grade = key in {"fieldstone_weathered", "timber_weathered_horizontal", "roof_support_dark", "thatch_dark", "thatch", "thatch_light"}
+    strong_atlas_grade = key in {
+        "fieldstone_weathered",
+        "timber_weathered_horizontal",
+        "roof_support_dark",
+        "shingles",
+        "shingles_aged",
+        "shingles_light",
+        "thatch_dark",
+        "thatch",
+        "thatch_light",
+    }
     tint_node.inputs[0].default_value = 1.0 if strong_atlas_grade else tint_strength
     tint_node.inputs[2].default_value = tint
     tint_node.location = (70, 280)
@@ -650,50 +660,42 @@ def roof_transform(side: float, slope_center: float) -> tuple[tuple[float, float
     return (x, z), rotation
 
 
-def deform_roof_run(
-    obj: bpy.types.Object,
-    run_center_y: float,
-    side: float = 0.0,
-    eave_weighted: bool = False,
-    eave_edge: bool = False,
-) -> None:
-    """Add deterministic, seam-safe sag without opening cracks between roof courses.
+ROOF_SETTLEMENT_KNOTS = (0.0, -0.018, -0.052, -0.074, -0.030, -0.020, -0.068, -0.108, -0.038)
+ROOF_RIGHT_SETTLEMENT_KNOTS = (0.0, -0.004, -0.010, -0.016, -0.008, -0.012, -0.020, -0.014, -0.006)
 
-    The longitudinal envelope returns to zero at every authored four-metre run seam.
-    All courses in a run therefore keep matching boundaries, while the eave receives a
-    stronger side-specific droop so the silhouette does not remain bilaterally perfect.
-    """
+
+def roof_settlement_knot(knot_index: int, side: float = 0.0) -> float:
+    drop = ROOF_SETTLEMENT_KNOTS[knot_index]
+    if side > 0.0:
+        drop += ROOF_RIGHT_SETTLEMENT_KNOTS[knot_index]
+    return drop
+
+
+def settle_roof_module(obj: bpy.types.Object, run_index: int, side: float = 0.0) -> None:
+    """Apply one continuous longitudinal profile to shingles and their substrate."""
     if obj.type != "MESH" or not obj.data.vertices:
         return
     x_values = [vertex.co.x for vertex in obj.data.vertices]
-    y_values = [vertex.co.y for vertex in obj.data.vertices]
-    center_x = (min(x_values) + max(x_values)) / 2.0
-    half_x = max((max(x_values) - min(x_values)) / 2.0, 0.001)
-    min_y = min(y_values)
-    max_y = max(y_values)
-    y_span = max(max_y - min_y, 0.001)
-    rear_run = run_center_y > BUILDING_DEPTH / 2.0
-    shared_sag = 0.105 if rear_run else 0.072
-    phase = 1.37 if rear_run else 0.42
-    side_eave_drop = (0.038 if side < 0.0 else 0.076) * (1.12 if rear_run else 1.0)
-    maximum_drop = 0.0
+    min_x = min(x_values)
+    max_x = max(x_values)
+    span = max(max_x - min_x, 0.001)
+    start_drop = roof_settlement_knot(run_index, side)
+    end_drop = roof_settlement_knot(run_index + 1, side)
     for vertex in obj.data.vertices:
-        t = max(-1.0, min(1.0, (vertex.co.x - center_x) / half_x))
-        envelope = max(0.0, 1.0 - t * t)
-        drop = -shared_sag * envelope
-        drop += 0.020 * math.sin(t * math.tau + phase) * envelope
-        drop += (0.026 if rear_run else -0.018) * t * envelope
-        drop += 0.010 * math.sin(t * math.tau * 2.3 + phase * 0.7) * envelope
-        if eave_weighted:
-            toward_eave = (max_y - vertex.co.y) / y_span
-            drop -= side_eave_drop * envelope * toward_eave
-        elif eave_edge:
-            drop -= side_eave_drop * envelope
-        vertex.co.z += drop
-        maximum_drop = max(maximum_drop, -drop)
+        blend = (vertex.co.x - min_x) / span
+        vertex.co.z += start_drop * (1.0 - blend) + end_drop * blend
     obj.data.update()
-    obj["roof_deformation"] = "deterministic longitudinal sag with seam-zero envelope"
-    obj["roof_maximum_drop_m"] = round(maximum_drop, 4)
+    obj["roof_settlement_start_m"] = round(start_drop, 4)
+    obj["roof_settlement_end_m"] = round(end_drop, 4)
+
+
+def roof_drop_interpolated(y: float, side: float = 0.0) -> float:
+    """Sample the same edge-knot profile for a roof-mounted accessory."""
+    knot_position = max(0.0, min(float(len(ROOF_SETTLEMENT_KNOTS) - 1), y + 0.5))
+    lower = int(math.floor(knot_position))
+    upper = min(lower + 1, len(ROOF_SETTLEMENT_KNOTS) - 1)
+    blend = knot_position - lower
+    return roof_settlement_knot(lower, side) * (1.0 - blend) + roof_settlement_knot(upper, side) * blend
 
 
 def place_roof_supports() -> None:
@@ -735,50 +737,75 @@ def place_roof_supports() -> None:
 def place_roof() -> None:
     # Full + half + quarter authored courses form a 4.2 m slope. On a four-metre
     # body this produces a roof-dominant 0.70 m side overhang without stretching geometry.
-    # Two four-metre runs extend 0.50 m beyond each gable end.
-    runs = (("4m", 1.5), ("4m", 5.5))
+    # Eight one-metre runs extend 0.50 m beyond each gable end. Each complete module is
+    # settled as one unit so the imperfect silhouette never exposes the oak substrate.
+    runs = tuple(("1m", float(index)) for index in range(8))
     slope_courses = (("full", -0.9), ("half", 0.9), ("quarter", 1.8))
     for side in (-1.0, 1.0):
         side_name = "Left" if side < 0 else "Right"
-        for run_token, y in runs:
+        for run_index, (run_token, y) in enumerate(runs):
             for course_name, centre in slope_courses:
                 (x, z), rotation = roof_transform(side, centre)
                 panel = place(
                     f"roof_shingle_panel_{run_token}_{course_name}",
-                    f"T1_Roof_{side_name}_{run_token}_{course_name}",
+                    f"T1_Roof_{side_name}_Run{run_index:02d}_{course_name}",
                     ROOF,
                     (x, y, z),
                     rotation,
                 )
-                deform_roof_run(panel, y, side, eave_weighted=course_name == "full")
+                settle_roof_module(panel, run_index, side)
 
     eave_x = SLOPE_MAX * 2.0 * math.cos(PITCH)
     eave_z = RIDGE_Z - SLOPE_MAX * 2.0 * math.sin(PITCH)
     for side in (-1.0, 1.0):
         rotation = math.pi / 2.0 if side > 0 else -math.pi / 2.0
         side_name = "Left" if side < 0 else "Right"
-        for run_token, y in runs:
+        for run_index, (run_token, y) in enumerate(runs):
             eave = place(
                 f"roof_shingle_eave_edge_{run_token}",
-                f"T1_Eave_{side_name}_{run_token}",
+                f"T1_Eave_{side_name}_Run{run_index:02d}",
                 ROOF,
                 (side * eave_x, y, eave_z),
                 rotation,
             )
-            deform_roof_run(eave, y, side, eave_edge=True)
+            settle_roof_module(eave, run_index, side)
 
-    for run_token, y in runs:
-        ridge = place(f"roof_shingle_ridge_{run_token}", f"T1_Ridge_{run_token}", ROOF, (0.0, y, RIDGE_Z), math.pi / 2.0)
-        deform_roof_run(ridge, y)
+    for run_index, (run_token, y) in enumerate(runs):
+        ridge = place(
+            f"roof_shingle_ridge_{run_token}",
+            f"T1_Ridge_Run{run_index:02d}",
+            ROOF,
+            (0.0, y, RIDGE_Z),
+            math.pi / 2.0,
+        )
+        settle_roof_module(ridge, run_index)
 
-    place("roof_shingle_ridge_endcap", "T1_Ridge_Endcap_Front", ROOF, (0.0, -0.62, RIDGE_Z), math.pi / 2.0)
-    place("roof_shingle_ridge_endcap", "T1_Ridge_Endcap_Rear", ROOF, (0.0, BUILDING_DEPTH + 0.62, RIDGE_Z), -math.pi / 2.0)
+    place(
+        "roof_shingle_ridge_endcap",
+        "T1_Ridge_Endcap_Front",
+        ROOF,
+        (0.0, -0.62, RIDGE_Z + roof_settlement_knot(0)),
+        math.pi / 2.0,
+    )
+    place(
+        "roof_shingle_ridge_endcap",
+        "T1_Ridge_Endcap_Rear",
+        ROOF,
+        (0.0, BUILDING_DEPTH + 0.62, RIDGE_Z + roof_settlement_knot(8)),
+        -math.pi / 2.0,
+    )
 
     # The existing open smoke hood is retained but receives a split-shingle cap. Runtime owns
     # emitted smoke; a later masonry chimney remains intentionally absent at this tier.
     smoke_x = 0.72
     smoke_z = RIDGE_Z - smoke_x * math.tan(PITCH) - 0.05
-    smoke_hood = place("roof_thatch_smoke_vent", "T1_Shingled_Smoke_Hood", ROOF, (smoke_x, 5.35, smoke_z - 0.10), math.pi / 2.0)
+    smoke_hood = place(
+        "roof_thatch_smoke_vent",
+        "T1_Shingled_Smoke_Hood",
+        ROOF,
+        (smoke_x, 5.35, smoke_z + roof_drop_interpolated(5.35, 1.0)),
+        math.pi / 2.0,
+    )
     remap_instance_material(smoke_hood, "thatch_dark", "shingles_aged")
     place_roof_supports()
 
@@ -925,9 +952,10 @@ def write_manifest() -> None:
         },
         "roofFinish": "hand-split softwood shingles",
         "roofIrregularity": {
-            "method": "deterministic vertex sag with a zero-displacement envelope at every authored run boundary",
-            "longitudinalSagRangeMetres": [0.072, 0.105],
-            "sideSpecificEaveDroopRangeMetres": [0.038, 0.085],
+            "method": "continuous piecewise-linear one-metre settlement; every shingle, substrate, ridge, and eave vertex follows the same longitudinal profile",
+            "moduleEdgeDropsMetres": list(ROOF_SETTLEMENT_KNOTS),
+            "rightSlopeAdditionalEdgeDropsMetres": list(ROOF_RIGHT_SETTLEMENT_KNOTS),
+            "maximumDropMetres": round(abs(min(ROOF_SETTLEMENT_KNOTS)) + abs(min(ROOF_RIGHT_SETTLEMENT_KNOTS)), 4),
             "supports": "four sloped verge rafters and eight short projecting roof lookouts visibly carry the gable-end overhangs",
         },
         "historicalMaterialDecision": {

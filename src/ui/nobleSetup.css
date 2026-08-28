@@ -1336,15 +1336,24 @@
   grid-row: 1;
   display: grid;
   align-content: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
 }
 
-.noble-hud__identity > strong {
+.noble-hud__title-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   margin: 0;
-  padding: 0 0 9px;
-  overflow: hidden;
+  min-width: 0;
+  padding: 0 0 7px;
   border-bottom: 1px solid rgba(213, 190, 139, 0.24);
+}
+
+.noble-hud__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
   color: #eee3ca;
   font-size: 14px;
   font-weight: 700;
@@ -1514,6 +1523,49 @@
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.noble-hud__difficulty {
+  flex: 0 0 auto;
+  padding: 3px 5px 2px;
+  border: 1px solid rgba(195, 164, 94, 0.38);
+  border-radius: 2px;
+  color: #d8c185;
+  background: rgba(89, 72, 38, 0.24);
+  box-shadow: inset 0 1px rgba(255, 245, 215, 0.05);
+  cursor: help;
+  font-family: var(--ui-sans, Arial, sans-serif);
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.noble-hud__difficulty[data-difficulty='easy'] {
+  border-color: rgba(143, 172, 102, 0.42);
+  color: #adc98e;
+  background: rgba(63, 88, 46, 0.25);
+}
+
+.noble-hud__difficulty[data-difficulty='hardcore'] {
+  border-color: rgba(201, 108, 82, 0.5);
+  color: #df9b82;
+  background: rgba(105, 46, 35, 0.27);
+}
+
+.noble-hud__difficulty[data-difficulty='custom'] {
+  border-color: rgba(137, 160, 166, 0.45);
+  color: #b5c9c8;
+  background: rgba(49, 70, 73, 0.27);
+}
+
+.noble-hud__difficulty:hover,
+.noble-hud__difficulty:focus-visible {
+  border-color: rgba(235, 203, 127, 0.72);
+  color: #f0d794;
+  outline: none;
 }
 
 .noble-hud__reports-count {
@@ -1716,7 +1768,9 @@ button.noble-hud__report-body:not(:disabled):focus-visible {
   .noble-hud__shield { right: -7px; bottom: -8px; }
   .heraldry-shield--hud { width: 39px; }
   .noble-hud__identity { gap: 8px; }
-  .noble-hud__identity > strong { padding-bottom: 6px; font-size: 11px; }
+  .noble-hud__title-row { gap: 5px; padding-bottom: 6px; }
+  .noble-hud__name { font-size: 11px; }
+  .noble-hud__difficulty { padding-inline: 4px; font-size: 6px; }
   .noble-hud__gold.settlement-hud__stat { grid-template-columns: 29px minmax(0, 1fr); }
   .noble-hud .noble-hud__gold.settlement-hud__stat::before { width: 29px; height: 29px; }
   .noble-hud__gold .settlement-hud__value { font-size: 18px; }
