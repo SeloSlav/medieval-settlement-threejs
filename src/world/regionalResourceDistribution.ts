@@ -60,14 +60,14 @@ const SIZE_RESOURCE_BUDGETS: Record<WorldMapSize, SizeResourceBudget> = {
   },
   medium: {
     totalResourceNodes: 20,
-    richResourceNodes: 8,
+    richResourceNodes: 4,
     minimumFoodNodes: 4,
     maximumWildFoodNodes: 8,
     varietyBonus: 0,
   },
   large: {
     totalResourceNodes: 40,
-    richResourceNodes: 16,
+    richResourceNodes: 8,
     minimumFoodNodes: 8,
     maximumWildFoodNodes: 16,
     varietyBonus: 10,

@@ -20,6 +20,7 @@ import {
   TERRAIN_SNOW_TEXTURE_WEIGHT,
   mirroredTerrainAtlasCoordinate,
   mirroredTerrainNormalParity,
+  setTerrainTopographyVisibility,
   stableTerrainBlendWeight,
   terrainShoreRainVisibility,
 } from '../src/terrain/TerrainGrassMaterial.ts';
@@ -767,6 +768,21 @@ for (const constructorCase of constructorCases) {
   }, constructorCase.label);
   assert.ok(material?.colorNode, `${constructorCase.label} must construct its color graph`);
   assert.ok(material?.roughnessNode, `${constructorCase.label} must construct its roughness graph`);
+  assert.equal(
+    setTerrainTopographyVisibility(material!, 1),
+    true,
+    `${constructorCase.label} must expose the build-mode topography visibility uniform`,
+  );
+  assert.equal(
+    setTerrainTopographyVisibility(material!, 1),
+    false,
+    `${constructorCase.label} must avoid redundant uniform writes`,
+  );
+  assert.equal(
+    setTerrainTopographyVisibility(material!, -1),
+    true,
+    `${constructorCase.label} must clamp visibility to the disabled state`,
+  );
   material?.dispose();
 }
 

@@ -9,6 +9,7 @@ import type { RiverLayout } from '../rivers/RiverLayout.ts';
 import { CENTRAL_CLEARING_RADIUS } from '../props/forestField.ts';
 import {
   regionalPlacementAffinity,
+  strictRegionalPlacementAffinity,
   type ResourcePlacementTarget,
 } from '../world/resourceRegionDistribution.ts';
 import type { ResourceTerrainAccessibilityTest } from '../world/resourceTerrainAccessibility.ts';
@@ -176,6 +177,7 @@ export class ClayDepositLayout {
           && hasClayBankClearance(candidate, sites)
         ),
         placementTarget,
+        grade === 'rich',
       ) ?? bestRegionalClayCandidate(
         rankedCandidates.filter((candidate) =>
           (options.isTerrainAccessible?.(candidate.x, candidate.z) ?? true)
@@ -183,6 +185,7 @@ export class ClayDepositLayout {
           && hasClayBankClearance(candidate, sites)
         ),
         placementTarget,
+        grade === 'rich',
       );
       if (!selected) continue;
       const radii = clayDepositRadii(grade, selected.formation);
@@ -233,16 +236,40 @@ type BankCandidate = {
   formation: ClayDepositSite['formation'];
 };
 
+export function clayPlacementTargetScore(options: {
+  riverLayout: RiverLayout;
+  playableHalf: number;
+  seed: number;
+  target: ResourcePlacementTarget;
+  isTerrainAccessible?: ResourceTerrainAccessibilityTest;
+}): number {
+  const candidates = [
+    ...collectBankCandidates(options.riverLayout, options.playableHalf, options.seed),
+    ...collectCoastalClayCandidates(options.riverLayout, options.playableHalf, options.seed),
+    ...collectDryClayCandidates(options.riverLayout, options.playableHalf, options.seed),
+  ].filter((candidate) =>
+    options.isTerrainAccessible?.(candidate.x, candidate.z) ?? true
+  );
+  const selected = bestRegionalClayCandidate(candidates, options.target, true);
+  if (!selected) return Number.NEGATIVE_INFINITY;
+  return selected.score
+    + regionalPlacementAffinity(selected.x, selected.z, options.target) * 12;
+}
+
 function bestRegionalClayCandidate(
   candidates: readonly BankCandidate[],
   placementTarget: ResourcePlacementTarget | undefined,
+  strictRegional = false,
 ): BankCandidate | undefined {
+  const affinity = strictRegional
+    ? strictRegionalPlacementAffinity
+    : regionalPlacementAffinity;
   return candidates.reduce<BankCandidate | undefined>((best, candidate) => {
     if (!best) return candidate;
     const candidateScore = candidate.score
-      + regionalPlacementAffinity(candidate.x, candidate.z, placementTarget) * 12;
+      + affinity(candidate.x, candidate.z, placementTarget) * 12;
     const bestScore = best.score
-      + regionalPlacementAffinity(best.x, best.z, placementTarget) * 12;
+      + affinity(best.x, best.z, placementTarget) * 12;
     return candidateScore > bestScore ? candidate : best;
   }, undefined);
 }

@@ -153,7 +153,5 @@ def _grave_slab(builder: MeshBuilder) -> None:
 
 def _culvert(builder: MeshBuilder) -> None:
     for side in (-0.72, 0.72):
-        builder.irregular_stone_run(0.60, 0.90, 2.0, "fieldstone", 0.23)
-        # Move is encoded by a second side wall rather than object transforms.
         builder.box((0.60, 2.0, 0.90), (side, 0.0, 0.45), "fieldstone")
     builder.arch_ring(1.25, 1.0, 2.0, 0.22, "limestone_warm", 11)

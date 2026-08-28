@@ -8,7 +8,7 @@ import random
 from typing import Callable, Iterable, Sequence
 
 import bpy
-from mathutils import Matrix, Vector
+from mathutils import Euler, Matrix, Vector
 
 from . import spec
 
@@ -46,7 +46,7 @@ class MeshBuilder:
             (-sx, -sy, -sz), (sx, -sy, -sz), (sx, sy, -sz), (-sx, sy, -sz),
             (-sx, -sy, sz), (sx, -sy, sz), (sx, sy, sz), (-sx, sy, sz),
         ]
-        matrix = Matrix.Euler(rotation, "XYZ").to_matrix().to_4x4()
+        matrix = Euler(rotation, "XYZ").to_matrix().to_4x4()
         matrix.translation = Vector(center)
         vertices = [tuple(matrix @ Vector(vertex)) for vertex in local]
         faces = [

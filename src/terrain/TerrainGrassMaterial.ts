@@ -4,6 +4,7 @@ import {
   bumpMap,
   cameraPosition,
   float,
+  floor,
   fract,
   fwidth,
   max,
@@ -71,6 +72,29 @@ export const FOREST_CANOPY_SUN_OPENING_RELIEF = 0.72;
 export const FOREST_CANOPY_SUN_OPENING_FAR_VISIBILITY = 0.14;
 export const FOREST_CANOPY_SUN_OPENING_FADE_START_METERS = 110;
 export const FOREST_CANOPY_SUN_OPENING_FADE_END_METERS = 260;
+export const TERRAIN_TOPOGRAPHY_INTERVAL_METERS = 2;
+
+const TERRAIN_TOPOGRAPHY_VISIBILITY_KEY = 'terrainTopographyVisibility';
+
+type TerrainTopographyMaterial = {
+  userData: Record<string, unknown>;
+};
+
+type TerrainTopographyUniform = TslNode & { value: number };
+
+export function setTerrainTopographyVisibility(
+  material: TerrainTopographyMaterial,
+  visibility: number,
+): boolean {
+  const visibilityUniform = material.userData[
+    TERRAIN_TOPOGRAPHY_VISIBILITY_KEY
+  ] as TerrainTopographyUniform | undefined;
+  if (!visibilityUniform) return false;
+  const nextVisibility = Math.max(0, Math.min(1, visibility));
+  if (visibilityUniform.value === nextVisibility) return false;
+  visibilityUniform.value = nextVisibility;
+  return true;
+}
 
 export function stableTerrainBlendWeight(
   raw: number,
@@ -1175,6 +1199,98 @@ function applyCloseZoomDirtBlend(
   return mix(dirtColor, meadowColor, meadowWeight) as TslNode;
 }
 
+function applyTerrainTopographyOverlay(
+  material: MeshStandardNodeMaterial,
+  baseColor: TslNode,
+): TslNode {
+  const visibility = uniform(0) as unknown as TerrainTopographyUniform;
+  material.userData[TERRAIN_TOPOGRAPHY_VISIBILITY_KEY] = visibility;
+
+  const world = positionWorld as TslNode;
+  const heightCycle = world.y.div(
+    float(TERRAIN_TOPOGRAPHY_INTERVAL_METERS) as TslNode,
+  ) as TslNode;
+  const heightDistance = (fract(
+    heightCycle.add(float(0.5) as TslNode),
+  ) as TslNode).sub(float(0.5) as TslNode).abs() as TslNode;
+  const heightFootprint = max(
+    fwidth(heightCycle) as TslNode,
+    float(0.0025) as TslNode,
+  ) as TslNode;
+  const contourBand = sub(
+    float(1) as TslNode,
+    smoothstep(
+      heightFootprint.mul(float(0.62) as TslNode),
+      heightFootprint.mul(float(1.42) as TslNode),
+      heightDistance,
+    ) as TslNode,
+  ) as TslNode;
+
+  // Round staggered stipple cells only decide where each contour is visible;
+  // they never contribute a line direction of their own. The narrow height
+  // band remains the complete authored mark, so every dot bends with its
+  // elevation isoline instead of reading as an etched diagonal hatch.
+  const dotRowCoordinate = world.z.div(float(2.4) as TslNode) as TslNode;
+  const dotRow = floor(dotRowCoordinate) as TslNode;
+  const dotStagger = fract(dotRow.mul(float(0.5) as TslNode)) as TslNode;
+  const dotX = (fract(
+    world.x
+      .div(float(2.8) as TslNode)
+      .add(dotStagger),
+  ) as TslNode).sub(float(0.5) as TslNode) as TslNode;
+  const dotZ = (fract(dotRowCoordinate) as TslNode)
+    .sub(float(0.5) as TslNode) as TslNode;
+  const dotDistanceSq = dotX.mul(dotX).add(dotZ.mul(dotZ)) as TslNode;
+  const dotFootprint = max(
+    max(
+      fwidth(dotX) as TslNode,
+      fwidth(dotZ) as TslNode,
+    ) as TslNode,
+    float(0.008) as TslNode,
+  ) as TslNode;
+  const dotInnerRadius = max(
+    float(0.08) as TslNode,
+    (float(0.24) as TslNode).sub(dotFootprint),
+  ) as TslNode;
+  const dotOuterRadius = (float(0.24) as TslNode).add(dotFootprint) as TslNode;
+  const dotBand = sub(
+    float(1) as TslNode,
+    smoothstep(
+      dotInnerRadius.mul(dotInnerRadius),
+      dotOuterRadius.mul(dotOuterRadius),
+      dotDistanceSq,
+    ) as TslNode,
+  ) as TslNode;
+  const contourScaleVisibility = sub(
+    float(1) as TslNode,
+    smoothstep(
+      float(0.14) as TslNode,
+      float(0.36) as TslNode,
+      heightFootprint,
+    ) as TslNode,
+  ) as TslNode;
+  const dotScaleVisibility = sub(
+    float(1) as TslNode,
+    smoothstep(
+      float(0.16) as TslNode,
+      float(0.42) as TslNode,
+      dotFootprint,
+    ) as TslNode,
+  ) as TslNode;
+  const ink = contourBand
+    .mul(dotBand)
+    .mul(contourScaleVisibility)
+    .mul(dotScaleVisibility)
+    .mul(visibility)
+    .mul(float(0.28) as TslNode) as TslNode;
+
+  // A small warm lift reads on meadow, forest litter, wet soil, and snow
+  // without flattening any of their authored material identities.
+  return baseColor.add(
+    (vec3(0.34, 0.33, 0.22) as TslNode).mul(ink),
+  ) as TslNode;
+}
+
 export function createTerrainGrassMaterial(
   textures: TerrainBlendTextureSet,
   weather?: RoadWeatherUniforms,
@@ -1201,10 +1317,13 @@ export function createTerrainGrassMaterial(
     resolvedWeather,
     blendNodes.frostExposure,
   );
-  material.colorNode = applyTerrainSnowColor(
-    wetColorNode,
-    snowNodes.colorNode,
-    snowNodes.mask,
+  material.colorNode = applyTerrainTopographyOverlay(
+    material,
+    applyTerrainSnowColor(
+      wetColorNode,
+      snowNodes.colorNode,
+      snowNodes.mask,
+    ),
   );
   material.normalNode = blendNodes.normalNode;
   material.roughnessNode = applyTerrainSnowRoughness(
@@ -1544,7 +1663,7 @@ export function createTerrainGrassMaterialWithRiverShore(
   material.color.set(0xffffff);
   material.roughness = 1;
   material.metalness = 0;
-  material.colorNode = colorNode;
+  material.colorNode = applyTerrainTopographyOverlay(material, colorNode);
   material.normalNode = baseNormalNode;
   material.roughnessNode = roughnessNode;
   material.aoNode = (mix(

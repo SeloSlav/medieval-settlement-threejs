@@ -1069,6 +1069,9 @@ export class App {
     this.sceneManager?.setBuildInteractionActive(
       splineDraft || burgageDraft || farmFieldDraft || buildingActive || forestryWorkAreaActive,
     );
+    this.sceneManager?.setTerrainTopographyVisible(
+      Boolean(this.toolbar?.isBuildMenuOpen()) || buildingActive,
+    );
     this.sceneManager?.setRoadDraftActive(roadDraft);
   }
 

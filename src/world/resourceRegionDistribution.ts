@@ -26,6 +26,7 @@ export type ResourceRegionDistribution = {
   richTargets: readonly ResourcePlacementTarget[];
   ordinaryTargets: readonly ResourcePlacementTarget[];
   smallRegionSide: number;
+  richMinimumSpacing: number;
 };
 
 type Point = { x: number; z: number };
@@ -53,24 +54,30 @@ export function createResourceRegionDistribution(
   const targetLimit = playableHalf - Math.max(18, smallRegionSide * 0.08);
   const ordinarySearchRadius = smallRegionSide * 0.34;
   const richSearchRadius = territoryCount === 1
-    ? ordinarySearchRadius
-    : smallRegionSide * 0.24;
+    ? smallRegionSide * 0.18
+    : smallRegionSide * 0.2;
+  const richMinimumSpacing = smallRegionSide * 0.38;
   const richTargetBuckets = centers.map(() => [] as ResourcePlacementTarget[]);
   const ordinaryTargetBuckets = centers.map(() => [] as ResourcePlacementTarget[]);
+  const richTargetPoints: Point[] = [];
 
   for (let territoryIndex = 0; territoryIndex < centers.length; territoryIndex++) {
     const center = centers[territoryIndex];
     for (let index = 0; index < counts[territoryIndex]; index++) {
       const rich = index < richCounts[territoryIndex];
-      const point = territoryCount === 1
+      const samplePoint = () => territoryCount === 1
         ? sampleAcrossSmallMap(rng, targetLimit)
         : sampleAroundTerritory(
             rng,
             center,
             smallRegionSide,
             targetLimit,
-            rich ? 0.2 : 0.26,
+            rich ? 0.16 : 0.26,
           );
+      const point = rich
+        ? sampleSpacedRichTarget(samplePoint, richTargetPoints, richMinimumSpacing)
+        : samplePoint();
+      if (rich) richTargetPoints.push(point);
       (rich ? richTargetBuckets[territoryIndex] : ordinaryTargetBuckets[territoryIndex]).push({
         territoryIndex,
         ...point,
@@ -85,6 +92,7 @@ export function createResourceRegionDistribution(
 
   return {
     smallRegionSide,
+    richMinimumSpacing,
     richTargets,
     ordinaryTargets,
     territories: centers.map((center, index) => ({
@@ -130,6 +138,43 @@ export function regionalPlacementAffinity(
   const normalizedDistance = Math.hypot(x - target.x, z - target.z)
     / Math.max(1, target.searchRadius);
   return Math.max(-1, 1 - normalizedDistance);
+}
+
+/** Strong affinity used only when a rich roll must retain its assigned territory. */
+export function strictRegionalPlacementAffinity(
+  x: number,
+  z: number,
+  target: ResourcePlacementTarget | undefined,
+): number {
+  if (!target) return 0;
+  return 1 - Math.hypot(x - target.x, z - target.z)
+    / Math.max(1, target.searchRadius);
+}
+
+function sampleSpacedRichTarget(
+  samplePoint: () => Point,
+  existing: readonly Point[],
+  minimumSpacing: number,
+): Point {
+  let best = samplePoint();
+  let bestNearestDistance = nearestPointDistance(best, existing);
+  for (let attempt = 0; attempt < 64; attempt++) {
+    const candidate = attempt === 0 ? best : samplePoint();
+    const nearestDistance = nearestPointDistance(candidate, existing);
+    if (nearestDistance >= minimumSpacing) return candidate;
+    if (nearestDistance <= bestNearestDistance) continue;
+    best = candidate;
+    bestNearestDistance = nearestDistance;
+  }
+  return best;
+}
+
+function nearestPointDistance(point: Point, existing: readonly Point[]): number {
+  if (existing.length === 0) return Number.POSITIVE_INFINITY;
+  return existing.reduce(
+    (nearest, other) => Math.min(nearest, Math.hypot(point.x - other.x, point.z - other.z)),
+    Number.POSITIVE_INFINITY,
+  );
 }
 
 function allocateTerritoryCounts(

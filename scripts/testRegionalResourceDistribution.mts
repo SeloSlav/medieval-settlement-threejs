@@ -49,8 +49,8 @@ assert.deepEqual(
 );
 assert.deepEqual(
   balancedPlans.map((plan) => plan.richResourceNodeCount),
-  [2, 8, 16],
-  'rich-node budgets must scale with the same area multipliers',
+  [2, 4, 8],
+  'medium and large maps must expose one rich roll per small-map-sized territory',
 );
 assert.deepEqual(
   balancedPlans.map((plan) => plan.minimumFoodNodeCount),
@@ -69,7 +69,7 @@ for (const mapSize of mapSizes) {
   const dimensions = resolveWorldDimensions(mapSize);
   const territoryCount = mapSize === 'small' ? 1 : mapSize === 'medium' ? 4 : 8;
   const totalNodeCount = territoryCount * 5;
-  const richNodeCount = territoryCount * 2;
+  const richNodeCount = mapSize === 'small' ? 2 : territoryCount;
   const distributions = Array.from({ length: 128 }, (_, index) =>
     createResourceRegionDistribution(
       settings({ seed: index + 1, mapSize }),
@@ -87,15 +87,18 @@ for (const mapSize of mapSizes) {
       distribution.territories.reduce((sum, territory) => sum + territory.plannedNodeCount, 0),
       totalNodeCount,
     );
+    const expectedRichPerTerritory = mapSize === 'small' ? 2 : 1;
     assert.ok(
-      distribution.territories.every((territory) => territory.plannedRichNodeCount === 2),
-      `${mapSize} must plan two rich rolls in every small-map-sized territory`,
+      distribution.territories.every((territory) =>
+        territory.plannedRichNodeCount === expectedRichPerTerritory
+      ),
+      `${mapSize} must retain its per-territory rich-roll budget`,
     );
     assert.ok(
       distribution.territories.every((territory) =>
         distribution.richTargets.filter((target) =>
           target.territoryIndex === territory.index
-        ).length === 2
+        ).length === expectedRichPerTerritory
       ),
       `${mapSize} rich targets must retain their per-territory allocation`,
     );

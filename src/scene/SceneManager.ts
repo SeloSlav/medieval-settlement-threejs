@@ -54,6 +54,7 @@ import {
   type DayNightLightingState,
 } from '../world/dayNightPresentation.ts';
 import { Terrain, type TerrainBounds } from '../terrain/Terrain.ts';
+import { setTerrainTopographyVisibility } from '../terrain/TerrainGrassMaterial.ts';
 import { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 import type { RockObstacle } from '../utils/pathGeometry.ts';
@@ -925,6 +926,10 @@ export class SceneManager {
     if (!active) {
       this.refreshShadowMap();
     }
+  }
+
+  setTerrainTopographyVisible(visible: boolean): void {
+    setTerrainTopographyVisibility(this.fairTerrainMaterial, visible ? 1 : 0);
   }
 
   setRoadDraftActive(active: boolean): void {

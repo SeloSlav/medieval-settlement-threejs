@@ -898,6 +898,10 @@ export class BuildToolbar {
     return (this.gameMenu?.isOpen() ?? false) || (this.gameMenu?.isControlsOpen() ?? false);
   }
 
+  isBuildMenuOpen(): boolean {
+    return this.buildMenuOpen;
+  }
+
   setFirstPersonMode(active: boolean): void {
     if (this.firstPersonActive === active) return;
     this.firstPersonActive = active;

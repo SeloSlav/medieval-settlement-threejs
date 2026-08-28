@@ -10,6 +10,7 @@ import type { RiverLayout, RiverPoint } from '../rivers/RiverLayout.ts';
 import {
   regionalPlacementAffinity,
   sampleRegionalPlacementCandidate,
+  strictRegionalPlacementAffinity,
   type ResourcePlacementTarget,
 } from '../world/resourceRegionDistribution.ts';
 import {
@@ -286,6 +287,30 @@ function pickMushroomSite(
 
 type FishCandidate = RiverPoint & { corridorIndex: number };
 
+export function fishPlacementTargetScore(options: {
+  riverLayout: RiverLayout;
+  extent: number;
+  seed: number;
+  requestedCount: number;
+  target: ResourcePlacementTarget;
+  isTerrainAccessible?: ResourceTerrainAccessibilityTest;
+}): number {
+  const candidates = collectFishSiteCandidates(
+    options.riverLayout,
+    options.extent,
+    options.seed,
+    options.requestedCount,
+    options.isTerrainAccessible ?? (() => true),
+  );
+  return candidates.reduce(
+    (best, candidate) => Math.max(
+      best,
+      fishRegionalScore(options.seed, candidate, [], options.target, true),
+    ),
+    Number.NEGATIVE_INFINITY,
+  );
+}
+
 function pickFishSites(
   riverLayout: RiverLayout,
   extent: number,
@@ -296,6 +321,49 @@ function pickFishSites(
   isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
 ): ForagingSite[] {
   if (requestedCount <= 0) return [];
+  const candidates = collectFishSiteCandidates(
+    riverLayout,
+    extent,
+    seed,
+    requestedCount,
+    isTerrainAccessible,
+  );
+
+  // A fish node without actual surface water is worse than a missing optional
+  // resource: its camp can never be placed and its marker lies to the player.
+  if (candidates.length === 0) return [];
+
+  const selected: FishCandidate[] = [];
+  while (selected.length < requestedCount) {
+    const remaining = candidates.filter((candidate) => !selected.includes(candidate));
+    if (remaining.length === 0) break;
+    const placementTarget = placementTargets?.[selected.length];
+    const strictRegional = selected.length < requestedRichCount;
+    const next = remaining.reduce((best, candidate) =>
+      fishRegionalScore(seed, candidate, selected, placementTarget, strictRegional)
+        > fishRegionalScore(seed, best, selected, placementTarget, strictRegional)
+        ? candidate
+        : best
+    );
+    selected.push(next);
+  }
+
+  const richCount = Math.max(0, Math.min(selected.length, requestedRichCount));
+  return selected.map((site, index) => ({
+    x: site.x,
+    z: site.z,
+    kind: 'fish' as const,
+    isRich: index < richCount,
+  }));
+}
+
+function collectFishSiteCandidates(
+  riverLayout: RiverLayout,
+  extent: number,
+  seed: number,
+  requestedCount: number,
+  isTerrainAccessible: ResourceTerrainAccessibilityTest,
+): FishCandidate[] {
   const margin = Math.max(24, extent * 0.06);
   const candidates: FishCandidate[] = [];
   for (let corridorIndex = 0; corridorIndex < riverLayout.corridors.length; corridorIndex++) {
@@ -328,32 +396,7 @@ function pickFishSites(
       candidates.push(candidate);
     }
   }
-
-  // A fish node without actual surface water is worse than a missing optional
-  // resource: its camp can never be placed and its marker lies to the player.
-  if (candidates.length === 0) return [];
-
-  const selected: FishCandidate[] = [];
-  while (selected.length < requestedCount) {
-    const remaining = candidates.filter((candidate) => !selected.includes(candidate));
-    if (remaining.length === 0) break;
-    const placementTarget = placementTargets?.[selected.length];
-    const next = remaining.reduce((best, candidate) =>
-      fishRegionalScore(seed, candidate, selected, placementTarget)
-        > fishRegionalScore(seed, best, selected, placementTarget)
-        ? candidate
-        : best
-    );
-    selected.push(next);
-  }
-
-  const richCount = Math.max(0, Math.min(selected.length, requestedRichCount));
-  return selected.map((site, index) => ({
-    x: site.x,
-    z: site.z,
-    kind: 'fish' as const,
-    isRich: index < richCount,
-  }));
+  return candidates;
 }
 
 function fishRegionalScore(
@@ -361,11 +404,15 @@ function fishRegionalScore(
   candidate: FishCandidate,
   selected: readonly FishCandidate[],
   placementTarget: ResourcePlacementTarget | undefined,
+  strictRegional = false,
 ): number {
   const spacing = selected.length > 0
     ? fishSpacingScore(seed, candidate, selected) * 0.16
     : 0;
-  return regionalPlacementAffinity(candidate.x, candidate.z, placementTarget) * 72
+  const affinity = strictRegional
+    ? strictRegionalPlacementAffinity
+    : regionalPlacementAffinity;
+  return affinity(candidate.x, candidate.z, placementTarget) * 72
     + candidate.halfWidth * 8
     - Math.abs(candidate.progress - 0.62) * 10
     + spacing
