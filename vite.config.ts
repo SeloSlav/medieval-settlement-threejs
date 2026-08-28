@@ -29,6 +29,9 @@ const farmFieldLineupEntry = fileURLToPath(
 const backyardLineupEntry = fileURLToPath(
   new URL('./backyard-lineup.html', import.meta.url),
 );
+const bridgeStructureLineupEntry = fileURLToPath(
+  new URL('./bridge-structure-lineup.html', import.meta.url),
+);
 const illustratedMapLineupEntry = fileURLToPath(
   new URL('./illustrated-map-lineup.html', import.meta.url),
 );
@@ -96,6 +99,9 @@ export default defineConfig(({ mode }) => {
   }
   if (mode === 'e2e' && existsSync(backyardLineupEntry)) {
     buildInputs['backyard-lineup'] = backyardLineupEntry;
+  }
+  if (mode === 'e2e' && existsSync(bridgeStructureLineupEntry)) {
+    buildInputs['bridge-structure-lineup'] = bridgeStructureLineupEntry;
   }
   if ((includeQaArchives || mode === 'e2e') && existsSync(illustratedMapLineupEntry)) {
     buildInputs['illustrated-map-lineup'] = illustratedMapLineupEntry;

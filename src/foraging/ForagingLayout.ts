@@ -8,6 +8,7 @@ import {
 import { hashF64 } from '../rivers/riverHash.ts';
 import type { RiverLayout, RiverPoint } from '../rivers/RiverLayout.ts';
 import {
+  RICH_RESOURCE_MIN_SPACING,
   regionalPlacementAffinity,
   sampleRegionalPlacementCandidate,
   strictRegionalPlacementAffinity,
@@ -38,6 +39,7 @@ export type ForagingLayoutOptions = {
   nodeCounts?: Partial<Record<ForagingNodeKind, number>>;
   richNodeCounts?: Partial<Record<ForagingNodeKind, number>>;
   placementTargets?: Partial<Record<ForagingNodeKind, readonly ResourcePlacementTarget[]>>;
+  richExclusionSites?: ReadonlyArray<{ x: number; z: number }>;
   isTerrainAccessible?: ResourceTerrainAccessibilityTest;
 };
 
@@ -99,6 +101,7 @@ export class ForagingLayout {
     const rng = mulberry32(seed);
     const nodeCounts = normalizeNodeCounts(options.nodeCounts);
     const richNodeCounts = normalizeRichNodeCounts(options.richNodeCounts, nodeCounts);
+    const richExclusionSites = options.richExclusionSites ?? [];
     const desiredGameCandidateCount = Math.max(
       GAME_RESPAWN_CANDIDATE_TARGET,
       nodeCounts.game * 16,
@@ -133,6 +136,10 @@ export class ForagingLayout {
 
     const sites: ForagingSite[] = [];
     for (let gameIndex = 0; gameIndex < nodeCounts.game; gameIndex++) {
+      const isRich = gameIndex >= nodeCounts.game - richNodeCounts.game;
+      const richClearanceSites = isRich
+        ? [...richExclusionSites, ...sites.filter((site) => site.isRich === true)]
+        : [];
       const gameSite = pickGameSite(
         rng,
         seed ^ gameIndex * 0x7f4a,
@@ -144,16 +151,22 @@ export class ForagingLayout {
         sites,
         options.placementTargets?.game?.[gameIndex],
         isTerrainAccessible,
+        isRich,
+        richClearanceSites,
       );
       if (gameSite) {
         sites.push({
           ...gameSite,
-          isRich: gameIndex >= nodeCounts.game - richNodeCounts.game,
+          isRich,
         });
       }
     }
 
     for (let i = 0; i < nodeCounts.berries; i++) {
+      const isRich = i >= nodeCounts.berries - richNodeCounts.berries;
+      const richClearanceSites = isRich
+        ? [...richExclusionSites, ...sites.filter((site) => site.isRich === true)]
+        : [];
       const berrySite = pickBerrySite(
         rng,
         seed ^ (0x9e37 + i * 0x5151),
@@ -163,15 +176,21 @@ export class ForagingLayout {
         sites,
         options.placementTargets?.berries?.[i],
         isTerrainAccessible,
+        isRich,
+        richClearanceSites,
       );
       if (berrySite) {
         sites.push({
           ...berrySite,
-          isRich: i >= nodeCounts.berries - richNodeCounts.berries,
+          isRich,
         });
       }
     }
     for (let i = 0; i < nodeCounts.mushrooms; i++) {
+      const isRich = i >= nodeCounts.mushrooms - richNodeCounts.mushrooms;
+      const richClearanceSites = isRich
+        ? [...richExclusionSites, ...sites.filter((site) => site.isRich === true)]
+        : [];
       const mushroomSite = pickMushroomSite(
         seed ^ (0x6d21 + i * 0x3137),
         extent,
@@ -181,11 +200,13 @@ export class ForagingLayout {
         sites,
         options.placementTargets?.mushrooms?.[i],
         isTerrainAccessible,
+        isRich,
+        richClearanceSites,
       );
       if (mushroomSite) {
         sites.push({
           ...mushroomSite,
-          isRich: i >= nodeCounts.mushrooms - richNodeCounts.mushrooms,
+          isRich,
         });
       }
     }
@@ -196,6 +217,7 @@ export class ForagingLayout {
       nodeCounts.fish,
       richNodeCounts.fish,
       options.placementTargets?.fish,
+      [...richExclusionSites, ...sites.filter((site) => site.isRich === true)],
       isTerrainAccessible,
     ));
 
@@ -243,6 +265,8 @@ function pickMushroomSite(
   existing: ReadonlyArray<ForagingSite>,
   placementTarget?: ResourcePlacementTarget,
   isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
+  strictRegional = false,
+  richExclusionSites: ReadonlyArray<{ x: number; z: number }> = [],
 ): ForagingSite | null {
   const terrainExtent = extent * (1080 / 820);
   const validCandidates = denseCandidates.filter((candidate) =>
@@ -255,6 +279,12 @@ function pickMushroomSite(
     ) >= MUSHROOM_FOREST_MIN
     && isTerrainAccessible(candidate.x, candidate.z)
     && isMushroomPatchClearOfWater(riverLayout, candidate.x, candidate.z)
+    && hasMinimumDistance(
+      richExclusionSites,
+      candidate.x,
+      candidate.z,
+      RICH_RESOURCE_MIN_SPACING,
+    )
   );
   const sufficientlySpaced = validCandidates.filter((candidate) =>
     hasMinimumDistance(existing, candidate.x, candidate.z, 118)
@@ -262,6 +292,9 @@ function pickMushroomSite(
   const pool = sufficientlySpaced.length > 0 ? sufficientlySpaced : validCandidates;
   let best: { x: number; z: number } | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
+  const affinity = strictRegional
+    ? strictRegionalPlacementAffinity
+    : regionalPlacementAffinity;
 
   for (let index = 0; index < pool.length; index++) {
     const candidate = pool[index];
@@ -276,7 +309,7 @@ function pickMushroomSite(
     const score = density * 100
       + Math.min(edgeDistance, 90) * 0.08
       + hashF64(seed, index, 19) * 4
-      + regionalPlacementAffinity(candidate.x, candidate.z, placementTarget) * 58;
+      + affinity(candidate.x, candidate.z, placementTarget) * 58;
     if (score <= bestScore) continue;
     best = candidate;
     bestScore = score;
@@ -318,6 +351,7 @@ function pickFishSites(
   requestedCount: number,
   requestedRichCount: number,
   placementTargets?: readonly ResourcePlacementTarget[],
+  richExclusionSites: ReadonlyArray<{ x: number; z: number }> = [],
   isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
 ): ForagingSite[] {
   if (requestedCount <= 0) return [];
@@ -335,10 +369,18 @@ function pickFishSites(
 
   const selected: FishCandidate[] = [];
   while (selected.length < requestedCount) {
-    const remaining = candidates.filter((candidate) => !selected.includes(candidate));
+    const strictRegional = selected.length < requestedRichCount;
+    const remaining = candidates.filter((candidate) =>
+      !selected.includes(candidate)
+      && (!strictRegional || hasMinimumDistance(
+        richExclusionSites,
+        candidate.x,
+        candidate.z,
+        RICH_RESOURCE_MIN_SPACING,
+      ))
+    );
     if (remaining.length === 0) break;
     const placementTarget = placementTargets?.[selected.length];
-    const strictRegional = selected.length < requestedRichCount;
     const next = remaining.reduce((best, candidate) =>
       fishRegionalScore(seed, candidate, selected, placementTarget, strictRegional)
         > fishRegionalScore(seed, best, selected, placementTarget, strictRegional)
@@ -574,11 +616,16 @@ function pickGameSite(
   existing: ForagingSite[],
   placementTarget?: ResourcePlacementTarget,
   isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
+  strictRegional = false,
+  richExclusionSites: ReadonlyArray<{ x: number; z: number }> = [],
 ): ForagingSite | null {
+  const affinity = strictRegional
+    ? strictRegionalPlacementAffinity
+    : regionalPlacementAffinity;
   const shuffled = denseCandidates
     .map((candidate, index) => ({
       candidate,
-      score: regionalPlacementAffinity(candidate.x, candidate.z, placementTarget) * 100
+      score: affinity(candidate.x, candidate.z, placementTarget) * 100
         + hashF64(seed, index, 1) * 8,
     }))
     .sort((a, b) => b.score - a.score)
@@ -586,6 +633,12 @@ function pickGameSite(
 
   for (const candidate of shuffled) {
     if (!isTerrainAccessible(candidate.x, candidate.z)) continue;
+    if (!hasMinimumDistance(
+      richExclusionSites,
+      candidate.x,
+      candidate.z,
+      RICH_RESOURCE_MIN_SPACING,
+    )) continue;
     if (!hasMinimumDistance(existing, candidate.x, candidate.z, MIN_FORAGING_SPACING)) continue;
     if (!isGameHabitatClearOfWater(riverLayout, candidate.x, candidate.z)) continue;
     if (!isGameHabitatClearOfDeposits(wildlifeDeposits, candidate.x, candidate.z)) continue;
@@ -605,6 +658,12 @@ function pickGameSite(
     const { x, z } = point;
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 36) continue;
     if (!isTerrainAccessible(x, z)) continue;
+    if (!hasMinimumDistance(
+      richExclusionSites,
+      x,
+      z,
+      RICH_RESOURCE_MIN_SPACING,
+    )) continue;
     if (!isGameHabitatClearOfWater(riverLayout, x, z)) continue;
     if (!isGameHabitatClearOfDeposits(wildlifeDeposits, x, z)) continue;
     const density = forestDensityAt(x, z, forestCores, extent, extent * (1080 / 820));
@@ -616,6 +675,12 @@ function pickGameSite(
   const fallback = denseCandidates
     .filter((candidate) =>
       isTerrainAccessible(candidate.x, candidate.z)
+      && hasMinimumDistance(
+        richExclusionSites,
+        candidate.x,
+        candidate.z,
+        RICH_RESOURCE_MIN_SPACING,
+      )
       && isGameHabitatClearOfWater(riverLayout, candidate.x, candidate.z)
       && isGameHabitatClearOfDeposits(wildlifeDeposits, candidate.x, candidate.z)
     )
@@ -623,9 +688,9 @@ function pickGameSite(
       (best, candidate) => {
         if (!best) return candidate;
         const candidateScore = nearestSiteDistance(candidate, existing)
-          + regionalPlacementAffinity(candidate.x, candidate.z, placementTarget) * extent;
+          + affinity(candidate.x, candidate.z, placementTarget) * extent;
         const bestScore = nearestSiteDistance(best, existing)
-          + regionalPlacementAffinity(best.x, best.z, placementTarget) * extent;
+          + affinity(best.x, best.z, placementTarget) * extent;
         return candidateScore > bestScore
           ? candidate
           : best;
@@ -655,11 +720,16 @@ function pickBerrySite(
   existing: ForagingSite[],
   placementTarget?: ResourcePlacementTarget,
   isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
+  strictRegional = false,
+  richExclusionSites: ReadonlyArray<{ x: number; z: number }> = [],
 ): ForagingSite | null {
   const margin = extent * 0.08;
   const terrainExtent = extent * (1080 / 820);
   let best: ForagingSite | null = null;
   let bestScore = -Infinity;
+  const affinity = strictRegional
+    ? strictRegionalPlacementAffinity
+    : regionalPlacementAffinity;
 
   for (let attempt = 0; attempt < 420; attempt++) {
     const point = sampleRegionalPlacementCandidate(
@@ -673,6 +743,12 @@ function pickBerrySite(
     const { x, z } = point;
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 28) continue;
     if (!isTerrainAccessible(x, z)) continue;
+    if (!hasMinimumDistance(
+      richExclusionSites,
+      x,
+      z,
+      RICH_RESOURCE_MIN_SPACING,
+    )) continue;
     if (!hasMinimumDistance(existing, x, z, MIN_FORAGING_SPACING)) continue;
 
     const density = forestDensityAt(x, z, forestCores, extent, terrainExtent);
@@ -683,7 +759,7 @@ function pickBerrySite(
     const score = edgeScore * 0.62
       + meadowBias * 0.28
       + density * 0.1
-      + regionalPlacementAffinity(x, z, placementTarget) * 1.25;
+      + affinity(x, z, placementTarget) * 1.25;
     const accepted = rng() < 0.42 + score * 0.5;
     if (!isBerryPatchClearOfWater(riverLayout, x, z)) continue;
     if (score > bestScore && accepted) {
@@ -720,6 +796,8 @@ function pickBerrySite(
     existing,
     placementTarget,
     isTerrainAccessible,
+    strictRegional,
+    richExclusionSites,
   );
 }
 
@@ -731,12 +809,17 @@ function pickFallbackBerrySite(
   existing: ReadonlyArray<ForagingSite>,
   placementTarget?: ResourcePlacementTarget,
   isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
+  strictRegional = false,
+  richExclusionSites: ReadonlyArray<{ x: number; z: number }> = [],
 ): ForagingSite | null {
   const rng = mulberry32(seed ^ 0x62b97);
   const limit = extent * 0.92;
   const terrainExtent = extent * (1080 / 820);
   let best: ForagingSite | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
+  const affinity = strictRegional
+    ? strictRegionalPlacementAffinity
+    : regionalPlacementAffinity;
 
   for (let attempt = 0; attempt < 1_200; attempt++) {
     const point = sampleRegionalPlacementCandidate(
@@ -750,6 +833,12 @@ function pickFallbackBerrySite(
     const { x, z } = point;
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 28) continue;
     if (!isTerrainAccessible(x, z)) continue;
+    if (!hasMinimumDistance(
+      richExclusionSites,
+      x,
+      z,
+      RICH_RESOURCE_MIN_SPACING,
+    )) continue;
     if (!hasMinimumDistance(existing, x, z, MIN_FORAGING_SPACING)) continue;
     if (!isBerryPatchClearOfWater(riverLayout, x, z)) continue;
 
@@ -761,7 +850,7 @@ function pickFallbackBerrySite(
     const score = edgeFit * 0.62
       + berryEdgeScore(x, z, forestCores, extent, terrainExtent) * 0.24
       + meadowProximityScore(x, z, extent) * 0.14
-      + regionalPlacementAffinity(x, z, placementTarget) * 1.25;
+      + affinity(x, z, placementTarget) * 1.25;
     if (score <= bestScore) continue;
     bestScore = score;
     best = { x, z, kind: 'berries' };

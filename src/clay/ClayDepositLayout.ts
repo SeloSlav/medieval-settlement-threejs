@@ -8,6 +8,7 @@ import { hashF64 } from '../rivers/riverHash.ts';
 import type { RiverLayout } from '../rivers/RiverLayout.ts';
 import { CENTRAL_CLEARING_RADIUS } from '../props/forestField.ts';
 import {
+  RICH_RESOURCE_MIN_SPACING,
   regionalPlacementAffinity,
   strictRegionalPlacementAffinity,
   type ResourcePlacementTarget,
@@ -34,6 +35,7 @@ export type ClayDepositLayoutOptions = {
   richSiteCount?: number;
   /** Soft regional targets, ordered rich sites first and ordinary sites second. */
   placementTargets?: readonly ResourcePlacementTarget[];
+  richExclusionSites?: ReadonlyArray<{ x: number; z: number }>;
   isTerrainAccessible?: ResourceTerrainAccessibilityTest;
 };
 
@@ -165,6 +167,7 @@ export class ClayDepositLayout {
     ];
     const rankedCandidates = candidates.sort((a, b) => b.score - a.score);
     const sites: ClayDepositSite[] = [];
+    const richExclusionSites = options.richExclusionSites ?? [];
 
     for (let index = 0; index < grades.length; index++) {
       const grade = grades[index];
@@ -175,6 +178,7 @@ export class ClayDepositLayout {
           && hasResourceClearance(candidate, avoidSites)
           && hasGameHabitatClearance(candidate, grade, options.foragingSites ?? [])
           && hasClayBankClearance(candidate, sites)
+          && hasRichResourceClearance(candidate, grade, richExclusionSites, sites)
         ),
         placementTarget,
         grade === 'rich',
@@ -183,6 +187,7 @@ export class ClayDepositLayout {
           (options.isTerrainAccessible?.(candidate.x, candidate.z) ?? true)
           && hasGameHabitatClearance(candidate, grade, options.foragingSites ?? [])
           && hasClayBankClearance(candidate, sites)
+          && hasRichResourceClearance(candidate, grade, richExclusionSites, sites)
         ),
         placementTarget,
         grade === 'rich',
@@ -466,6 +471,20 @@ function hasClayBankClearance(
   return sites.every((site) =>
     Math.hypot(candidate.x - site.x, candidate.z - site.z) >= MIN_CLAY_BANK_SPACING
   );
+}
+
+function hasRichResourceClearance(
+  candidate: BankCandidate,
+  grade: ClayDepositSite['kind'],
+  exclusions: ReadonlyArray<{ x: number; z: number }>,
+  existingClaySites: readonly ClayDepositSite[],
+): boolean {
+  if (grade !== 'rich') return true;
+  return [...exclusions, ...existingClaySites.filter((site) => site.kind === 'rich')]
+    .every((site) =>
+      Math.hypot(candidate.x - site.x, candidate.z - site.z)
+        >= RICH_RESOURCE_MIN_SPACING
+    );
 }
 
 function hasGameHabitatClearance(

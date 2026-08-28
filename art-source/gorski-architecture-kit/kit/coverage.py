@@ -76,7 +76,7 @@ BUILDING_COVERAGE = {
     "chapel": _entry("religious", "Stone chapel modules include apse, lancet, belfry, and arched oak door.", STONE_CIVIC, "civic_chapel_apse_halfround", "opening_window_lancet_stone", "opening_church_arch_door", "civic_belfry_frame_small", "civic_bell_small"),
     "wayside_shrine": _entry("religious", "Small masonry niche and steep timber canopy.", "civic_shrine_niche_stone", "civic_shrine_canopy", "civic_processional_cross", "foundation_steps_limestone_1"),
     "marketplace": _entry("civic", "Modular covered stalls and public weighing equipment.", "site_market_stall_canvas", "site_market_stall_shingle", "civic_market_scale", "civic_town_notice_board", "prop_crate_medium"),
-    "trading_post": _entry("civic", "Domestic-commercial shell with shop opening, sign, and loading stock.", DOMESTIC, "wall_limewash_2m_window_shop_host", "opening_window_shop_plain", "civic_trade_sign_hanging", "prop_barrel_medium", "prop_crate_large"),
+    "trading_post": _entry("civic", "Domestic-commercial shell with shop opening, sign, and loading stock.", DOMESTIC, "wall_limewash_4m_window_shop_host", "opening_window_shop_plain", "civic_trade_sign_hanging", "prop_barrel_medium", "prop_crate_large"),
     "town_hall": _entry("civic", "Tall limewashed civic frontage with stone steps and public balcony.", STONE_CIVIC, "civic_town_balustrade_4m", "civic_town_notice_board", "foundation_steps_limestone_5"),
     "stable": _entry("service", "Large timber portal, split doors, hay loading, and hitching rail.", BARN, "opening_stable_half_door", "civic_stable_hayhood", "prop_hitching_rail_2m", "agri_livestock_trough_4m"),
     "village_storehouse": _entry("service", "Raised stone base, wide doors, and loading hood.", BARN, "foundation_fieldstone_4m_h1p2m", "civic_storehouse_loading_hood", "prop_barrel_large", "prop_sack_stack_large"),
@@ -99,7 +99,7 @@ BUILDING_COVERAGE = {
     "spinning_retting_house": _entry("production", "Flax retting trough and spinning equipment beside a humble workhouse.", HUMBLE, "production_retting_trough", "production_spinning_wheel", "agri_field_marker_flax"),
     "weaver": _entry("production", "Domestic workshop with loom and dye vats.", DOMESTIC, "production_warp_weighted_loom", "production_dye_vat_large", "prop_crate_medium"),
     "tannery": _entry("production", "Open yard with hide frames, vats, and water handling.", WORKSHOP, "production_tanning_frame_4m", "production_dye_vat_large", "production_retting_trough", "prop_tool_rack_tannery"),
-    "cobbler": _entry("production", "Small domestic workshop with shop opening and cobbler bench.", DOMESTIC, "wall_limewash_2m_window_shop_host", "opening_window_shop_plain", "production_cobbler_bench", "civic_trade_sign_hanging"),
+    "cobbler": _entry("production", "Small domestic workshop with shop opening and cobbler bench.", DOMESTIC, "wall_limewash_4m_window_shop_host", "opening_window_shop_plain", "production_cobbler_bench", "civic_trade_sign_hanging"),
     "chandlery": _entry("production", "Wax-working shop with candle rack and small vats.", DOMESTIC, "production_chandlery_dipping_rack", "production_dye_vat_small", "production_chimney_limestone_h2p4m"),
 }
 

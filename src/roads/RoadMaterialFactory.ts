@@ -7,7 +7,10 @@ import {
   initializeBuildingMaterialAtlas,
   type BuildingMaterialAtlasTextureSet,
 } from '../buildings/buildingMaterialAtlas.ts';
-import { timberMaterial } from '../buildings/buildingMaterials.ts';
+import {
+  sharedBuildingDetailMaterial,
+  timberMaterial,
+} from '../buildings/buildingMaterials.ts';
 import {
   createRoadCoreMaterial,
   createRoadEdgeMaterial,
@@ -26,6 +29,8 @@ export class RoadMaterialFactory {
   readonly bridgeRoad!: MeshStandardNodeMaterial;
   /** Shared timberMid atlas material used by ordinary building doors/posts. */
   readonly bridgeRailing!: THREE.Material;
+  /** Shared woven-fibre surface for bridge suspension ropes. */
+  readonly bridgeCable!: THREE.Material;
   readonly roadEdge!: MeshStandardNodeMaterial;
   readonly riverBank!: MeshStandardNodeMaterial;
   readonly terrain!: MeshStandardNodeMaterial;
@@ -160,8 +165,8 @@ export class RoadMaterialFactory {
       this.snap,
     ];
     materials.forEach((material) => material.dispose());
-    // bridgeSupport and bridgeRailing alias a material owned by the shared
-    // building-material library.
+    // bridgeSupport, bridgeRailing, and bridgeCable alias materials owned by
+    // the shared building-material library.
     this.rainTerrainTexture?.dispose();
     this.rainTerrainTexture = null;
     if (this.roadTextures) this.disposeTextureSet(this.roadTextures);
@@ -188,6 +193,7 @@ export class RoadMaterialFactory {
     road: MeshStandardNodeMaterial;
     bridgeRoad: MeshStandardNodeMaterial;
     bridgeRailing: THREE.Material;
+    bridgeCable: THREE.Material;
     roadEdge: MeshStandardNodeMaterial;
     riverBank: MeshStandardNodeMaterial;
     terrain: MeshStandardNodeMaterial;
@@ -212,6 +218,7 @@ export class RoadMaterialFactory {
     );
     const bridgeRailing = timberMaterial('mid');
     const bridgeSupport = bridgeRailing;
+    const bridgeCable = sharedBuildingDetailMaterial('wicker');
     const roadEdge = createRoadEdgeMaterial(this.roadTextures, this.roadWeatherUniforms, true);
     const riverBank = createRiverBankMaterial(this.roadTextures);
     const terrain = createTerrainGrassMaterial(
@@ -237,6 +244,7 @@ export class RoadMaterialFactory {
       road,
       bridgeRoad,
       bridgeRailing,
+      bridgeCable,
       roadEdge,
       riverBank,
       terrain,

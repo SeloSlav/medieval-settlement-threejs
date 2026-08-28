@@ -7,6 +7,7 @@ import { CENTRAL_CLEARING_RADIUS, mulberry32 } from '../props/forestField.ts';
 import type { RiverLayout } from '../rivers/RiverLayout.ts';
 import type { WorldMapSize } from '../world/worldGenerationSettings.ts';
 import {
+  RICH_RESOURCE_MIN_SPACING,
   regionalPlacementAffinity,
   sampleRegionalPlacementCandidate,
   type ResourcePlacementTarget,
@@ -49,6 +50,7 @@ export type MineralDepositLayoutOptions = {
   resourceVariety?: number;
   /** Soft regional targets in the same rich-first order as the mineral roster. */
   placementTargets?: readonly ResourcePlacementTarget[];
+  richExclusionSites?: ReadonlyArray<{ x: number; z: number }>;
   isTerrainAccessible?: ResourceTerrainAccessibilityTest;
 };
 
@@ -118,6 +120,7 @@ export class MineralDepositLayout {
         sites,
         avoidSites,
         options.foragingSites ?? [],
+        options.richExclusionSites ?? [],
         options.placementTargets?.[index],
         options.isTerrainAccessible,
       );
@@ -178,6 +181,7 @@ function pickMineralSite(
   existing: readonly MineralDepositSite[],
   avoidSites: ReadonlyArray<{ x: number; z: number }>,
   foragingSites: readonly ForagingSite[],
+  richExclusionSites: ReadonlyArray<{ x: number; z: number }>,
   placementTarget?: ResourcePlacementTarget,
   isTerrainAccessible: ResourceTerrainAccessibilityTest = () => true,
 ): MineralDepositSite | null {
@@ -205,6 +209,18 @@ function pickMineralSite(
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 52) continue;
     if (!hasClearance(x, z, existing, MIN_DEPOSIT_SPACING)) continue;
     if (!hasClearance(x, z, avoidSites, RESOURCE_CLEARANCE)) continue;
+    if (
+      entry.grade === 'rich'
+      && !hasClearance(
+        x,
+        z,
+        [
+          ...richExclusionSites,
+          ...existing.filter((site) => site.grade === 'rich'),
+        ],
+        RICH_RESOURCE_MIN_SPACING,
+      )
+    ) continue;
     if (!footprintIsDry(riverLayout, x, z, radiusX, radiusZ)) continue;
     const candidate: MineralDepositSite = {
       x,

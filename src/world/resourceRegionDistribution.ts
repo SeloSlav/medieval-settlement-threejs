@@ -31,6 +31,9 @@ export type ResourceRegionDistribution = {
 
 type Point = { x: number; z: number };
 
+/** Cross-family clearance between the centers of physically placed rich nodes. */
+export const RICH_RESOURCE_MIN_SPACING = 150;
+
 /**
  * Builds soft, small-map-sized resource territories. Medium and large maps do
  * not enforce five nodes inside hard borders: each territory receives four
@@ -53,26 +56,33 @@ export function createResourceRegionDistribution(
   const richCounts = allocateBalancedTerritoryCounts(counts, richNodeCount, rng);
   const targetLimit = playableHalf - Math.max(18, smallRegionSide * 0.08);
   const ordinarySearchRadius = smallRegionSide * 0.34;
-  const richSearchRadius = territoryCount === 1
-    ? smallRegionSide * 0.18
-    : smallRegionSide * 0.2;
-  const richMinimumSpacing = smallRegionSide * 0.38;
+  const richSearchRadius = smallRegionSide * 0.16;
+  const richMinimumSpacing = smallRegionSide * 0.58;
   const richTargetBuckets = centers.map(() => [] as ResourcePlacementTarget[]);
   const ordinaryTargetBuckets = centers.map(() => [] as ResourcePlacementTarget[]);
   const richTargetPoints: Point[] = [];
+  const smallMapRichAngle = territoryCount === 1 ? rng() * Math.PI * 2 : 0;
 
   for (let territoryIndex = 0; territoryIndex < centers.length; territoryIndex++) {
     const center = centers[territoryIndex];
     for (let index = 0; index < counts[territoryIndex]; index++) {
       const rich = index < richCounts[territoryIndex];
       const samplePoint = () => territoryCount === 1
-        ? sampleAcrossSmallMap(rng, targetLimit)
+        ? rich
+          ? sampleAcrossSmallMapRichTarget(
+              smallMapRichAngle,
+              index,
+              richCounts[territoryIndex],
+              smallRegionSide,
+              targetLimit,
+            )
+          : sampleAcrossSmallMap(rng, targetLimit)
         : sampleAroundTerritory(
             rng,
             center,
             smallRegionSide,
             targetLimit,
-            rich ? 0.16 : 0.26,
+            rich ? 0.1 : 0.26,
           );
       const point = rich
         ? sampleSpacedRichTarget(samplePoint, richTargetPoints, richMinimumSpacing)
@@ -280,6 +290,21 @@ function sampleAcrossSmallMap(random: () => number, limit: number): Point {
   return {
     x: (random() * 2 - 1) * limit,
     z: (random() * 2 - 1) * limit,
+  };
+}
+
+function sampleAcrossSmallMapRichTarget(
+  baseAngle: number,
+  index: number,
+  count: number,
+  smallRegionSide: number,
+  limit: number,
+): Point {
+  const angle = baseAngle + index / Math.max(1, count) * Math.PI * 2;
+  const radius = Math.min(limit, smallRegionSide * 0.31);
+  return {
+    x: Math.cos(angle) * radius,
+    z: Math.sin(angle) * radius,
   };
 }
 

@@ -413,6 +413,16 @@ function resolveAt(
   const supportPosts = bridgeGroup.getObjectByName(
     'Bridge support posts',
   ) as THREE.InstancedMesh | undefined;
+  const suspension = bridgeGroup.getObjectByName('Bridge suspension structure');
+  const suspensionTowers = bridgeGroup.getObjectByName(
+    'Bridge suspension tower posts',
+  ) as THREE.InstancedMesh | undefined;
+  const suspensionCables = bridgeGroup.getObjectByName(
+    'Bridge main suspension cable tubes',
+  ) as THREE.Mesh | undefined;
+  const suspensionHangers = bridgeGroup.getObjectByName(
+    'Bridge suspension vertical hangers',
+  ) as THREE.InstancedMesh | undefined;
   assert.ok(railings, 'generated bridges should have timber railings on both sides');
   assert.equal(
     railings.userData.fpPlayerRadiusScale,
@@ -428,6 +438,20 @@ function resolveAt(
     'bridge railing bays should have continuous lower rails and handrails',
   );
   assert.ok(supportPosts && supportPosts.count >= 4);
+  assert.equal(
+    suspension?.userData.fpNoCollision,
+    true,
+    'above-deck suspension details must not change the walkable bridge corridor',
+  );
+  assert.ok(
+    suspensionTowers && suspensionTowers.count >= 4,
+    'generated bridges should expose paired entry and exit suspension towers',
+  );
+  assert.ok(suspensionCables, 'generated bridges should carry physical main cable tubes');
+  assert.ok(
+    suspensionHangers && suspensionHangers.count >= 8,
+    'main cables should be connected back down to both sides of the deck',
+  );
   const supportMatrix = new THREE.Matrix4();
   const supportPosition = new THREE.Vector3();
   for (let index = 0; index < supportPosts.count; index++) {

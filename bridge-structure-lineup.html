@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bridge suspension visual contract</title>
+    <style>
+      html, body, #app { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #a8b99b; }
+      canvas { display: block; }
+      .label { position: fixed; left: 18px; top: 16px; color: #fff8e8; font: 650 13px/1.4 system-ui, sans-serif; letter-spacing: .05em; text-transform: uppercase; text-shadow: 0 2px 9px #26301f; pointer-events: none; }
+      .label small { display: block; margin-top: 4px; font-weight: 450; letter-spacing: .02em; text-transform: none; opacity: .9; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div class="label">Timber suspension bridge visual contract<small id="detail">deterministic path · production geometry · direct no-post render</small></div>
+    <script type="module" src="/src/e2e/bridgeStructureLineup.ts"></script>
+  </body>
+</html>

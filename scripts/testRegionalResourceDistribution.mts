@@ -18,7 +18,10 @@ import {
   type WorldMapSize,
 } from '../src/world/worldGenerationSettings.ts';
 import { applyTerrainPreset } from '../src/world/worldTerrainPresets.ts';
-import { createResourceRegionDistribution } from '../src/world/resourceRegionDistribution.ts';
+import {
+  createResourceRegionDistribution,
+  RICH_RESOURCE_MIN_SPACING,
+} from '../src/world/resourceRegionDistribution.ts';
 
 const mapSizes: WorldMapSize[] = ['small', 'medium', 'large'];
 const mountainousTerrainPresets = [
@@ -102,6 +105,10 @@ for (const mapSize of mapSizes) {
       ),
       `${mapSize} rich targets must retain their per-territory allocation`,
     );
+    assert.ok(
+      minimumPointSpacing(distribution.richTargets) >= distribution.richMinimumSpacing - 1e-6,
+      `${mapSize} rich targets must respect their map-scale spacing floor`,
+    );
     assert.ok(distribution.targets.every((target) =>
       Math.abs(target.x) <= dimensions.generationHalf
       && Math.abs(target.z) <= dimensions.generationHalf
@@ -184,6 +191,10 @@ for (const mapSize of ['medium', 'large'] as const) {
     assert.ok(
       richTerritoryCounts.every((count) => count >= 1),
       `Delnice ${mapSize}/seed-${seed} must not cluster all rich rolls away from a sub-map`,
+    );
+    assert.ok(
+      minimumPointSpacing(richNodes) >= RICH_RESOURCE_MIN_SPACING - 1e-6,
+      `Delnice ${mapSize}/seed-${seed} must keep rich nodes at least ${RICH_RESOURCE_MIN_SPACING} m apart`,
     );
   }
 }
@@ -441,6 +452,10 @@ for (const mapSize of mapSizes) {
         const actualTotalNodes = nodes.length + claySites.length;
         const actualRichNodes = nodes.filter((node) => node.isRich === true).length
           + claySites.filter((site) => site.kind === 'rich').length;
+        const richNodes = [
+          ...nodes.filter((node) => node.isRich === true),
+          ...claySites.filter((site) => site.kind === 'rich'),
+        ];
         const actualGuaranteedFoodNodes = nodes.filter((node) =>
           node.kind === 'game' || node.kind === 'berries' || node.kind === 'mushrooms'
         ).length;
@@ -454,6 +469,10 @@ for (const mapSize of mapSizes) {
           actualRichNodes,
           layout.resourcePlan.richResourceNodeCount,
           `${variant} did not place its exact rich-node budget`,
+        );
+        assert.ok(
+          minimumPointSpacing(richNodes) >= RICH_RESOURCE_MIN_SPACING - 1e-6,
+          `${variant} placed rich resources closer than ${RICH_RESOURCE_MIN_SPACING} m`,
         );
         assert.ok(
           actualGuaranteedFoodNodes >= layout.resourcePlan.minimumFoodNodeCount,
@@ -657,4 +676,19 @@ function isRichRegionalNode(
   node: { isRich?: boolean; kind?: string },
 ): boolean {
   return node.isRich === true || node.kind === 'rich';
+}
+
+function minimumPointSpacing(
+  points: ReadonlyArray<{ x: number; z: number }>,
+): number {
+  let minimum = Number.POSITIVE_INFINITY;
+  for (let first = 0; first < points.length; first++) {
+    for (let second = first + 1; second < points.length; second++) {
+      minimum = Math.min(
+        minimum,
+        Math.hypot(points[first].x - points[second].x, points[first].z - points[second].z),
+      );
+    }
+  }
+  return minimum;
 }

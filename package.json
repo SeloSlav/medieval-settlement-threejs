@@ -180,6 +180,7 @@
     "test:map-desk": "node --experimental-strip-types scripts/testIllustratedMapDesk.mts",
     "test:map-opacity-transition": "npx tsx scripts/testIllustratedMapOpacityTransition.mts",
     "test:first-person-collision": "node --experimental-strip-types scripts/testFirstPersonCollision.mts",
+    "test:bridge-suspension": "node --experimental-strip-types scripts/testBridgeSuspensionStructure.mts",
     "test:agent-bridge-navigation": "node --experimental-strip-types scripts/testAgentBridgeNavigation.mts",
     "test:first-person-collision-performance": "node --experimental-strip-types scripts/testFirstPersonCollisionPerformance.mts",
     "test:client-sync": "npx tsx scripts/testClientSyncScheduling.mts",

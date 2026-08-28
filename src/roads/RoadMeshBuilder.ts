@@ -18,6 +18,7 @@ import {
   buildBridgeRailings,
 } from './BridgeRailings.ts';
 import { buildBridgeSupports } from './BridgeSupports.ts';
+import { buildBridgeSuspensionStructure } from './BridgeSuspension.ts';
 import {
   BUILDING_ACCESS_SPUR_Y_LIFT,
   BRIDGE_DECK_TEXTURE_METERS_PER_TILE,
@@ -186,6 +187,14 @@ export class RoadMeshBuilder {
         this.materials.bridgeSupport,
       );
       if (supports) group.add(supports);
+      const suspension = buildBridgeSuspensionStructure(
+        ribbonPath,
+        visualWidth,
+        renderedSpans,
+        this.materials.bridgeSupport,
+        this.materials.bridgeCable ?? this.materials.bridgeRailing,
+      );
+      if (suspension) group.add(suspension);
       const railings = buildBridgeRailings(
         crossSections.map((section, index) => ({
           center: ribbonPath[index],

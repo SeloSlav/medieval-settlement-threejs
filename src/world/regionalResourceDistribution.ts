@@ -335,9 +335,33 @@ function allocateRichCounts(
     geological: { stone: 0, clay: 0, minerals: 0 },
     foraging: { game: 0, berries: 0, mushrooms: 0, fish: 0 },
   };
-  const selectedSlots = slots
-    .sort((a, b) => b.score - a.score)
-    .slice(0, richTarget);
+  const selectedSlots: typeof slots = [];
+  for (const slot of slots.sort((a, b) => b.score - a.score)) {
+    // Water-bound deep sources are valuable special cases, not a family that
+    // should consume several of the deliberately scarce regional rich rolls.
+    // One rich clay bank and one rich fishery per world preserve both variety
+    // and the one-roll-per-territory expansion contract.
+    if (
+      slot.family === 'geological'
+      && slot.category === 'clay'
+      && selectedSlots.some((selected) =>
+        selected.family === 'geological' && selected.category === 'clay'
+      )
+    ) {
+      continue;
+    }
+    if (
+      slot.family === 'foraging'
+      && slot.category === 'fish'
+      && selectedSlots.some((selected) =>
+        selected.family === 'foraging' && selected.category === 'fish'
+      )
+    ) {
+      continue;
+    }
+    selectedSlots.push(slot);
+    if (selectedSlots.length >= richTarget) break;
+  }
 
   if (
     settings.mapSize === 'small'

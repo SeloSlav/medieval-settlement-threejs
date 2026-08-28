@@ -136,27 +136,43 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
   // habitat-bound rich roll cannot drift across the map and create a hole.
   const foragingSeed = normalizedSettings.seed ^ 0x4f0d21;
   const fishSeed = foragingSeed ^ 0x46a91d;
-  const richFishTargets = reserveRichTargets(
-    resourcePlan.foragingRichNodeCounts.fish,
-    (target) => fishPlacementTargetScore({
+  const fishScores = new Map<ResourcePlacementTarget, number>();
+  const fishScore = (target: ResourcePlacementTarget): number => {
+    const cached = fishScores.get(target);
+    if (cached !== undefined) return cached;
+    const score = fishPlacementTargetScore({
       riverLayout,
       extent: dims.generationHalf,
       seed: fishSeed,
       requestedCount: resourcePlan.foragingNodeCounts.fish,
       target,
       isTerrainAccessible,
-    }),
+    });
+    fishScores.set(target, score);
+    return score;
+  };
+  const richFishTargets = reserveRichTargets(
+    resourcePlan.foragingRichNodeCounts.fish,
+    fishScore,
   );
   const claySeed = deriveSubSeed(normalizedSettings.seed, 'rich-clay');
-  const richClayTargets = reserveRichTargets(
-    resourcePlan.richClayDepositCount,
-    (target) => clayPlacementTargetScore({
+  const clayScores = new Map<ResourcePlacementTarget, number>();
+  const clayScore = (target: ResourcePlacementTarget): number => {
+    const cached = clayScores.get(target);
+    if (cached !== undefined) return cached;
+    const score = clayPlacementTargetScore({
       riverLayout,
       playableHalf: dims.generationHalf,
       seed: claySeed,
       target,
       isTerrainAccessible,
-    }),
+    });
+    clayScores.set(target, score);
+    return score;
+  };
+  const richClayTargets = reserveRichTargets(
+    resourcePlan.richClayDepositCount,
+    clayScore,
   );
   const quarryPlacementTargets = takeResourceTargets(
     reserveRichTargets(resourcePlan.richStoneDepositCount),
@@ -209,6 +225,7 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     placementTargets: quarryPlacementTargets,
     isTerrainAccessible,
   });
+  const richQuarrySites = quarryLayout.sites.filter((site) => site.kind === 'large');
   const densityScale = forestDensityScale(normalizedSettings.forestDensity);
   const spawnConfig = createForestSpawnConfig(dims.generationSize, dims.terrainSize, densityScale);
   const forestCores = createForestCores(mulberry32(forestSeed), spawnConfig);
@@ -227,8 +244,10 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     nodeCounts: resourcePlan.foragingNodeCounts,
     richNodeCounts: resourcePlan.foragingRichNodeCounts,
     placementTargets: foragingPlacementTargets,
+    richExclusionSites: richQuarrySites,
     isTerrainAccessible,
   });
+  const richForagingSites = foragingLayout.sites.filter((site) => site.isRich === true);
   const clayDepositLayout = ClayDepositLayout.create({
     riverLayout,
     quarrySites: quarryLayout.sites,
@@ -238,8 +257,10 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     ordinarySiteCount: resourcePlan.ordinaryClayDepositCount,
     richSiteCount: resourcePlan.richClayDepositCount,
     placementTargets: clayPlacementTargets,
+    richExclusionSites: [...richQuarrySites, ...richForagingSites],
     isTerrainAccessible,
   });
+  const richClaySites = clayDepositLayout.sites.filter((site) => site.kind === 'rich');
   const mineralDepositLayout = MineralDepositLayout.create({
     riverLayout,
     richSiteCount: resourcePlan.richMineralDepositCount,
@@ -252,6 +273,11 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     mapSize: normalizedSettings.mapSize,
     resourceVariety: normalizedSettings.resourceVariety,
     placementTargets: mineralPlacementTargets,
+    richExclusionSites: [
+      ...richQuarrySites,
+      ...richForagingSites,
+      ...richClaySites,
+    ],
     isTerrainAccessible,
   });
   const physicalDeposits = createPhysicalDepositFootprints({

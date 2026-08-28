@@ -96,6 +96,11 @@ assert.match(
   /const bridgeSupport = bridgeRailing/,
   'bridge supports and railings should share the standard timberMid material',
 );
+assert.match(
+  roadFactorySource,
+  /const bridgeCable = sharedBuildingDetailMaterial\('wicker'\)/,
+  'bridge suspension ropes should reuse the shared woven-fibre material',
+);
 assert.doesNotMatch(
   roadFactorySource,
   /textureLoader\.loadBridgeTextures\(\)/,

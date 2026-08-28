@@ -10,6 +10,7 @@ def create_materials() -> dict[str, bpy.types.Material]:
     for key, (color, roughness, metallic) in MATERIAL_SPECS.items():
         name = f"GK_Mat_{key}"
         material = bpy.data.materials.get(name) or bpy.data.materials.new(name)
+        material.use_fake_user = True
         material.diffuse_color = color
         material.use_nodes = True
         material["gk_material_key"] = key

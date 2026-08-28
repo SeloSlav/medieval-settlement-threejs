@@ -2,78 +2,78 @@
   "quarries": [
     {
       "quarryId": "quarry-large-0",
-      "x": 417.46382816794915,
-      "z": 298.43920768921515,
+      "x": -402.8866178768725,
+      "z": -300.0076769648771,
       "maxYield": 10000,
       "isRich": true
     },
     {
       "quarryId": "quarry-large-1",
-      "x": -349.1490580475838,
-      "z": 391.05480719975446,
+      "x": 345.3841294745935,
+      "z": 236.80913622803675,
       "maxYield": 10000,
       "isRich": true
     },
     {
       "quarryId": "quarry-small-0",
-      "x": 326.39816380287505,
-      "z": -484.1289315910705,
+      "x": 173.53888444607733,
+      "z": -476.5853292579957,
       "maxYield": 4000,
       "isRich": false
     },
     {
       "quarryId": "quarry-small-1",
-      "x": -97.39352395686083,
-      "z": 407.8970681861856,
+      "x": -241.87052953964152,
+      "z": 303.41714276146604,
       "maxYield": 4000,
       "isRich": false
     },
     {
       "quarryId": "deposit-iron-rich-0",
-      "x": 357.50977386655114,
-      "z": -230.66052098226714,
+      "x": -311.34090834289844,
+      "z": 464.2696034764222,
       "maxYield": 900,
       "isRich": true
     },
     {
-      "quarryId": "deposit-salt-rich-1",
-      "x": -237.2221364627552,
-      "z": -190.7376583047379,
-      "maxYield": 1080,
-      "isRich": true
+      "quarryId": "deposit-salt-ordinary-1",
+      "x": 143.0267811785612,
+      "z": 312.11070451629996,
+      "maxYield": 360,
+      "isRich": false
     },
     {
-      "quarryId": "deposit-iron-rich-2",
-      "x": -356.50721694775933,
-      "z": -281.08224865892066,
-      "maxYield": 900,
-      "isRich": true
+      "quarryId": "deposit-iron-ordinary-2",
+      "x": -184.83450270482007,
+      "z": -36.05163511316434,
+      "maxYield": 300,
+      "isRich": false
     },
     {
       "quarryId": "deposit-iron-ordinary-3",
-      "x": 190.24892783615678,
-      "z": 272.1562164752148,
+      "x": -391.83368769756964,
+      "z": -111.7412434939184,
       "maxYield": 300,
       "isRich": false
     },
     {
       "quarryId": "deposit-iron-ordinary-4",
-      "x": -143.49414980037068,
-      "z": -76.74170370947506,
+      "x": -121.1829262866899,
+      "z": 558.8771142331059,
       "maxYield": 300,
       "isRich": false
     },
     {
       "quarryId": "deposit-salt-ordinary-5",
-      "x": 358.405840508652,
-      "z": 257.931221798526,
+      "x": 295.10164019028156,
+      "z": 203.87235929221828,
       "maxYield": 360,
       "isRich": false
     },
     {
       "quarryId": "deposit-salt-ordinary-6",
-      "x": 374.0023462372051,
-      "z": -436.0670260736116,
+      "x": 305.25252540645016,
+      "z": -427.07648925050296,
       "maxYield": 360,
       "isRich": false
     }
