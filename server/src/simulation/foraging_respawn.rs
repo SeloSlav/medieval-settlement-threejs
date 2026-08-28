@@ -5,7 +5,9 @@ use crate::building_defs::building_def;
 use crate::db::*;
 use crate::foraging_policy::{is_spring, population_growth_per_second};
 use crate::harvest_reserve_policy::protected_wild_stock;
-use crate::placement_validation::building_footprint_overlaps_circle;
+use crate::placement_validation::{
+    building_footprint_overlaps_circle, resolved_existing_building_yaw,
+};
 use crate::residence_consumption_policy::daily_household_bill_due;
 use crate::resident_welfare_policy::deterministic_unit;
 use crate::resource_units::whole_units;
@@ -177,6 +179,10 @@ fn habitat_is_disrupted(
                 &building.kind,
                 building.x,
                 building.z,
+                Some(resolved_existing_building_yaw(
+                    road_networks.get(&building.owner),
+                    building,
+                )),
                 road_networks.get(&building.owner),
                 x,
                 z,

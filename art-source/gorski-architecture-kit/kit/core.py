@@ -130,6 +130,51 @@ class MeshBuilder:
         faces = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]
         self._append(vertices, faces, material)
 
+    def round_beam_between(
+        self,
+        start: Vec3,
+        end: Vec3,
+        radius: float,
+        material: str = "timber_weathered",
+        segments: int = 7,
+        end_radius: float | None = None,
+        phase: float = 0.0,
+    ) -> None:
+        """Append a capped, optionally tapered round pole between arbitrary points.
+
+        Camps, racks, lashings, and light site works are made from saplings and
+        cordage rather than square structural sections. Keeping this primitive in
+        the shared builder avoids one-off cylinders with inconsistent axes.
+        """
+
+        a = Vector(start)
+        b = Vector(end)
+        direction = b - a
+        if direction.length < 0.001:
+            return
+        axis = direction.normalized()
+        helper = Vector((0.0, 0.0, 1.0))
+        if abs(axis.dot(helper)) > 0.96:
+            helper = Vector((0.0, 1.0, 0.0))
+        tangent = helper.cross(axis).normalized()
+        bitangent = axis.cross(tangent).normalized()
+        ring_count = max(5, segments)
+        far_radius = radius if end_radius is None else end_radius
+        vertices: list[Vec3] = []
+        for centre, ring_radius in ((a, radius), (b, far_radius)):
+            for index in range(ring_count):
+                angle = phase + math.tau * index / ring_count
+                point = centre + tangent * (math.cos(angle) * ring_radius) + bitangent * (math.sin(angle) * ring_radius)
+                vertices.append(tuple(point))
+        faces: list[tuple[int, ...]] = [
+            tuple(range(ring_count - 1, -1, -1)),
+            tuple(range(ring_count, ring_count * 2)),
+        ]
+        for index in range(ring_count):
+            following = (index + 1) % ring_count
+            faces.append((index, following, ring_count + following, ring_count + index))
+        self._append(vertices, faces, material)
+
     def gable_prism(self, width: float, depth: float, height: float, base_z: float, material: str) -> None:
         hw = width * 0.5
         hd = depth * 0.5

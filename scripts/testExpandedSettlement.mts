@@ -8,6 +8,8 @@ import {
   CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP,
   CARPENTER_CART_SERVICE_TIMBER_PER_TRIP,
   CARPENTER_DELIVERY_SPEED_MULTIPLIER,
+  CARPENTER_IRONWORK_PER_POLEARM,
+  CARPENTER_TIMBER_PER_POLEARM,
   CARPENTER_TIMBER_COST_MULTIPLIER,
   MONASTERY_COVERAGE_RADIUS,
   RESIDENCE_TIER1_CAPACITY,
@@ -40,6 +42,7 @@ import {
   normalizeCarpenterCartServiceTargetTrips,
   type CarpenterSupportBuilding,
 } from '../src/economy/carpenterSupport.ts';
+import { CARPENTER_POLEARM_RESERVE_DEFAULT } from '../src/economy/carpenterArmoryPolicy.ts';
 import { roadDeliveryTripSeconds } from '../src/logistics/deliveryLogistics.ts';
 import { describeToolbarStatus } from '../src/ui/buildToolbarStatus.ts';
 
@@ -157,8 +160,8 @@ carpenterRoad.addRoadPath([
   new THREE.Vector3(140, 0, 0),
 ]);
 const activeCarpenter = buildingState('carpenter', 'carpenter', 0, 18, 1);
-activeCarpenter.timber = 3;
-activeCarpenter.ironwork = 0.6;
+activeCarpenter.timber = 15;
+activeCarpenter.ironwork = 15;
 const idleCarpenter = buildingState('carpenter', 'idle-carpenter', 0, 18, 0);
 assert.equal(isOperationalCarpenter(activeCarpenter), true);
 assert.equal(isOperationalCarpenter(idleCarpenter), false);
@@ -175,8 +178,35 @@ assert.equal(
 );
 assert.equal(normalizeCarpenterCartServiceTargetTrips(undefined), 15);
 assert.equal(normalizeCarpenterCartServiceTargetTrips(7), 15);
-assert.equal(carpenterCartServiceTimberTarget(5), 1);
-assert.equal(carpenterCartServiceIronworkTarget(5), 0.2);
+assert.equal(carpenterCartServiceTimberTarget(5), 5);
+assert.equal(carpenterCartServiceIronworkTarget(5), 5);
+const deepestCarpenterServiceTarget = 30;
+const deepestCarpenterServiceTimber = carpenterCartServiceTimberTarget(
+  deepestCarpenterServiceTarget,
+);
+const deepestCarpenterServiceIronwork = carpenterCartServiceIronworkTarget(
+  deepestCarpenterServiceTarget,
+);
+assert.ok(
+  BUILDING_STORAGE_CAPS.carpenter.timber
+    >= deepestCarpenterServiceTimber
+      + CARPENTER_TIMBER_PER_POLEARM * CARPENTER_POLEARM_RESERVE_DEFAULT,
+  'the carpenter must be able to stage Deep cart service and one default polearm batch',
+);
+assert.ok(
+  BUILDING_STORAGE_CAPS.carpenter.ironwork
+    >= deepestCarpenterServiceIronwork
+      + CARPENTER_IRONWORK_PER_POLEARM * CARPENTER_POLEARM_RESERVE_DEFAULT,
+  'every cart-service preset must fit alongside one default polearm batch',
+);
+assert.ok(
+  BUILDING_STORAGE_CAPS.carpenter.total
+    >= deepestCarpenterServiceTimber
+      + deepestCarpenterServiceIronwork
+      + (CARPENTER_TIMBER_PER_POLEARM + CARPENTER_IRONWORK_PER_POLEARM)
+        * CARPENTER_POLEARM_RESERVE_DEFAULT,
+  'shared workshop storage must admit the deepest service buffer and its default armory inputs',
+);
 const conservingCarpenter = {
   ...activeCarpenter,
   carpenterCartServiceTargetTrips: 0,
@@ -474,12 +504,18 @@ assert.match(
   'the authoritative speed bonus must consume one physical wheelwright repair kit',
 );
 assert.match(
+  deliverySimulation,
+  /let cartwright_multiplier = if regional_market_trip[\s\S]*carpenter_delivery_multiplier_for_origin[\s\S]*travel_speed_multiplier[\s\S]*ox_id: spec\.ox_id/,
+  'the wheelwright speed multiplier must apply to local carts independently of ox capacity',
+);
+assert.match(
   expandedSimulation,
   /step_carpenter[\s\S]*carpenter_cart_service_timber_target[\s\S]*carpenter_cart_service_ironwork_target[\s\S]*request_connected_commodity/,
   'staffed wheelwrights must physically request both repair inputs',
 );
 assert.match(watermillInspector, /Repair kit/);
 assert.match(watermillInspector, /protected timber/);
+assert.match(watermillInspector, /Handcarts and ox carts/);
 assert.match(watermillInspector, /data-carpenter-cart-service-target/);
 const carpenterPolicy = fs.readFileSync(
   'src/economy/carpenterSupport.ts',

@@ -123,7 +123,7 @@ for (const tableName of subscriptions) {
 const building = rustTables.get('building');
 assert.ok(building, 'building table must be subscribed and public');
 assert.deepEqual(
-  building.fields.slice(-16),
+  building.fields.slice(-19),
   [
     { name: 'tree_work_area_x', type: 'f64' },
     { name: 'tree_work_area_z', type: 'f64' },
@@ -141,8 +141,11 @@ assert.deepEqual(
     { name: 'smokehouse_recipe_policy', type: 'u8' },
     { name: 'production_rate_percent', type: 'u8' },
     { name: 'production_maintenance_progress', type: 'f64' },
+    { name: 'placement_yaw', type: 'f64' },
+    { name: 'placement_yaw_locked', type: 'bool' },
+    { name: 'apiary_accumulated_honey', type: 'f64' },
   ],
-  'new commodity fields must append without reordering saved Building fields',
+  'new Building fields must append without reordering saved fields',
 );
 
 const playerResources = rustTables.get('player_resources');

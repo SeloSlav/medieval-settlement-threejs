@@ -1058,9 +1058,12 @@ export class App {
 
   private syncBuildInteractionPerf(): void {
     const splineDraft = Boolean(this.roadTool?.isEnabled() && this.roadTool.hasDraft());
+    const roadActive = Boolean(
+      this.roadTool?.isEnabled()
+      && this.roadTool.getMode() === 'road',
+    );
     const roadDraft = Boolean(
-      splineDraft
-      && this.roadTool?.getMode() === 'road',
+      splineDraft && roadActive,
     );
     const burgageDraft = Boolean(this.burgageTool?.isEnabled() && this.burgageTool.hasDraft());
     const farmFieldDraft = Boolean(this.farmFieldTool?.isEnabled() && this.farmFieldTool.hasDraft());
@@ -1070,7 +1073,7 @@ export class App {
       splineDraft || burgageDraft || farmFieldDraft || buildingActive || forestryWorkAreaActive,
     );
     this.sceneManager?.setTerrainTopographyVisible(
-      Boolean(this.toolbar?.isBuildMenuOpen()) || buildingActive,
+      Boolean(this.toolbar?.isBuildMenuOpen()) || buildingActive || roadActive,
     );
     this.sceneManager?.setRoadDraftActive(roadDraft);
   }

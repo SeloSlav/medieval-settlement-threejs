@@ -1,6 +1,6 @@
 use crate::balance_generated::{
-    APIARY_SEASON_END_MONTH, APIARY_SEASON_START_MONTH, VINEYARD_HARVEST_END_MONTH,
-    VINEYARD_HARVEST_START_MONTH,
+    APIARY_ACCUMULATION_END_MONTH, APIARY_HARVEST_START_MONTH, APIARY_SEASON_END_MONTH,
+    APIARY_SEASON_START_MONTH, VINEYARD_HARVEST_END_MONTH, VINEYARD_HARVEST_START_MONTH,
 };
 
 pub const SPECIALTY_EXPORT_POLICY_ANY_RATE: u8 = 0;
@@ -47,6 +47,22 @@ pub fn apiary_is_active(month: u8) -> bool {
     month_in_window(month, APIARY_SEASON_START_MONTH, APIARY_SEASON_END_MONTH)
 }
 
+pub fn apiary_is_accumulating(month: u8) -> bool {
+    month_in_window(
+        month,
+        APIARY_SEASON_START_MONTH,
+        APIARY_ACCUMULATION_END_MONTH,
+    )
+}
+
+pub fn apiary_is_harvesting(month: u8) -> bool {
+    month_in_window(
+        month,
+        APIARY_HARVEST_START_MONTH,
+        APIARY_SEASON_END_MONTH,
+    )
+}
+
 pub fn vineyard_is_harvesting(month: u8) -> bool {
     month_in_window(
         month,
@@ -74,11 +90,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn apiaries_rest_through_the_cold_half_of_the_year() {
-        assert!(!apiary_is_active(3));
-        assert!(apiary_is_active(4));
-        assert!(apiary_is_active(9));
-        assert!(!apiary_is_active(10));
+    fn apiaries_accumulate_in_spring_and_summer_then_harvest_in_autumn() {
+        assert!(!apiary_is_active(2));
+        assert!(apiary_is_active(3));
+        assert!(apiary_is_accumulating(3));
+        assert!(apiary_is_accumulating(8));
+        assert!(!apiary_is_accumulating(9));
+        assert!(apiary_is_harvesting(9));
+        assert!(apiary_is_harvesting(11));
+        assert!(!apiary_is_harvesting(12));
+        assert!(!apiary_is_active(12));
     }
 
     #[test]

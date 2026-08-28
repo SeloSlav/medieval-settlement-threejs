@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import type { BuildingTerrainSource } from '../buildings/BuildingTerrainLayout.ts';
-import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
 import { createForestProps } from '../props/ForestProps.ts';
 import type { ForestManager, ForestTreeLayout } from '../props/ForestManager.ts';
 import { computeForestTreePlacements } from '../props/forestPlacements.ts';
@@ -1461,28 +1460,6 @@ export class SceneManager {
 
     this.rebuildJunctions(network);
     this.buildingAccessSpurs.sync(this.buildingAccessSpurSources, network);
-    let buildingClearanceYawChanged = false;
-    const roadFacingClearanceBuildings = this.forestClearanceBuildings.map((building) => {
-      const yaw = buildingPlacementYaw(building.kind, building.x, building.z, network);
-      const priorYaw = building.yaw;
-      const yawDelta = priorYaw === undefined
-        ? Number.POSITIVE_INFINITY
-        : Math.atan2(Math.sin(yaw - priorYaw), Math.cos(yaw - priorYaw));
-      if (Math.abs(yawDelta) <= 1e-5) return building;
-      buildingClearanceYawChanged = true;
-      return { ...building, yaw };
-    });
-    if (buildingClearanceYawChanged) {
-      this.forestClearanceBuildings = roadFacingClearanceBuildings;
-      this.lastForestClearanceSourceSignature = forestClearanceSourceSignature(
-        this.forestClearanceBuildings,
-        this.forestClearanceBurgageParcelPolygons,
-        this.forestClearanceFarmFieldPolygons,
-        this.forestClearanceBackyardGardenPolygons,
-        this.graveSiteVegetationClearancePolygons,
-      );
-      this.refreshForestClearance();
-    }
     this.forestManager?.syncRoadClearance(network);
     this.riverSystem.syncRoadClearance(network);
     this.grassField?.syncRoadClearance(network);

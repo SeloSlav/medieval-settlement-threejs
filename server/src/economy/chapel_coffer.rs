@@ -163,6 +163,8 @@ mod tests {
             kind: "chapel".to_string(),
             x: 0.0,
             z: 0.0,
+            placement_yaw: 0.0,
+            placement_yaw_locked: true,
             work_radius: 0.0,
             tree_work_area_x: 0.0,
             tree_work_area_z: 0.0,
@@ -332,6 +334,8 @@ mod tests {
             yarn: 0.0,
             linen: 0.0,
             milk_use_policy: crate::livestock_policy::MILK_USE_BALANCED,
+            smokehouse_recipe_policy: 0,
+            apiary_accumulated_honey: 0.0,
         }
     }
 

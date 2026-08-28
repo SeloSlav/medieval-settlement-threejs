@@ -13,7 +13,9 @@ use crate::db::*;
 use crate::economy::{
     building_commodity_room, building_commodity_stock, storage_accepts_commodity, CommodityKind,
 };
-use crate::placement_validation::building_overlaps_road_surface;
+use crate::placement_validation::{
+    building_overlaps_road_surface, resolved_building_placement_yaw,
+};
 use crate::reducers::buildings::next_available_building_id;
 use crate::resource_units::whole_units;
 use crate::roads::load_owner_road_network;
@@ -1121,12 +1123,17 @@ pub fn insert_reclamation_pile(
         .ok_or_else(|| "World not initialized.".to_string())?;
     let building_id = next_available_building_id(ctx, config.next_building_id)?;
     let settlement_id = crate::settlements::settlement_for_position(ctx, owner, x, z).unwrap_or(0);
+    let road_network = load_owner_road_network(ctx, owner);
+    let placement_yaw =
+        resolved_building_placement_yaw(road_network.as_ref(), "salvage_pile", x, z);
     ctx.db.building().insert(Building {
         id: building_id,
         owner,
         kind: "salvage_pile".into(),
         x,
         z,
+        placement_yaw,
+        placement_yaw_locked: true,
         work_radius: salvage_def.work_radius,
         tree_work_area_x: 0.0,
         tree_work_area_z: 0.0,
@@ -1306,6 +1313,7 @@ pub fn insert_reclamation_pile(
         linen: stock.linen.max(0.0),
         milk_use_policy: crate::livestock_policy::MILK_USE_BALANCED,
         smokehouse_recipe_policy: crate::smokehouse_recipe_policy::SMOKEHOUSE_RECIPE_AUTO,
+        apiary_accumulated_honey: 0.0,
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id

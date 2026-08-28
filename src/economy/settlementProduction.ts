@@ -329,7 +329,8 @@ export type IndustrialMaterialPlan = {
   toolCartWorkerDaysPerDay: number;
   toolRefillLoad: number;
   toolUnreachableSites: number;
-  ironworkSurplusAfterToolUpkeep: number;
+  /** Smithy output left after cart labor. Future maintenance is separate demand. */
+  ironworkProducedSurplusPerDay: number;
   firstPotteryBottleneckId: string | null;
   firstPotteryBottleneckResidenceId: string | null;
   firstSmithyBottleneckId: string | null;
@@ -2312,7 +2313,7 @@ function industrialMaterialRoadPlan(
   let sustainableToolIronworkPerDay = 0;
   let toolCartWorkerDaysPerDay = 0;
   let toolUnreachableSites = 0;
-  let ironworkSurplusAfterToolUpkeep = 0;
+  let ironworkProducedSurplusPerDay = 0;
   let firstPotteryBottleneckId: string | null = null;
   let firstPotteryBottleneckResidenceId: string | null = null;
   let firstSmithyBottleneckId: string | null = null;
@@ -2552,10 +2553,10 @@ function industrialMaterialRoadPlan(
   toolCartWorkerDaysPerDay = toolRoutes.cartWorkerDaysPerDay;
   toolUnreachableSites = toolRoutes.unreachableSites;
   firstToolDeliveryBottleneckId = toolRoutes.firstBottleneckId;
-  ironworkSurplusAfterToolUpkeep = Math.max(
-    0,
-    toolRoutes.forgeOutputAfterCarts - toolRoutes.sustainableIronworkPerDay,
-  );
+  // Finished ironwork is surplus as soon as it is made. Tool upkeep remains a
+  // future demand and may therefore need to draw the same goods back from
+  // shared physical stock once a consumer rack requests a refill.
+  ironworkProducedSurplusPerDay = Math.max(0, toolRoutes.forgeOutputAfterCarts);
   if (toolRoutes.uptime < 1 - 1e-6) {
     smithyBlockedBranches += 1;
     if (toolRoutes.firstBottleneckId !== null) {
@@ -2632,7 +2633,7 @@ function industrialMaterialRoadPlan(
       BUILDING_STORAGE_CAPS.lumber_mill.ironwork ?? 0,
     ),
     toolUnreachableSites,
-    ironworkSurplusAfterToolUpkeep,
+    ironworkProducedSurplusPerDay,
     firstPotteryBottleneckId,
     firstPotteryBottleneckResidenceId,
     firstSmithyBottleneckId,

@@ -1,4 +1,4 @@
-import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
+import { resolvedPlacedBuildingYaw } from '../buildings/buildingPlacement.ts';
 import { STABLE_OX_REST_ANCHORS } from '../buildings/meshes/stableMesh.ts';
 import {
   parseBuildingServerId,
@@ -254,12 +254,7 @@ export function stableOxRestPose(
     Math.max(0, Math.min(STABLE_OX_REST_ANCHORS.length - 1, Math.floor(slot)))
   ]!;
   const [localX, localY, localZ] = anchor.localPosition;
-  const buildingYaw = buildingPlacementYaw(
-    stable.kind,
-    stable.x,
-    stable.z,
-    roadNetwork,
-  );
+  const buildingYaw = resolvedPlacedBuildingYaw(stable, roadNetwork);
   const cos = Math.cos(buildingYaw);
   const sin = Math.sin(buildingYaw);
   return {

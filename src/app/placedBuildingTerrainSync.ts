@@ -4,7 +4,10 @@ import type {
   ResidenceTerrainSource,
 } from '../buildings/BuildingTerrainLayout.ts';
 import type { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
-import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
+import {
+  buildingPlacementYaw,
+  resolvedPlacedBuildingYaw,
+} from '../buildings/buildingPlacement.ts';
 import type { BuildingState, GameState } from '../resources/types.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { SceneManager } from '../scene/SceneManager.ts';
@@ -22,12 +25,7 @@ export function collectPlacedBuildingSources(
       kind: building.kind,
       x: building.x,
       z: building.z,
-      yaw: buildingPlacementYaw(
-        building.kind,
-        building.x,
-        building.z,
-        roadNetwork,
-      ),
+      yaw: resolvedPlacedBuildingYaw(building, roadNetwork),
     });
   }
   return placedSources;
@@ -44,7 +42,9 @@ export function collectPlacedResidenceSources(gameState: GameState | null): Resi
 
 export function getPlacedBuildingSignature(buildings: Map<string, BuildingState>): string {
   return [...buildings.values()]
-    .map((building) => `${building.id}:${building.kind}:${building.x.toFixed(2)}:${building.z.toFixed(2)}`)
+    .map((building) => `${building.id}:${building.kind}:${building.x.toFixed(2)}:${building.z.toFixed(2)}:${
+      Number.isFinite(building.yaw) ? building.yaw!.toFixed(5) : 'legacy-yaw'
+    }`)
     .sort()
     .join('|');
 }
@@ -66,7 +66,9 @@ export function getPlacedTerrainSignature(state: GameState): string {
 
 export function getForestClearanceSignature(state: GameState): string {
   const buildings = [...state.buildings.values()]
-    .map((building) => `${building.id}:${building.kind}:${building.x.toFixed(2)}:${building.z.toFixed(2)}`)
+    .map((building) => `${building.id}:${building.kind}:${building.x.toFixed(2)}:${building.z.toFixed(2)}:${
+      Number.isFinite(building.yaw) ? building.yaw!.toFixed(5) : 'legacy-yaw'
+    }`)
     .sort()
     .join('|');
   const residences = [...state.residences.values()]

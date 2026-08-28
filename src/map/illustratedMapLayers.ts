@@ -7,7 +7,7 @@ import type {
 } from '../resources/types.ts';
 import type { TerrainBounds } from '../terrain/Terrain.ts';
 import { getBuildingFootprintCorners } from '../buildings/BuildingTerrainLayout.ts';
-import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
+import { resolvedPlacedBuildingYaw } from '../buildings/buildingPlacement.ts';
 import { geologicalNodeForMapMarker } from './geologicalMapMarkerState.ts';
 import {
   MAP_ART_RESOLUTION,
@@ -135,7 +135,7 @@ function drawBuildingFootprints(
   roadNetwork: RoadNetwork,
 ): void {
   for (const building of buildings) {
-    const yaw = buildingPlacementYaw(building.kind, building.x, building.z, roadNetwork);
+    const yaw = resolvedPlacedBuildingYaw(building, roadNetwork);
     const corners = getBuildingFootprintCorners(
       building.kind,
       building.x,

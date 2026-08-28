@@ -39,6 +39,14 @@ function buildingUsesRoadsideSnap(kind: BuildingKind): boolean {
 
 export type RoadsideBuildingPlacement = { x: number; z: number };
 
+export type PlacedBuildingOrientation = {
+  kind: BuildingKind;
+  x: number;
+  z: number;
+  /** Authoritative yaw captured when the building was placed. */
+  yaw?: number;
+};
+
 /** Mesh doors face local +Z; rotate so +Z points toward the nearest road. */
 export function buildingPlacementYaw(
   kind: BuildingKind,
@@ -57,6 +65,19 @@ export function buildingPlacementYaw(
     }
   }
   return pseudoRandomYaw(x, z);
+}
+
+/**
+ * Existing buildings keep the yaw captured at placement. The road network is
+ * consulted only for legacy rows that predate persisted building orientation.
+ */
+export function resolvedPlacedBuildingYaw(
+  building: PlacedBuildingOrientation,
+  roadNetwork?: RoadNetwork | null,
+): number {
+  return Number.isFinite(building.yaw)
+    ? building.yaw!
+    : buildingPlacementYaw(building.kind, building.x, building.z, roadNetwork);
 }
 
 /**

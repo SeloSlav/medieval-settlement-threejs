@@ -474,7 +474,7 @@ const apiary = makeBuilding({
 });
 assert.match(
   getBuildingProcessorStatus(apiary, noWellQueries, { month: 1 })?.statusText ?? '',
-  /resumes in April/,
+  /resumes in March/,
 );
 assert.equal(
   getBuildingProcessorStatus(apiary, noWellQueries, { month: 1 })?.statusState,
@@ -482,7 +482,15 @@ assert.equal(
 );
 assert.match(
   getBuildingProcessorStatus(apiary, noWellQueries, { month: 4 })?.statusText ?? '',
-  /Gathering honey/,
+  /Autumn yield accumulating/,
+);
+assert.match(
+  getBuildingProcessorStatus(
+    { ...apiary, apiaryAccumulatedHoney: 9 },
+    noWellQueries,
+    { month: 9 },
+  )?.statusText ?? '',
+  /Extracting the Autumn honey harvest/,
 );
 const fullApiary = makeBuilding({
   id: 'apiary-full',
@@ -490,14 +498,15 @@ const fullApiary = makeBuilding({
   x: 0,
   z: 0,
   assignedLabor: 1,
-  honey: 59,
+  honey: BUILDING_STORAGE_CAPS.apiary.honey,
+  apiaryAccumulatedHoney: 3,
 });
 assert.equal(
-  getBuildingProcessorStatus(fullApiary, noWellQueries, { month: 4 })?.statusText,
+  getBuildingProcessorStatus(fullApiary, noWellQueries, { month: 9 })?.statusText,
   'Seasonal work waiting - honey store needs 3 more room',
 );
 assert.equal(
-  getBuildingProcessorStatus(fullApiary, noWellQueries, { month: 4 })?.statusState,
+  getBuildingProcessorStatus(fullApiary, noWellQueries, { month: 9 })?.statusState,
   'warning',
 );
 
@@ -507,14 +516,14 @@ assert.match(
     noWellQueries,
     { month: 1 },
   )?.statusText ?? '',
-  /resumes in April/,
+  /resumes in March/,
   'an out-of-season holding should explain the calendar before suggesting labor',
 );
 assert.equal(
   getBuildingProcessorStatus(
     { ...fullApiary, id: 'apiary-full-recalled', assignedLabor: 0 },
     noWellQueries,
-    { month: 4 },
+    { month: 9 },
   )?.statusText,
   'Seasonal work waiting - honey store needs 3 more room',
   'a released seasonal crew must not hide a full physical output store',

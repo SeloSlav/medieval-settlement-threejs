@@ -249,7 +249,7 @@ const PROCESS: Record<string, string> = {
   brewery: 'Barley → malt → ale, 4 apples → 1 apple cider, 4 pears → 1 pear cider, or 1 honey → 1 mead; each finished beverage remains distinct and goes to staffed Taverns',
   tavern: 'Receives ale, apple cider, pear cider, and mead, then serves any of them as the residential Beverage service',
   smokehouse: 'Meat, fish, or milk + firewood + local or imported salt -> cured meat, smoked fish, or cheese',
-  apiary: 'April-September forage + a healthy overwintered colony → physical honey for household food or luxury comfort and Mead-selected Brewhouses, with nearby orchard and vineyard pollination',
+  apiary: 'March-August forage accumulates a whole-unit hive crop; September-November labor extracts it as physical honey for food, luxury comfort, or Mead-selected Brewhouses, with nearby orchard and vineyard pollination',
   monastery: 'A self-governing 68 × 53 m walled estate raises mixed orchard and garden crops alongside cattle, sheep, eggs, milk, meat, honey, and cheese; orchard fruit becomes house cider, apiary honey becomes mead, and player-drawn vineyards produce town-market wine',
   carpenter: 'Timber + smith-forged ironwork → polearms and cartwright support',
   spinning_retting_house: 'Annual sheep fleece → yarn, or harvested flax + hauled water → linen; prepared fibre moves physically to a Weaver, Storehouse, or Trading Post',
@@ -1356,7 +1356,9 @@ export function renderExpandedBuildingInspector(
         const policy = apiaryHarvestPolicy(building.apiaryHarvestPolicy);
         const forage = Math.max(0, building.apiaryForageScore ?? 0.55);
         const health = Math.max(0, building.apiaryColonyHealth ?? 1);
-        return `<li><span>Harvest policy</span><span>${policy.label} · ${policy.reserve.toFixed(0)} honey protected · ${Math.round(policy.yieldMultiplier * 100)}% harvest pace</span></li>
+        const accumulatedHoney = Math.max(0, Math.floor(building.apiaryAccumulatedHoney ?? 0));
+        return `<li><span>Harvest policy</span><span>${policy.label} · ${policy.reserve.toFixed(0)} honey protected · ${Math.round(policy.yieldMultiplier * 100)}% seasonal yield</span></li>
+          <li><span>Seasonal yield</span><span>${accumulatedHoney} honey in the hives · accumulates March-August, extracted September-November</span></li>
           <li><span>Forage landscape</span><span>${Math.round(forage * 100)}% · mature woodland, orchards, flower gardens, and vineyard rows inside bee range</span></li>
           <li><span>Colony health</span><span>${Math.round(health * 100)}% · winter check needs ${APIARY_WINTER_HONEY_REQUIRED} honey</span></li>
           <li><span>Pollination</span><span>Healthy nearby hives can raise orchard and vineyard output by up to ${Math.round(APIARY_POLLINATION_BONUS_MAX * 100)}%</span></li>`;
@@ -1381,7 +1383,7 @@ export function renderExpandedBuildingInspector(
     : PROCESS[building.kind] ?? 'Settlement service';
   const carpenterSupportRows = building.kind === 'carpenter'
     ? `<li><span>Construction timber</span><span>${Math.round((1 - CARPENTER_TIMBER_COST_MULTIPLIER) * 100)}% less at road-linked sites</span></li>
-      <li><span>Cart travel</span><span>${Math.round((CARPENTER_DELIVERY_SPEED_MULTIPLIER - 1) * 100)}% faster from linked origins while a repair kit is available · base speed otherwise</span></li>
+      <li><span>Cart travel</span><span>Handcarts and ox carts move ${Math.round((CARPENTER_DELIVERY_SPEED_MULTIPLIER - 1) * 100)}% faster from linked origins while a repair kit is available · oxen add carrying capacity, not another speed bonus</span></li>
       <li><span>Repair kit cost</span><span>${renderResourceCost({ timber: CARPENTER_CART_SERVICE_TIMBER_PER_TRIP, ironwork: CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP }, { compact: true, suffix: 'per accelerated departure' })}</span></li>
       <li><span>Service buffer</span><span>${Math.round(building.timber)} / ${Math.ceil(carpenterServiceTimberTarget)} protected timber · ${Math.round(building.ironwork ?? 0)} / ${Math.ceil(carpenterServiceIronworkTarget)} protected ironwork · ${carpenterServiceTrips} / ${carpenterServiceTargetTrips} departures ready</span></li>
       <li><span>Support state</span><span>${building.assignedLabor > 0 ? 'Skilled construction active across this road network' : 'Inactive — requires at least 1 craftsperson'}</span></li>
@@ -1797,7 +1799,7 @@ function renderCarpenterPolicyPanel(
         .join('')}</div>
       <p class="inspector-action-panel__hint">${serviceTarget <= 0
         ? 'Conserve fittings keeps the road-linked construction timber discount but stops repair-kit procurement and the cart-speed bonus. Existing timber and ironwork become available to construction and weapon crafting.'
-        : `This shop protects ${renderResourceCost({ timber: serviceTimberTarget, ironwork: serviceIronworkTarget }, { compact: true, suffix: `for ${serviceTarget} departures` })}. Every accelerated departure consumes ${renderResourceCost({ timber: CARPENTER_CART_SERVICE_TIMBER_PER_TRIP, ironwork: CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP }, { compact: true })}; lowering the target immediately releases surplus stock.`}</p>
+        : `This shop protects ${renderResourceCost({ timber: serviceTimberTarget, ironwork: serviceIronworkTarget }, { compact: true, suffix: `for ${serviceTarget} departures` })}. Every accelerated handcart or ox-cart departure consumes ${renderResourceCost({ timber: CARPENTER_CART_SERVICE_TIMBER_PER_TRIP, ironwork: CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP }, { compact: true })}; lowering the target immediately releases surplus stock.`}</p>
       ${conflictEnabled ? `
         <p class="resource-inspector-note">Finished polearm reserve — weapon crafting uses only timber and ironwork above the selected cart-service buffer.</p>
         <div class="resource-action-row">${CARPENTER_POLEARM_RESERVE_PRESETS
@@ -1831,11 +1833,11 @@ function renderApiaryHarvestPolicyPanel(building: BuildingState): string {
   const selected = apiaryHarvestPolicy(building.apiaryHarvestPolicy);
   return `
     <div class="inspector-action-panel" data-inspector-panel-title="Honey harvest">
-      <p class="resource-inspector-note">Honey harvest · choose how much winter food the beekeepers protect and how aggressively they work the hives.</p>
+      <p class="resource-inspector-note">Honey harvest · choose how much winter food the beekeepers protect and how much whole-unit yield they accumulate during Spring and Summer.</p>
       <div class="resource-action-row">${APIARY_HARVEST_POLICIES
         .map((policy) => `<button type="button" class="resource-action-button" data-apiary-harvest-policy="${policy.value}" title="${policy.hint}" ${selected.value === policy.value ? 'disabled' : ''}>${policy.label} · ${policy.reserve} reserve · ${Math.round(policy.yieldMultiplier * 100)}%</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">The reserve is protected from town-processing and export carts. In winter the colony consumes up to ${APIARY_WINTER_HONEY_REQUIRED} honey; a shortfall damages next season's colony health. Forage and health multiply the selected harvest pace, while nearby healthy hives provide bounded pollination.</p>
+      <p class="inspector-action-panel__hint">Workers tend the hives and accumulate yield from March through August, then extract that crop into physical Honey from September through November. Unharvested hive yield is lost when winter begins. The reserve protects stored Honey from town-processing and export carts; in winter the colony consumes up to ${APIARY_WINTER_HONEY_REQUIRED} honey, and a shortfall damages next season's colony health. Forage and health multiply accumulated yield, while nearby healthy hives provide bounded pollination.</p>
     </div>
   `;
 }

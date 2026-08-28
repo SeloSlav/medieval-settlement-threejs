@@ -65,6 +65,10 @@ export function syncSettlementWorld(
     state.livestockHerds,
     previous.livestockHerds,
   );
+  const livestockBuildingsChanged = !previous || !mapEntriesShareValues(
+    state.buildings,
+    previous.buildings,
+  );
   const stableOxenChanged = !previous || !mapEntriesShareValues(
     state.stableOxen,
     previous.stableOxen,
@@ -200,7 +204,13 @@ export function syncSettlementWorld(
   }
   if (pasturesChanged || livestockChanged) {
     targets.pastureMarkers?.syncPastures(state.pastures.values(), state.livestockHerds);
-    targets.livestockVisuals?.sync(state.pastures.values(), state.livestockHerds);
+  }
+  if (pasturesChanged || livestockChanged || livestockBuildingsChanged) {
+    targets.livestockVisuals?.sync(
+      state.pastures.values(),
+      state.livestockHerds,
+      state.buildings,
+    );
   }
   if (vineyardsChanged) {
     targets.vineyardParcelMarkers?.sync(state.vineyardParcels?.values() ?? []);

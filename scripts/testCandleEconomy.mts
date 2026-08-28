@@ -171,19 +171,30 @@ assert.deepEqual(
   [90, 3, 11, 1, 8],
 );
 
-// A full wax shelf cannot block the primary honey output. Wax accrues on its
-// own progress field after a successful honey cycle and retains a due batch.
+// Spring/Summer work accumulates whole hive yield without materializing Honey.
+// Autumn extraction deposits complete batches and records wax separately.
 const expandedEconomy = source('server/src/simulation/expanded_economy.rs');
 const apiaryStep = blockBetween(expandedEconomy, 'pub fn step_apiary', 'fn record_apiary_honey_harvest_wax');
-const honeyProducerCall = apiaryStep.match(
-  /step_simple_producer_at_rate\([\s\S]*?&\[\(CommodityKind::Honey,\s*APIARY_HONEY_PER_CYCLE\)\][\s\S]*?\)/,
+assert.match(apiaryStep, /apiary_is_accumulating[\s\S]*?accumulate_apiary_yield_cycle/);
+assert.match(apiaryStep, /apiary_is_harvesting[\s\S]*?harvest_accumulated_apiary_yield/);
+const apiaryAccumulation = blockBetween(
+  expandedEconomy,
+  'fn accumulate_apiary_yield_cycle',
+  'fn harvest_accumulated_apiary_yield',
 );
-assert.ok(honeyProducerCall, 'the Apiary primary producer must remain a Honey-only batch');
-assert.doesNotMatch(honeyProducerCall[0], /CommodityKind::Wax/);
-assert.match(
-  apiaryStep,
-  /apiary\.honey\s*-\s*honey_before_cycle[\s\S]*?record_apiary_honey_harvest_wax\(&mut apiary\)/,
+assert.match(apiaryAccumulation, /whole_units\(APIARY_HONEY_PER_CYCLE\)/);
+assert.match(apiaryAccumulation, /apiary_accumulated_honey[\s\S]*?\+ batch/);
+assert.doesNotMatch(apiaryAccumulation, /deposit_building_commodity/);
+const apiaryHarvest = blockBetween(
+  expandedEconomy,
+  'fn harvest_accumulated_apiary_yield',
+  'fn record_apiary_honey_harvest_wax',
 );
+assert.match(apiaryHarvest, /available_batches[\s\S]*?fitting_batches/);
+assert.match(apiaryHarvest, /deposit_building_commodity\(&mut apiary, CommodityKind::Honey, honey\)/);
+assert.match(apiaryHarvest, /apiary_accumulated_honey\s*=\s*\(accumulated - stored\)/);
+assert.match(apiaryHarvest, /record_apiary_honey_harvest_wax\(&mut apiary\)/);
+assert.match(apiaryStep, /clock\.month == 12[\s\S]*?apiary_accumulated_honey = 0\.0/);
 const waxPlanner = blockBetween(expandedEconomy, 'fn record_apiary_honey_harvest_wax', '#[cfg(test)]\nmod apiary_wax_tests');
 assert.match(waxPlanner, /apiary_wax_cycle_progress/);
 assert.match(waxPlanner, /building_commodity_room\(apiary,\s*CommodityKind::Wax\)/);

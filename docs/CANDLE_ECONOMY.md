@@ -8,7 +8,7 @@ Candles are counted as trade-sized lots, like the other physical commodities. Th
 
 ## Beeswax supply
 
-The staffed forest Apiary remains primarily a honey producer. During its April-September production season, every third successful honey cycle makes one unit of beeswax. The wax cadence is recorded separately from the honey cycle. If the Apiary's 12-unit wax shelf is full, the due wax batch waits; honey production is not blocked and the progress is not lost.
+The staffed forest Apiary remains primarily a honey producer. Workers accumulate whole-unit hive yield from March through August, then extract it into physical honey from September through November. Every third complete honey batch extracted in Autumn makes one unit of beeswax. The wax cadence is recorded separately from both the work cycle and the unextracted hive ledger. If the Apiary's 12-unit wax shelf is full, the due wax batch waits; honey extraction is not blocked and the progress is not lost. Any hive yield still unharvested when December begins is lost.
 
 The backyard apiary also remains primarily a household honey source. A successful whole-unit honey harvest may collect one unit of wax when its secondary 90-day clock is due during March-November. Its household wax shelf holds eight units. A full shelf leaves the secondary clock due instead of cancelling the wax or blocking honey. Collected wax uses the existing road-linked Storehouse goods-depot route.
 

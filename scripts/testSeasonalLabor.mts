@@ -29,8 +29,10 @@ import {
 } from '../src/resources/types.ts';
 import type { WorldQueries } from '../src/resources/WorldQueries.ts';
 
-assert.equal(seasonalProductionActive('apiary', 3), false);
-assert.equal(seasonalProductionActive('apiary', 4), true);
+assert.equal(seasonalProductionActive('apiary', 2), false);
+assert.equal(seasonalProductionActive('apiary', 3), true);
+assert.equal(seasonalProductionActive('apiary', 11), true);
+assert.equal(seasonalProductionActive('apiary', 12), false);
 assert.equal(seasonalProductionActive('fishing_camp', 1), false);
 assert.equal(seasonalProductionActive('fishing_camp', 3), true);
 assert.equal(seasonalProductionActive('watermill', 1), false);
@@ -39,7 +41,8 @@ assert.equal(seasonalProductionActive('watermill', 3), true);
 assert.equal(seasonalProductionActive('granary', 1), null);
 assert.equal(seasonalLaborTarget('apiary', 1, 3, true), 0);
 assert.equal(seasonalLaborTarget('apiary', 1, 3, false), 0);
-assert.equal(seasonalLaborTarget('apiary', 4, 3, false), 3);
+assert.equal(seasonalLaborTarget('apiary', 3, 3, false), 3);
+assert.equal(seasonalLaborTarget('apiary', 11, 3, false), 3);
 assert.equal(DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED, false);
 assert.equal(
   seasonalLaborStewardStatus(false, true),
@@ -141,11 +144,11 @@ for (const site of [highForager, highFishing, normalFarm, inactiveApiary]) {
 callupState.farmFields.set('spring-oats', field('spring-oats', normalFarm.id, 'ploughing', 'oats'));
 
 const callupPlan = computeSettlementSeasonalCallupPlan(callupState, 3, 3);
-assert.equal(callupPlan.activeSites, 3);
-assert.equal(callupPlan.understaffedSites, 3);
-assert.equal(callupPlan.openPosts, 13);
+assert.equal(callupPlan.activeSites, 4);
+assert.equal(callupPlan.understaffedSites, 4);
+assert.equal(callupPlan.openPosts, 14);
 assert.equal(callupPlan.callupWorkers, 3);
-assert.equal(callupPlan.remainingOpenPosts, 10);
+assert.equal(callupPlan.remainingOpenPosts, 11);
 assert.equal(callupPlan.firstUnderstaffedBuildingId, highForager.id);
 assert.deepEqual(
   callupPlan.assignments.map((assignment) => [
@@ -175,10 +178,10 @@ assert.equal(legacyPriorityPlan.assignments[0]?.priority, 2);
 
 const renderedState = emptyGameState();
 const townHall = building('hall', 'town_hall', 1);
-const dormantApiary = building('apiary', 'apiary', 2);
+const dormantFarmstead = building('farmstead', 'threshing_barn', 2);
 const activeForager = building('forager', 'foragers_shed', 0);
 renderedState.buildings.set(townHall.id, townHall);
-renderedState.buildings.set(dormantApiary.id, dormantApiary);
+renderedState.buildings.set(dormantFarmstead.id, dormantFarmstead);
 renderedState.buildings.set(activeForager.id, activeForager);
 const population = computePopulationStats(renderedState);
 const inspector = renderTownHallInspector(
@@ -199,7 +202,7 @@ const inspector = renderTownHallInspector(
 );
 assert.match(inspector.detailsHtml, /Seasonal labor/);
 assert.match(inspector.detailsHtml, /2 idle workers across 1 site/);
-assert.match(inspector.detailsHtml, /data-inspect-building="apiary"/);
+assert.match(inspector.detailsHtml, /data-inspect-building="farmstead"/);
 assert.match(inspector.supplementalPanelHtml ?? '', /data-recall-idle-seasonal-labor/);
 assert.match(inspector.supplementalPanelHtml ?? '', /Recall 2 idle workers/);
 assert.match(inspector.supplementalPanelHtml ?? '', /must restaff before the next work window/);
@@ -329,7 +332,7 @@ assert.match(spacetimeReducers, /recallIdleSeasonalLabor/);
 assert.match(spacetimeReducers, /callUpActiveSeasonalLabor/);
 assert.match(generatedReducers, /recall_idle_seasonal_labor/);
 assert.match(generatedReducers, /call_up_active_seasonal_labor/);
-assert.match(serverSteward, /recall_idle_seasonal_labor_for_owner[\s\S]*call_up_active_seasonal_labor_for_owner/);
+assert.match(serverSteward, /recall_idle_seasonal_labor_for_scope[\s\S]*call_up_active_seasonal_labor_for_scope/);
 assert.match(serverSteward, /if !seasonal_labor_steward_review_due\(sim_tick\)[\s\S]*return/);
 assert.match(serverSteward, /resources\.seasonal_labor_steward_enabled/);
 assert.match(serverStewardPolicy, /sim_tick == 0[\s\S]*calendar_day\(sim_tick\) > calendar_day\(sim_tick - 1\)/);
@@ -362,6 +365,7 @@ function emptyGameState(): GameState {
     farmFields: new Map(),
     pastures: new Map(),
     livestockHerds: new Map(),
+    stableOxen: new Map(),
     burgageZones: new Map(),
     residences: new Map(),
     backyardGardens: new Map(),

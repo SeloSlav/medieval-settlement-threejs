@@ -104,7 +104,8 @@ assert.equal(
   seasonalProducerOutputBlocker(building('apiary', {
     honey: BUILDING_STORAGE_CAPS.apiary.honey
       - APIARY_HONEY_PER_CYCLE,
-  })),
+    apiaryAccumulatedHoney: APIARY_HONEY_PER_CYCLE,
+  }), 9),
   null,
   'an exact whole apiary batch must fit',
 );
@@ -112,9 +113,18 @@ const honeyBlocked = seasonalProducerOutputBlocker(building('apiary', {
   honey: BUILDING_STORAGE_CAPS.apiary.honey
     - APIARY_HONEY_PER_CYCLE
     + 0.1,
-}));
+  apiaryAccumulatedHoney: APIARY_HONEY_PER_CYCLE,
+}), 9);
 assert.equal(honeyBlocked?.commodity, 'honey');
 assert.ok(Math.abs((honeyBlocked?.missingRoom ?? 0) - 0.1) < 1e-9);
+assert.equal(
+  seasonalProducerOutputBlocker(building('apiary', {
+    honey: BUILDING_STORAGE_CAPS.apiary.honey,
+    apiaryAccumulatedHoney: APIARY_HONEY_PER_CYCLE,
+  }), 8),
+  null,
+  'Spring/Summer hive accumulation must not require physical Honey room',
+);
 
 const firstHoneyBand = building('apiary', { honey: 1 });
 const sameHoneyBand = building('apiary', { honey: 15 });
@@ -142,10 +152,14 @@ assert.match(
   /producer_output_batch_fits\(outputs\.iter\(\)\.map/,
   'seasonal harvests must retain their indivisible physical-capacity check',
 );
+const apiaryHarvestSource = serverSimulation.slice(
+  serverSimulation.indexOf('fn harvest_accumulated_apiary_yield'),
+  serverSimulation.indexOf('fn record_apiary_honey_harvest_wax'),
+);
 assert.ok(
-  serverSimulation.indexOf('if !output_ready')
-    < serverSimulation.indexOf('let Some(labor) = cycle_labor_if_ready_at_rate'),
-  'seasonal output room must be checked before consuming a completed work cycle',
+  apiaryHarvestSource.indexOf('building_commodity_room')
+    < apiaryHarvestSource.indexOf('let Some(labor) = cycle_labor_if_ready_at_rate'),
+  'Autumn Honey room must be checked before consuming a completed extraction cycle',
 );
 assert.match(
   serverSimulation,
@@ -173,14 +187,14 @@ assert.doesNotMatch(expandedInspector, /data-vineyard-production-policy=/);
 assert.match(expandedInspector, /Forage landscape/);
 assert.match(expandedInspector, /worker-seconds remain/);
 
-const perfBuilding = building('apiary');
+const perfBuilding = building('apiary', { apiaryAccumulatedHoney: APIARY_HONEY_PER_CYCLE });
 const started = performance.now();
 let checksum = 0;
 for (let index = 0; index < 100_000; index += 1) {
   perfBuilding.grapes = index % 41;
   perfBuilding.honey = index % 141;
   checksum += seasonalStockpileVisualSignature(perfBuilding).length;
-  checksum += seasonalProducerOutputBlocker(perfBuilding)?.missingRoom ?? 0;
+  checksum += seasonalProducerOutputBlocker(perfBuilding, 9)?.missingRoom ?? 0;
 }
 const elapsed = performance.now() - started;
 assert.ok(checksum > 0);

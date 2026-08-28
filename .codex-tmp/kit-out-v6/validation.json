@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 2,
+  "validatedAt": "2026-08-28T19:08:29.588218+00:00",
+  "blend": "C:\\WebProjects\\medieval-road-system\\.codex-tmp\\kit-out-v6\\gorski_architecture_kit.blend",
+  "manifest": "C:\\WebProjects\\medieval-road-system\\.codex-tmp\\kit-out-v6\\gorski_architecture_kit_manifest.json",
+  "status": "pass",
+  "metrics": {
+    "parts": 625,
+    "families": {
+      "agriculture": 38,
+      "civic": 49,
+      "enclosures": 32,
+      "extraction": 33,
+      "foundations": 42,
+      "frames": 56,
+      "openings": 29,
+      "production": 41,
+      "props": 41,
+      "roofs": 106,
+      "siteworks": 41,
+      "walls": 117
+    },
+    "totalTriangles": 413456,
+    "sharedMaterials": 34,
+    "buildingCatalogKinds": 44,
+    "buildingCoverageKinds": 44,
+    "supplementalCoverageKinds": 34,
+    "farmCropCatalogKinds": 6,
+    "backyardGardenCatalogKinds": 17,
+    "nonmanifoldObjects": 0,
+    "uvMappedObjects": 625,
+    "requiredProductionVocabularySets": 6
+  },
+  "errors": [],
+  "warnings": [],
+  "checks": [
+    "authoritative building-catalog coverage",
+    "exact authoritative crop/backyard and required supplemental coverage",
+    "coverage references resolve to modular components",
+    "unique ids and deterministic vertex hashes",
+    "canonical transforms and unparented component ownership",
+    "mesh finiteness, topology, degeneracy, and triangle budgets",
+    "shared palette materials and required metadata",
+    "metric GK_UV0 coverage and texture contract metadata",
+    "authored-fraction seam contracts",
+    "minimum family breadth and no finished-building assemblies",
+    "named residence-roof, church, and shrine production vocabularies",
+    "no living vegetation or crop meshes (SeedThree ownership)"
+  ]
+}

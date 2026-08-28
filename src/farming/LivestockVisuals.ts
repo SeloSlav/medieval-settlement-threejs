@@ -1,7 +1,12 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import type { LivestockHerdState, LivestockSpecies, PastureState } from '../resources/types.ts';
+import type {
+  BuildingState,
+  LivestockHerdState,
+  LivestockSpecies,
+  PastureState,
+} from '../resources/types.ts';
 import type { CrowdViewState } from '../settlement/crowdView.ts';
 import {
   isAgentAnimalRenderingEnabled,
@@ -14,6 +19,10 @@ import {
 } from './pastureCapacity.ts';
 
 type MotionMode = 'idle' | 'graze' | 'walk';
+type HerdActivity = 'rest' | 'graze' | 'move';
+type LivestockWorkService = 'shearing' | 'milking' | 'culling';
+type WorkTripPhase = 'outbound' | 'service' | 'return';
+type PointXZ = { x: number; z: number };
 
 type AnimalSource = {
   scene: THREE.Group;
@@ -29,24 +38,60 @@ type AnimalSource = {
 
 type AnimalVisual = {
   herdId: string;
+  species: LivestockSpecies;
+  index: number;
+  modelKind: keyof typeof MODEL_URLS;
   root: THREE.Group;
   model: THREE.Group;
   mixer: THREE.AnimationMixer;
   actions: Record<MotionMode, THREE.AnimationAction>;
   mode: MotionMode;
-  modeTimer: number;
   x: number;
   z: number;
-  targetX: number;
-  targetZ: number;
+  u: number;
+  v: number;
+  velocityU: number;
+  velocityV: number;
+  yaw: number;
   speed: number;
   pasture: PastureState;
+  workTrip: AnimalWorkTrip | null;
+};
+
+type HerdVisual = {
+  id: string;
+  species: LivestockSpecies;
+  pasture: PastureState;
+  animals: AnimalVisual[];
   random: () => number;
+  activity: HerdActivity;
+  activityTimer: number;
+  anchorU: number;
+  anchorV: number;
+  targetU: number;
+  targetV: number;
+  velocityU: number;
+  velocityV: number;
+  heading: number;
+};
+
+type AnimalWorkTrip = {
+  service: LivestockWorkService;
+  phase: WorkTripPhase;
+  path: PointXZ[];
+  returnPath: PointXZ[];
+  waypointIndex: number;
+  delaySeconds: number;
+  serviceSeconds: number;
+  homeU: number;
+  homeV: number;
+  removeOnArrival: boolean;
 };
 
 type ReplayableLivestockInput = {
   pastures: PastureState[];
   herds: Map<string, LivestockHerdState>;
+  buildings: Map<string, BuildingState>;
 };
 
 const MODEL_URLS = {
@@ -69,6 +114,9 @@ const VISUAL_HEAD_CAP_BY_SPECIES: Record<LivestockSpecies, number> = {
   swine: 30,
 };
 const MIN_EDGE_MARGIN = 0.12;
+const HERD_ANCHOR_MARGIN = 0.24;
+const WORK_GATE_OFFSET_M = 1.15;
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const TAU = Math.PI * 2;
 
 export type CattleVisualKind = 'cow' | 'bull';
@@ -137,6 +185,8 @@ export function allocateLivestockVisualPastures<
 export class LivestockVisuals {
   private readonly root = new THREE.Group();
   private readonly animals: AnimalVisual[] = [];
+  private readonly departingAnimals: AnimalVisual[] = [];
+  private readonly herdVisuals = new Map<string, HerdVisual>();
   private readonly getHeightAt: (x: number, z: number) => number;
   private sources: Record<keyof typeof MODEL_URLS, AnimalSource> | null = null;
   private latestInput: ReplayableLivestockInput | null = null;
@@ -156,9 +206,18 @@ export class LivestockVisuals {
   sync(
     pastures: Iterable<PastureState>,
     herds: Map<string, LivestockHerdState>,
+    buildings: Map<string, BuildingState> = new Map(),
   ): void {
-    this.latestInput = { pastures: [...pastures], herds: new Map(herds) };
+    const previousInput = this.latestInput;
+    const nextInput: ReplayableLivestockInput = {
+      pastures: [...pastures],
+      herds: new Map(herds),
+      buildings: new Map(buildings),
+    };
+    if (previousInput) this.preserveAuthoritativeCullDepartures(previousInput, nextInput);
+    this.latestInput = nextInput;
     this.rebuildIfNeeded();
+    if (previousInput) this.startAuthoritativeHusbandryTrips(previousInput, nextInput);
   }
 
   tick(dtSeconds: number, view?: CrowdViewState): void {
@@ -169,35 +228,27 @@ export class LivestockVisuals {
     }
     if (!renderEnabled) return;
 
+    for (const herd of this.herdVisuals.values()) this.tickHerd(herd, dt);
+
     for (const animal of this.animals) {
+      if (animal.workTrip) this.tickWorkTrip(animal, dt);
+      else this.tickPastureAnimal(animal, dt);
       const visible = isWithinCrowdView(animal.x, animal.z, view);
       animal.root.visible = visible;
-      if (!visible) continue;
+      this.poseAnimal(animal);
+      if (visible) animal.mixer.update(dt);
+    }
 
-      animal.modeTimer -= dt;
-      if (animal.modeTimer <= 0) this.chooseNextMode(animal);
-
-      if (animal.mode === 'walk') {
-        const dx = animal.targetX - animal.x;
-        const dz = animal.targetZ - animal.z;
-        const distance = Math.hypot(dx, dz);
-        if (distance < 0.18) {
-          this.transition(animal, animal.random() < 0.58 ? 'graze' : 'idle');
-          animal.modeTimer = 2.8 + animal.random() * 6;
-        } else {
-          const step = Math.min(distance, animal.speed * dt);
-          animal.x += (dx / distance) * step;
-          animal.z += (dz / distance) * step;
-          animal.root.rotation.y = Math.atan2(dx, dz);
-        }
-      }
-
-      animal.root.position.set(
-        animal.x,
-        this.getHeightAt(animal.x, animal.z),
-        animal.z,
-      );
-      animal.mixer.update(dt);
+    for (let index = this.departingAnimals.length - 1; index >= 0; index -= 1) {
+      const animal = this.departingAnimals[index]!;
+      const tripComplete = this.tickWorkTrip(animal, dt);
+      const visible = isWithinCrowdView(animal.x, animal.z, view);
+      animal.root.visible = visible;
+      this.poseAnimal(animal);
+      if (visible) animal.mixer.update(dt);
+      if (!tripComplete) continue;
+      this.departingAnimals.splice(index, 1);
+      this.disposeAnimal(animal);
     }
   }
 
@@ -205,6 +256,7 @@ export class LivestockVisuals {
     this.disposed = true;
     this.latestInput = null;
     this.clearAnimals();
+    this.clearDepartingAnimals();
     if (this.sources) {
       const scenes = new Set(Object.values(this.sources).map((source) => source.scene));
       for (const scene of scenes) disposeModelResources(scene);
@@ -246,15 +298,42 @@ export class LivestockVisuals {
     for (const herd of this.latestInput.herds.values()) {
       const pasture = pasturesById.get(herd.pastureId);
       if (!pasture || herd.headCount <= 0) continue;
+      const herdVisual = this.createHerdVisual(herd, pasture);
+      this.herdVisuals.set(herd.pastureId, herdVisual);
       const visualCount = livestockVisualHeadCount(herd.species, herd.headCount);
       const cattleDistribution = herd.species === 'cattle'
         ? createCattleVisualDistribution(visualCount)
         : null;
       for (let index = 0; index < visualCount; index++) {
         const modelKind = cattleDistribution?.[index] ?? resolveModelKind(herd.species);
-        this.addAnimal(herd, pasture, index, modelKind);
+        this.addAnimal(herd, pasture, index, modelKind, herdVisual, visualCount);
       }
     }
+  }
+
+  private createHerdVisual(
+    herd: LivestockHerdState,
+    pasture: PastureState,
+  ): HerdVisual {
+    const random = mulberry32(hashStringSeed(`${herd.pastureId}:herd-motion`));
+    const anchor = samplePastureUv(random, HERD_ANCHOR_MARGIN);
+    const activity: HerdActivity = random() < 0.58 ? 'rest' : 'graze';
+    return {
+      id: herd.pastureId,
+      species: herd.species,
+      pasture,
+      animals: [],
+      random,
+      activity,
+      activityTimer: herdActivityDuration(activity, herd.species, random),
+      anchorU: anchor.u,
+      anchorV: anchor.v,
+      targetU: anchor.u,
+      targetV: anchor.v,
+      velocityU: 0,
+      velocityV: 0,
+      heading: random() * TAU,
+    };
   }
 
   private addAnimal(
@@ -262,6 +341,8 @@ export class LivestockVisuals {
     pasture: PastureState,
     index: number,
     modelKind: keyof typeof MODEL_URLS,
+    herdVisual: HerdVisual,
+    visualCount: number,
   ): void {
     if (!this.sources) return;
     const source = this.sources[modelKind];
@@ -292,44 +373,268 @@ export class LivestockVisuals {
     }
     actions.walk.setEffectiveTimeScale(modelKind === 'sheep' || modelKind === 'swine' ? 1.12 : 0.96);
 
-    const point = samplePasturePoint(pasture, random);
-    const initialMode: MotionMode = index % 4 === 0 ? 'walk' : index % 3 === 0 ? 'idle' : 'graze';
-    const target = samplePasturePoint(pasture, random);
+    const uv = formationTargetUv(herdVisual, index, visualCount);
+    const point = pasturePointAtUv(pasture, uv.u, uv.v);
+    const initialMode: MotionMode = herdVisual.activity === 'graze' && index % 5 !== 0
+      ? 'graze'
+      : 'idle';
     const visual: AnimalVisual = {
       herdId: herd.pastureId,
+      species: herd.species,
+      index,
+      modelKind,
       root,
       model,
       mixer,
       actions,
       mode: initialMode,
-      modeTimer: 1.5 + random() * 5,
       x: point.x,
       z: point.z,
-      targetX: target.x,
-      targetZ: target.z,
+      u: uv.u,
+      v: uv.v,
+      velocityU: 0,
+      velocityV: 0,
+      yaw: random() * TAU,
       speed: herd.species === 'cattle' ? 0.72 : herd.species === 'sheep' ? 0.92 : 0.84,
       pasture,
-      random,
+      workTrip: null,
     };
     actions[initialMode].play();
     actions[initialMode].time = random() * Math.max(0.1, actions[initialMode].getClip().duration);
     root.position.set(point.x, this.getHeightAt(point.x, point.z), point.z);
-    root.rotation.y = random() * TAU;
+    root.rotation.y = visual.yaw;
+    herdVisual.animals.push(visual);
     this.animals.push(visual);
   }
 
-  private chooseNextMode(animal: AnimalVisual): void {
-    if (animal.mode === 'walk' || animal.random() < 0.62) {
-      const next: MotionMode = animal.random() < 0.66 ? 'graze' : 'idle';
-      this.transition(animal, next);
-      animal.modeTimer = 2.5 + animal.random() * 7;
+  private tickHerd(herd: HerdVisual, dt: number): void {
+    herd.activityTimer -= dt;
+    if (herd.activity === 'move') {
+      const stiffness = herd.species === 'sheep' ? 5.8 : herd.species === 'cattle' ? 3.2 : 4.4;
+      const damping = herd.species === 'sheep' ? 4.7 : herd.species === 'cattle' ? 3.8 : 4.2;
+      herd.velocityU += ((herd.targetU - herd.anchorU) * stiffness - herd.velocityU * damping) * dt;
+      herd.velocityV += ((herd.targetV - herd.anchorV) * stiffness - herd.velocityV * damping) * dt;
+      herd.anchorU += herd.velocityU * dt;
+      herd.anchorV += herd.velocityV * dt;
+      const remaining = Math.hypot(herd.targetU - herd.anchorU, herd.targetV - herd.anchorV);
+      if (remaining < 0.006 || herd.activityTimer <= 0) {
+        herd.anchorU = THREE.MathUtils.clamp(herd.anchorU, HERD_ANCHOR_MARGIN, 1 - HERD_ANCHOR_MARGIN);
+        herd.anchorV = THREE.MathUtils.clamp(herd.anchorV, HERD_ANCHOR_MARGIN, 1 - HERD_ANCHOR_MARGIN);
+        herd.velocityU = 0;
+        herd.velocityV = 0;
+        this.setHerdActivity(herd, herd.random() < 0.7 ? 'rest' : 'graze');
+      }
       return;
     }
-    const target = samplePasturePoint(animal.pasture, animal.random);
-    animal.targetX = target.x;
-    animal.targetZ = target.z;
+
+    if (herd.activityTimer > 0) return;
+    if (herd.activity === 'rest' && herd.random() < 0.62) {
+      this.setHerdActivity(herd, 'graze');
+      return;
+    }
+    this.beginHerdMove(herd);
+  }
+
+  private setHerdActivity(herd: HerdVisual, activity: Exclude<HerdActivity, 'move'>): void {
+    herd.activity = activity;
+    herd.activityTimer = herdActivityDuration(activity, herd.species, herd.random);
+  }
+
+  private beginHerdMove(herd: HerdVisual): void {
+    const target = samplePastureUv(herd.random, HERD_ANCHOR_MARGIN);
+    herd.targetU = target.u;
+    herd.targetV = target.v;
+    herd.heading = Math.atan2(target.u - herd.anchorU, target.v - herd.anchorV);
+    herd.activity = 'move';
+    herd.activityTimer = herdActivityDuration('move', herd.species, herd.random);
+  }
+
+  private tickPastureAnimal(animal: AnimalVisual, dt: number): void {
+    const herd = this.herdVisuals.get(animal.herdId);
+    if (!herd) return;
+    const target = formationTargetUv(herd, animal.index, herd.animals.length);
+    const stiffness = herd.activity === 'move'
+      ? animal.species === 'sheep' ? 8.2 : animal.species === 'cattle' ? 4.1 : 5.8
+      : animal.species === 'sheep' ? 5.8 : animal.species === 'cattle' ? 2.8 : 4.2;
+    const damping = animal.species === 'sheep' ? 5.6 : animal.species === 'cattle' ? 4.4 : 4.8;
+    animal.velocityU += ((target.u - animal.u) * stiffness - animal.velocityU * damping) * dt;
+    animal.velocityV += ((target.v - animal.v) * stiffness - animal.velocityV * damping) * dt;
+    const previousX = animal.x;
+    const previousZ = animal.z;
+    animal.u = THREE.MathUtils.clamp(animal.u + animal.velocityU * dt, MIN_EDGE_MARGIN, 1 - MIN_EDGE_MARGIN);
+    animal.v = THREE.MathUtils.clamp(animal.v + animal.velocityV * dt, MIN_EDGE_MARGIN, 1 - MIN_EDGE_MARGIN);
+    const point = pasturePointAtUv(animal.pasture, animal.u, animal.v);
+    animal.x = point.x;
+    animal.z = point.z;
+    const dx = animal.x - previousX;
+    const dz = animal.z - previousZ;
+    const planarSpeed = dt > 1e-6 ? Math.hypot(dx, dz) / dt : 0;
+    if (planarSpeed > 0.14) {
+      this.transition(animal, 'walk');
+      animal.yaw = dampAngle(animal.yaw, Math.atan2(dx, dz), 8, dt);
+    } else if (herd.activity === 'graze' && animal.index % 5 !== 0) {
+      this.transition(animal, 'graze');
+    } else {
+      this.transition(animal, 'idle');
+    }
+  }
+
+  private preserveAuthoritativeCullDepartures(
+    previous: ReplayableLivestockInput,
+    current: ReplayableLivestockInput,
+  ): void {
+    for (const herd of current.herds.values()) {
+      const prior = previous.herds.get(herd.pastureId);
+      const building = current.buildings.get(herd.buildingId);
+      if (!prior || !isStaffedHusbandryBuilding(building)) continue;
+      const culledHeads = livestockCullDepartureCount(
+        prior,
+        herd,
+        previous.buildings.get(prior.buildingId),
+        building,
+      );
+      if (culledHeads <= 0) continue;
+      const pastureHerd = this.herdVisuals.get(herd.pastureId);
+      const pasture = current.pastures.find((candidate) => candidate.id === herd.pastureId);
+      if (!pastureHerd || !pasture || !building) continue;
+      const candidates = pastureHerd.animals.filter((animal) => animal.workTrip === null);
+      for (let index = 0; index < Math.min(culledHeads, candidates.length); index += 1) {
+        const animal = candidates[candidates.length - 1 - index]!;
+        removeArrayItem(this.animals, animal);
+        removeArrayItem(pastureHerd.animals, animal);
+        this.beginWorkTrip(animal, pasture, building, 'culling', index * 0.55, true);
+        this.departingAnimals.push(animal);
+      }
+    }
+  }
+
+  private startAuthoritativeHusbandryTrips(
+    previous: ReplayableLivestockInput,
+    current: ReplayableLivestockInput,
+  ): void {
+    const pasturesById = new Map(current.pastures.map((pasture) => [pasture.id, pasture]));
+    for (const herd of current.herds.values()) {
+      const prior = previous.herds.get(herd.pastureId);
+      const building = current.buildings.get(herd.buildingId);
+      const pasture = pasturesById.get(herd.pastureId);
+      if (!prior || !pasture || !isStaffedHusbandryBuilding(building) || !building) continue;
+      if (
+        herd.species === 'sheep'
+        && (herd.lastShearingYear ?? 0) > (prior.lastShearingYear ?? 0)
+      ) {
+        this.startHerdService(herd.pastureId, pasture, building, 'shearing');
+      }
+      if (
+        herd.species === 'cattle'
+        && (herd.lastMilkingPeriod ?? 0) > (prior.lastMilkingPeriod ?? 0)
+      ) {
+        this.startHerdService(herd.pastureId, pasture, building, 'milking');
+      }
+    }
+  }
+
+  private startHerdService(
+    herdId: string,
+    pasture: PastureState,
+    building: BuildingState,
+    service: Exclude<LivestockWorkService, 'culling'>,
+  ): void {
+    const herd = this.herdVisuals.get(herdId);
+    if (!herd) return;
+    const animals = herd.animals.filter((animal) => (
+      animal.workTrip === null
+      && (service !== 'milking' || animal.modelKind === 'cow')
+    ));
+    const stagger = service === 'shearing' ? 0.16 : 0.48;
+    animals.forEach((animal, index) => {
+      this.beginWorkTrip(animal, pasture, building, service, index * stagger, false);
+    });
+  }
+
+  private beginWorkTrip(
+    animal: AnimalVisual,
+    pasture: PastureState,
+    building: BuildingState,
+    service: LivestockWorkService,
+    delaySeconds: number,
+    removeOnArrival: boolean,
+  ): void {
+    const destination = { x: building.x, z: building.z };
+    const path = pastureGateWaypoints(pasture, { x: animal.x, z: animal.z }, destination);
+    animal.workTrip = {
+      service,
+      phase: 'outbound',
+      path,
+      returnPath: [...path].reverse(),
+      waypointIndex: 1,
+      delaySeconds,
+      serviceSeconds: service === 'shearing' ? 5.2 : service === 'milking' ? 3.8 : 0,
+      homeU: animal.u,
+      homeV: animal.v,
+      removeOnArrival,
+    };
+    animal.root.userData.livestockWorkService = service;
+  }
+
+  /** Returns true when a one-way cull trip has reached the staffed holding. */
+  private tickWorkTrip(animal: AnimalVisual, dt: number): boolean {
+    const trip = animal.workTrip;
+    if (!trip) return false;
+    if (trip.delaySeconds > 0) {
+      trip.delaySeconds = Math.max(0, trip.delaySeconds - dt);
+      this.transition(animal, 'idle');
+      return false;
+    }
+    if (trip.phase === 'service') {
+      trip.serviceSeconds -= dt;
+      this.transition(animal, 'idle');
+      if (trip.serviceSeconds > 0) return false;
+      trip.phase = 'return';
+      trip.path = trip.returnPath;
+      trip.waypointIndex = 1;
+      return false;
+    }
+
+    const target = trip.path[trip.waypointIndex];
+    if (!target) {
+      if (trip.phase === 'outbound' && trip.removeOnArrival) return true;
+      if (trip.phase === 'outbound') {
+        trip.phase = 'service';
+        return false;
+      }
+      animal.u = trip.homeU;
+      animal.v = trip.homeV;
+      animal.velocityU = 0;
+      animal.velocityV = 0;
+      animal.workTrip = null;
+      delete animal.root.userData.livestockWorkService;
+      this.transition(animal, 'idle');
+      return false;
+    }
+    const dx = target.x - animal.x;
+    const dz = target.z - animal.z;
+    const distance = Math.hypot(dx, dz);
+    if (distance <= 0.08) {
+      animal.x = target.x;
+      animal.z = target.z;
+      trip.waypointIndex += 1;
+      return false;
+    }
+    const step = Math.min(distance, animal.speed * dt);
+    animal.x += dx / distance * step;
+    animal.z += dz / distance * step;
+    animal.yaw = dampAngle(animal.yaw, Math.atan2(dx, dz), 10, dt);
     this.transition(animal, 'walk');
-    animal.modeTimer = 5 + animal.random() * 8;
+    return false;
+  }
+
+  private poseAnimal(animal: AnimalVisual): void {
+    animal.root.position.set(
+      animal.x,
+      this.getHeightAt(animal.x, animal.z),
+      animal.z,
+    );
+    animal.root.rotation.y = animal.yaw;
   }
 
   private transition(animal: AnimalVisual, nextMode: MotionMode): void {
@@ -341,12 +646,21 @@ export class LivestockVisuals {
 
   private clearAnimals(): void {
     for (const animal of this.animals) {
-      animal.mixer.stopAllAction();
-      animal.mixer.uncacheRoot(animal.model);
-      animal.root.removeFromParent();
+      this.disposeAnimal(animal);
     }
     this.animals.length = 0;
-    this.root.clear();
+    this.herdVisuals.clear();
+  }
+
+  private clearDepartingAnimals(): void {
+    for (const animal of this.departingAnimals) this.disposeAnimal(animal);
+    this.departingAnimals.length = 0;
+  }
+
+  private disposeAnimal(animal: AnimalVisual): void {
+    animal.mixer.stopAllAction();
+    animal.mixer.uncacheRoot(animal.model);
+    animal.root.removeFromParent();
   }
 }
 
@@ -370,10 +684,104 @@ function resolveModelKind(
   return 'cow';
 }
 
-function samplePasturePoint(pasture: PastureState, random: () => number): { x: number; z: number } {
+/**
+ * Stable species-specific formation slot. Sheep pack tightly around the flock
+ * center; cattle keep broader personal space and therefore read as a loose
+ * herd instead of a woolly flock with a different model.
+ */
+export function livestockHerdFormationOffsetMeters(
+  species: LivestockSpecies,
+  index: number,
+  count: number,
+): PointXZ {
+  const safeCount = Math.max(1, Math.floor(count));
+  const safeIndex = THREE.MathUtils.clamp(Math.floor(index), 0, safeCount - 1);
+  const spacing = species === 'sheep' ? 0.56 : species === 'cattle' ? 1.38 : 0.78;
+  const radius = Math.sqrt(safeIndex + 0.42) * spacing;
+  const angle = safeIndex * GOLDEN_ANGLE + (species === 'cattle' ? 0.46 : species === 'swine' ? 0.92 : 0);
+  return { x: Math.cos(angle) * radius, z: Math.sin(angle) * radius };
+}
+
+/**
+ * The only authored route out of a pasture: inside approach, centered gate,
+ * outside release, then the staffed husbandry building.
+ */
+export function pastureGateWaypoints(
+  pasture: PastureState,
+  start: PointXZ,
+  destination: PointXZ,
+): PointXZ[] {
+  const [a, b] = pasture.corners;
+  const gate = {
+    x: (a.x + b.x) * 0.5,
+    z: (a.z + b.z) * 0.5,
+  };
+  const center = pasturePointAtUv(pasture, 0.5, 0.5);
+  const centerDx = center.x - gate.x;
+  const centerDz = center.z - gate.z;
+  const centerDistance = Math.max(1e-6, Math.hypot(centerDx, centerDz));
+  const inwardX = centerDx / centerDistance;
+  const inwardZ = centerDz / centerDistance;
+  return [
+    { ...start },
+    {
+      x: gate.x + inwardX * WORK_GATE_OFFSET_M,
+      z: gate.z + inwardZ * WORK_GATE_OFFSET_M,
+    },
+    gate,
+    {
+      x: gate.x - inwardX * WORK_GATE_OFFSET_M,
+      z: gate.z - inwardZ * WORK_GATE_OFFSET_M,
+    },
+    { ...destination },
+  ];
+}
+
+/**
+ * Distinguishes a simulated autumn cull from a player sale. `lastCulled` is a
+ * per-cycle result rather than a monotonic counter, so consecutive one-head
+ * culls are confirmed by their recorded output or the physical store receipt.
+ */
+export function livestockCullDepartureCount(
+  previous: Pick<LivestockHerdState, 'headCount' | 'lastCulled' | 'lastFoodOutput' | 'lastPreservedOutput'>,
+  current: Pick<LivestockHerdState, 'headCount' | 'lastCulled' | 'lastFoodOutput' | 'lastPreservedOutput'>,
+  previousBuilding?: Pick<BuildingState, 'meat' | 'preservedFood' | 'hides'>,
+  currentBuilding?: Pick<BuildingState, 'meat' | 'preservedFood' | 'hides'>,
+): number {
+  const removedHeads = Math.max(0, previous.headCount - current.headCount);
+  const reportedCull = Math.max(0, current.lastCulled);
+  if (removedHeads <= 0 || reportedCull <= 0) return 0;
+  const cullMarkerChanged = current.lastCulled !== previous.lastCulled;
+  const cycleOutputChanged = (
+    current.lastFoodOutput !== previous.lastFoodOutput
+    || current.lastPreservedOutput !== previous.lastPreservedOutput
+  );
+  const physicalOutputArrived = Boolean(previousBuilding && currentBuilding && (
+    (currentBuilding.meat ?? 0) > (previousBuilding.meat ?? 0)
+    || currentBuilding.preservedFood > previousBuilding.preservedFood
+    || (currentBuilding.hides ?? 0) > (previousBuilding.hides ?? 0)
+  ));
+  return cullMarkerChanged || cycleOutputChanged || physicalOutputArrived
+    ? Math.min(removedHeads, reportedCull)
+    : 0;
+}
+
+function samplePastureUv(
+  random: () => number,
+  margin = MIN_EDGE_MARGIN,
+): { u: number; v: number } {
+  return {
+    u: THREE.MathUtils.lerp(margin, 1 - margin, random()),
+    v: THREE.MathUtils.lerp(margin, 1 - margin, random()),
+  };
+}
+
+function pasturePointAtUv(
+  pasture: PastureState,
+  u: number,
+  v: number,
+): PointXZ {
   const [a, b, c, d] = pasture.corners;
-  const u = THREE.MathUtils.lerp(MIN_EDGE_MARGIN, 1 - MIN_EDGE_MARGIN, random());
-  const v = THREE.MathUtils.lerp(MIN_EDGE_MARGIN, 1 - MIN_EDGE_MARGIN, random());
   const nearX = THREE.MathUtils.lerp(a.x, b.x, u);
   const nearZ = THREE.MathUtils.lerp(a.z, b.z, u);
   const farX = THREE.MathUtils.lerp(d.x, c.x, u);
@@ -382,6 +790,58 @@ function samplePasturePoint(pasture: PastureState, random: () => number): { x: n
     x: THREE.MathUtils.lerp(nearX, farX, v),
     z: THREE.MathUtils.lerp(nearZ, farZ, v),
   };
+}
+
+function formationTargetUv(
+  herd: HerdVisual,
+  index: number,
+  count: number,
+): { u: number; v: number } {
+  const offset = livestockHerdFormationOffsetMeters(herd.species, index, count);
+  const [a, b, c] = herd.pasture.corners;
+  const width = Math.max(1, Math.hypot(b.x - a.x, b.z - a.z));
+  const depth = Math.max(1, Math.hypot(c.x - b.x, c.z - b.z));
+  const cos = Math.cos(herd.heading);
+  const sin = Math.sin(herd.heading);
+  const offsetU = (offset.x * cos - offset.z * sin) / width;
+  const offsetV = (offset.x * sin + offset.z * cos) / depth;
+  return {
+    u: THREE.MathUtils.clamp(herd.anchorU + offsetU, MIN_EDGE_MARGIN, 1 - MIN_EDGE_MARGIN),
+    v: THREE.MathUtils.clamp(herd.anchorV + offsetV, MIN_EDGE_MARGIN, 1 - MIN_EDGE_MARGIN),
+  };
+}
+
+function herdActivityDuration(
+  activity: HerdActivity,
+  species: LivestockSpecies,
+  random: () => number,
+): number {
+  if (activity === 'move') {
+    return species === 'cattle' ? 7 + random() * 7 : 5 + random() * 6;
+  }
+  if (activity === 'rest') {
+    return species === 'cattle' ? 16 + random() * 22 : 12 + random() * 18;
+  }
+  return species === 'sheep' ? 12 + random() * 18 : 10 + random() * 16;
+}
+
+function isStaffedHusbandryBuilding(
+  building: BuildingState | undefined,
+): building is BuildingState {
+  return building?.constructionComplete === true
+    && building.assignedLabor > 0
+    && (building.kind === 'pastoral_farmstead' || building.kind === 'swineherd');
+}
+
+function dampAngle(current: number, target: number, response: number, dt: number): number {
+  let delta = (target - current + Math.PI) % TAU - Math.PI;
+  if (delta < -Math.PI) delta += TAU;
+  return current + delta * (1 - Math.exp(-response * dt));
+}
+
+function removeArrayItem<T>(items: T[], item: T): void {
+  const index = items.indexOf(item);
+  if (index >= 0) items.splice(index, 1);
 }
 
 async function loadAnimalSource(url: string, targetHeight: number): Promise<AnimalSource> {

@@ -17,8 +17,10 @@ use crate::farming::{
     centroid, corners_from_values, edge_lengths, is_valid_convex_quadrilateral, polygon_area,
 };
 use crate::hydrology::sample_world_groundwater_score;
+use crate::livestock_policy::retained_livestock_breeding_progress;
 use crate::placement_validation::{
-    zone_overlaps_building_footprint, zone_overlaps_resource_deposit,
+    resolved_existing_building_yaw, zone_overlaps_building_footprint_at_yaw,
+    zone_overlaps_resource_deposit,
 };
 use crate::roads::load_owner_road_network;
 use crate::simulation::grazing_capacity_for_pasture;
@@ -116,12 +118,12 @@ pub fn place_pasture(
     // generated surface-water layout, so it must not contradict that result.
     let road_network = load_owner_road_network(ctx, owner);
     for building in ctx.db.building().owner().filter(&owner) {
-        if zone_overlaps_building_footprint(
+        if zone_overlaps_building_footprint_at_yaw(
             &polygon,
             &building.kind,
             building.x,
             building.z,
-            road_network.as_ref(),
+            resolved_existing_building_yaw(road_network.as_ref(), &building),
         ) {
             return Err("Pasture overlaps a building.".to_string());
         }
@@ -353,6 +355,7 @@ pub fn set_livestock_species(
     herd.last_wool_gold = 0.0;
     herd.last_wool_output = 0.0;
     herd.last_shearing_year = 0;
+    herd.last_milking_period = 0;
     herd.breeding_reserve = default_breeding_reserve(species);
     herd.last_culled = 0;
     herd.last_hay_output = 0.0;
@@ -438,9 +441,14 @@ pub fn trade_livestock(
                 herd.head_count
             ));
         }
+        let previous_heads = herd.head_count;
         herd.head_count -= quantity;
         herd.supplied_capacity = herd.supplied_capacity.min(f64::from(herd.head_count));
-        herd.breeding_progress = herd.breeding_progress.min(0.999);
+        herd.breeding_progress = retained_livestock_breeding_progress(
+            herd.breeding_progress,
+            previous_heads,
+            herd.head_count,
+        );
         credit_treasury_gold(
             ctx,
             owner,
@@ -597,6 +605,7 @@ pub fn unstocked_pasture_herd(pasture: &Pasture, species: u8) -> PastureHerd {
         },
         last_wool_output: 0.0,
         last_shearing_year: 0,
+        last_milking_period: 0,
     }
 }
 

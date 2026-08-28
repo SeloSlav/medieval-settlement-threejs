@@ -35,16 +35,16 @@ import {
 } from '../src/buildings/bulkStockpileVisuals.ts';
 import type { BuildingKind, BuildingState } from '../src/resources/types.ts';
 
-assert.equal(CIVILIAN_TOOL_IRONWORK_PER_CYCLE, 0.1);
+assert.equal(CIVILIAN_TOOL_IRONWORK_PER_CYCLE, 1);
 assert.equal(CIVILIAN_TOOL_REORDER_CYCLES, 6);
 assert.equal(CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER, 1.2);
 assert.equal(civilianToolThroughputMultiplier(0), 1);
 assert.equal(civilianToolThroughputMultiplier(0.09), 1);
-assert.equal(civilianToolThroughputMultiplier(0.1), 1.2);
-assert.equal(civilianToolRunwayCycles(3), 30);
-assert.ok(Math.abs(civilianToolReorderStock(3) - 0.6) < 1e-9);
-assert.equal(civilianToolRefillDue(0.6, 3), false);
-assert.equal(civilianToolRefillDue(0.59, 3), true);
+assert.equal(civilianToolThroughputMultiplier(1), 1.2);
+assert.equal(civilianToolRunwayCycles(3), 3);
+assert.equal(civilianToolReorderStock(3), 3);
+assert.equal(civilianToolRefillDue(3, 3), false);
+assert.equal(civilianToolRefillDue(2, 3), true);
 assert.equal(FARM_TOOL_IRONWORK_PER_WORKER_DAY, 0.05);
 const farmWorkerDayWork = FARM_WORK_METERS_PER_WORKER_PER_SEC
   * CALENDAR_SECONDS_PER_DAY;
@@ -110,12 +110,12 @@ assert.match(
 );
 assert.match(
   woodcutterSimulation,
-  /withdraw_building_commodity\([\s\S]*CommodityKind::Ironwork[\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
+  /charge_completed_production_maintenance\([\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
 );
 assert.match(
   woodcutterSimulation,
-  /firewood_added \/ full_firewood_output/,
-  'partial firewood batches must wear tools only in proportion to actual output',
+  /output_room \+ 1e-6 < firewood_output[\s\S]*charge_completed_production_maintenance/,
+  'whole firewood batches must charge maintenance only after the complete output can be stored',
 );
 assert.match(
   expandedEconomySimulation,
@@ -134,17 +134,17 @@ assert.match(
 );
 assert.match(
   expandedEconomySimulation,
-  /farm_tool_throughput[\s\S]*work_budget[\s\S]*farm_tool_ironwork_for_work\(spent\)/,
-  'authoritative field progress must accelerate and wear tools only after real work',
+  /farm_tool_throughput[\s\S]*work_budget[\s\S]*completed_stage[\s\S]*charge_completed_production_maintenance\([\s\S]*farm_tool_ironwork_per_completed_stage\(\)/,
+  'authoritative field progress must accelerate and accrue whole-unit tool wear only after a completed stage',
 );
 assert.match(
   expandedEconomySimulation,
-  /step_watermill[\s\S]*watermill_throughput_multiplier\(\)[\s\S]*civilian_tool_throughput_multiplier\(building\.ironwork\)[\s\S]*flour_after > flour_before[\s\S]*CommodityKind::Ironwork[\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
+  /step_watermill[\s\S]*watermill_throughput_multiplier\(\)[\s\S]*civilian_tool_throughput_multiplier\(building\.ironwork\)[\s\S]*flour_after > flour_before[\s\S]*charge_completed_production_maintenance\([\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
   'watermill output must combine river power with maintained dressing and wear ironwork only after a completed batch',
 );
 assert.match(
   expandedEconomySimulation,
-  /step_mine[\s\S]*civilian_tool_throughput_multiplier\(building\.ironwork\)[\s\S]*geology_throughput \* tool_throughput[\s\S]*produced > 1e-6[\s\S]*CommodityKind::Ironwork[\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
+  /step_mine[\s\S]*civilian_tool_throughput_multiplier\(building\.ironwork\)[\s\S]*RICH_MINE_THROUGHPUT_MULTIPLIER \* tool_throughput[\s\S]*produced > 1e-6[\s\S]*charge_completed_production_maintenance\([\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
   'authoritative iron and salt extraction must multiply geology by maintained tools and wear ironwork only after real output',
 );
 assert.match(woodcutterInspector, /civilianToolRows\(building, context\.worldQueries\)/);
@@ -185,11 +185,11 @@ for (const kind of CIVILIAN_TOOL_SITE_KINDS) {
     3,
     `${kind} must keep a bounded physical replacement-tool rack`,
   );
-  const plan = civilianToolPlan(building(kind, { ironwork: 0.75 }));
+  const plan = civilianToolPlan(building(kind, { ironwork: 3 }));
   assert.ok(plan?.maintained);
-  assert.equal(plan.runwayCycles, 7.5);
+  assert.equal(plan.runwayCycles, 3);
   assert.equal(plan.reorderDue, false);
-  assert.ok(Math.abs(plan.reorderStock - 0.6) < 1e-9);
+  assert.equal(plan.reorderStock, 3);
 
   const marker = createBuildingMesh(kind);
   const stockpile = marker.getObjectByName('CivilianToolStockpile');
@@ -200,14 +200,14 @@ for (const kind of CIVILIAN_TOOL_SITE_KINDS) {
   );
   syncBulkStockpileVisuals(marker, building(kind, { ironwork: 0 }));
   assert.equal(stockpile.visible, false);
-  syncBulkStockpileVisuals(marker, building(kind, { ironwork: 0.75 }));
+  syncBulkStockpileVisuals(marker, building(kind, { ironwork: 1 }));
   assert.equal(stockpile.visible, true);
   assert.equal(
     stockpile.children.filter(
       (child) => child.name === 'CivilianToolSegment' && child.visible,
     ).length,
-    1,
-    'one three-cycle buffer must occupy one readable rack segment',
+    2,
+    'one whole tool lot in a three-unit rack must occupy its proportional readable segments',
   );
 }
 
@@ -276,7 +276,7 @@ assert.equal(
 assert.equal(priorityTarget?.duty, 'working-buffer');
 assert.equal(priorityTarget?.desiredStock, 3);
 
-highPriorityClay.ironwork = 0.75;
+highPriorityClay.ironwork = 3;
 const runwayTarget = selectDirectProcessorInputTarget(
   [lowPriorityQuarry, highPriorityClay, carpenter],
   'smithy',
@@ -289,7 +289,7 @@ assert.equal(
   'an uncovered staffed tool site must preempt carpenter overflow and a covered site',
 );
 
-lowPriorityQuarry.ironwork = 0.75;
+lowPriorityQuarry.ironwork = 3;
 const overflowTarget = selectDirectProcessorInputTarget(
   [lowPriorityQuarry, highPriorityClay, carpenter],
   'smithy',
@@ -303,18 +303,18 @@ const emptySignature = bulkStockpileVisualSignature(
   building('large_quarry', { ironwork: 0 }),
 );
 const maintainedSignature = bulkStockpileVisualSignature(
-  building('large_quarry', { ironwork: 0.75 }),
+  building('large_quarry', { ironwork: 1 }),
 );
 assert.notEqual(emptySignature, maintainedSignature);
 assert.notEqual(
   bulkStockpileVisualSignature(building('mine', { ironwork: 0 })),
-  bulkStockpileVisualSignature(building('mine', { ironwork: 0.75 })),
+  bulkStockpileVisualSignature(building('mine', { ironwork: 1 })),
   'the mine marker signature must refresh as its physical tool rack wears',
 );
 
 const perfSites = Array.from({ length: 100_000 }, (_, index) =>
   building(CIVILIAN_TOOL_SITE_KINDS[index % CIVILIAN_TOOL_SITE_KINDS.length], {
-    ironwork: (index % 31) * 0.1,
+    ironwork: index % 4,
   }));
 const started = performance.now();
 let maintained = 0;

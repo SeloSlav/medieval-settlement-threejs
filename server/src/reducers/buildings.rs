@@ -64,8 +64,8 @@ use crate::livestock_policy::is_valid_milk_use_policy;
 use crate::placement_validation::{
     building_footprints_too_close, building_overlaps_residence_zone,
     building_overlaps_resource_deposit, building_overlaps_road_surface,
-    building_site_contains_point, resolved_building_placement_yaw,
-    zone_overlaps_building_footprint,
+    building_site_contains_point_at_yaw, resolved_building_placement_yaw,
+    resolved_existing_building_yaw, zone_overlaps_building_footprint,
 };
 use crate::potter_firing_policy::{is_valid_potter_firing_policy, potter_fires_roof_tiles};
 use crate::processor_labor_policy::{
@@ -157,6 +157,7 @@ fn is_too_close_to_buildings(
     road_network: Option<&crate::roads::RoadNetwork>,
 ) -> bool {
     for building in ctx.db.building().owner().filter(&owner) {
+        let other_yaw = resolved_existing_building_yaw(road_network, &building);
         if building_footprints_too_close(
             kind,
             x,
@@ -164,6 +165,7 @@ fn is_too_close_to_buildings(
             &building.kind,
             building.x,
             building.z,
+            Some(other_yaw),
             road_network,
         ) {
             return true;
@@ -504,6 +506,7 @@ pub(crate) fn place_building_internal(
     // Parsing and indexing the serialized road graph is one of the more expensive
     // placement checks. Reuse one snapshot for overlap, landmark, and carpenter checks.
     let road_network = load_owner_road_network(ctx, owner);
+    let placement_yaw = resolved_building_placement_yaw(road_network.as_ref(), &kind, x, z);
     crate::settlements::ensure_owner_settlements(ctx, owner);
     let planned_settlement = if is_founders_camp_expansion {
         Some(crate::settlements::create_planned_settlement(
@@ -582,14 +585,13 @@ pub(crate) fn place_building_internal(
             .find(&0)
             .ok_or_else(|| "World not initialized.".to_string())?;
         let playable_half = playable_half_for_monastery_map_size(config.map_size);
-        let yaw = resolved_building_placement_yaw(road_network.as_ref(), &kind, x, z);
-        if !monastery_estate_fits_map(x, z, yaw, playable_half) {
+        if !monastery_estate_fits_map(x, z, placement_yaw, playable_half) {
             return Err(
                 "The monastery's complete 68 x 53 metre fenced estate must fit inside the map."
                     .to_string(),
             );
         }
-        if !monastery_estate_is_near_map_edge(x, z, yaw, playable_half) {
+        if !monastery_estate_is_near_map_edge(x, z, placement_yaw, playable_half) {
             return Err(
                 "The monastery's complete estate must reach the map-size-scaled frontier belt near an edge."
                     .to_string(),
@@ -853,7 +855,9 @@ pub(crate) fn place_building_internal(
         .db
         .tree_entity()
         .iter()
-        .filter(|tree| building_site_contains_point(&kind, x, z, tree.x, tree.z))
+        .filter(|tree| {
+            building_site_contains_point_at_yaw(&kind, x, z, placement_yaw, tree.x, tree.z)
+        })
         .map(|tree| tree.tree_id)
         .collect::<Vec<_>>();
     for tree_id in cleared_tree_ids {
@@ -889,6 +893,8 @@ pub(crate) fn place_building_internal(
         kind,
         x,
         z,
+        placement_yaw,
+        placement_yaw_locked: true,
         work_radius: def.work_radius,
         tree_work_area_x: 0.0,
         tree_work_area_z: 0.0,
@@ -1059,6 +1065,7 @@ pub(crate) fn place_building_internal(
         linen: 0.0,
         milk_use_policy: crate::livestock_policy::MILK_USE_BALANCED,
         smokehouse_recipe_policy: crate::smokehouse_recipe_policy::SMOKEHOUSE_RECIPE_AUTO,
+        apiary_accumulated_honey: 0.0,
     });
 
     if is_founders_camp_expansion {

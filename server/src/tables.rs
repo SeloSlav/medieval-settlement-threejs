@@ -1140,6 +1140,18 @@ pub struct Building {
     /// production-rate maintenance curve. Inventory itself remains integral.
     #[default(0.0)]
     pub production_maintenance_progress: f64,
+    /// Immutable rendered/footprint orientation captured when this site was
+    /// placed. Legacy rows are locked to their current presentation once on
+    /// reconnect so subsequent road construction cannot rotate them.
+    #[default(0.0)]
+    pub placement_yaw: f64,
+    #[default(false)]
+    pub placement_yaw_locked: bool,
+    /// Whole Honey yield built inside the hives during Spring and Summer and
+    /// awaiting staffed extraction during Autumn. It is not physical stock and
+    /// is cleared when Winter begins.
+    #[default(0.0)]
+    pub apiary_accumulated_honey: f64,
 }
 
 /// One persistent import/export instruction for one Trading Post commodity.
@@ -1350,6 +1362,9 @@ pub struct PastureHerd {
     pub species: u8,
     pub head_count: u32,
     pub health: f64,
+    /// Save-compatible seasonal pregnancy cohort. Whole units are confirmed
+    /// offspring due in spring; the fractional remainder carries expected
+    /// conception progress for small herds across years.
     pub breeding_progress: f64,
     /// Heads supported by this parcel in the current season after terrain,
     /// haymaking, drought, or woodland-mast modifiers.
@@ -1369,6 +1384,10 @@ pub struct PastureHerd {
     pub haymaking_percent: u8,
     pub last_wool_output: f64,
     pub last_shearing_year: u32,
+    /// One-based absolute calendar month of the last cattle milking; zero means
+    /// this pasture has never completed a monthly milking round.
+    #[default(0u32)]
+    pub last_milking_period: u32,
 }
 
 /// Legacy holding-level herd state retained only as an additive save-migration
@@ -1387,6 +1406,7 @@ pub struct LivestockHerd {
     pub species: u8,
     pub head_count: u32,
     pub health: f64,
+    /// Legacy source for the save-compatible seasonal pregnancy cohort.
     pub breeding_progress: f64,
     /// Heads supported by the authored land in the current season after
     /// terrain, haymaking, drought, or woodland-mast modifiers.
@@ -2055,8 +2075,9 @@ pub struct DeliveryTrip {
     #[default(0u64)]
     pub labor_building_id: u64,
     /// Purchased stable ox reserved for this complete round trip. Zero means
-    /// the cart has human capacity only; the ox never counts toward speed or
-    /// unloading labor.
+    /// the cart has human capacity only. An ox expands capacity and receives
+    /// the same wheelwright multiplier as any local cart, but adds no separate
+    /// speed bonus and never counts toward unloading labor.
     #[default(0u64)]
     pub ox_id: u64,
 }

@@ -59,6 +59,7 @@ export function syncLivestockHerds(
       lastWoolGold: wholeResourceUnits(row.lastWoolGold),
       lastWoolOutput: wholeResourceUnits(row.lastWoolOutput),
       lastShearingYear: Number(row.lastShearingYear),
+      lastMilkingPeriod: Number(row.lastMilkingPeriod),
       breedingReserve: wholeResourceUnits(row.breedingReserve),
       lastCulled: wholeResourceUnits(row.lastCulled),
       hayStock: wholeResourceUnits(row.hayStock),

@@ -352,6 +352,7 @@ export function buildingMarkerSignatures(
         building.id,
         building.x.toFixed(2),
         building.z.toFixed(2),
+        Number.isFinite(building.yaw) ? building.yaw!.toFixed(5) : 'legacy-yaw',
         buildingMeshSignature(building),
       ].join(':');
       return {

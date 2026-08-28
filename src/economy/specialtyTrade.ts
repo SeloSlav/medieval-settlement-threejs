@@ -1,11 +1,13 @@
 import {
   APIARY_HONEY_PER_CYCLE,
+  APIARY_ACCUMULATION_END_MONTH,
   APIARY_BALANCED_HONEY_RESERVE,
   APIARY_BALANCED_YIELD_MULTIPLIER,
   APIARY_CONSERVATIVE_HONEY_RESERVE,
   APIARY_CONSERVATIVE_YIELD_MULTIPLIER,
   APIARY_EXTRACTIVE_HONEY_RESERVE,
   APIARY_EXTRACTIVE_YIELD_MULTIPLIER,
+  APIARY_HARVEST_START_MONTH,
   APIARY_SEASON_END_MONTH,
   APIARY_SEASON_START_MONTH,
   BUILDING_STORAGE_CAPS,
@@ -71,6 +73,14 @@ export function apiaryIsActive(month: number): boolean {
   return monthInWindow(month, APIARY_SEASON_START_MONTH, APIARY_SEASON_END_MONTH);
 }
 
+export function apiaryIsAccumulating(month: number): boolean {
+  return monthInWindow(month, APIARY_SEASON_START_MONTH, APIARY_ACCUMULATION_END_MONTH);
+}
+
+export function apiaryIsHarvesting(month: number): boolean {
+  return monthInWindow(month, APIARY_HARVEST_START_MONTH, APIARY_SEASON_END_MONTH);
+}
+
 export function vineyardIsHarvesting(month: number): boolean {
   return monthInWindow(month, VINEYARD_HARVEST_START_MONTH, VINEYARD_HARVEST_END_MONTH);
 }
@@ -80,9 +90,13 @@ export function specialtySeasonStatus(
   month: number,
 ): { active: boolean; label: string } | null {
   if (kind === 'apiary') {
-    return apiaryIsActive(month)
-      ? { active: true, label: 'Bee forage season - April-September' }
-      : { active: false, label: 'Hives dormant - production resumes in April' };
+    if (apiaryIsAccumulating(month)) {
+      return { active: true, label: 'Bee forage season - yield accumulating for Autumn' };
+    }
+    if (apiaryIsHarvesting(month)) {
+      return { active: true, label: 'Autumn honey harvest' };
+    }
+    return { active: false, label: 'Hives dormant - accumulation resumes in March' };
   }
   return null;
 }
@@ -155,8 +169,12 @@ export type SeasonalProducerOutputBlocker = {
 
 export function seasonalProducerOutputBlocker(
   building: BuildingState,
+  month?: number,
 ): SeasonalProducerOutputBlocker | null {
+  const accumulatedHoney = finiteNonnegative(building.apiaryAccumulatedHoney ?? 0);
   const outputs = building.kind === 'apiary'
+    && (month == null || apiaryIsHarvesting(month))
+    && accumulatedHoney + 1e-6 >= APIARY_HONEY_PER_CYCLE
     ? [
         ['honey', 'Honey', building.honey, BUILDING_STORAGE_CAPS.apiary.honey, APIARY_HONEY_PER_CYCLE],
       ] as const

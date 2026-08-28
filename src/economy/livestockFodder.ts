@@ -42,6 +42,7 @@ import {
 import {
   effectiveLivestockHaymakingPercent,
   farmhouseCheeseSaltStagingCycles,
+  isCattleMilkingMonth,
   isLivestockHaymakingMonth,
   livestockCareCapacity,
   livestockMilkAllocationPerCycle,
@@ -279,21 +280,27 @@ export function projectLivestockFodderHolding(
   const productiveHeads = herd.species === 'swine'
     ? 0
     : careSupportedHeads * Math.min(1, Math.max(0, herd.health));
+  const currentSeason = seasonForMonth(month);
+  const dairyActive = herd.species !== 'cattle' || isCattleMilkingMonth(month);
   const milkUsePolicy = livestockMilkUsePolicyForBuilding(building).value;
-  const dairyPreservedFoodPerCycle = livestockMilkAllocationPerCycle(
-    herd.species,
-    productiveHeads,
-    milkUsePolicy,
-  ).cheese;
-  const dairySaltPerCycle = livestockDairySaltPerCycle(
-    herd.species,
-    productiveHeads,
-    milkUsePolicy,
-  );
+  const dairyPreservedFoodPerCycle = dairyActive
+    ? livestockMilkAllocationPerCycle(
+      herd.species,
+      productiveHeads,
+      milkUsePolicy,
+    ).cheese
+    : 0;
+  const dairySaltPerCycle = dairyActive
+    ? livestockDairySaltPerCycle(
+      herd.species,
+      productiveHeads,
+      milkUsePolicy,
+    )
+    : 0;
   const dairySaltStock = herd.species === 'swine'
     ? 0
     : Math.max(0, building.salt ?? 0);
-  const dairySaltTarget = herd.species === 'swine' || onsiteHumanWorkers <= 0
+  const dairySaltTarget = !dairyActive || herd.species === 'swine' || onsiteHumanWorkers <= 0
     ? 0
     : LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE
       * farmhouseCheeseSaltStagingCycles(milkUsePolicy);
@@ -310,7 +317,6 @@ export function projectLivestockFodderHolding(
   const currentGrazingShare = isLivestockHaymakingMonth(month)
     ? 1 - haymakingShare
     : 1;
-  const currentSeason = seasonForMonth(month);
   const currentPannageWeather = Math.abs(
     currentPastureCapacityMultiplier - DROUGHT_PASTURE_CAPACITY_MULTIPLIER,
   ) <= 1e-9
@@ -343,6 +349,7 @@ export function projectLivestockFodderHolding(
       (storageCaps.food ?? 0) - freshFoodStock(building),
       (storageCaps.preservedFood ?? 0) - preservedFoodStock(building),
       building.salt ?? 0,
+      (storageCaps.hides ?? 0) - (building.hides ?? 0),
     )
     : 0;
   const unsecuredCullHeads = Math.max(

@@ -541,7 +541,12 @@ approx(
   joinedMaterials.maintainedToolIronworkPerDay,
   'same-branch smithing should cover the currently maintained tool racks',
 );
-assert.ok(joinedMaterials.ironworkSurplusAfterToolUpkeep > 0);
+assert.ok(joinedMaterials.ironworkProducedSurplusPerDay > 0);
+assert.ok(
+  joinedMaterials.ironworkProducedSurplusPerDay
+    > joinedMaterials.sustainableToolIronworkPerDay,
+  'finished smithy output must be counted as surplus without deducting future tool upkeep',
+);
 
 const joinedSabbathMaterials = computeSettlementProductionCapacity(
   materialState,

@@ -36,7 +36,7 @@ import { layoutFromBurgageZone } from '../residences/burgageZoneLayout.ts';
 import { backyardGardenLabel } from '../residences/backyardGarden.ts';
 import { backyardGardenPhenology } from '../economy/backyardGardenTick.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
-import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
+import { resolvedPlacedBuildingYaw } from '../buildings/buildingPlacement.ts';
 import {
   marketplaceStallWorkerApproach,
   marketplaceStallWorkerPosition,
@@ -4182,12 +4182,7 @@ export class VillagerRenderer {
     for (const assignment of indexMarketplaceStallWorkers(roster)) {
       const marketplace = this.buildings.get(assignment.marketplaceId);
       if (!marketplace) continue;
-      const buildingYaw = buildingPlacementYaw(
-        marketplace.kind,
-        marketplace.x,
-        marketplace.z,
-        this.roadNetwork,
-      );
+      const buildingYaw = resolvedPlacedBuildingYaw(marketplace, this.roadNetwork);
       const position = marketplaceStallWorkerPosition(
         marketplace,
         buildingYaw,

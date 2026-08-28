@@ -7,7 +7,10 @@ import {
   type Point2,
 } from '../utils/polygonGeometry.ts';
 import { getBuildingFootprintCorners } from './BuildingTerrainLayout.ts';
-import { buildingPlacementYaw } from './buildingPlacement.ts';
+import {
+  buildingPlacementYaw,
+  resolvedPlacedBuildingYaw,
+} from './buildingPlacement.ts';
 
 /** Narrow pedestrian/drainage seam retained between visible building edges. */
 export const BUILDING_EDGE_CLEARANCE = 0.65;
@@ -38,12 +41,17 @@ export function buildingFootprintEdgeDistance(
   candidateKind: BuildingKind,
   candidateX: number,
   candidateZ: number,
-  other: Pick<BuildingState, 'kind' | 'x' | 'z'>,
+  other: Pick<BuildingState, 'kind' | 'x' | 'z' | 'yaw'>,
   roadNetwork?: RoadNetwork | null,
 ): number {
   return distanceBetweenConvexPolygons2(
     buildingFootprintAt(candidateKind, candidateX, candidateZ, roadNetwork),
-    buildingFootprintAt(other.kind, other.x, other.z, roadNetwork),
+    getBuildingFootprintCorners(
+      other.kind,
+      other.x,
+      other.z,
+      resolvedPlacedBuildingYaw(other, roadNetwork),
+    ),
   );
 }
 
@@ -51,7 +59,7 @@ export function buildingFootprintsTooClose(
   candidateKind: BuildingKind,
   candidateX: number,
   candidateZ: number,
-  other: Pick<BuildingState, 'kind' | 'x' | 'z'>,
+  other: Pick<BuildingState, 'kind' | 'x' | 'z' | 'yaw'>,
   roadNetwork?: RoadNetwork | null,
 ): boolean {
   return buildingFootprintEdgeDistance(
@@ -84,11 +92,11 @@ export function resolveBuildingEdgeSnap(
   const proposals: Array<{ x: number; z: number; movement: number }> = [];
 
   for (const building of existingBuildings) {
-    const otherFootprint = buildingFootprintAt(
+    const otherFootprint = getBuildingFootprintCorners(
       building.kind,
       building.x,
       building.z,
-      roadNetwork,
+      resolvedPlacedBuildingYaw(building, roadNetwork),
     );
     for (const axis of uniqueRectangleAxes(footprint, otherFootprint)) {
       const candidateRange = projectPolygon(footprint, axis);

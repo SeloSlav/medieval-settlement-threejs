@@ -8,7 +8,7 @@ import {
   type AmbientBehaviorAssignment,
   type AmbientBehaviorSlot,
 } from './ambientBehaviors.ts';
-import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
+import { resolvedPlacedBuildingYaw } from '../buildings/buildingPlacement.ts';
 
 export const FOUNDERS_CAMP_AMBIENT_CYCLE_SECONDS = 24;
 
@@ -18,7 +18,7 @@ export const FOUNDERS_CAMP_AMBIENT_CYCLE_SECONDS = 24;
  * the camp's physical seats and a short camp loop.
  */
 export function planFoundersCampAmbientBehaviors(
-  camp: Pick<BuildingState, 'x' | 'z'>,
+  camp: Pick<BuildingState, 'x' | 'z' | 'yaw'>,
   actorIds: readonly string[],
   cycleIndex: number,
 ): Map<string, AmbientBehaviorAssignment> {
@@ -27,16 +27,14 @@ export function planFoundersCampAmbientBehaviors(
 }
 
 function foundersCampSlots(
-  camp: Pick<BuildingState, 'x' | 'z'>,
+  camp: Pick<BuildingState, 'x' | 'z' | 'yaw'>,
   actorCount: number,
   cycleIndex: number,
 ): AmbientBehaviorSlot[] {
   if (actorCount <= 0) return [];
 
-  const campYaw = buildingPlacementYaw(
-    'founders_camp',
-    camp.x,
-    camp.z,
+  const campYaw = resolvedPlacedBuildingYaw(
+    { ...camp, kind: 'founders_camp' },
     null,
   );
   const cosYaw = Math.cos(campYaw);

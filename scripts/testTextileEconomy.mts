@@ -964,7 +964,7 @@ const generatedWeaverPolicyReducer = readFileSync(
 );
 const shearingContractStart = livestockSimulation.indexOf('// A flock is shorn once');
 const shearingContractEnd = livestockSimulation.indexOf(
-  'if environment.season == Season::Spring',
+  'match livestock_breeding_phase',
   shearingContractStart,
 );
 assert.ok(shearingContractStart >= 0, 'livestock simulation must retain the annual shearing block');

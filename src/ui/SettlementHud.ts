@@ -694,7 +694,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="pelts">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="pelts" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="hides" data-tooltip="Untanned livestock hides supplied by backyard goats for Tannery production.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="hides" data-tooltip="Untanned livestock hides supplied by backyard goats and autumn cattle culls for Tannery production.">
         <span class="settlement-hud__label">Hides</span>
         <strong class="settlement-hud__value" data-stockpile="hides">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="hides" hidden></span>

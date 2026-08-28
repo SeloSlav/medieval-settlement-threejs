@@ -218,6 +218,11 @@ export const Building = __t.object("Building", {
   linen: __t.f64(),
   milkUsePolicy: __t.u8(),
   smokehouseRecipePolicy: __t.u8(),
+  productionRatePercent: __t.u8(),
+  productionMaintenanceProgress: __t.f64(),
+  placementYaw: __t.f64(),
+  placementYawLocked: __t.bool(),
+  apiaryAccumulatedHoney: __t.f64(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -499,6 +504,7 @@ export const PastureHerd = __t.object("PastureHerd", {
   haymakingPercent: __t.u8(),
   lastWoolOutput: __t.f64(),
   lastShearingYear: __t.u32(),
+  lastMilkingPeriod: __t.u32(),
 });
 export type PastureHerd = __Infer<typeof PastureHerd>;
 

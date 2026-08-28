@@ -7,6 +7,7 @@ import type {
   ResidenceState,
 } from '../src/resources/types.ts';
 import { createEmptyStockpile } from '../src/resources/types.ts';
+import { computeResourceTotals } from '../src/resources/resourceTotals.ts';
 import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import {
   CALENDAR_DAY_START_OFFSET_SECONDS,
@@ -264,8 +265,13 @@ const maintainedLumberMill = building({
 assert.equal(
   storageOccupancyChannels(maintainedLumberMill)
     .find((channel) => channel.key === 'ironwork')?.purpose,
-  'maintenance-reserve',
-  'a civilian-tool rack should remain visible as physical storage but be classified as maintenance stock',
+  'maintenance-stock',
+  'a civilian-tool rack should remain visible as physical storage and be labelled by its intended use',
+);
+assert.equal(
+  computeResourceTotals(gameState(90, { buildings: [maintainedLumberMill] })).ironwork,
+  3,
+  'maintenance stock must still count as settlement surplus instead of being reserved out of the total',
 );
 assert.equal(
   reportableStorageOccupancyChannels(maintainedLumberMill)

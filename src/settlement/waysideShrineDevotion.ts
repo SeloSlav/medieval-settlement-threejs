@@ -1,4 +1,4 @@
-import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
+import { resolvedPlacedBuildingYaw } from '../buildings/buildingPlacement.ts';
 import {
   claimResidenceRoutesByNearestSupplier,
   compareStableEntityIds,
@@ -139,14 +139,12 @@ export function waysideShrineVisitorPriority(
 }
 
 export function waysideShrinePrayerPoint(
-  shrine: Pick<BuildingState, 'x' | 'z'>,
+  shrine: Pick<BuildingState, 'x' | 'z' | 'yaw'>,
   visitorSlot: number,
   roadNetwork: RoadNetwork | null,
 ): PointXZ & { yaw: number } {
-  const shrineYaw = buildingPlacementYaw(
-    'wayside_shrine',
-    shrine.x,
-    shrine.z,
+  const shrineYaw = resolvedPlacedBuildingYaw(
+    { ...shrine, kind: 'wayside_shrine' },
     roadNetwork,
   );
   const slot = Math.max(0, Math.min(MAX_WAYSIDE_SHRINE_VISITORS - 1, visitorSlot));

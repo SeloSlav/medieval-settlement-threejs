@@ -292,7 +292,8 @@ pub fn ox_amplified_worker_count(human_workers: u32, paired_oxen: u32) -> u32 {
 }
 
 /// Draft animals expand local cart capacity without becoming crew members.
-/// Delivery speed and unload time continue to use `human_workers` alone.
+/// They receive any route-wide wheelwright multiplier applied to the cart, but
+/// add no separate speed bonus; unload time continues to use `human_workers`.
 pub fn ox_amplified_cart_capacity(per_worker_amount: f64, human_workers: u32, ox_id: u64) -> f64 {
     let capacity_workers = human_workers.saturating_add(u32::from(ox_id != 0));
     per_worker_amount.max(0.0) * f64::from(capacity_workers)

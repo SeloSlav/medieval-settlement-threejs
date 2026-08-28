@@ -119,9 +119,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn apiary_follows_its_existing_window() {
-        assert_eq!(seasonal_production_active("apiary", 3, false), Some(false));
-        assert_eq!(seasonal_production_active("apiary", 4, false), Some(true));
+    fn apiary_crews_cover_accumulation_and_autumn_harvest() {
+        assert_eq!(seasonal_production_active("apiary", 2, false), Some(false));
+        assert_eq!(seasonal_production_active("apiary", 3, false), Some(true));
+        assert_eq!(seasonal_production_active("apiary", 11, false), Some(true));
+        assert_eq!(seasonal_production_active("apiary", 12, false), Some(false));
     }
 
     #[test]
@@ -172,7 +174,8 @@ mod tests {
     fn dormant_site_releases_producers_even_when_stock_is_waiting() {
         assert_eq!(seasonal_labor_target("apiary", 1, 3, true, false), Some(0));
         assert_eq!(seasonal_labor_target("apiary", 1, 3, false, false), Some(0));
-        assert_eq!(seasonal_labor_target("apiary", 4, 3, false, false), Some(3));
+        assert_eq!(seasonal_labor_target("apiary", 3, 3, false, false), Some(3));
+        assert_eq!(seasonal_labor_target("apiary", 11, 3, false, false), Some(3));
     }
 
     #[test]

@@ -6,6 +6,9 @@ import {
 import {
   CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS,
   CATTLE_PLOUGH_WORK_MULTIPLIER,
+  CATTLE_SLAUGHTER_FOOD_PER_HEAD,
+  CATTLE_SLAUGHTER_HIDES_PER_HEAD,
+  CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
   LIVESTOCK_ANIMAL_FEED_PER_CYCLE,
   LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE,
   LIVESTOCK_HAY_STORAGE_CAPACITY,
@@ -154,7 +157,9 @@ export function renderLivestockBuildingInspector(
     .join('');
   const benefitRows = building.kind !== 'pastoral_farmstead'
     ? `<li><span>Pannage trees</span><span>${maturePannageTrees} mature trees across linked pig parcels</span></li>`
-    : `${cattle.headCount > 0 ? `<li><span>Cattle benefits</span><span>Manure and ox assistance for up to ${CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS} priority fields · ${Math.round((1 - CATTLE_PLOUGH_WORK_MULTIPLIER) * 100)}% less ploughing work</span></li>` : ''}
+    : `${cattle.headCount > 0 ? `<li><span>Cattle benefits</span><span>Milk once monthly from March–November (none in winter), manure, and ox assistance for up to ${CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS} priority fields · ${Math.round((1 - CATTLE_PLOUGH_WORK_MULTIPLIER) * 100)}% less ploughing work</span></li>
+       <li><span>Cattle cull yield</span><span>${CATTLE_SLAUGHTER_FOOD_PER_HEAD} fresh meat · ${CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD} cured meat with salt, otherwise fresh · ${CATTLE_SLAUGHTER_HIDES_PER_HEAD} hide per surplus animal</span></li>
+       <li><span>Hide store</span><span>${Math.round(Math.max(0, building.hides ?? 0))} / ${Math.round(storageCaps.hides ?? 0)} · hauled to a Tannery, Storehouse, or Trading Post</span></li>` : ''}
        ${sheep.headCount > 0 ? `<li><span>Sheep benefits</span><span>Annual June–July clip · ${SHEEP_WOOL_PER_SHEARING_PER_HEAD} wool per healthy supplied head</span></li>` : ''}`;
 
   return {

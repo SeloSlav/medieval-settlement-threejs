@@ -135,6 +135,10 @@ assert.match(
   expandedEconomy,
   /\("village_storehouse", CommodityKind::Pelts\) => Some\(&\["trading_post"\]\)/,
 );
+assert.match(
+  expandedEconomy,
+  /\("pastoral_farmstead", CommodityKind::Hides\)[\s\S]*?"tannery", "village_storehouse", "trading_post"/,
+);
 assert.doesNotMatch(
   expandedEconomy,
   /CommodityKind::Pelts[^\n]*tannery|tannery[^\n]*CommodityKind::Pelts/,

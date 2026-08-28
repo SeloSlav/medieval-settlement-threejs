@@ -674,20 +674,21 @@ def make_aperture_wall(
     opening_sill: float = 0.0,
     opening_x: float = 0.0,
     dark_backing: bool = False,
+    wall_height: float = WALL_HEIGHT,
 ) -> bpy.types.Object:
     depth = 0.20
     if opening_width is None or opening_height is None:
-        boxes = [((0.0, 0.0, WALL_HEIGHT / 2.0), (width, depth, WALL_HEIGHT))]
+        boxes = [((0.0, 0.0, wall_height / 2.0), (width, depth, wall_height))]
     else:
         left = opening_x - opening_width / 2.0
         right = opening_x + opening_width / 2.0
         boxes = [
-            (((-width / 2.0 + left) / 2.0, 0.0, WALL_HEIGHT / 2.0), (left + width / 2.0, depth, WALL_HEIGHT)),
-            (((right + width / 2.0) / 2.0, 0.0, WALL_HEIGHT / 2.0), (width / 2.0 - right, depth, WALL_HEIGHT)),
+            (((-width / 2.0 + left) / 2.0, 0.0, wall_height / 2.0), (left + width / 2.0, depth, wall_height)),
+            (((right + width / 2.0) / 2.0, 0.0, wall_height / 2.0), (width / 2.0 - right, depth, wall_height)),
             ((opening_x, 0.0, opening_sill / 2.0), (opening_width, depth, opening_sill)),
             (
-                (opening_x, 0.0, (opening_sill + opening_height + WALL_HEIGHT) / 2.0),
-                (opening_width, depth, WALL_HEIGHT - opening_sill - opening_height),
+                (opening_x, 0.0, (opening_sill + opening_height + wall_height) / 2.0),
+                (opening_width, depth, wall_height - opening_sill - opening_height),
             ),
         ]
     wall = make_custom_part(
@@ -797,6 +798,7 @@ def place_shell() -> None:
     )
     # A 0.20 m side wall centred at +/-1.90 m places its exterior face exactly on
     # the +/-2.00 m roof-bearing line instead of piercing the descending roof plane.
+    side_wall_height = WALL_HEIGHT - 0.10
     for side, rotation in ((-1.9, -math.pi / 2.0), (1.9, math.pi / 2.0)):
         label = "Left" if side < 0 else "Right"
         make_aperture_wall(
@@ -805,6 +807,7 @@ def place_shell() -> None:
             "timber_weathered_horizontal",
             (side, 2.0, WALL_BASE_Z),
             rotation,
+            wall_height=side_wall_height,
         )
         make_aperture_wall(
             f"T1_Wall_{label}_SquareHole",
@@ -816,6 +819,7 @@ def place_shell() -> None:
             opening_height=0.38,
             opening_sill=1.08,
             dark_backing=True,
+            wall_height=side_wall_height,
         )
         make_aperture_wall(
             f"T1_Wall_{label}_C",
@@ -823,6 +827,21 @@ def place_shell() -> None:
             "timber_weathered_horizontal",
             (side, 6.5, WALL_BASE_Z),
             rotation,
+            wall_height=side_wall_height,
+        )
+
+        # A low-poly longitudinal plate carries the visible roof bearing while
+        # remaining safely inside the wall/roof envelope. It replaces the top
+        # face of the side wall that previously pierced the shingle surface.
+        plate_side = -1.0 if side < 0.0 else 1.0
+        make_custom_part(
+            f"T1_SideWallPlate_{'Left' if side < 0.0 else 'Right'}",
+            FRAMES,
+            [((0.0, 0.0, 0.0), (0.14, BUILDING_DEPTH - 0.12, 0.14))],
+            "oak_dark",
+            (plate_side * 1.80, BUILDING_DEPTH * 0.5, WALL_TOP_Z - 0.16),
+            0.0,
+            "assembly_custom_side_wall_plate",
         )
 
     front_gable = place("gable_infill_timber_4m", "T1_Gable_Front", WALLS, (0.0, -0.01, WALL_TOP_Z))
@@ -844,10 +863,26 @@ def place_shell() -> None:
     # The authored beam's bevel extends 0.089 m above its origin. Seat that top face
     # directly against the gable baseline instead of leaving a visible shadow gap.
     place("frame_beam_4m_s0p16m", "T1_Front_WallPlate", FRAMES, (0.0, -0.112, WALL_TOP_Z - 0.089))
-    for x in (-2.0, 0.0, 2.0):
-        place("frame_post_h2p4m_s0p16m", f"T1_Post_Front_{x:+.0f}", FRAMES, (x, -0.112, WALL_BASE_Z))
-    for x in (-2.0, 2.0):
-        place("frame_post_h2p4m_s0p16m", f"T1_Post_Rear_{x:+.0f}", FRAMES, (x, BUILDING_DEPTH + 0.112, WALL_BASE_Z), math.pi)
+    # The centre post can meet the gable baseline, but the four corner posts sit
+    # beneath the sloping roof and must terminate below its concealed bearing zone.
+    # Using the full 2.4 m kit posts here exposed their orange end grain through
+    # both roof slopes at the gable ends.
+    place("frame_post_h2p4m_s0p16m", "T1_Post_Front_Centre", FRAMES, (0.0, -0.112, WALL_BASE_Z))
+    corner_post_height = WALL_HEIGHT - 0.20
+    for face, y, rotation in (
+        ("Front", -0.112, 0.0),
+        ("Rear", BUILDING_DEPTH + 0.112, math.pi),
+    ):
+        for x in (-2.0, 2.0):
+            make_custom_part(
+                f"T1_Post_{face}_{x:+.0f}",
+                FRAMES,
+                [((0.0, 0.0, corner_post_height * 0.5), (0.16, 0.16, corner_post_height))],
+                "oak_dark",
+                (x, y, WALL_BASE_Z),
+                rotation,
+                "assembly_custom_short_corner_post",
+            )
 
 
 def roof_transform(side: float, slope_center: float) -> tuple[tuple[float, float], float]:
@@ -938,18 +973,25 @@ def append_roof_skin_prism(
     run_stations = sorted(set(round(value, 6) for value in run_stations))
 
     top_offset = -0.006
-    bottom_offset = 0.038
+    bottom_offset = 0.12
 
     def point(slope_distance: float, run_y: float, normal_offset: float) -> tuple[float, float, float]:
         edge_weight = max(0.0, min(1.0, (slope_distance - (SLOPE_LENGTH - 0.58)) / 0.58))
         effective_slope = slope_distance + roof_eave_extension(run_y, side) * edge_weight
-        world_x = side * effective_slope * math.cos(PITCH) - side * math.sin(PITCH) * normal_offset
+        world_x = (
+            0.0
+            if slope_distance <= 0.001
+            else side * effective_slope * math.cos(PITCH) - side * math.sin(PITCH) * normal_offset
+        )
+        shared_drop = roof_drop_interpolated(run_y, 0.0)
+        side_drop = roof_drop_interpolated(run_y, side) - shared_drop
+        ridge_blend = min(1.0, slope_distance / 0.72)
         return (
             world_x,
             run_y,
             RIDGE_Z
             - effective_slope * math.sin(PITCH)
-            + roof_drop_interpolated(run_y, side) * roof_bearing_weight(world_x)
+            + (shared_drop + side_drop * ridge_blend) * roof_bearing_weight(world_x)
             - math.cos(PITCH) * normal_offset,
         )
 
@@ -988,7 +1030,10 @@ def create_retopped_roof_skin(side: float) -> bpy.types.Object:
     vertices: list[tuple[float, float, float]] = []
     vertex_metric_uv: list[tuple[float, float]] = []
     faces: list[tuple[int, ...]] = []
-    slope_min = 0.12
+    # Both skins reach the common apex. Their closed upper boundaries overlap by
+    # only the roof build-up thickness, closing the ridge without a separate cap
+    # strip or a visible slot.
+    slope_min = 0.0
     slope_max = SLOPE_LENGTH - 0.12
     run_min = -0.40
     run_max = BUILDING_DEPTH + 0.40
@@ -1030,18 +1075,31 @@ def create_retopped_roof_skin(side: float) -> bpy.types.Object:
                 active_cells.add((slope_index, run_index))
 
     top_offset = -0.006
-    bottom_offset = 0.038
+    # A 12.6 cm closed roof build-up represents shingles plus concealed boarding
+    # and laths. Besides being structurally credible, it prevents screen-space
+    # shadow/AO from interior wall plates leaking onto the exterior roof surface.
+    bottom_offset = 0.12
 
     def surface_point(slope_distance: float, run_y: float, normal_offset: float) -> tuple[float, float, float]:
         edge_weight = max(0.0, min(1.0, (slope_distance - (SLOPE_LENGTH - 0.58)) / 0.58))
         effective_slope = slope_distance + roof_eave_extension(run_y, side) * edge_weight
-        world_x = side * effective_slope * math.cos(PITCH) - side * math.sin(PITCH) * normal_offset
+        # Both closed skins share one exact apex curve. Side-specific settlement
+        # fades in below the ridge; otherwise the capless roof would reveal the
+        # closed brown edge of the lower skin wherever their heights diverged.
+        world_x = (
+            0.0
+            if slope_distance <= 0.001
+            else side * effective_slope * math.cos(PITCH) - side * math.sin(PITCH) * normal_offset
+        )
+        shared_drop = roof_drop_interpolated(run_y, 0.0)
+        side_drop = roof_drop_interpolated(run_y, side) - shared_drop
+        ridge_blend = min(1.0, slope_distance / 0.72)
         return (
             world_x,
             run_y,
             RIDGE_Z
             - effective_slope * math.sin(PITCH)
-            + roof_drop_interpolated(run_y, side) * roof_bearing_weight(world_x)
+            + (shared_drop + side_drop * ridge_blend) * roof_bearing_weight(world_x)
             - math.cos(PITCH) * normal_offset,
         )
 
@@ -1107,7 +1165,7 @@ def create_retopped_roof_skin(side: float) -> bpy.types.Object:
     obj["source_component_id"] = "assembly_custom_retopped_shingle_skin"
     obj["assembly_role"] = ROOF.name
     obj["custom_assembly_piece"] = True
-    obj["roof_topology"] = "connected subdivided closed skin; atlas supplies individual shingle relief"
+    obj["roof_topology"] = "connected subdivided closed skin meeting opposite slope at capless apex; atlas supplies individual shingle relief"
     obj["roof_grid_cells"] = len(active_cells)
     if side > 0.0:
         obj["roof_aperture_id"] = "tier1-smoke-exit"
@@ -1130,34 +1188,8 @@ def place_roof() -> None:
     # settlement and the irregular hanging eave remain authored in the silhouette.
     # This replaces 48 repeated solid shingle panels, which dominated the earlier
     # 24k-triangle assembly without adding useful medium-distance shape information.
-    runs = tuple(("1m", float(index)) for index in range(8))
     for side in (-1.0, 1.0):
         create_retopped_roof_skin(side)
-
-    for run_index, (run_token, y) in enumerate(runs):
-        ridge = place(
-            f"roof_shingle_ridge_{run_token}",
-            f"T1_Ridge_Run{run_index:02d}",
-            ROOF,
-            (0.0, y, RIDGE_Z),
-            math.pi / 2.0,
-        )
-        settle_roof_module(ridge, run_index)
-
-    place(
-        "roof_shingle_ridge_endcap",
-        "T1_Ridge_Endcap_Front",
-        ROOF,
-        (0.0, -0.62, RIDGE_Z + roof_settlement_knot(0)),
-        math.pi / 2.0,
-    )
-    place(
-        "roof_shingle_ridge_endcap",
-        "T1_Ridge_Endcap_Rear",
-        ROOF,
-        (0.0, BUILDING_DEPTH + 0.62, RIDGE_Z + roof_settlement_knot(8)),
-        -math.pi / 2.0,
-    )
 
     # A Tier-1 smoke exit is an actual void through the shingles. Runtime owns the emitted
     # smoke; no surface decal, projecting hood, cap, or later-tier chimney is authored.
@@ -1311,13 +1343,13 @@ def write_manifest() -> None:
             "closedRectangle": True,
         },
         "roofIrregularity": {
-            "method": "two closed retopologized roof skins with half-metre eave stations and continuous piecewise-linear settlement, attenuated to zero at the +/- 2.0 m wall-plate bearing",
+            "method": "two closed retopologized roof skins joined directly at a capless apex, with half-metre eave stations and continuous piecewise-linear settlement attenuated to zero at the +/- 2.0 m wall-plate bearing",
             "surfaceDetail": "the split-shingle atlas supplies individual shingle albedo, normal, roughness, and AO detail instead of thousands of repeated closed shingle solids",
             "moduleEdgeDropsMetres": list(ROOF_SETTLEMENT_KNOTS),
             "rightSlopeAdditionalEdgeDropsMetres": list(ROOF_RIGHT_SETTLEMENT_KNOTS),
             "maximumDropMetres": round(abs(min(ROOF_SETTLEMENT_KNOTS)) + abs(min(ROOF_RIGHT_SETTLEMENT_KNOTS)), 4),
             "bearingLine": "roof settlement is pinned to zero at x = +/- 2.0 m; the 0.20 m side walls are inset so their exterior faces terminate on that line",
-            "supports": "continuous timber wall-head courses and inset boarded gables form the visible exterior bearing line; fully occluded common rafters are omitted from this exterior game LOD",
+            "supports": "continuous timber wall-head courses, shortened corner posts, and inset boarded gables form the visible exterior bearing line; fully occluded common rafters are omitted from this exterior game LOD",
         },
         "historicalMaterialDecision": {
             "primaryBody": "weathered horizontal timber boarding on a dark moisture-stained fieldstone footing",
@@ -1371,6 +1403,7 @@ def export_glb() -> None:
             use_selection=True,
             export_yup=True,
             export_apply=True,
+            export_extras=True,
         )
         for attempt in range(12):
             try:

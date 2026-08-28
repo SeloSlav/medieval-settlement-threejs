@@ -3,7 +3,7 @@ import {
   getBuildingFootprintCorners,
   getBuildingFootprintHalfExtents,
 } from '../buildings/BuildingTerrainLayout.ts';
-import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
+import { resolvedPlacedBuildingYaw } from '../buildings/buildingPlacement.ts';
 import {
   polygonSegments,
   updateTerrainRibbonGeometry,
@@ -227,12 +227,7 @@ export function findPlayerAuthoredHoverPerimeter(
     const dz = point.z - building.z;
     if (dx * dx + dz * dz > halfWidth * halfWidth + halfDepth * halfDepth) continue;
 
-    const yaw = buildingPlacementYaw(
-      building.kind,
-      building.x,
-      building.z,
-      roadNetwork,
-    );
+    const yaw = resolvedPlacedBuildingYaw(building, roadNetwork);
     const cos = Math.cos(yaw);
     const sin = Math.sin(yaw);
     const localX = dx * cos - dz * sin;

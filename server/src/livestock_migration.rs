@@ -102,6 +102,7 @@ fn migrate_legacy_livestock_herd(ctx: &ReducerContext, legacy: LivestockHerd) {
             haymaking_percent: legacy.haymaking_percent,
             last_wool_output: wool_output[index],
             last_shearing_year: legacy.last_shearing_year,
+            last_milking_period: 0,
         });
     }
     ctx.db

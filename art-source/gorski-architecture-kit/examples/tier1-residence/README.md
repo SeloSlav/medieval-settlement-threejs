@@ -2,7 +2,9 @@
 
 This example assembles a finished, low Tier 1 Gorski Kotar residence from the reusable architecture kit without modifying the source asset library.
 
-The 4 × 7 m body uses a low continuous fieldstone footing, a rough daub public front, horizontally oriented weathered timber boarding on the sides and rear, timber gables, and a deliberately restrained frame. Four kit-authored L-shaped foundation corners now own the masonry turns, with baked mirrored copies where required and one central straight run per long side; the result is a closed rectangular plinth without exposed end gaps. Its 2.4 m wall body is subordinate to a steep, three-course hand-split softwood shingle roof with approximately 0.70 m side-eave and 0.50 m gable-end overhangs. The side eaves now terminate as raw hanging shingle edges without the kit's paired fascia/eave-edge trim. The roof plane bears directly at the top of the four-metre wall rather than floating above it. The 0.20 m side walls are inset so their exterior faces terminate on the ±2.0 m bearing line, and roof settlement fades to zero at that line so neither wall can intersect the shingle skin. The continuous timber wall-head courses, six inset common rafter pairs, and three tie beams make the load path legible while every roof support terminates beneath the exterior shingle skin; the reusable gable module's conflicting exterior verge strips are omitted while its boarded infill remains. Eight overlapping one-metre roof modules share a continuous settlement profile of up to 12.8 cm, with a slightly heavier right-side drop. The profile remains visible toward the ridge and hanging eaves while the bearing line stays structurally fixed, preserving contact and the crooked silhouette without stepped seams. Light and air enter through literal 38–42 cm unglazed square apertures rather than decorative window inserts. The only articulated opening is the low service door; the smoke exit is a true void through every overlapping shingle layer and the recessed continuous undercourse, not a dark surface mesh.
+The 4 × 7 m body uses a closed fieldstone footing, rough daub on the public front, horizontal timber boarding on the sides and rear, timber gables, and a restrained structural frame. Four shortened corner posts terminate inside the roof-bearing envelope, while the central front post remains full height beneath the gable baseline. Two closed retopologized roof skins carry the production split-softwood-shingle atlas and meet on one shared, irregular capless apex. There is no separate ridge joist, ridge cap, exterior fascia, or exposed rafter. The settlement remains visible at the ridge and hanging eaves but is pinned to the ±2 m bearing lines. Its concealed 12.6 cm build-up represents shingles plus boarding/laths and prevents wall or support geometry from leaking through the exterior skin. Light and air enter through literal 38–42 cm unglazed square apertures. The smoke exit is a true topological void through the right roof skin, not a dark surface mesh.
+
+The native assembly is 3,136 triangles, including 2,016 roof triangles. The exported GLB re-imports as 5,184 triangles and remains below the 9,000-triangle residence budget.
 
 The material hierarchy follows the documented timber-first Gorski Kotar vernacular: wood body, low stone base, split fir or pine roofing, and minimal ornament. The fieldstone footing now uses a named darker, moisture-stained material variant and the daub front adds blotchy wear with stronger accumulation near grade. These variants preserve the shared clean atlas tiles for maintained and later-tier buildings rather than globally aging every use. The current atlas is sufficient for this pass. Two future additions would improve close-view specificity: hand-split softwood wall boarding and coarse clay-straw daub.
 
@@ -22,17 +24,22 @@ Build from the repository root:
 
 Outputs:
 
-- `out/tier1_residence_textured.blend` — editable modular assembly with packed atlas images and clearly separated staging.
-- `out/tier1_residence_assembly.json` — component placements, dimensions, atlas references, and tier-specific decisions.
-- `renders/tier1_residence_hero.png` — fixed hero preview.
-- `renders/tier1_residence_front.png` and `renders/tier1_residence_side.png` — alignment-check views.
+- `out/tier1_residence_retopo_v25.blend` — editable assembly with packed atlas images and separated staging.
+- `out/tier1_residence_retopo_v25.glb` — game-ready shell with component metadata.
+- `out/tier1_residence_assembly_v25.json` — placements, dimensions, atlas references, and tier decisions.
+- `renders/tier1_residence_hero_retopo_v25.png` — fixed hero preview.
+- `renders/tier1_residence_front_retopo_v25.png` and `renders/tier1_residence_side_retopo_v25.png` — alignment-check views.
 
 Validate the generated Blender artifact:
 
 ```powershell
 & 'C:\Program Files\Blender Foundation\Blender 5.1\blender.exe' `
-  --background 'art-source\gorski-architecture-kit\examples\tier1-residence\out\tier1_residence_textured.blend' `
+  --background 'art-source\gorski-architecture-kit\examples\tier1-residence\out\tier1_residence_retopo_v25.blend' `
   --python 'art-source\gorski-architecture-kit\examples\tier1-residence\validate_tier1_residence.py'
+
+& 'C:\Program Files\Blender Foundation\Blender 5.1\blender.exe' `
+  --background --factory-startup --python-exit-code 1 `
+  --python 'art-source\gorski-architecture-kit\examples\tier1-residence\validate_tier1_residence_roundtrip.py'
 ```
 
-The validator writes `out/tier1_residence_validation.json` with topology, UV, unit-scale, aperture, atlas, triangle-budget, and runtime-dressing checks.
+The validators write `out/tier1_residence_validation_v25.json` and `out/tier1_residence_roundtrip_validation_v25.json` with topology, UV, unit-scale, aperture, atlas, triangle-budget, metadata, and runtime-dressing checks.

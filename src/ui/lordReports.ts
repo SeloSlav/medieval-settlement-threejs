@@ -53,7 +53,7 @@ export type StorageOccupancyChannel = {
   label: string;
   amount: number;
   capacity: number;
-  purpose: 'working-stock' | 'maintenance-reserve';
+  purpose: 'working-stock' | 'maintenance-stock';
 };
 
 const STORAGE_CHANNEL_LABELS: Record<keyof StorageCaps, string> = {
@@ -139,7 +139,7 @@ export function storageOccupancyChannels(
       amount: storageChannelAmount(building, key),
       capacity,
       purpose: key === 'ironwork' && isCivilianToolSite(building.kind)
-        ? 'maintenance-reserve'
+        ? 'maintenance-stock'
         : 'working-stock',
     }];
   });
@@ -147,8 +147,8 @@ export function storageOccupancyChannels(
 
 /**
  * Report notifications are about working stores that can block production or
- * deliveries. Small ironwork tool racks are maintenance reserves, even though
- * they share the building row's physical `ironwork` stock field.
+ * deliveries. Small ironwork tool racks are maintenance stock, even though
+ * they remain physical surplus in settlement totals and export accounting.
  */
 export function reportableStorageOccupancyChannels(
   building: BuildingState,

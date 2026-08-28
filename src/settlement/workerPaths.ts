@@ -33,7 +33,7 @@ import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
 import { STARTING_POPULATION } from '../generated/gameBalance.ts';
 import { preservableFoodStock } from '../economy/foodInventory.ts';
 import { processorOutputHeadroom } from '../economy/processorOutputPolicy.ts';
-import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
+import { resolvedPlacedBuildingYaw } from '../buildings/buildingPlacement.ts';
 import {
   MONASTERY_EXTENSION_GUESTHOUSE,
   MONASTERY_EXTENSION_INFIRMARY,
@@ -934,12 +934,7 @@ function monasteryWorldPoint(
   localZ: number,
   roadNetwork: RoadNetwork | null,
 ): PointXZ {
-  const yaw = buildingPlacementYaw(
-    building.kind,
-    building.x,
-    building.z,
-    roadNetwork,
-  );
+  const yaw = resolvedPlacedBuildingYaw(building, roadNetwork);
   const cos = Math.cos(yaw);
   const sin = Math.sin(yaw);
   return {

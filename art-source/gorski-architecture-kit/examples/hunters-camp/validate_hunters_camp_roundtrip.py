@@ -11,8 +11,8 @@ import bpy
 EXAMPLE_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path(os.environ.get("GK_HUNTERS_CAMP_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
 OUT_DIR = OUTPUT_ROOT / "out"
-GLB_PATH = OUT_DIR / "hunters_camp_textured_v3.glb"
-REPORT_PATH = OUT_DIR / "hunters_camp_roundtrip_validation_v3.json"
+GLB_PATH = OUT_DIR / "hunters_camp_textured_v4.glb"
+REPORT_PATH = OUT_DIR / "hunters_camp_roundtrip_validation_v4.json"
 
 
 def main() -> None:
@@ -31,6 +31,8 @@ def main() -> None:
         errors.append("preview-only staging leaked into GLB")
     if not any(source_id == "site_tent_a_frame_large" for source_id in source_ids):
         errors.append("tent missing after GLB round-trip")
+    if not any(source_id == "site_hunter_hide_fly_4m_d2m" for source_id in source_ids):
+        errors.append("stitched-hide processing shelter missing after GLB round-trip")
     if not any(source_id == "site_camp_cooking_tripod" for source_id in source_ids):
         errors.append("camp tripod missing after GLB round-trip")
     if triangles <= 0:

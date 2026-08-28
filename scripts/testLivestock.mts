@@ -17,7 +17,10 @@ import { getBuildingExtent } from '../src/buildings/buildingExtents.ts';
 import {
   allocateLivestockVisualPastures,
   createCattleVisualDistribution,
+  livestockCullDepartureCount,
+  livestockHerdFormationOffsetMeters,
   livestockVisualHeadCount,
+  pastureGateWaypoints,
 } from '../src/farming/LivestockVisuals.ts';
 import {
   cattleManureCollectionMultiplier,
@@ -299,7 +302,10 @@ assert.match(
   /livestockPastureManagementHeadAllowance\(species, otherHerds\)/,
   'the parcel ceiling must also respect shared holding management headroom',
 );
-assert.match(pastureInspectorSource, /spring only[\s\S]{0,80}stops at/);
+assert.match(pastureInspectorSource, /livestockBreedingPhaseForMonth/);
+assert.match(pastureInspectorSource, /Cattle mate in summer/);
+assert.match(pastureInspectorSource, /Sheep mate in autumn/);
+assert.match(pastureInspectorSource, /confirmed offspring arrive in spring/);
 assert.match(farmFieldToolSource, /choose after fencing/);
 assert.match(farmFieldToolSource, /each parcel keeps its own herd and cap/);
 assert.match(farmFieldToolSource, /land cap .* vs woodland browse\/mast cap/);
@@ -385,6 +391,66 @@ assert.equal(
   createCattleVisualDistribution(18).filter((kind) => kind === 'bull').length,
   1,
   'large displayed herds should still contain one bull rather than an unnatural 50/50 split',
+);
+
+const sheepFormation = livestockHerdFormationOffsetMeters('sheep', 11, 20);
+const cattleFormation = livestockHerdFormationOffsetMeters('cattle', 11, 20);
+assert.ok(
+  Math.hypot(sheepFormation.x, sheepFormation.z)
+    < Math.hypot(cattleFormation.x, cattleFormation.z) * 0.5,
+  'sheep should flock at less than half the spacing used by a loose cattle herd',
+);
+assert.deepEqual(
+  livestockHerdFormationOffsetMeters('sheep', 11, 20),
+  sheepFormation,
+  'herd formation slots must be deterministic rather than independently wandering',
+);
+
+const gateRoute = pastureGateWaypoints(
+  lowerPasture,
+  { x: 6, z: 8 },
+  { x: 10, z: -12 },
+);
+assert.deepEqual(gateRoute[0], { x: 6, z: 8 });
+assert.deepEqual(gateRoute[2], { x: 10, z: 0 }, 'edge zero owns the centered pasture entrance');
+assert.ok(gateRoute[1]!.z > 0, 'the route must approach the entrance from inside the pasture');
+assert.ok(gateRoute[3]!.z < 0, 'the route must clear the entrance before heading to work');
+assert.deepEqual(gateRoute.at(-1), { x: 10, z: -12 });
+
+const priorCull = {
+  headCount: 12,
+  lastCulled: 1,
+  lastFoodOutput: 4,
+  lastPreservedOutput: 1,
+};
+const unchangedCullStores = { meat: 8, preservedFood: 3, hides: 2 };
+assert.equal(
+  livestockCullDepartureCount(
+    priorCull,
+    { ...priorCull, headCount: 11 },
+    unchangedCullStores,
+    unchangedCullStores,
+  ),
+  0,
+  'a player sale after a cull must not create a second slaughter procession',
+);
+assert.equal(
+  livestockCullDepartureCount(
+    priorCull,
+    { ...priorCull, headCount: 11 },
+    unchangedCullStores,
+    { ...unchangedCullStores, hides: 3 },
+  ),
+  1,
+  'a consecutive cull is confirmed by its physical output reaching the holding',
+);
+assert.equal(
+  livestockCullDepartureCount(
+    { ...priorCull, lastCulled: 0 },
+    { ...priorCull, headCount: 11 },
+  ),
+  1,
+  'a new authoritative cull marker should dispatch the removed animal',
 );
 
 assert.deepEqual(
@@ -638,6 +704,21 @@ assert.match(
   routineOutputContract,
   /let milk_to_store[\s\S]*let manure_to_store/,
   'routine milk and manure output must be capped to each physical store',
+);
+assert.match(
+  serverLivestock,
+  /is_cattle_milking_month\(clock\.month\)[\s\S]{0,160}herd\.last_milking_period != milking_period[\s\S]{0,500}cattle_monthly_dairy_cycle_multiplier/,
+  'cattle must produce one monthly dairy lot only from March through November',
+);
+assert.match(
+  serverLivestock,
+  /let gross_milk = discrete_expected_units\([\s\S]{0,180}dairy_roll_period/,
+  'monthly dairy expectations must resolve into whole physical units',
+);
+assert.match(
+  routineOutputContract,
+  /if cattle_milking_due[\s\S]{0,320}herd\.last_milking_period = milking_period/,
+  'a completed cattle milking round must be recorded even when storage is full',
 );
 assert.match(
   routineOutputContract,

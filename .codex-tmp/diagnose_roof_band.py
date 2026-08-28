@@ -4,8 +4,8 @@ import bpy
 
 
 scene = bpy.context.scene
-scene.render.resolution_x = 900
-scene.render.resolution_y = 600
+scene.render.resolution_x = 1800
+scene.render.resolution_y = 1200
 scene.render.resolution_percentage = 100
 root = Path(__file__).resolve().parent / "tier1-retopo-v25" / "renders"
 

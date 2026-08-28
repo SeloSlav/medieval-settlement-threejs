@@ -194,6 +194,7 @@
     "test:deer-wildlife": "npx tsx scripts/testDeerWildlife.mts",
     "test:livestock": "npx tsx scripts/testLivestock.mts",
     "test:livestock-policy": "node --experimental-strip-types scripts/testLivestockPolicy.mts",
+    "test:seasonal-livestock-breeding": "node --experimental-strip-types scripts/testSeasonalLivestockBreeding.mts",
     "test:stable-ox-economy": "node --experimental-strip-types scripts/testStableOxEconomy.mts",
     "test:stable-ox-client": "node --experimental-strip-types scripts/testStableOxClient.mts",
     "test:stable-ox-allocation": "npx tsx scripts/testStableOxAllocation.mts",

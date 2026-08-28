@@ -12,6 +12,7 @@ use crate::monastery_estate_policy::{
     MONASTERY_ESTATE_REAR_DEPTH, MONASTERY_ESTATE_WIDTH,
 };
 use crate::roads::{load_owner_road_network, RoadNetwork};
+use crate::tables::Building;
 
 const ORDINARY_STONE_DEPOSIT_PROTECTION_RADIUS: f64 = 34.0;
 const RICH_STONE_DEPOSIT_PROTECTION_RADIUS: f64 = 67.0;
@@ -48,8 +49,25 @@ pub fn building_site_contains_point(
     point_x: f64,
     point_z: f64,
 ) -> bool {
+    building_site_contains_point_at_yaw(
+        kind,
+        building_x,
+        building_z,
+        building_placement_yaw(building_x, building_z),
+        point_x,
+        point_z,
+    )
+}
+
+pub fn building_site_contains_point_at_yaw(
+    kind: &str,
+    building_x: f64,
+    building_z: f64,
+    yaw: f64,
+    point_x: f64,
+    point_z: f64,
+) -> bool {
     let pad = building_pad_params(kind);
-    let yaw = building_placement_yaw(building_x, building_z);
     let dx = point_x - building_x;
     let dz = point_z - building_z;
     let cos = yaw.cos();
@@ -150,12 +168,12 @@ pub fn burgage_zone_overlaps_buildings(
         if building_def(&building.kind).is_none() {
             continue;
         }
-        if zone_overlaps_building_footprint(
+        if zone_overlaps_building_footprint_at_yaw(
             &candidate,
             &building.kind,
             building.x,
             building.z,
-            network.as_ref(),
+            resolved_existing_building_yaw(network.as_ref(), &building),
         ) {
             return true;
         }
@@ -173,8 +191,18 @@ pub fn zone_overlaps_building_footprint(
     let yaw = network
         .map(|roads| road_aware_building_placement_yaw(roads, kind, x, z))
         .unwrap_or_else(|| building_placement_yaw(x, z));
+    zone_overlaps_building_footprint_at_yaw(zone, kind, x, z, yaw)
+}
+
+pub fn zone_overlaps_building_footprint_at_yaw(
+    zone: &[Point2; 4],
+    kind: &str,
+    x: f64,
+    z: f64,
+    yaw: f64,
+) -> bool {
     if kind == "monastery" {
-        return convex_zones_overlap(zone, &building_footprint_polygon(kind, x, z, network));
+        return convex_zones_overlap(zone, &building_footprint_polygon_at_yaw(kind, x, z, yaw));
     }
     let pad = building_pad_params(kind);
     zone_overlaps_oriented_footprint(
@@ -194,10 +222,13 @@ pub fn building_footprints_too_close(
     other_kind: &str,
     other_x: f64,
     other_z: f64,
+    other_yaw: Option<f64>,
     network: Option<&RoadNetwork>,
 ) -> bool {
     let candidate = building_footprint_polygon(candidate_kind, candidate_x, candidate_z, network);
-    let other = building_footprint_polygon(other_kind, other_x, other_z, network);
+    let other = other_yaw
+        .map(|yaw| building_footprint_polygon_at_yaw(other_kind, other_x, other_z, yaw))
+        .unwrap_or_else(|| building_footprint_polygon(other_kind, other_x, other_z, network));
     minimum_polygon_distance(&candidate, &other)
         < BUILDING_EDGE_CLEARANCE - BUILDING_EDGE_CLEARANCE_EPSILON
 }
@@ -211,6 +242,10 @@ pub fn building_footprint_polygon(
     let yaw = network
         .map(|roads| road_aware_building_placement_yaw(roads, kind, x, z))
         .unwrap_or_else(|| building_placement_yaw(x, z));
+    building_footprint_polygon_at_yaw(kind, x, z, yaw)
+}
+
+pub fn building_footprint_polygon_at_yaw(kind: &str, x: f64, z: f64, yaw: f64) -> [Point2; 4] {
     if kind == "monastery" {
         return monastery_estate_corners(x, z, yaw).map(|point| Point2 {
             x: point.x,
@@ -234,13 +269,16 @@ pub fn building_footprint_overlaps_circle(
     kind: &str,
     x: f64,
     z: f64,
+    placement_yaw: Option<f64>,
     network: Option<&RoadNetwork>,
     center_x: f64,
     center_z: f64,
     radius: f64,
 ) -> bool {
     polygon_overlaps_circle(
-        &building_footprint_polygon(kind, x, z, network),
+        &placement_yaw
+            .map(|yaw| building_footprint_polygon_at_yaw(kind, x, z, yaw))
+            .unwrap_or_else(|| building_footprint_polygon(kind, x, z, network)),
         center_x,
         center_z,
         radius,
@@ -503,6 +541,41 @@ pub fn resolved_building_placement_yaw(
     network
         .map(|roads| road_aware_building_placement_yaw(roads, kind, x, z))
         .unwrap_or_else(|| building_placement_yaw(x, z))
+}
+
+/** Existing buildings use their placement-time yaw; only legacy rows fall back. */
+pub fn resolved_existing_building_yaw(network: Option<&RoadNetwork>, building: &Building) -> f64 {
+    if building.placement_yaw_locked && building.placement_yaw.is_finite() {
+        building.placement_yaw
+    } else {
+        resolved_building_placement_yaw(network, &building.kind, building.x, building.z)
+    }
+}
+
+/**
+ * Additive save migration: preserve the orientation legacy buildings have at
+ * upgrade time, then make later road edits physically incapable of turning
+ * them.
+ */
+pub fn lock_legacy_building_placement_yaws(ctx: &ReducerContext, owner: Identity) {
+    let network = load_owner_road_network(ctx, owner);
+    let legacy = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| !building.placement_yaw_locked)
+        .collect::<Vec<_>>();
+    for mut building in legacy {
+        building.placement_yaw = resolved_building_placement_yaw(
+            network.as_ref(),
+            &building.kind,
+            building.x,
+            building.z,
+        );
+        building.placement_yaw_locked = true;
+        ctx.db.building().id().update(building);
+    }
 }
 
 fn building_pad_params(kind: &str) -> BuildingPadParams {
@@ -893,6 +966,7 @@ mod tests {
             0.0,
             0.0,
             None,
+            None,
             0.0,
             yaw_sensitive_z,
             GAME_HABITAT_DISRUPTION_RADIUS,
@@ -901,6 +975,7 @@ mod tests {
             "smithy",
             0.0,
             0.0,
+            None,
             Some(&network),
             0.0,
             yaw_sensitive_z,
@@ -910,6 +985,7 @@ mod tests {
             "smithy",
             0.0,
             0.0,
+            None,
             None,
             GAME_HABITAT_DISRUPTION_RADIUS + half_width + 0.1,
             0.0,

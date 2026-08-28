@@ -13,11 +13,11 @@ from mathutils import Vector
 EXAMPLE_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path(os.environ.get("GK_HUNTERS_CAMP_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
 OUT_DIR = OUTPUT_ROOT / "out"
-REPORT_PATH = OUT_DIR / "hunters_camp_validation_v3.json"
+REPORT_PATH = OUT_DIR / "hunters_camp_validation_v4.json"
 
 REQUIRED_EXACT = {
     "site_tent_a_frame_large": 1,
-    "site_canopy_canvas_4m_d2m": 1,
+    "site_hunter_hide_fly_4m_d2m": 1,
     "site_campfire_hearth": 1,
     "site_camp_cooking_tripod": 1,
     "prop_tool_rack_hunter": 1,
@@ -25,7 +25,7 @@ REQUIRED_EXACT = {
     "prop_water_bucket_pair": 1,
 }
 FORBIDDEN_PREFIXES = ("wall_", "roof_", "foundation_", "opening_", "frame_")
-FORBIDDEN_TOKENS = ("vegetation", "crop", "grass", "tree", "bush", "deer", "carcass", "hide", "meat")
+FORBIDDEN_TOKENS = ("vegetation", "crop", "grass", "tree", "bush", "deer", "carcass", "meat")
 
 
 def main() -> None:
@@ -39,8 +39,8 @@ def main() -> None:
     for part_id, expected in REQUIRED_EXACT.items():
         if source_counts[part_id] != expected:
             errors.append(f"{part_id}: expected {expected}, found {source_counts[part_id]}")
-    if source_counts["enclosure_split_rail_2m"] < 4:
-        errors.append("hunter camp needs at least four sparse split-rail boundary spans")
+    if source_counts["site_hunter_boundary_rail_2m"] < 4:
+        errors.append("hunter camp needs at least four sparse low boundary spans")
 
     triangles = 0
     atlas_tiles: set[str] = set()
@@ -68,8 +68,9 @@ def main() -> None:
         world_points.extend(obj.matrix_world @ Vector(corner) for corner in obj.bound_box)
 
     required_tiles = {
-        "linen-canvas", "rough-hewn-timber", "weathered-planks", "fieldstone-mortar",
+        "aged-canvas", "rough-hewn-timber", "weathered-planks", "fieldstone-mortar",
         "wrought-iron", "wicker-weave", "packed-earth",
+        "stitched-hide",
     }
     missing_tiles = sorted(required_tiles - atlas_tiles)
     if missing_tiles:
@@ -107,6 +108,7 @@ def main() -> None:
             "canonical transforms and metric GK_UV0",
             "atlas-backed material coverage",
             "no living vegetation or harvested-game meshes",
+            "sewn-canvas tent and stitched-hide processing shelter coverage",
             "no preview staging in the export set",
         ],
     }

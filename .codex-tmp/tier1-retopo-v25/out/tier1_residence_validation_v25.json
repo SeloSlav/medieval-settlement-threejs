@@ -1,0 +1,48 @@
+{
+  "id": "gorski-tier1-residence-validation-v4",
+  "passed": true,
+  "checks": {
+    "allInstanceScalesAreOne": true,
+    "allMeshesHaveMetricUv": true,
+    "allMeshesAreManifold": true,
+    "threePlainSquareApertures": true,
+    "noDecorativeWindowInserts": true,
+    "twoRetopologizedAtlasShingleSkins": true,
+    "wholeResidenceUnderNineThousandTriangles": true,
+    "noAppliedEaveEdgeTrim": true,
+    "actualRoofSmokeAperture": true,
+    "fourClosedFoundationCorners": true,
+    "noRuntimeOrVegetationDressingAuthored": true,
+    "atlasMaterialsPacked": true
+  },
+  "counts": {
+    "architectureObjects": 33,
+    "meshes": 33,
+    "triangles": 3136,
+    "roofTriangles": 2016,
+    "roofTriangleShare": 0.6429,
+    "retopologizedRoofSkins": 2,
+    "legacySolidShinglePanels": 0,
+    "customApertureWallPieces": 9,
+    "darkUnglazedApertures": 3,
+    "apertureCutRoofPanels": 1,
+    "foundationCorners": 4
+  },
+  "atlasTiles": [
+    "fieldstone-mortar",
+    "lime-plaster",
+    "rough-hewn-timber",
+    "split-shingles",
+    "weathered-planks",
+    "wrought-iron"
+  ],
+  "violations": {
+    "unitScale": [],
+    "missingMetricUv": [],
+    "nonmanifoldEdges": {},
+    "decorativeWindowInserts": [],
+    "surfaceSmokeMeshes": [],
+    "appliedEaveTrim": [],
+    "forbiddenAuthoredState": []
+  }
+}

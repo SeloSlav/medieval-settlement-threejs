@@ -38,6 +38,7 @@ pub fn init(ctx: &ReducerContext) {
 pub fn client_connected(ctx: &ReducerContext) {
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
+    crate::placement_validation::lock_legacy_building_placement_yaws(ctx, owner);
     // Repair legacy or interrupted saves once when their owner returns. Normal
     // population-loss events reconcile immediately at the mutation site, so
     // the hot simulation loop never needs a settlement-wide fallback scan.

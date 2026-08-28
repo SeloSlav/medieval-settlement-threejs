@@ -53,6 +53,8 @@ import { buildingStorageCaps } from '../resourceTotals.ts';
 import type { BuildingKind, BuildingState } from '../types.ts';
 import type { WorldQueries } from '../WorldQueries.ts';
 import {
+  apiaryIsAccumulating,
+  apiaryIsHarvesting,
   seasonalProducerOutputBlocker,
   specialtySeasonStatus,
 } from '../../economy/specialtyTrade.ts';
@@ -1113,7 +1115,7 @@ function getSeasonalProducerStatus(
   onsiteLabor: number,
 ): BuildingProcessorStatus {
   const season = month == null ? null : specialtySeasonStatus(building.kind, month);
-  const outputBlocker = seasonalProducerOutputBlocker(building);
+  const outputBlocker = seasonalProducerOutputBlocker(building, month);
   if (
     onsiteLabor === 0
     && !(season && !season.active)
@@ -1141,9 +1143,27 @@ function getSeasonalProducerStatus(
       waterDetailHtml: '',
     };
   }
+  if (building.kind === 'apiary' && month != null) {
+    if (apiaryIsAccumulating(month)) {
+      return {
+        statusText: 'Tending hives - Autumn yield accumulating',
+        statusState: 'active',
+        waterDetailHtml: '',
+      };
+    }
+    if (apiaryIsHarvesting(month)) {
+      return {
+        statusText: (building.apiaryAccumulatedHoney ?? 0) > 0
+          ? 'Extracting the Autumn honey harvest'
+          : 'Autumn honey harvest complete',
+        statusState: (building.apiaryAccumulatedHoney ?? 0) > 0 ? 'active' : 'idle',
+        waterDetailHtml: '',
+      };
+    }
+  }
   return {
     statusText: building.kind === 'apiary'
-      ? 'Gathering honey and forest forage'
+      ? 'Tending the apiary'
       : 'Harvesting grapes for wine and food',
     statusState: 'active',
     waterDetailHtml: '',

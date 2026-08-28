@@ -28,7 +28,7 @@
     "closedRectangle": true
   },
   "roofIrregularity": {
-    "method": "two closed retopologized roof skins with half-metre eave stations and continuous piecewise-linear settlement, attenuated to zero at the +/- 2.0 m wall-plate bearing",
+    "method": "two closed retopologized roof skins joined directly at a capless apex, with half-metre eave stations and continuous piecewise-linear settlement attenuated to zero at the +/- 2.0 m wall-plate bearing",
     "surfaceDetail": "the split-shingle atlas supplies individual shingle albedo, normal, roughness, and AO detail instead of thousands of repeated closed shingle solids",
     "moduleEdgeDropsMetres": [
       0.0,
@@ -54,7 +54,7 @@
     ],
     "maximumDropMetres": 0.128,
     "bearingLine": "roof settlement is pinned to zero at x = +/- 2.0 m; the 0.20 m side walls are inset so their exterior faces terminate on that line",
-    "supports": "continuous timber wall-head courses and inset boarded gables form the visible exterior bearing line; fully occluded common rafters are omitted from this exterior game LOD"
+    "supports": "continuous timber wall-head courses, shortened corner posts, and inset boarded gables form the visible exterior bearing line; fully occluded common rafters are omitted from this exterior game LOD"
   },
   "historicalMaterialDecision": {
     "primaryBody": "weathered horizontal timber boarding on a dark moisture-stained fieldstone footing",
@@ -260,6 +260,17 @@
       "rotationZDegrees": -90.0
     },
     {
+      "name": "T1_SideWallPlate_Left",
+      "source": "assembly_custom_side_wall_plate",
+      "collection": "T1_04_Frames",
+      "location": [
+        -1.8,
+        3.5,
+        2.59
+      ],
+      "rotationZDegrees": 0.0
+    },
+    {
       "name": "T1_Wall_Right_A",
       "source": "assembly_custom_aperture_wall",
       "collection": "T1_02_Walls",
@@ -302,6 +313,17 @@
         0.35
       ],
       "rotationZDegrees": 90.0
+    },
+    {
+      "name": "T1_SideWallPlate_Right",
+      "source": "assembly_custom_side_wall_plate",
+      "collection": "T1_04_Frames",
+      "location": [
+        1.8,
+        3.5,
+        2.59
+      ],
+      "rotationZDegrees": 0.0
     },
     {
       "name": "T1_Gable_Front",
@@ -348,18 +370,7 @@
       "rotationZDegrees": 0.0
     },
     {
-      "name": "T1_Post_Front_-2",
-      "source": "frame_post_h2p4m_s0p16m",
-      "collection": "T1_04_Frames",
-      "location": [
-        -2.0,
-        -0.112,
-        0.35
-      ],
-      "rotationZDegrees": 0.0
-    },
-    {
-      "name": "T1_Post_Front_+0",
+      "name": "T1_Post_Front_Centre",
       "source": "frame_post_h2p4m_s0p16m",
       "collection": "T1_04_Frames",
       "location": [
@@ -370,8 +381,19 @@
       "rotationZDegrees": 0.0
     },
     {
+      "name": "T1_Post_Front_-2",
+      "source": "assembly_custom_short_corner_post",
+      "collection": "T1_04_Frames",
+      "location": [
+        -2.0,
+        -0.112,
+        0.35
+      ],
+      "rotationZDegrees": 0.0
+    },
+    {
       "name": "T1_Post_Front_+2",
-      "source": "frame_post_h2p4m_s0p16m",
+      "source": "assembly_custom_short_corner_post",
       "collection": "T1_04_Frames",
       "location": [
         2.0,
@@ -382,7 +404,7 @@
     },
     {
       "name": "T1_Post_Rear_-2",
-      "source": "frame_post_h2p4m_s0p16m",
+      "source": "assembly_custom_short_corner_post",
       "collection": "T1_04_Frames",
       "location": [
         -2.0,
@@ -393,7 +415,7 @@
     },
     {
       "name": "T1_Post_Rear_+2",
-      "source": "frame_post_h2p4m_s0p16m",
+      "source": "assembly_custom_short_corner_post",
       "collection": "T1_04_Frames",
       "location": [
         2.0,
@@ -423,116 +445,6 @@
         0.0
       ],
       "rotationZDegrees": 0.0
-    },
-    {
-      "name": "T1_Ridge_Run00",
-      "source": "roof_shingle_ridge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        0.0,
-        0.0,
-        5.13351
-      ],
-      "rotationZDegrees": 90.0
-    },
-    {
-      "name": "T1_Ridge_Run01",
-      "source": "roof_shingle_ridge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        0.0,
-        1.0,
-        5.13351
-      ],
-      "rotationZDegrees": 90.0
-    },
-    {
-      "name": "T1_Ridge_Run02",
-      "source": "roof_shingle_ridge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        0.0,
-        2.0,
-        5.13351
-      ],
-      "rotationZDegrees": 90.0
-    },
-    {
-      "name": "T1_Ridge_Run03",
-      "source": "roof_shingle_ridge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        0.0,
-        3.0,
-        5.13351
-      ],
-      "rotationZDegrees": 90.0
-    },
-    {
-      "name": "T1_Ridge_Run04",
-      "source": "roof_shingle_ridge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        0.0,
-        4.0,
-        5.13351
-      ],
-      "rotationZDegrees": 90.0
-    },
-    {
-      "name": "T1_Ridge_Run05",
-      "source": "roof_shingle_ridge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        0.0,
-        5.0,
-        5.13351
-      ],
-      "rotationZDegrees": 90.0
-    },
-    {
-      "name": "T1_Ridge_Run06",
-      "source": "roof_shingle_ridge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        0.0,
-        6.0,
-        5.13351
-      ],
-      "rotationZDegrees": 90.0
-    },
-    {
-      "name": "T1_Ridge_Run07",
-      "source": "roof_shingle_ridge_1m",
-      "collection": "T1_05_Roof",
-      "location": [
-        0.0,
-        7.0,
-        5.13351
-      ],
-      "rotationZDegrees": 90.0
-    },
-    {
-      "name": "T1_Ridge_Endcap_Front",
-      "source": "roof_shingle_ridge_endcap",
-      "collection": "T1_05_Roof",
-      "location": [
-        0.0,
-        -0.62,
-        5.13351
-      ],
-      "rotationZDegrees": 90.0
-    },
-    {
-      "name": "T1_Ridge_Endcap_Rear",
-      "source": "roof_shingle_ridge_endcap",
-      "collection": "T1_05_Roof",
-      "location": [
-        0.0,
-        7.62,
-        5.09551
-      ],
-      "rotationZDegrees": -90.0
     },
     {
       "name": "T1_Threshold_Steps",

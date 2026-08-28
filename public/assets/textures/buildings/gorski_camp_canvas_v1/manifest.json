@@ -1,0 +1,30 @@
+{
+  "id": "gorski-camp-canvas-v1",
+  "generatedAt": "2026-08-28T18:58:20.084Z",
+  "source": "aged_canvas_imagegen_source.png",
+  "sourceMethod": "OpenAI built-in image generation; periodic edge reconciliation and derived PBR channels",
+  "dimensions": {
+    "width": 1024,
+    "height": 1024
+  },
+  "metersPerTile": 1.25,
+  "channels": {
+    "albedo": "sRGB RGB",
+    "normal": "OpenGL tangent-space RGB",
+    "material": "R=roughness, G=metalness, B=height-derived ambient occlusion, A=centered height"
+  },
+  "files": {
+    "aged_canvas_albedo.png": {
+      "bytes": 2472468,
+      "sha256": "9af6e66b3bb5ea7b3422b28a7ba0dfe060649165670f884242ff3bbecf1a99d1"
+    },
+    "aged_canvas_normal.png": {
+      "bytes": 2757405,
+      "sha256": "335c63629cefa400c539983f4392ea1319be7b092f15a4c7678a140409ce2f2e"
+    },
+    "aged_canvas_material.png": {
+      "bytes": 2518854,
+      "sha256": "3f358c32b55b84f706ad9d38f09d840ebd9ff7567df49bdedcc4823f12d4ab2a"
+    }
+  }
+}

@@ -9,6 +9,7 @@ import {
   CATTLE_PURCHASE_GOLD_PER_HEAD,
   CATTLE_SALE_GOLD_PER_HEAD,
   CATTLE_SLAUGHTER_FOOD_PER_HEAD,
+  CATTLE_SLAUGHTER_HIDES_PER_HEAD,
   CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
   CATTLE_WATER_PER_HEAD_PER_CYCLE,
   LIVESTOCK_AUTUMN_CULL_END_MONTH,
@@ -30,6 +31,7 @@ import {
   SHEEP_SHEARING_END_MONTH,
   SHEEP_SHEARING_START_MONTH,
   SHEEP_SLAUGHTER_FOOD_PER_HEAD,
+  SHEEP_SLAUGHTER_HIDES_PER_HEAD,
   SHEEP_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
   SHEEP_WATER_PER_HEAD_PER_CYCLE,
   SHEEP_WOOL_PER_SHEARING_PER_HEAD,
@@ -41,10 +43,36 @@ import {
   SWINE_PURCHASE_GOLD_PER_HEAD,
   SWINE_SALE_GOLD_PER_HEAD,
   SWINE_SLAUGHTER_FOOD_PER_HEAD,
+  SWINE_SLAUGHTER_HIDES_PER_HEAD,
   SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
   SWINE_WATER_PER_HEAD_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import type { BuildingState, LivestockHerdState, LivestockSpecies } from '../resources/types.ts';
+
+export type LivestockBreedingPhase = 'spring-births' | 'conception' | 'waiting';
+
+export function livestockMatingSeason(species: LivestockSpecies): 'summer' | 'autumn' {
+  return species === 'cattle' ? 'summer' : 'autumn';
+}
+
+export function livestockBreedingPhaseForMonth(
+  species: LivestockSpecies,
+  month: number,
+): LivestockBreedingPhase {
+  const calendarMonth = Math.min(12, Math.max(1, Math.floor(month)));
+  if (calendarMonth >= 3 && calendarMonth <= 5) return 'spring-births';
+  if (species === 'cattle' && calendarMonth >= 6 && calendarMonth <= 8) {
+    return 'conception';
+  }
+  if (species !== 'cattle' && calendarMonth >= 9 && calendarMonth <= 11) {
+    return 'conception';
+  }
+  return 'waiting';
+}
+
+export function livestockPendingOffspring(breedingProgress: number): number {
+  return Math.max(0, Math.floor(Number.isFinite(breedingProgress) ? breedingProgress : 0));
+}
 
 export type LivestockPolicyDefinition = {
   minimumReserve: number;
@@ -52,6 +80,7 @@ export type LivestockPolicyDefinition = {
   maximumHerd: number;
   slaughterFoodPerHead: number;
   slaughterPreservedFoodPerHead: number;
+  slaughterHidesPerHead: number;
   preservedFoodPerCyclePerHead: number;
   milkPerCyclePerHead: number;
   purchaseGoldPerHead: number;
@@ -108,6 +137,7 @@ const POLICY_BY_SPECIES: Record<LivestockSpecies, LivestockPolicyDefinition> = {
     maximumHerd: CATTLE_MAX_HERD,
     slaughterFoodPerHead: CATTLE_SLAUGHTER_FOOD_PER_HEAD,
     slaughterPreservedFoodPerHead: CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
+    slaughterHidesPerHead: CATTLE_SLAUGHTER_HIDES_PER_HEAD,
     preservedFoodPerCyclePerHead: CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
     milkPerCyclePerHead: CATTLE_FOOD_PER_CYCLE_PER_HEAD,
     purchaseGoldPerHead: CATTLE_PURCHASE_GOLD_PER_HEAD,
@@ -122,6 +152,7 @@ const POLICY_BY_SPECIES: Record<LivestockSpecies, LivestockPolicyDefinition> = {
     maximumHerd: SHEEP_MAX_HERD,
     slaughterFoodPerHead: SHEEP_SLAUGHTER_FOOD_PER_HEAD,
     slaughterPreservedFoodPerHead: SHEEP_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
+    slaughterHidesPerHead: SHEEP_SLAUGHTER_HIDES_PER_HEAD,
     preservedFoodPerCyclePerHead: SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
     milkPerCyclePerHead: SHEEP_FOOD_PER_CYCLE_PER_HEAD,
     purchaseGoldPerHead: SHEEP_PURCHASE_GOLD_PER_HEAD,
@@ -136,6 +167,7 @@ const POLICY_BY_SPECIES: Record<LivestockSpecies, LivestockPolicyDefinition> = {
     maximumHerd: SWINE_MAX_HERD,
     slaughterFoodPerHead: SWINE_SLAUGHTER_FOOD_PER_HEAD,
     slaughterPreservedFoodPerHead: SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
+    slaughterHidesPerHead: SWINE_SLAUGHTER_HIDES_PER_HEAD,
     preservedFoodPerCyclePerHead: 0,
     milkPerCyclePerHead: 0,
     purchaseGoldPerHead: SWINE_PURCHASE_GOLD_PER_HEAD,
@@ -300,14 +332,27 @@ export function projectedLivestockCullYield(
   species: LivestockSpecies,
   headCount: number,
   configuredReserve: number,
-): { heads: number; food: number; preservedFood: number } {
+): { heads: number; food: number; preservedFood: number; hides: number } {
   const heads = pendingLivestockCullHeads(species, headCount, configuredReserve);
   const policy = livestockPolicyDefinition(species);
   return {
     heads,
     food: heads * policy.slaughterFoodPerHead,
     preservedFood: heads * policy.slaughterPreservedFoodPerHead,
+    hides: heads * policy.slaughterHidesPerHead,
   };
+}
+
+export function isCattleMilkingMonth(month: number): boolean {
+  return Number.isFinite(month) && month >= 3 && month <= 11;
+}
+
+export function cattleMilkingPeriod(year: number, month: number): number {
+  const wholeYear = Number.isFinite(year) ? Math.max(1, Math.floor(year)) : 1;
+  const wholeMonth = Number.isFinite(month)
+    ? Math.max(1, Math.min(12, Math.floor(month)))
+    : 1;
+  return (wholeYear - 1) * 12 + wholeMonth;
 }
 
 /**
@@ -322,6 +367,7 @@ export function livestockStorageSecuredCullHeads(
   freshFoodRoom: number,
   preservedFoodRoom: number,
   saltStock: number,
+  hideRoom: number,
 ): number {
   const pendingHeads = pendingLivestockCullHeads(species, headCount, configuredReserve);
   const policy = livestockPolicyDefinition(species);
@@ -330,6 +376,7 @@ export function livestockStorageSecuredCullHeads(
     ? Math.max(0, preservedFoodRoom)
     : 0;
   let salt = Number.isFinite(saltStock) ? Math.max(0, saltStock) : 0;
+  let hidesRoom = Number.isFinite(hideRoom) ? Math.max(0, hideRoom) : 0;
   let securedHeads = 0;
 
   for (let index = 0; index < pendingHeads; index += 1) {
@@ -343,12 +390,14 @@ export function livestockStorageSecuredCullHeads(
     if (
       freshRoom + 1e-6 < freshOutput
       || preservedRoom + 1e-6 < saltedOutput
+      || hidesRoom + 1e-6 < policy.slaughterHidesPerHead
     ) {
       break;
     }
     freshRoom = Math.max(0, freshRoom - freshOutput);
     preservedRoom = Math.max(0, preservedRoom - saltedOutput);
     salt = Math.max(0, salt - livestockPreservationSaltRequired(saltedOutput));
+    hidesRoom = Math.max(0, hidesRoom - policy.slaughterHidesPerHead);
     securedHeads += 1;
   }
   return securedHeads;

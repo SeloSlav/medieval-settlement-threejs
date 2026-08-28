@@ -30,4 +30,5 @@ export default __t.row({
   haymakingPercent: __t.u8().name("haymaking_percent"),
   lastWoolOutput: __t.f64().name("last_wool_output"),
   lastShearingYear: __t.u32().name("last_shearing_year"),
+  lastMilkingPeriod: __t.u32().name("last_milking_period"),
 });

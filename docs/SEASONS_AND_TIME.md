@@ -143,12 +143,14 @@ The HUD shows the active season/weather and a tooltip listing its major effects.
   depleted shoal recovers slowly and a zero population is permanently extinct.
 - Grass-pasture capacity is 115%. Woodland pannage is only 75%; drought, if
   present, overrides it to 55% because a dry spring weakens the coming mast crop.
-- Livestock birth progress occurs only in spring, at the 125% seasonal rate.
+- Confirmed pasture offspring are born in spring. Cattle pregnancies come from
+  the previous summer breeding season; sheep and woodland-swine pregnancies come
+  from the previous autumn breeding season.
 - Household firewood demand is 100%.
 - Fresh food spoilage is 0.4% per game day before storage modifiers.
 
-Spring's strategic advantage is recovery: water, forage, fish, pasture, and breeding
-are all favorable, while fields have time to recover from a weak start.
+Spring's strategic advantage is recovery: water, forage, fish, pasture, and newborn
+livestock are all favorable, while fields have time to recover from a weak start.
 
 ### Summer — June through August
 
@@ -166,6 +168,9 @@ are all favorable, while fields have time to recover from a weak start.
   meadow cannot graze the same herd at the same time, so an aggressive hay policy
   may draw down prepared animal feed during the cutting season. Woodland swine do
   not make hay.
+- Summer is the cattle mating season. Each healthy herd of at least two with 90%
+  supply accumulates expected calves according to its productive head count; those
+  confirmed calves remain pending until spring.
 - Fresh food spoilage rises to 0.8% per day.
 
 During drought:
@@ -214,6 +219,9 @@ Other autumn rules:
 - Grass-pasture capacity is 90%, while woodland pannage reaches its 125% acorn-
   and beechnut peak.
 - Pigs consume this seasonal mast before drawing prepared animal feed.
+- Autumn is the mating season for sheep and woodland swine. Healthy groups of at
+  least two with 90% supply accumulate lambs or piglets according to productive
+  herd size, with confirmed offspring carried through winter for spring birth.
 - Household firewood demand rises to 115%.
 - Fresh-food spoilage returns to 0.4% per day.
 - Vegetable and herb gardens taper to 55%; flowers taper to 35%.
@@ -235,7 +243,8 @@ unfinished sowing cannot spill into winter.
   animal feed from the shared farmstead store for unsupported heads. Pigs use the
   remaining mast and then animal feed because they do not participate in the hay
   chain. Livestock never consume raw grain.
-- Livestock birth progress is dormant; healthy breeding herds resume in spring.
+- Confirmed livestock pregnancies remain pending through winter. Severe neglect
+  erodes that cohort, while ordinary husbandry carries it safely to spring.
 - Sheep are not shorn; their annual physical fleece clip is an early-summer event.
 - Household firewood demand rises to 200% and continues through nights and
   sabbaths. An unsupplied higher-tier residence accumulates its ordinary firewood
@@ -299,6 +308,13 @@ breeding progress, and mortality use one farmstead action cadence even with seve
 pastures, so adding parcels cannot multiply feed preparation, slaughter, or
 gestation speed.
 
+Cattle produce one whole-number milk lot per calendar month from March through
+November and are not milked during the December–February winter. The monthly lot
+preserves the former warm-season average instead of letting frequent simulation
+ticks multiply dairy output. Sheep are shorn only once per year during the
+June–July shearing window; the herd records that completed annual clip so later
+husbandry cycles cannot repeat it.
+
 The winter-feed chain is physical and deliberately separate from human food. Oat
 sheaves are first threshed into edible oats at a threshing barn. Each oat remains
 worth half a human meal as a lighter porridge ration, but a staffed pastoral
@@ -323,15 +339,24 @@ farmer's ploughing and threshing pace, adds half a farmer's harvesting pace, and
 not accelerate sowing. Nearby supplied cattle retain their separate plough-work
 reduction, so the two forms of draft support can stack.
 
-Reproduction is tracked separately for each parcel herd. It requires at least two
-animals of that pasture's species, at least 90% support, and healthy breeding stock.
-Births stop when that parcel reaches its neutral whole-head land capacity or when
-the parent farmstead reaches its shared management budget. Progress advances only
-during March–May, at the 125% spring rate; it pauses through summer, autumn, and
-winter. New parcel herds default to retaining their species maximum, so a supplied
-starter herd naturally grows toward the lower of its local land limit and available
-hub budget. Autumn culling is opt-in by lowering that parcel's breeding reserve.
-Pannage capacity still follows its separate mast calendar described above.
+Reproduction is tracked separately for each parcel herd. Conception requires at
+least two animals of that pasture's species, at least 90% support, and healthy
+breeding stock. Cattle mate only during June–August; sheep and woodland swine mate
+only during September–November. Progress scales with the productive adult herd.
+Its whole portion is a confirmed offspring cohort and its fractional portion is
+retained, so even a small breeding pair can grow across several years without
+buying more stock. Newborns do not contribute to that same year's conception.
+
+Confirmed offspring are converted into real heads during spring husbandry. Births
+stop when that parcel reaches its neutral whole-head land capacity or when the
+parent farmstead reaches its shared management budget; pregnancies that no longer
+fit at birth are not banked for a later year. Selling, culling, or losing animals
+removes the same proportion of pending offspring, and emptying a herd clears the
+cohort completely. New parcel herds default to retaining their species maximum, so
+a supplied starter herd naturally grows toward the lower of its local land limit
+and available hub budget. Autumn culling is opt-in by lowering that parcel's
+breeding reserve. Pannage capacity still follows its separate mast calendar
+described above.
 
 Changing one pastoral parcel never requires removing its fence or disturbing its
 sibling pastures. The player must first sell every animal in that selected parcel

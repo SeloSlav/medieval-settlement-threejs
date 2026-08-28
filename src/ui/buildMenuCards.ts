@@ -71,7 +71,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   founders_camp: ["Founders' camp", 'Establishes a civic foothold from which a settlement can grow.'],
   residences: ['Residence', 'Provides homes for settlement families.'],
   well: ['Well', 'Draws and supplies water to nearby homes.', flow([], ['water'])],
-  stable: ['Stable', 'Houses oxen that assist with building, farm work, and hauling.'],
+  stable: ['Stable', 'Houses oxen for building, farm work, and hauling. Feed and water are abstracted; stable oxen never draw herd hay or Animal Feed.'],
   chapel: ['Church', 'Serves parish life through worship, tithes, and household support.'],
   wayside_shrine: ['Wayside shrine', 'Marks the roadside with a small place of prayer and devotion.'],
   dry_stone_wall: ['Dry-stone wall', 'Lines roads with walls of fitted stone.'],
@@ -103,15 +103,15 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   brewery: ['Brewhouse', 'Brews ale, presses distinct apple or pear cider, or ferments mead.', flow(['barley', 'apples', 'pears', 'honey', 'water', 'firewood'], ['ale', 'cider', 'pearCider', 'mead'])],
   tavern: ['Tavern', 'Serves ale, cider, and mead to settlement households.', flow(['ale', 'cider', 'pearCider', 'mead'], [])],
   smokehouse: ['Smokehouse', 'Preserves fresh food with firewood and salt.', flow(['food', 'firewood', 'salt'], ['preservedFood'])],
-  apiary: ['Forest apiary', 'Keeps bees for honey and meadmaking.', flow([], ['honey'])],
+  apiary: ['Forest apiary', 'Accumulates honey through spring and summer for one staffed autumn harvest.', flow([], ['honey'])],
   carpenter: ['Carpenter & wheelwright', 'Crafts frames, carts, and wheels for settlement building and transport.'],
   spinning_retting_house: ['Spinning & Retting House', 'Spins sheep fleece into yarn and rets flax into linen.', flow(['wool', 'flax', 'water'], ['yarn', 'linen'])],
   weaver: ["Weaver's workshop", 'Weaves yarn or linen into finished clothing.', flow(['yarn', 'linen'], ['cloth'])],
   tannery: ['Tannery', 'Tans livestock hides into workable leather.', flow(['hides', 'water', 'firewood'], ['leather'])],
   cobbler: ["Cobbler's workshop", 'Cuts leather into finished shoes for prosperous households.', flow(['leather'], ['shoes'])],
   chandlery: ['Chandlery', 'Makes beeswax candles for households and regional trade.', flow(['wax', 'firewood'], ['candles'])],
-  pastoral_farmstead: ['Pastoral farmstead', 'Raises cattle and sheep for milk, wool, manure, and meat.', flow(['water', 'oatGrain'], ['animalFeed', 'milk', 'wool', 'manure', 'meat'])],
-  swineherd: ['Woodland swineherd', 'Raises woodland pigs for meat.', flow(['water', 'animalFeed'], ['meat'])],
+  pastoral_farmstead: ['Pastoral farmstead', 'Raises cattle and sheep for milk, wool, hides, manure, and meat. Herds use hay before feed in winter; workers prepare Animal Feed from oats, while water stays separate.', flow(['water', 'oatGrain'], ['animalFeed', 'milk', 'wool', 'hides', 'manure', 'meat'])],
+  swineherd: ['Woodland swineherd', 'Raises pigs for meat and hides. Herds use woodland mast first, then prepared Animal Feed; water is separate.', flow(['water', 'animalFeed'], ['meat', 'hides'])],
 };
 
 const action = (kind: PlayerPlaceableBuildingKind): PlacementBuildMenuAction =>

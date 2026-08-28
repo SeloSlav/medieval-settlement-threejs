@@ -47,8 +47,7 @@ export const SUMMER_PASTURE_CAPACITY_MULTIPLIER = 1;
 export const AUTUMN_PASTURE_CAPACITY_MULTIPLIER = 0.9;
 export const WINTER_PASTURE_CAPACITY_MULTIPLIER = 0.35;
 export const DROUGHT_PASTURE_CAPACITY_MULTIPLIER = 0.65;
-export const SPRING_BREEDING_MULTIPLIER = 1.25;
-export const WINTER_BREEDING_MULTIPLIER = 0;
+export const LIVESTOCK_SEASONAL_CONCEPTION_MULTIPLIER = 1.25;
 export const AUTUMN_ROAD_SPEED_MULTIPLIER = 0.9;
 export const WINTER_ROAD_SPEED_MULTIPLIER = 0.72;
 export const WINTER_WATERMILL_THROUGHPUT_MULTIPLIER = 0;
@@ -473,8 +472,10 @@ export const POTTER_ROOF_TILES_PER_CYCLE = 4;
 export const APIARY_HONEY_PER_CYCLE = 3;
 export const APIARY_WAX_PER_HONEY_CYCLES = 3;
 export const APIARY_WAX_PER_HARVEST = 1;
-export const APIARY_SEASON_START_MONTH = 4;
-export const APIARY_SEASON_END_MONTH = 9;
+export const APIARY_SEASON_START_MONTH = 3;
+export const APIARY_ACCUMULATION_END_MONTH = 8;
+export const APIARY_HARVEST_START_MONTH = 9;
+export const APIARY_SEASON_END_MONTH = 11;
 export const APIARY_WINTER_HONEY_REQUIRED = 8;
 export const APIARY_CONSERVATIVE_HONEY_RESERVE = 12;
 export const APIARY_BALANCED_HONEY_RESERVE = 8;
@@ -754,7 +755,7 @@ export const CATTLE_STARTER_HERD = 5;
 export const CATTLE_MAX_HERD = 20;
 export const CATTLE_MINIMUM_BREEDING_RESERVE = 5;
 export const CATTLE_DEFAULT_BREEDING_RESERVE = 20;
-export const CATTLE_PURCHASE_GOLD_PER_HEAD = 11;
+export const CATTLE_PURCHASE_GOLD_PER_HEAD = 13;
 export const CATTLE_SALE_GOLD_PER_HEAD = 4;
 export const CATTLE_AREA_PER_HEAD = 240;
 export const CATTLE_HEADS_PER_WORKER = 7;
@@ -766,7 +767,8 @@ export const CATTLE_MOISTURE_TOLERANCE = 0.52;
 export const CATTLE_FOOD_PER_CYCLE_PER_HEAD = 0.42;
 export const CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD = 0.12;
 export const CATTLE_SLAUGHTER_FOOD_PER_HEAD = 5;
-export const CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD = 0.5;
+export const CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD = 1;
+export const CATTLE_SLAUGHTER_HIDES_PER_HEAD = 1;
 export const CATTLE_HAY_PER_UNSUPPORTED_HEAD = 0.12;
 export const CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE = 0.075;
 export const CATTLE_GRAIN_PER_UNSUPPORTED_HEAD = 0.12;
@@ -797,6 +799,7 @@ export const SHEEP_FOOD_PER_CYCLE_PER_HEAD = 0.22;
 export const SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD = 0.06;
 export const SHEEP_SLAUGHTER_FOOD_PER_HEAD = 1.5;
 export const SHEEP_SLAUGHTER_PRESERVED_FOOD_PER_HEAD = 0.25;
+export const SHEEP_SLAUGHTER_HIDES_PER_HEAD = 0;
 export const SHEEP_HAY_PER_UNSUPPORTED_HEAD = 0.04;
 export const SHEEP_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE = 0.025;
 export const SHEEP_GRAIN_PER_UNSUPPORTED_HEAD = 0.04;
@@ -821,6 +824,7 @@ export const SWINE_MATURE_TREES_PER_HEAD = 1.5;
 export const SWINE_FOOD_PER_CYCLE_PER_HEAD = 0;
 export const SWINE_SLAUGHTER_FOOD_PER_HEAD = 3;
 export const SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD = 0;
+export const SWINE_SLAUGHTER_HIDES_PER_HEAD = 0;
 export const SWINE_GRAIN_PER_UNSUPPORTED_HEAD = 0.1;
 export const SWINE_BREEDING_PER_CYCLE = 0.14;
 export const SWINE_HEALTH_RECOVERY_PER_CYCLE = 0.03;
@@ -1810,7 +1814,7 @@ export const BUILDING_STORAGE_CAPS = {
   guardhouse: { timber: 0, firewood: 0, stone: 0, total: 80, food: 60, polearms: 12 },
   palisaded_refuge: { timber: 0, firewood: 0, stone: 0 },
   threshing_barn: { timber: 0, firewood: 0, stone: 0, total: 200, grain: 120, barley: 90, flax: 90, ironwork: 3, manure: 60 },
-  pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, total: 250, water: 48, food: 80, grain: 100, preservedFood: 50, wool: 80, salt: 12, manure: 100, animalFeed: 100 },
+  pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, total: 250, water: 48, food: 80, grain: 100, preservedFood: 50, wool: 80, salt: 12, hides: 24, manure: 100, animalFeed: 100 },
   swineherd: { timber: 0, firewood: 0, stone: 0, total: 180, water: 36, food: 80, grain: 80, animalFeed: 80 },
   monastery: { timber: 0, firewood: 0, stone: 0, total: 250, food: 100, grain: 80, cider: 40, mead: 40, preservedFood: 40, honey: 60, wine: 60 },
   brewery: { timber: 0, firewood: 24, stone: 0, total: 150, water: 60, food: 40, barley: 48, malt: 36, ale: 72, cider: 72, pearCider: 72, mead: 72, honey: 36 },
@@ -1821,7 +1825,7 @@ export const BUILDING_STORAGE_CAPS = {
   apiary: { timber: 0, firewood: 0, stone: 0, total: 60, food: 20, honey: 45, wax: 12 },
   watermill: { timber: 0, firewood: 0, stone: 0, total: 100, water: 24, grain: 48, flour: 60, ironwork: 3 },
   windmill: { timber: 0, firewood: 0, stone: 0, total: 90, grain: 42, flour: 54, ironwork: 3 },
-  carpenter: { timber: 48, firewood: 0, stone: 0, total: 80, ironwork: 12, polearms: 24 },
+  carpenter: { timber: 48, firewood: 0, stone: 0, total: 80, ironwork: 36, polearms: 24 },
   spinning_retting_house: { timber: 0, firewood: 0, stone: 0, total: 120, water: 18, wool: 48, yarn: 48, linen: 48, flax: 48 },
   weaver: { timber: 0, firewood: 0, stone: 0, total: 80, yarn: 36, linen: 36, cloth: 48 },
   tannery: { timber: 0, firewood: 12, stone: 0, total: 80, water: 18, hides: 36, leather: 48 },

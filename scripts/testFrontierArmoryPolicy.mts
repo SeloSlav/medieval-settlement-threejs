@@ -35,8 +35,8 @@ assert.deepEqual(oneCompany, {
   reserve: 6,
   stock: 2,
   shortfall: 4,
-  timberToTarget: 9,
-  ironworkToTarget: 4.6,
+  timberToTarget: 21,
+  ironworkToTarget: 19,
 });
 
 const paused = carpenterArmoryPlan({

@@ -148,7 +148,8 @@ use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::trading_post_exports_commodity;
 use crate::simulation::{try_dispatch_guardhouse_payroll, try_dispatch_local_civic_receipts};
 use crate::specialty_trade_policy::{
-    apiary_is_active, producer_output_batch_fits, vineyard_is_harvesting,
+    apiary_is_accumulating, apiary_is_harvesting, producer_output_batch_fits,
+    vineyard_is_harvesting,
 };
 use crate::storehouse_policy::storehouse_stock_target;
 use crate::supply_policy::{
@@ -1522,6 +1523,9 @@ fn local_material_target_kinds(
             Some(&["weaver", "village_storehouse"])
         }
         ("hunters_hall", CommodityKind::Pelts) => Some(&["village_storehouse", "trading_post"]),
+        ("pastoral_farmstead", CommodityKind::Hides) => {
+            Some(&["tannery", "village_storehouse", "trading_post"])
+        }
         ("marketplace", CommodityKind::Hides) => {
             Some(&["tannery", "village_storehouse", "trading_post"])
         }
@@ -3226,6 +3230,9 @@ pub fn step_apiary(
     building.apiary_colony_health = building.apiary_colony_health.clamp(0.35, 1.10);
 
     if clock.month == 12 && building.apiary_last_winter_year != clock.year {
+        // Honey left in the comb after the Autumn extraction window does not
+        // survive as a second hidden crop for next year.
+        building.apiary_accumulated_honey = 0.0;
         let winter_honey = building.honey.min(APIARY_WINTER_HONEY_REQUIRED).max(0.0);
         withdraw_building_commodity(&mut building, CommodityKind::Honey, winter_honey);
         building.apiary_colony_health =
@@ -3238,22 +3245,19 @@ pub fn step_apiary(
         forage_score,
         building.apiary_colony_health,
     );
-    let honey_before_cycle = building.honey;
-    let mut apiary = if apiary_is_active(clock.month as u8) {
-        step_simple_producer_at_rate(
+    let mut apiary = if apiary_is_accumulating(clock.month as u8) {
+        accumulate_apiary_yield_cycle(
             ctx,
             tick,
             clock,
             building,
-            &[(CommodityKind::Honey, APIARY_HONEY_PER_CYCLE)],
             production_rate,
         )
+    } else if apiary_is_harvesting(clock.month as u8) {
+        harvest_accumulated_apiary_yield(ctx, tick, clock, building)
     } else {
         building
     };
-    if apiary.honey - honey_before_cycle + 1e-6 >= APIARY_HONEY_PER_CYCLE {
-        record_apiary_honey_harvest_wax(&mut apiary);
-    }
 
     // Beeswax is the scarce industrial by-product. Give an operating
     // chandlery first claim before the apiary's single cart is occupied by
@@ -3322,6 +3326,75 @@ pub fn step_apiary(
         |_| true,
     );
     ctx.db.building().id().update(apiary);
+}
+
+/// Spring and Summer hive work builds an internal crop rather than placing
+/// harvest-ready Honey directly into the building store. The crop advances in
+/// whole authored batches, so the hidden seasonal ledger cannot introduce
+/// fractional physical inventory.
+fn accumulate_apiary_yield_cycle(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    mut apiary: Building,
+    throughput_multiplier: f64,
+) -> Building {
+    let Some(labor) = cycle_labor_if_ready_at_rate(
+        ctx,
+        tick,
+        clock,
+        &mut apiary,
+        false,
+        throughput_multiplier,
+    ) else {
+        return apiary;
+    };
+    let batch = whole_units(APIARY_HONEY_PER_CYCLE);
+    if batch < 1.0 {
+        return apiary;
+    }
+    apiary.apiary_accumulated_honey =
+        whole_units(apiary.apiary_accumulated_honey.max(0.0)) + batch;
+    reset_cycle(&mut apiary, labor);
+    apiary
+}
+
+/// Autumn extraction transfers every complete accumulated batch that fits in
+/// the physical store during one staffed work cycle. Storage pressure can
+/// therefore spread the harvest across Autumn without leaking Honey earlier.
+fn harvest_accumulated_apiary_yield(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    mut apiary: Building,
+) -> Building {
+    let batch = whole_units(APIARY_HONEY_PER_CYCLE);
+    if batch < 1.0 {
+        return apiary;
+    }
+    let accumulated = whole_units(apiary.apiary_accumulated_honey.max(0.0));
+    let available_batches = (accumulated / batch).floor();
+    let honey_room = whole_units(building_commodity_room(&apiary, CommodityKind::Honey));
+    let fitting_batches = (honey_room / batch).floor();
+    let harvested_batches = available_batches.min(fitting_batches);
+    if harvested_batches < 1.0 {
+        return apiary;
+    }
+    let Some(labor) = cycle_labor_if_ready_at_rate(ctx, tick, clock, &mut apiary, false, 1.0)
+    else {
+        return apiary;
+    };
+    let honey = harvested_batches * batch;
+    let stored = deposit_building_commodity(&mut apiary, CommodityKind::Honey, honey);
+    if stored + 1e-6 < honey {
+        return apiary;
+    }
+    apiary.apiary_accumulated_honey = (accumulated - stored).max(0.0);
+    for _ in 0..harvested_batches as u32 {
+        record_apiary_honey_harvest_wax(&mut apiary);
+    }
+    reset_cycle(&mut apiary, labor);
+    apiary
 }
 
 /// Record one successful honey extraction toward a whole wax batch. A full

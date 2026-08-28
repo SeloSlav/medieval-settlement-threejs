@@ -12,7 +12,7 @@ use crate::balance_generated::{
     PANNAGE_WINTER_CAPACITY_MULTIPLIER, PRESERVED_FOOD_SPOILAGE_AUTUMN_MULTIPLIER,
     PRESERVED_FOOD_SPOILAGE_DROUGHT_MULTIPLIER, PRESERVED_FOOD_SPOILAGE_PER_DAY,
     PRESERVED_FOOD_SPOILAGE_SPRING_MULTIPLIER, PRESERVED_FOOD_SPOILAGE_SUMMER_MULTIPLIER,
-    PRESERVED_FOOD_SPOILAGE_WINTER_MULTIPLIER, SPRING_BREEDING_MULTIPLIER,
+    PRESERVED_FOOD_SPOILAGE_WINTER_MULTIPLIER,
     SPRING_FIREWOOD_DEMAND_MULTIPLIER, SPRING_PASTURE_CAPACITY_MULTIPLIER, SPRING_RAIN_CHANCE,
     SPRING_RAIN_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER, SPRING_RAIN_CROP_GROWTH_MULTIPLIER,
     SPRING_RAIN_ROAD_SPEED_MULTIPLIER, SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER,
@@ -117,13 +117,6 @@ impl EnvironmentState {
             Season::Summer => PANNAGE_SUMMER_CAPACITY_MULTIPLIER,
             Season::Autumn => PANNAGE_AUTUMN_CAPACITY_MULTIPLIER,
             Season::Winter => PANNAGE_WINTER_CAPACITY_MULTIPLIER,
-        }
-    }
-
-    pub fn breeding_multiplier(self) -> f64 {
-        match self.season {
-            Season::Spring => SPRING_BREEDING_MULTIPLIER,
-            Season::Summer | Season::Autumn | Season::Winter => 0.0,
         }
     }
 
@@ -282,21 +275,6 @@ mod tests {
         assert_eq!(season_for_month(8), Season::Summer);
         assert_eq!(season_for_month(10), Season::Autumn);
         assert_eq!(season_for_month(1), Season::Winter);
-    }
-
-    #[test]
-    fn livestock_breeding_progress_is_spring_only() {
-        let multiplier = |season| {
-            EnvironmentState {
-                season,
-                weather: WeatherKind::Fair,
-            }
-            .breeding_multiplier()
-        };
-        assert_eq!(multiplier(Season::Spring), SPRING_BREEDING_MULTIPLIER);
-        assert_eq!(multiplier(Season::Summer), 0.0);
-        assert_eq!(multiplier(Season::Autumn), 0.0);
-        assert_eq!(multiplier(Season::Winter), 0.0);
     }
 
     #[test]

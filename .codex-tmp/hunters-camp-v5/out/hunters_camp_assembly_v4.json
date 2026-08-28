@@ -1,0 +1,208 @@
+{
+  "id": "gorski-hunters-camp-atlas-preview-v4",
+  "authoritativeBuildingKind": "hunters_hall",
+  "displayIdentity": "Hunter's Camp",
+  "regionalContext": "Gorski Kotar, circa 1550",
+  "sourceKit": "gorski-architecture-kit-1.1.0",
+  "dimensionsMetres": {
+    "artFootprintWidth": 9.0,
+    "artFootprintDepth": 7.5,
+    "maximumHeight": 2.7
+  },
+  "designIntent": "Open temporary woodland worksite, replacing the previous oversized enclosed lodge.",
+  "atlas": {
+    "id": "gorski-building-atlas-v1",
+    "usedTiles": [
+      "aged-canvas",
+      "stitched-hide",
+      "rough-hewn-timber",
+      "weathered-planks",
+      "fieldstone-mortar",
+      "wrought-iron",
+      "wicker-weave",
+      "packed-earth"
+    ],
+    "packing": "R roughness, G metalness, B AO, A centered height"
+  },
+  "historicalMaterialDecision": {
+    "sleepingTent": "Weathered off-white sewn linen or hemp canvas with visible weave, repairs, tied-back entrance flaps, tension hems, and guy ropes over bent hand-cut softwood poles.",
+    "processingShelter": "Hair-off smoke-darkened hides stitched with sinew into a weather fly over a lashed sapling frame; this fixed construction surface is not current harvested inventory.",
+    "workFurniture": "Rough, repairable weathered timber with minimal iron hardware.",
+    "hearth": "Loose fieldstone ring and charcoal bed; flame and smoke remain runtime state.",
+    "boundary": "Sparse split-rail edge markers, deliberately open toward the working approach."
+  },
+  "canonicalState": "Neutral fixed camp architecture and tools only.",
+  "runtimeOwnedState": {
+    "fireAndSmoke": "Not baked into the GLB; activity state owns emission and particles.",
+    "harvestedGame": "No deer, carcass, loose fresh hide, or meat mesh is included.",
+    "inventory": "No stocked firewood or production-output pile is included."
+  },
+  "livingVegetation": "Excluded; SeedThree-owned.",
+  "placements": [
+    {
+      "name": "HC_Sleeping_Tent",
+      "source": "site_tent_a_frame_large",
+      "collection": "HC_01_Shelters",
+      "location": [
+        -2.7,
+        1.25,
+        0.0
+      ],
+      "rotationZDegrees": -8.0
+    },
+    {
+      "name": "HC_Processing_Hide_Fly",
+      "source": "site_hunter_hide_fly_4m_d2m",
+      "collection": "HC_01_Shelters",
+      "location": [
+        2.2,
+        1.75,
+        0.0
+      ],
+      "rotationZDegrees": 4.0
+    },
+    {
+      "name": "HC_Hearth",
+      "source": "site_campfire_hearth",
+      "collection": "HC_02_Hearth",
+      "location": [
+        -0.25,
+        -0.58,
+        0.0
+      ],
+      "rotationZDegrees": 7.0
+    },
+    {
+      "name": "HC_Cooking_Tripod",
+      "source": "site_camp_cooking_tripod",
+      "collection": "HC_02_Hearth",
+      "location": [
+        -0.25,
+        -0.58,
+        0.0
+      ],
+      "rotationZDegrees": -5.0
+    },
+    {
+      "name": "HC_Field_Worktable",
+      "source": "prop_camp_worktable",
+      "collection": "HC_03_Work",
+      "location": [
+        2.18,
+        1.72,
+        0.0
+      ],
+      "rotationZDegrees": 4.0
+    },
+    {
+      "name": "HC_Hunter_Tool_Rack",
+      "source": "prop_tool_rack_hunter",
+      "collection": "HC_03_Work",
+      "location": [
+        2.92,
+        -1.42,
+        0.0
+      ],
+      "rotationZDegrees": 28.0
+    },
+    {
+      "name": "HC_Chopping_Block",
+      "source": "prop_firewood_chopping_block",
+      "collection": "HC_03_Work",
+      "location": [
+        -1.58,
+        -2.12,
+        0.0
+      ],
+      "rotationZDegrees": 11.0
+    },
+    {
+      "name": "HC_Water_Buckets",
+      "source": "prop_water_bucket_pair",
+      "collection": "HC_04_Equipment",
+      "location": [
+        3.75,
+        0.58,
+        0.0
+      ],
+      "rotationZDegrees": 7.0
+    },
+    {
+      "name": "HC_Supply_Barrel",
+      "source": "prop_barrel_small",
+      "collection": "HC_04_Equipment",
+      "location": [
+        3.66,
+        2.73,
+        0.0
+      ],
+      "rotationZDegrees": -9.0
+    },
+    {
+      "name": "HC_Supply_Crate",
+      "source": "prop_crate_small",
+      "collection": "HC_04_Equipment",
+      "location": [
+        0.95,
+        3.0,
+        0.0
+      ],
+      "rotationZDegrees": 13.0
+    },
+    {
+      "name": "HC_Boundary_Rail_01",
+      "source": "enclosure_split_rail_2m",
+      "collection": "HC_05_Boundary",
+      "location": [
+        -2.45,
+        4.15,
+        0.0
+      ],
+      "rotationZDegrees": 1.5
+    },
+    {
+      "name": "HC_Boundary_Rail_02",
+      "source": "enclosure_split_rail_2m",
+      "collection": "HC_05_Boundary",
+      "location": [
+        -0.24,
+        4.18,
+        0.0
+      ],
+      "rotationZDegrees": -1.0
+    },
+    {
+      "name": "HC_Boundary_Rail_03",
+      "source": "enclosure_split_rail_2m",
+      "collection": "HC_05_Boundary",
+      "location": [
+        1.98,
+        4.1,
+        0.0
+      ],
+      "rotationZDegrees": 2.0
+    },
+    {
+      "name": "HC_Boundary_Rail_04",
+      "source": "enclosure_split_rail_2m",
+      "collection": "HC_05_Boundary",
+      "location": [
+        -4.35,
+        1.55,
+        0.0
+      ],
+      "rotationZDegrees": 91.0
+    },
+    {
+      "name": "HC_Boundary_Rail_05",
+      "source": "enclosure_split_rail_2m",
+      "collection": "HC_05_Boundary",
+      "location": [
+        4.42,
+        2.05,
+        0.0
+      ],
+      "rotationZDegrees": 88.0
+    }
+  ]
+}

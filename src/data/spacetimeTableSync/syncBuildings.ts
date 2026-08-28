@@ -64,6 +64,8 @@ function buildingStateFromRow(
     monasteryCroftChoiceYear: number;
     monasteryServiceFunding: number;
     monasteryLastServiceDay: bigint;
+    placementYaw: number;
+    placementYawLocked: boolean;
     pelts: number;
     hides: number;
     leather: number;
@@ -102,6 +104,10 @@ function buildingStateFromRow(
     kind: row.kind,
     x: row.x,
     z: row.z,
+    yaw: materialRow.placementYawLocked === true
+      && Number.isFinite(materialRow.placementYaw)
+      ? materialRow.placementYaw
+      : undefined,
     workRadius: row.workRadius,
     treeWorkArea,
     actionCooldown: row.actionCooldown,
@@ -256,6 +262,7 @@ function buildingStateFromRow(
     apiaryLastWinterYear: row.apiaryLastWinterYear,
     apiaryForageScore: row.apiaryForageScore,
     apiaryWaxCycleProgress: Number(row.apiaryWaxCycleProgress),
+    apiaryAccumulatedHoney: wholeResourceUnits(row.apiaryAccumulatedHoney),
     monasteryOrchardPlanting: (materialRow.monasteryOrchardPlanting === 1 ? 1 : 0),
     monasteryCroftPlanting: (materialRow.monasteryCroftPlanting === 1 ? 1 : 0),
     monasteryExtensions: Number(materialRow.monasteryExtensions ?? 0),

@@ -1122,6 +1122,10 @@ const simulationReducerSource = readFileSync(
   'server/src/reducers/simulation.rs',
   'utf8',
 );
+const tradingPostTradeSource = readFileSync(
+  'server/src/simulation/trading_post_trade.rs',
+  'utf8',
+);
 const rustFunctionSection = (name: string, nextName: string): string => {
   const start = expandedEconomySource.indexOf(`pub fn ${name}`);
   const end = expandedEconomySource.indexOf(`pub fn ${nextName}`, start + 1);
@@ -1141,6 +1145,24 @@ const clayPitStep = rustFunctionSection('step_clay_pit', 'step_charcoal_burner')
 const charcoalBurnerStep = rustFunctionSection('step_charcoal_burner', 'step_smithy');
 const smithyStep = rustFunctionSection('step_smithy', 'step_potter_kiln');
 const potterKilnStep = rustFunctionSection('step_potter_kiln', 'step_apiary');
+const exportableStockStart = tradingPostTradeSource.indexOf('fn source_exportable_stock(');
+const exportableStockEnd = tradingPostTradeSource.indexOf(
+  '#[cfg(test)]',
+  exportableStockStart,
+);
+assert.ok(
+  exportableStockStart >= 0 && exportableStockEnd > exportableStockStart,
+  'Trading Post source-surplus policy should remain inspectable',
+);
+const sourceExportableStock = tradingPostTradeSource.slice(
+  exportableStockStart,
+  exportableStockEnd,
+);
+assert.doesNotMatch(
+  sourceExportableStock,
+  /Ironwork|maintenance|upkeep/i,
+  'producer Ironwork must remain exportable surplus without a hidden maintenance reservation',
+);
 assert.match(
   marketplaceMaterialDispatchStep,
   /compare_processor_input_dispatch_candidates/,

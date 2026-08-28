@@ -184,4 +184,7 @@ export default __t.row({
   smokehouseRecipePolicy: __t.u8().name("smokehouse_recipe_policy"),
   productionRatePercent: __t.u8().name("production_rate_percent"),
   productionMaintenanceProgress: __t.f64().name("production_maintenance_progress"),
+  placementYaw: __t.f64().name("placement_yaw"),
+  placementYawLocked: __t.bool().name("placement_yaw_locked"),
+  apiaryAccumulatedHoney: __t.f64().name("apiary_accumulated_honey"),
 });

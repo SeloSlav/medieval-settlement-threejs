@@ -1,0 +1,30 @@
+{
+  "id": "gorski-camp-surfaces-v1",
+  "generatedAt": "2026-08-28T18:41:31.733Z",
+  "source": "stitched_hide_imagegen_source.png",
+  "sourceMethod": "OpenAI built-in image generation; periodic edge reconciliation and derived PBR channels",
+  "dimensions": {
+    "width": 1024,
+    "height": 1024
+  },
+  "metersPerTile": 1.6,
+  "channels": {
+    "albedo": "sRGB RGB",
+    "normal": "OpenGL tangent-space RGB",
+    "material": "R=roughness, G=metalness, B=height-derived ambient occlusion, A=centered height"
+  },
+  "files": {
+    "stitched_hide_albedo.png": {
+      "bytes": 1939835,
+      "sha256": "d5ee026100b199d6dff1f6845ba1eb1141d92fbe4c347ab833ad06f464c026de"
+    },
+    "stitched_hide_normal.png": {
+      "bytes": 2746067,
+      "sha256": "07df5f75f076bf0894b4bb0e11c24303e97ca41f42667b2711e2449928fcdc43"
+    },
+    "stitched_hide_material.png": {
+      "bytes": 1851680,
+      "sha256": "ea75d84a0d699d9be34fa017b8855be1f1f531b476dba60b295a6b255bef3c8f"
+    }
+  }
+}

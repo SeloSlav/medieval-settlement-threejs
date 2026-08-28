@@ -113,6 +113,8 @@ export type BuildingState = {
   kind: BuildingKind;
   x: number;
   z: number;
+  /** Immutable orientation captured when the site was placed; absent only on legacy rows. */
+  yaw?: number;
   workRadius: number;
   /** Optional player-authored forestry circle; absent restores the default building extent. */
   treeWorkArea?: TreeWorkArea;
@@ -288,6 +290,8 @@ export type BuildingState = {
   apiaryForageScore?: number;
   /** Successful honey cycles accumulated toward the next infrequent wax harvest. */
   apiaryWaxCycleProgress?: number;
+  /** Whole Spring/Summer hive yield awaiting Autumn extraction. */
+  apiaryAccumulatedHoney?: number;
   /** 0 apples, 1 grapevines; meaningful only for monasteries. */
   monasteryOrchardPlanting?: 0 | 1;
   /** 0 kitchen vegetables, 1 brewing barley; meaningful only for monasteries. */
@@ -399,6 +403,7 @@ export type LivestockHerdState = {
   species: LivestockSpecies;
   headCount: number;
   health: number;
+  /** Whole units are confirmed spring offspring; the fraction is conception progress. */
   breedingProgress: number;
   pastureCapacity: number;
   suppliedCapacity: number;
@@ -407,6 +412,8 @@ export type LivestockHerdState = {
   lastWoolGold: number;
   lastWoolOutput?: number;
   lastShearingYear?: number;
+  /** One-based absolute month of the most recent cattle milking round. */
+  lastMilkingPeriod?: number;
   breedingReserve: number;
   lastCulled: number;
   hayStock: number;

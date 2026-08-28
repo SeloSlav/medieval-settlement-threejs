@@ -5,6 +5,8 @@ import { GAME_TABLE_SUBSCRIPTIONS } from '../src/data/gameTableSubscriptions.ts'
 import {
   effectiveLivestockBreedingReserve,
   effectiveLivestockHaymakingPercent,
+  cattleMilkingPeriod,
+  isCattleMilkingMonth,
   isLivestockCullMonth,
   isLivestockHaymakingMonth,
   isSheepShearingMonth,
@@ -12,6 +14,9 @@ import {
   livestockCareCapacity,
   livestockHeadsPerWorker,
   livestockHaymakingPresets,
+  livestockBreedingPhaseForMonth,
+  livestockMatingSeason,
+  livestockPendingOffspring,
   livestockDairyPreservedOutputPerCycle,
   livestockDairySaltPerCycle,
   livestockMilkAllocationPerCycle,
@@ -81,7 +86,7 @@ import {
   SHEEP_MAX_HERD,
   SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
   SHEEP_STARTER_HERD,
-  SPRING_BREEDING_MULTIPLIER,
+  LIVESTOCK_SEASONAL_CONCEPTION_MULTIPLIER,
   SWINE_BREEDING_PER_CYCLE,
   SWINE_AREA_PER_HEAD,
   SWINE_DEFAULT_BREEDING_RESERVE,
@@ -91,7 +96,6 @@ import {
   SWINE_STARTER_HERD,
   SWINE_FOOD_PER_CYCLE_PER_HEAD,
   SWINE_WATER_PER_HEAD_PER_CYCLE,
-  WINTER_BREEDING_MULTIPLIER,
   WINTER_PASTURE_CAPACITY_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 import type { BuildingState, LivestockHerdState } from '../src/resources/types.ts';
@@ -176,6 +180,16 @@ assert.ok(CATTLE_MINIMUM_BREEDING_RESERVE < CATTLE_DEFAULT_BREEDING_RESERVE);
 assert.equal(CATTLE_DEFAULT_BREEDING_RESERVE, CATTLE_MAX_HERD);
 assert.equal(SHEEP_DEFAULT_BREEDING_RESERVE, SHEEP_MAX_HERD);
 assert.equal(SWINE_DEFAULT_BREEDING_RESERVE, SWINE_MAX_HERD);
+assert.deepEqual(
+  [
+    livestockPolicyDefinition('cattle').slaughterFoodPerHead,
+    livestockPolicyDefinition('cattle').slaughterPreservedFoodPerHead,
+    livestockPolicyDefinition('cattle').slaughterHidesPerHead,
+  ],
+  [5, 1, 1],
+  'every cattle cull output must be an explicit whole-unit amount',
+);
+assert.equal(BUILDING_STORAGE_CAPS.pastoral_farmstead.hides, 24);
 
 assert.equal(isLivestockCullMonth(9), false);
 assert.equal(isLivestockCullMonth(10), true);
@@ -189,6 +203,12 @@ assert.equal(isSheepShearingMonth(5), false);
 assert.equal(isSheepShearingMonth(6), true);
 assert.equal(isSheepShearingMonth(7), true);
 assert.equal(isSheepShearingMonth(8), false);
+assert.equal(isCattleMilkingMonth(2), false);
+assert.equal(isCattleMilkingMonth(3), true);
+assert.equal(isCattleMilkingMonth(11), true);
+assert.equal(isCattleMilkingMonth(12), false);
+assert.equal(cattleMilkingPeriod(1, 1), 1);
+assert.equal(cattleMilkingPeriod(2, 3), 15);
 assert.equal(effectiveLivestockHaymakingPercent(-1), 0);
 assert.equal(effectiveLivestockHaymakingPercent(35.9), 35);
 assert.equal(effectiveLivestockHaymakingPercent(100), 60);
@@ -219,22 +239,29 @@ assert.deepEqual(projectedLivestockCullYield('swine', 10, 7), {
   heads: 3,
   food: 9,
   preservedFood: 0,
+  hides: 0,
 });
 assert.deepEqual(projectedLivestockCullYield('cattle', 9, 6), {
   heads: 3,
   food: 15,
-  preservedFood: 1.5,
+  preservedFood: 3,
+  hides: 3,
 });
-assert.equal(livestockStorageSecuredCullHeads('cattle', 20, 12, 120, 70, 12), 8);
+assert.equal(livestockStorageSecuredCullHeads('cattle', 20, 12, 120, 70, 12, 24), 8);
 assert.equal(
-  livestockStorageSecuredCullHeads('cattle', 20, 12, 4.99, 70, 12),
+  livestockStorageSecuredCullHeads('cattle', 20, 12, 4.99, 70, 12, 24),
   0,
   'a whole cattle carcass must fit before winter planning removes that animal',
 );
 assert.equal(
-  livestockStorageSecuredCullHeads('cattle', 20, 12, 44, 0, 0),
+  livestockStorageSecuredCullHeads('cattle', 20, 12, 48, 0, 0, 24),
   8,
   'an unsalted cured share must correctly fall back into available fresh storage',
+);
+assert.equal(
+  livestockStorageSecuredCullHeads('cattle', 20, 12, 120, 70, 12, 7),
+  7,
+  'winter planning must not count a cattle cull whose whole hide cannot fit',
 );
 assert.equal(livestockPreservationSaltRequired(8), 1);
 assert.equal(livestockSaltedOutputCapacity(1), 8);
@@ -301,7 +328,7 @@ assert.ok(
   Math.max(...starterOrderCosts) - Math.min(...starterOrderCosts) <= 10,
   'starter orders should require comparable civic capital across species',
 );
-const exportGoldPerUnit = (resource: 'meat' | 'curedMeat'): number => {
+const exportGoldPerUnit = (resource: 'meat' | 'curedMeat' | 'hides'): number => {
   const offer = MARKETPLACE_TRADE_OFFERS.find(
     (candidate) => candidate.kind === 'goldSell' && candidate.resource === resource,
   );
@@ -313,6 +340,7 @@ for (const species of ['cattle', 'sheep', 'swine'] as const) {
   const peakCullExport = (
     policy.slaughterFoodPerHead * exportGoldPerUnit('meat')
     + policy.slaughterPreservedFoodPerHead * exportGoldPerUnit('curedMeat')
+    + policy.slaughterHidesPerHead * exportGoldPerUnit('hides')
   ) * MARKET_PRICE_MULTIPLIER_MAX;
   assert.ok(
     policy.purchaseGoldPerHead > peakCullExport,
@@ -330,26 +358,23 @@ assert.ok(
   'larger sheep head counts must not multiply full-holding dairy beyond cattle-scale output',
 );
 
-function fullySupportedHeadsAfterOneYear(
+function fullySupportedHeadsAfterMatingAndSpringBirths(
   startingHeads: number,
   maximumHeads: number,
   breedingPerCycle: number,
   cyclesPerDay: number,
+  matingMonths: readonly number[],
 ): number {
-  let heads = startingHeads;
   let progress = 0;
   for (let day = 0; day < 360; day += 1) {
     const month = Math.floor(day / 30) + 1;
-    const seasonalMultiplier = month >= 3 && month <= 5
-      ? SPRING_BREEDING_MULTIPLIER
+    const seasonalMultiplier = matingMonths.includes(month)
+      ? LIVESTOCK_SEASONAL_CONCEPTION_MULTIPLIER
       : 0;
-    progress += heads * breedingPerCycle * cyclesPerDay * seasonalMultiplier;
-    while (progress >= 1 && heads < maximumHeads) {
-      heads += 1;
-      progress -= 1;
-    }
+    progress += startingHeads * breedingPerCycle * cyclesPerDay * seasonalMultiplier;
+    progress = Math.min(progress, maximumHeads - startingHeads);
   }
-  return heads;
+  return startingHeads + Math.min(Math.floor(progress), maximumHeads - startingHeads);
 }
 
 const calendarDaySeconds = CALENDAR_SECONDS_PER_DAY;
@@ -359,46 +384,58 @@ const swineBreedingCyclesPerDay = calendarDaySeconds
   / BUILDING_DEFINITIONS.swineherd.harvestInterval;
 assert.ok(Math.abs(pastoralBreedingCyclesPerDay - 6 / 35) < 1e-12);
 assert.ok(Math.abs(swineBreedingCyclesPerDay - 4 / 35) < 1e-12);
-assert.equal(WINTER_BREEDING_MULTIPLIER, 0);
-const serverSeasonPolicySource = fs.readFileSync('server/src/season_policy.rs', 'utf8');
-assert.match(
-  serverSeasonPolicySource,
-  /Season::Spring => SPRING_BREEDING_MULTIPLIER,[\s\S]{0,100}Season::Summer \| Season::Autumn \| Season::Winter => 0\.0/,
-  'authoritative birth progress must be zero outside spring',
-);
 const serverLivestockBreedingSource = fs.readFileSync(
   'server/src/simulation/livestock.rs',
   'utf8',
 );
 assert.match(
   serverLivestockBreedingSource,
-  /if environment\.season == Season::Spring\s*&& herd\.head_count >= LIVESTOCK_MINIMUM_BREEDING_HEADS/,
-  'the authoritative birth gate must explicitly reject legacy progress outside spring',
+  /match livestock_breeding_phase\(herd\.species, environment\.season\)[\s\S]{0,260}LivestockBreedingPhase::SpringBirths[\s\S]{0,260}livestock_spring_births/,
+  'the authoritative cycle must resolve confirmed offspring only in the spring phase',
 );
+assert.match(
+  serverLivestockBreedingSource,
+  /LivestockBreedingPhase::Conception[\s\S]{0,220}LIVESTOCK_MINIMUM_BREEDING_HEADS[\s\S]{0,220}support_ratio >= 0\.9[\s\S]{0,160}herd\.health >= 0\.72/,
+  'only a healthy, supplied breeding herd may accumulate conceptions in its mating phase',
+);
+
+assert.equal(livestockMatingSeason('cattle'), 'summer');
+assert.equal(livestockMatingSeason('sheep'), 'autumn');
+assert.equal(livestockMatingSeason('swine'), 'autumn');
+assert.equal(livestockBreedingPhaseForMonth('cattle', 7), 'conception');
+assert.equal(livestockBreedingPhaseForMonth('cattle', 10), 'waiting');
+assert.equal(livestockBreedingPhaseForMonth('sheep', 7), 'waiting');
+assert.equal(livestockBreedingPhaseForMonth('sheep', 10), 'conception');
+assert.equal(livestockBreedingPhaseForMonth('cattle', 4), 'spring-births');
+assert.equal(livestockBreedingPhaseForMonth('sheep', 4), 'spring-births');
+assert.equal(livestockPendingOffspring(3.75), 3);
 
 assert.deepEqual(
   [
-    fullySupportedHeadsAfterOneYear(
+    fullySupportedHeadsAfterMatingAndSpringBirths(
       CATTLE_STARTER_HERD,
       CATTLE_MAX_HERD,
       CATTLE_BREEDING_PER_CYCLE,
       pastoralBreedingCyclesPerDay,
+      [6, 7, 8],
     ),
-    fullySupportedHeadsAfterOneYear(
+    fullySupportedHeadsAfterMatingAndSpringBirths(
       SHEEP_STARTER_HERD,
       SHEEP_MAX_HERD,
       SHEEP_BREEDING_PER_CYCLE,
       pastoralBreedingCyclesPerDay,
+      [9, 10, 11],
     ),
-    fullySupportedHeadsAfterOneYear(
+    fullySupportedHeadsAfterMatingAndSpringBirths(
       SWINE_STARTER_HERD,
       SWINE_MAX_HERD,
       SWINE_BREEDING_PER_CYCLE,
       swineBreedingCyclesPerDay,
+      [9, 10, 11],
     ),
   ],
-  [10, 42, 30],
-  'one fully supported spring at the actual fixed husbandry cadence should grow herds meaningfully',
+  [8, 30, 22],
+  'one healthy mating season followed by spring births should grow the starter herd without newborns breeding immediately',
 );
 assert.equal(livestockHeadsPerWorker('cattle'), CATTLE_HEADS_PER_WORKER);
 assert.equal(livestockHeadsPerWorker('sheep'), SHEEP_HEADS_PER_WORKER);
@@ -659,6 +696,12 @@ const winterFeedPlan = projectLivestockFodderHolding(
 );
 assert.ok(winterFeedPlan.currentFeedPerDay > 0);
 assert.ok(Number.isFinite(winterFeedPlan.currentFeedRunwayDays));
+assert.equal(
+  winterFeedPlan.dairyPreservedFoodPerDay,
+  0,
+  'cattle dairy production must pause from December through February',
+);
+assert.equal(winterFeedPlan.dairySaltTarget, 0);
 
 const storageBlockedFodderPlan = projectLivestockFodderHolding(
   {
@@ -729,6 +772,10 @@ assert.equal(
   'a full three-month haymaking season should cover the minimum winter reserve',
 );
 assert.equal(summerPlan.currentUnsupportedHeads, 1.5);
+assert.ok(
+  summerPlan.dairyPreservedFoodPerDay > 0,
+  'the cattle dairy forecast must remain active from March through November',
+);
 
 const fullLoftSummerPlan = projectLivestockFodderHolding(
   fodderBuilding,
@@ -993,6 +1040,9 @@ assert.match(serverPolicy, /pub fn can_cull_one/);
 assert.match(serverPolicy, /pub fn projected_winter_animal_feed/);
 assert.match(serverPolicy, /pub fn is_haymaking_month/);
 assert.match(serverPolicy, /pub fn is_shearing_month/);
+assert.match(serverPolicy, /pub fn is_cattle_milking_month/);
+assert.match(serverPolicy, /pub fn cattle_milking_period/);
+assert.match(serverPolicy, /pub fn cattle_monthly_dairy_cycle_multiplier/);
 assert.match(serverPolicy, /pub fn haymaking_share/);
 assert.match(serverPolicy, /pub fn essential_livestock_care_labor/);
 assert.match(serverPolicy, /food_room[\s\S]*slaughter_food_per_head/);
@@ -1043,8 +1093,13 @@ assert.doesNotMatch(
 );
 assert.match(
   serverSimulation,
-  /head_count < breeding_limit[\s\S]*breeding_progress \+= [\s\S]*else[\s\S]*breeding_progress = herd\.breeding_progress\.min\(0\.999\)/,
-  'full herds must not bank an unlimited queue of replacement births',
+  /livestock_conception_progress_after_cycle\([\s\S]{0,260}herd\.head_count,[\s\S]{0,100}breeding_limit/,
+  'conception progress must be bounded by the parcel and shared holding birth ceiling',
+);
+assert.match(
+  serverSimulation,
+  /retained_livestock_breeding_progress\([\s\S]{0,180}previous_heads,[\s\S]{0,120}herd\.head_count/,
+  'mortality and culling must remove the lost animals share of pending offspring',
 );
 assert.match(
   serverSimulation,
@@ -1066,6 +1121,11 @@ assert.match(
   /let fresh_slaughter[\s\S]{0,1200}deposit_building_commodity\(&mut cull_building, CommodityKind::Meat, fresh_slaughter\)/,
   'unsalted autumn meat must enter vulnerable fresh-food storage',
 );
+assert.match(
+  serverSimulation,
+  /let slaughter_hides[\s\S]{0,1600}deposit_building_commodity\(&mut cull_building, CommodityKind::Hides, slaughter_hides\)/,
+  'a cattle cull must atomically retain its whole hide at the pastoral farmstead',
+);
 assert.doesNotMatch(
   serverSimulation,
   /season_multiplier[\s\S]{0,300}species_food_per_cycle/,
@@ -1076,7 +1136,7 @@ assert.match(serverReducer, /pub fn set_livestock_haymaking_percent/);
 assert.match(serverReducer, /breeding_reserve < minimum \|\| breeding_reserve > maximum/);
 assert.match(
   serverTables,
-  /pub struct PastureHerd \{[\s\S]{0,220}pub pasture_id: u64[\s\S]*last_wool_gold:[\s\S]*#\[default\(7u32\)\][\s\S]*breeding_reserve:[\s\S]*last_culled:[\s\S]*#\[default\(0\.0\)\][\s\S]*hay_stock:[\s\S]*last_hay_output:[\s\S]*#\[default\(0u8\)\][\s\S]*haymaking_percent:[\s\S]*#\[default\(0\.0\)\][\s\S]*last_wool_output:[\s\S]*#\[default\(0u32\)\][\s\S]*last_shearing_year:/,
+  /pub struct PastureHerd \{[\s\S]{0,220}pub pasture_id: u64[\s\S]*breeding_progress:[\s\S]*breeding_reserve:[\s\S]*hay_stock:[\s\S]*last_wool_output:[\s\S]*last_shearing_year:[\s\S]*#\[default\(0u32\)\][\s\S]*last_milking_period:/,
   'migration-safe fields must remain on the pasture-keyed herd table',
 );
 assert.match(generatedHerd, /pastureId: __t\.u64\(\)\.primaryKey/);
@@ -1088,7 +1148,13 @@ assert.match(generatedHerd, /lastHayOutput/);
 assert.match(generatedHerd, /haymakingPercent/);
 assert.match(generatedHerd, /lastWoolOutput/);
 assert.match(generatedHerd, /lastShearingYear/);
+assert.match(generatedHerd, /lastMilkingPeriod/);
 assert.match(serverSimulation, /herd\.last_shearing_year != clock\.year/);
+assert.match(
+  serverSimulation,
+  /is_cattle_milking_month\(clock\.month\)[\s\S]{0,120}herd\.last_milking_period != milking_period/,
+);
+assert.match(serverSimulation, /herd\.last_milking_period = milking_period/);
 assert.match(serverSimulation, /CommodityKind::Wool/);
 assert.doesNotMatch(
   serverSimulation,
@@ -1107,7 +1173,9 @@ assert.ok(GAME_TABLE_SUBSCRIPTIONS.includes('pasture'));
 assert.ok(GAME_TABLE_SUBSCRIPTIONS.includes('pasture_herd'));
 assert.ok(!GAME_TABLE_SUBSCRIPTIONS.includes('livestock_herd'));
 assert.match(pastureInspector, /data-livestock-breeding-reserve/);
-assert.match(pastureInspector, /Spring births grow this pasture's healthy, supplied herd/);
+assert.match(pastureInspector, /Cattle mate in summer/);
+assert.match(pastureInspector, /Sheep mate in autumn/);
+assert.match(pastureInspector, /confirmed offspring arrive in spring/);
 assert.match(pastureInspector, /data-livestock-haymaking-percent/);
 assert.match(pastureInspector, /Hay meadow/);
 assert.match(pastureInspector, /stored for this herd and consumed before prepared Animal Feed in winter/);

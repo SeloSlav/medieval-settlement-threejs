@@ -33,7 +33,10 @@ import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { areBuildingShadowsEnabled } from '../scene/shadowPreference.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
-import { buildingPlacementYaw } from './buildingPlacement.ts';
+import {
+  buildingPlacementYaw,
+  resolvedPlacedBuildingYaw,
+} from './buildingPlacement.ts';
 import {
   MARKETPLACE_STALL_DISPLAY_KINDS,
   marketStallDisplayName,
@@ -402,11 +405,8 @@ export class BuildingMarkers {
   }
 
   /**
-   * Reapply the road-facing yaw after the authoritative road snapshot changes.
-   * Building rows can reach the client before that snapshot during startup, in
-   * which case their meshes are initially created with the deterministic
-   * fallback yaw. Updating every transform here keeps the authored local +Z
-   * facade (normally the door side) aimed at the road once it is available.
+   * Resolve legacy rows after startup road hydration. Persisted building yaw
+   * always wins, so editing roads can never turn an already placed structure.
    */
   refreshRoadFacingOrientations(): void {
     const network = this.getRoadNetwork?.() ?? null;
@@ -415,7 +415,7 @@ export class BuildingMarkers {
     for (const [id, building] of this.buildingStates) {
       const marker = this.buildingMeshes.get(id);
       if (!marker) continue;
-      const yaw = buildingPlacementYaw(building.kind, building.x, building.z, network);
+      const yaw = resolvedPlacedBuildingYaw(building, network);
       const yawDelta = Math.atan2(
         Math.sin(yaw - marker.rotation.y),
         Math.cos(yaw - marker.rotation.y),
@@ -879,10 +879,8 @@ export class BuildingMarkers {
       ) {
         setBuildingDetailShadowsEnabled(marker, areBuildingShadowsEnabled());
       }
-      marker.rotation.y = buildingPlacementYaw(
-        building.kind,
-        building.x,
-        building.z,
+      marker.rotation.y = resolvedPlacedBuildingYaw(
+        building,
         this.getRoadNetwork?.() ?? null,
       );
       this.buildingMeshes.set(building.id, marker);
@@ -925,6 +923,10 @@ export class BuildingMarkers {
       }
     }
 
+    marker.rotation.y = resolvedPlacedBuildingYaw(
+      building,
+      this.getRoadNetwork?.() ?? null,
+    );
     const y = this.terrain.getHeightAt(building.x, building.z);
     marker.position.set(building.x, y, building.z);
     const destroyed = this.destroyedBuildingIds.has(building.id);

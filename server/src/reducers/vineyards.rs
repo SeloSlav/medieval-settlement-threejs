@@ -8,7 +8,8 @@ use crate::farming::{
 };
 use crate::hydrology::sample_world_groundwater_score;
 use crate::placement_validation::{
-    zone_overlaps_building_footprint, zone_overlaps_resource_deposit,
+    resolved_existing_building_yaw, zone_overlaps_building_footprint_at_yaw,
+    zone_overlaps_resource_deposit,
 };
 use crate::roads::load_owner_road_network;
 use crate::tables::{farm_field, graveyard, vineyard_parcel, VineyardParcel};
@@ -99,12 +100,12 @@ pub fn place_vineyard(
 
     let road_network = load_owner_road_network(ctx, owner);
     for building in ctx.db.building().owner().filter(&owner) {
-        if zone_overlaps_building_footprint(
+        if zone_overlaps_building_footprint_at_yaw(
             &polygon,
             &building.kind,
             building.x,
             building.z,
-            road_network.as_ref(),
+            resolved_existing_building_yaw(road_network.as_ref(), &building),
         ) {
             return Err("Vineyard overlaps a building.".to_string());
         }

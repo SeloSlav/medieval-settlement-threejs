@@ -1,6 +1,9 @@
 import {
   effectiveLivestockBreedingReserve,
+  livestockBreedingPhaseForMonth,
   livestockHaymakingPresets,
+  livestockMatingSeason,
+  livestockPendingOffspring,
   livestockPurchaseCost,
   livestockPurchaseGoldPerHead,
   livestockReservePresets,
@@ -24,6 +27,7 @@ import {
   SWINE_STARTER_HERD,
 } from '../../generated/gameBalance.ts';
 import { renderResourceAmount } from '../../ui/resourceCost.ts';
+import { gameClock } from '../../world/gameCalendar.ts';
 import type { InspectableTarget, LivestockSpecies } from '../types.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { hiddenLabor } from './renderInspectableTarget.ts';
@@ -88,15 +92,30 @@ export function renderPastureInspector(
   const supportRatio = herd && herd.headCount > 0
     ? Math.min(1, Math.max(0, herd.suppliedCapacity) / herd.headCount)
     : 0;
-  const springGrowth = !herd
+  const month = gameClock(context.gameState.tick).month;
+  const breedingPhase = herd ? livestockBreedingPhaseForMonth(herd.species, month) : 'waiting';
+  const matingSeason = herd ? livestockMatingSeason(herd.species) : 'summer';
+  const pendingOffspring = herd ? livestockPendingOffspring(herd.breedingProgress) : 0;
+  const nextOffspringProgress = herd
+    ? Math.round((Math.max(0, herd.breedingProgress) % 1) * 100)
+    : 0;
+  const breedingStatus = !herd
     ? 'Choose the animals for this pasture'
-    : herd.headCount < LIVESTOCK_MINIMUM_BREEDING_HEADS
-      ? `Needs at least ${LIVESTOCK_MINIMUM_BREEDING_HEADS} animals`
-      : herd.headCount >= headLimit
-        ? `At this pasture's ${headLimit}-head ceiling`
-        : !healthyEnough || supportRatio < 0.9
-          ? `Paused · needs 72% health and 90% supply (${Math.round(herd.health * 100)}% / ${Math.round(supportRatio * 100)}%)`
-          : `${Math.round(herd.breedingProgress * 100)}% toward the next birth · spring only · stops at ${headLimit}`;
+    : breedingPhase === 'spring-births'
+      ? pendingOffspring > 0
+        ? `${pendingOffspring} offspring due this spring · stops at ${headLimit}`
+        : `Spring birth window · no confirmed offspring waiting · ${matingSeason} mating`
+      : breedingPhase === 'conception'
+        ? herd.headCount < LIVESTOCK_MINIMUM_BREEDING_HEADS
+          ? `Mating season · needs at least ${LIVESTOCK_MINIMUM_BREEDING_HEADS} animals`
+          : herd.headCount >= headLimit
+            ? `Mating season · at this pasture's ${headLimit}-head ceiling`
+            : !healthyEnough || supportRatio < 0.9
+              ? `Mating paused · needs 72% health and 90% supply (${Math.round(herd.health * 100)}% / ${Math.round(supportRatio * 100)}%)`
+              : `${pendingOffspring} due in spring · ${nextOffspringProgress}% toward another · stops at ${headLimit}`
+        : pendingOffspring > 0
+          ? `${pendingOffspring} offspring due in spring · ${matingSeason} mating complete`
+          : `No offspring pending · mating season is ${matingSeason}`;
 
   const speciesControls = farmstead?.kind === 'pastoral_farmstead'
     ? `<div class="inspector-action-panel" data-inspector-panel-title="Animals for this pasture">
@@ -128,7 +147,7 @@ export function renderPastureInspector(
 
   const reserveControls = herd
     ? `<div class="inspector-action-panel" data-inspector-panel-title="Breeding reserve">
-        <p class="resource-inspector-note">Spring births grow this pasture's healthy, supplied herd toward its own ceiling. Lowering the reserve marks surplus animals here for autumn culling.</p>
+        <p class="resource-inspector-note">${herd.species === 'cattle' ? 'Cattle mate in summer' : herd.species === 'sheep' ? 'Sheep mate in autumn' : 'Woodland swine mate in autumn'} when healthy and supplied; confirmed offspring arrive in spring. Lowering the reserve marks surplus animals here for autumn culling.</p>
         <div class="resource-action-row">${livestockReservePresets(herd.species)
           .map((preset) => `<button type="button" class="resource-action-button" data-livestock-breeding-reserve="${preset.reserve}" ${breedingReserve === preset.reserve ? 'disabled' : ''}>${preset.label} · ${preset.reserve}</button>`)
           .join('')}</div>
@@ -182,7 +201,8 @@ export function renderPastureInspector(
       <li><span>This pasture supports</span><span>${parcelCapacity}</span></li>
       <li><span>Current full supply</span><span>${herd ? `${herd.suppliedCapacity.toFixed(1)} / ${herd.headCount} head` : 'Not stocked'}</span></li>
       <li><span>Health</span><span>${herd && herd.headCount > 0 ? `${Math.round(herd.health * 100)}%` : 'Not stocked'}</span></li>
-      <li><span>Spring reproduction</span><span>${springGrowth}</span></li>
+      <li><span>Herd movement</span><span>Confined within this fence · staffed shearing, milking, and culling rounds use the pasture entrance</span></li>
+      <li><span>Seasonal breeding</span><span>${breedingStatus}</span></li>
       <li><span>Last husbandry cycle</span><span>${recentOutput}</span></li>
     `,
     demolish: {

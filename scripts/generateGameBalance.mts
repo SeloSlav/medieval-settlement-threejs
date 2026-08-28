@@ -140,6 +140,7 @@ type LivestockSpeciesBalance = {
   foodPerCyclePerHead: number;
   slaughterFoodPerHead: number;
   slaughterPreservedFoodPerHead: number;
+  slaughterHidesPerHead: number;
   hayPerUnsupportedHead?: number;
   hayYieldPerReservedCapacityPerCycle?: number;
   grainPerUnsupportedHead: number;
@@ -247,8 +248,7 @@ export type GameBalance = {
     autumnPastureCapacityMultiplier: number;
     winterPastureCapacityMultiplier: number;
     droughtPastureCapacityMultiplier: number;
-    springBreedingMultiplier: number;
-    winterBreedingMultiplier: number;
+    seasonalConceptionMultiplier: number;
     autumnRoadSpeedMultiplier: number;
     winterRoadSpeedMultiplier: number;
     winterWatermillThroughputMultiplier: number;
@@ -685,6 +685,8 @@ export type GameBalance = {
     apiaryWaxPerHoneyCycles: number;
     apiaryWaxPerHarvest: number;
     apiarySeasonStartMonth: number;
+    apiaryAccumulationEndMonth: number;
+    apiaryHarvestStartMonth: number;
     apiarySeasonEndMonth: number;
     apiaryWinterHoneyRequired: number;
     apiaryConservativeHoneyReserve: number;
@@ -930,8 +932,7 @@ function generateRust(): string {
     `pub const AUTUMN_PASTURE_CAPACITY_MULTIPLIER: f64 = ${rustF64(b.seasons.autumnPastureCapacityMultiplier)};`,
     `pub const WINTER_PASTURE_CAPACITY_MULTIPLIER: f64 = ${rustF64(b.seasons.winterPastureCapacityMultiplier)};`,
     `pub const DROUGHT_PASTURE_CAPACITY_MULTIPLIER: f64 = ${rustF64(b.seasons.droughtPastureCapacityMultiplier)};`,
-    `pub const SPRING_BREEDING_MULTIPLIER: f64 = ${rustF64(b.seasons.springBreedingMultiplier)};`,
-    `pub const WINTER_BREEDING_MULTIPLIER: f64 = ${rustF64(b.seasons.winterBreedingMultiplier)};`,
+    `pub const LIVESTOCK_SEASONAL_CONCEPTION_MULTIPLIER: f64 = ${rustF64(b.seasons.seasonalConceptionMultiplier)};`,
     `pub const AUTUMN_ROAD_SPEED_MULTIPLIER: f64 = ${rustF64(b.seasons.autumnRoadSpeedMultiplier)};`,
     `pub const WINTER_ROAD_SPEED_MULTIPLIER: f64 = ${rustF64(b.seasons.winterRoadSpeedMultiplier)};`,
     `pub const WINTER_WATERMILL_THROUGHPUT_MULTIPLIER: f64 = ${rustF64(b.seasons.winterWatermillThroughputMultiplier)};`,
@@ -1356,6 +1357,8 @@ function generateRust(): string {
     `pub const APIARY_WAX_PER_HONEY_CYCLES: u8 = ${Math.max(1, Math.round(b.production.apiaryWaxPerHoneyCycles))};`,
     `pub const APIARY_WAX_PER_HARVEST: f64 = ${rustF64(b.production.apiaryWaxPerHarvest)};`,
     `pub const APIARY_SEASON_START_MONTH: u8 = ${b.production.apiarySeasonStartMonth};`,
+    `pub const APIARY_ACCUMULATION_END_MONTH: u8 = ${b.production.apiaryAccumulationEndMonth};`,
+    `pub const APIARY_HARVEST_START_MONTH: u8 = ${b.production.apiaryHarvestStartMonth};`,
     `pub const APIARY_SEASON_END_MONTH: u8 = ${b.production.apiarySeasonEndMonth};`,
     `pub const APIARY_WINTER_HONEY_REQUIRED: f64 = ${rustF64(b.production.apiaryWinterHoneyRequired)};`,
     `pub const APIARY_CONSERVATIVE_HONEY_RESERVE: f64 = ${rustF64(b.production.apiaryConservativeHoneyReserve)};`,
@@ -1481,6 +1484,7 @@ function generateRust(): string {
     `pub const CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD: f64 = ${rustF64(b.livestock.cattle.preservedFoodPerCyclePerHead ?? 0)};`,
     `pub const CATTLE_SLAUGHTER_FOOD_PER_HEAD: f64 = ${rustF64(b.livestock.cattle.slaughterFoodPerHead)};`,
     `pub const CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD: f64 = ${rustF64(b.livestock.cattle.slaughterPreservedFoodPerHead)};`,
+    `pub const CATTLE_SLAUGHTER_HIDES_PER_HEAD: f64 = ${rustF64(b.livestock.cattle.slaughterHidesPerHead)};`,
     `pub const CATTLE_HAY_PER_UNSUPPORTED_HEAD: f64 = ${rustF64(b.livestock.cattle.hayPerUnsupportedHead ?? 0)};`,
     `pub const CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE: f64 = ${rustF64(b.livestock.cattle.hayYieldPerReservedCapacityPerCycle ?? 0)};`,
     `pub const CATTLE_GRAIN_PER_UNSUPPORTED_HEAD: f64 = ${rustF64(b.livestock.cattle.grainPerUnsupportedHead)};`,
@@ -1511,6 +1515,7 @@ function generateRust(): string {
     `pub const SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD: f64 = ${rustF64(b.livestock.sheep.preservedFoodPerCyclePerHead ?? 0)};`,
     `pub const SHEEP_SLAUGHTER_FOOD_PER_HEAD: f64 = ${rustF64(b.livestock.sheep.slaughterFoodPerHead)};`,
     `pub const SHEEP_SLAUGHTER_PRESERVED_FOOD_PER_HEAD: f64 = ${rustF64(b.livestock.sheep.slaughterPreservedFoodPerHead)};`,
+    `pub const SHEEP_SLAUGHTER_HIDES_PER_HEAD: f64 = ${rustF64(b.livestock.sheep.slaughterHidesPerHead)};`,
     `pub const SHEEP_HAY_PER_UNSUPPORTED_HEAD: f64 = ${rustF64(b.livestock.sheep.hayPerUnsupportedHead ?? 0)};`,
     `pub const SHEEP_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE: f64 = ${rustF64(b.livestock.sheep.hayYieldPerReservedCapacityPerCycle ?? 0)};`,
     `pub const SHEEP_GRAIN_PER_UNSUPPORTED_HEAD: f64 = ${rustF64(b.livestock.sheep.grainPerUnsupportedHead)};`,
@@ -1535,6 +1540,7 @@ function generateRust(): string {
     `pub const SWINE_FOOD_PER_CYCLE_PER_HEAD: f64 = ${rustF64(b.livestock.swine.foodPerCyclePerHead)};`,
     `pub const SWINE_SLAUGHTER_FOOD_PER_HEAD: f64 = ${rustF64(b.livestock.swine.slaughterFoodPerHead)};`,
     `pub const SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD: f64 = ${rustF64(b.livestock.swine.slaughterPreservedFoodPerHead)};`,
+    `pub const SWINE_SLAUGHTER_HIDES_PER_HEAD: f64 = ${rustF64(b.livestock.swine.slaughterHidesPerHead)};`,
     `pub const SWINE_GRAIN_PER_UNSUPPORTED_HEAD: f64 = ${rustF64(b.livestock.swine.grainPerUnsupportedHead)};`,
     `pub const SWINE_BREEDING_PER_CYCLE: f64 = ${rustF64(b.livestock.swine.breedingPerCycle)};`,
     `pub const SWINE_HEALTH_RECOVERY_PER_CYCLE: f64 = ${rustF64(b.livestock.swine.healthRecoveryPerCycle)};`,
@@ -1992,8 +1998,7 @@ function generateTypeScript(): string {
     `export const AUTUMN_PASTURE_CAPACITY_MULTIPLIER = ${b.seasons.autumnPastureCapacityMultiplier};`,
     `export const WINTER_PASTURE_CAPACITY_MULTIPLIER = ${b.seasons.winterPastureCapacityMultiplier};`,
     `export const DROUGHT_PASTURE_CAPACITY_MULTIPLIER = ${b.seasons.droughtPastureCapacityMultiplier};`,
-    `export const SPRING_BREEDING_MULTIPLIER = ${b.seasons.springBreedingMultiplier};`,
-    `export const WINTER_BREEDING_MULTIPLIER = ${b.seasons.winterBreedingMultiplier};`,
+    `export const LIVESTOCK_SEASONAL_CONCEPTION_MULTIPLIER = ${b.seasons.seasonalConceptionMultiplier};`,
     `export const AUTUMN_ROAD_SPEED_MULTIPLIER = ${b.seasons.autumnRoadSpeedMultiplier};`,
     `export const WINTER_ROAD_SPEED_MULTIPLIER = ${b.seasons.winterRoadSpeedMultiplier};`,
     `export const WINTER_WATERMILL_THROUGHPUT_MULTIPLIER = ${b.seasons.winterWatermillThroughputMultiplier};`,
@@ -2419,6 +2424,8 @@ function generateTypeScript(): string {
     `export const APIARY_WAX_PER_HONEY_CYCLES = ${Math.max(1, Math.round(b.production.apiaryWaxPerHoneyCycles))};`,
     `export const APIARY_WAX_PER_HARVEST = ${b.production.apiaryWaxPerHarvest};`,
     `export const APIARY_SEASON_START_MONTH = ${b.production.apiarySeasonStartMonth};`,
+    `export const APIARY_ACCUMULATION_END_MONTH = ${b.production.apiaryAccumulationEndMonth};`,
+    `export const APIARY_HARVEST_START_MONTH = ${b.production.apiaryHarvestStartMonth};`,
     `export const APIARY_SEASON_END_MONTH = ${b.production.apiarySeasonEndMonth};`,
     `export const APIARY_WINTER_HONEY_REQUIRED = ${b.production.apiaryWinterHoneyRequired};`,
     `export const APIARY_CONSERVATIVE_HONEY_RESERVE = ${b.production.apiaryConservativeHoneyReserve};`,
@@ -2573,6 +2580,7 @@ function generateTypeScript(): string {
     `export const CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD = ${b.livestock.cattle.preservedFoodPerCyclePerHead ?? 0};`,
     `export const CATTLE_SLAUGHTER_FOOD_PER_HEAD = ${b.livestock.cattle.slaughterFoodPerHead};`,
     `export const CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD = ${b.livestock.cattle.slaughterPreservedFoodPerHead};`,
+    `export const CATTLE_SLAUGHTER_HIDES_PER_HEAD = ${b.livestock.cattle.slaughterHidesPerHead};`,
     `export const CATTLE_HAY_PER_UNSUPPORTED_HEAD = ${b.livestock.cattle.hayPerUnsupportedHead ?? 0};`,
     `export const CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE = ${b.livestock.cattle.hayYieldPerReservedCapacityPerCycle ?? 0};`,
     `export const CATTLE_GRAIN_PER_UNSUPPORTED_HEAD = ${b.livestock.cattle.grainPerUnsupportedHead};`,
@@ -2603,6 +2611,7 @@ function generateTypeScript(): string {
     `export const SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD = ${b.livestock.sheep.preservedFoodPerCyclePerHead ?? 0};`,
     `export const SHEEP_SLAUGHTER_FOOD_PER_HEAD = ${b.livestock.sheep.slaughterFoodPerHead};`,
     `export const SHEEP_SLAUGHTER_PRESERVED_FOOD_PER_HEAD = ${b.livestock.sheep.slaughterPreservedFoodPerHead};`,
+    `export const SHEEP_SLAUGHTER_HIDES_PER_HEAD = ${b.livestock.sheep.slaughterHidesPerHead};`,
     `export const SHEEP_HAY_PER_UNSUPPORTED_HEAD = ${b.livestock.sheep.hayPerUnsupportedHead ?? 0};`,
     `export const SHEEP_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE = ${b.livestock.sheep.hayYieldPerReservedCapacityPerCycle ?? 0};`,
     `export const SHEEP_GRAIN_PER_UNSUPPORTED_HEAD = ${b.livestock.sheep.grainPerUnsupportedHead};`,
@@ -2627,6 +2636,7 @@ function generateTypeScript(): string {
     `export const SWINE_FOOD_PER_CYCLE_PER_HEAD = ${b.livestock.swine.foodPerCyclePerHead};`,
     `export const SWINE_SLAUGHTER_FOOD_PER_HEAD = ${b.livestock.swine.slaughterFoodPerHead};`,
     `export const SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD = ${b.livestock.swine.slaughterPreservedFoodPerHead};`,
+    `export const SWINE_SLAUGHTER_HIDES_PER_HEAD = ${b.livestock.swine.slaughterHidesPerHead};`,
     `export const SWINE_GRAIN_PER_UNSUPPORTED_HEAD = ${b.livestock.swine.grainPerUnsupportedHead};`,
     `export const SWINE_BREEDING_PER_CYCLE = ${b.livestock.swine.breedingPerCycle};`,
     `export const SWINE_HEALTH_RECOVERY_PER_CYCLE = ${b.livestock.swine.healthRecoveryPerCycle};`,

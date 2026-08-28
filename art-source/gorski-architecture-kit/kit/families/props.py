@@ -94,42 +94,143 @@ def _tool_rack(builder: MeshBuilder, trade: str) -> None:
     builder.box((0.82, 0.08, 0.18), (0.0, -0.08, 0.32), color)
 
 
+def _extruded_xz_profile(
+    builder: MeshBuilder,
+    profile: list[tuple[float, float]],
+    y: float,
+    depth: float,
+    material: str,
+) -> None:
+    front = [(x, y - depth * 0.5, z) for x, z in profile]
+    back = [(x, y + depth * 0.5, z) for x, z in profile]
+    vertices = front + back
+    count = len(profile)
+    faces: list[tuple[int, ...]] = [tuple(range(count)), tuple(range(count * 2 - 1, count - 1, -1))]
+    for index in range(count):
+        following = (index + 1) % count
+        faces.append((index, following, count + following, count + index))
+    builder._append(vertices, faces, material)
+
+
+def _extruded_xy_profile(
+    builder: MeshBuilder,
+    profile: list[tuple[float, float]],
+    z: float,
+    thickness: float,
+    material: str,
+) -> None:
+    lower = [(x, y, z - thickness * 0.5) for x, y in profile]
+    upper = [(x, y, z + thickness * 0.5) for x, y in profile]
+    vertices = lower + upper
+    count = len(profile)
+    faces: list[tuple[int, ...]] = [tuple(range(count - 1, -1, -1)), tuple(range(count, count * 2))]
+    for index in range(count):
+        following = (index + 1) % count
+        faces.append((index, following, count + following, count + index))
+    builder._append(vertices, faces, material)
+
+
+def _round_loop(
+    builder: MeshBuilder,
+    center: tuple[float, float, float],
+    radius_x: float,
+    radius_z: float,
+    material: str,
+    tube_radius: float = 0.010,
+    segments: int = 14,
+) -> None:
+    points = [
+        (
+            center[0] + math.cos(math.tau * index / segments) * radius_x,
+            center[1],
+            center[2] + math.sin(math.tau * index / segments) * radius_z,
+        )
+        for index in range(segments)
+    ]
+    for index, point in enumerate(points):
+        builder.round_beam_between(point, points[(index + 1) % segments], tube_radius, material, 5)
+
+
 def _hunter_tool_rack(builder: MeshBuilder) -> None:
-    for x in (-1.05, 1.05):
-        builder.beam_between((x, 0.0, 0.0), (x * 0.96, 0.0, 2.18), 0.11, "timber_cut")
-    builder.beam_between((-1.12, 0.0, 2.02), (1.12, 0.0, 2.10), 0.10, "timber_cut")
+    # A light field rack is made from forked saplings, not perfectly machined
+    # square posts. The staggered crossbar and branch forks communicate its lash-up.
+    for side in (-1.0, 1.0):
+        bottom = (side * 1.03, 0.035 * side, 0.0)
+        middle = (side * 1.00, -0.01, 1.06)
+        top = (side * 0.95, 0.02 * side, 2.22 + 0.035 * side)
+        builder.round_beam_between(bottom, middle, 0.052, "timber_weathered", 7, 0.047)
+        builder.round_beam_between(middle, top, 0.047, "timber_weathered", 7, 0.038)
+        builder.round_beam_between(top, (side * 1.08, 0.01, 2.39 + 0.02 * side), 0.030, "timber_weathered", 6, 0.018)
+    builder.round_beam_between((-1.03, -0.015, 2.05), (1.02, 0.018, 2.13), 0.045, "timber_weathered", 8, 0.039)
+    for x in (-0.92, 0.92):
+        builder.round_beam_between((x - 0.06, -0.05, 2.01), (x + 0.07, 0.04, 2.14), 0.010, "rope", 5)
 
-    # Two recurved wooden bows and taut strings create a hunting-specific read
-    # without baking harvested animals or inventory state into the component.
-    for center_x, lean in ((-0.48, -0.035), (0.20, 0.045)):
-        top = (center_x - 0.10 + lean, -0.08, 1.90)
-        shoulder_top = (center_x - 0.22, -0.08, 1.55)
-        grip = (center_x, -0.08, 1.22)
-        shoulder_bottom = (center_x - 0.20, -0.08, 0.88)
-        bottom = (center_x - 0.08 - lean, -0.08, 0.55)
-        builder.beam_between(top, shoulder_top, 0.035, "timber_cut")
-        builder.beam_between(shoulder_top, grip, 0.035, "timber_cut")
-        builder.beam_between(grip, shoulder_bottom, 0.035, "timber_cut")
-        builder.beam_between(shoulder_bottom, bottom, 0.035, "timber_cut")
-        builder.beam_between(top, bottom, 0.015, "rope")
+    # Two recurved bows use many short tapered sapling sections so the limbs
+    # read as sprung curves instead of four angular sticks.
+    for center_x, lean in ((-0.48, -0.030), (0.15, 0.045)):
+        point_count = 11
+        points = [
+            (
+                center_x
+                - 0.205 * math.sin(math.pi * index / (point_count - 1))
+                + lean * (index / (point_count - 1) - 0.5),
+                -0.105 - 0.006 * math.sin(index * 1.25),
+                1.95 - index * (1.40 / (point_count - 1)),
+            )
+            for index in range(point_count)
+        ]
+        for index in range(len(points) - 1):
+            distance_from_grip = abs(index - (point_count - 2) * 0.5) / ((point_count - 2) * 0.5)
+            radius = 0.019 + (1.0 - distance_from_grip) * 0.006
+            builder.round_beam_between(points[index], points[index + 1], radius, "timber_cut", 7, radius * 0.88)
+        top = points[0]
+        grip = points[point_count // 2]
+        bottom = points[-1]
+        builder.round_beam_between(top, bottom, 0.0055, "rope", 5)
+        builder.round_beam_between(
+            (grip[0] - 0.008, grip[1] - 0.006, grip[2] - 0.070),
+            (grip[0] + 0.008, grip[1] - 0.006, grip[2] + 0.070),
+            0.021,
+            "leather",
+            7,
+            0.019,
+        )
 
-    # Compact iron snare frames hang at the opposite end of the rack.
-    for index, x in enumerate((0.67, 0.93)):
-        z = 1.26 - index * 0.16
-        builder.box((0.34, 0.035, 0.035), (x, -0.09, z + 0.17), "iron")
-        builder.box((0.34, 0.035, 0.035), (x, -0.09, z - 0.17), "iron")
-        builder.box((0.035, 0.035, 0.34), (x - 0.17, -0.09, z), "iron")
-        builder.box((0.035, 0.035, 0.34), (x + 0.17, -0.09, z), "iron")
-        builder.cylinder(0.018, 0.42, (x, -0.09, z + 0.50), "rope", 6, "z")
+    # Snares are readable cord loops rather than the old rigid iron squares.
+    for index, x in enumerate((0.62, 0.82, 0.96)):
+        _round_loop(builder, (x, -0.12 - index * 0.004, 1.29 - index * 0.12), 0.20 - index * 0.015, 0.25 - index * 0.015, "rope", 0.008)
+    builder.round_beam_between((0.80, -0.11, 1.63), (0.78, -0.11, 2.08), 0.009, "rope", 5)
+    builder.round_beam_between((0.77, -0.12, 0.82), (0.77, -0.12, 1.08), 0.012, "iron", 6, 0.008)
 
 
 def _camp_worktable(builder: MeshBuilder) -> None:
-    builder.box((1.85, 0.82, 0.13), (0.0, 0.0, 0.88), "timber_weathered", (0.0, 0.012, -0.018))
-    for x, y in ((-0.74, -0.30), (-0.74, 0.30), (0.74, -0.30), (0.74, 0.30)):
-        builder.beam_between((x, y, 0.0), (x * 0.96, y * 0.96, 0.84), 0.11, "oak_dark")
-    builder.box((1.26, 0.48, 0.08), (-0.12, 0.02, 1.00), "timber_cut", (0.0, 0.0, 0.025))
-    builder.box((0.46, 0.045, 0.07), (0.48, -0.17, 1.07), "iron", (0.0, 0.0, -0.16))
-    builder.box((0.16, 0.07, 0.08), (0.78, -0.22, 1.07), "timber_cut", (0.0, 0.0, -0.16))
+    # Four independently weathered boards and splayed trestles replace the clean
+    # single slab. Their small offsets read at close range without changing scale.
+    for index, y in enumerate((-0.315, -0.105, 0.105, 0.315)):
+        builder.box(
+            (1.92 - 0.035 * (index % 2), 0.205, 0.070 + 0.007 * (index % 3)),
+            (0.012 * (index - 1.5), y, 0.90 + 0.009 * math.sin(index * 1.7)),
+            "timber_weathered",
+            (0.0, 0.006 * (index - 1.5), -0.010 + 0.007 * index),
+        )
+    for x in (-0.70, 0.70):
+        builder.round_beam_between((x - 0.16, -0.34, 0.0), (x, -0.28, 0.86), 0.050, "oak_dark", 7, 0.043)
+        builder.round_beam_between((x + 0.16, 0.34, 0.0), (x, 0.28, 0.86), 0.050, "oak_dark", 7, 0.043)
+        builder.round_beam_between((x - 0.13, 0.34, 0.0), (x, 0.28, 0.86), 0.047, "oak_dark", 7, 0.041)
+        builder.round_beam_between((x + 0.13, -0.34, 0.0), (x, -0.28, 0.86), 0.047, "oak_dark", 7, 0.041)
+    builder.round_beam_between((-0.70, 0.0, 0.39), (0.70, 0.0, 0.41), 0.042, "oak_dark", 7)
+
+    builder.box((1.08, 0.48, 0.055), (-0.14, 0.015, 0.982), "timber_cut", (0.0, 0.008, 0.020))
+    # Field-dressing knife: tapered forged blade, short wooden scales, and one pin.
+    _extruded_xy_profile(
+        builder,
+        [(0.28, -0.17), (0.74, -0.21), (0.30, -0.10), (0.20, -0.11)],
+        1.035,
+        0.022,
+        "iron",
+    )
+    builder.round_beam_between((0.14, -0.105, 1.041), (-0.10, -0.065, 1.041), 0.035, "timber_cut", 7, 0.031)
+    builder.cylinder(0.008, 0.075, (0.02, -0.085, 1.043), "iron", 6, "z")
 
 
 def _signpost(builder: MeshBuilder, kind: str) -> None:
@@ -175,9 +276,20 @@ def _boat(builder: MeshBuilder) -> None:
 
 
 def _chopping_block(builder: MeshBuilder) -> None:
-    builder.cylinder(0.36, 0.72, (0.0, 0.0, 0.36), "timber_cut", 10, "z")
-    builder.box((0.08, 0.18, 0.82), (0.18, 0.0, 0.88), "timber_cut", (0.0, 0.28, 0.0))
-    builder.box((0.42, 0.08, 0.18), (-0.02, 0.0, 1.20), "iron", (0.0, 0.28, 0.0))
+    builder.cone(0.38, 0.335, 0.69, (0.0, 0.0, 0.345), "timber_weathered", 11)
+    builder.cylinder(0.315, 0.028, (0.0, 0.0, 0.698), "timber_cut", 11, "z")
+    # Curved haft and forged wedge head make the embedded hatchet legible from
+    # both settlement and close views; the blade edge is thinner than its eye.
+    builder.round_beam_between((0.01, 0.0, 0.73), (0.13, 0.0, 1.00), 0.031, "timber_cut", 7, 0.028)
+    builder.round_beam_between((0.13, 0.0, 1.00), (0.23, 0.0, 1.24), 0.028, "timber_cut", 7, 0.024)
+    _extruded_xz_profile(
+        builder,
+        [(0.08, 1.31), (0.07, 1.18), (0.21, 1.18), (0.34, 1.23), (0.24, 1.30)],
+        0.0,
+        0.064,
+        "iron",
+    )
+    builder.round_beam_between((0.17, -0.035, 1.22), (0.17, 0.035, 1.22), 0.021, "timber_cut", 7)
 
 
 def _bucket_pair(builder: MeshBuilder) -> None:

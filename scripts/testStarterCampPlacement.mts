@@ -427,6 +427,22 @@ assert.ok(
   hydratedYaw !== undefined && Math.abs(Math.abs(hydratedYaw) - Math.PI) < 0.01,
   'a building created before road hydration should turn its local +Z entrance toward the road',
 );
+const persistedYaw = 0.42;
+roadFacingMarkers.syncBuildings([{
+  ...roadsideSmithy,
+  yaw: persistedYaw,
+  constructionProgress: 0.6,
+}]);
+hydratingRoads.addRoadPath([
+  new THREE.Vector3(0, 0, -40),
+  new THREE.Vector3(0, 0, 40),
+]);
+roadFacingMarkers.refreshRoadFacingOrientations();
+const yawAfterRoadEdit = roadFacingMarkers.getRoadConnectionSources()[0]?.yaw;
+assert.ok(
+  yawAfterRoadEdit !== undefined && Math.abs(yawAfterRoadEdit - persistedYaw) < 1e-6,
+  'an authoritative placement yaw must survive later connected-road construction',
+);
 roadFacingMarkers.dispose();
 campMarkers.dispose();
 
