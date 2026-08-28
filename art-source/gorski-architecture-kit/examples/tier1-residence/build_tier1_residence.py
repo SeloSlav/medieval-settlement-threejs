@@ -4,6 +4,7 @@ import json
 import math
 from pathlib import Path
 
+import bmesh
 import bpy
 from mathutils import Vector
 
@@ -14,10 +15,11 @@ OUT_DIR = EXAMPLE_DIR / "out"
 RENDER_DIR = EXAMPLE_DIR / "renders"
 ATLAS_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_building_atlas_v1"
 OUT_BLEND = OUT_DIR / "tier1_residence_textured.blend"
+OUT_GLB = OUT_DIR / "tier1_residence_textured.glb"
 OUT_MANIFEST = OUT_DIR / "tier1_residence_assembly.json"
-OUT_RENDER = RENDER_DIR / "tier1_residence_hero.png"
-OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front.png"
-OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side.png"
+OUT_RENDER = RENDER_DIR / "tier1_residence_hero_structural_v3.png"
+OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_structural_v3.png"
+OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_structural_v3.png"
 
 WALL_BASE_Z = 0.35
 WALL_HEIGHT = 2.4
@@ -26,8 +28,11 @@ BUILDING_DEPTH = 7.0
 PITCH = math.radians(50.0)
 SLOPE_LENGTH = 4.2
 SLOPE_MAX = SLOPE_LENGTH / 2.0
-EAVE_Z = WALL_TOP_Z - 0.12
-RIDGE_Z = EAVE_Z + SLOPE_LENGTH * math.sin(PITCH)
+ROOF_BEARING_X = 2.0
+# The roof must meet the wall plate at the four-metre body edge. The additional
+# 0.70 m of horizontal roof projection is a true low eave, not an air gap.
+RIDGE_Z = WALL_TOP_Z + ROOF_BEARING_X * math.tan(PITCH)
+EAVE_Z = RIDGE_Z - SLOPE_LENGTH * math.sin(PITCH)
 
 
 def source_objects() -> dict[str, bpy.types.Object]:
@@ -332,6 +337,35 @@ def remap_instance_material(obj: bpy.types.Object, old_key: str, new_key: str) -
     for index, material in enumerate(obj.data.materials):
         if material is not None and material.name == expected:
             obj.data.materials[index] = atlas_material(new_key)
+
+
+def remove_instance_material_geometry(obj: bpy.types.Object, material_key: str) -> None:
+    """Remove a source material's closed geometry islands from a copied component."""
+    if obj.type != "MESH":
+        return
+    expected = f"T1_Atlas_{material_key}"
+    slot_indices = {
+        index
+        for index, material in enumerate(obj.data.materials)
+        if material is not None and material.name == expected
+    }
+    if not slot_indices:
+        return
+    mesh_data = obj.data
+    bm = bmesh.new()
+    bm.from_mesh(mesh_data)
+    faces = [face for face in bm.faces if face.material_index in slot_indices]
+    if faces:
+        bmesh.ops.delete(bm, geom=faces, context="FACES")
+        loose_edges = [edge for edge in bm.edges if not edge.link_faces]
+        if loose_edges:
+            bmesh.ops.delete(bm, geom=loose_edges, context="EDGES")
+        loose_vertices = [vertex for vertex in bm.verts if not vertex.link_edges]
+        if loose_vertices:
+            bmesh.ops.delete(bm, geom=loose_vertices, context="VERTS")
+        bm.to_mesh(mesh_data)
+        mesh_data.update()
+    bm.free()
 
 
 def phase_metric_uvs(
@@ -699,13 +733,52 @@ def roof_drop_interpolated(y: float, side: float = 0.0) -> float:
 
 
 def place_roof_supports() -> None:
-    # Sloped verge rafters and short projecting lookouts make the half-metre gable
-    # overhang visibly load-bearing instead of reading as a detached dark roof plane.
+    # Repeated rafter pairs bear on the existing continuous timber wall-head courses
+    # and meet at the ridge. Their local
+    # settlement matches the shingle skin at the same longitudinal station.
     eave_x = SLOPE_LENGTH * math.cos(PITCH)
-    rafter_z = (EAVE_Z + RIDGE_Z) / 2.0 - 0.11
+    common_rafter_stations = (0.05, 1.4, 2.8, 4.2, 5.6, 6.95)
+    rafter_clearance = 0.22
+    for station_index, y in enumerate(common_rafter_stations):
+        for side in (-1.0, 1.0):
+            side_name = "Left" if side < 0.0 else "Right"
+            rafter_x = side * eave_x / 2.0 - side * math.sin(PITCH) * rafter_clearance
+            rafter_z = (
+                (EAVE_Z + RIDGE_Z) / 2.0
+                - math.cos(PITCH) * rafter_clearance
+                + roof_drop_interpolated(y, side)
+            )
+            rafter = make_custom_part(
+                f"T1_CommonRafter_{station_index:02d}_{side_name}",
+                FRAMES,
+                [((0.0, 0.0, 0.0), (SLOPE_LENGTH - 0.05, 0.15, 0.17))],
+                "roof_support_dark",
+                (rafter_x, y, rafter_z),
+                0.0,
+                "assembly_custom_common_rafter",
+            )
+            rafter.rotation_euler[1] = side * PITCH
+            rafter["rotation_y_degrees"] = round(math.degrees(side * PITCH), 4)
+            PLACEMENTS[-1]["rotationYDegrees"] = round(math.degrees(side * PITCH), 4)
+
+    # Three tie beams connect opposing wall heads and make the roof thrust legible.
+    for station_index, y in enumerate((1.4, 3.5, 5.6)):
+        make_custom_part(
+            f"T1_RoofTieBeam_{station_index:02d}",
+            FRAMES,
+            [((0.0, 0.0, 0.0), (3.92, 0.16, 0.16))],
+            "oak_dark",
+            (0.0, y, WALL_TOP_Z - 0.18),
+            0.0,
+            "assembly_custom_roof_tie_beam",
+        )
+
+    # Sloped verge rafters and short projecting lookouts carry the half-metre gable
+    # overhang. They use the same bearing geometry as the common rafter pairs.
     for end_name, y in (("Front", -0.39), ("Rear", BUILDING_DEPTH + 0.39)):
         for side in (-1.0, 1.0):
             side_name = "Left" if side < 0.0 else "Right"
+            rafter_z = (EAVE_Z + RIDGE_Z) / 2.0 - 0.18 + roof_drop_interpolated(y, side)
             rafter = make_custom_part(
                 f"T1_VergeRafter_{end_name}_{side_name}",
                 FRAMES,
@@ -740,7 +813,9 @@ def place_roof() -> None:
     # Eight one-metre runs extend 0.50 m beyond each gable end. Each complete module is
     # settled as one unit so the imperfect silhouette never exposes the oak substrate.
     runs = tuple(("1m", float(index)) for index in range(8))
-    slope_courses = (("full", -0.9), ("half", 0.9), ("quarter", 1.8))
+    # Small downslope overlaps keep the dark panel substrate from reading as a
+    # misplaced batten where the authored full/half/quarter courses meet.
+    slope_courses = (("full", -0.9), ("half", 0.8), ("quarter", 1.68))
     for side in (-1.0, 1.0):
         side_name = "Left" if side < 0 else "Right"
         for run_index, (run_token, y) in enumerate(runs):
@@ -753,6 +828,10 @@ def place_roof() -> None:
                     (x, y, z),
                     rotation,
                 )
+                # The reusable panel includes a closed oak backing slab. This finished
+                # roof has its own authored rafters, so retaining that slab creates a
+                # false surface beam at every course junction.
+                remove_instance_material_geometry(panel, "oak_dark")
                 settle_roof_module(panel, run_index, side)
 
     eave_x = SLOPE_MAX * 2.0 * math.cos(PITCH)
@@ -795,18 +874,28 @@ def place_roof() -> None:
         -math.pi / 2.0,
     )
 
-    # The existing open smoke hood is retained but receives a split-shingle cap. Runtime owns
-    # emitted smoke; a later masonry chimney remains intentionally absent at this tier.
+    # A Tier-1 smoke exit is only a small dark opening in the shingle plane. Runtime owns
+    # the emitted smoke; no projecting hood, cap, or later-tier masonry chimney is authored.
     smoke_x = 0.72
-    smoke_z = RIDGE_Z - smoke_x * math.tan(PITCH) - 0.05
-    smoke_hood = place(
-        "roof_thatch_smoke_vent",
-        "T1_Shingled_Smoke_Hood",
+    smoke_y = 5.35
+    opening_relief = 0.09
+    smoke_surface_z = RIDGE_Z - smoke_x * math.tan(PITCH) + roof_drop_interpolated(smoke_y, 1.0)
+    smoke_opening = make_custom_part(
+        "T1_Roof_Smoke_Opening",
         ROOF,
-        (smoke_x, 5.35, smoke_z + roof_drop_interpolated(5.35, 1.0)),
-        math.pi / 2.0,
+        [((0.0, 0.0, 0.0), (0.30, 0.34, 0.012))],
+        "interior_dark",
+        (
+            smoke_x + math.sin(PITCH) * opening_relief,
+            smoke_y,
+            smoke_surface_z + math.cos(PITCH) * opening_relief,
+        ),
+        0.0,
+        "assembly_dark_roof_smoke_opening",
     )
-    remap_instance_material(smoke_hood, "thatch_dark", "shingles_aged")
+    smoke_opening.rotation_euler[1] = PITCH
+    smoke_opening["rotation_y_degrees"] = round(math.degrees(PITCH), 4)
+    PLACEMENTS[-1]["rotationYDegrees"] = round(math.degrees(PITCH), 4)
     place_roof_supports()
 
 
@@ -956,7 +1045,8 @@ def write_manifest() -> None:
             "moduleEdgeDropsMetres": list(ROOF_SETTLEMENT_KNOTS),
             "rightSlopeAdditionalEdgeDropsMetres": list(ROOF_RIGHT_SETTLEMENT_KNOTS),
             "maximumDropMetres": round(abs(min(ROOF_SETTLEMENT_KNOTS)) + abs(min(ROOF_RIGHT_SETTLEMENT_KNOTS)), 4),
-            "supports": "four sloped verge rafters and eight short projecting roof lookouts visibly carry the gable-end overhangs",
+            "bearingLine": "roof plane intersects the continuous wall-head bearing at x = +/- 2.0 m",
+            "supports": "continuous timber wall-head courses, six common rafter pairs, three tie beams, four verge rafters, and eight short projecting lookouts",
         },
         "historicalMaterialDecision": {
             "primaryBody": "weathered horizontal timber boarding on a dark moisture-stained fieldstone footing",
@@ -973,11 +1063,11 @@ def write_manifest() -> None:
                 "clay-straw-daub: coarser earthen infill with visible straw and restrained cracking",
             ],
         },
-        "smokeExit": "open timber smoke hood with a split-shingle cap; no later-tier masonry chimney",
+        "smokeExit": "small unadorned opening in the shingle plane; no projecting hood, cap, or later-tier masonry chimney",
         "canonicalState": "neutral shell; no inventory, activity, or occupancy-driven dressing",
         "fixedArchitecture": {
             "threshold": "weathered fieldstone entrance step",
-            "smokeHood": "physical timber hood with split-shingle cap only",
+            "smokeOpening": "small dark roof-plane aperture only",
         },
         "runtimeOwnedState": {
             "firewoodPile": "ResidenceMarkers.syncFirewoodPile controls visibility and fill scale from household firewood stock",
@@ -988,6 +1078,26 @@ def write_manifest() -> None:
         "placements": PLACEMENTS,
     }
     OUT_MANIFEST.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def export_glb() -> None:
+    bpy.ops.object.select_all(action="DESELECT")
+    export_objects = [
+        obj
+        for obj in bpy.data.objects
+        if obj.get("t1_instance") and not obj.get("preview_only")
+    ]
+    for obj in export_objects:
+        obj.select_set(True)
+    if export_objects:
+        bpy.context.view_layer.objects.active = export_objects[0]
+    bpy.ops.export_scene.gltf(
+        filepath=str(OUT_GLB),
+        export_format="GLB",
+        use_selection=True,
+        export_yup=True,
+        export_apply=True,
+    )
 
 
 def main() -> None:
@@ -1009,9 +1119,11 @@ def main() -> None:
     bpy.ops.file.pack_all()
     bpy.ops.wm.save_as_mainfile(filepath=str(OUT_BLEND))
     write_manifest()
+    export_glb()
     bpy.ops.render.render(write_still=True)
     render_alignment_views()
     print(f"T1_BLEND={OUT_BLEND}")
+    print(f"T1_GLB={OUT_GLB}")
     print(f"T1_RENDER={OUT_RENDER}")
     print(f"T1_PLACEMENTS={len(PLACEMENTS)}")
 

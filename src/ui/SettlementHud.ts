@@ -92,13 +92,13 @@ const SETTLEMENT_HUD_HTML = `
       <div class="noble-hud__identity">
         <div class="noble-hud__title-row">
           <strong class="noble-hud__name" data-noble-hud-name></strong>
-          <span
-            class="noble-hud__difficulty"
-            data-world-difficulty-badge
-            role="note"
-            tabindex="0"
-          ></span>
         </div>
+        <span
+          class="noble-hud__difficulty"
+          data-world-difficulty-badge
+          role="note"
+          tabindex="0"
+        ></span>
         <div class="settlement-hud__people-card settlement-hud__resource-card noble-hud__gold-card" data-hud-card data-resource-card="gold">
           <div class="settlement-hud__stat settlement-hud__stat--gold noble-hud__gold" tabindex="0" data-resource="gold" aria-describedby="settlement-gold-card">
             <span class="settlement-hud__label">Treasury</span>
