@@ -1,0 +1,147 @@
+from __future__ import annotations
+
+import math
+
+from .. import spec
+from ..core import MeshBuilder, Registry
+from .common import add
+
+
+def register(registry: Registry) -> None:
+    family = "openings"
+    for contract in ("window_tiny", "window_small", "window_domestic", "window_shop", "louver"):
+        for treatment in ("plain", "shuttered"):
+            piece_id = f"opening_{contract}_{treatment}"
+            add(
+                registry, piece_id, family,
+                f"{contract.replace('_', ' ').title()} {treatment}",
+                ("opening", "window", contract, treatment, "insert"),
+                lambda b, c=contract, t=treatment: _window(b, c, t),
+                seams=("y=0", "z=sill"),
+                opening_contract=contract,
+                triangle_budget=4_400,
+                bevel=0.012,
+            )
+
+    add(
+        registry, "opening_window_lancet_stone", family, "Stone lancet window insert",
+        ("opening", "window", "lancet", "church", "insert"),
+        _lancet,
+        seams=("y=0", "z=sill"),
+        opening_contract="window_lancet",
+        triangle_budget=4_800,
+        bevel=0.01,
+    )
+
+    for contract in ("door_service", "door_house", "door_barn", "gate_cart"):
+        for leaf in (("single",) if contract != "door_barn" and contract != "gate_cart" else ("double", "open-double")):
+            piece_id = f"opening_{contract}_{leaf}"
+            add(
+                registry, piece_id, family,
+                f"{contract.replace('_', ' ').title()} {leaf}",
+                ("opening", "door", contract, leaf, "insert"),
+                lambda b, c=contract, l=leaf: _door(b, c, l),
+                seams=("y=0", "z=0"),
+                opening_contract=contract,
+                triangle_budget=4_600,
+                bevel=0.012,
+            )
+
+    add(registry, "opening_stable_half_door", family, "Stable split half-door", ("opening", "door", "stable", "insert"), _stable_door, opening_contract="door_house")
+    add(registry, "opening_church_arch_door", family, "Church arched oak door", ("opening", "door", "church", "arched", "insert"), _church_door, opening_contract="door_house", triangle_budget=5_200)
+    add(registry, "opening_barn_loft_hatch", family, "Barn loft hatch", ("opening", "hatch", "barn", "insert"), _loft_hatch, opening_contract="window_shop")
+    add(registry, "opening_cellar_vent", family, "Stone cellar vent", ("opening", "vent", "cellar", "insert"), _cellar_vent, opening_contract="window_tiny")
+
+
+def _frame(builder: MeshBuilder, width: float, height: float, sill: float, member: float, material: str = "oak_dark") -> None:
+    builder.box((member, spec.OPENING_REVEAL, height), (-width * 0.5 - member * 0.5, -spec.OPENING_REVEAL * 0.5, sill + height * 0.5), material)
+    builder.box((member, spec.OPENING_REVEAL, height), (width * 0.5 + member * 0.5, -spec.OPENING_REVEAL * 0.5, sill + height * 0.5), material)
+    builder.box((width + member * 2, spec.OPENING_REVEAL, member), (0.0, -spec.OPENING_REVEAL * 0.5, sill + height + member * 0.5), material)
+    builder.box((width + member * 2.25, spec.OPENING_REVEAL * 1.3, member * 0.72), (0.0, -spec.OPENING_REVEAL * 0.62, sill - member * 0.36), material)
+
+
+def _window(builder: MeshBuilder, contract: str, treatment: str) -> None:
+    opening = spec.OPENINGS[contract]
+    width = opening["width"] - spec.INSERT_CLEARANCE * 2
+    height = opening["height"] - spec.INSERT_CLEARANCE * 2
+    sill = opening["sill"] + spec.INSERT_CLEARANCE
+    member = 0.09 if contract != "window_shop" else 0.12
+    _frame(builder, width, height, sill, member)
+    if contract == "louver":
+        for index in range(4):
+            z = sill + height * (index + 0.5) / 4
+            builder.box((width - 0.08, 0.055, 0.075), (0.0, -0.035, z), "timber_weathered", (0.18, 0.0, 0.0))
+    else:
+        builder.box((width - member * 0.65, 0.026, height - member * 0.65), (0.0, 0.008, sill + height * 0.5), "glass")
+    if treatment == "shuttered":
+        shutter_width = width * 0.44
+        for side in (-1.0, 1.0):
+            x = side * (width * 0.5 + shutter_width * 0.56)
+            builder.box((shutter_width, 0.07, height), (x, -0.035, sill + height * 0.5), "timber_weathered", (0.0, 0.0, side * 0.055))
+            for index in range(3):
+                z = sill + height * (index + 1) / 4
+                builder.box((shutter_width - 0.06, 0.078, 0.045), (x, -0.075, z), "oak_dark")
+
+
+def _lancet(builder: MeshBuilder) -> None:
+    opening = spec.OPENINGS["window_lancet"]
+    width = opening["width"] - 0.05
+    height = opening["height"] - 0.05
+    sill = opening["sill"] + 0.025
+    builder.arch_ring(width + 0.24, height + 0.12, 0.16, 0.12, "limestone_warm", 11)
+    builder.box((width, 0.028, height - width * 0.48), (0.0, 0.015, sill + (height - width * 0.48) * 0.5), "glass")
+    builder.gable_prism(width, 0.028, width * 0.5, sill + height - width * 0.5, "glass")
+
+
+def _door(builder: MeshBuilder, contract: str, leaf: str) -> None:
+    opening = spec.OPENINGS[contract]
+    width = opening["width"] - 0.05
+    height = opening["height"] - 0.04
+    member = 0.12 if width < 1.5 else 0.18
+    _frame(builder, width, height, 0.02, member)
+    panels = 2 if leaf in ("double", "open-double") else 1
+    for panel in range(panels):
+        panel_width = width / panels
+        x = -width * 0.5 + panel_width * (panel + 0.5)
+        yaw = 0.0
+        y = 0.018
+        if leaf == "open-double":
+            yaw = (-1 if panel == 0 else 1) * math.radians(34)
+            y = -0.14
+        builder.box((panel_width - 0.028, 0.075, height - 0.04), (x, y, height * 0.5 + 0.02), "timber_weathered", (0.0, 0.0, yaw))
+        plank_count = max(2, round(panel_width / 0.24))
+        for index in range(1, plank_count):
+            seam_x = x - panel_width * 0.5 + panel_width * index / plank_count
+            builder.box((0.012, 0.082, height - 0.10), (seam_x, y - 0.043, height * 0.5 + 0.02), "oak_dark")
+        for z in (height * 0.25, height * 0.72):
+            builder.box((panel_width * 0.38, 0.032, 0.055), (x + (-0.18 if panel == 0 else 0.18) * panel_width, y - 0.065, z), "iron")
+    builder.cylinder(0.035, 0.08, (width * 0.28, -0.075, height * 0.50), "iron", 8, "y")
+
+
+def _stable_door(builder: MeshBuilder) -> None:
+    opening = spec.OPENINGS["door_house"]
+    width = opening["width"] - 0.05
+    height = opening["height"] - 0.04
+    _frame(builder, width, height, 0.02, 0.12)
+    for z in (height * 0.25, height * 0.75):
+        builder.box((width - 0.05, 0.08, height * 0.47), (0.0, 0.02, z), "timber_weathered")
+    builder.box((width - 0.04, 0.09, 0.08), (0.0, -0.03, height * 0.50), "oak_dark")
+
+
+def _church_door(builder: MeshBuilder) -> None:
+    opening = spec.OPENINGS["door_house"]
+    builder.arch_ring(opening["width"] + 0.34, opening["height"] + 0.20, 0.20, 0.15, "limestone_warm", 11)
+    _door(builder, "door_house", "single")
+
+
+def _loft_hatch(builder: MeshBuilder) -> None:
+    opening = spec.OPENINGS["window_shop"]
+    _frame(builder, opening["width"] - 0.05, opening["height"] - 0.05, opening["sill"], 0.11)
+    builder.box((opening["width"] - 0.12, 0.08, opening["height"] - 0.12), (0.0, 0.02, opening["sill"] + opening["height"] * 0.5), "timber_weathered")
+
+
+def _cellar_vent(builder: MeshBuilder) -> None:
+    opening = spec.OPENINGS["window_tiny"]
+    _frame(builder, opening["width"], opening["height"], opening["sill"], 0.10, "limestone_warm")
+    for x in (-0.12, 0.0, 0.12):
+        builder.box((0.025, 0.07, opening["height"] - 0.10), (x, -0.04, opening["sill"] + opening["height"] * 0.5), "iron")

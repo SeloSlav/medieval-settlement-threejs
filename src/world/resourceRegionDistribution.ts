@@ -10,6 +10,7 @@ export type ResourceTerritory = {
   centerX: number;
   centerZ: number;
   plannedNodeCount: number;
+  plannedRichNodeCount: number;
 };
 
 export type ResourcePlacementTarget = {
@@ -22,6 +23,8 @@ export type ResourcePlacementTarget = {
 export type ResourceRegionDistribution = {
   territories: readonly ResourceTerritory[];
   targets: readonly ResourcePlacementTarget[];
+  richTargets: readonly ResourcePlacementTarget[];
+  ordinaryTargets: readonly ResourcePlacementTarget[];
   smallRegionSide: number;
 };
 
@@ -31,41 +34,65 @@ type Point = { x: number; z: number };
  * Builds soft, small-map-sized resource territories. Medium and large maps do
  * not enforce five nodes inside hard borders: each territory receives four
  * baseline targets and competes for the remaining slots, then terrain-aware
- * placement may move a site away from its target. The map-wide average remains
- * five nodes per small-map area without creating a rigid resource grid.
+ * placement may move a site away from its target. Rich targets are allocated
+ * in balanced territory rounds before resource families receive them. This
+ * keeps expansion-worthy rolls distributed without creating a rigid grid.
  */
 export function createResourceRegionDistribution(
   settings: WorldGenerationSettings,
   playableHalf: number,
   totalNodeCount: number,
+  richNodeCount: number,
 ): ResourceRegionDistribution {
   const territoryCount = MAP_SIZE_PRESETS[settings.mapSize].smallMapAreas;
   const smallRegionSide = playableHalf * 2 / Math.sqrt(territoryCount);
   const rng = mulberry32(deriveSubSeed(settings.seed, 'resource-territories'));
   const centers = createTerritoryCenters(territoryCount, playableHalf, smallRegionSide, rng);
   const counts = allocateTerritoryCounts(territoryCount, totalNodeCount, rng);
+  const richCounts = allocateBalancedTerritoryCounts(counts, richNodeCount, rng);
   const targetLimit = playableHalf - Math.max(18, smallRegionSide * 0.08);
-  const searchRadius = smallRegionSide * 0.46;
-  const targets: ResourcePlacementTarget[] = [];
+  const ordinarySearchRadius = smallRegionSide * 0.34;
+  const richSearchRadius = territoryCount === 1
+    ? ordinarySearchRadius
+    : smallRegionSide * 0.24;
+  const richTargetBuckets = centers.map(() => [] as ResourcePlacementTarget[]);
+  const ordinaryTargetBuckets = centers.map(() => [] as ResourcePlacementTarget[]);
 
   for (let territoryIndex = 0; territoryIndex < centers.length; territoryIndex++) {
     const center = centers[territoryIndex];
     for (let index = 0; index < counts[territoryIndex]; index++) {
+      const rich = index < richCounts[territoryIndex];
       const point = territoryCount === 1
         ? sampleAcrossSmallMap(rng, targetLimit)
-        : sampleAroundTerritory(rng, center, smallRegionSide, targetLimit);
-      targets.push({ territoryIndex, ...point, searchRadius });
+        : sampleAroundTerritory(
+            rng,
+            center,
+            smallRegionSide,
+            targetLimit,
+            rich ? 0.2 : 0.26,
+          );
+      (rich ? richTargetBuckets[territoryIndex] : ordinaryTargetBuckets[territoryIndex]).push({
+        territoryIndex,
+        ...point,
+        searchRadius: rich ? richSearchRadius : ordinarySearchRadius,
+      });
     }
   }
+  const richTargets = interleaveTerritoryTargets(richTargetBuckets, rng);
+  const ordinaryTargets = interleaveTerritoryTargets(ordinaryTargetBuckets, rng);
+  const targets = [...richTargets, ...ordinaryTargets];
   shuffleInPlace(targets, rng);
 
   return {
     smallRegionSide,
+    richTargets,
+    ordinaryTargets,
     territories: centers.map((center, index) => ({
       index,
       centerX: center.x,
       centerZ: center.z,
       plannedNodeCount: counts[index],
+      plannedRichNodeCount: richCounts[index],
     })),
     targets,
   };
@@ -133,6 +160,36 @@ function allocateTerritoryCounts(
   return counts;
 }
 
+function allocateBalancedTerritoryCounts(
+  capacities: readonly number[],
+  requestedCount: number,
+  random: () => number,
+): number[] {
+  const counts = capacities.map(() => 0);
+  const target = Math.max(
+    0,
+    Math.min(
+      capacities.reduce((sum, capacity) => sum + capacity, 0),
+      Math.floor(requestedCount),
+    ),
+  );
+
+  for (let allocated = 0; allocated < target; allocated++) {
+    const eligible = counts
+      .map((count, index) => ({ count, index }))
+      .filter(({ count, index }) => count < capacities[index]);
+    const lowestCount = eligible.reduce(
+      (lowest, entry) => Math.min(lowest, entry.count),
+      Number.POSITIVE_INFINITY,
+    );
+    const leastFilled = eligible.filter((entry) => entry.count === lowestCount);
+    const selected = leastFilled[Math.floor(random() * leastFilled.length)];
+    counts[selected.index] += 1;
+  }
+
+  return counts;
+}
+
 function createTerritoryCenters(
   territoryCount: number,
   playableHalf: number,
@@ -186,9 +243,10 @@ function sampleAroundTerritory(
   center: Point,
   smallRegionSide: number,
   limit: number,
+  radialScale: number,
 ): Point {
   const angle = random() * Math.PI * 2;
-  const radius = Math.sqrt(random()) * smallRegionSide * 0.31;
+  const radius = Math.sqrt(random()) * smallRegionSide * radialScale;
   return {
     x: clamp(center.x + Math.cos(angle) * radius, -limit, limit),
     z: clamp(center.z + Math.sin(angle) * radius, -limit, limit),
@@ -200,6 +258,24 @@ function shuffleInPlace<T>(values: T[], random: () => number): void {
     const swapIndex = Math.floor(random() * (index + 1));
     [values[index], values[swapIndex]] = [values[swapIndex], values[index]];
   }
+}
+
+function interleaveTerritoryTargets(
+  buckets: ResourcePlacementTarget[][],
+  random: () => number,
+): ResourcePlacementTarget[] {
+  const targets: ResourcePlacementTarget[] = [];
+  while (buckets.some((bucket) => bucket.length > 0)) {
+    const territoryOrder = buckets
+      .map((bucket, territoryIndex) => ({ bucket, territoryIndex }))
+      .filter(({ bucket }) => bucket.length > 0);
+    shuffleInPlace(territoryOrder, random);
+    for (const { bucket } of territoryOrder) {
+      const target = bucket.shift();
+      if (target) targets.push(target);
+    }
+  }
+  return targets;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

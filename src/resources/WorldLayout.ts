@@ -72,30 +72,72 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     normalizedSettings,
     dims.generationHalf,
     resourcePlan.totalResourceNodes,
+    resourcePlan.richResourceNodeCount,
   );
-  let resourceTargetCursor = 0;
-  const takeResourceTargets = (count: number): readonly ResourcePlacementTarget[] => {
-    const targets = resourceRegionDistribution.targets.slice(
-      resourceTargetCursor,
-      resourceTargetCursor + count,
+  let richTargetCursor = 0;
+  let ordinaryTargetCursor = 0;
+  const takeResourceTargets = (
+    richCount: number,
+    ordinaryCount: number,
+    richFirst: boolean,
+  ): readonly ResourcePlacementTarget[] => {
+    const richTargets = resourceRegionDistribution.richTargets.slice(
+      richTargetCursor,
+      richTargetCursor + richCount,
     );
-    resourceTargetCursor += count;
-    return targets;
+    const ordinaryTargets = resourceRegionDistribution.ordinaryTargets.slice(
+      ordinaryTargetCursor,
+      ordinaryTargetCursor + ordinaryCount,
+    );
+    richTargetCursor += richCount;
+    ordinaryTargetCursor += ordinaryCount;
+    return richFirst
+      ? [...richTargets, ...ordinaryTargets]
+      : [...ordinaryTargets, ...richTargets];
   };
   const quarryPlacementTargets = takeResourceTargets(
-    resourcePlan.richStoneDepositCount + resourcePlan.ordinaryQuarryCount,
-  );
-  const clayPlacementTargets = takeResourceTargets(
-    resourcePlan.richClayDepositCount + resourcePlan.ordinaryClayDepositCount,
+    resourcePlan.richStoneDepositCount,
+    resourcePlan.ordinaryQuarryCount,
+    true,
   );
   const mineralPlacementTargets = takeResourceTargets(
-    resourcePlan.richMineralDepositCount + resourcePlan.ordinaryMineralDepositCount,
+    resourcePlan.richMineralDepositCount,
+    resourcePlan.ordinaryMineralDepositCount,
+    true,
+  );
+  const gamePlacementTargets = takeResourceTargets(
+    resourcePlan.foragingRichNodeCounts.game,
+    resourcePlan.foragingNodeCounts.game - resourcePlan.foragingRichNodeCounts.game,
+    false,
+  );
+  const berryPlacementTargets = takeResourceTargets(
+    resourcePlan.foragingRichNodeCounts.berries,
+    resourcePlan.foragingNodeCounts.berries - resourcePlan.foragingRichNodeCounts.berries,
+    false,
+  );
+  const mushroomPlacementTargets = takeResourceTargets(
+    resourcePlan.foragingRichNodeCounts.mushrooms,
+    resourcePlan.foragingNodeCounts.mushrooms - resourcePlan.foragingRichNodeCounts.mushrooms,
+    false,
+  );
+  // Alluvial clay and fish must follow generated water. Giving the more mobile
+  // families the first balanced territory round prevents those constraints
+  // from collapsing an otherwise well-distributed set of rich rolls.
+  const clayPlacementTargets = takeResourceTargets(
+    resourcePlan.richClayDepositCount,
+    resourcePlan.ordinaryClayDepositCount,
+    true,
+  );
+  const fishPlacementTargets = takeResourceTargets(
+    resourcePlan.foragingRichNodeCounts.fish,
+    resourcePlan.foragingNodeCounts.fish - resourcePlan.foragingRichNodeCounts.fish,
+    true,
   );
   const foragingPlacementTargets = {
-    game: takeResourceTargets(resourcePlan.foragingNodeCounts.game),
-    berries: takeResourceTargets(resourcePlan.foragingNodeCounts.berries),
-    mushrooms: takeResourceTargets(resourcePlan.foragingNodeCounts.mushrooms),
-    fish: takeResourceTargets(resourcePlan.foragingNodeCounts.fish),
+    game: gamePlacementTargets,
+    berries: berryPlacementTargets,
+    mushrooms: mushroomPlacementTargets,
+    fish: fishPlacementTargets,
   };
   const riverLayout = RiverLayout.create({
     bounds: riverBounds,

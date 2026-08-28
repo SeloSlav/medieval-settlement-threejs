@@ -69,19 +69,35 @@ for (const mapSize of mapSizes) {
   const dimensions = resolveWorldDimensions(mapSize);
   const territoryCount = mapSize === 'small' ? 1 : mapSize === 'medium' ? 4 : 8;
   const totalNodeCount = territoryCount * 5;
+  const richNodeCount = territoryCount * 2;
   const distributions = Array.from({ length: 128 }, (_, index) =>
     createResourceRegionDistribution(
       settings({ seed: index + 1, mapSize }),
       dimensions.generationHalf,
       totalNodeCount,
+      richNodeCount,
     )
   );
   for (const distribution of distributions) {
     assert.equal(distribution.territories.length, territoryCount);
     assert.equal(distribution.targets.length, totalNodeCount);
+    assert.equal(distribution.richTargets.length, richNodeCount);
+    assert.equal(distribution.ordinaryTargets.length, totalNodeCount - richNodeCount);
     assert.equal(
       distribution.territories.reduce((sum, territory) => sum + territory.plannedNodeCount, 0),
       totalNodeCount,
+    );
+    assert.ok(
+      distribution.territories.every((territory) => territory.plannedRichNodeCount === 2),
+      `${mapSize} must plan two rich rolls in every small-map-sized territory`,
+    );
+    assert.ok(
+      distribution.territories.every((territory) =>
+        distribution.richTargets.filter((target) =>
+          target.territoryIndex === territory.index
+        ).length === 2
+      ),
+      `${mapSize} rich targets must retain their per-territory allocation`,
     );
     assert.ok(distribution.targets.every((target) =>
       Math.abs(target.x) <= dimensions.generationHalf
@@ -107,6 +123,7 @@ for (const mapSize of mapSizes) {
       settings({ seed: 1, mapSize }),
       dimensions.generationHalf,
       totalNodeCount,
+      richNodeCount,
     ),
     `${mapSize} regional targets must remain deterministic for a saved seed`,
   );
@@ -121,14 +138,12 @@ for (const mapSize of ['medium', 'large'] as const) {
     ];
     const actualTerritoryCounts = regionalLayout.resourceRegionDistribution.territories
       .map(() => 0);
+    const actualRichTerritoryCounts = regionalLayout.resourceRegionDistribution.territories
+      .map(() => 0);
     for (const node of regionalNodes) {
-      const nearestTerritory = regionalLayout.resourceRegionDistribution.territories
-        .map((territory, index) => ({
-          index,
-          distance: Math.hypot(node.x - territory.centerX, node.z - territory.centerZ),
-        }))
-        .sort((a, b) => a.distance - b.distance)[0];
-      actualTerritoryCounts[nearestTerritory.index] += 1;
+      const territoryIndex = nearestResourceTerritoryIndex(regionalLayout, node.x, node.z);
+      actualTerritoryCounts[territoryIndex] += 1;
+      if (isRichRegionalNode(node)) actualRichTerritoryCounts[territoryIndex] += 1;
     }
     assert.ok(
       actualTerritoryCounts.every((count) => count >= 2 && count <= 9),
@@ -137,6 +152,35 @@ for (const mapSize of ['medium', 'large'] as const) {
     assert.equal(
       actualTerritoryCounts.reduce((sum, count) => sum + count, 0),
       regionalLayout.resourcePlan.totalResourceNodes,
+    );
+    assert.ok(
+      actualRichTerritoryCounts.every((count) => count >= 1),
+      `${mapSize}/seed-${seed} must physically place a rich roll in every territory`,
+    );
+  }
+}
+
+for (const mapSize of ['medium', 'large'] as const) {
+  for (const seed of [1, 7, 13, 19, 31, 47, 63]) {
+    const delniceLayout = createWorldLayout(applyTerrainPreset(settings({
+      seed,
+      mapSize,
+      resourceAbundance: 100,
+      resourceVariety: 100,
+    }), 'delnice_meadow'));
+    const richTerritoryCounts = delniceLayout.resourceRegionDistribution.territories
+      .map(() => 0);
+    const richNodes = [
+      ...WorldLayoutRegistry.fromWorldLayout(delniceLayout).definitionList
+        .filter((node) => node.isRich === true),
+      ...delniceLayout.clayDepositLayout.sites.filter((site) => site.kind === 'rich'),
+    ];
+    for (const node of richNodes) {
+      richTerritoryCounts[nearestResourceTerritoryIndex(delniceLayout, node.x, node.z)] += 1;
+    }
+    assert.ok(
+      richTerritoryCounts.every((count) => count >= 1),
+      `Delnice ${mapSize}/seed-${seed} must not cluster all rich rolls away from a sub-map`,
     );
   }
 }
@@ -591,4 +635,23 @@ function dryFishingCampFootprint(
     )) return false;
   }
   return true;
+}
+
+function nearestResourceTerritoryIndex(
+  layout: ReturnType<typeof createWorldLayout>,
+  x: number,
+  z: number,
+): number {
+  return layout.resourceRegionDistribution.territories
+    .map((territory, index) => ({
+      index,
+      distance: Math.hypot(x - territory.centerX, z - territory.centerZ),
+    }))
+    .sort((a, b) => a.distance - b.distance)[0].index;
+}
+
+function isRichRegionalNode(
+  node: { isRich?: boolean; kind?: string },
+): boolean {
+  return node.isRich === true || node.kind === 'rich';
 }
