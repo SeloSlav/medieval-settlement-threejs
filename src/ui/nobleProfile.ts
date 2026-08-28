@@ -86,11 +86,11 @@ export const NOBLES = [
     portrait: '/assets/ui/noble-setup/portraits/vuk-frankapan.webp',
   },
   {
-    id: 'doroteja-frankapan-slunjska',
-    name: 'Doroteja Frankapan Slunjska',
-    title: 'Slunj Frankapan noblewoman, widow of Stjepan Blagajski, and estate administrator',
-    years: 'c. 1550',
-    portrait: '/assets/ui/noble-setup/portraits/doroteja-frankapan-slunjska.webp',
+    id: 'daniciceva-udovica',
+    name: 'Daničićeva udovica',
+    title: 'Senj Uskok expedition leader and organizer',
+    years: 'fl. 1571',
+    portrait: '/assets/ui/noble-setup/portraits/daniciceva-udovica.webp',
   },
   {
     id: 'filipa-lacea',

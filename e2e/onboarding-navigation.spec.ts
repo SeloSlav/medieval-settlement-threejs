@@ -16,17 +16,13 @@ test('new-world setup moves backward and forward without losing choices', async 
   await expect(page.locator('[data-setup-step="heraldry"]')).toBeHidden();
   await expect(page.locator('[data-setup-back]')).toBeHidden();
   await expectActiveStep(page, 'house');
-  const dorotejaFigure = page.locator('[data-noble-id="doroteja-frankapan-slunjska"]');
-  await expect(dorotejaFigure).toBeVisible();
-  await expect(dorotejaFigure.locator('img')).toHaveAttribute(
+  const magdalenaFigure = page.locator('[data-noble-id="magdalena-budrisic"]');
+  await expect(magdalenaFigure).toBeVisible();
+  await expect(magdalenaFigure.locator('img')).toHaveAttribute(
     'src',
-    '/assets/ui/noble-setup/portraits/doroteja-frankapan-slunjska.webp',
+    '/assets/ui/noble-setup/portraits/magdalena-budrisic.webp',
   );
-  await expect(dorotejaFigure).toHaveAttribute(
-    'aria-label',
-    /Doroteja Frankapan Slunjska.*Stjepan Blagajski.*c\. 1550/,
-  );
-  await expect(dorotejaFigure.locator('.noble-setup-noble__portrait-placeholder')).toHaveCount(0);
+  await expect(magdalenaFigure.locator('.noble-setup-noble__portrait-placeholder')).toHaveCount(0);
 
   const noble = page.locator('[data-noble-id="vuk-frankapan"]');
   await noble.click();

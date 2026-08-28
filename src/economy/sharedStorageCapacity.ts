@@ -12,7 +12,9 @@ import {
 type BuildingInventory = Pick<BuildingState, 'kind'>
   & Partial<Record<ResourceKind, number>>;
 
-const STORED_RESOURCE_KINDS_BY_BUILDING = Object.fromEntries(
+const STORED_RESOURCE_KINDS_BY_BUILDING: Partial<
+  Record<BuildingKind, readonly ResourceKind[]>
+> = Object.fromEntries(
   Object.entries(BUILDING_STORAGE_CAPS).map(([kind, rawCaps]) => {
     const caps = rawCaps as Record<string, number | undefined>;
     return [kind, RESOURCE_KINDS.filter((resource) => {
@@ -20,7 +22,7 @@ const STORED_RESOURCE_KINDS_BY_BUILDING = Object.fromEntries(
       return storageKey != null && (caps[storageKey] ?? 0) > 0;
     })];
   }),
-) as Record<BuildingKind, readonly ResourceKind[]>;
+);
 
 export function buildingSharedStorageCapacity(kind: BuildingKind): number | null {
   const caps: StorageCaps = BUILDING_STORAGE_CAPS[kind];
@@ -33,7 +35,7 @@ export function buildingSharedStorageCapacity(kind: BuildingKind): number | null
 export function buildingStoredResourceTotal(building: BuildingInventory): number {
   const inventory = building as Partial<Record<ResourceKind, number>>;
   let total = 0;
-  for (const kind of STORED_RESOURCE_KINDS_BY_BUILDING[building.kind]) {
+  for (const kind of STORED_RESOURCE_KINDS_BY_BUILDING[building.kind] ?? []) {
     const value = inventory[kind];
     if (Number.isFinite(value) && (value ?? 0) > 0) {
       total += value as number;

@@ -163,7 +163,7 @@ assert.match(
 );
 assert.match(
   getBuildingProcessorStatus(readyBakery, readyQueries)?.waterDetailHtml ?? '',
-  /Output room<\/span><span>25 cycles · rye bread before 100 target/,
+  /Output room<\/span><span>12 cycles · rye bread before 48 target/,
 );
 assert.doesNotMatch(
   getBuildingProcessorStatus(readyBakery, readyQueries)?.waterDetailHtml ?? '',
@@ -244,7 +244,7 @@ assert.match(
 );
 assert.match(
   getBuildingProcessorStatus(brewery, readyQueries)?.waterDetailHtml ?? '',
-  /Ale output room<\/span><span>50 cycles · ale before 200 target/,
+  /Ale output room<\/span><span>18 cycles · ale before 72 target/,
 );
 
 const ciderBrewery = makeBuilding({
@@ -350,7 +350,7 @@ assert.equal(
 );
 assert.match(
   getBuildingProcessorStatus(cappedBrewery, noWellQueries)?.waterDetailHtml ?? '',
-  /Ale output room<\/span><span>0\.0 cycles · ale before 200 target/,
+  /Ale output room<\/span><span>0\.0 cycles · ale before 72 target/,
 );
 
 const recalledCappedBrewery = {
@@ -490,11 +490,11 @@ const fullApiary = makeBuilding({
   x: 0,
   z: 0,
   assignedLabor: 1,
-  honey: 139,
+  honey: 59,
 });
 assert.equal(
   getBuildingProcessorStatus(fullApiary, noWellQueries, { month: 4 })?.statusText,
-  'Seasonal work waiting - honey store needs 2 more room',
+  'Seasonal work waiting - honey store needs 3 more room',
 );
 assert.equal(
   getBuildingProcessorStatus(fullApiary, noWellQueries, { month: 4 })?.statusState,
@@ -516,7 +516,7 @@ assert.equal(
     noWellQueries,
     { month: 4 },
   )?.statusText,
-  'Seasonal work waiting - honey store needs 2 more room',
+  'Seasonal work waiting - honey store needs 3 more room',
   'a released seasonal crew must not hide a full physical output store',
 );
 

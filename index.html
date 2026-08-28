@@ -14,7 +14,6 @@
     <meta name="apple-mobile-web-app-title" content="Selo Empire" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <link rel="icon" href="data:," />
-    <link rel="preload" as="image" href="/assets/ui/loading-gorski-window-village.png" type="image/png" />
     <link rel="preload" as="image" href="/assets/ui/loading-gorski-harvest.png" type="image/png" />
     <title>Selo Empire — Medieval City Builder &amp; Settlement Sim</title>
     <meta
@@ -92,33 +91,19 @@
         transition: opacity 420ms ease, visibility 420ms ease;
       }
 
-      #app-loading::before,
-      #app-loading::after {
+      #app-loading::before {
         position: absolute;
         inset: -1.5%;
         z-index: 0;
         content: '';
         pointer-events: none;
-        background-position: center;
-        background-size: cover;
-        background-repeat: no-repeat;
-        animation: app-loading-backdrop-cycle 6s ease-in-out infinite;
-        will-change: opacity;
-      }
-
-      #app-loading::before {
-        background-image:
-          linear-gradient(90deg, rgba(7, 7, 6, 0.7) 0%, rgba(8, 8, 7, 0.28) 42%, rgba(8, 8, 7, 0.04) 72%),
-          linear-gradient(0deg, rgba(8, 8, 7, 0.38) 0%, rgba(8, 8, 7, 0.02) 54%),
-          url('/assets/ui/loading-gorski-window-village.png');
-      }
-
-      #app-loading::after {
         background-image:
           linear-gradient(90deg, rgba(7, 7, 6, 0.7) 0%, rgba(8, 8, 7, 0.28) 42%, rgba(8, 8, 7, 0.04) 72%),
           linear-gradient(0deg, rgba(8, 8, 7, 0.38) 0%, rgba(8, 8, 7, 0.02) 54%),
           url('/assets/ui/loading-gorski-harvest.png');
-        animation-delay: -3s;
+        background-position: center;
+        background-size: cover;
+        background-repeat: no-repeat;
       }
 
       #app-loading.is-dismissed {
@@ -352,34 +337,6 @@
       @keyframes app-loading-spin {
         to {
           transform: rotate(360deg);
-        }
-      }
-
-      @keyframes app-loading-backdrop-cycle {
-        0%,
-        45% {
-          opacity: 1;
-        }
-
-        50%,
-        95% {
-          opacity: 0;
-        }
-
-        100% {
-          opacity: 1;
-        }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        #app-loading::before {
-          animation: none;
-          opacity: 1;
-        }
-
-        #app-loading::after {
-          display: none;
-          animation: none;
         }
       }
 

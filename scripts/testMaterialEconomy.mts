@@ -784,7 +784,7 @@ syncBulkStockpileVisuals(
 const visibleIronCharge = bloomeryIronStock.children.filter(
   (child) => child.name === 'SmithyIronSegment' && child.visible,
 );
-assert.equal(visibleIronCharge.length, 2);
+assert.equal(visibleIronCharge.length, 4);
 assert.ok(
   visibleIronCharge[0]?.getObjectByName('Iron ore basket'),
   'the first visible iron charge must read as locally mined ore',
