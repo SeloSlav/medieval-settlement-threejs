@@ -16,6 +16,8 @@ ATLAS_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_buil
 OUT_BLEND = OUT_DIR / "tier1_residence_textured.blend"
 OUT_MANIFEST = OUT_DIR / "tier1_residence_assembly.json"
 OUT_RENDER = RENDER_DIR / "tier1_residence_hero.png"
+OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front.png"
+OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side.png"
 
 WALL_BASE_Z = 0.35
 WALL_TOP_Z = 3.05
@@ -52,7 +54,7 @@ WALLS = collection("T1_02_Walls")
 OPENINGS = collection("T1_03_Openings")
 FRAMES = collection("T1_04_Frames")
 ROOF = collection("T1_05_Roof")
-PROPS = collection("T1_06_Props")
+FIXED_ARCHITECTURE = collection("T1_06_Fixed_Architecture")
 PREVIEW = collection("T1_90_Preview_Staging")
 
 
@@ -204,8 +206,6 @@ def glass_material() -> bpy.types.Material:
     principled.inputs["Base Color"].default_value = (0.035, 0.065, 0.075, 1.0)
     principled.inputs["Roughness"].default_value = 0.18
     principled.inputs["IOR"].default_value = 1.46
-    principled.inputs["Emission Color"].default_value = (0.20, 0.065, 0.012, 1.0)
-    principled.inputs["Emission Strength"].default_value = 0.34
     transmission = principled.inputs.get("Transmission Weight")
     if transmission is not None:
         transmission.default_value = 0.52
@@ -220,6 +220,36 @@ def replace_materials(obj: bpy.types.Object) -> None:
             continue
         key = old.name.removeprefix("GK_Mat_")
         obj.data.materials[index] = atlas_material(key)
+
+
+def phase_metric_uvs(
+    obj: bpy.types.Object,
+    location: tuple[float, float, float],
+    rotation_z: float,
+) -> None:
+    """Keep metre-scaled atlas sampling continuous across snapped instances."""
+    if obj.type != "MESH":
+        return
+    uv_layer = obj.data.uv_layers.get("GK_UV0")
+    if uv_layer is None:
+        return
+    cosine = math.cos(rotation_z)
+    sine = math.sin(rotation_z)
+    phase_x = location[0] * cosine + location[1] * sine
+    phase_y = -location[0] * sine + location[1] * cosine
+    phase_z = location[2]
+    for polygon in obj.data.polygons:
+        normal = polygon.normal
+        ax, ay, az = abs(normal.x), abs(normal.y), abs(normal.z)
+        if az >= ax and az >= ay:
+            u_offset, v_offset = phase_x, phase_y
+        elif ay >= ax:
+            u_offset, v_offset = phase_x, phase_z
+        else:
+            u_offset, v_offset = phase_y, phase_z
+        for loop_index in polygon.loop_indices:
+            uv_layer.data[loop_index].uv.x += u_offset
+            uv_layer.data[loop_index].uv.y += v_offset
 
 
 def place(
@@ -243,6 +273,15 @@ def place(
     obj["source_component_id"] = part_id
     obj["assembly_role"] = target_collection.name
     target_collection.objects.link(obj)
+    if part_id.startswith("wall_") or part_id.startswith("gable_infill_"):
+        for modifier in list(obj.modifiers):
+            if modifier.type != "BEVEL":
+                continue
+            if part_id.endswith("_host"):
+                obj.modifiers.remove(modifier)
+            else:
+                modifier.width = min(modifier.width, 0.006)
+    phase_metric_uvs(obj, location, rotation_z)
     replace_materials(obj)
     PLACEMENTS.append(
         {
@@ -281,16 +320,26 @@ def place_shell() -> None:
 
     place("gable_infill_plaster_4m", "T1_Gable_Front", WALLS, (0.0, -0.01, WALL_TOP_Z))
     place("gable_infill_plaster_4m", "T1_Gable_Rear", WALLS, (0.0, BUILDING_DEPTH + 0.01, WALL_TOP_Z), math.pi)
-    place("frame_gable_truss_4m", "T1_Gable_Truss_Front", FRAMES, (0.0, -0.165, WALL_TOP_Z))
-    place("frame_gable_truss_4m", "T1_Gable_Truss_Rear", FRAMES, (0.0, BUILDING_DEPTH + 0.165, WALL_TOP_Z), math.pi)
 
-    # Joiner posts and wall plates make the modular seams read as a coherent timber frame.
+    # The gable infill already owns the perimeter rafters. Add only a fitted king post,
+    # collar, and lower braces so no duplicate truss members pierce the roof skin.
+    gable_frame_z = WALL_TOP_Z - 0.04
+    collar_z = WALL_TOP_Z + math.tan(PITCH)
+    brace_z = WALL_TOP_Z - 0.16
+    place("frame_post_h2p4m_s0p16m", "T1_Gable_KingPost_Front", FRAMES, (0.0, -0.165, gable_frame_z))
+    place("frame_beam_2m_s0p16m", "T1_Gable_Collar_Front", FRAMES, (0.0, -0.165, collar_z))
+    place("frame_brace_right_2m", "T1_Gable_Brace_Front_Left", FRAMES, (-1.70, -0.165, brace_z))
+    place("frame_brace_left_2m", "T1_Gable_Brace_Front_Right", FRAMES, (1.70, -0.165, brace_z))
+    place("frame_post_h2p4m_s0p16m", "T1_Gable_KingPost_Rear", FRAMES, (0.0, BUILDING_DEPTH + 0.165, gable_frame_z), math.pi)
+    place("frame_beam_2m_s0p16m", "T1_Gable_Collar_Rear", FRAMES, (0.0, BUILDING_DEPTH + 0.165, collar_z), math.pi)
+    place("frame_brace_left_2m", "T1_Gable_Brace_Rear_Left", FRAMES, (-1.70, BUILDING_DEPTH + 0.165, brace_z), math.pi)
+    place("frame_brace_right_2m", "T1_Gable_Brace_Rear_Right", FRAMES, (1.70, BUILDING_DEPTH + 0.165, brace_z), math.pi)
+
+    # Full-height joiner posts meet the host walls' existing sill and wall-plate beams.
     for x in (-2.0, 0.0, 2.0):
-        place("frame_post_h2p4m_s0p16m", f"T1_Post_Front_{x:+.0f}", FRAMES, (x, -0.07, WALL_BASE_Z))
+        place("frame_post_h2p7m_s0p16m", f"T1_Post_Front_{x:+.0f}", FRAMES, (x, -0.07, WALL_BASE_Z))
     for x in (-2.0, 2.0):
-        place("frame_post_h2p4m_s0p16m", f"T1_Post_Rear_{x:+.0f}", FRAMES, (x, BUILDING_DEPTH + 0.07, WALL_BASE_Z), math.pi)
-    place("frame_beam_4m_s0p16m", "T1_WallPlate_Front", FRAMES, (0.0, -0.08, WALL_TOP_Z - 0.09))
-    place("frame_beam_4m_s0p16m", "T1_WallPlate_Rear", FRAMES, (0.0, BUILDING_DEPTH + 0.08, WALL_TOP_Z - 0.09), math.pi)
+        place("frame_post_h2p7m_s0p16m", f"T1_Post_Rear_{x:+.0f}", FRAMES, (x, BUILDING_DEPTH + 0.07, WALL_BASE_Z), math.pi)
 
 
 def roof_transform(side: float, slope_center: float) -> tuple[tuple[float, float], float]:
@@ -347,9 +396,9 @@ def place_roof() -> None:
     place("roof_thatch_repair_patch_1m", "T1_Thatch_Repair_Patch", ROOF, (patch_x, 2.65, patch_z + 0.025), patch_rotation)
 
 
-def place_props() -> None:
-    place("foundation_steps_limestone_1", "T1_Threshold_Steps", PROPS, (-1.0, -0.56, 0.0))
-    place("prop_firewood_stack_small", "T1_Firewood_Stack", PROPS, (2.43, 3.15, 0.0), math.pi / 2.0)
+def place_fixed_architecture() -> None:
+    # Permanent entrance construction. Inventory-driven firewood is owned by ResidenceMarkers.
+    place("foundation_steps_limestone_1", "T1_Threshold_Steps", FIXED_ARCHITECTURE, (-1.0, -0.56, 0.0))
 
 
 def remove_source_library_objects() -> None:
@@ -359,33 +408,6 @@ def remove_source_library_objects() -> None:
     for source_collection in list(bpy.data.collections):
         if source_collection.name.startswith("GK_") and not source_collection.objects:
             bpy.data.collections.remove(source_collection)
-
-
-def simple_material(name: str, color: tuple[float, float, float, float], roughness: float, emission: float = 0.0) -> bpy.types.Material:
-    material = bpy.data.materials.get(name) or bpy.data.materials.new(name)
-    material.use_nodes = True
-    principled = material.node_tree.nodes.get("Principled BSDF")
-    principled.inputs["Base Color"].default_value = color
-    principled.inputs["Roughness"].default_value = roughness
-    if emission > 0.0:
-        principled.inputs["Emission Color"].default_value = color
-        principled.inputs["Emission Strength"].default_value = emission
-    material.diffuse_color = color
-    return material
-
-
-def add_cube(name: str, location: tuple[float, float, float], dimensions: tuple[float, float, float], material: bpy.types.Material, rotation_z: float = 0.0) -> bpy.types.Object:
-    bpy.ops.mesh.primitive_cube_add(size=1.0, location=location, rotation=(0.0, 0.0, rotation_z))
-    obj = bpy.context.object
-    obj.name = name
-    obj.dimensions = dimensions
-    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-    obj.data.materials.append(material)
-    obj["preview_only"] = True
-    for owner in list(obj.users_collection):
-        owner.objects.unlink(obj)
-    PREVIEW.objects.link(obj)
-    return obj
 
 
 def add_preview_staging() -> None:
@@ -402,12 +424,6 @@ def add_preview_staging() -> None:
     for owner in list(ground.users_collection):
         owner.objects.unlink(ground)
     PREVIEW.objects.link(ground)
-
-    warm = simple_material("T1_Preview_Interior_Warmth", (0.46, 0.19, 0.055, 1.0), 0.8, emission=2.2)
-    add_cube("T1_Preview_WindowGlow_Front", (1.0, 0.19, 1.79), (0.48, 0.035, 0.68), warm)
-    add_cube("T1_Preview_WindowGlow_Left", (-1.81, 5.0, 1.79), (0.035, 0.48, 0.68), warm, -math.pi / 2.0)
-    add_cube("T1_Preview_WindowGlow_Right", (1.81, 5.0, 1.79), (0.035, 0.48, 0.68), warm, math.pi / 2.0)
-
 
 def point_camera(camera: bpy.types.Object, target: tuple[float, float, float]) -> None:
     direction = Vector(target) - camera.location
@@ -473,6 +489,29 @@ def stage_render() -> None:
     scene.camera = camera
 
 
+def render_alignment_views() -> None:
+    scene = bpy.context.scene
+    camera = scene.camera
+    hero_location = camera.location.copy()
+    hero_rotation = camera.rotation_euler.copy()
+    hero_lens = camera.data.lens
+
+    for filepath, location, target, lens in (
+        (OUT_FRONT_RENDER, (0.0, -14.2, 4.9), (0.0, 1.85, 2.75), 58.0),
+        (OUT_SIDE_RENDER, (16.5, 3.0, 5.2), (0.0, 3.0, 2.65), 58.0),
+    ):
+        camera.location = location
+        camera.data.lens = lens
+        point_camera(camera, target)
+        scene.render.filepath = str(filepath)
+        bpy.ops.render.render(write_still=True)
+
+    camera.location = hero_location
+    camera.rotation_euler = hero_rotation
+    camera.data.lens = hero_lens
+    scene.render.filepath = str(OUT_RENDER)
+
+
 def write_manifest() -> None:
     payload = {
         "id": "gorski-tier1-residence-atlas-preview-v1",
@@ -484,10 +523,21 @@ def write_manifest() -> None:
             "normal": str((ATLAS_DIR / "building_normal_atlas.png").relative_to(ROOT)).replace("\\", "/"),
             "material": str((ATLAS_DIR / "building_material_atlas.png").relative_to(ROOT)).replace("\\", "/"),
             "packing": "R roughness, G metalness, B AO, A centered height",
+            "instanceUvPhase": "metric UVs are translated by snapped world placement so adjacent modules retain atlas continuity",
         },
         "dimensionsMetres": {"width": 4.0, "depth": BUILDING_DEPTH, "foundationTop": WALL_BASE_Z, "wallTop": WALL_TOP_Z, "ridge": RIDGE_Z},
         "roofFinish": "bundled-thatch",
         "smokeExit": "bound-thatch hood; no later-tier masonry chimney",
+        "canonicalState": "neutral shell; no inventory, activity, or occupancy-driven dressing",
+        "fixedArchitecture": {
+            "threshold": "limestone entrance step",
+            "smokeHood": "physical bound-thatch roof component only",
+        },
+        "runtimeOwnedState": {
+            "firewoodPile": "ResidenceMarkers.syncFirewoodPile controls visibility and fill scale from household firewood stock",
+            "smokeEmission": "ResidenceMarkers activates the emitter only for a populated, non-abandoned residence with firewood and fire enabled",
+            "windowGlow": "ResidenceMarkers applies occupied household activity glow at runtime",
+        },
         "livingVegetation": "excluded; SeedThree-owned",
         "placements": PLACEMENTS,
     }
@@ -499,7 +549,7 @@ def main() -> None:
     RENDER_DIR.mkdir(parents=True, exist_ok=True)
     place_shell()
     place_roof()
-    place_props()
+    place_fixed_architecture()
     remove_source_library_objects()
     add_preview_staging()
     stage_render()
@@ -508,11 +558,13 @@ def main() -> None:
     scene["architecture_context"] = "Gorski Kotar, circa 1550"
     scene["roof_finish"] = "bundled-thatch"
     scene["atlas_id"] = ATLAS_MANIFEST["id"]
+    scene["canonical_state"] = "neutral; runtime owns firewood, smoke emission, and window glow"
     scene["living_vegetation"] = "excluded; SeedThree-owned"
     bpy.ops.file.pack_all()
     bpy.ops.wm.save_as_mainfile(filepath=str(OUT_BLEND))
     write_manifest()
     bpy.ops.render.render(write_still=True)
+    render_alignment_views()
     bpy.ops.wm.save_as_mainfile(filepath=str(OUT_BLEND))
     print(f"T1_BLEND={OUT_BLEND}")
     print(f"T1_RENDER={OUT_RENDER}")

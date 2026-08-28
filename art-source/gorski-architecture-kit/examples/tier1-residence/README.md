@@ -2,7 +2,9 @@
 
 This example assembles a finished, compact Gorski Kotar residence from the reusable architecture kit without modifying the source asset library.
 
-The building uses a continuous fieldstone footing, clay-lime daub infill within an exposed timber frame, true service-door and shuttered-window openings, plastered framed gables, a deep two-course bundled-thatch roof, authored eave and ridge junctions, and a bound-thatch smoke hood. A masonry chimney is intentionally absent at this tier. Living vegetation and crops are excluded; SeedThree owns those systems.
+The building uses a continuous fieldstone footing, clay-lime daub infill within an exposed timber frame, true service-door and shuttered-window openings, plastered framed gables, a deep two-course bundled-thatch roof, authored eave and ridge junctions, a permanent limestone threshold, and a bound-thatch smoke hood. A masonry chimney is intentionally absent at this tier.
+
+This artifact is the neutral architectural shell. `ResidenceMarkers` owns the state-driven firewood pile, its stock-dependent fill, smoke activation, and occupied window glow; none of those states are baked into the `.blend` or preview. Living vegetation and crops are also excluded because SeedThree owns those systems.
 
 Every architectural material is driven by the production `gorski-building-atlas-v1` albedo, OpenGL normal, and packed material maps. The Blender file packs those images for portability while retaining the atlas tile and scale metadata on each material.
 
@@ -19,3 +21,4 @@ Outputs:
 - `out/tier1_residence_textured.blend` — editable modular assembly with packed atlas images and clearly separated staging.
 - `out/tier1_residence_assembly.json` — component placements, dimensions, atlas references, and tier-specific decisions.
 - `renders/tier1_residence_hero.png` — fixed hero preview.
+- `renders/tier1_residence_front.png` and `renders/tier1_residence_side.png` — alignment-check views.

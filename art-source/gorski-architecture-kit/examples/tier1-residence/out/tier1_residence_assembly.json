@@ -7,7 +7,8 @@
     "albedo": "public/assets/textures/buildings/gorski_building_atlas_v1/building_albedo_atlas.png",
     "normal": "public/assets/textures/buildings/gorski_building_atlas_v1/building_normal_atlas.png",
     "material": "public/assets/textures/buildings/gorski_building_atlas_v1/building_material_atlas.png",
-    "packing": "R roughness, G metalness, B AO, A centered height"
+    "packing": "R roughness, G metalness, B AO, A centered height",
+    "instanceUvPhase": "metric UVs are translated by snapped world placement so adjacent modules retain atlas continuity"
   },
   "dimensionsMetres": {
     "width": 4.0,
@@ -18,6 +19,16 @@
   },
   "roofFinish": "bundled-thatch",
   "smokeExit": "bound-thatch hood; no later-tier masonry chimney",
+  "canonicalState": "neutral shell; no inventory, activity, or occupancy-driven dressing",
+  "fixedArchitecture": {
+    "threshold": "limestone entrance step",
+    "smokeHood": "physical bound-thatch roof component only"
+  },
+  "runtimeOwnedState": {
+    "firewoodPile": "ResidenceMarkers.syncFirewoodPile controls visibility and fill scale from household firewood stock",
+    "smokeEmission": "ResidenceMarkers activates the emitter only for a populated, non-abandoned residence with firewood and fire enabled",
+    "windowGlow": "ResidenceMarkers applies occupied household activity glow at runtime"
+  },
   "livingVegetation": "excluded; SeedThree-owned",
   "placements": [
     {
@@ -230,30 +241,96 @@
       "rotationZDegrees": 180.0
     },
     {
-      "name": "T1_Gable_Truss_Front",
-      "source": "frame_gable_truss_4m",
+      "name": "T1_Gable_KingPost_Front",
+      "source": "frame_post_h2p4m_s0p16m",
       "collection": "T1_04_Frames",
       "location": [
         0.0,
         -0.165,
-        3.05
+        3.01
       ],
       "rotationZDegrees": 0.0
     },
     {
-      "name": "T1_Gable_Truss_Rear",
-      "source": "frame_gable_truss_4m",
+      "name": "T1_Gable_Collar_Front",
+      "source": "frame_beam_2m_s0p16m",
+      "collection": "T1_04_Frames",
+      "location": [
+        0.0,
+        -0.165,
+        4.24175
+      ],
+      "rotationZDegrees": 0.0
+    },
+    {
+      "name": "T1_Gable_Brace_Front_Left",
+      "source": "frame_brace_right_2m",
+      "collection": "T1_04_Frames",
+      "location": [
+        -1.7,
+        -0.165,
+        2.89
+      ],
+      "rotationZDegrees": 0.0
+    },
+    {
+      "name": "T1_Gable_Brace_Front_Right",
+      "source": "frame_brace_left_2m",
+      "collection": "T1_04_Frames",
+      "location": [
+        1.7,
+        -0.165,
+        2.89
+      ],
+      "rotationZDegrees": 0.0
+    },
+    {
+      "name": "T1_Gable_KingPost_Rear",
+      "source": "frame_post_h2p4m_s0p16m",
       "collection": "T1_04_Frames",
       "location": [
         0.0,
         6.165,
-        3.05
+        3.01
+      ],
+      "rotationZDegrees": 180.0
+    },
+    {
+      "name": "T1_Gable_Collar_Rear",
+      "source": "frame_beam_2m_s0p16m",
+      "collection": "T1_04_Frames",
+      "location": [
+        0.0,
+        6.165,
+        4.24175
+      ],
+      "rotationZDegrees": 180.0
+    },
+    {
+      "name": "T1_Gable_Brace_Rear_Left",
+      "source": "frame_brace_left_2m",
+      "collection": "T1_04_Frames",
+      "location": [
+        -1.7,
+        6.165,
+        2.89
+      ],
+      "rotationZDegrees": 180.0
+    },
+    {
+      "name": "T1_Gable_Brace_Rear_Right",
+      "source": "frame_brace_right_2m",
+      "collection": "T1_04_Frames",
+      "location": [
+        1.7,
+        6.165,
+        2.89
       ],
       "rotationZDegrees": 180.0
     },
     {
       "name": "T1_Post_Front_-2",
-      "source": "frame_post_h2p4m_s0p16m",
+      "source": "frame_post_h2p7m_s0p16m",
       "collection": "T1_04_Frames",
       "location": [
         -2.0,
@@ -264,7 +341,7 @@
     },
     {
       "name": "T1_Post_Front_+0",
-      "source": "frame_post_h2p4m_s0p16m",
+      "source": "frame_post_h2p7m_s0p16m",
       "collection": "T1_04_Frames",
       "location": [
         0.0,
@@ -275,7 +352,7 @@
     },
     {
       "name": "T1_Post_Front_+2",
-      "source": "frame_post_h2p4m_s0p16m",
+      "source": "frame_post_h2p7m_s0p16m",
       "collection": "T1_04_Frames",
       "location": [
         2.0,
@@ -286,7 +363,7 @@
     },
     {
       "name": "T1_Post_Rear_-2",
-      "source": "frame_post_h2p4m_s0p16m",
+      "source": "frame_post_h2p7m_s0p16m",
       "collection": "T1_04_Frames",
       "location": [
         -2.0,
@@ -297,34 +374,12 @@
     },
     {
       "name": "T1_Post_Rear_+2",
-      "source": "frame_post_h2p4m_s0p16m",
+      "source": "frame_post_h2p7m_s0p16m",
       "collection": "T1_04_Frames",
       "location": [
         2.0,
         6.07,
         0.35
-      ],
-      "rotationZDegrees": 180.0
-    },
-    {
-      "name": "T1_WallPlate_Front",
-      "source": "frame_beam_4m_s0p16m",
-      "collection": "T1_04_Frames",
-      "location": [
-        0.0,
-        -0.08,
-        2.96
-      ],
-      "rotationZDegrees": 0.0
-    },
-    {
-      "name": "T1_WallPlate_Rear",
-      "source": "frame_beam_4m_s0p16m",
-      "collection": "T1_04_Frames",
-      "location": [
-        0.0,
-        6.08,
-        2.96
       ],
       "rotationZDegrees": 180.0
     },
@@ -529,24 +584,13 @@
     {
       "name": "T1_Threshold_Steps",
       "source": "foundation_steps_limestone_1",
-      "collection": "T1_06_Props",
+      "collection": "T1_06_Fixed_Architecture",
       "location": [
         -1.0,
         -0.56,
         0.0
       ],
       "rotationZDegrees": 0.0
-    },
-    {
-      "name": "T1_Firewood_Stack",
-      "source": "prop_firewood_stack_small",
-      "collection": "T1_06_Props",
-      "location": [
-        2.43,
-        3.15,
-        0.0
-      ],
-      "rotationZDegrees": 90.0
     }
   ]
 }

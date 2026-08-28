@@ -134,15 +134,6 @@ export class WorldSetupPanel {
     this.backdrop.dataset.activeSetupStep = 'map';
     this.backdrop.innerHTML = `
       <div class="world-setup-shell">
-        <img
-          class="world-setup-logo"
-          src="/assets/ui/selo-empire-logo-serious.png"
-          alt="Selo Empire"
-          width="1643"
-          height="957"
-          fetchpriority="high"
-          decoding="sync"
-        />
         <form
           class="world-setup-dialog"
           role="dialog"
@@ -160,7 +151,8 @@ export class WorldSetupPanel {
             </nav>
           </header>
           <div class="world-setup-scroll" aria-label="World settings">
-            <section class="world-setup-section" aria-label="Map size">
+            <div class="world-setup-column world-setup-column--terrain" aria-label="Terrain settings">
+            <section class="world-setup-section world-setup-map-size" aria-label="Map size">
               <h2 class="world-setup-section__title">Map size</h2>
               <div class="world-setup-arrow-select" data-world-selector="map-size">
                 <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Previous map size">‹</button>
@@ -178,7 +170,6 @@ export class WorldSetupPanel {
                 <span>Seeded regional profiles</span>
               </div>
               <div class="world-setup-landscape-grid" data-landscape-grid></div>
-              <p class="world-setup-landscape-note" data-landscape-note></p>
             </section>
 
             <div class="world-setup-custom-landscape" data-custom-landscape-controls hidden>
@@ -209,7 +200,9 @@ export class WorldSetupPanel {
             <p class="world-setup-slider-hint">Higher values create denser woodland.</p>
             </section>
             </div>
+            </div>
 
+            <div class="world-setup-column world-setup-column--rules" aria-label="Gameplay settings">
             <section class="world-setup-section world-setup-game-rules" aria-label="Gameplay rules">
               <div class="world-setup-section-heading">
                 <h2 class="world-setup-section__title">Gameplay rules</h2>
@@ -293,6 +286,7 @@ export class WorldSetupPanel {
                 </div>
               </div>
             </section>
+            </div>
 
           </div>
 
@@ -371,7 +365,6 @@ export class WorldSetupPanel {
     const aquiferNetworksDescription = this.backdrop.querySelector<HTMLElement>('[data-aquifer-networks-description]')!;
     const backButton = this.backdrop.querySelector<HTMLButtonElement>('[data-setup-back]')!;
     const landscapeGrid = this.backdrop.querySelector<HTMLElement>('[data-landscape-grid]')!;
-    const landscapeNote = this.backdrop.querySelector<HTMLElement>('[data-landscape-note]')!;
     const customLandscapeControls = this.backdrop.querySelector<HTMLElement>('[data-custom-landscape-controls]')!;
 
     const syncLandscapeControls = (): void => {
@@ -383,10 +376,6 @@ export class WorldSetupPanel {
       forestValue.textContent = forestSlider.value;
       seedInput.value = formatSeedHex(this.draft.seed);
       customLandscapeControls.hidden = this.draft.terrainPreset !== 'custom';
-      const selected = WORLD_TERRAIN_PRESETS.find((preset) => preset.id === this.draft.terrainPreset)!;
-      landscapeNote.textContent = this.draft.terrainPreset === 'custom'
-        ? 'Seeds vary custom terrain; high topography adds major mountains.'
-        : `${selected.name} keeps this landform; seeds vary terrain and resources.`;
       for (const option of landscapeGrid.querySelectorAll<HTMLButtonElement>('[data-terrain-preset]')) {
         const isSelected = option.dataset.terrainPreset === this.draft.terrainPreset;
         option.classList.toggle('is-selected', isSelected);

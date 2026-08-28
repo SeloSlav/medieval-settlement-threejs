@@ -115,6 +115,9 @@ assert.match(worldPanel, /data-setup-back[^>]*>[\s\S]*?Back to Heraldry/);
 assert.match(worldPanel, /data-map-seed-section/);
 assert.match(worldPanel, /data-randomize-seed>Randomize map/);
 assert.match(worldPanel, /<nav class="world-setup-actions__navigation" aria-label="Setup navigation">/);
+assert.match(worldPanel, /world-setup-column world-setup-column--terrain/);
+assert.match(worldPanel, /world-setup-column world-setup-column--rules/);
+assert.doesNotMatch(worldPanel, /data-landscape-note|keeps this landform/);
 assert.match(worldPanel, /data-world-selector="map-size"/);
 assert.match(worldPanel, /data-map-size-value/);
 assert.match(
@@ -135,6 +138,7 @@ assert.match(worldPanel, /aria-label="Landscape"[\s\S]*aria-label="Gameplay rule
 assert.doesNotMatch(worldPanel, /Regional resources|This seed's resource roll|resource-abundance|resource-variety/);
 assert.doesNotMatch(worldPanel, /Current rates?|Current starting stock/);
 assert.match(worldPanel, /class="world-setup-sr-title">Map Generation<\/h1>/);
+assert.match(worldPanel, /class="world-setup-section world-setup-map-size"/);
 assert.doesNotMatch(worldPanel, /<p>New World<\/p>/);
 assert.match(
   worldPanel,
@@ -144,6 +148,12 @@ assert.match(worldPanel, /this\.resolve\(\{ action: 'start', settings \}\)/);
 assert.match(worldCss, /\.world-setup-actions\s*\{[\s\S]*?grid-template-rows: auto auto/);
 assert.match(worldCss, /\.world-setup-actions__navigation\s*\{[\s\S]*?justify-content: space-between/);
 assert.match(worldCss, /\.world-setup-back\s*\{[\s\S]*?min-width: 210px/);
+assert.match(worldCss, /\.world-setup-column\s*\{[\s\S]*?overflow-y: auto/);
+assert.match(worldCss, /\.world-setup-setting-list\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+assert.match(worldCss, /\.world-setup-column--rules\s*\{[\s\S]*?overflow: hidden/);
+assert.match(worldCss, /\.world-setup-game-rules\s*\{[\s\S]*?grid-template-rows: auto auto minmax\(0, 1fr\)/);
+assert.match(worldCss, /\.world-setup-setting-list\s*\{[\s\S]*?overflow-y: auto/);
+assert.match(worldCss, /\.world-setup-back\s*\{[\s\S]*?margin: 9px 0 9px 22px/);
 assert.match(worldCss, /\.world-setup-section__title\s*\{[\s\S]*?font-size: 17px/);
 assert.match(worldCss, /\.world-setup-arrow-select__value span\s*\{[\s\S]*?font-size: 15px/);
 assert.match(worldCss, /\.world-setup-difficulty-preset \.world-setup-arrow-select\s*\{[\s\S]*?min-height: 64px/);
@@ -158,13 +168,12 @@ assert.match(
 );
 assert.match(
   worldCss,
-  /\.world-setup-logo\s*\{[\s\S]*?position: fixed;[\s\S]*?top: clamp\(22px, 4vw, 58px\);[\s\S]*?right: clamp\(22px, 4vw, 58px\);/,
+  /@media \(min-width: 1240px\)[\s\S]*?\.world-setup-scroll\s*\{[\s\S]*?overflow: hidden;[\s\S]*?\.world-setup-column\s*\{[\s\S]*?overflow-y: auto/,
 );
-assert.match(
-  worldCss,
-  /@media \(max-width: 1120px\)[\s\S]*?\.world-setup-shell\s*\{[\s\S]*?grid-template-rows: auto minmax\(0, 1fr\);[\s\S]*?\.world-setup-logo\s*\{[\s\S]*?position: static;/,
-);
+assert.doesNotMatch(worldPanel, /world-setup-logo/);
+assert.doesNotMatch(worldCss, /\.world-setup-logo/);
 assert.match(appShell, /class="app-loading-kicker">Medieval Croatia · 1550</);
+assert.match(appShell, /selo-empire-pauline-monastery-study\.png/);
 assert.doesNotMatch(appShell, /class="app-loading-kicker">[^<]*Gorski Kotar/i);
 
 assert.match(bootstrapFlow, /while \(true\)/);
