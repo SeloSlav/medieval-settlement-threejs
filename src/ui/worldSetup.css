@@ -14,20 +14,6 @@
   pointer-events: auto;
 }
 
-.world-setup-backdrop::before {
-  position: absolute;
-  inset: 0;
-  content: '';
-  pointer-events: none;
-  background: radial-gradient(
-    ellipse 58% 90% at 15% 50%,
-    rgba(0, 0, 0, 0.82) 0%,
-    rgba(0, 0, 0, 0.64) 48%,
-    rgba(0, 0, 0, 0.16) 80%,
-    transparent 100%
-  );
-}
-
 .world-setup-backdrop::after {
   position: absolute;
   inset: 0;

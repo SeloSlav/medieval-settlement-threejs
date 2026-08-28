@@ -7,6 +7,41 @@
       // menu can never appear over any part of the game or its startup UI.
       document.addEventListener('contextmenu', (event) => event.preventDefault(), true);
     </script>
+    <script>
+      // Alternate the loading artwork on each startup. This runs before the
+      // loading screen is parsed so the selected scene is visible immediately.
+      (() => {
+        const scenes = [
+          '/assets/ui/loading-gorski-harvest.png',
+          '/assets/ui/loading-gorski-village-market.png',
+        ];
+        const storageKey = 'selo-empire-loading-scene-index';
+        let sceneIndex = 0;
+
+        try {
+          const storedIndex = Number.parseInt(localStorage.getItem(storageKey) ?? '', 10);
+          if (Number.isInteger(storedIndex)) {
+            sceneIndex = ((storedIndex % scenes.length) + scenes.length) % scenes.length;
+          }
+          localStorage.setItem(storageKey, String((sceneIndex + 1) % scenes.length));
+        } catch {
+          sceneIndex = Math.floor(Math.random() * scenes.length);
+        }
+
+        const selectedScene = scenes[sceneIndex];
+        document.documentElement.style.setProperty(
+          '--loading-scene-image',
+          `url("${selectedScene}")`,
+        );
+
+        const preload = document.createElement('link');
+        preload.rel = 'preload';
+        preload.as = 'image';
+        preload.href = selectedScene;
+        preload.type = 'image/png';
+        document.head.append(preload);
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#171512" />
     <meta name="color-scheme" content="dark" />
@@ -14,7 +49,6 @@
     <meta name="apple-mobile-web-app-title" content="Selo Empire" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <link rel="icon" href="data:," />
-    <link rel="preload" as="image" href="/assets/ui/loading-gorski-harvest.png" type="image/png" />
     <title>Selo Empire — Medieval City Builder &amp; Settlement Sim</title>
     <meta
       name="description"
@@ -100,7 +134,7 @@
         background-image:
           linear-gradient(90deg, rgba(7, 7, 6, 0.7) 0%, rgba(8, 8, 7, 0.28) 42%, rgba(8, 8, 7, 0.04) 72%),
           linear-gradient(0deg, rgba(8, 8, 7, 0.38) 0%, rgba(8, 8, 7, 0.02) 54%),
-          url('/assets/ui/loading-gorski-harvest.png');
+          var(--loading-scene-image, url('/assets/ui/loading-gorski-harvest.png'));
         background-position: center;
         background-size: cover;
         background-repeat: no-repeat;

@@ -172,7 +172,7 @@
   color: #eee5d2;
   background:
     radial-gradient(circle at 68% 30%, rgba(184, 137, 62, 0.09), transparent 34%),
-    linear-gradient(90deg, rgba(8, 9, 7, 0.88), rgba(11, 12, 10, 0.68) 45%, rgba(8, 9, 7, 0.82)),
+    linear-gradient(90deg, rgba(8, 9, 7, 0.36), rgba(11, 12, 10, 0.14) 45%, rgba(8, 9, 7, 0.26)),
     url('/assets/ui/selo-empire-pauline-monastery-study.png') center / cover no-repeat,
     #11140f;
   font-family: Georgia, 'Times New Roman', serif;
@@ -180,8 +180,7 @@
   transition: opacity 180ms ease;
 }
 
-.noble-setup-backdrop::before,
-.noble-setup-backdrop::after {
+.noble-setup-backdrop::before {
   position: absolute;
   inset: 0;
   content: '';
@@ -195,17 +194,6 @@
     radial-gradient(circle at 74% 61%, rgba(0, 0, 0, 0.28) 0 0.7px, transparent 0.9px);
   background-size: 8px 9px, 11px 13px;
   mix-blend-mode: soft-light;
-}
-
-.noble-setup-backdrop::after {
-  background: radial-gradient(
-    ellipse 66% 68% at 50% 50%,
-    rgba(0, 0, 0, 0.76) 0%,
-    rgba(0, 0, 0, 0.58) 54%,
-    rgba(0, 0, 0, 0.18) 82%,
-    transparent 100%
-  );
-  box-shadow: inset 0 0 180px 45px rgba(0, 0, 0, 0.76);
 }
 
 .noble-setup-backdrop.is-leaving { opacity: 0; }
@@ -222,12 +210,13 @@
   border: 1px solid rgba(203, 175, 111, 0.32);
   border-radius: 4px;
   background:
-    linear-gradient(90deg, rgba(33, 35, 29, 0.97), rgba(20, 23, 19, 0.965) 39%, rgba(15, 18, 15, 0.96)),
-    #181b16;
+    linear-gradient(90deg, rgba(27, 30, 25, 0.9), rgba(17, 21, 17, 0.84) 39%, rgba(11, 15, 12, 0.78)),
+    rgba(24, 27, 22, 0.72);
   box-shadow:
-    0 34px 110px rgba(0, 0, 0, 0.68),
+    0 24px 72px rgba(0, 0, 0, 0.46),
     inset 0 1px 0 rgba(255, 247, 221, 0.08),
     inset 4px 0 0 rgba(161, 117, 46, 0.56);
+  backdrop-filter: blur(12px) saturate(0.78);
 }
 
 .noble-setup-shell::before {
@@ -1007,6 +996,19 @@
 
 .noble-setup-actions button[hidden] {
   display: none;
+}
+
+@media (min-width: 1240px) {
+  .noble-setup-backdrop {
+    place-items: center start;
+  }
+
+  .noble-setup-shell {
+    width: min(
+      1540px,
+      calc(100vw - clamp(250px, 20vw, 380px) - clamp(12px, 2.4vw, 34px))
+    );
+  }
 }
 
 @media (max-width: 1120px) {
