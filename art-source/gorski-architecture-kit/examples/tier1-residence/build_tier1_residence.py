@@ -17,9 +17,9 @@ ATLAS_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_buil
 OUT_BLEND = OUT_DIR / "tier1_residence_textured.blend"
 OUT_GLB = OUT_DIR / "tier1_residence_textured.glb"
 OUT_MANIFEST = OUT_DIR / "tier1_residence_assembly.json"
-OUT_RENDER = RENDER_DIR / "tier1_residence_hero_structural_v14.png"
-OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_structural_v14.png"
-OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_structural_v14.png"
+OUT_RENDER = RENDER_DIR / "tier1_residence_hero_structural_v18.png"
+OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_structural_v18.png"
+OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_structural_v18.png"
 
 WALL_BASE_Z = 0.35
 WALL_HEIGHT = 2.4
@@ -833,35 +833,6 @@ def cut_roof_smoke_aperture(smoke_x: float, smoke_y: float, smoke_surface_z: flo
     return cut_panel_count
 
 
-def keep_lowest_shingle_row(panel: bpy.types.Object) -> None:
-    """Reduce a quarter panel to its lowest authored row for a natural seam cover."""
-    bm = bmesh.new()
-    bm.from_mesh(panel.data)
-    remaining_faces = set(bm.faces)
-    vertices_to_remove = set()
-    while remaining_faces:
-        seed = remaining_faces.pop()
-        component_faces = {seed}
-        frontier = [seed]
-        while frontier:
-            face = frontier.pop()
-            for edge in face.edges:
-                for neighbour in edge.link_faces:
-                    if neighbour in remaining_faces:
-                        remaining_faces.remove(neighbour)
-                        component_faces.add(neighbour)
-                        frontier.append(neighbour)
-        component_vertices = {vertex for face in component_faces for vertex in face.verts}
-        centre_y = sum(vertex.co.y for vertex in component_vertices) / len(component_vertices)
-        if centre_y > -0.05:
-            vertices_to_remove.update(component_vertices)
-    if vertices_to_remove:
-        bmesh.ops.delete(bm, geom=list(vertices_to_remove), context="VERTS")
-    bm.to_mesh(panel.data)
-    panel.data.update()
-    bm.free()
-
-
 def place_roof() -> None:
     # Full + half + quarter authored courses form a 4.2 m slope. On a four-metre
     # body this produces a roof-dominant 0.70 m side overhang without stretching geometry.
@@ -888,36 +859,12 @@ def place_roof() -> None:
                     (x, y, z),
                     rotation,
                 )
-                # The reusable panel includes a closed oak backing slab. This finished
-                # roof has its own authored rafters, so retaining that slab creates a
-                # false surface beam at every course junction.
-                remove_instance_material_geometry(panel, "oak_dark")
+                # The reusable panel's continuous backing closes incidental gaps between
+                # individually modelled shingles. Treat it as an aged shingle undercourse,
+                # not exposed structural oak; the smoke-aperture pass removes any backing
+                # component intersecting the real roof opening.
+                remap_instance_material(panel, "oak_dark", "shingles_aged")
                 settle_roof_module(panel, run_index, side)
-
-    # A single authored shingle row laps across the full/half module boundary. It
-    # conceals the otherwise ruler-straight joint that reads as an exposed purlin.
-    seam_panel_centre = -0.97
-    seam_relief = 0.024
-    for side in (-1.0, 1.0):
-        side_name = "Left" if side < 0 else "Right"
-        for run_index, (run_token, y) in enumerate(runs):
-            cover_y = y + (0.30 if run_index == 0 else 0.0)
-            (x, z), rotation = roof_transform(side, seam_panel_centre)
-            x += side * math.sin(PITCH) * seam_relief
-            z += math.cos(PITCH) * seam_relief
-            cover = place(
-                f"roof_shingle_panel_{run_token}_quarter",
-                f"T1_RoofOverlapCourse_{side_name}_Run{run_index:02d}",
-                ROOF,
-                (x, cover_y, z),
-                rotation,
-            )
-            remove_instance_material_geometry(cover, "oak_dark")
-            keep_lowest_shingle_row(cover)
-            cover["source_component_id"] = "assembly_custom_shingle_overlap_course"
-            cover["assembly_role"] = "roof-course-junction"
-            PLACEMENTS[-1]["source"] = "assembly_custom_shingle_overlap_course"
-            settle_roof_module(cover, run_index, side)
 
     eave_x = SLOPE_MAX * 2.0 * math.cos(PITCH)
     eave_z = RIDGE_Z - SLOPE_MAX * 2.0 * math.sin(PITCH)

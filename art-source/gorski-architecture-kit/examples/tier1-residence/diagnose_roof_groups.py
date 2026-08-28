@@ -18,6 +18,8 @@ def flat_material(name: str, color: tuple[float, float, float, float]) -> bpy.ty
 
 black = flat_material("Diagnostic_Black", (0.01, 0.01, 0.01, 1.0))
 base = flat_material("Diagnostic_BasePanels_Red", (0.9, 0.02, 0.02, 1.0))
+half = flat_material("Diagnostic_HalfPanels_Magenta", (0.9, 0.02, 0.8, 1.0))
+quarter = flat_material("Diagnostic_QuarterPanels_Orange", (1.0, 0.35, 0.01, 1.0))
 overlap = flat_material("Diagnostic_Overlap_Green", (0.02, 0.9, 0.05, 1.0))
 eave = flat_material("Diagnostic_Eave_Blue", (0.02, 0.1, 0.95, 1.0))
 ridge = flat_material("Diagnostic_Ridge_Cyan", (0.02, 0.9, 0.9, 1.0))
@@ -30,7 +32,12 @@ for obj in bpy.data.objects:
     if obj.name.startswith("T1_RoofOverlapCourse"):
         material = overlap
     elif obj.name.startswith("T1_Roof_"):
-        material = base
+        if obj.name.endswith("_half"):
+            material = half
+        elif obj.name.endswith("_quarter"):
+            material = quarter
+        else:
+            material = base
     elif obj.name.startswith("T1_Eave_"):
         material = eave
     elif obj.name.startswith("T1_Ridge_"):
