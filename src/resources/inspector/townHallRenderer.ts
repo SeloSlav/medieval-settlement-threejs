@@ -2115,7 +2115,7 @@ export function renderTownHallInspector(
           )
         : undefined,
       environment.watermillThroughputMultiplier,
-      environment.clayPitThroughputMultiplier,
+      environment.surfaceClayThroughputMultiplier,
       environment.preservedFoodDemandMultiplier,
       clock.month,
       context.worldResourceAbundance ?? 50,
@@ -2131,7 +2131,7 @@ export function renderTownHallInspector(
     context.gameState,
     provisioning.sabbathObserved,
     {
-      clayPitThroughputMultiplier: environment.clayPitThroughputMultiplier,
+      surfaceClayThroughputMultiplier: environment.surfaceClayThroughputMultiplier,
       resourceAbundance: context.worldResourceAbundance ?? 50,
     },
   );
@@ -2141,9 +2141,6 @@ export function renderTownHallInspector(
   const toolDeliveryInspect = industrialMaterials.firstToolDeliveryBottleneckId === null
     ? ''
     : ` <button type="button" class="inspector-jump-button" data-inspect-building="${industrialMaterials.firstToolDeliveryBottleneckId}" aria-label="Inspect first civilian tool delivery bottleneck">Inspect route</button>`;
-  const leanClayPitInspect = industrialMaterials.firstLeanClayPitId === null
-    ? ''
-    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${industrialMaterials.firstLeanClayPitId}" aria-label="Inspect first lean clay bank">Inspect</button>`;
   const prosperity = computeSettlementProsperityPlan(production, growth);
   const textilePlan = computeSettlementTextilePlan({
     state: context.gameState,
@@ -2497,7 +2494,7 @@ export function renderTownHallInspector(
       <li><span>Potter buffers</span><span>Input ${formatProcessorInputBuffer(production.potterInputBuffer)} &middot; selected firing room ${formatProcessorOutputRoom(production.potterOutputRoom)} ${processorInspectButton('potter', production.potterInputBuffer, production.potterOutputRoom)}</span></li>
       <li><span>Processing labor</span><span>${production.millWorkers} mill · ${production.bakeryWorkers} bakery · ${production.breweryWorkers} brewing · ${production.smokehouseWorkers} preserving · ${production.spinnerWorkers} fibre preparation · ${production.weaverWorkers} weaving</span></li>
       <li><span>Material-chain labor</span><span>${industrialMaterials.clayWorkers} clay &middot; ${industrialMaterials.potterWorkers} kiln &middot; ${industrialMaterials.charcoalWorkers} charcoal &middot; ${industrialMaterials.smithyWorkers} smithing</span></li>
-      <li><span>Clay-bank conditions</span><span>${Math.round(industrialMaterials.clayBankYieldMultiplier * 100)}% average geological yield across active pits at regional abundance ${Math.round(context.worldResourceAbundance ?? 50)}/100 &times; ${Math.round(production.clayPitThroughputMultiplier * 100)}% current ${environment.weather} ground before tool condition${leanClayPitInspect} &middot; ordinary banks exhaust, while rich deep alluvium remains workable</span></li>
+      <li><span>Surface-clay conditions</span><span>${Math.round(production.surfaceClayThroughputMultiplier * 100)}% current ${environment.weather} ground pace for Mining Camps working clay &middot; finite surface reserves exhaust, while rich deep clay remains Mineworks-only</span></li>
       <li><span>Clay geology</span><span>${formatGeologicalResourcePlan(geology.clay, industrialMaterials.potterClayPerDay, 'potters')}</span></li>
       <li><span>Stone geology</span><span>${formatGeologicalResourcePlan(geology.stone)}</span></li>
       <li><span>Iron geology</span><span>${formatGeologicalResourcePlan(geology.iron, industrialMaterials.smithyIronPerDay, 'smithies')}</span></li>

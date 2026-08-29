@@ -150,7 +150,6 @@ fn is_rural_building(kind: &str) -> bool {
             | "stone_quarry"
             | "large_quarry"
             | "mine"
-            | "clay_pit"
             | "well"
             | "hunters_hall"
             | "foragers_shed"

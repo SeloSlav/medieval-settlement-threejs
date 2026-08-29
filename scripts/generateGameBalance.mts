@@ -1649,7 +1649,6 @@ function generateRust(): string {
   lines.push('    StoneQuarry,');
   lines.push('    LargeQuarry,');
   lines.push('    Mine,');
-  lines.push('    ClayPit,');
   lines.push('    CharcoalBurner,');
   lines.push('    Smithy,');
   lines.push('    PotterKiln,');

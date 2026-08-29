@@ -33,7 +33,7 @@ export type PlacementBuildMenuAction =
 export type BuildMenuAction = PlacementBuildMenuAction;
 type PlayerPlaceableBuildingKind = Exclude<
   BuildingKind,
-  'salvage_pile' | 'clay_pit'
+  'salvage_pile'
 >;
 type DecorationArtKey = 'dry_stone_wall';
 type PlacementArtKey = PlayerPlaceableBuildingKind | 'residences' | DecorationArtKey;

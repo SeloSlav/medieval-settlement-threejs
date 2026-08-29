@@ -2336,7 +2336,7 @@ export class ResourceInspector {
             building.z,
           ),
           productionEnvironment?.watermillThroughputMultiplier ?? 1,
-          productionEnvironment?.clayPitThroughputMultiplier ?? 1,
+          productionEnvironment?.surfaceClayThroughputMultiplier ?? 1,
           productionEnvironment?.preservedFoodDemandMultiplier ?? 1,
           gameClock(gameState.tick).month,
           this.options.getWorldResourceAbundance?.() ?? 50,

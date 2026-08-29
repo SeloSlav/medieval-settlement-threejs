@@ -41,7 +41,6 @@ export const RURAL_BUILDING_KINDS = new Set<BuildingKind>([
   'stone_quarry',
   'large_quarry',
   'mine',
-  'clay_pit',
   'well',
   'hunters_hall',
   'foragers_shed',
