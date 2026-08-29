@@ -10,7 +10,7 @@ import bpy
 
 EXAMPLE_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path(os.environ.get("GK_TIER1_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
-OUT_REPORT = OUTPUT_ROOT / "out" / "tier1_residence_validation_v25.json"
+OUT_REPORT = OUTPUT_ROOT / "out" / "tier1_residence_validation_v26.json"
 
 
 def architecture_objects() -> list[bpy.types.Object]:

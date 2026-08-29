@@ -6,22 +6,28 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
-  ANIMATED_RIGS_PER_SHARD,
   MAX_ANIMATED_SKELETON_BYTES,
   SettlementCrowdRenderer,
+  animatedRigsPerShard,
   type CrowdRenderAgent,
 } from '../src/settlement/SettlementCrowdRenderer.ts';
 
 (globalThis as typeof globalThis & { self: typeof globalThis }).self = globalThis;
+(globalThis as typeof globalThis & {
+  createImageBitmap: (blob: Blob) => Promise<ImageBitmap>;
+}).createImageBitmap = async () => ({
+  width: 1,
+  height: 1,
+  close() {},
+} as ImageBitmap);
 
 const ASSETS = [
-  ['man', 'public/assets/models/villagers/quaternius-villager-man.glb'],
+  ['man', 'public/assets/models/villagers/worker-male-common-01-v001.glb'],
   ['woman', 'public/assets/models/villagers/quaternius-villager-woman.glb'],
 ] as const;
 const CLOSE_AGENT_COUNT = 72;
-const SHARD_COUNT = CLOSE_AGENT_COUNT / ANIMATED_RIGS_PER_SHARD;
 const BENCHMARK_FRAMES = 600;
-const EXPECTED_LAYERS = { man: 9, woman: 5 } as const;
+const EXPECTED_LAYERS = { man: 1, woman: 5 } as const;
 const TARGET_HEIGHTS = { man: 1.72, woman: 1.64 } as const;
 
 type ParsedSource = {
@@ -92,7 +98,11 @@ for (const [variant, path] of ASSETS) {
     );
     const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
     assert.ok(material instanceof THREE.MeshStandardMaterial);
-    assert.equal(material.map, null, `${variant}/${mesh.name} unexpectedly introduced a color map`);
+    if (variant === 'man') {
+      assert.ok(material.map, `${variant}/${mesh.name} must retain its authored color texture`);
+    } else {
+      assert.equal(material.map, null, `${variant}/${mesh.name} unexpectedly introduced a color map`);
+    }
     for (const attribute of ['position', 'normal', 'skinIndex', 'skinWeight']) {
       assert.ok(
         mesh.geometry.getAttribute(attribute),
@@ -156,6 +166,7 @@ type DisposableLayer = {
 type AggregateRuntimeBatch = {
   variant: 'man' | 'woman';
   bonesPerRig: number;
+  rigsPerShard: number;
   shards: Array<{
     skeleton: THREE.Skeleton;
     skeletonBytes: number;
@@ -191,15 +202,20 @@ for (const source of sources) {
     targetHeight: TARGET_HEIGHTS[source.variant],
   });
   aggregateBatches[source.variant] = batch;
-  assert.equal(batch.shards.length, SHARD_COUNT);
   const sourceBoneCount = source.meshes[0]!.skeleton.bones.length;
+  const expectedRigsPerShard = animatedRigsPerShard(sourceBoneCount);
+  assert.equal(batch.rigsPerShard, expectedRigsPerShard);
+  assert.equal(
+    batch.shards.length,
+    Math.ceil(CLOSE_AGENT_COUNT / expectedRigsPerShard),
+  );
   for (const [shardIndex, shard] of batch.shards.entries()) {
     assert.equal(shard.layers.length, EXPECTED_LAYERS[source.variant]);
     assert.equal(
       shard.skeleton.bones.length,
-      sourceBoneCount * ANIMATED_RIGS_PER_SHARD,
+      sourceBoneCount * batch.rigsPerShard,
     );
-    assert.equal(shard.skeletonBytes, sourceBoneCount * 8 * 16 * 4);
+    assert.equal(shard.skeletonBytes, sourceBoneCount * batch.rigsPerShard * 16 * 4);
     assert.ok(
       shard.skeletonBytes <= MAX_ANIMATED_SKELETON_BYTES,
       `${source.variant} shard ${shardIndex} exceeds hard 15,872-byte limit`,
@@ -212,7 +228,7 @@ for (const source of sources) {
     for (const layer of shard.layers) {
       assert.equal(
         layer.geometry.getAttribute('position').count,
-        layer.sourceVertexCount * ANIMATED_RIGS_PER_SHARD,
+        layer.sourceVertexCount * batch.rigsPerShard,
       );
       assert.equal(layer.material.vertexColors, true);
       assert.equal(layer.material.color.getHex(), 0xffffff);
@@ -229,7 +245,10 @@ for (const source of sources) {
 const aggregateConstructionMs = performance.now() - aggregateConstructionStartedAt;
 assert.equal(
   aggregateLayerMeshes,
-  SHARD_COUNT * (EXPECTED_LAYERS.man + EXPECTED_LAYERS.woman),
+  Object.values(aggregateBatches).reduce(
+    (sum, batch) => sum + batch.shards.length * EXPECTED_LAYERS[batch.variant],
+    0,
+  ),
   'every exact-capacity shard must retain all authored material layers',
 );
 
@@ -268,10 +287,10 @@ for (let index = 0; index < CLOSE_AGENT_COUNT; index++) {
 }
 const constructionMs = performance.now() - constructionStartedAt;
 
-assert.equal(baselineSubmissions, 504, '72 exact close villagers must expose the measured 504 body submissions');
+assert.equal(baselineSubmissions, 216, '72 exact close villagers must expose the measured 216 body submissions');
 assert.equal(mixers.length, 72, 'the baseline must exercise the current 72 independent mixers');
-assert.equal(clonedSkinnedMeshes, 504);
-assert.equal(clonedMaterials, 504);
+assert.equal(clonedSkinnedMeshes, 216);
+assert.equal(clonedMaterials, 216);
 
 let checksum = 0;
 const mixerStartedAt = performance.now();
@@ -323,12 +342,12 @@ for (const batch of Object.values(aggregateBatches)) {
   );
   for (const [shardIndex, shard] of batch.shards.entries()) {
     const activeInShard = Math.min(
-      ANIMATED_RIGS_PER_SHARD,
-      Math.max(0, variantAgents.length - shardIndex * ANIMATED_RIGS_PER_SHARD),
+      batch.rigsPerShard,
+      Math.max(0, variantAgents.length - shardIndex * batch.rigsPerShard),
     );
     for (let shardSlot = 0; shardSlot < activeInShard; shardSlot++) {
       const agent = variantAgents[
-        shardIndex * ANIMATED_RIGS_PER_SHARD + shardSlot
+        shardIndex * batch.rigsPerShard + shardSlot
       ]!;
       const visual = aggregateHarness.animated.get(agent.id)!;
       const boneOffset = shardSlot * batch.bonesPerRig;
@@ -363,8 +382,8 @@ for (const batch of Object.values(aggregateBatches)) {
 }
 assert.equal(
   balancedBodySubmissions,
-  70,
-  '36 man + 36 woman must submit 5x9 + 5x5 exact body-layer draws',
+  31,
+  '36 man + 36 woman must submit 6x1 + 5x5 exact body-layer draws',
 );
 
 const manSkeletons = rootSkeletons.filter((_, index) => index % 2 === 0);
@@ -392,7 +411,7 @@ for (const batch of Object.values(aggregateBatches)) {
       assert.equal(
         layer.geometry.drawRange.count,
         expectedVisible
-          ? ANIMATED_RIGS_PER_SHARD * layer.sourceDrawCount
+          ? batch.rigsPerShard * layer.sourceDrawCount
           : 0,
       );
       if (layer.mesh.visible) allManBodySubmissions += 1;
@@ -401,8 +420,8 @@ for (const batch of Object.values(aggregateBatches)) {
 }
 assert.equal(
   allManBodySubmissions,
-  81,
-  '72 villagers of the nine-layer variant must submit exactly 9x9 draws',
+  12,
+  '72 six-rig textured workers must submit exactly twelve body draws',
 );
 
 for (const mixer of mixers) {
@@ -459,7 +478,11 @@ aggregateHarness.toolSources = null;
 aggregateHarness.group = new THREE.Group();
 aggregateHarness.disposed = false;
 aggregateHarness.dispose();
-assert.equal(skeletonDisposals, SHARD_COUNT * 2);
+const totalShardCount = Object.values(aggregateBatches).reduce(
+  (sum, batch) => sum + batch.shards.length,
+  0,
+);
+assert.equal(skeletonDisposals, totalShardCount);
 assert.equal(geometryDisposals, aggregateLayerMeshes);
 assert.equal(materialDisposals, aggregateLayerMeshes);
 assert.equal(aggregateHarness.animatedBatches, null);
@@ -473,7 +496,7 @@ console.log(
     + `${BENCHMARK_FRAMES} mixer frames ${mixerMs.toFixed(1)} ms / `
     + `${(mixerMs / BENCHMARK_FRAMES).toFixed(3)} ms per frame; `
     + `aggregate ${balancedBodySubmissions} balanced / ${allManBodySubmissions} one-variant body submissions, `
-    + `${SHARD_COUNT * 2} shards at ${MAX_ANIMATED_SKELETON_BYTES.toLocaleString()} bytes max, `
+    + `${totalShardCount} shards at ${MAX_ANIMATED_SKELETON_BYTES.toLocaleString()} bytes max, `
     + `${(aggregateGeometryBytes / 1024 / 1024).toFixed(1)} MiB geometry built in `
     + `${aggregateConstructionMs.toFixed(1)} ms; `
     + `${BENCHMARK_FRAMES} batch-map frames ${aggregateUpdateMs.toFixed(1)} ms / `

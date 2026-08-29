@@ -108,8 +108,8 @@ export function createWorkerToolSource(
 }
 
 /**
- * Parents a lightweight CC0 tool directly to the authored right-palm joint.
- * Kenney's tools and the Quaternius rig use different source scales. The
+ * Parents a lightweight CC0 tool directly to the authored right-hand joint.
+ * Kenney's tools and the villager rigs use different source scales. The
  * local fit is derived after reading the palm's accumulated rig scale, with
  * independent axes for the deliberately exaggerated Kenney models.
  */
@@ -117,9 +117,9 @@ export function attachWorkerTool(
   model: THREE.Group,
   source: WorkerToolSource,
 ): THREE.Group {
-  const palm = model.getObjectByName('PalmR');
+  const palm = model.getObjectByName('PalmR') ?? model.getObjectByName('R_Hand');
   if (!(palm instanceof THREE.Bone)) {
-    throw new Error('Worker rig is missing its PalmR hand joint.');
+    throw new Error('Worker rig is missing its PalmR/R_Hand joint.');
   }
 
   model.updateWorldMatrix(true, true);

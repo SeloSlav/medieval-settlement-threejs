@@ -21,9 +21,9 @@ const jobs = [
       'examples',
       'tier1-residence',
       'out',
-      'tier1_residence_retopo_v25.glb',
+      'tier1_residence_retopo_v26.glb',
     ),
-    output: path.join(outputDirectory, 'tier1_residence_retopo_v25.glb'),
+    output: path.join(outputDirectory, 'tier1_residence_retopo_v26.glb'),
   },
   {
     source: path.join(

@@ -1,8 +1,8 @@
 Villager model assets
 =====================
 
-The GLB files in this directory are Quaternius models distributed under
-Creative Commons Zero v1.0 Universal (CC0 1.0):
+The two quaternius-villager GLB files in this directory are Quaternius models
+distributed under Creative Commons Zero v1.0 Universal (CC0 1.0):
 https://creativecommons.org/publicdomain/zero/1.0/
 
 Assets and source pages:
@@ -21,7 +21,12 @@ Assets and source pages:
   Downloaded GLB:
   https://static.poly.pizza/a642af96-e239-4c5f-b50d-7661ff51deec.glb
 
-Both models retain their authored rigs and idle/walk animation clips. The game
-scales them to settlement proportions and applies deterministic clothing, skin,
-and hair colors at runtime. Attribution is not required by CC0, but this record
-is kept with the assets so their provenance and reuse terms remain auditable.
+- worker-male-common-01-v001.glb
+  Project-supplied Tripo-generated worker asset. This file is not covered by
+  the Quaternius CC0 notice above. Its animation-index provenance and the
+  SHA-256 of the original export are retained in
+  worker-male-common-01-v001.animation-map.json.
+
+The Quaternius models retain their authored rigs and idle/walk animation clips.
+Attribution is not required by CC0, but this record is kept with the assets so
+their provenance and reuse terms remain auditable.

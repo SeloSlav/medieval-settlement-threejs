@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "sourceFile": "worker_male_common_01_v001 (1).glb",
+  "sourceSha256": "7ed2ef8de634a588412b73d2d440601c7e01d14d072629098b7ed1e983326c4d",
+  "generatedAt": "2026-08-29T08:23:58.956Z",
+  "animations": [
+    {
+      "index": 0,
+      "originalName": "NlaTrack",
+      "durationSeconds": 7.208333,
+      "semanticName": "sit"
+    },
+    {
+      "index": 1,
+      "originalName": "NlaTrack.001",
+      "durationSeconds": 2.375,
+      "semanticName": "walk"
+    },
+    {
+      "index": 2,
+      "originalName": "NlaTrack.002",
+      "durationSeconds": 12.125,
+      "semanticName": "cheer"
+    },
+    {
+      "index": 3,
+      "originalName": "NlaTrack.003",
+      "durationSeconds": 15.541667,
+      "semanticName": "shovel"
+    },
+    {
+      "index": 4,
+      "originalName": "NlaTrack.004",
+      "durationSeconds": 13.708333,
+      "semanticName": "clap"
+    },
+    {
+      "index": 5,
+      "originalName": "NlaTrack.005",
+      "durationSeconds": 7.916667,
+      "semanticName": "cry"
+    },
+    {
+      "index": 6,
+      "originalName": "NlaTrack.006",
+      "durationSeconds": 3.541667,
+      "semanticName": "greet_01"
+    },
+    {
+      "index": 7,
+      "originalName": "NlaTrack.007",
+      "durationSeconds": 6.625,
+      "semanticName": "chop"
+    },
+    {
+      "index": 8,
+      "originalName": "NlaTrack.008",
+      "durationSeconds": 4.041667,
+      "semanticName": "agree"
+    },
+    {
+      "index": 9,
+      "originalName": "NlaTrack.009",
+      "durationSeconds": 16.416666,
+      "semanticName": "dig"
+    },
+    {
+      "index": 10,
+      "originalName": "NlaTrack.010",
+      "durationSeconds": 2.708333,
+      "semanticName": "flee_01"
+    },
+    {
+      "index": 11,
+      "originalName": "NlaTrack.011",
+      "durationSeconds": 1.333333,
+      "semanticName": "hit_to_body_01"
+    },
+    {
+      "index": 12,
+      "originalName": "NlaTrack.012",
+      "durationSeconds": 6.625,
+      "semanticName": "slash"
+    },
+    {
+      "index": 13,
+      "originalName": "NlaTrack.013",
+      "durationSeconds": 1.291667,
+      "semanticName": "run"
+    },
+    {
+      "index": 14,
+      "originalName": "NlaTrack.014",
+      "durationSeconds": 17.625,
+      "semanticName": "standing_relax"
+    },
+    {
+      "index": 15,
+      "originalName": "NlaTrack.015",
+      "durationSeconds": 15.375,
+      "semanticName": "idle"
+    },
+    {
+      "index": 16,
+      "originalName": "NlaTrack.016",
+      "durationSeconds": 19.541666,
+      "semanticName": "lift_heavy"
+    },
+    {
+      "index": 17,
+      "originalName": "NlaTrack.017",
+      "durationSeconds": 6.041667,
+      "semanticName": "wait"
+    },
+    {
+      "index": 18,
+      "originalName": "NlaTrack.018",
+      "durationSeconds": 5.625,
+      "semanticName": "laugh_01"
+    },
+    {
+      "index": 19,
+      "originalName": "NlaTrack.019",
+      "durationSeconds": 6.041667,
+      "semanticName": "bow"
+    },
+    {
+      "index": 20,
+      "originalName": "NlaTrack.020",
+      "durationSeconds": 15.625,
+      "semanticName": "look_around"
+    },
+    {
+      "index": 21,
+      "originalName": "NlaTrack.021",
+      "durationSeconds": 3.041667,
+      "semanticName": "fall"
+    }
+  ]
+}

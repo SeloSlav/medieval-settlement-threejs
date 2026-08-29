@@ -14,7 +14,7 @@ import {
 } from './buildingMaterials.ts';
 
 export const TIER_ONE_RESIDENCE_MODEL_URL =
-  '/assets/models/buildings/gorski/tier1_residence_retopo_v25.glb';
+  '/assets/models/buildings/gorski/tier1_residence_retopo_v26.glb';
 export const HUNTERS_CAMP_MODEL_URL =
   '/assets/models/buildings/gorski/hunters_camp_textured_v8.glb';
 
@@ -61,7 +61,7 @@ export function createAuthoredTierOneResidenceShell(): THREE.Group | null {
   // that public face to local +Z; centre the seven-metre depth on the marker.
   shell.position.z = 3.5;
   shell.userData.authoredGlbAsset = true;
-  shell.userData.authoredGlbVersion = 'tier1-residence-v25';
+  shell.userData.authoredGlbVersion = 'tier1-residence-v26';
   shell.userData.authoredGlbUrl = TIER_ONE_RESIDENCE_MODEL_URL;
   return shell;
 }
@@ -132,19 +132,24 @@ function prepareMaterial(
   material.userData.sharedBuildingMaterial = true;
   if (atlasId === 'gorski-building-atlas-v1') {
     const tile = source.userData.atlas_tile as BuildingMaterialAtlasTile;
+    const authoredTint = readAuthoredAtlasTint(source);
+    const weatheringProfile = readAuthoredWeatheringProfile(source);
+    material.color.copy(authoredTint.color);
     material.roughness = authoredRoughness(tile);
     material.metalness = tile === 'wrought-iron' ? 0.68 : 0;
     if (source.userData.atlas_uv_mode === 'final tile coordinates baked into GK_UV0') {
       applyBuildingMaterialAtlasDirectUv(material, {
         tile,
-        tintStrength: 0,
-        normalStrength: 0.82,
+        tintStrength: authoredTint.strength,
+        normalStrength: authoredTint.normalStrength,
+        weatheringProfile,
       });
     } else {
       applyBuildingMaterialAtlas(material, {
         tile,
-        tintStrength: 0,
-        normalStrength: 0.82,
+        tintStrength: authoredTint.strength,
+        normalStrength: authoredTint.normalStrength,
+        weatheringProfile,
       });
     }
   } else {
@@ -162,6 +167,38 @@ function prepareMaterial(
   }
   material.needsUpdate = true;
   return material;
+}
+
+function readAuthoredWeatheringProfile(
+  source: THREE.MeshStandardMaterial,
+): 'tier1-daub' | 'tier1-fieldstone' | undefined {
+  const profile = source.userData.weathering_profile;
+  return profile === 'tier1-daub' || profile === 'tier1-fieldstone'
+    ? profile
+    : undefined;
+}
+
+function readAuthoredAtlasTint(source: THREE.MeshStandardMaterial): {
+  color: THREE.Color;
+  strength: number;
+  normalStrength: number;
+} {
+  const encoded = source.userData.atlas_tint;
+  const color = source.color.clone();
+  if (
+    Array.isArray(encoded)
+    && encoded.length >= 3
+    && encoded.slice(0, 3).every((channel) => Number.isFinite(Number(channel)))
+  ) {
+    color.setRGB(Number(encoded[0]), Number(encoded[1]), Number(encoded[2]));
+  }
+  const strength = Number(source.userData.atlas_tint_strength);
+  const normalStrength = Number(source.userData.atlas_normal_strength);
+  return {
+    color,
+    strength: Number.isFinite(strength) ? THREE.MathUtils.clamp(strength, 0, 1) : 0,
+    normalStrength: Number.isFinite(normalStrength) ? Math.max(0, normalStrength) : 0.82,
+  };
 }
 
 function createNodeMaterialFromSource(

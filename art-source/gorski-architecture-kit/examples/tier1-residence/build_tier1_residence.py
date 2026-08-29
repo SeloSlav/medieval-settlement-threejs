@@ -17,12 +17,12 @@ OUTPUT_ROOT = Path(os.environ.get("GK_TIER1_OUTPUT_ROOT", str(EXAMPLE_DIR))).res
 OUT_DIR = OUTPUT_ROOT / "out"
 RENDER_DIR = OUTPUT_ROOT / "renders"
 ATLAS_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_building_atlas_v1"
-OUT_BLEND = OUT_DIR / "tier1_residence_retopo_v25.blend"
-OUT_GLB = OUT_DIR / "tier1_residence_retopo_v25.glb"
-OUT_MANIFEST = OUT_DIR / "tier1_residence_assembly_v25.json"
-OUT_RENDER = RENDER_DIR / "tier1_residence_hero_retopo_v25.png"
-OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_retopo_v25.png"
-OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_retopo_v25.png"
+OUT_BLEND = OUT_DIR / "tier1_residence_retopo_v26.blend"
+OUT_GLB = OUT_DIR / "tier1_residence_retopo_v26.glb"
+OUT_MANIFEST = OUT_DIR / "tier1_residence_assembly_v26.json"
+OUT_RENDER = RENDER_DIR / "tier1_residence_hero_retopo_v26.png"
+OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_retopo_v26.png"
+OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_retopo_v26.png"
 
 WALL_BASE_Z = 0.35
 WALL_HEIGHT = 2.4
@@ -145,6 +145,21 @@ def atlas_material(key: str) -> bpy.types.Material:
     material["atlas_id"] = ATLAS_MANIFEST["id"]
     material["atlas_tile"] = tile_id
     material["metres_per_tile"] = metres
+    strong_atlas_grade = key in {
+        "fieldstone_weathered",
+        "timber_weathered_horizontal",
+        "roof_support_dark",
+        "shingles",
+        "shingles_aged",
+        "shingles_light",
+        "thatch_dark",
+        "thatch",
+        "thatch_light",
+    }
+    material["atlas_look"] = key
+    material["atlas_tint"] = list(tint[:3])
+    material["atlas_tint_strength"] = 1.0 if strong_atlas_grade else tint_strength
+    material["atlas_normal_strength"] = normal_strength
     nodes = material.node_tree.nodes
     links = material.node_tree.links
     nodes.clear()
@@ -204,17 +219,6 @@ def atlas_material(key: str) -> bpy.types.Material:
 
     tint_node = nodes.new("ShaderNodeMixRGB")
     tint_node.blend_type = "MULTIPLY"
-    strong_atlas_grade = key in {
-        "fieldstone_weathered",
-        "timber_weathered_horizontal",
-        "roof_support_dark",
-        "shingles",
-        "shingles_aged",
-        "shingles_light",
-        "thatch_dark",
-        "thatch",
-        "thatch_light",
-    }
     tint_node.inputs[0].default_value = 1.0 if strong_atlas_grade else tint_strength
     tint_node.inputs[2].default_value = tint
     tint_node.location = (70, 280)
@@ -300,6 +304,9 @@ def atlas_material(key: str) -> bpy.types.Material:
         links.new(ao_multiply.outputs["Color"], wear_mix.inputs[1])
         base_color_output = wear_mix.outputs["Color"]
         material["weathering"] = "low-frequency staining with world-height accumulation"
+        material["weathering_profile"] = (
+            "tier1-daub" if key == "daub_humble" else "tier1-fieldstone"
+        )
     links.new(base_color_output, principled.inputs["Base Color"])
     links.new(separate.outputs["Red"], principled.inputs["Roughness"])
     links.new(separate.outputs["Green"], principled.inputs["Metallic"])
@@ -328,6 +335,12 @@ def direct_atlas_material(key: str) -> bpy.types.Material:
     material["atlas_id"] = ATLAS_MANIFEST["id"]
     material["atlas_tile"] = tile_id
     material["metres_per_tile"] = float(tile["metersPerTile"])
+    material["atlas_look"] = key
+    material["atlas_tint"] = list(tint[:3])
+    # Blender's direct roof material samples the atlas without a multiply
+    # grade. Its warm colour comes from the split-shingles tile itself.
+    material["atlas_tint_strength"] = 0.0
+    material["atlas_normal_strength"] = normal_strength
     material["atlas_uv_mode"] = "final tile coordinates baked into GK_UV0"
     material["gltf_export_safe"] = True
     nodes = material.node_tree.nodes

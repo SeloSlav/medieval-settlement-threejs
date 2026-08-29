@@ -17,11 +17,9 @@ import {
 
 const MAX_INSTANCES = 1024;
 const MAX_ANIMATED_VILLAGERS = 72;
+/** Upper bound; higher-bone rigs automatically use fewer slots per shard. */
 export const ANIMATED_RIGS_PER_SHARD = 8;
 export const MAX_ANIMATED_SKELETON_BYTES = 15_872;
-const ANIMATED_SHARDS_PER_VARIANT = Math.ceil(
-  MAX_ANIMATED_VILLAGERS / ANIMATED_RIGS_PER_SHARD,
-);
 const MODEL_YAW_OFFSET = 0;
 const NOMINAL_WALK_SPEED = 1.2;
 const BODY_GEOMETRY = new THREE.CapsuleGeometry(0.22, 0.72, 4, 8);
@@ -29,7 +27,7 @@ const LEGS_GEOMETRY = new THREE.CapsuleGeometry(0.16, 0.34, 4, 8);
 const HEAD_GEOMETRY = new THREE.SphereGeometry(0.19, 10, 10);
 
 const MODEL_URLS = {
-  man: '/assets/models/villagers/quaternius-villager-man.glb',
+  man: '/assets/models/villagers/worker-male-common-01-v001.glb',
   woman: '/assets/models/villagers/quaternius-villager-woman.glb',
 } as const;
 
@@ -108,12 +106,27 @@ type AnimatedBatchLayer = {
 type AnimatedVariantBatch = {
   variant: VillagerModelVariant;
   bonesPerRig: number;
+  rigsPerShard: number;
   shards: Array<{
     skeleton: THREE.Skeleton;
     skeletonBytes: number;
     layers: AnimatedBatchLayer[];
   }>;
 };
+
+export function animatedRigsPerShard(bonesPerRig: number): number {
+  if (!Number.isFinite(bonesPerRig) || bonesPerRig <= 0) return 1;
+  const matrixBytesPerRig = Math.ceil(bonesPerRig)
+    * 16
+    * Float32Array.BYTES_PER_ELEMENT;
+  return Math.max(
+    1,
+    Math.min(
+      ANIMATED_RIGS_PER_SHARD,
+      Math.floor(MAX_ANIMATED_SKELETON_BYTES / matrixBytesPerRig),
+    ),
+  );
+}
 
 export type CrowdRenderAgent = {
   id: string;
@@ -189,7 +202,7 @@ export class SettlementCrowdRenderer {
 
   constructor(options: SettlementCrowdRendererOptions) {
     this.group.name = 'Villagers';
-    this.animatedGroup.name = 'Animated Quaternius villagers';
+    this.animatedGroup.name = 'Animated villagers';
     this.group.add(this.animatedGroup);
     options.parent.add(this.group);
 
@@ -329,7 +342,7 @@ export class SettlementCrowdRenderer {
       this.syncAgents(this.latestAgents, this.lastView);
       return true;
     } catch (error) {
-      console.warn('[Villagers] Animated CC0 Quaternius villagers failed to load.', error);
+      console.warn('[Villagers] Animated villager sources failed to load.', error);
       return false;
     }
   }
@@ -683,8 +696,9 @@ export class SettlementCrowdRenderer {
     const sourceSkeleton = sourceMeshes[0]?.skeleton;
     if (!sourceSkeleton) throw new Error(`Missing ${variant} source skeleton`);
     const bonesPerRig = sourceSkeleton.bones.length;
+    const rigsPerShard = animatedRigsPerShard(bonesPerRig);
     const skeletonBytes = bonesPerRig
-      * ANIMATED_RIGS_PER_SHARD
+      * rigsPerShard
       * 16
       * Float32Array.BYTES_PER_ELEMENT;
     if (skeletonBytes > MAX_ANIMATED_SKELETON_BYTES) {
@@ -694,11 +708,11 @@ export class SettlementCrowdRenderer {
       );
     }
     const shards = Array.from(
-      { length: ANIMATED_SHARDS_PER_VARIANT },
+      { length: Math.ceil(MAX_ANIMATED_VILLAGERS / rigsPerShard) },
       (_, shardIndex) => {
         const bones: THREE.Bone[] = [];
         const boneInverses: THREE.Matrix4[] = [];
-        for (let slot = 0; slot < ANIMATED_RIGS_PER_SHARD; slot++) {
+        for (let slot = 0; slot < rigsPerShard; slot++) {
           bones.push(...sourceSkeleton.bones);
           boneInverses.push(...sourceSkeleton.boneInverses);
         }
@@ -715,7 +729,7 @@ export class SettlementCrowdRenderer {
           const geometry = createReplicatedSkinnedGeometry(
             sourceMesh.geometry,
             bonesPerRig,
-            ANIMATED_RIGS_PER_SHARD,
+            rigsPerShard,
           );
           const material = sourceMaterial.clone();
           material.name = `${sourceMaterial.name}: aggregate close villagers`;
@@ -741,15 +755,15 @@ export class SettlementCrowdRenderer {
             sourceVertexCount: sourceMesh.geometry.getAttribute('position').count,
             sourceDrawCount: sourceMesh.geometry.index?.count
               ?? sourceMesh.geometry.getAttribute('position').count,
-            slotColors: new Uint32Array(ANIMATED_RIGS_PER_SHARD),
-            initializedColors: new Uint8Array(ANIMATED_RIGS_PER_SHARD),
-            dirtyColors: new Uint8Array(ANIMATED_RIGS_PER_SHARD),
+            slotColors: new Uint32Array(rigsPerShard),
+            initializedColors: new Uint8Array(rigsPerShard),
+            dirtyColors: new Uint8Array(rigsPerShard),
           } satisfies AnimatedBatchLayer;
         });
         return { skeleton, skeletonBytes, layers };
       },
     );
-    return { variant, bonesPerRig, shards };
+    return { variant, bonesPerRig, rigsPerShard, shards };
   }
 
   private updateAnimatedBatches(
@@ -768,13 +782,13 @@ export class SettlementCrowdRenderer {
       if (!animatedIds.has(agent.id)) continue;
       const visual = this.animated.get(agent.id);
       if (!visual) continue;
-      const batch = batches[agent.variant];
+      const batch: AnimatedVariantBatch = batches[agent.variant];
       const variantSlot = counts[agent.variant]++;
       if (variantSlot >= MAX_ANIMATED_VILLAGERS) continue;
       const shard = batch.shards[
-        Math.floor(variantSlot / ANIMATED_RIGS_PER_SHARD)
+        Math.floor(variantSlot / batch.rigsPerShard)
       ]!;
-      const shardSlot = variantSlot % ANIMATED_RIGS_PER_SHARD;
+      const shardSlot = variantSlot % batch.rigsPerShard;
       const boneOffset = shardSlot * batch.bonesPerRig;
       for (let bone = 0; bone < batch.bonesPerRig; bone++) {
         shard.skeleton.bones[boneOffset + bone] = visual.skeleton.bones[bone]!;
@@ -808,10 +822,10 @@ export class SettlementCrowdRenderer {
       for (let shardIndex = 0; shardIndex < batch.shards.length; shardIndex++) {
         const shard = batch.shards[shardIndex]!;
         const count = Math.min(
-          ANIMATED_RIGS_PER_SHARD,
+          batch.rigsPerShard,
           Math.max(
             0,
-            counts[batch.variant] - shardIndex * ANIMATED_RIGS_PER_SHARD,
+            counts[batch.variant] - shardIndex * batch.rigsPerShard,
           ),
         );
         for (const layer of shard.layers) {
@@ -996,6 +1010,15 @@ async function loadVillagerSource(
   }
   const idle = findAnimationClip(gltf.animations, 'idle');
   const walk = findAnimationClip(gltf.animations, 'walk');
+  if (idle && walk && findAnimationClip(gltf.animations, 'standing_relax')) {
+    return {
+      scene: gltf.scene,
+      bounds,
+      sourceHeight,
+      targetHeight,
+      clips: createSemanticWorkerClipSet(gltf.animations),
+    };
+  }
   const sitting = findAnimationClip(gltf.animations, 'sitting');
   const swing = findAnimationClip(gltf.animations, 'swordslash');
   if (!idle || !walk || !sitting || !swing) {
@@ -1042,6 +1065,38 @@ async function loadVillagerSource(
       build,
       fight,
     },
+  };
+}
+
+function createSemanticWorkerClipSet(
+  animations: readonly THREE.AnimationClip[],
+): Record<VillagerRenderMode, THREE.AnimationClip> {
+  const forMode = (sourceName: string, mode: VillagerRenderMode): THREE.AnimationClip => {
+    const source = findAnimationClip(animations, sourceName);
+    if (!source) throw new Error(`Missing ${sourceName} semantic worker clip`);
+    const clip = source.clone();
+    clip.name = `${source.name}:game-${mode}`;
+    return clip;
+  };
+
+  return {
+    idle: forMode('idle', 'idle'),
+    walk: forMode('walk', 'walk'),
+    sit: forMode('sit', 'sit'),
+    // Both seated behavior states must end on the authored seated pose because
+    // their world roots are aligned to benches and fireside supports.
+    rest: forMode('sit', 'rest'),
+    talk: forMode('greet_01', 'talk'),
+    pray: forMode('bow', 'pray'),
+    chop: forMode('chop', 'chop'),
+    mine: forMode('dig', 'mine'),
+    gather: forMode('lift_heavy', 'gather'),
+    plant: forMode('dig', 'plant'),
+    sow: forMode('shovel', 'sow'),
+    fish: forMode('wait', 'fish'),
+    tend: forMode('shovel', 'tend'),
+    build: forMode('chop', 'build'),
+    fight: forMode('slash', 'fight'),
   };
 }
 

@@ -9,7 +9,7 @@ import {
 import type { VillagerModelVariant } from '../settlement/SettlementCrowdRenderer.ts';
 
 const MODEL_URLS = {
-  man: '/assets/models/villagers/quaternius-villager-man.glb',
+  man: '/assets/models/villagers/worker-male-common-01-v001.glb',
   woman: '/assets/models/villagers/quaternius-villager-woman.glb',
 } as const;
 
@@ -279,9 +279,12 @@ export function disposeDeliveryCartWorkerSources(
 }
 
 function findArmBones(model: THREE.Object3D, side: 'L' | 'R'): ArmBones {
-  const upper = model.getObjectByName(`UpperArm${side}`);
-  const lower = model.getObjectByName(`LowerArm${side}`);
-  const palm = model.getObjectByName(`Palm${side}`);
+  const upper = model.getObjectByName(`UpperArm${side}`)
+    ?? model.getObjectByName(`${side}_Upperarm`);
+  const lower = model.getObjectByName(`LowerArm${side}`)
+    ?? model.getObjectByName(`${side}_Forearm`);
+  const palm = model.getObjectByName(`Palm${side}`)
+    ?? model.getObjectByName(`${side}_Hand`);
   if (
     !(upper instanceof THREE.Bone)
     || !(lower instanceof THREE.Bone)

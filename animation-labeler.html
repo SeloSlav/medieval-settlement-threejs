@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#151713" />
+    <title>GLB Animation Labeler</title>
+  </head>
+  <body>
+    <div id="animation-labeler-root">
+      <header class="tool-header">
+        <div>
+          <p class="eyebrow">Selo Empire · asset utility</p>
+          <h1>GLB Animation Labeler</h1>
+          <p class="tool-subtitle">Preview unnamed clips, assign reliable semantic names, and download a losslessly relabeled GLB.</p>
+        </div>
+        <label class="file-picker">
+          <span>Open GLB</span>
+          <input id="glb-file" type="file" accept=".glb,model/gltf-binary" />
+        </label>
+      </header>
+
+      <main class="tool-layout">
+        <section class="viewer-panel" aria-label="Animation preview">
+          <div id="viewer-host" class="viewer-host">
+            <canvas id="viewer-canvas" aria-label="Interactive 3D animation preview"></canvas>
+            <div id="empty-state" class="empty-state">
+              <strong>Open an animated GLB to begin</strong>
+              <span>The file stays in your browser. Nothing is uploaded.</span>
+            </div>
+            <div id="viewer-busy" class="viewer-busy" hidden>Loading model…</div>
+          </div>
+
+          <div class="playback-panel">
+            <div class="clip-readout">
+              <div>
+                <span class="field-caption">Current clip</span>
+                <strong id="current-clip">No clip loaded</strong>
+              </div>
+              <span id="clip-position" class="tabular">0.00 / 0.00 s</span>
+            </div>
+
+            <input id="timeline" class="timeline" type="range" min="0" max="1" step="0.001" value="0" disabled aria-label="Animation timeline" />
+
+            <div class="playback-controls">
+              <button id="previous-clip" type="button" disabled>Previous</button>
+              <button id="restart-clip" type="button" disabled>Restart</button>
+              <button id="toggle-play" class="primary-action" type="button" disabled>Pause</button>
+              <button id="next-clip" type="button" disabled>Next</button>
+              <label>
+                <span>Speed</span>
+                <select id="playback-speed" disabled>
+                  <option value="0.25">0.25×</option>
+                  <option value="0.5">0.5×</option>
+                  <option value="1" selected>1×</option>
+                  <option value="1.5">1.5×</option>
+                  <option value="2">2×</option>
+                </select>
+              </label>
+              <label class="check-control">
+                <input id="loop-clip" type="checkbox" checked disabled />
+                <span>Loop</span>
+              </label>
+              <label class="check-control">
+                <input id="show-skeleton" type="checkbox" disabled />
+                <span>Skeleton</span>
+              </label>
+              <button id="reset-camera" type="button" disabled>Reset camera</button>
+            </div>
+          </div>
+        </section>
+
+        <aside class="mapping-panel" aria-label="Animation labels">
+          <div class="mapping-heading">
+            <div>
+              <span class="field-caption">Labeling progress</span>
+              <strong id="mapping-progress">0 / 0 named</strong>
+            </div>
+            <button id="save-progress" type="button" disabled>Save progress</button>
+          </div>
+
+          <label class="label-editor">
+            <span class="label-editor-caption">
+              <span>Name this animation</span>
+              <strong id="remaining-name-count">22 names remaining</strong>
+            </span>
+            <select id="semantic-name" disabled aria-label="Name this animation">
+              <option value="">Open a GLB first</option>
+            </select>
+          </label>
+          <button id="save-and-next" class="primary-action wide-action" type="button" disabled>Save name and play next unnamed</button>
+
+          <div class="animation-list-heading">
+            <strong>Animations</strong>
+            <span id="animation-count">No file loaded</span>
+          </div>
+          <ol id="animation-list" class="animation-list"></ol>
+
+          <div class="export-actions">
+            <button id="download-map" type="button" disabled>Download mapping JSON</button>
+            <button id="download-glb" class="primary-action" type="button" disabled>Download labeled GLB</button>
+          </div>
+        </aside>
+      </main>
+
+      <footer class="tool-footer">
+        <span id="file-summary">No GLB loaded</span>
+        <span id="tool-status" role="status" aria-live="polite">Choose the exported worker GLB.</span>
+      </footer>
+    </div>
+    <script type="module" src="/src/tools/glb-animation-labeler/main.ts"></script>
+  </body>
+</html>

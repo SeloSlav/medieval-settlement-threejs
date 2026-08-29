@@ -40,6 +40,7 @@ export type BuildingMaterialAtlasOptions = {
   roughnessWeight?: number;
   metalnessWeight?: number;
   aoStrength?: number;
+  weatheringProfile?: 'tier1-daub' | 'tier1-fieldstone';
 };
 
 type TslNode = {
@@ -50,6 +51,7 @@ type TslNode = {
   rgb: TslNode;
   x: TslNode;
   y: TslNode;
+  z: TslNode;
   add(value: unknown): TslNode;
   clamp(minimum?: unknown, maximum?: unknown): TslNode;
   mul(value: unknown): TslNode;
@@ -67,6 +69,9 @@ const tsl = TSL as unknown as {
   fract(value: unknown): TslNode;
   mix(left: unknown, right: unknown, amount: unknown): TslNode;
   normalMap(value: unknown, scale?: unknown): TslNode;
+  positionLocal: TslNode;
+  sin(value: unknown): TslNode;
+  smoothstep(edge0: unknown, edge1: unknown, value: unknown): TslNode;
   texture(texture: THREE.Texture, uvNode?: unknown): TslNode;
   uniform<T>(value: T): TslNode;
   uv(): TslNode;
@@ -207,9 +212,10 @@ export function applyBuildingMaterialAtlas(
       tint,
       THREE.MathUtils.clamp(options.tintStrength ?? 0.25, 0, 1),
     ));
+    const weathered = applyAtlasWeathering(tinted, options);
     const vertexTint = material.vertexColors ? tsl.vertexColor().rgb : tsl.vec3(1);
     material.colorNode = tsl.vec4(
-      tinted.mul(vertexTint),
+      weathered.mul(vertexTint),
       tsl.float(material.opacity),
     ) as never;
     const normalStrength = Math.max(0, options.normalStrength ?? material.normalScale.x);
@@ -253,8 +259,9 @@ export function applyBuildingMaterialAtlasDirectUv(
   material.userData.buildingMaterialAtlasUvMode = 'direct';
   const textures = getBuildingMaterialAtlasTextures();
   mutatePainterlyMaterialSource(material, () => {
-    // Blender bakes image-space V (top-down); Three's TSL sampler addresses
-    // the bitmap bottom-up, so only direct authored atlas UVs need inversion.
+    // The source UVs are baked in Blender's bottom-up convention, while the
+    // shared Three texture retains flipY=true during bitmap hydration. Mirror
+    // direct coordinates once so the live sampler reaches split-shingles.
     const authoredUv = tsl.uv();
     const atlasUv = tsl.vec2(authoredUv.x, tsl.float(1).sub(authoredUv.y));
     const albedo = tsl.texture(textures.albedo, atlasUv);
@@ -265,9 +272,10 @@ export function applyBuildingMaterialAtlasDirectUv(
       tint,
       THREE.MathUtils.clamp(options.tintStrength ?? 0.25, 0, 1),
     ));
+    const weathered = applyAtlasWeathering(tinted, options);
     const vertexTint = material.vertexColors ? tsl.vertexColor().rgb : tsl.vec3(1);
     material.colorNode = tsl.vec4(
-      tinted.mul(vertexTint),
+      weathered.mul(vertexTint),
       tsl.float(material.opacity),
     ) as never;
     const normalStrength = Math.max(0, options.normalStrength ?? material.normalScale.x);
@@ -297,6 +305,43 @@ export function applyBuildingMaterialAtlasDirectUv(
     material.aoMap = textures.material;
     material.needsUpdate = true;
   });
+}
+
+function applyAtlasWeathering(
+  baseColor: TslNode,
+  options: BuildingMaterialAtlasOptions,
+): TslNode {
+  const profile = options.weatheringProfile;
+  if (!profile) return baseColor;
+
+  // A stable object-local field recreates the broad, bottom-biased staining
+  // used by the Blender preview without allocating another texture per house.
+  const position = tsl.positionLocal;
+  const broad = tsl.sin(
+    position.x.mul(1.73)
+      .add(position.z.mul(1.19))
+      .add(position.y.mul(0.47)),
+  ).mul(0.5).add(0.5);
+  const detail = tsl.sin(
+    position.x.mul(3.91)
+      .sub(position.z.mul(2.37))
+      .add(position.y.mul(1.11))
+      .add(1.7),
+  ).mul(0.5).add(0.5);
+  const mottling = broad.mul(0.72).add(detail.mul(0.28)).clamp(0, 1);
+  const lowerWall = tsl.float(1).sub(tsl.smoothstep(
+    profile === 'tier1-daub' ? 0.18 : 0.02,
+    profile === 'tier1-daub' ? 1.85 : 0.46,
+    position.y,
+  ));
+  const mask = mottling.mul(
+    lowerWall.mul(profile === 'tier1-daub' ? 0.58 : 0.66)
+      .add(profile === 'tier1-daub' ? 0.08 : 0.14),
+  ).clamp(0, profile === 'tier1-daub' ? 0.52 : 0.64);
+  const stain = profile === 'tier1-daub'
+    ? tsl.vec3(0.24, 0.15, 0.08)
+    : tsl.vec3(0.13, 0.12, 0.095);
+  return baseColor.mul(tsl.mix(tsl.vec3(1), stain, mask));
 }
 
 export function disposeBuildingMaterialAtlas(): void {

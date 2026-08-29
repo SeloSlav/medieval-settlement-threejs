@@ -13,7 +13,7 @@ const runtimeRoot = path.join(
   'gorski',
 );
 
-const residence = readGlb('tier1_residence_retopo_v25.glb');
+const residence = readGlb('tier1_residence_retopo_v26.glb');
 assert.equal(residence.json.nodes.length, 33, 'Tier 1 residence node count changed');
 assert.equal(residence.json.meshes.length, 33, 'Tier 1 residence mesh count changed');
 assert.equal(countTriangles(residence.json), 5_184, 'Tier 1 residence triangle count changed');
@@ -21,7 +21,7 @@ assert.ok(residence.bytes.length < 1_000_000, 'Tier 1 runtime GLB should stay be
 assert.deepEqual(residence.json.images ?? [], [], 'Tier 1 must use the shared runtime atlas');
 assert.equal(
   residence.json.asset.extras?.sourceGlb,
-  'tier1_residence_retopo_v25.glb',
+  'tier1_residence_retopo_v26.glb',
   'Tier 1 runtime source provenance is missing',
 );
 assertNames(residence.json, [
@@ -37,6 +37,24 @@ assert.ok(
   ),
   'Tier 1 roof must retain its direct-atlas UV contract',
 );
+for (const material of residence.json.materials.filter(
+  (candidate) => candidate.extras?.atlas_id === 'gorski-building-atlas-v1',
+)) {
+  assert.ok(
+    Array.isArray(material.extras?.atlas_tint) && material.extras.atlas_tint.length === 3,
+    `${material.name} must retain its authored atlas tint`,
+  );
+  assert.equal(
+    typeof material.extras?.atlas_tint_strength,
+    'number',
+    `${material.name} must retain its authored atlas tint strength`,
+  );
+  assert.equal(
+    typeof material.extras?.atlas_normal_strength,
+    'number',
+    `${material.name} must retain its authored normal strength`,
+  );
+}
 
 const camp = readGlb('hunters_camp_textured_v8.glb');
 assert.equal(camp.json.nodes.length, 15, 'Hunter camp node count changed');
@@ -83,6 +101,13 @@ assert.doesNotMatch(
 
 const integrationSource = readText('src/buildings/authoredArchitectureModels.ts');
 assert.match(integrationSource, /applyBuildingMaterialAtlasDirectUv/);
+assert.match(integrationSource, /readAuthoredAtlasTint/);
+assert.match(integrationSource, /readAuthoredWeatheringProfile/);
+assert.match(
+  readText('src/buildings/buildingMaterialAtlas.ts'),
+  /sub\(authoredUv\.y\)/,
+  'Direct Blender atlas UVs must account for Three texture flipY during sampling',
+);
 assert.match(integrationSource, /HuntersFoodStockpile/);
 assert.match(integrationSource, /fpCollisionChildrenOnly/);
 assert.match(readText('src/residences/ResidenceMarkers.ts'), /createAuthoredTierOneResidenceShell/);

@@ -48,6 +48,13 @@ import {
 import { FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT } from '../src/buildings/foundersCampLandmarks.ts';
 
 (globalThis as typeof globalThis & { self: typeof globalThis }).self = globalThis;
+(globalThis as typeof globalThis & {
+  createImageBitmap: (blob: Blob) => Promise<ImageBitmap>;
+}).createImageBitmap = async () => ({
+  width: 1,
+  height: 1,
+  close() {},
+} as ImageBitmap);
 
 const cutoffView = buildCrowdViewState(
   0,
@@ -92,7 +99,7 @@ function assertNoMeshShadows(root: THREE.Object3D, label: string): void {
 const villagerAssets = [
   {
     variant: 'man',
-    path: 'public/assets/models/villagers/quaternius-villager-man.glb',
+    path: 'public/assets/models/villagers/worker-male-common-01-v001.glb',
     targetHeight: 1.72,
   },
   {
@@ -107,15 +114,15 @@ for (const asset of villagerAssets) {
   const gltf = await parseGlb(asset.path);
   const clips = gltf.animations.map((clip) => clip.name.toLowerCase());
   assert.ok(
-    clips.some((name) => name.endsWith('_idle') || name.endsWith('|idle')),
+    clips.some((name) => name === 'idle' || name.endsWith('_idle') || name.endsWith('|idle')),
     `${asset.variant} villager must retain an authored idle animation`,
   );
   assert.ok(
-    clips.some((name) => name.endsWith('_walk') || name.endsWith('|walk')),
+    clips.some((name) => name === 'walk' || name.endsWith('_walk') || name.endsWith('|walk')),
     `${asset.variant} villager must retain an authored walk animation`,
   );
   assert.ok(
-    clips.some((name) => name.endsWith('_sitting') || name.endsWith('|sitting')),
+    clips.some((name) => name === 'sit' || name.endsWith('_sitting') || name.endsWith('|sitting')),
     `${asset.variant} villager must retain the authored ambient sitting animation`,
   );
 
@@ -143,7 +150,8 @@ for (const asset of villagerAssets) {
 
   const seatingGltf = await parseGlb(asset.path);
   const sitting = seatingGltf.animations.find((clip) =>
-    clip.name.toLowerCase().endsWith('_sitting')
+    clip.name.toLowerCase() === 'sit'
+      || clip.name.toLowerCase().endsWith('_sitting')
   );
   assert.ok(sitting);
   const appearanceSeed = 0x0080_0000;
@@ -182,6 +190,12 @@ for (const asset of villagerAssets) {
   let lowestBootHeight = Number.POSITIVE_INFINITY;
   let contactDebug = '';
   const posedVertex = new THREE.Vector3();
+  const seatBones = asset.variant === 'man'
+    ? new Set(['L_ThighTwist02', 'R_ThighTwist02'])
+    : new Set(['UpperLegL']);
+  const footBones = asset.variant === 'man'
+    ? new Set(['L_Foot', 'R_Foot', 'L_ToeBase', 'R_ToeBase'])
+    : new Set(['FootL', 'FootR']);
   seatedModel.traverse((object) => {
     if (!(object instanceof THREE.SkinnedMesh)) return;
     const position = object.geometry.getAttribute('position');
@@ -200,13 +214,13 @@ for (const asset of villagerAssets) {
       }
       const boneIndex = skinIndex.getComponent(index, dominantSlot);
       const boneName = object.skeleton.bones[boneIndex]?.name;
-      if (boneName !== 'UpperLegL' && boneName !== 'FootL' && boneName !== 'FootR') {
+      if (!boneName || (!seatBones.has(boneName) && !footBones.has(boneName))) {
         continue;
       }
       posedVertex.fromBufferAttribute(position, index);
       object.applyBoneTransform(index, posedVertex);
       object.localToWorld(posedVertex);
-      if (boneName === 'UpperLegL') {
+      if (seatBones.has(boneName)) {
         const contactDelta = Math.abs(
           posedVertex.y - calibratedContactHeight,
         );
@@ -215,7 +229,7 @@ for (const asset of villagerAssets) {
           actualSeatContactHeight = posedVertex.y;
           contactDebug = `${object.name} @ ${posedVertex.toArray().join(',')}`;
         }
-      } else if (boneName === 'FootL' || boneName === 'FootR') {
+      } else if (footBones.has(boneName)) {
         lowestBootHeight = Math.min(lowestBootHeight, posedVertex.y);
       }
     }
@@ -467,12 +481,14 @@ for (let index = 0; index < 12; index++) {
   updateDeliveryCartWorkerVisual(worker, 1 / 30, true, 1.05);
 }
 cartA.updateMatrixWorld(true);
-for (const [side, palmName] of [
-  ['left', 'PalmL'],
-  ['right', 'PalmR'],
+for (const [side, palmNames] of [
+  ['left', ['PalmL', 'L_Hand']],
+  ['right', ['PalmR', 'R_Hand']],
 ] as const) {
-  const palm = worker.model.getObjectByName(palmName);
-  assert.ok(palm, `delivery worker must retain ${palmName}`);
+  const palm = palmNames
+    .map((name) => worker.model.getObjectByName(name))
+    .find(Boolean);
+  assert.ok(palm, `delivery worker must retain a ${side} hand joint`);
   const handPosition = palm.getWorldPosition(new THREE.Vector3());
   const handleTarget = DELIVERY_CART_HANDLE_TARGETS[side];
   const target = cartA.localToWorld(
@@ -563,13 +579,14 @@ for (const asset of workerToolAssets) {
   assertNoMeshShadows(tool, `${asset.kind} worker tool`);
 
   assert.equal(
-    tool.parent?.name,
-    'PalmR',
+    tool.parent?.name === 'PalmR' || tool.parent?.name === 'R_Hand',
+    true,
     `${asset.kind} should be parented directly to the right-hand joint`,
   );
   assert.equal(tool.userData.workerTool, asset.kind);
   const swingClip = workerRigGltf.animations.find((clip) =>
-    clip.name.toLowerCase().endsWith('_swordslash')
+    clip.name.toLowerCase() === 'slash'
+      || clip.name.toLowerCase().endsWith('_swordslash')
   );
   assert.ok(swingClip, 'worker rig should retain its authored swing animation');
   const mixer = new THREE.AnimationMixer(workerRig);
@@ -593,11 +610,11 @@ for (const asset of workerToolAssets) {
   const worldLength = Math.max(worldSize.x, worldSize.y, worldSize.z);
   const expectedLengthRange: Record<WorkerToolKind, readonly [number, number]> = {
     hatchet: [0.36, 0.46],
-    pickaxe: [0.72, 0.86],
+    pickaxe: [0.72, 0.97],
     hammer: [0.29, 0.38],
     hoe: [0.77, 1],
     shovel: [0.72, 0.95],
-    spear: [1.65, 1.95],
+    spear: [1.65, 2.3],
   };
   const expectedRange = expectedLengthRange[asset.kind];
   assert.ok(
