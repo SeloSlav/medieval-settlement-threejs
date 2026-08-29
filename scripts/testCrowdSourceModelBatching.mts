@@ -23,11 +23,13 @@ import {
 
 const ASSETS = [
   ['man', 'public/assets/models/villagers/worker-male-common-01-v001.glb'],
-  ['woman', 'public/assets/models/villagers/quaternius-villager-woman.glb'],
+  // TEMP: female villagers share this source until their dedicated labeled GLB
+  // and matching semantic animation set are supplied.
+  ['woman', 'public/assets/models/villagers/worker-male-common-01-v001.glb'],
 ] as const;
 const CLOSE_AGENT_COUNT = 72;
 const BENCHMARK_FRAMES = 600;
-const EXPECTED_LAYERS = { man: 1, woman: 5 } as const;
+const EXPECTED_LAYERS = { man: 1, woman: 1 } as const;
 const TARGET_HEIGHTS = { man: 1.72, woman: 1.64 } as const;
 
 type ParsedSource = {
@@ -98,11 +100,7 @@ for (const [variant, path] of ASSETS) {
     );
     const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
     assert.ok(material instanceof THREE.MeshStandardMaterial);
-    if (variant === 'man') {
-      assert.ok(material.map, `${variant}/${mesh.name} must retain its authored color texture`);
-    } else {
-      assert.equal(material.map, null, `${variant}/${mesh.name} unexpectedly introduced a color map`);
-    }
+    assert.ok(material.map, `${variant}/${mesh.name} must retain its authored color texture`);
     for (const attribute of ['position', 'normal', 'skinIndex', 'skinWeight']) {
       assert.ok(
         mesh.geometry.getAttribute(attribute),
@@ -194,6 +192,10 @@ let aggregateGeometryBytes = 0;
 const aggregateBatches = {} as Record<'man' | 'woman', AggregateRuntimeBatch>;
 const aggregateConstructionStartedAt = performance.now();
 for (const source of sources) {
+  if (source.variant === 'woman' && ASSETS[0][1] === ASSETS[1][1]) {
+    aggregateBatches.woman = aggregateBatches.man;
+    continue;
+  }
   const bounds = new THREE.Box3().setFromObject(source.scene);
   const batch = aggregateHarness.createAnimatedBatch(source.variant, {
     scene: source.scene,
@@ -243,9 +245,10 @@ for (const source of sources) {
   }
 }
 const aggregateConstructionMs = performance.now() - aggregateConstructionStartedAt;
+const uniqueAggregateBatches = [...new Set(Object.values(aggregateBatches))];
 assert.equal(
   aggregateLayerMeshes,
-  Object.values(aggregateBatches).reduce(
+  uniqueAggregateBatches.reduce(
     (sum, batch) => sum + batch.shards.length * EXPECTED_LAYERS[batch.variant],
     0,
   ),
@@ -287,10 +290,10 @@ for (let index = 0; index < CLOSE_AGENT_COUNT; index++) {
 }
 const constructionMs = performance.now() - constructionStartedAt;
 
-assert.equal(baselineSubmissions, 216, '72 exact close villagers must expose the measured 216 body submissions');
+assert.equal(baselineSubmissions, 72, '72 exact close villagers must expose one textured body submission each');
 assert.equal(mixers.length, 72, 'the baseline must exercise the current 72 independent mixers');
-assert.equal(clonedSkinnedMeshes, 216);
-assert.equal(clonedMaterials, 216);
+assert.equal(clonedSkinnedMeshes, 72);
+assert.equal(clonedMaterials, 72);
 
 let checksum = 0;
 const mixerStartedAt = performance.now();
@@ -336,9 +339,9 @@ for (let frame = 0; frame < BENCHMARK_FRAMES; frame++) {
 }
 const aggregateUpdateMs = performance.now() - aggregateUpdateStartedAt;
 let balancedBodySubmissions = 0;
-for (const batch of Object.values(aggregateBatches)) {
+for (const batch of uniqueAggregateBatches) {
   const variantAgents = aggregateAgents.filter(
-    (agent) => agent.variant === batch.variant,
+    (agent) => aggregateBatches[agent.variant] === batch,
   );
   for (const [shardIndex, shard] of batch.shards.entries()) {
     const activeInShard = Math.min(
@@ -382,8 +385,8 @@ for (const batch of Object.values(aggregateBatches)) {
 }
 assert.equal(
   balancedBodySubmissions,
-  31,
-  '36 man + 36 woman must submit 6x1 + 5x5 exact body-layer draws',
+  12,
+  '72 temporarily shared worker rigs must submit exactly twelve body draws',
 );
 
 const manSkeletons = rootSkeletons.filter((_, index) => index % 2 === 0);
@@ -403,10 +406,10 @@ aggregateHarness.updateAnimatedBatches(
   new Set(allManAgents.map((agent) => agent.id)),
 );
 let allManBodySubmissions = 0;
-for (const batch of Object.values(aggregateBatches)) {
+for (const batch of uniqueAggregateBatches) {
   for (const shard of batch.shards) {
     for (const layer of shard.layers) {
-      const expectedVisible = batch.variant === 'man';
+      const expectedVisible = true;
       assert.equal(layer.mesh.visible, expectedVisible);
       assert.equal(
         layer.geometry.drawRange.count,
@@ -441,7 +444,7 @@ for (const root of roots) {
 let skeletonDisposals = 0;
 let geometryDisposals = 0;
 let materialDisposals = 0;
-for (const batch of Object.values(aggregateBatches)) {
+for (const batch of uniqueAggregateBatches) {
   for (const shard of batch.shards) {
     const disposeSkeleton = shard.skeleton.dispose.bind(shard.skeleton);
     shard.skeleton.dispose = () => {
@@ -478,7 +481,7 @@ aggregateHarness.toolSources = null;
 aggregateHarness.group = new THREE.Group();
 aggregateHarness.disposed = false;
 aggregateHarness.dispose();
-const totalShardCount = Object.values(aggregateBatches).reduce(
+const totalShardCount = uniqueAggregateBatches.reduce(
   (sum, batch) => sum + batch.shards.length,
   0,
 );

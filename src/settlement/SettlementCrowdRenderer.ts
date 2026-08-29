@@ -28,7 +28,9 @@ const HEAD_GEOMETRY = new THREE.SphereGeometry(0.19, 10, 10);
 
 const MODEL_URLS = {
   man: '/assets/models/villagers/worker-male-common-01-v001.glb',
-  woman: '/assets/models/villagers/quaternius-villager-woman.glb',
+  // TEMP: use the labeled male worker for female villagers too. Replace this
+  // URL when the dedicated female GLB and matching semantic clips are supplied.
+  woman: '/assets/models/villagers/worker-male-common-01-v001.glb',
 } as const;
 
 const TARGET_HEIGHTS = {
@@ -38,7 +40,8 @@ const TARGET_HEIGHTS = {
 const MODEL_GROUNDING_HEIGHT = 0.012;
 const SEATED_SUPPORT_CONTACT_HEIGHTS = {
   man: 0.39382,
-  woman: 0.38621,
+  // Same source pose as the temporary male-model alias, scaled to 1.64 m.
+  woman: 0.37606,
 } as const;
 
 export type VillagerModelVariant = keyof typeof MODEL_URLS;
@@ -114,6 +117,25 @@ type AnimatedVariantBatch = {
   }>;
 };
 
+function variantsShareModelSource(
+  a: VillagerModelVariant,
+  b: VillagerModelVariant,
+): boolean {
+  return String(MODEL_URLS[a]) === String(MODEL_URLS[b]);
+}
+
+function uniqueAnimatedBatches(
+  batches: Record<VillagerModelVariant, AnimatedVariantBatch>,
+): AnimatedVariantBatch[] {
+  return [...new Set(Object.values(batches))];
+}
+
+function uniqueSourceScenes(
+  sources: Record<VillagerModelVariant, VillagerSource>,
+): THREE.Group[] {
+  return [...new Set(Object.values(sources).map((source) => source.scene))];
+}
+
 export function animatedRigsPerShard(bonesPerRig: number): number {
   if (!Number.isFinite(bonesPerRig) || bonesPerRig <= 0) return 1;
   const matrixBytesPerRig = Math.ceil(bonesPerRig)
@@ -156,9 +178,9 @@ export function villagerHeightJitter(appearanceSeed: number): number {
 
 /**
  * Height of the posed butt/upper-thigh contact patch above the render root.
- * Values are measured from the bundled Quaternius sitting clips after their
- * normal target-height scaling. The grounding term stays fixed at runtime;
- * only the model scale receives the deterministic height variation.
+ * Values are measured from each configured model's sitting clip after normal
+ * target-height scaling. The grounding term stays fixed at runtime; only the
+ * model scale receives the deterministic height variation.
  */
 export function seatedVillagerContactHeight(
   variant: VillagerModelVariant,
@@ -259,7 +281,7 @@ export class SettlementCrowdRenderer {
       drawCount: number;
     }> = [];
     if (!this.animatedBatches) return () => {};
-    for (const batch of Object.values(this.animatedBatches)) {
+    for (const batch of uniqueAnimatedBatches(this.animatedBatches)) {
       for (const shard of batch.shards) {
         for (const layer of shard.layers) {
           if (layer.mesh.visible) continue;
@@ -292,7 +314,7 @@ export class SettlementCrowdRenderer {
     this.idlePooledVisualCount = 0;
 
     if (this.animatedBatches) {
-      for (const batch of Object.values(this.animatedBatches)) {
+      for (const batch of uniqueAnimatedBatches(this.animatedBatches)) {
         for (const shard of batch.shards) {
           shard.skeleton.dispose();
           for (const layer of shard.layers) {
@@ -312,7 +334,9 @@ export class SettlementCrowdRenderer {
     }
 
     if (this.sources) {
-      for (const source of Object.values(this.sources)) disposeModelResources(source.scene);
+      for (const scene of uniqueSourceScenes(this.sources)) {
+        disposeModelResources(scene);
+      }
     }
     this.sources = null;
     if (this.toolSources) disposeWorkerToolSources(this.toolSources);
@@ -322,22 +346,36 @@ export class SettlementCrowdRenderer {
 
   private async loadSources(): Promise<boolean> {
     try {
+      const manPromise = loadVillagerSource(
+        MODEL_URLS.man,
+        TARGET_HEIGHTS.man,
+      );
+      const womanPromise = variantsShareModelSource('man', 'woman')
+        ? manPromise.then((source) => ({
+            ...source,
+            targetHeight: TARGET_HEIGHTS.woman,
+          }))
+        : loadVillagerSource(MODEL_URLS.woman, TARGET_HEIGHTS.woman);
       const [man, woman, tools] = await Promise.all([
-        loadVillagerSource(MODEL_URLS.man, TARGET_HEIGHTS.man),
-        loadVillagerSource(MODEL_URLS.woman, TARGET_HEIGHTS.woman),
+        manPromise,
+        womanPromise,
         loadWorkerToolSources(),
       ]);
       if (this.disposed) {
-        disposeModelResources(man.scene);
-        disposeModelResources(woman.scene);
+        for (const scene of uniqueSourceScenes({ man, woman })) {
+          disposeModelResources(scene);
+        }
         disposeWorkerToolSources(tools);
         return false;
       }
       this.sources = { man, woman };
       this.toolSources = tools;
+      const manBatch = this.createAnimatedBatch('man', man);
       this.animatedBatches = {
-        man: this.createAnimatedBatch('man', man),
-        woman: this.createAnimatedBatch('woman', woman),
+        man: manBatch,
+        woman: variantsShareModelSource('man', 'woman')
+          ? manBatch
+          : this.createAnimatedBatch('woman', woman),
       };
       this.syncAgents(this.latestAgents, this.lastView);
       return true;
@@ -773,7 +811,7 @@ export class SettlementCrowdRenderer {
     const batches = this.animatedBatches;
     if (!batches) return;
     const counts: Record<VillagerModelVariant, number> = { man: 0, woman: 0 };
-    for (const batch of Object.values(batches)) {
+    for (const batch of uniqueAnimatedBatches(batches)) {
       for (const shard of batch.shards) {
         for (const layer of shard.layers) layer.dirtyColors.fill(0);
       }
@@ -783,7 +821,7 @@ export class SettlementCrowdRenderer {
       const visual = this.animated.get(agent.id);
       if (!visual) continue;
       const batch: AnimatedVariantBatch = batches[agent.variant];
-      const variantSlot = counts[agent.variant]++;
+      const variantSlot = counts[batch.variant]++;
       if (variantSlot >= MAX_ANIMATED_VILLAGERS) continue;
       const shard = batch.shards[
         Math.floor(variantSlot / batch.rigsPerShard)
@@ -818,7 +856,7 @@ export class SettlementCrowdRenderer {
         }
       }
     }
-    for (const batch of Object.values(batches)) {
+    for (const batch of uniqueAnimatedBatches(batches)) {
       for (let shardIndex = 0; shardIndex < batch.shards.length; shardIndex++) {
         const shard = batch.shards[shardIndex]!;
         const count = Math.min(

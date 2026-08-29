@@ -10,7 +10,9 @@ import type { VillagerModelVariant } from '../settlement/SettlementCrowdRenderer
 
 const MODEL_URLS = {
   man: '/assets/models/villagers/worker-male-common-01-v001.glb',
-  woman: '/assets/models/villagers/quaternius-villager-woman.glb',
+  // TEMP: use the labeled male worker for female delivery workers too. Replace
+  // this URL when the dedicated female GLB and semantic clips are supplied.
+  woman: '/assets/models/villagers/worker-male-common-01-v001.glb',
 } as const;
 
 const TARGET_HEIGHTS = {
@@ -89,9 +91,13 @@ export type DeliveryCartWorkerVisual = {
 
 export async function loadDeliveryCartWorkerSources(): Promise<DeliveryCartWorkerSources> {
   const loader = new GLTFLoader();
+  const manPromise = loader.loadAsync(MODEL_URLS.man);
+  const womanPromise = String(MODEL_URLS.woman) === String(MODEL_URLS.man)
+    ? manPromise
+    : loader.loadAsync(MODEL_URLS.woman);
   const [man, woman] = await Promise.all([
-    loader.loadAsync(MODEL_URLS.man),
-    loader.loadAsync(MODEL_URLS.woman),
+    manPromise,
+    womanPromise,
   ]);
   return {
     man: createDeliveryCartWorkerSource(
@@ -273,8 +279,11 @@ export function disposeDeliveryCartWorkerVisual(
 export function disposeDeliveryCartWorkerSources(
   sources: DeliveryCartWorkerSources,
 ): void {
-  for (const source of Object.values(sources)) {
-    disposeModelResources(source.scene);
+  const scenes = new Set(
+    Object.values(sources).map((source) => source.scene),
+  );
+  for (const scene of scenes) {
+    disposeModelResources(scene);
   }
 }
 
