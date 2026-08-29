@@ -4,6 +4,7 @@ import { FirstPersonController } from '../camera/FirstPersonController.ts';
 import { FpCollisionWorld } from '../camera/fp/fpCollisionWorld.ts';
 import { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
 import { BuildingTool } from '../buildings/BuildingTool.ts';
+import { preloadAuthoredArchitectureModels } from '../buildings/authoredArchitectureModels.ts';
 import type { FarmFieldMarkers } from '../farming/FarmFieldMarkers.ts';
 import {
   FarmFieldTool,
@@ -182,6 +183,9 @@ export async function bootstrapAppSession(
 ): Promise<BootstrappedSession> {
   const loadingScreen = LoadingScreen.tryCreate();
   const settlementPresentationPromise = import('./deferredSettlementPresentation.ts');
+  const authoredArchitecturePromise = preloadAuthoredArchitectureModels().catch((error) => {
+    console.warn('Authored residence and hunter camp models are unavailable:', error);
+  });
   const materials = RoadMaterialFactory.createProgressive(8);
   void materials.whenTexturesReady().catch((error) => {
     console.warn('Detailed road and terrain textures are still unavailable:', error);
@@ -240,6 +244,7 @@ export async function bootstrapAppSession(
   const sceneManager = await SceneManager.create(sceneRoot, worldSettings, (progress) => {
     loadingScreen?.setProgress(progress);
   }, materialsPromise, startupTexturesPromise);
+  await authoredArchitecturePromise;
   markStartupCheckpoint('scene bootstrap returned');
   const layoutRegistry = WorldLayoutRegistry.fromWorldLayout(sceneManager.worldLayout);
   const gameState = createInitialGameState(layoutRegistry, getDraftWorldGeneration().seed);

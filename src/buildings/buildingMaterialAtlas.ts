@@ -53,6 +53,7 @@ type TslNode = {
   add(value: unknown): TslNode;
   clamp(minimum?: unknown, maximum?: unknown): TslNode;
   mul(value: unknown): TslNode;
+  sub(value: unknown): TslNode;
 };
 
 export type BuildingMaterialAtlasTextureSet = {
@@ -233,6 +234,62 @@ export function applyBuildingMaterialAtlas(
     ) as never;
     // The map binding is retained as an asynchronous-hydration signature and
     // a conventional material-inspection breadcrumb. colorNode owns sampling.
+    material.map = textures.albedo;
+    material.normalMap = textures.normal;
+    material.roughnessMap = textures.material;
+    material.metalnessMap = textures.material;
+    material.aoMap = textures.material;
+    material.needsUpdate = true;
+  });
+}
+
+/** Samples authored UVs that already point at their final atlas pixels. */
+export function applyBuildingMaterialAtlasDirectUv(
+  material: BuildingAtlasMaterial,
+  options: BuildingMaterialAtlasOptions,
+): void {
+  material.userData.buildingMaterialAtlas = 'gorski-building-atlas-v1';
+  material.userData.buildingMaterialAtlasTile = options.tile;
+  material.userData.buildingMaterialAtlasUvMode = 'direct';
+  const textures = getBuildingMaterialAtlasTextures();
+  mutatePainterlyMaterialSource(material, () => {
+    // Blender bakes image-space V (top-down); Three's TSL sampler addresses
+    // the bitmap bottom-up, so only direct authored atlas UVs need inversion.
+    const authoredUv = tsl.uv();
+    const atlasUv = tsl.vec2(authoredUv.x, tsl.float(1).sub(authoredUv.y));
+    const albedo = tsl.texture(textures.albedo, atlasUv);
+    const packed = tsl.texture(textures.material, atlasUv);
+    const tint = tsl.uniform(material.color.clone());
+    const tinted = albedo.rgb.mul(tsl.mix(
+      tsl.vec3(1),
+      tint,
+      THREE.MathUtils.clamp(options.tintStrength ?? 0.25, 0, 1),
+    ));
+    const vertexTint = material.vertexColors ? tsl.vertexColor().rgb : tsl.vec3(1);
+    material.colorNode = tsl.vec4(
+      tinted.mul(vertexTint),
+      tsl.float(material.opacity),
+    ) as never;
+    const normalStrength = Math.max(0, options.normalStrength ?? material.normalScale.x);
+    material.normalNode = tsl.normalMap(
+      tsl.texture(textures.normal, atlasUv),
+      tsl.vec2(normalStrength, normalStrength),
+    ) as never;
+    material.roughnessNode = tsl.mix(
+      tsl.float(material.roughness),
+      packed.r,
+      THREE.MathUtils.clamp(options.roughnessWeight ?? 0.82, 0, 1),
+    ).clamp(0.2, 1) as never;
+    (material as BuildingAtlasMaterial & { metalnessNode: unknown }).metalnessNode = tsl.mix(
+      tsl.float(material.metalness),
+      packed.g,
+      THREE.MathUtils.clamp(options.metalnessWeight ?? 0.9, 0, 1),
+    ).clamp(0, 1) as never;
+    material.aoNode = tsl.mix(
+      tsl.float(1),
+      packed.b,
+      THREE.MathUtils.clamp(options.aoStrength ?? 0.56, 0, 1),
+    ) as never;
     material.map = textures.albedo;
     material.normalMap = textures.normal;
     material.roughnessMap = textures.material;

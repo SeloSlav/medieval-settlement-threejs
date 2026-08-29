@@ -9,6 +9,7 @@
     "dev:db": "node scripts/startSpacetimeDB.mjs",
     "dev:client": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "build": "tsc && vite build",
+    "test:authored-building-glbs": "node scripts/testAuthoredArchitectureGlbs.mjs",
     "test:painterly-vegetation": "node --experimental-strip-types scripts/testPainterlyVegetation.mts",
     "test:painterly-scene-materials": "node --experimental-strip-types scripts/testPainterlySceneMaterials.mts",
     "build:e2e": "tsc && vite build --mode e2e",

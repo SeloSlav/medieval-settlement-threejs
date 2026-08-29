@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createBuildingMesh } from '../buildings/BuildingMeshes.ts';
+import { preloadAuthoredArchitectureModels } from '../buildings/authoredArchitectureModels.ts';
 import { initializeBuildingMaterialLibrary } from '../buildings/buildingMaterials.ts';
 import { BUILDING_KINDS } from '../generated/gameBalance.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
@@ -216,6 +217,7 @@ labels.style.gridTemplateColumns = `repeat(${COLS}, minmax(0, 1fr))`;
 labels.style.gridTemplateRows = `repeat(${ROWS}, minmax(0, 1fr))`;
 
 const rendererBackend = await createPreferredRenderer();
+await preloadAuthoredArchitectureModels(rendererBackend.maxAnisotropy);
 const renderer = rendererBackend.renderer as unknown as THREE.WebGLRenderer;
 configureRendererFrameStats(renderer.info);
 let lastRendererFrameStats: RendererFrameStats = {

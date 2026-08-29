@@ -54,6 +54,7 @@ import { createCobblerMesh, createTanneryMesh } from './meshes/leatherChainBuild
 import { createChandleryMesh } from './meshes/chandleryBuildingMesh.ts';
 import { createStableMesh } from './meshes/stableMesh.ts';
 import { createSpinningRettingHouseMesh } from './meshes/spinningRettingHouseMesh.ts';
+import { createAuthoredHuntersCampMesh } from './authoredArchitectureModels.ts';
 
 export function createBuildingMesh(
   kind: BuildingKind,
@@ -96,7 +97,7 @@ export function createBuildingMesh(
     case 'stable':
       return createStableMesh();
     case 'hunters_hall':
-      return createHuntersHallMesh();
+      return createAuthoredHuntersCampMesh() ?? createHuntersHallMesh();
     case 'foragers_shed':
       return createForagersShedMesh();
     case 'fishing_camp':

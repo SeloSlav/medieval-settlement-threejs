@@ -19,16 +19,16 @@ RENDER_DIR = OUTPUT_ROOT / "renders"
 ATLAS_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_building_atlas_v1"
 HIDE_SURFACE_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_camp_surfaces_v1"
 CANVAS_SURFACE_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_camp_canvas_v1"
-OUT_BLEND = OUT_DIR / "hunters_camp_textured_v4.blend"
-OUT_GLB = OUT_DIR / "hunters_camp_textured_v4.glb"
-OUT_MANIFEST = OUT_DIR / "hunters_camp_assembly_v4.json"
-OUT_HERO = RENDER_DIR / "hunters_camp_hero_v4.png"
-OUT_OVERHEAD = RENDER_DIR / "hunters_camp_overhead_v4.png"
-OUT_WORKSIDE = RENDER_DIR / "hunters_camp_workside_v4.png"
-OUT_TENT_DETAIL = RENDER_DIR / "hunters_camp_tent_detail_v4.png"
-OUT_SHELTER_DETAIL = RENDER_DIR / "hunters_camp_hide_shelter_detail_v4.png"
-OUT_TOOLS_DETAIL = RENDER_DIR / "hunters_camp_tools_detail_v4.png"
-OUT_AXE_DETAIL = RENDER_DIR / "hunters_camp_axe_detail_v4.png"
+OUT_BLEND = OUT_DIR / "hunters_camp_textured_v6.blend"
+OUT_GLB = OUT_DIR / "hunters_camp_textured_v6.glb"
+OUT_MANIFEST = OUT_DIR / "hunters_camp_assembly_v6.json"
+OUT_HERO = RENDER_DIR / "hunters_camp_hero_v6.png"
+OUT_OVERHEAD = RENDER_DIR / "hunters_camp_overhead_v6.png"
+OUT_WORKSIDE = RENDER_DIR / "hunters_camp_workside_v6.png"
+OUT_TENT_DETAIL = RENDER_DIR / "hunters_camp_tent_detail_v6.png"
+OUT_SHELTER_DETAIL = RENDER_DIR / "hunters_camp_hide_shelter_detail_v6.png"
+OUT_TOOLS_DETAIL = RENDER_DIR / "hunters_camp_tools_detail_v6.png"
+OUT_BLOCK_DETAIL = RENDER_DIR / "hunters_camp_chopping_block_detail_v6.png"
 
 
 def source_objects() -> dict[str, bpy.types.Object]:
@@ -583,12 +583,12 @@ def render_views(camera: bpy.types.Object) -> None:
     camera.data.lens = 76.0
     camera.location = (-5.0, -5.8, 2.15)
     point_at(camera, (-1.58, -2.12, 0.80))
-    render_atomic(OUT_AXE_DETAIL)
+    render_atomic(OUT_BLOCK_DETAIL)
 
 
 def write_manifest() -> None:
     payload = {
-        "id": "gorski-hunters-camp-atlas-preview-v4",
+        "id": "gorski-hunters-camp-atlas-preview-v6",
         "authoritativeBuildingKind": "hunters_hall",
         "displayIdentity": "Hunter's Camp",
         "regionalContext": "Gorski Kotar, circa 1550",
@@ -604,14 +604,14 @@ def write_manifest() -> None:
             "sleepingTent": "Weathered off-white sewn linen or hemp canvas with visible weave, repairs, tied-back entrance flaps, tension hems, and guy ropes over bent hand-cut softwood poles.",
             "processingShelter": "Hair-off smoke-darkened hides stitched with sinew into a weather fly over a lashed sapling frame; this fixed construction surface is not current harvested inventory.",
             "workFurniture": "Rough, repairable weathered timber with minimal iron hardware.",
-            "hearth": "Loose fieldstone ring and charcoal bed; flame and smoke remain runtime state.",
+            "hearth": "Loose fieldstone ring and charcoal bed with an unladen lashed-sapling tripod whose feet stand on the surrounding ground; flame, smoke, cookware, and hanging hooks remain runtime state.",
             "boundary": "Sparse split-rail edge markers, deliberately open toward the working approach.",
         },
         "canonicalState": "Neutral fixed camp architecture and tools only.",
         "runtimeOwnedState": {
             "fireAndSmoke": "Not baked into the GLB; activity state owns emission and particles.",
             "harvestedGame": "No deer, carcass, loose fresh hide, or meat mesh is included.",
-            "inventory": "No stocked firewood or production-output pile is included.",
+            "inventory": "No stocked firewood, fixed axe, bows, snares, hanging equipment, cooking hook, or production-output pile is included.",
         },
         "livingVegetation": "Excluded; SeedThree-owned.",
         "placements": PLACEMENTS,
@@ -652,7 +652,7 @@ def main() -> None:
     remove_source_library_objects()
     camera = stage_preview()
     scene = bpy.context.scene
-    scene["artifact_id"] = "gorski-hunters-camp-atlas-preview-v4"
+    scene["artifact_id"] = "gorski-hunters-camp-atlas-preview-v6"
     scene["authoritative_building_kind"] = "hunters_hall"
     scene["architecture_context"] = "Gorski Kotar, circa 1550"
     scene["canonical_state"] = "neutral fixed camp; runtime owns fire, smoke, harvest, and inventory"

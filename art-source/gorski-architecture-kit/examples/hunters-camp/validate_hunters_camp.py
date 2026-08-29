@@ -13,7 +13,7 @@ from mathutils import Vector
 EXAMPLE_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path(os.environ.get("GK_HUNTERS_CAMP_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
 OUT_DIR = OUTPUT_ROOT / "out"
-REPORT_PATH = OUT_DIR / "hunters_camp_validation_v4.json"
+REPORT_PATH = OUT_DIR / "hunters_camp_validation_v6.json"
 
 REQUIRED_EXACT = {
     "site_tent_a_frame_large": 1,
@@ -59,7 +59,21 @@ def main() -> None:
             continue
         if obj.data.uv_layers.get("GK_UV0") is None:
             errors.append(f"missing GK_UV0: {obj.name}")
-        triangles += sum(max(0, len(poly.vertices) - 2) for poly in obj.data.polygons)
+        object_triangles = sum(max(0, len(poly.vertices) - 2) for poly in obj.data.polygons)
+        triangles += object_triangles
+        object_tiles = {str(material.get("atlas_tile", "")) for material in obj.data.materials if material}
+        if part_id == "prop_tool_rack_hunter":
+            if object_triangles > 550:
+                errors.append(f"hunter utility rack is not the simplified empty frame: {object_triangles} triangles")
+            unexpected_rack_tiles = sorted(object_tiles - {"weathered-planks"})
+            if unexpected_rack_tiles:
+                errors.append(f"hunter utility rack contains non-structural hanging-gear materials: {unexpected_rack_tiles}")
+        if part_id == "site_camp_cooking_tripod" and "wrought-iron" in object_tiles:
+            errors.append("camp tripod still contains the removed hanging metal hook")
+        if part_id == "prop_firewood_chopping_block" and "wrought-iron" in object_tiles:
+            errors.append("chopping block still contains fixed axe geometry")
+        if part_id == "prop_water_bucket_pair" and "wrought-iron" in object_tiles:
+            errors.append("bucket pair still contains the removed overlapping arch handle")
         for material in obj.data.materials:
             if material is None or not material.get("atlas_id"):
                 errors.append(f"non-atlas material on {obj.name}")
@@ -109,6 +123,9 @@ def main() -> None:
             "atlas-backed material coverage",
             "no living vegetation or harvested-game meshes",
             "sewn-canvas tent and stitched-hide processing shelter coverage",
+            "empty hunter utility rack without fixed bows, snares, or hanging inventory",
+            "tripod feet outside the hearth stones with no fixed metal cooking hook",
+            "empty chopping block without fixed axe and bucket pair without overlapping arch handle",
             "no preview staging in the export set",
         ],
     }

@@ -37,6 +37,10 @@ import type {
 } from '../resources/serviceCoverage.ts';
 import { batchResidenceStaticMeshes } from './staticResidenceBatch.ts';
 import { ResidenceStaticBatches } from './ResidenceStaticBatches.ts';
+import {
+  authoredArchitectureModelsReady,
+  createAuthoredTierOneResidenceShell,
+} from '../buildings/authoredArchitectureModels.ts';
 
 const WINDOW_GLOW_EMISSIVE = 0xffc060;
 const WINDOW_GLOW_COLOR = 0x4a3820;
@@ -1906,6 +1910,88 @@ function addResidenceUpgradeWorks(
   }
 }
 
+const AUTHORED_TIER_ONE_DIMENSIONS: HouseDimensions = {
+  width: 4,
+  depth: 7,
+  foundationHeight: 0.35,
+  groundHeight: 2.4,
+  upperHeight: 0,
+  ridgeHeight: 2.38350718518842,
+};
+
+function finishAuthoredTierOneResidence(
+  group: THREE.Group,
+  shell: THREE.Group,
+  windowMaterial: THREE.MeshStandardMaterial,
+): THREE.Group {
+  group.add(shell);
+  group.userData.authoredGlbAsset = true;
+  group.userData.authoredGlbVersion = shell.userData.authoredGlbVersion;
+  group.userData.authoredGlbUrl = shell.userData.authoredGlbUrl;
+  group.userData.residenceRoofFinish = 'split-wood-shingle';
+  group.userData.residenceRoofTierContract = 'tier-1-split-softwood-shingle';
+  group.userData.residenceTiledRoof = false;
+  group.userData.residenceRoofPitchDegrees = 50;
+  group.userData.residenceRoofOverhangMeters = 0.7;
+  group.userData.residenceSmokeExit = 'through-shingle-roof';
+  group.userData.residenceHasChimney = false;
+  group.userData.residenceBuildingPlan = {
+    tier: 1,
+    seed: group.userData.residenceVisualSeed,
+    massing: ['low-longhouse-mass', 'irregular-split-shingle-roof'],
+    facadeModules: [
+      'closed-weathered-fieldstone-footing',
+      'worn-clay-lime-daub-public-face',
+      'horizontal-timber-boarded-sides',
+      'true-square-wall-apertures',
+      'connected-wall-head-and-gable-frame',
+    ],
+    roofFinish: 'split-wood-shingle',
+  };
+
+  let windowCount = 0;
+  shell.traverse((object) => {
+    if (object.name.includes('RoofSkin')) {
+      object.userData.residenceRoofSurface = true;
+      object.userData.residenceRoofFinish = 'split-wood-shingle';
+    }
+    if (!object.name.includes('SquareHole_DarkInterior')) return;
+    object.userData.facadeOpeningKind = 'window';
+    object.userData.residenceWallCutThrough = true;
+    object.userData.residenceWindowGlazing = 'open-aperture';
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    mesh.material = windowMaterial;
+    mesh.name = `Residence tier-one recessed lit interior ${windowCount + 1}`;
+    mesh.userData.facadeOpeningKind = 'window';
+    mesh.userData.facadeOpeningRole = 'window-interior';
+    mesh.userData.residenceWallCutThrough = true;
+    mesh.userData.residenceWindowGlazing = 'open-aperture';
+    mesh.userData.residenceWindowInteriorDepthMeters = 0.34;
+    windowCount += 1;
+  });
+  group.userData.residenceAuthoredWindowCount = windowCount;
+
+  // The v25 right roof skin contains the real opening at Blender
+  // (x=0.72 m, y=5.05 m). After glTF axis conversion and depth centring this
+  // point is (0.72, roof surface, -1.55) in the residence marker.
+  const chimneyEmitter = new THREE.Object3D();
+  chimneyEmitter.name = 'ChimneyEmitter';
+  chimneyEmitter.position.set(0.72, 4.38, -1.55);
+  chimneyEmitter.userData.residenceSmokeExit = 'through-shingle-roof';
+  group.add(chimneyEmitter);
+
+  const firewoodPile = new THREE.Group();
+  firewoodPile.name = 'FirewoodPile';
+  firewoodPile.visible = false;
+  group.add(firewoodPile);
+  // Runtime inventory remains behind the house, clear of the fixed threshold
+  // and the public facade. syncFirewoodPile owns visibility and fill scale.
+  addLogPile(firewoodPile, 1.28, -4.08, 0, 4, 2.15, 0.19);
+  addResidenceUpgradeWorks(group, AUTHORED_TIER_ONE_DIMENSIONS);
+  return group;
+}
+
 export function createResidenceMesh(
   seed = 0,
   tier: ResidenceTier = 1,
@@ -1982,6 +2068,13 @@ export function createResidenceMesh(
         : ['stone-ground-storey', 'plastered-upper-storey'],
     roofFinish,
   };
+
+  if (tier === 1) {
+    const authoredShell = createAuthoredTierOneResidenceShell();
+    if (authoredShell) {
+      return finishAuthoredTierOneResidence(group, authoredShell, windowMaterial);
+    }
+  }
 
   const { width, depth, foundationHeight, groundHeight, upperHeight, ridgeHeight } = dimensions;
   const halfW = width * 0.5;
@@ -2418,7 +2511,9 @@ export function createInitialResidenceConstructionMesh(seed = 0): THREE.Group {
   marker.add(completedStructure);
 
   const appearance = pickResidenceAppearance(seed);
-  const dimensions = dimensionsForTier(appearance.archetype, 1);
+  const dimensions = authoredArchitectureModelsReady()
+    ? AUTHORED_TIER_ONE_DIMENSIONS
+    : dimensionsForTier(appearance.archetype, 1);
   const halfWidth = dimensions.width * 0.5;
   const halfDepth = dimensions.depth * 0.5;
   const frame = new THREE.Group();

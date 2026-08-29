@@ -570,8 +570,10 @@ def _campfire(builder: MeshBuilder) -> None:
 def _camp_tripod(builder: MeshBuilder) -> None:
     apex = (0.0, 0.0, 1.82)
     for angle in (-math.pi * 0.5, math.pi * 0.17, math.pi * 0.83):
-        foot = (0.72 * math.cos(angle), 0.72 * math.sin(angle), 0.02)
-        middle = (0.31 * math.cos(angle) + 0.018 * math.sin(angle * 2.0), 0.31 * math.sin(angle), 0.92)
+        # The hearth stones extend to roughly 0.83 m radius. Set every foot on
+        # the surrounding ground so no leg originates on top of a stone.
+        foot = (1.02 * math.cos(angle), 1.02 * math.sin(angle), 0.0)
+        middle = (0.42 * math.cos(angle) + 0.018 * math.sin(angle * 2.0), 0.42 * math.sin(angle), 0.92)
         builder.round_beam_between(foot, middle, 0.034, "timber_cut", 7, 0.030)
         builder.round_beam_between(middle, apex, 0.030, "timber_cut", 7, 0.025)
     for angle in (0.0, math.tau / 3.0, math.tau * 2.0 / 3.0):
@@ -582,8 +584,6 @@ def _camp_tripod(builder: MeshBuilder) -> None:
             "rope",
             5,
         )
-    builder.round_beam_between((0.0, 0.0, 1.77), (0.0, 0.0, 0.72), 0.011, "iron", 6, 0.008)
-    builder.round_beam_between((0.0, 0.0, 0.72), (0.16, 0.0, 0.63), 0.012, "iron", 6, 0.008)
 
 
 def _hunter_boundary_rail(builder: MeshBuilder) -> None:
