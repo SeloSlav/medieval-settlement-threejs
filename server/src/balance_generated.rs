@@ -895,7 +895,6 @@ pub enum BuildingSimKind {
     StoneQuarry,
     LargeQuarry,
     Mine,
-    ClayPit,
     CharcoalBurner,
     Smithy,
     PotterKiln,

@@ -442,16 +442,6 @@
       "promptInfluence": 0.89
     },
     {
-      "id": "building-clay-pit",
-      "group": "building-foley",
-      "kind": "sound-effect",
-      "output": "public/sounds/buildings/clay_pit.mp3",
-      "prompt": "Short soft earth-working Foley: an iron-edged wooden spade cuts into dense wet clay and lifts with a sticky pull and muted clod drop, close and natural, no voices, no music",
-      "durationSeconds": 2.1,
-      "loop": false,
-      "promptInfluence": 0.87
-    },
-    {
       "id": "building-charcoal-burner",
       "group": "building-foley",
       "kind": "sound-effect",

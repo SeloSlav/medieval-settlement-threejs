@@ -77,10 +77,9 @@ BUILDING_COVERAGE = {
     ),
     "large_quarry": _entry("extraction", "Expanded cut benches with heavy derrick and sorting floor.", "extract_quarry_bench_4m", "extract_quarry_derrick_large", "extract_stockpile_stone_large", "extract_sorting_bench", "extract_handcart", "foundation_retaining_wall_4m"),
     "mine": _entry("extraction", "Shaft/tunnel works use explicit collars, headframes, supports, and hoisting.", "extract_shaft_collar_square_large", "extract_headframe_large", "extract_mine_portal_frame_2p4m", "extract_tunnel_support_4m", "extract_ore_bucket", "extract_windlass", "extract_stockpile_iron_large"),
-    "clay_pit": _entry("extraction", "Open clay washing and screening worksite.", "extract_quarry_bench_2m", "extract_clay_pit_screen", "extract_stockpile_clay_large", "site_walkway_plank_4m", "site_canopy_canvas_4m_d2m"),
     "charcoal_burner": _entry("production", "Charcoal clamps and a weather shelter define the yard.", "production_charcoal_clamp_small", "production_charcoal_clamp_large", "site_canopy_canvas_2m_d2m", "prop_firewood_stack_large", "prop_water_bucket_pair"),
     "smithy": _entry("production", "Masonry workshop identified by open forge and tall flue.", WORKSHOP, "production_smithy_forge", "production_smithy_anvil_block", "prop_tool_rack_smith"),
-    "potter_kiln": _entry("production", "Clay-working workshop with an external updraft kiln.", WORKSHOP, "production_potter_kiln_round", "extract_clay_pit_screen", "prop_crate_medium"),
+    "potter_kiln": _entry("production", "Clay-working workshop with an external updraft kiln.", WORKSHOP, "production_potter_kiln_round", "extract_clay_washing_screen", "prop_crate_medium"),
     "well": _entry("infrastructure", "Stone curb, windlass shelter, and buckets.", "site_well_curb_r1m", "site_well_shelter_shingle", "prop_water_bucket_pair", "site_walkway_plank_2m"),
     "hunters_hall": _entry(
         "subsistence",

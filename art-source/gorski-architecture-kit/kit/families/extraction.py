@@ -34,7 +34,7 @@ def register(registry: Registry) -> None:
     add(registry, "extract_ore_bucket", family, "Hoist ore bucket", ("extraction", "bucket", "hoist", "mine"), _bucket)
     add(registry, "extract_windlass", family, "Hand windlass", ("extraction", "windlass", "hoist", "mine", "quarry"), _windlass)
     add(registry, "extract_survey_stakes", family, "Survey stake cluster", ("extraction", "survey", "stakes", "mine", "quarry"), _stakes)
-    add(registry, "extract_clay_pit_screen", family, "Clay washing screen", ("extraction", "clay", "screen", "water"), _clay_screen)
+    add(registry, "extract_clay_washing_screen", family, "Clay washing screen", ("extraction", "clay", "screen", "water"), _clay_screen)
     add(registry, "extract_quarry_wedge_rack", family, "Stonecutters wedge rack", ("extraction", "quarry", "tools", "rack"), _wedge_rack)
 
 
