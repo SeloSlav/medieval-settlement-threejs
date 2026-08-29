@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "validatedAt": "2026-08-29T06:28:35.461425+00:00",
+  "validatedAt": "2026-08-29T08:44:40.652477+00:00",
   "blend": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\out\\gorski_architecture_kit.blend",
   "manifest": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\out\\gorski_architecture_kit_manifest.json",
   "status": "pass",
@@ -20,7 +20,7 @@
       "siteworks": 41,
       "walls": 117
     },
-    "totalTriangles": 408112,
+    "totalTriangles": 401488,
     "sharedMaterials": 34,
     "buildingCatalogKinds": 44,
     "buildingCoverageKinds": 44,

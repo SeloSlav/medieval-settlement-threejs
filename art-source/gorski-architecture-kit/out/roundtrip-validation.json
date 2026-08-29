@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "validatedAt": "2026-08-29T06:28:40.179368+00:00",
+  "validatedAt": "2026-08-29T08:44:45.201490+00:00",
   "status": "pass",
   "glb": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\out\\gorski_architecture_kit.glb",
   "partsExpected": 625,
@@ -19,7 +19,7 @@
     "siteworks": 41,
     "walls": 117
   },
-  "totalImportedTriangles": 408112,
+  "totalImportedTriangles": 401488,
   "errors": [],
   "warnings": []
 }

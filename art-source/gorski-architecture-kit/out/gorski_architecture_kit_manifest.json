@@ -14,12 +14,12 @@
     },
     "scope": "modular components only; no finished individual building assemblies",
     "vegetationOwner": "SeedThree; this kit contains no living vegetation or crop meshes",
-    "generatedAt": "2026-08-29T06:28:29.693447+00:00"
+    "generatedAt": "2026-08-29T08:44:35.883109+00:00"
   },
   "summary": {
     "partCount": 625,
     "familyCount": 12,
-    "totalTriangles": 408112,
+    "totalTriangles": 401488,
     "buildingCategories": 44,
     "supplementalCategories": 34
   },
@@ -20525,11 +20525,11 @@
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
       "triangleBudget": 7800,
-      "triangles": 5536,
+      "triangles": 3188,
       "dimensionsM": [
-        2.89341,
-        4.349,
-        1.50882
+        2.89354,
+        4.34688,
+        1.50979
       ],
       "displayLocationM": [
         0.0,
@@ -20546,7 +20546,7 @@
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "5c12d6716d68ae86bf20fa749d37fafee59293baee093bff11350ac1fcd4f1fc",
+      "vertexHash": "eeb4c7ef996d0f37a8fd7ee4d7f1de79069d154f06d576c809ac66801a70c2b1",
       "provenance": "authored"
     },
     {
@@ -20568,11 +20568,11 @@
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
       "triangleBudget": 7800,
-      "triangles": 5536,
+      "triangles": 3188,
       "dimensionsM": [
-        3.55327,
-        5.2687,
-        1.86866
+        3.55337,
+        5.26661,
+        1.86964
       ],
       "displayLocationM": [
         9.0,
@@ -20589,7 +20589,7 @@
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "85051f8a7ff5a833018c4e019b8e0961f0fe46a4c2ded7683b4a3a0037827d2b",
+      "vertexHash": "2e4279fea01dd7cc001c5c55fbf73ce181adf4a83cc0efb2cbcad296b39dfd9b",
       "provenance": "authored"
     },
     {
@@ -20616,11 +20616,11 @@
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
       "triangleBudget": 8400,
-      "triangles": 3100,
+      "triangles": 1732,
       "dimensionsM": [
-        4.40753,
-        2.663,
-        1.97669
+        4.40511,
+        2.66092,
+        1.97779
       ],
       "displayLocationM": [
         18.0,
@@ -20636,7 +20636,7 @@
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "addfd0912f857f6d47d90c8d058751c7b04b4403706b72144b1cd8aa72ac8b02",
+      "vertexHash": "ea2b17d1869306667ec62c0474a03247398bfbfc608cf16fc9d283ae8a069df6",
       "provenance": "authored"
     },
     {
@@ -20746,11 +20746,11 @@
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
       "triangleBudget": 2800,
-      "triangles": 1120,
+      "triangles": 560,
       "dimensionsM": [
-        2.10954,
-        0.09238,
-        0.76205
+        2.10181,
+        0.08669,
+        0.76142
       ],
       "displayLocationM": [
         45.0,
@@ -20764,7 +20764,7 @@
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "5a8043f48a76ca5fa91c8ffa01211d0feb49e2b97d0541ba40a4180e9c61040f",
+      "vertexHash": "24414cbf0bc33e3978e662801db46beb5a9d7a0177227c746828af65aabf7960",
       "provenance": "authored"
     },
     {
