@@ -531,6 +531,12 @@
   --map-overlay-art-size: 180% auto;
 }
 
+.map-overlay-option__icon[data-map-overlay-icon='subregions'] {
+  --map-overlay-art: url('/assets/ui/build-menu/cards/grain-field.webp');
+  --map-overlay-art-position: center 52%;
+  --map-overlay-art-size: 185% auto;
+}
+
 .map-overlay-option:hover .map-overlay-option__icon,
 .map-overlay-option:focus-visible .map-overlay-option__icon {
   border-color: rgba(235, 204, 127, 0.78);

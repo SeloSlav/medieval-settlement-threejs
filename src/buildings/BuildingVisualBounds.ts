@@ -25,7 +25,6 @@ export const BUILDING_LOCAL_VISUAL_BOUNDS = {
   stone_quarry: { minX: -9.28, maxX: 9.14, minZ: -8.32, maxZ: 8.31 },
   large_quarry: { minX: -11.92, maxX: 11.56, minZ: -11.88, maxZ: 11.32 },
   mine: { minX: -11.92, maxX: 11.56, minZ: -11.88, maxZ: 11.32 },
-  clay_pit: { minX: -5.59, maxX: 5.18, minZ: -3.53, maxZ: 3.53 },
   charcoal_burner: { minX: -3.93, maxX: 4.43, minZ: -3.54, maxZ: 3.54 },
   smithy: { minX: -4.32, maxX: 4.32, minZ: -3.37, maxZ: 3.70 },
   potter_kiln: { minX: -4.39, maxX: 4.48, minZ: -3.37, maxZ: 3.37 },

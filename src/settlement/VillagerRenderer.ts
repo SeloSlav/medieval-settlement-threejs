@@ -4989,7 +4989,6 @@ export class VillagerRenderer {
     ) return 'pickaxe';
     if (
       kind === 'reforester'
-      || kind === 'clay_pit'
       || kind === 'charcoal_burner'
     ) return 'shovel';
     if (
@@ -5236,9 +5235,7 @@ function describeVillagerActivity(
         return `Extracting surface material near ${workplaceLabel}`;
       }
       if (agent.mode === 'plant') {
-        return workplace?.kind === 'clay_pit'
-          ? `Cutting wet river clay at ${workplaceLabel}`
-          : `Planting saplings near ${workplaceLabel}`;
+        return `Planting saplings near ${workplaceLabel}`;
       }
       if (agent.mode === 'sow') return `Broadcast sowing seed for ${workplaceLabel}`;
       if (agent.mode === 'fish') return `Fishing near ${workplaceLabel}`;

@@ -38,7 +38,6 @@ const STOREHOUSE_OVERFLOW_SOURCE_KINDS: &[&str] = &[
     "large_quarry",
     "woodcutters_lodge",
     "mine",
-    "clay_pit",
 ];
 const MINING_CAMP_OVERFLOW_COMMODITIES: &[CommodityKind] = &[
     CommodityKind::Stone,
@@ -472,7 +471,6 @@ fn overflow_source_commodities(source: &Building) -> &'static [CommodityKind] {
         "large_quarry" => &[CommodityKind::Stone],
         "woodcutters_lodge" => &[CommodityKind::Firewood],
         "mine" => MINEWORKS_OVERFLOW_COMMODITIES,
-        "clay_pit" => &[CommodityKind::Clay],
         _ => &[],
     }
 }

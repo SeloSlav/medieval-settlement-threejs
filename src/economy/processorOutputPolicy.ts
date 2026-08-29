@@ -49,7 +49,6 @@ export const EXTRACTION_OUTPUT_TARGET_KINDS = [
   'stone_quarry',
   'large_quarry',
   'mine',
-  'clay_pit',
 ] as const satisfies readonly BuildingKind[];
 
 export type ExtractionOutputTargetKind =
@@ -319,8 +318,6 @@ export function extractionOutputCommodity(
     case 'stone_quarry':
     case 'large_quarry':
       return 'stone';
-    case 'clay_pit':
-      return 'clay';
     case 'mine':
       return mineralResource;
     default:

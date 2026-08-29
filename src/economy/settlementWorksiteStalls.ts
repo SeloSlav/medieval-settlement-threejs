@@ -57,7 +57,6 @@ import {
 
 export type WorksiteStallKind =
   | ProcessorOutputTargetKind
-  | 'clay_pit'
   | 'mine'
   | 'stone_quarry'
   | 'large_quarry'
@@ -223,7 +222,6 @@ function worksiteKind(
   month: number,
 ): WorksiteStallKind | null {
   if (isProcessorOutputTargetKind(building.kind)) return building.kind;
-  if (building.kind === 'clay_pit') return building.kind;
   if (building.kind === 'mine') return building.kind;
   if (building.kind === 'stone_quarry' || building.kind === 'large_quarry') {
     return building.kind;
@@ -242,7 +240,6 @@ export function isProductionLaborKind(
   kind: BuildingKind,
 ): kind is ProductionLaborKind {
   return isProcessorOutputTargetKind(kind)
-    || kind === 'clay_pit'
     || kind === 'mine'
     || kind === 'stone_quarry'
     || kind === 'large_quarry'
@@ -477,30 +474,6 @@ function processorStall(
     ...base,
     reason: 'input_empty',
     detail: joinRequirements(missingRequirements),
-  };
-}
-
-function clayPitStall(
-  building: BuildingState,
-  hasActiveOriginTrip: boolean,
-): WorksiteStallSite | null {
-  const assignedLabor = Math.max(0, Math.floor(building.assignedLabor));
-  const hasDispatchDuty = hasActiveOriginTrip || (building.clay ?? 0) > 1e-6;
-  const targetLabor = 0;
-  if ((extractionOutputHeadroom(building, 'clay') ?? Number.POSITIVE_INFINITY) > 1e-6) {
-    return null;
-  }
-  return {
-    buildingId: building.id,
-    kind: 'clay_pit',
-    reason: 'output_blocked',
-    detail: 'local clay yard is full',
-    assignedLabor,
-    assignedWorkers: assignedLabor,
-    targetLabor,
-    reclaimableWorkers: Math.max(0, assignedLabor - targetLabor),
-    priority: normalizeStaffingPriority(building.constructionPriority),
-    hasDispatchDuty,
   };
 }
 
@@ -775,8 +748,6 @@ export function computeSettlementProductionReadiness(
     let ready: boolean;
     if (isProcessorOutputTargetKind(building.kind)) {
       ready = (processorOutputHeadroom(building) ?? 0) > 1e-6;
-    } else if (building.kind === 'clay_pit') {
-      ready = clayPitStall(building, false) === null;
     } else if (building.kind === 'mine') {
       ready = mineStall(building, quarryBuckets, false) === null;
     } else if (
@@ -838,8 +809,6 @@ export function computeSettlementOperationalProductionReadiness(
         false,
       );
       ready = stall === null || stall === 'supply_en_route';
-    } else if (building.kind === 'clay_pit') {
-      ready = clayPitStall(building, false) === null;
     } else if (building.kind === 'mine') {
       const stall = mineStall(
         building,
@@ -942,8 +911,6 @@ export function computeSettlementWorksiteStallPlan(
         inboundCargoByBuilding.get(building.id),
         activeOriginTrip,
       );
-    } else if (building.kind === 'clay_pit') {
-      stall = clayPitStall(building, activeOriginTrip);
     } else if (building.kind === 'mine') {
       stall = mineStall(
         building,

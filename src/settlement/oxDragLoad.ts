@@ -57,8 +57,6 @@ export function oxDragLoadKindForWorkplace(
       return 'stone';
     case 'mine':
       return 'iron';
-    case 'clay_pit':
-      return 'clay';
     case 'charcoal_burner':
       return 'charcoal';
     case 'threshing_barn':

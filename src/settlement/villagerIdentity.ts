@@ -58,7 +58,6 @@ const OCCUPATIONS: Record<BuildingKind, string> = {
   stone_quarry: 'Miner',
   large_quarry: 'Quarryman',
   mine: 'Mineworker',
-  clay_pit: 'Clay digger',
   charcoal_burner: 'Charcoal burner',
   smithy: 'Blacksmith',
   potter_kiln: 'Potter',

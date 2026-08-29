@@ -187,7 +187,7 @@ mod tests {
 
     #[test]
     fn geological_worksites_do_not_use_workshop_output_capacity() {
-        for kind in ["stone_quarry", "large_quarry", "mine", "clay_pit"] {
+        for kind in ["stone_quarry", "large_quarry", "mine"] {
             assert!(!is_processor_output_target_kind(kind));
         }
         assert!(!is_processor_output_target_kind("pastoral_farmstead"));
@@ -225,7 +225,6 @@ mod tests {
             processor_output_kind("chandlery"),
             Some(ProcessorOutputKind::Candles)
         );
-        assert!(processor_input_kinds("clay_pit").is_empty());
     }
 
     #[test]

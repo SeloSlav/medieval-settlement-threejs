@@ -1,6 +1,6 @@
 import {
   CALENDAR_SECONDS_PER_DAY,
-  CLAY_PIT_CLAY_PER_CYCLE,
+  MINING_CAMP_CLAY_PER_CYCLE,
   LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
   MINE_CLAY_PER_CYCLE,
   MINE_IRON_PER_CYCLE,
@@ -18,7 +18,6 @@ import type {
   ResourceNodeState,
 } from '../resources/types.ts';
 import { civilianToolThroughputMultiplier } from './civilianToolPolicy.ts';
-import { clayBankYieldAt } from './clayBankPolicy.ts';
 import {
   largeQuarrySupportRunwayCycles,
   largeQuarrySupportsReady,
@@ -90,8 +89,7 @@ export function computeSettlementGeologyPlan(
   state: GameState,
   sabbathObserved: boolean,
   options: {
-    clayPitThroughputMultiplier?: number;
-    resourceAbundance?: number;
+    surfaceClayThroughputMultiplier?: number;
   } = {},
 ): SettlementGeologyPlan {
   const plans = {
@@ -170,7 +168,6 @@ export function computeSettlementGeologyPlan(
       building.constructionComplete === false
       || (building.kind !== 'stone_quarry'
         && building.kind !== 'large_quarry'
-        && building.kind !== 'clay_pit'
         && building.kind !== 'mine')
     ) {
       continue;
@@ -212,6 +209,7 @@ export function computeSettlementGeologyPlan(
         building,
         deposit,
         sabbathObserved,
+        options.surfaceClayThroughputMultiplier,
       );
       plan.operatingExtractionSites += 1;
       plan.finiteExtractionPerDay += rate;
@@ -263,51 +261,6 @@ export function computeSettlementGeologyPlan(
       plan.operatingExtractionSites += 1;
       plan.activeDeepSources += 1;
       plan.deepExtractionPerDay += cycles * extractionBatch(resource);
-      continue;
-    }
-
-    if (building.kind === 'clay_pit') {
-      const deposit = centeredDeposit(building, deposits.clay);
-      if (deposit === null) continue;
-      const plan = plans.clay;
-      plan.extractionSites += 1;
-      const targetPaused = recordExtractionYard(
-        plan,
-        building,
-        'clay',
-      );
-      if (building.assignedLabor <= 0 || disabledBuildings.has(building.id)) {
-        continue;
-      }
-      plan.staffedExtractionSites += 1;
-      if (targetPaused) {
-        recordTargetPause(plan, building);
-        continue;
-      }
-      if (!deposit.isRich && deposit.remaining <= EPSILON) {
-        plan.blockedFiniteBuildingId ??= building.id;
-        continue;
-      }
-      const rate = cyclesPerCalendarDay(
-        'clay_pit',
-        building.assignedLabor,
-        sabbathObserved,
-        civilianToolThroughputMultiplier(building.ironwork ?? 0)
-          * Math.max(0, options.clayPitThroughputMultiplier ?? 1)
-          * clayBankYieldAt(
-            building.x,
-            building.z,
-            options.resourceAbundance ?? 50,
-          ),
-      ) * CLAY_PIT_CLAY_PER_CYCLE;
-      plan.operatingExtractionSites += 1;
-      if (deposit.isRich) {
-        plan.activeDeepSources += 1;
-        plan.deepExtractionPerDay += rate;
-      } else {
-        plan.finiteExtractionPerDay += rate;
-        addFiniteRate(plan, deposit, building, rate);
-      }
       continue;
     }
 
@@ -424,6 +377,7 @@ export function miningPitOutputPerDay(
   building: Pick<BuildingState, 'assignedLabor' | 'ironwork'>,
   deposit: Pick<ResourceNodeState, 'resource' | 'remaining'>,
   sabbathObserved: boolean,
+  surfaceClayThroughputMultiplier = 1,
 ): number {
   if (
     deposit.remaining <= EPSILON
@@ -438,7 +392,10 @@ export function miningPitOutputPerDay(
     'stone_quarry',
     building.assignedLabor,
     sabbathObserved,
-    civilianToolThroughputMultiplier(building.ironwork ?? 0),
+    civilianToolThroughputMultiplier(building.ironwork ?? 0)
+      * (deposit.resource === 'clay'
+        ? Math.max(0, surfaceClayThroughputMultiplier)
+        : 1),
   ) * extractionBatch(deposit.resource);
 }
 
@@ -542,7 +499,7 @@ function recordExtractionYard(
 ): boolean {
   const stock = Math.max(0, building[commodity] ?? 0);
   const target = extractionOutputTarget(
-    building.kind as 'stone_quarry' | 'large_quarry' | 'mine' | 'clay_pit',
+    building.kind as 'stone_quarry' | 'large_quarry' | 'mine',
     commodity,
   );
   const headroom = extractionOutputHeadroom(building, commodity) ?? 0;
@@ -562,7 +519,7 @@ function recordTargetPause(
 }
 
 function cyclesPerCalendarDay(
-  kind: 'stone_quarry' | 'large_quarry' | 'clay_pit' | 'mine',
+  kind: 'stone_quarry' | 'large_quarry' | 'mine',
   assignedLabor: number,
   sabbathObserved: boolean,
   throughputMultiplier: number,
@@ -615,7 +572,7 @@ function extractionBatch(resource: GeologicalResource): number {
   switch (resource) {
     case 'iron': return MINE_IRON_PER_CYCLE;
     case 'salt': return MINE_SALT_PER_CYCLE;
-    case 'clay': return CLAY_PIT_CLAY_PER_CYCLE;
+    case 'clay': return MINING_CAMP_CLAY_PER_CYCLE;
     case 'stone': return STONE_PER_HARVEST;
   }
 }

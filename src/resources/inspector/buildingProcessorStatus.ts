@@ -16,7 +16,6 @@ import {
   CHANDLERY_CANDLES_PER_CYCLE,
   CHANDLERY_FIREWOOD_PER_CYCLE,
   CHANDLERY_WAX_PER_CYCLE,
-  CLAY_PIT_CLAY_PER_CYCLE,
   BAKERY_FIREWOOD_PER_CYCLE,
   BAKERY_FLOUR_PER_CYCLE,
   BAKERY_RYE_BREAD_PER_CYCLE,
@@ -197,15 +196,6 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
     outputPerCycle: WATERMILL_RYE_FLOUR_PER_CYCLE,
     operatingLabel: 'Milling grain into flour',
     idleNoWorkersLabel: 'Idle — assign workers to run the mill',
-  },
-  clay_pit: {
-    requiresLabor: true,
-    waterPerCycle: 0,
-    inputs: [],
-    output: 'clay',
-    outputPerCycle: CLAY_PIT_CLAY_PER_CYCLE,
-    operatingLabel: 'Digging and tempering riverbank clay',
-    idleNoWorkersLabel: 'Idle - assign workers to dig clay',
   },
   windmill: {
     requiresLabor: true,

@@ -40,9 +40,9 @@ pub enum WeatherKind {
     Frost,
 }
 
-const CLAY_PIT_RAIN_THROUGHPUT_MULTIPLIER: f64 = 0.8;
-const CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER: f64 = 0.7;
-const CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER: f64 = 0.35;
+const SURFACE_CLAY_RAIN_THROUGHPUT_MULTIPLIER: f64 = 0.8;
+const SURFACE_CLAY_DROUGHT_THROUGHPUT_MULTIPLIER: f64 = 0.7;
+const SURFACE_CLAY_FROST_THROUGHPUT_MULTIPLIER: f64 = 0.35;
 
 #[derive(Clone, Copy, Debug)]
 pub struct EnvironmentState {
@@ -177,11 +177,11 @@ impl EnvironmentState {
     /// drought-hardened ground, and winter frost slow safe hand excavation.
     /// A non-zero winter rate keeps the system recoverable while rewarding
     /// autumn stockpiles for sheltered pottery work.
-    pub fn clay_pit_throughput_multiplier(self) -> f64 {
+    pub fn surface_clay_throughput_multiplier(self) -> f64 {
         match self.weather {
-            WeatherKind::Rain => CLAY_PIT_RAIN_THROUGHPUT_MULTIPLIER,
-            WeatherKind::Drought => CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER,
-            WeatherKind::Frost => CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER,
+            WeatherKind::Rain => SURFACE_CLAY_RAIN_THROUGHPUT_MULTIPLIER,
+            WeatherKind::Drought => SURFACE_CLAY_DROUGHT_THROUGHPUT_MULTIPLIER,
+            WeatherKind::Frost => SURFACE_CLAY_FROST_THROUGHPUT_MULTIPLIER,
             WeatherKind::Fair => 1.0,
         }
     }
@@ -409,11 +409,11 @@ mod tests {
             season: Season::Winter,
             weather: WeatherKind::Frost,
         };
-        assert_eq!(rain.clay_pit_throughput_multiplier(), 0.8);
-        assert_eq!(drought.clay_pit_throughput_multiplier(), 0.7);
-        assert_eq!(frost.clay_pit_throughput_multiplier(), 0.35);
-        assert_eq!(fair.clay_pit_throughput_multiplier(), 1.0);
-        assert!(frost.clay_pit_throughput_multiplier() > 0.0);
+        assert_eq!(rain.surface_clay_throughput_multiplier(), 0.8);
+        assert_eq!(drought.surface_clay_throughput_multiplier(), 0.7);
+        assert_eq!(frost.surface_clay_throughput_multiplier(), 0.35);
+        assert_eq!(fair.surface_clay_throughput_multiplier(), 1.0);
+        assert!(frost.surface_clay_throughput_multiplier() > 0.0);
     }
 
     #[test]

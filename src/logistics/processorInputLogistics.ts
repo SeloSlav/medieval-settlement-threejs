@@ -148,7 +148,6 @@ const TARGET_KINDS: Record<
     'stone_quarry',
     'large_quarry',
     'mine',
-    'clay_pit',
     'threshing_barn',
     'watermill',
     'windmill',
@@ -411,7 +410,6 @@ export type RoutedMarketplaceMaterialAssignment<
 export const LOCAL_MATERIAL_SOURCE_KINDS = [
   'stone_quarry',
   'mine',
-  'clay_pit',
   'charcoal_burner',
   'smithy',
   'potter_kiln',
@@ -471,7 +469,6 @@ export function localMaterialInputCommodities(
     case 'mine':
       return (['iron', 'salt', 'clay'] as const)
         .filter((commodity) => (source?.[commodity] ?? 0) > 1e-6);
-    case 'clay_pit': return ['clay'];
     case 'charcoal_burner': return ['charcoal'];
     case 'smithy': return ['ironwork'];
     case 'potter_kiln': return ['pottery'];

@@ -81,7 +81,6 @@ mod tests {
             "stone_quarry",
             "large_quarry",
             "mine",
-            "clay_pit",
             "threshing_barn",
             "watermill",
             "windmill",

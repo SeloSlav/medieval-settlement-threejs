@@ -1,7 +1,7 @@
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
-    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE, MINE_IRON_PER_CYCLE,
+    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, MINE_IRON_PER_CYCLE, MINING_CAMP_CLAY_PER_CYCLE,
     MINE_SALT_PER_CYCLE, STONE_PER_HARVEST,
 };
 use crate::building_defs::building_def;
@@ -15,6 +15,7 @@ use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::SimTickContext;
 use crate::simulation::{labor_and_logistics_paused, ox_amplified_production_labor};
+use crate::season_policy::EnvironmentState;
 use crate::tables::{Building, ForagingNode, Quarry};
 
 enum SurfaceDeposit {
@@ -38,14 +39,14 @@ impl SurfaceDeposit {
     }
 }
 
-/// The legacy `stone_quarry` identifier now represents the shared Mining Camp.
-/// It works the nearest finite surface reserve of stone, iron, salt, or clay
+/// The Mining Camp works the nearest finite surface reserve of stone, iron, salt, or clay
 /// inside its radius. A rich marker still has a depleting surface layer; its
 /// non-depleting deep source remains exclusive to a Quarry or Mineworks.
 pub fn step_stone_quarry(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
+    environment: EnvironmentState,
     building: Building,
 ) {
     if labor_and_logistics_paused(ctx, tick, building.owner, clock) {
@@ -61,24 +62,6 @@ pub fn step_stone_quarry(
         return;
     }
 
-    let tools_maintained = civilian_tools_maintained(building.ironwork);
-    let selected_rate = crate::production_rate_policy::production_rate_multiplier(
-        building.production_rate_percent,
-    );
-    if selected_rate <= 1e-9 {
-        return;
-    }
-    let throughput_multiplier =
-        civilian_tool_throughput_multiplier(building.ironwork) * selected_rate;
-    let cooldown = (building.action_cooldown - TICK_DT * throughput_multiplier).max(0.0);
-    if cooldown > 0.0 {
-        ctx.db.building().id().update(Building {
-            action_cooldown: cooldown,
-            ..building
-        });
-        return;
-    }
-
     let labor_interval = def.action_interval / productive_labor;
     let Some(deposit) = nearest_surface_deposit(ctx, building.x, building.z, def.work_radius)
     else {
@@ -89,6 +72,30 @@ pub fn step_stone_quarry(
         return;
     };
     let commodity = deposit.commodity();
+    let tools_maintained = civilian_tools_maintained(building.ironwork);
+    let selected_rate = crate::production_rate_policy::production_rate_multiplier(
+        building.production_rate_percent,
+    );
+    if selected_rate <= 1e-9 {
+        return;
+    }
+    let surface_weather_multiplier = if commodity == CommodityKind::Clay {
+        environment.surface_clay_throughput_multiplier()
+    } else {
+        1.0
+    };
+    let throughput_multiplier = civilian_tool_throughput_multiplier(building.ironwork)
+        * selected_rate
+        * surface_weather_multiplier;
+    let cooldown = (building.action_cooldown - TICK_DT * throughput_multiplier).max(0.0);
+    if cooldown > 0.0 {
+        ctx.db.building().id().update(Building {
+            action_cooldown: cooldown,
+            ..building
+        });
+        return;
+    }
+
     let base_batch = extraction_batch(commodity);
     let output_headroom = building_commodity_room(&building, commodity);
     let batch = crate::resource_units::whole_cost(base_batch);
@@ -174,7 +181,7 @@ fn extraction_batch(commodity: CommodityKind) -> f64 {
     match commodity {
         CommodityKind::Iron => MINE_IRON_PER_CYCLE,
         CommodityKind::Salt => MINE_SALT_PER_CYCLE,
-        CommodityKind::Clay => CLAY_PIT_CLAY_PER_CYCLE,
+        CommodityKind::Clay => MINING_CAMP_CLAY_PER_CYCLE,
         _ => STONE_PER_HARVEST,
     }
 }

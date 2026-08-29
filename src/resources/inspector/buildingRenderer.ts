@@ -119,7 +119,6 @@ export function renderBuildingInspector(
     case 'apiary':
     case 'watermill':
     case 'windmill':
-    case 'clay_pit':
     case 'charcoal_burner':
     case 'smithy':
     case 'potter_kiln':

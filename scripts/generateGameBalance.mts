@@ -658,7 +658,7 @@ export type GameBalance = {
     smokehouseSaltPerCycle: number;
     smokehousePotteryPerCycle: number;
     smokehousePreservedFoodPerCycle: number;
-    clayPitClayPerCycle: number;
+    miningCampClayPerCycle: number;
     largeQuarryTimberSupportPerCycle: number;
     largeQuarryTimberSupportBufferCycles: number;
     mineIronPerCycle: number;
@@ -842,7 +842,6 @@ const simKindByKind: Record<string, string | null> = {
   stone_quarry: 'StoneQuarry',
   large_quarry: 'LargeQuarry',
   mine: 'Mine',
-  clay_pit: 'ClayPit',
   charcoal_burner: 'CharcoalBurner',
   smithy: 'Smithy',
   potter_kiln: 'PotterKiln',
@@ -1330,7 +1329,7 @@ function generateRust(): string {
     `pub const SMOKEHOUSE_SALT_PER_CYCLE: f64 = ${rustF64(b.production.smokehouseSaltPerCycle)};`,
     `pub const SMOKEHOUSE_POTTERY_PER_CYCLE: f64 = ${rustF64(b.production.smokehousePotteryPerCycle)};`,
     `pub const SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.smokehousePreservedFoodPerCycle)};`,
-    `pub const CLAY_PIT_CLAY_PER_CYCLE: f64 = ${rustF64(b.production.clayPitClayPerCycle)};`,
+    `pub const MINING_CAMP_CLAY_PER_CYCLE: f64 = ${rustF64(b.production.miningCampClayPerCycle)};`,
     `pub const LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE: f64 = ${rustF64(b.production.largeQuarryTimberSupportPerCycle)};`,
     `pub const LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES: f64 = ${rustF64(b.production.largeQuarryTimberSupportBufferCycles)};`,
     `pub const MINE_IRON_PER_CYCLE: f64 = ${rustF64(b.production.mineIronPerCycle)};`,
@@ -2397,7 +2396,7 @@ function generateTypeScript(): string {
     `export const SMOKEHOUSE_SALT_PER_CYCLE = ${b.production.smokehouseSaltPerCycle};`,
     `export const SMOKEHOUSE_POTTERY_PER_CYCLE = ${b.production.smokehousePotteryPerCycle};`,
     `export const SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE = ${b.production.smokehousePreservedFoodPerCycle};`,
-    `export const CLAY_PIT_CLAY_PER_CYCLE = ${b.production.clayPitClayPerCycle};`,
+    `export const MINING_CAMP_CLAY_PER_CYCLE = ${b.production.miningCampClayPerCycle};`,
     `export const LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE = ${b.production.largeQuarryTimberSupportPerCycle};`,
     `export const LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES = ${b.production.largeQuarryTimberSupportBufferCycles};`,
     `export const MINE_IRON_PER_CYCLE = ${b.production.mineIronPerCycle};`,

@@ -49,7 +49,6 @@ const BUILDING_LABOR_SECTORS: Record<BuildingKind, LaborSector> = {
   stone_quarry: 'materials',
   large_quarry: 'materials',
   mine: 'materials',
-  clay_pit: 'materials',
   charcoal_burner: 'materials',
   smithy: 'materials',
   potter_kiln: 'materials',

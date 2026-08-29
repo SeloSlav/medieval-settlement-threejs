@@ -501,7 +501,7 @@ pub fn building_overlaps_road_surface(network: &RoadNetwork, kind: &str, x: f64,
 fn road_aware_building_placement_yaw(network: &RoadNetwork, kind: &str, x: f64, z: f64) -> f64 {
     let uses_road_facing_yaw = building_def(kind).is_some_and(|def| {
         def.faces_road
-            || (!def.requires_water_shore && !matches!(kind, "large_quarry" | "mine" | "clay_pit"))
+            || (!def.requires_water_shore && !matches!(kind, "large_quarry" | "mine"))
     });
     if uses_road_facing_yaw {
         if let Some((road_x, road_z)) = network.nearest_point(x, z, ROAD_FACING_SNAP_DISTANCE) {
@@ -608,12 +608,6 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
         "mine" => BuildingPadParams {
             radius_x: 11.0,
             radius_z: 10.0,
-            inner_fade: 0.84,
-            outer_fade: 1.24,
-        },
-        "clay_pit" => BuildingPadParams {
-            radius_x: 5.4,
-            radius_z: 4.5,
             inner_fade: 0.84,
             outer_fade: 1.24,
         },

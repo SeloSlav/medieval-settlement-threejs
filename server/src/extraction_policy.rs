@@ -12,8 +12,6 @@
 
 use crate::economy::CommodityKind;
 
-pub const LEGACY_CLAY_PIT_KIND: &str = "clay_pit";
-
 pub fn geological_commodity(deposit_id: &str) -> Option<CommodityKind> {
     if deposit_id.starts_with("deposit-iron-") {
         Some(CommodityKind::Iron)

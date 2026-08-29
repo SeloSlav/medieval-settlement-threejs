@@ -4,13 +4,12 @@ use crate::balance_generated::{
 };
 use crate::resource_units::{whole_cost, whole_units};
 
-pub const CIVILIAN_TOOL_SITE_KINDS: [&str; 9] = [
+pub const CIVILIAN_TOOL_SITE_KINDS: [&str; 8] = [
     "lumber_mill",
     "woodcutters_lodge",
     "stone_quarry",
     "large_quarry",
     "mine",
-    "clay_pit",
     "threshing_barn",
     "watermill",
     "windmill",

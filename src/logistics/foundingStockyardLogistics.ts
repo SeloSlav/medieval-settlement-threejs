@@ -255,7 +255,6 @@ function foundingDestinationPriority(
       return 3;
     case 'clay':
       if (building.kind === 'potter_kiln') return 0;
-      if (building.kind === 'clay_pit') return 1;
       return 3;
     case 'salt':
       if (building.kind === 'smokehouse') return 0;

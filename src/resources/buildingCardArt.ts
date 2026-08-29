@@ -13,7 +13,6 @@ export const BUILDING_CARD_ART = {
   stone_quarry: '/assets/ui/build-menu/cards/stonecutters-camp.webp',
   large_quarry: '/assets/ui/build-menu/cards/large-quarry.webp',
   mine: '/assets/ui/build-menu/cards/iron-mine.webp',
-  clay_pit: '/assets/ui/build-menu/cards/clay-pit.webp',
   charcoal_burner: '/assets/ui/build-menu/cards/charcoal-burner.webp',
   smithy: '/assets/ui/build-menu/cards/smithy-bloomery.webp',
   potter_kiln: '/assets/ui/build-menu/cards/potter-kiln.webp',

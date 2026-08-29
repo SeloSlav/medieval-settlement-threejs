@@ -50,7 +50,6 @@ export const PRODUCTION_WORKPLACE_KINDS = [
   'stone_quarry',
   'large_quarry',
   'mine',
-  'clay_pit',
   'charcoal_burner',
   'smithy',
   'potter_kiln',
@@ -183,7 +182,6 @@ export type WorkerTargetInputs = {
  */
 export const YARD_WORK_ACTIVITY = {
   mine: 'mine',
-  clay_pit: 'plant',
   charcoal_burner: 'tend',
   smithy: 'build',
   potter_kiln: 'tend',
@@ -254,13 +252,6 @@ export function workerProductionBlocker(
   if (building.kind === 'woodcutters_lodge') {
     const capacity = BUILDING_STORAGE_CAPS.woodcutters_lodge.firewood ?? 0;
     return building.firewood >= capacity - 1e-6 ? 'firewood_capacity' : null;
-  }
-
-  if (building.kind === 'clay_pit') {
-    const capacity = BUILDING_STORAGE_CAPS.clay_pit.clay ?? 0;
-    return Math.max(0, building.clay ?? 0) >= capacity - 1e-6
-      ? 'clay_capacity'
-      : null;
   }
 
   let outputBlocker: WorkerProductionBlocker | null = null;

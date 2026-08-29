@@ -47,6 +47,11 @@ import {
   stableCommunityPaletteIndex,
 } from '../settlement/CommunityReachRaster.ts';
 import { SecondaryClickGesture } from '../input/SecondaryClickGesture.ts';
+import { SUBREGION_DEFINITIONS } from '../regions/subregionField.ts';
+import {
+  getPublishedLandUseProfile,
+  subscribeLandUseProfile,
+} from '../regions/landUseProfile.ts';
 
 export type { ToolbarStats };
 
@@ -114,6 +119,7 @@ export class BuildToolbar {
   private communityLegendSignature = '';
   private readonly builderStatusBar: HTMLElement;
   private readonly buildMenuScrollCleanups: Array<() => void> = [];
+  private readonly unsubscribeLandUseProfile: () => void;
   private readonly root: HTMLElement;
   private readonly compassHud: CompassHud;
   private readonly buildMenuOutsideSecondaryClick: SecondaryClickGesture;
@@ -355,6 +361,10 @@ export class BuildToolbar {
               <span class="map-overlay-option__icon" data-map-overlay-icon="communities" aria-hidden="true"></span>
               <span><strong>Communities</strong><small>Porous local reach</small></span>
             </button>
+            <button type="button" class="map-overlay-option" data-overlay-mode="subregions" aria-pressed="false">
+              <span class="map-overlay-option__icon" data-map-overlay-icon="subregions" aria-hidden="true"></span>
+              <span><strong>Land use</strong><small>Five global affinities</small></span>
+            </button>
           </div>
           <div class="map-overlay-crops" data-overlay-crop-picker hidden aria-label="Fertility crop">
             ${FERTILITY_OVERLAY_CROPS.map((crop) => `
@@ -575,6 +585,7 @@ export class BuildToolbar {
       remove?.();
     });
     this.cancelDeleteButton.addEventListener('click', () => this.hideDeletePopup(true));
+    this.unsubscribeLandUseProfile = subscribeLandUseProfile(() => this.syncMapOverlayLegend());
   }
 
   setMapOverlaySelection(selection: MapOverlaySelection): void {
@@ -678,6 +689,21 @@ export class BuildToolbar {
         : '<span>Found a community to establish local reach</span>';
       this.cropSuitabilityDescription.textContent = 'Homes and civic anchors shape these administrative communities. Workers, carts, roads, goods, and the realm ledger may cross every boundary.';
       this.cropSuitabilityLegend.dataset.overlay = 'communities';
+      return;
+    }
+    if (!this.cropSuitabilityActive && selection.mode === 'subregions') {
+      const profile = getPublishedLandUseProfile();
+      this.cropSuitabilityTitle.textContent = 'Realm land use';
+      this.cropSuitabilitySubtitle.textContent = 'global affinity shares';
+      this.cropSuitabilityLabels.innerHTML = SUBREGION_DEFINITIONS.map((definition) => {
+        const share = Math.round((profile?.shares[definition.kind] ?? 0) * 100);
+        const bonus = Math.round((profile?.bonuses[definition.kind] ?? 0) * 100);
+        return `<span class="subregion-legend-chip">`
+          + `<i style="--subregion-color:${definition.color}"></i>`
+          + `<b>${definition.label}</b> ${share}% <em>+${bonus}% ${definition.affinity}</em></span>`;
+      }).join('');
+      this.cropSuitabilityDescription.textContent = 'Shares always total 100% of the realm. Fields, pastures, homes, and industry convert meadow or woodland over time; every listed bonus applies globally.';
+      this.cropSuitabilityLegend.dataset.overlay = 'subregions';
       return;
     }
     if (this.cropSuitabilityActive || selection.mode === 'fertility') {
@@ -937,6 +963,7 @@ export class BuildToolbar {
   }
 
   dispose(): void {
+    this.unsubscribeLandUseProfile();
     this.buildMenuOutsideSecondaryClick.dispose();
     window.removeEventListener('keydown', this.onKeyDown, true);
     window.removeEventListener('mousedown', this.onBuildMenuOutsideMouseDown, true);

@@ -8,7 +8,7 @@ use crate::simulation::{
     materialize_all_physical_resource_ledgers, retire_legacy_food_items, retire_removed_buildings,
     step_apiary, step_backyard_gardens, step_bakery, step_brewery, step_burials, step_carpenter,
     step_chandlery,
-    step_chapel_parish, step_chapels, step_charcoal_burner, step_clay_pit, step_cobbler,
+    step_chapel_parish, step_chapels, step_charcoal_burner, step_cobbler,
     step_construction_labor_stewards, step_construction_sites, step_delivery_trips,
     step_devotional_candles, step_fires, step_fishing_camp, step_foragers_shed,
     step_foraging_lifecycle, step_founding_sites, step_fresh_food_spoilage, step_granary,
@@ -291,7 +291,6 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             }
             crate::building_defs::BuildingSimKind::ThreshingBarn
             | crate::building_defs::BuildingSimKind::Mine
-            | crate::building_defs::BuildingSimKind::ClayPit
             | crate::building_defs::BuildingSimKind::CharcoalBurner
             | crate::building_defs::BuildingSimKind::Smithy
             | crate::building_defs::BuildingSimKind::PotterKiln
@@ -371,7 +370,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         let Some(building) = ctx.db.building().id().find(&building_id) else {
             continue;
         };
-        step_stone_quarry(ctx, &tick, &clock, building);
+        step_stone_quarry(ctx, &tick, &clock, environment, building);
     }
 
     for building_id in large_quarry_ids {
@@ -496,16 +495,6 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             crate::building_defs::BuildingSimKind::Swineherd => {
                 step_swineherd(ctx, &tick, &clock, environment, building)
             }
-            crate::building_defs::BuildingSimKind::ClayPit => step_clay_pit(
-                ctx,
-                &tick,
-                &clock,
-                environment,
-                world_seed,
-                world_hydrology,
-                world_resource_abundance,
-                building,
-            ),
             crate::building_defs::BuildingSimKind::Mine => step_mine(ctx, &tick, &clock, building),
             crate::building_defs::BuildingSimKind::CharcoalBurner => {
                 step_charcoal_burner(ctx, &tick, &clock, environment, building)

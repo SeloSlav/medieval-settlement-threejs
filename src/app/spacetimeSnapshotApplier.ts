@@ -123,6 +123,24 @@ export class SpacetimeSnapshotApplier {
     }
     const burgageZonesChanged = !previous || state.burgageZones !== previous.burgageZones;
     const farmFieldsChanged = !previous || state.farmFields !== previous.farmFields;
+    const pasturesChanged = !previous || state.pastures !== previous.pastures;
+    const vineyardParcelsChanged = !previous
+      || state.vineyardParcels !== previous.vineyardParcels;
+    if (
+      buildingsChanged
+      || residencesChanged
+      || farmFieldsChanged
+      || pasturesChanged
+      || vineyardParcelsChanged
+    ) {
+      deps.sceneManager?.syncSubregionLandUse(
+        state.buildings,
+        state.residences,
+        state.farmFields,
+        state.pastures,
+        state.vineyardParcels ?? new Map(),
+      );
+    }
     const graveyardsChanged = !previous || state.graveyards !== previous.graveyards;
     const quarriesChanged = !previous || state.quarries !== previous.quarries;
     const foragingChanged = !previous

@@ -16,7 +16,6 @@ export const BUILDING_PAD_PARAMS: Record<BuildingKind, BuildingPadParams> = {
   stone_quarry: { radiusX: 10.5, radiusZ: 10.5, innerFade: 0.82, outerFade: 1.42 },
   large_quarry: { radiusX: 13.0, radiusZ: 12.0, innerFade: 0.84, outerFade: 1.24 },
   mine: { radiusX: 11.0, radiusZ: 10.0, innerFade: 0.84, outerFade: 1.24 },
-  clay_pit: { radiusX: 5.4, radiusZ: 4.5, innerFade: 0.84, outerFade: 1.24 },
   charcoal_burner: { radiusX: 4.9, radiusZ: 4.4, innerFade: 0.86, outerFade: 1.28 },
   smithy: { radiusX: 4.6, radiusZ: 4.1, innerFade: 0.88, outerFade: 1.3 },
   potter_kiln: { radiusX: 4.7, radiusZ: 4.1, innerFade: 0.88, outerFade: 1.3 },

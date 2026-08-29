@@ -138,8 +138,6 @@ const STOCKED_PREVIEW_PREFIXES = [
   'SmokehousePotterySegment',
   'SmokehousePreservedFoodStockpile',
   'SmokehousePreservedFoodSegment',
-  'ClayPitStockpile',
-  'ClayPitClaySegment',
   'StoneQuarryStockpile',
   'StoneQuarryStockSegment',
   'LargeQuarryStockpile',

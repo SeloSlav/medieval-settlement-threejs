@@ -15,7 +15,6 @@ export const CIVILIAN_TOOL_SITE_KINDS = [
   'stone_quarry',
   'large_quarry',
   'mine',
-  'clay_pit',
   'threshing_barn',
   'watermill',
   'windmill',

@@ -32,7 +32,7 @@ use crate::economy::{
 };
 use crate::extraction_policy::{
     mineworks_clay_commodity, mineworks_geological_commodity, mining_camp_clay_commodity,
-    mining_camp_geological_commodity, quarry_geological_commodity, LEGACY_CLAY_PIT_KIND,
+    mining_camp_geological_commodity, quarry_geological_commodity,
 };
 use crate::farm_work_policy::is_valid_threshing_priority;
 use crate::foraging_policy::harvest_available;
@@ -438,12 +438,6 @@ pub(crate) fn place_building_internal(
     x: f64,
     z: f64,
 ) -> Result<u64, String> {
-    if kind == LEGACY_CLAY_PIT_KIND {
-        return Err(
-            "Clay Pits are legacy buildings and can no longer be constructed; use a Mining Camp for surface clay or Mineworks for a rich deep clay source."
-                .to_string(),
-        );
-    }
     let def = building_def_or_err(&kind)?;
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
@@ -1561,18 +1555,6 @@ fn mineworks_source_commodity(
         .then_some(CommodityKind::Clay)
 }
 
-fn clay_source_usable(building: &Building, buckets: &SpatialBuckets<ForagingNode>) -> bool {
-    buckets
-        .source_state_within_radius(
-            building.x,
-            building.z,
-            RICH_DEPOSIT_CENTER_TOLERANCE,
-            |deposit| deposit.node_kind == "clay" && deposit.node_id.starts_with("clay-"),
-            |deposit| deposit.node_id.starts_with("clay-rich-") || deposit.remaining > 0.0,
-        )
-        .usable
-}
-
 fn surface_source_commodity(
     building: &Building,
     quarry_buckets: &SpatialBuckets<Quarry>,
@@ -1681,10 +1663,6 @@ fn production_site_ready(
         kind if is_processor_output_target_kind(kind) => {
             processor_output_room(building).is_some_and(|headroom| headroom > 1e-6)
         }
-        "clay_pit" => {
-            !extraction_output_blocked(building, CommodityKind::Clay)
-                && clay_source_usable(building, foraging_buckets)
-        }
         "mine" => mineworks_source_commodity(building, quarry_buckets, foraging_buckets)
             .is_some_and(|commodity| {
                 !extraction_output_blocked(building, commodity)
@@ -1771,12 +1749,6 @@ fn recall_target_idle_processor_labor_for_scope(
                     has_output_stock || has_active_trip,
                 )
             }
-            "clay_pit" => (
-                extraction_output_blocked(&building, CommodityKind::Clay)
-                    || !clay_source_usable(&building, &foraging_buckets),
-                false,
-                building.clay > 1e-6 || has_active_trip,
-            ),
             "mine" => {
                 let source =
                     mineworks_source_commodity(&building, &quarry_buckets, &foraging_buckets);

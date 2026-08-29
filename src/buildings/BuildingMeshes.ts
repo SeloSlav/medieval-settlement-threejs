@@ -22,7 +22,6 @@ import { createLargeQuarryMesh } from './meshes/largeQuarryMesh.ts';
 import { createMineralMineMesh } from './meshes/mineralMineMesh.ts';
 import {
   createCharcoalBurnerMesh,
-  createClayPitMesh,
   createPotterKilnMesh,
   createSmithyMesh,
 } from './meshes/materialChainBuildingMeshes.ts';
@@ -93,8 +92,6 @@ export function createBuildingMesh(
       return createAuthoredLargeQuarryMesh() ?? createLargeQuarryMesh();
     case 'mine':
       return createAuthoredMineworksMesh() ?? createMineralMineMesh();
-    case 'clay_pit':
-      return createClayPitMesh();
     case 'charcoal_burner':
       return createCharcoalBurnerMesh();
     case 'smithy':

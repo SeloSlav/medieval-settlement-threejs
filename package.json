@@ -40,6 +40,7 @@
     "test:fuel-reserves": "node --experimental-strip-types scripts/testFuelReservePolicy.mts",
     "test:service-territories": "node --experimental-strip-types scripts/testServiceTerritories.mts",
     "test:service-coverage-overlay": "npx tsx scripts/testServiceCoverageOverlay.mts",
+    "test:subregion-land-use": "npx tsx scripts/testSubregionLandUse.mts",
     "test:food-territories": "node --experimental-strip-types scripts/testFoodTerritories.mts",
     "test:institutional-food-reserves": "node --experimental-strip-types scripts/testInstitutionalFoodReserves.mts",
     "test:granary-fresh-food-target": "node --experimental-strip-types scripts/testGranaryFreshFoodTarget.mts",

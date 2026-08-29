@@ -260,7 +260,6 @@ export const BUILDING_AUDIO_CLIPS: Record<
   stone_quarry: { path: '/sounds/buildings/stone_quarry.mp3', volume: 0.065 },
   large_quarry: { path: '/sounds/buildings/large_quarry.mp3', volume: 0.07 },
   mine: { path: '/sounds/buildings/mine.mp3', volume: 0.065 },
-  clay_pit: { path: '/sounds/buildings/clay_pit.mp3', volume: 0.055 },
   charcoal_burner: { path: '/sounds/buildings/charcoal_burner.mp3', volume: 0.05 },
   smithy: { path: '/sounds/buildings/smithy.mp3', volume: 0.065 },
   potter_kiln: { path: '/sounds/buildings/potter_kiln.mp3', volume: 0.055 },

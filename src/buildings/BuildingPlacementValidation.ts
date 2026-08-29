@@ -18,10 +18,6 @@ import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { isOnRoadSurface } from '../roads/roadConnectivity.ts';
 import { getBuildingExtent } from './buildingExtents.ts';
 import {
-  clayDepositAtCenter,
-  type ClayDepositSite,
-} from '../clay/ClayDepositLayout.ts';
-import {
   BERRY_PATCH_MAX_SPAWN_RADIUS,
   MUSHROOM_PATCH_MAX_SPAWN_RADIUS,
 } from '../foraging/foragingYields.ts';
@@ -57,7 +53,6 @@ export type BuildingPlacementFailureReason =
   | 'no_quarry_in_range'
   | 'requires_rich_deposit'
   | 'requires_mineral_deposit'
-  | 'requires_clay_deposit'
   | 'no_game_in_range'
   | 'no_berries_in_range'
   | 'no_fish_in_range'
@@ -92,7 +87,6 @@ type BuildingPlacementContext = {
   vineyardParcels?: Iterable<VineyardParcelState>;
   quarries: Iterable<ResourceNodeState>;
   foragingNodes: Iterable<ForagingNodeState>;
-  clayDepositSites?: readonly ClayDepositSite[];
   stockpile: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork' | 'roofTiles' | 'gold'>;
   isWaterAt: (x: number, z: number) => boolean;
   isResourceDepositAt?: (x: number, z: number) => boolean;
@@ -132,16 +126,11 @@ export function validateBuildingPlacement(
   ) {
     return { ok: false, reason: 'monastery_exists' };
   }
-  const onClaySite = kind === 'clay_pit'
-    && clayDepositAtCenter(context.clayDepositSites ?? [], x, z) !== null;
-  const onClayDeposit = onClaySite
-    && hasUsableClayDepositAtCenter(x, z, quarries);
   const fishingFootprintTouchesWater = kind === 'fishing_camp'
     && sampleBuildingFootprintPoints(kind, x, z, context.roadNetwork)
       .some((point) => context.isWaterAt(point.x, point.z));
   if (
     kind !== 'large_quarry'
-    && !onClaySite
     && (context.isWaterAt(x, z) || fishingFootprintTouchesWater)
   ) {
     return { ok: false, reason: 'water' };
@@ -159,7 +148,6 @@ export function validateBuildingPlacement(
 
   if (
     getBuildingDefinition(kind).requiresWaterShore
-    && !onClaySite
     && !isNearOpenWater(x, z, context.isWaterAt)
   ) {
     return { ok: false, reason: 'requires_shore' };
@@ -204,7 +192,6 @@ export function validateBuildingPlacement(
   if (
     kind !== 'large_quarry'
     && kind !== 'mine'
-    && kind !== 'clay_pit'
     && (kind === 'monastery'
       ? monasteryEstateSamples(kind, x, z, context.roadNetwork)
         .some((point) => context.isResourceDepositAt?.(point.x, point.z) === true)
@@ -319,10 +306,6 @@ export function validateBuildingPlacement(
     return { ok: false, reason: 'requires_mineral_deposit' };
   }
 
-  if (kind === 'clay_pit' && !onClayDeposit) {
-    return { ok: false, reason: 'requires_clay_deposit' };
-  }
-
   if (kind === 'hunters_hall' && !hasForagingInRadius(x, z, getBuildingDefinition(kind).workRadius, 'game', foragingNodes)) {
     return { ok: false, reason: 'no_game_in_range' };
   }
@@ -432,21 +415,6 @@ export function resolveBuildingPlacementPoint(
     && nearestDistance <= snapRadius
     ? { x: nearest.x, z: nearest.z }
     : { x, z };
-}
-
-function hasUsableClayDepositAtCenter(
-  x: number,
-  z: number,
-  deposits: Iterable<ResourceNodeState>,
-): boolean {
-  for (const deposit of deposits) {
-    if (deposit.resource !== 'clay') continue;
-    if (deposit.isRich !== true && deposit.remaining <= 0) continue;
-    if (Math.hypot(deposit.x - x, deposit.z - z) <= RESOURCE_CENTER_TOLERANCE) {
-      return true;
-    }
-  }
-  return false;
 }
 
 function hasRichStoneDepositAtCenter(

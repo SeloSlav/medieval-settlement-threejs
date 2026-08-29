@@ -1,6 +1,6 @@
 import {
   charcoalBurnerThroughputForWeather,
-  clayPitThroughputForWeather,
+  surfaceClayThroughputForWeather,
   preservedFoodDemandMultiplierForSeason,
   preservedFoodSpoilageFractionPerDayFor,
   watermillThroughputForWeather,
@@ -164,7 +164,7 @@ export function precipitationPreviewEnvironment(
       preservedFoodSpoilageFractionPerDay:
         preservedFoodSpoilageFractionPerDayFor('spring', 'rain'),
       watermillThroughputMultiplier: watermillThroughputForWeather('rain'),
-      clayPitThroughputMultiplier: clayPitThroughputForWeather('rain'),
+      surfaceClayThroughputMultiplier: surfaceClayThroughputForWeather('rain'),
       charcoalBurnerThroughputMultiplier:
         charcoalBurnerThroughputForWeather('rain'),
     };
@@ -182,7 +182,7 @@ export function precipitationPreviewEnvironment(
       preservedFoodSpoilageFractionPerDay:
         preservedFoodSpoilageFractionPerDayFor('winter', 'frost'),
       watermillThroughputMultiplier: watermillThroughputForWeather('frost'),
-      clayPitThroughputMultiplier: clayPitThroughputForWeather('frost'),
+      surfaceClayThroughputMultiplier: surfaceClayThroughputForWeather('frost'),
       charcoalBurnerThroughputMultiplier:
         charcoalBurnerThroughputForWeather('frost'),
     };
@@ -200,7 +200,7 @@ export function precipitationPreviewEnvironment(
       preservedFoodSpoilageFractionPerDay:
         preservedFoodSpoilageFractionPerDayFor('autumn', 'fair'),
       watermillThroughputMultiplier: 1,
-      clayPitThroughputMultiplier: 1,
+      surfaceClayThroughputMultiplier: 1,
       charcoalBurnerThroughputMultiplier: 1,
     };
   }
@@ -213,7 +213,7 @@ export function precipitationPreviewEnvironment(
       preservedFoodSpoilageFractionPerDay:
         preservedFoodSpoilageFractionPerDayFor(environment.season, 'fair'),
       watermillThroughputMultiplier: 1,
-      clayPitThroughputMultiplier: 1,
+      surfaceClayThroughputMultiplier: 1,
       charcoalBurnerThroughputMultiplier: 1,
     };
   }
@@ -241,7 +241,7 @@ export function standalonePrecipitationPreview(
       preservedFoodDemandMultiplierForSeason('spring'),
     roadTravelSpeedMultiplier: 1,
     watermillThroughputMultiplier: 1,
-    clayPitThroughputMultiplier: 1,
+    surfaceClayThroughputMultiplier: 1,
     charcoalBurnerThroughputMultiplier: 1,
   }, search);
 }

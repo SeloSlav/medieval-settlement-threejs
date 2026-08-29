@@ -20,7 +20,6 @@ import {
   MIN_DELIVERY_TRIP_SEC,
   RICH_MINE_THROUGHPUT_MULTIPLIER,
   FARM_TOOL_IRONWORK_PER_WORKER_DAY,
-  CLAY_PIT_CLAY_PER_CYCLE,
   BAKERY_FIREWOOD_PER_CYCLE,
   BAKERY_FLOUR_PER_CYCLE,
   BAKERY_RYE_BREAD_PER_CYCLE,
@@ -118,10 +117,6 @@ import {
   isCivilianToolSite,
 } from './civilianToolPolicy.ts';
 import {
-  CLAY_BANK_LEAN_YIELD_THRESHOLD,
-  clayBankYieldAt,
-} from './clayBankPolicy.ts';
-import {
   miningPitOutputPerDay,
   miningPitSurfaceDeposit,
   mineralDepositBeneath,
@@ -138,7 +133,7 @@ export type SettlementProductionCapacity = {
   capacityDaysPerWeek: number;
   watermillThroughputMultiplier: number;
   windmillWeatherThroughputMultiplier: number;
-  clayPitThroughputMultiplier: number;
+  surfaceClayThroughputMultiplier: number;
   charcoalBurnerThroughputMultiplier: number;
   fireDisabledProcessorSites: number;
   fireDisabledProcessorWorkers: number;
@@ -286,8 +281,6 @@ export type IndustrialMaterialPlan = {
   smithyWorkers: number;
   toolEligibleSites: number;
   toolMaintainedSites: number;
-  clayBankYieldMultiplier: number;
-  firstLeanClayPitId: string | null;
   clayOutputPerDay: number;
   potterInstalledOutputPerDay: number;
   potteryOutputPerDay: number;
@@ -428,8 +421,6 @@ type ProcessorOverview = Pick<
   smithyWorkers: number;
   toolEligibleSites: number;
   toolMaintainedSites: number;
-  clayBankWeightedLabor: number;
-  firstLeanClayPitId: string | null;
   maintainedToolIronworkPerDay: number;
   fullToolIronworkPerDay: number;
   firstUnmaintainedToolSiteId: string | null;
@@ -835,7 +826,6 @@ function stockTargetHasRoom(
     building.kind === 'stone_quarry'
     || building.kind === 'large_quarry'
     || building.kind === 'mine'
-    || building.kind === 'clay_pit'
   )
     ? capacity
     : null;
@@ -845,25 +835,6 @@ function stockTargetHasRoom(
     ? flourStock(building)
     : Math.max(0, Number(building[commodity] ?? 0));
   return stock + 1e-6 < target;
-}
-
-function centeredDepositExists(
-  building: Pick<BuildingState, 'x' | 'z'>,
-  deposits: Iterable<{ x: number; z: number; resource: string; remaining: number; isRich?: boolean }>,
-  resource: 'stone' | 'clay',
-  richOnly = false,
-): boolean {
-  for (const deposit of deposits) {
-    const dx = deposit.x - building.x;
-    const dz = deposit.z - building.z;
-    if (
-      deposit.resource === resource
-      && dx * dx + dz * dz <= 6.25
-      && (!richOnly || deposit.isRich === true)
-      && (deposit.isRich === true || deposit.remaining > 1e-6)
-    ) return true;
-  }
-  return false;
 }
 
 function geologicalDepositForBuilding(
@@ -938,9 +909,6 @@ function civilianToolSiteCanWork(
       return stockTargetHasRoom(building, output)
         && richMineSupportsReady(building.timber);
     }
-    case 'clay_pit':
-      return stockTargetHasRoom(building, 'clay')
-        && centeredDepositExists(building, state.quarries.values(), 'clay');
     case 'watermill':
     case 'windmill':
       return stockTargetHasRoom(building, 'flour')
@@ -958,9 +926,8 @@ function completedProcessorOverview(
   componentFor: ProductionRoadComponentResolver | undefined,
   watermillThroughputMultiplier: number,
   windmillWeatherThroughputMultiplier: number,
-  clayPitThroughputMultiplier: number,
+  surfaceClayThroughputMultiplier: number,
   charcoalBurnerThroughputMultiplier: number,
-  resourceAbundance: number,
   calendarMonth?: number,
 ): ProcessorOverview {
   const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
@@ -1006,8 +973,6 @@ function completedProcessorOverview(
   let beverageFirewoodPerDay = 0;
   let toolEligibleSites = 0;
   let toolMaintainedSites = 0;
-  let clayBankWeightedLabor = 0;
-  let firstLeanClayPitId: string | null = null;
   let maintainedToolIronworkPerDay = 0;
   let fullToolIronworkPerDay = 0;
   let firstUnmaintainedToolSiteId: string | null = null;
@@ -1094,9 +1059,6 @@ function completedProcessorOverview(
       }
       continue;
     }
-    const clayBankYield = building.kind === 'clay_pit'
-      ? clayBankYieldAt(building.x, building.z, resourceAbundance)
-      : 1;
     const surfaceDeposit = building.kind === 'stone_quarry'
       ? miningPitSurfaceDeposit(building, state.quarries.values())
       : null;
@@ -1145,8 +1107,8 @@ function completedProcessorOverview(
           : building.kind === 'windmill'
             ? windSiteThroughputMultiplier(state.seed, building.x, building.z)
               * windmillWeatherThroughputMultiplier
-          : building.kind === 'clay_pit'
-            ? clayPitThroughputMultiplier * clayBankYield
+          : building.kind === 'stone_quarry' && surfaceDeposit?.resource === 'clay'
+            ? surfaceClayThroughputMultiplier
             : building.kind === 'mine' && mineDeposit?.isRich === true
               ? RICH_MINE_THROUGHPUT_MULTIPLIER
               : 1;
@@ -1682,32 +1644,6 @@ function completedProcessorOverview(
         );
         break;
       }
-      case 'clay_pit': {
-        clayWorkers += building.assignedLabor;
-        clayBankWeightedLabor += building.assignedLabor * clayBankYield;
-        if (clayBankYield < CLAY_BANK_LEAN_YIELD_THRESHOLD) {
-          firstLeanClayPitId = earlierStableId(
-            firstLeanClayPitId,
-            building.id,
-          );
-        }
-        const cycles = cyclesPerCalendarDay(
-          'clay_pit',
-          building.assignedLabor,
-          sabbathObserved,
-          civilianToolThroughputMultiplier(building.ironwork ?? 0)
-            * clayPitThroughputMultiplier
-            * clayBankYield,
-        );
-        const branch = industrialMaterialBranch(
-          industrialMaterialBranches,
-          building,
-          componentFor,
-        );
-        branch.clayOutputPerDay += cycles * CLAY_PIT_CLAY_PER_CYCLE;
-        branch.firstClayId = earlierStableId(branch.firstClayId, building.id);
-        break;
-      }
       case 'stone_quarry': {
         if (surfaceDeposit?.resource !== 'iron' && surfaceDeposit?.resource !== 'clay') {
           break;
@@ -1716,6 +1652,7 @@ function completedProcessorOverview(
           building,
           surfaceDeposit,
           sabbathObserved,
+          surfaceClayThroughputMultiplier,
         );
         const branch = industrialMaterialBranch(
           industrialMaterialBranches,
@@ -1730,7 +1667,6 @@ function completedProcessorOverview(
           );
         } else {
           clayWorkers += building.assignedLabor;
-          clayBankWeightedLabor += building.assignedLabor;
           branch.clayOutputPerDay += outputPerDay;
           branch.firstClayId = earlierStableId(branch.firstClayId, building.id);
         }
@@ -1862,7 +1798,6 @@ function completedProcessorOverview(
           );
         } else {
           clayWorkers += building.assignedLabor;
-          clayBankWeightedLabor += building.assignedLabor;
           branch.clayOutputPerDay += outputPerDay;
           branch.firstClayId = earlierStableId(branch.firstClayId, building.id);
         }
@@ -2005,8 +1940,6 @@ function completedProcessorOverview(
     potterWorkers,
     toolEligibleSites,
     toolMaintainedSites,
-    clayBankWeightedLabor,
-    firstLeanClayPitId,
     maintainedToolIronworkPerDay,
     fullToolIronworkPerDay,
     firstUnmaintainedToolSiteId,
@@ -2260,8 +2193,6 @@ function industrialMaterialRoadPlan(
     | 'smithyWorkers'
     | 'toolEligibleSites'
     | 'toolMaintainedSites'
-    | 'clayBankWeightedLabor'
-    | 'firstLeanClayPitId'
     | 'maintainedToolIronworkPerDay'
     | 'fullToolIronworkPerDay'
     | 'firstUnmaintainedToolSiteId'
@@ -2577,10 +2508,6 @@ function industrialMaterialRoadPlan(
     smithyWorkers: overview.smithyWorkers,
     toolEligibleSites: overview.toolEligibleSites,
     toolMaintainedSites: overview.toolMaintainedSites,
-    clayBankYieldMultiplier: overview.clayWorkers > 0
-      ? overview.clayBankWeightedLabor / overview.clayWorkers
-      : 1,
-    firstLeanClayPitId: overview.firstLeanClayPitId,
     clayOutputPerDay,
     potterInstalledOutputPerDay,
     potteryOutputPerDay,
@@ -2770,10 +2697,10 @@ export function computeSettlementProductionCapacity(
   sabbathObserved: boolean,
   roadComponentFor?: ProductionRoadComponentResolver,
   watermillThroughputMultiplier = 1,
-  clayPitThroughputMultiplier = 1,
+  surfaceClayThroughputMultiplier = 1,
   currentPreservedFoodDemandMultiplier = 1,
   calendarMonth?: number,
-  resourceAbundance = 50,
+  _resourceAbundance = 50,
   charcoalBurnerThroughputMultiplier = 1,
   toolRouteDistanceFor?: ProductionRoadDistanceResolver,
   toolCartTravelSpeedMultiplier = 1,
@@ -2784,10 +2711,10 @@ export function computeSettlementProductionCapacity(
   )
     ? Math.max(0, watermillThroughputMultiplier)
     : 1;
-  const normalizedClayPitThroughput = Number.isFinite(
-    clayPitThroughputMultiplier,
+  const normalizedSurfaceClayThroughput = Number.isFinite(
+    surfaceClayThroughputMultiplier,
   )
-    ? Math.max(0, clayPitThroughputMultiplier)
+    ? Math.max(0, surfaceClayThroughputMultiplier)
     : 1;
   const normalizedCharcoalBurnerThroughput = Number.isFinite(
     charcoalBurnerThroughputMultiplier,
@@ -2804,9 +2731,6 @@ export function computeSettlementProductionCapacity(
   )
     ? Math.max(0, currentPreservedFoodDemandMultiplier)
     : 1;
-  const normalizedResourceAbundance = Number.isFinite(resourceAbundance)
-    ? Math.max(0, Math.min(100, resourceAbundance))
-    : 50;
   const {
     fireDisabledProcessorSites,
     fireDisabledProcessorWorkers,
@@ -2825,8 +2749,6 @@ export function computeSettlementProductionCapacity(
     potterWorkers,
     toolEligibleSites,
     toolMaintainedSites,
-    clayBankWeightedLabor,
-    firstLeanClayPitId,
     maintainedToolIronworkPerDay,
     fullToolIronworkPerDay,
     firstUnmaintainedToolSiteId,
@@ -2865,9 +2787,8 @@ export function computeSettlementProductionCapacity(
     roadComponentFor,
     normalizedWatermillThroughput,
     normalizedWindmillWeatherThroughput,
-    normalizedClayPitThroughput,
+    normalizedSurfaceClayThroughput,
     normalizedCharcoalBurnerThroughput,
-    normalizedResourceAbundance,
     calendarMonth,
   );
   const smokehouseCycles = cyclesPerCalendarDay(
@@ -3026,8 +2947,6 @@ export function computeSettlementProductionCapacity(
       potterWorkers,
       toolEligibleSites,
       toolMaintainedSites,
-      clayBankWeightedLabor,
-      firstLeanClayPitId,
       maintainedToolIronworkPerDay,
       fullToolIronworkPerDay,
       firstUnmaintainedToolSiteId,
@@ -3045,7 +2964,7 @@ export function computeSettlementProductionCapacity(
       averageProductiveCalendarDayShare(sabbathObserved) * 7,
     watermillThroughputMultiplier: normalizedWatermillThroughput,
     windmillWeatherThroughputMultiplier: normalizedWindmillWeatherThroughput,
-    clayPitThroughputMultiplier: normalizedClayPitThroughput,
+    surfaceClayThroughputMultiplier: normalizedSurfaceClayThroughput,
     charcoalBurnerThroughputMultiplier: normalizedCharcoalBurnerThroughput,
     fireDisabledProcessorSites,
     fireDisabledProcessorWorkers,

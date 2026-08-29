@@ -20,7 +20,7 @@ use crate::balance_generated::{
     CATTLE_GRAIN_PER_UNSUPPORTED_HEAD, CATTLE_HAY_PER_UNSUPPORTED_HEAD,
     CHANDLERY_CANDLES_PER_CYCLE, CHANDLERY_FIREWOOD_PER_CYCLE, CHANDLERY_WAX_PER_CYCLE,
     CHARCOAL_BURNER_CHARCOAL_PER_CYCLE, CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
-    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE, COBBLER_LEATHER_PER_CYCLE,
+    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, COBBLER_LEATHER_PER_CYCLE,
     COBBLER_SHOES_PER_CYCLE, FARM_GROWTH_SECONDS, FARM_WORK_METERS_PER_WORKER_PER_SEC,
     GRAIN_TRANSFER_PER_TRIP, LEATHER_TRANSFER_PER_TRIP, MINE_CLAY_PER_CYCLE, MINE_IRON_PER_CYCLE,
     MINE_SALT_PER_CYCLE, MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_FEAST_DRINK,
@@ -95,10 +95,7 @@ use crate::fuel_reserve_policy::{
     smithy_charcoal_refill_target,
 };
 use crate::granary_policy::granary_fresh_food_target;
-use crate::hydrology::{
-    clay_bank_yield_multiplier_with_richness, drought_groundwater_score,
-    sample_world_groundwater_score,
-};
+use crate::hydrology::drought_groundwater_score;
 use crate::livestock_policy::{
     effective_milk_use_policy, farmhouse_cheese_salt_staging_cycles,
     livestock_cycles_per_calendar_day, projected_winter_animal_feed, MILK_USE_FRESH,
@@ -168,7 +165,7 @@ use crate::supply_policy::{
     GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS,
     LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
-use crate::tables::{farm_field, Building, FarmField, ForagingNode, Residence};
+use crate::tables::{farm_field, Building, FarmField, Residence};
 use crate::vineyard::fermentable_grapes;
 use crate::weaver_input_policy::{
     textile_recipe_requests_route, weaver_fibre_delivery_preference_rank, weaver_uses_flax,
@@ -1502,7 +1499,6 @@ fn local_material_target_kinds(
             Some(&["smokehouse", "pastoral_farmstead", "trading_post"])
         }
         ("stone_quarry" | "mine", CommodityKind::Clay) => Some(&["potter_kiln"]),
-        ("clay_pit", CommodityKind::Clay) => Some(&["potter_kiln"]),
         ("charcoal_burner", CommodityKind::Charcoal) => Some(&["smithy", "village_storehouse"]),
         ("smithy", CommodityKind::Ironwork) => Some(&[
             "lumber_mill",
@@ -1510,7 +1506,6 @@ fn local_material_target_kinds(
             "stone_quarry",
             "large_quarry",
             "mine",
-            "clay_pit",
             "threshing_barn",
             "watermill",
             "windmill",
@@ -1543,7 +1538,6 @@ fn local_material_target_kinds(
             "stone_quarry",
             "large_quarry",
             "mine",
-            "clay_pit",
             "threshing_barn",
             "watermill",
             "windmill",
@@ -2009,6 +2003,7 @@ fn apply_farm_field_work(
     available_work: f64,
     world_seed: u64,
     map_size: u8,
+    cultivation_multiplier: f64,
 ) -> f64 {
     normalize_farmstead_field_inventory(resource_farmstead);
     normalize_farm_field_resource_state(field);
@@ -2039,7 +2034,8 @@ fn apply_farm_field_work(
                 field_center.z,
                 world_seed,
                 map_size,
-            ) * field.harvest_yield_multiplier.clamp(0.0, 1.0),
+            ) * field.harvest_yield_multiplier.clamp(0.0, 1.0)
+                * cultivation_multiplier.clamp(1.0, 1.15),
         ))
     } else {
         None
@@ -2335,6 +2331,7 @@ fn step_farmstead_fields(
     let production_rate = crate::production_rate_policy::production_rate_multiplier(
         farmstead.production_rate_percent,
     );
+    let cultivation_multiplier = tick.land_use_profile(ctx).cultivation_multiplier();
     let mut work_budget = if work_allowed && threshing_labor == 0 {
         onsite_labor as f64
             * FARM_WORK_METERS_PER_WORKER_PER_SEC
@@ -2384,6 +2381,7 @@ fn step_farmstead_fields(
                 work_budget * ox_throughput_multiplier,
                 world_seed,
                 map_size,
+                cultivation_multiplier,
             )
         } else {
             let Some(mut resource_farmstead) = ctx.db.building().id().find(&field.farmstead_id)
@@ -2399,6 +2397,7 @@ fn step_farmstead_fields(
                 work_budget * ox_throughput_multiplier,
                 world_seed,
                 map_size,
+                cultivation_multiplier,
             );
             if spent > 1e-9 {
                 ctx.db.building().id().update(resource_farmstead);
@@ -3066,92 +3065,6 @@ fn selected_smokehouse_recipe(
         })
 }
 
-pub fn step_clay_pit(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    clock: &GameClock,
-    environment: EnvironmentState,
-    world_seed: u64,
-    world_hydrology: u8,
-    resource_abundance: u8,
-    building: Building,
-) {
-    let Some(mut deposit) = clay_deposit_beneath(ctx, building.x, building.z) else {
-        return;
-    };
-    let is_rich = deposit.node_id.starts_with("clay-rich-");
-    if !is_rich && deposit.remaining <= 1e-6 {
-        return;
-    }
-    let tools_maintained = civilian_tools_maintained(building.ironwork);
-    let throughput_multiplier = civilian_tool_throughput_multiplier(building.ironwork)
-        * environment.clay_pit_throughput_multiplier()
-        * clay_bank_yield_multiplier_at_deposit(
-            building.x,
-            building.z,
-            world_seed,
-            world_hydrology,
-            resource_abundance,
-            &deposit,
-        );
-    let clay_before = building.clay;
-    let clay_batch = if is_rich {
-        CLAY_PIT_CLAY_PER_CYCLE
-    } else {
-        CLAY_PIT_CLAY_PER_CYCLE.min(deposit.remaining.max(0.0))
-    };
-    let mut clay_pit = step_simple_producer_at_rate(
-        ctx,
-        tick,
-        clock,
-        building,
-        &[(CommodityKind::Clay, clay_batch)],
-        throughput_multiplier,
-    );
-    let clay_produced = (clay_pit.clay - clay_before).max(0.0);
-    if !is_rich && clay_produced > 1e-6 {
-        deposit.remaining = (deposit.remaining - clay_produced).max(0.0);
-        ctx.db.foraging_node().node_id().update(deposit);
-    }
-    if tools_maintained && clay_produced > 1e-6 {
-        charge_completed_production_maintenance(
-            &mut clay_pit,
-            CIVILIAN_TOOL_IRONWORK_PER_CYCLE * clay_produced / CLAY_PIT_CLAY_PER_CYCLE,
-        );
-    }
-    ctx.db.building().id().update(clay_pit);
-}
-
-fn clay_deposit_beneath(ctx: &ReducerContext, x: f64, z: f64) -> Option<ForagingNode> {
-    const CENTER_TOLERANCE: f64 = 2.5;
-    let tolerance_sq = CENTER_TOLERANCE * CENTER_TOLERANCE;
-    ctx.db.foraging_node().iter().find(|deposit| {
-        deposit.node_kind == "clay"
-            && deposit.node_id.starts_with("clay-")
-            && (deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z) <= tolerance_sq
-    })
-}
-
-fn clay_bank_yield_multiplier_at_deposit(
-    x: f64,
-    z: f64,
-    world_seed: u64,
-    world_hydrology: u8,
-    resource_abundance: u8,
-    deposit: &ForagingNode,
-) -> f64 {
-    let richness = if deposit.node_id.starts_with("clay-rich-") {
-        1.0
-    } else {
-        0.0
-    };
-    clay_bank_yield_multiplier_with_richness(
-        sample_world_groundwater_score(x, z, world_seed, world_hydrology),
-        resource_abundance,
-        richness,
-    )
-}
-
 pub fn step_charcoal_burner(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -3225,7 +3138,8 @@ pub fn step_apiary(
     clock: &GameClock,
     mut building: Building,
 ) {
-    let forage_score = apiary_landscape_forage_score(ctx, &building);
+    let forage_score = apiary_landscape_forage_score(ctx, &building)
+        * tick.land_use_profile(ctx).pollination_multiplier();
     building.apiary_forage_score = forage_score;
     building.apiary_colony_health = building.apiary_colony_health.clamp(0.35, 1.10);
 
@@ -3599,7 +3513,10 @@ pub(crate) fn nearby_apiary_pollination_multiplier(
             BACKYARD_APIARY_POLLINATION_CONTRIBUTION * reach
         })
         .sum();
-    pollination_multiplier(full_apiary_contribution + backyard_contribution)
+    let landscape_multiplier = tick.land_use_profile(ctx).pollination_multiplier();
+    pollination_multiplier(
+        (full_apiary_contribution + backyard_contribution) * landscape_multiplier,
+    )
 }
 
 pub fn step_monastery(
@@ -4314,13 +4231,18 @@ fn step_processor_at_rate(
     outputs: &[(CommodityKind, f64)],
     throughput_multiplier: f64,
 ) -> Building {
+    let affinity_multiplier = if crate::subregion_affinity::is_urban_workshop(&building.kind) {
+        tick.land_use_profile(ctx).industry_multiplier()
+    } else {
+        1.0
+    };
     let Some(labor) = cycle_labor_if_ready_at_rate(
         ctx,
         tick,
         clock,
         &mut building,
         false,
-        throughput_multiplier,
+        throughput_multiplier * affinity_multiplier,
     ) else {
         return building;
     };
@@ -4475,7 +4397,6 @@ fn extraction_accepts_maintenance_input(
     let output = match building.kind.as_str() {
         "stone_quarry" => nearest_surface_extraction_commodity(ctx, building.x, building.z, 80.0),
         "large_quarry" => rich_stone_commodity_beneath(ctx, building.x, building.z),
-        "clay_pit" => Some(CommodityKind::Clay),
         "mine" => mineworks_commodity_beneath(ctx, building.x, building.z),
         _ => return true,
     };

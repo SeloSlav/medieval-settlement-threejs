@@ -1822,8 +1822,7 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
         },
         CommodityKind::Clay => match kind {
             "potter_kiln" => Some(0),
-            "clay_pit" => Some(1),
-            "founders_camp" => Some(2),
+            "founders_camp" => Some(1),
             _ => Some(3),
         },
         CommodityKind::Salt => match kind {

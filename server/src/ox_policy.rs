@@ -15,7 +15,6 @@ pub const OX_SUPPORTED_WORKPLACE_KINDS: &[&str] = &[
     "stone_quarry",
     "large_quarry",
     "mine",
-    "clay_pit",
     "charcoal_burner",
     "threshing_barn",
     "pastoral_farmstead",
@@ -40,7 +39,7 @@ pub fn is_ox_production_workplace(kind: &str) -> bool {
 /// still pairs each ox with a present laborer, leaving excess oxen waiting.
 pub fn ox_workplace_capacity(kind: &str) -> u32 {
     let type_capacity = match kind {
-        "lumber_mill" | "stone_quarry" | "large_quarry" | "mine" | "clay_pit"
+        "lumber_mill" | "stone_quarry" | "large_quarry" | "mine"
         | "threshing_barn" | "pastoral_farmstead" => 3,
         "woodcutters_lodge" | "charcoal_burner" | "swineherd" | "carpenter" => 2,
         "reforester" | "village_storehouse" | "granary" | "trading_post" => 1,

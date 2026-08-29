@@ -22,7 +22,6 @@ export const OX_SUPPORTED_WORKPLACE_KINDS = [
   'stone_quarry',
   'large_quarry',
   'mine',
-  'clay_pit',
   'charcoal_burner',
   'threshing_barn',
   'pastoral_farmstead',
@@ -82,7 +81,6 @@ export function oxWorkplaceCapacity(kind: BuildingKind): number {
       case 'stone_quarry':
       case 'large_quarry':
       case 'mine':
-      case 'clay_pit':
       case 'threshing_barn':
       case 'pastoral_farmstead':
         return 3;

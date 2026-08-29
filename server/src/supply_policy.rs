@@ -44,7 +44,6 @@ pub const INSTITUTIONAL_FOOD_SOURCE_KINDS: &[&str] = &[
 pub const LOCAL_MATERIAL_SOURCE_KINDS: &[&str] = &[
     "stone_quarry",
     "mine",
-    "clay_pit",
     "charcoal_burner",
     "smithy",
     "potter_kiln",
@@ -1170,7 +1169,6 @@ mod tests {
             &[
                 "stone_quarry",
                 "mine",
-                "clay_pit",
                 "charcoal_burner",
                 "smithy",
                 "potter_kiln",

@@ -59,7 +59,6 @@ const WORKSITE_BUILDING_KINDS = new Set<BuildingKind>([
   'stone_quarry',
   'large_quarry',
   'mine',
-  'clay_pit',
   'charcoal_burner',
   'smithy',
   'potter_kiln',

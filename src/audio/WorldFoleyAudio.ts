@@ -39,7 +39,6 @@ const STONE_STRUCTURE_KINDS = new Set<BuildingState['kind']>([
   'stone_quarry',
   'large_quarry',
   'mine',
-  'clay_pit',
   'well',
   'chapel',
   'monastery',

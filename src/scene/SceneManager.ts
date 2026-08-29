@@ -25,10 +25,13 @@ import { createWorldLayout, type WorldLayout } from '../resources/WorldLayout.ts
 import type {
   BuildingState,
   FarmCrop,
+  FarmFieldState,
   ForagingNodeState,
+  PastureState,
   ResidenceState,
   ResourceNodeState,
   SettlementState,
+  VineyardParcelState,
 } from '../resources/types.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import { resolveWorldDimensions } from '../world/worldGenerationSettings.ts';
@@ -84,6 +87,7 @@ import {
 } from './mapOverlayPreference.ts';
 import { WindOverlay } from '../wind/WindOverlay.ts';
 import { CommunityReachOverlay } from '../settlement/CommunityReachOverlay.ts';
+import { SubregionOverlay } from '../regions/SubregionOverlay.ts';
 import {
   areConstellationGuidesEnabled,
   subscribeConstellationPreference,
@@ -240,9 +244,13 @@ export class SceneManager {
   private windOverlay: WindOverlay | null = null;
   private cropSuitabilityOverlay: CropSuitabilityOverlay | null = null;
   private communityReachOverlay: CommunityReachOverlay | null = null;
+  private subregionOverlay: SubregionOverlay | null = null;
   private communitySettlements: ReadonlyMap<string, SettlementState> = new Map();
   private communityBuildings: ReadonlyMap<string, BuildingState> = new Map();
   private communityResidences: ReadonlyMap<string, ResidenceState> = new Map();
+  private subregionFarmFields: ReadonlyMap<string, FarmFieldState> = new Map();
+  private subregionPastures: ReadonlyMap<string, PastureState> = new Map();
+  private subregionVineyards: ReadonlyMap<string, VineyardParcelState> = new Map();
   private cropSuitabilityCrop: FarmCrop | null = null;
   private vineyardSuitabilityActive = false;
   private mapOverlaySelection: MapOverlaySelection = getMapOverlaySelection();
@@ -798,6 +806,27 @@ export class SceneManager {
     );
   }
 
+  syncSubregionLandUse(
+    buildings: ReadonlyMap<string, BuildingState>,
+    residences: ReadonlyMap<string, ResidenceState>,
+    farmFields: ReadonlyMap<string, FarmFieldState>,
+    pastures: ReadonlyMap<string, PastureState>,
+    vineyardParcels: ReadonlyMap<string, VineyardParcelState>,
+  ): void {
+    this.communityBuildings = buildings;
+    this.communityResidences = residences;
+    this.subregionFarmFields = farmFields;
+    this.subregionPastures = pastures;
+    this.subregionVineyards = vineyardParcels;
+    this.subregionOverlay?.setState({
+      buildings: buildings.values(),
+      residences: residences.values(),
+      farmFields: farmFields.values(),
+      pastures: pastures.values(),
+      vineyardParcels: vineyardParcels.values(),
+    });
+  }
+
   setVineyardSuitabilityOverlayVisible(visible: boolean): void {
     if (visible === this.vineyardSuitabilityActive) return;
     this.vineyardSuitabilityActive = visible;
@@ -851,7 +880,22 @@ export class SceneManager {
         this.communityResidences.values(),
       );
     }
+    if (mode === 'subregions' && !this.subregionOverlay) {
+      this.subregionOverlay = new SubregionOverlay({
+        terrain: this.terrain,
+        parent: this.scene,
+        settings: this.worldLayout.settings,
+      });
+      this.subregionOverlay.setState({
+        buildings: this.communityBuildings.values(),
+        residences: this.communityResidences.values(),
+        farmFields: this.subregionFarmFields.values(),
+        pastures: this.subregionPastures.values(),
+        vineyardParcels: this.subregionVineyards.values(),
+      });
+    }
 
+    this.subregionOverlay?.setVisible(mode === 'subregions');
     this.hydrologyOverlay?.setVisible(mode === 'water');
     this.windOverlay?.setVisible(mode === 'wind');
     this.cropSuitabilityOverlay?.setVisible(mode === 'fertility');
@@ -1534,6 +1578,8 @@ export class SceneManager {
     this.cropSuitabilityOverlay = null;
     this.communityReachOverlay?.dispose();
     this.communityReachOverlay = null;
+    this.subregionOverlay?.dispose();
+    this.subregionOverlay = null;
     this.cropSuitabilityCrop = null;
     this.vineyardSuitabilityActive = false;
     this.buildingAccessSpurs.dispose();

@@ -4,11 +4,6 @@ import {
   LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
   MINE_TIMBER_SUPPORT_PER_CYCLE,
 } from '../generated/gameBalance.ts';
-import {
-  CLAY_BANK_STRATA_VISUAL_SEGMENTS,
-  clayBankSiteYieldAt,
-  clayBankStrataVisualLevel,
-} from '../economy/clayBankPolicy.ts';
 import type { BuildingState } from '../resources/types.ts';
 import {
   stockpileVisualLevel,
@@ -31,7 +26,6 @@ export const MINE_CLAY_VISUAL_SEGMENTS = 6;
 export const MINE_SUPPORT_TIMBER_VISUAL_SEGMENTS = 4;
 export const MINE_SUPPORT_TIMBER_VISUAL_CAPACITY =
   MINE_SUPPORT_TIMBER_VISUAL_SEGMENTS * MINE_TIMBER_SUPPORT_PER_CYCLE;
-export const CLAY_PIT_CLAY_VISUAL_SEGMENTS = 5;
 export const CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS = 3;
 export const CHARCOAL_BURNER_CHARCOAL_VISUAL_SEGMENTS = 5;
 export const SMITHY_IRON_VISUAL_SEGMENTS = 4;
@@ -121,18 +115,6 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         building.timber,
         MINE_SUPPORT_TIMBER_VISUAL_CAPACITY,
         MINE_SUPPORT_TIMBER_VISUAL_SEGMENTS,
-      )}`;
-    case 'clay_pit':
-      return `:bulk-store:${stockpileVisualLevel(
-        building.clay ?? 0,
-        BUILDING_STORAGE_CAPS.clay_pit.clay,
-        CLAY_PIT_CLAY_VISUAL_SEGMENTS,
-      )}:tools:${stockpileVisualLevel(
-        building.ironwork ?? 0,
-        BUILDING_STORAGE_CAPS.clay_pit.ironwork ?? 0,
-        CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS,
-      )}:bank:${clayBankStrataVisualLevel(
-        clayBankSiteYieldAt(building.x, building.z),
       )}`;
     case 'threshing_barn':
       return `:tools:${stockpileVisualLevel(
@@ -296,23 +278,6 @@ export function syncBulkStockpileVisuals(
         'MineSupportTimberSegment',
         building.timber,
         MINE_SUPPORT_TIMBER_VISUAL_CAPACITY,
-      );
-      syncCivilianToolStockpile(marker, building);
-      break;
-    case 'clay_pit':
-      syncNamedStockpile(
-        marker,
-        'ClayPitStockpile',
-        'ClayPitClaySegment',
-        building.clay ?? 0,
-        BUILDING_STORAGE_CAPS.clay_pit.clay,
-      );
-      syncNamedStockpile(
-        marker,
-        'ClayBankStrata',
-        'ClayBankStratum',
-        clayBankStrataVisualLevel(clayBankSiteYieldAt(building.x, building.z)),
-        CLAY_BANK_STRATA_VISUAL_SEGMENTS,
       );
       syncCivilianToolStockpile(marker, building);
       break;

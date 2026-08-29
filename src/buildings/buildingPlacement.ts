@@ -33,8 +33,7 @@ function buildingUsesRoadsideSnap(kind: BuildingKind): boolean {
   const definition = getBuildingDefinition(kind);
   return !definition.requiresWaterShore
     && kind !== 'large_quarry'
-    && kind !== 'mine'
-    && kind !== 'clay_pit';
+    && kind !== 'mine';
 }
 
 export type RoadsideBuildingPlacement = { x: number; z: number };

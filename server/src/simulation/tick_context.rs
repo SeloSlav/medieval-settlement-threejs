@@ -26,6 +26,7 @@ use crate::simulation::fires::{FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::road_logistics::claim_residences_by_nearest_supplier;
 use crate::supply_policy::{is_food_supplier_operational, is_well_supplier_operational};
+use crate::subregion_affinity::{compute_land_use_profile, LandUseProfile};
 use crate::tables::{corpse, farm_field, pasture_herd, Building, Pasture, PastureHerd, Residence};
 
 #[derive(Default)]
@@ -88,6 +89,7 @@ pub struct SimTickContext {
     used_ox_ids: RefCell<HashSet<u64>>,
     production_ox_assignments: RefCell<Option<HashMap<u64, Vec<u64>>>>,
     production_ox_claims: RefCell<HashMap<u64, Vec<u64>>>,
+    land_use_profile: RefCell<Option<LandUseProfile>>,
 }
 
 impl SimTickContext {
@@ -132,7 +134,17 @@ impl SimTickContext {
             used_ox_ids: RefCell::new(HashSet::new()),
             production_ox_assignments: RefCell::new(None),
             production_ox_claims: RefCell::new(HashMap::new()),
+            land_use_profile: RefCell::new(None),
         }
+    }
+
+    pub fn land_use_profile(&self, ctx: &ReducerContext) -> LandUseProfile {
+        if let Some(profile) = *self.land_use_profile.borrow() {
+            return profile;
+        }
+        let profile = compute_land_use_profile(ctx);
+        *self.land_use_profile.borrow_mut() = Some(profile);
+        profile
     }
 
     pub(crate) fn used_ox_ids(&self) -> Vec<u64> {
@@ -193,7 +205,7 @@ impl SimTickContext {
         {
             return capacity;
         }
-        let capacity = if herd.species == crate::reducers::livestock::SPECIES_SWINE {
+        let base_capacity = if herd.species == crate::reducers::livestock::SPECIES_SWINE {
             let candidate_points = {
                 let mut cached_index = self.mature_tree_spatial_index.borrow_mut();
                 let index = cached_index.get_or_insert_with(|| {
@@ -255,6 +267,7 @@ impl SimTickContext {
         } else {
             crate::simulation::grazing_capacity_for_pasture(ctx, pasture, herd)
         };
+        let capacity = base_capacity * self.land_use_profile(ctx).husbandry_multiplier();
         self.livestock_grazing_capacity_by_pasture
             .borrow_mut()
             .insert(pasture.id, capacity);
