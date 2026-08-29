@@ -45,6 +45,15 @@
   filter: none;
 }
 
+.inspector-resource-token.is-complete {
+  border-color: rgba(126, 178, 91, 0.42);
+  color: #dcebc9;
+  background:
+    linear-gradient(145deg, rgba(69, 119, 48, 0.22), transparent 62%),
+    rgba(10, 15, 9, 0.42);
+  filter: none;
+}
+
 .inspector-resource-token .resource-cost__item {
   gap: 4px;
 }
@@ -96,6 +105,41 @@
 
 .resource-inspector-details [data-inspector-details] > li[data-inspector-resource-strip] > .inspector-resource-strip {
   width: 100%;
+}
+
+.resource-inspector-details [data-inspector-details] > li[data-inspector-resource-strip][data-construction-materials] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  min-height: 0;
+  padding: 8px;
+}
+
+.resource-inspector-details [data-inspector-details] > li[data-inspector-resource-strip][data-construction-materials] > span:first-child {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0 2px;
+  overflow: visible;
+  clip: auto;
+  color: #918978;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.075em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  white-space: normal;
+  border: 0;
+}
+
+.resource-inspector-details .construction-materials-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+  gap: 6px;
+}
+
+.construction-materials-strip .inspector-resource-token {
+  min-width: 0;
 }
 
 .trading-post-ledger__resource-anchor {

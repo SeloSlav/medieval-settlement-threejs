@@ -13,6 +13,7 @@ export type InspectorResourceTokenOptions = {
   title?: string;
   detail?: string;
   amountLabel?: string;
+  displayValue?: string;
   resources?: readonly ResourceCostEntry[];
   showAmount?: boolean;
   ariaLabel?: string;
@@ -36,9 +37,10 @@ export function renderInspectorResourceToken(
   const title = options.title?.trim() || capitalize(resourceLabel);
   const detail = compactTooltipDetail(options.detail?.trim() || 'Current amount');
   const amountLabel = options.amountLabel?.trim() || 'On site';
-  const showAmount = options.showAmount !== false && formattedAmount.length > 0;
+  const displayValue = options.displayValue?.trim() || formattedAmount;
+  const showAmount = options.showAmount !== false && displayValue.length > 0;
   const ariaLabel = options.ariaLabel?.trim()
-    || `${title}${formattedAmount ? `: ${formattedAmount}` : ''}`;
+    || `${title}${displayValue ? `: ${displayValue}` : ''}`;
   const extraClass = options.className?.trim();
   const classes = [
     'inspector-resource-token',
@@ -53,7 +55,7 @@ export function renderInspectorResourceToken(
     ? ` data-tooltip-resources="${escapeHtml(tooltipResources)}"`
     : '';
   const visibleAmount = showAmount
-    ? `<span class="resource-cost__value inspector-resource-token__value">${escapeHtml(formattedAmount)}</span>`
+    ? `<span class="resource-cost__value inspector-resource-token__value">${escapeHtml(displayValue)}</span>`
     : '';
 
   return `<span class="${escapeHtml(classes)}" tabindex="0" data-resource-token="${options.kind}" data-tooltip-title="${escapeHtml(title)}" data-tooltip="${escapeHtml(detail)}"${amountAttributes}${resourcesAttribute} aria-label="${escapeHtml(ariaLabel)}"><span class="resource-cost__item" data-resource-cost="${options.kind}" aria-hidden="true"><span class="resource-cost__icon"></span>${visibleAmount}</span></span>`;

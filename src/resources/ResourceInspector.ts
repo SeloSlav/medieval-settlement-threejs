@@ -3351,7 +3351,7 @@ function inspectorRowScore(
   let score = index === 0 ? 18 : index === 1 ? 8 : 0;
   if (row.querySelector('button, input, select, progress')) score += 100;
   if (
-    row.dataset.state === 'warning'
+    (row.dataset.state === 'warning' || row.dataset.state === 'danger')
     && /(\bfire\b|burn|destroy|danger|critical|blocked|short|starv|damage|expos|unserved)/.test(normalized)
   ) score += 30;
   if (/(status|progress|assigned|workforce|population|household|resident|active cart|crop|yield|output|input|condition|priority|coverage|readiness|runway)/.test(normalizedLabel)) score += 16;

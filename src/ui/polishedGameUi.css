@@ -1970,12 +1970,29 @@ select:focus-visible {
 }
 
 .resource-inspector-details [data-inspector-details] > li[data-state='warning'] {
-  border-color: rgba(206, 108, 71, 0.34);
-  background: linear-gradient(145deg, rgba(143, 53, 29, 0.18), rgba(255, 255, 255, 0.015));
+  border-color: rgba(218, 171, 67, 0.4);
+  background: linear-gradient(145deg, rgba(137, 99, 24, 0.2), rgba(255, 255, 255, 0.015));
 }
 
 .resource-inspector-details [data-inspector-details] > li[data-state='warning'] > .inspector-row-icon {
-  color: #e28c62;
+  color: #e5bd59;
+}
+
+.resource-inspector-details [data-inspector-details] > li[data-state='warning'] > .inspector-detail-value {
+  color: #eee0b5;
+}
+
+.resource-inspector-details [data-inspector-details] > li[data-state='danger'] {
+  border-color: rgba(206, 84, 65, 0.46);
+  background: linear-gradient(145deg, rgba(143, 41, 29, 0.24), rgba(255, 255, 255, 0.015));
+}
+
+.resource-inspector-details [data-inspector-details] > li[data-state='danger'] > .inspector-row-icon {
+  color: #ed765f;
+}
+
+.resource-inspector-details [data-inspector-details] > li[data-state='danger'] > .inspector-detail-value {
+  color: #f1c7ba;
 }
 
 .resource-inspector-details [data-inspector-details] > li[data-state='positive'] > .inspector-row-icon {

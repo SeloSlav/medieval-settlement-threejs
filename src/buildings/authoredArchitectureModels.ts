@@ -16,7 +16,7 @@ import {
 export const TIER_ONE_RESIDENCE_MODEL_URL =
   '/assets/models/buildings/gorski/tier1_residence_retopo_v26.glb';
 export const HUNTERS_CAMP_MODEL_URL =
-  '/assets/models/buildings/gorski/hunters_camp_textured_v8.glb';
+  '/assets/models/buildings/gorski/hunters_camp_textured_v9.glb';
 
 type AuthoredArchitectureKey = 'tier-one-residence' | 'hunters-camp';
 
@@ -71,7 +71,7 @@ export function createAuthoredHuntersCampMesh(): THREE.Group | null {
   if (!camp) return null;
   camp.name = "Hunter's camp";
   camp.userData.authoredGlbAsset = true;
-  camp.userData.authoredGlbVersion = 'hunters-camp-v8';
+  camp.userData.authoredGlbVersion = 'hunters-camp-v9';
   camp.userData.authoredGlbUrl = HUNTERS_CAMP_MODEL_URL;
   camp.userData.fpCollisionChildrenOnly = true;
   addComponentCollisionProxies(camp);
@@ -156,6 +156,8 @@ function prepareMaterial(
     // Canvas and stitched hide keep their dedicated authored albedo/normal.
     // Their packed map uses the game's R/G/B contract rather than glTF's G/B
     // metallic-roughness convention, so scalar values are deliberately used.
+    const surfaceTint = readAuthoredSurfaceTint(source);
+    if (surfaceTint) material.color.copy(surfaceTint);
     material.roughnessMap = null;
     material.metalnessMap = null;
     material.aoMap = null;
@@ -167,6 +169,22 @@ function prepareMaterial(
   }
   material.needsUpdate = true;
   return material;
+}
+
+function readAuthoredSurfaceTint(source: THREE.MeshStandardMaterial): THREE.Color | null {
+  const encoded = source.userData.surface_tint;
+  if (
+    !Array.isArray(encoded)
+    || encoded.length < 3
+    || !encoded.slice(0, 3).every((channel) => Number.isFinite(Number(channel)))
+  ) {
+    return null;
+  }
+  return new THREE.Color().setRGB(
+    Number(encoded[0]),
+    Number(encoded[1]),
+    Number(encoded[2]),
+  );
 }
 
 function readAuthoredWeatheringProfile(

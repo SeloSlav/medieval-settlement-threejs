@@ -7,6 +7,7 @@ import {
   pickVillagerModelVariant,
 } from '../settlement/villagerPaths.ts';
 import type { VillagerModelVariant } from '../settlement/SettlementCrowdRenderer.ts';
+import { configureVillagerMaterialLighting } from '../settlement/villagerMaterialLighting.ts';
 
 const MODEL_URLS = {
   man: '/assets/models/villagers/worker-male-common-01-v001.glb',
@@ -185,8 +186,7 @@ export function createDeliveryCartWorkerVisual(
           colors.skin,
           hairColor,
         ));
-        standard.roughness = 0.9;
-        standard.metalness = 0;
+        configureVillagerMaterialLighting(standard);
       }
       ownedMaterials.push(clone);
       return clone;

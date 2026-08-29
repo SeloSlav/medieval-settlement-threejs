@@ -56,7 +56,7 @@ for (const material of residence.json.materials.filter(
   );
 }
 
-const camp = readGlb('hunters_camp_textured_v8.glb');
+const camp = readGlb('hunters_camp_textured_v9.glb');
 assert.equal(camp.json.nodes.length, 15, 'Hunter camp node count changed');
 assert.equal(camp.json.meshes.length, 15, 'Hunter camp mesh count changed');
 const campTriangles = countTriangles(camp.json);
@@ -68,7 +68,7 @@ assert.ok(
 assert.ok(camp.bytes.length < 2_000_000, 'Hunter camp runtime GLB should stay below 2 MB');
 assert.equal(
   camp.json.asset.extras?.sourceGlb,
-  'hunters_camp_textured_v8.glb',
+  'hunters_camp_textured_v9.glb',
   'Hunter camp runtime source provenance is missing',
 );
 assert.deepEqual(
@@ -84,6 +84,41 @@ assert.deepEqual(
 for (const image of camp.json.images ?? []) {
   assert.ok(typeof image.uri === 'string', `${image.name} must be an external runtime texture`);
   assert.equal(image.bufferView, undefined, `${image.name} must not remain embedded`);
+}
+const campAtlasMaterials = (camp.json.materials ?? []).filter(
+  (material) => material.extras?.atlas_id === 'gorski-building-atlas-v1',
+);
+assert.ok(campAtlasMaterials.length >= 7, 'Hunter camp building-atlas materials are missing');
+for (const material of campAtlasMaterials) {
+  assert.equal(
+    material.extras?.atlas_uv_mode,
+    'final tile coordinates baked into GK_UV0',
+    `${material.name} must not transform already-baked atlas UVs again`,
+  );
+  assert.ok(
+    Array.isArray(material.extras?.atlas_tint) && material.extras.atlas_tint.length === 3,
+    `${material.name} must retain its authored natural-material tint`,
+  );
+  assert.ok(
+    typeof material.extras?.atlas_tint_strength === 'number'
+      && material.extras.atlas_tint_strength > 0,
+    `${material.name} must retain a non-zero authored tint strength`,
+  );
+  assert.equal(
+    typeof material.extras?.atlas_normal_strength,
+    'number',
+    `${material.name} must retain its authored normal strength`,
+  );
+}
+for (const role of ['canvas', 'leather']) {
+  const material = (camp.json.materials ?? []).find(
+    (candidate) => candidate.extras?.surface_role === role,
+  );
+  assert.ok(material, `Hunter camp ${role} material is missing`);
+  assert.ok(
+    Array.isArray(material.extras?.surface_tint) && material.extras.surface_tint.length === 3,
+    `Hunter camp ${role} must retain its weathered surface tint`,
+  );
 }
 assertNames(camp.json, [
   'HC_Sleeping_Tent',
@@ -102,6 +137,7 @@ assert.doesNotMatch(
 const integrationSource = readText('src/buildings/authoredArchitectureModels.ts');
 assert.match(integrationSource, /applyBuildingMaterialAtlasDirectUv/);
 assert.match(integrationSource, /readAuthoredAtlasTint/);
+assert.match(integrationSource, /readAuthoredSurfaceTint/);
 assert.match(integrationSource, /readAuthoredWeatheringProfile/);
 assert.match(
   readText('src/buildings/buildingMaterialAtlas.ts'),

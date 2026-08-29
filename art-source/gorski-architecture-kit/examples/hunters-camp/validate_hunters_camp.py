@@ -13,7 +13,7 @@ from mathutils import Vector
 EXAMPLE_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path(os.environ.get("GK_HUNTERS_CAMP_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
 OUT_DIR = OUTPUT_ROOT / "out"
-REPORT_PATH = OUT_DIR / "hunters_camp_validation_v8.json"
+REPORT_PATH = OUT_DIR / "hunters_camp_validation_v9.json"
 
 REQUIRED_EXACT = {
     "site_tent_a_frame_large": 1,
@@ -80,6 +80,18 @@ def main() -> None:
             if material is None or not material.get("atlas_id"):
                 errors.append(f"non-atlas material on {obj.name}")
                 continue
+            if material.get("atlas_id") == "gorski-building-atlas-v1":
+                if material.get("atlas_uv_mode") != "final tile coordinates baked into GK_UV0":
+                    errors.append(f"building-atlas material lacks direct-UV contract: {material.name}")
+                tint = material.get("atlas_tint")
+                if not tint or len(tint) < 3:
+                    errors.append(f"building-atlas material lacks authored tint: {material.name}")
+                if not isinstance(material.get("atlas_tint_strength"), (int, float)):
+                    errors.append(f"building-atlas material lacks tint strength: {material.name}")
+            elif str(material.get("surface_role", "")) in {"canvas", "leather"}:
+                tint = material.get("surface_tint")
+                if not tint or len(tint) < 3:
+                    errors.append(f"dedicated camp surface lacks authored tint: {material.name}")
             atlas_tiles.add(str(material.get("atlas_tile", "")))
         world_points.extend(obj.matrix_world @ Vector(corner) for corner in obj.bound_box)
 
@@ -128,6 +140,7 @@ def main() -> None:
             "open-camp identity with no residential shell parts",
             "canonical transforms and metric GK_UV0",
             "atlas-backed material coverage",
+            "runtime-safe direct atlas UV and authored surface tint metadata",
             "no living vegetation or harvested-game meshes",
             "sewn-canvas tent and stitched-hide processing shelter coverage",
             "empty hunter utility rack without fixed bows, snares, or hanging inventory",

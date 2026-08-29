@@ -1,7 +1,8 @@
-export type InspectorDetailState = 'warning' | 'positive' | null;
+export type InspectorDetailState = 'warning' | 'danger' | 'positive' | null;
 
 const POSITIVE_SAFETY_VALUE = /(?:structurally\s+fire-safe|\bfire-safe\b|\bfireproof\b|\bno (?:active |current )?fires?\b|\bno (?:spread )?exposure\b|\bisolated\b.*\bno other (?:occupied )?structures?\b)/;
-const NEGATIVE_VALUE = /(?:\bunsafe\b|\bnot safe\b|\bburning\b|\bburned\b|\bdestroyed\b|\bdanger\b|\bcritical\b|\bblocked\b|\bshortage\b|\bstarv\w*\b|\bdamag(?:e|ed)\b|\bexposed\b|\bunserved\b|\buncovered\b|\bunready\b|\bnot ready\b|\bno ready\b|\bsevere\b)/;
+const DANGER_VALUE = /(?:\bburning\b|\bburned\b|\bdestroyed\b|\bdanger\b|\bcritical\b|\bsevere\b)/;
+const NEGATIVE_VALUE = /(?:\bunsafe\b|\bnot safe\b|\bblocked\b|\bshortage\b|\bstarv\w*\b|\bdamag(?:e|ed)\b|\bexposed\b|\bunserved\b|\buncovered\b|\bunready\b|\bnot ready\b|\bno ready\b)/;
 const POSITIVE_VALUE = /(?:\bsafe\b|\bready\b|\bcomplete\b|\bhealthy\b|\bconnected\b|\bactive\b|\bstaffed\b|\bsupplied\b|\bsecure\b|\bisolated\b)/;
 const WARNING_ROW = /(?:\bfire\b|\bburn\w*\b|\bdestroy\w*\b|\bdanger\b|\bcritical\b|\bblocked\b|\bshortage\b|\bstarv\w*\b|\bdamag\w*\b|\bexpos\w*\b|\bunserved\b)/;
 
@@ -17,6 +18,7 @@ export function inspectorDetailState(
 ): InspectorDetailState {
   if (
     authoredState === 'warning'
+    || authoredState === 'danger'
     || authoredState === 'positive'
   ) {
     return authoredState;
@@ -26,6 +28,7 @@ export function inspectorDetailState(
   const normalizedRow = `${label} ${value}`.toLowerCase();
 
   if (POSITIVE_SAFETY_VALUE.test(normalizedValue)) return 'positive';
+  if (DANGER_VALUE.test(normalizedValue)) return 'danger';
   if (NEGATIVE_VALUE.test(normalizedValue)) return 'warning';
   if (POSITIVE_VALUE.test(normalizedValue)) return 'positive';
   if (WARNING_ROW.test(normalizedRow)) return 'warning';
@@ -37,7 +40,8 @@ export function inspectorDetailIcon(
   state: InspectorDetailState,
 ): string {
   if (state === 'positive') return '\u2713';
-  if (state === 'warning') return '!';
+  if (state === 'warning') return '\u26A0';
+  if (state === 'danger') return '!';
   if (/(timber|firewood|wood|log)/.test(normalized)) return '\u2571';
   if (/(labor|worker|staff|builder|crew)/.test(normalized)) return '\u2692';
   if (/(stone|quarry|rock)/.test(normalized)) return '\u25C6';

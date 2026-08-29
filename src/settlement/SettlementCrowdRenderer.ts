@@ -14,6 +14,7 @@ import {
   type WorkerToolKind,
   type WorkerToolSources,
 } from './workerTools.ts';
+import { configureVillagerMaterialLighting } from './villagerMaterialLighting.ts';
 
 const MAX_INSTANCES = 1024;
 const MAX_ANIMATED_VILLAGERS = 72;
@@ -772,8 +773,7 @@ export class SettlementCrowdRenderer {
           const material = sourceMaterial.clone();
           material.name = `${sourceMaterial.name}: aggregate close villagers`;
           material.color.setHex(0xffffff);
-          material.roughness = 0.9;
-          material.metalness = 0;
+          configureVillagerMaterialLighting(material);
           material.vertexColors = true;
           const mesh = new THREE.SkinnedMesh(geometry, material);
           mesh.name = `${variant} aggregate close villagers shard ${shardIndex}: ${sourceMaterial.name}`;

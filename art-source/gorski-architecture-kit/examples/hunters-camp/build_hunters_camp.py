@@ -19,16 +19,16 @@ RENDER_DIR = OUTPUT_ROOT / "renders"
 ATLAS_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_building_atlas_v1"
 HIDE_SURFACE_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_camp_surfaces_v1"
 CANVAS_SURFACE_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_camp_canvas_v1"
-OUT_BLEND = OUT_DIR / "hunters_camp_textured_v8.blend"
-OUT_GLB = OUT_DIR / "hunters_camp_textured_v8.glb"
-OUT_MANIFEST = OUT_DIR / "hunters_camp_assembly_v8.json"
-OUT_HERO = RENDER_DIR / "hunters_camp_hero_v8.png"
-OUT_OVERHEAD = RENDER_DIR / "hunters_camp_overhead_v8.png"
-OUT_WORKSIDE = RENDER_DIR / "hunters_camp_workside_v8.png"
-OUT_TENT_DETAIL = RENDER_DIR / "hunters_camp_tent_detail_v8.png"
-OUT_SHELTER_DETAIL = RENDER_DIR / "hunters_camp_hide_shelter_detail_v8.png"
-OUT_TOOLS_DETAIL = RENDER_DIR / "hunters_camp_tools_detail_v8.png"
-OUT_BLOCK_DETAIL = RENDER_DIR / "hunters_camp_chopping_block_detail_v8.png"
+OUT_BLEND = OUT_DIR / "hunters_camp_textured_v9.blend"
+OUT_GLB = OUT_DIR / "hunters_camp_textured_v9.glb"
+OUT_MANIFEST = OUT_DIR / "hunters_camp_assembly_v9.json"
+OUT_HERO = RENDER_DIR / "hunters_camp_hero_v9.png"
+OUT_OVERHEAD = RENDER_DIR / "hunters_camp_overhead_v9.png"
+OUT_WORKSIDE = RENDER_DIR / "hunters_camp_workside_v9.png"
+OUT_TENT_DETAIL = RENDER_DIR / "hunters_camp_tent_detail_v9.png"
+OUT_SHELTER_DETAIL = RENDER_DIR / "hunters_camp_hide_shelter_detail_v9.png"
+OUT_TOOLS_DETAIL = RENDER_DIR / "hunters_camp_tools_detail_v9.png"
+OUT_BLOCK_DETAIL = RENDER_DIR / "hunters_camp_chopping_block_detail_v9.png"
 
 
 def source_objects() -> dict[str, bpy.types.Object]:
@@ -86,11 +86,11 @@ CANVAS_IMAGES["material"].colorspace_settings.name = "Non-Color"
 
 
 MATERIAL_LOOKS = {
-    "canvas": ("linen-canvas", (0.76, 0.66, 0.50, 1.0), 0.34, 0.72),
-    "oak_dark": ("rough-hewn-timber", (0.25, 0.13, 0.060, 1.0), 0.70, 0.68),
-    "timber_cut": ("rough-hewn-timber", (0.58, 0.34, 0.15, 1.0), 0.46, 0.62),
-    "timber_weathered": ("weathered-planks", (0.40, 0.25, 0.13, 1.0), 0.62, 0.74),
-    "fieldstone": ("fieldstone-mortar", (0.32, 0.29, 0.24, 1.0), 0.66, 0.82),
+    "canvas": ("linen-canvas", (0.72, 0.61, 0.44, 1.0), 0.52, 0.72),
+    "oak_dark": ("rough-hewn-timber", (0.24, 0.12, 0.050, 1.0), 0.74, 0.68),
+    "timber_cut": ("rough-hewn-timber", (0.58, 0.34, 0.15, 1.0), 0.50, 0.62),
+    "timber_weathered": ("weathered-planks", (0.34, 0.21, 0.10, 1.0), 0.70, 0.74),
+    "fieldstone": ("fieldstone-mortar", (0.38, 0.34, 0.28, 1.0), 0.50, 0.82),
     "charcoal": ("packed-earth", (0.065, 0.052, 0.040, 1.0), 0.90, 0.38),
     "iron": ("wrought-iron", (0.20, 0.21, 0.20, 1.0), 0.74, 0.58),
     "rope": ("wicker-weave", (0.47, 0.32, 0.17, 1.0), 0.48, 0.58),
@@ -119,6 +119,10 @@ def atlas_material(key: str) -> bpy.types.Material:
     material["atlas_tile"] = tile_id
     material["metres_per_tile"] = metres
     material["surface_role"] = key
+    material["atlas_look"] = key
+    material["atlas_tint"] = list(tint[:3])
+    material["atlas_tint_strength"] = tint_strength
+    material["atlas_normal_strength"] = normal_strength
     nodes = material.node_tree.nodes
     links = material.node_tree.links
     nodes.clear()
@@ -148,7 +152,14 @@ def atlas_material(key: str) -> bpy.types.Material:
     packed_channels.mode = "RGB"
     packed_channels.location = (-80, -220)
     links.new(textures["material"].outputs["Color"], packed_channels.inputs["Color"])
-    links.new(textures["albedo"].outputs["Color"], principled.inputs["Base Color"])
+    tint_multiplier = tuple(1.0 + (tint[index] - 1.0) * tint_strength for index in range(3)) + (1.0,)
+    tint_multiply = nodes.new("ShaderNodeMixRGB")
+    tint_multiply.blend_type = "MULTIPLY"
+    tint_multiply.inputs[0].default_value = 1.0
+    tint_multiply.inputs[2].default_value = tint_multiplier
+    tint_multiply.location = (120, 250)
+    links.new(textures["albedo"].outputs["Color"], tint_multiply.inputs[1])
+    links.new(tint_multiply.outputs["Color"], principled.inputs["Base Color"])
     links.new(packed_channels.outputs["Red"], principled.inputs["Roughness"])
     links.new(packed_channels.outputs["Green"], principled.inputs["Metallic"])
 
@@ -158,7 +169,7 @@ def atlas_material(key: str) -> bpy.types.Material:
     links.new(textures["normal"].outputs["Color"], normal.inputs["Color"])
     links.new(normal.outputs["Normal"], principled.inputs["Normal"])
     links.new(principled.outputs["BSDF"], output.inputs["Surface"])
-    material["atlas_uv_mode"] = "tile coordinates baked into GK_UV0 for Blender/glTF parity"
+    material["atlas_uv_mode"] = "final tile coordinates baked into GK_UV0"
     material["gltf_export_safe"] = True
     return material
 
@@ -177,11 +188,14 @@ def hide_material() -> bpy.types.Material:
         return existing
     material = bpy.data.materials.new(material_name)
     material.use_nodes = True
-    material.diffuse_color = (0.25, 0.18, 0.12, 1.0)
+    surface_tint = (0.58, 0.43, 0.29, 1.0)
+    material.diffuse_color = surface_tint
     material["atlas_id"] = HIDE_MANIFEST["id"]
     material["atlas_tile"] = "stitched-hide"
     material["metres_per_tile"] = 1.6
     material["surface_role"] = "leather"
+    material["surface_tint"] = list(surface_tint[:3])
+    material["surface_normal_strength"] = 0.48
     material["atlas_uv_mode"] = "repeatable 1.6 m stitched-hide coordinates baked into GK_UV0"
     material["gltf_export_safe"] = True
     nodes = material.node_tree.nodes
@@ -211,7 +225,13 @@ def hide_material() -> bpy.types.Material:
     packed_channels.mode = "RGB"
     packed_channels.location = (-70, -220)
     links.new(textures["material"].outputs["Color"], packed_channels.inputs["Color"])
-    links.new(textures["albedo"].outputs["Color"], principled.inputs["Base Color"])
+    tint_multiply = nodes.new("ShaderNodeMixRGB")
+    tint_multiply.blend_type = "MULTIPLY"
+    tint_multiply.inputs[0].default_value = 1.0
+    tint_multiply.inputs[2].default_value = surface_tint
+    tint_multiply.location = (110, 250)
+    links.new(textures["albedo"].outputs["Color"], tint_multiply.inputs[1])
+    links.new(tint_multiply.outputs["Color"], principled.inputs["Base Color"])
     links.new(packed_channels.outputs["Red"], principled.inputs["Roughness"])
     links.new(packed_channels.outputs["Green"], principled.inputs["Metallic"])
     normal = nodes.new("ShaderNodeNormalMap")
@@ -230,11 +250,14 @@ def canvas_material() -> bpy.types.Material:
         return existing
     material = bpy.data.materials.new(material_name)
     material.use_nodes = True
-    material.diffuse_color = (0.66, 0.57, 0.43, 1.0)
+    surface_tint = (0.72, 0.61, 0.44, 1.0)
+    material.diffuse_color = surface_tint
     material["atlas_id"] = CANVAS_MANIFEST["id"]
     material["atlas_tile"] = "aged-canvas"
     material["metres_per_tile"] = 1.25
     material["surface_role"] = "canvas"
+    material["surface_tint"] = list(surface_tint[:3])
+    material["surface_normal_strength"] = 0.34
     material["atlas_uv_mode"] = "repeatable 1.25 m aged-canvas coordinates baked into GK_UV0"
     material["gltf_export_safe"] = True
     nodes = material.node_tree.nodes
@@ -263,7 +286,13 @@ def canvas_material() -> bpy.types.Material:
     packed_channels.mode = "RGB"
     packed_channels.location = (-70, -220)
     links.new(textures["material"].outputs["Color"], packed_channels.inputs["Color"])
-    links.new(textures["albedo"].outputs["Color"], principled.inputs["Base Color"])
+    tint_multiply = nodes.new("ShaderNodeMixRGB")
+    tint_multiply.blend_type = "MULTIPLY"
+    tint_multiply.inputs[0].default_value = 1.0
+    tint_multiply.inputs[2].default_value = surface_tint
+    tint_multiply.location = (110, 250)
+    links.new(textures["albedo"].outputs["Color"], tint_multiply.inputs[1])
+    links.new(tint_multiply.outputs["Color"], principled.inputs["Base Color"])
     links.new(packed_channels.outputs["Red"], principled.inputs["Roughness"])
     links.new(packed_channels.outputs["Green"], principled.inputs["Metallic"])
     normal = nodes.new("ShaderNodeNormalMap")
@@ -593,7 +622,7 @@ def render_views(camera: bpy.types.Object) -> None:
 
 def write_manifest() -> None:
     payload = {
-        "id": "gorski-hunters-camp-atlas-preview-v8",
+        "id": "gorski-hunters-camp-atlas-preview-v9",
         "authoritativeBuildingKind": "hunters_hall",
         "displayIdentity": "Hunter's Camp",
         "regionalContext": "Gorski Kotar, circa 1550",
@@ -606,7 +635,7 @@ def write_manifest() -> None:
             "packing": "R roughness, G metalness, B AO, A centered height",
         },
         "historicalMaterialDecision": {
-            "sleepingTent": "Weathered off-white sewn linen or hemp canvas with visible weave, repairs, tied-back entrance flaps, tension hems, and guy ropes over bent hand-cut softwood poles.",
+            "sleepingTent": "Weathered flax-tan sewn linen or hemp canvas with visible weave, repairs, tied-back entrance flaps, tension hems, and guy ropes over bent hand-cut softwood poles.",
             "processingShelter": "Hair-off smoke-darkened hides stitched with sinew into a weather fly over a lashed sapling frame; this fixed construction surface is not current harvested inventory.",
             "workFurniture": "Rough, repairable weathered timber with minimal iron hardware.",
             "hearth": "Loose fieldstone ring, charcoal bed, and four fixed cribbed fuel logs with an unladen lashed-sapling tripod whose feet stand on the surrounding ground; flame, smoke, cookware, and hanging hooks remain runtime state.",
@@ -662,7 +691,7 @@ def main() -> None:
     remove_source_library_objects()
     camera = stage_preview()
     scene = bpy.context.scene
-    scene["artifact_id"] = "gorski-hunters-camp-atlas-preview-v8"
+    scene["artifact_id"] = "gorski-hunters-camp-atlas-preview-v9"
     scene["authoritative_building_kind"] = "hunters_hall"
     scene["architecture_context"] = "Gorski Kotar, circa 1550"
     scene["canonical_state"] = "neutral fixed camp; runtime owns fire, smoke, harvest, and inventory"

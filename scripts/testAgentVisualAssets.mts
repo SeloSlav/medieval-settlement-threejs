@@ -45,6 +45,7 @@ import {
   villagerHeightJitter,
   workerToolVisibleInMode,
 } from '../src/settlement/SettlementCrowdRenderer.ts';
+import { VILLAGER_ALBEDO_BOUNCE_INTENSITY } from '../src/settlement/villagerMaterialLighting.ts';
 import { FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT } from '../src/buildings/foundersCampLandmarks.ts';
 
 (globalThis as typeof globalThis & { self: typeof globalThis }).self = globalThis;
@@ -473,6 +474,24 @@ assert.match(
 );
 
 const worker = createDeliveryCartWorkerVisual(84525, deliveryWorkerSources);
+worker.model.traverse((object) => {
+  const mesh = object as THREE.SkinnedMesh;
+  if (!mesh.isSkinnedMesh) return;
+  const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  for (const material of materials) {
+    assert.ok(material instanceof THREE.MeshStandardMaterial);
+    assert.equal(
+      material.emissiveMap,
+      material.map,
+      'delivery workers should retain texture-colored outdoor fill',
+    );
+    assert.equal(
+      material.emissiveIntensity,
+      VILLAGER_ALBEDO_BOUNCE_INTENSITY,
+    );
+    assert.equal(material.userData.villagerAlbedoBounce, true);
+  }
+});
 cartA.add(worker.root);
 assertNoMeshShadows(worker.root, 'delivery hauler');
 assert.equal(worker.root.userData.deliveryCartWorker, true);

@@ -11,6 +11,7 @@ import {
   animatedRigsPerShard,
   type CrowdRenderAgent,
 } from '../src/settlement/SettlementCrowdRenderer.ts';
+import { VILLAGER_ALBEDO_BOUNCE_INTENSITY } from '../src/settlement/villagerMaterialLighting.ts';
 
 (globalThis as typeof globalThis & { self: typeof globalThis }).self = globalThis;
 (globalThis as typeof globalThis & {
@@ -234,6 +235,16 @@ for (const source of sources) {
       );
       assert.equal(layer.material.vertexColors, true);
       assert.equal(layer.material.color.getHex(), 0xffffff);
+      assert.equal(
+        layer.material.emissiveMap,
+        layer.material.map,
+        'close villagers should reuse their albedo as restrained indirect fill',
+      );
+      assert.equal(
+        layer.material.emissiveIntensity,
+        VILLAGER_ALBEDO_BOUNCE_INTENSITY,
+      );
+      assert.equal(layer.material.userData.villagerAlbedoBounce, true);
       assert.equal(layer.mesh.castShadow, false);
       assert.equal(layer.mesh.receiveShadow, false);
       assert.equal(layer.mesh.frustumCulled, false);

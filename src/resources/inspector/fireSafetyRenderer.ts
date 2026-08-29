@@ -3,6 +3,7 @@ import {
   assessBuildingFireSafety,
   fireRiskBandLabel,
   wellReadinessLabel,
+  type FireSafetyAssessment,
 } from '../../fires/fireRiskPolicy.ts';
 import { FIRE_SPREAD_RADIUS } from '../../generated/gameBalance.ts';
 import type { BuildingState } from '../types.ts';
@@ -10,6 +11,21 @@ import type {
   InspectorRenderContext,
   InspectorView,
 } from './renderInspectableTarget.ts';
+import type { InspectorDetailState } from './detailRowPresentation.ts';
+
+export function fireSafetyInspectorState(
+  assessment: Pick<FireSafetyAssessment, 'riskBand' | 'coverage'>,
+): Exclude<InspectorDetailState, null> {
+  if (assessment.riskBand === 'fireproof') return 'positive';
+  if (
+    assessment.riskBand === 'elevated'
+    || assessment.riskBand === 'severe'
+  ) {
+    return 'danger';
+  }
+  if (assessment.riskBand === 'standard') return 'warning';
+  return assessment.coverage === 'covered' ? 'positive' : 'warning';
+}
 
 /**
  * Adds pre-incident planning information to every completed building
@@ -39,7 +55,7 @@ export function withBuildingFireSafety(
     return {
       ...view,
       detailsHtml: `${view.detailsHtml}
-        <li data-inspector-primary data-fire-safety data-inspector-detail="This structure cannot ignite, so fire-response well coverage is not required."><span>Fire safety</span><span>Fire-safe · no well required</span></li>`,
+        <li data-inspector-primary data-fire-safety data-inspector-state="positive" data-inspector-detail="This structure cannot ignite, so fire-response well coverage is not required."><span>Fire safety</span><span>Fire-safe · no well required</span></li>`,
     };
   }
 
@@ -53,10 +69,13 @@ export function withBuildingFireSafety(
       : ''
   }`;
   const riskHelp = 'Relative chance of ignition and fire spread. Stored fuel raises the current risk.';
+  const inspectReadyWell = assessment.nearestWellId == null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${assessment.nearestWellId}" aria-label="Inspect ready fire-response well">Inspect well</button>`;
   const responseDetail = assessment.coverage === 'covered'
     && assessment.responseDistance != null
     && assessment.firstBucketSeconds != null
-    ? `Ready · ${Math.round(assessment.responseDistance)} m · ~${Math.ceil(assessment.firstBucketSeconds)}s`
+    ? `Ready · ${Math.round(assessment.responseDistance)} m · ~${Math.ceil(assessment.firstBucketSeconds)}s${inspectReadyWell}`
     : assessment.coverage === 'unready'
       ? `Well unready · ${wellReadinessLabel(assessment.nearestWellReadiness)}`
       : `No ready well in range`;
@@ -69,12 +88,13 @@ export function withBuildingFireSafety(
         assessment.exposedHouseholdCount === 1 ? 'home' : 'homes'
       } nearby`;
   const exposureHelp = `Occupied structures within the ${FIRE_SPREAD_RADIUS} m fire-spread radius.`;
-  const safetyHelp = `${riskHelp} Fire response shows the nearest usable well's distance and estimated time to first bucket.`;
+  const safetyHelp = `${riskHelp} Fire response shows the nearest usable well's distance and estimated time to first bucket. Green marks low risk with a ready response, yellow marks standard risk or a response gap, and red marks elevated or severe risk.`;
+  const safetyState = fireSafetyInspectorState(assessment);
 
   return {
     ...view,
     detailsHtml: `${view.detailsHtml}
-      <li data-inspector-primary data-fire-safety data-inspector-detail="${safetyHelp}"><span>Fire safety</span><span>${riskDetail} · ${responseDetail}</span></li>
+      <li data-inspector-primary data-fire-safety data-inspector-state="${safetyState}" data-inspector-detail="${safetyHelp}"><span>Fire safety</span><span>${riskDetail} · ${responseDetail}</span></li>
       <li data-inspector-secondary data-inspector-detail="${exposureHelp}"><span>Spread exposure</span><span>${exposureDetail}</span></li>`,
   };
 }

@@ -493,8 +493,8 @@ assert.match(constructionInspector, /routeDistance/);
 assert.match(constructionInspector, /Raid shelter/);
 assert.match(
   constructionInspector,
-  /data-construction-summary><span>Stone hauled<\/span>/,
-  'construction material totals must be marked for the compact building card',
+  /data-construction-summary data-construction-materials data-inspector-resource-strip/,
+  'construction material totals must share one full-width compact building card',
 );
 assert.match(
   resourceInspector,
@@ -1188,8 +1188,26 @@ assert.equal(
   'Unassigned worker fetching 5 ironwork from Smithy',
   'a legacy or repair site can still receive an authored ironwork requirement',
 );
-assert.match(fittingsInspector.detailsHtml, /Ironwork hauled/);
+assert.match(fittingsInspector.detailsHtml, /data-resource-token="ironwork"/);
 assert.match(fittingsInspector.detailsHtml, /1 \/ 6/);
+const advancedMaterialsInspector = renderConstructionInspector(
+  {
+    kind: 'building',
+    building: {
+      ...fittingsSite,
+      constructionRequiredRoofTiles: 8,
+      constructionDeliveredRoofTiles: 3,
+    },
+  },
+  constructionContext([fittingsSource], 5, 30) as never,
+);
+assert.match(advancedMaterialsInspector.detailsHtml, /data-resource-token="roofTiles"/);
+assert.match(advancedMaterialsInspector.detailsHtml, /3 \/ 8/);
+assert.equal(
+  (advancedMaterialsInspector.detailsHtml.match(/data-construction-materials/g) ?? []).length,
+  1,
+  'advanced construction resources must remain in the same combined material card',
+);
 
 assert.equal(
   renderConstructionInspector(
@@ -1305,16 +1323,16 @@ assert.match(routeAwareView.detailsHtml, /Quarry · 20m haul/);
 assert.match(routeAwareView.detailsHtml, /Queue priority<\/span><span>Normal/);
 assert.equal(
   (routeAwareView.detailsHtml.match(/data-inspector-primary/g) ?? []).length,
-  4,
-  'construction inspectors must pin a complete 2x2 summary grid',
+  3,
+  'construction inspectors must pin progress, priority, and one combined material card',
 );
 assert.match(
   routeAwareView.detailsHtml,
-  /data-inspector-primary data-construction-summary><span>Timber hauled<\/span>/,
+  /data-construction-materials[\s\S]*data-resource-token="timber"[\s\S]*45 \/ 45/,
 );
 assert.match(
   routeAwareView.detailsHtml,
-  /data-inspector-primary data-construction-summary><span>Stone hauled<\/span>/,
+  /data-construction-materials[\s\S]*data-resource-token="stone"[\s\S]*0 \/ 15/,
 );
 assert.match(routeAwareView.supplementalPanelHtml ?? '', /data-construction-priority="3"/);
 assert.match(routeAwareView.supplementalPanelHtml ?? '', /urgent sites claim available carts/);

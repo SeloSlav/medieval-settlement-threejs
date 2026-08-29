@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "validatedAt": "2026-08-29T09:05:03.329161+00:00",
+  "status": "pass",
+  "blend": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\examples\\hunters-camp\\out\\hunters_camp_textured_v9.blend",
+  "metrics": {
+    "fixedInstances": 15,
+    "sourceCounts": {
+      "prop_barrel_small": 1,
+      "prop_camp_worktable": 1,
+      "prop_crate_small": 1,
+      "prop_firewood_chopping_block": 1,
+      "prop_tool_rack_hunter": 1,
+      "prop_water_bucket_pair": 1,
+      "site_camp_cooking_tripod": 1,
+      "site_campfire_hearth": 1,
+      "site_hunter_boundary_rail_2m": 5,
+      "site_hunter_hide_fly_4m_d2m": 1,
+      "site_tent_a_frame_large": 1
+    },
+    "trianglesBeforeExportApply": 3872,
+    "dimensionsM": [
+      9.3345,
+      6.8029,
+      2.1871
+    ],
+    "atlasTiles": [
+      "aged-canvas",
+      "fieldstone-mortar",
+      "packed-earth",
+      "rough-hewn-timber",
+      "stitched-hide",
+      "weathered-planks",
+      "wicker-weave",
+      "wrought-iron"
+    ]
+  },
+  "errors": [],
+  "warnings": [],
+  "checks": [
+    "required reusable component coverage",
+    "open-camp identity with no residential shell parts",
+    "canonical transforms and metric GK_UV0",
+    "atlas-backed material coverage",
+    "runtime-safe direct atlas UV and authored surface tint metadata",
+    "no living vegetation or harvested-game meshes",
+    "sewn-canvas tent and stitched-hide processing shelter coverage",
+    "empty hunter utility rack without fixed bows, snares, or hanging inventory",
+    "tripod feet outside the hearth stones with no fixed metal cooking hook",
+    "four fixed fuel logs cribbed inside the hearth ring",
+    "empty chopping block without fixed axe and bucket pair without overlapping arch handle",
+    "authored 3000-4000 triangle gameplay retopology with no export bevel modifiers",
+    "no preview staging in the export set"
+  ]
+}

@@ -11,6 +11,7 @@ import { deriveSettlementSchedule } from '../../world/settlementSchedule.ts';
 import { getBuildingDefinition } from '../buildings.ts';
 import type { BuildingState, InspectableTarget } from '../types.ts';
 import { buildingLaborView, buildingRoadAccessRow } from './buildingCommon.ts';
+import { renderInspectorResourceStrip } from './inspectorResourceTokens.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import {
   CONSTRUCTION_PRIORITIES,
@@ -21,6 +22,11 @@ import {
 } from '../../logistics/constructionPriority.ts';
 
 type ConstructionMaterial = 'timber' | 'stone' | 'ironwork' | 'roofTiles';
+type ConstructionMaterialProgress = {
+  kind: ConstructionMaterial;
+  required: number;
+  delivered: number;
+};
 type SupplyResolution = {
   state:
     | 'ready-free'
@@ -215,6 +221,7 @@ export function renderConstructionInspector(
       <div class="resource-action-row">${CONSTRUCTION_PRIORITIES.map((candidate) =>
         constructionPriorityButton(candidate, priority)).join('')}</div>
     </div>`;
+  const constructionMaterials = renderConstructionMaterialStrip(building);
 
   return {
     eyebrow: 'Construction site',
@@ -224,10 +231,7 @@ export function renderConstructionInspector(
     detailsHtml: `
       <li data-inspector-primary data-construction-summary><span>Builder progress</span><span>${progress}%</span></li>
       <li data-inspector-primary data-construction-summary><span>Queue priority</span><span>${constructionPriorityLabel(priority)}</span></li>
-      ${building.constructionRequiredTimber > 0 ? `<li data-inspector-primary data-construction-summary><span>Timber hauled</span><span>${formatAmount(building.constructionDeliveredTimber)} / ${formatAmount(building.constructionRequiredTimber)}</span></li>` : ''}
-      ${building.constructionRequiredStone > 0 ? `<li data-inspector-primary data-construction-summary><span>Stone hauled</span><span>${formatAmount(building.constructionDeliveredStone)} / ${formatAmount(building.constructionRequiredStone)}</span></li>` : ''}
-      ${(building.constructionRequiredIronwork ?? 0) > 0 ? `<li data-inspector-primary data-construction-summary><span>Ironwork hauled</span><span>${formatAmount(building.constructionDeliveredIronwork ?? 0)} / ${formatAmount(building.constructionRequiredIronwork ?? 0)}</span></li>` : ''}
-      ${(building.constructionRequiredRoofTiles ?? 0) > 0 ? `<li data-inspector-primary data-construction-summary><span>Roof tiles hauled</span><span>${formatAmount(building.constructionDeliveredRoofTiles ?? 0)} / ${formatAmount(building.constructionRequiredRoofTiles ?? 0)}</span></li>` : ''}
+      <li data-inspector-primary data-construction-summary data-construction-materials data-inspector-resource-strip><span>Materials delivered</span>${constructionMaterials}</li>
       <li><span>Incoming haul</span><span>${incomingLabel}</span></li>
       <li><span>Material source</span><span>${nextSourceLabel}</span></li>
       <li><span>Reserved at stores</span><span>${formatAmount(timberPending)} timber · ${formatAmount(stonePending)} stone · ${formatAmount(ironworkPending)} ironwork · ${formatAmount(roofTilesPending)} roof tiles</span></li>
@@ -247,6 +251,52 @@ export function renderConstructionInspector(
     ),
     supplementalPanelHtml: priorityControls,
   };
+}
+
+function renderConstructionMaterialStrip(building: BuildingState): string {
+  const materials: ConstructionMaterialProgress[] = [
+    {
+      kind: 'timber',
+      required: finiteConstructionAmount(building.constructionRequiredTimber),
+      delivered: finiteConstructionAmount(building.constructionDeliveredTimber),
+    },
+    {
+      kind: 'stone',
+      required: finiteConstructionAmount(building.constructionRequiredStone),
+      delivered: finiteConstructionAmount(building.constructionDeliveredStone),
+    },
+    {
+      kind: 'ironwork',
+      required: finiteConstructionAmount(building.constructionRequiredIronwork),
+      delivered: finiteConstructionAmount(building.constructionDeliveredIronwork),
+    },
+    {
+      kind: 'roofTiles',
+      required: finiteConstructionAmount(building.constructionRequiredRoofTiles),
+      delivered: finiteConstructionAmount(building.constructionDeliveredRoofTiles),
+    },
+  ];
+  const requiredMaterials = materials.filter(({ required }) => required > 1e-6);
+
+  return renderInspectorResourceStrip(
+    requiredMaterials.map(({ kind, delivered, required }) => ({
+      kind,
+      amount: delivered,
+      displayValue: `${formatAmount(delivered)} / ${formatAmount(required)}`,
+      amountLabel: 'Delivered',
+      detail: `${formatAmount(delivered)} delivered of ${formatAmount(required)} required for this construction site.`,
+      className: delivered + 1e-6 >= required ? 'is-complete' : 'is-progress',
+    })),
+    {
+      ariaLabel: 'Construction materials delivered out of required',
+      className: 'construction-materials-strip',
+      emptyLabel: 'No hauled materials required',
+    },
+  );
+}
+
+function finiteConstructionAmount(value: number | undefined): number {
+  return Number.isFinite(value) ? Math.max(0, value ?? 0) : 0;
 }
 
 function constructionPriorityButton(

@@ -11,8 +11,8 @@ import bpy
 EXAMPLE_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path(os.environ.get("GK_HUNTERS_CAMP_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
 OUT_DIR = OUTPUT_ROOT / "out"
-GLB_PATH = OUT_DIR / "hunters_camp_textured_v8.glb"
-REPORT_PATH = OUT_DIR / "hunters_camp_roundtrip_validation_v8.json"
+GLB_PATH = OUT_DIR / "hunters_camp_textured_v9.glb"
+REPORT_PATH = OUT_DIR / "hunters_camp_roundtrip_validation_v9.json"
 
 
 def main() -> None:
@@ -37,6 +37,15 @@ def main() -> None:
         errors.append("camp tripod missing after GLB round-trip")
     if not 3000 <= triangles <= 4000:
         errors.append(f"imported GLB exceeds the 3000-4000 triangle retopology budget: {triangles}")
+    for material in bpy.data.materials:
+        if material.get("atlas_id") == "gorski-building-atlas-v1":
+            if material.get("atlas_uv_mode") != "final tile coordinates baked into GK_UV0":
+                errors.append(f"building-atlas direct-UV contract lost in GLB: {material.name}")
+            if not material.get("atlas_tint"):
+                errors.append(f"building-atlas tint lost in GLB: {material.name}")
+        elif str(material.get("surface_role", "")) in {"canvas", "leather"}:
+            if not material.get("surface_tint"):
+                errors.append(f"dedicated surface tint lost in GLB: {material.name}")
 
     report = {
         "schemaVersion": 1,

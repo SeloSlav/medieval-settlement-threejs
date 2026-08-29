@@ -18,7 +18,10 @@ import type {
   BuildingState,
   ResidenceState,
 } from '../src/resources/types.ts';
-import { withBuildingFireSafety } from '../src/resources/inspector/fireSafetyRenderer.ts';
+import {
+  fireSafetyInspectorState,
+  withBuildingFireSafety,
+} from '../src/resources/inspector/fireSafetyRenderer.ts';
 import type {
   InspectorRenderContext,
   InspectorView,
@@ -55,6 +58,34 @@ assert.equal(inspectorDetailState('Active cart', 'None'), null);
 assert.equal(
   inspectorDetailState('Fire response', 'Uncovered \u00b7 no ready well'),
   'warning',
+);
+assert.equal(
+  inspectorDetailIcon('fire response uncovered no ready well', 'warning'),
+  '\u26A0',
+);
+assert.equal(
+  inspectorDetailState('Fire safety', 'Severe \u00b7 2.20\u00d7'),
+  'danger',
+);
+assert.equal(
+  inspectorDetailIcon('fire safety severe', 'danger'),
+  '!',
+);
+assert.equal(
+  fireSafetyInspectorState({ riskBand: 'low', coverage: 'covered' }),
+  'positive',
+);
+assert.equal(
+  fireSafetyInspectorState({ riskBand: 'low', coverage: 'uncovered' }),
+  'warning',
+);
+assert.equal(
+  fireSafetyInspectorState({ riskBand: 'standard', coverage: 'uncovered' }),
+  'warning',
+);
+assert.equal(
+  fireSafetyInspectorState({ riskBand: 'elevated', coverage: 'covered' }),
+  'danger',
 );
 
 assert.equal(buildingBaseFlammability('founders_camp'), 0);
@@ -191,9 +222,32 @@ const inspectorView = withBuildingFireSafety(
   } as unknown as InspectorRenderContext,
 );
 assert.match(inspectorView.detailsHtml, /Fire safety[\s\S]*Severe[\s\S]*Ready[\s\S]*~\d+s/);
+assert.match(inspectorView.detailsHtml, /data-inspector-state="danger"/);
 assert.doesNotMatch(inspectorView.detailsHtml, />Fire response</);
 assert.match(inspectorView.detailsHtml, /Spread exposure[\s\S]*1 home nearby/);
 assert.match(inspectorView.detailsHtml, /data-inspect-building="10"/);
+
+const standardTarget = building('standard-apiary', 'apiary', 0, 0);
+const standardInspectorView = withBuildingFireSafety(
+  baseView,
+  standardTarget,
+  {
+    gameState: {
+      buildings: new Map([[standardTarget.id, standardTarget]]),
+      residences: new Map(),
+      fireIncidents: new Map(),
+      deliveryTrips: new Map(),
+    },
+    worldQueries: {
+      getRoadPathDistance: () => null,
+      getDeliveryTravelSpeedMultiplier: () => 1,
+    },
+  } as unknown as InspectorRenderContext,
+);
+assert.match(
+  standardInspectorView.detailsHtml,
+  /data-fire-safety data-inspector-state="warning"[\s\S]*Standard[\s\S]*No ready well in range/,
+);
 
 const perfBuildings = Array.from({ length: 100_000 }, (_, index) =>
   building(
