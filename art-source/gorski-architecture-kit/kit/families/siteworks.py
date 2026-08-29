@@ -547,41 +547,60 @@ def _hunter_hide_fly(builder: MeshBuilder, width: float, depth: float) -> None:
     )
 
 
+def _hearth_rock(
+    builder: MeshBuilder,
+    center: tuple[float, float, float],
+    radius_x: float,
+    radius_y: float,
+    height: float,
+    phase: float,
+) -> None:
+    """Append a squat, low-poly woodland boulder with no masonry coursing."""
+
+    segments = 6
+    rings = ((0.0, 0.82), (height * 0.43, 1.0), (height * 0.80, 0.66))
+    vertices: list[tuple[float, float, float]] = []
+    for ring_index, (z, scale) in enumerate(rings):
+        for index in range(segments):
+            angle = phase + math.tau * index / segments
+            wobble = 1.0 + 0.12 * math.sin(index * 2.17 + ring_index * 1.31 + phase)
+            wobble += builder.random.uniform(-0.055, 0.055)
+            vertices.append((
+                center[0] + math.cos(angle) * radius_x * scale * wobble,
+                center[1] + math.sin(angle) * radius_y * scale * wobble,
+                center[2] + z,
+            ))
+    faces: list[tuple[int, ...]] = [tuple(range(segments - 1, -1, -1)), tuple(range(segments * 2, segments * 3))]
+    for ring in range(2):
+        start = ring * segments
+        following_start = (ring + 1) * segments
+        for index in range(segments):
+            following = (index + 1) % segments
+            faces.append((start + index, start + following, following_start + following, following_start + index))
+    builder._append(vertices, faces, "fieldstone")
+
+
 def _campfire(builder: MeshBuilder) -> None:
-    for index in range(10):
-        angle = math.tau * index / 10
-        radius = 0.22 + 0.025 * math.sin(index * 1.91)
-        height = 0.14 + 0.030 * math.sin(index * 2.37 + 0.4)
-        builder.cone(
-            radius,
-            radius * (0.82 + 0.05 * math.cos(index)),
+    # Eight differently sized stones leave honest gaps and read as boulders
+    # gathered from the forest floor, not a mortared miniature brick curb.
+    for index in range(8):
+        angle = math.tau * index / 8 + builder.random.uniform(-0.14, 0.14)
+        ring_radius = builder.random.uniform(0.55, 0.66)
+        height = builder.random.uniform(0.16, 0.25)
+        _hearth_rock(
+            builder,
+            (ring_radius * math.cos(angle), ring_radius * math.sin(angle), 0.0),
+            builder.random.uniform(0.22, 0.29),
+            builder.random.uniform(0.17, 0.24),
             height,
-            (0.61 * math.cos(angle), 0.61 * math.sin(angle), height * 0.5),
-            "fieldstone",
-            7,
+            angle + builder.random.uniform(-0.35, 0.35),
         )
     builder.cylinder(0.42, 0.08, (0.0, 0.0, 0.04), "charcoal", 12, "z")
-    # Fixed hearth fuel is neutral architecture rather than stocked inventory:
-    # two crossed courses sit wholly inside the stone ring and remain available
-    # for runtime flame/ember effects without implying a separate wood reserve.
-    for y in (-0.13, 0.13):
-        builder.round_beam_between(
-            (-0.39, y - 0.02, 0.13),
-            (0.39, y + 0.02, 0.13),
-            0.052,
-            "timber_cut",
-            7,
-            0.046,
-        )
-    for x in (-0.12, 0.12):
-        builder.round_beam_between(
-            (x + 0.02, -0.36, 0.235),
-            (x - 0.02, 0.36, 0.235),
-            0.050,
-            "timber_cut",
-            7,
-            0.044,
-        )
+    # Three thick, dark forest billets form a loose hand-laid fire rather than
+    # the old ruler-straight crib. All remain within the gathered-rock ring.
+    builder.round_beam_between((-0.41, -0.18, 0.14), (0.33, -0.05, 0.16), 0.092, "timber_weathered", 7, 0.079, 0.21)
+    builder.round_beam_between((-0.31, 0.25, 0.15), (0.38, 0.11, 0.14), 0.086, "timber_weathered", 7, 0.095, -0.17)
+    builder.round_beam_between((-0.24, -0.30, 0.27), (0.27, 0.29, 0.24), 0.081, "timber_weathered", 7, 0.072, 0.42)
 
 
 def _camp_tripod(builder: MeshBuilder) -> None:

@@ -21,7 +21,7 @@ def register(registry: Registry) -> None:
     for trade in ("smith", "carpenter", "quarry", "farm", "tannery", "fishing"):
         add(registry, f"prop_tool_rack_{trade}", family, f"{trade.title()} tool rack", ("prop", "tools", trade, "rack"), lambda b, t=trade: _tool_rack(b, t), triangle_budget=5_000)
     add(registry, "prop_tool_rack_hunter", family, "Hunter camp utility frame", ("prop", "tools", "hunter", "rack", "empty", "no-inventory"), _hunter_tool_rack, triangle_budget=800)
-    add(registry, "prop_camp_worktable", family, "Camp field-dressing worktable", ("prop", "camp", "hunter", "worktable", "processing"), _camp_worktable)
+    add(registry, "prop_camp_worktable", family, "Camp field-dressing worktable", ("prop", "camp", "hunter", "worktable", "processing", "field-cleaver"), _camp_worktable)
     for kind in ("town", "market", "tavern", "chapel", "mine", "mill"):
         add(registry, f"prop_signpost_{kind}", family, f"{kind.title()} signpost", ("prop", "wayfinding", "sign", kind), lambda b, k=kind: _signpost(b, k))
 
@@ -143,16 +143,18 @@ def _camp_worktable(builder: MeshBuilder) -> None:
     builder.round_beam_between((-0.70, 0.0, 0.39), (0.70, 0.0, 0.41), 0.042, "oak_dark", 7)
 
     builder.box((1.08, 0.48, 0.055), (-0.14, 0.015, 0.982), "timber_cut", (0.0, 0.008, 0.020))
-    # Field-dressing knife: tapered forged blade, short wooden scales, and one pin.
+    # Broad field cleaver: the forged tang overlaps a dark wooden grip, with a
+    # compact ferrule and pin making the blade/handle connection unmistakable.
     _extruded_xy_profile(
         builder,
-        [(0.28, -0.17), (0.74, -0.21), (0.30, -0.10), (0.20, -0.11)],
-        1.035,
-        0.022,
+        [(-0.13, -0.13), (0.46, -0.18), (0.64, -0.12), (0.54, 0.025), (-0.04, 0.030), (-0.13, -0.025)],
+        1.040,
+        0.026,
         "iron",
     )
-    builder.round_beam_between((0.14, -0.105, 1.041), (-0.10, -0.065, 1.041), 0.035, "timber_cut", 7, 0.031)
-    builder.cylinder(0.008, 0.075, (0.02, -0.085, 1.043), "iron", 6, "z")
+    builder.box((0.09, 0.13, 0.035), (-0.105, -0.052, 1.040), "iron", (0.0, 0.0, -0.10))
+    builder.round_beam_between((-0.08, -0.052, 1.040), (-0.43, 0.015, 1.040), 0.046, "oak_dark", 8, 0.040)
+    builder.cylinder(0.010, 0.088, (-0.28, -0.012, 1.042), "iron", 7, "z")
 
 
 def _signpost(builder: MeshBuilder, kind: str) -> None:
@@ -197,17 +199,71 @@ def _boat(builder: MeshBuilder) -> None:
         builder.box((0.12, 0.92, 0.12), (x, 0.0, 0.52), "oak_dark")
 
 
+def _rough_stump(builder: MeshBuilder, radius_bottom: float, radius_top: float, height: float) -> None:
+    """One tapered stump with a flush cut face rather than a cap object."""
+
+    segments = 10
+    bottom: list[tuple[float, float, float]] = []
+    top: list[tuple[float, float, float]] = []
+    for index in range(segments):
+        angle = math.tau * index / segments
+        bottom_radius = radius_bottom * (1.0 + builder.random.uniform(-0.055, 0.055))
+        top_radius = radius_top * (1.0 + builder.random.uniform(-0.045, 0.045))
+        bottom.append((bottom_radius * math.cos(angle), bottom_radius * math.sin(angle), 0.0))
+        top.append((top_radius * math.cos(angle), top_radius * math.sin(angle), height))
+    vertices = bottom + top
+    faces: list[tuple[int, ...]] = [tuple(range(segments - 1, -1, -1))]
+    for index in range(segments):
+        following = (index + 1) % segments
+        faces.append((index, following, segments + following, segments + index))
+    builder._append(vertices, faces, "timber_weathered")
+    builder._append(top, [tuple(range(segments))], "timber_cut")
+
+
 def _chopping_block(builder: MeshBuilder) -> None:
-    builder.cone(0.38, 0.335, 0.69, (0.0, 0.0, 0.345), "timber_weathered", 11)
-    builder.cylinder(0.315, 0.028, (0.0, 0.0, 0.698), "timber_cut", 11, "z")
+    _rough_stump(builder, 0.38, 0.335, 0.69)
+
+
+def _open_bucket(builder: MeshBuilder, x: float) -> None:
+    """Tapered stave bucket with a real open mouth and no dark lid/cap mesh."""
+
+    segments = 10
+    outer_bottom: list[tuple[float, float, float]] = []
+    outer_top: list[tuple[float, float, float]] = []
+    inner_top: list[tuple[float, float, float]] = []
+    inner_floor: list[tuple[float, float, float]] = []
+    for index in range(segments):
+        angle = math.tau * index / segments
+        outer_bottom.append((x + 0.23 * math.cos(angle), 0.23 * math.sin(angle), 0.0))
+        outer_top.append((x + 0.28 * math.cos(angle), 0.28 * math.sin(angle), 0.52))
+        inner_top.append((x + 0.225 * math.cos(angle), 0.225 * math.sin(angle), 0.52))
+        inner_floor.append((x + 0.19 * math.cos(angle), 0.19 * math.sin(angle), 0.43))
+
+    shell = outer_bottom + outer_top
+    shell_faces: list[tuple[int, ...]] = [tuple(range(segments - 1, -1, -1))]
+    for index in range(segments):
+        following = (index + 1) % segments
+        shell_faces.append((index, following, segments + following, segments + index))
+    builder._append(shell, shell_faces, "timber_weathered")
+
+    rim = outer_top + inner_top
+    rim_faces = [
+        (index, (index + 1) % segments, segments + (index + 1) % segments, segments + index)
+        for index in range(segments)
+    ]
+    builder._append(rim, rim_faces, "oak_dark")
+
+    interior = inner_top + inner_floor
+    interior_faces: list[tuple[int, ...]] = [tuple(range(segments, segments * 2))]
+    for index in range(segments):
+        following = (index + 1) % segments
+        interior_faces.append((index, segments + index, segments + following, following))
+    builder._append(interior, interior_faces, "charcoal")
 
 
 def _bucket_pair(builder: MeshBuilder) -> None:
     for x in (-0.42, 0.42):
-        builder.cone(0.28, 0.23, 0.52, (x, 0.0, 0.26), "timber_weathered", 10)
-        # A shallow dark inset reads as the open mouth without the old arch-ring
-        # handles, which overlapped at the origin and formed one black connector.
-        builder.cylinder(0.205, 0.012, (x, 0.0, 0.526), "charcoal", 10, "z")
+        _open_bucket(builder, x)
 
 
 def _hitching_rail(builder: MeshBuilder) -> None:
