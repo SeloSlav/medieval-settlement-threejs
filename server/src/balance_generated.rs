@@ -443,7 +443,7 @@ pub const SMOKEHOUSE_FIREWOOD_PER_CYCLE: f64 = 1.0;
 pub const SMOKEHOUSE_SALT_PER_CYCLE: f64 = 1.0;
 pub const SMOKEHOUSE_POTTERY_PER_CYCLE: f64 = 0.0;
 pub const SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE: f64 = 3.0;
-pub const CLAY_PIT_CLAY_PER_CYCLE: f64 = 4.0;
+pub const MINING_CAMP_CLAY_PER_CYCLE: f64 = 4.0;
 pub const LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE: f64 = 1.0;
 pub const LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES: f64 = 6.0;
 pub const MINE_IRON_PER_CYCLE: f64 = 2.0;
@@ -675,7 +675,6 @@ pub fn fire_building_base_flammability(kind: &str) -> f64 {
         "charcoal_burner" => 2.2,
         "smithy" => 1.8,
         "potter_kiln" => 1.8,
-        "clay_pit" => 0.15,
         "brewery" => 1.45,
         "bakery" => 2.0,
         "granary" => 1.45,
@@ -1483,68 +1482,6 @@ const MINE: BuildingDef = BuildingDef {
     requires_water_shore: false,
     requires_hillside: false,
     sim_kind: Some(BuildingSimKind::Mine),
-};
-
-const CLAY_PIT: BuildingDef = BuildingDef {
-    kind: "clay_pit",
-    cost_timber: 24.0,
-    cost_stone: 0.0,
-    cost_gold: 0.0,
-    cost_ironwork: 0.0,
-    cost_roof_tiles: 0.0,
-    storage_total: 60.0,
-    storage_timber: 0.0,
-    storage_firewood: 0.0,
-    storage_stone: 0.0,
-    storage_water: 0.0,
-    storage_food: 0.0,
-    storage_grain: 0.0,
-    storage_barley: 0.0,
-    storage_malt: 0.0,
-    storage_flax: 0.0,
-    storage_flour: 0.0,
-    storage_ale: 0.0,
-    storage_cider: 0.0,
-    storage_mead: 0.0,
-    storage_preserved_food: 0.0,
-    storage_honey: 0.0,
-    storage_wax: 0.0,
-    storage_candles: 0.0,
-    storage_wine: 0.0,
-    storage_wool: 0.0,
-    storage_yarn: 0.0,
-    storage_linen: 0.0,
-    storage_cloth: 0.0,
-    storage_pelts: 0.0,
-    storage_hides: 0.0,
-    storage_leather: 0.0,
-    storage_shoes: 0.0,
-    storage_ironwork: 3.0,
-    storage_polearms: 0.0,
-    storage_iron: 0.0,
-    storage_clay: 60.0,
-    storage_salt: 0.0,
-    storage_charcoal: 0.0,
-    storage_pottery: 0.0,
-    storage_roof_tiles: 0.0,
-    storage_manure: 0.0,
-    storage_remedies: 0.0,
-    storage_animal_feed: 0.0,
-    accepts_labor: true,
-    max_labor: 3,
-    work_radius: 0.0,
-    action_interval: 700.0,
-    pick_radius: 10.0,
-    requires_road: true,
-    faces_road: false,
-    requires_mature_trees: false,
-    requires_quarry_stone: false,
-    requires_game: false,
-    requires_berries: false,
-    requires_fish: false,
-    requires_water_shore: true,
-    requires_hillside: false,
-    sim_kind: Some(BuildingSimKind::ClayPit),
 };
 
 const CHARCOAL_BURNER: BuildingDef = BuildingDef {
@@ -3726,7 +3663,6 @@ const ALL: &[BuildingDef] = &[
     STONE_QUARRY,
     LARGE_QUARRY,
     MINE,
-    CLAY_PIT,
     CHARCOAL_BURNER,
     SMITHY,
     POTTER_KILN,

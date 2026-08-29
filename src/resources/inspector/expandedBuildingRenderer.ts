@@ -237,7 +237,6 @@ function dominantBreadGrainKind(building: BuildingState): BreadGrainKind {
 
 const PROCESS: Record<string, string> = {
   mine: 'Rich iron, salt, or clay + timber-supported deep labor → raw material for linked local processing',
-  clay_pit: 'Finite ordinary bank or rich deep alluvium + labor -> wet clay for local potters',
   charcoal_burner: 'Firewood + labor -> charcoal, competing directly with winter heating reserves',
   smithy: 'Small direct-process bloomery reduces local ore or reheats imported blooms and bars; the smithing bay then uses charcoal and automatically staged well water to finish tools, fittings, and weapon heads',
   potter_kiln: 'Local clay + firewood + automatically staged well water -> either vessels or rare prosperous-house roof tiles',
@@ -276,7 +275,6 @@ const OUTBOUND_SUPPLY_KINDS = new Set<BuildingKind>([
   'chandlery',
   'spinning_retting_house',
   'weaver',
-  'clay_pit',
   'charcoal_burner',
   'smithy',
   'potter_kiln',
@@ -332,8 +330,6 @@ function buildingHasOutboundStock(
       return (building.yarn ?? 0) > 0 || (building.linen ?? 0) > 0;
     case 'weaver':
       return (building.cloth ?? 0) > 0;
-    case 'clay_pit':
-      return (building.clay ?? 0) > 0;
     case 'charcoal_burner':
       return (building.charcoal ?? 0) > 0;
     case 'smithy':
@@ -372,8 +368,6 @@ function outboundDestinationLabel(building: BuildingState): string {
       return 'Lowest-runway Weaver working buffer, then staffed Storehouse or Trading Post overflow';
     case 'weaver':
       return 'Staffed Storehouse for Marketplace clothing stalls, then road-linked export market';
-    case 'clay_pit':
-      return "Settlement-wide match: highest-priority road-linked potter's kiln, then shortest producer route";
     case 'charcoal_burner':
       return 'Settlement-wide match: highest-priority road-linked smithy, then shortest producer route';
     case 'smithy':
@@ -406,7 +400,6 @@ function cargoPerTripLabel(building: BuildingState): string | null {
       return `${TEXTILE_TRANSFER_PER_TRIP} clothing per Storehouse or market haul`;
     case 'chandlery':
       return `${CANDLE_TRANSFER_PER_TRIP} candle lots per Storehouse or market haul`;
-    case 'clay_pit':
     case 'charcoal_burner':
     case 'smithy':
     case 'potter_kiln':
@@ -435,8 +428,6 @@ function outboundTargetKinds(kind: BuildingKind): BuildingKind[] {
       return ['weaver', 'village_storehouse', 'trading_post'];
     case 'weaver':
       return ['marketplace'];
-    case 'clay_pit':
-      return ['potter_kiln'];
     case 'charcoal_burner':
       return ['smithy'];
     case 'smithy':
@@ -445,7 +436,6 @@ function outboundTargetKinds(kind: BuildingKind): BuildingKind[] {
         'woodcutters_lodge',
         'stone_quarry',
         'large_quarry',
-        'clay_pit',
         'threshing_barn',
         'watermill',
         'windmill',
@@ -508,12 +498,6 @@ function outboundTripTarget(
     return context.worldQueries.getNextDirectProcessorInputDispatch(
       building,
       'ironwork',
-    )?.target ?? null;
-  }
-  if (building.kind === 'clay_pit') {
-    return context.worldQueries.getNextDirectProcessorInputDispatch(
-      building,
-      'clay',
     )?.target ?? null;
   }
   if (building.kind === 'charcoal_burner') {
@@ -698,9 +682,7 @@ function renderLogisticsRows(
         textileCommodity,
       )
     : null;
-  const materialDispatch = building.kind === 'clay_pit'
-    ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'clay')
-    : building.kind === 'charcoal_burner'
+  const materialDispatch = building.kind === 'charcoal_burner'
       ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'charcoal')
       : building.kind === 'potter_kiln'
         ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'pottery')
@@ -708,9 +690,7 @@ function renderLogisticsRows(
   const potteryHouseholdTarget = building.kind === 'potter_kiln'
     ? context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(building, 'pottery')
     : null;
-  const materialCommodity = building.kind === 'clay_pit'
-    ? 'clay'
-    : building.kind === 'charcoal_burner'
+  const materialCommodity = building.kind === 'charcoal_burner'
       ? 'charcoal'
       : building.kind === 'potter_kiln'
         ? 'pottery'
