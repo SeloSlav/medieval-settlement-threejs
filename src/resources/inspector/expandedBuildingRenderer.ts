@@ -195,11 +195,6 @@ import {
   smokehouseRecipeOutput,
 } from '../../economy/smokehouseRecipePolicy.ts';
 import {
-  CLAY_BANK_LEAN_YIELD_THRESHOLD,
-  clayBankYieldAt,
-  clayBankYieldGrade,
-} from '../../economy/clayBankPolicy.ts';
-import {
   FREE_CONSTRUCTION_COST_TOOLTIP,
   renderResourceCost,
 } from '../../ui/resourceCost.ts';
@@ -985,41 +980,6 @@ export function renderExpandedBuildingInspector(
   );
   const windWeatherThroughput = windWeatherThroughputMultiplier(environment.weather);
   const windmillThroughput = windSiteThroughput * windWeatherThroughput;
-  const clayBankYield = building.kind === 'clay_pit'
-    ? clayBankYieldAt(
-        building.x,
-        building.z,
-        context.worldResourceAbundance ?? 50,
-      )
-    : 1;
-  const clayBankCombinedYield = clayBankYield
-    * environment.clayPitThroughputMultiplier;
-  const clayDepositResource = building.kind === 'clay_pit'
-    ? [...context.gameState.quarries.values()].find((node) =>
-        node.resource === 'clay'
-        && Math.hypot(node.x - building.x, node.z - building.z) <= 2.5
-      ) ?? null
-    : null;
-  const clayDepositExhausted = clayDepositResource !== null
-    && clayDepositResource.isRich !== true
-    && clayDepositResource.remaining <= 1e-6;
-  const clayReserveLabel = clayDepositResource === null
-    ? 'No physical clay deposit beneath this pit'
-    : clayDepositResource.isRich
-      ? 'Rich deep alluvial source · nondepleting'
-      : `${Math.max(0, clayDepositResource.remaining).toFixed(0)} / ${Math.max(0, clayDepositResource.maxYield).toFixed(0)} finite clay remaining`;
-  const clayBankWeatherLabel = environment.weather === 'frost'
-    ? 'frozen ground'
-    : environment.weather === 'drought'
-      ? 'hardened ground'
-      : environment.weather === 'rain'
-        ? 'saturated ground'
-        : 'fair ground';
-  const clayBankRows = building.kind === 'clay_pit'
-    ? `<li><span>Clay seam</span><span>${clayBankYieldGrade(clayBankYield)} · ${Math.round(clayBankYield * 100)}% geological yield at regional abundance ${Math.round(context.worldResourceAbundance ?? 50)}/100</span></li>
-      <li><span>Physical reserve</span><span>${clayReserveLabel}</span></li>
-      <li><span>Current digging pace</span><span>${Math.round(clayBankYield * 100)}% bank × ${Math.round(environment.clayPitThroughputMultiplier * 100)}% ${clayBankWeatherLabel} = ${Math.round(clayBankCombinedYield * 100)}% before tool condition</span></li>`
-    : '';
   const charcoalClampWeatherLabel = environment.weather === 'frost'
     ? 'snowbound tending and frozen billets'
     : environment.weather === 'drought'
@@ -1057,27 +1017,7 @@ export function renderExpandedBuildingInspector(
             ? 'warning' as const
             : 'active' as const,
         }
-    : building.kind === 'clay_pit'
-      && clayDepositResource === null
-      ? {
-          statusText: 'Stopped - no physical clay deposit beneath this pit',
-          statusState: 'warning' as const,
-        }
-    : building.kind === 'clay_pit'
-      && clayDepositExhausted
-      ? {
-          statusText: 'Ordinary clay bank exhausted · relocate the pit or develop a rich deep bank',
-          statusState: 'warning' as const,
-        }
-      : building.kind === 'clay_pit'
-      && processorStatus?.statusState === 'active'
-      ? {
-          statusText: `${clayBankYieldGrade(clayBankYield)} · ${Math.round(clayBankCombinedYield * 100)}% clay pace before tool condition${environment.clayPitThroughputMultiplier < 1 ? ' · stockpile for winter kilns' : ''}`,
-          statusState: clayBankCombinedYield < CLAY_BANK_LEAN_YIELD_THRESHOLD
-            ? 'warning' as const
-            : 'active' as const,
-        }
-      : building.kind === 'charcoal_burner'
+    : building.kind === 'charcoal_burner'
         && processorStatus?.statusState === 'active'
         && Math.abs(environment.charcoalBurnerThroughputMultiplier - 1) > 1e-6
         ? {
@@ -1376,7 +1316,7 @@ export function renderExpandedBuildingInspector(
     title: definition.label,
     statusText: carpenterStatus?.statusText ?? seasonalProcessorStatus?.statusText ?? processorStatus?.statusText ?? farmsteadPlanning?.statusText ?? (fallbackActive ? 'Operating' : 'Awaiting workers'),
     statusState: carpenterStatus?.statusState ?? seasonalProcessorStatus?.statusState ?? processorStatus?.statusState ?? farmsteadPlanning?.statusState ?? (fallbackActive ? 'active' : 'warning'),
-    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch cost</span><span>${renderResourceCost({ timber: CARPENTER_TIMBER_PER_POLEARM, ironwork: CARPENTER_IRONWORK_PER_POLEARM }, { compact: true, suffix: 'for 1 polearm' })}</span></li>` : ''}${granaryRows}${grainProcessorRows}${millPowerRows}${apiaryRows}${vineyardRows}${clayBankRows}${charcoalClampRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${civilianToolRows(building, context.worldQueries)}${preservedStorageRows}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
+    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch cost</span><span>${renderResourceCost({ timber: CARPENTER_TIMBER_PER_POLEARM, ironwork: CARPENTER_IRONWORK_PER_POLEARM }, { compact: true, suffix: 'for 1 polearm' })}</span></li>` : ''}${granaryRows}${grainProcessorRows}${millPowerRows}${apiaryRows}${vineyardRows}${charcoalClampRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${civilianToolRows(building, context.worldQueries)}${preservedStorageRows}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     ...(supplementalPanelHtml ? { supplementalPanelHtml } : {}),
