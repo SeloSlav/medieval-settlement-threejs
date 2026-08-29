@@ -325,18 +325,22 @@ def _tent(builder: MeshBuilder, size: str) -> None:
             foot = (side * (half_width - 0.08), y, 0.035)
             middle = (side * (half_width * 0.47 + 0.025 * y_index), y + side * 0.012, height * 0.52)
             apex = (side * 0.018, y, height - 0.075)
-            builder.round_beam_between(foot, middle, 0.046, "timber_weathered", 7, 0.043)
-            builder.round_beam_between(middle, apex, 0.043, "timber_weathered", 7, 0.038)
+            builder.round_beam_between(foot, middle, 0.046, "timber_weathered", 5, 0.043)
+            builder.round_beam_between(middle, apex, 0.043, "timber_weathered", 5, 0.038)
     builder.round_beam_between(
         (0.0, -depth * 0.5 - 0.17, height - 0.075),
         (0.0, depth * 0.5 + 0.17, height - 0.075),
         0.038,
         "timber_weathered",
-        8,
+        5,
         0.034,
     )
 
-    cross_steps, run_steps = 12, 10
+    # Six-by-five deformation cells retain the authored sagging silhouette and
+    # asymmetry. The canvas normal map carries the weave and fine wrinkling, so
+    # the denser 12-by-10 export grid spent triangles without adding readable
+    # quality at the camp's gameplay scale.
+    cross_steps, run_steps = 6, 5
     grid = [
         [
             _tent_cloth_point(width, depth, height, cross / cross_steps, run / run_steps)
@@ -400,7 +404,7 @@ def _tent(builder: MeshBuilder, size: str) -> None:
         (0.10, front_y - 0.018, height - 0.12),
         0.032,
         "canvas",
-        6,
+        5,
         0.024,
     )
     builder.round_beam_between(
@@ -408,12 +412,9 @@ def _tent(builder: MeshBuilder, size: str) -> None:
         (-0.10, front_y - 0.022, height - 0.12),
         0.028,
         "canvas",
-        6,
+        5,
         0.022,
     )
-    builder.round_beam_between((0.28, front_y - 0.05, 0.74), (0.48, front_y - 0.22, 0.72), 0.012, "rope", 5)
-    builder.round_beam_between((-0.28, front_y - 0.05, 0.76), (-0.49, front_y - 0.21, 0.69), 0.011, "rope", 5)
-
     # Tension is concentrated at ridge and hem corners. Pegs lean away from the
     # shelter and all cordage is round rather than square structural timber.
     for y in (-depth * 0.5, depth * 0.5):
@@ -425,7 +426,7 @@ def _tent(builder: MeshBuilder, size: str) -> None:
             (ridge_stake[0] + 0.02, ridge_stake[1] + direction * 0.13, 0.30),
             0.026,
             "timber_cut",
-            6,
+            5,
             0.020,
         )
         for side in (-1.0, 1.0):
@@ -437,7 +438,7 @@ def _tent(builder: MeshBuilder, size: str) -> None:
                 (stake[0] + side * 0.03, stake[1] + direction * 0.10, 0.27),
                 0.024,
                 "timber_cut",
-                6,
+                5,
                 0.019,
             )
 
@@ -469,7 +470,9 @@ def _hide_fly_point(
 
 
 def _hunter_hide_fly(builder: MeshBuilder, width: float, depth: float) -> None:
-    x_steps, y_steps = 10, 6
+    # The broad hide sheet needs enough topology for its central sag and corner
+    # tension, while stitched-hide normal detail supplies the smaller creases.
+    x_steps, y_steps = 6, 4
     grid = [
         [
             _hide_fly_point(width, depth, x / x_steps, y / y_steps)
@@ -490,8 +493,8 @@ def _hunter_hide_fly(builder: MeshBuilder, width: float, depth: float) -> None:
         top = (cloth[0] - side * 0.025, cloth[1] - end * 0.020, cloth[2] - 0.070)
         bottom = (cloth[0] + side * 0.11, cloth[1] + end * 0.07, 0.015)
         middle = ((bottom[0] + top[0]) * 0.5 + side * 0.025, (bottom[1] + top[1]) * 0.5, top[2] * 0.48)
-        builder.round_beam_between(bottom, middle, 0.056, "timber_weathered", 7, 0.050)
-        builder.round_beam_between(middle, top, 0.050, "timber_weathered", 7, 0.043)
+        builder.round_beam_between(bottom, middle, 0.056, "timber_weathered", 5, 0.050)
+        builder.round_beam_between(middle, top, 0.050, "timber_weathered", 5, 0.043)
         supports.append((bottom, top))
 
     for left_index, right_index in ((0, 1), (2, 3)):
@@ -502,7 +505,7 @@ def _hunter_hide_fly(builder: MeshBuilder, width: float, depth: float) -> None:
             (right[0] - 0.05, right[1], right[2] - 0.075),
             0.046,
             "timber_weathered",
-            7,
+            5,
             0.041,
         )
 
@@ -517,7 +520,7 @@ def _hunter_hide_fly(builder: MeshBuilder, width: float, depth: float) -> None:
                 (current[0], current[1], current[2] - 0.018),
                 0.030,
                 "leather",
-                6,
+                5,
             )
             previous = current
     for _, top in supports:
@@ -525,13 +528,6 @@ def _hunter_hide_fly(builder: MeshBuilder, width: float, depth: float) -> None:
             (top[0] - 0.08, top[1] - 0.025, top[2] - 0.025),
             (top[0] + 0.08, top[1] + 0.025, top[2] - 0.055),
             0.011,
-            "rope",
-            5,
-        )
-        builder.round_beam_between(
-            (top[0] - 0.075, top[1] + 0.025, top[2] - 0.060),
-            (top[0] + 0.075, top[1] - 0.025, top[2] - 0.025),
-            0.010,
             "rope",
             5,
         )
@@ -565,6 +561,27 @@ def _campfire(builder: MeshBuilder) -> None:
             7,
         )
     builder.cylinder(0.42, 0.08, (0.0, 0.0, 0.04), "charcoal", 12, "z")
+    # Fixed hearth fuel is neutral architecture rather than stocked inventory:
+    # two crossed courses sit wholly inside the stone ring and remain available
+    # for runtime flame/ember effects without implying a separate wood reserve.
+    for y in (-0.13, 0.13):
+        builder.round_beam_between(
+            (-0.39, y - 0.02, 0.13),
+            (0.39, y + 0.02, 0.13),
+            0.052,
+            "timber_cut",
+            7,
+            0.046,
+        )
+    for x in (-0.12, 0.12):
+        builder.round_beam_between(
+            (x + 0.02, -0.36, 0.235),
+            (x - 0.02, 0.36, 0.235),
+            0.050,
+            "timber_cut",
+            7,
+            0.044,
+        )
 
 
 def _camp_tripod(builder: MeshBuilder) -> None:
@@ -593,18 +610,16 @@ def _hunter_boundary_rail(builder: MeshBuilder) -> None:
     for index, top in enumerate(post_tops):
         bottom = (top[0] + (-0.025 if index == 0 else 0.018 if index == 2 else 0.0), 0.0, 0.0)
         middle = ((bottom[0] + top[0]) * 0.5 + (0.018 if index % 2 else -0.012), top[1] * 0.45, top[2] * 0.48)
-        builder.round_beam_between(bottom, middle, 0.038, "timber_weathered", 7, 0.033)
-        builder.round_beam_between(middle, top, 0.033, "timber_weathered", 7, 0.027)
+        builder.round_beam_between(bottom, middle, 0.038, "timber_weathered", 5, 0.033)
+        builder.round_beam_between(middle, top, 0.033, "timber_weathered", 5, 0.027)
     for level, base_z in enumerate((0.27, 0.50)):
         points = [
             (-1.02, -0.012, base_z + 0.020 * math.sin(level + 0.2)),
-            (-0.52, 0.018, base_z - 0.018 + 0.012 * level),
             (0.02, -0.020, base_z + 0.015),
-            (0.52, 0.010, base_z - 0.012),
             (1.02, -0.014, base_z + 0.018 * math.cos(level + 0.3)),
         ]
         for index in range(len(points) - 1):
-            builder.round_beam_between(points[index], points[index + 1], 0.030, "timber_weathered", 7, 0.025)
+            builder.round_beam_between(points[index], points[index + 1], 0.030, "timber_weathered", 5, 0.025)
 
 
 def _grave_cross(builder: MeshBuilder) -> None:

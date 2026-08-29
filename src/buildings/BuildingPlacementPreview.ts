@@ -149,9 +149,9 @@ export function createBuildingPreviewMesh(kind: BuildingKind): THREE.Group {
   wildlifeWarnings.renderOrder = PREVIEW_RENDER_ORDER + 4;
   group.add(wildlifeWarnings);
 
-  if (kind === 'lumber_mill') {
+  if (kind === 'lumber_mill' || kind === 'woodcutters_lodge') {
     const loggingWorkExtent = createTerrainWarningRing(
-      'Lumber logging work extent warning',
+      'Tree harvesting work extent warning',
       'logging-work-extent',
       LOGGING_WORK_EXTENT_COLOR,
       0.76,
@@ -376,7 +376,7 @@ function updateWildlifeWarningGeometry(
   getHeightAt: (x: number, z: number) => number,
   wildlifePreview?: BuildingPlacementWildlifePreview,
 ): void {
-  const loggingWorkExtent = group.getObjectByName('Lumber logging work extent warning');
+  const loggingWorkExtent = group.getObjectByName('Tree harvesting work extent warning');
   if (loggingWorkExtent instanceof THREE.Mesh) {
     const radius = wildlifePreview?.loggingWorkRadius
       ?? loggingWorkExtent.userData.extentRadius as number;

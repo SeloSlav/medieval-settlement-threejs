@@ -350,9 +350,9 @@ export const CONSTRUCTION_TREASURY_TRANSFER_PER_SEC = 2;
 export const LARGE_QUARRY_MAX_YIELD = 10000;
 export const SMALL_QUARRY_MAX_YIELD = 4000;
 
-export const LODGE_TIMBER_PER_CYCLE = 3;
-export const LODGE_TIMBER_PER_DELIVERY = 3;
-export const LODGE_FIREWOOD_PER_CYCLE = 3;
+export const LODGE_TIMBER_PER_CYCLE = 0;
+export const LODGE_TIMBER_PER_DELIVERY = 0;
+export const LODGE_FIREWOOD_PER_CYCLE = 6;
 export const LODGE_FIREWOOD_PER_DELIVERY = 2;
 export const STONE_PER_HARVEST = 2;
 export const GAME_ANIMALS_PER_HARVEST = 1;
@@ -980,15 +980,15 @@ export const BUILDING_DEFINITIONS = {
   woodcutters_lodge: {
     kind: 'woodcutters_lodge',
     label: "Woodcutter's lodge",
-    workRadius: 0,
+    workRadius: 210,
     pickRadius: 8,
-    harvestInterval: 525,
+    harvestInterval: 1050,
     regrowRatePerSecond: 0,
     maxLabor: 2,
     acceptsLabor: true,
     requiresRoad: true,
     facesRoad: true,
-    requiresMatureTrees: false,
+    requiresMatureTrees: true,
     requiresQuarryStone: false,
     requiresGame: false,
     requiresBerries: false,
@@ -1791,7 +1791,7 @@ export const BUILDING_STORAGE_CAPS = {
   salvage_pile: { timber: 500, firewood: 500, stone: 500, total: 500, water: 500, food: 500, grain: 500, barley: 500, malt: 500, flour: 500, ale: 500, preservedFood: 500, honey: 500, wax: 500, candles: 500, wine: 500, wool: 500, yarn: 500, linen: 500, flax: 500, cloth: 500, pelts: 500, ironwork: 500, polearms: 500, iron: 500, clay: 500, salt: 500, charcoal: 500, pottery: 500, hides: 500, leather: 500, shoes: 500, roofTiles: 500, manure: 500, remedies: 500, animalFeed: 500 },
   lumber_mill: { timber: 50, firewood: 0, stone: 0, total: 50, water: 12, ironwork: 3 },
   reforester: { timber: 0, firewood: 0, stone: 0 },
-  woodcutters_lodge: { timber: 24, firewood: 50, stone: 0, total: 50, ironwork: 3 },
+  woodcutters_lodge: { timber: 0, firewood: 50, stone: 0, total: 50, ironwork: 3 },
   stone_quarry: { timber: 0, firewood: 0, stone: 60, total: 120, ironwork: 3, iron: 60, clay: 60, salt: 40 },
   large_quarry: { timber: 12, firewood: 0, stone: 100, total: 100, ironwork: 3 },
   mine: { timber: 12, firewood: 0, stone: 0, total: 150, ironwork: 3, iron: 75, clay: 75, salt: 50 },

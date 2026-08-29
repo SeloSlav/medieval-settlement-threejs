@@ -33,9 +33,9 @@ const jobs = [
       'examples',
       'hunters-camp',
       'out',
-      'hunters_camp_textured_v6.glb',
+      'hunters_camp_textured_v8.glb',
     ),
-    output: path.join(outputDirectory, 'hunters_camp_textured_v6.glb'),
+    output: path.join(outputDirectory, 'hunters_camp_textured_v8.glb'),
   },
 ];
 

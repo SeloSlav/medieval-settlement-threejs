@@ -1570,10 +1570,10 @@ assert.match(simServer, /step_construction_sites/);
 assert.match(simServer, /if !building\.construction_complete/);
 
 const woodcutterServer = read('server/src/simulation/woodcutters_lodge.rs');
-assert.match(
+assert.doesNotMatch(
   woodcutterServer,
-  /available_unreserved_building_timber/,
-  'firewood processing must not consume timber reserved for construction',
+  /available_unreserved_building_timber|CommodityKind::Timber|withdraw_building/,
+  'direct firewood harvesting must leave all construction timber untouched',
 );
 
 const generatedBuilding = read('src/generated/building_table.ts');

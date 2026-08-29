@@ -16,7 +16,7 @@ import {
 export const TIER_ONE_RESIDENCE_MODEL_URL =
   '/assets/models/buildings/gorski/tier1_residence_retopo_v25.glb';
 export const HUNTERS_CAMP_MODEL_URL =
-  '/assets/models/buildings/gorski/hunters_camp_textured_v6.glb';
+  '/assets/models/buildings/gorski/hunters_camp_textured_v8.glb';
 
 type AuthoredArchitectureKey = 'tier-one-residence' | 'hunters-camp';
 
@@ -71,7 +71,7 @@ export function createAuthoredHuntersCampMesh(): THREE.Group | null {
   if (!camp) return null;
   camp.name = "Hunter's camp";
   camp.userData.authoredGlbAsset = true;
-  camp.userData.authoredGlbVersion = 'hunters-camp-v6';
+  camp.userData.authoredGlbVersion = 'hunters-camp-v8';
   camp.userData.authoredGlbUrl = HUNTERS_CAMP_MODEL_URL;
   camp.userData.fpCollisionChildrenOnly = true;
   addComponentCollisionProxies(camp);

@@ -1,7 +1,9 @@
 import type { BuildingState, TreeWorkArea } from './types.ts';
 
 export function supportsTreeWorkArea(building: Pick<BuildingState, 'kind'>): boolean {
-  return building.kind === 'lumber_mill' || building.kind === 'reforester';
+  return building.kind === 'lumber_mill'
+    || building.kind === 'woodcutters_lodge'
+    || building.kind === 'reforester';
 }
 
 export function hasCustomTreeWorkArea(

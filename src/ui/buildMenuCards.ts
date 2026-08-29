@@ -91,7 +91,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   smithy: ['Smithy', 'Forges ironwork, tools, fittings, and weapons from iron and charcoal.', flow(['iron', 'charcoal', 'water'], ['ironwork'])],
   potter_kiln: ["Potter's kiln", 'Fires clay into household pottery or sturdy roof tiles.', flow(['clay', 'water', 'firewood'], ['pottery', 'roofTiles'])],
   reforester: ['Reforester', 'Restores felled woodland with young native trees.'],
-  woodcutters_lodge: ["Woodcutter's lodge", 'Splits timber into firewood for settlement hearths.', flow(['timber'], ['firewood'])],
+  woodcutters_lodge: ["Woodcutter's lodge", 'Fells nearby trees and splits them into firewood for settlement hearths.', flow([], ['firewood'])],
   hunters_hall: ["Hunter's hall", 'Hunts nearby game and dresses the catch for meat and trade-ready pelts.', flow([], ['meat', 'pelts'])],
   foragers_shed: ["Forager's shed", 'Gathers wild raspberries, mushrooms, and healing remedies.', flow([], ['berries', 'mushrooms', 'remedies'])],
   fishing_camp: ['Fishing camp', 'Catches fish from nearby waters.', flow([], ['fish'])],
@@ -133,7 +133,7 @@ export const CIVIC_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 
 /** Sites whose crews gather raw resources from the landscape. */
 export const GATHERING_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('lumber_mill'), entry('reforester'), entry('stone_quarry'), entry('large_quarry'), entry('mine'),
+  entry('lumber_mill'), entry('woodcutters_lodge'), entry('reforester'), entry('stone_quarry'), entry('large_quarry'), entry('mine'),
   entry('hunters_hall'), entry('foragers_shed'), entry('fishing_camp'),
 ];
 
@@ -145,7 +145,7 @@ export const AGRICULTURE_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 
 /** Workshops that process gathered or agricultural inputs into finished goods. */
 export const INDUSTRY_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('woodcutters_lodge'), entry('watermill'), entry('windmill'), entry('bakery'), entry('brewery'), entry('smokehouse'),
+  entry('watermill'), entry('windmill'), entry('bakery'), entry('brewery'), entry('smokehouse'),
   entry('carpenter'), entry('spinning_retting_house'), entry('weaver'), entry('tannery'), entry('cobbler'), entry('chandlery'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
 ];
 
@@ -184,7 +184,7 @@ const FOOD_BUILD_MENU_ENTRIES = [
   entry('watermill'), entry('windmill'), entry('bakery'), entry('brewery'), entry('tavern'), entry('smokehouse'),
 ] as const;
 const WORKSHOP_BUILD_MENU_ENTRIES = [
-  entry('woodcutters_lodge'), entry('carpenter'), entry('spinning_retting_house'), entry('weaver'), entry('tannery'), entry('cobbler'), entry('chandlery'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
+  entry('carpenter'), entry('spinning_retting_house'), entry('weaver'), entry('tannery'), entry('cobbler'), entry('chandlery'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
 ] as const;
 const FAITH_BUILD_MENU_ENTRIES = [entry('chapel'), entry('monastery')] as const;
 const DECORATION_BUILD_MENU_ENTRIES = [entry('wayside_shrine'), entry('dry_stone_wall')] as const;

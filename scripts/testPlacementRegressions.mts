@@ -1113,15 +1113,15 @@ function testPlacementPreviewLimitsRadiusOverlaysToWildlifeWarnings(): void {
       undefined,
       `${kind} must not expose a fire-planning radius`,
     );
-    const loggingWorkExtent = preview.getObjectByName('Lumber logging work extent warning');
-    if (kind === 'lumber_mill') {
+    const loggingWorkExtent = preview.getObjectByName('Tree harvesting work extent warning');
+    if (kind === 'lumber_mill' || kind === 'woodcutters_lodge') {
       assert(loggingWorkExtent instanceof THREE.Mesh);
-      assert.equal(loggingWorkExtent.userData.extentRadius, BUILDING_DEFINITIONS.lumber_mill.workRadius);
+      assert.equal(loggingWorkExtent.userData.extentRadius, BUILDING_DEFINITIONS[kind].workRadius);
     } else {
       assert.equal(
         loggingWorkExtent,
         undefined,
-        `${kind} must not expose the Lumber Mill's logging extent`,
+        `${kind} must not expose a tree-harvesting extent`,
       );
     }
     for (const yaw of [0, 0.42, -1.09]) {
@@ -1220,6 +1220,23 @@ function testPlacementPreviewShowsAdvisoryWildlifeWarnings(): void {
   );
   assert.equal(lumberWildlife.habitats[0]?.loggingReach, true);
   assert.equal(lumberWildlife.habitats[0]?.directBuildingRisk, false);
+
+  const lodgeWildlife = resolveBuildingPlacementWildlifePreview(
+    'woodcutters_lodge',
+    0,
+    0,
+    0,
+    [lumberRelevant, lumberOutside],
+  );
+  assert.equal(
+    lodgeWildlife.loggingWorkRadius,
+    BUILDING_DEFINITIONS.woodcutters_lodge.workRadius,
+  );
+  assert.deepEqual(
+    lodgeWildlife.habitats.map((habitat) => habitat.nodeId),
+    ['lumber-relevant'],
+    'Woodcutter placement should preview wildlife disturbed by direct tree harvesting',
+  );
 
   const smithyFootprint = getBuildingFootprintHalfExtents('smithy');
   const smithyRiskDistance = GAME_HABITAT_DISRUPTION_RADIUS
@@ -1355,7 +1372,7 @@ function testPlacementPreviewShowsAdvisoryWildlifeWarnings(): void {
     heightAt,
     lumberWildlife,
   );
-  const loggingRing = lumberPreview.getObjectByName('Lumber logging work extent warning');
+  const loggingRing = lumberPreview.getObjectByName('Tree harvesting work extent warning');
   assert(loggingRing instanceof THREE.Mesh);
   assert.equal(loggingRing.userData.dashed, true);
   assert.equal(loggingRing.userData.extentRadius, BUILDING_DEFINITIONS.lumber_mill.workRadius);
@@ -2267,7 +2284,7 @@ assert.match(
 );
 assert.match(
   buildingPlacementPreview,
-  /Lumber logging work extent warning/,
+  /Tree harvesting work extent warning/,
   'Lumber Mill placement should explain which habitat rings its logging reach intersects',
 );
 assert.doesNotMatch(

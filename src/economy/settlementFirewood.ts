@@ -7,7 +7,6 @@ import {
   CHANDLERY_FIREWOOD_PER_CYCLE,
   BAKERY_FIREWOOD_PER_CYCLE,
   LODGE_FIREWOOD_PER_CYCLE,
-  LODGE_TIMBER_PER_CYCLE,
   POTTER_FIREWOOD_PER_CYCLE,
   SMOKEHOUSE_FIREWOOD_PER_CYCLE,
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
@@ -108,10 +107,9 @@ type MutableFirewoodBranch = Omit<
  * the readout does not imply that fuel staged inside a kiln can heat a home.
  *
  * Production and consumption are installed full-input capacities. Current
- * woodcutter tool maintenance changes both firewood output and timber draw;
- * smithy demand is reconciled by the industrial-material ledger. A lone lodge
- * worker contributes half a processing worker because sustained demand
- * alternates that worker between splitting and cart duty.
+ * woodcutter tool maintenance changes direct tree-to-firewood output;
+ * smithy demand is reconciled by the industrial-material ledger. Free
+ * settlement haulers move finished fuel without reducing the harvesting crew.
  */
 export function computeSettlementFirewoodPlan(
   state: GameState,
@@ -430,7 +428,7 @@ function lodgeFirewoodCapacity(
   ) * civilianToolThroughputMultiplier(building.ironwork ?? 0);
   return {
     firewoodPerDay: cycles * LODGE_FIREWOOD_PER_CYCLE,
-    timberPerDay: cycles * LODGE_TIMBER_PER_CYCLE,
+    timberPerDay: 0,
   };
 }
 

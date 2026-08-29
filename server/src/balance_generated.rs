@@ -347,9 +347,9 @@ pub const CONSTRUCTION_TREASURY_TRANSFER_PER_SEC: f64 = 2.0;
 pub const LARGE_QUARRY_MAX_YIELD: f64 = 10000.0;
 pub const SMALL_QUARRY_MAX_YIELD: f64 = 4000.0;
 
-pub const LODGE_TIMBER_PER_CYCLE: f64 = 3.0;
-pub const LODGE_TIMBER_PER_DELIVERY: f64 = 3.0;
-pub const LODGE_FIREWOOD_PER_CYCLE: f64 = 3.0;
+pub const LODGE_TIMBER_PER_CYCLE: f64 = 0.0;
+pub const LODGE_TIMBER_PER_DELIVERY: f64 = 0.0;
+pub const LODGE_FIREWOOD_PER_CYCLE: f64 = 6.0;
 pub const LODGE_FIREWOOD_PER_DELIVERY: f64 = 2.0;
 pub const STONE_PER_HARVEST: f64 = 2.0;
 pub const GAME_ANIMALS_PER_HARVEST: f64 = 1.0;
@@ -1245,7 +1245,7 @@ const WOODCUTTERS_LODGE: BuildingDef = BuildingDef {
     cost_ironwork: 0.0,
     cost_roof_tiles: 0.0,
     storage_total: 50.0,
-    storage_timber: 24.0,
+    storage_timber: 0.0,
     storage_firewood: 50.0,
     storage_stone: 0.0,
     storage_water: 0.0,
@@ -1284,12 +1284,12 @@ const WOODCUTTERS_LODGE: BuildingDef = BuildingDef {
     storage_animal_feed: 0.0,
     accepts_labor: true,
     max_labor: 2,
-    work_radius: 0.0,
-    action_interval: 525.0,
+    work_radius: 210.0,
+    action_interval: 1050.0,
     pick_radius: 8.0,
     requires_road: true,
     faces_road: true,
-    requires_mature_trees: false,
+    requires_mature_trees: true,
     requires_quarry_stone: false,
     requires_game: false,
     requires_berries: false,

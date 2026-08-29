@@ -10,7 +10,7 @@ pub const MAX_TREE_WORK_AREA_RADIUS: f64 = 240.0;
 pub const MAX_TREE_WORK_AREA_COORDINATE_ABS: f64 = 10_000.0;
 
 pub fn supports_tree_work_area(kind: &str) -> bool {
-    matches!(kind, "lumber_mill" | "reforester")
+    matches!(kind, "lumber_mill" | "woodcutters_lodge" | "reforester")
 }
 
 pub fn tree_work_area_coordinates_are_valid(x: f64, z: f64) -> bool {
@@ -90,7 +90,7 @@ mod tests {
     fn only_tree_management_buildings_support_custom_areas() {
         assert!(supports_tree_work_area("lumber_mill"));
         assert!(supports_tree_work_area("reforester"));
-        assert!(!supports_tree_work_area("woodcutters_lodge"));
+        assert!(supports_tree_work_area("woodcutters_lodge"));
         assert!(!supports_tree_work_area("stone_quarry"));
     }
 

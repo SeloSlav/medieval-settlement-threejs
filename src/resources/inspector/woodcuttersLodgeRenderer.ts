@@ -1,25 +1,24 @@
 import { getBuildingCost } from '../buildingEconomy.ts';
 import { getBuildingDefinition } from '../buildings.ts';
-import {
-  LODGE_FIREWOOD_PER_CYCLE,
-  LODGE_TIMBER_PER_CYCLE,
-} from '../../generated/gameBalance.ts';
-import {
-  formatDeliveryRoadDistance,
-} from '../../logistics/deliveryLogistics.ts';
+import { LODGE_FIREWOOD_PER_CYCLE } from '../../generated/gameBalance.ts';
+import { formatDeliveryRoadDistance } from '../../logistics/deliveryLogistics.ts';
 import {
   formatLodgeCrewSplit,
   lodgeFirewoodPerDelivery,
   lodgeLaborSplit,
 } from '../../logistics/lodgeLogistics.ts';
+import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
+import { civilianToolThroughputMultiplier } from '../../economy/civilianToolPolicy.ts';
+import { laborScaledInterval } from '../resourceTotals.ts';
+import { buildingSharedStorageRoom } from '../../economy/sharedStorageCapacity.ts';
 import type { InspectableTarget } from '../types.ts';
-import { computeUnreservedBuildingTimber } from '../resourceTotals.ts';
 import {
   buildingCostRows,
   buildingDemolishHint,
   buildingLaborView,
   buildingRoadAccessRow,
   civilianToolRows,
+  treeCountRows,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import {
@@ -31,39 +30,25 @@ import {
   formatTripBuildingDestinationLabel,
   formatTripDestinationLabel,
   formatTripPhaseLabel,
-  tripRemainingSeconds,
 } from '../../logistics/deliveryTrips.ts';
 import {
-  normalizeWoodcutterTimberReserve,
-  timberAboveWoodcutterReserve,
-  WOODCUTTER_TIMBER_RESERVE_PRESETS,
-} from '../../economy/woodcutterPolicy.ts';
-import { renderResourceCost } from '../../ui/resourceCost.ts';
+  forestryWorkAreaDetailRow,
+  renderForestryWorkAreaPanel,
+} from './treeWorkAreaRenderer.ts';
 
 export function renderWoodcuttersLodgeInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
   context: InspectorRenderContext,
 ): InspectorView {
-  const { building } = target;
+  const { building, matureTrees, stumpTrees, growingTrees } = target;
   const label = context.worldQueries.getBuildingLabel(building.kind);
   const cost = getBuildingCost(building.kind);
   const definition = getBuildingDefinition(building.kind);
-  const crew = lodgeLaborSplit(
-    building.assignedLabor,
-    context.populationStats.idle,
-  );
+  const crew = lodgeLaborSplit(building.assignedLabor, context.populationStats.idle);
   const crewLabel = formatLodgeCrewSplit(crew, building.assignedLabor);
-  const connectedMills = context.worldQueries.getRoadConnectedMills(building);
   const claimedResidences = context.worldQueries.getClaimedResidencesForFirewoodSupplier(building);
   const nextDeliveryTarget = context.worldQueries.getNextFirewoodDeliveryTarget(building);
   const nextTargetLabel = formatNextDeliveryTargetLabel(nextDeliveryTarget);
-  const millsWithTimber = connectedMills.filter((mill) => mill.timber > 0).length;
-  const roadAccess = context.worldQueries.getRoadAccessLabel(building.x, building.z);
-  const onRoad = roadAccess.startsWith('Connected');
-  const deliveryDistance = nextDeliveryTarget
-    ? context.worldQueries.getRoadPathDistance(building.x, building.z, nextDeliveryTarget.x, nextDeliveryTarget.z)
-    : null;
-  const firewoodPerTrip = lodgeFirewoodPerDelivery(crew.delivering);
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
   const activeTripDistance = activeTrip
     ? context.worldQueries.getActiveTripPathDistance(activeTrip)
@@ -84,7 +69,6 @@ export function renderWoodcuttersLodgeInspector(
   const industrialTargetLabel = industrialDispatch
     ? `${industrialTargetName} (${industrialDispatch.runwayCycles.toFixed(1)} cycles onsite)`
     : industrialTargetName;
-  const hasIndustrialTarget = industrialTarget != null;
   const activeResidenceDestination = formatTripDestinationLabel(
     activeTrip,
     (id) => context.worldQueries.getResidence(id),
@@ -96,57 +80,25 @@ export function renderWoodcuttersLodgeInspector(
     (id) => context.worldQueries.getBuilding(id),
     activeResidenceDestination,
   );
-  const inboundTimberTrip = context.worldQueries.getInboundTimberTrip(building);
-  const timberTripRemaining = inboundTimberTrip
-    ? tripRemainingSeconds(
-      inboundTimberTrip,
-      context.worldQueries.getActiveTripPathDistance(inboundTimberTrip),
-    )
-    : null;
-  const processingWorkers = crew.processing;
-  const timberPerCycle = LODGE_TIMBER_PER_CYCLE * processingWorkers;
-  const firewoodPerCycle = LODGE_FIREWOOD_PER_CYCLE * processingWorkers;
-  const timberReserve = normalizeWoodcutterTimberReserve(building.woodcutterTimberReserve ?? 0);
-  const availableUnreservedTimber = computeUnreservedBuildingTimber(context.gameState);
-  const timberAboveReserve = timberAboveWoodcutterReserve(
-    availableUnreservedTimber,
-    timberReserve,
-  );
-  const canDeliver = crew.delivering > 0 && building.firewood > 0 && nextDeliveryTarget != null && !activeTrip;
+  const firewoodRoom = buildingSharedStorageRoom(building);
   const { statusText, statusState } = resolveWoodcuttersLodgeStatus({
-    onRoad,
     assignedLabor: building.assignedLabor,
-    connectedMillCount: connectedMills.length,
-    millsWithTimber,
-    timber: building.timber,
+    matureTrees,
     firewood: building.firewood,
+    firewoodRoom,
     claimedResidenceCount: claimedResidences.length,
     crew,
     tripRemainingSeconds: tripRemaining,
     activeTrip,
-    inboundTimberTrip,
-    timberTripRemainingSeconds: timberTripRemaining,
-    nextTargetLabel,
     activeDestinationLabel,
-    hasNextTarget: nextDeliveryTarget != null,
-    hasIndustrialTarget,
+    hasIndustrialTarget: industrialTarget != null,
     industrialTargetLabel,
-    firewoodPerTrip,
-    canDeliver,
-    availableUnreservedTimber,
-    timberReserve,
-    timberPerCycle,
   });
 
-  const nearestMill = connectedMills[0];
-  const nearestMillDistance = nearestMill
-    ? context.worldQueries.getRoadPathDistance(building.x, building.z, nearestMill.x, nearestMill.z)
-    : null;
-  const millSummary = connectedMills.length === 0
-    ? 'None'
-    : nearestMillDistance != null
-      ? `${connectedMills.length} reachable (nearest ${nearestMillDistance.toFixed(0)} m by road)`
-      : `${connectedMills.length} reachable off-road at reduced speed`;
+  const onsiteLabor = onsiteBuildingLabor(building, activeTrip);
+  const cycleSeconds = laborScaledInterval(definition.harvestInterval, onsiteLabor)
+    / civilianToolThroughputMultiplier(building.ironwork ?? 0);
+  const firewoodPerTrip = lodgeFirewoodPerDelivery(crew.delivering);
   const residenceSummary = 'Lodge → staffed Storehouse → Marketplace stall → abstract household supply';
   const industrialFuelDuty = industrialDispatch
     ? `${context.worldQueries.getBuildingLabel(industrialDispatch.target.kind)} · ${industrialDispatch.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(industrialDispatch.routeDistance)}`
@@ -156,20 +108,14 @@ export function renderWoodcuttersLodgeInspector(
 
   const deliveryRow = activeTrip
     ? `<li><span>Active physical cart</span><span>${activeDestinationLabel}</span></li>
-      <li><span>Road distance</span><span>${formatDeliveryRoadDistance(activeTripDistance ?? deliveryDistance)}</span></li>
+      <li><span>Road distance</span><span>${formatDeliveryRoadDistance(activeTripDistance)}</span></li>
       <li><span>Delivery timer</span><span>${formatTripPhaseLabel(activeTrip.phase)} — ${formatCooldown(tripRemaining ?? Infinity)} left</span></li>
       <li><span>Firewood per trip</span><span>${firewoodPerTrip}</span></li>`
-    : hasIndustrialTarget
+    : industrialTarget
       ? `<li><span>Next physical cart</span><span>${industrialTargetLabel}</span></li>
         <li><span>Household last mile</span><span>None · Storehouses stock Marketplace stalls instead</span></li>`
-      : crew.delivering > 0
-        ? `<li><span>Physical logistics</span><span>Ready for timber intake or industrial fuel duty</span></li>
-          <li><span>Household last mile</span><span>None · Storehouses stock Marketplace stalls instead</span></li>`
-        : `<li><span>Physical logistics</span><span>Waiting for an assigned lodge hauler</span></li>`;
-
-  const processOutputLabel = building.assignedLabor > 0
-    ? `${firewoodPerCycle} firewood from ${timberPerCycle} timber`
-    : `up to ${LODGE_FIREWOOD_PER_CYCLE * definition.maxLabor} firewood (${definition.maxLabor} workers)`;
+      : `<li><span>Physical logistics</span><span>Storehouse collection ready; no timber intake required</span></li>
+        <li><span>Household last mile</span><span>None · Storehouses stock Marketplace stalls instead</span></li>`;
 
   return {
     eyebrow: 'Building',
@@ -180,14 +126,13 @@ export function renderWoodcuttersLodgeInspector(
       ${buildingCostRows(cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Labor roles</span><span>${crewLabel}</span></li>
-      <li><span>Supplying mills</span><span>${millSummary}</span></li>
+      <li><span>Resource chain</span><span>Nearby mature trees → firewood</span></li>
+      ${forestryWorkAreaDetailRow(building)}
       <li><span>Household route</span><span>${residenceSummary}</span></li>
       <li><span>Surplus fuel duty</span><span>${industrialFuelDuty}</span></li>
-      <li><span>Process interval</span><span>${definition.harvestInterval}s</span></li>
-      <li><span>Inputs per cycle</span><span>${renderResourceCost({ timber: timberPerCycle }, { compact: true })}</span></li>
-      <li><span>Output per cycle</span><span>${processOutputLabel}</span></li>
-      <li><span>Construction timber floor</span><span>${Math.round(timberReserve)}</span></li>
-      <li><span>Unreserved building timber</span><span>${Math.floor(availableUnreservedTimber)} total · ${Math.floor(timberAboveReserve)} above floor</span></li>
+      <li><span>Harvest interval</span><span>${onsiteLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
+      <li><span>Expected yield</span><span>~${LODGE_FIREWOOD_PER_CYCLE} firewood per mature tree · actual tree size varies</span></li>
+      ${treeCountRows(matureTrees, stumpTrees, growingTrees)}
       ${deliveryRow}
       ${civilianToolRows(building, context.worldQueries)}
     `,
@@ -196,13 +141,8 @@ export function renderWoodcuttersLodgeInspector(
       hint: buildingDemolishHint(building.kind),
     },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
-    supplementalPanelHtml: `
-      <div class="inspector-action-panel" data-inspector-panel-title="Timber reserve · ${Math.round(timberReserve)}">
-        <p class="inspector-action-panel__hint">This lodge stops hauling and splitting timber before settlement-wide physical stock would fall below its chosen floor. Materials already reserved by active construction sites are protected separately.</p>
-        ${WOODCUTTER_TIMBER_RESERVE_PRESETS
-          .map((preset) => `<button type="button" class="resource-action-button" data-woodcutter-timber-reserve="${preset.reserve}" ${timberReserve === preset.reserve ? 'disabled' : ''}>${preset.label} · ${preset.reserve}</button>`)
-          .join('')}
-      </div>
-    `,
+    supplementalPanelHtml: renderForestryWorkAreaPanel(building, {
+      pending: context.pendingTreeWorkAreaBuildingId === building.id,
+    }),
   };
 }

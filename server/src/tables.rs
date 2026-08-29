@@ -683,9 +683,9 @@ pub struct Building {
     /// normal for save compatibility.
     #[default(2u8)]
     pub construction_priority: u8,
-    /// Settlement-wide unreserved building timber this lodge must leave intact
-    /// when converting timber into firewood. Ignored by other building kinds.
-    /// Zero preserves legacy lodge behavior for existing saves.
+    /// Legacy lodge timber-floor setting retained for additive save and client
+    /// compatibility. Direct-harvest woodcutters no longer consume timber, so
+    /// simulation policy intentionally ignores this field.
     #[default(0.0)]
     pub woodcutter_timber_reserve: f64,
     /// Strategic grain floor protected from routine processors and foreign

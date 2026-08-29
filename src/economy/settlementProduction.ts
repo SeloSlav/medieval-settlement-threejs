@@ -16,7 +16,6 @@ import {
   CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
   CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
-  LODGE_TIMBER_PER_CYCLE,
   MILL_WATER_PER_HARVEST,
   MIN_DELIVERY_TRIP_SEC,
   RICH_MINE_THROUGHPUT_MULTIPLIER,
@@ -910,8 +909,7 @@ function civilianToolSiteCanWork(
       return stockTargetHasRoom(building, 'timber')
         && (MILL_WATER_PER_HARVEST <= 1e-9 || building.water + 1e-6 >= MILL_WATER_PER_HARVEST);
     case 'woodcutters_lodge':
-      return stockTargetHasRoom(building, 'firewood')
-        && building.timber + 1e-6 >= LODGE_TIMBER_PER_CYCLE;
+      return stockTargetHasRoom(building, 'firewood');
     case 'stone_quarry':
     case 'large_quarry': {
       const deposit = building.kind === 'stone_quarry'

@@ -14,12 +14,12 @@
     },
     "scope": "modular components only; no finished individual building assemblies",
     "vegetationOwner": "SeedThree; this kit contains no living vegetation or crop meshes",
-    "generatedAt": "2026-08-28T14:41:39.799472+00:00"
+    "generatedAt": "2026-08-29T06:28:29.693447+00:00"
   },
   "summary": {
-    "partCount": 623,
+    "partCount": 625,
     "familyCount": 12,
-    "totalTriangles": 394252,
+    "totalTriangles": 408112,
     "buildingCategories": 44,
     "supplementalCategories": 34
   },
@@ -34,7 +34,7 @@
     "production": 41,
     "props": 41,
     "roofs": 106,
-    "siteworks": 39,
+    "siteworks": 41,
     "walls": 117
   },
   "materials": {
@@ -554,15 +554,15 @@
     },
     "hunters_hall": {
       "group": "subsistence",
-      "rationale": "Open woodland hunting camp with a canvas shelter, hearth, processing canopy, and hunter tools.",
+      "rationale": "Open woodland hunting camp with a sewn canvas sleeping tent, stitched-hide processing fly, hearth, and authored hunter tools.",
       "parts": [
         "site_tent_a_frame_large",
-        "site_canopy_canvas_4m_d2m",
+        "site_hunter_hide_fly_4m_d2m",
         "site_campfire_hearth",
         "site_camp_cooking_tripod",
         "prop_tool_rack_hunter",
         "prop_camp_worktable",
-        "enclosure_split_rail_2m",
+        "site_hunter_boundary_rail_2m",
         "prop_water_bucket_pair"
       ]
     },
@@ -3338,7 +3338,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -618.0,
+        -626.0,
         0.0
       ],
       "materials": [
@@ -3386,7 +3386,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -618.0,
+        -626.0,
         0.0
       ],
       "materials": [
@@ -3434,7 +3434,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -618.0,
+        -626.0,
         0.0
       ],
       "materials": [
@@ -3482,7 +3482,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -618.0,
+        -626.0,
         0.0
       ],
       "materials": [
@@ -3530,7 +3530,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -618.0,
+        -626.0,
         0.0
       ],
       "materials": [
@@ -3578,7 +3578,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -618.0,
+        -626.0,
         0.0
       ],
       "materials": [
@@ -3626,7 +3626,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -618.0,
+        -626.0,
         0.0
       ],
       "materials": [
@@ -3674,7 +3674,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -618.0,
+        -626.0,
         0.0
       ],
       "materials": [
@@ -3723,7 +3723,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -626.0,
+        -634.0,
         0.0
       ],
       "materials": [
@@ -3772,7 +3772,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -626.0,
+        -634.0,
         0.0
       ],
       "materials": [
@@ -3821,7 +3821,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -626.0,
+        -634.0,
         0.0
       ],
       "materials": [
@@ -3869,7 +3869,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -626.0,
+        -634.0,
         0.0
       ],
       "materials": [
@@ -3917,7 +3917,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -626.0,
+        -634.0,
         0.0
       ],
       "materials": [
@@ -3966,7 +3966,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -626.0,
+        -634.0,
         0.0
       ],
       "materials": [
@@ -4015,7 +4015,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -626.0,
+        -634.0,
         0.0
       ],
       "materials": [
@@ -4064,7 +4064,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -626.0,
+        -634.0,
         0.0
       ],
       "materials": [
@@ -4113,7 +4113,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -634.0,
+        -642.0,
         0.0
       ],
       "materials": [
@@ -4162,7 +4162,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -634.0,
+        -642.0,
         0.0
       ],
       "materials": [
@@ -4211,7 +4211,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -634.0,
+        -642.0,
         0.0
       ],
       "materials": [
@@ -4259,7 +4259,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -634.0,
+        -642.0,
         0.0
       ],
       "materials": [
@@ -4307,7 +4307,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -634.0,
+        -642.0,
         0.0
       ],
       "materials": [
@@ -4355,7 +4355,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -634.0,
+        -642.0,
         0.0
       ],
       "materials": [
@@ -4403,7 +4403,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -634.0,
+        -642.0,
         0.0
       ],
       "materials": [
@@ -4451,7 +4451,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -634.0,
+        -642.0,
         0.0
       ],
       "materials": [
@@ -4499,7 +4499,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -642.0,
+        -650.0,
         0.0
       ],
       "materials": [
@@ -4547,7 +4547,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -642.0,
+        -650.0,
         0.0
       ],
       "materials": [
@@ -4596,7 +4596,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -642.0,
+        -650.0,
         0.0
       ],
       "materials": [
@@ -4645,7 +4645,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -642.0,
+        -650.0,
         0.0
       ],
       "materials": [
@@ -4694,7 +4694,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -642.0,
+        -650.0,
         0.0
       ],
       "materials": [
@@ -4742,7 +4742,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -642.0,
+        -650.0,
         0.0
       ],
       "materials": [
@@ -4790,7 +4790,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -642.0,
+        -650.0,
         0.0
       ],
       "materials": [
@@ -4839,7 +4839,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -642.0,
+        -650.0,
         0.0
       ],
       "materials": [
@@ -4888,7 +4888,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -650.0,
+        -658.0,
         0.0
       ],
       "materials": [
@@ -4937,7 +4937,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -650.0,
+        -658.0,
         0.0
       ],
       "materials": [
@@ -4986,7 +4986,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -650.0,
+        -658.0,
         0.0
       ],
       "materials": [
@@ -5035,7 +5035,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -650.0,
+        -658.0,
         0.0
       ],
       "materials": [
@@ -5084,7 +5084,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -650.0,
+        -658.0,
         0.0
       ],
       "materials": [
@@ -5132,7 +5132,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -650.0,
+        -658.0,
         0.0
       ],
       "materials": [
@@ -5180,7 +5180,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -650.0,
+        -658.0,
         0.0
       ],
       "materials": [
@@ -5228,7 +5228,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -650.0,
+        -658.0,
         0.0
       ],
       "materials": [
@@ -5276,7 +5276,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -658.0,
+        -666.0,
         0.0
       ],
       "materials": [
@@ -5324,7 +5324,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -658.0,
+        -666.0,
         0.0
       ],
       "materials": [
@@ -5372,7 +5372,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -658.0,
+        -666.0,
         0.0
       ],
       "materials": [
@@ -5420,7 +5420,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -658.0,
+        -666.0,
         0.0
       ],
       "materials": [
@@ -5469,7 +5469,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -658.0,
+        -666.0,
         0.0
       ],
       "materials": [
@@ -5518,7 +5518,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -658.0,
+        -666.0,
         0.0
       ],
       "materials": [
@@ -5567,7 +5567,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -658.0,
+        -666.0,
         0.0
       ],
       "materials": [
@@ -5615,7 +5615,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -658.0,
+        -666.0,
         0.0
       ],
       "materials": [
@@ -5663,7 +5663,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -666.0,
+        -674.0,
         0.0
       ],
       "materials": [
@@ -5712,7 +5712,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -666.0,
+        -674.0,
         0.0
       ],
       "materials": [
@@ -5761,7 +5761,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -666.0,
+        -674.0,
         0.0
       ],
       "materials": [
@@ -5810,7 +5810,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -666.0,
+        -674.0,
         0.0
       ],
       "materials": [
@@ -5859,7 +5859,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -666.0,
+        -674.0,
         0.0
       ],
       "materials": [
@@ -5908,7 +5908,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -666.0,
+        -674.0,
         0.0
       ],
       "materials": [
@@ -5957,7 +5957,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -666.0,
+        -674.0,
         0.0
       ],
       "materials": [
@@ -6005,7 +6005,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -666.0,
+        -674.0,
         0.0
       ],
       "materials": [
@@ -6053,7 +6053,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -674.0,
+        -682.0,
         0.0
       ],
       "materials": [
@@ -6101,7 +6101,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -674.0,
+        -682.0,
         0.0
       ],
       "materials": [
@@ -6149,7 +6149,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -674.0,
+        -682.0,
         0.0
       ],
       "materials": [
@@ -6197,7 +6197,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -674.0,
+        -682.0,
         0.0
       ],
       "materials": [
@@ -6245,7 +6245,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -674.0,
+        -682.0,
         0.0
       ],
       "materials": [
@@ -6293,7 +6293,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -674.0,
+        -682.0,
         0.0
       ],
       "materials": [
@@ -6341,7 +6341,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -674.0,
+        -682.0,
         0.0
       ],
       "materials": [
@@ -6389,7 +6389,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -674.0,
+        -682.0,
         0.0
       ],
       "materials": [
@@ -6437,7 +6437,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -682.0,
+        -690.0,
         0.0
       ],
       "materials": [
@@ -6485,7 +6485,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -682.0,
+        -690.0,
         0.0
       ],
       "materials": [
@@ -6533,7 +6533,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -682.0,
+        -690.0,
         0.0
       ],
       "materials": [
@@ -6581,7 +6581,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -682.0,
+        -690.0,
         0.0
       ],
       "materials": [
@@ -6629,7 +6629,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -682.0,
+        -690.0,
         0.0
       ],
       "materials": [
@@ -6677,7 +6677,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -682.0,
+        -690.0,
         0.0
       ],
       "materials": [
@@ -6725,7 +6725,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -682.0,
+        -690.0,
         0.0
       ],
       "materials": [
@@ -6773,7 +6773,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -682.0,
+        -690.0,
         0.0
       ],
       "materials": [
@@ -6821,7 +6821,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -690.0,
+        -698.0,
         0.0
       ],
       "materials": [
@@ -6869,7 +6869,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -690.0,
+        -698.0,
         0.0
       ],
       "materials": [
@@ -6917,7 +6917,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -690.0,
+        -698.0,
         0.0
       ],
       "materials": [
@@ -6965,7 +6965,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -690.0,
+        -698.0,
         0.0
       ],
       "materials": [
@@ -7013,7 +7013,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -690.0,
+        -698.0,
         0.0
       ],
       "materials": [
@@ -7061,7 +7061,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -690.0,
+        -698.0,
         0.0
       ],
       "materials": [
@@ -7109,7 +7109,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -690.0,
+        -698.0,
         0.0
       ],
       "materials": [
@@ -7157,7 +7157,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -690.0,
+        -698.0,
         0.0
       ],
       "materials": [
@@ -7205,7 +7205,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -698.0,
+        -706.0,
         0.0
       ],
       "materials": [
@@ -7253,7 +7253,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -698.0,
+        -706.0,
         0.0
       ],
       "materials": [
@@ -7301,7 +7301,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -698.0,
+        -706.0,
         0.0
       ],
       "materials": [
@@ -7349,7 +7349,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -698.0,
+        -706.0,
         0.0
       ],
       "materials": [
@@ -7397,7 +7397,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -698.0,
+        -706.0,
         0.0
       ],
       "materials": [
@@ -7445,7 +7445,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -698.0,
+        -706.0,
         0.0
       ],
       "materials": [
@@ -7493,7 +7493,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -698.0,
+        -706.0,
         0.0
       ],
       "materials": [
@@ -7541,7 +7541,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -698.0,
+        -706.0,
         0.0
       ],
       "materials": [
@@ -7589,7 +7589,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -706.0,
+        -714.0,
         0.0
       ],
       "materials": [
@@ -7637,7 +7637,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -706.0,
+        -714.0,
         0.0
       ],
       "materials": [
@@ -7685,7 +7685,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -706.0,
+        -714.0,
         0.0
       ],
       "materials": [
@@ -7734,7 +7734,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -706.0,
+        -714.0,
         0.0
       ],
       "materials": [
@@ -7783,7 +7783,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -706.0,
+        -714.0,
         0.0
       ],
       "materials": [
@@ -7831,7 +7831,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -706.0,
+        -714.0,
         0.0
       ],
       "materials": [
@@ -7880,7 +7880,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -706.0,
+        -714.0,
         0.0
       ],
       "materials": [
@@ -7929,7 +7929,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -706.0,
+        -714.0,
         0.0
       ],
       "materials": [
@@ -7977,7 +7977,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -714.0,
+        -722.0,
         0.0
       ],
       "materials": [
@@ -8026,7 +8026,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -714.0,
+        -722.0,
         0.0
       ],
       "materials": [
@@ -8075,7 +8075,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -714.0,
+        -722.0,
         0.0
       ],
       "materials": [
@@ -8123,7 +8123,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -714.0,
+        -722.0,
         0.0
       ],
       "materials": [
@@ -8172,7 +8172,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -714.0,
+        -722.0,
         0.0
       ],
       "materials": [
@@ -8221,7 +8221,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -714.0,
+        -722.0,
         0.0
       ],
       "materials": [
@@ -8269,7 +8269,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -714.0,
+        -722.0,
         0.0
       ],
       "materials": [
@@ -8318,7 +8318,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -714.0,
+        -722.0,
         0.0
       ],
       "materials": [
@@ -8367,7 +8367,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -722.0,
+        -730.0,
         0.0
       ],
       "materials": [
@@ -8415,7 +8415,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -722.0,
+        -730.0,
         0.0
       ],
       "materials": [
@@ -8464,7 +8464,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -722.0,
+        -730.0,
         0.0
       ],
       "materials": [
@@ -8513,7 +8513,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -722.0,
+        -730.0,
         0.0
       ],
       "materials": [
@@ -8561,7 +8561,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -722.0,
+        -730.0,
         0.0
       ],
       "materials": [
@@ -8610,7 +8610,7 @@
       ],
       "displayLocationM": [
         45.0,
-        -722.0,
+        -730.0,
         0.0
       ],
       "materials": [
@@ -8659,7 +8659,7 @@
       ],
       "displayLocationM": [
         54.0,
-        -722.0,
+        -730.0,
         0.0
       ],
       "materials": [
@@ -8705,7 +8705,7 @@
       ],
       "displayLocationM": [
         63.0,
-        -722.0,
+        -730.0,
         0.0
       ],
       "materials": [
@@ -8752,7 +8752,7 @@
       ],
       "displayLocationM": [
         0.0,
-        -730.0,
+        -738.0,
         0.0
       ],
       "materials": [
@@ -8799,7 +8799,7 @@
       ],
       "displayLocationM": [
         9.0,
-        -730.0,
+        -738.0,
         0.0
       ],
       "materials": [
@@ -8846,7 +8846,7 @@
       ],
       "displayLocationM": [
         18.0,
-        -730.0,
+        -738.0,
         0.0
       ],
       "materials": [
@@ -8893,7 +8893,7 @@
       ],
       "displayLocationM": [
         27.0,
-        -730.0,
+        -738.0,
         0.0
       ],
       "materials": [
@@ -8940,7 +8940,7 @@
       ],
       "displayLocationM": [
         36.0,
-        -730.0,
+        -738.0,
         0.0
       ],
       "materials": [
@@ -19174,9 +19174,9 @@
       "triangleBudget": 6400,
       "triangles": 496,
       "dimensionsM": [
+        2.3,
         2.32,
-        2.34,
-        2.63289
+        2.26519
       ],
       "displayLocationM": [
         9.0,
@@ -19184,14 +19184,14 @@
         0.0
       ],
       "materials": [
-        "oak_dark",
+        "timber_weathered",
         "canvas"
       ],
       "uvLayers": [
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "c7e42991d01ed9b3d13804c4b1ff0d9c5a31c073ff83feb38ccab85e27ee6850",
+      "vertexHash": "fafdc7fde12baf9dc8d5bcf3fe3b52f88f1a159876000df1a66cd30389dd46e2",
       "provenance": "authored"
     },
     {
@@ -19260,9 +19260,9 @@
       "triangleBudget": 6400,
       "triangles": 496,
       "dimensionsM": [
-        4.32,
-        2.34,
-        2.6332
+        4.3,
+        2.32,
+        2.26517
       ],
       "displayLocationM": [
         27.0,
@@ -19270,14 +19270,14 @@
         0.0
       ],
       "materials": [
-        "oak_dark",
+        "timber_weathered",
         "canvas"
       ],
       "uvLayers": [
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "de483cef454e7985252669ab100533413e696b1fd1231070bd05b8268b9b13a3",
+      "vertexHash": "62401082095b049064589fa01fb2f8895ff22c72b48b065f226495e8f57eeeec",
       "provenance": "authored"
     },
     {
@@ -19346,9 +19346,9 @@
       "triangleBudget": 6400,
       "triangles": 496,
       "dimensionsM": [
+        4.3,
         4.32,
-        4.34,
-        2.6333
+        2.26759
       ],
       "displayLocationM": [
         45.0,
@@ -19356,14 +19356,14 @@
         0.0
       ],
       "materials": [
-        "oak_dark",
+        "timber_weathered",
         "canvas"
       ],
       "uvLayers": [
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "5df42467b07c0076506ef72f4108104ecc798f17f5fde276094dabc3ab8e9ba0",
+      "vertexHash": "d157350ed21e622706a331de6cfd3931427c48b95ce4cc0fccb643c6f0a2a120",
       "provenance": "authored"
     },
     {
@@ -19432,9 +19432,9 @@
       "triangleBudget": 6400,
       "triangles": 496,
       "dimensionsM": [
-        6.32,
-        3.34,
-        2.63338
+        6.3,
+        3.32,
+        2.26668
       ],
       "displayLocationM": [
         63.0,
@@ -19442,14 +19442,14 @@
         0.0
       ],
       "materials": [
-        "oak_dark",
+        "timber_weathered",
         "canvas"
       ],
       "uvLayers": [
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "f62587d12c56c140aa0407f325b0bea4c09b15cf134087cb35d34c4de4b6c954",
+      "vertexHash": "b5c09de784ef47acd6a07a037053f5141a710214ce531b91d2b31760051e1aaf",
       "provenance": "authored"
     },
     {
@@ -20444,9 +20444,9 @@
       "triangleBudget": 5200,
       "triangles": 628,
       "dimensionsM": [
-        2.92,
-        2.14,
-        2.63301
+        2.9,
+        2.12,
+        2.2819
       ],
       "displayLocationM": [
         54.0,
@@ -20454,15 +20454,16 @@
         0.0
       ],
       "materials": [
-        "oak_dark",
+        "timber_weathered",
         "canvas",
-        "timber_cut"
+        "timber_cut",
+        "oak_dark"
       ],
       "uvLayers": [
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "94a30891bee1fe3bcb56a2f314b3495b045dbcf5cb90ac6e95954136ab6c7d3a",
+      "vertexHash": "194fc521389194d23c3adb68fb4be7d9330270f31d85d30f462be63e9d0475b5",
       "provenance": "authored"
     },
     {
@@ -20509,24 +20510,26 @@
       "id": "site_tent_a_frame_small",
       "name": "GK_site_tent_a_frame_small",
       "family": "siteworks",
-      "label": "A-frame work tent small",
+      "label": "Sewn A-frame work tent small",
       "tags": [
         "site",
         "camp",
         "tent",
-        "canvas"
+        "canvas",
+        "sewn",
+        "guyed"
       ],
       "seams": [],
       "snapSockets": [],
       "openingContract": null,
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
-      "triangleBudget": 5200,
-      "triangles": 980,
+      "triangleBudget": 7800,
+      "triangles": 5536,
       "dimensionsM": [
-        2.772,
-        3.79889,
-        1.82
+        2.89341,
+        4.349,
+        1.50882
       ],
       "displayLocationM": [
         0.0,
@@ -20534,39 +20537,42 @@
         0.0
       ],
       "materials": [
-        "timber_cut",
+        "timber_weathered",
         "canvas",
-        "rope"
+        "rope",
+        "timber_cut"
       ],
       "uvLayers": [
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "3ef8faa3e77c84c57b858b0e05599d27ef4e94ef72190bd33cfa67b170e1cb38",
+      "vertexHash": "5c12d6716d68ae86bf20fa749d37fafee59293baee093bff11350ac1fcd4f1fc",
       "provenance": "authored"
     },
     {
       "id": "site_tent_a_frame_large",
       "name": "GK_site_tent_a_frame_large",
       "family": "siteworks",
-      "label": "A-frame work tent large",
+      "label": "Sewn A-frame work tent large",
       "tags": [
         "site",
         "camp",
         "tent",
-        "canvas"
+        "canvas",
+        "sewn",
+        "guyed"
       ],
       "seams": [],
       "snapSockets": [],
       "openingContract": null,
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
-      "triangleBudget": 5200,
-      "triangles": 980,
+      "triangleBudget": 7800,
+      "triangles": 5536,
       "dimensionsM": [
-        3.372,
-        4.69889,
-        2.27
+        3.55327,
+        5.2687,
+        1.86866
       ],
       "displayLocationM": [
         9.0,
@@ -20574,15 +20580,63 @@
         0.0
       ],
       "materials": [
-        "timber_cut",
+        "timber_weathered",
         "canvas",
+        "rope",
+        "timber_cut"
+      ],
+      "uvLayers": [
+        "GK_UV0"
+      ],
+      "textureContract": "baseColor, normal, ORM",
+      "vertexHash": "85051f8a7ff5a833018c4e019b8e0961f0fe46a4c2ded7683b4a3a0037827d2b",
+      "provenance": "authored"
+    },
+    {
+      "id": "site_hunter_hide_fly_4m_d2m",
+      "name": "GK_site_hunter_hide_fly_4m_d2m",
+      "family": "siteworks",
+      "label": "Stitched-hide hunter processing fly 4 x 2 m",
+      "tags": [
+        "site",
+        "camp",
+        "hunter",
+        "processing",
+        "hide",
+        "leather",
+        "lashed-poles"
+      ],
+      "seams": [
+        "z=0"
+      ],
+      "snapSockets": [
+        "z=0"
+      ],
+      "openingContract": null,
+      "originContract": "canonical local origin; X run, Y depth, Z up",
+      "allowNonmanifold": false,
+      "triangleBudget": 8400,
+      "triangles": 3100,
+      "dimensionsM": [
+        4.40753,
+        2.663,
+        1.97669
+      ],
+      "displayLocationM": [
+        18.0,
+        -604.0,
+        0.0
+      ],
+      "materials": [
+        "leather",
+        "timber_weathered",
         "rope"
       ],
       "uvLayers": [
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "9f10e2713ba93da14d75ecfca48181ee00edb4978b693354a0e0b2bba01c6fa6",
+      "vertexHash": "addfd0912f857f6d47d90c8d058751c7b04b4403706b72144b1cd8aa72ac8b02",
       "provenance": "authored"
     },
     {
@@ -20602,26 +20656,27 @@
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
       "triangleBudget": 3200,
-      "triangles": 532,
+      "triangles": 1212,
       "dimensionsM": [
-        1.6,
-        1.59091,
-        0.2
+        1.61989,
+        1.57597,
+        0.27959
       ],
       "displayLocationM": [
-        18.0,
+        27.0,
         -604.0,
         0.0
       ],
       "materials": [
         "fieldstone",
-        "charcoal"
+        "charcoal",
+        "timber_cut"
       ],
       "uvLayers": [
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "2a1b4a3e477ee70a84e8a8a94e5dde2ea6870df625e5b221af6369823ac57d34",
+      "vertexHash": "82f5343c8bb08067cf5b5dbc1833b14e3a5b760c4eac1d70e1b15826708c2909",
       "provenance": "authored"
     },
     {
@@ -20642,26 +20697,74 @@
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
       "triangleBudget": 3200,
-      "triangles": 244,
+      "triangles": 648,
       "dimensionsM": [
-        1.50194,
-        1.3205,
-        2.05247
+        1.80694,
+        1.59214,
+        1.85648
       ],
       "displayLocationM": [
-        27.0,
+        36.0,
         -604.0,
         0.0
       ],
       "materials": [
         "timber_cut",
-        "iron"
+        "rope"
       ],
       "uvLayers": [
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "ecbdae356122d8c91b3e746f87dd1e6a0f60877a99a53998f6aa52ab8f7bbf7c",
+      "vertexHash": "f727d00c49535db246d33c0f1a2b4a8560d4e3a28921ab1938e07f95498057c5",
+      "provenance": "authored"
+    },
+    {
+      "id": "site_hunter_boundary_rail_2m",
+      "name": "GK_site_hunter_boundary_rail_2m",
+      "family": "siteworks",
+      "label": "Low crooked hunter-camp boundary rail 2 m",
+      "tags": [
+        "site",
+        "camp",
+        "hunter",
+        "boundary",
+        "crooked-sapling",
+        "open"
+      ],
+      "seams": [
+        "x=-1",
+        "x=+1",
+        "z=0"
+      ],
+      "snapSockets": [
+        "x=-1",
+        "x=+1",
+        "z=0"
+      ],
+      "openingContract": null,
+      "originContract": "canonical local origin; X run, Y depth, Z up",
+      "allowNonmanifold": false,
+      "triangleBudget": 2800,
+      "triangles": 1120,
+      "dimensionsM": [
+        2.10954,
+        0.09238,
+        0.76205
+      ],
+      "displayLocationM": [
+        45.0,
+        -604.0,
+        0.0
+      ],
+      "materials": [
+        "timber_weathered"
+      ],
+      "uvLayers": [
+        "GK_UV0"
+      ],
+      "textureContract": "baseColor, normal, ORM",
+      "vertexHash": "5a8043f48a76ca5fa91c8ffa01211d0feb49e2b97d0541ba40a4180e9c61040f",
       "provenance": "authored"
     },
     {
@@ -20688,7 +20791,7 @@
         1.45
       ],
       "displayLocationM": [
-        36.0,
+        54.0,
         -604.0,
         0.0
       ],
@@ -20726,7 +20829,7 @@
         0.1975
       ],
       "displayLocationM": [
-        45.0,
+        63.0,
         -604.0,
         0.0
       ],
@@ -20765,8 +20868,8 @@
         0.99476
       ],
       "displayLocationM": [
-        54.0,
-        -604.0,
+        0.0,
+        -612.0,
         0.0
       ],
       "materials": [
@@ -28164,26 +28267,26 @@
       "id": "prop_tool_rack_hunter",
       "name": "GK_prop_tool_rack_hunter",
       "family": "props",
-      "label": "Hunter bow and snare rack",
+      "label": "Hunter camp utility frame",
       "tags": [
         "prop",
         "tools",
         "hunter",
         "rack",
-        "bow",
-        "snare"
+        "empty",
+        "no-inventory"
       ],
       "seams": [],
       "snapSockets": [],
       "openingContract": null,
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
-      "triangleBudget": 5800,
-      "triangles": 1060,
+      "triangleBudget": 800,
+      "triangles": 412,
       "dimensionsM": [
-        2.24303,
-        0.1625,
-        2.18183
+        2.15137,
+        0.16356,
+        2.1644
       ],
       "displayLocationM": [
         0.0,
@@ -28191,15 +28294,13 @@
         0.0
       ],
       "materials": [
-        "timber_cut",
-        "rope",
-        "iron"
+        "timber_weathered"
       ],
       "uvLayers": [
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "bdf65cf64f855de427924b4ae05380351293b2d96f940c4bbee2ff84f8032326",
+      "vertexHash": "e033c9346e36932fbb63270c956d40c10412d6e3ec8b9a0b157fd9e0e776e529",
       "provenance": "authored"
     },
     {
@@ -28220,11 +28321,11 @@
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
       "triangleBudget": 3200,
-      "triangles": 352,
+      "triangles": 1128,
       "dimensionsM": [
-        1.86481,
-        0.85254,
-        1.11183
+        1.94567,
+        0.85488,
+        1.08934
       ],
       "displayLocationM": [
         9.0,
@@ -28241,7 +28342,7 @@
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "086a5cb3b38789c0d667050dff6093f752eeee225f7dee5be7a2152bbf8d7153",
+      "vertexHash": "88f9cbe15f459fc4d5369978d00b50474967f7fb2e62b6c4895e40143b68462d",
       "provenance": "authored"
     },
     {
@@ -28640,12 +28741,13 @@
       "id": "prop_firewood_chopping_block",
       "name": "GK_prop_firewood_chopping_block",
       "family": "props",
-      "label": "Chopping block and axe",
+      "label": "Empty chopping block",
       "tags": [
         "prop",
         "woodcutter",
         "firewood",
-        "tool"
+        "work-surface",
+        "empty"
       ],
       "seams": [],
       "snapSockets": [],
@@ -28653,11 +28755,11 @@
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
       "triangleBudget": 3200,
-      "triangles": 204,
+      "triangles": 256,
       "dimensionsM": [
-        0.70888,
-        0.68476,
-        1.33956
+        0.73888,
+        0.74647,
+        0.712
       ],
       "displayLocationM": [
         36.0,
@@ -28665,14 +28767,14 @@
         0.0
       ],
       "materials": [
-        "timber_cut",
-        "iron"
+        "timber_weathered",
+        "timber_cut"
       ],
       "uvLayers": [
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "9f22c0a904b186982a707833361df7db7d9c59c21802856c444a6881e9bb2b69",
+      "vertexHash": "5a7e729409ebcff1c66270754578918870888ba419f905005f911c56c4564452",
       "provenance": "authored"
     },
     {
@@ -28692,11 +28794,11 @@
       "originContract": "canonical local origin; X run, Y depth, Z up",
       "allowNonmanifold": false,
       "triangleBudget": 3200,
-      "triangles": 1200,
+      "triangles": 464,
       "dimensionsM": [
-        1.38583,
-        0.5294,
-        0.61662
+        1.39514,
+        0.5315,
+        0.532
       ],
       "displayLocationM": [
         45.0,
@@ -28705,13 +28807,13 @@
       ],
       "materials": [
         "timber_weathered",
-        "iron"
+        "charcoal"
       ],
       "uvLayers": [
         "GK_UV0"
       ],
       "textureContract": "baseColor, normal, ORM",
-      "vertexHash": "eb5529344628c05d7aa3fafdafc200dd49c93f9fb27060e6fc5d14544e647886",
+      "vertexHash": "1879a3430e53d7d59e274fe9257059fac5b97a6211e69ebb0d1684469e1c5da4",
       "provenance": "authored"
     },
     {

@@ -1959,6 +1959,7 @@ function buildingNeedsInspectableTreeCounts(
 ): boolean {
   if (
     building.kind !== 'lumber_mill'
+    && building.kind !== 'woodcutters_lodge'
     && building.kind !== 'reforester'
     && building.kind !== 'swineherd'
   ) {

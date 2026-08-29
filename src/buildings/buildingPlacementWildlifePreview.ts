@@ -40,7 +40,7 @@ export function resolveBuildingPlacementWildlifePreview(
   const huntingWorkRadius = kind === 'hunters_hall'
     ? Math.max(0, definition.workRadius)
     : 0;
-  const loggingWorkRadius = kind === 'lumber_mill'
+  const loggingWorkRadius = kind === 'lumber_mill' || kind === 'woodcutters_lodge'
     ? Math.max(0, definition.workRadius)
     : null;
   const habitats: BuildingPlacementWildlifeHabitat[] = [];

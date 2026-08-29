@@ -13,7 +13,7 @@ from mathutils import Vector
 EXAMPLE_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path(os.environ.get("GK_HUNTERS_CAMP_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
 OUT_DIR = OUTPUT_ROOT / "out"
-REPORT_PATH = OUT_DIR / "hunters_camp_validation_v6.json"
+REPORT_PATH = OUT_DIR / "hunters_camp_validation_v8.json"
 
 REQUIRED_EXACT = {
     "site_tent_a_frame_large": 1,
@@ -70,6 +70,8 @@ def main() -> None:
                 errors.append(f"hunter utility rack contains non-structural hanging-gear materials: {unexpected_rack_tiles}")
         if part_id == "site_camp_cooking_tripod" and "wrought-iron" in object_tiles:
             errors.append("camp tripod still contains the removed hanging metal hook")
+        if part_id == "site_campfire_hearth" and "rough-hewn-timber" not in object_tiles:
+            errors.append("camp hearth is missing its fixed cribbed fuel logs")
         if part_id == "prop_firewood_chopping_block" and "wrought-iron" in object_tiles:
             errors.append("chopping block still contains fixed axe geometry")
         if part_id == "prop_water_bucket_pair" and "wrought-iron" in object_tiles:
@@ -101,6 +103,11 @@ def main() -> None:
     preview_leaks = [obj.name for obj in instances if obj.get("preview_only")]
     if preview_leaks:
         errors.append(f"preview staging tagged as export instances: {preview_leaks}")
+    modifier_leaks = [obj.name for obj in instances if obj.modifiers]
+    if modifier_leaks:
+        errors.append(f"runtime camp instances retain export-expanding modifiers: {modifier_leaks}")
+    if not 3000 <= triangles <= 4000:
+        errors.append(f"camp retopology budget is 3000-4000 triangles, found {triangles}")
 
     report = {
         "schemaVersion": 1,
@@ -125,7 +132,9 @@ def main() -> None:
             "sewn-canvas tent and stitched-hide processing shelter coverage",
             "empty hunter utility rack without fixed bows, snares, or hanging inventory",
             "tripod feet outside the hearth stones with no fixed metal cooking hook",
+            "four fixed fuel logs cribbed inside the hearth ring",
             "empty chopping block without fixed axe and bucket pair without overlapping arch handle",
+            "authored 3000-4000 triangle gameplay retopology with no export bevel modifiers",
             "no preview staging in the export set",
         ],
     }

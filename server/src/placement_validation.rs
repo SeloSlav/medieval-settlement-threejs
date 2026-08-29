@@ -42,23 +42,6 @@ pub fn building_pick_radius(kind: &str) -> Option<f64> {
     building_def(kind).map(|def| def.pick_radius)
 }
 
-pub fn building_site_contains_point(
-    kind: &str,
-    building_x: f64,
-    building_z: f64,
-    point_x: f64,
-    point_z: f64,
-) -> bool {
-    building_site_contains_point_at_yaw(
-        kind,
-        building_x,
-        building_z,
-        building_placement_yaw(building_x, building_z),
-        point_x,
-        point_z,
-    )
-}
-
 pub fn building_site_contains_point_at_yaw(
     kind: &str,
     building_x: f64,
@@ -844,8 +827,8 @@ fn building_placement_yaw(x: f64, z: f64) -> f64 {
 mod tests {
     use super::{
         building_footprint_overlaps_circle, building_overlaps_road_surface,
-        building_site_contains_point, clay_deposit_protection_radius, minimum_polygon_distance,
-        polygon_overlaps_circle, quarry_deposit_protection_radius,
+        building_site_contains_point_at_yaw, clay_deposit_protection_radius,
+        minimum_polygon_distance, polygon_overlaps_circle, quarry_deposit_protection_radius,
         road_aware_building_placement_yaw, static_foraging_resource_protection_radius,
         BUILDING_FOOTPRINT_SCALE,
     };
@@ -995,17 +978,19 @@ mod tests {
 
     #[test]
     fn building_site_clearance_uses_the_local_pad_not_the_work_radius() {
-        assert!(building_site_contains_point(
+        assert!(building_site_contains_point_at_yaw(
             "watermill",
             10.0,
             -6.0,
+            0.0,
             10.0,
             -6.0
         ));
-        assert!(!building_site_contains_point(
+        assert!(!building_site_contains_point_at_yaw(
             "watermill",
             10.0,
             -6.0,
+            0.0,
             40.0,
             -6.0
         ));

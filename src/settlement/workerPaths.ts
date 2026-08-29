@@ -137,6 +137,8 @@ export type WorkerActivityKind =
   | 'build';
 
 export type WorkerProductionBlocker =
+  | 'timber_capacity'
+  | 'firewood_capacity'
   | 'clay_capacity'
   | 'charcoal_target'
   | 'ironwork_target'
@@ -180,7 +182,6 @@ export type WorkerTargetInputs = {
  * outdoor workstations and an activity that reads clearly at game scale.
  */
 export const YARD_WORK_ACTIVITY = {
-  woodcutters_lodge: 'chop',
   mine: 'mine',
   clay_pit: 'plant',
   charcoal_burner: 'tend',
@@ -245,6 +246,16 @@ export function workerProductionBlocker(
 ): WorkerProductionBlocker | null {
   if (building.constructionComplete === false) return null;
 
+  if (building.kind === 'lumber_mill') {
+    const capacity = BUILDING_STORAGE_CAPS.lumber_mill.timber ?? 0;
+    return building.timber >= capacity - 1e-6 ? 'timber_capacity' : null;
+  }
+
+  if (building.kind === 'woodcutters_lodge') {
+    const capacity = BUILDING_STORAGE_CAPS.woodcutters_lodge.firewood ?? 0;
+    return building.firewood >= capacity - 1e-6 ? 'firewood_capacity' : null;
+  }
+
   if (building.kind === 'clay_pit') {
     const capacity = BUILDING_STORAGE_CAPS.clay_pit.clay ?? 0;
     return Math.max(0, building.clay ?? 0) >= capacity - 1e-6
@@ -303,6 +314,8 @@ export function workerProductionBlockerDescription(
   blocker: WorkerProductionBlocker,
 ): string {
   switch (blocker) {
+    case 'timber_capacity': return 'the timber yard is full';
+    case 'firewood_capacity': return 'the firewood yard is full';
     case 'clay_capacity': return 'the clay yard is full';
     case 'charcoal_target': return 'the charcoal target has been reached';
     case 'ironwork_target': return 'the ironwork target has been reached';
@@ -497,7 +510,7 @@ export function collectWorkerTargets(
     return targets;
   }
 
-  if (building.kind === 'lumber_mill') {
+  if (building.kind === 'lumber_mill' || building.kind === 'woodcutters_lodge') {
     collectTreeTargets(
       effectiveTreeWorkArea(building),
       inputs,
@@ -850,7 +863,10 @@ function workerActivityFor(
     return 'build';
   }
   if (target.activity) return target.activity;
-  if (building.kind === 'lumber_mill' && target.kind === 'tree') return 'chop';
+  if (
+    (building.kind === 'lumber_mill' || building.kind === 'woodcutters_lodge')
+    && target.kind === 'tree'
+  ) return 'chop';
   if (building.kind === 'reforester' && target.kind === 'tree') return 'plant';
   if (building.kind === 'stone_quarry' && target.kind === 'quarry') return 'mine';
   if (building.kind === 'large_quarry' && target.kind === 'quarry') return 'mine';

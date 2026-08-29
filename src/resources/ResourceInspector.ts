@@ -1132,7 +1132,11 @@ export class ResourceInspector {
       }
       if (
         (event.target as HTMLElement).closest('[data-tree-work-area-action]')
-        && (building.kind === 'lumber_mill' || building.kind === 'reforester')
+        && (
+          building.kind === 'lumber_mill'
+          || building.kind === 'woodcutters_lodge'
+          || building.kind === 'reforester'
+        )
       ) {
         if (hasCustomTreeWorkArea(building)) {
           void this.options.onClearTreeWorkArea?.(building.id);

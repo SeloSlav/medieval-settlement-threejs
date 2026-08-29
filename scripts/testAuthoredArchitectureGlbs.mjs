@@ -38,14 +38,19 @@ assert.ok(
   'Tier 1 roof must retain its direct-atlas UV contract',
 );
 
-const camp = readGlb('hunters_camp_textured_v6.glb');
+const camp = readGlb('hunters_camp_textured_v8.glb');
 assert.equal(camp.json.nodes.length, 15, 'Hunter camp node count changed');
 assert.equal(camp.json.meshes.length, 15, 'Hunter camp mesh count changed');
-assert.equal(countTriangles(camp.json), 18_784, 'Hunter camp triangle count changed');
+const campTriangles = countTriangles(camp.json);
+assert.equal(campTriangles, 3_872, 'Hunter camp triangle count changed');
+assert.ok(
+  campTriangles >= 3_000 && campTriangles <= 4_000,
+  'Hunter camp must stay within its 3,000-4,000 triangle gameplay budget',
+);
 assert.ok(camp.bytes.length < 2_000_000, 'Hunter camp runtime GLB should stay below 2 MB');
 assert.equal(
   camp.json.asset.extras?.sourceGlb,
-  'hunters_camp_textured_v6.glb',
+  'hunters_camp_textured_v8.glb',
   'Hunter camp runtime source provenance is missing',
 );
 assert.deepEqual(
@@ -86,7 +91,7 @@ assert.match(readText('src/app/appBootstrap.ts'), /preloadAuthoredArchitectureMo
 
 console.log('Authored architecture GLB contract passed.');
 console.log(`  Tier 1 residence: ${formatKiB(residence.bytes.length)}, 33 meshes, 5,184 tris`);
-console.log(`  Hunter's camp: ${formatKiB(camp.bytes.length)}, 15 meshes, 18,784 tris`);
+console.log(`  Hunter's camp: ${formatKiB(camp.bytes.length)}, 15 meshes, ${campTriangles.toLocaleString('en-US')} tris`);
 
 function readGlb(filename) {
   const bytes = fs.readFileSync(path.join(runtimeRoot, filename));

@@ -678,9 +678,9 @@
     "smallMaxYield": 4000
   },
   "production": {
-    "lodgeTimberPerCycle": 3,
-    "lodgeTimberPerDelivery": 3,
-    "lodgeFirewoodPerCycle": 3,
+    "lodgeTimberPerCycle": 0,
+    "lodgeTimberPerDelivery": 0,
+    "lodgeFirewoodPerCycle": 5,
     "lodgeFirewoodPerDelivery": 2,
     "stonePerHarvest": 2,
     "gameAnimalsPerHarvest": 1,
@@ -1275,16 +1275,16 @@
     "woodcutters_lodge": {
       "label": "Woodcutter's lodge",
       "cost": { "timber": 24, "stone": 0 },
-      "storage": { "total": 50, "timber": 24, "firewood": 50, "stone": 0, "food": 0, "ironwork": 3 },
-      "workRadius": 0,
+      "storage": { "total": 50, "timber": 0, "firewood": 50, "stone": 0, "food": 0, "ironwork": 3 },
+      "workRadius": 210,
       "pickRadius": 8,
-      "harvestInterval": 525,
+      "harvestInterval": 875,
       "regrowRatePerSecond": 0,
       "maxLabor": 2,
       "acceptsLabor": true,
       "requiresRoad": true,
       "facesRoad": true,
-      "requiresMatureTrees": false,
+      "requiresMatureTrees": true,
       "requiresQuarryStone": false,
       "requiresGame": false,
       "requiresBerries": false

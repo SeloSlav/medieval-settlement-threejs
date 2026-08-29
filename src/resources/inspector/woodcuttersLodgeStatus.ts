@@ -18,28 +18,17 @@ export function formatNextDeliveryTargetLabel(target: ResidenceState | null): st
 }
 
 export type LodgeStatusInput = {
-  onRoad: boolean;
   assignedLabor: number;
-  connectedMillCount: number;
-  millsWithTimber: number;
-  timber: number;
+  matureTrees: number;
   firewood: number;
+  firewoodRoom: number;
   claimedResidenceCount: number;
   crew: LodgeLaborSplit;
   tripRemainingSeconds: number | null;
   activeTrip: DeliveryTripState | null;
-  inboundTimberTrip: DeliveryTripState | null;
-  timberTripRemainingSeconds: number | null;
-  nextTargetLabel: string;
   activeDestinationLabel: string;
-  hasNextTarget: boolean;
   hasIndustrialTarget: boolean;
   industrialTargetLabel: string;
-  firewoodPerTrip: number;
-  canDeliver: boolean;
-  availableUnreservedTimber: number;
-  timberReserve: number;
-  timberPerCycle: number;
 };
 
 export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
@@ -47,118 +36,61 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
   statusState: string;
 } {
   const {
-    onRoad,
     assignedLabor,
-    connectedMillCount,
-    millsWithTimber,
-    timber,
+    matureTrees,
     firewood,
+    firewoodRoom,
     claimedResidenceCount,
     crew,
     tripRemainingSeconds,
     activeTrip,
-    inboundTimberTrip,
-    timberTripRemainingSeconds,
-    nextTargetLabel,
     activeDestinationLabel,
-    hasNextTarget,
     hasIndustrialTarget,
     industrialTargetLabel,
-    firewoodPerTrip,
-    canDeliver,
-    availableUnreservedTimber,
-    timberReserve,
-    timberPerCycle,
   } = input;
 
-  const haulMode = onRoad ? 'by road' : 'cross-country at reduced speed';
-  if (assignedLabor === 0 && firewood <= 0) {
-    return {
-      statusText: 'Idle — assign lodge workers to process timber',
-      statusState: 'idle',
-    };
-  }
-  if (connectedMillCount === 0 && firewood <= 0) {
-    return {
-      statusText: 'No lumber mill has timber available for this lodge',
-      statusState: 'warning',
-    };
-  }
-  if (millsWithTimber === 0 && timber <= 0 && firewood <= 0) {
-    return {
-      statusText: 'Available lumber mills have no timber yet',
-      statusState: 'warning',
-    };
-  }
-  if (claimedResidenceCount === 0 && !hasIndustrialTarget) {
-    return {
-      statusText: '',
-      statusState: 'idle',
-    };
-  }
-  if (inboundTimberTrip && timberTripRemainingSeconds != null) {
-    const timer = formatCooldown(timberTripRemainingSeconds);
-    return {
-      statusText: `Timber haul ${formatTripPhaseLabel(inboundTimberTrip.phase).toLowerCase()} — ${timer} remaining`,
-      statusState: 'active',
-    };
-  }
-  const reserveBlocksProcessing = timberReserve > 0
-    && availableUnreservedTimber + 1e-6 < timberReserve + timberPerCycle;
-  if (reserveBlocksProcessing && firewood <= 0) {
-    const shortfall = Math.ceil(timberReserve + timberPerCycle - availableUnreservedTimber);
-    return {
-      statusText: `Holding timber for construction — need ${shortfall} more before the next firewood cycle`,
-      statusState: 'warning',
-    };
-  }
-  if (firewood <= 0 && timber <= 0) {
-    return {
-      statusText: `Dispatching timber haul from nearest mill ${haulMode}`,
-      statusState: 'active',
-    };
-  }
-  if (firewood <= 0) {
-    return {
-      statusText: `Processing timber into firewood (${crew.processing} at lodge)`,
-      statusState: 'active',
-    };
-  }
   if (activeTrip && tripRemainingSeconds != null) {
-    const timer = formatCooldown(tripRemainingSeconds ?? Infinity);
     return {
-      statusText: `Deliverer ${formatTripPhaseLabel(activeTrip.phase).toLowerCase()} — ${timer} remaining → ${activeDestinationLabel}`,
+      statusText: `Firewood cart ${formatTripPhaseLabel(activeTrip.phase).toLowerCase()} — ${formatCooldown(tripRemainingSeconds)} remaining → ${activeDestinationLabel}`,
       statusState: 'active',
     };
   }
-  if (canDeliver) {
+  if (firewoodRoom <= 1e-6) {
     return {
-      statusText: hasNextTarget
-        ? `Dispatching firewood to ${nextTargetLabel} (${firewoodPerTrip} per trip)`
-        : 'No claimed residences need firewood right now',
-      statusState: hasNextTarget ? 'active' : 'idle',
-    };
-  }
-  if (reserveBlocksProcessing) {
-    return {
-      statusText: `Serving stored firewood — timber processing held at the ${Math.round(timberReserve)} reserve`,
-      statusState: 'warning',
-    };
-  }
-  if ((hasNextTarget || hasIndustrialTarget) && crew.delivering <= 0) {
-    return {
-      statusText: 'Stored firewood ready — waiting for an unassigned hauler',
-      statusState: 'idle',
-    };
-  }
-  if (!hasNextTarget && hasIndustrialTarget) {
-    return {
-      statusText: `Protected household reserves covered — surplus fuel ready for ${industrialTargetLabel}`,
+      statusText: 'Firewood storage full — waiting for Storehouse collection',
       statusState: 'ok',
     };
   }
+  if (assignedLabor <= 0) {
+    return {
+      statusText: firewood > 0
+        ? 'Stored firewood ready — assign woodcutters to resume harvesting'
+        : 'Idle — assign woodcutters to harvest nearby trees',
+      statusState: 'idle',
+    };
+  }
+  if (matureTrees <= 0) {
+    return {
+      statusText: firewood > 0
+        ? 'Serving stored firewood — no mature trees in the lodge work area'
+        : 'No mature trees in the lodge work area',
+      statusState: 'warning',
+    };
+  }
+  if (hasIndustrialTarget && firewood > 0 && crew.delivering <= 0) {
+    return {
+      statusText: `Harvesting firewood — surplus fuel is waiting for a free hauler to ${industrialTargetLabel}`,
+      statusState: 'active',
+    };
+  }
+
+  const demand = claimedResidenceCount > 0
+    ? ` for ${claimedResidenceCount} claimed residence${claimedResidenceCount === 1 ? '' : 's'}`
+    : hasIndustrialTarget
+      ? ` for ${industrialTargetLabel}`
+      : '';
   return {
-    statusText: `Serving ${claimedResidenceCount} claimed residence${claimedResidenceCount === 1 ? '' : 's'} ${haulMode}`,
+    statusText: `Harvesting firewood from ${matureTrees} mature tree${matureTrees === 1 ? '' : 's'}${demand}`,
     statusState: 'active',
   };
 }

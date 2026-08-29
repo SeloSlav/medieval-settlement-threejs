@@ -1444,7 +1444,10 @@ export class VillagerRenderer {
         || !agent.workplaceId
       ) continue;
       const workplace = this.buildings.get(agent.workplaceId);
-      if (workplace?.kind !== 'lumber_mill') continue;
+      if (
+        workplace?.kind !== 'lumber_mill'
+        && workplace?.kind !== 'woodcutters_lodge'
+      ) continue;
 
       // The worker stops short of the trunk to swing the axe. During that
       // action, use the tree itself as the disturbance point so a trunk just
@@ -5222,7 +5225,11 @@ function describeVillagerActivity(
           return `Waiting at ${workplaceLabel} — ${workerProductionBlockerDescription(blocker)}`;
         }
       }
-      if (agent.mode === 'chop') return `Chopping timber near ${workplaceLabel}`;
+      if (agent.mode === 'chop') {
+        return workplace?.kind === 'woodcutters_lodge'
+          ? `Cutting firewood near ${workplaceLabel}`
+          : `Chopping timber near ${workplaceLabel}`;
+      }
       if (agent.mode === 'mine') {
         if (workplace?.kind === 'large_quarry') return `Cutting rich stone at ${workplaceLabel}`;
         if (workplace?.kind === 'mine') return `Working the deep face at ${workplaceLabel}`;

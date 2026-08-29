@@ -348,8 +348,8 @@ assert.match(
 assert.match(lumberMill, /building_commodity_room\(&building, CommodityKind::Timber\)/);
 assert.match(
   woodcuttersLodge,
-  /withdraw_building\(&lodge, timber_needed[\s\S]*building_commodity_room\(&lodge_after_withdraw, CommodityKind::Firewood\)/,
-  'Woodcutters must free their timber input before checking combined room for firewood output',
+  /building_commodity_room\(&building, CommodityKind::Firewood\)[\s\S]*deposit_building\(&building, caps, 0\.0, firewood_yield, 0\.0\)/,
+  'Woodcutters must check shared room before depositing directly harvested firewood',
 );
 assert.match(tradingPostTrade, /stage_one_export[\s\S]*try_start_building_supply_trip/);
 assert.match(tradingPostTrade, /settle_export[\s\S]*building_commodity_stock\(&post, commodity\)/);

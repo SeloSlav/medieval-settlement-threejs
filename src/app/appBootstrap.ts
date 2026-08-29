@@ -855,7 +855,11 @@ export async function bootstrapAppSession(
     const building = liveContext.gameState.buildings.get(buildingId);
     if (
       !building
-      || (building.kind !== 'lumber_mill' && building.kind !== 'reforester')
+      || (
+        building.kind !== 'lumber_mill'
+        && building.kind !== 'woodcutters_lodge'
+        && building.kind !== 'reforester'
+      )
       || building.constructionComplete === false
     ) {
       toastManager?.show('That forestry building can no longer set a work area.', { variant: 'error' });

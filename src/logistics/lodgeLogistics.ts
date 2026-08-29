@@ -29,7 +29,7 @@ export function lodgeSustainedProcessingLabor(assignedLabor: number): number {
 
 export function formatLodgeCrewSplit(split: LodgeLaborSplit, assignedLabor: number): string {
   const processing = Math.max(0, Math.floor(assignedLabor));
-  const producerLabel = processing === 0 ? 'No producer assigned' : `${processing} processing`;
+  const producerLabel = processing === 0 ? 'No woodcutter assigned' : `${processing} harvesting`;
   const haulLabel = split.delivering > 0
     ? 'free hauler available'
     : 'waiting for a free hauler';

@@ -401,6 +401,19 @@ const lumberWorkPlan = Array.from({ length: 32 }, (_, seed) =>
 assert.ok(lumberWorkPlan, 'lumberjacks should schedule chopping stops at mature trees');
 assert.equal(lumberWorkPlan.target?.id, 'tree-mature');
 
+const woodcuttersLodge = building('building-lodge', 'woodcutters_lodge', 0, 0, 1, 60);
+const lodgeTreeTargets = collectWorkerTargets(woodcuttersLodge, targetInputs);
+assert.deepEqual(
+  lodgeTreeTargets.map((target) => target.id),
+  ['tree-mature'],
+  'woodcutters should target mature trees directly instead of a yard processing station',
+);
+const lodgeChopPlan = Array.from({ length: 32 }, (_, seed) =>
+  pickWorkerWalkPlan(woodcuttersLodge, 0, lodgeTreeTargets, seed)
+).find((plan) => plan?.activity === 'chop');
+assert.ok(lodgeChopPlan, 'woodcutters should visibly chop at their selected mature tree');
+assert.equal(lodgeChopPlan.target?.id, 'tree-mature');
+
 for (const [kind, nodeKind, expectedActivity] of [
   ['hunters_hall', 'game', 'gather'],
   ['foragers_shed', 'berries', 'gather'],
@@ -980,6 +993,16 @@ const loggingAgent = {
   x: 14,
   z: -6,
 };
+const firewoodAgent = {
+  id: 'tree-woodcutter',
+  workplaceId: 'woodcutters',
+  pathPurpose: 'worker_work_loop' as string | null,
+  workActivity: 'chop',
+  mode: 'walk',
+  workTarget: { id: 'tree-firewood', x: 11, z: 12 },
+  x: 8,
+  z: 9,
+};
 const loggingCollectorFixture = {
   agents: new Map([
     [loggingAgent.id, loggingAgent],
@@ -999,14 +1022,7 @@ const loggingCollectorFixture = {
       x: 6,
       z: 7,
     }],
-    ['yard-woodcutter', {
-      id: 'yard-woodcutter',
-      workplaceId: 'woodcutters',
-      pathPurpose: 'worker_work_loop',
-      workActivity: 'chop',
-      x: 8,
-      z: 9,
-    }],
+    [firewoodAgent.id, firewoodAgent],
   ]),
   buildings: new Map([
     ['lumber', { kind: 'lumber_mill' }],
@@ -1021,8 +1037,11 @@ const collectLoggingDisturbances = VillagerRenderer.prototype.getActiveLoggingDi
 const firstLoggingDisturbances = collectLoggingDisturbances.call(loggingCollectorFixture);
 assert.deepEqual(
   firstLoggingDisturbances,
-  [{ id: loggingAgent.id, x: loggingAgent.x, z: loggingAgent.z }],
-  'only a lumber-mill worker on a live chopping loop should disturb game',
+  [
+    { id: loggingAgent.id, x: loggingAgent.x, z: loggingAgent.z },
+    { id: 'tree-woodcutter', x: 8, z: 9 },
+  ],
+  'both timber and firewood harvesters on live chopping loops should disturb game',
 );
 const retainedLoggingDisturbance = firstLoggingDisturbances[0];
 loggingAgent.x = 18;
@@ -1040,16 +1059,23 @@ assert.strictEqual(
 );
 assert.deepEqual(
   movedLoggingDisturbances,
-  [{ id: loggingAgent.id, x: 18, z: -2 }],
+  [
+    { id: loggingAgent.id, x: 18, z: -2 },
+    { id: firewoodAgent.id, x: firewoodAgent.x, z: firewoodAgent.z },
+  ],
   'logging disturbances should follow the worker live until the work loop ends',
 );
 loggingAgent.mode = 'chop';
 assert.deepEqual(
   collectLoggingDisturbances.call(loggingCollectorFixture),
-  [{ id: loggingAgent.id, x: 22, z: -3 }],
+  [
+    { id: loggingAgent.id, x: 22, z: -3 },
+    { id: firewoodAgent.id, x: firewoodAgent.x, z: firewoodAgent.z },
+  ],
   'active chopping should use the tree location when the worker stops just outside a habitat boundary',
 );
 loggingAgent.pathPurpose = null;
+firewoodAgent.pathPurpose = null;
 const endedLoggingDisturbances = collectLoggingDisturbances.call(loggingCollectorFixture);
 assert.strictEqual(endedLoggingDisturbances, firstLoggingDisturbances);
 assert.deepEqual(
@@ -1113,8 +1139,8 @@ const materialWorkCases = [
   },
   {
     kind: 'smokehouse',
-    ready: { food: 1, firewood: 1, salt: 1, pottery: 1, preservedFood: 0 },
-    blocked: { food: 1, firewood: 1, salt: 0, pottery: 1, preservedFood: 0 },
+    ready: { meat: 1, firewood: 1, salt: 1, pottery: 1, preservedFood: 0 },
+    blocked: { meat: 1, firewood: 1, salt: 0, pottery: 1, preservedFood: 0 },
     blocker: 'salt',
   },
 ] as const;
@@ -1382,7 +1408,7 @@ function readyYardBuilding(workplace: BuildingState): BuildingState {
     case 'smokehouse':
       return {
         ...workplace,
-        food: 1,
+        meat: 1,
         firewood: 1,
         salt: 1,
         pottery: 1,

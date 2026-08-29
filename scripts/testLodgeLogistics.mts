@@ -17,16 +17,16 @@ import {
   peekNextDeliveryTarget,
 } from '../src/logistics/roadLogistics.ts';
 import { createDefaultNeeds, mergeNeedRow } from '../src/residences/residenceNeedState.ts';
-import { computeUnreservedBuildingTimber } from '../src/resources/resourceTotals.ts';
 import {
-  normalizeWoodcutterTimberReserve,
-  timberAboveWoodcutterReserve,
-  woodcutterCanProcess,
-  WOODCUTTER_TIMBER_RESERVE_MAX,
-  WOODCUTTER_TIMBER_RESERVE_PRESETS,
-} from '../src/economy/woodcutterPolicy.ts';
+  BUILDING_DEFINITIONS,
+  BUILDING_STORAGE_CAPS,
+  LODGE_FIREWOOD_PER_CYCLE,
+  LODGE_TIMBER_PER_CYCLE,
+  LODGE_TIMBER_PER_DELIVERY,
+  RESIDENCE_FIREWOOD_CAPACITY,
+} from '../src/generated/gameBalance.ts';
 import { resolveWoodcuttersLodgeStatus } from '../src/resources/inspector/woodcuttersLodgeStatus.ts';
-import type { BuildingState, GameState, ResidenceState } from '../src/resources/types.ts';
+import type { ResidenceState } from '../src/resources/types.ts';
 
 function residence(id: string, firewoodStock: number, population = 4): ResidenceState {
   return {
@@ -61,14 +61,25 @@ assert.ok(
   (residenceFirewoodRunwaySeconds(lowStock) ?? Infinity)
     < (residenceFirewoodRunwaySeconds(highStock) ?? Infinity),
 );
-assert.equal(residenceHasFirewoodRoom(40), false);
+assert.equal(residenceHasFirewoodRoom(RESIDENCE_FIREWOOD_CAPACITY), false);
 assert.equal(residenceHasFirewoodRoom(10), true);
-assert.equal(residenceFirewoodPriorityTarget(4), 9.6);
-assert.equal(residenceFirewoodPriorityTarget(10), 24);
-assert.equal(residenceNeedsPriorityFirewood(residence('below-floor', 9.59, 4)), true);
-assert.equal(residenceNeedsPriorityFirewood(residence('at-floor', 9.6, 4)), false);
+const householdPriorityTarget = residenceFirewoodPriorityTarget(4);
+assert.ok(householdPriorityTarget > 0);
 assert.equal(
-  residenceFirewoodPriorityTarget(10) < 40,
+  residenceFirewoodPriorityTarget(10),
+  householdPriorityTarget,
+  'one occupied residence owes one household fuel bill regardless of population tier',
+);
+assert.equal(
+  residenceNeedsPriorityFirewood(residence('below-floor', householdPriorityTarget - 0.01, 4)),
+  true,
+);
+assert.equal(
+  residenceNeedsPriorityFirewood(residence('at-floor', householdPriorityTarget, 4)),
+  false,
+);
+assert.equal(
+  householdPriorityTarget < RESIDENCE_FIREWOOD_CAPACITY,
   true,
   'a full tier-three household must eventually release its distributor cart to industry',
 );
@@ -82,7 +93,10 @@ assert.equal(
   peekNextDeliveryTarget(
     directDistanceNetwork,
     { x: 0, z: 0 },
-    [residence('covered', 9.6), residence('exposed', 9.59)],
+    [
+      residence('covered', householdPriorityTarget),
+      residence('exposed', householdPriorityTarget - 0.01),
+    ],
   )?.id,
   'exposed',
 );
@@ -90,7 +104,7 @@ assert.equal(
   peekNextDeliveryTarget(
     directDistanceNetwork,
     { x: 0, z: 0 },
-    [residence('covered', 9.6)],
+    [residence('covered', householdPriorityTarget)],
   ),
   null,
   'client logistics must expose industrial fuel duty once every home reaches its floor',
@@ -106,99 +120,47 @@ assert.equal(
   true,
 );
 
-assert.equal(woodcutterCanProcess(3, 0, 3), true);
-assert.equal(woodcutterCanProcess(2.99, 0, 3), false);
-assert.equal(woodcutterCanProcess(43, 40, 3), true);
-assert.equal(woodcutterCanProcess(42.99, 40, 3), false);
-assert.equal(normalizeWoodcutterTimberReserve(-5), 0);
-assert.equal(normalizeWoodcutterTimberReserve(39.6), 40);
-assert.equal(normalizeWoodcutterTimberReserve(1_000), WOODCUTTER_TIMBER_RESERVE_MAX);
-assert.equal(timberAboveWoodcutterReserve(87, 40), 47);
 assert.equal(lodgeSustainedProcessingLabor(0), 0);
 assert.equal(lodgeSustainedProcessingLabor(1), 1);
 assert.equal(lodgeSustainedProcessingLabor(4), 4);
-assert.deepEqual(
-  WOODCUTTER_TIMBER_RESERVE_PRESETS.map(({ reserve }) => reserve),
-  [0, 40, 100, 200],
-);
+assert.equal(LODGE_TIMBER_PER_CYCLE, 0);
+assert.equal(LODGE_TIMBER_PER_DELIVERY, 0);
+assert.equal(LODGE_FIREWOOD_PER_CYCLE, 5);
+assert.equal(BUILDING_STORAGE_CAPS.woodcutters_lodge.timber, 0);
+assert.equal(BUILDING_DEFINITIONS.woodcutters_lodge.requiresMatureTrees, true);
+assert.ok(BUILDING_DEFINITIONS.woodcutters_lodge.workRadius > 0);
 
-const stockState = {
-  buildings: new Map<string, BuildingState>([
-    ['mill', {
-      timber: 100,
-      constructionComplete: true,
-      constructionReservedTimber: 0,
-      constructionTreasuryTimber: 0,
-    } as BuildingState],
-    ['lodge', {
-      timber: 10,
-      constructionComplete: true,
-      constructionReservedTimber: 0,
-      constructionTreasuryTimber: 0,
-    } as BuildingState],
-    ['site', {
-      timber: 0,
-      constructionComplete: false,
-      constructionReservedTimber: 50,
-      constructionTreasuryTimber: 20,
-    } as BuildingState],
-  ]),
-} as GameState;
-assert.equal(computeUnreservedBuildingTimber(stockState), 80);
-
-const heldStatus = resolveWoodcuttersLodgeStatus({
-  onRoad: true,
+const noTreesStatus = resolveWoodcuttersLodgeStatus({
   assignedLabor: 1,
-  connectedMillCount: 1,
-  millsWithTimber: 1,
-  timber: 0,
+  matureTrees: 0,
   firewood: 0,
+  firewoodRoom: 47,
   claimedResidenceCount: 2,
   crew: lodgeLaborSplit(1),
   tripRemainingSeconds: null,
   activeTrip: null,
-  inboundTimberTrip: null,
-  timberTripRemainingSeconds: null,
-  nextTargetLabel: 'Parcel #1',
-  hasNextTarget: true,
   activeDestinationLabel: 'Parcel #1',
   hasIndustrialTarget: false,
   industrialTargetLabel: 'industry',
-  firewoodPerTrip: lodgeFirewoodPerDelivery(1),
-  canDeliver: false,
-  availableUnreservedTimber: 40,
-  timberReserve: 40,
-  timberPerCycle: 3,
 });
-assert.match(heldStatus.statusText, /Holding timber for construction/);
-assert.equal(heldStatus.statusState, 'warning');
+assert.match(noTreesStatus.statusText, /No mature trees/);
+assert.equal(noTreesStatus.statusState, 'warning');
 
-const noDemandStatus = resolveWoodcuttersLodgeStatus({
-  onRoad: true,
+const harvestingStatus = resolveWoodcuttersLodgeStatus({
   assignedLabor: 1,
-  connectedMillCount: 1,
-  millsWithTimber: 1,
-  timber: 3,
-  firewood: 6,
+  matureTrees: 12,
+  firewood: 0,
+  firewoodRoom: 47,
   claimedResidenceCount: 0,
   crew: lodgeLaborSplit(1),
   tripRemainingSeconds: null,
   activeTrip: null,
-  inboundTimberTrip: null,
-  timberTripRemainingSeconds: null,
-  nextTargetLabel: 'Protected household reserves covered',
-  hasNextTarget: false,
   activeDestinationLabel: 'Protected household reserves covered',
   hasIndustrialTarget: false,
   industrialTargetLabel: 'industry',
-  firewoodPerTrip: lodgeFirewoodPerDelivery(1),
-  canDeliver: false,
-  availableUnreservedTimber: 100,
-  timberReserve: 0,
-  timberPerCycle: 3,
 });
-assert.equal(noDemandStatus.statusText, '');
-assert.equal(noDemandStatus.statusState, 'idle');
+assert.match(harvestingStatus.statusText, /Harvesting firewood from 12 mature trees/);
+assert.equal(harvestingStatus.statusState, 'active');
 
 const lodgeSimulation = readFileSync(
   'server/src/simulation/woodcutters_lodge.rs',
@@ -206,8 +168,13 @@ const lodgeSimulation = readFileSync(
 );
 assert.match(
   lodgeSimulation,
-  /row\.kind != "lumber_mill"[\s\S]*tick\.building_disabled_by_fire\(ctx, row\.id\)/,
-  'lodges must not dispatch timber out of fire-disabled lumber mills',
+  /find_nearest_mature_tree[\s\S]*CommodityKind::Firewood[\s\S]*phase: "stump"/,
+  'lodges must fell mature trees directly into local firewood and leave authoritative stumps',
+);
+assert.doesNotMatch(
+  lodgeSimulation,
+  /try_start_timber_supply_trip|LODGE_TIMBER_PER_CYCLE|woodcutter_can_process|CommodityKind::Timber/,
+  'lodge production must not consume construction timber or request it from lumber mills',
 );
 assert.doesNotMatch(
   lodgeSimulation,

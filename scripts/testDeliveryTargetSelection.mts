@@ -165,16 +165,15 @@ assert.match(
 );
 
 const woodcuttersLodge = read('server/src/simulation/woodcutters_lodge.rs');
-assert.match(woodcuttersLodge, /select_supply_route_candidate\(/);
 assert.match(
   woodcuttersLodge,
-  /local_delivery_distance/,
-  'mill selection should use the shared road-first, off-road-fallback delivery cost',
+  /find_nearest_mature_tree/,
+  'woodcutters should select a mature tree instead of a timber-supply building',
 );
 assert.doesNotMatch(
   woodcuttersLodge,
-  /road_path_route/,
-  'mill selection should not build a route polyline merely to compare distance',
+  /select_supply_route_candidate|local_delivery_distance|road_path_route/,
+  'direct tree harvesting must not perform a mill-delivery route search',
 );
 assert.doesNotMatch(roadLogistics, /sort_mills_by_road_path/);
 
