@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "validatedAt": "2026-08-29T17:50:13.575548+00:00",
+  "status": "pass",
+  "blend": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\examples\\large-quarry\\out\\large_quarry_textured_v1.blend",
+  "metrics": {
+    "fixedInstances": 15,
+    "sourceCounts": {
+      "extract_handcart": 1,
+      "extract_ore_bucket": 1,
+      "extract_quarry_bench_4m": 5,
+      "extract_quarry_derrick_large": 1,
+      "extract_quarry_wedge_rack": 1,
+      "extract_sorting_bench": 1,
+      "foundation_retaining_wall_4m": 2,
+      "prop_tool_rack_quarry": 1,
+      "site_canopy_timber_4m_d2m": 1,
+      "site_walkway_plank_4m": 1
+    },
+    "trianglesBeforeExportApply": 2032,
+    "dimensionsM": [
+      18.6263,
+      10.0355,
+      5.2347
+    ],
+    "boundsM": {
+      "minimumM": [
+        -8.1768,
+        -4.6355,
+        -0.6942
+      ],
+      "maximumM": [
+        10.4496,
+        5.4,
+        4.5405
+      ]
+    },
+    "atlasTiles": [
+      "fieldstone-mortar",
+      "limestone-ashlar",
+      "packed-earth",
+      "quarry-stone",
+      "rough-hewn-timber",
+      "sawn-planks",
+      "split-shingles",
+      "weathered-planks",
+      "wrought-iron"
+    ],
+    "collisionComponents": 7,
+    "approachConflicts": [],
+    "sortingCanopyMarginsM": {
+      "LQ_Stone_Sorting_Bench": 0.0145,
+      "LQ_Stonecutters_Wedge_Rack": 0.3924
+    }
+  },
+  "errors": [],
+  "warnings": [],
+  "checks": [
+    "continuous five-module U-shaped stepped open cut with road-facing entrance",
+    "large timber quarry derrick is present while mine headframes, shafts, and portals are absent",
+    "permanent split-shingle sorting canopy distinguishes Quarry from the mobile canvas Mining Camp",
+    "central plank causeway and two partially buried retaining walls preserve the open approach",
+    "fixed sorting, wedge, cart, bucket, and tool equipment communicate function without baking output",
+    "stone, support-timber, and civilian-tool stockpiles remain runtime-owned",
+    "metric UVs, direct production-atlas contract, canonical transforms, and no living vegetation",
+    "manifold fixed geometry and no preview staging in the export set"
+  ]
+}

@@ -38,6 +38,12 @@ import { OxenRenderer } from '../settlement/OxenRenderer.ts';
 import type { BuildingState } from '../resources/types.ts';
 import { PainterlySceneMaterialCoverage } from '../scene/PainterlySceneMaterialCoverage.ts';
 import { setPainterlyVegetationEnabled } from '../scene/painterlyVegetationPreference.ts';
+import { setTierOneChurchClockTime } from '../buildings/chapelRuntimeClock.ts';
+import {
+  GORSKI_ARCHITECTURE_FAMILIES,
+  loadGorskiArchitecturePart,
+  type GorskiArchitectureFamily,
+} from '../buildings/gorskiArchitectureKit.ts';
 
 declare global {
   interface Window {
@@ -67,6 +73,9 @@ const cameraBookmark = requestedCamera === 'near' || requestedCamera === 'far'
   : 'design';
 const architectureDebugMode = lineupParams.get('debug') === 'massing' ? 'massing' : 'final';
 const presentationMode = lineupParams.get('presentation') === 'no-post' ? 'no-post' : 'final';
+const requestedYawParam = lineupParams.get('yaw');
+const requestedYaw = requestedYawParam === null ? Number.NaN : Number(requestedYawParam);
+const authoredBuildingYaw = Number.isFinite(requestedYaw) ? requestedYaw : -0.1;
 const showWaysidePrayerVisitors = lineupParams.get('visitors') === 'prayer';
 const showClearedFoundingStockyard = lineupParams.get('mode') === 'cleared-stockyard';
 const requestedKind = showClearedFoundingStockyard
@@ -84,7 +93,18 @@ const showStableOxen = lineupParams.get('oxen') === '3';
 const compareResidences = lineupParams.get('compare') === 'residences';
 const compareServiceCoverage = lineupParams.get('compare') === 'service-coverage';
 const compareChurchTiers = lineupParams.get('compare') === 'church-tiers';
-const comparisonMode = compareResidences || compareServiceCoverage || compareChurchTiers;
+const compareArchitectureKit = lineupParams.get('compare') === 'architecture-kit';
+const requestedChapelTierValue = Number(lineupParams.get('tier'));
+const requestedChapelTier = requestedChapelTierValue === 1
+  || requestedChapelTierValue === 2
+  || requestedChapelTierValue === 3
+  ? requestedChapelTierValue
+  : 3;
+const requestedClockHour = Number(lineupParams.get('clock'));
+const comparisonMode = compareResidences
+  || compareServiceCoverage
+  || compareChurchTiers
+  || compareArchitectureKit;
 const selectedKinds = comparisonMode
   ? []
   : requestedKind && BUILDING_KINDS.includes(requestedKind as (typeof BUILDING_KINDS)[number])
@@ -120,6 +140,26 @@ const STOCKED_PREVIEW_PREFIXES = [
   'SmokehousePreservedFoodSegment',
   'ClayPitStockpile',
   'ClayPitClaySegment',
+  'StoneQuarryStockpile',
+  'StoneQuarryStockSegment',
+  'LargeQuarryStockpile',
+  'LargeQuarryStockSegment',
+  'LargeQuarrySupportStockpile',
+  'LargeQuarrySupportSegment',
+  'IronMineStockpile',
+  'IronMineOreSegment',
+  'SaltMineStockpile',
+  'SaltMineSaltSegment',
+  'ClayMineStockpile',
+  'ClayMineClaySegment',
+  'MineSupportStockpile',
+  'MineSupportTimberSegment',
+  'MiningPitIronStockpile',
+  'MiningPitIronSegment',
+  'MiningPitSaltStockpile',
+  'MiningPitSaltSegment',
+  'MiningPitClayStockpile',
+  'MiningPitClaySegment',
   'CivilianToolStockpile',
   'CivilianToolSegment',
   'FoundingIronworkStockpile',
@@ -184,6 +224,8 @@ const COLS = compareServiceCoverage
   ? 3
   : compareChurchTiers
     ? 3
+  : compareArchitectureKit
+    ? 4
   : compareResidences
     ? 4
     : constructionKind
@@ -191,7 +233,9 @@ const COLS = compareServiceCoverage
     : selectedKinds.length === 1
       ? 1
       : 9;
-const ROWS = comparisonMode || constructionKind || selectedKinds.length === 1
+const ROWS = compareArchitectureKit
+  ? 3
+  : comparisonMode || constructionKind || selectedKinds.length === 1
   ? 1
   : Math.ceil((selectedKinds.length + 1) / COLS);
 const root = document.querySelector<HTMLElement>('#lineup-root');
@@ -212,6 +256,11 @@ if (compareServiceCoverage) {
   const subtitle = document.querySelector('header p');
   if (heading) heading.textContent = 'Church Upgrade Lineup';
   if (subtitle) subtitle.textContent = 'Reserved final footprint · timber → stone → landmark';
+} else if (compareArchitectureKit) {
+  const heading = document.querySelector('h1');
+  const subtitle = document.querySelector('header p');
+  if (heading) heading.textContent = 'Gorski Architecture Kit Runtime Lineup';
+  if (subtitle) subtitle.textContent = '12 lazy family GLBs · canonical origins · shared game atlas';
 }
 labels.style.gridTemplateColumns = `repeat(${COLS}, minmax(0, 1fr))`;
 labels.style.gridTemplateRows = `repeat(${ROWS}, minmax(0, 1fr))`;
@@ -234,7 +283,39 @@ renderer.toneMapping = presentationMode === 'no-post'
 renderer.toneMappingExposure = presentationMode === 'no-post' ? 1 : 1.08;
 root.prepend(renderer.domElement);
 
-const viewSpecs = constructionKind
+const architectureKitSamples: ReadonlyArray<{
+  family: GorskiArchitectureFamily;
+  partId: string;
+  label: string;
+}> = [
+  { family: 'foundations', partId: 'foundation_fieldstone_4m_h1p2m', label: 'Foundation · 4 m fieldstone' },
+  { family: 'walls', partId: 'wall_limewash_4m_door_barn_host', label: 'Wall · limewash barn host' },
+  { family: 'frames', partId: 'frame_portal_cart', label: 'Frame · cart portal' },
+  { family: 'openings', partId: 'opening_church_arch_door', label: 'Opening · church arch door' },
+  { family: 'roofs', partId: 'roof_shingle_panel_4m_full', label: 'Roof · split-shingle panel' },
+  { family: 'enclosures', partId: 'enclosure_dry_stone_gate_cart', label: 'Enclosure · dry-stone cart gate' },
+  { family: 'siteworks', partId: 'site_market_stall_canvas', label: 'Site work · canvas market stall' },
+  { family: 'extraction', partId: 'extract_headframe_large', label: 'Extraction · mine headframe' },
+  { family: 'production', partId: 'production_waterwheel_d3p6m', label: 'Production · 3.6 m waterwheel' },
+  { family: 'agriculture', partId: 'agri_apiary_stand_9', label: 'Agriculture · nine-hive stand' },
+  { family: 'civic', partId: 'civic_belfry_frame_large', label: 'Civic · large belfry frame' },
+  { family: 'props', partId: 'prop_two_wheel_cart', label: 'Prop · two-wheel cart' },
+] as const;
+if (new Set(architectureKitSamples.map((sample) => sample.family)).size !== GORSKI_ARCHITECTURE_FAMILIES.length) {
+  throw new Error('Architecture-kit lineup must represent every runtime family exactly once');
+}
+const architectureKitViewSpecs = compareArchitectureKit
+  ? await Promise.all(architectureKitSamples.map(async (sample) => ({
+      mesh: await loadGorskiArchitecturePart(
+        sample.family,
+        sample.partId,
+        rendererBackend.maxAnisotropy,
+      ),
+      label: sample.label,
+    })))
+  : null;
+
+const viewSpecs = architectureKitViewSpecs ?? (constructionKind
   ? [{
       mesh: createConstructionSiteMesh(constructionKind, 0.55, 1, 1, 1, 1),
       label: `${getBuildingDefinition(constructionKind).label} construction · 55%`,
@@ -256,24 +337,27 @@ const viewSpecs = constructionKind
     ]
   : compareChurchTiers
   ? [
-      { mesh: createBuildingMesh('chapel', 1), label: 'Tier 1 · Small wooden church' },
+      { mesh: createBuildingMesh('chapel', 1), label: 'Tier 1 · Delnice parish church' },
       { mesh: createBuildingMesh('chapel', 2), label: 'Tier 2 · Small stone church' },
       { mesh: createBuildingMesh('chapel', 3), label: 'Tier 3 · Large stone church' },
     ]
   : compareResidences
   ? [
-      { mesh: createBuildingMesh('chapel'), label: 'Church' },
+      {
+        mesh: createBuildingMesh('chapel', requestedChapelTier),
+        label: `Church · tier ${requestedChapelTier}`,
+      },
       { mesh: createResidenceMesh(1, 1), label: 'Residence · tier 1' },
       { mesh: createResidenceMesh(2, 2), label: 'Residence · tier 2' },
       { mesh: createResidenceMesh(3, 3), label: 'Residence · tier 3' },
     ]
   : [
       ...selectedKinds.map((kind) => {
-        const mesh = kind === 'wayside_shrine'
+        const mesh = kind === 'wayside_shrine' && architectureDebugMode !== 'final'
           ? createWaysideShrineMesh(architectureDebugMode)
           : kind === 'spinning_retting_house'
             ? createSpinningRettingHouseMesh(architectureDebugMode)
-          : createBuildingMesh(kind);
+          : createBuildingMesh(kind, kind === 'chapel' ? requestedChapelTier : undefined);
         if (showStockedState) {
           mesh.traverse((object) => {
             if (STOCKED_PREVIEW_PREFIXES.some((prefix) => object.name.startsWith(prefix))) {
@@ -305,7 +389,7 @@ const viewSpecs = constructionKind
         mesh: createConstructionSiteMesh('village_storehouse', 0.75, 0.9, 1),
         label: 'Storehouse construction · 75%',
       },
-    ].slice(0, selectedKinds.length === 1 ? 1 : undefined);
+    ].slice(0, selectedKinds.length === 1 ? 1 : undefined));
 
 const comparisonLargest = comparisonMode
   ? Math.max(...viewSpecs.map(({ mesh }) => {
@@ -318,6 +402,13 @@ const comparisonLookY = comparisonMode
   : null;
 
 const views = viewSpecs.map((spec) => {
+  if (Number.isFinite(requestedClockHour)) {
+    setTierOneChurchClockTime(spec.mesh, {
+      hour: Math.floor(requestedClockHour),
+      minute: Math.floor((requestedClockHour % 1) * 60),
+      preciseHour: requestedClockHour,
+    });
+  }
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xa6b29a);
   scene.fog = new THREE.Fog(
@@ -327,7 +418,7 @@ const views = viewSpecs.map((spec) => {
   );
 
   const building = spec.mesh;
-  building.rotation.y = showStableOxen && building.name === 'Stable' ? 0 : -0.1;
+  building.rotation.y = showStableOxen && building.name === 'Stable' ? 0 : authoredBuildingYaw;
   building.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh) return;

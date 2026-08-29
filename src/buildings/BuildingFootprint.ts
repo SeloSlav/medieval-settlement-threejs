@@ -24,9 +24,11 @@ export const BUILDING_PAD_PARAMS: Record<BuildingKind, BuildingPadParams> = {
   stable: { radiusX: 6.4, radiusZ: 4.2, innerFade: 0.9, outerFade: 1.3 },
   hunters_hall: { radiusX: 6.1, radiusZ: 5.4, innerFade: 0.88, outerFade: 1.34 },
   foragers_shed: { radiusX: 4.2, radiusZ: 3.8, innerFade: 0.88, outerFade: 1.3 },
-  fishing_camp: { radiusX: 5.4, radiusZ: 4.5, innerFade: 0.88, outerFade: 1.3 },
+  fishing_camp: { radiusX: 5.55, radiusZ: 5.15, innerFade: 0.88, outerFade: 1.3 },
   // Reserve the large stone church and its entrance wall from tier one onward.
-  chapel: { radiusX: 5.6, radiusZ: 7.3, innerFade: 0.9, outerFade: 1.28 },
+  // The Delnice-derived Tier 1 parish church is 10.81 x 18.10 m; reserve its
+  // full eaves and entry steps while retaining the larger later-tier envelope.
+  chapel: { radiusX: 6.6, radiusZ: 11.35, innerFade: 0.9, outerFade: 1.22 },
   wayside_shrine: { radiusX: 1.65, radiusZ: 1.5, innerFade: 0.9, outerFade: 1.24 },
   marketplace: { radiusX: 4.2, radiusZ: 3.4, innerFade: 0.9, outerFade: 1.3 },
   trading_post: { radiusX: 6.6, radiusZ: 5.4, innerFade: 0.88, outerFade: 1.3 },

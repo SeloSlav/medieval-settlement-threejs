@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "validatedAt": "2026-08-29T15:15:53.729993+00:00",
+  "status": "pass",
+  "blend": "C:\\WebProjects\\medieval-road-system\\.codex-tmp\\wayside-shrine-v2\\out\\wayside_shrine_textured_v1.blend",
+  "metrics": {
+    "fixedInstances": 9,
+    "sourceCounts": {
+      "civic_shrine_canopy": 1,
+      "civic_shrine_half_column_pair": 1,
+      "civic_shrine_iron_cross": 1,
+      "civic_shrine_niche_stone": 1,
+      "civic_shrine_plinth_stone": 1,
+      "civic_shrine_rear_wall_limewash_1p5m": 1,
+      "foundation_steps_limestone_1": 1,
+      "opening_shrine_icon_insert": 1,
+      "roof_shingle_shrine_gable_1p5m": 1
+    },
+    "trianglesBeforeExportApply": 1164,
+    "dimensionsM": [
+      1.78,
+      1.6362,
+      4.03
+    ],
+    "boundsM": {
+      "minimumM": [
+        -0.89,
+        -0.98,
+        0.0
+      ],
+      "maximumM": [
+        0.89,
+        0.6562,
+        4.03
+      ]
+    },
+    "atlasTiles": [
+      "aged-brass",
+      "fieldstone-mortar",
+      "lime-plaster",
+      "limestone-ashlar",
+      "linen-canvas",
+      "rough-hewn-timber",
+      "sawn-planks",
+      "split-shingles",
+      "wrought-iron"
+    ]
+  },
+  "errors": [],
+  "warnings": [],
+  "checks": [
+    "nine canonical kit components with exact provenance and scale",
+    "compact gabled niche silhouette with roof-supported iron cross",
+    "single devotional insert without duplicate votive furniture",
+    "warm limewash, local stone, dark oak, split shingles, iron, and restrained icon pigment",
+    "metric UVs baked to the shared production atlas",
+    "no living vegetation, presentation base, characters, or runtime inventory",
+    "no preview staging in the export set"
+  ]
+}

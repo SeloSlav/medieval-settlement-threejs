@@ -102,17 +102,18 @@ function addSawmillRig(group: THREE.Group): void {
   );
 }
 
-function createMillTimberStockpile(): THREE.Group {
-  const stockpile = new THREE.Group();
-  stockpile.name = 'TimberStockpile';
-  stockpile.visible = false;
-  const positions = [
+export function createLumberMillRuntimeStockpile(
+  positions: readonly (readonly [number, number])[] = [
     [-6.2, -4.15],
     [-3.1, -4.15],
     [0, -4.15],
     [3.1, -4.15],
     [6.2, -4.15],
-  ] as const;
+  ],
+): THREE.Group {
+  const stockpile = new THREE.Group();
+  stockpile.name = 'TimberStockpile';
+  stockpile.visible = false;
   for (let i = 0; i < positions.length; i++) {
     const segment = new THREE.Group();
     segment.name = 'TimberStockSegment';
@@ -194,7 +195,7 @@ export function createLumberMillMesh(): THREE.Group {
     name: 'Lumber mill intake canopy roof',
   });
 
-  group.add(createMillTimberStockpile());
+  group.add(createLumberMillRuntimeStockpile());
   group.add(createCivilianToolStockpile(new THREE.Vector3(-6.7, 0, 4.5), 0.12));
   return group;
 }

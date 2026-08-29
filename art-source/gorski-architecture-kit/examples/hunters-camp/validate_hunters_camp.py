@@ -13,7 +13,7 @@ from mathutils import Vector
 EXAMPLE_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path(os.environ.get("GK_HUNTERS_CAMP_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
 OUT_DIR = OUTPUT_ROOT / "out"
-REPORT_PATH = OUT_DIR / "hunters_camp_validation_v9.json"
+REPORT_PATH = OUT_DIR / "hunters_camp_validation_v10.json"
 
 REQUIRED_EXACT = {
     "site_tent_a_frame_large": 1,
@@ -62,6 +62,7 @@ def main() -> None:
         object_triangles = sum(max(0, len(poly.vertices) - 2) for poly in obj.data.polygons)
         triangles += object_triangles
         object_tiles = {str(material.get("atlas_tile", "")) for material in obj.data.materials if material}
+        object_roles = {str(material.get("surface_role", "")) for material in obj.data.materials if material}
         if part_id == "prop_tool_rack_hunter":
             if object_triangles > 550:
                 errors.append(f"hunter utility rack is not the simplified empty frame: {object_triangles} triangles")
@@ -70,8 +71,15 @@ def main() -> None:
                 errors.append(f"hunter utility rack contains non-structural hanging-gear materials: {unexpected_rack_tiles}")
         if part_id == "site_camp_cooking_tripod" and "wrought-iron" in object_tiles:
             errors.append("camp tripod still contains the removed hanging metal hook")
-        if part_id == "site_campfire_hearth" and "rough-hewn-timber" not in object_tiles:
-            errors.append("camp hearth is missing its fixed cribbed fuel logs")
+        if part_id == "site_campfire_hearth":
+            if "oak_dark" not in object_roles:
+                errors.append("camp hearth is missing its thick loose dark fuel billets")
+            if "timber_cut" in object_roles:
+                errors.append("camp hearth still uses pale cut timber for its fuel billets")
+            if "quarry-stone" not in object_tiles:
+                errors.append("camp hearth is missing its gathered rough-stone surface")
+            if "fieldstone-mortar" in object_tiles:
+                errors.append("camp hearth still uses the brick-like mortared fieldstone tile")
         if part_id == "prop_firewood_chopping_block" and "wrought-iron" in object_tiles:
             errors.append("chopping block still contains fixed axe geometry")
         if part_id == "prop_water_bucket_pair" and "wrought-iron" in object_tiles:
@@ -96,7 +104,7 @@ def main() -> None:
         world_points.extend(obj.matrix_world @ Vector(corner) for corner in obj.bound_box)
 
     required_tiles = {
-        "aged-canvas", "rough-hewn-timber", "weathered-planks", "fieldstone-mortar",
+        "aged-canvas", "rough-hewn-timber", "weathered-planks", "quarry-stone",
         "wrought-iron", "wicker-weave", "packed-earth",
         "stitched-hide",
     }
@@ -145,8 +153,9 @@ def main() -> None:
             "sewn-canvas tent and stitched-hide processing shelter coverage",
             "empty hunter utility rack without fixed bows, snares, or hanging inventory",
             "tripod feet outside the hearth stones with no fixed metal cooking hook",
-            "four fixed fuel logs cribbed inside the hearth ring",
-            "empty chopping block without fixed axe and bucket pair without overlapping arch handle",
+            "three thick loose dark fuel billets inside an irregular gathered-boulder hearth",
+            "flush-cut chopping block without a raised cap or fixed axe and open buckets without lid meshes",
+            "connected field cleaver with a broad forged head, ferrule, overlapping grip, and pin",
             "authored 3000-4000 triangle gameplay retopology with no export bevel modifiers",
             "no preview staging in the export set",
         ],

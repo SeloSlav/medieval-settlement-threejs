@@ -53,7 +53,7 @@ def register(registry: Registry) -> None:
                 triangle_budget=5_800 if system == "fieldstone" else 3_400,
             )
 
-    for width in (1.0, 2.0, 4.0):
+    for width in (1.0, 2.0, 4.0, 6.0):
         for material in ("limewash", "timber_weathered"):
             token = spec.width_token(width)
             system = "plaster" if material == "limewash" else "timber"

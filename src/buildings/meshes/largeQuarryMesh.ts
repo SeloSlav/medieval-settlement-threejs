@@ -218,7 +218,7 @@ function addBenchWalkway(group: THREE.Group): void {
   group.add(walkway);
 }
 
-function addStoneYard(group: THREE.Group): void {
+function addLargeQuarryStoneStockpile(group: THREE.Group): void {
   const stockpile = new THREE.Group();
   stockpile.name = 'LargeQuarryStockpile';
   stockpile.visible = false;
@@ -245,7 +245,9 @@ function addStoneYard(group: THREE.Group): void {
     stockpile.add(stack);
   }
   group.add(stockpile);
+}
 
+function addFixedQuarrySpoil(group: THREE.Group): void {
   for (let index = 0; index < 12; index++) {
     const angle = index / 12 * Math.PI * 2 + 0.16;
     const radius = 10.4 + (index % 3) * 0.42;
@@ -260,7 +262,7 @@ function addStoneYard(group: THREE.Group): void {
   }
 }
 
-function addChamberSupportStockpile(group: THREE.Group): void {
+function addLargeQuarrySupportStockpile(group: THREE.Group): void {
   const stockpile = new THREE.Group();
   stockpile.name = 'LargeQuarrySupportStockpile';
   stockpile.visible = false;
@@ -288,25 +290,36 @@ function addChamberSupportStockpile(group: THREE.Group): void {
         ),
         new THREE.Euler(0, (beamIndex - 1) * 0.03, 0),
       );
-      beam.name = 'Prepared quarry chamber beam';
+      beam.name = 'Prepared quarry support beam';
     }
     stockpile.add(segment);
   }
   group.add(stockpile);
 }
 
-/** Open, terraced extraction works for the underground source of rich stone. */
-export function createLargeQuarryMesh(): THREE.Group {
-  const group = new THREE.Group();
+/** Applies the simulation-facing identity shared by procedural and GLB variants. */
+export function applyLargeQuarrySemanticContract(group: THREE.Group): void {
   group.name = 'Quarry';
   group.userData.semanticRole = 'rich-stone-quarry';
   group.userData.silhouette = 'broad-stepped-open-cut';
+}
+
+/** Adds only simulation-owned stores; the authored GLB stays a neutral fixed shell. */
+export function addLargeQuarryRuntimeState(group: THREE.Group): void {
+  addLargeQuarryStoneStockpile(group);
+  addLargeQuarrySupportStockpile(group);
+  group.add(createCivilianToolStockpile(new THREE.Vector3(7.8, 0, 6.1), -0.18));
+}
+
+/** Open, terraced extraction works for the underground source of rich stone. */
+export function createLargeQuarryMesh(): THREE.Group {
+  const group = new THREE.Group();
+  applyLargeQuarrySemanticContract(group);
   addSteppedStoneCut(group);
   addStoneLiftingCrane(group);
   addCuttersShelter(group);
   addBenchWalkway(group);
-  addStoneYard(group);
-  addChamberSupportStockpile(group);
-  group.add(createCivilianToolStockpile(new THREE.Vector3(7.8, 0, 6.1), -0.18));
+  addFixedQuarrySpoil(group);
+  addLargeQuarryRuntimeState(group);
   return group;
 }

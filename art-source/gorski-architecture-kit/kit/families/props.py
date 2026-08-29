@@ -30,7 +30,15 @@ def register(registry: Registry) -> None:
     add(registry, "prop_fish_drying_rack", family, "Fishing camp drying rack", ("prop", "fishing", "rack", "food"), _fish_rack)
     add(registry, "prop_boat_dugout", family, "River dugout boat", ("prop", "fishing", "boat", "river"), _boat, triangle_budget=5_800)
     add(registry, "prop_firewood_chopping_block", family, "Empty chopping block", ("prop", "woodcutter", "firewood", "work-surface", "empty"), _chopping_block)
-    add(registry, "prop_water_bucket_pair", family, "Water bucket pair", ("prop", "water", "bucket", "service"), _bucket_pair)
+    add(
+        registry,
+        "prop_water_bucket_pair",
+        family,
+        "Open stave bucket pair",
+        ("prop", "water", "bucket", "service", "open-container"),
+        _bucket_pair,
+        allow_nonmanifold=True,
+    )
     add(registry, "prop_hitching_rail_2m", family, "Horse hitching rail 2 m", ("prop", "stable", "horse", "rail"), _hitching_rail)
     add(registry, "prop_torch_bracket", family, "Wall torch bracket", ("prop", "lighting", "torch", "wall"), _torch)
     add(registry, "prop_salvage_pile", family, "Founders' salvage pile", ("prop", "founders-camp", "salvage", "state-prop"), _salvage, triangle_budget=6_800)
@@ -112,6 +120,26 @@ def _extruded_xy_profile(
     builder._append(vertices, faces, material)
 
 
+def _extruded_xz_profile(
+    builder: MeshBuilder,
+    profile: list[tuple[float, float]],
+    y: float,
+    thickness: float,
+    material: str,
+) -> None:
+    """Extrude an X/Z silhouette through Y for thin hanging or blade forms."""
+
+    front = [(x, y - thickness * 0.5, z) for x, z in profile]
+    back = [(x, y + thickness * 0.5, z) for x, z in profile]
+    vertices = front + back
+    count = len(profile)
+    faces: list[tuple[int, ...]] = [tuple(range(count - 1, -1, -1)), tuple(range(count, count * 2))]
+    for index in range(count):
+        following = (index + 1) % count
+        faces.append((index, following, count + following, count + index))
+    builder._append(vertices, faces, material)
+
+
 def _hunter_tool_rack(builder: MeshBuilder) -> None:
     # A light, deliberately empty field frame. The uprights terminate directly
     # into the crossbar: there are no decorative fork tips, faux lashing sticks,
@@ -147,9 +175,9 @@ def _camp_worktable(builder: MeshBuilder) -> None:
     # compact ferrule and pin making the blade/handle connection unmistakable.
     _extruded_xy_profile(
         builder,
-        [(-0.13, -0.13), (0.46, -0.18), (0.64, -0.12), (0.54, 0.025), (-0.04, 0.030), (-0.13, -0.025)],
+        [(-0.10, -0.16), (0.32, -0.19), (0.43, -0.11), (0.39, 0.075), (-0.035, 0.065), (-0.10, 0.005)],
         1.040,
-        0.026,
+        0.030,
         "iron",
     )
     builder.box((0.09, 0.13, 0.035), (-0.105, -0.052, 1.040), "iron", (0.0, 0.0, -0.10))
@@ -184,19 +212,107 @@ def _sledge(builder: MeshBuilder) -> None:
 
 
 def _fish_rack(builder: MeshBuilder) -> None:
-    for x in (-1.0, 1.0):
-        builder.box((0.14, 0.14, 1.9), (x, 0.0, 0.95), "oak_dark")
-    builder.box((2.15, 0.14, 0.14), (0.0, 0.0, 1.82), "oak_dark")
-    for x in (-0.72, -0.36, 0.0, 0.36, 0.72):
-        builder.box((0.10, 0.045, 0.58), (x, -0.04, 1.34), "leather")
+    # A field-made A-frame reads more credibly than two perfectly vertical posts.
+    # The rack deliberately ships empty: catch meshes are runtime-owned assets
+    # and must not be approximated with timber- or leather-like placeholders.
+    for side in (-1.0, 1.0):
+        builder.round_beam_between((side * 1.07, 0.18, 0.0), (side * 0.91, 0.01, 1.93), 0.075, "oak_dark", 8, 0.062)
+        builder.round_beam_between((side * 1.07, -0.18, 0.0), (side * 0.91, 0.01, 1.93), 0.070, "timber_weathered", 8, 0.058)
+    builder.round_beam_between((-1.02, 0.0, 1.91), (1.04, 0.0, 1.95), 0.068, "oak_dark", 8, 0.060)
+    builder.round_beam_between((-0.93, 0.02, 0.70), (0.93, 0.0, 0.64), 0.046, "timber_weathered", 7, 0.039)
 
 
 def _boat(builder: MeshBuilder) -> None:
-    builder.box((3.8, 0.68, 0.32), (0.0, 0.0, 0.28), "timber_weathered")
-    builder.cone(0.52, 0.05, 0.78, (2.20, 0.0, 0.28), "timber_weathered", 8)
-    builder.cone(0.52, 0.05, 0.78, (-2.20, 0.0, 0.28), "timber_weathered", 8)
-    for x in (-0.95, 0.0, 0.95):
-        builder.box((0.12, 0.92, 0.12), (x, 0.0, 0.52), "oak_dark")
+    # Hollow, double-ended river dugout. The continuous outer and inner skins,
+    # capped gunwales and end returns make a watertight solid while preserving a
+    # real open interior when the craft is pulled ashore or leaned on a fence.
+    stations = (
+        (-2.20, 0.12, 0.45, 0.78),
+        (-1.65, 0.52, 0.18, 0.70),
+        (-0.82, 0.76, 0.08, 0.64),
+        (0.00, 0.84, 0.055, 0.62),
+        (0.82, 0.76, 0.08, 0.64),
+        (1.65, 0.52, 0.18, 0.70),
+        (2.20, 0.12, 0.45, 0.78),
+    )
+    outer: list[list[tuple[float, float, float]]] = []
+    inner: list[list[tuple[float, float, float]]] = []
+    for x, half_width, keel_z, gunwale_z in stations:
+        outer.append([
+            (x, -half_width, gunwale_z),
+            (x, -half_width * 0.72, keel_z + 0.13),
+            (x, 0.0, keel_z),
+            (x, half_width * 0.72, keel_z + 0.13),
+            (x, half_width, gunwale_z),
+        ])
+        inner_width = max(0.035, half_width - 0.095)
+        inner_floor = min(gunwale_z - 0.08, keel_z + 0.19)
+        inner.append([
+            (x, -inner_width, gunwale_z - 0.055),
+            (x, -inner_width * 0.66, inner_floor + 0.035),
+            (x, 0.0, inner_floor),
+            (x, inner_width * 0.66, inner_floor + 0.035),
+            (x, inner_width, gunwale_z - 0.055),
+        ])
+
+    vertices = [point for ring in outer for point in ring] + [point for ring in inner for point in ring]
+    outer_offset = 0
+    inner_offset = len(outer) * 5
+    faces: list[tuple[int, ...]] = []
+    for station in range(len(stations) - 1):
+        for band in range(4):
+            a = outer_offset + station * 5 + band
+            b = outer_offset + (station + 1) * 5 + band
+            faces.append((a, a + 1, b + 1, b))
+            ia = inner_offset + station * 5 + band
+            ib = inner_offset + (station + 1) * 5 + band
+            faces.append((ia, ib, ib + 1, ia + 1))
+        # Port and starboard gunwale thickness close the two skins.
+        for edge in (0, 4):
+            outer_a = outer_offset + station * 5 + edge
+            outer_b = outer_offset + (station + 1) * 5 + edge
+            inner_a = inner_offset + station * 5 + edge
+            inner_b = inner_offset + (station + 1) * 5 + edge
+            faces.append((outer_a, outer_b, inner_b, inner_a))
+    # Close bow and stern between matching outer/inner cross-sections.
+    for station in (0, len(stations) - 1):
+        for band in range(4):
+            outer_a = outer_offset + station * 5 + band
+            outer_b = outer_a + 1
+            inner_a = inner_offset + station * 5 + band
+            inner_b = inner_a + 1
+            order = (outer_a, inner_a, inner_b, outer_b) if station == 0 else (outer_a, outer_b, inner_b, inner_a)
+            faces.append(order)
+    builder._append(vertices, faces, "timber_weathered")
+
+    # Dark gunwales, a low keel, internal ribs and broad removable thwarts explain
+    # how the small craft holds its form. All pieces follow the hull's station curve.
+    for side in (-1.0, 1.0):
+        for start, end in zip(stations, stations[1:]):
+            builder.round_beam_between(
+                (start[0], side * start[1], start[3] + 0.012),
+                (end[0], side * end[1], end[3] + 0.012),
+                0.038,
+                "oak_dark",
+                7,
+                0.032,
+            )
+    builder.round_beam_between((-1.76, 0.0, 0.15), (1.76, 0.0, 0.07), 0.045, "oak_dark", 7, 0.036)
+    for x, half_width, keel_z, gunwale_z in stations[1:-1]:
+        rib_z = keel_z + 0.16
+        builder.round_beam_between((x, -half_width * 0.82, gunwale_z - 0.07), (x, 0.0, rib_z), 0.026, "timber_cut", 6, 0.021)
+        builder.round_beam_between((x, 0.0, rib_z), (x, half_width * 0.82, gunwale_z - 0.07), 0.026, "timber_cut", 6, 0.021)
+    for x, half_width, z in ((-0.82, 0.70, 0.58), (0.0, 0.77, 0.56), (0.82, 0.70, 0.58)):
+        builder.box((0.16, half_width * 1.62, 0.085), (x, 0.0, z), "oak_dark", (0.0, 0.0, 0.012 * x))
+    # One serviceable paddle is stowed diagonally; the blade and shaft visibly meet.
+    builder.round_beam_between((-1.24, -0.33, 0.67), (1.28, 0.37, 0.70), 0.028, "timber_cut", 8, 0.022)
+    _extruded_xy_profile(
+        builder,
+        [(1.17, 0.30), (1.65, 0.43), (1.94, 0.39), (1.98, 0.26), (1.67, 0.18)],
+        0.70,
+        0.045,
+        "timber_cut",
+    )
 
 
 def _rough_stump(builder: MeshBuilder, radius_bottom: float, radius_top: float, height: float) -> None:
@@ -212,12 +328,14 @@ def _rough_stump(builder: MeshBuilder, radius_bottom: float, radius_top: float, 
         bottom.append((bottom_radius * math.cos(angle), bottom_radius * math.sin(angle), 0.0))
         top.append((top_radius * math.cos(angle), top_radius * math.sin(angle), height))
     vertices = bottom + top
-    faces: list[tuple[int, ...]] = [tuple(range(segments - 1, -1, -1))]
+    faces: list[tuple[int, ...]] = [
+        tuple(range(segments - 1, -1, -1)),
+        tuple(range(segments, segments * 2)),
+    ]
     for index in range(segments):
         following = (index + 1) % segments
         faces.append((index, following, segments + following, segments + index))
     builder._append(vertices, faces, "timber_weathered")
-    builder._append(top, [tuple(range(segments))], "timber_cut")
 
 
 def _chopping_block(builder: MeshBuilder) -> None:

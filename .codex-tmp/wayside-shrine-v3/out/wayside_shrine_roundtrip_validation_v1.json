@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "validatedAt": "2026-08-29T15:22:29.801745+00:00",
+  "status": "pass",
+  "glb": "C:\\WebProjects\\medieval-road-system\\.codex-tmp\\wayside-shrine-v3\\out\\wayside_shrine_textured_v1.glb",
+  "meshesImported": 9,
+  "trianglesImported": 1108,
+  "sourceIds": [
+    "civic_shrine_canopy",
+    "civic_shrine_half_column_pair",
+    "civic_shrine_iron_cross",
+    "civic_shrine_niche_stone",
+    "civic_shrine_plinth_stone",
+    "civic_shrine_rear_wall_limewash_1p5m",
+    "foundation_steps_limestone_1",
+    "opening_shrine_icon_insert",
+    "roof_shingle_shrine_gable_1p5m"
+  ],
+  "atlasTiles": [
+    "aged-brass",
+    "fieldstone-mortar",
+    "lime-plaster",
+    "limestone-ashlar",
+    "linen-canvas",
+    "rough-hewn-timber",
+    "sawn-planks",
+    "split-shingles",
+    "wrought-iron"
+  ],
+  "errors": []
+}

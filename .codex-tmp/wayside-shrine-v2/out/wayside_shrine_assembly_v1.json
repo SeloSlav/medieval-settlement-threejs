@@ -1,0 +1,181 @@
+{
+  "id": "gorski-wayside-shrine-atlas-preview-v1",
+  "authoritativeBuildingKind": "wayside_shrine",
+  "displayIdentity": "Wayside Shrine",
+  "regionalContext": "Gorski Kotar, circa 1550",
+  "sourceKit": "gorski-architecture-kit-1.1.0",
+  "dimensionsMetres": {
+    "width": 1.78,
+    "depth": 1.18,
+    "maximumHeight": 4.01
+  },
+  "signatureSilhouette": "A tiny limewashed masonry niche beneath a steep split-shingle canopy and forged iron ridge cross.",
+  "designIntent": "Compact roadside poklonac: materially related to the parish church but visibly smaller, humbler, and suitable for settlement-scale repetition.",
+  "atlas": {
+    "id": "gorski-building-atlas-v1",
+    "usedTiles": [
+      "lime-plaster",
+      "limestone-ashlar",
+      "fieldstone-mortar",
+      "rough-hewn-timber",
+      "sawn-planks",
+      "split-shingles",
+      "wrought-iron",
+      "aged-brass",
+      "linen-canvas"
+    ],
+    "packing": "R roughness, G metalness, B AO, A centered height"
+  },
+  "construction": {
+    "plinth": "Weather-darkened gathered fieldstone and dressed local limestone form three worn roadside courses.",
+    "niche": "A shallow masonry devotional recess with restrained aged limewash and exposed stone arch trim.",
+    "canopy": "Dark oak posts and rake braces carry a steep hand-split fir/pine shingle cap.",
+    "devotionalInsert": "Muted Marian blue and ochre/gold remain small focal pigments inside the recessed niche."
+  },
+  "canonicalState": "Permanent shrine fabric, icon, and votive objects only; no living vegetation, characters, or broad presentation base.",
+  "runtimeBudget": {
+    "triangles": [
+      1000,
+      1800
+    ],
+    "textures": "shared building atlas only"
+  },
+  "livingVegetation": "Excluded; SeedThree-owned.",
+  "placements": [
+    {
+      "name": "WS_Worn_Stepped_Plinth",
+      "source": "civic_shrine_plinth_stone",
+      "collection": "WS_01_Masonry",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "WS_Limewashed_Stone_Niche",
+      "source": "civic_shrine_niche_stone",
+      "collection": "WS_01_Masonry",
+      "location": [
+        0.0,
+        0.0,
+        0.725
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "WS_Limewashed_Rear_Closure",
+      "source": "civic_shrine_rear_wall_limewash_1p5m",
+      "collection": "WS_01_Masonry",
+      "location": [
+        0.0,
+        0.39,
+        0.725
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "WS_Facade_Half_Columns",
+      "source": "civic_shrine_half_column_pair",
+      "collection": "WS_01_Masonry",
+      "location": [
+        0.0,
+        -0.46,
+        0.725
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "WS_Marian_Icon_And_Votives",
+      "source": "opening_shrine_icon_insert",
+      "collection": "WS_02_Devotional",
+      "location": [
+        0.0,
+        -0.47,
+        0.805
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "WS_Timber_Gable_Canopy",
+      "source": "civic_shrine_canopy",
+      "collection": "WS_03_Canopy",
+      "location": [
+        0.0,
+        -0.31,
+        0.725
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "WS_Split_Shingle_Gable_Roof",
+      "source": "roof_shingle_shrine_gable_1p5m",
+      "collection": "WS_03_Canopy",
+      "location": [
+        0.0,
+        -0.02,
+        2.93
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "WS_Forged_Iron_Ridge_Cross",
+      "source": "civic_shrine_iron_cross",
+      "collection": "WS_03_Canopy",
+      "location": [
+        0.0,
+        -0.02,
+        3.41
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "WS_Worn_Roadside_Step",
+      "source": "foundation_steps_limestone_1",
+      "collection": "WS_04_Approach",
+      "location": [
+        0.0,
+        -0.64,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    }
+  ]
+}

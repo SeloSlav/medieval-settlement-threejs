@@ -23,7 +23,6 @@ const definition = BUILDING_DEFINITIONS.wayside_shrine;
 assert.deepEqual(BUILDING_COSTS.wayside_shrine, {
   timber: 4,
   stone: 8,
-  ironwork: 1,
 });
 assert.equal(definition.acceptsLabor, false);
 assert.equal(definition.maxLabor, 0);
@@ -47,7 +46,7 @@ assert.match(cards, /data-action="wayside-shrine"/);
 assert.match(cards, /data-src="\/assets\/ui\/build-menu\/cards\/wayside-shrine\.webp"/);
 assert.match(cards, />Wayside shrine</);
 assert.match(cards, /Marks the roadside with a small place of prayer and devotion/);
-assert.match(cards, /Wayside shrine\.[^>]*Cost: 4 timber, 8 stone, 1 ironwork/);
+assert.match(cards, /Wayside shrine\.[^>]*Cost: 4 timber, 8 stone/);
 assert.doesNotMatch(cards, /data-hotkey=/);
 assert.ok(fs.existsSync('public/assets/ui/build-menu/cards/wayside-shrine.webp'));
 

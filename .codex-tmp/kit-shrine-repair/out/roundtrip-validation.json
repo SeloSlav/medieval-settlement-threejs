@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 2,
+  "validatedAt": "2026-08-29T15:11:35.168735+00:00",
+  "status": "pass",
+  "glb": "C:\\WebProjects\\medieval-road-system\\.codex-tmp\\kit-shrine-repair\\out\\gorski_architecture_kit.glb",
+  "partsExpected": 635,
+  "partsImported": 635,
+  "familiesImported": {
+    "agriculture": 38,
+    "civic": 56,
+    "enclosures": 32,
+    "extraction": 33,
+    "foundations": 42,
+    "frames": 56,
+    "openings": 30,
+    "production": 41,
+    "props": 41,
+    "roofs": 108,
+    "siteworks": 41,
+    "walls": 117
+  },
+  "totalImportedTriangles": 408466,
+  "errors": [],
+  "warnings": []
+}

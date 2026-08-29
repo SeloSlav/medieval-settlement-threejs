@@ -59,10 +59,22 @@ def _entry(group: str, rationale: str, *part_groups: tuple[str, ...] | str) -> d
 BUILDING_COVERAGE = {
     "founders_camp": _entry("founding", "Temporary, demountable founding compound.", "site_tent_a_frame_large", "site_canopy_canvas_4m_d4m", "site_campfire_hearth", "prop_salvage_pile", "enclosure_wattle_4m"),
     "salvage_pile": _entry("founding", "Loose recovered construction stock.", "prop_salvage_pile", "prop_log_stack_2p0m", "prop_crate_large", "prop_sack_stack_medium"),
-    "lumber_mill": _entry("forestry", "Open saw work with stored roundwood.", "site_canopy_timber_6m_d3m", "production_sawpit_frame", "prop_log_stack_4p0m", "prop_two_wheel_cart"),
+    "lumber_mill": _entry(
+        "forestry",
+        "Long, low plank saw hall with a six-metre structural gable, open intake canopy, sawpit frame, and state-owned roundwood yard.",
+        "foundation_fieldstone_4m_h0p65m", "wall_plank_4m_h3m", "wall_plank_2m_h3m",
+        "gable_infill_timber_6m", "frame_gable_truss_6m", "frame_post_h3m_s0p22m", "frame_beam_4m_s0p22m",
+        "site_canopy_timber_6m_d3m", "production_sawpit_frame", "prop_log_stack_4p0m", "prop_two_wheel_cart",
+    ),
     "reforester": _entry("forestry", "Humble woodland shelter with tools and sapling guards.", HUMBLE, "site_canopy_timber_2m_d2m", "prop_tool_rack_farm", "agri_orchard_guard_apple"),
     "woodcutters_lodge": _entry("forestry", "Humble timber lodge with fuel-processing yard.", HUMBLE, "prop_firewood_chopping_block", "prop_firewood_stack_large", "prop_sledge"),
-    "stone_quarry": _entry("extraction", "Small open quarry bench and lifting gear.", "extract_quarry_bench_2m", "extract_quarry_derrick_small", "extract_stockpile_stone_small", "extract_quarry_wedge_rack", "site_canopy_canvas_4m_d2m"),
+    "stone_quarry": _entry(
+        "extraction",
+        "Low mobile day-work camp for finite surface stone, iron, salt, and clay deposits; no centered excavation or deep hoisting silhouette.",
+        "site_tent_a_frame_large", "site_canopy_canvas_4m_d4m", "extract_sorting_bench", "extract_sieve_table",
+        "extract_handcart", "extract_survey_stakes", "prop_tool_rack_quarry", "prop_water_bucket_pair",
+        "extract_stockpile_stone_small", "extract_stockpile_iron_small", "extract_stockpile_salt_small", "extract_stockpile_clay_small",
+    ),
     "large_quarry": _entry("extraction", "Expanded cut benches with heavy derrick and sorting floor.", "extract_quarry_bench_4m", "extract_quarry_derrick_large", "extract_stockpile_stone_large", "extract_sorting_bench", "extract_handcart", "foundation_retaining_wall_4m"),
     "mine": _entry("extraction", "Shaft/tunnel works use explicit collars, headframes, supports, and hoisting.", "extract_shaft_collar_square_large", "extract_headframe_large", "extract_mine_portal_frame_2p4m", "extract_tunnel_support_4m", "extract_ore_bucket", "extract_windlass", "extract_stockpile_iron_large"),
     "clay_pit": _entry("extraction", "Open clay washing and screening worksite.", "extract_quarry_bench_2m", "extract_clay_pit_screen", "extract_stockpile_clay_large", "site_walkway_plank_4m", "site_canopy_canvas_4m_d2m"),
@@ -83,7 +95,7 @@ BUILDING_COVERAGE = {
         "prop_water_bucket_pair",
     ),
     "foragers_shed": _entry("subsistence", "Very small timber storage and drying shelter.", HUMBLE, "site_canopy_timber_2m_d2m", "production_malt_rack_2m", "prop_crate_small"),
-    "fishing_camp": _entry("subsistence", "Riverside dock, dugout, and drying rack.", HUMBLE, "site_dock_segment_4m", "prop_boat_dugout", "prop_fish_drying_rack", "prop_tool_rack_fishing"),
+    "fishing_camp": _entry("subsistence", "Compact fish house and plank service shed with a hollow river dugout, drying rack, open working fence, and shore access.", HUMBLE, "site_dock_segment_4m", "prop_boat_dugout", "prop_fish_drying_rack", "prop_tool_rack_fishing", "enclosure_split_rail_4m", "enclosure_wattle_gate_person"),
     "chapel": _entry(
         "religious",
         "Complete parish-church vocabulary: authored nave and west-front bays, portal, multiple window forms, buttresses, apse and sacristy junctions, belfry transitions, distinct tiled roof forms, bells, and ridge crosses.",
@@ -99,7 +111,7 @@ BUILDING_COVERAGE = {
     "wayside_shrine": _entry(
         "religious",
         "Componentized roadside devotion with worn plinth, masonry niche, icon insert, carved columns, votive ledge, gabled canopy roof, iron cross, steps, and optional low rail.",
-        "civic_shrine_plinth_stone", "civic_shrine_niche_stone", "opening_shrine_icon_insert", "civic_shrine_half_column_pair",
+        "civic_shrine_plinth_stone", "civic_shrine_niche_stone", "civic_shrine_rear_wall_limewash_1p5m", "opening_shrine_icon_insert", "civic_shrine_half_column_pair",
         "civic_shrine_votive_ledge", "civic_shrine_canopy", "roof_shingle_shrine_gable_1p5m", "civic_shrine_iron_cross",
         "foundation_steps_limestone_1", "civic_shrine_side_rail_2m", "frame_lattice_panel_1m", "frame_scalloped_fascia_2m",
     ),

@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "validatedAt": "2026-08-29T12:44:11.863092+00:00",
+  "status": "pass",
+  "blend": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\examples\\fishing-camp\\out\\fishing_camp_textured_v2.blend",
+  "metrics": {
+    "fixedInstances": 63,
+    "sourceCounts": {
+      "assembly_custom_settled_shingle_skin": 4,
+      "enclosure_split_rail_2m": 3,
+      "enclosure_split_rail_4m": 4,
+      "enclosure_split_rail_gate_person": 1,
+      "foundation_fieldstone_2m_h0p35m": 4,
+      "foundation_fieldstone_4m_h0p35m": 4,
+      "frame_beam_2m_s0p16m": 4,
+      "frame_beam_4m_s0p16m": 6,
+      "frame_post_h2p4m_s0p16m": 2,
+      "frame_post_h2p7m_s0p16m": 10,
+      "gable_infill_timber_2m": 2,
+      "gable_infill_timber_4m": 2,
+      "opening_door_service_single": 2,
+      "opening_window_small_shuttered": 1,
+      "prop_barrel_small": 1,
+      "prop_boat_dugout": 1,
+      "prop_crate_small": 1,
+      "prop_fish_drying_rack": 1,
+      "prop_water_bucket_pair": 1,
+      "wall_limewash_2m_door_service_host": 1,
+      "wall_limewash_2m_window_small_host": 1,
+      "wall_plank_2m_door_service_host": 1,
+      "wall_plank_2m_h2p7m": 3,
+      "wall_plank_4m_h2p7m": 3
+    },
+    "trianglesBeforeExportApply": 5300,
+    "dimensionsM": [
+      10.5074,
+      7.7026,
+      5.69
+    ],
+    "boundsM": {
+      "minimumM": [
+        -5.2524,
+        -3.1159,
+        -0.0165
+      ],
+      "maximumM": [
+        5.255,
+        4.5867,
+        5.6735
+      ]
+    },
+    "atlasTiles": [
+      "fieldstone-mortar",
+      "lime-plaster",
+      "packed-earth",
+      "rough-hewn-timber",
+      "sawn-planks",
+      "split-shingles",
+      "weathered-planks",
+      "wrought-iron"
+    ],
+    "boatGroundClearanceM": 0.0232,
+    "boatFenceContactDistanceM": 0.0085,
+    "minimumRoofStructureClearanceM": 0.0471,
+    "minimumRoofStructureMember": "FC_Main_Front_Gable",
+    "minimumRoofVergeCoverageM": 0.0848,
+    "eastServiceAisleWidthM": 1.4286,
+    "westServiceAisleWidthM": 0.757,
+    "fixedPropBuildingClearanceM": 0.271,
+    "fixedPropFenceClearanceM": 0.4776
+  },
+  "errors": [],
+  "warnings": [],
+  "checks": [
+    "two structurally distinct buildings on the two-metre kit grid",
+    "Tier-1 fieldstone, warm limewash, dark oak, plank, and 50-degree shingle vocabulary",
+    "four closed retopologized roof skins with sub-repeat atlas faces",
+    "grounded hollow dugout with elevated rear-fence contact and connected paddle",
+    "empty splayed drying rack reserved for separately authored catch models",
+    "gable infill and framing remain fully below the lifted shingle envelope and inside both protective verges",
+    "set-back split-rail boundary with pedestrian access and a validated east inventory aisle",
+    "metric UVs, direct production-atlas contract, canonical transforms, and no living vegetation",
+    "manifold fixed geometry except the intentionally open bucket pair",
+    "no preview staging in the export set"
+  ]
+}

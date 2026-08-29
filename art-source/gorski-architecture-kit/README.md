@@ -2,7 +2,7 @@
 
 This directory contains the source, Blender asset library, GLB export, coverage ledger, validation reports, and visual evidence for the game's reusable architectural component kit.
 
-It intentionally contains no assembled finished buildings. The 620 components are designed to combine into the game's full built vocabulary while retaining canonical local geometry and scale.
+It intentionally contains no assembled finished buildings. The 638 components are designed to combine into the game's full built vocabulary while retaining canonical local geometry and scale.
 
 ## Scope
 
@@ -35,7 +35,13 @@ From the repository root:
 & .\.agents\skills\architecture-kit-codex\scripts\run_kit.ps1
 ```
 
-The pipeline rebuilds the `.blend` and `.glb`, validates all coverage and mesh contracts, imports the GLB into a clean Blender scene, and renders the overview, 12 family sheets, a religious-detail sheet, and a residence-roof-progression sheet.
+The pipeline rebuilds the `.blend` and authoring `.glb`, publishes 12 family-split runtime GLBs plus their manifest, validates all coverage and mesh contracts, imports the authoring GLB into a clean Blender scene, and renders the overview, 12 family sheets, a religious-detail sheet, and a residence-roof-progression sheet.
+
+The game-facing bundles are intentionally lazy. `src/buildings/gorskiArchitectureKit.ts` loads only the requested family, resets Blender's contact-sheet translation to the canonical component origin, applies the shared building atlas from semantic material metadata, and clones instance-owned geometry without duplicating materials. Verify this boundary with:
+
+```powershell
+npm.cmd run test:gorski-architecture-kit
+```
 
 ## Deliverables
 
@@ -44,6 +50,8 @@ The pipeline rebuilds the `.blend` and `.glb`, validates all coverage and mesh c
 - `out/gorski_architecture_kit_manifest.json` — parts, dimensions, materials, seams, budgets, hashes, provenance, and category coverage.
 - `out/validation.json` — native blend validation.
 - `out/roundtrip-validation.json` — clean-scene GLB re-import validation.
+- `public/assets/models/buildings/gorski/architecture-kit-v1/manifest.json` — runtime catalog and coverage ledger.
+- `public/assets/models/buildings/gorski/architecture-kit-v1/*.glb` — one lazy-loadable GLB per component family.
 - `renders-release/00-overview.png` and family sheets plus `13-religious-detail.png` and `14-residence-roof-progression.png` — fixed, visually inspected QA evidence.
 
 ## Provenance

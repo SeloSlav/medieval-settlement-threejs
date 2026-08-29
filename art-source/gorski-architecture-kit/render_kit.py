@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from itertools import combinations
 import math
 from pathlib import Path
 import sys
@@ -23,14 +24,14 @@ SHEETS = {
         "wall_ochre_2m_h2p7m", "wall_grey_2m_h2p7m", "wall_plank_2m_h2p4m", "wall_fieldstone_2m_h2p7m",
         "wall_limewash_2m_window_small_host", "wall_plank_2m_window_domestic_host", "wall_fieldstone_4m_window_shop_host",
         "wall_limewash_2m_door_house_host", "wall_plank_4m_door_barn_host", "wall_fieldstone_2m_louver_host",
-        "gable_infill_plaster_4m", "gable_infill_timber_4m",
+        "gable_infill_plaster_4m", "gable_infill_timber_4m", "gable_infill_plaster_6m", "gable_infill_timber_6m",
     ],
     "frames": [
         "frame_post_h2p4m_s0p16m", "frame_post_h2p7m_s0p22m", "frame_post_h4p5m_s0p3m", "frame_beam_4m_s0p16m",
         "frame_beam_4m_s0p22m", "frame_beam_4m_s0p3m", "frame_brace_left_2m", "frame_brace_right_4m",
         "frame_portal_service", "frame_portal_house", "frame_portal_barn", "frame_portal_cart",
         "frame_balcony_2m", "frame_balcony_4m", "frame_lean_to_2m", "frame_lean_to_4m",
-        "frame_curved_bracket_left_1m", "frame_curved_bracket_right_2m", "frame_gable_truss_4m", "frame_arch_portal_2p4m",
+        "frame_curved_bracket_left_1m", "frame_curved_bracket_right_2m", "frame_gable_truss_4m", "frame_gable_truss_6m", "frame_arch_portal_2p4m",
         "frame_lattice_panel_1m", "frame_scalloped_fascia_4m", "frame_eave_corbel_carved", "frame_gallery_post_cap",
     ],
     "openings": [
@@ -71,7 +72,7 @@ SHEETS = {
     ],
     "production": [
         "production_waterwheel_d3p6m", "production_windmill_sails_6m", "production_gearwheel_d2p2m", "production_chimney_limestone_h4m",
-        "production_smithy_forge", "production_smithy_anvil_block", "production_potter_kiln_round", "production_bakery_oven",
+        "production_potter_kiln_round", "production_smithy_anvil_block", "production_smithy_forge", "production_bakery_oven",
         "production_charcoal_clamp_large", "production_brew_vat_large", "production_brew_kettle", "production_carpenter_bench",
         "production_sawpit_frame", "production_tanning_frame_4m", "production_warp_weighted_loom", "production_screw_press",
     ],
@@ -121,6 +122,14 @@ OVERVIEW = [
     "roof_shingle_panel_4m_full", "enclosure_dry_stone_gate_cart", "site_market_stall_canvas", "extract_headframe_large",
     "production_waterwheel_d3p6m", "agri_apiary_stand_9", "civic_belfry_frame_large", "prop_two_wheel_cart",
 ]
+
+SHEET_LAYOUTS = {
+    # The powered machinery is materially wider than the standard kit pieces.
+    # A wider evidence grid keeps the sails legible as an independent component.
+    "production": {"x_step": 13.0, "y_step": 8.0, "ortho_scale": 48.0},
+}
+
+SHEET_PAIR_CLEARANCE_M = {"production": 0.12}
 
 
 def _args() -> argparse.Namespace:
@@ -217,7 +226,47 @@ def _short_label(part_id: str) -> str:
     return " ".join(tokens[1:])[:34]
 
 
-def _set_sheet(part_ids: list[str], title: str, camera: bpy.types.Object, label_material: bpy.types.Material) -> None:
+def _camera_plane_bounds(object_: bpy.types.Object, camera: bpy.types.Object) -> tuple[float, float, float, float]:
+    camera_inverse = camera.matrix_world.inverted()
+    corners = [camera_inverse @ (object_.matrix_world @ Vector(corner)) for corner in object_.bound_box]
+    return (
+        min(corner.x for corner in corners),
+        max(corner.x for corner in corners),
+        min(corner.y for corner in corners),
+        max(corner.y for corner in corners),
+    )
+
+
+def _assert_sheet_clearance(
+    sheet_name: str,
+    part_ids: list[str],
+    by_id: dict[str, bpy.types.Object],
+    camera: bpy.types.Object,
+) -> None:
+    bpy.context.view_layer.update()
+    minimum_gap = SHEET_PAIR_CLEARANCE_M.get(sheet_name)
+    if minimum_gap is None:
+        return
+    for first_id, second_id in combinations(part_ids, 2):
+        first = _camera_plane_bounds(by_id[first_id], camera)
+        second = _camera_plane_bounds(by_id[second_id], camera)
+        horizontal_gap = max(second[0] - first[1], first[0] - second[1])
+        vertical_gap = max(second[2] - first[3], first[2] - second[3])
+        visible_gap = max(horizontal_gap, vertical_gap)
+        if visible_gap < minimum_gap:
+            raise RuntimeError(
+                f"{sheet_name}: {first_id} and {second_id} overlap in the evidence camera "
+                f"(gap {visible_gap:.3f} m; expected {minimum_gap:.3f} m)"
+            )
+
+
+def _set_sheet(
+    part_ids: list[str],
+    title: str,
+    camera: bpy.types.Object,
+    label_material: bpy.types.Material,
+    sheet_name: str = "overview",
+) -> None:
     all_parts = [object_ for object_ in bpy.data.objects if object_.type == "MESH" and object_.get("gk_id")]
     by_id = {object_["gk_id"]: object_ for object_ in all_parts}
     unknown = sorted(set(part_ids) - set(by_id))
@@ -230,8 +279,9 @@ def _set_sheet(part_ids: list[str], title: str, camera: bpy.types.Object, label_
     # for 24-36 parts forced the evidence camera to crop edge components even
     # though the source library was complete.
     columns = 4 if len(part_ids) <= 20 else 6
-    x_step = 7.6
-    y_step = 6.2
+    layout = SHEET_LAYOUTS.get(sheet_name, {})
+    x_step = float(layout.get("x_step", 7.6))
+    y_step = float(layout.get("y_step", 6.2))
     rows = math.ceil(len(part_ids) / columns)
     center = ((columns - 1) * x_step * 0.5, (rows - 1) * y_step * 0.5, 1.7)
     camera.location = (-16.0, -24.0, 25.0)
@@ -240,6 +290,7 @@ def _set_sheet(part_ids: list[str], title: str, camera: bpy.types.Object, label_
         camera.data.ortho_scale = max(52.0, rows * y_step + 16.0)
     else:
         camera.data.ortho_scale = max(34.0, rows * y_step + 8.0)
+    camera.data.ortho_scale = max(camera.data.ortho_scale, float(layout.get("ortho_scale", 0.0)))
     for index, part_id in enumerate(part_ids):
         object_ = by_id[part_id]
         column = index % columns
@@ -261,6 +312,7 @@ def _set_sheet(part_ids: list[str], title: str, camera: bpy.types.Object, label_
         bpy.context.scene.collection.objects.link(label)
         label.location = (x, y - 0.65, max_z + 0.62)
         _face_camera(label, camera)
+    _assert_sheet_clearance(sheet_name, part_ids, by_id, camera)
 
 
 def _render_atomic(scene: bpy.types.Scene, path: Path) -> None:
@@ -292,7 +344,7 @@ def main() -> None:
     _render_atomic(bpy.context.scene, out_dir / "00-overview.png")
 
     for index, (family, part_ids) in enumerate(SHEETS.items(), start=1):
-        _set_sheet(part_ids, f"{family} — modular components", camera, label_material)
+        _set_sheet(part_ids, f"{family} — modular components", camera, label_material, family)
         ground.hide_render = False
         path = out_dir / f"{index:02d}-{family}.png"
         _render_atomic(bpy.context.scene, path)

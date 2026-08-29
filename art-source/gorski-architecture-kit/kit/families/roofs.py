@@ -100,6 +100,8 @@ def register(registry: Registry) -> None:
     add(registry, "roof_tile_apse_halfcone_3m", family, "Tiled half-cone apse roof", ("roof", "tile", "apse", "church", "radial"), lambda b: _apse_roof(b, "tile"), triangle_budget=14_000, bevel=0.004)
     add(registry, "roof_tile_belfry_pyramid_2m", family, "Tiled belfry pyramid roof", ("roof", "tile", "belfry", "church", "pyramid"), lambda b: _pyramid_roof(b, "tile"), triangle_budget=11_000, bevel=0.004)
     add(registry, "roof_shingle_belfry_pyramid_2m", family, "Shingled belfry pyramid roof", ("roof", "shingle", "belfry", "church", "pyramid"), lambda b: _pyramid_roof(b, "shingle"), triangle_budget=11_000, bevel=0.004)
+    add(registry, "roof_shingle_belfry_ogee_4m", family, "Flared four-metre church belfry cap and spire", ("roof", "shingle", "belfry", "church", "ogee", "spire"), _ogee_belfry_roof, seams=("z=0", "spire-apex"), triangle_budget=8_400, bevel=0.004)
+    add(registry, "roof_shingle_portal_canopy_1p7m", family, "Shallow shingled church portal canopy", ("roof", "shingle", "church", "portal", "canopy"), _portal_canopy, seams=("y=0", "front-eave"), triangle_budget=3_600, bevel=0.004)
     add(registry, "roof_shingle_shrine_gable_1p5m", family, "Wayside shrine shingle gable roof", ("roof", "shingle", "shrine", "gable", "devotional"), _shrine_gable_roof, triangle_budget=9_000, bevel=0.004)
     for style in ("shingle", "tile"):
         add(registry, f"roof_{style}_dormer_cap_1p2m", family, f"{style.title()} dormer gable cap", ("roof", style, "dormer", "gable", "junction"), lambda b, s=style: _dormer_cap(b, s), triangle_budget=8_400, bevel=0.004)
@@ -389,13 +391,92 @@ def _pyramid_roof(builder: MeshBuilder, style: str) -> None:
     builder.cone(0.16, 0.045, 0.52, (0.0, 0.0, height + 0.26), "oak_dark", 8)
 
 
+def _ogee_belfry_roof(builder: MeshBuilder) -> None:
+    # Four deterministic square rings form the restrained concave skirt seen on
+    # mountain parish towers. The steep upper spire remains a separate readable
+    # mass instead of a fantasy needle or a smooth modern cone.
+    rings = (
+        (0.00, 2.34),
+        (0.34, 2.22),
+        (0.78, 1.82),
+        (1.18, 1.62),
+        (1.54, 1.28),
+        (3.92, 0.16),
+        (4.18, 0.02),
+    )
+    corners = ((-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0))
+    vertices = [
+        (sx * radius, sy * radius, z)
+        for z, radius in rings
+        for sx, sy in corners
+    ]
+    faces = []
+    materials = []
+    for ring in range(len(rings) - 1):
+        for side in range(4):
+            next_side = (side + 1) % 4
+            start = ring * 4
+            following = (ring + 1) * 4
+            faces.append((start + side, start + next_side, following + next_side, following + side))
+            materials.append("shingles_aged" if (ring + side) % 3 else "shingles")
+    faces.append((3, 2, 1, 0))
+    materials.append("oak_dark")
+    top_start = (len(rings) - 1) * 4
+    faces.append((top_start, top_start + 1, top_start + 2, top_start + 3))
+    materials.append("oak_dark")
+    builder._append(vertices, faces, materials[0])
+    first_face = len(builder.face_materials) - len(faces)
+    for index, material in enumerate(materials):
+        builder.face_materials[first_face + index] = material
+    builder.box((4.86, 4.86, 0.14), (0.0, 0.0, 0.01), "oak_dark")
+    builder.box((3.44, 3.44, 0.10), (0.0, 0.0, 1.22), "iron")
+    builder.cylinder(0.055, 0.58, (0.0, 0.0, 4.42), "iron", 8, "z")
+
+
+def _portal_canopy(builder: MeshBuilder) -> None:
+    width = 1.70
+    front = -0.72
+    back = 0.08
+    eave_z = 0.04
+    ridge_z = 0.43
+    vertices = [
+        (-width * 0.5, front, eave_z), (0.0, front, ridge_z), (width * 0.5, front, eave_z),
+        (-width * 0.5, back, eave_z), (0.0, back, ridge_z), (width * 0.5, back, eave_z),
+    ]
+    faces = [
+        (0, 3, 4, 1), (1, 4, 5, 2), (0, 1, 2), (5, 4, 3), (0, 2, 5, 3),
+    ]
+    builder._append(vertices, faces, "shingles_aged")
+    builder.box((width + 0.10, 0.12, 0.10), (0.0, front - 0.02, eave_z), "oak_dark")
+    for x in (-0.56, 0.56):
+        builder.beam_between((x, 0.02, -0.24), (x, -0.54, eave_z), 0.08, "oak_dark")
+
+
 def _shrine_gable_roof(builder: MeshBuilder) -> None:
+    slope_length = 1.05
+    pitch = 0.62
+    half_run = slope_length * 0.5 * math.cos(pitch)
+    half_rise = slope_length * 0.5 * math.sin(pitch)
     for side in (-1.0, 1.0):
-        builder.box((1.62, 1.05, 0.065), (0.0, side * 0.23, 0.18), "shingles" if side < 0 else "shingles_aged", (side * 0.62, 0.0, 0.0))
-    _ridge(builder, 1.62, "shingles", "shingle")
+        # Meet exactly at the ridge and keep the component's eaves on z=0.
+        # The earlier 0.23 m offset left a visible open slot between slopes.
+        builder.box(
+            (1.62, slope_length, 0.065),
+            (0.0, side * half_run, half_rise),
+            "shingles" if side < 0 else "shingles_aged",
+            (-side * pitch, 0.0, 0.0),
+        )
+    ridge_z = half_rise * 2.0
+    # _ridge is authored around z=0, so lift it onto the actual roof seam.
+    ridge = MeshBuilder(f"{builder.piece_id}_ridge")
+    _ridge(ridge, 1.62, "shingles", "shingle")
+    start = len(builder.vertices)
+    builder.vertices.extend((x, y, z + ridge_z) for x, y, z in ridge.vertices)
+    builder.faces.extend(tuple(start + index for index in face) for face in ridge.faces)
+    builder.face_materials.extend(ridge.face_materials)
     for x in (-0.75, 0.75):
-        builder.beam_between((x, -0.54, -0.03), (x, 0.0, 0.42), 0.07, "oak_dark")
-        builder.beam_between((x, 0.54, -0.03), (x, 0.0, 0.42), 0.07, "oak_dark")
+        builder.beam_between((x, -half_run, 0.015), (x, 0.0, ridge_z - 0.055), 0.038, "oak_dark")
+        builder.beam_between((x, half_run, 0.015), (x, 0.0, ridge_z - 0.055), 0.038, "oak_dark")
 
 
 def _dormer_cap(builder: MeshBuilder, style: str) -> None:

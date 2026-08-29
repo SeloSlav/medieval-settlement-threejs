@@ -1,0 +1,156 @@
+{
+  "id": "gorski-mining-camp-atlas-preview-v1",
+  "revision": 1,
+  "authoritativeBuildingKind": "stone_quarry",
+  "displayIdentity": "Mining Camp",
+  "regionalContext": "Gorski Kotar, circa 1550",
+  "sourceKit": "gorski-architecture-kit-1.1.0",
+  "dimensionsMetres": {
+    "artFootprintWidth": 11.9657,
+    "artFootprintDepth": 9.2193,
+    "maximumHeight": 2.2881
+  },
+  "designIntent": "Low, mobile day-work camp for finite surface stone, iron, salt, and clay deposits; deliberately not a centered quarry pit or deep mineworks.",
+  "signatureSilhouette": "A sewn canvas sleeping tent opposite a low canvas sorting canopy, with mobile hand tools and an open central approach.",
+  "construction": {
+    "dayShelter": "Weathered sewn linen or hemp canvas over a repairable hand-cut softwood A-frame.",
+    "sortingCanopy": "Four-post weathered timber frame under a patched canvas fly, open on every side.",
+    "workFurniture": "Two separate timber sorting and sieving stations kept beneath the canopy.",
+    "mobileEquipment": "Handcart, hand-tool rack, water buckets, and two irregular survey-marker clusters."
+  },
+  "canonicalState": "Fixed shelter, sorting furniture, and tools only; stored outputs are absent at zero inventory.",
+  "runtimeOwnedState": {
+    "materialStockpiles": "Stone, iron, salt, and clay piles are progressive simulation-owned visuals outside the neutral GLB.",
+    "toolInventory": "Civilian-tool stock is a progressive runtime-owned visual.",
+    "workersAndEffects": "Workers, active extraction, dust, sound, and surface-deposit dressing remain runtime-owned.",
+    "vegetation": "Excluded; SeedThree owns every living plant and surrounding forest layer."
+  },
+  "atlas": {
+    "id": "gorski-building-atlas-v1",
+    "usedTiles": [
+      "aged-canvas",
+      "linen-canvas",
+      "rough-hewn-timber",
+      "weathered-planks",
+      "quarry-stone",
+      "limestone-ashlar",
+      "wrought-iron",
+      "wicker-weave",
+      "packed-earth"
+    ]
+  },
+  "retopology": {
+    "profile": "gameplay-v1",
+    "method": "Canonical low-poly kit components at unit scale with export bevels removed; no automatic decimation."
+  },
+  "placements": [
+    {
+      "name": "MiningCampDayShelter",
+      "source": "site_tent_a_frame_large",
+      "collection": "MC_01_Day_Shelter",
+      "location": [
+        -4.72,
+        2.62,
+        0.0
+      ],
+      "rotationZDegrees": -8.0,
+      "collision": true
+    },
+    {
+      "name": "MiningCampSortingCanopy",
+      "source": "site_canopy_canvas_4m_d4m",
+      "collection": "MC_02_Sorting_Canopy_And_Yard",
+      "location": [
+        2.7,
+        2.75,
+        0.0
+      ],
+      "rotationZDegrees": 4.0,
+      "collision": false
+    },
+    {
+      "name": "MiningCampSortingYard",
+      "source": "extract_sorting_bench",
+      "collection": "MC_02_Sorting_Canopy_And_Yard",
+      "location": [
+        1.66,
+        2.58,
+        0.0
+      ],
+      "rotationZDegrees": 3.0,
+      "collision": true
+    },
+    {
+      "name": "MiningCampSieveTable",
+      "source": "extract_sieve_table",
+      "collection": "MC_02_Sorting_Canopy_And_Yard",
+      "location": [
+        3.73,
+        2.83,
+        0.0
+      ],
+      "rotationZDegrees": 5.0,
+      "collision": true
+    },
+    {
+      "name": "MiningCampHandcart",
+      "source": "extract_handcart",
+      "collection": "MC_03_Mobile_Equipment",
+      "location": [
+        -0.25,
+        -1.25,
+        0.0
+      ],
+      "rotationZDegrees": -18.0,
+      "collision": true
+    },
+    {
+      "name": "MiningCampToolRack",
+      "source": "prop_tool_rack_quarry",
+      "collection": "MC_03_Mobile_Equipment",
+      "location": [
+        -2.0,
+        0.3,
+        0.0
+      ],
+      "rotationZDegrees": -12.0,
+      "collision": true
+    },
+    {
+      "name": "MiningCampWaterBuckets",
+      "source": "prop_water_bucket_pair",
+      "collection": "MC_03_Mobile_Equipment",
+      "location": [
+        4.52,
+        0.72,
+        0.0
+      ],
+      "rotationZDegrees": 7.0,
+      "collision": false
+    },
+    {
+      "name": "MiningCampSurveyStakes",
+      "source": "extract_survey_stakes",
+      "collection": "MC_04_Survey_Markers",
+      "location": [
+        -3.62,
+        -3.42,
+        0.0
+      ],
+      "rotationZDegrees": -7.0,
+      "collision": false
+    },
+    {
+      "name": "MiningCampSurveyStakesSecondary",
+      "source": "extract_survey_stakes",
+      "collection": "MC_04_Survey_Markers",
+      "location": [
+        3.7,
+        -3.58,
+        0.0
+      ],
+      "rotationZDegrees": 9.0,
+      "collision": false
+    }
+  ]
+}

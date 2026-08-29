@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "validatedAt": "2026-08-29T11:05:03.850657+00:00",
+  "status": "pass",
+  "meshes": 84,
+  "triangles": 13764,
+  "bounds": {
+    "min": [
+      -5.4055,
+      -9.34,
+      0.0
+    ],
+    "max": [
+      5.4055,
+      8.7645,
+      15.97
+    ]
+  },
+  "dimensions": [
+    10.811,
+    18.1045,
+    15.97
+  ],
+  "maximumHeight": 15.97,
+  "tier1ResidenceHeight": 5.1335,
+  "heightRatio": 3.1109,
+  "clockGeometryBaked": false,
+  "clockAnchor": "TC_Clock_Anchor",
+  "atlasTiles": [
+    "fieldstone-mortar",
+    "lime-plaster",
+    "rough-hewn-timber",
+    "split-shingles",
+    "weathered-planks",
+    "wrought-iron"
+  ],
+  "surfaceRoles": [
+    "fieldstone",
+    "glass",
+    "iron",
+    "limestone_warm",
+    "limewash",
+    "limewash_damp",
+    "limewash_faded",
+    "oak_dark",
+    "shingles",
+    "shingles_aged",
+    "timber_weathered"
+  ],
+  "errors": [],
+  "warnings": []
+}

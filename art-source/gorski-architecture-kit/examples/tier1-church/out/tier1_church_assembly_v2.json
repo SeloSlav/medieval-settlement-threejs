@@ -1,0 +1,1327 @@
+{
+  "id": "gorski-tier1-church-delnice-v2",
+  "authoritativeBuildingKind": "chapel",
+  "developmentTier": 1,
+  "displayIdentity": "Tier 1 Parish Church",
+  "regionalContext": "Gorski Kotar, circa 1550 material language",
+  "visualReference": {
+    "building": "Church of St. John the Baptist, Delnice",
+    "referenceDate": "current photographed exterior; existing church built 1825-1829",
+    "adaptation": "West-front tower, flared skirt and spire, three arched portals, oculus, pale facade, stone lower work, and dark roof follow the supplied Delnice references; surfaces are adapted to the game's regional material contract."
+  },
+  "dimensionsMetres": {
+    "artFootprintWidth": 10.811,
+    "artFootprintDepth": 18.1045,
+    "maximumHeight": 16.57,
+    "tier1ResidenceReferenceHeight": 5.1335,
+    "heightRatioToTier1Residence": 3.2278
+  },
+  "signatureSilhouette": "A broad pale nave is dominated by a central enclosed west tower, concave flared belfry hood, steep dark spire, and iron cross.",
+  "openingFit": {
+    "naveLancets": "Host voids use the shared window_lancet contract and inserts share its centreline and sill.",
+    "belfryLouvers": "Host voids use the shared window_domestic contract; the tower stack is lifted above the nave-roof intersection.",
+    "roofClearance": "Front shoulders and rear gable are seated below the roof skins to prevent diagonal flashing and z-fighting."
+  },
+  "runtimeOwnedState": {
+    "clock": "The GLB exports only TC_Clock_Anchor; Three.js creates the clock face and hands and drives them from the simulation clock.",
+    "bellAudioAndMotion": "Runtime-owned; no baked animation.",
+    "vegetationAndPeople": "Excluded; SeedThree and settlement simulation own these layers."
+  },
+  "atlas": {
+    "id": "gorski-building-atlas-v1",
+    "usedTiles": [
+      "lime-plaster",
+      "fieldstone-mortar",
+      "rough-hewn-timber",
+      "weathered-planks",
+      "sawn-planks",
+      "split-shingles",
+      "wrought-iron",
+      "packed-earth"
+    ],
+    "packing": "R roughness, G metalness, B AO, A centered height",
+    "fading": "Three named lime-plaster variants provide maintained warm limewash, broad faded exposure, and restrained damp staining without pure-white materials."
+  },
+  "retopology": {
+    "profile": "gameplay-v1",
+    "budgetTriangles": 24000,
+    "method": "Reusable authored kit bays and inserts plus low-poly closed roof/gable shells; no automatic bevel or blanket decimation."
+  },
+  "placements": [
+    {
+      "name": "TC_Foundation_Left_1",
+      "source": "foundation_fieldstone_4m_h0p65m",
+      "collection": "TC_01_Foundations",
+      "location": [
+        -5.0,
+        -5.8,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "TC_Foundation_Left_2",
+      "source": "foundation_fieldstone_4m_h0p65m",
+      "collection": "TC_01_Foundations",
+      "location": [
+        -5.0,
+        -1.8,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "TC_Foundation_Left_3",
+      "source": "foundation_fieldstone_4m_h0p65m",
+      "collection": "TC_01_Foundations",
+      "location": [
+        -5.0,
+        2.2,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "TC_Foundation_Left_4",
+      "source": "foundation_fieldstone_4m_h0p65m",
+      "collection": "TC_01_Foundations",
+      "location": [
+        -5.0,
+        6.2,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "TC_Foundation_Right_1",
+      "source": "foundation_fieldstone_4m_h0p65m",
+      "collection": "TC_01_Foundations",
+      "location": [
+        5.0,
+        -5.8,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "TC_Foundation_Right_2",
+      "source": "foundation_fieldstone_4m_h0p65m",
+      "collection": "TC_01_Foundations",
+      "location": [
+        5.0,
+        -1.8,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "TC_Foundation_Right_3",
+      "source": "foundation_fieldstone_4m_h0p65m",
+      "collection": "TC_01_Foundations",
+      "location": [
+        5.0,
+        2.2,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "TC_Foundation_Right_4",
+      "source": "foundation_fieldstone_4m_h0p65m",
+      "collection": "TC_01_Foundations",
+      "location": [
+        5.0,
+        6.2,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "TC_Foundation_Rear_Left4",
+      "source": "foundation_fieldstone_4m_h0p65m",
+      "collection": "TC_01_Foundations",
+      "location": [
+        -3.0,
+        7.8,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "TC_Foundation_Rear_Centre2",
+      "source": "foundation_fieldstone_2m_h0p65m",
+      "collection": "TC_01_Foundations",
+      "location": [
+        0.0,
+        7.8,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "TC_Foundation_Rear_Right4",
+      "source": "foundation_fieldstone_4m_h0p65m",
+      "collection": "TC_01_Foundations",
+      "location": [
+        3.0,
+        7.8,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "TC_Foundation_Front_FarLeft2",
+      "source": "foundation_fieldstone_2m_h0p65m",
+      "collection": "TC_01_Foundations",
+      "location": [
+        -4.0,
+        -7.8,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Foundation_Front_InnerLeft1",
+      "source": "foundation_fieldstone_1m_h0p65m",
+      "collection": "TC_01_Foundations",
+      "location": [
+        -2.5,
+        -7.8,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Foundation_Front_Tower",
+      "source": "foundation_fieldstone_4m_h0p65m",
+      "collection": "TC_01_Foundations",
+      "location": [
+        0.0,
+        -7.8,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Foundation_Front_InnerRight1",
+      "source": "foundation_fieldstone_1m_h0p65m",
+      "collection": "TC_01_Foundations",
+      "location": [
+        2.5,
+        -7.8,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Foundation_Front_FarRight2",
+      "source": "foundation_fieldstone_2m_h0p65m",
+      "collection": "TC_01_Foundations",
+      "location": [
+        4.0,
+        -7.8,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Nave_Left_Bay_1",
+      "source": "civic_church_nave_bay_plain_4m_h5p4m",
+      "collection": "TC_02_Nave_And_Facade",
+      "location": [
+        -5.0,
+        -5.8,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "TC_Nave_Left_Bay_2",
+      "source": "civic_church_nave_bay_lancet_4m_h5p4m",
+      "collection": "TC_02_Nave_And_Facade",
+      "location": [
+        -5.0,
+        -1.8,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "TC_Nave_Left_Lancet_1",
+      "source": "opening_window_lancet_deep",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        -5.255,
+        -1.8,
+        1.405
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "TC_Nave_Left_Bay_3",
+      "source": "civic_church_nave_bay_lancet_4m_h5p4m",
+      "collection": "TC_02_Nave_And_Facade",
+      "location": [
+        -5.0,
+        2.2,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "TC_Nave_Left_Lancet_2",
+      "source": "opening_window_lancet_deep",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        -5.255,
+        2.2,
+        1.405
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "TC_Nave_Left_Bay_4",
+      "source": "civic_church_nave_bay_lancet_4m_h5p4m",
+      "collection": "TC_02_Nave_And_Facade",
+      "location": [
+        -5.0,
+        6.2,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "TC_Nave_Left_Lancet_3",
+      "source": "opening_window_lancet_deep",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        -5.255,
+        6.2,
+        1.405
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "TC_Nave_Right_Bay_1",
+      "source": "civic_church_nave_bay_plain_4m_h5p4m",
+      "collection": "TC_02_Nave_And_Facade",
+      "location": [
+        5.0,
+        -5.8,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "TC_Nave_Right_Bay_2",
+      "source": "civic_church_nave_bay_lancet_4m_h5p4m",
+      "collection": "TC_02_Nave_And_Facade",
+      "location": [
+        5.0,
+        -1.8,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "TC_Nave_Right_Lancet_1",
+      "source": "opening_window_lancet_deep",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        5.255,
+        -1.8,
+        1.405
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "TC_Nave_Right_Bay_3",
+      "source": "civic_church_nave_bay_lancet_4m_h5p4m",
+      "collection": "TC_02_Nave_And_Facade",
+      "location": [
+        5.0,
+        2.2,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "TC_Nave_Right_Lancet_2",
+      "source": "opening_window_lancet_deep",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        5.255,
+        2.2,
+        1.405
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "TC_Nave_Right_Bay_4",
+      "source": "civic_church_nave_bay_lancet_4m_h5p4m",
+      "collection": "TC_02_Nave_And_Facade",
+      "location": [
+        5.0,
+        6.2,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "TC_Nave_Right_Lancet_3",
+      "source": "opening_window_lancet_deep",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        5.255,
+        6.2,
+        1.405
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "TC_Rear_Left_Bay",
+      "source": "civic_church_nave_bay_plain_4m_h5p4m",
+      "collection": "TC_02_Nave_And_Facade",
+      "location": [
+        -3.0,
+        7.8,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "TC_Rear_Right_Bay",
+      "source": "civic_church_nave_bay_plain_4m_h5p4m",
+      "collection": "TC_02_Nave_And_Facade",
+      "location": [
+        3.0,
+        7.8,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "TC_Rear_Centre_Infill",
+      "source": "assembly_custom_rear_two_metre_bay",
+      "collection": "TC_02_Nave_And_Facade",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Front_Left_Portal_Bay",
+      "source": "civic_church_west_portal_bay_3m_h5p4m",
+      "collection": "TC_02_Nave_And_Facade",
+      "location": [
+        -3.5,
+        -7.8,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Front_Left_Side_Door",
+      "source": "opening_church_arch_door",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        -3.5,
+        -8.07,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Front_Left_Door_Canopy",
+      "source": "roof_shingle_portal_canopy_1p7m",
+      "collection": "TC_04_Roofs_And_Spire",
+      "location": [
+        -3.5,
+        -7.82,
+        3.07
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Front_Right_Portal_Bay",
+      "source": "civic_church_west_portal_bay_3m_h5p4m",
+      "collection": "TC_02_Nave_And_Facade",
+      "location": [
+        3.5,
+        -7.8,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Front_Right_Side_Door",
+      "source": "opening_church_arch_door",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        3.5,
+        -8.07,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Front_Right_Door_Canopy",
+      "source": "roof_shingle_portal_canopy_1p7m",
+      "collection": "TC_04_Roofs_And_Spire",
+      "location": [
+        3.5,
+        -7.82,
+        3.07
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Front_Left_Gable_Shoulder",
+      "source": "assembly_custom_west_gable_shoulder",
+      "collection": "TC_02_Nave_And_Facade",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Front_Right_Gable_Shoulder",
+      "source": "assembly_custom_west_gable_shoulder",
+      "collection": "TC_02_Nave_And_Facade",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Rear_Gable",
+      "source": "assembly_custom_rear_gable",
+      "collection": "TC_02_Nave_And_Facade",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_FrontLeft_Stone_Pilaster",
+      "source": "civic_chapel_buttress_tall",
+      "collection": "TC_06_Stone_Trim_And_Steps",
+      "location": [
+        -5.02,
+        -7.84,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_FrontRight_Stone_Pilaster",
+      "source": "civic_chapel_buttress_tall",
+      "collection": "TC_06_Stone_Trim_And_Steps",
+      "location": [
+        5.02,
+        -7.84,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_RearLeft_Stone_Pilaster",
+      "source": "civic_chapel_buttress_tall",
+      "collection": "TC_06_Stone_Trim_And_Steps",
+      "location": [
+        -5.02,
+        7.84,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "TC_RearRight_Stone_Pilaster",
+      "source": "civic_chapel_buttress_tall",
+      "collection": "TC_06_Stone_Trim_And_Steps",
+      "location": [
+        5.02,
+        7.84,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Lower_Stone_Left",
+      "source": "assembly_custom_tower_portal_host",
+      "collection": "TC_03_West_Tower",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Lower_Stone_Right",
+      "source": "assembly_custom_tower_portal_host",
+      "collection": "TC_03_West_Tower",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Lower_Stone_Head",
+      "source": "assembly_custom_tower_portal_host",
+      "collection": "TC_03_West_Tower",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Lower_Side_Left",
+      "source": "assembly_custom_tower_base_side",
+      "collection": "TC_03_West_Tower",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Lower_Side_Right",
+      "source": "assembly_custom_tower_base_side",
+      "collection": "TC_03_West_Tower",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Lower_Back",
+      "source": "assembly_custom_tower_base_back",
+      "collection": "TC_03_West_Tower",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Shaft_Front",
+      "source": "civic_church_tower_shaft_bay_4m_h4m",
+      "collection": "TC_03_West_Tower",
+      "location": [
+        0.0,
+        -7.82,
+        3.25
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Belfry_Front",
+      "source": "civic_church_tower_belfry_bay_4m_h3p8m",
+      "collection": "TC_03_West_Tower",
+      "location": [
+        0.0,
+        -7.82,
+        7.25
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Belfry_Louver_Front",
+      "source": "opening_window_belfry_louver_arch",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        0.0,
+        -8.09,
+        7.25
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Belfry_Void_Front",
+      "source": "assembly_custom_belfry_dark_void",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Shaft_Rear",
+      "source": "civic_church_tower_shaft_bay_4m_h4m",
+      "collection": "TC_03_West_Tower",
+      "location": [
+        0.0,
+        -3.7,
+        3.25
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Belfry_Rear",
+      "source": "civic_church_tower_belfry_bay_4m_h3p8m",
+      "collection": "TC_03_West_Tower",
+      "location": [
+        0.0,
+        -3.7,
+        7.25
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "TC_Belfry_Louver_Rear",
+      "source": "opening_window_belfry_louver_arch",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        0.0,
+        -3.43,
+        7.25
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "TC_Belfry_Void_Rear",
+      "source": "assembly_custom_belfry_dark_void",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Shaft_Left",
+      "source": "civic_church_tower_shaft_bay_4m_h4m",
+      "collection": "TC_03_West_Tower",
+      "location": [
+        -2.0,
+        -5.75,
+        3.25
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Belfry_Left",
+      "source": "civic_church_tower_belfry_bay_4m_h3p8m",
+      "collection": "TC_03_West_Tower",
+      "location": [
+        -2.0,
+        -5.75,
+        7.25
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "TC_Belfry_Louver_Left",
+      "source": "opening_window_belfry_louver_arch",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        -2.27,
+        -5.75,
+        7.25
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "TC_Belfry_Void_Left",
+      "source": "assembly_custom_belfry_dark_void",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Shaft_Right",
+      "source": "civic_church_tower_shaft_bay_4m_h4m",
+      "collection": "TC_03_West_Tower",
+      "location": [
+        2.0,
+        -5.75,
+        3.25
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Belfry_Right",
+      "source": "civic_church_tower_belfry_bay_4m_h3p8m",
+      "collection": "TC_03_West_Tower",
+      "location": [
+        2.0,
+        -5.75,
+        7.25
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "TC_Belfry_Louver_Right",
+      "source": "opening_window_belfry_louver_arch",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        2.27,
+        -5.75,
+        7.25
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "TC_Belfry_Void_Right",
+      "source": "assembly_custom_belfry_dark_void",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Main_West_Door",
+      "source": "opening_church_arch_door_double",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        0.0,
+        -8.11,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Main_West_Portal_Surround",
+      "source": "opening_church_portal_surround",
+      "collection": "TC_06_Stone_Trim_And_Steps",
+      "location": [
+        0.0,
+        -8.14,
+        0.65
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_West_Oculus",
+      "source": "opening_window_oculus_stone_small",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        0.0,
+        -8.1,
+        4.07
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Main_Entrance_Steps",
+      "source": "foundation_steps_limestone_3",
+      "collection": "TC_06_Stone_Trim_And_Steps",
+      "location": [
+        0.0,
+        -8.32,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "TC_Left_Entrance_Step",
+      "source": "foundation_steps_limestone_1",
+      "collection": "TC_06_Stone_Trim_And_Steps",
+      "location": [
+        -3.5,
+        -8.22,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "TC_Right_Entrance_Step",
+      "source": "foundation_steps_limestone_1",
+      "collection": "TC_06_Stone_Trim_And_Steps",
+      "location": [
+        3.5,
+        -8.22,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Slit_Window_Void",
+      "source": "assembly_custom_tower_slit_window",
+      "collection": "TC_05_Doors_Windows_Louvers",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Slit_Frame_Top",
+      "source": "assembly_custom_tower_slit_surround",
+      "collection": "TC_06_Stone_Trim_And_Steps",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Slit_Frame_Bottom",
+      "source": "assembly_custom_tower_slit_surround",
+      "collection": "TC_06_Stone_Trim_And_Steps",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Slit_Frame_Left",
+      "source": "assembly_custom_tower_slit_surround",
+      "collection": "TC_06_Stone_Trim_And_Steps",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Tower_Slit_Frame_Right",
+      "source": "assembly_custom_tower_slit_surround",
+      "collection": "TC_06_Stone_Trim_And_Steps",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Delnice_Flared_Spire",
+      "source": "roof_shingle_belfry_ogee_4m",
+      "collection": "TC_04_Roofs_And_Spire",
+      "location": [
+        0.0,
+        -5.75,
+        11.05
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Spire_Iron_Cross",
+      "source": "civic_church_cross_iron_large",
+      "collection": "TC_06_Stone_Trim_And_Steps",
+      "location": [
+        0.0,
+        -5.75,
+        15.23
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Clock_Anchor",
+      "source": "runtime_clock_anchor_empty",
+      "collection": "TC_03_West_Tower",
+      "location": [
+        0.0,
+        -8.14,
+        9.72
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Nave_Roof_Left",
+      "source": "assembly_custom_church_nave_roof_skin",
+      "collection": "TC_04_Roofs_And_Spire",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Nave_Roof_Right",
+      "source": "assembly_custom_church_nave_roof_skin",
+      "collection": "TC_04_Roofs_And_Spire",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "TC_Nave_Ridge",
+      "source": "assembly_custom_church_ridge",
+      "collection": "TC_04_Roofs_And_Spire",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ]
+}

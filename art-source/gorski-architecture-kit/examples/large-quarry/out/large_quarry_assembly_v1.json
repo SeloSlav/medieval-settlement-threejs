@@ -1,0 +1,230 @@
+{
+  "id": "gorski-large-quarry-atlas-preview-v1",
+  "revision": 1,
+  "authoritativeBuildingKind": "large_quarry",
+  "displayIdentity": "Quarry",
+  "regionalContext": "Gorski Kotar, circa 1550",
+  "sourceKit": "gorski-architecture-kit-1.1.0",
+  "dimensionsMetres": {
+    "artFootprintWidth": 18.6263,
+    "artFootprintDepth": 10.0355,
+    "maximumHeight": 4.5405
+  },
+  "designIntent": "Permanent rich-stone open cut, clearly larger and more infrastructural than the mobile Mining Camp while remaining distinct from underground Mineworks.",
+  "signatureSilhouette": "A large hand-built timber lifting derrick stands inside a continuous U-shaped stepped quarry face.",
+  "construction": {
+    "cutFace": "Five canonical four-metre quarry-bench modules form a continuous three-sided extraction face with an open road approach.",
+    "hoist": "Large dark-oak derrick and grounded hoist bucket over the central working floor.",
+    "access": "Four-metre plank causeway between two partially buried fieldstone retaining walls.",
+    "sorting": "Permanent split-shingle canopy with a sorting bench and stonecutters' wedge rack.",
+    "equipment": "Empty handcart and fixed quarry tool rack remain trade-defining equipment rather than stored output."
+  },
+  "canonicalState": "Fixed extraction architecture and empty equipment only; stone output, replacement supports, and civilian-tool stock are absent at zero inventory.",
+  "runtimeOwnedState": {
+    "stoneOutput": "LargeQuarryStockpile and its progressive segments remain simulation-owned.",
+    "supportTimber": "LargeQuarrySupportStockpile and its progressive segments remain simulation-owned.",
+    "toolInventory": "Civilian quarry-tool inventory remains simulation-owned.",
+    "workersAndEffects": "Workers, dust, sound, carts in motion, and deposit depletion remain runtime-owned.",
+    "vegetation": "Excluded; SeedThree owns every living plant and surrounding forest layer."
+  },
+  "atlas": {
+    "id": "gorski-building-atlas-v1",
+    "usedTiles": [
+      "quarry-stone",
+      "fieldstone-mortar",
+      "limestone-ashlar",
+      "rough-hewn-timber",
+      "sawn-planks",
+      "weathered-planks",
+      "split-shingles",
+      "wrought-iron",
+      "packed-earth"
+    ]
+  },
+  "retopology": {
+    "profile": "gameplay-v1",
+    "method": "Canonical low-poly kit components at unit scale with export bevels removed; no automatic decimation."
+  },
+  "placements": [
+    {
+      "name": "LQ_Cut_Bench_Rear_West",
+      "source": "extract_quarry_bench_4m",
+      "collection": "LQ_01_Stepped_Open_Cut",
+      "location": [
+        -4.0,
+        4.4,
+        0.0
+      ],
+      "rotationZDegrees": 0.0,
+      "collision": true
+    },
+    {
+      "name": "LQ_Cut_Bench_Rear_Centre",
+      "source": "extract_quarry_bench_4m",
+      "collection": "LQ_01_Stepped_Open_Cut",
+      "location": [
+        0.0,
+        4.4,
+        0.0
+      ],
+      "rotationZDegrees": 0.0,
+      "collision": true
+    },
+    {
+      "name": "LQ_Cut_Bench_Rear_East",
+      "source": "extract_quarry_bench_4m",
+      "collection": "LQ_01_Stepped_Open_Cut",
+      "location": [
+        4.0,
+        4.4,
+        0.0
+      ],
+      "rotationZDegrees": 0.0,
+      "collision": true
+    },
+    {
+      "name": "LQ_Cut_Bench_West_Return",
+      "source": "extract_quarry_bench_4m",
+      "collection": "LQ_01_Stepped_Open_Cut",
+      "location": [
+        -5.0,
+        1.4,
+        0.0
+      ],
+      "rotationZDegrees": 90.0,
+      "collision": true
+    },
+    {
+      "name": "LQ_Cut_Bench_East_Return",
+      "source": "extract_quarry_bench_4m",
+      "collection": "LQ_01_Stepped_Open_Cut",
+      "location": [
+        5.0,
+        1.4,
+        0.0
+      ],
+      "rotationZDegrees": -90.0,
+      "collision": true
+    },
+    {
+      "name": "LQ_Large_Timber_Derrick",
+      "source": "extract_quarry_derrick_large",
+      "collection": "LQ_02_Derrick_And_Access",
+      "location": [
+        0.0,
+        1.45,
+        0.0
+      ],
+      "rotationZDegrees": -4.0,
+      "collision": false
+    },
+    {
+      "name": "LQ_Grounded_Hoist_Bucket",
+      "source": "extract_ore_bucket",
+      "collection": "LQ_02_Derrick_And_Access",
+      "location": [
+        2.15,
+        1.35,
+        0.0
+      ],
+      "rotationZDegrees": 8.0,
+      "collision": false
+    },
+    {
+      "name": "LQ_Central_Plank_Causeway",
+      "source": "site_walkway_plank_4m",
+      "collection": "LQ_02_Derrick_And_Access",
+      "location": [
+        0.0,
+        -2.5,
+        0.0
+      ],
+      "rotationZDegrees": 90.0,
+      "collision": false
+    },
+    {
+      "name": "LQ_Access_Retaining_Wall_West",
+      "source": "foundation_retaining_wall_4m",
+      "collection": "LQ_02_Derrick_And_Access",
+      "location": [
+        -1.2,
+        -2.5,
+        -0.7
+      ],
+      "rotationZDegrees": 90.0,
+      "collision": true
+    },
+    {
+      "name": "LQ_Access_Retaining_Wall_East",
+      "source": "foundation_retaining_wall_4m",
+      "collection": "LQ_02_Derrick_And_Access",
+      "location": [
+        1.2,
+        -2.5,
+        -0.7
+      ],
+      "rotationZDegrees": 90.0,
+      "collision": true
+    },
+    {
+      "name": "LQ_Shingle_Sorting_Canopy",
+      "source": "site_canopy_timber_4m_d2m",
+      "collection": "LQ_03_Sorting_Shelter",
+      "location": [
+        8.25,
+        0.18,
+        0.0
+      ],
+      "rotationZDegrees": -2.0,
+      "collision": false
+    },
+    {
+      "name": "LQ_Stone_Sorting_Bench",
+      "source": "extract_sorting_bench",
+      "collection": "LQ_03_Sorting_Shelter",
+      "location": [
+        7.18,
+        0.18,
+        0.0
+      ],
+      "rotationZDegrees": -2.0,
+      "collision": false
+    },
+    {
+      "name": "LQ_Stonecutters_Wedge_Rack",
+      "source": "extract_quarry_wedge_rack",
+      "collection": "LQ_03_Sorting_Shelter",
+      "location": [
+        9.15,
+        0.18,
+        0.0
+      ],
+      "rotationZDegrees": -2.0,
+      "collision": false
+    },
+    {
+      "name": "LQ_Empty_Stone_Handcart",
+      "source": "extract_handcart",
+      "collection": "LQ_04_Fixed_Equipment",
+      "location": [
+        -7.35,
+        -0.05,
+        0.0
+      ],
+      "rotationZDegrees": -16.0,
+      "collision": false
+    },
+    {
+      "name": "LQ_Fixed_Quarry_Tool_Rack",
+      "source": "prop_tool_rack_quarry",
+      "collection": "LQ_04_Fixed_Equipment",
+      "location": [
+        -7.35,
+        -1.72,
+        0.0
+      ],
+      "rotationZDegrees": 6.0,
+      "collision": false
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 2,
+  "validatedAt": "2026-08-29T16:21:05.016705+00:00",
+  "blend": "C:\\WebProjects\\medieval-road-system\\.codex-tmp\\kit-lumber-release\\out\\gorski_architecture_kit.blend",
+  "manifest": "C:\\WebProjects\\medieval-road-system\\.codex-tmp\\kit-lumber-release\\out\\gorski_architecture_kit_manifest.json",
+  "status": "pass",
+  "metrics": {
+    "parts": 638,
+    "families": {
+      "agriculture": 38,
+      "civic": 56,
+      "enclosures": 32,
+      "extraction": 33,
+      "foundations": 42,
+      "frames": 57,
+      "openings": 30,
+      "production": 41,
+      "props": 41,
+      "roofs": 108,
+      "siteworks": 41,
+      "walls": 119
+    },
+    "totalTriangles": 408646,
+    "sharedMaterials": 36,
+    "buildingCatalogKinds": 44,
+    "buildingCoverageKinds": 44,
+    "supplementalCoverageKinds": 34,
+    "farmCropCatalogKinds": 6,
+    "backyardGardenCatalogKinds": 17,
+    "nonmanifoldObjects": 1,
+    "uvMappedObjects": 638,
+    "requiredProductionVocabularySets": 6
+  },
+  "errors": [],
+  "warnings": [
+    "prop_water_bucket_pair: documented non-manifold boundary edge count 80"
+  ],
+  "checks": [
+    "authoritative building-catalog coverage",
+    "exact authoritative crop/backyard and required supplemental coverage",
+    "coverage references resolve to modular components",
+    "unique ids and deterministic vertex hashes",
+    "canonical transforms and unparented component ownership",
+    "mesh finiteness, topology, degeneracy, and triangle budgets",
+    "shared palette materials and required metadata",
+    "metric GK_UV0 coverage and texture contract metadata",
+    "authored-fraction seam contracts",
+    "minimum family breadth and no finished-building assemblies",
+    "named residence-roof, church, and shrine production vocabularies",
+    "no living vegetation or crop meshes (SeedThree ownership)"
+  ]
+}

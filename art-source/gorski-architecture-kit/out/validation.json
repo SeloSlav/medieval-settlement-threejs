@@ -1,38 +1,40 @@
 {
   "schemaVersion": 2,
-  "validatedAt": "2026-08-29T08:44:40.652477+00:00",
+  "validatedAt": "2026-08-29T19:47:22.960418+00:00",
   "blend": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\out\\gorski_architecture_kit.blend",
   "manifest": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\out\\gorski_architecture_kit_manifest.json",
   "status": "pass",
   "metrics": {
-    "parts": 625,
+    "parts": 638,
     "families": {
       "agriculture": 38,
-      "civic": 49,
+      "civic": 56,
       "enclosures": 32,
       "extraction": 33,
       "foundations": 42,
-      "frames": 56,
-      "openings": 29,
+      "frames": 57,
+      "openings": 30,
       "production": 41,
       "props": 41,
-      "roofs": 106,
+      "roofs": 108,
       "siteworks": 41,
-      "walls": 117
+      "walls": 119
     },
-    "totalTriangles": 401488,
-    "sharedMaterials": 34,
+    "totalTriangles": 409862,
+    "sharedMaterials": 36,
     "buildingCatalogKinds": 44,
     "buildingCoverageKinds": 44,
     "supplementalCoverageKinds": 34,
     "farmCropCatalogKinds": 6,
     "backyardGardenCatalogKinds": 17,
-    "nonmanifoldObjects": 0,
-    "uvMappedObjects": 625,
+    "nonmanifoldObjects": 1,
+    "uvMappedObjects": 638,
     "requiredProductionVocabularySets": 6
   },
   "errors": [],
-  "warnings": [],
+  "warnings": [
+    "prop_water_bucket_pair: documented non-manifold boundary edge count 80"
+  ],
   "checks": [
     "authoritative building-catalog coverage",
     "exact authoritative crop/backyard and required supplemental coverage",

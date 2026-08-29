@@ -1,0 +1,829 @@
+{
+  "id": "gorski-lumber-mill-atlas-preview-v1",
+  "revision": 1,
+  "authoritativeBuildingKind": "lumber_mill",
+  "displayIdentity": "Lumber Mill",
+  "regionalContext": "Gorski Kotar, circa 1550",
+  "sourceKit": "gorski-architecture-kit-1.1.0",
+  "dimensionsMetres": {
+    "artFootprintWidth": 13.8718,
+    "artFootprintDepth": 8.9967,
+    "maximumHeight": 7.022
+  },
+  "designIntent": "A long, low hand-sawing hall whose open road-facing intake and deep roof communicate timber processing without an anachronistic circular saw.",
+  "signatureSilhouette": "A broad six-metre gable roof over a low twelve-metre hall, with a lower open intake canopy projecting toward the road.",
+  "construction": {
+    "hall": "Twelve-metre weathered plank hall on a continuous low fieldstone ring, divided into canonical four- and two-metre bays.",
+    "roof": "Settled fifty-degree split-fir/pine shingle slopes with deep eaves and protected verges; the closed slopes meet directly at the ridge without a beam-like cap.",
+    "frame": "Dark oak posts and plates carry reusable six-metre king-post trusses; all fixed beams terminate at structural members.",
+    "intake": "A six-by-three-metre supported work canopy shelters the hand-sawpit and log frame while leaving a clear road-facing bay."
+  },
+  "canonicalState": "Fixed mill architecture, saw frame, tool rack, and transport cart only; stored roundwood remains runtime-state-owned.",
+  "runtimeOwnedState": {
+    "timberInventory": "Five progressive runtime log-stack segments remain hidden at zero stored timber.",
+    "workersAndMotion": "Workers, active sawing animation, dust, and sound are runtime-owned.",
+    "vegetation": "Excluded; SeedThree owns every living plant and forest layer."
+  },
+  "atlas": {
+    "id": "gorski-building-atlas-v1",
+    "usedTiles": [
+      "fieldstone-mortar",
+      "rough-hewn-timber",
+      "weathered-planks",
+      "sawn-planks",
+      "split-shingles",
+      "wrought-iron",
+      "packed-earth"
+    ]
+  },
+  "retopology": {
+    "profile": "gameplay-v1",
+    "method": "Canonical kit walls, frames, gables, canopy and tools plus two closed low-poly roof skins; no blanket bevel or decimation."
+  },
+  "placements": [
+    {
+      "name": "LM_Front_Footing_1",
+      "source": "foundation_fieldstone_4m_h0p35m",
+      "collection": "LM_01_Continuous_Footing",
+      "location": [
+        -4.0,
+        -2.4,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Front_Footing_2",
+      "source": "foundation_fieldstone_4m_h0p35m",
+      "collection": "LM_01_Continuous_Footing",
+      "location": [
+        0.0,
+        -2.4,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Front_Footing_3",
+      "source": "foundation_fieldstone_4m_h0p35m",
+      "collection": "LM_01_Continuous_Footing",
+      "location": [
+        4.0,
+        -2.4,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Rear_Footing_1",
+      "source": "foundation_fieldstone_4m_h0p35m",
+      "collection": "LM_01_Continuous_Footing",
+      "location": [
+        -4.0,
+        3.6,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Rear_Footing_2",
+      "source": "foundation_fieldstone_4m_h0p35m",
+      "collection": "LM_01_Continuous_Footing",
+      "location": [
+        0.0,
+        3.6,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Rear_Footing_3",
+      "source": "foundation_fieldstone_4m_h0p35m",
+      "collection": "LM_01_Continuous_Footing",
+      "location": [
+        4.0,
+        3.6,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_West_Footing_Long",
+      "source": "foundation_fieldstone_4m_h0p35m",
+      "collection": "LM_01_Continuous_Footing",
+      "location": [
+        -6.0,
+        -0.4,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_West_Footing_Short",
+      "source": "foundation_fieldstone_2m_h0p35m",
+      "collection": "LM_01_Continuous_Footing",
+      "location": [
+        -6.0,
+        2.6,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_East_Footing_Long",
+      "source": "foundation_fieldstone_4m_h0p35m",
+      "collection": "LM_01_Continuous_Footing",
+      "location": [
+        6.0,
+        -0.4,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_East_Footing_Short",
+      "source": "foundation_fieldstone_2m_h0p35m",
+      "collection": "LM_01_Continuous_Footing",
+      "location": [
+        6.0,
+        2.6,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Rear_Plank_Bay_1",
+      "source": "wall_plank_4m_h3m",
+      "collection": "LM_02_Saw_Hall",
+      "location": [
+        -4.0,
+        3.6,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ],
+      "collision": true
+    },
+    {
+      "name": "LM_Rear_Plank_Bay_2",
+      "source": "wall_plank_4m_h3m",
+      "collection": "LM_02_Saw_Hall",
+      "location": [
+        0.0,
+        3.6,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ],
+      "collision": true
+    },
+    {
+      "name": "LM_Rear_Plank_Bay_3",
+      "source": "wall_plank_4m_h3m",
+      "collection": "LM_02_Saw_Hall",
+      "location": [
+        4.0,
+        3.6,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ],
+      "collision": true
+    },
+    {
+      "name": "LM_Front_West_Plank_Bay",
+      "source": "wall_plank_4m_h3m",
+      "collection": "LM_02_Saw_Hall",
+      "location": [
+        -4.0,
+        -2.4,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "collision": true
+    },
+    {
+      "name": "LM_Front_East_Plank_Bay",
+      "source": "wall_plank_4m_h3m",
+      "collection": "LM_02_Saw_Hall",
+      "location": [
+        4.0,
+        -2.4,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "collision": true
+    },
+    {
+      "name": "LM_West_Wall_Long",
+      "source": "wall_plank_4m_h3m",
+      "collection": "LM_02_Saw_Hall",
+      "location": [
+        -6.0,
+        -0.4,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ],
+      "collision": true
+    },
+    {
+      "name": "LM_West_Wall_Short",
+      "source": "wall_plank_2m_h3m",
+      "collection": "LM_02_Saw_Hall",
+      "location": [
+        -6.0,
+        2.6,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ],
+      "collision": true
+    },
+    {
+      "name": "LM_West_Six_Metre_Gable",
+      "source": "gable_infill_timber_6m",
+      "collection": "LM_02_Saw_Hall",
+      "location": [
+        -5.95,
+        0.6,
+        3.31
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_West_King_Post_Truss",
+      "source": "frame_gable_truss_6m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        -6.095,
+        0.6,
+        3.05
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_East_Wall_Long",
+      "source": "wall_plank_4m_h3m",
+      "collection": "LM_02_Saw_Hall",
+      "location": [
+        6.0,
+        -0.4,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ],
+      "collision": true
+    },
+    {
+      "name": "LM_East_Wall_Short",
+      "source": "wall_plank_2m_h3m",
+      "collection": "LM_02_Saw_Hall",
+      "location": [
+        6.0,
+        2.6,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ],
+      "collision": true
+    },
+    {
+      "name": "LM_East_Six_Metre_Gable",
+      "source": "gable_infill_timber_6m",
+      "collection": "LM_02_Saw_Hall",
+      "location": [
+        5.95,
+        0.6,
+        3.31
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_East_King_Post_Truss",
+      "source": "frame_gable_truss_6m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        6.095,
+        0.6,
+        3.05
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Front_Structural_Post_1",
+      "source": "frame_post_h3m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        -6.0,
+        -2.51,
+        0.315
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Front_Structural_Post_2",
+      "source": "frame_post_h3m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        -2.0,
+        -2.51,
+        0.315
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Front_Structural_Post_3",
+      "source": "frame_post_h3m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        2.0,
+        -2.51,
+        0.315
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Front_Structural_Post_4",
+      "source": "frame_post_h3m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        6.0,
+        -2.51,
+        0.315
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Front_Wall_Plate_1",
+      "source": "frame_beam_4m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        -4.0,
+        -2.51,
+        3.21
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Front_Wall_Plate_2",
+      "source": "frame_beam_4m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        0.0,
+        -2.51,
+        3.21
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Front_Wall_Plate_3",
+      "source": "frame_beam_4m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        4.0,
+        -2.51,
+        3.21
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Rear_Structural_Post_1",
+      "source": "frame_post_h3m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        -6.0,
+        3.71,
+        0.315
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Rear_Structural_Post_2",
+      "source": "frame_post_h3m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        -2.0,
+        3.71,
+        0.315
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Rear_Structural_Post_3",
+      "source": "frame_post_h3m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        2.0,
+        3.71,
+        0.315
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Rear_Structural_Post_4",
+      "source": "frame_post_h3m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        6.0,
+        3.71,
+        0.315
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Rear_Wall_Plate_1",
+      "source": "frame_beam_4m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        -4.0,
+        3.71,
+        3.21
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Rear_Wall_Plate_2",
+      "source": "frame_beam_4m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        0.0,
+        3.71,
+        3.21
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Rear_Wall_Plate_3",
+      "source": "frame_beam_4m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        4.0,
+        3.71,
+        3.21
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_West_Middle_Post",
+      "source": "frame_post_h3m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        -6.11,
+        1.6,
+        0.315
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_West_Wall_Plate_Long",
+      "source": "frame_beam_4m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        -6.11,
+        -0.4,
+        3.21
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_West_Wall_Plate_Short",
+      "source": "frame_beam_2m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        -6.11,
+        2.6,
+        3.21
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_East_Middle_Post",
+      "source": "frame_post_h3m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        6.11,
+        1.6,
+        0.315
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_East_Wall_Plate_Long",
+      "source": "frame_beam_4m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        6.11,
+        -0.4,
+        3.21
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_East_Wall_Plate_Short",
+      "source": "frame_beam_2m_s0p22m",
+      "collection": "LM_03_Structural_Frame",
+      "location": [
+        6.11,
+        2.6,
+        3.21
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Front_Settled_Shingle_Slope",
+      "source": "assembly_custom_settled_shingle_skin",
+      "collection": "LM_04_Settled_Shingle_Roof",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Rear_Settled_Shingle_Slope",
+      "source": "assembly_custom_settled_shingle_skin",
+      "collection": "LM_04_Settled_Shingle_Roof",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Open_Intake_Canopy",
+      "source": "site_canopy_timber_6m_d3m",
+      "collection": "LM_05_Open_Intake",
+      "location": [
+        0.0,
+        -3.3,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Hand_Sawpit_And_Log_Frame",
+      "source": "production_sawpit_frame",
+      "collection": "LM_06_Fixed_Equipment",
+      "location": [
+        -0.8,
+        -4.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "collision": true
+    },
+    {
+      "name": "LM_Sawyers_Tool_Rack",
+      "source": "prop_tool_rack_carpenter",
+      "collection": "LM_06_Fixed_Equipment",
+      "location": [
+        -4.85,
+        -2.68,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -3.0
+      ],
+      "collision": false
+    },
+    {
+      "name": "LM_Timber_Transport_Cart",
+      "source": "prop_two_wheel_cart",
+      "collection": "LM_06_Fixed_Equipment",
+      "location": [
+        4.05,
+        -4.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        11.0
+      ],
+      "collision": true
+    }
+  ]
+}

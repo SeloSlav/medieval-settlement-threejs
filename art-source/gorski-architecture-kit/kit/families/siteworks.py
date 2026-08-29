@@ -106,7 +106,10 @@ def _canopy(builder: MeshBuilder, width: float, depth: float, material: str) -> 
             builder.beam_between(bottom, top, 0.115, "timber_weathered")
         builder.beam_between(pole_tops[0], pole_tops[1], 0.105, "timber_weathered")
         builder.beam_between(pole_tops[2], pole_tops[3], 0.105, "timber_weathered")
-        _sagging_canvas_canopy(builder, width + 0.30, depth + 0.32, height + 0.08)
+        # Keep the closed cloth shell wholly above both carrying rails.  The
+        # earlier 0.08 m lift let the rails breach the sagging mid-field and
+        # read as unexplained dark sticks laid over the canvas.
+        _sagging_canvas_canopy(builder, width + 0.30, depth + 0.32, height + 0.22)
         return
 
     height = 2.45
@@ -121,8 +124,11 @@ def _canopy(builder: MeshBuilder, width: float, depth: float, material: str) -> 
 def _sagging_canvas_canopy(builder: MeshBuilder, width: float, depth: float, top_z: float) -> None:
     """Closed, gently asymmetric canvas skin held high at its four pole corners."""
 
-    x_steps, y_steps = 6, 4
-    thickness = 0.035
+    # Keep a vertex row close to each long carrying rail.  With only four
+    # depth spans the cloth interpolated straight across the rail height and
+    # the rail poked through as a pair of dark triangular wedges.
+    x_steps, y_steps = 8, 8
+    thickness = 0.030
     vertices = []
     for lower in (False, True):
         for y_index in range(y_steps + 1):
@@ -138,7 +144,13 @@ def _sagging_canvas_canopy(builder: MeshBuilder, width: float, depth: float, top
                 support_half_y = max(0.1, (depth - 0.34) * 0.5)
                 edge_x = min(1.0, abs(x) / support_half_x)
                 edge_y = min(1.0, abs(y) / support_half_y)
-                support = max(edge_x ** 3.2, edge_y ** 3.2)
+                # The two long rails sit just inside the cloth overhang. Their
+                # lines are structural supports too, so the underside must
+                # remain above them along the full X run, not only at corners.
+                rail_half_y = max(0.08, depth * 0.5 - 0.26)
+                rail_distance = abs(abs(y) - rail_half_y)
+                rail_support = max(0.0, 1.0 - rail_distance / 0.30) ** 2.0
+                support = max(edge_x ** 3.2, edge_y ** 3.2, rail_support)
                 sag = 0.23 * (1.0 - support)
                 skew = (
                     0.040 * math.sin(x_ratio * math.pi * 1.7 + y_ratio * 2.2)
@@ -598,9 +610,9 @@ def _campfire(builder: MeshBuilder) -> None:
     builder.cylinder(0.42, 0.08, (0.0, 0.0, 0.04), "charcoal", 12, "z")
     # Three thick, dark forest billets form a loose hand-laid fire rather than
     # the old ruler-straight crib. All remain within the gathered-rock ring.
-    builder.round_beam_between((-0.41, -0.18, 0.14), (0.33, -0.05, 0.16), 0.092, "timber_weathered", 7, 0.079, 0.21)
-    builder.round_beam_between((-0.31, 0.25, 0.15), (0.38, 0.11, 0.14), 0.086, "timber_weathered", 7, 0.095, -0.17)
-    builder.round_beam_between((-0.24, -0.30, 0.27), (0.27, 0.29, 0.24), 0.081, "timber_weathered", 7, 0.072, 0.42)
+    builder.round_beam_between((-0.41, -0.18, 0.14), (0.33, -0.05, 0.16), 0.092, "oak_dark", 7, 0.079, 0.21)
+    builder.round_beam_between((-0.31, 0.25, 0.15), (0.38, 0.11, 0.14), 0.086, "oak_dark", 7, 0.095, -0.17)
+    builder.round_beam_between((-0.24, -0.30, 0.27), (0.27, 0.29, 0.24), 0.081, "oak_dark", 7, 0.072, 0.42)
 
 
 def _camp_tripod(builder: MeshBuilder) -> None:

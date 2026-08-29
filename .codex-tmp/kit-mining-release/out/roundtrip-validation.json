@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 2,
+  "validatedAt": "2026-08-29T16:54:28.503587+00:00",
+  "status": "pass",
+  "glb": "C:\\WebProjects\\medieval-road-system\\.codex-tmp\\kit-mining-release\\out\\gorski_architecture_kit.glb",
+  "partsExpected": 638,
+  "partsImported": 638,
+  "familiesImported": {
+    "agriculture": 38,
+    "civic": 56,
+    "enclosures": 32,
+    "extraction": 33,
+    "foundations": 42,
+    "frames": 57,
+    "openings": 30,
+    "production": 41,
+    "props": 41,
+    "roofs": 108,
+    "siteworks": 41,
+    "walls": 119
+  },
+  "totalImportedTriangles": 408646,
+  "errors": [],
+  "warnings": []
+}

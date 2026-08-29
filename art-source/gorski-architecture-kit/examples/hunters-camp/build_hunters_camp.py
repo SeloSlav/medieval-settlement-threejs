@@ -19,16 +19,16 @@ RENDER_DIR = OUTPUT_ROOT / "renders"
 ATLAS_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_building_atlas_v1"
 HIDE_SURFACE_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_camp_surfaces_v1"
 CANVAS_SURFACE_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_camp_canvas_v1"
-OUT_BLEND = OUT_DIR / "hunters_camp_textured_v9.blend"
-OUT_GLB = OUT_DIR / "hunters_camp_textured_v9.glb"
-OUT_MANIFEST = OUT_DIR / "hunters_camp_assembly_v9.json"
-OUT_HERO = RENDER_DIR / "hunters_camp_hero_v9.png"
-OUT_OVERHEAD = RENDER_DIR / "hunters_camp_overhead_v9.png"
-OUT_WORKSIDE = RENDER_DIR / "hunters_camp_workside_v9.png"
-OUT_TENT_DETAIL = RENDER_DIR / "hunters_camp_tent_detail_v9.png"
-OUT_SHELTER_DETAIL = RENDER_DIR / "hunters_camp_hide_shelter_detail_v9.png"
-OUT_TOOLS_DETAIL = RENDER_DIR / "hunters_camp_tools_detail_v9.png"
-OUT_BLOCK_DETAIL = RENDER_DIR / "hunters_camp_chopping_block_detail_v9.png"
+OUT_BLEND = OUT_DIR / "hunters_camp_textured_v10.blend"
+OUT_GLB = OUT_DIR / "hunters_camp_textured_v10.glb"
+OUT_MANIFEST = OUT_DIR / "hunters_camp_assembly_v10.json"
+OUT_HERO = RENDER_DIR / "hunters_camp_hero_v10.png"
+OUT_OVERHEAD = RENDER_DIR / "hunters_camp_overhead_v10.png"
+OUT_WORKSIDE = RENDER_DIR / "hunters_camp_workside_v10.png"
+OUT_TENT_DETAIL = RENDER_DIR / "hunters_camp_tent_detail_v10.png"
+OUT_SHELTER_DETAIL = RENDER_DIR / "hunters_camp_hide_shelter_detail_v10.png"
+OUT_TOOLS_DETAIL = RENDER_DIR / "hunters_camp_tools_detail_v10.png"
+OUT_BLOCK_DETAIL = RENDER_DIR / "hunters_camp_chopping_block_detail_v10.png"
 
 
 def source_objects() -> dict[str, bpy.types.Object]:
@@ -87,10 +87,10 @@ CANVAS_IMAGES["material"].colorspace_settings.name = "Non-Color"
 
 MATERIAL_LOOKS = {
     "canvas": ("linen-canvas", (0.72, 0.61, 0.44, 1.0), 0.52, 0.72),
-    "oak_dark": ("rough-hewn-timber", (0.24, 0.12, 0.050, 1.0), 0.74, 0.68),
+    "oak_dark": ("rough-hewn-timber", (0.15, 0.075, 0.025, 1.0), 0.86, 0.68),
     "timber_cut": ("rough-hewn-timber", (0.58, 0.34, 0.15, 1.0), 0.50, 0.62),
     "timber_weathered": ("weathered-planks", (0.34, 0.21, 0.10, 1.0), 0.70, 0.74),
-    "fieldstone": ("fieldstone-mortar", (0.38, 0.34, 0.28, 1.0), 0.50, 0.82),
+    "fieldstone": ("quarry-stone", (0.22, 0.24, 0.20, 1.0), 0.92, 0.78),
     "charcoal": ("packed-earth", (0.065, 0.052, 0.040, 1.0), 0.90, 0.38),
     "iron": ("wrought-iron", (0.20, 0.21, 0.20, 1.0), 0.74, 0.58),
     "rope": ("wicker-weave", (0.47, 0.32, 0.17, 1.0), 0.48, 0.58),
@@ -610,9 +610,9 @@ def render_views(camera: bpy.types.Object) -> None:
     camera.location = (8.1, 0.0, 3.35)
     point_at(camera, (2.20, 1.72, 1.0))
     render_atomic(OUT_SHELTER_DETAIL)
-    camera.data.lens = 68.0
-    camera.location = (7.2, -7.2, 3.0)
-    point_at(camera, (2.88, -1.42, 1.20))
+    camera.data.lens = 72.0
+    camera.location = (0.05, -0.25, 1.58)
+    point_at(camera, (2.18, 1.72, 1.015))
     render_atomic(OUT_TOOLS_DETAIL)
     camera.data.lens = 76.0
     camera.location = (-5.0, -5.8, 2.15)
@@ -622,7 +622,7 @@ def render_views(camera: bpy.types.Object) -> None:
 
 def write_manifest() -> None:
     payload = {
-        "id": "gorski-hunters-camp-atlas-preview-v9",
+        "id": "gorski-hunters-camp-atlas-preview-v10",
         "authoritativeBuildingKind": "hunters_hall",
         "displayIdentity": "Hunter's Camp",
         "regionalContext": "Gorski Kotar, circa 1550",
@@ -631,14 +631,14 @@ def write_manifest() -> None:
         "designIntent": "Open temporary woodland worksite, replacing the previous oversized enclosed lodge.",
         "atlas": {
             "id": ATLAS_MANIFEST["id"],
-            "usedTiles": ["aged-canvas", "stitched-hide", "rough-hewn-timber", "weathered-planks", "fieldstone-mortar", "wrought-iron", "wicker-weave", "packed-earth"],
+            "usedTiles": ["aged-canvas", "stitched-hide", "rough-hewn-timber", "weathered-planks", "quarry-stone", "wrought-iron", "wicker-weave", "packed-earth"],
             "packing": "R roughness, G metalness, B AO, A centered height",
         },
         "historicalMaterialDecision": {
             "sleepingTent": "Weathered flax-tan sewn linen or hemp canvas with visible weave, repairs, tied-back entrance flaps, tension hems, and guy ropes over bent hand-cut softwood poles.",
             "processingShelter": "Hair-off smoke-darkened hides stitched with sinew into a weather fly over a lashed sapling frame; this fixed construction surface is not current harvested inventory.",
             "workFurniture": "Rough, repairable weathered timber with minimal iron hardware.",
-            "hearth": "Loose fieldstone ring, charcoal bed, and four fixed cribbed fuel logs with an unladen lashed-sapling tripod whose feet stand on the surrounding ground; flame, smoke, cookware, and hanging hooks remain runtime state.",
+            "hearth": "Eight irregular woodland boulders, a charcoal bed, and three thick loose dark billets with an unladen lashed-sapling tripod whose feet stand on the surrounding ground; flame, smoke, cookware, and hanging hooks remain runtime state.",
             "boundary": "Sparse split-rail edge markers, deliberately open toward the working approach.",
         },
         "canonicalState": "Neutral fixed camp architecture and tools only.",
@@ -650,7 +650,7 @@ def write_manifest() -> None:
         "runtimeOwnedState": {
             "fireAndSmoke": "Not baked into the GLB; activity state owns emission and particles.",
             "harvestedGame": "No deer, carcass, loose fresh hide, or meat mesh is included.",
-            "inventory": "Only the four fixed hearth-fuel logs are present; no stocked firewood pile, fixed axe, bows, snares, hanging equipment, cooking hook, or production-output pile is included.",
+            "inventory": "Only the three fixed hearth-fuel billets are present; no stocked firewood pile, fixed axe, bows, snares, hanging equipment, cooking hook, or production-output pile is included.",
         },
         "livingVegetation": "Excluded; SeedThree-owned.",
         "placements": PLACEMENTS,
@@ -691,7 +691,7 @@ def main() -> None:
     remove_source_library_objects()
     camera = stage_preview()
     scene = bpy.context.scene
-    scene["artifact_id"] = "gorski-hunters-camp-atlas-preview-v9"
+    scene["artifact_id"] = "gorski-hunters-camp-atlas-preview-v10"
     scene["authoritative_building_kind"] = "hunters_hall"
     scene["architecture_context"] = "Gorski Kotar, circa 1550"
     scene["canonical_state"] = "neutral fixed camp; runtime owns fire, smoke, harvest, and inventory"

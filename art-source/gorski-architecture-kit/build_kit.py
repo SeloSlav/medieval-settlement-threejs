@@ -25,7 +25,13 @@ from kit.registry import build_registry
 def _args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build the complete Gorski Kotar architecture component kit.")
     parser.add_argument("--out", type=Path, default=ROOT / "out")
+    parser.add_argument(
+        "--runtime-out",
+        type=Path,
+        default=REPO_ROOT / "public" / "assets" / "models" / "buildings" / "gorski" / "architecture-kit-v1",
+    )
     parser.add_argument("--no-glb", action="store_true")
+    parser.add_argument("--no-runtime-family-glbs", action="store_true")
     return parser.parse_args(sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else [])
 
 
@@ -106,6 +112,7 @@ def main() -> None:
     args = _args()
     out_dir = args.out.resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
+    runtime_out_dir = args.runtime_out.resolve()
     _reset_scene()
     materials = create_materials()
     registry = build_registry()
@@ -204,19 +211,42 @@ def main() -> None:
             {"kind": "historical", "url": "https://enciklopedija.hr/clanak/rudarstvo", "role": "Croatian mining context"},
         ],
     }
-    manifest_path = out_dir / "gorski_architecture_kit_manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-
     blend_path = out_dir / "gorski_architecture_kit.blend"
     bpy.ops.wm.save_as_mainfile(filepath=str(blend_path), compress=True)
     glb_path = out_dir / "gorski_architecture_kit.glb"
     if not args.no_glb:
         _export_glb(glb_path, all_objects)
+        if not args.no_runtime_family_glbs:
+            runtime_out_dir.mkdir(parents=True, exist_ok=True)
+            runtime_families = {}
+            for family, objects in sorted(objects_by_family.items()):
+                family_path = runtime_out_dir / f"{family}.glb"
+                _export_glb(family_path, objects)
+                runtime_families[family] = {
+                    "url": f"/assets/models/buildings/gorski/architecture-kit-v1/{family}.glb",
+                    "partCount": len(objects),
+                    "triangles": sum(evaluated_triangle_count(object_) for object_ in objects),
+                    "bytes": family_path.stat().st_size,
+                }
+            manifest["runtime"] = {
+                "delivery": "family-split GLB bundles; load only requested families",
+                "manifestUrl": "/assets/models/buildings/gorski/architecture-kit-v1/manifest.json",
+                "families": runtime_families,
+            }
         bpy.ops.wm.save_as_mainfile(filepath=str(blend_path), compress=True)
+
+    manifest_path = out_dir / "gorski_architecture_kit_manifest.json"
+    manifest_json = json.dumps(manifest, indent=2, ensure_ascii=False) + "\n"
+    manifest_path.write_text(manifest_json, encoding="utf-8")
+    if not args.no_glb and not args.no_runtime_family_glbs:
+        (runtime_out_dir / "manifest.json").write_text(manifest_json, encoding="utf-8")
 
     print(f"GK_BUILD_OK parts={len(part_manifest)} families={len(family_counts)} triangles={total_triangles}")
     print(f"GK_BLEND={blend_path}")
     print(f"GK_GLB={glb_path if not args.no_glb else 'skipped'}")
+    print(
+        f"GK_RUNTIME={runtime_out_dir if not args.no_glb and not args.no_runtime_family_glbs else 'skipped'}"
+    )
     print(f"GK_MANIFEST={manifest_path}")
 
 

@@ -28,10 +28,17 @@ def register(registry: Registry) -> None:
     add(registry, "civic_chapel_cornice_4m", family, "Chapel moulded stone cornice 4 m", ("civic", "religious", "chapel", "facade", "cornice", "trim"), _church_cornice, seams=("x=-2", "x=+2"), triangle_budget=7_200, bevel=0.006)
     add(registry, "civic_chapel_gable_trim_4m", family, "Chapel restrained folk gable trim", ("civic", "religious", "chapel", "facade", "gable", "folk-trim"), _church_gable_trim, seams=("x=-2", "x=+2"), triangle_budget=8_400, bevel=0.006)
     add(registry, "civic_chapel_quoin_stack_3p4m", family, "Chapel alternating limestone quoin stack", ("civic", "religious", "chapel", "facade", "quoin", "corner"), _church_quoin_stack, seams=("z=0", "z=3.4"), triangle_budget=6_400, bevel=0.006)
+    add(registry, "civic_church_nave_bay_plain_4m_h5p4m", family, "Tall limewashed parish-church nave bay", ("civic", "religious", "church", "nave", "wall-bay", "tall"), lambda b: _tall_church_nave_bay(b, False), seams=("x=-2", "x=+2", "z=0", "z=5.4"), triangle_budget=11_200, bevel=0.008)
+    add(registry, "civic_church_nave_bay_lancet_4m_h5p4m", family, "Tall parish-church nave bay with arched window host", ("civic", "religious", "church", "nave", "window-host", "wall-bay", "tall"), lambda b: _tall_church_nave_bay(b, True), seams=("x=-2", "x=+2", "z=0", "z=5.4"), opening_contract="window_lancet", triangle_budget=11_800, bevel=0.008)
+    add(registry, "civic_church_west_portal_bay_3m_h5p4m", family, "Three-metre parish west-front side portal bay", ("civic", "religious", "church", "facade", "portal-host", "wall-bay", "tall"), _church_west_portal_bay, seams=("x=-1.5", "x=+1.5", "z=0", "z=5.4"), opening_contract="door_house", triangle_budget=12_800, bevel=0.008)
+    add(registry, "civic_church_tower_shaft_bay_4m_h4m", family, "Enclosed limewashed church-tower shaft bay", ("civic", "religious", "church", "tower", "shaft", "wall-bay"), _church_tower_shaft_bay, seams=("x=-2", "x=+2", "z=0", "z=4"), triangle_budget=8_800, bevel=0.008)
+    add(registry, "civic_church_tower_belfry_bay_4m_h3m", family, "Enclosed church-tower belfry louver host bay", ("civic", "religious", "church", "tower", "belfry", "louver-host", "wall-bay"), _church_tower_belfry_bay, seams=("x=-2", "x=+2", "z=0", "z=3"), opening_contract="window_domestic", triangle_budget=10_400, bevel=0.008)
+    add(registry, "civic_church_tower_belfry_bay_4m_h3p8m", family, "Tall enclosed church-tower belfry and clock bay", ("civic", "religious", "church", "tower", "belfry", "clock-bay", "louver-host", "wall-bay"), lambda b: _church_tower_belfry_bay(b, 3.8), seams=("x=-2", "x=+2", "z=0", "z=3.8"), opening_contract="window_domestic", triangle_budget=10_800, bevel=0.008)
     add(registry, "civic_church_cross_iron_large", family, "Parish church iron ridge cross", ("civic", "religious", "church", "cross", "iron", "finial"), lambda b: _church_cross(b, "iron"), triangle_budget=4_800, bevel=0.004)
     add(registry, "civic_church_cross_stone", family, "Carved limestone church cross", ("civic", "religious", "church", "cross", "stone", "finial"), lambda b: _church_cross(b, "stone"), triangle_budget=5_200, bevel=0.008)
     add(registry, "civic_shrine_canopy", family, "Wayside shrine canopy", ("civic", "religious", "shrine", "canopy"), _shrine_canopy, triangle_budget=5_400)
     add(registry, "civic_shrine_niche_stone", family, "Wayside shrine stone niche", ("civic", "religious", "shrine", "niche"), _shrine_niche, allow_nonmanifold=True, triangle_budget=5_800)
+    add(registry, "civic_shrine_rear_wall_limewash_1p5m", family, "Wayside shrine limewashed rear closure", ("civic", "religious", "shrine", "rear-wall", "closure", "limewash"), _shrine_rear_wall, seams=("x=-0.75", "x=+0.75", "z=0", "z=2.08"), triangle_budget=1_200, bevel=0.006)
     add(registry, "civic_shrine_plinth_stone", family, "Wayside shrine stepped stone plinth", ("civic", "religious", "shrine", "plinth", "foundation"), _shrine_plinth, triangle_budget=6_400, bevel=0.008)
     add(registry, "civic_shrine_votive_ledge", family, "Wayside shrine votive and offering ledge", ("civic", "religious", "shrine", "votive", "offering"), _shrine_votive_ledge, triangle_budget=6_200, bevel=0.006)
     add(registry, "civic_shrine_half_column_pair", family, "Wayside shrine carved half-column pair", ("civic", "religious", "shrine", "column", "facade"), _shrine_columns, triangle_budget=6_800, bevel=0.006)
@@ -220,15 +227,78 @@ def _church_quoin_stack(builder: MeshBuilder) -> None:
         builder.box((width, depth, course_height - 0.018), (0.0, -depth * 0.5, course_height * (course + 0.5)), "limestone_warm", (0.0, 0.0, 0.014 if course % 2 else -0.014))
 
 
+def _tall_church_nave_bay(builder: MeshBuilder, windowed: bool) -> None:
+    width = 4.0
+    depth = 0.46
+    wall_height = 5.40
+    base_height = 0.70
+    builder.irregular_stone_run(width, base_height, depth + 0.08, "fieldstone", 0.27)
+    if windowed:
+        opening = spec.OPENINGS["window_lancet"]
+        opening_width = opening["width"]
+        sill = 1.62
+        head = sill + opening["height"]
+        side_width = (width - opening_width) * 0.5
+        builder.box((side_width, depth, wall_height - base_height), (-width * 0.5 + side_width * 0.5, 0.0, base_height + (wall_height - base_height) * 0.5), "limewash")
+        builder.box((side_width, depth, wall_height - base_height), (width * 0.5 - side_width * 0.5, 0.0, base_height + (wall_height - base_height) * 0.5), "limewash")
+        builder.box((opening_width, depth, sill - base_height), (0.0, 0.0, base_height + (sill - base_height) * 0.5), "limewash")
+        builder.box((opening_width, depth, wall_height - head), (0.0, 0.0, head + (wall_height - head) * 0.5), "limewash_faded")
+    else:
+        builder.box((width, depth, wall_height - base_height), (0.0, 0.0, base_height + (wall_height - base_height) * 0.5), "limewash")
+    builder.box((width, depth + 0.018, 0.34), (0.0, -0.012, base_height + 0.17), "limewash_damp")
+    builder.box((width + 0.14, depth + 0.07, 0.16), (0.0, 0.0, wall_height + 0.08), "limestone_warm")
+
+
+def _church_west_portal_bay(builder: MeshBuilder) -> None:
+    width = 3.0
+    depth = 0.48
+    wall_height = 5.40
+    door_width = 1.18
+    door_height = 2.22
+    side_width = (width - door_width) * 0.5
+    builder.box((side_width, depth + 0.04, door_height), (-width * 0.5 + side_width * 0.5, 0.0, door_height * 0.5), "fieldstone")
+    builder.box((side_width, depth + 0.04, door_height), (width * 0.5 - side_width * 0.5, 0.0, door_height * 0.5), "fieldstone")
+    builder.box((width, depth + 0.04, 0.52), (0.0, 0.0, door_height + 0.26), "fieldstone")
+    builder.box((width, depth, wall_height - door_height - 0.52), (0.0, 0.0, door_height + 0.52 + (wall_height - door_height - 0.52) * 0.5), "limewash")
+    builder.box((width, depth + 0.018, 0.30), (0.0, -0.012, 2.72), "limewash_damp")
+    builder.box((width + 0.14, depth + 0.07, 0.16), (0.0, 0.0, wall_height + 0.08), "limestone_warm")
+
+
+def _church_tower_shaft_bay(builder: MeshBuilder) -> None:
+    width = 4.0
+    depth = 0.50
+    height = 4.0
+    builder.box((width, depth, height), (0.0, 0.0, height * 0.5), "limewash")
+    builder.box((width, depth + 0.018, 0.34), (0.0, -0.012, 0.17), "limewash_damp")
+    for z in (0.08, height - 0.08):
+        builder.box((width + 0.14, depth + 0.08, 0.16), (0.0, 0.0, z), "limestone_warm")
+
+
+def _church_tower_belfry_bay(builder: MeshBuilder, height: float = 3.0) -> None:
+    width = 4.0
+    depth = 0.50
+    opening = spec.OPENINGS["window_domestic"]
+    opening_width = opening["width"]
+    sill = opening["sill"]
+    head = sill + opening["height"]
+    side_width = (width - opening_width) * 0.5
+    builder.box((side_width, depth, height), (-width * 0.5 + side_width * 0.5, 0.0, height * 0.5), "limewash_faded")
+    builder.box((side_width, depth, height), (width * 0.5 - side_width * 0.5, 0.0, height * 0.5), "limewash_faded")
+    builder.box((opening_width, depth, sill), (0.0, 0.0, sill * 0.5), "limewash_faded")
+    builder.box((opening_width, depth, height - head), (0.0, 0.0, head + (height - head) * 0.5), "limewash_faded")
+    for z in (0.08, height - 0.08):
+        builder.box((width + 0.14, depth + 0.08, 0.16), (0.0, 0.0, z), "limestone_warm")
+
+
 def _church_cross(builder: MeshBuilder, material_kind: str, height: float = 1.34) -> None:
     material = "iron" if material_kind == "iron" else "limestone_warm"
     thickness = 0.075 if material_kind == "iron" else 0.16
     builder.box((thickness, thickness, height), (0.0, 0.0, height * 0.5), material)
     builder.box((height * 0.60, thickness, thickness), (0.0, 0.0, height * 0.66), material)
     builder.cone(thickness * 1.7, thickness * 0.65, height * 0.18, (0.0, 0.0, height * 0.09), material, 8)
-    if material_kind == "iron":
-        for x in (-height * 0.30, height * 0.30):
-            builder.cone(thickness * 1.35, 0.008, thickness * 2.2, (x, 0.0, height * 0.66), material, 8)
+    # Keep forged-iron crosses structurally legible at game scale. Vertical
+    # cone finials on the arm ends read as unsupported wedges rather than
+    # blacksmith work and made the shrine silhouette unnecessarily noisy.
 
 
 def _shrine_canopy(builder: MeshBuilder) -> None:
@@ -240,8 +310,6 @@ def _shrine_canopy(builder: MeshBuilder) -> None:
     builder.box((width + 0.18, 0.18, 0.18), (0.0, -0.18, height), "oak_dark")
     builder.beam_between((-width * 0.5, -0.18, height), (0.0, -0.18, height + 0.54), 0.13, "oak_dark")
     builder.beam_between((0.0, -0.18, height + 0.54), (width * 0.5, -0.18, height), 0.13, "oak_dark")
-    for x in (-0.42, 0.0, 0.42):
-        builder.cone(0.075, 0.018, 0.26, (x, -0.30, height - 0.05), "timber_cut", 7)
 
 
 def _shrine_niche(builder: MeshBuilder) -> None:
@@ -260,6 +328,14 @@ def _shrine_niche(builder: MeshBuilder) -> None:
     builder.faces.extend(tuple(start + index for index in face) for face in local.faces)
     builder.face_materials.extend(local.face_materials)
     builder.box((width + 0.20, depth + 0.12, 0.18), (0.0, 0.0, 0.09), "fieldstone")
+
+
+def _shrine_rear_wall(builder: MeshBuilder) -> None:
+    # Independent closure for a freestanding roadside niche. The body grows
+    # toward +Y from its public face like every wall component; assemblies
+    # rotate it 180 degrees when closing the shrine's rear elevation.
+    builder.box((1.50, 0.16, 2.08), (0.0, 0.08, 1.04), "limewash_faded")
+    builder.box((1.58, 0.20, 0.22), (0.0, 0.10, 0.11), "fieldstone")
 
 
 def _shrine_plinth(builder: MeshBuilder) -> None:

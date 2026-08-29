@@ -54,7 +54,16 @@ import { createCobblerMesh, createTanneryMesh } from './meshes/leatherChainBuild
 import { createChandleryMesh } from './meshes/chandleryBuildingMesh.ts';
 import { createStableMesh } from './meshes/stableMesh.ts';
 import { createSpinningRettingHouseMesh } from './meshes/spinningRettingHouseMesh.ts';
-import { createAuthoredHuntersCampMesh } from './authoredArchitectureModels.ts';
+import {
+  createAuthoredFishingCampMesh,
+  createAuthoredHuntersCampMesh,
+  createAuthoredLargeQuarryMesh,
+  createAuthoredLumberMillMesh,
+  createAuthoredMineworksMesh,
+  createAuthoredMiningCampMesh,
+  createAuthoredTierOneChurchMesh,
+  createAuthoredWaysideShrineMesh,
+} from './authoredArchitectureModels.ts';
 
 export function createBuildingMesh(
   kind: BuildingKind,
@@ -73,17 +82,17 @@ export function createBuildingMesh(
     case 'salvage_pile':
       return createSalvagePileMesh();
     case 'lumber_mill':
-      return createLumberMillMesh();
+      return createAuthoredLumberMillMesh() ?? createLumberMillMesh();
     case 'reforester':
       return createReforesterHutMesh();
     case 'woodcutters_lodge':
       return createWoodcuttersLodgeMesh();
     case 'stone_quarry':
-      return createStoneQuarryMesh();
+      return createAuthoredMiningCampMesh() ?? createStoneQuarryMesh();
     case 'large_quarry':
-      return createLargeQuarryMesh();
+      return createAuthoredLargeQuarryMesh() ?? createLargeQuarryMesh();
     case 'mine':
-      return createMineralMineMesh();
+      return createAuthoredMineworksMesh() ?? createMineralMineMesh();
     case 'clay_pit':
       return createClayPitMesh();
     case 'charcoal_burner':
@@ -101,11 +110,13 @@ export function createBuildingMesh(
     case 'foragers_shed':
       return createForagersShedMesh();
     case 'fishing_camp':
-      return createFishingCampMesh();
+      return createAuthoredFishingCampMesh() ?? createFishingCampMesh();
     case 'chapel':
-      return createChapelMesh(chapelTier);
+      return chapelTier === 1
+        ? createAuthoredTierOneChurchMesh() ?? createChapelMesh(chapelTier)
+        : createChapelMesh(chapelTier);
     case 'wayside_shrine':
-      return createWaysideShrineMesh();
+      return createAuthoredWaysideShrineMesh() ?? createWaysideShrineMesh();
     case 'marketplace':
       return createMarketplaceMesh();
     case 'trading_post': {

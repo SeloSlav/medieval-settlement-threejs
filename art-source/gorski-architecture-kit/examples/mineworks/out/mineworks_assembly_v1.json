@@ -1,0 +1,171 @@
+{
+  "id": "gorski-mineworks-atlas-preview-v1",
+  "revision": 1,
+  "authoritativeBuildingKind": "mine",
+  "displayIdentity": "Mineworks",
+  "regionalContext": "Gorski Kotar, circa 1550",
+  "sourceKit": "gorski-architecture-kit-1.1.0",
+  "dimensionsMetres": {
+    "artFootprintWidth": 17.926,
+    "artFootprintDepth": 7.2069,
+    "maximumHeight": 5.8397
+  },
+  "designIntent": "Permanent deep-mineral extraction works for rich iron, salt, and clay, visibly distinct from both the mobile surface Mining Camp and broad open-cut Quarry.",
+  "signatureSilhouette": "A tall four-leg timber winding headframe rises directly over one guarded square shaft collar.",
+  "construction": {
+    "shaft": "Large square fieldstone collar with a true dark opening beneath the centred headframe.",
+    "hoist": "Hand-built timber headframe with an integral winding axle, suspended rope, and grounded ore bucket; no disconnected duplicate winch or modern engine machinery.",
+    "access": "Four-metre plank walkway preserves a clear road-facing approach to the shaft edge.",
+    "sorting": "Permanent split-shingle shelter covers distinct hand-sorting and sieve tables.",
+    "equipment": "Empty handcart, water buckets, and a fixed tool rack communicate trade without faking stored output."
+  },
+  "canonicalState": "Fixed mine architecture and empty equipment only; iron, salt, clay, support timber, and civilian-tool inventory are absent at zero stock.",
+  "runtimeOwnedState": {
+    "mineralOutput": "IronMineStockpile, SaltMineStockpile, and ClayMineStockpile remain simulation-owned and deposit-specific.",
+    "supportTimber": "MineSupportStockpile and its progressive segments remain simulation-owned.",
+    "toolInventory": "Civilian mine-tool inventory remains simulation-owned.",
+    "workersAndEffects": "Workers, winding motion, dust, sound, carts in motion, and deposit depletion remain runtime-owned.",
+    "vegetation": "Excluded; SeedThree owns every living plant and surrounding forest layer."
+  },
+  "atlas": {
+    "id": "gorski-building-atlas-v1",
+    "usedTiles": [
+      "fieldstone-mortar",
+      "quarry-stone",
+      "limestone-ashlar",
+      "rough-hewn-timber",
+      "sawn-planks",
+      "weathered-planks",
+      "split-shingles",
+      "wrought-iron",
+      "packed-earth",
+      "wicker-weave"
+    ]
+  },
+  "retopology": {
+    "profile": "gameplay-v1",
+    "method": "Canonical low-poly kit components at unit scale with export bevels removed; no automatic decimation."
+  },
+  "placements": [
+    {
+      "name": "MW_Deep_Square_Shaft_Collar",
+      "source": "extract_shaft_collar_square_large",
+      "collection": "MW_01_Shaft_And_Headframe",
+      "location": [
+        0.0,
+        0.75,
+        0.0
+      ],
+      "rotationZDegrees": 0.0,
+      "collision": true
+    },
+    {
+      "name": "MW_Tall_Timber_Winding_Headframe",
+      "source": "extract_headframe_large",
+      "collection": "MW_01_Shaft_And_Headframe",
+      "location": [
+        0.0,
+        0.75,
+        0.0
+      ],
+      "rotationZDegrees": 0.0,
+      "collision": false
+    },
+    {
+      "name": "MW_Roadside_Shaft_Walkway",
+      "source": "site_walkway_plank_4m",
+      "collection": "MW_01_Shaft_And_Headframe",
+      "location": [
+        0.0,
+        -2.45,
+        0.0
+      ],
+      "rotationZDegrees": 90.0,
+      "collision": false
+    },
+    {
+      "name": "MW_Grounded_Hoist_Bucket",
+      "source": "extract_ore_bucket",
+      "collection": "MW_01_Shaft_And_Headframe",
+      "location": [
+        1.55,
+        0.92,
+        0.0
+      ],
+      "rotationZDegrees": 8.0,
+      "collision": false
+    },
+    {
+      "name": "MW_Shingle_Ore_Sorting_Shelter",
+      "source": "site_canopy_timber_6m_d3m",
+      "collection": "MW_03_Sorting_Shelter",
+      "location": [
+        -6.25,
+        0.95,
+        0.0
+      ],
+      "rotationZDegrees": 2.5,
+      "collision": false
+    },
+    {
+      "name": "MW_Hand_Sorting_Bench",
+      "source": "extract_sorting_bench",
+      "collection": "MW_03_Sorting_Shelter",
+      "location": [
+        -7.42,
+        0.92,
+        0.0
+      ],
+      "rotationZDegrees": 2.5,
+      "collision": true
+    },
+    {
+      "name": "MW_Ore_And_Clay_Sieve",
+      "source": "extract_sieve_table",
+      "collection": "MW_03_Sorting_Shelter",
+      "location": [
+        -4.92,
+        0.92,
+        0.0
+      ],
+      "rotationZDegrees": 2.5,
+      "collision": true
+    },
+    {
+      "name": "MW_Empty_Ore_Handcart",
+      "source": "extract_handcart",
+      "collection": "MW_04_Fixed_Equipment",
+      "location": [
+        5.65,
+        -2.55,
+        0.0
+      ],
+      "rotationZDegrees": 14.0,
+      "collision": true
+    },
+    {
+      "name": "MW_Service_Water_Buckets",
+      "source": "prop_water_bucket_pair",
+      "collection": "MW_04_Fixed_Equipment",
+      "location": [
+        7.75,
+        -0.62,
+        0.0
+      ],
+      "rotationZDegrees": 6.0,
+      "collision": false
+    },
+    {
+      "name": "MW_Fixed_Mining_Tool_Rack",
+      "source": "prop_tool_rack_quarry",
+      "collection": "MW_04_Fixed_Equipment",
+      "location": [
+        -8.2,
+        -1.72,
+        0.0
+      ],
+      "rotationZDegrees": 5.0,
+      "collision": true
+    }
+  ]
+}

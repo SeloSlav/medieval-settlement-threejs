@@ -36,6 +36,7 @@ def register(registry: Registry) -> None:
     add(registry, "opening_window_lancet_deep", family, "Deep-reveal stone lancet", ("opening", "window", "lancet", "church", "deep-reveal", "insert"), lambda b: _lancet(b, deep=True), seams=("y=0", "z=sill"), opening_contract="window_lancet", triangle_budget=8_200, bevel=0.008)
     add(registry, "opening_window_lancet_pair", family, "Paired church lancets with shared hood mould", ("opening", "window", "lancet", "paired", "church", "insert"), _paired_lancet, seams=("y=0", "z=sill"), opening_contract="window_shop", triangle_budget=12_000, bevel=0.008)
     add(registry, "opening_window_oculus_stone", family, "Stone church oculus", ("opening", "window", "oculus", "church", "insert"), _oculus, seams=("y=0", "z=center"), opening_contract="window_shop", triangle_budget=7_600, bevel=0.008)
+    add(registry, "opening_window_oculus_stone_small", family, "Small stone parish-church oculus", ("opening", "window", "oculus", "church", "small", "insert"), _oculus_small, seams=("y=0", "z=center"), opening_contract="window_small", triangle_budget=5_200, bevel=0.008)
     add(registry, "opening_window_belfry_louver_arch", family, "Arched belfry louver", ("opening", "window", "louver", "belfry", "church", "insert"), _belfry_louver, seams=("y=0", "z=sill"), opening_contract="window_domestic", triangle_budget=7_200, bevel=0.008)
 
     for contract in ("door_service", "door_house", "door_barn", "gate_cart"):
@@ -171,6 +172,14 @@ def _oculus(builder: MeshBuilder) -> None:
     _circle_ring(builder, radius, center_z, 0.15, "limestone_warm", 20)
     _diamond_lead(builder, 0.72, 0.72, center_z, -0.035)
     builder.box((1.42, 0.23, 0.12), (0.0, 0.02, center_z - radius - 0.08), "limestone_warm")
+
+
+def _oculus_small(builder: MeshBuilder) -> None:
+    center_z = 0.42
+    radius = 0.34
+    builder.cylinder(radius - 0.10, 0.045, (0.0, 0.01, center_z), "glass", 18, "y")
+    _circle_ring(builder, radius, center_z, 0.10, "limestone_warm", 16)
+    builder.box((0.86, 0.20, 0.10), (0.0, 0.02, center_z - radius - 0.06), "limestone_warm")
 
 
 def _belfry_louver(builder: MeshBuilder) -> None:

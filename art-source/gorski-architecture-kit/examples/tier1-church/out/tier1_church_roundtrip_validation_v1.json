@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "validatedAt": "2026-08-29T11:05:04.840156+00:00",
+  "status": "pass",
+  "glb": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\examples\\tier1-church\\out\\tier1_church_delnice_v1.glb",
+  "meshesImported": 84,
+  "trianglesImported": 13764,
+  "bounds": {
+    "min": [
+      -5.4055,
+      -9.34,
+      0.0
+    ],
+    "max": [
+      5.4055,
+      8.7645,
+      15.97
+    ]
+  },
+  "heightRatio": 3.1109,
+  "clockAnchorImported": true,
+  "clockGeometryBaked": false,
+  "atlasTiles": [
+    "fieldstone-mortar",
+    "lime-plaster",
+    "rough-hewn-timber",
+    "split-shingles",
+    "weathered-planks",
+    "wrought-iron"
+  ],
+  "errors": []
+}

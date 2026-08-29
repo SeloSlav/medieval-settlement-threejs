@@ -240,6 +240,7 @@ export class SettlementPresentationController {
     targets.buildingMarkers?.setFoundersCampfireNightLighting(
       presentationDayNight.nightAmount * HOUSEHOLD_LIGHTING_VISUAL_SCALE,
     );
+    targets.buildingMarkers?.setChapelTowerClock(schedule.clock);
     targets.residenceMarkers?.setChimneySmokeAllowed(presentationDayNight.smokeAllowed);
     targets.residenceMarkers?.setHouseholdLighting(
       householdPresentationClock,

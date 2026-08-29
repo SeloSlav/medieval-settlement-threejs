@@ -1,0 +1,982 @@
+{
+  "id": "gorski-fishing-camp-atlas-preview-v1",
+  "authoritativeBuildingKind": "fishing_camp",
+  "displayIdentity": "Fishing Camp",
+  "regionalContext": "Gorski Kotar, circa 1550",
+  "sourceKit": "gorski-architecture-kit-1.1.0",
+  "dimensionsMetres": {
+    "artFootprintWidth": 9.54,
+    "artFootprintDepth": 7.31,
+    "maximumHeight": 5.51
+  },
+  "designIntent": "A compact two-building inland fishery whose main house inherits Tier-1 construction while the smaller plank shed and open work yard remain visibly utilitarian.",
+  "signatureSilhouette": "A hollow double-ended river dugout rests on one gunwale against the rear split-rail fence.",
+  "construction": {
+    "mainHouse": "Four-metre bay, low irregular fieldstone footing, warm restrained limewash public face, weathered plank private walls, dark oak posts and plates, timber gables, and a settled 50-degree split-shingle roof with 0.32 m eaves and 0.24 m verges.",
+    "serviceShed": "Two-metre plank outbuilding on the same low rubble footing, with a service door and smaller 50-degree split-shingle roof.",
+    "yard": "Open split-rail boundary, pedestrian gate, permanent drying frame, wash buckets, brine barrel, cord crate, and a clear working approach."
+  },
+  "atlas": {
+    "id": "gorski-building-atlas-v1",
+    "usedTiles": [
+      "lime-plaster",
+      "fieldstone-mortar",
+      "rough-hewn-timber",
+      "weathered-planks",
+      "sawn-planks",
+      "split-shingles",
+      "wrought-iron",
+      "packed-earth"
+    ],
+    "packing": "R roughness, G metalness, B AO, A centered height"
+  },
+  "historicalMaterialDecision": {
+    "walling": "Warm, smoke- and rain-muted limewash is limited to the main public facade; rough plank boarding dominates private and service elevations.",
+    "timber": "Structural oak is nearly black-brown, while replaceable boards and the dugout use warmer weathered fir/oak tones.",
+    "roofing": "Hand-split fir/pine shingles stay dark and uneven rather than reading as pale canvas or modern boards.",
+    "boat": "A small hollow double-ended river dugout with gunwales, keel, ribs, removable thwarts, and a connected paddle replaces the former solid box proxy.",
+    "dryingRack": "An intentionally empty splayed sapling frame provides a clean attachment point for separately authored catch models."
+  },
+  "canonicalState": "Neutral fixed fishery architecture with an empty drying rack; separate catch models and runtime stock baskets remain state-owned.",
+  "runtimeOwnedState": {
+    "freshCatchAndInventory": "Not baked into the GLB; food-stockpile visuals own current stored fish.",
+    "waterAndVegetation": "Not baked into the GLB; terrain/water and SeedThree own their world layers.",
+    "workersAndAnimation": "No characters, active nets, smoke, or animated props are included."
+  },
+  "retopology": {
+    "profile": "gameplay-v1",
+    "method": "Reusable kit modules plus two closed low-poly roof skins; no blanket export bevel or automatic decimation."
+  },
+  "placements": [
+    {
+      "name": "FC_Main_Foundation_Front",
+      "source": "foundation_fieldstone_4m_h0p35m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        1.3,
+        -0.8,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Main_Foundation_Rear",
+      "source": "foundation_fieldstone_4m_h0p35m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        1.3,
+        3.2,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "FC_Main_Foundation_Left",
+      "source": "foundation_fieldstone_4m_h0p35m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        -0.7,
+        1.2,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "FC_Main_Foundation_Right",
+      "source": "foundation_fieldstone_4m_h0p35m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        3.3,
+        1.2,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "FC_Main_Front_Door_Host",
+      "source": "wall_limewash_2m_door_service_host",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        0.3,
+        -0.8,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Main_Front_Window_Host",
+      "source": "wall_limewash_2m_window_small_host",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        2.3,
+        -0.8,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Main_Rear_Plank_Wall",
+      "source": "wall_plank_4m_h2p7m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        1.3,
+        3.2,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "FC_Main_Left_Plank_Wall",
+      "source": "wall_plank_4m_h2p7m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        -0.7,
+        1.2,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "FC_Main_Right_Plank_Wall",
+      "source": "wall_plank_4m_h2p7m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        3.3,
+        1.2,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "FC_Main_Service_Door",
+      "source": "opening_door_service_single",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        0.3,
+        -0.905,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Main_Shuttered_Window",
+      "source": "opening_window_small_shuttered",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        2.3,
+        -0.905,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Main_Front_Gable",
+      "source": "gable_infill_timber_4m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        1.3,
+        -0.81,
+        3.05
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Main_Rear_Gable",
+      "source": "gable_infill_timber_4m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        1.3,
+        3.21,
+        3.05
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "FC_Main_Front_Sill",
+      "source": "frame_beam_4m_s0p16m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        1.3,
+        -0.915,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Main_Front_Wall_Plate",
+      "source": "frame_beam_4m_s0p16m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        1.3,
+        -0.915,
+        2.961
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Main_Front_Post_1",
+      "source": "frame_post_h2p7m_s0p16m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        -0.7,
+        -0.915,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Main_Front_Post_2",
+      "source": "frame_post_h2p7m_s0p16m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        1.3,
+        -0.915,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Main_Front_Post_3",
+      "source": "frame_post_h2p7m_s0p16m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        3.3,
+        -0.915,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Main_Front_Gable_King_Post",
+      "source": "frame_post_h2p4m_s0p16m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        1.3,
+        -0.915,
+        2.82
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Main_Front_Gable_Collar",
+      "source": "frame_beam_2m_s0p16m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        1.3,
+        -0.915,
+        4.03
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Main_Rear_Sill",
+      "source": "frame_beam_4m_s0p16m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        1.3,
+        3.315,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "FC_Main_Rear_Wall_Plate",
+      "source": "frame_beam_4m_s0p16m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        1.3,
+        3.315,
+        2.961
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "FC_Main_Rear_Post_1",
+      "source": "frame_post_h2p7m_s0p16m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        -0.7,
+        3.315,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "FC_Main_Rear_Post_2",
+      "source": "frame_post_h2p7m_s0p16m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        1.3,
+        3.315,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "FC_Main_Rear_Post_3",
+      "source": "frame_post_h2p7m_s0p16m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        3.3,
+        3.315,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "FC_Main_Rear_Gable_King_Post",
+      "source": "frame_post_h2p4m_s0p16m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        1.3,
+        3.315,
+        2.82
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "FC_Main_Rear_Gable_Collar",
+      "source": "frame_beam_2m_s0p16m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        1.3,
+        3.315,
+        4.03
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "FC_Main_Left_Wall_Plate",
+      "source": "frame_beam_4m_s0p16m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        -0.815,
+        1.2,
+        2.961
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "FC_Main_Right_Wall_Plate",
+      "source": "frame_beam_4m_s0p16m",
+      "collection": "FC_01_Main_Fish_House",
+      "location": [
+        3.415,
+        1.2,
+        2.961
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "FC_Main_Roof_Left",
+      "source": "assembly_custom_settled_shingle_skin",
+      "collection": "FC_03_Roofs",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Main_Roof_Right",
+      "source": "assembly_custom_settled_shingle_skin",
+      "collection": "FC_03_Roofs",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Foundation_Front",
+      "source": "foundation_fieldstone_2m_h0p35m",
+      "collection": "FC_02_Service_Shed",
+      "location": [
+        -3.05,
+        0.15,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Foundation_Rear",
+      "source": "foundation_fieldstone_2m_h0p35m",
+      "collection": "FC_02_Service_Shed",
+      "location": [
+        -3.05,
+        2.15,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Foundation_Left",
+      "source": "foundation_fieldstone_2m_h0p35m",
+      "collection": "FC_02_Service_Shed",
+      "location": [
+        -4.05,
+        1.15,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Foundation_Right",
+      "source": "foundation_fieldstone_2m_h0p35m",
+      "collection": "FC_02_Service_Shed",
+      "location": [
+        -2.05,
+        1.15,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Front_Door_Host",
+      "source": "wall_plank_2m_door_service_host",
+      "collection": "FC_02_Service_Shed",
+      "location": [
+        -3.05,
+        0.15,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Rear_Wall",
+      "source": "wall_plank_2m_h2p7m",
+      "collection": "FC_02_Service_Shed",
+      "location": [
+        -3.05,
+        2.15,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Left_Wall",
+      "source": "wall_plank_2m_h2p7m",
+      "collection": "FC_02_Service_Shed",
+      "location": [
+        -4.05,
+        1.15,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -90.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Right_Wall",
+      "source": "wall_plank_2m_h2p7m",
+      "collection": "FC_02_Service_Shed",
+      "location": [
+        -2.05,
+        1.15,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        90.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Service_Door",
+      "source": "opening_door_service_single",
+      "collection": "FC_02_Service_Shed",
+      "location": [
+        -3.05,
+        0.045,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Front_Gable",
+      "source": "gable_infill_timber_2m",
+      "collection": "FC_02_Service_Shed",
+      "location": [
+        -3.05,
+        0.14,
+        3.05
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Rear_Gable",
+      "source": "gable_infill_timber_2m",
+      "collection": "FC_02_Service_Shed",
+      "location": [
+        -3.05,
+        2.16,
+        3.05
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Front_Wall_Plate",
+      "source": "frame_beam_2m_s0p16m",
+      "collection": "FC_02_Service_Shed",
+      "location": [
+        -3.05,
+        0.04,
+        2.961
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Front_Left_Post",
+      "source": "frame_post_h2p7m_s0p16m",
+      "collection": "FC_02_Service_Shed",
+      "location": [
+        -4.05,
+        0.04,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Front_Right_Post",
+      "source": "frame_post_h2p7m_s0p16m",
+      "collection": "FC_02_Service_Shed",
+      "location": [
+        -2.05,
+        0.04,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Rear_Wall_Plate",
+      "source": "frame_beam_2m_s0p16m",
+      "collection": "FC_02_Service_Shed",
+      "location": [
+        -3.05,
+        2.26,
+        2.961
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Rear_Left_Post",
+      "source": "frame_post_h2p7m_s0p16m",
+      "collection": "FC_02_Service_Shed",
+      "location": [
+        -4.05,
+        2.26,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Rear_Right_Post",
+      "source": "frame_post_h2p7m_s0p16m",
+      "collection": "FC_02_Service_Shed",
+      "location": [
+        -2.05,
+        2.26,
+        0.35
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        180.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Roof_Left",
+      "source": "assembly_custom_settled_shingle_skin",
+      "collection": "FC_03_Roofs",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Shed_Roof_Right",
+      "source": "assembly_custom_settled_shingle_skin",
+      "collection": "FC_03_Roofs",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Fish_Drying_Rack",
+      "source": "prop_fish_drying_rack",
+      "collection": "FC_04_Drying_And_Work",
+      "location": [
+        -0.35,
+        -2.3,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        7.0
+      ]
+    },
+    {
+      "name": "FC_Leaning_River_Dugout",
+      "source": "prop_boat_dugout",
+      "collection": "FC_05_Boat",
+      "location": [
+        -2.95,
+        3.89,
+        0.32
+      ],
+      "rotationDegrees": [
+        45.0,
+        0.0,
+        -2.0
+      ]
+    },
+    {
+      "name": "FC_Brine_Barrel",
+      "source": "prop_barrel_small",
+      "collection": "FC_07_Equipment",
+      "location": [
+        3.65,
+        -0.25,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -8.0
+      ]
+    },
+    {
+      "name": "FC_Net_And_Cord_Crate",
+      "source": "prop_crate_small",
+      "collection": "FC_07_Equipment",
+      "location": [
+        3.7,
+        0.55,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        11.0
+      ]
+    },
+    {
+      "name": "FC_Wash_Buckets",
+      "source": "prop_water_bucket_pair",
+      "collection": "FC_07_Equipment",
+      "location": [
+        -1.42,
+        -1.72,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -12.0
+      ]
+    },
+    {
+      "name": "FC_Fence_Rear_West",
+      "source": "enclosure_split_rail_4m",
+      "collection": "FC_06_Boundary",
+      "location": [
+        -2.7,
+        4.05,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "FC_Fence_Rear_East",
+      "source": "enclosure_split_rail_4m",
+      "collection": "FC_06_Boundary",
+      "location": [
+        1.45,
+        4.02,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "name": "FC_Fence_West",
+      "source": "enclosure_split_rail_4m",
+      "collection": "FC_06_Boundary",
+      "location": [
+        -4.72,
+        1.78,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        89.0
+      ]
+    },
+    {
+      "name": "FC_Fence_East",
+      "source": "enclosure_split_rail_4m",
+      "collection": "FC_06_Boundary",
+      "location": [
+        4.2,
+        1.58,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        91.0
+      ]
+    },
+    {
+      "name": "FC_Fence_Front_West",
+      "source": "enclosure_split_rail_2m",
+      "collection": "FC_06_Boundary",
+      "location": [
+        -3.68,
+        -2.92,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        -1.5
+      ]
+    },
+    {
+      "name": "FC_Fence_Front_East",
+      "source": "enclosure_split_rail_2m",
+      "collection": "FC_06_Boundary",
+      "location": [
+        2.95,
+        -2.96,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        1.5
+      ]
+    },
+    {
+      "name": "FC_Open_Yard_Gate",
+      "source": "enclosure_split_rail_gate_person",
+      "collection": "FC_06_Boundary",
+      "location": [
+        1.05,
+        -2.96,
+        0.0
+      ],
+      "rotationDegrees": [
+        0.0,
+        0.0,
+        4.0
+      ]
+    }
+  ]
+}

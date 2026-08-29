@@ -447,6 +447,42 @@ function addSurfaceStockpiles(group: THREE.Group): void {
   group.add(createCommodityStockpile('clay'));
 }
 
+/** Adds simulation-owned material and civilian-tool inventory to either shell. */
+export function addMiningCampRuntimeState(target: THREE.Group): void {
+  if (target.getObjectByName('MiningCampSurfaceStockpiles') == null) {
+    const surfaceStockpiles = new THREE.Group();
+    addSurfaceStockpiles(surfaceStockpiles);
+    target.add(surfaceStockpiles);
+  }
+  if (target.getObjectByName('MiningCampCivilianToolInventory') == null) {
+    const toolInventory = new THREE.Group();
+    toolInventory.name = 'MiningCampCivilianToolInventory';
+    toolInventory.position.set(3.65, 0, 5.4);
+    toolInventory.rotation.y = -0.08;
+    toolInventory.add(createCivilianToolStockpile(new THREE.Vector3(), 0));
+    target.add(toolInventory);
+  }
+}
+
+/** Applies the surface-extraction identity shared by procedural and GLB shells. */
+export function applyMiningCampSemanticContract(target: THREE.Group): void {
+  target.name = 'Mining Camp';
+  target.userData.semanticRole = MINING_CAMP_PLAN.semanticRole;
+  target.userData.extractionResources = [...MINING_CAMP_PLAN.resources];
+  target.userData.silhouette = MINING_CAMP_PLAN.silhouette;
+  target.userData.centeredResourceRequired = false;
+  target.userData.architecturePlan = {
+    ...MINING_CAMP_PLAN,
+    resources: [...MINING_CAMP_PLAN.resources],
+    placements: MINING_CAMP_PLAN.placements.map((placement) => ({ ...placement })),
+  };
+  target.userData.architectureDiagnostics = {
+    moduleCount: MINING_CAMP_PLAN.placements.length,
+    centeredExcavationCount: MINING_CAMP_PLAN.centeredExcavationCount,
+    dynamicStockpileCount: MINING_CAMP_PLAN.resources.length,
+  };
+}
+
 function compileMiningCampModule(
   target: THREE.Group,
   placement: MiningCampPlacement,
@@ -486,23 +522,11 @@ function compileMiningCampModule(
 /** Day-work camp for finite surface stone, iron, salt, and clay deposits. */
 export function createStoneQuarryMesh(): THREE.Group {
   const group = new THREE.Group();
-  group.name = 'Mining Camp';
-  group.userData.semanticRole = MINING_CAMP_PLAN.semanticRole;
-  group.userData.extractionResources = [...MINING_CAMP_PLAN.resources];
-  group.userData.silhouette = MINING_CAMP_PLAN.silhouette;
-  group.userData.centeredResourceRequired = false;
-  group.userData.architecturePlan = {
-    ...MINING_CAMP_PLAN,
-    resources: [...MINING_CAMP_PLAN.resources],
-    placements: MINING_CAMP_PLAN.placements.map((placement) => ({ ...placement })),
-  };
-  group.userData.architectureDiagnostics = {
-    moduleCount: MINING_CAMP_PLAN.placements.length,
-    centeredExcavationCount: MINING_CAMP_PLAN.centeredExcavationCount,
-    dynamicStockpileCount: MINING_CAMP_PLAN.resources.length,
-  };
+  applyMiningCampSemanticContract(group);
   for (const placement of MINING_CAMP_PLAN.placements) {
+    if (placement.id === 'surface-stockpiles' || placement.id === 'tool-stockpile') continue;
     compileMiningCampModule(group, placement);
   }
+  addMiningCampRuntimeState(group);
   return group;
 }

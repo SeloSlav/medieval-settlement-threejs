@@ -114,6 +114,8 @@ import {
   windWeatherThroughputMultiplier,
 } from '../wind/windField.ts';
 import { MarketplaceSupplyLinks } from './MarketplaceSupplyLinks.ts';
+import type { GameClock } from '../world/gameCalendar.ts';
+import { setTierOneChurchClockTime } from './chapelRuntimeClock.ts';
 
 type BuildingMarkersOptions = {
   terrain: Terrain;
@@ -539,6 +541,14 @@ export class BuildingMarkers {
   clearPlacementPreview(): void {
     if (this.previewBuilding) this.previewBuilding.visible = false;
     this.lastPreviewSignature = '';
+  }
+
+  setChapelTowerClock(
+    clock: Pick<GameClock, 'hour' | 'minute' | 'preciseHour'>,
+  ): void {
+    for (const marker of this.buildingMeshes.values()) {
+      setTierOneChurchClockTime(marker, clock);
+    }
   }
 
   prewarmFoundersCampPlacement(): void {

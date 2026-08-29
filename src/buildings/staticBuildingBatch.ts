@@ -34,6 +34,7 @@ const DYNAMIC_BUILDING_NAMES = new Set([
   'MarketGoodsStall0',
   'MarketGoodsStall1',
   'MarketGoodsStall2',
+  'ChapelTowerClock',
 ]);
 
 const DYNAMIC_BUILDING_NAME_PARTS = [

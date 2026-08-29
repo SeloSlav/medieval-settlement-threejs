@@ -79,9 +79,11 @@ def register(registry: Registry) -> None:
         token = spec.width_token(width)
         for side in ("left", "right"):
             add(registry, f"frame_curved_bracket_{side}_{token}", family, f"Curved {side} oak eave bracket {width:g} m", ("frame", "bracket", "curved", "eave", "folk-craft", side), lambda b, w=width, s=side: _curved_bracket(b, w, s), seams=("z=0", f"x={'-' if side == 'left' else '+'}{width:g}"), triangle_budget=6_200, bevel=0.006)
-    for width in (2.0, 4.0):
+    for width in (2.0, 4.0, 6.0):
         token = spec.width_token(width)
         add(registry, f"frame_gable_truss_{token}", family, f"Vernacular king-post gable truss {width:g} m", ("frame", "gable", "truss", "roof", "structural"), lambda b, w=width: _gable_truss(b, w), seams=(f"x=-{width/2:g}", f"x=+{width/2:g}"), triangle_budget=7_200, bevel=0.006)
+        if width > 4.0:
+            continue
         add(registry, f"frame_scalloped_fascia_{token}", family, f"Restrained scalloped timber fascia {width:g} m", ("frame", "fascia", "scalloped", "porch", "folk-craft"), lambda b, w=width: _scalloped_fascia(b, w), seams=(f"x=-{width/2:g}", f"x=+{width/2:g}"), triangle_budget=7_600, bevel=0.006)
     add(registry, "frame_lattice_panel_1m", family, "Diamond timber lattice infill 1 m", ("frame", "lattice", "porch", "shrine", "infill"), _lattice_panel, seams=("x=-0.5", "x=+0.5", "z=0"), triangle_budget=7_400, bevel=0.004)
     add(registry, "frame_eave_corbel_carved", family, "Carved timber eave corbel", ("frame", "corbel", "eave", "carved", "folk-craft"), _carved_corbel, triangle_budget=5_200, bevel=0.006)

@@ -361,21 +361,31 @@ function addMineSupportStockpile(group: THREE.Group): void {
   group.add(stockpile);
 }
 
-/** Deep rich-mineral works for iron, salt, and clay deposits. */
-export function createMineralMineMesh(): THREE.Group {
-  const group = new THREE.Group();
+/** Applies the simulation-facing identity shared by procedural and GLB variants. */
+export function applyMineworksSemanticContract(group: THREE.Group): void {
   group.name = 'Mineworks';
   group.userData.semanticRole = 'rich-mineral-mineworks';
   group.userData.extractionResources = ['iron', 'salt', 'clay'];
   group.userData.silhouette = 'vertical-shaft-headframe';
-  addShaftCollar(group);
-  addHeadframe(group);
-  addHoistHouse(group);
-  addOreSortingFloor(group);
+}
+
+/** Adds only simulation-owned stores; the authored GLB stays a neutral fixed shell. */
+export function addMineworksRuntimeState(group: THREE.Group): void {
   addMineralStockpile(group, 'iron');
   addMineralStockpile(group, 'salt');
   addMineralStockpile(group, 'clay');
   addMineSupportStockpile(group);
   group.add(createCivilianToolStockpile(new THREE.Vector3(4.8, 0, 5.7), -0.16));
+}
+
+/** Deep rich-mineral works for iron, salt, and clay deposits. */
+export function createMineralMineMesh(): THREE.Group {
+  const group = new THREE.Group();
+  applyMineworksSemanticContract(group);
+  addShaftCollar(group);
+  addHeadframe(group);
+  addHoistHouse(group);
+  addOreSortingFloor(group);
+  addMineworksRuntimeState(group);
   return group;
 }

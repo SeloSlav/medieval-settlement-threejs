@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "validatedAt": "2026-08-29T16:48:40.062814+00:00",
+  "status": "pass",
+  "glb": "C:\\WebProjects\\medieval-road-system\\.codex-tmp\\mining-camp-v1\\out\\mining_camp_textured_v1.glb",
+  "meshesImported": 9,
+  "trianglesImported": 2092,
+  "sourceCounts": {
+    "extract_handcart": 1,
+    "extract_sieve_table": 1,
+    "extract_sorting_bench": 1,
+    "extract_survey_stakes": 2,
+    "prop_tool_rack_quarry": 1,
+    "prop_water_bucket_pair": 1,
+    "site_canopy_canvas_4m_d4m": 1,
+    "site_tent_a_frame_large": 1
+  },
+  "atlasIds": [
+    "gorski-building-atlas-v1",
+    "gorski-camp-canvas-v1"
+  ],
+  "errors": []
+}
