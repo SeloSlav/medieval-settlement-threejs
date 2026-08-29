@@ -72,7 +72,7 @@ assert.deepEqual(keys(CIVIC_BUILD_MENU_ENTRIES), [
   'village_storehouse', 'granary',
 ]);
 assert.deepEqual(keys(GATHERING_BUILD_MENU_ENTRIES), [
-  'lumber_mill', 'reforester', 'stone_quarry', 'large_quarry', 'mine',
+  'lumber_mill', 'woodcutters_lodge', 'reforester', 'stone_quarry', 'large_quarry', 'mine',
   'hunters_hall', 'foragers_shed', 'fishing_camp',
 ]);
 assert.equal(
@@ -85,7 +85,7 @@ assert.deepEqual(keys(AGRICULTURE_BUILD_MENU_ENTRIES), [
   'threshing_barn', 'apiary', 'pastoral_farmstead', 'swineherd',
 ]);
 assert.deepEqual(keys(INDUSTRY_BUILD_MENU_ENTRIES), [
-  'woodcutters_lodge', 'watermill', 'windmill', 'bakery', 'brewery', 'smokehouse',
+  'watermill', 'windmill', 'bakery', 'brewery', 'smokehouse',
   'carpenter', 'spinning_retting_house', 'weaver', 'tannery', 'cobbler', 'chandlery', 'charcoal_burner', 'smithy', 'potter_kiln',
 ]);
 
@@ -96,11 +96,11 @@ assert.deepEqual(BUILD_MENU_CATEGORIES.map((category) => category.id), [
 assert.deepEqual(categoryKeys('civic'), ['residences', 'well', 'stable', 'founders_camp', 'town_hall']);
 assert.deepEqual(categoryKeys('trade'), ['marketplace', 'trading_post', 'village_storehouse', 'granary']);
 assert.deepEqual(categoryKeys('gathering'), [
-  'lumber_mill', 'reforester', 'stone_quarry', 'large_quarry', 'mine', 'hunters_hall', 'foragers_shed', 'fishing_camp',
+  'lumber_mill', 'woodcutters_lodge', 'reforester', 'stone_quarry', 'large_quarry', 'mine', 'hunters_hall', 'foragers_shed', 'fishing_camp',
 ]);
 assert.deepEqual(categoryKeys('agriculture'), ['threshing_barn', 'apiary', 'pastoral_farmstead', 'swineherd']);
 assert.deepEqual(categoryKeys('food'), ['watermill', 'windmill', 'bakery', 'brewery', 'tavern', 'smokehouse']);
-assert.deepEqual(categoryKeys('industry'), ['woodcutters_lodge', 'carpenter', 'spinning_retting_house', 'weaver', 'tannery', 'cobbler', 'chandlery', 'charcoal_burner', 'smithy', 'potter_kiln']);
+assert.deepEqual(categoryKeys('industry'), ['carpenter', 'spinning_retting_house', 'weaver', 'tannery', 'cobbler', 'chandlery', 'charcoal_burner', 'smithy', 'potter_kiln']);
 assert.deepEqual(categoryKeys('faith'), ['chapel', 'monastery']);
 assert.deepEqual(categoryKeys('decorations'), ['wayside_shrine', 'dry_stone_wall']);
 assert.deepEqual(categoryKeys('military'), ['watchtower', 'guardhouse', 'palisaded_refuge']);

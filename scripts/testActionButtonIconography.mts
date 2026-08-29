@@ -16,6 +16,7 @@ import {
   forestryWorkAreaDetailRow,
   renderForestryWorkAreaPanel,
 } from '../src/resources/inspector/treeWorkAreaRenderer.ts';
+import { effectiveTreeWorkArea } from '../src/resources/treeWorkArea.ts';
 import { renderInspectorResourceToken } from '../src/resources/inspector/inspectorResourceTokens.ts';
 import { inspectablePresentation } from '../src/resources/ResourceInspector.ts';
 import { BUILDING_CARD_ART } from '../src/resources/buildingCardArt.ts';
@@ -326,6 +327,17 @@ assert.match(defaultWorkAreaPanel, /data-action-icon="tree-work-area"/);
 assert.match(defaultWorkAreaPanel, /aria-pressed="false"/);
 assert.match(defaultWorkAreaPanel, /Hold Ctrl and use the mouse wheel/);
 assert.match(forestryWorkAreaDetailRow(forestryBuilding), /Default extent · 210 m/);
+
+const legacyLodgeWithoutPersistedRadius = {
+  ...forestryBuilding,
+  kind: 'woodcutters_lodge' as const,
+  workRadius: 0,
+};
+assert.equal(effectiveTreeWorkArea(legacyLodgeWithoutPersistedRadius).radius, 210);
+assert.match(
+  forestryWorkAreaDetailRow(legacyLodgeWithoutPersistedRadius),
+  /Default extent · 210 m/,
+);
 
 const activeWorkAreaBuilding = {
   ...forestryBuilding,

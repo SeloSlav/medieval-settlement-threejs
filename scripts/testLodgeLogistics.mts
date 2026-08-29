@@ -26,6 +26,7 @@ import {
   RESIDENCE_FIREWOOD_CAPACITY,
 } from '../src/generated/gameBalance.ts';
 import { resolveWoodcuttersLodgeStatus } from '../src/resources/inspector/woodcuttersLodgeStatus.ts';
+import { effectiveTreeWorkArea } from '../src/resources/treeWorkArea.ts';
 import type { ResidenceState } from '../src/resources/types.ts';
 
 function residence(id: string, firewoodStock: number, population = 4): ResidenceState {
@@ -129,6 +130,16 @@ assert.equal(LODGE_FIREWOOD_PER_CYCLE, 5);
 assert.equal(BUILDING_STORAGE_CAPS.woodcutters_lodge.timber, 0);
 assert.equal(BUILDING_DEFINITIONS.woodcutters_lodge.requiresMatureTrees, true);
 assert.ok(BUILDING_DEFINITIONS.woodcutters_lodge.workRadius > 0);
+assert.equal(
+  effectiveTreeWorkArea({
+    kind: 'woodcutters_lodge',
+    x: 10,
+    z: 20,
+    workRadius: 0,
+  }).radius,
+  BUILDING_DEFINITIONS.woodcutters_lodge.workRadius,
+  'lodges from older saves must inherit the new authored tree-harvesting radius',
+);
 
 const noTreesStatus = resolveWoodcuttersLodgeStatus({
   assignedLabor: 1,

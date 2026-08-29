@@ -248,8 +248,13 @@ assert.match(tickContext, /MARKET_STALL_GROUP_GOODS[\s\S]*"village_storehouse"/)
 assert.match(marketplaceCaravan, /marketplace_stall_workplace_id/);
 assert.match(
   lodgeServer,
-  /tick\.building_ids_for_kinds\(ctx,\s*lodge\.owner,\s*&\["lumber_mill"\]\)/,
-  'each lodge should inspect only indexed sawmill candidates',
+  /effective_tree_work_area\([\s\S]*find_nearest_mature_tree\(/,
+  'each lodge should harvest a mature tree inside its effective work area',
+);
+assert.doesNotMatch(
+  lodgeServer,
+  /building_ids_for_kinds\([\s\S]*lumber_mill|CommodityKind::Timber/,
+  'woodcutters should not discover sawmills or consume construction timber',
 );
 assert.doesNotMatch(
   wellServer,

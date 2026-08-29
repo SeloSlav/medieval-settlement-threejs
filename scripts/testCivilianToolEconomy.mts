@@ -106,7 +106,7 @@ assert.doesNotMatch(
 );
 assert.match(
   woodcutterSimulation,
-  /civilian_tool_throughput_multiplier\(lodge\.ironwork\)/,
+  /civilian_tool_throughput_multiplier\(building\.ironwork\)/,
 );
 assert.match(
   woodcutterSimulation,
@@ -114,8 +114,8 @@ assert.match(
 );
 assert.match(
   woodcutterSimulation,
-  /output_room \+ 1e-6 < firewood_output[\s\S]*charge_completed_production_maintenance/,
-  'whole firewood batches must charge maintenance only after the complete output can be stored',
+  /firewood_room \+ 1e-6 < firewood_yield[\s\S]*charge_completed_production_maintenance/,
+  'a whole harvested tree must fit before the completed cycle charges tool maintenance',
 );
 assert.match(
   expandedEconomySimulation,
@@ -150,7 +150,7 @@ assert.match(
 assert.match(woodcutterInspector, /civilianToolRows\(building, context\.worldQueries\)/);
 assert.match(mineralMineInspector, /civilianToolRows\(building, context\.worldQueries\)/);
 assert.match(buildMenuCards, /Fells mature trees and saws them into building timber\./);
-assert.match(buildMenuCards, /Splits timber into firewood for settlement hearths\./);
+assert.match(buildMenuCards, /Fells nearby trees and splits them into firewood for settlement hearths\./);
 assert.match(buildMenuCards, /Uses river power to grind rye and maslin grain into flour\./);
 assert.doesNotMatch(
   buildMenuCards,

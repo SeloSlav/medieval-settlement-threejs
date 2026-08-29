@@ -1196,10 +1196,10 @@ assert.equal(
   workerProductionBlocker({
     ...readyYardBuilding(building('full-smithy', 'smithy', 0, 0, 2, 0)),
     processorOutputTargetPercent: 25,
-    ironwork: 18,
+    ironwork: 50,
   }),
   'ironwork_target',
-  'a configured finished-goods target should stop visible production at the same point as the economy',
+  'a full finished-goods target should stop visible production at the same point as the economy',
 );
 assert.equal(
   workerProductionBlockerDescription('pottery'),

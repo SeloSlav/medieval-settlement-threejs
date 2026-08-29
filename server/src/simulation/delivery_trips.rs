@@ -1328,35 +1328,6 @@ pub fn try_start_private_export_income_trip(
     }
 }
 
-pub fn try_start_timber_supply_trip(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    clock: &GameClock,
-    network: &RoadNetwork,
-    mill: &mut Building,
-    lodge: &Building,
-    delivery_workers: u32,
-    speed_mps: f64,
-    unload_seconds: f64,
-    per_delivery_amount: f64,
-    needed: f64,
-) -> bool {
-    try_start_building_supply_trip(
-        ctx,
-        tick,
-        clock,
-        network,
-        mill,
-        lodge,
-        delivery_workers,
-        CommodityKind::Timber,
-        speed_mps,
-        unload_seconds,
-        per_delivery_amount,
-        needed,
-    )
-}
-
 pub fn try_start_building_supply_trip(
     ctx: &ReducerContext,
     tick: &SimTickContext,

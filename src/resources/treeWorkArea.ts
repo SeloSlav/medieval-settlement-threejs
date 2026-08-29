@@ -1,4 +1,5 @@
 import type { BuildingState, TreeWorkArea } from './types.ts';
+import { getBuildingDefinition } from './buildings.ts';
 
 export function supportsTreeWorkArea(building: Pick<BuildingState, 'kind'>): boolean {
   return building.kind === 'lumber_mill'
@@ -25,9 +26,18 @@ export function effectiveTreeWorkArea(
   if (hasCustomTreeWorkArea(building)) {
     return building.treeWorkArea!;
   }
+  // Older saves persisted zero before a building gained a forestry work
+  // extent. Fall back to the current authored radius so those buildings start
+  // working immediately after an additive module update.
+  const persistedRadius = Number.isFinite(building.workRadius)
+    ? building.workRadius
+    : 0;
+  const defaultRadius = persistedRadius > 0
+    ? persistedRadius
+    : getBuildingDefinition(building.kind).workRadius;
   return {
     x: building.x,
     z: building.z,
-    radius: Math.max(0, Number.isFinite(building.workRadius) ? building.workRadius : 0),
+    radius: Math.max(0, defaultRadius),
   };
 }

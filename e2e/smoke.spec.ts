@@ -226,11 +226,19 @@ test('keeps the camera zoom visible beside compact calendar controls', async ({ 
   const layout = await page.locator('[data-settlement-vitals]').evaluate((vitals) => {
     const zoomBox = vitals.querySelector<HTMLElement>('[data-stat-row="zoom"]')!.getBoundingClientRect();
     const clockBox = vitals.querySelector<HTMLElement>('[data-settlement-clock]')!.getBoundingClientRect();
+    const date = vitals.querySelector<HTMLElement>('.settlement-hud__clock-date')!;
+    const dateRange = document.createRange();
+    dateRange.selectNodeContents(date);
+    const dateTextBox = dateRange.getBoundingClientRect();
+    const speedBox = vitals.querySelector<HTMLElement>('.settlement-hud__speed')!.getBoundingClientRect();
     return {
       width: vitals.getBoundingClientRect().width,
       height: vitals.getBoundingClientRect().height,
       zoomWidth: zoomBox.width,
       separated: zoomBox.right <= clockBox.left,
+      dateControlCenterOffset: Math.abs(
+        (dateTextBox.left + dateTextBox.right) / 2 - (speedBox.left + speedBox.right) / 2,
+      ),
       overflowing: [...vitals.querySelectorAll<HTMLElement>('*')]
         .filter((element) => (
           element.scrollWidth > element.clientWidth + 1
@@ -243,6 +251,7 @@ test('keeps the camera zoom visible beside compact calendar controls', async ({ 
   expect(layout.height).toBeLessThanOrEqual(50);
   expect(layout.zoomWidth).toBeGreaterThanOrEqual(50);
   expect(layout.separated).toBe(true);
+  expect(layout.dateControlCenterOffset).toBeLessThan(1);
   expect(layout.overflowing).toEqual([]);
   await expect(clock).toBeVisible();
 });

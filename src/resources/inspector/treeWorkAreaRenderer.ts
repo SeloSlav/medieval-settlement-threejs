@@ -1,5 +1,5 @@
 import type { BuildingState, TreeWorkArea } from '../types.ts';
-import { hasCustomTreeWorkArea } from '../treeWorkArea.ts';
+import { effectiveTreeWorkArea, hasCustomTreeWorkArea } from '../treeWorkArea.ts';
 
 type ForestryWorkAreaBuilding = Pick<
   BuildingState,
@@ -20,7 +20,7 @@ export function forestryWorkAreaDetailRow(
   const area = activeTreeWorkArea(building);
   const value = area
     ? `Limited circle · ${Math.round(area.radius)} m`
-    : `Default extent · ${Math.round(building.workRadius)} m`;
+    : `Default extent · ${Math.round(effectiveTreeWorkArea(building).radius)} m`;
   return `<li><span>Work area</span><span>${value}</span></li>`;
 }
 
@@ -32,7 +32,7 @@ export function renderForestryWorkAreaPanel(
   const active = area !== null;
   const pending = options.pending === true && !active;
   const state = active ? 'active' : pending ? 'pending' : 'default';
-  const defaultRadius = Math.round(building.workRadius);
+  const defaultRadius = Math.round(effectiveTreeWorkArea(building).radius);
   const workerRule = building.kind === 'reforester'
     ? 'Foresters plant and tend trees only inside the chosen circle.'
     : 'Laborers fell mature trees only inside the chosen circle.';

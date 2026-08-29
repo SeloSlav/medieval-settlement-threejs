@@ -352,7 +352,7 @@ export const SMALL_QUARRY_MAX_YIELD = 4000;
 
 export const LODGE_TIMBER_PER_CYCLE = 0;
 export const LODGE_TIMBER_PER_DELIVERY = 0;
-export const LODGE_FIREWOOD_PER_CYCLE = 6;
+export const LODGE_FIREWOOD_PER_CYCLE = 5;
 export const LODGE_FIREWOOD_PER_DELIVERY = 2;
 export const STONE_PER_HARVEST = 2;
 export const GAME_ANIMALS_PER_HARVEST = 1;
@@ -982,7 +982,7 @@ export const BUILDING_DEFINITIONS = {
     label: "Woodcutter's lodge",
     workRadius: 210,
     pickRadius: 8,
-    harvestInterval: 1050,
+    harvestInterval: 875,
     regrowRatePerSecond: 0,
     maxLabor: 2,
     acceptsLabor: true,

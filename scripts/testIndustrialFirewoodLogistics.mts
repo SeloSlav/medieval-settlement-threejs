@@ -118,6 +118,7 @@ const state = emptyGameState();
 const lodge = building('10', 'woodcutters_lodge', {
   assignedLabor: 2,
   firewood: 18,
+  ironwork: 0,
 });
 const storehouse = building('11', 'village_storehouse', {
   assignedLabor: 1,
@@ -199,7 +200,7 @@ assert.equal(
     + industrialFirewoodCapacityPerDay(brewery, false),
 );
 assert.ok(plan.lodgeOutputCapacityPerDay > 0);
-assert.ok(plan.lodgeTimberDrawPerDay > 0);
+assert.equal(plan.lodgeTimberDrawPerDay, 0);
 assert.ok(Number.isFinite(plan.combinedRunwayDays));
 state.stockpile.firewood = 99;
 assert.equal(
@@ -217,7 +218,7 @@ state.physicalFoundingSiteEnabled = false;
 state.stockpile.firewood = 0;
 const baselineLodgeOutput = plan.lodgeOutputCapacityPerDay;
 const baselineLodgeTimber = plan.lodgeTimberDrawPerDay;
-lodge.ironwork = 0.75;
+lodge.ironwork = 1;
 const maintainedPlan = computeSettlementFirewoodPlan(
   state,
   false,
@@ -227,10 +228,8 @@ assert.ok(Math.abs(
   maintainedPlan.lodgeOutputCapacityPerDay
     - baselineLodgeOutput * CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
 ) < 1e-9);
-assert.ok(Math.abs(
-  maintainedPlan.lodgeTimberDrawPerDay
-    - baselineLodgeTimber * CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
-) < 1e-9);
+assert.equal(baselineLodgeTimber, 0);
+assert.equal(maintainedPlan.lodgeTimberDrawPerDay, 0);
 lodge.ironwork = 0;
 
 const perfTargets = Array.from({ length: 100_000 }, (_, index) =>
@@ -280,12 +279,12 @@ assert.match(
 );
 assert.match(
   lodgeSimulation,
-  /civilian_tool_throughput_multiplier\(lodge\.ironwork\)[\s\S]*action_cooldown[\s\S]*TICK_DT \* throughput_multiplier/,
+  /civilian_tool_throughput_multiplier\(building\.ironwork\)[\s\S]*action_cooldown[\s\S]*TICK_DT \* throughput_multiplier/,
   'maintained axes must accelerate the authoritative processing timer',
 );
 assert.match(
   lodgeSimulation,
-  /if tools_maintained[\s\S]*withdraw_building_commodity\([\s\S]*CommodityKind::Ironwork[\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
+  /if tools_maintained[\s\S]*charge_completed_production_maintenance\([\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
   'a successful maintained firewood cycle must wear physical ironwork',
 );
 assert.doesNotMatch(

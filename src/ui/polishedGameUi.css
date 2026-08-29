@@ -401,6 +401,7 @@ select:focus-visible {
   grid-column: 2;
   grid-row: 1;
   align-self: center;
+  text-align: center;
   overflow: hidden;
   color: #d3c6aa;
   font-family: var(--ui-display);

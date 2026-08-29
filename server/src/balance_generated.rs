@@ -349,7 +349,7 @@ pub const SMALL_QUARRY_MAX_YIELD: f64 = 4000.0;
 
 pub const LODGE_TIMBER_PER_CYCLE: f64 = 0.0;
 pub const LODGE_TIMBER_PER_DELIVERY: f64 = 0.0;
-pub const LODGE_FIREWOOD_PER_CYCLE: f64 = 6.0;
+pub const LODGE_FIREWOOD_PER_CYCLE: f64 = 5.0;
 pub const LODGE_FIREWOOD_PER_DELIVERY: f64 = 2.0;
 pub const STONE_PER_HARVEST: f64 = 2.0;
 pub const GAME_ANIMALS_PER_HARVEST: f64 = 1.0;
@@ -1285,7 +1285,7 @@ const WOODCUTTERS_LODGE: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 2,
     work_radius: 210.0,
-    action_interval: 1050.0,
+    action_interval: 875.0,
     pick_radius: 8.0,
     requires_road: true,
     faces_road: true,
