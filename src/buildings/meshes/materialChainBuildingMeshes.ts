@@ -12,7 +12,6 @@ import {
   addLeanToRoof,
   addPlankDoor,
 } from './buildingMeshKit.ts';
-import { createCivilianToolStockpile } from './civilianToolStockpileMesh.ts';
 import {
   CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS,
   POTTER_FIREWOOD_VISUAL_SEGMENTS,

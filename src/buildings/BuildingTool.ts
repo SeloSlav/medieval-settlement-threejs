@@ -22,9 +22,6 @@ import {
 import type { BuildingResourceCost } from '../resources/buildingEconomy.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import {
-  type ClayDepositSite,
-} from '../clay/ClayDepositLayout.ts';
-import {
   buildingPlacementYaw,
   resolveRoadsideBuildingPlacementCandidates,
 } from './buildingPlacement.ts';
@@ -70,7 +67,6 @@ type BuildingToolOptions = {
   onDemolishBuilding: (buildingId: string) => void | Promise<void>;
   isWaterAt: (x: number, z: number) => boolean;
   isResourceDepositAt?: (x: number, z: number) => boolean;
-  clayDepositSites: readonly ClayDepositSite[];
   getNaturalHeightAt: (x: number, z: number) => number;
   countMatureTreesInRadius?: (x: number, z: number, radius: number) => number | null;
   getRoadNetwork?: () => RoadNetwork;
@@ -721,7 +717,6 @@ export class BuildingTool {
       vineyardParcels: state.vineyardParcels?.values(),
       quarries: state.quarries.values(),
       foragingNodes: state.foragingNodes.values(),
-      clayDepositSites: this.options.clayDepositSites,
       stockpile: totals,
       isWaterAt: this.options.isWaterAt,
       isResourceDepositAt: this.options.isResourceDepositAt,

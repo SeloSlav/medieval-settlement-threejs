@@ -2132,7 +2132,6 @@ export function renderTownHallInspector(
     provisioning.sabbathObserved,
     {
       surfaceClayThroughputMultiplier: environment.surfaceClayThroughputMultiplier,
-      resourceAbundance: context.worldResourceAbundance ?? 50,
     },
   );
   const unmaintainedToolInspect = industrialMaterials.firstUnmaintainedToolSiteId === null

@@ -136,8 +136,6 @@ export function buildingPlacementReasonToToastId(reason: BuildingPlacementFailur
       return 'building.placement.requires_rich_deposit';
     case 'requires_mineral_deposit':
       return 'building.placement.requires_mineral_deposit';
-    case 'requires_clay_deposit':
-      return 'building.placement.requires_clay_deposit';
     case 'no_game_in_range':
       return 'building.placement.no_game_in_range';
     case 'no_berries_in_range':

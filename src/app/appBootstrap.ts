@@ -572,7 +572,6 @@ export async function bootstrapAppSession(
     },
     isWaterAt: (x, z) => sceneManager.riverField.isRenderedWetAt(x, z),
     isResourceDepositAt,
-    clayDepositSites: sceneManager.worldLayout.clayDepositLayout.sites,
     getNaturalHeightAt: (x, z) => sampleNaturalTerrainHeight(x, z),
     countMatureTreesInRadius: (x, z, radius) => {
       const registry = liveContext.treeRegistry;

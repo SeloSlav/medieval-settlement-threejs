@@ -154,7 +154,6 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     let world_map_size = config.map_size;
     let world_hydrology = config.hydrology;
     let well_aquifer_networks_enabled = config.well_aquifer_networks_enabled;
-    let world_resource_abundance = config.resource_abundance;
     let severe_weather_enabled = config.severe_weather_enabled;
     let food_spoilage_rate = config.food_spoilage_rate;
     let conflict_enabled = config.conflict_enabled;
