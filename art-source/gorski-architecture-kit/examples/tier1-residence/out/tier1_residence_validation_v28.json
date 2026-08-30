@@ -1,0 +1,71 @@
+{
+  "id": "gorski-tier1-residence-validation-v4",
+  "passed": true,
+  "checks": {
+    "allInstanceScalesAreOne": true,
+    "allMeshesHaveMetricUv": true,
+    "allMeshesAreManifold": true,
+    "threePlainSquareApertures": true,
+    "noDecorativeWindowInserts": true,
+    "twoRetopologizedAtlasShingleSkins": true,
+    "wholeResidenceUnderNineThousandTriangles": true,
+    "noAppliedEaveEdgeTrim": true,
+    "actualRoofSmokeAperture": true,
+    "fourClosedFoundationCorners": true,
+    "noRuntimeOrVegetationDressingAuthored": true,
+    "atlasMaterialsPacked": true,
+    "foundationUsesJointFreeStoneFace": true,
+    "noMortaredWallTextureOnIndividualFoundationStones": true,
+    "stoneFootprintContainsEveryTimberEdge": true
+  },
+  "counts": {
+    "architectureObjects": 33,
+    "meshes": 33,
+    "triangles": 3136,
+    "roofTriangles": 2016,
+    "roofTriangleShare": 0.6429,
+    "retopologizedRoofSkins": 2,
+    "legacySolidShinglePanels": 0,
+    "customApertureWallPieces": 9,
+    "darkUnglazedApertures": 3,
+    "apertureCutRoofPanels": 1,
+    "foundationCorners": 4
+  },
+  "atlasTiles": [
+    "lime-plaster",
+    "quarry-stone",
+    "rough-hewn-timber",
+    "split-shingles",
+    "weathered-planks",
+    "wrought-iron"
+  ],
+  "foundationSupport": {
+    "foundationBoundsXY": [
+      -2.23899,
+      2.23899,
+      -0.35544,
+      7.35544
+    ],
+    "timberBoundsXY": [
+      -2.08,
+      2.08,
+      -0.2872,
+      7.192
+    ],
+    "edgeMarginsM": {
+      "left": 0.15899,
+      "right": 0.15899,
+      "front": 0.06824,
+      "rear": 0.16344
+    }
+  },
+  "violations": {
+    "unitScale": [],
+    "missingMetricUv": [],
+    "nonmanifoldEdges": {},
+    "decorativeWindowInserts": [],
+    "surfaceSmokeMeshes": [],
+    "appliedEaveTrim": [],
+    "forbiddenAuthoredState": []
+  }
+}

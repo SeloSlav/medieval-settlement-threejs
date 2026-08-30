@@ -17,12 +17,12 @@ OUTPUT_ROOT = Path(os.environ.get("GK_TIER1_OUTPUT_ROOT", str(EXAMPLE_DIR))).res
 OUT_DIR = OUTPUT_ROOT / "out"
 RENDER_DIR = OUTPUT_ROOT / "renders"
 ATLAS_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_building_atlas_v1"
-OUT_BLEND = OUT_DIR / "tier1_residence_retopo_v27.blend"
-OUT_GLB = OUT_DIR / "tier1_residence_retopo_v27.glb"
-OUT_MANIFEST = OUT_DIR / "tier1_residence_assembly_v27.json"
-OUT_RENDER = RENDER_DIR / "tier1_residence_hero_retopo_v27.png"
-OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_retopo_v27.png"
-OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_retopo_v27.png"
+OUT_BLEND = OUT_DIR / "tier1_residence_retopo_v28.blend"
+OUT_GLB = OUT_DIR / "tier1_residence_retopo_v28.glb"
+OUT_MANIFEST = OUT_DIR / "tier1_residence_assembly_v28.json"
+OUT_RENDER = RENDER_DIR / "tier1_residence_hero_retopo_v28.png"
+OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_retopo_v28.png"
+OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_retopo_v28.png"
 
 WALL_BASE_Z = 0.35
 WALL_HEIGHT = 2.4
@@ -516,6 +516,41 @@ def phase_metric_uvs(
             uv_layer.data[loop_index].uv.y += v_offset
 
 
+def fit_foundation_to_structural_edge(obj: bpy.types.Object, part_id: str) -> None:
+    """Bake a modest stone oversail beneath the full timber footprint.
+
+    Kit foundation seams remain canonical in the reusable library.  Finished
+    assemblies widen copied perimeter stones just enough to carry the proud
+    0.16 m corner posts and their joinery instead of ending at the wall plane.
+    """
+
+    target_xy = {
+        "foundation_fieldstone_4m_h0p35m": (4.24, None),
+        "foundation_corner_fieldstone_h0p35m": (2.24, 2.24),
+    }.get(part_id)
+    if target_xy is None or obj.type != "MESH":
+        return
+    for axis_index, target_dimension in enumerate(target_xy):
+        if target_dimension is None:
+            continue
+        values = [vertex.co[axis_index] for vertex in obj.data.vertices]
+        minimum, maximum = min(values), max(values)
+        centre = (minimum + maximum) * 0.5
+        scale = float(target_dimension) / max(maximum - minimum, 0.001)
+        for vertex in obj.data.vertices:
+            vertex.co[axis_index] = centre + (vertex.co[axis_index] - centre) * scale
+    obj.data.update()
+    existing_uv = obj.data.uv_layers.get("GK_UV0")
+    if existing_uv is not None:
+        obj.data.uv_layers.remove(existing_uv)
+    add_metric_uv_layer(obj.data)
+    obj["foundation_support_contract"] = "stone footprint contains full timber edge"
+    obj["foundation_target_dimensions_xy_m"] = [
+        target_xy[0],
+        target_xy[1] if target_xy[1] is not None else round(obj.dimensions.y, 5),
+    ]
+
+
 def place(
     part_id: str,
     name: str,
@@ -545,6 +580,7 @@ def place(
                 obj.modifiers.remove(modifier)
             else:
                 modifier.width = min(modifier.width, 0.006)
+    fit_foundation_to_structural_edge(obj, part_id)
     phase_metric_uvs(obj, location, rotation_z)
     replace_materials(obj)
     PLACEMENTS.append(
@@ -1443,7 +1479,7 @@ def main() -> None:
     add_preview_staging()
     stage_render()
     scene = bpy.context.scene
-    scene["artifact_id"] = "gorski-tier1-residence-atlas-preview-v6"
+    scene["artifact_id"] = "gorski-tier1-residence-atlas-preview-v7"
     scene["architecture_context"] = "Gorski Kotar, circa 1550"
     scene["roof_finish"] = "hand-split softwood shingles"
     scene["atlas_id"] = ATLAS_MANIFEST["id"]

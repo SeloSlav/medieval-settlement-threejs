@@ -11,8 +11,8 @@ import bpy
 EXAMPLE_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path(os.environ.get("GK_TIER1_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
 OUT_DIR = OUTPUT_ROOT / "out"
-GLB_PATH = OUT_DIR / "tier1_residence_retopo_v27.glb"
-REPORT_PATH = OUT_DIR / "tier1_residence_roundtrip_validation_v27.json"
+GLB_PATH = OUT_DIR / "tier1_residence_retopo_v28.glb"
+REPORT_PATH = OUT_DIR / "tier1_residence_roundtrip_validation_v28.json"
 
 
 def main() -> None:

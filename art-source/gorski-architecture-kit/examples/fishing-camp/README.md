@@ -17,8 +17,8 @@ This example assembles the authoritative `fishing_camp` building from the modula
 - `build_fishing_camp.py` is the source-of-truth assembly generator.
 - `validate_fishing_camp.py` audits source geometry, construction coverage, materials, UVs, bounds, and topology.
 - `validate_fishing_camp_roundtrip.py` reimports the exported GLB and verifies retained roles/material metadata.
-- `out/fishing_camp_textured_v6.blend` is the editable authored scene.
-- `out/fishing_camp_textured_v6.glb` is the embedded-texture source delivery with joint-free gathered-stone foundations and thresholds.
-- Runtime compaction externalizes the already resident shared building atlas into `public/assets/models/buildings/gorski/fishing_camp_textured_v6.glb`.
+- `out/fishing_camp_textured_v7.blend` is the editable authored scene.
+- `out/fishing_camp_textured_v7.glb` is the embedded-texture source delivery with joint-free gathered-stone foundations widened beneath every timber edge.
+- Runtime compaction externalizes the already resident shared building atlas into `public/assets/models/buildings/gorski/fishing_camp_textured_v7.glb`.
 
 Fresh catch, stockpile quantity, characters, water, weather, and living vegetation remain runtime-owned state.

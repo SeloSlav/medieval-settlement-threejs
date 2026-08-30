@@ -13,7 +13,7 @@ const runtimeRoot = path.join(
   'gorski',
 );
 
-const residence = readGlb('tier1_residence_retopo_v27.glb');
+const residence = readGlb('tier1_residence_retopo_v28.glb');
 assert.equal(residence.json.nodes.length, 33, 'Tier 1 residence node count changed');
 assert.equal(residence.json.meshes.length, 33, 'Tier 1 residence mesh count changed');
 assert.equal(countTriangles(residence.json), 5_184, 'Tier 1 residence triangle count changed');
@@ -21,7 +21,7 @@ assert.ok(residence.bytes.length < 1_000_000, 'Tier 1 runtime GLB should stay be
 assert.deepEqual(residence.json.images ?? [], [], 'Tier 1 must use the shared runtime atlas');
 assert.equal(
   residence.json.asset.extras?.sourceGlb,
-  'tier1_residence_retopo_v27.glb',
+  'tier1_residence_retopo_v28.glb',
   'Tier 1 runtime source provenance is missing',
 );
 assertNames(residence.json, [
@@ -240,7 +240,7 @@ assert.doesNotMatch(
   'Removed or extraneous hunter-camp props returned',
 );
 
-const fishingCamp = readGlb('fishing_camp_textured_v6.glb');
+const fishingCamp = readGlb('fishing_camp_textured_v7.glb');
 assert.equal(fishingCamp.json.nodes.length, 66, 'Fishing camp node count changed');
 assert.equal(fishingCamp.json.meshes.length, 66, 'Fishing camp mesh count changed');
 const fishingCampTriangles = countTriangles(fishingCamp.json);
@@ -252,7 +252,7 @@ assert.ok(
 assert.ok(fishingCamp.bytes.length < 2_000_000, 'Fishing camp runtime GLB should stay below 2 MB');
 assert.equal(
   fishingCamp.json.asset.extras?.sourceGlb,
-  'fishing_camp_textured_v6.glb',
+  'fishing_camp_textured_v7.glb',
   'Fishing camp runtime source provenance is missing',
 );
 assert.deepEqual(fishingCamp.json.images ?? [], [], 'Fishing camp must use the shared runtime atlas');
@@ -733,7 +733,7 @@ assert.match(siteworksSource, /Three thick, dark forest billets/);
 
 const integrationSource = readText('src/buildings/authoredArchitectureModels.ts');
 assert.match(integrationSource, /tier1_church_delnice_v2\.glb/);
-assert.match(integrationSource, /fishing_camp_textured_v6\.glb/);
+assert.match(integrationSource, /fishing_camp_textured_v7\.glb/);
 assert.match(integrationSource, /applyBuildingMaterialAtlasDirectUv/);
 assert.match(integrationSource, /readAuthoredAtlasTint/);
 assert.match(integrationSource, /readAuthoredSurfaceTint/);

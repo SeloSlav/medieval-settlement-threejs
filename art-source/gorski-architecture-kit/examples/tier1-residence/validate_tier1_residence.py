@@ -10,7 +10,7 @@ import bpy
 
 EXAMPLE_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path(os.environ.get("GK_TIER1_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
-OUT_REPORT = OUTPUT_ROOT / "out" / "tier1_residence_validation_v27.json"
+OUT_REPORT = OUTPUT_ROOT / "out" / "tier1_residence_validation_v28.json"
 
 
 def architecture_objects() -> list[bpy.types.Object]:
@@ -35,6 +35,30 @@ def nonmanifold_edges(obj: bpy.types.Object) -> int:
     count = sum(1 for edge in bm.edges if not edge.is_manifold)
     bm.free()
     return count
+
+
+def combined_xy_bounds(objects: list[bpy.types.Object]) -> tuple[float, float, float, float]:
+    points = [obj.matrix_world @ vertex.co for obj in objects for vertex in obj.data.vertices]
+    return (
+        min(point.x for point in points),
+        max(point.x for point in points),
+        min(point.y for point in points),
+        max(point.y for point in points),
+    )
+
+
+def support_margins(
+    foundation_bounds: tuple[float, float, float, float],
+    timber_bounds: tuple[float, float, float, float],
+) -> dict[str, float]:
+    foundation_min_x, foundation_max_x, foundation_min_y, foundation_max_y = foundation_bounds
+    timber_min_x, timber_max_x, timber_min_y, timber_max_y = timber_bounds
+    return {
+        "left": timber_min_x - foundation_min_x,
+        "right": foundation_max_x - timber_max_x,
+        "front": timber_min_y - foundation_min_y,
+        "rear": foundation_max_y - timber_max_y,
+    }
 
 
 def main() -> None:
@@ -87,6 +111,20 @@ def main() -> None:
         )
     )
     total_triangles = sum(triangle_count(obj) for obj in meshes)
+    perimeter_foundations = [
+        obj for obj in meshes
+        if str(obj.get("source_component_id", "")).startswith("foundation_")
+        and obj.get("source_component_id") != "foundation_steps_limestone_1"
+    ]
+    timber_supports = [
+        obj for obj in meshes
+        if obj.name.startswith("T1_Wall_")
+        or obj.name.startswith("T1_Post_")
+        or obj.name == "T1_Front_Sill"
+    ]
+    foundation_bounds = combined_xy_bounds(perimeter_foundations)
+    timber_bounds = combined_xy_bounds(timber_supports)
+    edge_margins = support_margins(foundation_bounds, timber_bounds)
 
     checks = {
         "allInstanceScalesAreOne": not unit_scale_violations,
@@ -105,6 +143,7 @@ def main() -> None:
         "atlasMaterialsPacked": len(material_tiles) >= 6,
         "foundationUsesJointFreeStoneFace": "quarry-stone" in material_tiles,
         "noMortaredWallTextureOnIndividualFoundationStones": "fieldstone-mortar" not in material_tiles,
+        "stoneFootprintContainsEveryTimberEdge": min(edge_margins.values()) >= -1.0e-5,
     }
     payload = {
         "id": "gorski-tier1-residence-validation-v4",
@@ -124,6 +163,11 @@ def main() -> None:
             "foundationCorners": len(foundation_corners),
         },
         "atlasTiles": material_tiles,
+        "foundationSupport": {
+            "foundationBoundsXY": [round(value, 5) for value in foundation_bounds],
+            "timberBoundsXY": [round(value, 5) for value in timber_bounds],
+            "edgeMarginsM": {key: round(value, 5) for key, value in edge_margins.items()},
+        },
         "violations": {
             "unitScale": unit_scale_violations,
             "missingMetricUv": missing_metric_uv,

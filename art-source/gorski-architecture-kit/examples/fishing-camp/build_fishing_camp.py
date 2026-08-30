@@ -17,14 +17,14 @@ EXAMPLE_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path(os.environ.get("GK_FISHING_CAMP_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
 OUT_DIR = OUTPUT_ROOT / "out"
 RENDER_DIR = OUTPUT_ROOT / "renders"
-OUT_BLEND = OUT_DIR / "fishing_camp_textured_v6.blend"
-OUT_GLB = OUT_DIR / "fishing_camp_textured_v6.glb"
-OUT_MANIFEST = OUT_DIR / "fishing_camp_assembly_v6.json"
-OUT_HERO = RENDER_DIR / "fishing_camp_hero_v6.png"
-OUT_OVERHEAD = RENDER_DIR / "fishing_camp_overhead_v6.png"
-OUT_WORKYARD = RENDER_DIR / "fishing_camp_workyard_v6.png"
-OUT_BOAT = RENDER_DIR / "fishing_camp_boat_detail_v6.png"
-OUT_REAR = RENDER_DIR / "fishing_camp_rear_v6.png"
+OUT_BLEND = OUT_DIR / "fishing_camp_textured_v7.blend"
+OUT_GLB = OUT_DIR / "fishing_camp_textured_v7.glb"
+OUT_MANIFEST = OUT_DIR / "fishing_camp_assembly_v7.json"
+OUT_HERO = RENDER_DIR / "fishing_camp_hero_v7.png"
+OUT_OVERHEAD = RENDER_DIR / "fishing_camp_overhead_v7.png"
+OUT_WORKYARD = RENDER_DIR / "fishing_camp_workyard_v7.png"
+OUT_BOAT = RENDER_DIR / "fishing_camp_boat_detail_v7.png"
+OUT_REAR = RENDER_DIR / "fishing_camp_rear_v7.png"
 
 
 # Assembly-specific fit contract. The kit's 0.24 m verge is nominal; these
@@ -150,6 +150,33 @@ def remap_materials(obj: bpy.types.Object, part_id: str) -> None:
         obj.data.materials[index] = dark_glass_material() if key == "glass" else texture_helper.atlas_material(key)
 
 
+def fit_foundation_to_structural_edge(obj: bpy.types.Object, part_id: str) -> None:
+    """Bake enough end oversail to carry every proud structural corner post."""
+
+    target_length = {
+        "foundation_fieldstone_4m_h0p35m": 4.24,
+        "foundation_fieldstone_2m_h0p35m": 2.24,
+    }.get(part_id)
+    if target_length is None or obj.type != "MESH":
+        return
+    target_depth = 0.56
+    for axis_index, target_dimension in ((0, target_length), (1, target_depth)):
+        values = [vertex.co[axis_index] for vertex in obj.data.vertices]
+        minimum, maximum = min(values), max(values)
+        centre = (minimum + maximum) * 0.5
+        scale = target_dimension / max(maximum - minimum, 0.001)
+        for vertex in obj.data.vertices:
+            vertex.co[axis_index] = centre + (vertex.co[axis_index] - centre) * scale
+    obj.data.update()
+    existing_uv = obj.data.uv_layers.get("GK_UV0")
+    if existing_uv is not None:
+        obj.data.uv_layers.remove(existing_uv)
+    add_metric_uv_layer(obj.data)
+    obj["foundation_support_contract"] = "stone footprint contains full timber edge"
+    obj["foundation_target_run_m"] = target_length
+    obj["foundation_target_depth_m"] = target_depth
+
+
 def place(
     part_id: str,
     name: str,
@@ -173,6 +200,7 @@ def place(
     obj["source_component_id"] = part_id
     obj["assembly_role"] = target.name
     target.objects.link(obj)
+    fit_foundation_to_structural_edge(obj, part_id)
     texture_helper.phase_metric_uvs(obj, location, rotation[2])
     remap_materials(obj, part_id)
     PLACEMENTS.append({
@@ -562,7 +590,7 @@ def write_manifest() -> None:
     maximum = Vector((max(point.x for point in fixed_points), max(point.y for point in fixed_points), max(point.z for point in fixed_points)))
     dimensions = maximum - minimum
     payload = {
-        "id": "gorski-fishing-camp-atlas-preview-v6",
+        "id": "gorski-fishing-camp-atlas-preview-v7",
         "revision": 5,
         "authoritativeBuildingKind": "fishing_camp",
         "displayIdentity": "Fishing Camp",
@@ -644,7 +672,7 @@ def main() -> None:
     remove_source_library_objects()
     camera = stage_preview()
     scene = bpy.context.scene
-    scene["artifact_id"] = "gorski-fishing-camp-atlas-preview-v6"
+    scene["artifact_id"] = "gorski-fishing-camp-atlas-preview-v7"
     scene["authoritative_building_kind"] = "fishing_camp"
     scene["architecture_context"] = "Gorski Kotar, circa 1550"
     scene["canonical_state"] = "neutral fixed fishery; runtime owns fresh catch, inventory, workers, and world layers"

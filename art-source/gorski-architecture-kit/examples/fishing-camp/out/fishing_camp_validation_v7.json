@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "validatedAt": "2026-08-30T06:33:25.140426+00:00",
+  "status": "pass",
+  "blend": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\examples\\fishing-camp\\out\\fishing_camp_textured_v7.blend",
+  "metrics": {
+    "fixedInstances": 66,
+    "sourceCounts": {
+      "assembly_custom_settled_shingle_skin": 4,
+      "enclosure_split_rail_2m": 1,
+      "enclosure_split_rail_4m": 4,
+      "foundation_fieldstone_2m_h0p35m": 4,
+      "foundation_fieldstone_4m_h0p35m": 4,
+      "foundation_steps_limestone_1": 2,
+      "frame_beam_0p5m_s0p16m": 4,
+      "frame_beam_2m_s0p16m": 4,
+      "frame_beam_4m_s0p16m": 6,
+      "frame_post_h2p4m_s0p16m": 2,
+      "frame_post_h2p7m_s0p16m": 10,
+      "gable_infill_timber_2m": 2,
+      "gable_infill_timber_4m": 2,
+      "opening_door_service_single": 2,
+      "opening_window_small_shuttered": 1,
+      "prop_barrel_small": 1,
+      "prop_boat_dugout": 1,
+      "prop_crate_small": 1,
+      "prop_fish_drying_rack": 1,
+      "prop_water_bucket_pair": 1,
+      "wall_limewash_2m_door_service_host": 1,
+      "wall_limewash_2m_window_small_host": 1,
+      "wall_plank_2m_door_service_host": 1,
+      "wall_plank_2m_h2p7m": 3,
+      "wall_plank_4m_h2p7m": 3
+    },
+    "trianglesBeforeExportApply": 5092,
+    "dimensionsM": [
+      10.5074,
+      7.8376,
+      5.69
+    ],
+    "boundsM": {
+      "minimumM": [
+        -5.2524,
+        -3.251,
+        -0.0165
+      ],
+      "maximumM": [
+        5.255,
+        4.5867,
+        5.6735
+      ]
+    },
+    "atlasTiles": [
+      "lime-plaster",
+      "packed-earth",
+      "quarry-stone",
+      "rough-hewn-timber",
+      "sawn-planks",
+      "split-shingles",
+      "weathered-planks",
+      "wrought-iron"
+    ],
+    "foundationSupport": {
+      "mainHouse": {
+        "foundationBoundsXY": [
+          -0.98125,
+          3.58125,
+          -1.08125,
+          3.48125
+        ],
+        "timberBoundsXY": [
+          -0.78,
+          3.38,
+          -1.0552,
+          3.4552
+        ],
+        "edgeMarginsM": {
+          "left": 0.20125,
+          "right": 0.20125,
+          "front": 0.02605,
+          "rear": 0.02605
+        }
+      },
+      "serviceShed": {
+        "foundationBoundsXY": [
+          -4.33336,
+          -1.76664,
+          -0.13336,
+          2.43336
+        ],
+        "timberBoundsXY": [
+          -4.13,
+          -1.97,
+          -0.1052,
+          2.4052
+        ],
+        "edgeMarginsM": {
+          "left": 0.20336,
+          "right": 0.20336,
+          "front": 0.02816,
+          "rear": 0.02816
+        }
+      }
+    },
+    "boatGroundClearanceM": 0.0232,
+    "boatFenceContactDistanceM": 0.0031,
+    "minimumRoofStructureClearanceM": 0.0471,
+    "minimumRoofStructureMember": "FC_Main_Front_Gable",
+    "minimumRoofVergeCoverageM": 0.0848,
+    "mainGableCollarEndGapM": {
+      "front": 0.0,
+      "rear": 0.0
+    },
+    "fixedPropBuildingClearanceM": 0.2287,
+    "fenceBuildingClearanceM": {
+      "east": 1.3864,
+      "rear": 0.8664,
+      "west": 0.7143
+    },
+    "doorwayAccessConflicts": [],
+    "thresholdAlignmentErrors": [],
+    "dryingRackToWashBucketsM": 1.4017
+  },
+  "errors": [],
+  "warnings": [],
+  "checks": [
+    "two structurally distinct buildings on the two-metre kit grid",
+    "Tier-1 fieldstone, warm limewash, dark oak, plank, and 50-degree shingle vocabulary",
+    "four closed retopologized roof skins with sub-repeat atlas faces",
+    "hollow dugout bears on grade and contacts the rear-west fence with its connected paddle intact",
+    "empty splayed drying rack reserved for separately authored catch models",
+    "offset drying rack and wash buckets remain grouped while clearing both authored door approaches",
+    "gable infill and framing remain fully below the lifted shingle envelope and inside both protective verges",
+    "main-house front and rear collar fractions terminate at both gable rake frames",
+    "continuous rear-and-side split-rail boundary clears both buildings while the road frontage remains open",
+    "both service doors retain Tier-1 residence stone-block thresholds",
+    "stone perimeter bounds contain every ground-bearing timber wall, sill, and post edge",
+    "metric UVs, direct production-atlas contract, canonical transforms, and no living vegetation",
+    "manifold fixed geometry except the intentionally open bucket pair",
+    "no preview staging in the export set"
+  ]
+}

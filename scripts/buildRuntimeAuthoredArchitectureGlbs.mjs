@@ -21,9 +21,9 @@ const jobs = [
       'examples',
       'tier1-residence',
       'out',
-      'tier1_residence_retopo_v27.glb',
+      'tier1_residence_retopo_v28.glb',
     ),
-    output: path.join(outputDirectory, 'tier1_residence_retopo_v27.glb'),
+    output: path.join(outputDirectory, 'tier1_residence_retopo_v28.glb'),
   },
   {
     source: path.join(
@@ -57,9 +57,9 @@ const jobs = [
       'examples',
       'fishing-camp',
       'out',
-      'fishing_camp_textured_v6.glb',
+      'fishing_camp_textured_v7.glb',
     ),
-    output: path.join(outputDirectory, 'fishing_camp_textured_v6.glb'),
+    output: path.join(outputDirectory, 'fishing_camp_textured_v7.glb'),
   },
   {
     source: path.join(

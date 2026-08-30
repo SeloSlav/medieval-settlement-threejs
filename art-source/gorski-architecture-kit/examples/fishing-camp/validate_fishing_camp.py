@@ -16,7 +16,7 @@ from mathutils import Vector
 EXAMPLE_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path(os.environ.get("GK_FISHING_CAMP_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
 OUT_DIR = OUTPUT_ROOT / "out"
-REPORT_PATH = OUT_DIR / "fishing_camp_validation_v6.json"
+REPORT_PATH = OUT_DIR / "fishing_camp_validation_v7.json"
 
 REQUIRED_EXACT = {
     "wall_limewash_2m_door_service_host": 1,
@@ -59,6 +59,30 @@ def xy_bounds(obj: bpy.types.Object) -> tuple[float, float, float, float]:
         min(point.y for point in points),
         max(point.y for point in points),
     )
+
+
+def combined_xy_bounds(objects: list[bpy.types.Object]) -> tuple[float, float, float, float]:
+    points = [point for obj in objects for point in world_vertices(obj)]
+    return (
+        min(point.x for point in points),
+        max(point.x for point in points),
+        min(point.y for point in points),
+        max(point.y for point in points),
+    )
+
+
+def support_margins(
+    foundation_bounds: tuple[float, float, float, float],
+    timber_bounds: tuple[float, float, float, float],
+) -> dict[str, float]:
+    foundation_min_x, foundation_max_x, foundation_min_y, foundation_max_y = foundation_bounds
+    timber_min_x, timber_max_x, timber_min_y, timber_max_y = timber_bounds
+    return {
+        "left": timber_min_x - foundation_min_x,
+        "right": foundation_max_x - timber_max_x,
+        "front": timber_min_y - foundation_min_y,
+        "rear": foundation_max_y - timber_max_y,
+    }
 
 
 def xy_overlaps(
@@ -148,6 +172,30 @@ def main() -> None:
         errors.append(f"missing required material coverage: {missing_tiles}")
     if "fieldstone-mortar" in atlas_tiles:
         errors.append("individual fishing-camp foundation stones still use a mortared wall texture")
+
+    foundation_support: dict[str, object] = {}
+    for label, prefix in (("mainHouse", "FC_Main_"), ("serviceShed", "FC_Shed_")):
+        foundations = [obj for obj in instances if obj.name.startswith(f"{prefix}Foundation_")]
+        timber_supports = [
+            obj for obj in instances
+            if obj.name.startswith(prefix)
+            and (
+                str(obj.get("source_component_id", "")).startswith("wall_")
+                or "_Post_" in obj.name
+                or obj.name.endswith("_Post")
+                or obj.name.endswith("_Sill")
+            )
+        ]
+        footing_bounds = combined_xy_bounds(foundations)
+        timber_bounds = combined_xy_bounds(timber_supports)
+        margins = support_margins(footing_bounds, timber_bounds)
+        foundation_support[label] = {
+            "foundationBoundsXY": [round(value, 5) for value in footing_bounds],
+            "timberBoundsXY": [round(value, 5) for value in timber_bounds],
+            "edgeMarginsM": {key: round(value, 5) for key, value in margins.items()},
+        }
+        if min(margins.values()) < -1.0e-5:
+            errors.append(f"{label} timber edge overhangs its stone foundation: {margins}")
 
     rack = next((obj for obj in instances if obj.get("source_component_id") == "prop_fish_drying_rack"), None)
     if rack is not None:
@@ -352,6 +400,7 @@ def main() -> None:
             "dimensionsM": dimensions,
             "boundsM": bounds,
             "atlasTiles": sorted(atlas_tiles),
+            "foundationSupport": foundation_support,
             "boatGroundClearanceM": None if boat_ground_clearance is None else round(boat_ground_clearance, 4),
             "boatFenceContactDistanceM": None if boat_fence_contact_distance is None else round(boat_fence_contact_distance, 4),
             "minimumRoofStructureClearanceM": None if minimum_roof_structure_clearance is None else round(minimum_roof_structure_clearance, 4),
@@ -381,6 +430,7 @@ def main() -> None:
             "main-house front and rear collar fractions terminate at both gable rake frames",
             "continuous rear-and-side split-rail boundary clears both buildings while the road frontage remains open",
             "both service doors retain Tier-1 residence stone-block thresholds",
+            "stone perimeter bounds contain every ground-bearing timber wall, sill, and post edge",
             "metric UVs, direct production-atlas contract, canonical transforms, and no living vegetation",
             "manifold fixed geometry except the intentionally open bucket pair",
             "no preview staging in the export set",
@@ -392,6 +442,7 @@ def main() -> None:
         "instances": len(instances),
         "triangles": triangles,
         "dimensionsM": dimensions,
+        "foundationSupport": foundation_support,
         "errors": len(errors),
     }, separators=(",", ":")))
     if errors:
