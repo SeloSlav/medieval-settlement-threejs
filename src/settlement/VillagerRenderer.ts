@@ -344,7 +344,7 @@ type VillagerAgent = {
   simPathCursor: number;
   displayPathCursor: number;
   workActivity: WorkerActivityKind | null;
-  workTarget: (PointXZ & { id?: string }) | null;
+  workTarget: PointXZ & Partial<WorkerTarget> | null;
   workStopDistance: number;
   workRemaining: number;
   workPerformed: boolean;
@@ -1089,6 +1089,7 @@ export class VillagerRenderer {
       vineyardParcels,
       foragingMonth: options.foragingMonth,
       roadNetwork: this.roadNetwork,
+      buildings: this.buildings,
     };
     const workerBuildingIds = new Set(
       onSiteAssignments.map((assignment) => assignment.buildingId),
@@ -1584,11 +1585,21 @@ export class VillagerRenderer {
         || agent.workplaceId !== buildingId
         || agent.workplaceSlot !== workerSlot
       ) continue;
-      const active = agent.routinePhase === 'work'
+      const routineActive = agent.routinePhase === 'work'
         || agent.routinePhase === 'returning_to_work';
       const workplace = agent.workplaceId
         ? this.buildings.get(agent.workplaceId) ?? null
         : null;
+      const fieldStage = agent.workTarget?.kind === 'field'
+        ? agent.workTarget.fieldStage
+        : undefined;
+      // Farm oxen are field teams, not generic shadows for every barn errand.
+      // Sowing and threshing remain human work; the animal leaves its stable
+      // only for the ploughing/harvest stages that receive real ox throughput.
+      const assistsCurrentWork = workplace?.kind !== 'threshing_barn'
+        || agent.pathPurpose === 'worker_work_loop'
+          && (fieldStage === 'ploughing' || fieldStage === 'harvesting');
+      const active = routineActive && assistsCurrentWork;
       const haulKind = workplace
         && agent.pathPurpose === 'worker_work_loop'
         && agent.mode === 'walk'
@@ -1604,6 +1615,7 @@ export class VillagerRenderer {
         movementSpeed: agent.currentMoveSpeed * WORKFORCE_MOVEMENT_SPEED_MULTIPLIER,
         active,
         haulKind,
+        fieldStage,
       };
     }
     return null;
@@ -2151,30 +2163,23 @@ export class VillagerRenderer {
     renderAgent: CrowdRenderAgent,
     workplace: BuildingState | null,
   ): WorkerActivitySoundSource['mode'] | null {
-    const mode = renderAgent.mode === 'chop'
-      || renderAgent.mode === 'mine'
-      ? renderAgent.mode
-      : renderAgent.mode === 'build'
-        ? workplace?.kind === 'smithy'
-          ? null
-          : 'build'
-      : renderAgent.mode === 'plant'
+    if (renderAgent.mode === 'chop' || renderAgent.mode === 'mine') {
+      return renderAgent.mode;
+    }
+    if (renderAgent.mode === 'build') return workplace?.kind === 'smithy' ? null : 'build';
+    if (renderAgent.mode === 'plant') return 'dig';
+    if (renderAgent.mode === 'fish') return 'fish';
+    if (renderAgent.mode === 'gather') return 'forage';
+    if (renderAgent.mode !== 'tend') return null;
+    if (workplace?.kind === 'charcoal_burner') return 'dig';
+    if (workplace?.kind === 'threshing_barn') {
+      return this.agents.get(renderAgent.id)?.workTarget?.fieldStage === 'ploughing'
         ? 'dig'
-        : renderAgent.mode === 'fish'
-          ? 'fish'
-          : renderAgent.mode === 'gather'
-            ? 'forage'
-            : renderAgent.mode === 'tend'
-              ? workplace?.kind === 'charcoal_burner'
-                ? 'dig'
-                : workplace?.kind === 'threshing_barn'
-                ? 'cut_crop'
-                : workplace?.kind === 'pastoral_farmstead'
-                  || workplace?.kind === 'swineherd'
-                  ? 'livestock'
-                  : null
-              : null;
-    return mode;
+        : 'cut_crop';
+    }
+    return workplace?.kind === 'pastoral_farmstead' || workplace?.kind === 'swineherd'
+      ? 'livestock'
+      : null;
   }
 
   private pushWorkerSoundSource(
@@ -2559,6 +2564,7 @@ export class VillagerRenderer {
       agent.pathSeed,
       this.roadNetwork,
       this.isWaterAt,
+      this.oxen.hasWorkerAssignment(building.id, agent.workplaceSlot),
     );
     agent.pathSeed = (agent.pathSeed * 1_664_525) ^ 0x165667b1;
 
@@ -2587,9 +2593,7 @@ export class VillagerRenderer {
     agent.simPathCursor = 0;
     agent.displayPathCursor = 0;
     agent.workActivity = plan?.activity ?? null;
-    agent.workTarget = plan?.target
-      ? { id: plan.target.id, x: plan.target.x, z: plan.target.z }
-      : null;
+    agent.workTarget = plan?.target ? { ...plan.target } : null;
     agent.workStopDistance = routedPlan?.workStopDistance ?? 0;
     agent.workRemaining = 0;
     agent.workPerformed = false;
@@ -5324,7 +5328,14 @@ function describeVillagerActivity(
         }
         switch (workplace?.kind) {
           case 'well': return `Drawing water at ${workplaceLabel}`;
-          case 'threshing_barn': return `Working the fields for ${workplaceLabel}`;
+          case 'threshing_barn':
+            if (agent.workTarget?.fieldStage === 'ploughing') {
+              return `Ploughing a field for ${workplaceLabel}`;
+            }
+            if (agent.workTarget?.fieldStage === 'harvesting') {
+              return `Harvesting a field for ${workplaceLabel}`;
+            }
+            return `Working the fields for ${workplaceLabel}`;
           case 'pastoral_farmstead':
           case 'swineherd': return `Tending livestock for ${workplaceLabel}`;
           case 'brewery': return `Tending the brew at ${workplaceLabel}`;

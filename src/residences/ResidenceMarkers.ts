@@ -39,7 +39,7 @@ import { batchResidenceStaticMeshes } from './staticResidenceBatch.ts';
 import { ResidenceStaticBatches } from './ResidenceStaticBatches.ts';
 import {
   authoredArchitectureModelsReady,
-  createAuthoredTierOneResidenceShell,
+  createAuthoredResidenceShell,
 } from '../buildings/authoredArchitectureModels.ts';
 
 const WINDOW_GLOW_EMISSIVE = 0xffc060;
@@ -1919,6 +1919,33 @@ const AUTHORED_TIER_ONE_DIMENSIONS: HouseDimensions = {
   ridgeHeight: 2.38350718518842,
 };
 
+const AUTHORED_KIT_RESIDENCE_DIMENSIONS: Record<Exclude<ResidenceTier, 1>, HouseDimensions> = {
+  2: {
+    width: 6,
+    depth: 8,
+    foundationHeight: 0.65,
+    groundHeight: 2.7,
+    upperHeight: 1.35,
+    ridgeHeight: 3.57526,
+  },
+  3: {
+    width: 8,
+    depth: 8,
+    foundationHeight: 0.65,
+    groundHeight: 2.7,
+    upperHeight: 2.7,
+    ridgeHeight: 4.76701,
+  },
+  4: {
+    width: 8,
+    depth: 10,
+    foundationHeight: 1.2,
+    groundHeight: 2.7,
+    upperHeight: 2.7,
+    ridgeHeight: 4.76701,
+  },
+};
+
 function finishAuthoredTierOneResidence(
   group: THREE.Group,
   shell: THREE.Group,
@@ -1989,6 +2016,123 @@ function finishAuthoredTierOneResidence(
   // and the public facade. syncFirewoodPile owns visibility and fill scale.
   addLogPile(firewoodPile, 1.28, -4.08, 0, 4, 2.15, 0.19);
   addResidenceUpgradeWorks(group, AUTHORED_TIER_ONE_DIMENSIONS);
+  return group;
+}
+
+function finishAuthoredKitResidence(
+  group: THREE.Group,
+  shell: THREE.Group,
+  windowMaterial: THREE.MeshStandardMaterial,
+  tier: Exclude<ResidenceTier, 1>,
+): THREE.Group {
+  const dimensions = AUTHORED_KIT_RESIDENCE_DIMENSIONS[tier];
+  const roofFinish: ResidenceRoofFinish = tier === 4
+    ? 'fired-clay-tile'
+    : 'split-wood-shingle';
+  group.add(shell);
+  group.userData.authoredGlbAsset = true;
+  group.userData.authoredGlbVersion = shell.userData.authoredGlbVersion;
+  group.userData.authoredGlbUrl = shell.userData.authoredGlbUrl;
+  group.userData.residenceRoofFinish = roofFinish;
+  group.userData.residenceRoofTierContract = tier === 4
+    ? 'tier-4-fired-tile'
+    : 'tier-2-3-split-wood';
+  group.userData.residenceTiledRoof = tier === 4;
+  group.userData.residenceRoofPitchDegrees = 50;
+  group.userData.residenceRoofOverhangMeters = 0.42;
+  group.userData.residenceSmokeExit = 'chimney';
+  group.userData.residenceHasChimney = true;
+  group.userData.residenceBuildingPlan = tier === 2
+    ? {
+        tier,
+        seed: group.userData.residenceVisualSeed,
+        massing: ['broad-gabled-house', 'low-timber-knee-wall'],
+        facadeModules: ['fieldstone-ground-storey', 'timber-upper-storey'],
+        roofFinish,
+      }
+    : tier === 3
+      ? {
+          tier,
+          seed: group.userData.residenceVisualSeed,
+          massing: ['tall-two-storey-house', 'working-side-annex'],
+          facadeModules: ['fieldstone-ground-storey', 'limewashed-upper-storey', 'front-timber-gallery'],
+          roofFinish,
+        }
+      : {
+          tier,
+          seed: group.userData.residenceVisualSeed,
+          massing: ['deep-high-status-house', 'covered-side-dormer'],
+          facadeModules: ['dressed-stone-ground-storey', 'limewashed-upper-storey', 'civic-front-gallery'],
+          roofFinish,
+        };
+
+  let windowCount = 0;
+  const chimneyObjects: THREE.Object3D[] = [];
+  shell.traverse((object) => {
+    if (
+      object.userData.residence_roof_surface === true
+      || object.name.includes('ResidenceRoofSurface')
+      || object.name.includes('ResidenceDormerRoof')
+    ) {
+      object.userData.residenceRoofSurface = true;
+      object.userData.residenceRoofFinish = roofFinish;
+    }
+    if (
+      chimneyObjects.length === 0
+      && object.name.startsWith('ResidenceChimney_')
+      && !object.name.includes('Flashing')
+    ) {
+      chimneyObjects.push(object);
+    }
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    let replacedGlass = false;
+    const runtimeMaterials = materials.map((material) => {
+      const materialKey = material.userData.gk_material_key
+        ?? material.userData.gorskiArchitectureKitMaterial;
+      if (materialKey !== 'glass') return material;
+      replacedGlass = true;
+      return windowMaterial;
+    });
+    if (!replacedGlass) return;
+    mesh.material = Array.isArray(mesh.material) ? runtimeMaterials : runtimeMaterials[0]!;
+    mesh.userData.facadeOpeningKind = 'window';
+    mesh.userData.facadeOpeningRole = 'window-pane';
+    mesh.userData.residenceWallCutThrough = false;
+    mesh.userData.residenceWindowGlazing = 'glazed-pane';
+    windowCount += 1;
+  });
+  group.userData.residenceAuthoredWindowCount = windowCount;
+
+  const chimneyEmitter = new THREE.Object3D();
+  chimneyEmitter.name = 'ChimneyEmitter';
+  chimneyEmitter.userData.residenceSmokeExit = 'chimney';
+  const chimneyObject = chimneyObjects[0];
+  if (chimneyObject) {
+    group.updateWorldMatrix(true, true);
+    chimneyObject.getWorldPosition(chimneyEmitter.position);
+    group.worldToLocal(chimneyEmitter.position);
+    chimneyEmitter.position.y += 4.12;
+  } else {
+    chimneyEmitter.position.set(0, dimensions.groundHeight + dimensions.upperHeight + 3.4, 0);
+  }
+  group.add(chimneyEmitter);
+
+  const firewoodPile = new THREE.Group();
+  firewoodPile.name = 'FirewoodPile';
+  firewoodPile.visible = false;
+  group.add(firewoodPile);
+  addLogPile(
+    firewoodPile,
+    dimensions.width * 0.32,
+    -dimensions.depth * 0.5 - 0.68,
+    0,
+    4,
+    2.15,
+    0.19,
+  );
+  addResidenceUpgradeWorks(group, dimensions);
   return group;
 }
 
@@ -2069,11 +2213,11 @@ export function createResidenceMesh(
     roofFinish,
   };
 
-  if (tier === 1) {
-    const authoredShell = createAuthoredTierOneResidenceShell();
-    if (authoredShell) {
-      return finishAuthoredTierOneResidence(group, authoredShell, windowMaterial);
-    }
+  const authoredShell = createAuthoredResidenceShell(tier);
+  if (authoredShell) {
+    return tier === 1
+      ? finishAuthoredTierOneResidence(group, authoredShell, windowMaterial)
+      : finishAuthoredKitResidence(group, authoredShell, windowMaterial, tier);
   }
 
   const { width, depth, foundationHeight, groundHeight, upperHeight, ridgeHeight } = dimensions;

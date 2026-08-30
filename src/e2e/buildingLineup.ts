@@ -230,6 +230,8 @@ const COLS = compareServiceCoverage
       : 9;
 const ROWS = compareArchitectureKit
   ? 3
+  : compareResidences
+    ? 2
   : comparisonMode || constructionKind || selectedKinds.length === 1
   ? 1
   : Math.ceil((selectedKinds.length + 1) / COLS);
@@ -345,6 +347,7 @@ const viewSpecs = architectureKitViewSpecs ?? (constructionKind
       { mesh: createResidenceMesh(1, 1), label: 'Residence · tier 1' },
       { mesh: createResidenceMesh(2, 2), label: 'Residence · tier 2' },
       { mesh: createResidenceMesh(3, 3), label: 'Residence · tier 3' },
+      { mesh: createResidenceMesh(4, 4), label: 'Residence · tier 4' },
     ]
   : [
       ...selectedKinds.map((kind) => {

@@ -140,7 +140,7 @@ export async function createFieldCropCatalog(
         [...preset.transmit],
         preset.windAmount,
       );
-      material.alphaTest = 0.28;
+      material.alphaTest = 0.36;
       material.userData.fieldCropSharedResource = true;
       material.userData.seedThreeSpecies = preset.name;
       material.userData.seedThreeLatin = preset.latin;

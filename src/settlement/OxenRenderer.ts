@@ -4,7 +4,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import { resolveRoadAwareGroundY } from '../roads/RoadSurfaceSampling.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
-import type { BuildingState } from '../resources/types.ts';
+import type { BuildingState, FarmFieldStage } from '../resources/types.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import {
   SELECTED_AGENT_ROUTE_Y_OFFSET,
@@ -64,6 +64,8 @@ export type OxFollowPose = Readonly<{
   active: boolean;
   /** Material collected by a worksite crew and currently returning with the ox. */
   haulKind?: OxDragLoadKind | null;
+  /** Active farm phase, used to show only mechanically relevant ox assistance. */
+  fieldStage?: FarmFieldStage;
 }>;
 
 export type OxInspection = {
@@ -99,6 +101,7 @@ type OxVisual = {
   tripId: string | null;
   dragLoad: THREE.Group | null;
   dragLoadKind: OxDragLoadKind | null;
+  plough: THREE.Group;
   x: number;
   z: number;
   yaw: number;
@@ -159,6 +162,19 @@ export class OxenRenderer {
     OX_YOKE_BOW_LENGTH,
     7,
   );
+  private readonly ploughBeamGeometry = new THREE.BoxGeometry(0.1, 0.1, 2.7);
+  private readonly ploughHandleGeometry = new THREE.BoxGeometry(0.065, 0.065, 1.15);
+  private readonly ploughShareGeometry = new THREE.BoxGeometry(0.38, 0.11, 0.48);
+  private readonly ploughWoodMaterial = new THREE.MeshStandardMaterial({
+    color: 0x684323,
+    roughness: 0.94,
+    metalness: 0,
+  });
+  private readonly ploughIronMaterial = new THREE.MeshStandardMaterial({
+    color: 0x383630,
+    roughness: 0.72,
+    metalness: 0.34,
+  });
   private readonly dragLoadLibrary = new OxDragLoadLibrary();
   private source: OxSource | null = null;
   private latestInput: OxenSyncInput | null = null;
@@ -191,6 +207,17 @@ export class OxenRenderer {
   /** Deterministic lineup/debug evidence without exposing mutable visuals. */
   getVisualCount(): number {
     return this.visuals.size;
+  }
+
+  hasWorkerAssignment(buildingId: string, workerSlot: number): boolean {
+    for (const visual of this.visuals.values()) {
+      if (
+        visual.assignment?.buildingId === buildingId
+        && visual.assignment.workerSlot === workerSlot
+        && !visual.tripId
+      ) return true;
+    }
+    return false;
   }
 
   pickOx(
@@ -249,6 +276,7 @@ export class OxenRenderer {
       }
 
       const target = this.targetPose(visual, stable);
+      visual.plough.visible = target.fieldStage === 'ploughing';
       const visible = isWithinCrowdView(visual.x, visual.z, view)
         || isWithinCrowdView(target.x, target.z, view);
       visual.root.visible = visible;
@@ -265,11 +293,13 @@ export class OxenRenderer {
         const distance = Math.hypot(dx, dz);
         moving = moving || distance > 0.16;
         if (distance > 1e-6 && simulationDt > 0) {
+          const followedBaseSpeed = (target.movementSpeed ?? 0)
+            / WORKFORCE_MOVEMENT_SPEED_MULTIPLIER;
           advanceOxFollowPosition(
             visual,
             target.x,
             target.z,
-            freeMovementSpeed * simulationDt,
+            Math.max(freeMovementSpeed, followedBaseSpeed) * simulationDt,
           );
           visual.yaw = Math.atan2(dx, dz);
         } else if (distance <= 0.16) {
@@ -321,8 +351,13 @@ export class OxenRenderer {
     this.latestInput = null;
     this.yokeBarGeometry.dispose();
     this.yokeBowGeometry.dispose();
+    this.ploughBeamGeometry.dispose();
+    this.ploughHandleGeometry.dispose();
+    this.ploughShareGeometry.dispose();
     this.yokeMaterial.dispose();
     this.harnessMaterial.dispose();
+    this.ploughWoodMaterial.dispose();
+    this.ploughIronMaterial.dispose();
     this.dragLoadLibrary.dispose();
     this.root.removeFromParent();
   }
@@ -407,6 +442,8 @@ export class OxenRenderer {
     root.userData.oxId = ox.id;
     root.add(model);
     root.add(this.createYoke());
+    const plough = this.createPlough();
+    root.add(plough);
     this.root.add(root);
 
     const mixer = new THREE.AnimationMixer(model);
@@ -443,6 +480,7 @@ export class OxenRenderer {
       tripId: null,
       dragLoad: null,
       dragLoadKind: null,
+      plough,
       x: rest.x,
       z: rest.z,
       yaw: rest.yaw,
@@ -472,6 +510,34 @@ export class OxenRenderer {
     return yoke;
   }
 
+  private createPlough(): THREE.Group {
+    const plough = new THREE.Group();
+    plough.name = 'Ox-drawn ard plough';
+    plough.visible = false;
+
+    const beam = new THREE.Mesh(this.ploughBeamGeometry, this.ploughWoodMaterial);
+    beam.name = 'Ard plough draught beam';
+    beam.position.set(0, 0.66, -1.35);
+    beam.rotation.x = -0.12;
+    plough.add(beam);
+
+    for (const side of [-1, 1]) {
+      const handle = new THREE.Mesh(this.ploughHandleGeometry, this.ploughWoodMaterial);
+      handle.name = 'Ard plough handle';
+      handle.position.set(side * 0.2, 0.78, -2.45);
+      handle.rotation.x = -0.28;
+      handle.rotation.z = side * 0.08;
+      plough.add(handle);
+    }
+
+    const share = new THREE.Mesh(this.ploughShareGeometry, this.ploughIronMaterial);
+    share.name = 'Ard plough iron share';
+    share.position.set(0, 0.12, -2.55);
+    share.rotation.x = -0.22;
+    plough.add(share);
+    return plough;
+  }
+
   private targetPose(
     visual: OxVisual,
     stable: BuildingState,
@@ -485,6 +551,7 @@ export class OxenRenderer {
     movementSpeed: number;
     groundOffset: number;
     haulKind: OxDragLoadKind | null;
+    fieldStage?: FarmFieldStage;
   } {
     if (visual.tripId) {
       const tripPose = this.getDeliveryPose(visual.tripId);
@@ -496,6 +563,7 @@ export class OxenRenderer {
           movementSpeed: tripPose.movementSpeed ?? 0,
           groundOffset: 0,
           haulKind: null,
+          fieldStage: undefined,
         };
       }
     }
@@ -510,18 +578,22 @@ export class OxenRenderer {
         const rightX = Math.cos(workerPose.yaw);
         const rightZ = -Math.sin(workerPose.yaw);
         const side = visual.ox.slot % 2 === 0 ? 1 : -1;
+        const ploughing = workerPose.fieldStage === 'ploughing';
+        const forwardOffset = ploughing ? 1.75 : -WORKER_BACK_OFFSET;
+        const sideOffset = ploughing ? 0.28 : WORKER_SIDE_OFFSET;
         return {
-          x: workerPose.x + rightX * WORKER_SIDE_OFFSET * side
-            - forwardX * WORKER_BACK_OFFSET,
+          x: workerPose.x + rightX * sideOffset * side
+            + forwardX * forwardOffset,
           y: workerPose.y,
-          z: workerPose.z + rightZ * WORKER_SIDE_OFFSET * side
-            - forwardZ * WORKER_BACK_OFFSET,
+          z: workerPose.z + rightZ * sideOffset * side
+            + forwardZ * forwardOffset,
           yaw: workerPose.yaw,
           moving: workerPose.moving,
           attached: false,
           movementSpeed: workerPose.movementSpeed ?? 0,
           groundOffset: 0,
           haulKind: workerPose.haulKind ?? null,
+          fieldStage: workerPose.fieldStage,
         };
       }
     }
@@ -536,6 +608,7 @@ export class OxenRenderer {
       movementSpeed: 0,
       groundOffset: rest.localGroundOffset,
       haulKind: null,
+      fieldStage: undefined,
     };
   }
 
@@ -629,7 +702,11 @@ export class OxenRenderer {
     const activity = trip
       ? `Hauling with the ${tripOriginLabel ?? 'delivery'} cart crew`
       : activeAssignment
-        ? `Assisting the crew at ${assignmentLabel ?? 'a workplace'}`
+        ? workerPose?.fieldStage === 'ploughing'
+          ? `Pulling a plough for ${assignmentLabel ?? 'a farmstead'}`
+          : workerPose?.fieldStage === 'harvesting'
+            ? `Assisting the harvest for ${assignmentLabel ?? 'a farmstead'}`
+            : `Assisting the crew at ${assignmentLabel ?? 'a workplace'}`
         : postedLabel
           ? `Waiting at the stable for work at ${postedLabel}`
           : 'Resting in its stable bay between automatic assignments';

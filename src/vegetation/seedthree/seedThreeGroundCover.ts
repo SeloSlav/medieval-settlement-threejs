@@ -79,7 +79,14 @@ export function createSeedThreeGroundCoverMaterial(
       vertexColors: true,
     });
     material.forceSinglePass = true;
-    material.normalScale.set(0.42, 0.42);
+    // Card normals need a deliberately shallow relief response: a full-strength
+    // tangent-space map turns thin cereal tissue nearly black at field density.
+    material.normalScale.set(0.16, 0.16);
+    // WebGPU uses SeedThree's translucency/SSS path. Give the WebGL fallback a
+    // restrained, albedo-shaped transmission fill so backlit leaves stay legible.
+    material.emissive.set(0xffffff);
+    material.emissiveIntensity = 0.42;
+    material.emissiveMap = textures.albedo;
     applyFoliageDoubleSideNormals(material);
     return material;
   }

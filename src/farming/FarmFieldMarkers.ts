@@ -1037,7 +1037,9 @@ function createSeedThreeCropInstances(
   const attributes = addSeedThreeGroundCoverInstanceAttributes(geometry, samples.length);
   const mesh = new THREE.InstancedMesh(geometry, phaseAsset.material, samples.length);
   mesh.name = cropComponentName(field, phaseAsset);
-  mesh.castShadow = samples.length <= 2_500;
+  // Dense crossed cards otherwise shadow one another into a black mass. The
+  // worked soil, clods and perimeter vegetation retain the grounding shadows.
+  mesh.castShadow = false;
   mesh.receiveShadow = true;
   mesh.userData.fieldCropSharedMaterial = true;
   mesh.userData.seedThreeFieldCrop = true;

@@ -631,6 +631,76 @@ assert.equal(
   'the hoe must be hidden while both hands perform the sowing gesture',
 );
 
+const remotePloughingField = {
+  ...field,
+  id: 'field-remote-ploughing',
+  crop: 'rye' as const,
+  stage: 'ploughing' as const,
+  stageProgress: 0.2,
+  priority: 1,
+  corners: field.corners.map((corner) => ({
+    x: corner.x + 210,
+    z: corner.z + 18,
+  })) as FarmFieldState['corners'],
+};
+const octoberFieldTargets = collectWorkerTargets(farmstead, {
+  ...targetInputs,
+  farmFields: [remotePloughingField],
+  foragingMonth: 10,
+});
+const remotePloughPlan = pickWorkerWalkPlan(
+  farmstead,
+  0,
+  octoberFieldTargets,
+  9,
+  null,
+  null,
+  true,
+);
+assert.equal(remotePloughPlan?.target?.fieldStage, 'ploughing');
+assert.ok(
+  remotePloughPlan?.path.some((point) => point.x > 220),
+  'linked-field crews must reach the actual parcel instead of being clamped to the farmstead radius',
+);
+assert.ok(
+  octoberFieldTargets.filter((target) => target.kind === 'field').length >= 2,
+  'an active parcel should expose separate visible lanes for multiple assigned workers',
+);
+assert.equal(
+  collectWorkerTargets(farmstead, {
+    ...targetInputs,
+    farmFields: [remotePloughingField],
+    foragingMonth: 4,
+  }).some((target) => target.kind === 'field'),
+  false,
+  'autumn rye ploughing must not produce fake field work in the spring',
+);
+
+const urgentHarvest = {
+  ...field,
+  id: 'field-urgent-harvest',
+  priority: 3,
+};
+const localPloughing = {
+  ...remotePloughingField,
+  id: 'field-local-ploughing',
+  corners: field.corners,
+};
+const mixedFieldTargets = collectWorkerTargets(farmstead, {
+  ...targetInputs,
+  farmFields: [urgentHarvest, localPloughing],
+});
+assert.equal(
+  pickWorkerWalkPlan(farmstead, 0, mixedFieldTargets, 4)?.target?.fieldStage,
+  'harvesting',
+  'unpaired farmhands should mirror the authoritative harvest-first queue',
+);
+assert.equal(
+  pickWorkerWalkPlan(farmstead, 0, mixedFieldTargets, 4, null, null, true)?.target?.fieldStage,
+  'ploughing',
+  'a paired ox team should preferentially take a ready ploughing lane',
+);
+
 for (const kind of ['pastoral_farmstead', 'swineherd'] as const) {
   const workplace = building(`pasture-${kind}`, kind, 0, 0, 1, 120);
   const pasture = pastureState(`pasture-${kind}`, workplace.id, 24, 0);

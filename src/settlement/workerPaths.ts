@@ -16,6 +16,7 @@ import {
   hasCustomTreeWorkArea,
 } from '../resources/treeWorkArea.ts';
 import {
+  compareStableEntityIds,
   roadPathDistancesFrom,
   roadPathRoute,
 } from '../logistics/roadLogistics.ts';
@@ -40,6 +41,15 @@ import {
   MONASTERY_EXTENSION_SCRIPTORIUM,
   monasteryHasExtension,
 } from '../buildings/monasteryEstate.ts';
+import {
+  fieldAcceptsFarmsteadLabor,
+  fieldStageAllowed,
+} from '../farming/farmWorkPlanning.ts';
+import {
+  bilinearPoint,
+  fieldEdgeLengths,
+} from '../farming/farmFieldMath.ts';
+import { fieldTaskRank } from '../farming/threshingPriority.ts';
 
 export { WATCHTOWER_GALLERY_FLOOR_HEIGHT } from '../buildings/watchtowerLayout.ts';
 
@@ -123,6 +133,12 @@ export type WorkerTarget = PointXZ & {
   activity?: WorkerActivityKind;
   /** Retains the authoritative field phase so presentation can pick a specific action. */
   fieldStage?: FarmFieldState['stage'];
+  fieldId?: string;
+  fieldPriority?: number;
+  fieldTaskRank?: number;
+  fieldLinked?: boolean;
+  /** Inset endpoints of one real pass across a quadrilateral field. */
+  fieldLane?: Readonly<{ start: PointXZ; end: PointXZ; index: number }>;
 };
 
 export type WorkerActivityKind =
@@ -173,6 +189,7 @@ export type WorkerTargetInputs = {
   vineyardParcels?: Iterable<VineyardParcelState>;
   foragingMonth?: number;
   roadNetwork?: RoadNetwork | null;
+  buildings?: ReadonlyMap<string, BuildingState>;
 };
 
 /**
@@ -595,16 +612,7 @@ export function collectWorkerTargets(
   }
 
   if (building.kind === 'threshing_barn') {
-    for (const field of inputs.farmFields) {
-      if (field.farmsteadId !== building.id || field.priority <= 0) continue;
-      const center = polygonCenter(field.corners);
-      targets.push({
-        id: field.id,
-        kind: 'field',
-        fieldStage: field.stage,
-        ...center,
-      });
-    }
+    collectFarmFieldTargets(building, inputs, targets);
   }
   if (building.kind === 'pastoral_farmstead' || building.kind === 'swineherd') {
     for (const pasture of inputs.pastures) {
@@ -626,6 +634,18 @@ export function collectWorkerTargets(
   }
 
   targets.sort((a, b) => {
+    if (building.kind === 'threshing_barn') {
+      if (a.kind === 'field' && b.kind !== 'field') return -1;
+      if (a.kind !== 'field' && b.kind === 'field') return 1;
+      if (a.kind === 'field' && b.kind === 'field') {
+        return (b.fieldTaskRank ?? 0) - (a.fieldTaskRank ?? 0)
+          || (b.fieldPriority ?? 0) - (a.fieldPriority ?? 0)
+          || fieldStageUrgency(b.fieldStage) - fieldStageUrgency(a.fieldStage)
+          || Number(b.fieldLinked === true) - Number(a.fieldLinked === true)
+          || compareStableEntityIds(a.fieldId ?? a.id, b.fieldId ?? b.id)
+          || (a.fieldLane?.index ?? 0) - (b.fieldLane?.index ?? 0);
+      }
+    }
     const distanceA = distanceSq(building, a);
     const distanceB = distanceSq(building, b);
     return distanceA - distanceB || a.id.localeCompare(b.id);
@@ -754,6 +774,7 @@ export function pickWorkerWalkPlan(
   seed: number,
   roadNetwork: RoadNetwork | null = null,
   isWaterAt: WorkerWaterTest | null = null,
+  preferOxFieldWork = false,
 ): WorkerWalkPlan | null {
   const start = workplaceYardPosition(
     building,
@@ -763,20 +784,36 @@ export function pickWorkerWalkPlan(
   );
   const rng = mulberry32(seed ^ hashStringSeed(building.id));
 
+  const activeFieldTargets = building.kind === 'threshing_barn'
+    ? targets.filter((target) => target.kind === 'field')
+    : [];
   if (
     targets.length > 0
     && (
       building.constructionComplete === false
       || building.kind === 'fishing_camp'
+      || activeFieldTargets.length > 0
       || rng() < 0.82
     )
   ) {
-    const preferred = targets.filter(
+    const activityTargets = activeFieldTargets.length > 0
+      ? activeFieldTargets
+      : targets;
+    const preferred = activityTargets.filter(
       (target) => Math.sqrt(distanceSq(building, target))
         <= Math.min(Math.max(1, building.workRadius), MAX_PREFERRED_RESOURCE_WALK),
     );
-    const pool = preferred.length > 0 ? preferred : targets;
-    const target = pool[Math.floor(rng() * pool.length)] ?? pool[0];
+    // Linked parcels remain valid however far they lie from their holding, so
+    // field presentation must not discard them merely because a generic
+    // resource-walk preference is shorter than the authoritative rule.
+    const pool = activeFieldTargets.length > 0
+      ? activeFieldTargets
+      : preferred.length > 0
+        ? preferred
+        : activityTargets;
+    const target = activeFieldTargets.length > 0
+      ? pickFarmFieldTarget(pool, slotIndex, preferOxFieldWork)
+      : pool[Math.floor(rng() * pool.length)] ?? pool[0];
     if (target) {
       const path = resourceWorkLoop(building, start, target, rng, isWaterAt);
       const minimumPathLength = target.kind === 'fish' ? 0.25 : 4;
@@ -888,6 +925,84 @@ function workerActivityFor(
   return null;
 }
 
+function collectFarmFieldTargets(
+  building: BuildingState,
+  inputs: WorkerTargetInputs,
+  targets: WorkerTarget[],
+): void {
+  for (const field of inputs.farmFields) {
+    const linked = field.farmsteadId === building.id;
+    const resourceFarmstead = linked
+      ? building
+      : inputs.buildings?.get(field.farmsteadId) ?? null;
+    if (
+      field.stage === 'growing'
+      || field.stageProgress >= 1 - 1e-9
+      || !resourceFarmstead
+      || resourceFarmstead.kind !== 'threshing_barn'
+      || resourceFarmstead.constructionComplete === false
+      || !fieldAcceptsFarmsteadLabor(field, building)
+      || (
+        inputs.foragingMonth !== undefined
+        && !fieldStageAllowed(field, inputs.foragingMonth)
+      )
+    ) continue;
+
+    const edges = fieldEdgeLengths(field.corners);
+    const alongWidth = (edges[0] + edges[2]) >= (edges[1] + edges[3]);
+    const crossLength = alongWidth
+      ? (edges[1] + edges[3]) * 0.5
+      : (edges[0] + edges[2]) * 0.5;
+    const laneCount = Math.max(2, Math.min(8, Math.round(crossLength / 2.6)));
+    for (let index = 0; index < laneCount; index += 1) {
+      const cross = (index + 0.5) / laneCount;
+      const reverse = index % 2 === 1;
+      const start = alongWidth
+        ? bilinearPoint(field.corners, reverse ? 0.92 : 0.08, cross)
+        : bilinearPoint(field.corners, cross, reverse ? 0.92 : 0.08);
+      const end = alongWidth
+        ? bilinearPoint(field.corners, reverse ? 0.08 : 0.92, cross)
+        : bilinearPoint(field.corners, cross, reverse ? 0.08 : 0.92);
+      targets.push({
+        id: `${field.id}:lane:${index}`,
+        kind: 'field',
+        x: end.x,
+        z: end.z,
+        fieldId: field.id,
+        fieldStage: field.stage,
+        fieldPriority: field.priority,
+        fieldTaskRank: fieldTaskRank(field.priority, field.stage === 'harvesting'),
+        fieldLinked: linked,
+        fieldLane: { start, end, index },
+      });
+    }
+  }
+}
+
+function pickFarmFieldTarget(
+  targets: readonly WorkerTarget[],
+  slotIndex: number,
+  preferOxFieldWork: boolean,
+): WorkerTarget | undefined {
+  const oxPloughing = preferOxFieldWork
+    ? targets.filter((target) => target.fieldStage === 'ploughing')
+    : [];
+  const ranked = oxPloughing.length > 0 ? oxPloughing : targets;
+  const first = ranked[0];
+  if (!first) return undefined;
+  const fieldLanes = ranked.filter(
+    (target) => (target.fieldId ?? target.id) === (first.fieldId ?? first.id),
+  );
+  return fieldLanes[Math.max(0, Math.floor(slotIndex)) % fieldLanes.length] ?? first;
+}
+
+function fieldStageUrgency(stage: FarmFieldState['stage'] | undefined): number {
+  if (stage === 'harvesting') return 3;
+  if (stage === 'sowing') return 2;
+  if (stage === 'ploughing') return 1;
+  return 0;
+}
+
 function collectMonasteryWorkstations(
   building: BuildingState,
   roadNetwork: RoadNetwork | null,
@@ -991,6 +1106,23 @@ function resourceWorkLoop(
   rng: () => number,
   isWaterAt: WorkerWaterTest | null,
 ): PointXZ[] | null {
+  if (target.kind === 'field' && target.fieldLane) {
+    const laneStart = target.fieldLane.start;
+    const laneEnd = target.fieldLane.end;
+    const midpoint = {
+      x: (start.x + laneStart.x) * 0.5,
+      z: (start.z + laneStart.z) * 0.5,
+    };
+    return [
+      start,
+      midpoint,
+      laneStart,
+      laneEnd,
+      laneStart,
+      midpoint,
+      start,
+    ];
+  }
   if (target.kind === 'fish') {
     // A fish node is intentionally stored in open water. Without the rendered
     // wetness sampler there is no safe presentation target, so keep the crew
@@ -1119,7 +1251,11 @@ function clampResourceWorkPoint(
   target: WorkerTarget,
   point: PointXZ,
 ): PointXZ {
-  if (target.kind === 'tree' && hasCustomTreeWorkArea(building)) return point;
+  if (
+    target.kind === 'field'
+    || target.kind === 'pasture'
+    || (target.kind === 'tree' && hasCustomTreeWorkArea(building))
+  ) return point;
   return clampToWorkExtent(building, point);
 }
 
