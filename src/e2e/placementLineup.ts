@@ -3,7 +3,6 @@ import {
   createBuildingPreviewMesh,
   updateBuildingPreviewGeometry,
 } from '../buildings/BuildingPlacementPreview.ts';
-import { preloadAuthoredArchitectureModels } from '../buildings/authoredArchitectureModels.ts';
 import { resolveBuildingPlacementWildlifePreview } from '../buildings/buildingPlacementWildlifePreview.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import { BUILDING_KINDS, type BuildingKind } from '../resources/types.ts';
@@ -37,7 +36,6 @@ declare global {
 
 const placementRoot = document.querySelector<HTMLElement>('#placement-root');
 if (!placementRoot) throw new Error('Placement lineup host is missing.');
-await preloadAuthoredArchitectureModels();
 const root: HTMLElement = placementRoot;
 const lineupParams = new URLSearchParams(window.location.search);
 const alignmentView = lineupParams.get('view') === 'residence-alignment';

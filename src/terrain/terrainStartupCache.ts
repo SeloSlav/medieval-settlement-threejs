@@ -10,7 +10,7 @@ import type { LicPoljeTerrainFieldDebugMode } from './LicPoljeTerrainField.ts';
 const DATABASE_NAME = 'medieval-road-system-generated-world';
 const DATABASE_VERSION = 1;
 const STORE_NAME = 'terrain-startup';
-const CACHE_FORMAT_VERSION = 'terrain-startup-v7-organic-forest-floor';
+const CACHE_FORMAT_VERSION = 'terrain-startup-v12-full-hydraulic-kupa-support';
 
 export type TerrainStartupData = {
   terrain: TerrainGeometryData;

@@ -38,6 +38,9 @@ const illustratedMapLineupEntry = fileURLToPath(
 const soldierLineupEntry = fileURLToPath(
   new URL('./soldier-lineup.html', import.meta.url),
 );
+const battleSceneEntry = fileURLToPath(
+  new URL('./battle-scene.html', import.meta.url),
+);
 const webGpuRenderOwnerEntry = fileURLToPath(
   new URL('./webgpu-render-owner.html', import.meta.url),
 );
@@ -78,6 +81,7 @@ function explicitPublicAssetCopy(includeQaArchives: boolean): Plugin {
 
 export default defineConfig(({ mode }) => {
   const includeQaArchives = mode === 'visual-gauntlet';
+  const stableCapture = process.env.SELO_STABLE_CAPTURE === '1';
   const buildInputs: Record<string, string> = { game: gameEntry };
   if (includeQaArchives && existsSync(visualGauntletEntry)) {
     buildInputs['visual-gauntlet'] = visualGauntletEntry;
@@ -112,6 +116,9 @@ export default defineConfig(({ mode }) => {
   if (mode === 'e2e' && existsSync(soldierLineupEntry)) {
     buildInputs['soldier-lineup'] = soldierLineupEntry;
   }
+  if (mode === 'e2e' && existsSync(battleSceneEntry)) {
+    buildInputs['battle-scene'] = battleSceneEntry;
+  }
   if (mode === 'e2e' && existsSync(webGpuRenderOwnerEntry)) {
     buildInputs['webgpu-render-owner'] = webGpuRenderOwnerEntry;
   }
@@ -127,6 +134,9 @@ export default defineConfig(({ mode }) => {
       include: ['spacetimedb', 'safe-stable-stringify'],
     },
     server: {
+      // A live capture must survive unrelated edits elsewhere in the shared
+      // workspace while retaining Vite's development-only showcase gates.
+      hmr: stableCapture ? false : undefined,
       watch: {
         // These trees contain disposable worktrees, generated QA archives, and
         // Rust build output. Watching them can monopolize the Windows watcher

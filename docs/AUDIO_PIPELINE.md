@@ -47,6 +47,12 @@ npm run audio:generate -- --id music-charter-beneath-firs
 # Replace the current river asset with a native seamless ElevenLabs loop.
 npm run audio:generate -- --id ambient-river --force
 
+# Audit the weapon-matched combat suite without spending (24 cues, 32.5 s).
+npm run audio:generate -- --group combat-weapon-suite-v2 --dry-run
+
+# Generate only the missing weapon, projectile, impact, and charge cues.
+npm run audio:generate -- --group combat-weapon-suite-v2
+
 # Forge the complete catalog. Existing tracked ambience is replaced only
 # because --force is explicit.
 npm run audio:generate -- --all --force
@@ -106,6 +112,13 @@ cost.
   to the instrumental score when a music cue is active.
 - Close workers retain small pooled one-shot effects so large settlements do
   not create an audio element per villager.
+- Automatic combat playback contains no spoken or chanted lines. Each active
+  fighter routes to its rendered weapon family; replicated attack-cooldown
+  resets trigger ranged and melee events from that fighter's position. A
+  deterministic cadence covers missed edges, up to four same-frame attacks
+  can overlap in an 18-voice weapon pool, and combat-target charges use a
+  separate six-voice movement pool. The balanced 72-source ceiling covers up
+  to 36 fighters per side without letting large battles create unbounded audio.
 - A direct world click on a villager, guard, founder, hauler, or other visible
   person plays one randomized gender-matched selection line imported from Selo
   Empire. Direct ox clicks use three short ElevenLabs-generated ox reactions.

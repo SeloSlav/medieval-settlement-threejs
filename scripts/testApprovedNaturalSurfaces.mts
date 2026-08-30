@@ -30,6 +30,8 @@ type NaturalSurfaceManifest = {
     changedOn: string;
     base: string;
     roles: string[];
+    roleOverridesChangedOn: string;
+    roleOverrides: Record<string, string>;
     retainedInactiveCandidates: string[];
   };
   deferred: string[];
@@ -151,13 +153,17 @@ assert.equal(
 );
 assert.deepEqual(
   manifest.runtimeRockOverride.roles,
-  ['forest', 'meadow', 'river', 'quarry'],
+  ['forest', 'meadow', 'quarry'],
+);
+assert.equal(manifest.runtimeRockOverride.roleOverridesChangedOn, '2026-08-30');
+assert.deepEqual(
+  manifest.runtimeRockOverride.roleOverrides,
+  { river: 'public/assets/textures/props/gorski_river_stone_v1' },
 );
 assert.deepEqual(
   manifest.runtimeRockOverride.retainedInactiveCandidates,
   [
     'public/assets/textures/props/gorski_forest_mossy_rock_v1',
-    'public/assets/textures/props/gorski_river_stone_v1',
     'public/assets/textures/props/gorski_quarry_limestone_v1',
   ],
 );
@@ -241,7 +247,6 @@ assert.match(gardenSource, /\/assets\/textures\/terrain\/mammoth_terrain_dirt\/r
 
 for (const retainedCandidate of [
   'gorski_forest_mossy_rock_v1',
-  'gorski_river_stone_v1',
   'gorski_quarry_limestone_v1',
 ]) {
   assert.doesNotMatch(
@@ -254,13 +259,21 @@ assert.match(
   propLoaderSource,
   /const MOSSY_ROCK_TEXTURE_BASE = '\/assets\/textures\/props\/mossy_rock'/,
 );
-for (const role of ['forest', 'meadow', 'river', 'quarry']) {
+for (const role of ['forest', 'meadow', 'quarry']) {
   assert.match(
     propLoaderSource,
     new RegExp(`'${role}',\\s*MOSSY_ROCK_TEXTURE_BASE`),
     `${role} rocks must use the shared mossy material`,
   );
 }
+assert.match(
+  propLoaderSource,
+  /const RIVER_CARBONATE_TEXTURE_BASE = '\/assets\/textures\/props\/gorski_river_stone_v1'/,
+);
+assert.match(
+  propLoaderSource,
+  /'river',\s*RIVER_CARBONATE_TEXTURE_BASE,\s*maxAnisotropy,\s*true/,
+);
 assert.match(propLoaderSource, /if \(aoMap\) aoMap\.channel = 1/);
 assert.match(startupSource, /loadRiverRockTextures/);
 assert.match(startupSource, /loadQuarryRockTextures/);
@@ -287,7 +300,7 @@ for (const [name, source] of [
   assert.match(source, /const dispose = \(\) => \{\s*if \(disposed\) return;\s*disposed = true;/, `${name} disposal must be idempotent`);
 }
 assert.match(riverStoneSource, /computeShoreStoneMoss/);
-assert.match(startupSource, /placeholderRockTextureSet\('river', \[95, 102, 91, 255\]\)/);
+assert.match(startupSource, /placeholderRockTextureSet\('river', \[196, 197, 187, 255\]\)/);
 assert.match(startupSource, /placeholderRockTextureSet\('quarry', \[95, 102, 91, 255\]\)/);
 assert.ok(
   forestPropsSource.indexOf('transformBuckets.forEach')
@@ -327,5 +340,5 @@ assert.ok(seamValues[1] > 1 && seamValues[2] > 1);
 seamGeometry.dispose();
 
 console.log(
-  'Approved natural-surface tests passed: 8 retained PBR candidates, 66 immutable files, every runtime rock role reverted to mossy, and both deferred surfaces preserved.',
+  'Approved natural-surface tests passed: the Kupa uses its pale carbonate PBR set while retained alternatives and deferred surfaces remain preserved.',
 );

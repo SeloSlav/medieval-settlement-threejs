@@ -1,5 +1,10 @@
 import { BuildingTerrainLayout } from '../buildings/BuildingTerrainLayout.ts';
-import type { RiverLayout } from '../rivers/RiverLayout.ts';
+import {
+  KUPA_BANK_SUPPORT_FULL_RADIUS,
+  KUPA_BANK_SUPPORT_OUTER_RADIUS,
+  KUPA_HYDRAULIC_GRADE,
+  type RiverLayout,
+} from '../rivers/RiverLayout.ts';
 import type { QuarryLayout } from '../quarries/QuarryLayout.ts';
 import { getActiveWorldDimensions, getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
 import {
@@ -149,6 +154,7 @@ function sampleKupaValleyHeight(
   relief: number,
   seed: number,
   dimensions: WorldDimensions,
+  layout: RiverLayout | null,
 ): number {
   const { generationHalf: playableHalf } = dimensions;
   const offset = presetNoiseOffset(seed);
@@ -170,16 +176,42 @@ function sampleKupaValleyHeight(
     (z + offset.z) * 0.0065,
     4,
   ) * (1.3 + sideSlope * 4.2) * relief;
-  const riverGrade = -z / Math.max(1, playableHalf) * 1.6;
+  const riverGrade = z / Math.max(1, playableHalf) * 1.6;
   const forestShoulder = Math.pow(sideSlope, 2.2)
     * KUPA_REGIONAL_RELIEF_METERS
     * 0.055
     * relief;
-  return mountainRelief
+  const naturalHeight = mountainRelief
     + forestShoulder
     + valleyUndulation
     + riverGrade
     + getEdgeHillHeight(x, z, dimensions) * relief * 0.46;
+  const channel = layout?.sampleChannel(x, z) ?? null;
+  if (!channel) return naturalHeight;
+
+  // A river surface cannot inherit arbitrary terrain noise and still flow in
+  // its authored downstream direction. Inside the Kupa bank top, replace the
+  // raw valley-floor datum with one monotone hydraulic profile. Blend back to
+  // natural terrain before leaving the indexed corridor so the surrounding
+  // valley keeps its authored relief.
+  const radius = channel.distance / Math.max(1e-6, channel.halfWidth);
+  const hydraulicBlend = 1 - smoothstep(0.7, 0.94, radius);
+  const hydraulicBankDatum = layout?.getHydraulicBankDatum(x, z)
+    ?? (0.5 - channel.progress) * dimensions.terrainSize * KUPA_HYDRAULIC_GRADE;
+  // Coarse production terrain cells otherwise mix the submerged ramp into a
+  // bank mesh that ends one to two metres below its authored top. Preserve a
+  // dry bench at least as high as the hydraulic datum, then feather only that
+  // added support back into the natural valley outside the visible bank.
+  const supportBlend = 1 - smoothstep(
+    KUPA_BANK_SUPPORT_FULL_RADIUS,
+    KUPA_BANK_SUPPORT_OUTER_RADIUS,
+    radius,
+  );
+  const supportedNatural = Math.max(
+    naturalHeight,
+    naturalHeight + (hydraulicBankDatum - naturalHeight) * supportBlend,
+  );
+  return supportedNatural + (hydraulicBankDatum - supportedNatural) * hydraulicBlend;
 }
 
 function sampleCustomMountainHeight(
@@ -356,7 +388,7 @@ export function sampleWorldRawTerrainHeight(
   const basinZ = layout?.drain.z ?? -88;
   const relief = topographyScale(settings.topography);
   if (settings.terrainPreset === 'kupa_valley') {
-    return sampleKupaValleyHeight(x, z, relief, settings.seed, dimensions);
+    return sampleKupaValleyHeight(x, z, relief, settings.seed, dimensions, layout);
   }
   if (settings.terrainPreset === 'risnjak_pass') {
     return sampleRisnjakPassHeight(x, z, relief, settings.seed, dimensions);

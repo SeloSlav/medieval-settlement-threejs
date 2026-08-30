@@ -7,12 +7,14 @@
     "roles": [
       "forest",
       "meadow",
-      "river",
       "quarry"
     ],
+    "roleOverridesChangedOn": "2026-08-30",
+    "roleOverrides": {
+      "river": "public/assets/textures/props/gorski_river_stone_v1"
+    },
     "retainedInactiveCandidates": [
       "public/assets/textures/props/gorski_forest_mossy_rock_v1",
-      "public/assets/textures/props/gorski_river_stone_v1",
       "public/assets/textures/props/gorski_quarry_limestone_v1"
     ]
   },

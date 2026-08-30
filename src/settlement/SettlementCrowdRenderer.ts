@@ -10,6 +10,7 @@ import {
 import {
   attachWorkerTool,
   disposeWorkerToolSources,
+  isMilitaryEquipmentKind,
   loadWorkerToolSources,
   setWorkerToolVisible,
   type WorkerToolKind,
@@ -1823,34 +1824,15 @@ export function workerToolVisibleInMode(
   kind: WorkerToolKind,
   mode: VillagerRenderMode,
 ): boolean {
+  // Weapons and their secondary mounts belong to the combatant, not to a
+  // particular animation. Keeping them visible lets the hand/body bones carry
+  // the complete kit continuously through hit, fall, death, and recovery
+  // transitions. A future drop must be represented as an explicit detach/drop
+  // event rather than inferred from an animation name.
+  if (isMilitaryEquipmentKind(kind)) return true;
   // Broadcast sowing needs two empty hands; the farm's hoe must not turn the
   // seed-casting gesture back into a generic tool swing.
   if (mode === 'sow') return false;
-  if (
-    kind === 'spear'
-    || kind === 'spear-shield'
-    || kind === 'pike-kit'
-    || kind === 'crossbow'
-    || kind === 'sidearm'
-    || kind === 'sidearm-shield'
-    || kind === 'sword-shield'
-    || kind === 'halberd'
-    || kind === 'bow'
-    || kind === 'uskok-kit'
-  ) {
-    return mode === 'idle'
-      || mode === 'walk'
-      || mode === 'run'
-      || mode === 'flee'
-      || mode === 'relax'
-      || mode === 'look'
-      || mode === 'wait'
-      || mode === 'talk'
-      || mode === 'laugh'
-      || mode === 'chop'
-      || mode === 'build'
-      || mode === 'fight';
-  }
   return isWorkMode(mode);
 }
 

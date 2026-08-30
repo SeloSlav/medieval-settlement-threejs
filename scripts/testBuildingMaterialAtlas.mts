@@ -26,7 +26,13 @@ const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
   dimensions: { width: number; height: number };
   grid: { columns: number; rows: number; cellSize: number; gutter: number; contentSize: number };
   files: Record<string, { bytes: number; sha256: string }>;
-  tiles: Array<{ id: string; index: number; column: number; rowTopToBottom: number }>;
+  tiles: Array<{
+    id: string;
+    index: number;
+    column: number;
+    rowTopToBottom: number;
+    metersPerTile: number;
+  }>;
 };
 
 assert.equal(manifest.id, 'gorski-building-atlas-v1');
@@ -150,12 +156,36 @@ const specialDetailKeys: readonly BuildingDetailMaterialKey[] = [
   'water', 'smoke', 'foliage', 'crop',
 ];
 
+const manifestTilesById = new Map(
+  manifest.tiles.map((tile) => [tile.id, tile] as const),
+);
+
+function assertRuntimeAtlasScale(
+  key: BuildingMaterialKey | BuildingDetailMaterialKey,
+  material: { userData: Record<string, unknown> },
+): void {
+  const tileId = material.userData.buildingMaterialAtlasTile;
+  assert.equal(typeof tileId, 'string', `${key} must identify its atlas tile`);
+  const manifestTile = manifestTilesById.get(tileId as string);
+  assert.ok(manifestTile, `${key} references unknown atlas tile ${String(tileId)}`);
+  assert.ok(
+    Number.isFinite(manifestTile.metersPerTile) && manifestTile.metersPerTile > 0,
+    `${manifestTile.id} must declare a positive physical scale`,
+  );
+  assert.equal(
+    material.userData.metricUvMeters,
+    manifestTile.metersPerTile,
+    `${key} physical scale must match ${manifestTile.id} in the atlas manifest`,
+  );
+}
+
 const usedTiles = new Set<string>();
 for (const key of constructionKeys) {
   const material = sharedBuildingMaterial(key);
   assert.equal(material.isMeshStandardNodeMaterial, true, `${key} must use MeshStandardNodeMaterial`);
   assert.equal(material.userData.buildingMaterialAtlas, 'gorski-building-atlas-v1');
   assert.equal(typeof material.userData.metricUvMeters, 'number', `${key} must use metric UV scale`);
+  assertRuntimeAtlasScale(key, material);
   usedTiles.add(String(material.userData.buildingMaterialAtlasTile));
 }
 for (const key of detailKeys) {
@@ -163,6 +193,7 @@ for (const key of detailKeys) {
   assert.equal(material.isMeshStandardNodeMaterial, true, `${key} must use MeshStandardNodeMaterial`);
   assert.equal(material.userData.buildingMaterialAtlas, 'gorski-building-atlas-v1');
   assert.equal(typeof material.userData.metricUvMeters, 'number', `${key} must use metric UV scale`);
+  assertRuntimeAtlasScale(key, material);
   usedTiles.add(String(material.userData.buildingMaterialAtlasTile));
 }
 for (const key of specialConstructionKeys) {

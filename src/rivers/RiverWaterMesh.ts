@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import type { Terrain } from '../terrain/Terrain.ts';
-import type { RiverField } from './RiverField.ts';
+import {
+  RENDER_WATER_MASK_THRESHOLD,
+  type RiverField,
+} from './RiverField.ts';
 import {
   createBilinearGridSample,
   createVirtualPipesWetTopology,
@@ -16,15 +19,14 @@ import {
   disposeRiverWaterShoreMaps,
 } from './riverWaterShoreMaps.ts';
 import { waterSurfaceProfileForPreset } from './WaterSurfaceProfile.ts';
+import { getRiverWaterColumnDepth } from './RiverWaterLevel.ts';
 
-const RIVER_WATER_DEPTH = 1.05;
-const RIVER_CENTER_DEPTH_BOOST = 0.2;
-const RIVER_SHORE_DEPTH_LIFT = 0.06;
 const WATER_SIM_RENDER_DELTA_SCALE = 0.24;
 export const WATER_SIM_RENDER_DELTA_LIMIT = 0.16;
 const MAX_SIM_CATCHUP_STEPS = 2;
 const WATER_CPU_UPDATE_INTERVAL_SEC = 1 / 20;
 const WATER_CLIP_FEATHER = -0.62;
+const KUPA_ANALYTIC_CLIP_SCALE = 3.2;
 export const MAX_RIVER_WATER_NORMAL_SLOPE = 0.16;
 export const RIVER_WATER_RECEIVES_SHADOWS = false;
 const RIVER_NORMAL_SAMPLE_STEP = 0.75;
@@ -198,13 +200,24 @@ export function createRiverWaterMesh(
   const clipSigned = (cellIndex: number, ix: number, iz: number): number => {
     const organic = organicSigned[cellIndex] ?? -1;
     const mask = riverMask[cellIndex] ?? 0;
-    if (mask < 0.38) return organic;
+    if (riverField.layout.terrainPreset === 'kupa_valley') {
+      const wx = riverField.startX + ix * riverField.stepX;
+      const wz = riverField.startZ + iz * riverField.stepZ;
+      const analyticMask = riverField.layout.sampleRiverMask(wx, wz);
+      // Put the polygon clip threshold exactly on the authored Kupa wet-mask
+      // threshold. Organic SDF feathering is still packed for opacity, but it
+      // may no longer expand geometry onto the 3.2 m dry bank.
+      return WATER_CLIP_FEATHER + (
+        analyticMask - RENDER_WATER_MASK_THRESHOLD
+      ) * KUPA_ANALYTIC_CLIP_SCALE;
+    }
+    if (mask < RENDER_WATER_MASK_THRESHOLD) return organic;
     if (organic > 2.8) return organic;
     const wx = riverField.startX + ix * riverField.stepX;
     const wz = riverField.startZ + iz * riverField.stepZ;
     const edgeNoise = (valueNoise2D(wx * 0.17 + 4.2, wz * 0.17 - 2.8) - 0.5) * 0.24;
     const organicShore = organic + edgeNoise * (1 - smoothstep(0, 2.2, organic));
-    const interiorFloor = smoothstep(0.38, 0.72, mask) * 0.58;
+    const interiorFloor = smoothstep(RENDER_WATER_MASK_THRESHOLD, 0.72, mask) * 0.58;
     return Math.max(organicShore, interiorFloor);
   };
 
@@ -222,7 +235,7 @@ export function createRiverWaterMesh(
   for (let iz = 0; iz < nz; iz++) {
     for (let ix = 0; ix < nx; ix++) {
       const i = iz * nx + ix;
-      const wet = riverField.riverMask[i] >= 0.38;
+      const wet = riverField.riverMask[i] >= RENDER_WATER_MASK_THRESHOLD;
       wetMask[i] = wet ? 1 : 0;
       if (wet) hasWet = true;
     }
@@ -252,11 +265,12 @@ export function createRiverWaterMesh(
       sim.terrain[i] = bed;
       if (wetMask[i]) {
         const surfaceOverride = riverField.layout.getWaterSurfaceOverride(wx, wz);
-        const shore = 1 - Math.min(1, Math.max(0, organicSigned[i]) / 6);
-        const centerDepth = 1 - shore;
-        const riverDepth = RIVER_WATER_DEPTH
-          + shore * RIVER_SHORE_DEPTH_LIFT
-          + centerDepth * RIVER_CENTER_DEPTH_BOOST;
+        const riverDepth = getRiverWaterColumnDepth(
+          riverField,
+          wx,
+          wz,
+          organicSigned[i],
+        );
         const depth = surfaceOverride === null
           ? riverDepth
           : Math.max(0.15, surfaceOverride - bed);
@@ -315,10 +329,30 @@ export function createRiverWaterMesh(
 
   const makeIntersection = (a: ClipPoint, b: ClipPoint): ClipPoint => {
     const denom = a.signed - b.signed;
-    const t =
-      denom === 0
-        ? 0.5
-        : Math.max(0, Math.min(1, (a.signed - WATER_CLIP_FEATHER) / denom));
+    let t = denom === 0
+      ? 0.5
+      : Math.max(0, Math.min(1, (a.signed - WATER_CLIP_FEATHER) / denom));
+    if (riverField.layout.terrainPreset === 'kupa_valley') {
+      // The analytic mask is nonlinear across a 4.5 m large-map cell. Linear
+      // interpolation alone can overshoot the steep bank by more than a metre.
+      // Refine the edge crossing against the corridor itself; ten bounded
+      // samples run only for shoreline intersections during mesh startup.
+      const aInside = a.signed >= WATER_CLIP_FEATHER;
+      let low = 0;
+      let high = 1;
+      for (let iteration = 0; iteration < 10; iteration += 1) {
+        const candidate = (low + high) * 0.5;
+        const gx = a.gx + (b.gx - a.gx) * candidate;
+        const gz = a.gz + (b.gz - a.gz) * candidate;
+        const wx = riverField.startX + gx * riverField.stepX;
+        const wz = riverField.startZ + gz * riverField.stepZ;
+        const candidateInside = riverField.layout.sampleRiverMask(wx, wz)
+          >= RENDER_WATER_MASK_THRESHOLD;
+        if (candidateInside === aInside) low = candidate;
+        else high = candidate;
+      }
+      t = (low + high) * 0.5;
+    }
     const gx = a.gx + (b.gx - a.gx) * t;
     const gz = a.gz + (b.gz - a.gz) * t;
     const organicAt = sampleFloatGridBilinear(organicSigned, nx, nz, gx, gz);
@@ -346,6 +380,82 @@ export function createRiverWaterMesh(
       }
     }
     return output;
+  };
+
+  const refineKupaBoundary = (
+    polygon: ClipPoint[],
+    corners: ClipPoint[],
+  ): ClipPoint[] => {
+    if (riverField.layout.terrainPreset !== 'kupa_valley') return polygon;
+    const wetCorners = corners.filter((corner) => corner.signed > WATER_CLIP_FEATHER + 1e-6);
+    if (wetCorners.length === 0) return polygon;
+    const refined: ClipPoint[] = [];
+    const subdivisions = 8;
+
+    for (let index = 0; index < polygon.length; index += 1) {
+      const current = polygon[index];
+      const next = polygon[(index + 1) % polygon.length];
+      refined.push(current);
+      const currentBoundary = Math.abs(current.signed - WATER_CLIP_FEATHER) <= 1e-6;
+      const nextBoundary = Math.abs(next.signed - WATER_CLIP_FEATHER) <= 1e-6;
+      if (!currentBoundary || !nextBoundary) continue;
+
+      const midpointGx = (current.gx + next.gx) * 0.5;
+      const midpointGz = (current.gz + next.gz) * 0.5;
+      const wetAnchor = wetCorners.reduce((nearest, candidate) => {
+        const nearestDistance = (nearest.gx - midpointGx) ** 2 + (nearest.gz - midpointGz) ** 2;
+        const candidateDistance = (candidate.gx - midpointGx) ** 2 + (candidate.gz - midpointGz) ** 2;
+        return candidateDistance < nearestDistance ? candidate : nearest;
+      });
+
+      for (let subdivision = 1; subdivision < subdivisions; subdivision += 1) {
+        const t = subdivision / subdivisions;
+        let gx = current.gx + (next.gx - current.gx) * t;
+        let gz = current.gz + (next.gz - current.gz) * t;
+        let wx = riverField.startX + gx * riverField.stepX;
+        let wz = riverField.startZ + gz * riverField.stepZ;
+        if (
+          riverField.layout.sampleRiverMask(wx, wz)
+          < RENDER_WATER_MASK_THRESHOLD
+        ) {
+          // A coarse marching-squares chord can cut across the dry side of a
+          // curved 2.6 m Kupa segment. Project each sub-step toward a known wet
+          // cell corner and retain the wet side of the analytic crossing.
+          let dryGx = gx;
+          let dryGz = gz;
+          let wetGx = wetAnchor.gx;
+          let wetGz = wetAnchor.gz;
+          for (let iteration = 0; iteration < 10; iteration += 1) {
+            const candidateGx = (dryGx + wetGx) * 0.5;
+            const candidateGz = (dryGz + wetGz) * 0.5;
+            const candidateX = riverField.startX + candidateGx * riverField.stepX;
+            const candidateZ = riverField.startZ + candidateGz * riverField.stepZ;
+            if (
+              riverField.layout.sampleRiverMask(candidateX, candidateZ)
+              >= RENDER_WATER_MASK_THRESHOLD
+            ) {
+              wetGx = candidateGx;
+              wetGz = candidateGz;
+            } else {
+              dryGx = candidateGx;
+              dryGz = candidateGz;
+            }
+          }
+          gx = wetGx;
+          gz = wetGz;
+          wx = riverField.startX + gx * riverField.stepX;
+          wz = riverField.startZ + gz * riverField.stepZ;
+        }
+        const organicAt = riverField.sampleOrganicSignedDistance(wx, wz);
+        refined.push({
+          gx,
+          gz,
+          signed: WATER_CLIP_FEATHER,
+          index: appendVertex(gx, gz, WATER_CLIP_FEATHER, organicAt),
+        });
+      }
+    }
+    return refined;
   };
 
   for (let iz = 0; iz < nz - 1; iz++) {
@@ -390,8 +500,24 @@ export function createRiverWaterMesh(
         { gx: ix + 1, gz: iz, signed: brSigned, index: brVertex },
       ];
 
-      const clipped = clipWaterPolygon(corners);
+      const clipped = refineKupaBoundary(clipWaterPolygon(corners), corners);
       if (clipped.length < 3) continue;
+      if (riverField.layout.terrainPreset === 'kupa_valley' && clipped.length > 4) {
+        const triangles = THREE.ShapeUtils.triangulateShape(
+          clipped.map((point) => new THREE.Vector2(point.gx, point.gz)),
+          [],
+        );
+        for (const [aIndex, bIndex, cIndex] of triangles) {
+          const a = clipped[aIndex];
+          const b = clipped[bIndex];
+          const c = clipped[cIndex];
+          const signedArea = (b.gx - a.gx) * (c.gz - a.gz)
+            - (b.gz - a.gz) * (c.gx - a.gx);
+          if (signedArea > 0) indices.push(a.index, c.index, b.index);
+          else indices.push(a.index, b.index, c.index);
+        }
+        continue;
+      }
       const first = clipped[0].index;
       for (let i = 1; i < clipped.length - 1; i++) {
         indices.push(first, clipped[i].index, clipped[i + 1].index);
@@ -400,14 +526,26 @@ export function createRiverWaterMesh(
   }
   if (indices.length === 0) return null;
 
+  const sampleStillSurface = (gx: number, gz: number): number => {
+    if (riverField.layout.terrainPreset !== 'kupa_valley') {
+      return sampleFloatGridBilinear(sim.terrain, nx, nz, gx, gz)
+        + sampleFloatGridBilinear(baseDepth, nx, nz, gx, gz);
+    }
+    const wx = riverField.startX + gx * riverField.stepX;
+    const wz = riverField.startZ + gz * riverField.stepZ;
+    const surfaceOverride = riverField.layout.getWaterSurfaceOverride(wx, wz);
+    if (surfaceOverride !== null) return surfaceOverride;
+    const bed = terrain.getHeightAt(wx, wz);
+    const authoredDepth = riverField.layout.getWaterColumnDepth(wx, wz) ?? 0;
+    return bed + authoredDepth;
+  };
+
   const fullPositions = new Float32Array(vertexGx.length * 3);
   for (let vi = 0; vi < vertexGx.length; vi++) {
     const gx = vertexGx[vi];
     const gz = vertexGz[vi];
     fullPositions[vi * 3] = riverField.startX + gx * riverField.stepX;
-    fullPositions[vi * 3 + 1] =
-      sampleFloatGridBilinear(sim.terrain, nx, nz, gx, gz) +
-      sampleFloatGridBilinear(baseDepth, nx, nz, gx, gz);
+    fullPositions[vi * 3 + 1] = sampleStillSurface(gx, gz);
     fullPositions[vi * 3 + 2] = riverField.startZ + gz * riverField.stepZ;
   }
 
@@ -440,9 +578,6 @@ export function createRiverWaterMesh(
   // face normals—the exact source of the hard white specular polygons seen at
   // the near screen edge.
   const normals = new Float32Array(compact.gx.length * 3);
-  const sampleStillSurface = (gx: number, gz: number): number =>
-    sampleFloatGridBilinear(sim.terrain, nx, nz, gx, gz)
-      + sampleFloatGridBilinear(baseDepth, nx, nz, gx, gz);
   for (let vi = 0; vi < compact.gx.length; vi++) {
     const gx = compact.gx[vi];
     const gz = compact.gz[vi];

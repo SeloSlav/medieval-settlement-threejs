@@ -14,9 +14,10 @@ export type RockTextureSet<Role extends RockTextureRole> = {
 export type MossyRockTextureSet = RockTextureSet<'forest'>;
 
 // Keep separate role-owned texture instances so river/quarry lifecycles can
-// dispose independently, but deliberately give every natural rock the same
-// established mossy visual identity.
+// dispose independently. Forest, meadow, and quarry rocks retain the shared
+// mossy identity; river rocks use the approved pale water-worn carbonate set.
 const MOSSY_ROCK_TEXTURE_BASE = '/assets/textures/props/mossy_rock';
+const RIVER_CARBONATE_TEXTURE_BASE = '/assets/textures/props/gorski_river_stone_v1';
 
 async function loadRockTextureSet<Role extends RockTextureRole>(
   role: Role,
@@ -55,9 +56,9 @@ export function loadNeutralMeadowRockTextures(maxAnisotropy: number): Promise<Ro
 export function loadRiverRockTextures(maxAnisotropy: number): Promise<RockTextureSet<'river'>> {
   return loadRockTextureSet(
     'river',
-    MOSSY_ROCK_TEXTURE_BASE,
+    RIVER_CARBONATE_TEXTURE_BASE,
     maxAnisotropy,
-    false,
+    true,
   );
 }
 

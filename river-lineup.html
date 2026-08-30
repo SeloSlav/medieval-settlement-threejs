@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kupa river visual contract</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body, #lineup-root { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #77908a; }
+      canvas { display: block; width: 100%; height: 100%; }
+      .contract {
+        position: fixed;
+        top: 16px;
+        left: 18px;
+        max-width: min(520px, calc(100vw - 36px));
+        padding: 10px 13px;
+        border: 1px solid rgba(239, 244, 224, .35);
+        border-radius: 7px;
+        color: #f5f1df;
+        background: rgba(24, 37, 32, .58);
+        box-shadow: 0 8px 30px rgba(20, 29, 25, .24);
+        font: 650 12px/1.35 system-ui, sans-serif;
+        letter-spacing: .055em;
+        text-transform: uppercase;
+        text-shadow: 0 2px 8px #1b2b26;
+        backdrop-filter: blur(5px);
+        pointer-events: none;
+      }
+      .contract small {
+        display: block;
+        margin-top: 4px;
+        font-weight: 450;
+        letter-spacing: .015em;
+        text-transform: none;
+        opacity: .9;
+      }
+      body[data-clean="true"] .contract { display: none; }
+    </style>
+  </head>
+  <body>
+    <div id="lineup-root"></div>
+    <div class="contract">
+      Upper Kupa river visual contract
+      <small id="contract-detail">production hydrology · pale carbonate · rock-split rapids · direct no-post render</small>
+    </div>
+    <script type="module" src="/src/e2e/riverLineup.ts"></script>
+  </body>
+</html>

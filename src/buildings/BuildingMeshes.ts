@@ -54,20 +54,24 @@ import { createChandleryMesh } from './meshes/chandleryBuildingMesh.ts';
 import { createStableMesh } from './meshes/stableMesh.ts';
 import { createSpinningRettingHouseMesh } from './meshes/spinningRettingHouseMesh.ts';
 import {
-  createAuthoredFishingCampMesh,
-  createAuthoredHuntersCampMesh,
-  createAuthoredLargeQuarryMesh,
-  createAuthoredLumberMillMesh,
-  createAuthoredMineworksMesh,
-  createAuthoredMiningCampMesh,
-  createAuthoredTierOneChurchMesh,
-  createAuthoredWaysideShrineMesh,
-} from './authoredArchitectureModels.ts';
+  compileProceduralBuilding,
+  type ProceduralBuildingVisualRequest,
+} from './proceduralArchitecture/compiler.ts';
+import {
+  addMesh,
+  sharedBuildingDetailMaterial,
+  sharedBuildingMaterial,
+} from './buildingMaterials.ts';
+import type {
+  MonasteryExtensionMask,
+} from './proceduralArchitecture/visualRequest.ts';
+
+const CANONICAL_PROCEDURAL_SEED = 1550;
 
 function addWeaponsmithYard(workshop: THREE.Group): void {
-  const iron = new THREE.MeshStandardMaterial({ color: 0x343332, roughness: 0.58, metalness: 0.62 });
-  const wood = new THREE.MeshStandardMaterial({ color: 0x5b3922, roughness: 0.9 });
-  const hide = new THREE.MeshStandardMaterial({ color: 0x7b4b2a, roughness: 0.86 });
+  const iron = sharedBuildingMaterial('metalIron');
+  const wood = sharedBuildingMaterial('timberMid');
+  const hide = sharedBuildingDetailMaterial('wicker');
   const rack = new THREE.Group();
   rack.name = 'Weaponsmith yard racks';
   rack.position.set(3.15, 0, 0.2);
@@ -105,9 +109,9 @@ function addWeaponsmithYard(workshop: THREE.Group): void {
 }
 
 function addBowyerYard(workshop: THREE.Group): void {
-  const wood = new THREE.MeshStandardMaterial({ color: 0x6b4528, roughness: 0.92 });
-  const straw = new THREE.MeshStandardMaterial({ color: 0xb18a43, roughness: 1 });
-  const linen = new THREE.MeshStandardMaterial({ color: 0xd4c39b, roughness: 0.92 });
+  const wood = sharedBuildingMaterial('timberMid');
+  const straw = sharedBuildingDetailMaterial('wicker');
+  const linen = sharedBuildingDetailMaterial('canvas');
   const yard = new THREE.Group();
   yard.name = 'Bowyer target and bow rack';
   yard.position.set(3.0, 0, 0.25);
@@ -140,6 +144,137 @@ function addBowyerYard(workshop: THREE.Group): void {
   workshop.add(yard);
 }
 
+type ProceduralGeneratorContext = {
+  readonly developmentTier?: 0 | 1 | 2 | 3;
+  readonly monasteryPlanting?: {
+    readonly orchard: number;
+    readonly croft: number;
+    readonly extensions?: number;
+    readonly orchardMaturity?: number;
+  };
+};
+
+type ProceduralBuildingGenerator = (context: ProceduralGeneratorContext) => THREE.Group;
+
+function createWeaponsmithMesh(): THREE.Group {
+  const workshop = createSmithyMesh();
+  workshop.name = 'Weaponsmith and armorer';
+  addWeaponsmithYard(workshop);
+  return workshop;
+}
+
+function createBowyerMesh(): THREE.Group {
+  const workshop = createCarpenterMesh();
+  workshop.name = 'Bowyer and fletcher';
+  addBowyerYard(workshop);
+  return workshop;
+}
+
+function createTradingPostMesh(): THREE.Group {
+  const tradingPost = createVillageStorehouseMesh();
+  tradingPost.name = 'Trading post';
+  const canopy = new THREE.Group();
+  canopy.name = 'Trading post covered loading bay';
+  for (const x of [-2.15, 2.15]) {
+    const post = addMesh(
+      canopy,
+      new THREE.BoxGeometry(0.24, 2.55, 0.24),
+      sharedBuildingMaterial('timberDark'),
+      new THREE.Vector3(x, 1.275, 5.15),
+    );
+    post.name = 'Trading post loading-bay post';
+  }
+  const roof = addMesh(
+    canopy,
+    new THREE.BoxGeometry(5.1, 0.16, 2.75),
+    sharedBuildingMaterial('shingle'),
+    new THREE.Vector3(0, 2.72, 4.75),
+    new THREE.Euler(0.11, 0, 0),
+  );
+  roof.name = 'Trading post loading-bay shingle roof';
+  const sign = addMesh(
+    canopy,
+    new THREE.BoxGeometry(1.15, 0.62, 0.1),
+    sharedBuildingMaterial('timberWeathered'),
+    new THREE.Vector3(0, 2.2, 6.02),
+  );
+  sign.name = 'Trading post road signboard';
+  tradingPost.add(canopy);
+  return tradingPost;
+}
+
+/** Compile-time exhaustive generator registry for every canonical BuildingKind. */
+export const PROCEDURAL_BUILDING_GENERATORS = {
+  founders_camp: () => createFoundersCampMesh(),
+  salvage_pile: () => createSalvagePileMesh(),
+  lumber_mill: () => createLumberMillMesh(),
+  reforester: () => createReforesterHutMesh(),
+  woodcutters_lodge: () => createWoodcuttersLodgeMesh(),
+  stone_quarry: () => createStoneQuarryMesh(),
+  large_quarry: () => createLargeQuarryMesh(),
+  mine: () => createMineralMineMesh(),
+  charcoal_burner: () => createCharcoalBurnerMesh(),
+  smithy: () => createSmithyMesh(),
+  weaponsmith_armorer: () => createWeaponsmithMesh(),
+  bowyer_fletcher: () => createBowyerMesh(),
+  potter_kiln: () => createPotterKilnMesh(),
+  well: () => createWellMesh(),
+  stable: () => createStableMesh(),
+  hunters_hall: () => createHuntersHallMesh(),
+  foragers_shed: () => createForagersShedMesh(),
+  fishing_camp: () => createFishingCampMesh(),
+  chapel: ({ developmentTier }) => createChapelMesh(
+    Math.max(1, developmentTier ?? 3) as 1 | 2 | 3,
+  ),
+  wayside_shrine: () => createWaysideShrineMesh(),
+  marketplace: () => createMarketplaceMesh(),
+  trading_post: () => createTradingPostMesh(),
+  town_hall: () => createTownHallMesh(),
+  village_storehouse: () => createVillageStorehouseMesh(),
+  watchtower: () => createWatchtowerMesh(),
+  guardhouse: () => createGuardhouseMesh(),
+  palisaded_refuge: () => createPalisadedRefugeMesh(),
+  threshing_barn: () => createThreshingBarnMesh(),
+  pastoral_farmstead: () => createPastoralFarmsteadMesh(),
+  swineherd: () => createSwineherdMesh(),
+  monastery: ({ developmentTier, monasteryPlanting }) => createMonasteryMesh(
+    monasteryPlanting?.extensions ?? developmentTier ?? 0,
+    monasteryPlanting?.orchard ?? 0,
+    monasteryPlanting?.croft ?? 0,
+    monasteryPlanting?.orchardMaturity ?? 2,
+  ),
+  brewery: () => createBreweryMesh(),
+  tavern: () => createTavernMesh(),
+  smokehouse: () => createSmokehouseMesh(),
+  granary: () => createGranaryMesh(),
+  bakery: () => createBakeryMesh(),
+  apiary: () => createApiaryMesh(),
+  watermill: () => createWatermillMesh(),
+  windmill: () => createWindmillMesh(),
+  carpenter: () => createCarpenterMesh(),
+  spinning_retting_house: () => createSpinningRettingHouseMesh(),
+  weaver: () => createWeaverMesh(),
+  tannery: () => createTanneryMesh(),
+  cobbler: () => createCobblerMesh(),
+  chandlery: () => createChandleryMesh(),
+} satisfies Record<BuildingKind, ProceduralBuildingGenerator>;
+
+function createRawBuildingMesh(
+  kind: BuildingKind,
+  developmentTier?: 0 | 1 | 2 | 3,
+  monasteryPlanting?: ProceduralGeneratorContext['monasteryPlanting'],
+): THREE.Group {
+  return PROCEDURAL_BUILDING_GENERATORS[kind]({
+    developmentTier,
+    monasteryPlanting,
+  });
+}
+
+/**
+ * Authoritative runtime entry point for every placeable non-residence visual.
+ * GLBs remain in art-source as comparison evidence, but no placeable building
+ * depends on them at runtime.
+ */
 export function createBuildingMesh(
   kind: BuildingKind,
   developmentTier?: 0 | 1 | 2 | 3,
@@ -150,96 +285,54 @@ export function createBuildingMesh(
     orchardMaturity?: number;
   },
 ): THREE.Group {
-  const chapelTier = Math.max(1, developmentTier ?? 3) as 1 | 2 | 3;
-  switch (kind) {
-    case 'founders_camp':
-      return createFoundersCampMesh();
-    case 'salvage_pile':
-      return createSalvagePileMesh();
-    case 'lumber_mill':
-      return createAuthoredLumberMillMesh() ?? createLumberMillMesh();
-    case 'reforester':
-      return createReforesterHutMesh();
-    case 'woodcutters_lodge':
-      return createWoodcuttersLodgeMesh();
-    case 'stone_quarry':
-      return createAuthoredMiningCampMesh() ?? createStoneQuarryMesh();
-    case 'large_quarry':
-      return createAuthoredLargeQuarryMesh() ?? createLargeQuarryMesh();
-    case 'mine':
-      return createAuthoredMineworksMesh() ?? createMineralMineMesh();
-    case 'charcoal_burner':
-      return createCharcoalBurnerMesh();
-    case 'smithy':
-      return createSmithyMesh();
-    case 'weaponsmith_armorer': {
-      const workshop = createSmithyMesh();
-      workshop.name = 'Weaponsmith and armorer';
-      addWeaponsmithYard(workshop);
-      return workshop;
-    }
-    case 'bowyer_fletcher': {
-      const workshop = createCarpenterMesh();
-      workshop.name = 'Bowyer and fletcher';
-      addBowyerYard(workshop);
-      return workshop;
-    }
-    case 'potter_kiln':
-      return createPotterKilnMesh();
-    case 'well':
-      return createWellMesh();
-    case 'stable':
-      return createStableMesh();
-    case 'hunters_hall':
-      return createAuthoredHuntersCampMesh() ?? createHuntersHallMesh();
-    case 'foragers_shed':
-      return createForagersShedMesh();
-    case 'fishing_camp':
-      return createAuthoredFishingCampMesh() ?? createFishingCampMesh();
-    case 'chapel':
-      return chapelTier === 1
-        ? createAuthoredTierOneChurchMesh() ?? createChapelMesh(chapelTier)
-        : createChapelMesh(chapelTier);
-    case 'wayside_shrine':
-      return createAuthoredWaysideShrineMesh() ?? createWaysideShrineMesh();
-    case 'marketplace':
-      return createMarketplaceMesh();
-    case 'trading_post': {
-      const tradingPost = createVillageStorehouseMesh();
-      tradingPost.name = 'Trading post';
-      return tradingPost;
-    }
-    case 'town_hall': return createTownHallMesh();
-    case 'village_storehouse': return createVillageStorehouseMesh();
-    case 'watchtower': return createWatchtowerMesh();
-    case 'guardhouse': return createGuardhouseMesh();
-    case 'palisaded_refuge': return createPalisadedRefugeMesh();
-    case 'threshing_barn': return createThreshingBarnMesh();
-    case 'monastery': return createMonasteryMesh(
-      monasteryPlanting?.extensions ?? developmentTier ?? 0,
-      monasteryPlanting?.orchard ?? 0,
-      monasteryPlanting?.croft ?? 0,
-      monasteryPlanting?.orchardMaturity ?? 2,
-    );
-    case 'brewery': return createBreweryMesh();
-    case 'tavern': return createTavernMesh();
-    case 'smokehouse': return createSmokehouseMesh();
-    case 'granary': return createGranaryMesh();
-    case 'bakery': return createBakeryMesh();
-    case 'apiary': return createApiaryMesh();
-    case 'watermill': return createWatermillMesh();
-    case 'windmill': return createWindmillMesh();
-    case 'carpenter': return createCarpenterMesh();
-    case 'spinning_retting_house': return createSpinningRettingHouseMesh();
-    case 'weaver': return createWeaverMesh();
-    case 'tannery': return createTanneryMesh();
-    case 'cobbler': return createCobblerMesh();
-    case 'chandlery': return createChandleryMesh();
-    case 'pastoral_farmstead': return createPastoralFarmsteadMesh();
-    case 'swineherd': return createSwineherdMesh();
-    default: {
-      const unreachable: never = kind;
-      return unreachable;
-    }
+  const visualRequest = createCanonicalVisualRequest(
+    kind,
+    developmentTier,
+    monasteryPlanting,
+  );
+  return compileProceduralBuilding({
+    kind,
+    request: visualRequest,
+    developmentTier: kind === 'chapel'
+      ? Math.max(1, developmentTier ?? 3) as 1 | 2 | 3
+      : 0,
+    generate: () => createRawBuildingMesh(kind, developmentTier, monasteryPlanting),
+  });
+}
+
+function createCanonicalVisualRequest(
+  kind: BuildingKind,
+  developmentTier: 0 | 1 | 2 | 3 | undefined,
+  monasteryPlanting: {
+    orchard: number;
+    croft: number;
+    extensions?: number;
+    orchardMaturity?: number;
+  } | undefined,
+): ProceduralBuildingVisualRequest {
+  if (kind === 'chapel') {
+    return {
+      type: 'church',
+      kind,
+      tier: Math.max(1, developmentTier ?? 3) as 1 | 2 | 3,
+      seed: CANONICAL_PROCEDURAL_SEED,
+    };
   }
+  if (kind === 'monastery') {
+    return {
+      type: 'monastery',
+      kind,
+      extensions: ((monasteryPlanting?.extensions ?? developmentTier ?? 0) & 15) as MonasteryExtensionMask,
+      orchardMaturity: Math.max(
+        0,
+        Math.min(2, monasteryPlanting?.orchardMaturity ?? 2),
+      ) as 0 | 1 | 2,
+      seed: CANONICAL_PROCEDURAL_SEED,
+    };
+  }
+  return {
+    type: 'building',
+    kind,
+    seed: CANONICAL_PROCEDURAL_SEED,
+  };
 }

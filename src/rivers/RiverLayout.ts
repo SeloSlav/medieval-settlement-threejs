@@ -50,6 +50,23 @@ const CONFLUENCE_LAKE_RADIUS = 54;
 const GENERATION_TO_TERRAIN_RATIO = 820 / 1080;
 const SEGMENT_CELL_SIZE = 32;
 
+/**
+ * The upper Kupa is an entrenched carbonate channel rather than a shallow
+ * meadow swale. Keep the water surface at least this far below the adjacent
+ * floodplain before adding the submerged channel floor beneath it.
+ */
+export const KUPA_BANK_TO_WATER_DROP_METERS = 3.2;
+export const KUPA_MIN_CHANNEL_WATER_DEPTH_METERS = 2.15;
+/** Upper-course Kupa fall used by the terrain's monotone hydraulic profile. */
+export const KUPA_HYDRAULIC_GRADE = 0.0034;
+const KUPA_CHANNEL_FLOOR_END = 0.24;
+export const KUPA_WATERLINE_RADIUS = 0.52;
+const KUPA_BANK_TOP_RADIUS = 0.7;
+/** Hold a dry hydraulic bench far enough past the bank for 769² terrain interpolation. */
+export const KUPA_BANK_SUPPORT_FULL_RADIUS = 1.1;
+/** Blend the support back to the authored valley before leaving the segment index. */
+export const KUPA_BANK_SUPPORT_OUTER_RADIUS = 1.25;
+
 type IndexedRiverSegment = {
   a: RiverPoint;
   b: RiverPoint;
@@ -78,7 +95,7 @@ export class RiverLayout {
     this.corridors = corridors;
     this.inlandWaterBodies = inlandWaterBodies;
     this.terrainPreset = terrainPreset;
-    this.segmentCells = buildRiverSegmentCells(corridors);
+    this.segmentCells = buildRiverSegmentCells(corridors, terrainPreset);
   }
 
   static create(options: RiverLayoutOptions): RiverLayout {
@@ -199,18 +216,44 @@ export class RiverLayout {
     const inlandWater = this.sampleInlandWater(x, z);
     const hit = this.sampleCorridor(x, z);
     const corridorDepth = hit
-      ? (1 - smoothstep(hit.halfWidth * 0.28, hit.halfWidth * 0.95, hit.distance)) *
-        hit.channelDepth *
-        (1 - smoothstep(hit.halfWidth * 0.28, hit.halfWidth * 0.95, hit.distance))
+      ? this.terrainPreset === 'kupa_valley'
+        ? sampleKupaChannelDepression(hit.distance, hit.halfWidth, hit.channelDepth)
+        : (1 - smoothstep(hit.halfWidth * 0.28, hit.halfWidth * 0.95, hit.distance)) *
+          hit.channelDepth *
+          (1 - smoothstep(hit.halfWidth * 0.28, hit.halfWidth * 0.95, hit.distance))
       : 0;
     return Math.max(inlandWater.depth, corridorDepth);
+  }
+
+  /**
+   * Authored vertical water column for entrenched river presets. Returning
+   * null leaves ponds, coasts, and legacy procedural rivers on their existing
+   * bounded-water profile.
+   */
+  getWaterColumnDepth(x: number, z: number): number | null {
+    if (this.terrainPreset !== 'kupa_valley') return null;
+    const hit = this.sampleCorridor(x, z);
+    if (!hit) return null;
+    const carveDepth = sampleKupaChannelDepression(
+      hit.distance,
+      hit.halfWidth,
+      hit.channelDepth,
+    );
+    // Across the wet channel the water surface follows the valley grade at a
+    // stable bank-relative drop. A thin positive edge prevents zero-thickness
+    // geometry at clipped organic shoreline vertices.
+    return Math.max(0.08, carveDepth - KUPA_BANK_TO_WATER_DROP_METERS);
   }
 
   sampleRiverMask(x: number, z: number): number {
     const inlandWater = this.sampleInlandWater(x, z);
     const hit = this.sampleCorridor(x, z);
     const corridorMask = hit
-      ? 1 - smoothstep(hit.halfWidth * 0.28, hit.halfWidth * 0.72, hit.distance)
+      ? 1 - smoothstep(
+          hit.halfWidth * 0.28,
+          hit.halfWidth * (this.terrainPreset === 'kupa_valley' ? 0.69 : 0.72),
+          hit.distance,
+        )
       : 0;
     const coastMask = this.terrainPreset === 'vinodol_coast'
       ? sampleCoastalSea(x, z, this.bounds, this.seed)
@@ -233,7 +276,27 @@ export class RiverLayout {
   }
 
   getWaterSurfaceOverride(_x: number, _z: number): number | null {
-    return this.terrainPreset === 'vinodol_coast' ? -4.4 : null;
+    if (this.terrainPreset === 'vinodol_coast') return -4.4;
+    const bankDatum = this.getHydraulicBankDatum(_x, _z);
+    return bankDatum === null
+      ? null
+      : bankDatum - KUPA_BANK_TO_WATER_DROP_METERS;
+  }
+
+  /**
+   * Monotone Kupa bank datum shared by terrain baking and the water surface.
+   * Owning this independently of the tessellated bed prevents bilinear terrain
+   * interpolation from introducing local uphill water on production maps.
+   */
+  getHydraulicBankDatum(x: number, z: number): number | null {
+    if (this.terrainPreset !== 'kupa_valley') return null;
+    const hit = this.sampleCorridor(x, z);
+    if (!hit) return null;
+    const terrainSpan = Math.max(
+      this.bounds.maxX - this.bounds.minX,
+      this.bounds.maxZ - this.bounds.minZ,
+    );
+    return (0.5 - hit.progress) * terrainSpan * KUPA_HYDRAULIC_GRADE;
   }
 
   isWaterAt(x: number, z: number): boolean {
@@ -261,10 +324,35 @@ export class RiverLayout {
       }
     }
 
-    if (!Number.isFinite(bestDistance) || bestDistance > bestHalfWidth * 0.95) return null;
+    const indexedRadius = this.terrainPreset === 'kupa_valley'
+      ? KUPA_BANK_SUPPORT_OUTER_RADIUS
+      : 0.95;
+    if (!Number.isFinite(bestDistance) || bestDistance > bestHalfWidth * indexedRadius) return null;
     const len = Math.hypot(bestDx, bestDz);
     if (len < 1e-6) return null;
     return { dx: bestDx / len, dz: bestDz / len };
+  }
+
+  /**
+   * Presentation velocity in metres per second. The Kupa keeps a positive
+   * downstream current everywhere, while narrower upstream reaches carry
+   * enough energy to generate whitewater around sufficiently large rocks.
+   */
+  sampleFlowSpeed(x: number, z: number): number | null {
+    const hit = this.sampleChannel(x, z);
+    if (!hit) return null;
+    if (this.terrainPreset !== 'kupa_valley') return 0.78;
+    const widthEnergy = 1 - smoothstep(25, 35, hit.halfWidth);
+    const upperCourseEnergy = 1 - smoothstep(0.22, 0.86, hit.progress);
+    return 0.82 + widthEnergy * 0.55 + upperCourseEnergy * 0.38;
+  }
+
+  /** Continuous nearest-channel sample shared with terrain hydraulics. */
+  sampleChannel(
+    x: number,
+    z: number,
+  ): { distance: number; halfWidth: number; channelDepth: number; progress: number } | null {
+    return this.sampleCorridor(x, z);
   }
 
   buildRiverMaskGrid(resolution: number): Float32Array {
@@ -302,7 +390,10 @@ export class RiverLayout {
       bestProgress = lerp(a.progress, b.progress, hit.t);
     }
 
-    if (!Number.isFinite(bestDistance) || bestDistance > bestHalfWidth * 0.95) return null;
+    const indexedRadius = this.terrainPreset === 'kupa_valley'
+      ? KUPA_BANK_SUPPORT_OUTER_RADIUS
+      : 0.95;
+    if (!Number.isFinite(bestDistance) || bestDistance > bestHalfWidth * indexedRadius) return null;
     return {
       distance: bestDistance,
       halfWidth: bestHalfWidth,
@@ -348,16 +439,65 @@ function buildKupaCorridor(bounds: TerrainBounds, seed: number): RiverCorridor {
     const z = lerp(bounds.maxZ, bounds.minZ, progress);
     const broadMeander = Math.sin(progress * TAU * 1.28 + phase) * spanX * 0.014;
     const localMeander = Math.sin(progress * TAU * 4.1 - phase * 0.7) * spanX * 0.0045;
-    const widthNoise = hashF64(seed ^ 0x4b50, Math.floor(progress * 24), 3);
+    const widthNoise = sampleKupaWidthNoise(seed, progress);
     points.push({
       x: centerX + broadMeander + localMeander,
       z,
       progress,
       halfWidth: 25 + widthNoise * 10,
-      channelDepth: 2.15 + widthNoise * 0.7,
+      channelDepth:
+        KUPA_BANK_TO_WATER_DROP_METERS
+        + KUPA_MIN_CHANNEL_WATER_DEPTH_METERS
+        + widthNoise * 0.75,
     });
   }
   return { points };
+}
+
+function sampleKupaWidthNoise(seed: number, progress: number): number {
+  const coordinate = Math.max(0, Math.min(24, progress * 24));
+  const index = Math.floor(coordinate);
+  const fraction = coordinate - index;
+  const blend = smoothstep(0, 1, fraction);
+  return lerp(
+    hashF64(seed ^ 0x4b50, index, 3),
+    hashF64(seed ^ 0x4b50, index + 1, 3),
+    blend,
+  );
+}
+
+/**
+ * Kupa cross-section in bank-relative metres.
+ *
+ * A broad submerged floor rises to the waterline, then the dry bank climbs
+ * the full 3.2 m over a short carbonate shoulder. Keeping the two ramps
+ * separate avoids the old shallow bowl whose water surface sat only about one
+ * metre below the meadow.
+ */
+function sampleKupaChannelDepression(
+  distance: number,
+  halfWidth: number,
+  channelDepth: number,
+): number {
+  const radius = distance / Math.max(1e-6, halfWidth);
+  if (radius <= KUPA_WATERLINE_RADIUS) {
+    const floorToWaterline = smoothstep(
+      KUPA_CHANNEL_FLOOR_END,
+      KUPA_WATERLINE_RADIUS,
+      radius,
+    );
+    return lerp(
+      Math.max(
+        channelDepth,
+        KUPA_BANK_TO_WATER_DROP_METERS + KUPA_MIN_CHANNEL_WATER_DEPTH_METERS,
+      ),
+      KUPA_BANK_TO_WATER_DROP_METERS,
+      floorToWaterline,
+    );
+  }
+  return KUPA_BANK_TO_WATER_DROP_METERS * (
+    1 - smoothstep(KUPA_WATERLINE_RADIUS, KUPA_BANK_TOP_RADIUS, radius)
+  );
 }
 
 function buildLicankaCorridor(
@@ -439,6 +579,7 @@ function sampleCoastalSea(
 
 function buildRiverSegmentCells(
   corridors: ReadonlyArray<RiverCorridor>,
+  terrainPreset: WorldTerrainPreset,
 ): Map<string, IndexedRiverSegment[]> {
   const cells = new Map<string, IndexedRiverSegment[]>();
   for (const corridor of corridors) {
@@ -447,7 +588,9 @@ function buildRiverSegmentCells(
         a: corridor.points[i],
         b: corridor.points[i + 1],
       };
-      const reach = Math.max(segment.a.halfWidth, segment.b.halfWidth) * 0.95;
+      const reach = Math.max(segment.a.halfWidth, segment.b.halfWidth) * (
+        terrainPreset === 'kupa_valley' ? KUPA_BANK_SUPPORT_OUTER_RADIUS : 0.95
+      );
       const minCellX = Math.floor((Math.min(segment.a.x, segment.b.x) - reach) / SEGMENT_CELL_SIZE);
       const maxCellX = Math.floor((Math.max(segment.a.x, segment.b.x) + reach) / SEGMENT_CELL_SIZE);
       const minCellZ = Math.floor((Math.min(segment.a.z, segment.b.z) - reach) / SEGMENT_CELL_SIZE);

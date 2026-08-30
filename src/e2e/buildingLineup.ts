@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { createBuildingMesh } from '../buildings/BuildingMeshes.ts';
-import { preloadAuthoredArchitectureModels } from '../buildings/authoredArchitectureModels.ts';
 import { initializeBuildingMaterialLibrary } from '../buildings/buildingMaterials.ts';
 import { BUILDING_KINDS } from '../generated/gameBalance.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
@@ -43,6 +42,8 @@ import {
   type GorskiArchitectureFamily,
 } from '../buildings/gorskiArchitectureKit.ts';
 
+type LineupLightingMode = 'production-parity' | 'neutral-proof';
+
 declare global {
   interface Window {
     __BUILDING_LINEUP_READY__?: boolean;
@@ -51,6 +52,7 @@ declare global {
       camera: 'near' | 'design' | 'far';
       debugMode: 'final' | 'massing';
       presentation: 'final' | 'no-post';
+      lightingMode: LineupLightingMode;
       rendererBackend: string;
       viewport: readonly [number, number];
       dpr: number;
@@ -70,6 +72,9 @@ const cameraBookmark = requestedCamera === 'near' || requestedCamera === 'far'
   : 'design';
 const architectureDebugMode = lineupParams.get('debug') === 'massing' ? 'massing' : 'final';
 const presentationMode = lineupParams.get('presentation') === 'no-post' ? 'no-post' : 'final';
+const lightingMode: LineupLightingMode = lineupParams.get('lighting') === 'neutral-proof'
+  ? 'neutral-proof'
+  : 'production-parity';
 const requestedYawParam = lineupParams.get('yaw');
 const requestedYaw = requestedYawParam === null ? Number.NaN : Number(requestedYawParam);
 const authoredBuildingYaw = Number.isFinite(requestedYaw) ? requestedYaw : -0.1;
@@ -264,7 +269,6 @@ labels.style.gridTemplateColumns = `repeat(${COLS}, minmax(0, 1fr))`;
 labels.style.gridTemplateRows = `repeat(${ROWS}, minmax(0, 1fr))`;
 
 const rendererBackend = await createPreferredRenderer();
-await preloadAuthoredArchitectureModels(rendererBackend.maxAnisotropy);
 const renderer = rendererBackend.renderer as unknown as THREE.WebGLRenderer;
 configureRendererFrameStats(renderer.info);
 let lastRendererFrameStats: RendererFrameStats = {
@@ -278,6 +282,8 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = presentationMode === 'no-post'
   ? THREE.NoToneMapping
   : THREE.ACESFilmicToneMapping;
+// SceneManager's settled daytime exposure starts at 1.08. Keep the no-post
+// proof ungraded while matching the production presentation for final views.
 renderer.toneMappingExposure = presentationMode === 'no-post' ? 1 : 1.08;
 root.prepend(renderer.domElement);
 
@@ -405,6 +411,7 @@ const views = viewSpecs.map((spec) => {
     });
   }
   const scene = new THREE.Scene();
+  scene.userData.buildingLineupLightingMode = lightingMode;
   scene.background = new THREE.Color(0xa6b29a);
   scene.fog = new THREE.Fog(
     0xa6b29a,
@@ -417,7 +424,9 @@ const views = viewSpecs.map((spec) => {
   building.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh) return;
-    mesh.castShadow = true;
+    // Production parity preserves the generator's deliberately sparse detail
+    // caster set. Neutral proof retains the old all-caster inspection mode.
+    if (lightingMode === 'neutral-proof') mesh.castShadow = true;
     mesh.receiveShadow = true;
   });
   scene.add(building);
@@ -453,11 +462,37 @@ const views = viewSpecs.map((spec) => {
   path.receiveShadow = true;
   scene.add(path);
 
-  scene.add(new THREE.HemisphereLight(0xdbe5df, 0x4c3b2b, 2.25));
-  const sun = new THREE.DirectionalLight(0xfff0cf, 3.25);
-  sun.position.set(-12, 20, 13);
+  const productionSunDirection = new THREE.Vector3().setFromSphericalCoords(
+    1,
+    THREE.MathUtils.degToRad(43),
+    THREE.MathUtils.degToRad(225),
+  );
+  const sun = lightingMode === 'production-parity'
+    ? new THREE.DirectionalLight(0xffefd2, 5.2)
+    : new THREE.DirectionalLight(0xfff0cf, 3.25);
+  if (lightingMode === 'production-parity') {
+    scene.add(
+      new THREE.HemisphereLight(0xd9e8ec, 0x59634f, 1.55),
+      new THREE.AmbientLight(0xb8c8d2, 0.18),
+    );
+    sun.name = 'Sun';
+    sun.position.copy(productionSunDirection).multiplyScalar(180);
+    const fill = new THREE.DirectionalLight(0xa8c6d8, 0.34);
+    fill.name = 'Sky fill';
+    fill.position.copy(productionSunDirection).multiplyScalar(-90).add(new THREE.Vector3(0, 65, 0));
+    scene.add(fill);
+  } else {
+    scene.add(new THREE.HemisphereLight(0xdbe5df, 0x4c3b2b, 2.25));
+    sun.position.set(-12, 20, 13);
+  }
   sun.castShadow = true;
-  sun.shadow.mapSize.set(512, 512);
+  const shadowMapSize = lightingMode === 'production-parity' ? 2048 : 512;
+  sun.shadow.mapSize.set(shadowMapSize, shadowMapSize);
+  if (lightingMode === 'production-parity') {
+    sun.shadow.bias = -0.00008;
+    sun.shadow.normalBias = 0.008;
+    sun.shadow.radius = 1.8;
+  }
   sun.shadow.camera.left = -18;
   sun.shadow.camera.right = 18;
   sun.shadow.camera.top = 18;
@@ -622,6 +657,7 @@ window.__BUILDING_LINEUP_METRICS__ = {
   camera: cameraBookmark,
   debugMode: architectureDebugMode,
   presentation: presentationMode,
+  lightingMode,
   rendererBackend: rendererBackend.kind,
   viewport: [root.clientWidth, root.clientHeight],
   dpr: renderer.getPixelRatio(),
@@ -637,6 +673,7 @@ window.__BUILDING_LINEUP_METRICS__ = {
 document.body.dataset.lineupMetrics = JSON.stringify(window.__BUILDING_LINEUP_METRICS__);
 document.body.dataset.ready = 'true';
 document.body.dataset.rendererBackend = rendererBackend.kind;
+document.body.dataset.lightingMode = lightingMode;
 window.addEventListener('resize', render);
 
 function createServiceCoveragePreview(

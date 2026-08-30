@@ -73,6 +73,7 @@ import {
   lilyPadShorePresence,
 } from '../src/rivers/RiverLilyPads.ts';
 import {
+  computeShoreStoneClusterDensity,
   computeShoreStoneMoss,
   computeShoreStoneTint,
   computeShoreStoneVisualScale,
@@ -296,9 +297,14 @@ assert.ok(stoneVisualA >= 0.58 && stoneVisualA <= 1.2);
 assert.ok(stoneVisualB >= 0.58 && stoneVisualB <= 1.2);
 assert.notEqual(stoneVisualA, stoneVisualB);
 const stoneTint = computeShoreStoneTint(12, -8);
-assert.ok(stoneTint >= 0.5 && stoneTint <= 0.88);
+assert.ok(stoneTint >= 0.74 && stoneTint <= 0.98);
 const stoneMoss = computeShoreStoneMoss(12, -8);
 assert.ok(stoneMoss >= 0 && stoneMoss <= 1);
+const stoneClusterA = computeShoreStoneClusterDensity(12, -8);
+const stoneClusterB = computeShoreStoneClusterDensity(125, 81);
+assert.ok(stoneClusterA >= 0 && stoneClusterA <= 1);
+assert.ok(stoneClusterB >= 0 && stoneClusterB <= 1);
+assert.notEqual(stoneClusterA, stoneClusterB);
 const stoneVariation = computeShoreStoneVisualVariation(12, -8);
 assert.ok(stoneVariation.aspect >= 0.64 && stoneVariation.aspect <= 1.5);
 assert.ok(stoneVariation.height >= 0.72 && stoneVariation.height <= 1.22);
@@ -330,10 +336,10 @@ assert.equal(
   RIVER_WATER_TRANSMISSION,
   'the water film must retain controlled physical transmission',
 );
-assert.equal(material.transmission, 0.7);
+assert.equal(material.transmission, 0.74);
 assert.equal(material.thickness, 0.65);
 assert.equal(material.attenuationDistance, RIVER_WATER_ATTENUATION_DISTANCE);
-assert.equal(material.attenuationDistance, 1.9);
+assert.equal(material.attenuationDistance, 2.65);
 assert.equal(
   RIVER_DEEP_BACKDROP_STABILITY,
   1,
@@ -365,8 +371,8 @@ assert.ok(
   'sheltered open water must remain calmer than a directional current',
 );
 assert.ok(RIVER_SKY_RETURN_STRENGTH >= 0.15 && RIVER_SKY_RETURN_STRENGTH <= 0.17);
-assert.equal(material.roughness, 0.3);
-assert.equal(material.specularIntensity, 0.5);
+assert.equal(material.roughness, 0.285);
+assert.equal(material.specularIntensity, 0.54);
 assert.ok(material.normalNode, 'analytic water bands must drive the physical surface normal');
 assert.ok(material.roughnessNode, 'resolved facets must modulate reflected highlight roughness');
 assert.equal(
@@ -380,6 +386,7 @@ assert.deepEqual(material.userData.waterDebugModes, [
   'fresnel',
   'surface-response',
   'flow-presence',
+  'foam-field',
 ]);
 const finalWaterColorNode = material.colorNode;
 setSharedRiverWaterDebugMode('normal');
@@ -387,6 +394,8 @@ assert.notEqual(material.colorNode, finalWaterColorNode);
 setSharedRiverWaterDebugMode('surface-response');
 assert.notEqual(material.colorNode, finalWaterColorNode);
 setSharedRiverWaterDebugMode('flow-presence');
+assert.notEqual(material.colorNode, finalWaterColorNode);
+setSharedRiverWaterDebugMode('foam-field');
 assert.notEqual(material.colorNode, finalWaterColorNode);
 setSharedRiverWaterDebugMode('final');
 assert.equal(material.colorNode, finalWaterColorNode);
@@ -651,9 +660,9 @@ assert.match(
 disposeSharedRiverWaterMaterial();
 const restoredMaterial = getSharedRiverWaterMaterial(shoreMaps);
 assert.equal(restoredMaterial.name, 'RiverWaterMaterial');
-assert.equal(restoredMaterial.transmission, 0.7);
-assert.equal(restoredMaterial.attenuationDistance, 1.9);
-assert.equal(restoredMaterial.roughness, 0.3);
+assert.equal(restoredMaterial.transmission, 0.74);
+assert.equal(restoredMaterial.attenuationDistance, 2.65);
+assert.equal(restoredMaterial.roughness, 0.285);
 assert.ok(restoredMaterial.positionNode, 'the restored material must keep animated river motion');
 assert.ok(restoredMaterial.normalNode, 'the restored material must keep analytic surface normals');
 

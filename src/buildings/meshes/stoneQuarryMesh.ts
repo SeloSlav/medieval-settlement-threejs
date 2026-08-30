@@ -40,7 +40,7 @@ type MiningCampPlan = {
   placements: readonly MiningCampPlacement[];
 };
 
-/** Serializable mass-and-module plan compiled below into the authored camp mesh. */
+/** Serializable mass-and-module plan compiled below into the procedural camp mesh. */
 const MINING_CAMP_PLAN: MiningCampPlan = Object.freeze({
   semanticRole: 'general-surface-extraction-camp',
   silhouette: 'day-work-shelter-and-sorting-yard',

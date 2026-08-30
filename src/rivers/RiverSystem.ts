@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { MeshStandardNodeMaterial } from 'three/webgpu';
+import { attribute, float, mix, normalMap, pow, texture, uv, vec2, vec3 } from 'three/tsl';
 import type { BuildingTerrainSource } from '../buildings/BuildingTerrainLayout.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import {
@@ -19,6 +20,13 @@ import type { Point2 } from '../utils/polygonGeometry.ts';
 import type { RendererBackendKind } from '../scene/RendererBackend.ts';
 import { isReedZoomActive } from '../grass/grassLodMath.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
+
+type TslNode = {
+  mul(value: TslNode | number): TslNode;
+  x: TslNode;
+  r: TslNode;
+  rgb: TslNode;
+};
 
 function createPropShadowMaterials(): {
   shadowCast: THREE.MeshStandardMaterial;
@@ -73,6 +81,9 @@ export async function createRiverSystem(
   group.name = 'River system';
 
   const rockMaterial = createRiverRockMaterial(rockTextures);
+  if (riverField.layout.terrainPreset === 'kupa_valley') {
+    configureRiverCarbonateBankMaterial(bankMaterial, rockTextures);
+  }
   const rockShadowMaterials = createPropShadowMaterials();
   const waterController = createRiverWaterMesh(group, terrain, riverField);
   const reedsGroup = new THREE.Group();
@@ -186,12 +197,54 @@ function createRiverRockMaterial(rockTextures: RockTextureSet<'river'>): THREE.M
     map: rockTextures.map,
     normalMap: rockTextures.normalMap,
     roughnessMap: rockTextures.roughnessMap,
-    color: 0xb0aea0,
-    roughness: 0.92,
+    aoMap: rockTextures.aoMap,
+    color: 0xf0eee5,
+    roughness: 0.88,
     metalness: 0,
+    vertexColors: true,
   });
-  material.normalScale.set(0.55, 0.55);
+  material.normalScale.set(0.62, 0.62);
+  material.aoMapIntensity = 0.72;
   return material;
+}
+
+function configureRiverCarbonateBankMaterial(
+  material: MeshStandardNodeMaterial,
+  rockTextures: RockTextureSet<'river'>,
+): void {
+  const bankUv = uv() as unknown as TslNode;
+  const mineralUv = attribute('uv1', 'vec2') as unknown as TslNode;
+  const mineralSample = texture(rockTextures.map, mineralUv as never) as unknown as TslNode;
+  const wetEdge = pow(bankUv.x, float(1.38)) as unknown as TslNode;
+  const paleCarbonate = mineralSample.rgb.mul(vec3(1.02, 1.01, 0.96) as unknown as TslNode);
+  const waterlineMoss = mineralSample.rgb.mul(vec3(0.32, 0.45, 0.24) as unknown as TslNode);
+  material.name = 'Kupa pale carbonate and moss river bank';
+  material.colorNode = mix(
+    paleCarbonate as never,
+    waterlineMoss as never,
+    wetEdge.mul(0.72) as never,
+  );
+  material.normalNode = normalMap(
+    texture(rockTextures.normalMap, mineralUv as never),
+    vec2(0.62, 0.62),
+  );
+  const roughSample = (texture(
+    rockTextures.roughnessMap,
+    mineralUv as never,
+  ) as unknown as TslNode).r;
+  material.roughnessNode = mix(
+    roughSample as never,
+    float(0.54),
+    wetEdge.mul(0.58) as never,
+  );
+  if (rockTextures.aoMap) {
+    material.aoNode = (texture(
+      rockTextures.aoMap,
+      mineralUv as never,
+    ) as unknown as TslNode).r as never;
+  }
+  material.userData.riverBankSurface = 'pale-carbonate-waterline-moss';
+  material.needsUpdate = true;
 }
 
 function mulberry32(seed: number): () => number {

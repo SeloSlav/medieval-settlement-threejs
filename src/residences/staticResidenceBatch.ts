@@ -4,6 +4,7 @@ import {
   batchStaticOpaqueMeshes,
   type StaticBuildingBatchStats,
 } from '../buildings/staticBuildingBatch.ts';
+import { isProceduralRuntimeOwned } from '../buildings/proceduralArchitecture/runtimeOwnership.ts';
 
 const DYNAMIC_RESIDENCE_NAMES = new Set([
   'ChimneyEmitter',
@@ -135,7 +136,9 @@ export function isDynamicResidenceBatchBoundary(
   object: THREE.Object3D,
   windowMaterial?: THREE.Material,
 ): boolean {
-  return object.userData.fpNoCollision === true
+  return isProceduralRuntimeOwned(object)
+    || object.userData.buildingDetailCasterBatch === true
+    || object.userData.fpNoCollision === true
     || object.userData.fpCollisionAggregate === true
     || object.userData.fpCollisionChildrenOnly === true
     || object.userData.revealAt !== undefined

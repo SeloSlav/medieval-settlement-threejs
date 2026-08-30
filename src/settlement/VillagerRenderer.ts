@@ -1755,8 +1755,6 @@ export class VillagerRenderer {
     this.combatAudioSourceWorkspace.raiders.length = 0;
     this.combatAudioSourceWorkspace.sources.length = 0;
     this.combatAudioSourceWorkspace.sourcePool.length = 0;
-    this.combatAudioSourceWorkspace.sourceFirstIds.length = 0;
-    this.combatAudioSourceWorkspace.sourceSecondIds.length = 0;
     this.activityAudio.dispose();
     this.farmWorkerSongAudio.dispose();
     this.combatAudio.dispose();
@@ -2431,6 +2429,9 @@ export class VillagerRenderer {
         health: visual.state.health,
         x: visual.displayX,
         z: visual.displayZ,
+        attackCooldown: visual.state.attackCooldown,
+        issuedPolearms: visual.state.issuedPolearms,
+        targetKind: visual.state.targetKind,
       };
       this.combatAudioFighterPool.push(fighter);
     } else {
@@ -2440,6 +2441,9 @@ export class VillagerRenderer {
       fighter.health = visual.state.health;
       fighter.x = visual.displayX;
       fighter.z = visual.displayZ;
+      fighter.attackCooldown = visual.state.attackCooldown;
+      fighter.issuedPolearms = visual.state.issuedPolearms;
+      fighter.targetKind = visual.state.targetKind;
     }
     this.combatAudioFighters.push(fighter);
   }

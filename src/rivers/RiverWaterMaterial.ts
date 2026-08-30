@@ -81,7 +81,8 @@ export type RiverWaterDebugMode =
   | 'normal'
   | 'fresnel'
   | 'surface-response'
-  | 'flow-presence';
+  | 'flow-presence'
+  | 'foam-field';
 
 /**
  * Perceptual controls for the bounded, normal-only water tier.
@@ -108,15 +109,18 @@ export const RIVER_WATER_SURFACE_STYLE = {
 } as const;
 
 const riverNightAmount = uniform(0) as ScalarUniform;
-const WATER_FOAM_COLOR = vec3(0.43, 0.61, 0.56) as TslNode;
-const MENISCUS_COLOR = vec3(0.46, 0.64, 0.59) as TslNode;
-const SHALLOW_WATER_TINT = vec3(0.07, 0.29, 0.32) as TslNode;
-const DEEP_WATER_TINT = vec3(0.025, 0.095, 0.115) as TslNode;
-const DEEP_WATER_LIGHT_TINT = vec3(0.045, 0.16, 0.19) as TslNode;
+const WATER_FOAM_COLOR = vec3(0.91, 0.95, 0.92) as TslNode;
+const MENISCUS_COLOR = vec3(0.54, 0.7, 0.64) as TslNode;
+// Clear emerald-turquoise family sampled from the upper Kupa visual target.
+// It stays green rather than drifting toward the saturated Adriatic palette.
+const SHALLOW_WATER_TINT = vec3(0.045, 0.34, 0.3) as TslNode;
+const DEEP_WATER_TINT = vec3(0.018, 0.13, 0.12) as TslNode;
+const DEEP_WATER_LIGHT_TINT = vec3(0.035, 0.22, 0.19) as TslNode;
 const COASTAL_SHALLOW_WATER_TINT = vec3(0.045, 0.245, 0.34) as TslNode;
 const COASTAL_DEEP_WATER_TINT = vec3(0.018, 0.078, 0.155) as TslNode;
 const COASTAL_DEEP_WATER_LIGHT_TINT = vec3(0.035, 0.145, 0.235) as TslNode;
 const SHORE_FOAM_MAX = 0.16;
+const RAPID_FOAM_MAX = 0.68;
 export const RIVER_WATER_TRANSMISSION = RIVER_WATER_PROFILE.transmission;
 export const RIVER_WATER_ATTENUATION_DISTANCE = RIVER_WATER_PROFILE.attenuationDistance;
 export const RIVER_DEEP_BACKDROP_STABILITY = 1;
@@ -316,19 +320,26 @@ function buildRiverWaterShaderNodes(
   profile: WaterSurfaceProfile,
 ) {
   const simDeltaAttr = attribute('simDelta', 'float') as TslNode;
+  const vertexFeather = attribute('featherAlpha', 'float') as TslNode;
   const position = positionLocal as TslNode;
   const worldPos = positionWorld as TslNode;
   const frameTime = worldAnimationTime as unknown as TslNode;
 
   const shoreSample = texture(shoreMaps.shoreTexture, buildWorldShoreUv(shoreMaps)) as TslNode;
-  const featherSample = shoreSample.r;
-  const foamBaseAttr = shoreSample.g;
+  // The vertex attribute is clipped against the exact analytic shoreline.
+  // Taking the tighter of it and the packed organic field preserves the soft
+  // edge without letting a coarse texture terminate as a hard opaque strip.
+  const featherSample = min(shoreSample.r, vertexFeather) as TslNode;
+  const rapidFoamSource = shoreSample.g;
   const { flowDirX, flowDirZ, flowPresence } = decodeFlowDirection(shoreSample);
 
   const wx = worldPos.x;
   const wz = worldPos.z;
   const { flowAlong, flowCross } = buildFlowCoordinates(wx, wz, flowDirX, flowDirZ);
-  const shoreMask = pow(foamBaseAttr, float(1.05) as TslNode) as TslNode;
+  const shoreMask = sub(
+    float(1) as TslNode,
+    pow(featherSample, float(0.78) as TslNode) as TslNode,
+  ) as TslNode;
   // Compress the signed-distance ramp to an edge-only visual margin so the
   // channel settles quickly into one continuous body.
   const shallowFactor = pow(
@@ -412,8 +423,9 @@ function buildRiverWaterShaderNodes(
       .xyz,
   ) as TslNode;
 
-  // Shore foam is confined to the meniscus and uses crossed world-space
-  // phases, so it never becomes another set of map-wide current ribbons.
+  // Open-water/coastal shore break stays confined to the meniscus. River
+  // whitewater uses the separately baked rock/riffle source below, avoiding a
+  // continuous decorative foam outline around quiet banks.
   const foamWarp = (sin(
     wx.mul(0.037).sub(wz.mul(0.029)).add(frameTime.mul(0.11)) as TslNode,
   ) as TslNode).mul(0.58) as TslNode;
@@ -426,8 +438,8 @@ function buildRiverWaterShaderNodes(
   const foamPulse = (sin(
     wx.mul(0.07).sub(wz.mul(0.41)).add(foamWarp.mul(0.34)).add(frameTime.mul(0.25)) as TslNode,
   ) as TslNode).mul(0.5).add(0.5) as TslNode;
-  const shoreBreakScale = 0.72 + profile.shoreBreakStrength * 0.78;
-  const foamStrength = min(
+  const shoreBreakScale = profile.shoreBreakStrength * 1.5;
+  const shoreFoamStrength = min(
     float(SHORE_FOAM_MAX * (0.82 + profile.shoreBreakStrength * 0.93)) as TslNode,
     (pow(shallowFactor, float(1.05) as TslNode) as TslNode).mul(
       (float(0.02) as TslNode)
@@ -437,6 +449,90 @@ function buildRiverWaterShaderNodes(
         .mul(shoreBreakScale) as TslNode,
     ) as TslNode,
   ) as TslNode;
+
+  // The packed source owns the contact/split-wake silhouette. Within it, two
+  // derivative-filtered longitudinal filaments curl in the local current
+  // frame. Their parcel mask advects downstream, breaking the strands into
+  // travelling cells instead of the former evenly spaced transverse bars.
+  const advectedAlong = flowAlong.sub(frameTime.mul(1.72)) as TslNode;
+  const slowCurl = (sin(
+    advectedAlong
+      .mul(0.19)
+      .add(flowCross.mul(0.055))
+      .add(frameTime.mul(0.07)) as TslNode,
+  ) as TslNode).mul(0.68) as TslNode;
+  const curledCross = flowCross
+    .add(slowCurl)
+    .add((sin(
+      advectedAlong.mul(0.071).sub(frameTime.mul(0.13)) as TslNode,
+    ) as TslNode).mul(0.31)) as TslNode;
+
+  const primaryFilamentPhase = curledCross
+    .mul(1.16)
+    .add((sin(
+      advectedAlong.mul(0.27).add(frameTime.mul(0.09)) as TslNode,
+    ) as TslNode).mul(0.86)) as TslNode;
+  const primaryFilamentAa = fwidth(primaryFilamentPhase).mul(0.32) as TslNode;
+  const primaryFilament = sub(
+    float(1) as TslNode,
+    smoothstep(
+      primaryFilamentAa.mul(0.25).add(0.035) as TslNode,
+      primaryFilamentAa.add(0.43) as TslNode,
+      abs(sin(primaryFilamentPhase) as TslNode) as TslNode,
+    ) as TslNode,
+  ) as TslNode;
+
+  const secondaryFilamentPhase = curledCross
+    .mul(2.41)
+    .sub(advectedAlong.mul(0.082))
+    .add((sin(
+      advectedAlong.mul(0.43).sub(frameTime.mul(0.19)) as TslNode,
+    ) as TslNode).mul(0.52)) as TslNode;
+  const secondaryFilamentAa = fwidth(secondaryFilamentPhase).mul(0.28) as TslNode;
+  const secondaryFilament = sub(
+    float(1) as TslNode,
+    smoothstep(
+      secondaryFilamentAa.mul(0.2).add(0.025) as TslNode,
+      secondaryFilamentAa.add(0.35) as TslNode,
+      abs(sin(secondaryFilamentPhase) as TslNode) as TslNode,
+    ) as TslNode,
+  ) as TslNode;
+
+  const parcelWarp = (sin(
+    advectedAlong.mul(0.16).add(curledCross.mul(0.31)) as TslNode,
+  ) as TslNode).mul(0.9) as TslNode;
+  const parcelA = (sin(
+    advectedAlong.mul(0.74).add(parcelWarp) as TslNode,
+  ) as TslNode).mul(0.5).add(0.5) as TslNode;
+  const parcelB = (sin(
+    advectedAlong
+      .mul(1.31)
+      .sub(curledCross.mul(0.23))
+      .sub(parcelWarp.mul(0.37)) as TslNode,
+  ) as TslNode).mul(0.5).add(0.5) as TslNode;
+  const travellingParcels = smoothstep(
+    float(0.22) as TslNode,
+    float(0.83) as TslNode,
+    parcelA.mul(0.58).add(parcelB.mul(0.42)) as TslNode,
+  ) as TslNode;
+  const filamentLace = max(
+    primaryFilament.mul(0.82) as TslNode,
+    secondaryFilament.mul(0.57) as TslNode,
+  ) as TslNode;
+  const mobileRapidFoam = pow(
+    filamentLace
+      .mul((float(0.26) as TslNode).add(travellingParcels.mul(0.74)) as TslNode)
+      .add((pow(rapidFoamSource, float(2.6) as TslNode) as TslNode).mul(0.16)) as TslNode,
+    float(1.18) as TslNode,
+  ) as TslNode;
+  const rapidFoamStrength = min(
+    float(RAPID_FOAM_MAX) as TslNode,
+    (pow(rapidFoamSource, float(0.92) as TslNode) as TslNode)
+      .mul(flowPresence)
+      .mul((float(0.025) as TslNode).add(mobileRapidFoam.mul(0.975)) as TslNode)
+      .mul(float(0.88) as TslNode) as TslNode,
+  ) as TslNode;
+  const foamStrength = max(shoreFoamStrength, rapidFoamStrength) as TslNode;
 
   const viewDir = normalize((cameraPosition as TslNode).sub(worldPos) as TslNode) as TslNode;
   const viewDotUp = abs(dot(viewDir, vec3(0, 1, 0) as TslNode) as TslNode) as TslNode;
@@ -591,6 +687,7 @@ function buildRiverWaterShaderNodes(
     fresnel: vec3(fresnel, fresnel, fresnel) as TslNode,
     'surface-response': vec3(flowFacet, openWaterFacet, aaCoverage) as TslNode,
     'flow-presence': vec3(flowPresence, openWaterPresence, shallowFactor) as TslNode,
+    'foam-field': vec3(rapidFoamSource, foamStrength, shoreMask) as TslNode,
   };
 
   return {
@@ -667,7 +764,9 @@ export function getSharedRiverWaterMaterial(
     'fresnel',
     'surface-response',
     'flow-presence',
+    'foam-field',
   ] satisfies RiverWaterDebugMode[];
+  material.userData.channelRockCount = shoreMaps.channelRockCount ?? 0;
   sharedWaterMaterial = material;
   sharedShoreMaps = shoreMaps;
   sharedWaterProfile = profile;

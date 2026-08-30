@@ -17,6 +17,21 @@ export const MILITARY_EQUIPMENT_KINDS = [
 
 export type MilitaryEquipmentKind = (typeof MILITARY_EQUIPMENT_KINDS)[number];
 
+const MILITARY_EQUIPMENT_KIND_SET: ReadonlySet<string> = new Set(
+  MILITARY_EQUIPMENT_KINDS,
+);
+
+/**
+ * Narrows the unified worker-tool catalog to persistent combat equipment.
+ * Military kits remain bone-mounted throughout their owner's animation
+ * lifecycle; hiding or detaching one must be an explicit gameplay event.
+ */
+export function isMilitaryEquipmentKind(
+  kind: string,
+): kind is MilitaryEquipmentKind {
+  return MILITARY_EQUIPMENT_KIND_SET.has(kind);
+}
+
 export type MilitaryEquipmentMountSource = {
   scene: THREE.Group;
   bounds: THREE.Box3;

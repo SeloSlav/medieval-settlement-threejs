@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { isProceduralRuntimeOwned } from './proceduralArchitecture/runtimeOwnership.ts';
 
 export type StaticBuildingBatchStats = {
   readonly sourceDraws: number;
@@ -55,7 +56,8 @@ const DYNAMIC_BUILDING_NAME_PARTS = [
  */
 export function isDynamicBuildingBatchBoundary(object: THREE.Object3D): boolean {
   if (
-    object.userData.fpNoCollision === true
+    isProceduralRuntimeOwned(object)
+    || object.userData.fpNoCollision === true
     || object.userData.fpCollisionAggregate === true
     || object.userData.fpCollisionChildrenOnly === true
     || object.userData.foundersCampWinterAccumulation === true

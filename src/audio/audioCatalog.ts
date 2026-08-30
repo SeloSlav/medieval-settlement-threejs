@@ -30,7 +30,19 @@ export type WorkerActivitySoundKind =
   | 'forage'
   | 'livestock';
 
-export type CombatAudioSoundKind = 'pike' | 'voices';
+/**
+ * Isolated, automatically scheduled combat Foley only. Spoken lines and
+ * vocal barks deliberately do not belong in this catalog.
+ */
+export type CombatAudioSoundKind =
+  | 'spear-pike'
+  | 'sword-sidearm'
+  | 'halberd-polearm'
+  | 'bow'
+  | 'crossbow'
+  | 'arquebus'
+  | 'shield-armor'
+  | 'charge';
 
 export type UiSoundId =
   | 'road_place'
@@ -184,11 +196,14 @@ export const COMBAT_AUDIO_CLIPS: Record<
   CombatAudioSoundKind,
   readonly AudioClipDefinition[]
 > = {
-  pike: combatVariants('pike_melee', 4, 0.2),
-  voices: Array.from({ length: 6 }, (_, index) => ({
-    path: `/sounds/combat/selo/person_attack_${index + 1}.mp3`,
-    volume: 0.12,
-  })),
+  'spear-pike': combatVariants('pike_melee', 4, 0.2),
+  'sword-sidearm': combatVariants('sword_sidearm_melee', 4, 0.18),
+  'halberd-polearm': combatVariants('halberd_polearm_melee', 4, 0.19),
+  bow: combatVariants('bow_attack', 3, 0.16),
+  crossbow: combatVariants('crossbow_attack', 3, 0.17),
+  arquebus: combatVariants('arquebus_attack', 3, 0.16),
+  'shield-armor': combatVariants('shield_armor_impact', 4, 0.16),
+  charge: combatVariants('formation_charge', 3, 0.14),
 };
 
 export const COMBAT_DEATH_CLIPS = {

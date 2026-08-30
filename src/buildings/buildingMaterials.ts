@@ -134,8 +134,8 @@ const MATERIAL_DEFINITIONS: Record<BuildingMaterialKey, MaterialDefinition> = {
   stackedTimber: { color: 0xc09269, roughness: 0.95, metalness: 0, atlasTile: 'stacked-log-wall', atlasMetersPerTile: 2, atlasTintStrength: 0.18, textureFamily: 'woodPlanks', normalScale: 0.76, weathering: 'timber', uniformIndirectLight: true },
   clayRed: { color: 0xffffff, roughness: 0.84, metalness: 0.01, atlasTile: 'clay-roof-tiles', atlasMetersPerTile: 2.2, atlasTintStrength: 0, textureFamily: 'clayTiles', normalScale: 0.74, weathering: 'roof' },
   clayDark: { color: 0xc58f84, roughness: 0.88, metalness: 0.01, atlasTile: 'clay-roof-tiles', atlasMetersPerTile: 2.2, atlasTintStrength: 0.32, textureFamily: 'clayTiles', normalScale: 0.78, weathering: 'roof' },
-  shingle: { color: 0x928e85, roughness: 0.99, metalness: 0, atlasTile: 'split-shingles', atlasMetersPerTile: 2, atlasTintStrength: 0.28, textureFamily: 'woodPlanks', normalScale: 1.05, weathering: 'shingle', useDiffuseMap: false, uniformIndirectLight: true },
-  thatch: { color: GORSKI_PALETTE.thatch, roughness: 1, metalness: 0, atlasTile: 'thatch-roof', atlasMetersPerTile: 1.4, atlasTintStrength: 0.22, normalScale: 0.62, weathering: 'thatch', uniformIndirectLight: true },
+  shingle: { color: 0x928e85, roughness: 0.99, metalness: 0, atlasTile: 'split-shingles', atlasMetersPerTile: 2.2, atlasTintStrength: 0.28, textureFamily: 'woodPlanks', normalScale: 1.05, weathering: 'shingle', useDiffuseMap: false, uniformIndirectLight: true },
+  thatch: { color: GORSKI_PALETTE.thatch, roughness: 1, metalness: 0, atlasTile: 'thatch-roof', atlasMetersPerTile: 1.6, atlasTintStrength: 0.22, normalScale: 0.62, weathering: 'thatch', uniformIndirectLight: true },
   slate: { color: 0x737980, roughness: 0.91, metalness: 0.02, atlasTile: 'slate-roof', atlasMetersPerTile: 2.2, atlasTintStrength: 0.24, textureFamily: 'masonry', normalScale: 0.48, weathering: 'roof' },
   metalIron: { color: 0x4a4846, roughness: 0.55, metalness: 0.72, atlasTile: 'wrought-iron', atlasMetersPerTile: 1.2, atlasTintStrength: 0.18, normalScale: 0.54 },
   glass: { color: 0x3d4747, roughness: 0.4, metalness: 0.03 },
@@ -324,7 +324,7 @@ function applyTextureSet(material: BuildingAtlasMaterial, definition: MaterialDe
 }
 
 const SPLIT_SHINGLE_TEXTURE_SIZE = 256;
-const SPLIT_SHINGLE_TILE_METERS = 2;
+const SPLIT_SHINGLE_TILE_METERS = 2.2;
 const SPLIT_SHINGLE_COURSES_PER_TILE = 6;
 const SPLIT_SHINGLE_WIDTH_METERS = 0.4;
 const SPLIT_SHINGLE_BUTT_LENGTH_VARIATION = 0.1;
@@ -352,7 +352,7 @@ function configureSplitWoodShingleSurface(
 /**
  * A small, deterministic albedo tile makes short split shingles legible on
  * both WebGL and WebGPU without adding a material permutation or draw call.
- * Metric UVs keep the 0.33 m courses and 0.4 m butts consistent on roof
+ * Metric UVs keep the 0.37 m courses and 0.4 m butts consistent on roof
  * planes, merged course boards, ridge caps, and porch roofs.
  */
 function getSplitWoodShingleMap(): THREE.DataTexture {
@@ -554,14 +554,21 @@ export function addMesh(
   rotation = new THREE.Euler(),
   scale = new THREE.Vector3(1, 1, 1),
 ): THREE.Mesh {
-  const preparedGeometry = prepareBuildingGeometryUvs(geometry, material);
+  const hasScale = scale.x !== 1 || scale.y !== 1 || scale.z !== 1;
+  // Metric UVs must see final world dimensions. Baking the authored scale into
+  // a private geometry copy prevents a six-metre member made from a unit box
+  // from receiving one-metre texture density, while preserving reusable source
+  // geometries and leaving later runtime scale animation available.
+  const dimensionedGeometry = hasScale ? geometry.clone() : geometry;
+  if (hasScale) dimensionedGeometry.scale(scale.x, scale.y, scale.z);
+  const preparedGeometry = prepareBuildingGeometryUvs(dimensionedGeometry, material);
   const mesh = new THREE.Mesh(
     applyBuildingWeatheringVertexColors(preparedGeometry, material),
     material,
   );
   mesh.position.copy(position);
   mesh.rotation.copy(rotation);
-  mesh.scale.copy(scale);
+  mesh.userData.metricUvScaleBaked = hasScale;
   // Detailed meshes stay off the shadow pass. Coarse footprint proxies were
   // retired because their solid silhouettes read as black ground slabs.
   mesh.castShadow = false;

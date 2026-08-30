@@ -76,10 +76,14 @@ import { riverAudioGain } from '../src/audio/RiverAudio.ts';
 import {
   buildCombatAudioSources,
   CombatAudio,
+  combatAudioLoadoutForFighter,
   combatAudioGain,
+  COMBAT_AUDIO_CHARGE_POOL_SIZE,
   COMBAT_AUDIO_CUTOFF_DISTANCE,
+  COMBAT_AUDIO_MAX_EDGE_PLAYS_PER_TICK,
   COMBAT_AUDIO_MAX_SOURCES,
   COMBAT_AUDIO_MAX_ZOOM_DISTANCE,
+  COMBAT_AUDIO_WEAPON_POOL_SIZE,
   createCombatAudioSourceWorkspace,
 } from '../src/audio/CombatAudio.ts';
 
@@ -339,6 +343,39 @@ async function main(): Promise<void> {
         `Game soundtrack must be explicitly instrumental: ${asset.id}`,
       );
     }
+  }
+
+  const combatSuiteAssets = manifest.assets.filter((asset) => (
+    asset.group === 'combat-weapon-suite-v2'
+  ));
+  invariant(
+    combatSuiteAssets.length === 24
+    && Math.abs(combatSuiteAssets.reduce(
+      (sum, asset) => sum + (asset.durationSeconds ?? 0),
+      0,
+    ) - 32.5) < 1e-9,
+    'Combat weapon suite v2 must retain its 24 isolated cues and 32.5-second cost envelope',
+  );
+  invariant(
+    combatSuiteAssets.every((asset) => (
+      asset.loop === false
+      && /no voice/i.test(asset.prompt)
+      && /no (?:shout|shouting)/i.test(asset.prompt)
+      && /no (?:chant|battle cry)/i.test(asset.prompt)
+    )),
+    'Every new combat cue must explicitly exclude speech, shouts, and chants',
+  );
+  const automaticCombatClips = Object.values(COMBAT_AUDIO_CLIPS).flat();
+  invariant(
+    automaticCombatClips.length === 28
+    && automaticCombatClips.every((clip) => !/(?:selo|person_attack|angry_fighting|voice)/i.test(clip.path)),
+    'Automatic combat playback must contain only weapon, shot, impact, and charge Foley',
+  );
+  for (const clip of automaticCombatClips) {
+    const asset = manifest.assets.find((candidate) => (
+      clip.path === `/${candidate.output.replace(/^public[\\/]/, '').replaceAll('\\', '/')}`
+    ));
+    invariant(asset, `Combat runtime clip has no manifest source: ${clip.path}`);
   }
 
   const buildingAssets = manifest.assets.filter((asset) => (
@@ -694,15 +731,57 @@ async function main(): Promise<void> {
     'melee audio must be silent at strategic overview zoom',
   );
   const engagementSources = buildCombatAudioSources([
-    { id: 'guard', faction: 'guard', status: 'fighting', health: 80, x: 0, z: 0 },
-    { id: 'raider', faction: 'raider', status: 'fighting', health: 70, x: 2, z: 0 },
+    { id: 'guard', faction: 'guard', status: 'fighting', health: 80, x: 0, z: 0, attackCooldown: 0.1, issuedPolearms: 1 },
+    { id: 'raider', faction: 'raider', status: 'fighting', health: 70, x: 2, z: 0, attackCooldown: 0.2 },
+    { id: 'crossbow', faction: 'crossbow', status: 'fighting', health: 70, x: 24, z: 0, attackCooldown: 0.3 },
+    { id: 'charge', faction: 'bowman', status: 'advancing', health: 70, x: 4, z: 0, targetKind: 'combat-agent' },
+    { id: 'ordinary-advance', faction: 'bandit', status: 'advancing', health: 70, x: 5, z: 0, targetKind: 'building' },
     { id: 'retreating', faction: 'raider', status: 'retreating', health: 40, x: 1, z: 0 },
   ]);
   invariant(
-    engagementSources.length === 1
-    && engagementSources[0]?.id === 'guard:raider',
-    'only a live opposing pair in the fighting state should emit melee sound',
+    engagementSources.length === 4
+    && engagementSources.some((source) => (
+      source.id === 'guard'
+      && source.weaponFamily === 'spear-pike'
+      && source.defensiveImpact
+    ))
+    && engagementSources.some((source) => (
+      source.id === 'raider' && source.weaponFamily === 'sword-sidearm'
+    ))
+    && engagementSources.some((source) => (
+      source.id === 'crossbow'
+      && source.weaponFamily === 'crossbow'
+      && source.x === 24
+    ))
+    && engagementSources.some((source) => (
+      source.id === 'charge' && source.phase === 'charge'
+    )),
+    'combat audio should retain melee and isolated ranged attackers plus only combat-target charges',
   );
+  invariant(
+    !engagementSources.some((source) => source.id === 'ordinary-advance'),
+    'generic advancing bandits must not emit formation-charge Foley',
+  );
+  const expectedPrimaryFamilies = new Map([
+    ['guard', 'spear-pike'],
+    ['raider', 'sword-sidearm'],
+    ['bandit', 'spear-pike'],
+    ['militia', 'spear-pike'],
+    ['spearman', 'spear-pike'],
+    ['man-at-arms', 'sword-sidearm'],
+    ['crossbow', 'crossbow'],
+    ['mercenary-spear', 'spear-pike'],
+    ['footman', 'sword-sidearm'],
+    ['polearm', 'halberd-polearm'],
+    ['bowman', 'bow'],
+    ['uskok', 'arquebus'],
+  ] as const);
+  for (const [faction, family] of expectedPrimaryFamilies) {
+    invariant(
+      combatAudioLoadoutForFighter({ faction }).primary === family,
+      `${faction} combat Foley should route to ${family}`,
+    );
+  }
   const reusableCombatFighters = [
     { id: 'Z-guard', faction: 'guard' as const, status: 'fighting' as const, health: 80, x: 0, z: 0 },
     { id: 'a-raider', faction: 'raider' as const, status: 'fighting' as const, health: 70, x: 2, z: 0 },
@@ -714,8 +793,8 @@ async function main(): Promise<void> {
   );
   const reusableCombatSource = reusableCombatSources[0];
   invariant(
-    reusableCombatSource?.id === 'Z-guard:a-raider',
-    'combat pair IDs must preserve default UTF-16 sort ordering',
+    reusableCombatSource?.id === 'Z-guard',
+    'bounded combat sources should retain stable per-fighter IDs',
   );
   reusableCombatFighters[1]!.x = 4;
   const updatedCombatSources = buildCombatAudioSources(
@@ -725,7 +804,7 @@ async function main(): Promise<void> {
   invariant(
     updatedCombatSources === reusableCombatSources
     && updatedCombatSources[0] === reusableCombatSource
-    && updatedCombatSources[0]?.x === 2,
+    && updatedCombatSources.some((source) => source.id === 'a-raider' && source.x === 4),
     'combat source workspace should reuse its result array and records while updating positions',
   );
   const reusablePairingStarted = performance.now();
@@ -737,15 +816,14 @@ async function main(): Promise<void> {
     reusablePairingElapsedMs < 250,
     `50,000 retained combat-audio source builds took ${reusablePairingElapsedMs.toFixed(1)}ms`,
   );
-  const surroundedSource = buildCombatAudioSources([
-    { id: 'guard-far', faction: 'guard', status: 'fighting', health: 80, x: 4, z: 0 },
-    { id: 'guard-near', faction: 'guard', status: 'fighting', health: 80, x: 1, z: 0 },
-    { id: 'raider-one', faction: 'raider', status: 'fighting', health: 70, x: 0, z: 0 },
+  const isolatedRangedSource = buildCombatAudioSources([
+    { id: 'bow-far', faction: 'bowman', status: 'fighting', health: 80, x: 20, z: 0, attackCooldown: 0 },
   ]);
   invariant(
-    surroundedSource.length === 1
-    && surroundedSource[0]?.id === 'guard-near:raider-one',
-    'a surrounded raider should emit one source at its nearest live opponent',
+    isolatedRangedSource.length === 1
+    && isolatedRangedSource[0]?.id === 'bow-far'
+    && isolatedRangedSource[0]?.weaponFamily === 'bow',
+    'ranged attacks must emit from their fighter even without a nearby melee pair',
   );
   const combatStressFighters = Array.from(
     { length: 100_000 },
@@ -773,16 +851,24 @@ async function main(): Promise<void> {
   const combatPairingElapsedMs = performance.now() - combatPairingStarted;
   invariant(
     combatStressSources.length === COMBAT_AUDIO_MAX_SOURCES,
-    'combat audio should retain one bounded source for every active raider',
+    'combat audio should retain an even bounded source budget across both sides',
   );
   invariant(
     combatPairingElapsedMs < 250,
-    `combat audio pairing should remain bounded with 100,000 defenders; took ${combatPairingElapsedMs.toFixed(1)}ms`,
+    `combat audio source selection should remain bounded with 100,000 defenders; took ${combatPairingElapsedMs.toFixed(1)}ms`,
   );
   const audioDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Audio');
-  const combatPlayback: Array<{ paused: boolean; plays: number; volume: number }> = [];
+  const combatPlayback: Array<{
+    paused: boolean;
+    ended: boolean;
+    plays: number;
+    volume: number;
+    playbackRate: number;
+    src: string;
+  }> = [];
   class FakeCombatAudioElement {
     paused = true;
+    ended = false;
     plays = 0;
     volume = 0;
     currentTime = 0;
@@ -814,19 +900,91 @@ async function main(): Promise<void> {
     value: FakeCombatAudioElement,
   });
   try {
-    const combatMixer = new CombatAudio();
-    combatMixer.tick(0, engagementSources, closeCombatView);
-    combatMixer.tick(0.3, engagementSources, closeCombatView);
     invariant(
-      combatPlayback.some((audio) => audio.plays > 0 && audio.volume > 0),
-      'live close-range melee should trigger a spatially attenuated one-shot',
+      COMBAT_AUDIO_WEAPON_POOL_SIZE === 18
+      && COMBAT_AUDIO_CHARGE_POOL_SIZE === 6
+      && COMBAT_AUDIO_MAX_EDGE_PLAYS_PER_TICK === 4,
+      'combat mix must keep its polyphonic pools and simultaneous-edge budget explicit and bounded',
+    );
+    const edgeSources = buildCombatAudioSources([
+      { id: 'edge-pike', faction: 'spearman', status: 'fighting', health: 80, x: 0, z: 0, attackCooldown: 0 },
+      { id: 'edge-sword', faction: 'raider', status: 'fighting', health: 80, x: 1, z: 0, attackCooldown: 0 },
+      { id: 'edge-halberd', faction: 'polearm', status: 'fighting', health: 80, x: 2, z: 0, attackCooldown: 0 },
+      { id: 'edge-bow', faction: 'bowman', status: 'fighting', health: 80, x: 3, z: 0, attackCooldown: 0 },
+      { id: 'edge-crossbow', faction: 'crossbow', status: 'fighting', health: 80, x: 4, z: 0, attackCooldown: 0 },
+      { id: 'edge-arquebus', faction: 'uskok', status: 'fighting', health: 80, x: 5, z: 0, attackCooldown: 0 },
+    ]);
+    const combatMixer = new CombatAudio();
+    combatMixer.tick(0, edgeSources, closeCombatView);
+    for (const source of edgeSources) source.attackCooldown = 1;
+    combatMixer.tick(0.016, edgeSources, closeCombatView);
+    const weaponVoices = combatPlayback.slice();
+    invariant(
+      weaponVoices.length === COMBAT_AUDIO_WEAPON_POOL_SIZE
+      && weaponVoices.filter((audio) => audio.plays > 0).length
+        === COMBAT_AUDIO_MAX_EDGE_PLAYS_PER_TICK,
+      'one update should preserve up to four real cooldown-reset attacks as overlapping voices',
+    );
+    invariant(
+      weaponVoices
+        .filter((audio) => audio.plays > 0)
+        .every((audio) => (
+          audio.volume > 0
+          && /\/sounds\/combat\/(?:pike_melee|sword_sidearm_melee|halberd_polearm_melee|bow_attack|crossbow_attack|arquebus_attack|shield_armor_impact)_\d+\.mp3/.test(audio.src)
+          && !/(?:selo|person_attack|angry_fighting|voice)/i.test(audio.src)
+        )),
+      'cooldown-edge playback must be weapon-matched and contain no spoken/chanted combat path',
+    );
+    for (let burst = 0; burst < 8; burst += 1) {
+      for (const source of edgeSources) source.attackCooldown = 0;
+      combatMixer.tick(0.016, edgeSources, closeCombatView);
+      for (const source of edgeSources) source.attackCooldown = 1;
+      combatMixer.tick(0.016, edgeSources, closeCombatView);
+    }
+    invariant(
+      weaponVoices.reduce((sum, audio) => sum + audio.plays, 0)
+        === COMBAT_AUDIO_WEAPON_POOL_SIZE
+      && weaponVoices.every((audio) => audio.plays <= 1),
+      'a saturated combat pool must drop excess events without cutting or stealing active one-shots',
     );
     combatMixer.tick(0.1, [], closeCombatView);
     invariant(
-      combatPlayback.every((audio) => audio.paused),
-      'all melee one-shots should stop as soon as the live engagement ends',
+      weaponVoices.every((audio) => audio.paused),
+      'all weapon one-shots should stop as soon as the live engagement ends',
     );
     combatMixer.dispose();
+
+    const fallbackStart = combatPlayback.length;
+    const fallbackMixer = new CombatAudio();
+    const fallbackSources = buildCombatAudioSources([
+      { id: 'fallback-raider', faction: 'raider', status: 'fighting', health: 80, x: 0, z: 0 },
+    ]);
+    fallbackMixer.tick(0, fallbackSources, closeCombatView);
+    fallbackMixer.tick(0.4, fallbackSources, closeCombatView);
+    const fallbackVoices = combatPlayback.slice(fallbackStart);
+    invariant(
+      fallbackVoices.some((audio) => audio.plays === 1),
+      'authored showcases and missed server edges need deterministic scheduled attack fallback',
+    );
+    fallbackMixer.dispose();
+
+    const chargeStart = combatPlayback.length;
+    const chargeMixer = new CombatAudio();
+    const chargeSources = buildCombatAudioSources([
+      { id: 'charge-one', faction: 'spearman', status: 'advancing', health: 80, x: 0, z: 0, targetKind: 'combat-agent' },
+      { id: 'charge-two', faction: 'raider', status: 'advancing', health: 80, x: 1, z: 0, targetKind: 'combat-agent' },
+    ]);
+    chargeMixer.tick(0, chargeSources, closeCombatView);
+    chargeMixer.tick(0.6, chargeSources, closeCombatView);
+    const chargeVoices = combatPlayback.slice(chargeStart);
+    invariant(
+      chargeVoices.length === COMBAT_AUDIO_CHARGE_POOL_SIZE
+      && chargeVoices.some((audio) => (
+        audio.plays === 1 && /\/sounds\/combat\/formation_charge_\d+\.mp3/.test(audio.src)
+      )),
+      'combat-target advances should use a separate bounded formation-charge pool',
+    );
+    chargeMixer.dispose();
   } finally {
     if (audioDescriptor) {
       Object.defineProperty(globalThis, 'Audio', audioDescriptor);

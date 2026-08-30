@@ -140,6 +140,21 @@ import { buildSettlementAnimalsView } from '../ui/settlementAnimals.ts';
 import { buildSettlementPeopleView } from '../ui/settlementPeople.ts';
 import { deriveSettlementSchedule } from '../world/settlementSchedule.ts';
 import { Vector3 } from 'three';
+import {
+  BATTLE_SHOWCASE_DURATION_SECONDS,
+  battleShowcaseCamera,
+  battleShowcasePhaseAt,
+  battleShowcaseWorldInput,
+  createBattleShowcase,
+  mergeBattleShowcaseAgents,
+  parseBattleShowcaseRequest,
+  type BattleShowcase,
+  type BattleShowcasePhase,
+} from './battleShowcase.ts';
+import {
+  isLiveBattleCaptureRequested,
+  startLiveBattleCapture,
+} from './liveBattleCapture.ts';
 
 export type AppFrameProfilePhase = 'strategic' | 'settlement' | 'road-eye';
 
@@ -224,6 +239,14 @@ export class App {
   private settlementPresentationTargets: SettlementPresentationTargets | null = null;
   private ambientAudio: AmbientAudioController | null = null;
   private startupMusic: StartupMusicController | null = null;
+  private readonly battleShowcaseRequest = import.meta.env.DEV
+    ? parseBattleShowcaseRequest(window.location.search)
+    : null;
+  private battleShowcase: BattleShowcase | null = null;
+  private battleShowcaseStartedAtMs = 0;
+  private battleShowcaseNextSyncAtMs = 0;
+  private battleShowcaseAuthoritativeAgents = new Map<string, CombatAgentState>();
+  private liveBattleCaptureStarted = false;
   private readonly visualQaConditions = import.meta.env.DEV
     ? parseVisualQaConditions(window.location.search)
     : null;
@@ -733,6 +756,7 @@ export class App {
       [...(this.gameState?.buildings.values() ?? [])]
         .some((building) => building.kind === 'founders_camp'),
     );
+    this.startBattleShowcase(session);
     if (import.meta.env.VITE_E2E_TEST !== '1') {
       // Run scene-owner handoffs inside Three's renderer lifecycle. Its common
       // animation loop advances the NodeFrame immediately before this callback,
@@ -834,6 +858,7 @@ export class App {
     const firstPersonActive = this.firstPersonController?.isActive() ?? false;
     const gameSpeed = this.spacetimeStore?.snapshot.gameSpeed ?? 1;
     const worldDt = worldAnimationDelta(dt, gameSpeed);
+    this.syncBattleShowcase(time);
     this.syncBuildInteractionPerf();
     this.frontierRiskMarkers?.tick(worldDt);
     if (this.settlementPresentationTargets) {
@@ -879,6 +904,7 @@ export class App {
         this.cameraController?.isNavigationActive() ?? false,
       );
     }
+    this.startBattleCaptureIfRequested();
     this.updateFps(time, rawDt);
     const crowdView = this.buildCrowdViewState();
     if (this.snapshotApplierDeps) {
@@ -1140,6 +1166,117 @@ export class App {
     this.fpsAccumulatedSeconds = 0;
   }
 
+  /**
+   * Starts the opt-in live battle over the connected production world. The
+   * showcase owns presentation only: authoritative server rows and the save
+   * remain untouched while terrain, SeedThree, lighting, rigs, equipment,
+   * animation, audio, and camera all stay on the ordinary game path.
+   */
+  private startBattleShowcase(session: BootstrappedSession): void {
+    if (!this.battleShowcaseRequest || this.battleShowcase || !this.gameState) return;
+    const settings = session.sceneManager.worldLayout.settings;
+    const dimensions = resolveWorldDimensions(settings.mapSize);
+    this.battleShowcase = createBattleShowcase(battleShowcaseWorldInput(
+      this.gameState,
+      {
+        playableHalf: dimensions.playableHalf,
+        getTerrainHeight: (x, z) => session.sceneManager.terrain.getHeightAt(x, z),
+        isWaterAt: (x, z) => session.sceneManager.riverField.isRenderedWetAt(x, z),
+        treeRegistry: this.treeRegistry,
+        terrainPreset: settings.terrainPreset,
+        rendererBackend: session.sceneManager.rendererBackend,
+        connectedServer: session.spacetimeStore.snapshot.connected,
+      },
+    ));
+    this.battleShowcaseStartedAtMs = performance.now();
+    this.battleShowcaseNextSyncAtMs = 0;
+    this.showcaseViewApplied = true;
+
+    const view = battleShowcaseCamera(
+      this.battleShowcase.site,
+      this.battleShowcaseRequest.shot,
+    );
+    session.cameraController.applyShowcaseView(
+      view.targetX,
+      view.targetZ,
+      view.yaw,
+      view.pitch,
+      view.distance,
+    );
+    session.cameraController.setInputEnabled(false);
+    this.syncBattleShowcase(this.battleShowcaseStartedAtMs);
+
+    const diagnostics = this.battleShowcase.diagnostics;
+    const root = document.documentElement;
+    root.dataset.battleShowcaseReady = 'true';
+    root.dataset.battleShowcasePhase = 'charge';
+    root.dataset.battleShowcaseServerConnected = String(diagnostics.connectedServer);
+    root.dataset.battleShowcaseProductionTerrain = String(diagnostics.productionTerrain);
+    root.dataset.battleShowcaseSeedThree = String(diagnostics.seedThreeForestReady);
+    root.dataset.battleShowcaseTreeCount = String(diagnostics.treeRegistryEntries);
+    root.dataset.battleShowcaseWorldSeed = String(diagnostics.worldSeed);
+    root.dataset.battleShowcaseTerrainPreset = diagnostics.terrainPreset;
+    root.dataset.battleShowcaseRenderer = diagnostics.rendererBackend;
+  }
+
+  private syncBattleShowcase(timeMs: number): void {
+    const showcase = this.battleShowcase;
+    const request = this.battleShowcaseRequest;
+    if (!showcase || !request || !this.villagers) return;
+    const elapsedSeconds = Math.max(0, (timeMs - this.battleShowcaseStartedAtMs) / 1_000);
+    const timelineSeconds = request.loop
+      ? elapsedSeconds % BATTLE_SHOWCASE_DURATION_SECONDS
+      : Math.min(elapsedSeconds, BATTLE_SHOWCASE_DURATION_SECONDS);
+    const camera = battleShowcaseCamera(showcase.site, request.shot, timelineSeconds);
+    this.cameraController?.applyShowcaseView(
+      camera.targetX,
+      camera.targetZ,
+      camera.yaw,
+      camera.pitch,
+      camera.distance,
+    );
+
+    // Keep camera motion at render cadence while limiting the heavier rig-map
+    // reconciliation. This preserves a smooth 60 fps capture without asking
+    // every actor to rebuild its animation state on every display frame.
+    if (timeMs + 0.01 < this.battleShowcaseNextSyncAtMs) return;
+    this.battleShowcaseNextSyncAtMs = timeMs + 1_000 / 15;
+
+    const phase = battleShowcasePhaseAt(timelineSeconds);
+    const agents = mergeBattleShowcaseAgents(
+      this.battleShowcaseAuthoritativeAgents,
+      showcase.sample(timelineSeconds),
+    );
+    this.villagers.setCombatAgents(agents);
+    publishBattleShowcaseFrame(showcase, phase, timelineSeconds, agents.size);
+  }
+
+  private startBattleCaptureIfRequested(): void {
+    if (
+      this.liveBattleCaptureStarted
+      || !this.battleShowcase
+      || !isLiveBattleCaptureRequested(window.location.search)
+      || this.spacetimeStore?.isConnected !== true
+      || !this.sceneManager
+    ) {
+      return;
+    }
+    const canvas = this.sceneManager.renderer.domElement;
+    if (!(canvas instanceof HTMLCanvasElement)) return;
+
+    // Align the authored thirty-second combat timeline with the first encoded
+    // video frame instead of charging during the loading-cover handoff.
+    this.liveBattleCaptureStarted = true;
+    this.battleShowcaseStartedAtMs = performance.now();
+    this.battleShowcaseNextSyncAtMs = 0;
+    this.syncBattleShowcase(this.battleShowcaseStartedAtMs);
+    void startLiveBattleCapture(canvas, {
+      filename: 'selo-empire-live-battle-30s-cinematic.webm',
+    }).catch((error: unknown) => {
+      console.error('[Live battle capture]', error);
+    });
+  }
+
   private applySpacetimeSnapshot(snapshot: SpacetimeGameSnapshot, state: GameState): void {
     if (!snapshot.connected) {
       clearAuthoritativeWorldGeneration();
@@ -1150,7 +1287,8 @@ export class App {
       this.toolbar?.setConflictEnabled(false);
       this.clearFrontierRiskFeedback();
       this.combatInspectorSignature = '';
-      this.villagers?.setCombatAgents(new Map());
+      this.battleShowcaseAuthoritativeAgents.clear();
+      if (!this.battleShowcase) this.villagers?.setCombatAgents(new Map());
       this.toolbar?.settlementHud.setSecurityState(
         snapshot.settlementSecurity,
         null,
@@ -1174,7 +1312,8 @@ export class App {
     const combatInspectorChanged =
       nextCombatInspectorSignature !== this.combatInspectorSignature;
     this.combatInspectorSignature = nextCombatInspectorSignature;
-    this.villagers?.setCombatAgents(snapshot.combatAgents);
+    this.battleShowcaseAuthoritativeAgents = new Map(snapshot.combatAgents);
+    if (!this.battleShowcase) this.villagers?.setCombatAgents(snapshot.combatAgents);
     this.banditCamps?.sync(snapshot.banditCamps.values());
     this.militiaCommands?.sync(snapshot.combatAgents, snapshot.banditCamps);
     const raidThreatActive = hasActiveRaiderThreat(snapshot.combatAgents.values());
@@ -1800,6 +1939,33 @@ export class App {
       this.crowdViewState,
     );
   }
+}
+
+function publishBattleShowcaseFrame(
+  showcase: BattleShowcase,
+  phase: BattleShowcasePhase,
+  elapsedSeconds: number,
+  visibleAgentCount: number,
+): void {
+  const root = document.documentElement;
+  root.dataset.battleShowcasePhase = phase;
+  root.dataset.battleShowcaseElapsed = elapsedSeconds.toFixed(3);
+  root.dataset.battleShowcaseVisibleAgents = String(visibleAgentCount);
+  (window as typeof window & {
+    __battleShowcase?: {
+      ready: true;
+      phase: BattleShowcasePhase;
+      elapsedSeconds: number;
+      visibleAgentCount: number;
+      diagnostics: BattleShowcase['diagnostics'];
+    };
+  }).__battleShowcase = {
+    ready: true,
+    phase,
+    elapsedSeconds,
+    visibleAgentCount,
+    diagnostics: showcase.diagnostics,
+  };
 }
 
 function isShowcaseMode(): boolean {

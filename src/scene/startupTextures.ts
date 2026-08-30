@@ -27,9 +27,9 @@ export function beginStartupTextureLoad(maxAnisotropy = DEFAULT_MAX_ANISOTROPY):
 export function beginProgressiveStartupTextureLoad(
   maxAnisotropy = DEFAULT_MAX_ANISOTROPY,
 ): Promise<SceneStartupTextures> {
-  // Match the shared mossy-rock identity during progressive loading so the
-  // scene never flashes pale river or quarry stones before hydration.
-  const riverRock = placeholderRockTextureSet('river', [95, 102, 91, 255]);
+  // Match each role's hydrated identity during progressive loading so the
+  // river cannot flash from generic dark moss to pale carbonate.
+  const riverRock = placeholderRockTextureSet('river', [196, 197, 187, 255]);
   const quarryRock = placeholderRockTextureSet('quarry', [95, 102, 91, 255]);
   const skyPerlin = placeholderTexture([128, 128, 128, 255], false);
   const textures: SceneStartupTextures = { riverRock, quarryRock, skyPerlin };

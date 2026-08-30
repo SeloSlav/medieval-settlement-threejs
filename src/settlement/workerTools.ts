@@ -4,6 +4,7 @@ import {
   attachMilitaryEquipment,
   createMilitaryEquipmentSources,
   disposeMilitaryEquipmentSource,
+  isMilitaryEquipmentKind,
   isMilitaryEquipmentSource,
   setMilitaryEquipmentVisible,
   type MilitaryEquipmentKind,
@@ -17,6 +18,8 @@ export type WorkerToolKind =
   | 'hoe'
   | 'shovel'
   | MilitaryEquipmentKind;
+
+export { isMilitaryEquipmentKind };
 
 export const WORKER_TOOL_URLS: Record<WorkerToolKind, string> = {
   hatchet: '/assets/models/worker-tools/kenney-tool-hatchet.glb',

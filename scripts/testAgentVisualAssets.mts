@@ -28,6 +28,9 @@ import {
   pickVillagerModelVariant,
 } from '../src/settlement/villagerPaths.ts';
 import {
+  MILITARY_EQUIPMENT_KINDS,
+} from '../src/settlement/militaryEquipment.ts';
+import {
   attachWorkerTool,
   createWorkerToolSource,
   type WorkerToolKind,
@@ -41,6 +44,7 @@ import {
   isWithinWorkAnimationRange,
 } from '../src/settlement/crowdView.ts';
 import {
+  RAIDER_SOURCE_CLIP_BY_MODE,
   createSemanticWorkerClipSet,
   seatedVillagerContactHeight,
   villagerHeightJitter,
@@ -725,7 +729,18 @@ assert.equal(
 );
 assert.equal(workerToolVisibleInMode('spear', 'idle'), true);
 assert.equal(workerToolVisibleInMode('spear', 'fight'), true);
-assert.equal(workerToolVisibleInMode('spear', 'rest'), false);
+const combatAnimationModes = Object.keys(RAIDER_SOURCE_CLIP_BY_MODE) as Array<
+  keyof typeof RAIDER_SOURCE_CLIP_BY_MODE
+>;
+for (const kind of MILITARY_EQUIPMENT_KINDS) {
+  for (const mode of combatAnimationModes) {
+    assert.equal(
+      workerToolVisibleInMode(kind, mode),
+      true,
+      `${kind} must remain bone-bound and visible through the ${mode} animation`,
+    );
+  }
+}
 assert.equal(
   workerToolVisibleInMode('hatchet', 'walk'),
   false,

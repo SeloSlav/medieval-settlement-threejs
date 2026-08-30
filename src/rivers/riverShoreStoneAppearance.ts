@@ -29,24 +29,63 @@ function valueNoise2(x: number, z: number): number {
 }
 
 export function computeShoreStoneVisualScale(x: number, z: number): number {
-  const cluster = valueNoise2(x * 0.018 + 21.7, z * 0.018 - 4.9);
+  const cluster = computeShoreStoneClusterDensity(x, z);
   const detail = valueNoise2(x * 0.115 - 8.3, z * 0.115 + 13.1);
   const individual = valueNoise2(x * 0.39 + 5.8, z * 0.39 - 19.2);
-  const clustered = smoothstep(0.46, 0.72, cluster);
-  // Scale variation must never double as a visibility mask: shrinking most
-  // instances to six percent made the otherwise populated banks look empty.
-  const scale = 0.58 + clustered * 0.3 + detail * 0.2 + individual * 0.12;
+  const slab = smoothstep(0.68, 0.92, individual);
+  // Cluster interiors carry a few dominant slabs while their skirts retain
+  // smaller talus. Visibility is still owned by placement, never by collapsing
+  // an instance toward zero scale.
+  const scale = 0.58 + cluster * 0.2 + detail * 0.15 + slab * 0.27;
   return Math.max(0.58, Math.min(1.2, scale));
+}
+
+/**
+ * Low-frequency talus-reach field. The hard zero outside the reach mask is
+ * intentional: dry-bank carbonate appears in intermittent deposits separated
+ * by readable meadow gaps instead of tracing the whole waterline as a curb.
+ */
+export function computeShoreStoneClusterDensity(x: number, z: number): number {
+  const reach = valueNoise2(
+    x * 0.011 + z * 0.003 - 14.2,
+    z * 0.014 - x * 0.002 + 27.6,
+  );
+  const localBar = valueNoise2(x * 0.052 + 8.7, z * 0.052 - 11.9);
+  const brokenEdge = valueNoise2(x * 0.13 - 3.1, z * 0.13 + 6.4);
+  const reachPresence = smoothstep(0.47, 0.67, reach);
+  if (reachPresence <= 0) return 0;
+  const barPresence = smoothstep(0.3, 0.76, localBar);
+  return Math.max(
+    0,
+    Math.min(
+      1,
+      reachPresence * (0.28 + barPresence * 0.58 + brokenEdge * 0.14),
+    ),
+  );
 }
 
 export function computeShoreStoneTint(x: number, z: number): number {
   const weathering = valueNoise2(x * 0.065 + 3.6, z * 0.065 - 17.4);
   const fineGrain = valueNoise2(x * 0.17 - 6.1, z * 0.17 + 9.8);
-  return 0.5 + (0.88 - 0.5) * (weathering * 0.72 + fineGrain * 0.28);
+  // Pale Jurassic limestone / Triassic dolomite baseline. Keep enough range
+  // for wet cool-grey stones without returning to the old brown-rock palette.
+  return 0.74 + (0.98 - 0.74) * (weathering * 0.72 + fineGrain * 0.28);
 }
 
 export function computeShoreStoneMoss(x: number, z: number): number {
   return valueNoise2(x * 0.14 + 18.4, z * 0.14 - 12.7);
+}
+
+/**
+ * Patchy dry-bank moss colonies. Channel crowns deliberately keep the older
+ * continuous moisture sample so this talus-only polish cannot alter their
+ * water-contact appearance or hydraulic silhouette.
+ */
+export function computeShoreStoneTalusMoss(x: number, z: number): number {
+  const colony = valueNoise2(x * 0.047 - 9.8, z * 0.047 + 16.3);
+  const fleck = valueNoise2(x * 0.22 + 4.1, z * 0.22 - 7.6);
+  return smoothstep(0.49, 0.75, colony)
+    * (0.24 + smoothstep(0.28, 0.82, fleck) * 0.76);
 }
 
 export type ShoreStoneVisualVariation = {

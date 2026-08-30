@@ -282,6 +282,246 @@
       "promptInfluence": 0.9
     },
     {
+      "id": "combat-sword-sidearm-1",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/sword_sidearm_melee_1.mp3",
+      "prompt": "One-shot close realistic late-medieval sword fight Foley: two practical steel sidearms meet in one hard edge-on-flat parry with a short bright ring and leather grip movement, concise outdoor sound, no voice, no shout, no chant, no gore, no music, no cinematic boom",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "combat-sword-sidearm-2",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/sword_sidearm_melee_2.mp3",
+      "prompt": "One-shot close realistic medieval sidearm attack: a steel sword glances hard across the iron-bound rim of a wooden shield, brief blade scrape, shield wood knock and arm harness rustle, no voice, no shout, no chant, no gore, no music, no cinematic impact",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "combat-sword-sidearm-3",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/sword_sidearm_melee_3.mp3",
+      "prompt": "One-shot close realistic medieval blade bind: two short battlefield swords collide, press and disengage with a compact steel scrape, one small mail jingle and leather movement, dry and forceful, no voice, no shout, no chant, no gore, no music",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "combat-sword-sidearm-4",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/sword_sidearm_melee_4.mp3",
+      "prompt": "One-shot close realistic sword melee variation: fast restrained blade movement followed by one low steel-on-steel deflection and a dull leather scabbard or belt shift, natural battlefield Foley, no voice, no shout, no chant, no gore, no music",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "combat-halberd-polearm-1",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/halberd_polearm_melee_1.mp3",
+      "prompt": "One-shot close realistic late-medieval halberd Foley: a heavy iron halberd head is caught by another polearm, strong metal clack, ash haft shock and brief armor rattle, weighty without a bass boom, no voice, no shout, no chant, no gore, no music",
+      "durationSeconds": 1.3,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "combat-halberd-polearm-2",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/halberd_polearm_melee_2.mp3",
+      "prompt": "One-shot close realistic halberd attack variation: the iron beak skitters across a steel breastplate edge, then the long wooden haft knocks once against a shield, concise metal scrape and timber transient, no voice, no shout, no chant, no gore, no music",
+      "durationSeconds": 1.3,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "combat-halberd-polearm-3",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/halberd_polearm_melee_3.mp3",
+      "prompt": "One-shot close realistic polearm clash: a broad halberd blade meets an iron spear socket with a low hard ring, both ash shafts flex and scrape briefly, restrained light mail movement, no voice, no shout, no chant, no gore, no music, no cinematic boom",
+      "durationSeconds": 1.3,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "combat-halberd-polearm-4",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/halberd_polearm_melee_4.mp3",
+      "prompt": "One-shot close realistic two-handed polearm attack: controlled halberd swing through air ends in one solid wooden-shaft parry with a small iron head ring and harness rustle, forceful but natural, no voice, no shout, no chant, no gore, no music",
+      "durationSeconds": 1.3,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "combat-bow-attack-1",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/bow_attack_1.mp3",
+      "prompt": "One-shot close realistic late-medieval war bow attack: taut hemp bowstring releases with a deep dry snap, wooden stave resonance and a very brief arrow fletching pass, isolated outdoor Foley, no impact, no voice, no shout, no chant, no music",
+      "durationSeconds": 1.1,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "combat-bow-attack-2",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/bow_attack_2.mp3",
+      "prompt": "One-shot close realistic self-bow release variation: strong wooden bow flex, compact string twang and fast feathered arrow departure through open air, practical and restrained, no target impact, no voice, no shout, no chant, no music",
+      "durationSeconds": 1.1,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "combat-bow-attack-3",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/bow_attack_3.mp3",
+      "prompt": "One-shot close realistic medieval archer Foley: leather finger release, hard bowstring snap, short timber vibration and arrow fletching hiss leaving the bow, clean natural transient, no target impact, no voice, no shout, no chant, no music",
+      "durationSeconds": 1.1,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "combat-crossbow-attack-1",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/crossbow_attack_1.mp3",
+      "prompt": "One-shot close realistic late-medieval steel crossbow firing: compact trigger click, heavy string slap against the stock and a bolt launches with a short fletching hiss, mechanical and dry, no target impact, no voice, no shout, no chant, no music",
+      "durationSeconds": 1.1,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "combat-crossbow-attack-2",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/crossbow_attack_2.mp3",
+      "prompt": "One-shot close realistic crossbow shot variation: iron nut releases, taut cord snaps forward over a wooden tiller, brief stock resonance and fast bolt departure, forceful without a gunshot character, no impact, no voice, no shout, no chant, no music",
+      "durationSeconds": 1.1,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "combat-crossbow-attack-3",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/crossbow_attack_3.mp3",
+      "prompt": "One-shot close realistic battlefield crossbow firing: subtle wooden mechanism tick followed by one dense string crack, stock vibration and feathered bolt flight starting, isolated natural Foley, no impact, no voice, no shout, no chant, no music",
+      "durationSeconds": 1.1,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "combat-arquebus-attack-1",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/arquebus_attack_1.mp3",
+      "prompt": "One-shot close realistic sixteenth-century light matchlock arquebus firing outdoors: tiny priming-pan fizz, sharp black-powder crack, brief wooden stock resonance and restrained open-air tail, infantry firearm not cannon, no voice, no shout, no chant, no music, no cinematic boom",
+      "durationSeconds": 1.5,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-arquebus-attack-2",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/arquebus_attack_2.mp3",
+      "prompt": "One-shot close realistic Balkan frontier matchlock shot variation: brief serpentine mechanism click and powder ignition, dry medium-caliber arquebus report with a short outdoor echo, no cannon bass, no voice, no shout, no chant, no music, no cinematic impact",
+      "durationSeconds": 1.5,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-arquebus-attack-3",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/arquebus_attack_3.mp3",
+      "prompt": "One-shot close realistic light arquebus discharge: restrained match hiss immediately followed by a crisp black-powder snap, small timber stock knock and natural distant reflection, portable firearm scale, no voice, no shout, no chant, no music, no cinematic boom",
+      "durationSeconds": 1.5,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-shield-armor-impact-1",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/shield_armor_impact_1.mp3",
+      "prompt": "One-shot close realistic medieval defense impact: steel weapon lands on an iron-bound wooden shield face, solid timber knock, short metal ring and leather arm straps tightening, no weapon swing, no voice, no shout, no chant, no gore, no music, no cinematic boom",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "combat-shield-armor-impact-2",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/shield_armor_impact_2.mp3",
+      "prompt": "One-shot close realistic armored hit: glancing steel strike across riveted mail over a padded coat, dense cloth thump, compact mail rattle and no bodily gore, restrained battlefield Foley, no voice, no shout, no chant, no music, no cinematic impact",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "combat-shield-armor-impact-3",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/shield_armor_impact_3.mp3",
+      "prompt": "One-shot close realistic shield block variation: spear socket and shaft hit the rim of a wood-and-hide shield, hard wooden clack, hide tension and one small iron fitting rattle, no voice, no shout, no chant, no gore, no music",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "combat-shield-armor-impact-4",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/shield_armor_impact_4.mp3",
+      "prompt": "One-shot close realistic padded-armor impact: blunt side of a weapon strikes a thick linen gambeson with a firm body-safe thud, leather belt and a few mail links shift, physical but not gory, no voice, no shout, no chant, no music, no cinematic boom",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "combat-formation-charge-1",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/formation_charge_1.mp3",
+      "prompt": "Short close realistic late-medieval infantry charge Foley: several booted soldiers accelerate together over firm grass and soil, layered footfalls, leather harness, mail and weapon fittings rattling, cohesive small formation, no voice, no shouting, no chant, no battle cry, no music",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.91
+    },
+    {
+      "id": "combat-formation-charge-2",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/formation_charge_2.mp3",
+      "prompt": "Short realistic infantry rush variation heard nearby: eight to twelve soldiers running in formation on dry packed earth, boots, cloth, wood shafts and restrained armor clatter, urgent but disciplined, no voice, no shouting, no chant, no battle cry, no music",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.91
+    },
+    {
+      "id": "combat-formation-charge-3",
+      "group": "combat-weapon-suite-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/formation_charge_3.mp3",
+      "prompt": "Short close realistic mixed infantry advance becoming a charge: synchronized boots pound damp meadow ground, shield straps creak, polearm shafts and light armor shake naturally, compact formation movement only, no voice, no shouting, no chant, no battle cry, no music",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.91
+    },
+    {
       "id": "combat-voice-1",
       "group": "combat-foley",
       "kind": "sound-effect",

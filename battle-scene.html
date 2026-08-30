@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Battle Photography Fixture</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+        --gold: #d9af47;
+        --paper: #f0eadc;
+        --line: rgba(222, 183, 83, 0.28);
+      }
+      * { box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #7d8778; }
+      body { display: grid; grid-template-rows: 78px minmax(0, 1fr); }
+      header {
+        position: relative;
+        z-index: 5;
+        display: grid;
+        grid-template-columns: minmax(250px, 1fr) auto minmax(190px, 1fr);
+        align-items: center;
+        gap: 18px;
+        padding: 0 28px;
+        border-bottom: 1px solid var(--line);
+        background:
+          linear-gradient(90deg, rgba(170, 44, 35, 0.13), transparent 31%, transparent 69%, rgba(107, 30, 22, 0.13)),
+          linear-gradient(180deg, #252a20, #151a14);
+        box-shadow: 0 7px 28px rgba(18, 22, 16, 0.25);
+      }
+      .eyebrow {
+        color: var(--gold);
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.17em;
+        text-transform: uppercase;
+      }
+      h1 { margin: 3px 0 0; color: var(--paper); font: 600 clamp(19px, 1.8vw, 27px)/1 Georgia, serif; }
+      nav { display: flex; align-items: center; justify-content: center; gap: 4px; }
+      nav a {
+        padding: 7px 9px;
+        border: 1px solid transparent;
+        border-radius: 3px;
+        color: #bdbbad;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-decoration: none;
+        text-transform: uppercase;
+      }
+      nav a:hover, nav a[aria-current="page"] {
+        border-color: rgba(217, 175, 71, 0.38);
+        background: rgba(217, 175, 71, 0.1);
+        color: #e8c664;
+      }
+      #status {
+        justify-self: end;
+        color: #b9b7aa;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.095em;
+        text-align: right;
+        text-transform: uppercase;
+      }
+      body[data-ready="true"] #status { color: #d7c779; }
+      main { position: relative; min-height: 0; isolation: isolate; }
+      canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+      #vignette {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        background:
+          linear-gradient(180deg, rgba(27, 31, 24, 0.12), transparent 32%, rgba(20, 21, 17, 0.12)),
+          radial-gradient(ellipse at center 54%, transparent 48%, rgba(24, 24, 18, 0.28) 120%);
+      }
+      body[data-view="no-post"] #vignette,
+      body[data-view="topology"] #vignette { display: none; }
+      #shot-chip {
+        position: absolute;
+        z-index: 3;
+        left: 20px;
+        top: 18px;
+        min-width: 156px;
+        padding: 8px 11px;
+        border: 1px solid rgba(229, 200, 122, 0.34);
+        border-left: 2px solid var(--gold);
+        border-radius: 2px;
+        background: rgba(21, 25, 18, 0.83);
+        box-shadow: 0 7px 22px rgba(20, 22, 17, 0.18);
+        color: #d8d3c5;
+        pointer-events: none;
+      }
+      #shot-chip strong { display: block; color: #f3ead7; font: 600 14px/1.1 Georgia, serif; }
+      #shot-chip span { display: block; margin-top: 4px; color: #baa969; font-size: 8px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+      .faction-card {
+        position: absolute;
+        z-index: 2;
+        bottom: 18px;
+        width: min(250px, 27vw);
+        padding: 9px 12px;
+        border: 1px solid rgba(233, 211, 157, 0.24);
+        background: rgba(21, 24, 18, 0.82);
+        color: #eee6d6;
+        font: 600 13px/1.2 Georgia, serif;
+        pointer-events: none;
+      }
+      .faction-card small { display: block; margin-top: 3px; color: #b9ac8d; font: 750 8px/1.25 Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+      #croatian-label { left: 20px; border-left: 2px solid #d6d0ba; }
+      #ottoman-label { right: 20px; border-right: 2px solid #aa3e34; text-align: right; }
+      #error {
+        position: absolute;
+        z-index: 8;
+        inset: 50% auto auto 50%;
+        display: none;
+        width: min(640px, calc(100% - 40px));
+        translate: -50% -50%;
+        padding: 22px 24px;
+        border: 1px solid #9e513c;
+        border-radius: 4px;
+        background: rgba(34, 22, 17, .97);
+        color: #f1dfd5;
+        box-shadow: 0 20px 60px rgba(0,0,0,.45);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      body[data-error="true"] #error { display: block; }
+      body[data-capture="true"] { grid-template-rows: minmax(0, 1fr); }
+      body[data-capture="true"] header,
+      body[data-capture="true"] .faction-card { display: none; }
+      body[data-capture="true"] #shot-chip { left: 14px; top: 14px; min-width: 128px; padding: 6px 9px; opacity: .88; }
+      body[data-capture="true"] #shot-chip strong { font-size: 12px; }
+      body[data-capture="true"] #shot-chip span { font-size: 7px; }
+      @media (max-width: 1080px) {
+        header { grid-template-columns: 1fr auto; padding-inline: 18px; }
+        nav a { padding-inline: 5px; }
+        #status { display: none; }
+      }
+    </style>
+  </head>
+  <body data-ready="false">
+    <header>
+      <div>
+        <div class="eyebrow">Selo Empire · deterministic battle study</div>
+        <h1>Croatian–Ottoman Field Engagement</h1>
+      </div>
+      <nav aria-label="Battle camera views">
+        <a href="?view=establishing" data-view-link="establishing">Establishing</a>
+        <a href="?view=charge" data-view-link="charge">Charge</a>
+        <a href="?view=clash" data-view-link="clash">Clash</a>
+        <a href="?view=aftermath" data-view-link="aftermath">Aftermath</a>
+        <a href="?view=no-post" data-view-link="no-post">No post</a>
+        <a href="?view=topology" data-view-link="topology">Topology</a>
+      </nav>
+      <div id="status">Loading 24 rigged combatants…</div>
+    </header>
+    <main id="battle-root">
+      <div id="vignette" aria-hidden="true"></div>
+      <div id="shot-chip"><strong id="shot-name">Clash</strong><span id="shot-meta">Seed 5e10-b477 · fixed time</span></div>
+      <div id="croatian-label" class="faction-card">Croatian company<small>Resident arms · western equipment</small></div>
+      <div id="ottoman-label" class="faction-card">Ottoman raiders<small>Dedicated raider model · sidearms</small></div>
+      <div id="error" role="alert"></div>
+    </main>
+    <script type="module" src="/src/e2e/battleScene.ts"></script>
+  </body>
+</html>

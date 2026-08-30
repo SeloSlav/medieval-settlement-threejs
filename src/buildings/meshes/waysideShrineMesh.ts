@@ -280,7 +280,7 @@ function compileWaysideShrine(plan: WaysideShrinePlan): THREE.Group {
   const root = new THREE.Group();
   root.name = 'Gorski Kotar Wayside Shrine';
   const group = new THREE.Group();
-  group.name = 'Gorski Kotar Wayside Shrine authored model';
+  group.name = 'Gorski Kotar Wayside Shrine procedural model';
   root.add(group);
 
   const { width, depth, foundationHeight, wallHeight } = plan.dimensions;

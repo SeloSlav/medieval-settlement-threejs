@@ -882,11 +882,7 @@ export class BuildingMarkers {
       if (marker.userData.fpCollisionChildrenOnly !== true) {
         marker.userData.fpCollisionAggregate = true;
       }
-      if (
-        operational
-        && building.kind === 'founders_camp'
-        && !adoptedPendingFoundersCamp
-      ) {
+      if (useCompletedMesh && !adoptedPendingFoundersCamp) {
         setBuildingDetailShadowsEnabled(marker, areBuildingShadowsEnabled());
       }
       marker.rotation.y = resolvedPlacedBuildingYaw(

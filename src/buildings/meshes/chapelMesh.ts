@@ -27,7 +27,7 @@ type ChapelMaterials = {
 
 /**
  * The saved/server kind remains `chapel`, but the player-facing building is a
- * parish church. Keep the scale on a nested authored-model group so runtime
+ * parish church. Keep the scale on a nested procedural-model group so runtime
  * helpers (notably the shadow proxy) can still attach to an unscaled root.
  */
 export const PARISH_CHURCH_MODEL_SCALE = 1.25;
@@ -498,7 +498,7 @@ function createCompactChurchMesh(tier: 1 | 2): THREE.Group {
   const root = new THREE.Group();
   root.name = stoneTier ? 'Small Stone Church' : 'Small Wooden Church';
   const group = new THREE.Group();
-  group.name = `${root.name} authored model`;
+  group.name = `${root.name} procedural model`;
   root.add(group);
 
   const materials = createChapelMaterials();
@@ -620,13 +620,13 @@ function createCompactChurchMesh(tier: 1 | 2): THREE.Group {
 /**
  * Gorski parish church: limewashed nave, hand-laid limestone base, deep tile
  * roof and an open oak belfry. The underlying chapel asset is enlarged as one
- * authored unit so it reads as the settlement's spiritual landmark.
+ * procedural unit so it reads as the settlement's spiritual landmark.
  */
 function createLargeStoneChurchMesh(): THREE.Group {
   const root = new THREE.Group();
   root.name = 'Large Stone Church';
   const group = new THREE.Group();
-  group.name = 'Large Stone Church authored model';
+  group.name = 'Large Stone Church procedural model';
   group.scale.setScalar(PARISH_CHURCH_MODEL_SCALE);
   root.add(group);
   const materials = createChapelMaterials();

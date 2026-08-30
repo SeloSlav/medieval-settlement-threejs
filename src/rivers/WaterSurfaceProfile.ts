@@ -25,11 +25,13 @@ export const RIVER_WATER_PROFILE: WaterSurfaceProfile = {
   standingWaveRatio: 0,
   seaTintStrength: 0,
   shoreBreakStrength: 0,
-  transmission: 0.7,
-  attenuationDistance: 1.9,
-  attenuationColor: [0.12, 0.28, 0.24],
-  roughness: 0.3,
-  specularIntensity: 0.5,
+  // Upper Kupa water is exceptionally clear: keep enough volume color to
+  // read the 2 m channel, while allowing pale bed rock to remain visible.
+  transmission: 0.74,
+  attenuationDistance: 2.65,
+  attenuationColor: [0.075, 0.34, 0.26],
+  roughness: 0.285,
+  specularIntensity: 0.54,
 };
 
 export const INLAND_WATER_PROFILE: WaterSurfaceProfile = {

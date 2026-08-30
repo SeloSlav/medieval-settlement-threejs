@@ -15,23 +15,28 @@ import {
 } from '../utils/pathGeometry.ts';
 import type { RiverField } from './RiverField.ts';
 import {
+  computeShoreStoneClusterDensity,
   computeShoreStoneMoss,
+  computeShoreStoneTalusMoss,
   computeShoreStoneTint,
   computeShoreStoneVisualScale,
   computeShoreStoneVisualVariation,
 } from './riverShoreStoneAppearance.ts';
 import { PlacementClearanceSpatialIndex } from '../placement/PlacementClearanceSpatialIndex.ts';
 import { unwrapTriangleUvSeams } from '../utils/boulderUv.ts';
+import {
+  createRiverChannelRockPlacements,
+  getRiverChannelRockContactRadius,
+} from './RiverChannelRocks.ts';
+import { getStillWaterSurfaceY } from './RiverWaterLevel.ts';
 
 type RockShadowMaterials = {
   shadowCast: THREE.MeshStandardMaterial;
   shadowDepth: THREE.MeshDepthMaterial;
 };
 
-type StonePlacement = {
-  x: number;
-  z: number;
-  scale: number;
+type StonePlacement = RockObstacle & {
+  kind: 'bank' | 'channel';
 };
 
 type ShoreStoneInstance = {
@@ -63,7 +68,15 @@ export function createRiverShoreStones(
 ): RiverShoreStoneField {
   const group = new THREE.Group();
   group.name = 'River shore stones';
-  const placements = createShoreStonePlacements(riverField, rng);
+  const bankPlacements = createShoreStonePlacements(riverField, rng);
+  const channelPlacements: StonePlacement[] = createRiverChannelRockPlacements(riverField)
+    .map((placement) => ({
+      x: placement.x,
+      z: placement.z,
+      scale: placement.scale,
+      kind: 'channel',
+    }));
+  const placements = [...bankPlacements, ...channelPlacements];
   if (placements.length === 0) {
     return {
       group,
@@ -74,6 +87,7 @@ export function createRiverShoreStones(
   }
 
   const variants = [createBoulderGeometry(1.3), createBoulderGeometry(7.7), createBoulderGeometry(13.2)];
+  const variantPlanarRadii = variants.map(getGeometryMaxPlanarRadius);
   const shadowGeometry = createRockShadowGeometry();
   const buckets = variants.map(() => [] as StonePlacement[]);
   const instances: ShoreStoneInstance[] = [];
@@ -108,44 +122,118 @@ export function createRiverShoreStones(
     shadowMesh.customDepthMaterial = shadowMaterials.shadowDepth;
     bucket.forEach((rock, rockIndex) => {
       const y = terrain.getHeightAt(rock.x, rock.z);
-      position.set(rock.x, y + rock.scale * 0.14, rock.z);
-      quaternion.setFromEuler(new THREE.Euler((rng() - 0.5) * 0.22, rng() * TAU, (rng() - 0.5) * 0.22));
-      scaleVector.set(
-        rock.scale * (0.92 + rng() * 0.55),
-        rock.scale * (0.38 + rng() * 0.24),
-        rock.scale * (0.82 + rng() * 0.48),
-      );
+      const geometry = variants[variantIndex];
+      const bounds = geometry.boundingBox!;
+      const localHeight = Math.max(0.1, bounds.max.y - bounds.min.y);
+      if (rock.kind === 'channel') {
+        // Yaw preserves the shared circular water-contact footprint exactly.
+        quaternion.setFromAxisAngle(upAxis, rng() * TAU);
+      } else {
+        quaternion.setFromEuler(new THREE.Euler(
+          (rng() - 0.5) * 0.34,
+          rng() * TAU,
+          (rng() - 0.5) * 0.34,
+        ));
+      }
+      let channelContactRadius: number | null = null;
+      if (rock.kind === 'channel') {
+        const waterSurface = getStillWaterSurfaceY(terrain, riverField, rock.x, rock.z);
+        const waterDepth = Math.max(0.08, waterSurface - y);
+        const emergence = 0.5 + Math.min(1.2, rock.scale * (0.34 + rng() * 0.18));
+        const submergedSkirt = Math.min(
+          waterDepth,
+          0.38 + Math.min(0.52, rock.scale * 0.22),
+        );
+        const targetHeight = emergence + submergedSkirt;
+        const targetRadius = getRiverChannelRockContactRadius(rock.scale);
+        channelContactRadius = targetRadius;
+        const channelLocalRadius = variantPlanarRadii[variantIndex];
+        scaleVector.set(
+          targetRadius / channelLocalRadius,
+          targetHeight / localHeight,
+          targetRadius / channelLocalRadius,
+        );
+        // Render the water-worn crown and a short submerged skirt. The full
+        // bed-to-surface ellipsoid looked like a dark floating sphere through
+        // Kupa's clear water; the implied boulder continues into the bed while
+        // this broad crown owns the visible contact and foam silhouette.
+        position.set(
+          rock.x,
+          waterSurface - submergedSkirt - bounds.min.y * scaleVector.y,
+          rock.z,
+        );
+      } else {
+        position.set(rock.x, y + rock.scale * 0.14, rock.z);
+        scaleVector.set(
+          rock.scale * (0.92 + rng() * 0.55),
+          rock.scale * (0.38 + rng() * 0.24),
+          rock.scale * (0.82 + rng() * 0.48),
+        );
+      }
       matrix.compose(position, quaternion, scaleVector);
-      // Preserve the original collision bounds exactly; the following
-      // world-position-driven scale/tint is presentation-only.
-      setRockObstacleCollisionBounds(rock, variants[variantIndex], matrix);
-      const visualScale = computeShoreStoneVisualScale(rock.x, rock.z);
+      const sampledVisualScale = computeShoreStoneVisualScale(rock.x, rock.z);
+      const visualScale = rock.kind === 'channel'
+        ? 1
+        : sampledVisualScale;
       const variation = computeShoreStoneVisualVariation(rock.x, rock.z);
       visualPosition.copy(position);
-      visualPosition.x += variation.offsetX;
-      visualPosition.y -= rock.scale * variation.sink;
-      visualPosition.z += variation.offsetZ;
+      if (rock.kind === 'bank') visualPosition.x += variation.offsetX;
+      visualPosition.y -= rock.scale * variation.sink * (rock.kind === 'channel' ? 0.12 : 1);
+      if (rock.kind === 'bank') visualPosition.z += variation.offsetZ;
       yawQuaternion.setFromAxisAngle(upAxis, variation.yaw);
       visualQuaternion.copy(quaternion).multiply(yawQuaternion);
+      // The shared contact radius owns visible geometry, collision, and foam.
+      // Keep channel crowns radially symmetric; bank stones retain full shape
+      // variation where no hydrodynamic contact envelope must line up.
+      const channelAspect = 1;
       visualScaleVector.set(
-        scaleVector.x * visualScale * variation.aspect,
-        scaleVector.y * visualScale * variation.height,
-        scaleVector.z * visualScale / variation.aspect,
+        scaleVector.x * visualScale * (
+          rock.kind === 'channel' ? channelAspect : variation.aspect
+        ),
+        scaleVector.y * visualScale * (
+          rock.kind === 'channel' ? 0.94 + variation.height * 0.05 : variation.height
+        ),
+        scaleVector.z * visualScale / (
+          rock.kind === 'channel' ? channelAspect : variation.aspect
+        ),
       );
       const visualMatrix = new THREE.Matrix4().compose(
         visualPosition,
         visualQuaternion,
         visualScaleVector,
       );
+      setRockObstacleCollisionBounds(rock, variants[variantIndex], visualMatrix);
+      if (channelContactRadius !== null) rock.collisionRadius = channelContactRadius;
       mesh.setMatrixAt(rockIndex, visualMatrix);
       shadowMesh.setMatrixAt(rockIndex, visualMatrix);
       const tint = computeShoreStoneTint(rock.x, rock.z);
-      const moss = computeShoreStoneMoss(rock.x, rock.z);
-      stoneTint.setRGB(
-        tint * (0.98 - moss * 0.18),
-        tint * (0.82 + moss * 0.18),
-        tint * (0.69 + moss * 0.07),
-      );
+      const shoreMoisture = rock.kind === 'channel'
+        ? 1
+        : 1 - THREE.MathUtils.clamp(
+            riverField.sampleShoreDistance(rock.x, rock.z) / 5.4,
+            0,
+            1,
+          );
+      const mossSample = rock.kind === 'channel'
+        ? computeShoreStoneMoss(rock.x, rock.z)
+        : computeShoreStoneTalusMoss(rock.x, rock.z);
+      const moss = mossSample
+        * (0.28 + shoreMoisture * 0.72);
+      if (rock.kind === 'channel') {
+        stoneTint.setRGB(
+          tint * (1 - moss * 0.1),
+          tint * (0.98 + moss * 0.015),
+          tint * (0.93 - moss * 0.13),
+        );
+      } else {
+        // Pale carbonate remains the base identity; coherent moss colonies
+        // darken all three channels together while biasing green over red/blue.
+        stoneTint.setRGB(
+          tint * (1 - moss * 0.34),
+          tint * (0.98 - moss * 0.16),
+          tint * (0.93 - moss * 0.43),
+        );
+      }
       mesh.setColorAt(rockIndex, stoneTint);
       instances.push({
         placement: rock,
@@ -200,6 +288,7 @@ export function createRiverShoreStones(
 
       for (let index = 0; index < instances.length; index++) {
         const placement = instances[index].placement;
+        if (placement.kind === 'channel') continue;
         const clearRadius = placement.scale * 1.35 + 0.35;
         const overlapsBuilding = clearanceIndex.someBuildingNear(
           placement.x,
@@ -226,7 +315,17 @@ export function createRiverShoreStones(
       applyClearance(indexSetUnion(roadRemoved, placementRemoved));
     },
     syncRoadClearance(network) {
-      roadRemoved = collectRoadRemovedRockIndices(allRockPlacements, network);
+      const bankInstanceIndices: number[] = [];
+      const bankRockPlacements: StonePlacement[] = [];
+      instances.forEach((instance, instanceIndex) => {
+        if (instance.placement.kind !== 'bank') return;
+        bankInstanceIndices.push(instanceIndex);
+        bankRockPlacements.push(instance.placement);
+      });
+      const removedBankIndices = collectRoadRemovedRockIndices(bankRockPlacements, network);
+      roadRemoved = new Set(
+        [...removedBankIndices].map((bankIndex) => bankInstanceIndices[bankIndex]),
+      );
       applyClearance(indexSetUnion(roadRemoved, placementRemoved));
     },
   };
@@ -270,11 +369,27 @@ function createShoreStonePlacements(riverField: RiverField, rng: () => number): 
       const z = wz + jitterZ;
       if (riverField.isWaterAt(x, z)) continue;
 
-      const scale = THREE.MathUtils.lerp(0.42, 1.35, Math.pow(rng(), 1.55));
-      // Populate every eligible bank segment. Spatial separation still avoids
-      // overlap, but there are no stochastic or pre-cut crossing holes.
+      const clusterDensity = computeShoreStoneClusterDensity(x, z);
+      const waterlineBias = 1 - THREE.MathUtils.smoothstep(shore, 0.55, 5.4);
+      const placementChance = THREE.MathUtils.clamp(
+        clusterDensity * (0.44 + waterlineBias * 0.34),
+        0,
+        0.78,
+      );
+      const placementRoll = rng();
+      if (clusterDensity < 0.08 || placementRoll > placementChance) continue;
+
+      const sizeRoll = rng();
+      const scale = sizeRoll < 0.72
+        ? THREE.MathUtils.lerp(0.34, 0.88, Math.pow(sizeRoll / 0.72, 1.35))
+        : THREE.MathUtils.lerp(
+            0.88,
+            1.62,
+            Math.pow((sizeRoll - 0.72) / 0.28, 0.72),
+          );
+      // Spatial separation keeps each coherent gravel bar readable.
       if (placementIndex.hasPointWithin(x, z, 0.72 + scale * 0.38)) continue;
-      const placement = { x, z, scale };
+      const placement: StonePlacement = { x, z, scale, kind: 'bank' };
       placements.push(placement);
       placementIndex.add(placement);
     }
@@ -304,8 +419,100 @@ function createBoulderGeometry(seed: number): THREE.BufferGeometry {
   unwrapTriangleUvSeams(geometry);
   geometry.setAttribute('uv1', geometry.getAttribute('uv').clone());
   geometry.computeVertexNormals();
+  smoothDuplicatePositionNormals(geometry);
+  writeCarbonateMossVertexColors(geometry, seed);
+  geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   return geometry;
+}
+
+/**
+ * IcosahedronGeometry is non-indexed so its default normals are faceted. Keep
+ * the UV-owned duplicate vertices, but give coincident corners one shared,
+ * area-weighted normal. This changes shading only: topology, silhouette,
+ * instance counts, collision bounds, and draw ownership remain identical.
+ */
+function smoothDuplicatePositionNormals(geometry: THREE.BufferGeometry): void {
+  const positions = geometry.getAttribute('position') as THREE.BufferAttribute;
+  const normals = geometry.getAttribute('normal') as THREE.BufferAttribute;
+  const accumulated = new Map<string, THREE.Vector3>();
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const ab = new THREE.Vector3();
+  const ac = new THREE.Vector3();
+  const faceNormal = new THREE.Vector3();
+  const keyForIndex = (index: number): string => [
+    Math.round(positions.getX(index) * 100_000),
+    Math.round(positions.getY(index) * 100_000),
+    Math.round(positions.getZ(index) * 100_000),
+  ].join(':');
+
+  for (let triangle = 0; triangle < positions.count; triangle += 3) {
+    a.fromBufferAttribute(positions, triangle);
+    b.fromBufferAttribute(positions, triangle + 1);
+    c.fromBufferAttribute(positions, triangle + 2);
+    ab.subVectors(b, a);
+    ac.subVectors(c, a);
+    faceNormal.crossVectors(ab, ac);
+    for (let corner = 0; corner < 3; corner += 1) {
+      const key = keyForIndex(triangle + corner);
+      let sum = accumulated.get(key);
+      if (!sum) {
+        sum = new THREE.Vector3();
+        accumulated.set(key, sum);
+      }
+      sum.add(faceNormal);
+    }
+  }
+
+  for (let index = 0; index < positions.count; index += 1) {
+    const sum = accumulated.get(keyForIndex(index));
+    if (!sum || sum.lengthSq() < 1e-12) continue;
+    sum.normalize();
+    normals.setXYZ(index, sum.x, sum.y, sum.z);
+  }
+  normals.needsUpdate = true;
+  geometry.userData.riverStoneNormalContract = 'area-weighted-coincident-corners-v1';
+}
+
+function getGeometryMaxPlanarRadius(geometry: THREE.BufferGeometry): number {
+  const positions = geometry.getAttribute('position') as THREE.BufferAttribute;
+  let radius = 0.1;
+  for (let index = 0; index < positions.count; index += 1) {
+    radius = Math.max(radius, Math.hypot(positions.getX(index), positions.getZ(index)));
+  }
+  return radius;
+}
+
+function writeCarbonateMossVertexColors(
+  geometry: THREE.BufferGeometry,
+  seed: number,
+): void {
+  const positions = geometry.getAttribute('position') as THREE.BufferAttribute;
+  const normals = geometry.getAttribute('normal') as THREE.BufferAttribute;
+  const colors = new Float32Array(positions.count * 3);
+  const point = new THREE.Vector3();
+  const normal = new THREE.Vector3();
+
+  for (let index = 0; index < positions.count; index += 1) {
+    point.fromBufferAttribute(positions, index);
+    normal.fromBufferAttribute(normals, index);
+    const mineral = 0.92 + stableSurfaceNoise(point, seed + 21.4) * 0.08;
+    const patch = stableSurfaceNoise(point, seed + 44.7);
+    const upward = THREE.MathUtils.smoothstep(normal.y, 0.22, 0.88);
+    const dampCrevice = THREE.MathUtils.smoothstep(-point.y, -0.38, 0.18);
+    const moss = Math.min(
+      0.72,
+      THREE.MathUtils.smoothstep(patch, 0.42, 0.76)
+        * (upward * 0.56 + dampCrevice * 0.34),
+    );
+    colors[index * 3] = THREE.MathUtils.lerp(mineral, 0.42, moss);
+    colors[index * 3 + 1] = THREE.MathUtils.lerp(mineral * 0.985, 0.58, moss);
+    colors[index * 3 + 2] = THREE.MathUtils.lerp(mineral * 0.94, 0.3, moss);
+  }
+
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 }
 
 function stableSurfaceNoise(point: THREE.Vector3, seed: number): number {

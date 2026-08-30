@@ -4,6 +4,7 @@ import {
   metalMaterial,
   residenceFacadeMaterial,
   sharedBuildingDetailMaterial,
+  sharedBuildingMaterial,
   shingleMaterial,
   stoneMaterial,
   timberMaterial,
@@ -220,87 +221,315 @@ export function createWellMesh(): THREE.Group {
   return group;
 }
 
-function addStoneChimney(group: THREE.Group, x: number, z: number, height: number): void {
-  addMesh(
-    group,
-    new THREE.BoxGeometry(0.72, height, 0.72),
-    stoneMaterial('mid'),
-    new THREE.Vector3(x, height * 0.5 + 2.55, z),
-  );
-  addMesh(
-    group,
-    new THREE.BoxGeometry(0.88, 0.16, 0.88),
-    stoneMaterial('light'),
-    new THREE.Vector3(x, 2.55 + height, z),
-  );
+function createSaggingClothPanelGeometry(
+  corners: readonly [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3],
+  segmentsU: number,
+  segmentsV: number,
+  sag: number,
+  seed: number,
+): THREE.BufferGeometry {
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  const [a, b, c, d] = corners;
+  const bottom = new THREE.Vector3();
+  const top = new THREE.Vector3();
+  const point = new THREE.Vector3();
+
+  for (let vIndex = 0; vIndex <= segmentsV; vIndex += 1) {
+    const v = vIndex / segmentsV;
+    for (let uIndex = 0; uIndex <= segmentsU; uIndex += 1) {
+      const u = uIndex / segmentsU;
+      bottom.lerpVectors(a, b, u);
+      top.lerpVectors(d, c, u);
+      point.lerpVectors(bottom, top, v);
+      const handmade = Math.sin((u * 9.7 + v * 4.1 + seed * 0.17) * Math.PI) * 0.012;
+      point.y -= Math.sin(Math.PI * u) * Math.sin(Math.PI * v) * sag;
+      point.y += handmade * Math.sin(Math.PI * u) * Math.sin(Math.PI * v);
+      positions.push(point.x, point.y, point.z);
+      uvs.push(u * 2.4, v * 2.4);
+    }
+  }
+  const stride = segmentsU + 1;
+  for (let v = 0; v < segmentsV; v += 1) {
+    for (let u = 0; u < segmentsU; u += 1) {
+      const i0 = v * stride + u;
+      const i1 = i0 + 1;
+      const i2 = i0 + stride + 1;
+      const i3 = i0 + stride;
+      indices.push(i0, i1, i2, i0, i2, i3);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  return geometry;
 }
 
-function addDryingLeanTo(group: THREE.Group, halfW: number): void {
-  const centerX = halfW + 1.15;
-  for (const x of [centerX - 0.72, centerX + 0.72]) {
-    for (const z of [-1.72, 1.72]) {
-      addMesh(
+function addRoundPoleBetween(
+  group: THREE.Group,
+  start: THREE.Vector3,
+  end: THREE.Vector3,
+  radius: number,
+  material: THREE.Material,
+  name: string,
+  radialSegments = 7,
+): THREE.Mesh {
+  const midpoint = start.clone().add(end).multiplyScalar(0.5);
+  const direction = end.clone().sub(start);
+  const length = direction.length();
+  const pole = addMesh(
+    group,
+    new THREE.CylinderGeometry(radius, radius * 1.04, length, radialSegments),
+    material,
+    midpoint,
+  );
+  pole.name = name;
+  pole.quaternion.setFromUnitVectors(
+    new THREE.Vector3(0, 1, 0),
+    direction.normalize(),
+  );
+  return pole;
+}
+
+function addHunterSleepingTent(group: THREE.Group): void {
+  const canvas = sharedBuildingDetailMaterial('canvas');
+  const poles = timberMaterial('weathered');
+  const halfWidth = 1.72;
+  const halfDepth = 2.22;
+  const groundY = 0.12;
+  const ridgeY = 2.62;
+  const centerX = -2.75;
+  const centerZ = -0.45;
+
+  const ridgeRear = new THREE.Vector3(centerX, ridgeY, centerZ - halfDepth);
+  const ridgeFront = new THREE.Vector3(centerX, ridgeY, centerZ + halfDepth);
+  for (const side of [-1, 1] as const) {
+    const eaveRear = new THREE.Vector3(centerX + side * halfWidth, groundY, centerZ - halfDepth);
+    const eaveFront = new THREE.Vector3(centerX + side * halfWidth, groundY, centerZ + halfDepth);
+    const cloth = addMesh(
+      group,
+      createSaggingClothPanelGeometry(
+        [ridgeRear, ridgeFront, eaveFront, eaveRear],
+        12,
+        7,
+        0.1,
+        side * 17,
+      ),
+      canvas,
+      new THREE.Vector3(),
+    );
+    cloth.name = `Hunter sleeping tent canvas ${side < 0 ? 'left' : 'right'}`;
+    cloth.userData.proceduralFabric = true;
+    cloth.userData.fabricRole = 'sleeping-tent';
+  }
+
+  addRoundPoleBetween(
+    group,
+    ridgeRear.clone().add(new THREE.Vector3(0, 0.035, -0.18)),
+    ridgeFront.clone().add(new THREE.Vector3(0, 0.035, 0.22)),
+    0.055,
+    poles,
+    'Hunter tent ridge pole',
+  );
+  for (const z of [centerZ - halfDepth, centerZ + halfDepth]) {
+    const peak = new THREE.Vector3(centerX, ridgeY + 0.08, z);
+    for (const side of [-1, 1] as const) {
+      addRoundPoleBetween(
         group,
-        new THREE.BoxGeometry(0.16, 2.1, 0.16),
-        timberMaterial('dark'),
-        new THREE.Vector3(x, 1.05, z),
+        new THREE.Vector3(centerX + side * (halfWidth + 0.08), 0, z),
+        peak,
+        0.05,
+        poles,
+        'Hunter tent A-frame pole',
       );
     }
   }
-  addLeanToRoof(group, {
-    width: 1.85,
-    depth: 3.95,
-    thickness: 0.13,
-    material: shingleMaterial(),
-    position: new THREE.Vector3(centerX, 2.22, 0),
-    pitch: 0.16,
-    highEdge: 'negativeX',
-    name: "Hunter's hall drying lean-to roof",
-  });
+
+  const rearShape = new THREE.Shape();
+  rearShape.moveTo(-halfWidth, groundY);
+  rearShape.lineTo(halfWidth, groundY);
+  rearShape.lineTo(0, ridgeY);
+  rearShape.closePath();
+  const rear = addMesh(
+    group,
+    new THREE.ShapeGeometry(rearShape),
+    canvas,
+    new THREE.Vector3(centerX, 0, centerZ - halfDepth - 0.018),
+  );
+  rear.name = 'Hunter sleeping tent closed rear canvas';
+  // ShapeGeometry is authored in XY and already faces the open front/rear axis.
+  rear.userData.proceduralFabric = true;
+}
+
+function addHunterProcessingFly(group: THREE.Group): void {
+  const canvas = sharedBuildingDetailMaterial('canvas');
+  const darkWood = timberMaterial('dark');
+  const weatheredWood = timberMaterial('weathered');
+  const x0 = 0.2;
+  const x1 = 4.9;
+  const z0 = -2.2;
+  const z1 = 2.15;
+  const corners = [
+    new THREE.Vector3(x0, 2.42, z0),
+    new THREE.Vector3(x1, 2.3, z0),
+    new THREE.Vector3(x1, 2.18, z1),
+    new THREE.Vector3(x0, 2.5, z1),
+  ] as const;
+  for (const corner of corners) {
+    addRoundPoleBetween(
+      group,
+      new THREE.Vector3(corner.x, 0, corner.z),
+      corner,
+      0.072,
+      darkWood,
+      'Hunter processing fly post',
+      8,
+    );
+  }
+  const fly = addMesh(
+    group,
+    createSaggingClothPanelGeometry(corners, 10, 8, 0.2, 1550),
+    canvas,
+    new THREE.Vector3(),
+  );
+  fly.name = 'Hunter processing fly sagging canvas';
+  fly.userData.proceduralFabric = true;
+  fly.userData.fabricRole = 'processing-fly';
+
+  const table = addMesh(
+    group,
+    new THREE.BoxGeometry(2.6, 0.12, 1.15),
+    weatheredWood,
+    new THREE.Vector3(2.7, 0.92, 0.55),
+  );
+  table.name = 'Hunter processing table';
+  for (const [x, z] of [[1.58, 0.14], [3.82, 0.14], [1.58, 0.96], [3.82, 0.96]] as const) {
+    addRoundPoleBetween(
+      group,
+      new THREE.Vector3(x, 0, z),
+      new THREE.Vector3(x, 0.87, z),
+      0.055,
+      darkWood,
+      'Hunter processing table leg',
+      7,
+    );
+  }
+
+  // This is deliberately an empty structural frame. Bows, snares, carcasses,
+  // and tools are runtime inventory, not inexplicable baked decoration.
+  const frameX = 1.0;
+  const frameZ = -1.35;
+  for (const x of [frameX, frameX + 2.4]) {
+    addRoundPoleBetween(
+      group,
+      new THREE.Vector3(x, 0, frameZ),
+      new THREE.Vector3(x, 2.05, frameZ),
+      0.06,
+      darkWood,
+      'Hunter empty tool-frame post',
+      7,
+    );
+  }
+  addRoundPoleBetween(
+    group,
+    new THREE.Vector3(frameX, 1.88, frameZ),
+    new THREE.Vector3(frameX + 2.4, 1.88, frameZ),
+    0.06,
+    darkWood,
+    'Hunter empty tool-frame rail',
+    7,
+  ).userData.runtimeInventoryAnchor = 'hunter-tools';
+}
+
+function addHunterHearth(group: THREE.Group): void {
+  const stone = stoneMaterial('mid');
+  const logs = timberMaterial('dark');
+  const center = new THREE.Vector3(-0.05, 0, 2.05);
+  const stoneCount = 11;
+  for (let index = 0; index < stoneCount; index += 1) {
+    const angle = index / stoneCount * Math.PI * 2;
+    const radius = 0.72 + Math.sin(index * 2.17) * 0.035;
+    const rock = addMesh(
+      group,
+      new THREE.DodecahedronGeometry(0.23 + (index % 3) * 0.018, 0),
+      stone,
+      new THREE.Vector3(
+        center.x + Math.cos(angle) * radius,
+        0.15,
+        center.z + Math.sin(angle) * radius,
+      ),
+      new THREE.Euler(0.08 * (index % 2), angle, -0.05 * (index % 3)),
+    );
+    rock.name = 'Hunter hearth ring stone';
+    rock.scale.y = 0.62;
+  }
+  const campfire = new THREE.Group();
+  campfire.name = 'HunterCampfire';
+  campfire.userData.runtimeFireAnchor = true;
+  group.add(campfire);
+  for (const [index, angle] of [0.72, -0.72, 0].entries()) {
+    const start = new THREE.Vector3(
+      center.x - Math.cos(angle) * 0.48,
+      0.3 + index * 0.035,
+      center.z - Math.sin(angle) * 0.48,
+    );
+    const end = new THREE.Vector3(
+      center.x + Math.cos(angle) * 0.48,
+      0.3 + index * 0.035,
+      center.z + Math.sin(angle) * 0.48,
+    );
+    addRoundPoleBetween(campfire, start, end, 0.1, logs, 'Hunter hearth fire log', 8);
+  }
+  // Three wooden cooking poles stand on bare ground outside the stone ring;
+  // no dangling metal rod or baked pot is included.
+  const tripodTop = new THREE.Vector3(center.x, 2.28, center.z);
+  for (const angle of [0, Math.PI * 2 / 3, Math.PI * 4 / 3]) {
+    addRoundPoleBetween(
+      group,
+      new THREE.Vector3(center.x + Math.cos(angle) * 1.04, 0, center.z + Math.sin(angle) * 1.04),
+      tripodTop,
+      0.035,
+      timberMaterial('weathered'),
+      'Hunter hearth tripod pole',
+      6,
+    );
+  }
+}
+
+/** Temporary woodland hunting camp with canvas shelter and an open work yard. */
+export function createHuntersHallMesh(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = "Hunter's camp";
+  group.userData.historicalMassing = 'temporary-woodland-camp';
+  group.userData.noBakedHangingTools = true;
+  addHunterSleepingTent(group);
+  addHunterProcessingFly(group);
+  addHunterHearth(group);
+
   const foodStockpile = new THREE.Group();
   foodStockpile.name = 'HuntersFoodStockpile';
   foodStockpile.visible = false;
-  for (const z of [-1.25, -0.42, 0.42, 1.25]) {
-    addMesh(
-      group,
-      new THREE.BoxGeometry(1.18, 0.09, 0.09),
-      timberMaterial('weathered'),
-      new THREE.Vector3(centerX, 1.52, z),
-    );
+  group.add(foodStockpile);
+  for (let index = 0; index < 4; index += 1) {
     const segment = new THREE.Group();
     segment.name = 'HuntersFoodSegment';
-    for (const x of [centerX - 0.33, centerX + 0.33]) {
-      addMesh(
-        segment,
-        new THREE.ConeGeometry(0.14, 0.58, 7),
-        timberMaterial('mid'),
-        new THREE.Vector3(x, 1.2, z),
-        new THREE.Euler(Math.PI, 0, 0),
-      );
-    }
+    const row = Math.floor(index / 2);
+    const column = index % 2;
+    const x = 3.45 + column * 0.55;
+    const z = -0.72 - row * 0.52;
+    addMesh(
+      segment,
+      new THREE.CylinderGeometry(0.24, 0.29, 0.3, 9),
+      sharedBuildingDetailMaterial('wicker'),
+      new THREE.Vector3(x, 0.15, z),
+    ).name = 'Covered hunter provision basket';
     foodStockpile.add(segment);
   }
-  group.add(foodStockpile);
-}
-
-/** Broad hunting hall with a deep side rack and unmistakable stone chimney. */
-export function createHuntersHallMesh(): THREE.Group {
-  const group = new THREE.Group();
-  group.name = "Hunter's hall";
-  const shell = addGableShell(group, {
-    width: 7.7,
-    depth: 6.45,
-    stoneHeight: 0.82,
-    wallHeight: 2.55,
-    ridgeHeight: 2.3,
-    wallMaterial: residenceFacadeMaterial('grey'),
-    roofMaterial: shingleMaterial(),
-    stoneGroundFloor: true,
-  });
-  addPlankDoor(group, -1.38, 0.86, shell.frontZ + 0.02, 1.05, 1.92);
-  addSmallWindow(group, 1.25, 1.82, shell.frontZ + 0.02, 0.86, 1.0);
-  addStoneChimney(group, -2.45, -1.4, 2.75);
-  addDryingLeanTo(group, shell.halfW);
   return group;
 }
 
@@ -490,25 +719,83 @@ function addPulledUpBoat(group: THREE.Group, x: number, z: number): void {
   group.add(boat);
 }
 
-/** Land-based net shed with wicker traps and a boat hauled safely above the shore. */
+function addFishingServiceShed(
+  group: THREE.Group,
+  centerX: number,
+  centerZ: number,
+): void {
+  const shell = addGableShell(group, {
+    width: 3.55,
+    depth: 4.05,
+    stoneHeight: 0.48,
+    wallHeight: 2.18,
+    ridgeHeight: 1.84,
+    wallMaterial: sharedBuildingMaterial('timberWeathered'),
+    roofMaterial: shingleMaterial(),
+    centerX,
+    centerZ,
+  });
+  addPlankDoor(group, centerX - 0.35, 0.52, shell.frontZ + 0.02, 0.84, 1.72);
+  addSmallWindow(group, centerX + 0.92, 1.48, shell.frontZ + 0.02, 0.48, 0.58);
+  const smokeAnchor = new THREE.Object3D();
+  smokeAnchor.name = 'FishingServiceShedSmoke';
+  smokeAnchor.position.set(centerX + 0.75, shell.wallTop + shell.ridgeHeight - 0.32, centerZ - 0.4);
+  smokeAnchor.userData.runtimeSmokeAnchor = true;
+  group.add(smokeAnchor);
+}
+
+function addFishingWorkCans(group: THREE.Group, x: number, z: number): void {
+  for (const [index, offset] of [-0.28, 0.28].entries()) {
+    const can = addMesh(
+      group,
+      new THREE.CylinderGeometry(0.2, 0.22, 0.42 + index * 0.06, 9),
+      metalMaterial('iron'),
+      new THREE.Vector3(x + offset, 0.21 + index * 0.03, z),
+    );
+    can.name = 'Fishing work can';
+    addMesh(
+      group,
+      new THREE.TorusGeometry(0.18, 0.018, 5, 10, Math.PI),
+      metalMaterial('iron'),
+      new THREE.Vector3(x + offset, 0.46 + index * 0.06, z),
+      new THREE.Euler(0, 0, index === 0 ? 0.18 : -0.18),
+    ).name = 'Fishing work can handle';
+  }
+}
+
+/** Unfenced riverside compound with two clear door approaches and an open work yard. */
 export function createFishingCampMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Fishing camp';
   const shell = addGableShell(group, {
-    width: 6.1,
-    depth: 5.2,
-    stoneHeight: 0.62,
-    wallHeight: 2.42,
-    ridgeHeight: 2.08,
-    wallMaterial: residenceFacadeMaterial('white'),
+    width: 6.45,
+    depth: 5.35,
+    stoneHeight: 0.64,
+    wallHeight: 2.38,
+    ridgeHeight: 2.35,
+    wallMaterial: sharedBuildingMaterial('timberWeathered'),
     roofMaterial: shingleMaterial(),
+    centerX: -1.65,
+    centerZ: 0.2,
   });
-  addPlankDoor(group, -1.05, 0.66, shell.frontZ + 0.02, 0.94, 1.84);
-  addSmallWindow(group, 1.22, 1.62, shell.frontZ + 0.02, 0.76, 0.88);
-  addFishingRack(group, 0, shell.frontZ + 1.18);
-  addWickerFishTrap(group, shell.halfW + 0.65, -0.7, 1);
-  addWickerFishTrap(group, shell.halfW + 1.15, 0.75, 0.82);
-  addPulledUpBoat(group, -shell.halfW - 1.7, -0.2);
-  addBarrel(group, shell.halfW - 0.25, -shell.halfD + 0.32, 0.76);
+  addPlankDoor(group, -2.72, 0.68, shell.frontZ + 0.02, 0.96, 1.82);
+  addSmallWindow(group, -0.48, 1.58, shell.frontZ + 0.02, 0.68, 0.8);
+  addFishingServiceShed(group, 4.05, -0.48);
+
+  // Keep the shared yard open: the rack is east of both door axes, and the
+  // cans/barrels sit beside it instead of clipping a facade or circulation.
+  const rackX = 5.95;
+  const rackZ = 2.55;
+  addFishingRack(group, rackX, rackZ);
+  addFishingWorkCans(group, rackX + 1.25, rackZ - 0.25);
+  addBarrel(group, rackX + 1.62, rackZ + 0.52, 0.72);
+  addWickerFishTrap(group, 2.4, -2.15, 0.92);
+  addWickerFishTrap(group, 3.25, -2.45, 0.78);
+  addPulledUpBoat(group, -5.65, -0.35);
+  group.userData.enclosure = 'none';
+  group.userData.clearDoorApproaches = [
+    { x: -2.72, z: shell.frontZ + 1.1, width: 1.5 },
+    { x: 3.7, z: 1.55, width: 1.35 },
+  ];
   return group;
 }

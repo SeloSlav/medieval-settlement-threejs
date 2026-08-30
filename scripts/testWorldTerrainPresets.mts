@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
+import { KUPA_HYDRAULIC_GRADE } from '../src/rivers/RiverLayout.ts';
 import {
   sampleNaturalTerrainHeight,
   setActiveQuarryLayout,
@@ -93,6 +94,26 @@ const kupaWaterWidth = sampleWaterWidth(kupa.layout.riverLayout, 0, kupaDimensio
 assert.ok(
   kupaWaterWidth >= 24 && kupaWaterWidth <= 38,
   `Kupa water width should stay close to the Gusti Laz scale, got ${kupaWaterWidth.toFixed(1)} m`,
+);
+const kupaCenterline = kupa.layout.riverLayout.corridors[0].points;
+const kupaSurfaceElevations = kupaCenterline.map((point) => {
+  const depth = kupa.layout.riverLayout.getWaterColumnDepth(point.x, point.z);
+  assert.ok(depth !== null);
+  const surface = kupa.layout.riverLayout.getWaterSurfaceOverride(point.x, point.z);
+  assert.ok(surface !== null);
+  return surface;
+});
+for (let index = 1; index < kupaSurfaceElevations.length; index += 1) {
+  assert.ok(
+    kupaSurfaceElevations[index] < kupaSurfaceElevations[index - 1],
+    `Kupa hydraulic surface must fall downstream at segment ${index}`,
+  );
+}
+const kupaHydraulicFall = kupaSurfaceElevations[0]
+  - kupaSurfaceElevations[kupaSurfaceElevations.length - 1];
+assert.ok(
+  Math.abs(kupaHydraulicFall - kupaDimensions.terrainSize * KUPA_HYDRAULIC_GRADE) < 0.02,
+  `Kupa hydraulic fall must match the authored grade, got ${kupaHydraulicFall.toFixed(3)} m`,
 );
 const kupaBenchRelief = sampleRelief(-45, 85, -55, 55, 13);
 assert.ok(
@@ -312,6 +333,7 @@ assert.notEqual(licPoljeTerrainDebugWeights(licFields, 'composite'), null);
 
 console.log('world terrain preset tests passed', {
   kupaWaterWidth: Number(kupaWaterWidth.toFixed(1)),
+  kupaHydraulicFall: Number(kupaHydraulicFall.toFixed(2)),
   kupaBenchRelief: Number(kupaBenchRelief.toFixed(1)),
   kupaWestRise: Number(kupaWestRise.toFixed(1)),
   kupaEastRise: Number(kupaEastRise.toFixed(1)),

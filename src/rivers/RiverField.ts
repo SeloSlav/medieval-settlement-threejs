@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 import type { TerrainBounds } from '../terrain/Terrain.ts';
 import type { PointXZ } from '../utils/pathGeometry.ts';
-import type { RiverLayout } from './RiverLayout.ts';
+import {
+  KUPA_WATERLINE_RADIUS,
+  type RiverLayout,
+} from './RiverLayout.ts';
 import { buildOrganicShoreSignedDistance, computeShoreSignedDistance, dilateRiverMask } from './organicShoreField.ts';
 
 export type RiverFieldOptions = {
@@ -24,8 +27,9 @@ export type SerializedRiverField = {
 const DEFAULT_RESOLUTION = 512;
 const WATER_THRESHOLD = 0.48;
 const MASK_DILATE_THRESHOLD = 0.38;
-const RENDER_WATER_MASK_THRESHOLD = MASK_DILATE_THRESHOLD;
+export const RENDER_WATER_MASK_THRESHOLD = MASK_DILATE_THRESHOLD;
 const MASK_DILATE_RADIUS = 1.75;
+const KUPA_MASK_DILATE_RADIUS = 0;
 const SHORE_BAND_MAX = 5.2;
 const SHORE_MUD_FADE_START = 0.18;
 const SHORE_MUD_FADE_SPAN = 10.8;
@@ -81,7 +85,19 @@ export class RiverField {
     const stepX = spanX / (resolution - 1);
     const stepZ = spanZ / (resolution - 1);
     const riverMask = layout.buildRiverMaskGrid(resolution);
-    const connectedMask = dilateRiverMask(riverMask, resolution, MASK_DILATE_THRESHOLD, MASK_DILATE_RADIUS);
+    // The Kupa cross-section owns an explicit bank/waterline contract. Its
+    // wide legacy dilation climbed the new 3.2 m bank ramp and rendered a thin
+    // water film metres above the channel. Other procedural rivers retain the
+    // connectivity dilation that closes narrow mask gaps at confluences.
+    const dilationRadius = layout.terrainPreset === 'kupa_valley'
+      ? KUPA_MASK_DILATE_RADIUS
+      : MASK_DILATE_RADIUS;
+    const connectedMask = dilateRiverMask(
+      riverMask,
+      resolution,
+      MASK_DILATE_THRESHOLD,
+      dilationRadius,
+    );
     const shoreSigned = computeShoreSignedDistance(connectedMask, resolution, RENDER_WATER_MASK_THRESHOLD);
     const organicSignedDistance = buildOrganicShoreSignedDistance({
       shoreSignedDistance: shoreSigned,
@@ -164,6 +180,13 @@ export class RiverField {
   }
 
   isRenderedWetAt(x: number, z: number): boolean {
+    // Kupa's bank and waterline are authored in continuous corridor space.
+    // A nearest 512² cell can cover another 0.8–2.3 m on either side as map
+    // size grows, enough to put gameplay water halfway up the steep bank. Use
+    // the same analytic threshold that owns the terrain cross-section.
+    if (this.layout.terrainPreset === 'kupa_valley') {
+      return this.layout.sampleRiverMask(x, z) >= RENDER_WATER_MASK_THRESHOLD;
+    }
     const grid = this.worldToGrid(x, z);
     const ix = Math.round(grid.gx);
     const iz = Math.round(grid.gz);
@@ -184,6 +207,16 @@ export class RiverField {
   renderedWaterTouchesDisk(x: number, z: number, radius: number): boolean {
     if (!Number.isFinite(radius) || radius <= 1e-6) {
       return this.isRenderedWetAt(x, z);
+    }
+    if (this.layout.terrainPreset === 'kupa_valley') {
+      const channel = this.layout.sampleChannel(x, z);
+      if (channel) {
+        return channel.distance <= channel.halfWidth * KUPA_WATERLINE_RADIUS + radius;
+      }
+      // Ordinary agent/building clearances cannot reach the channel from
+      // outside its indexed hydraulic-support neighborhood. Preserve the
+      // conservative coarse fallback only for unusually large queries.
+      if (radius < this.stepX * 2.5) return false;
     }
     const minGridX = Math.max(
       0,
@@ -227,6 +260,27 @@ export class RiverField {
     radius: number,
   ): boolean {
     if (path.length === 0) return false;
+    if (this.layout.terrainPreset === 'kupa_valley') {
+      if (path.length === 1) {
+        return this.renderedWaterTouchesDisk(path[0].x, path[0].z, radius);
+      }
+      const analyticStep = Math.max(0.75, Math.min(this.stepX, this.stepZ) * 0.45);
+      for (let index = 0; index < path.length - 1; index += 1) {
+        const start = path[index];
+        const end = path[index + 1];
+        const length = Math.hypot(end.x - start.x, end.z - start.z);
+        const steps = Math.max(1, Math.ceil(length / analyticStep));
+        for (let step = 0; step <= steps; step += 1) {
+          const t = step / steps;
+          if (this.renderedWaterTouchesDisk(
+            start.x + (end.x - start.x) * t,
+            start.z + (end.z - start.z) * t,
+            radius,
+          )) return true;
+        }
+      }
+      return false;
+    }
     const tiles = this.getNavigationWaterTiles();
     const tileResolution = Math.ceil(
       this.resolution / NAVIGATION_WATER_TILE_CELLS,

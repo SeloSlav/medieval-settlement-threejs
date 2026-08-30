@@ -5,7 +5,6 @@ import {
   type BatchedShadowProxyStats,
 } from '../buildings/buildingShadowProxy.ts';
 import { createBuildingMesh } from '../buildings/BuildingMeshes.ts';
-import { preloadAuthoredArchitectureModels } from '../buildings/authoredArchitectureModels.ts';
 import {
   initializeBuildingMaterialLibrary,
   sharedBuildingMaterial,
@@ -155,7 +154,6 @@ import {
   type HamletZoneSpec,
 } from './hamletFixtureConfig.ts';
 
-await preloadAuthoredArchitectureModels();
 
 type HamletFixtureLodState = {
   forest: 'overview' | 'near';

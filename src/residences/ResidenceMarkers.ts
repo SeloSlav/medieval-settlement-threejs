@@ -2,7 +2,10 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { addTriangularGableWall } from '../buildings/meshPrimitives.ts';
 import { addLogPile } from '../buildings/logPile.ts';
-import { BatchedBuildingShadowProxies } from '../buildings/buildingShadowProxy.ts';
+import {
+  BatchedBuildingShadowProxies,
+  setBuildingDetailShadowsEnabled,
+} from '../buildings/buildingShadowProxy.ts';
 import {
   addProceduralDoor,
   addProceduralWindow,
@@ -35,12 +38,14 @@ import type {
   MarketplaceServiceFulfillment,
   ServiceCoverageView,
 } from '../resources/serviceCoverage.ts';
-import { batchResidenceStaticMeshes } from './staticResidenceBatch.ts';
-import { ResidenceStaticBatches } from './ResidenceStaticBatches.ts';
 import {
-  authoredArchitectureModelsReady,
-  createAuthoredResidenceShell,
-} from '../buildings/authoredArchitectureModels.ts';
+  batchResidenceStaticMeshes,
+  isDynamicResidenceBatchBoundary,
+} from './staticResidenceBatch.ts';
+import { ResidenceStaticBatches } from './ResidenceStaticBatches.ts';
+import { PROCEDURAL_ARCHITECTURE_VERSION } from '../buildings/proceduralArchitecture/catalog.ts';
+import { proceduralVisualRequestKey } from '../buildings/proceduralArchitecture/visualRequest.ts';
+import { installProceduralShadowCasters } from '../buildings/proceduralArchitecture/shadows.ts';
 
 const WINDOW_GLOW_EMISSIVE = 0xffc060;
 const WINDOW_GLOW_COLOR = 0x4a3820;
@@ -94,6 +99,10 @@ type HouseDimensions = {
 
 type ResidenceTier = 1 | 2 | 3 | 4;
 type ResidenceRoofFinish = 'bundled-thatch' | 'split-wood-shingle' | 'fired-clay-tile';
+
+function residenceRoofFinishForTier(tier: ResidenceTier): ResidenceRoofFinish {
+  return tier >= 4 ? 'fired-clay-tile' : 'split-wood-shingle';
+}
 
 type TierOneResidenceSurface =
   | 'wattle-daub'
@@ -2136,6 +2145,11 @@ function finishAuthoredKitResidence(
   return group;
 }
 
+// These finishers are retained solely for offline GLB comparison renders. The
+// gameplay residence path below is fully procedural and never invokes them.
+void finishAuthoredTierOneResidence;
+void finishAuthoredKitResidence;
+
 export function createResidenceMesh(
   seed = 0,
   tier: ResidenceTier = 1,
@@ -2160,17 +2174,15 @@ export function createResidenceMesh(
     tier === 1
       ? tierOneResidenceMaterial('wattle-daub')
       : residenceFacadeMaterial(facade);
-  const roofFinish: ResidenceRoofFinish = tier === 1
-    ? 'bundled-thatch'
-    : tier >= 4
-      ? 'fired-clay-tile'
-      : 'split-wood-shingle';
+  const roofFinish = residenceRoofFinishForTier(tier);
   const effectiveTiledRoof = roofFinish === 'fired-clay-tile';
   const roofSurfaceMaterial = roofFinish === 'fired-clay-tile'
     ? sharedBuildingMaterial('clayRed')
     : roofFinish === 'bundled-thatch'
       ? tierOneResidenceMaterial('thatch')
-      : residenceRoofMaterial(roof);
+      : tier === 1
+        ? sharedBuildingMaterial('shingle')
+        : residenceRoofMaterial(roof);
   // Course boards and ridge caps must stay on the same shared roof surface as
   // their substrate. Using the wall-timber material here makes merged courses
   // read as long chocolate bands and bypasses shingle UV/weathering.
@@ -2180,6 +2192,14 @@ export function createResidenceMesh(
 
   const group = new THREE.Group();
   group.name = 'Residence';
+  group.userData.proceduralArchitecture = true;
+  group.userData.proceduralArchitectureVersion = PROCEDURAL_ARCHITECTURE_VERSION;
+  group.userData.proceduralArchitectureSource = 'threejs-procedural';
+  group.userData.proceduralVisualRequestKey = proceduralVisualRequestKey({
+    type: 'residence',
+    tier,
+    seed,
+  });
   group.userData.windowMaterial = windowMaterial;
   group.userData.residenceArchetype = archetype;
   group.userData.residenceTier = tier;
@@ -2187,7 +2207,7 @@ export function createResidenceMesh(
   group.userData.residenceTiledRoof = effectiveTiledRoof;
   group.userData.residenceRoofFinish = roofFinish;
   group.userData.residenceRoofTierContract = tier === 1
-    ? 'tier-1-thatch'
+    ? 'tier-1-split-softwood-shingle'
     : tier >= 4
       ? 'tier-4-fired-tile'
       : 'tier-2-3-split-wood';
@@ -2196,7 +2216,7 @@ export function createResidenceMesh(
     tier,
     seed,
     massing: tier === 1
-      ? ['low-longhouse-mass', 'deep-sagging-thatch-roof']
+      ? ['low-longhouse-mass', 'irregular-split-shingle-roof']
       : tier === 4
         ? ['expanded-two-storey-mass', 'central-cross-gable']
         : ['two-storey-house-mass'],
@@ -2212,13 +2232,6 @@ export function createResidenceMesh(
         : ['stone-ground-storey', 'plastered-upper-storey'],
     roofFinish,
   };
-
-  const authoredShell = createAuthoredResidenceShell(tier);
-  if (authoredShell) {
-    return tier === 1
-      ? finishAuthoredTierOneResidence(group, authoredShell, windowMaterial)
-      : finishAuthoredKitResidence(group, authoredShell, windowMaterial, tier);
-  }
 
   const { width, depth, foundationHeight, groundHeight, upperHeight, ridgeHeight } = dimensions;
   const halfW = width * 0.5;
@@ -2340,7 +2353,7 @@ export function createResidenceMesh(
       tierOneStructuralMaterial,
       new THREE.Vector3(),
     );
-    recessedSidePlates.name = 'Residence recessed side wall plates below thatch';
+    recessedSidePlates.name = 'Residence recessed side wall plates below shingles';
     recessedSidePlates.userData.residenceSideFrameRoofClearanceMeters = 0.25;
   } else {
     const wallPlate = addMesh(
@@ -2436,6 +2449,7 @@ export function createResidenceMesh(
   }
 
   const tierOneThatchShape: TierOneThatchRoofShape | null = tier === 1
+    && roofFinish === 'bundled-thatch'
     ? {
         roofHalfSpan,
         roofDepth: depth + roofDepthOverhang * 2,
@@ -2525,7 +2539,7 @@ export function createResidenceMesh(
       }
     }
   }
-  if (tier > 1) {
+  if (tier > 1 || roofFinish === 'split-wood-shingle') {
     addWeatheredRoofEdgeCraft(
       group,
       tierOneWeatheredMaterial,
@@ -2592,9 +2606,11 @@ export function createResidenceMesh(
     const roofExitY = tierOneThatchShape
       ? tierOneThatchSurfaceY(chimneyX, chimneyZ, tierOneThatchShape)
       : wallTop + ridgeHeight - Math.abs(chimneyX) * Math.tan(roofPitch);
-    chimneyEmitter.position.set(chimneyX, roofExitY + 0.065, chimneyZ);
-    chimneyEmitter.userData.residenceSmokeExit = 'through-thatch';
-    group.userData.residenceSmokeExit = 'through-thatch';
+    // Clear the explicit overlapping shingle courses, not only the continuous
+    // backing plane, so smoke originates above rather than inside the roof.
+    chimneyEmitter.position.set(chimneyX, roofExitY + 0.215, chimneyZ);
+    chimneyEmitter.userData.residenceSmokeExit = 'through-shingle-roof';
+    group.userData.residenceSmokeExit = 'through-shingle-roof';
     group.userData.residenceHasChimney = false;
   } else {
     const chimneyHeight = 2.02;
@@ -2655,9 +2671,7 @@ export function createInitialResidenceConstructionMesh(seed = 0): THREE.Group {
   marker.add(completedStructure);
 
   const appearance = pickResidenceAppearance(seed);
-  const dimensions = authoredArchitectureModelsReady()
-    ? AUTHORED_TIER_ONE_DIMENSIONS
-    : dimensionsForTier(appearance.archetype, 1);
+  const dimensions = dimensionsForTier(appearance.archetype, 1);
   const halfWidth = dimensions.width * 0.5;
   const halfDepth = dimensions.depth * 0.5;
   const frame = new THREE.Group();
@@ -2995,6 +3009,14 @@ export class ResidenceMarkers {
             );
         marker.userData.fpCollisionAggregate = true;
         this.root.add(marker);
+        if (completedTier != null) {
+          installProceduralShadowCasters(
+            marker,
+            `Procedural residence tier ${completedTier} structural shadow batches`,
+            isDynamicResidenceBatchBoundary,
+          );
+          setBuildingDetailShadowsEnabled(marker, areBuildingShadowsEnabled());
+        }
         batchResidenceStaticMeshes(marker);
         this.staticBatches.registerResidence(residence.id, marker);
         this.meshes.set(residence.id, marker);
