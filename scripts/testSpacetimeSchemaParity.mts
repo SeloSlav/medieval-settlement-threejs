@@ -123,7 +123,7 @@ for (const tableName of subscriptions) {
 const building = rustTables.get('building');
 assert.ok(building, 'building table must be subscribed and public');
 assert.deepEqual(
-  building.fields.slice(-19),
+  building.fields.slice(-26),
   [
     { name: 'tree_work_area_x', type: 'f64' },
     { name: 'tree_work_area_z', type: 'f64' },
@@ -144,6 +144,13 @@ assert.deepEqual(
     { name: 'placement_yaw', type: 'f64' },
     { name: 'placement_yaw_locked', type: 'bool' },
     { name: 'apiary_accumulated_honey', type: 'f64' },
+    { name: 'sidearms', type: 'f64' },
+    { name: 'shields', type: 'f64' },
+    { name: 'bows', type: 'f64' },
+    { name: 'crossbows', type: 'f64' },
+    { name: 'padded_armor', type: 'f64' },
+    { name: 'mail_armor', type: 'f64' },
+    { name: 'ammunition', type: 'f64' },
   ],
   'new Building fields must append without reordering saved fields',
 );
@@ -151,13 +158,20 @@ assert.deepEqual(
 const playerResources = rustTables.get('player_resources');
 assert.ok(playerResources, 'player_resources table must be subscribed and public');
 assert.deepEqual(
-  playerResources.fields.slice(-5),
+  playerResources.fields.slice(-12),
   [
     { name: 'wax', type: 'f64' },
     { name: 'candles', type: 'f64' },
     { name: 'pelts', type: 'f64' },
     { name: 'yarn', type: 'f64' },
     { name: 'linen', type: 'f64' },
+    { name: 'sidearms', type: 'f64' },
+    { name: 'shields', type: 'f64' },
+    { name: 'bows', type: 'f64' },
+    { name: 'crossbows', type: 'f64' },
+    { name: 'padded_armor', type: 'f64' },
+    { name: 'mail_armor', type: 'f64' },
+    { name: 'ammunition', type: 'f64' },
   ],
   'new commodity treasury fields must remain additive',
 );
@@ -170,15 +184,15 @@ assert.deepEqual(
   'backyard wax stock must remain an additive compatibility field',
 );
 
-for (const tableName of ['burgage_zone', 'residence'] as const) {
-  const table = rustTables.get(tableName);
-  assert.ok(table, `${tableName} table must be subscribed and public`);
-  assert.deepEqual(
-    table.fields.at(-1),
-    { name: 'settlement_id', type: 'u64' },
-    `${tableName}.settlement_id must remain the final additive compatibility field`,
-  );
-}
+const burgageZone = rustTables.get('burgage_zone');
+assert.ok(burgageZone, 'burgage_zone table must be subscribed and public');
+assert.deepEqual(burgageZone.fields.at(-1), { name: 'settlement_id', type: 'u64' });
+const residence = rustTables.get('residence');
+assert.ok(residence, 'residence table must be subscribed and public');
+assert.deepEqual(residence.fields.slice(-2), [
+  { name: 'settlement_id', type: 'u64' },
+  { name: 'smallholding', type: 'bool' },
+], 'residence community identity must precede the final additive smallholding flag');
 
 const settlement = rustTables.get('settlement');
 assert.ok(settlement, 'settlement must be a public subscribed table');

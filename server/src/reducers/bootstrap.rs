@@ -414,6 +414,13 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         pelts: resources.pelts.max(0.0),
         yarn: resources.yarn.max(0.0),
         linen: resources.linen.max(0.0),
+        sidearms: resources.sidearms.max(0.0),
+        shields: resources.shields.max(0.0),
+        bows: resources.bows.max(0.0),
+        crossbows: resources.crossbows.max(0.0),
+        padded_armor: resources.padded_armor.max(0.0),
+        mail_armor: resources.mail_armor.max(0.0),
+        ammunition: resources.ammunition.max(0.0),
         milk_use_policy: crate::livestock_policy::MILK_USE_BALANCED,
         smokehouse_recipe_policy: crate::smokehouse_recipe_policy::SMOKEHOUSE_RECIPE_AUTO,
         apiary_accumulated_honey: 0.0,
@@ -444,6 +451,13 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
     resources.pelts = 0.0;
     resources.yarn = 0.0;
     resources.linen = 0.0;
+    resources.sidearms = 0.0;
+    resources.shields = 0.0;
+    resources.bows = 0.0;
+    resources.crossbows = 0.0;
+    resources.padded_armor = 0.0;
+    resources.mail_armor = 0.0;
+    resources.ammunition = 0.0;
     resources.preserved_food = 0.0;
     resources.honey = 0.0;
     resources.wine = 0.0;

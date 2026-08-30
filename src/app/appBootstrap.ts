@@ -75,6 +75,8 @@ import { buildBuildingWorldMapMarkers } from '../map/worldMapMarkers.ts';
 import type { DeliveryAgentRenderer } from '../logistics/DeliveryAgentRenderer.ts';
 import { createAgentWaterObstacleTest } from '../settlement/agentNavigation.ts';
 import type { FireEffectsRenderer } from '../fires/FireEffectsRenderer.ts';
+import { BanditCampRenderer } from '../security/BanditCampRenderer.ts';
+import { MilitiaCommandController } from '../security/MilitiaCommandController.ts';
 import type { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
 import { beginProgressiveStartupTextureLoad } from '../scene/startupTextures.ts';
 import {
@@ -148,6 +150,8 @@ export type BootstrappedSession = {
   buildingMarkers: BuildingMarkers;
   deliveryAgents: DeliveryAgentRenderer;
   fireEffects: FireEffectsRenderer;
+  banditCamps: BanditCampRenderer;
+  militiaCommands: MilitiaCommandController;
   villagers: VillagerRenderer;
   residenceMarkers: ResidenceMarkers;
   backyardGardenMarkers: BackyardGardenMarkers;
@@ -779,6 +783,10 @@ export async function bootstrapAppSession(
     sceneManager.selectionGroup,
     () => sceneManager.invalidateStaticShadows(),
   );
+  const banditCamps = new BanditCampRenderer(
+    sceneManager.terrain,
+    sceneManager.selectionGroup,
+  );
   const backyardGardenMarkers = new BackyardGardenMarkers(sceneManager.selectionGroup, {
     maxAnisotropy: sceneManager.textureAnisotropy,
     useSeedThree: sceneManager.rendererBackend === 'webgpu',
@@ -1215,6 +1223,7 @@ export async function bootstrapAppSession(
     getMarketState: () => spacetimeStore.snapshot.marketState,
     getSettlementSecurity: () => spacetimeStore.snapshot.settlementSecurity,
     getCombatAgents: () => spacetimeStore.snapshot.combatAgents.values(),
+    getMilitaryCompanies: () => spacetimeStore.snapshot.militaryCompanies.values(),
     getConflictEnabled: () =>
       spacetimeStore.snapshot.worldGeneration?.configured === true
       && spacetimeStore.snapshot.worldGeneration.conflictMode === 'frontier',
@@ -1318,6 +1327,30 @@ export async function bootstrapAppSession(
     computeGoldAwaitingCollection(gameState.buildings.values()),
     computeGuardhousePayrollGold(gameState.buildings.values()),
   );
+  const militiaCommands = new MilitiaCommandController({
+    domElement: sceneManager.renderer.domElement,
+    uiRoot,
+    camera: sceneManager.camera,
+    terrainProjector: sceneManager.terrainProjector,
+    parent: sceneManager.selectionGroup,
+    getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
+    isBlocked: () => isWorldInspectionBlocked(placementGate),
+    onCommand: (ids, x, z, campId) => {
+      void spacetimeStore.commandMilitia(ids, x, z, campId).catch((error) => {
+        toastManager?.show(
+          error instanceof Error ? error.message : 'Could not issue military company order.',
+          { variant: 'error' },
+        );
+      });
+    },
+    onLeavingCompanySelected: (companyId) => {
+      const company = spacetimeStore.snapshot.militaryCompanies.get(companyId);
+      if (!company || company.kind !== 'mercenary-spears' || company.status !== 'leaving') return;
+      villagerInspector.clearSelection();
+      resourceInspector.selectBuilding(company.sourceBuildingId);
+      resourceInspector.focusMercenaryContract(company.id);
+    },
+  });
   const vineyardParcelMarkers = new VineyardParcelMarkers(
     sceneManager.selectionGroup,
     (x, z) => sceneManager.terrain.getHeightAt(x, z),
@@ -1721,6 +1754,8 @@ export async function bootstrapAppSession(
     buildingMarkers,
     deliveryAgents,
     fireEffects,
+    banditCamps,
+    militiaCommands,
     villagers,
     residenceMarkers,
     backyardGardenMarkers,

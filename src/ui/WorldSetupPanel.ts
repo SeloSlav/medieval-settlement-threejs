@@ -163,6 +163,16 @@ export class WorldSetupPanel {
                   <p class="world-setup-slider-hint">Higher pressure means earlier, stronger raids.</p>
                 </div>
                 <div class="world-setup-setting-row">
+                  <span class="world-setup-setting-row__icon" data-rule-icon="bandits" role="img" aria-label="Bandit camps"></span>
+                  <div class="world-setup-arrow-select" data-world-selector="bandit-camps">
+                    <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Previous bandit camp setting">‹</button>
+                    <div class="world-setup-arrow-select__value" aria-live="polite">
+                      <strong data-bandit-camps-value></strong><span data-bandit-camps-description></span>
+                    </div>
+                    <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="1" aria-label="Next bandit camp setting">›</button>
+                  </div>
+                </div>
+                <div class="world-setup-setting-row">
                   <span class="world-setup-setting-row__icon" data-rule-icon="approval" role="img" aria-label="Approval decline"></span>
                   <div class="world-setup-arrow-select" data-world-selector="approval-decline">
                     <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Lower approval decline">‹</button>
@@ -277,6 +287,10 @@ export class WorldSetupPanel {
     const pressureControls = this.backdrop.querySelector<HTMLElement>('[data-pressure-controls]')!;
     const pressureSlider = this.backdrop.querySelector<HTMLInputElement>('#world-setup-pressure')!;
     const pressureValue = this.backdrop.querySelector<HTMLElement>('[data-pressure-value]')!;
+    const banditCampsSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="bandit-camps"]')!;
+    const banditCampsIcon = this.backdrop.querySelector<HTMLElement>('[data-rule-icon="bandits"]')!;
+    const banditCampsValue = this.backdrop.querySelector<HTMLElement>('[data-bandit-camps-value]')!;
+    const banditCampsDescription = this.backdrop.querySelector<HTMLElement>('[data-bandit-camps-description]')!;
     const approvalDeclineSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="approval-decline"]')!;
     const approvalDeclineIcon = this.backdrop.querySelector<HTMLElement>('[data-rule-icon="approval"]')!;
     const approvalDeclineValue = this.backdrop.querySelector<HTMLElement>('[data-approval-decline-value]')!;
@@ -346,6 +360,12 @@ export class WorldSetupPanel {
       conflictModeDescription.textContent = this.draft.conflictMode === 'frontier'
         ? 'Periodic Ottoman raids.'
         : 'No hostile raids.';
+      banditCampsIcon.dataset.state = this.draft.banditCampsEnabled ? 'on' : 'off';
+      banditCampsValue.dataset.value = this.draft.banditCampsEnabled ? 'on' : 'off';
+      banditCampsValue.textContent = this.draft.banditCampsEnabled ? 'On' : 'Off';
+      banditCampsDescription.textContent = this.draft.banditCampsEnabled
+        ? 'Physical camps and storehouse thefts.'
+        : 'No bandit camps or thefts.';
     };
 
     const syncHazardControls = (): void => {
@@ -433,6 +453,10 @@ export class WorldSetupPanel {
       if (this.draft.conflictMode === 'frontier' && this.draft.enemyPressure <= 0) {
         this.draft.enemyPressure = 50;
       }
+      syncGameplayControls();
+    });
+    bindArrowSelector(banditCampsSelector, (step) => {
+      this.draft.banditCampsEnabled = cycleValue(BOOLEAN_ORDER, this.draft.banditCampsEnabled, step);
       syncGameplayControls();
     });
     pressureSlider.addEventListener('input', () => {

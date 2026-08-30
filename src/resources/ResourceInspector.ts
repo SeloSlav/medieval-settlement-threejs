@@ -55,6 +55,7 @@ import {
 } from '../fires/fireRecovery.ts';
 import type { SettlementSecurityState } from '../security/frontierSecurity.ts';
 import type { CombatAgentState } from '../security/combatAgents.ts';
+import type { MilitaryCompanyState } from '../security/militaryProgression.ts';
 import { renderBuildingResourceCost } from '../ui/resourceCost.ts';
 import { BACKYARD_EXTENSION_CARD_ART } from '../ui/buildMenuCards.ts';
 import {
@@ -118,6 +119,7 @@ type ResourceInspectorOptions = {
   getMarketState?: () => RegionalMarketState;
   getSettlementSecurity?: () => SettlementSecurityState;
   getCombatAgents?: () => Iterable<CombatAgentState>;
+  getMilitaryCompanies?: () => Iterable<MilitaryCompanyState>;
   getConflictEnabled?: () => boolean;
   getEnemyPressure?: () => number;
   getWorldHydrology?: () => number;
@@ -152,6 +154,14 @@ type ResourceInspectorOptions = {
   onRecallTargetIdleProcessorLabor?: (townHallId: string) => void | Promise<void>;
   onCallUpTargetReadyProcessorLabor?: (townHallId: string) => void | Promise<void>;
   onBalanceYearRoundLabor?: (townHallId: string) => void | Promise<void>;
+  onRaiseMilitia?: (townHallId: string, requested: number) => void | Promise<void>;
+  onDisbandMilitia?: () => void | Promise<void>;
+  onRecruitMilitaryCompany?: (guardhouseId: string, kind: number) => void | Promise<void>;
+  onHireMercenaryCompany?: (townHallId: string) => void | Promise<void>;
+  onDisbandMilitaryCompany?: (companyId: string) => void | Promise<void>;
+  onRenewMercenaryContract?: (companyId: string) => void | Promise<void>;
+  onResupplyMilitaryCompany?: (companyId: string) => void | Promise<void>;
+  onSetMilitaryFormation?: (companyId: string, formation: number) => void | Promise<void>;
   onSetConstructionPriority?: (buildingId: string, priority: number) => void | Promise<void>;
   onSetTradingPostTradeRule?: (
     buildingId: string,
@@ -354,8 +364,20 @@ const NON_SPECIALTY_HUD_RESOURCE_KINDS = new Set<HudResourceKind>([
   'charcoal',
 ]);
 
+const MILITARY_HUD_RESOURCE_KINDS = new Set<HudResourceKind>([
+  'polearms',
+  'sidearms',
+  'shields',
+  'bows',
+  'crossbows',
+  'paddedArmor',
+  'mailArmor',
+  'ammunition',
+]);
+
 const SPECIALTY_HUD_RESOURCE_KINDS = HUD_RESOURCE_KINDS.filter(
-  (resource) => !NON_SPECIALTY_HUD_RESOURCE_KINDS.has(resource),
+  (resource) => !NON_SPECIALTY_HUD_RESOURCE_KINDS.has(resource)
+    && !MILITARY_HUD_RESOURCE_KINDS.has(resource),
 );
 
 export class ResourceInspector {
@@ -388,6 +410,8 @@ export class ResourceInspector {
   private readonly fuelStoresModeLabel: HTMLElement;
   private readonly fuelFirewoodAmount: HTMLElement;
   private readonly specialtyStoresModeLabel: HTMLElement;
+  private readonly militaryStoresModeLabel: HTMLElement;
+  private readonly militaryKitReadiness: HTMLElement;
   private readonly resourceCardAmounts: Record<HudResourceCardKind, HTMLElement>;
   private readonly resourceCardModeLabels: Record<HudResourceCardKind, HTMLElement>;
   private readonly resourceCardDetails: Record<HudResourceCardKind, HTMLElement>;
@@ -582,6 +606,14 @@ export class ResourceInspector {
       options.uiRoot,
       '[data-specialty-stores-mode-label]',
     );
+    this.militaryStoresModeLabel = this.mustElement(
+      options.uiRoot,
+      '[data-military-stores-mode-label]',
+    );
+    this.militaryKitReadiness = this.mustElement(
+      options.uiRoot,
+      '[data-military-kit-readiness]',
+    );
     this.resourceCardAmounts = Object.fromEntries(
       HUD_RESOURCE_CARD_KINDS.map((resource) => [
         resource,
@@ -635,6 +667,13 @@ export class ResourceInspector {
       shoes: this.mustElement(options.uiRoot, '[data-stockpile="shoes"]'),
       ironwork: this.mustElement(options.uiRoot, '[data-stockpile="ironwork"]'),
       polearms: this.mustElement(options.uiRoot, '[data-stockpile="polearms"]'),
+      sidearms: this.mustElement(options.uiRoot, '[data-stockpile="sidearms"]'),
+      shields: this.mustElement(options.uiRoot, '[data-stockpile="shields"]'),
+      bows: this.mustElement(options.uiRoot, '[data-stockpile="bows"]'),
+      crossbows: this.mustElement(options.uiRoot, '[data-stockpile="crossbows"]'),
+      paddedArmor: this.mustElement(options.uiRoot, '[data-stockpile="paddedArmor"]'),
+      mailArmor: this.mustElement(options.uiRoot, '[data-stockpile="mailArmor"]'),
+      ammunition: this.mustElement(options.uiRoot, '[data-stockpile="ammunition"]'),
       iron: this.mustElement(options.uiRoot, '[data-stockpile="iron"]'),
       clay: this.mustElement(options.uiRoot, '[data-stockpile="clay"]'),
       salt: this.mustElement(options.uiRoot, '[data-stockpile="salt"]'),
@@ -834,6 +873,7 @@ export class ResourceInspector {
     this.foodStoresModeLabel.textContent = panelModeLabel;
     this.fuelStoresModeLabel.textContent = panelModeLabel;
     this.specialtyStoresModeLabel.textContent = panelModeLabel;
+    this.militaryStoresModeLabel.textContent = panelModeLabel;
     this.stockpileRoot.dataset.resourceTotalsPresentation =
       this.resourceTotalsPresentation;
     for (const resource of HUD_RESOURCE_CARD_KINDS) {
@@ -1788,6 +1828,57 @@ export class ResourceInspector {
       }
       return;
     }
+    const raiseMilitia = (event.target as HTMLElement).closest<HTMLElement>('[data-raise-militia]');
+    if (raiseMilitia && this.selectedTarget?.kind === 'building' && this.selectedTarget.building.kind === 'town_hall') {
+      const sizePicker = raiseMilitia
+        .closest<HTMLElement>('.military-recruitment-card')
+        ?.querySelector<HTMLSelectElement>('[data-militia-size]');
+      void this.options.onRaiseMilitia?.(
+        this.selectedTarget.building.id,
+        Number(sizePicker?.value ?? raiseMilitia.dataset.raiseMilitia ?? 5),
+      );
+      return;
+    }
+    if ((event.target as HTMLElement).closest('[data-disband-militia]')) {
+      void this.options.onDisbandMilitia?.();
+      return;
+    }
+    const recruitMilitary = (event.target as HTMLElement).closest<HTMLElement>('[data-recruit-military-kind]');
+    if (recruitMilitary && this.selectedTarget?.kind === 'building' && this.selectedTarget.building.kind === 'guardhouse') {
+      void this.options.onRecruitMilitaryCompany?.(
+        this.selectedTarget.building.id,
+        Number(recruitMilitary.dataset.recruitMilitaryKind),
+      );
+      return;
+    }
+    const hireMercenaries = (event.target as HTMLElement).closest<HTMLElement>('[data-hire-mercenary-company]');
+    if (hireMercenaries && this.selectedTarget?.kind === 'building' && this.selectedTarget.building.kind === 'town_hall') {
+      void this.options.onHireMercenaryCompany?.(this.selectedTarget.building.id);
+      return;
+    }
+    const disbandMilitary = (event.target as HTMLElement).closest<HTMLElement>('[data-disband-military-company]');
+    if (disbandMilitary?.dataset.disbandMilitaryCompany) {
+      void this.options.onDisbandMilitaryCompany?.(disbandMilitary.dataset.disbandMilitaryCompany);
+      return;
+    }
+    const renewMercenaries = (event.target as HTMLElement).closest<HTMLElement>('[data-renew-mercenary-contract]');
+    if (renewMercenaries?.dataset.renewMercenaryContract) {
+      void this.options.onRenewMercenaryContract?.(renewMercenaries.dataset.renewMercenaryContract);
+      return;
+    }
+    const resupplyMilitary = (event.target as HTMLElement).closest<HTMLElement>('[data-resupply-military-company]');
+    if (resupplyMilitary?.dataset.resupplyMilitaryCompany) {
+      void this.options.onResupplyMilitaryCompany?.(resupplyMilitary.dataset.resupplyMilitaryCompany);
+      return;
+    }
+    const formation = (event.target as HTMLElement).closest<HTMLElement>('[data-military-formation]');
+    if (formation?.dataset.militaryCompanyId && formation.dataset.militaryFormation) {
+      void this.options.onSetMilitaryFormation?.(
+        formation.dataset.militaryCompanyId,
+        Number(formation.dataset.militaryFormation),
+      );
+      return;
+    }
     if (this.selectedTarget?.kind !== 'building') return;
     const building = this.selectedTarget.building;
 
@@ -2053,6 +2144,36 @@ export class ResourceInspector {
       delete specialtyStoreSummary.dataset.tooltip;
       specialtyStoreSummary.setAttribute('aria-label', `Stores and provisions, ${storeDescription.toLowerCase()}`);
     }
+    const stockedMilitary = [...MILITARY_HUD_RESOURCE_KINDS].filter((resource) =>
+      totals[resource] > 1e-6 || (this.inTransitTotals?.[resource] ?? 0) > 1e-6);
+    const militaryStore = this.stockpileRoot.querySelector<HTMLElement>('[data-military-stores]');
+    const militaryStoreStatus = this.stockpileRoot.querySelector<HTMLElement>('[data-military-stores-status]');
+    const militaryStoreSummary = militaryStore?.querySelector<HTMLElement>('.settlement-hud__stores-summary');
+    militaryStore?.classList.toggle('has-stock', stockedMilitary.length > 0);
+    if (militaryStoreStatus) {
+      militaryStoreStatus.textContent = Math.round(
+        [...MILITARY_HUD_RESOURCE_KINDS].reduce((sum, resource) => sum + totals[resource], 0),
+      ).toString();
+    }
+    const spearKits = Math.floor(Math.min(totals.polearms, totals.shields, totals.paddedArmor));
+    const footKits = Math.floor(Math.min(totals.sidearms, totals.shields, totals.paddedArmor));
+    const rangedKits = Math.floor(Math.min(totals.bows + totals.crossbows, totals.ammunition));
+    const bottleneck = [
+      ['polearms', totals.polearms],
+      ['sidearms', totals.sidearms],
+      ['shields', totals.shields],
+      ['padded armor', totals.paddedArmor],
+      ['mail armor', totals.mailArmor],
+      ['bows/crossbows', totals.bows + totals.crossbows],
+      ['ammunition', totals.ammunition],
+    ] as const;
+    const bottleneckLabel = bottleneck.reduce((least, candidate) =>
+      candidate[1] < least[1] ? candidate : least)[0];
+    this.militaryKitReadiness.textContent = `Spear ${spearKits} · foot ${footKits} · ranged ${rangedKits} · bottleneck: ${bottleneckLabel}`;
+    militaryStoreSummary?.setAttribute(
+      'aria-label',
+      `Military stores, ${stockedMilitary.length} stocked categories. ${this.militaryKitReadiness.textContent}`,
+    );
   }
 
   private renderFoodBreakdown(): void {
@@ -2141,6 +2262,20 @@ export class ResourceInspector {
   focusPanel(): void {
     if (this.panel.hidden) return;
     this.closeButton.focus({ preventScroll: true });
+  }
+
+  /** Reveals the last-minute retainer action after a leaving company is
+   * selected in the world, without forcing the camera away from its march. */
+  focusMercenaryContract(companyId: string): void {
+    const button = [...this.supplementalPanelSection.querySelectorAll<HTMLButtonElement>(
+      '[data-renew-mercenary-contract]',
+    )].find((candidate) => candidate.dataset.renewMercenaryContract === companyId);
+    if (!button) {
+      this.focusPanel();
+      return;
+    }
+    button.scrollIntoView({ block: 'nearest' });
+    button.focus({ preventScroll: true });
   }
 
   selectResidence(residenceId: string): void {
@@ -2329,6 +2464,10 @@ export class ResourceInspector {
       ? this.supplementalPanelSection
           .querySelector<HTMLElement>('[data-trading-post-scroll]')?.scrollTop ?? 0
       : 0;
+    const militiaSizeDraft = preservePolicyState
+      ? this.supplementalPanelSection
+          .querySelector<HTMLSelectElement>('[data-militia-size]')?.value ?? null
+      : null;
     const gameState = this.options.getState();
     const resourceTotals = computeResourceTotals(gameState);
     const needsProductionForecast = (
@@ -2460,6 +2599,9 @@ export class ResourceInspector {
         : {}),
       ...(this.options.getCombatAgents
         ? { combatAgents: this.options.getCombatAgents() }
+        : {}),
+      ...(this.options.getMilitaryCompanies
+        ? { militaryCompanies: this.options.getMilitaryCompanies() }
         : {}),
     });
     const fire = target.kind === 'building'
@@ -2687,6 +2829,9 @@ export class ResourceInspector {
       if (supplementalPanelChanged) {
         this.supplementalPanelSection.innerHTML = view.supplementalPanelHtml;
         this.standardizeSupplementalPanels();
+        const militiaSizePicker = this.supplementalPanelSection
+          .querySelector<HTMLSelectElement>('[data-militia-size]');
+        if (militiaSizePicker && militiaSizeDraft) militiaSizePicker.value = militiaSizeDraft;
       }
       const hasSupplementalContent = this.supplementalPanelSection.childElementCount > 0;
       this.supplementalPanelSection.hidden = !hasSupplementalContent;

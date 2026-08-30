@@ -19,6 +19,7 @@ pub const OX_SUPPORTED_WORKPLACE_KINDS: &[&str] = &[
     "threshing_barn",
     "pastoral_farmstead",
     "swineherd",
+    "monastery",
     "carpenter",
     "village_storehouse",
     "granary",
@@ -42,7 +43,7 @@ pub fn ox_workplace_capacity(kind: &str) -> u32 {
         "lumber_mill" | "stone_quarry" | "large_quarry" | "mine"
         | "threshing_barn" | "pastoral_farmstead" => 3,
         "woodcutters_lodge" | "charcoal_burner" | "swineherd" | "carpenter" => 2,
-        "reforester" | "village_storehouse" | "granary" | "trading_post" => 1,
+        "reforester" | "monastery" | "village_storehouse" | "granary" | "trading_post" => 1,
         _ => 0,
     };
     type_capacity.min(STABLE_OX_MAX_PER_WORKPLACE)
@@ -327,12 +328,14 @@ mod tests {
         assert!(is_ox_supported_workplace("trading_post"));
         assert!(!is_ox_production_workplace("village_storehouse"));
         assert!(is_ox_production_workplace("lumber_mill"));
+        assert!(is_ox_production_workplace("monastery"));
         assert!(!is_ox_supported_workplace("smithy"));
     }
 
     #[test]
     fn workplace_capacity_follows_type_size_but_never_exceeds_three() {
         assert_eq!(ox_workplace_capacity("reforester"), 1);
+        assert_eq!(ox_workplace_capacity("monastery"), 1);
         assert_eq!(ox_workplace_capacity("woodcutters_lodge"), 2);
         assert_eq!(ox_workplace_capacity("threshing_barn"), 3);
         assert_eq!(ox_workplace_capacity("granary"), 1);

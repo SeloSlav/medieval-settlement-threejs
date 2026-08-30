@@ -278,6 +278,13 @@ pub struct RaidPortableStores {
     pub shoes: f64,
     pub ironwork: f64,
     pub polearms: f64,
+    pub sidearms: f64,
+    pub shields: f64,
+    pub bows: f64,
+    pub crossbows: f64,
+    pub padded_armor: f64,
+    pub mail_armor: f64,
+    pub ammunition: f64,
     pub gold: f64,
     pub barley: f64,
     pub malt: f64,
@@ -366,6 +373,13 @@ impl RaidPortableStores {
             shoes,
             ironwork,
             polearms,
+            sidearms,
+            shields,
+            bows,
+            crossbows,
+            padded_armor,
+            mail_armor,
+            ammunition,
             gold,
             barley,
             malt,
@@ -436,6 +450,13 @@ impl RaidPortableStores {
             + positive_store(self.shoes) * IRONWORK_RAID_VALUE_MULTIPLIER
             + positive_store(self.ironwork) * IRONWORK_RAID_VALUE_MULTIPLIER
             + positive_store(self.polearms) * POLEARM_RAID_VALUE_MULTIPLIER
+            + positive_store(self.sidearms) * POLEARM_RAID_VALUE_MULTIPLIER
+            + positive_store(self.shields) * IRONWORK_RAID_VALUE_MULTIPLIER
+            + positive_store(self.bows) * POLEARM_RAID_VALUE_MULTIPLIER
+            + positive_store(self.crossbows) * POLEARM_RAID_VALUE_MULTIPLIER * 1.5
+            + positive_store(self.padded_armor) * CLOTH_RAID_VALUE_MULTIPLIER
+            + positive_store(self.mail_armor) * POLEARM_RAID_VALUE_MULTIPLIER * 1.75
+            + positive_store(self.ammunition) * IRONWORK_RAID_VALUE_MULTIPLIER
             + positive_store(self.gold)
             + positive_store(self.barley)
             + positive_store(self.malt)
@@ -504,6 +525,13 @@ impl RaidPortableStores {
             + positive_store(self.shoes)
             + positive_store(self.ironwork)
             + positive_store(self.polearms)
+            + positive_store(self.sidearms)
+            + positive_store(self.shields)
+            + positive_store(self.bows)
+            + positive_store(self.crossbows)
+            + positive_store(self.padded_armor)
+            + positive_store(self.mail_armor)
+            + positive_store(self.ammunition)
             + positive_store(self.barley)
             + positive_store(self.malt)
             + positive_store(self.flax)
@@ -588,6 +616,13 @@ impl RaidPortableStores {
         plunder_good!(shoes);
         plunder_good!(ironwork);
         plunder_good!(polearms);
+        plunder_good!(sidearms);
+        plunder_good!(shields);
+        plunder_good!(bows);
+        plunder_good!(crossbows);
+        plunder_good!(padded_armor);
+        plunder_good!(mail_armor);
+        plunder_good!(ammunition);
         plunder_good!(barley);
         plunder_good!(malt);
         plunder_good!(flax);
@@ -669,6 +704,13 @@ impl RaidPortableStores {
             shoes: removed!(shoes),
             ironwork: removed!(ironwork),
             polearms: removed!(polearms),
+            sidearms: removed!(sidearms),
+            shields: removed!(shields),
+            bows: removed!(bows),
+            crossbows: removed!(crossbows),
+            padded_armor: removed!(padded_armor),
+            mail_armor: removed!(mail_armor),
+            ammunition: removed!(ammunition),
             gold: removed!(gold),
             barley: removed!(barley),
             malt: removed!(malt),

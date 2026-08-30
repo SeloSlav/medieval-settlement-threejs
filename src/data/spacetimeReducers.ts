@@ -1184,6 +1184,89 @@ export async function bootstrapWorld(
   await callReducer('bootstrapFoundingSite', 'bootstrap_founding_site', foundingSite);
 }
 
+export async function raiseMilitia(townHallId: string, requested = 5): Promise<void> {
+  const serverId = parseBuildingServerId(townHallId);
+  if (serverId === null) throw new Error('Invalid Town Hall id.');
+  await callReducer('raiseMilitia', 'raise_militia', {
+    townHallId: serverId,
+    requested: Math.max(1, Math.min(12, Math.floor(requested))),
+  });
+}
+
+export async function commandMilitia(
+  agentIds: string[],
+  destinationX: number,
+  destinationZ: number,
+  targetCampId?: string | null,
+): Promise<void> {
+  const ids = agentIds
+    .map((id) => /^\d+$/.test(id) ? BigInt(id) : null)
+    .filter((id): id is bigint => id !== null);
+  const campMatch = targetCampId ? /^bandit-camp-(\d+)$/.exec(targetCampId) : null;
+  await callReducer('commandMilitia', 'command_militia', {
+    agentIds: ids,
+    destinationX,
+    destinationZ,
+    targetCampId: campMatch ? BigInt(campMatch[1]!) : 0n,
+  });
+}
+
+export async function disbandMilitia(): Promise<void> {
+  await callReducer('disbandMilitia', 'disband_militia', {});
+}
+
+export async function recruitMilitaryCompany(
+  guardhouseId: string,
+  kind: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(guardhouseId);
+  if (serverId === null) throw new Error('Invalid guardhouse id.');
+  await callReducer('recruitMilitaryCompany', 'recruit_military_company', {
+    guardhouseId: serverId,
+    kind: Math.max(1, Math.min(8, Math.floor(kind))),
+  });
+}
+
+export async function hireMercenaryCompany(townHallId: string): Promise<void> {
+  const serverId = parseBuildingServerId(townHallId);
+  if (serverId === null) throw new Error('Invalid Town Hall id.');
+  await callReducer('hireMercenaryCompany', 'hire_mercenary_company', {
+    townHallId: serverId,
+  });
+}
+
+export async function disbandMilitaryCompany(companyId: string): Promise<void> {
+  if (!/^\d+$/.test(companyId)) throw new Error('Invalid military company id.');
+  await callReducer('disbandMilitaryCompany', 'disband_military_company', {
+    companyId: BigInt(companyId),
+  });
+}
+
+export async function renewMercenaryContract(companyId: string): Promise<void> {
+  if (!/^\d+$/.test(companyId)) throw new Error('Invalid mercenary company id.');
+  await callReducer('renewMercenaryContract', 'renew_mercenary_contract', {
+    companyId: BigInt(companyId),
+  });
+}
+
+export async function resupplyMilitaryCompany(companyId: string): Promise<void> {
+  if (!/^\d+$/.test(companyId)) throw new Error('Invalid military company id.');
+  await callReducer('resupplyMilitaryCompany', 'resupply_military_company', {
+    companyId: BigInt(companyId),
+  });
+}
+
+export async function setMilitaryFormation(
+  companyId: string,
+  formation: number,
+): Promise<void> {
+  if (!/^\d+$/.test(companyId)) throw new Error('Invalid military company id.');
+  await callReducer('setMilitaryFormation', 'set_military_formation', {
+    companyId: BigInt(companyId),
+    formation: Math.max(0, Math.min(3, Math.floor(formation))),
+  });
+}
+
 export async function syncRoadNetwork(snapshotJson: string): Promise<void> {
   await callReducer('syncRoadNetwork', 'sync_road_network', { snapshotJson });
 }

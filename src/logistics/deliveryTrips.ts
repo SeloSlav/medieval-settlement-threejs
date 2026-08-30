@@ -78,6 +78,13 @@ export const DELIVERY_CARGO_KINDS = [
   'candles',
   'yarn',
   'linen',
+  'sidearms',
+  'shields',
+  'bows',
+  'crossbows',
+  'paddedArmor',
+  'mailArmor',
+  'ammunition',
 ] as const;
 export type DeliveryCargoKind = (typeof DELIVERY_CARGO_KINDS)[number];
 
@@ -444,6 +451,20 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'yarn';
     case 68:
       return 'linen';
+    case 69:
+      return 'sidearms';
+    case 70:
+      return 'shields';
+    case 71:
+      return 'bows';
+    case 72:
+      return 'crossbows';
+    case 73:
+      return 'paddedArmor';
+    case 74:
+      return 'mailArmor';
+    case 75:
+      return 'ammunition';
     default:
       return null;
   }
@@ -579,6 +600,20 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
       return 'Stone';
     case 'polearms':
       return 'Polearms';
+    case 'sidearms':
+      return 'Sidearms';
+    case 'shields':
+      return 'Shields';
+    case 'bows':
+      return 'Bows';
+    case 'crossbows':
+      return 'Crossbows';
+    case 'paddedArmor':
+      return 'Padded armor';
+    case 'mailArmor':
+      return 'Mail armor';
+    case 'ammunition':
+      return 'Ammunition';
     case 'ironwork':
       return 'Ironwork';
     case 'wool':
@@ -1049,6 +1084,20 @@ export function cargoColor(kind: DeliveryCargoKind): number {
       return 0x8b8985;
     case 'polearms':
       return 0x695642;
+    case 'sidearms':
+      return 0x777b7c;
+    case 'shields':
+      return 0x805c36;
+    case 'bows':
+      return 0x8b6845;
+    case 'crossbows':
+      return 0x5e5042;
+    case 'paddedArmor':
+      return 0x8b8067;
+    case 'mailArmor':
+      return 0x747b80;
+    case 'ammunition':
+      return 0x9a7346;
     case 'ironwork':
       return 0x687078;
     case 'wool':

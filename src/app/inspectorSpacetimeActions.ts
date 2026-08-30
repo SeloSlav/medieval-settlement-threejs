@@ -37,6 +37,14 @@ export type InspectorSpacetimeActions = {
   onRecallTargetIdleProcessorLabor: (townHallId: string) => Promise<void>;
   onCallUpTargetReadyProcessorLabor: (townHallId: string) => Promise<void>;
   onBalanceYearRoundLabor: (townHallId: string) => Promise<void>;
+  onRaiseMilitia: (townHallId: string, requested: number) => Promise<void>;
+  onDisbandMilitia: () => Promise<void>;
+  onRecruitMilitaryCompany: (guardhouseId: string, kind: number) => Promise<void>;
+  onHireMercenaryCompany: (townHallId: string) => Promise<void>;
+  onDisbandMilitaryCompany: (companyId: string) => Promise<void>;
+  onRenewMercenaryContract: (companyId: string) => Promise<void>;
+  onResupplyMilitaryCompany: (companyId: string) => Promise<void>;
+  onSetMilitaryFormation: (companyId: string, formation: number) => Promise<void>;
   onSetConstructionPriority: (buildingId: string, priority: number) => Promise<void>;
   onSetTradingPostTradeRule: (
     buildingId: string,
@@ -385,6 +393,70 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setTradingPostTradeRule(buildingId, commodityKind, mode, targetSurplus),
         'Could not update the regional trade rule.',
+      );
+    },
+    onRaiseMilitia: async (townHallId, requested) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(async () => {
+        await store.raiseMilitia(townHallId, requested);
+        toastManager.show('Militia raised. Drag-select the spearmen and right-click to move or attack.');
+      }, 'Could not raise militia.');
+    },
+    onDisbandMilitia: async () => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(async () => {
+        await store.disbandMilitia();
+        toastManager.show('Militia disbanded and returned to the free labor pool.');
+      }, 'Could not disband militia.');
+    },
+    onRecruitMilitaryCompany: async (guardhouseId, kind) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(async () => {
+        await store.recruitMilitaryCompany(guardhouseId, kind);
+        toastManager.show('Military company recruited. Drag-select its soldiers and right-click to command them.');
+      }, 'Could not recruit the military company.');
+    },
+    onHireMercenaryCompany: async (townHallId) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(async () => {
+        await store.hireMercenaryCompany(townHallId);
+        toastManager.show('Mercenary spear company hired and ready at the Town Hall.');
+      }, 'Could not hire the mercenary company.');
+    },
+    onDisbandMilitaryCompany: async (companyId) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(async () => {
+        await store.disbandMilitaryCompany(companyId);
+        toastManager.show('Company is leaving service. Mercenaries march to their original map edge; residents return equipment and walk home.');
+      }, 'Could not disband the company.');
+    },
+    onRenewMercenaryContract: async (companyId) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(async () => {
+        await store.renewMercenaryContract(companyId);
+        toastManager.show('Mercenary retainer paid. The company has halted its departure and accepts orders again.');
+      }, 'Could not renew the mercenary contract.');
+    },
+    onResupplyMilitaryCompany: async (companyId) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(async () => {
+        await store.resupplyMilitaryCompany(companyId);
+        toastManager.show('Company field supplies issued from settlement stores.');
+      }, 'Could not resupply the company.');
+    },
+    onSetMilitaryFormation: async (companyId, formation) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setMilitaryFormation(companyId, formation),
+        'Could not change the company formation.',
       );
     },
     onSpecializeOrchard: async (residenceId, kind) => {

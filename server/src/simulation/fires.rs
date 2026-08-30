@@ -722,6 +722,13 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             building.roof_tiles = 0.0;
             building.ironwork = 0.0;
             building.polearms = 0.0;
+            building.sidearms = 0.0;
+            building.shields = 0.0;
+            building.bows = 0.0;
+            building.crossbows = 0.0;
+            building.padded_armor = 0.0;
+            building.mail_armor = 0.0;
+            building.ammunition = 0.0;
             building.iron = 0.0;
             building.clay = 0.0;
             building.salt = 0.0;
@@ -809,6 +816,13 @@ fn fire_recoverable_stock(building: &Building) -> ReclamationStock {
         stone: building.stone.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
         ironwork: building.ironwork.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
         polearms: building.polearms.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
+        sidearms: building.sidearms.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
+        shields: building.shields.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
+        bows: building.bows.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
+        crossbows: building.crossbows.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
+        padded_armor: building.padded_armor.max(0.0) * 0.25,
+        mail_armor: building.mail_armor.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
+        ammunition: building.ammunition.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
         iron: building.iron.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
         clay: building.clay.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
         salt: building.salt.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,

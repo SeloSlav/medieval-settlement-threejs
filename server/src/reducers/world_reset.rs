@@ -2,9 +2,10 @@ use spacetimedb::{reducer, Identity, ReducerContext};
 
 use crate::db::*;
 use crate::tables::{
-    active_raid, corpse, farm_field, graveyard, livestock_herd, pasture, pasture_herd,
-    settlement_security, vineyard_parcel, BackyardGarden, Building, BurgageZone, CombatAgent,
-    Corpse, DeliveryTrip, FarmField, FireIncident, Graveyard, LivestockHerd, Pasture, PastureHerd,
+    active_raid, bandit_camp, bandit_incident, corpse, farm_field, graveyard, livestock_herd,
+    mercenary_contract, pasture, pasture_herd, settlement_security, vineyard_parcel,
+    BackyardGarden, BanditCamp, BanditIncident, Building, BurgageZone, CombatAgent, Corpse,
+    DeliveryTrip, FarmField, FireIncident, Graveyard, LivestockHerd, Pasture, PastureHerd,
     ResidenceNeed, Settlement, StableOx, VineyardParcel, WorldConfig,
 };
 use crate::world_entities::clear_global_world_entities;
@@ -19,6 +20,24 @@ pub fn reset_world(ctx: &ReducerContext) -> Result<(), String> {
 }
 
 fn clear_owner_settlement(ctx: &ReducerContext, owner: Identity) {
+    for incident in ctx
+        .db
+        .bandit_incident()
+        .owner()
+        .filter(&owner)
+        .collect::<Vec<BanditIncident>>()
+    {
+        ctx.db.bandit_incident().id().delete(incident.id);
+    }
+    for camp in ctx
+        .db
+        .bandit_camp()
+        .owner()
+        .filter(&owner)
+        .collect::<Vec<BanditCamp>>()
+    {
+        ctx.db.bandit_camp().id().delete(camp.id);
+    }
     for rule in ctx
         .db
         .trading_post_trade_rule()
@@ -44,7 +63,30 @@ fn clear_owner_settlement(ctx: &ReducerContext, owner: Identity) {
         .filter(&owner)
         .collect::<Vec<CombatAgent>>()
     {
+        ctx.db.militia_order().combat_agent_id().delete(agent.id);
+        ctx.db.military_member().combat_agent_id().delete(agent.id);
         ctx.db.combat_agent().id().delete(agent.id);
+    }
+    for company in ctx
+        .db
+        .military_company()
+        .owner()
+        .filter(&owner)
+        .collect::<Vec<_>>()
+    {
+        ctx.db.military_company().id().delete(company.id);
+    }
+    for contract in ctx
+        .db
+        .mercenary_contract()
+        .owner()
+        .filter(&owner)
+        .collect::<Vec<_>>()
+    {
+        ctx.db
+            .mercenary_contract()
+            .company_id()
+            .delete(contract.company_id);
     }
     if ctx.db.active_raid().owner().find(&owner).is_some() {
         ctx.db.active_raid().owner().delete(&owner);
@@ -222,6 +264,7 @@ fn reset_world_progress(ctx: &ReducerContext) {
             game_speed: 1,
             conflict_enabled: false,
             enemy_pressure: 0,
+            bandit_camps_enabled: false,
             severe_weather_enabled: false,
             well_aquifer_networks_enabled: false,
             configured: false,

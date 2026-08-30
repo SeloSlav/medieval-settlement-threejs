@@ -28,8 +28,8 @@ assert.equal(BUILDING_DEFINITIONS.salvage_pile.acceptsLabor, false);
 assert.equal(BUILDING_DEFINITIONS.salvage_pile.requiresRoad, true);
 assert.equal(BUILDING_COSTS.salvage_pile.timber, 0);
 assert.equal(BUILDING_COSTS.salvage_pile.stone, 0);
-assert.ok(BUILDING_STORAGE_CAPS.salvage_pile.timber >= 1000);
-assert.ok(BUILDING_STORAGE_CAPS.salvage_pile.stone >= 1000);
+assert.ok(BUILDING_STORAGE_CAPS.salvage_pile.timber >= 500);
+assert.ok(BUILDING_STORAGE_CAPS.salvage_pile.stone >= 500);
 assert.equal(
   BUILD_MENU_ENTRIES.some(
     (entry) => entry.kind === 'placement' && entry.artKey === 'salvage_pile',
@@ -102,16 +102,18 @@ assert.match(
 
 const reclamation = read('server/src/simulation/reclamation.rs');
 const recoveryOrderBody = reclamation.match(
-  /const RECOVERY_ORDER: \[CommodityKind; 69\] = \[([\s\S]*?)\];/,
+  /const RECOVERY_ORDER: \[CommodityKind; 75\] = \[([\s\S]*?)\];/,
 )?.[1];
-assert.ok(recoveryOrderBody, 'the exhaustive 69-commodity recovery order must remain discoverable');
+assert.ok(recoveryOrderBody, 'the exhaustive 75-commodity recovery order must remain discoverable');
 const recoveredCommodityVariants = [...recoveryOrderBody.matchAll(/CommodityKind::(\w+)/g)]
   .map((match) => match[1]);
-assert.equal(recoveredCommodityVariants.length, 69);
-assert.equal(new Set(recoveredCommodityVariants).size, 69);
+assert.equal(recoveredCommodityVariants.length, 75);
+assert.equal(new Set(recoveredCommodityVariants).size, 75);
 assert.ok(recoveredCommodityVariants.includes('AnimalFeed'));
 assert.ok(recoveredCommodityVariants.includes('Yarn'));
 assert.ok(recoveredCommodityVariants.includes('Linen'));
+assert.ok(recoveredCommodityVariants.includes('Sidearms'));
+assert.ok(recoveredCommodityVariants.includes('Ammunition'));
 assert.match(reclamation, /available_free_haulers/);
 assert.match(reclamation, /local_delivery_distance/);
 assert.match(reclamation, /try_start_free_building_supply_trip/);

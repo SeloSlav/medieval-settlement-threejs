@@ -91,11 +91,11 @@ const authoritativeEntries = [...asU8Body.matchAll(/Self::([A-Z][A-Za-z0-9]*)\s*
     code: Number(match[2]),
   }))
   .sort((left, right) => left.code - right.code);
-assert.equal(authoritativeEntries.length, 69, 'the audit must cover every authoritative commodity');
+assert.equal(authoritativeEntries.length, 75, 'the audit must cover every authoritative commodity');
 assert.deepEqual(
   authoritativeEntries.map(({ code }) => code),
-  Array.from({ length: authoritativeEntries.length }, (_, code) => code),
-  'CommodityKind codes must remain unique, contiguous, and append-only across persisted mask words',
+  Array.from({ length: 76 }, (_, code) => code).filter((code) => code !== 2),
+  'CommodityKind codes must remain unique and append-only while preserving the retired legacy Food code 2 as a tombstone',
 );
 
 const authoritativeResources = authoritativeEntries.map(({ resource }) => resource);
@@ -112,6 +112,13 @@ assert.equal(codeByResource.get('candles'), 65, 'Candles must be the second comp
 assert.equal(codeByResource.get('pelts'), 66, 'Pelts must retain their appended commodity code');
 assert.equal(codeByResource.get('yarn'), 67, 'Yarn must retain its appended commodity code');
 assert.equal(codeByResource.get('linen'), 68, 'Linen must retain its appended commodity code');
+assert.equal(codeByResource.get('sidearms'), 69, 'Sidearms must retain their appended commodity code');
+assert.equal(codeByResource.get('shields'), 70, 'Shields must retain their appended commodity code');
+assert.equal(codeByResource.get('bows'), 71, 'Bows must retain their appended commodity code');
+assert.equal(codeByResource.get('crossbows'), 72, 'Crossbows must retain their appended commodity code');
+assert.equal(codeByResource.get('paddedArmor'), 73, 'Padded armor must retain its appended commodity code');
+assert.equal(codeByResource.get('mailArmor'), 74, 'Mail armor must retain its appended commodity code');
+assert.equal(codeByResource.get('ammunition'), 75, 'Ammunition must retain its appended commodity code');
 assertSameSet(
   RESOURCE_KINDS,
   [...authoritativeResources, 'game'],
@@ -119,8 +126,8 @@ assertSameSet(
 );
 assertSameSet(
   RESOURCE_COST_KINDS,
-  authoritativeResources,
-  'resource-cost labels and icons must cover every authoritative commodity',
+  [...authoritativeResources, 'food'],
+  'resource-cost labels and icons must cover every authoritative commodity plus the retired mixed-food compatibility cost',
 );
 assertSameSet(
   DELIVERY_CARGO_KINDS,
@@ -325,11 +332,7 @@ for (const resource of constructionInputs) {
     `${resource} construction input needs a trade fallback`,
   );
 }
-assert.equal(
-  constructionInputs.has('ironwork'),
-  false,
-  'ironwork is a maintenance commodity and must not gate new construction',
-);
+assert.equal(constructionInputs.has('ironwork'), true, 'advanced military workshops intentionally require finished ironwork');
 
 // The local ironwork and roof-tile chains must be startable without consuming
 // their own outputs. This protects the intentional bootstrap independently of
@@ -414,11 +417,8 @@ assert.match(
   'local-only mead needs a Tavern/household consumption path',
 );
 
-assert.equal(
-  Math.max(...Object.values(BUILDING_COSTS).map((cost) => cost.ironwork ?? 0)),
-  0,
-  'every building recipe must remain free of ironwork construction costs',
-);
+assert.equal(BUILDING_COSTS.weaponsmith_armorer.ironwork, 8);
+assert.equal(BUILDING_COSTS.bowyer_fletcher.ironwork, 4);
 assert.doesNotMatch(
   openingBalanceTestSource,
   /fiveYearEarlyToolWear|five years of the three opening heavy-tool sites/,
@@ -431,6 +431,6 @@ console.log(
     + `${TRADE_RESOURCE_KINDS.length} bidirectional trade fallbacks; `
     + `${new Set(storageCommodities).size} configurable storage goods; `
     + `${constructionInputs.size} construction inputs). `
-    + `Audit flag: starter ironwork ${STARTING_IRONWORK} is reserved for maintenance; `
-    + 'bounded Smithy replacement is asserted.',
+    + `Audit flag: starter ironwork ${STARTING_IRONWORK} supports maintenance and deliberate advanced-workshop investment; `
+    + 'the Smithy bootstrap remains independent.',
 );

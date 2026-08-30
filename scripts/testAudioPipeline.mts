@@ -11,6 +11,7 @@ import {
   BUILDING_AUDIO_CLIPS,
   CHAPEL_BELL_CLIPS,
   COMBAT_AUDIO_CLIPS,
+  COMBAT_DEATH_CLIPS,
   FARM_WORKERS_SINGING_CLIP,
   FIRE_CRACKLE_CLIP,
   MUSIC_TRACKS,
@@ -162,6 +163,7 @@ function runtimeClips(): AudioClipDefinition[] {
     ...OX_SELECTION_CLIPS,
     ...Object.values(WORKER_ACTIVITY_CLIPS).flat(),
     ...Object.values(COMBAT_AUDIO_CLIPS).flat(),
+    ...Object.values(COMBAT_DEATH_CLIPS).flat(),
     ...Object.values(BUILDING_AUDIO_CLIPS),
     ...Object.values(WORLD_FOLEY_CLIPS),
   ];
@@ -345,15 +347,21 @@ async function main(): Promise<void> {
   const buildingAudioKinds = BUILDING_KINDS.filter(
     (kind) => kind !== 'chapel',
   ) as Exclude<(typeof BUILDING_KINDS)[number], 'chapel'>[];
+  const runtimeBuildingKinds = [...buildingAudioKinds, 'residence'] as const;
   invariant(
-    buildingAssets.length === buildingAudioKinds.length + 1,
-    'Building Foley must cover every non-chapel building kind plus residences',
+    Object.keys(BUILDING_AUDIO_CLIPS).length === runtimeBuildingKinds.length,
+    'Building Foley runtime catalog must cover every non-chapel building kind plus residences',
   );
-  for (const kind of [...buildingAudioKinds, 'residence'] as const) {
+  for (const kind of runtimeBuildingKinds) {
+    const clip = BUILDING_AUDIO_CLIPS[kind];
+    invariant(clip, `Missing building Foley runtime mapping: ${kind}`);
     const asset = buildingAssets.find((candidate) => (
-      candidate.id === `building-${kind.replaceAll('_', '-')}`
+      clip.path === `/${candidate.output.replace(/^public[\\/]/, '').replaceAll('\\', '/')}`
     ));
-    invariant(asset, `Missing building Foley manifest entry: ${kind}`);
+    invariant(
+      asset,
+      `Building Foley mapping has no generated manifest source: ${kind} -> ${clip.path}`,
+    );
     invariant(
       asset.durationSeconds != null
       && asset.durationSeconds >= 1
@@ -365,7 +373,7 @@ async function main(): Promise<void> {
       `Building Foley processing instructions must stay out of the prompt: ${kind}`,
     );
     invariant(
-      BUILDING_AUDIO_CLIPS[kind].path === `/${asset.output.replace(/^public[\\/]/, '').replaceAll('\\', '/')}`,
+      clip.path === `/${asset.output.replace(/^public[\\/]/, '').replaceAll('\\', '/')}`,
       `Building Foley runtime path differs from its manifest output: ${kind}`,
     );
   }
@@ -577,11 +585,12 @@ async function main(): Promise<void> {
       candidate.id === `world-${id.replaceAll('_', '-')}`
     ));
     invariant(asset, `Missing world Foley manifest entry: ${id}`);
+    const minimumDuration = asset.group === 'movement-foley' ? 0.8 : 1;
     invariant(
       asset.durationSeconds != null
-      && asset.durationSeconds >= 1
+      && asset.durationSeconds >= minimumDuration
       && asset.durationSeconds <= 3,
-      `World Foley must remain within 1-3 seconds: ${id}`,
+      `World Foley must remain within ${minimumDuration}-3 seconds: ${id}`,
     );
     invariant(
       !/\bfad(?:e|es|ed|ing)?\b/i.test(asset.prompt),

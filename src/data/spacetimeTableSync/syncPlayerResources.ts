@@ -51,6 +51,13 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       pearCider: number;
       yarn: number;
       linen: number;
+      sidearms: number;
+      shields: number;
+      bows: number;
+      crossbows: number;
+      paddedArmor: number;
+      mailArmor: number;
+      ammunition: number;
     }>;
     state.stockpile = {
       timber: wholeResourceUnits(row.timber),
@@ -95,6 +102,13 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       shoes: wholeResourceUnits(leatherRow.shoes),
       ironwork: wholeResourceUnits(row.ironwork),
       polearms: wholeResourceUnits(row.polearms),
+      sidearms: wholeResourceUnits(leatherRow.sidearms),
+      shields: wholeResourceUnits(leatherRow.shields),
+      bows: wholeResourceUnits(leatherRow.bows),
+      crossbows: wholeResourceUnits(leatherRow.crossbows),
+      paddedArmor: wholeResourceUnits(leatherRow.paddedArmor),
+      mailArmor: wholeResourceUnits(leatherRow.mailArmor),
+      ammunition: wholeResourceUnits(leatherRow.ammunition),
       iron: wholeResourceUnits(row.iron),
       clay: wholeResourceUnits(row.clay),
       salt: wholeResourceUnits(row.salt),

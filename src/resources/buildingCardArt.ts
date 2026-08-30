@@ -15,6 +15,8 @@ export const BUILDING_CARD_ART = {
   mine: '/assets/ui/build-menu/cards/iron-mine.webp',
   charcoal_burner: '/assets/ui/build-menu/cards/charcoal-burner.webp',
   smithy: '/assets/ui/build-menu/cards/smithy-bloomery.webp',
+  weaponsmith_armorer: '/assets/ui/build-menu/cards/weaponsmith-armorer.webp',
+  bowyer_fletcher: '/assets/ui/build-menu/cards/bowyer-fletcher.webp',
   potter_kiln: '/assets/ui/build-menu/cards/potter-kiln.webp',
   well: '/assets/ui/build-menu/cards/water-well.webp',
   stable: '/assets/ui/build-menu/cards/stable.webp',

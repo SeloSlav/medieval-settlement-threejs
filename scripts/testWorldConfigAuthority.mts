@@ -38,6 +38,7 @@ const row = {
   resourceVariety: 80,
   conflictEnabled: true,
   enemyPressure: 70,
+  banditCampsEnabled: true,
   severeWeatherEnabled: true,
   wellAquiferNetworksEnabled: true,
   approvalDeclineRate: 50,
@@ -54,6 +55,7 @@ assert.equal(generation.resourceAbundance, 35);
 assert.equal(generation.resourceVariety, 80);
 assert.equal(generation.conflictMode, 'frontier');
 assert.equal(generation.enemyPressure, 70);
+assert.equal(generation.banditCampsEnabled, true);
 assert.equal(generation.severeWeatherEnabled, true);
 assert.equal(generation.wellAquiferNetworksEnabled, true);
 assert.equal(generation.approvalDeclineRate, 50);
@@ -73,6 +75,7 @@ assert.equal(payload.resourceAbundance, 50);
 assert.equal(payload.resourceVariety, 50);
 assert.equal(payload.conflictEnabled, false);
 assert.equal(payload.enemyPressure, 0);
+assert.equal(payload.banditCampsEnabled, true);
 assert.equal(payload.severeWeatherEnabled, false);
 assert.equal(payload.wellAquiferNetworksEnabled, false);
 assert.equal(payload.approvalDeclineRate, 100);
@@ -154,6 +157,7 @@ assert.deepEqual(
       resourceVariety: generation.resourceVariety,
       conflictMode: generation.conflictMode,
       enemyPressure: generation.enemyPressure,
+      banditCampsEnabled: generation.banditCampsEnabled,
       severeWeatherEnabled: generation.severeWeatherEnabled,
       wellAquiferNetworksEnabled: generation.wellAquiferNetworksEnabled,
       approvalDeclineRate: generation.approvalDeclineRate,

@@ -6,6 +6,7 @@ import type { RegionalMarketState } from '../../economy/regionalMarket.ts';
 import type { GameState, InspectableTarget } from '../types.ts';
 import type { SettlementSecurityState } from '../../security/frontierSecurity.ts';
 import type { CombatAgentState } from '../../security/combatAgents.ts';
+import type { MilitaryCompanyState } from '../../security/militaryProgression.ts';
 import type { FiscalPolicyState } from '../../economy/fiscalPolicy.ts';
 import type { PantrySafeguardPolicyCode } from '../../economy/pantrySafeguardPolicy.ts';
 import type { SettlementProductionCapacity } from '../../economy/settlementProduction.ts';
@@ -93,6 +94,7 @@ export type InspectorRenderContext = {
   getMarketState?: () => RegionalMarketState;
   getSettlementSecurity?: () => SettlementSecurityState;
   combatAgents?: Iterable<CombatAgentState>;
+  militaryCompanies?: Iterable<MilitaryCompanyState>;
 };
 
 export function hiddenLabor(): InspectorLaborView {

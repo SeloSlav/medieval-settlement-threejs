@@ -11,6 +11,8 @@ import { syncBurgageZones } from './syncBurgageZones.ts';
 import { syncDeliveryTrips } from './syncDeliveryTrips.ts';
 import { syncFireIncidents } from './syncFireIncidents.ts';
 import { syncCombatAgents } from './syncCombatAgents.ts';
+import { syncMilitaryCompanies } from '../../security/militaryProgression.ts';
+import { syncBanditCamps, syncBanditIncidents } from '../../security/banditState.ts';
 import { syncActiveRaid } from '../../security/activeRaid.ts';
 import { syncForagingNodes } from './syncForagingNodes.ts';
 import { syncFarmFields } from './syncFarmFields.ts';
@@ -138,6 +140,18 @@ export class GameTableSync {
     );
     this.state.combatAgents = syncCombatAgents(
       db.combat_agent ? db.combat_agent.iter() : [],
+      this.state.identityHex,
+    );
+    this.state.militaryCompanies = syncMilitaryCompanies(
+      db.military_company ? db.military_company.iter() : [],
+      this.state.identityHex,
+    );
+    this.state.banditCamps = syncBanditCamps(
+      db.bandit_camp ? db.bandit_camp.iter() : [],
+      this.state.identityHex,
+    );
+    this.state.banditIncidents = syncBanditIncidents(
+      db.bandit_incident ? db.bandit_incident.iter() : [],
       this.state.identityHex,
     );
     this.state.activeRaid = syncActiveRaid(
@@ -476,6 +490,26 @@ export class GameTableSync {
       );
       db.combat_agent.onDelete((_ctx, row) => combatChanges.delete(row));
     }
+
+    bindTable(db.military_company, () => {
+      this.state.militaryCompanies = syncMilitaryCompanies(
+        db.military_company ? db.military_company.iter() : [],
+        this.state.identityHex,
+      );
+    });
+
+    bindTable(db.bandit_camp, () => {
+      this.state.banditCamps = syncBanditCamps(
+        db.bandit_camp ? db.bandit_camp.iter() : [],
+        this.state.identityHex,
+      );
+    });
+    bindTable(db.bandit_incident, () => {
+      this.state.banditIncidents = syncBanditIncidents(
+        db.bandit_incident ? db.bandit_incident.iter() : [],
+        this.state.identityHex,
+      );
+    });
 
     bindTable(db.active_raid, () => {
       this.state.activeRaid = syncActiveRaid(

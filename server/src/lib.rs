@@ -38,6 +38,7 @@ mod livestock_migration;
 mod livestock_policy;
 mod marketplace_procurement_policy;
 mod marketplace_stall_policy;
+mod military_policy;
 mod monastery_estate_policy;
 mod monastery_hospitality_policy;
 mod ox_policy;

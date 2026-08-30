@@ -42,7 +42,13 @@ const storehouse = {
   storehouseAcceptsSalt: true,
 } as BuildingState;
 
-assert.equal(STOREHOUSE_STORAGE_COMMODITIES.length, 19);
+assert.equal(STOREHOUSE_STORAGE_COMMODITIES.length, 28);
+for (const militaryStore of [
+  'polearms', 'sidearms', 'shields', 'bows', 'crossbows',
+  'paddedArmor', 'mailArmor', 'ammunition',
+] as const) {
+  assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes(militaryStore));
+}
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('cloth'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('hides'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('leather'));
@@ -213,7 +219,7 @@ assert.match(doubledCampStorageView.detailsHtml, /does not accept deliveries/);
 assert.doesNotMatch(doubledCampStorageView.detailsHtml, /1600|capacity|Local storage/);
 assert.equal(BUILDING_STORAGE_CAPS.salvage_pile.total, 500);
 assert.equal(BUILDING_STORAGE_CAPS.marketplace.total, 400);
-assert.equal(BUILDING_STORAGE_CAPS.trading_post.total, 600);
+assert.equal(BUILDING_STORAGE_CAPS.trading_post.total, 760);
 const nearlyFullStorehouse = {
   ...storehouse,
   timber: 1400,

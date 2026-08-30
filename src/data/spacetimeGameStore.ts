@@ -53,7 +53,9 @@ import type {
 import { createEmptyStockpile } from '../resources/types.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import type { CombatAgentState } from '../security/combatAgents.ts';
+import type { MilitaryCompanyState } from '../security/militaryProgression.ts';
 import type { ActiveRaidState } from '../security/activeRaid.ts';
+import type { BanditCampState, BanditIncidentState } from '../security/banditState.ts';
 import type { FireIncidentState } from '../fires/fireIncident.ts';
 import {
   DEFAULT_SETTLEMENT_SECURITY,
@@ -147,6 +149,9 @@ export type SpacetimeGameSnapshot = {
   deliveryTrips: Map<string, DeliveryTripState>;
   fireIncidents: Map<string, FireIncidentState>;
   combatAgents: Map<string, CombatAgentState>;
+  militaryCompanies: Map<string, MilitaryCompanyState>;
+  banditCamps: Map<string, BanditCampState>;
+  banditIncidents: Map<string, BanditIncidentState>;
   activeRaid: ActiveRaidState | null;
   settlementSecurity: SettlementSecurityState;
   roads: RoadNetworkSnapshot | null;
@@ -195,6 +200,9 @@ function createEmptyTableState(): GameTableSyncState {
     deliveryTrips: new Map(),
     fireIncidents: new Map(),
     combatAgents: new Map(),
+    militaryCompanies: new Map(),
+    banditCamps: new Map(),
+    banditIncidents: new Map(),
     activeRaid: null,
     settlementSecurity: { ...DEFAULT_SETTLEMENT_SECURITY },
     roads: null,
@@ -340,6 +348,9 @@ export class SpacetimeGameStore {
       deliveryTrips: this.snapshotMap(state.deliveryTrips),
       fireIncidents: this.snapshotMap(state.fireIncidents),
       combatAgents: this.snapshotMap(state.combatAgents),
+      militaryCompanies: this.snapshotMap(state.militaryCompanies),
+      banditCamps: this.snapshotMap(state.banditCamps),
+      banditIncidents: this.snapshotMap(state.banditIncidents),
       activeRaid: state.activeRaid ? this.snapshotRecord(state.activeRaid) : null,
       settlementSecurity: this.snapshotRecord(state.settlementSecurity),
       roads: this.snapshotRoads(state.roads),
@@ -1227,6 +1238,47 @@ export class SpacetimeGameStore {
     }
 
     this.tableSync.syncAll(connection);
+  }
+
+  raiseMilitia(townHallId: string, requested = 5): Promise<void> {
+    return spacetimeReducers.raiseMilitia(townHallId, requested);
+  }
+
+  commandMilitia(
+    agentIds: string[],
+    destinationX: number,
+    destinationZ: number,
+    targetCampId?: string | null,
+  ): Promise<void> {
+    return spacetimeReducers.commandMilitia(agentIds, destinationX, destinationZ, targetCampId);
+  }
+
+  disbandMilitia(): Promise<void> {
+    return spacetimeReducers.disbandMilitia();
+  }
+
+  recruitMilitaryCompany(guardhouseId: string, kind: number): Promise<void> {
+    return spacetimeReducers.recruitMilitaryCompany(guardhouseId, kind);
+  }
+
+  hireMercenaryCompany(townHallId: string): Promise<void> {
+    return spacetimeReducers.hireMercenaryCompany(townHallId);
+  }
+
+  disbandMilitaryCompany(companyId: string): Promise<void> {
+    return spacetimeReducers.disbandMilitaryCompany(companyId);
+  }
+
+  renewMercenaryContract(companyId: string): Promise<void> {
+    return spacetimeReducers.renewMercenaryContract(companyId);
+  }
+
+  resupplyMilitaryCompany(companyId: string): Promise<void> {
+    return spacetimeReducers.resupplyMilitaryCompany(companyId);
+  }
+
+  setMilitaryFormation(companyId: string, formation: number): Promise<void> {
+    return spacetimeReducers.setMilitaryFormation(companyId, formation);
   }
 
   private emit(): void {

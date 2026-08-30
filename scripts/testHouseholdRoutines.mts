@@ -218,8 +218,8 @@ const villagers = new VillagerRenderer({
 });
 const home = {
   ...residence('routine-home', 0, 0),
-  population: 3,
-  populationCapacity: 3,
+  population: 4,
+  populationCapacity: 4,
 };
 const workplace = building('routine-workplace', 12, 0);
 const chapel = {
@@ -451,7 +451,7 @@ assert.notEqual(worker.pathPurpose, 'return_to_work');
 assert.notEqual(worker.pathPurpose, 'return_for_observance');
 
 villagers.setSchedule({
-  ...fullClock(9),
+  ...fullClock(8.5),
   weekday: 0,
   isSunday: true,
 }, false);
@@ -461,7 +461,7 @@ assert.equal(
   'a staffed chapel must not pull an ordinary worker away on an unobserved Sunday',
 );
 villagers.setSchedule({
-  ...fullClock(9),
+  ...fullClock(8.5),
   weekday: 0,
   isSunday: true,
 }, true, true, true);
@@ -475,6 +475,28 @@ assert.ok(
 );
 assert.notEqual(worker.ambientBehavior, 'sit');
 assert.notEqual(worker.ambientBehavior, 'rest');
+
+villagers.setSchedule({
+  ...fullClock(9.5),
+  weekday: 0,
+  isSunday: true,
+}, true, true, true);
+assert.equal(worker.routinePhase, 'at_mass');
+assert.equal(worker.ambientBehavior, null, 'the congregation should move inside during mass');
+assert.ok(
+  Math.hypot(worker.x - chapel.x, worker.z - chapel.z) < 0.1,
+  'the hidden service phase should place attendees within the chapel footprint',
+);
+
+villagers.setSchedule({
+  ...fullClock(10.75),
+  weekday: 0,
+  isSunday: true,
+}, true, true, true);
+assert.ok(
+  worker.ambientBehavior === 'talk' || worker.ambientBehavior === 'wander',
+  'parishioners should gather outside again for fellowship after mass',
+);
 
 villagers.setSchedule({
   ...fullClock(12),

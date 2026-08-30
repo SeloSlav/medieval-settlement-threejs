@@ -55,6 +55,7 @@ assert.ok(
   'logistics-only buildings reserve oxen through active cart trips, not idle worker slots',
 );
 assert.equal(oxWorkplaceCapacity('reforester'), 1);
+assert.equal(oxWorkplaceCapacity('monastery'), 1);
 assert.equal(oxWorkplaceCapacity('carpenter'), 2);
 assert.equal(oxWorkplaceCapacity('threshing_barn'), 3);
 assert.equal(oxWorkplaceCapacity('granary'), 1);

@@ -103,6 +103,7 @@ use crate::livestock_policy::{
 use crate::marketplace_procurement_policy::{
     normalize_marketplace_iron_target, normalize_marketplace_salt_target,
 };
+use crate::military_policy::{military_stats, MilitaryCost, MilitaryKind};
 use crate::monastery_estate_policy::{
     monastery_daily_service_cost, monastery_estate_can_reinvest, monastery_estate_exportable,
     monastery_estate_next_investment_cost, monastery_estate_yields, monastery_extension_count,
@@ -123,6 +124,7 @@ use crate::residence_consumption_policy::daily_household_bill_due;
 use crate::resource_units::{
     deterministic_whole_lot, periodic_whole_units, whole_cost, whole_units,
 };
+use crate::security_policy::RaidPortableStores;
 use crate::season_policy::{EnvironmentState, WeatherKind};
 use crate::smokehouse_recipe_policy::{
     normalize_smokehouse_recipe_policy, smokehouse_recipe_requests_input,
@@ -3105,6 +3107,319 @@ pub fn step_smithy(
     ctx.db.building().id().update(smithy);
 }
 
+type WorkshopRecipe = (&'static [(CommodityKind, f64)], &'static [(CommodityKind, f64)]);
+
+const POLEARM_RECIPE_INPUTS: &[(CommodityKind, f64)] = &[
+    (CommodityKind::Timber, 2.0),
+    (CommodityKind::Ironwork, 1.0),
+];
+const SIDEARM_RECIPE_INPUTS: &[(CommodityKind, f64)] = &[
+    (CommodityKind::Ironwork, 2.0),
+    (CommodityKind::Leather, 1.0),
+];
+const SHIELD_RECIPE_INPUTS: &[(CommodityKind, f64)] = &[
+    (CommodityKind::Timber, 2.0),
+    (CommodityKind::Leather, 1.0),
+    (CommodityKind::Ironwork, 1.0),
+];
+const PADDED_ARMOR_RECIPE_INPUTS: &[(CommodityKind, f64)] = &[
+    (CommodityKind::Cloth, 1.0),
+    (CommodityKind::Linen, 1.0),
+    (CommodityKind::Leather, 1.0),
+];
+const MAIL_ARMOR_RECIPE_INPUTS: &[(CommodityKind, f64)] = &[
+    (CommodityKind::Ironwork, 4.0),
+    (CommodityKind::Leather, 1.0),
+    (CommodityKind::Linen, 1.0),
+];
+const BOW_RECIPE_INPUTS: &[(CommodityKind, f64)] = &[
+    (CommodityKind::Timber, 2.0),
+    (CommodityKind::Linen, 1.0),
+    (CommodityKind::Leather, 1.0),
+];
+const CROSSBOW_RECIPE_INPUTS: &[(CommodityKind, f64)] = &[
+    (CommodityKind::Timber, 2.0),
+    (CommodityKind::Ironwork, 2.0),
+    (CommodityKind::Linen, 1.0),
+    (CommodityKind::Leather, 1.0),
+];
+const AMMUNITION_RECIPE_INPUTS: &[(CommodityKind, f64)] = &[
+    (CommodityKind::Timber, 1.0),
+    (CommodityKind::Ironwork, 1.0),
+];
+const ONE_POLEARM: &[(CommodityKind, f64)] = &[(CommodityKind::Polearms, 1.0)];
+const ONE_SIDEARM: &[(CommodityKind, f64)] = &[(CommodityKind::Sidearms, 1.0)];
+const ONE_SHIELD: &[(CommodityKind, f64)] = &[(CommodityKind::Shields, 1.0)];
+const ONE_PADDED_ARMOR: &[(CommodityKind, f64)] = &[(CommodityKind::PaddedArmor, 1.0)];
+const ONE_MAIL_ARMOR: &[(CommodityKind, f64)] = &[(CommodityKind::MailArmor, 1.0)];
+const ONE_BOW: &[(CommodityKind, f64)] = &[(CommodityKind::Bows, 1.0)];
+const ONE_CROSSBOW: &[(CommodityKind, f64)] = &[(CommodityKind::Crossbows, 1.0)];
+const AMMUNITION_BATCH: &[(CommodityKind, f64)] = &[(CommodityKind::Ammunition, 4.0)];
+
+fn least_stocked_recipe(building: &Building, recipes: &[WorkshopRecipe]) -> WorkshopRecipe {
+    *recipes
+        .iter()
+        .min_by(|(_, left), (_, right)| {
+            let ratio = |outputs: &&[(CommodityKind, f64)]| {
+                let commodity = outputs[0].0;
+                building_commodity_stock(building, commodity)
+                    / building_commodity_cap(&building.kind, commodity).max(1.0)
+            };
+            ratio(left)
+                .total_cmp(&ratio(right))
+                .then_with(|| left[0].0.as_u8().cmp(&right[0].0.as_u8()))
+        })
+        .expect("military workshop must define at least one recipe")
+}
+
+fn request_military_workshop_inputs(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: &Building,
+    inputs: &[(CommodityKind, f64)],
+) {
+    for (commodity, per_cycle) in inputs {
+        let sources: &[&str] = match commodity {
+            CommodityKind::Timber => &["lumber_mill", "village_storehouse", "trading_post"],
+            CommodityKind::Ironwork => &["smithy", "village_storehouse", "trading_post"],
+            CommodityKind::Leather => &["tannery", "village_storehouse", "trading_post"],
+            CommodityKind::Linen => &["spinning_retting_house", "village_storehouse", "trading_post"],
+            CommodityKind::Cloth => &["weaver", "village_storehouse", "trading_post"],
+            _ => continue,
+        };
+        request_connected_commodity(
+            ctx,
+            tick,
+            clock,
+            building,
+            *commodity,
+            sources,
+            (*per_cycle * 8.0).min(building_commodity_cap(&building.kind, *commodity)),
+        );
+    }
+}
+
+pub fn step_weaponsmith_armorer(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
+    const RECIPES: &[WorkshopRecipe] = &[
+        (POLEARM_RECIPE_INPUTS, ONE_POLEARM),
+        (SIDEARM_RECIPE_INPUTS, ONE_SIDEARM),
+        (SHIELD_RECIPE_INPUTS, ONE_SHIELD),
+        (PADDED_ARMOR_RECIPE_INPUTS, ONE_PADDED_ARMOR),
+        (MAIL_ARMOR_RECIPE_INPUTS, ONE_MAIL_ARMOR),
+    ];
+    let (inputs, outputs) = least_stocked_recipe(&building, RECIPES);
+    request_military_workshop_inputs(ctx, tick, clock, &building, inputs);
+    let workshop = step_processor(ctx, tick, clock, building, inputs, outputs);
+    ctx.db.building().id().update(workshop);
+}
+
+pub fn step_bowyer_fletcher(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
+    const RECIPES: &[WorkshopRecipe] = &[
+        (BOW_RECIPE_INPUTS, ONE_BOW),
+        (CROSSBOW_RECIPE_INPUTS, ONE_CROSSBOW),
+        (AMMUNITION_RECIPE_INPUTS, AMMUNITION_BATCH),
+    ];
+    let (inputs, outputs) = least_stocked_recipe(&building, RECIPES);
+    request_military_workshop_inputs(ctx, tick, clock, &building, inputs);
+    let workshop = step_processor(ctx, tick, clock, building, inputs, outputs);
+    ctx.db.building().id().update(workshop);
+}
+
+fn military_equipment_costs(cost: MilitaryCost) -> [(CommodityKind, u32); 8] {
+    [
+        (CommodityKind::Polearms, cost.polearms),
+        (CommodityKind::Sidearms, cost.sidearms),
+        (CommodityKind::Shields, cost.shields),
+        (CommodityKind::Bows, cost.bows),
+        (CommodityKind::Crossbows, cost.crossbows),
+        (CommodityKind::PaddedArmor, cost.padded_armor),
+        (CommodityKind::MailArmor, cost.mail_armor),
+        (CommodityKind::Ammunition, cost.ammunition),
+    ]
+}
+
+fn equipment_source_kinds(commodity: CommodityKind) -> &'static [&'static str] {
+    match commodity {
+        CommodityKind::Polearms => &[
+            "weaponsmith_armorer",
+            "carpenter",
+            "village_storehouse",
+            "trading_post",
+        ],
+        CommodityKind::Sidearms
+        | CommodityKind::Shields
+        | CommodityKind::PaddedArmor
+        | CommodityKind::MailArmor => &[
+            "weaponsmith_armorer",
+            "village_storehouse",
+            "trading_post",
+        ],
+        CommodityKind::Bows | CommodityKind::Crossbows | CommodityKind::Ammunition => &[
+            "bowyer_fletcher",
+            "village_storehouse",
+            "trading_post",
+        ],
+        _ => &[],
+    }
+}
+
+fn equipped_member_kit(kind: MilitaryKind, slot: u32) -> RaidPortableStores {
+    match kind {
+        MilitaryKind::Militia => RaidPortableStores {
+            polearms: 1.0,
+            ..RaidPortableStores::default()
+        },
+        MilitaryKind::Spearmen => RaidPortableStores {
+            polearms: 1.0,
+            shields: 1.0,
+            padded_armor: 1.0,
+            ..RaidPortableStores::default()
+        },
+        MilitaryKind::MenAtArms => RaidPortableStores {
+            sidearms: 1.0,
+            shields: 1.0,
+            mail_armor: 1.0,
+            ..RaidPortableStores::default()
+        },
+        MilitaryKind::Crossbows => RaidPortableStores {
+            crossbows: 1.0,
+            padded_armor: 1.0,
+            ammunition: 1.0,
+            ..RaidPortableStores::default()
+        },
+        MilitaryKind::Footmen => RaidPortableStores {
+            sidearms: 1.0,
+            shields: 1.0,
+            padded_armor: 1.0,
+            ..RaidPortableStores::default()
+        },
+        MilitaryKind::Polearms => RaidPortableStores {
+            polearms: 1.0,
+            padded_armor: 1.0,
+            ..RaidPortableStores::default()
+        },
+        MilitaryKind::Bowmen => RaidPortableStores {
+            bows: 1.0,
+            ammunition: 1.0,
+            ..RaidPortableStores::default()
+        },
+        MilitaryKind::UskokBorderInfantry => RaidPortableStores {
+            polearms: if slot % 2 == 0 { 1.0 } else { 0.0 },
+            sidearms: 1.0,
+            padded_armor: 1.0,
+            ..RaidPortableStores::default()
+        },
+        MilitaryKind::MercenarySpears => RaidPortableStores::default(),
+    }
+}
+
+/// Keeps mustering companies non-controllable until their complete finished
+/// kits have reached the Town Hall or Guardhouse on ordinary physical carts.
+pub fn step_military_requisitions(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+) {
+    let companies = ctx
+        .db
+        .military_company()
+        .iter()
+        .filter(|company| company.state == 0)
+        .collect::<Vec<_>>();
+    for mut company in companies {
+        let Some(kind) = MilitaryKind::from_id(company.kind) else {
+            continue;
+        };
+        if kind == MilitaryKind::MercenarySpears {
+            continue;
+        }
+        let Some(mut source) = ctx.db.building().id().find(&company.source_building_id) else {
+            continue;
+        };
+        let cost = MilitaryCost::for_company(kind, company.target_size);
+        let mut complete = true;
+        for (commodity, amount) in military_equipment_costs(cost) {
+            if amount == 0 {
+                continue;
+            }
+            let desired = amount as f64;
+            if building_commodity_stock(&source, commodity) + 1e-6 < desired {
+                complete = false;
+                request_connected_commodity(
+                    ctx,
+                    tick,
+                    clock,
+                    &source,
+                    commodity,
+                    equipment_source_kinds(commodity),
+                    desired,
+                );
+            }
+        }
+        let members = ctx
+            .db
+            .military_member()
+            .company_id()
+            .filter(&company.id)
+            .collect::<Vec<_>>();
+        if !complete || members.iter().any(|member| member.phase != 0) {
+            continue;
+        }
+        let all_at_muster = members.iter().all(|member| {
+            ctx.db
+                .combat_agent()
+                .id()
+                .find(&member.combat_agent_id)
+                .is_some_and(|agent| (agent.x - source.x).hypot(agent.z - source.z) <= 2.3)
+        });
+        if !all_at_muster {
+            continue;
+        }
+        for (commodity, amount) in military_equipment_costs(cost) {
+            if amount > 0 {
+                withdraw_building_commodity(&mut source, commodity, amount as f64);
+            }
+        }
+        ctx.db.building().id().update(source);
+        let stats = military_stats(kind);
+        for mut member in members {
+            let Some(mut agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
+                continue;
+            };
+            member.phase = 1;
+            member.ammunition = stats.ammunition_per_member;
+            member.ammunition_capacity = stats.ammunition_per_member;
+            ctx.db.military_member().combat_agent_id().update(member.clone());
+            agent.carried_loot_json = serde_json::to_string(&equipped_member_kit(
+                kind,
+                agent.source_slot,
+            ))
+            .unwrap_or_default();
+            agent.state = 9;
+            agent.target_kind = 6;
+            agent.target_id = 0;
+            ctx.db.combat_agent().id().update(agent);
+        }
+        company.state = 1;
+        company.ammunition_capacity = stats
+            .ammunition_per_member
+            .saturating_mul(company.living_members);
+        company.ammunition = company.ammunition_capacity;
+        ctx.db.military_company().id().update(company);
+    }
+}
+
 pub fn step_potter_kiln(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -3989,12 +4304,6 @@ pub fn step_carpenter(
         cart_service_ironwork,
     );
 
-    if !frontier_economy_enabled(ctx) {
-        building.action_cooldown = (building.action_cooldown - TICK_DT).max(0.0);
-        ctx.db.building().id().update(building);
-        return;
-    }
-
     let polearm_shortfall =
         carpenter_polearm_shortfall(building.polearms, building.carpenter_polearm_reserve);
     if polearm_shortfall > 1e-6 {
@@ -4337,6 +4646,20 @@ fn production_output_target_applies(kind: &str, commodity: CommodityKind) -> boo
         || (kind == "brewery" && commodity.is_beverage())
         || (kind == "smokehouse" && commodity.is_preserved_food())
         || (kind == "potter_kiln" && commodity == CommodityKind::RoofTiles)
+        || (kind == "weaponsmith_armorer"
+            && matches!(
+                commodity,
+                CommodityKind::Polearms
+                    | CommodityKind::Sidearms
+                    | CommodityKind::Shields
+                    | CommodityKind::PaddedArmor
+                    | CommodityKind::MailArmor
+            ))
+        || (kind == "bowyer_fletcher"
+            && matches!(
+                commodity,
+                CommodityKind::Bows | CommodityKind::Crossbows | CommodityKind::Ammunition
+            ))
 }
 
 fn nearest_surface_extraction_commodity(
@@ -4446,6 +4769,21 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
         "smithy" => matches!(
             commodity,
             CommodityKind::Iron | CommodityKind::Charcoal | CommodityKind::Water
+        ),
+        "weaponsmith_armorer" => matches!(
+            commodity,
+            CommodityKind::Timber
+                | CommodityKind::Ironwork
+                | CommodityKind::Leather
+                | CommodityKind::Linen
+                | CommodityKind::Cloth
+        ),
+        "bowyer_fletcher" => matches!(
+            commodity,
+            CommodityKind::Timber
+                | CommodityKind::Ironwork
+                | CommodityKind::Leather
+                | CommodityKind::Linen
         ),
         "potter_kiln" => matches!(
             commodity,
@@ -5441,7 +5779,12 @@ fn request_connected_commodity_with_source_availability(
     source_availability: impl Fn(&Building, f64) -> f64,
 ) {
     if !target.construction_complete
-        || target.assigned_labor == 0
+        || (target.assigned_labor == 0
+            && !ctx
+                .db
+                .military_company()
+                .iter()
+                .any(|company| company.state == 0 && company.source_building_id == target.id))
         || labor_and_logistics_paused(ctx, tick, target.owner, clock)
         || !processor_requests_input(target, commodity)
         || !processor_accepts_input(target, commodity)

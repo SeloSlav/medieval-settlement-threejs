@@ -240,6 +240,8 @@ function testStableScheduleSkipsResidentReconciliation(): number {
     laborPaused: false,
     monasteryFeastsEnabled: true,
     sabbathPausedToday: false,
+    refreshWaysideShrineVisitorRoster: () => {},
+    syncChapelAmbientAssignments: () => false,
     reconcileRoutine: (agent: { role: 'resident' | 'worker' }) => {
       if (agent.role === 'worker') workerReconciliations += 1;
       else residentReconciliations += 1;
@@ -281,12 +283,12 @@ function testStableScheduleSkipsResidentReconciliation(): number {
   );
   assert.equal(
     workerReconciliations,
-    20_000 * 24,
-    'precise worker-route and rest deadlines must still be evaluated every frame',
+    0,
+    'stable schedule frames must not rescan worker routines; movement deadlines advance in the agent update loop',
   );
   villagers.setSchedule(clock(1, 12 + 1 / 60), false);
   assert.equal(residentReconciliations, 1_000, 'a minute transition must reconcile residents');
-  assert.equal(workerReconciliations, 20_000 * 24 + 24);
+  assert.equal(workerReconciliations, 24);
   const retainedClock = clock(1, 12 + 1 / 60);
   villagers.setSchedule(retainedClock, false);
   residentReconciliations = 0;
@@ -322,6 +324,13 @@ function testStableMapIconProjectionCache(): number {
     getBoundingClientRect: () => ({ left, top: 0, width: 800, height: 600 }),
   };
   const buttonStyle: Record<string, string> = {};
+  Object.defineProperty(buttonStyle, 'removeProperty', {
+    value: (property: string) => {
+      domWrites += 1;
+      delete buttonStyle[property];
+    },
+    enumerable: false,
+  });
   const button = {
     _hidden: true,
     get hidden() { return this._hidden; },

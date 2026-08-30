@@ -51,6 +51,8 @@ const BUILDING_LABOR_SECTORS: Record<BuildingKind, LaborSector> = {
   mine: 'materials',
   charcoal_burner: 'materials',
   smithy: 'materials',
+  weaponsmith_armorer: 'materials',
+  bowyer_fletcher: 'materials',
   potter_kiln: 'materials',
   woodcutters_lodge: 'provisions',
   well: 'provisions',

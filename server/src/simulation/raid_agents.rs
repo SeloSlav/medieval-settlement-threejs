@@ -29,7 +29,8 @@ use crate::security_policy::{
     select_guardhouse_muster_watch, RaidPortableStores, WatchArea,
 };
 use crate::tables::{
-    settlement_security, ActiveRaid, Building, CombatAgent, GuardMusterRoute, RaidIncursionRoute,
+    settlement_security, ActiveRaid, Building, CombatAgent, Corpse, GuardMusterRoute,
+    RaidIncursionRoute,
 };
 
 use super::delivery_trips::{deserialize_route_polyline, serialize_route_polyline};
@@ -97,6 +98,11 @@ pub fn start_live_raid(
         .filter(&owner)
         .collect::<Vec<_>>()
     {
+        // Persistent bandits and recruited military companies are not legacy
+        // raid-company rows and must survive the start of an Ottoman raid.
+        if stale.faction >= 2 {
+            continue;
+        }
         if stale.faction == COMBAT_FACTION_GUARD && combat_state_blocks_guard_slot(stale.state) {
             continue;
         }
@@ -242,16 +248,22 @@ pub fn start_live_raid(
         guard_count += 1;
     }
 
-    guard_count += spawn_responding_guards(
-        ctx,
-        owner,
-        raid_id,
-        targets,
-        buildings,
-        towers,
-        road_network,
-        fire_disabled_buildings,
-    );
+    // Legacy guardhouse labor no longer materializes a second hidden army.
+    // The initial defender report counts actual recruited companies instead.
+    guard_count += ctx
+        .db
+        .military_member()
+        .owner()
+        .filter(&owner)
+        .filter(|member| member.phase == 1)
+        .filter(|member| {
+            ctx.db
+                .combat_agent()
+                .id()
+                .find(&member.combat_agent_id)
+                .is_some_and(|agent| agent.state != COMBAT_STATE_DOWNED)
+        })
+        .count() as u32;
     if let Some(mut active) = ctx.db.active_raid().owner().find(&owner) {
         active.initial_guards = guard_count;
         ctx.db.active_raid().owner().update(active);
@@ -459,92 +471,71 @@ pub(super) fn ensure_warned_guard_muster(
     if warned_raid_id == 0 || towers.is_empty() {
         return 0;
     }
-    let network = match road_network {
-        Some(network) => network,
-        None => return 0,
-    };
-    let watch_positions = towers
-        .iter()
-        .map(|tower| (tower.x, tower.z))
-        .collect::<Vec<_>>();
-    let watchtower_ids = towers
-        .iter()
-        .map(|tower| tower.source_id)
-        .collect::<Vec<_>>();
-    let committed_slots = unavailable_guard_slots(ctx, owner);
-    let issued_polearms = issued_guard_polearms_by_building(ctx, owner);
+    let _ = road_network;
     let mut deployed = 0_u32;
-
     for guardhouse in buildings.iter().filter(|building| {
         building.owner == owner
             && building.construction_complete
             && building.kind == "guardhouse"
             && !fire_disabled_buildings.contains(&building.id)
     }) {
-        let onsite_polearms = (guardhouse.polearms
-            - issued_polearms.get(&guardhouse.id).copied().unwrap_or(0.0))
-        .max(0.0);
-        let committed_here = committed_slots
-            .iter()
-            .filter_map(|(building_id, slot)| (*building_id == guardhouse.id).then_some(*slot))
-            .collect::<Vec<_>>();
-        let muster_slots =
-            select_guard_muster_slots(guardhouse.assigned_labor, onsite_polearms, &committed_here);
-        if muster_slots.is_empty() || guardhouse.action_cooldown <= 0.05 {
-            continue;
-        }
-        let distances =
-            network.road_path_distances_from(guardhouse.x, guardhouse.z, &watch_positions);
-        let Some((watch_index, muster_distance)) = select_guardhouse_muster_watch(
-            guardhouse.guardhouse_muster_watchtower_id,
-            &watchtower_ids,
-            &distances,
-        ) else {
-            continue;
-        };
-        let tower = towers[watch_index];
-        let Some(route) = network.road_path_route(guardhouse.x, guardhouse.z, tower.x, tower.z)
-        else {
-            continue;
-        };
-        store_guard_muster_route(ctx, owner, warned_raid_id, guardhouse.id, &route);
-        let muster_readiness = guardhouse_muster_efficiency(Some(muster_distance), 1.0);
-        let readiness =
-            (guardhouse.action_cooldown * (0.72 + muster_readiness * 0.28)).clamp(0.05, 1.0);
-
-        for slot in muster_slots {
-            let (x, z) = formation_spawn(guardhouse.x, guardhouse.z, tower.x, tower.z, slot);
-            let max_health = 70.0 + readiness * 30.0;
-            ctx.db.combat_agent().insert(CombatAgent {
-                id: 0,
-                owner,
-                raid_id: warned_raid_id,
-                faction: COMBAT_FACTION_GUARD,
-                source_building_id: guardhouse.id,
-                source_slot: slot,
-                target_kind: COMBAT_TARGET_BUILDING,
-                target_id: tower.source_id,
-                x,
-                z,
-                home_x: guardhouse.x,
-                home_z: guardhouse.z,
-                health: max_health,
-                max_health,
-                readiness,
-                state: COMBAT_STATE_MUSTERING,
-                attack_cooldown: slot as f64 * 0.06,
-                loot_progress: 0.0,
-                loot_fraction: 0.0,
-                carried_loot_json: serde_json::to_string(&RaidPortableStores {
-                    polearms: 1.0,
-                    ..RaidPortableStores::default()
+        let tower = guardhouse
+            .guardhouse_muster_watchtower_id
+            .checked_sub(0)
+            .and_then(|preferred| towers.iter().find(|tower| tower.source_id == preferred))
+            .or_else(|| {
+                towers.iter().min_by(|left, right| {
+                    distance_squared(guardhouse.x, guardhouse.z, left.x, left.z)
+                        .total_cmp(&distance_squared(guardhouse.x, guardhouse.z, right.x, right.z))
                 })
-                .unwrap_or_default(),
-                raid_anchor_building_id: 0,
-                route_progress: 0.0,
-                state_changed_tick: sim_tick,
             });
-            deployed += 1;
+        let Some(tower) = tower else {
+            continue;
+        };
+        for company in ctx
+            .db
+            .military_company()
+            .source_building_id()
+            .filter(&guardhouse.id)
+            .filter(|company| company.owner == owner && company.state == 1)
+            .collect::<Vec<_>>()
+        {
+            let members = ctx
+                .db
+                .military_member()
+                .company_id()
+                .filter(&company.id)
+                .filter(|member| member.phase == 1)
+                .collect::<Vec<_>>();
+            let count = members.len().max(1) as f64;
+            for (index, member) in members.into_iter().enumerate() {
+                let Some(mut agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
+                    continue;
+                };
+                if agent.state == COMBAT_STATE_DOWNED {
+                    continue;
+                }
+                let lateral = index as f64 - (count - 1.0) * 0.5;
+                let order = crate::tables::MilitiaOrder {
+                    combat_agent_id: agent.id,
+                    owner,
+                    kind: 0,
+                    destination_x: tower.x + lateral * 1.45,
+                    destination_z: tower.z,
+                    target_camp_id: 0,
+                };
+                if ctx.db.militia_order().combat_agent_id().find(&agent.id).is_some() {
+                    ctx.db.militia_order().combat_agent_id().update(order);
+                } else {
+                    ctx.db.militia_order().insert(order);
+                }
+                agent.state = COMBAT_STATE_ADVANCING;
+                agent.target_kind = 6;
+                agent.target_id = 0;
+                agent.state_changed_tick = sim_tick;
+                ctx.db.combat_agent().id().update(agent);
+                deployed += 1;
+            }
         }
     }
     deployed
@@ -645,6 +636,11 @@ pub fn step_live_raids(
     // summary has finalized. Warned guards remain authoritative before contact;
     // a cancelled warning sends those same people and weapons physically home.
     for agent in ctx.db.combat_agent().iter().collect::<Vec<CombatAgent>>() {
+        // Bandits and player militia are persistent world actors owned by the
+        // independent bandit simulation, not orphaned raid-company rows.
+        if agent.faction >= 2 {
+            continue;
+        }
         if active_keys.contains(&(agent.owner, agent.raid_id)) {
             continue;
         }
@@ -758,7 +754,9 @@ fn step_warned_guard_muster(
 
 fn clear_all_live_raids(ctx: &ReducerContext) {
     for agent in ctx.db.combat_agent().iter().collect::<Vec<CombatAgent>>() {
-        ctx.db.combat_agent().id().delete(agent.id);
+        if agent.faction < 2 {
+            ctx.db.combat_agent().id().delete(agent.id);
+        }
     }
     for route in ctx
         .db
@@ -1195,6 +1193,9 @@ fn step_raider(
         return;
     }
 
+    if agent.loot_progress <= EPSILON {
+        try_record_contact_civilian_casualty(ctx, agent, sim_tick);
+    }
     agent.state = COMBAT_STATE_LOOTING;
     agent.loot_progress += elapsed_seconds;
     if agent.loot_progress + EPSILON < raid_contact_duration(active_raid_anchor_id) {
@@ -1211,6 +1212,54 @@ fn step_raider(
     agent.state = COMBAT_STATE_RETREATING;
     agent.state_changed_tick = sim_tick;
     agent.loot_progress = 0.0;
+}
+
+/// A civilian casualty is possible only when a physical raider has reached an
+/// unsheltered occupied home. It is never resolved from regional pressure or
+/// at a remote stockpile, and creates the same recoverable body as mortality.
+fn try_record_contact_civilian_casualty(
+    ctx: &ReducerContext,
+    agent: &mut CombatAgent,
+    sim_tick: u64,
+) {
+    if agent.target_kind != COMBAT_TARGET_RESIDENCE || agent.raid_anchor_building_id != 0 {
+        return;
+    }
+    let roll = (agent.raid_id ^ agent.id.rotate_left(17) ^ agent.target_id.rotate_left(31)) % 100;
+    if roll >= 42 {
+        return;
+    }
+    let Some(mut home) = ctx.db.residence().id().find(&agent.target_id) else {
+        return;
+    };
+    if home.owner != agent.owner || home.population == 0 {
+        return;
+    }
+    home.population = home.population.saturating_sub(1);
+    home.sick_population = home.sick_population.min(home.population);
+    home.deaths_total = home.deaths_total.saturating_add(1);
+    ctx.db.residence().id().update(home.clone());
+    ctx.db.corpse().insert(Corpse {
+        id: 0,
+        owner: agent.owner,
+        residence_id: home.id,
+        cause: 3,
+        state: 0,
+        x: agent.x,
+        z: agent.z,
+        created_tick: sim_tick,
+        chapel_id: 0,
+        graveyard_id: 0,
+        progress: 0.0,
+        speed_mps: 0.0,
+        path_distance: 0.0,
+        route_polyline_json: String::new(),
+        cart_x: agent.x,
+        cart_z: agent.z,
+    });
+    // A non-zero sentinel prevents a fight interruption at this same doorway
+    // from recording a second victim before the local looting timer completes.
+    agent.loot_progress = 0.001;
 }
 
 fn step_guard(
@@ -1688,6 +1737,29 @@ fn down_agent(ctx: &ReducerContext, agent: &mut CombatAgent, active: &ActiveRaid
     ctx.db.active_raid().owner().update(latest);
 }
 
+/// Applies the canonical Ottoman casualty bookkeeping when a persistent player
+/// company, rather than a legacy raid guard, lands the finishing blow.
+pub(super) fn down_external_raider(
+    ctx: &ReducerContext,
+    agent: &mut CombatAgent,
+    sim_tick: u64,
+) {
+    let Some(active) = ctx
+        .db
+        .active_raid()
+        .owner()
+        .find(&agent.owner)
+        .filter(|raid| raid.raid_id == agent.raid_id)
+    else {
+        agent.health = 0.0;
+        agent.state = COMBAT_STATE_DOWNED;
+        agent.state_changed_tick = sim_tick;
+        agent.attack_cooldown = DOWNED_LINGER_SECONDS;
+        return;
+    };
+    down_agent(ctx, agent, &active, sim_tick);
+}
+
 fn return_guards_and_finalize(
     ctx: &ReducerContext,
     active: ActiveRaid,
@@ -1983,7 +2055,7 @@ pub(super) fn issued_guard_polearms_by_building(
     issued
 }
 
-fn reclamation_from_raid_stores(stores: RaidPortableStores) -> ReclamationStock {
+pub(super) fn reclamation_from_raid_stores(stores: RaidPortableStores) -> ReclamationStock {
     let stores = stores.normalized_whole();
     ReclamationStock {
         timber: stores.timber,
@@ -2011,6 +2083,13 @@ fn reclamation_from_raid_stores(stores: RaidPortableStores) -> ReclamationStock 
         wine: stores.wine,
         ironwork: stores.ironwork,
         polearms: stores.polearms,
+        sidearms: stores.sidearms,
+        shields: stores.shields,
+        bows: stores.bows,
+        crossbows: stores.crossbows,
+        padded_armor: stores.padded_armor,
+        mail_armor: stores.mail_armor,
+        ammunition: stores.ammunition,
         wool: stores.wool,
         cloth: stores.cloth,
         pelts: stores.pelts,

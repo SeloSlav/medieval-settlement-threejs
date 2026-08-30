@@ -6,7 +6,7 @@ use crate::economy::step_regional_markets;
 use crate::frontier_economy_policy::{armed_guards, guardhouse_payroll_buckets};
 use crate::simulation::{
     materialize_all_physical_resource_ledgers, retire_legacy_food_items, retire_removed_buildings,
-    step_apiary, step_backyard_gardens, step_bakery, step_brewery, step_burials, step_carpenter,
+    step_apiary, step_backyard_gardens, step_bakery, step_bandit_world, step_bowyer_fletcher, step_brewery, step_burials, step_carpenter,
     step_chandlery,
     step_chapel_parish, step_chapels, step_charcoal_burner, step_cobbler,
     step_construction_labor_stewards, step_construction_sites, step_delivery_trips,
@@ -17,13 +17,14 @@ use crate::simulation::{
     step_large_quarry, step_live_raids, step_local_material_dispatch, step_lumber_mill,
     step_market_household_distribution, step_marketplace_caravans,
     step_marketplace_material_dispatch, step_mine, step_monastery, step_natural_tree_regrowth,
+    step_military_requisitions,
     step_pastoral_farmstead, step_potter_kiln, step_production_labor_stewards,
     step_reclamation_piles, step_reforester, step_residence, step_residence_upgrades,
     step_seasonal_labor_stewards, step_seed_grain_distribution, step_settlement_security,
     step_smithy, step_smokehouse, step_spinning_retting_house, step_stone_quarry,
     step_storehouse_market_stalls, step_swineherd, step_tannery, step_threshing_barn,
     step_trading_post_trade, step_village_storehouse_overflow_collection, step_watermill,
-    step_weaver, step_well, step_windmill, step_woodcutters_lodge, try_dispatch_guardhouse_payroll,
+    step_weaponsmith_armorer, step_weaver, step_well, step_windmill, step_woodcutters_lodge, try_dispatch_guardhouse_payroll,
     SharedRoadNetworks, SimTickContext,
 };
 use crate::supply_policy::{INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS};
@@ -118,6 +119,14 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
             config.conflict_enabled,
             heartbeat_sim_seconds,
             shared_road_networks.as_ref(),
+        );
+        step_bandit_world(
+            ctx,
+            config.sim_tick,
+            config.seed,
+            config.map_size,
+            config.bandit_camps_enabled,
+            heartbeat_sim_seconds,
         );
     }
     if ctx.db.sim_pacing_state().id().find(&0).is_some() {
@@ -292,6 +301,8 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             | crate::building_defs::BuildingSimKind::Mine
             | crate::building_defs::BuildingSimKind::CharcoalBurner
             | crate::building_defs::BuildingSimKind::Smithy
+            | crate::building_defs::BuildingSimKind::WeaponsmithArmorer
+            | crate::building_defs::BuildingSimKind::BowyerFletcher
             | crate::building_defs::BuildingSimKind::PotterKiln
             | crate::building_defs::BuildingSimKind::Monastery
             | crate::building_defs::BuildingSimKind::Brewery
@@ -501,12 +512,23 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             crate::building_defs::BuildingSimKind::Smithy => {
                 step_smithy(ctx, &tick, &clock, building)
             }
+            crate::building_defs::BuildingSimKind::WeaponsmithArmorer => {
+                step_weaponsmith_armorer(ctx, &tick, &clock, building)
+            }
+            crate::building_defs::BuildingSimKind::BowyerFletcher => {
+                step_bowyer_fletcher(ctx, &tick, &clock, building)
+            }
             crate::building_defs::BuildingSimKind::PotterKiln => {
                 step_potter_kiln(ctx, &tick, &clock, building)
             }
             _ => {}
         }
     }
+
+    // Recruitment reserves complete finished kits, then ordinary carts bring
+    // them to the mustering hall. Companies become selectable only once every
+    // recruit and every physical weapon/armor item is onsite.
+    step_military_requisitions(ctx, &tick, &clock);
 
     // Local producers have now completed this tick's work. Match their free
     // carts together so workshop urgency and road length, rather than source

@@ -23,14 +23,29 @@ export const COMBAT_AGENT_STATES = [
   'holding',
 ] as const;
 
-export type CombatAgentFaction = 'guard' | 'raider';
+export type CombatAgentFaction =
+  | 'guard'
+  | 'raider'
+  | 'bandit'
+  | 'militia'
+  | 'spearman'
+  | 'man-at-arms'
+  | 'crossbow'
+  | 'mercenary-spear'
+  | 'footman'
+  | 'polearm'
+  | 'bowman'
+  | 'uskok';
 export type CombatAgentStatus = (typeof COMBAT_AGENT_STATES)[number];
 export type CombatTargetKind =
   | 'building'
   | 'residence'
   | 'cart'
   | 'treasury-building'
-  | 'treasury-residence';
+  | 'treasury-residence'
+  | 'bandit-camp'
+  | 'ground'
+  | 'combat-agent';
 
 export type CombatAgentState = {
   id: string;
@@ -53,7 +68,13 @@ export type CombatAgentState = {
   carryingLoot: boolean;
   issuedPolearms: number;
   raidAnchorBuildingId: string | null;
+  banditCampId: string | null;
+  companyId: string | null;
+  homeResidenceId: string | null;
+  personIdentity: string | null;
   stateChangedTick: number;
+  /** Remaining direct-order/chase distance. Values above 14 m use the run clip. */
+  routeProgress?: number;
 };
 
 export type GuardCompanyRosterSummary = {
@@ -80,6 +101,18 @@ export function isActiveRaiderThreat(agent: CombatAgentState): boolean {
       || agent.status === 'looting'
       || agent.status === 'retreating'
     );
+}
+
+export function isPlayerMilitaryFaction(faction: CombatAgentFaction): boolean {
+  return faction === 'militia'
+    || faction === 'spearman'
+    || faction === 'man-at-arms'
+    || faction === 'crossbow'
+    || faction === 'mercenary-spear'
+    || faction === 'footman'
+    || faction === 'polearm'
+    || faction === 'bowman'
+    || faction === 'uskok';
 }
 
 export function hasActiveRaiderThreat(
@@ -163,8 +196,12 @@ export function syncCombatAgents(
     const targetKind = combatTargetKindFromId(Number(row.targetKind));
     if (!status || !targetKind) continue;
     const id = row.id.toString();
-    const faction = Number(row.faction) === 0 ? 'guard' : 'raider';
+    const faction = combatFactionFromId(Number(row.faction));
     const issuedPolearms = carriedPolearms(row.carriedLootJson);
+    const playerMilitary = isPlayerMilitaryFaction(faction);
+    const homeResidenceId = playerMilitary && row.raidAnchorBuildingId > 0n
+      ? residenceClientId(row.raidAnchorBuildingId)
+      : null;
     agents.set(id, {
       id,
       raidId: row.raidId.toString(),
@@ -185,15 +222,39 @@ export function syncCombatAgents(
       status,
       attackCooldown: Math.max(0, row.attackCooldown),
       lootProgress: Math.max(0, row.lootProgress),
-      carryingLoot: faction === 'raider' && row.carriedLootJson.length > 0,
-      issuedPolearms: faction === 'guard' ? issuedPolearms : 0,
-      raidAnchorBuildingId: row.raidAnchorBuildingId > 0n
+      carryingLoot: (faction === 'raider' || faction === 'bandit') && row.carriedLootJson.length > 0,
+      issuedPolearms: faction === 'guard' || playerMilitary ? issuedPolearms : 0,
+      raidAnchorBuildingId: row.raidAnchorBuildingId > 0n && faction !== 'bandit' && !playerMilitary
         ? buildingClientId(row.raidAnchorBuildingId)
         : null,
+      banditCampId: row.raidAnchorBuildingId > 0n && faction === 'bandit'
+        ? `bandit-camp-${row.raidAnchorBuildingId}`
+        : null,
+      companyId: playerMilitary ? row.raidId.toString() : null,
+      homeResidenceId,
+      personIdentity: homeResidenceId
+        ? `${homeResidenceId}:person:${Number(row.sourceSlot)}`
+        : null,
       stateChangedTick: Number(row.stateChangedTick),
+      routeProgress: Math.max(0, row.routeProgress),
     });
   }
   return agents;
+}
+
+function combatFactionFromId(value: number): CombatAgentFaction {
+  if (value === 0) return 'guard';
+  if (value === 2) return 'bandit';
+  if (value === 3) return 'militia';
+  if (value === 4) return 'spearman';
+  if (value === 5) return 'man-at-arms';
+  if (value === 6) return 'crossbow';
+  if (value === 7) return 'mercenary-spear';
+  if (value === 8) return 'footman';
+  if (value === 9) return 'polearm';
+  if (value === 10) return 'bowman';
+  if (value === 11) return 'uskok';
+  return 'raider';
 }
 
 function carriedPolearms(carriedStoresJson: string): number {
@@ -242,11 +303,11 @@ export function formatLiveCombatSummary(
           lootingHoldings += 1;
         }
       }
-    } else if (
+    } else if (agent.faction === 'guard' && (
       agent.status === 'downed'
       || agent.status === 'wounded-returning'
       || agent.status === 'recovering'
-    ) {
+    )) {
       woundedGuards += 1;
       if (agent.status === 'recovering') {
         recoveringGuards += 1;
@@ -257,7 +318,7 @@ export function formatLiveCombatSummary(
           );
         }
       }
-    } else {
+    } else if (agent.faction === 'guard') {
       guards += 1;
       guardHealth += agent.health / agent.maxHealth;
       if (agent.status === 'mustering') musteringGuards += 1;
@@ -377,6 +438,9 @@ function combatTargetKindFromId(value: number): CombatTargetKind | null {
     case 2: return 'cart';
     case 3: return 'treasury-building';
     case 4: return 'treasury-residence';
+    case 5: return 'bandit-camp';
+    case 6: return 'ground';
+    case 7: return 'combat-agent';
     default: return null;
   }
 }
@@ -391,5 +455,11 @@ function combatTargetClientId(kind: CombatTargetKind, id: bigint): string {
       return residenceClientId(id);
     case 'cart':
       return tripClientId(id);
+    case 'bandit-camp':
+      return `bandit-camp-${id}`;
+    case 'ground':
+      return `ground-${id}`;
+    case 'combat-agent':
+      return id.toString();
   }
 }

@@ -45,6 +45,7 @@ import CallUpYearRoundLaborReducer from "./call_up_year_round_labor_reducer";
 import CancelMarketplaceTradeOrderReducer from "./cancel_marketplace_trade_order_reducer";
 import ClearTreeWorkAreaReducer from "./clear_tree_work_area_reducer";
 import CollectChapelCofferReducer from "./collect_chapel_coffer_reducer";
+import CommandMilitiaReducer from "./command_militia_reducer";
 import ConfigureWorldReducer from "./configure_world_reducer";
 import ConvertResidenceToSmallholdingReducer from "./convert_residence_to_smallholding_reducer";
 import DemolishBackyardGardenReducer from "./demolish_backyard_garden_reducer";
@@ -54,8 +55,11 @@ import DemolishFarmFieldReducer from "./demolish_farm_field_reducer";
 import DemolishGraveyardReducer from "./demolish_graveyard_reducer";
 import DemolishPastureReducer from "./demolish_pasture_reducer";
 import DemolishResidenceReducer from "./demolish_residence_reducer";
+import DisbandMilitaryCompanyReducer from "./disband_military_company_reducer";
+import DisbandMilitiaReducer from "./disband_militia_reducer";
 import EnterWorldReducer from "./enter_world_reducer";
 import GrantCheatResourcesReducer from "./grant_cheat_resources_reducer";
+import HireMercenaryCompanyReducer from "./hire_mercenary_company_reducer";
 import MarketplaceTradeReducer from "./marketplace_trade_reducer";
 import PlaceBackyardGardenReducer from "./place_backyard_garden_reducer";
 import PlaceBuildingReducer from "./place_building_reducer";
@@ -65,12 +69,16 @@ import PlaceGraveyardReducer from "./place_graveyard_reducer";
 import PlacePastureReducer from "./place_pasture_reducer";
 import PlaceVineyardReducer from "./place_vineyard_reducer";
 import PurchaseStableOxReducer from "./purchase_stable_ox_reducer";
+import RaiseMilitiaReducer from "./raise_militia_reducer";
 import RecallIdleSeasonalLaborReducer from "./recall_idle_seasonal_labor_reducer";
 import RecallTargetIdleProcessorLaborReducer from "./recall_target_idle_processor_labor_reducer";
+import RecruitMilitaryCompanyReducer from "./recruit_military_company_reducer";
 import RemoveRoadEdgeReducer from "./remove_road_edge_reducer";
 import RenameSettlementReducer from "./rename_settlement_reducer";
+import RenewMercenaryContractReducer from "./renew_mercenary_contract_reducer";
 import RepairFireDamageReducer from "./repair_fire_damage_reducer";
 import ResetWorldReducer from "./reset_world_reducer";
+import ResupplyMilitaryCompanyReducer from "./resupply_military_company_reducer";
 import RetrofitResidenceTileRoofReducer from "./retrofit_residence_tile_roof_reducer";
 import RotateConstructionLaborReducer from "./rotate_construction_labor_reducer";
 import SetAllStorageAcceptanceReducer from "./set_all_storage_acceptance_reducer";
@@ -108,6 +116,7 @@ import SetMarketplaceSaltTargetReducer from "./set_marketplace_salt_target_reduc
 import SetMarketplaceSeedGrainTargetReducer from "./set_marketplace_seed_grain_target_reducer";
 import SetMarketplaceSpecialtyExportPolicyReducer from "./set_marketplace_specialty_export_policy_reducer";
 import SetMarketplaceSpecialtyFamilyExportPolicyReducer from "./set_marketplace_specialty_family_export_policy_reducer";
+import SetMilitaryFormationReducer from "./set_military_formation_reducer";
 import SetMonasteryCharterReducer from "./set_monastery_charter_reducer";
 import SetMonasteryNextExtensionReducer from "./set_monastery_next_extension_reducer";
 import SetMonasteryPlantingReducer from "./set_monastery_planting_reducer";
@@ -144,6 +153,8 @@ import UpgradeResidenceReducer from "./upgrade_residence_reducer";
 import ActiveGameSessionRow from "./active_game_session_table";
 import ActiveRaidRow from "./active_raid_table";
 import BackyardGardenRow from "./backyard_garden_table";
+import BanditCampRow from "./bandit_camp_table";
+import BanditIncidentRow from "./bandit_incident_table";
 import BuildingRow from "./building_table";
 import BurgageZoneRow from "./burgage_zone_table";
 import CombatAgentRow from "./combat_agent_table";
@@ -156,6 +167,10 @@ import GraveyardRow from "./graveyard_table";
 import GuardMusterRouteRow from "./guard_muster_route_table";
 import LivestockHerdRow from "./livestock_herd_table";
 import MarketStateRow from "./market_state_table";
+import MercenaryContractRow from "./mercenary_contract_table";
+import MilitaryCompanyRow from "./military_company_table";
+import MilitaryMemberRow from "./military_member_table";
+import MilitiaOrderRow from "./militia_order_table";
 import PastureRow from "./pasture_table";
 import PastureHerdRow from "./pasture_herd_table";
 import PlayerResourcesRow from "./player_resources_table";
@@ -221,6 +236,34 @@ const tablesSchema = __schema({
       { name: 'backyard_garden_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, BackyardGardenRow),
+  bandit_camp: __table({
+    name: 'bandit_camp',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'bandit_camp_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BanditCampRow),
+  bandit_incident: __table({
+    name: 'bandit_incident',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'bandit_incident_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BanditIncidentRow),
   building: __table({
     name: 'building',
     indexes: [
@@ -422,6 +465,71 @@ const tablesSchema = __schema({
       { name: 'market_state_owner_key', constraint: 'unique', columns: ['owner'] },
     ],
   }, MarketStateRow),
+  mercenary_contract: __table({
+    name: 'mercenary_contract',
+    indexes: [
+      { name: 'company_id', algorithm: 'btree', columns: [
+        'companyId',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'mercenary_contract_company_id_key', constraint: 'unique', columns: ['companyId'] },
+    ],
+  }, MercenaryContractRow),
+  military_company: __table({
+    name: 'military_company',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { name: 'source_building_id', algorithm: 'btree', columns: [
+        'sourceBuildingId',
+      ] },
+    ],
+    constraints: [
+      { name: 'military_company_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, MilitaryCompanyRow),
+  military_member: __table({
+    name: 'military_member',
+    indexes: [
+      { name: 'combat_agent_id', algorithm: 'btree', columns: [
+        'combatAgentId',
+      ] },
+      { name: 'company_id', algorithm: 'btree', columns: [
+        'companyId',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { name: 'residence_id', algorithm: 'btree', columns: [
+        'residenceId',
+      ] },
+    ],
+    constraints: [
+      { name: 'military_member_combat_agent_id_key', constraint: 'unique', columns: ['combatAgentId'] },
+    ],
+  }, MilitaryMemberRow),
+  militia_order: __table({
+    name: 'militia_order',
+    indexes: [
+      { name: 'combat_agent_id', algorithm: 'btree', columns: [
+        'combatAgentId',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'militia_order_combat_agent_id_key', constraint: 'unique', columns: ['combatAgentId'] },
+    ],
+  }, MilitiaOrderRow),
   pasture: __table({
     name: 'pasture',
     indexes: [
@@ -686,6 +794,7 @@ const reducersSchema = __reducers(
   __reducerSchema("cancel_marketplace_trade_order", CancelMarketplaceTradeOrderReducer),
   __reducerSchema("clear_tree_work_area", ClearTreeWorkAreaReducer),
   __reducerSchema("collect_chapel_coffer", CollectChapelCofferReducer),
+  __reducerSchema("command_militia", CommandMilitiaReducer),
   __reducerSchema("configure_world", ConfigureWorldReducer),
   __reducerSchema("convert_residence_to_smallholding", ConvertResidenceToSmallholdingReducer),
   __reducerSchema("demolish_backyard_garden", DemolishBackyardGardenReducer),
@@ -695,8 +804,11 @@ const reducersSchema = __reducers(
   __reducerSchema("demolish_graveyard", DemolishGraveyardReducer),
   __reducerSchema("demolish_pasture", DemolishPastureReducer),
   __reducerSchema("demolish_residence", DemolishResidenceReducer),
+  __reducerSchema("disband_military_company", DisbandMilitaryCompanyReducer),
+  __reducerSchema("disband_militia", DisbandMilitiaReducer),
   __reducerSchema("enter_world", EnterWorldReducer),
   __reducerSchema("grant_cheat_resources", GrantCheatResourcesReducer),
+  __reducerSchema("hire_mercenary_company", HireMercenaryCompanyReducer),
   __reducerSchema("marketplace_trade", MarketplaceTradeReducer),
   __reducerSchema("place_backyard_garden", PlaceBackyardGardenReducer),
   __reducerSchema("place_building", PlaceBuildingReducer),
@@ -706,12 +818,16 @@ const reducersSchema = __reducers(
   __reducerSchema("place_pasture", PlacePastureReducer),
   __reducerSchema("place_vineyard", PlaceVineyardReducer),
   __reducerSchema("purchase_stable_ox", PurchaseStableOxReducer),
+  __reducerSchema("raise_militia", RaiseMilitiaReducer),
   __reducerSchema("recall_idle_seasonal_labor", RecallIdleSeasonalLaborReducer),
   __reducerSchema("recall_target_idle_processor_labor", RecallTargetIdleProcessorLaborReducer),
+  __reducerSchema("recruit_military_company", RecruitMilitaryCompanyReducer),
   __reducerSchema("remove_road_edge", RemoveRoadEdgeReducer),
   __reducerSchema("rename_settlement", RenameSettlementReducer),
+  __reducerSchema("renew_mercenary_contract", RenewMercenaryContractReducer),
   __reducerSchema("repair_fire_damage", RepairFireDamageReducer),
   __reducerSchema("reset_world", ResetWorldReducer),
+  __reducerSchema("resupply_military_company", ResupplyMilitaryCompanyReducer),
   __reducerSchema("retrofit_residence_tile_roof", RetrofitResidenceTileRoofReducer),
   __reducerSchema("rotate_construction_labor", RotateConstructionLaborReducer),
   __reducerSchema("set_all_storage_acceptance", SetAllStorageAcceptanceReducer),
@@ -749,6 +865,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_marketplace_seed_grain_target", SetMarketplaceSeedGrainTargetReducer),
   __reducerSchema("set_marketplace_specialty_export_policy", SetMarketplaceSpecialtyExportPolicyReducer),
   __reducerSchema("set_marketplace_specialty_family_export_policy", SetMarketplaceSpecialtyFamilyExportPolicyReducer),
+  __reducerSchema("set_military_formation", SetMilitaryFormationReducer),
   __reducerSchema("set_monastery_charter", SetMonasteryCharterReducer),
   __reducerSchema("set_monastery_next_extension", SetMonasteryNextExtensionReducer),
   __reducerSchema("set_monastery_planting", SetMonasteryPlantingReducer),

@@ -135,6 +135,13 @@ fn resource_ledger_slot(
         CommodityKind::Pelts => Some(&mut resources.pelts),
         CommodityKind::Yarn => Some(&mut resources.yarn),
         CommodityKind::Linen => Some(&mut resources.linen),
+        CommodityKind::Sidearms => Some(&mut resources.sidearms),
+        CommodityKind::Shields => Some(&mut resources.shields),
+        CommodityKind::Bows => Some(&mut resources.bows),
+        CommodityKind::Crossbows => Some(&mut resources.crossbows),
+        CommodityKind::PaddedArmor => Some(&mut resources.padded_armor),
+        CommodityKind::MailArmor => Some(&mut resources.mail_armor),
+        CommodityKind::Ammunition => Some(&mut resources.ammunition),
     }
 }
 

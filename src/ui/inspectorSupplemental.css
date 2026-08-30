@@ -276,6 +276,93 @@
   background-image: url('/assets/ui/icons/actions/sheep-flock.png');
 }
 
+.inspector-action-icon[data-action-icon='militia'] {
+  background-image: url('/assets/ui/icons/actions/militia.png');
+}
+
+.inspector-action-icon[data-action-icon='spearmen'] {
+  background-image: url('/assets/ui/icons/actions/spearmen.png');
+}
+
+.inspector-action-icon[data-action-icon='men-at-arms'] {
+  background-image: url('/assets/ui/icons/actions/men-at-arms.png');
+}
+
+.inspector-action-icon[data-action-icon='crossbows'] {
+  background-image: url('/assets/ui/icons/actions/crossbows.png');
+}
+
+.inspector-action-icon[data-action-icon='mercenaries'] {
+  background-image: url('/assets/ui/icons/actions/mercenaries.png');
+}
+
+.inspector-action-icon[data-action-icon='footmen'] {
+  background-image: url('/assets/ui/icons/actions/footmen.png');
+}
+
+.inspector-action-icon[data-action-icon='polearms'] {
+  background-image: url('/assets/ui/icons/actions/polearms.png');
+}
+
+.inspector-action-icon[data-action-icon='bowmen'] {
+  background-image: url('/assets/ui/icons/actions/bowmen.png');
+}
+
+.inspector-action-icon[data-action-icon='uskoks'] {
+  background-image: url('/assets/ui/icons/actions/uskoks.png');
+}
+
+.inspector-action-icon[data-action-icon='disband-company'] {
+  background-image: url('/assets/ui/icons/actions/disband-company.png');
+}
+
+.inspector-action-icon[data-action-icon='resupply-company'] {
+  background-image: url('/assets/ui/icons/actions/resupply-company.png');
+}
+
+.inspector-action-icon[data-action-icon='formation'] {
+  background-image: url('/assets/ui/icons/actions/formation.png');
+}
+
+.military-recruitment-card,
+.military-company-card {
+  padding: 9px;
+  border: 1px solid rgba(210, 177, 99, 0.22);
+  border-radius: 5px;
+  background:
+    linear-gradient(180deg, rgba(217, 186, 119, 0.055), transparent 58%),
+    rgba(9, 11, 8, 0.28);
+}
+
+.military-size-picker {
+  display: grid;
+  gap: 0.38rem;
+  margin: 0.62rem 0;
+  color: var(--inspector-muted, #c7bda8);
+  font-size: 0.76rem;
+}
+
+.military-company-card__details {
+  margin: 0;
+}
+
+.military-company-card__formations {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.military-company-card__formations .resource-action-button {
+  min-width: 0;
+  padding: 5px 7px;
+  font-size: 0.72rem;
+}
+
+.military-company-card__formations .inspector-action-icon {
+  flex-basis: 22px;
+  width: 22px;
+  height: 22px;
+}
+
 .resource-action-button--crop {
   display: inline-flex;
   align-items: center;

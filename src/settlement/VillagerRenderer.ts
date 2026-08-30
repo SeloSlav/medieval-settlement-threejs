@@ -21,6 +21,7 @@ import type {
   BuildingState,
   BackyardGardenState,
   BurgageZoneState,
+  CorpseState,
   FarmFieldState,
   ForagingNodeState,
   GraveyardState,
@@ -122,13 +123,22 @@ import {
 } from './villagerIdentity.ts';
 import {
   chapelAttendancePath,
+  chapelClergyGatheringPoint,
   chapelGatheringPoint,
+  chapelMassPhase,
   claimMassChapelFromPoint,
   claimMassChapelsForResidences,
   isSundayMassTime,
   operationalMassChapels,
   type MassChapelClaim,
 } from './chapelMass.ts';
+import {
+  clericDutyAnimation,
+  clericIdleAnimation,
+  clericMassAnimation,
+  isClericWorkplaceKind,
+  isDaytimeHouseholdIndoorPause,
+} from './clericBehaviors.ts';
 import {
   MAX_WAYSIDE_SHRINE_VISITORS,
   claimWaysideShrineFromPoint,
@@ -196,7 +206,10 @@ import {
   fireDisabledResidenceIds,
   type FireIncidentState,
 } from '../fires/fireIncident.ts';
-import type { CombatAgentState } from '../security/combatAgents.ts';
+import {
+  isPlayerMilitaryFaction,
+  type CombatAgentState,
+} from '../security/combatAgents.ts';
 import { COMBAT_WADING_SPEED_MULTIPLIER } from '../security/combatRiverNavigation.ts';
 import {
   SELECTED_AGENT_ROUTE_Y_OFFSET,
@@ -305,6 +318,10 @@ type EssentialSabbathDuty =
 
 function workerSlotKey(workplaceId: string, workplaceSlot: number): string {
   return `${workplaceId}:${workplaceSlot}`;
+}
+
+function isTravelMode(mode: VillagerMode): boolean {
+  return mode === 'walk' || mode === 'run' || mode === 'flee';
 }
 
 function sameDutyPosition(
@@ -480,7 +497,10 @@ export class VillagerRenderer {
   private fireDisabledBuildingIds = new Set<string>();
   private fireDisabledResidenceIds = new Set<string>();
   private combatAgentVisuals = new Map<string, CombatAgentVisual>();
+  private violentCorpses = new Map<string, CorpseState>();
+  private hasSyncedViolentCorpses = false;
   private activeCombatGuardSlots = new Set<string>();
+  private activeMilitaryPersonIdentities = new Set<string>();
   private roadNetwork: RoadNetwork | null = null;
   private clock: GameClock | null = null;
   private householdPresentationClock: GameClock | null = null;
@@ -576,9 +596,11 @@ export class VillagerRenderer {
       if (!fullRoutinePass) continue;
       changed = this.reconcileRoutine(agent) || changed;
     }
-    if (changed) {
+    const chapelPresentationChanged = fullRoutinePass
+      ? this.syncChapelAmbientAssignments()
+      : false;
+    if (changed || chapelPresentationChanged) {
       this.syncCampAmbientAssignments();
-      this.syncChapelAmbientAssignments();
       this.pushRenderState();
     }
   }
@@ -627,8 +649,21 @@ export class VillagerRenderer {
   setCombatAgents(agents: ReadonlyMap<string, CombatAgentState>): void {
     const nextVisuals = new Map<string, CombatAgentVisual>();
     const nextGuardSlots = new Set<string>();
+    const nextMilitaryPeople = new Set<string>();
     for (const state of agents.values()) {
       const prior = this.combatAgentVisuals.get(state.id);
+      if (state.status === 'downed' && prior?.state.status !== 'downed') {
+        const seed = combatAppearanceSeed(state);
+        this.combatAudio.playDeath(
+          state.id,
+          state.faction === 'bandit'
+          || state.faction === 'raider'
+          || isPlayerMilitaryFaction(state.faction)
+          || seed % 2 === 0
+            ? 'man'
+            : 'woman',
+        );
+      }
       nextVisuals.set(state.id, {
         state,
         displayX: prior?.displayX ?? state.x,
@@ -643,12 +678,16 @@ export class VillagerRenderer {
           combatGuardSlotKey(state.sourceBuildingId, state.sourceSlot),
         );
       }
+      if (isPlayerMilitaryFaction(state.faction) && state.personIdentity) {
+        nextMilitaryPeople.add(state.personIdentity);
+      }
     }
     for (const id of this.combatAgentVisuals.keys()) {
       if (!agents.has(id)) this.renderAgentsById.delete(`combat:${id}`);
     }
     this.combatAgentVisuals = nextVisuals;
     this.activeCombatGuardSlots = nextGuardSlots;
+    this.activeMilitaryPersonIdentities = nextMilitaryPeople;
     this.pushRenderState();
   }
 
@@ -728,6 +767,7 @@ export class VillagerRenderer {
     pastures: Iterable<PastureState>;
     vineyardParcels?: Iterable<VineyardParcelState>;
     graveyards?: Iterable<GraveyardState>;
+    corpses?: Iterable<CorpseState>;
     backyardGardens?: Iterable<BackyardGardenState>;
     burgageZones?: Iterable<BurgageZoneState>;
     deliveryTrips?: Iterable<DeliveryTripState>;
@@ -752,6 +792,25 @@ export class VillagerRenderer {
     const pastures = [...options.pastures];
     const vineyardParcels = [...(options.vineyardParcels ?? [])];
     const graveyards = [...(options.graveyards ?? [])];
+    const nextViolentCorpses = new Map<string, CorpseState>();
+    for (const corpse of options.corpses ?? []) {
+      if (corpse.cause !== 3 || corpse.state > 1) continue;
+      nextViolentCorpses.set(corpse.id, corpse);
+      if (this.hasSyncedViolentCorpses && !this.violentCorpses.has(corpse.id)) {
+        const appearanceSeed = pickVillagerAppearanceSeed(corpse.id, 0);
+        this.combatAudio.playDeath(
+          `civilian:${corpse.id}`,
+          pickVillagerModelVariant(appearanceSeed) === 'man' ? 'man' : 'woman',
+        );
+      }
+    }
+    for (const corpseId of this.violentCorpses.keys()) {
+      if (!nextViolentCorpses.has(corpseId)) {
+        this.renderAgentsById.delete(`violent-corpse:${corpseId}`);
+      }
+    }
+    this.violentCorpses = nextViolentCorpses;
+    this.hasSyncedViolentCorpses = true;
     const backyardGardens = [...(options.backyardGardens ?? [])];
     const burgageZones = [...(options.burgageZones ?? [])];
     const deliveryTrips = [...(options.deliveryTrips ?? [])];
@@ -1090,6 +1149,7 @@ export class VillagerRenderer {
       foragingMonth: options.foragingMonth,
       roadNetwork: this.roadNetwork,
       buildings: this.buildings,
+      residences,
     };
     const workerBuildingIds = new Set(
       onSiteAssignments.map((assignment) => assignment.buildingId),
@@ -1166,7 +1226,9 @@ export class VillagerRenderer {
           musterTowerId: null,
           musterSlot: -1,
           appearanceSeed,
-          modelVariant: pickVillagerModelVariant(appearanceSeed),
+          modelVariant: isClericWorkplaceKind(building.kind)
+            ? 'man'
+            : pickVillagerModelVariant(appearanceSeed),
           tunicColor: colors.tunic,
           skinColor: colors.skin,
           hairColor: pickVillagerHairColor(appearanceSeed),
@@ -1206,7 +1268,9 @@ export class VillagerRenderer {
         if (agent.appearanceSeed !== appearanceSeed) {
           const colors = pickVillagerColors(appearanceSeed);
           agent.appearanceSeed = appearanceSeed;
-          agent.modelVariant = pickVillagerModelVariant(appearanceSeed);
+          agent.modelVariant = isClericWorkplaceKind(building.kind)
+            ? 'man'
+            : pickVillagerModelVariant(appearanceSeed);
           agent.tunicColor = colors.tunic;
           agent.skinColor = colors.skin;
           agent.hairColor = pickVillagerHairColor(appearanceSeed);
@@ -1217,6 +1281,7 @@ export class VillagerRenderer {
           );
           agent.pathSeed = appearanceSeed ^ 0x27d4eb2d;
         }
+        if (isClericWorkplaceKind(building.kind)) agent.modelVariant = 'man';
         const previousBuilding = previousBuildings.get(assignment.buildingId);
         const dutyChanged = previousHomeResidenceId !== assignment.homeResidenceId
           || !previousBuilding
@@ -1560,6 +1625,11 @@ export class VillagerRenderer {
       const visual = this.combatAgentVisuals.get(personIdentity.slice('combat:'.length));
       return visual ? this.describeCombatAgent(visual) : null;
     }
+    for (const visual of this.combatAgentVisuals.values()) {
+      if (visual.state.personIdentity === personIdentity) {
+        return this.describeCombatAgent(visual);
+      }
+    }
     const cached = this.inspectedAgentCache;
     if (
       cached
@@ -1574,6 +1644,14 @@ export class VillagerRenderer {
       return this.describeAgent(agent);
     }
     if (cached?.personIdentity === personIdentity) this.inspectedAgentCache = null;
+    return null;
+  }
+
+  private agentForPersonIdentity(personIdentity: string | null): VillagerAgent | null {
+    if (!personIdentity) return null;
+    for (const agent of this.agents.values()) {
+      if (agent.personIdentity === personIdentity) return agent;
+    }
     return null;
   }
 
@@ -1751,6 +1829,11 @@ export class VillagerRenderer {
               && this.clock.hour + this.clock.minute / 60
                 >= SABBATH_DEVOTION_START_HOUR
             ),
+            this.holidayObservance
+              ? 'fellowship'
+              : this.clock
+                ? chapelMassPhase(this.clock, this.massChapels.length > 0)
+                : null,
           ),
       activityState: onDuty ? 'active' : 'ready',
       workplaceLabel: 'Workplace',
@@ -1824,6 +1907,7 @@ export class VillagerRenderer {
 
   private describeCombatAgent(visual: CombatAgentVisual): VillagerInspection {
     const combat = visual.state;
+    const residentSoldier = this.agentForPersonIdentity(combat.personIdentity);
     const ordinaryGuard = combat.faction === 'guard' && combat.sourceBuildingId
       ? this.agents.get(
           `worker:${combat.sourceBuildingId}:${combat.sourceSlot}`,
@@ -1832,58 +1916,65 @@ export class VillagerRenderer {
     const guardhouse = combat.sourceBuildingId
       ? this.buildings.get(combat.sourceBuildingId) ?? null
       : null;
-    const personIdentity = `combat:${combat.id}`;
-    const name = ordinaryGuard
+    const personIdentity = combat.personIdentity ?? `combat:${combat.id}`;
+    const name = residentSoldier
+      ? villagerDisplayName(residentSoldier.personIdentity, residentSoldier.modelVariant)
+      : ordinaryGuard
       ? villagerDisplayName(
           ordinaryGuard.personIdentity,
           ordinaryGuard.modelVariant,
         )
-      : combat.faction === 'guard'
-        ? `Guard #${combat.id}`
-        : `Ottoman raider #${combat.id}`;
+      : combatUnitName(combat);
     const status = combatStatusLabel(combat.status);
     const target = this.combatTargetLabel(combat);
     const activity = combatActivityLabel(combat, target);
     const health = `${Math.ceil(combat.health)} / ${Math.ceil(combat.maxHealth)}`;
-    const equipment = combat.faction === 'guard'
+    const equipment = combat.faction === 'crossbow' || combat.faction === 'bowman'
+      ? `${combat.faction === 'crossbow' ? 'Crossbow and bolts' : 'Bow and arrows'} · readiness ${Math.round(combat.readiness * 100)}%`
+      : combat.faction === 'guard'
       ? combat.issuedPolearms > 0
         ? `Polearm issued · readiness ${Math.round(combat.readiness * 100)}%`
         : `Unarmed · readiness ${Math.round(combat.readiness * 100)}%`
+      : isPlayerMilitaryFaction(combat.faction)
+        ? `${combatEquipmentLabel(combat.faction)} · readiness ${Math.round(combat.readiness * 100)}%`
       : combat.carryingLoot
         ? 'Spear · carrying stolen stores'
         : 'Spear · no captured stores';
     const y = this.resolveGroundY(visual.displayX, visual.displayZ) + 0.02;
     return {
       personIdentity,
-      modelVariant: ordinaryGuard?.modelVariant ?? 'man',
+      modelVariant: residentSoldier?.modelVariant ?? ordinaryGuard?.modelVariant ?? 'man',
       name,
-      initials: ordinaryGuard
+      initials: residentSoldier || ordinaryGuard
         ? name
             .split(/\s+/)
             .slice(0, 2)
             .map((part) => part[0] ?? '')
             .join('')
             .toLocaleUpperCase()
-        : combat.faction === 'guard'
-          ? 'G'
-          : 'OR',
-      eyebrow: combat.faction === 'guard'
+        : combat.faction === 'guard' ? 'G'
+          : combatFactionInitials(combat.faction),
+      eyebrow: combat.faction === 'guard' || isPlayerMilitaryFaction(combat.faction)
         ? `Defender · ${status}`
-        : `Raider · ${status}`,
+        : `Hostile · ${status}`,
       occupation: combat.faction === 'guard'
         ? 'Guard company spearman'
-        : 'Ottoman frontier raider',
+        : isPlayerMilitaryFaction(combat.faction)
+          ? combatOccupation(combat.faction)
+          : combat.faction === 'bandit'
+            ? 'Local outlaw'
+            : 'Ottoman frontier raider',
       activity,
       activityState: combat.status === 'recovering' ? 'ready' : 'active',
-      workplaceLabel: combat.faction === 'guard' ? 'Company' : 'Warband',
+      workplaceLabel: combat.faction === 'guard' || isPlayerMilitaryFaction(combat.faction) ? 'Company' : 'Warband',
       workplace: guardhouse
         ? getBuildingDefinition(guardhouse.kind).label
-        : 'Incursion party',
+        : combat.faction === 'bandit' ? 'Bandit camp' : isPlayerMilitaryFaction(combat.faction) ? 'Town military' : 'Incursion party',
       householdLabel: 'Objective',
       household: target,
       crewLabel: 'Condition',
       crew: `${health} health`,
-      paceLabel: combat.faction === 'guard' ? 'Equipment' : 'Arms and spoils',
+      paceLabel: combat.faction === 'guard' || isPlayerMilitaryFaction(combat.faction) ? 'Equipment' : 'Arms and spoils',
       pace: equipment,
       position: { x: visual.displayX, y, z: visual.displayZ },
       route: [],
@@ -1916,6 +2007,9 @@ export class VillagerRenderer {
         ? `Household parcel #${residence.parcelIndex + 1}`
         : 'Settlement household';
     }
+    if (combat.targetKind === 'bandit-camp') return 'Bandit camp';
+    if (combat.targetKind === 'ground') return 'Commanded position';
+    if (combat.targetKind === 'combat-agent') return 'Nearest hostile rank';
     return 'Moving supply cart';
   }
 
@@ -1923,6 +2017,7 @@ export class VillagerRenderer {
     if (
       agent.routinePhase === 'indoors'
       || agent.routinePhase === 'asleep'
+      || this.isInstitutionInteriorAgent(agent)
     ) {
       return false;
     }
@@ -1945,6 +2040,39 @@ export class VillagerRenderer {
     return Boolean(residence && !residence.abandoned && residence.population > 0);
   }
 
+  private clericWorkplaceFor(agent: VillagerAgent): BuildingState | null {
+    if (agent.role !== 'worker' || !agent.workplaceId) return null;
+    const workplace = this.buildings.get(agent.workplaceId) ?? null;
+    return workplace && isClericWorkplaceKind(workplace.kind) ? workplace : null;
+  }
+
+  private isPriestAgent(agent: VillagerAgent): boolean {
+    return this.clericWorkplaceFor(agent)?.kind === 'chapel';
+  }
+
+  private isInstitutionInteriorAgent(agent: VillagerAgent): boolean {
+    if (agent.routinePhase === 'at_mass' && this.clock && !this.holidayObservance) {
+      const phase = chapelMassPhase(this.clock, agent.massChapelId !== null);
+      if (phase === 'service') return true;
+      if (phase === 'fellowship' && agent.pathPurpose === 'ambient') {
+        const chapel = agent.massChapelId
+          ? this.buildings.get(agent.massChapelId) ?? null
+          : null;
+        if (chapel && Math.hypot(agent.x - chapel.x, agent.z - chapel.z) < 3.5) {
+          return true;
+        }
+      }
+    }
+    if (
+      agent.routinePhase === 'observance_at_worksite'
+      && this.isPriestAgent(agent)
+    ) return true;
+    return agent.role === 'worker'
+      && agent.routinePhase === 'work'
+      && agent.workRemaining > 0
+      && agent.workTarget?.interior === true;
+  }
+
   private pushRenderState(
     view?: CrowdViewState,
     animationDt = 0,
@@ -1959,6 +2087,7 @@ export class VillagerRenderer {
     }
     let slot = 0;
     for (const agent of this.agents.values()) {
+      if (this.activeMilitaryPersonIdentities.has(agent.personIdentity)) continue;
       let workplace: BuildingState | null = null;
       if (agent.role === 'worker') {
         workplace = agent.workplaceId ? this.buildings.get(agent.workplaceId) ?? null : null;
@@ -1980,6 +2109,7 @@ export class VillagerRenderer {
       if (
         agent.routinePhase === 'indoors'
         || agent.routinePhase === 'asleep'
+        || this.isInstitutionInteriorAgent(agent)
       ) {
         continue;
       }
@@ -1995,6 +2125,9 @@ export class VillagerRenderer {
       renderAgent.yaw = agent.yaw;
       renderAgent.appearanceSeed = agent.appearanceSeed;
       renderAgent.variant = agent.modelVariant;
+      renderAgent.presentation = workplace && isClericWorkplaceKind(workplace.kind)
+        ? 'cleric'
+        : 'common';
       renderAgent.mode = agent.mode;
       renderAgent.tunicColor = workplace?.kind === 'monastery'
         ? MONASTIC_HABIT_COLOR
@@ -2017,12 +2150,14 @@ export class VillagerRenderer {
     }
     for (const visual of this.combatAgentVisuals.values()) {
       const combat = visual.state;
+      const residentSoldier = this.agentForPersonIdentity(combat.personIdentity);
       const ordinaryGuard = combat.faction === 'guard' && combat.sourceBuildingId
         ? this.agents.get(
             `worker:${combat.sourceBuildingId}:${combat.sourceSlot}`,
           )
         : null;
-      const appearanceSeed = ordinaryGuard?.appearanceSeed
+      const appearanceSeed = residentSoldier?.appearanceSeed
+        ?? ordinaryGuard?.appearanceSeed
         ?? combatAppearanceSeed(combat);
       const colors = pickVillagerColors(appearanceSeed);
       const target = this.nearestCombatOpponent(combat);
@@ -2041,27 +2176,59 @@ export class VillagerRenderer {
       renderAgent.z = visual.displayZ;
       renderAgent.yaw = yaw;
       renderAgent.appearanceSeed = appearanceSeed;
-      renderAgent.variant = ordinaryGuard?.modelVariant ?? 'man';
+      renderAgent.variant = residentSoldier?.modelVariant
+        ?? ordinaryGuard?.modelVariant
+        ?? (combat.faction === 'bandit' || combat.faction === 'raider' || isPlayerMilitaryFaction(combat.faction)
+          ? 'man'
+          : appearanceSeed % 2 === 0 ? 'man' : 'woman');
+      renderAgent.presentation = 'common';
       renderAgent.mode = combatRenderMode(
         combat.status,
         combat.targetKind !== 'cart',
+        (combat.routeProgress ?? 0) > 14,
       );
-      renderAgent.tunicColor = ordinaryGuard?.tunicColor
+      renderAgent.tunicColor = residentSoldier?.tunicColor
+        ?? ordinaryGuard?.tunicColor
         ?? (combat.faction === 'raider'
           ? raiderTunicColor(appearanceSeed)
-          : colors.tunic);
-      renderAgent.skinColor = ordinaryGuard?.skinColor ?? colors.skin;
-      renderAgent.hairColor = ordinaryGuard?.hairColor
+          : combat.faction === 'bandit'
+            ? banditTunicColor(appearanceSeed)
+            : colors.tunic);
+      renderAgent.skinColor = residentSoldier?.skinColor ?? ordinaryGuard?.skinColor ?? colors.skin;
+      renderAgent.hairColor = residentSoldier?.hairColor ?? ordinaryGuard?.hairColor
         ?? pickVillagerHairColor(appearanceSeed);
-      renderAgent.tool = 'spear';
+      renderAgent.tool = combatToolFor(combat.faction);
       renderAgent.movementSpeed = (combat.status === 'wounded-returning'
         ? 0.68
-        : combat.faction === 'guard'
+        : renderAgent.mode === 'run'
+          ? 2.35
+        : combat.faction === 'guard' || isPlayerMilitaryFaction(combat.faction)
           ? 1.42
           : 1.34) * (isWading ? COMBAT_WADING_SPEED_MULTIPLIER : 1);
       renderAgent.active = true;
       renderAgents.push(renderAgent);
       if (audioDt > 0) this.pushCombatAudioFighter(visual);
+    }
+    for (const corpse of this.violentCorpses.values()) {
+      const appearanceSeed = pickVillagerAppearanceSeed(corpse.id, 0);
+      const colors = pickVillagerColors(appearanceSeed);
+      const renderAgent = this.renderAgentFor(`violent-corpse:${corpse.id}`);
+      renderAgent.slot = slot++;
+      renderAgent.x = corpse.x;
+      renderAgent.y = this.resolveGroundY(corpse.x, corpse.z) + 0.02;
+      renderAgent.z = corpse.z;
+      renderAgent.yaw = appearanceSeed / 0xffff_ffff * Math.PI * 2;
+      renderAgent.appearanceSeed = appearanceSeed;
+      renderAgent.variant = pickVillagerModelVariant(appearanceSeed);
+      renderAgent.presentation = 'common';
+      renderAgent.mode = 'fall';
+      renderAgent.tunicColor = colors.tunic;
+      renderAgent.skinColor = colors.skin;
+      renderAgent.hairColor = pickVillagerHairColor(appearanceSeed);
+      renderAgent.tool = null;
+      renderAgent.movementSpeed = 0;
+      renderAgent.active = true;
+      renderAgents.push(renderAgent);
     }
     const activeView = view ?? this.lastView;
     this.renderer.syncAgents(renderAgents, activeView, animationDt);
@@ -2107,6 +2274,7 @@ export class VillagerRenderer {
       yaw: 0,
       appearanceSeed: 0,
       variant: 'man',
+      presentation: 'common',
       mode: 'idle',
       tunicColor: 0xffffff,
       skinColor: 0xffffff,
@@ -2138,13 +2306,21 @@ export class VillagerRenderer {
     combat: CombatAgentState,
   ): CombatAgentVisual | null {
     if (combat.status !== 'fighting') return null;
+    if (combat.targetKind === 'combat-agent') {
+      const target = this.combatAgentVisuals.get(combat.targetId) ?? null;
+      return target
+        && target.state.status !== 'downed'
+        && combatFactionsAreHostile(combat.faction, target.state.faction)
+        ? target
+        : null;
+    }
     let nearest: CombatAgentVisual | null = null;
     let nearestDistance = Number.POSITIVE_INFINITY;
     const source = this.combatAgentVisuals.get(combat.id);
     if (!source) return null;
     for (const candidate of this.combatAgentVisuals.values()) {
       if (
-        candidate.state.faction === combat.faction
+        !combatFactionsAreHostile(combat.faction, candidate.state.faction)
         || candidate.state.status === 'downed'
       ) {
         continue;
@@ -2240,14 +2416,9 @@ export class VillagerRenderer {
 
   private simStep(agent: VillagerAgent, dt: number): void {
     if (
-      agent.mode === 'chop'
-      || agent.mode === 'mine'
-      || agent.mode === 'gather'
-      || agent.mode === 'plant'
-      || agent.mode === 'sow'
-      || agent.mode === 'fish'
-      || agent.mode === 'tend'
-      || agent.mode === 'build'
+      agent.workRemaining > 0
+      && agent.workTarget !== null
+      && !agent.workPerformed
     ) {
       const workplace = agent.workplaceId
         ? this.buildings.get(agent.workplaceId)
@@ -2289,7 +2460,12 @@ export class VillagerRenderer {
       return;
     }
 
-    if (agent.mode === 'idle') {
+    if (
+      agent.mode === 'idle'
+      || agent.mode === 'relax'
+      || agent.mode === 'look'
+      || agent.mode === 'wait'
+    ) {
       agent.currentMoveSpeed = 0;
       if (agent.ambientBehavior) return;
       agent.idleRemaining -= dt;
@@ -2320,7 +2496,7 @@ export class VillagerRenderer {
       agent.walkSpeed,
       onRoad,
       PEDESTRIAN_ROAD_SPEED_MULTIPLIER,
-    );
+    ) * (agent.mode === 'run' || agent.mode === 'flee' ? 1.62 : 1);
     const nextPathCursor = Math.min(
       agent.pathDistance,
       agent.simPathCursor + agent.currentMoveSpeed * dt,
@@ -2416,13 +2592,13 @@ export class VillagerRenderer {
   }
 
   private interpolateDisplay(agent: VillagerAgent, dt: number): void {
-    if (agent.mode !== 'walk') return;
+    if (!isTravelMode(agent.mode)) return;
     const blend = 1 - Math.exp(-dt * 18);
     agent.displayPathCursor += (agent.simPathCursor - agent.displayPathCursor) * blend;
   }
 
   private syncDisplayPose(agent: VillagerAgent): void {
-    if (agent.mode === 'walk') {
+    if (isTravelMode(agent.mode)) {
       const sample = samplePolylineXZ(agent.path, agent.displayPathCursor);
       if (sample) {
         agent.x = sample.x;
@@ -2456,6 +2632,7 @@ export class VillagerRenderer {
         agent.role !== 'worker'
         || agent.routinePhase === 'indoors'
         || agent.routinePhase === 'asleep'
+        || this.isInstitutionInteriorAgent(agent)
       ) {
         continue;
       }
@@ -2479,7 +2656,9 @@ export class VillagerRenderer {
       agent.workPerformed = true;
       return;
     }
-    agent.mode = agent.workActivity;
+    agent.mode = workplace && isClericWorkplaceKind(workplace.kind)
+      ? clericDutyAnimation(agent.workTarget.clericDuty, agent.pathSeed) as VillagerMode
+      : agent.workActivity;
     agent.simPathCursor = agent.workStopDistance;
     agent.pathCursor = agent.workStopDistance;
     agent.displayPathCursor = agent.workStopDistance;
@@ -3147,6 +3326,16 @@ export class VillagerRenderer {
       return 'indoors';
     }
     const presentationClock = this.householdPresentationClock ?? this.clock;
+    if (
+      agent.role === 'worker'
+      && agent.residenceId
+      && presentationClock
+      && !this.backyardWorksites.has(agent.residenceId)
+      && (this.laborPaused || this.sabbathPausedToday || this.holidayObservance !== null)
+      && isDaytimeHouseholdIndoorPause(agent.personIdentity, presentationClock)
+    ) {
+      return 'indoors';
+    }
     return presentationClock
       ? householdMemberHomeState(agent.personIdentity, presentationClock)
       : 'home_outdoors';
@@ -3215,6 +3404,13 @@ export class VillagerRenderer {
   }
 
   private findMassChapel(agent: VillagerAgent): BuildingState | null {
+    const clericWorkplace = this.clericWorkplaceFor(agent);
+    if (
+      clericWorkplace?.kind === 'chapel'
+      && this.massChapels.some((chapel) => chapel.id === clericWorkplace.id)
+    ) {
+      return clericWorkplace;
+    }
     if (agent.residenceId) {
       if (this.fireDisabledResidenceIds.has(agent.residenceId)) return null;
       return this.massChapelClaims.get(agent.residenceId)?.chapel ?? null;
@@ -3228,19 +3424,28 @@ export class VillagerRenderer {
   }
 
   private beginMassJourney(agent: VillagerAgent, chapel: BuildingState): boolean {
-    const destination = chapelGatheringPoint(chapel, agent.personIdentity);
+    const isPriest = this.isPriestAgent(agent);
+    const destination = isPriest
+      ? chapelClergyGatheringPoint(chapel)
+      : chapelGatheringPoint(chapel, agent.personIdentity);
     const distance = Math.hypot(destination.x - agent.x, destination.z - agent.z);
     agent.massChapelId = chapel.id;
     if (distance < 0.25) {
       this.completeMassArrival(agent);
       return true;
     }
-    const path = chapelAttendancePath(
-      { x: agent.x, z: agent.z },
-      chapel,
-      agent.personIdentity,
-      this.roadNetwork,
-    );
+    const path = isPriest
+      ? pickWorkerTravelPath(
+          { x: agent.x, z: agent.z },
+          destination,
+          this.roadNetwork,
+        )
+      : chapelAttendancePath(
+          { x: agent.x, z: agent.z },
+          chapel,
+          agent.personIdentity,
+          this.roadNetwork,
+        );
     if (!path || !this.beginJourney(agent, path, 'chapel_mass')) {
       agent.massChapelId = null;
       return false;
@@ -3258,7 +3463,9 @@ export class VillagerRenderer {
       agent.massChapelId = null;
       return;
     }
-    const gathering = chapelGatheringPoint(chapel, agent.personIdentity);
+    const gathering = this.isPriestAgent(agent)
+      ? chapelClergyGatheringPoint(chapel)
+      : chapelGatheringPoint(chapel, agent.personIdentity);
     agent.x = gathering.x;
     agent.z = gathering.z;
     agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
@@ -3272,6 +3479,22 @@ export class VillagerRenderer {
   private beginMassReturn(agent: VillagerAgent): boolean {
     this.chapelAmbientAssignments.delete(agent.id);
     agent.ambientBehavior = null;
+    const chapel = agent.massChapelId
+      ? this.buildings.get(agent.massChapelId) ?? null
+      : null;
+    if (chapel && this.isPriestAgent(agent)) {
+      this.clearPath(agent);
+      agent.massChapelId = null;
+      agent.x = chapel.x;
+      agent.z = chapel.z;
+      agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
+      agent.yaw = resolvedPlacedBuildingYaw(chapel);
+      agent.routinePhase = 'observance_at_worksite';
+      agent.mode = clericMassAnimation('service', agent.pathSeed) as VillagerMode;
+      agent.idleRemaining = Number.POSITIVE_INFINITY;
+      this.syncChapelAmbientAssignments();
+      return true;
+    }
     const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
     const destination = residence
       ? residenceDoorPosition(residence)
@@ -4366,7 +4589,11 @@ export class VillagerRenderer {
   ): boolean {
     const pathDistance = polylineLengthXZ(path);
     if (pathDistance < 0.25) return false;
-    agent.mode = 'walk';
+    agent.mode = purpose === 'refuge_rally'
+      ? 'flee'
+      : purpose === 'fire_assembly'
+        ? 'run'
+        : 'walk';
     agent.pathPurpose = purpose;
     agent.path = path;
     agent.pathDistance = pathDistance;
@@ -4548,7 +4775,9 @@ export class VillagerRenderer {
 
   private resetWorkerToIdle(agent: VillagerAgent): void {
     const building = agent.workplaceId ? this.buildings.get(agent.workplaceId) : null;
-    agent.mode = 'idle';
+    agent.mode = building && isClericWorkplaceKind(building.kind)
+      ? clericIdleAnimation(agent.pathSeed)
+      : 'idle';
     agent.ambientBehavior = null;
     agent.routinePhase = 'work';
     agent.pathPurpose = null;
@@ -4808,15 +5037,24 @@ export class VillagerRenderer {
       roster.sort((a, b) => a.personIdentity.localeCompare(b.personIdentity));
     }
 
+    const phase = this.holidayObservance
+      ? 'fellowship' as const
+      : this.clock
+        ? chapelMassPhase(this.clock, this.massChapels.length > 0)
+        : null;
     const signature = [
       this.chapelAmbientCycleIndex,
+      phase ?? 'none',
       ...[...rosters]
         .sort(([a], [b]) => a.localeCompare(b))
         .flatMap(([chapelId, roster]) => [
           chapelId,
           this.buildings.get(chapelId)?.x ?? '',
           this.buildings.get(chapelId)?.z ?? '',
-          ...roster.map((agent) => agent.id),
+          // Arrival state is significant during the service: a villager who
+          // changes from travelling to at_mass must be moved into the nave even
+          // though the chapel roster itself has not changed.
+          ...roster.map((agent) => `${agent.id}=${agent.routinePhase}`),
         ]),
     ].join(':');
     if (signature === this.chapelAmbientSignature) return false;
@@ -4826,18 +5064,40 @@ export class VillagerRenderer {
     for (const [chapelId, roster] of rosters) {
       const chapel = this.buildings.get(chapelId);
       if (!chapel) continue;
+      const clergyActorIds = roster
+        .filter((agent) => this.isPriestAgent(agent))
+        .map((agent) => agent.id);
       for (const [agentId, assignment] of planChapelGatheringBehaviors(
         chapel,
         roster.map((agent) => agent.id),
         this.chapelAmbientCycleIndex,
+        {
+          clergyActorIds,
+          phase: phase ?? 'fellowship',
+        },
       )) {
         assignments.set(agentId, assignment);
       }
     }
     this.chapelAmbientAssignments = assignments;
-    for (const roster of rosters.values()) {
+    for (const [chapelId, roster] of rosters) {
+      const chapel = this.buildings.get(chapelId);
       for (const agent of roster) {
-        if (agent.routinePhase === 'at_mass') this.applyAmbientAssignment(agent);
+        if (agent.routinePhase !== 'at_mass') continue;
+        if (phase === 'service' && chapel) {
+          this.clearPath(agent);
+          agent.ambientBehavior = null;
+          agent.x = chapel.x;
+          agent.z = chapel.z;
+          agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
+          agent.yaw = resolvedPlacedBuildingYaw(chapel);
+          agent.mode = this.isPriestAgent(agent)
+            ? clericMassAnimation('service', agent.pathSeed) as VillagerMode
+            : 'pray';
+          agent.idleRemaining = Number.POSITIVE_INFINITY;
+          continue;
+        }
+        this.applyAmbientAssignment(agent);
       }
     }
     return true;
@@ -4857,7 +5117,10 @@ export class VillagerRenderer {
 
   private applyAmbientAssignment(agent: VillagerAgent): void {
     const assignment = this.ambientAssignmentFor(agent);
-    if (!assignment) return;
+    if (!assignment) {
+      agent.ambientBehavior = null;
+      return;
+    }
     agent.ambientBehavior = assignment.kind;
 
     const path = assignment.kind === 'wander' && assignment.waypoints?.length
@@ -4906,9 +5169,14 @@ export class VillagerRenderer {
         assignment.lookAt.z - agent.z,
       );
     }
-    agent.mode = assignment.kind === 'wander' || assignment.kind === 'idle'
-      ? 'idle'
-      : assignment.kind;
+    const massPhase = this.clock && !this.holidayObservance
+      ? chapelMassPhase(this.clock, agent.massChapelId !== null)
+      : 'fellowship';
+    agent.mode = agent.routinePhase === 'at_mass' && this.isPriestAgent(agent)
+      ? clericMassAnimation(massPhase ?? 'fellowship', agent.pathSeed) as VillagerMode
+      : assignment.kind === 'wander' || assignment.kind === 'idle'
+        ? 'idle'
+        : assignment.kind;
     const cycleSeconds = agent.routinePhase === 'at_mass'
       ? CHAPEL_GATHERING_AMBIENT_CYCLE_SECONDS
       : FOUNDERS_CAMP_AMBIENT_CYCLE_SECONDS;
@@ -5047,6 +5315,12 @@ export class VillagerRenderer {
     if (workplace?.constructionComplete === false) return 'hammer';
     if (workplace && workerProductionBlocker(workplace)) return null;
     const kind = workplace?.kind;
+    if (kind === 'monastery' && agent.workTarget?.clericDuty === 'pruning') {
+      return 'hatchet';
+    }
+    if (kind === 'monastery' && agent.workTarget?.clericDuty === 'soil_work') {
+      return 'shovel';
+    }
     if (kind === 'lumber_mill' || kind === 'woodcutters_lodge') return 'hatchet';
     if (
       kind === 'stone_quarry'
@@ -5182,6 +5456,7 @@ function describeVillagerActivity(
   backyardWorksite: BackyardWorksite | null = null,
   essentialSabbathDuty: EssentialSabbathDuty | null = null,
   sabbathRestAtHome = false,
+  massPhase: 'assembly' | 'service' | 'fellowship' | null = null,
 ): string {
   const workplaceLabel = workplace
     ? isResidenceUpgradeWorkplaceId(workplace.id)
@@ -5206,6 +5481,17 @@ function describeVillagerActivity(
         ? `Walking to the ${holiday.label} gathering`
         : 'Walking to Sunday mass';
     case 'at_mass':
+      if (massPhase === 'service') {
+        return workplace?.kind === 'chapel'
+          ? 'Leading Sunday mass inside the chapel'
+          : 'Attending Sunday mass inside the chapel';
+      }
+      if (massPhase === 'assembly' && workplace?.kind === 'chapel') {
+        return 'Greeting the parish and calling the congregation to mass';
+      }
+      if (massPhase === 'fellowship' && workplace?.kind === 'chapel') {
+        return 'Speaking with parishioners after mass';
+      }
       if (agent.ambientBehavior === 'talk') {
         return holiday
           ? `Celebrating ${holiday.label} with the congregation`
@@ -5280,6 +5566,32 @@ function describeVillagerActivity(
         return marketStallDuty.needKind
           ? `Minding the ${marketStallLabel(marketStallDuty.needKind).toLocaleLowerCase()} stall at the Marketplace`
           : 'Preparing an empty stall at the Marketplace';
+      }
+      if (workplace?.kind === 'chapel') {
+        switch (agent.workTarget?.clericDuty) {
+          case 'interior_prayer': return 'Praying and preparing the chapel interior';
+          case 'interior_study': return 'Studying scripture in the vestry';
+          case 'churchyard_prayer': return 'Keeping prayer and watch in the churchyard';
+          case 'parish_visit': return 'Making a pastoral visit to a nearby household';
+          case 'sermon_rehearsal': return 'Rehearsing the sermon before the chapel doors';
+        }
+        return agent.mode === 'walk'
+          ? 'Walking parish rounds around the chapel'
+          : 'Serving the parish at the chapel';
+      }
+      if (workplace?.kind === 'monastery') {
+        switch (agent.workTarget?.clericDuty) {
+          case 'cloister_prayer': return 'Keeping the hours in the monastery cloister';
+          case 'scriptorium': return 'Reading and copying texts in the scriptorium';
+          case 'infirmary_care': return 'Caring for the sick in the monastery infirmary';
+          case 'hospitality': return 'Receiving travelers and giving alms at the monastery';
+          case 'brewing': return 'Brewing and pressing the monastery harvest';
+          case 'harvest': return 'Gathering herbs, fruit, and honey on the monastery estate';
+          case 'soil_work': return 'Digging and tending the monastery croft';
+          case 'pruning': return 'Pruning the monastery orchard and vineyard';
+          case 'livestock_care': return 'Feeding and handling the monastery livestock';
+          case 'ox_guidance': return 'Guiding an ox through the monastery pasture';
+        }
       }
       if (workplace?.kind === 'watchtower') {
         return 'Keeping watch from the frontier gallery';
@@ -5367,6 +5679,9 @@ function describeVillagerActivity(
         ? `Working around ${workplaceLabel}`
         : `Working at ${workplaceLabel}`;
     case 'observance_at_worksite':
+      if (workplace?.kind === 'chapel') {
+        return 'Inside the chapel after Sunday services';
+      }
       return holiday
         ? `Observing ${holiday.label} without working at ${workplaceLabel}`
         : `Observing the Sabbath without working at ${workplaceLabel}`;
@@ -5501,16 +5816,26 @@ function combatAppearanceSeed(agent: CombatAgentState): number {
   return hash >>> 0;
 }
 
+function combatFactionsAreHostile(
+  left: CombatAgentState['faction'],
+  right: CombatAgentState['faction'],
+): boolean {
+  const leftHostile = left === 'raider' || left === 'bandit';
+  const rightHostile = right === 'raider' || right === 'bandit';
+  return leftHostile !== rightHostile;
+}
+
 function combatRenderMode(
   status: CombatAgentState['status'],
   attackingHolding: boolean,
+  running = false,
 ): VillagerRenderMode {
   switch (status) {
     case 'fighting': return 'fight';
     case 'looting': return attackingHolding ? 'fight' : 'gather';
-    case 'downed': return 'rest';
+    case 'downed': return 'fall';
     case 'recovering': return 'rest';
-    case 'advancing':
+    case 'advancing': return running ? 'run' : 'walk';
     case 'retreating':
     case 'returning':
     case 'wounded-returning':
@@ -5518,6 +5843,60 @@ function combatRenderMode(
       return 'walk';
     case 'holding':
       return 'idle';
+  }
+}
+
+function combatToolFor(faction: CombatAgentState['faction']): WorkerToolKind {
+  switch (faction) {
+    case 'crossbow': return 'crossbow';
+    case 'bowman': return 'bow';
+    case 'man-at-arms': return 'sword-shield';
+    case 'footman': return 'sidearm';
+    case 'polearm': return 'halberd';
+    case 'uskok': return 'sidearm';
+    default: return 'spear';
+  }
+}
+
+function combatUnitName(combat: CombatAgentState): string {
+  const label: Record<CombatAgentState['faction'], string> = {
+    guard: 'Guard', raider: 'Ottoman raider', bandit: 'Bandit',
+    militia: 'Militia spearman', spearman: 'Company spearman',
+    'man-at-arms': 'Man-at-Arms', crossbow: 'Crossbowman',
+    'mercenary-spear': 'Mercenary spearman', footman: 'Footman',
+    polearm: 'Halberdier', bowman: 'Bowman', uskok: 'Uskok border soldier',
+  };
+  return `${label[combat.faction]} #${combat.id}`;
+}
+
+function combatFactionInitials(faction: CombatAgentState['faction']): string {
+  const labels: Record<CombatAgentState['faction'], string> = {
+    guard: 'G', raider: 'OR', bandit: 'B', militia: 'M', spearman: 'SP',
+    'man-at-arms': 'MA', crossbow: 'CB', 'mercenary-spear': 'MS',
+    footman: 'FT', polearm: 'PL', bowman: 'BW', uskok: 'US',
+  };
+  return labels[faction];
+}
+
+function combatOccupation(faction: CombatAgentState['faction']): string {
+  const labels: Partial<Record<CombatAgentState['faction'], string>> = {
+    militia: 'Town militia spearman', spearman: 'Spear company soldier',
+    'man-at-arms': 'Armored sword-and-shield professional', crossbow: 'Company crossbowman',
+    'mercenary-spear': 'Hired mercenary spearman', footman: 'Shielded footman',
+    polearm: 'Armor-breaking polearm soldier', bowman: 'Company bowman',
+    uskok: 'Croatian frontier infantryman',
+  };
+  return labels[faction] ?? 'Company soldier';
+}
+
+function combatEquipmentLabel(faction: CombatAgentState['faction']): string {
+  switch (faction) {
+    case 'footman': return 'Sidearm and small shield';
+    case 'man-at-arms': return 'Sword, large shield, mail, and helmet';
+    case 'polearm': return 'Halberd and light armor';
+    case 'uskok': return 'Axe, sidearm, and frontier kit';
+    case 'militia': return 'Ordinary spear and clothing';
+    default: return 'Spear, shield, and field kit';
   }
 }
 
@@ -5542,7 +5921,7 @@ function combatActivityLabel(
 ): string {
   switch (combat.status) {
     case 'advancing':
-      return combat.faction === 'guard'
+      return combat.faction === 'guard' || isPlayerMilitaryFaction(combat.faction)
         ? `Moving to intercept the attack near ${target}`
         : `Advancing on ${target}`;
     case 'fighting':
@@ -5556,9 +5935,13 @@ function combatActivityLabel(
         ? 'Withdrawing toward the frontier with captured stores'
         : 'Withdrawing toward the frontier';
     case 'returning':
-      return 'Returning to the guardhouse after the incursion';
+      return combat.faction === 'bandit'
+        ? combat.carryingLoot ? 'Returning to camp with stolen stores' : 'Returning to camp'
+        : isPlayerMilitaryFaction(combat.faction)
+          ? 'Returning to the commanded position or home'
+          : 'Returning to the guardhouse after the incursion';
     case 'downed':
-      return combat.faction === 'guard'
+      return combat.faction === 'guard' || isPlayerMilitaryFaction(combat.faction)
         ? 'Downed on the battlefield and awaiting evacuation'
         : 'Downed on the battlefield';
     case 'wounded-returning':
@@ -5575,4 +5958,9 @@ function combatActivityLabel(
 function raiderTunicColor(seed: number): number {
   const colors = [0x694037, 0x76533a, 0x55493c, 0x6b5b3f, 0x4d4639] as const;
   return colors[(seed >>> 12) % colors.length] ?? colors[0];
+}
+
+function banditTunicColor(seed: number): number {
+  const colors = [0x302c27, 0x3f352b, 0x292f2b, 0x49352b, 0x34312d] as const;
+  return colors[seed % colors.length]!;
 }

@@ -739,11 +739,29 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="ironwork">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ironwork" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="polearms" data-tooltip="Weapons required to equip guards." hidden>
-        <span class="settlement-hud__label">Polearms</span>
-        <strong class="settlement-hud__value" data-stockpile="polearms">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="polearms" hidden></span>
       </div>
+    </details>
+    <details class="settlement-hud__stores settlement-hud__military-stores" data-military-stores>
+      <summary class="settlement-hud__stores-summary" aria-label="Military stores, no equipment stocked">
+        <span class="settlement-hud__stores-label">Military stores</span>
+        <strong class="settlement-hud__stores-status" data-military-stores-status>0</strong>
+      </summary>
+      <div class="settlement-hud__stores-grid" aria-label="Military equipment stores">
+        <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2">
+          <strong>Arms</strong>
+          <span data-military-stores-mode-label>Available surplus</span>
+        </div>
+        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="polearms" data-tooltip="Spears, pikes, and other polearms issued to militia and formed companies."><span class="settlement-hud__label">Polearms</span><strong class="settlement-hud__value" data-stockpile="polearms">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="polearms" hidden></span></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="sidearms" data-tooltip="Swords, axes, and sidearms issued to close infantry."><span class="settlement-hud__label">Sidearms</span><strong class="settlement-hud__value" data-stockpile="sidearms">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="sidearms" hidden></span></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="bows" data-tooltip="Finished bows for ranged companies."><span class="settlement-hud__label">Bows</span><strong class="settlement-hud__value" data-stockpile="bows">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="bows" hidden></span></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="crossbows" data-tooltip="Finished crossbows for armored ranged companies."><span class="settlement-hud__label">Crossbows</span><strong class="settlement-hud__value" data-stockpile="crossbows">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="crossbows" hidden></span></div>
+        <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2"><strong>Protection</strong><span>Issued by company role</span></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="shields" data-tooltip="Shields issued to spear and close-infantry companies."><span class="settlement-hud__label">Shields</span><strong class="settlement-hud__value" data-stockpile="shields">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="shields" hidden></span></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="paddedArmor" data-tooltip="Padded protection used by most trained companies."><span class="settlement-hud__label">Padded</span><strong class="settlement-hud__value" data-stockpile="paddedArmor">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="paddedArmor" hidden></span></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="mailArmor" data-tooltip="Mail protection reserved for men-at-arms."><span class="settlement-hud__label">Mail</span><strong class="settlement-hud__value" data-stockpile="mailArmor">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="mailArmor" hidden></span></div>
+        <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2"><strong>Ammunition</strong><span>Bundled field supply</span></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ammunition" data-tooltip="Arrow and bolt bundles consumed by ranged companies and resupply."><span class="settlement-hud__label">Ammunition</span><strong class="settlement-hud__value" data-stockpile="ammunition">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ammunition" hidden></span></div>
+        <div class="settlement-hud__stores-grid-header settlement-hud__military-readiness" role="status"><strong>Complete kits</strong><span data-military-kit-readiness>None ready · bottleneck: polearms</span></div>
       </div>
     </details>
   </div>
@@ -820,7 +838,6 @@ export class SettlementHud {
   private readonly fuelSupplyTotal: HTMLElement;
   private readonly goldStat: HTMLElement;
   private readonly goldCardContext: HTMLElement;
-  private readonly polearmsStat: HTMLElement;
   private readonly animals: HTMLDetailsElement;
   private readonly animalsSummary: HTMLElement;
   private readonly animalsCount: HTMLElement;
@@ -836,6 +853,8 @@ export class SettlementHud {
   private readonly animalsBackyardList: HTMLElement;
   private readonly specialtyStores: HTMLDetailsElement;
   private readonly specialtyStoresSummary: HTMLElement;
+  private readonly militaryStores: HTMLDetailsElement;
+  private readonly militaryStoresSummary: HTMLElement;
   private readonly speedButtons: HTMLButtonElement[];
   private readonly fpsValue: HTMLElement;
   private readonly zoomValue: HTMLElement;
@@ -860,6 +879,7 @@ export class SettlementHud {
   private fuelStoresCloseTimer: number | null = null;
   private animalsCloseTimer: number | null = null;
   private specialtyStoresCloseTimer: number | null = null;
+  private militaryStoresCloseTimer: number | null = null;
   private displayedPeopleSignature: string | null = null;
   private displayedAnimalsSignature: string | null = null;
   private displayedClockDate: string | null = null;
@@ -977,7 +997,6 @@ export class SettlementHud {
     this.fuelSupplyTotal = this.mustElement('[data-fuel-supply-total]');
     this.goldStat = this.mustElement('[data-resource="gold"]');
     this.goldCardContext = this.mustElement('[data-resource-card-context="gold"]');
-    this.polearmsStat = this.mustElement('[data-resource="polearms"]');
     this.animals = this.mustDetails('[data-animals]');
     this.animalsSummary = this.mustElement('[data-animals] > .settlement-hud__animals-summary');
     this.animalsCount = this.mustElement('[data-animals-count]');
@@ -994,6 +1013,10 @@ export class SettlementHud {
     this.specialtyStores = this.mustDetails('[data-specialty-stores]');
     this.specialtyStoresSummary = this.mustElement(
       '[data-specialty-stores] > .settlement-hud__stores-summary',
+    );
+    this.militaryStores = this.mustDetails('[data-military-stores]');
+    this.militaryStoresSummary = this.mustElement(
+      '[data-military-stores] > .settlement-hud__stores-summary',
     );
     this.speedButtons = [...this.panel.querySelectorAll<HTMLButtonElement>('[data-game-speed]')];
     for (const button of this.speedButtons) {
@@ -1084,6 +1107,12 @@ export class SettlementHud {
       'click',
       this.onSpecialtyStoresSummaryClick,
     );
+    this.militaryStores.addEventListener('toggle', this.onMilitaryStoresToggle);
+    this.militaryStores.addEventListener('pointerenter', this.onMilitaryStoresPointerEnter);
+    this.militaryStores.addEventListener('pointerleave', this.onMilitaryStoresPointerLeave);
+    this.militaryStores.addEventListener('focusin', this.onMilitaryStoresFocusIn);
+    this.militaryStores.addEventListener('focusout', this.onMilitaryStoresFocusOut);
+    this.militaryStoresSummary.addEventListener('click', this.onMilitaryStoresSummaryClick);
     this.nobleEye.addEventListener('click', this.onNobleEyeClick);
     window.addEventListener('keydown', this.onApprovalEscape, true);
     // Keep fixed HUD satellites outside the filtered, transformed top ribbon
@@ -1754,9 +1783,7 @@ export class SettlementHud {
     this.clearApprovalState();
   }
 
-  setConflictEnabled(enabled: boolean): void {
-    this.polearmsStat.hidden = !enabled;
-  }
+  setConflictEnabled(_enabled: boolean): void {}
 
   setSettlementClock(
     schedule: SettlementSchedule,
@@ -1982,6 +2009,38 @@ export class SettlementHud {
     this.openHudDisclosure(this.specialtyStores);
   };
 
+  private readonly onMilitaryStoresToggle = (): void => {
+    if (this.militaryStores.open) this.openHudDisclosure(this.militaryStores);
+  };
+
+  private readonly onMilitaryStoresPointerEnter = (): void => {
+    this.cancelMilitaryStoresClose();
+    this.openHudDisclosure(this.militaryStores);
+  };
+
+  private readonly onMilitaryStoresPointerLeave = (): void => {
+    this.cancelMilitaryStoresClose();
+    this.militaryStoresCloseTimer = window.setTimeout(() => {
+      this.militaryStoresCloseTimer = null;
+      this.militaryStores.open = false;
+    }, STORES_POINTER_LEAVE_GRACE_MS);
+  };
+
+  private readonly onMilitaryStoresFocusIn = (): void => {
+    this.cancelMilitaryStoresClose();
+    this.openHudDisclosure(this.militaryStores);
+  };
+
+  private readonly onMilitaryStoresFocusOut = (event: FocusEvent): void => {
+    if (event.relatedTarget instanceof Node && this.militaryStores.contains(event.relatedTarget)) return;
+    this.militaryStores.open = false;
+  };
+
+  private readonly onMilitaryStoresSummaryClick = (event: MouseEvent): void => {
+    event.preventDefault();
+    this.openHudDisclosure(this.militaryStores);
+  };
+
   private readonly onResourceRowKeyDown = (event: KeyboardEvent): void => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     const resource = this.resourceFromTarget(event.target);
@@ -2069,12 +2128,19 @@ export class SettlementHud {
     this.specialtyStoresCloseTimer = null;
   }
 
+  private cancelMilitaryStoresClose(): void {
+    if (this.militaryStoresCloseTimer === null) return;
+    window.clearTimeout(this.militaryStoresCloseTimer);
+    this.militaryStoresCloseTimer = null;
+  }
+
   private closeHudDisclosureCards(except: HTMLDetailsElement | null = null): void {
-    const cards = [this.foodStores, this.fuelStores, this.animals, this.specialtyStores];
+    const cards = [this.foodStores, this.fuelStores, this.animals, this.specialtyStores, this.militaryStores];
     this.cancelFoodStoresClose();
     this.cancelFuelStoresClose();
     this.cancelAnimalsClose();
     this.cancelSpecialtyStoresClose();
+    this.cancelMilitaryStoresClose();
     for (const card of cards) {
       if (card !== except) card.open = false;
     }
@@ -2228,6 +2294,7 @@ export class SettlementHud {
     this.cancelFuelStoresClose();
     this.cancelAnimalsClose();
     this.cancelSpecialtyStoresClose();
+    this.cancelMilitaryStoresClose();
     this.panel.removeEventListener('click', this.onResourceRowClick);
     this.panel.removeEventListener('keydown', this.onResourceRowKeyDown);
     this.panel.removeEventListener('pointerover', this.onHudCardPointerOver);
@@ -2276,6 +2343,12 @@ export class SettlementHud {
       'click',
       this.onSpecialtyStoresSummaryClick,
     );
+    this.militaryStores.removeEventListener('toggle', this.onMilitaryStoresToggle);
+    this.militaryStores.removeEventListener('pointerenter', this.onMilitaryStoresPointerEnter);
+    this.militaryStores.removeEventListener('pointerleave', this.onMilitaryStoresPointerLeave);
+    this.militaryStores.removeEventListener('focusin', this.onMilitaryStoresFocusIn);
+    this.militaryStores.removeEventListener('focusout', this.onMilitaryStoresFocusOut);
+    this.militaryStoresSummary.removeEventListener('click', this.onMilitaryStoresSummaryClick);
     window.removeEventListener('keydown', this.onApprovalEscape, true);
   }
 }

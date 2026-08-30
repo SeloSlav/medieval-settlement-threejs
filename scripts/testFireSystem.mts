@@ -63,7 +63,7 @@ import type {
 
 assert.equal(destinationKindFromId(2), 'fire');
 assert.equal(FIRE_BUCKET_WATER, 3);
-assert.equal(FIRE_MINIMUM_BUCKET_WATER, 0.5);
+assert.equal(FIRE_MINIMUM_BUCKET_WATER, 1);
 assert.ok(FIRE_BUCKET_SPEED_MPS > 0);
 assert.ok(FIRE_BUCKET_UNLOAD_SECONDS > 0);
 assert.ok(FIRE_SPREAD_RADIUS > 0);
@@ -173,12 +173,12 @@ assert.equal(
 );
 assert.deepEqual(
   fireRecoveryCost({ timber: 100, stone: 50 }, 0.6, false, false),
-  { timber: 39, stone: 19.5, ironwork: 0 },
+  { timber: 39, stone: 19.5, ironwork: 0, roofTiles: 0 },
   'structural repair must scale both material costs with damage',
 );
 assert.deepEqual(
   fireRecoveryCost({ timber: 100, stone: 50 }, 1, true, true),
-  { timber: 63, stone: 35, ironwork: 0 },
+  { timber: 63, stone: 35, ironwork: 0, roofTiles: 0 },
   'carpenter support must discount only reconstruction timber',
 );
 assert.deepEqual(residenceStructuralCost(3), {
@@ -188,6 +188,7 @@ assert.deepEqual(residenceStructuralCost(3), {
   stone: RESIDENCE_STONE_COST
     + RESIDENCE_TIER2_STONE_COST
     + RESIDENCE_TIER3_STONE_COST,
+  roofTiles: 0,
 });
 assert.equal(
   buildingFireRecoveryQuote(

@@ -63,8 +63,8 @@ const carpenterMarker = createBuildingMesh('carpenter');
 syncArmoryStockpileVisuals(
   carpenterMarker,
   building('carpenter', {
-    timber: 71,
-    ironwork: 7,
+    timber: 29,
+    ironwork: 13,
     polearms: 9,
   }),
 );
@@ -72,7 +72,7 @@ assertVisibleSegments(
   carpenterMarker,
   'CarpenterTimberStockpile',
   'CarpenterTimberSegment',
-  3,
+  4,
 );
 assertVisibleSegments(
   carpenterMarker,
@@ -90,7 +90,7 @@ assertVisibleSegments(
 const guardhouseMarker = createBuildingMesh('guardhouse');
 syncArmoryStockpileVisuals(
   guardhouseMarker,
-  building('guardhouse', { food: 37, polearms: 5 }),
+  building('guardhouse', { meat: 60, polearms: 50 }),
 );
 assertVisibleSegments(
   guardhouseMarker,
@@ -106,8 +106,8 @@ assertVisibleSegments(
 );
 syncArmoryStockpileVisuals(
   guardhouseMarker,
-  building('guardhouse', { food: 37, polearms: 5 }),
-  4,
+  building('guardhouse', { meat: 60, polearms: 50 }),
+  30,
 );
 assertVisibleSegments(
   guardhouseMarker,
@@ -131,8 +131,8 @@ assertVisibleSegments(
 
 const emptyGuardhouse = building('guardhouse');
 const firstWeaponBand = building('guardhouse', { polearms: 1 });
-const sameWeaponBand = building('guardhouse', { polearms: 2 });
-const secondWeaponBand = building('guardhouse', { polearms: 2.1 });
+const sameWeaponBand = building('guardhouse', { polearms: 19.9 });
+const secondWeaponBand = building('guardhouse', { polearms: 20.1 });
 const emptySignatures = buildingMarkerSignatures(
   new Map([[emptyGuardhouse.id, emptyGuardhouse]]),
 );
@@ -207,7 +207,7 @@ function building(
   kind: BuildingKind,
   stocks: Partial<Pick<
     BuildingState,
-    'timber' | 'food' | 'ironwork' | 'polearms'
+    'timber' | 'food' | 'meat' | 'ironwork' | 'polearms'
   >> = {},
 ): BuildingState {
   return {

@@ -20,6 +20,7 @@ export default {
   resourceVariety: __t.u8(),
   conflictEnabled: __t.bool(),
   enemyPressure: __t.u8(),
+  banditCampsEnabled: __t.bool(),
   severeWeatherEnabled: __t.bool(),
   wellAquiferNetworksEnabled: __t.bool(),
   approvalDeclineRate: __t.u8(),

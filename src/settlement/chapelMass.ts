@@ -11,29 +11,64 @@ import {
 
 export const SUNDAY_MASS_START_HOUR = 8;
 export const SUNDAY_MASS_END_HOUR = 11.5;
+export const SUNDAY_MASS_SERVICE_START_HOUR = 9;
+export const SUNDAY_MASS_SERVICE_END_HOUR = 10.5;
+
+export type ChapelMassPhase = 'assembly' | 'service' | 'fellowship';
+
+export function chapelMassPhase(
+  clock: Pick<GameClock, 'isSunday' | 'hour' | 'minute'>,
+  staffedChapelAvailable: boolean,
+): ChapelMassPhase | null {
+  if (!clock.isSunday || !staffedChapelAvailable) return null;
+  const hour = clock.hour + clock.minute / 60;
+  if (hour < SUNDAY_MASS_START_HOUR || hour >= SUNDAY_MASS_END_HOUR) return null;
+  if (hour < SUNDAY_MASS_SERVICE_START_HOUR) return 'assembly';
+  if (hour < SUNDAY_MASS_SERVICE_END_HOUR) return 'service';
+  return 'fellowship';
+}
 
 export function isSundayMassTime(
   clock: GameClock,
   staffedChapelAvailable: boolean,
 ): boolean {
-  const hour = clock.hour + clock.minute / 60;
-  return clock.isSunday
-    && staffedChapelAvailable
-    && hour >= SUNDAY_MASS_START_HOUR
-    && hour < SUNDAY_MASS_END_HOUR;
+  return chapelMassPhase(clock, staffedChapelAvailable) !== null;
+}
+
+export function chapelClergyGatheringPoint(
+  chapel: Pick<BuildingState, 'x' | 'z'> & Partial<Pick<BuildingState, 'yaw'>>,
+  clergySlot = 0,
+): PointXZ {
+  const rank = Math.ceil(clergySlot / 2);
+  const side = clergySlot === 0 ? 0 : clergySlot % 2 === 1 ? -1 : 1;
+  const localX = side * rank * 1.15;
+  // The authored parish church entrance is at local Z ~= 8.3 m. Keep the
+  // officiant beyond the steps so the outdoor sermon never clips into the nave.
+  const localZ = 10.2;
+  const yaw = chapel.yaw ?? 0;
+  const cos = Math.cos(yaw);
+  const sin = Math.sin(yaw);
+  return {
+    x: chapel.x + localX * cos + localZ * sin,
+    z: chapel.z - localX * sin + localZ * cos,
+  };
 }
 
 export function chapelGatheringPoint(
-  chapel: Pick<BuildingState, 'x' | 'z'>,
+  chapel: Pick<BuildingState, 'x' | 'z'> & Partial<Pick<BuildingState, 'yaw'>>,
   personIdentity: string,
 ): PointXZ {
   const seed = hashStringSeed(`mass:${personIdentity}`);
-  const angle = (seed % 4096) / 4096 * Math.PI * 2;
-  const ring = (seed >>> 12) % 4;
-  const radius = 5.4 + ring * 0.9;
+  const file = seed % 9;
+  const rank = (seed >>> 12) % 4;
+  const localX = (file - 4) * 1.22 + (rank % 2) * 0.3;
+  const localZ = 12.15 + rank * 1.18;
+  const yaw = chapel.yaw ?? 0;
+  const cos = Math.cos(yaw);
+  const sin = Math.sin(yaw);
   return {
-    x: chapel.x + Math.sin(angle) * radius,
-    z: chapel.z + Math.cos(angle) * radius,
+    x: chapel.x + localX * cos + localZ * sin,
+    z: chapel.z - localX * sin + localZ * cos,
   };
 }
 

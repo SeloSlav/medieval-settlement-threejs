@@ -189,6 +189,19 @@ function addCargo(
     case 'polearms':
       addPolearmLoad(group);
       break;
+    case 'sidearms':
+    case 'bows':
+    case 'crossbows':
+    case 'ammunition':
+      addPolearmLoad(group);
+      break;
+    case 'shields':
+      addTimberLoad(group);
+      break;
+    case 'paddedArmor':
+    case 'mailArmor':
+      addClothLoad(group);
+      break;
     case 'ironwork':
       addIronworkLoad(group);
       break;

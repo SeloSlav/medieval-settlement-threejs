@@ -43,6 +43,11 @@ import {
   type SettlementLaborStewardForecast,
 } from '../../economy/laborStewardForecast.ts';
 import {
+  militaryCompaniesAt,
+  renderMilitaryCompanyRoster,
+  renderMilitaryRecruitmentPanels,
+} from './militaryCompanyRenderer.ts';
+import {
   formatNextMonasteryFeast,
   monasteryFeastReadiness,
   monasteryHospitalityPlan,
@@ -2731,6 +2736,13 @@ export function renderTownHallInspector(
         </button>
         ${!staffedTownHallAvailable && yearRoundLabor.assignments.length > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to balance year-round crews.</p>' : ''}
       </div>
+      ${renderMilitaryRecruitmentPanels(
+        ['militia', 'mercenary-spears'],
+        building.constructionComplete === false,
+      )}
+      ${renderMilitaryCompanyRoster(
+        militaryCompaniesAt(context.militaryCompanies, building.id),
+      )}
     `,
   };
 }

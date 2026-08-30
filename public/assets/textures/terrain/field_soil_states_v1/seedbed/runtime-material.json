@@ -1,0 +1,28 @@
+{
+  "state": "seedbed",
+  "sourceModel": "fal-ai/patina/material",
+  "reviewCandidate": "field-soil-fine-seedbed-v1",
+  "metresPerTile": 2.4,
+  "normalProcessing": {
+    "greenChannelFlipped": true,
+    "meanTiltRemoved": true,
+    "xyStrength": 0.4,
+    "sourceMeanRG": [
+      0.465201,
+      0.412644
+    ]
+  },
+  "roughnessRange": [
+    0.84,
+    0.99
+  ],
+  "metalness": 0,
+  "maps": {
+    "albedo.png": "c8eedb34bfa8ec43e30be426b077d44207bb1f622ac07c62f9e15d646763a131",
+    "normal.png": "c8894bade976afb71761f8d1abfb9aadb53a7187dcb816d01e8c748212c574e8",
+    "roughness.png": "25d8555b53f996360d4a4dfdbf6cdf098c83df84a61c6159b401ddeff74f5804",
+    "ao.png": "c6ef137ede745b9a851125e3e51b7616caa1d1a27c664d3bbe4c17e7368d60d5",
+    "height.png": "90d5b4d8c453893a18c0307ba207f9d4413be5beb3b94af317879d1b2c4d1cb1",
+    "metalness.png": "deaeb96bad0541e2106de0bc6e325fc8f45a2b4491d1976674e49afd00667199"
+  }
+}

@@ -280,6 +280,13 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         pelts: 0.0,
         yarn: 0.0,
         linen: 0.0,
+        sidearms: 0.0,
+        shields: 0.0,
+        bows: 0.0,
+        crossbows: 0.0,
+        padded_armor: 0.0,
+        mail_armor: 0.0,
+        ammunition: 0.0,
     });
     ensure_market_state(ctx, owner);
     ensure_settlement_security(ctx, owner);

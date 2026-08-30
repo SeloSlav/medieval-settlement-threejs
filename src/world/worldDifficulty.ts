@@ -6,6 +6,7 @@ export type WorldDifficultyRuleSettings = Pick<
   WorldGenerationSettings,
   | 'conflictMode'
   | 'enemyPressure'
+  | 'banditCampsEnabled'
   | 'severeWeatherEnabled'
   | 'wellAquiferNetworksEnabled'
   | 'approvalDeclineRate'
@@ -37,6 +38,7 @@ export const WORLD_DIFFICULTY_PRESETS: readonly WorldDifficultyPreset[] = [
     settings: {
       conflictMode: 'peaceful',
       enemyPressure: 0,
+      banditCampsEnabled: false,
       severeWeatherEnabled: false,
       wellAquiferNetworksEnabled: false,
       approvalDeclineRate: 0,
@@ -52,6 +54,7 @@ export const WORLD_DIFFICULTY_PRESETS: readonly WorldDifficultyPreset[] = [
     settings: {
       conflictMode: 'peaceful',
       enemyPressure: 0,
+      banditCampsEnabled: true,
       severeWeatherEnabled: false,
       wellAquiferNetworksEnabled: false,
       approvalDeclineRate: 100,
@@ -67,6 +70,7 @@ export const WORLD_DIFFICULTY_PRESETS: readonly WorldDifficultyPreset[] = [
     settings: {
       conflictMode: 'frontier',
       enemyPressure: 100,
+      banditCampsEnabled: true,
       severeWeatherEnabled: true,
       wellAquiferNetworksEnabled: true,
       approvalDeclineRate: 150,
@@ -86,6 +90,7 @@ export function difficultyPresetForSettings(
   return WORLD_DIFFICULTY_PRESETS.find((preset) => (
     preset.settings.conflictMode === settings.conflictMode
     && preset.settings.enemyPressure === settings.enemyPressure
+    && preset.settings.banditCampsEnabled === settings.banditCampsEnabled
     && preset.settings.severeWeatherEnabled === settings.severeWeatherEnabled
     && preset.settings.wellAquiferNetworksEnabled === settings.wellAquiferNetworksEnabled
     && preset.settings.approvalDeclineRate === settings.approvalDeclineRate
@@ -115,6 +120,7 @@ export function describeWorldDifficulty(
     : 'Peaceful';
   const summary = [
     `Settlement: ${settlement}`,
+    `Bandit camps: ${settings.banditCampsEnabled ? 'Enabled' : 'Disabled'}`,
     `Approval decline: ${approval}`,
     `Food spoilage: ${spoilage}`,
     `Camp supplies: ${settings.initialGoodsMultiplier === 2 ? 'Double' : 'Normal'}`,

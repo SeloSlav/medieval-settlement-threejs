@@ -47,6 +47,7 @@ const fullCatalog = [
   'fall',
   'flee_01',
   'greet_01',
+  'greet_04',
   'hit_to_body_01',
   'idle',
   'laugh_01',
@@ -70,9 +71,11 @@ const socialLabels = new Set([
   'laugh_01',
 ]);
 const reducedCatalog = selectAnimationLabelCatalog(fullCatalog, socialLabels, 15);
-assert.equal(reducedCatalog.length, 15);
+assert.equal(reducedCatalog.length, 16);
 assert.ok(reducedCatalog.includes('idle'));
 assert.ok(!reducedCatalog.includes('greet_01'));
+assert.ok(reducedCatalog.includes('greet_04'));
+assert.ok(fullCatalog.includes('greet_04'));
 assert.deepEqual(
   selectAnimationLabelCatalog(fullCatalog, socialLabels, 22),
   fullCatalog,

@@ -29,7 +29,7 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 68] = [
+const RECOVERY_ORDER: [CommodityKind; 75] = [
     CommodityKind::Gold,
     CommodityKind::Remedies,
     CommodityKind::RyeSheaves,
@@ -94,6 +94,13 @@ const RECOVERY_ORDER: [CommodityKind; 68] = [
     CommodityKind::Wool,
     CommodityKind::Ironwork,
     CommodityKind::Polearms,
+    CommodityKind::Sidearms,
+    CommodityKind::Shields,
+    CommodityKind::Bows,
+    CommodityKind::Crossbows,
+    CommodityKind::PaddedArmor,
+    CommodityKind::MailArmor,
+    CommodityKind::Ammunition,
     CommodityKind::Firewood,
     CommodityKind::Stone,
     CommodityKind::Timber,
@@ -122,6 +129,13 @@ pub struct ReclamationStock {
     pub pelts: f64,
     pub yarn: f64,
     pub linen: f64,
+    pub sidearms: f64,
+    pub shields: f64,
+    pub bows: f64,
+    pub crossbows: f64,
+    pub padded_armor: f64,
+    pub mail_armor: f64,
+    pub ammunition: f64,
     pub hides: f64,
     pub leather: f64,
     pub shoes: f64,
@@ -256,6 +270,13 @@ impl ReclamationStock {
                 linen: amount,
                 ..Self::default()
             },
+            CommodityKind::Sidearms => Self { sidearms: amount, ..Self::default() },
+            CommodityKind::Shields => Self { shields: amount, ..Self::default() },
+            CommodityKind::Bows => Self { bows: amount, ..Self::default() },
+            CommodityKind::Crossbows => Self { crossbows: amount, ..Self::default() },
+            CommodityKind::PaddedArmor => Self { padded_armor: amount, ..Self::default() },
+            CommodityKind::MailArmor => Self { mail_armor: amount, ..Self::default() },
+            CommodityKind::Ammunition => Self { ammunition: amount, ..Self::default() },
             CommodityKind::Hides => Self {
                 hides: amount,
                 ..Self::default()
@@ -481,6 +502,13 @@ impl ReclamationStock {
             pelts,
             yarn,
             linen,
+            sidearms,
+            shields,
+            bows,
+            crossbows,
+            padded_armor,
+            mail_armor,
+            ammunition,
             hides,
             leather,
             shoes,
@@ -569,6 +597,13 @@ impl ReclamationStock {
             pelts: cargo.pelts,
             yarn: cargo.yarn,
             linen: cargo.linen,
+            sidearms: cargo.sidearms,
+            shields: cargo.shields,
+            bows: cargo.bows,
+            crossbows: cargo.crossbows,
+            padded_armor: cargo.padded_armor,
+            mail_armor: cargo.mail_armor,
+            ammunition: cargo.ammunition,
             hides: cargo.hides,
             leather: cargo.leather,
             shoes: cargo.shoes,
@@ -621,7 +656,7 @@ impl ReclamationStock {
         .normalized()
     }
 
-    pub fn commodities() -> [CommodityKind; 68] {
+    pub fn commodities() -> [CommodityKind; 75] {
         RECOVERY_ORDER
     }
 
@@ -655,6 +690,13 @@ impl ReclamationStock {
             pelts,
             yarn,
             linen,
+            sidearms,
+            shields,
+            bows,
+            crossbows,
+            padded_armor,
+            mail_armor,
+            ammunition,
             hides,
             leather,
             shoes,
@@ -736,6 +778,13 @@ impl ReclamationStock {
             pelts: resources.pelts.max(0.0),
             yarn: resources.yarn.max(0.0),
             linen: resources.linen.max(0.0),
+            sidearms: resources.sidearms.max(0.0),
+            shields: resources.shields.max(0.0),
+            bows: resources.bows.max(0.0),
+            crossbows: resources.crossbows.max(0.0),
+            padded_armor: resources.padded_armor.max(0.0),
+            mail_armor: resources.mail_armor.max(0.0),
+            ammunition: resources.ammunition.max(0.0),
             hides: resources.hides.max(0.0),
             leather: resources.leather.max(0.0),
             shoes: resources.shoes.max(0.0),
@@ -810,6 +859,13 @@ impl ReclamationStock {
             CommodityKind::Pelts => self.pelts,
             CommodityKind::Yarn => self.yarn,
             CommodityKind::Linen => self.linen,
+            CommodityKind::Sidearms => self.sidearms,
+            CommodityKind::Shields => self.shields,
+            CommodityKind::Bows => self.bows,
+            CommodityKind::Crossbows => self.crossbows,
+            CommodityKind::PaddedArmor => self.padded_armor,
+            CommodityKind::MailArmor => self.mail_armor,
+            CommodityKind::Ammunition => self.ammunition,
             CommodityKind::Hides => self.hides,
             CommodityKind::Leather => self.leather,
             CommodityKind::Shoes => self.shoes,
@@ -893,6 +949,13 @@ impl ReclamationStock {
             pelts,
             yarn,
             linen,
+            sidearms,
+            shields,
+            bows,
+            crossbows,
+            padded_armor,
+            mail_armor,
+            ammunition,
             hides,
             leather,
             shoes,
@@ -973,6 +1036,13 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.pelts = 0.0;
     resources.yarn = 0.0;
     resources.linen = 0.0;
+    resources.sidearms = 0.0;
+    resources.shields = 0.0;
+    resources.bows = 0.0;
+    resources.crossbows = 0.0;
+    resources.padded_armor = 0.0;
+    resources.mail_armor = 0.0;
+    resources.ammunition = 0.0;
     resources.hides = 0.0;
     resources.leather = 0.0;
     resources.shoes = 0.0;
@@ -1155,6 +1225,13 @@ pub fn insert_reclamation_pile(
         wine: stock.wine.max(0.0),
         ironwork: stock.ironwork.max(0.0),
         polearms: stock.polearms.max(0.0),
+        sidearms: stock.sidearms.max(0.0),
+        shields: stock.shields.max(0.0),
+        bows: stock.bows.max(0.0),
+        crossbows: stock.crossbows.max(0.0),
+        padded_armor: stock.padded_armor.max(0.0),
+        mail_armor: stock.mail_armor.max(0.0),
+        ammunition: stock.ammunition.max(0.0),
         water_capacity: 0.0,
         assigned_labor: 0,
         storehouse_accepts_timber: true,
@@ -1762,7 +1839,22 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
         },
         CommodityKind::Polearms => match kind {
             "guardhouse" => Some(0),
-            "carpenter" => Some(1),
+            "town_hall" | "weaponsmith_armorer" | "carpenter" => Some(1),
+            "founders_camp" => Some(2),
+            _ => Some(3),
+        },
+        CommodityKind::Sidearms
+        | CommodityKind::Shields
+        | CommodityKind::PaddedArmor
+        | CommodityKind::MailArmor => match kind {
+            "guardhouse" | "town_hall" => Some(0),
+            "weaponsmith_armorer" | "village_storehouse" | "trading_post" => Some(1),
+            "founders_camp" => Some(2),
+            _ => Some(3),
+        },
+        CommodityKind::Bows | CommodityKind::Crossbows | CommodityKind::Ammunition => match kind {
+            "guardhouse" | "town_hall" => Some(0),
+            "bowyer_fletcher" | "village_storehouse" | "trading_post" => Some(1),
             "founders_camp" => Some(2),
             _ => Some(3),
         },

@@ -27,6 +27,8 @@ export const BUILDING_LOCAL_VISUAL_BOUNDS = {
   mine: { minX: -11.92, maxX: 11.56, minZ: -11.88, maxZ: 11.32 },
   charcoal_burner: { minX: -3.93, maxX: 4.43, minZ: -3.54, maxZ: 3.54 },
   smithy: { minX: -4.32, maxX: 4.32, minZ: -3.37, maxZ: 3.70 },
+  weaponsmith_armorer: { minX: -5.15, maxX: 5.15, minZ: -3.78, maxZ: 4.18 },
+  bowyer_fletcher: { minX: -5.24, maxX: 6.84, minZ: -3.94, maxZ: 3.94 },
   potter_kiln: { minX: -4.39, maxX: 4.48, minZ: -3.37, maxZ: 3.37 },
   well: { minX: -2.17, maxX: 2.17, minZ: -2.17, maxZ: 2.17 },
   stable: { minX: -5.55, maxX: 5.55, minZ: -3.53, maxZ: 3.53 },

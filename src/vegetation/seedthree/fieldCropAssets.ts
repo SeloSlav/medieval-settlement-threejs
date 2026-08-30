@@ -13,14 +13,14 @@ import {
   type SeedThreeGroundCoverTextures,
 } from './seedThreeGroundCover.ts';
 
-const cropTextureModules = import.meta.glob(
+const cropTextureModules = (typeof import.meta.glob === 'function' ? import.meta.glob(
   '../../../vendor/seedthree/assets/crops/*.png',
   {
     eager: true,
     query: '?url',
     import: 'default',
   },
-) as Record<string, string>;
+) : {}) as Record<string, string>;
 
 type SeedThreeFieldCropPhasePreset = {
   textures: {

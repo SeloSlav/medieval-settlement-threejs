@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "coordinateDomain": "world-xz-metres",
+  "antiTiling": "shared low-frequency coordinate warp across all PBR channels",
+  "edgeTransition": "continuous fieldEdgeBlend alpha over a deterministic irregular metre-scale band",
+  "states": {
+    "ploughed": {
+      "state": "ploughed",
+      "sourceModel": "fal-ai/patina/material",
+      "reviewCandidate": "field-soil-fresh-ploughed-v1",
+      "metresPerTile": 2.8,
+      "normalProcessing": {
+        "greenChannelFlipped": true,
+        "meanTiltRemoved": true,
+        "xyStrength": 0.58,
+        "sourceMeanRG": [
+          0.488143,
+          0.39264
+        ]
+      },
+      "roughnessRange": [
+        0.74,
+        0.96
+      ],
+      "metalness": 0,
+      "maps": {
+        "albedo.png": "f968142b19e1ac11f545e7303419481f037b303f02c3c20dd4cf4387dc3d0852",
+        "normal.png": "64de5834fa1306473c8d0777bb108545cfe658e4bf589e66795fc59ae7edbf4e",
+        "roughness.png": "a3e783406b571760261430e23c8699376ccc06c4749e26963bfc8de98cc00edd",
+        "ao.png": "ae34248c577962f1289db0381d4e660d067392c6b4389492da62583142050a01",
+        "height.png": "058d1757114b4ffa319c1d166f2d2acd57163628fd29296e60e90e51aad5e005",
+        "metalness.png": "5e186492a7f221ab7027e285e224e754656093ff668782508d066b9fc1915db2"
+      }
+    },
+    "seedbed": {
+      "state": "seedbed",
+      "sourceModel": "fal-ai/patina/material",
+      "reviewCandidate": "field-soil-fine-seedbed-v1",
+      "metresPerTile": 2.4,
+      "normalProcessing": {
+        "greenChannelFlipped": true,
+        "meanTiltRemoved": true,
+        "xyStrength": 0.4,
+        "sourceMeanRG": [
+          0.465201,
+          0.412644
+        ]
+      },
+      "roughnessRange": [
+        0.84,
+        0.99
+      ],
+      "metalness": 0,
+      "maps": {
+        "albedo.png": "c8eedb34bfa8ec43e30be426b077d44207bb1f622ac07c62f9e15d646763a131",
+        "normal.png": "c8894bade976afb71761f8d1abfb9aadb53a7187dcb816d01e8c748212c574e8",
+        "roughness.png": "25d8555b53f996360d4a4dfdbf6cdf098c83df84a61c6159b401ddeff74f5804",
+        "ao.png": "c6ef137ede745b9a851125e3e51b7616caa1d1a27c664d3bbe4c17e7368d60d5",
+        "height.png": "90d5b4d8c453893a18c0307ba207f9d4413be5beb3b94af317879d1b2c4d1cb1",
+        "metalness.png": "deaeb96bad0541e2106de0bc6e325fc8f45a2b4491d1976674e49afd00667199"
+      }
+    },
+    "fallow": {
+      "state": "fallow",
+      "sourceModel": "fal-ai/patina/material",
+      "reviewCandidate": "field-soil-weathered-fallow-v1",
+      "metresPerTile": 3.2,
+      "normalProcessing": {
+        "greenChannelFlipped": true,
+        "meanTiltRemoved": true,
+        "xyStrength": 0.34,
+        "sourceMeanRG": [
+          0.476696,
+          0.390314
+        ]
+      },
+      "roughnessRange": [
+        0.82,
+        0.99
+      ],
+      "metalness": 0,
+      "maps": {
+        "albedo.png": "87e2612b1b06f88f682b69af5a46fa093c74c4792f3f15aaa2e2ba859e2e2dab",
+        "normal.png": "1588fa7053d71932cb74d78907b26d3267b7dcae5ae3262448daf892ff441668",
+        "roughness.png": "a6a8d945555a3ed52820c4ce4284dc8780d8b723bc664c23f9de889f515f97d3",
+        "ao.png": "ec6c87376b11a60a1da7c624013205f859cbe8b03339466ab4888b7237927e0d",
+        "height.png": "604797d149b5622c4d807bdb3cbced47cd10c7b10be76e2aca1a489348f9acc6",
+        "metalness.png": "ccc2bc9a72f2eab47f9bcbfda1701458f59781b2824ae8a017c1c7d1c5fd18d8"
+      }
+    },
+    "harvested": {
+      "state": "harvested",
+      "sourceModel": "fal-ai/patina/material",
+      "reviewCandidate": "field-soil-dry-harvested-v3",
+      "metresPerTile": 2.9,
+      "normalProcessing": {
+        "greenChannelFlipped": true,
+        "meanTiltRemoved": true,
+        "xyStrength": 0.32,
+        "sourceMeanRG": [
+          0.483349,
+          0.42261
+        ]
+      },
+      "roughnessRange": [
+        0.86,
+        1
+      ],
+      "metalness": 0,
+      "maps": {
+        "albedo.png": "34d109bcf530c8757df16fdaea90df70c78277c451cf7d7b91c1f32a0a633a32",
+        "normal.png": "70cf65b7ceb1663223cbf3f2344dd30a9b01bdbe0b7f3551c9640afb3a52f512",
+        "roughness.png": "fd44ae2932fba8100b2f28a8cba89b9904fbce40bff5dc023ae22b305f2347c0",
+        "ao.png": "fdb9e09bbc8741a81ec70b48bc4ee5643c949172f48c0f10bf044fa0e13710f9",
+        "height.png": "c6b29d2e3d7e0b21c812350fa40fba9d860141981a3c94ce226d4112d3fa8203",
+        "metalness.png": "1967cdce2cac3de377553eaec93163fb20b9bdbacb0f116ff578e4f0b683c2d4"
+      }
+    }
+  },
+  "growing": {
+    "source": "../mammoth_terrain_dirt",
+    "reason": "Established crop soil reuses the approved backyard garden-bed loam.",
+    "metresPerTile": 2.2
+  },
+  "unploughed": {
+    "source": "native terrain",
+    "reason": "Unworked land does not receive an artificial cultivated-soil overlay."
+  }
+}

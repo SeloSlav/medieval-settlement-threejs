@@ -50,6 +50,8 @@ import {
   fieldEdgeLengths,
 } from '../farming/farmFieldMath.ts';
 import { fieldTaskRank } from '../farming/threshingPriority.ts';
+import { residenceDoorPosition } from './villagerPaths.ts';
+import type { ClericDuty } from './clericBehaviors.ts';
 
 export { WATCHTOWER_GALLERY_FLOOR_HEIGHT } from '../buildings/watchtowerLayout.ts';
 
@@ -67,6 +69,7 @@ export const PRODUCTION_WORKPLACE_KINDS = [
   'hunters_hall',
   'foragers_shed',
   'fishing_camp',
+  'chapel',
   'threshing_barn',
   'pastoral_farmstead',
   'swineherd',
@@ -139,6 +142,9 @@ export type WorkerTarget = PointXZ & {
   fieldLinked?: boolean;
   /** Inset endpoints of one real pass across a quadrilateral field. */
   fieldLane?: Readonly<{ start: PointXZ; end: PointXZ; index: number }>;
+  clericDuty?: ClericDuty;
+  interior?: boolean;
+  allowOutsideWorkExtent?: boolean;
 };
 
 export type WorkerActivityKind =
@@ -190,6 +196,7 @@ export type WorkerTargetInputs = {
   foragingMonth?: number;
   roadNetwork?: RoadNetwork | null;
   buildings?: ReadonlyMap<string, BuildingState>;
+  residences?: readonly ResidenceState[];
 };
 
 /**
@@ -220,28 +227,30 @@ export const YARD_WORK_ACTIVITY = {
 } as const satisfies Partial<Record<BuildingKind, WorkerActivityKind>>;
 
 const MONASTERY_WORKSTATIONS = [
-  { id: 'cloister', localX: -2.3, localZ: 2.15, activity: 'tend' },
-  { id: 'scriptorium', localX: -11.7, localZ: 0.7, activity: 'tend', requiredExtension: MONASTERY_EXTENSION_SCRIPTORIUM },
-  { id: 'infirmary', localX: 7.1, localZ: 0.4, activity: 'tend', requiredExtension: MONASTERY_EXTENSION_INFIRMARY },
-  { id: 'guesthouse', localX: 27, localZ: 0.2, activity: 'tend', requiredExtension: MONASTERY_EXTENSION_GUESTHOUSE },
-  { id: 'mead-brewhouse', localX: -17.8, localZ: -12, activity: 'tend' },
-  { id: 'cider-press', localX: -22.8, localZ: -11.8, activity: 'tend' },
-  { id: 'vintner', localX: -17, localZ: -23.5, activity: 'tend', requiresVineyard: true },
-  { id: 'orchard', localX: -23, localZ: -35.25, activity: 'gather' },
-  { id: 'apiary', localX: -26, localZ: -22, activity: 'gather' },
-  { id: 'croft', localX: -7, localZ: -18.75, activity: 'tend' },
-  { id: 'herb-garden', localX: 3.5, localZ: -19, activity: 'gather' },
-  { id: 'hen-yard', localX: 26, localZ: -12, activity: 'tend' },
-  { id: 'small-stock-yard', localX: 24, localZ: -25, activity: 'tend' },
-  { id: 'pasture', localX: 19.25, localZ: -37, activity: 'tend' },
-  { id: 'seed-archive', localX: 1, localZ: -37, activity: 'tend' },
+  { id: 'cloister', localX: -2.3, localZ: 2.15, activity: 'tend', clericDuty: 'cloister_prayer', interior: true },
+  { id: 'scriptorium', localX: -11.7, localZ: 0.7, activity: 'tend', clericDuty: 'scriptorium', interior: true, requiredExtension: MONASTERY_EXTENSION_SCRIPTORIUM },
+  { id: 'infirmary', localX: 7.1, localZ: 0.4, activity: 'tend', clericDuty: 'infirmary_care', interior: true, requiredExtension: MONASTERY_EXTENSION_INFIRMARY },
+  { id: 'guesthouse', localX: 27, localZ: 0.2, activity: 'tend', clericDuty: 'hospitality', interior: true, requiredExtension: MONASTERY_EXTENSION_GUESTHOUSE },
+  { id: 'mead-brewhouse', localX: -17.8, localZ: -12, activity: 'tend', clericDuty: 'brewing', interior: true },
+  { id: 'cider-press', localX: -22.8, localZ: -11.8, activity: 'tend', clericDuty: 'brewing', interior: true },
+  { id: 'vintner', localX: -17, localZ: -23.5, activity: 'tend', clericDuty: 'brewing', interior: true, requiresVineyard: true },
+  { id: 'orchard', localX: -23, localZ: -35.25, activity: 'gather', clericDuty: 'pruning' },
+  { id: 'apiary', localX: -26, localZ: -22, activity: 'gather', clericDuty: 'harvest' },
+  { id: 'croft', localX: -7, localZ: -18.75, activity: 'tend', clericDuty: 'soil_work' },
+  { id: 'herb-garden', localX: 3.5, localZ: -19, activity: 'gather', clericDuty: 'harvest' },
+  { id: 'hen-yard', localX: 26, localZ: -12, activity: 'tend', clericDuty: 'livestock_care' },
+  { id: 'small-stock-yard', localX: 24, localZ: -25, activity: 'tend', clericDuty: 'livestock_care' },
+  { id: 'pasture', localX: 19.25, localZ: -37, activity: 'tend', clericDuty: 'ox_guidance' },
+  { id: 'seed-archive', localX: 1, localZ: -37, activity: 'tend', clericDuty: 'scriptorium', interior: true },
   // A porter or almoner occasionally works beyond the gate on the roadside.
-  { id: 'outer-gate', localX: 16.5, localZ: 14.5, activity: 'gather' },
+  { id: 'outer-gate', localX: 16.5, localZ: 14.5, activity: 'gather', clericDuty: 'hospitality' },
 ] as const satisfies readonly {
   id: string;
   localX: number;
   localZ: number;
   activity: WorkerActivityKind;
+  clericDuty: ClericDuty;
+  interior?: boolean;
   requiredExtension?: number;
   requiresVineyard?: boolean;
 }[];
@@ -629,6 +638,13 @@ export function collectWorkerTargets(
       inputs.vineyardParcels ?? [],
       targets,
     );
+  } else if (building.kind === 'chapel') {
+    collectChapelDuties(
+      building,
+      inputs.roadNetwork ?? null,
+      inputs.residences ?? [],
+      targets,
+    );
   } else if (building.kind in YARD_WORK_ACTIVITY) {
     collectYardWorkstations(building, targets);
   }
@@ -787,18 +803,24 @@ export function pickWorkerWalkPlan(
   const activeFieldTargets = building.kind === 'threshing_barn'
     ? targets.filter((target) => target.kind === 'field')
     : [];
+  const activeOxGuidanceTargets = building.kind === 'monastery' && preferOxFieldWork
+    ? targets.filter((target) => target.clericDuty === 'ox_guidance')
+    : [];
   if (
     targets.length > 0
     && (
       building.constructionComplete === false
       || building.kind === 'fishing_camp'
       || activeFieldTargets.length > 0
+      || activeOxGuidanceTargets.length > 0
       || rng() < 0.82
     )
   ) {
     const activityTargets = activeFieldTargets.length > 0
       ? activeFieldTargets
-      : targets;
+      : activeOxGuidanceTargets.length > 0
+        ? activeOxGuidanceTargets
+        : targets;
     const preferred = activityTargets.filter(
       (target) => Math.sqrt(distanceSq(building, target))
         <= Math.min(Math.max(1, building.workRadius), MAX_PREFERRED_RESOURCE_WALK),
@@ -806,8 +828,8 @@ export function pickWorkerWalkPlan(
     // Linked parcels remain valid however far they lie from their holding, so
     // field presentation must not discard them merely because a generic
     // resource-walk preference is shorter than the authoritative rule.
-    const pool = activeFieldTargets.length > 0
-      ? activeFieldTargets
+    const pool = activeFieldTargets.length > 0 || activeOxGuidanceTargets.length > 0
+      ? activityTargets
       : preferred.length > 0
         ? preferred
         : activityTargets;
@@ -1023,6 +1045,8 @@ function collectMonasteryWorkstations(
       id: `${building.id}:monastery:${workstation.id}`,
       kind: 'workstation',
       activity: workstation.activity,
+      clericDuty: workstation.clericDuty,
+      interior: 'interior' in workstation && workstation.interior,
       ...monasteryWorldPoint(
         building,
         workstation.localX,
@@ -1037,6 +1061,7 @@ function collectMonasteryWorkstations(
       id: `${building.id}:monastery:vineyard:${parcel.id}:center`,
       kind: 'workstation',
       activity: 'gather',
+      clericDuty: 'harvest',
       ...center,
     });
     for (let index = 0; index < parcel.corners.length; index += 1) {
@@ -1046,10 +1071,54 @@ function collectMonasteryWorkstations(
         id: `${building.id}:monastery:vineyard:${parcel.id}:row-${index}`,
         kind: 'workstation',
         activity: 'gather',
+        clericDuty: index % 2 === 0 ? 'pruning' : 'harvest',
         x: (corner.x + next.x + center.x) / 3,
         z: (corner.z + next.z + center.z) / 3,
       });
     }
+  }
+}
+
+function collectChapelDuties(
+  building: BuildingState,
+  roadNetwork: RoadNetwork | null,
+  residences: readonly ResidenceState[],
+  targets: WorkerTarget[],
+): void {
+  const localDuties = [
+    { id: 'nave-prayer', x: 0, z: 0, duty: 'interior_prayer', interior: true },
+    { id: 'vestry-study', x: -1.8, z: -0.8, duty: 'interior_study', interior: true },
+    { id: 'front-blessing', x: 0, z: 10.2, duty: 'sermon_rehearsal', interior: false },
+    { id: 'churchyard-east', x: 6.7, z: 1.6, duty: 'churchyard_prayer', interior: false },
+    { id: 'churchyard-west', x: -6.7, z: 1.6, duty: 'churchyard_prayer', interior: false },
+  ] as const;
+  for (const duty of localDuties) {
+    targets.push({
+      id: `${building.id}:chapel:${duty.id}`,
+      kind: 'workstation',
+      activity: 'tend',
+      clericDuty: duty.duty,
+      interior: duty.interior,
+      ...monasteryWorldPoint(building, duty.x, duty.z, roadNetwork),
+    });
+  }
+
+  const nearbyHomes = [...residences]
+    .filter((residence) => !residence.abandoned && residence.population > 0)
+    .sort((a, b) =>
+      distanceSq(building, a) - distanceSq(building, b)
+        || a.id.localeCompare(b.id)
+    )
+    .slice(0, 6);
+  for (const residence of nearbyHomes) {
+    targets.push({
+      id: `${building.id}:chapel:parish-visit:${residence.id}`,
+      kind: 'workstation',
+      activity: 'tend',
+      clericDuty: 'parish_visit',
+      allowOutsideWorkExtent: true,
+      ...residenceDoorPosition(residence),
+    });
   }
 }
 
@@ -1255,6 +1324,7 @@ function clampResourceWorkPoint(
     target.kind === 'field'
     || target.kind === 'pasture'
     || (target.kind === 'tree' && hasCustomTreeWorkArea(building))
+    || target.allowOutsideWorkExtent
   ) return point;
   return clampToWorkExtent(building, point);
 }

@@ -121,6 +121,8 @@ export function renderBuildingInspector(
     case 'windmill':
     case 'charcoal_burner':
     case 'smithy':
+    case 'weaponsmith_armorer':
+    case 'bowyer_fletcher':
     case 'potter_kiln':
     case 'carpenter':
     case 'spinning_retting_house':

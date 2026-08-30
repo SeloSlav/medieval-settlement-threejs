@@ -336,6 +336,13 @@ mod tests {
             milk_use_policy: crate::livestock_policy::MILK_USE_BALANCED,
             smokehouse_recipe_policy: 0,
             apiary_accumulated_honey: 0.0,
+            sidearms: 0.0,
+            shields: 0.0,
+            bows: 0.0,
+            crossbows: 0.0,
+            padded_armor: 0.0,
+            mail_armor: 0.0,
+            ammunition: 0.0,
         }
     }
 

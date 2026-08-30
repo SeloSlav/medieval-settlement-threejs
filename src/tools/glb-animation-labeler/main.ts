@@ -26,6 +26,7 @@ const RECOMMENDED_LABELS = [
   'fall',
   'flee_01',
   'greet_01',
+  'greet_04',
   'hit_to_body_01',
   'idle',
   'laugh_01',
@@ -383,9 +384,9 @@ function populateSemanticNameOptions(clipIndex: number): void {
   if (!currentLabel) placeholder.selected = true;
   unbindNameButton.disabled = !currentLabel;
 
-  const remainingCount = countUnassignedAnimationLabels(
-    asset.recommendedLabels,
-    asset.labels,
+  const remainingCount = Math.min(
+    countUnassignedAnimationLabels(asset.recommendedLabels, asset.labels),
+    asset.labels.filter((label) => !label).length,
   );
   remainingNameCount.textContent = remainingCount === 1
     ? '1 name remaining'

@@ -173,6 +173,7 @@ export function syncSettlementWorld(
     || workerPasturesChanged
     || vineyardsChanged
     || graveyardsChanged
+    || burialsChanged
     || workerCartCrewsChanged
     || fireIncidentsChanged
     || gardensChanged
@@ -190,6 +191,7 @@ export function syncSettlementWorld(
       pastures: state.pastures.values(),
       vineyardParcels: state.vineyardParcels?.values() ?? [],
       graveyards: graveyards.values(),
+      corpses: corpses.values(),
       backyardGardens: state.backyardGardens.values(),
       burgageZones: state.burgageZones.values(),
       deliveryTrips: state.deliveryTrips.values(),

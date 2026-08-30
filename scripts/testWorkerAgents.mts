@@ -729,6 +729,7 @@ const expectedWorkplaces = [
   'hunters_hall',
   'foragers_shed',
   'fishing_camp',
+  'chapel',
   'threshing_barn',
   'pastoral_farmstead',
   'swineherd',
@@ -798,6 +799,7 @@ const monasteryRoster = allocateProductionWorkers(
 );
 assert.equal(monasteryRoster.assignments.length, 8);
 assert.equal(villagerOccupation('monastery'), 'Monk');
+assert.equal(villagerOccupation('chapel'), 'Priest');
 
 const materialWorkplaces = [
   building('material-mining-camp-workers', 'stone_quarry', 0, 0, 3, 0),

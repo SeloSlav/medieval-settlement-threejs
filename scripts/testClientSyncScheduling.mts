@@ -171,6 +171,8 @@ async function testTableCallbackCoalescing(): Promise<void> {
     storehouseAcceptsTimber: true,
     storehouseAcceptsStone: true,
     storehouseAcceptsFirewood: true,
+    storageAcceptanceMask: 0n,
+    storageAcceptanceMaskHigh: 0n,
   };
   const callbacks: {
     insert?: (context: unknown, row: typeof row) => void;
@@ -208,6 +210,7 @@ async function testTableCallbackCoalescing(): Promise<void> {
     farmFields: new Map(),
     pastures: new Map(),
     livestockHerds: new Map(),
+    stableOxen: new Map(),
     burgageZones: new Map(),
     residences: new Map(),
     backyardGardens: new Map(),
@@ -367,7 +370,10 @@ function testPlacementClearanceKeepsRoadWorkCached(): void {
     { group: new THREE.Group(), instances: [] },
     null,
     [],
-    { getHeightAt: () => 0 } as never,
+    {
+      mesh: { material: new THREE.MeshBasicMaterial() },
+      getHeightAt: () => 0,
+    } as never,
     () => {},
     {
       hideTree: () => {},
@@ -909,7 +915,7 @@ function testQuantizedStockVisualSignatures(): void {
 
   const secondHayBundle = buildingMarkerSignatures(
     stockedBuildings,
-    new Map([[pastoral.id, { ...emptyHerd, hayStock: 31 }]]),
+    new Map([[pastoral.id, { ...emptyHerd, hayStock: 61 }]]),
   );
   assert.notEqual(secondHayBundle.visual, stockedSignatures.visual);
   assert.equal(secondHayBundle.collider, stockedSignatures.collider);
@@ -964,6 +970,7 @@ function testForestPhaseUpdatesCommitOncePerBatch(): void {
     null,
     [],
     {
+      mesh: { material: new THREE.MeshBasicMaterial() },
       getHeightAt: () => 0,
     } as never,
     () => {},
@@ -1076,6 +1083,7 @@ function emptyGameState(): GameState {
     farmFields: new Map(),
     pastures: new Map(),
     livestockHerds: new Map(),
+    stableOxen: new Map(),
     burgageZones: new Map(),
     residences: new Map(),
     backyardGardens: new Map(),

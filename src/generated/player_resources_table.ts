@@ -136,4 +136,11 @@ export default __t.row({
   pelts: __t.f64(),
   yarn: __t.f64(),
   linen: __t.f64(),
+  sidearms: __t.f64(),
+  shields: __t.f64(),
+  bows: __t.f64(),
+  crossbows: __t.f64(),
+  paddedArmor: __t.f64().name("padded_armor"),
+  mailArmor: __t.f64().name("mail_armor"),
+  ammunition: __t.f64(),
 });

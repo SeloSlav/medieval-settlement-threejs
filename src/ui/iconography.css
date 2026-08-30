@@ -454,6 +454,26 @@
 .settlement-hud__stat[data-resource='ironwork']::before { background-position: 0 100%; }
 .settlement-hud__stat[data-resource='polearms']::before { background-position: 100% 100%; }
 
+.settlement-hud__stat[data-resource='sidearms']::before,
+.settlement-hud__stat[data-resource='shields']::before,
+.settlement-hud__stat[data-resource='bows']::before,
+.settlement-hud__stat[data-resource='crossbows']::before,
+.settlement-hud__stat[data-resource='paddedArmor']::before,
+.settlement-hud__stat[data-resource='mailArmor']::before,
+.settlement-hud__stat[data-resource='ammunition']::before {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.settlement-hud__stat[data-resource='sidearms']::before { background-image: url('/assets/ui/icons/materials/sidearms.png'); }
+.settlement-hud__stat[data-resource='shields']::before { background-image: url('/assets/ui/icons/materials/shields.png'); }
+.settlement-hud__stat[data-resource='bows']::before { background-image: url('/assets/ui/icons/materials/bows.png'); }
+.settlement-hud__stat[data-resource='crossbows']::before { background-image: url('/assets/ui/icons/materials/crossbows.png'); }
+.settlement-hud__stat[data-resource='paddedArmor']::before { background-image: url('/assets/ui/icons/materials/padded-armor.png'); }
+.settlement-hud__stat[data-resource='mailArmor']::before { background-image: url('/assets/ui/icons/materials/mail-armor.png'); }
+.settlement-hud__stat[data-resource='ammunition']::before { background-image: url('/assets/ui/icons/materials/ammunition.png'); }
+
 .settlement-hud__stat[data-resource='cloth']::before {
   background-image: url('/assets/ui/icons/materials/clothing.png');
   background-position: center;
@@ -760,6 +780,26 @@
 
 .resource-cost__item[data-resource-cost='flax'] .resource-cost__icon { background-position: 0 0; }
 .resource-cost__item[data-resource-cost='polearms'] .resource-cost__icon { background-position: 100% 100%; }
+
+.resource-cost__item[data-resource-cost='sidearms'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='shields'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='bows'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='crossbows'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='paddedArmor'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='mailArmor'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='ammunition'] .resource-cost__icon {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.resource-cost__item[data-resource-cost='sidearms'] .resource-cost__icon { background-image: url('/assets/ui/icons/materials/sidearms.png'); }
+.resource-cost__item[data-resource-cost='shields'] .resource-cost__icon { background-image: url('/assets/ui/icons/materials/shields.png'); }
+.resource-cost__item[data-resource-cost='bows'] .resource-cost__icon { background-image: url('/assets/ui/icons/materials/bows.png'); }
+.resource-cost__item[data-resource-cost='crossbows'] .resource-cost__icon { background-image: url('/assets/ui/icons/materials/crossbows.png'); }
+.resource-cost__item[data-resource-cost='paddedArmor'] .resource-cost__icon { background-image: url('/assets/ui/icons/materials/padded-armor.png'); }
+.resource-cost__item[data-resource-cost='mailArmor'] .resource-cost__icon { background-image: url('/assets/ui/icons/materials/mail-armor.png'); }
+.resource-cost__item[data-resource-cost='ammunition'] .resource-cost__icon { background-image: url('/assets/ui/icons/materials/ammunition.png'); }
 
 .resource-cost__item[data-resource-cost='cloth'] .resource-cost__icon {
   background-image: url('/assets/ui/icons/materials/clothing.png');

@@ -1,4 +1,5 @@
 pub mod backyards;
+pub mod bandits;
 pub mod bootstrap;
 pub mod buildings;
 pub mod cheats;

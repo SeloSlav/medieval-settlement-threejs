@@ -23,7 +23,7 @@ import {
   SUNDAY_MASS_START_HOUR,
 } from '../settlement/chapelMass.ts';
 
-export type LordReportKind = 'sabbath' | 'labor' | 'storage' | 'fire';
+export type LordReportKind = 'sabbath' | 'labor' | 'storage' | 'fire' | 'bandit' | 'military';
 export type LordReportTone = 'settled' | 'notice' | 'warning' | 'danger';
 
 export type LordReportContext = {
@@ -84,6 +84,13 @@ const STORAGE_CHANNEL_LABELS: Record<keyof StorageCaps, string> = {
   pelts: 'Pelt store',
   ironwork: 'Ironwork store',
   polearms: 'Polearm rack',
+  sidearms: 'Sidearm rack',
+  shields: 'Shield rack',
+  bows: 'Bow rack',
+  crossbows: 'Crossbow rack',
+  paddedArmor: 'Padded-armor store',
+  mailArmor: 'Mail-armor store',
+  ammunition: 'Ammunition store',
   iron: 'Iron store',
   clay: 'Clay store',
   salt: 'Salt store',
@@ -505,6 +512,8 @@ const REPORT_SYMBOLS: Record<LordReportKind, string> = {
   labor: '✦',
   storage: '▣',
   fire: '♦',
+  bandit: '⚑',
+  military: '⚔',
 };
 
 export class LordReportLedger {

@@ -1,5 +1,6 @@
 import {
   COMBAT_AUDIO_CLIPS,
+  COMBAT_DEATH_CLIPS,
   type AudioClipDefinition,
 } from './audioCatalog.ts';
 import {
@@ -119,7 +120,7 @@ export function buildCombatAudioSources(
     ) {
       continue;
     }
-    (fighter.faction === 'raider' ? raiders : guards).push(fighter);
+    (fighter.faction === 'raider' || fighter.faction === 'bandit' ? raiders : guards).push(fighter);
   }
   const sources = workspace?.sources ?? [];
   sources.length = 0;
@@ -195,6 +196,7 @@ export function buildCombatAudioSources(
 export class CombatAudio {
   private readonly weaponPool: HTMLAudioElement[] = [];
   private readonly voicePool: HTMLAudioElement[] = [];
+  private readonly deathPool: HTMLAudioElement[] = [];
   private readonly schedules = new Map<string, CombatSoundSchedule>();
   private readonly candidatePool: CombatSoundCandidate[] = [];
   private readonly candidates: CombatSoundCandidate[] = [];
@@ -315,11 +317,26 @@ export class CombatAudio {
     this.stopAll();
     for (const audio of this.weaponPool) audio.removeAttribute('src');
     for (const audio of this.voicePool) audio.removeAttribute('src');
+    for (const audio of this.deathPool) audio.removeAttribute('src');
     this.weaponPool.length = 0;
     this.voicePool.length = 0;
+    this.deathPool.length = 0;
     this.schedules.clear();
     this.candidates.length = 0;
     this.candidatePool.length = 0;
+  }
+
+  playDeath(id: string, variant: 'man' | 'woman'): void {
+    if (!isGameAudioEnabled()) return;
+    this.play(
+      this.deathPool,
+      3,
+      COMBAT_DEATH_CLIPS[variant],
+      `${id}:death`,
+      0.9,
+      0.98,
+      0.01,
+    );
   }
 
   private scheduleFor(id: string): CombatSoundSchedule {

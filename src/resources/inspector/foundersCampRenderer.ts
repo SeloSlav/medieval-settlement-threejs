@@ -107,6 +107,15 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
       return "a Forager's Shed with a drying porch";
     case 'polearms':
       return 'a Guardhouse or Carpenter';
+    case 'sidearms':
+    case 'shields':
+    case 'paddedArmor':
+    case 'mailArmor':
+      return 'a Guardhouse, Town Hall, Weaponsmith & Armorer, or Storehouse';
+    case 'bows':
+    case 'crossbows':
+    case 'ammunition':
+      return 'a Guardhouse, Bowyer & Fletcher, or Storehouse';
     case 'wool':
       return 'a Spinning & Retting House, Storehouse, or Pastoral Farmstead';
     case 'animalFeed':

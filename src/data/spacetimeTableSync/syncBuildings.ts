@@ -86,6 +86,13 @@ function buildingStateFromRow(
     milkUsePolicy: number;
     yarn: number;
     linen: number;
+    sidearms: number;
+    shields: number;
+    bows: number;
+    crossbows: number;
+    paddedArmor: number;
+    mailArmor: number;
+    ammunition: number;
   }>;
   const treeWorkAreaX = Number(materialRow.treeWorkAreaX ?? 0);
   const treeWorkAreaZ = Number(materialRow.treeWorkAreaZ ?? 0);
@@ -148,6 +155,13 @@ function buildingStateFromRow(
     shoes: wholeResourceUnits(materialRow.shoes),
     ironwork: wholeResourceUnits(row.ironwork),
     polearms: wholeResourceUnits(row.polearms),
+    sidearms: wholeResourceUnits(materialRow.sidearms),
+    shields: wholeResourceUnits(materialRow.shields),
+    bows: wholeResourceUnits(materialRow.bows),
+    crossbows: wholeResourceUnits(materialRow.crossbows),
+    paddedArmor: wholeResourceUnits(materialRow.paddedArmor),
+    mailArmor: wholeResourceUnits(materialRow.mailArmor),
+    ammunition: wholeResourceUnits(materialRow.ammunition),
     iron: wholeResourceUnits(row.iron),
     clay: wholeResourceUnits(row.clay),
     salt: wholeResourceUnits(row.salt),

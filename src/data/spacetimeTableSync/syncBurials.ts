@@ -46,7 +46,7 @@ export function syncCorpses(
     result.set(id, {
       id,
       residenceId: residenceClientId(row.residenceId),
-      cause: Math.max(0, Math.min(1, Number(row.cause))) as 0 | 1,
+      cause: Math.max(0, Math.min(3, Number(row.cause))) as 0 | 1 | 2 | 3,
       state: Math.max(0, Math.min(2, Number(row.state))) as 0 | 1 | 2,
       x: row.x,
       z: row.z,

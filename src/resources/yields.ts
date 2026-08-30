@@ -146,6 +146,20 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
       return `${Math.round(amount)} ironwork`;
     case 'polearms':
       return `${Math.round(amount)} polearms`;
+    case 'sidearms':
+      return `${Math.round(amount)} sidearms`;
+    case 'shields':
+      return `${Math.round(amount)} shields`;
+    case 'bows':
+      return `${Math.round(amount)} bows`;
+    case 'crossbows':
+      return `${Math.round(amount)} crossbows`;
+    case 'paddedArmor':
+      return `${Math.round(amount)} padded armor`;
+    case 'mailArmor':
+      return `${Math.round(amount)} mail armor`;
+    case 'ammunition':
+      return `${Math.round(amount)} ammunition`;
     case 'iron':
       return `${Math.round(amount)} iron`;
     case 'clay':

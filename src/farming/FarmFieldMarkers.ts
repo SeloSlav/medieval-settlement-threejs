@@ -19,9 +19,11 @@ import {
 } from './organicParcelGeometry.ts';
 import type { FieldPerimeterShrubCatalog } from '../props/ForestUndergrowth.ts';
 import {
-  CULTIVATED_SOIL_TEXTURE_PATHS,
-  CULTIVATED_SOIL_TEXTURES,
-} from '../terrain/cultivatedSoilAssets.ts';
+  createFieldSoilMaterial,
+  FIELD_SOIL_IDENTITIES,
+  type FieldSoilDebugMode,
+  type FieldSoilIdentity,
+} from '../terrain/fieldSoilMaterials.ts';
 import {
   addSeedThreeGroundCoverInstanceAttributes,
   seedThreeGroundCoverWindVector,
@@ -34,14 +36,15 @@ import type {
 
 const FIELD_LIFT = 0.08;
 const MIN_SURFACE_STEPS = 10;
-const MAX_SURFACE_STEPS = 48;
 const CEREAL_TUFTS_PER_SQUARE_METER = 1.9;
 const FLAX_TUFTS_PER_SQUARE_METER = 1.55;
 const FALLOW_TUFTS_PER_SQUARE_METER = 0.48;
 const MAX_FIELD_TUFTS = 8_000;
 const CEREAL_MATURE_PROGRESS = 0.76;
 const GRAIN_HEAD_START_PROGRESS = 0.42;
-const CULTIVATED_SOIL_METERS_PER_TILE = 2.2;
+const FIELD_SURFACE_SAMPLE_SPACING = 0.62;
+const FIELD_EDGE_FADE_METERS = 0.92;
+const FIELD_ROW_EDGE_INSET_METERS = 0.58;
 const UP_AXIS = new THREE.Vector3(0, 1, 0);
 
 type FieldSample = {
@@ -113,47 +116,110 @@ function surfaceColorAt(
   let color: THREE.Color;
 
   if (field.crop === 'fallow' && field.stage === 'growing') {
-    color = new THREE.Color(broadNoise > 0.5 ? 0xb4ad91 : 0xa89f82);
+    color = new THREE.Color(broadNoise > 0.5 ? 0xe2ded1 : 0xd5d1c5);
   } else if (field.stage === 'ploughing') {
-    color = new THREE.Color(broadNoise > 0.52 ? 0x887562 : 0x9a846b);
+    color = new THREE.Color(broadNoise > 0.52 ? 0xdac8b7 : 0xe4d3c1);
   } else if (field.stage === 'sowing') {
     color = new THREE.Color(
       processedAt(field, v, broadNoise)
-        ? (broadNoise > 0.5 ? 0xb9a489 : 0xaa9276)
-        : (broadNoise > 0.5 ? 0x8d7965 : 0x9d856c),
+        ? (broadNoise > 0.5 ? 0xeee5d8 : 0xe3d8c9)
+        : (broadNoise > 0.5 ? 0xd8c4b2 : 0xe1cfbd),
     );
   } else if (field.stage === 'harvesting') {
     color = new THREE.Color(
       processedAt(field, v, broadNoise)
-        ? (broadNoise > 0.48 ? 0xa89b8b : 0x998b7c)
-        : (broadNoise > 0.5 ? 0x927a61 : 0xa08769),
+        ? (broadNoise > 0.48 ? 0xeee0cc : 0xe4d5c1)
+        : (broadNoise > 0.5 ? 0xd9c7b4 : 0xe1cfbc),
     );
   } else {
-    color = new THREE.Color(broadNoise > 0.52 ? 0xaa9378 : 0x9a8068);
+    color = new THREE.Color(broadNoise > 0.52 ? 0xdfcfbd : 0xe6d6c4);
   }
 
-  color.multiplyScalar(0.94 + fineNoise * 0.12);
+  color.multiplyScalar(0.97 + fineNoise * 0.07);
   return color;
+}
+
+function soilIdentityAt(
+  field: FarmFieldState,
+  v: number,
+  noise: number,
+): FieldSoilIdentity | null {
+  if (field.stage === 'ploughing') {
+    return processedAt(field, v, noise) ? 'ploughed' : null;
+  }
+  if (field.stage === 'sowing') {
+    return processedAt(field, v, noise) ? 'seedbed' : 'ploughed';
+  }
+  if (field.stage === 'harvesting') {
+    return processedAt(field, v, noise) ? 'harvested' : 'growing';
+  }
+  if (field.crop === 'fallow') return 'fallow';
+  return 'growing';
+}
+
+function soilIdentityOrder(field: FarmFieldState): readonly FieldSoilIdentity[] {
+  const progress = clamp01(field.stageProgress);
+  if (field.stage === 'sowing') {
+    if (progress <= 0.01) return ['ploughed'];
+    if (progress >= 0.99) return ['seedbed'];
+    return ['ploughed', 'seedbed'];
+  }
+  if (field.stage === 'harvesting') {
+    if (progress <= 0.01) return ['growing'];
+    if (progress >= 0.99) return ['harvested'];
+    return ['growing', 'harvested'];
+  }
+  if (field.stage === 'ploughing') return progress <= 0.01 ? [] : ['ploughed'];
+  if (field.crop === 'fallow') return ['fallow'];
+  return ['growing'];
+}
+
+function fieldEdgeBlendAt(
+  point: Point2,
+  u: number,
+  v: number,
+  width: number,
+  depth: number,
+  seed: number,
+): number {
+  const edgeDistance = Math.min(
+    u * width,
+    (1 - u) * width,
+    v * depth,
+    (1 - v) * depth,
+  );
+  if (edgeDistance <= 0) return 0;
+  const broad = Math.sin(point.x * 0.73 + point.z * 0.29 + seed * 0.000013) * 0.16;
+  const detail = Math.sin(point.z * 1.41 - point.x * 0.37 + seed * 0.000031) * 0.075;
+  const boundaryLock = THREE.MathUtils.smoothstep(edgeDistance, 0.06, 0.28);
+  const warpedDistance = Math.max(0, edgeDistance + (broad + detail) * boundaryLock);
+  return THREE.MathUtils.smoothstep(warpedDistance, 0, FIELD_EDGE_FADE_METERS);
 }
 
 function createSurface(
   field: FarmFieldState,
   corners: FarmFieldCorners,
   getHeightAt: (x: number, z: number) => number,
+  rendererBackend: RendererBackendKind,
+  debugMode: FieldSoilDebugMode,
 ): THREE.Mesh {
   const { width, depth } = fieldDimensions(corners);
   const uSteps = Math.max(
     MIN_SURFACE_STEPS,
-    Math.min(MAX_SURFACE_STEPS, Math.ceil(width / 1.35)),
+    Math.min(96, Math.ceil(width / FIELD_SURFACE_SAMPLE_SPACING)),
   );
   const vSteps = Math.max(
     MIN_SURFACE_STEPS,
-    Math.min(MAX_SURFACE_STEPS, Math.ceil(depth / 1.35)),
+    Math.min(96, Math.ceil(depth / FIELD_SURFACE_SAMPLE_SPACING)),
   );
   const vertices: number[] = [];
   const colors: number[] = [];
   const uvs: number[] = [];
-  const indices: number[] = [];
+  const edgeBlends: number[] = [];
+  const identities = soilIdentityOrder(field);
+  const indicesByIdentity = new Map(
+    identities.map((identity) => [identity, [] as number[]]),
+  );
   const seed = hashString(field.id);
   for (let vIndex = 0; vIndex <= vSteps; vIndex += 1) {
     for (let uIndex = 0; uIndex <= uSteps; uIndex += 1) {
@@ -161,10 +227,10 @@ function createSurface(
       const v = vIndex / vSteps;
       const point = bilinearPoint(corners, u, v);
       vertices.push(point.x, getHeightAt(point.x, point.z) + FIELD_LIFT, point.z);
-      uvs.push(
-        point.x / CULTIVATED_SOIL_METERS_PER_TILE,
-        point.z / CULTIVATED_SOIL_METERS_PER_TILE,
-      );
+      // Raw world metres are retained as an inspection breadcrumb. The
+      // materials own their state-specific physical scale and organic warp.
+      uvs.push(point.x, point.z);
+      edgeBlends.push(fieldEdgeBlendAt(point, u, v, width, depth, seed));
       const color = surfaceColorAt(
         field,
         u,
@@ -181,12 +247,15 @@ function createSurface(
       const cellIndex = v * uSteps + u;
       const cellNoise = random01(seed, cellIndex, 0x50f3a149);
       const cellV = (v + 0.5) / vSteps;
-      if (field.stage === 'ploughing' && !processedAt(field, cellV, cellNoise)) continue;
+      const identity = soilIdentityAt(field, cellV, cellNoise);
+      if (!identity) continue;
+      const identityIndices = indicesByIdentity.get(identity);
+      if (!identityIndices) continue;
       const a = v * stride + u;
       const b = a + 1;
       const d = (v + 1) * stride + u;
       const c = d + 1;
-      indices.push(a, d, b, b, d, c);
+      identityIndices.push(a, d, b, b, d, c);
     }
   }
   const geometry = new THREE.BufferGeometry();
@@ -194,24 +263,27 @@ function createSurface(
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setAttribute('uv1', new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.setIndex(indices);
+  geometry.setAttribute('fieldEdgeBlend', new THREE.Float32BufferAttribute(edgeBlends, 1));
+  const combinedIndices: number[] = [];
+  for (let materialIndex = 0; materialIndex < identities.length; materialIndex += 1) {
+    const identity = identities[materialIndex]!;
+    const stateIndices = indicesByIdentity.get(identity)!;
+    if (stateIndices.length === 0) continue;
+    const start = combinedIndices.length;
+    combinedIndices.push(...stateIndices);
+    geometry.addGroup(start, stateIndices.length, materialIndex);
+  }
+  geometry.setIndex(combinedIndices);
   geometry.computeVertexNormals();
-  const material = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    map: CULTIVATED_SOIL_TEXTURES.albedo,
-    normalMap: CULTIVATED_SOIL_TEXTURES.normal,
-    normalScale: new THREE.Vector2(0.42, 0.42),
-    roughnessMap: CULTIVATED_SOIL_TEXTURES.roughness,
-    vertexColors: true,
-    roughness: 1,
-    metalness: 0,
-    polygonOffset: true,
-    polygonOffsetFactor: -2,
-  });
-  material.name = 'Backyard garden soil PBR adapted for agricultural fields';
-  material.userData.pbrTexturePaths = CULTIVATED_SOIL_TEXTURE_PATHS;
-  material.userData.cultivatedSoilBase = 'backyard-garden';
-  const mesh = new THREE.Mesh(geometry, material);
+  const materials = identities.map((identity) => createFieldSoilMaterial(
+    identity,
+    rendererBackend,
+    debugMode,
+  ));
+  const mesh = new THREE.Mesh(
+    geometry,
+    materials.length === 1 ? materials[0]! : materials,
+  );
   mesh.name = 'Worked field soil';
   mesh.receiveShadow = true;
   mesh.userData.fieldStage = field.stage;
@@ -219,7 +291,20 @@ function createSurface(
   mesh.userData.fieldStateCoverage = field.stage === 'ploughing'
     ? clamp01(field.stageProgress)
     : 1;
-  mesh.userData.debugModes = ['final', 'cultivated-soil', 'processed-coverage'];
+  mesh.userData.fieldSoilIdentities = identities;
+  mesh.userData.fieldSoilPbr = Object.fromEntries(identities.map((identity) => [
+    identity,
+    FIELD_SOIL_IDENTITIES[identity],
+  ]));
+  mesh.userData.edgeTransition = {
+    mode: 'continuous irregular alpha crossfade',
+    widthMeters: FIELD_EDGE_FADE_METERS,
+    coordinateDomain: 'world-xz-metres',
+    minimum: Math.min(...edgeBlends),
+    maximum: Math.max(...edgeBlends),
+  };
+  mesh.userData.debugModes = ['final', 'albedo', 'normal', 'roughness', 'edge-blend'];
+  mesh.userData.activeDebugMode = debugMode;
   return mesh;
 }
 
@@ -232,6 +317,7 @@ function createFurrows(
   const vertices: number[] = [];
   const rows = Math.max(4, Math.min(52, Math.floor(depth / 0.72)));
   const segments = Math.max(6, Math.min(56, Math.ceil(width / 1.25)));
+  const uInset = Math.min(0.22, FIELD_ROW_EDGE_INSET_METERS / Math.max(width, 0.01));
   const processedLimit = field.stage === 'ploughing'
     ? Math.max(0, Math.min(1, field.stageProgress))
     : 1;
@@ -239,7 +325,8 @@ function createFurrows(
     const v = row / rows;
     if (v > processedLimit + 0.012) continue;
     for (let segment = 0; segment < segments; segment += 1) {
-      for (const u of [segment / segments, (segment + 1) / segments]) {
+      for (const segmentT of [segment / segments, (segment + 1) / segments]) {
+        const u = THREE.MathUtils.lerp(uInset, 1 - uInset, segmentT);
         const point = bilinearPoint(corners, u, v);
         vertices.push(
           point.x,
@@ -274,13 +361,15 @@ function createSeededDrills(
     const { width, depth } = fieldDimensions(corners);
     const rows = Math.max(4, Math.min(56, Math.floor(depth / 0.64)));
     const segments = Math.max(6, Math.min(64, Math.ceil(width / 1.1)));
+    const uInset = Math.min(0.22, FIELD_ROW_EDGE_INSET_METERS / Math.max(width, 0.01));
     const seed = hashString(field.id);
     for (let row = 1; row < rows; row += 1) {
       const v = row / rows;
       const noise = random01(seed, row, 0x17a0c4d1);
       if (!processedAt(field, v, noise)) continue;
       for (let segment = 0; segment < segments; segment += 1) {
-        for (const u of [segment / segments, (segment + 1) / segments]) {
+        for (const segmentT of [segment / segments, (segment + 1) / segments]) {
+          const u = THREE.MathUtils.lerp(uInset, 1 - uInset, segmentT);
           const point = bilinearPoint(corners, u, v);
           vertices.push(
             point.x,
@@ -331,9 +420,9 @@ function createFieldEdge(
   const edge = new THREE.LineSegments(
     new THREE.BufferGeometry().setFromPoints(points),
     new THREE.LineBasicMaterial({
-      color: 0x5b4934,
+      color: 0x6d604c,
       transparent: true,
-      opacity: 0.62,
+      opacity: 0.24,
       depthWrite: false,
     }),
   );
@@ -1198,6 +1287,7 @@ function disposeObject(root: THREE.Object3D): void {
 export type FarmFieldMarkerOptions = {
   maxAnisotropy?: number;
   rendererBackend?: RendererBackendKind;
+  soilDebugMode?: FieldSoilDebugMode;
   useSeedThreePerimeterShrubs?: boolean;
   useSeedThreeCrops?: boolean;
 };
@@ -1212,6 +1302,8 @@ export class FarmFieldMarkers {
   private cropCatalog: FieldCropCatalog | null = null;
   private cropReady: Promise<void> = Promise.resolve();
   private readonly seedThreeCropsRequested: boolean;
+  private readonly rendererBackend: RendererBackendKind;
+  private readonly soilDebugMode: FieldSoilDebugMode;
   private disposed = false;
 
   constructor(
@@ -1221,6 +1313,8 @@ export class FarmFieldMarkers {
   ) {
     this.getHeightAt = getHeightAt;
     this.seedThreeCropsRequested = options.useSeedThreeCrops === true;
+    this.rendererBackend = options.rendererBackend ?? 'webgl';
+    this.soilDebugMode = options.soilDebugMode ?? 'final';
     this.root.name = 'Farm fields';
     parent.add(this.root);
 
@@ -1312,10 +1406,20 @@ export class FarmFieldMarkers {
         seededCoverage: field.stage === 'sowing'
           ? clamp01(field.stageProgress)
           : 0,
+        soilIdentities: soilIdentityOrder(field),
+        soilCoordinateDomain: 'world-xz-metres',
+        soilOrganicRepeat: true,
+        soilEdgeFadeMeters: FIELD_EDGE_FADE_METERS,
         crop: field.crop === 'wheat' ? 'maslin' : field.crop,
         cropAssetOwner: field.crop === 'fallow' ? 'none' : 'SeloSlav/SeedThree',
       };
-      group.add(createSurface(field, corners, this.getHeightAt));
+      group.add(createSurface(
+        field,
+        corners,
+        this.getHeightAt,
+        this.rendererBackend,
+        this.soilDebugMode,
+      ));
       group.add(createFurrows(field, corners, this.getHeightAt));
       group.add(createSeededDrills(field, corners, this.getHeightAt));
       group.add(createSoilClods(field, corners, this.getHeightAt));

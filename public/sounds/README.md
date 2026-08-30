@@ -23,8 +23,9 @@ authorized by the copyright holder requires permission.
 `people/male/person_selected_1.mp3` through `person_selected_6.mp3` and
 `people/female/person_selected_1.mp3` through `person_selected_6.mp3` were
 copied unchanged from the matching `person_selected_*` files in Selo Empire.
-Only the direct-selection acknowledgement clips were imported; move, attack,
-annoyed, and death lines were deliberately excluded. These are Selo Empire
+The direct-selection acknowledgement clips were imported first. The combat
+pass later added the matching male/female attack exertions and death lines at
+`combat/selo/` for physical raids, bandits, and militia casualties. These are Selo Empire
 game assets, copyright Martin Erlic 2026, all rights reserved, and follow the
 same reuse terms above.
 

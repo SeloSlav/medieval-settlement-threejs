@@ -4,30 +4,52 @@ import {
   type AmbientBehaviorAssignment,
   type AmbientBehaviorSlot,
 } from './ambientBehaviors.ts';
+import {
+  chapelClergyGatheringPoint,
+  type ChapelMassPhase,
+} from './chapelMass.ts';
 
 export const CHAPEL_GATHERING_AMBIENT_CYCLE_SECONDS = 12;
 
-/**
- * The chapel has no visible interior, so the exterior gathering stands in for
- * a service happening inside. Parishioners only mingle or circulate here:
- * seating and ground-resting are deliberately left to places that depict them.
- */
+/** Plans the visible assembly before mass and churchyard fellowship afterward. */
 export function planChapelGatheringBehaviors(
-  chapel: Pick<BuildingState, 'x' | 'z'>,
+  chapel: Pick<BuildingState, 'x' | 'z'> & Partial<Pick<BuildingState, 'yaw'>>,
   actorIds: readonly string[],
   cycleIndex: number,
+  options: {
+    clergyActorIds?: readonly string[];
+    phase?: ChapelMassPhase;
+  } = {},
 ): Map<string, AmbientBehaviorAssignment> {
-  return assignAmbientBehaviorSlots(
-    actorIds,
-    chapelGatheringSlots(chapel, actorIds.length, cycleIndex),
+  const phase = options.phase ?? 'assembly';
+  if (phase === 'service') return new Map();
+  const clergyIds = new Set(options.clergyActorIds ?? []);
+  const layActorIds = actorIds.filter((actorId) => !clergyIds.has(actorId));
+  const assignments = assignAmbientBehaviorSlots(
+    layActorIds,
+    chapelGatheringSlots(chapel, layActorIds.length, cycleIndex, phase),
     cycleIndex,
   );
+  [...clergyIds].sort().forEach((actorId, index) => {
+    const destination = chapelClergyGatheringPoint(chapel, index);
+    assignments.set(actorId, {
+      actorId,
+      id: `clergy-${phase}-${index}`,
+      kind: phase === 'assembly' ? 'talk' : 'idle',
+      destination,
+      lookAt: phase === 'assembly'
+        ? chapelLocalPoint(chapel, 0, 13)
+        : chapelLocalPoint(chapel, 0, 12.6),
+    });
+  });
+  return assignments;
 }
 
 function chapelGatheringSlots(
-  chapel: Pick<BuildingState, 'x' | 'z'>,
+  chapel: Pick<BuildingState, 'x' | 'z'> & Partial<Pick<BuildingState, 'yaw'>>,
   actorCount: number,
   cycleIndex: number,
+  phase: Exclude<ChapelMassPhase, 'service'>,
 ): AmbientBehaviorSlot[] {
   if (actorCount <= 0) return [];
 
@@ -35,14 +57,37 @@ function chapelGatheringSlots(
   const pairCount = Math.floor(actorCount / 2);
   const cycleAngle = cycleIndex * 0.47;
 
+  if (phase === 'assembly') {
+    const leader = chapelClergyGatheringPoint(chapel);
+    for (let index = 0; index < actorCount; index += 1) {
+      const file = index % 7;
+      const rank = Math.floor(index / 7);
+      const localX = (file - 3) * 1.25 + (rank % 2) * 0.35;
+      const localZ = 12.35 + rank * 1.22;
+      const destination = chapelLocalPoint(chapel, localX, localZ);
+      slots.push({
+        id: `congregation-${index}`,
+        kind: index % 6 === 5 ? 'wander' : 'talk',
+        destination,
+        lookAt: leader,
+        waypoints: index % 6 === 5
+          ? [
+              chapelLocalPoint(chapel, localX - 0.6, localZ + 0.4),
+              destination,
+            ]
+          : undefined,
+      });
+    }
+    return slots;
+  }
+
   for (let pairIndex = 0; pairIndex < pairCount; pairIndex += 1) {
-    const angle = cycleAngle + pairIndex / Math.max(1, pairCount) * Math.PI * 2;
-    const radius = 6 + (pairIndex % 2) * 1.15;
-    const center = radialPoint(chapel, angle, radius);
-    const tangentX = Math.cos(angle) * 0.72;
-    const tangentZ = -Math.sin(angle) * 0.72;
-    const left = { x: center.x - tangentX, z: center.z - tangentZ };
-    const right = { x: center.x + tangentX, z: center.z + tangentZ };
+    const column = pairIndex % 4;
+    const rank = Math.floor(pairIndex / 4);
+    const centerX = (column - 1.5) * 2.6 + Math.sin(cycleAngle + pairIndex) * 0.28;
+    const centerZ = 12.1 + rank * 2.15 + (column % 2) * 0.45;
+    const left = chapelLocalPoint(chapel, centerX - 0.68, centerZ);
+    const right = chapelLocalPoint(chapel, centerX + 0.68, centerZ);
     slots.push(
       {
         id: `conversation-${pairIndex}-left`,
@@ -60,10 +105,13 @@ function chapelGatheringSlots(
   }
 
   if (actorCount % 2 !== 0) {
-    const angle = cycleAngle + Math.PI * 0.35;
     const direction = cycleIndex % 2 === 0 ? 1 : -1;
-    const waypoints = [0, 0.22 * direction, 0.44 * direction].map((offset, index) =>
-      radialPoint(chapel, angle + offset, 6.8 + index * 0.25)
+    const waypoints = [0, 1, 2].map((index) =>
+      chapelLocalPoint(
+        chapel,
+        direction * (-3.6 + index * 1.35),
+        14.6 + Math.sin(cycleAngle + index) * 0.35,
+      )
     );
     slots.push({
       id: 'churchyard-circulation',
@@ -77,13 +125,16 @@ function chapelGatheringSlots(
   return slots;
 }
 
-function radialPoint(
-  origin: Pick<BuildingState, 'x' | 'z'>,
-  angle: number,
-  radius: number,
+function chapelLocalPoint(
+  chapel: Pick<BuildingState, 'x' | 'z'> & Partial<Pick<BuildingState, 'yaw'>>,
+  localX: number,
+  localZ: number,
 ): { x: number; z: number } {
+  const yaw = chapel.yaw ?? 0;
+  const cos = Math.cos(yaw);
+  const sin = Math.sin(yaw);
   return {
-    x: origin.x + Math.sin(angle) * radius,
-    z: origin.z + Math.cos(angle) * radius,
+    x: chapel.x + localX * cos + localZ * sin,
+    z: chapel.z - localX * sin + localZ * cos,
   };
 }

@@ -5,6 +5,8 @@
 pub const STOREHOUSE_ACCEPTANCE_MASK: u64 = bit(0) // firewood
     | bit(3) // timber
     | bit(10) // stone
+    | bit(11) // polearms
+    | bit(12) // ironwork
     | bit(13) // wool
     | bit(14) // cloth
     | bit(19) // iron
@@ -21,7 +23,14 @@ pub const STOREHOUSE_ACCEPTANCE_MASK_HIGH: u64 = high_bit(64) // wax
     | high_bit(65) // candles
     | high_bit(66) // pelts
     | high_bit(67) // yarn
-    | high_bit(68); // linen
+    | high_bit(68) // linen
+    | high_bit(69) // sidearms
+    | high_bit(70) // shields
+    | high_bit(71) // bows
+    | high_bit(72) // crossbows
+    | high_bit(73) // padded armor
+    | high_bit(74) // mail armor
+    | high_bit(75); // ammunition
 
 pub const GRANARY_ACCEPTANCE_MASK: u64 = bit(6) // ale
     | bit(7) // legacy preserved food

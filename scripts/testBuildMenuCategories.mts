@@ -52,6 +52,7 @@ const STONE_BUILDING_COSTS: Readonly<Record<string, number>> = {
   tavern: 20,
   granary: 30,
   bakery: 20,
+  weaponsmith_armorer: 18,
 };
 
 assert.deepEqual(BUILDING_COSTS.founders_camp, {
@@ -86,6 +87,7 @@ assert.deepEqual(keys(AGRICULTURE_BUILD_MENU_ENTRIES), [
 assert.deepEqual(keys(INDUSTRY_BUILD_MENU_ENTRIES), [
   'watermill', 'windmill', 'bakery', 'brewery', 'smokehouse',
   'carpenter', 'spinning_retting_house', 'weaver', 'tannery', 'cobbler', 'chandlery', 'charcoal_burner', 'smithy', 'potter_kiln',
+  'weaponsmith_armorer', 'bowyer_fletcher',
 ]);
 
 assert.deepEqual(BUILD_MENU_CATEGORIES.map((category) => category.id), [
@@ -99,7 +101,7 @@ assert.deepEqual(categoryKeys('gathering'), [
 ]);
 assert.deepEqual(categoryKeys('agriculture'), ['threshing_barn', 'apiary', 'pastoral_farmstead', 'swineherd']);
 assert.deepEqual(categoryKeys('food'), ['watermill', 'windmill', 'bakery', 'brewery', 'tavern', 'smokehouse']);
-assert.deepEqual(categoryKeys('industry'), ['carpenter', 'spinning_retting_house', 'weaver', 'tannery', 'cobbler', 'chandlery', 'charcoal_burner', 'smithy', 'potter_kiln']);
+assert.deepEqual(categoryKeys('industry'), ['carpenter', 'spinning_retting_house', 'weaver', 'tannery', 'cobbler', 'chandlery', 'charcoal_burner', 'smithy', 'weaponsmith_armorer', 'bowyer_fletcher', 'potter_kiln']);
 assert.deepEqual(categoryKeys('faith'), ['chapel', 'monastery']);
 assert.deepEqual(categoryKeys('decorations'), ['wayside_shrine', 'dry_stone_wall']);
 assert.deepEqual(categoryKeys('military'), ['watchtower', 'guardhouse', 'palisaded_refuge']);
@@ -132,17 +134,17 @@ assert.match(
 );
 assert.match(
   renderedCards,
-  /data-action="pastoral-farmstead"[\s\S]*?data-tooltip="Raises cattle and sheep for milk, wool, manure, and meat\."/,
+  /data-action="pastoral-farmstead"[\s\S]*?data-tooltip="Raises cattle and sheep for milk, wool, hides, manure, meat, and prepared Animal Feed\."/,
   'the pastoral card must summarize what the holding produces',
 );
 assert.match(
   renderedCards,
-  /data-action="swineherd"[\s\S]*?data-tooltip="Raises woodland pigs for meat\."/,
+  /data-action="swineherd"[\s\S]*?data-tooltip="Raises woodland pigs for meat and hides using prepared Animal Feed\."/,
   'the swineherd card must summarize what the holding produces',
 );
 assert.match(
   renderedCards,
-  /data-action="stable"[\s\S]*?data-tooltip="Houses oxen that assist with building, farm work, and hauling\."/,
+  /data-action="stable"[\s\S]*?data-tooltip="Houses oxen for building, farm work, and hauling\."/,
   'the stable card must summarize what its oxen do',
 );
 const cardResourceFlow = (action: string): { inputs: string[]; outputs: string[] } => {
@@ -494,8 +496,8 @@ for (const description of descriptions) {
   );
 }
 assert.match(renderedCards, /data-action="threshing-barn"[\s\S]*?data-tooltip="Cultivates grain and flax fields and threshes harvested sheaves\."/);
-assert.match(renderedCards, /data-action="pastoral-farmstead"[\s\S]*?data-tooltip="Raises cattle and sheep for milk, wool, manure, and meat\."/);
-assert.match(renderedCards, /data-action="swineherd"[\s\S]*?data-tooltip="Raises woodland pigs for meat\."/);
+assert.match(renderedCards, /data-action="pastoral-farmstead"[\s\S]*?data-tooltip="Raises cattle and sheep for milk, wool, hides, manure, meat, and prepared Animal Feed\."/);
+assert.match(renderedCards, /data-action="swineherd"[\s\S]*?data-tooltip="Raises woodland pigs for meat and hides using prepared Animal Feed\."/);
 assert.match(renderedCards, /data-action="stone-quarry"[\s\S]*?data-tooltip="Extracts stone, iron, salt, and clay from nearby surface deposits\."/);
 assert.ok(
   [...renderedCards.matchAll(/data-tooltip-flow="([^"]+)"/g)].length >= 20,

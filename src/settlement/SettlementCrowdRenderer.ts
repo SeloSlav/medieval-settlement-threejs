@@ -15,6 +15,10 @@ import {
   type WorkerToolSources,
 } from './workerTools.ts';
 import { configureVillagerMaterialLighting } from './villagerMaterialLighting.ts';
+import type {
+  ClericAnimationMode,
+  ClericAuthoredAnimationName,
+} from './clericBehaviors.ts';
 
 const MAX_INSTANCES = 1024;
 const MAX_ANIMATED_VILLAGERS = 72;
@@ -30,11 +34,13 @@ const HEAD_GEOMETRY = new THREE.SphereGeometry(0.19, 10, 10);
 const MODEL_URLS = {
   man: '/assets/models/villagers/worker-male-common-01-v002.glb',
   woman: '/assets/models/villagers/worker-female-common-01-v001.glb',
+  cleric: '/assets/models/villagers/cleric-monk-common-01-v001.glb',
 } as const;
 
 const TARGET_HEIGHTS = {
   man: 1.72,
   woman: 1.64,
+  cleric: 1.72,
 } as const;
 const MODEL_GROUNDING_HEIGHT = 0.012;
 const SEATED_SUPPORT_CONTACT_HEIGHTS = {
@@ -42,8 +48,9 @@ const SEATED_SUPPORT_CONTACT_HEIGHTS = {
   woman: 0.37534,
 } as const;
 
-export type VillagerModelVariant = keyof typeof MODEL_URLS;
-export type VillagerRenderMode =
+type VillagerSourceKey = keyof typeof MODEL_URLS;
+export type VillagerModelVariant = Exclude<VillagerSourceKey, 'cleric'>;
+export type VillagerRenderMode = ClericAnimationMode
   | 'idle'
   | 'walk'
   | 'sit'
@@ -59,6 +66,13 @@ export type VillagerRenderMode =
   | 'tend'
   | 'build'
   | 'fight';
+
+const CLAMPED_ACTION_MODES = new Set<VillagerRenderMode>([
+  'sit',
+  'rest',
+  'hurt',
+  'fall',
+]);
 
 type FallbackPartLayer = {
   mesh: THREE.InstancedMesh;
@@ -77,6 +91,7 @@ type VillagerSource = {
 type AnimatedVillager = {
   id: string;
   variant: VillagerModelVariant;
+  sourceKey: VillagerSourceKey;
   toolKind: WorkerToolKind | null;
   tool: THREE.Group | null;
   root: THREE.Group;
@@ -105,7 +120,7 @@ type AnimatedBatchLayer = {
 };
 
 type AnimatedVariantBatch = {
-  variant: VillagerModelVariant;
+  variant: VillagerSourceKey;
   bonesPerRig: number;
   rigsPerShard: number;
   shards: Array<{
@@ -116,20 +131,20 @@ type AnimatedVariantBatch = {
 };
 
 function variantsShareModelSource(
-  a: VillagerModelVariant,
-  b: VillagerModelVariant,
+  a: VillagerSourceKey,
+  b: VillagerSourceKey,
 ): boolean {
   return String(MODEL_URLS[a]) === String(MODEL_URLS[b]);
 }
 
 function uniqueAnimatedBatches(
-  batches: Record<VillagerModelVariant, AnimatedVariantBatch>,
+  batches: Record<VillagerSourceKey, AnimatedVariantBatch>,
 ): AnimatedVariantBatch[] {
   return [...new Set(Object.values(batches))];
 }
 
 function uniqueSourceScenes(
-  sources: Record<VillagerModelVariant, VillagerSource>,
+  sources: Record<VillagerSourceKey, VillagerSource>,
 ): THREE.Group[] {
   return [...new Set(Object.values(sources).map((source) => source.scene))];
 }
@@ -157,6 +172,7 @@ export type CrowdRenderAgent = {
   yaw: number;
   appearanceSeed: number;
   variant: VillagerModelVariant;
+  presentation?: 'common' | 'cleric';
   mode: VillagerRenderMode;
   tunicColor: number;
   skinColor: number;
@@ -190,9 +206,9 @@ export function seatedVillagerContactHeight(
 }
 
 /**
- * Renders close villagers with their authored skeletal animations. Villagers
- * outside the close presentation range are culled instead of being replaced by
- * a low-detail bind-pose proxy.
+ * Renders the nearest 72 villagers with authored skeletal animations. Further
+ * visible agents remain readable as three shared instanced body layers, which
+ * keeps hundred-person companies present without creating hundreds of mixers.
  */
 export class SettlementCrowdRenderer {
   readonly ready: Promise<boolean>;
@@ -213,9 +229,9 @@ export class SettlementCrowdRenderer {
   private readonly visibleAgents: CrowdRenderAgent[] = [];
   private readonly animatedCandidates: CrowdRenderAgent[] = [];
   private readonly animatedIds = new Set<string>();
-  private sources: Record<VillagerModelVariant, VillagerSource> | null = null;
+  private sources: Record<VillagerSourceKey, VillagerSource> | null = null;
   private toolSources: WorkerToolSources | null = null;
-  private animatedBatches: Record<VillagerModelVariant, AnimatedVariantBatch> | null = null;
+  private animatedBatches: Record<VillagerSourceKey, AnimatedVariantBatch> | null = null;
   private readonly latestAgents: CrowdRenderAgent[] = [];
   private lastView: CrowdViewState | undefined;
   private disposed = false;
@@ -262,13 +278,13 @@ export class SettlementCrowdRenderer {
 
     const animatedIds = this.pickAnimatedIds(visibleAgents, view);
     if (!this.sources) {
-      this.updateFallback(visibleAgents, animatedIds);
+      this.updateFallback(visibleAgents);
       return;
     }
 
-    this.clearFallback();
     this.syncAnimatedVillagers(visibleAgents, animatedIds, dt);
     this.updateAnimatedBatches(visibleAgents, animatedIds);
+    this.updateFallback(visibleAgents, animatedIds);
   }
 
   beginFirstPlayableGpuPrewarm(): () => void {
@@ -354,19 +370,24 @@ export class SettlementCrowdRenderer {
             targetHeight: TARGET_HEIGHTS.woman,
           }))
         : loadVillagerSource(MODEL_URLS.woman, TARGET_HEIGHTS.woman);
-      const [man, woman, tools] = await Promise.all([
+      const clericPromise = loadVillagerSource(
+        MODEL_URLS.cleric,
+        TARGET_HEIGHTS.cleric,
+      );
+      const [man, woman, cleric, tools] = await Promise.all([
         manPromise,
         womanPromise,
+        clericPromise,
         loadWorkerToolSources(),
       ]);
       if (this.disposed) {
-        for (const scene of uniqueSourceScenes({ man, woman })) {
+        for (const scene of uniqueSourceScenes({ man, woman, cleric })) {
           disposeModelResources(scene);
         }
         disposeWorkerToolSources(tools);
         return false;
       }
-      this.sources = { man, woman };
+      this.sources = { man, woman, cleric };
       this.toolSources = tools;
       const manBatch = this.createAnimatedBatch('man', man);
       this.animatedBatches = {
@@ -374,6 +395,7 @@ export class SettlementCrowdRenderer {
         woman: variantsShareModelSource('man', 'woman')
           ? manBatch
           : this.createAnimatedBatch('woman', woman),
+        cleric: this.createAnimatedBatch('cleric', cleric),
       };
       this.syncAgents(this.latestAgents, this.lastView);
       return true;
@@ -405,14 +427,14 @@ export class SettlementCrowdRenderer {
 
   private updateFallback(
     agents: readonly CrowdRenderAgent[],
-    renderedIds: ReadonlySet<string>,
+    excludedIds?: ReadonlySet<string>,
   ): void {
     let count = 0;
     let bodyColorsDirty = false;
     let legColorsDirty = false;
     let headColorsDirty = false;
     for (const agent of agents) {
-      if (!renderedIds.has(agent.id)) continue;
+      if (excludedIds?.has(agent.id)) continue;
       if (count >= MAX_INSTANCES) break;
       bodyColorsDirty = this.writeFallbackInstance(
         this.fallbackBody.mesh,
@@ -452,12 +474,6 @@ export class SettlementCrowdRenderer {
     if (colorsDirty && layer.mesh.instanceColor) {
       publishInstanceAttributePrefix(layer.mesh.instanceColor, count);
     }
-  }
-
-  private clearFallback(): void {
-    this.fallbackBody.mesh.count = 0;
-    this.fallbackLegs.mesh.count = 0;
-    this.fallbackHead.mesh.count = 0;
   }
 
   private writeFallbackInstance(
@@ -518,10 +534,12 @@ export class SettlementCrowdRenderer {
 
     for (const agent of agents) {
       if (!animatedIds.has(agent.id)) continue;
+      const sourceKey = sourceKeyForAgent(agent);
       let visual = this.animated.get(agent.id);
       if (
         !visual
         || visual.variant !== agent.variant
+        || visual.sourceKey !== sourceKey
         || visual.toolKind !== agent.tool
       ) {
         if (visual) this.removeAnimatedVillager(agent.id);
@@ -535,12 +553,19 @@ export class SettlementCrowdRenderer {
       visual.actions.walk.setEffectiveTimeScale(
         1.06 * Math.max(0.65, agent.movementSpeed / NOMINAL_WALK_SPEED),
       );
+      visual.actions.run.setEffectiveTimeScale(
+        Math.max(0.8, agent.movementSpeed / NOMINAL_WALK_SPEED),
+      );
+      visual.actions.flee.setEffectiveTimeScale(
+        Math.max(0.82, agent.movementSpeed / NOMINAL_WALK_SPEED),
+      );
       if (dt > 0) visual.mixer.update(dt);
     }
   }
 
   private createAnimatedVillager(agent: CrowdRenderAgent): AnimatedVillager {
-    const source = this.sources![agent.variant];
+    const sourceKey = sourceKeyForAgent(agent);
+    const source = this.sources![sourceKey];
     const model = cloneSkinned(source.scene) as THREE.Group;
     const heightJitter = villagerHeightJitter(agent.appearanceSeed);
     const scale = source.targetHeight / source.sourceHeight * heightJitter;
@@ -565,7 +590,7 @@ export class SettlementCrowdRenderer {
     if (!skeleton) throw new Error(`Missing ${agent.variant} villager skeleton`);
 
     const root = new THREE.Group();
-    root.name = `${agent.variant === 'woman' ? 'Woman' : 'Man'} villager ${agent.id}`;
+    root.name = `${sourceKey === 'cleric' ? 'Cleric' : agent.variant === 'woman' ? 'Woman' : 'Man'} villager ${agent.id}`;
     root.userData.villagerId = agent.id;
     root.userData.villagerGender = agent.variant;
     root.add(model);
@@ -595,12 +620,25 @@ export class SettlementCrowdRenderer {
       tend: mixer.clipAction(source.clips.tend, model),
       build: mixer.clipAction(source.clips.build, model),
       fight: mixer.clipAction(source.clips.fight, model),
+      relax: mixer.clipAction(source.clips.relax, model),
+      look: mixer.clipAction(source.clips.look, model),
+      wait: mixer.clipAction(source.clips.wait, model),
+      laugh: mixer.clipAction(source.clips.laugh, model),
+      greet: mixer.clipAction(source.clips.greet, model),
+      sermon: mixer.clipAction(source.clips.sermon, model),
+      agree: mixer.clipAction(source.clips.agree, model),
+      bow: mixer.clipAction(source.clips.bow, model),
+      carry: mixer.clipAction(source.clips.carry, model),
+      hurt: mixer.clipAction(source.clips.hurt, model),
+      fall: mixer.clipAction(source.clips.fall, model),
+      flee: mixer.clipAction(source.clips.flee, model),
+      run: mixer.clipAction(source.clips.run, model),
     };
     for (const [mode, action] of Object.entries(actions) as Array<
       [VillagerRenderMode, THREE.AnimationAction]
     >) {
       action.enabled = true;
-      if (mode === 'sit' || mode === 'rest') {
+      if (CLAMPED_ACTION_MODES.has(mode)) {
         action.setLoop(THREE.LoopOnce, 1);
         action.clampWhenFinished = true;
       } else {
@@ -609,7 +647,7 @@ export class SettlementCrowdRenderer {
     }
     configureActionSpeeds(actions, agent.movementSpeed);
     actions[agent.mode].play();
-    if (agent.mode !== 'sit' && agent.mode !== 'rest') {
+    if (!CLAMPED_ACTION_MODES.has(agent.mode)) {
       actions[agent.mode].time =
         (agent.appearanceSeed % 997) / 997 * actions[agent.mode].getClip().duration;
     }
@@ -617,6 +655,7 @@ export class SettlementCrowdRenderer {
     return {
       id: agent.id,
       variant: agent.variant,
+      sourceKey,
       toolKind: agent.tool,
       tool,
       root,
@@ -631,7 +670,7 @@ export class SettlementCrowdRenderer {
   }
 
   private acquireAnimatedVillager(agent: CrowdRenderAgent): AnimatedVillager {
-    const poolKey = animatedPoolKey(agent.variant, agent.tool);
+    const poolKey = animatedPoolKey(sourceKeyForAgent(agent), agent.tool);
     const pool = this.animatedPool.get(poolKey);
     const pooledVisual = pool?.pop();
     if (pooledVisual) this.idlePooledVisualCount -= 1;
@@ -645,12 +684,15 @@ export class SettlementCrowdRenderer {
     visual: AnimatedVillager,
     agent: CrowdRenderAgent,
   ): void {
-    const source = this.sources![agent.variant];
+    const sourceKey = sourceKeyForAgent(agent);
+    const source = this.sources![sourceKey];
     const scale = source.targetHeight / source.sourceHeight
       * villagerHeightJitter(agent.appearanceSeed);
     visual.id = agent.id;
+    visual.variant = agent.variant;
+    visual.sourceKey = sourceKey;
     visual.mode = agent.mode;
-    visual.root.name = `${agent.variant === 'woman' ? 'Woman' : 'Man'} villager ${agent.id}`;
+    visual.root.name = `${sourceKey === 'cleric' ? 'Cleric' : agent.variant === 'woman' ? 'Woman' : 'Man'} villager ${agent.id}`;
     visual.root.userData.villagerId = agent.id;
     visual.root.userData.villagerGender = agent.variant;
     visual.model.scale.setScalar(scale);
@@ -702,7 +744,7 @@ export class SettlementCrowdRenderer {
       this.disposeAnimatedVillager(visual);
       return;
     }
-    const poolKey = animatedPoolKey(visual.variant, visual.toolKind);
+    const poolKey = animatedPoolKey(visual.sourceKey, visual.toolKind);
     let pool = this.animatedPool.get(poolKey);
     if (!pool) {
       pool = [];
@@ -720,7 +762,7 @@ export class SettlementCrowdRenderer {
   }
 
   private createAnimatedBatch(
-    variant: VillagerModelVariant,
+    variant: VillagerSourceKey,
     source: VillagerSource,
   ): AnimatedVariantBatch {
     source.scene.updateMatrixWorld(true);
@@ -807,7 +849,7 @@ export class SettlementCrowdRenderer {
   ): void {
     const batches = this.animatedBatches;
     if (!batches) return;
-    const counts: Record<VillagerModelVariant, number> = { man: 0, woman: 0 };
+    const counts: Record<VillagerSourceKey, number> = { man: 0, woman: 0, cleric: 0 };
     for (const batch of uniqueAnimatedBatches(batches)) {
       for (const shard of batch.shards) {
         for (const layer of shard.layers) layer.dirtyColors.fill(0);
@@ -817,7 +859,7 @@ export class SettlementCrowdRenderer {
       if (!animatedIds.has(agent.id)) continue;
       const visual = this.animated.get(agent.id);
       if (!visual) continue;
-      const batch: AnimatedVariantBatch = batches[agent.variant];
+      const batch: AnimatedVariantBatch = batches[sourceKeyForAgent(agent)];
       const variantSlot = counts[batch.variant]++;
       if (variantSlot >= MAX_ANIMATED_VILLAGERS) continue;
       const shard = batch.shards[
@@ -972,6 +1014,19 @@ function configureActionSpeeds(
   actions.tend.setEffectiveTimeScale(0.9);
   actions.build.setEffectiveTimeScale(1.08);
   actions.fight.setEffectiveTimeScale(1.22);
+  actions.relax.setEffectiveTimeScale(0.82);
+  actions.look.setEffectiveTimeScale(0.86);
+  actions.wait.setEffectiveTimeScale(0.82);
+  actions.laugh.setEffectiveTimeScale(0.9);
+  actions.greet.setEffectiveTimeScale(0.92);
+  actions.sermon.setEffectiveTimeScale(0.82);
+  actions.agree.setEffectiveTimeScale(0.9);
+  actions.bow.setEffectiveTimeScale(0.78);
+  actions.carry.setEffectiveTimeScale(0.9);
+  actions.hurt.setEffectiveTimeScale(1);
+  actions.fall.setEffectiveTimeScale(0.95);
+  actions.flee.setEffectiveTimeScale(1.08);
+  actions.run.setEffectiveTimeScale(1.05);
 }
 
 export function restartPooledVillagerActions(
@@ -986,7 +1041,7 @@ export function restartPooledVillagerActions(
   configureActionSpeeds(actions, movementSpeed);
   const activeAction = actions[mode];
   activeAction.reset().play();
-  if (mode !== 'sit' && mode !== 'rest') {
+  if (!CLAMPED_ACTION_MODES.has(mode)) {
     activeAction.time = (appearanceSeed % 997) / 997
       * activeAction.getClip().duration;
   }
@@ -1016,8 +1071,12 @@ function writeInstanceColorIfChanged(
   return true;
 }
 
+function sourceKeyForAgent(agent: CrowdRenderAgent): VillagerSourceKey {
+  return agent.presentation === 'cleric' ? 'cleric' : agent.variant;
+}
+
 function animatedPoolKey(
-  variant: VillagerModelVariant,
+  variant: VillagerSourceKey,
   tool: WorkerToolKind | null,
 ): string {
   return `${variant}:${tool ?? 'unarmed'}`;
@@ -1046,12 +1105,16 @@ async function loadVillagerSource(
   const idle = findAnimationClip(gltf.animations, 'idle');
   const walk = findAnimationClip(gltf.animations, 'walk');
   if (idle && walk && findAnimationClip(gltf.animations, 'standing_relax')) {
+    const clips = findAnimationClip(gltf.animations, 'greet_04')
+      && findAnimationClip(gltf.animations, 'laugh_01')
+      ? createClericClipSet(gltf.animations)
+      : createSemanticWorkerClipSet(gltf.animations);
     return {
       scene: gltf.scene,
       bounds,
       sourceHeight,
       targetHeight,
-      clips: createSemanticWorkerClipSet(gltf.animations),
+      clips,
     };
   }
   const sitting = findAnimationClip(gltf.animations, 'sitting');
@@ -1099,6 +1162,19 @@ async function loadVillagerSource(
       tend,
       build,
       fight,
+      relax: idle,
+      look: idle,
+      wait: idle,
+      laugh: talk,
+      greet: talk,
+      sermon: talk,
+      agree: talk,
+      bow: pray,
+      carry: gather,
+      hurt: fight,
+      fall: rest,
+      flee: walk,
+      run: walk,
     },
   };
 }
@@ -1134,7 +1210,67 @@ export function createSemanticWorkerClipSet(
     tend: forMode('shovel', 'tend'),
     build: forMode('chop', 'build'),
     fight: forMode('slash', 'fight'),
+    relax: forMode('standing_relax', 'relax'),
+    look: forMode('look_around', 'look'),
+    wait: forMode('wait', 'wait'),
+    laugh: forMode('standing_relax', 'laugh'),
+    greet: forMode('standing_relax', 'greet'),
+    sermon: forMode('standing_relax', 'sermon'),
+    agree: forMode('standing_relax', 'agree'),
+    bow: forMode('wait', 'bow'),
+    carry: forMode('lift_heavy', 'carry'),
+    hurt: forMode('hit_to_body_01', 'hurt'),
+    fall: forMode('fall', 'fall'),
+    flee: forMode('flee_01', 'flee'),
+    run: forMode('run', 'run'),
   };
+}
+
+export const CLERIC_SOURCE_CLIP_BY_MODE = {
+  idle: 'idle',
+  walk: 'walk',
+  sit: 'sit',
+  rest: 'sit',
+  talk: 'greet_01',
+  pray: 'bow',
+  chop: 'chop',
+  mine: 'dig',
+  gather: 'lift_heavy',
+  plant: 'dig',
+  sow: 'shovel',
+  fish: 'wait',
+  tend: 'shovel',
+  build: 'chop',
+  fight: 'slash',
+  relax: 'standing_relax',
+  look: 'look_around',
+  wait: 'wait',
+  laugh: 'laugh_01',
+  greet: 'greet_01',
+  sermon: 'greet_04',
+  agree: 'agree',
+  bow: 'bow',
+  carry: 'lift_heavy',
+  hurt: 'hit_to_body_01',
+  fall: 'fall',
+  flee: 'flee_01',
+  run: 'run',
+} as const satisfies Record<VillagerRenderMode, ClericAuthoredAnimationName>;
+
+export function createClericClipSet(
+  animations: readonly THREE.AnimationClip[],
+): Record<VillagerRenderMode, THREE.AnimationClip> {
+  return Object.fromEntries(
+    (Object.entries(CLERIC_SOURCE_CLIP_BY_MODE) as Array<
+      [VillagerRenderMode, ClericAuthoredAnimationName]
+    >).map(([mode, sourceName]) => {
+      const source = findAnimationClip(animations, sourceName);
+      if (!source) throw new Error(`Missing ${sourceName} authored cleric clip`);
+      const clip = source.clone();
+      clip.name = `${source.name}:cleric-${mode}`;
+      return [mode, clip];
+    }),
+  ) as Record<VillagerRenderMode, THREE.AnimationClip>;
 }
 
 /**
@@ -1619,9 +1755,10 @@ export function workerToolVisibleInMode(
   // Broadcast sowing needs two empty hands; the farm's hoe must not turn the
   // seed-casting gesture back into a generic tool swing.
   if (mode === 'sow') return false;
-  if (kind === 'spear') {
+  if (kind === 'spear' || kind === 'crossbow' || kind === 'sidearm' || kind === 'sword-shield' || kind === 'halberd' || kind === 'bow') {
     return mode === 'idle'
       || mode === 'walk'
+      || mode === 'run'
       || mode === 'build'
       || mode === 'fight';
   }

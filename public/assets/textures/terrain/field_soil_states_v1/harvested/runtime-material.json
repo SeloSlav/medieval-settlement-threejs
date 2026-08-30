@@ -1,0 +1,28 @@
+{
+  "state": "harvested",
+  "sourceModel": "fal-ai/patina/material",
+  "reviewCandidate": "field-soil-dry-harvested-v3",
+  "metresPerTile": 2.9,
+  "normalProcessing": {
+    "greenChannelFlipped": true,
+    "meanTiltRemoved": true,
+    "xyStrength": 0.32,
+    "sourceMeanRG": [
+      0.483349,
+      0.42261
+    ]
+  },
+  "roughnessRange": [
+    0.86,
+    1
+  ],
+  "metalness": 0,
+  "maps": {
+    "albedo.png": "34d109bcf530c8757df16fdaea90df70c78277c451cf7d7b91c1f32a0a633a32",
+    "normal.png": "70cf65b7ceb1663223cbf3f2344dd30a9b01bdbe0b7f3551c9640afb3a52f512",
+    "roughness.png": "fd44ae2932fba8100b2f28a8cba89b9904fbce40bff5dc023ae22b305f2347c0",
+    "ao.png": "fdb9e09bbc8741a81ec70b48bc4ee5643c949172f48c0f10bf044fa0e13710f9",
+    "height.png": "c6b29d2e3d7e0b21c812350fa40fba9d860141981a3c94ce226d4112d3fa8203",
+    "metalness.png": "1967cdce2cac3de377553eaec93163fb20b9bdbacb0f116ff578e4f0b683c2d4"
+  }
+}

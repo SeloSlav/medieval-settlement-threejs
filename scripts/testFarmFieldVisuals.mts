@@ -121,6 +121,17 @@ assert.ok(matureHeads instanceof THREE.InstancedMesh);
 assert.ok(standingCereal.count >= field.area, 'a mature field should read as a dense crop stand');
 assert.equal(matureHeads.count, standingCereal.count, 'every mature cereal tuft needs a readable grain head');
 assert.ok(matureSoil.geometry.getAttribute('color'), 'worked earth should carry non-flat surface variation');
+assert.ok(matureSoil.geometry.getAttribute('fieldEdgeBlend'), 'field soil needs a continuous grass-edge blend field');
+assert.equal(
+  (matureSoil.material as THREE.Material).userData.fieldSoilSource,
+  'backyard-garden',
+  'established growing fields should reuse the approved backyard garden loam',
+);
+assert.equal(
+  (matureSoil.material as THREE.Material).userData.metricUvMeters,
+  2.2,
+  'the backyard soil must retain a physical rather than parcel-stretched texture scale',
+);
 
 fieldMarkers.syncFields([{
   ...field,
@@ -186,15 +197,13 @@ fieldMarkers.syncFields([{
 }]);
 const ploughedSoil = visualRoot.getObjectByName('Worked field soil') as THREE.Mesh;
 assert.ok((ploughedSoil.geometry.getIndex()?.count ?? 0) > 0);
-assert.deepEqual(
-  (ploughedSoil.material as THREE.Material).userData.pbrTexturePaths,
-  {
-    albedo: '/assets/textures/terrain/mammoth_terrain_dirt/albedo.png',
-    normal: '/assets/textures/terrain/mammoth_terrain_dirt/normal.png',
-    roughness: '/assets/textures/terrain/mammoth_terrain_dirt/roughness.png',
-  },
-  'farm fields should reuse the backyard garden-soil PBR identity',
-);
+const ploughedMaterial = ploughedSoil.material as THREE.Material;
+assert.equal(ploughedMaterial.userData.fieldSoilIdentity, 'ploughed');
+assert.equal(ploughedMaterial.userData.fieldSoilSource, 'FAL PATINA');
+assert.match(ploughedMaterial.userData.pbrTexturePaths.albedo, /field_soil_states_v1\/ploughed\/albedo\.png$/);
+assert.equal(ploughedMaterial.userData.organicRepeat.coordinateDomain, 'world-xz-metres');
+assert.equal(ploughedSoil.userData.edgeTransition.mode, 'continuous irregular alpha crossfade');
+assert.ok(ploughedSoil.userData.edgeTransition.widthMeters >= 0.8);
 fieldMarkers.syncFields([{
   ...field,
   stage: 'sowing',
@@ -205,6 +214,16 @@ assert.ok(
   seededRows.geometry.getAttribute('position').count > 0,
   'seeded progress should be visible in terrain-following drill rows',
 );
+const seededSoil = visualRoot.getObjectByName('Worked field soil') as THREE.Mesh;
+const seededMaterials = Array.isArray(seededSoil.material)
+  ? seededSoil.material
+  : [seededSoil.material];
+assert.deepEqual(
+  seededMaterials.map((material) => material.userData.fieldSoilIdentity),
+  ['ploughed', 'seedbed'],
+  'a partly sown field should retain ploughed soil ahead of the fine seedbed front',
+);
+assert.equal(seededSoil.geometry.groups.length, 2);
 fieldMarkers.dispose();
 
 const { FIELD_CROP_SPECIES, fieldMaslin } = await import(
@@ -253,12 +272,32 @@ for (const textureStem of [
     );
   }
 }
+for (const state of ['ploughed', 'seedbed', 'fallow', 'harvested']) {
+  const stateRoot = join(
+    process.cwd(),
+    'public/assets/textures/terrain/field_soil_states_v1',
+    state,
+  );
+  for (const map of ['albedo', 'normal', 'roughness', 'ao', 'height', 'metalness']) {
+    assert.ok(existsSync(join(stateRoot, `${map}.png`)), `${state} needs a complete runtime ${map} map`);
+  }
+  const generation = JSON.parse(readFileSync(join(stateRoot, 'generation.json'), 'utf8')) as {
+    model?: string;
+  };
+  assert.equal(generation.model, 'fal-ai/patina/material');
+}
 const farmMarkerSource = readFileSync(
   join(process.cwd(), 'src/farming/FarmFieldMarkers.ts'),
   'utf8',
 );
+const fieldSoilSource = readFileSync(
+  join(process.cwd(), 'src/terrain/fieldSoilMaterials.ts'),
+  'utf8',
+);
 const bootstrapSource = readFileSync(join(process.cwd(), 'src/app/appBootstrap.ts'), 'utf8');
-assert.match(farmMarkerSource, /cultivatedSoilBase = 'backyard-garden'/);
+assert.match(farmMarkerSource, /createFieldSoilMaterial/);
+assert.match(fieldSoilSource, /source: 'backyard-garden'/);
+assert.match(fieldSoilSource, /fieldOrganicWarp/);
 assert.match(farmMarkerSource, /crop stands will remain hidden rather than using proxy species/);
 assert.match(bootstrapSource, /useSeedThreeCrops:\s*true/);
 

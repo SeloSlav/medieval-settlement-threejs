@@ -121,6 +121,13 @@ export function priceMultiplierFor(
     case 'hides':
     case 'leather':
     case 'shoes':
+    case 'sidearms':
+    case 'shields':
+    case 'bows':
+    case 'crossbows':
+    case 'paddedArmor':
+    case 'mailArmor':
+    case 'ammunition':
     case 'wax':
     case 'candles':
     case 'pottery':

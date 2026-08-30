@@ -121,6 +121,55 @@ assert.ok(
   `20k worst-case 1,024-agent selections took ${elapsedMs.toFixed(1)}ms`,
 );
 
+type FallbackLayer = {
+  mesh: THREE.InstancedMesh;
+  geometry: THREE.BufferGeometry;
+  material: THREE.MeshStandardMaterial;
+};
+type FallbackHarness = {
+  matrix: THREE.Matrix4;
+  position: THREE.Vector3;
+  quaternion: THREE.Quaternion;
+  euler: THREE.Euler;
+  color: THREE.Color;
+  scale: THREE.Vector3;
+  fallbackBody: FallbackLayer;
+  fallbackLegs: FallbackLayer;
+  fallbackHead: FallbackLayer;
+  updateFallback(agents: readonly CrowdRenderAgent[], excluded?: ReadonlySet<string>): void;
+};
+const makeFallbackLayer = (): FallbackLayer => {
+  const geometry = new THREE.BoxGeometry(0.25, 0.6, 0.2);
+  const material = new THREE.MeshStandardMaterial({ vertexColors: true });
+  return { geometry, material, mesh: new THREE.InstancedMesh(geometry, material, 1024) };
+};
+const fallbackHarness = Object.create(SettlementCrowdRenderer.prototype) as FallbackHarness;
+fallbackHarness.matrix = new THREE.Matrix4();
+fallbackHarness.position = new THREE.Vector3();
+fallbackHarness.quaternion = new THREE.Quaternion();
+fallbackHarness.euler = new THREE.Euler();
+fallbackHarness.color = new THREE.Color();
+fallbackHarness.scale = new THREE.Vector3(1, 1, 1);
+fallbackHarness.fallbackBody = makeFallbackLayer();
+fallbackHarness.fallbackLegs = makeFallbackLayer();
+fallbackHarness.fallbackHead = makeFallbackLayer();
+const animatedBudget = new Set(agents.slice(0, 72).map((agent) => agent.id));
+const proxyFrames = 300;
+const proxyStartedAt = performance.now();
+for (let frame = 0; frame < proxyFrames; frame++) {
+  fallbackHarness.updateFallback(agents, animatedBudget);
+}
+const proxyElapsedMs = performance.now() - proxyStartedAt;
+assert.equal(fallbackHarness.fallbackBody.mesh.count, 952);
+assert.ok(
+  proxyElapsedMs / proxyFrames < 4,
+  `952-agent instanced overflow cost ${(proxyElapsedMs / proxyFrames).toFixed(2)}ms/frame`,
+);
+for (const layer of [fallbackHarness.fallbackBody, fallbackHarness.fallbackLegs, fallbackHarness.fallbackHead]) {
+  layer.geometry.dispose();
+  layer.material.dispose();
+}
+
 const source = readFileSync(
   new URL('../src/settlement/SettlementCrowdRenderer.ts', import.meta.url),
   'utf8',
@@ -188,6 +237,8 @@ const animationMixer = new THREE.AnimationMixer(animationRoot);
 const actionModes: VillagerRenderMode[] = [
   'idle', 'walk', 'sit', 'rest', 'talk', 'pray', 'chop', 'mine',
   'gather', 'plant', 'sow', 'fish', 'tend', 'build', 'fight',
+  'relax', 'look', 'wait', 'laugh', 'greet', 'sermon', 'agree', 'bow',
+  'carry', 'hurt', 'fall', 'flee', 'run',
 ];
 const pooledActions = Object.fromEntries(actionModes.map((mode) => [
   mode,
@@ -224,6 +275,7 @@ assert.ok(
 type PoolVisual = {
   id: string;
   variant: 'man' | 'woman';
+  sourceKey: 'man' | 'woman';
   toolKind: null;
   tool: null;
   root: THREE.Group;
@@ -257,6 +309,7 @@ poolHarness.resetPooledVillager = (visual, agent) => {
 poolHarness.createAnimatedVillager = (agent) => ({
   id: agent.id,
   variant: agent.variant,
+  sourceKey: agent.variant,
   toolKind: null,
   tool: null,
   root: new THREE.Group(),
@@ -282,9 +335,9 @@ assert.match(source, /if \(pooledVisual\) this\.resetPooledVillager\(visual, age
 assert.match(source, /this\.idlePooledVisualCount >= MAX_ANIMATED_VILLAGERS/);
 assert.match(
   source,
-  /this\.syncAnimatedVillagers\(visibleAgents, animatedIds, dt\);\s*this\.updateAnimatedBatches\(visibleAgents, animatedIds\);/,
+  /this\.syncAnimatedVillagers\(visibleAgents, animatedIds, dt\);\s*this\.updateAnimatedBatches\(visibleAgents, animatedIds\);\s*this\.updateFallback\(visibleAgents, animatedIds\);/,
 );
-assert.doesNotMatch(source, /createProxyLayers|updateProxyLayers|villager LOD/i);
+assert.match(source, /MAX_INSTANCES = 1024/);
 assert.match(source, /mesh\.visible = false;\s*mesh\.castShadow = false;/);
 assert.doesNotMatch(source, /castShadow = true/);
 assert.doesNotMatch(source, /shadowCaster|isWithinShadowRange/i);
@@ -293,5 +346,6 @@ assert.doesNotMatch(source, /mergeGeometries/);
 
 console.log(
   `Crowd renderer pacing tests passed (${iterations.toLocaleString()} selections in ${elapsedMs.toFixed(1)}ms; `
-    + 'agents outside the animated range are culled).',
+    + `952-agent proxy update ${(proxyElapsedMs / proxyFrames).toFixed(2)}ms/frame; `
+    + '72 authored rigs plus instanced overflow up to 1,024 visible agents).',
 );

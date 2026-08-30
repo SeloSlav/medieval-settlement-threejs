@@ -234,7 +234,7 @@ function createShroudedBody(cause: CorpseState['cause']): THREE.Group {
   const body = new THREE.Mesh(
     new THREE.CapsuleGeometry(0.23, 0.78, 4, 8),
     new THREE.MeshStandardMaterial({
-      color: cause === 1 ? 0x706e60 : 0x827a67,
+      color: cause === 3 ? 0x65504a : cause === 1 ? 0x706e60 : 0x827a67,
       roughness: 1,
     }),
   );
@@ -307,7 +307,9 @@ function syncCorpseMarker(
   const groundBody = marker.userData.groundBody as THREE.Group;
   const cart = marker.userData.cart as THREE.Group;
   const cartBody = marker.userData.cartBody as THREE.Group;
-  groundBody.visible = corpse.state <= 1;
+  // Violent deaths keep the actual villager rig visible in its clamped fall
+  // pose until collection. Other causes use the lightweight shrouded marker.
+  groundBody.visible = corpse.cause !== 3 && corpse.state <= 1;
   cart.visible = corpse.state >= 1;
   cartBody.visible = corpse.state === 2;
   groundBody.position.set(

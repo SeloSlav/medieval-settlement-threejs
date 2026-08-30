@@ -51,6 +51,13 @@ type BuildingBalance = {
     shoes?: number;
     ironwork?: number;
     polearms?: number;
+    sidearms?: number;
+    shields?: number;
+    bows?: number;
+    crossbows?: number;
+    paddedArmor?: number;
+    mailArmor?: number;
+    ammunition?: number;
     iron?: number;
     clay?: number;
     salt?: number;
@@ -845,6 +852,8 @@ const simKindByKind: Record<string, string | null> = {
   mine: 'Mine',
   charcoal_burner: 'CharcoalBurner',
   smithy: 'Smithy',
+  weaponsmith_armorer: 'WeaponsmithArmorer',
+  bowyer_fletcher: 'BowyerFletcher',
   potter_kiln: 'PotterKiln',
   woodcutters_lodge: 'WoodcuttersLodge',
   well: 'Well',
@@ -1653,6 +1662,8 @@ function generateRust(): string {
   lines.push('    Mine,');
   lines.push('    CharcoalBurner,');
   lines.push('    Smithy,');
+  lines.push('    WeaponsmithArmorer,');
+  lines.push('    BowyerFletcher,');
   lines.push('    PotterKiln,');
   lines.push('    WoodcuttersLodge,');
   lines.push('    Well,');
@@ -1717,6 +1728,13 @@ function generateRust(): string {
   lines.push('    pub storage_shoes: f64,');
   lines.push('    pub storage_ironwork: f64,');
   lines.push('    pub storage_polearms: f64,');
+  lines.push('    pub storage_sidearms: f64,');
+  lines.push('    pub storage_shields: f64,');
+  lines.push('    pub storage_bows: f64,');
+  lines.push('    pub storage_crossbows: f64,');
+  lines.push('    pub storage_padded_armor: f64,');
+  lines.push('    pub storage_mail_armor: f64,');
+  lines.push('    pub storage_ammunition: f64,');
   lines.push('    pub storage_iron: f64,');
   lines.push('    pub storage_clay: f64,');
   lines.push('    pub storage_salt: f64,');
@@ -1783,6 +1801,13 @@ function generateRust(): string {
     lines.push(`    storage_shoes: ${rustF64(def.storage.shoes ?? 0)},`);
     lines.push(`    storage_ironwork: ${rustF64(def.storage.ironwork ?? 0)},`);
     lines.push(`    storage_polearms: ${rustF64(def.storage.polearms ?? 0)},`);
+    lines.push(`    storage_sidearms: ${rustF64(def.storage.sidearms ?? 0)},`);
+    lines.push(`    storage_shields: ${rustF64(def.storage.shields ?? 0)},`);
+    lines.push(`    storage_bows: ${rustF64(def.storage.bows ?? 0)},`);
+    lines.push(`    storage_crossbows: ${rustF64(def.storage.crossbows ?? 0)},`);
+    lines.push(`    storage_padded_armor: ${rustF64(def.storage.paddedArmor ?? 0)},`);
+    lines.push(`    storage_mail_armor: ${rustF64(def.storage.mailArmor ?? 0)},`);
+    lines.push(`    storage_ammunition: ${rustF64(def.storage.ammunition ?? 0)},`);
     lines.push(`    storage_iron: ${rustF64(def.storage.iron ?? 0)},`);
     lines.push(`    storage_clay: ${rustF64(def.storage.clay ?? 0)},`);
     lines.push(`    storage_salt: ${rustF64(def.storage.salt ?? 0)},`);
@@ -2679,6 +2704,13 @@ function generateTypeScript(): string {
     '  pelts?: number;',
     '  ironwork?: number;',
     '  polearms?: number;',
+    '  sidearms?: number;',
+    '  shields?: number;',
+    '  bows?: number;',
+    '  crossbows?: number;',
+    '  paddedArmor?: number;',
+    '  mailArmor?: number;',
+    '  ammunition?: number;',
     '  iron?: number;',
     '  clay?: number;',
     '  salt?: number;',
@@ -2783,6 +2815,13 @@ function generateTypeScript(): string {
     const cloth = def.storage.cloth ?? 0;
     const ironwork = def.storage.ironwork ?? 0;
     const polearms = def.storage.polearms ?? 0;
+    const sidearms = def.storage.sidearms ?? 0;
+    const shields = def.storage.shields ?? 0;
+    const bows = def.storage.bows ?? 0;
+    const crossbows = def.storage.crossbows ?? 0;
+    const paddedArmor = def.storage.paddedArmor ?? 0;
+    const mailArmor = def.storage.mailArmor ?? 0;
+    const ammunition = def.storage.ammunition ?? 0;
     const iron = def.storage.iron ?? 0;
     const clay = def.storage.clay ?? 0;
     const salt = def.storage.salt ?? 0;
@@ -2821,6 +2860,13 @@ function generateTypeScript(): string {
     if (pelts > 0) extras.push(`pelts: ${pelts}`);
     if (ironwork > 0) extras.push(`ironwork: ${ironwork}`);
     if (polearms > 0) extras.push(`polearms: ${polearms}`);
+    if (sidearms > 0) extras.push(`sidearms: ${sidearms}`);
+    if (shields > 0) extras.push(`shields: ${shields}`);
+    if (bows > 0) extras.push(`bows: ${bows}`);
+    if (crossbows > 0) extras.push(`crossbows: ${crossbows}`);
+    if (paddedArmor > 0) extras.push(`paddedArmor: ${paddedArmor}`);
+    if (mailArmor > 0) extras.push(`mailArmor: ${mailArmor}`);
+    if (ammunition > 0) extras.push(`ammunition: ${ammunition}`);
     if (iron > 0) extras.push(`iron: ${iron}`);
     if (clay > 0) extras.push(`clay: ${clay}`);
     if (salt > 0) extras.push(`salt: ${salt}`);

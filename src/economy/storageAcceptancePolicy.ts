@@ -8,6 +8,8 @@ export const STORAGE_COMMODITY_CODES = {
   honey: 8,
   wine: 9,
   stone: 10,
+  polearms: 11,
+  ironwork: 12,
   wool: 13,
   cloth: 14,
   barley: 16,
@@ -60,6 +62,13 @@ export const STORAGE_COMMODITY_CODES = {
   pelts: 66,
   yarn: 67,
   linen: 68,
+  sidearms: 69,
+  shields: 70,
+  bows: 71,
+  crossbows: 72,
+  paddedArmor: 73,
+  mailArmor: 74,
+  ammunition: 75,
 } as const;
 
 export type StorageCommodity = keyof typeof STORAGE_COMMODITY_CODES;
@@ -124,6 +133,15 @@ export const STORAGE_COMMODITY_LABELS: Record<StorageCommodity, string> = {
   pelts: 'Wild-game pelts',
   yarn: 'Yarn',
   linen: 'Linen',
+  polearms: 'Polearms',
+  ironwork: 'Ironwork',
+  sidearms: 'Sidearms',
+  shields: 'Shields',
+  bows: 'Bows',
+  crossbows: 'Crossbows',
+  paddedArmor: 'Padded armor',
+  mailArmor: 'Mail armor',
+  ammunition: 'Ammunition',
 };
 
 export const STOREHOUSE_STORAGE_GROUPS = [
@@ -131,6 +149,7 @@ export const STOREHOUSE_STORAGE_GROUPS = [
   { label: 'Fuel and minerals', commodities: ['firewood', 'charcoal', 'iron', 'clay', 'salt'] },
   { label: 'Textile materials', commodities: ['wool', 'yarn', 'linen'] },
   { label: 'Market wares', commodities: ['cloth', 'pelts', 'hides', 'leather', 'shoes', 'pottery', 'remedies', 'wax', 'candles'] },
+  { label: 'Military stores', commodities: ['ironwork', 'polearms', 'sidearms', 'shields', 'bows', 'crossbows', 'paddedArmor', 'mailArmor', 'ammunition'] },
 ] as const satisfies ReadonlyArray<{
   label: string;
   commodities: readonly StorageCommodity[];

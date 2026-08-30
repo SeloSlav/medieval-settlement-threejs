@@ -86,6 +86,10 @@ pub struct WorldConfig {
     /// Goods multiplier for the original founders' camp only: 1 or 2.
     #[default(1)]
     pub initial_goods_multiplier: u8,
+    /// Independent physical bandit camps. Appended for additive save migration;
+    /// this is intentionally separate from frontier and Ottoman raid pressure.
+    #[default(false)]
+    pub bandit_camps_enabled: bool,
 }
 
 #[spacetimedb::table(accessor = player_resources, public)]
@@ -433,6 +437,22 @@ pub struct PlayerResources {
     pub yarn: f64,
     #[default(0.0)]
     pub linen: f64,
+    /// Finished military stores recovered from workshops, interrupted carts,
+    /// dismantled structures, and battlefields. Appended for additive saves.
+    #[default(0.0)]
+    pub sidearms: f64,
+    #[default(0.0)]
+    pub shields: f64,
+    #[default(0.0)]
+    pub bows: f64,
+    #[default(0.0)]
+    pub crossbows: f64,
+    #[default(0.0)]
+    pub padded_armor: f64,
+    #[default(0.0)]
+    pub mail_armor: f64,
+    #[default(0.0)]
+    pub ammunition: f64,
 }
 
 /// A durable community inside one owner-wide realm. Settlements carry civic
@@ -1152,6 +1172,22 @@ pub struct Building {
     /// is cleared when Winter begins.
     #[default(0.0)]
     pub apiary_accumulated_honey: f64,
+    /// Finished military stores. Appended together so existing worlds migrate
+    /// additively and every item can travel through ordinary physical logistics.
+    #[default(0.0)]
+    pub sidearms: f64,
+    #[default(0.0)]
+    pub shields: f64,
+    #[default(0.0)]
+    pub bows: f64,
+    #[default(0.0)]
+    pub crossbows: f64,
+    #[default(0.0)]
+    pub padded_armor: f64,
+    #[default(0.0)]
+    pub mail_armor: f64,
+    #[default(0.0)]
+    pub ammunition: f64,
 }
 
 /// One persistent import/export instruction for one Trading Post commodity.
@@ -1768,7 +1804,7 @@ pub struct Corpse {
     pub id: u64,
     pub owner: Identity,
     pub residence_id: u64,
-    /// 0 starvation, 1 illness, 2 winter exposure.
+    /// 0 starvation, 1 illness, 2 winter exposure, 3 violent interception.
     pub cause: u8,
     /// 0 awaiting collection, 1 empty cart outbound, 2 body inbound.
     pub state: u8,
@@ -1946,12 +1982,14 @@ pub struct CombatAgent {
     pub id: u64,
     pub owner: Identity,
     pub raid_id: u64,
-    /// 0 = settlement guard, 1 = hostile raider.
+    /// 0 = settlement guard, 1 = hostile Ottoman raider, 2 = local bandit,
+    /// 3 = player-raised town militia.
     pub faction: u8,
     /// Guardhouse backing a guard row, or zero for a raider.
     pub source_building_id: u64,
     pub source_slot: u32,
-    /// 0 = building, 1 = residence, 2 = cart, 3/4 = treasury at building/home.
+    /// 0 = building, 1 = residence, 2 = cart, 3/4 = treasury at building/home,
+    /// 5 = bandit camp, 6 = commanded ground position.
     pub target_kind: u8,
     pub target_id: u64,
     pub x: f64,
@@ -2085,6 +2123,157 @@ pub struct DeliveryTrip {
     /// speed bonus and never counts toward unloading labor.
     #[default(0u64)]
     pub ox_id: u64,
+}
+
+/// A persistent physical bandit base generated independently of frontier raids.
+#[spacetimedb::table(
+    accessor = bandit_camp,
+    public,
+    index(accessor = owner, btree(columns = [owner]))
+)]
+#[derive(Clone)]
+pub struct BanditCamp {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    pub owner: Identity,
+    pub x: f64,
+    pub z: f64,
+    pub health: f64,
+    pub max_health: f64,
+    pub active: bool,
+    /// JSON array of `RaidPortableStores` bundles physically returned here.
+    pub inventory_json: String,
+    pub spawned_tick: u64,
+    pub next_theft_tick: u64,
+    #[default(0u64)]
+    pub last_theft_tick: u64,
+    #[default(0u64)]
+    pub destroyed_tick: u64,
+}
+
+/// Immutable entries shown in the Lord's report for physical bandit activity.
+#[spacetimedb::table(
+    accessor = bandit_incident,
+    public,
+    index(accessor = owner, btree(columns = [owner]))
+)]
+#[derive(Clone)]
+pub struct BanditIncident {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    pub owner: Identity,
+    pub camp_id: u64,
+    /// 0 theft, 1 carrier intercepted, 2 camp destroyed and stock recovered.
+    pub kind: u8,
+    pub building_id: u64,
+    pub goods_json: String,
+    pub goods_total: f64,
+    pub occurred_tick: u64,
+    pub x: f64,
+    pub z: f64,
+}
+
+/// Server-only movement/attack order for one militia agent.
+#[spacetimedb::table(
+    accessor = militia_order,
+    index(accessor = owner, btree(columns = [owner]))
+)]
+#[derive(Clone)]
+pub struct MilitiaOrder {
+    #[primary_key]
+    pub combat_agent_id: u64,
+    pub owner: Identity,
+    /// 0 move/hold, 1 attack camp.
+    pub kind: u8,
+    pub destination_x: f64,
+    pub destination_z: f64,
+    pub target_camp_id: u64,
+}
+
+/// One persistent, player-controlled body of troops.
+///
+/// Companies are additive to the older frontier-raid rows: their members stay
+/// in `CombatAgent` between incidents and reserve named household residents
+/// through `MilitaryMember`. Mercenaries are the only kind without household
+/// backing.
+#[spacetimedb::table(
+    accessor = military_company,
+    public,
+    index(accessor = owner, btree(columns = [owner])),
+    index(accessor = source_building_id, btree(columns = [source_building_id]))
+)]
+#[derive(Clone)]
+pub struct MilitaryCompany {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    pub owner: Identity,
+    /// 0 militia, 1 spearmen, 2 men-at-arms, 3 crossbows, 4 mercenary spears,
+    /// 5 footmen, 6 polearms, 7 bowmen, 8 Uskok border infantry.
+    pub kind: u8,
+    /// Town Hall for militia/mercenaries; guardhouse for professional companies.
+    pub source_building_id: u64,
+    /// 0 mustering, 1 ready/fielded, 2 disbanding, 3 destroyed.
+    pub state: u8,
+    /// 0 line, 1 column, 2 shield wall, 3 loose order.
+    pub formation: u8,
+    pub target_size: u32,
+    pub living_members: u32,
+    /// Replicated condition values used by the roster and combat model.
+    pub morale: f64,
+    pub cohesion: f64,
+    pub fatigue: f64,
+    pub provision_days: f64,
+    pub ammunition: u32,
+    pub ammunition_capacity: u32,
+    pub formed_tick: u64,
+    pub last_upkeep_tick: u64,
+}
+
+/// Private lifecycle state for hired outsiders. Keeping this separate from the
+/// public company row lets existing saves add mercenary contract behavior
+/// without changing the replicated company schema.
+#[spacetimedb::table(
+    accessor = mercenary_contract,
+    index(accessor = owner, btree(columns = [owner]))
+)]
+#[derive(Clone)]
+pub struct MercenaryContract {
+    #[primary_key]
+    pub company_id: u64,
+    pub owner: Identity,
+    pub contract_end_tick: u64,
+    pub last_engagement_tick: u64,
+}
+
+/// Server-authoritative link from a combat body to its real resident and kit.
+///
+/// `residence_id == 0` is reserved for hired mercenaries. Ordinary troops keep
+/// their population in the household row while serving; this row makes that
+/// exact person unavailable to every other labor pool until death or return.
+#[spacetimedb::table(
+    accessor = military_member,
+    index(accessor = owner, btree(columns = [owner])),
+    index(accessor = company_id, btree(columns = [company_id])),
+    index(accessor = residence_id, btree(columns = [residence_id]))
+)]
+#[derive(Clone)]
+pub struct MilitaryMember {
+    #[primary_key]
+    pub combat_agent_id: u64,
+    pub owner: Identity,
+    pub company_id: u64,
+    pub residence_id: u64,
+    pub resident_slot: u32,
+    pub person_identity: String,
+    /// 0 walking to muster, 1 active, 2 returning kit, 3 returning home.
+    pub phase: u8,
+    pub ammunition: u32,
+    pub ammunition_capacity: u32,
+    pub original_home_x: f64,
+    pub original_home_z: f64,
 }
 
 /// A server-authoritative structural fire. Resolved fires linger briefly so the

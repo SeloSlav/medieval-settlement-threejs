@@ -279,6 +279,21 @@ function foundingDestinationPriority(
       if (building.kind === 'guardhouse') return 0;
       if (building.kind === 'carpenter') return 1;
       return 3;
+    case 'sidearms':
+    case 'shields':
+    case 'paddedArmor':
+    case 'mailArmor':
+      if (building.kind === 'guardhouse' || building.kind === 'town_hall') return 0;
+      if (building.kind === 'weaponsmith_armorer') return 1;
+      if (building.kind === 'village_storehouse') return 2;
+      return 3;
+    case 'bows':
+    case 'crossbows':
+    case 'ammunition':
+      if (building.kind === 'guardhouse') return 0;
+      if (building.kind === 'bowyer_fletcher') return 1;
+      if (building.kind === 'village_storehouse') return 2;
+      return 3;
     case 'wool':
       if (building.kind === 'spinning_retting_house') return 0;
       if (building.kind === 'pastoral_farmstead') return 1;

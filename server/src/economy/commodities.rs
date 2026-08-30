@@ -78,12 +78,19 @@ pub enum CommodityKind {
     Pelts,
     Yarn,
     Linen,
+    Sidearms,
+    Shields,
+    Bows,
+    Crossbows,
+    PaddedArmor,
+    MailArmor,
+    Ammunition,
 }
 
 /// Canonical exhaustive commodity iteration order. Systems that must prove a
 /// physical holder is empty (temporary camps, reclamation piles, diagnostics)
 /// use this list so adding a commodity cannot silently strand stock.
-pub const ALL_COMMODITIES: &[CommodityKind; 68] = &[
+pub const ALL_COMMODITIES: &[CommodityKind; 75] = &[
     CommodityKind::Firewood,
     CommodityKind::Water,
     CommodityKind::Timber,
@@ -152,6 +159,13 @@ pub const ALL_COMMODITIES: &[CommodityKind; 68] = &[
     CommodityKind::Pelts,
     CommodityKind::Yarn,
     CommodityKind::Linen,
+    CommodityKind::Sidearms,
+    CommodityKind::Shields,
+    CommodityKind::Bows,
+    CommodityKind::Crossbows,
+    CommodityKind::PaddedArmor,
+    CommodityKind::MailArmor,
+    CommodityKind::Ammunition,
 ];
 
 pub const FRESH_FOOD_COMMODITIES: [CommodityKind; 19] = [
@@ -386,6 +400,13 @@ impl CommodityKind {
             Self::Pelts => 66,
             Self::Yarn => 67,
             Self::Linen => 68,
+            Self::Sidearms => 69,
+            Self::Shields => 70,
+            Self::Bows => 71,
+            Self::Crossbows => 72,
+            Self::PaddedArmor => 73,
+            Self::MailArmor => 74,
+            Self::Ammunition => 75,
         }
     }
 
@@ -459,6 +480,13 @@ impl CommodityKind {
             66 => Some(Self::Pelts),
             67 => Some(Self::Yarn),
             68 => Some(Self::Linen),
+            69 => Some(Self::Sidearms),
+            70 => Some(Self::Shields),
+            71 => Some(Self::Bows),
+            72 => Some(Self::Crossbows),
+            73 => Some(Self::PaddedArmor),
+            74 => Some(Self::MailArmor),
+            75 => Some(Self::Ammunition),
             _ => None,
         }
     }
@@ -645,6 +673,13 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::Pelts => building.pelts,
         CommodityKind::Yarn => building.yarn,
         CommodityKind::Linen => building.linen,
+        CommodityKind::Sidearms => building.sidearms,
+        CommodityKind::Shields => building.shields,
+        CommodityKind::Bows => building.bows,
+        CommodityKind::Crossbows => building.crossbows,
+        CommodityKind::PaddedArmor => building.padded_armor,
+        CommodityKind::MailArmor => building.mail_armor,
+        CommodityKind::Ammunition => building.ammunition,
     }
 }
 
@@ -742,6 +777,13 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         CommodityKind::Pelts => def.storage_pelts,
         CommodityKind::Yarn => def.storage_yarn,
         CommodityKind::Linen => def.storage_linen,
+        CommodityKind::Sidearms => def.storage_sidearms,
+        CommodityKind::Shields => def.storage_shields,
+        CommodityKind::Bows => def.storage_bows,
+        CommodityKind::Crossbows => def.storage_crossbows,
+        CommodityKind::PaddedArmor => def.storage_padded_armor,
+        CommodityKind::MailArmor => def.storage_mail_armor,
+        CommodityKind::Ammunition => def.storage_ammunition,
     }
 }
 
@@ -960,6 +1002,13 @@ pub fn withdraw_building_commodity(
         CommodityKind::Pelts => building.pelts -= withdrawn,
         CommodityKind::Yarn => building.yarn -= withdrawn,
         CommodityKind::Linen => building.linen -= withdrawn,
+        CommodityKind::Sidearms => building.sidearms -= withdrawn,
+        CommodityKind::Shields => building.shields -= withdrawn,
+        CommodityKind::Bows => building.bows -= withdrawn,
+        CommodityKind::Crossbows => building.crossbows -= withdrawn,
+        CommodityKind::PaddedArmor => building.padded_armor -= withdrawn,
+        CommodityKind::MailArmor => building.mail_armor -= withdrawn,
+        CommodityKind::Ammunition => building.ammunition -= withdrawn,
     }
     withdrawn
 }
@@ -1039,6 +1088,13 @@ pub fn deposit_building_commodity(
         CommodityKind::Pelts => building.pelts += deposited,
         CommodityKind::Yarn => building.yarn += deposited,
         CommodityKind::Linen => building.linen += deposited,
+        CommodityKind::Sidearms => building.sidearms += deposited,
+        CommodityKind::Shields => building.shields += deposited,
+        CommodityKind::Bows => building.bows += deposited,
+        CommodityKind::Crossbows => building.crossbows += deposited,
+        CommodityKind::PaddedArmor => building.padded_armor += deposited,
+        CommodityKind::MailArmor => building.mail_armor += deposited,
+        CommodityKind::Ammunition => building.ammunition += deposited,
     }
     deposited
 }
@@ -1133,6 +1189,13 @@ pub fn credit_treasury_commodity(
         CommodityKind::Pelts => treasury.pelts += amount,
         CommodityKind::Yarn => treasury.yarn += amount,
         CommodityKind::Linen => treasury.linen += amount,
+        CommodityKind::Sidearms => treasury.sidearms += amount,
+        CommodityKind::Shields => treasury.shields += amount,
+        CommodityKind::Bows => treasury.bows += amount,
+        CommodityKind::Crossbows => treasury.crossbows += amount,
+        CommodityKind::PaddedArmor => treasury.padded_armor += amount,
+        CommodityKind::MailArmor => treasury.mail_armor += amount,
+        CommodityKind::Ammunition => treasury.ammunition += amount,
     }
     let physical = treasury.physical_founding_site_enabled;
     ctx.db.player_resources().owner().update(treasury);

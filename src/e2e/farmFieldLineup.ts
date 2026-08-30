@@ -20,6 +20,10 @@ declare global {
         crop: string;
         processedCoverage: number;
         cropAssetOwner: string;
+        soilIdentities: string[];
+        soilCoordinateDomain: string;
+        soilOrganicRepeat: boolean;
+        soilEdgeFadeMeters: number;
       }>;
       hedgeShrubs: number;
       hedgeDrawCalls: number;
@@ -35,12 +39,19 @@ if (!root) throw new Error('Farm field lineup host is missing.');
 const params = new URLSearchParams(window.location.search);
 const cropView = params.get('view') === 'crops';
 const stateView = params.get('view') === 'states';
+const requestedSoilDebug = params.get('soilDebug');
+const soilDebugMode = requestedSoilDebug === 'albedo'
+  || requestedSoilDebug === 'normal'
+  || requestedSoilDebug === 'roughness'
+  || requestedSoilDebug === 'edge-blend'
+  ? requestedSoilDebug
+  : 'final';
 document.body.classList.toggle('clean', params.get('clean') === '1');
 const captionTitle = document.querySelector<HTMLElement>('.caption strong');
 const captionDetail = document.querySelector<HTMLElement>('.caption span');
 if (stateView) {
   if (captionTitle) captionTitle.textContent = 'Field-state contract';
-  if (captionDetail) captionDetail.textContent = 'Unploughed · plough front · ploughed · seeded · fallow · growing maslin';
+  if (captionDetail) captionDetail.textContent = 'Unploughed · plough front · ploughed · seeded · fallow · growing maslin · harvested';
 } else if (cropView) {
   if (captionTitle) captionTitle.textContent = 'SeedThree crop species';
   if (captionDetail) captionDetail.textContent = 'Rye · oats · barley · flax · wheat–rye maslin · worked fallow';
@@ -153,12 +164,13 @@ const stateDefinitions = [
   { id: 'seeded', crop: 'rye', stage: 'sowing', progress: 0.9 },
   { id: 'fallow', crop: 'fallow', stage: 'growing', progress: 0.82 },
   { id: 'growing-maslin', crop: 'wheat', stage: 'growing', progress: 0.74 },
+  { id: 'harvested', crop: 'wheat', stage: 'harvesting', progress: 1 },
 ] as const;
 const fields: FarmFieldState[] = stateView
   ? stateDefinitions.map((state, index) => {
-      const column = index % 3;
-      const row = Math.floor(index / 3);
-      const centerX = (column - 1) * 27;
+      const column = index % 4;
+      const row = Math.floor(index / 4);
+      const centerX = (column - 1.5) * 25;
       const centerZ = row * 28 - 12;
       return {
         ...referenceFields[1]!,
@@ -206,6 +218,7 @@ const fieldMarkers = new FarmFieldMarkers(fieldRoot, getHeightAt, {
   rendererBackend: 'webgl',
   useSeedThreePerimeterShrubs: true,
   useSeedThreeCrops: true,
+  soilDebugMode,
 });
 fieldMarkers.syncFields(fields);
 await Promise.all([
@@ -297,6 +310,10 @@ const stateContracts: Array<{
   crop: string;
   processedCoverage: number;
   cropAssetOwner: string;
+  soilIdentities: string[];
+  soilCoordinateDomain: string;
+  soilOrganicRepeat: boolean;
+  soilEdgeFadeMeters: number;
 }> = [];
 scene.traverse((object) => {
   const visualContract = object.userData.visualContract as {
@@ -304,6 +321,10 @@ scene.traverse((object) => {
     crop?: string;
     processedCoverage?: number;
     cropAssetOwner?: string;
+    soilIdentities?: string[];
+    soilCoordinateDomain?: string;
+    soilOrganicRepeat?: boolean;
+    soilEdgeFadeMeters?: number;
   } | undefined;
   if (visualContract?.state && visualContract.crop) {
     stateContracts.push({
@@ -311,6 +332,10 @@ scene.traverse((object) => {
       crop: visualContract.crop,
       processedCoverage: Number(visualContract.processedCoverage ?? 0),
       cropAssetOwner: visualContract.cropAssetOwner ?? 'none',
+      soilIdentities: [...(visualContract.soilIdentities ?? [])],
+      soilCoordinateDomain: visualContract.soilCoordinateDomain ?? 'unknown',
+      soilOrganicRepeat: visualContract.soilOrganicRepeat === true,
+      soilEdgeFadeMeters: Number(visualContract.soilEdgeFadeMeters ?? 0),
     });
   }
   if (!(object instanceof THREE.InstancedMesh)) return;

@@ -1,0 +1,28 @@
+{
+  "state": "fallow",
+  "sourceModel": "fal-ai/patina/material",
+  "reviewCandidate": "field-soil-weathered-fallow-v1",
+  "metresPerTile": 3.2,
+  "normalProcessing": {
+    "greenChannelFlipped": true,
+    "meanTiltRemoved": true,
+    "xyStrength": 0.34,
+    "sourceMeanRG": [
+      0.476696,
+      0.390314
+    ]
+  },
+  "roughnessRange": [
+    0.82,
+    0.99
+  ],
+  "metalness": 0,
+  "maps": {
+    "albedo.png": "87e2612b1b06f88f682b69af5a46fa093c74c4792f3f15aaa2e2ba859e2e2dab",
+    "normal.png": "1588fa7053d71932cb74d78907b26d3267b7dcae5ae3262448daf892ff441668",
+    "roughness.png": "a6a8d945555a3ed52820c4ce4284dc8780d8b723bc664c23f9de889f515f97d3",
+    "ao.png": "ec6c87376b11a60a1da7c624013205f859cbe8b03339466ab4888b7237927e0d",
+    "height.png": "604797d149b5622c4d807bdb3cbced47cd10c7b10be76e2aca1a489348f9acc6",
+    "metalness.png": "ccc2bc9a72f2eab47f9bcbfda1701458f59781b2824ae8a017c1c7d1c5fd18d8"
+  }
+}

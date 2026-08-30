@@ -1,0 +1,28 @@
+{
+  "state": "ploughed",
+  "sourceModel": "fal-ai/patina/material",
+  "reviewCandidate": "field-soil-fresh-ploughed-v1",
+  "metresPerTile": 2.8,
+  "normalProcessing": {
+    "greenChannelFlipped": true,
+    "meanTiltRemoved": true,
+    "xyStrength": 0.58,
+    "sourceMeanRG": [
+      0.488143,
+      0.39264
+    ]
+  },
+  "roughnessRange": [
+    0.74,
+    0.96
+  ],
+  "metalness": 0,
+  "maps": {
+    "albedo.png": "f968142b19e1ac11f545e7303419481f037b303f02c3c20dd4cf4387dc3d0852",
+    "normal.png": "64de5834fa1306473c8d0777bb108545cfe658e4bf589e66795fc59ae7edbf4e",
+    "roughness.png": "a3e783406b571760261430e23c8699376ccc06c4749e26963bfc8de98cc00edd",
+    "ao.png": "ae34248c577962f1289db0381d4e660d067392c6b4389492da62583142050a01",
+    "height.png": "058d1757114b4ffa319c1d166f2d2acd57163628fd29296e60e90e51aad5e005",
+    "metalness.png": "5e186492a7f221ab7027e285e224e754656093ff668782508d066b9fc1915db2"
+  }
+}

@@ -53,6 +53,9 @@ import type { WorldMapUiBundle } from './worldMapIcons.ts';
 import { buildBuildingWorldMapMarkers } from '../map/worldMapMarkers.ts';
 import type { DeliveryAgentRenderer } from '../logistics/DeliveryAgentRenderer.ts';
 import type { FireEffectsRenderer } from '../fires/FireEffectsRenderer.ts';
+import type { BanditCampRenderer } from '../security/BanditCampRenderer.ts';
+import type { MilitiaCommandController } from '../security/MilitiaCommandController.ts';
+import type { MilitaryCompanyState } from '../security/militaryProgression.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import type { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
 import { raidWithdrawingCartCount } from '../logistics/deliveryTrips.ts';
@@ -80,7 +83,7 @@ import {
 import { SpacetimeSnapshotApplier, type SpacetimeSnapshotApplierDeps } from './spacetimeSnapshotApplier.ts';
 import { bootstrapAppSession, type BootstrappedSession, type SessionLiveContext } from './appBootstrap.ts';
 import { WorldGenerationMismatchError } from '../world/worldConfigAuthority.ts';
-import { gameClock } from '../world/gameCalendar.ts';
+import { formatSettlementClock, gameClock } from '../world/gameCalendar.ts';
 import { worldAnimationDelta } from '../world/gameSpeed.ts';
 import {
   environmentFor,
@@ -185,6 +188,8 @@ export class App {
   private worldMapUi: WorldMapUiBundle | null = null;
   private deliveryAgents: DeliveryAgentRenderer | null = null;
   private fireEffects: FireEffectsRenderer | null = null;
+  private banditCamps: BanditCampRenderer | null = null;
+  private militiaCommands: MilitiaCommandController | null = null;
   private frontierRiskMarkers: FrontierRiskMarkers | null = null;
   private villagers: VillagerRenderer | null = null;
   private gameState: GameState | null = null;
@@ -233,6 +238,8 @@ export class App {
   private lastSeenRaidTick: number | null = null;
   private lastSeenRaidWarningTick: number | null = null;
   private lastSeenActiveRaidId: string | null | undefined;
+  private lastSeenBanditIncidentId: string | null = null;
+  private lastSeenMilitaryCompanies: Map<string, MilitaryCompanyState> | null = null;
   private raidProjectionSignature = '';
   private combatInspectorSignature = '';
   private constructionResourceSignature = '';
@@ -318,6 +325,8 @@ export class App {
     this.buildingMarkers.setEnvironment(weatherPreview);
     this.deliveryAgents = session.deliveryAgents;
     this.fireEffects = session.fireEffects;
+    this.banditCamps = session.banditCamps;
+    this.militiaCommands = session.militiaCommands;
     this.villagers = session.villagers;
     this.residenceMarkers = session.residenceMarkers;
     this.backyardGardenMarkers = session.backyardGardenMarkers;
@@ -389,6 +398,7 @@ export class App {
               pastures: this.gameState.pastures.values(),
               vineyardParcels: this.gameState.vineyardParcels?.values() ?? [],
               graveyards: this.gameState.graveyards?.values() ?? [],
+              corpses: this.gameState.corpses?.values() ?? [],
               deliveryTrips: this.gameState.deliveryTrips.values(),
               fireIncidents: this.gameState.fireIncidents.values(),
               roadNetwork: this.roadNetwork,
@@ -746,6 +756,8 @@ export class App {
     this.farmFieldTool?.dispose();
     this.forestryWorkAreaTool?.dispose();
     this.buildingMarkers?.dispose();
+    this.banditCamps?.dispose();
+    this.militiaCommands?.dispose();
     this.frontierRiskMarkers?.dispose();
     this.villagerInspector?.dispose();
     disposeSettlementWorld({
@@ -1163,6 +1175,8 @@ export class App {
       nextCombatInspectorSignature !== this.combatInspectorSignature;
     this.combatInspectorSignature = nextCombatInspectorSignature;
     this.villagers?.setCombatAgents(snapshot.combatAgents);
+    this.banditCamps?.sync(snapshot.banditCamps.values());
+    this.militiaCommands?.sync(snapshot.combatAgents, snapshot.banditCamps);
     const raidThreatActive = hasActiveRaiderThreat(snapshot.combatAgents.values());
     const withdrawingCarts = raidWithdrawingCartCount(
       snapshot.deliveryTrips.values(),
@@ -1348,6 +1362,8 @@ export class App {
   }
 
   private notifySecurityChanges(snapshot: SpacetimeGameSnapshot): void {
+    this.notifyBanditChanges(snapshot);
+    this.notifyMilitaryCompanyChanges(snapshot);
     const activeRaidId = snapshot.activeRaid?.raidId ?? null;
     if (this.lastSeenActiveRaidId === undefined) {
       this.lastSeenActiveRaidId = activeRaidId;
@@ -1487,6 +1503,121 @@ export class App {
     this.projectedRaidTargets = [];
     this.villagers?.setFrontierAlert(false);
     this.frontierRiskMarkers?.sync([], 0, false);
+  }
+
+  private notifyBanditChanges(snapshot: SpacetimeGameSnapshot): void {
+    const latest = [...snapshot.banditIncidents.values()].sort((left, right) => (
+      right.occurredTick - left.occurredTick || Number(right.id) - Number(left.id)
+    ))[0];
+    if (!latest) {
+      this.lastSeenBanditIncidentId = null;
+      return;
+    }
+    if (this.lastSeenBanditIncidentId === null) {
+      this.lastSeenBanditIncidentId = latest.id;
+      return;
+    }
+    if (latest.id === this.lastSeenBanditIncidentId) return;
+    this.lastSeenBanditIncidentId = latest.id;
+    const amount = Math.round(latest.goodsTotal);
+    const copy = latest.kind === 'theft'
+      ? {
+          title: 'Bandits stole from the settlement',
+          detail: `${amount} surplus ${amount === 1 ? 'item was' : 'items were'} physically taken from a granary or storehouse. Intercept the carrier or clear its camp to recover the goods.`,
+          tone: 'danger' as const,
+          toast: `Bandits escaped a store with ${amount} ${amount === 1 ? 'item' : 'items'}.`,
+        }
+      : latest.kind === 'carrier-intercepted'
+        ? {
+            title: 'Bandit carrier intercepted',
+            detail: `${amount} stolen ${amount === 1 ? 'item is' : 'items are'} recoverable where the bandit fell.`,
+            tone: 'notice' as const,
+            toast: `Bandit carrier intercepted; ${amount} stolen ${amount === 1 ? 'item is' : 'items are'} recoverable.`,
+          }
+        : {
+            title: 'Bandit camp destroyed',
+            detail: `${amount} accumulated stolen ${amount === 1 ? 'item was' : 'items were'} recovered at the camp.`,
+            tone: 'settled' as const,
+            toast: `Bandit camp destroyed; ${amount} stolen ${amount === 1 ? 'item was' : 'items were'} recovered.`,
+          };
+    this.toolbar?.settlementHud.addLordReport({
+      id: `bandit:${latest.id}`,
+      kind: 'bandit',
+      tone: copy.tone,
+      title: copy.title,
+      detail: copy.detail,
+      timeLabel: formatSettlementClock(latest.occurredTick),
+      target: latest.buildingId ? { kind: 'building', id: latest.buildingId, x: latest.x, z: latest.z } : undefined,
+      targetLabel: latest.buildingId ? 'Inspect theft site' : undefined,
+    });
+    this.toastManager?.show(copy.toast, {
+      variant: latest.kind === 'theft' ? 'error' : 'info',
+      durationMs: 7_000,
+    });
+  }
+
+  private notifyMilitaryCompanyChanges(snapshot: SpacetimeGameSnapshot): void {
+    const current = new Map(snapshot.militaryCompanies);
+    if (this.lastSeenMilitaryCompanies === null) {
+      this.lastSeenMilitaryCompanies = current;
+      return;
+    }
+    for (const company of snapshot.militaryCompanies.values()) {
+      if (company.kind !== 'mercenary-spears') continue;
+      const previous = this.lastSeenMilitaryCompanies.get(company.id);
+      if (!previous) {
+        this.toolbar?.settlementHud.addLordReport({
+          id: `military-arrival:${company.id}:${company.formedTick}`,
+          kind: 'military',
+          tone: 'notice',
+          title: 'Mercenary company has arrived',
+          detail: `${company.livingMembers} hired spearmen have entered at a safe edge of the region, away from the town and known bandit camps. They await company orders there.`,
+          timeLabel: formatSettlementClock(company.formedTick),
+        });
+        this.toastManager?.show('Mercenaries have arrived at the edge of the region.', {
+          variant: 'info',
+          durationMs: 7_000,
+        });
+        continue;
+      }
+      if (company.status === 'leaving' && previous.status !== 'leaving') {
+        const source = this.gameState?.buildings.get(company.sourceBuildingId);
+        this.toolbar?.settlementHud.addLordReport({
+          id: `military-leaving:${company.id}:${snapshot.simTick}`,
+          kind: 'military',
+          tone: 'warning',
+          title: 'Mercenary company is leaving',
+          detail: `Company #${company.id} is marching to its original map edge and no longer accepts orders. Select its Town Hall roster and pay a two-day retainer before the last survivor exits if you need it to stay.`,
+          timeLabel: formatSettlementClock(snapshot.simTick),
+          target: source ? { kind: 'building', id: source.id, x: source.x, z: source.z } : undefined,
+          targetLabel: source ? 'Review mercenary contract' : undefined,
+        });
+        this.toastManager?.show('Mercenaries are leaving. Pay their retainer at the Town Hall to stop them.', {
+          variant: 'error',
+          durationMs: 9_000,
+        });
+      }
+    }
+    for (const company of this.lastSeenMilitaryCompanies.values()) {
+      if (
+        company.kind !== 'mercenary-spears'
+        || company.status !== 'leaving'
+        || current.has(company.id)
+      ) continue;
+      this.toolbar?.settlementHud.addLordReport({
+        id: `military-departure:${company.id}:${snapshot.simTick}`,
+        kind: 'military',
+        tone: 'notice',
+        title: 'Mercenary company has departed',
+        detail: 'The final surviving contractor has crossed the map edge. The company has left the region and no longer draws daily Treasury pay.',
+        timeLabel: formatSettlementClock(snapshot.simTick),
+      });
+      this.toastManager?.show('A mercenary company has left the region.', {
+        variant: 'info',
+        durationMs: 7_000,
+      });
+    }
+    this.lastSeenMilitaryCompanies = current;
   }
 
   private applyShowcaseView(state: GameState): void {

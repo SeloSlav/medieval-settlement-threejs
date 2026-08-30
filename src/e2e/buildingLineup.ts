@@ -74,6 +74,7 @@ const requestedYawParam = lineupParams.get('yaw');
 const requestedYaw = requestedYawParam === null ? Number.NaN : Number(requestedYawParam);
 const authoredBuildingYaw = Number.isFinite(requestedYaw) ? requestedYaw : -0.1;
 const showWaysidePrayerVisitors = lineupParams.get('visitors') === 'prayer';
+const showClericVisitors = lineupParams.get('visitors') === 'cleric';
 const showClearedFoundingStockyard = lineupParams.get('mode') === 'cleared-stockyard';
 const requestedKind = showClearedFoundingStockyard
   ? 'founders_camp'
@@ -495,6 +496,11 @@ const views = viewSpecs.map((spec) => {
     && building.name === 'Gorski Kotar Wayside Shrine'
     ? createWaysidePrayerPreview(scene, building)
     : null;
+  const clericPreview = showClericVisitors
+    && selectedKinds.length === 1
+    && (selectedKinds[0] === 'chapel' || selectedKinds[0] === 'monastery')
+    ? createClericPreview(scene, building)
+    : null;
   const stableOxen = showStableOxen && building.name === 'Stable'
     ? createStableOxPreview(scene, building)
     : null;
@@ -515,6 +521,12 @@ const views = viewSpecs.map((spec) => {
       .add(seatFocus);
     camera.lookAt(seatFocus);
   }
+  if (clericPreview) {
+    const clericFocus = building.localToWorld(new THREE.Vector3(0, 1.4, 11.2));
+    const clericCamera = building.localToWorld(new THREE.Vector3(11.5, 7.2, 19));
+    camera.position.copy(clericCamera);
+    camera.lookAt(clericFocus);
+  }
 
   const cell = document.createElement('div');
   cell.className = 'cell';
@@ -523,7 +535,7 @@ const views = viewSpecs.map((spec) => {
   label.textContent = spec.label;
   cell.append(label);
   labels.append(cell);
-  return { scene, camera, campSeating, waysidePrayer, stableOxen };
+  return { scene, camera, campSeating, waysidePrayer, clericPreview, stableOxen };
 });
 
 for (let index = views.length; index < COLS * ROWS; index++) {
@@ -578,12 +590,18 @@ await initializeBuildingMaterialLibrary(rendererBackend.maxAnisotropy);
 await Promise.all(
   views.flatMap((view) => [
     view.waysidePrayer?.renderer.ready ?? Promise.resolve(true),
+    view.clericPreview?.renderer.ready ?? Promise.resolve(true),
     view.stableOxen?.renderer.ready ?? Promise.resolve(true),
   ]),
 );
 for (const view of views) {
   view.waysidePrayer?.renderer.syncAgents(
     view.waysidePrayer.agents,
+    { centerX: 0, centerZ: 0, viewRadius: 80 },
+    0.25,
+  );
+  view.clericPreview?.renderer.syncAgents(
+    view.clericPreview.agents,
     { centerX: 0, centerZ: 0, viewRadius: 80 },
     0.25,
   );
@@ -696,6 +714,15 @@ function animate(nowMs: number): void {
       },
       dtSeconds,
     );
+    view.clericPreview?.renderer.syncAgents(
+      view.clericPreview.agents,
+      {
+        centerX: 0,
+        centerZ: 0,
+        viewRadius: 80,
+      },
+      dtSeconds,
+    );
     view.stableOxen?.renderer.tick(dtSeconds);
   }
   render();
@@ -704,6 +731,7 @@ function animate(nowMs: number): void {
 if (
   (selectedKinds.length === 1 && selectedKinds[0] === 'founders_camp')
   || showWaysidePrayerVisitors
+  || showClericVisitors
   || showStableOxen
 ) {
   requestAnimationFrame(animate);
@@ -783,6 +811,52 @@ function createWaysidePrayerPreview(
     agents,
     { centerX: 0, centerZ: 0, viewRadius: 80 },
   );
+  return { renderer, agents };
+}
+
+function createClericPreview(
+  scene: THREE.Scene,
+  institution: THREE.Object3D,
+): {
+  renderer: SettlementCrowdRenderer;
+  agents: CrowdRenderAgent[];
+} {
+  institution.updateMatrixWorld(true);
+  const localPositions = [
+    { x: 0, z: 10.2, mode: 'sermon' },
+    { x: -2, z: 12.2, mode: 'bow' },
+    { x: 2, z: 12.2, mode: 'greet' },
+    { x: 0, z: 13.8, mode: 'relax' },
+  ] as const;
+  const agents = localPositions.map((entry, index): CrowdRenderAgent => {
+    const position = institution.localToWorld(new THREE.Vector3(entry.x, 0.02, entry.z));
+    const lookAt = institution.localToWorld(new THREE.Vector3(0, 0.8, 10.2));
+    return {
+      id: `cleric-preview-${index}`,
+      slot: index,
+      x: position.x,
+      y: position.y,
+      z: position.z,
+      yaw: index === 0
+        ? institution.rotation.y
+        : Math.atan2(lookAt.x - position.x, lookAt.z - position.z),
+      appearanceSeed: 0x0042_0000 + index * 0x000f_1937,
+      variant: 'man',
+      presentation: 'cleric',
+      mode: entry.mode,
+      tunicColor: 0x493629,
+      skinColor: 0xb87952,
+      hairColor: 0x3a2418,
+      tool: null,
+      movementSpeed: 0,
+      active: true,
+    };
+  });
+  const parent = new THREE.Group();
+  parent.name = 'Cleric animation preview';
+  scene.add(parent);
+  const renderer = new SettlementCrowdRenderer({ parent });
+  renderer.syncAgents(agents, { centerX: 0, centerZ: 0, viewRadius: 80 });
   return { renderer, agents };
 }
 

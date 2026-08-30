@@ -99,6 +99,13 @@ export type ResourceTotals = {
   shoes: number;
   ironwork: number;
   polearms: number;
+  sidearms: number;
+  shields: number;
+  bows: number;
+  crossbows: number;
+  paddedArmor: number;
+  mailArmor: number;
+  ammunition: number;
   iron: number;
   clay: number;
   salt: number;
@@ -173,6 +180,13 @@ export const HUD_RESOURCE_KINDS = [
   'shoes',
   'ironwork',
   'polearms',
+  'sidearms',
+  'shields',
+  'bows',
+  'crossbows',
+  'paddedArmor',
+  'mailArmor',
+  'ammunition',
   'iron',
   'clay',
   'salt',
@@ -280,6 +294,13 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let shoes = ledger?.shoes ?? 0;
   let ironwork = ledger?.ironwork ?? 0;
   let polearms = ledger?.polearms ?? 0;
+  let sidearms = ledger?.sidearms ?? 0;
+  let shields = ledger?.shields ?? 0;
+  let bows = ledger?.bows ?? 0;
+  let crossbows = ledger?.crossbows ?? 0;
+  let paddedArmor = ledger?.paddedArmor ?? 0;
+  let mailArmor = ledger?.mailArmor ?? 0;
+  let ammunition = ledger?.ammunition ?? 0;
   let iron = ledger?.iron ?? 0;
   let clay = ledger?.clay ?? 0;
   let salt = ledger?.salt ?? 0;
@@ -395,6 +416,13 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     shoes += building.shoes ?? 0;
     ironwork += building.ironwork ?? 0;
     polearms += building.polearms ?? 0;
+    sidearms += building.sidearms ?? 0;
+    shields += building.shields ?? 0;
+    bows += building.bows ?? 0;
+    crossbows += building.crossbows ?? 0;
+    paddedArmor += building.paddedArmor ?? 0;
+    mailArmor += building.mailArmor ?? 0;
+    ammunition += building.ammunition ?? 0;
     iron += building.iron ?? 0;
     clay += building.clay ?? 0;
     salt += building.salt ?? 0;
@@ -650,6 +678,13 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     shoes,
     ironwork,
     polearms,
+    sidearms,
+    shields,
+    bows,
+    crossbows,
+    paddedArmor,
+    mailArmor,
+    ammunition,
     iron,
     clay,
     salt,
@@ -1201,6 +1236,13 @@ function emptyResourceTotals(): ResourceTotals {
     shoes: 0,
     ironwork: 0,
     polearms: 0,
+    sidearms: 0,
+    shields: 0,
+    bows: 0,
+    crossbows: 0,
+    paddedArmor: 0,
+    mailArmor: 0,
+    ammunition: 0,
     iron: 0,
     clay: 0,
     salt: 0,

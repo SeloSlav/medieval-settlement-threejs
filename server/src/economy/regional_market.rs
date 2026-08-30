@@ -109,6 +109,13 @@ pub fn price_multiplier_for(state: &MarketState, resource: TradeResource) -> f64
         | TradeResource::Hides
         | TradeResource::Leather
         | TradeResource::Shoes
+        | TradeResource::Sidearms
+        | TradeResource::Shields
+        | TradeResource::Bows
+        | TradeResource::Crossbows
+        | TradeResource::PaddedArmor
+        | TradeResource::MailArmor
+        | TradeResource::Ammunition
         | TradeResource::Pottery
         | TradeResource::Manure
         | TradeResource::Remedies => state.wares_price_mult,
@@ -270,6 +277,13 @@ pub fn record_market_trade(
         | TradeResource::Hides
         | TradeResource::Leather
         | TradeResource::Shoes
+        | TradeResource::Sidearms
+        | TradeResource::Shields
+        | TradeResource::Bows
+        | TradeResource::Crossbows
+        | TradeResource::PaddedArmor
+        | TradeResource::MailArmor
+        | TradeResource::Ammunition
         | TradeResource::Pottery
         | TradeResource::Manure
         | TradeResource::Remedies => {

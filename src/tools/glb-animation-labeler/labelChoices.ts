@@ -30,5 +30,5 @@ export function selectAnimationLabelCatalog(
   const reduced = knownLabels.filter(
     (label) => !labelsExcludedFromReducedExport.has(label),
   );
-  return reduced.length === animationCount ? reduced : [...knownLabels];
+  return reduced.length >= animationCount ? reduced : [...knownLabels];
 }

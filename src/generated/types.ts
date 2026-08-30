@@ -46,6 +46,36 @@ export const BackyardGarden = __t.object("BackyardGarden", {
 });
 export type BackyardGarden = __Infer<typeof BackyardGarden>;
 
+export const BanditCamp = __t.object("BanditCamp", {
+  id: __t.u64(),
+  owner: __t.identity(),
+  x: __t.f64(),
+  z: __t.f64(),
+  health: __t.f64(),
+  maxHealth: __t.f64(),
+  active: __t.bool(),
+  inventoryJson: __t.string(),
+  spawnedTick: __t.u64(),
+  nextTheftTick: __t.u64(),
+  lastTheftTick: __t.u64(),
+  destroyedTick: __t.u64(),
+});
+export type BanditCamp = __Infer<typeof BanditCamp>;
+
+export const BanditIncident = __t.object("BanditIncident", {
+  id: __t.u64(),
+  owner: __t.identity(),
+  campId: __t.u64(),
+  kind: __t.u8(),
+  buildingId: __t.u64(),
+  goodsJson: __t.string(),
+  goodsTotal: __t.f64(),
+  occurredTick: __t.u64(),
+  x: __t.f64(),
+  z: __t.f64(),
+});
+export type BanditIncident = __Infer<typeof BanditIncident>;
+
 export const Building = __t.object("Building", {
   id: __t.u64(),
   owner: __t.identity(),
@@ -223,6 +253,13 @@ export const Building = __t.object("Building", {
   placementYaw: __t.f64(),
   placementYawLocked: __t.bool(),
   apiaryAccumulatedHoney: __t.f64(),
+  sidearms: __t.f64(),
+  shields: __t.f64(),
+  bows: __t.f64(),
+  crossbows: __t.f64(),
+  paddedArmor: __t.f64(),
+  mailArmor: __t.f64(),
+  ammunition: __t.f64(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -466,6 +503,59 @@ export const MarketState = __t.object("MarketState", {
 });
 export type MarketState = __Infer<typeof MarketState>;
 
+export const MercenaryContract = __t.object("MercenaryContract", {
+  companyId: __t.u64(),
+  owner: __t.identity(),
+  contractEndTick: __t.u64(),
+  lastEngagementTick: __t.u64(),
+});
+export type MercenaryContract = __Infer<typeof MercenaryContract>;
+
+export const MilitaryCompany = __t.object("MilitaryCompany", {
+  id: __t.u64(),
+  owner: __t.identity(),
+  kind: __t.u8(),
+  sourceBuildingId: __t.u64(),
+  state: __t.u8(),
+  formation: __t.u8(),
+  targetSize: __t.u32(),
+  livingMembers: __t.u32(),
+  morale: __t.f64(),
+  cohesion: __t.f64(),
+  fatigue: __t.f64(),
+  provisionDays: __t.f64(),
+  ammunition: __t.u32(),
+  ammunitionCapacity: __t.u32(),
+  formedTick: __t.u64(),
+  lastUpkeepTick: __t.u64(),
+});
+export type MilitaryCompany = __Infer<typeof MilitaryCompany>;
+
+export const MilitaryMember = __t.object("MilitaryMember", {
+  combatAgentId: __t.u64(),
+  owner: __t.identity(),
+  companyId: __t.u64(),
+  residenceId: __t.u64(),
+  residentSlot: __t.u32(),
+  personIdentity: __t.string(),
+  phase: __t.u8(),
+  ammunition: __t.u32(),
+  ammunitionCapacity: __t.u32(),
+  originalHomeX: __t.f64(),
+  originalHomeZ: __t.f64(),
+});
+export type MilitaryMember = __Infer<typeof MilitaryMember>;
+
+export const MilitiaOrder = __t.object("MilitiaOrder", {
+  combatAgentId: __t.u64(),
+  owner: __t.identity(),
+  kind: __t.u8(),
+  destinationX: __t.f64(),
+  destinationZ: __t.f64(),
+  targetCampId: __t.u64(),
+});
+export type MilitiaOrder = __Infer<typeof MilitiaOrder>;
+
 export const Pasture = __t.object("Pasture", {
   id: __t.u64(),
   owner: __t.identity(),
@@ -634,6 +724,13 @@ export const PlayerResources = __t.object("PlayerResources", {
   pelts: __t.f64(),
   yarn: __t.f64(),
   linen: __t.f64(),
+  sidearms: __t.f64(),
+  shields: __t.f64(),
+  bows: __t.f64(),
+  crossbows: __t.f64(),
+  paddedArmor: __t.f64(),
+  mailArmor: __t.f64(),
+  ammunition: __t.f64(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 
@@ -934,6 +1031,7 @@ export const WorldConfig = __t.object("WorldConfig", {
   approvalDeclineRate: __t.u8(),
   foodSpoilageRate: __t.u8(),
   initialGoodsMultiplier: __t.u8(),
+  banditCampsEnabled: __t.bool(),
 });
 export type WorldConfig = __Infer<typeof WorldConfig>;
 

@@ -42,6 +42,8 @@ export const TRADE_RESOURCE_COMMODITY_CODES: Record<TradeResourceKind, number> =
   pearCider: 57, aroniaJam: 61, rosehipJam: 62,
   hides: 58, leather: 59, shoes: 60,
   wax: 64, candles: 65, pelts: 66, yarn: 67, linen: 68,
+  sidearms: 69, shields: 70, bows: 71, crossbows: 72,
+  paddedArmor: 73, mailArmor: 74, ammunition: 75,
 };
 
 export const TRADE_COMMODITY_BY_CODE = new Map<number, TradeResourceKind>(
@@ -67,6 +69,8 @@ export const TRADE_RESOURCE_LABELS: Record<TradeResourceKind, string> = {
   yarn: 'Yarn', linen: 'Linen', cloth: 'Clothing', iron: 'Iron', clay: 'Clay', salt: 'Salt', ironwork: 'Ironwork',
   pelts: 'Pelts', hides: 'Hides', leather: 'Leather', shoes: 'Shoes',
   polearms: 'Polearms', pottery: 'Pottery', roofTiles: 'Roof tiles', manure: 'Manure',
+  sidearms: 'Sidearms', shields: 'Shields', bows: 'Bows', crossbows: 'Crossbows',
+  paddedArmor: 'Padded armor', mailArmor: 'Mail armor', ammunition: 'Ammunition',
   remedies: 'Remedies',
 };
 
@@ -77,7 +81,8 @@ export const TRADING_POST_TRADE_CATEGORIES = [
   { label: 'Milled & prepared staples', resources: ['ryeFlour', 'maslinFlour', 'malt', 'ryeBread', 'maslinBread'] },
   { label: 'Fresh food', resources: ['meat', 'fish', 'berries', 'mushrooms', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes'] },
   { label: 'Preserved provisions', resources: ['preservedFood', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam', 'honey'] },
-  { label: 'Textiles & wares', resources: ['ale', 'cider', 'pearCider', 'wine', 'wool', 'yarn', 'linen', 'cloth', 'pelts', 'hides', 'leather', 'shoes', 'wax', 'candles', 'polearms', 'pottery', 'remedies'] },
+  { label: 'Textiles & wares', resources: ['ale', 'cider', 'pearCider', 'wine', 'wool', 'yarn', 'linen', 'cloth', 'pelts', 'hides', 'leather', 'shoes', 'wax', 'candles', 'pottery', 'remedies'] },
+  { label: 'Military stores', resources: ['polearms', 'sidearms', 'shields', 'bows', 'crossbows', 'paddedArmor', 'mailArmor', 'ammunition'] },
 ] as const satisfies ReadonlyArray<{ label: string; resources: readonly TradeResourceKind[] }>;
 
 export function tradingPostRuleId(buildingId: string, resource: TradeResourceKind): string {

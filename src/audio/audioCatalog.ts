@@ -185,8 +185,16 @@ export const COMBAT_AUDIO_CLIPS: Record<
   readonly AudioClipDefinition[]
 > = {
   pike: combatVariants('pike_melee', 4, 0.2),
-  voices: combatVariants('angry_fighting', 4, 0.115),
+  voices: Array.from({ length: 6 }, (_, index) => ({
+    path: `/sounds/combat/selo/person_attack_${index + 1}.mp3`,
+    volume: 0.12,
+  })),
 };
+
+export const COMBAT_DEATH_CLIPS = {
+  man: [{ path: '/sounds/combat/selo/male_dying_1.mp3', volume: 0.2 }],
+  woman: [{ path: '/sounds/combat/selo/female_dying_1.mp3', volume: 0.2 }],
+} as const;
 
 function workerActivityVariants(
   baseName: string,
@@ -262,6 +270,8 @@ export const BUILDING_AUDIO_CLIPS: Record<
   mine: { path: '/sounds/buildings/mine.mp3', volume: 0.065 },
   charcoal_burner: { path: '/sounds/buildings/charcoal_burner.mp3', volume: 0.05 },
   smithy: { path: '/sounds/buildings/smithy.mp3', volume: 0.065 },
+  weaponsmith_armorer: { path: '/sounds/buildings/smithy.mp3', volume: 0.065 },
+  bowyer_fletcher: { path: '/sounds/buildings/carpenter.mp3', volume: 0.055 },
   potter_kiln: { path: '/sounds/buildings/potter_kiln.mp3', volume: 0.055 },
   well: { path: '/sounds/buildings/well.mp3', volume: 0.05 },
   hunters_hall: { path: '/sounds/buildings/hunters_hall.mp3', volume: 0.05 },

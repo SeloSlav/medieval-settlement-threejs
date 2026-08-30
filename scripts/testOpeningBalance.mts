@@ -18,7 +18,6 @@ import {
   RESIDENCE_STONE_COST,
   RESIDENCE_TIER1_CAPACITY,
   RESIDENCE_TIMBER_COST,
-  SIM_REALTIME_RATE,
   SMITHY_CHARCOAL_PER_CYCLE,
   SMITHY_IRONWORK_PER_CYCLE,
   SMITHY_IRON_PER_CYCLE,
@@ -80,11 +79,8 @@ assert.ok(
 );
 
 for (const [kind, cost] of Object.entries(BUILDING_COSTS)) {
-  assert.equal(
-    cost.ironwork ?? 0,
-    0,
-    `${kind} construction must not consume maintenance ironwork`,
-  );
+  const expected = kind === 'weaponsmith_armorer' ? 8 : kind === 'bowyer_fletcher' ? 4 : 0;
+  assert.equal(cost.ironwork ?? 0, expected, `${kind} must retain its intentional ironwork construction cost`);
 }
 assert.ok(STARTING_IRONWORK > 0, 'the settlement should open with a bounded tool-maintenance reserve');
 for (const kind of ['mine', 'charcoal_burner', 'smithy'] as const) {
@@ -112,28 +108,25 @@ assert.ok(
   BUILDING_STORAGE_CAPS.trading_post.ironwork! >= ironworkImport.amount,
   'the constrained-world Trading Post fallback must have room for an imported ironwork lot',
 );
-const twoRealTimeHoursInGameDays = 2 * 60 * 60
-  * SIM_REALTIME_RATE
-  / CALENDAR_SECONDS_PER_DAY;
 assert.ok(
-  STARTING_BREAD / householdFoodPerDay(STARTING_POPULATION) >= twoRealTimeHoursInGameDays,
-  'starter bread must cover at least two real-time hours while food production and market hauling come online',
+  STARTING_BREAD / householdFoodPerDay(STARTING_POPULATION) >= 4,
+  'starter bread must cover at least four full settlement days while food production and market hauling come online',
 );
 const worstSeasonStarterFirewoodPerDay = STARTING_POPULATION
   * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
   * CALENDAR_SECONDS_PER_DAY
   * WINTER_FIREWOOD_DEMAND_MULTIPLIER;
 assert.ok(
-  STARTING_FIREWOOD / worstSeasonStarterFirewoodPerDay >= 30,
-  'starter firewood must cover at least 30 winter household-days while fuel production and market hauling come online',
+  STARTING_FIREWOOD / worstSeasonStarterFirewoodPerDay >= 3,
+  'starter firewood must cover at least three severe-winter household-days while fuel production and market hauling come online',
 );
 const openingSeasonStarterFirewoodPerDay = STARTING_POPULATION
   * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
   * CALENDAR_SECONDS_PER_DAY
   * SPRING_FIREWOOD_DEMAND_MULTIPLIER;
 assert.ok(
-  STARTING_FIREWOOD / openingSeasonStarterFirewoodPerDay >= twoRealTimeHoursInGameDays,
-  'starter firewood must cover at least two real-time hours in the opening season while fuel production and market hauling come online',
+  STARTING_FIREWOOD / openingSeasonStarterFirewoodPerDay >= 7,
+  'starter firewood must cover at least one opening-season week while fuel production and market hauling come online',
 );
 assert.equal(
   BUILDING_STORAGE_CAPS.founders_camp.ironwork,

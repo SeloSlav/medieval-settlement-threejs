@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "sourceFile": "medieval+monk+3d+model-labeled.glb",
+  "sourceSha256": "6f7fa0297ccfe46c99a938be5e5d217af7b4e5316aa9cd4afcacd62df7a5b660",
+  "generatedAt": "2026-08-30",
+  "animations": [
+    { "index": 0, "originalName": "laugh_01", "durationSeconds": 5.625, "semanticName": "laugh_01" },
+    { "index": 1, "originalName": "sit", "durationSeconds": 7.208333, "semanticName": "sit" },
+    { "index": 2, "originalName": "flee_01", "durationSeconds": 2.708333, "semanticName": "flee_01" },
+    { "index": 3, "originalName": "greet_01", "durationSeconds": 3.541667, "semanticName": "greet_01" },
+    { "index": 4, "originalName": "look_around", "durationSeconds": 17.625, "semanticName": "look_around" },
+    { "index": 5, "originalName": "wait", "durationSeconds": 6.041667, "semanticName": "wait" },
+    { "index": 6, "originalName": "hit_to_body_01", "durationSeconds": 1.333333, "semanticName": "hit_to_body_01" },
+    { "index": 7, "originalName": "lift_heavy", "durationSeconds": 19.541666, "semanticName": "lift_heavy" },
+    { "index": 8, "originalName": "fall", "durationSeconds": 3.041667, "semanticName": "fall" },
+    { "index": 9, "originalName": "slash", "durationSeconds": 6.625, "semanticName": "slash" },
+    { "index": 10, "originalName": "greet_04", "durationSeconds": 2.833333, "semanticName": "greet_04" },
+    { "index": 11, "originalName": "shovel", "durationSeconds": 15.541667, "semanticName": "shovel" },
+    { "index": 12, "originalName": "agree", "durationSeconds": 4.041667, "semanticName": "agree" },
+    { "index": 13, "originalName": "dig", "durationSeconds": 16.416666, "semanticName": "dig" },
+    { "index": 14, "originalName": "bow", "durationSeconds": 6.041667, "semanticName": "bow" },
+    { "index": 15, "originalName": "standing_relax", "durationSeconds": 15.625, "semanticName": "standing_relax" },
+    { "index": 16, "originalName": "chop", "durationSeconds": 6.625, "semanticName": "chop" },
+    { "index": 17, "originalName": "walk", "durationSeconds": 2.375, "semanticName": "walk" },
+    { "index": 18, "originalName": "idle", "durationSeconds": 15.375, "semanticName": "idle" },
+    { "index": 19, "originalName": "run", "durationSeconds": 1.291667, "semanticName": "run" }
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Freshly ploughed field soil",
+  "source": null,
+  "requestId": "01a05216-3422-75e2-9e0b-ff8e2d43354b",
+  "requestedInput": {
+    "prompt": "Flat top-down seamless PBR material of freshly ploughed mountain loam in inland Croatia around 1550. Deep umber and cool brown earth with irregular overturned clods from 1 to 9 centimeters, torn crumb faces, fine dark humus, sparse tiny mineral grains, and restrained moist patina in protected cavities. The material is rough and non-metallic; geometry in the game owns the large furrows and plough direction, so this tile must remain isotropic and motif-neutral under uniform neutral illumination. No furrow lines, parallel rows, grass, roots, crops, straw, leaves, footprints, stones larger than 2 centimeters, mud gloss, puddles, dramatic cracks, cast shadows, perspective, horizon, borders, text, or repeating motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 532101,
+    "num_images": 1,
+    "enable_prompt_expansion": false,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 532101,
+  "returnedPrompt": "Flat top-down seamless PBR material of freshly ploughed mountain loam in inland Croatia around 1550. Deep umber and cool brown earth with irregular overturned clods from 1 to 9 centimeters, torn crumb faces, fine dark humus, sparse tiny mineral grains, and restrained moist patina in protected cavities. The material is rough and non-metallic; geometry in the game owns the large furrows and plough direction, so this tile must remain isotropic and motif-neutral under uniform neutral illumination. No furrow lines, parallel rows, grass, roots, crops, straw, leaves, footprints, stones larger than 2 centimeters, mud gloss, puddles, dramatic cracks, cast shadows, perspective, horizon, borders, text, or repeating motifs.",
+  "timings": {
+    "texture_generation": 8.873337925877422,
+    "pbr_prediction": 68.59718491975218
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa8663c/dJcFdRo2DzFvisNwIwvYd_RRcHWNVx.png",
+      "content_type": "image/png",
+      "file_name": "dJcFdRo2DzFvisNwIwvYd_RRcHWNVx.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa8662b/NHi3HmK9IjlctTYoC8yWU_GxzYkk7E.png",
+      "content_type": "image/png",
+      "file_name": "NHi3HmK9IjlctTYoC8yWU_GxzYkk7E.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa8662b/ZHr4QnaYBXqcTnhN1Sr4w_I31o24ZY.png",
+      "content_type": "image/png",
+      "file_name": "ZHr4QnaYBXqcTnhN1Sr4w_I31o24ZY.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa8662b/x0C4NtkdKFpprQcluBhQL_v8iVZNVn.png",
+      "content_type": "image/png",
+      "file_name": "x0C4NtkdKFpprQcluBhQL_v8iVZNVn.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa86641/C1eJ1QrW4TpS9FKyQV9a7_0cBoTiJ1.png",
+      "content_type": "image/png",
+      "file_name": "C1eJ1QrW4TpS9FKyQV9a7_0cBoTiJ1.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa8662b/T8ZZPPdlnabH43t3k5ixC_NZ03GiOV.png",
+      "content_type": "image/png",
+      "file_name": "T8ZZPPdlnabH43t3k5ixC_NZ03GiOV.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-30T09:54:19.233Z"
+}

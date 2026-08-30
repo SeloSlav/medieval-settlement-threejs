@@ -702,6 +702,13 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         shoes: building.shoes,
         ironwork: building.ironwork,
         polearms: building.polearms,
+        sidearms: building.sidearms,
+        shields: building.shields,
+        bows: building.bows,
+        crossbows: building.crossbows,
+        padded_armor: building.padded_armor,
+        mail_armor: building.mail_armor,
+        ammunition: building.ammunition,
         gold: building.gold,
         barley: building.barley,
         malt: building.malt,
@@ -976,6 +983,13 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::Shoes) => stores.shoes = amount,
         Some(CommodityKind::Ironwork) => stores.ironwork = amount,
         Some(CommodityKind::Polearms) => stores.polearms = amount,
+        Some(CommodityKind::Sidearms) => stores.sidearms = amount,
+        Some(CommodityKind::Shields) => stores.shields = amount,
+        Some(CommodityKind::Bows) => stores.bows = amount,
+        Some(CommodityKind::Crossbows) => stores.crossbows = amount,
+        Some(CommodityKind::PaddedArmor) => stores.padded_armor = amount,
+        Some(CommodityKind::MailArmor) => stores.mail_armor = amount,
+        Some(CommodityKind::Ammunition) => stores.ammunition = amount,
         Some(CommodityKind::Gold) => stores.gold = amount,
         Some(CommodityKind::Barley) => stores.barley = amount,
         Some(CommodityKind::Malt) => stores.malt = amount,
@@ -1050,6 +1064,13 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Shoes) => stores.shoes,
         Some(CommodityKind::Ironwork) => stores.ironwork,
         Some(CommodityKind::Polearms) => stores.polearms,
+        Some(CommodityKind::Sidearms) => stores.sidearms,
+        Some(CommodityKind::Shields) => stores.shields,
+        Some(CommodityKind::Bows) => stores.bows,
+        Some(CommodityKind::Crossbows) => stores.crossbows,
+        Some(CommodityKind::PaddedArmor) => stores.padded_armor,
+        Some(CommodityKind::MailArmor) => stores.mail_armor,
+        Some(CommodityKind::Ammunition) => stores.ammunition,
         Some(CommodityKind::Gold) => stores.gold,
         Some(CommodityKind::Barley) => stores.barley,
         Some(CommodityKind::Malt) => stores.malt,
@@ -1114,6 +1135,13 @@ fn treasury_portable_stores(
         shoes: treasury.shoes,
         ironwork: treasury.ironwork,
         polearms: treasury.polearms,
+        sidearms: treasury.sidearms,
+        shields: treasury.shields,
+        bows: treasury.bows,
+        crossbows: treasury.crossbows,
+        padded_armor: treasury.padded_armor,
+        mail_armor: treasury.mail_armor,
+        ammunition: treasury.ammunition,
         gold: treasury.gold,
         barley: treasury.barley,
         malt: treasury.malt,
@@ -1203,7 +1231,7 @@ fn treasury_anchor(
         })
 }
 
-fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores) {
+pub(super) fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores) {
     let stores = stores.normalized_whole();
     building.timber = stores.timber;
     building.firewood = stores.firewood;
@@ -1239,6 +1267,13 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.shoes = stores.shoes;
     building.ironwork = stores.ironwork;
     building.polearms = stores.polearms;
+    building.sidearms = stores.sidearms;
+    building.shields = stores.shields;
+    building.bows = stores.bows;
+    building.crossbows = stores.crossbows;
+    building.padded_armor = stores.padded_armor;
+    building.mail_armor = stores.mail_armor;
+    building.ammunition = stores.ammunition;
     building.gold = stores.gold;
     building.barley = stores.barley;
     building.malt = stores.malt;

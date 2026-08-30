@@ -46,6 +46,7 @@ pub fn configure_world(
     resource_variety: u8,
     conflict_enabled: bool,
     enemy_pressure: u8,
+    bandit_camps_enabled: bool,
     severe_weather_enabled: bool,
     well_aquifer_networks_enabled: bool,
     approval_decline_rate: u8,
@@ -84,6 +85,7 @@ pub fn configure_world(
         || config.resource_variety != resource_variety;
     let rules_changed = config.conflict_enabled != conflict_enabled
         || config.enemy_pressure != enemy_pressure
+        || config.bandit_camps_enabled != bandit_camps_enabled
         || config.severe_weather_enabled != severe_weather_enabled
         || config.well_aquifer_networks_enabled != well_aquifer_networks_enabled
         || config.approval_decline_rate != approval_decline_rate
@@ -112,6 +114,7 @@ pub fn configure_world(
             resource_variety,
             conflict_enabled,
             enemy_pressure,
+            bandit_camps_enabled,
             severe_weather_enabled,
             well_aquifer_networks_enabled,
             approval_decline_rate,
@@ -176,6 +179,7 @@ pub fn default_world_config() -> WorldConfig {
         resource_variety: 50,
         conflict_enabled: false,
         enemy_pressure: 0,
+        bandit_camps_enabled: false,
         severe_weather_enabled: false,
         well_aquifer_networks_enabled: false,
         approval_decline_rate: 100,

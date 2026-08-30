@@ -133,7 +133,7 @@ export function renderStableInspector(
 
     if (isPurchaseSlot) {
       return `<li class="stable-ox-slot" data-stable-ox-slot="${slot}" data-state="purchase" data-purchase-status="${fire ? 'paused' : treasuryShort ? 'unaffordable' : 'ready'}">
-        <button type="button" class="stable-ox-slot__purchase" data-purchase-ox
+        <button type="button" class="resource-action-button stable-ox-slot__purchase" data-purchase-ox
           data-tooltip-title="Purchase draft ox"
           data-tooltip="${purchaseTooltip}"
           data-tooltip-cost="${purchaseTooltipCost}"

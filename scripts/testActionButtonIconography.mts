@@ -52,6 +52,7 @@ const chapelRenderer = readFileSync('src/resources/inspector/chapelRenderer.ts',
 const expandedBuildingRenderer = readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8');
 const farmFieldRenderer = readFileSync('src/resources/inspector/farmFieldRenderer.ts', 'utf8');
 const livestockBuildingRenderer = readFileSync('src/resources/inspector/livestockBuildingRenderer.ts', 'utf8');
+const pastureRenderer = readFileSync('src/resources/inspector/pastureRenderer.ts', 'utf8');
 const townHallRenderer = readFileSync('src/resources/inspector/townHallRenderer.ts', 'utf8');
 const marketplaceTradeRenderer = readFileSync('src/resources/inspector/marketplaceTradeRenderer.ts', 'utf8');
 const storageAcceptancePolicy = readFileSync('src/economy/storageAcceptancePolicy.ts', 'utf8');
@@ -221,6 +222,14 @@ for (const [icon, asset] of [
   ['graveyard', 'actions/graveyard.png'],
   ['cattle-herd', 'actions/cattle-herd.png'],
   ['sheep-flock', 'actions/sheep-flock.png'],
+  ['militia', 'actions/militia.png'],
+  ['spearmen', 'actions/spearmen.png'],
+  ['men-at-arms', 'actions/men-at-arms.png'],
+  ['crossbows', 'actions/crossbows.png'],
+  ['mercenaries', 'actions/mercenaries.png'],
+  ['disband-company', 'actions/disband-company.png'],
+  ['resupply-company', 'actions/resupply-company.png'],
+  ['formation', 'actions/formation.png'],
 ] as const) {
   assert.match(
     actionCss,
@@ -247,7 +256,7 @@ assert.match(residenceRenderer, /activeResidenceNeedKinds\(tier\)/);
 assert.match(residenceRenderer, /data-residence-need-state="\$\{met \? 'met' : 'unmet'\}"/);
 assert.match(residenceRenderer, /met: residenceNeedIsMet\(residence, kind\)/);
 assert.match(residenceRenderer, /class="resource-cost__item residence-need-icon__source"/);
-assert.match(residenceRenderer, /data-residence-need-source="\$\{primaryFoodSource\.kind\}"/);
+assert.match(residenceRenderer, /data-residence-need-source="\$\{source\.key\}"/);
 assert.match(residenceRenderer, /data-tooltip-resources/);
 assert.match(residenceRenderer, /The Founders’ Camp does not serve homes directly/);
 assert.match(backyardCss, /residence-need-icon\.is-unmet \.resource-cost__icon[\s\S]{0,120}grayscale\(1\)/);
@@ -589,8 +598,8 @@ assert.match(farmFieldTool, /setCropPlan\([\s\S]{0,520}this\.followingCrop = aut
 assert.match(appBootstrap, /onBeginFarmFieldPlacement: \(farmsteadId, crops, autoManage\)[\s\S]{0,240}farmFieldTool\.setCropPlan\(crops, autoManage\)[\s\S]{0,240}beginLinkedLandParcelPlacement\('field', farmsteadId\)/);
 assert.match(chapelRenderer, /data-land-parcel="graveyard"[\s\S]{0,760}data-action-icon="graveyard"|data-action-icon="graveyard"[\s\S]{0,760}data-land-parcel="graveyard"/);
 assert.match(chapelRenderer, /data-land-parcel="graveyard"[^>]*data-tooltip-cost="\$\{FREE_CONSTRUCTION_COST_TOOLTIP\}"/);
-assert.match(livestockBuildingRenderer, /data-livestock-species="cattle"[\s\S]{0,260}data-action-icon="cattle-herd"|data-action-icon="cattle-herd"[\s\S]{0,260}data-livestock-species="cattle"/);
-assert.match(livestockBuildingRenderer, /data-livestock-species="sheep"[\s\S]{0,260}data-action-icon="sheep-flock"|data-action-icon="sheep-flock"[\s\S]{0,260}data-livestock-species="sheep"/);
+assert.match(pastureRenderer, /data-livestock-species="cattle"[\s\S]{0,260}data-action-icon="cattle-herd"|data-action-icon="cattle-herd"[\s\S]{0,260}data-livestock-species="cattle"/);
+assert.match(pastureRenderer, /data-livestock-species="sheep"[\s\S]{0,260}data-action-icon="sheep-flock"|data-action-icon="sheep-flock"[\s\S]{0,260}data-livestock-species="sheep"/);
 assert.match(livestockBuildingRenderer, /data-land-parcel="pasture"[\s\S]{0,760}data-action-icon="pasture-parcel"|data-action-icon="pasture-parcel"[\s\S]{0,760}data-land-parcel="pasture"/);
 assert.match(livestockBuildingRenderer, /data-land-parcel="pasture"[^>]*data-tooltip-cost="\$\{FREE_CONSTRUCTION_COST_TOOLTIP\}"/);
 assert.match(farmFieldRenderer, /data-field-early-harvest[\s\S]{0,260}data-action-icon="early-harvest"|data-action-icon="early-harvest"[\s\S]{0,260}data-field-early-harvest/);
@@ -722,7 +731,8 @@ const cropArtwork: Record<(typeof FARM_CROP_KINDS)[number], string> = {
   wheat: 'provisions/maslin-sheaves.png',
 };
 assert.deepEqual(Object.keys(cropArtwork).sort(), [...FARM_CROP_KINDS].sort());
-assert.match(farmFieldRenderer, /data-field-crop-icon="\$\{crop\}"/);
+assert.match(farmFieldRenderer, /data-field-crop-icon="\$\{field\.crop\}"/);
+assert.match(farmFieldRenderer, /data-field-crop-icon="\$\{field\.nextCrop\}"/);
 for (const [crop, asset] of Object.entries(cropArtwork)) {
   assert.match(
     actionCss,

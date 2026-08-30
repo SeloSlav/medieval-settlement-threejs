@@ -260,8 +260,25 @@ fn total_free_hauler_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -
 }
 
 pub fn available_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
+    let military_residents = ctx
+        .db
+        .military_member()
+        .owner()
+        .filter(&owner)
+        .filter(|member| {
+            member.residence_id > 0
+                && ctx
+                    .db
+                    .combat_agent()
+                    .id()
+                    .find(&member.combat_agent_id)
+                    .is_some_and(|agent| agent.state != 5)
+        })
+        .count() as u32;
     total_population(ctx, owner).saturating_sub(
-        total_assigned_labor(ctx, owner).saturating_add(total_free_hauler_labor(ctx, owner)),
+        total_assigned_labor(ctx, owner)
+            .saturating_add(total_free_hauler_labor(ctx, owner))
+            .saturating_add(military_residents),
     )
 }
 

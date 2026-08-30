@@ -26,6 +26,7 @@ export const OX_SUPPORTED_WORKPLACE_KINDS = [
   'threshing_barn',
   'pastoral_farmstead',
   'swineherd',
+  'monastery',
   'carpenter',
   'village_storehouse',
   'granary',
@@ -90,6 +91,7 @@ export function oxWorkplaceCapacity(kind: BuildingKind): number {
       case 'carpenter':
         return 2;
       case 'reforester':
+      case 'monastery':
       case 'village_storehouse':
       case 'granary':
       case 'trading_post':
