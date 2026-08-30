@@ -6,7 +6,7 @@ import {
   updateTerrainRibbonGeometry,
   type TerrainOverlaySegment,
 } from '../placement/TerrainOverlayGeometry.ts';
-import type { FarmCrop, FarmFieldStage, FarmFieldState } from '../resources/types.ts';
+import type { FarmCrop, FarmFieldState } from '../resources/types.ts';
 import type { RendererBackendKind } from '../scene/RendererBackend.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
@@ -18,6 +18,19 @@ import {
   polylineSegments,
 } from './organicParcelGeometry.ts';
 import type { FieldPerimeterShrubCatalog } from '../props/ForestUndergrowth.ts';
+import {
+  CULTIVATED_SOIL_TEXTURE_PATHS,
+  CULTIVATED_SOIL_TEXTURES,
+} from '../terrain/cultivatedSoilAssets.ts';
+import {
+  addSeedThreeGroundCoverInstanceAttributes,
+  seedThreeGroundCoverWindVector,
+} from '../vegetation/seedthree/seedThreeGroundCover.ts';
+import type {
+  FieldCropCatalog,
+  FieldCropComponentAsset,
+  FieldCropPhaseAsset,
+} from '../vegetation/seedthree/fieldCropAssets.ts';
 
 const FIELD_LIFT = 0.08;
 const MIN_SURFACE_STEPS = 10;
@@ -28,6 +41,7 @@ const FALLOW_TUFTS_PER_SQUARE_METER = 0.48;
 const MAX_FIELD_TUFTS = 8_000;
 const CEREAL_MATURE_PROGRESS = 0.76;
 const GRAIN_HEAD_START_PROGRESS = 0.42;
+const CULTIVATED_SOIL_METERS_PER_TILE = 2.2;
 const UP_AXIS = new THREE.Vector3(0, 1, 0);
 
 type FieldSample = {
@@ -39,18 +53,6 @@ type FieldSample = {
   randomB: number;
   randomC: number;
 };
-
-function fieldColor(crop: FarmCrop, stage: FarmFieldStage): number {
-  if (stage === 'ploughing') return 0x4d301e;
-  if (stage === 'sowing') return 0x67462b;
-  if (stage === 'harvesting') return 0x71543a;
-  if (crop === 'fallow') return 0x526442;
-  if (crop === 'flax') return 0x465e39;
-  if (crop === 'oats') return 0x5a4c2d;
-  if (crop === 'barley') return 0x5d4524;
-  if (crop === 'wheat') return 0x60452a;
-  return 0x59402a;
-}
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
@@ -89,7 +91,10 @@ function processedAt(field: FarmFieldState, v: number, noise: number): boolean {
   if (field.stage !== 'ploughing' && field.stage !== 'sowing' && field.stage !== 'harvesting') {
     return true;
   }
-  return v <= clamp01(field.stageProgress + (noise - 0.5) * 0.075);
+  const progress = clamp01(field.stageProgress);
+  if (progress <= 0) return false;
+  if (progress >= 1) return true;
+  return v <= clamp01(progress + (noise - 0.5) * 0.075);
 }
 
 function surfaceColorAt(
@@ -108,32 +113,26 @@ function surfaceColorAt(
   let color: THREE.Color;
 
   if (field.crop === 'fallow' && field.stage === 'growing') {
-    color = new THREE.Color(broadNoise > 0.5 ? 0x536540 : 0x465838);
+    color = new THREE.Color(broadNoise > 0.5 ? 0xb4ad91 : 0xa89f82);
   } else if (field.stage === 'ploughing') {
-    color = new THREE.Color(
-      processedAt(field, v, broadNoise)
-        ? (broadNoise > 0.52 ? 0x4b2f1f : 0x563824)
-        : (broadNoise > 0.5 ? 0x667047 : 0x5b6542),
-    );
+    color = new THREE.Color(broadNoise > 0.52 ? 0x887562 : 0x9a846b);
   } else if (field.stage === 'sowing') {
     color = new THREE.Color(
       processedAt(field, v, broadNoise)
-        ? (broadNoise > 0.5 ? 0x6e4c30 : 0x624128)
-        : (broadNoise > 0.5 ? 0x4d321f : 0x573a24),
+        ? (broadNoise > 0.5 ? 0xb9a489 : 0xaa9276)
+        : (broadNoise > 0.5 ? 0x8d7965 : 0x9d856c),
     );
   } else if (field.stage === 'harvesting') {
     color = new THREE.Color(
       processedAt(field, v, broadNoise)
-        ? (broadNoise > 0.48 ? 0x5c4d3d : 0x514234)
-        : (broadNoise > 0.5 ? 0x4e3522 : 0x432d1d),
+        ? (broadNoise > 0.48 ? 0xa89b8b : 0x998b7c)
+        : (broadNoise > 0.5 ? 0x927a61 : 0xa08769),
     );
   } else {
-    color = new THREE.Color(
-      broadNoise > 0.52 ? fieldColor(field.crop, field.stage) : 0x4d351f,
-    );
+    color = new THREE.Color(broadNoise > 0.52 ? 0xaa9378 : 0x9a8068);
   }
 
-  color.multiplyScalar(0.91 + fineNoise * 0.17);
+  color.multiplyScalar(0.94 + fineNoise * 0.12);
   return color;
 }
 
@@ -153,6 +152,7 @@ function createSurface(
   );
   const vertices: number[] = [];
   const colors: number[] = [];
+  const uvs: number[] = [];
   const indices: number[] = [];
   const seed = hashString(field.id);
   for (let vIndex = 0; vIndex <= vSteps; vIndex += 1) {
@@ -161,6 +161,10 @@ function createSurface(
       const v = vIndex / vSteps;
       const point = bilinearPoint(corners, u, v);
       vertices.push(point.x, getHeightAt(point.x, point.z) + FIELD_LIFT, point.z);
+      uvs.push(
+        point.x / CULTIVATED_SOIL_METERS_PER_TILE,
+        point.z / CULTIVATED_SOIL_METERS_PER_TILE,
+      );
       const color = surfaceColorAt(
         field,
         u,
@@ -174,6 +178,10 @@ function createSurface(
   const stride = uSteps + 1;
   for (let v = 0; v < vSteps; v += 1) {
     for (let u = 0; u < uSteps; u += 1) {
+      const cellIndex = v * uSteps + u;
+      const cellNoise = random01(seed, cellIndex, 0x50f3a149);
+      const cellV = (v + 0.5) / vSteps;
+      if (field.stage === 'ploughing' && !processedAt(field, cellV, cellNoise)) continue;
       const a = v * stride + u;
       const b = a + 1;
       const d = (v + 1) * stride + u;
@@ -184,18 +192,34 @@ function createSurface(
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setAttribute('uv1', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   const material = new THREE.MeshStandardMaterial({
     color: 0xffffff,
+    map: CULTIVATED_SOIL_TEXTURES.albedo,
+    normalMap: CULTIVATED_SOIL_TEXTURES.normal,
+    normalScale: new THREE.Vector2(0.42, 0.42),
+    roughnessMap: CULTIVATED_SOIL_TEXTURES.roughness,
     vertexColors: true,
     roughness: 1,
+    metalness: 0,
     polygonOffset: true,
     polygonOffsetFactor: -2,
   });
+  material.name = 'Backyard garden soil PBR adapted for agricultural fields';
+  material.userData.pbrTexturePaths = CULTIVATED_SOIL_TEXTURE_PATHS;
+  material.userData.cultivatedSoilBase = 'backyard-garden';
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = 'Worked field soil';
   mesh.receiveShadow = true;
+  mesh.userData.fieldStage = field.stage;
+  mesh.userData.fieldCrop = field.crop === 'wheat' ? 'maslin' : field.crop;
+  mesh.userData.fieldStateCoverage = field.stage === 'ploughing'
+    ? clamp01(field.stageProgress)
+    : 1;
+  mesh.userData.debugModes = ['final', 'cultivated-soil', 'processed-coverage'];
   return mesh;
 }
 
@@ -238,6 +262,51 @@ function createFurrows(
   );
   furrows.name = 'Terrain-following field furrows';
   return furrows;
+}
+
+function createSeededDrills(
+  field: FarmFieldState,
+  corners: FarmFieldCorners,
+  getHeightAt: (x: number, z: number) => number,
+): THREE.LineSegments {
+  const vertices: number[] = [];
+  if (field.stage === 'sowing') {
+    const { width, depth } = fieldDimensions(corners);
+    const rows = Math.max(4, Math.min(56, Math.floor(depth / 0.64)));
+    const segments = Math.max(6, Math.min(64, Math.ceil(width / 1.1)));
+    const seed = hashString(field.id);
+    for (let row = 1; row < rows; row += 1) {
+      const v = row / rows;
+      const noise = random01(seed, row, 0x17a0c4d1);
+      if (!processedAt(field, v, noise)) continue;
+      for (let segment = 0; segment < segments; segment += 1) {
+        for (const u of [segment / segments, (segment + 1) / segments]) {
+          const point = bilinearPoint(corners, u, v);
+          vertices.push(
+            point.x,
+            getHeightAt(point.x, point.z) + FIELD_LIFT + 0.023,
+            point.z,
+          );
+        }
+      }
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  const drills = new THREE.LineSegments(
+    geometry,
+    new THREE.LineBasicMaterial({
+      color: 0x2c2118,
+      transparent: true,
+      opacity: 0.62,
+      depthWrite: false,
+    }),
+  );
+  drills.name = 'Seeded drill rows';
+  drills.userData.seededCoverage = field.stage === 'sowing'
+    ? clamp01(field.stageProgress)
+    : 0;
+  return drills;
 }
 
 function createFieldEdge(
@@ -749,6 +818,7 @@ function createSoilClods(
     index % 18 === 0
     && (
       field.stage === 'growing'
+      || field.stage === 'sowing'
       || processedAt(field, sample.v, sample.randomA)
     )
   ));
@@ -820,7 +890,7 @@ function cropColors(field: FarmFieldState, maturity: number): {
   };
 }
 
-function createCropStand(
+function createLegacyCropStand(
   field: FarmFieldState,
   corners: FarmFieldCorners,
   getHeightAt: (x: number, z: number) => number,
@@ -941,6 +1011,171 @@ function createCropStand(
   return crops;
 }
 
+function cropComponentName(
+  field: FarmFieldState,
+  asset: FieldCropPhaseAsset,
+): string {
+  const cropName = field.crop === 'wheat' ? 'maslin' : field.crop;
+  const component = field.crop === 'wheat'
+    ? asset.speciesKey === 'rye' ? 'rye component' : 'wheat component'
+    : asset.speciesKey;
+  return `SeedThree ${cropName} ${component} ${asset.phase} cards`;
+}
+
+function createSeedThreeCropInstances(
+  field: FarmFieldState,
+  component: FieldCropComponentAsset,
+  samples: readonly FieldSample[],
+  maturity: number,
+  getHeightAt: (x: number, z: number) => number,
+): THREE.InstancedMesh | null {
+  if (samples.length === 0) return null;
+  const phaseAsset = maturity >= GRAIN_HEAD_START_PROGRESS
+    ? component.mature
+    : component.young;
+  const geometry = phaseAsset.geometry.clone();
+  const attributes = addSeedThreeGroundCoverInstanceAttributes(geometry, samples.length);
+  const mesh = new THREE.InstancedMesh(geometry, phaseAsset.material, samples.length);
+  mesh.name = cropComponentName(field, phaseAsset);
+  mesh.castShadow = samples.length <= 2_500;
+  mesh.receiveShadow = true;
+  mesh.userData.fieldCropSharedMaterial = true;
+  mesh.userData.seedThreeFieldCrop = true;
+  mesh.userData.gameCrop = field.crop === 'wheat' ? 'maslin' : field.crop;
+  mesh.userData.seedThreeSpecies = phaseAsset.speciesName;
+  mesh.userData.seedThreeLatin = phaseAsset.latin;
+  mesh.userData.seedThreeCropPhase = phaseAsset.phase;
+  mesh.userData.pbrTextureFiles = phaseAsset.textureFiles;
+
+  const phaseProgress = phaseAsset.phase === 'young'
+    ? THREE.MathUtils.smoothstep(maturity, 0.015, GRAIN_HEAD_START_PROGRESS)
+    : THREE.MathUtils.smoothstep(maturity, GRAIN_HEAD_START_PROGRESS, 0.9);
+  const startHeight = phaseAsset.phase === 'young'
+    ? 0.075
+    : component.young.referenceHeightMeters * 0.9;
+  const targetHeightBase = THREE.MathUtils.lerp(
+    startHeight,
+    phaseAsset.referenceHeightMeters,
+    phaseProgress,
+  );
+  const matrix = new THREE.Matrix4();
+  const position = new THREE.Vector3();
+  const quaternion = new THREE.Quaternion();
+  const scale = new THREE.Vector3();
+  const tint = new THREE.Color();
+  const wind = new THREE.Vector3();
+  for (let index = 0; index < samples.length; index += 1) {
+    const sample = samples[index]!;
+    const height = targetHeightBase * (0.9 + sample.randomB * 0.19);
+    const width = height * (0.9 + sample.randomA * 0.16);
+    const yaw = sample.randomA * Math.PI * 2;
+    position.set(
+      sample.x,
+      getHeightAt(sample.x, sample.z) + FIELD_LIFT - height * 0.055,
+      sample.z,
+    );
+    quaternion.setFromAxisAngle(UP_AXIS, yaw);
+    scale.set(width, height, width);
+    matrix.compose(position, quaternion, scale);
+    mesh.setMatrixAt(index, matrix);
+
+    tint.setHSL(
+      phaseAsset.phase === 'young' ? 0.28 : 0.13,
+      phaseAsset.phase === 'young' ? 0.12 : 0.035,
+      0.92 + (sample.randomC - 0.5) * 0.1,
+    );
+    attributes.tint.setXYZ(index, tint.r, tint.g, tint.b);
+    attributes.anchor.setXYZ(index, position.x, position.y, position.z);
+    seedThreeGroundCoverWindVector(yaw, scale, wind);
+    attributes.wind.setXYZ(index, wind.x, wind.y, wind.z);
+    mesh.setColorAt(index, tint);
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  attributes.tint.needsUpdate = true;
+  attributes.anchor.needsUpdate = true;
+  attributes.wind.needsUpdate = true;
+  mesh.computeBoundingBox();
+  mesh.computeBoundingSphere();
+  return mesh;
+}
+
+function createSeedThreeCropStand(
+  field: FarmFieldState,
+  corners: FarmFieldCorners,
+  getHeightAt: (x: number, z: number) => number,
+  cropCatalog: FieldCropCatalog,
+): THREE.Group {
+  const crops = new THREE.Group();
+  crops.name = 'SeedThree stage-aware crop stand';
+  crops.userData.seedThreeOwned = true;
+  crops.userData.gameCrop = field.crop === 'wheat' ? 'maslin' : field.crop;
+  if (
+    field.stage === 'ploughing'
+    || field.stage === 'sowing'
+    || (field.crop !== 'fallow' && field.stage !== 'growing' && field.stage !== 'harvesting')
+  ) return crops;
+  if (field.crop === 'fallow') {
+    // Worked fallow is a land state, not a crop species. Its volunteer cover is
+    // deliberately kept separate from the SeedThree crop-species contract.
+    return createLegacyCropStand(field, corners, getHeightAt);
+  }
+
+  const maturity = cerealMaturity(field);
+  const harvestProgress = field.stage === 'harvesting'
+    ? clamp01(field.stageProgress)
+    : 0;
+  const standing: FieldSample[] = [];
+  const harvested: FieldSample[] = [];
+  for (const sample of fieldSamples(field, corners)) {
+    const boundaryNoise = (sample.randomC - 0.5) * 0.14
+      + Math.sin(sample.u * Math.PI * 5.2) * 0.028;
+    if (field.stage === 'harvesting' && sample.v < harvestProgress + boundaryNoise) {
+      harvested.push(sample);
+    } else {
+      standing.push(sample);
+    }
+  }
+
+  const components = cropCatalog.components(field.crop);
+  let cumulativeShare = 0;
+  for (let componentIndex = 0; componentIndex < components.length; componentIndex += 1) {
+    const component = components[componentIndex]!;
+    const lower = cumulativeShare;
+    cumulativeShare += component.share;
+    const componentSamples = components.length === 1
+      ? standing
+      : standing.filter((sample) => (
+        sample.randomC >= lower
+        && (componentIndex === components.length - 1 || sample.randomC < cumulativeShare)
+      ));
+    const mesh = createSeedThreeCropInstances(
+      field,
+      component,
+      componentSamples,
+      maturity,
+      getHeightAt,
+    );
+    if (mesh) crops.add(mesh);
+  }
+
+  if (harvested.length > 0) {
+    const stubble = createInstancedTufts(
+      createStubbleGeometry(),
+      harvested,
+      getHeightAt,
+      new THREE.Color(0xb18b4d),
+      field.crop === 'flax' ? 'Pulled flax stubble' : 'Cut cereal stubble',
+      (sample) => 0.76 + sample.randomB * 0.48,
+      (sample) => 0.82 + sample.randomA * 0.28,
+    );
+    stubble.castShadow = false;
+    stubble.userData.deadCropResidue = true;
+    crops.add(stubble);
+  }
+  return crops;
+}
+
 function disposeObject(root: THREE.Object3D): void {
   root.traverse((object) => {
     const renderable = object as THREE.Mesh;
@@ -950,7 +1185,10 @@ function disposeObject(root: THREE.Object3D): void {
     }
     renderable.geometry?.dispose();
     const materials = Array.isArray(renderable.material) ? renderable.material : renderable.material ? [renderable.material] : [];
-    for (const material of materials) material.dispose();
+    for (const material of materials) {
+      if (renderable.userData.fieldCropSharedMaterial === true) continue;
+      material.dispose();
+    }
   });
   root.clear();
 }
@@ -959,6 +1197,7 @@ export type FarmFieldMarkerOptions = {
   maxAnisotropy?: number;
   rendererBackend?: RendererBackendKind;
   useSeedThreePerimeterShrubs?: boolean;
+  useSeedThreeCrops?: boolean;
 };
 
 export class FarmFieldMarkers {
@@ -968,6 +1207,9 @@ export class FarmFieldMarkers {
   private latestFields: FarmFieldState[] = [];
   private perimeterShrubs: FieldPerimeterShrubCatalog | null = null;
   private perimeterReady: Promise<void> = Promise.resolve();
+  private cropCatalog: FieldCropCatalog | null = null;
+  private cropReady: Promise<void> = Promise.resolve();
+  private readonly seedThreeCropsRequested: boolean;
   private disposed = false;
 
   constructor(
@@ -976,6 +1218,7 @@ export class FarmFieldMarkers {
     options: FarmFieldMarkerOptions = {},
   ) {
     this.getHeightAt = getHeightAt;
+    this.seedThreeCropsRequested = options.useSeedThreeCrops === true;
     this.root.name = 'Farm fields';
     parent.add(this.root);
 
@@ -1003,6 +1246,31 @@ export class FarmFieldMarkers {
         },
       );
     }
+
+    if (this.seedThreeCropsRequested) {
+      this.cropReady = import('../vegetation/seedthree/fieldCropAssets.ts').then(
+        ({ createFieldCropCatalog }) => createFieldCropCatalog(
+          options.maxAnisotropy ?? 4,
+          options.rendererBackend,
+        ),
+      ).then(
+        (catalog) => {
+          if (this.disposed) {
+            catalog.dispose();
+            return;
+          }
+          this.cropCatalog = catalog;
+          this.lastSignature = '';
+          this.syncFields(this.latestFields);
+        },
+        (error: unknown) => {
+          console.warn(
+            '[SeedThree] field-crop assets failed to load; crop stands will remain hidden rather than using proxy species.',
+            error,
+          );
+        },
+      );
+    }
   }
 
   syncFields(fields: Iterable<FarmFieldState>): void {
@@ -1023,10 +1291,37 @@ export class FarmFieldMarkers {
       const corners = field.corners as FarmFieldCorners;
       const group = new THREE.Group();
       group.name = `Field ${field.id}`;
+      group.userData.visualContract = {
+        seed: hashString(field.id),
+        state: field.crop === 'fallow'
+          ? 'fallow'
+          : field.stage === 'ploughing' && field.stageProgress <= 0.01
+            ? 'unploughed'
+            : field.stage === 'ploughing'
+              ? 'ploughed'
+              : field.stage === 'sowing'
+                ? field.stageProgress <= 0.01
+                  ? 'ploughed'
+                  : 'seeded'
+                : field.stage,
+        processedCoverage: field.stage === 'ploughing'
+          ? clamp01(field.stageProgress)
+          : 1,
+        seededCoverage: field.stage === 'sowing'
+          ? clamp01(field.stageProgress)
+          : 0,
+        crop: field.crop === 'wheat' ? 'maslin' : field.crop,
+        cropAssetOwner: field.crop === 'fallow' ? 'none' : 'SeloSlav/SeedThree',
+      };
       group.add(createSurface(field, corners, this.getHeightAt));
       group.add(createFurrows(field, corners, this.getHeightAt));
+      group.add(createSeededDrills(field, corners, this.getHeightAt));
       group.add(createSoilClods(field, corners, this.getHeightAt));
-      group.add(createCropStand(field, corners, this.getHeightAt));
+      group.add(this.cropCatalog
+        ? createSeedThreeCropStand(field, corners, this.getHeightAt, this.cropCatalog)
+        : this.seedThreeCropsRequested
+          ? new THREE.Group()
+          : createLegacyCropStand(field, corners, this.getHeightAt));
       group.add(createFieldEdge(field.id, corners, this.getHeightAt));
       this.root.add(group);
     }
@@ -1043,11 +1338,17 @@ export class FarmFieldMarkers {
     return this.perimeterReady;
   }
 
+  whenCropsReady(): Promise<void> {
+    return this.cropReady;
+  }
+
   dispose(): void {
     this.disposed = true;
     disposeObject(this.root);
     this.perimeterShrubs?.dispose();
     this.perimeterShrubs = null;
+    this.cropCatalog?.dispose();
+    this.cropCatalog = null;
     this.root.removeFromParent();
   }
 }

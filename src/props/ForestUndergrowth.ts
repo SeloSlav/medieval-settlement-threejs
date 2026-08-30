@@ -38,7 +38,6 @@ import {
   supportsNodeMaterials,
   type RendererBackendKind,
 } from '../scene/RendererBackend.ts';
-import { applyPainterlyVegetationMaterial } from '../vegetation/painterly/painterlyVegetationMaterial.ts';
 import type { DeciduousFoliagePresentation } from '../world/deciduousFoliagePolicy.ts';
 import {
   seedThreeBarkUrl,
@@ -1109,7 +1108,6 @@ function createUndergrowthCardMaterial(
   const upView = tsl.cameraViewMatrix.mul(tsl.vec4(0, 1, 0, 0)).xyz;
   const relief = textures.normal ? tsl.normalMap(tsl.texture(textures.normal)).sub(tsl.normalView) : null;
   material.normalNode = relief ? tsl.normalize(upView.add(relief.mul(0.4))) : tsl.normalize(upView);
-  applyPainterlyVegetationMaterial(material, 'shrub-leaf');
   return material;
 }
 
@@ -1177,7 +1175,6 @@ function createUndergrowthBranchMaterial(
     seasonalSurface,
     tsl.float(1),
   );
-  applyPainterlyVegetationMaterial(material, 'bark');
   return material;
 }
 

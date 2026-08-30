@@ -400,6 +400,7 @@ export class ResourceInspector {
   private readonly demolishSecondaryButton: HTMLButtonElement;
   private readonly demolishHint: HTMLElement;
   private readonly demolishSecondaryHint: HTMLElement;
+  private readonly primaryActionSection: HTMLElement;
   private readonly laborSection: HTMLElement;
   private readonly laborLabel: HTMLElement;
   private readonly laborCount: HTMLElement;
@@ -524,6 +525,7 @@ export class ResourceInspector {
         </div>
         <footer class="resource-inspector-footer">
           <section class="resource-inspector-actions" data-inspector-actions hidden aria-label="Building actions">
+            <div class="resource-inspector-primary-action" data-inspector-primary-action hidden></div>
             <button type="button" class="resource-action-button resource-action-button--danger resource-inspector-demolish" data-action="demolish-primary">
               Demolish
             </button>
@@ -677,6 +679,7 @@ export class ResourceInspector {
     this.demolishSecondaryButton = this.mustButton(options.uiRoot, '[data-action="demolish-secondary"]');
     this.demolishHint = this.mustElement(options.uiRoot, '[data-demolish-hint]');
     this.demolishSecondaryHint = this.mustElement(options.uiRoot, '[data-demolish-secondary-hint]');
+    this.primaryActionSection = this.mustElement(options.uiRoot, '[data-inspector-primary-action]');
     this.laborSection = this.mustElement(options.uiRoot, '[data-inspector-labor]');
     this.laborLabel = this.mustElement(options.uiRoot, '[data-inspector-labor-label]');
     this.laborCount = this.mustElement(options.uiRoot, '[data-inspector-labor-count]');
@@ -1154,28 +1157,7 @@ export class ResourceInspector {
       }
       const landParcel = (event.target as HTMLElement).closest<HTMLElement>('[data-land-parcel]')?.dataset.landParcel;
       if (landParcel === 'field' && building.kind === 'threshing_barn') {
-        const planner = (event.target as HTMLElement)
-          .closest<HTMLElement>('.inspector-action-panel')
-          ?.querySelector<HTMLElement>('[data-field-layout-planner]');
-        if (!planner) return;
-        const autoManage = planner
-          .querySelector<HTMLInputElement>('[data-field-layout-auto-manage]')
-          ?.checked ?? false;
-        const selectedCrop = (selector: string): FarmCrop | null => {
-          const value = planner.querySelector<HTMLSelectElement>(selector)?.value;
-          return value != null && FARM_CROPS.includes(value as FarmCrop)
-            ? value as FarmCrop
-            : null;
-        };
-        const repeated = selectedCrop('[data-field-layout-repeat-crop]') ?? 'rye';
-        const planned = [0, 1, 2].map((slot) =>
-          selectedCrop(`[data-field-layout-cycle-crop="${slot}"]`),
-        );
-        const crops: [FarmCrop, FarmCrop, FarmCrop] = autoManage
-          && planned.every((crop): crop is FarmCrop => crop != null)
-          ? [planned[0], planned[1], planned[2]]
-          : [repeated, repeated, repeated];
-        this.options.onBeginFarmFieldPlacement?.(building.id, crops, autoManage);
+        this.options.onBeginFarmFieldPlacement?.(building.id, ['rye', 'rye', 'rye'], false);
         return;
       }
       if (landParcel === 'pasture' && (building.kind === 'pastoral_farmstead' || building.kind === 'swineherd')) {
@@ -1765,6 +1747,12 @@ export class ResourceInspector {
         ?? fallback[0].toUpperCase() + fallback.slice(1);
       const syncFieldRotationPresentation = (): void => {
         if (!panel || !autoManage) return;
+        for (const select of [repeatSelect, nextSelect, followingSelect]) {
+          const crop = cropValue(select);
+          const icon = select?.closest<HTMLElement>('.farm-rotation-row')
+            ?.querySelector<HTMLElement>('[data-field-crop-icon]');
+          if (icon && crop) icon.dataset.fieldCropIcon = crop;
+        }
         const managed = autoManage.checked;
         const single = panel.querySelector<HTMLElement>('[data-field-rotation-single]');
         const cycle = panel.querySelector<HTMLElement>('[data-field-rotation-cycle]');
@@ -1802,52 +1790,6 @@ export class ResourceInspector {
     }
     if (this.selectedTarget?.kind !== 'building') return;
     const building = this.selectedTarget.building;
-
-    if (
-      building.kind === 'threshing_barn'
-      && input.matches(
-        '[data-field-layout-auto-manage], [data-field-layout-repeat-crop], '
-        + '[data-field-layout-cycle-crop]',
-      )
-    ) {
-      const planner = input.closest<HTMLElement>('[data-field-layout-planner]');
-      const autoManage = planner
-        ?.querySelector<HTMLInputElement>('[data-field-layout-auto-manage]');
-      const repeatSelect = planner
-        ?.querySelector<HTMLSelectElement>('[data-field-layout-repeat-crop]');
-      const cycleSelects = [...(planner
-        ?.querySelectorAll<HTMLSelectElement>('[data-field-layout-cycle-crop]') ?? [])];
-      if (planner && autoManage && repeatSelect && cycleSelects.length === 3) {
-        if (input.matches('[data-field-layout-auto-manage]') && autoManage.checked) {
-          cycleSelects[0].value = repeatSelect.value;
-        }
-        const single = planner.querySelector<HTMLElement>('[data-field-layout-single]');
-        const cycle = planner.querySelector<HTMLElement>('[data-field-layout-cycle]');
-        const summary = planner.querySelector<HTMLElement>('[data-field-layout-summary]');
-        const buttonIcon = planner.closest<HTMLElement>('.inspector-action-panel')
-          ?.querySelector<HTMLElement>('[data-field-layout-button-icon]');
-        const managed = autoManage.checked;
-        if (single) single.hidden = managed;
-        if (cycle) cycle.hidden = !managed;
-        autoManage.setAttribute('aria-expanded', String(managed));
-        const cropNames = cycleSelects.map((select) =>
-          select.selectedOptions[0]?.textContent?.trim() ?? select.value,
-        );
-        const repeatedName = repeatSelect.selectedOptions[0]?.textContent?.trim()
-          ?? repeatSelect.value;
-        if (summary) {
-          summary.textContent = managed
-            ? `${cropNames.join(' → ')} · repeats forever`
-            : `Repeats ${repeatedName} every crop year.`;
-        }
-        if (buttonIcon) {
-          buttonIcon.dataset.fieldCropIcon = managed
-            ? cycleSelects[0].value
-            : repeatSelect.value;
-        }
-      }
-      return;
-    }
 
     if (
       isProductionRateBuilding(building.kind)
@@ -2370,6 +2312,8 @@ export class ResourceInspector {
     this.selectedTarget = null;
     this.marker.visible = false;
     this.demolishSection.hidden = true;
+    this.primaryActionSection.hidden = true;
+    this.primaryActionSection.innerHTML = '';
     this.laborSection.hidden = true;
     this.oxTeamSection.hidden = true;
     this.supplementalPanelSection.hidden = true;
@@ -2652,7 +2596,13 @@ export class ResourceInspector {
     this.syncServiceCoverageButton(target, view.serviceCoverage);
     this.renderDetails(view.detailsHtml);
 
-    this.demolishSection.hidden = !view.demolish.visible;
+    const primaryActionHtml = view.primaryActionHtml?.trim() ?? '';
+    this.primaryActionSection.hidden = primaryActionHtml.length === 0;
+    if (this.primaryActionSection.innerHTML !== primaryActionHtml) {
+      this.primaryActionSection.innerHTML = primaryActionHtml;
+    }
+    this.demolishSection.hidden = !view.demolish.visible && primaryActionHtml.length === 0;
+    this.demolishButton.hidden = !view.demolish.visible;
     this.demolishButton.textContent = view.demolish.label ?? 'Demolish';
     this.demolishHint.textContent = view.demolish.hint;
     const compactDemolition = target.kind === 'building'

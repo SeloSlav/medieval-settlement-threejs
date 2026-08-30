@@ -892,8 +892,8 @@ assert.match(
 );
 assert.match(
   twigSource,
-  /new MeshStandardNodeMaterial\(\)[\s\S]*material\.map = textures\.albedo[\s\S]*material\.normalMap = textures\.normal[\s\S]*material\.roughnessMap = textures\.roughness[\s\S]*material\.vertexColors = true[\s\S]*applyPainterlyVegetationMaterial\(material, 'twig'\)/,
-  'twigs must render the complete shared beech PBR set with deterministic tint variation through the painter-capable node material',
+  /new MeshStandardNodeMaterial\(\)[\s\S]*material\.map = textures\.albedo[\s\S]*material\.normalMap = textures\.normal[\s\S]*material\.roughnessMap = textures\.roughness[\s\S]*material\.vertexColors = true/,
+  'twigs must render the complete shared beech PBR set with deterministic tint variation through the node material',
 );
 assert.match(
   twigSource,

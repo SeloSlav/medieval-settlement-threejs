@@ -132,17 +132,41 @@
 .inspector-policy-select {
   width: 100%;
   padding: 8px 10px;
-  color: inherit;
+  color: #e7d9bc;
   color-scheme: dark;
-  background: rgba(255, 255, 255, 0.06);
+  background:
+    linear-gradient(180deg, rgba(222, 190, 116, 0.055), transparent 62%),
+    #12160f;
   border: 1px solid rgba(238, 232, 220, 0.18);
   border-radius: 6px;
+  box-shadow:
+    inset 0 1px rgba(255, 245, 216, 0.035),
+    0 1px 2px rgba(0, 0, 0, 0.2);
   font: inherit;
+}
+
+.inspector-policy-select option,
+.inspector-policy-select optgroup {
+  color: #e7d9bc;
+  background-color: #171b13;
+}
+
+.inspector-policy-select option:checked {
+  color: #fff0c9;
+  background-color: #6e5425;
+}
+
+.inspector-policy-select option:disabled {
+  color: #746e61;
+  background-color: #141711;
 }
 
 .inspector-policy-select:hover,
 .inspector-policy-select:focus-visible {
-  border-color: var(--accent);
+  border-color: rgba(222, 186, 98, 0.72);
+  box-shadow:
+    inset 0 1px rgba(255, 245, 216, 0.055),
+    0 0 0 1px rgba(210, 169, 75, 0.12);
   outline: none;
 }
 
@@ -236,6 +260,10 @@
   background-image: url('/assets/ui/build-menu/cards/pasture.webp');
 }
 
+.inspector-action-icon[data-action-icon='field-parcel'] {
+  background-image: url('/assets/ui/icons/actions/fallow-field.png');
+}
+
 .inspector-action-icon[data-action-icon='graveyard'] {
   background-image: url('/assets/ui/icons/actions/graveyard.png');
 }
@@ -257,11 +285,11 @@
 .farm-rotation-planner,
 .farm-rotation-single {
   display: grid;
-  gap: 7px;
+  gap: 5px;
 }
 
 .farm-rotation-planner {
-  padding: 9px;
+  padding: 7px 8px;
   border: 1px solid rgba(210, 177, 99, 0.22);
   border-radius: 3px;
   background:
@@ -270,60 +298,94 @@
 }
 
 .farm-rotation-toggle {
+  grid-template-columns: 32px minmax(0, 1fr);
+  min-height: 24px;
   margin: 0;
 }
 
-.farm-rotation-toggle > span {
-  display: grid;
+.farm-rotation-toggle__label {
+  display: flex;
+  align-items: center;
   min-width: 0;
-  gap: 2px;
+  gap: 6px;
 }
 
 .farm-rotation-toggle strong {
   color: #e0d3b8;
   font: 700 11px/1.2 var(--ui-font-sans);
+  white-space: nowrap;
 }
 
-.farm-rotation-toggle small {
-  color: rgba(238, 232, 220, 0.58);
-  font: 500 9px/1.25 var(--ui-font-sans);
+.farm-rotation-cycle-icon {
+  color: #c9ad68;
+  font: 700 15px/1 var(--ui-font-sans);
 }
 
 .farm-rotation-slots {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.farm-rotation-row {
+  display: grid;
+  grid-template-columns: 22px 24px minmax(0, 1fr);
+  align-items: center;
+  min-width: 0;
+  min-height: 34px;
   gap: 6px;
 }
 
-.farm-rotation-slot {
-  display: grid;
+.farm-rotation-row--current {
+  grid-template-columns: 22px 24px minmax(0, 1fr) auto;
+  padding: 0 8px 0 0;
+  border: 1px solid rgba(223, 198, 142, 0.12);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.farm-rotation-row--current strong {
   min-width: 0;
-  gap: 4px;
-  color: #a99d84;
-  font: 700 9px/1.2 var(--ui-font-sans);
-  letter-spacing: 0.045em;
+  overflow: hidden;
+  color: #d8c9a9;
+  font: 650 10px/1.2 var(--ui-font-sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.farm-rotation-row--current small {
+  color: #8f8777;
+  font: 700 8px/1 var(--ui-font-sans);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
-.farm-rotation-slot--single {
-  grid-template-columns: minmax(0, 1fr) minmax(124px, 48%);
-  align-items: center;
+.farm-rotation-year {
+  display: grid;
+  place-items: center;
+  align-self: stretch;
+  min-width: 22px;
+  border-right: 1px solid rgba(213, 182, 111, 0.14);
+  color: #b99f62;
+  font: 750 10px/1 var(--ui-font-sans);
 }
 
-.farm-rotation-slot .inspector-policy-select {
+.farm-rotation-year--repeat {
+  font-size: 14px;
+}
+
+.farm-rotation-row .farm-crop-choice__icon {
+  width: 22px;
+  height: 22px;
+}
+
+.farm-rotation-row .inspector-policy-select {
+  width: 100%;
   min-width: 0;
   min-height: 34px;
   padding: 6px 22px 6px 8px;
   color: #eee0c2;
-  font-size: 10px;
+  font-size: 11px;
   text-overflow: ellipsis;
-}
-
-.farm-rotation-summary {
-  min-height: 16px;
-  margin: 0;
-  color: #cbb77f;
-  font: 650 10px/1.4 var(--ui-font-sans);
 }
 
 .farm-field-layout-button {

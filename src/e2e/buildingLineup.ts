@@ -36,8 +36,6 @@ import {
 } from '../scene/rendererFrameStats.ts';
 import { OxenRenderer } from '../settlement/OxenRenderer.ts';
 import type { BuildingState } from '../resources/types.ts';
-import { PainterlySceneMaterialCoverage } from '../scene/PainterlySceneMaterialCoverage.ts';
-import { setPainterlyVegetationEnabled } from '../scene/painterlyVegetationPreference.ts';
 import { setTierOneChurchClockTime } from '../buildings/chapelRuntimeClock.ts';
 import {
   GORSKI_ARCHITECTURE_FAMILIES,
@@ -66,7 +64,6 @@ declare global {
 }
 
 const lineupParams = new URLSearchParams(window.location.search);
-const painterlySurfaceCoverage = lineupParams.get('painterly') === '1';
 const requestedCamera = lineupParams.get('camera');
 const cameraBookmark = requestedCamera === 'near' || requestedCamera === 'far'
   ? requestedCamera
@@ -537,7 +534,6 @@ for (let index = views.length; index < COLS * ROWS; index++) {
 }
 
 function render(): void {
-  for (const coverage of painterlyCoverages) coverage.update();
   const frameStartedAt = performance.now();
   const frameBoundary = beginRendererFrame(renderer.info);
   const width = root!.clientWidth;
@@ -580,10 +576,6 @@ function render(): void {
 }
 
 await initializeBuildingMaterialLibrary(rendererBackend.maxAnisotropy);
-if (painterlySurfaceCoverage) setPainterlyVegetationEnabled(true);
-const painterlyCoverages = painterlySurfaceCoverage
-  ? views.map((view) => new PainterlySceneMaterialCoverage(view.scene, 1))
-  : [];
 await Promise.all(
   views.flatMap((view) => [
     view.waysidePrayer?.renderer.ready ?? Promise.resolve(true),
@@ -628,7 +620,6 @@ window.__BUILDING_LINEUP_METRICS__ = {
 document.body.dataset.lineupMetrics = JSON.stringify(window.__BUILDING_LINEUP_METRICS__);
 document.body.dataset.ready = 'true';
 document.body.dataset.rendererBackend = rendererBackend.kind;
-document.body.dataset.painterlySurfaceCoverage = painterlySurfaceCoverage ? 'true' : 'false';
 window.addEventListener('resize', render);
 
 function createServiceCoveragePreview(

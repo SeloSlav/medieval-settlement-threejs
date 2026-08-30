@@ -103,7 +103,6 @@ import {
 } from '@seedthree/core/forest-update-budget.js';
 import type { DeciduousFoliagePresentation } from '../../world/deciduousFoliagePolicy.ts';
 import { planSeedThreeForestInteractionWork } from './seedThreeForestInteraction.ts';
-import { applyPainterlyVegetationMaterial } from '../painterly/painterlyVegetationMaterial.ts';
 
 type SpeciesBucket = {
   preset: SeedThreePresetKey;
@@ -321,7 +320,6 @@ function createInstancedLodSet(
           forestBarkMaterial(mesh.material as THREE.Material),
         ),
       );
-      applyPainterlyVegetationMaterial(sourceMaterial, 'bark');
       const material = options.overviewCards === true
         ? createSeedThreeOverviewBarkFadeMaterial(sourceMaterial)
         : sourceMaterial;
@@ -392,10 +390,6 @@ function createInstancedLodSet(
             crownUnderlay,
           ),
           sourceMaterial,
-        );
-        applyPainterlyVegetationMaterial(
-          baseForestMaterial,
-          options.seasonalDeciduous === true ? 'deciduous-leaf' : 'evergreen-leaf',
         );
         const fmat = crownUnderlay && options.overviewCards !== true
           ? createSeedThreeOverviewFadeMaterial(

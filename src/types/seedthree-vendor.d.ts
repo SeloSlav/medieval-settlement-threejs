@@ -685,6 +685,36 @@ declare module '@seedthree/core/ground-cover.js' {
   export function disposeGroundCoverTextures(textures: GroundCoverTextures): void;
 }
 
+declare module '@seedthree/core/field-crops.js' {
+  import type * as THREE from 'three';
+
+  export function fieldCropPhase(
+    preset: Record<string, unknown>,
+    maturity: number,
+  ): Record<string, unknown>;
+  export function createFieldCropGeometry(
+    preset: Record<string, unknown>,
+    maturity?: number,
+  ): THREE.BufferGeometry;
+  export function createFieldCropMaterial(
+    preset: Record<string, unknown>,
+    textures: Record<string, THREE.Texture | null>,
+    options?: Record<string, unknown>,
+  ): THREE.Material;
+  export function fieldCropComponents(
+    preset: Record<string, unknown>,
+  ): Array<{ preset: Record<string, unknown>; share: number }>;
+}
+
+declare module '@seedthree/species/field-crops.js' {
+  export const fieldRye: Record<string, unknown>;
+  export const fieldOats: Record<string, unknown>;
+  export const fieldBarley: Record<string, unknown>;
+  export const fieldFlax: Record<string, unknown>;
+  export const fieldMaslin: Record<string, unknown>;
+  export const FIELD_CROP_SPECIES: Record<string, Record<string, unknown>>;
+}
+
 declare module '@seedthree/core/cattails.js' {
   import type * as THREE from 'three';
 

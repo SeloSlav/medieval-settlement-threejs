@@ -7,7 +7,6 @@ import { loadSeedThreeSpeciesAssets } from './seedThreeAssets.ts';
 import { seedThreeFruitUrl } from './seedThreeTextures.ts';
 import { BACKYARD_PLANT_SPECIES, type BackyardPlantKind } from './backyardPlantPresets.ts';
 import { createGorskiShrubPrototype } from './gorskiShrubPrototypes.ts';
-import { applyPainterlyVegetationMaterial } from '../painterly/painterlyVegetationMaterial.ts';
 import {
   createSeedThreeTreeBarkWindPosition,
   createSeedThreeTreeCardWindPosition,
@@ -162,7 +161,6 @@ export function loadBackyardPlantCatalog(maxAnisotropy: number): Promise<Backyar
         group.name = `SeedThree ${kind} prototype ${variant + 1}`;
         if (kind !== 'aronia' && kind !== 'rosehip') {
           normalizeBackyardPlantFoliageWind(group);
-          registerBackyardTreePainterlyMaterials(group);
         }
         markSharedPrototypeGeometry(group);
         variants.push(group);
@@ -274,8 +272,6 @@ function createOrchardShrub(
   foliage.forceSinglePass = true;
   foliage.normalScale.set(0.45, 0.45);
   foliage.userData.translucencyMap = assets.leafTranslucency;
-  applyPainterlyVegetationMaterial(branch, 'bark');
-  applyPainterlyVegetationMaterial(foliage, 'shrub-leaf');
 
   const mesh = new THREE.Mesh(prototype.geometry, [branch, foliage]);
   mesh.name = `SeedThree ${kind} dichotomous shrub`;
@@ -293,24 +289,6 @@ function createOrchardShrub(
   lod.userData.seedThreeGenerator = prototype.geometry.userData.seedThreeGenerator;
   lod.userData.prototypeTriangleCount = prototype.triangleCount;
   return lod;
-}
-
-function registerBackyardTreePainterlyMaterials(root: THREE.Object3D): void {
-  const visited = new Set<THREE.Material>();
-  root.traverse((object) => {
-    const mesh = object as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    for (const material of materials) {
-      if (visited.has(material) || Reflect.get(material, 'isNodeMaterial') !== true) continue;
-      visited.add(material);
-      const identity = `${mesh.name} ${material.name}`.toLowerCase();
-      applyPainterlyVegetationMaterial(
-        material,
-        /bark|branch|trunk|stem/.test(identity) ? 'bark' : 'deciduous-leaf',
-      );
-    }
-  });
 }
 
 async function loadFruitPrototype(fileName: string): Promise<FruitPrototype> {

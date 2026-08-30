@@ -234,6 +234,14 @@
   display: none;
 }
 
+.resource-inspector-primary-action {
+  display: grid;
+}
+
+.resource-inspector-primary-action[hidden] {
+  display: none;
+}
+
 .resource-inspector-demolish {
   height: 36px;
   padding: 0 13px;

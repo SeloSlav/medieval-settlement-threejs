@@ -36,7 +36,6 @@ import {
   applyIvyLeafHingeWebGLWind,
   createIvyLeafHingeWindNodes,
 } from '../vegetation/seedthree/seedThreeFoliageWind.ts';
-import { applyPainterlyVegetationMaterial } from '../vegetation/painterly/painterlyVegetationMaterial.ts';
 
 export const FOREST_FLOOR_IVY_TEXTURE_PATH =
   '/assets/textures/vegetation/forest-floor-ivy-leaf-atlas-v2.png';
@@ -529,7 +528,6 @@ export function createForestFloorIvyMaterial(
     // otherwise close leaves visibly brighten/darken against a static normal.
     (material as THREE.Material & { normalNode: unknown }).normalNode =
       hingeWind.normalNode;
-    applyPainterlyVegetationMaterial(material, 'ground-cover');
   } else {
     applyIvyLeafHingeWebGLWind(material);
     applyForestFloorIvyWebGLAtlas(material);

@@ -2771,7 +2771,6 @@ select:focus-visible {
   min-height: 36px;
   border-radius: 2px;
   border-color: rgba(223, 198, 142, 0.18);
-  background: rgba(9, 12, 9, 0.38);
   font-size: 11px;
 }
 

@@ -1129,6 +1129,7 @@ assert.match(buildToolbar, /Grape suitability/);
 const farmsteadInspector = fs.readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8');
 const livestockInspector = fs.readFileSync('src/resources/inspector/livestockBuildingRenderer.ts', 'utf8');
 const farmFieldInspector = fs.readFileSync('src/resources/inspector/farmFieldRenderer.ts', 'utf8');
+const resourceInspector = fs.readFileSync('src/resources/ResourceInspector.ts', 'utf8');
 assert.match(farmsteadInspector, /Seasonal tool reserve/);
 assert.match(farmFieldInspector, /Field tools/);
 assert.match(farmFieldInspector, /toolThroughputMultiplier/);
@@ -1145,12 +1146,7 @@ assert.match(farmsteadInspector, /Crew-sharing queue/);
 assert.match(farmsteadInspector, /data-threshing-priority/);
 assert.match(farmsteadInspector, /ox postings are separate; any team without a present farmer waits/);
 assert.match(farmFieldInspector, /Current-cycle soil/);
-assert.match(farmFieldInspector, /Auto-manage 3-year rotation/);
-assert.match(
-  farmFieldInspector,
-  /Planning is free; each future sowing still consumes the field’s full seed lot and labor/,
-  'crop switching must read as a scheduled rotation whose physical costs arrive at sowing',
-);
+assert.match(farmFieldInspector, /3-year cycle/);
 assert.match(farmFieldInspector, /Year 3 soil/);
 assert.match(farmFieldInspector, /Next-crop potential/);
 assert.match(farmFieldInspector, /Year 3 potential/);
@@ -1159,11 +1155,11 @@ assert.match(farmFieldInspector, /data-field-rotation-repeat/);
 assert.match(farmFieldInspector, /data-field-rotation-next/);
 assert.match(farmFieldInspector, /data-field-rotation-following/);
 assert.match(farmFieldInspector, /future manure/);
-assert.match(farmsteadInspector, /data-field-layout-auto-manage/);
-assert.match(farmsteadInspector, /data-field-layout-repeat-crop/);
-assert.match(farmsteadInspector, /data-field-layout-cycle-crop="0"/);
-assert.match(farmsteadInspector, /data-field-layout-cycle-crop="1"/);
-assert.match(farmsteadInspector, /data-field-layout-cycle-crop="2"/);
+assert.doesNotMatch(farmsteadInspector, /data-field-layout-auto-manage/);
+assert.doesNotMatch(farmsteadInspector, /data-field-layout-repeat-crop/);
+assert.doesNotMatch(farmsteadInspector, /data-field-layout-cycle-crop/);
+assert.match(farmsteadInspector, /primaryActionHtml/);
+assert.match(farmsteadInspector, /data-action-icon="field-parcel"/);
 assert.match(farmFieldTool, /setCropPlan\(/);
 assert.match(farmFieldTool, /nextCrop: this\.nextCrop/);
 assert.match(farmFieldTool, /followingCrop: this\.followingCrop/);
@@ -1171,6 +1167,16 @@ assert.match(farmsteadInspector, /Year 3 rotation/);
 assert.match(farmsteadInspector, /Cyclic coverage/);
 assert.match(farmsteadInspector, /Soil trajectory/);
 assert.match(farmsteadInspector, /data-inspect-field=/);
+assert.match(
+  resourceInspector,
+  /data-inspector-primary-action[\s\S]{0,320}data-action="demolish-primary"/,
+  'the fixed farmstead action belongs directly above demolition',
+);
+assert.match(
+  resourceInspector,
+  /onBeginFarmFieldPlacement\?\.\(building\.id, \['rye', 'rye', 'rye'\], false\)/,
+  'field placement should use a simple default plan configured later on the field',
+);
 assert.match(townHallInspector, /Year 3 rotation/);
 assert.match(townHallInspector, /Cyclic coverage/);
 assert.match(farmFieldInspector, /data-field-early-harvest/);

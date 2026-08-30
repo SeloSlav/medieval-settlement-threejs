@@ -70,7 +70,7 @@ import {
   windSiteThroughputMultiplier,
   windWeatherThroughputMultiplier,
 } from '../../wind/windField.ts';
-import { FARM_CROPS, type BuildingKind, type BuildingState, type FarmCrop, type InspectableTarget } from '../types.ts';
+import { FARM_CROPS, type BuildingKind, type BuildingState, type InspectableTarget } from '../types.ts';
 import { buildingDemolishHint, buildingExtentRow, buildingLaborView, buildingRoadAccessRow, civilianToolRows } from './buildingCommon.ts';
 import { getBuildingProcessorStatus } from './buildingProcessorStatus.ts';
 import { renderInboundSupplyRow, renderOutboundDeliveryRows, type DeliveryStatusContext } from './deliveryStatusRows.ts';
@@ -1298,6 +1298,9 @@ export function renderExpandedBuildingInspector(
   const processorPolicyPanelHtml = renderProcessorOutputTargetPanel(building);
   const supplementalPanelHtml = `${buildingPolicyPanelHtml ?? ''}${processorPolicyPanelHtml ?? ''}`
     || undefined;
+  const primaryActionHtml = building.kind === 'threshing_barn'
+    ? renderFarmsteadPrimaryAction()
+    : undefined;
   const role = building.kind === 'carpenter' && !context.conflictEnabled
     ? 'Timber framing and cartwright support for road-linked building sites'
     : PROCESS[building.kind] ?? 'Settlement service';
@@ -1319,6 +1322,7 @@ export function renderExpandedBuildingInspector(
     detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch cost</span><span>${renderResourceCost({ timber: CARPENTER_TIMBER_PER_POLEARM, ironwork: CARPENTER_IRONWORK_PER_POLEARM }, { compact: true, suffix: 'for 1 polearm' })}</span></li>` : ''}${granaryRows}${grainProcessorRows}${millPowerRows}${apiaryRows}${vineyardRows}${charcoalClampRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${civilianToolRows(building, context.worldQueries)}${preservedStorageRows}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
+    ...(primaryActionHtml ? { primaryActionHtml } : {}),
     ...(supplementalPanelHtml ? { supplementalPanelHtml } : {}),
     ...(tavernServiceResidenceIds
       ? {
@@ -1733,41 +1737,19 @@ function renderCarpenterPolicyPanel(
 
 function renderFarmsteadFieldPanel(building: BuildingState): string {
   const threshingPriority = normalizeThreshingPriority(building.threshingPriority);
-  const cropOptions = (selected: FarmCrop): string => FARM_CROPS
-    .map((crop) => `<option value="${crop}" ${crop === selected ? 'selected' : ''}>${cropLabel(crop)}</option>`)
-    .join('');
   return `
-    <div class="inspector-action-panel" data-inspector-panel-title="Field orders">
+    <div class="inspector-action-panel" data-inspector-panel-title="Threshing">
       <p class="resource-inspector-note">Threshing priority — the same onsite crew works fields and converts stored sheaves into typed grain. A ready harvest always pre-empts threshing.</p>
       <div class="resource-action-row">${THRESHING_PRIORITY_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-threshing-priority="${preset.priority}" title="${preset.hint}" ${threshingPriority === preset.priority ? 'disabled' : ''}>${preset.label}</button>`)
         .join('')}</div>
       <p class="inspector-action-panel__hint">Automatic restores linked-field seed and one dispatch load after High/Urgent fieldwork but before Normal fieldwork. Fields first leaves threshing until field jobs are quiet; Thresh first pre-empts every non-harvest field job.</p>
-      <div class="farm-rotation-planner" data-field-layout-planner>
-        <label class="city-admin-panel__toggle farm-rotation-toggle">
-          <input type="checkbox" data-field-layout-auto-manage aria-controls="new-field-three-year-plan">
-          <span><strong>Auto-manage rotation</strong><small>Plan three crop years and keep cycling them.</small></span>
-        </label>
-        <div class="farm-rotation-single" data-field-layout-single>
-          <label class="farm-rotation-slot farm-rotation-slot--single">
-            <span>Repeated crop</span>
-            <select class="inspector-policy-select" data-field-layout-repeat-crop aria-label="Crop to repeat every year">${cropOptions('rye')}</select>
-          </label>
-        </div>
-        <div class="farm-rotation-slots" id="new-field-three-year-plan" data-field-layout-cycle hidden>
-          <label class="farm-rotation-slot"><span>Year 1</span><select class="inspector-policy-select" data-field-layout-cycle-crop="0" aria-label="First crop year">${cropOptions('rye')}</select></label>
-          <label class="farm-rotation-slot"><span>Year 2</span><select class="inspector-policy-select" data-field-layout-cycle-crop="1" aria-label="Second crop year">${cropOptions('fallow')}</select></label>
-          <label class="farm-rotation-slot"><span>Year 3</span><select class="inspector-policy-select" data-field-layout-cycle-crop="2" aria-label="Third crop year">${cropOptions('oats')}</select></label>
-        </div>
-        <p class="farm-rotation-summary" data-field-layout-summary>Repeats Rye every crop year.</p>
-      </div>
-      <div class="resource-action-row">
-        <button type="button" class="resource-action-button resource-action-button--crop farm-field-layout-button" data-land-parcel="field" data-tooltip-title="Lay out field" data-tooltip="Lay out a cultivated parcel inside this farmstead’s work extent." data-tooltip-cost="${FREE_CONSTRUCTION_COST_TOOLTIP}" data-tooltip-cost-affordable="true"><span class="farm-crop-choice__icon" data-field-layout-button-icon data-field-crop-icon="rye" aria-hidden="true"></span><span>Lay out field</span></button>
-      </div>
-      <p class="inspector-action-panel__hint">With auto-manage off, the selected crop is re-sown every suitable cycle until you change it. With it on, Year 1 → Year 2 → Year 3 repeats forever. The drawing tool opens the Year 1 suitability map; press C during layout to adjust only that first crop.</p>
-      <p class="inspector-action-panel__hint">Lay out as many cultivated parcels as fit inside this farmstead’s work extent. Nearby linked boundaries snap together while each field keeps its own orientation. Linked fields always enter this farmstead’s queue, while nearby High/Urgent fields may also request its crew.</p>
     </div>
   `;
+}
+
+function renderFarmsteadPrimaryAction(): string {
+  return `<button type="button" class="resource-action-button resource-action-button--icon farm-field-layout-button" data-land-parcel="field" data-tooltip-title="Lay out field" data-tooltip="Lay out a cultivated parcel inside this farmstead’s work extent. Press C while laying it out to change its first crop; select the finished field to set its rotation." data-tooltip-cost="${FREE_CONSTRUCTION_COST_TOOLTIP}" data-tooltip-cost-affordable="true"><span class="inspector-action-icon" data-action-icon="field-parcel" aria-hidden="true"></span><span>Lay out field</span></button>`;
 }
 
 function renderApiaryHarvestPolicyPanel(building: BuildingState): string {

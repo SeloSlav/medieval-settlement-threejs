@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import * as TSL from 'three/tsl';
-import { inheritPainterlyVegetationMaterial } from '../painterly/painterlyVegetationMaterial.ts';
 import {
   attribute,
   float,
@@ -249,7 +248,6 @@ export function createSeedThreeOverviewFadeMaterial(
     const value = source.userData[property];
     if (value !== undefined) material.userData[property] = value;
   }
-  inheritPainterlyVegetationMaterial(source, material);
   material.userData.seedThreeOwnedOverviewFadeMaterial = true;
   if (wholeCardDormancy) applySeedThreeWholeCardDormancy(material);
   return applySeedThreeOverviewBillboardFade(material);

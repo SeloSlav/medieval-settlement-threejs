@@ -791,6 +791,7 @@ export async function bootstrapAppSession(
       maxAnisotropy: sceneManager.textureAnisotropy,
       rendererBackend: sceneManager.rendererBackend,
       useSeedThreePerimeterShrubs: true,
+      useSeedThreeCrops: true,
     },
   );
   const pastureMarkers = new PastureMarkers(

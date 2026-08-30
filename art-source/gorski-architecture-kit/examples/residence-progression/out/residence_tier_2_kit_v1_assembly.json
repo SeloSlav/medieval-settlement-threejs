@@ -1,0 +1,1063 @@
+{
+  "schemaVersion": 1,
+  "id": "residence_tier_2_kit_v1",
+  "tier": 2,
+  "regionalContext": "Gorski Kotar and Croatian Littoral, circa 1550",
+  "sourceKit": "gorski-architecture-kit-1.1.0",
+  "conceptReferencePolicy": "Attached Tripo GLBs informed only footprint, silhouette, and tier progression; no source mesh, UV, material, or texture was reused.",
+  "signatureSilhouette": "broad shingled gable with low timber knee wall",
+  "dimensionsMetres": {
+    "bodyWidth": 6.0,
+    "bodyDepth": 8.0,
+    "groundStorey": 2.7,
+    "upperStorey": 1.35,
+    "wallTop": 4.050000000000001,
+    "ridge": 7.62526
+  },
+  "roofFinish": "hand-split softwood shingles",
+  "materialAuthority": "src/buildings/buildingMaterials.ts through semantic gk_material_key metadata",
+  "canonicalState": "neutral shell; runtime owns firewood, smoke emission, and occupied window glow",
+  "livingVegetation": "excluded; SeedThree-owned",
+  "validation": {
+    "schemaVersion": 1,
+    "tier": 2,
+    "passed": true,
+    "failures": [],
+    "objectCount": 63,
+    "meshCount": 62,
+    "triangleCount": 9248,
+    "uniqueSourcePartCount": 17,
+    "sourcePartIds": [
+      "assembly_custom_shingle_roof_skin",
+      "foundation_fieldstone_2m_h0p65m",
+      "foundation_fieldstone_4m_h0p65m",
+      "foundation_steps_limestone_3",
+      "frame_gable_truss_6m",
+      "gable_infill_timber_6m",
+      "opening_door_house_single",
+      "opening_window_domestic_shuttered",
+      "opening_window_small_plain",
+      "production_chimney_limestone_h4m",
+      "roof_shingle_chimney_flashing",
+      "roof_shingle_eave_edge_4m",
+      "roof_shingle_ridge_4m",
+      "wall_fieldstone_2m_door_house_host",
+      "wall_fieldstone_2m_h2p7m",
+      "wall_fieldstone_2m_window_domestic_host",
+      "wall_plank_2m_h1p35m"
+    ],
+    "materialKeys": [
+      "charcoal",
+      "fieldstone",
+      "glass",
+      "iron",
+      "limestone_warm",
+      "oak_dark",
+      "shingles",
+      "shingles_aged",
+      "timber_cut",
+      "timber_weathered"
+    ],
+    "unitScale": "metres",
+    "canonicalObjectScale": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "vegetation": "excluded; SeedThree-owned"
+  },
+  "placements": [
+    {
+      "name": "R2_Foundation_Front_-1",
+      "source": "foundation_fieldstone_4m_h0p65m",
+      "collection": "R2_01_Foundation",
+      "location": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_Foundation_Rear_-1",
+      "source": "foundation_fieldstone_4m_h0p65m",
+      "collection": "R2_01_Foundation",
+      "location": [
+        1.0,
+        8.0,
+        0.0
+      ],
+      "rotationZDegrees": 180.00001,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_Foundation_Front_+2",
+      "source": "foundation_fieldstone_2m_h0p65m",
+      "collection": "R2_01_Foundation",
+      "location": [
+        2.0,
+        0.0,
+        0.0
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_Foundation_Rear_+2",
+      "source": "foundation_fieldstone_2m_h0p65m",
+      "collection": "R2_01_Foundation",
+      "location": [
+        -2.0,
+        8.0,
+        0.0
+      ],
+      "rotationZDegrees": 180.00001,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_Foundation_Left_2",
+      "source": "foundation_fieldstone_4m_h0p65m",
+      "collection": "R2_01_Foundation",
+      "location": [
+        -3.0,
+        2.0,
+        0.0
+      ],
+      "rotationZDegrees": -90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_Foundation_Right_2",
+      "source": "foundation_fieldstone_4m_h0p65m",
+      "collection": "R2_01_Foundation",
+      "location": [
+        3.0,
+        6.0,
+        0.0
+      ],
+      "rotationZDegrees": 90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_Foundation_Left_6",
+      "source": "foundation_fieldstone_4m_h0p65m",
+      "collection": "R2_01_Foundation",
+      "location": [
+        -3.0,
+        6.0,
+        0.0
+      ],
+      "rotationZDegrees": -90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_Foundation_Right_6",
+      "source": "foundation_fieldstone_4m_h0p65m",
+      "collection": "R2_01_Foundation",
+      "location": [
+        3.0,
+        2.0,
+        0.0
+      ],
+      "rotationZDegrees": 90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_R2_02_Lower_Storey_FrontHost_0",
+      "source": "wall_fieldstone_2m_door_house_host",
+      "collection": "R2_02_Lower_Storey",
+      "location": [
+        -2.0,
+        0.0,
+        0.0
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "ResidenceDoor_Front_0",
+      "source": "opening_door_house_single",
+      "collection": "R2_04_Openings",
+      "location": [
+        -2.0,
+        0.0,
+        0.0
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_R2_02_Lower_Storey_FrontHost_1",
+      "source": "wall_fieldstone_2m_window_domestic_host",
+      "collection": "R2_02_Lower_Storey",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "ResidenceWindow_Front_1",
+      "source": "opening_window_domestic_shuttered",
+      "collection": "R2_04_Openings",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_R2_02_Lower_Storey_FrontHost_2",
+      "source": "wall_fieldstone_2m_window_domestic_host",
+      "collection": "R2_02_Lower_Storey",
+      "location": [
+        2.0,
+        0.0,
+        0.0
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "ResidenceWindow_Front_2",
+      "source": "opening_window_domestic_shuttered",
+      "collection": "R2_04_Openings",
+      "location": [
+        2.0,
+        0.0,
+        0.0
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_R2_02_Lower_Storey_RearHost_0",
+      "source": "wall_fieldstone_2m_window_domestic_host",
+      "collection": "R2_02_Lower_Storey",
+      "location": [
+        2.0,
+        8.0,
+        0.0
+      ],
+      "rotationZDegrees": 180.00001,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "ResidenceWindow_Rear_0",
+      "source": "opening_window_domestic_shuttered",
+      "collection": "R2_04_Openings",
+      "location": [
+        2.0,
+        8.0,
+        0.0
+      ],
+      "rotationZDegrees": 180.00001,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_R2_02_Lower_Storey_RearHost_1",
+      "source": "wall_fieldstone_2m_h2p7m",
+      "collection": "R2_02_Lower_Storey",
+      "location": [
+        -0.0,
+        8.0,
+        0.0
+      ],
+      "rotationZDegrees": 180.00001,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_R2_02_Lower_Storey_RearHost_2",
+      "source": "wall_fieldstone_2m_window_domestic_host",
+      "collection": "R2_02_Lower_Storey",
+      "location": [
+        -2.0,
+        8.0,
+        0.0
+      ],
+      "rotationZDegrees": 180.00001,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "ResidenceWindow_Rear_2",
+      "source": "opening_window_domestic_shuttered",
+      "collection": "R2_04_Openings",
+      "location": [
+        -2.0,
+        8.0,
+        0.0
+      ],
+      "rotationZDegrees": 180.00001,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_R2_02_Lower_Storey_LeftHost_0",
+      "source": "wall_fieldstone_2m_window_domestic_host",
+      "collection": "R2_02_Lower_Storey",
+      "location": [
+        -3.0,
+        1.0,
+        0.0
+      ],
+      "rotationZDegrees": -90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "ResidenceWindow_Left_0",
+      "source": "opening_window_domestic_shuttered",
+      "collection": "R2_04_Openings",
+      "location": [
+        -3.0,
+        1.0,
+        0.0
+      ],
+      "rotationZDegrees": -90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_R2_02_Lower_Storey_LeftHost_1",
+      "source": "wall_fieldstone_2m_h2p7m",
+      "collection": "R2_02_Lower_Storey",
+      "location": [
+        -3.0,
+        3.0,
+        0.0
+      ],
+      "rotationZDegrees": -90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_R2_02_Lower_Storey_LeftHost_2",
+      "source": "wall_fieldstone_2m_window_domestic_host",
+      "collection": "R2_02_Lower_Storey",
+      "location": [
+        -3.0,
+        5.0,
+        0.0
+      ],
+      "rotationZDegrees": -90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "ResidenceWindow_Left_2",
+      "source": "opening_window_domestic_shuttered",
+      "collection": "R2_04_Openings",
+      "location": [
+        -3.0,
+        5.0,
+        0.0
+      ],
+      "rotationZDegrees": -90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_R2_02_Lower_Storey_LeftHost_3",
+      "source": "wall_fieldstone_2m_h2p7m",
+      "collection": "R2_02_Lower_Storey",
+      "location": [
+        -3.0,
+        7.0,
+        0.0
+      ],
+      "rotationZDegrees": -90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_R2_02_Lower_Storey_RightHost_0",
+      "source": "wall_fieldstone_2m_window_domestic_host",
+      "collection": "R2_02_Lower_Storey",
+      "location": [
+        3.0,
+        7.0,
+        0.0
+      ],
+      "rotationZDegrees": 90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "ResidenceWindow_Right_0",
+      "source": "opening_window_domestic_shuttered",
+      "collection": "R2_04_Openings",
+      "location": [
+        3.0,
+        7.0,
+        0.0
+      ],
+      "rotationZDegrees": 90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_R2_02_Lower_Storey_RightHost_1",
+      "source": "wall_fieldstone_2m_h2p7m",
+      "collection": "R2_02_Lower_Storey",
+      "location": [
+        3.0,
+        5.0,
+        0.0
+      ],
+      "rotationZDegrees": 90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_R2_02_Lower_Storey_RightHost_2",
+      "source": "wall_fieldstone_2m_window_domestic_host",
+      "collection": "R2_02_Lower_Storey",
+      "location": [
+        3.0,
+        3.0,
+        0.0
+      ],
+      "rotationZDegrees": 90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "ResidenceWindow_Right_2",
+      "source": "opening_window_domestic_shuttered",
+      "collection": "R2_04_Openings",
+      "location": [
+        3.0,
+        3.0,
+        0.0
+      ],
+      "rotationZDegrees": 90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_R2_02_Lower_Storey_RightHost_3",
+      "source": "wall_fieldstone_2m_h2p7m",
+      "collection": "R2_02_Lower_Storey",
+      "location": [
+        3.0,
+        1.0,
+        0.0
+      ],
+      "rotationZDegrees": 90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_KneeWall_Front_-2",
+      "source": "wall_plank_2m_h1p35m",
+      "collection": "R2_03_Upper_Storey",
+      "location": [
+        -2.0,
+        0.0,
+        2.7
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_KneeWall_Rear_-2",
+      "source": "wall_plank_2m_h1p35m",
+      "collection": "R2_03_Upper_Storey",
+      "location": [
+        2.0,
+        8.0,
+        2.7
+      ],
+      "rotationZDegrees": 180.00001,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_KneeWall_Front_+0",
+      "source": "wall_plank_2m_h1p35m",
+      "collection": "R2_03_Upper_Storey",
+      "location": [
+        0.0,
+        0.0,
+        2.7
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_KneeWall_Rear_+0",
+      "source": "wall_plank_2m_h1p35m",
+      "collection": "R2_03_Upper_Storey",
+      "location": [
+        -0.0,
+        8.0,
+        2.7
+      ],
+      "rotationZDegrees": 180.00001,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_KneeWall_Front_+2",
+      "source": "wall_plank_2m_h1p35m",
+      "collection": "R2_03_Upper_Storey",
+      "location": [
+        2.0,
+        0.0,
+        2.7
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_KneeWall_Rear_+2",
+      "source": "wall_plank_2m_h1p35m",
+      "collection": "R2_03_Upper_Storey",
+      "location": [
+        -2.0,
+        8.0,
+        2.7
+      ],
+      "rotationZDegrees": 180.00001,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_KneeWall_Left_1",
+      "source": "wall_plank_2m_h1p35m",
+      "collection": "R2_03_Upper_Storey",
+      "location": [
+        -3.0,
+        1.0,
+        2.7
+      ],
+      "rotationZDegrees": -90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_KneeWall_Right_1",
+      "source": "wall_plank_2m_h1p35m",
+      "collection": "R2_03_Upper_Storey",
+      "location": [
+        3.0,
+        7.0,
+        2.7
+      ],
+      "rotationZDegrees": 90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_KneeWall_Left_3",
+      "source": "wall_plank_2m_h1p35m",
+      "collection": "R2_03_Upper_Storey",
+      "location": [
+        -3.0,
+        3.0,
+        2.7
+      ],
+      "rotationZDegrees": -90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_KneeWall_Right_3",
+      "source": "wall_plank_2m_h1p35m",
+      "collection": "R2_03_Upper_Storey",
+      "location": [
+        3.0,
+        5.0,
+        2.7
+      ],
+      "rotationZDegrees": 90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_KneeWall_Left_5",
+      "source": "wall_plank_2m_h1p35m",
+      "collection": "R2_03_Upper_Storey",
+      "location": [
+        -3.0,
+        5.0,
+        2.7
+      ],
+      "rotationZDegrees": -90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_KneeWall_Right_5",
+      "source": "wall_plank_2m_h1p35m",
+      "collection": "R2_03_Upper_Storey",
+      "location": [
+        3.0,
+        3.0,
+        2.7
+      ],
+      "rotationZDegrees": 90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_KneeWall_Left_7",
+      "source": "wall_plank_2m_h1p35m",
+      "collection": "R2_03_Upper_Storey",
+      "location": [
+        -3.0,
+        7.0,
+        2.7
+      ],
+      "rotationZDegrees": -90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_KneeWall_Right_7",
+      "source": "wall_plank_2m_h1p35m",
+      "collection": "R2_03_Upper_Storey",
+      "location": [
+        3.0,
+        1.0,
+        2.7
+      ],
+      "rotationZDegrees": 90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "ResidenceWindow_Knee_0",
+      "source": "opening_window_small_plain",
+      "collection": "R2_04_Openings",
+      "location": [
+        -1.5,
+        -0.08,
+        2.22
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "ResidenceWindow_Knee_1",
+      "source": "opening_window_small_plain",
+      "collection": "R2_04_Openings",
+      "location": [
+        1.5,
+        -0.08,
+        2.22
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_Gable_Front",
+      "source": "gable_infill_timber_6m",
+      "collection": "R2_03_Upper_Storey",
+      "location": [
+        0.0,
+        0.0,
+        4.05
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_GableTruss_Front",
+      "source": "frame_gable_truss_6m",
+      "collection": "R2_05_Frames",
+      "location": [
+        0.0,
+        -0.02,
+        4.05
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_Gable_Rear",
+      "source": "gable_infill_timber_6m",
+      "collection": "R2_03_Upper_Storey",
+      "location": [
+        0.0,
+        8.0,
+        4.05
+      ],
+      "rotationZDegrees": 180.00001,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_GableTruss_Rear",
+      "source": "frame_gable_truss_6m",
+      "collection": "R2_05_Frames",
+      "location": [
+        0.0,
+        8.02,
+        4.05
+      ],
+      "rotationZDegrees": 180.00001,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "ResidenceRoofSurface_Left",
+      "source": "assembly_custom_shingle_roof_skin",
+      "collection": "R2_06_Roof",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "ResidenceRoofSurface_Right",
+      "source": "assembly_custom_shingle_roof_skin",
+      "collection": "R2_06_Roof",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_Roof_Ridge_0",
+      "source": "roof_shingle_ridge_4m",
+      "collection": "R2_06_Roof",
+      "location": [
+        0.0,
+        2.0,
+        7.66026
+      ],
+      "rotationZDegrees": 90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_Roof_Ridge_1",
+      "source": "roof_shingle_ridge_4m",
+      "collection": "R2_06_Roof",
+      "location": [
+        0.0,
+        6.0,
+        7.66026
+      ],
+      "rotationZDegrees": 90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_Roof_Eave_Left_0",
+      "source": "roof_shingle_eave_edge_4m",
+      "collection": "R2_06_Roof",
+      "location": [
+        -3.42,
+        2.0,
+        3.56946
+      ],
+      "rotationZDegrees": 90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_Roof_Eave_Left_1",
+      "source": "roof_shingle_eave_edge_4m",
+      "collection": "R2_06_Roof",
+      "location": [
+        -3.42,
+        6.0,
+        3.56946
+      ],
+      "rotationZDegrees": 90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_Roof_Eave_Right_0",
+      "source": "roof_shingle_eave_edge_4m",
+      "collection": "R2_06_Roof",
+      "location": [
+        3.42,
+        2.0,
+        3.56946
+      ],
+      "rotationZDegrees": 90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "R2_Roof_Eave_Right_1",
+      "source": "roof_shingle_eave_edge_4m",
+      "collection": "R2_06_Roof",
+      "location": [
+        3.42,
+        6.0,
+        3.56946
+      ],
+      "rotationZDegrees": 90.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "ResidenceChimney_0",
+      "source": "production_chimney_limestone_h4m",
+      "collection": "R2_07_Fixed_Architecture",
+      "location": [
+        1.35,
+        5.25,
+        3.46639
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "ResidenceChimneyFlashing_0",
+      "source": "roof_shingle_chimney_flashing",
+      "collection": "R2_06_Roof",
+      "location": [
+        1.35,
+        5.25,
+        6.04639
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "ResidenceEntranceSteps",
+      "source": "foundation_steps_limestone_3",
+      "collection": "R2_07_Fixed_Architecture",
+      "location": [
+        -1.0,
+        -0.62,
+        0.0
+      ],
+      "rotationZDegrees": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ]
+}

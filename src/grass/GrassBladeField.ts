@@ -9,8 +9,6 @@ import {
   type SeedThreeTuftVariant,
 } from '../vegetation/seedthree/seedThreeGrass.ts';
 import type { RendererBackendKind } from '../scene/RendererBackend.ts';
-import { supportsNodeMaterials } from '../scene/RendererBackend.ts';
-import { applyPainterlyVegetationMaterial } from '../vegetation/painterly/painterlyVegetationMaterial.ts';
 import {
   createSeedThreeWildflowerFootprintGeometries,
   createSeedThreeWildflowerVariantGeometries,
@@ -284,9 +282,6 @@ export async function createGrassBladeField(
     textures,
     options?.rendererBackend ?? 'webgpu',
   );
-  if (supportsNodeMaterials(options?.rendererBackend ?? 'webgpu')) {
-    applyPainterlyVegetationMaterial(grassMaterial, 'grass-blade');
-  }
   applyGrassDepthOffset(grassMaterial);
   streamMeshes = variants.map((variant, index) => {
     const geometry = variant.geometry;
@@ -316,7 +311,6 @@ export async function createGrassBladeField(
     wildflowerAtlas,
     'Gorski Kotar wildflower atlas',
   );
-  applyPainterlyVegetationMaterial(wildflowerMaterial, 'ground-cover');
   applyGrassDepthOffset(wildflowerMaterial);
   wildflowerGeometries.forEach((geometry, variantIndex) => {
     const footprintGeometry = wildflowerFootprintGeometries[variantIndex]!;

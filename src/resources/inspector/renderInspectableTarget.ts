@@ -60,6 +60,7 @@ export type InspectorView = {
   demolish: InspectorDemolishView;
   labor: InspectorLaborView;
   oxTeam?: InspectorOxTeamView;
+  primaryActionHtml?: string;
   supplementalPanelHtml?: string;
   serviceCoverage?: ServiceCoverageView;
 };

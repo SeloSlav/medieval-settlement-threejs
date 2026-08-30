@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "tier": 2,
+  "passed": true,
+  "failures": [],
+  "objectCount": 63,
+  "meshCount": 62,
+  "triangleCount": 9248,
+  "uniqueSourcePartCount": 17,
+  "sourcePartIds": [
+    "assembly_custom_shingle_roof_skin",
+    "foundation_fieldstone_2m_h0p65m",
+    "foundation_fieldstone_4m_h0p65m",
+    "foundation_steps_limestone_3",
+    "frame_gable_truss_6m",
+    "gable_infill_timber_6m",
+    "opening_door_house_single",
+    "opening_window_domestic_shuttered",
+    "opening_window_small_plain",
+    "production_chimney_limestone_h4m",
+    "roof_shingle_chimney_flashing",
+    "roof_shingle_eave_edge_4m",
+    "roof_shingle_ridge_4m",
+    "wall_fieldstone_2m_door_house_host",
+    "wall_fieldstone_2m_h2p7m",
+    "wall_fieldstone_2m_window_domestic_host",
+    "wall_plank_2m_h1p35m"
+  ],
+  "materialKeys": [
+    "charcoal",
+    "fieldstone",
+    "glass",
+    "iron",
+    "limestone_warm",
+    "oak_dark",
+    "shingles",
+    "shingles_aged",
+    "timber_cut",
+    "timber_weathered"
+  ],
+  "unitScale": "metres",
+  "canonicalObjectScale": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "vegetation": "excluded; SeedThree-owned"
+}

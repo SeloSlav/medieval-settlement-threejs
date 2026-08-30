@@ -995,8 +995,13 @@ const settlementBatch = batchStaticFixtureMeshes(
 const fieldRoot = new THREE.Group();
 fieldRoot.name = 'Cultivated parish parcels';
 scene.add(fieldRoot);
-const farmFields = new FarmFieldMarkers(fieldRoot, hamletHeightAt);
+const farmFields = new FarmFieldMarkers(fieldRoot, hamletHeightAt, {
+  maxAnisotropy: rendererBackend.maxAnisotropy,
+  rendererBackend: rendererBackend.kind,
+  useSeedThreeCrops: true,
+});
 farmFields.syncFields(createHamletFields());
+await farmFields.whenCropsReady();
 const fieldBatch = batchStaticFixtureMeshes(
   fieldRoot,
   'Static-batched cultivated parcels',

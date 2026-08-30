@@ -28,8 +28,13 @@ import {
 } from './meshes/mineralMineMesh.ts';
 
 export const TIER_ONE_RESIDENCE_MODEL_URL =
-  '/assets/models/buildings/gorski/civic_residence_tier_1.glb';
-const TIER_ONE_RESIDENCE_MODEL_SCALE = 7;
+  '/assets/models/buildings/gorski/tier1_residence_retopo_v28.glb';
+export const TIER_TWO_RESIDENCE_MODEL_URL =
+  '/assets/models/buildings/gorski/residence_tier_2_kit_v1.glb';
+export const TIER_THREE_RESIDENCE_MODEL_URL =
+  '/assets/models/buildings/gorski/residence_tier_3_kit_v1.glb';
+export const TIER_FOUR_RESIDENCE_MODEL_URL =
+  '/assets/models/buildings/gorski/residence_tier_4_kit_v1.glb';
 export const TIER_ONE_CHURCH_MODEL_URL =
   '/assets/models/buildings/gorski/tier1_church_delnice_v2.glb';
 export const HUNTERS_CAMP_MODEL_URL =
@@ -49,6 +54,9 @@ export const MINEWORKS_MODEL_URL =
 
 type AuthoredArchitectureKey =
   | 'tier-one-residence'
+  | 'tier-two-residence'
+  | 'tier-three-residence'
+  | 'tier-four-residence'
   | 'tier-one-church'
   | 'hunters-camp'
   | 'fishing-camp'
@@ -60,6 +68,9 @@ type AuthoredArchitectureKey =
 
 const MODEL_URLS: Record<AuthoredArchitectureKey, string> = {
   'tier-one-residence': TIER_ONE_RESIDENCE_MODEL_URL,
+  'tier-two-residence': TIER_TWO_RESIDENCE_MODEL_URL,
+  'tier-three-residence': TIER_THREE_RESIDENCE_MODEL_URL,
+  'tier-four-residence': TIER_FOUR_RESIDENCE_MODEL_URL,
   'tier-one-church': TIER_ONE_CHURCH_MODEL_URL,
   'hunters-camp': HUNTERS_CAMP_MODEL_URL,
   'fishing-camp': FISHING_CAMP_MODEL_URL,
@@ -136,17 +147,45 @@ export function preloadAuthoredArchitectureModels(maxAnisotropy = 8): Promise<vo
   return loadPromise;
 }
 
-export function createAuthoredTierOneResidenceShell(): THREE.Group | null {
-  const shell = cloneSourceScene('tier-one-residence');
+type AuthoredResidenceTier = 1 | 2 | 3 | 4;
+
+const AUTHORED_RESIDENCE_KEYS: Record<AuthoredResidenceTier, AuthoredArchitectureKey> = {
+  1: 'tier-one-residence',
+  2: 'tier-two-residence',
+  3: 'tier-three-residence',
+  4: 'tier-four-residence',
+};
+
+const AUTHORED_RESIDENCE_DEPTHS: Record<AuthoredResidenceTier, number> = {
+  1: 7,
+  2: 8,
+  3: 8,
+  4: 10,
+};
+
+const AUTHORED_RESIDENCE_VERSIONS: Record<AuthoredResidenceTier, string> = {
+  1: 'tier1-residence-v28',
+  2: 'residence-tier-2-kit-v1',
+  3: 'residence-tier-3-kit-v1',
+  4: 'residence-tier-4-kit-v1',
+};
+
+export function createAuthoredResidenceShell(tier: AuthoredResidenceTier): THREE.Group | null {
+  const shell = cloneSourceScene(AUTHORED_RESIDENCE_KEYS[tier]);
   if (!shell) return null;
-  shell.name = 'Tier 1 residence authored GLB shell';
-  // The experimental civic residence is authored in normalized units, centred
-  // on X/Z with its base at Y=0. Scale its one-unit depth to the seven-metre lot.
-  shell.scale.setScalar(TIER_ONE_RESIDENCE_MODEL_SCALE);
+  shell.name = `Tier ${tier} residence authored GLB shell`;
+  // Kit assemblies use Blender +Y for depth and export to Three.js -Z. Their
+  // public facade is authored at depth zero, so this centres each shell on the
+  // residence marker without changing its canonical metre scale.
+  shell.position.z = AUTHORED_RESIDENCE_DEPTHS[tier] * 0.5;
   shell.userData.authoredGlbAsset = true;
-  shell.userData.authoredGlbVersion = 'civic-residence-tier-1-experiment';
-  shell.userData.authoredGlbUrl = TIER_ONE_RESIDENCE_MODEL_URL;
+  shell.userData.authoredGlbVersion = AUTHORED_RESIDENCE_VERSIONS[tier];
+  shell.userData.authoredGlbUrl = MODEL_URLS[AUTHORED_RESIDENCE_KEYS[tier]];
   return shell;
+}
+
+export function createAuthoredTierOneResidenceShell(): THREE.Group | null {
+  return createAuthoredResidenceShell(1);
 }
 
 export function createAuthoredTierOneChurchMesh(): THREE.Group | null {

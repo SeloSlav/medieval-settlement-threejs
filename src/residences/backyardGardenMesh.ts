@@ -18,7 +18,10 @@ import {
   deciduousFoliageForClock,
   type DeciduousFoliagePresentation,
 } from '../world/deciduousFoliagePolicy.ts';
-import { applyPainterlyVegetationMaterial } from '../vegetation/painterly/painterlyVegetationMaterial.ts';
+import {
+  CULTIVATED_SOIL_TEXTURE_PATHS,
+  CULTIVATED_SOIL_TEXTURES,
+} from '../terrain/cultivatedSoilAssets.ts';
 
 export type BackyardGardenMeshOptions = {
   width?: number;
@@ -117,12 +120,6 @@ const KITCHEN_HERB_TEXTURE_PATHS = {
   sage: '/assets/textures/vegetation/kitchen_herbs/sage_clump.png',
 } as const;
 
-const GARDEN_BED_SOIL_TEXTURE_PATHS = {
-  albedo: '/assets/textures/terrain/mammoth_terrain_dirt/albedo.png',
-  normal: '/assets/textures/terrain/mammoth_terrain_dirt/normal.png',
-  roughness: '/assets/textures/terrain/mammoth_terrain_dirt/roughness.png',
-} as const;
-
 function loadKitchenCropTexture(path: string, name: string): THREE.Texture | null {
   if (typeof document === 'undefined') return null;
   const texture = new THREE.TextureLoader().load(path);
@@ -146,37 +143,6 @@ const KITCHEN_HERB_TEXTURES = {
   sage: loadKitchenCropTexture(KITCHEN_HERB_TEXTURE_PATHS.sage, 'Generated sage clump cutout'),
 } as const;
 
-const GARDEN_BED_SOIL_TEXTURES = {
-  albedo: loadKitchenCropTexture(
-    GARDEN_BED_SOIL_TEXTURE_PATHS.albedo,
-    'Existing dark garden-soil albedo',
-  ),
-  normal: loadKitchenCropTexture(
-    GARDEN_BED_SOIL_TEXTURE_PATHS.normal,
-    'Existing dark garden-soil normal',
-  ),
-  roughness: loadKitchenCropTexture(
-    GARDEN_BED_SOIL_TEXTURE_PATHS.roughness,
-    'Existing dark garden-soil roughness',
-  ),
-} as const;
-
-for (const texture of Object.values(GARDEN_BED_SOIL_TEXTURES)) {
-  if (!texture) continue;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.generateMipmaps = true;
-  texture.anisotropy = 8;
-}
-if (GARDEN_BED_SOIL_TEXTURES.normal) {
-  GARDEN_BED_SOIL_TEXTURES.normal.colorSpace = THREE.NoColorSpace;
-}
-if (GARDEN_BED_SOIL_TEXTURES.roughness) {
-  GARDEN_BED_SOIL_TEXTURES.roughness.colorSpace = THREE.NoColorSpace;
-}
-
 function createGardenSoilMaterial(): MeshStandardNodeMaterial {
   const material = new MeshStandardNodeMaterial();
   material.name = 'Textured dark garden-bed soil';
@@ -184,28 +150,28 @@ function createGardenSoilMaterial(): MeshStandardNodeMaterial {
   material.color.copy(tint);
   // NodeMaterial does not consume the classic map slots automatically. Keep
   // explicit nodes so the same authored albedo/normal/roughness inputs remain
-  // authoritative before the optional painter wrapper is installed.
-  if (GARDEN_BED_SOIL_TEXTURES.albedo) {
-    const albedo = texture(GARDEN_BED_SOIL_TEXTURES.albedo) as {
+  // authoritative for the node-material path.
+  if (CULTIVATED_SOIL_TEXTURES.albedo) {
+    const albedo = texture(CULTIVATED_SOIL_TEXTURES.albedo) as {
       rgb: { mul(value: unknown): unknown };
     };
     material.colorNode = albedo.rgb.mul(uniform(tint));
   }
-  if (GARDEN_BED_SOIL_TEXTURES.normal) {
+  if (CULTIVATED_SOIL_TEXTURES.normal) {
     material.normalNode = normalMap(
-      texture(GARDEN_BED_SOIL_TEXTURES.normal),
+      texture(CULTIVATED_SOIL_TEXTURES.normal),
       vec2(0.38, 0.38),
     );
   }
-  if (GARDEN_BED_SOIL_TEXTURES.roughness) {
-    material.roughnessNode = (texture(GARDEN_BED_SOIL_TEXTURES.roughness) as {
+  if (CULTIVATED_SOIL_TEXTURES.roughness) {
+    material.roughnessNode = (texture(CULTIVATED_SOIL_TEXTURES.roughness) as {
       r: unknown;
     }).r;
   }
-  // The painter adapter reads this only to retain texture alpha. The garden
-  // source is opaque, but recording the classic slot also preserves tooling.
-  Object.assign(material, { map: GARDEN_BED_SOIL_TEXTURES.albedo });
-  material.roughnessMap = GARDEN_BED_SOIL_TEXTURES.roughness;
+  // Record the classic slots as material-inspection breadcrumbs alongside the
+  // explicit node graph.
+  Object.assign(material, { map: CULTIVATED_SOIL_TEXTURES.albedo });
+  material.roughnessMap = CULTIVATED_SOIL_TEXTURES.roughness;
   material.roughness = 1;
   material.metalness = 0;
   // Every soil mesh supplies this coverage field so its cultivated earth can
@@ -335,10 +301,7 @@ const MATERIALS = {
 } as const;
 
 MATERIALS.gardenSoil.userData.metricUvMeters = 2.2;
-MATERIALS.gardenSoil.userData.pbrTexturePaths = GARDEN_BED_SOIL_TEXTURE_PATHS;
-applyPainterlyVegetationMaterial(MATERIALS.gardenSoil, 'terrain-ground', {
-  textureScale: 1.35,
-});
+MATERIALS.gardenSoil.userData.pbrTexturePaths = CULTIVATED_SOIL_TEXTURE_PATHS;
 
 const FLOWER_MATERIALS = [
   new THREE.MeshStandardMaterial({ color: 0xb83f55, roughness: 0.78 }),

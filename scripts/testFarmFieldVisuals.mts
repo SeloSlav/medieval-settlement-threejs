@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import * as THREE from 'three';
 import { timberMaterial } from '../src/buildings/buildingMaterials.ts';
 import {
@@ -165,7 +167,100 @@ for (const [crop, signature] of [
     `${crop} should have a crop-specific modeled silhouette`,
   );
 }
+
+fieldMarkers.syncFields([{
+  ...field,
+  stage: 'ploughing',
+  stageProgress: 0,
+}]);
+const unploughedSoil = visualRoot.getObjectByName('Worked field soil') as THREE.Mesh;
+assert.equal(
+  unploughedSoil.geometry.getIndex()?.count ?? 0,
+  0,
+  'zero plough progress should leave the original terrain visible',
+);
+fieldMarkers.syncFields([{
+  ...field,
+  stage: 'ploughing',
+  stageProgress: 1,
+}]);
+const ploughedSoil = visualRoot.getObjectByName('Worked field soil') as THREE.Mesh;
+assert.ok((ploughedSoil.geometry.getIndex()?.count ?? 0) > 0);
+assert.deepEqual(
+  (ploughedSoil.material as THREE.Material).userData.pbrTexturePaths,
+  {
+    albedo: '/assets/textures/terrain/mammoth_terrain_dirt/albedo.png',
+    normal: '/assets/textures/terrain/mammoth_terrain_dirt/normal.png',
+    roughness: '/assets/textures/terrain/mammoth_terrain_dirt/roughness.png',
+  },
+  'farm fields should reuse the backyard garden-soil PBR identity',
+);
+fieldMarkers.syncFields([{
+  ...field,
+  stage: 'sowing',
+  stageProgress: 0.85,
+}]);
+const seededRows = visualRoot.getObjectByName('Seeded drill rows') as THREE.LineSegments;
+assert.ok(
+  seededRows.geometry.getAttribute('position').count > 0,
+  'seeded progress should be visible in terrain-following drill rows',
+);
 fieldMarkers.dispose();
+
+const { FIELD_CROP_SPECIES, fieldMaslin } = await import(
+  '../vendor/seedthree/src/species/field-crops.js'
+);
+const { createFieldCropGeometry, fieldCropComponents } = await import(
+  '../vendor/seedthree/src/core/field-crops.js'
+);
+assert.equal(FIELD_CROP_SPECIES.wheat, undefined, 'wheat must not exist as a standalone game crop');
+assert.equal(FIELD_CROP_SPECIES.maslin, fieldMaslin);
+const maslinComponents = fieldCropComponents(fieldMaslin);
+assert.deepEqual(
+  maslinComponents.map((component) => [component.preset.key, component.share]),
+  [['maslin-wheat-component', 0.62], ['rye', 0.38]],
+  'maslin should remain a deterministic wheat–rye mixture',
+);
+for (const [gameCrop, presetKey] of [
+  ['rye', 'rye'],
+  ['oats', 'oats'],
+  ['barley', 'barley'],
+  ['flax', 'flax'],
+  ['wheat', 'maslin'],
+] as const) {
+  const preset = FIELD_CROP_SPECIES[presetKey];
+  assert.ok(preset, `${gameCrop} needs a SeedThree field-crop preset`);
+  for (const component of fieldCropComponents(preset)) {
+    const geometry = createFieldCropGeometry(component.preset, 1);
+    assert.ok(geometry.getAttribute('uv'), `${component.preset.name} cards need authored UVs`);
+    assert.ok(geometry.getAttribute('position').count >= 8);
+    geometry.dispose();
+  }
+}
+for (const textureStem of [
+  'field_cereal_young',
+  'field_flax_young',
+  'field_rye',
+  'field_oats',
+  'field_barley',
+  'field_flax',
+  'maslin_wheat_component',
+]) {
+  for (const suffix of ['albedo', 'normal', 'roughness', 'translucency']) {
+    assert.ok(
+      existsSync(join(process.cwd(), 'vendor/seedthree/assets/crops', `${textureStem}_${suffix}.png`)),
+      `${textureStem} should ship a complete SeedThree PBR/translucency set`,
+    );
+  }
+}
+const farmMarkerSource = readFileSync(
+  join(process.cwd(), 'src/farming/FarmFieldMarkers.ts'),
+  'utf8',
+);
+const bootstrapSource = readFileSync(join(process.cwd(), 'src/app/appBootstrap.ts'), 'utf8');
+assert.match(farmMarkerSource, /cultivatedSoilBase = 'backyard-garden'/);
+assert.match(farmMarkerSource, /crop stands will remain hidden rather than using proxy species/);
+assert.match(bootstrapSource, /useSeedThreeCrops:\s*true/);
 
 const preview = new FarmFieldPreview(() => 0);
 visualRoot.add(preview.group);

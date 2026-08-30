@@ -19,7 +19,6 @@ import {
 } from 'three/tsl';
 import type { BuildingMaterialAtlasTextureSet } from '../buildings/buildingMaterialAtlas.ts';
 import type { TextureSet } from './RoadTextureLoader.ts';
-import { applyPainterlyVegetationMaterial } from '../vegetation/painterly/painterlyVegetationMaterial.ts';
 import { BRIDGE_SURFACE_CUT_THRESHOLD } from './roadDimensions.ts';
 
 type TslNode = {
@@ -320,7 +319,6 @@ export function createRoadCoreMaterial(
     material.roughnessNode = applyRoadWeatherRoughness(dirtRoughness, weather);
     if (dirtTextures.ao) material.aoNode = (texture(dirtTextures.ao, uv() as TslNode) as TslNode).r;
   }
-  applyPainterlyVegetationMaterial(material, 'road-ground');
   return material;
 }
 
@@ -356,7 +354,6 @@ export function createRoadEdgeMaterial(
     opacity = opacity.mul(edgeKeep) as TslNode;
   }
   material.opacityNode = opacity;
-  applyPainterlyVegetationMaterial(material, 'road-ground');
   return material;
 }
 
@@ -385,6 +382,5 @@ export function createRiverBankMaterial(textures: TextureSet): MeshStandardNodeM
   );
   if (textures.ao) material.aoNode = (texture(textures.ao, uv() as TslNode) as TslNode).r;
   material.opacityNode = buildRiverBankOpacityNode();
-  applyPainterlyVegetationMaterial(material, 'river-bank');
   return material;
 }

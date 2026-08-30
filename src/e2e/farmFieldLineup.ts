@@ -13,6 +13,14 @@ declare global {
       oatPanicles: number;
       flaxBlossoms: number;
       maslinHeads: number;
+      seedThreeCropMeshes: number;
+      pbrCropMeshes: number;
+      stateContracts: Array<{
+        state: string;
+        crop: string;
+        processedCoverage: number;
+        cropAssetOwner: string;
+      }>;
       hedgeShrubs: number;
       hedgeDrawCalls: number;
       drawCalls: number;
@@ -26,7 +34,17 @@ if (!root) throw new Error('Farm field lineup host is missing.');
 
 const params = new URLSearchParams(window.location.search);
 const cropView = params.get('view') === 'crops';
+const stateView = params.get('view') === 'states';
 document.body.classList.toggle('clean', params.get('clean') === '1');
+const captionTitle = document.querySelector<HTMLElement>('.caption strong');
+const captionDetail = document.querySelector<HTMLElement>('.caption span');
+if (stateView) {
+  if (captionTitle) captionTitle.textContent = 'Field-state contract';
+  if (captionDetail) captionDetail.textContent = 'Unploughed · plough front · ploughed · seeded · fallow · growing maslin';
+} else if (cropView) {
+  if (captionTitle) captionTitle.textContent = 'SeedThree crop species';
+  if (captionDetail) captionDetail.textContent = 'Rye · oats · barley · flax · wheat–rye maslin · worked fallow';
+}
 
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
@@ -35,8 +53,10 @@ const renderer = new THREE.WebGLRenderer({
 });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.14;
+renderer.toneMapping = params.get('post') === '0'
+  ? THREE.NoToneMapping
+  : THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = params.get('post') === '0' ? 1 : 1.14;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 root.prepend(renderer.domElement);
@@ -126,7 +146,37 @@ const referenceFields: FarmFieldState[] = [
   },
 ];
 const cropKinds: FarmCrop[] = ['rye', 'oats', 'barley', 'flax', 'wheat', 'fallow'];
-const fields: FarmFieldState[] = cropView
+const stateDefinitions = [
+  { id: 'unploughed', crop: 'rye', stage: 'ploughing', progress: 0 },
+  { id: 'plough-front', crop: 'rye', stage: 'ploughing', progress: 0.56 },
+  { id: 'ploughed', crop: 'rye', stage: 'sowing', progress: 0 },
+  { id: 'seeded', crop: 'rye', stage: 'sowing', progress: 0.9 },
+  { id: 'fallow', crop: 'fallow', stage: 'growing', progress: 0.82 },
+  { id: 'growing-maslin', crop: 'wheat', stage: 'growing', progress: 0.74 },
+] as const;
+const fields: FarmFieldState[] = stateView
+  ? stateDefinitions.map((state, index) => {
+      const column = index % 3;
+      const row = Math.floor(index / 3);
+      const centerX = (column - 1) * 27;
+      const centerZ = row * 28 - 12;
+      return {
+        ...referenceFields[1]!,
+        id: `state-lineup-${state.id}`,
+        corners: [
+          { x: centerX - 10.5, z: centerZ - 9 },
+          { x: centerX + 10.5, z: centerZ - 9 },
+          { x: centerX + 10.5, z: centerZ + 9 },
+          { x: centerX - 10.5, z: centerZ + 9 },
+        ],
+        area: 378,
+        crop: state.crop,
+        nextCrop: state.crop === 'fallow' ? 'rye' : 'fallow',
+        stage: state.stage,
+        stageProgress: state.progress,
+      };
+    })
+  : cropView
   ? cropKinds.map((crop, index) => {
       const column = index % 3;
       const row = Math.floor(index / 3);
@@ -155,9 +205,13 @@ const fieldMarkers = new FarmFieldMarkers(fieldRoot, getHeightAt, {
   maxAnisotropy: 8,
   rendererBackend: 'webgl',
   useSeedThreePerimeterShrubs: true,
+  useSeedThreeCrops: true,
 });
 fieldMarkers.syncFields(fields);
-await fieldMarkers.whenPerimeterReady();
+await Promise.all([
+  fieldMarkers.whenPerimeterReady(),
+  fieldMarkers.whenCropsReady(),
+]);
 
 const ridgeMaterial = new THREE.MeshStandardMaterial({
   color: 0x42513a,
@@ -197,7 +251,7 @@ const camera = new THREE.PerspectiveCamera(47, 1, 0.1, 230);
 const overview = params.get('view') === 'overview';
 const detail = params.get('view') === 'detail';
 const hedge = params.get('view') === 'hedge';
-if (cropView) {
+if (cropView || stateView) {
   camera.position.set(35, 48, -57);
   camera.lookAt(0, 0.6, 4);
 } else if (overview) {
@@ -234,11 +288,44 @@ let barleyHeads = 0;
 let oatPanicles = 0;
 let flaxBlossoms = 0;
 let maslinHeads = 0;
+let seedThreeCropMeshes = 0;
+let pbrCropMeshes = 0;
 let hedgeShrubs = 0;
 let hedgeDrawCalls = 0;
+const stateContracts: Array<{
+  state: string;
+  crop: string;
+  processedCoverage: number;
+  cropAssetOwner: string;
+}> = [];
 scene.traverse((object) => {
+  const visualContract = object.userData.visualContract as {
+    state?: string;
+    crop?: string;
+    processedCoverage?: number;
+    cropAssetOwner?: string;
+  } | undefined;
+  if (visualContract?.state && visualContract.crop) {
+    stateContracts.push({
+      state: visualContract.state,
+      crop: visualContract.crop,
+      processedCoverage: Number(visualContract.processedCoverage ?? 0),
+      cropAssetOwner: visualContract.cropAssetOwner ?? 'none',
+    });
+  }
   if (!(object instanceof THREE.InstancedMesh)) return;
-  if (object.name.startsWith('Standing ')) standingTufts += object.count;
+  if (object.userData.seedThreeFieldCrop === true) {
+    standingTufts += object.count;
+    seedThreeCropMeshes += 1;
+    if (object.userData.seedThreeCropPhase === 'mature') grainHeadTufts += object.count;
+    if (object.userData.pbrTextureFiles) pbrCropMeshes += 1;
+    const species = String(object.userData.seedThreeSpecies ?? '');
+    const gameCrop = String(object.userData.gameCrop ?? '');
+    if (species === 'Hulled Barley') barleyHeads += object.count;
+    if (species === 'Common Oats') oatPanicles += object.count;
+    if (species === 'Fibre Flax') flaxBlossoms += object.count;
+    if (gameCrop === 'maslin') maslinHeads += object.count;
+  } else if (object.name.startsWith('Standing ')) standingTufts += object.count;
   if (object.name === 'Pale awned grain heads') grainHeadTufts += object.count;
   if (object.name === 'Cut cereal stubble') stubbleTufts += object.count;
   if (object.name === 'Barley long-awn heads') barleyHeads += object.count;
@@ -258,6 +345,9 @@ window.__FARM_FIELD_LINEUP_METRICS__ = {
   oatPanicles,
   flaxBlossoms,
   maslinHeads,
+  seedThreeCropMeshes,
+  pbrCropMeshes,
+  stateContracts,
   hedgeShrubs,
   hedgeDrawCalls,
   drawCalls: renderer.info.render.calls,

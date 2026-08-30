@@ -263,23 +263,22 @@ export function renderFarmFieldInspector(
   const cropControls = `<div class="inspector-action-panel" data-inspector-panel-title="Crop plan">
       <label class="city-admin-panel__toggle farm-rotation-toggle">
         <input type="checkbox" data-field-rotation-auto-manage aria-controls="field-${field.id}-three-year-plan" ${cyclicRotation ? 'checked' : ''}>
-        <span><strong>Auto-manage 3-year rotation</strong><small>Advance one slot after every completed crop year.</small></span>
+        <span class="farm-rotation-toggle__label"><span class="farm-rotation-cycle-icon" aria-hidden="true">↻</span><strong>3-year cycle</strong></span>
       </label>
       <div class="farm-rotation-single" data-field-rotation-single ${cyclicRotation ? 'hidden' : ''}>
-        <label class="farm-rotation-slot farm-rotation-slot--single">
-          <span>Repeat from next sowing</span>
+        <label class="farm-rotation-row">
+          <span class="farm-rotation-year farm-rotation-year--repeat" title="Repeat every crop year" aria-hidden="true">↻</span>
+          <span class="farm-crop-choice__icon" data-field-crop-icon="${field.nextCrop}" aria-hidden="true"></span>
           <select class="inspector-policy-select" data-field-rotation-repeat aria-label="Crop to repeat from the next sowing">${cropOptions(field.nextCrop)}</select>
         </label>
       </div>
       <div class="farm-rotation-slots" id="field-${field.id}-three-year-plan" data-field-rotation-cycle ${cyclicRotation ? '' : 'hidden'}>
-        <label class="farm-rotation-slot farm-rotation-slot--current"><span>Year 1 · in field</span><select class="inspector-policy-select" aria-label="Current crop year" disabled>${cropOptions(field.crop)}</select></label>
-        <label class="farm-rotation-slot"><span>Year 2</span><select class="inspector-policy-select" data-field-rotation-next aria-label="Second crop year">${cropOptions(field.nextCrop)}</select></label>
-        <label class="farm-rotation-slot"><span>Year 3</span><select class="inspector-policy-select" data-field-rotation-following aria-label="Third crop year">${cropOptions(editableThirdCrop)}</select></label>
+        <div class="farm-rotation-row farm-rotation-row--current" aria-label="Year 1, current crop: ${cropLabel(field.crop)}">
+          <span class="farm-rotation-year">1</span><span class="farm-crop-choice__icon" data-field-crop-icon="${field.crop}" aria-hidden="true"></span><strong>${cropLabel(field.crop)}</strong><small>Now</small>
+        </div>
+        <label class="farm-rotation-row"><span class="farm-rotation-year">2</span><span class="farm-crop-choice__icon" data-field-crop-icon="${field.nextCrop}" aria-hidden="true"></span><select class="inspector-policy-select" data-field-rotation-next aria-label="Second crop year">${cropOptions(field.nextCrop)}</select></label>
+        <label class="farm-rotation-row"><span class="farm-rotation-year">3</span><span class="farm-crop-choice__icon" data-field-crop-icon="${editableThirdCrop}" aria-hidden="true"></span><select class="inspector-policy-select" data-field-rotation-following aria-label="Third crop year">${cropOptions(editableThirdCrop)}</select></label>
       </div>
-      <p class="farm-rotation-summary" data-field-rotation-summary>${cyclicRotation
-        ? `${cropLabel(field.crop)} → ${cropLabel(field.nextCrop)} → ${cropLabel(editableThirdCrop)} · repeats forever`
-        : `${cropLabel(field.crop)} remains in the ground · then ${cropLabel(field.nextCrop)} repeats every crop year`}</p>
-      <p class="resource-inspector-note">Changing the plan never replaces a crop already in the ground. Planning is free; each future sowing still consumes the field’s full seed lot and labor. Future manure is not promised.</p>
     </div>`;
   const priorityControls = `<div class="inspector-action-panel" data-inspector-panel-title="Field priority">
       <p class="resource-inspector-note">Field-work priority — each farm handles its own active fields; High and Urgent also enter every nearby farmstead crew’s queue. A ready harvest always comes first; other jobs use priority, stage urgency, linked-field ties, then field age. Each farmstead also inserts its own threshing job into this shared queue.</p>

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "validatedAt": "2026-08-30T09:39:26.244201+00:00",
+  "tier": 3,
+  "status": "pass",
+  "glb": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\examples\\residence-progression\\out\\residence_tier_3_kit_v1.glb",
+  "meshCountExpected": 85,
+  "meshCountImported": 85,
+  "triangleCountExpected": 12752,
+  "triangleCountImported": 46656,
+  "triangleBudget": 65000,
+  "sourceComponentCounts": {
+    "assembly_custom_shingle_annex_roof": 1,
+    "assembly_custom_shingle_roof_skin": 2,
+    "foundation_fieldstone_4m_h0p65m": 8,
+    "foundation_steps_limestone_3": 1,
+    "frame_balcony_4m": 2,
+    "frame_gable_truss_6m": 2,
+    "frame_lean_to_4m": 1,
+    "gable_infill_plaster_6m": 2,
+    "opening_door_house_single": 1,
+    "opening_window_domestic_shuttered": 23,
+    "production_chimney_limestone_h4m": 2,
+    "roof_shingle_chimney_flashing": 2,
+    "roof_shingle_eave_edge_4m": 4,
+    "roof_shingle_ridge_4m": 2,
+    "wall_fieldstone_2m_door_house_host": 1,
+    "wall_fieldstone_2m_h2p7m": 6,
+    "wall_fieldstone_2m_window_domestic_host": 9,
+    "wall_limewash_2m_h2p7m": 2,
+    "wall_limewash_2m_window_domestic_host": 14
+  },
+  "materialKeys": [
+    "charcoal",
+    "fieldstone",
+    "glass",
+    "iron",
+    "limestone_warm",
+    "limewash",
+    "oak_dark",
+    "shingles",
+    "shingles_aged",
+    "timber_cut",
+    "timber_weathered"
+  ],
+  "errors": [],
+  "warnings": [
+    "glTF export applied the kit's non-destructive edge-detail modifiers: native control mesh 12752 triangles; imported runtime mesh 46656 triangles"
+  ]
+}

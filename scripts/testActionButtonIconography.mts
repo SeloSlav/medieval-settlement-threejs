@@ -579,11 +579,12 @@ assert.match(alertDialog, /event\.key === 'Escape'[\s\S]{0,120}this\.settle\(fal
 assert.match(alertDialog, /event\.key === 'Tab'\) this\.trapFocus\(event\)/);
 assert.match(alertDialogCss, /\.alert-dialog-backdrop\s*\{/);
 assert.match(alertDialogCss, /\.alert-dialog\s*\{/);
-assert.match(expandedBuildingRenderer, /data-field-layout-auto-manage[\s\S]*data-field-layout-cycle-crop="0"[\s\S]*data-land-parcel="field"/);
-assert.match(expandedBuildingRenderer, /data-land-parcel="field"[\s\S]{0,520}data-field-layout-button-icon[\s\S]{0,120}data-field-crop-icon="rye"/);
+assert.doesNotMatch(expandedBuildingRenderer, /data-field-layout-auto-manage|data-field-layout-cycle-crop/);
+assert.match(expandedBuildingRenderer, /data-land-parcel="field"[\s\S]{0,760}data-action-icon="field-parcel"/);
 assert.match(expandedBuildingRenderer, /data-land-parcel="field"[^>]*data-tooltip-cost="\$\{FREE_CONSTRUCTION_COST_TOOLTIP\}"/);
 assert.match(expandedBuildingRenderer, /data-land-parcel="vineyard"[^>]*data-tooltip-cost="\$\{FREE_CONSTRUCTION_COST_TOOLTIP\}"/);
-assert.match(resourceInspector, /data-field-layout-auto-manage[\s\S]*onBeginFarmFieldPlacement\?\.\(building\.id, crops, autoManage\)/);
+assert.match(resourceInspector, /data-inspector-primary-action[\s\S]{0,320}data-action="demolish-primary"/);
+assert.match(resourceInspector, /onBeginFarmFieldPlacement\?\.\(building\.id, \['rye', 'rye', 'rye'\], false\)/);
 assert.match(farmFieldTool, /setCropPlan\([\s\S]{0,520}this\.followingCrop = autoManage/);
 assert.match(appBootstrap, /onBeginFarmFieldPlacement: \(farmsteadId, crops, autoManage\)[\s\S]{0,240}farmFieldTool\.setCropPlan\(crops, autoManage\)[\s\S]{0,240}beginLinkedLandParcelPlacement\('field', farmsteadId\)/);
 assert.match(chapelRenderer, /data-land-parcel="graveyard"[\s\S]{0,760}data-action-icon="graveyard"|data-action-icon="graveyard"[\s\S]{0,760}data-land-parcel="graveyard"/);
