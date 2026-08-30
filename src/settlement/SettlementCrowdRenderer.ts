@@ -35,12 +35,14 @@ const MODEL_URLS = {
   man: '/assets/models/villagers/worker-male-common-01-v002.glb',
   woman: '/assets/models/villagers/worker-female-common-01-v001.glb',
   cleric: '/assets/models/villagers/cleric-monk-common-01-v001.glb',
+  raider: '/assets/models/villagers/ottoman-raider-common-01-v001.glb',
 } as const;
 
 const TARGET_HEIGHTS = {
   man: 1.72,
   woman: 1.64,
   cleric: 1.72,
+  raider: 1.74,
 } as const;
 const MODEL_GROUNDING_HEIGHT = 0.012;
 const SEATED_SUPPORT_CONTACT_HEIGHTS = {
@@ -49,7 +51,7 @@ const SEATED_SUPPORT_CONTACT_HEIGHTS = {
 } as const;
 
 type VillagerSourceKey = keyof typeof MODEL_URLS;
-export type VillagerModelVariant = Exclude<VillagerSourceKey, 'cleric'>;
+export type VillagerModelVariant = Exclude<VillagerSourceKey, 'cleric' | 'raider'>;
 export type VillagerRenderMode = ClericAnimationMode
   | 'idle'
   | 'walk'
@@ -172,7 +174,7 @@ export type CrowdRenderAgent = {
   yaw: number;
   appearanceSeed: number;
   variant: VillagerModelVariant;
-  presentation?: 'common' | 'cleric';
+  presentation?: 'common' | 'cleric' | 'raider';
   mode: VillagerRenderMode;
   tunicColor: number;
   skinColor: number;
@@ -374,20 +376,26 @@ export class SettlementCrowdRenderer {
         MODEL_URLS.cleric,
         TARGET_HEIGHTS.cleric,
       );
-      const [man, woman, cleric, tools] = await Promise.all([
+      const raiderPromise = loadVillagerSource(
+        MODEL_URLS.raider,
+        TARGET_HEIGHTS.raider,
+        createRaiderClipSet,
+      );
+      const [man, woman, cleric, raider, tools] = await Promise.all([
         manPromise,
         womanPromise,
         clericPromise,
+        raiderPromise,
         loadWorkerToolSources(),
       ]);
       if (this.disposed) {
-        for (const scene of uniqueSourceScenes({ man, woman, cleric })) {
+        for (const scene of uniqueSourceScenes({ man, woman, cleric, raider })) {
           disposeModelResources(scene);
         }
         disposeWorkerToolSources(tools);
         return false;
       }
-      this.sources = { man, woman, cleric };
+      this.sources = { man, woman, cleric, raider };
       this.toolSources = tools;
       const manBatch = this.createAnimatedBatch('man', man);
       this.animatedBatches = {
@@ -396,6 +404,7 @@ export class SettlementCrowdRenderer {
           ? manBatch
           : this.createAnimatedBatch('woman', woman),
         cleric: this.createAnimatedBatch('cleric', cleric),
+        raider: this.createAnimatedBatch('raider', raider),
       };
       this.syncAgents(this.latestAgents, this.lastView);
       return true;
@@ -590,7 +599,7 @@ export class SettlementCrowdRenderer {
     if (!skeleton) throw new Error(`Missing ${agent.variant} villager skeleton`);
 
     const root = new THREE.Group();
-    root.name = `${sourceKey === 'cleric' ? 'Cleric' : agent.variant === 'woman' ? 'Woman' : 'Man'} villager ${agent.id}`;
+    root.name = `${sourceKey === 'cleric' ? 'Cleric' : sourceKey === 'raider' ? 'Ottoman raider' : agent.variant === 'woman' ? 'Woman' : 'Man'} villager ${agent.id}`;
     root.userData.villagerId = agent.id;
     root.userData.villagerGender = agent.variant;
     root.add(model);
@@ -692,7 +701,7 @@ export class SettlementCrowdRenderer {
     visual.variant = agent.variant;
     visual.sourceKey = sourceKey;
     visual.mode = agent.mode;
-    visual.root.name = `${sourceKey === 'cleric' ? 'Cleric' : agent.variant === 'woman' ? 'Woman' : 'Man'} villager ${agent.id}`;
+    visual.root.name = `${sourceKey === 'cleric' ? 'Cleric' : sourceKey === 'raider' ? 'Ottoman raider' : agent.variant === 'woman' ? 'Woman' : 'Man'} villager ${agent.id}`;
     visual.root.userData.villagerId = agent.id;
     visual.root.userData.villagerGender = agent.variant;
     visual.model.scale.setScalar(scale);
@@ -849,7 +858,7 @@ export class SettlementCrowdRenderer {
   ): void {
     const batches = this.animatedBatches;
     if (!batches) return;
-    const counts: Record<VillagerSourceKey, number> = { man: 0, woman: 0, cleric: 0 };
+    const counts: Record<VillagerSourceKey, number> = { man: 0, woman: 0, cleric: 0, raider: 0 };
     for (const batch of uniqueAnimatedBatches(batches)) {
       for (const shard of batch.shards) {
         for (const layer of shard.layers) layer.dirtyColors.fill(0);
@@ -1072,7 +1081,9 @@ function writeInstanceColorIfChanged(
 }
 
 function sourceKeyForAgent(agent: CrowdRenderAgent): VillagerSourceKey {
-  return agent.presentation === 'cleric' ? 'cleric' : agent.variant;
+  if (agent.presentation === 'cleric') return 'cleric';
+  if (agent.presentation === 'raider') return 'raider';
+  return agent.variant;
 }
 
 function animatedPoolKey(
@@ -1095,12 +1106,24 @@ function publishInstanceAttributePrefix(
 async function loadVillagerSource(
   url: string,
   targetHeight: number,
+  clipFactory?: (
+    animations: readonly THREE.AnimationClip[],
+  ) => Record<VillagerRenderMode, THREE.AnimationClip>,
 ): Promise<VillagerSource> {
   const gltf = await new GLTFLoader().loadAsync(url);
   const bounds = new THREE.Box3().setFromObject(gltf.scene);
   const sourceHeight = bounds.max.y - bounds.min.y;
   if (!Number.isFinite(sourceHeight) || sourceHeight <= 0.001) {
     throw new Error(`Invalid villager model bounds for ${url}`);
+  }
+  if (clipFactory) {
+    return {
+      scene: gltf.scene,
+      bounds,
+      sourceHeight,
+      targetHeight,
+      clips: clipFactory(gltf.animations),
+    };
   }
   const idle = findAnimationClip(gltf.animations, 'idle');
   const walk = findAnimationClip(gltf.animations, 'walk');
@@ -1224,6 +1247,53 @@ export function createSemanticWorkerClipSet(
     flee: forMode('flee_01', 'flee'),
     run: forMode('run', 'run'),
   };
+}
+
+export const RAIDER_SOURCE_CLIP_BY_MODE = {
+  idle: 'idle',
+  walk: 'walk',
+  sit: 'standing_relax',
+  rest: 'standing_relax',
+  talk: 'angry_01',
+  pray: 'wait',
+  chop: 'chop',
+  mine: 'chop',
+  gather: 'lift_heavy',
+  plant: 'lift_heavy',
+  sow: 'lift_heavy',
+  fish: 'wait',
+  tend: 'chop',
+  build: 'chop',
+  fight: 'slash',
+  relax: 'standing_relax',
+  look: 'look_around',
+  wait: 'wait',
+  laugh: 'cheer',
+  greet: 'angry_01',
+  sermon: 'angry_01',
+  agree: 'cheer',
+  bow: 'wait',
+  carry: 'lift_heavy',
+  hurt: 'hit_to_body_01',
+  fall: 'fall',
+  flee: 'flee_01',
+  run: 'run',
+} as const satisfies Record<VillagerRenderMode, string>;
+
+export function createRaiderClipSet(
+  animations: readonly THREE.AnimationClip[],
+): Record<VillagerRenderMode, THREE.AnimationClip> {
+  return Object.fromEntries(
+    (Object.entries(RAIDER_SOURCE_CLIP_BY_MODE) as Array<
+      [VillagerRenderMode, string]
+    >).map(([mode, sourceName]) => {
+      const source = findAnimationClip(animations, sourceName);
+      if (!source) throw new Error(`Missing ${sourceName} semantic Ottoman raider clip`);
+      const clip = source.clone();
+      clip.name = `${source.name}:raider-${mode}`;
+      return [mode, clip];
+    }),
+  ) as Record<VillagerRenderMode, THREE.AnimationClip>;
 }
 
 export const CLERIC_SOURCE_CLIP_BY_MODE = {
@@ -1759,6 +1829,13 @@ export function workerToolVisibleInMode(
     return mode === 'idle'
       || mode === 'walk'
       || mode === 'run'
+      || mode === 'flee'
+      || mode === 'relax'
+      || mode === 'look'
+      || mode === 'wait'
+      || mode === 'talk'
+      || mode === 'laugh'
+      || mode === 'chop'
       || mode === 'build'
       || mode === 'fight';
   }

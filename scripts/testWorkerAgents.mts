@@ -1356,6 +1356,7 @@ for (const [activity, clips] of Object.entries(WORKER_ACTIVITY_CLIPS)) {
   }
 }
 for (const [tool, url] of Object.entries(WORKER_TOOL_URLS)) {
+  if (!url) continue;
   const assetPath = `public${url}`;
   assert.ok(fs.statSync(assetPath).size > 5_000, `${tool} should use a real CC0 GLB asset`);
 }

@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "sourceFile": "medieval+warrior+3d+model (1).glb",
+  "sourceSha256": "beef38500fed0c403da2b985a886498181fb370b714d65739fb6202b055eaccd",
+  "generatedAt": "2026-08-30T19:37:29.923Z",
+  "animations": [
+    {
+      "index": 0,
+      "originalName": "NlaTrack",
+      "durationSeconds": 19.541666,
+      "semanticName": "lift_heavy"
+    },
+    {
+      "index": 1,
+      "originalName": "NlaTrack.001",
+      "durationSeconds": 6.625,
+      "semanticName": "chop"
+    },
+    {
+      "index": 2,
+      "originalName": "NlaTrack.002",
+      "durationSeconds": 6.625,
+      "semanticName": "slash"
+    },
+    {
+      "index": 3,
+      "originalName": "NlaTrack.003",
+      "durationSeconds": 15.375,
+      "semanticName": "idle"
+    },
+    {
+      "index": 4,
+      "originalName": "NlaTrack.004",
+      "durationSeconds": 17.625,
+      "semanticName": "standing_relax"
+    },
+    {
+      "index": 5,
+      "originalName": "NlaTrack.005",
+      "durationSeconds": 2.375,
+      "semanticName": "walk"
+    },
+    {
+      "index": 6,
+      "originalName": "NlaTrack.006",
+      "durationSeconds": 3.541667,
+      "semanticName": "angry_01"
+    },
+    {
+      "index": 7,
+      "originalName": "NlaTrack.007",
+      "durationSeconds": 3.041667,
+      "semanticName": "fall"
+    },
+    {
+      "index": 8,
+      "originalName": "NlaTrack.008",
+      "durationSeconds": 1.333333,
+      "semanticName": "hit_to_body_01"
+    },
+    {
+      "index": 9,
+      "originalName": "NlaTrack.009",
+      "durationSeconds": 6.041667,
+      "semanticName": "wait"
+    },
+    {
+      "index": 10,
+      "originalName": "NlaTrack.010",
+      "durationSeconds": 1.291667,
+      "semanticName": "run"
+    },
+    {
+      "index": 11,
+      "originalName": "NlaTrack.011",
+      "durationSeconds": 15.625,
+      "semanticName": "look_around"
+    },
+    {
+      "index": 12,
+      "originalName": "NlaTrack.012",
+      "durationSeconds": 12.125,
+      "semanticName": "cheer"
+    },
+    {
+      "index": 13,
+      "originalName": "NlaTrack.013",
+      "durationSeconds": 2.708333,
+      "semanticName": "flee_01"
+    }
+  ]
+}

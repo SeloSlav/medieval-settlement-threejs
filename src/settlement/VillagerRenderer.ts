@@ -276,6 +276,10 @@ type VillagerPathPurpose =
   | null;
 
 const WORKER_ACTIVITY_SECONDS = 9.5;
+const COMBAT_HURT_REACTION_MS = 1_200;
+const RAIDER_MELEE_THREAT_MS = 1_350;
+const RAIDER_ENTRY_BREAK_SECONDS = 1.05;
+const RAIDER_LOOT_CHEER_START_SECONDS = 3.15;
 const FISHING_PATH_WATER_SAMPLE_STEP = 0.3;
 const MONASTIC_HABIT_COLOR = 0x493629;
 const CAMP_SEAT_RELEASE_DISTANCE = 0.8;
@@ -294,6 +298,8 @@ type CombatAgentVisual = {
   displayX: number;
   displayZ: number;
   yaw: number;
+  hurtUntilMs: number;
+  threatenUntilMs: number;
 };
 
 type MarketStallDuty = PointXZ & {
@@ -650,8 +656,20 @@ export class VillagerRenderer {
     const nextVisuals = new Map<string, CombatAgentVisual>();
     const nextGuardSlots = new Set<string>();
     const nextMilitaryPeople = new Set<string>();
+    const nowMs = performance.now();
     for (const state of agents.values()) {
       const prior = this.combatAgentVisuals.get(state.id);
+      const tookHit = Boolean(
+        prior
+        && state.status !== 'downed'
+        && state.health < prior.state.health - 1e-6,
+      );
+      const enteredRaiderMelee = Boolean(
+        prior
+        && state.faction === 'raider'
+        && prior.state.status === 'advancing'
+        && state.status === 'fighting',
+      );
       if (state.status === 'downed' && prior?.state.status !== 'downed') {
         const seed = combatAppearanceSeed(state);
         this.combatAudio.playDeath(
@@ -672,6 +690,12 @@ export class VillagerRenderer {
           state.x - state.homeX,
           state.z - state.homeZ,
         ),
+        hurtUntilMs: tookHit
+          ? nowMs + COMBAT_HURT_REACTION_MS
+          : prior?.hurtUntilMs ?? 0,
+        threatenUntilMs: enteredRaiderMelee
+          ? nowMs + RAIDER_MELEE_THREAT_MS
+          : prior?.threatenUntilMs ?? 0,
       });
       if (state.faction === 'guard' && state.sourceBuildingId) {
         nextGuardSlots.add(
@@ -1937,9 +1961,13 @@ export class VillagerRenderer {
         : `Unarmed · readiness ${Math.round(combat.readiness * 100)}%`
       : isPlayerMilitaryFaction(combat.faction)
         ? `${combatEquipmentLabel(combat.faction)} · readiness ${Math.round(combat.readiness * 100)}%`
-      : combat.carryingLoot
-        ? 'Spear · carrying stolen stores'
-        : 'Spear · no captured stores';
+      : combat.faction === 'raider'
+        ? combat.carryingLoot
+          ? 'Sidearm · carrying stolen stores'
+          : 'Sidearm · no captured stores'
+        : combat.carryingLoot
+          ? 'Spear · carrying stolen stores'
+          : 'Spear · no captured stores';
     const y = this.resolveGroundY(visual.displayX, visual.displayZ) + 0.02;
     return {
       personIdentity,
@@ -2148,6 +2176,7 @@ export class VillagerRenderer {
         }
       }
     }
+    const combatNowMs = performance.now();
     for (const visual of this.combatAgentVisuals.values()) {
       const combat = visual.state;
       const residentSoldier = this.agentForPersonIdentity(combat.personIdentity);
@@ -2181,11 +2210,12 @@ export class VillagerRenderer {
         ?? (combat.faction === 'bandit' || combat.faction === 'raider' || isPlayerMilitaryFaction(combat.faction)
           ? 'man'
           : appearanceSeed % 2 === 0 ? 'man' : 'woman');
-      renderAgent.presentation = 'common';
+      renderAgent.presentation = combat.faction === 'raider' ? 'raider' : 'common';
       renderAgent.mode = combatRenderMode(
-        combat.status,
-        combat.targetKind !== 'cart',
+        combat,
         (combat.routeProgress ?? 0) > 14,
+        visual.hurtUntilMs > combatNowMs,
+        visual.threatenUntilMs > combatNowMs,
       );
       renderAgent.tunicColor = residentSoldier?.tunicColor
         ?? ordinaryGuard?.tunicColor
@@ -5826,28 +5856,44 @@ function combatFactionsAreHostile(
 }
 
 function combatRenderMode(
-  status: CombatAgentState['status'],
-  attackingHolding: boolean,
+  combat: CombatAgentState,
   running = false,
+  reactingToHit = false,
+  threatening = false,
 ): VillagerRenderMode {
-  switch (status) {
+  if (combat.status === 'downed') return 'fall';
+  if (reactingToHit) return 'hurt';
+  if (combat.faction === 'raider' && threatening) return 'talk';
+  switch (combat.status) {
     case 'fighting': return 'fight';
-    case 'looting': return attackingHolding ? 'fight' : 'gather';
-    case 'downed': return 'fall';
+    case 'looting': {
+      if (combat.faction === 'raider') {
+        if (combat.raidAnchorBuildingId) return 'chop';
+        if (combat.targetKind === 'cart') return 'gather';
+        if (combat.lootProgress < RAIDER_ENTRY_BREAK_SECONDS) return 'chop';
+        if (combat.lootProgress >= RAIDER_LOOT_CHEER_START_SECONDS) return 'laugh';
+        return 'gather';
+      }
+      return combat.targetKind !== 'cart' ? 'fight' : 'gather';
+    }
     case 'recovering': return 'rest';
     case 'advancing': return running ? 'run' : 'walk';
-    case 'retreating':
+    case 'retreating': return combat.faction === 'raider' ? 'flee' : 'walk';
     case 'returning':
     case 'wounded-returning':
     case 'mustering':
       return 'walk';
-    case 'holding':
-      return 'idle';
+    case 'holding': {
+      if (combat.faction !== 'raider') return 'idle';
+      const variations: VillagerRenderMode[] = ['idle', 'relax', 'look', 'wait'];
+      return variations[combatAppearanceSeed(combat) % variations.length] ?? 'idle';
+    }
   }
 }
 
 function combatToolFor(faction: CombatAgentState['faction']): WorkerToolKind {
   switch (faction) {
+    case 'raider': return 'sidearm';
     case 'crossbow': return 'crossbow';
     case 'bowman': return 'bow';
     case 'man-at-arms': return 'sword-shield';

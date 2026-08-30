@@ -39,6 +39,13 @@ Assets and source pages:
   above. Its complete 20-clip semantic animation manifest and source SHA-256
   are retained in cleric-monk-common-01-v001.animation-map.json.
 
+- ottoman-raider-common-01-v001.glb
+  Project-supplied Tripo-generated medieval warrior asset used exclusively by
+  Ottoman frontier raiders. This file is not covered by the Quaternius CC0
+  notice above. Its complete 14-clip semantic animation manifest and original
+  export SHA-256 are retained in
+  ottoman-raider-common-01-v001.animation-map.json.
+
 The Quaternius models retain their authored rigs and idle/walk animation clips.
 Attribution is not required by CC0, but this record is kept with the assets so
 their provenance and reuse terms remain auditable.
