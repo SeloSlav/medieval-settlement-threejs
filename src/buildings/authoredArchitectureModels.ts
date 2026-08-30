@@ -28,13 +28,13 @@ import {
 } from './meshes/mineralMineMesh.ts';
 
 export const TIER_ONE_RESIDENCE_MODEL_URL =
-  '/assets/models/buildings/gorski/tier1_residence_retopo_v26.glb';
+  '/assets/models/buildings/gorski/tier1_residence_retopo_v27.glb';
 export const TIER_ONE_CHURCH_MODEL_URL =
   '/assets/models/buildings/gorski/tier1_church_delnice_v2.glb';
 export const HUNTERS_CAMP_MODEL_URL =
   '/assets/models/buildings/gorski/hunters_camp_textured_v10.glb';
 export const FISHING_CAMP_MODEL_URL =
-  '/assets/models/buildings/gorski/fishing_camp_textured_v5.glb';
+  '/assets/models/buildings/gorski/fishing_camp_textured_v6.glb';
 export const WAYSIDE_SHRINE_MODEL_URL =
   '/assets/models/buildings/gorski/wayside_shrine_textured_v1.glb';
 export const LUMBER_MILL_MODEL_URL =
@@ -143,7 +143,7 @@ export function createAuthoredTierOneResidenceShell(): THREE.Group | null {
   // that public face to local +Z; centre the seven-metre depth on the marker.
   shell.position.z = 3.5;
   shell.userData.authoredGlbAsset = true;
-  shell.userData.authoredGlbVersion = 'tier1-residence-v26';
+  shell.userData.authoredGlbVersion = 'tier1-residence-v27';
   shell.userData.authoredGlbUrl = TIER_ONE_RESIDENCE_MODEL_URL;
   return shell;
 }
@@ -177,7 +177,7 @@ export function createAuthoredFishingCampMesh(): THREE.Group | null {
   if (!camp) return null;
   camp.name = 'Fishing camp';
   camp.userData.authoredGlbAsset = true;
-  camp.userData.authoredGlbVersion = 'fishing-camp-v5';
+  camp.userData.authoredGlbVersion = 'fishing-camp-v6';
   camp.userData.authoredGlbUrl = FISHING_CAMP_MODEL_URL;
   camp.userData.fpCollisionChildrenOnly = true;
   addComponentCollisionProxies(camp, 'fc_instance', 'Fishing camp');

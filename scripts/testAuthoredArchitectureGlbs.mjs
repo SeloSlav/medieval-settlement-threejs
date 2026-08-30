@@ -13,7 +13,7 @@ const runtimeRoot = path.join(
   'gorski',
 );
 
-const residence = readGlb('tier1_residence_retopo_v26.glb');
+const residence = readGlb('tier1_residence_retopo_v27.glb');
 assert.equal(residence.json.nodes.length, 33, 'Tier 1 residence node count changed');
 assert.equal(residence.json.meshes.length, 33, 'Tier 1 residence mesh count changed');
 assert.equal(countTriangles(residence.json), 5_184, 'Tier 1 residence triangle count changed');
@@ -21,7 +21,7 @@ assert.ok(residence.bytes.length < 1_000_000, 'Tier 1 runtime GLB should stay be
 assert.deepEqual(residence.json.images ?? [], [], 'Tier 1 must use the shared runtime atlas');
 assert.equal(
   residence.json.asset.extras?.sourceGlb,
-  'tier1_residence_retopo_v26.glb',
+  'tier1_residence_retopo_v27.glb',
   'Tier 1 runtime source provenance is missing',
 );
 assertNames(residence.json, [
@@ -55,6 +55,19 @@ for (const material of residence.json.materials.filter(
     `${material.name} must retain its authored normal strength`,
   );
 }
+const residenceAtlasTiles = new Set(
+  (residence.json.materials ?? [])
+    .filter((material) => material.extras?.atlas_id === 'gorski-building-atlas-v1')
+    .map((material) => material.extras?.atlas_tile),
+);
+assert.ok(
+  residenceAtlasTiles.has('quarry-stone'),
+  'Tier 1 residence foundation must use the joint-free gathered-stone face',
+);
+assert.ok(
+  !residenceAtlasTiles.has('fieldstone-mortar'),
+  'Tier 1 residence individual foundation stones must not contain mortared wall texture',
+);
 
 const church = readGlb('tier1_church_delnice_v2.glb');
 assert.equal(church.json.nodes.length, 85, 'Tier 1 church node count changed');
@@ -227,7 +240,7 @@ assert.doesNotMatch(
   'Removed or extraneous hunter-camp props returned',
 );
 
-const fishingCamp = readGlb('fishing_camp_textured_v5.glb');
+const fishingCamp = readGlb('fishing_camp_textured_v6.glb');
 assert.equal(fishingCamp.json.nodes.length, 66, 'Fishing camp node count changed');
 assert.equal(fishingCamp.json.meshes.length, 66, 'Fishing camp mesh count changed');
 const fishingCampTriangles = countTriangles(fishingCamp.json);
@@ -239,7 +252,7 @@ assert.ok(
 assert.ok(fishingCamp.bytes.length < 2_000_000, 'Fishing camp runtime GLB should stay below 2 MB');
 assert.equal(
   fishingCamp.json.asset.extras?.sourceGlb,
-  'fishing_camp_textured_v5.glb',
+  'fishing_camp_textured_v6.glb',
   'Fishing camp runtime source provenance is missing',
 );
 assert.deepEqual(fishingCamp.json.images ?? [], [], 'Fishing camp must use the shared runtime atlas');
@@ -251,7 +264,7 @@ const fishingAtlasTiles = new Set(
   fishingAtlasMaterials.map((material) => material.extras?.atlas_tile),
 );
 for (const tile of [
-  'fieldstone-mortar',
+  'quarry-stone',
   'lime-plaster',
   'rough-hewn-timber',
   'weathered-planks',
@@ -259,6 +272,10 @@ for (const tile of [
 ]) {
   assert.ok(fishingAtlasTiles.has(tile), `Fishing camp must retain ${tile}`);
 }
+assert.ok(
+  !fishingAtlasTiles.has('fieldstone-mortar'),
+  'Fishing camp individual foundation stones must not contain mortared wall texture',
+);
 assert.ok(
   !fishingAtlasTiles.has('linen-canvas'),
   'Fishing camp must not bake placeholder fish/catch material into the empty rack',
@@ -716,7 +733,7 @@ assert.match(siteworksSource, /Three thick, dark forest billets/);
 
 const integrationSource = readText('src/buildings/authoredArchitectureModels.ts');
 assert.match(integrationSource, /tier1_church_delnice_v2\.glb/);
-assert.match(integrationSource, /fishing_camp_textured_v5\.glb/);
+assert.match(integrationSource, /fishing_camp_textured_v6\.glb/);
 assert.match(integrationSource, /applyBuildingMaterialAtlasDirectUv/);
 assert.match(integrationSource, /readAuthoredAtlasTint/);
 assert.match(integrationSource, /readAuthoredSurfaceTint/);

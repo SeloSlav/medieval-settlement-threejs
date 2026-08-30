@@ -24,17 +24,17 @@ Build from the repository root:
 
 Outputs:
 
-- `out/tier1_residence_retopo_v26.blend` — editable assembly with packed atlas images and separated staging.
-- `out/tier1_residence_retopo_v26.glb` — game-ready shell with component metadata.
-- `out/tier1_residence_assembly_v26.json` — placements, dimensions, atlas references, and tier decisions.
-- `renders/tier1_residence_hero_retopo_v26.png` — fixed hero preview.
-- `renders/tier1_residence_front_retopo_v26.png` and `renders/tier1_residence_side_retopo_v26.png` — alignment-check views.
+- `out/tier1_residence_retopo_v27.blend` — editable assembly with packed atlas images and separated staging.
+- `out/tier1_residence_retopo_v27.glb` — game-ready shell with component metadata and joint-free gathered-stone foundations.
+- `out/tier1_residence_assembly_v27.json` — placements, dimensions, atlas references, and tier decisions.
+- `renders/tier1_residence_hero_retopo_v27.png` — fixed hero preview.
+- `renders/tier1_residence_front_retopo_v27.png` and `renders/tier1_residence_side_retopo_v27.png` — alignment-check views.
 
 Validate the generated Blender artifact:
 
 ```powershell
 & 'C:\Program Files\Blender Foundation\Blender 5.1\blender.exe' `
-  --background 'art-source\gorski-architecture-kit\examples\tier1-residence\out\tier1_residence_retopo_v26.blend' `
+  --background 'art-source\gorski-architecture-kit\examples\tier1-residence\out\tier1_residence_retopo_v27.blend' `
   --python 'art-source\gorski-architecture-kit\examples\tier1-residence\validate_tier1_residence.py'
 
 & 'C:\Program Files\Blender Foundation\Blender 5.1\blender.exe' `
@@ -42,4 +42,4 @@ Validate the generated Blender artifact:
   --python 'art-source\gorski-architecture-kit\examples\tier1-residence\validate_tier1_residence_roundtrip.py'
 ```
 
-The validators write `out/tier1_residence_validation_v26.json` and `out/tier1_residence_roundtrip_validation_v26.json` with topology, UV, unit-scale, aperture, atlas, triangle-budget, metadata, and runtime-dressing checks.
+The validators write `out/tier1_residence_validation_v27.json` and `out/tier1_residence_roundtrip_validation_v27.json` with topology, UV, unit-scale, aperture, atlas, triangle-budget, metadata, and runtime-dressing checks.

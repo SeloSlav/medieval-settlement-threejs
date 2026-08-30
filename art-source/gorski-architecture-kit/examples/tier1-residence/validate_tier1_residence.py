@@ -10,7 +10,7 @@ import bpy
 
 EXAMPLE_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path(os.environ.get("GK_TIER1_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
-OUT_REPORT = OUTPUT_ROOT / "out" / "tier1_residence_validation_v26.json"
+OUT_REPORT = OUTPUT_ROOT / "out" / "tier1_residence_validation_v27.json"
 
 
 def architecture_objects() -> list[bpy.types.Object]:
@@ -103,6 +103,8 @@ def main() -> None:
         # The preview-only packed-earth plane is intentionally excluded from the
         # architecture object set; the shell itself uses six production atlas tiles.
         "atlasMaterialsPacked": len(material_tiles) >= 6,
+        "foundationUsesJointFreeStoneFace": "quarry-stone" in material_tiles,
+        "noMortaredWallTextureOnIndividualFoundationStones": "fieldstone-mortar" not in material_tiles,
     }
     payload = {
         "id": "gorski-tier1-residence-validation-v4",

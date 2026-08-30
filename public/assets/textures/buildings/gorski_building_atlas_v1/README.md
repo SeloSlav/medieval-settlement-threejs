@@ -9,4 +9,4 @@ Runtime sampling uses fractional metric UVs constrained to the content rectangle
 - `building_material_atlas.png`: R roughness, G metalness, B AO, A centered height.
 - `manifest.json`: tile identities, physical scale, response ranges, and source candidates.
 
-Raw Patina results and request metadata remain under `artifacts/pbr-material-review/patina-candidates/building-*`.
+Raw Patina results and request metadata remain under `artifacts/pbr-material-review/patina-candidates/`.

@@ -17,12 +17,12 @@ OUTPUT_ROOT = Path(os.environ.get("GK_TIER1_OUTPUT_ROOT", str(EXAMPLE_DIR))).res
 OUT_DIR = OUTPUT_ROOT / "out"
 RENDER_DIR = OUTPUT_ROOT / "renders"
 ATLAS_DIR = ROOT / "public" / "assets" / "textures" / "buildings" / "gorski_building_atlas_v1"
-OUT_BLEND = OUT_DIR / "tier1_residence_retopo_v26.blend"
-OUT_GLB = OUT_DIR / "tier1_residence_retopo_v26.glb"
-OUT_MANIFEST = OUT_DIR / "tier1_residence_assembly_v26.json"
-OUT_RENDER = RENDER_DIR / "tier1_residence_hero_retopo_v26.png"
-OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_retopo_v26.png"
-OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_retopo_v26.png"
+OUT_BLEND = OUT_DIR / "tier1_residence_retopo_v27.blend"
+OUT_GLB = OUT_DIR / "tier1_residence_retopo_v27.glb"
+OUT_MANIFEST = OUT_DIR / "tier1_residence_assembly_v27.json"
+OUT_RENDER = RENDER_DIR / "tier1_residence_hero_retopo_v27.png"
+OUT_FRONT_RENDER = RENDER_DIR / "tier1_residence_front_retopo_v27.png"
+OUT_SIDE_RENDER = RENDER_DIR / "tier1_residence_side_retopo_v27.png"
 
 WALL_BASE_Z = 0.35
 WALL_HEIGHT = 2.4
@@ -89,7 +89,10 @@ MATERIAL_LOOKS = {
     "limewash_grey": ("lime-plaster", (0.60, 0.60, 0.53, 1.0), 0.30, 0.48),
     "daub_humble": ("lime-plaster", (0.42, 0.29, 0.17, 1.0), 0.60, 0.68),
     "fieldstone": ("fieldstone-mortar", (0.56, 0.50, 0.40, 1.0), 0.45, 0.72),
-    "fieldstone_weathered": ("fieldstone-mortar", (0.30, 0.255, 0.20, 1.0), 0.82, 0.86),
+    # The footing components already model separate gathered stones.  Use a
+    # continuous stone face so each block cannot contain a miniature mortared
+    # masonry pattern of its own.
+    "fieldstone_weathered": ("quarry-stone", (0.34, 0.33, 0.29, 1.0), 0.82, 0.78),
     "quarry_stone": ("quarry-stone", (0.68, 0.67, 0.61, 1.0), 0.16, 0.72),
     "limestone_warm": ("limestone-ashlar", (0.86, 0.76, 0.56, 1.0), 0.18, 0.68),
     "oak_dark": ("rough-hewn-timber", (0.25, 0.13, 0.058, 1.0), 0.65, 0.62),
@@ -1371,9 +1374,9 @@ def write_manifest() -> None:
             "openings": "plain unglazed square light and ventilation holes; no decorative shutters or leaded glazing",
         },
         "atlasCoverage": {
-            "usedNow": ["fieldstone-mortar", "lime-plaster", "rough-hewn-timber", "weathered-planks", "split-shingles", "wrought-iron", "packed-earth"],
+            "usedNow": ["quarry-stone", "lime-plaster", "rough-hewn-timber", "weathered-planks", "split-shingles", "wrought-iron", "packed-earth"],
             "sufficientForThisPass": True,
-            "variantPolicy": "weathered fieldstone and worn daub are named material variants over shared atlas tiles; the clean global tiles remain unchanged for maintained and later-tier buildings",
+            "variantPolicy": "individual footing stones use the continuous gathered-stone atlas face; mortared masonry remains a separate wall-only material",
             "recommendedFutureTiles": [
                 "riven-softwood-boarding: hand-split fir or pine boards with irregular adze edges",
                 "clay-straw-daub: coarser earthen infill with visible straw and restrained cracking",
@@ -1440,7 +1443,7 @@ def main() -> None:
     add_preview_staging()
     stage_render()
     scene = bpy.context.scene
-    scene["artifact_id"] = "gorski-tier1-residence-atlas-preview-v5"
+    scene["artifact_id"] = "gorski-tier1-residence-atlas-preview-v6"
     scene["architecture_context"] = "Gorski Kotar, circa 1550"
     scene["roof_finish"] = "hand-split softwood shingles"
     scene["atlas_id"] = ATLAS_MANIFEST["id"]

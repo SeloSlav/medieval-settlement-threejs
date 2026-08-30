@@ -16,7 +16,7 @@ from mathutils import Vector
 EXAMPLE_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path(os.environ.get("GK_FISHING_CAMP_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
 OUT_DIR = OUTPUT_ROOT / "out"
-REPORT_PATH = OUT_DIR / "fishing_camp_validation_v5.json"
+REPORT_PATH = OUT_DIR / "fishing_camp_validation_v6.json"
 
 REQUIRED_EXACT = {
     "wall_limewash_2m_door_service_host": 1,
@@ -140,12 +140,14 @@ def main() -> None:
         world_points.extend(world_vertices(obj))
 
     required_tiles = {
-        "lime-plaster", "fieldstone-mortar", "rough-hewn-timber", "weathered-planks",
+        "lime-plaster", "quarry-stone", "rough-hewn-timber", "weathered-planks",
         "sawn-planks", "split-shingles", "wrought-iron",
     }
     missing_tiles = sorted(required_tiles - atlas_tiles)
     if missing_tiles:
         errors.append(f"missing required material coverage: {missing_tiles}")
+    if "fieldstone-mortar" in atlas_tiles:
+        errors.append("individual fishing-camp foundation stones still use a mortared wall texture")
 
     rack = next((obj for obj in instances if obj.get("source_component_id") == "prop_fish_drying_rack"), None)
     if rack is not None:

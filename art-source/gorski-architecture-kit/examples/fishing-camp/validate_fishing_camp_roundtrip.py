@@ -11,8 +11,8 @@ import bpy
 EXAMPLE_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path(os.environ.get("GK_FISHING_CAMP_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
 OUT_DIR = OUTPUT_ROOT / "out"
-GLB_PATH = OUT_DIR / "fishing_camp_textured_v5.glb"
-REPORT_PATH = OUT_DIR / "fishing_camp_roundtrip_validation_v5.json"
+GLB_PATH = OUT_DIR / "fishing_camp_textured_v6.glb"
+REPORT_PATH = OUT_DIR / "fishing_camp_roundtrip_validation_v6.json"
 
 
 def main() -> None:

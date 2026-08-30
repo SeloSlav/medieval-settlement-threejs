@@ -17,14 +17,14 @@ EXAMPLE_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path(os.environ.get("GK_FISHING_CAMP_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
 OUT_DIR = OUTPUT_ROOT / "out"
 RENDER_DIR = OUTPUT_ROOT / "renders"
-OUT_BLEND = OUT_DIR / "fishing_camp_textured_v5.blend"
-OUT_GLB = OUT_DIR / "fishing_camp_textured_v5.glb"
-OUT_MANIFEST = OUT_DIR / "fishing_camp_assembly_v5.json"
-OUT_HERO = RENDER_DIR / "fishing_camp_hero_v5.png"
-OUT_OVERHEAD = RENDER_DIR / "fishing_camp_overhead_v5.png"
-OUT_WORKYARD = RENDER_DIR / "fishing_camp_workyard_v5.png"
-OUT_BOAT = RENDER_DIR / "fishing_camp_boat_detail_v5.png"
-OUT_REAR = RENDER_DIR / "fishing_camp_rear_v5.png"
+OUT_BLEND = OUT_DIR / "fishing_camp_textured_v6.blend"
+OUT_GLB = OUT_DIR / "fishing_camp_textured_v6.glb"
+OUT_MANIFEST = OUT_DIR / "fishing_camp_assembly_v6.json"
+OUT_HERO = RENDER_DIR / "fishing_camp_hero_v6.png"
+OUT_OVERHEAD = RENDER_DIR / "fishing_camp_overhead_v6.png"
+OUT_WORKYARD = RENDER_DIR / "fishing_camp_workyard_v6.png"
+OUT_BOAT = RENDER_DIR / "fishing_camp_boat_detail_v6.png"
+OUT_REAR = RENDER_DIR / "fishing_camp_rear_v6.png"
 
 
 # Assembly-specific fit contract. The kit's 0.24 m verge is nominal; these
@@ -84,8 +84,11 @@ texture_helper.MATERIAL_LOOKS.update({
     "limewash": ("lime-plaster", (0.66, 0.59, 0.45, 1.0), 0.42, 0.70),
     "limewash_grey": ("lime-plaster", (0.49, 0.48, 0.40, 1.0), 0.55, 0.66),
     "limestone_warm": ("fieldstone-mortar", (0.48, 0.43, 0.34, 1.0), 0.64, 0.78),
-    "fieldstone_weathered": ("fieldstone-mortar", (0.30, 0.255, 0.20, 1.0), 0.82, 0.86),
-    "fieldstone": ("fieldstone-mortar", (0.30, 0.31, 0.27, 1.0), 0.82, 0.88),
+    # Foundation and threshold modules already carry one mesh per stone.  A
+    # continuous rock face avoids the false brick-and-mortar pattern inside
+    # every authored block.
+    "fieldstone_weathered": ("quarry-stone", (0.34, 0.33, 0.29, 1.0), 0.82, 0.78),
+    "fieldstone": ("quarry-stone", (0.38, 0.38, 0.34, 1.0), 0.78, 0.80),
     "oak_dark": ("rough-hewn-timber", (0.13, 0.068, 0.029, 1.0), 0.88, 0.76),
     "timber_weathered": ("weathered-planks", (0.29, 0.18, 0.085, 1.0), 0.76, 0.78),
     "timber_cut": ("sawn-planks", (0.45, 0.27, 0.12, 1.0), 0.58, 0.68),
@@ -559,7 +562,7 @@ def write_manifest() -> None:
     maximum = Vector((max(point.x for point in fixed_points), max(point.y for point in fixed_points), max(point.z for point in fixed_points)))
     dimensions = maximum - minimum
     payload = {
-        "id": "gorski-fishing-camp-atlas-preview-v5",
+        "id": "gorski-fishing-camp-atlas-preview-v6",
         "revision": 5,
         "authoritativeBuildingKind": "fishing_camp",
         "displayIdentity": "Fishing Camp",
@@ -580,7 +583,7 @@ def write_manifest() -> None:
         },
         "atlas": {
             "id": texture_helper.ATLAS_MANIFEST["id"],
-            "usedTiles": ["lime-plaster", "fieldstone-mortar", "rough-hewn-timber", "weathered-planks", "sawn-planks", "split-shingles", "wrought-iron", "packed-earth"],
+            "usedTiles": ["lime-plaster", "quarry-stone", "rough-hewn-timber", "weathered-planks", "sawn-planks", "split-shingles", "wrought-iron", "packed-earth"],
             "packing": "R roughness, G metalness, B AO, A centered height",
         },
         "historicalMaterialDecision": {
@@ -641,7 +644,7 @@ def main() -> None:
     remove_source_library_objects()
     camera = stage_preview()
     scene = bpy.context.scene
-    scene["artifact_id"] = "gorski-fishing-camp-atlas-preview-v5"
+    scene["artifact_id"] = "gorski-fishing-camp-atlas-preview-v6"
     scene["authoritative_building_kind"] = "fishing_camp"
     scene["architecture_context"] = "Gorski Kotar, circa 1550"
     scene["canonical_state"] = "neutral fixed fishery; runtime owns fresh catch, inventory, workers, and world layers"

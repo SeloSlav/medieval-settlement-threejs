@@ -28,7 +28,10 @@ const materials = [
   tile('lime-plaster', 'building-lime-plaster', 'Hand-trowelled lime plaster', [0.84, 0.98], 0, 0.48),
   tile('limestone-ashlar', 'building-limestone-ashlar', 'Limestone ashlar masonry', [0.78, 0.96], 0, 0.68),
   tile('fieldstone-mortar', 'building-fieldstone-mortar', 'Fieldstone and lime mortar', [0.82, 0.98], 0, 0.72),
-  tile('quarry-stone', 'building-quarry-stone', 'Rough quarry stone', [0.80, 0.97], 0, 0.72),
+  // Foundation modules already author every visible stone as geometry.  Their
+  // surface therefore needs to describe one continuous weathered rock face,
+  // not a second wall of miniature blocks and joints painted onto each mesh.
+  tile('quarry-stone', 'clean-river-stone', 'Weathered gathered stone face', [0.82, 0.98], 0, 0.72),
   tile('rough-hewn-timber', 'building-rough-hewn-timber', 'Rough-hewn structural timber', [0.72, 0.94], 0, 0.62),
   tile('sawn-planks', 'building-sawn-planks', 'Sawn oak planks', [0.68, 0.91], 0, 0.56),
   tile('weathered-planks', 'building-weathered-planks', 'Weathered exterior planks', [0.79, 0.97], 0, 0.66),
@@ -234,7 +237,7 @@ async function main() {
     '- `building_material_atlas.png`: R roughness, G metalness, B AO, A centered height.',
     '- `manifest.json`: tile identities, physical scale, response ranges, and source candidates.',
     '',
-    'Raw Patina results and request metadata remain under `artifacts/pbr-material-review/patina-candidates/building-*`.',
+    'Raw Patina results and request metadata remain under `artifacts/pbr-material-review/patina-candidates/`.',
     '',
   ].join('\n'));
   console.log(`Saved ${materials.length} tiles to ${OUTPUT_ROOT}`);
