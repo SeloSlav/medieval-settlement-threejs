@@ -413,6 +413,10 @@ export class RoadTool {
   private readonly onSecondaryClick = (event: MouseEvent): void => {
     if (!this.enabled || this.options.isBlocked()) return;
     event.preventDefault();
+    if (this.hasDraft()) {
+      this.undoLastPoint();
+      return;
+    }
     this.setEnabled(false);
   };
 

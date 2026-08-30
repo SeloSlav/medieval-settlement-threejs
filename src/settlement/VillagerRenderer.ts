@@ -202,6 +202,10 @@ import {
   SELECTED_AGENT_ROUTE_Y_OFFSET,
   type SelectedAgentRoutePoint,
 } from '../scene/SelectedAgentRoute.ts';
+import {
+  WorkerLocalAvoidance,
+  type WorkerAvoidanceAgent,
+} from './workerLocalAvoidance.ts';
 
 type VillagerMode = VillagerRenderMode;
 type VillagerRole = 'founder' | 'resident' | 'worker';
@@ -368,6 +372,8 @@ type VillagerAgent = {
   nearestEdge: { path: PointXZ[]; distance: number } | null;
   x: number;
   z: number;
+  avoidanceOffsetX: number;
+  avoidanceOffsetZ: number;
   y: number;
   yaw: number;
   simAccumulator: number;
@@ -423,6 +429,8 @@ export class VillagerRenderer {
   private readonly routePathAroundObstacles:
     ((path: readonly PointXZ[]) => PointXZ[] | null) | null;
   private readonly agents = new Map<string, VillagerAgent>();
+  private readonly workerAvoidance = new WorkerLocalAvoidance();
+  private readonly workerAvoidanceAgents: WorkerAvoidanceAgent[] = [];
   private readonly renderAgents: CrowdRenderAgent[] = [];
   private readonly renderAgentsById = new Map<string, CrowdRenderAgent>();
   private readonly workerSoundSources: WorkerActivitySoundSource[] = [];
@@ -942,6 +950,8 @@ export class VillagerRenderer {
           nearestEdge: null,
           x: residence.x,
           z: residence.z,
+          avoidanceOffsetX: 0,
+          avoidanceOffsetZ: 0,
           y: 0,
           yaw: residence.yaw,
           simAccumulator: 0,
@@ -1040,6 +1050,8 @@ export class VillagerRenderer {
             nearestEdge,
             x: residence.x,
             z: residence.z,
+            avoidanceOffsetX: 0,
+            avoidanceOffsetZ: 0,
             y: 0,
             yaw: residence.yaw,
             simAccumulator: 0,
@@ -1163,6 +1175,8 @@ export class VillagerRenderer {
           nearestEdge,
           x: origin.x,
           z: origin.z,
+          avoidanceOffsetX: 0,
+          avoidanceOffsetZ: 0,
           y: this.resolveGroundY(origin.x, origin.z) + 0.02,
           yaw: 'yaw' in origin ? origin.yaw : 0,
           simAccumulator: 0,
@@ -1298,6 +1312,8 @@ export class VillagerRenderer {
           nearestEdge: null,
           x: foundingCamp.x,
           z: foundingCamp.z,
+          avoidanceOffsetX: 0,
+          avoidanceOffsetZ: 0,
           y: 0,
           yaw: 0,
           simAccumulator: 0,
@@ -1423,6 +1439,7 @@ export class VillagerRenderer {
       agent.y = this.resolveAgentY(agent);
     }
 
+    this.updateWorkerLocalAvoidance(simulationDt);
     this.releaseVacatedCampSeats();
     this.pushRenderState(view, simulationDt, simulationDt > 0 ? realDt : 0);
     this.oxen.tick(dt, view);
@@ -1757,7 +1774,11 @@ export class VillagerRenderer {
         (agent.walkSpeed * PEDESTRIAN_ROAD_SPEED_MULTIPLIER
           * WORKFORCE_MOVEMENT_SPEED_MULTIPLIER).toFixed(1)
       } m/s on roads`,
-      position: { x: agent.x, y: agent.y, z: agent.z },
+      position: {
+        x: agent.x + agent.avoidanceOffsetX,
+        y: agent.y,
+        z: agent.z + agent.avoidanceOffsetZ,
+      },
       route: this.inspectionRoute(agent),
       visible: this.isVisibleAgent(agent),
     };
@@ -1772,7 +1793,12 @@ export class VillagerRenderer {
         agent.path,
         Math.min(agent.pathDistance, agent.displayPathCursor),
       );
-      if (route.length > 0) route[0] = { x: agent.x, z: agent.z };
+      if (route.length > 0) {
+        route[0] = {
+          x: agent.x + agent.avoidanceOffsetX,
+          z: agent.z + agent.avoidanceOffsetZ,
+        };
+      }
     }
 
     return route.length >= 2
@@ -1947,9 +1973,13 @@ export class VillagerRenderer {
       }
       const renderAgent = this.renderAgentFor(agent.id);
       renderAgent.slot = slot++;
-      renderAgent.x = agent.x;
-      renderAgent.y = agent.y;
-      renderAgent.z = agent.z;
+      const renderX = agent.x + agent.avoidanceOffsetX;
+      const renderZ = agent.z + agent.avoidanceOffsetZ;
+      renderAgent.x = renderX;
+      renderAgent.y = agent.avoidanceOffsetX !== 0 || agent.avoidanceOffsetZ !== 0
+        ? this.resolveGroundY(renderX, renderZ) + 0.02
+        : agent.y;
+      renderAgent.z = renderZ;
       renderAgent.yaw = agent.yaw;
       renderAgent.appearanceSeed = agent.appearanceSeed;
       renderAgent.variant = agent.modelVariant;
@@ -2410,6 +2440,27 @@ export class VillagerRenderer {
     }
     const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
     if (residence) agent.yaw = residence.yaw + agent.idleOffset.yaw;
+  }
+
+  private updateWorkerLocalAvoidance(dtSeconds: number): void {
+    if (dtSeconds <= 0) return;
+    const candidates = this.workerAvoidanceAgents;
+    candidates.length = 0;
+    for (const agent of this.agents.values()) {
+      if (
+        agent.role !== 'worker'
+        || agent.routinePhase === 'indoors'
+        || agent.routinePhase === 'asleep'
+      ) {
+        continue;
+      }
+      const workplace = agent.workplaceId
+        ? this.buildings.get(agent.workplaceId)
+        : null;
+      if (!workplace || workplace.assignedLabor <= agent.workplaceSlot) continue;
+      candidates.push(agent);
+    }
+    this.workerAvoidance.update(candidates, dtSeconds);
   }
 
   private beginWorkerActivity(agent: VillagerAgent): void {

@@ -210,6 +210,7 @@
     "test:glb-animation-labeler": "node --experimental-strip-types scripts/testGlbAnimationLabeler.mts",
     "test:ambient-behaviors": "node --experimental-strip-types scripts/testAmbientBehaviors.mts",
     "test:worker-agents": "node --experimental-strip-types scripts/testWorkerAgents.mts",
+    "test:worker-local-avoidance": "node --experimental-strip-types scripts/testWorkerLocalAvoidance.mts",
     "test:smallholding": "node --experimental-strip-types scripts/testSmallholding.mts",
     "test:agent-navigation-performance": "node --experimental-strip-types scripts/testAgentNavigationPerformance.mts",
     "test:crowd-renderer-pacing": "node --experimental-strip-types scripts/testCrowdRendererPacing.mts",
