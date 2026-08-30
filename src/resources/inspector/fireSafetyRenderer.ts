@@ -69,13 +69,10 @@ export function withBuildingFireSafety(
       : ''
   }`;
   const riskHelp = 'Relative chance of ignition and fire spread. Stored fuel raises the current risk.';
-  const inspectReadyWell = assessment.nearestWellId == null
-    ? ''
-    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${assessment.nearestWellId}" aria-label="Inspect ready fire-response well">Inspect well</button>`;
   const responseDetail = assessment.coverage === 'covered'
     && assessment.responseDistance != null
     && assessment.firstBucketSeconds != null
-    ? `Ready · ${Math.round(assessment.responseDistance)} m · ~${Math.ceil(assessment.firstBucketSeconds)}s${inspectReadyWell}`
+    ? `Ready · ${Math.round(assessment.responseDistance)} m · ~${Math.ceil(assessment.firstBucketSeconds)}s`
     : assessment.coverage === 'unready'
       ? `Well unready · ${wellReadinessLabel(assessment.nearestWellReadiness)}`
       : `No ready well in range`;

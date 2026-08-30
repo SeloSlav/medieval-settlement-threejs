@@ -225,7 +225,7 @@ assert.match(inspectorView.detailsHtml, /Fire safety[\s\S]*Severe[\s\S]*Ready[\s
 assert.match(inspectorView.detailsHtml, /data-inspector-state="danger"/);
 assert.doesNotMatch(inspectorView.detailsHtml, />Fire response</);
 assert.match(inspectorView.detailsHtml, /Spread exposure[\s\S]*1 home nearby/);
-assert.match(inspectorView.detailsHtml, /data-inspect-building="10"/);
+assert.doesNotMatch(inspectorView.detailsHtml, /Inspect well|data-inspect-building/);
 
 const standardTarget = building('standard-apiary', 'apiary', 0, 0);
 const standardInspectorView = withBuildingFireSafety(
