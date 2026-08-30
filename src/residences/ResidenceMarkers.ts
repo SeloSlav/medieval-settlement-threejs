@@ -2831,12 +2831,14 @@ export function createResidenceMesh(
   const chimneyEmitter = new THREE.Object3D();
   chimneyEmitter.name = 'ChimneyEmitter';
   if (tier === 1) {
-    const roofExitY = tierOneThatchShape
-      ? tierOneThatchSurfaceY(chimneyX, chimneyZ, tierOneThatchShape)
-      : wallTop + ridgeHeight - Math.abs(chimneyX) * Math.tan(roofPitch);
-    // Clear the explicit overlapping shingle courses, not only the continuous
-    // backing plane, so smoke originates above rather than inside the roof.
-    chimneyEmitter.position.set(chimneyX, roofExitY + 0.215, chimneyZ);
+    const roofExitY = tierOneRoofAperture?.surfaceCenter[1]
+      ?? (tierOneThatchShape
+        ? tierOneThatchSurfaceY(chimneyX, chimneyZ, tierOneThatchShape)
+        : wallTop + ridgeHeight - Math.abs(chimneyX) * Math.tan(roofPitch));
+    // The anchor stays vertically centred on the physical cutout and clears
+    // the explicit course thickness, so runtime smoke cannot originate inside
+    // either the joined roof skin or a decorative shingle block.
+    chimneyEmitter.position.set(chimneyX, roofExitY + 0.16, chimneyZ);
     chimneyEmitter.userData.residenceSmokeExit = 'through-shingle-roof';
     group.userData.residenceSmokeExit = 'through-shingle-roof';
     group.userData.residenceHasChimney = false;

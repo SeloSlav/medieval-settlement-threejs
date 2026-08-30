@@ -83,8 +83,11 @@ type CombatPlaytestOverlayOptions = {
 };
 
 const FRIENDLY_FACTIONS = [
+  'militia',
   'spearman',
   'man-at-arms',
+  'footman',
+  'mercenary-spear',
   'polearm',
   'bowman',
   'crossbow',
@@ -95,20 +98,20 @@ const PRESETS: Readonly<Record<CombatPlaytestPreset, CombatPlaytestPresetDefinit
   skirmish: {
     label: 'Skirmish',
     membersPerCompany: 4,
-    friendlyCount: 24,
-    enemyCount: 24,
+    friendlyCount: 36,
+    enemyCount: 36,
   },
   field: {
     label: 'Field battle',
     membersPerCompany: 8,
-    friendlyCount: 48,
-    enemyCount: 48,
+    friendlyCount: 72,
+    enemyCount: 72,
   },
   stress: {
-    label: 'Stress 192',
-    membersPerCompany: 16,
-    friendlyCount: 96,
-    enemyCount: 96,
+    label: 'Stress 216',
+    membersPerCompany: 12,
+    friendlyCount: 108,
+    enemyCount: 108,
   },
 };
 
@@ -192,7 +195,7 @@ export function combatPlaytestCamera(
     targetZ: site.z,
     yaw: -118 * Math.PI / 180 + axisAngle,
     pitch: 22 * Math.PI / 180,
-    distance: 58,
+    distance: 46,
   };
 }
 

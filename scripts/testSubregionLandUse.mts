@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import type {
   BuildingState,
   FarmFieldState,
@@ -122,6 +123,15 @@ assert.ok(swineEffects[0]!.bonus > 0);
 assert.equal(buildingLandUseAffinities('fishing_camp', empty).length, 0);
 assert.equal(buildingLandUseAffinities('lumber_mill', empty)[0]?.kind, 'woodland');
 assert.equal(buildingLandUseAffinities('weaponsmith_armorer', industrial)[0]?.kind, 'urban');
+const tanneryEffects = buildingLandUseAffinities('tannery', empty);
+assert.deepEqual(
+  tanneryEffects.map((entry) => entry.kind),
+  ['woodland', 'urban'],
+  'tanneries should combine woodland bark gathering with urban workshop practice',
+);
+assert.equal(tanneryEffects[0]?.label, 'Bark gathering');
+assert.equal(tanneryEffects[0]?.bonus, empty.bonuses.woodland);
+assert.equal(tanneryEffects[0]?.effect, 'tanning throughput');
 const swineAffinityView = withBuildingLandUseAffinities(
   {
     eyebrow: 'Building',
@@ -145,6 +155,43 @@ assert.match(swineAffinityView.detailsHtml, /data-land-use-kind="woodland"/);
 assert.match(swineAffinityView.detailsHtml, /data-tooltip-title="Mast and pannage/);
 assert.match(swineAffinityView.detailsHtml, /Placement inside the colored zone is not required/);
 assert.match(swineAffinityView.detailsHtml, /tabindex="0"/);
+
+const tanneryAffinityView = withBuildingLandUseAffinities(
+  {
+    eyebrow: 'Building',
+    title: 'Tannery',
+    statusText: '',
+    statusState: 'positive',
+    detailsHtml: '',
+    demolish: { visible: false, hint: '' },
+    labor: {
+      visible: false,
+      count: 0,
+      hint: '',
+      decreaseDisabled: true,
+      increaseDisabled: true,
+    },
+  },
+  { kind: 'tannery' } as BuildingState,
+  empty,
+);
+assert.match(tanneryAffinityView.detailsHtml, /data-land-use-kind="woodland"/);
+assert.match(tanneryAffinityView.detailsHtml, /data-tooltip-title="Bark gathering/);
+assert.match(tanneryAffinityView.detailsHtml, /tanning bark and experienced bark gatherers/);
+assert.match(tanneryAffinityView.detailsHtml, /combined/);
+
+const serverAffinity = readFileSync('server/src/subregion_affinity.rs', 'utf8');
+const serverEconomy = readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
+assert.match(
+  serverAffinity,
+  /kind == "tannery"[\s\S]{0,100}self\.forestry_multiplier\(\)/,
+  'the authoritative tannery multiplier must consume the same woodland affinity shown by the client',
+);
+assert.match(
+  serverEconomy,
+  /workshop_throughput_multiplier\(&building\.kind\)/,
+  'processor cycle pacing must consume the composed authoritative affinity multiplier',
+);
 
 const rasterField = {
   area: 8_000,

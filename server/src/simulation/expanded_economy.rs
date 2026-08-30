@@ -4995,11 +4995,9 @@ fn cycle_labor_if_ready_at_rate(
     if selected_rate <= 1e-9 {
         return None;
     }
-    let affinity_multiplier = if crate::subregion_affinity::is_urban_workshop(&building.kind) {
-        tick.land_use_profile(ctx).industry_multiplier()
-    } else {
-        1.0
-    };
+    let affinity_multiplier = tick
+        .land_use_profile(ctx)
+        .workshop_throughput_multiplier(&building.kind);
     building.action_cooldown = (building.action_cooldown
         - TICK_DT * throughput_multiplier.max(0.0) * selected_rate * affinity_multiplier)
         .max(0.0);

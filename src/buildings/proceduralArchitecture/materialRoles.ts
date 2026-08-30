@@ -575,10 +575,14 @@ export function validateProceduralBuildingPlanMaterials(
 
   if (hasMaterialRole(materials, 'limestone-ashlar')) {
     const permittedStatus = plan.status === 'major' || plan.status === 'landmark';
-    if (!permittedStatus) {
+    const explicitlyRestrictedToTrim = containsVocabulary(
+      plan,
+      /(?:limestone|ashlar)[-_ ](?:niche|portal|opening|threshold|surround|trim|quoin)/i,
+    );
+    if (!permittedStatus && !explicitlyRestrictedToTrim) {
       addIssue(
         'ashlar-use-restricted',
-        `${plan.kind} uses dressed limestone outside a major or landmark building.`,
+        `${plan.kind} uses dressed limestone outside a major or landmark building without explicitly restricting it to small trim.`,
         'limestone-ashlar',
       );
     }

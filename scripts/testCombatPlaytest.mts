@@ -31,29 +31,49 @@ assert.deepEqual(
     const definition = combatPlaytestPresetDefinition(preset);
     return [definition.friendlyCount, definition.enemyCount];
   }),
-  [[24, 24], [48, 48], [96, 96]],
+  [[36, 36], [72, 72], [108, 108]],
 );
 
 const simulation = createSimulation('field');
 assert.deepEqual(simulation.summary(), {
   preset: 'field',
   seed,
-  friendlyAlive: 48,
-  friendlyTotal: 48,
-  enemyAlive: 48,
-  enemyTotal: 48,
+  friendlyAlive: 72,
+  friendlyTotal: 72,
+  enemyAlive: 72,
+  enemyTotal: 72,
   outcome: 'active',
 });
 
 const opening = simulation.snapshot();
 const friendly = [...opening.values()].filter((agent) => agent.faction !== 'raider');
 const enemy = [...opening.values()].filter((agent) => agent.faction === 'raider');
-assert.equal(new Set(friendly.map((agent) => agent.companyId)).size, 6);
+assert.equal(new Set(friendly.map((agent) => agent.companyId)).size, 9);
 assert.deepEqual(
   [...new Set(friendly.map((agent) => agent.faction))].sort(),
-  ['bowman', 'crossbow', 'man-at-arms', 'polearm', 'spearman', 'uskok'],
+  [
+    'bowman',
+    'crossbow',
+    'footman',
+    'man-at-arms',
+    'mercenary-spear',
+    'militia',
+    'polearm',
+    'spearman',
+    'uskok',
+  ],
 );
-for (const faction of ['spearman', 'man-at-arms', 'polearm', 'bowman', 'crossbow', 'uskok']) {
+for (const faction of [
+  'militia',
+  'spearman',
+  'man-at-arms',
+  'footman',
+  'mercenary-spear',
+  'polearm',
+  'bowman',
+  'crossbow',
+  'uskok',
+]) {
   assert.equal(friendly.filter((agent) => agent.faction === faction).length, 8);
 }
 assert.ok(enemy.every((agent) => agent.faction === 'raider'));
@@ -114,7 +134,7 @@ for (let step = 0; step < 1_200; step += 1) {
   }
   if (step % 10 !== 0) continue;
   const summary = simulation.summary();
-  sawCasualty ||= summary.friendlyAlive < 48 || summary.enemyAlive < 48;
+  sawCasualty ||= summary.friendlyAlive < 72 || summary.enemyAlive < 72;
 }
 assert.equal(
   sawRangedSpacing,
@@ -137,14 +157,14 @@ for (let step = 0; step < 400; step += 1) {
 assert.deepEqual([...deterministicA.snapshot()], [...deterministicB.snapshot()]);
 
 deterministicA.reset('stress');
-assert.equal(deterministicA.summary().friendlyTotal, 96);
-assert.equal(deterministicA.summary().enemyTotal, 96);
-assert.equal(deterministicA.snapshot().size, 192);
+assert.equal(deterministicA.summary().friendlyTotal, 108);
+assert.equal(deterministicA.summary().enemyTotal, 108);
+assert.equal(deterministicA.snapshot().size, 216);
 deterministicA.reset('stress');
-assert.equal(deterministicA.snapshot().size, 192);
+assert.equal(deterministicA.snapshot().size, 216);
 
 const camera = combatPlaytestCamera({ ...site, x: 14, z: -9 });
-assert.deepEqual([camera.targetX, camera.targetZ, camera.distance], [14, -9, 58]);
+assert.deepEqual([camera.targetX, camera.targetZ, camera.distance], [14, -9, 46]);
 assert.ok(camera.pitch > 0 && camera.pitch < Math.PI / 2);
 
 const app = readFileSync(new URL('../src/app/App.ts', import.meta.url), 'utf8');

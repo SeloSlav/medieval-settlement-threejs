@@ -49,6 +49,20 @@ impl LandUseProfile {
     pub fn industry_multiplier(self) -> f64 {
         1.0 + (self.urban * 0.60).min(0.12)
     }
+
+    pub fn workshop_throughput_multiplier(self, kind: &str) -> f64 {
+        let industry = if is_urban_workshop(kind) {
+            self.industry_multiplier()
+        } else {
+            1.0
+        };
+        let woodland = if kind == "tannery" {
+            self.forestry_multiplier()
+        } else {
+            1.0
+        };
+        industry * woodland
+    }
 }
 
 pub fn compute_land_use_profile(ctx: &ReducerContext) -> LandUseProfile {
@@ -211,6 +225,16 @@ mod tests {
                 > urban_realm.woodland_wild_harvest_multiplier()
         );
         assert!(urban_realm.industry_multiplier() > meadow_realm.industry_multiplier());
+        assert!(
+            meadow_realm.workshop_throughput_multiplier("tannery")
+                > meadow_realm.workshop_throughput_multiplier("cobbler")
+        );
+        assert!(
+            (meadow_realm.workshop_throughput_multiplier("tannery")
+                - meadow_realm.forestry_multiplier() * meadow_realm.industry_multiplier())
+            .abs()
+                < 1e-12
+        );
         assert!(meadow_realm.pollination_multiplier() <= 1.20);
         assert!(meadow_realm.meadow_grazing_multiplier() <= 1.10);
         assert!(meadow_realm.woodland_pannage_multiplier() <= 1.12);

@@ -125,6 +125,16 @@ export function buildingLandUseAffinities(
       'A larger woodland share supports richer connected habitat and gathering knowledge.',
     ));
   }
+  if (kind === 'tannery') {
+    effects.push(effect(
+      profile,
+      'woodland',
+      'Bark gathering',
+      profile.bonuses.woodland,
+      'tanning throughput',
+      'A larger woodland share supplies tanning bark and experienced bark gatherers without adding a separate bark stock.',
+    ));
+  }
   if (URBAN_WORKSHOP_KINDS.has(kind)) {
     effects.push(effect(
       profile,

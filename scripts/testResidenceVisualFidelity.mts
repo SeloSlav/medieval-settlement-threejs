@@ -434,27 +434,153 @@ function assertTierOneRoofSmokeContract(root: THREE.Object3D): void {
   const smokeAnchor = root.getObjectByName('ChimneyEmitter');
   assert.ok(smokeAnchor && !(smokeAnchor instanceof THREE.Mesh), 'roof smoke needs one non-mesh runtime anchor');
   assert.equal(smokeAnchor.userData.residenceSmokeExit, 'through-shingle-roof');
+}
+
+function assertJoinedSemanticResidenceRoof(
+  root: THREE.Object3D,
+  tier: 1 | 2 | 3 | 4,
+): void {
+  const joinedRoofs = collectRoofFieldSurfaces(root).filter(
+    (mesh) => mesh.userData.residenceJoinedSemanticRoof === true,
+  );
+  assert.equal(
+    joinedRoofs.length,
+    1,
+    `tier-${tier} needs exactly one joined semantic main-roof material slot`,
+  );
+  const roof = joinedRoofs[0]!;
+  assert.equal(roof.name, 'Residence joined semantic main roof');
+  assert.equal(roof.geometry.type, 'BufferGeometry');
+  assert.notEqual(
+    roof.geometry.type,
+    'BoxGeometry',
+    'main roof skins must not regress to rotated rectangular solids',
+  );
+  assert.equal(roof.userData.residenceRoofLogicalPanelCount, 2);
+  assert.equal(roof.userData.residenceRoofMaterialSlotCount, 1);
+  assert.equal(roof.geometry.userData.proceduralGeometryWriter, 'semantic-physical-uv-v1');
+  assert.equal(
+    roof.geometry.userData.proceduralMaterialRole,
+    tier === 4 ? 'clay-tiles' : 'split-shingles',
+  );
+  assert.deepEqual(
+    roof.geometry.userData.proceduralPhysicalUv,
+    {
+      projection: 'roof-course-aligned',
+      uAxis: 'roof-eave',
+      vAxis: 'roof-slope',
+      metersPerRepeat: [2.2, 2.2],
+      course: {
+        mode: 'overlapping-roof-courses',
+        nominalHeightMeters: tier === 4 ? [0.25, 0.38] : [0.16, 0.26],
+        overlapMeters: tier === 4 ? 0.08 : 0.09,
+        stagger: tier === 4 ? 'half' : 'irregular',
+      },
+    },
+    'joined roof UVs must remain metric and roof-course aligned',
+  );
+  assert.deepEqual(roof.position.toArray(), [0, 0, 0]);
+  assert.deepEqual([roof.rotation.x, roof.rotation.y, roof.rotation.z], [0, 0, 0]);
+  assert.deepEqual(roof.scale.toArray(), [1, 1, 1]);
+
+  const primitiveDiagnostics = (
+    roof.geometry.userData.proceduralGeometryDiagnostics as
+      | { primitives?: readonly { semanticId?: string }[] }
+      | undefined
+  )?.primitives ?? [];
+  assert.equal(
+    primitiveDiagnostics.length,
+    tier === 1 ? 5 : 2,
+    `tier-${tier} semantic roof needs the exact bounded panel plan`,
+  );
+
+  if (tier !== 1) {
+    assert.equal(roof.userData.residenceRoofAperture, undefined);
+    return;
+  }
+
+  const aperture = roof.userData.residenceRoofAperture as {
+    side: -1 | 1;
+    slopeSizeMeters: number;
+    zSizeMeters: number;
+    surfaceCenter: readonly [number, number, number];
+    surfaceNormal: readonly [number, number, number];
+    topology: string;
+  } | undefined;
+  assert.ok(aperture, 'tier-one joined roof needs an inspectable aperture plan');
+  assert.equal(aperture.topology, 'four-field-physical-cutout');
+  assert.ok(aperture.slopeSizeMeters >= 0.46 && aperture.slopeSizeMeters <= 0.54);
+  assert.ok(aperture.zSizeMeters >= 0.5 && aperture.zSizeMeters <= 0.58);
+  assert.deepEqual(
+    primitiveDiagnostics.map((primitive) => primitive.semanticId).sort(),
+    [
+      `main-slope-${aperture.side < 0 ? 'right' : 'left'}`,
+      'smoke-opening-eave-field',
+      'smoke-opening-front-field',
+      'smoke-opening-rear-field',
+      'smoke-opening-ridge-field',
+    ].sort(),
+  );
+
+  const trimmedCourses = collectRoofFieldSurfaces(root).filter(
+    (mesh) => mesh.userData.residenceRoofApertureTrimmed === true,
+  );
+  assert.equal(trimmedCourses.length, 1, 'only the shingle slope containing the opening is trimmed');
+  assert.equal(
+    trimmedCourses[0]!.userData.residenceRoofApertureContract,
+    'shared-roof-local-rectangle',
+  );
 
   root.updateMatrixWorld(true);
-  const roofDirection = new THREE.Vector3(0, -1, 0).applyQuaternion(
-    root.getWorldQuaternion(new THREE.Quaternion()),
-  );
-  const clearanceProbeHeight = 0.5;
-  const hits = new THREE.Raycaster(
-    smokeAnchor.getWorldPosition(new THREE.Vector3()).addScaledVector(
-      roofDirection,
-      -clearanceProbeHeight,
-    ),
-    roofDirection,
-    0,
-    0.75,
-  ).intersectObjects(collectRoofFieldSurfaces(root), false);
-  assert.ok(hits.length > 0, 'the smoke anchor must sit directly above the shingle roof field');
-  const signedClearance = hits[0]!.distance - clearanceProbeHeight;
+  const center = new THREE.Vector3(...aperture.surfaceCenter).applyMatrix4(roof.matrixWorld);
+  const normal = new THREE.Vector3(...aperture.surfaceNormal)
+    .transformDirection(roof.matrixWorld)
+    .normalize();
+  const smokeAnchor = root.getObjectByName('ChimneyEmitter')!;
+  const emitter = smokeAnchor.getWorldPosition(new THREE.Vector3());
+  const emitterOffset = emitter.clone().sub(center);
   assert.ok(
-    signedClearance >= 0.015 && signedClearance <= 0.12,
-    `roof smoke must emerge just above the visible shingles (${signedClearance.toFixed(3)} m clearance)`,
+    emitterOffset.dot(normal) >= 0.08,
+    'the runtime smoke emitter must be outside the physical roof opening',
   );
+  assert.ok(
+    Math.abs(emitter.z - center.z) <= 1e-6 && Math.abs(emitter.x - center.x) <= 1e-6,
+    'the physical cutout must be centred at the existing smoke-emitter location',
+  );
+
+  const throughOpening = new THREE.Raycaster(
+    center.clone().addScaledVector(normal, 0.45),
+    normal.clone().negate(),
+    0,
+    0.9,
+  ).intersectObject(roof, false);
+  assert.equal(
+    throughOpening.length,
+    0,
+    'a ray through the tier-one smoke opening must cross no roof triangles',
+  );
+
+  const slopeAxis = new THREE.Vector3(
+    -aperture.side * normal.y,
+    Math.abs(normal.x),
+    0,
+  ).normalize();
+  const eaveAxis = new THREE.Vector3(0, 0, 1);
+  const perimeterSamples = [
+    center.clone().addScaledVector(slopeAxis, aperture.slopeSizeMeters * 0.5 + 0.08),
+    center.clone().addScaledVector(slopeAxis, -aperture.slopeSizeMeters * 0.5 - 0.08),
+    center.clone().addScaledVector(eaveAxis, aperture.zSizeMeters * 0.5 + 0.08),
+    center.clone().addScaledVector(eaveAxis, -aperture.zSizeMeters * 0.5 - 0.08),
+  ];
+  for (const sample of perimeterSamples) {
+    const hits = new THREE.Raycaster(
+      sample.clone().addScaledVector(normal, 0.45),
+      normal.clone().negate(),
+      0,
+      0.9,
+    ).intersectObject(roof, false);
+    assert.ok(hits.length > 0, 'the physical opening must be bounded by roof triangles on all four sides');
+  }
 }
 
 function collectRoofSurfaces(root: THREE.Object3D): THREE.Mesh[] {
@@ -488,7 +614,7 @@ function assertResidenceValueSeparation(root: THREE.Object3D): void {
   const plaster = namedMesh(root, 'Residence tier-one wall shell with true apertures');
   const stone = namedMesh(root, 'Residence low rubble fieldstone footing');
   const aperture = namedMesh(root, 'Residence shadowed plank door aperture');
-  const roofPlane = namedMesh(root, 'Residence main roof plane left');
+  const roofPlane = namedMesh(root, 'Residence joined semantic main roof');
   const exposedRoof = namedMesh(root, 'Residence wooden ridge cap');
   const structuralTimber = namedMesh(
     root,
@@ -805,42 +931,42 @@ function assertWarmShingleBackFaceFinish(root: THREE.Object3D): void {
     'the visible right-gable courses must leave no repeated end-cap banding',
   );
 
-  const rightPlane = namedMesh(root, 'Residence main roof plane right');
-  const rightPlanePosition = rightPlane.geometry.getAttribute('position');
-  const rightPlaneNormal = rightPlane.geometry.getAttribute('normal');
-  const rightPlaneUv = rightPlane.geometry.getAttribute('uv');
-  const rightPlaneGableGrainPhases = new Set<number>();
-  for (let index = 0; index < rightPlanePosition.count; index += 1) {
-    if (rightPlaneNormal.getZ(index) < 0.9) continue;
+  const mainPlane = namedMesh(root, 'Residence joined semantic main roof');
+  const mainPosition = mainPlane.geometry.getAttribute('position');
+  const mainNormal = mainPlane.geometry.getAttribute('normal');
+  const mainUv = mainPlane.geometry.getAttribute('uv');
+  const gableGrainPhases = new Set<number>();
+  for (let index = 0; index < mainPosition.count; index += 1) {
+    if (Math.abs(mainNormal.getZ(index)) < 0.9) continue;
     const grainPhase =
-      rightPlaneUv.getY(index) - rightPlanePosition.getX(index) / 2.2;
+      mainUv.getY(index) - mainPosition.getX(index) / 2.2;
     const expectedPhase = expectedGrainPhases.find(
       (phase) => Math.abs(grainPhase - phase) <= 1e-6,
     );
     assert.notEqual(expectedPhase, undefined);
-    rightPlaneGableGrainPhases.add(expectedPhase!);
+    gableGrainPhases.add(expectedPhase!);
   }
-  assert.equal(
-    rightPlaneGableGrainPhases.size,
-    4,
-    'the visible right-gable roof slab must warp its calm grain across four coarse hand-worked corner phases',
+  assert.ok(
+    gableGrainPhases.size >= 4,
+    'the joined roof slab must retain coarse hand-worked calm-grain phase variation at its exposed edges',
   );
 
-  const mainPlane = namedMesh(root, 'Residence main roof plane left');
-  const mainPosition = mainPlane.geometry.getAttribute('position');
-  const mainNormal = mainPlane.geometry.getAttribute('normal');
-  const mainUv = mainPlane.geometry.getAttribute('uv');
-  let acceptedTopVertices = 0;
-  for (let index = 0; index < mainPosition.count; index += 1) {
-    if (mainNormal.getY(index) < 0.9) continue;
-    acceptedTopVertices += 1;
-    assert.ok(
-      Math.abs(mainUv.getX(index) - mainPosition.getX(index) / 2.2) <= 1e-7
-        && Math.abs(mainUv.getY(index) + mainPosition.getZ(index) / 2.2) <= 1e-7,
-      'the accepted main roof field UVs must remain byte-for-byte on their metric projection',
-    );
-  }
-  assert.equal(acceptedTopVertices, 4);
+  assert.deepEqual(
+    mainPlane.geometry.userData.proceduralPhysicalUv,
+    {
+      projection: 'roof-course-aligned',
+      uAxis: 'roof-eave',
+      vAxis: 'roof-slope',
+      metersPerRepeat: [2.2, 2.2],
+      course: {
+        mode: 'overlapping-roof-courses',
+        nominalHeightMeters: [0.16, 0.26],
+        overlapMeters: 0.09,
+        stagger: 'irregular',
+      },
+    },
+    'the joined field must keep the semantic writer roof-local metric UV contract',
+  );
 
   assert.equal(Array.isArray(mainPlane.material), false);
   const material = mainPlane.material as THREE.MeshStandardMaterial;
