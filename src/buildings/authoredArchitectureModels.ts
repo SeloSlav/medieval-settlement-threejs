@@ -28,7 +28,8 @@ import {
 } from './meshes/mineralMineMesh.ts';
 
 export const TIER_ONE_RESIDENCE_MODEL_URL =
-  '/assets/models/buildings/gorski/tier1_residence_retopo_v28.glb';
+  '/assets/models/buildings/gorski/civic_residence_tier_1.glb';
+const TIER_ONE_RESIDENCE_MODEL_SCALE = 7;
 export const TIER_ONE_CHURCH_MODEL_URL =
   '/assets/models/buildings/gorski/tier1_church_delnice_v2.glb';
 export const HUNTERS_CAMP_MODEL_URL =
@@ -139,11 +140,11 @@ export function createAuthoredTierOneResidenceShell(): THREE.Group | null {
   const shell = cloneSourceScene('tier-one-residence');
   if (!shell) return null;
   shell.name = 'Tier 1 residence authored GLB shell';
-  // Blender's public face is Y=0 and the body grows toward +Y. glTF converts
-  // that public face to local +Z; centre the seven-metre depth on the marker.
-  shell.position.z = 3.5;
+  // The experimental civic residence is authored in normalized units, centred
+  // on X/Z with its base at Y=0. Scale its one-unit depth to the seven-metre lot.
+  shell.scale.setScalar(TIER_ONE_RESIDENCE_MODEL_SCALE);
   shell.userData.authoredGlbAsset = true;
-  shell.userData.authoredGlbVersion = 'tier1-residence-v28';
+  shell.userData.authoredGlbVersion = 'civic-residence-tier-1-experiment';
   shell.userData.authoredGlbUrl = TIER_ONE_RESIDENCE_MODEL_URL;
   return shell;
 }
