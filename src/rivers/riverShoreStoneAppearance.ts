@@ -52,7 +52,7 @@ export function computeShoreStoneClusterDensity(x: number, z: number): number {
   );
   const localBar = valueNoise2(x * 0.052 + 8.7, z * 0.052 - 11.9);
   const brokenEdge = valueNoise2(x * 0.13 - 3.1, z * 0.13 + 6.4);
-  const reachPresence = smoothstep(0.47, 0.67, reach);
+  const reachPresence = smoothstep(0.44, 0.67, reach);
   if (reachPresence <= 0) return 0;
   const barPresence = smoothstep(0.3, 0.76, localBar);
   return Math.max(

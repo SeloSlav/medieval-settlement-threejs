@@ -30,10 +30,7 @@ export type WorkerActivitySoundKind =
   | 'forage'
   | 'livestock';
 
-/**
- * Isolated, automatically scheduled combat Foley only. Spoken lines and
- * vocal barks deliberately do not belong in this catalog.
- */
+/** Isolated weapon, projectile, impact, and formation-movement Foley. */
 export type CombatAudioSoundKind =
   | 'spear-pike'
   | 'sword-sidearm'
@@ -43,6 +40,10 @@ export type CombatAudioSoundKind =
   | 'arquebus'
   | 'shield-armor'
   | 'charge';
+
+export type CombatVoiceSide = 'defender' | 'raider';
+export type CombatVoiceCue = 'battle' | 'charge' | 'damage' | 'flee' | 'rout';
+export type CombatVoiceSoundKind = `${CombatVoiceSide}-${CombatVoiceCue}`;
 
 export type UiSoundId =
   | 'road_place'
@@ -204,6 +205,38 @@ export const COMBAT_AUDIO_CLIPS: Record<
   arquebus: combatVariants('arquebus_attack', 3, 0.16),
   'shield-armor': combatVariants('shield_armor_impact', 4, 0.16),
   charge: combatVariants('formation_charge', 3, 0.14),
+};
+
+function combatVoiceVariants(
+  side: CombatVoiceSide,
+  cue: CombatVoiceCue,
+  volume: number,
+): readonly AudioClipDefinition[] {
+  return Array.from({ length: 3 }, (_, index) => ({
+    path: `/sounds/combat/voices/${side}_${cue}_${index + 1}.mp3`,
+    volume,
+  }));
+}
+
+/**
+ * Strictly nonverbal human reactions. These clips contain no commands,
+ * dialogue, chants, or intelligible language; overlapping isolated voices in
+ * the runtime mixer creates the battlefield group texture.
+ */
+export const COMBAT_VOICE_CLIPS: Record<
+  CombatVoiceSoundKind,
+  readonly AudioClipDefinition[]
+> = {
+  'defender-battle': combatVoiceVariants('defender', 'battle', 0.13),
+  'defender-charge': combatVoiceVariants('defender', 'charge', 0.14),
+  'defender-damage': combatVoiceVariants('defender', 'damage', 0.15),
+  'defender-flee': combatVoiceVariants('defender', 'flee', 0.13),
+  'defender-rout': combatVoiceVariants('defender', 'rout', 0.15),
+  'raider-battle': combatVoiceVariants('raider', 'battle', 0.13),
+  'raider-charge': combatVoiceVariants('raider', 'charge', 0.14),
+  'raider-damage': combatVoiceVariants('raider', 'damage', 0.15),
+  'raider-flee': combatVoiceVariants('raider', 'flee', 0.13),
+  'raider-rout': combatVoiceVariants('raider', 'rout', 0.15),
 };
 
 export const COMBAT_DEATH_CLIPS = {

@@ -49,6 +49,11 @@ assert.deepEqual(militaryResupplyCost(8, 2), { preservedFood: 16, ale: 2 });
 assert.deepEqual(militaryResupplyCost(8, 3), { preservedFood: 16, ale: 8 });
 assert.deepEqual(militaryRecruitmentCost('mercenary-spears', 0), { gold: 96 });
 assert.deepEqual(militaryRecruitmentCost('mercenary-spears', 3), { gold: 96 });
+assert.deepEqual(militaryRecruitmentCost('uskok-border-infantry', 0), {
+  polearms: 4, sidearms: 8, paddedArmor: 8, ammunition: 8,
+  ale: 0, preservedFood: 0, gold: 0,
+});
+assert.match(policy, /Uskok border infantry[\s\S]*eight light-matchlock shots each[\s\S]*korda war knives/i);
 assert.equal(militaryCompanyRequiresProvisions('militia', 3), false);
 assert.equal(militaryCompanyRequiresProvisions('mercenary-spears', 3), false);
 assert.equal(militaryCompanyRequiresProvisions('spearmen', 0), false);
@@ -123,7 +128,7 @@ assert.match(simulation, /idle_too_long \|\| tick >= contract\.contract_end_tick
 assert.match(simulation, /fn recover_member_kit_at/);
 assert.match(simulation, /fn resolve_return_home/);
 assert.match(simulation, /fn down_player_member/);
-assert.match(simulation, /MilitaryKind::Crossbows \| MilitaryKind::Bowmen/);
+assert.match(simulation, /MilitaryKind::Crossbows[\s\S]{0,160}MilitaryKind::Bowmen[\s\S]{0,160}MilitaryKind::UskokBorderInfantry/);
 assert.match(simulation, /member_combat_profile/);
 assert.match(simulation, /damage_against_hostile/);
 assert.match(simulation, /shield_wall_damage_multiplier/);

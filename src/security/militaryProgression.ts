@@ -133,9 +133,9 @@ export const MILITARY_RECRUITMENT: Record<MilitaryCompanyKind, {
   },
   'uskok-border-infantry': {
     label: 'Uskok border infantry', shortLabel: 'Uskoks', size: 8,
-    cost: { polearms: 4, sidearms: 8, paddedArmor: 8, ale: 8, preservedFood: 24, gold: 32 },
+    cost: { polearms: 4, sidearms: 8, paddedArmor: 8, ammunition: 8, ale: 8, preservedFood: 24, gold: 32 },
     source: 'guardhouse', residentMen: true, icon: 'uskoks',
-    summary: 'Eight Croatian frontier professionals with light matchlock arquebuses and long korda war knives. Exceptional flankers and missile hunters; braced spears stop them.',
+    summary: 'Eight Croatian frontier professionals with eight light-matchlock shots each, then long korda war knives for close combat. Exceptional flankers and missile hunters; braced spears stop them.',
   },
 };
 

@@ -102,6 +102,7 @@ assert.match(clientPolicy, /militia:[\s\S]{0,180}cost: \{ polearms: 5 \}/);
 assert.match(clientPolicy, /spearmen:[\s\S]{0,260}polearms: 8, shields: 8, paddedArmor: 8/);
 assert.match(clientPolicy, /'men-at-arms':[\s\S]{0,260}sidearms: 8, shields: 8, mailArmor: 8/);
 assert.match(clientPolicy, /crossbows:[\s\S]{0,260}crossbows: 6, paddedArmor: 6, ammunition: 6/);
+assert.match(clientPolicy, /'uskok-border-infantry':[\s\S]{0,320}sidearms: 8, paddedArmor: 8, ammunition: 8/);
 assert.match(clientPolicy, /'mercenary-spears':[\s\S]{0,220}cost: \{ gold: 96 \}/);
 assert.doesNotMatch(clientPolicy.match(/export type MilitaryRecruitmentCost[\s\S]*?};/)?.[0] ?? '', /timber|ironwork|leather|linen|cloth|shoes/);
 

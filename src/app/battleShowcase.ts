@@ -201,7 +201,10 @@ export function battleShowcaseCamera(
   const rout = smoothstep(22, 27, time);
   const clashOrbit = smoothstep(BATTLE_SHOWCASE_CHARGE_END_SECONDS, 22, time);
   const axisAngle = Math.atan2(site.axisZ, site.axisX);
-  const closeDistance = Math.max(11, FORMATION_FRONTAGE * 1.15);
+  // The clash shot is intentionally intimate: it may crop the rear corners
+  // of the four-rank formations so individual weapon work and hit reactions
+  // read clearly, while the opening and wide shots retain full-unit framing.
+  const closeDistance = Math.max(9, FORMATION_FRONTAGE * 0.94);
   const sideDistance = FORMATION_FRONTAGE * 1.72;
   const openingDistance = FORMATION_OPENING_HALF_LENGTH * 1.64;
 

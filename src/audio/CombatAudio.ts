@@ -1,8 +1,12 @@
 import {
   COMBAT_AUDIO_CLIPS,
   COMBAT_DEATH_CLIPS,
+  COMBAT_VOICE_CLIPS,
   type AudioClipDefinition,
   type CombatAudioSoundKind,
+  type CombatVoiceCue,
+  type CombatVoiceSide,
+  type CombatVoiceSoundKind,
 } from './audioCatalog.ts';
 import {
   getSoundEffectsVolume,
@@ -25,14 +29,17 @@ export const COMBAT_AUDIO_MAX_SOURCES = 72;
 export const COMBAT_AUDIO_WEAPON_POOL_SIZE = 18;
 export const COMBAT_AUDIO_CHARGE_POOL_SIZE = 6;
 export const COMBAT_AUDIO_MAX_EDGE_PLAYS_PER_TICK = 4;
+export const COMBAT_AUDIO_VOICE_POOL_SIZE = 8;
+export const COMBAT_AUDIO_MAX_VOICE_EDGE_PLAYS_PER_TICK = 2;
 
 const MAX_SOURCES_PER_SIDE = COMBAT_AUDIO_MAX_SOURCES / 2;
 const DEATH_POOL_SIZE = 3;
 const SCHEDULED_GLOBAL_INTERVAL_SECONDS = 0.065;
 const CHARGE_GLOBAL_INTERVAL_SECONDS = 0.18;
+const VOICE_GLOBAL_INTERVAL_SECONDS = 0.28;
 
 type CombatAttackSoundKind = Exclude<CombatAudioSoundKind, 'charge'>;
-type CombatAudioPhase = 'attack' | 'charge';
+type CombatAudioPhase = 'attack' | 'charge' | 'flee';
 
 export type CombatAudioFighter = {
   id: string;
@@ -55,6 +62,10 @@ export type CombatAudioSource = {
   secondaryWeaponFamily: CombatAttackSoundKind | null;
   defensiveImpact: boolean;
   attackCooldown: number | null;
+  faction: CombatAgentFaction;
+  status: CombatAgentStatus;
+  health: number;
+  voiceSide: CombatVoiceSide;
 };
 
 export type CombatAudioSourceWorkspace = {
@@ -117,12 +128,23 @@ export function combatAudioLoadoutForFighter(
   }
 }
 
+export function combatVoiceSideForFaction(
+  faction: CombatAgentFaction,
+): CombatVoiceSide {
+  return faction === 'raider' || faction === 'bandit' ? 'raider' : 'defender';
+}
+
 type CombatSoundSchedule = {
   nextScheduledAt: number;
   sequence: number;
   activeGeneration: number;
   phase: CombatAudioPhase;
   previousAttackCooldown: number | null;
+  nextVoiceAt: number;
+  nextDamageVoiceAt: number;
+  voiceSequence: number;
+  previousHealth: number;
+  previousStatus: CombatAgentStatus;
 };
 
 type CombatSoundCandidate = {
@@ -131,6 +153,10 @@ type CombatSoundCandidate = {
   attackEdge: boolean;
   scheduledDue: boolean;
   sequence: number;
+  voiceCue: CombatVoiceCue | null;
+  voiceEdge: boolean;
+  voicePriority: number;
+  voiceSequence: number;
 };
 
 export function combatAudioGain(
@@ -161,8 +187,9 @@ export function combatAudioGain(
  * Retains one bounded source per active attacker instead of only close melee
  * pairs. This lets bow, crossbow, and arquebus cooldown resets emit at the
  * shooter's own position while still keeping a triple-size showcase bounded.
- * Advancing fighters become charge/formation-movement sources; holding,
- * retreating, aftermath, and ordinary guard duty remain silent.
+ * Advancing fighters become charge/formation-movement sources and retreating
+ * fighters remain present for sparse flee/rout reactions. Holding, aftermath,
+ * and ordinary guard duty remain silent.
  */
 export function buildCombatAudioSources(
   fighters: Iterable<CombatAudioFighter>,
@@ -176,8 +203,9 @@ export function buildCombatAudioSources(
     const attacking = fighter.status === 'fighting';
     const charging = fighter.status === 'advancing'
       && fighter.targetKind === 'combat-agent';
+    const fleeing = fighter.status === 'retreating';
     if (
-      (!attacking && !charging)
+      (!attacking && !charging && !fleeing)
       || !Number.isFinite(fighter.health)
       || fighter.health <= 0
       || !Number.isFinite(fighter.x)
@@ -215,6 +243,11 @@ function pushCombatAudioSource(
   sourcePool: CombatAudioSource[] | undefined,
 ): void {
   const loadout = combatAudioLoadoutForFighter(fighter);
+  const phase = fighter.status === 'advancing'
+    ? 'charge'
+    : fighter.status === 'retreating'
+      ? 'flee'
+      : 'attack';
   const sourceIndex = sources.length;
   let source = sourcePool?.[sourceIndex];
   if (!source) {
@@ -222,36 +255,45 @@ function pushCombatAudioSource(
       id: fighter.id,
       x: fighter.x,
       z: fighter.z,
-      phase: fighter.status === 'advancing' ? 'charge' : 'attack',
+      phase,
       weaponFamily: loadout.primary,
       secondaryWeaponFamily: loadout.secondary ?? null,
       defensiveImpact: loadout.defensiveImpact,
       attackCooldown: null,
+      faction: fighter.faction,
+      status: fighter.status,
+      health: fighter.health,
+      voiceSide: combatVoiceSideForFaction(fighter.faction),
     };
     sourcePool?.push(source);
   }
   source.id = fighter.id;
   source.x = fighter.x;
   source.z = fighter.z;
-  source.phase = fighter.status === 'advancing' ? 'charge' : 'attack';
+  source.phase = phase;
   source.weaponFamily = loadout.primary;
   source.secondaryWeaponFamily = loadout.secondary ?? null;
   source.defensiveImpact = loadout.defensiveImpact;
   source.attackCooldown = Number.isFinite(fighter.attackCooldown)
     ? Math.max(0, Number(fighter.attackCooldown))
     : null;
+  source.faction = fighter.faction;
+  source.status = fighter.status;
+  source.health = fighter.health;
+  source.voiceSide = combatVoiceSideForFaction(fighter.faction);
   sources.push(source);
 }
 
 /**
- * Polyphonic, weapon-routed combat Foley. Cooldown reset edges receive a small
- * simultaneous-play budget so volleys and clustered clashes can overlap.
- * Deterministic fallback cadence covers missed server edges and authored
- * showcase motion, while a shared pool and global cadence bound the mix.
+ * Polyphonic, weapon-routed combat Foley plus strictly nonverbal human effort
+ * and panic. Cooldown, health, and status edges receive small simultaneous-play
+ * budgets so volleys, clustered clashes, and reactions can overlap. Separate
+ * pools and deterministic global cadences keep large battles bounded.
  */
 export class CombatAudio {
   private readonly weaponPool: HTMLAudioElement[] = [];
   private readonly chargePool: HTMLAudioElement[] = [];
+  private readonly voicePool: HTMLAudioElement[] = [];
   private readonly deathPool: HTMLAudioElement[] = [];
   private readonly schedules = new Map<string, CombatSoundSchedule>();
   private readonly candidatePool: CombatSoundCandidate[] = [];
@@ -260,6 +302,7 @@ export class CombatAudio {
   private elapsedSeconds = 0;
   private lastScheduledPlayAt = Number.NEGATIVE_INFINITY;
   private lastChargePlayAt = Number.NEGATIVE_INFINITY;
+  private lastVoicePlayAt = Number.NEGATIVE_INFINITY;
 
   tick(
     dtSeconds: number,
@@ -301,6 +344,10 @@ export class CombatAudio {
           attackEdge: false,
           scheduledDue: false,
           sequence: 0,
+          voiceCue: null,
+          voiceEdge: false,
+          voicePriority: 0,
+          voiceSequence: 0,
         };
         this.candidatePool.push(candidate);
       }
@@ -309,6 +356,10 @@ export class CombatAudio {
       candidate.attackEdge = false;
       candidate.scheduledDue = false;
       candidate.sequence = 0;
+      candidate.voiceCue = null;
+      candidate.voiceEdge = false;
+      candidate.voicePriority = 0;
+      candidate.voiceSequence = 0;
       candidates.push(candidate);
     }
     if (candidates.length > 1) {
@@ -329,10 +380,45 @@ export class CombatAudio {
         schedule.phase = source.phase;
         schedule.previousAttackCooldown = source.attackCooldown;
         schedule.nextScheduledAt = this.initialScheduleAt(source);
+        schedule.nextVoiceAt = this.initialVoiceAt(source);
       }
+
+      const previousStatus = schedule.previousStatus;
+      const enteredRout = source.status === 'retreating'
+        && previousStatus !== 'retreating';
+      const tookDamage = source.health < schedule.previousHealth - 0.001
+        && this.elapsedSeconds >= schedule.nextDamageVoiceAt;
+      schedule.previousStatus = source.status;
+      schedule.previousHealth = source.health;
+
+      const scheduledVoiceDue = this.elapsedSeconds >= schedule.nextVoiceAt;
+      if (enteredRout) {
+        candidate.voiceCue = 'rout';
+        candidate.voiceEdge = true;
+        candidate.voicePriority = 3;
+      } else if (tookDamage) {
+        candidate.voiceCue = 'damage';
+        candidate.voiceEdge = true;
+        candidate.voicePriority = 2;
+      } else if (scheduledVoiceDue) {
+        candidate.voiceCue = voiceCueForPhase(source.phase);
+        candidate.voicePriority = 1;
+      }
+      if (enteredRout || tookDamage) {
+        schedule.nextDamageVoiceAt = this.elapsedSeconds
+          + this.damageVoiceCooldownSeconds(source, schedule.voiceSequence);
+      }
+      if (candidate.voiceCue) {
+        candidate.voiceSequence = schedule.voiceSequence;
+        schedule.voiceSequence += 1;
+        schedule.nextVoiceAt = this.elapsedSeconds
+          + this.voiceCadenceSeconds(source, schedule.voiceSequence);
+      }
+
       const attackEdge = source.phase === 'attack'
         && this.observeAttackReset(schedule, source.attackCooldown, dt);
-      const scheduledDue = this.elapsedSeconds >= schedule.nextScheduledAt;
+      const scheduledDue = source.phase !== 'flee'
+        && this.elapsedSeconds >= schedule.nextScheduledAt;
       if (!attackEdge && !scheduledDue) continue;
       candidate.attackEdge = attackEdge;
       candidate.scheduledDue = !attackEdge && scheduledDue;
@@ -347,6 +433,36 @@ export class CombatAudio {
       if (!candidate.attackEdge || candidate.source.phase !== 'attack') continue;
       if (edgePlays >= COMBAT_AUDIO_MAX_EDGE_PLAYS_PER_TICK) break;
       if (this.playAttack(candidate, true)) edgePlays += 1;
+    }
+
+    let voiceEdgePlays = 0;
+    for (let priority = 3; priority >= 2; priority -= 1) {
+      for (const candidate of candidates) {
+        if (
+          !candidate.voiceEdge
+          || candidate.voicePriority !== priority
+          || voiceEdgePlays >= COMBAT_AUDIO_MAX_VOICE_EDGE_PLAYS_PER_TICK
+        ) {
+          continue;
+        }
+        if (this.playVoice(candidate, true)) {
+          voiceEdgePlays += 1;
+          this.lastVoicePlayAt = this.elapsedSeconds;
+        }
+      }
+    }
+
+    if (
+      this.elapsedSeconds - this.lastVoicePlayAt
+        >= VOICE_GLOBAL_INTERVAL_SECONDS
+    ) {
+      for (const candidate of candidates) {
+        if (candidate.voiceEdge || candidate.voicePriority !== 1) continue;
+        if (this.playVoice(candidate, false)) {
+          this.lastVoicePlayAt = this.elapsedSeconds;
+          break;
+        }
+      }
     }
 
     for (const candidate of candidates) {
@@ -387,9 +503,11 @@ export class CombatAudio {
     this.stopAll();
     for (const audio of this.weaponPool) audio.removeAttribute('src');
     for (const audio of this.chargePool) audio.removeAttribute('src');
+    for (const audio of this.voicePool) audio.removeAttribute('src');
     for (const audio of this.deathPool) audio.removeAttribute('src');
     this.weaponPool.length = 0;
     this.chargePool.length = 0;
+    this.voicePool.length = 0;
     this.deathPool.length = 0;
     this.schedules.clear();
     this.candidates.length = 0;
@@ -424,6 +542,21 @@ export class CombatAudio {
     );
   }
 
+  private playVoice(candidate: CombatSoundCandidate, edge: boolean): boolean {
+    const cue = candidate.voiceCue;
+    if (!cue) return false;
+    const kind = combatVoiceSoundKind(candidate.source.voiceSide, cue);
+    return this.play(
+      this.voicePool,
+      COMBAT_AUDIO_VOICE_POOL_SIZE,
+      COMBAT_VOICE_CLIPS[kind],
+      `${candidate.source.id}:${kind}:${candidate.voiceSequence}:${edge ? 'edge' : 'cadence'}`,
+      candidate.gain * (edge ? 0.76 : 0.62),
+      0.96,
+      0.008,
+    );
+  }
+
   private scheduleFor(source: CombatAudioSource): CombatSoundSchedule {
     let schedule = this.schedules.get(source.id);
     if (schedule) return schedule;
@@ -433,6 +566,11 @@ export class CombatAudio {
       activeGeneration: this.activeGeneration,
       phase: source.phase,
       previousAttackCooldown: source.attackCooldown,
+      nextVoiceAt: this.initialVoiceAt(source),
+      nextDamageVoiceAt: this.elapsedSeconds,
+      voiceSequence: 0,
+      previousHealth: source.health,
+      previousStatus: source.status,
     };
     this.schedules.set(source.id, schedule);
     return schedule;
@@ -444,6 +582,31 @@ export class CombatAudio {
     return this.elapsedSeconds
       + base
       + deterministicUnit(`${source.id}:${source.phase}:start`) * spread;
+  }
+
+  private initialVoiceAt(source: CombatAudioSource): number {
+    const [minimum, spread] = initialVoiceRange(source.phase);
+    return this.elapsedSeconds
+      + minimum
+      + deterministicUnit(`${source.id}:${source.phase}:voice:start`) * spread;
+  }
+
+  private voiceCadenceSeconds(
+    source: CombatAudioSource,
+    sequence: number,
+  ): number {
+    const cue = voiceCueForPhase(source.phase);
+    const [minimum, spread] = voiceCadenceRange(cue);
+    return minimum
+      + deterministicUnit(`${source.id}:${cue}:voice:cadence:${sequence}`) * spread;
+  }
+
+  private damageVoiceCooldownSeconds(
+    source: CombatAudioSource,
+    sequence: number,
+  ): number {
+    return 0.78
+      + deterministicUnit(`${source.id}:damage:cooldown:${sequence}`) * 0.42;
   }
 
   private cadenceSeconds(source: CombatAudioSource, sequence: number): number {
@@ -502,6 +665,7 @@ export class CombatAudio {
   private stopAll(): void {
     this.stopPool(this.weaponPool);
     this.stopPool(this.chargePool);
+    this.stopPool(this.voicePool);
   }
 
   private stopPool(pool: readonly HTMLAudioElement[]): void {
@@ -527,6 +691,43 @@ function attackSoundKind(
   return sequence % 5 === 4
     ? source.secondaryWeaponFamily
     : source.weaponFamily;
+}
+
+function combatVoiceSoundKind(
+  side: CombatVoiceSide,
+  cue: CombatVoiceCue,
+): CombatVoiceSoundKind {
+  return `${side}-${cue}`;
+}
+
+function voiceCueForPhase(phase: CombatAudioPhase): CombatVoiceCue {
+  switch (phase) {
+    case 'attack': return 'battle';
+    case 'charge': return 'charge';
+    case 'flee': return 'flee';
+  }
+}
+
+function initialVoiceRange(
+  phase: CombatAudioPhase,
+): readonly [number, number] {
+  switch (phase) {
+    case 'attack': return [0.8, 1.4];
+    case 'charge': return [0.08, 0.45];
+    case 'flee': return [0.35, 0.75];
+  }
+}
+
+function voiceCadenceRange(
+  cue: CombatVoiceCue,
+): readonly [number, number] {
+  switch (cue) {
+    case 'battle': return [3.2, 3];
+    case 'charge': return [4, 2.5];
+    case 'damage': return [3.2, 3];
+    case 'flee': return [1.8, 1.8];
+    case 'rout': return [1.8, 1.8];
+  }
 }
 
 function cadenceRange(kind: CombatAudioSoundKind): readonly [number, number] {

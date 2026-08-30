@@ -463,16 +463,12 @@ function buildRiverWaterShaderNodes(
   ) as TslNode).mul(0.68) as TslNode;
   const curledCross = flowCross
     .add(slowCurl)
-    .add((sin(
-      advectedAlong.mul(0.071).sub(frameTime.mul(0.13)) as TslNode,
-    ) as TslNode).mul(0.31)) as TslNode;
+    .add(slowCurl.mul(0.31)) as TslNode;
 
   const primaryFilamentPhase = curledCross
     .mul(1.16)
-    .add((sin(
-      advectedAlong.mul(0.27).add(frameTime.mul(0.09)) as TslNode,
-    ) as TslNode).mul(0.86)) as TslNode;
-  const primaryFilamentAa = fwidth(primaryFilamentPhase).mul(0.32) as TslNode;
+    .add(slowCurl.mul(1.26)) as TslNode;
+  const primaryFilamentAa = (fwidth(primaryFilamentPhase) as TslNode).mul(0.32) as TslNode;
   const primaryFilament = sub(
     float(1) as TslNode,
     smoothstep(
@@ -485,10 +481,8 @@ function buildRiverWaterShaderNodes(
   const secondaryFilamentPhase = curledCross
     .mul(2.41)
     .sub(advectedAlong.mul(0.082))
-    .add((sin(
-      advectedAlong.mul(0.43).sub(frameTime.mul(0.19)) as TslNode,
-    ) as TslNode).mul(0.52)) as TslNode;
-  const secondaryFilamentAa = fwidth(secondaryFilamentPhase).mul(0.28) as TslNode;
+    .sub(slowCurl.mul(0.73)) as TslNode;
+  const secondaryFilamentAa = (fwidth(secondaryFilamentPhase) as TslNode).mul(0.28) as TslNode;
   const secondaryFilament = sub(
     float(1) as TslNode,
     smoothstep(
@@ -498,9 +492,7 @@ function buildRiverWaterShaderNodes(
     ) as TslNode,
   ) as TslNode;
 
-  const parcelWarp = (sin(
-    advectedAlong.mul(0.16).add(curledCross.mul(0.31)) as TslNode,
-  ) as TslNode).mul(0.9) as TslNode;
+  const parcelWarp = slowCurl.mul(1.32) as TslNode;
   const parcelA = (sin(
     advectedAlong.mul(0.74).add(parcelWarp) as TslNode,
   ) as TslNode).mul(0.5).add(0.5) as TslNode;

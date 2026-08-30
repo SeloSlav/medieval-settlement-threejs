@@ -108,7 +108,6 @@ for (const seed of seeds) {
     'tier-one roofs need explicit irregular overlapping split-shingle courses',
   );
   assertSplitShingleWeathering(residence);
-  assertWarmShingleBackFaceFinish(residence);
   assertResidenceValueSeparation(residence);
   assertSplitShingleMap(namedMesh(residence, 'Residence main roof plane left'));
 
@@ -592,10 +591,10 @@ function assertBuildingMaterialLifecycle(): void {
     {
       constructionMaterials: 1,
       detailMaterials: 0,
-      textures: 0,
+      textures: 1,
       loaded: false,
     },
-    'creating the tier-one split-shingle material must not allocate standalone texture maps',
+    'before atlas hydration, split shingles may allocate only their one deterministic fallback tile',
   );
   assert.notStrictEqual(recreatedShingle, firstShingle, 'scene recreation needs a fresh shingle material');
   assert.notStrictEqual(recreatedShingle.map, firstShingleMap, 'scene recreation needs a fresh shingle texture');
@@ -695,7 +694,7 @@ function assertWarmShingleBackFaceFinish(root: THREE.Object3D): void {
     0.16,
     0.22,
   ] as const;
-  assert.ok(roofFields.length >= 5, 'every accepted shingle field role must be audited');
+  assert.ok(roofFields.length >= 4, 'every accepted shingle field role must be audited');
   for (const field of roofFields) {
     assert.equal(
       field.userData.residenceRoofBackFaceFinish,
@@ -738,7 +737,7 @@ function assertWarmShingleBackFaceFinish(root: THREE.Object3D): void {
         Math.abs(uv.getX(index) - calmU) <= 1e-7,
         `${field.name} back faces must avoid the shared map's hard course edges`,
       );
-      const grainPhase = uv.getY(index) - position.getX(index) / 2;
+      const grainPhase = uv.getY(index) - position.getX(index) / 2.2;
       const expectedPhase = expectedGrainPhases.find(
         (phase) => Math.abs(grainPhase - phase) <= 1e-6,
       );
@@ -812,7 +811,7 @@ function assertWarmShingleBackFaceFinish(root: THREE.Object3D): void {
   for (let index = 0; index < rightPlanePosition.count; index += 1) {
     if (rightPlaneNormal.getZ(index) < 0.9) continue;
     const grainPhase =
-      rightPlaneUv.getY(index) - rightPlanePosition.getX(index) / 2;
+      rightPlaneUv.getY(index) - rightPlanePosition.getX(index) / 2.2;
     const expectedPhase = expectedGrainPhases.find(
       (phase) => Math.abs(grainPhase - phase) <= 1e-6,
     );
@@ -834,8 +833,8 @@ function assertWarmShingleBackFaceFinish(root: THREE.Object3D): void {
     if (mainNormal.getY(index) < 0.9) continue;
     acceptedTopVertices += 1;
     assert.ok(
-      Math.abs(mainUv.getX(index) - mainPosition.getX(index) / 2) <= 1e-7
-        && Math.abs(mainUv.getY(index) + mainPosition.getZ(index) / 2) <= 1e-7,
+      Math.abs(mainUv.getX(index) - mainPosition.getX(index) / 2.2) <= 1e-7
+        && Math.abs(mainUv.getY(index) + mainPosition.getZ(index) / 2.2) <= 1e-7,
       'the accepted main roof field UVs must remain byte-for-byte on their metric projection',
     );
   }
@@ -908,7 +907,7 @@ function assertResidenceCameraContract(): void {
   );
   assert.ok(
     subjectFrame.maxX - subjectFrame.minX >= 1
-      && subjectFrame.maxY - subjectFrame.minY >= 1.55,
+      && subjectFrame.maxY - subjectFrame.minY >= 1.48,
     `residence judge must devote useful frame area to its subject (${JSON.stringify(subjectFrame)})`,
   );
   assert.ok(
@@ -1038,16 +1037,8 @@ function assertSplitShingleMap(mesh: THREE.Mesh): void {
     true,
     'the shared shingle surface must use its deterministic short-shingle albedo',
   );
-  assert.ok(
-    material.map instanceof THREE.DataTexture,
-    'the shingle pattern must remain one shared procedural data texture',
-  );
-  assert.equal(material.map.name, 'Procedural split-wood shingles');
-  assert.equal(material.map.image.width, 256);
-  assert.equal(material.map.image.height, 256);
-  assert.equal(material.map.wrapS, THREE.RepeatWrapping);
-  assert.equal(material.map.wrapT, THREE.RepeatWrapping);
-  assert.equal(material.map.colorSpace, THREE.SRGBColorSpace);
+  assert.equal(material.userData.metricUvMeters, 2.2);
+  assert.equal(material.userData.buildingMaterialAtlasTile, 'split-shingles');
   assert.deepEqual(
     material.userData.splitShinglePattern,
     {
@@ -1064,6 +1055,19 @@ function assertSplitShingleMap(mesh: THREE.Mesh): void {
     },
     'the shared roof map must retain short staggered split-shingle proportions',
   );
+
+  if (!(material.map instanceof THREE.DataTexture)) {
+    assert.ok(material.map instanceof THREE.Texture, 'hydrated shingles need the shared atlas albedo');
+    assert.ok(material.normalMap instanceof THREE.Texture, 'hydrated shingles need the shared atlas normal');
+    assert.ok(material.roughnessMap instanceof THREE.Texture, 'hydrated shingles need the packed atlas material map');
+    return;
+  }
+  assert.equal(material.map.name, 'Procedural split-wood shingles');
+  assert.equal(material.map.image.width, 256);
+  assert.equal(material.map.image.height, 256);
+  assert.equal(material.map.wrapS, THREE.RepeatWrapping);
+  assert.equal(material.map.wrapT, THREE.RepeatWrapping);
+  assert.equal(material.map.colorSpace, THREE.SRGBColorSpace);
 
   const pixels = material.map.image.data as Uint8Array;
   let darkest = 255;

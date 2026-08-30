@@ -405,7 +405,12 @@ pub fn resupply_military_company(ctx: &ReducerContext, company_id: u64) -> Resul
     let missing_ammunition = company
         .ammunition_capacity
         .saturating_sub(company.ammunition);
-    let ammunition_bundles = if matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen) {
+    let ammunition_bundles = if matches!(
+        kind,
+        MilitaryKind::Crossbows
+            | MilitaryKind::Bowmen
+            | MilitaryKind::UskokBorderInfantry
+    ) {
         missing_ammunition.div_ceil(military_stats(kind).ammunition_per_member.max(1))
     } else {
         0
@@ -422,7 +427,12 @@ pub fn resupply_military_company(ctx: &ReducerContext, company_id: u64) -> Resul
     }
     company.ammunition = company.ammunition_capacity;
     ctx.db.military_company().id().update(company.clone());
-    if matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen) {
+    if matches!(
+        kind,
+        MilitaryKind::Crossbows
+            | MilitaryKind::Bowmen
+            | MilitaryKind::UskokBorderInfantry
+    ) {
         for mut member in ctx
             .db
             .military_member()
@@ -466,7 +476,12 @@ fn recruit_resident_company(
         kind: kind as u8,
         source_building_id: source.id,
         state: 0,
-        formation: if matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen) {
+        formation: if matches!(
+            kind,
+            MilitaryKind::Crossbows
+                | MilitaryKind::Bowmen
+                | MilitaryKind::UskokBorderInfantry
+        ) {
             MILITARY_FORMATION_LOOSE
         } else {
             MILITARY_FORMATION_LINE

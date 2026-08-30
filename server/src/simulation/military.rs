@@ -221,8 +221,13 @@ fn step_active_member(
         let range = distance(agent.x, agent.z, enemy.x, enemy.z);
         agent.target_kind = 7;
         agent.target_id = enemy.id;
-        let can_shoot =
-            matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen) && member.ammunition > 0;
+        let ranged_kind = matches!(
+            kind,
+            MilitaryKind::Crossbows
+                | MilitaryKind::Bowmen
+                | MilitaryKind::UskokBorderInfantry
+        );
+        let can_shoot = ranged_kind && member.ammunition > 0;
         let strike_range = if can_shoot { stats.strike_range } else { 2.15 };
         if range > strike_range {
             let speed = if can_shoot && range < 7.0 {
@@ -270,10 +275,15 @@ fn step_active_member(
                         1.0
                     };
                 let profile = member_combat_profile(kind, member_seed(&member));
-                let raw_damage = (if matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen)
-                    && !can_shoot
-                {
-                    4.0
+                let exhausted_ranged_damage = match kind {
+                    MilitaryKind::Crossbows | MilitaryKind::Bowmen => 4.0,
+                    // Uskoks draw their korda instead of clubbing with an
+                    // unloaded firearm, preserving their hybrid identity.
+                    MilitaryKind::UskokBorderInfantry => 13.0,
+                    _ => stats.damage,
+                };
+                let raw_damage = (if ranged_kind && !can_shoot {
+                    exhausted_ranged_damage
                 } else {
                     stats.damage
                 }) * profile.damage_scale
@@ -286,7 +296,13 @@ fn step_active_member(
                 let damage =
                     damage_against_hostile(kind, profile.armor_penetration, &enemy, raw_damage);
                 enemy.health = (enemy.health - damage).max(0.0);
-                agent.attack_cooldown = stats.attack_seconds;
+                agent.attack_cooldown = if kind == MilitaryKind::UskokBorderInfantry
+                    && !can_shoot
+                {
+                    0.84
+                } else {
+                    stats.attack_seconds
+                };
                 if can_shoot {
                     member.ammunition = member.ammunition.saturating_sub(1);
                     if let Some(mut latest) = ctx.db.military_company().id().find(&company.id) {

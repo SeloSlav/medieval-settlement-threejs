@@ -184,12 +184,13 @@ impl MilitaryCost {
                 ..Self::default()
             },
             // Uskoks are locally recruited frontier professionals, not a
-            // supernatural regional buff: light kit, sidearms/axes and high
-            // wages buy mobility and armor-breaking close combat.
+            // supernatural regional buff: light matchlocks, korda sidearms,
+            // ammunition and high wages buy mobile skirmishing power.
             MilitaryKind::UskokBorderInfantry => Self {
                 polearms: n.div_ceil(2),
                 sidearms: n,
                 padded_armor: n,
+                ammunition: n,
                 ale: n,
                 preserved_food: n * 3,
                 gold: n * 4,
@@ -380,14 +381,17 @@ pub fn military_stats(kind: MilitaryKind) -> MilitaryStats {
         MilitaryKind::UskokBorderInfantry => MilitaryStats {
             max_health: 72.0,
             damage: 15.5,
-            attack_seconds: 0.78,
+            // The ranged cadence includes priming, presenting and recovering
+            // the light matchlock. Once ammunition is exhausted, the military
+            // simulation switches to a faster korda melee cadence.
+            attack_seconds: 2.80,
             speed: 2.78,
-            acquisition_range: 14.0,
-            strike_range: 2.10,
+            acquisition_range: 16.0,
+            strike_range: 13.5,
             starting_morale: 0.80,
             starting_cohesion: 0.69,
             damage_taken_multiplier: 0.88,
-            ammunition_per_member: 0,
+            ammunition_per_member: 8,
         },
     }
 }
@@ -588,6 +592,17 @@ mod tests {
             MilitaryCost::for_company(MilitaryKind::MercenarySpears, 8).gold,
             96,
         );
+    }
+
+    #[test]
+    fn uskoks_fire_matchlocks_then_retain_a_sidearm_fallback() {
+        let stats = military_stats(MilitaryKind::UskokBorderInfantry);
+        let cost = MilitaryCost::for_company(MilitaryKind::UskokBorderInfantry, 8);
+        assert_eq!(stats.ammunition_per_member, 8);
+        assert!(stats.strike_range > 10.0);
+        assert!(stats.attack_seconds > 2.0);
+        assert_eq!(cost.ammunition, 8);
+        assert_eq!(cost.sidearms, 8);
     }
 
     #[test]
