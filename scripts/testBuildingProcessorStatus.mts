@@ -4,7 +4,7 @@ import { createEmptyStockpile } from '../src/resources/types.ts';
 import { getBuildingProcessorStatus } from '../src/resources/inspector/buildingProcessorStatus.ts';
 import { WorldQueries } from '../src/resources/WorldQueries.ts';
 import type { RoadNetwork } from '../src/roads/RoadNetwork.ts';
-import { BUILDING_STORAGE_CAPS } from '../src/generated/gameBalance.ts';
+import { BUILDING_DEFINITIONS, BUILDING_STORAGE_CAPS } from '../src/generated/gameBalance.ts';
 
 function emptyGameState(buildings: BuildingState[]): GameState {
   return {
@@ -323,7 +323,9 @@ assert.equal(
   'Serving beverages to connected households',
 );
 const tavernDetails = getBuildingProcessorStatus(tavern, noWellQueries)?.waterDetailHtml ?? '';
+assert.equal(BUILDING_DEFINITIONS.tavern.maxLabor, 3);
 assert.match(tavernDetails, /Household service/);
+assert.match(tavernDetails, /1 \/ 3 innkeepers on site · 33% household refill rate/);
 assert.doesNotMatch(
   tavernDetails,
   /Beverage cellar|10 total · 0 ale · 6 apple cider · 4 pear cider · 0 mead/,

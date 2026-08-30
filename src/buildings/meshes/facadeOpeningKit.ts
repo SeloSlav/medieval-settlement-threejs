@@ -119,7 +119,7 @@ export function addStoneEntranceSteps(
     const step = addMesh(
       stairRoot,
       new THREE.BoxGeometry(stepWidth, topHeight, treadDepth + 0.025),
-      stoneMaterial(stepIndex % 2 === 0 ? 'mid' : 'light'),
+      stoneMaterial(stepIndex % 3 === 2 ? 'dark' : 'mid'),
       new THREE.Vector3(
         0,
         -thresholdHeight + topHeight * 0.5,
@@ -183,7 +183,9 @@ export function addProceduralWindow(
     width,
     height,
     paneMaterial = sharedBuildingMaterial('glass'),
-    frameMaterial = stoneMaterial('light'),
+    // Humble regional openings are framed in timber by default. Dressed
+    // limestone surrounds remain an explicit high-status choice at call sites.
+    frameMaterial = timberMaterial('mid'),
     sillMaterial = frameMaterial,
     shutterMaterial = timberMaterial('weathered'),
     shutters = false,
@@ -281,7 +283,9 @@ export function addProceduralDoor(
     height,
     revealMaterial = sharedBuildingMaterial('interiorDark'),
     leafMaterial = timberMaterial('mid'),
-    frameMaterial = stoneMaterial('light'),
+    // Keep the settlement-wide default in timber; civic and ecclesiastical
+    // builders opt into dressed-stone portals explicitly.
+    frameMaterial = timberMaterial('mid'),
     thresholdMaterial = stoneMaterial('mid'),
     hardwareMaterial = sharedBuildingMaterial('metalIron'),
     doubleLeaf = width >= 1.65,

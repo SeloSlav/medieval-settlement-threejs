@@ -80,10 +80,10 @@ select:focus-visible {
 .settlement-hud {
   position: relative;
   display: grid;
-  grid-template-columns: 72px 42px minmax(0, 1fr) 52px;
+  grid-template-columns: 72px 42px minmax(0, 1fr) 58px 58px;
   align-items: stretch;
   gap: 0;
-  width: min(756px, calc(100vw - 64px));
+  width: min(900px, calc(100vw - 32px));
   min-height: 52px;
   padding: 4px 6px;
   overflow: visible;
@@ -4218,8 +4218,8 @@ select:focus-visible {
 
 @media (max-width: 1080px) {
   .settlement-hud {
-    grid-template-columns: 52px 36px minmax(0, 1fr) 42px;
-    width: min(612px, calc(100vw - 70px));
+    grid-template-columns: 52px 36px minmax(0, 1fr) 42px 42px;
+    width: min(720px, calc(100vw - 28px));
   }
 
   .settlement-hud__approval-button {
@@ -4259,7 +4259,7 @@ select:focus-visible {
   }
 
   .settlement-hud {
-    grid-template-columns: 52px 34px minmax(0, 1fr) 38px;
+    grid-template-columns: 52px 34px minmax(0, 1fr) 38px 38px;
     width: calc(100vw - 14px);
     min-height: 48px;
   }
@@ -4458,7 +4458,7 @@ select:focus-visible {
   }
 
   .settlement-hud {
-    grid-template-columns: 42px 32px minmax(0, 1fr) 36px;
+    grid-template-columns: 42px 32px minmax(0, 1fr) 36px 36px;
   }
 
   .settlement-hud__body {

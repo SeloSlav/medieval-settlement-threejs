@@ -75,13 +75,14 @@ for (const seed of seeds) {
   assertTierOneWindowCutouts(residence);
   assertTierOneFacadeTimbers(residence);
   assertTierOneRoofSmokeContract(residence);
+  assertJoinedSemanticResidenceRoof(residence, 1);
 
   const roofSurfaces = collectRoofSurfaces(residence);
   const roofFieldSurfaces = collectRoofFieldSurfaces(residence);
   const roofEdgeSurfaces = collectRoofEdgeSurfaces(residence);
   assert.ok(
-    roofSurfaces.length >= 11,
-    'shingle backing, courses, ridge, rakes, and eave fascia must all be audited',
+    roofSurfaces.length >= 10,
+    'joined shingle backing, courses, ridge, rakes, and eave fascia must all be audited',
   );
   assert.deepEqual(
     new Set(roofFieldSurfaces.map(materialName)),
@@ -109,7 +110,7 @@ for (const seed of seeds) {
   );
   assertSplitShingleWeathering(residence);
   assertResidenceValueSeparation(residence);
-  assertSplitShingleMap(namedMesh(residence, 'Residence main roof plane left'));
+  assertSplitShingleMap(namedMesh(residence, 'Residence joined semantic main roof'));
 
   const budget = visibleBudget(residence);
   assert.ok(
@@ -153,6 +154,7 @@ for (const tier of [1, 2, 3, 4] as const) {
     );
     const residence = createResidenceMesh(seed, tier);
     assertSideWindowOpeningClearance(residence, tier);
+    assertJoinedSemanticResidenceRoof(residence, tier);
     assert.equal(
       residence.userData.residenceRoof,
       'brown',

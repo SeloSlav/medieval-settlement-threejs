@@ -209,6 +209,7 @@ export function sharedBuildingMaterial(key: BuildingMaterialKey): BuildingAtlasM
   configureBuildingIndirectLight(material);
   material.name = `Shared building material: ${key}`;
   material.userData.sharedBuildingMaterial = true;
+  material.userData.buildingMaterialKey = key;
   material.userData.buildingWeatheringProfile = definition.weathering;
   material.userData.buildingTextureFamily = definition.textureFamily;
   material.userData.buildingUsesDiffuseMap = definition.useDiffuseMap !== false;
@@ -257,6 +258,7 @@ export function sharedBuildingDetailMaterial(key: BuildingDetailMaterialKey): Bu
   material.setValues(parameters);
   material.name = `Shared building detail material: ${key}`;
   material.userData.sharedBuildingMaterial = true;
+  material.userData.buildingDetailMaterialKey = key;
   if (atlasMetersPerTile) material.userData.metricUvMeters = atlasMetersPerTile;
   else if (textureFamily) material.userData.metricUvMeters = TEXTURE_METERS[textureFamily];
   material.userData.buildingMaterialAtlasTile = atlasTile;
@@ -493,7 +495,10 @@ function applyDetailTextureSet(
 export function quarryRockMaterial(
   shade: keyof typeof QUARRY_ROCK_PALETTE = 'mid',
 ): BuildingAtlasMaterial {
-  if (shade === 'light' || shade === 'cut' || shade === 'dust') return sharedBuildingMaterial('masonryLight');
+  // Quarry faces are raw regional stone, never dressed limestone ashlar. The
+  // light/cut labels describe value variation, not a change of construction
+  // material role.
+  if (shade === 'light' || shade === 'cut' || shade === 'dust') return sharedBuildingMaterial('masonryMid');
   if (shade === 'dark' || shade === 'spoil') return sharedBuildingMaterial('masonryDark');
   return sharedBuildingMaterial('masonryMid');
 }

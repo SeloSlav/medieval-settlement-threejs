@@ -225,7 +225,7 @@ function addDayShelter(group: THREE.Group): void {
     wallHeight: 2.25,
     ridgeHeight: 1.7,
     wallMaterial: timberMaterial('weathered'),
-    roofMaterial: sharedBuildingMaterial('slate'),
+    roofMaterial: sharedBuildingMaterial('shingle'),
   });
   addPlankDoor(group, -0.9, 0.56, shell.frontZ + 0.02, 0.88, 1.72);
   addSmallWindow(group, 1.08, 1.48, shell.frontZ + 0.02, 0.7, 0.78);

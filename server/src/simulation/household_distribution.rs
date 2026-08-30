@@ -26,6 +26,7 @@ use crate::simulation::delivery_cargo::{
     delivery_stock_room, residence_commodity_delivery_room,
     selected_food_delivery_commodity_for_residence, withdraw_delivery_cargo_with_source,
 };
+use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::residence_needs::state::{migrate_and_sync_food_inventory, persist_needs};
 use crate::simulation::residence_needs::{
     apply_need_delivery, apply_need_delivery_from_commodity, load_needs, need_stock,
@@ -33,6 +34,7 @@ use crate::simulation::residence_needs::{
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, Residence};
+use crate::tavern_service_policy::tavern_household_issue_lot;
 
 const MARKET_NEEDS: [ResidenceNeedKind; 8] = [
     ResidenceNeedKind::Food,
@@ -227,13 +229,21 @@ pub fn step_market_household_distribution(
                         market.id == target.preferred_source_id
                             && market_stock(ctx, tick, market, need_kind) > 1e-9
                     }) {
+                        let source_target = source_issue_target(
+                            ctx,
+                            &sources[preferred_index],
+                            target.residence_id,
+                            need_kind,
+                            round_target,
+                            target.daily_lot,
+                        );
                         distribute_to_residence(
                             ctx,
                             tick,
                             &mut sources[preferred_index],
                             target.residence_id,
                             need_kind,
-                            round_target,
+                            source_target,
                         );
                     }
                     if !residence_has_distribution_room(
@@ -254,13 +264,21 @@ pub fn step_market_household_distribution(
                         {
                             continue;
                         }
+                        let source_target = source_issue_target(
+                            ctx,
+                            source,
+                            target.residence_id,
+                            need_kind,
+                            round_target,
+                            target.daily_lot,
+                        );
                         distribute_to_residence(
                             ctx,
                             tick,
                             source,
                             target.residence_id,
                             need_kind,
-                            round_target,
+                            source_target,
                         );
                         if !residence_has_distribution_room(
                             ctx,
@@ -445,6 +463,22 @@ fn residence_has_distribution_room(
 ) -> bool {
     let stock = need_stock(&load_needs(ctx, residence_id), need_kind);
     delivery_stock_room(need_kind, stock).min((target_stock - stock).max(0.0)) > 1e-9
+}
+
+fn source_issue_target(
+    ctx: &ReducerContext,
+    source: &Building,
+    residence_id: u64,
+    need_kind: ResidenceNeedKind,
+    round_target: f64,
+    daily_lot: f64,
+) -> f64 {
+    if need_kind != ResidenceNeedKind::Ale {
+        return round_target;
+    }
+    let current = need_stock(&load_needs(ctx, residence_id), need_kind);
+    let service_lot = tavern_household_issue_lot(onsite_building_labor(ctx, source), daily_lot);
+    round_target.min(current + service_lot)
 }
 
 fn distribute_to_residence(

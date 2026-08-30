@@ -287,11 +287,14 @@ export function bindCombatWeaponRig(
           .includes('hemp string')
       ) bowString = object;
     });
-    if (bowString) {
+    // Assignment happens inside Object3D.traverse(), so TypeScript cannot
+    // narrow the outer variable from the callback mutation on its own.
+    const resolvedBowString = bowString as THREE.Line | null;
+    if (resolvedBowString) {
       // The nock is per-rig state; the three-point source line otherwise shares
       // immutable geometry with every bow in the company.
-      bowString.geometry = bowString.geometry.clone();
-      const position = bowString.geometry.getAttribute('position') as
+      resolvedBowString.geometry = resolvedBowString.geometry.clone();
+      const position = resolvedBowString.geometry.getAttribute('position') as
         | THREE.BufferAttribute
         | undefined;
       if (position && position.count >= 3) {

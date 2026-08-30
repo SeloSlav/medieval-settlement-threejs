@@ -104,7 +104,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   granary: ['Granary', 'Stores grain, fresh food, and preserved provisions for the settlement.'],
   bakery: ['Bakery', 'Bakes rye or maslin flour into bread for the settlement.', flow(['ryeFlour', 'maslinFlour', 'water', 'firewood'], ['ryeBread', 'maslinBread'])],
   brewery: ['Brewhouse', 'Brews ale, presses distinct apple or pear cider, or ferments mead.', flow(['barley', 'apples', 'pears', 'honey', 'water', 'firewood'], ['ale', 'cider', 'pearCider', 'mead'])],
-  tavern: ['Tavern', 'Serves ale, cider, and mead to settlement households.', flow(['ale', 'cider', 'pearCider', 'mead'], [])],
+  tavern: ['Tavern', 'Serves ale, cider, and mead to settlement households; up to three innkeepers increase refill speed.', flow(['ale', 'cider', 'pearCider', 'mead'], [])],
   smokehouse: ['Smokehouse', 'Preserves fresh food with firewood and salt.', flow(['food', 'firewood', 'salt'], ['preservedFood'])],
   apiary: ['Forest apiary', 'Accumulates honey through spring and summer for one staffed autumn harvest.', flow([], ['honey'])],
   carpenter: ['Carpenter & wheelwright', 'Crafts frames, carts, and wheels for settlement building and transport.'],

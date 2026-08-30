@@ -75,6 +75,7 @@ mod storehouse_policy;
 mod subregion_affinity;
 mod supply_policy;
 mod tables;
+mod tavern_service_policy;
 mod trading_post_policy;
 mod tree_regrowth_policy;
 mod tree_work_area_policy;

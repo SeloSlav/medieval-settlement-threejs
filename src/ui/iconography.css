@@ -280,6 +280,10 @@
   transition: filter 120ms ease, transform 120ms ease;
 }
 
+.settlement-hud__military-stores > .settlement-hud__stores-summary::before {
+  background: url('/assets/ui/icons/hud-resources-goods-b.png') 100% 100% / 200% 200% no-repeat;
+}
+
 .settlement-hud__animals-summary:hover::before,
 .settlement-hud__animals-summary:focus-visible::before,
 .settlement-hud__animals[open] > .settlement-hud__animals-summary::before {

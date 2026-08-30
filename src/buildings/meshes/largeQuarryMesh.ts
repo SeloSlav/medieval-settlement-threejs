@@ -190,7 +190,7 @@ function addCuttersShelter(group: THREE.Group): void {
     wallHeight: 2.35,
     ridgeHeight: 1.75,
     wallMaterial: quarryRockMaterial('light'),
-    roofMaterial: sharedBuildingMaterial('slate'),
+    roofMaterial: sharedBuildingMaterial('shingle'),
     stoneGroundFloor: true,
   });
   addPlankDoor(house, -1.35, 1.03, shell.frontZ + 0.02, 0.95, 1.95);

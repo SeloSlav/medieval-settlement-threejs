@@ -46,6 +46,8 @@ import { ResidenceStaticBatches } from './ResidenceStaticBatches.ts';
 import { PROCEDURAL_ARCHITECTURE_VERSION } from '../buildings/proceduralArchitecture/catalog.ts';
 import { proceduralVisualRequestKey } from '../buildings/proceduralArchitecture/visualRequest.ts';
 import { installProceduralShadowCasters } from '../buildings/proceduralArchitecture/shadows.ts';
+import { ProceduralGeometryWriter } from '../buildings/proceduralArchitecture/geometryWriter.ts';
+import type { ProceduralMaterialRole } from '../buildings/proceduralArchitecture/catalog.ts';
 
 const WINDOW_GLOW_EMISSIVE = 0xffc060;
 const WINDOW_GLOW_COLOR = 0x4a3820;
@@ -432,6 +434,18 @@ type BoxPart = {
   size: readonly [number, number, number];
   position: readonly [number, number, number];
   rotation?: readonly [number, number, number];
+};
+
+type ResidenceRoofAperturePlan = {
+  readonly side: -1 | 1;
+  /** Distance up the roof slope from the eave, in metres. */
+  readonly centerSlopeMeters: number;
+  readonly centerZMeters: number;
+  readonly slopeSizeMeters: number;
+  readonly zSizeMeters: number;
+  /** Centre of the opening on the visible roof skin. */
+  readonly surfaceCenter: readonly [number, number, number];
+  readonly surfaceNormal: readonly [number, number, number];
 };
 
 type OpenBoxFace =
@@ -1331,11 +1345,11 @@ function addRoofShingleCourses(
   depth: number,
   depthOverhang: number,
   wallTop: number,
-  ridgeHeight: number,
   roofPitch: number,
   eaveDrop: number,
   seed: number,
   finish: ResidenceRoofFinish,
+  aperture: ResidenceRoofAperturePlan | null = null,
 ): void {
   const thatched = finish === 'bundled-thatch';
   for (const side of [-1, 1] as const) {
@@ -1350,28 +1364,68 @@ function addRoofShingleCourses(
     const courseLength = slopeLength / courseCount * (thatched ? 1.34 : 0.74);
     const normalX = side * Math.sin(roofPitch);
     const normalY = Math.cos(roofPitch);
+    const appendCoursePart = (
+      slopeStart: number,
+      slopeEnd: number,
+      zStart: number,
+      zEnd: number,
+    ): void => {
+      if (slopeEnd - slopeStart <= 1e-5 || zEnd - zStart <= 1e-5) return;
+      const slopeCenter = (slopeStart + slopeEnd) * 0.5;
+      parts.push({
+        size: [slopeEnd - slopeStart, thatched ? 0.05 : 0.045, zEnd - zStart],
+        position: [
+          side * (roofHalfSpan - Math.cos(roofPitch) * slopeCenter)
+            + normalX * (thatched ? 0.052 : 0.095),
+          wallTop - eaveDrop + Math.sin(roofPitch) * slopeCenter
+            + normalY * (thatched ? 0.052 : 0.095),
+          (zStart + zEnd) * 0.5,
+        ],
+        rotation: [0, 0, side * -roofPitch],
+      });
+    };
     for (let row = 0; row < courseCount; row += 1) {
       const t = (row + 0.48) / courseCount;
-      const centerX = side * roofHalfSpan * (1 - t);
-      const centerY = wallTop - eaveDrop + (ridgeHeight + eaveDrop) * t;
+      const centerSlope = t * slopeLength;
       for (let board = 0; board < boardsAcross; board += 1) {
         const stagger = thatched
           ? 0
           : ((row + board + Math.abs(seed)) % 3 - 1) * 0.025;
         const z = -roofDepth * 0.5 + boardDepth * (board + 0.5) + stagger;
-        parts.push({
-          size: [
-            courseLength * (0.96 + ((row * 5 + board * 3 + Math.abs(seed)) % 5) * 0.012),
-            thatched ? 0.05 : 0.045,
-            Math.max(0.2, boardDepth - (thatched ? 0.012 : 0.025)),
-          ],
-          position: [
-            centerX + normalX * (thatched ? 0.052 : 0.095),
-            centerY + normalY * (thatched ? 0.052 : 0.095),
-            z,
-          ],
-          rotation: [0, 0, side * -roofPitch],
-        });
+        const slopeSize = courseLength
+          * (0.96 + ((row * 5 + board * 3 + Math.abs(seed)) % 5) * 0.012);
+        const zSize = Math.max(0.2, boardDepth - (thatched ? 0.012 : 0.025));
+        const slopeStart = centerSlope - slopeSize * 0.5;
+        const slopeEnd = centerSlope + slopeSize * 0.5;
+        const zStart = z - zSize * 0.5;
+        const zEnd = z + zSize * 0.5;
+        if (!aperture || aperture.side !== side) {
+          appendCoursePart(slopeStart, slopeEnd, zStart, zEnd);
+          continue;
+        }
+
+        const openingSlopeStart = aperture.centerSlopeMeters
+          - aperture.slopeSizeMeters * 0.5;
+        const openingSlopeEnd = aperture.centerSlopeMeters
+          + aperture.slopeSizeMeters * 0.5;
+        const openingZStart = aperture.centerZMeters - aperture.zSizeMeters * 0.5;
+        const openingZEnd = aperture.centerZMeters + aperture.zSizeMeters * 0.5;
+        const overlapSlopeStart = Math.max(slopeStart, openingSlopeStart);
+        const overlapSlopeEnd = Math.min(slopeEnd, openingSlopeEnd);
+        const overlapZStart = Math.max(zStart, openingZStart);
+        const overlapZEnd = Math.min(zEnd, openingZEnd);
+        if (overlapSlopeStart >= overlapSlopeEnd || overlapZStart >= overlapZEnd) {
+          appendCoursePart(slopeStart, slopeEnd, zStart, zEnd);
+          continue;
+        }
+
+        // Subtract the same roof-local rectangle used by the continuous skin.
+        // This leaves four bounded regions at most and prevents a decorative
+        // shingle block from silently sealing the physical smoke opening.
+        appendCoursePart(slopeStart, overlapSlopeStart, zStart, zEnd);
+        appendCoursePart(overlapSlopeEnd, slopeEnd, zStart, zEnd);
+        appendCoursePart(overlapSlopeStart, overlapSlopeEnd, zStart, overlapZStart);
+        appendCoursePart(overlapSlopeStart, overlapSlopeEnd, overlapZEnd, zEnd);
       }
     }
     const courseGeometry = mergeRoofShingleCourseParts(parts);
@@ -1388,11 +1442,162 @@ function addRoofShingleCourses(
       `Residence ${finish === 'fired-clay-tile' ? 'fired-clay tile' : finish === 'bundled-thatch' ? 'bundled-thatch' : 'split-wood shingle'} courses ${side < 0 ? 'left' : 'right'}`;
     courses.userData.residenceRoofSurface = true;
     courses.userData.residenceRoofFinish = finish;
+    if (aperture?.side === side) {
+      courses.userData.residenceRoofApertureTrimmed = true;
+      courses.userData.residenceRoofApertureContract = 'shared-roof-local-rectangle';
+    }
     if (thatched) {
       courses.userData.residenceThatchBundleCount = parts.length;
       courses.userData.residenceThatchCourseCount = courseCount;
     }
   }
+}
+
+function createResidenceRoofAperturePlan(
+  side: -1 | 1,
+  chimneyX: number,
+  chimneyZ: number,
+  roofHalfSpan: number,
+  wallTop: number,
+  eaveDrop: number,
+  roofPitch: number,
+  roofSkinThickness: number,
+): ResidenceRoofAperturePlan {
+  const surfaceOffset = roofSkinThickness * 0.5;
+  const sin = Math.sin(roofPitch);
+  const cos = Math.cos(roofPitch);
+  // The visible skin is offset outwards from the structural roof centreline.
+  // Solve in roof-local slope metres so its opening centre remains exactly at
+  // the existing runtime emitter X rather than drifting by half the thickness.
+  const centerSlopeMeters = (
+    roofHalfSpan + sin * surfaceOffset - Math.abs(chimneyX)
+  ) / cos;
+  const surfaceCenter: readonly [number, number, number] = [
+    chimneyX,
+    wallTop - eaveDrop + sin * centerSlopeMeters + cos * surfaceOffset,
+    chimneyZ,
+  ];
+  return {
+    side,
+    centerSlopeMeters,
+    centerZMeters: chimneyZ,
+    slopeSizeMeters: 0.5,
+    zSizeMeters: 0.54,
+    surfaceCenter,
+    surfaceNormal: [side * sin, cos, 0],
+  };
+}
+
+function createJoinedSemanticResidenceRoofGeometry(options: {
+  readonly roofHalfSpan: number;
+  readonly roofDepth: number;
+  readonly wallTop: number;
+  readonly eaveDrop: number;
+  readonly roofPitch: number;
+  readonly thickness: number;
+  readonly materialRole: ProceduralMaterialRole;
+  readonly aperture: ResidenceRoofAperturePlan | null;
+}): THREE.BufferGeometry {
+  const {
+    roofHalfSpan,
+    roofDepth,
+    wallTop,
+    eaveDrop,
+    roofPitch,
+    thickness,
+    materialRole,
+    aperture,
+  } = options;
+  const writer = new ProceduralGeometryWriter([materialRole]);
+  const sin = Math.sin(roofPitch);
+  const cos = Math.cos(roofPitch);
+  const slopeLength = roofHalfSpan / cos;
+  const zMinimum = -roofDepth * 0.5;
+  const zMaximum = roofDepth * 0.5;
+  const surfaceOffset = thickness * 0.5;
+
+  const emitPanel = (
+    side: -1 | 1,
+    slopeStart: number,
+    slopeEnd: number,
+    zStart: number,
+    zEnd: number,
+    semanticId: string,
+  ): void => {
+    if (slopeEnd - slopeStart <= 1e-5 || zEnd - zStart <= 1e-5) return;
+    const outwardX = side * sin;
+    const outwardY = cos;
+    writer.addRoofPanel({
+      semanticId,
+      moduleId: 'residence-joined-main-roof',
+      materialRole,
+      structuralUse: 'roof-covering',
+      eaveOrigin: [
+        side * (roofHalfSpan - cos * slopeStart) + outwardX * surfaceOffset,
+        wallTop - eaveDrop + sin * slopeStart + outwardY * surfaceOffset,
+        zStart,
+      ],
+      eaveVector: [0, 0, zEnd - zStart],
+      slopeVector: [-side * cos * (slopeEnd - slopeStart), sin * (slopeEnd - slopeStart), 0],
+      thickness,
+      uvOffsetMeters: [zStart - zMinimum, slopeStart],
+    });
+  };
+
+  for (const side of [-1, 1] as const) {
+    if (!aperture || aperture.side !== side) {
+      emitPanel(side, 0, slopeLength, zMinimum, zMaximum, `main-slope-${side < 0 ? 'left' : 'right'}`);
+      continue;
+    }
+
+    const slopeStart = THREE.MathUtils.clamp(
+      aperture.centerSlopeMeters - aperture.slopeSizeMeters * 0.5,
+      0,
+      slopeLength,
+    );
+    const slopeEnd = THREE.MathUtils.clamp(
+      aperture.centerSlopeMeters + aperture.slopeSizeMeters * 0.5,
+      0,
+      slopeLength,
+    );
+    const openingZStart = THREE.MathUtils.clamp(
+      aperture.centerZMeters - aperture.zSizeMeters * 0.5,
+      zMinimum,
+      zMaximum,
+    );
+    const openingZEnd = THREE.MathUtils.clamp(
+      aperture.centerZMeters + aperture.zSizeMeters * 0.5,
+      zMinimum,
+      zMaximum,
+    );
+    emitPanel(side, 0, slopeStart, zMinimum, zMaximum, 'smoke-opening-eave-field');
+    emitPanel(side, slopeEnd, slopeLength, zMinimum, zMaximum, 'smoke-opening-ridge-field');
+    emitPanel(side, slopeStart, slopeEnd, zMinimum, openingZStart, 'smoke-opening-rear-field');
+    emitPanel(side, slopeStart, slopeEnd, openingZEnd, zMaximum, 'smoke-opening-front-field');
+  }
+
+  const result = writer.build();
+  const slot = result.slots[0];
+  if (!slot) throw new Error('Residence semantic roof emitted no material slot.');
+  const geometry = slot.geometry;
+  geometry.name = 'Residence joined semantic main roof geometry';
+  geometry.userData.residenceJoinedSemanticRoof = true;
+  geometry.userData.residenceRoofLogicalPanelCount = 2;
+  geometry.userData.residenceRoofMaterialSlotCount = result.diagnostics.materialSlotCount;
+  geometry.userData.residenceRoofPrimitiveCount = result.diagnostics.primitiveCount;
+  if (aperture) {
+    geometry.userData.residenceRoofAperture = {
+      side: aperture.side,
+      centerSlopeMeters: aperture.centerSlopeMeters,
+      centerZMeters: aperture.centerZMeters,
+      slopeSizeMeters: aperture.slopeSizeMeters,
+      zSizeMeters: aperture.zSizeMeters,
+      surfaceCenter: [...aperture.surfaceCenter],
+      surfaceNormal: [...aperture.surfaceNormal],
+      topology: 'four-field-physical-cutout',
+    };
+  }
+  return geometry;
 }
 
 const SHINGLE_BACK_GRAIN_U = 70.5 / 256;
@@ -2243,7 +2448,22 @@ export function createResidenceMesh(
   const roofDepthOverhang = tier === 1 ? 0.78 : 0.31;
   const roofHalfSpan = halfW + roofOverhang;
   const roofEaveDrop = roofOverhang * Math.tan(roofPitch);
-  const slopeLen = roofHalfSpan / Math.cos(roofPitch);
+  const roofSkinThickness = 0.14;
+  const chimneySide: -1 | 1 = entrySide === -1 ? 1 : -1;
+  const chimneyX = chimneySide * (halfW - 0.92);
+  const chimneyZ = -halfD + 1.22;
+  const tierOneRoofAperture = tier === 1
+    ? createResidenceRoofAperturePlan(
+        chimneySide,
+        chimneyX,
+        chimneyZ,
+        roofHalfSpan,
+        wallTop,
+        roofEaveDrop,
+        roofPitch,
+        roofSkinThickness,
+      )
+    : null;
   const frontZ = halfD - 0.075;
   const doorX = residenceGroundDoorLocalX(appearance);
   const frontWindowX = -entrySide * 1.38;
@@ -2460,36 +2680,47 @@ export function createResidenceMesh(
         seed,
       }
     : null;
-  for (const side of [-1, 1] as const) {
-    const roofPlane = addMesh(
-      group,
-      tierOneThatchShape
-        ? createTierOneThatchBlanketGeometry(side, tierOneThatchShape)
-        : new THREE.BoxGeometry(
-            slopeLen,
-            0.14,
-            depth + roofDepthOverhang * 2,
-          ),
-      roofSurfaceMaterial,
-      tierOneThatchShape
-        ? new THREE.Vector3()
-        : new THREE.Vector3(
-            side * roofHalfSpan * 0.5,
-            wallTop + (ridgeHeight - roofEaveDrop) * 0.5,
-            0,
-          ),
-      tierOneThatchShape
-        ? new THREE.Euler()
-        : new THREE.Euler(0, 0, side * -roofPitch),
-    );
-    roofPlane.name = tierOneThatchShape
-      ? `Residence hand-laid bundled-thatch blanket ${side < 0 ? 'left' : 'right'}`
-      : `Residence main roof plane ${side < 0 ? 'left' : 'right'}`;
-    roofPlane.userData.residenceRoofSurface = true;
-    roofPlane.userData.residenceRoofFinish = roofFinish;
-    if (tierOneThatchShape) {
+  if (tierOneThatchShape) {
+    for (const side of [-1, 1] as const) {
+      const roofPlane = addMesh(
+        group,
+        createTierOneThatchBlanketGeometry(side, tierOneThatchShape),
+        roofSurfaceMaterial,
+        new THREE.Vector3(),
+      );
+      roofPlane.name = `Residence hand-laid bundled-thatch blanket ${side < 0 ? 'left' : 'right'}`;
+      roofPlane.userData.residenceRoofSurface = true;
+      roofPlane.userData.residenceRoofFinish = roofFinish;
       roofPlane.userData.residenceThatchCourseCount = 7;
       roofPlane.userData.residenceThatchConstruction = 'continuous-hand-packed-blanket';
+    }
+  } else {
+    const roofGeometry = createJoinedSemanticResidenceRoofGeometry({
+      roofHalfSpan,
+      roofDepth: depth + roofDepthOverhang * 2,
+      wallTop,
+      eaveDrop: roofEaveDrop,
+      roofPitch,
+      thickness: roofSkinThickness,
+      materialRole: roofFinish === 'fired-clay-tile' ? 'clay-tiles' : 'split-shingles',
+      aperture: tierOneRoofAperture,
+    });
+    const roofPlane = addMesh(
+      group,
+      roofGeometry,
+      roofSurfaceMaterial,
+      new THREE.Vector3(),
+    );
+    roofPlane.name = 'Residence joined semantic main roof';
+    roofPlane.userData.residenceRoofSurface = true;
+    roofPlane.userData.residenceRoofFinish = roofFinish;
+    roofPlane.userData.residenceJoinedSemanticRoof = true;
+    roofPlane.userData.residenceRoofLogicalPanelCount = 2;
+    roofPlane.userData.residenceRoofMaterialSlotCount = 1;
+    if (tierOneRoofAperture) {
+      roofPlane.userData.residenceRoofAperture = {
+        ...roofGeometry.userData.residenceRoofAperture,
+      };
     }
     if (roofFinish === 'split-wood-shingle') applyWarmShingleBackFaceFinish(roofPlane);
   }
@@ -2507,11 +2738,11 @@ export function createResidenceMesh(
       depth,
       roofDepthOverhang,
       wallTop,
-      ridgeHeight,
       roofPitch,
       roofEaveDrop,
       seed,
       roofFinish,
+      tierOneRoofAperture,
     );
   }
 
@@ -2597,9 +2828,6 @@ export function createResidenceMesh(
     );
   }
 
-  const chimneySide: -1 | 1 = entrySide === -1 ? 1 : -1;
-  const chimneyX = chimneySide * (halfW - 0.92);
-  const chimneyZ = -halfD + 1.22;
   const chimneyEmitter = new THREE.Object3D();
   chimneyEmitter.name = 'ChimneyEmitter';
   if (tier === 1) {

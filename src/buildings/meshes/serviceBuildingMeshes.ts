@@ -117,7 +117,7 @@ export function createWellMesh(): THREE.Group {
       1,
       true,
     ),
-    stoneMaterial('light'),
+    stoneMaterial('mid'),
     new THREE.Vector3(0, dimensions.wallCenterY, 0),
   );
   outerWall.name = 'Well outer masonry wall';
@@ -228,6 +228,7 @@ function createSaggingClothPanelGeometry(
   sag: number,
   seed: number,
 ): THREE.BufferGeometry {
+  const metersPerCanvasRepeat = 1.2;
   const positions: number[] = [];
   const uvs: number[] = [];
   const indices: number[] = [];
@@ -235,6 +236,13 @@ function createSaggingClothPanelGeometry(
   const bottom = new THREE.Vector3();
   const top = new THREE.Vector3();
   const point = new THREE.Vector3();
+  // Keep the woven atlas at a stable real-world density even when the panel is
+  // skewed. Averaging opposite edges avoids stretching the tent slope or the
+  // processing fly merely because their hand-set posts are not perfectly
+  // square. Marking the geometry as already metric-mapped prevents addMesh()
+  // from replacing these fabric-aligned UVs with dominant-axis projection.
+  const physicalUSpan = (a.distanceTo(b) + d.distanceTo(c)) * 0.5;
+  const physicalVSpan = (a.distanceTo(d) + b.distanceTo(c)) * 0.5;
 
   for (let vIndex = 0; vIndex <= segmentsV; vIndex += 1) {
     const v = vIndex / segmentsV;
@@ -247,7 +255,10 @@ function createSaggingClothPanelGeometry(
       point.y -= Math.sin(Math.PI * u) * Math.sin(Math.PI * v) * sag;
       point.y += handmade * Math.sin(Math.PI * u) * Math.sin(Math.PI * v);
       positions.push(point.x, point.y, point.z);
-      uvs.push(u * 2.4, v * 2.4);
+      uvs.push(
+        u * physicalUSpan / metersPerCanvasRepeat,
+        v * physicalVSpan / metersPerCanvasRepeat,
+      );
     }
   }
   const stride = segmentsU + 1;
@@ -267,6 +278,13 @@ function createSaggingClothPanelGeometry(
   geometry.computeVertexNormals();
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
+  geometry.userData.metricUvMeters = metersPerCanvasRepeat;
+  geometry.userData.proceduralPhysicalUv = {
+    uAxis: 'panel-edge-a-to-b',
+    vAxis: 'panel-edge-a-to-d',
+    physicalUSpan,
+    physicalVSpan,
+  };
   return geometry;
 }
 

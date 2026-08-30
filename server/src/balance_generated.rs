@@ -3260,7 +3260,7 @@ const TAVERN: BuildingDef = BuildingDef {
     storage_remedies: 0.0,
     storage_animal_feed: 0.0,
     accepts_labor: true,
-    max_labor: 2,
+    max_labor: 3,
     work_radius: 0.0,
     action_interval: 0.0,
     pick_radius: 9.0,

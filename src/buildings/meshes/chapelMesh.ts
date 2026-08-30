@@ -542,6 +542,42 @@ function addBellTower(
   );
 }
 
+function addPerforatedChurchGable(
+  group: THREE.Group,
+  halfWidth: number,
+  wallTop: number,
+  ridgeHeight: number,
+  planeZ: number,
+  material: THREE.Material,
+  oculus: { readonly centerY: number; readonly radius: number },
+): THREE.Mesh {
+  const shape = new THREE.Shape();
+  shape.moveTo(-halfWidth + 0.06, 0);
+  shape.lineTo(halfWidth - 0.06, 0);
+  shape.lineTo(0, ridgeHeight);
+  shape.closePath();
+  const opening = new THREE.Path();
+  opening.absarc(0, oculus.centerY, oculus.radius, 0, Math.PI * 2, true);
+  opening.closePath();
+  shape.holes.push(opening);
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: 0.16,
+    bevelEnabled: false,
+    curveSegments: 18,
+  });
+  geometry.translate(0, wallTop, -0.08);
+  const gable = addMesh(
+    group,
+    geometry,
+    material,
+    new THREE.Vector3(0, 0, planeZ),
+  );
+  gable.name = 'Large Stone Church physical oculus gable wall';
+  gable.userData.churchPhysicalApertureCount = 1;
+  gable.userData.churchPhysicalOculus = true;
+  return gable;
+}
+
 function addCompactChurchRoof(
   group: THREE.Group,
   width: number,

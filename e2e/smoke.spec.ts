@@ -187,6 +187,85 @@ test('keeps at least three specialty digits visible before truncation', async ({
   });
 });
 
+test('keeps Goods and Arms adjacent in the widened top ribbon', async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 720 });
+  await page.setContent(`
+    <style>* { box-sizing: border-box; }</style>
+    <div class="settlement-hud">
+      <div class="settlement-hud__approval-shell">
+        <button class="settlement-hud__approval-button">
+          <span class="settlement-hud__approval-icon">✓</span>
+          <span class="settlement-hud__approval-copy"><strong>60%</strong></span>
+        </button>
+      </div>
+      <button class="settlement-hud__totals-mode"><span class="settlement-hud__totals-mode-icon">⇄</span></button>
+      <div class="settlement-hud__body">
+        <div class="settlement-hud__stat" data-resource="timber"><strong class="settlement-hud__value">400</strong></div>
+      </div>
+      <details class="settlement-hud__stores" data-specialty-stores>
+        <summary class="settlement-hud__stores-summary"><strong class="settlement-hud__stores-status">1</strong></summary>
+      </details>
+      <details class="settlement-hud__stores settlement-hud__military-stores" data-military-stores>
+        <summary class="settlement-hud__stores-summary"><strong class="settlement-hud__stores-status">1</strong></summary>
+        <div>
+          ${[
+            'polearms',
+            'sidearms',
+            'shields',
+            'bows',
+            'crossbows',
+            'paddedArmor',
+            'mailArmor',
+            'ammunition',
+          ].map((resource) => `<span class="settlement-hud__stat" data-resource="${resource}"></span>`).join('')}
+        </div>
+      </details>
+    </div>
+  `);
+  await page.addStyleTag({ path: 'src/ui/settlementHud.css' });
+  await page.addStyleTag({ path: 'src/ui/polishedGameUi.css' });
+  await page.addStyleTag({ path: 'src/ui/nobleSetup.css' });
+  await page.addStyleTag({ path: 'src/ui/iconography.css' });
+
+  const layout = await page.locator('.settlement-hud').evaluate((hud) => {
+    const rootBox = hud.getBoundingClientRect();
+    const goodsBox = hud.querySelector<HTMLElement>('[data-specialty-stores]')!.getBoundingClientRect();
+    const armsBox = hud.querySelector<HTMLElement>('[data-military-stores]')!.getBoundingClientRect();
+    return {
+      width: rootBox.width,
+      height: rootBox.height,
+      sameRow: Math.abs(goodsBox.top - armsBox.top) < 1,
+      adjacent: Math.abs(goodsBox.right - armsBox.left) < 1,
+    };
+  });
+  expect(layout.width).toBe(900);
+  expect(layout.height).toBeLessThan(80);
+  expect(layout.sameRow).toBe(true);
+  expect(layout.adjacent).toBe(true);
+
+  const armsTriggerIcon = await page.locator('[data-military-stores] > summary').evaluate((element) => (
+    getComputedStyle(element, '::before').backgroundImage
+  ));
+  expect(armsTriggerIcon).toContain('hud-resources-goods-b.png');
+
+  const expectedEquipmentIcons = {
+    polearms: 'hud-resources-goods-b.png',
+    sidearms: 'materials/sidearms.png',
+    shields: 'materials/shields.png',
+    bows: 'materials/bows.png',
+    crossbows: 'materials/crossbows.png',
+    paddedArmor: 'materials/padded-armor.png',
+    mailArmor: 'materials/mail-armor.png',
+    ammunition: 'materials/ammunition.png',
+  } as const;
+  for (const [resource, filename] of Object.entries(expectedEquipmentIcons)) {
+    const backgroundImage = await page.locator(`[data-military-stores] [data-resource="${resource}"]`).evaluate((element) => (
+      getComputedStyle(element, '::before').backgroundImage
+    ));
+    expect(backgroundImage).toContain(filename);
+  }
+});
+
 test('keeps the camera zoom visible beside compact calendar controls', async ({ page }) => {
   await page.setContent(`
     <style>* { box-sizing: border-box; }</style>

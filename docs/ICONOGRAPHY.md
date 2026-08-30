@@ -104,6 +104,23 @@ Both intermediates keep their own live labels and transit counts. A missing
 bitmap falls back to the labeled resource row; neither commodity is represented
 by silently reusing Wool, Flax, or Clothing art.
 
+Military equipment also uses standalone transparent woodcut icons so every
+armory commodity remains legible in the HUD and cost rows without disturbing an
+existing atlas contract:
+
+| Asset | Readable subject |
+| --- | --- |
+| `materials/sidearms.png` | Crossed arming sword and compact bearded axe. |
+| `materials/shields.png` | Paired iron-rimmed wooden infantry shields. |
+| `materials/bows.png` | Bundled self bows with a single arrow. |
+| `materials/crossbows.png` | Crossed wooden military crossbows. |
+| `materials/padded-armor.png` | Quilted late-Renaissance padded jack. |
+| `materials/mail-armor.png` | Short-sleeved iron mail haubergeon. |
+| `materials/ammunition.png` | Arrow quiver and bundled crossbow bolts. |
+
+Polearms retain the approved crossed-polearm cell in
+`hud-resources-goods-b.png`; the Arms top-ribbon trigger reuses that same cell.
+
 Iron and salt map markers intentionally reuse their dedicated transparent
 commodity silhouettes (`materials/iron.png` and `materials/salt.png`) rather
 than recoloring the stone cell. The illustrated strategic map has a matching

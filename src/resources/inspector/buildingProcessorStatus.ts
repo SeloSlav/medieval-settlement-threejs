@@ -744,8 +744,11 @@ function getTavernStatus(
   const pearCider = Math.max(0, building.pearCider ?? 0);
   const mead = Math.max(0, building.mead ?? 0);
   const total = ale + cider + pearCider + mead;
+  const maxLabor = Math.max(1, getBuildingDefinition('tavern').maxLabor);
+  const servicePercent = Math.round(Math.min(1, onsiteLabor / maxLabor) * 100);
   const details = `
     <li><span>Household service</span><span>Any stocked beverage fulfills the same residential requirement</span></li>
+    <li><span>Service pace</span><span>${onsiteLabor} / ${maxLabor} innkeepers on site · ${servicePercent}% household refill rate</span></li>
   `;
   if (onsiteLabor <= 0) {
     return {

@@ -74,7 +74,7 @@ const hiveRed = sharedBuildingDetailMaterial('paintRed');
 
 function addChimney(group: THREE.Group, x: number, z: number, height = 4.8): void {
   addMesh(group, new THREE.BoxGeometry(0.72, height, 0.72), stoneMaterial('mid'), new THREE.Vector3(x, height * 0.5, z));
-  addMesh(group, new THREE.BoxGeometry(0.92, 0.18, 0.92), stoneMaterial('light'), new THREE.Vector3(x, height + 0.02, z));
+  addMesh(group, new THREE.BoxGeometry(0.92, 0.18, 0.92), stoneMaterial('mid'), new THREE.Vector3(x, height + 0.02, z));
 }
 
 function addSack(group: THREE.Group, x: number, z: number, scale = 1): void {
@@ -684,7 +684,7 @@ export function createBakeryMesh(): THREE.Group {
   addMesh(
     group,
     new THREE.BoxGeometry(2.35, 1.45, 1.9),
-    stoneMaterial('light'),
+    stoneMaterial('mid'),
     new THREE.Vector3(2.15, 0.74, 3.55),
   );
   addMesh(

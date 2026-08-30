@@ -113,6 +113,9 @@ pub mod specialty_trade_policy;
 #[path = "../../src/storehouse_policy.rs"]
 pub mod storehouse_policy;
 
+#[path = "../../src/tavern_service_policy.rs"]
+pub mod tavern_service_policy;
+
 #[path = "../../src/storage_acceptance_policy.rs"]
 pub mod storage_acceptance_policy;
 

@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
-import { sharedBuildingDetailMaterial } from '../src/buildings/buildingMaterials.ts';
+import {
+  sharedBuildingDetailMaterial,
+  type BuildingDetailMaterialKey,
+  type BuildingMaterialKey,
+} from '../src/buildings/buildingMaterials.ts';
 import {
   PROCEDURAL_MATERIAL_ROLE_REGISTRY,
   validateProceduralBuildingPlanMaterials,
@@ -247,6 +251,86 @@ function allowedAtlasTiles(
   return result;
 }
 
+const ROLE_INDEPENDENT_BUILDING_MATERIALS = new Set<BuildingMaterialKey>([
+  'glass',
+  'interiorDark',
+]);
+
+const ROLE_INDEPENDENT_DETAIL_MATERIALS = new Set<BuildingDetailMaterialKey>([
+  // These are finishes or prop substances, not declarations that the
+  // building's structural palette includes their underlying atlas carrier.
+  'brass',
+  'firedClay',
+  'paintRed',
+  'paintBlue',
+  'paintOchre',
+  'water',
+  'smoke',
+  'foliage',
+  'crop',
+]);
+
+const NON_STRUCTURAL_PROP_PATTERN = /(?:\bstock\b|sample|delivered|stored|storage|bundle|bale|roll|barrel|basket|bucket|\bcan\b|crate|goods|ore|clay|salt|wax|candle|hide|fodder|grain|fish|meat|manure|tool|utensil|vessel|pottery|sign emblem|trade sign|survey flag|target)/i;
+const STRUCTURAL_CANVAS_PATTERN = /(?:canvas|tent|awning|canopy|weather fly|processing fly|market.*cloth|stall.*cloth|shelter.*cloth|fabric panel)/i;
+const STRUCTURAL_WICKER_PATTERN = /(?:wattle|woven (?:wall|panel|screen)|wicker (?:wall|panel|screen)|hurdle|lightweight screen)/i;
+const STRUCTURAL_EARTH_PATTERN = /(?:packed earth|yard (?:floor|surface)|stall floor|work floor|walking surface|thermal cover|clamp cover|earth cover)/i;
+const STRUCTURAL_IRON_PATTERN = /(?:hinge|latch|strap|fastener|nail|bracket|tie[- ]?bar|grille|gate hardware|iron cross|roof cross|windlass|hoist|mechanism)/i;
+
+function buildingMaterialKey(material: THREE.Material): BuildingMaterialKey | null {
+  const key = material.userData.buildingMaterialKey;
+  return typeof key === 'string' ? key as BuildingMaterialKey : null;
+}
+
+function detailMaterialKey(material: THREE.Material): BuildingDetailMaterialKey | null {
+  const key = material.userData.buildingDetailMaterialKey;
+  return typeof key === 'string' ? key as BuildingDetailMaterialKey : null;
+}
+
+/**
+ * The plan palette describes visible construction, not every substance used
+ * by signs, goods, tools, windows, interiors, or simulation stock. Require a
+ * role only when this particular mesh is part of the permanent shell or a
+ * temporary architectural cover/screen/floor.
+ */
+function requiresDeclaredConstructionRole(
+  object: THREE.Object3D,
+  material: THREE.Material,
+  path: string,
+  visible: boolean,
+  runtimeOwned: boolean,
+  dynamicClass: MaterialUsageClass | null,
+): boolean {
+  if (!visible || runtimeOwned || dynamicClass !== null) return false;
+
+  const constructionKey = buildingMaterialKey(material);
+  if (constructionKey) {
+    if (ROLE_INDEPENDENT_BUILDING_MATERIALS.has(constructionKey)) return false;
+    const semanticName = `${path} ${object.name}`;
+    if (NON_STRUCTURAL_PROP_PATTERN.test(semanticName)) return false;
+    const explicitlyStructural = object.name !== '' && object.name !== 'Mesh'
+      || typeof object.userData.proceduralStructuralUse === 'string'
+      || typeof object.userData.facadeOpeningRole === 'string'
+      || object.userData.proceduralRoofShell === true;
+    // Legacy addMesh call sites that never supplied a semantic name cannot be
+    // safely distinguished from static props. The audit remains strict for
+    // every named/tagged construction surface and the semantic writer output.
+    if (!explicitlyStructural) return false;
+    if (constructionKey === 'metalIron') {
+      return STRUCTURAL_IRON_PATTERN.test(semanticName);
+    }
+    return true;
+  }
+
+  const detailKey = detailMaterialKey(material);
+  if (!detailKey || ROLE_INDEPENDENT_DETAIL_MATERIALS.has(detailKey)) return false;
+  const semanticName = `${path} ${object.name}`;
+  if (NON_STRUCTURAL_PROP_PATTERN.test(semanticName)) return false;
+  if (detailKey === 'canvas') return STRUCTURAL_CANVAS_PATTERN.test(semanticName);
+  if (detailKey === 'wicker') return STRUCTURAL_WICKER_PATTERN.test(semanticName);
+  if (detailKey === 'earth') return STRUCTURAL_EARTH_PATTERN.test(semanticName);
+  return false;
+}
+
 function auditRoot(audit: AuditRoot): void {
   const allowedTiles = allowedAtlasTiles(audit.materialRoles);
   if (audit.plan) {
@@ -274,8 +358,9 @@ function auditRoot(audit: AuditRoot): void {
     const objectName = object.name || object.type;
     const path = parentPath ? `${parentPath}/${objectName}` : objectName;
     const mesh = object as THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>;
+    const shadowBatch = object.userData.buildingDetailCasterBatch === true;
 
-    if (mesh.isMesh) {
+    if (mesh.isMesh && !shadowBatch) {
       if (Array.isArray(mesh.material)) {
         recordViolation({
           code: 'material-array',
@@ -346,7 +431,14 @@ function auditRoot(audit: AuditRoot): void {
 
         const atlasTile = material.userData.buildingMaterialAtlasTile;
         if (
-          immutableStructural
+          requiresDeclaredConstructionRole(
+            object,
+            material,
+            path,
+            visible,
+            runtimeOwned,
+            dynamicClass,
+          )
           && typeof atlasTile === 'string'
           && !allowedTiles.has(atlasTile)
         ) {

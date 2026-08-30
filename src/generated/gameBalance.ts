@@ -1524,7 +1524,7 @@ export const BUILDING_DEFINITIONS = {
     pickRadius: 9,
     harvestInterval: 0,
     regrowRatePerSecond: 0,
-    maxLabor: 2,
+    maxLabor: 3,
     acceptsLabor: true,
     requiresRoad: true,
     facesRoad: true,
