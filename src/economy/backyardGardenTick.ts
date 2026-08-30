@@ -534,12 +534,17 @@ export function computeBackyardGardenTickEffects(
   remedyUnitsSold = 0,
   tier = 1,
   currentFoodStock = 0,
+  productivityMultiplier = 1,
 ): BackyardGardenTickEffects {
   const def = BACKYARD_GARDEN_DEFINITIONS[kind];
   const pop = Math.max(0, population);
-  const outputMultiplier = Number.isFinite(seasonalMultiplier)
+  const seasonalOutput = Number.isFinite(seasonalMultiplier)
     ? Math.max(0, seasonalMultiplier)
     : 0;
+  const dedicatedOutput = Number.isFinite(productivityMultiplier)
+    ? Math.max(0, productivityMultiplier)
+    : 0;
+  const outputMultiplier = seasonalOutput * dedicatedOutput;
 
   let selfFood = 0;
   let marketFood = 0;

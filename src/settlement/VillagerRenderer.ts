@@ -1640,6 +1640,9 @@ export class VillagerRenderer {
     const residence = agent.residenceId
       ? this.residences.get(agent.residenceId) ?? null
       : null;
+    const dedicatedSmallholder = !agent.isSick
+      && residence?.smallholding === true
+      && workplace === null;
     const upgradeResidenceId = workplace
       ? residenceIdForUpgradeWorkplace(workplace.id)
       : null;
@@ -1677,6 +1680,8 @@ export class VillagerRenderer {
         ? 'Founder · Awaiting housing'
         : agent.isSick
           ? 'Villager · Ill and homebound'
+        : dedicatedSmallholder
+          ? 'Smallholder · Dedicated backyard artisan'
         : agent.role === 'worker'
           ? workplaceFireDisabled
             ? 'Worker · Fire-displaced'
@@ -1688,6 +1693,8 @@ export class VillagerRenderer {
             : 'Villager · Available labor',
       occupation: agent.isSick
         ? 'Recovering at home'
+        : dedicatedSmallholder
+          ? 'Smallholder'
         : villagerOccupation(
             workplace?.kind ?? null,
             workplace?.constructionComplete === false,
@@ -1722,10 +1729,12 @@ export class VillagerRenderer {
         ? isResidenceUpgradeWorkplaceId(workplace.id)
           ? upgradeWorkplaceLabel
           : getBuildingDefinition(workplace.kind).label
-        : 'Unassigned',
+        : dedicatedSmallholder
+          ? 'Backyard extension'
+          : 'Unassigned',
       householdLabel: 'Household',
       household: residence
-        ? `Tier ${residence.tier} home · ${residence.population} ${
+        ? `${residence.smallholding === true ? 'Smallholding' : `Tier ${residence.tier} home`} · ${residence.population} ${
           residence.population === 1 ? 'resident' : 'residents'
         }`
         : agent.role === 'founder' || this.foundingCamp
@@ -1734,6 +1743,8 @@ export class VillagerRenderer {
       crewLabel: 'Crew',
       crew: agent.isSick
         ? 'Unavailable to the labor pool'
+        : dedicatedSmallholder
+          ? 'Dedicated to backyard · unavailable to general labor'
         : workplace
         ? `${workplace.assignedLabor} / ${
           isResidenceUpgradeWorkplaceId(workplace.id)
@@ -2544,7 +2555,7 @@ export class VillagerRenderer {
     // Keep the household action readable without sending every off-duty person
     // into the same small bed on every idle cycle.
     const seed = agent.pathSeed >>> 0;
-    if (seed % 3 !== 0) return false;
+    if (residence.smallholding !== true && seed % 3 !== 0) return false;
     const unitA = ((seed ^ 0x9e3779b9) >>> 0) / 0x1_0000_0000;
     const unitB = (Math.imul(seed ^ 0x85ebca6b, 0xc2b2ae35) >>> 0) / 0x1_0000_0000;
     const localX = (unitA - 0.5) * worksite.width * 0.5;

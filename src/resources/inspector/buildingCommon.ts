@@ -224,6 +224,9 @@ export function buildingLaborView(
     : dedicatedCartHaulers
       ? 'dedicated cart haulers'
       : 'workers here';
+  const smallholdingLaborHint = populationStats.dedicatedSmallholding > 0
+    ? `; ${populationStats.dedicatedSmallholding} healthy Smallholding resident${populationStats.dedicatedSmallholding === 1 ? ' is' : 's are'} dedicated to backyard work and cannot be assigned here`
+    : '';
   return {
     visible: true,
     label: building.kind === 'monastery'
@@ -234,8 +237,8 @@ export function buildingLaborView(
     count: building.assignedLabor,
     maxCount: buildingCap,
     hint: building.constructionComplete !== false
-      ? `${building.assignedLabor}/${buildingCap} ${workforceNoun} · ${populationStats.available} reserve workers can be assigned (${populationStats.total} population, ${populationStats.assigned} explicitly rostered${populationStats.flexibleAssigned > 0 ? `, ${populationStats.flexibleAssigned} currently on flexible tasks` : ''}).${cartLaborHint}`
-      : `${building.assignedLabor}/${buildingCap} builders · ${populationStats.idle} reserve workers currently idle (${populationStats.available} total reserve).${cartLaborHint} Builders construct while onsite; if no hauler is idle at a material limit, site builders may operate distinctly reserved carts while one remains ready for the first load. A lone builder may haul to break a bootstrap deadlock.`,
+      ? `${building.assignedLabor}/${buildingCap} ${workforceNoun} · ${populationStats.available} reserve workers can be assigned (${populationStats.total} population, ${populationStats.assigned} explicitly rostered${populationStats.flexibleAssigned > 0 ? `, ${populationStats.flexibleAssigned} currently on flexible tasks` : ''}${smallholdingLaborHint}).${cartLaborHint}`
+      : `${building.assignedLabor}/${buildingCap} builders · ${populationStats.idle} reserve workers currently idle (${populationStats.available} total reserve${smallholdingLaborHint}).${cartLaborHint} Builders construct while onsite; if no hauler is idle at a material limit, site builders may operate distinctly reserved carts while one remains ready for the first load. A lone builder may haul to break a bootstrap deadlock.`,
     decreaseDisabled: building.assignedLabor <= 0,
     increaseDisabled: building.assignedLabor >= maxLabor,
   };

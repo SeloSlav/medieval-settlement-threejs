@@ -198,6 +198,10 @@
   background-image: url('/assets/ui/icons/upgrades/residence-tier-2.png');
 }
 
+.inspector-action-icon[data-action-icon='smallholding'] {
+  background-image: url('/assets/ui/icons/upgrades/smallholding.png');
+}
+
 .inspector-action-icon[data-action-icon='residence-tier-3'] {
   background-image: url('/assets/ui/icons/upgrades/residence-tier-3.png');
 }

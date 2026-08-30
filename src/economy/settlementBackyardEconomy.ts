@@ -32,6 +32,7 @@ import {
   backyardGardenEconomyPerDay,
 } from './villageProjections.ts';
 import { edibleFoodStock } from './foodInventory.ts';
+import { smallholdingBackyardProductivityMultiplier } from './smallholding.ts';
 import {
   assignMarketplaceStallRoster,
   type MarketStallRoadDistance,
@@ -425,6 +426,7 @@ export function computeSettlementBackyardEconomyPlan(input: {
         taxCollectionMultiplier: input.taxCollectionMultiplier,
         tier: residence.tier,
         currentFoodStock: edibleFoodStock(residence),
+        productivityMultiplier: smallholdingBackyardProductivityMultiplier(residence),
       },
     );
     const actualToday = backyardGardenEconomyPerDay(
@@ -437,6 +439,7 @@ export function computeSettlementBackyardEconomyPlan(input: {
             taxCollectionMultiplier: input.taxCollectionMultiplier,
             tier: residence.tier,
             currentFoodStock: edibleFoodStock(residence),
+            productivityMultiplier: smallholdingBackyardProductivityMultiplier(residence),
           },
         );
     currentDaySelfFood += actualToday.selfFood;
@@ -467,6 +470,7 @@ export function computeSettlementBackyardEconomyPlan(input: {
         taxCollectionMultiplier: input.taxCollectionMultiplier,
         tier: residence.tier,
         currentFoodStock: edibleFoodStock(residence),
+        productivityMultiplier: smallholdingBackyardProductivityMultiplier(residence),
       },
     );
     const actualHorizon = backyardGardenEconomyPerDay(
@@ -479,6 +483,7 @@ export function computeSettlementBackyardEconomyPlan(input: {
             taxCollectionMultiplier: input.taxCollectionMultiplier,
             tier: residence.tier,
             currentFoodStock: edibleFoodStock(residence),
+            productivityMultiplier: smallholdingBackyardProductivityMultiplier(residence),
           },
         );
     horizonSelfFood += actualHorizon.selfFood;

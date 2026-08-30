@@ -325,6 +325,7 @@ pub fn place_burgage_zone(
             aronia_jam: 0.0,
             rosehip_jam: 0.0,
             settlement_id,
+            smallholding: false,
         });
         ensure_residence_needs(ctx, inserted.id);
         if let Some(network) = physical_road_network.as_ref() {
@@ -363,6 +364,12 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
     }
     if residence.population == 0 {
         return Err("Only an occupied residence can be upgraded.".to_string());
+    }
+    if residence.smallholding {
+        return Err(
+            "A Smallholding is permanently locked at tier 1 and cannot become a town house."
+                .to_string(),
+        );
     }
     if residence_fire_state(ctx, residence.id).is_some() {
         return Err("Repair the fire-damaged residence before upgrading it.".to_string());
@@ -518,6 +525,53 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
         ..residence
     });
     ensure_residence_needs(ctx, residence_id);
+    Ok(())
+}
+
+/// Permanently commits one tier-1 household to its backyard economy. This is
+/// deliberately immediate: the opportunity cost is the entire family's labor,
+/// not another temporary construction assignment.
+#[reducer]
+pub fn convert_residence_to_smallholding(
+    ctx: &ReducerContext,
+    residence_id: u64,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    let mut residence = ctx
+        .db
+        .residence()
+        .id()
+        .find(&residence_id)
+        .ok_or_else(|| "Residence not found.".to_string())?;
+    if residence.owner != owner {
+        return Err("You do not own this residence.".to_string());
+    }
+    if residence.smallholding {
+        return Err("This residence is already a Smallholding.".to_string());
+    }
+    if residence.tier != 1 {
+        return Err("Only a completed tier-1 residence can become a Smallholding.".to_string());
+    }
+    if residence.population == 0 {
+        return Err("Only an occupied tier-1 residence can become a Smallholding.".to_string());
+    }
+    if residence_fire_state(ctx, residence.id).is_some() {
+        return Err("Repair the fire-damaged residence before specializing it.".to_string());
+    }
+    if residence_project_active(
+        residence.upgrade_target_tier,
+        residence.tier,
+        residence.backyard_project_kind,
+        residence.fire_repair_active,
+        residence.decay_repair_active,
+        residence.roof_tile_retrofit_active,
+    ) {
+        return Err("Finish this household's active works before specializing it.".to_string());
+    }
+
+    residence.smallholding = true;
+    ctx.db.residence().id().update(residence);
+    reconcile_building_labor(ctx, owner);
     Ok(())
 }
 

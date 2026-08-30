@@ -2393,6 +2393,15 @@ export function renderTownHallInspector(
         && trip.phase !== 'inbound',
     )
     .reduce((sum, trip) => sum + trip.amount, 0);
+  const assignableWorkforce = Math.max(
+    0,
+    context.populationStats.total
+      - (context.populationStats.sick ?? 0)
+      - context.populationStats.dedicatedSmallholding,
+  );
+  const smallholdingWorkforceNote = context.populationStats.dedicatedSmallholding > 0
+    ? ` · ${context.populationStats.dedicatedSmallholding} healthy Smallholding resident${context.populationStats.dedicatedSmallholding === 1 ? '' : 's'} permanently dedicated to backyard work`
+    : '';
 
   return {
     eyebrow: 'Civic administration',
@@ -2409,7 +2418,7 @@ export function renderTownHallInspector(
       <li><span>Population</span><span>${context.populationStats.total}</span></li>
       <li><span>Pantry safeguard</span><span>${pantrySafeguard.label} · ${pantrySafeguard.hint}</span></li>
       ${renderSettlementWelfareRows(provisioning.welfare)}
-      <li><span>Workforce</span><span>${context.populationStats.assigned} / ${context.populationStats.total} explicitly rostered · ${context.populationStats.available} workplace-ready reserve · ${context.populationStats.idle} currently idle${context.populationStats.flexibleAssigned > 0 ? ` · ${context.populationStats.flexibleAssigned} on flexible tasks` : ''}${context.populationStats.cartAssigned > 0 ? `, including ${context.populationStats.cartAssigned} on carts` : ''} · ${laborPlan.openPermanentPosts} open permanent posts${laborInspectButton}</span></li>
+      <li><span>Workforce</span><span>${context.populationStats.assigned} / ${assignableWorkforce} assignable residents explicitly rostered · ${context.populationStats.available} workplace-ready reserve · ${context.populationStats.idle} currently idle${context.populationStats.flexibleAssigned > 0 ? ` · ${context.populationStats.flexibleAssigned} on flexible tasks` : ''}${context.populationStats.cartAssigned > 0 ? `, including ${context.populationStats.cartAssigned} on carts` : ''}${smallholdingWorkforceNote} · ${laborPlan.openPermanentPosts} open permanent posts${laborInspectButton}</span></li>
       <li><span>Sector staffing</span><span>${formatLaborSectorMix(laborPlan)}</span></li>
       <li><span>Seasonal steward</span><span>${seasonalLaborStewardStatus(seasonalLaborStewardEnabled, staffedTownHallAvailable)}</span></li>
       <li><span>Production steward</span><span>${productionLaborStewardStatus(productionLaborStewardEnabled, staffedTownHallAvailable)}</span></li>

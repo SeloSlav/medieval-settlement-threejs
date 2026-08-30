@@ -33,6 +33,7 @@ import {
   type BuildingState,
   type GameState,
 } from './types.ts';
+import { smallholdingDedicatedResidents } from '../economy/smallholding.ts';
 import {
   formatFirewoodRunwayDays,
   GAME_DAY_SECONDS,
@@ -194,6 +195,8 @@ export type PopulationStats = {
   flexibleAssigned: number;
   cartAssigned: number;
   sick?: number;
+  /** Healthy tier-1 residents permanently committed to Smallholdings. */
+  dedicatedSmallholding: number;
   /** Healthy residents not rostered to a completed workplace. */
   available: number;
   /** Reserve labor not currently carrying out a temporary task. */
@@ -1083,10 +1086,12 @@ export function computePopulationStats(state: GameState): PopulationStats {
   let housed = 0;
   let housingCapacity = 0;
   let sick = 0;
+  let dedicatedSmallholding = 0;
   for (const residence of state.residences?.values() ?? []) {
     if (residence.abandoned || residence.tier === 0) continue;
     housed += residence.population;
     sick += Math.min(residence.population, residence.sickPopulation ?? 0);
+    dedicatedSmallholding += smallholdingDedicatedResidents(residence);
     housingCapacity += residence.populationCapacity;
   }
 
@@ -1122,7 +1127,8 @@ export function computePopulationStats(state: GameState): PopulationStats {
   }
   const flexibleAssigned = constructionAssigned + residenceUpgradeAssigned + cartAssigned;
   const healthy = Math.max(0, total - sick);
-  const available = Math.max(0, healthy - workplaceAssigned);
+  const assignable = Math.max(0, healthy - dedicatedSmallholding);
+  const available = Math.max(0, assignable - workplaceAssigned);
 
   return {
     total,
@@ -1130,6 +1136,7 @@ export function computePopulationStats(state: GameState): PopulationStats {
     flexibleAssigned,
     cartAssigned,
     sick,
+    dedicatedSmallholding,
     available,
     idle: Math.max(0, available - flexibleAssigned),
     housingCapacity,
@@ -1143,10 +1150,11 @@ export function maxAssignableLabor(
   stats: PopulationStats,
 ): number {
   const healthy = Math.max(0, stats.total - (stats.sick ?? 0));
+  const assignable = Math.max(0, healthy - stats.dedicatedSmallholding);
   const committedElsewhere = building.constructionComplete !== false
     ? stats.assigned - building.assignedLabor
     : stats.assigned + stats.flexibleAssigned - building.assignedLabor;
-  const fromPool = Math.max(0, healthy - committedElsewhere);
+  const fromPool = Math.max(0, assignable - committedElsewhere);
   const buildingCap = building.constructionComplete !== false
     ? buildingMaxLabor(building.kind)
     : CONSTRUCTION_MAX_BUILDERS;

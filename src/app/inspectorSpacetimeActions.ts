@@ -19,6 +19,7 @@ export type InspectorSpacetimeActions = {
   onDemolishBurgageZone: (zoneId: string) => Promise<void>;
   onDemolishResidence: (residenceId: string) => Promise<void>;
   onUpgradeResidence: (residenceId: string) => Promise<void>;
+  onConvertResidenceToSmallholding: (residenceId: string) => Promise<void>;
   onRetrofitResidenceTileRoof: (residenceId: string) => Promise<void>;
   onDemolishGraveyard: (graveyardId: string) => Promise<void>;
   onSetResidenceUpgradePriority: (residenceId: string, priority: number) => Promise<void>;
@@ -208,6 +209,14 @@ export function createInspectorSpacetimeActions(
       const store = requireReady();
       if (!store) return;
       await runReducer(() => store.upgradeResidence(residenceId), 'Residence upgrade failed.');
+    },
+    onConvertResidenceToSmallholding: async (residenceId) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.convertResidenceToSmallholding(residenceId),
+        'Smallholding specialization failed.',
+      );
     },
     onRetrofitResidenceTileRoof: async (residenceId) => {
       const store = requireReady();

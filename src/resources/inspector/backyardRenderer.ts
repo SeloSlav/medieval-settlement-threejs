@@ -27,6 +27,7 @@ import {
   backyardGardenSeasonStatus,
 } from '../../economy/backyardGardenTick.ts';
 import { edibleFoodStock } from '../../economy/foodInventory.ts';
+import { smallholdingBackyardProductivityMultiplier } from '../../economy/smallholding.ts';
 import {
   householdProjectFunding,
   residenceBackyardProject,
@@ -113,6 +114,7 @@ export function renderBackyardInspector(
     ? 1
     : TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER;
   const seasonalMultiplier = calendarPaused ? 0 : season.multiplier;
+  const productivityMultiplier = smallholdingBackyardProductivityMultiplier(residence);
   const economy = buildBackyardEconomyView(
     garden.kind,
     residence.population,
@@ -123,6 +125,7 @@ export function renderBackyardInspector(
       taxCollectionMultiplier,
       tier: residence.tier,
       currentFoodStock: foodStock,
+      productivityMultiplier,
     },
   );
   const stallLabel = marketChannels.length > 1
@@ -161,7 +164,7 @@ export function renderBackyardInspector(
   const reserveTarget = backyardFoodReserveTarget(residence.tier, residence.population);
 
   return {
-    eyebrow: 'Backyard',
+    eyebrow: residence.smallholding ? 'Smallholding backyard' : 'Backyard',
     title: backyardGardenLabel(garden.kind),
     statusText,
     statusState,
@@ -170,6 +173,9 @@ export function renderBackyardInspector(
       <li><span>${isLivestockPen ? 'Husbandry phase' : 'Crop phase'}</span><span>${season.label}${calendarPaused ? ` · household work paused today ${holiday ? `for ${holiday.label}` : 'by parish policy'}` : ''}</span></li>
       <li><span>${isLivestockPen ? 'Collection window' : 'Harvest window'}</span><span>${season.harvestWindow}</span></li>
       <li><span>Product</span><span>${backyardGardenProductSummary(garden.kind)}</span></li>
+      <li><span>Household specialization</span><span>${residence.smallholding
+        ? `${productivityMultiplier.toFixed(0)}× Smallholding output · this family is permanently outside the general and construction labor pools`
+        : 'Normal burgage · the family remains available to the general and construction labor pools'}</span></li>
       ${BACKYARD_GARDEN_DEFINITIONS[garden.kind].firstHarvestDays > 0
         ? `<li><span>${isLivestockPen ? 'First output' : 'First harvest'}</span><span>${garden.firstHarvestDay > clock.totalDays
           ? `${garden.firstHarvestDay - clock.totalDays} days remaining`
@@ -216,7 +222,9 @@ export function renderBackyardInspector(
             : garden.kind === 'backyard_apiary'
               ? '<li><span>Trade-off</span><span>Seasonal honey and a minor local pollination contribution; much less output and reach than a staffed forest apiary</span></li>'
               : ''}
-      <li><span>Household labor</span><span>No assigned labor slot. Occupied households tend and harvest automatically; off-duty residents visibly act out garden work, while production remains household-tick based.</span></li>
+      <li><span>Household labor</span><span>${residence.smallholding
+        ? 'Dedicated backyard artisans. The whole family is unavailable for workplaces, hauling, and construction.'
+        : 'No assigned labor slot. Occupied households tend and harvest automatically; off-duty residents visibly act out garden work, while production remains household-tick based.'}</span></li>
       <li><span>Market stall use</span><span>${marketChannel === null
         ? 'None — this garden has no saleable commodity and claims no table'
         : hasAllMarketAccess

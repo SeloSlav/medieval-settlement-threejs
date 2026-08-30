@@ -128,6 +128,7 @@ type ResourceInspectorOptions = {
   onDemolishBuilding?: (buildingId: string) => void | Promise<void>;
   onDemolishResidence?: (residenceId: string) => void | Promise<void>;
   onUpgradeResidence?: (residenceId: string) => void | Promise<void>;
+  onConvertResidenceToSmallholding?: (residenceId: string) => void | Promise<void>;
   onRetrofitResidenceTileRoof?: (residenceId: string) => void | Promise<void>;
   onSetResidenceUpgradePriority?: (
     residenceId: string,
@@ -438,6 +439,7 @@ export class ResourceInspector {
     assigned: 0,
     flexibleAssigned: 0,
     cartAssigned: 0,
+    dedicatedSmallholding: 0,
     available: 0,
     idle: 0,
     housingCapacity: 0,
@@ -1617,6 +1619,7 @@ export class ResourceInspector {
       onUpgradeFlowerGardenLuxury: this.options.onUpgradeFlowerGardenLuxury,
       onUpgradeChapel: this.options.onUpgradeChapel,
       onUpgradeResidence: this.options.onUpgradeResidence,
+      onConvertResidenceToSmallholding: this.options.onConvertResidenceToSmallholding,
       onRetrofitResidenceTileRoof: this.options.onRetrofitResidenceTileRoof,
       onSetResidenceUpgradePriority: this.options.onSetResidenceUpgradePriority,
     });

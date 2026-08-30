@@ -247,6 +247,33 @@ assert.deepEqual(
   'the first household identities remain reserved for visible homebound sick residents before founders fill the roster',
 );
 
+const normalWorkforceHousehold = residence('normal-workforce-household', 0, 0, 7);
+const dedicatedSmallholding = {
+  ...residence('dedicated-smallholding', 20, 0, 3),
+  smallholding: true,
+};
+const smallholdingRoster = allocateProductionWorkers(
+  [normalWorkforceHousehold, dedicatedSmallholding],
+  [building('smallholding-labor-demand', 'stone_quarry', 10, 0, 10, 55)],
+);
+assert.equal(
+  smallholdingRoster.assignments.length,
+  7,
+  'a Smallholding household must not fill workplace or construction posts',
+);
+assert.equal(
+  smallholdingRoster.assignments.some(
+    (assignment) => assignment.homeResidenceId === dedicatedSmallholding.id,
+  ),
+  false,
+  'no dedicated Smallholding resident may appear in the assignable worker roster',
+);
+assert.equal(
+  smallholdingRoster.remainingPopulationByResidence.get(dedicatedSmallholding.id),
+  3,
+  'the dedicated family remains visible at its Smallholding instead of disappearing as assigned labor',
+);
+
 const travelRoads = new RoadNetwork();
 travelRoads.addRoadPath([
   new THREE.Vector3(0, 0, 0),

@@ -15,6 +15,7 @@ export type SupplementalPanelHandlers = {
   onUpgradeFlowerGardenLuxury?: (residenceId: string) => void | Promise<void>;
   onUpgradeChapel?: (buildingId: string) => void | Promise<void>;
   onUpgradeResidence?: (residenceId: string) => void | Promise<void>;
+  onConvertResidenceToSmallholding?: (residenceId: string) => void | Promise<void>;
   onRetrofitResidenceTileRoof?: (residenceId: string) => void | Promise<void>;
   onSetResidenceUpgradePriority?: (
     residenceId: string,
@@ -40,6 +41,14 @@ export function handleSupplementalPanelClick(
   if (upgradeButton && target?.kind === 'residence') {
     if (upgradeButton.getAttribute('aria-disabled') === 'true') return true;
     void handlers.onUpgradeResidence?.(target.residence.id);
+    return true;
+  }
+  const smallholdingButton = eventTarget.closest<HTMLElement>(
+    '[data-action="convert-residence-to-smallholding"]',
+  );
+  if (smallholdingButton && target?.kind === 'residence') {
+    if (smallholdingButton.getAttribute('aria-disabled') === 'true') return true;
+    void handlers.onConvertResidenceToSmallholding?.(target.residence.id);
     return true;
   }
   const roofRetrofitButton = eventTarget.closest<HTMLElement>(

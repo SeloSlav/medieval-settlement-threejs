@@ -86,4 +86,5 @@ export default __t.row({
   aroniaJam: __t.f64().name("aronia_jam"),
   rosehipJam: __t.f64().name("rosehip_jam"),
   settlementId: __t.u64().name("settlement_id"),
+  smallholding: __t.bool(),
 });

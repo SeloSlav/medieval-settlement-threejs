@@ -15,6 +15,7 @@ import {
 } from './backyardGardenTick.ts';
 import { edibleFoodStock } from './foodInventory.ts';
 import { taxedEconomicActivity } from './villageEconomy.ts';
+import { smallholdingBackyardProductivityMultiplier } from './smallholding.ts';
 
 export type BackyardGardenEconomyPerDay = {
   activity: number;
@@ -38,6 +39,7 @@ export function backyardGardenEconomyPerDay(
     remedyUnitsSold?: number;
     tier?: number;
     currentFoodStock?: number;
+    productivityMultiplier?: number;
   } = {},
 ): BackyardGardenEconomyPerDay {
   const def = BACKYARD_GARDEN_DEFINITIONS[kind];
@@ -45,15 +47,20 @@ export function backyardGardenEconomyPerDay(
   const seasonalMultiplier = Number.isFinite(requestedSeasonalMultiplier)
     ? Math.max(0, requestedSeasonalMultiplier)
     : 0;
+  const requestedProductivityMultiplier = options.productivityMultiplier ?? 1;
+  const productivityMultiplier = Number.isFinite(requestedProductivityMultiplier)
+    ? Math.max(0, requestedProductivityMultiplier)
+    : 0;
+  const outputMultiplier = seasonalMultiplier * productivityMultiplier;
   const marketLinked = options.hasMarketAccess ?? true;
   const grossHarvest = def.foodPerPersonPerSec
     * Math.max(0, population)
     * BACKYARD_DAY_SECONDS
-    * seasonalMultiplier;
+    * outputMultiplier;
   const jamTarget = def.jamPerPersonPerSec
     * Math.max(0, population)
     * BACKYARD_DAY_SECONDS
-    * seasonalMultiplier;
+    * outputMultiplier;
   const harvest = splitBackyardOrchardHarvest(grossHarvest, jamTarget);
   const totalFood = harvest.freshFruit + harvest.jam;
   const { selfFood, marketFood } = allocateBackyardFood(
@@ -93,14 +100,17 @@ export function backyardGardenActivityPerDay(
   population: number,
   tier = 1,
   currentFoodStock = 0,
+  productivityMultiplier = 1,
 ): number {
   const def = BACKYARD_GARDEN_DEFINITIONS[kind];
   const grossHarvest = def.foodPerPersonPerSec
     * Math.max(0, population)
-    * BACKYARD_DAY_SECONDS;
+    * BACKYARD_DAY_SECONDS
+    * productivityMultiplier;
   const jamTarget = def.jamPerPersonPerSec
     * Math.max(0, population)
-    * BACKYARD_DAY_SECONDS;
+    * BACKYARD_DAY_SECONDS
+    * productivityMultiplier;
   const harvest = splitBackyardOrchardHarvest(grossHarvest, jamTarget);
   const totalFood = harvest.freshFruit + harvest.jam;
   return gardenMarketActivity(
@@ -137,6 +147,7 @@ export function estimateVillageGdpPerDay(
       residence.population,
       residence.tier,
       edibleFoodStock(residence),
+      smallholdingBackyardProductivityMultiplier(residence),
     );
   }
   return total;
@@ -201,6 +212,7 @@ export function estimateVillageHouseholdSavingsPerDay(
       {
         tier: residence.tier,
         currentFoodStock: edibleFoodStock(residence),
+        productivityMultiplier: smallholdingBackyardProductivityMultiplier(residence),
       },
     ).net;
   }

@@ -18,6 +18,9 @@ use crate::simulation::{
     building_fire_state, preempt_free_hauler_trips, preserve_in_transit_cart_labor,
     staffed_cart_workers_by_building,
 };
+use crate::smallholding_policy::{
+    smallholding_adjusted_settlement_population, smallholding_assignable_population,
+};
 use crate::tables::Building;
 
 pub use super::population_policy::{initial_construction_labor, queued_construction_callup_labor};
@@ -40,18 +43,26 @@ pub fn building_max_labor(kind: &str) -> u32 {
 }
 
 fn total_population(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
-    let from_residences: u32 = ctx
+    let (healthy_housed, from_residences): (u32, u32) = ctx
         .db
         .residence()
         .owner()
         .filter(&owner)
         .filter(|residence| !residence.abandoned)
-        .map(|residence| {
-            residence
+        .fold((0, 0), |(healthy_total, assignable_total), residence| {
+            let healthy = residence
                 .population
-                .saturating_sub(residence.sick_population)
-        })
-        .sum();
+                .saturating_sub(residence.sick_population.min(residence.population));
+            let assignable = smallholding_assignable_population(
+                residence.population,
+                residence.sick_population,
+                residence.smallholding,
+            );
+            (
+                healthy_total.saturating_add(healthy),
+                assignable_total.saturating_add(assignable),
+            )
+        });
     let legacy_unhoused_population_bonus_enabled = ctx
         .db
         .player_resources()
@@ -62,7 +73,17 @@ fn total_population(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
         });
     let has_authoritative_settlements = ctx.db.settlement().owner().filter(&owner).next().is_some();
     if !has_authoritative_settlements {
-        return settlement_population(from_residences, legacy_unhoused_population_bonus_enabled);
+        if healthy_housed == from_residences {
+            return settlement_population(
+                from_residences,
+                legacy_unhoused_population_bonus_enabled,
+            );
+        }
+        return smallholding_adjusted_settlement_population(
+            from_residences,
+            healthy_housed,
+            legacy_unhoused_population_bonus_enabled,
+        );
     }
     let founding_cohorts = crate::settlements::owner_unhoused_founders(ctx, owner);
     from_residences

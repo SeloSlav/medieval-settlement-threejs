@@ -25,6 +25,7 @@ use crate::simulation::residence_needs::food;
 use crate::simulation::residence_needs::sync_food_need_rows;
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::tick_context::SimTickContext;
+use crate::smallholding_policy::smallholding_backyard_productivity_multiplier;
 use crate::tables::{BackyardGarden, Residence};
 
 /// Plant plots are collected as one physical monthly basket. Their authored
@@ -218,7 +219,10 @@ fn step_one_garden(
     }
 
     let population = residence.population;
-    let seasonal_multiplier = backyard_garden_seasonal_multiplier(kind, clock.month, environment);
+    let productivity_multiplier =
+        smallholding_backyard_productivity_multiplier(residence.smallholding);
+    let seasonal_multiplier = backyard_garden_seasonal_multiplier(kind, clock.month, environment)
+        * productivity_multiplier;
     if seasonal_multiplier <= 1e-9 {
         return 0.0;
     }
@@ -313,7 +317,7 @@ fn step_one_garden(
         return 0.0;
     };
     if kind == BackyardGardenKind::BackyardApiary && gross_food >= 1.0 {
-        collect_backyard_apiary_wax(ctx, garden.id, clock);
+        collect_backyard_apiary_wax(ctx, garden.id, clock, productivity_multiplier);
     }
     mark_backyard_primary_production_day(ctx, garden.id, clock.total_days);
     if kind == BackyardGardenKind::BackyardApiary {
@@ -394,6 +398,8 @@ fn step_livestock_pen(
 ) -> f64 {
     let def = backyard_garden_def(kind);
     let population = residence.population;
+    let productivity_multiplier =
+        smallholding_backyard_productivity_multiplier(residence.smallholding);
     let mut market_food_sold = 0.0;
 
     // Empty the pen's existing whole-hide lot before deciding whether a new
@@ -413,7 +419,8 @@ fn step_livestock_pen(
         def.harvest_start_month,
         def.harvest_end_month,
     ) {
-        let multiplier = backyard_garden_seasonal_multiplier(kind, clock.month, environment);
+        let multiplier = backyard_garden_seasonal_multiplier(kind, clock.month, environment)
+            * productivity_multiplier;
         let expected_food = backyard_interval_food_batch(
             def.food_per_person_per_sec,
             population,
@@ -456,7 +463,7 @@ fn step_livestock_pen(
             def.secondary_harvest_start_month,
             def.secondary_harvest_end_month,
         ) {
-            def.yield_efficiency
+            def.yield_efficiency * productivity_multiplier
         } else {
             0.0
         };
@@ -473,7 +480,7 @@ fn step_livestock_pen(
             0x5345_434f_4e44_4152,
         );
         let hides_collected = discrete_expected_units(
-            def.hide_per_person_per_secondary_harvest * population as f64,
+            def.hide_per_person_per_secondary_harvest * population as f64 * productivity_multiplier,
             garden.id,
             clock.total_days,
             0x4849_4445_53,
@@ -594,7 +601,12 @@ fn transfer_backyard_stored_material_to_storehouse(
 /// Beeswax is collected only alongside a real whole-unit honey harvest. Its
 /// lower-frequency clock remains due while the household shelf is full, but a
 /// blocked by-product never prevents the primary honey basket from resolving.
-fn collect_backyard_apiary_wax(ctx: &ReducerContext, garden_id: u64, clock: &GameClock) {
+fn collect_backyard_apiary_wax(
+    ctx: &ReducerContext,
+    garden_id: u64,
+    clock: &GameClock,
+    productivity_multiplier: f64,
+) {
     let Some(mut garden) = ctx.db.backyard_garden().id().find(&garden_id) else {
         return;
     };
@@ -614,7 +626,7 @@ fn collect_backyard_apiary_wax(ctx: &ReducerContext, garden_id: u64, clock: &Gam
     let Some(next_wax_stock) = bounded_backyard_wax_stock(
         garden.wax_stock,
         def.wax_capacity,
-        def.wax_per_secondary_harvest,
+        def.wax_per_secondary_harvest * productivity_multiplier,
     ) else {
         return;
     };

@@ -97,6 +97,7 @@ import {
   applyYearRoundLaborRotation,
   computeSettlementYearRoundLaborRotation,
 } from '../economy/yearRoundLabor.ts';
+import { smallholdingDedicatedResidents } from '../economy/smallholding.ts';
 import { gameClock } from '../world/gameCalendar.ts';
 import { STARTING_POPULATION } from '../generated/gameBalance.ts';
 import {
@@ -205,16 +206,23 @@ function tableStatePopulation(state: GameTableSyncState): number {
     (total, residence) => total + (residence.abandoned ? 0 : residence.population),
     0,
   );
+  const dedicatedSmallholding = Array.from(state.residences.values()).reduce(
+    (total, residence) => total + (
+      residence.abandoned ? 0 : smallholdingDedicatedResidents(residence)
+    ),
+    0,
+  );
   if (state.settlements.size > 0) {
     const unhousedFounders = [...state.settlements.values()].reduce(
       (total, settlement) => total + (settlement.active ? settlement.unhousedFounders : 0),
       0,
     );
-    return housed + unhousedFounders;
+    return Math.max(0, housed + unhousedFounders - dedicatedSmallholding);
   }
-  return state.legacyUnhousedPopulationBonusEnabled
+  const population = state.legacyUnhousedPopulationBonusEnabled
     ? STARTING_POPULATION + housed
     : Math.max(STARTING_POPULATION, housed);
+  return Math.max(0, population - dedicatedSmallholding);
 }
 
 function scopedTownHallPlanningState(
@@ -471,6 +479,10 @@ export class SpacetimeGameStore {
 
   upgradeResidence(residenceId: string): Promise<void> {
     return spacetimeReducers.upgradeResidence(residenceId);
+  }
+
+  convertResidenceToSmallholding(residenceId: string): Promise<void> {
+    return spacetimeReducers.convertResidenceToSmallholding(residenceId);
   }
 
   retrofitResidenceTileRoof(residenceId: string): Promise<void> {

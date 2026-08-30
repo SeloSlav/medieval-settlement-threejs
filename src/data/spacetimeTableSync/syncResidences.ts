@@ -82,6 +82,7 @@ export function syncResidences(
       aroniaJam: number;
       rosehipJam: number;
       settlementId: bigint;
+      smallholding: boolean;
     }>;
     const residenceId = residenceClientId(row.id);
     residences.set(residenceId, {
@@ -166,6 +167,7 @@ export function syncResidences(
       upgradeRequiredRoofTiles: wholeResourceUnits(upgradeRow.upgradeRequiredRoofTiles),
       upgradeDeliveredRoofTiles: wholeResourceUnits(upgradeRow.upgradeDeliveredRoofTiles),
       upgradeReservedRoofTiles: wholeResourceUnits(upgradeRow.upgradeReservedRoofTiles),
+      smallholding: upgradeRow.smallholding === true,
     });
   }
   return residences;

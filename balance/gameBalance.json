@@ -157,6 +157,7 @@
     "lowTaxProductivityBoost": 0.28,
     "highTaxProductivityDrag": 0.58,
     "foodSaleGoldPerUnit": 0.35,
+    "smallholdingBackyardProductivityMultiplier": 2,
     "residenceTimberCost": 5,
     "residenceStoneCost": 0,
     "residenceTier2TimberCost": 18,

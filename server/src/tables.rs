@@ -1702,6 +1702,11 @@ pub struct Residence {
     /// but an occupied home never changes town merely because a road is added.
     #[default(0u64)]
     pub settlement_id: u64,
+    /// Permanent tier-1 specialization. The household leaves the assignable
+    /// workforce and doubles every completed backyard extension's output.
+    /// Appended for additive save compatibility; existing homes remain normal.
+    #[default(false)]
+    pub smallholding: bool,
 }
 
 #[spacetimedb::table(

@@ -118,6 +118,7 @@ export function buildBackyardEconomyView(
     taxCollectionMultiplier?: number;
     tier?: number;
     currentFoodStock?: number;
+    productivityMultiplier?: number;
   } = {},
 ): BackyardEconomyView {
   const taxPercent = formatTaxRatePercent(taxRate);
@@ -127,6 +128,7 @@ export function buildBackyardEconomyView(
     taxCollectionMultiplier: options.taxCollectionMultiplier,
     tier: options.tier,
     currentFoodStock: options.currentFoodStock,
+    productivityMultiplier: options.productivityMultiplier,
   });
   return {
     activityPerDay: economy.activity,

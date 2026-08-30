@@ -172,6 +172,16 @@ export async function upgradeResidence(residenceId: string): Promise<void> {
   await callReducer('upgradeResidence', 'upgrade_residence', { residenceId: serverId });
 }
 
+export async function convertResidenceToSmallholding(residenceId: string): Promise<void> {
+  const serverId = parseResidenceServerId(residenceId);
+  if (serverId === null) throw new Error('Invalid residence id.');
+  await callReducer(
+    'convertResidenceToSmallholding',
+    'convert_residence_to_smallholding',
+    { residenceId: serverId },
+  );
+}
+
 export async function specializeOrchard(
   residenceId: string,
   kind: BackyardGardenKind,

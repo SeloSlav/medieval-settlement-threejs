@@ -535,6 +535,8 @@ export type ResidenceState = {
   tiledRoof?: boolean;
   /** Physical tile-and-timber residence project. */
   roofTileRetrofitActive?: boolean;
+  /** Permanent tier-1 backyard specialization; residents leave general labor. */
+  smallholding?: boolean;
 };
 
 export function residenceHasActiveProject(

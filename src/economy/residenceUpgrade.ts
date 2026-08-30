@@ -345,6 +345,7 @@ export function evaluateResidenceUpgrade(
   serviceInputs: ResidenceUpgradeServices,
   context: ResidenceUpgradeContext = {},
 ): ResidenceUpgradePlan | null {
+  if (residence.smallholding === true) return null;
   const definition = definitionForTier(residence.tier);
   if (!definition) return null;
 

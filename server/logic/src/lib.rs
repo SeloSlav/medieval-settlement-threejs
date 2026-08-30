@@ -92,6 +92,8 @@ pub mod raid_agent_policy;
 pub mod season_policy;
 #[path = "../../src/seasonal_labor_policy.rs"]
 pub mod seasonal_labor_policy;
+#[path = "../../src/smallholding_policy.rs"]
+pub mod smallholding_policy;
 #[path = "../../src/smokehouse_recipe_policy.rs"]
 pub mod smokehouse_recipe_policy;
 #[path = "../../src/security_policy.rs"]

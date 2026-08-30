@@ -337,9 +337,12 @@ export function allocateProductionWorkers(
   rosteredCartWorkersByBuilding: ReadonlyMap<string, number> = NO_ROSTERED_CART_WORKERS,
   roadNetwork: RoadNetwork | null = null,
 ): WorkerRoster {
-  const activeResidences = residences
+  const occupiedResidences = residences
     .filter((residence) => !residence.abandoned && residence.population > 0)
     .sort((a, b) => a.id.localeCompare(b.id));
+  const activeResidences = occupiedResidences.filter(
+    (residence) => residence.smallholding !== true,
+  );
   const remainingPopulationByResidence = new Map(
     residences.map((residence) => [
       residence.id,
@@ -355,7 +358,7 @@ export function allocateProductionWorkers(
     ]),
   );
   const assignments: WorkerAssignment[] = [];
-  const healthyHousedPopulation = activeResidences.reduce(
+  const healthyHousedPopulation = occupiedResidences.reduce(
     (sum, residence) => sum + Math.max(
       0,
       Math.floor(residence.population)

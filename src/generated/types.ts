@@ -741,6 +741,7 @@ export const Residence = __t.object("Residence", {
   aroniaJam: __t.f64(),
   rosehipJam: __t.f64(),
   settlementId: __t.u64(),
+  smallholding: __t.bool(),
 });
 export type Residence = __Infer<typeof Residence>;
 

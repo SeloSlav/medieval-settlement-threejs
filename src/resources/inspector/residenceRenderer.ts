@@ -15,6 +15,7 @@ import {
   HUNGER_WARNING_DAYS,
   MALNUTRITION_DAYS,
   MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY,
+  SMALLHOLDING_BACKYARD_PRODUCTIVITY_MULTIPLIER,
   PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
   RESIDENCE_CLOTH_CAPACITY,
   RESIDENCE_SHOES_CAPACITY,
@@ -171,6 +172,9 @@ export function renderResidenceInspector(
   context: InspectorRenderContext,
 ): InspectorView {
   const { residence, zone, residenceCount } = target;
+  const smallholding = residence.smallholding === true;
+  const smallholdingProductivity = SMALLHOLDING_BACKYARD_PRODUCTIVITY_MULTIPLIER;
+  const hasBackyardExtension = context.gameState.backyardGardens.has(residence.id);
   const residenceFire = fireForTarget(
     context.gameState.fireIncidents.values(),
     'residence',
@@ -305,6 +309,14 @@ export function renderResidenceInspector(
     residence,
     context.gameState.deliveryTrips.values(),
   );
+  const smallholdingBlockers = [
+    ...(residence.population <= 0 ? ['an occupied household is required'] : []),
+    ...(fireDisabled ? ['repair the residence first'] : []),
+    ...(upgradeProject ? ['finish or cancel the house project'] : []),
+    ...(backyardProjectActive ? ['finish the backyard project'] : []),
+    ...(fireRepairProject ? ['finish the structural repair'] : []),
+    ...(roofTileProject ? ['finish the roof retrofit'] : []),
+  ];
   const remedyDelivery = [...context.gameState.deliveryTrips.values()].find(
     (trip) =>
       trip.destinationKind === 'care'
@@ -798,7 +810,9 @@ export function renderResidenceInspector(
       ? 'Fire recovery worksite'
       : initialConstruction
         ? 'Cottage worksite'
-        : 'Residence',
+        : smallholding
+          ? 'Dedicated backyard household'
+          : 'Residence',
     title: roofTileProject
       ? 'Fired-tile roof retrofit'
       : structuralRepairProject
@@ -807,7 +821,9 @@ export function renderResidenceInspector(
         : 'Homestead repairs'
       : initialConstruction
       ? 'Cottage construction'
-      : 'Residence',
+      : smallholding
+        ? 'Smallholding'
+        : 'Residence',
     statusText,
     statusState: roofTileProject
       ? roofTileProject.blockers.length === 0 ? 'ok' : 'warning'
@@ -832,7 +848,9 @@ export function renderResidenceInspector(
       <li><span>Herbal remedies</span><span>${remedySupplyLabel} · treatment speeds recovery and reduces mortality</span></li>
       <li><span>Deaths</span><span>${residence.deathsTotal ?? 0} total · ${householdCorpses.length} unburied or in transit</span></li>
       <li><span>Housing tenure</span><span>Permanent · empty slots remain available to new settlers</span></li>
-      <li data-inspector-primary><span>House tier</span><span>${initialConstruction ? 'Cottage frame → tier 1' : `${residence.tier} / 4`}</span></li>
+      <li data-inspector-primary><span>House tier</span><span>${initialConstruction ? 'Cottage frame → tier 1' : smallholding ? 'Smallholding · tier 1 locked' : `${residence.tier} / 4`}</span></li>
+      ${residence.tier > 0 ? `<li data-inspector-primary><span>Household labor</span><span>${smallholding ? `${Math.max(0, residence.population - (residence.sickPopulation ?? 0))} healthy resident${Math.max(0, residence.population - (residence.sickPopulation ?? 0)) === 1 ? '' : 's'} dedicated to the backyard · unavailable to workplaces, hauling, and construction` : 'Healthy residents remain in the general workforce, including construction'}</span></li>` : ''}
+      ${smallholding ? `<li data-inspector-primary><span>Backyard productivity</span><span>${smallholdingProductivity}× every extension output · food, materials, remedies, and saleable goods</span></li>` : ''}
       <li><span>Roof covering</span><span>${residence.tier >= 4 ? 'Fired clay tile · tier-4 finished roof' : residence.tier === 1 ? 'Bundled thatch · cottage roof' : 'Split wooden shingle · tier-2/3 roof'}</span></li>
       ${roofTileProject
         ? residenceRoofTileProjectRows(roofTileProject)
@@ -925,9 +943,16 @@ export function renderResidenceInspector(
       ? residenceUpgradeProjectPanel(upgradeProject, initialConstruction)
       : backyardProjectActive
         ? ''
-      : upgradePlan
-        ? residenceUpgradePanel(upgradePlan, prosperityPlan, tierThreeProjection)
-        : ''}`,
+      : `${upgradePlan
+          ? residenceUpgradePanel(upgradePlan, prosperityPlan, tierThreeProjection)
+          : ''}${residence.tier === 1
+            ? residenceSmallholdingPanel({
+                active: smallholding,
+                hasBackyardExtension,
+                productivityMultiplier: smallholdingProductivity,
+                blockers: smallholdingBlockers,
+              })
+            : ''}`}`,
   };
 }
 
@@ -1289,6 +1314,25 @@ function residenceUpgradePanel(
     ? `${capacity}${production ? ` · ${production}` : ''} · After completion: ${plan.addedNeeds}`
     : `Blocked · ${plan.blockers.join(' · ')} · After completion: ${plan.addedNeeds}`;
   return `<button type="button" class="resource-action-button resource-action-button--icon" data-action="upgrade-residence" data-upgrade-tier="${plan.nextTier}" data-tooltip-title="Tier ${plan.nextTier}" data-tooltip="${detail}" ${plan.ready ? '' : 'aria-disabled="true"'}><span class="inspector-action-icon" data-action-icon="residence-tier-${plan.nextTier}" aria-hidden="true"></span><span>Upgrade · Tier ${plan.nextTier}</span>${resourceCost}</button>`;
+}
+
+function residenceSmallholdingPanel(options: {
+  active: boolean;
+  hasBackyardExtension: boolean;
+  productivityMultiplier: number;
+  blockers: readonly string[];
+}): string {
+  if (options.active) {
+    return `<div class="inspector-action-panel inspector-action-panel--compact" data-inspector-panel-title="Smallholding" aria-label="Smallholding"><p>Permanent specialization · tier 1 locked · household dedicated to backyard production and excluded from workplaces, hauling, and construction.</p></div>`;
+  }
+  const ready = options.blockers.length === 0;
+  const backyard = options.hasBackyardExtension
+    ? 'the existing backyard extension'
+    : 'any present or future backyard extension';
+  const detail = ready
+    ? `Permanent and irreversible · locks this home at tier 1 · dedicates the whole healthy household to ${backyard} · removes them from workplaces, hauling, and construction · ${options.productivityMultiplier}× every backyard output`
+    : `Blocked · ${options.blockers.join(' · ')}`;
+  return `<button type="button" class="resource-action-button resource-action-button--icon" data-action="convert-residence-to-smallholding" data-tooltip-title="Smallholding" data-tooltip="${detail}" ${ready ? '' : 'aria-disabled="true"'}><span class="inspector-action-icon" data-action-icon="smallholding" aria-hidden="true"></span><span>Specialize · Smallholding</span></button>`;
 }
 
 function residenceUpgradeProjectPanel(

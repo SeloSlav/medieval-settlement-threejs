@@ -330,6 +330,7 @@ export type GameBalance = {
     lowTaxProductivityBoost: number;
     highTaxProductivityDrag: number;
     foodSaleGoldPerUnit: number;
+    smallholdingBackyardProductivityMultiplier: number;
     residenceTimberCost: number;
     residenceStoneCost: number;
     residenceTier2TimberCost: number;
@@ -1007,6 +1008,7 @@ function generateRust(): string {
     `pub const LOW_TAX_PRODUCTIVITY_BOOST: f64 = ${rustF64(b.economy.lowTaxProductivityBoost)};`,
     `pub const HIGH_TAX_PRODUCTIVITY_DRAG: f64 = ${rustF64(b.economy.highTaxProductivityDrag)};`,
     `pub const FOOD_SALE_GOLD_PER_UNIT: f64 = ${rustF64(b.economy.foodSaleGoldPerUnit)};`,
+    `pub const SMALLHOLDING_BACKYARD_PRODUCTIVITY_MULTIPLIER: f64 = ${rustF64(b.economy.smallholdingBackyardProductivityMultiplier)};`,
     `pub const RESIDENCE_TIMBER_COST: f64 = ${rustF64(b.economy.residenceTimberCost)};`,
     `pub const RESIDENCE_STONE_COST: f64 = ${rustF64(b.economy.residenceStoneCost)};`,
     `pub const RESIDENCE_TIER2_TIMBER_COST: f64 = ${rustF64(b.economy.residenceTier2TimberCost)};`,
@@ -2073,6 +2075,7 @@ function generateTypeScript(): string {
     `export const LOW_TAX_PRODUCTIVITY_BOOST = ${b.economy.lowTaxProductivityBoost};`,
     `export const HIGH_TAX_PRODUCTIVITY_DRAG = ${b.economy.highTaxProductivityDrag};`,
     `export const FOOD_SALE_GOLD_PER_UNIT = ${b.economy.foodSaleGoldPerUnit};`,
+    `export const SMALLHOLDING_BACKYARD_PRODUCTIVITY_MULTIPLIER = ${b.economy.smallholdingBackyardProductivityMultiplier};`,
     `export const RESIDENCE_TIMBER_COST = ${b.economy.residenceTimberCost};`,
     `export const RESIDENCE_STONE_COST = ${b.economy.residenceStoneCost};`,
     `export const RESIDENCE_TIER2_TIMBER_COST = ${b.economy.residenceTier2TimberCost};`,

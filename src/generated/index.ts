@@ -46,6 +46,7 @@ import CancelMarketplaceTradeOrderReducer from "./cancel_marketplace_trade_order
 import ClearTreeWorkAreaReducer from "./clear_tree_work_area_reducer";
 import CollectChapelCofferReducer from "./collect_chapel_coffer_reducer";
 import ConfigureWorldReducer from "./configure_world_reducer";
+import ConvertResidenceToSmallholdingReducer from "./convert_residence_to_smallholding_reducer";
 import DemolishBackyardGardenReducer from "./demolish_backyard_garden_reducer";
 import DemolishBuildingReducer from "./demolish_building_reducer";
 import DemolishBurgageZoneReducer from "./demolish_burgage_zone_reducer";
@@ -686,6 +687,7 @@ const reducersSchema = __reducers(
   __reducerSchema("clear_tree_work_area", ClearTreeWorkAreaReducer),
   __reducerSchema("collect_chapel_coffer", CollectChapelCofferReducer),
   __reducerSchema("configure_world", ConfigureWorldReducer),
+  __reducerSchema("convert_residence_to_smallholding", ConvertResidenceToSmallholdingReducer),
   __reducerSchema("demolish_backyard_garden", DemolishBackyardGardenReducer),
   __reducerSchema("demolish_building", DemolishBuildingReducer),
   __reducerSchema("demolish_burgage_zone", DemolishBurgageZoneReducer),
