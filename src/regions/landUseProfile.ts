@@ -63,13 +63,20 @@ export const RESIDENCE_URBAN_AREA = 320;
 export const BUILDING_RURAL_MARGIN = 9;
 export const BUILDING_URBAN_MARGIN = 12;
 
-const AFFINITY_SENSITIVITY: Record<SubregionKind, number> = {
+export const AFFINITY_SENSITIVITY: Record<SubregionKind, number> = {
   meadow: 0.34,
   woodland: 0.32,
   farmland: 0.75,
   rural: 0.60,
   urban: 0.60,
 };
+
+export const MEADOW_GRAZING_SENSITIVITY = 0.18;
+export const MEADOW_GRAZING_MAXIMUM_BONUS = 0.10;
+export const WOODLAND_PANNAGE_SENSITIVITY = 0.22;
+export const WOODLAND_PANNAGE_MAXIMUM_BONUS = 0.12;
+export const WOODLAND_WILD_HARVEST_SENSITIVITY = 0.20;
+export const WOODLAND_WILD_HARVEST_MAXIMUM_BONUS = 0.10;
 
 let publishedProfile: LandUseProfile | null = null;
 const listeners = new Set<() => void>();
@@ -153,6 +160,27 @@ export function describeLandUseProfile(profile: LandUseProfile): string {
     const bonus = Math.round(profile.bonuses[definition.kind] * 100);
     return `${definition.label} ${share}% (+${bonus}% ${definition.affinity.toLowerCase()})`;
   }).join(' · ');
+}
+
+export function meadowGrazingBonus(profile: LandUseProfile): number {
+  return Math.min(
+    MEADOW_GRAZING_MAXIMUM_BONUS,
+    profile.shares.meadow * MEADOW_GRAZING_SENSITIVITY,
+  );
+}
+
+export function woodlandPannageBonus(profile: LandUseProfile): number {
+  return Math.min(
+    WOODLAND_PANNAGE_MAXIMUM_BONUS,
+    profile.shares.woodland * WOODLAND_PANNAGE_SENSITIVITY,
+  );
+}
+
+export function woodlandWildHarvestBonus(profile: LandUseProfile): number {
+  return Math.min(
+    WOODLAND_WILD_HARVEST_MAXIMUM_BONUS,
+    profile.shares.woodland * WOODLAND_WILD_HARVEST_SENSITIVITY,
+  );
 }
 
 function sumFiniteAreas(values: Iterable<{ area: number }>): number {

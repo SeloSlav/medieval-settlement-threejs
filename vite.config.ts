@@ -35,6 +35,9 @@ const bridgeStructureLineupEntry = fileURLToPath(
 const illustratedMapLineupEntry = fileURLToPath(
   new URL('./illustrated-map-lineup.html', import.meta.url),
 );
+const soldierLineupEntry = fileURLToPath(
+  new URL('./soldier-lineup.html', import.meta.url),
+);
 const webGpuRenderOwnerEntry = fileURLToPath(
   new URL('./webgpu-render-owner.html', import.meta.url),
 );
@@ -105,6 +108,9 @@ export default defineConfig(({ mode }) => {
   }
   if ((includeQaArchives || mode === 'e2e') && existsSync(illustratedMapLineupEntry)) {
     buildInputs['illustrated-map-lineup'] = illustratedMapLineupEntry;
+  }
+  if (mode === 'e2e' && existsSync(soldierLineupEntry)) {
+    buildInputs['soldier-lineup'] = soldierLineupEntry;
   }
   if (mode === 'e2e' && existsSync(webGpuRenderOwnerEntry)) {
     buildInputs['webgpu-render-owner'] = webGpuRenderOwnerEntry;

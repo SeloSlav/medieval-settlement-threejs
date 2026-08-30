@@ -5893,14 +5893,18 @@ function combatRenderMode(
 
 function combatToolFor(faction: CombatAgentState['faction']): WorkerToolKind {
   switch (faction) {
+    case 'guard': return 'spear-shield';
     case 'raider': return 'sidearm';
+    case 'bandit': return 'spear';
+    case 'militia': return 'spear';
+    case 'spearman': return 'spear-shield';
     case 'crossbow': return 'crossbow';
+    case 'mercenary-spear': return 'spear-shield';
     case 'bowman': return 'bow';
     case 'man-at-arms': return 'sword-shield';
-    case 'footman': return 'sidearm';
+    case 'footman': return 'sidearm-shield';
     case 'polearm': return 'halberd';
-    case 'uskok': return 'sidearm';
-    default: return 'spear';
+    case 'uskok': return 'uskok-kit';
   }
 }
 
@@ -5940,8 +5944,12 @@ function combatEquipmentLabel(faction: CombatAgentState['faction']): string {
     case 'footman': return 'Sidearm and small shield';
     case 'man-at-arms': return 'Sword, large shield, mail, and helmet';
     case 'polearm': return 'Halberd and light armor';
-    case 'uskok': return 'Axe, sidearm, and frontier kit';
+    case 'uskok': return 'Light arquebus, war knife, and frontier kit';
     case 'militia': return 'Ordinary spear and clothing';
+    case 'crossbow': return 'Steel crossbow, bolt case, and padded coat';
+    case 'bowman': return 'War bow, quiver, arrows, and light clothing';
+    case 'raider': return 'Arming sword and Ottoman frontier kit';
+    case 'bandit': return 'Ordinary spear and scavenged clothing';
     default: return 'Spear, shield, and field kit';
   }
 }

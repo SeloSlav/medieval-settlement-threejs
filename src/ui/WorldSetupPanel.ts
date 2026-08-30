@@ -8,6 +8,7 @@ import {
   type WorldDifficultyRate,
   type WorldGenerationSettings,
   type WorldMapSize,
+  type WorldMilitaryDemands,
 } from '../world/worldGenerationSettings.ts';
 import {
   applyTerrainPreset,
@@ -33,6 +34,7 @@ const MAP_SIZE_ORDER: readonly WorldMapSize[] = ['small', 'medium', 'large'];
 const CONFLICT_MODE_ORDER = ['peaceful', 'frontier'] as const;
 const DIFFICULTY_RATE_ORDER: readonly WorldDifficultyRate[] = [0, 50, 100, 150];
 const INITIAL_GOODS_ORDER = [1, 2] as const;
+const MILITARY_DEMAND_ORDER: readonly WorldMilitaryDemands[] = [0, 1, 2, 3];
 const BOOLEAN_ORDER = [false, true] as const;
 
 function cycleValue<T>(values: readonly T[], current: T, step: number): T {
@@ -173,6 +175,16 @@ export class WorldSetupPanel {
                   </div>
                 </div>
                 <div class="world-setup-setting-row">
+                  <span class="world-setup-setting-row__icon" data-rule-icon="military-demands" role="img" aria-label="Military demands"></span>
+                  <div class="world-setup-arrow-select" data-world-selector="military-demands">
+                    <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Lower military demands">‹</button>
+                    <div class="world-setup-arrow-select__value" aria-live="polite">
+                      <strong data-military-demands-value></strong><span data-military-demands-description></span>
+                    </div>
+                    <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="1" aria-label="Higher military demands">›</button>
+                  </div>
+                </div>
+                <div class="world-setup-setting-row">
                   <span class="world-setup-setting-row__icon" data-rule-icon="approval" role="img" aria-label="Approval decline"></span>
                   <div class="world-setup-arrow-select" data-world-selector="approval-decline">
                     <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Lower approval decline">‹</button>
@@ -291,6 +303,10 @@ export class WorldSetupPanel {
     const banditCampsIcon = this.backdrop.querySelector<HTMLElement>('[data-rule-icon="bandits"]')!;
     const banditCampsValue = this.backdrop.querySelector<HTMLElement>('[data-bandit-camps-value]')!;
     const banditCampsDescription = this.backdrop.querySelector<HTMLElement>('[data-bandit-camps-description]')!;
+    const militaryDemandsSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="military-demands"]')!;
+    const militaryDemandsIcon = this.backdrop.querySelector<HTMLElement>('[data-rule-icon="military-demands"]')!;
+    const militaryDemandsValue = this.backdrop.querySelector<HTMLElement>('[data-military-demands-value]')!;
+    const militaryDemandsDescription = this.backdrop.querySelector<HTMLElement>('[data-military-demands-description]')!;
     const approvalDeclineSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="approval-decline"]')!;
     const approvalDeclineIcon = this.backdrop.querySelector<HTMLElement>('[data-rule-icon="approval"]')!;
     const approvalDeclineValue = this.backdrop.querySelector<HTMLElement>('[data-approval-decline-value]')!;
@@ -396,6 +412,12 @@ export class WorldSetupPanel {
         100: ['Normal', 'Standard seasonal spoilage.'],
         150: ['Harsh', 'Food spoils 50% faster.'],
       };
+      const militaryCopy: Record<WorldMilitaryDemands, readonly [string, string]> = {
+        0: ['Muster only', 'Equipment and available resident men only.'],
+        1: ['Light rations', 'One preserved ration per soldier for three field days.'],
+        2: ['Full upkeep', 'Two rations per soldier, shared ale, and wages.'],
+        3: ['Campaign burden', 'Two rations and one ale per soldier, plus wages.'],
+      };
       const approval = approvalCopy[this.draft.approvalDeclineRate];
       approvalDeclineIcon.dataset.state = String(this.draft.approvalDeclineRate);
       approvalDeclineValue.dataset.value = String(this.draft.approvalDeclineRate);
@@ -412,6 +434,11 @@ export class WorldSetupPanel {
       initialGoodsDescription.textContent = this.draft.initialGoodsMultiplier === 2
         ? 'Twice the goods in the original camp.'
         : 'Standard starting stock.';
+      const military = militaryCopy[this.draft.militaryDemands];
+      militaryDemandsIcon.dataset.state = String(this.draft.militaryDemands);
+      militaryDemandsValue.dataset.value = String(this.draft.militaryDemands);
+      militaryDemandsValue.textContent = military[0];
+      militaryDemandsDescription.textContent = military[1];
     };
 
     const syncDifficultyPresetControl = (): void => {
@@ -457,6 +484,14 @@ export class WorldSetupPanel {
     });
     bindArrowSelector(banditCampsSelector, (step) => {
       this.draft.banditCampsEnabled = cycleValue(BOOLEAN_ORDER, this.draft.banditCampsEnabled, step);
+      syncGameplayControls();
+    });
+    bindArrowSelector(militaryDemandsSelector, (step) => {
+      this.draft.militaryDemands = cycleValue(
+        MILITARY_DEMAND_ORDER,
+        this.draft.militaryDemands,
+        step,
+      );
       syncGameplayControls();
     });
     pressureSlider.addEventListener('input', () => {

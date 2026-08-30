@@ -46,8 +46,9 @@ pub fn step_lumber_mill(
     if selected_rate <= 1e-9 {
         return;
     }
-    let throughput_multiplier =
-        civilian_tool_throughput_multiplier(building.ironwork) * selected_rate;
+    let throughput_multiplier = civilian_tool_throughput_multiplier(building.ironwork)
+        * selected_rate
+        * tick.land_use_profile(ctx).forestry_multiplier();
     let cooldown = (building.action_cooldown - TICK_DT * throughput_multiplier).max(0.0);
     if cooldown > 0.0 {
         ctx.db.building().id().update(Building {

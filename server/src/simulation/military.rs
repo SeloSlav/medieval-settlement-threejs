@@ -3,7 +3,8 @@ use spacetimedb::ReducerContext;
 use crate::db::*;
 use crate::economy::spend_treasury_gold;
 use crate::military_policy::{
-    matchup_damage_multiplier, member_combat_profile, military_day_ticks, military_stats,
+    company_wages_enabled, local_company_requires_provisions, matchup_damage_multiplier,
+    member_combat_profile, military_day_ticks, military_stats, normalize_military_demands,
     shield_wall_damage_multiplier, MilitaryKind, MERCENARY_IDLE_DEPARTURE_DAYS,
     MERCENARY_MAX_CONTRACT_DAYS,
 };
@@ -34,8 +35,14 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
     if !elapsed_seconds.is_finite() || elapsed_seconds <= 0.0 {
         return;
     }
+    let military_demands = ctx
+        .db
+        .world_config()
+        .id()
+        .find(&0)
+        .map_or(1, |row| normalize_military_demands(row.military_demands));
     step_mercenary_contracts(ctx, sim_tick);
-    step_company_upkeep(ctx, sim_tick);
+    step_company_upkeep(ctx, sim_tick, military_demands);
     let members = ctx.db.military_member().iter().collect::<Vec<_>>();
     for member in members {
         let Some(agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
@@ -59,10 +66,18 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
         match member.phase {
             0 => step_mustering_member(ctx, agent, member, company, sim_tick, elapsed_seconds),
             2 | 3 => step_returning_member(ctx, agent, member, company, elapsed_seconds),
-            _ => step_active_member(ctx, agent, member, company, sim_tick, elapsed_seconds),
+            _ => step_active_member(
+                ctx,
+                agent,
+                member,
+                company,
+                sim_tick,
+                elapsed_seconds,
+                military_demands,
+            ),
         }
     }
-    refresh_company_summaries(ctx, elapsed_seconds);
+    refresh_company_summaries(ctx, elapsed_seconds, military_demands);
 }
 
 fn step_mustering_member(
@@ -167,6 +182,7 @@ fn step_active_member(
     company: MilitaryCompany,
     tick: u64,
     dt: f64,
+    military_demands: u8,
 ) {
     if company.state >= 2 {
         member.phase = 2;
@@ -246,7 +262,9 @@ fn step_active_member(
             if agent.attack_cooldown <= 0.0 {
                 let readiness = (0.55 + company.morale * 0.25 + company.cohesion * 0.20)
                     * (1.0 - company.fatigue.clamp(0.0, 0.75) * 0.45)
-                    * if company.provision_days <= 0.0 && kind != MilitaryKind::Militia {
+                    * if company.provision_days <= 0.0
+                        && local_company_requires_provisions(kind, military_demands)
+                    {
                         0.76
                     } else {
                         1.0
@@ -370,7 +388,7 @@ fn step_active_member(
     ctx.db.combat_agent().id().update(agent);
 }
 
-fn step_company_upkeep(ctx: &ReducerContext, tick: u64) {
+fn step_company_upkeep(ctx: &ReducerContext, tick: u64, military_demands: u8) {
     let day_ticks = military_day_ticks();
     for mut company in ctx.db.military_company().iter().collect::<Vec<_>>() {
         if company.state >= 2 || company.living_members == 0 {
@@ -386,8 +404,11 @@ fn step_company_upkeep(ctx: &ReducerContext, tick: u64) {
         company.last_upkeep_tick = company
             .last_upkeep_tick
             .saturating_add(elapsed_days.saturating_mul(day_ticks));
-        if kind != MilitaryKind::Militia {
+        let requires_provisions = local_company_requires_provisions(kind, military_demands);
+        if requires_provisions {
             company.provision_days = (company.provision_days - elapsed_days as f64).max(0.0);
+        }
+        if company_wages_enabled(kind, military_demands) {
             let daily_wage = match kind {
                 MilitaryKind::Spearmen => company.living_members.div_ceil(4),
                 MilitaryKind::MenAtArms | MilitaryKind::Crossbows => {
@@ -409,10 +430,10 @@ fn step_company_upkeep(ctx: &ReducerContext, tick: u64) {
             if !paid {
                 company.morale = (company.morale - 0.08 * elapsed_days as f64).max(0.05);
             }
-            if company.provision_days <= 0.0 {
-                company.morale = (company.morale - 0.04 * elapsed_days as f64).max(0.05);
-                company.cohesion = (company.cohesion - 0.025 * elapsed_days as f64).max(0.1);
-            }
+        }
+        if requires_provisions && company.provision_days <= 0.0 {
+            company.morale = (company.morale - 0.04 * elapsed_days as f64).max(0.05);
+            company.cohesion = (company.cohesion - 0.025 * elapsed_days as f64).max(0.1);
         }
         ctx.db.military_company().id().update(company);
     }
@@ -530,7 +551,7 @@ fn begin_mercenary_departure(ctx: &ReducerContext, company_id: u64) {
     }
 }
 
-fn refresh_company_summaries(ctx: &ReducerContext, dt: f64) {
+fn refresh_company_summaries(ctx: &ReducerContext, dt: f64, military_demands: u8) {
     for mut company in ctx.db.military_company().iter().collect::<Vec<_>>() {
         let members = ctx
             .db
@@ -566,7 +587,9 @@ fn refresh_company_summaries(ctx: &ReducerContext, dt: f64) {
             } else {
                 company.fatigue = (company.fatigue - dt * 0.0025).max(0.0);
                 company.cohesion = (company.cohesion + dt * 0.0008).min(1.0);
-                if company.provision_days > 0.0 || company.kind == MilitaryKind::Militia as u8 {
+                let requires_provisions = MilitaryKind::from_id(company.kind)
+                    .is_some_and(|kind| local_company_requires_provisions(kind, military_demands));
+                if company.provision_days > 0.0 || !requires_provisions {
                     company.morale = (company.morale + dt * 0.00045).min(1.0);
                 }
             }

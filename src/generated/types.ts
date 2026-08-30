@@ -1032,6 +1032,7 @@ export const WorldConfig = __t.object("WorldConfig", {
   foodSpoilageRate: __t.u8(),
   initialGoodsMultiplier: __t.u8(),
   banditCampsEnabled: __t.bool(),
+  militaryDemands: __t.u8(),
 });
 export type WorldConfig = __Infer<typeof WorldConfig>;
 

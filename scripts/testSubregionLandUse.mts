@@ -6,6 +6,8 @@ import type {
 } from '../src/resources/types.ts';
 import { DEFAULT_WORLD_GENERATION_SETTINGS } from '../src/world/worldGenerationSettings.ts';
 import { computeLandUseProfile } from '../src/regions/landUseProfile.ts';
+import { buildingLandUseAffinities } from '../src/regions/buildingLandUseAffinity.ts';
+import { withBuildingLandUseAffinities } from '../src/resources/inspector/buildingLandUseAffinityRenderer.ts';
 import {
   rasterizeSubregions,
   rasterizeSubregionsWithStats,
@@ -97,6 +99,52 @@ assert.equal(
 );
 assert.ok(naturalAlignment.realmCounts.woodland > 0);
 assert.ok(naturalAlignment.realmCounts.meadow > 0);
+const naturalRealmCount = naturalAlignment.realmCounts.woodland
+  + naturalAlignment.realmCounts.meadow;
+assert.ok(
+  Math.abs(naturalAlignment.realmCounts.woodland / naturalRealmCount - empty.shares.woodland) < 0.001,
+  'the spatial woodland quota must match the authoritative global woodland share',
+);
+
+const pastoralEffects = buildingLandUseAffinities('pastoral_farmstead', empty);
+assert.deepEqual(
+  pastoralEffects.map((entry) => entry.kind),
+  ['meadow', 'rural'],
+  'pastoral holdings should receive global meadow grazing and rural husbandry benefits',
+);
+const swineEffects = buildingLandUseAffinities('swineherd', empty);
+assert.deepEqual(
+  swineEffects.map((entry) => entry.kind),
+  ['woodland', 'rural'],
+  'swineherds should receive global woodland mast and rural husbandry benefits',
+);
+assert.ok(swineEffects[0]!.bonus > 0);
+assert.equal(buildingLandUseAffinities('fishing_camp', empty).length, 0);
+assert.equal(buildingLandUseAffinities('lumber_mill', empty)[0]?.kind, 'woodland');
+assert.equal(buildingLandUseAffinities('weaponsmith_armorer', industrial)[0]?.kind, 'urban');
+const swineAffinityView = withBuildingLandUseAffinities(
+  {
+    eyebrow: 'Building',
+    title: 'Swineherd',
+    statusText: '',
+    statusState: 'positive',
+    detailsHtml: '',
+    demolish: { visible: false, hint: '' },
+    labor: {
+      visible: false,
+      count: 0,
+      hint: '',
+      decreaseDisabled: true,
+      increaseDisabled: true,
+    },
+  },
+  { kind: 'swineherd' } as BuildingState,
+  empty,
+);
+assert.match(swineAffinityView.detailsHtml, /data-land-use-kind="woodland"/);
+assert.match(swineAffinityView.detailsHtml, /data-tooltip-title="Mast and pannage/);
+assert.match(swineAffinityView.detailsHtml, /Placement inside the colored zone is not required/);
+assert.match(swineAffinityView.detailsHtml, /tabindex="0"/);
 
 const rasterField = {
   area: 8_000,

@@ -1,12 +1,16 @@
 import {
   MILITARY_FORMATIONS,
   MILITARY_RECRUITMENT,
+  militaryCompanyRequiresProvisions,
   militaryCostText,
   militaryFormationLabel,
   militaryKindLabel,
+  militaryRecruitmentCost,
+  militaryResupplyCost,
   type MilitaryCompanyKind,
   type MilitaryCompanyState,
 } from '../../security/militaryProgression.ts';
+import { getActiveWorldGeneration } from '../../world/worldGenerationContext.ts';
 
 const GUARDHOUSE_KIND_ID: Partial<Record<MilitaryCompanyKind, number>> = {
   spearmen: 1,
@@ -31,8 +35,10 @@ export function renderMilitaryRecruitmentPanels(
   kinds: readonly MilitaryCompanyKind[],
   disabled: boolean,
 ): string {
+  const militaryDemands = getActiveWorldGeneration().militaryDemands;
   return kinds.map((kind) => {
     const definition = MILITARY_RECRUITMENT[kind];
+    const recruitmentCost = militaryRecruitmentCost(kind, militaryDemands);
     const action = kind === 'militia'
       ? `data-raise-militia="${definition.size}"`
       : kind === 'mercenary-spears'
@@ -42,7 +48,13 @@ export function renderMilitaryRecruitmentPanels(
       ? 'Selected men physically report here before the company becomes active.'
       : kind === 'mercenary-spears'
         ? 'They enter at a safe map edge and cost one Treasury gold per surviving man each day. When dismissed, unpaid, idle for seven days, or at the end of their three-week term, they stop accepting orders and march back to that edge. A two-day retainer can recall survivors before they exit.'
-        : 'The company forms immediately after town stores and available resident labor are verified.';
+        : militaryDemands === 0
+          ? 'Only equipment and available resident labor are required; local provisions and wages are disabled.'
+          : militaryDemands === 1
+            ? 'Equipment, available resident labor, and one three-day preserved ration per soldier are required; local wages are disabled.'
+            : militaryDemands === 2
+              ? 'Equipment, resident labor, a three-day ration issue, shared ale, and professional wages are required.'
+              : 'Equipment, resident labor, two preserved rations and one ale per soldier, and professional wages are required.';
     const militiaSize = kind === 'militia'
       ? `<label class="military-size-picker">
           <span>Militia company size</span>
@@ -55,7 +67,7 @@ export function renderMilitaryRecruitmentPanels(
       : '';
     const buttonLabel = kind === 'militia'
       ? 'Muster selected militia company'
-      : `Recruit ${definition.shortLabel} · ${definition.size} men<br><small>${militaryCostText(definition.cost)}</small>`;
+      : `Recruit ${definition.shortLabel} · ${definition.size} men<br><small>${militaryCostText(recruitmentCost)}</small>`;
     return `
       <div class="inspector-action-panel military-recruitment-card" data-inspector-panel-title="${definition.label}">
         <p class="inspector-action-panel__hint">${definition.summary} ${timing}</p>
@@ -80,23 +92,36 @@ export function renderMilitaryCompanyRoster(
       </div>
     `;
   }
-  return companies.map(renderCompany).join('');
+  const militaryDemands = getActiveWorldGeneration().militaryDemands;
+  return companies.map((company) => renderCompany(company, militaryDemands)).join('');
 }
 
-function renderCompany(company: MilitaryCompanyState): string {
+function renderCompany(
+  company: MilitaryCompanyState,
+  militaryDemands: ReturnType<typeof getActiveWorldGeneration>['militaryDemands'],
+): string {
   const percent = (value: number) => `${Math.round(value * 100)}%`;
   const canCommand = company.status === 'active' || company.status === 'mustering';
+  const needsProvisions = militaryCompanyRequiresProvisions(company.kind, militaryDemands);
+  const missingAmmunition = Math.max(0, company.ammunitionCapacity - company.ammunition);
+  const ammunitionPerBundle = company.targetSize > 0
+    ? Math.max(1, Math.ceil(company.ammunitionCapacity / company.targetSize))
+    : 1;
+  const missingAmmunitionBundles = Math.ceil(missingAmmunition / ammunitionPerBundle);
+  const resupplyCost = militaryResupplyCost(company.livingMembers, militaryDemands);
+  if (missingAmmunitionBundles > 0) resupplyCost.ammunition = missingAmmunitionBundles;
   const canResupply = company.kind !== 'militia'
     && company.kind !== 'mercenary-spears'
-    && company.status === 'active';
+    && company.status === 'active'
+    && (needsProvisions || missingAmmunitionBundles > 0);
   const mercenaryLeaving = company.kind === 'mercenary-spears' && company.status === 'leaving';
   const retainerGold = company.livingMembers * 2;
   const ammunition = company.ammunitionCapacity > 0
     ? `<li><span>${company.kind === 'bowmen' ? 'Arrows' : 'Bolts'}</span><span>${company.ammunition} / ${company.ammunitionCapacity}</span></li>`
     : '';
-  const provisions = company.kind === 'militia' || company.kind === 'mercenary-spears'
-    ? ''
-    : `<li><span>Field provisions</span><span>${company.provisionDays.toFixed(1)} days</span></li>`;
+  const provisions = needsProvisions
+    ? `<li><span>Field provisions</span><span>${company.provisionDays.toFixed(1)} days</span></li>`
+    : '';
   const mercenaryContract = company.kind === 'mercenary-spears'
     ? `<li><span>Contract</span><span>1 gold/man/day · 7 quiet days · 21-day term</span></li>`
     : '';
@@ -125,7 +150,7 @@ function renderCompany(company: MilitaryCompanyState): string {
       </ul>
       <div class="resource-action-row military-company-card__formations">${formationButtons}</div>
       <div class="resource-action-row">
-        ${canResupply ? `<button type="button" class="resource-action-button resource-action-button--icon" data-resupply-military-company="${company.id}"><span class="inspector-action-icon" data-action-icon="resupply-company" aria-hidden="true"></span><span>Issue three days' supplies${company.kind === 'crossbows' ? ' and bolts' : company.kind === 'bowmen' ? ' and arrows' : ''}</span></button>` : ''}
+        ${canResupply ? `<button type="button" class="resource-action-button resource-action-button--icon" data-resupply-military-company="${company.id}"><span class="inspector-action-icon" data-action-icon="resupply-company" aria-hidden="true"></span><span>${needsProvisions ? "Issue three days' supplies" : 'Replace ammunition'}<br><small>${militaryCostText(resupplyCost)}</small></span></button>` : ''}
         ${mercenaryLeaving
           ? `<button type="button" class="resource-action-button resource-action-button--icon" data-renew-mercenary-contract="${company.id}"><span class="inspector-action-icon" data-action-icon="mercenaries" aria-hidden="true"></span><span>Pay ${retainerGold} gold to retain company</span></button>`
           : `<button type="button" class="resource-action-button resource-action-button--icon resource-action-button--secondary" data-disband-military-company="${company.id}" ${company.status === 'disbanding' || company.status === 'leaving' || company.status === 'destroyed' ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="disband-company" aria-hidden="true"></span><span>${company.kind === 'mercenary-spears' ? 'End contract and send to region edge' : 'Disband and return home'}</span></button>`}

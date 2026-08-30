@@ -267,7 +267,13 @@ impl SimTickContext {
         } else {
             crate::simulation::grazing_capacity_for_pasture(ctx, pasture, herd)
         };
-        let capacity = base_capacity * self.land_use_profile(ctx).husbandry_multiplier();
+        let profile = self.land_use_profile(ctx);
+        let landscape_multiplier = if herd.species == crate::reducers::livestock::SPECIES_SWINE {
+            profile.woodland_pannage_multiplier()
+        } else {
+            profile.meadow_grazing_multiplier()
+        };
+        let capacity = base_capacity * profile.husbandry_multiplier() * landscape_multiplier;
         self.livestock_grazing_capacity_by_pasture
             .borrow_mut()
             .insert(pasture.id, capacity);

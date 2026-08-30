@@ -11,6 +11,7 @@ import {
   attachWorkerTool,
   disposeWorkerToolSources,
   loadWorkerToolSources,
+  setWorkerToolVisible,
   type WorkerToolKind,
   type WorkerToolSources,
 } from './workerTools.ts';
@@ -609,7 +610,7 @@ export class SettlementCrowdRenderer {
       ? attachWorkerTool(model, this.toolSources[agent.tool])
       : null;
     if (tool && agent.tool) {
-      tool.visible = workerToolVisibleInMode(agent.tool, agent.mode);
+      setWorkerToolVisible(tool, workerToolVisibleInMode(agent.tool, agent.mode));
     }
 
     const mixer = new THREE.AnimationMixer(model);
@@ -719,10 +720,10 @@ export class SettlementCrowdRenderer {
       agent.movementSpeed,
     );
     if (visual.tool && visual.toolKind) {
-      visual.tool.visible = workerToolVisibleInMode(
+      setWorkerToolVisible(visual.tool, workerToolVisibleInMode(
         visual.toolKind,
         agent.mode,
-      );
+      ));
     }
   }
 
@@ -734,10 +735,10 @@ export class SettlementCrowdRenderer {
     visual.actions[visual.mode].fadeOut(0.18);
     visual.actions[nextMode].reset().fadeIn(0.18).play();
     if (visual.tool && visual.toolKind) {
-      visual.tool.visible = workerToolVisibleInMode(
+      setWorkerToolVisible(visual.tool, workerToolVisibleInMode(
         visual.toolKind,
         nextMode,
-      );
+      ));
     }
     visual.mode = nextMode;
   }
@@ -747,7 +748,7 @@ export class SettlementCrowdRenderer {
     if (!visual) return;
     visual.mixer.stopAllAction();
     visual.root.visible = false;
-    if (visual.tool) visual.tool.visible = false;
+    if (visual.tool) setWorkerToolVisible(visual.tool, false);
     this.animated.delete(id);
     if (this.idlePooledVisualCount >= MAX_ANIMATED_VILLAGERS) {
       this.disposeAnimatedVillager(visual);
@@ -1825,7 +1826,17 @@ export function workerToolVisibleInMode(
   // Broadcast sowing needs two empty hands; the farm's hoe must not turn the
   // seed-casting gesture back into a generic tool swing.
   if (mode === 'sow') return false;
-  if (kind === 'spear' || kind === 'crossbow' || kind === 'sidearm' || kind === 'sword-shield' || kind === 'halberd' || kind === 'bow') {
+  if (
+    kind === 'spear'
+    || kind === 'spear-shield'
+    || kind === 'crossbow'
+    || kind === 'sidearm'
+    || kind === 'sidearm-shield'
+    || kind === 'sword-shield'
+    || kind === 'halberd'
+    || kind === 'bow'
+    || kind === 'uskok-kit'
+  ) {
     return mode === 'idle'
       || mode === 'walk'
       || mode === 'run'

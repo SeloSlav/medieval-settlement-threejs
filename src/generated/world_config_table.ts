@@ -31,4 +31,5 @@ export default __t.row({
   foodSpoilageRate: __t.u8().name("food_spoilage_rate"),
   initialGoodsMultiplier: __t.u8().name("initial_goods_multiplier"),
   banditCampsEnabled: __t.bool().name("bandit_camps_enabled"),
+  militaryDemands: __t.u8().name("military_demands"),
 });

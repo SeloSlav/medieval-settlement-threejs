@@ -52,6 +52,7 @@ pub fn configure_world(
     approval_decline_rate: u8,
     food_spoilage_rate: u8,
     initial_goods_multiplier: u8,
+    military_demands: u8,
 ) -> Result<(), String> {
     validate_map_size(map_size)?;
     validate_percent(topography, "topography")?;
@@ -63,6 +64,7 @@ pub fn configure_world(
     validate_difficulty_rate(approval_decline_rate, "approval_decline_rate")?;
     validate_difficulty_rate(food_spoilage_rate, "food_spoilage_rate")?;
     validate_initial_goods_multiplier(initial_goods_multiplier)?;
+    validate_military_demands(military_demands)?;
     let enemy_pressure = if conflict_enabled {
         enemy_pressure.max(1)
     } else {
@@ -90,7 +92,8 @@ pub fn configure_world(
         || config.well_aquifer_networks_enabled != well_aquifer_networks_enabled
         || config.approval_decline_rate != approval_decline_rate
         || config.food_spoilage_rate != food_spoilage_rate
-        || config.initial_goods_multiplier != initial_goods_multiplier;
+        || config.initial_goods_multiplier != initial_goods_multiplier
+        || config.military_demands != military_demands;
     let setup_changed = terrain_changed || resources_changed || rules_changed;
 
     // Only lock generation after a client has published settings. The sim scheduler
@@ -120,6 +123,7 @@ pub fn configure_world(
             approval_decline_rate,
             food_spoilage_rate,
             initial_goods_multiplier,
+            military_demands,
             configured: true,
             // Repair idle ticks that ran before the first client published settings.
             sim_tick: if !config.configured {
@@ -164,6 +168,13 @@ fn validate_initial_goods_multiplier(value: u8) -> Result<(), String> {
     Err("initial_goods_multiplier must be 1 or 2".into())
 }
 
+fn validate_military_demands(value: u8) -> Result<(), String> {
+    if value <= 3 {
+        return Ok(());
+    }
+    Err("military_demands must be 0, 1, 2, or 3".into())
+}
+
 pub fn default_world_config() -> WorldConfig {
     WorldConfig {
         id: 0,
@@ -185,6 +196,7 @@ pub fn default_world_config() -> WorldConfig {
         approval_decline_rate: 100,
         food_spoilage_rate: 100,
         initial_goods_multiplier: 1,
+        military_demands: 1,
         configured: false,
     }
 }

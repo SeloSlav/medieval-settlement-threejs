@@ -25,7 +25,7 @@ export const SUBREGION_DEFINITIONS: readonly SubregionDefinition[] = [
     color: '#d5b84f',
     rgb: [213, 184, 79],
     affinity: 'Pollination',
-    effect: 'Realm-wide apiary forage and pollination',
+    effect: 'Realm-wide apiary pollination plus open grazing and haymaking',
     maximumBonus: 0.20,
   },
   {
@@ -34,7 +34,7 @@ export const SUBREGION_DEFINITIONS: readonly SubregionDefinition[] = [
     color: '#397148',
     rgb: [57, 113, 72],
     affinity: 'Forestry',
-    effect: 'Realm-wide woodcutter throughput',
+    effect: 'Realm-wide forestry, wild harvest, tree recovery, and swine pannage',
     maximumBonus: 0.18,
   },
   {
@@ -52,7 +52,7 @@ export const SUBREGION_DEFINITIONS: readonly SubregionDefinition[] = [
     color: '#83a35b',
     rgb: [131, 163, 91],
     affinity: 'Husbandry',
-    effect: 'Realm-wide pasture capacity and haymaking',
+    effect: 'Realm-wide livestock capacity and husbandry support',
     maximumBonus: 0.12,
   },
   {
@@ -76,7 +76,7 @@ export function naturalWoodlandFraction(forestDensity: number): number {
   return 0.18 + density / 100 * 0.42;
 }
 
-/** A binary land-use overlay treats ground as woodland once forest is dominant. */
+/** Useful local classifier; the realm overlay quota-ranks this same forest signal. */
 export const WOODLAND_FOREST_BLEND_MIN = 0.5;
 
 export function naturalSubregionFromForestBlend(

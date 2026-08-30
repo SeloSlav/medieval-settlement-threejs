@@ -23,7 +23,7 @@ import {
 } from './landUseProfile.ts';
 import {
   SUBREGION_KINDS,
-  naturalSubregionFromForestBlend,
+  naturalWoodlandFraction,
   subregionDefinition,
   type SubregionKind,
 } from './subregionField.ts';
@@ -56,6 +56,7 @@ type RasterizeSubregionsOptions = {
   resolution: number;
   bounds: TerrainBounds;
   realmBounds?: TerrainBounds;
+  woodlandFraction?: number;
   sampleForestBlend: (x: number, z: number) => number;
   state: SubregionOverlayState;
 };
@@ -135,25 +136,10 @@ export class SubregionOverlay {
       resolution: SUBREGION_OVERLAY_RESOLUTION,
       bounds: this.terrain.bounds,
       realmBounds: fullTerrainBounds(this.terrain.generationSize),
+      woodlandFraction: naturalWoodlandFraction(this.settings.forestDensity),
       sampleForestBlend: (x, z) => this.terrain.getForestBlendAt(x, z),
       state: this.state,
     });
-    const realmSampleCount = Object.values(raster.realmCounts).reduce(
-      (sum, count) => sum + count,
-      0,
-    );
-    if (realmSampleCount > 0) {
-      this.profile = {
-        ...this.profile,
-        shares: Object.fromEntries(SUBREGION_KINDS.map((kind) => [
-          kind,
-          raster.realmCounts[kind] / realmSampleCount,
-        ])) as Record<SubregionKind, number>,
-      };
-      // Bonuses remain the server-mirrored balance values. The shares now
-      // describe the same spatial classification rendered by this overlay.
-      publishLandUseProfile(this.profile);
-    }
     this.texture?.dispose();
     this.texture = new THREE.DataTexture(
       raster.data,
@@ -192,6 +178,32 @@ export function rasterizeSubregionsWithStats(
     SUBREGION_KINDS.map((kind) => [kind, 0]),
   ) as Record<SubregionKind, number>;
   const denominator = resolution - 1;
+  const kinds = new Array<SubregionKind | null>(resolution * resolution).fill(null);
+  const naturalRealm: Array<{ index: number; forestBlend: number }> = [];
+  const naturalOutside: Array<{ index: number; forestBlend: number }> = [];
+
+  for (let row = 0; row < resolution; row += 1) {
+    const z = options.bounds.minZ
+      + row / denominator * (options.bounds.maxZ - options.bounds.minZ);
+    for (let column = 0; column < resolution; column += 1) {
+      const x = options.bounds.minX
+        + column / denominator * (options.bounds.maxX - options.bounds.minX);
+      const index = row * resolution + column;
+      const kind = claimedSubregionAt(x, z, rasterState);
+      kinds[index] = kind;
+      if (kind == null) {
+        const candidate = {
+          index,
+          forestBlend: finiteForestBlend(options.sampleForestBlend(x, z)),
+        };
+        (insideBounds(x, z, realmBounds) ? naturalRealm : naturalOutside).push(candidate);
+      }
+    }
+  }
+
+  const woodlandFraction = clamp01(options.woodlandFraction ?? 0.39);
+  assignNaturalQuota(kinds, naturalRealm, woodlandFraction);
+  assignNaturalQuota(kinds, naturalOutside, woodlandFraction);
 
   for (let row = 0; row < resolution; row += 1) {
     const z = options.bounds.minZ
@@ -200,7 +212,7 @@ export function rasterizeSubregionsWithStats(
     for (let column = 0; column < resolution; column += 1) {
       const x = options.bounds.minX
         + column / denominator * (options.bounds.maxX - options.bounds.minX);
-      const kind = subregionAt(x, z, options.sampleForestBlend, rasterState);
+      const kind = kinds[row * resolution + column] ?? 'meadow';
       const color = subregionDefinition(kind).rgb;
       const index = (dataRow * resolution + column) * 4;
       data[index] = color[0];
@@ -248,18 +260,38 @@ function prepareRasterState(state: SubregionOverlayState): RasterState {
   };
 }
 
-function subregionAt(
+function claimedSubregionAt(
   x: number,
   z: number,
-  sampleForestBlend: (x: number, z: number) => number,
   state: RasterState,
-): SubregionKind {
+): SubregionKind | null {
   if (insideAnySource(x, z, state.urbanSources)) return 'urban';
   if (insideAnyPolygon(x, z, state.farmlandPolygons)) return 'farmland';
   if (insideAnyPolygon(x, z, state.ruralPolygons) || insideAnySource(x, z, state.ruralSources)) {
     return 'rural';
   }
-  return naturalSubregionFromForestBlend(sampleForestBlend(x, z));
+  return null;
+}
+
+function assignNaturalQuota(
+  kinds: Array<SubregionKind | null>,
+  candidates: Array<{ index: number; forestBlend: number }>,
+  woodlandFraction: number,
+): void {
+  const woodlandCount = Math.round(candidates.length * woodlandFraction);
+  candidates.sort((left, right) =>
+    right.forestBlend - left.forestBlend || left.index - right.index);
+  for (let rank = 0; rank < candidates.length; rank += 1) {
+    kinds[candidates[rank]!.index] = rank < woodlandCount ? 'woodland' : 'meadow';
+  }
+}
+
+function finiteForestBlend(value: number): number {
+  return clamp01(Number.isFinite(value) ? value : 0);
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
 }
 
 function insideBounds(x: number, z: number, bounds: TerrainBounds): boolean {

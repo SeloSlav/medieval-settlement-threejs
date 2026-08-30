@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
+import {
+  militaryCompanyRequiresProvisions,
+  militaryCompanyWagesEnabled,
+  militaryRecruitmentCost,
+  militaryResupplyCost,
+} from '../src/security/militaryProgression.ts';
 
 const read = (path: string) => readFileSync(path, 'utf8');
 const policy = read('src/security/militaryProgression.ts');
@@ -34,6 +40,21 @@ for (const kind of ['militia', 'spearmen', 'men-at-arms', 'crossbows', 'mercenar
 assert.match(policy, /militia:[\s\S]*cost: \{ polearms: 5 \}/);
 assert.match(policy, /crossbows:[\s\S]*ammunition|Crossbow company[\s\S]*eighteen bolts each/i);
 assert.match(policy, /'mercenary-spears':[\s\S]*cost: \{ gold: 96 \}/);
+assert.deepEqual(militaryRecruitmentCost('spearmen', 0), {
+  polearms: 8, shields: 8, paddedArmor: 8, ale: 0, preservedFood: 0, gold: 0,
+});
+assert.deepEqual(militaryResupplyCost(8, 1), { preservedFood: 8 });
+assert.deepEqual(militaryResupplyCost(8, 2), { preservedFood: 16, ale: 2 });
+assert.deepEqual(militaryResupplyCost(8, 3), { preservedFood: 16, ale: 8 });
+assert.deepEqual(militaryRecruitmentCost('mercenary-spears', 0), { gold: 96 });
+assert.deepEqual(militaryRecruitmentCost('mercenary-spears', 3), { gold: 96 });
+assert.equal(militaryCompanyRequiresProvisions('militia', 3), false);
+assert.equal(militaryCompanyRequiresProvisions('mercenary-spears', 3), false);
+assert.equal(militaryCompanyRequiresProvisions('spearmen', 0), false);
+assert.equal(militaryCompanyRequiresProvisions('spearmen', 1), true);
+assert.equal(militaryCompanyWagesEnabled('spearmen', 1), false);
+assert.equal(militaryCompanyWagesEnabled('spearmen', 2), true);
+assert.equal(militaryCompanyWagesEnabled('mercenary-spears', 0), true);
 assert.match(
   serverPolicy,
   /MilitaryKind::Crossbows,[\s\S]*?MilitaryKind::Spearmen[\s\S]*?=> 1\.20/,
@@ -51,6 +72,9 @@ assert.match(reducer, /pub fn renew_mercenary_contract/);
 assert.match(reducer, /survivors\.len\(\)[\s\S]*?saturating_mul\(2\)/);
 assert.match(reducer, /MilitaryKind::MercenarySpears[\s\S]*?begin_disband/);
 assert.match(reducer, /pub fn resupply_military_company/);
+assert.match(reducer, /MilitaryCost::for_company_with_demands\(kind, size, demands\)/);
+assert.match(reducer, /military_resupply_cost\(company\.living_members, demands\)/);
+assert.match(reducer, /provision_days: 0\.0/);
 assert.match(reducer, /pub fn set_military_formation/);
 assert.match(reducer, /residence-\{\}:person:\{\}/);
 assert.match(reducer, /available_building_labor\(ctx, owner\)/);
@@ -85,6 +109,8 @@ assert.match(simulation, /fn nearest_distributed_enemy/);
 assert.match(simulation, /fn walk_flocked/);
 assert.match(simulation, /assigned \* 2\.75/);
 assert.match(simulation, /fn step_company_upkeep/);
+assert.match(simulation, /local_company_requires_provisions\(kind, military_demands\)/);
+assert.match(simulation, /company_wages_enabled\(kind, military_demands\)/);
 assert.match(simulation, /fn step_mercenary_contracts/);
 assert.match(simulation, /MERCENARY_IDLE_DEPARTURE_DAYS/);
 assert.match(simulation, /MERCENARY_MAX_CONTRACT_DAYS/);
@@ -155,5 +181,9 @@ for (const icon of [
     `${icon} must be mapped into the inspector icon system`,
   );
 }
+
+const militaryDemandsAtlas = 'public/assets/ui/icons/world-setup/military-demands-atlas.png';
+assert.ok(existsSync(militaryDemandsAtlas));
+assert.ok(statSync(militaryDemandsAtlas).size > 10_000);
 
 console.log('Military progression contract valid: nine distinct company types including Men-at-Arms, counter roles, Uskok frontier infantry, variable militia strength, edge-arriving mercenaries with paid finite contracts, physical reversible edge departure and retainer recall, company-atomic flock orders, individual combat profiles, physical resident muster/return/salvage, formations, ammo, UI controls, and woodcut icons.');

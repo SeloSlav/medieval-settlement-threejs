@@ -78,7 +78,8 @@ pub fn step_reforester(
     let productive_labor = ox_amplified_worker_count(onsite_labor, paired_oxen);
     let growth_increment =
         reforester_growth_per_tree_per_second(recovering_trees.len(), productive_labor)
-            * tree_regrowth_step_seconds();
+            * tree_regrowth_step_seconds()
+            * tick.land_use_profile(ctx).forestry_multiplier();
     if growth_increment <= 0.0 {
         return;
     }

@@ -44,6 +44,7 @@ const row = {
   approvalDeclineRate: 50,
   foodSpoilageRate: 150,
   initialGoodsMultiplier: 2,
+  militaryDemands: 3,
   configured: true,
 } satisfies WorldConfig;
 
@@ -61,6 +62,7 @@ assert.equal(generation.wellAquiferNetworksEnabled, true);
 assert.equal(generation.approvalDeclineRate, 50);
 assert.equal(generation.foodSpoilageRate, 150);
 assert.equal(generation.initialGoodsMultiplier, 2);
+assert.equal(generation.militaryDemands, 3);
 assert.equal(generation.configured, true);
 
 assert.equal(
@@ -81,6 +83,7 @@ assert.equal(payload.wellAquiferNetworksEnabled, false);
 assert.equal(payload.approvalDeclineRate, 100);
 assert.equal(payload.foodSpoilageRate, 100);
 assert.equal(payload.initialGoodsMultiplier, 1);
+assert.equal(payload.militaryDemands, 1);
 
 const frontierPayload = settingsToConfigurePayload({
   ...DEFAULT_WORLD_GENERATION_SETTINGS,
@@ -163,6 +166,7 @@ assert.deepEqual(
       approvalDeclineRate: generation.approvalDeclineRate,
       foodSpoilageRate: generation.foodSpoilageRate,
       initialGoodsMultiplier: generation.initialGoodsMultiplier,
+      militaryDemands: generation.militaryDemands,
     },
   },
 );
@@ -432,17 +436,24 @@ async function testDifficultySetupContract(): Promise<void> {
   assert.match(difficultySource, /id: 'easy'[\s\S]*approvalDeclineRate: 0[\s\S]*foodSpoilageRate: 0[\s\S]*initialGoodsMultiplier: 2/);
   assert.match(difficultySource, /id: 'normal'[\s\S]*approvalDeclineRate: 100[\s\S]*foodSpoilageRate: 100[\s\S]*initialGoodsMultiplier: 1/);
   assert.match(difficultySource, /id: 'hardcore'[\s\S]*enemyPressure: 100[\s\S]*severeWeatherEnabled: true[\s\S]*approvalDeclineRate: 150[\s\S]*foodSpoilageRate: 150/);
+  assert.match(difficultySource, /id: 'easy'[\s\S]*?militaryDemands: 0/);
+  assert.match(difficultySource, /id: 'normal'[\s\S]*?militaryDemands: 1/);
+  assert.match(difficultySource, /id: 'hardcore'[\s\S]*?militaryDemands: 3/);
   assert.match(setupSource, /difficultyPresetValue\.textContent = preset\?\.name \?\? 'Custom'/);
   assert.match(setupSource, /data-world-selector="approval-decline"/);
   assert.match(setupSource, /0: \['Disabled', 'No passive approval loss\.'\][\s\S]*150: \['Demanding'/);
   assert.match(setupSource, /data-world-selector="food-spoilage"[\s\S]*Food never spoils/);
   assert.match(setupSource, /data-world-selector="initial-goods"[\s\S]*Twice the goods in the original camp/);
+  assert.match(setupSource, /data-world-selector="military-demands"/);
+  assert.match(setupSource, /Muster only[\s\S]*Light rations[\s\S]*Full upkeep[\s\S]*Campaign burden/);
   assert.match(settingsSource, /approvalDeclineRate:\s*100/);
   assert.match(settingsSource, /foodSpoilageRate:\s*100/);
   assert.match(settingsSource, /initialGoodsMultiplier:\s*1/);
+  assert.match(settingsSource, /militaryDemands:\s*1/);
   assert.match(serverConfigSource, /validate_difficulty_rate\(approval_decline_rate/);
   assert.match(serverConfigSource, /validate_difficulty_rate\(food_spoilage_rate/);
   assert.match(serverConfigSource, /validate_initial_goods_multiplier\(initial_goods_multiplier\)/);
+  assert.match(serverConfigSource, /validate_military_demands\(military_demands\)/);
 }
 
 async function testAquiferSetupContract(): Promise<void> {

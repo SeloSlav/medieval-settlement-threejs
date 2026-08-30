@@ -1,7 +1,22 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import {
+  attachMilitaryEquipment,
+  createMilitaryEquipmentSources,
+  disposeMilitaryEquipmentSource,
+  isMilitaryEquipmentSource,
+  setMilitaryEquipmentVisible,
+  type MilitaryEquipmentKind,
+  type MilitaryEquipmentSource,
+} from './militaryEquipment.ts';
 
-export type WorkerToolKind = 'hatchet' | 'pickaxe' | 'hammer' | 'hoe' | 'shovel' | 'spear' | 'crossbow' | 'sidearm' | 'sword-shield' | 'halberd' | 'bow';
+export type WorkerToolKind =
+  | 'hatchet'
+  | 'pickaxe'
+  | 'hammer'
+  | 'hoe'
+  | 'shovel'
+  | MilitaryEquipmentKind;
 
 export const WORKER_TOOL_URLS: Record<WorkerToolKind, string> = {
   hatchet: '/assets/models/worker-tools/kenney-tool-hatchet.glb',
@@ -9,14 +24,16 @@ export const WORKER_TOOL_URLS: Record<WorkerToolKind, string> = {
   hammer: '/assets/models/worker-tools/kenney-tool-hammer.glb',
   hoe: '/assets/models/worker-tools/kenney-tool-hoe.glb',
   shovel: '/assets/models/worker-tools/kenney-tool-shovel.glb',
-  spear: '/assets/models/worker-tools/quaternius-spear.glb',
-  // Crossbows are assembled below from lightweight primitives so the military
-  // renderer does not depend on another externally-authored asset.
+  // Military equipment is generated at historically dimensioned metre scale.
+  spear: '',
+  'spear-shield': '',
   crossbow: '',
   sidearm: '',
+  'sidearm-shield': '',
   'sword-shield': '',
   halberd: '',
   bow: '',
+  'uskok-kit': '',
 };
 
 type WorkerToolFit = {
@@ -60,17 +77,20 @@ const WORKER_TOOL_FIT: Record<WorkerToolKind, WorkerToolFit> = {
     targetLength: 2.25,
     gripFractionFromHandleEnd: 0.28,
   },
+  'spear-shield': { targetLength: 2.12, gripFractionFromHandleEnd: 0.28 },
   crossbow: {
     targetLength: 0.82,
     gripFractionFromHandleEnd: 0.5,
   },
   sidearm: { targetLength: 0.86, gripFractionFromHandleEnd: 0.13 },
+  'sidearm-shield': { targetLength: 0.88, gripFractionFromHandleEnd: 0.13 },
   'sword-shield': { targetLength: 1.05, gripFractionFromHandleEnd: 0.35 },
   halberd: { targetLength: 2.18, gripFractionFromHandleEnd: 0.30 },
   bow: { targetLength: 1.35, gripFractionFromHandleEnd: 0.50 },
+  'uskok-kit': { targetLength: 0.8, gripFractionFromHandleEnd: 0.2 },
 };
 
-export type WorkerToolSource = {
+export type WorkerHandToolSource = {
   kind: WorkerToolKind;
   scene: THREE.Group;
   bounds: THREE.Box3;
@@ -78,143 +98,28 @@ export type WorkerToolSource = {
   sourceLength: number;
 };
 
+export type WorkerToolSource = WorkerHandToolSource | MilitaryEquipmentSource;
+
 export type WorkerToolSources = Record<WorkerToolKind, WorkerToolSource>;
 
 export async function loadWorkerToolSources(): Promise<WorkerToolSources> {
   const loader = new GLTFLoader();
-  const [hatchet, pickaxe, hammer, hoe, shovel, spear] = await Promise.all([
+  const [hatchet, pickaxe, hammer, hoe, shovel] = await Promise.all([
     loader.loadAsync(WORKER_TOOL_URLS.hatchet),
     loader.loadAsync(WORKER_TOOL_URLS.pickaxe),
     loader.loadAsync(WORKER_TOOL_URLS.hammer),
     loader.loadAsync(WORKER_TOOL_URLS.hoe),
     loader.loadAsync(WORKER_TOOL_URLS.shovel),
-    loader.loadAsync(WORKER_TOOL_URLS.spear),
   ]);
+  const military = createMilitaryEquipmentSources();
   return {
     hatchet: createWorkerToolSource('hatchet', hatchet.scene),
     pickaxe: createWorkerToolSource('pickaxe', pickaxe.scene),
     hammer: createWorkerToolSource('hammer', hammer.scene),
     hoe: createWorkerToolSource('hoe', hoe.scene),
     shovel: createWorkerToolSource('shovel', shovel.scene),
-    spear: createWorkerToolSource('spear', spear.scene),
-    crossbow: createWorkerToolSource('crossbow', createProceduralCrossbow()),
-    sidearm: createWorkerToolSource('sidearm', createProceduralSidearm()),
-    'sword-shield': createWorkerToolSource('sword-shield', createProceduralSwordShield()),
-    halberd: createWorkerToolSource('halberd', createProceduralHalberd()),
-    bow: createWorkerToolSource('bow', createProceduralBow()),
+    ...military,
   };
-}
-
-function militaryMaterials(): { wood: THREE.MeshStandardMaterial; iron: THREE.MeshStandardMaterial; cord: THREE.LineBasicMaterial } {
-  return {
-    wood: new THREE.MeshStandardMaterial({ color: 0x704826, roughness: 0.84, metalness: 0.02 }),
-    iron: new THREE.MeshStandardMaterial({ color: 0x555754, roughness: 0.42, metalness: 0.72 }),
-    cord: new THREE.LineBasicMaterial({ color: 0xc4b58d }),
-  };
-}
-
-function createProceduralSidearm(): THREE.Group {
-  const group = new THREE.Group();
-  const { wood, iron } = militaryMaterials();
-  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.68, 0.018), iron);
-  blade.position.y = 0.40;
-  const guard = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.035, 0.04), iron);
-  guard.position.y = 0.035;
-  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, 0.18, 7), wood);
-  grip.position.y = -0.075;
-  group.add(blade, guard, grip);
-  group.name = 'Procedural sidearm';
-  return group;
-}
-
-function createProceduralSwordShield(): THREE.Group {
-  const group = new THREE.Group();
-  const { wood, iron } = militaryMaterials();
-  const sword = createProceduralSidearm();
-  sword.position.set(-0.22, -0.08, 0.06);
-  sword.rotation.z = 0.18;
-  const shield = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), wood);
-  shield.scale.set(0.68, 1.0, 0.12);
-  shield.position.set(0.26, 0.27, 0.04);
-  const boss = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), iron);
-  boss.scale.z = 0.42;
-  boss.position.set(0.26, 0.27, 0.10);
-  group.add(sword, shield, boss);
-  group.name = 'Procedural sword and large shield';
-  return group;
-}
-
-function createProceduralHalberd(): THREE.Group {
-  const group = new THREE.Group();
-  const { wood, iron } = militaryMaterials();
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.026, 1.92, 8), wood);
-  const spear = new THREE.Mesh(new THREE.ConeGeometry(0.065, 0.30, 4), iron);
-  spear.position.y = 1.10;
-  const axe = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.20, 0.045), iron);
-  axe.position.set(0.12, 0.94, 0);
-  axe.rotation.z = -0.22;
-  group.add(shaft, spear, axe);
-  group.name = 'Procedural halberd';
-  return group;
-}
-
-function createProceduralBow(): THREE.Group {
-  const group = new THREE.Group();
-  const { wood, cord } = militaryMaterials();
-  const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.026, 0.70, 8), wood);
-  upper.position.set(0.12, 0.34, 0);
-  upper.rotation.z = -0.34;
-  const lower = upper.clone();
-  lower.position.set(0.12, -0.34, 0);
-  lower.rotation.z = 0.34;
-  const stringGeometry = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(0.235, 0.67, 0), new THREE.Vector3(-0.02, 0, 0), new THREE.Vector3(0.235, -0.67, 0),
-  ]);
-  group.add(upper, lower, new THREE.Line(stringGeometry, cord));
-  group.name = 'Procedural bow';
-  return group;
-}
-
-function createProceduralCrossbow(): THREE.Group {
-  const group = new THREE.Group();
-  const wood = new THREE.MeshStandardMaterial({
-    color: 0x6f4527,
-    roughness: 0.82,
-    metalness: 0.02,
-  });
-  const iron = new THREE.MeshStandardMaterial({
-    color: 0x4a4945,
-    roughness: 0.48,
-    metalness: 0.65,
-  });
-  const cord = new THREE.LineBasicMaterial({ color: 0xc8b992 });
-
-  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.72, 0.065), wood);
-  stock.position.y = 0.05;
-  group.add(stock);
-
-  const tiller = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.18, 0.055), wood);
-  tiller.position.set(0, -0.28, 0.04);
-  tiller.rotation.z = -0.22;
-  group.add(tiller);
-
-  const bow = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.035, 0.045), iron);
-  bow.position.set(0, 0.29, 0);
-  group.add(bow);
-
-  const nut = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.09, 8), iron);
-  nut.rotation.z = Math.PI / 2;
-  nut.position.set(0, 0.06, 0.02);
-  group.add(nut);
-
-  const stringGeometry = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(-0.39, 0.29, 0.01),
-    new THREE.Vector3(0, 0.06, 0.01),
-    new THREE.Vector3(0.39, 0.29, 0.01),
-  ]);
-  group.add(new THREE.Line(stringGeometry, cord));
-  group.name = 'Procedural crossbow';
-  return group;
 }
 
 export function createWorkerToolSource(
@@ -249,6 +154,9 @@ export function attachWorkerTool(
   model: THREE.Group,
   source: WorkerToolSource,
 ): THREE.Group {
+  if (isMilitaryEquipmentSource(source)) {
+    return attachMilitaryEquipment(model, source);
+  }
   const palm = model.getObjectByName('PalmR') ?? model.getObjectByName('R_Hand');
   if (!(palm instanceof THREE.Bone)) {
     throw new Error('Worker rig is missing its PalmR/R_Hand joint.');
@@ -294,9 +202,18 @@ export function attachWorkerTool(
   return tool;
 }
 
+export function setWorkerToolVisible(tool: THREE.Group, visible: boolean): void {
+  if (tool.userData.workerToolMounts) {
+    setMilitaryEquipmentVisible(tool, visible);
+    return;
+  }
+  tool.visible = visible;
+}
+
 export function disposeWorkerToolSources(sources: WorkerToolSources): void {
   for (const source of Object.values(sources)) {
-    disposeModelResources(source.scene);
+    if (isMilitaryEquipmentSource(source)) disposeMilitaryEquipmentSource(source);
+    else disposeModelResources(source.scene);
   }
 }
 

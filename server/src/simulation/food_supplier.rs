@@ -106,7 +106,15 @@ fn step_food_supplier(
     let mut supplier = building;
     let onsite_labor = onsite_building_labor(ctx, &supplier);
     if onsite_labor > 0 {
-        supplier.action_cooldown = (supplier.action_cooldown - TICK_DT).max(0.0);
+        let wild_harvest_multiplier =
+            if matches!(supplier.kind.as_str(), "hunters_hall" | "foragers_shed") {
+                tick.land_use_profile(ctx)
+                    .woodland_wild_harvest_multiplier()
+            } else {
+                1.0
+            };
+        supplier.action_cooldown =
+            (supplier.action_cooldown - TICK_DT * wild_harvest_multiplier).max(0.0);
     }
     let harvest_ready = onsite_labor > 0 && supplier.action_cooldown <= 0.0;
     let has_delivery_stock =

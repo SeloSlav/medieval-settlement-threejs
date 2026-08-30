@@ -90,6 +90,10 @@ pub struct WorldConfig {
     /// this is intentionally separate from frontier and Ottoman raid pressure.
     #[default(false)]
     pub bandit_camps_enabled: bool,
+    /// Local non-militia upkeep: 0 muster only, 1 light rations,
+    /// 2 full upkeep, or 3 campaign burden.
+    #[default(1)]
+    pub military_demands: u8,
 }
 
 #[spacetimedb::table(accessor = player_resources, public)]

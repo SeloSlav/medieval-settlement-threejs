@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Military Company Equipment Lineup</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+        --gold: #dfb84a;
+        --ink: #11140f;
+        --panel: rgba(21, 25, 18, 0.91);
+        --line: rgba(226, 191, 105, 0.27);
+      }
+      * { box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #858d78; }
+      body { display: grid; grid-template-rows: 82px minmax(0, 1fr); }
+      header {
+        position: relative;
+        z-index: 4;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        padding: 0 30px;
+        border-bottom: 1px solid var(--line);
+        background:
+          linear-gradient(90deg, rgba(221, 178, 66, 0.08), transparent 32%),
+          linear-gradient(180deg, #242a20, #161b15);
+        color: #f3eddf;
+        box-shadow: 0 7px 24px rgba(19, 22, 16, 0.22);
+      }
+      .title-block { min-width: 280px; }
+      .eyebrow {
+        color: var(--gold);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 3px 0 0;
+        font: 600 clamp(20px, 2vw, 29px)/1.05 Georgia, serif;
+        letter-spacing: 0.015em;
+      }
+      nav { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 5px; }
+      nav a {
+        padding: 7px 10px;
+        border: 1px solid transparent;
+        border-radius: 3px;
+        color: #c9c5b7;
+        font-size: 10px;
+        font-weight: 750;
+        letter-spacing: 0.08em;
+        text-decoration: none;
+        text-transform: uppercase;
+      }
+      nav a:hover, nav a[aria-current="page"] {
+        border-color: rgba(223, 184, 74, 0.36);
+        background: rgba(223, 184, 74, 0.1);
+        color: #f1ce70;
+      }
+      #status {
+        min-width: 166px;
+        color: #b8b8ab;
+        font-size: 10px;
+        font-weight: 750;
+        letter-spacing: 0.1em;
+        text-align: right;
+        text-transform: uppercase;
+      }
+      body[data-ready="true"] #status { color: #d9c77f; }
+      main { position: relative; min-height: 0; isolation: isolate; }
+      canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+      #vignette {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        background:
+          linear-gradient(180deg, rgba(22, 29, 22, 0.12), transparent 30%, rgba(20, 22, 17, 0.16)),
+          radial-gradient(ellipse at center 55%, transparent 47%, rgba(25, 27, 20, 0.27) 118%);
+      }
+      body[data-view="no-post"] #vignette,
+      body[data-view="topology"] #vignette { display: none; }
+      #labels {
+        --lineup-columns: 9;
+        position: absolute;
+        z-index: 2;
+        left: 3.8vw;
+        right: 3.8vw;
+        bottom: 20px;
+        display: grid;
+        grid-template-columns: repeat(var(--lineup-columns), minmax(0, 1fr));
+        gap: clamp(3px, 0.45vw, 9px);
+        pointer-events: none;
+      }
+      .label-card {
+        position: relative;
+        min-width: 0;
+        min-height: 58px;
+        padding: 9px 7px 7px;
+        border: 1px solid rgba(224, 201, 138, 0.28);
+        border-top-color: rgba(230, 188, 75, 0.62);
+        border-radius: 3px;
+        background: linear-gradient(180deg, rgba(27, 31, 23, 0.93), rgba(16, 19, 14, 0.91));
+        box-shadow: 0 8px 19px rgba(20, 22, 16, 0.18);
+        text-align: center;
+      }
+      .label-number {
+        position: absolute;
+        top: 5px;
+        left: 6px;
+        color: rgba(223, 184, 74, 0.68);
+        font: 700 8px/1 Inter, sans-serif;
+      }
+      .label-title {
+        display: block;
+        overflow: hidden;
+        color: #f4eddf;
+        font: 600 clamp(10px, 0.82vw, 13px)/1.15 Georgia, serif;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .label-kit {
+        display: block;
+        margin-top: 5px;
+        overflow: hidden;
+        color: #c1b28f;
+        font-size: clamp(7px, 0.58vw, 9px);
+        font-weight: 750;
+        letter-spacing: 0.055em;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      #error {
+        position: absolute;
+        z-index: 6;
+        inset: 50% auto auto 50%;
+        display: none;
+        width: min(620px, calc(100% - 40px));
+        translate: -50% -50%;
+        padding: 22px 24px;
+        border: 1px solid #9f563f;
+        border-radius: 4px;
+        background: rgba(31, 22, 18, 0.97);
+        color: #f2dfd5;
+        box-shadow: 0 18px 60px rgba(0,0,0,.4);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+      body[data-error="true"] #error { display: block; }
+      @media (max-width: 1100px) {
+        header { padding-inline: 18px; }
+        nav a { padding-inline: 6px; }
+        #status { display: none; }
+        #labels { left: 1.4vw; right: 1.4vw; gap: 2px; }
+        .label-card { padding-inline: 3px; }
+        .label-kit { display: none; }
+      }
+    </style>
+  </head>
+  <body data-ready="false">
+    <header>
+      <div class="title-block">
+        <div class="eyebrow">Selo Empire · visual contract</div>
+        <h1>Military Company Equipment</h1>
+      </div>
+      <nav aria-label="Lineup views">
+        <a href="?view=design" data-view-link="design">All companies</a>
+        <a href="?view=melee" data-view-link="melee">Melee</a>
+        <a href="?view=ranged" data-view-link="ranged">Ranged</a>
+        <a href="?view=near" data-view-link="near">Near</a>
+        <a href="?view=far" data-view-link="far">Far</a>
+        <a href="?view=no-post" data-view-link="no-post">No post</a>
+        <a href="?view=topology" data-view-link="topology">Topology</a>
+      </nav>
+      <div id="status">Loading nine rigged kits…</div>
+    </header>
+    <main id="lineup-root">
+      <div id="vignette" aria-hidden="true"></div>
+      <div id="labels" aria-label="Military company labels"></div>
+      <div id="error" role="alert"></div>
+    </main>
+    <script type="module" src="/src/e2e/soldierLineup.ts"></script>
+  </body>
+</html>

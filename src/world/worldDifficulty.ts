@@ -12,6 +12,7 @@ export type WorldDifficultyRuleSettings = Pick<
   | 'approvalDeclineRate'
   | 'foodSpoilageRate'
   | 'initialGoodsMultiplier'
+  | 'militaryDemands'
 >;
 
 export type WorldDifficultyPreset = {
@@ -44,6 +45,7 @@ export const WORLD_DIFFICULTY_PRESETS: readonly WorldDifficultyPreset[] = [
       approvalDeclineRate: 0,
       foodSpoilageRate: 0,
       initialGoodsMultiplier: 2,
+      militaryDemands: 0,
     },
   },
   {
@@ -60,6 +62,7 @@ export const WORLD_DIFFICULTY_PRESETS: readonly WorldDifficultyPreset[] = [
       approvalDeclineRate: 100,
       foodSpoilageRate: 100,
       initialGoodsMultiplier: 1,
+      militaryDemands: 1,
     },
   },
   {
@@ -76,6 +79,7 @@ export const WORLD_DIFFICULTY_PRESETS: readonly WorldDifficultyPreset[] = [
       approvalDeclineRate: 150,
       foodSpoilageRate: 150,
       initialGoodsMultiplier: 1,
+      militaryDemands: 3,
     },
   },
 ];
@@ -96,6 +100,7 @@ export function difficultyPresetForSettings(
     && preset.settings.approvalDeclineRate === settings.approvalDeclineRate
     && preset.settings.foodSpoilageRate === settings.foodSpoilageRate
     && preset.settings.initialGoodsMultiplier === settings.initialGoodsMultiplier
+    && preset.settings.militaryDemands === settings.militaryDemands
   ));
 }
 
@@ -118,9 +123,16 @@ export function describeWorldDifficulty(
   const settlement = settings.conflictMode === 'frontier'
     ? `Frontier (${settings.enemyPressure}% pressure)`
     : 'Peaceful';
+  const militaryDemands = {
+    0: 'Muster only',
+    1: 'Light rations',
+    2: 'Full upkeep',
+    3: 'Campaign burden',
+  }[settings.militaryDemands];
   const summary = [
     `Settlement: ${settlement}`,
     `Bandit camps: ${settings.banditCampsEnabled ? 'Enabled' : 'Disabled'}`,
+    `Military demands: ${militaryDemands}`,
     `Approval decline: ${approval}`,
     `Food spoilage: ${spoilage}`,
     `Camp supplies: ${settings.initialGoodsMultiplier === 2 ? 'Double' : 'Normal'}`,

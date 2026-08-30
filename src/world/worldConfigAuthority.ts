@@ -1,6 +1,7 @@
 import type { WorldConfig } from '../generated/types.ts';
 import {
   normalizeInitialGoodsMultiplier,
+  normalizeMilitaryDemands,
   normalizeWorldDifficultyRate,
   normalizeWorldGenerationSettings,
   type WorldGenerationSettings,
@@ -56,6 +57,7 @@ export function worldConfigRowToGeneration(row: WorldConfig): AuthoritativeWorld
       approvalDeclineRate: normalizeWorldDifficultyRate(row.approvalDeclineRate),
       foodSpoilageRate: normalizeWorldDifficultyRate(row.foodSpoilageRate),
       initialGoodsMultiplier: normalizeInitialGoodsMultiplier(row.initialGoodsMultiplier),
+      militaryDemands: normalizeMilitaryDemands(row.militaryDemands),
     }),
     configured: row.configured,
   };
@@ -81,7 +83,8 @@ export function generationMatchesServer(
     && server.wellAquiferNetworksEnabled === normalizedLocal.wellAquiferNetworksEnabled
     && server.approvalDeclineRate === normalizedLocal.approvalDeclineRate
     && server.foodSpoilageRate === normalizedLocal.foodSpoilageRate
-    && server.initialGoodsMultiplier === normalizedLocal.initialGoodsMultiplier;
+    && server.initialGoodsMultiplier === normalizedLocal.initialGoodsMultiplier
+    && server.militaryDemands === normalizedLocal.militaryDemands;
 }
 
 export type WorldGenerationAuthorityResolution =
@@ -156,5 +159,6 @@ export function settingsToConfigurePayload(settings: WorldGenerationSettings) {
     approvalDeclineRate: normalized.approvalDeclineRate,
     foodSpoilageRate: normalized.foodSpoilageRate,
     initialGoodsMultiplier: normalized.initialGoodsMultiplier,
+    militaryDemands: normalized.militaryDemands,
   };
 }

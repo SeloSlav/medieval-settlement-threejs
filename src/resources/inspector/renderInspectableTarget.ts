@@ -12,6 +12,7 @@ import type { PantrySafeguardPolicyCode } from '../../economy/pantrySafeguardPol
 import type { SettlementProductionCapacity } from '../../economy/settlementProduction.ts';
 import type { WorldQueries } from '../WorldQueries.ts';
 import type { ServiceCoverageView } from '../serviceCoverage.ts';
+import type { LandUseProfile } from '../../regions/landUseProfile.ts';
 import { renderBackyardInspector } from './backyardRenderer.ts';
 import { renderForagingInspector } from './foragingRenderer.ts';
 import { renderBuildingInspector } from './buildingRenderer.ts';
@@ -68,6 +69,7 @@ export type InspectorView = {
 
 export type InspectorRenderContext = {
   gameState: GameState;
+  landUseProfile: LandUseProfile;
   worldQueries: WorldQueries;
   populationStats: PopulationStats;
   resourceTotals: ResourceTotals;

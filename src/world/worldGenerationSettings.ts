@@ -6,6 +6,8 @@ export type WorldMapSize = 'small' | 'medium' | 'large';
 export type WorldConflictMode = 'peaceful' | 'frontier';
 export type WorldDifficultyRate = 0 | 50 | 100 | 150;
 export type WorldInitialGoodsMultiplier = 1 | 2;
+/** 0 = equipment only, 1 = light rations, 2 = full upkeep, 3 = campaign burden. */
+export type WorldMilitaryDemands = 0 | 1 | 2 | 3;
 
 export type WorldGenerationSettings = {
   seed: number;
@@ -38,6 +40,8 @@ export type WorldGenerationSettings = {
   foodSpoilageRate: WorldDifficultyRate;
   /** Goods placed in the original founders' camp. Later camps are unaffected. */
   initialGoodsMultiplier: WorldInitialGoodsMultiplier;
+  /** Supplies and wages demanded by local non-militia companies. */
+  militaryDemands: WorldMilitaryDemands;
 };
 
 export type WorldDimensions = {
@@ -104,6 +108,7 @@ export const DEFAULT_WORLD_GENERATION_SETTINGS: WorldGenerationSettings = {
   approvalDeclineRate: 100,
   foodSpoilageRate: 100,
   initialGoodsMultiplier: 1,
+  militaryDemands: 1,
 };
 
 const STORAGE_KEY = 'medieval-road-system:world-generation';
@@ -211,6 +216,7 @@ export function normalizeWorldGenerationSettings(
     approvalDeclineRate: normalizeWorldDifficultyRate(partial.approvalDeclineRate),
     foodSpoilageRate: normalizeWorldDifficultyRate(partial.foodSpoilageRate),
     initialGoodsMultiplier: normalizeInitialGoodsMultiplier(partial.initialGoodsMultiplier),
+    militaryDemands: normalizeMilitaryDemands(partial.militaryDemands),
   };
 }
 
@@ -261,4 +267,10 @@ export function normalizeInitialGoodsMultiplier(
   value: number | undefined,
 ): WorldInitialGoodsMultiplier {
   return value === 2 ? 2 : 1;
+}
+
+export function normalizeMilitaryDemands(
+  value: number | undefined,
+): WorldMilitaryDemands {
+  return value === 0 || value === 2 || value === 3 ? value : 1;
 }

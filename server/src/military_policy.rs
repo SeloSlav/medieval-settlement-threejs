@@ -8,6 +8,21 @@ use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
 
 pub const MERCENARY_IDLE_DEPARTURE_DAYS: u64 = 7;
 pub const MERCENARY_MAX_CONTRACT_DAYS: u64 = 21;
+pub const MILITARY_PROVISION_ISSUE_DAYS: f64 = 3.0;
+pub const MILITARY_DEMAND_MUSTER_ONLY: u8 = 0;
+pub const MILITARY_DEMAND_LIGHT_RATIONS: u8 = 1;
+pub const MILITARY_DEMAND_FULL_UPKEEP: u8 = 2;
+pub const MILITARY_DEMAND_CAMPAIGN_BURDEN: u8 = 3;
+
+pub fn normalize_military_demands(value: u8) -> u8 {
+    match value {
+        MILITARY_DEMAND_MUSTER_ONLY
+        | MILITARY_DEMAND_LIGHT_RATIONS
+        | MILITARY_DEMAND_FULL_UPKEEP
+        | MILITARY_DEMAND_CAMPAIGN_BURDEN => value,
+        _ => MILITARY_DEMAND_LIGHT_RATIONS,
+    }
+}
 
 pub fn military_day_ticks() -> u64 {
     (CALENDAR_SECONDS_PER_DAY / TICK_DT).round().max(1.0) as u64
@@ -181,6 +196,72 @@ impl MilitaryCost {
                 ..Self::default()
             },
         }
+    }
+
+    /// Applies the selected world rule to a local company's consumables and
+    /// public pay. Equipment always remains a real recruitment requirement.
+    /// Militia and hired outsiders keep their own independent contracts.
+    pub fn for_company_with_demands(kind: MilitaryKind, size: u32, demands: u8) -> Self {
+        let mut cost = Self::for_company(kind, size);
+        if matches!(kind, MilitaryKind::Militia | MilitaryKind::MercenarySpears) {
+            return cost;
+        }
+        let n = size.max(1);
+        match normalize_military_demands(demands) {
+            MILITARY_DEMAND_MUSTER_ONLY => {
+                cost.ale = 0;
+                cost.preserved_food = 0;
+                cost.gold = 0;
+            }
+            MILITARY_DEMAND_LIGHT_RATIONS => {
+                cost.ale = 0;
+                cost.preserved_food = n;
+                cost.gold = 0;
+            }
+            MILITARY_DEMAND_FULL_UPKEEP => {
+                cost.ale = n.div_ceil(4);
+                cost.preserved_food = n * 2;
+            }
+            MILITARY_DEMAND_CAMPAIGN_BURDEN => {
+                cost.ale = n;
+                cost.preserved_food = n * 2;
+            }
+            _ => unreachable!(),
+        }
+        cost
+    }
+}
+
+pub fn local_company_requires_provisions(kind: MilitaryKind, demands: u8) -> bool {
+    !matches!(kind, MilitaryKind::Militia | MilitaryKind::MercenarySpears)
+        && normalize_military_demands(demands) != MILITARY_DEMAND_MUSTER_ONLY
+}
+
+pub fn company_wages_enabled(kind: MilitaryKind, demands: u8) -> bool {
+    kind == MilitaryKind::MercenarySpears
+        || (!matches!(kind, MilitaryKind::Militia)
+            && normalize_military_demands(demands) >= MILITARY_DEMAND_FULL_UPKEEP)
+}
+
+pub fn military_resupply_cost(living_soldiers: u32, demands: u8) -> MilitaryCost {
+    let n = living_soldiers;
+    match normalize_military_demands(demands) {
+        MILITARY_DEMAND_MUSTER_ONLY => MilitaryCost::default(),
+        MILITARY_DEMAND_LIGHT_RATIONS => MilitaryCost {
+            preserved_food: n,
+            ..MilitaryCost::default()
+        },
+        MILITARY_DEMAND_FULL_UPKEEP => MilitaryCost {
+            ale: n.div_ceil(4),
+            preserved_food: n * 2,
+            ..MilitaryCost::default()
+        },
+        MILITARY_DEMAND_CAMPAIGN_BURDEN => MilitaryCost {
+            ale: n,
+            preserved_food: n * 2,
+            ..MilitaryCost::default()
+        },
+        _ => unreachable!(),
     }
 }
 
@@ -457,6 +538,35 @@ mod tests {
             military_stats(MilitaryKind::Militia).max_health
                 < military_stats(MilitaryKind::Spearmen).max_health
         );
+    }
+
+    #[test]
+    fn military_demands_scale_only_local_company_consumables_and_pay() {
+        let easy = MilitaryCost::for_company_with_demands(
+            MilitaryKind::Spearmen,
+            8,
+            MILITARY_DEMAND_MUSTER_ONLY,
+        );
+        assert_eq!((easy.polearms, easy.shields, easy.padded_armor), (8, 8, 8));
+        assert_eq!((easy.preserved_food, easy.ale, easy.gold), (0, 0, 0));
+
+        let normal = MilitaryCost::for_company_with_demands(
+            MilitaryKind::Spearmen,
+            8,
+            MILITARY_DEMAND_LIGHT_RATIONS,
+        );
+        assert_eq!((normal.preserved_food, normal.ale, normal.gold), (8, 0, 0));
+
+        let hardcore = military_resupply_cost(8, MILITARY_DEMAND_CAMPAIGN_BURDEN);
+        assert_eq!((hardcore.preserved_food, hardcore.ale), (16, 8));
+        assert!(!local_company_requires_provisions(
+            MilitaryKind::MercenarySpears,
+            MILITARY_DEMAND_CAMPAIGN_BURDEN,
+        ));
+        assert!(company_wages_enabled(
+            MilitaryKind::MercenarySpears,
+            MILITARY_DEMAND_MUSTER_ONLY,
+        ));
     }
 
     #[test]

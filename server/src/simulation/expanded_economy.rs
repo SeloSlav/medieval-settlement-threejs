@@ -4556,18 +4556,13 @@ fn step_processor_at_rate(
     outputs: &[(CommodityKind, f64)],
     throughput_multiplier: f64,
 ) -> Building {
-    let affinity_multiplier = if crate::subregion_affinity::is_urban_workshop(&building.kind) {
-        tick.land_use_profile(ctx).industry_multiplier()
-    } else {
-        1.0
-    };
     let Some(labor) = cycle_labor_if_ready_at_rate(
         ctx,
         tick,
         clock,
         &mut building,
         false,
-        throughput_multiplier * affinity_multiplier,
+        throughput_multiplier,
     ) else {
         return building;
     };
@@ -5000,8 +4995,13 @@ fn cycle_labor_if_ready_at_rate(
     if selected_rate <= 1e-9 {
         return None;
     }
+    let affinity_multiplier = if crate::subregion_affinity::is_urban_workshop(&building.kind) {
+        tick.land_use_profile(ctx).industry_multiplier()
+    } else {
+        1.0
+    };
     building.action_cooldown = (building.action_cooldown
-        - TICK_DT * throughput_multiplier.max(0.0) * selected_rate)
+        - TICK_DT * throughput_multiplier.max(0.0) * selected_rate * affinity_multiplier)
         .max(0.0);
     if building.action_cooldown > 1e-6 {
         return None;

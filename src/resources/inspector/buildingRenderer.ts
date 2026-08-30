@@ -32,6 +32,7 @@ import { renderWaysideShrineInspector } from './waysideShrineRenderer.ts';
 import { renderStableInspector } from './stableRenderer.ts';
 import { withBuildingOxTeam } from './buildingOxTeamRenderer.ts';
 import { withBuildingProductionRate } from './buildingProductionRateRenderer.ts';
+import { withBuildingLandUseAffinities } from './buildingLandUseAffinityRenderer.ts';
 
 export function renderBuildingInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -151,5 +152,6 @@ export function renderBuildingInspector(
     building,
     context,
   );
-  return withBuildingOxTeam(safeView, building, context);
+  const oxView = withBuildingOxTeam(safeView, building, context);
+  return withBuildingLandUseAffinities(oxView, building, context.landUseProfile);
 }

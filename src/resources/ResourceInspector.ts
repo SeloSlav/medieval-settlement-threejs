@@ -97,6 +97,7 @@ import { AlertDialog } from '../ui/AlertDialog.ts';
 import { hasCustomTreeWorkArea } from './treeWorkArea.ts';
 import { resourceNodeArtUrl } from './resourceNodeArt.ts';
 import { BUILDING_CARD_ART } from './buildingCardArt.ts';
+import { computeLandUseProfile } from '../regions/landUseProfile.ts';
 
 const INSPECTOR_TOOLTIP_MAX_LENGTH = 120;
 
@@ -2547,8 +2548,19 @@ export class ResourceInspector {
     const getFiscalPolicy = this.options.getFiscalPolicy;
     const getProductionLaborStewardEnabled = this.options.getProductionLaborStewardEnabled;
     const getLaborStewardReserve = this.options.getLaborStewardReserve;
+    const landUseProfile = computeLandUseProfile(
+      this.options.sceneManager.worldLayout.settings,
+      {
+        buildings: gameState.buildings.values(),
+        residences: gameState.residences.values(),
+        farmFields: gameState.farmFields.values(),
+        pastures: gameState.pastures.values(),
+        vineyardParcels: gameState.vineyardParcels?.values() ?? [],
+      },
+    );
     const view = renderInspectableTarget(target, {
       gameState,
+      landUseProfile,
       worldQueries: this.options.worldQueries,
       populationStats: this.populationStats,
       resourceTotals,
@@ -3013,6 +3025,7 @@ export class ResourceInspector {
         .filter(({ row }) =>
           row.hasAttribute('data-local-storage')
           || row.hasAttribute('data-fire-safety')
+          || row.hasAttribute('data-land-use-affinities')
           || row.hasAttribute('data-construction-summary'))
         .map(({ row }) => row);
       this.detailList.replaceChildren(...withInspectorSectionHeadings(compactRows));

@@ -15,7 +15,7 @@ equipment repair remain intentionally outside this pass.
    A resident-backed company therefore requires its full roster as currently
    unreserved labor in addition to every listed material cost.
 2. Local recruitment is atomic: the company forms only when every required man
-   and every complete equipment/provision lot is available. Goods are withdrawn
+   and every complete equipment/provision lot selected by the world setting is available. Goods are withdrawn
    from completed Guardhouses, Storehouses, Granaries, other physical holdings,
    and only then legacy treasury stock. Timber and ironwork use their existing
    aggregate physical-store spending paths.
@@ -31,13 +31,32 @@ equipment repair remain intentionally outside this pass.
    company, draws one circle around its footprint, and expands every order to
    all living members. They auto-acquire nearby bandits and Ottoman raiders,
    while explicit orders move them, hold them, or attack a bandit camp.
-5. Morale, cohesion, fatigue, pay, field provisions, formation, individual
+5. Morale, cohesion, fatigue, configured pay and field provisions, formation, individual
    health/armor/damage quality, and finite missile ammunition affect real
    combat. A broken company retreats.
 6. Militia and mercenary spear companies are Town Hall forces in every game
    mode. They never depend on Ottoman conflict, raid pressure, an enabled
    Guardhouse, or another military building. This preserves a complete answer
    to physical bandits in peaceful settlements where bandit camps are enabled.
+
+## Military demands world setting
+
+The setting applies only to local, non-militia companies. Every ration issue
+lasts three calendar days; the listed amounts are not charged again each day.
+
+| Setting | Recruitment and resupply issue | Daily local wages |
+| --- | --- | --- |
+| Muster only (Easy) | Equipment and available resident labor only | Disabled |
+| Light rations (Normal) | 1 preserved food per living soldier | Disabled |
+| Full upkeep | 2 preserved food per living soldier + 1 ale per 4 living soldiers | Enabled |
+| Campaign burden (Hardcore) | 2 preserved food + 1 ale per living soldier | Enabled |
+
+Militia always require only one polearm per selected resident and never draw
+provisions or wages. Mercenaries always use their independent 96-gold hiring
+contract and one gold per surviving man per day; they never draw local field
+provisions. Bow and crossbow ammunition remains a physical requirement in every
+setting. Full upkeep and Campaign burden also retain each company's displayed
+Treasury signing cost at recruitment.
 
 ## Progression and balance
 
@@ -57,9 +76,9 @@ equipment repair remain intentionally outside this pass.
 
 - Source: completed Guardhouse.
 - Roster: eight resident men, formed immediately at the Guardhouse.
-- Initial cost: 8 polearms, 8 shields, 8 padded armor, 4 ale,
-  16 preserved food, and 8 Treasury gold.
-- Daily pay: one gold per four survivors. Three field-provision days are issued.
+- Equipment cost: 8 polearms, 8 shields, and 8 padded armor. The selected
+  Military demands setting adds any initial three-day ration issue and pay.
+- Paid-tier daily pay: one gold per four survivors.
 - Role: the replacement for the old free abstract Guardhouse guard. It is the
   ordinary standing settlement formation and has a useful shield wall.
 
@@ -67,9 +86,9 @@ equipment repair remain intentionally outside this pass.
 
 - Source: completed Guardhouse.
 - Roster: eight resident men, formed immediately.
-- Initial cost: 8 sidearms, 8 shields, 8 mail armor, 8 ale,
-  24 preserved food, and 32 Treasury gold.
-- Daily pay: one gold per two survivors.
+- Equipment cost: 8 sidearms, 8 shields, and 8 mail armor. The selected setting
+  adds any initial ration issue and pay.
+- Paid-tier daily pay: one gold per two survivors.
 - Role: armored sword-and-large-shield professionals with 96 base health, high
   morale/cohesion, and the strongest shield-wall mitigation. They hold against
   arrows and light footmen but are slow and intentionally lose to armor-piercing
@@ -79,19 +98,20 @@ equipment repair remain intentionally outside this pass.
 
 - Source: completed Guardhouse.
 - Roster: six resident men, formed immediately in loose order.
-- Initial cost: 6 crossbows, 6 padded armor, 6 ammunition bundles,
-  3 ale, 18 preserved food, and 12 Treasury gold.
+- Equipment cost: 6 crossbows, 6 padded armor, and 6 ammunition bundles. The
+  selected setting adds any initial ration issue and pay.
 - Ammunition: 18 bolts per man (108 per full company). Resupply spends physical
-  ammunition bundles and restores three provision days. Without bolts they deal
+  ammunition bundles and, where enabled, restores three provision days. Without bolts they deal
   only weak melee damage and try to maintain distance while ammunition remains.
-- Daily pay: one gold per two survivors.
+- Paid-tier daily pay: one gold per two survivors.
 - Role: strong prepared ranged damage, low health, no shield-wall formation,
   and a deliberately vulnerable melee fallback.
 
 ### Footman company
 
 - Source: completed Guardhouse; eight resident men.
-- Kit: sidearms, small shields, helmets/gambesons, provisions, and pay.
+- Kit: sidearms, small shields, and padded armor; configured provisions and pay
+  are added by the world setting.
 - Role: aggressive sustained melee that breaches ordinary spear lines and runs
   down exposed missile troops. Armor-piercing polearms counter them.
 
@@ -115,7 +135,8 @@ equipment repair remain intentionally outside this pass.
 - Historical identity: Croatian frontier infantry inspired by the Senj/Klis
   Uskok tradition, not a fantasy unit and not restricted to Gorski Kotar. Their
   kit represents sidearms, axes/war-hammer techniques, some long weapons,
-  light protection, preserved food, and high professional pay.
+  and light protection. Configured provisions and professional pay are added by
+  the world setting.
 - Role: fastest local company, with strong armor penetration and pursuit of
   bow/crossbow ranks. Braced spears are their deliberate counter.
 
@@ -173,11 +194,13 @@ next-nearest opponent. The player still orders only the atomic company.
 
 ## Upkeep, combat, and casualties
 
-Standing local companies and mercenaries draw Treasury pay once per calendar
-day. Non-militia companies consume one provision day. Missed pay and empty
-provisions reduce morale and cohesion; movement and fighting create fatigue,
-while safe holding slowly restores cohesion and morale. Health, cohesion,
-fatigue, and provisions all feed effective damage and readiness.
+Full-upkeep and campaign-burden local companies draw Treasury pay once per
+calendar day. Local non-militia companies consume one provision day only when
+their setting enables rations. Missed configured pay and empty configured
+provisions reduce morale and cohesion. Mercenaries always draw their independent
+daily contract pay but do not consume local provisions. Movement and fighting
+create fatigue, while safe holding slowly restores cohesion and morale. Health,
+cohesion, fatigue, and enabled provisions all feed effective damage and readiness.
 
 Local companies auto-attack both physical bandits and Ottoman raiders. Bow and
 crossbow agents attack at range, consume individual/company ammunition, and
@@ -223,7 +246,7 @@ The Town Hall inspector contains militia and mercenary recruitment plus attached
 company rosters. The Guardhouse contains spear, Men-at-Arms, footman,
 polearm, bow, crossbow, and Uskok
 recruitment. Every roster shows state, survivors, formation, morale, cohesion,
-fatigue, provisions, and ammunition where relevant, with controls for formation,
+fatigue, enabled provisions, and ammunition where relevant, with controls for formation,
 resupply, and individual disbandment.
 
 All military actions use a dedicated woodcut icon suite consistent with the

@@ -361,6 +361,27 @@
   background-image: url('/assets/ui/icons/world-setup/approval-disabled.png');
 }
 
+.world-setup-setting-row__icon[data-rule-icon='military-demands'] {
+  background-image: url('/assets/ui/icons/world-setup/military-demands-atlas.png');
+  background-size: 200% 200%;
+}
+
+.world-setup-setting-row__icon[data-rule-icon='military-demands'][data-state='0'] {
+  background-position: 0 0;
+}
+
+.world-setup-setting-row__icon[data-rule-icon='military-demands'][data-state='1'] {
+  background-position: 100% 0;
+}
+
+.world-setup-setting-row__icon[data-rule-icon='military-demands'][data-state='2'] {
+  background-position: 0 100%;
+}
+
+.world-setup-setting-row__icon[data-rule-icon='military-demands'][data-state='3'] {
+  background-position: 100% 100%;
+}
+
 .world-setup-setting-row__icon[data-rule-icon='approval'][data-state='50'] {
   background-image: url('/assets/ui/icons/world-setup/approval-relaxed.png');
 }

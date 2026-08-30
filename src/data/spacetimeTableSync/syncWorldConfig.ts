@@ -36,10 +36,12 @@ function sameGeneration(
     && current.resourceVariety === next.resourceVariety
     && current.conflictMode === next.conflictMode
     && current.enemyPressure === next.enemyPressure
+    && current.banditCampsEnabled === next.banditCampsEnabled
     && current.severeWeatherEnabled === next.severeWeatherEnabled
     && current.wellAquiferNetworksEnabled === next.wellAquiferNetworksEnabled
     && current.approvalDeclineRate === next.approvalDeclineRate
     && current.foodSpoilageRate === next.foodSpoilageRate
     && current.initialGoodsMultiplier === next.initialGoodsMultiplier
+    && current.militaryDemands === next.militaryDemands
     && current.configured === next.configured;
 }

@@ -26,6 +26,18 @@ impl LandUseProfile {
         1.0 + (self.woodland * 0.32).min(0.18)
     }
 
+    pub fn meadow_grazing_multiplier(self) -> f64 {
+        1.0 + (self.meadow * 0.18).min(0.10)
+    }
+
+    pub fn woodland_pannage_multiplier(self) -> f64 {
+        1.0 + (self.woodland * 0.22).min(0.12)
+    }
+
+    pub fn woodland_wild_harvest_multiplier(self) -> f64 {
+        1.0 + (self.woodland * 0.20).min(0.10)
+    }
+
     pub fn cultivation_multiplier(self) -> f64 {
         1.0 + (self.farmland * 0.75).min(0.15)
     }
@@ -124,9 +136,10 @@ pub fn compute_land_use_profile(ctx: &ReducerContext) -> LandUseProfile {
 pub fn is_urban_workshop(kind: &str) -> bool {
     matches!(
         kind,
-        "lumber_mill"
-            | "charcoal_burner"
+        "charcoal_burner"
             | "smithy"
+            | "weaponsmith_armorer"
+            | "bowyer_fletcher"
             | "potter_kiln"
             | "brewery"
             | "smokehouse"
@@ -189,8 +202,19 @@ mod tests {
             urban: 0.30,
         };
         assert!(meadow_realm.pollination_multiplier() > urban_realm.pollination_multiplier());
+        assert!(meadow_realm.meadow_grazing_multiplier() > urban_realm.meadow_grazing_multiplier());
+        assert!(
+            meadow_realm.woodland_pannage_multiplier() > urban_realm.woodland_pannage_multiplier()
+        );
+        assert!(
+            meadow_realm.woodland_wild_harvest_multiplier()
+                > urban_realm.woodland_wild_harvest_multiplier()
+        );
         assert!(urban_realm.industry_multiplier() > meadow_realm.industry_multiplier());
         assert!(meadow_realm.pollination_multiplier() <= 1.20);
+        assert!(meadow_realm.meadow_grazing_multiplier() <= 1.10);
+        assert!(meadow_realm.woodland_pannage_multiplier() <= 1.12);
+        assert!(meadow_realm.woodland_wild_harvest_multiplier() <= 1.10);
         assert!(urban_realm.industry_multiplier() <= 1.12);
     }
 

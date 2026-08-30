@@ -698,7 +698,8 @@ export class BuildToolbar {
       this.cropSuitabilityLabels.innerHTML = SUBREGION_DEFINITIONS.map((definition) => {
         const share = Math.round((profile?.shares[definition.kind] ?? 0) * 100);
         const bonus = Math.round((profile?.bonuses[definition.kind] ?? 0) * 100);
-        return `<span class="subregion-legend-chip">`
+        const tooltip = `${definition.effect}. Affected building icons show each exact current bonus; placement inside this colored area is not required.`;
+        return `<span class="subregion-legend-chip" tabindex="0" data-tooltip-title="${escapeToolbarHtml(`${definition.label} affinity`)}" data-tooltip="${escapeToolbarHtml(tooltip)}">`
           + `<i style="--subregion-color:${definition.color}"></i>`
           + `<b>${definition.label}</b> ${share}% <em>+${bonus}% ${definition.affinity}</em></span>`;
       }).join('');

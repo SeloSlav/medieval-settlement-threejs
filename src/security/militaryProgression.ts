@@ -1,5 +1,9 @@
 import type { MilitaryCompany } from '../generated/types.ts';
 import { buildingClientId } from '../data/spacetimeIds.ts';
+import {
+  normalizeMilitaryDemands,
+  type WorldMilitaryDemands,
+} from '../world/worldGenerationSettings.ts';
 
 export const MILITARY_KINDS = [
   'militia',
@@ -77,7 +81,7 @@ export const MILITARY_RECRUITMENT: Record<MilitaryCompanyKind, {
     source: 'guardhouse',
     residentMen: true,
     icon: 'spearmen',
-    summary: 'Eight resident spearmen with shields, padded armor, pay, and three days of field provisions.',
+    summary: 'Eight resident spearmen with shields and padded armor. Reliable line holders with strong reach.',
   },
   'men-at-arms': {
     label: 'Men-at-Arms company',
@@ -134,6 +138,68 @@ export const MILITARY_RECRUITMENT: Record<MilitaryCompanyKind, {
     summary: 'Eight Croatian frontier professionals with light kit, sidearms, axes, and war-hammer techniques. Exceptional flankers and missile hunters; braced spears stop them.',
   },
 };
+
+export const MILITARY_PROVISION_ISSUE_DAYS = 3;
+
+export function militaryRecruitmentCost(
+  kind: MilitaryCompanyKind,
+  demands: WorldMilitaryDemands,
+): MilitaryRecruitmentCost {
+  const cost = { ...MILITARY_RECRUITMENT[kind].cost };
+  if (kind === 'militia' || kind === 'mercenary-spears') return cost;
+  const size = MILITARY_RECRUITMENT[kind].size;
+  switch (normalizeMilitaryDemands(demands)) {
+    case 0:
+      cost.ale = 0;
+      cost.preservedFood = 0;
+      cost.gold = 0;
+      break;
+    case 1:
+      cost.ale = 0;
+      cost.preservedFood = size;
+      cost.gold = 0;
+      break;
+    case 2:
+      cost.ale = Math.ceil(size / 4);
+      cost.preservedFood = size * 2;
+      break;
+    case 3:
+      cost.ale = size;
+      cost.preservedFood = size * 2;
+      break;
+  }
+  return cost;
+}
+
+export function militaryCompanyRequiresProvisions(
+  kind: MilitaryCompanyKind,
+  demands: WorldMilitaryDemands,
+): boolean {
+  return kind !== 'militia'
+    && kind !== 'mercenary-spears'
+    && normalizeMilitaryDemands(demands) !== 0;
+}
+
+export function militaryCompanyWagesEnabled(
+  kind: MilitaryCompanyKind,
+  demands: WorldMilitaryDemands,
+): boolean {
+  return kind === 'mercenary-spears'
+    || (kind !== 'militia' && normalizeMilitaryDemands(demands) >= 2);
+}
+
+export function militaryResupplyCost(
+  livingSoldiers: number,
+  demands: WorldMilitaryDemands,
+): MilitaryRecruitmentCost {
+  const living = Math.max(0, Math.floor(livingSoldiers));
+  switch (normalizeMilitaryDemands(demands)) {
+    case 0: return {};
+    case 1: return { preservedFood: living };
+    case 2: return { preservedFood: living * 2, ale: Math.ceil(living / 4) };
+    case 3: return { preservedFood: living * 2, ale: living };
+  }
+}
 
 export function syncMilitaryCompanies(
   rows: Iterable<MilitaryCompany>,

@@ -8,9 +8,11 @@ use crate::economy::{
     total_timber, treasury_gold, withdraw_building_commodity, CommodityKind,
 };
 use crate::military_policy::{
-    formation_offset, member_combat_profile, military_day_ticks, military_stats, MilitaryCost,
-    MilitaryKind, MERCENARY_MAX_CONTRACT_DAYS, MILITARY_FORMATION_COLUMN, MILITARY_FORMATION_LINE,
-    MILITARY_FORMATION_LOOSE, MILITARY_FORMATION_SHIELD_WALL,
+    formation_offset, local_company_requires_provisions, member_combat_profile,
+    military_day_ticks, military_resupply_cost, military_stats, normalize_military_demands,
+    MilitaryCost, MilitaryKind, MERCENARY_MAX_CONTRACT_DAYS, MILITARY_FORMATION_COLUMN,
+    MILITARY_FORMATION_LINE, MILITARY_FORMATION_LOOSE, MILITARY_FORMATION_SHIELD_WALL,
+    MILITARY_PROVISION_ISSUE_DAYS,
 };
 use crate::raid_agent_policy::playable_half_for_map_size;
 use crate::security_policy::RaidPortableStores;
@@ -91,7 +93,7 @@ pub fn hire_mercenary_company(ctx: &ReducerContext, town_hall_id: u64) -> Result
         morale: stats.starting_morale,
         cohesion: stats.starting_cohesion,
         fatigue: 0.0,
-        provision_days: 3.0,
+        provision_days: 0.0,
         ammunition: 0,
         ammunition_capacity: 0,
         formed_tick: tick,
@@ -386,8 +388,7 @@ pub fn disband_militia(ctx: &ReducerContext) -> Result<(), String> {
     Ok(())
 }
 
-/// Restocks three days of provisions and, for crossbows, enough bolt bundles
-/// to restore all living members to their eighteen-shot field load.
+/// Issues the configured field ration package and restores ranged ammunition.
 #[reducer]
 pub fn resupply_military_company(ctx: &ReducerContext, company_id: u64) -> Result<(), String> {
     let owner = ctx.sender();
@@ -396,24 +397,29 @@ pub fn resupply_military_company(ctx: &ReducerContext, company_id: u64) -> Resul
         return Err("This company cannot be resupplied.".into());
     }
     let kind = MilitaryKind::from_id(company.kind).ok_or("Unknown company type.")?;
-    let food = company.living_members * 3;
-    let ale = company.living_members.div_ceil(2);
+    if matches!(kind, MilitaryKind::Militia | MilitaryKind::MercenarySpears) {
+        return Err("This company does not draw local field provisions.".into());
+    }
+    let demands = military_demands(ctx);
+    let requires_provisions = local_company_requires_provisions(kind, demands);
     let missing_ammunition = company
         .ammunition_capacity
         .saturating_sub(company.ammunition);
-    let cost = MilitaryCost {
-        preserved_food: food,
-        ale,
-        ammunition: if matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen) {
-            missing_ammunition.div_ceil(military_stats(kind).ammunition_per_member.max(1))
-        } else {
-            0
-        },
-        ..MilitaryCost::default()
+    let ammunition_bundles = if matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen) {
+        missing_ammunition.div_ceil(military_stats(kind).ammunition_per_member.max(1))
+    } else {
+        0
     };
+    if !requires_provisions && ammunition_bundles == 0 {
+        return Err("This world does not require field provisions for this company.".into());
+    }
+    let mut cost = military_resupply_cost(company.living_members, demands);
+    cost.ammunition = ammunition_bundles;
     require_cost(ctx, owner, cost)?;
     spend_cost(ctx, owner, cost)?;
-    company.provision_days = 3.0;
+    if requires_provisions {
+        company.provision_days = MILITARY_PROVISION_ISSUE_DAYS;
+    }
     company.ammunition = company.ammunition_capacity;
     ctx.db.military_company().id().update(company.clone());
     if matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen) {
@@ -447,7 +453,8 @@ fn recruit_resident_company(
             size
         ));
     }
-    let cost = MilitaryCost::for_company(kind, size);
+    let demands = military_demands(ctx);
+    let cost = MilitaryCost::for_company_with_demands(kind, size, demands);
     require_cost(ctx, owner, cost)?;
     spend_non_equipment_cost(ctx, owner, cost)?;
     let tick = sim_tick(ctx);
@@ -469,10 +476,10 @@ fn recruit_resident_company(
         morale: stats.starting_morale,
         cohesion: stats.starting_cohesion,
         fatigue: 0.0,
-        provision_days: if kind == MilitaryKind::Militia {
-            0.0
+        provision_days: if local_company_requires_provisions(kind, demands) {
+            MILITARY_PROVISION_ISSUE_DAYS
         } else {
-            3.0
+            0.0
         },
         ammunition: 0,
         ammunition_capacity,
@@ -971,6 +978,14 @@ fn sim_tick(ctx: &ReducerContext) -> u64 {
         .id()
         .find(&0)
         .map_or(0, |row| row.sim_tick)
+}
+
+fn military_demands(ctx: &ReducerContext) -> u8 {
+    ctx.db
+        .world_config()
+        .id()
+        .find(&0)
+        .map_or(1, |row| normalize_military_demands(row.military_demands))
 }
 
 #[cfg(test)]

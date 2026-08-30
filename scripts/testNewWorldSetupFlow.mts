@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { describeWorldDifficulty } from '../src/world/worldDifficulty.ts';
 import { DEFAULT_WORLD_GENERATION_SETTINGS } from '../src/world/worldGenerationSettings.ts';
 
@@ -136,8 +136,10 @@ assert.match(worldDifficulty, /Steadfast Castellan \(Normal\)/);
 assert.match(worldDifficulty, /Marcher Lord \(Hardcore\)/);
 assert.match(worldDifficulty, /No losses or raids; double supplies/);
 assert.match(worldPanel, /data-world-selector="approval-decline"/);
+assert.match(worldPanel, /data-world-selector="military-demands"/);
 assert.match(worldPanel, /data-rule-icon="settlement"[^>]*aria-label="Settlement mode"/);
 assert.match(worldPanel, /data-rule-icon="approval"[^>]*aria-label="Approval decline"/);
+assert.match(worldPanel, /data-rule-icon="military-demands"[^>]*aria-label="Military demands"/);
 assert.match(worldPanel, /data-rule-icon="food"[^>]*aria-label="Food spoilage"/);
 assert.match(worldPanel, /data-rule-icon="supplies"[^>]*aria-label="First camp supplies"/);
 assert.match(worldPanel, /data-rule-icon="weather"[^>]*aria-label="Severe weather"/);
@@ -146,6 +148,7 @@ assert.match(worldPanel, /conflictModeIcon\.dataset\.state = this\.draft\.confli
 assert.match(worldPanel, /approvalDeclineIcon\.dataset\.state = String\(this\.draft\.approvalDeclineRate\)/);
 assert.match(worldPanel, /foodSpoilageIcon\.dataset\.state = String\(this\.draft\.foodSpoilageRate\)/);
 assert.match(worldPanel, /initialGoodsIcon\.dataset\.state = String\(this\.draft\.initialGoodsMultiplier\)/);
+assert.match(worldPanel, /militaryDemandsIcon\.dataset\.state = String\(this\.draft\.militaryDemands\)/);
 assert.match(worldPanel, /severeWeatherIcon\.dataset\.state = this\.draft\.severeWeatherEnabled \? 'on' : 'off'/);
 assert.match(worldPanel, /aquiferNetworksIcon\.dataset\.state = this\.draft\.wellAquiferNetworksEnabled \? 'aquifers' : 'even'/);
 assert.doesNotMatch(worldPanel, /world-setup-setting-row__label/);
@@ -185,6 +188,13 @@ assert.match(worldCss, /\.world-setup-difficulty-preset \.world-setup-arrow-sele
 assert.match(worldCss, /\.world-setup-setting-row__icon\s*\{[\s\S]*?background-size: contain/);
 assert.match(worldCss, /world-setup\/settlement-mode\.png/);
 assert.match(worldCss, /world-setup\/groundwater\.png/);
+assert.match(worldCss, /military-demands-atlas\.png/);
+for (const state of [0, 1, 2, 3]) {
+  assert.match(worldCss, new RegExp(`data-rule-icon='military-demands'\\]\\[data-state='${state}'`));
+}
+const militaryDemandsAtlas = 'public/assets/ui/icons/world-setup/military-demands-atlas.png';
+assert.ok(existsSync(militaryDemandsAtlas), `${militaryDemandsAtlas} must exist`);
+assert.ok(statSync(militaryDemandsAtlas).size > 10_000, 'the military setting atlas must contain authored raster art');
 assert.match(worldCss, /data-rule-icon='settlement'\]\[data-state='frontier'[\s\S]*?settlement-frontier\.png/);
 assert.match(worldCss, /data-rule-icon='approval'\]\[data-state='0'[\s\S]*?approval-disabled\.png/);
 assert.match(worldCss, /data-rule-icon='approval'\]\[data-state='50'[\s\S]*?approval-relaxed\.png/);
@@ -242,6 +252,7 @@ assert.equal(normalDifficulty.id, 'normal');
 assert.equal(normalDifficulty.badgeLabel, 'Normal');
 assert.match(normalDifficulty.summary, /Settlement: Peaceful/);
 assert.match(normalDifficulty.summary, /Approval decline: Normal/);
+assert.match(normalDifficulty.summary, /Military demands: Light rations/);
 
 const customDifficulty = describeWorldDifficulty({
   ...DEFAULT_WORLD_GENERATION_SETTINGS,
