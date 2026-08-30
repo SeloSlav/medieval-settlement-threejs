@@ -81,12 +81,16 @@ const STAGE_LABEL = {
 
 const PRIORITY_LABEL = ['Paused', 'Normal', 'High', 'Urgent'] as const;
 
-function cropButton(
-  crop: FarmCrop,
-  current: FarmCrop | null,
-  dataAttribute: 'data-field-crop' | 'data-field-following-crop',
-): string {
-  return `<button type="button" class="resource-action-button resource-action-button--crop" ${dataAttribute}="${crop}" ${crop === current ? 'disabled' : ''}><span class="farm-crop-choice__icon" data-field-crop-icon="${crop}" aria-hidden="true"></span><span>${cropLabel(crop)}</span></button>`;
+function cropOptions(selected: FarmCrop): string {
+  return FARM_CROPS
+    .map((crop) => `<option value="${crop}" ${crop === selected ? 'selected' : ''}>${cropLabel(crop)}</option>`)
+    .join('');
+}
+
+function suggestedThirdCrop(current: FarmCrop, next: FarmCrop): FarmCrop {
+  if (current !== 'fallow' && next !== 'fallow') return 'fallow';
+  if (current !== 'oats' && next !== 'oats') return 'oats';
+  return 'rye';
 }
 
 export function renderFarmFieldInspector(
@@ -140,6 +144,8 @@ export function renderFarmFieldInspector(
   });
   const yearThreeSeed = seedGrainRequired(field.area, thirdCrop);
   const cyclicRotation = field.followingCrop != null;
+  const editableThirdCrop = field.followingCrop
+    ?? suggestedThirdCrop(field.crop, field.nextCrop);
   const remainingWorkerDays = fieldWorkerDays(
     currentFieldWorkRemaining(field, cattleSupport?.ploughWorkMultiplier, farmstead),
   );
@@ -254,14 +260,26 @@ export function renderFarmFieldInspector(
       ? `${expectedYield.toFixed(1)} ${cropHarvestUnit(field.crop)} total · ${Math.max(0, expectedYield - field.currentYield).toFixed(1)} remaining`
       : `${expectedYield.toFixed(1)} ${cropHarvestUnit(field.crop)} projected`;
 
-  const cropControls = `<div class="inspector-action-panel" data-inspector-panel-title="Crop rotation">
-      <p class="resource-inspector-note">Year 2 crop — schedule the next cycle without changing the crop already in the ground. Planning is free; execution still consumes the field’s full seed lot plus ploughing and sowing labor.</p>
-      <div class="resource-action-row">${FARM_CROPS.map((crop) => cropButton(crop, field.nextCrop, 'data-field-crop')).join('')}</div>
-      <p class="resource-inspector-note">Year 3 crop — choosing one enables a repeating ${cropLabel(field.crop)} → ${cropLabel(field.nextCrop)} → Year 3 cycle. Future manure is not promised.</p>
-      <div class="resource-action-row">
-        ${FARM_CROPS.map((crop) => cropButton(crop, field.followingCrop ?? null, 'data-field-following-crop')).join('')}
-        <button type="button" class="resource-action-button" data-field-following-clear ${cyclicRotation ? '' : 'disabled'}>Repeat Year 2</button>
+  const cropControls = `<div class="inspector-action-panel" data-inspector-panel-title="Crop plan">
+      <label class="city-admin-panel__toggle farm-rotation-toggle">
+        <input type="checkbox" data-field-rotation-auto-manage aria-controls="field-${field.id}-three-year-plan" ${cyclicRotation ? 'checked' : ''}>
+        <span><strong>Auto-manage 3-year rotation</strong><small>Advance one slot after every completed crop year.</small></span>
+      </label>
+      <div class="farm-rotation-single" data-field-rotation-single ${cyclicRotation ? 'hidden' : ''}>
+        <label class="farm-rotation-slot farm-rotation-slot--single">
+          <span>Repeat from next sowing</span>
+          <select class="inspector-policy-select" data-field-rotation-repeat aria-label="Crop to repeat from the next sowing">${cropOptions(field.nextCrop)}</select>
+        </label>
       </div>
+      <div class="farm-rotation-slots" id="field-${field.id}-three-year-plan" data-field-rotation-cycle ${cyclicRotation ? '' : 'hidden'}>
+        <label class="farm-rotation-slot farm-rotation-slot--current"><span>Year 1 · in field</span><select class="inspector-policy-select" aria-label="Current crop year" disabled>${cropOptions(field.crop)}</select></label>
+        <label class="farm-rotation-slot"><span>Year 2</span><select class="inspector-policy-select" data-field-rotation-next aria-label="Second crop year">${cropOptions(field.nextCrop)}</select></label>
+        <label class="farm-rotation-slot"><span>Year 3</span><select class="inspector-policy-select" data-field-rotation-following aria-label="Third crop year">${cropOptions(editableThirdCrop)}</select></label>
+      </div>
+      <p class="farm-rotation-summary" data-field-rotation-summary>${cyclicRotation
+        ? `${cropLabel(field.crop)} → ${cropLabel(field.nextCrop)} → ${cropLabel(editableThirdCrop)} · repeats forever`
+        : `${cropLabel(field.crop)} remains in the ground · then ${cropLabel(field.nextCrop)} repeats every crop year`}</p>
+      <p class="resource-inspector-note">Changing the plan never replaces a crop already in the ground. Planning is free; each future sowing still consumes the field’s full seed lot and labor. Future manure is not promised.</p>
     </div>`;
   const priorityControls = `<div class="inspector-action-panel" data-inspector-panel-title="Field priority">
       <p class="resource-inspector-note">Field-work priority — each farm handles its own active fields; High and Urgent also enter every nearby farmstead crew’s queue. A ready harvest always comes first; other jobs use priority, stage urgency, linked-field ties, then field age. Each farmstead also inserts its own threshing job into this shared queue.</p>
@@ -288,7 +306,7 @@ export function renderFarmFieldInspector(
       <li><span>Stage</span><span>${STAGE_LABEL[field.stage]} · ${stageProgress}%</span></li>
       <li><span>${cropProduce(field.crop) === 'none' ? 'Days until rest complete' : 'Days until harvest'}</span><span>${harvestTiming}</span></li>
       <li><span>Projected yield</span><span>${yieldForecast}</span></li>
-      <li><span>Three-year rotation</span><span>${cropLabel(field.crop)} → ${cropLabel(field.nextCrop)} → ${cropLabel(thirdCrop)}${cyclicRotation ? ` → ${cropLabel(field.crop)}` : ' · Year 3 repeats until scheduled'}</span></li>
+      <li><span>Crop plan</span><span>${cyclicRotation ? `${cropLabel(field.crop)} → ${cropLabel(field.nextCrop)} → ${cropLabel(thirdCrop)} → repeat` : `${cropLabel(field.crop)} → ${cropLabel(field.nextCrop)} every year`}</span></li>
       <li><span>Crop calendar</span><span>${cropCalendarLabel(field.crop)}</span></li>
       <li><span>Priority</span><span>${PRIORITY_LABEL[field.priority] ?? 'Normal'}</span></li>
       <li><span>Available field crews</span><span>${availableFieldLabor} farmers + ${availableStableOxen} active stable ox${availableStableOxen === 1 ? '' : 'en'} across ${eligibleFarmsteads.length} farmstead${eligibleFarmsteads.length === 1 ? '' : 's'}${assistingFarmsteads.length > 0 ? ` · ${assistingFarmsteads.length} neighboring crew${assistingFarmsteads.length === 1 ? '' : 's'} may assist` : field.priority < 2 ? ' · set High or Urgent to request nearby help' : ' · no neighboring farmstead in range'} · higher queued field or threshing work may claim them first</span></li>

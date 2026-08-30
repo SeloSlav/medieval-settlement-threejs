@@ -1230,8 +1230,8 @@ export async function bootstrapAppSession(
     getPendingTreeWorkAreaBuildingId: () => forestryWorkAreaTool.getBuildingId(),
     onBeginTreeWorkAreaPlacement: beginTreeWorkAreaPlacement,
     onClearTreeWorkArea: (buildingId) => clearTreeWorkArea(buildingId),
-    onBeginFarmFieldPlacement: (farmsteadId, crop) => {
-      farmFieldTool.setCrop(crop);
+    onBeginFarmFieldPlacement: (farmsteadId, crops, autoManage) => {
+      farmFieldTool.setCropPlan(crops, autoManage);
       beginLinkedLandParcelPlacement('field', farmsteadId);
     },
     onBeginPasturePlacement: (farmsteadId) => beginLinkedLandParcelPlacement('pasture', farmsteadId),

@@ -546,6 +546,8 @@ export class SpacetimeGameStore {
     farmsteadId: string;
     corners: Array<{ x: number; z: number }>;
     crop: FarmCrop;
+    nextCrop: FarmCrop;
+    followingCrop: FarmCrop | null;
     averageSlopeDegrees: number;
   }): Promise<void> {
     return spacetimeReducers.placeFarmField(input);

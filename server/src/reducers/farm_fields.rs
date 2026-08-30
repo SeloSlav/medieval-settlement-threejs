@@ -33,10 +33,16 @@ pub fn place_farm_field(
     corner_dx: f64,
     corner_dz: f64,
     crop: u8,
+    next_crop: u8,
+    following_crop: u8,
     average_slope_degrees: f64,
 ) -> Result<(), String> {
     let owner = ctx.sender();
     validate_crop(crop)?;
+    validate_crop(next_crop)?;
+    if following_crop != NO_FOLLOWING_CROP {
+        validate_crop(following_crop)?;
+    }
     let farmstead = ctx
         .db
         .building()
@@ -220,7 +226,7 @@ pub fn place_farm_field(
         moisture,
         fertility: initial_fertility,
         crop,
-        next_crop: crop,
+        next_crop,
         stage: STAGE_PLOUGHING,
         stage_progress: 0.0,
         priority: 1,
@@ -228,7 +234,7 @@ pub fn place_farm_field(
         last_yield: 0.0,
         current_yield: 0.0,
         harvest_yield_multiplier: 1.0,
-        following_crop: NO_FOLLOWING_CROP,
+        following_crop,
         manure_applied: 0.0,
     });
     Ok(())

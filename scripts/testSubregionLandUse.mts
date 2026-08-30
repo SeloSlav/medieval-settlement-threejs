@@ -6,8 +6,15 @@ import type {
 } from '../src/resources/types.ts';
 import { DEFAULT_WORLD_GENERATION_SETTINGS } from '../src/world/worldGenerationSettings.ts';
 import { computeLandUseProfile } from '../src/regions/landUseProfile.ts';
-import { rasterizeSubregions } from '../src/regions/SubregionOverlay.ts';
-import { SUBREGION_DEFINITIONS } from '../src/regions/subregionField.ts';
+import {
+  rasterizeSubregions,
+  rasterizeSubregionsWithStats,
+} from '../src/regions/SubregionOverlay.ts';
+import {
+  SUBREGION_DEFINITIONS,
+  WOODLAND_FOREST_BLEND_MIN,
+  naturalSubregionFromForestBlend,
+} from '../src/regions/subregionField.ts';
 
 const settings = { ...DEFAULT_WORLD_GENERATION_SETTINGS, mapSize: 'medium' as const };
 const empty = computeLandUseProfile(settings, {
@@ -51,6 +58,46 @@ assert.ok(agrarian.shares.farmland >= 0.219);
 assert.ok(agrarian.bonuses.farmland > empty.bonuses.farmland);
 assert.ok(agrarian.bonuses.meadow < empty.bonuses.meadow);
 
+assert.equal(naturalSubregionFromForestBlend(0), 'meadow');
+assert.equal(
+  naturalSubregionFromForestBlend(WOODLAND_FOREST_BLEND_MIN - Number.EPSILON),
+  'meadow',
+);
+assert.equal(
+  naturalSubregionFromForestBlend(WOODLAND_FOREST_BLEND_MIN),
+  'woodland',
+);
+assert.equal(naturalSubregionFromForestBlend(1), 'woodland');
+
+const naturalAlignment = rasterizeSubregionsWithStats({
+  resolution: 101,
+  bounds: { minX: -100, maxX: 100, minZ: -100, maxZ: 100 },
+  realmBounds: { minX: -50, maxX: 50, minZ: -50, maxZ: 50 },
+  sampleForestBlend: (x) => x < 0 ? 0.9 : 0.1,
+  state: {
+    buildings: [], residences: [], farmFields: [], pastures: [], vineyardParcels: [],
+  },
+});
+const meadowColor = SUBREGION_DEFINITIONS.find((entry) => entry.kind === 'meadow')!.rgb;
+const woodlandColor = SUBREGION_DEFINITIONS.find((entry) => entry.kind === 'woodland')!.rgb;
+assert.deepEqual(
+  [...naturalAlignment.data.subarray((100 * 101) * 4, (100 * 101) * 4 + 3)],
+  [...woodlandColor],
+  'forest-dominant terrain must rasterize as Woodland',
+);
+assert.deepEqual(
+  [...naturalAlignment.data.subarray((100 * 101 + 100) * 4, (100 * 101 + 100) * 4 + 3)],
+  [...meadowColor],
+  'open terrain must rasterize as Meadow',
+);
+assert.equal(
+  Object.values(naturalAlignment.realmCounts).reduce((sum, count) => sum + count, 0),
+  51 * 51,
+  'legend shares must count only samples inside the realm bounds',
+);
+assert.ok(naturalAlignment.realmCounts.woodland > 0);
+assert.ok(naturalAlignment.realmCounts.meadow > 0);
+
 const rasterField = {
   area: 8_000,
   corners: [
@@ -79,8 +126,7 @@ const rasterUrban = {
 const raster = rasterizeSubregions({
   resolution: 101,
   bounds: { minX: -100, maxX: 100, minZ: -100, maxZ: 100 },
-  worldSeed: settings.seed,
-  forestDensity: settings.forestDensity,
+  sampleForestBlend: (x, z) => x + z < 0 ? 0.85 : 0.15,
   state: {
     buildings: [rasterUrban],
     residences: [],

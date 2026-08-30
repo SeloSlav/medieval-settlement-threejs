@@ -8,6 +8,7 @@ import type {
   VineyardParcelState,
 } from '../resources/types.ts';
 import type { Terrain, TerrainBounds } from '../terrain/Terrain.ts';
+import { fullTerrainBounds } from '../terrain/terrainBounds.ts';
 import { isPointInPolygon2, type Point2 } from '../utils/polygonGeometry.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import {
@@ -21,7 +22,8 @@ import {
   type LandUseProfile,
 } from './landUseProfile.ts';
 import {
-  sampleNaturalSubregion,
+  SUBREGION_KINDS,
+  naturalSubregionFromForestBlend,
   subregionDefinition,
   type SubregionKind,
 } from './subregionField.ts';
@@ -43,6 +45,19 @@ type RasterState = {
   ruralSources: Array<{ x: number; z: number; radiusSq: number }>;
   farmlandPolygons: Point2[][];
   ruralPolygons: Point2[][];
+};
+
+export type SubregionRaster = {
+  data: Uint8Array;
+  realmCounts: Record<SubregionKind, number>;
+};
+
+type RasterizeSubregionsOptions = {
+  resolution: number;
+  bounds: TerrainBounds;
+  realmBounds?: TerrainBounds;
+  sampleForestBlend: (x: number, z: number) => number;
+  state: SubregionOverlayState;
 };
 
 export class SubregionOverlay {
@@ -116,16 +131,32 @@ export class SubregionOverlay {
   }
 
   private rebuildTexture(): void {
-    const data = rasterizeSubregions({
+    const raster = rasterizeSubregionsWithStats({
       resolution: SUBREGION_OVERLAY_RESOLUTION,
       bounds: this.terrain.bounds,
-      worldSeed: this.settings.seed,
-      forestDensity: this.settings.forestDensity,
+      realmBounds: fullTerrainBounds(this.terrain.generationSize),
+      sampleForestBlend: (x, z) => this.terrain.getForestBlendAt(x, z),
       state: this.state,
     });
+    const realmSampleCount = Object.values(raster.realmCounts).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+    if (realmSampleCount > 0) {
+      this.profile = {
+        ...this.profile,
+        shares: Object.fromEntries(SUBREGION_KINDS.map((kind) => [
+          kind,
+          raster.realmCounts[kind] / realmSampleCount,
+        ])) as Record<SubregionKind, number>,
+      };
+      // Bonuses remain the server-mirrored balance values. The shares now
+      // describe the same spatial classification rendered by this overlay.
+      publishLandUseProfile(this.profile);
+    }
     this.texture?.dispose();
     this.texture = new THREE.DataTexture(
-      data,
+      raster.data,
       SUBREGION_OVERLAY_RESOLUTION,
       SUBREGION_OVERLAY_RESOLUTION,
       THREE.RGBAFormat,
@@ -146,16 +177,20 @@ export class SubregionOverlay {
   }
 }
 
-export function rasterizeSubregions(options: {
-  resolution: number;
-  bounds: TerrainBounds;
-  worldSeed: number;
-  forestDensity: number;
-  state: SubregionOverlayState;
-}): Uint8Array {
+export function rasterizeSubregions(options: RasterizeSubregionsOptions): Uint8Array {
+  return rasterizeSubregionsWithStats(options).data;
+}
+
+export function rasterizeSubregionsWithStats(
+  options: RasterizeSubregionsOptions,
+): SubregionRaster {
   const resolution = Math.max(2, Math.floor(options.resolution));
   const data = new Uint8Array(resolution * resolution * 4);
   const rasterState = prepareRasterState(options.state);
+  const realmBounds = options.realmBounds ?? options.bounds;
+  const realmCounts = Object.fromEntries(
+    SUBREGION_KINDS.map((kind) => [kind, 0]),
+  ) as Record<SubregionKind, number>;
   const denominator = resolution - 1;
 
   for (let row = 0; row < resolution; row += 1) {
@@ -165,16 +200,17 @@ export function rasterizeSubregions(options: {
     for (let column = 0; column < resolution; column += 1) {
       const x = options.bounds.minX
         + column / denominator * (options.bounds.maxX - options.bounds.minX);
-      const kind = subregionAt(x, z, options.worldSeed, options.forestDensity, rasterState);
+      const kind = subregionAt(x, z, options.sampleForestBlend, rasterState);
       const color = subregionDefinition(kind).rgb;
       const index = (dataRow * resolution + column) * 4;
       data[index] = color[0];
       data[index + 1] = color[1];
       data[index + 2] = color[2];
       data[index + 3] = 222;
+      if (insideBounds(x, z, realmBounds)) realmCounts[kind] += 1;
     }
   }
-  return data;
+  return { data, realmCounts };
 }
 
 function prepareRasterState(state: SubregionOverlayState): RasterState {
@@ -215,8 +251,7 @@ function prepareRasterState(state: SubregionOverlayState): RasterState {
 function subregionAt(
   x: number,
   z: number,
-  worldSeed: number,
-  forestDensity: number,
+  sampleForestBlend: (x: number, z: number) => number,
   state: RasterState,
 ): SubregionKind {
   if (insideAnySource(x, z, state.urbanSources)) return 'urban';
@@ -224,7 +259,11 @@ function subregionAt(
   if (insideAnyPolygon(x, z, state.ruralPolygons) || insideAnySource(x, z, state.ruralSources)) {
     return 'rural';
   }
-  return sampleNaturalSubregion(x, z, worldSeed, forestDensity);
+  return naturalSubregionFromForestBlend(sampleForestBlend(x, z));
+}
+
+function insideBounds(x: number, z: number, bounds: TerrainBounds): boolean {
+  return x >= bounds.minX && x <= bounds.maxX && z >= bounds.minZ && z <= bounds.maxZ;
 }
 
 function insideAnySource(

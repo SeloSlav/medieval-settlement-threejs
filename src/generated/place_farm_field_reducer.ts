@@ -21,5 +21,7 @@ export default {
   cornerDx: __t.f64(),
   cornerDz: __t.f64(),
   crop: __t.u8(),
+  nextCrop: __t.u8(),
+  followingCrop: __t.u8(),
   averageSlopeDegrees: __t.f64(),
 };

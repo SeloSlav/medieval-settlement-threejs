@@ -280,6 +280,8 @@ export async function placeFarmField(input: {
   farmsteadId: string;
   corners: Array<{ x: number; z: number }>;
   crop: FarmCrop;
+  nextCrop: FarmCrop;
+  followingCrop: FarmCrop | null;
   averageSlopeDegrees: number;
 }): Promise<void> {
   const farmsteadId = parseBuildingServerId(input.farmsteadId);
@@ -294,6 +296,8 @@ export async function placeFarmField(input: {
     cornerCx: c.x, cornerCz: c.z,
     cornerDx: d.x, cornerDz: d.z,
     crop: cropId(input.crop),
+    nextCrop: cropId(input.nextCrop),
+    followingCrop: input.followingCrop === null ? 255 : cropId(input.followingCrop),
     averageSlopeDegrees: input.averageSlopeDegrees,
   });
 }

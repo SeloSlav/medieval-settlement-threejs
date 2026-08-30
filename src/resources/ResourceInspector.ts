@@ -318,7 +318,11 @@ type ResourceInspectorOptions = {
   onSetBuildingOxen?: (buildingId: string, targetCount: number) => void | Promise<void>;
   onSetLivestockBreedingReserve?: (pastureId: string, breedingReserve: number) => void | Promise<void>;
   onSetLivestockHaymakingPercent?: (pastureId: string, haymakingPercent: number) => void | Promise<void>;
-  onBeginFarmFieldPlacement?: (farmsteadId: string, crop: FarmCrop) => void;
+  onBeginFarmFieldPlacement?: (
+    farmsteadId: string,
+    crops: [FarmCrop, FarmCrop, FarmCrop],
+    autoManage: boolean,
+  ) => void;
   onBeginPasturePlacement?: (farmsteadId: string) => void;
   onBeginGraveyardPlacement?: (chapelId: string) => void;
   onBeginVineyardPlacement?: (monasteryId: string) => void;
@@ -1081,25 +1085,6 @@ export class ResourceInspector {
         void this.options.onStartFarmFieldEarlyHarvest?.(this.selectedTarget.field.id);
         return;
       }
-      const crop = (event.target as HTMLElement).closest<HTMLElement>('[data-field-crop]')?.dataset.fieldCrop;
-      if (crop != null && FARM_CROPS.includes(crop as FarmCrop)) {
-        void this.options.onSetFarmFieldCrop?.(this.selectedTarget.field.id, crop as FarmCrop);
-        return;
-      }
-      const followingCrop = (event.target as HTMLElement)
-        .closest<HTMLElement>('[data-field-following-crop]')
-        ?.dataset.fieldFollowingCrop;
-      if (followingCrop != null && FARM_CROPS.includes(followingCrop as FarmCrop)) {
-        void this.options.onSetFarmFieldFollowingCrop?.(
-          this.selectedTarget.field.id,
-          followingCrop as FarmCrop,
-        );
-        return;
-      }
-      if ((event.target as HTMLElement).closest('[data-field-following-clear]')) {
-        void this.options.onSetFarmFieldFollowingCrop?.(this.selectedTarget.field.id, null);
-        return;
-      }
       const priorityValue = (event.target as HTMLElement).closest<HTMLElement>('[data-field-priority]')?.dataset.fieldPriority;
       if (priorityValue != null) {
         void this.options.onSetFarmFieldPriority?.(this.selectedTarget.field.id, Number(priorityValue));
@@ -1169,12 +1154,28 @@ export class ResourceInspector {
       }
       const landParcel = (event.target as HTMLElement).closest<HTMLElement>('[data-land-parcel]')?.dataset.landParcel;
       if (landParcel === 'field' && building.kind === 'threshing_barn') {
-        const crop = (event.target as HTMLElement)
-          .closest<HTMLElement>('[data-field-layout-crop]')
-          ?.dataset.fieldLayoutCrop as FarmCrop | undefined;
-        if (crop && FARM_CROPS.includes(crop)) {
-          this.options.onBeginFarmFieldPlacement?.(building.id, crop);
-        }
+        const planner = (event.target as HTMLElement)
+          .closest<HTMLElement>('.inspector-action-panel')
+          ?.querySelector<HTMLElement>('[data-field-layout-planner]');
+        if (!planner) return;
+        const autoManage = planner
+          .querySelector<HTMLInputElement>('[data-field-layout-auto-manage]')
+          ?.checked ?? false;
+        const selectedCrop = (selector: string): FarmCrop | null => {
+          const value = planner.querySelector<HTMLSelectElement>(selector)?.value;
+          return value != null && FARM_CROPS.includes(value as FarmCrop)
+            ? value as FarmCrop
+            : null;
+        };
+        const repeated = selectedCrop('[data-field-layout-repeat-crop]') ?? 'rye';
+        const planned = [0, 1, 2].map((slot) =>
+          selectedCrop(`[data-field-layout-cycle-crop="${slot}"]`),
+        );
+        const crops: [FarmCrop, FarmCrop, FarmCrop] = autoManage
+          && planned.every((crop): crop is FarmCrop => crop != null)
+          ? [planned[0], planned[1], planned[2]]
+          : [repeated, repeated, repeated];
+        this.options.onBeginFarmFieldPlacement?.(building.id, crops, autoManage);
         return;
       }
       if (landParcel === 'pasture' && (building.kind === 'pastoral_farmstead' || building.kind === 'swineherd')) {
@@ -1747,8 +1748,106 @@ export class ResourceInspector {
   private readonly onSupplementalChange = (event: Event): void => {
     event.stopPropagation();
     const input = event.target as HTMLInputElement;
+    if (this.selectedTarget?.kind === 'farm-field') {
+      const field = this.selectedTarget.field;
+      const panel = input.closest<HTMLElement>('.inspector-action-panel');
+      const repeatSelect = panel?.querySelector<HTMLSelectElement>('[data-field-rotation-repeat]');
+      const nextSelect = panel?.querySelector<HTMLSelectElement>('[data-field-rotation-next]');
+      const followingSelect = panel?.querySelector<HTMLSelectElement>('[data-field-rotation-following]');
+      const autoManage = panel?.querySelector<HTMLInputElement>('[data-field-rotation-auto-manage]');
+      const cropValue = (select: HTMLSelectElement | null | undefined): FarmCrop | null => (
+        select && FARM_CROPS.includes(select.value as FarmCrop)
+          ? select.value as FarmCrop
+          : null
+      );
+      const cropText = (select: HTMLSelectElement | null | undefined, fallback: FarmCrop): string =>
+        select?.selectedOptions[0]?.textContent?.trim()
+        ?? fallback[0].toUpperCase() + fallback.slice(1);
+      const syncFieldRotationPresentation = (): void => {
+        if (!panel || !autoManage) return;
+        const managed = autoManage.checked;
+        const single = panel.querySelector<HTMLElement>('[data-field-rotation-single]');
+        const cycle = panel.querySelector<HTMLElement>('[data-field-rotation-cycle]');
+        const summary = panel.querySelector<HTMLElement>('[data-field-rotation-summary]');
+        if (single) single.hidden = managed;
+        if (cycle) cycle.hidden = !managed;
+        autoManage.setAttribute('aria-expanded', String(managed));
+        if (!summary) return;
+        summary.textContent = managed
+          ? `${field.crop[0].toUpperCase()}${field.crop.slice(1)} → ${cropText(nextSelect, field.nextCrop)} → ${cropText(followingSelect, field.nextCrop)} · repeats forever`
+          : `${field.crop[0].toUpperCase()}${field.crop.slice(1)} remains in the ground · then ${cropText(repeatSelect, field.nextCrop)} repeats every crop year`;
+      };
+
+      if (input.matches('[data-field-rotation-auto-manage]')) {
+        syncFieldRotationPresentation();
+        void this.options.onSetFarmFieldFollowingCrop?.(
+          field.id,
+          input.checked ? cropValue(followingSelect) ?? field.nextCrop : null,
+        );
+        return;
+      }
+      if (input.matches('[data-field-rotation-repeat], [data-field-rotation-next]')) {
+        syncFieldRotationPresentation();
+        const crop = cropValue(input as unknown as HTMLSelectElement);
+        if (crop) void this.options.onSetFarmFieldCrop?.(field.id, crop);
+        return;
+      }
+      if (input.matches('[data-field-rotation-following]')) {
+        syncFieldRotationPresentation();
+        const crop = cropValue(input as unknown as HTMLSelectElement);
+        if (crop) void this.options.onSetFarmFieldFollowingCrop?.(field.id, crop);
+        return;
+      }
+      return;
+    }
     if (this.selectedTarget?.kind !== 'building') return;
     const building = this.selectedTarget.building;
+
+    if (
+      building.kind === 'threshing_barn'
+      && input.matches(
+        '[data-field-layout-auto-manage], [data-field-layout-repeat-crop], '
+        + '[data-field-layout-cycle-crop]',
+      )
+    ) {
+      const planner = input.closest<HTMLElement>('[data-field-layout-planner]');
+      const autoManage = planner
+        ?.querySelector<HTMLInputElement>('[data-field-layout-auto-manage]');
+      const repeatSelect = planner
+        ?.querySelector<HTMLSelectElement>('[data-field-layout-repeat-crop]');
+      const cycleSelects = [...(planner
+        ?.querySelectorAll<HTMLSelectElement>('[data-field-layout-cycle-crop]') ?? [])];
+      if (planner && autoManage && repeatSelect && cycleSelects.length === 3) {
+        if (input.matches('[data-field-layout-auto-manage]') && autoManage.checked) {
+          cycleSelects[0].value = repeatSelect.value;
+        }
+        const single = planner.querySelector<HTMLElement>('[data-field-layout-single]');
+        const cycle = planner.querySelector<HTMLElement>('[data-field-layout-cycle]');
+        const summary = planner.querySelector<HTMLElement>('[data-field-layout-summary]');
+        const buttonIcon = planner.closest<HTMLElement>('.inspector-action-panel')
+          ?.querySelector<HTMLElement>('[data-field-layout-button-icon]');
+        const managed = autoManage.checked;
+        if (single) single.hidden = managed;
+        if (cycle) cycle.hidden = !managed;
+        autoManage.setAttribute('aria-expanded', String(managed));
+        const cropNames = cycleSelects.map((select) =>
+          select.selectedOptions[0]?.textContent?.trim() ?? select.value,
+        );
+        const repeatedName = repeatSelect.selectedOptions[0]?.textContent?.trim()
+          ?? repeatSelect.value;
+        if (summary) {
+          summary.textContent = managed
+            ? `${cropNames.join(' → ')} · repeats forever`
+            : `Repeats ${repeatedName} every crop year.`;
+        }
+        if (buttonIcon) {
+          buttonIcon.dataset.fieldCropIcon = managed
+            ? cycleSelects[0].value
+            : repeatSelect.value;
+        }
+      }
+      return;
+    }
 
     if (
       isProductionRateBuilding(building.kind)

@@ -254,6 +254,87 @@
   gap: 6px;
 }
 
+.farm-rotation-planner,
+.farm-rotation-single {
+  display: grid;
+  gap: 7px;
+}
+
+.farm-rotation-planner {
+  padding: 9px;
+  border: 1px solid rgba(210, 177, 99, 0.22);
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(217, 186, 119, 0.055), transparent 58%),
+    rgba(9, 11, 8, 0.28);
+}
+
+.farm-rotation-toggle {
+  margin: 0;
+}
+
+.farm-rotation-toggle > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.farm-rotation-toggle strong {
+  color: #e0d3b8;
+  font: 700 11px/1.2 var(--ui-font-sans);
+}
+
+.farm-rotation-toggle small {
+  color: rgba(238, 232, 220, 0.58);
+  font: 500 9px/1.25 var(--ui-font-sans);
+}
+
+.farm-rotation-slots {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.farm-rotation-slot {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  color: #a99d84;
+  font: 700 9px/1.2 var(--ui-font-sans);
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.farm-rotation-slot--single {
+  grid-template-columns: minmax(0, 1fr) minmax(124px, 48%);
+  align-items: center;
+}
+
+.farm-rotation-slot .inspector-policy-select {
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 22px 6px 8px;
+  color: #eee0c2;
+  font-size: 10px;
+  text-overflow: ellipsis;
+}
+
+.farm-rotation-summary {
+  min-height: 16px;
+  margin: 0;
+  color: #cbb77f;
+  font: 650 10px/1.4 var(--ui-font-sans);
+}
+
+.farm-field-layout-button {
+  width: 100%;
+}
+
+.farm-rotation-single[hidden],
+.farm-rotation-slots[hidden] {
+  display: none;
+}
+
 .farm-crop-choice__icon {
   display: block;
   width: 24px;

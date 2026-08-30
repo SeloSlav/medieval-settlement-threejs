@@ -129,6 +129,8 @@ type FarmFieldToolOptions = {
     farmsteadId: string;
     corners: FarmFieldCorners;
     crop: FarmCrop;
+    nextCrop: FarmCrop;
+    followingCrop: FarmCrop | null;
     averageSlopeDegrees: number;
   }) => Promise<void> | void;
   onCommitPasture: (input: {
@@ -173,6 +175,8 @@ export class FarmFieldTool {
   private hoverPoint: Point2 | null = null;
   private fixedCorners: FarmFieldCorners | null = null;
   private crop: FarmCrop = 'rye';
+  private nextCrop: FarmCrop = 'rye';
+  private followingCrop: FarmCrop | null = null;
   private pointerInside = false;
   private pointerClientX = 0;
   private pointerClientY = 0;
@@ -261,9 +265,28 @@ export class FarmFieldTool {
   setCrop(crop: FarmCrop): void {
     if (this.crop === crop) return;
     this.crop = crop;
+    if (this.followingCrop === null) this.nextCrop = crop;
     if (!this.enabled || this.mode !== 'field') return;
     this.refreshPreview();
     this.options.onCropChanged?.(this.crop, 'suitability map updated');
+    this.options.onModeChanged();
+  }
+
+  setCropPlan(
+    crops: [FarmCrop, FarmCrop, FarmCrop],
+    autoManage: boolean,
+  ): void {
+    this.crop = crops[0];
+    this.nextCrop = autoManage ? crops[1] : crops[0];
+    this.followingCrop = autoManage ? crops[2] : null;
+    if (!this.enabled || this.mode !== 'field') return;
+    this.refreshPreview();
+    this.options.onCropChanged?.(
+      this.crop,
+      autoManage
+        ? `${crops.map(cropLabel).join(' → ')} rotation queued`
+        : `${cropLabel(this.crop)} will repeat every crop year`,
+    );
     this.options.onModeChanged();
   }
 
@@ -343,8 +366,8 @@ export class FarmFieldTool {
         center.z,
       ),
       crop: this.crop,
-      nextCrop: this.crop,
-      followingCrop: null,
+      nextCrop: this.nextCrop,
+      followingCrop: this.followingCrop,
       stage: 'ploughing',
       stageProgress: 0,
       priority: 1,
@@ -509,6 +532,8 @@ export class FarmFieldTool {
           farmsteadId: commit.farmstead!.id,
           corners: commit.corners,
           crop: this.crop,
+          nextCrop: this.nextCrop,
+          followingCrop: this.followingCrop,
           averageSlopeDegrees: commit.slope,
         });
     void Promise.resolve(pending).then(() => {

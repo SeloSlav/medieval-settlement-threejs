@@ -1145,18 +1145,28 @@ assert.match(farmsteadInspector, /Crew-sharing queue/);
 assert.match(farmsteadInspector, /data-threshing-priority/);
 assert.match(farmsteadInspector, /ox postings are separate; any team without a present farmer waits/);
 assert.match(farmFieldInspector, /Current-cycle soil/);
-assert.match(farmFieldInspector, /Three-year rotation/);
+assert.match(farmFieldInspector, /Auto-manage 3-year rotation/);
 assert.match(
   farmFieldInspector,
-  /Planning is free; execution still consumes the field’s full seed lot plus ploughing and sowing labor/,
+  /Planning is free; each future sowing still consumes the field’s full seed lot and labor/,
   'crop switching must read as a scheduled rotation whose physical costs arrive at sowing',
 );
 assert.match(farmFieldInspector, /Year 3 soil/);
 assert.match(farmFieldInspector, /Next-crop potential/);
 assert.match(farmFieldInspector, /Year 3 potential/);
-assert.match(farmFieldInspector, /data-field-following-crop/);
-assert.match(farmFieldInspector, /data-field-following-clear/);
+assert.match(farmFieldInspector, /data-field-rotation-auto-manage/);
+assert.match(farmFieldInspector, /data-field-rotation-repeat/);
+assert.match(farmFieldInspector, /data-field-rotation-next/);
+assert.match(farmFieldInspector, /data-field-rotation-following/);
 assert.match(farmFieldInspector, /future manure/);
+assert.match(farmsteadInspector, /data-field-layout-auto-manage/);
+assert.match(farmsteadInspector, /data-field-layout-repeat-crop/);
+assert.match(farmsteadInspector, /data-field-layout-cycle-crop="0"/);
+assert.match(farmsteadInspector, /data-field-layout-cycle-crop="1"/);
+assert.match(farmsteadInspector, /data-field-layout-cycle-crop="2"/);
+assert.match(farmFieldTool, /setCropPlan\(/);
+assert.match(farmFieldTool, /nextCrop: this\.nextCrop/);
+assert.match(farmFieldTool, /followingCrop: this\.followingCrop/);
 assert.match(farmsteadInspector, /Year 3 rotation/);
 assert.match(farmsteadInspector, /Cyclic coverage/);
 assert.match(farmsteadInspector, /Soil trajectory/);

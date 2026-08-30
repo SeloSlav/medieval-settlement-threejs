@@ -1,7 +1,10 @@
 ﻿import * as THREE from 'three';
 import type { RiverField } from '../rivers/RiverField.ts';
 import type { QuarryLayout } from '../quarries/QuarryLayout.ts';
-import { sampleTerrainMeshHeight } from './TerrainMeshHeight.ts';
+import {
+  sampleTerrainMeshAttributeX,
+  sampleTerrainMeshHeight,
+} from './TerrainMeshHeight.ts';
 import type { WorldDimensions } from '../world/worldGenerationSettings.ts';
 import { resolveWorldDimensions } from '../world/worldGenerationSettings.ts';
 import { DEFAULT_WORLD_GENERATION_SETTINGS } from '../world/worldGenerationSettings.ts';
@@ -74,6 +77,22 @@ export class Terrain {
 
   getHeightAt(x: number, z: number): number {
     return sampleTerrainMeshHeight(this.mesh.geometry, x, z, this.resolution, this.size);
+  }
+
+  /** Samples the same baked woodland mask used by terrain shading and groundcover. */
+  getForestBlendAt(x: number, z: number): number {
+    return THREE.MathUtils.clamp(
+      sampleTerrainMeshAttributeX(
+        this.mesh.geometry,
+        'forestBlend',
+        x,
+        z,
+        this.resolution,
+        this.size,
+      ),
+      0,
+      1,
+    );
   }
 
   getPointAt(x: number, z: number, offset = 0): THREE.Vector3 {
