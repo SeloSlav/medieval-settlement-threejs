@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   normalizeAnimationLabel,
   readGlbAnimationNames,
+  rewriteGlbAnimations,
   rewriteGlbAnimationNames,
   validateAnimationLabels,
 } from '../src/tools/glb-animation-labeler/glbBinary.ts';
@@ -38,6 +40,7 @@ assert.equal(countUnassignedAnimationLabels(knownLabels, correctedAssignments), 
 
 const fullCatalog = [
   'agree',
+  'angry_01',
   'bow',
   'cheer',
   'chop',
@@ -64,14 +67,15 @@ const fullCatalog = [
 const socialLabels = new Set([
   'agree',
   'bow',
-  'cheer',
   'clap',
   'cry',
   'greet_01',
   'laugh_01',
 ]);
 const reducedCatalog = selectAnimationLabelCatalog(fullCatalog, socialLabels, 15);
-assert.equal(reducedCatalog.length, 16);
+assert.equal(reducedCatalog.length, 18);
+assert.ok(reducedCatalog.includes('angry_01'));
+assert.ok(reducedCatalog.includes('cheer'));
 assert.ok(reducedCatalog.includes('idle'));
 assert.ok(!reducedCatalog.includes('greet_01'));
 assert.ok(reducedCatalog.includes('greet_04'));
@@ -94,6 +98,29 @@ const renamed = rewriteGlbAnimationNames(source, ['idle', 'walk']);
 assert.deepEqual(readGlbAnimationNames(renamed), ['idle', 'walk']);
 assert.equal(new DataView(renamed).getUint32(8, true), renamed.byteLength);
 assert.deepEqual(readBinChunk(renamed), [1, 2, 3, 4]);
+
+const duplicateSource = createFixtureGlb(['NlaTrack', 'NlaTrack.001', 'NlaTrack.002']);
+const withoutDuplicate = rewriteGlbAnimations(
+  duplicateSource,
+  ['chop', 'exclude_duplicate', 'idle'],
+  [1],
+);
+assert.deepEqual(
+  readGlbAnimationNames(withoutDuplicate),
+  ['chop', 'idle'],
+  'explicit duplicate exclusion must remove the animation instead of inventing a semantic name',
+);
+assert.deepEqual(readBinChunk(withoutDuplicate), [1, 2, 3, 4]);
+assert.throws(
+  () => rewriteGlbAnimations(duplicateSource, ['chop', '', 'idle'], [3]),
+  /outside the GLB animation table/,
+);
+
+const labelerHtml = readFileSync('animation-labeler.html', 'utf8');
+const labelerMain = readFileSync('src/tools/glb-animation-labeler/main.ts', 'utf8');
+assert.match(labelerHtml, /id="exclude-clip"[^>]*>Exclude duplicate clip<\/button>/);
+assert.match(labelerMain, /rewriteGlbAnimations\(asset\.bytes, asset\.labels, excludedIndices\)/);
+assert.match(labelerMain, /excluded:\s*currentAsset\.labels\[index\] === EXCLUDED_DUPLICATE_LABEL/);
 
 assert.throws(
   () => rewriteGlbAnimationNames(source, ['idle']),

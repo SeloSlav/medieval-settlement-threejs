@@ -5,7 +5,7 @@ import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
   normalizeAnimationLabel,
   readGlbAnimationNames,
-  rewriteGlbAnimationNames,
+  rewriteGlbAnimations,
   validateAnimationLabels,
 } from './glbBinary.ts';
 import {
@@ -17,6 +17,7 @@ import './style.css';
 
 const RECOMMENDED_LABELS = [
   'agree',
+  'angry_01',
   'bow',
   'cheer',
   'chop',
@@ -44,12 +45,12 @@ const RECOMMENDED_LABELS = [
 const SOCIAL_LABELS_REMOVED_FROM_V002 = new Set<string>([
   'agree',
   'bow',
-  'cheer',
   'clap',
   'cry',
   'greet_01',
   'laugh_01',
 ]);
+const EXCLUDED_DUPLICATE_LABEL = 'exclude_duplicate';
 
 type StoredMapping = {
   version: 1;
@@ -89,6 +90,7 @@ const resetCameraButton = mustElement<HTMLButtonElement>('reset-camera');
 const semanticNameSelect = mustElement<HTMLSelectElement>('semantic-name');
 const saveAndNextButton = mustElement<HTMLButtonElement>('save-and-next');
 const unbindNameButton = mustElement<HTMLButtonElement>('unbind-name');
+const excludeClipButton = mustElement<HTMLButtonElement>('exclude-clip');
 const saveProgressButton = mustElement<HTMLButtonElement>('save-progress');
 const mappingProgress = mustElement<HTMLElement>('mapping-progress');
 const animationCount = mustElement<HTMLElement>('animation-count');
@@ -169,6 +171,7 @@ resetCameraButton.addEventListener('click', resetCamera);
 saveProgressButton.addEventListener('click', () => saveProgress(true));
 saveAndNextButton.addEventListener('click', saveCurrentAndAdvance);
 unbindNameButton.addEventListener('click', unbindCurrentName);
+excludeClipButton.addEventListener('click', toggleCurrentClipExclusion);
 downloadMapButton.addEventListener('click', downloadMapping);
 downloadGlbButton.addEventListener('click', downloadLabeledGlb);
 semanticNameSelect.addEventListener('keydown', (event) => {
@@ -358,10 +361,12 @@ function selectClip(requestedIndex: number): void {
 
 function populateSemanticNameOptions(clipIndex: number): void {
   if (!asset) return;
-  const currentLabel = asset.labels[clipIndex] ?? '';
+  const storedLabel = asset.labels[clipIndex] ?? '';
+  const excluded = storedLabel === EXCLUDED_DUPLICATE_LABEL;
+  const currentLabel = excluded ? '' : storedLabel;
   const availableLabels = getAvailableAnimationLabels(
     asset.recommendedLabels,
-    asset.labels,
+    asset.labels.map((label) => label === EXCLUDED_DUPLICATE_LABEL ? '' : label),
     clipIndex,
   );
 
@@ -383,6 +388,7 @@ function populateSemanticNameOptions(clipIndex: number): void {
   semanticNameSelect.value = currentLabel;
   if (!currentLabel) placeholder.selected = true;
   unbindNameButton.disabled = !currentLabel;
+  excludeClipButton.textContent = excluded ? 'Restore excluded clip' : 'Exclude duplicate clip';
 
   const remainingCount = Math.min(
     countUnassignedAnimationLabels(asset.recommendedLabels, asset.labels),
@@ -471,6 +477,24 @@ function unbindCurrentName(): void {
   setStatus(`Unbound ${releasedLabel}. It is available in the dropdown again.`);
 }
 
+function toggleCurrentClipExclusion(): void {
+  if (!asset || selectedClipIndex < 0) return;
+  const wasExcluded = asset.labels[selectedClipIndex] === EXCLUDED_DUPLICATE_LABEL;
+  asset.labels[selectedClipIndex] = wasExcluded ? '' : EXCLUDED_DUPLICATE_LABEL;
+  saveProgress(false);
+  buildAnimationList();
+  if (wasExcluded) {
+    populateSemanticNameOptions(selectedClipIndex);
+    semanticNameSelect.focus();
+    setStatus('Restored this clip. Assign it a unique name or exclude it again.');
+    return;
+  }
+  const nextUnnamed = findNextUnnamed(selectedClipIndex);
+  if (nextUnnamed >= 0) selectClip(nextUnnamed);
+  else selectClip(selectedClipIndex);
+  setStatus('Excluded the duplicate clip. It will be removed from the downloaded GLB.');
+}
+
 function findNextUnnamed(fromIndex: number): number {
   if (!asset) return -1;
   for (let offset = 1; offset <= asset.labels.length; offset += 1) {
@@ -521,7 +545,7 @@ function buildAnimationList(): void {
     button.innerHTML = `
       <span class="animation-index">${String(index + 1).padStart(2, '0')}</span>
       <span class="animation-names">
-        <strong>${escapeHtml(asset.labels[index] || 'Unnamed')}</strong>
+        <strong>${escapeHtml(asset.labels[index] === EXCLUDED_DUPLICATE_LABEL ? 'Excluded duplicate' : asset.labels[index] || 'Unnamed')}</strong>
         <span class="${asset.labels[index] ? '' : 'is-unassigned'}">${escapeHtml(asset.originalNames[index] ?? clip.name)}</span>
       </span>
       <span class="animation-duration">${clip.duration.toFixed(2)} s</span>
@@ -548,10 +572,12 @@ function updateProgress(): void {
     mappingProgress.textContent = '0 / 0 named';
     return;
   }
-  const named = asset.labels.filter(Boolean).length;
-  mappingProgress.textContent = `${named} / ${asset.labels.length} named`;
-  const validation = validateAnimationLabels(asset.labels);
-  downloadGlbButton.disabled = !validation.complete;
+  const excluded = excludedAnimationIndices(asset.labels).length;
+  const named = asset.labels.filter((label) => Boolean(label) && label !== EXCLUDED_DUPLICATE_LABEL).length;
+  mappingProgress.textContent = excluded > 0
+    ? `${named + excluded} / ${asset.labels.length} resolved · ${named} named + ${excluded} excluded`
+    : `${named} / ${asset.labels.length} named`;
+  downloadGlbButton.disabled = !resolvedAnimationLabelsAreValid(asset.labels);
 }
 
 function downloadMapping(): void {
@@ -567,7 +593,10 @@ function downloadMapping(): void {
       index,
       originalName: currentAsset.originalNames[index],
       durationSeconds: Number(clip.duration.toFixed(6)),
-      semanticName: currentAsset.labels[index] || null,
+      semanticName: currentAsset.labels[index] === EXCLUDED_DUPLICATE_LABEL
+        ? null
+        : currentAsset.labels[index] || null,
+      excluded: currentAsset.labels[index] === EXCLUDED_DUPLICATE_LABEL,
     })),
   };
   downloadBlob(
@@ -579,17 +608,30 @@ function downloadMapping(): void {
 
 function downloadLabeledGlb(): void {
   if (!asset) return;
-  const validation = validateAnimationLabels(asset.labels);
-  if (!validation.complete) {
-    setStatus(`Name all ${asset.labels.length} animations with unique semantic names first.`, true);
+  if (!resolvedAnimationLabelsAreValid(asset.labels)) {
+    setStatus('Name or explicitly exclude every animation before downloading.', true);
     return;
   }
-  const labeled = rewriteGlbAnimationNames(asset.bytes, asset.labels);
+  const excludedIndices = excludedAnimationIndices(asset.labels);
+  const labeled = rewriteGlbAnimations(asset.bytes, asset.labels, excludedIndices);
   downloadBlob(
     new Blob([labeled], { type: 'model/gltf-binary' }),
     `${fileStem(asset.file.name)}-labeled.glb`,
   );
-  setStatus('Losslessly labeled GLB downloaded. Geometry, textures, skin, and animation data were preserved.');
+  setStatus(`Labeled GLB downloaded with ${excludedIndices.length} excluded duplicate clip${excludedIndices.length === 1 ? '' : 's'} removed. Geometry, textures, skin, and retained animation data were preserved.`);
+}
+
+function excludedAnimationIndices(labels: readonly string[]): number[] {
+  const indices: number[] = [];
+  labels.forEach((label, index) => {
+    if (label === EXCLUDED_DUPLICATE_LABEL) indices.push(index);
+  });
+  return indices;
+}
+
+function resolvedAnimationLabelsAreValid(labels: readonly string[]): boolean {
+  const retainedLabels = labels.filter((label) => label !== EXCLUDED_DUPLICATE_LABEL);
+  return validateAnimationLabels(retainedLabels).complete;
 }
 
 function updateTimeReadout(): void {
@@ -617,6 +659,7 @@ function setControlsEnabled(enabled: boolean): void {
     semanticNameSelect,
     saveAndNextButton,
     unbindNameButton,
+    excludeClipButton,
     saveProgressButton,
     downloadMapButton,
   ]) {

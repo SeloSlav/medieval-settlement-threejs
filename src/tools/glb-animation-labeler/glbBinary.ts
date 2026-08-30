@@ -80,6 +80,14 @@ export function rewriteGlbAnimationNames(
   source: ArrayBuffer,
   labels: readonly string[],
 ): ArrayBuffer {
+  return rewriteGlbAnimations(source, labels, []);
+}
+
+export function rewriteGlbAnimations(
+  source: ArrayBuffer,
+  labels: readonly string[],
+  excludedIndices: readonly number[],
+): ArrayBuffer {
   const parsed = parseGlb(source);
   const animations = parsed.document.animations ?? [];
   if (animations.length !== labels.length) {
@@ -88,14 +96,23 @@ export function rewriteGlbAnimationNames(
     );
   }
 
-  const validation = validateAnimationLabels(labels);
+  const excluded = new Set(excludedIndices);
+  for (const index of excluded) {
+    if (!Number.isInteger(index) || index < 0 || index >= animations.length) {
+      throw new Error(`Animation exclusion index ${index} is outside the GLB animation table.`);
+    }
+  }
+  const retainedAnimations = animations.filter((_, index) => !excluded.has(index));
+  const retainedLabels = labels.filter((_, index) => !excluded.has(index));
+  const validation = validateAnimationLabels(retainedLabels);
   if (!validation.complete) {
     throw new Error('Every animation needs a unique lowercase semantic name before export.');
   }
 
-  for (let index = 0; index < animations.length; index += 1) {
-    animations[index]!.name = normalizeAnimationLabel(labels[index] ?? '');
+  for (let index = 0; index < retainedAnimations.length; index += 1) {
+    retainedAnimations[index]!.name = normalizeAnimationLabel(retainedLabels[index] ?? '');
   }
+  parsed.document.animations = retainedAnimations;
 
   const jsonBytes = new TextEncoder().encode(JSON.stringify(parsed.document));
   const paddedJson = new Uint8Array(alignToFour(jsonBytes.byteLength));
