@@ -57,9 +57,9 @@ const jobs = [
       'examples',
       'fishing-camp',
       'out',
-      'fishing_camp_textured_v4.glb',
+      'fishing_camp_textured_v5.glb',
     ),
-    output: path.join(outputDirectory, 'fishing_camp_textured_v4.glb'),
+    output: path.join(outputDirectory, 'fishing_camp_textured_v5.glb'),
   },
   {
     source: path.join(

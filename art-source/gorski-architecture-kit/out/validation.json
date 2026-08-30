@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "validatedAt": "2026-08-29T19:47:22.960418+00:00",
+  "validatedAt": "2026-08-29T21:28:17.088439+00:00",
   "blend": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\out\\gorski_architecture_kit.blend",
   "manifest": "C:\\WebProjects\\medieval-road-system\\art-source\\gorski-architecture-kit\\out\\gorski_architecture_kit_manifest.json",
   "status": "pass",
@@ -22,8 +22,8 @@
     },
     "totalTriangles": 409862,
     "sharedMaterials": 36,
-    "buildingCatalogKinds": 44,
-    "buildingCoverageKinds": 44,
+    "buildingCatalogKinds": 43,
+    "buildingCoverageKinds": 43,
     "supplementalCoverageKinds": 34,
     "farmCropCatalogKinds": 6,
     "backyardGardenCatalogKinds": 17,

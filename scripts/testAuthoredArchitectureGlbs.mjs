@@ -227,19 +227,19 @@ assert.doesNotMatch(
   'Removed or extraneous hunter-camp props returned',
 );
 
-const fishingCamp = readGlb('fishing_camp_textured_v4.glb');
-assert.equal(fishingCamp.json.nodes.length, 59, 'Fishing camp node count changed');
-assert.equal(fishingCamp.json.meshes.length, 59, 'Fishing camp mesh count changed');
+const fishingCamp = readGlb('fishing_camp_textured_v5.glb');
+assert.equal(fishingCamp.json.nodes.length, 66, 'Fishing camp node count changed');
+assert.equal(fishingCamp.json.meshes.length, 66, 'Fishing camp mesh count changed');
 const fishingCampTriangles = countTriangles(fishingCamp.json);
-assert.equal(fishingCampTriangles, 4_396, 'Fishing camp triangle count changed');
+assert.equal(fishingCampTriangles, 5_092, 'Fishing camp triangle count changed');
 assert.ok(
-  fishingCampTriangles >= 2_500 && fishingCampTriangles <= 4_500,
-  'Fishing camp must stay within its 2,500-4,500 triangle gameplay budget',
+  fishingCampTriangles >= 2_500 && fishingCampTriangles <= 5_500,
+  'Fishing camp must stay within its 2,500-5,500 triangle gameplay budget',
 );
 assert.ok(fishingCamp.bytes.length < 2_000_000, 'Fishing camp runtime GLB should stay below 2 MB');
 assert.equal(
   fishingCamp.json.asset.extras?.sourceGlb,
-  'fishing_camp_textured_v4.glb',
+  'fishing_camp_textured_v5.glb',
   'Fishing camp runtime source provenance is missing',
 );
 assert.deepEqual(fishingCamp.json.images ?? [], [], 'Fishing camp must use the shared runtime atlas');
@@ -280,14 +280,26 @@ assertNames(fishingCamp.json, [
   'FC_Main_Roof_Left',
   'FC_Shed_Roof_Right',
   'FC_Fish_Drying_Rack',
-  'FC_Grounded_River_Dugout',
+  'FC_Leaning_River_Dugout',
+  'FC_Fence_Rear_West',
+  'FC_Fence_Rear_Centre',
+  'FC_Fence_Rear_East',
+  'FC_Fence_West',
+  'FC_Fence_East',
+  'FC_Main_Door_Stone_Step',
+  'FC_Shed_Door_Stone_Step',
   'FC_Main_Front_Gable_Collar_Left',
   'FC_Main_Front_Gable_Collar_Right',
 ]);
+assert.equal(
+  (fishingCamp.json.nodes ?? []).filter((node) => /^FC_Fence_/.test(node.name ?? '')).length,
+  5,
+  'Fishing camp must retain its five-module rear-and-side split-rail boundary',
+);
 assert.doesNotMatch(
   (fishingCamp.json.nodes ?? []).map((node) => node.name ?? '').join('|'),
-  /FC_Fence_|FC_Open_Yard_Gate|FC_.*Gate/,
-  'Fishing camp workyard must remain completely unenclosed',
+  /FC_Open_Yard_Gate|FC_.*Gate/,
+  'Fishing camp road frontage must remain open without a gate',
 );
 const fishingRackNode = fishingCamp.json.nodes.find((node) => node.name === 'FC_Fish_Drying_Rack');
 assert.ok(Number.isInteger(fishingRackNode?.mesh), 'Fishing camp drying-rack mesh is missing');
@@ -703,6 +715,8 @@ assert.match(siteworksSource, /def _hearth_rock/);
 assert.match(siteworksSource, /Three thick, dark forest billets/);
 
 const integrationSource = readText('src/buildings/authoredArchitectureModels.ts');
+assert.match(integrationSource, /tier1_church_delnice_v2\.glb/);
+assert.match(integrationSource, /fishing_camp_textured_v5\.glb/);
 assert.match(integrationSource, /applyBuildingMaterialAtlasDirectUv/);
 assert.match(integrationSource, /readAuthoredAtlasTint/);
 assert.match(integrationSource, /readAuthoredSurfaceTint/);
@@ -714,6 +728,11 @@ assert.match(
 );
 assert.match(integrationSource, /HuntersFoodStockpile/);
 assert.match(integrationSource, /fpCollisionChildrenOnly/);
+assert.match(
+  integrationSource,
+  /fpCollisionAllowStep\s*=\s*[\s\S]*source_component_id\s*===\s*'foundation_steps_limestone_1'/,
+  'Fishing-camp stone thresholds must be traversable step collision proxies',
+);
 assert.match(readText('src/residences/ResidenceMarkers.ts'), /createAuthoredTierOneResidenceShell/);
 assert.match(readText('src/buildings/BuildingMeshes.ts'), /createAuthoredHuntersCampMesh/);
 assert.match(readText('src/buildings/BuildingMeshes.ts'), /createAuthoredFishingCampMesh/);
@@ -736,7 +755,7 @@ console.log('Authored architecture GLB contract passed.');
 console.log(`  Tier 1 residence: ${formatKiB(residence.bytes.length)}, 33 meshes, 5,184 tris`);
 console.log(`  Tier 1 church: ${formatKiB(church.bytes.length)}, 84 meshes, ${churchTriangles.toLocaleString('en-US')} tris`);
 console.log(`  Hunter's camp: ${formatKiB(camp.bytes.length)}, 15 meshes, ${campTriangles.toLocaleString('en-US')} tris`);
-console.log(`  Fishing camp: ${formatKiB(fishingCamp.bytes.length)}, 59 meshes, ${fishingCampTriangles.toLocaleString('en-US')} tris`);
+console.log(`  Fishing camp: ${formatKiB(fishingCamp.bytes.length)}, 66 meshes, ${fishingCampTriangles.toLocaleString('en-US')} tris`);
 console.log(`  Wayside shrine: ${formatKiB(waysideShrine.bytes.length)}, 9 meshes, ${waysideShrineTriangles.toLocaleString('en-US')} tris`);
 console.log(`  Lumber mill: ${formatKiB(lumberMill.bytes.length)}, 49 meshes, ${lumberMillTriangles.toLocaleString('en-US')} tris`);
 console.log(`  Mining Camp: ${formatKiB(miningCamp.bytes.length)}, 9 meshes, ${miningCampTriangles.toLocaleString('en-US')} tris`);

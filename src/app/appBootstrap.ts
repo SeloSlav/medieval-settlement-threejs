@@ -184,7 +184,7 @@ export async function bootstrapAppSession(
   const loadingScreen = LoadingScreen.tryCreate();
   const settlementPresentationPromise = import('./deferredSettlementPresentation.ts');
   const authoredArchitecturePromise = preloadAuthoredArchitectureModels().catch((error) => {
-    console.warn('Authored residence and hunter camp models are unavailable:', error);
+    console.warn('Authored building models are unavailable:', error);
   });
   const materials = RoadMaterialFactory.createProgressive(8);
   void materials.whenTexturesReady().catch((error) => {

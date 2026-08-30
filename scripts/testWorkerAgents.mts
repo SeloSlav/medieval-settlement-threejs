@@ -625,7 +625,6 @@ const expectedWorkplaces = [
   'stone_quarry',
   'large_quarry',
   'mine',
-  'clay_pit',
   'charcoal_burner',
   'smithy',
   'potter_kiln',
@@ -704,7 +703,7 @@ assert.equal(monasteryRoster.assignments.length, 8);
 assert.equal(villagerOccupation('monastery'), 'Monk');
 
 const materialWorkplaces = [
-  building('material-clay-workers', 'clay_pit', 0, 0, 3, 0),
+  building('material-mining-camp-workers', 'stone_quarry', 0, 0, 3, 0),
   building('material-charcoal-workers', 'charcoal_burner', 15, 0, 2, 0),
   building('material-smithy-workers', 'smithy', 30, 0, 3, 0),
   building('material-potter-workers', 'potter_kiln', 45, 0, 2, 0),
@@ -791,7 +790,7 @@ const materialScaleSites = Array.from({ length: 20_000 }, (_, index) =>
   building(
     `bounded-material-${index.toString().padStart(5, '0')}`,
     index % 4 === 0
-      ? 'clay_pit'
+      ? 'stone_quarry'
       : index % 4 === 1
         ? 'charcoal_burner'
         : index % 4 === 2
@@ -885,7 +884,7 @@ assert.match(
   /essentialSabbathDuty === 'livestock_care'[\s\S]*?agent\.mode === 'gather'[\s\S]*?beginWorkerReturnToWork\(agent\)/,
   'a swineherd already gathering mast must physically return before essential care begins',
 );
-assert.match(villagerRendererSource, /Cutting wet river clay/);
+assert.match(villagerRendererSource, /Extracting surface material near/);
 assert.match(villagerRendererSource, /Sealing and venting the clamp/);
 assert.match(villagerRendererSource, /Forging ironwork/);
 assert.match(villagerRendererSource, /Shaping and firing vessels/);
@@ -893,7 +892,7 @@ assert.match(villagerRendererSource, /Waiting at \$\{workplaceLabel\}/);
 assert.match(villagerRendererSource, /workerProductionBlocker\(workplace\)/);
 assert.match(
   villagerRendererSource,
-  /kind === 'clay_pit'[\s\S]*kind === 'charcoal_burner'[\s\S]*return 'shovel'/,
+  /kind === 'reforester'[\s\S]*kind === 'charcoal_burner'[\s\S]*return 'shovel'/,
 );
 assert.match(villagerRendererSource, /kind === 'carpenter' \|\| kind === 'smithy'/);
 assert.match(
@@ -1113,12 +1112,6 @@ for (const [kind, expectedActivity] of Object.entries(YARD_WORK_ACTIVITY)) {
 }
 
 const materialWorkCases = [
-  {
-    kind: 'clay_pit',
-    ready: { clay: 0 },
-    blocked: { clay: 180 },
-    blocker: 'clay_capacity',
-  },
   {
     kind: 'charcoal_burner',
     ready: { firewood: 1, charcoal: 0 },

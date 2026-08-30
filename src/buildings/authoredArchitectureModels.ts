@@ -34,7 +34,7 @@ export const TIER_ONE_CHURCH_MODEL_URL =
 export const HUNTERS_CAMP_MODEL_URL =
   '/assets/models/buildings/gorski/hunters_camp_textured_v10.glb';
 export const FISHING_CAMP_MODEL_URL =
-  '/assets/models/buildings/gorski/fishing_camp_textured_v4.glb';
+  '/assets/models/buildings/gorski/fishing_camp_textured_v5.glb';
 export const WAYSIDE_SHRINE_MODEL_URL =
   '/assets/models/buildings/gorski/wayside_shrine_textured_v1.glb';
 export const LUMBER_MILL_MODEL_URL =
@@ -177,7 +177,7 @@ export function createAuthoredFishingCampMesh(): THREE.Group | null {
   if (!camp) return null;
   camp.name = 'Fishing camp';
   camp.userData.authoredGlbAsset = true;
-  camp.userData.authoredGlbVersion = 'fishing-camp-v4';
+  camp.userData.authoredGlbVersion = 'fishing-camp-v5';
   camp.userData.authoredGlbUrl = FISHING_CAMP_MODEL_URL;
   camp.userData.fpCollisionChildrenOnly = true;
   addComponentCollisionProxies(camp, 'fc_instance', 'Fishing camp');
@@ -502,7 +502,8 @@ function addComponentCollisionProxies(
     proxy.position.copy(center);
     proxy.scale.copy(size);
     proxy.userData.fpCollisionAggregate = true;
-    proxy.userData.fpCollisionAllowStep = false;
+    proxy.userData.fpCollisionAllowStep =
+      component.userData.source_component_id === 'foundation_steps_limestone_1';
     proxy.castShadow = false;
     proxy.receiveShadow = false;
     camp.add(proxy);

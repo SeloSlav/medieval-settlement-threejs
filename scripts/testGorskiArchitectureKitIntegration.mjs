@@ -33,7 +33,7 @@ assert.match(runtimeManifest.kit.vegetationOwner, /SeedThree/);
 assert.equal(runtimeManifest.summary.partCount, 638);
 assert.equal(runtimeManifest.summary.familyCount, 12);
 assert.equal(runtimeManifest.summary.totalTriangles, 409_862);
-assert.equal(runtimeManifest.summary.buildingCategories, 44);
+assert.equal(runtimeManifest.summary.buildingCategories, 43);
 assert.equal(runtimeManifest.summary.supplementalCategories, 34);
 
 const catalogKinds = readCatalogKinds();
@@ -142,7 +142,9 @@ assert.match(
 console.log('Gorski architecture-kit runtime integration passed.');
 console.log(`  ${bundledParts} parts across 12 lazy family GLBs`);
 console.log(`  ${bundledTriangles.toLocaleString('en-US')} triangles, ${formatMiB(bundledBytes)} total`);
-console.log('  44 authoritative + 34 supplemental coverage categories');
+console.log(
+  `  ${runtimeManifest.summary.buildingCategories} authoritative + ${runtimeManifest.summary.supplementalCategories} supplemental coverage categories`,
+);
 
 function readCatalogKinds() {
   const source = fs.readFileSync(

@@ -86,7 +86,6 @@ for (const [kind, url] of Object.entries(BUILDING_CARD_ART)) {
 }
 for (const [kind, expectedUrl] of Object.entries({
   mine: '/assets/ui/build-menu/cards/iron-mine.webp',
-  clay_pit: '/assets/ui/build-menu/cards/clay-pit.webp',
   charcoal_burner: '/assets/ui/build-menu/cards/charcoal-burner.webp',
   smithy: '/assets/ui/build-menu/cards/smithy-bloomery.webp',
   potter_kiln: '/assets/ui/build-menu/cards/potter-kiln.webp',

@@ -616,8 +616,6 @@ function testMovableBuildingsSnapToRoadSides(): void {
   const anchoredKinds = new Set<BuildingKind>([
     'large_quarry',
     'mine',
-    // Retained only so loaded legacy Clay Pits keep their authored position.
-    'clay_pit',
     'watermill',
   ]);
   for (const kind of BUILDING_KINDS) {

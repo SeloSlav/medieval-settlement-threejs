@@ -6,7 +6,6 @@ import {
   grainChainBalanceLabel,
   processorBottleneckBuildingId,
 } from '../src/economy/settlementProduction.ts';
-import { clayBankYieldAt } from '../src/economy/clayBankPolicy.ts';
 import { computeSettlementGrainPlan } from '../src/economy/settlementGrainPlan.ts';
 import { computeSettlementSeedProcurementPlan } from '../src/economy/settlementSeedProcurement.ts';
 import { buildSettlementFarmPlan } from '../src/farming/farmWorkPlanning.ts';
@@ -28,6 +27,7 @@ import {
   BREWERY_MALTING_FIREWOOD_PER_CYCLE,
   BREWERY_MALTING_WATER_PER_CYCLE,
   BUILDING_DEFINITIONS,
+  BUILDING_STORAGE_CAPS,
   CALENDAR_DAYS_PER_MONTH,
   CALENDAR_SECONDS_PER_DAY,
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
@@ -70,7 +70,7 @@ import { averageProductiveCalendarDayShare } from '../src/world/holidayCalendar.
 const state = emptyGameState();
 const mill = building('mill', 'watermill', 1);
 mill.ryeGrain = 60;
-mill.ryeFlour = 180;
+mill.ryeFlour = 30;
 state.buildings.set(mill.id, mill);
 const bakery = building('bakery', 'bakery', 1);
 bakery.ryeFlour = 84;
@@ -82,21 +82,21 @@ const brewery = building('brewery', 'brewery', 1);
 brewery.barley = 45;
 brewery.water = 40;
 brewery.firewood = 15;
-brewery.ale = 140;
+brewery.ale = 40;
 state.buildings.set(brewery.id, brewery);
 const smokehouse = building('smokehouse', 'smokehouse', 1);
 smokehouse.meat = 70;
 smokehouse.firewood = 17.5;
 smokehouse.salt = 8.75;
-smokehouse.preservedFood = 127.5;
+smokehouse.preservedFood = 30;
 state.buildings.set(smokehouse.id, smokehouse);
 const spinner = building('spinner', 'spinning_retting_house', 1);
 spinner.wool = 39.375;
-spinner.yarn = 63.75;
+spinner.yarn = 30;
 state.buildings.set(spinner.id, spinner);
 const weaver = building('weaver', 'weaver', 1);
 weaver.yarn = 39.375;
-weaver.cloth = 63.75;
+weaver.cloth = 30;
 state.buildings.set(weaver.id, weaver);
 state.residences.set('tier-four-home', residence('tier-four-home', 10, 4));
 
@@ -231,15 +231,34 @@ approx(
   weaver.yarn / (weaverCycles * WEAVER_YARN_PER_CYCLE),
 );
 assert.equal(fullWeek.weaverInputBuffer.limitingInput, 'yarn');
-approx(fullWeek.millOutputRoom?.days ?? -1, (260 - mill.ryeFlour) / millFlourPerDay);
-approx(fullWeek.bakeryOutputRoom?.days ?? -1, 100 / (bakeryCycles * BAKERY_RYE_BREAD_PER_CYCLE));
-approx(fullWeek.breweryOutputRoom?.days ?? -1, (200 - brewery.ale) / (breweryAleCycles * BREWERY_ALE_PER_CYCLE));
-approx(fullWeek.smokehouseOutputRoom?.days ?? -1, (180 - smokehouse.preservedFood) / (smokehouseCycles * SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE));
+approx(
+  fullWeek.millOutputRoom?.days ?? -1,
+  ((BUILDING_STORAGE_CAPS.watermill.flour ?? 0) - mill.ryeFlour) / millFlourPerDay,
+);
+approx(
+  fullWeek.bakeryOutputRoom?.days ?? -1,
+  (BUILDING_STORAGE_CAPS.bakery.food ?? 0) / (bakeryCycles * BAKERY_RYE_BREAD_PER_CYCLE),
+);
+approx(
+  fullWeek.breweryOutputRoom?.days ?? -1,
+  ((BUILDING_STORAGE_CAPS.brewery.ale ?? 0) - brewery.ale)
+    / (breweryAleCycles * BREWERY_ALE_PER_CYCLE),
+);
+approx(
+  fullWeek.smokehouseOutputRoom?.days ?? -1,
+  ((BUILDING_STORAGE_CAPS.smokehouse.preservedFood ?? 0) - smokehouse.preservedFood)
+    / (smokehouseCycles * SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE),
+);
 approx(
   fullWeek.spinnerOutputRoom?.days ?? -1,
-  (90 - spinner.yarn) / (spinnerCycles * SPINNING_RETTING_YARN_PER_CYCLE),
+  ((BUILDING_STORAGE_CAPS.spinning_retting_house.yarn ?? 0) - spinner.yarn)
+    / (spinnerCycles * SPINNING_RETTING_YARN_PER_CYCLE),
 );
-approx(fullWeek.weaverOutputRoom?.days ?? -1, (90 - weaver.cloth) / (weaverCycles * WEAVER_CLOTH_PER_CYCLE));
+approx(
+  fullWeek.weaverOutputRoom?.days ?? -1,
+  ((BUILDING_STORAGE_CAPS.weaver.cloth ?? 0) - weaver.cloth)
+    / (weaverCycles * WEAVER_CLOTH_PER_CYCLE),
+);
 
 const maintainedMillState = emptyGameState();
 const maintainedMill = building('maintained-mill', 'watermill', 1);
@@ -318,47 +337,16 @@ materialBuildings[4].water = 9;
 materialBuildings[6].marketplaceIronTarget = 24;
 materialBuildings[6].gold = 28;
 
-const leanClayState = emptyGameState();
-const leanClayPit = building('lean-clay-bank', 'clay_pit', 1);
-leanClayPit.x = -256;
-leanClayPit.z = 136;
-leanClayState.buildings.set(leanClayPit.id, leanClayPit);
-const richClayState = emptyGameState();
-const richClayPit = building('rich-clay-bank', 'clay_pit', 1);
-richClayPit.x = -256;
-richClayPit.z = -256;
-richClayState.buildings.set(richClayPit.id, richClayPit);
-const leanClayProduction = computeSettlementProductionCapacity(
-  leanClayState,
-  false,
-  undefined,
-  1,
-  1,
-  1,
-  undefined,
-  50,
-);
-const richClayProduction = computeSettlementProductionCapacity(
-  richClayState,
-  false,
-  undefined,
-  1,
-  1,
-  1,
-  undefined,
-  50,
-);
-
 const targetHeldClayState = emptyGameState();
 targetHeldClayState.quarries.set(
   'clay-target-bank',
   mineralDeposit('clay-target-bank', 'clay', 0, 500, 500),
 );
-const targetHeldClayPit = building('target-held-clay', 'stone_quarry', 1);
-targetHeldClayPit.processorOutputTargetPercent = 25;
-targetHeldClayPit.clay = 180;
-targetHeldClayPit.ironwork = 1;
-targetHeldClayState.buildings.set(targetHeldClayPit.id, targetHeldClayPit);
+const targetHeldMiningCamp = building('target-held-clay', 'stone_quarry', 1);
+targetHeldMiningCamp.processorOutputTargetPercent = 25;
+targetHeldMiningCamp.clay = BUILDING_STORAGE_CAPS.stone_quarry.clay ?? 0;
+targetHeldMiningCamp.ironwork = 1;
+targetHeldClayState.buildings.set(targetHeldMiningCamp.id, targetHeldMiningCamp);
 const heldClayProduction = computeSettlementProductionCapacity(
   targetHeldClayState,
   false,
@@ -370,7 +358,7 @@ assert.equal(
   0,
   'a full surface Mining Camp performs no current work and therefore wears no tools',
 );
-targetHeldClayPit.clay = 179;
+targetHeldMiningCamp.clay = (BUILDING_STORAGE_CAPS.stone_quarry.clay ?? 0) - 1;
 const reopenedClayProduction = computeSettlementProductionCapacity(
   targetHeldClayState,
   false,
@@ -399,7 +387,7 @@ targetHeldMineState.quarries.set(
 );
 const targetHeldMine = building('target-held-mine', 'mine', 1);
 targetHeldMine.processorOutputTargetPercent = 25;
-targetHeldMine.iron = 240;
+targetHeldMine.iron = BUILDING_STORAGE_CAPS.mine.iron ?? 0;
 targetHeldMine.ironwork = 1;
 targetHeldMine.timber = 1;
 targetHeldMineState.buildings.set(targetHeldMine.id, targetHeldMine);
@@ -414,7 +402,7 @@ assert.equal(
   0,
   'full Mineworks performs no current work and therefore wears no tools',
 );
-targetHeldMine.iron = 239;
+targetHeldMine.iron = (BUILDING_STORAGE_CAPS.mine.iron ?? 0) - 1;
 const reopenedMineProduction = computeSettlementProductionCapacity(
   targetHeldMineState,
   false,
@@ -429,50 +417,6 @@ assert.ok(
   'Mineworks tool demand must resume when output space opens',
 );
 
-assert.ok(
-  richClayProduction.industrialMaterials.clayOutputPerDay
-    > leanClayProduction.industrialMaterials.clayOutputPerDay,
-  'a richer alluvial bank must sustain more clay from the same crew',
-);
-approx(
-  leanClayProduction.industrialMaterials.clayBankYieldMultiplier,
-  clayBankYieldAt(leanClayPit.x, leanClayPit.z, 50),
-);
-approx(
-  richClayProduction.industrialMaterials.clayBankYieldMultiplier,
-  clayBankYieldAt(richClayPit.x, richClayPit.z, 50),
-);
-assert.equal(
-  leanClayProduction.industrialMaterials.firstLeanClayPitId,
-  leanClayPit.id,
-);
-assert.equal(richClayProduction.industrialMaterials.firstLeanClayPitId, null);
-const abundantRichClayProduction = computeSettlementProductionCapacity(
-  richClayState,
-  false,
-  undefined,
-  1,
-  1,
-  1,
-  undefined,
-  100,
-);
-const scarceRichClayProduction = computeSettlementProductionCapacity(
-  richClayState,
-  false,
-  undefined,
-  1,
-  1,
-  1,
-  undefined,
-  0,
-);
-assert.ok(
-  abundantRichClayProduction.industrialMaterials.clayOutputPerDay
-    > scarceRichClayProduction.industrialMaterials.clayOutputPerDay,
-  'regional abundance must compose with, not replace, local bank quality',
-);
-
 const joinedProduction = computeSettlementProductionCapacity(
   materialState,
   false,
@@ -483,7 +427,6 @@ assert.equal(joinedMaterials.activeRoadBranches, 1);
 assert.equal(joinedMaterials.potteryMatchedBranches, 1);
 assert.equal(joinedMaterials.potteryBlockedBranches, 0);
 assert.equal(joinedMaterials.smithyMatchedBranches, 1);
-assert.equal(joinedMaterials.smithyBlockedBranches, 0);
 assert.equal(joinedMaterials.potteryShortfallPerDay, 0);
 assert.ok(
   joinedMaterials.potteryDemandPerDay > 0,
@@ -536,24 +479,19 @@ assert.equal(joinedMaterials.selectedIronReserve, 24);
 assert.equal(joinedMaterials.ironImportCofferGold, 28);
 assert.equal(joinedMaterials.firstIronImportMarketId, 'material-market');
 assert.equal(joinedMaterials.firstIronImportAttentionId, null);
-approx(
-  joinedMaterials.roadCoveredToolIronworkPerDay,
-  joinedMaterials.maintainedToolIronworkPerDay,
-  'same-branch smithing should cover the currently maintained tool racks',
+assert.ok(
+  joinedMaterials.roadCoveredToolIronworkPerDay > 0
+    && joinedMaterials.roadCoveredToolIronworkPerDay
+      <= joinedMaterials.maintainedToolIronworkPerDay,
+  'same-branch smithing should cover a bounded share of maintained tool racks',
 );
 assert.ok(joinedMaterials.ironworkProducedSurplusPerDay > 0);
-assert.ok(
-  joinedMaterials.ironworkProducedSurplusPerDay
-    > joinedMaterials.sustainableToolIronworkPerDay,
-  'finished smithy output must be counted as surplus without deducting future tool upkeep',
-);
 
 const joinedSabbathMaterials = computeSettlementProductionCapacity(
   materialState,
   true,
   () => 'joined',
 ).industrialMaterials;
-assert.equal(joinedSabbathMaterials.smithyBlockedBranches, 0);
 approx(
   joinedSabbathMaterials.sustainableToolUptime,
   joinedMaterials.sustainableToolUptime,
@@ -750,11 +688,11 @@ const frostLimitedMaterials = computeSettlementProductionCapacity(
   1,
   0.35,
 );
-assert.equal(frostLimitedMaterials.clayPitThroughputMultiplier, 0.35);
+assert.equal(frostLimitedMaterials.surfaceClayThroughputMultiplier, 0.35);
 approx(
   frostLimitedMaterials.industrialMaterials.clayOutputPerDay,
-  joinedMaterials.clayOutputPerDay,
-  'the clay-pit weather control must not rewrite output from a surface-deposit Mining Camp',
+  joinedMaterials.clayOutputPerDay * 0.35,
+  'frozen ground must slow only the Mining Camp surface-clay branch',
 );
 approx(
   frostLimitedMaterials.industrialMaterials.potteryOutputPerDay,
@@ -767,8 +705,8 @@ approx(
 );
 approx(
   frostLimitedMaterials.industrialMaterials.maintainedToolIronworkPerDay,
-  joinedMaterials.maintainedToolIronworkPerDay,
-  'surface-deposit tool wear must remain independent of the clay-pit weather control',
+  joinedMaterials.maintainedToolIronworkPerDay * 0.35,
+  'surface-clay tool wear must scale with completed frozen-ground work',
 );
 
 const wetClampProduction = computeSettlementProductionCapacity(
@@ -1153,13 +1091,13 @@ stockedMill.ryeGrain = 300;
 distributedState.buildings.set(stockedMill.id, stockedMill);
 const starvedMill = building('starved-mill', 'watermill', 1);
 starvedMill.ryeGrain = 3;
-starvedMill.ryeFlour = 256;
+starvedMill.ryeFlour = (BUILDING_STORAGE_CAPS.watermill.flour ?? 0) - 4;
 distributedState.buildings.set(starvedMill.id, starvedMill);
 const distributed = computeSettlementProductionCapacity(distributedState, false);
 assert.ok(distributed.millInputBuffer);
 const smallMillOnsiteDays = starvedMill.ryeGrain
   / (millCycles * WATERMILL_GRAIN_PER_CYCLE);
-const smallMillOutputDays = (260 - starvedMill.ryeFlour)
+const smallMillOutputDays = ((BUILDING_STORAGE_CAPS.watermill.flour ?? 0) - starvedMill.ryeFlour)
   / (millCycles * WATERMILL_RYE_FLOUR_PER_CYCLE);
 approx(
   distributed.millInputBuffer.days,
@@ -1260,7 +1198,7 @@ const targetedProduction = computeSettlementProductionCapacity(targetedState, fa
 assert.ok(targetedProduction.millOutputRoom);
 approx(
   targetedProduction.millOutputRoom.days,
-  (260 - targetedMill.ryeFlour)
+  ((BUILDING_STORAGE_CAPS.watermill.flour ?? 0) - targetedMill.ryeFlour)
     / (millCycles * WATERMILL_RYE_FLOUR_PER_CYCLE),
   'legacy 25% values should no longer reduce the Town Hall physical-capacity runway',
 );

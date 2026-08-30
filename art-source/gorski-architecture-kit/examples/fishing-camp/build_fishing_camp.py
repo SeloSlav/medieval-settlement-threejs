@@ -17,14 +17,14 @@ EXAMPLE_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path(os.environ.get("GK_FISHING_CAMP_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
 OUT_DIR = OUTPUT_ROOT / "out"
 RENDER_DIR = OUTPUT_ROOT / "renders"
-OUT_BLEND = OUT_DIR / "fishing_camp_textured_v4.blend"
-OUT_GLB = OUT_DIR / "fishing_camp_textured_v4.glb"
-OUT_MANIFEST = OUT_DIR / "fishing_camp_assembly_v4.json"
-OUT_HERO = RENDER_DIR / "fishing_camp_hero_v4.png"
-OUT_OVERHEAD = RENDER_DIR / "fishing_camp_overhead_v4.png"
-OUT_WORKYARD = RENDER_DIR / "fishing_camp_workyard_v4.png"
-OUT_BOAT = RENDER_DIR / "fishing_camp_boat_detail_v4.png"
-OUT_REAR = RENDER_DIR / "fishing_camp_rear_v4.png"
+OUT_BLEND = OUT_DIR / "fishing_camp_textured_v5.blend"
+OUT_GLB = OUT_DIR / "fishing_camp_textured_v5.glb"
+OUT_MANIFEST = OUT_DIR / "fishing_camp_assembly_v5.json"
+OUT_HERO = RENDER_DIR / "fishing_camp_hero_v5.png"
+OUT_OVERHEAD = RENDER_DIR / "fishing_camp_overhead_v5.png"
+OUT_WORKYARD = RENDER_DIR / "fishing_camp_workyard_v5.png"
+OUT_BOAT = RENDER_DIR / "fishing_camp_boat_detail_v5.png"
+OUT_REAR = RENDER_DIR / "fishing_camp_rear_v5.png"
 
 
 # Assembly-specific fit contract. The kit's 0.24 m verge is nominal; these
@@ -75,6 +75,7 @@ SERVICE_SHED = collection("FC_02_Service_Shed")
 ROOFS = collection("FC_03_Roofs")
 WORKYARD = collection("FC_04_Drying_And_Work")
 BOAT = collection("FC_05_Boat")
+ENCLOSURE = collection("FC_06_Enclosure")
 EQUIPMENT = collection("FC_07_Equipment")
 PREVIEW = collection("FC_90_Preview_Staging")
 
@@ -83,6 +84,7 @@ texture_helper.MATERIAL_LOOKS.update({
     "limewash": ("lime-plaster", (0.66, 0.59, 0.45, 1.0), 0.42, 0.70),
     "limewash_grey": ("lime-plaster", (0.49, 0.48, 0.40, 1.0), 0.55, 0.66),
     "limestone_warm": ("fieldstone-mortar", (0.48, 0.43, 0.34, 1.0), 0.64, 0.78),
+    "fieldstone_weathered": ("fieldstone-mortar", (0.30, 0.255, 0.20, 1.0), 0.82, 0.86),
     "fieldstone": ("fieldstone-mortar", (0.30, 0.31, 0.27, 1.0), 0.82, 0.88),
     "oak_dark": ("rough-hewn-timber", (0.13, 0.068, 0.029, 1.0), 0.88, 0.76),
     "timber_weathered": ("weathered-planks", (0.29, 0.18, 0.085, 1.0), 0.76, 0.78),
@@ -133,6 +135,8 @@ def remap_materials(obj: bpy.types.Object, part_id: str) -> None:
             "fence_dark" if key == "timber_weathered" else "fence_cut" if key == "timber_cut" else key
             for key in bake_keys
         ]
+    elif part_id == "foundation_steps_limestone_1":
+        bake_keys = ["fieldstone_weathered" if key == "limestone_warm" else key for key in bake_keys]
     elif part_id == "prop_boat_dugout":
         bake_keys = [
             "boat_hull" if key == "timber_weathered" else "boat_rim" if key == "oak_dark" else "boat_cut" if key == "timber_cut" else key
@@ -307,6 +311,7 @@ def assemble_main_house() -> None:
     place("wall_plank_4m_h2p7m", "FC_Main_Left_Plank_Wall", MAIN_HOUSE, (cx - 2.0, (front + rear) * 0.5, base), (0.0, 0.0, -math.pi * 0.5))
     place("wall_plank_4m_h2p7m", "FC_Main_Right_Plank_Wall", MAIN_HOUSE, (cx + 2.0, (front + rear) * 0.5, base), (0.0, 0.0, math.pi * 0.5))
     place("opening_door_service_single", "FC_Main_Service_Door", MAIN_HOUSE, (cx - 1.0, front - 0.105, base))
+    place("foundation_steps_limestone_1", "FC_Main_Door_Stone_Step", MAIN_HOUSE, (cx - 1.0, front - 0.56, 0.0))
     place("opening_window_small_shuttered", "FC_Main_Shuttered_Window", MAIN_HOUSE, (cx + 1.0, front - 0.105, base))
     place("gable_infill_timber_4m", "FC_Main_Front_Gable", MAIN_HOUSE, (cx, front - 0.01, wall_top - 0.06))
     place("gable_infill_timber_4m", "FC_Main_Rear_Gable", MAIN_HOUSE, (cx, rear + 0.01, wall_top - 0.06), (0.0, 0.0, math.pi))
@@ -356,6 +361,7 @@ def assemble_service_shed() -> None:
     ):
         place("wall_plank_2m_h2p7m", f"FC_Shed_{label}_Wall", SERVICE_SHED, (x, y, base), (0.0, 0.0, rz))
     place("opening_door_service_single", "FC_Shed_Service_Door", SERVICE_SHED, (cx, front - 0.105, base))
+    place("foundation_steps_limestone_1", "FC_Shed_Door_Stone_Step", SERVICE_SHED, (cx, front - 0.56, 0.0))
     place("gable_infill_timber_2m", "FC_Shed_Front_Gable", SERVICE_SHED, (cx, front - 0.01, wall_top - 0.06))
     place("gable_infill_timber_2m", "FC_Shed_Rear_Gable", SERVICE_SHED, (cx, rear + 0.01, wall_top - 0.06), (0.0, 0.0, math.pi))
     for face, y, rz in (("Front", front - FRAME_FACE_INSET, 0.0), ("Rear", rear + FRAME_FACE_INSET, math.pi)):
@@ -372,11 +378,30 @@ def assemble_workyard() -> None:
     # rectangles remain completely clear, and the paired wash buckets stay
     # visibly attached to the station instead of drifting into an entrance.
     place("prop_fish_drying_rack", "FC_Fish_Drying_Rack", WORKYARD, (4.55, -1.55, 0.0), (0.0, 0.0, math.radians(90.0)))
-    # The partial boundary has been removed. The dugout now rests upright on
-    # its keel at the rear shore edge and no longer depends on a fence for a
-    # physically credible pose.
-    boat = place("prop_boat_dugout", "FC_Grounded_River_Dugout", BOAT, (-2.95, 4.08, 0.0), (0.0, 0.0, math.radians(-2.0)))
-    boat["signature_silhouette"] = "hollow double-ended dugout grounded upright at the rear shore edge"
+    # A continuous rear-and-side boundary encloses only the private back yard.
+    # It remains well outside both building envelopes and leaves the entire
+    # road-facing front open for workers, carts, and the two door approaches.
+    for part_id, name, location, rotation in (
+        ("enclosure_split_rail_4m", "FC_Fence_Rear_West", (-3.05, 4.45, 0.0), (0.0, 0.0, 0.0)),
+        ("enclosure_split_rail_4m", "FC_Fence_Rear_Centre", (1.10, 4.45, 0.0), (0.0, 0.0, 0.0)),
+        ("enclosure_split_rail_2m", "FC_Fence_Rear_East", (4.15, 4.45, 0.0), (0.0, 0.0, 0.0)),
+        ("enclosure_split_rail_4m", "FC_Fence_West", (-5.15, 2.35, 0.0), (0.0, 0.0, math.radians(90.0))),
+        ("enclosure_split_rail_4m", "FC_Fence_East", (5.07, 2.35, 0.0), (0.0, 0.0, math.radians(90.0))),
+    ):
+        place(part_id, name, ENCLOSURE, location, rotation)
+
+    # The dugout has two real supports: its lower hull bears on grade while
+    # the upper gunwale contacts the rear-west rail. The 45-degree lean and
+    # 0.32 m lift are the previously validated contact pose, not a floating
+    # display transform.
+    boat = place(
+        "prop_boat_dugout",
+        "FC_Leaning_River_Dugout",
+        BOAT,
+        (-2.95, 4.29, 0.32),
+        (math.radians(45.0), 0.0, math.radians(-2.0)),
+    )
+    boat["signature_silhouette"] = "hollow double-ended dugout grounded below and braced against the rear-west split rail"
     place("prop_barrel_small", "FC_Brine_Barrel", EQUIPMENT, (4.15, -0.25, 0.0), (0.0, 0.0, math.radians(-8.0)))
     place("prop_crate_small", "FC_Net_And_Cord_Crate", EQUIPMENT, (4.15, 0.55, 0.0), (0.0, 0.0, math.radians(11.0)))
     place("prop_water_bucket_pair", "FC_Wash_Buckets", EQUIPMENT, (4.55, -2.95, 0.0), (0.0, 0.0, math.radians(4.0)))
@@ -534,8 +559,8 @@ def write_manifest() -> None:
     maximum = Vector((max(point.x for point in fixed_points), max(point.y for point in fixed_points), max(point.z for point in fixed_points)))
     dimensions = maximum - minimum
     payload = {
-        "id": "gorski-fishing-camp-atlas-preview-v4",
-        "revision": 4,
+        "id": "gorski-fishing-camp-atlas-preview-v5",
+        "revision": 5,
         "authoritativeBuildingKind": "fishing_camp",
         "displayIdentity": "Fishing Camp",
         "regionalContext": "Gorski Kotar, circa 1550",
@@ -545,12 +570,13 @@ def write_manifest() -> None:
             "artFootprintDepth": round(dimensions.y, 4),
             "maximumHeight": round(maximum.z, 4),
         },
-        "designIntent": "A compact two-building inland fishery whose main house inherits Tier-1 construction while the smaller plank shed and open work yard remain visibly utilitarian.",
-        "signatureSilhouette": "A hollow double-ended river dugout rests upright at the open rear shore edge.",
+        "designIntent": "A compact two-building inland fishery whose main house inherits Tier-1 construction while the smaller plank shed and fenced rear work yard remain visibly utilitarian.",
+        "signatureSilhouette": "A hollow double-ended river dugout is grounded and leans against the rear-west split-rail fence.",
         "construction": {
             "mainHouse": "Four-metre bay, low irregular fieldstone footing, warm restrained limewash public face, weathered plank private walls, dark oak posts and plates, timber gables, and a settled 50-degree split-shingle roof with 0.32 m eaves and 0.34 m protective verges.",
             "serviceShed": "Two-metre plank outbuilding on the same low rubble footing, with a service door and smaller 50-degree split-shingle roof.",
-            "yard": "Fully open road- and shore-facing workyard with an east-side drying frame and paired wash buckets, plus a separate clear inventory aisle for the brine barrel and cord crate.",
+            "yard": "Open road frontage with a continuous, generously offset split-rail boundary around the rear and sides; the east-side drying frame, wash buckets, brine barrel, and cord crate retain clear service aisles.",
+            "thresholds": "Each service door has the same single weathered stone-block step used by the Tier-1 residence.",
         },
         "atlas": {
             "id": texture_helper.ATLAS_MANIFEST["id"],
@@ -561,7 +587,7 @@ def write_manifest() -> None:
             "walling": "Warm, smoke- and rain-muted limewash is limited to the main public facade; rough plank boarding dominates private and service elevations.",
             "timber": "Structural oak is nearly black-brown, while replaceable boards and the dugout use warmer weathered fir/oak tones.",
             "roofing": "Hand-split fir/pine shingles stay dark and uneven rather than reading as pale canvas or modern boards.",
-            "boat": "A small hollow double-ended river dugout with gunwales, keel, ribs, removable thwarts, and a connected paddle rests independently on grade without a decorative boundary.",
+            "boat": "A small hollow double-ended river dugout with gunwales, keel, ribs, removable thwarts, and a connected paddle has credible lower-hull ground bearing and upper-gunwale contact against the rear-west rail.",
             "dryingRack": "An intentionally empty splayed sapling frame provides a clean attachment point for separately authored catch models.",
         },
         "canonicalState": "Neutral fixed fishery architecture with an empty drying rack; separate catch models and runtime stock baskets remain state-owned.",
@@ -615,11 +641,11 @@ def main() -> None:
     remove_source_library_objects()
     camera = stage_preview()
     scene = bpy.context.scene
-    scene["artifact_id"] = "gorski-fishing-camp-atlas-preview-v4"
+    scene["artifact_id"] = "gorski-fishing-camp-atlas-preview-v5"
     scene["authoritative_building_kind"] = "fishing_camp"
     scene["architecture_context"] = "Gorski Kotar, circa 1550"
     scene["canonical_state"] = "neutral fixed fishery; runtime owns fresh catch, inventory, workers, and world layers"
-    scene["signature_silhouette"] = "hollow dugout grounded at the open rear shore edge"
+    scene["signature_silhouette"] = "hollow dugout grounded below and leaning against the rear-west split-rail boundary"
     scene["atlas_id"] = texture_helper.ATLAS_MANIFEST["id"]
     scene["living_vegetation"] = "excluded; SeedThree-owned"
     bpy.ops.file.pack_all()

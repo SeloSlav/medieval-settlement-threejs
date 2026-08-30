@@ -9,19 +9,23 @@ from pathlib import Path
 
 import bmesh
 import bpy
+from mathutils.bvhtree import BVHTree
 from mathutils import Vector
 
 
 EXAMPLE_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path(os.environ.get("GK_FISHING_CAMP_OUTPUT_ROOT", str(EXAMPLE_DIR))).resolve()
 OUT_DIR = OUTPUT_ROOT / "out"
-REPORT_PATH = OUT_DIR / "fishing_camp_validation_v4.json"
+REPORT_PATH = OUT_DIR / "fishing_camp_validation_v5.json"
 
 REQUIRED_EXACT = {
     "wall_limewash_2m_door_service_host": 1,
     "wall_limewash_2m_window_small_host": 1,
     "wall_plank_2m_door_service_host": 1,
     "opening_door_service_single": 2,
+    "foundation_steps_limestone_1": 2,
+    "enclosure_split_rail_2m": 1,
+    "enclosure_split_rail_4m": 4,
     "prop_fish_drying_rack": 1,
     "prop_boat_dugout": 1,
     "frame_beam_0p5m_s0p16m": 4,
@@ -66,23 +70,38 @@ def xy_overlaps(
     return max_x > zone_min_x and min_x < zone_max_x and max_y > zone_min_y and min_y < zone_max_y
 
 
+def mesh_surface_distance(left: bpy.types.Object, right: bpy.types.Object) -> float:
+    def directed_distance(source: bpy.types.Object, target: bpy.types.Object) -> float:
+        target_vertices = world_vertices(target)
+        target_faces = [tuple(polygon.vertices) for polygon in target.data.polygons]
+        tree = BVHTree.FromPolygons(target_vertices, target_faces, all_triangles=False)
+        distances = []
+        for point in world_vertices(source):
+            nearest = tree.find_nearest(point)
+            if nearest is not None:
+                distances.append(float(nearest[3]))
+        return min(distances) if distances else math.inf
+
+    return min(directed_distance(left, right), directed_distance(right, left))
+
+
 def main() -> None:
     errors: list[str] = []
     warnings: list[str] = []
     instances = [obj for obj in bpy.data.objects if obj.get("fc_instance")]
     source_counts = Counter(str(obj.get("source_component_id", "")) for obj in instances)
-    if len(instances) != 59:
-        errors.append(f"expected 59 fixed fishery instances, found {len(instances)}")
+    if len(instances) != 66:
+        errors.append(f"expected 66 fixed fishery instances, found {len(instances)}")
     for part_id, expected in REQUIRED_EXACT.items():
         if source_counts[part_id] != expected:
             errors.append(f"{part_id}: expected {expected}, found {source_counts[part_id]}")
     if sum(count for source, count in source_counts.items() if source.startswith("foundation_fieldstone_")) != 8:
         errors.append("the two buildings must retain eight perimeter foundation runs")
     boundary_count = sum(count for source, count in source_counts.items() if source.startswith("enclosure_"))
-    if boundary_count:
-        errors.append(f"fishing-camp boundary must remain fully open, found {boundary_count} enclosure components")
-    if any("fence" in obj.name.lower() or "gate" in obj.name.lower() for obj in instances):
-        errors.append("fencing or a gate returned to the deliberately unenclosed workyard")
+    if boundary_count != 5:
+        errors.append(f"rear-and-side fishing-camp boundary must contain five modules, found {boundary_count}")
+    if any("gate" in obj.name.lower() for obj in instances):
+        errors.append("road frontage must remain open without a fence gate")
 
     triangles = 0
     atlas_tiles: set[str] = set()
@@ -158,22 +177,57 @@ def main() -> None:
         if drying_station_spacing > 2.25:
             errors.append(f"wash buckets no longer read beside the drying rack: {drying_station_spacing:.4f} m")
 
+    thresholds = [
+        obj for obj in instances
+        if obj.get("source_component_id") == "foundation_steps_limestone_1"
+    ]
+    expected_threshold_locations = {
+        "FC_Main_Door_Stone_Step": Vector((0.30, -1.36, 0.0)),
+        "FC_Shed_Door_Stone_Step": Vector((-3.05, -0.41, 0.0)),
+    }
+    threshold_alignment_errors: list[str] = []
+    for name, expected_location in expected_threshold_locations.items():
+        threshold = next((obj for obj in thresholds if obj.name == name), None)
+        if threshold is None:
+            threshold_alignment_errors.append(f"{name}:missing")
+            continue
+        location_error = (threshold.location - expected_location).length
+        points = world_vertices(threshold)
+        minimum_z = min(point.z for point in points)
+        maximum_z = max(point.z for point in points)
+        if location_error > 0.01 or not -0.01 <= minimum_z <= 0.01 or not 0.16 <= maximum_z <= 0.20:
+            threshold_alignment_errors.append(
+                f"{name}:location={location_error:.4f},z=[{minimum_z:.4f},{maximum_z:.4f}]"
+            )
+    if threshold_alignment_errors:
+        errors.append(f"door thresholds lost their Tier-1 residence step alignment: {threshold_alignment_errors}")
+
     boat_ground_clearance = None
+    boat_fence_contact_distance = None
     boat = next((obj for obj in instances if obj.get("source_component_id") == "prop_boat_dugout"), None)
     if boat is None:
-        errors.append("grounded river dugout is missing")
+        errors.append("leaning river dugout is missing")
     else:
         boat_triangles = triangle_count(boat)
         if not 650 <= boat_triangles <= 5800:
             errors.append(f"boat topology outside authored budget: {boat_triangles}")
-        if abs(boat.rotation_euler.x) > 0.05:
-            errors.append("boat no longer rests upright and independently on its keel")
+        if not math.radians(40.0) <= boat.rotation_euler.x <= math.radians(50.0):
+            errors.append(f"boat lost its physically readable fence lean: {math.degrees(boat.rotation_euler.x):.2f} degrees")
         if not boat.get("signature_silhouette"):
             errors.append("boat lost its signature-silhouette contract")
         boat_points = world_vertices(boat)
         boat_ground_clearance = min(point.z for point in boat_points)
         if not -0.025 <= boat_ground_clearance <= 0.075:
-            errors.append(f"boat lacks credible grounded gunwale contact: min Z {boat_ground_clearance:.4f} m")
+            errors.append(f"boat lacks credible lower-hull ground bearing: min Z {boat_ground_clearance:.4f} m")
+        rear_west_fence = next((obj for obj in instances if obj.name == "FC_Fence_Rear_West"), None)
+        if rear_west_fence is None:
+            errors.append("rear-west support fence for the boat is missing")
+        else:
+            boat_fence_contact_distance = mesh_surface_distance(boat, rear_west_fence)
+            if boat_fence_contact_distance > 0.035:
+                errors.append(
+                    f"boat floats away from its rear-west fence support: {boat_fence_contact_distance:.4f} m"
+                )
 
     roof_structure_clearances: list[tuple[float, str]] = []
     roof_verge_coverages = []
@@ -229,6 +283,7 @@ def main() -> None:
 
     main_objects = [obj for obj in instances if obj.get("assembly_role") == "FC_01_Main_Fish_House"]
     shed_objects = [obj for obj in instances if obj.get("assembly_role") == "FC_02_Service_Shed"]
+    fence_objects = [obj for obj in instances if str(obj.get("source_component_id", "")).startswith("enclosure_")]
     service_props = [obj for obj in instances if obj.name in {"FC_Brine_Barrel", "FC_Net_And_Cord_Crate"}]
     fixed_prop_building_clearance = None
     if not main_objects or not shed_objects or len(service_props) != 2:
@@ -241,6 +296,26 @@ def main() -> None:
         )
         if fixed_prop_building_clearance < 0.20:
             errors.append(f"fixed east-side props intersect or crowd the building: {fixed_prop_building_clearance:.4f} m")
+
+    fence_clearances: dict[str, float] = {}
+    if not main_objects or not shed_objects or len(fence_objects) != 5:
+        errors.append("could not resolve building envelopes and the five-module rear boundary")
+    else:
+        building_points = [point for obj in (*main_objects, *shed_objects) for point in world_vertices(obj)]
+        building_min_x = min(point.x for point in building_points)
+        building_max_x = max(point.x for point in building_points)
+        building_max_y = max(point.y for point in building_points)
+        west_fence = next(obj for obj in fence_objects if obj.name == "FC_Fence_West")
+        east_fence = next(obj for obj in fence_objects if obj.name == "FC_Fence_East")
+        rear_fences = [obj for obj in fence_objects if obj.name.startswith("FC_Fence_Rear_")]
+        fence_clearances = {
+            "west": building_min_x - max(point.x for point in world_vertices(west_fence)),
+            "east": min(point.x for point in world_vertices(east_fence)) - building_max_x,
+            "rear": min(point.y for obj in rear_fences for point in world_vertices(obj)) - building_max_y,
+        }
+        for side, clearance in fence_clearances.items():
+            if clearance < 0.65:
+                errors.append(f"{side} fence crowds or intersects a building: {clearance:.4f} m")
 
     roof_parts = [obj for obj in instances if obj.get("source_component_id") == "assembly_custom_settled_shingle_skin"]
     if any(triangle_count(obj) > 60 for obj in roof_parts):
@@ -260,8 +335,8 @@ def main() -> None:
         }
         if dimensions[0] > 10.7 or dimensions[1] > 8.3 or dimensions[2] > 5.9:
             errors.append(f"fishery exceeds intended placement envelope: {dimensions}")
-    if not 2500 <= triangles <= 4500:
-        errors.append(f"fishery triangle budget is 2500-4500, found {triangles}")
+    if not 2500 <= triangles <= 5500:
+        errors.append(f"fishery triangle budget is 2500-5500, found {triangles}")
 
     report = {
         "schemaVersion": 1,
@@ -276,6 +351,7 @@ def main() -> None:
             "boundsM": bounds,
             "atlasTiles": sorted(atlas_tiles),
             "boatGroundClearanceM": None if boat_ground_clearance is None else round(boat_ground_clearance, 4),
+            "boatFenceContactDistanceM": None if boat_fence_contact_distance is None else round(boat_fence_contact_distance, 4),
             "minimumRoofStructureClearanceM": None if minimum_roof_structure_clearance is None else round(minimum_roof_structure_clearance, 4),
             "minimumRoofStructureMember": minimum_roof_structure_member,
             "minimumRoofVergeCoverageM": None if minimum_roof_verge_coverage is None else round(minimum_roof_verge_coverage, 4),
@@ -283,7 +359,11 @@ def main() -> None:
                 face: round(gap, 4) for face, gap in sorted(main_gable_collar_end_gaps.items())
             },
             "fixedPropBuildingClearanceM": None if fixed_prop_building_clearance is None else round(fixed_prop_building_clearance, 4),
+            "fenceBuildingClearanceM": {
+                side: round(clearance, 4) for side, clearance in sorted(fence_clearances.items())
+            },
             "doorwayAccessConflicts": doorway_access_conflicts,
+            "thresholdAlignmentErrors": threshold_alignment_errors,
             "dryingRackToWashBucketsM": None if drying_station_spacing is None else round(drying_station_spacing, 4),
         },
         "errors": errors,
@@ -292,12 +372,13 @@ def main() -> None:
             "two structurally distinct buildings on the two-metre kit grid",
             "Tier-1 fieldstone, warm limewash, dark oak, plank, and 50-degree shingle vocabulary",
             "four closed retopologized roof skins with sub-repeat atlas faces",
-            "grounded upright hollow dugout with connected paddle and no dependency on decorative fencing",
+            "hollow dugout bears on grade and contacts the rear-west fence with its connected paddle intact",
             "empty splayed drying rack reserved for separately authored catch models",
             "offset drying rack and wash buckets remain grouped while clearing both authored door approaches",
             "gable infill and framing remain fully below the lifted shingle envelope and inside both protective verges",
             "main-house front and rear collar fractions terminate at both gable rake frames",
-            "fully open road and shore workyard with no incomplete fence or gate fragments",
+            "continuous rear-and-side split-rail boundary clears both buildings while the road frontage remains open",
+            "both service doors retain Tier-1 residence stone-block thresholds",
             "metric UVs, direct production-atlas contract, canonical transforms, and no living vegetation",
             "manifold fixed geometry except the intentionally open bucket pair",
             "no preview staging in the export set",

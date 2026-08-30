@@ -229,10 +229,10 @@ assert.deepEqual(
 );
 
 const materialCallupState = emptyGameState();
-const readyClayPit = building('material-10-clay', 'stone_quarry', 0);
-const fullClayPit = building('material-20-full-clay', 'stone_quarry', 0);
-fullClayPit.x = 100;
-fullClayPit.clay = 999;
+const readyMiningCamp = building('material-10-clay', 'stone_quarry', 0);
+const fullMiningCamp = building('material-20-full-clay', 'stone_quarry', 0);
+fullMiningCamp.x = 100;
+fullMiningCamp.clay = 999;
 const incompleteSmokehouse = building(
   'material-30-smokehouse',
   'smokehouse',
@@ -255,8 +255,8 @@ suppliedCharcoalYard.firewood = 12;
 const suppliedWell = building('material-70-well', 'well', 1);
 suppliedWell.water = 12;
 for (const site of [
-  readyClayPit,
-  fullClayPit,
+  readyMiningCamp,
+  fullMiningCamp,
   incompleteSmokehouse,
   incompleteSmithy,
   suppliedPotter,
@@ -282,13 +282,13 @@ assert.equal(materialManualCallup.readySites, 5);
 assert.equal(materialManualCallup.blockedSites, 1);
 assert.ok(
   materialManualCallup.assignments.some(
-    (assignment) => assignment.buildingId === readyClayPit.id,
+    (assignment) => assignment.buildingId === readyMiningCamp.id,
   ),
   'the explicit Town Hall order must be able to staff a Mining Camp with open clay storage',
 );
 assert.equal(
   materialManualCallup.assignments.some(
-    (assignment) => assignment.buildingId === fullClayPit.id,
+    (assignment) => assignment.buildingId === fullMiningCamp.id,
   ),
   false,
 );

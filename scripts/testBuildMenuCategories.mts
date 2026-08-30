@@ -76,10 +76,9 @@ assert.deepEqual(keys(GATHERING_BUILD_MENU_ENTRIES), [
   'hunters_hall', 'foragers_shed', 'fishing_camp',
 ]);
 assert.equal(
-  GATHERING_BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'mine')
-    && !GATHERING_BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'clay_pit'),
+  GATHERING_BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'mine'),
   true,
-  'Mineworks must remain buildable while the retired Clay Pit stays out of the palette',
+  'Mineworks must remain buildable',
 );
 assert.deepEqual(keys(AGRICULTURE_BUILD_MENU_ENTRIES), [
   'threshing_barn', 'apiary', 'pastoral_farmstead', 'swineherd',

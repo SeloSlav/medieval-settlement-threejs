@@ -364,21 +364,6 @@ assert.equal(
   'a released crew must not hide the output ceiling that prevents useful work',
 );
 
-const recalledCappedClayPit = makeBuilding({
-  id: 'clay-pit-capped-recalled',
-  kind: 'clay_pit',
-  x: 0,
-  z: 0,
-  assignedLabor: 0,
-  processorOutputTargetPercent: 25,
-  clay: BUILDING_STORAGE_CAPS.clay_pit.clay,
-});
-assert.equal(
-  getBuildingProcessorStatus(recalledCappedClayPit, noWellQueries)?.statusText,
-  'Output target reached — production paused',
-  'a target-held clay yard should ask for cart headroom rather than more diggers',
-);
-
 const recalledCappedWeaver = makeBuilding({
   id: 'weaver-capped-recalled',
   kind: 'weaver',

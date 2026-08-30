@@ -129,7 +129,7 @@ assert.match(
 );
 assert.match(
   expandedEconomySimulation,
-  /"clay_pit",\s*"threshing_barn",\s*"watermill",\s*"windmill",\s*"carpenter"/,
+  /"large_quarry",\s*"mine",\s*"threshing_barn",\s*"watermill",\s*"windmill",\s*"carpenter"/,
   'smithies must include farm and both mill types in physical ironwork dispatch',
 );
 assert.match(
@@ -217,8 +217,8 @@ const lowPriorityQuarry = building('stone_quarry', {
   constructionPriority: 1,
   ironwork: 0,
 });
-const highPriorityClay = building('clay_pit', {
-  id: 'clay',
+const highPriorityMiningCamp = building('stone_quarry', {
+  id: 'mining-camp',
   assignedLabor: 2,
   constructionPriority: 3,
   ironwork: 0,
@@ -263,10 +263,10 @@ assert.equal(mineralMineTarget?.duty, 'working-buffer');
 assert.equal(mineralMineTarget?.desiredStock, 3);
 
 const priorityTarget = selectDirectProcessorInputTarget(
-  [lowPriorityQuarry, highPriorityClay, carpenter],
+  [lowPriorityQuarry, highPriorityMiningCamp, carpenter],
   'smithy',
   'ironwork',
-  (candidate) => candidate.id === 'quarry' ? 30 : candidate.id === 'clay' ? 80 : 10,
+  (candidate) => candidate.id === 'quarry' ? 30 : candidate.id === 'mining-camp' ? 80 : 10,
 );
 assert.equal(
   priorityTarget?.target.id,
@@ -276,12 +276,12 @@ assert.equal(
 assert.equal(priorityTarget?.duty, 'working-buffer');
 assert.equal(priorityTarget?.desiredStock, 3);
 
-highPriorityClay.ironwork = 3;
+highPriorityMiningCamp.ironwork = 3;
 const runwayTarget = selectDirectProcessorInputTarget(
-  [lowPriorityQuarry, highPriorityClay, carpenter],
+  [lowPriorityQuarry, highPriorityMiningCamp, carpenter],
   'smithy',
   'ironwork',
-  (candidate) => candidate.id === 'quarry' ? 30 : candidate.id === 'clay' ? 80 : 10,
+  (candidate) => candidate.id === 'quarry' ? 30 : candidate.id === 'mining-camp' ? 80 : 10,
 );
 assert.equal(
   runwayTarget?.target.id,
@@ -291,7 +291,7 @@ assert.equal(
 
 lowPriorityQuarry.ironwork = 3;
 const overflowTarget = selectDirectProcessorInputTarget(
-  [lowPriorityQuarry, highPriorityClay, carpenter],
+  [lowPriorityQuarry, highPriorityMiningCamp, carpenter],
   'smithy',
   'ironwork',
   (candidate) => candidate.id === 'carpenter' ? 10 : 30,

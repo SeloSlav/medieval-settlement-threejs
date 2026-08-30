@@ -133,7 +133,7 @@ assert.equal(isProcessorOutputTargetKind('windmill'), true);
 assert.equal(isProcessorOutputTargetKind('monastery'), false);
 assert.deepEqual(
   EXTRACTION_OUTPUT_TARGET_KINDS,
-  ['stone_quarry', 'large_quarry', 'mine', 'clay_pit'],
+  ['stone_quarry', 'large_quarry', 'mine'],
 );
 for (const kind of EXTRACTION_OUTPUT_TARGET_KINDS) {
   assert.equal(isExtractionOutputTargetKind(kind), true);
@@ -234,7 +234,6 @@ assert.equal(extractionOutputTarget('stone_quarry', 'stone'), 60);
 assert.equal(extractionOutputHeadroom(leanQuarry, 'stone'), 1);
 assert.equal(extractionOutputCommodity('stone_quarry'), 'stone');
 assert.equal(extractionOutputCommodity('large_quarry'), 'stone');
-assert.equal(extractionOutputCommodity('clay_pit'), 'clay');
 assert.equal(extractionOutputCommodity('mine', 'iron'), 'iron');
 assert.equal(extractionOutputCommodity('mine', 'salt'), 'salt');
 assert.equal(extractionOutputCommodity('mine', 'clay'), 'clay');
@@ -266,7 +265,6 @@ assert.equal(
   'Mineworks without a rich iron, salt, or clay seam must not absorb smithy output',
 );
 assert.equal(extractionOutputTarget('large_quarry', 'stone'), 100);
-assert.equal(extractionOutputTarget('clay_pit', 'clay'), 60);
 assert.equal(extractionOutputTarget('mine', 'iron'), 75);
 assert.equal(extractionOutputTarget('mine', 'salt'), 50);
 assert.equal(extractionOutputTarget('mine', 'clay'), 75);

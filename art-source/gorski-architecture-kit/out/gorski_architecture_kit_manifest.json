@@ -14,13 +14,13 @@
     },
     "scope": "modular components only; no finished individual building assemblies",
     "vegetationOwner": "SeedThree; this kit contains no living vegetation or crop meshes",
-    "generatedAt": "2026-08-29T19:46:34.171343+00:00"
+    "generatedAt": "2026-08-29T21:28:09.887139+00:00"
   },
   "summary": {
     "partCount": 638,
     "familyCount": 12,
     "totalTriangles": 409862,
-    "buildingCategories": 44,
+    "buildingCategories": 43,
     "supplementalCategories": 34
   },
   "families": {
@@ -522,17 +522,6 @@
         "extract_stockpile_iron_large"
       ]
     },
-    "clay_pit": {
-      "group": "extraction",
-      "rationale": "Open clay washing and screening worksite.",
-      "parts": [
-        "extract_quarry_bench_2m",
-        "extract_clay_pit_screen",
-        "extract_stockpile_clay_large",
-        "site_walkway_plank_4m",
-        "site_canopy_canvas_4m_d2m"
-      ]
-    },
     "charcoal_burner": {
       "group": "production",
       "rationale": "Charcoal clamps and a weather shelter define the yard.",
@@ -572,7 +561,7 @@
         "site_canopy_timber_4m_d2m",
         "production_chimney_limestone_h4m",
         "production_potter_kiln_round",
-        "extract_clay_pit_screen",
+        "extract_clay_washing_screen",
         "prop_crate_medium"
       ]
     },
@@ -22433,8 +22422,8 @@
       "provenance": "authored"
     },
     {
-      "id": "extract_clay_pit_screen",
-      "name": "GK_extract_clay_pit_screen",
+      "id": "extract_clay_washing_screen",
+      "name": "GK_extract_clay_washing_screen",
       "family": "extraction",
       "label": "Clay washing screen",
       "tags": [
@@ -29683,7 +29672,7 @@
         "url": "/assets/models/buildings/gorski/architecture-kit-v1/extraction.glb",
         "partCount": 33,
         "triangles": 15196,
-        "bytes": 1151764
+        "bytes": 1151776
       },
       "foundations": {
         "url": "/assets/models/buildings/gorski/architecture-kit-v1/foundations.glb",

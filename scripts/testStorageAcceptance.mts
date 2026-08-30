@@ -111,7 +111,6 @@ const productionCapacity = {
   stone_quarry: 120,
   large_quarry: 100,
   mine: 150,
-  clay_pit: 60,
   charcoal_burner: 50,
   smithy: 75,
   potter_kiln: 100,

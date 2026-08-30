@@ -12,7 +12,6 @@ import {
   bulkStockpileVisualSignature,
   CHARCOAL_BURNER_CHARCOAL_VISUAL_SEGMENTS,
   CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS,
-  CLAY_PIT_CLAY_VISUAL_SEGMENTS,
   LARGE_QUARRY_STONE_VISUAL_SEGMENTS,
   MINE_CLAY_VISUAL_SEGMENTS,
   MINE_IRON_VISUAL_SEGMENTS,
@@ -35,7 +34,7 @@ import {
 import {
   CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
   CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
-  CLAY_PIT_CLAY_PER_CYCLE,
+  MINING_CAMP_CLAY_PER_CYCLE,
   LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
   MARKETPLACE_TRADE_OFFERS,
   POTTER_CLAY_PER_CYCLE,
@@ -80,13 +79,10 @@ import {
   CLAY_BANK_RICH_YIELD_MIN,
   CLAY_BANK_SITE_YIELD_MAX,
   CLAY_BANK_SITE_YIELD_MIN,
-  CLAY_BANK_STRATA_VISUAL_SEGMENTS,
   CLAY_BANK_TOTAL_YIELD_MAX,
   CLAY_BANK_TOTAL_YIELD_MIN,
   clayBankRegionalYieldMultiplier,
-  clayBankSiteYieldAt,
   clayBankSiteYieldMultiplier,
-  clayBankStrataVisualLevel,
   clayBankYieldAt,
   clayBankYieldGrade,
   clayBankYieldMultiplier,
@@ -117,12 +113,7 @@ assert.ok(
   'world resource abundance must modestly shift a fixed bank',
 );
 assert.match(clayBankYieldGrade(clayBankYieldAt(richClayBank.x, richClayBank.z)), /Good|Rich/);
-assert.equal(
-  clayBankStrataVisualLevel(explicitRichClayYield),
-  CLAY_BANK_STRATA_VISUAL_SEGMENTS,
-);
-
-assert.equal(CLAY_PIT_CLAY_PER_CYCLE, 4);
+assert.equal(MINING_CAMP_CLAY_PER_CYCLE, 4);
 assert.deepEqual(
   [CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE],
   [3, 2],
@@ -475,7 +466,6 @@ assert.deepEqual(
   [
     'stone_quarry',
     'mine',
-    'clay_pit',
     'charcoal_burner',
     'smithy',
     'potter_kiln',
@@ -501,7 +491,7 @@ assert.deepEqual(
           : undefined,
     )
   ),
-  ['iron', 'clay', 'clay', 'charcoal', 'ironwork', 'pottery', 'flax', 'yarn', 'iron'],
+  ['iron', 'clay', 'charcoal', 'ironwork', 'pottery', 'flax', 'yarn', 'iron'],
 );
 assert.deepEqual(
   localMaterialInputCommodities('stone_quarry', {
@@ -538,13 +528,13 @@ assert.deepEqual(
   ['iron', 'clay', 'salt'],
   'an intake gate must stop new deliveries without stranding material already stored',
 );
-const olderRemoteClayPit = building('clay_pit', {
-  id: 'older-remote-clay-pit',
+const olderRemoteMiningCamp = building('stone_quarry', {
+  id: 'older-remote-mining-camp',
   x: 0,
   clay: 12,
 });
-const newerNearClayPit = building('clay_pit', {
-  id: 'newer-near-clay-pit',
+const newerNearMiningCamp = building('stone_quarry', {
+  id: 'newer-near-mining-camp',
   x: 90,
   clay: 12,
 });
@@ -563,17 +553,17 @@ const routinePotter = building('potter_kiln', {
   clay: 0,
 });
 const localMaterialAssignments = assignLocalMaterialInputTargets(
-  [olderRemoteClayPit, newerNearClayPit],
+  [olderRemoteMiningCamp, newerNearMiningCamp],
   [routinePotter, urgentPotter],
   (source, target) => Math.abs(source.x - target.x),
 );
 assert.equal(
-  localMaterialAssignments.get(newerNearClayPit.id)?.target.id,
+  localMaterialAssignments.get(newerNearMiningCamp.id)?.target.id,
   urgentPotter.id,
   'the nearest clay cart must cover an equally urgent kiln regardless of producer age',
 );
 assert.equal(
-  localMaterialAssignments.get(olderRemoteClayPit.id)?.target.id,
+  localMaterialAssignments.get(olderRemoteMiningCamp.id)?.target.id,
   routinePotter.id,
   'the remaining clay cart must cover the next kiln without duplicating its inbound slot',
 );
@@ -852,13 +842,6 @@ const buildingVisuals = [
     segments: MINE_CLAY_VISUAL_SEGMENTS,
   },
   {
-    kind: 'clay_pit',
-    container: 'ClayPitStockpile',
-    segment: 'ClayPitClaySegment',
-    resource: 'clay',
-    segments: CLAY_PIT_CLAY_VISUAL_SEGMENTS,
-  },
-  {
     kind: 'charcoal_burner',
     container: 'CharcoalBurnerFirewoodStockpile',
     segment: 'CharcoalBurnerFirewoodSegment',
@@ -981,43 +964,6 @@ assert.ok(
   'dry-weather clamp smoke must read more strongly than a damp charge',
 );
 
-const leanClayPitMesh = createBuildingMesh('clay_pit');
-const leanClayStrata = leanClayPitMesh.getObjectByName('ClayBankStrata');
-assert.ok(leanClayStrata instanceof THREE.Group);
-assert.equal(
-  leanClayStrata.children.filter((child) => child.name === 'ClayBankStratum').length,
-  CLAY_BANK_STRATA_VISUAL_SEGMENTS,
-);
-const leanClayPitState = building('clay_pit', {
-  x: leanClayBank.x,
-  z: leanClayBank.z,
-});
-syncBulkStockpileVisuals(leanClayPitMesh, leanClayPitState);
-const leanVisibleStrata = leanClayStrata.children.filter((child) => child.visible).length;
-assert.equal(
-  leanVisibleStrata,
-  clayBankStrataVisualLevel(
-    clayBankSiteYieldAt(leanClayPitState.x, leanClayPitState.z),
-  ),
-);
-const richClayPitMesh = createBuildingMesh('clay_pit');
-const richClayStrata = richClayPitMesh.getObjectByName('ClayBankStrata');
-assert.ok(richClayStrata instanceof THREE.Group);
-const richClayPitState = building('clay_pit', {
-  x: richClayBank.x,
-  z: richClayBank.z,
-});
-syncBulkStockpileVisuals(richClayPitMesh, richClayPitState);
-assert.ok(
-  richClayStrata.children.filter((child) => child.visible).length > leanVisibleStrata,
-  'the physical excavation must expose more clay strata at a richer bank',
-);
-assert.notEqual(
-  bulkStockpileVisualSignature(richClayPitState),
-  bulkStockpileVisualSignature(leanClayPitState),
-  'bank strata changes must invalidate only the bounded visual signature',
-);
-
 const cargoProof: ReadonlyArray<
   readonly [DeliveryCargoKind, string]
 > = [
@@ -1122,6 +1068,10 @@ const simulationReducerSource = readFileSync(
   'server/src/reducers/simulation.rs',
   'utf8',
 );
+const stoneQuarrySource = readFileSync(
+  'server/src/simulation/stone_quarry.rs',
+  'utf8',
+);
 const tradingPostTradeSource = readFileSync(
   'server/src/simulation/trading_post_trade.rs',
   'utf8',
@@ -1140,8 +1090,7 @@ const localMaterialDispatchStep = rustFunctionSection(
   'step_local_material_dispatch',
   'step_granary',
 );
-const smokehouseStep = rustFunctionSection('step_smokehouse', 'step_clay_pit');
-const clayPitStep = rustFunctionSection('step_clay_pit', 'step_charcoal_burner');
+const smokehouseStep = rustFunctionSection('step_smokehouse', 'step_charcoal_burner');
 const charcoalBurnerStep = rustFunctionSection('step_charcoal_burner', 'step_smithy');
 const smithyStep = rustFunctionSection('step_smithy', 'step_potter_kiln');
 const potterKilnStep = rustFunctionSection('step_potter_kiln', 'step_apiary');
@@ -1229,7 +1178,6 @@ assert.doesNotMatch(
   'potter kilns must not pull clay in database update order',
 );
 for (const [section, label] of [
-  [clayPitStep, 'clay pits'],
   [charcoalBurnerStep, 'charcoal burners'],
   [smithyStep, 'smithies'],
   [potterKilnStep, 'potters'],
@@ -1271,7 +1219,7 @@ assert.match(
 );
 assert.match(
   localMaterialDispatchStep,
-  /CommodityKind::Ironwork[\s\S]*"stone_quarry"[\s\S]*"large_quarry"[\s\S]*"mine"[\s\S]*"clay_pit"/,
+  /CommodityKind::Ironwork[\s\S]*"stone_quarry"[\s\S]*"large_quarry"[\s\S]*"mine"/,
   'smithy carts must include mineral mines in the same physical replacement-tool route as other extraction sites',
 );
 assert.match(
@@ -1287,14 +1235,14 @@ assert.match(
 );
 assert.equal(existsSync('src/generated/set_pottery_dispatch_policy_reducer.ts'), false);
 assert.match(
-  clayPitStep,
-  /let Some\(mut deposit\) = clay_deposit_beneath[\s\S]*environment\.clay_pit_throughput_multiplier\(\)\s*\*\s*clay_bank_yield_multiplier_at_deposit\(\s*building\.x,\s*building\.z,\s*world_seed,\s*world_hydrology,\s*resource_abundance,\s*&deposit/,
-  'authoritative clay digging must multiply weather by the map-specific geological bank yield',
+  stoneQuarrySource,
+  /if commodity == CommodityKind::Clay[\s\S]*environment\.surface_clay_throughput_multiplier\(\)/,
+  'Mining Camps must apply ground weather only when their selected surface deposit is clay',
 );
 assert.match(
   simulationReducerSource,
-  /step_clay_pit\(\s*ctx,\s*&tick,\s*&clock,\s*environment,\s*world_seed,\s*world_hydrology,\s*world_resource_abundance,\s*building/,
-  'weather, map hydrology, and world resource abundance must reach every clay-pit production step',
+  /step_stone_quarry\(ctx, &tick, &clock, environment, building\)/,
+  'the reducer must pass current weather into Mining Camp extraction',
 );
 assert.match(
   charcoalBurnerStep,
@@ -1331,19 +1279,12 @@ assert.doesNotMatch(
 );
 assert.match(hydrologySamplerSource, /sampleWorldGroundwaterScore/);
 assert.match(hydrologySource, /sample_world_groundwater_score/);
-assert.match(clayPitStep, /fn clay_bank_yield_multiplier_at_deposit/);
 assert.doesNotMatch(
   buildingToolSource,
   /geological clay yield before weather and iron tools|clay reserve remaining/,
   'clay quality and reserve forecasts should not be exposed by the placement cursor',
 );
-assert.match(expandedInspectorSource, /Clay seam[\s\S]*Current digging pace/);
-assert.match(
-  expandedInspectorSource,
-  /Stopped - no physical clay deposit beneath this pit/,
-  'a missing clay source must remain visible even after its crew is released',
-);
-assert.match(townHallSource, /average geological yield across active pits/);
+assert.match(townHallSource, /Surface-clay conditions[\s\S]*Mining Camps working clay/);
 assert.match(
   expandedInspectorSource,
   /Small direct-process bloomery reduces local ore or reheats imported blooms and bars/,
@@ -1450,8 +1391,8 @@ assert.ok(
 );
 
 const localAssignmentSources = Array.from({ length: 100 }, (_, index) =>
-  building('clay_pit', {
-    id: `local-assignment-clay-${index}`,
+  building('stone_quarry', {
+    id: `local-assignment-mining-camp-${index}`,
     x: index * 8,
     clay: 12,
   }));
@@ -1486,7 +1427,7 @@ assert.ok(
 
 const signatureBuildings = Array.from({ length: 100_000 }, (_, index) => {
   const kinds = [
-    'clay_pit',
+    'stone_quarry',
     'charcoal_burner',
     'smithy',
     'potter_kiln',

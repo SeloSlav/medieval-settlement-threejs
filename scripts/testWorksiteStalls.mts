@@ -158,9 +158,9 @@ assert.equal(
 );
 
 const materialState = emptyGameState();
-const fullClayPit = building('material-clay', 'stone_quarry', 3, 0, 0);
-fullClayPit.processorOutputTargetPercent = 25;
-fullClayPit.clay = 180;
+const fullMiningCamp = building('material-clay', 'stone_quarry', 3, 0, 0);
+fullMiningCamp.processorOutputTargetPercent = 25;
+fullMiningCamp.clay = 180;
 const saltAndPotteryStarvedSmokehouse = building(
   'material-smokehouse',
   'smokehouse',
@@ -186,7 +186,7 @@ suppliedPotter.clay = 12;
 suppliedPotter.firewood = 6;
 suppliedPotter.water = 3;
 for (const site of [
-  fullClayPit,
+  fullMiningCamp,
   saltAndPotteryStarvedSmokehouse,
   charcoalStarvedSmithy,
   suppliedCharcoalYard,
@@ -218,7 +218,7 @@ assert.equal(
   'no charcoal on site',
 );
 assert.equal(
-  materialPlan.sites.find((site) => site.buildingId === fullClayPit.id)
+  materialPlan.sites.find((site) => site.buildingId === fullMiningCamp.id)
     ?.targetLabor,
   0,
   'a full Mining Camp clay yard must release its extraction crew while logistics moves stock',

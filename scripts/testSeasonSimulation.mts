@@ -38,11 +38,11 @@ import {
   worldAnimationDelta,
 } from '../src/world/gameSpeed.ts';
 import {
-  CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER,
-  CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER,
-  CLAY_PIT_RAIN_THROUGHPUT_MULTIPLIER,
+  SURFACE_CLAY_DROUGHT_THROUGHPUT_MULTIPLIER,
+  SURFACE_CLAY_FROST_THROUGHPUT_MULTIPLIER,
+  SURFACE_CLAY_RAIN_THROUGHPUT_MULTIPLIER,
   charcoalBurnerThroughputForWeather,
-  clayPitThroughputForWeather,
+  surfaceClayThroughputForWeather,
   describeEnvironment,
   describeNextDayEnvironmentOutlook,
   environmentFor,
@@ -128,10 +128,10 @@ assert.equal(seasonForMonth(8), 'summer');
 assert.equal(seasonForMonth(9), 'autumn');
 assert.equal(seasonForMonth(12), 'winter');
 assert.equal(WINTER_FIREWOOD_DEMAND_MULTIPLIER, 2);
-assert.equal(CLAY_PIT_RAIN_THROUGHPUT_MULTIPLIER, 0.8);
-assert.equal(CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER, 0.7);
-assert.equal(CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER, 0.35);
-assert.equal(clayPitThroughputForWeather('fair'), 1);
+assert.equal(SURFACE_CLAY_RAIN_THROUGHPUT_MULTIPLIER, 0.8);
+assert.equal(SURFACE_CLAY_DROUGHT_THROUGHPUT_MULTIPLIER, 0.7);
+assert.equal(SURFACE_CLAY_FROST_THROUGHPUT_MULTIPLIER, 0.35);
+assert.equal(surfaceClayThroughputForWeather('fair'), 1);
 assert.equal(charcoalBurnerThroughputForWeather('fair'), 1);
 assert.equal(
   charcoalBurnerThroughputForWeather('rain'),
@@ -275,8 +275,8 @@ for (let year = 1; year <= 20 && !droughtFound; year += 1) {
       DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER,
     );
     assert.equal(
-      environment.clayPitThroughputMultiplier,
-      CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER,
+      environment.surfaceClayThroughputMultiplier,
+      SURFACE_CLAY_DROUGHT_THROUGHPUT_MULTIPLIER,
     );
     assert.equal(
       environment.charcoalBurnerThroughputMultiplier,
@@ -305,8 +305,8 @@ for (let springDay = 0; springDay < CALENDAR_DAYS_PER_MONTH * 3; springDay += 1)
     SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER,
   );
   assert.equal(
-    environment.clayPitThroughputMultiplier,
-    CLAY_PIT_RAIN_THROUGHPUT_MULTIPLIER,
+    environment.surfaceClayThroughputMultiplier,
+    SURFACE_CLAY_RAIN_THROUGHPUT_MULTIPLIER,
   );
   assert.equal(
     environment.charcoalBurnerThroughputMultiplier,
@@ -409,8 +409,8 @@ assert.equal(
   'frozen mill races must fully stop watermills for winter',
 );
 assert.equal(
-  winterEnvironment.clayPitThroughputMultiplier,
-  CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER,
+  winterEnvironment.surfaceClayThroughputMultiplier,
+  SURFACE_CLAY_FROST_THROUGHPUT_MULTIPLIER,
 );
 assert.equal(
   winterEnvironment.charcoalBurnerThroughputMultiplier,

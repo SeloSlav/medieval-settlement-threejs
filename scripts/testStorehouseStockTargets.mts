@@ -300,8 +300,8 @@ assert.match(storehouseStep, /storehouse_filtered_collection_headroom\(/);
 assert.match(storehouseStep, /idle_by_owner: HashMap<Identity, Vec<Building>>/);
 assert.match(
   storehouseStep,
-  /STOREHOUSE_OVERFLOW_SOURCE_KINDS[\s\S]*"mine"[\s\S]*"clay_pit"/,
-  'mine and clay-pit overflow must enter the same physical depot arbitration',
+  /STOREHOUSE_OVERFLOW_SOURCE_KINDS[\s\S]*"mine"/,
+  'Mineworks overflow must enter physical depot arbitration',
 );
 assert.match(
   storehouseStep,

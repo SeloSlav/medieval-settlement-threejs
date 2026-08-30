@@ -10,7 +10,6 @@ assert.equal(oxDragLoadKindForWorkplace('lumber_mill'), 'timber');
 assert.equal(oxDragLoadKindForWorkplace('woodcutters_lodge'), 'timber');
 assert.equal(oxDragLoadKindForWorkplace('stone_quarry'), 'stone');
 assert.equal(oxDragLoadKindForWorkplace('mine'), 'iron');
-assert.equal(oxDragLoadKindForWorkplace('clay_pit'), 'clay');
 assert.equal(oxDragLoadKindForWorkplace('charcoal_burner'), 'charcoal');
 assert.equal(oxDragLoadKindForWorkplace('threshing_barn'), 'sheaves');
 assert.equal(oxDragLoadKindForWorkplace('pastoral_farmstead'), 'feed');

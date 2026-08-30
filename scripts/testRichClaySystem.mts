@@ -367,7 +367,6 @@ const placementContext = {
   burgageZones: [],
   quarries: clayNodes,
   foragingNodes: [],
-  clayDepositSites: layout.clayDepositLayout.sites,
   stockpile: { timber: 10_000, stone: 10_000, ironwork: 10_000 },
   isWaterAt: () => false,
   isResourceDepositAt: (x: number, z: number) =>
@@ -436,7 +435,6 @@ assert.deepEqual(
   validateBuildingPlacement('stone_quarry', 0, 0, {
     ...placementContext,
     quarries: [],
-    clayDepositSites: [],
     isWaterAt: (x, z) => Math.hypot(x, z - 8) < 1.5,
   }),
   { ok: false, reason: 'no_quarry_in_range' },
@@ -494,7 +492,7 @@ for (let index = 0; index < defaultLayout.clayDepositLayout.sites.length; index+
 }
 
 const authority = readFileSync('server/src/hydrology/mod.rs', 'utf8');
-const clayPitSimulation = readFileSync(
+const expandedEconomySimulation = readFileSync(
   'server/src/simulation/expanded_economy.rs',
   'utf8',
 );
@@ -503,14 +501,19 @@ const miningPitSimulation = readFileSync(
   'utf8',
 );
 const buildingReducer = readFileSync('server/src/reducers/buildings.rs', 'utf8');
-assert.match(clayPitSimulation, /deposit\.node_kind == "clay"/);
-assert.match(clayPitSimulation, /clay_deposit_beneath/);
-assert.match(clayPitSimulation, /clay_bank_yield_multiplier_at_deposit/);
-assert.match(authority, /clay_bank_yield_multiplier_with_richness/);
+const buildingKindMigration = readFileSync(
+  'server/src/building_kind_migration.rs',
+  'utf8',
+);
+assert.doesNotMatch(
+  authority,
+  /clay_bank_yield_multiplier_with_richness/,
+  'retired Clay Pit yield helpers must not remain in the authoritative server',
+);
 assert.match(
-  buildingReducer,
-  /if kind == LEGACY_CLAY_PIT_KIND[\s\S]*Clay Pits are legacy buildings and can no longer be constructed/,
-  'authority must reject new legacy Clay Pits with a migration-safe explanation',
+  buildingKindMigration,
+  /REMOVED_CLAY_PIT_KIND: &str = "clay_pit"[\s\S]*MINING_CAMP_KIND: &str = "stone_quarry"[\s\S]*building\.kind = MINING_CAMP_KIND\.to_string\(\)/,
+  'old save rows must convert in place to Mining Camps',
 );
 assert.match(
   buildingReducer,
@@ -533,29 +536,14 @@ assert.match(
   'a Mining Camp must subtract exactly the clay batch removed from either ordinary or rich surface layers',
 );
 assert.match(
-  clayPitSimulation,
+  expandedEconomySimulation,
   /mineworks_commodity_beneath[\s\S]*mineworks_clay_commodity/,
   'Mineworks must route centered rich clay through the shared deep-shaft simulation',
 );
 assert.match(
-  clayPitSimulation,
-  /deposit\.node_id\.starts_with\("clay-rich-"\)/,
-  'legacy Clay Pits must still distinguish rich save-state deposits from ordinary banks',
-);
-assert.match(
-  clayPitSimulation,
-  /let Some\(mut deposit\) = clay_deposit_beneath[\s\S]*else \{\s*return;/,
-  'loaded off-bank legacy Clay Pits must stall rather than creating clay from a background shoreline score',
-);
-assert.match(
-  clayPitSimulation,
-  /if !is_rich && clay_produced > 1e-6[\s\S]*deposit\.remaining = \(deposit\.remaining - clay_produced\)\.max\(0\.0\)/,
-  'ordinary banks must lose exactly the clay physically produced by their pit',
-);
-assert.match(
-  clayPitSimulation,
-  /let clay_batch = if is_rich[\s\S]*CLAY_PIT_CLAY_PER_CYCLE\.min\(deposit\.remaining\.max\(0\.0\)\)/,
-  'the last ordinary digging cycle must not create more clay than remains in the bank',
+  miningPitSimulation,
+  /CommodityKind::Clay => MINING_CAMP_CLAY_PER_CYCLE/,
+  'Mining Camps must use the unified clay extraction batch',
 );
 
 const tableSync = readFileSync(

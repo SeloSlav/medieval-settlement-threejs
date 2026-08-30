@@ -48,7 +48,7 @@ function environment(
       preservedFoodDemandMultiplierForSeason(season),
     roadTravelSpeedMultiplier: 1,
     watermillThroughputMultiplier: 1,
-    clayPitThroughputMultiplier: 1,
+    surfaceClayThroughputMultiplier: 1,
     charcoalBurnerThroughputMultiplier: 1,
   };
 }
