@@ -401,10 +401,7 @@ fn step_owner_security(
                 playable_half,
             ),
             &live_targets,
-            &buildings,
-            &towers,
             road_network.as_ref(),
-            &fire_disabled_buildings,
         )
         .is_some()
         {

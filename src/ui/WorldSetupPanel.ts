@@ -165,7 +165,7 @@ export class WorldSetupPanel {
                   <p class="world-setup-slider-hint">Higher pressure means earlier, stronger raids.</p>
                 </div>
                 <div class="world-setup-setting-row">
-                  <span class="world-setup-setting-row__icon" data-rule-icon="bandits" role="img" aria-label="Bandit camps"></span>
+                  <span class="world-setup-setting-row__icon" data-rule-icon="bandits" role="img" aria-label="Bandit presence"></span>
                   <div class="world-setup-arrow-select" data-world-selector="bandit-camps">
                     <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Previous bandit camp setting">‹</button>
                     <div class="world-setup-arrow-select__value" aria-live="polite">
@@ -374,13 +374,13 @@ export class WorldSetupPanel {
         ? 'Contested frontier'
         : 'Peaceful settlement';
       conflictModeDescription.textContent = this.draft.conflictMode === 'frontier'
-        ? 'Periodic Ottoman raids.'
-        : 'No hostile raids.';
+        ? 'Periodic Ottoman raids; bandits use their own rule.'
+        : 'No Ottoman raids; bandits use their own rule.';
       banditCampsIcon.dataset.state = this.draft.banditCampsEnabled ? 'on' : 'off';
       banditCampsValue.dataset.value = this.draft.banditCampsEnabled ? 'on' : 'off';
-      banditCampsValue.textContent = this.draft.banditCampsEnabled ? 'On' : 'Off';
+      banditCampsValue.textContent = this.draft.banditCampsEnabled ? 'Roaming bandits' : 'None';
       banditCampsDescription.textContent = this.draft.banditCampsEnabled
-        ? 'Physical camps and storehouse thefts.'
+        ? 'Independent camps steal stored goods; they never damage buildings.'
         : 'No bandit camps or thefts.';
     };
 

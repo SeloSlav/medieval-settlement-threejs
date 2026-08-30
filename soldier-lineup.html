@@ -99,8 +99,8 @@
       .label-card {
         position: relative;
         min-width: 0;
-        min-height: 58px;
-        padding: 9px 7px 7px;
+        min-height: 68px;
+        padding: 9px 7px 6px;
         border: 1px solid rgba(224, 201, 138, 0.28);
         border-top-color: rgba(230, 188, 75, 0.62);
         border-radius: 3px;
@@ -117,23 +117,20 @@
       }
       .label-title {
         display: block;
-        overflow: hidden;
         color: #f4eddf;
         font: 600 clamp(10px, 0.82vw, 13px)/1.15 Georgia, serif;
-        text-overflow: ellipsis;
         white-space: nowrap;
       }
       .label-kit {
         display: block;
-        margin-top: 5px;
-        overflow: hidden;
+        margin-top: 4px;
         color: #c1b28f;
-        font-size: clamp(7px, 0.58vw, 9px);
+        font-size: clamp(6.5px, 0.55vw, 8.5px);
         font-weight: 750;
-        letter-spacing: 0.055em;
-        text-overflow: ellipsis;
+        letter-spacing: 0.04em;
+        line-height: 1.2;
         text-transform: uppercase;
-        white-space: nowrap;
+        white-space: normal;
       }
       #error {
         position: absolute;
@@ -158,7 +155,7 @@
         #status { display: none; }
         #labels { left: 1.4vw; right: 1.4vw; gap: 2px; }
         .label-card { padding-inline: 3px; }
-        .label-kit { display: none; }
+        .label-kit { font-size: 6px; letter-spacing: 0.02em; }
       }
     </style>
   </head>

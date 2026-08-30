@@ -219,6 +219,7 @@ await testStartupAlwaysReconfirmsWorldConfiguration();
 await testSevereWeatherSetupContract();
 await testAquiferSetupContract();
 await testDifficultySetupContract();
+await testBanditPresenceContract();
 
 console.log('world config authority tests passed');
 
@@ -454,6 +455,41 @@ async function testDifficultySetupContract(): Promise<void> {
   assert.match(serverConfigSource, /validate_difficulty_rate\(food_spoilage_rate/);
   assert.match(serverConfigSource, /validate_initial_goods_multiplier\(initial_goods_multiplier\)/);
   assert.match(serverConfigSource, /validate_military_demands\(military_demands\)/);
+}
+
+async function testBanditPresenceContract(): Promise<void> {
+  const setupSource = await readFile(
+    new URL('../src/ui/WorldSetupPanel.ts', import.meta.url),
+    'utf8',
+  );
+  const difficultySource = await readFile(
+    new URL('../src/world/worldDifficulty.ts', import.meta.url),
+    'utf8',
+  );
+  const schedulerSource = await readFile(
+    new URL('../server/src/reducers/simulation.rs', import.meta.url),
+    'utf8',
+  );
+  const banditSource = await readFile(
+    new URL('../server/src/simulation/bandits.rs', import.meta.url),
+    'utf8',
+  );
+  assert.match(setupSource, /No Ottoman raids; bandits use their own rule\./);
+  assert.match(setupSource, /Independent camps steal stored goods; they never damage buildings\./);
+  assert.match(
+    difficultySource,
+    /id: 'normal'[\s\S]*?conflictMode: 'peaceful'[\s\S]*?banditCampsEnabled: true/,
+    'Normal must support bandits without Ottoman conflict',
+  );
+  assert.match(schedulerSource, /step_live_raids\([\s\S]{0,180}config\.conflict_enabled/);
+  assert.match(schedulerSource, /step_bandit_world\([\s\S]{0,180}config\.bandit_camps_enabled/);
+  const theft = banditSource.slice(
+    banditSource.indexOf('fn steal('),
+    banditSource.indexOf('fn deposit(', banditSource.indexOf('fn steal(')),
+  );
+  assert.match(theft, /"granary" \| "village_storehouse"/);
+  assert.match(theft, /retain_unplundered_stores/);
+  assert.doesNotMatch(theft, /fire|damage|health|destroy|construction_progress/);
 }
 
 async function testAquiferSetupContract(): Promise<void> {

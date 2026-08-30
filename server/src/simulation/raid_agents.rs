@@ -7,12 +7,11 @@ use crate::db::*;
 use crate::raid_agent_policy::{
     combat_state_blocks_guard_slot, combatant_morale_strength, distance_squared, formation_spawn,
     guard_attack_interval, guard_breaks_route_for, guard_damage, guard_recovery_ticks,
-    holding_assault_position, move_along_route, move_toward, nearest_emergency_guard_target,
-    per_raider_loot_fraction, raid_contact_duration, raid_contact_range, raid_entry_point,
-    raid_party_size, raider_attack_interval, raider_company_should_rout, raider_damage,
-    refuge_assault_position, route_shortcut_is_worthwhile,
-    route_shortcut_via_endpoint_is_worthwhile, select_guard_muster_slots, EmergencyGuardTarget,
-    RouteMove, COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER, COMBAT_FACTION_GUARD, COMBAT_FACTION_RAIDER,
+    holding_assault_position, move_along_route, move_toward, per_raider_loot_fraction,
+    raid_contact_duration, raid_contact_range, raid_entry_point, raid_party_size,
+    raider_attack_interval, raider_company_should_rout, raider_damage, refuge_assault_position,
+    route_shortcut_is_worthwhile, route_shortcut_via_endpoint_is_worthwhile, RouteMove,
+    COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER, COMBAT_FACTION_GUARD, COMBAT_FACTION_RAIDER,
     COMBAT_ROAD_SPEED_MULTIPLIER, COMBAT_STATE_ADVANCING, COMBAT_STATE_DOWNED,
     COMBAT_STATE_FIGHTING, COMBAT_STATE_HOLDING, COMBAT_STATE_LOOTING, COMBAT_STATE_MUSTERING,
     COMBAT_STATE_RECOVERING, COMBAT_STATE_RETREATING, COMBAT_STATE_RETURNING,
@@ -25,8 +24,7 @@ use crate::raid_agent_policy::{
 use crate::resource_units::whole_units;
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::security_policy::{
-    guardhouse_muster_efficiency, raid_arson_occurs, scheduled_raid_ticks,
-    select_guardhouse_muster_watch, RaidPortableStores, WatchArea,
+    raid_arson_occurs, scheduled_raid_ticks, RaidPortableStores, WatchArea,
 };
 use crate::tables::{
     settlement_security, ActiveRaid, Building, CombatAgent, Corpse, GuardMusterRoute,
@@ -77,10 +75,7 @@ pub fn start_live_raid(
     playable_half: f64,
     planned_entry: Option<(f64, f64)>,
     targets: &[LiveRaidTarget],
-    buildings: &[Building],
-    towers: &[WatchArea],
     road_network: Option<&RoadNetwork>,
-    fire_disabled_buildings: &HashSet<u64>,
 ) -> Option<LiveRaidStart> {
     if targets.is_empty() || ctx.db.active_raid().owner().find(&owner).is_some() {
         return None;
@@ -317,144 +312,6 @@ fn route_from_formation(x: f64, z: f64, base: &RoadPathRoute) -> RoadPathRoute {
     }
 }
 
-fn spawn_responding_guards(
-    ctx: &ReducerContext,
-    owner: Identity,
-    raid_id: u64,
-    targets: &[LiveRaidTarget],
-    buildings: &[Building],
-    towers: &[WatchArea],
-    road_network: Option<&RoadNetwork>,
-    fire_disabled_buildings: &HashSet<u64>,
-) -> u32 {
-    let watch_positions = towers
-        .iter()
-        .map(|tower| (tower.x, tower.z))
-        .collect::<Vec<_>>();
-    let watchtower_ids = towers
-        .iter()
-        .map(|tower| tower.source_id)
-        .collect::<Vec<_>>();
-    let emergency_targets = targets
-        .iter()
-        .map(|target| EmergencyGuardTarget {
-            kind: target.kind,
-            id: target.id,
-            x: target.x,
-            z: target.z,
-        })
-        .collect::<Vec<_>>();
-    let unavailable_slots = unavailable_guard_slots(ctx, owner);
-    let issued_polearms = issued_guard_polearms_by_building(ctx, owner);
-    let mut total = 0_u32;
-
-    for guardhouse in buildings.iter().filter(|building| {
-        building.owner == owner
-            && building.construction_complete
-            && building.kind == "guardhouse"
-            && !fire_disabled_buildings.contains(&building.id)
-    }) {
-        let onsite_polearms = (guardhouse.polearms
-            - issued_polearms.get(&guardhouse.id).copied().unwrap_or(0.0))
-        .max(0.0);
-        let unavailable_here = unavailable_slots
-            .iter()
-            .filter_map(|(building_id, slot)| (*building_id == guardhouse.id).then_some(*slot))
-            .collect::<Vec<_>>();
-        let muster_slots = select_guard_muster_slots(
-            guardhouse.assigned_labor,
-            onsite_polearms,
-            &unavailable_here,
-        );
-        if muster_slots.is_empty() || guardhouse.action_cooldown <= 0.05 {
-            continue;
-        }
-
-        // A staffed watch and usable road give early warning and a cached
-        // deployment route. They are an advantage, not permission for armed
-        // villagers to defend themselves: an unlinked company still forms at
-        // its guardhouse and immediately heads cross-country for the nearest
-        // attacked holding once a live incursion begins.
-        let linked_deployment = road_network.and_then(|network| {
-            let distances =
-                network.road_path_distances_from(guardhouse.x, guardhouse.z, &watch_positions);
-            let (watch_index, muster_distance) = select_guardhouse_muster_watch(
-                guardhouse.guardhouse_muster_watchtower_id,
-                &watchtower_ids,
-                &distances,
-            )?;
-            let tower = towers[watch_index];
-            let target = targets
-                .iter()
-                .filter(|target| {
-                    distance_squared(target.x, target.z, tower.x, tower.z)
-                        <= tower.radius * tower.radius
-                })
-                .min_by(|left, right| {
-                    distance_squared(left.x, left.z, tower.x, tower.z)
-                        .total_cmp(&distance_squared(right.x, right.z, tower.x, tower.z))
-                        .then_with(|| left.kind.cmp(&right.kind))
-                        .then_with(|| left.id.cmp(&right.id))
-                })
-                .copied()?;
-            let route = network.road_path_route(guardhouse.x, guardhouse.z, tower.x, tower.z)?;
-            Some((target, muster_distance, route))
-        });
-        let (target, muster_distance, muster_route) =
-            if let Some((target, distance, route)) = linked_deployment {
-                (target, Some(distance), Some(route))
-            } else {
-                let Some(target_index) =
-                    nearest_emergency_guard_target(guardhouse.x, guardhouse.z, &emergency_targets)
-                else {
-                    continue;
-                };
-                (targets[target_index], None, None)
-            };
-        let muster_readiness = guardhouse_muster_efficiency(muster_distance, 1.0);
-        let readiness =
-            (guardhouse.action_cooldown * (0.72 + muster_readiness * 0.28)).clamp(0.05, 1.0);
-        if let Some(muster_route) = muster_route {
-            store_guard_muster_route(ctx, owner, raid_id, guardhouse.id, &muster_route);
-        }
-        for slot in muster_slots {
-            let (x, z) = formation_spawn(guardhouse.x, guardhouse.z, target.x, target.z, slot);
-            let max_health = 70.0 + readiness * 30.0;
-            ctx.db.combat_agent().insert(CombatAgent {
-                id: 0,
-                owner,
-                raid_id,
-                faction: COMBAT_FACTION_GUARD,
-                source_building_id: guardhouse.id,
-                source_slot: slot,
-                target_kind: target.kind,
-                target_id: target.id,
-                x,
-                z,
-                home_x: guardhouse.x,
-                home_z: guardhouse.z,
-                health: max_health,
-                max_health,
-                readiness,
-                state: COMBAT_STATE_ADVANCING,
-                attack_cooldown: slot as f64 * 0.06,
-                loot_progress: 0.0,
-                loot_fraction: 0.0,
-                carried_loot_json: serde_json::to_string(&RaidPortableStores {
-                    polearms: 1.0,
-                    ..RaidPortableStores::default()
-                })
-                .unwrap_or_default(),
-                raid_anchor_building_id: 0,
-                route_progress: 0.0,
-                state_changed_tick: raid_id,
-            });
-            total += 1;
-        }
-    }
-    total
-}
-
 /// Materialize an early warning as actual guards and issued weapons on the
 /// map. Only road-linked companies can reach an assigned watch before contact;
 /// unlinked companies still form at their guardhouse when the raiders appear.
@@ -539,33 +396,6 @@ pub(super) fn ensure_warned_guard_muster(
         }
     }
     deployed
-}
-
-fn store_guard_muster_route(
-    ctx: &ReducerContext,
-    owner: Identity,
-    raid_id: u64,
-    source_building_id: u64,
-    route: &RoadPathRoute,
-) {
-    let row = GuardMusterRoute {
-        source_building_id,
-        owner,
-        raid_id,
-        path_distance: route.distance,
-        route_polyline_json: serialize_route_polyline(&route.polyline),
-    };
-    if ctx
-        .db
-        .guard_muster_route()
-        .source_building_id()
-        .find(source_building_id)
-        .is_some()
-    {
-        ctx.db.guard_muster_route().source_building_id().update(row);
-    } else {
-        ctx.db.guard_muster_route().insert(row);
-    }
 }
 
 pub fn step_live_raids(

@@ -1599,6 +1599,7 @@ assert.match(
 );
 const serverRaidAgents = readFileSync('server/src/simulation/raid_agents.rs', 'utf8');
 const serverRaidAgentPolicy = readFileSync('server/src/raid_agent_policy.rs', 'utf8');
+const serverMilitary = readFileSync('server/src/simulation/military.rs', 'utf8');
 const serverRoadNetwork = readFileSync('server/src/roads/network.rs', 'utf8');
 const frontierEconomy = readFileSync('server/src/frontier_economy_policy.rs', 'utf8');
 const expandedEconomy = readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
@@ -1905,7 +1906,7 @@ assert.match(serverPolicy, /PALISADED_REFUGE_RESIDENT_CAPACITY/);
 assert.match(serverPolicy, /pub fn raid_contact_loss_fraction/);
 assert.match(
   serverSimulation,
-  /start_live_raid\([\s\S]*?&live_targets,[\s\S]*?&buildings,[\s\S]*?&towers,[\s\S]*?road_network\.as_ref\(\)/,
+  /start_live_raid\([\s\S]*?&live_targets,[\s\S]*?road_network\.as_ref\(\)/,
   'a due frontier raid must materialize replicated people rather than resolve an abstract outcome',
 );
 assert.match(
@@ -1915,8 +1916,8 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
-  /fn ensure_warned_guard_muster[\s\S]*road_path_route\([\s\S]*store_guard_muster_route[\s\S]*state: COMBAT_STATE_MUSTERING/,
-  'warned companies must issue real polearms and use one cached road route to their assigned post',
+  /fn ensure_warned_guard_muster[\s\S]*military_company\(\)[\s\S]*company\.state == 1[\s\S]*MilitiaOrder[\s\S]*combat_agent_id: agent\.id/,
+  'a warning must dispatch already recruited, active companies rather than mint hidden guardhouse labor',
 );
 assert.match(
   serverRaidAgents,
@@ -1925,8 +1926,8 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
-  /warned_guards\.push\(stale\)[\s\S]*guard\.raid_id = raid_id[\s\S]*guard\.state = COMBAT_STATE_ADVANCING/,
-  'the guards who answered the warning must become the same agents who fight the raid',
+  /if stale\.faction >= 2 \{[\s\S]*continue;[\s\S]*military_member\(\)[\s\S]*member\.phase == 1/,
+  'raid start must preserve recruited companies and count their existing live members as defenders',
 );
 assert.match(
   serverRaidAgents,
@@ -2158,13 +2159,13 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
-  /source_building_id: guardhouse\.id[\s\S]*source_slot: slot/,
-  'every replicated defender must be backed by an armed slot from an actual guardhouse roster',
+  /military_company\(\)[\s\S]*source_building_id\(\)[\s\S]*military_member\(\)[\s\S]*combat_agent_id/,
+  'every warned defender must come from a persistent recruited company and member record',
 );
 assert.match(
-  serverRaidAgents,
-  /nearest_emergency_guard_target\([\s\S]*guardhouse\.x,[\s\S]*guardhouse\.z,[\s\S]*emergency_targets[\s\S]*targets\[target_index\], None, None/,
-  'every fit armed company must materialize against its nearest attacked holding when no watch route is usable',
+  serverMilitary,
+  /nearest_distributed_enemy\(ctx, &agent, company\.id\)[\s\S]*enemy\.faction == BANDIT[\s\S]*down_enemy/,
+  'recruited companies must acquire nearby Ottoman or bandit agents through the persistent military simulation',
 );
 assert.match(
   serverRaidAgents,
@@ -2188,8 +2189,8 @@ assert.doesNotMatch(
 );
 assert.match(
   serverRaidAgents,
-  /road_path_route\(guardhouse\.x, guardhouse\.z, tower\.x, tower\.z\)[\s\S]*guard_muster_route\(\)\.insert/,
-  'each responding company must cache the real road approach selected by its watch assignment',
+  /MilitiaOrder[\s\S]*destination_x: tower\.x \+ lateral \* 1\.45[\s\S]*militia_order\(\)\.insert/,
+  'each responding company must receive a formation-relative post at its selected watchtower',
 );
 assert.match(
   serverRaidAgents,
@@ -2315,7 +2316,11 @@ assert.match(serverRaidAgentPolicy, /\.clamp\(3\.0,\s*12\.0\)/);
 assert.match(serverRaidAgentPolicy, /fn movement_never_teleports_past_contact/);
 assert.match(serverRaidAgentPolicy, /route_shortcut_via_endpoint_is_worthwhile\(70\.0, 90\.0, 60\.0, 1\.35\)/);
 assert.match(serverRaidAgentPolicy, /fn imminent_or_active_attacks_override_route_discipline/);
-assert.match(serverRaidAgentPolicy, /fn unlinked_companies_choose_the_nearest_attacked_holding_stably/);
+assert.doesNotMatch(
+  serverRaidAgents,
+  /fn spawn_responding_guards/,
+  'live raids must not resurrect a second hidden guardhouse-labor army',
+);
 assert.match(serverRaidAgentPolicy, /fn cached_company_routes_stay_cheap_for_a_large_guard_response/);
 assert.match(serverRaidAgentPolicy, /pub fn guard_recovery_ticks/);
 assert.match(serverRaidAgentPolicy, /pub fn combat_state_blocks_guard_slot/);

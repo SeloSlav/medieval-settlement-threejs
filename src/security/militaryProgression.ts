@@ -104,14 +104,14 @@ export const MILITARY_RECRUITMENT: Record<MilitaryCompanyKind, {
     summary: 'Six resident missile troops with eighteen bolts each. Strong at range, vulnerable once caught in melee.',
   },
   'mercenary-spears': {
-    label: 'Mercenary spear company',
-    shortLabel: 'Mercenaries',
+    label: 'Mercenary pike company',
+    shortLabel: 'Mercenary pikes',
     size: 8,
     cost: { gold: 96 },
     source: 'town-hall',
     residentMen: false,
     icon: 'mercenaries',
-    summary: 'Eight hired outsiders enter at the safest map edge. They cost one Treasury gold per surviving man each day. Dismissal, nonpayment, seven quiet days, or the end of their three-week term sends them marching back to that edge without accepting orders; a two-day retainer can recall survivors before they exit.',
+    summary: 'Eight hired Landsknecht-style pikemen enter at the safest map edge with long pikes and Katzbalger sidearms. They cost one Treasury gold per surviving man each day. Dismissal, nonpayment, seven quiet days, or the end of their three-week term sends them marching back to that edge without accepting orders; a two-day retainer can recall survivors before they exit.',
   },
   footmen: {
     label: 'Footman company', shortLabel: 'Footmen', size: 8,
@@ -135,7 +135,7 @@ export const MILITARY_RECRUITMENT: Record<MilitaryCompanyKind, {
     label: 'Uskok border infantry', shortLabel: 'Uskoks', size: 8,
     cost: { polearms: 4, sidearms: 8, paddedArmor: 8, ale: 8, preservedFood: 24, gold: 32 },
     source: 'guardhouse', residentMen: true, icon: 'uskoks',
-    summary: 'Eight Croatian frontier professionals with light kit, sidearms, axes, and war-hammer techniques. Exceptional flankers and missile hunters; braced spears stop them.',
+    summary: 'Eight Croatian frontier professionals with light matchlock arquebuses and long korda war knives. Exceptional flankers and missile hunters; braced spears stop them.',
   },
 };
 

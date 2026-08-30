@@ -27,6 +27,7 @@ export const WORKER_TOOL_URLS: Record<WorkerToolKind, string> = {
   // Military equipment is generated at historically dimensioned metre scale.
   spear: '',
   'spear-shield': '',
+  'pike-kit': '',
   crossbow: '',
   sidearm: '',
   'sidearm-shield': '',
@@ -78,6 +79,7 @@ const WORKER_TOOL_FIT: Record<WorkerToolKind, WorkerToolFit> = {
     gripFractionFromHandleEnd: 0.28,
   },
   'spear-shield': { targetLength: 2.12, gripFractionFromHandleEnd: 0.28 },
+  'pike-kit': { targetLength: 4.7, gripFractionFromHandleEnd: 0.28 },
   crossbow: {
     targetLength: 0.82,
     gripFractionFromHandleEnd: 0.5,

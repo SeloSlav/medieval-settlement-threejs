@@ -5899,7 +5899,7 @@ function combatToolFor(faction: CombatAgentState['faction']): WorkerToolKind {
     case 'militia': return 'spear';
     case 'spearman': return 'spear-shield';
     case 'crossbow': return 'crossbow';
-    case 'mercenary-spear': return 'spear-shield';
+    case 'mercenary-spear': return 'pike-kit';
     case 'bowman': return 'bow';
     case 'man-at-arms': return 'sword-shield';
     case 'footman': return 'sidearm-shield';
@@ -5913,7 +5913,7 @@ function combatUnitName(combat: CombatAgentState): string {
     guard: 'Guard', raider: 'Ottoman raider', bandit: 'Bandit',
     militia: 'Militia spearman', spearman: 'Company spearman',
     'man-at-arms': 'Man-at-Arms', crossbow: 'Crossbowman',
-    'mercenary-spear': 'Mercenary spearman', footman: 'Footman',
+    'mercenary-spear': 'Mercenary pikeman', footman: 'Footman',
     polearm: 'Halberdier', bowman: 'Bowman', uskok: 'Uskok border soldier',
   };
   return `${label[combat.faction]} #${combat.id}`;
@@ -5932,7 +5932,7 @@ function combatOccupation(faction: CombatAgentState['faction']): string {
   const labels: Partial<Record<CombatAgentState['faction'], string>> = {
     militia: 'Town militia spearman', spearman: 'Spear company soldier',
     'man-at-arms': 'Armored sword-and-shield professional', crossbow: 'Company crossbowman',
-    'mercenary-spear': 'Hired mercenary spearman', footman: 'Shielded footman',
+    'mercenary-spear': 'Hired mercenary pikeman', footman: 'Shielded footman',
     polearm: 'Armor-breaking polearm soldier', bowman: 'Company bowman',
     uskok: 'Croatian frontier infantryman',
   };
@@ -5948,6 +5948,8 @@ function combatEquipmentLabel(faction: CombatAgentState['faction']): string {
     case 'militia': return 'Ordinary spear and clothing';
     case 'crossbow': return 'Steel crossbow, bolt case, and padded coat';
     case 'bowman': return 'War bow, quiver, arrows, and light clothing';
+    case 'mercenary-spear': return 'Long pike, Katzbalger sidearm, and field kit';
+    case 'spearman': return 'Short spear, round shield, and quilted jack';
     case 'raider': return 'Arming sword and Ottoman frontier kit';
     case 'bandit': return 'Ordinary spear and scavenged clothing';
     default: return 'Spear, shield, and field kit';

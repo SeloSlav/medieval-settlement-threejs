@@ -5,6 +5,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 export const MILITARY_EQUIPMENT_KINDS = [
   'spear',
   'spear-shield',
+  'pike-kit',
   'crossbow',
   'sidearm',
   'sidearm-shield',
@@ -24,6 +25,7 @@ export type MilitaryEquipmentMountSource = {
   boneNames: readonly string[];
   position: readonly [number, number, number];
   rotation: readonly [number, number, number];
+  quaternion?: readonly [number, number, number, number];
 };
 
 export type MilitaryEquipmentSource = {
@@ -34,6 +36,8 @@ export type MilitaryEquipmentSource = {
   sourceSize: THREE.Vector3;
   sourceLength: number;
   targetLength: number;
+  primaryPosition: readonly [number, number, number];
+  primaryQuaternion: readonly [number, number, number, number];
   secondaryMounts: readonly MilitaryEquipmentMountSource[];
 };
 
@@ -62,57 +66,76 @@ type Materials = {
 };
 
 const TARGET_LENGTHS: Record<MilitaryEquipmentKind, number> = {
-  spear: 2.12,
-  'spear-shield': 2.12,
-  crossbow: 0.86,
-  sidearm: 0.88,
-  'sidearm-shield': 0.88,
-  'sword-shield': 1.02,
-  halberd: 2.2,
-  bow: 1.5,
-  'uskok-kit': 0.8,
+  spear: 2.35,
+  'spear-shield': 2.65,
+  'pike-kit': 4.7,
+  crossbow: 0.74,
+  sidearm: 0.82,
+  'sidearm-shield': 0.82,
+  'sword-shield': 1.08,
+  halberd: 2.55,
+  bow: 1.88,
+  'uskok-kit': 0.86,
 };
+
+// Sampled against the worker rig's authored idle, not the misleading T-pose.
+const RIGHT_PALM_POSITION = [0.0078, 0.057, -0.0071] as const;
+const LEFT_PALM_POSITION = [-0.0065, 0.0383, -0.0037] as const;
+const UPRIGHT_RIGHT_HAND = [-0.145608, -0.102947, -0.976031, 0.124758] as const;
+const FORWARD_RIGHT_HAND = [-0.014743, -0.762952, -0.617363, 0.191177] as const;
+const FORWARD_LEFT_HAND = [0.176702, -0.13146, -0.962764, -0.156782] as const;
+const NATURAL_RIGHT_HAND = [0, 0, 0, 1] as const;
 
 export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
   const materials = createMaterials();
   return {
-    spear: source('spear', createSpear(materials)),
-    'spear-shield': source('spear-shield', createSpear(materials), [
-      mount(createShield('medium', materials), ['PalmL', 'L_Hand'], 0.78),
+    spear: source('spear', createSpear(materials), UPRIGHT_RIGHT_HAND),
+    'spear-shield': source('spear-shield', createSpear(materials), UPRIGHT_RIGHT_HAND, [
+      mount(createShield('medium', materials), ['PalmL', 'L_Hand'], 0.56, LEFT_PALM_POSITION, [0, 0, 0], FORWARD_LEFT_HAND),
     ]),
-    crossbow: source('crossbow', createCrossbow(materials), [
+    'pike-kit': source('pike-kit', createPike(materials), UPRIGHT_RIGHT_HAND, [
+      mount(createKatzbalgerScabbard(materials), ['Waist', 'Hips', 'Pelvis'], 0.82, [0.1, 0, 0.015], [0, 0, Math.PI - 0.18]),
+    ]),
+    crossbow: source('crossbow', createCrossbow(materials), FORWARD_RIGHT_HAND, [
       mount(
         createBoltCase(materials),
-        ['Torso', 'Spine2', 'Spine'],
-        0.62,
-        [-0.22, -0.05, -0.17],
+        ['Spine02', 'Spine2', 'Spine01', 'Spine'],
+        0.54,
+        [0.065, 0.02, 0.085],
         [0.08, 0.12, -0.18],
       ),
     ]),
-    sidearm: source('sidearm', createSword(materials, false)),
-    'sidearm-shield': source('sidearm-shield', createSword(materials, false), [
-      mount(createShield('small', materials), ['PalmL', 'L_Hand'], 0.52),
+    sidearm: source('sidearm', createSword(materials, false), NATURAL_RIGHT_HAND),
+    'sidearm-shield': source('sidearm-shield', createSword(materials, false), NATURAL_RIGHT_HAND, [
+      mount(createShield('small', materials), ['PalmL', 'L_Hand'], 0.34, LEFT_PALM_POSITION, [0, 0, 0], FORWARD_LEFT_HAND),
     ]),
-    'sword-shield': source('sword-shield', createSword(materials, true), [
-      mount(createShield('large', materials), ['PalmL', 'L_Hand'], 0.92, [0, -0.03, 0]),
+    'sword-shield': source('sword-shield', createSword(materials, true), NATURAL_RIGHT_HAND, [
+      mount(createShield('large', materials), ['PalmL', 'L_Hand'], 0.62, LEFT_PALM_POSITION, [0, 0, 0], FORWARD_LEFT_HAND),
     ]),
-    halberd: source('halberd', createHalberd(materials)),
-    bow: source('bow', createBow(materials), [
+    halberd: source('halberd', createHalberd(materials), UPRIGHT_RIGHT_HAND),
+    bow: source('bow', createBow(materials), UPRIGHT_RIGHT_HAND, [
       mount(
-        createQuiver(materials, 7, 0.58),
-        ['Torso', 'Spine2', 'Spine'],
-        0.78,
-        [0.25, -0.04, -0.18],
-        [0.04, -0.18, 0.22],
+        createQuiver(materials, 12, 0.78),
+        ['Spine02', 'Spine2', 'Spine01', 'Spine'],
+        0.86,
+        [0.065, 0.02, 0.085],
+        [0.04, -0.18, -0.18],
       ),
     ]),
-    'uskok-kit': source('uskok-kit', createUskokAxe(materials), [
+    'uskok-kit': source('uskok-kit', createKorda(materials), NATURAL_RIGHT_HAND, [
+      mount(
+        createArquebus(materials),
+        ['Spine02', 'Spine2', 'Spine01', 'Spine'],
+        1.08,
+        [-0.065, 0.015, 0.09],
+        [0.06, -0.06, 0.5],
+      ),
       mount(
         createUskokScabbard(materials),
-        ['Hips', 'Pelvis', 'Abdomen'],
-        0.8,
-        [0.24, -0.08, 0.04],
-        [0.08, 0.02, -0.2],
+        ['Waist', 'Hips', 'Pelvis'],
+        0.86,
+        [0.1, 0, 0.015],
+        [0, 0, Math.PI - 0.18],
       ),
     ]),
   };
@@ -125,62 +148,29 @@ export function isMilitaryEquipmentSource(
 }
 
 function createMaterials(): Materials {
+  const material = (
+    name: string,
+    color: number,
+    roughness: number,
+    metalness: number,
+    pattern: 'wood' | 'leather' | 'metal' | 'paint' | 'feather',
+  ): THREE.MeshStandardMaterial => new THREE.MeshStandardMaterial({
+    name,
+    color: 0xffffff,
+    map: createSurfaceTexture(color, pattern),
+    roughness,
+    metalness,
+  });
   return {
-    ash: new THREE.MeshStandardMaterial({
-      name: 'Waxed ash weapon haft',
-      color: 0x8b6235,
-      roughness: 0.72,
-      metalness: 0.015,
-    }),
-    walnut: new THREE.MeshStandardMaterial({
-      name: 'Dark walnut stock',
-      color: 0x4c2f1d,
-      roughness: 0.68,
-      metalness: 0.01,
-    }),
-    steel: new THREE.MeshStandardMaterial({
-      name: 'Polished forged steel',
-      color: 0xa9aca6,
-      roughness: 0.28,
-      metalness: 0.88,
-    }),
-    bluedSteel: new THREE.MeshStandardMaterial({
-      name: 'Blued forged steel',
-      color: 0x414642,
-      roughness: 0.4,
-      metalness: 0.82,
-    }),
-    brass: new THREE.MeshStandardMaterial({
-      name: 'Cast brass fittings',
-      color: 0xa78238,
-      roughness: 0.34,
-      metalness: 0.78,
-    }),
-    leather: new THREE.MeshStandardMaterial({
-      name: 'Oiled brown leather',
-      color: 0x4a2d1c,
-      roughness: 0.82,
-      metalness: 0,
-    }),
-    oxblood: new THREE.MeshStandardMaterial({
-      name: 'Oxblood frontier leather',
-      color: 0x6d2f27,
-      roughness: 0.78,
-      metalness: 0,
-    }),
-    paintedWood: new THREE.MeshStandardMaterial({
-      name: 'Croatian red painted shield wood',
-      color: 0x7d3028,
-      roughness: 0.76,
-      metalness: 0,
-    }),
-    feather: new THREE.MeshStandardMaterial({
-      name: 'Goose-feather fletching',
-      color: 0xd8d2be,
-      roughness: 0.9,
-      metalness: 0,
-      side: THREE.DoubleSide,
-    }),
+    ash: material('Waxed ash weapon haft', 0x8b6235, 0.72, 0.015, 'wood'),
+    walnut: material('Dark walnut stock', 0x4c2f1d, 0.68, 0.01, 'wood'),
+    steel: material('Satin forged steel', 0xc2c4bd, 0.34, 0.66, 'metal'),
+    bluedSteel: material('Blued forged steel', 0x59605d, 0.44, 0.58, 'metal'),
+    brass: material('Cast brass fittings', 0xb99a55, 0.38, 0.64, 'metal'),
+    leather: material('Oiled brown leather', 0x4a2d1c, 0.82, 0, 'leather'),
+    oxblood: material('Oxblood frontier leather', 0x6d2f27, 0.78, 0, 'leather'),
+    paintedWood: material('Muted red painted shield wood', 0x7d3028, 0.76, 0, 'paint'),
+    feather: Object.assign(material('Goose-feather fletching', 0xd8d2be, 0.9, 0, 'feather'), { side: THREE.DoubleSide }),
     cord: new THREE.LineBasicMaterial({
       name: 'Hemp bow cord',
       color: 0xd6c89d,
@@ -188,9 +178,55 @@ function createMaterials(): Materials {
   };
 }
 
+/** Small deterministic shared maps keep close-ups tactile without asset IO. */
+function createSurfaceTexture(
+  base: number,
+  pattern: 'wood' | 'leather' | 'metal' | 'paint' | 'feather',
+): THREE.DataTexture {
+  const size = 64;
+  const data = new Uint8Array(size * size * 4);
+  const color = new THREE.Color(base);
+  const hash = (x: number, y: number): number => {
+    let value = Math.imul(x + 11, 374761393) ^ Math.imul(y + 17, 668265263);
+    value = Math.imul(value ^ (value >>> 13), 1274126177);
+    return ((value ^ (value >>> 16)) >>> 0) / 0xffffffff;
+  };
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const noise = hash(x, y) - 0.5;
+      const grain = pattern === 'wood'
+        ? Math.sin((x + Math.sin(y * 0.22) * 5) * 0.46) * 0.06
+        : pattern === 'metal'
+          ? Math.sin(y * 2.8 + noise) * 0.018
+          : pattern === 'leather'
+            ? (hash(Math.floor(x / 3), Math.floor(y / 3)) - 0.5) * 0.11
+            : pattern === 'paint'
+              ? (noise * 0.07 - (hash(x * 3, y * 5) > 0.985 ? 0.14 : 0))
+              : Math.sin(y * 0.9) * 0.035;
+      const variation = THREE.MathUtils.clamp(1 + grain + noise * 0.035, 0.72, 1.16);
+      const offset = (y * size + x) * 4;
+      data[offset] = Math.round(THREE.MathUtils.clamp(color.r * variation, 0, 1) * 255);
+      data[offset + 1] = Math.round(THREE.MathUtils.clamp(color.g * variation, 0, 1) * 255);
+      data[offset + 2] = Math.round(THREE.MathUtils.clamp(color.b * variation, 0, 1) * 255);
+      data[offset + 3] = 255;
+    }
+  }
+  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  texture.name = `${pattern} procedural equipment surface`;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(pattern === 'wood' ? 2 : 3, pattern === 'wood' ? 6 : 3);
+  texture.magFilter = THREE.LinearFilter;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.generateMipmaps = true;
+  texture.needsUpdate = true;
+  return texture;
+}
+
 function source(
   kind: MilitaryEquipmentKind,
   scene: THREE.Group,
+  primaryQuaternion: readonly [number, number, number, number],
   secondaryMounts: readonly MilitaryEquipmentMountSource[] = [],
 ): MilitaryEquipmentSource {
   const optimized = optimizeAssembly(scene);
@@ -208,6 +244,8 @@ function source(
     sourceSize,
     sourceLength,
     targetLength: TARGET_LENGTHS[kind],
+    primaryPosition: RIGHT_PALM_POSITION,
+    primaryQuaternion,
     secondaryMounts,
   };
 }
@@ -218,6 +256,7 @@ function mount(
   targetLength: number,
   position: readonly [number, number, number] = [0, 0, 0],
   rotation: readonly [number, number, number] = [0, 0, 0],
+  quaternion?: readonly [number, number, number, number],
 ): MilitaryEquipmentMountSource {
   const optimized = optimizeAssembly(scene);
   const bounds = new THREE.Box3().setFromObject(optimized);
@@ -230,6 +269,7 @@ function mount(
     boneNames,
     position,
     rotation,
+    quaternion,
   };
 }
 
@@ -288,7 +328,7 @@ function createSpear(materials: Materials): THREE.Group {
   add(group, new THREE.CylinderGeometry(0.03, 0.025, 0.14, 12), materials.bluedSteel, 'Spear · iron socket', [0, 1.41, 0]);
   add(
     group,
-    shapeGeometry([[0, -0.14], [0.082, 0.03], [0.048, 0.13], [0, 0.25], [-0.048, 0.13], [-0.082, 0.03]], 0.026, 0.006),
+    shapeGeometry([[0, -0.14], [0.042, 0.03], [0.03, 0.13], [0, 0.25], [-0.03, 0.13], [-0.042, 0.03]], 0.022, 0.005),
     materials.steel,
     'Spear · leaf-shaped forged head',
     [0, 1.52, 0],
@@ -299,10 +339,27 @@ function createSpear(materials: Materials): THREE.Group {
   return group;
 }
 
+function createPike(materials: Materials): THREE.Group {
+  const group = new THREE.Group();
+  add(group, new THREE.CylinderGeometry(0.014, 0.019, 4.36, 10), materials.ash, 'Pike · long waxed-ash shaft', [0, 1.68, 0]);
+  add(group, new THREE.CylinderGeometry(0.021, 0.018, 0.18, 10), materials.bluedSteel, 'Pike · narrow iron socket', [0, 3.95, 0]);
+  add(
+    group,
+    shapeGeometry([[0, -0.1], [0.034, 0.03], [0.02, 0.14], [0, 0.26], [-0.02, 0.14], [-0.034, 0.03]], 0.018, 0.004),
+    materials.steel,
+    'Pike · compact armor-piercing head',
+    [0, 4.08, 0],
+  );
+  add(group, new THREE.ConeGeometry(0.024, 0.1, 8), materials.bluedSteel, 'Pike · iron shoe', [0, -0.55, 0], [0, 0, Math.PI]);
+  group.name = 'Procedural Landsknecht pike';
+  group.userData.equipmentIdentity = 'mercenary-pike-and-katzbalger';
+  return group;
+}
+
 function createSword(materials: Materials, longSword: boolean): THREE.Group {
   const group = new THREE.Group();
   const bladeLength = longSword ? 0.77 : 0.61;
-  const bladeWidth = longSword ? 0.052 : 0.046;
+  const bladeWidth = longSword ? 0.026 : 0.023;
   add(
     group,
     shapeGeometry([
@@ -343,19 +400,13 @@ function createSword(materials: Materials, longSword: boolean): THREE.Group {
 }
 
 function shieldOutline(kind: 'small' | 'medium' | 'large'): Array<readonly [number, number]> {
-  if (kind !== 'large') {
-    const count = kind === 'small' ? 32 : 36;
-    const width = kind === 'small' ? 0.25 : 0.29;
-    const height = kind === 'small' ? 0.25 : 0.37;
-    return Array.from({ length: count }, (_, index) => {
-      const angle = index / count * Math.PI * 2;
-      return [Math.cos(angle) * width, Math.sin(angle) * height] as const;
-    });
-  }
-  return [
-    [-0.31, 0.31], [-0.18, 0.43], [0, 0.47], [0.18, 0.43], [0.31, 0.31],
-    [0.32, 0.02], [0.25, -0.27], [0, -0.48], [-0.25, -0.27], [-0.32, 0.02],
-  ];
+  const count = kind === 'small' ? 28 : 36;
+  const radius = kind === 'small' ? 0.17 : kind === 'medium' ? 0.28 : 0.31;
+  return Array.from({ length: count }, (_, index) => {
+    const angle = index / count * Math.PI * 2;
+    const handWorkedVariation = kind === 'small' ? 1 : 1 - 0.018 * Math.cos(angle * 4);
+    return [Math.cos(angle) * radius * handWorkedVariation, Math.sin(angle) * radius] as const;
+  });
 }
 
 function createShield(kind: 'small' | 'medium' | 'large', materials: Materials): THREE.Group {
@@ -379,9 +430,10 @@ function createShield(kind: 'small' | 'medium' | 'large', materials: Materials):
     [0, 0, depth * 0.55],
     [Math.PI / 2, 0, 0],
   );
-  add(group, new RoundedBoxGeometry(0.035, kind === 'large' ? 0.62 : 0.46, 0.012, 3, 0.008), materials.paintedWood, `${kind} shield · painted vertical charge`, [0, 0, depth * 0.72]);
-  add(group, new RoundedBoxGeometry(kind === 'large' ? 0.42 : 0.34, 0.035, 0.012, 3, 0.008), materials.paintedWood, `${kind} shield · painted crossbar`, [0, 0.08, depth * 0.72]);
-  add(group, new RoundedBoxGeometry(kind === 'large' ? 0.38 : 0.3, 0.035, 0.035, 3, 0.01), materials.leather, `${kind} shield · rear arm strap`, [0, 0, -0.04], [0, 0, Math.PI / 2]);
+  if (kind !== 'small') {
+    add(group, new THREE.TorusGeometry(kind === 'large' ? 0.245 : 0.215, 0.018, 6, 36), materials.paintedWood, `${kind} shield · restrained painted ring`, [0, 0, depth * 0.72]);
+  }
+  add(group, new RoundedBoxGeometry(kind === 'large' ? 0.42 : 0.3, 0.035, 0.035, 3, 0.01), materials.leather, `${kind} shield · rear arm strap`, [0, 0, -0.04], [0, 0, Math.PI / 2]);
   add(group, new THREE.CylinderGeometry(0.018, 0.018, kind === 'small' ? 0.2 : 0.25, 8), materials.leather, `${kind} shield · hand grip`, [0, 0, -0.075], [0, 0, Math.PI / 2]);
   group.name = `Procedural ${kind} shield`;
   group.userData.equipmentIdentity = `${kind}-shield`;
@@ -407,20 +459,21 @@ function createBow(materials: Materials): THREE.Group {
   for (let index = 0; index <= 24; index += 1) {
     const t = index / 24;
     const y = THREE.MathUtils.lerp(-0.75, 0.75, t);
-    const normalized = Math.abs(t * 2 - 1);
-    const x = 0.14 * Math.sin(normalized * Math.PI) - 0.055 * Math.pow(normalized, 4);
+    const centered = t * 2 - 1;
+    // A tall local self bow: a continuous D curve, not an Ottoman recurve.
+    const x = 0.135 * Math.pow(Math.abs(centered), 1.7);
     points.push(new THREE.Vector3(x, y, 0));
   }
-  add(group, new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 72, 0.018, 9, false), materials.ash, 'War bow · continuous recurved stave');
-  add(group, new THREE.CylinderGeometry(0.029, 0.029, 0.17, 10), materials.leather, 'War bow · leather grip', [0.13, 0, 0]);
+  add(group, new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 72, 0.016, 9, false), materials.ash, 'Self bow · continuous yew-like stave');
+  add(group, new THREE.CylinderGeometry(0.027, 0.027, 0.17, 10), materials.leather, 'Self bow · leather grip', [0, 0, 0]);
   const string = new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints([points[0]!, new THREE.Vector3(0.02, 0, 0), points.at(-1)!]),
+    new THREE.BufferGeometry().setFromPoints([points[0]!, new THREE.Vector3(-0.055, 0, 0), points.at(-1)!]),
     materials.cord,
   );
-  semantic(string, 'War bow · hemp string');
+  semantic(string, 'Self bow · hemp string');
   group.add(string);
-  group.name = 'Procedural recurved war bow';
-  group.userData.equipmentIdentity = 'fast-firing-war-bow';
+  group.name = 'Procedural Croatian self bow';
+  group.userData.equipmentIdentity = 'rural-self-bow';
   return group;
 }
 
@@ -429,11 +482,11 @@ function createCrossbow(materials: Materials): THREE.Group {
   add(group, new RoundedBoxGeometry(0.09, 0.73, 0.07, 4, 0.018), materials.walnut, 'Crossbow · carved walnut tiller', [0, 0.03, 0]);
   add(group, new RoundedBoxGeometry(0.14, 0.17, 0.065, 3, 0.014), materials.leather, 'Crossbow · shouldered stock', [0, -0.36, 0.012], [0, 0, -0.13]);
   const prod = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.41, 0.31, 0),
+    new THREE.Vector3(-0.32, 0.31, 0),
     new THREE.Vector3(-0.22, 0.27, 0.005),
     new THREE.Vector3(0, 0.3, 0.012),
     new THREE.Vector3(0.22, 0.27, 0.005),
-    new THREE.Vector3(0.41, 0.31, 0),
+    new THREE.Vector3(0.32, 0.31, 0),
   ]);
   add(group, new THREE.TubeGeometry(prod, 36, 0.015, 8, false), materials.bluedSteel, 'Crossbow · forged steel prod');
   add(group, new THREE.CylinderGeometry(0.043, 0.043, 0.085, 12), materials.brass, 'Crossbow · rotating nut', [0, 0.02, 0.025], [0, 0, Math.PI / 2]);
@@ -443,9 +496,9 @@ function createCrossbow(materials: Materials): THREE.Group {
   add(group, new THREE.ConeGeometry(0.018, 0.05, 6), materials.steel, 'Crossbow · bolt head', [0, 0.425, 0.052]);
   const string = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-0.41, 0.31, 0.012),
+      new THREE.Vector3(-0.32, 0.31, 0.012),
       new THREE.Vector3(0, 0.02, 0.012),
-      new THREE.Vector3(0.41, 0.31, 0.012),
+      new THREE.Vector3(0.32, 0.31, 0.012),
     ]),
     materials.cord,
   );
@@ -488,14 +541,55 @@ function createBoltCase(materials: Materials): THREE.Group {
   return group;
 }
 
-function createUskokAxe(materials: Materials): THREE.Group {
+function createKorda(materials: Materials): THREE.Group {
   const group = new THREE.Group();
-  add(group, new THREE.CylinderGeometry(0.019, 0.025, 0.62, 11), materials.ash, 'Uskok axe · mountain-ash haft', [0, 0.18, 0]);
-  add(group, shapeGeometry([[0, -0.1], [0.2, -0.07], [0.27, 0.08], [0.2, 0.22], [0.03, 0.18], [-0.03, 0.09]], 0.04, 0.009), materials.steel, 'Uskok axe · bearded cutting head', [0.015, 0.48, 0]);
-  add(group, new THREE.CylinderGeometry(0.034, 0.03, 0.16, 10), materials.bluedSteel, 'Uskok axe · reinforced eye', [0, 0.5, 0]);
-  add(group, new THREE.TorusGeometry(0.025, 0.006, 6, 12), materials.brass, 'Uskok axe · grip ferrule', [0, -0.12, 0], [Math.PI / 2, 0, 0]);
-  group.name = 'Procedural Uskok bearded axe';
-  group.userData.equipmentIdentity = 'uskok-bearded-axe';
+  add(
+    group,
+    shapeGeometry([[-0.021, 0], [-0.026, 0.45], [-0.023, 0.66], [0, 0.74], [0.02, 0.66], [0.03, 0.2], [0.027, 0]], 0.018, 0.004),
+    materials.steel,
+    'Uskok korda · single-edged frontier blade',
+    [0, 0.12, 0],
+  );
+  add(group, new THREE.BoxGeometry(0.19, 0.024, 0.032), materials.bluedSteel, 'Uskok korda · simple iron guard', [0, 0.1, 0]);
+  add(group, new THREE.CylinderGeometry(0.026, 0.031, 0.19, 10), materials.oxblood, 'Uskok korda · oxblood grip', [0, -0.005, 0]);
+  add(group, new THREE.SphereGeometry(0.038, 10, 7), materials.brass, 'Uskok korda · compact pommel', [0, -0.12, 0]);
+  group.name = 'Procedural Uskok korda';
+  group.userData.equipmentIdentity = 'uskok-korda-war-knife';
+  return group;
+}
+
+function createArquebus(materials: Materials): THREE.Group {
+  const group = new THREE.Group();
+  add(group, new RoundedBoxGeometry(0.075, 0.96, 0.072, 3, 0.014), materials.walnut, 'Arquebus · carved walnut stock', [0, 0.05, 0]);
+  add(group, new RoundedBoxGeometry(0.13, 0.23, 0.08, 3, 0.016), materials.walnut, 'Arquebus · shouldered butt', [0.025, -0.42, 0], [0, 0, -0.08]);
+  add(group, new THREE.CylinderGeometry(0.022, 0.026, 0.72, 12), materials.bluedSteel, 'Arquebus · hand-forged barrel', [0, 0.43, 0.055]);
+  add(group, new THREE.TorusGeometry(0.035, 0.007, 6, 12), materials.brass, 'Arquebus · muzzle band', [0, 0.79, 0.055], [Math.PI / 2, 0, 0]);
+  const serpentine = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.035, 0.04, 0.055),
+    new THREE.Vector3(0.09, 0.0, 0.06),
+    new THREE.Vector3(0.065, -0.08, 0.055),
+  ]);
+  add(group, new THREE.TubeGeometry(serpentine, 16, 0.009, 7, false), materials.bluedSteel, 'Arquebus · matchlock serpentine');
+  add(group, new THREE.CylinderGeometry(0.02, 0.02, 0.2, 8), materials.leather, 'Arquebus · slow match', [0.075, -0.05, 0.065], [0, 0, 0.4]);
+  add(group, new RoundedBoxGeometry(0.085, 0.075, 0.022, 2, 0.005), materials.brass, 'Arquebus · lock plate', [0.045, -0.04, 0.052]);
+  add(group, new RoundedBoxGeometry(0.07, 0.12, 0.03, 2, 0.006), materials.leather, 'Arquebus · shoulder sling', [-0.055, -0.1, -0.03], [0, 0, -0.2]);
+  group.name = 'Procedural Uskok matchlock arquebus';
+  group.userData.equipmentIdentity = 'uskok-light-arquebus';
+  return group;
+}
+
+function createKatzbalgerScabbard(materials: Materials): THREE.Group {
+  const group = new THREE.Group();
+  add(group, new RoundedBoxGeometry(0.075, 0.67, 0.048, 3, 0.012), materials.leather, 'Katzbalger · leather scabbard', [0, 0.24, 0]);
+  add(group, new THREE.CylinderGeometry(0.027, 0.03, 0.16, 10), materials.oxblood, 'Katzbalger · visible grip', [0, 0.65, 0]);
+  const guard = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.16, 0.56, 0), new THREE.Vector3(-0.08, 0.6, 0.02),
+    new THREE.Vector3(0, 0.58, 0), new THREE.Vector3(0.08, 0.6, 0.02), new THREE.Vector3(0.16, 0.56, 0),
+  ]);
+  add(group, new THREE.TubeGeometry(guard, 24, 0.012, 7, false), materials.bluedSteel, 'Katzbalger · S-curved guard');
+  add(group, new THREE.SphereGeometry(0.038, 10, 7), materials.brass, 'Katzbalger · pommel', [0, 0.75, 0]);
+  group.name = 'Procedural Landsknecht Katzbalger scabbard';
+  group.userData.equipmentIdentity = 'landsknecht-katzbalger';
   return group;
 }
 
@@ -536,7 +630,22 @@ function optimizeAssembly(source: THREE.Group): THREE.Group {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh || Array.isArray(mesh.material)) return;
     const list = geometries.get(mesh.material) ?? [];
-    list.push(mesh.geometry.clone().applyMatrix4(mesh.matrixWorld));
+    const transformed = mesh.geometry.clone().applyMatrix4(mesh.matrixWorld);
+    const normalized = transformed.index ? transformed.toNonIndexed() : transformed;
+    if (normalized !== transformed) transformed.dispose();
+    // Merge only a stable realtime attribute contract. Primitive helpers differ
+    // in incidental attributes/indexing, which otherwise defeats batching.
+    for (const attribute of Object.keys(normalized.attributes)) {
+      if (attribute !== 'position' && attribute !== 'normal' && attribute !== 'uv') {
+        normalized.deleteAttribute(attribute);
+      }
+    }
+    if (!normalized.getAttribute('normal')) normalized.computeVertexNormals();
+    if (!normalized.getAttribute('uv')) {
+      const count = normalized.getAttribute('position')?.count ?? 0;
+      normalized.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(count * 2), 2));
+    }
+    list.push(normalized);
     geometries.set(mesh.material, list);
   });
 
@@ -599,7 +708,8 @@ export function attachMilitaryEquipment(
   const primary = source.scene.clone(true);
   primary.name = `Military ${source.kind} primary`;
   primary.scale.setScalar(source.targetLength / (source.sourceLength * boneScale(rightHand)));
-  primary.position.set(0, 0, 0);
+  primary.position.set(...source.primaryPosition);
+  primary.quaternion.set(...source.primaryQuaternion);
   configureMount(primary, source.kind, rightHand);
   rightHand.add(primary);
 
@@ -611,12 +721,9 @@ export function attachMilitaryEquipment(
     const mounted = secondary.scene.clone(true);
     mounted.name = `Military ${source.kind} secondary ${bone.name}`;
     mounted.scale.setScalar(secondary.targetLength / (secondary.sourceLength * inheritedScale));
-    mounted.position.set(
-      secondary.position[0] / inheritedScale,
-      secondary.position[1] / inheritedScale,
-      secondary.position[2] / inheritedScale,
-    );
-    mounted.rotation.set(...secondary.rotation);
+    mounted.position.set(...secondary.position);
+    if (secondary.quaternion) mounted.quaternion.set(...secondary.quaternion);
+    else mounted.rotation.set(...secondary.rotation);
     configureMount(mounted, source.kind, bone);
     bone.add(mounted);
     mounts.push(mounted);
@@ -676,12 +783,20 @@ function disposeObjectGeometries(source: THREE.Object3D): void {
 function disposeObjectResources(source: THREE.Object3D): void {
   const geometries = new Set<THREE.BufferGeometry>();
   const materials = new Set<THREE.Material>();
+  const textures = new Set<THREE.Texture>();
   source.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (mesh.geometry) geometries.add(mesh.geometry);
     const meshMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    for (const material of meshMaterials) if (material) materials.add(material);
+    for (const material of meshMaterials) {
+      if (!material) continue;
+      materials.add(material);
+      for (const value of Object.values(material)) {
+        if (value instanceof THREE.Texture) textures.add(value);
+      }
+    }
   });
   for (const geometry of geometries) geometry.dispose();
+  for (const texture of textures) texture.dispose();
   for (const material of materials) material.dispose();
 }

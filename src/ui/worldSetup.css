@@ -357,6 +357,19 @@
   background-image: url('/assets/ui/icons/world-setup/settlement-frontier.png');
 }
 
+.world-setup-setting-row__icon[data-rule-icon='bandits'] {
+  background-image: url('/assets/ui/icons/world-setup/bandit-presence-atlas.png');
+  background-size: auto 200%;
+}
+
+.world-setup-setting-row__icon[data-rule-icon='bandits'][data-state='off'] {
+  background-position: center top;
+}
+
+.world-setup-setting-row__icon[data-rule-icon='bandits'][data-state='on'] {
+  background-position: center bottom;
+}
+
 .world-setup-setting-row__icon[data-rule-icon='approval'][data-state='0'] {
   background-image: url('/assets/ui/icons/world-setup/approval-disabled.png');
 }

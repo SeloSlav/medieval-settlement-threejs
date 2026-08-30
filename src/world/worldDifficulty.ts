@@ -131,7 +131,7 @@ export function describeWorldDifficulty(
   }[settings.militaryDemands];
   const summary = [
     `Settlement: ${settlement}`,
-    `Bandit camps: ${settings.banditCampsEnabled ? 'Enabled' : 'Disabled'}`,
+    `Bandit presence: ${settings.banditCampsEnabled ? 'Roaming camps' : 'None'}`,
     `Military demands: ${militaryDemands}`,
     `Approval decline: ${approval}`,
     `Food spoilage: ${spoilage}`,

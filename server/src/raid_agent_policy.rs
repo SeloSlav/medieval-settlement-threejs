@@ -72,14 +72,6 @@ pub struct RouteMove {
     pub reached_end: bool,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct EmergencyGuardTarget {
-    pub kind: u8,
-    pub id: u64,
-    pub x: f64,
-    pub z: f64,
-}
-
 /// Chooses the actual roster slots that can take weapons from the guardhouse
 /// rack. A wounded low-numbered slot must not prevent a later fit villager
 /// from mustering with an otherwise available polearm.
@@ -646,28 +638,6 @@ pub fn distance_squared(ax: f64, az: f64, bx: f64, bz: f64) -> f64 {
     dx * dx + dz * dz
 }
 
-/// Selects the physically nearest attacked holding for a company that has no
-/// usable watch-road deployment. Stable target identity resolves exact ties so
-/// every replay and client sees the same local alarm response.
-pub fn nearest_emergency_guard_target(
-    origin_x: f64,
-    origin_z: f64,
-    targets: &[EmergencyGuardTarget],
-) -> Option<usize> {
-    targets
-        .iter()
-        .enumerate()
-        .filter(|(_, target)| target.x.is_finite() && target.z.is_finite())
-        .min_by(|(left_index, left), (right_index, right)| {
-            distance_squared(origin_x, origin_z, left.x, left.z)
-                .total_cmp(&distance_squared(origin_x, origin_z, right.x, right.z))
-                .then_with(|| left.kind.cmp(&right.kind))
-                .then_with(|| left.id.cmp(&right.id))
-                .then_with(|| left_index.cmp(right_index))
-        })
-        .map(|(index, _)| index)
-}
-
 fn sample_polyline(polyline: &[[f64; 2]], meters: f64) -> (f64, f64) {
     if polyline.is_empty() {
         return (0.0, 0.0);
@@ -1038,51 +1008,6 @@ mod tests {
         assert!((arriving_cart_store_loot_fraction(10.0, 0.3, 5.0) - 0.6).abs() < 1e-9);
         assert_eq!(arriving_cart_store_loot_fraction(10.0, 0.3, 0.0), 0.0);
         assert_eq!(arriving_cart_store_loot_fraction(f64::NAN, 0.3, 100.0), 0.0);
-    }
-
-    #[test]
-    fn unlinked_companies_choose_the_nearest_attacked_holding_stably() {
-        let targets = [
-            EmergencyGuardTarget {
-                kind: COMBAT_TARGET_RESIDENCE,
-                id: 20,
-                x: 30.0,
-                z: 0.0,
-            },
-            EmergencyGuardTarget {
-                kind: COMBAT_TARGET_BUILDING,
-                id: 30,
-                x: -30.0,
-                z: 0.0,
-            },
-            EmergencyGuardTarget {
-                kind: COMBAT_TARGET_BUILDING,
-                id: 10,
-                x: 12.0,
-                z: 0.0,
-            },
-        ];
-        assert_eq!(nearest_emergency_guard_target(0.0, 0.0, &targets), Some(2),);
-
-        let tied = [
-            EmergencyGuardTarget {
-                kind: COMBAT_TARGET_RESIDENCE,
-                id: 10,
-                x: 10.0,
-                z: 0.0,
-            },
-            EmergencyGuardTarget {
-                kind: COMBAT_TARGET_BUILDING,
-                id: 20,
-                x: -10.0,
-                z: 0.0,
-            },
-        ];
-        assert_eq!(
-            nearest_emergency_guard_target(0.0, 0.0, &tied),
-            Some(1),
-            "target kind and stable identity must break equal-distance ties",
-        );
     }
 
     #[test]

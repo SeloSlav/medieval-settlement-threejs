@@ -1829,6 +1829,7 @@ export function workerToolVisibleInMode(
   if (
     kind === 'spear'
     || kind === 'spear-shield'
+    || kind === 'pike-kit'
     || kind === 'crossbow'
     || kind === 'sidearm'
     || kind === 'sidearm-shield'

@@ -39,6 +39,15 @@ equipment repair remain intentionally outside this pass.
    Guardhouse, or another military building. This preserves a complete answer
    to physical bandits in peaceful settlements where bandit camps are enabled.
 
+### Independent bandit presence
+
+Bandit presence is a separate new-world rule from Ottoman conflict. A peaceful,
+non-contested world can therefore keep roaming bandit camps enabled without
+scheduling Ottoman raids. Bandits physically visit only Granaries and Village
+Storehouses, remove portable stored goods, and return that loot to their camp.
+They never ignite, damage, or destroy buildings. Disabling the rule removes
+bandit agents and camps; destroying an enabled camp recovers its stored loot.
+
 ## Military demands world setting
 
 The setting applies only to local, non-militia companies. Every ration issue

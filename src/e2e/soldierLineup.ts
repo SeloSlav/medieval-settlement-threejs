@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {
@@ -52,13 +53,14 @@ const MODEL_URL = '/assets/models/villagers/worker-male-common-01-v002.glb';
 const TARGET_HEIGHT_METERS = 1.72;
 const FIXED_SEED = 0x5e10_1389;
 const FIXED_TIME_SECONDS = 2.25;
+const COMPANY_SPACING_METERS = 1.42;
 
 const TOOL_BY_COMPANY: Record<MilitaryCompanyKind, WorkerToolKind> = {
   militia: 'spear',
   spearmen: 'spear-shield' as WorkerToolKind,
   'men-at-arms': 'sword-shield',
   crossbows: 'crossbow',
-  'mercenary-spears': 'spear-shield' as WorkerToolKind,
+  'mercenary-spears': 'pike-kit' as WorkerToolKind,
   footmen: 'sidearm-shield' as WorkerToolKind,
   polearms: 'halberd',
   bowmen: 'bow',
@@ -68,13 +70,13 @@ const TOOL_BY_COMPANY: Record<MilitaryCompanyKind, WorkerToolKind> = {
 const KIT_LABELS: Record<MilitaryCompanyKind, string> = {
   militia: 'Long spear · civilian dress',
   spearmen: 'Spear · shield · gambeson',
-  'men-at-arms': 'Sword · pavise shield · mail',
+  'men-at-arms': 'Sword · rotella · mail',
   crossbows: 'Crossbow · bolt quiver',
-  'mercenary-spears': 'Spear · shield · campaign kit',
+  'mercenary-spears': 'Landsknecht pike · sidearm',
   footmen: 'Sidearm · buckler · gambeson',
   polearms: 'Halberd · two-handed harness',
   bowmen: 'War bow · arrow quiver',
-  'uskok-border-infantry': 'Axe · sidearm · frontier shield',
+  'uskok-border-infantry': 'Korda · arquebus · frontier kit',
 };
 
 const MELEE_KINDS = new Set<MilitaryCompanyKind>([
@@ -121,8 +123,13 @@ for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-view-link
   if (current) link.setAttribute('aria-current', 'page');
 }
 labels.style.setProperty('--lineup-columns', String(displayedKinds.length));
+labels.style.left = '50%';
+labels.style.right = 'auto';
+labels.style.width = `${Math.min(92.4, Math.max(40, displayedKinds.length * 12.5))}vw`;
+labels.style.transform = 'translateX(-50%)';
 
 let renderer: THREE.WebGLRenderer | null = null;
+let environmentTarget: THREE.WebGLRenderTarget | null = null;
 let workerToolSources: Awaited<ReturnType<typeof loadWorkerToolSources>> | null = null;
 let sourceScene: THREE.Group | null = null;
 let running = true;
@@ -138,9 +145,9 @@ try {
   renderer.toneMapping = presentation === 'no-post' || presentation === 'topology'
     ? THREE.NoToneMapping
     : THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = presentation === 'no-post' || presentation === 'topology' ? 1 : 1.08;
+  renderer.toneMappingExposure = presentation === 'no-post' || presentation === 'topology' ? 1 : 1.0;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   host.prepend(renderer.domElement);
 
   const [villagerGltf, loadedWorkerTools] = await Promise.all([
@@ -164,10 +171,18 @@ try {
     ? null
     : new THREE.FogExp2(0x8e9782, cameraBookmark === 'far' ? 0.017 : 0.011);
 
+  const roomEnvironment = new RoomEnvironment();
+  const pmremGenerator = new THREE.PMREMGenerator(renderer);
+  environmentTarget = pmremGenerator.fromScene(roomEnvironment, 0.035);
+  scene.environment = environmentTarget.texture;
+  scene.environmentIntensity = 0.42;
+  roomEnvironment.dispose();
+  pmremGenerator.dispose();
+
   const lighting = createLighting();
   scene.add(lighting);
 
-  const lineupWidth = Math.max(7.5, (displayedKinds.length - 1) * 2.05 + 3.3);
+  const lineupWidth = Math.max(5.8, (displayedKinds.length - 1) * COMPANY_SPACING_METERS + 2.1);
   const groundTexture = createGroundTexture(FIXED_SEED);
   groundTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
   groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
@@ -209,7 +224,7 @@ try {
   let attachedToolCount = 0;
   displayedKinds.forEach((kind, index) => {
     const centeredIndex = index - (displayedKinds.length - 1) * 0.5;
-    const x = centeredIndex * 2.05;
+    const x = centeredIndex * COMPANY_SPACING_METERS;
 
     const markerGeometry = new THREE.CircleGeometry(0.77, 40);
     const ringGeometry = new THREE.RingGeometry(0.75, 0.8, 48);
@@ -266,18 +281,21 @@ try {
     const toolSource = loadedWorkerTools[toolKind];
     if (!toolSource) throw new Error(`The ${kind} company is missing its ${toolKind} equipment source.`);
     const tool = attachWorkerTool(model, toolSource);
-    tool.traverse((object) => {
-      const mesh = object as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      if (presentation === 'topology') {
-        const toolMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        for (const material of toolMaterials) {
-          if (material instanceof THREE.MeshStandardMaterial) material.wireframe = true;
+    const equipmentMounts = tool.userData.workerToolMounts as THREE.Group[] | undefined;
+    for (const mount of equipmentMounts ?? [tool]) {
+      mount.traverse((object) => {
+        const mesh = object as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        if (presentation === 'topology') {
+          const toolMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          for (const material of toolMaterials) {
+            if (material instanceof THREE.MeshStandardMaterial) material.wireframe = true;
+          }
         }
-      }
-    });
+      });
+    }
     attachedToolCount += 1;
 
     const mixer = new THREE.AnimationMixer(model);
@@ -303,8 +321,14 @@ try {
     labels!.append(createLabel(kind, index));
   });
 
-  const cameraTarget = new THREE.Vector3(0, 1.02, 0.05);
-  const camera = createCamera(cameraBookmark, displayedKinds.length, cameraTarget);
+  const includesPike = displayedKinds.includes('mercenary-spears');
+  const cameraTarget = new THREE.Vector3(0, includesPike ? 1.3 : 0.82, 0.05);
+  const camera = createCamera(
+    cameraBookmark,
+    displayedKinds.length,
+    includesPike,
+    cameraTarget,
+  );
   scene.add(camera);
 
   const resizeAndRender = (): void => {
@@ -366,6 +390,7 @@ try {
     for (const material of ownedMaterials) material.dispose();
     for (const geometry of ownedGeometries) geometry.dispose();
     for (const texture of ownedTextures) texture.dispose();
+    environmentTarget?.dispose();
     renderer?.dispose();
   });
 } catch (error) {
@@ -403,20 +428,33 @@ function findAnimationClip(
 function createCamera(
   bookmark: SoldierLineupDiagnostics['cameraBookmark'],
   companyCount: number,
+  includesPike: boolean,
   target: THREE.Vector3,
 ): THREE.PerspectiveCamera {
-  const lineWidth = Math.max(7.5, (companyCount - 1) * 2.05 + 3.1);
+  const lineWidth = Math.max(5.8, (companyCount - 1) * COMPANY_SPACING_METERS + 1.6);
   const distanceForWidth = lineWidth / (2 * Math.tan(THREE.MathUtils.degToRad(35 * 0.5)) * (16 / 9));
   const distance = bookmark === 'near'
     ? distanceForWidth * 0.72
     : bookmark === 'far'
       ? distanceForWidth * 1.48
       : distanceForWidth;
+  const minimumDistance = bookmark === 'near'
+    ? 5.2
+    : bookmark === 'far'
+      ? 10.5
+      : includesPike
+        ? 11.8
+        : 6.2;
+  const cameraDistance = Math.max(minimumDistance, distance + 1.1);
   const camera = new THREE.PerspectiveCamera(35, 16 / 9, 0.08, 100);
   camera.position.set(
     bookmark === 'near' ? 0.8 : 0,
-    bookmark === 'near' ? 3.0 : bookmark === 'far' ? 4.8 : 3.75,
-    Math.max(bookmark === 'near' ? 8.2 : 10.5, distance + 1.1),
+    bookmark === 'near'
+      ? 2.9
+      : bookmark === 'far'
+        ? 4.8
+        : THREE.MathUtils.clamp(cameraDistance * 0.3, 2.8, 4.1),
+    cameraDistance,
   );
   camera.lookAt(target);
   return camera;
