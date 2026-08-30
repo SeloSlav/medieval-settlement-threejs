@@ -297,6 +297,7 @@ type CombatAgentVisual = {
   state: CombatAgentState;
   displayX: number;
   displayZ: number;
+  displayMoveSpeed: number;
   yaw: number;
   hurtUntilMs: number;
   threatenUntilMs: number;
@@ -686,6 +687,7 @@ export class VillagerRenderer {
         state,
         displayX: prior?.displayX ?? state.x,
         displayZ: prior?.displayZ ?? state.z,
+        displayMoveSpeed: prior?.displayMoveSpeed ?? 0,
         yaw: prior?.yaw ?? Math.atan2(
           state.x - state.homeX,
           state.z - state.homeZ,
@@ -2140,6 +2142,7 @@ export class VillagerRenderer {
         continue;
       }
       const renderAgent = this.renderAgentFor(agent.id);
+      clearCrowdCombatPresentation(renderAgent);
       renderAgent.slot = slot++;
       const renderX = agent.x + agent.avoidanceOffsetX;
       const renderZ = agent.z + agent.avoidanceOffsetZ;
@@ -2197,6 +2200,7 @@ export class VillagerRenderer {
           )
         : visual.yaw;
       const renderAgent = this.renderAgentFor(`combat:${combat.id}`);
+      clearCrowdCombatPresentation(renderAgent);
       renderAgent.slot = slot++;
       renderAgent.x = visual.displayX;
       renderAgent.y = this.resolveGroundY(visual.displayX, visual.displayZ) + 0.02;
@@ -2226,6 +2230,26 @@ export class VillagerRenderer {
       renderAgent.hairColor = residentSoldier?.hairColor ?? ordinaryGuard?.hairColor
         ?? pickVillagerHairColor(appearanceSeed);
       renderAgent.tool = combatToolFor(combat.faction);
+      if (combat.status === 'fighting' && target) {
+        const targetDx = target.displayX - visual.displayX;
+        const targetDz = target.displayZ - visual.displayZ;
+        const targetDistance = Math.hypot(targetDx, targetDz);
+        renderAgent.combatAttackCooldown = combat.attackCooldown;
+        renderAgent.combatAttackSeconds = combatAttackSeconds(
+          combat,
+          targetDistance,
+        );
+        renderAgent.combatTargetDistance = targetDistance;
+        renderAgent.combatTargetX = target.displayX;
+        renderAgent.combatTargetY = this.resolveGroundY(
+          target.displayX,
+          target.displayZ,
+        ) + 1.08;
+        renderAgent.combatTargetZ = target.displayZ;
+        renderAgent.combatLocomotion = visual.displayMoveSpeed > 1.85
+          ? 'run'
+          : visual.displayMoveSpeed > 0.12 ? 'walk' : 'idle';
+      }
       renderAgent.movementSpeed = (combat.status === 'wounded-returning'
         ? 0.68
         : renderAgent.mode === 'run'
@@ -2241,6 +2265,7 @@ export class VillagerRenderer {
       const appearanceSeed = pickVillagerAppearanceSeed(corpse.id, 0);
       const colors = pickVillagerColors(appearanceSeed);
       const renderAgent = this.renderAgentFor(`violent-corpse:${corpse.id}`);
+      clearCrowdCombatPresentation(renderAgent);
       renderAgent.slot = slot++;
       renderAgent.x = corpse.x;
       renderAgent.y = this.resolveGroundY(corpse.x, corpse.z) + 0.02;
@@ -2316,7 +2341,9 @@ export class VillagerRenderer {
   }
 
   private advanceCombatAgentVisuals(realDt: number): void {
-    const blend = 1 - Math.exp(-Math.min(0.1, Math.max(0, realDt)) * 14);
+    const frameDt = Math.min(0.1, Math.max(0, realDt));
+    const blend = 1 - Math.exp(-frameDt * 14);
+    const speedBlend = 1 - Math.exp(-frameDt * 12);
     for (const visual of this.combatAgentVisuals.values()) {
       const previousX = visual.displayX;
       const previousZ = visual.displayZ;
@@ -2324,6 +2351,10 @@ export class VillagerRenderer {
       visual.displayZ += (visual.state.z - visual.displayZ) * blend;
       const dx = visual.displayX - previousX;
       const dz = visual.displayZ - previousZ;
+      const measuredSpeed = frameDt > 1e-5
+        ? Math.hypot(dx, dz) / frameDt
+        : 0;
+      visual.displayMoveSpeed += (measuredSpeed - visual.displayMoveSpeed) * speedBlend;
       if (dx * dx + dz * dz > 1e-8) {
         visual.yaw = Math.atan2(dx, dz);
       }
@@ -5910,6 +5941,36 @@ function combatToolFor(faction: CombatAgentState['faction']): WorkerToolKind {
     case 'polearm': return 'halberd';
     case 'uskok': return 'uskok-kit';
   }
+}
+
+function combatAttackSeconds(
+  combat: CombatAgentState,
+  targetDistance: number,
+): number {
+  switch (combat.faction) {
+    case 'guard': return 1.75 - THREE.MathUtils.clamp(combat.readiness, 0, 1) * 0.35;
+    case 'raider': return 1.85;
+    case 'bandit': return 1.2;
+    case 'militia': return 1.1;
+    case 'spearman': return 1;
+    case 'man-at-arms': return 0.92;
+    case 'crossbow': return targetDistance > 3.25 ? 2.45 : 0.9;
+    case 'mercenary-spear': return 0.94;
+    case 'footman': return 0.82;
+    case 'polearm': return 1.08;
+    case 'bowman': return targetDistance > 3.25 ? 1.55 : 0.9;
+    case 'uskok': return targetDistance > 3.25 ? 2.8 : 0.84;
+  }
+}
+
+export function clearCrowdCombatPresentation(renderAgent: CrowdRenderAgent): void {
+  renderAgent.combatAttackCooldown = undefined;
+  renderAgent.combatAttackSeconds = undefined;
+  renderAgent.combatLocomotion = undefined;
+  renderAgent.combatTargetDistance = undefined;
+  renderAgent.combatTargetX = undefined;
+  renderAgent.combatTargetY = undefined;
+  renderAgent.combatTargetZ = undefined;
 }
 
 function combatUnitName(combat: CombatAgentState): string {

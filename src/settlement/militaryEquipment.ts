@@ -60,6 +60,7 @@ export type MilitaryEquipmentSource = {
   sourceSize: THREE.Vector3;
   sourceLength: number;
   targetLength: number;
+  primaryBoneNames: readonly string[];
   primaryPosition: readonly [number, number, number];
   primaryQuaternion: readonly [number, number, number, number];
   primaryCombatRole: MilitaryEquipmentCombatRole;
@@ -141,7 +142,7 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
       mount(createShield('large', materials), ['PalmL', 'L_Hand'], 0.62, LEFT_PALM_POSITION, [0, 0, 0], FORWARD_LEFT_HAND),
     ]),
     halberd: source('halberd', createHalberd(materials), UPRIGHT_RIGHT_HAND),
-    bow: source('bow', createBow(materials), UPRIGHT_RIGHT_HAND, [
+    bow: source('bow', createBow(materials), FORWARD_LEFT_HAND, [
       mount(
         createQuiver(materials, 12, 0.78),
         ['Spine02', 'Spine2', 'Spine01', 'Spine'],
@@ -152,7 +153,7 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
       mount(createBow(materials), ['Spine02', 'Spine2', 'Spine01', 'Spine'], 1.88, [0.08, 0.02, 0.105], [0.04, -0.2, 0.18], undefined, 'ranged-stowed'),
       mount(createFallbackDagger(materials), ['PalmR', 'R_Hand'], 0.42, RIGHT_PALM_POSITION, [0, 0, 0], NATURAL_RIGHT_HAND, 'melee-held'),
       mount(createFallbackDaggerScabbard(materials), ['Waist', 'Hips', 'Pelvis'], 0.46, [0.11, 0, 0.02], [0, 0, Math.PI - 0.2], undefined, 'melee-stowed'),
-    ], 'ranged-held'),
+    ], 'ranged-held', ['PalmL', 'L_Hand'], LEFT_PALM_POSITION),
     'uskok-kit': source('uskok-kit', createKorda(materials), NATURAL_RIGHT_HAND, [
       mount(
         createArquebus(materials),
@@ -273,6 +274,8 @@ function source(
   primaryQuaternion: readonly [number, number, number, number],
   secondaryMounts: readonly MilitaryEquipmentMountSource[] = [],
   primaryCombatRole: MilitaryEquipmentCombatRole = 'melee-held',
+  primaryBoneNames: readonly string[] = ['PalmR', 'R_Hand'],
+  primaryPosition: readonly [number, number, number] = RIGHT_PALM_POSITION,
 ): MilitaryEquipmentSource {
   const optimized = optimizeAssembly(scene);
   const bounds = new THREE.Box3().setFromObject(optimized);
@@ -289,7 +292,8 @@ function source(
     sourceSize,
     sourceLength,
     targetLength: TARGET_LENGTHS[kind],
-    primaryPosition: RIGHT_PALM_POSITION,
+    primaryBoneNames,
+    primaryPosition,
     primaryQuaternion,
     primaryCombatRole,
     secondaryMounts,
@@ -540,8 +544,6 @@ function createCrossbow(materials: Materials): THREE.Group {
   add(group, new THREE.CylinderGeometry(0.043, 0.043, 0.085, 12), materials.brass, 'Crossbow · rotating nut', [0, 0.02, 0.025], [0, 0, Math.PI / 2]);
   add(group, new RoundedBoxGeometry(0.018, 0.16, 0.025, 3, 0.006), materials.bluedSteel, 'Crossbow · trigger lever', [0, -0.1, 0.055], [0.25, 0, 0]);
   add(group, new THREE.TorusGeometry(0.07, 0.01, 6, 18, Math.PI * 1.4), materials.bluedSteel, 'Crossbow · spanning stirrup', [0, 0.41, 0], [Math.PI / 2, 0, -0.2]);
-  add(group, new THREE.CylinderGeometry(0.006, 0.006, 0.56, 7), materials.ash, 'Crossbow · loaded bolt', [0, 0.12, 0.052]);
-  add(group, new THREE.ConeGeometry(0.018, 0.05, 6), materials.steel, 'Crossbow · bolt head', [0, 0.425, 0.052]);
   const string = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(-0.32, 0.31, 0.012),
@@ -772,6 +774,13 @@ function configureMount(
   mount.userData.workerTool = kind;
   mount.userData.workerToolBone = bone.name;
   mount.userData.workerToolCombatRole = combatRole;
+  const held = combatRole === 'melee-held' || combatRole === 'ranged-held';
+  if (held) {
+    const supportGrip = supportGripFor(kind, combatRole);
+    if (supportGrip) mount.userData.workerToolSupportGripLocal = supportGrip;
+    const muzzle = muzzleFor(kind, combatRole);
+    if (muzzle) mount.userData.workerToolMuzzleLocal = muzzle;
+  }
   mount.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh && !(object instanceof THREE.Line)) return;
@@ -781,19 +790,42 @@ function configureMount(
   });
 }
 
+function supportGripFor(
+  kind: MilitaryEquipmentKind,
+  role: MilitaryEquipmentCombatRole,
+): readonly [number, number, number] | null {
+  switch (kind) {
+    case 'spear': return [0, 0.42, 0];
+    case 'pike-kit': return [0, 0.5, 0];
+    case 'halberd': return [0, 0.46, 0];
+    case 'crossbow': return role === 'ranged-held' ? [0, 0.18, 0.025] : null;
+    case 'uskok-kit': return role === 'ranged-held' ? [0, 0.19, 0.045] : null;
+    default: return null;
+  }
+}
+
+function muzzleFor(
+  kind: MilitaryEquipmentKind,
+  role: MilitaryEquipmentCombatRole,
+): readonly [number, number, number] | null {
+  if (kind === 'crossbow' && role === 'ranged-held') return [0, 0.46, 0.052];
+  if (kind === 'uskok-kit' && role === 'ranged-held') return [0, 0.79, 0.055];
+  return null;
+}
+
 export function attachMilitaryEquipment(
   model: THREE.Group,
   source: MilitaryEquipmentSource,
 ): THREE.Group {
   model.updateWorldMatrix(true, true);
-  const rightHand = findBone(model, ['PalmR', 'R_Hand']);
+  const primaryBone = findBone(model, source.primaryBoneNames);
   const primary = source.scene.clone(true);
   primary.name = `Military ${source.kind} primary`;
-  primary.scale.setScalar(source.targetLength / (source.sourceLength * boneScale(rightHand)));
+  primary.scale.setScalar(source.targetLength / (source.sourceLength * boneScale(primaryBone)));
   primary.position.set(...source.primaryPosition);
   primary.quaternion.set(...source.primaryQuaternion);
-  configureMount(primary, source.kind, rightHand, source.primaryCombatRole);
-  rightHand.add(primary);
+  configureMount(primary, source.kind, primaryBone, source.primaryCombatRole);
+  primaryBone.add(primary);
 
   const mounts = [primary];
   for (const secondary of source.secondaryMounts) {
@@ -832,7 +864,9 @@ export function setMilitaryEquipmentCombatStance(
 }
 
 function defaultCombatStance(kind: MilitaryEquipmentKind): MilitaryEquipmentCombatStance {
-  return kind === 'bow' || kind === 'crossbow' ? 'ranged' : 'melee';
+  return kind === 'bow' || kind === 'crossbow' || kind === 'uskok-kit'
+    ? 'ranged'
+    : 'melee';
 }
 
 function applyMilitaryEquipmentVisibility(tool: THREE.Group): void {

@@ -9,6 +9,7 @@ import {
   timberMaterial,
 } from '../buildingMaterials.ts';
 import { addTriangularGableWall } from '../meshPrimitives.ts';
+import { createProceduralRoofPanelGeometry } from '../proceduralArchitecture/geometryWriter.ts';
 import {
   addProceduralDoor,
   addProceduralWindow,
@@ -89,6 +90,160 @@ function createLancetGeometry(width: number, height: number, depth: number): THR
   return new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 4 });
 }
 
+function createLancetSurroundGeometry(
+  outerWidth: number,
+  outerHeight: number,
+  innerWidth: number,
+  innerHeight: number,
+  depth: number,
+): THREE.ExtrudeGeometry {
+  const shape = createLancetShape(outerWidth, outerHeight, THREE.Shape);
+  shape.holes.push(createLancetShape(innerWidth, innerHeight, THREE.Path));
+  return new THREE.ExtrudeGeometry(shape, {
+    depth,
+    bevelEnabled: false,
+    curveSegments: 5,
+  });
+}
+
+function createLancetShape<T extends THREE.Shape | THREE.Path>(
+  width: number,
+  height: number,
+  Constructor: new () => T,
+  offsetX = 0,
+  offsetY = 0,
+): T {
+  const springY = height * 0.58;
+  const path = new Constructor();
+  path.moveTo(offsetX - width * 0.5, offsetY);
+  path.lineTo(offsetX + width * 0.5, offsetY);
+  path.lineTo(offsetX + width * 0.5, offsetY + springY);
+  path.quadraticCurveTo(
+    offsetX + width * 0.45,
+    offsetY + height * 0.82,
+    offsetX,
+    offsetY + height,
+  );
+  path.quadraticCurveTo(
+    offsetX - width * 0.45,
+    offsetY + height * 0.82,
+    offsetX - width * 0.5,
+    offsetY + springY,
+  );
+  path.closePath();
+  return path;
+}
+
+type ChurchWallAperture = {
+  readonly center: number;
+  readonly bottom: number;
+  readonly width: number;
+  readonly height: number;
+  readonly shape: 'rectangle' | 'lancet';
+};
+
+function createPerforatedChurchWallGeometry(
+  span: number,
+  height: number,
+  thickness: number,
+  apertures: readonly ChurchWallAperture[],
+): THREE.ExtrudeGeometry {
+  const halfSpan = span * 0.5;
+  const shape = new THREE.Shape();
+  shape.moveTo(-halfSpan, 0);
+  shape.lineTo(halfSpan, 0);
+  shape.lineTo(halfSpan, height);
+  shape.lineTo(-halfSpan, height);
+  shape.closePath();
+  for (const aperture of apertures) {
+    if (aperture.shape === 'lancet') {
+      shape.holes.push(createLancetShape(
+        aperture.width,
+        aperture.height,
+        THREE.Path,
+        aperture.center,
+        aperture.bottom,
+      ));
+      continue;
+    }
+    const hole = new THREE.Path();
+    const halfWidth = aperture.width * 0.5;
+    // Clockwise winding identifies the aperture as a hole.
+    hole.moveTo(aperture.center - halfWidth, aperture.bottom);
+    hole.lineTo(aperture.center - halfWidth, aperture.bottom + aperture.height);
+    hole.lineTo(aperture.center + halfWidth, aperture.bottom + aperture.height);
+    hole.lineTo(aperture.center + halfWidth, aperture.bottom);
+    hole.closePath();
+    shape.holes.push(hole);
+  }
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: thickness,
+    bevelEnabled: false,
+    curveSegments: 5,
+  });
+  geometry.translate(0, 0, -thickness * 0.5);
+  return geometry;
+}
+
+function addChurchWallShell(
+  group: THREE.Group,
+  options: {
+    readonly width: number;
+    readonly depth: number;
+    readonly foundationHeight: number;
+    readonly wallHeight: number;
+    readonly frontZ: number;
+    readonly material: THREE.Material;
+    readonly frontDoor: ChurchWallAperture;
+    readonly sideWindows: readonly ChurchWallAperture[];
+    readonly namePrefix: string;
+  },
+): void {
+  const thickness = 0.18;
+  const bodyWidth = options.width - 0.14;
+  const bodyDepth = options.depth - 0.14;
+  const front = addMesh(
+    group,
+    createPerforatedChurchWallGeometry(
+      bodyWidth,
+      options.wallHeight,
+      thickness,
+      [options.frontDoor],
+    ),
+    options.material,
+    new THREE.Vector3(0, options.foundationHeight, options.frontZ),
+  );
+  front.name = `${options.namePrefix} physical front wall apertures`;
+  front.userData.churchPhysicalApertureCount = 1;
+
+  const rear = addMesh(
+    group,
+    createPerforatedChurchWallGeometry(bodyWidth, options.wallHeight, thickness, []),
+    options.material,
+    new THREE.Vector3(0, options.foundationHeight, -options.frontZ),
+  );
+  rear.name = `${options.namePrefix} closed rear wall shell`;
+  rear.userData.churchPhysicalApertureCount = 0;
+
+  for (const side of [-1, 1] as const) {
+    const geometry = createPerforatedChurchWallGeometry(
+      bodyDepth,
+      options.wallHeight,
+      thickness,
+      options.sideWindows,
+    );
+    geometry.rotateY(-Math.PI * 0.5);
+    const wall = addMesh(
+      group,
+      geometry,
+      options.material,
+      new THREE.Vector3(side * (options.width * 0.5 - 0.07), options.foundationHeight, 0),
+    );
+    wall.name = `${options.namePrefix} ${side < 0 ? 'left' : 'right'} physical window wall`;
+    wall.userData.churchPhysicalApertureCount = options.sideWindows.length;
+  }
+}
+
 function addLancetWindow(
   group: THREE.Group,
   materials: ChapelMaterials,
@@ -111,11 +266,11 @@ function addLancetWindow(
 
   const surround = addMesh(
     window,
-    createLancetGeometry(0.96, 1.9, 0.11),
+    createLancetSurroundGeometry(0.96, 1.9, 0.66, 1.55, 0.11),
     stoneMaterial('light'),
     new THREE.Vector3(0, 0, 0),
   );
-  surround.name = 'Chapel lancet window stone surround';
+  surround.name = 'Chapel open lancet window stone surround';
   surround.userData.facadeOpeningRole = 'window-frame';
   const pane = addMesh(
     window,
@@ -213,11 +368,17 @@ function addPlankDoor(
 
   const surround = addMesh(
     opening,
-    createLancetGeometry(doorWidth + 0.48, doorHeight + 0.56, 0.16),
+    createLancetSurroundGeometry(
+      doorWidth + 0.48,
+      doorHeight + 0.56,
+      doorWidth,
+      doorHeight,
+      0.16,
+    ),
     stoneMaterial('light'),
     new THREE.Vector3(0, -0.02, -0.08),
   );
-  surround.name = 'Chapel arched door stone surround';
+  surround.name = 'Chapel open arched door stone surround';
   surround.userData.facadeOpeningRole = 'door-frame';
   const reveal = addMesh(
     opening,
@@ -284,31 +445,6 @@ function addFolkFrieze(
       new THREE.Euler(0, 0, Math.PI * 0.25),
     );
     diamond.scale.set(1, 1, 1);
-  }
-}
-
-function addRoofBands(
-  group: THREE.Group,
-  halfWidth: number,
-  depth: number,
-  wallTop: number,
-  ridgeHeight: number,
-  roofPitch: number,
-  roofMaterial: THREE.Material,
-): void {
-  for (const side of [-1, 1] as const) {
-    for (let row = 0; row < 6; row++) {
-      const t = (row + 0.25) / 6.5;
-      const x = side * halfWidth * (1 - t);
-      const y = wallTop + ridgeHeight * t;
-      addMesh(
-        group,
-        new THREE.BoxGeometry(0.075, 0.065, depth + 0.5),
-        roofMaterial,
-        new THREE.Vector3(x, y + 0.025, 0),
-        new THREE.Euler(0, 0, side * -roofPitch),
-      );
-    }
   }
 }
 
@@ -415,23 +551,56 @@ function addCompactChurchRoof(
   material: THREE.Material,
 ): void {
   const halfW = width * 0.5;
-  const roofPitch = Math.atan2(ridgeHeight, halfW);
-  const slopeLen = halfW / Math.cos(roofPitch) + 0.25;
-  for (const side of [-1, 1] as const) {
-    addMesh(
-      group,
-      new THREE.BoxGeometry(slopeLen, 0.14, depth + 0.42),
-      material,
-      new THREE.Vector3(side * halfW * 0.46, wallTop + ridgeHeight * 0.48, 0),
-      new THREE.Euler(0, 0, side * -roofPitch),
-    );
-  }
-  addMesh(
+  const run = halfW + 0.25;
+  const roofDepth = depth + 0.42;
+  const eaveY = wallTop - 0.04;
+  const rise = ridgeHeight + 0.06;
+  const role = material.name.toLowerCase().includes('clay')
+    ? 'clay-tiles'
+    : 'split-shingles';
+  const left = addMesh(
     group,
-    new THREE.BoxGeometry(0.22, 0.17, depth + 0.52),
+    createProceduralRoofPanelGeometry({
+      semanticId: 'church-left-joined-roof-plane',
+      moduleId: 'church-nave-roof',
+      materialRole: role,
+      structuralUse: 'roof-covering',
+      eaveOrigin: [-run, eaveY, -roofDepth * 0.5],
+      eaveVector: [0, 0, roofDepth],
+      slopeVector: [run, rise, 0],
+      thickness: 0.14,
+    }),
     material,
-    new THREE.Vector3(0, wallTop + ridgeHeight + 0.02, 0),
+    new THREE.Vector3(),
   );
+  left.name = 'Church joined left roof plane';
+  left.userData.proceduralRoofShell = true;
+  const right = addMesh(
+    group,
+    createProceduralRoofPanelGeometry({
+      semanticId: 'church-right-joined-roof-plane',
+      moduleId: 'church-nave-roof',
+      materialRole: role,
+      structuralUse: 'roof-covering',
+      eaveOrigin: [run, eaveY, roofDepth * 0.5],
+      eaveVector: [0, 0, -roofDepth],
+      slopeVector: [-run, rise, 0],
+      thickness: 0.14,
+      uvOffsetMeters: [0.13, 0.07],
+    }),
+    material,
+    new THREE.Vector3(),
+  );
+  right.name = 'Church joined right roof plane';
+  right.userData.proceduralRoofShell = true;
+  const ridge = addMesh(
+    group,
+    new THREE.BoxGeometry(0.2, 0.1, roofDepth + 0.1),
+    material,
+    new THREE.Vector3(0, eaveY + rise + 0.015, 0),
+  );
+  ridge.name = 'Church low-profile roof-covering ridge cap';
+  ridge.userData.proceduralRoofShell = true;
 }
 
 function addCompactBellCote(
@@ -525,15 +694,49 @@ function createCompactChurchMesh(tier: 1 | 2): THREE.Group {
     new THREE.Vector3(0, foundationHeight * 0.5, 0),
   );
   if (stoneTier) addFoundationStones(group, width, depth);
-  addMesh(
-    group,
-    new THREE.BoxGeometry(width, wallHeight, depth),
-    wallMaterial,
-    new THREE.Vector3(0, foundationHeight + wallHeight * 0.5, 0),
-  );
+  const compactWindowZs = stoneTier ? [-1.2, 1.0] as const : [-0.9, 0.8] as const;
+  addChurchWallShell(group, {
+    width,
+    depth,
+    foundationHeight,
+    wallHeight,
+    frontZ,
+    material: wallMaterial,
+    frontDoor: stoneTier
+      ? {
+          center: 0,
+          bottom: 0.04,
+          width: 1.38,
+          height: 2.22,
+          shape: 'lancet',
+        }
+      : {
+          center: 0,
+          bottom: 0,
+          width: 1.18,
+          height: 1.94,
+          shape: 'rectangle',
+        },
+    sideWindows: compactWindowZs.map((z): ChurchWallAperture => stoneTier
+      ? {
+          center: z,
+          bottom: 1.05 - foundationHeight,
+          width: 0.66,
+          height: 1.55,
+          shape: 'lancet',
+        }
+      : {
+          center: z,
+          bottom: 1.45 - 0.88 * 0.5 - foundationHeight,
+          width: 0.68,
+          height: 0.88,
+          shape: 'rectangle',
+        }),
+    namePrefix: root.name,
+  });
 
   if (stoneTier) {
-    for (const z of [-1.2, 1.0]) {
+    for (const z of compactWindowZs) {
       addLancetWindow(group, materials, 'left', z, 1.05, halfW);
       addLancetWindow(group, materials, 'right', z, 1.05, halfW);
     }
@@ -542,7 +745,7 @@ function createCompactChurchMesh(tier: 1 | 2): THREE.Group {
       addSideButtress(group, side, 1.35, wallTop, halfW);
     }
   } else {
-    const windowZs = [-0.9, 0.8] as const;
+    const windowZs = compactWindowZs;
     const windowCenterY = 1.45;
     const windowWidth = 0.68;
     const windowHeight = 0.88;
@@ -640,8 +843,6 @@ function createLargeStoneChurchMesh(): THREE.Group {
   const halfD = depth * 0.5;
   const wallTop = foundationHeight + wallHeight;
   const ridgeHeight = 2.55;
-  const roofPitch = Math.atan2(ridgeHeight, halfW);
-  const slopeLen = halfW / Math.cos(roofPitch) + 0.28;
   const frontZ = halfD - 0.075;
 
   addMesh(
@@ -652,12 +853,29 @@ function createLargeStoneChurchMesh(): THREE.Group {
   );
   addFoundationStones(group, width, depth);
 
-  addMesh(
-    group,
-    new THREE.BoxGeometry(width - 0.18, wallHeight, depth - 0.18),
-    materials.limewash,
-    new THREE.Vector3(0, foundationHeight + wallHeight * 0.5, 0),
-  );
+  addChurchWallShell(group, {
+    width,
+    depth,
+    foundationHeight,
+    wallHeight,
+    frontZ,
+    material: materials.limewash,
+    frontDoor: {
+      center: 0,
+      bottom: 0.08,
+      width: 1.38,
+      height: 2.22,
+      shape: 'lancet',
+    },
+    sideWindows: [-1.65, 1.15].map((z): ChurchWallAperture => ({
+      center: z,
+      bottom: 1.28 - foundationHeight,
+      width: 0.66,
+      height: 1.55,
+      shape: 'lancet',
+    })),
+    namePrefix: root.name,
+  });
   addMesh(
     group,
     new THREE.BoxGeometry(width + 0.08, 0.24, depth + 0.08),
@@ -676,42 +894,29 @@ function createLargeStoneChurchMesh(): THREE.Group {
   addParishCoffer(group, frontZ);
   addFolkFrieze(group, materials, frontZ, wallTop - 0.46);
 
-  for (const side of [-1, 1] as const) {
-    addMesh(
-      group,
-      new THREE.BoxGeometry(slopeLen, 0.15, depth + 0.48),
-      roofMaterial,
-      new THREE.Vector3(side * halfW * 0.46, wallTop + ridgeHeight * 0.48, 0),
-      new THREE.Euler(0, 0, side * -roofPitch),
-    );
-  }
-  addRoofBands(group, halfW, depth, wallTop, ridgeHeight, roofPitch, roofMaterial);
-  addMesh(
-    group,
-    new THREE.BoxGeometry(0.28, 0.2, depth + 0.66),
-    roofMaterial,
-    new THREE.Vector3(0, wallTop + ridgeHeight + 0.04, 0),
-  );
+  addCompactChurchRoof(group, width, depth, wallTop, ridgeHeight, roofMaterial);
 
   for (const zSign of [-1, 1] as const) {
-    addTriangularGableWall(
-      group,
-      'z',
-      zSign * (halfD - 0.065),
-      halfW,
-      wallTop,
-      ridgeHeight,
-      0.16,
-      materials.limewash,
-    );
-
-    for (const side of [-1, 1] as const) {
-      addMesh(
+    if (zSign > 0) {
+      addPerforatedChurchGable(
         group,
-        new THREE.BoxGeometry(slopeLen, 0.15, 0.16),
-        timberMaterial('dark'),
-        new THREE.Vector3(side * halfW * 0.46, wallTop + ridgeHeight * 0.48, zSign * (halfD + 0.17)),
-        new THREE.Euler(0, 0, side * -roofPitch),
+        halfW,
+        wallTop,
+        ridgeHeight,
+        halfD - 0.065,
+        materials.limewash,
+        { centerY: 1.05, radius: 0.48 },
+      );
+    } else {
+      addTriangularGableWall(
+        group,
+        'z',
+        -halfD + 0.065,
+        halfW,
+        wallTop,
+        ridgeHeight,
+        0.16,
+        materials.limewash,
       );
     }
   }

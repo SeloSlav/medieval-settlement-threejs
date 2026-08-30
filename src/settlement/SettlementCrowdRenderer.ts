@@ -200,6 +200,8 @@ export type CrowdRenderAgent = {
   movementSpeed: number;
   active: boolean;
   combatAttackCooldown?: number;
+  combatAttackSeconds?: number;
+  combatLocomotion?: 'idle' | 'walk' | 'run';
   combatTargetDistance?: number;
   combatTargetX?: number;
   combatTargetY?: number;
@@ -829,6 +831,7 @@ export class SettlementCrowdRenderer {
       tool: agent.tool,
       targetDistance: agent.combatTargetDistance ?? Infinity,
       attackCooldown: agent.combatAttackCooldown,
+      attackSeconds: agent.combatAttackSeconds,
       dtSeconds: dt,
       logicalMode: agent.mode,
     });
@@ -1968,6 +1971,9 @@ export function combatBaseActionMode(agent: CrowdRenderAgent): VillagerRenderMod
     || !agent.tool
     || agent.combatAttackCooldown === undefined
   ) return agent.mode;
+  if (agent.combatLocomotion === 'walk' || agent.combatLocomotion === 'run') {
+    return agent.combatLocomotion;
+  }
   const presentation = resolveCombatWeaponPresentation(
     agent.tool,
     agent.combatTargetDistance ?? Infinity,

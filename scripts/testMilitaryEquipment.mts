@@ -7,15 +7,20 @@ import {
   disposeMilitaryEquipmentSource,
   isMilitaryEquipmentSource,
   militaryEquipmentMountDiagnostics,
+  setMilitaryEquipmentCombatStance,
   setMilitaryEquipmentVisible,
   type MilitaryEquipmentKind,
+  type MilitaryEquipmentCombatRole,
 } from '../src/settlement/militaryEquipment.ts';
 import { WORKER_TOOL_URLS } from '../src/settlement/workerTools.ts';
 
 type ExpectedKit = {
   targetLength: number;
-  secondaryBones: readonly ('L_Hand' | 'Spine02' | 'Waist')[];
+  primaryBone: 'R_Hand' | 'L_Hand';
+  primaryRole: MilitaryEquipmentCombatRole;
+  secondaryBones: readonly ('R_Hand' | 'L_Hand' | 'Spine02' | 'Waist')[];
   secondaryLengths: readonly number[];
+  secondaryRoles: readonly MilitaryEquipmentCombatRole[];
 };
 
 const EXPECTED_KINDS = [
@@ -32,19 +37,36 @@ const EXPECTED_KINDS = [
 ] as const satisfies readonly MilitaryEquipmentKind[];
 
 const EXPECTED_KITS: Record<MilitaryEquipmentKind, ExpectedKit> = {
-  spear: { targetLength: 2.35, secondaryBones: [], secondaryLengths: [] },
-  'spear-shield': { targetLength: 2.65, secondaryBones: ['L_Hand'], secondaryLengths: [0.56] },
-  'pike-kit': { targetLength: 4.7, secondaryBones: ['Waist'], secondaryLengths: [0.82] },
-  crossbow: { targetLength: 0.74, secondaryBones: ['Spine02'], secondaryLengths: [0.54] },
-  sidearm: { targetLength: 0.82, secondaryBones: [], secondaryLengths: [] },
-  'sidearm-shield': { targetLength: 0.82, secondaryBones: ['L_Hand'], secondaryLengths: [0.34] },
-  'sword-shield': { targetLength: 1.08, secondaryBones: ['L_Hand'], secondaryLengths: [0.62] },
-  halberd: { targetLength: 2.55, secondaryBones: [], secondaryLengths: [] },
-  bow: { targetLength: 1.88, secondaryBones: ['Spine02'], secondaryLengths: [0.86] },
+  spear: { targetLength: 2.35, primaryBone: 'R_Hand', primaryRole: 'melee-held', secondaryBones: [], secondaryLengths: [], secondaryRoles: [] },
+  'spear-shield': { targetLength: 2.65, primaryBone: 'R_Hand', primaryRole: 'melee-held', secondaryBones: ['L_Hand'], secondaryLengths: [0.56], secondaryRoles: ['always'] },
+  'pike-kit': { targetLength: 4.7, primaryBone: 'R_Hand', primaryRole: 'melee-held', secondaryBones: ['Waist'], secondaryLengths: [0.82], secondaryRoles: ['always'] },
+  crossbow: {
+    targetLength: 0.74,
+    primaryBone: 'R_Hand',
+    primaryRole: 'ranged-held',
+    secondaryBones: ['Spine02', 'Spine02', 'R_Hand', 'Waist'],
+    secondaryLengths: [0.54, 0.74, 0.42, 0.46],
+    secondaryRoles: ['always', 'ranged-stowed', 'melee-held', 'melee-stowed'],
+  },
+  sidearm: { targetLength: 0.82, primaryBone: 'R_Hand', primaryRole: 'melee-held', secondaryBones: [], secondaryLengths: [], secondaryRoles: [] },
+  'sidearm-shield': { targetLength: 0.82, primaryBone: 'R_Hand', primaryRole: 'melee-held', secondaryBones: ['L_Hand'], secondaryLengths: [0.34], secondaryRoles: ['always'] },
+  'sword-shield': { targetLength: 1.08, primaryBone: 'R_Hand', primaryRole: 'melee-held', secondaryBones: ['L_Hand'], secondaryLengths: [0.62], secondaryRoles: ['always'] },
+  halberd: { targetLength: 2.55, primaryBone: 'R_Hand', primaryRole: 'melee-held', secondaryBones: [], secondaryLengths: [], secondaryRoles: [] },
+  bow: {
+    targetLength: 1.88,
+    primaryBone: 'L_Hand',
+    primaryRole: 'ranged-held',
+    secondaryBones: ['Spine02', 'Spine02', 'R_Hand', 'Waist'],
+    secondaryLengths: [0.86, 1.88, 0.42, 0.46],
+    secondaryRoles: ['always', 'ranged-stowed', 'melee-held', 'melee-stowed'],
+  },
   'uskok-kit': {
     targetLength: 0.86,
-    secondaryBones: ['Spine02', 'Waist'],
-    secondaryLengths: [1.08, 0.86],
+    primaryBone: 'R_Hand',
+    primaryRole: 'melee-held',
+    secondaryBones: ['Spine02', 'R_Hand', 'Waist'],
+    secondaryLengths: [1.08, 1.08, 0.86],
+    secondaryRoles: ['ranged-stowed', 'ranged-held', 'melee-stowed'],
   },
 };
 
@@ -109,12 +131,17 @@ for (const kind of EXPECTED_KINDS) {
   const rig = createSemanticTestRig(0.63);
   const tool = attachMilitaryEquipment(rig, source);
   rig.updateWorldMatrix(true, true);
-  assert.equal(tool.parent?.name, 'R_Hand', `${kind} primary equipment must mount to R_Hand`);
+  assert.equal(tool.parent?.name, expected.primaryBone, `${kind} primary equipment must mount to its authored grip hand`);
   assert.equal(tool.userData.workerTool, kind);
 
   const mounted = tool.userData.workerToolMounts as THREE.Group[] | undefined;
   assert.ok(mounted, `${kind} must expose all of its mounts to renderer visibility control`);
   assert.equal(mounted.length, 1 + expected.secondaryBones.length);
+  assert.deepEqual(
+    mounted.map((mount) => mount.userData.workerToolCombatRole),
+    [expected.primaryRole, ...expected.secondaryRoles],
+    `${kind} must expose deterministic held/stowed combat roles`,
+  );
   assert.deepEqual(
     mounted.slice(1).map((mount) => mount.parent?.name),
     expected.secondaryBones,
@@ -134,7 +161,7 @@ for (const kind of EXPECTED_KINDS) {
   const diagnostics = militaryEquipmentMountDiagnostics(tool);
   assert.deepEqual(
     diagnostics.map((entry) => entry.bone),
-    ['R_Hand', ...expected.secondaryBones],
+    [expected.primaryBone, ...expected.secondaryBones],
     `${kind} diagnostics must report the actual semantic bone ownership`,
   );
   for (const entry of diagnostics) {
@@ -166,11 +193,21 @@ for (const kind of EXPECTED_KINDS) {
   setMilitaryEquipmentVisible(tool, false);
   assert.equal(mounted.every((mount) => !mount.visible), true, `${kind} must hide all body-mounted parts together`);
   setMilitaryEquipmentVisible(tool, true);
-  assert.equal(mounted.every((mount) => mount.visible), true, `${kind} must reveal all body-mounted parts together`);
+  for (const stance of ['melee', 'ranged'] as const) {
+    setMilitaryEquipmentCombatStance(tool, stance);
+    assert.deepEqual(
+      mounted.map((mount) => mount.visible),
+      mounted.map((mount) => combatRoleVisible(
+        mount.userData.workerToolCombatRole as MilitaryEquipmentCombatRole,
+        stance,
+      )),
+      `${kind} ${stance} stance must show only the matching held/stowed representations`,
+    );
+  }
 }
 
 assert.ok(
-  optimizedDrawMeshes < 90,
+  optimizedDrawMeshes < 120,
   `all ten complete kits should stay materially batched (got ${optimizedDrawMeshes} source draw meshes)`,
 );
 assert.ok(
@@ -280,4 +317,15 @@ function collectMeshes(root: THREE.Object3D): THREE.Mesh[] {
     if (mesh.isMesh) meshes.push(mesh);
   });
   return meshes;
+}
+
+function combatRoleVisible(
+  role: MilitaryEquipmentCombatRole,
+  stance: 'melee' | 'ranged',
+): boolean {
+  return role === 'always'
+    || (role === 'melee-held' && stance === 'melee')
+    || (role === 'melee-stowed' && stance === 'ranged')
+    || (role === 'ranged-held' && stance === 'ranged')
+    || (role === 'ranged-stowed' && stance === 'melee');
 }

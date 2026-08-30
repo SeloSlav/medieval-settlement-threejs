@@ -114,23 +114,19 @@ assert.deepEqual(
   { timber: 56, stone: 28, ironwork: 5.6, roofTiles: 11.2 },
 );
 
-for (const extensions of [
-  0,
-  MONASTERY_EXTENSION_INFIRMARY,
-  MONASTERY_EXTENSION_SCRIPTORIUM,
-  MONASTERY_EXTENSION_GUESTHOUSE,
-  MONASTERY_EXTENSION_WORKSHOP,
-  MONASTERY_EXTENSION_ALL,
-]) {
+for (const extensions of Array.from({ length: 16 }, (_, mask) => mask)) {
   const level = monasteryVisualEstateLevel(extensions);
+  const orchardMaturity = extensions % 3;
   const mesh = createBuildingMesh('monastery', level, {
     orchard: 0,
     croft: 0,
     extensions,
-    orchardMaturity: 2,
+    orchardMaturity,
   });
   const estate = mesh.getObjectByName(`Monastery enclosed estate level ${level}`);
   assert.ok(estate instanceof THREE.Group, `estate level ${level} must be rendered`);
+  assert.equal(estate.userData.monasteryExtensions, extensions);
+  assert.equal(estate.userData.monasteryOrchardMaturity, orchardMaturity);
   assert.ok(mesh.getObjectByName('Monastery precinct rear wall'));
   assert.ok(mesh.getObjectByName('Monastery east gatehouse'));
   assert.ok(mesh.getObjectByName('Monastery northwest round tower'));
@@ -147,6 +143,15 @@ for (const extensions of [
   assert.ok(mesh.getObjectByName('Monastery vintner screw press'));
   assert.ok(mesh.getObjectByName('Monastery bee garden'));
   assert.ok(mesh.getObjectByName('Monastery chicken yard'));
+  assert.ok(mesh.getObjectByName('Monastery kitchen garden prepared soil bed'));
+  assert.ok(mesh.getObjectByName('Monastery herb drying rack 1'));
+  assert.ok(mesh.getObjectByName('Monastery apiary bench'));
+  assert.ok(mesh.getObjectByName('Monastery bee skep'));
+  assert.ok(mesh.getObjectByName('Monastery chicken yard weather shelter'));
+  assert.ok(mesh.getObjectByName('Monastery goat yard weather shelter'));
+  assert.ok(mesh.getObjectByName('Monastery apple harvest basket'));
+  assert.ok(mesh.getObjectByName('Monastery pear harvest basket'));
+  assert.ok(mesh.getObjectByName('Monastery cloister SeedThree planting bed'));
   assert.ok(mesh.getObjectByName('Monastery dairy cow'));
   assert.ok(mesh.getObjectByName('Monastery pasture sheep'));
   assert.equal(
@@ -169,8 +174,54 @@ for (const extensions of [
     mesh.getObjectByName('Monastery estate workshop and root cellar') != null,
     (extensions & MONASTERY_EXTENSION_WORKSHOP) !== 0,
   );
+  assert.equal(
+    mesh.getObjectByName('Reserved infirmary foundation plot') != null,
+    (extensions & MONASTERY_EXTENSION_INFIRMARY) === 0,
+  );
+  assert.equal(
+    mesh.getObjectByName('Reserved scriptorium foundation plot') != null,
+    (extensions & MONASTERY_EXTENSION_SCRIPTORIUM) === 0,
+  );
+  assert.equal(
+    mesh.getObjectByName('Reserved guesthouse foundation plot') != null,
+    (extensions & MONASTERY_EXTENSION_GUESTHOUSE) === 0,
+  );
   assert.ok(mesh.getObjectByName('Monastery agricultural archive and seed vault'));
   assert.ok(mesh.getObjectByName('Rye emergency seed chest'));
+
+  const seedThreeZones: THREE.Object3D[] = [];
+  const orchardAnchors: THREE.Object3D[] = [];
+  mesh.traverse((object) => {
+    if (object.userData.seedThreeVegetation) seedThreeZones.push(object);
+    if (object.userData.backyardMaturityAnchor === true) orchardAnchors.push(object);
+    assert.equal(object instanceof THREE.Sprite, false, `${object.name} must not embed vegetation sprites`);
+    assert.equal(object instanceof THREE.InstancedMesh, false, `${object.name} must not embed vegetation instances`);
+    if (!(object instanceof THREE.Mesh)) return;
+    assert.doesNotMatch(
+      object.name,
+      /(?:grass clump|foliage|flower (?:stem|head)|herb (?:card|clump|bundle)|orchard fruit|tree trunk collision|crop leaves|cabbage plant|carrot plant|beetroot plant|rosebush)/i,
+      `monastery architecture must not embed living vegetation (${object.name})`,
+    );
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of materials) {
+      assert.equal(
+        material.userData.sharedBuildingMaterial,
+        true,
+        `${object.name || '(unnamed monastery mesh)'} must use the shared building atlas, not ${material.type}`,
+      );
+    }
+  });
+  assert.ok(seedThreeZones.length >= 9, 'monastery planting zones must retain SeedThree handoff metadata');
+  for (const zone of seedThreeZones) {
+    assert.equal(zone.userData.seedThreeVegetation.owner, 'SeedThree');
+    assert.equal(zone.userData.seedThreeVegetation.embeddedGeometry, false);
+  }
+  assert.equal(orchardAnchors.length, 8);
+  for (const anchor of orchardAnchors) {
+    assert.equal(anchor.userData.backyardMaturityProgress, orchardMaturity / 2);
+    assert.equal(anchor.children.length, 0, 'orchard anchors carry state but SeedThree owns their plant geometry');
+  }
+  assert.equal(mesh.getObjectByName('Monastery pasture grass clump'), undefined);
   const architecturePlan = estate.userData.architecturePlan as {
     typology?: string;
     gatehouse?: { centerX?: number };
