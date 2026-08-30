@@ -26,10 +26,13 @@ copied unchanged from the matching `person_selected_*` files in Selo Empire.
 The direct-selection acknowledgement clips were imported first. The combat
 pass later added the matching male/female attack exertions and death lines at
 `combat/selo/`. The spoken attack barks are retained as source assets but are
-not part of automatic combat playback; live combat uses only weapon, shot,
-impact, and formation-charge Foley. The nonverbal death lines remain available
-for discrete casualty events. These are Selo Empire game assets, copyright
-Martin Erlic 2026, all rights reserved, and follow the same reuse terms above.
+not part of automatic combat playback. Live combat combines weapon, shot,
+impact, and formation-charge Foley with the ElevenLabs-generated, strictly
+nonverbal reactions under `combat/voices/`; those isolated cues cover battle,
+charge, damage, flee, and rout states without intelligible language. The
+nonverbal Selo death lines remain available for discrete casualty events.
+The imported files are Selo Empire game assets, copyright Martin Erlic 2026,
+all rights reserved, and follow the same reuse terms above.
 
 `animals/ox_selected_1.mp3` through `ox_selected_3.mp3` are generated locally
 through ElevenLabs. Their prompts, settings, and non-secret provenance live in

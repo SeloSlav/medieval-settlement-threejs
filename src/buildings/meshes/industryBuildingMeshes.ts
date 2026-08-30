@@ -3,7 +3,6 @@ import {
   addMesh,
   metalMaterial,
   residenceFacadeMaterial,
-  sharedBuildingDetailMaterial,
   shingleMaterial,
   stoneMaterial,
   timberMaterial,
@@ -219,16 +218,6 @@ function addNurseryPergola(group: THREE.Group, halfW: number): void {
       timberMaterial('weathered'),
       new THREE.Vector3(centerX, 2.0, z),
     );
-  }
-  for (let row = 0; row < 2; row++) {
-    for (let i = 0; i < 4; i++) {
-      addMesh(
-        group,
-        new THREE.ConeGeometry(0.22, 0.72 + i * 0.05, 7),
-        sharedBuildingDetailMaterial('foliage'),
-        new THREE.Vector3(centerX + (row - 0.5) * 0.72, 0.36, -1.15 + i * 0.75),
-      );
-    }
   }
 }
 

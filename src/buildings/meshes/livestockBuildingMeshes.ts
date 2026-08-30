@@ -21,8 +21,24 @@ import {
 } from '../buildingStockpileVisuals.ts';
 import { createManureStockpile } from './manureStockpileMesh.ts';
 
-const hay = sharedBuildingDetailMaterial('crop');
 const earth = sharedBuildingDetailMaterial('earth');
+const storedFodderCover = sharedBuildingDetailMaterial('canvas');
+const storedFodderBinding = sharedBuildingDetailMaterial('wicker');
+
+function createBareManureStockpile(
+  name: string,
+  x: number,
+  z: number,
+): THREE.Group {
+  const stockpile = createManureStockpile(name, x, z);
+  stockpile.traverse((object) => {
+    if (!(object instanceof THREE.Group) || object.name !== 'ManureStockSegment') return;
+    for (const child of [...object.children]) {
+      if (child instanceof THREE.Mesh && child.material !== earth) object.remove(child);
+    }
+  });
+  return stockpile;
+}
 
 function addFenceRun(
   group: THREE.Group,
@@ -81,26 +97,28 @@ function createHayloftStockpile(): THREE.Group {
       (column === 0 ? -1 : 1) * (0.08 + layer * 0.014),
       (column === 0 ? 1 : -1) * 0.035,
     );
-    addMesh(
+    const coveredBale = addMesh(
       segment,
-      new THREE.DodecahedronGeometry(0.48, 0),
-      hay,
+      new THREE.BoxGeometry(0.72, 0.34, 0.58),
+      storedFodderCover,
       new THREE.Vector3(),
       new THREE.Euler(
         (column === 0 ? -1 : 1) * 0.08,
         layer * 0.17,
         (column === 0 ? 1 : -1) * 0.06,
       ),
-      new THREE.Vector3(0.86 - layer * 0.025, 0.42, 0.76),
+      new THREE.Vector3(0.94 - layer * 0.025, 1, 0.9),
     );
+    coveredBale.name = 'Covered fodder bale';
     for (const [x, yaw] of [[-0.16, -0.24], [0.15, 0.31]] as const) {
-      addMesh(
+      const binding = addMesh(
         segment,
-        new THREE.CylinderGeometry(0.012, 0.02, 0.78, 5),
-        hay,
-        new THREE.Vector3(x, 0.08, 0),
-        new THREE.Euler(Math.PI * 0.5, yaw, Math.PI * 0.5),
+        new THREE.BoxGeometry(0.045, 0.38, 0.61),
+        storedFodderBinding,
+        new THREE.Vector3(x, 0, 0),
+        new THREE.Euler(0, yaw * 0.08, 0),
       );
+      binding.name = 'Covered fodder bale binding';
     }
     stockpile.add(segment);
   }
@@ -221,7 +239,7 @@ export function createPastoralFarmsteadMesh(): THREE.Group {
   group.add(createHayloftStockpile());
   group.add(createWoolStockpile());
   group.add(createPastoralSaltStockpile());
-  group.add(createManureStockpile('PastoralManureStockpile', 5.45, -3.65));
+  group.add(createBareManureStockpile('PastoralManureStockpile', 5.45, -3.65));
   for (const [x, scale] of [[-0.2, 1], [0.65, 0.78]] as const) {
     addMesh(group, new THREE.CylinderGeometry(0.3 * scale, 0.36 * scale, 0.82 * scale, 10), metalMaterial('iron'), new THREE.Vector3(x, 0.42 * scale, 4.0));
     addMesh(group, new THREE.TorusGeometry(0.22 * scale, 0.035, 5, 10), metalMaterial('steel'), new THREE.Vector3(x, 0.9 * scale, 4.0), new THREE.Euler(Math.PI * 0.5, 0, 0));

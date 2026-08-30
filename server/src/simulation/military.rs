@@ -212,6 +212,53 @@ fn step_active_member(
         return;
     }
 
+    // A deliberate terrain move is authoritative until this member reaches
+    // its formation-relative destination. Without this early branch, nearby
+    // auto-acquisition silently replaced withdrawal and reposition orders,
+    // making RTS control disappear exactly when contact began. Camp attacks
+    // remain interruptible so defenders can be fought on the approach.
+    if let Some(order) = ctx
+        .db
+        .militia_order()
+        .combat_agent_id()
+        .find(&agent.id)
+        .filter(|order| order.kind == 0)
+    {
+        agent.target_kind = 6;
+        agent.target_id = 0;
+        let remaining = distance(
+            agent.x,
+            agent.z,
+            order.destination_x,
+            order.destination_z,
+        );
+        if remaining > ARRIVAL_DISTANCE {
+            let profile = member_combat_profile(kind, member_seed(&member));
+            let run_scale = if remaining > 14.0 && company.fatigue < 0.82 {
+                1.45
+            } else {
+                1.0
+            };
+            walk_flocked(
+                ctx,
+                &mut agent,
+                company.id,
+                order.destination_x,
+                order.destination_z,
+                stats.speed * profile.speed_scale * run_scale,
+                dt,
+            );
+            agent.route_progress = remaining;
+            agent.state = ADVANCING;
+        } else {
+            ctx.db.militia_order().combat_agent_id().delete(agent.id);
+            agent.state = HOLDING;
+            agent.route_progress = 0.0;
+        }
+        ctx.db.combat_agent().id().update(agent);
+        return;
+    }
+
     // Each soldier chooses a nearby opponent with a saturation penalty. This
     // spreads contact across the enemy line while flock steering keeps the
     // unselectable individuals attached to their atomic company.
@@ -229,34 +276,42 @@ fn step_active_member(
         );
         let can_shoot = ranged_kind && member.ammunition > 0;
         let strike_range = if can_shoot { stats.strike_range } else { 2.15 };
-        if range > strike_range {
-            let speed = if can_shoot && range < 7.0 {
-                -stats.speed * 0.75
+        let minimum_ranged_spacing = match kind {
+            MilitaryKind::Bowmen => 8.0,
+            MilitaryKind::Crossbows => 7.25,
+            MilitaryKind::UskokBorderInfantry => 6.5,
+            _ => 0.0,
+        };
+        if can_shoot && range < minimum_ranged_spacing {
+            // A missile line should not politely wait for swords to reach it.
+            // Retire while reloading/drawing, then resume fire once it has
+            // rebuilt enough spacing.  Ammunition exhaustion disables this
+            // branch and lets the member commit with the fallback sidearm.
+            walk_away(&mut agent, enemy.x, enemy.z, stats.speed * 0.78, dt);
+            agent.route_progress = range;
+            // This is a fighting withdrawal, not a morale retreat or a new
+            // charge. Keeping the combat state prevents flee animations and
+            // rout/charge voice cues from firing while archers reload.
+            agent.state = FIGHTING;
+        } else if range > strike_range {
+            let run_scale = if range > 13.0 && company.fatigue < 0.82 {
+                1.28
             } else {
-                stats.speed
+                1.0
             };
-            if speed < 0.0 {
-                walk_away(&mut agent, enemy.x, enemy.z, -speed, dt);
-            } else {
-                let run_scale = if range > 13.0 && company.fatigue < 0.82 {
-                    1.28
-                } else {
-                    1.0
-                };
-                walk_flocked(
-                    ctx,
-                    &mut agent,
-                    company.id,
-                    enemy.x,
-                    enemy.z,
-                    speed * run_scale,
-                    dt,
-                );
-            }
+            walk_flocked(
+                ctx,
+                &mut agent,
+                company.id,
+                enemy.x,
+                enemy.z,
+                stats.speed * run_scale,
+                dt,
+            );
             agent.route_progress = range;
             agent.state = ADVANCING;
         } else {
-            let charged_into_contact = agent.route_progress > 10.0;
+            let charged_into_contact = !can_shoot && agent.route_progress > 10.0;
             agent.route_progress = 0.0;
             agent.state = FIGHTING;
             enemy.state = FIGHTING;
@@ -354,6 +409,7 @@ fn step_active_member(
         // Every member owns a formation-relative destination written by the
         // company command reducer. Preserve it even for camp attacks so the
         // formation advances as one body instead of collapsing onto one point.
+        debug_assert_eq!(order.kind, 1);
         agent.target_kind = if order.kind == 1 { 5 } else { 6 };
         agent.target_id = order.target_camp_id;
         let target = (order.destination_x, order.destination_z);

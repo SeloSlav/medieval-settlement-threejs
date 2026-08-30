@@ -86,6 +86,94 @@ button {
   display: none;
 }
 
+/* The combat playtest is an offline renderer/controller sandbox. Keep the
+ * ordinary economy HUD out of reach so a playtest can never issue save-backed
+ * actions, while preserving the controller's drag-selection rectangle. */
+[data-ui-root].combat-playtest-mode > :not(.combat-playtest-overlay):not(.militia-selection-box) {
+  display: none !important;
+}
+
+[data-ui-root] .combat-playtest-overlay {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  left: max(16px, env(safe-area-inset-left));
+  width: min(390px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 13px 14px 12px;
+  color: #f4ead1;
+  border: 1px solid rgba(202, 167, 93, 0.62);
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgba(26, 31, 23, 0.96), rgba(13, 17, 13, 0.91));
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.38);
+  pointer-events: auto;
+  user-select: none;
+}
+
+.combat-playtest-overlay__eyebrow {
+  margin-bottom: 5px;
+  color: #b9cda8;
+  font: 600 10px/1.3 system-ui, sans-serif;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.combat-playtest-overlay__header,
+.combat-playtest-overlay__counts,
+.combat-playtest-overlay__presets {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.combat-playtest-overlay__header {
+  justify-content: space-between;
+  font: 600 15px/1.25 system-ui, sans-serif;
+}
+
+.combat-playtest-overlay__counts {
+  flex-wrap: wrap;
+  margin: 10px 0 8px;
+  font: 600 12px/1.3 system-ui, sans-serif;
+}
+
+.combat-playtest-overlay__counts span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.combat-playtest-overlay__presets {
+  flex-wrap: wrap;
+}
+
+.combat-playtest-overlay button {
+  min-height: 28px;
+  padding: 4px 9px;
+  color: #f5ead0;
+  border: 1px solid rgba(207, 177, 109, 0.48);
+  border-radius: 5px;
+  background: rgba(126, 101, 54, 0.26);
+  cursor: pointer;
+}
+
+.combat-playtest-overlay button:hover,
+.combat-playtest-overlay button[aria-pressed='true'] {
+  border-color: #e1b538;
+  background: rgba(190, 145, 48, 0.38);
+}
+
+.combat-playtest-overlay p,
+.combat-playtest-overlay small {
+  display: block;
+  margin: 9px 0 0;
+  color: #d8cfbb;
+  font: 11px/1.45 system-ui, sans-serif;
+}
+
+.combat-playtest-overlay small {
+  color: #aeb8a5;
+}
+
 [data-ui-root] .hud-menu-button,
 [data-ui-root] .road-tools,
 [data-ui-root] .hud-bottom-center,

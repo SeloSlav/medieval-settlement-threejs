@@ -403,9 +403,6 @@ function emitFlaxDryingRack({ module, placement }: SpinningRettingHouseCompileCo
   }
   namedMesh(rack, 'Flax drying rack ridge rail', new THREE.BoxGeometry(1.72, 0.14, 0.14), timberMaterial('weathered'), new THREE.Vector3(0, 2.04, 0));
   namedMesh(rack, 'Flax drying rack hanging rail', new THREE.BoxGeometry(1.58, 0.12, 0.12), timberMaterial('weathered'), new THREE.Vector3(0, 1.52, 0));
-  for (let index = 0; index < 5; index += 1) {
-    namedMesh(rack, `Flax drying stem bundle ${index + 1}`, new THREE.CylinderGeometry(0.035, 0.055, 1.08, 5), sharedBuildingDetailMaterial('crop'), new THREE.Vector3(-0.58 + index * 0.29, 0.96, 0), new THREE.Euler(0, 0, index % 2 ? 0.04 : -0.04));
-  }
 }
 
 function emitScutchingBench({ module, placement }: SpinningRettingHouseCompileContext): void {
@@ -451,8 +448,10 @@ function createFlaxStockpile(name: string, anchor: THREE.Vector3): THREE.Group {
     const segment = new THREE.Group();
     segment.name = 'FlaxStockSegment';
     segment.position.set((index % 2) * 0.54, 0.48 + Math.floor(index / 2) * 0.36, 0);
-    namedMesh(segment, 'Raw flax bundle', new THREE.CylinderGeometry(0.2, 0.27, 1.02, 7), sharedBuildingDetailMaterial('crop'), new THREE.Vector3(), new THREE.Euler(0, 0, Math.PI * 0.5));
-    namedMesh(segment, 'Raw flax bundle tie', new THREE.TorusGeometry(0.2, 0.028, 5, 9), timberMaterial('light'), new THREE.Vector3(), new THREE.Euler(0, Math.PI * 0.5, 0));
+    namedMesh(segment, 'Processed flax storage bale', new THREE.BoxGeometry(0.86, 0.34, 0.48), sharedBuildingDetailMaterial('canvas'), new THREE.Vector3(), new THREE.Euler(0, index * 0.08, 0));
+    for (const x of [-0.24, 0.24]) {
+      namedMesh(segment, 'Processed flax bale binding', new THREE.BoxGeometry(0.045, 0.38, 0.5), sharedBuildingDetailMaterial('wicker'), new THREE.Vector3(x, 0, 0));
+    }
     stockpile.add(segment);
   }
   return stockpile;

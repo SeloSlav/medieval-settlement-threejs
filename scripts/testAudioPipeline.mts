@@ -12,6 +12,7 @@ import {
   CHAPEL_BELL_CLIPS,
   COMBAT_AUDIO_CLIPS,
   COMBAT_DEATH_CLIPS,
+  COMBAT_VOICE_CLIPS,
   FARM_WORKERS_SINGING_CLIP,
   FIRE_CRACKLE_CLIP,
   MUSIC_TRACKS,
@@ -78,11 +79,14 @@ import {
   CombatAudio,
   combatAudioLoadoutForFighter,
   combatAudioGain,
+  combatVoiceSideForFaction,
   COMBAT_AUDIO_CHARGE_POOL_SIZE,
   COMBAT_AUDIO_CUTOFF_DISTANCE,
   COMBAT_AUDIO_MAX_EDGE_PLAYS_PER_TICK,
   COMBAT_AUDIO_MAX_SOURCES,
+  COMBAT_AUDIO_MAX_VOICE_EDGE_PLAYS_PER_TICK,
   COMBAT_AUDIO_MAX_ZOOM_DISTANCE,
+  COMBAT_AUDIO_VOICE_POOL_SIZE,
   COMBAT_AUDIO_WEAPON_POOL_SIZE,
   createCombatAudioSourceWorkspace,
 } from '../src/audio/CombatAudio.ts';
@@ -167,6 +171,7 @@ function runtimeClips(): AudioClipDefinition[] {
     ...OX_SELECTION_CLIPS,
     ...Object.values(WORKER_ACTIVITY_CLIPS).flat(),
     ...Object.values(COMBAT_AUDIO_CLIPS).flat(),
+    ...Object.values(COMBAT_VOICE_CLIPS).flat(),
     ...Object.values(COMBAT_DEATH_CLIPS).flat(),
     ...Object.values(BUILDING_AUDIO_CLIPS),
     ...Object.values(WORLD_FOLEY_CLIPS),
@@ -376,6 +381,44 @@ async function main(): Promise<void> {
       clip.path === `/${candidate.output.replace(/^public[\\/]/, '').replaceAll('\\', '/')}`
     ));
     invariant(asset, `Combat runtime clip has no manifest source: ${clip.path}`);
+  }
+
+  const combatVoiceAssets = manifest.assets.filter((asset) => (
+    asset.group === 'combat-nonverbal-voices-v1'
+  ));
+  invariant(
+    combatVoiceAssets.length === 30
+    && Math.abs(combatVoiceAssets.reduce(
+      (sum, asset) => sum + (asset.durationSeconds ?? 0),
+      0,
+    ) - 31.8) < 1e-9,
+    'Combat nonverbal voice suite must retain 30 isolated cues and its 31.8-second cost envelope',
+  );
+  invariant(
+    combatVoiceAssets.every((asset) => (
+      asset.loop === false
+      && /strictly nonverbal/i.test(asset.prompt)
+      && /no words/i.test(asset.prompt)
+      && /commands/i.test(asset.prompt)
+      && /intelligible language/i.test(asset.prompt)
+      && /crowd/i.test(asset.prompt)
+    )),
+    'Every combat human cue must explicitly exclude words, commands, language, and crowds',
+  );
+  const automaticCombatVoiceClips = Object.values(COMBAT_VOICE_CLIPS).flat();
+  invariant(
+    automaticCombatVoiceClips.length === 30
+    && automaticCombatVoiceClips.every((clip) => (
+      /^\/sounds\/combat\/voices\/(?:defender|raider)_(?:battle|charge|damage|flee|rout)_\d+\.mp3$/.test(clip.path)
+      && !/(?:selo|person_attack|angry_fighting)/i.test(clip.path)
+    )),
+    'Automatic combat voices must use only the strictly nonverbal status-routed suite',
+  );
+  for (const clip of automaticCombatVoiceClips) {
+    const asset = combatVoiceAssets.find((candidate) => (
+      clip.path === `/${candidate.output.replace(/^public[\\/]/, '').replaceAll('\\', '/')}`
+    ));
+    invariant(asset, `Combat voice runtime clip has no suite manifest source: ${clip.path}`);
   }
 
   const buildingAssets = manifest.assets.filter((asset) => (
@@ -739,7 +782,7 @@ async function main(): Promise<void> {
     { id: 'retreating', faction: 'raider', status: 'retreating', health: 40, x: 1, z: 0 },
   ]);
   invariant(
-    engagementSources.length === 4
+    engagementSources.length === 5
     && engagementSources.some((source) => (
       source.id === 'guard'
       && source.weaponFamily === 'spear-pike'
@@ -755,8 +798,13 @@ async function main(): Promise<void> {
     ))
     && engagementSources.some((source) => (
       source.id === 'charge' && source.phase === 'charge'
+    ))
+    && engagementSources.some((source) => (
+      source.id === 'retreating'
+      && source.phase === 'flee'
+      && source.voiceSide === 'raider'
     )),
-    'combat audio should retain melee and isolated ranged attackers plus only combat-target charges',
+    'combat audio should retain attackers, combat-target charges, and status-routed flee voices',
   );
   invariant(
     !engagementSources.some((source) => source.id === 'ordinary-advance'),
@@ -782,6 +830,13 @@ async function main(): Promise<void> {
       `${faction} combat Foley should route to ${family}`,
     );
   }
+  invariant(
+    combatVoiceSideForFaction('raider') === 'raider'
+    && combatVoiceSideForFaction('bandit') === 'raider'
+    && combatVoiceSideForFaction('guard') === 'defender'
+    && combatVoiceSideForFaction('uskok') === 'defender',
+    'combat voice timbres should route raiders/bandits separately from defenders',
+  );
   const reusableCombatFighters = [
     { id: 'Z-guard', faction: 'guard' as const, status: 'fighting' as const, health: 80, x: 0, z: 0 },
     { id: 'a-raider', faction: 'raider' as const, status: 'fighting' as const, health: 70, x: 2, z: 0 },
@@ -903,7 +958,9 @@ async function main(): Promise<void> {
     invariant(
       COMBAT_AUDIO_WEAPON_POOL_SIZE === 18
       && COMBAT_AUDIO_CHARGE_POOL_SIZE === 6
-      && COMBAT_AUDIO_MAX_EDGE_PLAYS_PER_TICK === 4,
+      && COMBAT_AUDIO_MAX_EDGE_PLAYS_PER_TICK === 4
+      && COMBAT_AUDIO_VOICE_POOL_SIZE === 8
+      && COMBAT_AUDIO_MAX_VOICE_EDGE_PLAYS_PER_TICK === 2,
       'combat mix must keep its polyphonic pools and simultaneous-edge budget explicit and bounded',
     );
     const edgeSources = buildCombatAudioSources([
@@ -977,14 +1034,126 @@ async function main(): Promise<void> {
     chargeMixer.tick(0, chargeSources, closeCombatView);
     chargeMixer.tick(0.6, chargeSources, closeCombatView);
     const chargeVoices = combatPlayback.slice(chargeStart);
+    const chargeHumanVoices = chargeVoices.slice(0, COMBAT_AUDIO_VOICE_POOL_SIZE);
+    const chargeMovementVoices = chargeVoices.slice(COMBAT_AUDIO_VOICE_POOL_SIZE);
     invariant(
-      chargeVoices.length === COMBAT_AUDIO_CHARGE_POOL_SIZE
-      && chargeVoices.some((audio) => (
-        audio.plays === 1 && /\/sounds\/combat\/formation_charge_\d+\.mp3/.test(audio.src)
-      )),
-      'combat-target advances should use a separate bounded formation-charge pool',
+      chargeMovementVoices.length === COMBAT_AUDIO_CHARGE_POOL_SIZE
+      && chargeMovementVoices.filter((audio) => (
+        audio.plays === 1
+        && /\/sounds\/combat\/formation_charge_\d+\.mp3/.test(audio.src)
+      )).length === 1
+      && chargeHumanVoices.length === COMBAT_AUDIO_VOICE_POOL_SIZE
+      && chargeHumanVoices.filter((audio) => (
+        audio.plays === 1
+        && /\/sounds\/combat\/voices\/(?:defender|raider)_charge_\d+\.mp3/.test(audio.src)
+      )).length === 1,
+      'combat-target advances should layer bounded formation movement and nonverbal charge effort',
     );
     chargeMixer.dispose();
+
+    const reactionStart = combatPlayback.length;
+    const reactionMixer = new CombatAudio();
+    const reactionSources = buildCombatAudioSources([{
+      id: 'defender-reaction',
+      faction: 'guard',
+      status: 'fighting',
+      health: 100,
+      x: 0,
+      z: 0,
+      attackCooldown: 0,
+    }]);
+    const reactionSource = reactionSources[0]!;
+    reactionMixer.tick(0, reactionSources, closeCombatView);
+    reactionSource.health = 70;
+    reactionMixer.tick(0.016, reactionSources, closeCombatView);
+    reactionSource.status = 'retreating';
+    reactionSource.phase = 'flee';
+    reactionMixer.tick(0.016, reactionSources, closeCombatView);
+    const reactionVoices = combatPlayback.slice(reactionStart);
+    invariant(
+      reactionVoices.length === COMBAT_AUDIO_VOICE_POOL_SIZE
+      && reactionVoices.some((audio) => (
+        audio.plays === 1
+        && /\/sounds\/combat\/voices\/defender_damage_\d+\.mp3/.test(audio.src)
+      ))
+      && reactionVoices.some((audio) => (
+        audio.plays === 1
+        && /\/sounds\/combat\/voices\/defender_rout_\d+\.mp3/.test(audio.src)
+      ))
+      && reactionVoices.every((audio) => (
+        !/(?:selo|person_attack|angry_fighting)/i.test(audio.src)
+      )),
+      'health and retreat edges should route to nonverbal damage and rout reactions only',
+    );
+    reactionMixer.dispose();
+
+    const battleVoiceStart = combatPlayback.length;
+    const battleVoiceMixer = new CombatAudio();
+    const battleVoiceSources = buildCombatAudioSources([{
+      id: 'raider-battle-voice',
+      faction: 'raider',
+      status: 'fighting',
+      health: 100,
+      x: 0,
+      z: 0,
+    }]);
+    battleVoiceMixer.tick(0, battleVoiceSources, closeCombatView);
+    battleVoiceMixer.tick(2.3, battleVoiceSources, closeCombatView);
+    invariant(
+      combatPlayback.slice(battleVoiceStart).some((audio) => (
+        audio.plays === 1
+        && /\/sounds\/combat\/voices\/raider_battle_\d+\.mp3/.test(audio.src)
+      )),
+      'active raider melee should receive sparse nonverbal battle exertions',
+    );
+    battleVoiceMixer.dispose();
+
+    const fleeVoiceStart = combatPlayback.length;
+    const fleeVoiceMixer = new CombatAudio();
+    const fleeVoiceSources = buildCombatAudioSources([{
+      id: 'raider-flee-voice',
+      faction: 'bandit',
+      status: 'retreating',
+      health: 40,
+      x: 0,
+      z: 0,
+    }]);
+    fleeVoiceMixer.tick(0, fleeVoiceSources, closeCombatView);
+    fleeVoiceMixer.tick(1.2, fleeVoiceSources, closeCombatView);
+    invariant(
+      combatPlayback.slice(fleeVoiceStart).some((audio) => (
+        audio.plays === 1
+        && /\/sounds\/combat\/voices\/raider_flee_\d+\.mp3/.test(audio.src)
+      )),
+      'retreating raiders should receive sparse nonverbal flee panic',
+    );
+    fleeVoiceMixer.dispose();
+
+    const voiceStressStart = combatPlayback.length;
+    const voiceStressMixer = new CombatAudio();
+    const voiceStressSources = buildCombatAudioSources(Array.from(
+      { length: 120 },
+      (_, index) => ({
+        id: `voice-stress-${index}`,
+        faction: index % 2 === 0 ? 'guard' as const : 'raider' as const,
+        status: 'fighting' as const,
+        health: 100,
+        x: (index % 12) * 0.3,
+        z: Math.floor(index / 12) * 0.3,
+      }),
+    ));
+    voiceStressMixer.tick(0, voiceStressSources, closeCombatView);
+    for (const source of voiceStressSources) source.health = 80;
+    voiceStressMixer.tick(0.016, voiceStressSources, closeCombatView);
+    const voiceStressPool = combatPlayback.slice(voiceStressStart);
+    invariant(
+      voiceStressSources.length === COMBAT_AUDIO_MAX_SOURCES
+      && voiceStressPool.length === COMBAT_AUDIO_VOICE_POOL_SIZE
+      && voiceStressPool.filter((audio) => audio.plays === 1).length
+        === COMBAT_AUDIO_MAX_VOICE_EDGE_PLAYS_PER_TICK,
+      'a 100-plus-agent damage burst must remain capped at two overlapping reactions in an eight-voice pool',
+    );
+    voiceStressMixer.dispose();
   } finally {
     if (audioDescriptor) {
       Object.defineProperty(globalThis, 'Audio', audioDescriptor);

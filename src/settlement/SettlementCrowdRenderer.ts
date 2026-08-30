@@ -12,10 +12,23 @@ import {
   disposeWorkerToolSources,
   isMilitaryEquipmentKind,
   loadWorkerToolSources,
+  setWorkerToolCombatStance,
   setWorkerToolVisible,
   type WorkerToolKind,
   type WorkerToolSources,
 } from './workerTools.ts';
+import {
+  applyCombatWeaponPose,
+  bindCombatWeaponRig,
+  combatWeaponReleaseOrigin,
+  disposeCombatWeaponRig,
+  resetCombatWeaponRig,
+  resolveCombatWeaponPresentation,
+  restoreCombatWeaponPose,
+  type CombatWeaponAttackEvent,
+  type CombatWeaponRig,
+} from './combatWeaponAnimation.ts';
+import { CombatProjectileRenderer } from './CombatProjectileRenderer.ts';
 import { configureVillagerMaterialLighting } from './villagerMaterialLighting.ts';
 import type {
   ClericAnimationMode,
@@ -103,6 +116,8 @@ type AnimatedVillager = {
   mixer: THREE.AnimationMixer;
   actions: Record<VillagerRenderMode, THREE.AnimationAction>;
   mode: VillagerRenderMode;
+  actionMode: VillagerRenderMode;
+  combatRig: CombatWeaponRig | null;
   ownedMaterials: THREE.Material[];
   colorBindings: Array<{
     material: THREE.MeshStandardMaterial;
@@ -184,6 +199,21 @@ export type CrowdRenderAgent = {
   tool: WorkerToolKind | null;
   movementSpeed: number;
   active: boolean;
+  combatAttackCooldown?: number;
+  combatTargetDistance?: number;
+  combatTargetX?: number;
+  combatTargetY?: number;
+  combatTargetZ?: number;
+};
+
+export type CrowdCombatAttackEvent = CombatWeaponAttackEvent & {
+  agentId: string;
+  x: number;
+  y: number;
+  z: number;
+  targetX: number;
+  targetY: number;
+  targetZ: number;
 };
 
 export type SettlementCrowdRendererOptions = {
@@ -233,6 +263,10 @@ export class SettlementCrowdRenderer {
   private readonly visibleAgents: CrowdRenderAgent[] = [];
   private readonly animatedCandidates: CrowdRenderAgent[] = [];
   private readonly animatedIds = new Set<string>();
+  private readonly combatProjectiles: CombatProjectileRenderer;
+  private readonly pendingCombatAttackEvents: CrowdCombatAttackEvent[] = [];
+  private readonly combatOrigin = new THREE.Vector3();
+  private readonly combatTarget = new THREE.Vector3();
   private sources: Record<VillagerSourceKey, VillagerSource> | null = null;
   private toolSources: WorkerToolSources | null = null;
   private animatedBatches: Record<VillagerSourceKey, AnimatedVariantBatch> | null = null;
@@ -245,6 +279,7 @@ export class SettlementCrowdRenderer {
     this.animatedGroup.name = 'Animated villagers';
     this.group.add(this.animatedGroup);
     options.parent.add(this.group);
+    this.combatProjectiles = new CombatProjectileRenderer(this.group);
 
     this.fallbackBody = this.createFallbackLayer('Villager loading body', BODY_GEOMETRY);
     this.fallbackLegs = this.createFallbackLayer('Villager loading legs', LEGS_GEOMETRY);
@@ -271,6 +306,7 @@ export class SettlementCrowdRenderer {
       this.group.visible = renderEnabled;
     }
     if (!renderEnabled) return;
+    this.combatProjectiles.update(dt);
 
     const visibleAgents = this.visibleAgents;
     visibleAgents.length = 0;
@@ -322,6 +358,13 @@ export class SettlementCrowdRenderer {
     };
   }
 
+  drainCombatAttackEvents(target: CrowdCombatAttackEvent[] = []): CrowdCombatAttackEvent[] {
+    target.length = 0;
+    target.push(...this.pendingCombatAttackEvents);
+    this.pendingCombatAttackEvents.length = 0;
+    return target;
+  }
+
   dispose(): void {
     this.disposed = true;
     for (const id of this.animated.keys()) this.removeAnimatedVillager(id);
@@ -359,6 +402,8 @@ export class SettlementCrowdRenderer {
     this.sources = null;
     if (this.toolSources) disposeWorkerToolSources(this.toolSources);
     this.toolSources = null;
+    this.combatProjectiles.dispose();
+    this.pendingCombatAttackEvents.length = 0;
     this.group.removeFromParent();
   }
 
@@ -560,7 +605,11 @@ export class SettlementCrowdRenderer {
 
       visual.root.position.set(agent.x, agent.y, agent.z);
       visual.root.rotation.y = agent.yaw + MODEL_YAW_OFFSET;
-      if (visual.mode !== agent.mode) this.transition(visual, agent.mode);
+      if (visual.combatRig) restoreCombatWeaponPose(visual.combatRig);
+      const nextActionMode = combatBaseActionMode(agent);
+      if (visual.mode !== agent.mode || visual.actionMode !== nextActionMode) {
+        this.transition(visual, agent.mode, nextActionMode);
+      }
       visual.actions.walk.setEffectiveTimeScale(
         1.06 * Math.max(0.65, agent.movementSpeed / NOMINAL_WALK_SPEED),
       );
@@ -571,6 +620,7 @@ export class SettlementCrowdRenderer {
         Math.max(0.82, agent.movementSpeed / NOMINAL_WALK_SPEED),
       );
       if (dt > 0) visual.mixer.update(dt);
+      this.applyCombatPresentation(visual, agent, dt);
     }
   }
 
@@ -613,6 +663,7 @@ export class SettlementCrowdRenderer {
     if (tool && agent.tool) {
       setWorkerToolVisible(tool, workerToolVisibleInMode(agent.tool, agent.mode));
     }
+    const combatRig = bindCombatWeaponRig(model, agent.tool, tool);
 
     const mixer = new THREE.AnimationMixer(model);
     const actions: Record<VillagerRenderMode, THREE.AnimationAction> = {
@@ -657,10 +708,11 @@ export class SettlementCrowdRenderer {
       }
     }
     configureActionSpeeds(actions, agent.movementSpeed);
-    actions[agent.mode].play();
-    if (!CLAMPED_ACTION_MODES.has(agent.mode)) {
-      actions[agent.mode].time =
-        (agent.appearanceSeed % 997) / 997 * actions[agent.mode].getClip().duration;
+    const actionMode = combatBaseActionMode(agent);
+    actions[actionMode].play();
+    if (!CLAMPED_ACTION_MODES.has(actionMode)) {
+      actions[actionMode].time =
+        (agent.appearanceSeed % 997) / 997 * actions[actionMode].getClip().duration;
     }
 
     return {
@@ -674,6 +726,8 @@ export class SettlementCrowdRenderer {
       mixer,
       actions,
       mode: agent.mode,
+      actionMode,
+      combatRig,
       ownedMaterials,
       colorBindings,
       skeleton,
@@ -703,6 +757,8 @@ export class SettlementCrowdRenderer {
     visual.variant = agent.variant;
     visual.sourceKey = sourceKey;
     visual.mode = agent.mode;
+    visual.actionMode = combatBaseActionMode(agent);
+    if (visual.combatRig) resetCombatWeaponRig(visual.combatRig);
     visual.root.name = `${sourceKey === 'cleric' ? 'Cleric' : sourceKey === 'raider' ? 'Ottoman raider' : agent.variant === 'woman' ? 'Woman' : 'Man'} villager ${agent.id}`;
     visual.root.userData.villagerId = agent.id;
     visual.root.userData.villagerGender = agent.variant;
@@ -716,7 +772,7 @@ export class SettlementCrowdRenderer {
     restartPooledVillagerActions(
       visual.mixer,
       visual.actions,
-      agent.mode,
+      visual.actionMode,
       agent.appearanceSeed,
       agent.movementSpeed,
     );
@@ -731,10 +787,13 @@ export class SettlementCrowdRenderer {
   private transition(
     visual: AnimatedVillager,
     nextMode: VillagerRenderMode,
+    nextActionMode: VillagerRenderMode,
   ): void {
-    if (visual.mode === nextMode) return;
-    visual.actions[visual.mode].fadeOut(0.18);
-    visual.actions[nextMode].reset().fadeIn(0.18).play();
+    if (visual.mode === nextMode && visual.actionMode === nextActionMode) return;
+    if (visual.actionMode !== nextActionMode) {
+      visual.actions[visual.actionMode].fadeOut(0.18);
+      visual.actions[nextActionMode].reset().fadeIn(0.18).play();
+    }
     if (visual.tool && visual.toolKind) {
       setWorkerToolVisible(visual.tool, workerToolVisibleInMode(
         visual.toolKind,
@@ -742,11 +801,76 @@ export class SettlementCrowdRenderer {
       ));
     }
     visual.mode = nextMode;
+    visual.actionMode = nextActionMode;
+  }
+
+  private applyCombatPresentation(
+    visual: AnimatedVillager,
+    agent: CrowdRenderAgent,
+    dt: number,
+  ): void {
+    if (
+      !visual.combatRig
+      || !visual.tool
+      || !agent.tool
+      || agent.combatAttackCooldown === undefined
+    ) {
+      if (visual.combatRig?.family) resetCombatWeaponRig(visual.combatRig);
+      if (visual.tool && agent.tool && isMilitaryEquipmentKind(agent.tool)) {
+        const defaultPresentation = resolveCombatWeaponPresentation(agent.tool, Infinity);
+        setWorkerToolCombatStance(
+          visual.tool,
+          defaultPresentation?.stance ?? 'melee',
+        );
+      }
+      return;
+    }
+    const result = applyCombatWeaponPose(visual.combatRig, {
+      tool: agent.tool,
+      targetDistance: agent.combatTargetDistance ?? Infinity,
+      attackCooldown: agent.combatAttackCooldown,
+      dtSeconds: dt,
+      logicalMode: agent.mode,
+    });
+    if (!result) return;
+    setWorkerToolCombatStance(visual.tool, result.presentation.stance);
+    if (!result.event) return;
+
+    const targetX = agent.combatTargetX
+      ?? agent.x + Math.sin(agent.yaw) * Math.max(2, agent.combatTargetDistance ?? 5);
+    const targetY = agent.combatTargetY ?? agent.y + 1.05;
+    const targetZ = agent.combatTargetZ
+      ?? agent.z + Math.cos(agent.yaw) * Math.max(2, agent.combatTargetDistance ?? 5);
+    const event: CrowdCombatAttackEvent = {
+      ...result.event,
+      agentId: agent.id,
+      x: agent.x,
+      y: agent.y,
+      z: agent.z,
+      targetX,
+      targetY,
+      targetZ,
+    };
+    if (this.pendingCombatAttackEvents.length >= 128) {
+      this.pendingCombatAttackEvents.shift();
+    }
+    this.pendingCombatAttackEvents.push(event);
+    if (result.event.type !== 'projectile-release' || !result.event.projectile) return;
+    combatWeaponReleaseOrigin(visual.combatRig, this.combatOrigin);
+    this.combatTarget.set(targetX, targetY, targetZ);
+    this.group.localToWorld(this.combatTarget);
+    this.combatProjectiles.spawnRelease(
+      result.event.projectile,
+      this.combatOrigin,
+      this.combatTarget,
+      agent.appearanceSeed ^ result.event.sequence,
+    );
   }
 
   private removeAnimatedVillager(id: string): void {
     const visual = this.animated.get(id);
     if (!visual) return;
+    if (visual.combatRig) resetCombatWeaponRig(visual.combatRig);
     visual.mixer.stopAllAction();
     visual.root.visible = false;
     if (visual.tool) setWorkerToolVisible(visual.tool, false);
@@ -768,6 +892,7 @@ export class SettlementCrowdRenderer {
   private disposeAnimatedVillager(visual: AnimatedVillager): void {
     visual.mixer.stopAllAction();
     visual.mixer.uncacheRoot(visual.model);
+    if (visual.combatRig) disposeCombatWeaponRig(visual.combatRig);
     for (const material of visual.ownedMaterials) material.dispose();
     visual.root.removeFromParent();
   }
@@ -1834,6 +1959,20 @@ export function workerToolVisibleInMode(
   // seed-casting gesture back into a generic tool swing.
   if (mode === 'sow') return false;
   return isWorkMode(mode);
+}
+
+/** Keeps ranged and polearm legs neutral while the post-mixer combat rig owns the strike. */
+export function combatBaseActionMode(agent: CrowdRenderAgent): VillagerRenderMode {
+  if (
+    agent.mode !== 'fight'
+    || !agent.tool
+    || agent.combatAttackCooldown === undefined
+  ) return agent.mode;
+  const presentation = resolveCombatWeaponPresentation(
+    agent.tool,
+    agent.combatTargetDistance ?? Infinity,
+  );
+  return presentation?.neutralBaseClip ? 'wait' : 'fight';
 }
 
 function findAnimationClip(

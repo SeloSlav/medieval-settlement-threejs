@@ -575,16 +575,6 @@ function addFoundingProvisions(parent: THREE.Group): void {
   );
   basketRim.name = 'Woven basket rim';
   basketRim.userData.fpNoCollision = true;
-  const basketContents = addMesh(
-    provisions,
-    new THREE.CircleGeometry(0.37, 10),
-    sharedBuildingDetailMaterial('crop'),
-    new THREE.Vector3(7.55, 0.575, -0.95),
-    new THREE.Euler(-Math.PI * 0.5, 0, 0),
-  );
-  basketContents.name = 'Dry provisions in basket';
-  basketContents.userData.fpNoCollision = true;
-
   parent.add(provisions);
 }
 

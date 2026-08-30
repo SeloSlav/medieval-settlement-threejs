@@ -136,7 +136,6 @@ const timberWeathered = timberMaterial('weathered');
 const timberLight = timberMaterial('light');
 const roof = shingleMaterial();
 const earth = sharedBuildingDetailMaterial('earth');
-const hay = sharedBuildingDetailMaterial('crop');
 
 function addNamedMesh(
   group: THREE.Group,
@@ -315,14 +314,6 @@ function addStalls(group: THREE.Group): void {
       timberWeathered,
       new THREE.Vector3(0, 0.42, 0),
     );
-    addNamedMesh(
-      manger,
-      'Stable manger hay',
-      new THREE.DodecahedronGeometry(0.52, 0),
-      hay,
-      new THREE.Vector3(0, 0.72, 0),
-      new THREE.Euler(0.1, bayIndex * 0.42, -0.05),
-    ).scale.set(1.85, 0.42, 0.55);
     group.add(manger);
   }
 

@@ -562,28 +562,24 @@ function addHerbPorch(group: THREE.Group, frontZ: number): void {
   const remedyStockpile = new THREE.Group();
   remedyStockpile.name = 'ForagersRemedyStockpile';
   remedyStockpile.visible = false;
-  for (let i = 0; i < 7; i++) {
-    const segmentIndex = Math.min(3, Math.floor(i / 2));
-    let segment = remedyStockpile.children[segmentIndex] as THREE.Group | undefined;
-    if (!segment) {
-      segment = new THREE.Group();
-      segment.name = 'ForagersRemedySegment';
-      remedyStockpile.add(segment);
-    }
+  for (let segmentIndex = 0; segmentIndex < 4; segmentIndex++) {
+    const segment = new THREE.Group();
+    segment.name = 'ForagersRemedySegment';
+    const x = -1.5 + segmentIndex;
     addMesh(
       segment,
-      new THREE.ConeGeometry(0.16, 0.55 + (i % 2) * 0.12, 7),
-      sharedBuildingDetailMaterial('foliage'),
-      new THREE.Vector3(-1.55 + i * 0.52, 1.83, porchZ),
-      new THREE.Euler(Math.PI, 0, 0),
+      new THREE.CylinderGeometry(0.28, 0.22, 0.38, 9),
+      timberMaterial('light'),
+      new THREE.Vector3(x, 0.2, porchZ + 0.15),
     );
+    remedyStockpile.add(segment);
   }
   group.add(remedyStockpile);
 
   const foodStockpile = new THREE.Group();
   foodStockpile.name = 'ForagersFoodStockpile';
   foodStockpile.visible = false;
-  for (const [index, x] of [-1.5, -0.5, 0.5, 1.5].entries()) {
+  for (const x of [-1.5, -0.5, 0.5, 1.5]) {
     const segment = new THREE.Group();
     segment.name = 'ForagersFoodSegment';
     addMesh(
@@ -599,14 +595,6 @@ function addHerbPorch(group: THREE.Group, frontZ: number): void {
       new THREE.Vector3(x, 0.45, porchZ + 0.15),
       new THREE.Euler(Math.PI * 0.5, 0, 0),
     );
-    for (const offset of [-0.12, 0, 0.12]) {
-      addMesh(
-        segment,
-        new THREE.SphereGeometry(0.075, 7, 5),
-        sharedBuildingDetailMaterial(index % 2 === 0 ? 'foliage' : 'paintRed'),
-        new THREE.Vector3(x + offset, 0.5 + Math.abs(offset) * 0.2, porchZ + 0.15),
-      );
-    }
     foodStockpile.add(segment);
   }
   group.add(foodStockpile);

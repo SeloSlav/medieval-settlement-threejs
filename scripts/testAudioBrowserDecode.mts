@@ -12,6 +12,7 @@ import {
   BUILDING_AUDIO_CLIPS,
   CHAPEL_BELL_CLIPS,
   COMBAT_AUDIO_CLIPS,
+  COMBAT_VOICE_CLIPS,
   FARM_WORKERS_SINGING_CLIP,
   FIRE_CRACKLE_CLIP,
   MUSIC_TRACKS,
@@ -82,6 +83,7 @@ function runtimeClips(): AudioClipDefinition[] {
     ...OX_SELECTION_CLIPS,
     ...Object.values(WORKER_ACTIVITY_CLIPS).flat(),
     ...Object.values(COMBAT_AUDIO_CLIPS).flat(),
+    ...Object.values(COMBAT_VOICE_CLIPS).flat(),
     ...Object.values(BUILDING_AUDIO_CLIPS),
     ...Object.values(WORLD_FOLEY_CLIPS),
   ];

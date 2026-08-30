@@ -67,6 +67,7 @@
     "test:military-economy": "node --experimental-strip-types scripts/testMilitaryEconomy.mts",
     "test:military-browser": "node --experimental-strip-types scripts/testMilitaryBrowser.mts",
     "test:battle-showcase": "npx tsx scripts/testBattleShowcase.mts",
+    "test:combat-playtest": "npx tsx scripts/testCombatPlaytest.mts",
     "test:ottoman-raider-model": "node --experimental-strip-types scripts/testOttomanRaiderModel.mts",
     "test:frontier-armory": "node --experimental-strip-types scripts/testFrontierArmoryPolicy.mts",
     "test:settlement-armament": "npx tsx scripts/testSettlementArmament.mts",

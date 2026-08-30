@@ -148,6 +148,7 @@ import {
   createBattleShowcase,
   mergeBattleShowcaseAgents,
   parseBattleShowcaseRequest,
+  selectBattleShowcaseSite,
   type BattleShowcase,
   type BattleShowcasePhase,
 } from './battleShowcase.ts';
@@ -155,6 +156,16 @@ import {
   isLiveBattleCaptureRequested,
   startLiveBattleCapture,
 } from './liveBattleCapture.ts';
+import {
+  CombatPlaytestOverlay,
+  CombatPlaytestSimulation,
+  combatPlaytestCamera,
+  combatPlaytestWorldSettings,
+  parseCombatPlaytestRequest,
+  type CombatPlaytestPreset,
+  type CombatPlaytestRequest,
+  type CombatPlaytestSummary,
+} from './combatPlaytest.ts';
 
 export type AppFrameProfilePhase = 'strategic' | 'settlement' | 'road-eye';
 
@@ -239,6 +250,12 @@ export class App {
   private settlementPresentationTargets: SettlementPresentationTargets | null = null;
   private ambientAudio: AmbientAudioController | null = null;
   private startupMusic: StartupMusicController | null = null;
+  private readonly combatPlaytestRequest: CombatPlaytestRequest | null = import.meta.env.DEV
+    ? parseCombatPlaytestRequest(window.location.search)
+    : null;
+  private combatPlaytest: CombatPlaytestSimulation | null = null;
+  private combatPlaytestOverlay: CombatPlaytestOverlay | null = null;
+  private combatPlaytestNextSyncAtMs = 0;
   private readonly battleShowcaseRequest = import.meta.env.DEV
     ? parseBattleShowcaseRequest(window.location.search)
     : null;
@@ -292,6 +309,9 @@ export class App {
     try {
       session = await bootstrapAppSession(this.root, {
         syncToolbar: () => this.syncToolbar(),
+        ...(this.combatPlaytestRequest
+          ? { worldSettingsOverride: combatPlaytestWorldSettings(this.combatPlaytestRequest.seed) }
+          : {}),
         deferGameplayMusic: this.startupMusic !== null,
         onGameAudioEnabledChange: (enabled) => {
           this.startupMusic?.setGameAudioEnabled(enabled);
@@ -522,10 +542,10 @@ export class App {
       ambientAudio: this.ambientAudio,
     };
 
-    if (this.visualQaConditions) {
-      // Deterministic capture pages are intentionally offline: marking the
-      // local presentation ready prevents lifecycle retries without opening a
-      // SpacetimeDB connection or changing the ordinary runtime path.
+    if (this.visualQaConditions || this.combatPlaytestRequest) {
+      // Deterministic capture and playtest pages are intentionally offline:
+      // marking the local presentation ready prevents lifecycle retries
+      // without opening a connection or changing the ordinary runtime path.
       this.sessionLifecycle.onReady();
     } else {
       this.gameRuntime.start();
@@ -752,10 +772,13 @@ export class App {
     });
     markFirstPlayable();
     this.sessionLifecycle?.onPresentationReady();
-    this.tutorialOverlay?.notifyWorldReady(
-      [...(this.gameState?.buildings.values() ?? [])]
-        .some((building) => building.kind === 'founders_camp'),
-    );
+    if (!this.combatPlaytestRequest) {
+      this.tutorialOverlay?.notifyWorldReady(
+        [...(this.gameState?.buildings.values() ?? [])]
+          .some((building) => building.kind === 'founders_camp'),
+      );
+    }
+    this.startCombatPlaytest(session);
     this.startBattleShowcase(session);
     if (import.meta.env.VITE_E2E_TEST !== '1') {
       // Run scene-owner handoffs inside Three's renderer lifecycle. Its common
@@ -781,6 +804,11 @@ export class App {
     this.forestryWorkAreaTool?.dispose();
     this.buildingMarkers?.dispose();
     this.banditCamps?.dispose();
+    this.combatPlaytestOverlay?.dispose();
+    this.combatPlaytestOverlay = null;
+    document.documentElement.removeAttribute('data-combat-playtest-ready');
+    const playtestWindow = window as typeof window & { __combatPlaytest?: unknown };
+    delete playtestWindow.__combatPlaytest;
     this.militiaCommands?.dispose();
     this.frontierRiskMarkers?.dispose();
     this.villagerInspector?.dispose();
@@ -858,6 +886,7 @@ export class App {
     const firstPersonActive = this.firstPersonController?.isActive() ?? false;
     const gameSpeed = this.spacetimeStore?.snapshot.gameSpeed ?? 1;
     const worldDt = worldAnimationDelta(dt, gameSpeed);
+    this.syncCombatPlaytest(time, dt);
     this.syncBattleShowcase(time);
     this.syncBuildInteractionPerf();
     this.frontierRiskMarkers?.tick(worldDt);
@@ -1166,6 +1195,107 @@ export class App {
     this.fpsAccumulatedSeconds = 0;
   }
 
+  private startCombatPlaytest(session: BootstrappedSession): void {
+    const request = this.combatPlaytestRequest;
+    if (!request || this.combatPlaytest || !this.gameState) return;
+    const settings = session.sceneManager.worldLayout.settings;
+    const dimensions = resolveWorldDimensions(settings.mapSize);
+    const site = selectBattleShowcaseSite(battleShowcaseWorldInput(
+      this.gameState,
+      {
+        playableHalf: dimensions.playableHalf,
+        getTerrainHeight: (x, z) => session.sceneManager.terrain.getHeightAt(x, z),
+        isWaterAt: (x, z) => session.sceneManager.riverField.isRenderedWetAt(x, z),
+        treeRegistry: this.treeRegistry,
+        terrainPreset: settings.terrainPreset,
+        rendererBackend: session.sceneManager.rendererBackend,
+        connectedServer: false,
+      },
+    ));
+    this.combatPlaytest = new CombatPlaytestSimulation({
+      site,
+      playableHalf: dimensions.playableHalf,
+      preset: request.preset,
+      seed: settings.seed,
+    });
+    this.combatPlaytestNextSyncAtMs = 0;
+    session.uiRoot.classList.add('combat-playtest-mode');
+    session.militiaCommands.setCompanyGuidesVisible(true);
+    session.militiaCommands.setCommandHandler((ids, x, z) => {
+      if (!this.combatPlaytest) return;
+      this.combatPlaytest.issueOrder(ids, x, z);
+      this.combatPlaytestNextSyncAtMs = 0;
+      this.publishCombatPlaytestFrame();
+    });
+    this.combatPlaytestOverlay = new CombatPlaytestOverlay(session.uiRoot, {
+      request: { ...request, seed: settings.seed },
+      onReset: () => this.resetCombatPlaytest(),
+      onPreset: (preset) => this.resetCombatPlaytest(preset),
+    });
+
+    const camera = combatPlaytestCamera(site);
+    session.cameraController.applyShowcaseView(
+      camera.targetX,
+      camera.targetZ,
+      camera.yaw,
+      camera.pitch,
+      camera.distance,
+    );
+    session.cameraController.setInputEnabled(true);
+    this.publishCombatPlaytestFrame();
+
+    const playtestWindow = window as typeof window & {
+      __combatPlaytest?: CombatPlaytestDevHandle;
+    };
+    playtestWindow.__combatPlaytest = {
+      ready: true,
+      isolated: true,
+      reset: () => this.resetCombatPlaytest(),
+      spawnPreset: (preset) => this.resetCombatPlaytest(preset),
+      summary: () => this.combatPlaytest?.summary() ?? null,
+    };
+    const root = document.documentElement;
+    root.dataset.combatPlaytestReady = 'true';
+    root.dataset.combatPlaytestServerConnected = 'false';
+    root.dataset.combatPlaytestSeedThree = String(
+      Boolean(this.treeRegistry && this.treeRegistry.entries.length > 0),
+    );
+    root.dataset.combatPlaytestWorldSeed = String(settings.seed >>> 0);
+  }
+
+  private syncCombatPlaytest(timeMs: number, deltaSeconds: number): void {
+    const playtest = this.combatPlaytest;
+    if (!playtest) return;
+    playtest.tick(deltaSeconds);
+    if (timeMs + 0.01 < this.combatPlaytestNextSyncAtMs) return;
+    this.combatPlaytestNextSyncAtMs = timeMs + 1_000 / 15;
+    this.publishCombatPlaytestFrame();
+  }
+
+  private resetCombatPlaytest(preset?: CombatPlaytestPreset): void {
+    const playtest = this.combatPlaytest;
+    if (!playtest) return;
+    playtest.reset(preset ?? playtest.getPreset());
+    this.militiaCommands?.clearSelection();
+    this.combatPlaytestNextSyncAtMs = 0;
+    this.publishCombatPlaytestFrame();
+  }
+
+  private publishCombatPlaytestFrame(): void {
+    const playtest = this.combatPlaytest;
+    if (!playtest || !this.villagers || !this.militiaCommands) return;
+    const agents = playtest.snapshot();
+    this.villagers.setCombatAgents(agents);
+    this.militiaCommands.sync(agents, new Map());
+    const summary = playtest.summary();
+    this.combatPlaytestOverlay?.update(summary);
+    const root = document.documentElement;
+    root.dataset.combatPlaytestPreset = summary.preset;
+    root.dataset.combatPlaytestFriendly = String(summary.friendlyAlive);
+    root.dataset.combatPlaytestEnemy = String(summary.enemyAlive);
+    root.dataset.combatPlaytestOutcome = summary.outcome;
+  }
+
   /**
    * Starts the opt-in live battle over the connected production world. The
    * showcase owns presentation only: authoritative server rows and the save
@@ -1173,7 +1303,12 @@ export class App {
    * animation, audio, and camera all stay on the ordinary game path.
    */
   private startBattleShowcase(session: BootstrappedSession): void {
-    if (!this.battleShowcaseRequest || this.battleShowcase || !this.gameState) return;
+    if (
+      this.combatPlaytestRequest
+      || !this.battleShowcaseRequest
+      || this.battleShowcase
+      || !this.gameState
+    ) return;
     const settings = session.sceneManager.worldLayout.settings;
     const dimensions = resolveWorldDimensions(settings.mapSize);
     this.battleShowcase = createBattleShowcase(battleShowcaseWorldInput(
@@ -1288,7 +1423,9 @@ export class App {
       this.clearFrontierRiskFeedback();
       this.combatInspectorSignature = '';
       this.battleShowcaseAuthoritativeAgents.clear();
-      if (!this.battleShowcase) this.villagers?.setCombatAgents(new Map());
+      if (!this.battleShowcase && !this.combatPlaytest) {
+        this.villagers?.setCombatAgents(new Map());
+      }
       this.toolbar?.settlementHud.setSecurityState(
         snapshot.settlementSecurity,
         null,
@@ -1313,9 +1450,13 @@ export class App {
       nextCombatInspectorSignature !== this.combatInspectorSignature;
     this.combatInspectorSignature = nextCombatInspectorSignature;
     this.battleShowcaseAuthoritativeAgents = new Map(snapshot.combatAgents);
-    if (!this.battleShowcase) this.villagers?.setCombatAgents(snapshot.combatAgents);
+    if (!this.battleShowcase && !this.combatPlaytest) {
+      this.villagers?.setCombatAgents(snapshot.combatAgents);
+    }
     this.banditCamps?.sync(snapshot.banditCamps.values());
-    this.militiaCommands?.sync(snapshot.combatAgents, snapshot.banditCamps);
+    if (!this.combatPlaytest) {
+      this.militiaCommands?.sync(snapshot.combatAgents, snapshot.banditCamps);
+    }
     const raidThreatActive = hasActiveRaiderThreat(snapshot.combatAgents.values());
     const withdrawingCarts = raidWithdrawingCartCount(
       snapshot.deliveryTrips.values(),
@@ -1940,6 +2081,14 @@ export class App {
     );
   }
 }
+
+type CombatPlaytestDevHandle = {
+  ready: true;
+  isolated: true;
+  reset: () => void;
+  spawnPreset: (preset: CombatPlaytestPreset) => void;
+  summary: () => CombatPlaytestSummary | null;
+};
 
 function publishBattleShowcaseFrame(
   showcase: BattleShowcase,

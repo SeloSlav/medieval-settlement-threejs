@@ -11,6 +11,7 @@ import {
   addProceduralWindow,
   type DoorEntranceAccess,
 } from './facadeOpeningKit.ts';
+import { createProceduralRoofPanelGeometry } from '../proceduralArchitecture/geometryWriter.ts';
 
 export type GableShellOptions = {
   width: number;
@@ -33,6 +34,7 @@ export type GableShell = {
   wallTop: number;
   ridgeHeight: number;
   frontZ: number;
+  backZ: number;
   centerX: number;
   centerZ: number;
 };
@@ -49,6 +51,29 @@ export type LeanToRoofOptions = {
   highEdge: LeanToHighEdge;
   name: string;
 };
+
+type GableFacadeOpening = {
+  readonly xMin: number;
+  readonly xMax: number;
+  readonly yMin: number;
+  readonly yMax: number;
+};
+
+type GableFacadeRecord = {
+  readonly group: THREE.Group;
+  readonly centerX: number;
+  readonly stoneHeight: number;
+  readonly wallHeight: number;
+  readonly bodyWidth: number;
+  readonly frontZ: number;
+  readonly backZ: number;
+  readonly wallThickness: number;
+  readonly wallMaterial: THREE.Material;
+  readonly openings: Record<'positive-z' | 'negative-z', GableFacadeOpening[]>;
+  meshes: Partial<Record<'positive-z' | 'negative-z', THREE.Mesh>>;
+};
+
+const GABLE_FACADES = new WeakMap<THREE.Group, GableFacadeRecord[]>();
 
 /**
  * Adds a shallow attached roof with an explicit high edge.
@@ -114,8 +139,10 @@ export function addGableShell(group: THREE.Group, options: GableShellOptions): G
   const halfD = depth * 0.5;
   const wallTop = stoneHeight + wallHeight;
   const frontZ = centerZ + halfD - 0.075;
-  const roofPitch = Math.atan2(ridgeHeight, halfW);
-  const slopeLen = halfW / Math.cos(roofPitch) + 0.28;
+  const backZ = centerZ - halfD + 0.075;
+  const bodyWidth = width - 0.12;
+  const bodyDepth = depth - 0.12;
+  const wallThickness = 0.16;
 
   addMesh(
     group,
@@ -123,62 +150,79 @@ export function addGableShell(group: THREE.Group, options: GableShellOptions): G
     stoneMaterial(stoneGroundFloor ? 'mid' : 'light'),
     new THREE.Vector3(centerX, stoneHeight * 0.5, centerZ),
   );
-  addMesh(
+
+  // A hollow wall shell gives every registered door/window a real aperture.
+  // The old solid box left a wall directly behind its black reveal and made
+  // even correctly modeled openings read as decals.
+  const facadeRecord: GableFacadeRecord = {
     group,
-    new THREE.BoxGeometry(width - 0.12, wallHeight, depth - 0.12),
+    centerX,
+    stoneHeight,
+    wallHeight,
+    bodyWidth,
+    frontZ,
+    backZ,
+    wallThickness,
     wallMaterial,
-    new THREE.Vector3(centerX, stoneHeight + wallHeight * 0.5, centerZ),
-  );
-  addMesh(
-    group,
-    new THREE.BoxGeometry(width + 0.08, 0.14, depth + 0.08),
-    stoneMaterial('mortar'),
-    new THREE.Vector3(centerX, wallTop - 0.07, centerZ),
-  );
+    openings: { 'positive-z': [], 'negative-z': [] },
+    meshes: {},
+  };
+  const facadeRecords = GABLE_FACADES.get(group) ?? [];
+  facadeRecords.push(facadeRecord);
+  GABLE_FACADES.set(group, facadeRecords);
+  rebuildGableFacade(facadeRecord, 'positive-z');
+  rebuildGableFacade(facadeRecord, 'negative-z');
+
+  for (const side of [-1, 1] as const) {
+    const wall = addMesh(
+      group,
+      new THREE.BoxGeometry(wallThickness, wallHeight, bodyDepth - wallThickness * 2),
+      wallMaterial,
+      new THREE.Vector3(
+        centerX + side * (bodyWidth * 0.5 - wallThickness * 0.5),
+        stoneHeight + wallHeight * 0.5,
+        centerZ,
+      ),
+    );
+    wall.name = `Gable shell ${side < 0 ? 'left' : 'right'} side wall`;
+    wall.userData.proceduralWallShell = true;
+  }
 
   for (const [sx, sz] of [[-1, -1], [-1, 1], [1, -1], [1, 1]] as const) {
-    addMesh(
+    const postHeight = Math.max(0.24, wallHeight - 0.16);
+    const post = addMesh(
       group,
-      new THREE.BoxGeometry(0.22, wallHeight, 0.22),
+      new THREE.BoxGeometry(0.22, postHeight, 0.22),
       timberMaterial('dark'),
       new THREE.Vector3(
         centerX + sx * (halfW - 0.12),
-        stoneHeight + wallHeight * 0.5,
+        stoneHeight + postHeight * 0.5,
         centerZ + sz * (halfD - 0.12),
       ),
     );
+    post.name = 'Gable shell corner post joined below wall plate';
   }
 
-  for (const side of [-1, 1] as const) {
-    addMesh(
+  // Four wall plates terminate the posts and visibly carry the rafters. Their
+  // top is kept below the roof skin, so no beam can pierce the eave or verge.
+  for (const zSign of [-1, 1] as const) {
+    const plate = addMesh(
       group,
-      new THREE.BoxGeometry(slopeLen, 0.13, depth + 0.48),
-      roofMaterial,
-      new THREE.Vector3(centerX + side * halfW * 0.46, wallTop + ridgeHeight * 0.48, centerZ),
-      new THREE.Euler(0, 0, side * -roofPitch),
+      new THREE.BoxGeometry(bodyWidth, 0.18, 0.2),
+      timberMaterial('dark'),
+      new THREE.Vector3(centerX, wallTop - 0.09, centerZ + zSign * (halfD - 0.12)),
     );
-    for (let row = 0; row < 3; row++) {
-      const t = (row + 0.5) / 3.8;
-      addMesh(
-        group,
-        new THREE.BoxGeometry(0.07, 0.055, depth + 0.5),
-        roofMaterial,
-        new THREE.Vector3(
-          centerX + side * halfW * (1 - t),
-          wallTop + ridgeHeight * t + 0.02,
-          centerZ,
-        ),
-        new THREE.Euler(0, 0, side * -roofPitch),
-      );
-    }
+    plate.name = 'Gable shell transverse wall plate';
   }
-
-  addMesh(
-    group,
-    new THREE.BoxGeometry(0.24, 0.18, depth + 0.62),
-    roofMaterial,
-    new THREE.Vector3(centerX, wallTop + ridgeHeight + 0.035, centerZ),
-  );
+  for (const xSign of [-1, 1] as const) {
+    const plate = addMesh(
+      group,
+      new THREE.BoxGeometry(0.2, 0.18, bodyDepth - 0.2),
+      timberMaterial('dark'),
+      new THREE.Vector3(centerX + xSign * (halfW - 0.12), wallTop - 0.09, centerZ),
+    );
+    plate.name = 'Gable shell longitudinal wall plate';
+  }
 
   for (const zSign of [-1, 1] as const) {
     addTriangularGableWall(
@@ -194,22 +238,59 @@ export function addGableShell(group: THREE.Group, options: GableShellOptions): G
       centerX,
       centerZ,
     );
-    for (const side of [-1, 1] as const) {
-      addMesh(
-        group,
-        new THREE.BoxGeometry(slopeLen, 0.14, 0.15),
-        timberMaterial('dark'),
-        new THREE.Vector3(
-          centerX + side * halfW * 0.46,
-          wallTop + ridgeHeight * 0.48,
-          centerZ + zSign * (halfD + 0.16),
-        ),
-        new THREE.Euler(0, 0, side * -roofPitch),
-      );
-    }
   }
 
-  return { width, depth, halfW, halfD, wallTop, ridgeHeight, frontZ, centerX, centerZ };
+  const roofDepth = depth + 0.48;
+  const roofRun = halfW + 0.28;
+  const eaveY = wallTop - 0.045;
+  const roofRise = ridgeHeight + 0.065;
+  const roofRole = proceduralRoofRole(roofMaterial);
+  const leftRoof = addMesh(
+    group,
+    createProceduralRoofPanelGeometry({
+      semanticId: 'gable-shell-left-roof-plane',
+      moduleId: 'joined-gable-roof',
+      materialRole: roofRole,
+      structuralUse: 'roof-covering',
+      eaveOrigin: [centerX - roofRun, eaveY, centerZ - roofDepth * 0.5],
+      eaveVector: [0, 0, roofDepth],
+      slopeVector: [roofRun, roofRise, 0],
+      thickness: 0.13,
+    }),
+    roofMaterial,
+    new THREE.Vector3(),
+  );
+  leftRoof.name = 'Gable shell joined left roof plane';
+  leftRoof.userData.proceduralRoofShell = true;
+  const rightRoof = addMesh(
+    group,
+    createProceduralRoofPanelGeometry({
+      semanticId: 'gable-shell-right-roof-plane',
+      moduleId: 'joined-gable-roof',
+      materialRole: roofRole,
+      structuralUse: 'roof-covering',
+      eaveOrigin: [centerX + roofRun, eaveY, centerZ + roofDepth * 0.5],
+      eaveVector: [0, 0, -roofDepth],
+      slopeVector: [-roofRun, roofRise, 0],
+      thickness: 0.13,
+      uvOffsetMeters: [0.13, 0.07],
+    }),
+    roofMaterial,
+    new THREE.Vector3(),
+  );
+  rightRoof.name = 'Gable shell joined right roof plane';
+  rightRoof.userData.proceduralRoofShell = true;
+
+  const ridge = addMesh(
+    group,
+    new THREE.BoxGeometry(0.18, 0.09, roofDepth + 0.1),
+    roofMaterial,
+    new THREE.Vector3(centerX, eaveY + roofRise + 0.015, centerZ),
+  );
+  ridge.name = 'Gable shell low-profile roof-covering ridge cap';
+  ridge.userData.proceduralRoofShell = true;
+
+  return { width, depth, halfW, halfD, wallTop, ridgeHeight, frontZ, backZ, centerX, centerZ };
 }
 
 export function addPlankDoor(
@@ -221,14 +302,22 @@ export function addPlankDoor(
   height = 1.92,
   entranceAccess: DoorEntranceAccess = 'auto-stone-steps',
 ): void {
+  const resolvedFacade = resolveGableFacade(group, z);
   addProceduralDoor(group, {
     position: new THREE.Vector3(x, baseY, z),
-    face: z < 0 ? 'negative-z' : 'positive-z',
+    face: resolvedFacade?.face ?? (z < 0 ? 'negative-z' : 'positive-z'),
     width,
     height,
     namePrefix: 'Building',
     entranceAccess,
   });
+  registerGableFacadeOpening(
+    resolvedFacade,
+    x,
+    baseY,
+    baseY + height + 0.06,
+    width + 0.08,
+  );
 }
 
 export function addDarkOpening(
@@ -261,13 +350,123 @@ export function addSmallWindow(
   width = 0.78,
   height = 1.0,
 ): void {
+  const resolvedFacade = resolveGableFacade(group, z);
   addProceduralWindow(group, {
     position: new THREE.Vector3(x, y, z),
-    face: z < 0 ? 'negative-z' : 'positive-z',
+    face: resolvedFacade?.face ?? (z < 0 ? 'negative-z' : 'positive-z'),
     width,
     height,
     namePrefix: 'Building',
   });
+  registerGableFacadeOpening(
+    resolvedFacade,
+    x,
+    y - height * 0.5 - 0.04,
+    y + height * 0.5 + 0.04,
+    width + 0.08,
+  );
+}
+
+function proceduralRoofRole(
+  material: THREE.Material,
+): 'split-shingles' | 'clay-tiles' | 'slate' {
+  const name = material.name.toLowerCase();
+  if (name.includes('clayred') || name.includes('claydark')) return 'clay-tiles';
+  if (name.includes('slate')) return 'slate';
+  if (name.includes('shingle')) return 'split-shingles';
+  throw new Error(
+    `Gable roof material ${material.name || material.type} has no permitted circa-1550 roof role.`,
+  );
+}
+
+function resolveGableFacade(
+  group: THREE.Group,
+  z: number,
+): { readonly record: GableFacadeRecord; readonly face: 'positive-z' | 'negative-z' } | null {
+  const records = GABLE_FACADES.get(group);
+  if (!records || records.length === 0) return null;
+  let best: { record: GableFacadeRecord; face: 'positive-z' | 'negative-z'; distance: number } | null = null;
+  for (const record of records) {
+    for (const [face, plane] of [
+      ['positive-z', record.frontZ],
+      ['negative-z', record.backZ],
+    ] as const) {
+      const distance = Math.abs(z - plane);
+      if (!best || distance < best.distance) best = { record, face, distance };
+    }
+  }
+  return best ? { record: best.record, face: best.face } : null;
+}
+
+function registerGableFacadeOpening(
+  resolved: { readonly record: GableFacadeRecord; readonly face: 'positive-z' | 'negative-z' } | null,
+  worldX: number,
+  worldYMin: number,
+  worldYMax: number,
+  width: number,
+): void {
+  if (!resolved) return;
+  const { record, face } = resolved;
+  const x = worldX - record.centerX;
+  const yMin = THREE.MathUtils.clamp(worldYMin - record.stoneHeight, 0.015, record.wallHeight - 0.03);
+  const yMax = THREE.MathUtils.clamp(worldYMax - record.stoneHeight, yMin + 0.02, record.wallHeight - 0.015);
+  const halfWidth = Math.max(0.03, width * 0.5);
+  record.openings[face].push({
+    xMin: THREE.MathUtils.clamp(x - halfWidth, -record.bodyWidth * 0.5 + 0.02, record.bodyWidth * 0.5 - 0.04),
+    xMax: THREE.MathUtils.clamp(x + halfWidth, -record.bodyWidth * 0.5 + 0.04, record.bodyWidth * 0.5 - 0.02),
+    yMin,
+    yMax,
+  });
+  rebuildGableFacade(record, face);
+}
+
+function rebuildGableFacade(
+  record: GableFacadeRecord,
+  face: 'positive-z' | 'negative-z',
+): void {
+  const shape = new THREE.Shape();
+  const halfWidth = record.bodyWidth * 0.5;
+  shape.moveTo(-halfWidth, 0);
+  shape.lineTo(halfWidth, 0);
+  shape.lineTo(halfWidth, record.wallHeight);
+  shape.lineTo(-halfWidth, record.wallHeight);
+  shape.closePath();
+  for (const opening of record.openings[face]) {
+    const hole = new THREE.Path();
+    // Clockwise hole winding keeps the aperture stable in Shape triangulation.
+    hole.moveTo(opening.xMin, opening.yMin);
+    hole.lineTo(opening.xMin, opening.yMax);
+    hole.lineTo(opening.xMax, opening.yMax);
+    hole.lineTo(opening.xMax, opening.yMin);
+    hole.closePath();
+    shape.holes.push(hole);
+  }
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: record.wallThickness,
+    bevelEnabled: false,
+    curveSegments: 1,
+  });
+  geometry.translate(0, 0, -record.wallThickness * 0.5);
+
+  const previous = record.meshes[face];
+  if (previous) {
+    previous.removeFromParent();
+    previous.geometry.dispose();
+  }
+  const wall = addMesh(
+    record.group,
+    geometry,
+    record.wallMaterial,
+    new THREE.Vector3(
+      record.centerX,
+      record.stoneHeight,
+      face === 'positive-z' ? record.frontZ : record.backZ,
+    ),
+  );
+  wall.name = `Gable shell ${face} perforated wall`;
+  wall.userData.proceduralWallShell = true;
+  wall.userData.proceduralFacadeOpeningCount = record.openings[face].length;
+  record.meshes[face] = wall;
 }
 
 export function addBarrel(group: THREE.Group, x: number, z: number, scale = 1): void {

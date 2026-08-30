@@ -6,7 +6,9 @@ import {
   disposeMilitaryEquipmentSource,
   isMilitaryEquipmentKind,
   isMilitaryEquipmentSource,
+  setMilitaryEquipmentCombatStance,
   setMilitaryEquipmentVisible,
+  type MilitaryEquipmentCombatStance,
   type MilitaryEquipmentKind,
   type MilitaryEquipmentSource,
 } from './militaryEquipment.ts';
@@ -213,6 +215,14 @@ export function setWorkerToolVisible(tool: THREE.Group, visible: boolean): void 
     return;
   }
   tool.visible = visible;
+}
+
+export function setWorkerToolCombatStance(
+  tool: THREE.Group,
+  stance: MilitaryEquipmentCombatStance,
+): void {
+  if (!tool.userData.workerToolMounts) return;
+  setMilitaryEquipmentCombatStance(tool, stance);
 }
 
 export function disposeWorkerToolSources(sources: WorkerToolSources): void {

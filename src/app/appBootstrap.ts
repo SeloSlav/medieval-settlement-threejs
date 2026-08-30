@@ -98,7 +98,10 @@ import { LoadingScreen } from '../ui/LoadingScreen.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
 import { TutorialOverlay } from '../ui/TutorialOverlay.ts';
 import type { VillagerInspector } from '../ui/VillagerInspector.ts';
-import { saveWorldGenerationSettings } from '../world/worldGenerationSettings.ts';
+import {
+  saveWorldGenerationSettings,
+  type WorldGenerationSettings,
+} from '../world/worldGenerationSettings.ts';
 import { getDraftWorldGeneration, setDraftWorldGeneration } from '../world/worldGenerationContext.ts';
 import { mountTooltips } from '../ui/tooltips.ts';
 import {
@@ -119,6 +122,8 @@ const REPORT_FOCUS_ZOOM_PERCENT = 50;
 
 export type AppBootstrapBridge = {
   syncToolbar: () => void;
+  /** Fixed offline worlds, such as the combat sandbox, bypass save probing. */
+  worldSettingsOverride?: WorldGenerationSettings;
   deferGameplayMusic?: boolean;
   onGameAudioEnabledChange?: (enabled: boolean) => void;
   onMusicEnabledChange?: (enabled: boolean) => void;
@@ -215,15 +220,16 @@ export async function bootstrapAppSession(
       fraction: 0,
     });
   }
-  const worldSettings = await resolveWorldGenerationSettings(root, (progress) => {
-    loadingScreen?.setProgress({
-      ...progress,
-      phase: 'worldSetup',
-      fraction: progress.label === 'Checking world…' ? 0.35 : 0.7,
+  const worldSettings = bridge.worldSettingsOverride
+    ?? await resolveWorldGenerationSettings(root, (progress) => {
+      loadingScreen?.setProgress({
+        ...progress,
+        phase: 'worldSetup',
+        fraction: progress.label === 'Checking world…' ? 0.35 : 0.7,
+      });
     });
-  });
   setDraftWorldGeneration(worldSettings);
-  saveWorldGenerationSettings(worldSettings);
+  if (!bridge.worldSettingsOverride) saveWorldGenerationSettings(worldSettings);
 
   loadingScreen?.setProgress({
     label: 'Starting world…',

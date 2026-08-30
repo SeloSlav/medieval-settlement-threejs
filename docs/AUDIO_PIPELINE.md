@@ -53,6 +53,13 @@ npm run audio:generate -- --group combat-weapon-suite-v2 --dry-run
 # Generate only the missing weapon, projectile, impact, and charge cues.
 npm run audio:generate -- --group combat-weapon-suite-v2
 
+# Audit the strictly nonverbal combat-human suite without spending
+# (30 cues, 31.8 s, about 1,272 duration-priced credits).
+npm run audio:generate -- --group combat-nonverbal-voices-v1 --dry-run
+
+# Generate the isolated battle, charge, damage, flee, and rout reactions.
+npm run audio:generate -- --group combat-nonverbal-voices-v1
+
 # Forge the complete catalog. Existing tracked ambience is replaced only
 # because --force is explicit.
 npm run audio:generate -- --all --force
@@ -112,13 +119,18 @@ cost.
   to the instrumental score when a music cue is active.
 - Close workers retain small pooled one-shot effects so large settlements do
   not create an audio element per villager.
-- Automatic combat playback contains no spoken or chanted lines. Each active
-  fighter routes to its rendered weapon family; replicated attack-cooldown
-  resets trigger ranged and melee events from that fighter's position. A
-  deterministic cadence covers missed edges, up to four same-frame attacks
-  can overlap in an 18-voice weapon pool, and combat-target charges use a
-  separate six-voice movement pool. The balanced 72-source ceiling covers up
-  to 36 fighters per side without letting large battles create unbounded audio.
+- Automatic combat playback contains no intelligible words, commands,
+  dialogue, or chants. Each active fighter routes to its rendered weapon
+  family; replicated attack-cooldown resets trigger ranged and melee events
+  from that fighter's position. A separate generated suite layers strictly
+  nonverbal Croatian-frontier and Ottoman-frontier human exertion or panic for
+  battle, charge, health-damage, flee, and rout states. Deterministic cadence
+  covers missed edges, up to four same-frame attacks can overlap in an
+  18-voice weapon pool, combat-target charges use a six-voice movement pool,
+  and human reactions use an eight-voice pool with at most two edge reactions
+  per tick and a 0.28-second scheduled global interval. The balanced 72-source
+  ceiling covers up to 36 fighters per side without letting large battles
+  create unbounded audio.
 - A direct world click on a villager, guard, founder, hauler, or other visible
   person plays one randomized gender-matched selection line imported from Selo
   Empire. Direct ox clicks use three short ElevenLabs-generated ox reactions.

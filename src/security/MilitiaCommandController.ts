@@ -16,6 +16,8 @@ type Options = {
   onLeavingCompanySelected?: (companyId: string) => void;
 };
 
+export type MilitiaCommandHandler = Options['onCommand'];
+
 type CompanyVisual = {
   id: string;
   agents: CombatAgentState[];
@@ -38,9 +40,12 @@ export class MilitiaCommandController {
   private dragStart: { x: number; y: number } | null = null;
   private readonly rightClick: SecondaryClickGesture;
   private readonly options: Options;
+  private commandHandler: MilitiaCommandHandler;
+  private companyGuidesVisible = false;
 
   constructor(options: Options) {
     this.options = options;
+    this.commandHandler = options.onCommand;
     this.overlay.className = 'militia-selection-box';
     Object.assign(this.overlay.style, {
       position: 'fixed', display: 'none', pointerEvents: 'none', zIndex: '80',
@@ -53,6 +58,24 @@ export class MilitiaCommandController {
     options.domElement.addEventListener('mousedown', this.onMouseDown);
     window.addEventListener('mousemove', this.onMouseMove);
     window.addEventListener('mouseup', this.onMouseUp);
+  }
+
+  /** Allows an isolated local sandbox to reuse selection without a reducer. */
+  setCommandHandler(handler: MilitiaCommandHandler): void {
+    this.commandHandler = handler;
+  }
+
+  /** Faint formation footprints make dense playtest companies easy to select. */
+  setCompanyGuidesVisible(visible: boolean): void {
+    if (this.companyGuidesVisible === visible) return;
+    this.companyGuidesVisible = visible;
+    this.syncRings();
+  }
+
+  clearSelection(): void {
+    if (this.selected.size === 0) return;
+    this.selected.clear();
+    this.syncRings();
   }
 
   sync(agents: ReadonlyMap<string, CombatAgentState>, camps: ReadonlyMap<string, BanditCampState>): void {
@@ -174,7 +197,7 @@ export class MilitiaCommandController {
         const company = this.companies.get(companyId);
         return company?.controllable ? company.agents.map((agent) => agent.id) : [];
       });
-    if (agentIds.length > 0) this.options.onCommand(agentIds, point.x, point.z, campId);
+    if (agentIds.length > 0) this.commandHandler(agentIds, point.x, point.z, campId);
   };
 
   private updateOverlay(x: number, y: number): void {
@@ -188,9 +211,14 @@ export class MilitiaCommandController {
   private cancelDrag(): void { this.dragStart = null; this.overlay.style.display = 'none'; }
 
   private syncRings(): void {
-    for (const id of this.selected) {
+    const visibleCompanyIds = this.companyGuidesVisible
+      ? this.companies.keys()
+      : this.selected.values();
+    const visible = new Set<string>();
+    for (const id of visibleCompanyIds) {
       const company = this.companies.get(id);
       if (!company) continue;
+      visible.add(id);
       let ring = this.rings.get(id);
       if (!ring) {
         ring = new THREE.Mesh(
@@ -210,9 +238,12 @@ export class MilitiaCommandController {
       }
       ring.position.set(company.x, this.options.getHeightAt(company.x, company.z) + 0.06, company.z);
       ring.scale.setScalar(company.radius);
-      (ring.material as THREE.MeshBasicMaterial).color.setHex(company.controllable ? 0xe1b538 : 0xd9782d);
+      const selected = this.selected.has(id);
+      const material = ring.material as THREE.MeshBasicMaterial;
+      material.color.setHex(selected ? 0xe1b538 : company.controllable ? 0x86b96e : 0xd9782d);
+      material.opacity = selected ? 0.86 : 0.22;
       ring.visible = true;
     }
-    for (const [id, ring] of this.rings) if (!this.selected.has(id)) ring.visible = false;
+    for (const [id, ring] of this.rings) if (!visible.has(id)) ring.visible = false;
   }
 }

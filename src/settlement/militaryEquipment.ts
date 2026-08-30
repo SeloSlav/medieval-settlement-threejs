@@ -17,6 +17,14 @@ export const MILITARY_EQUIPMENT_KINDS = [
 
 export type MilitaryEquipmentKind = (typeof MILITARY_EQUIPMENT_KINDS)[number];
 
+export type MilitaryEquipmentCombatStance = 'melee' | 'ranged';
+export type MilitaryEquipmentCombatRole =
+  | 'always'
+  | 'melee-held'
+  | 'melee-stowed'
+  | 'ranged-held'
+  | 'ranged-stowed';
+
 const MILITARY_EQUIPMENT_KIND_SET: ReadonlySet<string> = new Set(
   MILITARY_EQUIPMENT_KINDS,
 );
@@ -41,6 +49,7 @@ export type MilitaryEquipmentMountSource = {
   position: readonly [number, number, number];
   rotation: readonly [number, number, number];
   quaternion?: readonly [number, number, number, number];
+  combatRole: MilitaryEquipmentCombatRole;
 };
 
 export type MilitaryEquipmentSource = {
@@ -53,6 +62,7 @@ export type MilitaryEquipmentSource = {
   targetLength: number;
   primaryPosition: readonly [number, number, number];
   primaryQuaternion: readonly [number, number, number, number];
+  primaryCombatRole: MilitaryEquipmentCombatRole;
   secondaryMounts: readonly MilitaryEquipmentMountSource[];
 };
 
@@ -119,7 +129,10 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
         [0.065, 0.02, 0.085],
         [0.08, 0.12, -0.18],
       ),
-    ]),
+      mount(createCrossbow(materials), ['Spine02', 'Spine2', 'Spine01', 'Spine'], 0.74, [0.07, 0.015, 0.105], [0.08, -0.22, 0.82], undefined, 'ranged-stowed'),
+      mount(createFallbackDagger(materials), ['PalmR', 'R_Hand'], 0.42, RIGHT_PALM_POSITION, [0, 0, 0], NATURAL_RIGHT_HAND, 'melee-held'),
+      mount(createFallbackDaggerScabbard(materials), ['Waist', 'Hips', 'Pelvis'], 0.46, [0.11, 0, 0.02], [0, 0, Math.PI - 0.2], undefined, 'melee-stowed'),
+    ], 'ranged-held'),
     sidearm: source('sidearm', createSword(materials, false), NATURAL_RIGHT_HAND),
     'sidearm-shield': source('sidearm-shield', createSword(materials, false), NATURAL_RIGHT_HAND, [
       mount(createShield('small', materials), ['PalmL', 'L_Hand'], 0.34, LEFT_PALM_POSITION, [0, 0, 0], FORWARD_LEFT_HAND),
@@ -136,7 +149,10 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
         [0.065, 0.02, 0.085],
         [0.04, -0.18, -0.18],
       ),
-    ]),
+      mount(createBow(materials), ['Spine02', 'Spine2', 'Spine01', 'Spine'], 1.88, [0.08, 0.02, 0.105], [0.04, -0.2, 0.18], undefined, 'ranged-stowed'),
+      mount(createFallbackDagger(materials), ['PalmR', 'R_Hand'], 0.42, RIGHT_PALM_POSITION, [0, 0, 0], NATURAL_RIGHT_HAND, 'melee-held'),
+      mount(createFallbackDaggerScabbard(materials), ['Waist', 'Hips', 'Pelvis'], 0.46, [0.11, 0, 0.02], [0, 0, Math.PI - 0.2], undefined, 'melee-stowed'),
+    ], 'ranged-held'),
     'uskok-kit': source('uskok-kit', createKorda(materials), NATURAL_RIGHT_HAND, [
       mount(
         createArquebus(materials),
@@ -144,6 +160,17 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
         1.08,
         [-0.065, 0.015, 0.09],
         [0.06, -0.06, 0.5],
+        undefined,
+        'ranged-stowed',
+      ),
+      mount(
+        createArquebus(materials),
+        ['PalmR', 'R_Hand'],
+        1.08,
+        RIGHT_PALM_POSITION,
+        [0, 0, 0],
+        FORWARD_RIGHT_HAND,
+        'ranged-held',
       ),
       mount(
         createUskokScabbard(materials),
@@ -151,8 +178,10 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
         0.86,
         [0.1, 0, 0.015],
         [0, 0, Math.PI - 0.18],
+        undefined,
+        'melee-stowed',
       ),
-    ]),
+    ], 'melee-held'),
   };
 }
 
@@ -243,6 +272,7 @@ function source(
   scene: THREE.Group,
   primaryQuaternion: readonly [number, number, number, number],
   secondaryMounts: readonly MilitaryEquipmentMountSource[] = [],
+  primaryCombatRole: MilitaryEquipmentCombatRole = 'melee-held',
 ): MilitaryEquipmentSource {
   const optimized = optimizeAssembly(scene);
   const bounds = new THREE.Box3().setFromObject(optimized);
@@ -261,6 +291,7 @@ function source(
     targetLength: TARGET_LENGTHS[kind],
     primaryPosition: RIGHT_PALM_POSITION,
     primaryQuaternion,
+    primaryCombatRole,
     secondaryMounts,
   };
 }
@@ -272,6 +303,7 @@ function mount(
   position: readonly [number, number, number] = [0, 0, 0],
   rotation: readonly [number, number, number] = [0, 0, 0],
   quaternion?: readonly [number, number, number, number],
+  combatRole: MilitaryEquipmentCombatRole = 'always',
 ): MilitaryEquipmentMountSource {
   const optimized = optimizeAssembly(scene);
   const bounds = new THREE.Box3().setFromObject(optimized);
@@ -285,6 +317,7 @@ function mount(
     position,
     rotation,
     quaternion,
+    combatRole,
   };
 }
 
@@ -573,6 +606,34 @@ function createKorda(materials: Materials): THREE.Group {
   return group;
 }
 
+/** Compact belt dagger used only when a bow or crossbowman is forced into contact. */
+function createFallbackDagger(materials: Materials): THREE.Group {
+  const group = new THREE.Group();
+  add(
+    group,
+    shapeGeometry([[-0.018, 0], [-0.023, 0.22], [0, 0.32], [0.023, 0.22], [0.018, 0]], 0.014, 0.003),
+    materials.steel,
+    'Ranged fallback dagger · double-edged blade',
+    [0, 0.1, 0],
+  );
+  add(group, new THREE.BoxGeometry(0.12, 0.018, 0.026), materials.bluedSteel, 'Ranged fallback dagger · iron guard', [0, 0.08, 0]);
+  add(group, new THREE.CylinderGeometry(0.02, 0.024, 0.12, 9), materials.leather, 'Ranged fallback dagger · leather grip', [0, 0.01, 0]);
+  add(group, new THREE.SphereGeometry(0.028, 9, 6), materials.brass, 'Ranged fallback dagger · small pommel', [0, -0.065, 0]);
+  group.name = 'Procedural ranged fallback dagger';
+  group.userData.equipmentIdentity = 'ranged-fallback-dagger';
+  return group;
+}
+
+function createFallbackDaggerScabbard(materials: Materials): THREE.Group {
+  const group = new THREE.Group();
+  add(group, new RoundedBoxGeometry(0.052, 0.35, 0.036, 3, 0.009), materials.leather, 'Ranged fallback dagger · belt scabbard', [0, 0.12, 0]);
+  add(group, new THREE.BoxGeometry(0.12, 0.018, 0.026), materials.bluedSteel, 'Ranged fallback dagger · visible guard', [0, 0.31, 0]);
+  add(group, new THREE.CylinderGeometry(0.02, 0.024, 0.11, 9), materials.leather, 'Ranged fallback dagger · visible grip', [0, 0.365, 0]);
+  group.name = 'Procedural ranged fallback dagger scabbard';
+  group.userData.equipmentIdentity = 'ranged-fallback-dagger-scabbard';
+  return group;
+}
+
 function createArquebus(materials: Materials): THREE.Group {
   const group = new THREE.Group();
   add(group, new RoundedBoxGeometry(0.075, 0.96, 0.072, 3, 0.014), materials.walnut, 'Arquebus · carved walnut stock', [0, 0.05, 0]);
@@ -702,9 +763,15 @@ function boneScale(bone: THREE.Bone): number {
   return Math.max(0.001, Math.abs(scale.x), Math.abs(scale.y), Math.abs(scale.z));
 }
 
-function configureMount(mount: THREE.Group, kind: MilitaryEquipmentKind, bone: THREE.Bone): void {
+function configureMount(
+  mount: THREE.Group,
+  kind: MilitaryEquipmentKind,
+  bone: THREE.Bone,
+  combatRole: MilitaryEquipmentCombatRole,
+): void {
   mount.userData.workerTool = kind;
   mount.userData.workerToolBone = bone.name;
+  mount.userData.workerToolCombatRole = combatRole;
   mount.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh && !(object instanceof THREE.Line)) return;
@@ -725,7 +792,7 @@ export function attachMilitaryEquipment(
   primary.scale.setScalar(source.targetLength / (source.sourceLength * boneScale(rightHand)));
   primary.position.set(...source.primaryPosition);
   primary.quaternion.set(...source.primaryQuaternion);
-  configureMount(primary, source.kind, rightHand);
+  configureMount(primary, source.kind, rightHand, source.primaryCombatRole);
   rightHand.add(primary);
 
   const mounts = [primary];
@@ -739,18 +806,51 @@ export function attachMilitaryEquipment(
     mounted.position.set(...secondary.position);
     if (secondary.quaternion) mounted.quaternion.set(...secondary.quaternion);
     else mounted.rotation.set(...secondary.rotation);
-    configureMount(mounted, source.kind, bone);
+    configureMount(mounted, source.kind, bone, secondary.combatRole);
     bone.add(mounted);
     mounts.push(mounted);
   }
   primary.userData.workerToolMounts = mounts;
   primary.userData.workerToolMountCount = mounts.length;
+  primary.userData.workerToolVisible = true;
+  primary.userData.workerToolCombatStance = defaultCombatStance(source.kind);
+  applyMilitaryEquipmentVisibility(primary);
   return primary;
 }
 
 export function setMilitaryEquipmentVisible(tool: THREE.Group, visible: boolean): void {
+  tool.userData.workerToolVisible = visible;
+  applyMilitaryEquipmentVisibility(tool);
+}
+
+export function setMilitaryEquipmentCombatStance(
+  tool: THREE.Group,
+  stance: MilitaryEquipmentCombatStance,
+): void {
+  tool.userData.workerToolCombatStance = stance;
+  applyMilitaryEquipmentVisibility(tool);
+}
+
+function defaultCombatStance(kind: MilitaryEquipmentKind): MilitaryEquipmentCombatStance {
+  return kind === 'bow' || kind === 'crossbow' ? 'ranged' : 'melee';
+}
+
+function applyMilitaryEquipmentVisibility(tool: THREE.Group): void {
   const mounts = tool.userData.workerToolMounts as THREE.Group[] | undefined;
-  for (const mount of mounts ?? [tool]) mount.visible = visible;
+  const visible = tool.userData.workerToolVisible !== false;
+  const stance = tool.userData.workerToolCombatStance as
+    | MilitaryEquipmentCombatStance
+    | undefined;
+  for (const mount of mounts ?? [tool]) {
+    const role = (mount.userData.workerToolCombatRole ?? 'always') as
+      MilitaryEquipmentCombatRole;
+    const roleVisible = role === 'always'
+      || (role === 'melee-held' && stance === 'melee')
+      || (role === 'melee-stowed' && stance === 'ranged')
+      || (role === 'ranged-held' && stance === 'ranged')
+      || (role === 'ranged-stowed' && stance === 'melee');
+    mount.visible = visible && roleVisible;
+  }
 }
 
 export function militaryEquipmentMountDiagnostics(

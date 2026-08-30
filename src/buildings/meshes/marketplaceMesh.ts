@@ -264,18 +264,9 @@ function addFruitCounter(display: THREE.Group): void {
 }
 
 function addVegetableCounter(display: THREE.Group): void {
-  const foliage = sharedBuildingDetailMaterial('foliage');
-  for (let index = 0; index < 7; index += 1) {
-    addMesh(
-      display,
-      index % 2 === 0
-        ? new THREE.SphereGeometry(0.11, 7, 5)
-        : new THREE.ConeGeometry(0.09, 0.28, 7),
-      foliage,
-      new THREE.Vector3(-0.56 + index * 0.18, 0.12 + (index % 2) * 0.05, 0),
-      index % 2 === 0 ? undefined : new THREE.Euler(0, 0, Math.PI * 0.5),
-    );
-  }
+  const crate = new THREE.Group();
+  addCrate(crate, 0, 0, 0.5);
+  display.add(crate);
 }
 
 function addEggCounter(display: THREE.Group): void {

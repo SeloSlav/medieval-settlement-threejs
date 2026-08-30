@@ -522,6 +522,306 @@
       "promptInfluence": 0.91
     },
     {
+      "id": "combat-voice-defender-battle-1",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/defender_battle_1.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one adult Croatian frontier defender in active melee: a compact chesty effort grunt with a rough open-throat vowel and hard breath release. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, weapons, ambience, or music",
+      "durationSeconds": 0.9,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-defender-battle-2",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/defender_battle_2.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one different adult Croatian frontier defender straining in combat: one low diaphragm grunt rising into a brief raw vowel burst, then breath. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, weapons, ambience, or music",
+      "durationSeconds": 0.9,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-defender-battle-3",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/defender_battle_3.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one adult Croatian highland defender during a forceful strike: short rasping exertion cry with an unformed open vowel and clipped exhale, human and restrained. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, weapons, ambience, or music",
+      "durationSeconds": 0.9,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-defender-charge-1",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/defender_charge_1.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one adult Croatian frontier defender beginning a charge: a sustained urgent open-throat vowel yell with no articulated consonants, ending in running breath. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, weapons, footsteps, ambience, or music",
+      "durationSeconds": 1.3,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-defender-charge-2",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/defender_charge_2.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one different adult Croatian highland defender surging forward: breath intake then a forceful rising vowel-only battle cry, rough but believable. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, weapons, footsteps, ambience, or music",
+      "durationSeconds": 1.3,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-defender-charge-3",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/defender_charge_3.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one adult Croatian frontier soldier charging: one broad raw vowel roar, firm chest resonance, slight breath crack, no theatrical monster tone. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, weapons, footsteps, ambience, or music",
+      "durationSeconds": 1.3,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-defender-damage-1",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/defender_damage_1.mp3",
+      "prompt": "Strictly nonverbal isolated close vocal reaction from one adult Croatian frontier defender taking a painful body impact: sudden low grunt, brief involuntary open vowel, knocked-out breath, not gory. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, weapons, impact Foley, ambience, or music",
+      "durationSeconds": 0.8,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-defender-damage-2",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/defender_damage_2.mp3",
+      "prompt": "Strictly nonverbal isolated close vocal reaction from one different adult Croatian highland defender being struck: sharp breath catch into a tight pained vowel and short recovery exhale, realistic and restrained. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, weapons, impact Foley, ambience, or music",
+      "durationSeconds": 0.8,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-defender-damage-3",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/defender_damage_3.mp3",
+      "prompt": "Strictly nonverbal isolated close vocal reaction from one adult Croatian frontier soldier absorbing a hard blow: hoarse involuntary grunt and one clipped unformed vowel, followed by breath. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, weapons, impact Foley, ambience, or music",
+      "durationSeconds": 0.8,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-defender-flee-1",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/defender_flee_1.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one frightened adult Croatian frontier defender running away: breathless wavering open vowel, panic in the throat, then two urgent gasps. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, footsteps, weapons, ambience, or music",
+      "durationSeconds": 1.1,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-defender-flee-2",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/defender_flee_2.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one different adult Croatian highland defender fleeing in fear: short faltering vowel cry breaking into ragged breath, vulnerable rather than heroic. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, footsteps, weapons, ambience, or music",
+      "durationSeconds": 1.1,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-defender-flee-3",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/defender_flee_3.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one adult Croatian frontier soldier retreating under pressure: strained rising fear vowel followed by a breathy tremor and quick gasp. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, footsteps, weapons, ambience, or music",
+      "durationSeconds": 1.1,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-defender-rout-1",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/defender_rout_1.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one adult Croatian frontier defender realizing the line has broken: abrupt shocked inhale into a raw descending panic yell, then breath. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, footsteps, weapons, ambience, or music",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-defender-rout-2",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/defender_rout_2.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one different adult Croatian highland defender breaking formation: one cracked open-vowel alarm cry and ragged trailing exhale, urgent and human. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, footsteps, weapons, ambience, or music",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-defender-rout-3",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/defender_rout_3.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one adult Croatian frontier soldier entering a rout: forceful startled vowel shout turns into unsteady panic breath, no comic delivery. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, footsteps, weapons, ambience, or music",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-raider-battle-1",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/raider_battle_1.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one adult Ottoman frontier raider of Anatolian-Balkan background in melee: resonant low effort grunt and a brief darker open-throat vowel, then breath. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, weapons, ambience, or music",
+      "durationSeconds": 0.9,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-raider-battle-2",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/raider_battle_2.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one different adult Ottoman frontier raider straining in combat: dry throat effort sound, compact raw vowel burst, and hard nasal exhale. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, weapons, ambience, or music",
+      "durationSeconds": 0.9,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-raider-battle-3",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/raider_battle_3.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one adult Anatolian-Balkan frontier raider during a forceful attack: chest-driven rasp and one clipped unformed vowel, realistic exertion. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, weapons, ambience, or music",
+      "durationSeconds": 0.9,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-raider-charge-1",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/raider_charge_1.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one adult Ottoman frontier raider beginning a charge: sustained powerful low open-vowel yell, strong breath support, no articulated consonants. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, weapons, footsteps, ambience, or music",
+      "durationSeconds": 1.3,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-raider-charge-2",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/raider_charge_2.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one different adult Anatolian-Balkan frontier raider surging forward: urgent breath intake and a rising rough vowel-only roar that breaks naturally. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, weapons, footsteps, ambience, or music",
+      "durationSeconds": 1.3,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-raider-charge-3",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/raider_charge_3.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one adult Ottoman frontier soldier charging: broad chest-resonant open vowel cry ending in a harsh exhale, fierce but human. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, weapons, footsteps, ambience, or music",
+      "durationSeconds": 1.3,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-raider-damage-1",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/raider_damage_1.mp3",
+      "prompt": "Strictly nonverbal isolated close vocal reaction from one adult Ottoman frontier raider taking a hard body impact: abrupt deep grunt, involuntary low open vowel, then lost breath, not gory. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, weapons, impact Foley, ambience, or music",
+      "durationSeconds": 0.8,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-raider-damage-2",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/raider_damage_2.mp3",
+      "prompt": "Strictly nonverbal isolated close vocal reaction from one different adult Anatolian-Balkan frontier raider being struck: tight throat catch, short pained vowel and rough recovery breath, restrained realism. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, weapons, impact Foley, ambience, or music",
+      "durationSeconds": 0.8,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-raider-damage-3",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/raider_damage_3.mp3",
+      "prompt": "Strictly nonverbal isolated close vocal reaction from one adult Ottoman frontier soldier absorbing a blow: sharp involuntary rasp and one unformed chest vowel followed by breath. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, weapons, impact Foley, ambience, or music",
+      "durationSeconds": 0.8,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-raider-flee-1",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/raider_flee_1.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one frightened adult Ottoman frontier raider running away: breathy trembling low vowel rises with panic and collapses into urgent gasps. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, footsteps, weapons, ambience, or music",
+      "durationSeconds": 1.1,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-raider-flee-2",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/raider_flee_2.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one different adult Anatolian-Balkan frontier raider fleeing: faltering throat-open fear cry, voice crack and ragged exhale, vulnerable and realistic. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, footsteps, weapons, ambience, or music",
+      "durationSeconds": 1.1,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-raider-flee-3",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/raider_flee_3.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one adult Ottoman frontier soldier retreating under pressure: wavering unformed vowel, constricted panic breath, then a quick gasp. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, footsteps, weapons, ambience, or music",
+      "durationSeconds": 1.1,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-raider-rout-1",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/raider_rout_1.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one adult Ottoman frontier raider realizing his formation has broken: shocked inhale and a strong descending open-vowel panic yell, then breath. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, footsteps, weapons, ambience, or music",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-raider-rout-2",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/raider_rout_2.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one different adult Anatolian-Balkan frontier raider breaking formation: cracked low vowel alarm cry followed by unsteady urgent breathing. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, footsteps, weapons, ambience, or music",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "combat-voice-raider-rout-3",
+      "group": "combat-nonverbal-voices-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/combat/voices/raider_rout_3.mp3",
+      "prompt": "Strictly nonverbal isolated close vocalization from one adult Ottoman frontier soldier entering a rout: startled raw vowel shout breaks downward into ragged panic breath, fierce composure suddenly lost. No words, recognizable syllables, names, commands, speech, intelligible language, whispering, chant, singing, ululation, crowd, footsteps, weapons, ambience, or music",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
       "id": "combat-voice-1",
       "group": "combat-foley",
       "kind": "sound-effect",

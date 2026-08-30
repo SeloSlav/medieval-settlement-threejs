@@ -67,8 +67,6 @@ export const LOCAL_RECEIPT_VISUAL_SEGMENTS = 3;
 export const LOCAL_RECEIPT_VISUAL_CAPACITY = STOREHOUSE_HAUL_PER_WORKER;
 
 const earth = sharedBuildingDetailMaterial('earth');
-const crop = sharedBuildingDetailMaterial('crop');
-const leaf = sharedBuildingDetailMaterial('foliage');
 const canvas = sharedBuildingDetailMaterial('canvas');
 const copper = sharedBuildingDetailMaterial('brass');
 const hiveBlue = sharedBuildingDetailMaterial('paintBlue');
@@ -77,11 +75,6 @@ const hiveRed = sharedBuildingDetailMaterial('paintRed');
 function addChimney(group: THREE.Group, x: number, z: number, height = 4.8): void {
   addMesh(group, new THREE.BoxGeometry(0.72, height, 0.72), stoneMaterial('mid'), new THREE.Vector3(x, height * 0.5, z));
   addMesh(group, new THREE.BoxGeometry(0.92, 0.18, 0.92), stoneMaterial('light'), new THREE.Vector3(x, height + 0.02, z));
-}
-
-function addSheaf(group: THREE.Group, x: number, z: number, scale = 1): void {
-  addMesh(group, new THREE.CylinderGeometry(0.38 * scale, 0.5 * scale, 1.35 * scale, 8), crop, new THREE.Vector3(x, 0.68 * scale, z));
-  addMesh(group, new THREE.TorusGeometry(0.34 * scale, 0.045 * scale, 5, 10), timberMaterial('light'), new THREE.Vector3(x, 0.72 * scale, z), new THREE.Euler(Math.PI * 0.5, 0, 0));
 }
 
 function addSack(group: THREE.Group, x: number, z: number, scale = 1): void {
@@ -121,25 +114,6 @@ function addPotteryVessel(group: THREE.Group, scale = 1): void {
     new THREE.CylinderGeometry(0.1 * scale, 0.15 * scale, 0.23 * scale, 9, 1, true),
     firedClay,
     new THREE.Vector3(0, 0.49 * scale, 0),
-  );
-}
-
-function addFlaxBundle(group: THREE.Group, x: number, z: number, scale = 1): void {
-  for (let stem = -3; stem <= 3; stem += 1) {
-    addMesh(
-      group,
-      new THREE.CylinderGeometry(0.018 * scale, 0.025 * scale, 1.3 * scale, 5),
-      crop,
-      new THREE.Vector3(x + stem * 0.07 * scale, 0.68 * scale, z),
-      new THREE.Euler(0, 0, stem % 2 === 0 ? 0.04 : -0.04),
-    );
-  }
-  addMesh(
-    group,
-    new THREE.TorusGeometry(0.28 * scale, 0.035 * scale, 5, 10),
-    timberMaterial('light'),
-    new THREE.Vector3(x, 0.66 * scale, z),
-    new THREE.Euler(Math.PI * 0.5, 0, 0),
   );
 }
 
@@ -204,6 +178,21 @@ function addSegmentedStockProps(
     stockpile.add(segment);
   }
   group.add(stockpile);
+}
+
+function createBareManureStockpile(
+  name: string,
+  x: number,
+  z: number,
+): THREE.Group {
+  const stockpile = createManureStockpile(name, x, z);
+  stockpile.traverse((object) => {
+    if (!(object instanceof THREE.Group) || object.name !== 'ManureStockSegment') return;
+    for (const child of [...object.children]) {
+      if (child instanceof THREE.Mesh && child.material !== earth) object.remove(child);
+    }
+  });
+  return stockpile;
 }
 
 function addCartWheel(group: THREE.Group, x: number, y: number, z: number, radius: number): void {
@@ -292,7 +281,7 @@ export function createThreshingBarnMesh(): THREE.Group {
     [-4.9, -4.15, 4.95, 5.55]
       .slice(0, THRESHING_GRAIN_VISUAL_SEGMENTS)
       .map((x) => [x, 0, 4.35, 1.05] as const),
-    (segment, scale) => addSheaf(segment, 0, 0, scale),
+    (segment, scale) => addSack(segment, 0, 0, scale),
   );
   addSegmentedStockProps(
     group,
@@ -304,9 +293,9 @@ export function createThreshingBarnMesh(): THREE.Group {
       [4.78, 0, -4.35, 0.95],
       [5.45, 0, -4.4, 0.82],
     ] as const).slice(0, FLAX_STOCKPILE_VISUAL_SEGMENTS),
-    (segment, scale) => addFlaxBundle(segment, 0, 0, scale),
+    (segment, scale) => addSack(segment, 0, 0, scale),
   );
-  group.add(createManureStockpile('ThreshingManureStockpile', 5.35, 2.65));
+  group.add(createBareManureStockpile('ThreshingManureStockpile', 5.35, 2.65));
   group.add(createCivilianToolStockpile(new THREE.Vector3(-5.45, 0, 2.5), 0.22));
   // A low handcart and flails make the yard read as threshing rather than storage.
   addMesh(group, new THREE.BoxGeometry(2.5, 0.42, 1.45), timberMaterial('weathered'), new THREE.Vector3(3.1, 0.82, 4.65));
@@ -551,8 +540,9 @@ export function createMonasteryMesh(
 
   for (const x of [courtPlan.centerX - 3.2, courtPlan.centerX, courtPlan.centerX + 3.2]) {
     const z = courtPlan.centerZ;
-    addMesh(group, new THREE.BoxGeometry(2.0, 0.18, 1.15), earth, new THREE.Vector3(x, 0.09, z));
-    for (let i = -2; i <= 2; i++) addMesh(group, new THREE.SphereGeometry(0.13, 6, 4), leaf, new THREE.Vector3(x + i * 0.38, 0.27, z));
+    const bed = addMesh(group, new THREE.BoxGeometry(2.0, 0.18, 1.15), earth, new THREE.Vector3(x, 0.09, z));
+    bed.name = 'Monastery cloister SeedThree planting bed';
+    bed.userData.seedThreePlantingSurface = true;
   }
   for (const x of [courtPlan.centerX - 3.0, courtPlan.centerX + 3.0]) {
     addMesh(group, new THREE.BoxGeometry(4.6, 0.16, 1.0), timberMaterial('weathered'), new THREE.Vector3(x, 0.82, courtPlan.centerZ)).name = 'Monastery feast trestle table';
