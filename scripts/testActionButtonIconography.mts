@@ -325,6 +325,8 @@ assert.match(defaultWorkAreaPanel, /data-tree-work-area-action/);
 assert.match(defaultWorkAreaPanel, /data-action-icon="tree-work-area"/);
 assert.match(defaultWorkAreaPanel, /aria-pressed="false"/);
 assert.match(defaultWorkAreaPanel, /Hold Ctrl and use the mouse wheel/);
+assert.match(defaultWorkAreaPanel, /data-tooltip="[^"]+"/);
+assert.doesNotMatch(defaultWorkAreaPanel, /inspector-action-panel__hint/);
 assert.match(forestryWorkAreaDetailRow(forestryBuilding), /Default extent · 210 m/);
 
 const legacyLodgeWithoutPersistedRadius = {

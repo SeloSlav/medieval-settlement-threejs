@@ -73,7 +73,6 @@ export function renderForestryWorkAreaPanel(
         <span class="inspector-action-icon" data-action-icon="tree-work-area" aria-hidden="true"></span>
         <span>${label}</span>
       </button>
-      <p class="inspector-action-panel__hint">${tooltip}</p>
     </section>
   `;
 }

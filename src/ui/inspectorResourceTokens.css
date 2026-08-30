@@ -107,7 +107,9 @@
   width: 100%;
 }
 
-.resource-inspector-details [data-inspector-details] > li[data-inspector-resource-strip][data-construction-materials] {
+.resource-inspector-panel[data-inspector-target='building']
+  .resource-inspector-details [data-inspector-details]
+  > li[data-inspector-resource-strip][data-construction-materials] {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 6px;
@@ -116,6 +118,8 @@
 }
 
 .resource-inspector-details [data-inspector-details] > li[data-inspector-resource-strip][data-construction-materials] > span:first-child {
+  grid-column: 1 / -1;
+  grid-row: 1;
   position: static;
   width: auto;
   height: auto;
@@ -134,6 +138,8 @@
 
 .resource-inspector-details .construction-materials-strip {
   display: grid;
+  grid-column: 1 / -1;
+  grid-row: 2;
   grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
   gap: 6px;
 }
