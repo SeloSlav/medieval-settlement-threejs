@@ -3123,8 +3123,7 @@ const SHIELD_RECIPE_INPUTS: &[(CommodityKind, f64)] = &[
     (CommodityKind::Ironwork, 1.0),
 ];
 const PADDED_ARMOR_RECIPE_INPUTS: &[(CommodityKind, f64)] = &[
-    (CommodityKind::Cloth, 1.0),
-    (CommodityKind::Linen, 1.0),
+    (CommodityKind::Linen, 2.0),
     (CommodityKind::Leather, 1.0),
 ];
 const MAIL_ARMOR_RECIPE_INPUTS: &[(CommodityKind, f64)] = &[
@@ -3185,7 +3184,6 @@ fn request_military_workshop_inputs(
             CommodityKind::Ironwork => &["smithy", "village_storehouse", "trading_post"],
             CommodityKind::Leather => &["tannery", "village_storehouse", "trading_post"],
             CommodityKind::Linen => &["spinning_retting_house", "village_storehouse", "trading_post"],
-            CommodityKind::Cloth => &["weaver", "village_storehouse", "trading_post"],
             _ => continue,
         };
         request_connected_commodity(
@@ -3204,7 +3202,7 @@ pub fn step_weaponsmith_armorer(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
-    building: Building,
+    mut building: Building,
 ) {
     const RECIPES: &[WorkshopRecipe] = &[
         (POLEARM_RECIPE_INPUTS, ONE_POLEARM),
@@ -3213,6 +3211,24 @@ pub fn step_weaponsmith_armorer(
         (PADDED_ARMOR_RECIPE_INPUTS, ONE_PADDED_ARMOR),
         (MAIL_ARMOR_RECIPE_INPUTS, ONE_MAIL_ARMOR),
     ];
+    // Clothing was formerly an input to padded armor. Evacuate any stock left
+    // in an existing save to civilian storage before working the new recipe.
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut building,
+        CommodityKind::Cloth,
+        &["village_storehouse"],
+    );
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut building,
+        CommodityKind::Cloth,
+        &["trading_post"],
+    );
     let (inputs, outputs) = least_stocked_recipe(&building, RECIPES);
     request_military_workshop_inputs(ctx, tick, clock, &building, inputs);
     let workshop = step_processor(ctx, tick, clock, building, inputs, outputs);
@@ -4776,7 +4792,6 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
                 | CommodityKind::Ironwork
                 | CommodityKind::Leather
                 | CommodityKind::Linen
-                | CommodityKind::Cloth
         ),
         "bowyer_fletcher" => matches!(
             commodity,

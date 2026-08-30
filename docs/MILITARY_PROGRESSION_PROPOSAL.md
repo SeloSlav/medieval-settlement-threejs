@@ -57,8 +57,8 @@ equipment repair remain intentionally outside this pass.
 
 - Source: completed Guardhouse.
 - Roster: eight resident men, formed immediately at the Guardhouse.
-- Initial cost: 8 polearms, 8 timber, 8 ironwork, 8 leather, 8 cloth,
-  8 shoes, 4 ale, 16 preserved food, and 8 Treasury gold.
+- Initial cost: 8 polearms, 8 shields, 8 padded armor, 4 ale,
+  16 preserved food, and 8 Treasury gold.
 - Daily pay: one gold per four survivors. Three field-provision days are issued.
 - Role: the replacement for the old free abstract Guardhouse guard. It is the
   ordinary standing settlement formation and has a useful shield wall.
@@ -67,7 +67,7 @@ equipment repair remain intentionally outside this pass.
 
 - Source: completed Guardhouse.
 - Roster: eight resident men, formed immediately.
-- Initial cost: 8 timber, 24 ironwork, 8 leather, 8 linen, 8 shoes, 8 ale,
+- Initial cost: 8 sidearms, 8 shields, 8 mail armor, 8 ale,
   24 preserved food, and 32 Treasury gold.
 - Daily pay: one gold per two survivors.
 - Role: armored sword-and-large-shield professionals with 96 base health, high
@@ -79,10 +79,10 @@ equipment repair remain intentionally outside this pass.
 
 - Source: completed Guardhouse.
 - Roster: six resident men, formed immediately in loose order.
-- Initial cost: 12 timber, 18 ironwork, 6 leather, 6 linen, 6 shoes,
+- Initial cost: 6 crossbows, 6 padded armor, 6 ammunition bundles,
   3 ale, 18 preserved food, and 12 Treasury gold.
 - Ammunition: 18 bolts per man (108 per full company). Resupply spends physical
-  ironwork for bolts and restores three provision days. Without bolts they deal
+  ammunition bundles and restores three provision days. Without bolts they deal
   only weak melee damage and try to maintain distance while ammunition remains.
 - Daily pay: one gold per two survivors.
 - Role: strong prepared ranged damage, low health, no shield-wall formation,

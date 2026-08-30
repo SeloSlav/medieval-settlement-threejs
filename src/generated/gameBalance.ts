@@ -1825,7 +1825,7 @@ export const BUILDING_STORAGE_CAPS = {
   mine: { timber: 12, firewood: 0, stone: 0, total: 150, ironwork: 3, iron: 75, clay: 75, salt: 50 },
   charcoal_burner: { timber: 0, firewood: 30, stone: 0, total: 50, charcoal: 40 },
   smithy: { timber: 0, firewood: 0, stone: 0, total: 75, water: 9, ironwork: 50, iron: 30, charcoal: 20 },
-  weaponsmith_armorer: { timber: 72, firewood: 0, stone: 0, total: 300, linen: 72, cloth: 72, ironwork: 120, polearms: 80, sidearms: 80, shields: 80, paddedArmor: 80, mailArmor: 80, leather: 72 },
+  weaponsmith_armorer: { timber: 72, firewood: 0, stone: 0, total: 300, linen: 72, ironwork: 120, polearms: 80, sidearms: 80, shields: 80, paddedArmor: 80, mailArmor: 80, leather: 72 },
   bowyer_fletcher: { timber: 120, firewood: 0, stone: 0, total: 260, linen: 72, ironwork: 72, bows: 80, crossbows: 80, ammunition: 160, leather: 72 },
   potter_kiln: { timber: 0, firewood: 18, stone: 0, total: 100, water: 9, clay: 36, pottery: 60, roofTiles: 60 },
   well: { timber: 0, firewood: 0, stone: 0, total: 100, water: 100 },

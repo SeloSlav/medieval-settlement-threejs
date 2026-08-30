@@ -1718,7 +1718,7 @@ const WEAPONSMITH_ARMORER: BuildingDef = BuildingDef {
     storage_wool: 0.0,
     storage_yarn: 0.0,
     storage_linen: 72.0,
-    storage_cloth: 72.0,
+    storage_cloth: 0.0,
     storage_pelts: 0.0,
     storage_hides: 0.0,
     storage_leather: 72.0,

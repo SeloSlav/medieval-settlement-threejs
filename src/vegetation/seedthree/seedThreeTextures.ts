@@ -1,7 +1,11 @@
 // Keep this list aligned with the Gorski tree/shrub presets plus the
 // apple/cherry backyard models. A directory-wide eager glob made every unused
 // SeedThree biome texture part of the production payload.
-const barkModules = (typeof import.meta.glob === 'function' ? import.meta.glob(
+// Vite expands every import.meta.glob call at compile time; import.meta.glob is
+// not a function that survives in the browser. Guard the expanded registries by
+// runtime instead, so browser builds retain their URLs while direct Node test
+// imports can still use the empty fallback without evaluating the glob branch.
+const barkModules = (typeof window !== 'undefined' ? import.meta.glob(
   '../../../vendor/seedthree/assets/bark/{american_beech,white_oak,red_maple,sweetgum,douglas_fir,loblolly,pine,apple_bark,cherry_bark,pear_bark,aronia_branch,rosehip_cane,bilberry_branch,common_juniper_branch,raspberry_cane,hornbeam_hedge_branch}_{albedo,normal,roughness}.png',
   {
     eager: true,
@@ -10,7 +14,7 @@ const barkModules = (typeof import.meta.glob === 'function' ? import.meta.glob(
   },
 ) : {}) as Record<string, string>;
 
-const leafModules = (typeof import.meta.glob === 'function' ? import.meta.glob(
+const leafModules = (typeof window !== 'undefined' ? import.meta.glob(
   [
     '../../../vendor/seedthree/assets/leaves/{american_beech_single,white_oak_single,red_maple_single,sweetgum_single,douglas_fir_needle,loblolly_needle,pine_needle,apple_single,cherry_single,pear_single}_{albedo,normal,roughness,translucency}.png',
     '../../../vendor/seedthree/assets/leaves/{bilberry,fern,juniper_scrub,raspberry_spray,hornbeam_hedge_spray,aronia_spray,rosehip_spray}_{albedo,normal,roughness,translucency}.png',
@@ -23,7 +27,7 @@ const leafModules = (typeof import.meta.glob === 'function' ? import.meta.glob(
   },
 ) : {}) as Record<string, string>;
 
-const localNettleModules = (typeof import.meta.glob === 'function' ? import.meta.glob(
+const localNettleModules = (typeof window !== 'undefined' ? import.meta.glob(
   '../../assets/vegetation/stinging-nettle/stinging_nettle_{single,stem}_{albedo,normal,roughness,translucency}.png',
   {
     eager: true,
@@ -32,7 +36,7 @@ const localNettleModules = (typeof import.meta.glob === 'function' ? import.meta
   },
 ) : {}) as Record<string, string>;
 
-const localDogwoodModules = (typeof import.meta.glob === 'function' ? import.meta.glob(
+const localDogwoodModules = (typeof window !== 'undefined' ? import.meta.glob(
   [
     '../../assets/vegetation/common-dogwood/common_dogwood_branch_{albedo,normal,roughness}.png',
     '../../assets/vegetation/common-dogwood/common_dogwood_single_{albedo,normal,roughness,translucency}.png',
@@ -44,7 +48,7 @@ const localDogwoodModules = (typeof import.meta.glob === 'function' ? import.met
   },
 ) : {}) as Record<string, string>;
 
-const fruitModules = (typeof import.meta.glob === 'function' ? import.meta.glob(
+const fruitModules = (typeof window !== 'undefined' ? import.meta.glob(
   '../../../vendor/seedthree/assets/fruits/{apple,cherry_pair,pear,aronia_cluster,rosehip_cluster,raspberry_cluster}.glb',
   {
     eager: true,

@@ -90,7 +90,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   mine: ['Mineworks', 'Extracts iron, salt, and clay from rich underground deposits.', flow(['timber'], ['iron', 'salt', 'clay'])],
   charcoal_burner: ["Charcoal burner's yard", 'Slow-burns firewood into charcoal for the smithy.', flow(['firewood'], ['charcoal'])],
   smithy: ['Smithy', 'Forges ironwork, tools, fittings, and weapons from iron and charcoal.', flow(['iron', 'charcoal', 'water'], ['ironwork'])],
-  weaponsmith_armorer: ['Weaponsmith & Armorer', 'Turns finished settlement materials into sidearms, shields, polearms, padded armor, and mail armor.', flow(['timber', 'ironwork', 'leather', 'linen', 'cloth'], ['polearms', 'sidearms', 'shields', 'paddedArmor', 'mailArmor'])],
+  weaponsmith_armorer: ['Weaponsmith & Armorer', 'Turns finished settlement materials into sidearms, shields, polearms, padded armor, and mail armor.', flow(['timber', 'ironwork', 'leather', 'linen'], ['polearms', 'sidearms', 'shields', 'paddedArmor', 'mailArmor'])],
   bowyer_fletcher: ['Bowyer & Fletcher', 'Crafts bows, crossbows, and bundled ammunition for ranged companies.', flow(['timber', 'ironwork', 'linen', 'leather'], ['bows', 'crossbows', 'ammunition'])],
   potter_kiln: ["Potter's kiln", 'Fires clay into household pottery or sturdy roof tiles.', flow(['clay', 'water', 'firewood'], ['pottery', 'roofTiles'])],
   reforester: ['Reforester', 'Restores felled woodland with young native trees.'],

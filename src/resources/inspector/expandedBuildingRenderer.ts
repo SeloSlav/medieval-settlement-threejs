@@ -246,7 +246,7 @@ const PROCESS: Record<string, string> = {
   apiary: 'March-August forage accumulates a whole-unit hive crop; September-November labor extracts it as physical honey for food, luxury comfort, or Mead-selected Brewhouses, with nearby orchard and vineyard pollination',
   monastery: 'A self-governing 68 × 53 m walled estate raises mixed orchard and garden crops alongside cattle, sheep, eggs, milk, meat, honey, and cheese; orchard fruit becomes house cider, apiary honey becomes mead, and player-drawn vineyards produce town-market wine',
   carpenter: 'Timber + smith-forged ironwork → polearms and cartwright support',
-  weaponsmith_armorer: 'Finished timber, ironwork, leather, linen, and cloth → sidearms, shields, polearms, padded armor, or mail armor; the least-stocked military output is made first',
+  weaponsmith_armorer: 'Finished timber, ironwork, leather, and linen → sidearms, shields, polearms, padded armor, or mail armor; the least-stocked military output is made first',
   bowyer_fletcher: 'Finished timber, ironwork, leather, and linen → bows, crossbows, or four-bundle ammunition batches; the least-stocked ranged output is made first',
   spinning_retting_house: 'Annual sheep fleece → yarn, or harvested flax + hauled water → linen; prepared fibre moves physically to a Weaver, Storehouse, or Trading Post',
   weaver: 'Yarn or linen + loom labor → finished clothing → tier-2+ Marketplace stalls, then Trading Post export',

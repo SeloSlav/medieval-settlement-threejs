@@ -13,7 +13,10 @@ import {
   type SeedThreeGroundCoverTextures,
 } from './seedThreeGroundCover.ts';
 
-const cropTextureModules = (typeof import.meta.glob === 'function' ? import.meta.glob(
+// Vite replaces import.meta.glob at compile time, so the browser cannot test it
+// as a runtime function. Use the actual browser boundary to preserve the
+// expanded URL registry while keeping direct Node test imports side-effect free.
+const cropTextureModules = (typeof window !== 'undefined' ? import.meta.glob(
   '../../../vendor/seedthree/assets/crops/*.png',
   {
     eager: true,

@@ -10,6 +10,7 @@ const economy = read('server/src/simulation/expanded_economy.rs');
 const serverPolicy = read('server/src/military_policy.rs');
 const clientPolicy = read('src/security/militaryProgression.ts');
 const buildMenu = read('src/ui/buildMenuCards.ts');
+const expandedBuildingInspector = read('src/resources/inspector/expandedBuildingRenderer.ts');
 const cardArt = read('src/resources/buildingCardArt.ts');
 const hud = read('src/ui/SettlementHud.ts');
 const inspector = read('src/resources/ResourceInspector.ts');
@@ -58,13 +59,30 @@ for (const contract of [
   /POLEARM_RECIPE_INPUTS[\s\S]{0,180}Timber, 2\.0[\s\S]{0,100}Ironwork, 1\.0/,
   /SIDEARM_RECIPE_INPUTS[\s\S]{0,180}Ironwork, 2\.0[\s\S]{0,100}Leather, 1\.0/,
   /SHIELD_RECIPE_INPUTS[\s\S]{0,220}Timber, 2\.0[\s\S]{0,100}Leather, 1\.0[\s\S]{0,100}Ironwork, 1\.0/,
-  /PADDED_ARMOR_RECIPE_INPUTS[\s\S]{0,220}Cloth, 1\.0[\s\S]{0,100}Linen, 1\.0[\s\S]{0,100}Leather, 1\.0/,
+  /PADDED_ARMOR_RECIPE_INPUTS[\s\S]{0,180}Linen, 2\.0[\s\S]{0,100}Leather, 1\.0/,
   /MAIL_ARMOR_RECIPE_INPUTS[\s\S]{0,220}Ironwork, 4\.0[\s\S]{0,100}Leather, 1\.0[\s\S]{0,100}Linen, 1\.0/,
   /BOW_RECIPE_INPUTS[\s\S]{0,220}Timber, 2\.0[\s\S]{0,100}Linen, 1\.0[\s\S]{0,100}Leather, 1\.0/,
   /CROSSBOW_RECIPE_INPUTS[\s\S]{0,260}Timber, 2\.0[\s\S]{0,100}Ironwork, 2\.0[\s\S]{0,100}Linen, 1\.0[\s\S]{0,100}Leather, 1\.0/,
   /AMMUNITION_RECIPE_INPUTS[\s\S]{0,180}Timber, 1\.0[\s\S]{0,100}Ironwork, 1\.0/,
   /AMMUNITION_BATCH[^\n]*Ammunition, 4\.0/,
 ]) assert.match(economy, contract);
+
+const paddedArmorRecipe = economy.slice(
+  economy.indexOf('const PADDED_ARMOR_RECIPE_INPUTS'),
+  economy.indexOf('const MAIL_ARMOR_RECIPE_INPUTS'),
+);
+assert.doesNotMatch(paddedArmorRecipe, /CommodityKind::Cloth/, 'finished civilian clothing must not be consumed by padded armor');
+assert.equal(balance.buildings.weaponsmith_armorer?.storage?.cloth ?? 0, 0, 'the armorer must not request or store civilian clothing');
+assert.doesNotMatch(
+  buildMenu.match(/weaponsmith_armorer:[^\n]*/)?.[0] ?? '',
+  /'cloth'/,
+  'the armorer flow card must not advertise civilian clothing as an input',
+);
+assert.doesNotMatch(
+  expandedBuildingInspector.match(/weaponsmith_armorer:[^\n]*/)?.[0] ?? '',
+  /cloth/i,
+  'the armorer inspector must not advertise civilian clothing as an input',
+);
 
 assert.match(economy, /fn least_stocked_recipe/);
 assert.match(economy, /pub fn step_military_requisitions/);

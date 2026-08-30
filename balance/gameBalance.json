@@ -1418,7 +1418,7 @@
     "weaponsmith_armorer": {
       "label": "Weaponsmith & Armorer",
       "cost": { "timber": 58, "stone": 18, "ironwork": 8 },
-      "storage": { "total": 300, "timber": 72, "firewood": 0, "stone": 0, "ironwork": 120, "leather": 72, "linen": 72, "cloth": 72, "polearms": 80, "sidearms": 80, "shields": 80, "paddedArmor": 80, "mailArmor": 80 },
+      "storage": { "total": 300, "timber": 72, "firewood": 0, "stone": 0, "ironwork": 120, "leather": 72, "linen": 72, "polearms": 80, "sidearms": 80, "shields": 80, "paddedArmor": 80, "mailArmor": 80 },
       "workRadius": 0,
       "pickRadius": 10,
       "harvestInterval": 1400,

@@ -16,6 +16,7 @@ const sceneManagerPath = 'src/scene/SceneManager.ts';
 const buildingMaterialsPath = 'src/buildings/buildingMaterials.ts';
 const vineyardPath = 'src/vegetation/seedthree/vineyardVines.ts';
 const seedThreeTexturesPath = 'src/vegetation/seedthree/seedThreeTextures.ts';
+const fieldCropAssetsPath = 'src/vegetation/seedthree/fieldCropAssets.ts';
 const seedThreeForestBuilderPath = 'src/vegetation/seedthree/seedThreeForestBuilder.ts';
 const seedThreeAssetsPath = 'src/vegetation/seedthree/seedThreeAssets.ts';
 const viteConfigPath = 'vite.config.ts';
@@ -32,6 +33,7 @@ const sceneManager = fs.readFileSync(sceneManagerPath, 'utf8');
 const buildingMaterials = fs.readFileSync(buildingMaterialsPath, 'utf8');
 const vineyard = fs.readFileSync(vineyardPath, 'utf8');
 const seedThreeTextures = fs.readFileSync(seedThreeTexturesPath, 'utf8');
+const fieldCropAssets = fs.readFileSync(fieldCropAssetsPath, 'utf8');
 const seedThreeForestBuilder = fs.readFileSync(seedThreeForestBuilderPath, 'utf8');
 const seedThreeAssetsSource = fs.readFileSync(seedThreeAssetsPath, 'utf8');
 const viteConfig = fs.readFileSync(viteConfigPath, 'utf8');
@@ -86,6 +88,16 @@ assert.equal(
   seedThreeTextures.includes("assets/leaves/*.png"),
   false,
   'SeedThree leaf imports must remain an explicit runtime whitelist',
+);
+assert.equal(
+  seedThreeTextures.includes('typeof import.meta.glob'),
+  false,
+  'SeedThree texture URLs must not be discarded by testing Vite compile-time glob syntax at browser runtime',
+);
+assert.ok(
+  seedThreeTextures.includes("typeof window !== 'undefined' ? import.meta.glob(")
+    && fieldCropAssets.includes("typeof window !== 'undefined' ? import.meta.glob("),
+  'SeedThree texture registries must use a browser/Node boundary that preserves Vite-expanded URLs in development',
 );
 assert.ok(
   seedThreeForestBuilder.includes('const assetEntryPromises = GORSKI_KOTAR_PRESETS.map')
