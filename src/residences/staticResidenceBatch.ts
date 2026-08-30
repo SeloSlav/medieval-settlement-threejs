@@ -143,6 +143,16 @@ export function isDynamicResidenceBatchBoundary(
     || object.name.startsWith('Upgrade')
     || (
       (object as THREE.Mesh).isMesh
-      && (object as THREE.Mesh).material === windowMaterial
+      && meshUsesMaterial(object as THREE.Mesh, windowMaterial)
     );
+}
+
+function meshUsesMaterial(
+  mesh: THREE.Mesh,
+  material: THREE.Material | undefined,
+): boolean {
+  if (!material) return false;
+  return Array.isArray(mesh.material)
+    ? mesh.material.includes(material)
+    : mesh.material === material;
 }

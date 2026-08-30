@@ -1,0 +1,89 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Dry harvested field soil",
+  "source": null,
+  "requestId": "01a05217-7fe7-70b0-ba4b-f6b9db34d388",
+  "requestedInput": {
+    "prompt": "Flat top-down seamless PBR material of a late-summer harvested cereal field surface in inland Croatia. Dry dusty warm brown loam with flattened small clods, pale chaff specks, tiny randomly oriented broken straw splinters under 4 centimeters, subtle compressed patches, and restrained sun-aged earthy patina. Cut stubble is separate game geometry; this tile must be isotropic, rough, non-metallic, uniformly lit, and motif-neutral so it can repeat below a ragged harvest front. No upright stalks, hay piles, crop rows, long fibers, footprints, wheel ruts, grass, leaves, large stones, puddles, deep cracks, directional lighting, cast shadows, perspective, borders, text, or repeating motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 532104,
+    "num_images": 1,
+    "enable_prompt_expansion": false,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 532104,
+  "returnedPrompt": "Flat top-down seamless PBR material of a late-summer harvested cereal field surface in inland Croatia. Dry dusty warm brown loam with flattened small clods, pale chaff specks, tiny randomly oriented broken straw splinters under 4 centimeters, subtle compressed patches, and restrained sun-aged earthy patina. Cut stubble is separate game geometry; this tile must be isotropic, rough, non-metallic, uniformly lit, and motif-neutral so it can repeat below a ragged harvest front. No upright stalks, hay piles, crop rows, long fibers, footprints, wheel ruts, grass, leaves, large stones, puddles, deep cracks, directional lighting, cast shadows, perspective, borders, text, or repeating motifs.",
+  "timings": {
+    "texture_generation": 8.667396392207593,
+    "pbr_prediction": 5.39367804909125
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa86645/fJSgPyrzrMipLwLFlQMyC_q9T242UM.png",
+      "content_type": "image/png",
+      "file_name": "fJSgPyrzrMipLwLFlQMyC_q9T242UM.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa8662f/NRtCAaeIcV_JKpvoYIcrm_FRJVdstf.png",
+      "content_type": "image/png",
+      "file_name": "NRtCAaeIcV_JKpvoYIcrm_FRJVdstf.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa8662f/U_whJDQatKypHoCfbHe4O_VJZtl3BZ.png",
+      "content_type": "image/png",
+      "file_name": "U_whJDQatKypHoCfbHe4O_VJZtl3BZ.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa86645/mHO7nAkc0CWVqpKRDybKQ_zqdO6Vg0.png",
+      "content_type": "image/png",
+      "file_name": "mHO7nAkc0CWVqpKRDybKQ_zqdO6Vg0.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa8662f/zU6mwtJ0Ja2B1FitITms__upl6KD6W.png",
+      "content_type": "image/png",
+      "file_name": "zU6mwtJ0Ja2B1FitITms__upl6KD6W.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa8662f/eXwHUaZvVQJzezDYvmEEa_r1BftOBG.png",
+      "content_type": "image/png",
+      "file_name": "eXwHUaZvVQJzezDYvmEEa_r1BftOBG.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-30T09:54:42.659Z"
+}

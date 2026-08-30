@@ -1,0 +1,89 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Dry harvested field soil v2",
+  "source": null,
+  "requestId": "01a05219-9212-7583-aab9-61bddba1b32e",
+  "requestedInput": {
+    "prompt": "Flat top-down seamless PBR micro-material of bare late-summer harvested field soil in inland Croatia. Dry dusty muted warm-brown loam, flattened crumbs from 2 millimeters to 3 centimeters, slight compacted patches, and only tiny pulverized pale chaff specks shorter than 4 millimeters scattered without direction. All standing stubble, cut stems, rows, and harvest structure are separate game geometry; the bitmap must show continuous bare isotropic soil, rough non-metallic response, uniform neutral illumination, and no dominant motif. Absolutely no upright stalks, stubble, straw fibers, straw lines, hay, crop rows, bands, footprints, wheel ruts, grass, leaves, large stones, puddles, cracks, directional light, cast shadows, perspective, borders, or text.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 532114,
+    "num_images": 1,
+    "enable_prompt_expansion": false,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 532114,
+  "returnedPrompt": "Flat top-down seamless PBR micro-material of bare late-summer harvested field soil in inland Croatia. Dry dusty muted warm-brown loam, flattened crumbs from 2 millimeters to 3 centimeters, slight compacted patches, and only tiny pulverized pale chaff specks shorter than 4 millimeters scattered without direction. All standing stubble, cut stems, rows, and harvest structure are separate game geometry; the bitmap must show continuous bare isotropic soil, rough non-metallic response, uniform neutral illumination, and no dominant motif. Absolutely no upright stalks, stubble, straw fibers, straw lines, hay, crop rows, bands, footprints, wheel ruts, grass, leaves, large stones, puddles, cracks, directional light, cast shadows, perspective, borders, or text.",
+  "timings": {
+    "texture_generation": 8.882230578921735,
+    "pbr_prediction": 47.71939341723919
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa8663d/CS46kFojlvcC9CUdti_gJ_jHNcqPHh.png",
+      "content_type": "image/png",
+      "file_name": "CS46kFojlvcC9CUdti_gJ_jHNcqPHh.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa86656/SrC9hkwCYFfN5rUHqnh0N_YP06kDoY.png",
+      "content_type": "image/png",
+      "file_name": "SrC9hkwCYFfN5rUHqnh0N_YP06kDoY.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa86640/lroZM_Hz7IcorVmJ7RKW8_k8el3Ql9.png",
+      "content_type": "image/png",
+      "file_name": "lroZM_Hz7IcorVmJ7RKW8_k8el3Ql9.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa86640/G8LO-8xFNLyZPjHLliS2__qmALU6H6.png",
+      "content_type": "image/png",
+      "file_name": "G8LO-8xFNLyZPjHLliS2__qmALU6H6.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa86640/O7AA3bwB7BCrGLmfyQBLa_aev4THs8.png",
+      "content_type": "image/png",
+      "file_name": "O7AA3bwB7BCrGLmfyQBLa_aev4THs8.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa86640/MetSnIDLiq_HEpO1Bbqme_fXklJfFC.png",
+      "content_type": "image/png",
+      "file_name": "MetSnIDLiq_HEpO1Bbqme_fXklJfFC.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-30T09:57:39.803Z"
+}

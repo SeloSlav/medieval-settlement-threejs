@@ -1,0 +1,89 @@
+{
+  "model": "fal-ai/patina/material",
+  "label": "Harrowed and sown seedbed soil",
+  "source": null,
+  "requestId": "01a05216-3423-7a90-b163-4ce2275e6ddb",
+  "requestedInput": {
+    "prompt": "Flat top-down seamless PBR material of a freshly harrowed medieval seedbed in inland Croatia. Fine settled brown loam, small irregular crumbs from 2 millimeters to 2 centimeters, softly compressed clods, subtle dry dust between aggregates, faint organic flecks, and a restrained weathered farm-soil patina. The game geometry owns seed drills and row direction; keep the tile isotropic, matte, non-metallic, evenly lit, and free of dominant shapes so it can repeat across a large agricultural parcel. No rake lines, furrows, rows, visible seeds, sprouts, roots, grass, straw, footprints, wheel marks, large stones, puddles, deep cracks, directional lighting, cast shadows, perspective, borders, text, or repeating motifs.",
+    "image_size": "square_hd",
+    "num_inference_steps": 8,
+    "seed": 532102,
+    "num_images": 1,
+    "enable_prompt_expansion": false,
+    "enable_safety_checker": true,
+    "tiling_mode": "both",
+    "tile_size": 128,
+    "tile_stride": 64,
+    "maps": [
+      "basecolor",
+      "normal",
+      "roughness",
+      "metalness",
+      "height"
+    ],
+    "upscale_factor": 0,
+    "output_format": "png"
+  },
+  "returnedSeed": 532102,
+  "returnedPrompt": "Flat top-down seamless PBR material of a freshly harrowed medieval seedbed in inland Croatia. Fine settled brown loam, small irregular crumbs from 2 millimeters to 2 centimeters, softly compressed clods, subtle dry dust between aggregates, faint organic flecks, and a restrained weathered farm-soil patina. The game geometry owns seed drills and row direction; keep the tile isotropic, matte, non-metallic, evenly lit, and free of dominant shapes so it can repeat across a large agricultural parcel. No rake lines, furrows, rows, visible seeds, sprouts, roots, grass, straw, footprints, wheel marks, large stones, puddles, deep cracks, directional lighting, cast shadows, perspective, borders, text, or repeating motifs.",
+  "timings": {
+    "texture_generation": 9.6844337368384,
+    "pbr_prediction": 77.57737010112032
+  },
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/0aa86627/Lw6n1TymrZ9WOqWSkgx96_9pF6emc6.png",
+      "content_type": "image/png",
+      "file_name": "Lw6n1TymrZ9WOqWSkgx96_9pF6emc6.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa8662e/PLvIyqaexmZIBxn4mUqDc_Ttctr4a3.png",
+      "content_type": "image/png",
+      "file_name": "PLvIyqaexmZIBxn4mUqDc_Ttctr4a3.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "basecolor"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa8662e/iBGOZkF-TSTU9-q55Taw5_PxYY1g4h.png",
+      "content_type": "image/png",
+      "file_name": "iBGOZkF-TSTU9-q55Taw5_PxYY1g4h.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "normal"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa8662e/Kyy9CaLup7CjkmTpcoBYJ_TDCtlIJ5.png",
+      "content_type": "image/png",
+      "file_name": "Kyy9CaLup7CjkmTpcoBYJ_TDCtlIJ5.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "roughness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa8662e/__RLx828G5ebcXqAk6ckF_TtQo9Sxd.png",
+      "content_type": "image/png",
+      "file_name": "__RLx828G5ebcXqAk6ckF_TtQo9Sxd.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "metalness"
+    },
+    {
+      "url": "https://v3b.fal.media/files/b/0aa8662e/DIps_muKgghd8BiJaR5uX_ovNL6rQ6.png",
+      "content_type": "image/png",
+      "file_name": "DIps_muKgghd8BiJaR5uX_ovNL6rQ6.png",
+      "file_size": null,
+      "width": 1024,
+      "height": 1024,
+      "map_type": "height"
+    }
+  ],
+  "generatedAt": "2026-08-30T09:54:29.445Z"
+}
