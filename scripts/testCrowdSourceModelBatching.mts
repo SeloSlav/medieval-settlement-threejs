@@ -23,10 +23,8 @@ import { VILLAGER_ALBEDO_BOUNCE_INTENSITY } from '../src/settlement/villagerMate
 } as ImageBitmap);
 
 const ASSETS = [
-  ['man', 'public/assets/models/villagers/worker-male-common-01-v001.glb'],
-  // TEMP: female villagers share this source until their dedicated labeled GLB
-  // and matching semantic animation set are supplied.
-  ['woman', 'public/assets/models/villagers/worker-male-common-01-v001.glb'],
+  ['man', 'public/assets/models/villagers/worker-male-common-01-v002.glb'],
+  ['woman', 'public/assets/models/villagers/worker-female-common-01-v001.glb'],
 ] as const;
 const CLOSE_AGENT_COUNT = 72;
 const BENCHMARK_FRAMES = 600;
@@ -397,7 +395,7 @@ for (const batch of uniqueAggregateBatches) {
 assert.equal(
   balancedBodySubmissions,
   12,
-  '72 temporarily shared worker rigs must submit exactly twelve body draws',
+  '36 male and 36 female worker rigs must submit exactly twelve body draws',
 );
 
 const manSkeletons = rootSkeletons.filter((_, index) => index % 2 === 0);
@@ -420,7 +418,7 @@ let allManBodySubmissions = 0;
 for (const batch of uniqueAggregateBatches) {
   for (const shard of batch.shards) {
     for (const layer of shard.layers) {
-      const expectedVisible = true;
+      const expectedVisible = aggregateBatches.man === batch;
       assert.equal(layer.mesh.visible, expectedVisible);
       assert.equal(
         layer.geometry.drawRange.count,

@@ -8,6 +8,7 @@ import {
 import {
   countUnassignedAnimationLabels,
   getAvailableAnimationLabels,
+  selectAnimationLabelCatalog,
 } from '../src/tools/glb-animation-labeler/labelChoices.ts';
 
 const source = createFixtureGlb(['NlaTrack', 'NlaTrack.001']);
@@ -25,6 +26,58 @@ assert.equal(countUnassignedAnimationLabels(knownLabels, nearlyComplete), 2);
 const revisitingAssigned = ['agree', 'bow', 'cheer', ''];
 assert.deepEqual(getAvailableAnimationLabels(knownLabels, revisitingAssigned, 1), ['bow', 'chop']);
 assert.equal(countUnassignedAnimationLabels(knownLabels, revisitingAssigned), 1);
+
+const correctedAssignments = [...revisitingAssigned];
+correctedAssignments[1] = '';
+assert.deepEqual(
+  getAvailableAnimationLabels(knownLabels, correctedAssignments, 1),
+  ['bow', 'chop'],
+  'unbinding must return the released one-to-one label to the dropdown',
+);
+assert.equal(countUnassignedAnimationLabels(knownLabels, correctedAssignments), 2);
+
+const fullCatalog = [
+  'agree',
+  'bow',
+  'cheer',
+  'chop',
+  'clap',
+  'cry',
+  'dig',
+  'fall',
+  'flee_01',
+  'greet_01',
+  'hit_to_body_01',
+  'idle',
+  'laugh_01',
+  'lift_heavy',
+  'look_around',
+  'run',
+  'shovel',
+  'sit',
+  'slash',
+  'standing_relax',
+  'wait',
+  'walk',
+] as const;
+const socialLabels = new Set([
+  'agree',
+  'bow',
+  'cheer',
+  'clap',
+  'cry',
+  'greet_01',
+  'laugh_01',
+]);
+const reducedCatalog = selectAnimationLabelCatalog(fullCatalog, socialLabels, 15);
+assert.equal(reducedCatalog.length, 15);
+assert.ok(reducedCatalog.includes('idle'));
+assert.ok(!reducedCatalog.includes('greet_01'));
+assert.deepEqual(
+  selectAnimationLabelCatalog(fullCatalog, socialLabels, 22),
+  fullCatalog,
+  'the original 22-clip export must retain the full catalog',
+);
 
 const incomplete = validateAnimationLabels(['idle', '']);
 assert.equal(incomplete.complete, false);

@@ -28,10 +28,8 @@ const LEGS_GEOMETRY = new THREE.CapsuleGeometry(0.16, 0.34, 4, 8);
 const HEAD_GEOMETRY = new THREE.SphereGeometry(0.19, 10, 10);
 
 const MODEL_URLS = {
-  man: '/assets/models/villagers/worker-male-common-01-v001.glb',
-  // TEMP: use the labeled male worker for female villagers too. Replace this
-  // URL when the dedicated female GLB and matching semantic clips are supplied.
-  woman: '/assets/models/villagers/worker-male-common-01-v001.glb',
+  man: '/assets/models/villagers/worker-male-common-01-v002.glb',
+  woman: '/assets/models/villagers/worker-female-common-01-v001.glb',
 } as const;
 
 const TARGET_HEIGHTS = {
@@ -40,9 +38,8 @@ const TARGET_HEIGHTS = {
 } as const;
 const MODEL_GROUNDING_HEIGHT = 0.012;
 const SEATED_SUPPORT_CONTACT_HEIGHTS = {
-  man: 0.39382,
-  // Same source pose as the temporary male-model alias, scaled to 1.64 m.
-  woman: 0.37606,
+  man: 0.39052,
+  woman: 0.37534,
 } as const;
 
 export type VillagerModelVariant = keyof typeof MODEL_URLS;
@@ -1106,7 +1103,7 @@ async function loadVillagerSource(
   };
 }
 
-function createSemanticWorkerClipSet(
+export function createSemanticWorkerClipSet(
   animations: readonly THREE.AnimationClip[],
 ): Record<VillagerRenderMode, THREE.AnimationClip> {
   const forMode = (sourceName: string, mode: VillagerRenderMode): THREE.AnimationClip => {
@@ -1124,8 +1121,10 @@ function createSemanticWorkerClipSet(
     // Both seated behavior states must end on the authored seated pose because
     // their world roots are aligned to benches and fireside supports.
     rest: forMode('sit', 'rest'),
-    talk: forMode('greet_01', 'talk'),
-    pray: forMode('bow', 'pray'),
+    // V002 deliberately omits social gestures. Conversation and devotion keep
+    // their gameplay states and facing, but use calm neutral authored motion.
+    talk: forMode('standing_relax', 'talk'),
+    pray: forMode('wait', 'pray'),
     chop: forMode('chop', 'chop'),
     mine: forMode('dig', 'mine'),
     gather: forMode('lift_heavy', 'gather'),

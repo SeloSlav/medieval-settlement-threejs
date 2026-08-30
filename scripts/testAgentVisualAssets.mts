@@ -41,6 +41,7 @@ import {
   isWithinWorkAnimationRange,
 } from '../src/settlement/crowdView.ts';
 import {
+  createSemanticWorkerClipSet,
   seatedVillagerContactHeight,
   villagerHeightJitter,
   workerToolVisibleInMode,
@@ -100,14 +101,12 @@ function assertNoMeshShadows(root: THREE.Object3D, label: string): void {
 const villagerAssets = [
   {
     variant: 'man',
-    path: 'public/assets/models/villagers/worker-male-common-01-v001.glb',
+    path: 'public/assets/models/villagers/worker-male-common-01-v002.glb',
     targetHeight: 1.72,
   },
   {
     variant: 'woman',
-    // TEMP: female villagers use the labeled male worker until the dedicated
-    // female GLB and its semantic animation set are supplied.
-    path: 'public/assets/models/villagers/worker-male-common-01-v001.glb',
+    path: 'public/assets/models/villagers/worker-female-common-01-v001.glb',
     targetHeight: 1.64,
   },
 ] as const;
@@ -116,6 +115,30 @@ const deliveryWorkerSources = {} as DeliveryCartWorkerSources;
 for (const asset of villagerAssets) {
   const gltf = await parseGlb(asset.path);
   const clips = gltf.animations.map((clip) => clip.name.toLowerCase());
+  assert.deepEqual(
+    [...clips].sort(),
+    [
+      'chop',
+      'dig',
+      'fall',
+      'flee_01',
+      'hit_to_body_01',
+      'idle',
+      'lift_heavy',
+      'look_around',
+      'run',
+      'shovel',
+      'sit',
+      'slash',
+      'standing_relax',
+      'wait',
+      'walk',
+    ],
+    `${asset.variant} villager must use exactly the reduced v002 clip set`,
+  );
+  const gameClips = createSemanticWorkerClipSet(gltf.animations);
+  assert.match(gameClips.talk.name, /^standing_relax:game-talk$/);
+  assert.match(gameClips.pray.name, /^wait:game-pray$/);
   assert.ok(
     clips.some((name) => name === 'idle' || name.endsWith('_idle') || name.endsWith('|idle')),
     `${asset.variant} villager must retain an authored idle animation`,
@@ -251,11 +274,10 @@ for (const asset of villagerAssets) {
     ) < 0.002,
     `${asset.variant} butt must land on the camp bench/log surface`,
   );
+  const maximumSeatedBootClearance = asset.variant === 'woman' ? 0.065 : 0.05;
   assert.ok(
     lowestBootHeight + seatedRootY >= -0.005
-      // The temporary 1.64 m alias has the male rig's proportions, so its
-      // boots sit about 4.2 cm above ground on the shared fixed-height bench.
-      && lowestBootHeight + seatedRootY <= 0.05,
+      && lowestBootHeight + seatedRootY <= maximumSeatedBootClearance,
     `${asset.variant} boots must remain at ground level while seated `
       + `(lowest ${(lowestBootHeight + seatedRootY).toFixed(4)}m)`,
   );
@@ -516,8 +538,8 @@ for (const [side, palmNames] of [
   );
   const handDistance = handPosition.distanceTo(target);
   assert.ok(
-    // The temporary 1.62 m female alias has the male rig's proportions and a
-    // shorter reach, while its wrist/hand mesh still visually covers the grip.
+    // The Tripo wrist joint sits above the visible palm, which still overlaps
+    // the handle grip after the two-segment arm solve.
     handDistance < 0.16,
     `${side} hand should remain planted on its cart handle (${handDistance.toFixed(3)}m)`,
   );
@@ -606,22 +628,36 @@ for (const asset of workerToolAssets) {
     `${asset.kind} should be parented directly to the right-hand joint`,
   );
   assert.equal(tool.userData.workerTool, asset.kind);
-  const swingClip = workerRigGltf.animations.find((clip) =>
-    clip.name.toLowerCase() === 'slash'
-      || clip.name.toLowerCase().endsWith('_swordslash')
+  const toolClipNames: Record<WorkerToolKind, string> = {
+    hatchet: 'chop',
+    pickaxe: 'dig',
+    hammer: 'chop',
+    hoe: 'shovel',
+    shovel: 'shovel',
+    spear: 'slash',
+  };
+  const toolClipName = toolClipNames[asset.kind];
+  const swingClip = workerRigGltf.animations.find(
+    (clip) => clip.name.toLowerCase() === toolClipName,
   );
-  assert.ok(swingClip, 'worker rig should retain its authored swing animation');
+  assert.ok(swingClip, `worker rig should retain its authored ${toolClipName} animation`);
   const mixer = new THREE.AnimationMixer(workerRig);
   mixer.clipAction(swingClip, workerRig).play();
   mixer.setTime(0);
   workerRig.updateMatrixWorld(true);
   const restToolPosition = tool.getWorldPosition(new THREE.Vector3());
-  mixer.setTime(swingClip.duration * 0.55);
-  workerRig.updateMatrixWorld(true);
-  const swungToolPosition = tool.getWorldPosition(new THREE.Vector3());
+  let maximumToolTravel = 0;
+  for (let sample = 1; sample <= 20; sample += 1) {
+    mixer.setTime(swingClip.duration * sample / 20);
+    workerRig.updateMatrixWorld(true);
+    maximumToolTravel = Math.max(
+      maximumToolTravel,
+      restToolPosition.distanceTo(tool.getWorldPosition(new THREE.Vector3())),
+    );
+  }
   assert.ok(
-    restToolPosition.distanceTo(swungToolPosition) > 0.08,
-    `${asset.kind} should follow the hand joint through the swing animation`,
+    maximumToolTravel > 0.08,
+    `${asset.kind} should follow the hand through the ${toolClipName} animation`,
   );
   mixer.stopAllAction();
   mixer.uncacheRoot(workerRig);

@@ -11,6 +11,7 @@ import {
 import {
   countUnassignedAnimationLabels,
   getAvailableAnimationLabels,
+  selectAnimationLabelCatalog,
 } from './labelChoices.ts';
 import './style.css';
 
@@ -39,6 +40,16 @@ const RECOMMENDED_LABELS = [
   'walk',
 ] as const;
 
+const SOCIAL_LABELS_REMOVED_FROM_V002 = new Set<string>([
+  'agree',
+  'bow',
+  'cheer',
+  'clap',
+  'cry',
+  'greet_01',
+  'laugh_01',
+]);
+
 type StoredMapping = {
   version: 1;
   digest: string;
@@ -53,6 +64,7 @@ type LoadedAsset = {
   digest: string;
   gltf: GLTF;
   originalNames: string[];
+  recommendedLabels: string[];
   labels: string[];
 };
 
@@ -75,6 +87,7 @@ const skeletonCheckbox = mustElement<HTMLInputElement>('show-skeleton');
 const resetCameraButton = mustElement<HTMLButtonElement>('reset-camera');
 const semanticNameSelect = mustElement<HTMLSelectElement>('semantic-name');
 const saveAndNextButton = mustElement<HTMLButtonElement>('save-and-next');
+const unbindNameButton = mustElement<HTMLButtonElement>('unbind-name');
 const saveProgressButton = mustElement<HTMLButtonElement>('save-progress');
 const mappingProgress = mustElement<HTMLElement>('mapping-progress');
 const animationCount = mustElement<HTMLElement>('animation-count');
@@ -154,6 +167,7 @@ skeletonCheckbox.addEventListener('change', syncSkeletonVisibility);
 resetCameraButton.addEventListener('click', resetCamera);
 saveProgressButton.addEventListener('click', () => saveProgress(true));
 saveAndNextButton.addEventListener('click', saveCurrentAndAdvance);
+unbindNameButton.addEventListener('click', unbindCurrentName);
 downloadMapButton.addEventListener('click', downloadMapping);
 downloadGlbButton.addEventListener('click', downloadLabeledGlb);
 semanticNameSelect.addEventListener('keydown', (event) => {
@@ -213,9 +227,22 @@ async function loadFile(file: File): Promise<void> {
       throw new Error('The GLB animation metadata does not match the loaded scene.');
     }
     const labels = loadStoredLabels(digest, originalNames.length);
+    const recommendedLabels = selectAnimationLabelCatalog(
+      RECOMMENDED_LABELS,
+      SOCIAL_LABELS_REMOVED_FROM_V002,
+      originalNames.length,
+    );
 
     disposeLoadedModel();
-    asset = { file, bytes, digest, gltf, originalNames, labels };
+    asset = {
+      file,
+      bytes,
+      digest,
+      gltf,
+      originalNames,
+      recommendedLabels,
+      labels,
+    };
     model = gltf.scene;
     prepareModel(model);
     stage.add(model);
@@ -332,7 +359,7 @@ function populateSemanticNameOptions(clipIndex: number): void {
   if (!asset) return;
   const currentLabel = asset.labels[clipIndex] ?? '';
   const availableLabels = getAvailableAnimationLabels(
-    RECOMMENDED_LABELS,
+    asset.recommendedLabels,
     asset.labels,
     clipIndex,
   );
@@ -354,8 +381,12 @@ function populateSemanticNameOptions(clipIndex: number): void {
 
   semanticNameSelect.value = currentLabel;
   if (!currentLabel) placeholder.selected = true;
+  unbindNameButton.disabled = !currentLabel;
 
-  const remainingCount = countUnassignedAnimationLabels(RECOMMENDED_LABELS, asset.labels);
+  const remainingCount = countUnassignedAnimationLabels(
+    asset.recommendedLabels,
+    asset.labels,
+  );
   remainingNameCount.textContent = remainingCount === 1
     ? '1 name remaining'
     : `${remainingCount} names remaining`;
@@ -422,6 +453,21 @@ function saveCurrentAndAdvance(): void {
     selectClip(selectedClipIndex);
     setStatus('All animations are named. The labeled GLB is ready to download.');
   }
+}
+
+function unbindCurrentName(): void {
+  if (!asset || selectedClipIndex < 0) return;
+  const releasedLabel = asset.labels[selectedClipIndex];
+  if (!releasedLabel) {
+    setStatus('This animation does not have a name to unbind.', true);
+    return;
+  }
+  asset.labels[selectedClipIndex] = '';
+  saveProgress(false);
+  buildAnimationList();
+  populateSemanticNameOptions(selectedClipIndex);
+  semanticNameSelect.focus();
+  setStatus(`Unbound ${releasedLabel}. It is available in the dropdown again.`);
 }
 
 function findNextUnnamed(fromIndex: number): number {
@@ -569,6 +615,7 @@ function setControlsEnabled(enabled: boolean): void {
     resetCameraButton,
     semanticNameSelect,
     saveAndNextButton,
+    unbindNameButton,
     saveProgressButton,
     downloadMapButton,
   ]) {

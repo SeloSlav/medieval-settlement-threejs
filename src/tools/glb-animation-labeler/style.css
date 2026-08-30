@@ -330,8 +330,15 @@ h1 {
   text-transform: uppercase;
 }
 
-.wide-action {
-  width: 100%;
+.label-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.unbind-action {
+  border-color: #76584b;
+  color: #e2c0b2;
 }
 
 .animation-list-heading {

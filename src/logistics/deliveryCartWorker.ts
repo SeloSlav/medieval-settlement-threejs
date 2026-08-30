@@ -10,10 +10,8 @@ import type { VillagerModelVariant } from '../settlement/SettlementCrowdRenderer
 import { configureVillagerMaterialLighting } from '../settlement/villagerMaterialLighting.ts';
 
 const MODEL_URLS = {
-  man: '/assets/models/villagers/worker-male-common-01-v001.glb',
-  // TEMP: use the labeled male worker for female delivery workers too. Replace
-  // this URL when the dedicated female GLB and semantic clips are supplied.
-  woman: '/assets/models/villagers/worker-male-common-01-v001.glb',
+  man: '/assets/models/villagers/worker-male-common-01-v002.glb',
+  woman: '/assets/models/villagers/worker-female-common-01-v001.glb',
 } as const;
 
 const TARGET_HEIGHTS = {
@@ -26,7 +24,8 @@ export const DELIVERY_OX_CART_FORMATION = {
   ox: { x: 0, z: 2.15 },
   guide: { x: 1.28, z: 2.15 },
 } as const;
-const WORKER_LEAN_RADIANS = 0.08;
+// Pitch the hauler forward toward the cart shafts before the arm IK pass.
+const WORKER_LEAN_RADIANS = -0.15;
 const HANDLE_TARGETS = {
   left: new THREE.Vector3(0.264, 0.68, 1.225),
   right: new THREE.Vector3(-0.264, 0.68, 1.225),

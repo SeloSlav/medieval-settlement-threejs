@@ -21,3 +21,14 @@ export function countUnassignedAnimationLabels(
   const assigned = new Set(assignments.filter(Boolean));
   return knownLabels.filter((label) => !assigned.has(label)).length;
 }
+
+export function selectAnimationLabelCatalog(
+  knownLabels: readonly string[],
+  labelsExcludedFromReducedExport: ReadonlySet<string>,
+  animationCount: number,
+): string[] {
+  const reduced = knownLabels.filter(
+    (label) => !labelsExcludedFromReducedExport.has(label),
+  );
+  return reduced.length === animationCount ? reduced : [...knownLabels];
+}
