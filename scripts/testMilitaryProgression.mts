@@ -199,7 +199,9 @@ assert.match(
 );
 assert.match(commands, /this\.selected\.add\(nearest\.companyId\)/);
 assert.match(commands, /flatMap\(\(companyId\)/);
-assert.match(commands, /ring\.scale\.setScalar\(company\.radius\)/);
+assert.match(commands, /companySelectionFootprintRadius\(members\.length\)/);
+assert.match(commands, /radius - COMPANY_SELECTION_RING_WIDTH/);
+assert.doesNotMatch(commands, /ring\.scale\.setScalar\(company\.radius\)/);
 assert.match(commands, /onLeavingCompanySelected/);
 assert.match(commands, /onCompanySelected/);
 assert.match(bootstrap, /onCompanySelected:[\s\S]*?resourceInspector\.selectMilitaryCompany\(companyId\)/);

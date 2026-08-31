@@ -1308,7 +1308,6 @@ export class App {
     });
     this.combatPlaytestNextSyncAtMs = 0;
     session.uiRoot.classList.add('combat-playtest-mode');
-    session.militiaCommands.setCompanyGuidesVisible(true);
     session.militiaCommands.setCommandHandler((ids, x, z) => {
       if (!this.combatPlaytest) return;
       this.combatPlaytest.issueOrder(ids, x, z);

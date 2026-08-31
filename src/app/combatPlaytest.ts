@@ -1017,7 +1017,7 @@ export class CombatPlaytestOverlay {
         <button type="button" data-combat-playtest-preset="field">48 v 48</button>
         <button type="button" data-combat-playtest-preset="stress">256 v 256 stress</button>
       </div>
-      <p>Left-click or drag-select company circles. Right-click terrain or an enemy rank to move/attack. Camera controls remain live.</p>
+      <p>Left-click a soldier or drag-select across formations. Right-click terrain or an enemy rank to move/attack. Camera controls remain live.</p>
       <small>Seed <code>${formatSeed(options.request.seed)}</code> · no server connection, reducers, recording, or save writes.</small>
     `;
     parent.append(this.element);

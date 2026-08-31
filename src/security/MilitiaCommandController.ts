@@ -43,6 +43,32 @@ type CompanyVisual = {
   controllable: boolean;
 };
 
+type CompanySelectionRing = {
+  mesh: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
+  radius: number;
+};
+
+const MIN_COMPANY_SELECTION_RADIUS = 1.7;
+const MAX_COMPANY_SELECTION_RADIUS = 8;
+const COMPANY_SELECTION_RING_WIDTH = 0.18;
+
+/** A tactical selection affordance, not a live bounding circle. Deriving this
+ * from the logical formation keeps casualties and distant melee stragglers
+ * from stretching the marker across the battlefield. */
+export function companySelectionFootprintRadius(memberCount: number): number {
+  const count = Math.max(1, Math.floor(memberCount));
+  const columns = count <= 4 ? 2 : 4;
+  const rows = Math.ceil(count / columns);
+  const occupiedColumns = Math.min(count, columns);
+  const halfWidth = Math.max(0, occupiedColumns - 1) * 1.34 * 0.5 + 0.18;
+  const halfDepth = Math.max(0, rows - 1) * 1.28 * 0.5;
+  return THREE.MathUtils.clamp(
+    Math.hypot(halfWidth, halfDepth) + 0.9,
+    MIN_COMPANY_SELECTION_RADIUS,
+    MAX_COMPANY_SELECTION_RADIUS,
+  );
+}
+
 /** The player-facing RTS unit is a whole company. Individual agents remain
  * canonical for identity, casualties, kit, and formation spacing, but
  * selection, rings, and orders always operate on every living company member. */
@@ -52,7 +78,7 @@ export class MilitiaCommandController {
   private readonly selected = new Set<string>();
   private readonly overlay = document.createElement('div');
   private readonly ringRoot = new THREE.Group();
-  private readonly rings = new Map<string, THREE.Mesh>();
+  private readonly rings = new Map<string, CompanySelectionRing>();
   private readonly hostilePositions: { x: number; z: number }[] = [];
   private dragStart: { x: number; y: number } | null = null;
   private readonly rightClick: SecondaryClickGesture;
@@ -60,7 +86,6 @@ export class MilitiaCommandController {
   private readonly strategicIcons: MilitaryCompanyStrategicOverlay;
   private readonly options: Options;
   private commandHandler: MilitiaCommandHandler;
-  private companyGuidesVisible = false;
 
   constructor(options: Options) {
     this.options = options;
@@ -92,13 +117,6 @@ export class MilitiaCommandController {
   /** Allows an isolated local sandbox to reuse selection without a reducer. */
   setCommandHandler(handler: MilitiaCommandHandler): void {
     this.commandHandler = handler;
-  }
-
-  /** Faint formation footprints make dense playtest companies easy to select. */
-  setCompanyGuidesVisible(visible: boolean): void {
-    if (this.companyGuidesVisible === visible) return;
-    this.companyGuidesVisible = visible;
-    this.syncRings();
   }
 
   /** Advances the short order acknowledgement on the ordinary render clock. */
@@ -141,10 +159,7 @@ export class MilitiaCommandController {
       members.sort((left, right) => left.id.localeCompare(right.id, undefined, { numeric: true }));
       const x = members.reduce((sum, member) => sum + member.x, 0) / members.length;
       const z = members.reduce((sum, member) => sum + member.z, 0) / members.length;
-      const radius = Math.max(
-        1.7,
-        ...members.map((member) => Math.hypot(member.x - x, member.z - z) + 0.9),
-      );
+      const radius = companySelectionFootprintRadius(members.length);
       const controllable = members.some((member) => member.status !== 'returning');
       const kind = militaryCompanyKindForAgents(members);
       if (!kind) continue;
@@ -176,8 +191,8 @@ export class MilitiaCommandController {
     this.overlay.remove();
     this.ringRoot.removeFromParent();
     for (const ring of this.rings.values()) {
-      ring.geometry.dispose();
-      (ring.material as THREE.Material).dispose();
+      ring.mesh.geometry.dispose();
+      ring.mesh.material.dispose();
     }
     this.rings.clear();
   }
@@ -313,41 +328,51 @@ export class MilitiaCommandController {
   private cancelDrag(): void { this.dragStart = null; this.overlay.style.display = 'none'; }
 
   private syncRings(): void {
-    const visibleCompanyIds = this.companyGuidesVisible
-      ? this.companies.keys()
-      : this.selected.values();
     const visible = new Set<string>();
-    for (const id of visibleCompanyIds) {
+    for (const id of this.selected) {
       const company = this.companies.get(id);
       if (!company) continue;
       visible.add(id);
-      let ring = this.rings.get(id);
-      if (!ring) {
-        ring = new THREE.Mesh(
-          new THREE.RingGeometry(0.88, 1, 48),
+      let pooled = this.rings.get(id);
+      if (!pooled) {
+        const ring = new THREE.Mesh(
+          companySelectionRingGeometry(company.radius),
           new THREE.MeshBasicMaterial({
             color: 0xe1b538,
             transparent: true,
-            opacity: 0.86,
+            opacity: 0.78,
             depthWrite: false,
-            depthTest: false,
+            depthTest: true,
+            polygonOffset: true,
+            polygonOffsetFactor: -1,
+            polygonOffsetUnits: -1,
           }),
         );
         ring.rotation.x = -Math.PI / 2;
-        ring.renderOrder = 90;
-        this.rings.set(id, ring);
+        ring.renderOrder = 8;
+        pooled = { mesh: ring, radius: company.radius };
+        this.rings.set(id, pooled);
         this.ringRoot.add(ring);
+      } else if (Math.abs(pooled.radius - company.radius) > 0.001) {
+        const previous = pooled.mesh.geometry;
+        pooled.mesh.geometry = companySelectionRingGeometry(company.radius);
+        pooled.radius = company.radius;
+        previous.dispose();
       }
+      const ring = pooled.mesh;
       ring.position.set(company.x, this.options.getHeightAt(company.x, company.z) + 0.06, company.z);
-      ring.scale.setScalar(company.radius);
-      const selected = this.selected.has(id);
-      const material = ring.material as THREE.MeshBasicMaterial;
-      material.color.setHex(selected ? 0xe1b538 : company.controllable ? 0x86b96e : 0xd9782d);
-      material.opacity = selected ? 0.86 : 0.22;
       ring.visible = true;
     }
-    for (const [id, ring] of this.rings) if (!visible.has(id)) ring.visible = false;
+    for (const [id, ring] of this.rings) if (!visible.has(id)) ring.mesh.visible = false;
   }
+}
+
+function companySelectionRingGeometry(radius: number): THREE.RingGeometry {
+  return new THREE.RingGeometry(
+    Math.max(0.05, radius - COMPANY_SELECTION_RING_WIDTH),
+    radius,
+    64,
+  );
 }
 
 function projectedCombatantHitDistance(

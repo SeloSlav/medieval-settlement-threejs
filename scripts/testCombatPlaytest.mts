@@ -300,7 +300,11 @@ assert.doesNotMatch(
 assert.match(app, /!this\.battleShowcase && !this\.combatPlaytest/);
 assert.match(app, /if \(!this\.combatPlaytest\) \{[\s\S]*militiaCommands\?\.sync/);
 assert.match(bootstrap, /worldSettingsOverride[\s\S]*if \(!bridge\.worldSettingsOverride\) saveWorldGenerationSettings/);
-assert.match(commands, /setCompanyGuidesVisible/);
+assert.doesNotMatch(
+  commands,
+  /companyGuidesVisible|setCompanyGuidesVisible/,
+  'unselected-company guide mode must not exist in the command controller',
+);
 assert.match(commands, /SecondaryClickGesture/);
 assert.match(styles, /combat-playtest-mode > :not\(\.combat-playtest-overlay\):not\(\.militia-selection-box\)/);
 assert.match(playtest, /spearman:[\s\S]{0,140}health: 74[\s\S]{0,90}damage: 11\.5[\s\S]{0,90}range: 2\.6/);
