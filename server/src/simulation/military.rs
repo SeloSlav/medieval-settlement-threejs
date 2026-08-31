@@ -1417,12 +1417,9 @@ fn canonical_steering_goal(
                                 stats.strike_range,
                             )
                         } else {
-                            let engagement_rank = dense_engagement_rank(
-                                engagement_ranks,
-                                agent.id,
-                                target.id,
-                            )
-                            .unwrap_or(source_rank);
+                            let engagement_rank =
+                                dense_engagement_rank(engagement_ranks, agent.id, target.id)
+                                    .unwrap_or(source_rank);
                             melee_engagement_goal(
                                 company.id,
                                 target.id,
@@ -1456,12 +1453,8 @@ fn canonical_steering_goal(
                         |frame| frame.goal(agent.source_slot, 12.0),
                     )
             } else {
-                let engagement_rank = dense_engagement_rank(
-                    engagement_ranks,
-                    agent.id,
-                    target.id,
-                )
-                .unwrap_or(agent.source_slot as usize);
+                let engagement_rank = dense_engagement_rank(engagement_ranks, agent.id, target.id)
+                    .unwrap_or(agent.source_slot as usize);
                 melee_engagement_goal(
                     agent.raid_id.max(agent.source_building_id),
                     target.id,

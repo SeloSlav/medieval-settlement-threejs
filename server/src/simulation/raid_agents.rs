@@ -954,16 +954,16 @@ fn step_one_live_raid(
                     .find(|frame| frame.owner == active.owner && frame.raid_id == active.raid_id);
                 engagement.rank_counts.clear();
                 engagement.stable_order.clear();
+                engagement.stable_order.extend(0..snapshots.len());
                 engagement
                     .stable_order
-                    .extend(0..snapshots.len());
-                engagement.stable_order.sort_unstable_by(|left_index, right_index| {
-                    let left = &snapshots[*left_index];
-                    let right = &snapshots[*right_index];
-                    left.source_slot
-                        .cmp(&right.source_slot)
-                        .then_with(|| left.id.cmp(&right.id))
-                });
+                    .sort_unstable_by(|left_index, right_index| {
+                        let left = &snapshots[*left_index];
+                        let right = &snapshots[*right_index];
+                        left.source_slot
+                            .cmp(&right.source_slot)
+                            .then_with(|| left.id.cmp(&right.id))
+                    });
                 let RaidEngagementScratch {
                     stable_order,
                     rank_counts,
@@ -976,7 +976,8 @@ fn step_one_live_raid(
                     if agent.state == COMBAT_STATE_DOWNED || agent.health <= EPSILON {
                         agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
                         agent.engagement_target_id = 0;
-                        if agent.faction == COMBAT_FACTION_RAIDER && agent.attack_cooldown <= EPSILON
+                        if agent.faction == COMBAT_FACTION_RAIDER
+                            && agent.attack_cooldown <= EPSILON
                         {
                             delete_ids.insert(agent.id);
                         }

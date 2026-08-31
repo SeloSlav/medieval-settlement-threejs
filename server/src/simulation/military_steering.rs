@@ -1598,6 +1598,115 @@ mod tests {
     }
 
     #[test]
+    fn thousand_body_solver_reuses_hot_path_capacity() {
+        let mut grid = CombatSteeringGrid::default();
+        grid.begin();
+        for index in 0..1024 {
+            let mut combatant = body(
+                index as u64 + 1,
+                index as u64 / 32,
+                (index % 32) as f64 * 4.0,
+                (index / 32) as f64 * 4.0,
+            );
+            combatant.speed = 0.0;
+            combatant.velocity_x = 0.0;
+            grid.push(combatant);
+        }
+        grid.finish();
+        grid.integrate_all(0.2);
+        let capacities = [
+            grid.staging.capacity(),
+            grid.ids.capacity(),
+            grid.xs.capacity(),
+            grid.zs.capacity(),
+            grid.velocity_xs.capacity(),
+            grid.velocity_zs.capacity(),
+            grid.cell_xs.capacity(),
+            grid.cell_zs.capacity(),
+            grid.next.capacity(),
+            grid.heads.capacity(),
+            grid.output_xs.capacity(),
+            grid.output_zs.capacity(),
+            grid.output_velocity_xs.capacity(),
+            grid.output_velocity_zs.capacity(),
+        ];
+        for _ in 0..8 {
+            grid.integrate_all(0.2);
+        }
+        assert_eq!(
+            capacities,
+            [
+                grid.staging.capacity(),
+                grid.ids.capacity(),
+                grid.xs.capacity(),
+                grid.zs.capacity(),
+                grid.velocity_xs.capacity(),
+                grid.velocity_zs.capacity(),
+                grid.cell_xs.capacity(),
+                grid.cell_zs.capacity(),
+                grid.next.capacity(),
+                grid.heads.capacity(),
+                grid.output_xs.capacity(),
+                grid.output_zs.capacity(),
+                grid.output_velocity_xs.capacity(),
+                grid.output_velocity_zs.capacity(),
+            ],
+            "the warmed 1,024-body solver must not grow any hot buffer"
+        );
+    }
+
+    #[test]
+    fn melee_casualties_promote_survivors_into_reachable_inner_slots() {
+        let key = EngagementRankKey {
+            owner_group: 1,
+            group_kind: 1,
+            group_id: 44,
+            target_id: 900,
+        };
+        let all = (1..=20)
+            .map(|agent_id| EngagementRankSeed { agent_id, key })
+            .collect::<Vec<_>>();
+        let mut counters = HashMap::new();
+        let mut ranks = Vec::new();
+        rebuild_dense_engagement_ranks(&all, &mut counters, &mut ranks);
+        assert_eq!(
+            ranks
+                .iter()
+                .find(|entry| entry.agent_id == 11)
+                .expect("outer survivor before casualties")
+                .rank,
+            10
+        );
+        let outer_goal = melee_engagement_goal(44, 900, 10, 0.0, 0.0, 2.15);
+        assert!(outer_goal.0.hypot(outer_goal.1) > 2.15);
+
+        let counter_capacity = counters.capacity();
+        let rank_capacity = ranks.capacity();
+        rebuild_dense_engagement_ranks(&all[10..], &mut counters, &mut ranks);
+        assert_eq!(ranks.len(), 10);
+        for (expected_rank, entry) in ranks.iter().enumerate() {
+            assert_eq!(entry.rank, expected_rank);
+            let goal = melee_engagement_goal(44, 900, entry.rank, 0.0, 0.0, 2.15);
+            assert!(
+                goal.0.hypot(goal.1) < 2.15,
+                "promoted survivor {} must return to melee strike reach",
+                entry.agent_id
+            );
+        }
+        assert_eq!(counters.capacity(), counter_capacity);
+        assert_eq!(ranks.capacity(), rank_capacity);
+
+        counters.clear();
+        for expected_rank in 0..10 {
+            assert_eq!(
+                next_dense_engagement_rank(&mut counters, key),
+                expected_rank,
+                "live raid assignments must use the same dense promotion order"
+            );
+        }
+    }
+
+    #[test]
     fn engagement_slots_do_not_collapse_onto_the_defender() {
         let first = melee_engagement_goal(7, 99, 0, 10.0, 20.0, 2.4);
         let second = melee_engagement_goal(7, 99, 1, 10.0, 20.0, 2.4);
