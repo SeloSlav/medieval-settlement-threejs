@@ -235,10 +235,15 @@ export type GameBalance = {
     neighborRadiusM: number;
     separationDistanceM: number;
     predictionSeconds: number;
+    maxSubstepSeconds: number;
+    stopDistanceM: number;
     maxNeighbors: number;
     goalWeight: number;
     separationWeight: number;
     predictiveWeight: number;
+    predictiveInnerThresholdSqFactor: number;
+    avoidanceCapFactor: number;
+    idlePushSpeedFactor: number;
     alignmentWeight: number;
     cohesionWeight: number;
     engagementSlotCount: number;
@@ -253,6 +258,7 @@ export type GameBalance = {
     exactOverlapEpsilonSq: number;
     hardConstraintIterations: number;
     hardClearanceEpsilonM: number;
+    hardPackAngularSlots: number;
   };
   seasons: {
     springRainChance: number;
@@ -950,10 +956,15 @@ function generateRust(): string {
     `pub const COMBAT_STEERING_NEIGHBOR_RADIUS_M: f64 = ${rustF64(b.combatSteering.neighborRadiusM)};`,
     `pub const COMBAT_STEERING_SEPARATION_DISTANCE_M: f64 = ${rustF64(b.combatSteering.separationDistanceM)};`,
     `pub const COMBAT_STEERING_PREDICTION_SECONDS: f64 = ${rustF64(b.combatSteering.predictionSeconds)};`,
+    `pub const COMBAT_STEERING_MAX_SUBSTEP_SECONDS: f64 = ${rustF64(b.combatSteering.maxSubstepSeconds)};`,
+    `pub const COMBAT_STEERING_STOP_DISTANCE_M: f64 = ${rustF64(b.combatSteering.stopDistanceM)};`,
     `pub const COMBAT_STEERING_MAX_NEIGHBORS: usize = ${Math.max(1, Math.round(b.combatSteering.maxNeighbors))};`,
     `pub const COMBAT_STEERING_GOAL_WEIGHT: f64 = ${rustF64(b.combatSteering.goalWeight)};`,
     `pub const COMBAT_STEERING_SEPARATION_WEIGHT: f64 = ${rustF64(b.combatSteering.separationWeight)};`,
     `pub const COMBAT_STEERING_PREDICTIVE_WEIGHT: f64 = ${rustF64(b.combatSteering.predictiveWeight)};`,
+    `pub const COMBAT_STEERING_PREDICTIVE_INNER_THRESHOLD_SQ_FACTOR: f64 = ${rustF64(b.combatSteering.predictiveInnerThresholdSqFactor)};`,
+    `pub const COMBAT_STEERING_AVOIDANCE_CAP_FACTOR: f64 = ${rustF64(b.combatSteering.avoidanceCapFactor)};`,
+    `pub const COMBAT_STEERING_IDLE_PUSH_SPEED_FACTOR: f64 = ${rustF64(b.combatSteering.idlePushSpeedFactor)};`,
     `pub const COMBAT_STEERING_ALIGNMENT_WEIGHT: f64 = ${rustF64(b.combatSteering.alignmentWeight)};`,
     `pub const COMBAT_STEERING_COHESION_WEIGHT: f64 = ${rustF64(b.combatSteering.cohesionWeight)};`,
     `pub const COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT: usize = ${Math.max(1, Math.round(b.combatSteering.engagementSlotCount))};`,
@@ -968,6 +979,7 @@ function generateRust(): string {
     `pub const COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ: f64 = ${rustF64(b.combatSteering.exactOverlapEpsilonSq)};`,
     `pub const COMBAT_STEERING_HARD_CONSTRAINT_ITERATIONS: usize = ${Math.max(1, Math.round(b.combatSteering.hardConstraintIterations))};`,
     `pub const COMBAT_STEERING_HARD_CLEARANCE_EPSILON_M: f64 = ${rustF64(b.combatSteering.hardClearanceEpsilonM)};`,
+    `pub const COMBAT_STEERING_HARD_PACK_ANGULAR_SLOTS: usize = ${Math.max(1, Math.round(b.combatSteering.hardPackAngularSlots))};`,
     '',
     `pub const SPRING_RAIN_CHANCE: f64 = ${rustF64(b.seasons.springRainChance)};`,
     `pub const SPRING_RAIN_CROP_GROWTH_MULTIPLIER: f64 = ${rustF64(b.seasons.springRainCropGrowthMultiplier)};`,
@@ -2059,10 +2071,15 @@ function generateTypeScript(): string {
     `export const COMBAT_STEERING_NEIGHBOR_RADIUS_M = ${b.combatSteering.neighborRadiusM};`,
     `export const COMBAT_STEERING_SEPARATION_DISTANCE_M = ${b.combatSteering.separationDistanceM};`,
     `export const COMBAT_STEERING_PREDICTION_SECONDS = ${b.combatSteering.predictionSeconds};`,
+    `export const COMBAT_STEERING_MAX_SUBSTEP_SECONDS = ${b.combatSteering.maxSubstepSeconds};`,
+    `export const COMBAT_STEERING_STOP_DISTANCE_M = ${b.combatSteering.stopDistanceM};`,
     `export const COMBAT_STEERING_MAX_NEIGHBORS = ${Math.max(1, Math.round(b.combatSteering.maxNeighbors))};`,
     `export const COMBAT_STEERING_GOAL_WEIGHT = ${b.combatSteering.goalWeight};`,
     `export const COMBAT_STEERING_SEPARATION_WEIGHT = ${b.combatSteering.separationWeight};`,
     `export const COMBAT_STEERING_PREDICTIVE_WEIGHT = ${b.combatSteering.predictiveWeight};`,
+    `export const COMBAT_STEERING_PREDICTIVE_INNER_THRESHOLD_SQ_FACTOR = ${b.combatSteering.predictiveInnerThresholdSqFactor};`,
+    `export const COMBAT_STEERING_AVOIDANCE_CAP_FACTOR = ${b.combatSteering.avoidanceCapFactor};`,
+    `export const COMBAT_STEERING_IDLE_PUSH_SPEED_FACTOR = ${b.combatSteering.idlePushSpeedFactor};`,
     `export const COMBAT_STEERING_ALIGNMENT_WEIGHT = ${b.combatSteering.alignmentWeight};`,
     `export const COMBAT_STEERING_COHESION_WEIGHT = ${b.combatSteering.cohesionWeight};`,
     `export const COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT = ${Math.max(1, Math.round(b.combatSteering.engagementSlotCount))};`,
@@ -2077,6 +2094,7 @@ function generateTypeScript(): string {
     `export const COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ = ${b.combatSteering.exactOverlapEpsilonSq};`,
     `export const COMBAT_STEERING_HARD_CONSTRAINT_ITERATIONS = ${Math.max(1, Math.round(b.combatSteering.hardConstraintIterations))};`,
     `export const COMBAT_STEERING_HARD_CLEARANCE_EPSILON_M = ${b.combatSteering.hardClearanceEpsilonM};`,
+    `export const COMBAT_STEERING_HARD_PACK_ANGULAR_SLOTS = ${Math.max(1, Math.round(b.combatSteering.hardPackAngularSlots))};`,
     '',
     `export const SPRING_RAIN_CHANCE = ${b.seasons.springRainChance};`,
     `export const SPRING_RAIN_CROP_GROWTH_MULTIPLIER = ${b.seasons.springRainCropGrowthMultiplier};`,

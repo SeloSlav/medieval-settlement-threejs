@@ -7,21 +7,30 @@ type CombatSteeringBalance = {
   neighborRadiusM: number;
   separationDistanceM: number;
   predictionSeconds: number;
+  maxSubstepSeconds: number;
+  stopDistanceM: number;
   maxNeighbors: number;
   goalWeight: number;
   separationWeight: number;
   predictiveWeight: number;
+  predictiveInnerThresholdSqFactor: number;
+  avoidanceCapFactor: number;
+  idlePushSpeedFactor: number;
   alignmentWeight: number;
   cohesionWeight: number;
   engagementSlotCount: number;
   engagementRadiusFactor: number;
   engagementMinRadiusM: number;
+  engagementRingSpacingM: number;
   rangedLineSpacingM: number;
   rangedDepthSpacingM: number;
   rangedPreferredRangeFactor: number;
   velocityResponsePerSecond: number;
   maxTurnRadiansPerSecond: number;
   exactOverlapEpsilonSq: number;
+  hardConstraintIterations: number;
+  hardClearanceEpsilonM: number;
+  hardPackAngularSlots: number;
 };
 
 const balance = JSON.parse(
@@ -34,10 +43,15 @@ const contracts = [
   ['COMBAT_STEERING_NEIGHBOR_RADIUS_M', 'neighborRadiusM'],
   ['COMBAT_STEERING_SEPARATION_DISTANCE_M', 'separationDistanceM'],
   ['COMBAT_STEERING_PREDICTION_SECONDS', 'predictionSeconds'],
+  ['COMBAT_STEERING_MAX_SUBSTEP_SECONDS', 'maxSubstepSeconds'],
+  ['COMBAT_STEERING_STOP_DISTANCE_M', 'stopDistanceM'],
   ['COMBAT_STEERING_MAX_NEIGHBORS', 'maxNeighbors'],
   ['COMBAT_STEERING_GOAL_WEIGHT', 'goalWeight'],
   ['COMBAT_STEERING_SEPARATION_WEIGHT', 'separationWeight'],
   ['COMBAT_STEERING_PREDICTIVE_WEIGHT', 'predictiveWeight'],
+  ['COMBAT_STEERING_PREDICTIVE_INNER_THRESHOLD_SQ_FACTOR', 'predictiveInnerThresholdSqFactor'],
+  ['COMBAT_STEERING_AVOIDANCE_CAP_FACTOR', 'avoidanceCapFactor'],
+  ['COMBAT_STEERING_IDLE_PUSH_SPEED_FACTOR', 'idlePushSpeedFactor'],
   ['COMBAT_STEERING_ALIGNMENT_WEIGHT', 'alignmentWeight'],
   ['COMBAT_STEERING_COHESION_WEIGHT', 'cohesionWeight'],
   ['COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT', 'engagementSlotCount'],
@@ -52,6 +66,7 @@ const contracts = [
   ['COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ', 'exactOverlapEpsilonSq'],
   ['COMBAT_STEERING_HARD_CONSTRAINT_ITERATIONS', 'hardConstraintIterations'],
   ['COMBAT_STEERING_HARD_CLEARANCE_EPSILON_M', 'hardClearanceEpsilonM'],
+  ['COMBAT_STEERING_HARD_PACK_ANGULAR_SLOTS', 'hardPackAngularSlots'],
 ] as const;
 
 for (const [constantName, balanceKey] of contracts) {
@@ -93,6 +108,30 @@ assert.ok(
 assert.ok(
   generated.COMBAT_STEERING_MAX_NEIGHBORS <= 24,
   'the deterministic neighbor cap must keep dense battles bounded',
+);
+assert.ok(
+  generated.COMBAT_STEERING_MAX_SUBSTEP_SECONDS > 0
+    && generated.COMBAT_STEERING_MAX_SUBSTEP_SECONDS
+      <= generated.COMBAT_STEERING_PREDICTION_SECONDS,
+  'each authoritative substep must fit inside the predictive horizon',
+);
+assert.ok(
+  generated.COMBAT_STEERING_STOP_DISTANCE_M > 0
+    && generated.COMBAT_STEERING_STOP_DISTANCE_M
+      < generated.COMBAT_STEERING_SEPARATION_DISTANCE_M,
+  'the goal stop radius must remain smaller than physical body clearance',
+);
+for (const [label, factor] of [
+  ['predictive inner threshold', generated.COMBAT_STEERING_PREDICTIVE_INNER_THRESHOLD_SQ_FACTOR],
+  ['avoidance cap', generated.COMBAT_STEERING_AVOIDANCE_CAP_FACTOR],
+  ['idle push speed', generated.COMBAT_STEERING_IDLE_PUSH_SPEED_FACTOR],
+] as const) {
+  assert.ok(factor > 0 && factor <= 1, `${label} must remain a normalized factor`);
+}
+assert.ok(
+  Number.isInteger(generated.COMBAT_STEERING_HARD_PACK_ANGULAR_SLOTS)
+    && generated.COMBAT_STEERING_HARD_PACK_ANGULAR_SLOTS >= 3,
+  'hard residual packing needs a valid shared angular fan',
 );
 assert.ok(
   2 * generated.COMBAT_STEERING_ENGAGEMENT_MIN_RADIUS_M

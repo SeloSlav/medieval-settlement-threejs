@@ -4,18 +4,24 @@
 //! through a uniform spatial hash. `begin`/`push`/`finish` reuse their capacity,
 //! so after warm-up neither rebuilding the grid nor querying it allocates.
 
+use std::collections::HashMap;
+
 use crate::balance_generated::{
-    COMBAT_STEERING_ALIGNMENT_WEIGHT, COMBAT_STEERING_CELL_SIZE_M, COMBAT_STEERING_COHESION_WEIGHT,
+    COMBAT_STEERING_ALIGNMENT_WEIGHT, COMBAT_STEERING_AVOIDANCE_CAP_FACTOR,
+    COMBAT_STEERING_CELL_SIZE_M, COMBAT_STEERING_COHESION_WEIGHT,
     COMBAT_STEERING_ENGAGEMENT_MIN_RADIUS_M, COMBAT_STEERING_ENGAGEMENT_RADIUS_FACTOR,
     COMBAT_STEERING_ENGAGEMENT_RING_SPACING_M, COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT,
     COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ, COMBAT_STEERING_GOAL_WEIGHT,
     COMBAT_STEERING_HARD_CLEARANCE_EPSILON_M, COMBAT_STEERING_HARD_CONSTRAINT_ITERATIONS,
-    COMBAT_STEERING_MAX_NEIGHBORS, COMBAT_STEERING_MAX_TURN_RADIANS_PER_SECOND,
+    COMBAT_STEERING_HARD_PACK_ANGULAR_SLOTS, COMBAT_STEERING_IDLE_PUSH_SPEED_FACTOR,
+    COMBAT_STEERING_MAX_NEIGHBORS, COMBAT_STEERING_MAX_SUBSTEP_SECONDS,
+    COMBAT_STEERING_MAX_TURN_RADIANS_PER_SECOND,
     COMBAT_STEERING_NEIGHBOR_RADIUS_M, COMBAT_STEERING_PREDICTION_SECONDS,
-    COMBAT_STEERING_PREDICTIVE_WEIGHT, COMBAT_STEERING_RANGED_DEPTH_SPACING_M,
+    COMBAT_STEERING_PREDICTIVE_INNER_THRESHOLD_SQ_FACTOR, COMBAT_STEERING_PREDICTIVE_WEIGHT,
+    COMBAT_STEERING_RANGED_DEPTH_SPACING_M,
     COMBAT_STEERING_RANGED_LINE_SPACING_M, COMBAT_STEERING_RANGED_PREFERRED_RANGE_FACTOR,
     COMBAT_STEERING_SEPARATION_DISTANCE_M, COMBAT_STEERING_SEPARATION_WEIGHT,
-    COMBAT_STEERING_VELOCITY_RESPONSE_PER_SECOND,
+    COMBAT_STEERING_STOP_DISTANCE_M, COMBAT_STEERING_VELOCITY_RESPONSE_PER_SECOND,
 };
 
 const HASH_X: u32 = 73_856_093;
@@ -48,6 +54,64 @@ pub(crate) struct SteeringOutput {
     pub z: f64,
     pub velocity_x: f64,
     pub velocity_z: f64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct EngagementRankKey {
+    pub owner_group: u64,
+    pub group_kind: u8,
+    pub group_id: u64,
+    pub target_id: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct EngagementRankSeed {
+    pub agent_id: u64,
+    pub key: EngagementRankKey,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct DenseEngagementRank {
+    pub agent_id: u64,
+    pub target_id: u64,
+    pub rank: usize,
+}
+
+/// Assign stable dense ranks to the currently living attackers of each exact
+/// group/target pair. Callers provide seeds in stable formation-slot order, so
+/// a casualty removes one entry and promotes every later survivor. Output is
+/// restored to agent-id order for binary lookup. Both buffers retain capacity
+/// across heartbeats.
+pub(crate) fn rebuild_dense_engagement_ranks(
+    seeds: &[EngagementRankSeed],
+    counters: &mut HashMap<EngagementRankKey, usize>,
+    output: &mut Vec<DenseEngagementRank>,
+) {
+    counters.clear();
+    output.clear();
+    if output.capacity() < seeds.len() {
+        output.reserve(seeds.len() - output.capacity());
+    }
+    for seed in seeds {
+        let rank = counters.entry(seed.key).or_insert(0);
+        output.push(DenseEngagementRank {
+            agent_id: seed.agent_id,
+            target_id: seed.key.target_id,
+            rank: *rank,
+        });
+        *rank += 1;
+    }
+    output.sort_unstable_by_key(|entry| entry.agent_id);
+}
+
+pub(crate) fn next_dense_engagement_rank(
+    counters: &mut HashMap<EngagementRankKey, usize>,
+    key: EngagementRankKey,
+) -> usize {
+    let rank = counters.entry(key).or_insert(0);
+    let assigned = *rank;
+    *rank += 1;
+    assigned
 }
 
 #[derive(Clone, Copy)]
@@ -211,7 +275,7 @@ impl CombatSteeringGrid {
         clear_and_reserve(&mut self.output_velocity_zs, count);
         let mut remaining = elapsed_seconds;
         while remaining > 1e-9 {
-            let dt = remaining.min(0.2);
+            let dt = remaining.min(COMBAT_STEERING_MAX_SUBSTEP_SECONDS);
             self.output_xs.clear();
             self.output_zs.clear();
             self.output_velocity_xs.clear();
@@ -344,12 +408,14 @@ impl CombatSteeringGrid {
         self.cell_zs.resize(count, 0);
         self.bucket_mask = bucket_count - 1;
 
-        const ANGULAR_SLOTS: usize = 18;
-        let maximum_probes = count.saturating_mul(ANGULAR_SLOTS).max(ANGULAR_SLOTS);
+        let maximum_probes = count
+            .saturating_mul(COMBAT_STEERING_HARD_PACK_ANGULAR_SLOTS)
+            .max(COMBAT_STEERING_HARD_PACK_ANGULAR_SLOTS);
         for index in 0..count {
             let base_x = self.output_xs[index];
             let base_z = self.output_zs[index];
-            let phase = mix_seed(self.ids[index] as u32) as usize % ANGULAR_SLOTS;
+            let phase = mix_seed(self.ids[index] as u32) as usize
+                % COMBAT_STEERING_HARD_PACK_ANGULAR_SLOTS;
             let mut selected_x = base_x.clamp(bounds.min_x, bounds.max_x);
             let mut selected_z = base_z.clamp(bounds.min_z, bounds.max_z);
             let mut found = false;
@@ -358,10 +424,11 @@ impl CombatSteeringGrid {
                     (selected_x, selected_z)
                 } else {
                     let offset = probe - 1;
-                    let ring = offset / ANGULAR_SLOTS + 1;
-                    let slot = offset % ANGULAR_SLOTS;
-                    let angle =
-                        (slot + phase) as f64 / ANGULAR_SLOTS as f64 * std::f64::consts::TAU;
+                    let ring = offset / COMBAT_STEERING_HARD_PACK_ANGULAR_SLOTS + 1;
+                    let slot = offset % COMBAT_STEERING_HARD_PACK_ANGULAR_SLOTS;
+                    let angle = (slot + phase) as f64
+                        / COMBAT_STEERING_HARD_PACK_ANGULAR_SLOTS as f64
+                        * std::f64::consts::TAU;
                     let radius = ring as f64 * HARD_SEPARATION_DISTANCE_M;
                     (
                         (base_x + angle.cos() * radius).clamp(bounds.min_x, bounds.max_x),
@@ -564,7 +631,7 @@ impl CombatSteeringGrid {
                 velocity_z: 0.0,
             };
         }
-        let dt = dt.min(0.2);
+        let dt = dt.min(COMBAT_STEERING_MAX_SUBSTEP_SECONDS);
         let (preferred_x, preferred_z) =
             preferred_velocity(source.x, source.z, goal_x, goal_z, speed, dt);
         let preferred_length = preferred_x.hypot(preferred_z);
@@ -739,7 +806,9 @@ impl CombatSteeringGrid {
                     let predicted_z = relative_z + relative_velocity_z * closest_time;
                     let predicted_sq = predicted_x * predicted_x + predicted_z * predicted_z;
                     if predicted_sq < separation_sq {
-                        let (avoid_x, avoid_z) = if predicted_sq <= separation_sq * 0.16 {
+                        let (avoid_x, avoid_z) = if predicted_sq
+                            <= separation_sq * COMBAT_STEERING_PREDICTIVE_INNER_THRESHOLD_SQ_FACTOR
+                        {
                             let low = source.id.min(self.ids[index]) as u32;
                             let high = source.id.max(self.ids[index]) as u32;
                             let side = if mix_seed(low ^ high.wrapping_mul(0x9e37_79b1)) & 1 == 0 {
@@ -792,7 +861,7 @@ impl CombatSteeringGrid {
         let mut avoidance_z = separation_z * COMBAT_STEERING_SEPARATION_WEIGHT
             + predictive_z * COMBAT_STEERING_PREDICTIVE_WEIGHT;
         let avoidance_length = avoidance_x.hypot(avoidance_z);
-        let max_avoidance = COMBAT_STEERING_GOAL_WEIGHT * 0.72;
+        let max_avoidance = COMBAT_STEERING_GOAL_WEIGHT * COMBAT_STEERING_AVOIDANCE_CAP_FACTOR;
         if avoidance_length > max_avoidance {
             avoidance_x *= max_avoidance / avoidance_length;
             avoidance_z *= max_avoidance / avoidance_length;
@@ -824,7 +893,8 @@ impl CombatSteeringGrid {
             let motion_speed = if preferred_length > 1e-8 {
                 speed.min(preferred_length)
             } else {
-                (speed * 0.45).min((separation_pressure + flock_pressure) * speed)
+                (speed * COMBAT_STEERING_IDLE_PUSH_SPEED_FACTOR)
+                    .min((separation_pressure + flock_pressure) * speed)
             };
             desired_velocity_x = steer_x / steer_length * motion_speed;
             desired_velocity_z = steer_z / steer_length * motion_speed;
@@ -1004,7 +1074,9 @@ fn preferred_velocity(x: f64, z: f64, goal_x: f64, goal_z: f64, speed: f64, dt: 
     let dx = goal_x - x;
     let dz = goal_z - z;
     let distance_sq = dx * dx + dz * dz;
-    if distance_sq <= 0.0064 || speed <= 0.0 {
+    if distance_sq <= COMBAT_STEERING_STOP_DISTANCE_M * COMBAT_STEERING_STOP_DISTANCE_M
+        || speed <= 0.0
+    {
         return (0.0, 0.0);
     }
     let distance = distance_sq.sqrt();

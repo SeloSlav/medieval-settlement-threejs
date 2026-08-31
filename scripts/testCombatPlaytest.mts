@@ -7,9 +7,12 @@ import {
   combatPlaytestCamera,
   combatPlaytestPresetDefinition,
   combatPlaytestWorldSettings,
+  denseMeleeEngagementRank,
   parseCombatPlaytestRequest,
+  type MeleeEngagementRankMember,
   type CombatPlaytestPreset,
 } from '../src/app/combatPlaytest.ts';
+import { engagementSlotRadius } from '../src/security/combatSteering.ts';
 
 const seed = 0x431a_2e0d;
 const site = { x: 0, z: 0, axisX: 1, axisZ: 0 };
@@ -79,6 +82,38 @@ for (const faction of [
 assert.ok(enemy.every((agent) => agent.faction === 'raider'));
 assert.ok(friendly.every((agent) => agent.status === 'holding'));
 assert.ok(enemy.every((agent) => agent.status === 'advancing'));
+
+// Fixed source slots must not strand survivors on an outer melee ring after
+// the first rank dies. The next ten stable survivors compact into ranks 0..9,
+// whose goals are inside the spearmen's authored strike range.
+{
+  const cohort: MeleeEngagementRankMember[] = Array.from({ length: 32 }, (_, sourceSlot) => ({
+    state: { sourceSlot },
+    steeringSeed: sourceSlot + 1,
+    steeringTeam: 1,
+    steeringCompany: 77,
+    steeringEnabled: true,
+    meleeEngaging: true,
+    meleeEngagementTargetId: 'shared-target',
+  }));
+  assert.equal(denseMeleeEngagementRank(cohort[10]!, cohort), 10);
+  assert.ok(
+    engagementSlotRadius(2.6, 10) > 2.6,
+    'the pre-casualty outer rank should begin beyond immediate spear strike range',
+  );
+  for (let slot = 0; slot < 10; slot += 1) {
+    cohort[slot]!.steeringEnabled = false;
+    cohort[slot]!.meleeEngaging = false;
+  }
+  for (let slot = 10; slot < 20; slot += 1) {
+    const promotedRank = denseMeleeEngagementRank(cohort[slot]!, cohort);
+    assert.equal(promotedRank, slot - 10, `source slot ${slot} must compact after casualties`);
+    assert.ok(
+      engagementSlotRadius(2.6, promotedRank) <= 2.6,
+      `promoted source slot ${slot} must be able to enter spear strike range`,
+    );
+  }
+}
 
 // The Ottoman ranks are deliberately spread across several lanes. Each ranged
 // company must nevertheless designate one stable company target/frame instead
@@ -266,6 +301,10 @@ assert.match(playtest, /polearm:[\s\S]{0,140}health: 70[\s\S]{0,90}damage: 17\.5
 assert.match(playtest, /bowman:[\s\S]{0,140}health: 55[\s\S]{0,90}cadence: 1\.55[\s\S]{0,90}range: 20/);
 assert.match(playtest, /minimumRange: 8/);
 assert.match(playtest, /minimumRange: 7\.25/);
+assert.match(playtest, /refreshMeleeEngagementRanks\(\)/);
+assert.match(playtest, /engagementSlotAngle\(\s*runtime\.meleeEngagementRank/);
+assert.match(playtest, /engagementSlotRadius\(stats\.range, runtime\.meleeEngagementRank\)/);
+assert.match(playtest, /rangedLineLateral\(input\.sourceSlot, input\.companySize\)/);
 assert.doesNotMatch(playtest, /retireFrom[\s\S]{0,900}setStatus\(runtime, 'retreating'\)/);
 
 console.log('Offline production-world combat playtest route, controls, isolation, and stress contract passed.');

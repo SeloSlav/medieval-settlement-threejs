@@ -428,7 +428,11 @@ for (const scenario of ['exact-overlap', 'dense-grid'] as const) {
   const started = performance.now();
   for (let step = 0; step < 120; step += 1) grid.update(agents, agents.length, 0.05, bounds);
   const elapsed = performance.now() - started;
-  assert.ok(elapsed < 2_500, `1,024-agent grid regression: ${elapsed.toFixed(1)} ms / 120 steps`);
+  const averageStepMs = elapsed / 120;
+  assert.ok(
+    averageStepMs < 16,
+    `1,024-agent grid regression: ${averageStepMs.toFixed(2)} ms average (${elapsed.toFixed(1)} ms / 120 steps)`,
+  );
 }
 
 const source = readFileSync(new URL('../src/security/combatSteering.ts', import.meta.url), 'utf8');

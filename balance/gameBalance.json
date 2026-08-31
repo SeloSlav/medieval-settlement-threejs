@@ -27,10 +27,15 @@
     "neighborRadiusM": 3.2,
     "separationDistanceM": 0.82,
     "predictionSeconds": 0.35,
+    "maxSubstepSeconds": 0.2,
+    "stopDistanceM": 0.08,
     "maxNeighbors": 18,
     "goalWeight": 1.75,
     "separationWeight": 1.15,
     "predictiveWeight": 0.9,
+    "predictiveInnerThresholdSqFactor": 0.16,
+    "avoidanceCapFactor": 0.72,
+    "idlePushSpeedFactor": 0.45,
     "alignmentWeight": 0.12,
     "cohesionWeight": 0.08,
     "engagementSlotCount": 10,
@@ -44,7 +49,8 @@
     "maxTurnRadiansPerSecond": 8,
     "exactOverlapEpsilonSq": 0.00000001,
     "hardConstraintIterations": 8,
-    "hardClearanceEpsilonM": 0.001
+    "hardClearanceEpsilonM": 0.001,
+    "hardPackAngularSlots": 18
   },
   "seasons": {
     "springRainChance": 0.55,

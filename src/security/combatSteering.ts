@@ -1,5 +1,6 @@
 import {
   COMBAT_STEERING_ALIGNMENT_WEIGHT,
+  COMBAT_STEERING_AVOIDANCE_CAP_FACTOR,
   COMBAT_STEERING_CELL_SIZE_M,
   COMBAT_STEERING_COHESION_WEIGHT,
   COMBAT_STEERING_ENGAGEMENT_MIN_RADIUS_M,
@@ -10,16 +11,21 @@ import {
   COMBAT_STEERING_GOAL_WEIGHT,
   COMBAT_STEERING_HARD_CLEARANCE_EPSILON_M,
   COMBAT_STEERING_HARD_CONSTRAINT_ITERATIONS,
+  COMBAT_STEERING_HARD_PACK_ANGULAR_SLOTS,
+  COMBAT_STEERING_IDLE_PUSH_SPEED_FACTOR,
   COMBAT_STEERING_MAX_NEIGHBORS,
+  COMBAT_STEERING_MAX_SUBSTEP_SECONDS,
   COMBAT_STEERING_MAX_TURN_RADIANS_PER_SECOND,
   COMBAT_STEERING_NEIGHBOR_RADIUS_M,
   COMBAT_STEERING_PREDICTION_SECONDS,
+  COMBAT_STEERING_PREDICTIVE_INNER_THRESHOLD_SQ_FACTOR,
   COMBAT_STEERING_PREDICTIVE_WEIGHT,
   COMBAT_STEERING_RANGED_DEPTH_SPACING_M,
   COMBAT_STEERING_RANGED_LINE_SPACING_M,
   COMBAT_STEERING_RANGED_PREFERRED_RANGE_FACTOR,
   COMBAT_STEERING_SEPARATION_DISTANCE_M,
   COMBAT_STEERING_SEPARATION_WEIGHT,
+  COMBAT_STEERING_STOP_DISTANCE_M,
   COMBAT_STEERING_VELOCITY_RESPONSE_PER_SECOND,
 } from '../generated/gameBalance.ts';
 
@@ -31,7 +37,7 @@ const NEIGHBOR_CELL_RADIUS = Math.max(
   1,
   Math.ceil(COMBAT_STEERING_NEIGHBOR_RADIUS_M / COMBAT_STEERING_CELL_SIZE_M),
 );
-const STOP_DISTANCE_SQ = 0.0064;
+const STOP_DISTANCE_SQ = COMBAT_STEERING_STOP_DISTANCE_M * COMBAT_STEERING_STOP_DISTANCE_M;
 const HARD_SEPARATION_DISTANCE_M = COMBAT_STEERING_SEPARATION_DISTANCE_M
   + COMBAT_STEERING_HARD_CLEARANCE_EPSILON_M;
 const HARD_SEPARATION_DISTANCE_SQ = HARD_SEPARATION_DISTANCE_M
@@ -113,7 +119,7 @@ export class CanonicalCombatSteeringGrid {
   ): void {
     const activeCount = Math.min(Math.max(0, Math.floor(count)), agents.length, this.capacity);
     if (activeCount === 0 || !Number.isFinite(dtSeconds) || dtSeconds <= 0) return;
-    const dt = Math.min(dtSeconds, 0.2);
+    const dt = Math.min(dtSeconds, COMBAT_STEERING_MAX_SUBSTEP_SECONDS);
 
     this.bucketHeads.fill(-1);
     for (let index = 0; index < activeCount; index += 1) {
@@ -353,7 +359,10 @@ export class CanonicalCombatSteeringGrid {
             if (futureDistanceSq < SEPARATION_DISTANCE_SQ) {
               let avoidX: number;
               let avoidZ: number;
-              if (futureDistanceSq <= SEPARATION_DISTANCE_SQ * 0.16) {
+              if (
+                futureDistanceSq
+                <= SEPARATION_DISTANCE_SQ * COMBAT_STEERING_PREDICTIVE_INNER_THRESHOLD_SQ_FACTOR
+              ) {
                 const lowSeed = Math.min(agent.steeringSeed, other.steeringSeed);
                 const highSeed = Math.max(agent.steeringSeed, other.steeringSeed);
                 const side = (mixSeed(lowSeed ^ Math.imul(highSeed, 0x9e37_79b1)) & 1)
@@ -407,7 +416,7 @@ export class CanonicalCombatSteeringGrid {
       let avoidanceZ = separationZ * COMBAT_STEERING_SEPARATION_WEIGHT
         + predictiveZ * COMBAT_STEERING_PREDICTIVE_WEIGHT;
       const avoidanceLength = Math.hypot(avoidanceX, avoidanceZ);
-      const maxAvoidance = COMBAT_STEERING_GOAL_WEIGHT * 0.72;
+      const maxAvoidance = COMBAT_STEERING_GOAL_WEIGHT * COMBAT_STEERING_AVOIDANCE_CAP_FACTOR;
       if (avoidanceLength > maxAvoidance) {
         avoidanceX *= maxAvoidance / avoidanceLength;
         avoidanceZ *= maxAvoidance / avoidanceLength;
@@ -439,7 +448,7 @@ export class CanonicalCombatSteeringGrid {
         const motionSpeed = preferredLength > 1e-8
           ? Math.min(agent.steeringSpeed, preferredLength)
           : Math.min(
-            agent.steeringSpeed * 0.45,
+            agent.steeringSpeed * COMBAT_STEERING_IDLE_PUSH_SPEED_FACTOR,
             (separationPressure + flockPressure) * agent.steeringSpeed,
           );
         desiredVelocityX = steerX / steerLength * motionSpeed;
@@ -593,7 +602,7 @@ export class CanonicalCombatSteeringGrid {
     bounds: CombatSteeringBounds,
   ): void {
     this.bucketHeads.fill(-1);
-    const slotsPerRing = COMBAT_STEERING_MAX_NEIGHBORS;
+    const slotsPerRing = COMBAT_STEERING_HARD_PACK_ANGULAR_SLOTS;
     const maximumAttempts = Math.max(slotsPerRing, activeCount * slotsPerRing);
     for (let index = 0; index < activeCount; index += 1) {
       const agent = agents[index]!;

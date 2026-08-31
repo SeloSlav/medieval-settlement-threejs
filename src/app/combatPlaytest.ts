@@ -81,6 +81,18 @@ type RuntimeAgent = CombatSteeringAgent & {
   rangedLateral: number;
   rangedDepth: number;
   rangedEngagement: RangedCompanyEngagement | null;
+  meleeEngaging: boolean;
+  meleeEngagementTargetId: string | null;
+  meleeEngagementRank: number;
+};
+
+export type MeleeEngagementRankMember = Pick<
+  CombatSteeringAgent,
+  'steeringSeed' | 'steeringTeam' | 'steeringCompany' | 'steeringEnabled'
+> & {
+  state: { sourceSlot: number };
+  meleeEngaging: boolean;
+  meleeEngagementTargetId: string | null;
 };
 
 type RangedCompanyEngagement = {
@@ -237,6 +249,7 @@ export class CombatPlaytestSimulation {
   private readonly livingEnemies: RuntimeAgent[] = [];
   private readonly pendingDamage = new Map<string, number>();
   private readonly rangedEngagements = new Map<string, RangedCompanyEngagement>();
+  private readonly meleeRankCounts = new Map<RuntimeAgent, number>();
   private readonly steering = new CanonicalCombatSteeringGrid(1_024);
   private readonly steeringBounds: CombatSteeringBounds;
   private preset: CombatPlaytestPreset;
@@ -265,6 +278,7 @@ export class CombatPlaytestSimulation {
     this.livingEnemies.length = 0;
     this.pendingDamage.clear();
     this.rangedEngagements.clear();
+    this.meleeRankCounts.clear();
     this.spawnFriendlies(PRESETS[preset].membersPerCompany);
     this.spawnEnemies(PRESETS[preset].membersPerCompany);
   }
@@ -450,6 +464,7 @@ export class CombatPlaytestSimulation {
     }
 
     this.refreshRangedCompanyEngagements();
+    this.refreshMeleeEngagementRanks();
 
     this.pendingDamage.clear();
     for (const friendly of this.livingFriendlies) {
@@ -577,11 +592,11 @@ export class CombatPlaytestSimulation {
       return;
     }
     const angle = engagementSlotAngle(
-      runtime.state.sourceSlot,
+      runtime.meleeEngagementRank,
       runtime.steeringCompany,
       opponent.steeringSeed,
     );
-    const radius = engagementSlotRadius(stats.range, runtime.state.sourceSlot);
+    const radius = engagementSlotRadius(stats.range, runtime.meleeEngagementRank);
     runtime.steeringGoalX = opponent.state.x + Math.cos(angle) * radius;
     runtime.steeringGoalZ = opponent.state.z + Math.sin(angle) * radius;
     runtime.steeringSpeed = stats.speed;
@@ -727,6 +742,47 @@ export class CombatPlaytestSimulation {
       }
       engagement.awayX = awayX / awayLength;
       engagement.awayZ = awayZ / awayLength;
+    }
+  }
+
+  private refreshMeleeEngagementRanks(): void {
+    for (const runtime of this.runtimeList) {
+      runtime.meleeEngaging = false;
+      runtime.meleeEngagementTargetId = null;
+      runtime.meleeEngagementRank = 0;
+      if (!runtime.steeringEnabled || runtime.rangedEngagement) continue;
+      if (runtime.orderMode === 'move') continue;
+      const candidates = runtime.state.faction === 'raider'
+        ? this.livingFriendlies
+        : this.livingEnemies;
+      const target = this.currentOpponent(runtime, candidates);
+      if (!target) continue;
+      const stats = this.statsFor(runtime);
+      const shouldEngage = runtime.state.faction === 'raider'
+        || runtime.orderMode === 'attack'
+        || distanceBetween(runtime, target) <= stats.detection;
+      if (!shouldEngage) continue;
+      runtime.meleeEngaging = true;
+      runtime.meleeEngagementTargetId = target.state.id;
+    }
+    let previousTeam = Number.NaN;
+    let previousCompany = Number.NaN;
+    for (const runtime of this.runtimeList) {
+      if (
+        runtime.steeringTeam !== previousTeam
+        || runtime.steeringCompany !== previousCompany
+      ) {
+        this.meleeRankCounts.clear();
+        previousTeam = runtime.steeringTeam;
+        previousCompany = runtime.steeringCompany;
+      }
+      if (!runtime.meleeEngaging || !runtime.targetRuntime) {
+        runtime.meleeEngagementRank = 0;
+        continue;
+      }
+      const rank = this.meleeRankCounts.get(runtime.targetRuntime) ?? 0;
+      runtime.meleeEngagementRank = rank;
+      this.meleeRankCounts.set(runtime.targetRuntime, rank + 1);
     }
   }
 
@@ -894,6 +950,9 @@ export class CombatPlaytestSimulation {
       rangedLateral: rangedLineLateral(input.sourceSlot, input.companySize),
       rangedDepth: rangedLineDepth(input.sourceSlot, input.companySize),
       rangedEngagement,
+      meleeEngaging: false,
+      meleeEngagementTargetId: null,
+      meleeEngagementRank: 0,
       steeringSeed: this.seed ^ hashString(input.id),
       steeringTeam: input.faction === 'raider' ? 2 : 1,
       steeringCompany,
@@ -912,6 +971,40 @@ export class CombatPlaytestSimulation {
       z: this.site.z + this.site.axisZ * axial + this.site.axisX * lateral,
     };
   }
+}
+
+/**
+ * Dense stable rank among living melee bodies in one company/target cohort.
+ * Source slots remain the tie-breaker, but casualties no longer leave holes
+ * that strand surviving attackers on outer rings beyond weapon reach.
+ */
+export function denseMeleeEngagementRank(
+  source: MeleeEngagementRankMember,
+  members: readonly MeleeEngagementRankMember[],
+): number {
+  if (
+    !source.steeringEnabled
+    || !source.meleeEngaging
+    || source.meleeEngagementTargetId === null
+  ) return 0;
+  let rank = 0;
+  for (const candidate of members) {
+    if (
+      !candidate.steeringEnabled
+      || !candidate.meleeEngaging
+      || candidate.steeringTeam !== source.steeringTeam
+      || candidate.steeringCompany !== source.steeringCompany
+      || candidate.meleeEngagementTargetId !== source.meleeEngagementTargetId
+    ) continue;
+    if (
+      candidate.state.sourceSlot < source.state.sourceSlot
+      || (
+        candidate.state.sourceSlot === source.state.sourceSlot
+        && candidate.steeringSeed < source.steeringSeed
+      )
+    ) rank += 1;
+  }
+  return rank;
 }
 
 export class CombatPlaytestOverlay {

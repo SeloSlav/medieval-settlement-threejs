@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 use spacetimedb::{Identity, ReducerContext};
 
@@ -21,7 +22,8 @@ use crate::tables::{
 use super::bandits::destroy_camp;
 use super::military_steering::{
     melee_engagement_goal, raider_ranged_firing_line_goal, ranged_firing_line_goal,
-    CombatSteeringGrid, SteeringBody, SteeringBounds,
+    rebuild_dense_engagement_ranks, CombatSteeringGrid, DenseEngagementRank, EngagementRankKey,
+    EngagementRankSeed, SteeringBody, SteeringBounds,
 };
 use super::raid_agents::{
     collect_raider_ranged_frames, down_external_raider, reclamation_from_raid_stores,
@@ -77,6 +79,9 @@ struct MilitaryScratch {
     ranged_frames: Vec<RangedCompanyFrame>,
     combatants: Vec<CombatAgent>,
     raider_ranged_frames: Vec<RaiderRangedFrame>,
+    engagement_rank_seeds: Vec<EngagementRankSeed>,
+    engagement_rank_counts: HashMap<EngagementRankKey, usize>,
+    engagement_ranks: Vec<DenseEngagementRank>,
 }
 
 impl MilitaryScratch {
@@ -85,6 +90,13 @@ impl MilitaryScratch {
             .binary_search_by_key(&company_id, |frame| frame.company_id)
             .ok()
             .map(|index| self.ranged_frames[index])
+    }
+
+    fn engagement_rank(&self, agent_id: u64) -> Option<DenseEngagementRank> {
+        self.engagement_ranks
+            .binary_search_by_key(&agent_id, |entry| entry.agent_id)
+            .ok()
+            .map(|index| self.engagement_ranks[index])
     }
 }
 
@@ -167,15 +179,44 @@ fn prepare_military_scratch(
         }
         start = end;
     }
+    refresh_combat_scratch(ctx, scratch);
 }
 
-fn refresh_raider_ranged_scratch(ctx: &ReducerContext, scratch: &mut MilitaryScratch) {
+fn refresh_combat_scratch(ctx: &ReducerContext, scratch: &mut MilitaryScratch) {
     scratch.combatants.clear();
     scratch.combatants.extend(ctx.db.combat_agent().iter());
-    scratch
-        .combatants
-        .sort_unstable_by_key(|combatant| combatant.id);
+    scratch.combatants.sort_unstable_by(|left, right| {
+        left.source_slot
+            .cmp(&right.source_slot)
+            .then_with(|| left.id.cmp(&right.id))
+    });
     collect_raider_ranged_frames(&scratch.combatants, &mut scratch.raider_ranged_frames);
+    scratch.engagement_rank_seeds.clear();
+    for agent in scratch
+        .combatants
+        .iter()
+        .filter(|agent| agent.state != DOWNED && agent.health > 0.0)
+    {
+        let target_id = combat_engagement_target(agent);
+        if target_id == 0 {
+            continue;
+        }
+        let (group_kind, group_id) = combat_group_key(ctx, agent);
+        scratch.engagement_rank_seeds.push(EngagementRankSeed {
+            agent_id: agent.id,
+            key: EngagementRankKey {
+                owner_group: identity_group(agent.owner),
+                group_kind,
+                group_id,
+                target_id,
+            },
+        });
+    }
+    rebuild_dense_engagement_ranks(
+        &scratch.engagement_rank_seeds,
+        &mut scratch.engagement_rank_counts,
+        &mut scratch.engagement_ranks,
+    );
 }
 
 fn build_ranged_company_frame(
@@ -328,13 +369,14 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
                 // every provisional faction displacement with one synchronous
                 // integration, preventing two fast bodies from swapping sides
                 // before predictive avoidance sees them.
-                refresh_raider_ranged_scratch(ctx, &mut scratch);
+                refresh_combat_scratch(ctx, &mut scratch);
                 rebuild_steering_grid(
                     ctx,
                     &mut steering,
                     Some(&frame),
                     &scratch.ranged_frames,
                     &scratch.raider_ranged_frames,
+                    &scratch.engagement_ranks,
                     elapsed_seconds,
                 );
                 apply_global_combat_steering(ctx, &mut steering, &frame, elapsed_seconds);
