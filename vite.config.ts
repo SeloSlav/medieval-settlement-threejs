@@ -60,7 +60,10 @@ function vendorChunk(id: string): string | undefined {
   return undefined;
 }
 
-function explicitPublicAssetCopy(includeQaArchives: boolean): Plugin {
+function explicitPublicAssetCopy(
+  includeQaArchives: boolean,
+  includeArchitectureReferences: boolean,
+): Plugin {
   let resolvedConfig: ResolvedConfig | null = null;
   return {
     name: 'explicit-public-asset-copy',
@@ -74,6 +77,7 @@ function explicitPublicAssetCopy(includeQaArchives: boolean): Plugin {
         publicRoot,
         resolve(resolvedConfig.root, resolvedConfig.build.outDir),
         includeQaArchives,
+        includeArchitectureReferences,
       );
     },
   };
@@ -81,6 +85,7 @@ function explicitPublicAssetCopy(includeQaArchives: boolean): Plugin {
 
 export default defineConfig(({ mode }) => {
   const includeQaArchives = mode === 'visual-gauntlet';
+  const includeArchitectureReferences = includeQaArchives || mode === 'e2e';
   const stableCapture = process.env.SELO_STABLE_CAPTURE === '1'
     || mode === 'stable-capture';
   const buildInputs: Record<string, string> = { game: gameEntry };
@@ -125,7 +130,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [explicitPublicAssetCopy(includeQaArchives)],
+    plugins: [explicitPublicAssetCopy(includeQaArchives, includeArchitectureReferences)],
     optimizeDeps: {
       // Keep automatic discovery off so Vite does not crawl the game's large
       // import graph. SpacetimeDB pulls in CommonJS helpers (including

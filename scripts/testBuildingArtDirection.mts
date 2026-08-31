@@ -120,7 +120,6 @@ const buildingsExpectedToHaveOpenings = new Set<string>([
   'smokehouse',
   'granary',
   'bakery',
-  'apiary',
   'watermill',
   'windmill',
   'carpenter',
@@ -297,6 +296,7 @@ const expectedLeanToRoofs = new Map<string, number>([
   ['brewery', 1],
   ['tavern', 1],
   ['smokehouse', 1],
+  ['apiary', 1],
   ['carpenter', 1],
   ['spinning_retting_house', 1],
   ['weaver', 1],
@@ -709,48 +709,50 @@ for (const kind of BUILDING_KINDS) {
     throw new Error(`${kind} produced invalid model bounds.`);
   }
   if (kind === 'granary') {
-    const groundedStore = model.getObjectByName('GranaryGroundedStore');
-    if (!(groundedStore instanceof THREE.Group) || Math.abs(groundedStore.position.y) > 1e-6) {
-      throw new Error('Granary store must sit directly at terrain level.');
+    const raisedStore = model.getObjectByName('GranaryRaisedStore');
+    if (
+      !(raisedStore instanceof THREE.Group)
+      || raisedStore.userData.architectureRole !== 'raised-staddle-grain-store'
+    ) {
+      throw new Error('Granary must expose its raised staddle-store mass.');
     }
-    let hasContinuousFoundation = false;
-    groundedStore.traverse((object) => {
+    let hasContinuousGroundFoundation = false;
+    const staddles: THREE.Group[] = [];
+    raisedStore.traverse((object) => {
+      if (
+        object instanceof THREE.Group
+        && object.userData.architectureRole === 'discrete-staddle-support'
+      ) {
+        staddles.push(object);
+      }
       if (!(object instanceof THREE.Mesh)) return;
       const foundationBounds = new THREE.Box3().setFromObject(object);
       const foundationSize = foundationBounds.getSize(new THREE.Vector3());
       if (
         Math.abs(foundationBounds.min.y) <= 1e-6
         && foundationBounds.max.y <= 0.5
-        && foundationSize.x >= 9.5
-        && foundationSize.z >= 6.3
+        && foundationSize.x >= 8
+        && foundationSize.z >= 5
       ) {
-        hasContinuousFoundation = true;
+        hasContinuousGroundFoundation = true;
       }
     });
-    if (!hasContinuousFoundation) {
-      throw new Error('Granary must have a continuous ground-contact foundation.');
+    if (hasContinuousGroundFoundation || staddles.length !== 8) {
+      throw new Error(
+        `Granary must use eight discrete staddles and no continuous ground foundation (found ${staddles.length}).`,
+      );
     }
-
-    const roofSilo = groundedStore.getObjectByName('Granary roof grain silo');
-    const siloBody = groundedStore.getObjectByName('Granary roof silo body');
-    const siloCap = groundedStore.getObjectByName('Granary roof silo shingle cap');
+    const floor = raisedStore.getObjectByName('Granary raised timber floor deck');
+    const leftRoof = raisedStore.getObjectByName('Granary joined negative-X roof plane');
+    const rightRoof = raisedStore.getObjectByName('Granary joined positive-X roof plane');
     if (
-      !(roofSilo instanceof THREE.Group)
-      || roofSilo.userData.architectureRole !== 'roof-grain-silo'
-      || !(siloBody instanceof THREE.Mesh)
-      || !(siloCap instanceof THREE.Mesh)
+      !(floor instanceof THREE.Mesh)
+      || new THREE.Box3().setFromObject(floor).min.y < 1.2
+      || !(leftRoof instanceof THREE.Mesh)
+      || !(rightRoof instanceof THREE.Mesh)
+      || model.getObjectByName('Granary roof grain silo') != null
     ) {
-      throw new Error('Granary must expose its authored roof-breaking grain-silo mass.');
-    }
-    const siloBodyBounds = new THREE.Box3().setFromObject(siloBody);
-    const siloBounds = new THREE.Box3().setFromObject(roofSilo);
-    if (
-      siloBodyBounds.min.y > 4.2
-      || siloBodyBounds.max.y < 7.2
-      || siloBounds.max.y < 8.8
-      || Math.abs(roofSilo.position.x) < 1.2
-    ) {
-      throw new Error('Granary roof silo must intersect the roof and hold an offset skyline silhouette.');
+      throw new Error('Granary raised floor and joined gable roof must replace the grounded roof-silo form.');
     }
   }
   if (kind === 'chapel') churchHeight = size.y;

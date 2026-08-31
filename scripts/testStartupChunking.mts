@@ -46,6 +46,25 @@ assert.equal(
   'production builds must retain every runtime public asset',
 );
 assert.equal(
+  shouldCopyPublicPath(
+    publicRoot,
+    path.join(publicRoot, 'assets', 'models', 'buildings', 'gorski'),
+    false,
+  ),
+  false,
+  'production builds must not ship dormant authored-building and architecture-kit GLBs',
+);
+assert.equal(
+  shouldCopyPublicPath(
+    publicRoot,
+    path.join(publicRoot, 'assets', 'models', 'buildings', 'gorski', 'architecture-kit-v1'),
+    false,
+    true,
+  ),
+  true,
+  'E2E and visual-reference builds must preserve architecture comparison GLBs',
+);
+assert.equal(
   shouldCopyPublicPath(publicRoot, path.join(publicRoot, 'visual-gauntlet'), false),
   false,
   'production builds must exclude the visual QA archive root',
@@ -71,7 +90,7 @@ assert.equal(
 assert.ok(
   viteConfig.includes('copyPublicDir: false')
     && viteConfig.includes("mode === 'visual-gauntlet'")
-    && viteConfig.includes('explicitPublicAssetCopy(includeQaArchives)'),
+    && viteConfig.includes('explicitPublicAssetCopy(includeQaArchives, includeArchitectureReferences)'),
   'production builds must route public files through the QA-archive exclusion filter',
 );
 assert.ok(

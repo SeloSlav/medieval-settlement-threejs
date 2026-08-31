@@ -284,6 +284,33 @@ export function createBowyerFletcherMesh(): THREE.Group {
     new THREE.Euler(0, 0, Math.PI * 0.5),
   );
   target.name = 'Bowyer straw proofing target';
+  addConnectedMember(
+    group,
+    'Bowyer target left splayed support',
+    new THREE.Vector3(-4.08, 0.08, 2.45),
+    new THREE.Vector3(-4.08, 1.48, 2.92),
+    0.12,
+    0.12,
+    timberMaterial('mid'),
+  );
+  addConnectedMember(
+    group,
+    'Bowyer target right splayed support',
+    new THREE.Vector3(-4.08, 0.08, 3.85),
+    new THREE.Vector3(-4.08, 1.48, 3.38),
+    0.12,
+    0.12,
+    timberMaterial('mid'),
+  );
+  addConnectedMember(
+    group,
+    'Bowyer target supporting header',
+    new THREE.Vector3(-4.08, 1.48, 2.82),
+    new THREE.Vector3(-4.08, 1.48, 3.48),
+    0.12,
+    0.12,
+    timberMaterial('mid'),
+  );
   return group;
 }
 

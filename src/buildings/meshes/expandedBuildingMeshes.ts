@@ -63,6 +63,7 @@ import {
   monasteryCoreModule,
   type MonasteryPrecinctPlan,
 } from './monasteryPrecinctPlan.ts';
+import { createProceduralRoofPanelGeometry } from '../proceduralArchitecture/geometryWriter.ts';
 
 export const LOCAL_RECEIPT_VISUAL_SEGMENTS = 3;
 export const LOCAL_RECEIPT_VISUAL_CAPACITY = STOREHOUSE_HAUL_PER_WORKER;
@@ -834,173 +835,537 @@ export function createSmokehouseMesh(): THREE.Group {
   return group;
 }
 
-const GRANARY_ROOF_SILO_PLAN = Object.freeze({
-  centerX: 1.8,
-  centerZ: -0.45,
-  bodyBaseY: 4.12,
-  bodyHeight: 3.12,
-  bodyRadiusBottom: 1.34,
-  bodyRadiusTop: 1.2,
-  capRadius: 1.72,
-  capHeight: 1.52,
-  bandHeights: Object.freeze([4.52, 5.55, 6.58, 7.12]),
+export const GRANARY_ARCHITECTURE_PLAN = Object.freeze({
+  semanticId: 'granary-raised-staddle-store-v1',
+  store: Object.freeze({
+    width: 8.6,
+    depth: 5.4,
+    floorBaseY: 1.24,
+    floorThickness: 0.18,
+    wallHeight: 2.42,
+    ridgeRise: 2.05,
+    wallThickness: 0.16,
+  }),
+  roof: Object.freeze({
+    width: 9.44,
+    depth: 6.18,
+    thickness: 0.13,
+  }),
+  door: Object.freeze({
+    width: 1.5,
+    height: 2.16,
+  }),
+  supportX: Object.freeze([-3.18, -1.06, 1.06, 3.18]),
+  supportZ: Object.freeze([-2.02, 2.02]),
+  grainStockAnchors: Object.freeze([
+    Object.freeze([-3.45, 0, 3.8, 0.9]),
+    Object.freeze([-2.75, 0, 3.95, 0.75]),
+    Object.freeze([-3.9, 0, 4.5, 0.68]),
+  ]),
+  provisionStockAnchors: Object.freeze([
+    Object.freeze([2.35, 0, 3.85, 0.82]),
+    Object.freeze([3.05, 0, 3.95, 0.72]),
+    Object.freeze([3.7, 0, 3.82, 0.65]),
+  ]),
 });
 
-function addGranaryRoofSilo(group: THREE.Group): void {
-  const plan = GRANARY_ROOF_SILO_PLAN;
-  const silo = new THREE.Group();
-  silo.name = 'Granary roof grain silo';
-  silo.position.set(plan.centerX, 0, plan.centerZ);
-  silo.userData.architectureRole = 'roof-grain-silo';
-  silo.userData.massingPlan = {
-    bodyBaseY: plan.bodyBaseY,
-    bodyTopY: plan.bodyBaseY + plan.bodyHeight,
-    capTopY: plan.bodyBaseY + plan.bodyHeight + plan.capHeight,
-  };
-  group.add(silo);
+export const APIARY_ARCHITECTURE_PLAN = Object.freeze({
+  semanticId: 'apiary-open-covered-skep-stand-v1',
+  roof: Object.freeze({
+    width: 8.72,
+    depth: 3.72,
+    centerY: 2.44,
+    centerZ: -0.36,
+    pitch: 0.23,
+    thickness: 0.12,
+    highEdge: 'negativeZ' as const,
+  }),
+  postX: Object.freeze([-3.7, 3.7]),
+  postZ: Object.freeze([-2.17, 1.45]),
+  benchRows: Object.freeze([-1.22, 0.12]),
+  skepX: Object.freeze([-2.65, 0, 2.65]),
+  honeyStockAnchors: Object.freeze([
+    Object.freeze([1.75, 0, 2.9, 1]),
+    Object.freeze([2.25, 0, 3.05, 0.88]),
+    Object.freeze([2.65, 0, 2.82, 0.75]),
+  ]),
+});
 
-  const body = addMesh(
-    silo,
-    new THREE.CylinderGeometry(
-      plan.bodyRadiusTop,
-      plan.bodyRadiusBottom,
-      plan.bodyHeight,
-      8,
-    ),
-    timberMaterial('weathered'),
-    new THREE.Vector3(0, plan.bodyBaseY + plan.bodyHeight * 0.5, 0),
-    new THREE.Euler(0, Math.PI * 0.125, 0),
+function addRaisedGranaryRoof(group: THREE.Group): void {
+  const plan = GRANARY_ARCHITECTURE_PLAN;
+  const store = plan.store;
+  const roof = plan.roof;
+  const wallTop = store.floorBaseY + store.floorThickness + store.wallHeight;
+  const eaveY = wallTop - 0.035;
+  const rise = store.ridgeRise + 0.055;
+  const halfRoofWidth = roof.width * 0.5;
+  const halfRoofDepth = roof.depth * 0.5;
+  const material = shingleMaterial();
+  const left = addMesh(
+    group,
+    createProceduralRoofPanelGeometry({
+      semanticId: 'granary-raised-store-negative-x-roof-plane',
+      moduleId: 'granary-joined-gable-roof',
+      materialRole: 'split-shingles',
+      structuralUse: 'roof-covering',
+      eaveOrigin: [-halfRoofWidth, eaveY, -halfRoofDepth],
+      eaveVector: [0, 0, roof.depth],
+      slopeVector: [halfRoofWidth, rise, 0],
+      thickness: roof.thickness,
+    }),
+    material,
+    new THREE.Vector3(),
   );
-  body.name = 'Granary roof silo body';
+  left.name = 'Granary joined negative-X roof plane';
+  left.userData.proceduralRoofShell = true;
+  left.userData.architectureRole = 'split-shingle-roof';
 
-  // Projecting timber hoops and corner staves keep the octagonal store tied
-  // to the longhouse framing instead of reading as a modern metal tank.
-  for (const y of plan.bandHeights) {
-    const t = THREE.MathUtils.clamp((y - plan.bodyBaseY) / plan.bodyHeight, 0, 1);
-    const radius = THREE.MathUtils.lerp(plan.bodyRadiusBottom, plan.bodyRadiusTop, t);
-    const band = addMesh(
-      silo,
-      new THREE.CylinderGeometry(radius + 0.075, radius + 0.075, 0.14, 8),
-      timberMaterial('dark'),
-      new THREE.Vector3(0, y, 0),
-      new THREE.Euler(0, Math.PI * 0.125, 0),
-    );
-    band.name = 'Granary roof silo timber hoop';
-  }
-  for (const angle of [0, Math.PI * 0.5, Math.PI, Math.PI * 1.5]) {
-    const postRadius = 1.27;
-    const post = addMesh(
-      silo,
-      new THREE.BoxGeometry(0.14, plan.bodyHeight - 0.28, 0.16),
-      timberMaterial('dark'),
-      new THREE.Vector3(
-        Math.cos(angle) * postRadius,
-        plan.bodyBaseY + plan.bodyHeight * 0.5,
-        Math.sin(angle) * postRadius,
-      ),
-      new THREE.Euler(0, -angle, 0),
-    );
-    post.name = 'Granary roof silo corner stave';
-  }
-
-  const ventY = plan.bodyBaseY + plan.bodyHeight * 0.62;
-  const ventZ = plan.bodyRadiusTop + 0.08;
-  addDarkOpening(
-    silo,
-    0,
-    ventY,
-    ventZ,
-    0.62,
-    0.78,
+  const right = addMesh(
+    group,
+    createProceduralRoofPanelGeometry({
+      semanticId: 'granary-raised-store-positive-x-roof-plane',
+      moduleId: 'granary-joined-gable-roof',
+      materialRole: 'split-shingles',
+      structuralUse: 'roof-covering',
+      eaveOrigin: [halfRoofWidth, eaveY, halfRoofDepth],
+      eaveVector: [0, 0, -roof.depth],
+      slopeVector: [-halfRoofWidth, rise, 0],
+      thickness: roof.thickness,
+      uvOffsetMeters: [0.19, 0.11],
+    }),
+    material,
+    new THREE.Vector3(),
   );
-  for (const yOffset of [-0.22, 0, 0.22]) {
-    const slat = addMesh(
-      silo,
-      new THREE.BoxGeometry(0.54, 0.055, 0.08),
-      timberMaterial('dark'),
-      new THREE.Vector3(0, ventY + yOffset, ventZ + 0.15),
-    );
-    slat.name = 'Granary roof silo vent louver';
-  }
+  right.name = 'Granary joined positive-X roof plane';
+  right.userData.proceduralRoofShell = true;
+  right.userData.architectureRole = 'split-shingle-roof';
 
+  const ridge = addMesh(
+    group,
+    new THREE.BoxGeometry(0.18, 0.09, roof.depth + 0.08),
+    material,
+    new THREE.Vector3(0, eaveY + rise + 0.012, 0),
+  );
+  ridge.name = 'Granary low-profile shingle ridge cap';
+  ridge.userData.proceduralRoofShell = true;
+}
+
+function addGranaryStaddle(
+  group: THREE.Group,
+  x: number,
+  z: number,
+  index: number,
+): void {
+  const support = new THREE.Group();
+  support.name = `Granary staddle support ${index + 1}`;
+  support.position.set(x, 0, z);
+  support.userData.architectureRole = 'discrete-staddle-support';
+  group.add(support);
+
+  const foot = addMesh(
+    support,
+    new THREE.CylinderGeometry(0.36, 0.42, 0.3, 8),
+    stoneMaterial('dark'),
+    new THREE.Vector3(0, 0.15, 0),
+    new THREE.Euler(0, index * 0.17, 0),
+  );
+  foot.name = 'Granary staddle ground stone';
+  const stem = addMesh(
+    support,
+    new THREE.CylinderGeometry(0.23, 0.28, 0.5, 8),
+    stoneMaterial('mid'),
+    new THREE.Vector3(0, 0.52, 0),
+    new THREE.Euler(0, index * 0.11, 0),
+  );
+  stem.name = 'Granary staddle stone stem';
   const cap = addMesh(
-    silo,
-    new THREE.ConeGeometry(plan.capRadius, plan.capHeight, 8),
-    shingleMaterial(),
-    new THREE.Vector3(
-      0,
-      plan.bodyBaseY + plan.bodyHeight + plan.capHeight * 0.5 - 0.04,
-      0,
-    ),
-    new THREE.Euler(0, Math.PI * 0.125, 0),
+    support,
+    new THREE.CylinderGeometry(0.5, 0.25, 0.22, 8),
+    stoneMaterial('dark'),
+    new THREE.Vector3(0, 0.88, 0),
+    new THREE.Euler(0, index * 0.23, 0),
   );
-  cap.name = 'Granary roof silo shingle cap';
+  cap.name = 'Granary staddle vermin cap';
+}
 
-  const finial = addMesh(
-    silo,
-    new THREE.CylinderGeometry(0.075, 0.11, 0.46, 6),
-    metalMaterial('iron'),
-    new THREE.Vector3(
-      0,
-      plan.bodyBaseY + plan.bodyHeight + plan.capHeight + 0.16,
-      0,
-    ),
+function addGranaryWallPanel(
+  group: THREE.Group,
+  name: string,
+  size: THREE.Vector3,
+  position: THREE.Vector3,
+): THREE.Mesh {
+  const panel = addMesh(
+    group,
+    new THREE.BoxGeometry(size.x, size.y, size.z),
+    stackedTimberWallMaterial(),
+    position,
   );
-  finial.name = 'Granary roof silo finial';
+  panel.name = name;
+  panel.userData.architectureRole = 'sealed-timber-store';
+  return panel;
+}
+
+function addGranaryGable(
+  group: THREE.Group,
+  z: number,
+  outwardSign: -1 | 1,
+): void {
+  const plan = GRANARY_ARCHITECTURE_PLAN.store;
+  const wallTop = plan.floorBaseY + plan.floorThickness + plan.wallHeight;
+  const shape = new THREE.Shape();
+  shape.moveTo(-plan.width * 0.5 + 0.08, 0);
+  shape.lineTo(plan.width * 0.5 - 0.08, 0);
+  shape.lineTo(0, plan.ridgeRise);
+  shape.closePath();
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: plan.wallThickness,
+    bevelEnabled: false,
+  });
+  geometry.translate(0, wallTop, z - plan.wallThickness * 0.5);
+  const gable = addMesh(
+    group,
+    geometry,
+    stackedTimberWallMaterial(),
+    new THREE.Vector3(0, 0, outwardSign * 0.01),
+  );
+  gable.name = `Granary ${outwardSign > 0 ? 'front' : 'rear'} ventilated gable infill`;
+  gable.userData.architectureRole = 'vented-gable';
+}
+
+function addGranaryLoadingStair(group: THREE.Group): void {
+  const plan = GRANARY_ARCHITECTURE_PLAN.store;
+  const frontZ = plan.depth * 0.5;
+  const landing = addMesh(
+    group,
+    new THREE.BoxGeometry(2.22, 0.18, 1.0),
+    timberMaterial('weathered'),
+    new THREE.Vector3(0, plan.floorBaseY - 0.02, frontZ + 0.48),
+  );
+  landing.name = 'Granary raised loading landing';
+  landing.userData.architectureRole = 'loading-platform';
+  for (let index = 0; index < 3; index++) {
+    const height = 0.25 + index * 0.28;
+    const step = addMesh(
+      group,
+      new THREE.BoxGeometry(1.82, height, 0.48),
+      timberMaterial(index === 2 ? 'mid' : 'weathered'),
+      new THREE.Vector3(0, height * 0.5, frontZ + 1.88 - index * 0.42),
+    );
+    step.name = `Granary loading stair tread ${index + 1}`;
+  }
 }
 
 export function createGranaryMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Granary';
+  group.userData.architecturePlan = GRANARY_ARCHITECTURE_PLAN;
   const store = new THREE.Group();
-  store.name = 'GranaryGroundedStore';
-  const shell = addGableShell(store, { width: 9.5, depth: 6.3, stoneHeight: 0.34, wallHeight: 3.15, ridgeHeight: 2.55, wallMaterial: timberMaterial('weathered'), roofMaterial: shingleMaterial() });
-  addPlankDoor(store, 0, 0.38, shell.frontZ + 0.03, 1.55, 2.25);
-  for (const x of [-3.3, 3.3]) addSmallWindow(store, x, 1.92, shell.frontZ + 0.03, 0.58, 0.62);
-  addGranaryRoofSilo(store);
+  store.name = 'GranaryRaisedStore';
+  store.userData.architectureRole = 'raised-staddle-grain-store';
   group.add(store);
+  const plan = GRANARY_ARCHITECTURE_PLAN;
+  const shell = plan.store;
+  const wallBase = shell.floorBaseY + shell.floorThickness;
+  const wallTop = wallBase + shell.wallHeight;
+  const halfWidth = shell.width * 0.5;
+  const halfDepth = shell.depth * 0.5;
+  const frontZ = halfDepth - shell.wallThickness * 0.5;
+  const rearZ = -halfDepth + shell.wallThickness * 0.5;
+
+  let supportIndex = 0;
+  for (const z of plan.supportZ) {
+    for (const x of plan.supportX) addGranaryStaddle(store, x, z, supportIndex++);
+  }
+  for (const z of [-1.72, 1.72]) {
+    const bearer = addMesh(
+      store,
+      new THREE.BoxGeometry(shell.width - 0.44, 0.24, 0.28),
+      timberMaterial('dark'),
+      new THREE.Vector3(0, 1.09, z),
+    );
+    bearer.name = 'Granary staddle-supported floor bearer';
+  }
+  const floor = addMesh(
+    store,
+    new THREE.BoxGeometry(shell.width, shell.floorThickness, shell.depth),
+    timberMaterial('weathered'),
+    new THREE.Vector3(0, shell.floorBaseY + shell.floorThickness * 0.5, 0),
+  );
+  floor.name = 'Granary raised timber floor deck';
+  floor.userData.architectureRole = 'raised-floor-deck';
+
+  const sidePanelWidth = (shell.width - plan.door.width) * 0.5;
+  for (const side of [-1, 1] as const) {
+    addGranaryWallPanel(
+      store,
+      `Granary front sealed wall panel ${side < 0 ? 'left' : 'right'}`,
+      new THREE.Vector3(sidePanelWidth, shell.wallHeight, shell.wallThickness),
+      new THREE.Vector3(side * (plan.door.width * 0.5 + sidePanelWidth * 0.5), wallBase + shell.wallHeight * 0.5, frontZ),
+    );
+  }
+  const lintelHeight = Math.max(0.18, shell.wallHeight - plan.door.height);
+  addGranaryWallPanel(
+    store,
+    'Granary front loading-door lintel infill',
+    new THREE.Vector3(plan.door.width, lintelHeight, shell.wallThickness),
+    new THREE.Vector3(0, wallTop - lintelHeight * 0.5, frontZ),
+  );
+  addGranaryWallPanel(
+    store,
+    'Granary rear sealed wall',
+    new THREE.Vector3(shell.width, shell.wallHeight, shell.wallThickness),
+    new THREE.Vector3(0, wallBase + shell.wallHeight * 0.5, rearZ),
+  );
+  for (const side of [-1, 1] as const) {
+    addGranaryWallPanel(
+      store,
+      `Granary ${side < 0 ? 'negative-X' : 'positive-X'} sealed wall`,
+      new THREE.Vector3(shell.wallThickness, shell.wallHeight, shell.depth - shell.wallThickness * 2),
+      new THREE.Vector3(side * (halfWidth - shell.wallThickness * 0.5), wallBase + shell.wallHeight * 0.5, 0),
+    );
+  }
+
+  for (const [x, z] of [
+    [-halfWidth + 0.12, -halfDepth + 0.12],
+    [-halfWidth + 0.12, halfDepth - 0.12],
+    [halfWidth - 0.12, -halfDepth + 0.12],
+    [halfWidth - 0.12, halfDepth - 0.12],
+  ] as const) {
+    const post = addMesh(
+      store,
+      new THREE.BoxGeometry(0.22, shell.wallHeight - 0.08, 0.22),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, wallBase + (shell.wallHeight - 0.08) * 0.5, z),
+    );
+    post.name = 'Granary corner post joined below wall plate';
+  }
+  for (const z of [-halfDepth + 0.12, halfDepth - 0.12]) {
+    const plate = addMesh(
+      store,
+      new THREE.BoxGeometry(shell.width - 0.22, 0.2, 0.22),
+      timberMaterial('dark'),
+      new THREE.Vector3(0, wallTop - 0.1, z),
+    );
+    plate.name = 'Granary eave wall plate';
+  }
+  for (const x of [-halfWidth + 0.12, halfWidth - 0.12]) {
+    const plate = addMesh(
+      store,
+      new THREE.BoxGeometry(0.22, 0.2, shell.depth - 0.42),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, wallTop - 0.1, 0),
+    );
+    plate.name = 'Granary gable wall plate';
+  }
+
+  addGranaryGable(store, frontZ + 0.01, 1);
+  addGranaryGable(store, rearZ - shell.wallThickness + 0.01, -1);
+  addPlankDoor(store, 0, wallBase + 0.02, frontZ + 0.105, plan.door.width, plan.door.height, 'none');
+  const ventY = wallTop + shell.ridgeRise * 0.42;
+  for (const z of [frontZ + 0.18, rearZ - 0.18]) {
+    addDarkOpening(store, 0, ventY, z, 0.68, 0.5);
+    for (const offset of [-0.14, 0, 0.14]) {
+      const louver = addMesh(
+        store,
+        new THREE.BoxGeometry(0.56, 0.05, 0.06),
+        timberMaterial('dark'),
+        new THREE.Vector3(0, ventY + offset, z + Math.sign(z) * 0.11),
+      );
+      louver.name = 'Granary gable ventilation louver';
+    }
+  }
+  addRaisedGranaryRoof(store);
+  addGranaryLoadingStair(store);
   addSegmentedStockProps(
     group,
     'GranaryGrainStockpile',
     'GranaryGrainSegment',
-    [[-3.45, 0, 3.8, 0.9], [-2.75, 0, 3.95, 0.75], [-3.9, 0, 4.5, 0.68]],
+    plan.grainStockAnchors,
     (segment, scale) => addSack(segment, 0, 0, scale),
   );
   addSegmentedStockProps(
     group,
     'GranaryProvisionStockpile',
     'GranaryProvisionSegment',
-    [[2.35, 0, 3.85, 0.82], [3.05, 0, 3.95, 0.72], [3.7, 0, 3.82, 0.65]],
+    plan.provisionStockAnchors,
     (segment, scale) => addSack(segment, 0, 0, scale),
   );
   return group;
 }
 
+function addApiaryFooting(
+  group: THREE.Group,
+  x: number,
+  z: number,
+  index: number,
+): void {
+  const footing = addMesh(
+    group,
+    new THREE.CylinderGeometry(0.3, 0.36, 0.2, 8),
+    stoneMaterial(index % 2 === 0 ? 'dark' : 'mid'),
+    new THREE.Vector3(x, 0.1, z),
+    new THREE.Euler(0, index * 0.19, 0),
+  );
+  footing.name = 'Apiary discrete fieldstone post footing';
+  footing.userData.architectureRole = 'fieldstone-footing';
+}
+
+function addApiarySkep(
+  group: THREE.Group,
+  x: number,
+  y: number,
+  z: number,
+  index: number,
+): void {
+  const skep = new THREE.Group();
+  skep.name = `Apiary woven straw skep ${index + 1}`;
+  skep.position.set(x, y, z);
+  skep.userData.architectureRole = 'woven-skep';
+  group.add(skep);
+  const profile = [
+    new THREE.Vector2(0.14, 0),
+    new THREE.Vector2(0.43, 0.08),
+    new THREE.Vector2(0.53, 0.32),
+    new THREE.Vector2(0.49, 0.62),
+    new THREE.Vector2(0.36, 0.86),
+    new THREE.Vector2(0.16, 1.02),
+    new THREE.Vector2(0.05, 1.05),
+  ];
+  const body = addMesh(
+    skep,
+    new THREE.LatheGeometry(profile, 10),
+    sharedBuildingDetailMaterial('wicker'),
+    new THREE.Vector3(),
+    new THREE.Euler(0, index * 0.17, 0),
+  );
+  body.name = 'Apiary woven skep body';
+  body.userData.architectureRole = 'woven-skep';
+  for (const [ringY, radius] of [[0.26, 0.51], [0.52, 0.48], [0.77, 0.39]] as const) {
+    const binding = addMesh(
+      skep,
+      new THREE.TorusGeometry(radius, 0.025, 4, 10),
+      sharedBuildingDetailMaterial('wicker'),
+      new THREE.Vector3(0, ringY, 0),
+      new THREE.Euler(Math.PI * 0.5, 0, 0),
+    );
+    binding.name = 'Apiary skep woven binding course';
+  }
+  const entrance = addMesh(
+    skep,
+    new THREE.CircleGeometry(0.095, 8),
+    sharedBuildingDetailMaterial('interiorDark'),
+    new THREE.Vector3(0, 0.22, 0.515),
+  );
+  entrance.name = 'Apiary skep entrance';
+}
+
 export function createApiaryMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Apiary';
-  const shell = addGableShell(group, { width: 5.2, depth: 4.3, stoneHeight: 0.52, wallHeight: 2.2, ridgeHeight: 1.8, wallMaterial: residenceFacadeMaterial('yellow'), roofMaterial: shingleMaterial() });
-  addPlankDoor(group, -0.85, 0.55, shell.frontZ + 0.03, 0.78, 1.62);
-  addSmallWindow(group, 1.1, 1.58, shell.frontZ + 0.03, 0.62, 0.72);
-  for (let row = 0; row < 2; row++) for (let i = 0; i < 4; i++) {
-    const x = -3.4 + i * 2.2;
-    const z = -3.2 - row * 1.25;
-    addMesh(group, new THREE.BoxGeometry(1.05, 0.72, 0.78), row ? (i % 2 ? hiveBlue : timberMaterial('light')) : (i % 2 ? hiveRed : residenceFacadeMaterial('yellow')), new THREE.Vector3(x, 0.58, z));
-    addMesh(group, new THREE.BoxGeometry(1.22, 0.12, 0.94), shingleMaterial(), new THREE.Vector3(x, 1.0, z));
-    addMesh(group, new THREE.BoxGeometry(0.72, 0.06, 0.28), timberMaterial('light'), new THREE.Vector3(x, 0.25, z + 0.5));
+  group.userData.architecturePlan = APIARY_ARCHITECTURE_PLAN;
+  const plan = APIARY_ARCHITECTURE_PLAN;
+  const roofRun = Math.cos(plan.roof.pitch) * plan.roof.depth;
+  const roofRise = Math.sin(plan.roof.pitch) * plan.roof.depth;
+  const highY = plan.roof.centerY + roofRise * 0.5 - 0.06;
+  const lowY = plan.roof.centerY - roofRise * 0.5 - 0.06;
+  let postIndex = 0;
+  for (const z of plan.postZ) {
+    for (const x of plan.postX) {
+      addApiaryFooting(group, x, z, postIndex);
+      const postHeight = z < plan.roof.centerZ ? highY : lowY;
+      const post = addMesh(
+        group,
+        new THREE.BoxGeometry(0.2, postHeight - 0.16, 0.2),
+        timberMaterial('dark'),
+        new THREE.Vector3(x, 0.16 + (postHeight - 0.16) * 0.5, z),
+      );
+      post.name = 'Apiary roof-bearing post';
+      post.userData.architectureRole = 'open-frame-support';
+      post.userData.roofClearance = 0.06;
+      postIndex += 1;
+    }
   }
-  addMesh(group, new THREE.CylinderGeometry(0.2, 0.34, 0.72, 9), metalMaterial('iron'), new THREE.Vector3(3.15, 0.38, 2.75));
-  addMesh(group, new THREE.CylinderGeometry(0.08, 0.16, 0.48, 8), metalMaterial('iron'), new THREE.Vector3(3.15, 0.96, 2.75));
+  for (const [z, y] of [[plan.postZ[0], highY - 0.11], [plan.postZ[1], lowY - 0.11]] as const) {
+    const plate = addMesh(
+      group,
+      new THREE.BoxGeometry(plan.roof.width - 0.62, 0.2, 0.22),
+      timberMaterial('dark'),
+      new THREE.Vector3(0, y, z),
+    );
+    plate.name = 'Apiary joined roof plate';
+  }
+  const roof = addLeanToRoof(group, {
+    width: plan.roof.width,
+    depth: plan.roof.depth,
+    thickness: plan.roof.thickness,
+    material: shingleMaterial(),
+    position: new THREE.Vector3(0, plan.roof.centerY, plan.roof.centerZ),
+    pitch: plan.roof.pitch,
+    highEdge: plan.roof.highEdge,
+    name: 'Apiary joined split-shingle lean-to roof',
+  });
+  roof.userData.architectureRole = 'covered-skep-stand';
+  roof.userData.roofRunMeters = roofRun;
+
+  let skepIndex = 0;
+  for (const z of plan.benchRows) {
+    const bench = addMesh(
+      group,
+      new THREE.BoxGeometry(6.64, 0.16, 0.7),
+      timberMaterial('weathered'),
+      new THREE.Vector3(0, 0.62, z),
+    );
+    bench.name = 'Apiary raised skep bench';
+    bench.userData.architectureRole = 'covered-hive-stand';
+    for (const x of [-2.75, 0, 2.75]) {
+      const leg = addMesh(
+        group,
+        new THREE.BoxGeometry(0.2, 0.5, 0.42),
+        timberMaterial('dark'),
+        new THREE.Vector3(x, 0.31, z),
+      );
+      leg.name = 'Apiary skep bench leg';
+    }
+    for (const x of plan.skepX) addApiarySkep(group, x, 0.7, z, skepIndex++);
+  }
+
+  const tableTop = addMesh(
+    group,
+    new THREE.BoxGeometry(2.05, 0.15, 0.8),
+    timberMaterial('mid'),
+    new THREE.Vector3(-2.5, 0.9, 1.05),
+  );
+  tableTop.name = 'Apiary processing table top';
+  tableTop.userData.architectureRole = 'processing-table';
+  for (const x of [-3.28, -1.72]) {
+    const leg = addMesh(
+      group,
+      new THREE.BoxGeometry(0.18, 0.82, 0.18),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, 0.46, 1.05),
+    );
+    leg.name = 'Apiary processing table leg';
+  }
+  const chest = addMesh(
+    group,
+    new THREE.BoxGeometry(1.14, 0.58, 0.72),
+    timberMaterial('weathered'),
+    new THREE.Vector3(2.82, 0.39, 1.03),
+  );
+  chest.name = 'Apiary brown timber tool chest';
+  chest.userData.architectureRole = 'tool-chest';
+  const chestLid = addMesh(
+    group,
+    new THREE.BoxGeometry(1.24, 0.11, 0.8),
+    timberMaterial('mid'),
+    new THREE.Vector3(2.82, 0.72, 1.03),
+  );
+  chestLid.name = 'Apiary brown timber tool chest lid';
   addSegmentedStockProps(
     group,
     'ApiaryHoneyStockpile',
     'ApiaryHoneySegment',
-    ([
-      [1.75, 0, 2.9, 1],
-      [2.25, 0, 3.05, 0.88],
-      [2.65, 0, 2.82, 0.75],
-    ] as const)
-      .slice(0, APIARY_HONEY_VISUAL_SEGMENTS),
+    plan.honeyStockAnchors.slice(0, APIARY_HONEY_VISUAL_SEGMENTS),
     (segment, scale) => addHoneyJar(segment, scale),
   );
   return group;
