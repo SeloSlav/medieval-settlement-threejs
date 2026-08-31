@@ -62,6 +62,7 @@ struct CombatMotionSnapshot {
     z: f64,
     velocity_x: f64,
     velocity_z: f64,
+    route_progress: f64,
 }
 
 #[derive(Default)]
@@ -84,6 +85,7 @@ impl CombatMotionFrame {
                     z: agent.z,
                     velocity_x: agent.velocity_x,
                     velocity_z: agent.velocity_z,
+                    route_progress: agent.route_progress,
                 }),
         );
         self.snapshots.sort_unstable_by_key(|snapshot| snapshot.id);
@@ -1182,10 +1184,30 @@ fn apply_global_combat_steering(
         if motion_frame.get(agent.id).is_none() {
             continue;
         }
+        let snapshot = motion_frame
+            .get(agent.id)
+            .expect("captured combatant checked above");
+        let provisional_x = agent.x;
+        let provisional_z = agent.z;
+        let provisional_route_progress = agent.route_progress;
         agent.x = source.x;
         agent.z = source.z;
         agent.velocity_x = source.velocity_x;
         agent.velocity_z = source.velocity_z;
+        if agent.faction <= RAIDER {
+            let intended_x = provisional_x - snapshot.x;
+            let intended_z = provisional_z - snapshot.z;
+            let intended_length_sq = intended_x * intended_x + intended_z * intended_z;
+            if intended_length_sq > 1e-12 {
+                let final_x = source.x - snapshot.x;
+                let final_z = source.z - snapshot.z;
+                let progress_fraction = ((final_x * intended_x + final_z * intended_z)
+                    / intended_length_sq)
+                    .clamp(0.0, 1.0);
+                agent.route_progress = snapshot.route_progress
+                    + (provisional_route_progress - snapshot.route_progress) * progress_fraction;
+            }
+        }
         ctx.db.combat_agent().id().update(agent);
     }
 }

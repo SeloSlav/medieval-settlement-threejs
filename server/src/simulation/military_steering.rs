@@ -45,6 +45,14 @@ pub(crate) struct SteeringOutput {
     pub velocity_z: f64,
 }
 
+#[derive(Clone, Copy)]
+struct NeighborCandidate {
+    index: usize,
+    /// 0 immediate overlap, 1 predicted collision, 2 flock-only.
+    priority: u8,
+    distance_sq: f64,
+}
+
 /// Reusable structure-of-arrays spatial grid. Bodies are sorted by stable id
 /// before insertion and inserted forward, giving deterministic descending-id
 /// bucket traversal matching the TypeScript typed-array implementation.
@@ -310,7 +318,6 @@ impl CombatSteeringGrid {
         let mut same_group_count = 0_usize;
         let mut separation_neighbors = 0_usize;
         let mut predictive_neighbors = 0_usize;
-        let mut accepted = 0_usize;
         let source_cell_x = cell_coordinate(source.x);
         let source_cell_z = cell_coordinate(source.z);
         let separation_sq =
@@ -320,7 +327,25 @@ impl CombatSteeringGrid {
         let cell_radius =
             (COMBAT_STEERING_NEIGHBOR_RADIUS_M / COMBAT_STEERING_CELL_SIZE_M).ceil() as i32;
 
-        'cells: for dz in -cell_radius..=cell_radius {
+        let own_persisted_speed_sq = source.velocity_x * source.velocity_x
+            + source.velocity_z * source.velocity_z;
+        let (own_velocity_x, own_velocity_z) = if own_persisted_speed_sq > 1e-8 {
+            (source.velocity_x, source.velocity_z)
+        } else {
+            (preferred_x, preferred_z)
+        };
+        let mut candidates = [NeighborCandidate {
+            index: 0,
+            priority: u8::MAX,
+            distance_sq: f64::INFINITY,
+        }; COMBAT_STEERING_MAX_NEIGHBORS];
+        let mut candidate_count = 0_usize;
+
+        // Scan the entire bounded query before applying the cap. Selecting a
+        // deterministic urgency/nearest top-K prevents 18 harmless flock
+        // neighbors encountered early in hash traversal from hiding a later
+        // overlapping or imminent-collision opponent.
+        for dz in -cell_radius..=cell_radius {
             for dx in -cell_radius..=cell_radius {
                 let cell_x = source_cell_x + dx;
                 let cell_z = source_cell_z + dz;
@@ -342,33 +367,9 @@ impl CombatSteeringGrid {
                     if distance_sq > neighbor_radius_sq {
                         continue;
                     }
-                    let mut relevant_neighbor = false;
-                    let (away_x, away_z, distance) =
-                        if distance_sq <= COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ {
-                            let angle = exact_overlap_angle(source.id, self.ids[index]);
-                            (angle.cos(), angle.sin(), 0.0)
-                        } else {
-                            let distance = distance_sq.sqrt();
-                            (relative_x / distance, relative_z / distance, distance)
-                        };
-                    if distance_sq < separation_sq {
-                        let pressure = 1.0 - distance / COMBAT_STEERING_SEPARATION_DISTANCE_M;
-                        separation_x += away_x * pressure;
-                        separation_z += away_z * pressure;
-                        separation_neighbors += 1;
-                        relevant_neighbor = true;
-                    }
-
-                    let own_persisted_speed_sq = source.velocity_x * source.velocity_x
-                        + source.velocity_z * source.velocity_z;
                     let other_persisted_speed_sq = self.velocity_xs[index]
                         * self.velocity_xs[index]
                         + self.velocity_zs[index] * self.velocity_zs[index];
-                    let (own_velocity_x, own_velocity_z) = if own_persisted_speed_sq > 1e-8 {
-                        (source.velocity_x, source.velocity_z)
-                    } else {
-                        (preferred_x, preferred_z)
-                    };
                     let other_preferred = preferred_velocity(
                         self.xs[index],
                         self.zs[index],
@@ -382,11 +383,13 @@ impl CombatSteeringGrid {
                     } else {
                         other_preferred
                     };
+                    let immediate = distance_sq < separation_sq;
+                    let mut predicted = false;
                     let relative_velocity_x = own_velocity_x - other_velocity_x;
                     let relative_velocity_z = own_velocity_z - other_velocity_z;
                     let relative_speed_sq = relative_velocity_x * relative_velocity_x
                         + relative_velocity_z * relative_velocity_z;
-                    if relative_speed_sq > COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ {
+                    if !immediate && relative_speed_sq > COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ {
                         let closest_time = (-(relative_x * relative_velocity_x
                             + relative_z * relative_velocity_z)
                             / relative_speed_sq)
@@ -396,59 +399,125 @@ impl CombatSteeringGrid {
                             let predicted_z = relative_z + relative_velocity_z * closest_time;
                             let predicted_sq =
                                 predicted_x * predicted_x + predicted_z * predicted_z;
-                            if predicted_sq < separation_sq {
-                                let (avoid_x, avoid_z) = if predicted_sq <= separation_sq * 0.16 {
-                                    let low = source.id.min(self.ids[index]) as u32;
-                                    let high = source.id.max(self.ids[index]) as u32;
-                                    let side = if mix_seed(low ^ high.wrapping_mul(0x9e37_79b1)) & 1
-                                        == 0
-                                    {
-                                        -1.0
-                                    } else {
-                                        1.0
-                                    };
-                                    let relative_speed = relative_speed_sq.sqrt();
-                                    (
-                                        -relative_velocity_z / relative_speed * side,
-                                        relative_velocity_x / relative_speed * side,
-                                    )
-                                } else {
-                                    let distance = predicted_sq.sqrt();
-                                    (predicted_x / distance, predicted_z / distance)
-                                };
-                                let urgency = (1.0
-                                    - closest_time / COMBAT_STEERING_PREDICTION_SECONDS)
-                                    * (1.0
-                                        - predicted_sq.sqrt()
-                                            / COMBAT_STEERING_SEPARATION_DISTANCE_M);
-                                predictive_x += avoid_x * urgency;
-                                predictive_z += avoid_z * urgency;
-                                predictive_neighbors += 1;
-                                relevant_neighbor = true;
-                            }
+                            predicted = predicted_sq < separation_sq;
                         }
                     }
-
-                    if source.group_id != 0
+                    let same_group = source.group_id != 0
                         && self.group_kinds[index] == source.group_kind
-                        && self.group_ids[index] == source.group_id
-                    {
-                        center_x += self.xs[index];
-                        center_z += self.zs[index];
-                        let (heading_x, heading_z) =
-                            normalized_or_zero(self.velocity_xs[index], self.velocity_zs[index]);
-                        alignment_x += heading_x;
-                        alignment_z += heading_z;
-                        same_group_count += 1;
-                        relevant_neighbor = true;
-                    }
-                    if relevant_neighbor {
-                        accepted += 1;
-                    }
-                    if accepted >= COMBAT_STEERING_MAX_NEIGHBORS {
-                        break 'cells;
+                        && self.group_ids[index] == source.group_id;
+                    let priority = if immediate {
+                        0
+                    } else if predicted {
+                        1
+                    } else if same_group {
+                        2
+                    } else {
+                        continue;
+                    };
+                    insert_neighbor_candidate(
+                        &mut candidates,
+                        &mut candidate_count,
+                        NeighborCandidate {
+                            index,
+                            priority,
+                            distance_sq,
+                        },
+                        &self.ids,
+                    );
+                }
+            }
+        }
+
+        for candidate in candidates.iter().take(candidate_count) {
+            let index = candidate.index;
+            let relative_x = source.x - self.xs[index];
+            let relative_z = source.z - self.zs[index];
+            let distance_sq = candidate.distance_sq;
+            let (away_x, away_z, distance) =
+                if distance_sq <= COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ {
+                    let angle = exact_overlap_angle(source.id, self.ids[index]);
+                    (angle.cos(), angle.sin(), 0.0)
+                } else {
+                    let distance = distance_sq.sqrt();
+                    (relative_x / distance, relative_z / distance, distance)
+                };
+            if distance_sq < separation_sq {
+                let pressure = 1.0 - distance / COMBAT_STEERING_SEPARATION_DISTANCE_M;
+                separation_x += away_x * pressure;
+                separation_z += away_z * pressure;
+                separation_neighbors += 1;
+            }
+
+            let other_persisted_speed_sq = self.velocity_xs[index] * self.velocity_xs[index]
+                + self.velocity_zs[index] * self.velocity_zs[index];
+            let other_preferred = preferred_velocity(
+                self.xs[index],
+                self.zs[index],
+                self.goal_xs[index],
+                self.goal_zs[index],
+                self.speeds[index],
+                dt,
+            );
+            let (other_velocity_x, other_velocity_z) = if other_persisted_speed_sq > 1e-8 {
+                (self.velocity_xs[index], self.velocity_zs[index])
+            } else {
+                other_preferred
+            };
+            let relative_velocity_x = own_velocity_x - other_velocity_x;
+            let relative_velocity_z = own_velocity_z - other_velocity_z;
+            let relative_speed_sq = relative_velocity_x * relative_velocity_x
+                + relative_velocity_z * relative_velocity_z;
+            if relative_speed_sq > COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ {
+                let closest_time = (-(relative_x * relative_velocity_x
+                    + relative_z * relative_velocity_z)
+                    / relative_speed_sq)
+                    .clamp(0.0, COMBAT_STEERING_PREDICTION_SECONDS);
+                if closest_time > 0.0 {
+                    let predicted_x = relative_x + relative_velocity_x * closest_time;
+                    let predicted_z = relative_z + relative_velocity_z * closest_time;
+                    let predicted_sq = predicted_x * predicted_x + predicted_z * predicted_z;
+                    if predicted_sq < separation_sq {
+                        let (avoid_x, avoid_z) = if predicted_sq <= separation_sq * 0.16 {
+                            let low = source.id.min(self.ids[index]) as u32;
+                            let high = source.id.max(self.ids[index]) as u32;
+                            let side =
+                                if mix_seed(low ^ high.wrapping_mul(0x9e37_79b1)) & 1 == 0 {
+                                    -1.0
+                                } else {
+                                    1.0
+                                };
+                            let relative_speed = relative_speed_sq.sqrt();
+                            (
+                                -relative_velocity_z / relative_speed * side,
+                                relative_velocity_x / relative_speed * side,
+                            )
+                        } else {
+                            let distance = predicted_sq.sqrt();
+                            (predicted_x / distance, predicted_z / distance)
+                        };
+                        let urgency = (1.0
+                            - closest_time / COMBAT_STEERING_PREDICTION_SECONDS)
+                            * (1.0
+                                - predicted_sq.sqrt()
+                                    / COMBAT_STEERING_SEPARATION_DISTANCE_M);
+                        predictive_x += avoid_x * urgency;
+                        predictive_z += avoid_z * urgency;
+                        predictive_neighbors += 1;
                     }
                 }
+            }
+
+            if source.group_id != 0
+                && self.group_kinds[index] == source.group_kind
+                && self.group_ids[index] == source.group_id
+            {
+                center_x += self.xs[index];
+                center_z += self.zs[index];
+                let (heading_x, heading_z) =
+                    normalized_or_zero(self.velocity_xs[index], self.velocity_zs[index]);
+                alignment_x += heading_x;
+                alignment_z += heading_z;
+                same_group_count += 1;
             }
         }
 
@@ -594,6 +663,41 @@ fn clear_and_reserve<T>(values: &mut Vec<T>, count: usize) {
     if values.capacity() < count {
         values.reserve(count - values.capacity());
     }
+}
+
+fn insert_neighbor_candidate(
+    candidates: &mut [NeighborCandidate; COMBAT_STEERING_MAX_NEIGHBORS],
+    count: &mut usize,
+    candidate: NeighborCandidate,
+    ids: &[u64],
+) {
+    let mut position = (*count).min(COMBAT_STEERING_MAX_NEIGHBORS);
+    while position > 0
+        && neighbor_candidate_precedes(candidate, candidates[position - 1], ids)
+    {
+        position -= 1;
+    }
+    if position >= COMBAT_STEERING_MAX_NEIGHBORS {
+        return;
+    }
+    let upper = (*count).min(COMBAT_STEERING_MAX_NEIGHBORS - 1);
+    for index in (position..upper).rev() {
+        candidates[index + 1] = candidates[index];
+    }
+    candidates[position] = candidate;
+    *count = (*count + 1).min(COMBAT_STEERING_MAX_NEIGHBORS);
+}
+
+fn neighbor_candidate_precedes(
+    left: NeighborCandidate,
+    right: NeighborCandidate,
+    ids: &[u64],
+) -> bool {
+    left.priority < right.priority
+        || (left.priority == right.priority
+            && (left.distance_sq < right.distance_sq
+                || (left.distance_sq == right.distance_sq
+                    && ids[left.index] < ids[right.index])))
 }
 
 fn cell_coordinate(value: f64) -> i32 {

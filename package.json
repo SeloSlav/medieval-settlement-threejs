@@ -70,6 +70,7 @@
     "test:battle-showcase": "npx tsx scripts/testBattleShowcase.mts",
     "test:combat-playtest": "npx tsx scripts/testCombatPlaytest.mts",
     "test:combat-steering": "npx tsx scripts/testCombatSteering.mts",
+    "test:combat-steering-parity": "npx tsx scripts/testCombatSteeringParity.mts",
     "test:military-company-strategic-ui": "npx tsx scripts/testMilitaryCompanyStrategicUi.mts",
     "test:company-standard-bearers": "npx tsx scripts/testCompanyStandardBearers.mts",
     "test:combat-presentation": "npx tsx scripts/testCombatWeaponPresentation.mts",
