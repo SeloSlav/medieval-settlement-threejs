@@ -75,7 +75,10 @@ for (const staddle of staddles) {
   assert.ok(Math.abs(bounds.min.y) < 1e-5, `${staddle.name} must meet terrain`);
   assert.ok(bounds.max.y <= 1.01, `${staddle.name} must remain below the raised floor`);
   const size = bounds.getSize(new THREE.Vector3());
-  assert.ok(size.x < 1.1 && size.z < 1.1, `${staddle.name} must remain a discrete support`);
+  // Box3 conservatively rotates each low-poly cylinder's local AABB; the
+  // authored support radius is 0.5 m even when that transformed AABB reaches
+  // sqrt(2) metres corner-to-corner.
+  assert.ok(size.x < 1.5 && size.z < 1.5, `${staddle.name} must remain a discrete support`);
 }
 
 raisedStore.traverse((object) => {
@@ -108,6 +111,15 @@ for (const name of [
 assert.equal(objectsNamed(raisedStore, 'Granary gable ventilation louver').length, 6);
 assert.equal(objectsWithRole(raisedStore, 'vented-gable').length, 2);
 assert.equal(objectsWithRole(raisedStore, 'loading-platform').length, 1);
+assert.equal(objectsNamed(raisedStore, 'Granary loading stair tread 1').length, 1);
+assert.equal(objectsNamed(raisedStore, 'Granary loading stair tread 4').length, 1);
+const granaryBearers = objectsNamed(raisedStore, 'Granary staddle-supported floor bearer');
+assert.equal(granaryBearers.length, GRANARY_ARCHITECTURE_PLAN.supportZ.length);
+assert.deepEqual(
+  granaryBearers.map((bearer) => bearer.position.z),
+  [...GRANARY_ARCHITECTURE_PLAN.supportZ],
+  'granary floor bearers must sit directly over each staddle row',
+);
 assert.ok(
   objectsNamed(raisedStore, 'Building facade opening').length >= 1
     || objectsWithRole(raisedStore, 'facade-opening').length >= 1
@@ -155,6 +167,7 @@ assert.equal(objectsWithRole(apiary, 'woven-skep').filter((object) => object ins
 assert.equal(objectsNamed(apiary, 'Apiary woven skep body').length, 6);
 assert.equal(objectsNamed(apiary, 'Apiary raised skep bench').length, 2);
 assert.equal(objectsWithRole(apiary, 'processing-table').length, 1);
+assert.equal(objectsNamed(apiary, 'Apiary processing table leg').length, 4);
 assert.equal(objectsWithRole(apiary, 'tool-chest').length, 1);
 
 apiary.traverse((object) => {

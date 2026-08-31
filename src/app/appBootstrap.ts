@@ -2,8 +2,8 @@ import type { AmbientAudioController } from '../audio/AmbientAudioController.ts'
 import { CameraController } from '../camera/CameraController.ts';
 import { FirstPersonController } from '../camera/FirstPersonController.ts';
 import { FpCollisionWorld } from '../camera/fp/fpCollisionWorld.ts';
-import { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
-import { BuildingTool } from '../buildings/BuildingTool.ts';
+import type { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
+import type { BuildingTool } from '../buildings/BuildingTool.ts';
 import type { FarmFieldMarkers } from '../farming/FarmFieldMarkers.ts';
 import {
   FarmFieldTool,
@@ -363,17 +363,9 @@ export async function bootstrapAppSession(
     getSevereWeatherEnabled: () =>
       spacetimeStore.snapshot.worldGeneration?.severeWeatherEnabled ?? false,
   });
-  const buildingMarkers = new BuildingMarkers({
-    terrain: sceneManager.terrain,
-    parent: sceneManager.selectionGroup,
-    getRoadNetwork: () => roadNetwork,
-    getRoadConditionSpeedMultiplier: () => worldQueries.getRoadConditionSpeedMultiplier(),
-    onShadowCastersChanged: () => sceneManager.invalidateStaticShadows(),
-  });
-  // Build the one-time founding landmark while the loading presentation is
-  // already covering startup, never in response to the player's click.
-  buildingMarkers.prewarmFoundersCampPlacement();
   const {
+    BuildingMarkers: DeferredBuildingMarkers,
+    BuildingTool: DeferredBuildingTool,
     DeliveryAgentRenderer,
     FireEffectsRenderer,
     VillagerRenderer,
@@ -387,6 +379,16 @@ export async function bootstrapAppSession(
     ResourceInspector,
   } = await settlementPresentationPromise;
   markSettlementPresentationReady();
+  const buildingMarkers = new DeferredBuildingMarkers({
+    terrain: sceneManager.terrain,
+    parent: sceneManager.selectionGroup,
+    getRoadNetwork: () => roadNetwork,
+    getRoadConditionSpeedMultiplier: () => worldQueries.getRoadConditionSpeedMultiplier(),
+    onShadowCastersChanged: () => sceneManager.invalidateStaticShadows(),
+  });
+  // Build the one-time founding landmark while the loading presentation is
+  // already covering startup, never in response to the player's click.
+  buildingMarkers.prewarmFoundersCampPlacement();
   const deliveryAgents = new DeliveryAgentRenderer({
     terrain: sceneManager.terrain,
     parent: sceneManager.selectionGroup,
@@ -567,7 +569,7 @@ export async function bootstrapAppSession(
   const isResourceDepositAt = (x: number, z: number): boolean =>
     isPhysicalDepositAt(physicalDeposits, x, z);
 
-  buildingTool = new BuildingTool({
+  buildingTool = new DeferredBuildingTool({
     domElement: sceneManager.renderer.domElement,
     terrainProjector: sceneManager.terrainProjector,
     markers: buildingMarkers,

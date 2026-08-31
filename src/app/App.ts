@@ -5,8 +5,8 @@ import {
   StartupMusicController,
 } from '../audio/StartupMusicController.ts';
 import { FirstPersonController } from '../camera/FirstPersonController.ts';
-import { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
-import { BuildingTool } from '../buildings/BuildingTool.ts';
+import type { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
+import type { BuildingTool } from '../buildings/BuildingTool.ts';
 import { initializeBuildingMaterialLibrary } from '../buildings/buildingMaterials.ts';
 import { initializeVineyardVineResources } from '../vegetation/seedthree/vineyardVines.ts';
 import type { FarmFieldMarkers } from '../farming/FarmFieldMarkers.ts';
@@ -58,7 +58,7 @@ import type { MilitiaCommandController } from '../security/MilitiaCommandControl
 import type { MilitaryCompanyState } from '../security/militaryProgression.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import type { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
-import type { StrategicHumanoidDiagnostic } from '../settlement/StrategicHumanoidRenderer.ts';
+import type { AuthoredCrowdDiagnostic } from '../settlement/SettlementCrowdRenderer.ts';
 import { raidWithdrawingCartCount } from '../logistics/deliveryTrips.ts';
 import { BuildToolbar, type ToolbarStats } from '../ui/BuildToolbar.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
@@ -129,7 +129,6 @@ import {
 } from '../security/combatAgents.ts';
 import { ThreatApproachTracker } from '../security/threatApproachAlerts.ts';
 import { settlementHasStaffedChapel } from '../logistics/landmarkAccess.ts';
-import { createSmokeTestHooks, installSmokeTestHooks } from '../e2e/smokeTestHooks.ts';
 import { sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
 import { resolveWorldDimensions } from '../world/worldGenerationSettings.ts';
 import {
@@ -158,6 +157,8 @@ import {
   isLiveBattleCaptureRequested,
   startLiveBattleCapture,
 } from './liveBattleCapture.ts';
+
+const FIRST_PLAYABLE_GPU_STAGE_TIMEOUT_MS = 12_000;
 import {
   CombatPlaytestOverlay,
   CombatPlaytestSimulation,
@@ -708,37 +709,46 @@ export class App {
     });
     const gpuPrecompileStartedAt = performance.now();
     let gpuReady = true;
-    const restoreVillagerPrewarm = session.villagers.beginFirstPlayableGpuPrewarm();
-    const restoreFoundersCampPrewarm = session.buildingMarkers.beginFoundersCampGpuPrewarm();
+    const villagerPrewarm = session.villagers.beginFirstPlayableGpuPrewarm();
+    const foundersCampPrewarm = session.buildingMarkers.beginFoundersCampGpuPrewarm();
+    const targetedPrewarmObjects = [
+      ...villagerPrewarm.objects,
+      ...foundersCampPrewarm.objects,
+    ];
+    let gpuCoveredSubmissionCount = 0;
     let prewarmObjectsRestored = false;
     const restorePrewarmObjects = (): void => {
       if (prewarmObjectsRestored) return;
       prewarmObjectsRestored = true;
-      restoreFoundersCampPrewarm();
-      restoreVillagerPrewarm();
-      // The covered warmup frame may have populated the cached directional
-      // shadow atlas with temporary casters. Queue an exact clean frame before
-      // the loading cover is removed.
+      foundersCampPrewarm.restore();
+      villagerPrewarm.restore();
+      // The covered warmup may have populated the cached directional shadow
+      // atlas with temporary casters. The first live frame must rebuild it.
       session.sceneManager.invalidateStaticShadows();
     };
     try {
       try {
-        await session.sceneManager.precompileFirstPlayableScene();
+        await waitForStartupStage(
+          session.sceneManager.precompileFirstPlayableObjects(targetedPrewarmObjects),
+          FIRST_PLAYABLE_GPU_STAGE_TIMEOUT_MS,
+          'targeted first-interaction shader compilation',
+        );
       } catch (error) {
-        // A direct compile failure must not skip the live post/shadow warmup.
-        // Some WebGPU backends can still submit the real graph successfully.
-        console.warn('Direct first-playable shader compile is unavailable:', error);
+        // A targeted compile failure must not skip the live post/shadow warmup.
+        console.warn('Targeted first-playable shader compile is unavailable:', error);
       }
-      // compileAsync prepares direct scene pipelines, but ordinary gameplay
-      // renders through the offscreen WebGPU post graph and its shadow pass.
-      // Keep the temporary objects attached for one covered, submitted frame
-      // so the first placement never owns those cold pipeline compilations.
+      // The one covered submission warms the exact offscreen post and shadow
+      // path. Do not follow it with a second blocking full-scene submission:
+      // restoring/invalidation makes the first live frame the clean frame.
       session.sceneManager.invalidateStaticShadows();
       session.sceneManager.render(0, session.cameraController.getOrbitDistance());
-      await session.sceneManager.waitForFirstPlayableGpuWork();
+      gpuCoveredSubmissionCount += 1;
+      await waitForStartupStage(
+        session.sceneManager.waitForFirstPlayableGpuWork(),
+        FIRST_PLAYABLE_GPU_STAGE_TIMEOUT_MS,
+        'first covered GPU submission',
+      );
       restorePrewarmObjects();
-      session.sceneManager.render(0, session.cameraController.getOrbitDistance());
-      await session.sceneManager.waitForFirstPlayableGpuWork();
     } catch (error) {
       gpuReady = false;
       console.warn('Live first-playable GPU prewarm is unavailable:', error);
@@ -754,6 +764,8 @@ export class App {
       vineyardHydrationMs: roundStartupDuration(vineyardHydrationMs),
       villagerVisualHydrationMs: roundStartupDuration(villagerVisualHydrationMs),
       gpuPrecompileMs: roundStartupDuration(gpuPrecompileMs),
+      gpuTargetedObjectCount: targetedPrewarmObjects.length,
+      gpuCoveredSubmissionCount,
       totalMs: roundStartupDuration(performance.now() - firstPlayableAssetStartedAt),
       celestialReady: firstPlayableAssetResults[0]?.status === 'fulfilled',
       buildingMaterialsReady: import.meta.env.VITE_E2E_TEST === '1'
@@ -1190,8 +1202,78 @@ export class App {
     if (sampleMs < 400) return;
     const fps = this.fpsFrameCount / Math.max(this.fpsAccumulatedSeconds, 0.001);
     this.toolbar?.setFps(fps);
+    const performanceStats = { fps, ...this.sceneManager?.getPerformanceStats() };
     (window as typeof window & { __medievalRoadStats?: { backend?: string; fps: number; calls?: number; renderPasses?: number; triangles?: number; pixelRatio?: number } })
-      .__medievalRoadStats = { fps, ...this.sceneManager?.getPerformanceStats() };
+      .__medievalRoadStats = performanceStats;
+    if (this.combatPlaytest) {
+      const root = document.documentElement;
+      const crowd = this.villagers?.authoredCrowdDiagnostics();
+      const forest = this.sceneManager?.getForestManager()
+        ?.getSeedThreeStructuralStats() ?? null;
+      root.dataset.combatPlaytestFps = fps.toFixed(1);
+      root.dataset.combatPlaytestDrawCalls = String(performanceStats.calls ?? 0);
+      root.dataset.combatPlaytestRenderPasses = String(
+        performanceStats.renderPasses ?? 0,
+      );
+      root.dataset.combatPlaytestTriangles = String(performanceStats.triangles ?? 0);
+      root.dataset.combatPlaytestPixelRatio = String(performanceStats.pixelRatio ?? 0);
+      if (forest) {
+        root.dataset.combatPlaytestForestDrawCalls = String(forest.draws);
+        root.dataset.combatPlaytestForestTriangles = String(forest.triangles);
+        root.dataset.combatPlaytestVisibleTrees = String(forest.trees.visibleTrees);
+      }
+      root.dataset.combatPlaytestShadowRefreshed = String(
+        performanceStats.directionalShadow?.refreshedThisFrame ?? false,
+      );
+      root.dataset.combatPlaytestShadowRefreshes = String(
+        performanceStats.directionalShadow?.refreshes ?? 0,
+      );
+      root.dataset.combatPlaytestShadowCachedFrames = String(
+        performanceStats.directionalShadow?.cachedFrames ?? 0,
+      );
+      root.dataset.combatPlaytestShadowReasons =
+        performanceStats.directionalShadow?.reasons.join(',') ?? '';
+      root.dataset.combatPlaytestShadowReasonCounts = performanceStats.directionalShadow
+        ? Object.entries(performanceStats.directionalShadow.reasonCounts)
+            .map(([reason, count]) => `${reason}:${count}`)
+            .join(',')
+        : '';
+      if (crowd) {
+        const submittedBodyTriangles = Object.values(crowd.batches).reduce(
+          (total, batch) => total + batch.submittedTriangles,
+          0,
+        );
+        root.dataset.combatPlaytestVisibleModels = String(crowd.visibleAgents);
+        root.dataset.combatPlaytestEvaluatedRigs = String(crowd.evaluatedRigs);
+        root.dataset.combatPlaytestSubmittedModels = String(crowd.submittedInstances);
+        root.dataset.combatPlaytestProxyModels = String(crowd.proxyAgents);
+        root.dataset.combatPlaytestBodyTriangles = String(submittedBodyTriangles);
+        root.dataset.combatPlaytestAttachmentDrawCalls = String(
+          crowd.attachments.activeDrawCalls,
+        );
+        root.dataset.combatPlaytestAttachmentInstances = String(
+          crowd.attachments.visibleMeshInstances,
+        );
+        root.dataset.combatPlaytestAttachmentTriangles = String(
+          crowd.attachments.submittedMeshTriangles,
+        );
+        root.dataset.combatPlaytestCrowdCpuMs = crowd.performance.syncCpuMs.toFixed(2);
+        root.dataset.combatPlaytestVisibilityCpuMs = crowd.performance.visibilityCpuMs.toFixed(2);
+        root.dataset.combatPlaytestRigCpuMs = crowd.performance.rigCpuMs.toFixed(2);
+        root.dataset.combatPlaytestBodyBatchCpuMs = crowd.performance.bodyBatchCpuMs.toFixed(2);
+        root.dataset.combatPlaytestAttachmentCpuMs = crowd.performance.attachmentCpuMs.toFixed(2);
+        root.dataset.combatPlaytestDroppedWeaponCpuMs = crowd.performance.droppedWeaponCpuMs.toFixed(2);
+        root.dataset.combatPlaytestStandardCpuMs = crowd.performance.standardCpuMs.toFixed(2);
+        root.dataset.combatPlaytestMixerUpdates = String(crowd.performance.mixerUpdates);
+        root.dataset.combatPlaytestStandards = String(crowd.standards.standards);
+        root.dataset.combatPlaytestStandardTriangles = String(crowd.standards.triangles);
+        root.dataset.combatPlaytestFlagOwnershipReach = crowd.standards.maxOwnershipReachRatio
+          .toFixed(4);
+        root.dataset.combatPlaytestFlagOwnershipResets = String(
+          crowd.standards.ownershipResets,
+        );
+      }
+    }
     this.resetFpsSample(time);
   }
 
@@ -1259,7 +1341,7 @@ export class App {
       reset: () => this.resetCombatPlaytest(),
       spawnPreset: (preset) => this.resetCombatPlaytest(preset),
       summary: () => this.combatPlaytest?.summary() ?? null,
-      crowdDiagnostics: () => this.villagers?.strategicHumanoidDiagnostics() ?? null,
+      crowdDiagnostics: () => this.villagers?.authoredCrowdDiagnostics() ?? null,
     };
     const root = document.documentElement;
     root.dataset.combatPlaytestReady = 'true';
@@ -2074,21 +2156,26 @@ export class App {
       session.sceneManager.worldLayout,
     );
 
-    installSmokeTestHooks(createSmokeTestHooks({
-      getState: () => this.gameState!,
-      getBuildingMode: () => this.buildingTool!.getMode(),
-      isConnected: () => this.sessionGate?.isReady() ?? false,
-      getRendererStats: () => this.sceneManager!.getPerformanceStats(),
-      placeBuilding: async (kind, x, z) => {
-        await this.spacetimeStore!.placeBuilding(kind, x, z);
-      },
-      isWaterAt: (x, z) => this.sceneManager!.riverField.isRenderedWetAt(x, z),
-      isResourceDepositAt: (x, z) =>
-        isPhysicalDepositAt(physicalDeposits, x, z),
-      getNaturalHeightAt: sampleNaturalTerrainHeight,
-      getRoadNetwork: () => this.roadNetwork,
-      playableHalf,
-    }));
+    void import('../e2e/smokeTestHooks.ts').then(({
+      createSmokeTestHooks,
+      installSmokeTestHooks,
+    }) => {
+      installSmokeTestHooks(createSmokeTestHooks({
+        getState: () => this.gameState!,
+        getBuildingMode: () => this.buildingTool!.getMode(),
+        isConnected: () => this.sessionGate?.isReady() ?? false,
+        getRendererStats: () => this.sceneManager!.getPerformanceStats(),
+        placeBuilding: async (kind, x, z) => {
+          await this.spacetimeStore!.placeBuilding(kind, x, z);
+        },
+        isWaterAt: (x, z) => this.sceneManager!.riverField.isRenderedWetAt(x, z),
+        isResourceDepositAt: (x, z) =>
+          isPhysicalDepositAt(physicalDeposits, x, z),
+        getNaturalHeightAt: sampleNaturalTerrainHeight,
+        getRoadNetwork: () => this.roadNetwork,
+        playableHalf,
+      }));
+    });
   }
 
   private buildCrowdViewState() {
@@ -2135,7 +2222,7 @@ type CombatPlaytestDevHandle = {
   reset: () => void;
   spawnPreset: (preset: CombatPlaytestPreset) => void;
   summary: () => CombatPlaytestSummary | null;
-  crowdDiagnostics: () => StrategicHumanoidDiagnostic | null;
+  crowdDiagnostics: () => AuthoredCrowdDiagnostic | null;
 };
 
 function publishBattleShowcaseFrame(
@@ -2167,6 +2254,24 @@ function publishBattleShowcaseFrame(
 
 function isShowcaseMode(): boolean {
   return new URLSearchParams(window.location.search).get('showcase') === '1';
+}
+
+async function waitForStartupStage<T>(
+  work: Promise<T>,
+  timeoutMs: number,
+  label: string,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${label} exceeded ${timeoutMs} ms`));
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([work, timeout]);
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  }
 }
 
 function resourceUiNeedsSync(current: GameState, previous: GameState | null): boolean {

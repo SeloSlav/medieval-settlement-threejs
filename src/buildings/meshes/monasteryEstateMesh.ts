@@ -33,7 +33,6 @@ import {
 
 const earth = sharedBuildingDetailMaterial('earth');
 const copper = sharedBuildingDetailMaterial('brass');
-const firedClay = sharedBuildingDetailMaterial('firedClay');
 const wicker = sharedBuildingDetailMaterial('wicker');
 const water = sharedBuildingDetailMaterial('water');
 
@@ -560,72 +559,11 @@ function addApiaryInfrastructure(parent: THREE.Group, width: number, depth: numb
   }
 }
 
-function addMonasteryHen(parent: THREE.Group, x: number, z: number, heading: number, variant: number): void {
-  const hen = new THREE.Group();
-  hen.name = 'HenFallback';
-  const body = variant % 3 === 0 ? timberMaterial('dark') : wicker;
-  addMesh(
-    hen,
-    new THREE.SphereGeometry(0.19, 7, 5),
-    body,
-    new THREE.Vector3(0, 0.22, 0),
-    new THREE.Euler(),
-    new THREE.Vector3(1.12, 0.88, 0.82),
-  ).name = 'Monastery hen body';
-  addMesh(hen, new THREE.SphereGeometry(0.11, 7, 5), wicker, new THREE.Vector3(0.15, 0.38, 0)).name = 'Monastery hen head';
-  addMesh(
-    hen,
-    new THREE.ConeGeometry(0.045, 0.14, 5),
-    firedClay,
-    new THREE.Vector3(0.27, 0.38, 0),
-    new THREE.Euler(0, 0, -Math.PI * 0.5),
-  ).name = 'Monastery hen beak';
-  hen.position.set(x, 0, z);
-  hen.rotation.y = heading;
-  hen.userData.canonicalProducts = ['eggs', 'meat'];
-  parent.add(hen);
-}
-
-function addMonasteryGoat(parent: THREE.Group, x: number, z: number, heading: number, variant: number): void {
-  const goat = new THREE.Group();
-  goat.name = 'GoatFallback';
-  const body = residenceFacadeMaterial(variant % 2 === 0 ? 'white' : 'lightOrange');
-  const dark = timberMaterial('dark');
-  addMesh(
-    goat,
-    new THREE.SphereGeometry(0.34, 8, 6),
-    body,
-    new THREE.Vector3(0, 0.55, 0),
-    new THREE.Euler(),
-    new THREE.Vector3(1.35, 0.8, 0.72),
-  ).name = 'Monastery goat body';
-  addMesh(
-    goat,
-    new THREE.SphereGeometry(0.2, 8, 6),
-    dark,
-    new THREE.Vector3(0.42, 0.72, 0),
-    new THREE.Euler(),
-    new THREE.Vector3(0.85, 1.05, 0.78),
-  ).name = 'Monastery goat head';
-  for (const legX of [-0.18, 0.2]) for (const legZ of [-0.16, 0.16]) {
-    addMesh(
-      goat,
-      new THREE.CylinderGeometry(0.035, 0.045, 0.48, 5),
-      dark,
-      new THREE.Vector3(legX, 0.26, legZ),
-    ).name = 'Monastery goat leg';
-  }
-  goat.position.set(x, 0, z);
-  goat.rotation.y = heading;
-  goat.userData.canonicalProducts = ['meat', 'milk', 'cheese'];
-  parent.add(goat);
-}
-
 function addAnimalYardInfrastructure(
   parent: THREE.Group,
   width: number,
   depth: number,
-  seed: number,
+  _seed: number,
   species: 'chickens' | 'goats',
 ): void {
   const shelter = new THREE.Group();
@@ -687,7 +625,6 @@ function addAnimalYardInfrastructure(
     new THREE.Vector3(troughX, 0.36, troughZ),
   ).name = 'Monastery animal trough water';
 
-  const random = mulberry32(seed ^ (species === 'chickens' ? 0x4e57a11 : 0x60a7));
   if (species === 'chickens') {
     addMesh(
       parent,
@@ -695,15 +632,6 @@ function addAnimalYardInfrastructure(
       timberMaterial('dark'),
       new THREE.Vector3(shelterX, 0.46, shelterZ + shelterDepth * 0.44),
     ).name = 'Monastery chicken nesting boxes';
-    for (let index = 0; index < Math.max(3, Math.min(6, Math.round(width * depth / 6))); index += 1) {
-      addMonasteryHen(
-        parent,
-        (random() - 0.34) * width * 0.72,
-        (random() - 0.2) * depth * 0.62,
-        random() * Math.PI * 2,
-        index,
-      );
-    }
     return;
   }
 
@@ -713,15 +641,6 @@ function addAnimalYardInfrastructure(
     wicker,
     new THREE.Vector3(width * 0.22, 0.18, depth * 0.18),
   ).name = 'Monastery goat milking stand';
-  for (let index = 0; index < 3; index += 1) {
-    addMonasteryGoat(
-      parent,
-      (random() - 0.25) * width * 0.55,
-      (random() - 0.1) * depth * 0.5,
-      random() * Math.PI * 2,
-      index,
-    );
-  }
 }
 
 function placeGardenInfrastructure(
@@ -788,64 +707,6 @@ function placeGardenInfrastructure(
   }
   parent.add(garden);
   return garden;
-}
-
-function addAnimal(
-  parent: THREE.Group,
-  species: 'cow' | 'sheep' | 'pig',
-  x: number,
-  z: number,
-  heading: number,
-  variant: number,
-): void {
-  const animal = new THREE.Group();
-  animal.name = species === 'cow'
-    ? 'Monastery dairy cow'
-    : species === 'sheep'
-      ? 'Monastery pasture sheep'
-      : 'Monastery pig';
-  if (species === 'sheep') {
-    const wool = residenceFacadeMaterial(variant % 3 === 0 ? 'yellow' : 'white');
-    const dark = timberMaterial('dark');
-    for (const zOffset of [-0.34, 0, 0.34]) {
-      addMesh(
-        animal,
-        new THREE.SphereGeometry(0.48, 9, 7),
-        wool,
-        new THREE.Vector3(0, 0.67, zOffset),
-        new THREE.Euler(),
-        new THREE.Vector3(0.9, 0.92, 1.05),
-      );
-    }
-    addMesh(animal, new THREE.SphereGeometry(0.3, 9, 6), dark, new THREE.Vector3(0, 0.72, 0.77), new THREE.Euler(), new THREE.Vector3(0.76, 0.9, 1.0));
-    for (const xSign of [-1, 1] as const) {
-      addMesh(animal, new THREE.ConeGeometry(0.11, 0.3, 5), dark, new THREE.Vector3(xSign * 0.28, 0.86, 0.74), new THREE.Euler(0, 0, xSign * 0.9));
-    }
-    for (const legX of [-0.26, 0.26]) for (const legZ of [-0.32, 0.32]) {
-      addMesh(animal, new THREE.CylinderGeometry(0.055, 0.07, 0.45, 6), dark, new THREE.Vector3(legX, 0.23, legZ));
-    }
-    animal.userData.canonicalProducts = ['meat', 'milk', 'cheese'];
-    animal.position.set(x, 0, z);
-    animal.rotation.y = heading;
-    parent.add(animal);
-    return;
-  }
-  const bodyMaterial = species === 'cow'
-    ? residenceFacadeMaterial(variant % 2 === 0 ? 'white' : 'orange')
-    : residenceFacadeMaterial('lightOrange');
-  const bodyY = species === 'cow' ? 0.88 : 0.48;
-  const length = species === 'cow' ? 1.75 : 1.15;
-  addMesh(animal, new THREE.SphereGeometry(0.6, 10, 7), bodyMaterial, new THREE.Vector3(0, bodyY, 0), new THREE.Euler(), new THREE.Vector3(0.82, species === 'cow' ? 1 : 0.75, length));
-  addMesh(animal, new THREE.SphereGeometry(species === 'cow' ? 0.4 : 0.34, 9, 6), bodyMaterial, new THREE.Vector3(0, bodyY + 0.08, length * 0.55));
-  for (const legX of [-0.34, 0.34]) for (const legZ of [-0.48, 0.48]) {
-    addMesh(animal, new THREE.CylinderGeometry(0.075, 0.09, species === 'cow' ? 0.72 : 0.38, 6), bodyMaterial, new THREE.Vector3(legX, species === 'cow' ? 0.36 : 0.2, legZ));
-  }
-  animal.userData.canonicalProducts = species === 'cow'
-    ? ['meat', 'milk', 'cheese']
-    : ['meat'];
-  animal.position.set(x, 0, z);
-  animal.rotation.y = heading;
-  parent.add(animal);
 }
 
 function addMeadBrewhouse(parent: THREE.Group, level: number, zone: MonasteryPlanRect): void {
@@ -1062,39 +923,9 @@ export function createMonasteryEstateMesh(
   placeGardenInfrastructure(group, 'chicken_pen', 'Monastery chicken yard', monasteryPlanZone(plan, 'hen-yard'), 8306);
   placeGardenInfrastructure(group, 'goat_pen', 'Monastery small-stock enclosure', monasteryPlanZone(plan, 'small-stock-yard'), 8307);
 
-  const random = mulberry32(8310 + level * 19);
-  const pasture = monasteryPlanZone(plan, 'pasture');
-  for (let index = 0; index < 2 + level; index += 1) {
-    addAnimal(
-      group,
-      'cow',
-      pasture.centerX - pasture.width * 0.38 + random() * pasture.width * 0.76,
-      pasture.centerZ - pasture.depth * 0.34 + random() * pasture.depth * 0.68,
-      random() * Math.PI * 2,
-      index,
-    );
-  }
-  for (let index = 0; index < 4 + level * 2; index += 1) {
-    addAnimal(
-      group,
-      'sheep',
-      pasture.centerX - pasture.width * 0.4 + random() * pasture.width * 0.8,
-      pasture.centerZ - pasture.depth * 0.36 + random() * pasture.depth * 0.72,
-      random() * Math.PI * 2,
-      index,
-    );
-  }
-  const smallStock = monasteryPlanZone(plan, 'small-stock-yard');
-  for (let index = 0; index < 3 + level * 2; index += 1) {
-    addAnimal(
-      group,
-      'pig',
-      smallStock.centerX - smallStock.width * 0.36 + random() * smallStock.width * 0.72,
-      smallStock.centerZ - smallStock.depth * 0.32 + random() * smallStock.depth * 0.64,
-      random() * Math.PI * 2,
-      index,
-    );
-  }
+  // Living livestock is rendered exclusively from authoritative livestock
+  // agents. Never bake primitive representative animals into the building:
+  // they duplicate population and become an unavoidable visual proxy tier.
   addInvestmentBuildings(group, plan, extensions);
   addPerimeterPrecinct(group, plan);
   plan.diagnostics.estateMeshTriangles = countTriangles(group);

@@ -14,6 +14,7 @@ const starLoaderPath = 'src/sky/CelestialStarMapLoader.ts';
 const startupDiagnosticsPath = 'src/app/startupDiagnostics.ts';
 const sceneManagerPath = 'src/scene/SceneManager.ts';
 const buildingMaterialsPath = 'src/buildings/buildingMaterials.ts';
+const buildingMaterialAtlasPath = 'src/buildings/buildingMaterialAtlas.ts';
 const vineyardPath = 'src/vegetation/seedthree/vineyardVines.ts';
 const seedThreeTexturesPath = 'src/vegetation/seedthree/seedThreeTextures.ts';
 const fieldCropAssetsPath = 'src/vegetation/seedthree/fieldCropAssets.ts';
@@ -31,6 +32,7 @@ const starLoader = fs.readFileSync(starLoaderPath, 'utf8');
 const startupDiagnostics = fs.readFileSync(startupDiagnosticsPath, 'utf8');
 const sceneManager = fs.readFileSync(sceneManagerPath, 'utf8');
 const buildingMaterials = fs.readFileSync(buildingMaterialsPath, 'utf8');
+const buildingMaterialAtlas = fs.readFileSync(buildingMaterialAtlasPath, 'utf8');
 const vineyard = fs.readFileSync(vineyardPath, 'utf8');
 const seedThreeTextures = fs.readFileSync(seedThreeTexturesPath, 'utf8');
 const fieldCropAssets = fs.readFileSync(fieldCropAssetsPath, 'utf8');
@@ -137,6 +139,8 @@ assert.ok(
 );
 
 const deferredModules = [
+  ['BuildingMarkers', '../buildings/BuildingMarkers.ts'],
+  ['BuildingTool', '../buildings/BuildingTool.ts'],
   ['DeliveryAgentRenderer', '../logistics/DeliveryAgentRenderer.ts'],
   ['FireEffectsRenderer', '../fires/FireEffectsRenderer.ts'],
   ['VillagerRenderer', '../settlement/VillagerRenderer.ts'],
@@ -219,9 +223,11 @@ const celestialLoadIndex = app.indexOf('session.sceneManager.loadCelestialSky()'
 const buildingHydrationIndex = app.indexOf('await initializeBuildingMaterialLibrary(');
 const vineyardHydrationIndex = app.indexOf('await initializeVineyardVineResources(');
 const villagerVisualHydrationIndex = app.indexOf('await session.villagers.visualAssetsReady');
-const gpuPrecompileIndex = app.indexOf('await session.sceneManager.precompileFirstPlayableScene()');
+const gpuPrecompileIndex = app.indexOf(
+  'session.sceneManager.precompileFirstPlayableObjects(targetedPrewarmObjects)',
+);
 const villagerGpuPrewarmIndex = app.indexOf('session.villagers.beginFirstPlayableGpuPrewarm()');
-const gpuCompletionIndex = app.indexOf('await session.sceneManager.waitForFirstPlayableGpuWork()');
+const gpuCompletionIndex = app.indexOf('session.sceneManager.waitForFirstPlayableGpuWork()');
 const startupRafIndex = app.indexOf(
   'await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))',
 );
@@ -255,7 +261,7 @@ for (const forbiddenPostPlayWork of [
   'initializeBuildingMaterialLibrary(',
   'initializeVineyardVineResources(',
   'villagers.visualAssetsReady',
-  'precompileFirstPlayableScene()',
+  'precompileFirstPlayableObjects(',
   'beginFirstPlayableGpuPrewarm()',
 ]) {
   assert.equal(
@@ -266,15 +272,26 @@ for (const forbiddenPostPlayWork of [
 }
 assert.ok(
   sceneManager.includes('(this.renderer as StartupPrecompilableRenderer).initTexture(texture);')
-    && sceneManager.includes('await renderer.compileAsync(this.scene, this.camera);')
+    && sceneManager.includes('await renderer.compileAsync(object, this.camera, this.scene);')
     && sceneManager.includes('return this.waitForSubmittedWork();'),
-  'startup residency must include texture upload, live-scene shader compilation, and GPU completion',
+  'startup residency must include texture upload, targeted live-scene shader compilation, and GPU completion',
+);
+assert.equal(
+  app.match(/waitForFirstPlayableGpuWork\(\)/g)?.length,
+  1,
+  'startup must await exactly one covered GPU submission instead of duplicating the full scene',
+);
+assert.equal(
+  sceneManager.includes('renderer.compileAsync(this.scene, this.camera)'),
+  false,
+  'first-playable compilation must not traverse the complete terrain/woodland scene',
 );
 assert.ok(
-  buildingMaterials.includes('preloadTexture?.(map);')
-    && buildingMaterials.includes('preloadTexture?.(normalMap);')
-    && buildingMaterials.includes('preloadTexture?.(roughnessMap);'),
-  'every detailed building texture channel must be uploaded during hydration',
+  buildingMaterials.includes('initializeBuildingMaterialAtlas(maxAnisotropy, preloadTexture)')
+    && buildingMaterialAtlas.includes('preloadTexture(textures.albedo);')
+    && buildingMaterialAtlas.includes('preloadTexture(textures.normal);')
+    && buildingMaterialAtlas.includes('preloadTexture(textures.material);'),
+  'all three packed building-atlas channels must be uploaded during hydration',
 );
 assert.ok(
   vineyard.includes('preloadTexture?.(textures.albedo);')
@@ -305,6 +322,15 @@ assert.ok(
 assert.ok(
   main.includes("import('./e2e/visualPerformanceHooks.ts')"),
   'profiling runs must retain a dedicated deferred module request',
+);
+assert.equal(
+  app.includes("from '../e2e/smokeTestHooks.ts'"),
+  false,
+  'ordinary startup must not statically import the E2E placement-validation graph',
+);
+assert.ok(
+  app.includes("import('../e2e/smokeTestHooks.ts')"),
+  'E2E builds must retain smoke-test hooks behind a deferred module request',
 );
 
 const memoryBuild = await buildVite({

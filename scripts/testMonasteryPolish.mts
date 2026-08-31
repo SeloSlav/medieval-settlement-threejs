@@ -275,12 +275,22 @@ for (const estatePart of [
   'Monastery vintner screw press',
   'Monastery bee garden',
   'Monastery chicken yard',
-  'Monastery dairy cow',
-  'Monastery pasture sheep',
-  'Monastery pig',
   'Monastery infirmary wing',
 ]) {
   assert.ok(monasteryMarker.getObjectByName(estatePart), `${estatePart} must exist on the estate`);
+}
+for (const forbiddenAgentStandIn of [
+  'Monastery dairy cow',
+  'Monastery pasture sheep',
+  'Monastery pig',
+  'HenFallback',
+  'GoatFallback',
+]) {
+  assert.equal(
+    monasteryMarker.getObjectByName(forbiddenAgentStandIn),
+    undefined,
+    `${forbiddenAgentStandIn} must come from an authoritative authored-model agent, not the static building mesh`,
+  );
 }
 const pantryGroups = [
   ['MonasteryFoodStockpile', 'MonasteryFoodSegment', MONASTERY_FOOD_VISUAL_SEGMENTS],

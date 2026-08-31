@@ -4,6 +4,7 @@ import {
   metalMaterial,
   residenceFacadeMaterial,
   sharedBuildingDetailMaterial,
+  sharedBuildingMaterial,
   shingleMaterial,
   stackedTimberWallMaterial,
   stoneMaterial,
@@ -19,6 +20,7 @@ import {
   addPlankDoor,
   addSmallWindow,
 } from './buildingMeshKit.ts';
+import { addProceduralDoor, addProceduralWindow } from './facadeOpeningKit.ts';
 import { createCivilianToolStockpile } from './civilianToolStockpileMesh.ts';
 import {
   CLOTH_STOCKPILE_VISUAL_SEGMENTS,
@@ -858,14 +860,14 @@ export const GRANARY_ARCHITECTURE_PLAN = Object.freeze({
   supportX: Object.freeze([-3.18, -1.06, 1.06, 3.18]),
   supportZ: Object.freeze([-2.02, 2.02]),
   grainStockAnchors: Object.freeze([
-    Object.freeze([-3.45, 0, 3.8, 0.9]),
-    Object.freeze([-2.75, 0, 3.95, 0.75]),
-    Object.freeze([-3.9, 0, 4.5, 0.68]),
+    Object.freeze([-3.45, 0, 3.8, 0.9] as StockPropPlacement),
+    Object.freeze([-2.75, 0, 3.95, 0.75] as StockPropPlacement),
+    Object.freeze([-3.9, 0, 4.5, 0.68] as StockPropPlacement),
   ]),
   provisionStockAnchors: Object.freeze([
-    Object.freeze([2.35, 0, 3.85, 0.82]),
-    Object.freeze([3.05, 0, 3.95, 0.72]),
-    Object.freeze([3.7, 0, 3.82, 0.65]),
+    Object.freeze([2.35, 0, 3.85, 0.82] as StockPropPlacement),
+    Object.freeze([3.05, 0, 3.95, 0.72] as StockPropPlacement),
+    Object.freeze([3.7, 0, 3.82, 0.65] as StockPropPlacement),
   ]),
 });
 
@@ -885,9 +887,9 @@ export const APIARY_ARCHITECTURE_PLAN = Object.freeze({
   benchRows: Object.freeze([-1.22, 0.12]),
   skepX: Object.freeze([-2.65, 0, 2.65]),
   honeyStockAnchors: Object.freeze([
-    Object.freeze([1.75, 0, 2.9, 1]),
-    Object.freeze([2.25, 0, 3.05, 0.88]),
-    Object.freeze([2.65, 0, 2.82, 0.75]),
+    Object.freeze([1.75, 0, 2.9, 1] as StockPropPlacement),
+    Object.freeze([2.25, 0, 3.05, 0.88] as StockPropPlacement),
+    Object.freeze([2.65, 0, 2.82, 0.75] as StockPropPlacement),
   ]),
 });
 
@@ -965,7 +967,7 @@ function addGranaryStaddle(
   const foot = addMesh(
     support,
     new THREE.CylinderGeometry(0.36, 0.42, 0.3, 8),
-    stoneMaterial('dark'),
+    stoneMaterial('mortar'),
     new THREE.Vector3(0, 0.15, 0),
     new THREE.Euler(0, index * 0.17, 0),
   );
@@ -981,7 +983,7 @@ function addGranaryStaddle(
   const cap = addMesh(
     support,
     new THREE.CylinderGeometry(0.5, 0.25, 0.22, 8),
-    stoneMaterial('dark'),
+    stoneMaterial('mortar'),
     new THREE.Vector3(0, 0.88, 0),
     new THREE.Euler(0, index * 0.23, 0),
   );
@@ -1043,13 +1045,13 @@ function addGranaryLoadingStair(group: THREE.Group): void {
   );
   landing.name = 'Granary raised loading landing';
   landing.userData.architectureRole = 'loading-platform';
-  for (let index = 0; index < 3; index++) {
-    const height = 0.25 + index * 0.28;
+  for (let index = 0; index < 4; index++) {
+    const height = 0.28 + index * 0.28;
     const step = addMesh(
       group,
       new THREE.BoxGeometry(1.82, height, 0.48),
-      timberMaterial(index === 2 ? 'mid' : 'weathered'),
-      new THREE.Vector3(0, height * 0.5, frontZ + 1.88 - index * 0.42),
+      timberMaterial(index >= 2 ? 'mid' : 'weathered'),
+      new THREE.Vector3(0, height * 0.5, frontZ + 1.82 - index * 0.38),
     );
     step.name = `Granary loading stair tread ${index + 1}`;
   }
@@ -1076,7 +1078,7 @@ export function createGranaryMesh(): THREE.Group {
   for (const z of plan.supportZ) {
     for (const x of plan.supportX) addGranaryStaddle(store, x, z, supportIndex++);
   }
-  for (const z of [-1.72, 1.72]) {
+  for (const z of plan.supportZ) {
     const bearer = addMesh(
       store,
       new THREE.BoxGeometry(shell.width - 0.44, 0.24, 0.28),
@@ -1160,7 +1162,7 @@ export function createGranaryMesh(): THREE.Group {
 
   addGranaryGable(store, frontZ + 0.01, 1);
   addGranaryGable(store, rearZ - shell.wallThickness + 0.01, -1);
-  addPlankDoor(store, 0, wallBase + 0.02, frontZ + 0.105, plan.door.width, plan.door.height, 'none');
+  addPlankDoor(store, 0, wallBase + 0.02, frontZ + 0.105, plan.door.width, plan.door.height, 'existing-platform');
   const ventY = wallTop + shell.ridgeRise * 0.42;
   for (const z of [frontZ + 0.18, rearZ - 0.18]) {
     addDarkOpening(store, 0, ventY, z, 0.68, 0.5);
@@ -1202,7 +1204,7 @@ function addApiaryFooting(
   const footing = addMesh(
     group,
     new THREE.CylinderGeometry(0.3, 0.36, 0.2, 8),
-    stoneMaterial(index % 2 === 0 ? 'dark' : 'mid'),
+    stoneMaterial(index % 2 === 0 ? 'mortar' : 'mid'),
     new THREE.Vector3(x, 0.1, z),
     new THREE.Euler(0, index * 0.19, 0),
   );
@@ -1253,7 +1255,7 @@ function addApiarySkep(
   const entrance = addMesh(
     skep,
     new THREE.CircleGeometry(0.095, 8),
-    sharedBuildingDetailMaterial('interiorDark'),
+    sharedBuildingMaterial('interiorDark'),
     new THREE.Vector3(0, 0.22, 0.515),
   );
   entrance.name = 'Apiary skep entrance';
@@ -1312,7 +1314,7 @@ export function createApiaryMesh(): THREE.Group {
     const bench = addMesh(
       group,
       new THREE.BoxGeometry(6.64, 0.16, 0.7),
-      timberMaterial('weathered'),
+      timberMaterial('mid'),
       new THREE.Vector3(0, 0.62, z),
     );
     bench.name = 'Apiary raised skep bench';
@@ -1338,18 +1340,20 @@ export function createApiaryMesh(): THREE.Group {
   tableTop.name = 'Apiary processing table top';
   tableTop.userData.architectureRole = 'processing-table';
   for (const x of [-3.28, -1.72]) {
-    const leg = addMesh(
-      group,
-      new THREE.BoxGeometry(0.18, 0.82, 0.18),
-      timberMaterial('dark'),
-      new THREE.Vector3(x, 0.46, 1.05),
-    );
-    leg.name = 'Apiary processing table leg';
+    for (const z of [0.76, 1.34]) {
+      const leg = addMesh(
+        group,
+        new THREE.BoxGeometry(0.18, 0.82, 0.18),
+        timberMaterial('dark'),
+        new THREE.Vector3(x, 0.46, z),
+      );
+      leg.name = 'Apiary processing table leg';
+    }
   }
   const chest = addMesh(
     group,
     new THREE.BoxGeometry(1.14, 0.58, 0.72),
-    timberMaterial('weathered'),
+    timberMaterial('mid'),
     new THREE.Vector3(2.82, 0.39, 1.03),
   );
   chest.name = 'Apiary brown timber tool chest';
@@ -1410,44 +1414,162 @@ export function createWatermillMesh(): THREE.Group {
   return group;
 }
 
+type WindmillTowerOpening = {
+  readonly facetIndex: number;
+  readonly kind: 'door' | 'window';
+  readonly lateralX: number;
+  readonly baseY: number;
+  readonly width: number;
+  readonly height: number;
+};
+
+const WINDMILL_TOWER_OPENINGS: readonly WindmillTowerOpening[] = [
+  { facetIndex: 0, kind: 'door', lateralX: 0, baseY: 0.54, width: 1.0, height: 1.86 },
+  { facetIndex: 11, kind: 'window', lateralX: 0.35, baseY: 2.76, width: 0.62, height: 0.78 },
+  { facetIndex: 1, kind: 'window', lateralX: -0.32, baseY: 5.19, width: 0.56, height: 0.72 },
+];
+
+function addWindmillTaperedTowerShell(group: THREE.Group): void {
+  const sides = 12;
+  const baseRadius = 3.55;
+  const topRadius = 2.85;
+  const height = 7.4;
+  const halfFacetAngle = Math.PI / sides;
+  const bottomApothem = baseRadius * Math.cos(halfFacetAngle);
+  const topApothem = topRadius * Math.cos(halfFacetAngle);
+  const bottomWidth = 2 * baseRadius * Math.sin(halfFacetAngle);
+  const topWidth = 2 * topRadius * Math.sin(halfFacetAngle);
+  const radialInset = bottomApothem - topApothem;
+  const tilt = Math.atan2(radialInset, height);
+  const verticalScale = Math.cos(tilt);
+  const slantHeight = height / verticalScale;
+  const wallThickness = 0.18;
+
+  for (let facetIndex = 0; facetIndex < sides; facetIndex += 1) {
+    const opening = WINDMILL_TOWER_OPENINGS.find((candidate) => candidate.facetIndex === facetIndex);
+    const shape = new THREE.Shape();
+    shape.moveTo(-bottomWidth * 0.5, 0);
+    shape.lineTo(bottomWidth * 0.5, 0);
+    shape.lineTo(topWidth * 0.5, slantHeight);
+    shape.lineTo(-topWidth * 0.5, slantHeight);
+    shape.closePath();
+
+    if (opening) {
+      const yMin = opening.baseY / verticalScale;
+      const yMax = (opening.baseY + opening.height) / verticalScale;
+      const halfWidth = (opening.width + 0.1) * 0.5;
+      const hole = new THREE.Path();
+      hole.moveTo(opening.lateralX - halfWidth, yMin);
+      hole.lineTo(opening.lateralX - halfWidth, yMax);
+      hole.lineTo(opening.lateralX + halfWidth, yMax);
+      hole.lineTo(opening.lateralX + halfWidth, yMin);
+      hole.closePath();
+      shape.holes.push(hole);
+    }
+
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+      depth: wallThickness,
+      bevelEnabled: false,
+      curveSegments: 1,
+    });
+    geometry.translate(0, 0, -wallThickness);
+    const angle = facetIndex * Math.PI * 2 / sides;
+    const facet = new THREE.Group();
+    facet.name = `Windmill tapered tower facet ${facetIndex + 1}`;
+    facet.position.set(
+      Math.sin(angle) * bottomApothem,
+      0,
+      Math.cos(angle) * bottomApothem,
+    );
+    facet.rotation.set(-tilt, angle, 0);
+    group.add(facet);
+
+    const wall = addMesh(
+      facet,
+      geometry,
+      residenceFacadeMaterial('white'),
+      new THREE.Vector3(),
+    );
+    wall.name = opening
+      ? `Windmill physically perforated ${opening.kind} tower wall`
+      : 'Windmill joined tapered plaster tower wall';
+    wall.userData.proceduralWallShell = true;
+    wall.userData.literalFacadeApertures = opening !== undefined;
+    wall.userData.proceduralFacadeOpeningCount = opening ? 1 : 0;
+
+    if (!opening) continue;
+    if (opening.kind === 'door') {
+      const parts = addProceduralDoor(facet, {
+        position: new THREE.Vector3(opening.lateralX, opening.baseY / verticalScale, 0.025),
+        face: 'positive-z',
+        width: opening.width,
+        height: opening.height,
+        namePrefix: 'Windmill',
+        entranceAccess: 'existing-platform',
+      });
+      parts.root.userData.literalWallAperture = true;
+      parts.root.userData.facadeOpeningRole = 'tapered-tower-door';
+    } else {
+      const parts = addProceduralWindow(facet, {
+        position: new THREE.Vector3(
+          opening.lateralX,
+          (opening.baseY + opening.height * 0.5) / verticalScale,
+          0.025,
+        ),
+        face: 'positive-z',
+        width: opening.width,
+        height: opening.height,
+        namePrefix: 'Windmill',
+      });
+      parts.root.userData.literalWallAperture = true;
+      parts.root.userData.facadeOpeningRole = 'tapered-tower-window';
+    }
+  }
+}
+
 export function createWindmillMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Windmill';
 
-  addMesh(
-    group,
-    new THREE.CylinderGeometry(2.85, 3.55, 7.4, 12),
-    residenceFacadeMaterial('white'),
-    new THREE.Vector3(0, 3.7, 0),
-  );
-  addMesh(
+  addWindmillTaperedTowerShell(group);
+  const foundation = addMesh(
     group,
     new THREE.CylinderGeometry(3.62, 3.62, 0.52, 12),
     stoneMaterial('mid'),
     new THREE.Vector3(0, 0.26, 0),
   );
-  addMesh(
+  foundation.name = 'Windmill continuous fieldstone tower foundation';
+  const capDrum = addMesh(
     group,
     new THREE.CylinderGeometry(3.25, 2.9, 1.8, 8),
     timberMaterial('dark'),
     new THREE.Vector3(0, 8.25, 0),
   );
-  addMesh(
+  capDrum.name = 'Windmill joined timber rotating cap drum';
+  const capRoof = addMesh(
     group,
     new THREE.ConeGeometry(3.9, 2.55, 8),
     shingleMaterial(),
     new THREE.Vector3(0, 10.42, 0),
   );
-  addMesh(
+  capRoof.name = 'Windmill joined shingle cap roof';
+  capRoof.userData.proceduralRoofShell = true;
+  capRoof.userData.proceduralRoofAttachment = 'cap-drum';
+  const finial = addMesh(
     group,
     new THREE.SphereGeometry(0.18, 8, 6),
     metalMaterial('iron'),
     new THREE.Vector3(0, 11.78, 0),
   );
-
-  addPlankDoor(group, 0, 0.56, 3.23, 1.0, 1.86);
-  addSmallWindow(group, -1.15, 3.15, 2.96, 0.62, 0.78);
-  addSmallWindow(group, 1.1, 5.55, 2.72, 0.56, 0.72);
+  finial.name = 'Windmill cap roof iron finial';
+  const bearing = addMesh(
+    group,
+    new THREE.BoxGeometry(0.82, 0.78, 0.28),
+    timberMaterial('mid'),
+    new THREE.Vector3(0, 8.35, 3.08),
+  );
+  bearing.name = 'Windmill cap axle bearing housing';
+  bearing.userData.architectureRole = 'sail-axle-bearing';
 
   const sails = new THREE.Group();
   sails.name = 'Windmill sails';
@@ -1456,64 +1578,88 @@ export function createWindmillMesh(): THREE.Group {
   group.add(sails);
   for (let bladeIndex = 0; bladeIndex < 4; bladeIndex += 1) {
     const blade = new THREE.Group();
+    blade.name = 'Windmill joined sail blade';
+    blade.userData.architectureRole = 'windmill-sail-blade';
     blade.rotation.z = bladeIndex * Math.PI * 0.5;
     sails.add(blade);
-    addMesh(
+    const spar = addMesh(
       blade,
       new THREE.BoxGeometry(0.18, 5.1, 0.18),
       timberMaterial('dark'),
       new THREE.Vector3(0, 2.55, 0),
     );
+    spar.name = 'Windmill sail load-bearing spar';
     for (const side of [-1, 1]) {
-      addMesh(
+      const rail = addMesh(
         blade,
         new THREE.BoxGeometry(0.13, 3.65, 0.13),
         timberMaterial('weathered'),
         new THREE.Vector3(side * 0.58, 3.05, 0),
         new THREE.Euler(0, 0, side * -0.08),
       );
+      rail.name = 'Windmill sail weathered side rail';
     }
     for (let rung = 0; rung < 7; rung += 1) {
-      addMesh(
+      const lattice = addMesh(
         blade,
         new THREE.BoxGeometry(1.32, 0.1, 0.11),
-        timberMaterial(rung % 2 ? 'light' : 'weathered'),
+        timberMaterial(rung % 2 ? 'mid' : 'weathered'),
         new THREE.Vector3(0, 1.65 + rung * 0.5, 0),
       );
+      lattice.name = 'Windmill sail brown timber lattice rung';
     }
   }
-  addMesh(
+  const hub = addMesh(
     sails,
     new THREE.CylinderGeometry(0.48, 0.48, 0.72, 10),
     timberMaterial('dark'),
     new THREE.Vector3(),
     new THREE.Euler(Math.PI * 0.5, 0, 0),
   );
-  addMesh(
+  hub.name = 'Windmill sail timber hub';
+  const axle = addMesh(
     sails,
     new THREE.CylinderGeometry(0.16, 0.16, 1.15, 10),
     metalMaterial('iron'),
     new THREE.Vector3(0, 0, -0.08),
     new THREE.Euler(Math.PI * 0.5, 0, 0),
   );
+  axle.name = 'Windmill sail iron axle';
+  axle.userData.architectureRole = 'sail-axle';
 
-  addLeanToRoof(group, {
-    width: 3.5,
-    depth: 2.8,
+  const porchRoof = addLeanToRoof(group, {
+    width: 2.45,
+    depth: 3.15,
     thickness: 0.14,
     material: shingleMaterial(),
-    position: new THREE.Vector3(3.55, 2.45, -0.55),
-    pitch: 0.16,
+    position: new THREE.Vector3(4.25, 2.55, -0.45),
+    pitch: 0.14,
     highEdge: 'negativeX',
     name: 'Windmill loading porch roof',
   });
-  for (const z of [-1.55, 0.45]) {
-    addMesh(
+  porchRoof.userData.architectureRole = 'wall-ledger-supported-loading-porch';
+  const porchLedger = addMesh(
+    group,
+    new THREE.BoxGeometry(0.22, 0.22, 3.05),
+    timberMaterial('dark'),
+    new THREE.Vector3(3.14, 2.69, -0.45),
+  );
+  porchLedger.name = 'Windmill loading porch wall ledger';
+  const porchEaveBeam = addMesh(
+    group,
+    new THREE.BoxGeometry(0.22, 0.22, 3.05),
+    timberMaterial('dark'),
+    new THREE.Vector3(5.32, 2.38, -0.45),
+  );
+  porchEaveBeam.name = 'Windmill loading porch post-supported eave beam';
+  for (const z of [-1.75, 0.85]) {
+    const post = addMesh(
       group,
-      new THREE.BoxGeometry(0.17, 2.35, 0.17),
+      new THREE.BoxGeometry(0.19, 2.38, 0.19),
       timberMaterial('dark'),
-      new THREE.Vector3(4.75, 1.18, z),
+      new THREE.Vector3(5.32, 1.19, z),
     );
+    post.name = 'Windmill loading porch roof-bearing post';
   }
 
   addSegmentedStockProps(

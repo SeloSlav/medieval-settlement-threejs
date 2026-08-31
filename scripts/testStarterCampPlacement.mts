@@ -243,13 +243,18 @@ const campMarkers = new BuildingMarkers({
   parent: markerParent,
 });
 campMarkers.prewarmFoundersCampPlacement();
-const restoreCampGpuPrewarm = campMarkers.beginFoundersCampGpuPrewarm();
+const campGpuPrewarm = campMarkers.beginFoundersCampGpuPrewarm();
 const gpuPrewarmedCamp = markerParent.getObjectByName("Founders' camp and open stockyard");
 assert.ok(
   gpuPrewarmedCamp,
   'the prebuilt camp should be attached while startup compiles live-scene shaders',
 );
-restoreCampGpuPrewarm();
+assert.deepEqual(
+  campGpuPrewarm.objects,
+  [gpuPrewarmedCamp],
+  'targeted startup compilation should receive only the detailed founders camp root',
+);
+campGpuPrewarm.restore();
 assert.equal(
   markerParent.getObjectByName("Founders' camp and open stockyard"),
   undefined,
@@ -681,13 +686,18 @@ assert.match(
 );
 assert.match(
   app,
-  /beginFoundersCampGpuPrewarm\(\)[\s\S]*?precompileFirstPlayableScene\(\)[\s\S]*?invalidateStaticShadows\(\);[\s\S]*?sceneManager\.render\(0,[\s\S]*?waitForFirstPlayableGpuWork\(\);[\s\S]*?restorePrewarmObjects\(\);[\s\S]*?sceneManager\.render\(0,[\s\S]*?waitForFirstPlayableGpuWork\(\);/,
-  'startup should submit the temporary camp through the live post/shadow path, then submit one clean frame before play',
+  /beginFoundersCampGpuPrewarm\(\)[\s\S]*?precompileFirstPlayableObjects\(targetedPrewarmObjects\)[\s\S]*?invalidateStaticShadows\(\);[\s\S]*?sceneManager\.render\(0,[\s\S]*?waitForFirstPlayableGpuWork\(\)[\s\S]*?restorePrewarmObjects\(\);/,
+  'startup should target-compile the temporary camp and submit exactly one covered live post/shadow frame',
 );
 assert.match(
   app,
-  /try \{[\s\S]*?precompileFirstPlayableScene\(\);[\s\S]*?catch \(error\) \{[\s\S]*?Direct first-playable shader compile is unavailable[\s\S]*?sceneManager\.invalidateStaticShadows\(\);/,
-  'a direct compile rejection must not skip the covered live-pipeline warmup',
+  /try \{[\s\S]*?precompileFirstPlayableObjects\(targetedPrewarmObjects\)[\s\S]*?catch \(error\) \{[\s\S]*?Targeted first-playable shader compile is unavailable[\s\S]*?sceneManager\.invalidateStaticShadows\(\);/,
+  'a targeted compile rejection must not skip the covered live-pipeline warmup',
+);
+assert.equal(
+  app.match(/waitForFirstPlayableGpuWork\(\)/g)?.length,
+  1,
+  'the loading cover must own one bounded GPU submission, not two duplicate scene submissions',
 );
 assert.match(
   app,

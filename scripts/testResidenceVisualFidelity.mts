@@ -118,8 +118,8 @@ for (const seed of seeds) {
     `tier-one pre-batch mesh budget exceeded (${budget.meshes} > 130)`,
   );
   assert.ok(
-    budget.triangles <= 5_000,
-    `tier-one active triangle budget exceeded (${budget.triangles} > 5,000)`,
+    budget.triangles <= 4_000,
+    `tier-one active triangle budget exceeded (${budget.triangles} > 4,000)`,
   );
   assert.ok(
     budget.materials <= 10,
@@ -637,15 +637,15 @@ function assertResidenceValueSeparation(root: THREE.Object3D): void {
   );
   assert.ok(apertureLuma <= 0.02, `door aperture must read as a deep shadow (${apertureLuma.toFixed(3)})`);
   assert.ok(
-    exposedRoofLuma >= 0.48 && exposedRoofLuma <= 0.62,
-    `weathered ridge timber needs a readable middle value (${exposedRoofLuma.toFixed(3)})`,
+    exposedRoofLuma >= 0.1 && exposedRoofLuma <= 0.18,
+    `weathered ridge timber must stay in the shared brown range (${exposedRoofLuma.toFixed(3)})`,
   );
   assert.ok(
-    exposedRoofLuma - roofPlaneLuma >= 0.2,
-    'weathered ridge/rake craft must separate from the darker split-shingle field',
+    roofPlaneLuma - exposedRoofLuma >= 0.1,
+    'brown ridge/rake craft must separate from the silvered split-shingle field',
   );
   assert.ok(
-    structuralTimberLuma >= 0.15 && structuralTimberLuma <= 0.35,
+    structuralTimberLuma >= 0.04 && structuralTimberLuma <= 0.18,
     `structural timber must separate from plaster without becoming black (${structuralTimberLuma.toFixed(3)})`,
   );
   assert.ok(plasterLuma - apertureLuma >= 0.4, 'daub and apertures need decisive value separation');

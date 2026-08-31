@@ -36,9 +36,23 @@ assert.equal(runtimeManifest.summary.totalTriangles, 409_862);
 assert.equal(runtimeManifest.summary.buildingCategories, 43);
 assert.equal(runtimeManifest.summary.supplementalCategories, 34);
 
-const catalogKinds = readCatalogKinds();
-for (const kind of catalogKinds) {
-  assert.ok(runtimeManifest.coverage[kind], `Runtime coverage is missing ${kind}`);
+// This Blender-authored kit is retained only as an offline/E2E component
+// comparison library. The canonical gameplay registry is now procedural and
+// may grow independently, so this manifest must not masquerade as exhaustive
+// BuildingKind coverage.
+for (const referenceCategory of [
+  'founders_camp',
+  'lumber_mill',
+  'stone_quarry',
+  'smithy',
+  'chapel',
+  'marketplace',
+  'town_hall',
+  'stable',
+  'granary',
+  'watermill',
+]) {
+  assert.ok(runtimeManifest.coverage[referenceCategory], `Reference kit is missing ${referenceCategory}`);
 }
 assert.equal(
   Object.keys(runtimeManifest.coverage).length,
@@ -117,7 +131,7 @@ assert.match(loaderSource, /mesh\.geometry = mesh\.geometry\.clone\(\)/);
 assert.match(loaderSource, /familyLoadPromises/);
 
 const materialSource = fs.readFileSync(
-  path.join(repositoryRoot, 'src', 'buildings', 'authoredArchitectureModels.ts'),
+  path.join(repositoryRoot, 'src', 'buildings', 'gorskiArchitectureSourcePreparation.ts'),
   'utf8',
 );
 for (const materialKey of [
@@ -139,22 +153,12 @@ assert.match(
   'Unmapped glass, water, leather, and wax must retain their authored scalar material values',
 );
 
-console.log('Gorski architecture-kit runtime integration passed.');
+console.log('Gorski architecture-kit E2E reference integration passed.');
 console.log(`  ${bundledParts} parts across 12 lazy family GLBs`);
 console.log(`  ${bundledTriangles.toLocaleString('en-US')} triangles, ${formatMiB(bundledBytes)} total`);
 console.log(
-  `  ${runtimeManifest.summary.buildingCategories} authoritative + ${runtimeManifest.summary.supplementalCategories} supplemental coverage categories`,
+  `  ${runtimeManifest.summary.buildingCategories} building-reference + ${runtimeManifest.summary.supplementalCategories} supplemental categories`,
 );
-
-function readCatalogKinds() {
-  const source = fs.readFileSync(
-    path.join(repositoryRoot, 'src', 'generated', 'gameBalance.ts'),
-    'utf8',
-  );
-  const match = source.match(/export const BUILDING_KINDS = (\[[^;]+\]) as const;/);
-  assert.ok(match, 'Unable to read BUILDING_KINDS');
-  return JSON.parse(match[1]);
-}
 
 function readJson(filename) {
   return JSON.parse(fs.readFileSync(filename, 'utf8'));

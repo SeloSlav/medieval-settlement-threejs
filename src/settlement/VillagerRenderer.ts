@@ -118,10 +118,10 @@ import {
   residenceUpgradeWorkplaces,
 } from './residenceUpgradeWorkplaces.ts';
 import {
-  isMilitaryEquipmentKind,
   type WorkerToolKind,
 } from './workerTools.ts';
 import { resolveCombatWeaponPresentation } from './combatWeaponAnimation.ts';
+import { shouldCreateBattlefieldWeaponDrop } from './militaryWeaponDropPolicy.ts';
 import {
   villagerDisplayName,
   villagerOccupation,
@@ -569,7 +569,10 @@ export class VillagerRenderer {
     ]).then((values) => values.every(Boolean));
   }
 
-  beginFirstPlayableGpuPrewarm(): () => void {
+  beginFirstPlayableGpuPrewarm(): {
+    objects: readonly THREE.Object3D[];
+    restore: () => void;
+  } {
     return this.renderer.beginFirstPlayableGpuPrewarm();
   }
 
@@ -577,8 +580,8 @@ export class VillagerRenderer {
     return this.renderer.companyStandardDiagnostics();
   }
 
-  strategicHumanoidDiagnostics() {
-    return this.renderer.strategicHumanoidDiagnostics();
+  authoredCrowdDiagnostics() {
+    return this.renderer.authoredCrowdDiagnostics();
   }
 
   setSchedule(
@@ -2356,11 +2359,7 @@ export class VillagerRenderer {
         renderAgent.companyStandard = standard;
       }
       renderAgent.tool = carriedStandardSidearm ? 'sidearm' : combatToolFor(combat.faction);
-      if (
-        combat.status === 'downed'
-        && renderAgent.tool
-        && isMilitaryEquipmentKind(renderAgent.tool)
-      ) {
+      if (shouldCreateBattlefieldWeaponDrop(combat.status, renderAgent.tool)) {
         renderAgent.battlefieldWeaponDrop = {
           ownerId: combat.id,
           kind: renderAgent.tool,

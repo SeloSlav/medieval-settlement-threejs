@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import {
-  BATTLEFIELD_WEAPON_DROP_MAX_ORBIT_DISTANCE,
   BATTLEFIELD_WEAPON_DROP_DRAW_CALL_BUDGET,
   BattlefieldWeaponDropRenderer,
   battlefieldWeaponDropTransform,
@@ -55,16 +54,17 @@ const view = { centerX: 0, centerZ: 0, viewRadius: 120, orbitDistance: 42 };
 
 renderer.sync([far, hurt, near, living, middle], view);
 const diagnostic = renderer.diagnostics();
-assert.equal(diagnostic.owners, 2, 'capacity should keep the nearest two casualties');
-assert.equal(diagnostic.droppedOwners, 1);
+assert.equal(diagnostic.owners, 3, 'every casualty must retain its recoverable weapon visual');
+assert.equal(diagnostic.droppedOwners, 0);
+assert.ok(diagnostic.capacity >= 3, 'the instance storage must grow instead of omitting owners');
 assert.ok(diagnostic.instances > 0);
 assert.ok(diagnostic.activeDrawCalls > 0);
 assert.ok(diagnostic.triangles > 0);
 assert.equal(diagnostic.exactPbrMaterials, true);
 assert.deepEqual(
   renderer.ownershipSnapshot().map((entry) => entry.ownerId),
-  ['fallen-1', 'fallen-2'],
-  'stable owner identities must survive the render-capacity sort',
+  ['fallen-1', 'fallen-2', 'fallen-3'],
+  'stable owner identities must survive the deterministic spatial sort',
 );
 assert.equal(renderer.ownershipSnapshot()[0]?.recoverable, true);
 assert.equal(renderer.ownershipSnapshot()[1]?.recoverable, false);
@@ -93,9 +93,15 @@ assert.ok(Math.abs(firstTransform.pitch - Math.PI / 2) < 0.08, 'weapon should li
 
 renderer.sync([near], {
   ...view,
-  orbitDistance: BATTLEFIELD_WEAPON_DROP_MAX_ORBIT_DISTANCE + 1,
+  orbitDistance: 10_000,
 });
-assert.equal(renderer.diagnostics().owners, 0, 'tiny dropped equipment should cull at strategic zoom');
+assert.equal(renderer.diagnostics().owners, 1, 'strategic zoom must not erase recoverable equipment');
+const massCasualties = Array.from({ length: 513 }, (_, index) =>
+  agent(`mass-${index}`, index * 0.45, 'spear-shield', true));
+renderer.sync(massCasualties, view);
+assert.equal(renderer.diagnostics().owners, massCasualties.length);
+assert.equal(renderer.diagnostics().droppedOwners, 0);
+assert.ok(renderer.diagnostics().capacity >= massCasualties.length);
 renderer.sync([], view);
 assert.equal(renderer.diagnostics().instances, 0, 'removing an owner must clear every pooled instance');
 
@@ -196,4 +202,4 @@ renderer.dispose();
 for (const source of Object.values(sources)) disposeMilitaryEquipmentSource(source);
 assert.equal(parent.children.length, 0);
 
-console.log(`Battlefield weapon drops passed: explicit death detach, exact shared PBR assemblies, deterministic ground scatter, capacity LOD, ownership, cleanup, and ${allKinds.activeDrawCalls} active draws across all ten weapon families.`);
+console.log(`Battlefield weapon drops passed: explicit death detach, exact shared PBR assemblies, deterministic ground scatter, non-omitting dynamic capacity, ownership, cleanup, and ${allKinds.activeDrawCalls} active draws across all ten weapon families.`);

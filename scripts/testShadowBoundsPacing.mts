@@ -6,6 +6,7 @@ import {
   intersectTerrainBounds,
 } from '../src/scene/fitDirectionalShadow.ts';
 import {
+  directionalShadowRefreshReasons,
   shouldRefreshDirectionalShadowAtlas,
   shouldRefreshFirstPersonDirectionalShadow,
 } from '../src/scene/directionalShadowRefreshPolicy.ts';
@@ -34,6 +35,16 @@ assert.equal(
   shouldRefreshDirectionalShadowAtlas(false, false, false, false),
   false,
   'a settled unchanged overview should retain the cached atlas',
+);
+assert.deepEqual(
+  directionalShadowRefreshReasons(true, true, true, true),
+  ['camera-refit', 'forest-casters', 'first-person-motion'],
+  'coincident invalidations must retain exact causes while sharing one atlas upload',
+);
+assert.deepEqual(
+  directionalShadowRefreshReasons(false, false, false, true),
+  [],
+  'overview interaction alone must not churn the cached directional atlas',
 );
 const camera = new THREE.PerspectiveCamera(50, 16 / 9, 0.1, 2600);
 const target = new THREE.Vector3(81, 0, -37);

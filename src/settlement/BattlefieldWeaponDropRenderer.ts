@@ -9,7 +9,6 @@ import {
 import type { WorkerToolKind, WorkerToolSources } from './workerTools.ts';
 
 export const BATTLEFIELD_WEAPON_DROP_CAPACITY = 256;
-export const BATTLEFIELD_WEAPON_DROP_MAX_ORBIT_DISTANCE = 150;
 /** Nine weapon families batched by PBR role. */
 export const BATTLEFIELD_WEAPON_DROP_DRAW_CALL_BUDGET = 50;
 
@@ -75,7 +74,7 @@ export class BattlefieldWeaponDropRenderer {
   private readonly layers: DropLayer[] = [];
   private readonly candidates: DropCandidate[] = [];
   private readonly ownership: BattlefieldWeaponDropOwnership[] = [];
-  private readonly capacity: number;
+  private capacity: number;
   private readonly position = new THREE.Vector3();
   private readonly scale = new THREE.Vector3();
   private readonly quaternion = new THREE.Quaternion();
@@ -111,14 +110,6 @@ export class BattlefieldWeaponDropRenderer {
     this.candidates.length = 0;
     this.ownership.length = 0;
     this.droppedOwners = 0;
-    if (
-      view?.orbitDistance !== undefined
-      && view.orbitDistance > BATTLEFIELD_WEAPON_DROP_MAX_ORBIT_DISTANCE
-    ) {
-      this.commitLayers();
-      return;
-    }
-
     const centerX = view?.centerX ?? 0;
     const centerZ = view?.centerZ ?? 0;
     for (const agent of agents) {
@@ -135,9 +126,10 @@ export class BattlefieldWeaponDropRenderer {
     }
     this.candidates.sort((left, right) => left.distanceSq - right.distanceSq
       || left.ownership.ownerId.localeCompare(right.ownership.ownerId, undefined, { numeric: true }));
-    this.droppedOwners = Math.max(0, this.candidates.length - this.capacity);
+    this.ensureCapacity(this.candidates.length);
+    this.droppedOwners = 0;
 
-    const count = Math.min(this.capacity, this.candidates.length);
+    const count = this.candidates.length;
     for (let index = 0; index < count; index += 1) {
       const candidate = this.candidates[index]!;
       this.ownership.push({ ...candidate.ownership });
@@ -202,21 +194,13 @@ export class BattlefieldWeaponDropRenderer {
       const sourceMesh = object as THREE.Mesh;
       if (!sourceMesh.isMesh) return;
       const sourceMatrix = inverseRoot.clone().multiply(sourceMesh.matrixWorld);
-      const mesh = new THREE.InstancedMesh(
+      const mesh = this.createLayerMesh(
         sourceMesh.geometry,
         sourceMesh.material,
-        this.capacity,
+        kind,
+        pieceIndex,
+        sourceMesh.name,
       );
-      mesh.name = `Battlefield drop · ${kind} · ${pieceIndex} · ${sourceMesh.name}`;
-      mesh.count = 0;
-      mesh.castShadow = false;
-      mesh.receiveShadow = true;
-      mesh.frustumCulled = false;
-      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      mesh.userData.battlefieldWeaponDrop = true;
-      mesh.userData.battlefieldWeaponKind = kind;
-      mesh.userData.battlefieldWeaponPiece = pieceIndex;
-      this.group.add(mesh);
       const elements = sourceMesh.geometry.index?.count
         ?? sourceMesh.geometry.getAttribute('position')?.count
         ?? 0;
@@ -230,6 +214,47 @@ export class BattlefieldWeaponDropRenderer {
       this.layers.push(layer);
     });
     return piece;
+  }
+
+  private ensureCapacity(required: number): void {
+    if (required <= this.capacity) return;
+    let nextCapacity = this.capacity;
+    while (nextCapacity < required) nextCapacity *= 2;
+    this.capacity = nextCapacity;
+    for (const layer of this.layers) {
+      const previous = layer.mesh;
+      const replacement = this.createLayerMesh(
+        previous.geometry,
+        previous.material,
+        previous.userData.battlefieldWeaponKind as MilitaryEquipmentKind,
+        Number(previous.userData.battlefieldWeaponPiece) || 0,
+        String(previous.userData.battlefieldWeaponSourceName ?? previous.name),
+      );
+      previous.removeFromParent();
+      layer.mesh = replacement;
+    }
+  }
+
+  private createLayerMesh(
+    geometry: THREE.BufferGeometry,
+    material: THREE.Material | THREE.Material[],
+    kind: MilitaryEquipmentKind,
+    pieceIndex: number,
+    sourceName: string,
+  ): THREE.InstancedMesh {
+    const mesh = new THREE.InstancedMesh(geometry, material, this.capacity);
+    mesh.name = `Battlefield drop · ${kind} · ${pieceIndex} · ${sourceName}`;
+    mesh.count = 0;
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    mesh.frustumCulled = false;
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.userData.battlefieldWeaponDrop = true;
+    mesh.userData.battlefieldWeaponKind = kind;
+    mesh.userData.battlefieldWeaponPiece = pieceIndex;
+    mesh.userData.battlefieldWeaponSourceName = sourceName;
+    this.group.add(mesh);
+    return mesh;
   }
 
   private writePiece(agent: BattlefieldWeaponDropAgent, piece: DropPiece): void {

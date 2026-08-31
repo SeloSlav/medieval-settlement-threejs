@@ -152,8 +152,11 @@ for (const extensions of Array.from({ length: 16 }, (_, mask) => mask)) {
   assert.ok(mesh.getObjectByName('Monastery apple harvest basket'));
   assert.ok(mesh.getObjectByName('Monastery pear harvest basket'));
   assert.ok(mesh.getObjectByName('Monastery cloister SeedThree planting bed'));
-  assert.ok(mesh.getObjectByName('Monastery dairy cow'));
-  assert.ok(mesh.getObjectByName('Monastery pasture sheep'));
+  assert.equal(mesh.getObjectByName('Monastery dairy cow'), undefined);
+  assert.equal(mesh.getObjectByName('Monastery pasture sheep'), undefined);
+  assert.equal(mesh.getObjectByName('Monastery pig'), undefined);
+  assert.equal(mesh.getObjectByName('HenFallback'), undefined);
+  assert.equal(mesh.getObjectByName('GoatFallback'), undefined);
   assert.equal(
     mesh.getObjectByName('Monastery infirmary wing') != null,
     (extensions & MONASTERY_EXTENSION_INFIRMARY) !== 0,

@@ -11,14 +11,7 @@ export type CrowdViewState = {
 
 export const CROWD_SIM_HZ = 15;
 export const CROWD_SIM_DT = 1 / CROWD_SIM_HZ;
-export const AGENT_WORK_ANIMATION_DISTANCE = 64;
 export const FRUSTUM_SIM_MARGIN = 40;
-/**
- * Hard strategic-view cutoff for livestock and wildlife. People deliberately
- * do not share this cutoff: military formations and individual villagers must
- * remain legible through the live-world strategic zoom envelope.
- */
-export const AGENT_ANIMAL_RENDER_MAX_ORBIT_DISTANCE = 210;
 
 export function buildCrowdViewState(
   centerX: number,
@@ -66,29 +59,21 @@ export function isPeopleRenderingEnabled(
 }
 
 export function isAgentAnimalRenderingEnabled(
-  view: CrowdViewState | undefined,
+  _view: CrowdViewState | undefined,
 ): boolean {
-  return view?.orbitDistance === undefined
-    || view.orbitDistance <= AGENT_ANIMAL_RENDER_MAX_ORBIT_DISTANCE;
+  return true;
 }
 
-/** Spatial crowd culling plus the cheaper livestock/wildlife zoom cutoff. */
+/**
+ * Animals obey the same spatial visibility envelope as people. Camera zoom is
+ * deliberately absent: it must never erase an on-screen animal or substitute
+ * a cheaper representation for its authored model.
+ */
 export function isWithinAnimalCrowdView(
   x: number,
   z: number,
   view: CrowdViewState | undefined,
 ): boolean {
-  return isAgentAnimalRenderingEnabled(view) && isWithinCrowdView(x, z, view);
+  return isWithinCrowdView(x, z, view);
 }
 
-export function isWithinWorkAnimationRange(
-  x: number,
-  z: number,
-  view: CrowdViewState | undefined,
-): boolean {
-  if (!view) return true;
-  const dx = x - view.centerX;
-  const dz = z - view.centerZ;
-  return dx * dx + dz * dz
-    <= AGENT_WORK_ANIMATION_DISTANCE * AGENT_WORK_ANIMATION_DISTANCE;
-}

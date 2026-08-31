@@ -553,6 +553,11 @@ const deliveryRenderer = read('src/logistics/DeliveryAgentRenderer.ts');
 assert.match(deliveryRenderer, /surfaceAdjustedTravelSpeed\(/);
 assert.match(deliveryRenderer, /DELIVERY_ROAD_SPEED_MULTIPLIER/);
 assert.match(deliveryRenderer, /phaseChanged \|\| progressRestarted/);
+assert.doesNotMatch(
+  deliveryRenderer,
+  /isPeopleRenderingEnabled|orbitDistance[^\n]*(?:visible|render)|renderEnabled/,
+  'authored delivery crews must never disappear because of camera zoom',
+);
 assert.match(
   deliveryRenderer,
   /visual\.routePolylineJson !== trip\.routePolylineJson[\s\S]*visual\.measuredPathDistance/,

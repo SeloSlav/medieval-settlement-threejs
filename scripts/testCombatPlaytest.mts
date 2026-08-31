@@ -31,7 +31,7 @@ assert.deepEqual(
     const definition = combatPlaytestPresetDefinition(preset);
     return [definition.friendlyCount, definition.enemyCount];
   }),
-  [[32, 32], [64, 64], [96, 96]],
+  [[32, 32], [64, 64], [256, 256]],
 );
 
 const simulation = createSimulation('field');
@@ -155,14 +155,14 @@ for (let step = 0; step < 400; step += 1) {
 assert.deepEqual([...deterministicA.snapshot()], [...deterministicB.snapshot()]);
 
 deterministicA.reset('stress');
-assert.equal(deterministicA.summary().friendlyTotal, 96);
-assert.equal(deterministicA.summary().enemyTotal, 96);
-assert.equal(deterministicA.snapshot().size, 192);
+assert.equal(deterministicA.summary().friendlyTotal, 256);
+assert.equal(deterministicA.summary().enemyTotal, 256);
+assert.equal(deterministicA.snapshot().size, 512);
 deterministicA.reset('stress');
-assert.equal(deterministicA.snapshot().size, 192);
+assert.equal(deterministicA.snapshot().size, 512);
 
 const camera = combatPlaytestCamera({ ...site, x: 14, z: -9 });
-assert.deepEqual([camera.targetX, camera.targetZ, camera.distance], [14, -9, 46]);
+assert.deepEqual([camera.targetX, camera.targetZ, camera.distance], [14, -9, 32]);
 assert.ok(camera.pitch > 0 && camera.pitch < Math.PI / 2);
 
 const app = readFileSync(new URL('../src/app/App.ts', import.meta.url), 'utf8');

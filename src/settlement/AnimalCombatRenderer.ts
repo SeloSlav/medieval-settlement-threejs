@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { CombatAgentState } from '../security/combatAgents.ts';
+import {
+  AuthoredAnimalInstanceBatch,
+  setAuthoredAnimalEvaluatorOnly,
+} from '../scene/AuthoredAnimalInstanceBatch.ts';
 import { isWithinAnimalCrowdView, type CrowdViewState } from './crowdView.ts';
 
 export type AnimalCombatPose = Readonly<{
@@ -18,6 +22,7 @@ export type AnimalCombatPose = Readonly<{
 type AnimalAsset = Readonly<{ scene: THREE.Group; animations: readonly THREE.AnimationClip[] }>;
 type AnimalInstance = {
   root: THREE.Group;
+  model: THREE.Group;
   mixer: THREE.AnimationMixer;
   actions: Map<string, THREE.AnimationAction>;
   actionName: string;
@@ -39,6 +44,7 @@ export class AnimalCombatRenderer {
   readonly ready: Promise<boolean>;
   private readonly group = new THREE.Group();
   private readonly assets = new Map<AnimalCombatPose['faction'], AnimalAsset>();
+  private readonly batches = new Map<AnimalCombatPose['faction'], AuthoredAnimalInstanceBatch>();
   private readonly instances = new Map<string, AnimalInstance>();
 
   constructor(parent: THREE.Group) {
@@ -70,12 +76,21 @@ export class AnimalCombatRenderer {
     for (const [id, instance] of this.instances) {
       if (!active.has(id)) this.removeInstance(id, instance);
     }
+    this.flushAuthoredBatches();
   }
 
   dispose(): void {
     for (const [id, instance] of this.instances) this.removeInstance(id, instance);
     this.instances.clear();
+    for (const batch of this.batches.values()) batch.dispose();
+    this.batches.clear();
     this.group.removeFromParent();
+  }
+
+  diagnostics(): Record<string, ReturnType<AuthoredAnimalInstanceBatch['diagnostics']>> {
+    return Object.fromEntries(
+      [...this.batches].map(([faction, batch]) => [faction, batch.diagnostics()]),
+    );
   }
 
   private async loadAssets(): Promise<boolean> {
@@ -85,7 +100,24 @@ export class AnimalCombatRenderer {
         (Object.entries(SOURCES) as Array<[AnimalCombatPose['faction'], string]>)
           .map(async ([faction, url]) => [faction, await loader.loadAsync(url)] as const),
       );
-      for (const [faction, gltf] of entries) this.assets.set(faction, assetFromGltf(gltf));
+      for (const [faction, gltf] of entries) {
+        const asset = assetFromGltf(gltf);
+        this.assets.set(faction, asset);
+        try {
+          this.batches.set(faction, new AuthoredAnimalInstanceBatch({
+            parent: this.group,
+            sourceRoot: asset.scene,
+            capacity: 16,
+            name: `${faction} exact-model combat instances`,
+            castShadow: true,
+            receiveShadow: true,
+          }));
+        } catch (error) {
+          // Exact individual clones remain active. This is a performance
+          // fallback only; it never changes the model, material or animation.
+          console.warn(`[Animal combat] ${faction} exact-model batching unavailable.`, error);
+        }
+      }
       return true;
     } catch (error) {
       console.warn('Guard-dog and wildlife models failed to load.', error);
@@ -106,12 +138,13 @@ export class AnimalCombatRenderer {
     const root = new THREE.Group();
     root.name = `${faction} combat agent ${id}`;
     root.add(model);
+    setAuthoredAnimalEvaluatorOnly(model, this.batches.has(faction));
     const mixer = new THREE.AnimationMixer(model);
     const actions = new Map<string, THREE.AnimationAction>();
     for (const clip of asset.animations) {
       actions.set(shortAnimationName(clip.name), mixer.clipAction(clip));
     }
-    const instance: AnimalInstance = { root, mixer, actions, actionName: '', faction };
+    const instance: AnimalInstance = { root, model, mixer, actions, actionName: '', faction };
     this.instances.set(id, instance);
     this.group.add(root);
     this.play(instance, 'Idle', false);
@@ -138,6 +171,17 @@ export class AnimalCombatRenderer {
     instance.mixer.stopAllAction();
     instance.root.removeFromParent();
     this.instances.delete(id);
+  }
+
+  private flushAuthoredBatches(): void {
+    for (const [faction, batch] of this.batches) {
+      const instances = [...this.instances.values()].filter(
+        (instance) => instance.faction === faction && instance.root.visible,
+      );
+      batch.beginFrame(instances.length);
+      for (const instance of instances) batch.submit(instance.model);
+      batch.endFrame();
+    }
   }
 }
 

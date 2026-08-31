@@ -66,6 +66,28 @@ const SALT_ROCK_LIGHT = sharedBuildingMaterial('masonryLight');
 const CLAY_DARK = sharedBuildingDetailMaterial('earth');
 const CLAY_LIGHT = sharedBuildingDetailMaterial('paintOchre');
 
+const SORTING_CANOPY_HALF_DEPTH = 1.62;
+const SORTING_CANOPY_ROOF_CENTER_Y = 3.16;
+const SORTING_CANOPY_ROOF_PITCH = 0.085;
+const SORTING_CANOPY_ROOF_THICKNESS = 0.1;
+const SORTING_CANOPY_WALL_PLATE_HEIGHT = 0.2;
+
+/**
+ * The sewn-linen fly is rotated around its centre with its negative-Z edge
+ * raised. Resolve the lower fabric plane analytically so the two wall plates
+ * and their posts terminate against the roof instead of sharing one height
+ * and leaving the windward side visibly unsupported.
+ */
+function sortingCanopyRoofUndersideY(z: number): number {
+  return SORTING_CANOPY_ROOF_CENTER_Y
+    - z * Math.tan(SORTING_CANOPY_ROOF_PITCH)
+    - SORTING_CANOPY_ROOF_THICKNESS / (2 * Math.cos(SORTING_CANOPY_ROOF_PITCH));
+}
+
+function sortingCanopyWallPlateY(z: number): number {
+  return sortingCanopyRoofUndersideY(z) - SORTING_CANOPY_WALL_PLATE_HEIGHT * 0.5;
+}
+
 function addSurfaceStonePile(
   group: THREE.Group,
   x: number,
@@ -245,33 +267,43 @@ function addDayShelter(group: THREE.Group): void {
 function addSortingCanopy(group: THREE.Group): void {
   group.name = 'MiningCampSortingCanopy';
   const halfWidth = 3.05;
-  const halfDepth = 1.62;
+  const halfDepth = SORTING_CANOPY_HALF_DEPTH;
+  group.userData.roofSupportProfile = {
+    roofKind: 'negative-z-high-sewn-linen-fly',
+    roofCenterY: SORTING_CANOPY_ROOF_CENTER_Y,
+    roofPitch: SORTING_CANOPY_ROOF_PITCH,
+    roofThickness: SORTING_CANOPY_ROOF_THICKNESS,
+    windwardWallPlateY: sortingCanopyWallPlateY(-halfDepth),
+    yardWallPlateY: sortingCanopyWallPlateY(halfDepth),
+  };
   for (const x of [-halfWidth, halfWidth]) {
     for (const z of [-halfDepth, halfDepth]) {
+      const plateY = sortingCanopyWallPlateY(z);
       const post = addMesh(
         group,
-        new THREE.BoxGeometry(0.2, 3.05, 0.2),
+        new THREE.BoxGeometry(0.2, plateY, 0.2),
         timberMaterial('dark'),
-        new THREE.Vector3(x, 1.52, z),
+        new THREE.Vector3(x, plateY * 0.5, z),
       );
       post.name = 'Mining camp sorting-canopy post';
     }
   }
   for (const z of [-halfDepth, halfDepth]) {
-    addMesh(
+    const plate = addMesh(
       group,
-      new THREE.BoxGeometry(6.45, 0.2, 0.2),
+      new THREE.BoxGeometry(6.45, SORTING_CANOPY_WALL_PLATE_HEIGHT, 0.2),
       timberMaterial('weathered'),
-      new THREE.Vector3(0, 2.92, z),
+      new THREE.Vector3(0, sortingCanopyWallPlateY(z), z),
     );
+    plate.name = `Mining camp ${z < 0 ? 'windward' : 'yard'} sorting-canopy wall plate`;
   }
   addLeanToRoof(group, {
     width: 6.75,
     depth: 3.8,
-    thickness: 0.1,
+    thickness: SORTING_CANOPY_ROOF_THICKNESS,
     material: sharedBuildingDetailMaterial('canvas'),
-    position: new THREE.Vector3(0, 3.16, 0),
-    pitch: 0.085,
+    position: new THREE.Vector3(0, SORTING_CANOPY_ROOF_CENTER_Y, 0),
+    pitch: SORTING_CANOPY_ROOF_PITCH,
     highEdge: 'negativeZ',
     name: 'Mining camp sorting awning',
   });
@@ -319,8 +351,8 @@ function addSortingCanopyWeatherFrame(
         moduleId: 'knee-braced-sorting-fly',
         materialRole: 'rough-timber',
         structuralUse: 'roof-frame',
-        start: [x, 2.16, z],
-        end: [x - Math.sign(x) * 0.72, 2.9, z],
+        start: [x, sortingCanopyWallPlateY(z) - 0.74, z],
+        end: [x - Math.sign(x) * 0.72, sortingCanopyWallPlateY(z), z],
         width: 0.14,
         depth: 0.14,
       });
@@ -371,12 +403,13 @@ function addSortingBench(group: THREE.Group): void {
   tabletop.name = 'Mining camp sorting table';
   for (const x of [-1.75, 1.75]) {
     for (const z of [-0.38, 0.38]) {
-      addMesh(
+      const leg = addMesh(
         yard,
         new THREE.BoxGeometry(0.2, 0.96, 0.2),
         timberMaterial('dark'),
         new THREE.Vector3(x, 0.48, z),
       );
+      leg.name = 'Mining camp sorting-table leg';
     }
   }
 
@@ -435,40 +468,44 @@ function addHandcart(group: THREE.Group): void {
     );
     wheel.name = 'Mining camp handcart wheel';
   }
-  addMesh(
+  const axle = addMesh(
     group,
     new THREE.CylinderGeometry(0.08, 0.08, 1.75, 8),
     metalMaterial('iron'),
     new THREE.Vector3(0, 0.58, -0.12),
     new THREE.Euler(0, 0, Math.PI * 0.5),
   );
+  axle.name = 'Mining camp handcart iron axle';
   for (const x of [-0.56, 0.56]) {
-    addMesh(
+    const shaft = addMesh(
       group,
       new THREE.BoxGeometry(0.13, 0.13, 2.25),
       timberMaterial('mid'),
       new THREE.Vector3(x, 0.68, 1.72),
       new THREE.Euler(-0.12, 0, 0),
     );
+    shaft.name = 'Mining camp handcart timber handle';
   }
 }
 
 function addCampToolRack(group: THREE.Group): void {
   group.name = 'MiningCampToolRack';
   for (const x of [-0.8, 0.8]) {
-    addMesh(
+    const post = addMesh(
       group,
       new THREE.BoxGeometry(0.16, 1.75, 0.16),
       timberMaterial('dark'),
       new THREE.Vector3(x, 0.88, 0),
     );
+    post.name = 'Mining camp tool-rack post';
   }
-  addMesh(
+  const rail = addMesh(
     group,
     new THREE.BoxGeometry(1.85, 0.15, 0.16),
     timberMaterial('weathered'),
     new THREE.Vector3(0, 1.5, 0),
   );
+  rail.name = 'Mining camp tool-rack rail';
   for (let index = 0; index < 3; index += 1) {
     const tool = new THREE.Group();
     tool.name = 'Mining camp hand tool';

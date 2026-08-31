@@ -247,11 +247,9 @@ function createShroudedBody(cause: CorpseState['cause']): THREE.Group {
 
 function createGravediggerCart(): THREE.Group {
   const group = new THREE.Group();
-  group.name = 'Gravedigger handcart and attendant';
+  group.name = 'Gravedigger handcart';
   const timber = new THREE.MeshStandardMaterial({ color: 0x5b3821, roughness: 1 });
   const iron = new THREE.MeshStandardMaterial({ color: 0x2f241a, roughness: 1 });
-  const wool = new THREE.MeshStandardMaterial({ color: 0x453f35, roughness: 1 });
-  const skin = new THREE.MeshStandardMaterial({ color: 0xa97b5a, roughness: 1 });
 
   const bed = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.16, 0.62), timber);
   bed.position.y = 0.36;
@@ -266,18 +264,10 @@ function createGravediggerCart(): THREE.Group {
     group.add(handle);
   }
 
-  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.27, 0.72, 8), wool);
-  torso.position.set(-1.38, 1.08, 0);
-  group.add(torso);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 6), skin);
-  head.position.set(-1.38, 1.58, 0);
-  group.add(head);
-  for (const side of [-1, 1]) {
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.62, 6), wool);
-    leg.position.set(-1.38, 0.47, side * 0.1);
-    leg.rotation.z = side * 0.08;
-    group.add(leg);
-  }
+  // The cart is a prop, not a source of population. A gravedigger must come
+  // from the authoritative villager roster with the authored rig; never weld
+  // a primitive cylinder-and-sphere humanoid to this marker as a stand-in.
+  group.userData.requiresAuthoredGravediggerAgent = true;
   return group;
 }
 

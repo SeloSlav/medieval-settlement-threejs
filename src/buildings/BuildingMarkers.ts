@@ -576,10 +576,13 @@ export class BuildingMarkers {
    * avoids a stray world object, but excluding it from compileAsync made the
    * first placement click pay the entire shader compilation cost.
    */
-  beginFoundersCampGpuPrewarm(): () => void {
+  beginFoundersCampGpuPrewarm(): {
+    objects: readonly THREE.Object3D[];
+    restore: () => void;
+  } {
     this.prewarmFoundersCampPlacement();
     const marker = this.prewarmedFoundersCamp;
-    if (!marker || marker.parent) return () => {};
+    if (!marker || marker.parent) return { objects: [], restore: () => {} };
 
     const previousVisible = marker.visible;
     const previousPosition = marker.position.clone();
@@ -587,12 +590,15 @@ export class BuildingMarkers {
     marker.position.set(0, this.terrain.getHeightAt(0, 0), 0);
     this.group.add(marker);
 
-    return () => {
-      if (marker === this.prewarmedFoundersCamp && marker.parent === this.group) {
-        marker.removeFromParent();
-        marker.visible = previousVisible;
-        marker.position.copy(previousPosition);
-      }
+    return {
+      objects: [marker],
+      restore: () => {
+        if (marker === this.prewarmedFoundersCamp && marker.parent === this.group) {
+          marker.removeFromParent();
+          marker.visible = previousVisible;
+          marker.position.copy(previousPosition);
+        }
+      },
     };
   }
 

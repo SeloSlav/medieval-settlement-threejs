@@ -13,6 +13,11 @@ import {
 import type { GameSpeed } from '../world/gameSpeed.ts';
 import { WORKFORCE_MOVEMENT_SPEED_MULTIPLIER } from '../generated/gameBalance.ts';
 import { agentPacedDelta } from '../world/agentPacing.ts';
+import {
+  AuthoredAnimalInstanceBatch,
+  setAuthoredAnimalEvaluatorOnly,
+  type AuthoredAnimalMaterialColor,
+} from '../scene/AuthoredAnimalInstanceBatch.ts';
 import type { CrowdViewState } from './crowdView.ts';
 import {
   isAgentAnimalRenderingEnabled,
@@ -177,6 +182,7 @@ export class OxenRenderer {
   });
   private readonly dragLoadLibrary = new OxDragLoadLibrary();
   private source: OxSource | null = null;
+  private batch: AuthoredAnimalInstanceBatch | null = null;
   private latestInput: OxenSyncInput | null = null;
   private disposed = false;
 
@@ -340,12 +346,19 @@ export class OxenRenderer {
       );
       visual.mixer.update(simulationDt);
     }
+    this.flushAuthoredBatch();
+  }
+
+  diagnostics(): ReturnType<AuthoredAnimalInstanceBatch['diagnostics']> | null {
+    return this.batch?.diagnostics() ?? null;
   }
 
   dispose(): void {
     this.disposed = true;
     for (const visual of this.visuals.values()) this.removeVisual(visual);
     this.visuals.clear();
+    this.batch?.dispose();
+    this.batch = null;
     if (this.source) disposeModelResources(this.source.scene);
     this.source = null;
     this.latestInput = null;
@@ -376,6 +389,16 @@ export class OxenRenderer {
         return false;
       }
       this.source = { scene: gltf.scene, bounds, sourceHeight, clips };
+      try {
+        this.batch = new AuthoredAnimalInstanceBatch({
+          parent: this.root,
+          sourceRoot: gltf.scene,
+          capacity: 16,
+          name: 'Draft ox exact-model instances',
+        });
+      } catch (error) {
+        console.warn('[Stable oxen] Exact-model batching unavailable; retaining exact rigs.', error);
+      }
       this.reconcile();
       return true;
     } catch (error) {
@@ -435,12 +458,13 @@ export class OxenRenderer {
     const scale = OX_TARGET_HEIGHT / this.source.sourceHeight;
     model.scale.setScalar(scale);
     model.position.y = -this.source.bounds.min.y * scale + 0.018;
-    configureModelMeshes(model, ox.slot);
+    configureModelMeshes(model, ox.slot, this.batch === null);
 
     const root = new THREE.Group();
     root.name = `Draft ox ${ox.id}`;
     root.userData.oxId = ox.id;
     root.add(model);
+    setAuthoredAnimalEvaluatorOnly(model, this.batch !== null);
     root.add(this.createYoke());
     const plough = this.createPlough();
     root.add(plough);
@@ -800,8 +824,55 @@ export class OxenRenderer {
   private removeVisual(visual: OxVisual): void {
     visual.mixer.stopAllAction();
     visual.mixer.uncacheRoot(visual.model);
-    disposeClonedModelMaterials(visual.model);
+    if (!this.batch) disposeClonedModelMaterials(visual.model);
     visual.root.removeFromParent();
+  }
+
+  private flushAuthoredBatch(): void {
+    if (!this.batch) return;
+    const visible = [...this.visuals.values()].filter((visual) => visual.root.visible);
+    this.batch.beginFrame(visible.length);
+    for (const visual of visible) {
+      this.batch.submit(visual.model, this.oxMaterialColors(visual.ox.slot));
+    }
+    this.batch.endFrame();
+  }
+
+  private oxMaterialColors(slot: number): AuthoredAnimalMaterialColor[] {
+    if (!this.batch || !this.source) return [];
+    const palette = OX_COAT_PALETTES[
+      Math.abs(Math.floor(slot)) % OX_COAT_PALETTES.length
+    ]!;
+    const targetByName: Record<string, number> = {
+      Main: palette.main,
+      Main_Light: palette.light,
+      Muzzle: 0x8c5a42,
+      Hooves: 0x35271f,
+      Eye_White: 0xded4bd,
+      Horns: 0xc1ad7c,
+    };
+    const sourceByName = new Map<string, THREE.Color>();
+    this.source.scene.traverse((object) => {
+      const mesh = object as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+        if (material instanceof THREE.MeshStandardMaterial && !sourceByName.has(material.name)) {
+          sourceByName.set(material.name, material.color);
+        }
+      }
+    });
+    return this.batch.materialSlots().flatMap((materialSlot) => {
+      const target = targetByName[materialSlot.name];
+      const sourceColor = sourceByName.get(materialSlot.name);
+      if (target === undefined || !sourceColor) return [];
+      const targetColor = new THREE.Color(target);
+      const tint = new THREE.Color(
+        targetColor.r / Math.max(1e-6, sourceColor.r),
+        targetColor.g / Math.max(1e-6, sourceColor.g),
+        targetColor.b / Math.max(1e-6, sourceColor.b),
+      );
+      return [{ materialSlot: materialSlot.index, color: tint }];
+    });
   }
 }
 
@@ -886,13 +957,23 @@ function resolveClips(
   return { idle, eat, walk };
 }
 
-function configureModelMeshes(model: THREE.Object3D, slot: number): void {
+function configureModelMeshes(
+  model: THREE.Object3D,
+  slot: number,
+  clonePaletteMaterials: boolean,
+): void {
   const palette = OX_COAT_PALETTES[
     Math.abs(Math.floor(slot)) % OX_COAT_PALETTES.length
   ]!;
   model.traverse((object) => {
     const mesh = object as THREE.SkinnedMesh;
     if (!mesh.isSkinnedMesh) return;
+    if (!clonePaletteMaterials) {
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      mesh.frustumCulled = false;
+      return;
+    }
     const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     const cloned = materials.map((source) => {
       const material = source.clone();

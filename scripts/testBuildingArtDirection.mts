@@ -91,7 +91,7 @@ if (/<img class="construction-card__art" src=/.test(html)) {
 const modelNames = new Set<string>();
 const sharedMaterials = new Set<THREE.Material>();
 const pooledBackyardMaterials = new Set<THREE.Material>();
-const monasteryBackyardMaterials = new Set<THREE.Material>();
+const monasteryWickerMaterials = new Set<THREE.Material>();
 let texturedMeshCount = 0;
 let largestMetricUvSpan = 0;
 let churchHeight = 0;
@@ -104,7 +104,6 @@ const buildingsExpectedToHaveOpenings = new Set<string>([
   'smithy',
   'potter_kiln',
   'chandlery',
-  'hunters_hall',
   'foragers_shed',
   'fishing_camp',
   'chapel',
@@ -281,9 +280,9 @@ function auditResidenceDynamicWindowSurfaces(
 
 const expectedLeanToRoofs = new Map<string, number>([
   ['lumber_mill', 1],
+  ['reforester', 1],
   ['woodcutters_lodge', 1],
   ['stone_quarry', 1],
-  ['hunters_hall', 1],
   ['foragers_shed', 1],
   ['trading_post', 1],
   ['village_storehouse', 1],
@@ -304,6 +303,8 @@ const expectedLeanToRoofs = new Map<string, number>([
   ['cobbler', 1],
   ['charcoal_burner', 1],
   ['smithy', 1],
+  ['weaponsmith_armorer', 1],
+  ['bowyer_fletcher', 1],
   ['potter_kiln', 1],
   ['chandlery', 2],
 ]);
@@ -551,39 +552,63 @@ for (const kind of BUILDING_KINDS) {
     }
     const highEdge = object.userData.leanToHighEdge as string | undefined;
     if (highEdge) {
-      const geometry = object.geometry as THREE.BoxGeometry;
-      const width = geometry.parameters.width;
-      const depth = geometry.parameters.depth;
-      let highPoint: THREE.Vector3;
-      let lowPoint: THREE.Vector3;
+      const position = object.geometry.getAttribute('position');
+      if (!position) throw new Error(`${kind} has a lean-to roof without positions.`);
+      object.geometry.computeBoundingBox();
+      const bounds = object.geometry.boundingBox;
+      if (!bounds) throw new Error(`${kind} has a lean-to roof without local bounds.`);
+      let axis: 'x' | 'z';
+      let highCoordinate: number;
+      let lowCoordinate: number;
       switch (highEdge) {
         case 'negativeX':
-          highPoint = new THREE.Vector3(-width * 0.5, 0, 0);
-          lowPoint = new THREE.Vector3(width * 0.5, 0, 0);
+          axis = 'x';
+          highCoordinate = bounds.min.x;
+          lowCoordinate = bounds.max.x;
           break;
         case 'positiveX':
-          highPoint = new THREE.Vector3(width * 0.5, 0, 0);
-          lowPoint = new THREE.Vector3(-width * 0.5, 0, 0);
+          axis = 'x';
+          highCoordinate = bounds.max.x;
+          lowCoordinate = bounds.min.x;
           break;
         case 'negativeZ':
-          highPoint = new THREE.Vector3(0, 0, -depth * 0.5);
-          lowPoint = new THREE.Vector3(0, 0, depth * 0.5);
+          axis = 'z';
+          highCoordinate = bounds.min.z;
+          lowCoordinate = bounds.max.z;
           break;
         case 'positiveZ':
-          highPoint = new THREE.Vector3(0, 0, depth * 0.5);
-          lowPoint = new THREE.Vector3(0, 0, -depth * 0.5);
+          axis = 'z';
+          highCoordinate = bounds.max.z;
+          lowCoordinate = bounds.min.z;
           break;
         default:
           throw new Error(`${kind} has an invalid lean-to high edge (${highEdge}).`);
       }
-      highPoint.applyEuler(object.rotation);
-      lowPoint.applyEuler(object.rotation);
-      if (highPoint.y <= lowPoint.y + 0.01) {
+      const span = Math.abs(highCoordinate - lowCoordinate);
+      const edgeTolerance = Math.max(1e-4, span * 1e-4);
+      let highY = -Infinity;
+      let lowY = -Infinity;
+      for (let index = 0; index < position.count; index += 1) {
+        const coordinate = axis === 'x' ? position.getX(index) : position.getZ(index);
+        if (Math.abs(coordinate - highCoordinate) <= edgeTolerance) {
+          highY = Math.max(highY, position.getY(index));
+        }
+        if (Math.abs(coordinate - lowCoordinate) <= edgeTolerance) {
+          lowY = Math.max(lowY, position.getY(index));
+        }
+      }
+      if (!Number.isFinite(highY) || !Number.isFinite(lowY)) {
+        throw new Error(`${kind} has an unreadable lean-to roof edge.`);
+      }
+      if (highY <= lowY + 0.01) {
         throw new Error(`${kind} has a lean-to roof that does not drain away from ${highEdge}.`);
       }
       if (!object.name) throw new Error(`${kind} has an unnamed lean-to roof.`);
       leanToRoofCounts.set(kind, (leanToRoofCounts.get(kind) ?? 0) + 1);
-      if (kind === 'foragers_shed' && object.position.y < 2.5) {
+      if (
+        kind === 'foragers_shed'
+        && objectBounds.getCenter(new THREE.Vector3()).y < 2.5
+      ) {
         throw new Error("Forager's herb porch roof must clear the door and drying rail.");
       }
     }
@@ -591,9 +616,11 @@ for (const kind of BUILDING_KINDS) {
     for (const material of materials) {
       if (material.userData.sharedBuildingMaterial === true) {
         sharedMaterials.add(material);
+        if (kind === 'monastery' && material.userData.buildingDetailMaterialKey === 'wicker') {
+          monasteryWickerMaterials.add(material);
+        }
       } else if (isSharedBackyardGardenMaterial(material)) {
         pooledBackyardMaterials.add(material);
-        if (kind === 'monastery') monasteryBackyardMaterials.add(material);
       } else {
         throw new Error(`${kind} contains a per-instance building material (${material.name || material.type}).`);
       }
@@ -795,8 +822,14 @@ if (backyardMaterialStats.meshMaterials > 34 || backyardMaterialStats.spriteMate
     `Shared backyard palette grew beyond 34 mesh + 3 sprite materials (${backyardMaterialStats.meshMaterials} + ${backyardMaterialStats.spriteMaterials}).`,
   );
 }
-if (monasteryBackyardMaterials.size === 0) {
-  throw new Error('Monastery must identify its embedded backyard palette as pooled module-owned materials.');
+if (
+  monasteryWickerMaterials.size !== 1
+  || [...monasteryWickerMaterials].some((material) =>
+    material.name !== 'Shared building detail material: wicker'
+    || material.userData.sharedBackyardGardenMaterial === true
+  )
+) {
+  throw new Error('Monastery woven details must use the global shared wicker building-detail material.');
 }
 // The founding camp's feathered ground and pooled fire sparks plus the well's
 // node water are three global materials outside the opaque construction library.
@@ -812,7 +845,7 @@ if (texturedMeshCount === 0 || largestMetricUvSpan <= 1.5) {
 
 for (const kind of BUILDING_KINDS) {
   const duplicate = createBuildingMesh(kind);
-  const duplicateMonasteryBackyardMaterials = new Set<THREE.Material>();
+  const duplicateMonasteryWickerMaterials = new Set<THREE.Material>();
   duplicate.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
     const materials = Array.isArray(object.material) ? object.material : [object.material];
@@ -820,21 +853,21 @@ for (const kind of BUILDING_KINDS) {
       if (!sharedMaterials.has(material) && !pooledBackyardMaterials.has(material)) {
         throw new Error(`${kind} allocated a different material on its second construction.`);
       }
-      if (kind === 'monastery' && isSharedBackyardGardenMaterial(material)) {
-        duplicateMonasteryBackyardMaterials.add(material);
+      if (kind === 'monastery' && material.userData.buildingDetailMaterialKey === 'wicker') {
+        duplicateMonasteryWickerMaterials.add(material);
       }
     }
   });
   if (
     kind === 'monastery'
     && (
-      duplicateMonasteryBackyardMaterials.size !== monasteryBackyardMaterials.size
-      || [...duplicateMonasteryBackyardMaterials].some(
-        (material) => !monasteryBackyardMaterials.has(material),
+      duplicateMonasteryWickerMaterials.size !== monasteryWickerMaterials.size
+      || [...duplicateMonasteryWickerMaterials].some(
+        (material) => !monasteryWickerMaterials.has(material),
       )
     )
   ) {
-    throw new Error('Monastery allocated a different embedded backyard palette on its second construction.');
+    throw new Error('Monastery allocated a different global wicker detail material on its second construction.');
   }
   disposeObject3D(duplicate);
 }
@@ -878,8 +911,13 @@ for (const tier of [1, 2, 3] as const) {
 }
 
 const finalStats = getBuildingMaterialLibraryStats();
-if (finalStats.constructionMaterials < 15 || finalStats.constructionMaterials > 22 || finalStats.detailMaterials !== 12) {
-  throw new Error(`Expected a 15–22 construction + 12 detail shared palette; found ${finalStats.constructionMaterials} + ${finalStats.detailMaterials}.`);
+if (
+  finalStats.constructionMaterials < 15
+  || finalStats.constructionMaterials > 22
+  || finalStats.detailMaterials < 11
+  || finalStats.detailMaterials > 12
+) {
+  throw new Error(`Expected a 15–22 construction + 11–12 detail shared palette; found ${finalStats.constructionMaterials} + ${finalStats.detailMaterials}.`);
 }
 const finalMaterialCeiling =
   finalStats.constructionMaterials
@@ -921,4 +959,4 @@ if (indirectConstructionMaterials.some((material) => material.emissiveIntensity 
   throw new Error('Day/night lighting must update every shared construction material.');
 }
 
-console.log(`building art-direction tests passed (${urls.length} cards, ${BUILDING_KINDS.length} models, ${residenceCount} residence variants, ${sharedMaterials.size} shared building materials, ${monasteryBackyardMaterials.size} pooled monastery backyard materials reused by identity, ${texturedMeshCount} metric-UV meshes)`);
+console.log(`building art-direction tests passed (${urls.length} cards, ${BUILDING_KINDS.length} models, ${residenceCount} residence variants, ${sharedMaterials.size} shared building materials, ${monasteryWickerMaterials.size} global monastery wicker material reused by identity, ${texturedMeshCount} metric-UV meshes)`);

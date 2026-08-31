@@ -261,19 +261,21 @@ function addBenchWalkway(group: THREE.Group): void {
   walkway.name = 'Quarry face access walkway';
   walkway.userData.architectureModule = 'quarry-bench-access';
   walkway.userData.bracingSystem = 'posted-walkway-with-guard-frame';
-  addMesh(
+  const deck = addMesh(
     walkway,
     new THREE.BoxGeometry(10.6, 0.25, 1.6),
     timberMaterial('weathered'),
     new THREE.Vector3(-0.9, 0.82, -4.15),
   );
+  deck.name = 'Quarry face walkway weathered-board deck';
   for (const x of [-5.7, -3.05, -0.4, 2.25, 4.9]) {
-    addMesh(
+    const bearer = addMesh(
       walkway,
       new THREE.BoxGeometry(0.28, 1.2, 0.28),
       timberMaterial('dark'),
       new THREE.Vector3(x, 0.43, -4.15),
     );
+    bearer.name = 'Quarry face walkway timber bearer';
   }
   addBenchWalkwayGuardFrame(walkway);
   group.add(walkway);

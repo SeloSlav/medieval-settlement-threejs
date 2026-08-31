@@ -15,7 +15,7 @@ import {
  * Art-direction data for the player's two-piece company standard.
  *
  * This module deliberately owns no mesh, material or simulation state. The same
- * immutable descriptor can therefore drive the close cloth renderer, a far LOD,
+ * immutable descriptor can therefore drive the full-quality cloth renderer,
  * minimap heraldry, screenshots and tests without allowing those consumers to
  * quietly invent different colors or emblems.
  */
@@ -273,7 +273,7 @@ export function resolveOttomanCompanyStandardArt(): OttomanCompanyStandardArt {
 /**
  * Returns one when the heraldry's secondary tincture covers this UV and zero
  * when the primary field shows. The sampler is useful for generated textures,
- * vertex-shader far LODs and deterministic diagnostics.
+ * vertex-shader cloth motion and deterministic diagnostics.
  */
 export function sampleHeraldryPattern(
   banner: LordHeraldryBannerArt,

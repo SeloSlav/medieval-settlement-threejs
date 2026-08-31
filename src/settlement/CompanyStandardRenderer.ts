@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
   isPeopleRenderingEnabled,
-  isWithinCrowdView,
   type CrowdViewState,
 } from './crowdView.ts';
 
@@ -62,10 +61,10 @@ export type CompanyStandardWindSampler = (
   elapsedSeconds: number,
 ) => CompanyStandardWindSample;
 
-export type CompanyStandardLod = 'near' | 'medium' | 'far';
-
 export type CompanyStandardDiagnostic = {
   standards: number;
+  /** Duplicate company ids rejected before they can share one cloth state. */
+  duplicateStandards: number;
   droppedStandards: number;
   panels: number;
   simulationNodes: number;
@@ -74,14 +73,16 @@ export type CompanyStandardDiagnostic = {
   hardwareInstances: number;
   drawCalls: number;
   maxStretchRatio: number;
+  /** Furthest node reach divided by that row's material distance to its hoist. */
+  maxOwnershipReachRatio: number;
+  /** Solver states reset after violating their owning pole/material envelope. */
+  ownershipResets: number;
   fixedStepHz: number;
-  lod: Readonly<Record<CompanyStandardLod, number>>;
 };
 
 export type CompanyStandardPhysicsSnapshot = {
   id: string;
   faction: CompanyStandardFaction;
-  lod: CompanyStandardLod;
   panels: Array<{
     role: CompanyStandardPanelRole;
     columns: number;
@@ -108,13 +109,11 @@ export const COMPANY_STANDARD_VISUAL_CONTRACT = Object.freeze({
 });
 
 export const COMPANY_STANDARD_PERFORMANCE_BUDGET = Object.freeze({
-  maxStandards: 64,
+  maxStandards: 512,
   maxDrawCalls: 6,
   fixedStepHz: 30,
   maxPhysicsStepsPerFrame: 2,
-  nearNodesPerPanel: 60,
-  mediumNodesPerPanel: 24,
-  farNodesPerPanel: 12,
+  nodesPerPanel: 60,
 });
 
 const DEFAULT_CAPACITY = COMPANY_STANDARD_PERFORMANCE_BUDGET.maxStandards;
@@ -124,17 +123,15 @@ const MAX_ACCUMULATOR = FIXED_DT
 const MAX_INPUT_DT = 0.05;
 const TELEPORT_RESET_DISTANCE_SQ = 2.8 * 2.8;
 const ROTATION_RESET_RADIANS = 0.9;
-const MAX_RENDERABLE_CLOTH_EDGE_SQ = 2.25 * 2.25;
+const MAX_RENDERABLE_STRUCTURAL_STRETCH = 1.22;
+const MAX_RENDERABLE_MATERIAL_REACH = 1.18;
+const MATERIAL_REACH_SLACK_METERS = 0.04;
 const POLE_LOCAL_X = -0.32;
 const POLE_LOCAL_Z = 0.035;
 const POLE_GRIP_LOCAL_Y = 1.19;
 const POLE_HEIGHT = COMPANY_STANDARD_VISUAL_CONTRACT.poleHeightMeters;
 
-const LOD_GRID: Readonly<Record<CompanyStandardLod, readonly [number, number]>> = {
-  near: [10, 6],
-  medium: [6, 4],
-  far: [4, 3],
-};
+const FULL_QUALITY_GRID = [10, 6] as const;
 
 type CompanyStandardPanelRole =
   | 'player-heraldry'
@@ -199,7 +196,6 @@ type StandardState = {
   id: string;
   faction: CompanyStandardFaction;
   seed: number;
-  lod: CompanyStandardLod;
   panels: ClothPanelState[];
   x: number;
   y: number;
@@ -216,6 +212,7 @@ type StandardState = {
   quaternion: THREE.Quaternion;
   previousQuaternion: THREE.Quaternion;
   maxStretchRatio: number;
+  maxOwnershipReachRatio: number;
 };
 
 type ClothLayer = {
@@ -242,9 +239,10 @@ type ActiveStandard = {
 
 /**
  * Batched company-standard renderer. One hardware instance and at most two
- * cloth panels are emitted per company. Cloth is a deterministic, fixed-step
- * constrained Verlet sheet near the camera and progressively coarser at range.
- * All panels sharing an artwork role remain one draw call.
+ * full-resolution cloth panels are emitted per company. Every visible standard
+ * uses the same deterministic fixed-step constrained Verlet sheet at every
+ * camera distance; batching reduces submission cost without changing topology
+ * or simulation quality. All panels sharing an artwork role remain one draw.
  */
 export class CompanyStandardRenderer {
   private readonly group = new THREE.Group();
@@ -262,14 +260,18 @@ export class CompanyStandardRenderer {
   private readonly windSampler: CompanyStandardWindSampler;
   private elapsedSeconds = 0;
   private accumulator = 0;
-  private physicsTick = 0;
+  private duplicateStandards = 0;
   private droppedStandards = 0;
+  private ownershipResets = 0;
   private disposed = false;
 
   constructor(options: CompanyStandardRendererOptions) {
-    this.capacity = Math.max(1, Math.min(512, Math.floor(
-      options.capacity ?? DEFAULT_CAPACITY,
-    )));
+    this.capacity = Math.max(1, Math.min(
+      COMPANY_STANDARD_PERFORMANCE_BUDGET.maxStandards,
+      Math.floor(
+        options.capacity ?? DEFAULT_CAPACITY,
+      ),
+    ));
     this.group.name = 'Company standards · batched cloth and hardware';
     options.parent.add(this.group);
 
@@ -339,7 +341,7 @@ export class CompanyStandardRenderer {
     const listenerX = view?.listenerX ?? view?.centerX ?? 0;
     const listenerZ = view?.listenerZ ?? view?.centerZ ?? 0;
     for (const agent of agents) {
-      if (agent.active === false || !isWithinCrowdView(agent.x, agent.z, view)) continue;
+      if (agent.active === false) continue;
       const dx = agent.x - listenerX;
       const dz = agent.z - listenerZ;
       this.active.push({ agent, distance: Math.hypot(dx, dz) });
@@ -348,22 +350,46 @@ export class CompanyStandardRenderer {
       left.distance - right.distance
       || left.agent.id.localeCompare(right.agent.id, undefined, { numeric: true })
     ));
+    // A company id owns exactly one persistent cloth sheet. If an upstream
+    // presentation snapshot contains the same bearer twice, updating that one
+    // state from two transforms in a single frame leaves hardware at both
+    // transforms while both batched cloth copies come from the final one. At
+    // strategic scale that reads as flags merging or bridging between poles.
+    // Keep the nearest deterministic row and reject every duplicate before any
+    // state or batch writes happen.
+    this.seenIds.clear();
+    this.duplicateStandards = 0;
+    let uniqueCount = 0;
+    for (let index = 0; index < this.active.length; index += 1) {
+      const active = this.active[index]!;
+      if (this.seenIds.has(active.agent.id)) {
+        this.duplicateStandards += 1;
+        continue;
+      }
+      this.seenIds.add(active.agent.id);
+      this.active[uniqueCount] = active;
+      uniqueCount += 1;
+    }
+    this.active.length = uniqueCount;
     this.droppedStandards = Math.max(0, this.active.length - this.capacity);
-    if (this.active.length > this.capacity) this.active.length = this.capacity;
+    if (this.droppedStandards > 0) {
+      throw new RangeError(
+        `CompanyStandardRenderer capacity ${this.capacity} cannot represent `
+        + `${this.active.length} visible company standards without omission.`,
+      );
+    }
 
     this.seenIds.clear();
     let hardwareCount = 0;
     for (const active of this.active) {
       const agent = active.agent;
       this.seenIds.add(agent.id);
-      const requestedLod = resolveLod(active.distance, this.states.get(agent.id)?.lod);
       let state = this.states.get(agent.id);
       if (!state || state.faction !== agent.faction) {
-        state = this.createState(agent, requestedLod);
+        state = this.createState(agent);
         this.states.set(agent.id, state);
       } else {
         this.updateStateFrame(state, agent);
-        if (requestedLod !== state.lod) this.rebuildStatePanels(state, requestedLod);
       }
       this.writeHardwareInstance(state, hardwareCount);
       hardwareCount += 1;
@@ -379,20 +405,17 @@ export class CompanyStandardRenderer {
       this.accumulator >= FIXED_DT
       && steps < COMPANY_STANDARD_PERFORMANCE_BUDGET.maxPhysicsStepsPerFrame
     ) {
-      this.physicsTick += 1;
       for (const { agent } of this.active) {
         const state = this.states.get(agent.id);
         if (!state) continue;
-        const divisor = state.lod === 'near' ? 1 : state.lod === 'medium' ? 2 : 3;
-        if (this.physicsTick % divisor !== 0) continue;
-        this.stepState(state, FIXED_DT * divisor);
+        this.stepState(state, FIXED_DT);
       }
       this.accumulator -= FIXED_DT;
       steps += 1;
     }
 
-    // A moving pole must retain exact hand/hoist contact even on frames where
-    // a distant LOD intentionally skips its lower-rate solver update.
+    // A moving pole must retain exact hand/hoist contact on paused frames and
+    // on render frames between fixed solver ticks.
     for (const { agent } of this.active) {
       const state = this.states.get(agent.id);
       if (!state) continue;
@@ -402,16 +425,10 @@ export class CompanyStandardRenderer {
   }
 
   diagnostics(): CompanyStandardDiagnostic {
-    const lod: Record<CompanyStandardLod, number> = {
-      near: 0,
-      medium: 0,
-      far: 0,
-    };
     let panels = 0;
     let simulationNodes = 0;
     let maxStretchRatio = 1;
     for (const state of this.states.values()) {
-      lod[state.lod] += 1;
       panels += state.panels.length;
       for (const panel of state.panels) {
         simulationNodes += panel.columns * panel.rows;
@@ -431,6 +448,7 @@ export class CompanyStandardRenderer {
       : 0;
     return {
       standards: this.states.size,
+      duplicateStandards: this.duplicateStandards,
       droppedStandards: this.droppedStandards,
       panels,
       simulationNodes,
@@ -439,8 +457,9 @@ export class CompanyStandardRenderer {
       hardwareInstances: this.hardware.count,
       drawCalls: activeClothLayers + hardwareDrawCalls,
       maxStretchRatio,
+      maxOwnershipReachRatio: maxPanelOwnershipReachRatio(this.states.values()),
+      ownershipResets: this.ownershipResets,
       fixedStepHz: COMPANY_STANDARD_PERFORMANCE_BUDGET.fixedStepHz,
-      lod,
     };
   }
 
@@ -450,7 +469,6 @@ export class CompanyStandardRenderer {
     return {
       id: state.id,
       faction: state.faction,
-      lod: state.lod,
       panels: state.panels.map((panel) => ({
         role: panel.layout.role,
         columns: panel.columns,
@@ -484,14 +502,12 @@ export class CompanyStandardRenderer {
 
   private createState(
     agent: CompanyStandardRenderAgent,
-    lod: CompanyStandardLod,
   ): StandardState {
     const frame = resolveStandardFrame(agent);
     const state: StandardState = {
       id: agent.id,
       faction: agent.faction,
       seed: (agent.appearanceSeed ?? hashString(agent.id)) >>> 0,
-      lod,
       panels: [],
       x: frame.x,
       y: frame.y,
@@ -508,10 +524,11 @@ export class CompanyStandardRenderer {
       quaternion: new THREE.Quaternion(),
       previousQuaternion: new THREE.Quaternion(),
       maxStretchRatio: 1,
+      maxOwnershipReachRatio: 1,
     };
     updateFrameQuaternion(state);
     state.previousQuaternion.copy(state.quaternion);
-    this.rebuildStatePanels(state, lod);
+    this.rebuildStatePanels(state);
     return state;
   }
 
@@ -548,10 +565,11 @@ export class CompanyStandardRenderer {
     if (teleported || angularDelta > ROTATION_RESET_RADIANS) {
       for (const panel of state.panels) resetPanelToFrame(state, panel);
       state.maxStretchRatio = 1;
+      state.maxOwnershipReachRatio = 1;
     } else if (dx !== 0 || dy !== 0 || dz !== 0 || angularDelta > 0) {
       // Cloth particles live in world space, but their ownership is local to
       // this bearer. Carry both current and previous nodes with the complete
-      // bearer-frame delta so a paused or low-rate far LOD cannot leave the
+      // bearer-frame delta so a paused or low-rate update cannot leave the
       // free edge at an old company position while the hoist advances.
       for (const panel of state.panels) {
         advectPanelState(state, panel);
@@ -561,10 +579,8 @@ export class CompanyStandardRenderer {
 
   private rebuildStatePanels(
     state: StandardState,
-    lod: CompanyStandardLod,
   ): void {
-    state.lod = lod;
-    const [columns, rows] = LOD_GRID[lod];
+    const [columns, rows] = FULL_QUALITY_GRID;
     const layouts = state.faction === 'player' ? PLAYER_LAYOUTS : OTTOMAN_LAYOUTS;
     state.panels = layouts.map((layout) => createPanelState(
       state,
@@ -573,6 +589,7 @@ export class CompanyStandardRenderer {
       rows,
     ));
     state.maxStretchRatio = 1;
+    state.maxOwnershipReachRatio = 1;
   }
 
   private writeHardwareInstance(state: StandardState, index: number): void {
@@ -610,6 +627,16 @@ export class CompanyStandardRenderer {
         state.maxStretchRatio,
         panelStretchRatio(panel),
       );
+      state.maxOwnershipReachRatio = Math.max(
+        state.maxOwnershipReachRatio,
+        panelOwnershipReachRatio(panel),
+      );
+      if (!panelStateBelongsToStandard(panel)) {
+        resetPanelToFrame(state, panel);
+        state.maxStretchRatio = 1;
+        state.maxOwnershipReachRatio = 1;
+        this.ownershipResets += 1;
+      }
     }
   }
 
@@ -627,9 +654,11 @@ export class CompanyStandardRenderer {
       const state = this.states.get(agent.id);
       if (!state) continue;
       for (const panel of state.panels) {
-        if (!panelStateIsRenderable(panel)) {
+        if (!panelStateBelongsToStandard(panel)) {
           resetPanelToFrame(state, panel);
           state.maxStretchRatio = 1;
+          state.maxOwnershipReachRatio = 1;
+          this.ownershipResets += 1;
         }
         writePanelToLayer(panel, this.layers[panel.layout.role]);
       }
@@ -645,7 +674,7 @@ function createClothLayer(
   name: string,
 ): ClothLayer {
   const maxVertices = capacity
-    * COMPANY_STANDARD_PERFORMANCE_BUDGET.nearNodesPerPanel;
+    * COMPANY_STANDARD_PERFORMANCE_BUDGET.nodesPerPanel;
   const maxIndices = capacity * (10 - 1) * (6 - 1) * 6;
   const positions = new Float32Array(maxVertices * 3);
   const normals = new Float32Array(maxVertices * 3);
@@ -813,29 +842,70 @@ function advectPanelArray(
   }
 }
 
-function panelStateIsRenderable(panel: ClothPanelState): boolean {
+/**
+ * Validates a sheet against its own material coordinates, never against the
+ * other standards that happen to share its draw batch. The row-wise reach
+ * bound is the physical amount of cloth between a node and its pinned hoist;
+ * therefore a node cannot form a world-space bridge to another pole even when
+ * several bearers overlap in a melee or move on a paused (`dt = 0`) frame.
+ */
+function panelStateBelongsToStandard(panel: ClothPanelState): boolean {
   for (let offset = 0; offset < panel.positions.length; offset += 1) {
     if (
       !Number.isFinite(panel.positions[offset])
       || !Number.isFinite(panel.previous[offset])
     ) return false;
   }
+  for (const constraint of panel.constraints) {
+    if (constraint.stiffness < 0.99 || constraint.rest <= 1e-6) continue;
+    const allowed = constraint.rest * MAX_RENDERABLE_STRUCTURAL_STRETCH
+      + MATERIAL_REACH_SLACK_METERS;
+    if (nodeDistanceSq(panel.positions, constraint.a, constraint.b) > allowed * allowed) {
+      return false;
+    }
+  }
   for (let row = 0; row < panel.rows; row += 1) {
-    for (let column = 0; column < panel.columns; column += 1) {
-      const index = row * panel.columns + column;
-      if (
-        column + 1 < panel.columns
-        && nodeDistanceSq(panel.positions, index, index + 1)
-          > MAX_RENDERABLE_CLOTH_EDGE_SQ
-      ) return false;
-      if (
-        row + 1 < panel.rows
-        && nodeDistanceSq(panel.positions, index, index + panel.columns)
-          > MAX_RENDERABLE_CLOTH_EDGE_SQ
-      ) return false;
+    const hoist = row * panel.columns;
+    let materialReach = 0;
+    for (let column = 1; column < panel.columns; column += 1) {
+      const previousNode = hoist + column - 1;
+      const index = previousNode + 1;
+      materialReach += localNodeDistance(panel.restLocal, previousNode, index);
+      const allowed = materialReach * MAX_RENDERABLE_MATERIAL_REACH
+        + MATERIAL_REACH_SLACK_METERS;
+      if (nodeDistanceSq(panel.positions, hoist, index) > allowed * allowed) {
+        return false;
+      }
     }
   }
   return true;
+}
+
+function panelOwnershipReachRatio(panel: ClothPanelState): number {
+  let maxRatio = 1;
+  for (let row = 0; row < panel.rows; row += 1) {
+    const hoist = row * panel.columns;
+    let materialReach = 0;
+    for (let column = 1; column < panel.columns; column += 1) {
+      const previousNode = hoist + column - 1;
+      const index = previousNode + 1;
+      materialReach += localNodeDistance(panel.restLocal, previousNode, index);
+      if (materialReach <= 1e-6) continue;
+      maxRatio = Math.max(
+        maxRatio,
+        Math.sqrt(nodeDistanceSq(panel.positions, hoist, index)) / materialReach,
+      );
+    }
+  }
+  return maxRatio;
+}
+
+function maxPanelOwnershipReachRatio(states: Iterable<StandardState>): number {
+  let maxRatio = 1;
+  for (const state of states) {
+    maxRatio = Math.max(maxRatio, state.maxOwnershipReachRatio);
+  }
+  return maxRatio;
 }
 
 function nodeDistanceSq(values: Float32Array, a: number, b: number): number {
@@ -962,7 +1032,19 @@ function panelStretchRatio(panel: ClothPanelState): number {
 function writePanelToLayer(panel: ClothPanelState, layer: ClothLayer): void {
   const baseVertex = layer.vertexCount;
   const nodeCount = panel.columns * panel.rows;
-  if (baseVertex + nodeCount > layer.positions.length / 3) return;
+  const panelIndexCount = (panel.columns - 1) * (panel.rows - 1) * 6;
+  if (baseVertex + nodeCount > layer.positions.length / 3) {
+    throw new RangeError(
+      `Company-standard ${layer.role} vertex batch cannot represent another `
+      + `${nodeCount}-node panel without omission.`,
+    );
+  }
+  if (layer.indexCount + panelIndexCount > layer.indices.length) {
+    throw new RangeError(
+      `Company-standard ${layer.role} index batch cannot represent another `
+      + `${panelIndexCount}-index panel without omission.`,
+    );
+  }
   for (let index = 0; index < nodeCount; index += 1) {
     const source = index * 3;
     const destination = (baseVertex + index) * 3;
@@ -1001,10 +1083,19 @@ function commitLayer(layer: ClothLayer): void {
   if (layer.indexCount > 0) computeLayerNormals(layer);
   layer.geometry.setDrawRange(0, layer.indexCount);
   layer.mesh.visible = layer.indexCount > 0;
-  layer.positionAttribute.needsUpdate = layer.vertexCount > 0;
-  layer.normalAttribute.needsUpdate = layer.vertexCount > 0;
-  layer.uvAttribute.needsUpdate = layer.vertexCount > 0;
-  layer.indexAttribute.needsUpdate = layer.indexCount > 0;
+  publishAttributePrefix(layer.positionAttribute, layer.vertexCount * 3);
+  publishAttributePrefix(layer.normalAttribute, layer.vertexCount * 3);
+  publishAttributePrefix(layer.uvAttribute, layer.vertexCount * 2);
+  publishAttributePrefix(layer.indexAttribute, layer.indexCount);
+}
+
+function publishAttributePrefix(
+  attribute: THREE.BufferAttribute,
+  componentCount: number,
+): void {
+  attribute.clearUpdateRanges();
+  if (componentCount > 0) attribute.addUpdateRange(0, componentCount);
+  attribute.needsUpdate = componentCount > 0;
 }
 
 function computeLayerNormals(layer: ClothLayer): void {
@@ -1274,17 +1365,6 @@ function sampleProfile(profile: readonly number[], t: number): number {
   const start = Math.floor(scaled);
   const end = Math.min(profile.length - 1, start + 1);
   return THREE.MathUtils.lerp(profile[start]!, profile[end]!, scaled - start);
-}
-
-function resolveLod(
-  distance: number,
-  previous?: CompanyStandardLod,
-): CompanyStandardLod {
-  const nearBoundary = previous === 'near' ? 47 : 42;
-  const farBoundary = previous === 'far' ? 79 : 86;
-  if (distance <= nearBoundary) return 'near';
-  if (distance >= farBoundary) return 'far';
-  return 'medium';
 }
 
 function fallbackLayerColor(role: CompanyStandardPanelRole): number {

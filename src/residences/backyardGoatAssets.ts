@@ -56,9 +56,8 @@ export function createBackyardGoatModel(
     mesh.userData.backyardSharedGeometry = true;
   });
 
-  const root = new THREE.Group();
+  const root = model;
   root.name = 'Animated sheep-derived CC0 goat';
-  root.add(model);
   const hornMaterial = new THREE.MeshStandardMaterial({ color: 0x6e624e, roughness: 0.86 });
   for (const side of [-1, 1]) {
     const horn = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.24, 7), hornMaterial);

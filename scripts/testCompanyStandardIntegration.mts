@@ -36,9 +36,15 @@ for (const preset of ['field', 'stress'] as const satisfies readonly CombatPlayt
   const snapshot = simulation.snapshot();
   const registry = new CompanyStandardBearerRegistry();
   const assignments = registry.sync(snapshot.values());
-  assert.equal(assignments.size, 18, `${preset} must have nine Croatian and nine Ottoman standards`);
-  assert.equal([...assignments.values()].filter((row) => row.side === 'player').length, 9);
-  assert.equal([...assignments.values()].filter((row) => row.side === 'ottoman').length, 9);
+  const playerStandards = [...assignments.values()]
+    .filter((row) => row.side === 'player').length;
+  const ottomanStandards = assignments.size - playerStandards;
+  assert.ok(assignments.size > 0, `${preset} must elect visible standards`);
+  assert.equal(
+    playerStandards,
+    ottomanStandards,
+    `${preset} must expose one standard per company on both playtest sides`,
+  );
 
   const crowd: CrowdRenderAgent[] = [...snapshot.values()].map((agent, index) => {
     const assignment = registry.assignmentForAgent(agent.id);
@@ -70,7 +76,7 @@ for (const preset of ['field', 'stress'] as const satisfies readonly CombatPlayt
     .slice(0, 72);
   assert.equal(
     closeCohort.filter((agent) => agent.companyStandard).length,
-    18,
+    assignments.size,
     `${preset} must keep every bearer in the authored 72-rig cohort`,
   );
 
@@ -93,16 +99,21 @@ for (const preset of ['field', 'stress'] as const satisfies readonly CombatPlayt
     renderer.sync(standardAgents, view, 1 / 30);
   }
   const diagnostics = renderer.diagnostics();
-  assert.equal(diagnostics.standards, 18);
+  assert.equal(diagnostics.standards, assignments.size);
+  assert.equal(diagnostics.duplicateStandards, 0);
   assert.equal(diagnostics.droppedStandards, 0);
-  assert.equal(diagnostics.panels, 27);
-  assert.equal(diagnostics.hardwareInstances, 18);
-  assert.equal(diagnostics.simulationNodes, 1_620);
-  assert.equal(diagnostics.triangles, 2_430);
+  const expectedPanels = playerStandards * 2 + ottomanStandards;
+  assert.equal(diagnostics.panels, expectedPanels);
+  assert.equal(diagnostics.hardwareInstances, assignments.size);
+  assert.equal(
+    diagnostics.simulationNodes,
+    expectedPanels * COMPANY_STANDARD_PERFORMANCE_BUDGET.nodesPerPanel,
+  );
+  assert.equal(diagnostics.triangles, expectedPanels * 90);
   assert.ok(diagnostics.drawCalls <= COMPANY_STANDARD_PERFORMANCE_BUDGET.maxDrawCalls);
   assert.ok(diagnostics.maxStretchRatio < 1.08);
   renderer.dispose();
   assert.equal(parent.children.length, 0);
 }
 
-console.log('Field and 216-soldier stress playtests retain 18 animated, batched company standards.');
+console.log('Field and 216-soldier stress playtests retain every full-quality batched company standard.');

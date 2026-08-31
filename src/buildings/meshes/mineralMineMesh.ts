@@ -24,6 +24,33 @@ const SALT_LIGHT = sharedBuildingMaterial('masonryLight');
 const CLAY_DARK = sharedBuildingDetailMaterial('earth');
 const CLAY_LIGHT = sharedBuildingDetailMaterial('paintOchre');
 
+const HEADFRAME_FRAME_PLATE_Y = 7.79;
+const HEADFRAME_ROOF_EAVE_Y = 7.78;
+const HEADFRAME_ROOF_RISE = 0.73;
+const HEADFRAME_ROOF_HALF_RUN = 2.28;
+const HEADFRAME_ROOF_THICKNESS = 0.07;
+
+const SORTING_ROOF_EAVE_Y = 3.044;
+const SORTING_ROOF_EAVE_Z = 1.703;
+const SORTING_ROOF_RISE = 0.55;
+const SORTING_ROOF_RUN = 3.406;
+const SORTING_ROOF_THICKNESS = 0.1;
+const SORTING_WALL_PLATE_VERTICAL_DEPTH = 0.19;
+
+function sortingRoofTopYAtZ(z: number): number {
+  return SORTING_ROOF_EAVE_Y
+    + (SORTING_ROOF_EAVE_Z - z) / SORTING_ROOF_RUN * SORTING_ROOF_RISE;
+}
+
+function sortingRoofUndersideYAtZ(z: number): number {
+  const outwardY = SORTING_ROOF_RUN / Math.hypot(SORTING_ROOF_RUN, SORTING_ROOF_RISE);
+  return sortingRoofTopYAtZ(z) - SORTING_ROOF_THICKNESS * outwardY;
+}
+
+function sortingWallPlateYAtZ(z: number): number {
+  return sortingRoofUndersideYAtZ(z) - SORTING_WALL_PLATE_VERTICAL_DEPTH * 0.5;
+}
+
 type MineworksResource = 'iron' | 'salt' | 'clay';
 
 function addBeamBetween(
@@ -90,6 +117,13 @@ function addShaftCollar(group: THREE.Group): void {
 function addHeadframe(group: THREE.Group): void {
   const headframe = new THREE.Group();
   headframe.name = 'Mineworks winding headframe';
+  headframe.userData.roofSupportProfile = {
+    framePlateY: HEADFRAME_FRAME_PLATE_Y,
+    roofEaveY: HEADFRAME_ROOF_EAVE_Y,
+    roofRidgeY: HEADFRAME_ROOF_EAVE_Y + HEADFRAME_ROOF_RISE,
+    roofHalfRun: HEADFRAME_ROOF_HALF_RUN,
+    roofThickness: HEADFRAME_ROOF_THICKNESS,
+  };
   const darkTimber = timberMaterial('dark');
   const weatheredTimber = timberMaterial('weathered');
 
@@ -98,7 +132,7 @@ function addHeadframe(group: THREE.Group): void {
       addBeamBetween(
         headframe,
         new THREE.Vector3(x, 0.35, z),
-        new THREE.Vector3(x * 0.58, 8.15, z * 0.68),
+        new THREE.Vector3(x * 0.58, HEADFRAME_FRAME_PLATE_Y, z * 0.68),
         0.46,
         darkTimber,
         'Mineworks inclined headframe leg',
@@ -109,8 +143,8 @@ function addHeadframe(group: THREE.Group): void {
   for (const z of [-1.25, 1.25]) {
     addBeamBetween(
       headframe,
-      new THREE.Vector3(-1.65, 8.1, z),
-      new THREE.Vector3(1.65, 8.1, z),
+      new THREE.Vector3(-1.65, HEADFRAME_FRAME_PLATE_Y, z),
+      new THREE.Vector3(1.65, HEADFRAME_FRAME_PLATE_Y, z),
       0.44,
       weatheredTimber,
       'Mineworks headframe crown beam',
@@ -225,20 +259,20 @@ function addHeadframeWeatherRoof(headframe: THREE.Group): void {
     moduleId: 'headframe-weather-cap',
     materialRole: 'split-shingles',
     structuralUse: 'roof-covering',
-    eaveOrigin: [-2.05, 7.78, -2.28],
+    eaveOrigin: [-2.05, HEADFRAME_ROOF_EAVE_Y, -HEADFRAME_ROOF_HALF_RUN],
     eaveVector: [4.1, 0, 0],
-    slopeVector: [0, 0.73, 2.28],
-    thickness: 0.07,
+    slopeVector: [0, HEADFRAME_ROOF_RISE, HEADFRAME_ROOF_HALF_RUN],
+    thickness: HEADFRAME_ROOF_THICKNESS,
   });
   writer.addRoofPanel({
     semanticId: 'mineworks-headframe-right-weather-roof-plane',
     moduleId: 'headframe-weather-cap',
     materialRole: 'split-shingles',
     structuralUse: 'roof-covering',
-    eaveOrigin: [2.05, 7.78, 2.28],
+    eaveOrigin: [2.05, HEADFRAME_ROOF_EAVE_Y, HEADFRAME_ROOF_HALF_RUN],
     eaveVector: [-4.1, 0, 0],
-    slopeVector: [0, 0.73, -2.28],
-    thickness: 0.07,
+    slopeVector: [0, HEADFRAME_ROOF_RISE, -HEADFRAME_ROOF_HALF_RUN],
+    thickness: HEADFRAME_ROOF_THICKNESS,
     uvOffsetMeters: [0.13, 0.07],
   });
   writer.addRoofPanel({
@@ -315,19 +349,21 @@ function addOreSortingFloor(group: THREE.Group): void {
   floor.position.set(-7.15, 0, 3.9);
   floor.rotation.y = 0.18;
 
-  addMesh(
+  const deck = addMesh(
     floor,
     new THREE.BoxGeometry(5.8, 0.22, 2.8),
     timberMaterial('weathered'),
     new THREE.Vector3(0, 0.62, 0),
   );
+  deck.name = 'Mineworks sorting-floor weathered-board deck';
   for (const x of [-2.55, -0.85, 0.85, 2.55]) {
-    addMesh(
+    const bearer = addMesh(
       floor,
       new THREE.BoxGeometry(0.22, 1.15, 0.22),
       timberMaterial('dark'),
       new THREE.Vector3(x, 0.25, 0),
     );
+    bearer.name = 'Mineworks sorting-floor timber bearer';
   }
   addSortingFloorWeatherFrame(floor);
 
@@ -356,18 +392,29 @@ function addSortingFloorWeatherFrame(floor: THREE.Group): void {
   const shelter = new THREE.Group();
   shelter.name = 'Mineworks sorting-floor weather frame';
   shelter.userData.bracingSystem = 'four-post-knee-braced-sorting-canopy';
+  shelter.userData.roofSupportProfile = {
+    highSideZ: -1.2,
+    highSideWallPlateY: sortingWallPlateYAtZ(-1.2),
+    lowSideZ: 1.2,
+    lowSideWallPlateY: sortingWallPlateYAtZ(1.2),
+    roofEaveY: SORTING_ROOF_EAVE_Y,
+    roofRise: SORTING_ROOF_RISE,
+    roofRun: SORTING_ROOF_RUN,
+    roofThickness: SORTING_ROOF_THICKNESS,
+  };
   const writer = new ProceduralGeometryWriter(['rough-timber', 'split-shingles']);
   for (const x of [-2.62, 2.62]) {
     for (const z of [-1.2, 1.2]) {
       const side = x < 0 ? 'left' : 'right';
       const end = z < 0 ? 'high' : 'low';
+      const plateY = sortingWallPlateYAtZ(z);
       writer.addMember({
         semanticId: `mineworks-sorting-${side}-${end}-canopy-post`,
         moduleId: 'roofed-ore-sorting-yard',
         materialRole: 'rough-timber',
         structuralUse: 'timber-frame',
         start: [x, 0.68, z],
-        end: [x, 3.04, z],
+        end: [x, plateY, z],
         width: 0.2,
         depth: 0.2,
       });
@@ -376,8 +423,8 @@ function addSortingFloorWeatherFrame(floor: THREE.Group): void {
         moduleId: 'roofed-ore-sorting-yard',
         materialRole: 'rough-timber',
         structuralUse: 'roof-frame',
-        start: [x, 2.28, z],
-        end: [x - Math.sign(x) * 0.68, 3.03, z],
+        start: [x, plateY - 0.76, z],
+        end: [x - Math.sign(x) * 0.68, plateY, z],
         width: 0.13,
         depth: 0.13,
       });
@@ -389,8 +436,8 @@ function addSortingFloorWeatherFrame(floor: THREE.Group): void {
       moduleId: 'roofed-ore-sorting-yard',
       materialRole: 'rough-timber',
       structuralUse: 'roof-frame',
-      start: [-2.78, 3.04, z],
-      end: [2.78, 3.04, z],
+      start: [-2.78, sortingWallPlateYAtZ(z), z],
+      end: [2.78, sortingWallPlateYAtZ(z), z],
       width: 0.19,
       depth: 0.19,
     });
@@ -400,10 +447,10 @@ function addSortingFloorWeatherFrame(floor: THREE.Group): void {
     moduleId: 'roofed-ore-sorting-yard',
     materialRole: 'split-shingles',
     structuralUse: 'roof-covering',
-    eaveOrigin: [-3.175, 3.044, 1.703],
+    eaveOrigin: [-3.175, SORTING_ROOF_EAVE_Y, SORTING_ROOF_EAVE_Z],
     eaveVector: [6.35, 0, 0],
-    slopeVector: [0, 0.55, -3.406],
-    thickness: 0.1,
+    slopeVector: [0, SORTING_ROOF_RISE, -SORTING_ROOF_RUN],
+    thickness: SORTING_ROOF_THICKNESS,
   });
   const slots = addProceduralMaterialSlotMeshes(shelter, writer.build(), {
     namePrefix: 'Mineworks sorting-floor weather frame',

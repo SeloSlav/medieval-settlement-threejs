@@ -1673,7 +1673,6 @@ export type AnimalPenVisualPlan = {
   };
   shelter: { x: number; z: number; width: number; depth: number; wallHeight: number };
   fixtures: readonly ('trough' | 'nesting-boxes' | 'milking-stand' | 'mud-wallow')[];
-  fallbackAnimalCount: number;
 };
 
 /** Serializable authored plan compiled by the animal-pen mesh emitter below. */
@@ -1713,9 +1712,6 @@ export function createAnimalPenVisualPlan(
       wallHeight: species === 'chickens' ? 1.05 : 1.25,
     },
     fixtures,
-    fallbackAnimalCount: species === 'chickens'
-      ? Math.max(3, Math.min(6, Math.round(width * depth / 6)))
-      : species === 'unstocked' ? 0 : 3,
   };
 }
 
@@ -1754,73 +1750,21 @@ function compileAnimalPenFixtures(group: THREE.Group, plan: AnimalPenVisualPlan)
 }
 
 function addChickenPenFixtures(group: THREE.Group, plan: AnimalPenVisualPlan): void {
-  const rng = mulberry32(plan.seed ^ 0x4e57a11);
-  const { shelter, footprint } = plan;
+  const { shelter } = plan;
   addMesh(group, new THREE.BoxGeometry(shelter.width * 0.72, 0.58, 0.18), MATERIALS.darkTimber, shelter.x, 0.46, shelter.z + shelter.depth * 0.44, undefined, undefined, 'ChickenNestingBoxes');
   for (let rung = 0; rung < 4; rung++) {
     addMesh(group, new THREE.BoxGeometry(0.82, 0.07, 0.08), MATERIALS.lightTimber, shelter.x + 0.25, 0.14 + rung * 0.15, shelter.z + shelter.depth * 0.55 + rung * 0.11);
   }
-  for (let index = 0; index < plan.fallbackAnimalCount; index++) {
-    const bird = new THREE.Group();
-    bird.name = 'HenFallback';
-    addMesh(bird, new THREE.SphereGeometry(0.19, 7, 5), index === 0 ? MATERIALS.darkTimber : MATERIALS.lightTimber, 0, 0.22, 0, new THREE.Euler(), new THREE.Vector3(1.12, 0.88, 0.82));
-    addMesh(bird, new THREE.SphereGeometry(0.11, 7, 5), MATERIALS.lightTimber, 0.15, 0.38, 0);
-    addMesh(bird, new THREE.ConeGeometry(0.045, 0.14, 5), MATERIALS.terracotta, 0.27, 0.38, 0, new THREE.Euler(0, 0, -Math.PI * 0.5));
-    bird.position.set((rng() - 0.34) * footprint.width * 0.72, 0, (rng() - 0.2) * footprint.depth * 0.62);
-    bird.rotation.y = rng() * Math.PI * 2;
-    disableAnimalShadows(bird);
-    group.add(bird);
-  }
 }
 
 function addGoatPenFixtures(group: THREE.Group, plan: AnimalPenVisualPlan): void {
-  const rng = mulberry32(plan.seed ^ 0x60a7);
   const { footprint } = plan;
   addMesh(group, new THREE.BoxGeometry(1.05, 0.12, 0.62), MATERIALS.lightTimber, footprint.width * 0.22, 0.18, footprint.depth * 0.18, undefined, undefined, 'GoatMilkingStand');
-  for (let index = 0; index < plan.fallbackAnimalCount; index++) {
-    const goat = new THREE.Group();
-    goat.name = 'GoatFallback';
-    addMesh(goat, new THREE.SphereGeometry(0.34, 8, 6), MATERIALS.goat, 0, 0.55, 0, undefined, new THREE.Vector3(1.35, 0.8, 0.72));
-    addMesh(goat, new THREE.SphereGeometry(0.2, 8, 6), MATERIALS.goatDark, 0.42, 0.72, 0, undefined, new THREE.Vector3(0.85, 1.05, 0.78));
-    for (const z of [-0.16, 0.16]) {
-      addMesh(goat, new THREE.CylinderGeometry(0.035, 0.045, 0.48, 5), MATERIALS.goatDark, -0.18, 0.26, z);
-      addMesh(goat, new THREE.CylinderGeometry(0.035, 0.045, 0.48, 5), MATERIALS.goatDark, 0.2, 0.26, z);
-    }
-    goat.position.set((rng() - 0.25) * footprint.width * 0.55, 0, (rng() - 0.1) * footprint.depth * 0.5);
-    goat.rotation.y = rng() * Math.PI * 2;
-    disableAnimalShadows(goat);
-    group.add(goat);
-  }
 }
 
 function addPigPenFixtures(group: THREE.Group, plan: AnimalPenVisualPlan): void {
-  const rng = mulberry32(plan.seed ^ 0x7165);
   const { footprint } = plan;
   addMesh(group, new THREE.CylinderGeometry(0.82, 1.0, 0.035, 18), MATERIALS.mud, footprint.width * 0.22, 0.025, footprint.depth * 0.19, new THREE.Euler(), new THREE.Vector3(1, 1, 0.55), 'PigMudWallow');
-  for (let index = 0; index < plan.fallbackAnimalCount; index++) {
-    const pig = new THREE.Group();
-    pig.name = 'PigFallback';
-    addMesh(pig, new THREE.SphereGeometry(0.34, 9, 6), MATERIALS.pig, 0, 0.42, 0, undefined, new THREE.Vector3(1.35, 0.82, 0.82));
-    addMesh(pig, new THREE.SphereGeometry(0.21, 8, 6), MATERIALS.pig, 0.43, 0.46, 0, undefined, new THREE.Vector3(0.9, 0.88, 0.82));
-    addMesh(pig, new THREE.CylinderGeometry(0.09, 0.12, 0.16, 8), MATERIALS.pigDark, 0.61, 0.43, 0, new THREE.Euler(0, 0, Math.PI * 0.5));
-    for (const z of [-0.16, 0.16]) {
-      addMesh(pig, new THREE.CylinderGeometry(0.04, 0.055, 0.28, 5), MATERIALS.pigDark, -0.2, 0.18, z);
-      addMesh(pig, new THREE.CylinderGeometry(0.04, 0.055, 0.28, 5), MATERIALS.pigDark, 0.2, 0.18, z);
-    }
-    pig.position.set((rng() - 0.28) * footprint.width * 0.58, 0, (rng() - 0.05) * footprint.depth * 0.5);
-    pig.rotation.y = rng() * Math.PI * 2;
-    disableAnimalShadows(pig);
-    group.add(pig);
-  }
-}
-
-function disableAnimalShadows(animal: THREE.Object3D): void {
-  animal.traverse((object) => {
-    const mesh = object as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
-  });
 }
 
 function addBackyardApiary(group: THREE.Group, width: number, depth: number, seed: number): void {

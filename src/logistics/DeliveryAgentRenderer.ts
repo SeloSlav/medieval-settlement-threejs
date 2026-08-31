@@ -41,10 +41,7 @@ import {
   DELIVERY_ROAD_SPEED_MULTIPLIER,
   surfaceAdjustedTravelSpeed,
 } from '../roads/roadTravel.ts';
-import {
-  isPeopleRenderingEnabled,
-  type CrowdViewState,
-} from '../settlement/crowdView.ts';
+import type { CrowdViewState } from '../settlement/crowdView.ts';
 import { hashStringSeed } from '../utils/random.ts';
 import {
   pickVillagerModelVariant,
@@ -222,13 +219,7 @@ export class DeliveryAgentRenderer {
     return this.buildRemainingRoute(visual);
   }
 
-  update(dt: number, view?: CrowdViewState): void {
-    const renderEnabled = isPeopleRenderingEnabled(view);
-    if (this.group.visible !== renderEnabled) {
-      this.group.visible = renderEnabled;
-    }
-    if (!renderEnabled) return;
-
+  update(dt: number, _view?: CrowdViewState): void {
     const realDt = Number.isFinite(dt) ? Math.max(0, dt) : 0;
     const gameSpeed = this.getGameSpeed();
     const simulationDt = realDt * gameSpeed * SIM_REALTIME_RATE;

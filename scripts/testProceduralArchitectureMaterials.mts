@@ -52,6 +52,7 @@ type ViolationCode =
   | 'material-array'
   | 'living-vegetation-material'
   | 'non-shared-structural-material'
+  | 'wood-semantic-non-timber'
   | 'atlas-role-mismatch'
   | 'invalid-plan-material-contract';
 
@@ -101,6 +102,7 @@ for (const tier of [1, 2, 3, 4] as const) {
 const materialClassStats = new Map<MaterialUsageClass, ClassStats>();
 const rootClassStats = new Map<AuditedRootClass, ClassStats>();
 const violations = new Map<string, ViolationAggregate>();
+let strongWoodSemanticReferences = 0;
 
 function classStatsFor<Key extends string>(
   map: Map<Key, ClassStats>,
@@ -275,6 +277,25 @@ const STRUCTURAL_CANVAS_PATTERN = /(?:canvas|tent|awning|canopy|weather fly|proc
 const STRUCTURAL_WICKER_PATTERN = /(?:wattle|woven (?:wall|panel|screen)|wicker (?:wall|panel|screen)|hurdle|lightweight screen)/i;
 const STRUCTURAL_EARTH_PATTERN = /(?:packed earth|yard (?:floor|surface)|stall floor|work floor|walking surface|thermal cover|clamp cover|earth cover)/i;
 const STRUCTURAL_IRON_PATTERN = /(?:hinge|latch|strap|fastener|nail|bracket|tie[- ]?bar|grille|gate hardware|iron cross|roof cross|windlass|hoist|mechanism)/i;
+const STRONG_WOOD_NOUN_PATTERN = /(?:\b(?:box(?:es)?|chest(?:s)?|crate(?:s)?|fence(?:s)?|gate(?:s)?|rack(?:s)?|bench(?:es)?|table(?:s)?|shelf|shelves|shelving)\b|\b(?:tool|storage|strong|lock|ice|fire)box(?:es)?\b|\bworkbench(?:es)?\b|\bbookshel(?:f|ves)\b)/i;
+const STRONG_WOOD_CAMEL_NOUN_PATTERN = /(?:Box(?:es)?|Chest(?:s)?|Crate(?:s|d)?|Fence(?:s|d)?|Gate(?:s)?|Rack(?:s)?|Bench(?:es)?|Table(?:s|top)?|Shelf|Shelves|Shelving|Workbench(?:es)?|Bookshel(?:f|ves))/;
+const WICKER_WOOD_NOUN_EXCEPTION_PATTERN = /\b(?:wicker|woven|wattle|hurdle|fibre|cord)\b/i;
+const CANVAS_WOOD_NOUN_EXCEPTION_PATTERN = /\b(?:canvas|cloth|fabric|awning|canopy|weather fly)\b/i;
+const STONE_WOOD_NOUN_EXCEPTION_PATTERN = /\b(?:stone|masonry|brick)\b/i;
+const METAL_WOOD_NOUN_EXCEPTION_PATTERN = /\b(?:iron|ironwork|metal|brass|strap|hinge|reinforcement|lock|bracket|hardware)\b/i;
+const SHINGLE_WOOD_NOUN_EXCEPTION_PATTERN = /\b(?:shingle|roof|cap)\b/i;
+const BROWN_TIMBER_KEYS = new Set<BuildingMaterialKey>([
+  'timberDark',
+  'timberMid',
+  'timberLight',
+  'timberWeathered',
+  'stackedTimber',
+]);
+
+function hasStrongWoodNoun(semanticName: string): boolean {
+  return STRONG_WOOD_NOUN_PATTERN.test(semanticName)
+    || STRONG_WOOD_CAMEL_NOUN_PATTERN.test(semanticName);
+}
 
 function buildingMaterialKey(material: THREE.Material): BuildingMaterialKey | null {
   const key = material.userData.buildingMaterialKey;
@@ -284,6 +305,47 @@ function buildingMaterialKey(material: THREE.Material): BuildingMaterialKey | nu
 function detailMaterialKey(material: THREE.Material): BuildingDetailMaterialKey | null {
   const key = material.userData.buildingDetailMaterialKey;
   return typeof key === 'string' ? key as BuildingDetailMaterialKey : null;
+}
+
+function isSharedBrownTimberMaterial(material: THREE.Material): boolean {
+  const key = buildingMaterialKey(material);
+  return material.userData.sharedBuildingMaterial === true
+    && key !== null
+    && BROWN_TIMBER_KEYS.has(key)
+    && material.userData.buildingWeatheringProfile === 'timber';
+}
+
+function isStrongWoodNounMaterialException(
+  semanticName: string,
+  material: THREE.Material,
+  materialRole: string,
+): boolean {
+  const constructionKey = buildingMaterialKey(material);
+  const detailKey = detailMaterialKey(material);
+
+  // Semantic writer roles make intentional woven leaves explicit even when an
+  // individual primitive id only says "gate leaf". The role alone is not an
+  // exception: the resolved material must still be the shared wicker detail.
+  if (detailKey === 'wicker') {
+    return materialRole === 'wicker'
+      || WICKER_WOOD_NOUN_EXCEPTION_PATTERN.test(semanticName);
+  }
+  if (detailKey === 'canvas') {
+    return materialRole === 'linen-canvas'
+      || CANVAS_WOOD_NOUN_EXCEPTION_PATTERN.test(semanticName);
+  }
+  if (constructionKey?.startsWith('masonry')) {
+    return STONE_WOOD_NOUN_EXCEPTION_PATTERN.test(semanticName);
+  }
+  if (constructionKey === 'metalIron' || detailKey === 'brass') {
+    return METAL_WOOD_NOUN_EXCEPTION_PATTERN.test(semanticName);
+  }
+  if (constructionKey === 'shingle') {
+    return SHINGLE_WOOD_NOUN_EXCEPTION_PATTERN.test(semanticName);
+  }
+  if (detailKey === 'earth') return /\bgate[- ]lane\b/i.test(semanticName);
+  if (constructionKey === 'interiorDark') return /\bfirebox\b/i.test(semanticName);
+  return false;
 }
 
 /**
@@ -398,6 +460,58 @@ function auditRoot(audit: AuditRoot): void {
         );
 
         const label = materialLabel(material);
+        const semanticMaterialChecks: Array<{
+          readonly semanticName: string;
+          readonly materialRole: string;
+          readonly samplePath: string;
+        }> = [];
+        if (hasStrongWoodNoun(object.name)) {
+          semanticMaterialChecks.push({
+            semanticName: object.name,
+            materialRole: String(
+              object.userData.proceduralMaterialRole
+              ?? mesh.geometry.userData.proceduralMaterialRole
+              ?? '',
+            ),
+            samplePath: path,
+          });
+        }
+        const geometryDiagnostics = mesh.geometry.userData.proceduralGeometryDiagnostics as {
+          readonly primitives?: readonly {
+            readonly semanticId?: string;
+            readonly materialRole?: string;
+          }[];
+        } | undefined;
+        for (const primitive of geometryDiagnostics?.primitives ?? []) {
+          const semanticName = String(primitive.semanticId ?? '');
+          if (!hasStrongWoodNoun(semanticName)) continue;
+          semanticMaterialChecks.push({
+            semanticName,
+            materialRole: String(primitive.materialRole ?? ''),
+            samplePath: `${path}#${semanticName}`,
+          });
+        }
+        for (const check of semanticMaterialChecks) {
+          strongWoodSemanticReferences += 1;
+          if (
+            isSharedBrownTimberMaterial(material)
+            || isStrongWoodNounMaterialException(
+              check.semanticName,
+              material,
+              check.materialRole,
+            )
+          ) {
+            continue;
+          }
+          recordViolation({
+            code: 'wood-semantic-non-timber',
+            rootLabel: audit.label,
+            materialLabel: label,
+            detail: `Strong wood noun “${check.semanticName}” must use the shared brown timber family unless its semantic name identifies a canvas, wicker, stone, metal, roof-cap, earthen-lane, or firebox surface.`,
+            path: check.samplePath,
+            visible,
+          });
+        }
         if (isLivingVegetationMaterial(material)) {
           const exactForbidden = forbiddenLivingDetailMaterials.has(material);
           recordViolation({
@@ -464,6 +578,12 @@ function auditRoot(audit: AuditRoot): void {
 
 for (const audit of auditRoots) auditRoot(audit);
 
+if (strongWoodSemanticReferences === 0) {
+  throw new Error(
+    'Strong-wood semantic audit found no named mesh or procedural primitive references; the assertion became vacuous.',
+  );
+}
+
 function printStats<Key extends string>(title: string, statsByClass: Map<Key, ClassStats>): void {
   console.log(title);
   console.log('class\tidentities\tsource-meshes\tvisible-meshes\tsource-instances\tvisible-instances');
@@ -526,5 +646,5 @@ if (violationList.length > 0) {
 }
 
 console.log(
-  `Procedural architecture material audit passed for ${BUILDING_KINDS.length} buildings and 4 residence tiers.`,
+  `Procedural architecture material audit passed for ${BUILDING_KINDS.length} buildings, 4 residence tiers, and ${strongWoodSemanticReferences} strong-wood semantic references.`,
 );

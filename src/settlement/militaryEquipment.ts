@@ -105,15 +105,28 @@ const NATURAL_RIGHT_HAND = [0, 0, 0, 1] as const;
 
 export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
   const materials = createMilitaryEquipmentMaterials();
+  // Several kits use the exact same physical object at a different bone or in
+  // a different stance. Build each repeated assembly once and clone its
+  // already-optimized graph so clones retain geometry/material identity. This
+  // lets ExactMountedAttachmentBatch merge those submissions losslessly; no
+  // vertex, material, transform, or semantic part is changed.
+  const spearAssembly = optimizeAssembly(createSpear(materials));
+  const crossbowAssembly = optimizeAssembly(createCrossbow(materials));
+  const sidearmAssembly = optimizeAssembly(createSword(materials, false));
+  const bowAssembly = optimizeAssembly(createBow(materials));
+  const fallbackDaggerAssembly = optimizeAssembly(createFallbackDagger(materials));
+  const fallbackScabbardAssembly = optimizeAssembly(
+    createFallbackDaggerScabbard(materials),
+  );
   return {
-    spear: source('spear', createSpear(materials), UPRIGHT_RIGHT_HAND),
-    'spear-shield': source('spear-shield', createSpear(materials), UPRIGHT_RIGHT_HAND, [
+    spear: source('spear', spearAssembly, UPRIGHT_RIGHT_HAND),
+    'spear-shield': source('spear-shield', spearAssembly.clone(true), UPRIGHT_RIGHT_HAND, [
       mount(createShield('medium', materials), ['PalmL', 'L_Hand'], 0.56, LEFT_PALM_POSITION, [0, 0, 0], FORWARD_LEFT_HAND),
     ]),
     'pike-kit': source('pike-kit', createPike(materials), UPRIGHT_RIGHT_HAND, [
       mount(createKatzbalgerScabbard(materials), ['Waist', 'Hips', 'Pelvis'], 0.82, [0.1, 0, 0.015], [0, 0, Math.PI - 0.18]),
     ]),
-    crossbow: source('crossbow', createCrossbow(materials), FORWARD_RIGHT_HAND, [
+    crossbow: source('crossbow', crossbowAssembly, FORWARD_RIGHT_HAND, [
       mount(
         createBoltCase(materials),
         ['Spine02', 'Spine2', 'Spine01', 'Spine'],
@@ -121,19 +134,19 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
         [0.065, 0.02, 0.085],
         [0.08, 0.12, -0.18],
       ),
-      mount(createCrossbow(materials), ['Spine02', 'Spine2', 'Spine01', 'Spine'], 0.74, [0.07, 0.015, 0.105], [0.08, -0.22, 0.82], undefined, 'ranged-stowed'),
-      mount(createFallbackDagger(materials), ['PalmR', 'R_Hand'], 0.42, RIGHT_PALM_POSITION, [0, 0, 0], NATURAL_RIGHT_HAND, 'melee-held'),
-      mount(createFallbackDaggerScabbard(materials), ['Waist', 'Hips', 'Pelvis'], 0.46, [0.11, 0, 0.02], [0, 0, Math.PI - 0.2], undefined, 'melee-stowed'),
+      mount(crossbowAssembly.clone(true), ['Spine02', 'Spine2', 'Spine01', 'Spine'], 0.74, [0.07, 0.015, 0.105], [0.08, -0.22, 0.82], undefined, 'ranged-stowed'),
+      mount(fallbackDaggerAssembly.clone(true), ['PalmR', 'R_Hand'], 0.42, RIGHT_PALM_POSITION, [0, 0, 0], NATURAL_RIGHT_HAND, 'melee-held'),
+      mount(fallbackScabbardAssembly.clone(true), ['Waist', 'Hips', 'Pelvis'], 0.46, [0.11, 0, 0.02], [0, 0, Math.PI - 0.2], undefined, 'melee-stowed'),
     ], 'ranged-held'),
-    sidearm: source('sidearm', createSword(materials, false), NATURAL_RIGHT_HAND),
-    'sidearm-shield': source('sidearm-shield', createSword(materials, false), NATURAL_RIGHT_HAND, [
+    sidearm: source('sidearm', sidearmAssembly, NATURAL_RIGHT_HAND),
+    'sidearm-shield': source('sidearm-shield', sidearmAssembly.clone(true), NATURAL_RIGHT_HAND, [
       mount(createShield('small', materials), ['PalmL', 'L_Hand'], 0.34, LEFT_PALM_POSITION, [0, 0, 0], FORWARD_LEFT_HAND),
     ]),
     'sword-shield': source('sword-shield', createSword(materials, true), NATURAL_RIGHT_HAND, [
       mount(createShield('large', materials), ['PalmL', 'L_Hand'], 0.62, LEFT_PALM_POSITION, [0, 0, 0], FORWARD_LEFT_HAND),
     ]),
     halberd: source('halberd', createHalberd(materials), UPRIGHT_RIGHT_HAND),
-    bow: source('bow', createBow(materials), FORWARD_LEFT_HAND, [
+    bow: source('bow', bowAssembly, FORWARD_LEFT_HAND, [
       mount(
         createQuiver(materials, 12, 0.78),
         ['Spine02', 'Spine2', 'Spine01', 'Spine'],
@@ -141,9 +154,9 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
         [0.065, 0.02, 0.085],
         [0.04, -0.18, -0.18],
       ),
-      mount(createBow(materials), ['Spine02', 'Spine2', 'Spine01', 'Spine'], 1.88, [0.08, 0.02, 0.105], [0.04, -0.2, 0.18], undefined, 'ranged-stowed'),
-      mount(createFallbackDagger(materials), ['PalmR', 'R_Hand'], 0.42, RIGHT_PALM_POSITION, [0, 0, 0], NATURAL_RIGHT_HAND, 'melee-held'),
-      mount(createFallbackDaggerScabbard(materials), ['Waist', 'Hips', 'Pelvis'], 0.46, [0.11, 0, 0.02], [0, 0, Math.PI - 0.2], undefined, 'melee-stowed'),
+      mount(bowAssembly.clone(true), ['Spine02', 'Spine2', 'Spine01', 'Spine'], 1.88, [0.08, 0.02, 0.105], [0.04, -0.2, 0.18], undefined, 'ranged-stowed'),
+      mount(fallbackDaggerAssembly.clone(true), ['PalmR', 'R_Hand'], 0.42, RIGHT_PALM_POSITION, [0, 0, 0], NATURAL_RIGHT_HAND, 'melee-held'),
+      mount(fallbackScabbardAssembly.clone(true), ['Waist', 'Hips', 'Pelvis'], 0.46, [0.11, 0, 0.02], [0, 0, Math.PI - 0.2], undefined, 'melee-stowed'),
     ], 'ranged-held', ['PalmL', 'L_Hand'], LEFT_PALM_POSITION),
   };
 }
@@ -163,7 +176,7 @@ function source(
   primaryBoneNames: readonly string[] = ['PalmR', 'R_Hand'],
   primaryPosition: readonly [number, number, number] = RIGHT_PALM_POSITION,
 ): MilitaryEquipmentSource {
-  const optimized = optimizeAssembly(scene);
+  const optimized = optimizedAssembly(scene);
   const bounds = new THREE.Box3().setFromObject(optimized);
   const sourceSize = bounds.getSize(new THREE.Vector3());
   const sourceLength = Math.max(sourceSize.x, sourceSize.y, sourceSize.z);
@@ -195,7 +208,7 @@ function mount(
   quaternion?: readonly [number, number, number, number],
   combatRole: MilitaryEquipmentCombatRole = 'always',
 ): MilitaryEquipmentMountSource {
-  const optimized = optimizeAssembly(scene);
+  const optimized = optimizedAssembly(scene);
   const bounds = new THREE.Box3().setFromObject(optimized);
   const size = bounds.getSize(new THREE.Vector3());
   return {
@@ -209,6 +222,12 @@ function mount(
     quaternion,
     combatRole,
   };
+}
+
+function optimizedAssembly(scene: THREE.Group): THREE.Group {
+  return scene.userData.optimizedByMaterial === true
+    ? scene
+    : optimizeAssembly(scene);
 }
 
 function semantic(mesh: THREE.Object3D, name: string): void {
@@ -959,6 +978,7 @@ export function attachMilitaryEquipment(
 }
 
 export function setMilitaryEquipmentVisible(tool: THREE.Group, visible: boolean): void {
+  if (tool.userData.workerToolVisible === visible) return;
   tool.userData.workerToolVisible = visible;
   applyMilitaryEquipmentVisibility(tool);
 }
@@ -967,6 +987,7 @@ export function setMilitaryEquipmentCombatStance(
   tool: THREE.Group,
   stance: MilitaryEquipmentCombatStance,
 ): void {
+  if (tool.userData.workerToolCombatStance === stance) return;
   tool.userData.workerToolCombatStance = stance;
   applyMilitaryEquipmentVisibility(tool);
 }
@@ -982,6 +1003,10 @@ export function setMilitaryEquipmentDropped(
   tool: THREE.Group,
   dropped: boolean,
 ): void {
+  if ((tool.userData.workerToolDropped === true) === dropped) {
+    tool.userData.workerToolDropped = dropped;
+    return;
+  }
   tool.userData.workerToolDropped = dropped;
   applyMilitaryEquipmentVisibility(tool);
 }

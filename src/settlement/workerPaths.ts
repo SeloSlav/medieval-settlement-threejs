@@ -91,7 +91,8 @@ export const PRODUCTION_WORKPLACE_KINDS = [
 ] as const satisfies readonly BuildingKind[];
 
 const PRODUCTION_WORKPLACE_KIND_SET = new Set<BuildingKind>(PRODUCTION_WORKPLACE_KINDS);
-const MAX_VISIBLE_WORKERS = 1024;
+/** Worker presentation is one-to-one with assigned labor; batching owns cost. */
+const MAX_VISIBLE_WORKERS = Number.MAX_SAFE_INTEGER;
 const MAX_TARGETS_PER_BUILDING = 96;
 const MAX_PREFERRED_RESOURCE_WALK = 72;
 const NO_ROSTERED_CART_WORKERS: ReadonlyMap<string, number> = new Map();

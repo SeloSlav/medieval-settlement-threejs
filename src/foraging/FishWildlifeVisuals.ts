@@ -5,13 +5,18 @@ import { mulberry32 } from '../props/forestField.ts';
 import type { ForagingNodeState } from '../resources/types.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { ForagingSite } from './ForagingLayout.ts';
+import {
+  FISH_SHOAL_MAX_YIELD,
+  RICH_FISH_SHOAL_MAX_YIELD,
+} from './foragingYields.ts';
+import {
+  AuthoredAnimalInstanceBatch,
+  setAuthoredAnimalEvaluatorOnly,
+} from '../scene/AuthoredAnimalInstanceBatch.ts';
 
 export const FISH_MODEL_URL = '/assets/models/fish/quaternius-fish.glb';
-export const SMALL_FISH_SCHOOL_VISUAL_CAPACITY = 7;
-export const RICH_FISH_SCHOOL_VISUAL_CAPACITY = 11;
 
 const FISH_TARGET_LENGTH = 0.82;
-const CLOSE_WORLD_MAX_CAMERA_DISTANCE = 185;
 const SMALL_SCHOOL_RADIUS = 7;
 const RICH_SCHOOL_RADIUS = 10;
 const TAU = Math.PI * 2;
@@ -96,6 +101,7 @@ export type FishWildlifeVisuals = {
   fishCount: number;
   update: (dtSeconds: number, cameraDistance: number, firstPersonActive: boolean) => void;
   sync: (nodes: Iterable<ForagingNodeState>) => void;
+  diagnostics: () => ReturnType<AuthoredAnimalInstanceBatch['diagnostics']> | null;
   dispose: () => void;
 };
 
@@ -106,21 +112,17 @@ export type FishBreachPose = {
 };
 
 /**
- * Fish stocks represent population, not one actor per unit. This keeps a readable
- * school while still making depletion and extinction visible in the world.
+ * Fish stock is an authoritative whole-fish population. Fractional regrowth is
+ * not yet an actor; each whole fish is represented by one full authored model.
  */
 export function displayedFishSchoolCount(
   remaining: number,
-  maxYield: number,
-  isRich = false,
+  _maxYield: number,
+  _isRich = false,
 ): number {
-  if (!Number.isFinite(remaining) || remaining <= 0) return 0;
-  const capacity = isRich
-    ? RICH_FISH_SCHOOL_VISUAL_CAPACITY
-    : SMALL_FISH_SCHOOL_VISUAL_CAPACITY;
-  if (!Number.isFinite(maxYield) || maxYield <= 0) return 1;
-  const ratio = THREE.MathUtils.clamp(remaining / maxYield, 0, 1);
-  return Math.max(1, Math.ceil(capacity * ratio));
+  return Number.isFinite(remaining)
+    ? Math.max(0, Math.floor(remaining + 1e-6))
+    : 0;
 }
 
 /** Whole-body arc layered over the authored out-of-water skeletal animation. */
@@ -135,9 +137,9 @@ export function sampleFishBreach(progress: number, height: number): FishBreachPo
 }
 
 /**
- * Adds small animated schools to the two authoritative fish nodes. Population
- * loss controls school size; a decrease while the shoal is in close view causes
- * one fish to break the surface with the model's out-of-water animation.
+ * Adds one authored animated fish for every whole fish at the authoritative
+ * nodes. Population loss controls school size; a decrease while the shoal is
+ * visible causes one fish to break the surface with the authored animation.
  */
 export async function createFishWildlifeVisuals(
   terrain: Terrain,
@@ -156,11 +158,30 @@ export async function createFishWildlifeVisuals(
       fishCount: 0,
       update: () => undefined,
       sync: () => undefined,
+      diagnostics: () => null,
       dispose: () => undefined,
     };
   }
 
   const source = await loadFishModel(FISH_MODEL_URL);
+  let batch: AuthoredAnimalInstanceBatch | null = null;
+  const totalCapacity = fishSites.reduce(
+    (sum, site) => sum + (
+      site.isRich ? RICH_FISH_SHOAL_MAX_YIELD : FISH_SHOAL_MAX_YIELD
+    ),
+    0,
+  );
+  try {
+    batch = new AuthoredAnimalInstanceBatch({
+      parent: group,
+      sourceRoot: source.scene,
+      capacity: totalCapacity,
+      name: 'Fish exact-model instances',
+    });
+  } catch (error) {
+    // The fallback is the same authored rig, never a procedural fish.
+    console.warn('[Fish] Exact-model batching unavailable; retaining exact individual rigs.', error);
+  }
   const rng = mulberry32(seed ^ 0xf157ca);
   const schools: FishSchool[] = [];
   const previousRemaining = new Map<string, number>();
@@ -174,12 +195,81 @@ export async function createFishWildlifeVisuals(
   });
   const splashes = createSplashPool(group, splashGeometry, splashMaterial);
 
+  const addFishToSchool = (school: FishSchool): void => {
+    const poolIndex = school.fish.length;
+    const spawn = findWaterPoint(
+      school.homeX,
+      school.homeZ,
+      school.radius,
+      rng,
+      water.isWaterAt,
+    );
+    const target = findWaterPoint(
+      school.homeX,
+      school.homeZ,
+      school.radius,
+      rng,
+      water.isWaterAt,
+    );
+    const model = cloneSkinned(source.scene) as THREE.Group;
+    const lengthVariation = THREE.MathUtils.lerp(0.78, 1.13, rng());
+    const modelScale = FISH_TARGET_LENGTH * lengthVariation / source.sourceLength;
+    model.scale.setScalar(modelScale);
+    model.position.copy(source.center).multiplyScalar(-modelScale);
+    configureFishMeshes(model);
+
+    const root = new THREE.Group();
+    root.name = 'Rigged swimming fish';
+    root.userData.nodeId = school.nodeId;
+    root.userData.fishPoolIndex = poolIndex;
+    root.add(model);
+    setAuthoredAnimalEvaluatorOnly(model, batch !== null);
+    root.visible = false;
+    group.add(root);
+
+    const mixer = new THREE.AnimationMixer(model);
+    const actions: FishAnimationSet = {
+      swim: mixer.clipAction(source.clips.swim, model),
+      fast: mixer.clipAction(source.clips.fast, model),
+      outOfWater: mixer.clipAction(source.clips.outOfWater, model),
+    };
+    configureFishActions(actions);
+    actions.swim.play();
+    actions.swim.time = rng() * actions.swim.getClip().duration;
+
+    const heading = Math.atan2(target.x - spawn.x, target.z - spawn.z);
+    const fish: FishVisual = {
+      nodeId: school.nodeId,
+      poolIndex,
+      root,
+      model,
+      mixer,
+      actions,
+      activeMode: 'swim',
+      homeX: school.homeX,
+      homeZ: school.homeZ,
+      x: spawn.x,
+      z: spawn.z,
+      targetX: target.x,
+      targetZ: target.z,
+      heading,
+      depth: THREE.MathUtils.lerp(0.42, 0.7, rng()),
+      speed: THREE.MathUtils.lerp(0.45, 0.72, rng()),
+      swimPhase: rng() * TAU,
+      fastTimer: 0,
+      populationVisible: false,
+      breach: null,
+    };
+    setFishWorldTransform(fish, terrain, water);
+    school.fish.push(fish);
+  };
+
   for (let siteIndex = 0; siteIndex < fishSites.length; siteIndex++) {
     const site = fishSites[siteIndex];
     const nodeId = `foraging-fish-${site.isRich ? 'rich' : 'small'}-${siteIndex}`;
     const capacity = site.isRich
-      ? RICH_FISH_SCHOOL_VISUAL_CAPACITY
-      : SMALL_FISH_SCHOOL_VISUAL_CAPACITY;
+      ? RICH_FISH_SHOAL_MAX_YIELD
+      : FISH_SHOAL_MAX_YIELD;
     const radius = site.isRich ? RICH_SCHOOL_RADIUS : SMALL_SCHOOL_RADIUS;
     const school: FishSchool = {
       nodeId,
@@ -191,61 +281,7 @@ export async function createFishWildlifeVisuals(
       pendingCatchBreach: false,
     };
 
-    for (let poolIndex = 0; poolIndex < capacity; poolIndex++) {
-      const spawn = findWaterPoint(site.x, site.z, radius, rng, water.isWaterAt);
-      const target = findWaterPoint(site.x, site.z, radius, rng, water.isWaterAt);
-      const model = cloneSkinned(source.scene) as THREE.Group;
-      const lengthVariation = THREE.MathUtils.lerp(0.78, 1.13, rng());
-      const modelScale = FISH_TARGET_LENGTH * lengthVariation / source.sourceLength;
-      model.scale.setScalar(modelScale);
-      model.position.copy(source.center).multiplyScalar(-modelScale);
-      configureFishMeshes(model);
-
-      const root = new THREE.Group();
-      root.name = 'Rigged swimming fish';
-      root.userData.nodeId = nodeId;
-      root.userData.fishPoolIndex = poolIndex;
-      root.add(model);
-      root.visible = false;
-      group.add(root);
-
-      const mixer = new THREE.AnimationMixer(model);
-      const actions: FishAnimationSet = {
-        swim: mixer.clipAction(source.clips.swim, model),
-        fast: mixer.clipAction(source.clips.fast, model),
-        outOfWater: mixer.clipAction(source.clips.outOfWater, model),
-      };
-      configureFishActions(actions);
-      actions.swim.play();
-      actions.swim.time = rng() * actions.swim.getClip().duration;
-
-      const heading = Math.atan2(target.x - spawn.x, target.z - spawn.z);
-      const depth = THREE.MathUtils.lerp(0.42, 0.7, rng());
-      const fish: FishVisual = {
-        nodeId,
-        poolIndex,
-        root,
-        model,
-        mixer,
-        actions,
-        activeMode: 'swim',
-        homeX: site.x,
-        homeZ: site.z,
-        x: spawn.x,
-        z: spawn.z,
-        targetX: target.x,
-        targetZ: target.z,
-        heading,
-        depth,
-        speed: THREE.MathUtils.lerp(0.45, 0.72, rng()),
-        swimPhase: rng() * TAU,
-        fastTimer: 0,
-        populationVisible: false,
-        breach: null,
-      };
-      setFishWorldTransform(fish, terrain, water);
-      school.fish.push(fish);
-    }
+    for (let poolIndex = 0; poolIndex < capacity; poolIndex++) addFishToSchool(school);
     schools.push(school);
   }
 
@@ -257,12 +293,11 @@ export async function createFishWildlifeVisuals(
 
   const update = (
     dtSeconds: number,
-    cameraDistance: number,
-    firstPersonActive: boolean,
+    _cameraDistance: number,
+    _firstPersonActive: boolean,
   ): void => {
-    const shouldShow = firstPersonActive || cameraDistance <= CLOSE_WORLD_MAX_CAMERA_DISTANCE;
-    group.visible = shouldShow;
-    if (!shouldShow) return;
+    // Camera zoom never swaps or removes an authored fish actor.
+    group.visible = true;
 
     const dt = Math.min(Math.max(dtSeconds, 0), 0.1);
     updateSplashes(splashes, dt);
@@ -284,6 +319,13 @@ export async function createFishWildlifeVisuals(
         fish.mixer.update(dt);
       }
     }
+    if (batch) {
+      const visibleFish = schools.flatMap((school) => school.fish)
+        .filter((fish) => fish.root.visible);
+      batch.beginFrame(visibleFish.length);
+      for (const fish of visibleFish) batch.submit(fish.model);
+      batch.endFrame();
+    }
   };
 
   const sync = (nodes: Iterable<ForagingNodeState>): void => {
@@ -299,6 +341,8 @@ export async function createFishWildlifeVisuals(
       const visibleCount = node
         ? displayedFishSchoolCount(node.remaining, node.maxYield, node.isRich === true)
         : 0;
+
+      while (school.fish.length < visibleCount) addFishToSchool(school);
 
       for (const fish of school.fish) {
         fish.populationVisible = fish.poolIndex < visibleCount;
@@ -329,9 +373,12 @@ export async function createFishWildlifeVisuals(
 
   return {
     group,
-    fishCount: schools.reduce((total, school) => total + school.fish.length, 0),
+    get fishCount() {
+      return schools.reduce((total, school) => total + school.fish.length, 0);
+    },
     update,
     sync,
+    diagnostics: () => batch?.diagnostics() ?? null,
     dispose: () => {
       for (const school of schools) {
         for (const fish of school.fish) {
@@ -339,6 +386,8 @@ export async function createFishWildlifeVisuals(
           fish.mixer.uncacheRoot(fish.model);
         }
       }
+      batch?.dispose();
+      batch = null;
       group.clear();
       splashGeometry.dispose();
       splashMaterial.dispose();

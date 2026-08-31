@@ -36,14 +36,11 @@ import {
   type WorkerToolKind,
 } from '../src/settlement/workerTools.ts';
 import {
-  AGENT_ANIMAL_RENDER_MAX_ORBIT_DISTANCE,
-  AGENT_WORK_ANIMATION_DISTANCE,
   buildCrowdViewState,
   isAgentAnimalRenderingEnabled,
   isPeopleRenderingEnabled,
   isWithinAnimalCrowdView,
   isWithinCrowdView,
-  isWithinWorkAnimationRange,
 } from '../src/settlement/crowdView.ts';
 import {
   RAIDER_SOURCE_CLIP_BY_MODE,
@@ -67,7 +64,7 @@ import { FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT } from '../src/buildings/foundersCamp
 const cutoffView = buildCrowdViewState(
   0,
   0,
-  AGENT_ANIMAL_RENDER_MAX_ORBIT_DISTANCE,
+  210,
 );
 assert.equal(isAgentAnimalRenderingEnabled(cutoffView), true);
 assert.equal(isPeopleRenderingEnabled(cutoffView), true);
@@ -76,9 +73,9 @@ assert.equal(isWithinAnimalCrowdView(0, 0, cutoffView), true);
 const strategicView = buildCrowdViewState(
   0,
   0,
-  AGENT_ANIMAL_RENDER_MAX_ORBIT_DISTANCE + 0.01,
+  10_000,
 );
-assert.equal(isAgentAnimalRenderingEnabled(strategicView), false);
+assert.equal(isAgentAnimalRenderingEnabled(strategicView), true);
 assert.equal(isPeopleRenderingEnabled(strategicView), true);
 assert.equal(
   isWithinCrowdView(0, 0, strategicView),
@@ -87,8 +84,8 @@ assert.equal(
 );
 assert.equal(
   isWithinAnimalCrowdView(0, 0, strategicView),
-  false,
-  'livestock and wildlife may retain the 210 m strategic zoom cutoff',
+  true,
+  'livestock and wildlife must remain spatially eligible at every zoom',
 );
 
 async function parseGlb(path: string) {
@@ -757,21 +754,6 @@ assert.equal(
   'ordinary work tools should remain hidden outside their work action',
 );
 
-const workView = {
-  centerX: 0,
-  centerZ: 0,
-  viewRadius: 180,
-};
-assert.equal(
-  isWithinWorkAnimationRange(AGENT_WORK_ANIMATION_DISTANCE - 0.1, 0, workView),
-  true,
-);
-assert.equal(
-  isWithinWorkAnimationRange(AGENT_WORK_ANIMATION_DISTANCE + 0.1, 0, workView),
-  false,
-  'skeletal chopping and mining should stop outside the work-animation LOD',
-);
-
 const villagerLicense = fs.readFileSync(
   'public/assets/models/villagers/LICENSE.txt',
   'utf8',
@@ -836,10 +818,10 @@ for (const sourcePath of [
 }
 
 const backyardGardenSource = fs.readFileSync('src/residences/backyardGardenMesh.ts', 'utf8');
-assert.match(
+assert.doesNotMatch(
   backyardGardenSource,
-  /bird\.rotation[\s\S]*disableAnimalShadows\(bird\)[\s\S]*goat\.rotation[\s\S]*disableAnimalShadows\(goat\)[\s\S]*pig\.rotation[\s\S]*disableAnimalShadows\(pig\)/,
-  'procedural fallback chickens, goats, and pigs should all opt out of shadows',
+  /HenFallback|GoatFallback|PigFallback|fallbackAnimalCount|disableAnimalShadows/,
+  'backyard pens must wait for authored animal GLBs instead of rendering procedural substitutes',
 );
 
 const burialMarkerSource = fs.readFileSync('src/residences/BurialMarkers.ts', 'utf8');

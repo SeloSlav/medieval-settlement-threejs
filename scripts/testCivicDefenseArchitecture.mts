@@ -16,6 +16,14 @@ import {
   GUARDHOUSE_PAYROLL_VISUAL_SEGMENTS,
 } from '../src/buildings/meshes/civicLogisticsBuildingMeshes.ts';
 import {
+  KENNEL_ARCHITECTURE_PLAN,
+  KENNEL_DOG_REST_ANCHORS,
+} from '../src/buildings/meshes/kennelMesh.ts';
+import {
+  STABLE_ARCHITECTURE_PLAN,
+  STABLE_OX_REST_ANCHORS,
+} from '../src/buildings/meshes/stableMesh.ts';
+import {
   PROCEDURAL_BUILDING_CATALOG,
 } from '../src/buildings/proceduralArchitecture/catalog.ts';
 import {
@@ -43,6 +51,8 @@ const KINDS = [
   'watchtower',
   'guardhouse',
   'palisaded_refuge',
+  'stable',
+  'kennel',
 ] as const satisfies readonly BuildingKind[];
 const EPSILON = 1e-4;
 
@@ -90,6 +100,41 @@ function meshes(root: THREE.Object3D): THREE.Mesh<THREE.BufferGeometry>[] {
     if (mesh.isMesh) result.push(mesh);
   });
   return result;
+}
+
+function proceduralSlotMeshes(root: THREE.Object3D): THREE.Mesh<THREE.BufferGeometry>[] {
+  return meshes(root).filter((mesh) => typeof mesh.userData.proceduralMaterialRole === 'string');
+}
+
+function proceduralSemanticIds(root: THREE.Object3D): string[] {
+  return proceduralSlotMeshes(root).flatMap((mesh) => {
+    const diagnostics = mesh.userData.proceduralPrimitiveDiagnostics as
+      | readonly { readonly semanticId: string }[]
+      | undefined;
+    return diagnostics?.map((primitive) => primitive.semanticId) ?? [];
+  });
+}
+
+function assertClearRay(
+  root: THREE.Object3D,
+  label: string,
+  origin: readonly [number, number, number],
+  direction: readonly [number, number, number],
+  far: number,
+): void {
+  root.updateWorldMatrix(true, true);
+  const raycaster = new THREE.Raycaster(
+    new THREE.Vector3(...origin),
+    new THREE.Vector3(...direction).normalize(),
+    0,
+    far,
+  );
+  const hits = raycaster.intersectObjects(proceduralSlotMeshes(root), false);
+  assert.equal(
+    hits.length,
+    0,
+    `${label} must remain a literal empty passage; hit ${hits[0]?.object.name ?? 'unknown mesh'}`,
+  );
 }
 
 function assertNamedCount(
@@ -290,6 +335,88 @@ for (const [kind, frameName, memberCount] of [
 }
 assertNamedCount(model('town_hall'), 'Town hall council porch roof post', 2);
 assertNamedCount(model('town_hall'), 'Town hall bell lantern connected post', 4);
+
+// Rural animal-service buildings compile from a serializable placement plan.
+// Stable catalog vocabulary is represented by physical modules, while kennel
+// bay and gate centres are literal empty passages instead of dark overlays.
+const stable = model('stable');
+assert.equal(stable.userData.architecturePlan, STABLE_ARCHITECTURE_PLAN);
+assert.deepEqual(STABLE_ARCHITECTURE_PLAN.diagnostics.overlappingBayPairs, []);
+assert.deepEqual(STABLE_ARCHITECTURE_PLAN.diagnostics.duplicateAnchorIds, []);
+assert.deepEqual(STABLE_ARCHITECTURE_PLAN.diagnostics.outOfBoundsAnchorIds, []);
+assert.deepEqual(STABLE_ARCHITECTURE_PLAN.diagnostics.misalignedAnchorIds, []);
+assert.deepEqual(STABLE_ARCHITECTURE_PLAN.diagnostics.missingCatalogModuleIds, []);
+assert.ok(STABLE_ARCHITECTURE_PLAN.diagnostics.minimumPortalClearWidth >= 2.7);
+for (const moduleId of [
+  'packed-earth-stall-floor',
+  'wide-stall-doors',
+  'vented-loft',
+  'covered-tie-rail',
+] as const) {
+  assert.ok(STABLE_ARCHITECTURE_PLAN.modules.includes(moduleId));
+}
+assert.deepEqual(stable.userData.oxRestAnchors, STABLE_OX_REST_ANCHORS);
+for (const anchor of STABLE_OX_REST_ANCHORS) {
+  const [marker] = objectsWithData(stable, 'stableOxRestAnchorId')
+    .filter((candidate) => candidate.userData.stableOxRestAnchorId === anchor.id);
+  assert.ok(marker, `stable must preserve runtime marker ${anchor.id}`);
+  assert.deepEqual(marker.position.toArray(), [...anchor.localPosition]);
+  assert.equal(marker.userData.stableOxSlotIndex, anchor.slotIndex);
+}
+const [stableRoof] = assertNamedCount(stable, 'Stable joined split-shingle roof', 1) as THREE.Mesh[];
+assert.ok(stableRoof?.isMesh);
+assert.equal(stableRoof.userData.proceduralRoofAttachment, 'joined-gable');
+assert.equal(stableRoof.userData.proceduralPrimitiveCount, 2);
+assert.ok((stableRoof.userData.proceduralPrimitiveDiagnostics as Array<{ primitive: string }>).every(
+  (primitive) => primitive.primitive === 'roof-panel',
+));
+const [stableFrame] = assertNamedCount(stable, 'Stable joined structural timber frame and covered tie rail', 1);
+assert.equal(stableFrame?.userData.structuralConnection, 'joined-endpoint-authored');
+assert.ok(Number(stableFrame?.userData.structuralMemberCount) >= 25);
+for (const x of STABLE_ARCHITECTURE_PLAN.bayCentersX) {
+  assertClearRay(stable, `stable bay at x=${x}`, [x, 1.35, 3.44], [0, 0, -1], 1.28);
+}
+
+const kennel = model('kennel');
+assert.equal(kennel.userData.architecturePlan, KENNEL_ARCHITECTURE_PLAN);
+assert.deepEqual(KENNEL_ARCHITECTURE_PLAN.diagnostics.duplicateAnchorSlotIndices, []);
+assert.deepEqual(KENNEL_ARCHITECTURE_PLAN.diagnostics.misalignedAnchorSlotIndices, []);
+assert.deepEqual(KENNEL_ARCHITECTURE_PLAN.diagnostics.overlappingBayPairs, []);
+assert.deepEqual(KENNEL_ARCHITECTURE_PLAN.diagnostics.missingCatalogModuleIds, []);
+assert.ok(KENNEL_ARCHITECTURE_PLAN.diagnostics.gateClearWidth >= 2.2);
+for (const moduleId of ['four-dog-bays', 'exercise-yard', 'water-trough'] as const) {
+  assert.ok(KENNEL_ARCHITECTURE_PLAN.modules.includes(moduleId));
+}
+assert.deepEqual(kennel.userData.dogRestAnchors, KENNEL_DOG_REST_ANCHORS);
+assert.equal(objectsWithData(kennel, 'kennelDogSlotIndex').length, KENNEL_DOG_REST_ANCHORS.length);
+assertNamedCount(kennel, 'Kennel timber range', 0);
+assertNamedCount(kennel, 'Kennel dark dog-bay opening', 0);
+const [kennelRoof] = assertNamedCount(kennel, 'Kennel joined split-shingle roof', 1) as THREE.Mesh[];
+assert.ok(kennelRoof?.isMesh);
+assert.equal(kennelRoof.userData.proceduralRoofAttachment, 'joined-gable');
+assert.equal(kennelRoof.userData.proceduralPrimitiveCount, 2);
+assert.ok((kennelRoof.userData.proceduralPrimitiveDiagnostics as Array<{ primitive: string }>).every(
+  (primitive) => primitive.primitive === 'roof-panel',
+));
+const [kennelFrame] = assertNamedCount(kennel, 'Kennel joined bay, roof, fence, and gate frame', 1);
+assert.equal(kennelFrame?.userData.structuralConnection, 'joined-endpoint-authored');
+for (const bay of KENNEL_ARCHITECTURE_PLAN.bays) {
+  assertClearRay(kennel, `${bay.id} opening`, [bay.centerX, 1.05, 0.42], [0, 0, -1], 0.9);
+}
+assertClearRay(kennel, 'kennel exercise-yard gate', [0, 0.7, 3.42], [0, 0, -1], 0.55);
+for (const kind of ['stable', 'kennel'] as const) {
+  const semanticIds = proceduralSemanticIds(model(kind));
+  assert.equal(
+    new Set(semanticIds).size,
+    semanticIds.length,
+    `${kind} procedural primitive semantic IDs must be unique`,
+  );
+  assert.deepEqual(
+    proceduralSemanticIds(createBuildingMesh(kind)),
+    semanticIds,
+    `${kind} semantic placement names must be deterministic across compiles`,
+  );
+}
 
 // Runtime-owned visibility anchors and their segment cardinalities remain
 // unchanged, so stock/guard update code can continue toggling the same objects.

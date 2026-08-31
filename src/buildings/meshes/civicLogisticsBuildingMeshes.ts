@@ -198,11 +198,48 @@ function addTownHallCouncilPorchRoof(group: THREE.Group): void {
   });
 }
 
-function addCrate(group: THREE.Group, x: number, y: number, z: number, scale = 1): void {
-  addMesh(group, new THREE.BoxGeometry(1.0 * scale, 0.78 * scale, 0.82 * scale), timberMaterial('weathered'), new THREE.Vector3(x, y + 0.39 * scale, z));
-  for (const offset of [-0.38, 0.38]) {
-    addMesh(group, new THREE.BoxGeometry(0.09 * scale, 0.82 * scale, 0.88 * scale), timberMaterial('dark'), new THREE.Vector3(x + offset * scale, y + 0.4 * scale, z));
+function addCrate(
+  group: THREE.Group,
+  x: number,
+  y: number,
+  z: number,
+  scale = 1,
+  semanticId = 'civic-logistics-crate',
+): THREE.Mesh {
+  // A crate is one visibility unit and one material identity. Compiling the
+  // carcass and reinforcing battens together avoids three source draws while
+  // retaining physical board-scale UVs and a clearly brown regional timber.
+  const writer = new ProceduralGeometryWriter(['weathered-boards']);
+  writer.addBox({
+    semanticId: `${semanticId}-boarded-carcass`,
+    moduleId: 'joined-boarded-storage-crate',
+    materialRole: 'weathered-boards',
+    structuralUse: 'door-and-shutter-joinery',
+    center: [x, y + 0.39 * scale, z],
+    size: [1.0 * scale, 0.78 * scale, 0.82 * scale],
+  });
+  for (const [index, offset] of [-0.38, 0.38].entries()) {
+    writer.addBox({
+      semanticId: `${semanticId}-${index === 0 ? 'left' : 'right'}-batten`,
+      moduleId: 'joined-boarded-storage-crate',
+      materialRole: 'weathered-boards',
+      structuralUse: 'door-and-shutter-joinery',
+      center: [x + offset * scale, y + 0.4 * scale, z],
+      size: [0.09 * scale, 0.82 * scale, 0.88 * scale],
+    });
   }
+  const slot = writer.build().slots[0];
+  if (!slot) throw new Error(`${semanticId} emitted no crate geometry.`);
+  const crate = addMesh(
+    group,
+    slot.geometry,
+    timberMaterial('weathered'),
+    new THREE.Vector3(),
+  );
+  crate.name = `${semanticId} joined brown timber crate`;
+  crate.userData.proceduralStorageProp = 'crate';
+  crate.userData.structuralConnection = 'joined-boarded-carcass';
+  return crate;
 }
 
 function addBell(group: THREE.Group, x: number, y: number, z: number): void {
@@ -551,9 +588,9 @@ export function createVillageStorehouseMesh(): THREE.Group {
   });
   for (let i = 0; i < 4; i++) addMesh(group, new THREE.BoxGeometry(2.7 - i * 0.18, 0.18, 0.52), stoneMaterial(i % 2 ? 'light' : 'mid'), new THREE.Vector3(-0.55, 0.1 + i * 0.18, 6.45 - i * 0.4));
 
-  addCrate(group, 2.8, 0.92, 4.18, 1.05);
-  addCrate(group, 4.0, 0.92, 4.28, 0.82);
-  addCrate(group, 3.45, 1.75, 4.25, 0.72);
+  addCrate(group, 2.8, 0.92, 4.18, 1.05, 'storehouse-loading-crate-large');
+  addCrate(group, 4.0, 0.92, 4.28, 0.82, 'storehouse-loading-crate-small');
+  addCrate(group, 3.45, 1.75, 4.25, 0.72, 'storehouse-loading-crate-stacked');
 
   // Separate inventory-driven bays make each physical bulk store readable at
   // overview distance. Segments are grouped rather than recreated as stock
@@ -569,7 +606,7 @@ export function createVillageStorehouseMesh(): THREE.Group {
       addMesh(
         segment,
         new THREE.CylinderGeometry(0.15, 0.18, 2.25, 8),
-        timberMaterial(row % 2 ? 'mid' : 'light'),
+        timberMaterial(row % 2 ? 'weathered' : 'mid'),
         new THREE.Vector3(-5.5 + i * 0.43, 0.24 + row * 0.32, -4.15),
         new THREE.Euler(0, 0, Math.PI * 0.5),
       );
@@ -844,12 +881,32 @@ export function createGuardhouseMesh(): THREE.Group {
     addSmallWindow(group, x, 2.5, shell.backZ - 0.06, 0.54, 0.66);
   }
 
-  // Exposed oak framing gives the upper room a legible, locally built structure.
+  // The road facade is a real sill/post/rail/plate frame. Every post now runs
+  // from the stone-floor sill to the upper plate, which meets the gable shell's
+  // concealed wall plate instead of stopping more than a metre below the roof.
+  const facadeFrameZ = shell.frontZ + 0.14;
+  const facadeFrameMembers: TimberMember[] = [];
   for (const x of [-4.95, -2.62, -0.28, 2.05]) {
-    addMesh(group, new THREE.BoxGeometry(0.2, 2.45, 0.18), timberMaterial('dark'), new THREE.Vector3(x, 2.48, shell.frontZ + 0.14));
+    facadeFrameMembers.push({
+      start: [x, 1.42, facadeFrameZ],
+      end: [x, 4.62, facadeFrameZ],
+      width: 0.2,
+      depth: 0.18,
+    });
   }
-  addMesh(group, new THREE.BoxGeometry(7.45, 0.2, 0.18), timberMaterial('dark'), new THREE.Vector3(-1.45, 1.42, shell.frontZ + 0.14));
-  addMesh(group, new THREE.BoxGeometry(7.45, 0.2, 0.18), timberMaterial('dark'), new THREE.Vector3(-1.45, 3.48, shell.frontZ + 0.14));
+  for (const y of [1.42, 3.48, 4.62]) {
+    facadeFrameMembers.push({
+      start: [-5.08, y, facadeFrameZ],
+      end: [2.18, y, facadeFrameZ],
+      width: 0.2,
+      depth: 0.18,
+    });
+  }
+  addJoinedTimberMembers(
+    group,
+    'Guardhouse joined road-facade sill post rail and wall-plate frame',
+    facadeFrameMembers,
+  );
 
   // A deep lean-to covers drill equipment and provisions beside the street.
   // Its stepped post heights follow the roof plane; wall ledger, plates,
@@ -902,18 +959,57 @@ export function createGuardhouseMesh(): THREE.Group {
     const segment = new THREE.Group();
     segment.name = 'GuardhouseFoodSegment';
     const [x, y, z, scale] = foodCrates[index];
-    addCrate(segment, x, y, z, scale);
+    addCrate(segment, x, y, z, scale, `guardhouse-food-crate-${index + 1}`);
     foodStockpile.add(segment);
   }
   group.add(foodStockpile);
   addGuardhousePayrollChest(group);
 
-  // A compact palisade fragment frames the drill yard without implying a full wall system.
+  // A compact palisade fragment frames the drill yard without implying a full
+  // wall system. The posts and tips are two shared-material instance draws,
+  // rather than fourteen tiny meshes with alternating near-white timber.
+  const guardhouseStakeMaterial = timberMaterial('weathered');
+  const guardhouseStakeGeometry = prepareBuildingGeometryUvs(
+    new THREE.CylinderGeometry(0.12, 0.16, 1.9, 6),
+    guardhouseStakeMaterial,
+  );
+  const guardhouseStakes = new THREE.InstancedMesh(
+    guardhouseStakeGeometry,
+    guardhouseStakeMaterial,
+    7,
+  );
+  guardhouseStakes.name = 'Guardhouse drill-yard brown timber palisade stakes';
+  const guardhouseTipMaterial = timberMaterial('dark');
+  const guardhouseTipGeometry = prepareBuildingGeometryUvs(
+    new THREE.ConeGeometry(0.17, 0.4, 6),
+    guardhouseTipMaterial,
+  );
+  const guardhouseTips = new THREE.InstancedMesh(
+    guardhouseTipGeometry,
+    guardhouseTipMaterial,
+    7,
+  );
+  guardhouseTips.name = 'Guardhouse drill-yard brown timber palisade tips';
+  const palisadeTransform = new THREE.Object3D();
   for (let index = 0; index < 7; index += 1) {
     const z = -3.2 + index * 1.02;
-    addMesh(group, new THREE.CylinderGeometry(0.12, 0.16, 1.9, 6), timberMaterial(index % 2 ? 'dark' : 'weathered'), new THREE.Vector3(6.65, 0.95, z));
-    addMesh(group, new THREE.ConeGeometry(0.17, 0.4, 6), timberMaterial('weathered'), new THREE.Vector3(6.65, 2.1, z));
+    // Keep the low-poly rotated post AABBs over their existing earth footing
+    // and inside the guardhouse's conservative placement/culling envelope.
+    palisadeTransform.position.set(6.56, 0.95, z);
+    palisadeTransform.rotation.set(0, index * 0.31, 0);
+    palisadeTransform.updateMatrix();
+    guardhouseStakes.setMatrixAt(index, palisadeTransform.matrix);
+    palisadeTransform.position.y = 2.1;
+    palisadeTransform.rotation.y += 0.08;
+    palisadeTransform.updateMatrix();
+    guardhouseTips.setMatrixAt(index, palisadeTransform.matrix);
   }
+  guardhouseStakes.instanceMatrix.needsUpdate = true;
+  guardhouseTips.instanceMatrix.needsUpdate = true;
+  guardhouseStakes.castShadow = true;
+  guardhouseStakes.receiveShadow = true;
+  guardhouseTips.castShadow = true;
+  group.add(guardhouseStakes, guardhouseTips);
   addMesh(group, new THREE.BoxGeometry(0.18, 0.08, 6.45), earth, new THREE.Vector3(6.62, 0.05, 0));
   return group;
 }
@@ -1139,8 +1235,8 @@ export function createPalisadedRefugeMesh(): THREE.Group {
     timberMaterial('mid'),
     new THREE.Vector3(-1.65, 0.55, -2.25),
   );
-  addCrate(group, -2.8, 0.04, -0.15, 0.82);
-  addCrate(group, -1.65, 0.04, 0.12, 0.68);
+  addCrate(group, -2.8, 0.04, -0.15, 0.82, 'refuge-emergency-crate-west');
+  addCrate(group, -1.65, 0.04, 0.12, 0.68, 'refuge-emergency-crate-east');
   addMesh(
     group,
     new THREE.BoxGeometry(3.5, 0.08, 2.55),

@@ -1348,6 +1348,7 @@ export function getSeedThreeForestStructuralStats(
       !mesh.isInstancedMesh
       || mesh.count <= 0
       || mesh.userData.seedThreeShadowOnly === true
+      || !seedThreeMeshIsSubmitted(mesh, forest.group)
     ) return;
     draws++;
     instances += mesh.count;

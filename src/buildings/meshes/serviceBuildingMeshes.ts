@@ -642,20 +642,22 @@ export function createForagersShedMesh(): THREE.Group {
 
 function addFishingRack(group: THREE.Group, centerX: number, centerZ: number): void {
   for (const x of [centerX - 1.65, centerX + 1.65]) {
-    addMesh(
+    const post = addMesh(
       group,
       new THREE.BoxGeometry(0.16, 2.45, 0.16),
       timberMaterial('dark'),
       new THREE.Vector3(x, 1.22, centerZ),
     );
+    post.name = 'Fishing rack timber post';
   }
-  addMesh(
+  const crossbar = addMesh(
     group,
     new THREE.CylinderGeometry(0.07, 0.07, 3.65, 8),
     timberMaterial('weathered'),
     new THREE.Vector3(centerX, 2.34, centerZ),
     new THREE.Euler(0, 0, Math.PI * 0.5),
   );
+  crossbar.name = 'Fishing rack timber crossbar';
   for (let strand = -3; strand <= 3; strand++) {
     const x = centerX + strand * 0.43;
     const dryingCord = addMesh(
@@ -794,7 +796,7 @@ export function createFishingCampMesh(): THREE.Group {
   // Keep the shared yard open: the rack is east of both door axes, and the
   // cans/barrels sit beside it instead of clipping a facade or circulation.
   const rackX = 5.95;
-  const rackZ = 2.55;
+  const rackZ = 2.8;
   addFishingRack(group, rackX, rackZ);
   addFishingWorkCans(group, rackX + 1.25, rackZ - 0.25);
   addBarrel(group, rackX + 1.62, rackZ + 0.52, 0.72);

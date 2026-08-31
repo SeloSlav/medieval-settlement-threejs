@@ -5,6 +5,8 @@
  * the substantially longer scene bootstrap.
  */
 export { DeliveryAgentRenderer } from '../logistics/DeliveryAgentRenderer.ts';
+export { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
+export { BuildingTool } from '../buildings/BuildingTool.ts';
 export { FireEffectsRenderer } from '../fires/FireEffectsRenderer.ts';
 export { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
 export { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';

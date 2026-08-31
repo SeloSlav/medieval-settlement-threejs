@@ -144,6 +144,12 @@ const visuals = read('src/residences/BurialMarkers.ts');
 assert.match(visuals, /Shrouded body/);
 assert.match(visuals, /Graveyard/);
 assert.match(visuals, /InstancedMesh/);
-assert.match(visuals, /Gravedigger handcart and attendant/);
+assert.match(visuals, /Gravedigger handcart/);
+assert.match(visuals, /requiresAuthoredGravediggerAgent/);
+assert.doesNotMatch(
+  visuals,
+  /const torso = new THREE\.Mesh|const head = new THREE\.Mesh|const leg = new THREE\.Mesh/,
+  'burial markers must not synthesize a primitive humanoid attendant',
+);
 
 console.log('Persistent-home welfare, mortality, burial, and service-pressure contract verified.');

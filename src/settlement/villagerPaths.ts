@@ -21,13 +21,15 @@ export type HomePlotLeisureArea = {
   backyardDepth: number;
 };
 
-/** Hard ceiling for visible crowd agents in a developed city. */
-export const MAX_VILLAGERS_TOTAL = 1024;
-export const MAX_VILLAGERS_PER_RESIDENCE = 8;
-/** One visible agent per N residents (representative density). */
-export const POPULATION_DENSITY_RATIO = 5;
-/** Minimum road metres allocated per walking agent. */
-export const MIN_ROAD_METERS_PER_AGENT = 8;
+/**
+ * Compatibility exports retained for callers and diagnostics. They express
+ * the full-quality policy now: presentation has no population, household, or
+ * road-length ceiling and one authoritative resident maps to one actor.
+ */
+export const MAX_VILLAGERS_TOTAL = Number.MAX_SAFE_INTEGER;
+export const MAX_VILLAGERS_PER_RESIDENCE = Number.MAX_SAFE_INTEGER;
+export const POPULATION_DENSITY_RATIO = 1;
+export const MIN_ROAD_METERS_PER_AGENT = 0;
 
 export function residenceDoorPosition(residence: ResidenceState): PointXZ {
   const doorOffset = MAIN_HOUSE_DEPTH * 0.5 - 0.1;
@@ -40,12 +42,8 @@ export function residenceDoorPosition(residence: ResidenceState): PointXZ {
 }
 
 export function computeRoadSlotBudget(network: RoadNetwork | null): number {
-  if (!network || network.edges.size === 0) return MAX_VILLAGERS_TOTAL;
-  let totalLength = 0;
-  for (const edge of network.edges.values()) {
-    totalLength += edge.length;
-  }
-  return Math.min(MAX_VILLAGERS_TOTAL, Math.max(8, Math.floor(totalLength / MIN_ROAD_METERS_PER_AGENT)));
+  void network;
+  return MAX_VILLAGERS_TOTAL;
 }
 
 export function computeVillagerSlots(
@@ -60,16 +58,15 @@ export function computeVillagerSlots(
   for (const residence of residences) {
     const population = populationByResidence?.get(residence.id) ?? residence.population;
     if (residence.abandoned || population <= 0) continue;
-    const count = Math.min(
-      MAX_VILLAGERS_PER_RESIDENCE,
-      Math.max(1, Math.ceil(population / POPULATION_DENSITY_RATIO)),
-    );
+    const count = Math.max(0, Math.floor(population));
     slots.set(residence.id, count);
     total += count;
   }
 
-  const roadBudget = computeRoadSlotBudget(roadNetwork);
-  const cap = Math.max(0, Math.min(MAX_VILLAGERS_TOTAL, roadBudget, maxSlots));
+  void roadNetwork;
+  const cap = Number.isFinite(maxSlots)
+    ? Math.max(0, Math.floor(maxSlots))
+    : MAX_VILLAGERS_TOTAL;
   if (total <= cap) return slots;
 
   const entries = [...slots.entries()].sort((a, b) => b[1] - a[1]);

@@ -16,6 +16,7 @@ type RenderSnapshot = {
   readonly buckets: readonly [string, number][];
   readonly bounds: readonly number[];
   readonly geometryBytes: number;
+  readonly colorGeometryBytes: number;
   readonly uvFingerprint: readonly string[];
   readonly normalFingerprint: readonly string[];
   readonly tangentFingerprint: readonly string[];
@@ -96,17 +97,22 @@ const denseKinds = [
   'stone_quarry',
   'smokehouse',
 ] as const;
-// Reviewed against the current authored lineup. This representative fixture
-// deliberately includes the one-per-settlement monastery and founders' camp,
-// plus the animated watermill wheel; their seasonal/sway/visibility children
-// must remain independently addressable. These ceilings retain 10% headroom
-// while the relative reduction below still requires batching to remove 80%.
+// This representative fixture deliberately includes the one-per-settlement
+// monastery and founders' camp, plus the animated watermill wheel; their
+// seasonal/sway/visibility children must remain independently addressable.
+// Exact caster batches live only on the shadow layer and remain refreshable
+// runtime boundaries, so the end-to-end relative gate measures the color layer.
+// A second relative gate audits eligible local-to-cross static fragmentation;
+// the total ceiling still covers color plus shadow objects.
 const DENSE_COLOR_RENDER_OBJECT_BUDGET = 418;
 const DENSE_TOTAL_RENDER_OBJECT_BUDGET = 438;
 const denseRoot = new THREE.Group();
 const denseCrossBatches = new BuildingStaticBatches(denseRoot);
 let denseBeforeDraws = 0;
+let denseBeforeColorDraws = 0;
 let denseLocalDraws = 0;
+let denseLocalColorDraws = 0;
+let denseLocalStaticDraws = 0;
 let denseBeforeBytes = 0;
 for (const [index, kind] of denseKinds.entries()) {
   const building = createBuildingMesh(kind);
@@ -115,21 +121,25 @@ for (const [index, kind] of denseKinds.entries()) {
   denseRoot.add(building);
   const before = renderSnapshot(building);
   denseBeforeDraws += before.draws;
+  denseBeforeColorDraws += before.colorDraws;
   denseBeforeBytes += before.geometryBytes;
-  batchCompletedBuildingStaticMeshes(building);
-  denseLocalDraws += renderSnapshot(building).draws;
+  const localStats = batchCompletedBuildingStaticMeshes(building);
+  denseLocalStaticDraws += localStats.batchedDraws;
+  const local = renderSnapshot(building);
+  denseLocalDraws += local.draws;
+  denseLocalColorDraws += local.colorDraws;
   denseCrossBatches.registerBuilding(`dense-${index}`, building);
   denseCrossBatches.updateBuilding(`dense-${index}`, building, true);
 }
 denseCrossBatches.finalizeGeometryBuffers();
 const denseAfter = renderSnapshot(denseRoot);
 const denseStats = denseCrossBatches.getStats();
-const denseNativeDraws = denseAfter.draws
+const denseNativeColorDraws = denseAfter.colorDraws
   - denseStats.renderObjects
   + denseStats.nativeDrawCommands;
 assert.ok(
-  denseBeforeDraws >= 1_200,
-  `dense actual-building fixture must retain the reviewed load (got ${denseBeforeDraws})`,
+  denseBeforeColorDraws >= 1_200,
+  `dense actual-building fixture must retain the reviewed color load (got ${denseBeforeColorDraws})`,
 );
 assert.ok(
   denseAfter.colorDraws <= DENSE_COLOR_RENDER_OBJECT_BUDGET,
@@ -140,8 +150,17 @@ assert.ok(
   `${denseKinds.length} dense completed buildings must stay at or below ${DENSE_TOTAL_RENDER_OBJECT_BUDGET} color-plus-shadow render objects (got ${denseAfter.draws})`,
 );
 assert.ok(
-  denseAfter.draws <= denseBeforeDraws * 0.2,
-  `dense batching must remove at least 80% of actual building submissions (${denseBeforeDraws} -> ${denseAfter.draws})`,
+  denseAfter.colorDraws <= denseBeforeColorDraws * 0.2,
+  `dense batching must remove at least 80% of color submissions (${denseBeforeColorDraws} -> ${denseAfter.colorDraws})`,
+);
+assert.ok(
+  denseStats.renderObjects <= denseLocalStaticDraws * 0.2,
+  `cross-building packing must remove at least 80% of eligible local static render objects (${denseLocalStaticDraws} -> ${denseStats.renderObjects})`,
+);
+assert.ok(
+  denseAfter.draws - denseAfter.colorDraws
+    <= denseBeforeDraws - denseBeforeColorDraws,
+  'static batching must not add refreshable shadow-only render objects',
 );
 assert.ok(
   denseAfter.geometryBytes <= denseBeforeBytes + 840,
@@ -152,8 +171,8 @@ assert.ok(
   'cross-building traversal batches must pack multiple instances',
 );
 assert.ok(
-  denseNativeDraws <= denseLocalDraws,
-  `cross-building packing must not add WebGPU draw commands (${denseLocalDraws} -> ${denseNativeDraws})`,
+  denseNativeColorDraws <= denseLocalColorDraws,
+  `cross-building packing must not add color WebGPU draw commands (${denseLocalColorDraws} -> ${denseNativeColorDraws})`,
 );
 testDetachedGeometryDisposal();
 denseCrossBatches.dispose();
@@ -166,14 +185,19 @@ const repeated = testRepeatedBuildingCrossBatches();
 
 console.log(
   'building static batching passed '
-    + `(${denseBeforeDraws} -> ${denseAfter.draws} dense-${denseKinds.length} render objects; `
-    + `${denseLocalDraws} -> ${denseNativeDraws} dense-${denseKinds.length} WebGPU draw commands; `
+    + `(${denseBeforeColorDraws} -> ${denseAfter.colorDraws} dense-${denseKinds.length} color render objects; `
+    + `${denseBeforeDraws} -> ${denseAfter.draws} including shadow-only; `
+    + `${denseLocalStaticDraws} -> ${denseStats.renderObjects} eligible local-to-cross static objects; `
+    + `${denseLocalColorDraws} -> ${denseNativeColorDraws} dense-${denseKinds.length} color WebGPU draw commands `
+    + `(${denseLocalDraws} local objects including shadow-only); `
     + `${denseBeforeBytes} -> ${denseAfter.geometryBytes} geometry bytes; `
     + `${denseAfter.triangles} visible triangles; `
     + `${denseStats.instances} instances / ${denseStats.renderObjects} render objects; `
-    + `${repeated.drawsBefore} -> ${repeated.drawsAfter} repeated-100 render objects, `
+    + `${repeated.drawsBefore} -> ${repeated.drawsAfter} repeated-100 color render objects, `
+    + `(${repeated.totalDrawsBefore} -> ${repeated.totalDrawsAfter} including shadow-only), `
     + `${repeated.nativeDraws} WebGPU draw commands; `
-    + `${repeated.bytesBefore} -> ${repeated.bytesAfter} whole-scene geometry bytes `
+    + `${repeated.bytesBefore} -> ${repeated.bytesAfter} color geometry bytes `
+    + `(${repeated.totalBytesBefore} -> ${repeated.totalBytesAfter} whole-scene); `
     + `(${repeated.packedBytes} packed / ${repeated.uniqueGeometries} unique); `
     + `${repeated.registrationMs.toFixed(1)}ms registration + `
     + `${repeated.compactionMs.toFixed(1)}ms compaction; ${perKind.join(', ')})`,
@@ -182,9 +206,13 @@ console.log(
 function testRepeatedBuildingCrossBatches(): {
   drawsBefore: number;
   drawsAfter: number;
+  totalDrawsBefore: number;
+  totalDrawsAfter: number;
   nativeDraws: number;
   bytesBefore: number;
   bytesAfter: number;
+  totalBytesBefore: number;
+  totalBytesAfter: number;
   packedBytes: number;
   uniqueGeometries: number;
   registrationMs: number;
@@ -199,7 +227,9 @@ function testRepeatedBuildingCrossBatches(): {
   const kinds = ['chapel', 'mine', 'threshing_barn'] as const;
   const buildings: THREE.Group[] = [];
   let drawsBefore = 0;
+  let totalDrawsBefore = 0;
   let bytesBefore = 0;
+  let totalBytesBefore = 0;
   let probeContract: StaticSourceContract[] | null = null;
   let probeCollider: number[] | null = null;
   let registrationMs = 0;
@@ -210,8 +240,10 @@ function testRepeatedBuildingCrossBatches(): {
     building.scale.set(1, 1, 1);
     root.add(building);
     const raw = renderSnapshot(building);
-    drawsBefore += raw.draws;
-    bytesBefore += raw.geometryBytes;
+    drawsBefore += raw.colorDraws;
+    totalDrawsBefore += raw.draws;
+    bytesBefore += raw.colorGeometryBytes;
+    totalBytesBefore += raw.geometryBytes;
     batchCompletedBuildingStaticMeshes(building);
     if (index === 0) {
       probeContract = staticSourceContracts(building);
@@ -252,27 +284,37 @@ function testRepeatedBuildingCrossBatches(): {
   const compactionMs = performance.now() - compactionStartedAt;
   const after = renderSnapshot(root);
   const stats = batches.getStats();
-  const nativeDraws = after.draws - stats.renderObjects + stats.nativeDrawCommands;
+  const nativeDraws = after.colorDraws
+    - stats.renderObjects
+    + stats.nativeDrawCommands;
   assert.ok(drawsBefore >= 6_000, `repeated fixture must retain dense authored load (${drawsBefore})`);
   assert.ok(
-    after.draws <= 350,
-    `100 repeated completed buildings must stay at or below 350 render objects (${after.draws})`,
+    after.colorDraws <= 350,
+    `100 repeated completed buildings must stay at or below 350 color render objects (${after.colorDraws})`,
   );
   assert.ok(
-    after.draws <= drawsBefore * 0.03,
-    `repeated cross batching must remove at least 97% of render objects (${drawsBefore} -> ${after.draws})`,
+    after.colorDraws <= drawsBefore * 0.03,
+    `repeated cross batching must remove at least 97% of color render objects (${drawsBefore} -> ${after.colorDraws})`,
   );
   assert.ok(
-    nativeDraws <= 500,
-    `identical-geometry instancing must stay at or below 500 WebGPU draw commands (${nativeDraws})`,
+    after.draws - after.colorDraws <= totalDrawsBefore - drawsBefore,
+    'repeated static batching must not add refreshable shadow-only render objects',
+  );
+  assert.ok(
+    nativeDraws <= 100,
+    `identical-geometry instancing must stay at or below 100 WebGPU draw commands (${nativeDraws})`,
   );
   assert.ok(
     nativeDraws <= drawsBefore * 0.05,
     `repeated instancing must remove at least 95% of WebGPU draw commands (${drawsBefore} -> ${nativeDraws})`,
   );
   assert.ok(
-    after.geometryBytes <= bytesBefore * 0.35,
-    `content-verified reuse must remove at least 65% of whole-building geometry bytes (${bytesBefore} -> ${after.geometryBytes}; packed=${stats.geometryBytes}, unique=${stats.uniqueGeometries})`,
+    after.colorGeometryBytes <= bytesBefore * 0.35,
+    `content-verified reuse must remove at least 65% of color geometry bytes (${bytesBefore} -> ${after.colorGeometryBytes}; packed=${stats.geometryBytes}, unique=${stats.uniqueGeometries})`,
+  );
+  assert.ok(
+    after.geometryBytes <= totalBytesBefore + 840,
+    `repeated packing must not inflate whole-scene geometry bytes (${totalBytesBefore} -> ${after.geometryBytes})`,
   );
   assert.ok(
     stats.instances >= stats.uniqueGeometries * 4,
@@ -306,10 +348,14 @@ function testRepeatedBuildingCrossBatches(): {
   for (const building of buildings) disposeGeometry(building);
   return {
     drawsBefore,
-    drawsAfter: after.draws,
+    drawsAfter: after.colorDraws,
+    totalDrawsBefore,
+    totalDrawsAfter: after.draws,
     nativeDraws,
     bytesBefore,
-    bytesAfter: after.geometryBytes,
+    bytesAfter: after.colorGeometryBytes,
+    totalBytesBefore,
+    totalBytesAfter: after.geometryBytes,
     packedBytes: stats.geometryBytes,
     uniqueGeometries: stats.uniqueGeometries,
     registrationMs,
@@ -357,6 +403,7 @@ function renderSnapshot(root: THREE.Object3D): RenderSnapshot {
   const direction = new THREE.Vector3();
   const normalMatrix = new THREE.Matrix3();
   const liveGeometries = new Set<THREE.BufferGeometry>();
+  const colorGeometries = new Set<THREE.BufferGeometry>();
   const uvFingerprint: string[] = [];
   const normalFingerprint: string[] = [];
   const tangentFingerprint: string[] = [];
@@ -365,6 +412,7 @@ function renderSnapshot(root: THREE.Object3D): RenderSnapshot {
     if (!mesh.isMesh) return;
     const geometry = mesh.geometry;
     liveGeometries.add(geometry);
+    if ((mesh.layers.mask & 1) !== 0) colorGeometries.add(geometry);
     const position = geometry.getAttribute('position');
     if (!position) return;
     const instanceCount = (mesh as THREE.InstancedMesh).isInstancedMesh
@@ -452,6 +500,10 @@ function renderSnapshot(root: THREE.Object3D): RenderSnapshot {
       ? []
       : [...bounds.min.toArray(), ...bounds.max.toArray()],
     geometryBytes: [...liveGeometries].reduce(
+      (total, geometry) => total + geometryByteLength(geometry),
+      0,
+    ),
+    colorGeometryBytes: [...colorGeometries].reduce(
       (total, geometry) => total + geometryByteLength(geometry),
       0,
     ),

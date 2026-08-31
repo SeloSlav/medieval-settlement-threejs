@@ -16,6 +16,15 @@ import { createResidenceMesh } from '../src/residences/ResidenceMarkers.ts';
 
 const PROCEDURAL_SOURCE = 'threejs-procedural';
 const VISUAL_SEED = 1550;
+const DEFAULT_BUILDING_SOURCE_TRIANGLE_CEILING = 5_000;
+const BUILDING_SOURCE_TRIANGLE_CEILINGS: Partial<Record<BuildingKind, number>> = {
+  // Multi-structure sites and mutually exclusive stock/display banks keep
+  // explicit source-memory ceilings even though not every triangle is drawn.
+  founders_camp: 18_000,
+  marketplace: 14_500,
+  mine: 7_000,
+  monastery: 16_000,
+};
 const AUTHORED_GLB_METADATA_KEYS = [
   'authoredGlbAsset',
   'authoredGlbVersion',
@@ -148,6 +157,27 @@ function auditFiniteGeometry(root: THREE.Object3D, label: string): GeometryAudit
   return { meshes, triangles, vertices };
 }
 
+function visibleTriangleCount(root: THREE.Object3D): number {
+  let triangles = 0;
+  root.traverse((object) => {
+    const mesh = object as THREE.Mesh<THREE.BufferGeometry>;
+    if (!mesh.isMesh) return;
+    let current: THREE.Object3D | null = object;
+    while (current) {
+      if (!current.visible) return;
+      current = current.parent;
+    }
+    const elements = mesh.geometry.index?.count
+      ?? mesh.geometry.getAttribute('position')?.count
+      ?? 0;
+    const instances = (mesh as THREE.InstancedMesh).isInstancedMesh
+      ? Math.max(0, Math.floor((mesh as THREE.InstancedMesh).count))
+      : 1;
+    triangles += Math.floor(elements / 3) * instances;
+  });
+  return triangles;
+}
+
 function assertProceduralBuildingMetadata(root: THREE.Group, kind: BuildingKind): void {
   assert.equal(root.userData.proceduralArchitecture, true);
   assert.equal(root.userData.proceduralArchitectureVersion, PROCEDURAL_ARCHITECTURE_VERSION);
@@ -187,6 +217,12 @@ function assertProceduralBuildingMetadata(root: THREE.Group, kind: BuildingKind)
   assert.ok(Number(metrics.sourceMeshes) > 0 && Number.isFinite(metrics.sourceMeshes));
   assert.ok(Number(metrics.sourceTriangles) > 0 && Number.isFinite(metrics.sourceTriangles));
   assert.ok(Number(metrics.sourceVertices) > 0 && Number.isFinite(metrics.sourceVertices));
+  const triangleCeiling = BUILDING_SOURCE_TRIANGLE_CEILINGS[kind]
+    ?? DEFAULT_BUILDING_SOURCE_TRIANGLE_CEILING;
+  assert.ok(
+    Number(metrics.sourceTriangles) <= triangleCeiling,
+    `${kind} exceeds its reviewed ${triangleCeiling.toLocaleString('en-US')}-triangle source ceiling (${Number(metrics.sourceTriangles).toLocaleString('en-US')})`,
+  );
 }
 
 function objectsNamed(root: THREE.Object3D, name: string): THREE.Object3D[] {
@@ -271,6 +307,11 @@ for (const tier of [1, 2, 3, 4] as const) {
     const plan = residence.userData.residenceBuildingPlan as { tier?: number; seed?: number } | undefined;
     assert.equal(plan?.tier, tier);
     assert.equal(plan.seed, VISUAL_SEED);
+    const visibleTriangles = visibleTriangleCount(residence);
+    assert.ok(
+      visibleTriangles <= 4_000,
+      `residence tier ${tier} exceeds the 4,000-triangle active budget (${visibleTriangles})`,
+    );
     residenceRequestKeys.add(requestKey);
     auditedMeshes += audit.meshes;
     auditedTriangles += audit.triangles;

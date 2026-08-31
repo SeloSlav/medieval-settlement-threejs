@@ -52,6 +52,24 @@ declare module 'three/webgpu' {
     setSize(width: number, height: number): void;
   }
 
+  export class StorageBufferAttribute extends THREE.BufferAttribute {
+    readonly isStorageBufferAttribute: true;
+    constructor(
+      count: number | ArrayBufferView,
+      itemSize: number,
+      typeClass?: Float32ArrayConstructor,
+    );
+  }
+
+  export class StorageInstancedBufferAttribute extends THREE.InstancedBufferAttribute {
+    readonly isStorageInstancedBufferAttribute: true;
+    constructor(
+      count: number | ArrayBufferView,
+      itemSize: number,
+      typeClass?: Float32ArrayConstructor,
+    );
+  }
+
   export class NodeMaterial extends THREE.Material {
     fragmentNode: unknown;
     colorNode: unknown;

@@ -463,35 +463,39 @@ function addBellTower(
   // suspended from the steeple ceiling instead of floating near the floor.
   const bellLift = 0.63;
 
-  addMesh(
+  const footing = addMesh(
     group,
     new THREE.BoxGeometry(baseSize + 0.16, 0.2, baseSize + 0.16),
     stoneMaterial('light'),
     new THREE.Vector3(0, belfryFloorY, towerZ),
   );
+  footing.name = 'Parish church belfry ridge footing';
   for (const [sx, sz] of [[-1, -1], [-1, 1], [1, -1], [1, 1]] as const) {
-    addMesh(
+    const post = addMesh(
       group,
       new THREE.BoxGeometry(0.2, belfryHeight, 0.2),
       timberMaterial('dark'),
       new THREE.Vector3(sx * 0.62, belfryFloorY + belfryHeight * 0.5, towerZ + sz * 0.62),
     );
+    post.name = 'Parish church belfry timber support post';
   }
   for (const zSign of [-1, 1] as const) {
-    addMesh(
+    const beam = addMesh(
       group,
       new THREE.BoxGeometry(baseSize, 0.18, 0.18),
       timberMaterial('weathered'),
       new THREE.Vector3(0, belfryFloorY + belfryHeight, towerZ + zSign * 0.62),
     );
+    beam.name = 'Parish church belfry transverse upper beam';
   }
   for (const xSign of [-1, 1] as const) {
-    addMesh(
+    const beam = addMesh(
       group,
       new THREE.BoxGeometry(0.18, 0.18, baseSize),
       timberMaterial('weathered'),
       new THREE.Vector3(xSign * 0.62, belfryFloorY + belfryHeight, towerZ),
     );
+    beam.name = 'Parish church belfry longitudinal upper beam';
   }
 
   addMesh(
@@ -521,7 +525,9 @@ function addBellTower(
     new THREE.Vector3(0, belfryFloorY + 0.38 + bellLift, towerZ),
   );
 
-  const towerRoofY = belfryFloorY + belfryHeight + 0.63;
+  // The roof skin starts on the upper-beam centerline. Its thickness then
+  // overlaps the beam without descending into the open bell apertures.
+  const towerRoofY = belfryFloorY + belfryHeight + 0.74;
   addHippedRoof(group, {
     width: 1.32 * Math.SQRT2,
     depth: 1.32 * Math.SQRT2,
@@ -659,13 +665,21 @@ function addCompactBellCote(
   const bellY = baseY + height - upperBeamHeight * 0.5 - bellClearance - bellHeight * 0.5;
   const postMaterial = stoneTier ? stoneMaterial('light') : timberMaterial('dark');
   for (const x of [-span * 0.5, span * 0.5]) {
-    addMesh(
+    const post = addMesh(
       group,
       new THREE.BoxGeometry(stoneTier ? 0.24 : 0.18, height, 0.22),
       postMaterial,
       new THREE.Vector3(x, baseY + height * 0.5, z),
     );
+    post.name = `Compact church belfry ${stoneTier ? 'stone' : 'timber'} support post`;
   }
+  const lowerBeam = addMesh(
+    group,
+    new THREE.BoxGeometry(span + 0.28, stoneTier ? 0.2 : 0.18, 0.3),
+    postMaterial,
+    new THREE.Vector3(0, baseY + (stoneTier ? 0.1 : 0.09), z),
+  );
+  lowerBeam.name = 'Compact church belfry lower sill beam';
   const upperBeam = addMesh(
     group,
     new THREE.BoxGeometry(span + 0.28, upperBeamHeight, 0.34),
@@ -681,7 +695,7 @@ function addCompactBellCote(
   );
   bell.name = 'Compact church bell';
   const capHeight = stoneTier ? 1.08 : 0.9;
-  const capEaveY = baseY + height - 0.05;
+  const capEaveY = baseY + height;
   addHippedRoof(group, {
     width: span + 0.46,
     depth: span + 0.46,
@@ -857,7 +871,7 @@ function createCompactChurchMesh(tier: 1 | 2): THREE.Group {
     group,
     materials,
     -halfD * 0.35,
-    wallTop + ridgeHeight * 0.78,
+    wallTop + ridgeHeight + 0.075,
     roofMaterial,
     stoneTier,
   );
@@ -966,7 +980,7 @@ function createLargeStoneChurchMesh(): THREE.Group {
     }
   }
 
-  addBellTower(group, materials, 1.18, wallTop + ridgeHeight * 0.7, roofMaterial);
+  addBellTower(group, materials, 1.18, wallTop + ridgeHeight, roofMaterial);
 
   const frontGableZ = halfD + 0.12;
   const oculus = new THREE.Group();

@@ -45,7 +45,7 @@ for (let tier = 1; tier <= 4; tier += 1) {
       );
       assert.equal(
         smokeAnchor.userData.residenceSmokeExit,
-        tier === 1 ? 'through-thatch' : 'chimney',
+        tier === 1 ? 'through-shingle-roof' : 'chimney',
         label('smoke anchor retains its authored exit'),
       );
       const dynamic = collectDynamic(home, windowMaterial);
@@ -59,7 +59,11 @@ for (let tier = 1; tier <= 4; tier += 1) {
       assert.deepEqual(after.buckets, before.buckets, label('shadow/material buckets'));
       assertBounds(after.bounds, before.bounds, label('world bounds'));
       assert.deepEqual(after.uvs, before.uvs, label('UVs'));
-      assert.deepEqual(after.normals, before.normals, label('world normals'));
+      assertDirectionFingerprintsEqual(
+        after.normals,
+        before.normals,
+        label('world normals'),
+      );
       assert.deepEqual(after.tangents, before.tangents, label('world tangents'));
       assert.ok(after.geometryBytes <= before.geometryBytes, label('geometry bytes'));
       for (const entry of dynamic) {
@@ -427,7 +431,7 @@ function snapshot(root: THREE.Object3D): Snapshot {
       normalMatrix.getNormalMatrix(mesh.matrixWorld);
       for (let index = 0; index < normal.count; index += 1) {
         direction.fromBufferAttribute(normal, index).applyNormalMatrix(normalMatrix);
-        normals.push(tuple(direction.x, direction.y, direction.z));
+        normals.push(normalTuple(direction.x, direction.y, direction.z));
       }
     }
     const tangent = geometry.getAttribute('tangent');
@@ -480,6 +484,34 @@ function allGeometryStats(root: THREE.Object3D): { geometries: number; bytes: nu
 
 function tuple(...values: number[]): string {
   return values.map((value) => Math.round(value * 10_000)).join(':');
+}
+
+function normalTuple(...values: number[]): string {
+  return values.map((value) => Math.round(value * 1_000_000)).join(':');
+}
+
+/**
+ * Merged normals are baked into Float32 attributes before the residence root
+ * transform is applied. One 1e-6 fingerprint bin bounds that unavoidable
+ * intermediate rounding to roughly 0.0002 degrees for unit directions.
+ */
+function assertDirectionFingerprintsEqual(
+  actual: readonly string[],
+  expected: readonly string[],
+  message: string,
+): void {
+  assert.equal(actual.length, expected.length, message);
+  for (let index = 0; index < actual.length; index += 1) {
+    const actualComponents = actual[index]!.split(':').map(Number);
+    const expectedComponents = expected[index]!.split(':').map(Number);
+    assert.equal(actualComponents.length, expectedComponents.length, `${message} tuple ${index}`);
+    for (let component = 0; component < actualComponents.length; component += 1) {
+      assert.ok(
+        Math.abs(actualComponents[component]! - expectedComponents[component]!) <= 1,
+        `${message} tuple ${index}, component ${component}: ${expected[index]} !== ${actual[index]}`,
+      );
+    }
+  }
 }
 
 function assertResidenceBatchState(

@@ -117,8 +117,9 @@ import type { EnvironmentState } from '../world/seasonPolicy.ts';
 import { markStartupCheckpoint } from '../app/startupDiagnostics.ts';
 import { setWorldAnimationTime } from './worldAnimationTime.ts';
 import {
+  directionalShadowRefreshReasons,
   shouldRefreshDirectionalShadow,
-  shouldRefreshDirectionalShadowAtlas,
+  type DirectionalShadowRefreshReason,
 } from './directionalShadowRefreshPolicy.ts';
 import {
   beginRendererFrame,
@@ -147,6 +148,20 @@ export type SceneLoadProgress = {
 export type VegetationStartupTiming = {
   totalMs: number;
   stages: Record<string, number>;
+};
+
+export type DirectionalShadowInvalidationReason =
+  | DirectionalShadowRefreshReason
+  | 'static-casters'
+  | 'renderer-state';
+
+export type DirectionalShadowFrameStats = {
+  refreshedThisFrame: boolean;
+  refreshes: number;
+  cachedFrames: number;
+  lastRefreshFrame: number;
+  reasons: readonly DirectionalShadowInvalidationReason[];
+  reasonCounts: Readonly<Record<DirectionalShadowInvalidationReason, number>>;
 };
 
 type StartupPrecompilableRenderer = SupportedRenderer & {
@@ -285,6 +300,23 @@ export class SceneManager {
   private lastShadowTargetZ = Number.NaN;
   private lastShadowDistance = Number.NaN;
   private lastDirectionalShadowRefreshMs = Number.NEGATIVE_INFINITY;
+  private readonly pendingDirectionalShadowReasons =
+    new Set<DirectionalShadowInvalidationReason>();
+  private directionalShadowRefreshes = 0;
+  private directionalShadowCachedFrames = 0;
+  private lastDirectionalShadowRefreshFrame = 0;
+  private lastDirectionalShadowRefreshedThisFrame = false;
+  private lastDirectionalShadowReasons: readonly DirectionalShadowInvalidationReason[] = [];
+  private readonly directionalShadowReasonCounts: Record<
+    DirectionalShadowInvalidationReason,
+    number
+  > = {
+    'camera-refit': 0,
+    'forest-casters': 0,
+    'first-person-motion': 0,
+    'static-casters': 0,
+    'renderer-state': 0,
+  };
   private unsubscribeShadowPreferences: (() => void) | null = null;
   private unsubscribeMapOverlayPreference: (() => void) | null = null;
   private unsubscribeConstellationPreference: (() => void) | null = null;
@@ -554,13 +586,21 @@ export class SceneManager {
   }
 
   /**
-   * Makes hydrated startup textures resident and compiles the exact live scene
-   * material variants before gameplay can schedule its first animation frame.
+   * Compiles only the temporarily exposed first-interaction roots against the
+   * live scene's lights/environment. A full-scene compile walks the entire
+   * SeedThree woodland and then duplicates that work in the covered post/
+   * shadow submission; targeting the authored actors and founders camp keeps
+   * compilation bounded while preserving the exact live material variants.
    */
-  async precompileFirstPlayableScene(): Promise<void> {
+  async precompileFirstPlayableObjects(
+    objects: readonly THREE.Object3D[],
+  ): Promise<void> {
     const renderer = this.renderer as StartupPrecompilableRenderer;
     this.sky.preloadCelestialTexture(renderer);
-    await renderer.compileAsync(this.scene, this.camera);
+    const uniqueObjects = [...new Set(objects)].filter((object) => object.parent !== null);
+    for (const object of uniqueObjects) {
+      await renderer.compileAsync(object, this.camera, this.scene);
+    }
   }
 
   waitForFirstPlayableGpuWork(): Promise<void> {
@@ -993,6 +1033,7 @@ export class SceneManager {
   ): void {
     const rendererInfo = this.renderer.info as unknown as RendererInfoLike;
     const rendererFrameBoundary = beginRendererFrame(rendererInfo);
+    this.lastDirectionalShadowRefreshedThisFrame = false;
     if (this.vegetationBuildActive) {
       this.lastRendererFrameStats = readRendererFrameStats(
         rendererInfo,
@@ -1095,14 +1136,19 @@ export class SceneManager {
       this.lastShadowKeyDirection.copy(this.shadowKeyDirection);
       this.lastDirectionalShadowRefreshMs = shadowRefreshNowMs;
     }
-    if (shouldRefreshDirectionalShadowAtlas(
+    const directionalShadowReasons = directionalShadowRefreshReasons(
       shadowCameraNeedsRefit,
       forestShadowCastersChanged,
       firstPersonActive,
       cameraInteractionActive,
-    )) {
-      this.refreshShadowMap();
+    );
+    for (const reason of directionalShadowReasons) {
+      this.refreshShadowMap(reason);
     }
+    const shadowRefreshRequested = this.directionalShadowWillRefresh();
+    const shadowRefreshReasons = shadowRefreshRequested
+      ? this.snapshotDirectionalShadowReasons()
+      : [];
     if (import.meta.env.VITE_E2E_TEST === '1') {
       // The smoke test exercises the real node-material terrain through the
       // required WebGPU backend. It does not need to spend minutes raymarching
@@ -1112,6 +1158,7 @@ export class SceneManager {
       this.sky.visible = false;
       this.precipitation.group.visible = false;
       this.renderer.render(this.scene, this.camera);
+      this.commitDirectionalShadowFrame(shadowRefreshRequested, shadowRefreshReasons);
       this.sky.visible = skyVisible;
       this.precipitation.group.visible = precipitationVisible;
       this.completedRenderFrames++;
@@ -1122,6 +1169,7 @@ export class SceneManager {
       return;
     }
     this.postProcessor.render(dt);
+    this.commitDirectionalShadowFrame(shadowRefreshRequested, shadowRefreshReasons);
     this.completedRenderFrames++;
     this.lastRendererFrameStats = readRendererFrameStats(
       rendererInfo,
@@ -1301,6 +1349,7 @@ export class SceneManager {
     renderPasses: number;
     triangles: number;
     pixelRatio: number;
+    directionalShadow: DirectionalShadowFrameStats;
   } {
     return {
       backend: this.rendererBackend,
@@ -1309,6 +1358,14 @@ export class SceneManager {
       renderPasses: this.lastRendererFrameStats.renderPasses,
       triangles: this.lastRendererFrameStats.triangles,
       pixelRatio: this.renderer.getPixelRatio(),
+      directionalShadow: {
+        refreshedThisFrame: this.lastDirectionalShadowRefreshedThisFrame,
+        refreshes: this.directionalShadowRefreshes,
+        cachedFrames: this.directionalShadowCachedFrames,
+        lastRefreshFrame: this.lastDirectionalShadowRefreshFrame,
+        reasons: this.lastDirectionalShadowReasons,
+        reasonCounts: { ...this.directionalShadowReasonCounts },
+      },
     };
   }
 
@@ -1530,14 +1587,51 @@ export class SceneManager {
     this.rebuildRockSpatialIndex();
   }
 
-  private refreshShadowMap(): void {
+  private refreshShadowMap(
+    reason: DirectionalShadowInvalidationReason = 'static-casters',
+  ): void {
     if (this.sunLight) {
+      this.pendingDirectionalShadowReasons.add(reason);
       this.sunLight.shadow.needsUpdate = true;
     }
 
     const shadowMap = this.renderer.shadowMap as { needsUpdate?: boolean };
     if ('needsUpdate' in shadowMap) {
       shadowMap.needsUpdate = true;
+    }
+  }
+
+  private snapshotDirectionalShadowReasons(): DirectionalShadowInvalidationReason[] {
+    if (this.pendingDirectionalShadowReasons.size > 0) {
+      return [...this.pendingDirectionalShadowReasons];
+    }
+    return ['renderer-state'];
+  }
+
+  private directionalShadowWillRefresh(): boolean {
+    if (this.rendererBackend === 'webgpu') {
+      return this.sunLight.shadow.needsUpdate || this.sunLight.shadow.autoUpdate;
+    }
+    const shadowMap = this.renderer.shadowMap as {
+      autoUpdate?: boolean;
+      needsUpdate?: boolean;
+    };
+    return shadowMap.autoUpdate !== false || shadowMap.needsUpdate === true;
+  }
+
+  private commitDirectionalShadowFrame(
+    refreshed: boolean,
+    reasons: readonly DirectionalShadowInvalidationReason[],
+  ): void {
+    this.lastDirectionalShadowRefreshedThisFrame = refreshed;
+    if (refreshed) {
+      this.lastDirectionalShadowReasons = reasons;
+      for (const reason of reasons) this.directionalShadowReasonCounts[reason] += 1;
+      this.directionalShadowRefreshes += 1;
+      this.lastDirectionalShadowRefreshFrame = this.completedRenderFrames + 1;
+      this.pendingDirectionalShadowReasons.clear();
+    } else {
+      this.directionalShadowCachedFrames += 1;
     }
   }
 

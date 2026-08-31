@@ -4,9 +4,16 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import {
   isPeopleRenderingEnabled,
   isWithinCrowdView,
-  isWithinWorkAnimationRange,
   type CrowdViewState,
 } from './crowdView.ts';
+import {
+  AuthoredSkinnedInstanceBatch,
+  type AuthoredSkinnedInstanceBatchDiagnostic,
+} from '../scene/AuthoredSkinnedInstanceBatch.ts';
+import {
+  ExactMountedAttachmentBatch,
+  type ExactMountedAttachmentBatchDiagnostic,
+} from './ExactMountedAttachmentBatch.ts';
 import {
   attachWorkerTool,
   disposeWorkerToolSources,
@@ -31,11 +38,6 @@ import {
   type CombatWeaponRig,
 } from './combatWeaponAnimation.ts';
 import { CombatProjectileRenderer } from './CombatProjectileRenderer.ts';
-import { FallbackMilitaryEquipmentRenderer } from './FallbackMilitaryEquipmentRenderer.ts';
-import {
-  StrategicHumanoidRenderer,
-  type StrategicHumanoidDiagnostic,
-} from './StrategicHumanoidRenderer.ts';
 import {
   BattlefieldWeaponDropRenderer,
   type BattlefieldWeaponDropDiagnostic,
@@ -58,20 +60,10 @@ import type {
   ClericAuthoredAnimationName,
 } from './clericBehaviors.ts';
 
-/**
- * Covers a full 1,024-person settlement plus large hostile companies,
- * mercenaries, and retained casualties without dropping a visible person.
- * GPU cost remains bounded because every strategic body part is instanced.
- */
-const MAX_INSTANCES = 2048;
-const MAX_ANIMATED_VILLAGERS = 72;
-/** Far strategic views switch the whole crowd to the bounded instanced tier. */
-export const AUTHORED_RIG_DISABLE_ORBIT_DISTANCE = 112;
-/** Hysteresis prevents skeletal rigs churning while the camera crosses a tier. */
-export const AUTHORED_RIG_RESTORE_ORBIT_DISTANCE = 96;
-/** Upper bound; higher-bone rigs automatically use fewer slots per shard. */
-export const ANIMATED_RIGS_PER_SHARD = 8;
-export const MAX_ANIMATED_SKELETON_BYTES = 15_872;
+/** Initial allocation only; exact authored batches grow before omitting actors. */
+const INITIAL_AUTHORED_BATCH_CAPACITY = 256;
+/** Non-visible rig reuse is bounded independently from visible actor capacity. */
+const MAX_IDLE_RIG_POOL = 256;
 const MODEL_YAW_OFFSET = 0;
 
 const MODEL_URLS = {
@@ -140,35 +132,16 @@ type AnimatedVillager = {
   mode: VillagerRenderMode;
   actionMode: VillagerRenderMode;
   combatRig: CombatWeaponRig | null;
-  ownedMaterials: THREE.Material[];
-  colorBindings: Array<{
-    material: THREE.MeshStandardMaterial;
-    sourceMaterialName: string;
-  }>;
   skeleton: THREE.Skeleton;
+  /** Last locomotion speed already published to the three authored leg cycles. */
+  movementSpeed: number;
 };
 
-type AnimatedBatchLayer = {
-  mesh: THREE.SkinnedMesh;
-  geometry: THREE.BufferGeometry;
-  material: THREE.MeshStandardMaterial;
-  materialName: string;
-  sourceVertexCount: number;
-  sourceDrawCount: number;
-  slotColors: Uint32Array;
-  initializedColors: Uint8Array;
-  dirtyColors: Uint8Array;
-};
-
-type AnimatedVariantBatch = {
-  variant: VillagerSourceKey;
-  bonesPerRig: number;
-  rigsPerShard: number;
-  shards: Array<{
-    skeleton: THREE.Skeleton;
-    skeletonBytes: number;
-    layers: AnimatedBatchLayer[];
-  }>;
+type AuthoredSlotAppearance = {
+  agentId: string;
+  tunicColor: number;
+  skinColor: number;
+  hairColor: number;
 };
 
 function variantsShareModelSource(
@@ -178,9 +151,9 @@ function variantsShareModelSource(
   return String(MODEL_URLS[a]) === String(MODEL_URLS[b]);
 }
 
-function uniqueAnimatedBatches(
-  batches: Record<VillagerSourceKey, AnimatedVariantBatch>,
-): AnimatedVariantBatch[] {
+function uniqueAuthoredBatches(
+  batches: Record<VillagerSourceKey, AuthoredSkinnedInstanceBatch>,
+): AuthoredSkinnedInstanceBatch[] {
   return [...new Set(Object.values(batches))];
 }
 
@@ -188,20 +161,6 @@ function uniqueSourceScenes(
   sources: Record<VillagerSourceKey, VillagerSource>,
 ): THREE.Group[] {
   return [...new Set(Object.values(sources).map((source) => source.scene))];
-}
-
-export function animatedRigsPerShard(bonesPerRig: number): number {
-  if (!Number.isFinite(bonesPerRig) || bonesPerRig <= 0) return 1;
-  const matrixBytesPerRig = Math.ceil(bonesPerRig)
-    * 16
-    * Float32Array.BYTES_PER_ELEMENT;
-  return Math.max(
-    1,
-    Math.min(
-      ANIMATED_RIGS_PER_SHARD,
-      Math.floor(MAX_ANIMATED_SKELETON_BYTES / matrixBytesPerRig),
-    ),
-  );
 }
 
 export type CrowdRenderAgent = {
@@ -271,6 +230,31 @@ export type SettlementCrowdRendererOptions = {
   parent: THREE.Group;
 };
 
+export type AuthoredCrowdDiagnostic = {
+  visibleAgents: number;
+  evaluatedRigs: number;
+  submittedInstances: number;
+  proxyAgents: 0;
+  batches: Readonly<Record<VillagerSourceKey, AuthoredSkinnedInstanceBatchDiagnostic>>;
+  attachments: ExactMountedAttachmentBatchDiagnostic;
+  standards: CompanyStandardDiagnostic;
+  performance: {
+    syncCpuMs: number;
+    visibilityCpuMs: number;
+    rigCpuMs: number;
+    bodyBatchCpuMs: number;
+    attachmentCpuMs: number;
+    droppedWeaponCpuMs: number;
+    standardCpuMs: number;
+    mixerUpdates: number;
+    locomotionRateRefreshes: number;
+    appearanceColorWrites: number;
+    appearanceColorReuses: number;
+    activeRigCount: number;
+    pooledRigCount: number;
+  };
+};
+
 export function villagerHeightJitter(appearanceSeed: number): number {
   return 0.96 + ((appearanceSeed >>> 8) & 0xff) / 0xff * 0.08;
 }
@@ -291,20 +275,18 @@ export function seatedVillagerContactHeight(
 }
 
 /**
- * Renders the nearest 72 villagers with authored skeletal animations. Further
- * visible agents retain a complete eight-layer instanced humanoid silhouette,
- * which keeps hundred-person companies present without hundreds of mixers or
- * permanent capsule/pill proxies.
+ * Renders every visible person with the original rigged GLB geometry,
+ * materials, textures and animation pose. CPU rigs evaluate gameplay-specific
+ * motion while native-WebGPU storage palettes submit each source model in a
+ * bounded number of instanced draws. Camera distance never changes asset class.
  */
 export class SettlementCrowdRenderer {
   readonly ready: Promise<boolean>;
   private readonly group = new THREE.Group();
   private readonly animatedGroup = new THREE.Group();
-  private readonly color = new THREE.Color();
-  private readonly strategicHumanoids: StrategicHumanoidRenderer;
-  private readonly fallbackMilitaryEquipment: FallbackMilitaryEquipmentRenderer;
   private readonly battlefieldWeaponDrops: BattlefieldWeaponDropRenderer;
   private readonly companyStandards: CompanyStandardRenderer;
+  private readonly mountedAttachments: ExactMountedAttachmentBatch;
   private readonly companyStandardTextures: CompanyStandardTextureSet | null;
   private readonly companyStandardAgents: CompanyStandardRenderAgent[] = [];
   private readonly companyStandardAgentPool: CompanyStandardRenderAgent[] = [];
@@ -313,7 +295,6 @@ export class SettlementCrowdRenderer {
   private readonly animatedPool = new Map<string, AnimatedVillager[]>();
   private idlePooledVisualCount = 0;
   private readonly visibleAgents: CrowdRenderAgent[] = [];
-  private readonly animatedCandidates: CrowdRenderAgent[] = [];
   private readonly animatedIds = new Set<string>();
   private readonly combatProjectiles: CombatProjectileRenderer;
   private readonly pendingCombatAttackEvents: CrowdCombatAttackEvent[] = [];
@@ -321,28 +302,47 @@ export class SettlementCrowdRenderer {
   private readonly combatTarget = new THREE.Vector3();
   private sources: Record<VillagerSourceKey, VillagerSource> | null = null;
   private toolSources: WorkerToolSources | null = null;
-  private animatedBatches: Record<VillagerSourceKey, AnimatedVariantBatch> | null = null;
+  private authoredBatches: Record<VillagerSourceKey, AuthoredSkinnedInstanceBatch> | null = null;
+  private readonly authoredBatchList: AuthoredSkinnedInstanceBatch[] = [];
+  private readonly authoredBatchRequired = new Map<AuthoredSkinnedInstanceBatch, number>();
+  private readonly authoredBatchNextSlot = new Map<AuthoredSkinnedInstanceBatch, number>();
+  private readonly authoredSlotAppearances = new Map<
+    AuthoredSkinnedInstanceBatch,
+    AuthoredSlotAppearance[]
+  >();
   private readonly latestAgents: CrowdRenderAgent[] = [];
   private lastView: CrowdViewState | undefined;
-  private authoredRigsEnabled = true;
   private disposed = false;
+  private lastSyncCpuMs = 0;
+  private lastVisibilityCpuMs = 0;
+  private lastRigCpuMs = 0;
+  private lastBodyBatchCpuMs = 0;
+  private lastAttachmentCpuMs = 0;
+  private lastDroppedWeaponCpuMs = 0;
+  private lastStandardCpuMs = 0;
+  private lastMixerUpdates = 0;
+  private lastLocomotionRateRefreshes = 0;
+  private lastAppearanceColorWrites = 0;
+  private lastAppearanceColorReuses = 0;
 
   constructor(options: SettlementCrowdRendererOptions) {
     this.group.name = 'Villagers';
     this.animatedGroup.name = 'Animated villagers';
     this.group.add(this.animatedGroup);
     options.parent.add(this.group);
+    this.mountedAttachments = new ExactMountedAttachmentBatch(this.animatedGroup, {
+      initialCapacity: INITIAL_AUTHORED_BATCH_CAPACITY,
+      name: 'Exact villager tools and military equipment',
+    });
     this.combatProjectiles = new CombatProjectileRenderer(this.group);
 
-    this.strategicHumanoids = new StrategicHumanoidRenderer(this.group, MAX_INSTANCES);
-    this.fallbackMilitaryEquipment = new FallbackMilitaryEquipmentRenderer(this.group, MAX_INSTANCES);
     this.battlefieldWeaponDrops = new BattlefieldWeaponDropRenderer(this.group);
     this.companyStandardTextures = typeof document === 'undefined'
       ? null
       : createCompanyStandardTextures();
     this.companyStandards = new CompanyStandardRenderer({
       parent: this.group,
-      capacity: 64,
+      capacity: 512,
       artwork: this.companyStandardTextures?.artwork,
     });
     this.ready = this.loadSources();
@@ -353,6 +353,17 @@ export class SettlementCrowdRenderer {
     view?: CrowdViewState,
     dtSeconds = 0,
   ): void {
+    const syncStartedAt = performance.now();
+    this.lastMixerUpdates = 0;
+    this.lastLocomotionRateRefreshes = 0;
+    this.lastAppearanceColorWrites = 0;
+    this.lastAppearanceColorReuses = 0;
+    this.lastVisibilityCpuMs = 0;
+    this.lastRigCpuMs = 0;
+    this.lastBodyBatchCpuMs = 0;
+    this.lastAttachmentCpuMs = 0;
+    this.lastDroppedWeaponCpuMs = 0;
+    this.lastStandardCpuMs = 0;
     // Keep the same shallow snapshot semantics as the original array copy, but
     // reuse its backing storage on every animation frame. loadSources() may
     // replay this owned buffer directly after its asynchronous handoff.
@@ -366,7 +377,10 @@ export class SettlementCrowdRenderer {
     if (this.group.visible !== renderEnabled) {
       this.group.visible = renderEnabled;
     }
-    if (!renderEnabled) return;
+    if (!renderEnabled) {
+      this.lastSyncCpuMs = performance.now() - syncStartedAt;
+      return;
+    }
     this.combatProjectiles.update(dt);
 
     const visibleAgents = this.visibleAgents;
@@ -376,52 +390,68 @@ export class SettlementCrowdRenderer {
         visibleAgents.push(agent);
       }
     }
+    this.lastVisibilityCpuMs = performance.now() - syncStartedAt;
 
-    const animatedIds = this.pickAnimatedIds(visibleAgents, view);
+    const animatedIds = this.pickAnimatedIds(visibleAgents);
     if (!this.sources) {
-      this.strategicHumanoids.sync(visibleAgents, undefined, dt);
-      this.fallbackMilitaryEquipment.sync(visibleAgents);
+      let phaseStartedAt = performance.now();
       this.battlefieldWeaponDrops.sync(visibleAgents, view);
+      this.lastDroppedWeaponCpuMs = performance.now() - phaseStartedAt;
+      phaseStartedAt = performance.now();
       this.syncCompanyStandards(visibleAgents, view, dt);
+      this.lastStandardCpuMs = performance.now() - phaseStartedAt;
+      this.lastSyncCpuMs = performance.now() - syncStartedAt;
       return;
     }
 
+    let phaseStartedAt = performance.now();
     this.syncAnimatedVillagers(visibleAgents, animatedIds, dt);
-    this.updateAnimatedBatches(visibleAgents, animatedIds);
-    this.strategicHumanoids.sync(visibleAgents, animatedIds, dt);
-    this.fallbackMilitaryEquipment.sync(visibleAgents, animatedIds);
+    this.lastRigCpuMs = performance.now() - phaseStartedAt;
+    phaseStartedAt = performance.now();
+    this.updateAuthoredBatches(visibleAgents);
+    this.lastBodyBatchCpuMs = performance.now() - phaseStartedAt;
+    phaseStartedAt = performance.now();
+    this.mountedAttachments.update();
+    this.lastAttachmentCpuMs = performance.now() - phaseStartedAt;
+    phaseStartedAt = performance.now();
     this.battlefieldWeaponDrops.sync(visibleAgents, view);
+    this.lastDroppedWeaponCpuMs = performance.now() - phaseStartedAt;
+    phaseStartedAt = performance.now();
     this.syncCompanyStandards(visibleAgents, view, dt);
+    this.lastStandardCpuMs = performance.now() - phaseStartedAt;
+    this.lastSyncCpuMs = performance.now() - syncStartedAt;
   }
 
-  beginFirstPlayableGpuPrewarm(): () => void {
+  beginFirstPlayableGpuPrewarm(): {
+    objects: readonly THREE.Object3D[];
+    restore: () => void;
+  } {
     const changed: Array<{
-      layer: AnimatedBatchLayer;
+      mesh: THREE.InstancedMesh;
       visible: boolean;
-      drawStart: number;
-      drawCount: number;
+      count: number;
     }> = [];
-    if (!this.animatedBatches) return () => {};
-    for (const batch of uniqueAnimatedBatches(this.animatedBatches)) {
-      for (const shard of batch.shards) {
-        for (const layer of shard.layers) {
-          if (layer.mesh.visible) continue;
-          changed.push({
-            layer,
-            visible: layer.mesh.visible,
-            drawStart: layer.geometry.drawRange.start,
-            drawCount: layer.geometry.drawRange.count,
-          });
-          layer.mesh.visible = true;
-          layer.geometry.setDrawRange(0, layer.sourceDrawCount);
-        }
-      }
+    if (!this.authoredBatches) return { objects: [], restore: () => {} };
+    for (const batch of uniqueAuthoredBatches(this.authoredBatches)) {
+      batch.group.traverse((object) => {
+        const mesh = object as THREE.InstancedMesh;
+        if (!mesh.isInstancedMesh || mesh.count > 0) return;
+        changed.push({ mesh, visible: mesh.visible, count: mesh.count });
+        mesh.visible = true;
+        mesh.count = 1;
+      });
     }
-    return () => {
-      for (const state of changed) {
-        state.layer.mesh.visible = state.visible;
-        state.layer.geometry.setDrawRange(state.drawStart, state.drawCount);
-      }
+    return {
+      // Compile the complete crowd presentation root against the live scene.
+      // This includes every exact authored body batch plus any already-created
+      // rigid equipment/standard layers, without walking terrain or woodland.
+      objects: [this.group],
+      restore: () => {
+        for (const state of changed) {
+          state.mesh.visible = state.visible;
+          state.mesh.count = state.count;
+        }
+      },
     };
   }
 
@@ -440,8 +470,44 @@ export class SettlementCrowdRenderer {
     return this.battlefieldWeaponDrops.diagnostics();
   }
 
-  strategicHumanoidDiagnostics(): StrategicHumanoidDiagnostic {
-    return this.strategicHumanoids.diagnostics();
+  authoredCrowdDiagnostics(): AuthoredCrowdDiagnostic {
+    const batches = this.authoredBatches;
+    const diagnostics = {} as Record<
+      VillagerSourceKey,
+      AuthoredSkinnedInstanceBatchDiagnostic
+    >;
+    if (batches) {
+      for (const key of Object.keys(batches) as VillagerSourceKey[]) {
+        diagnostics[key] = batches[key].diagnostics();
+      }
+    }
+    return {
+      visibleAgents: this.visibleAgents.length,
+      evaluatedRigs: this.animated.size,
+      submittedInstances: this.authoredBatchList.reduce(
+        (total, batch) => total + batch.diagnostics().count,
+        0,
+      ),
+      proxyAgents: 0,
+      batches: diagnostics,
+      attachments: this.mountedAttachments.diagnostics(),
+      standards: this.companyStandards.diagnostics(),
+      performance: {
+        syncCpuMs: this.lastSyncCpuMs,
+        visibilityCpuMs: this.lastVisibilityCpuMs,
+        rigCpuMs: this.lastRigCpuMs,
+        bodyBatchCpuMs: this.lastBodyBatchCpuMs,
+        attachmentCpuMs: this.lastAttachmentCpuMs,
+        droppedWeaponCpuMs: this.lastDroppedWeaponCpuMs,
+        standardCpuMs: this.lastStandardCpuMs,
+        mixerUpdates: this.lastMixerUpdates,
+        locomotionRateRefreshes: this.lastLocomotionRateRefreshes,
+        appearanceColorWrites: this.lastAppearanceColorWrites,
+        appearanceColorReuses: this.lastAppearanceColorReuses,
+        activeRigCount: this.animated.size,
+        pooledRigCount: this.idlePooledVisualCount,
+      },
+    };
   }
 
   dispose(): void {
@@ -453,22 +519,16 @@ export class SettlementCrowdRenderer {
     this.animatedPool.clear();
     this.idlePooledVisualCount = 0;
 
-    if (this.animatedBatches) {
-      for (const batch of uniqueAnimatedBatches(this.animatedBatches)) {
-        for (const shard of batch.shards) {
-          shard.skeleton.dispose();
-          for (const layer of shard.layers) {
-            layer.mesh.removeFromParent();
-            layer.geometry.dispose();
-            layer.material.dispose();
-          }
-        }
-      }
-      this.animatedBatches = null;
+    if (this.authoredBatches) {
+      for (const batch of uniqueAuthoredBatches(this.authoredBatches)) batch.dispose();
+      this.authoredBatches = null;
     }
+    this.authoredBatchList.length = 0;
+    this.authoredBatchRequired.clear();
+    this.authoredBatchNextSlot.clear();
+    this.authoredSlotAppearances.clear();
+    this.mountedAttachments.dispose();
 
-    this.strategicHumanoids.dispose();
-    this.fallbackMilitaryEquipment.dispose();
     this.battlefieldWeaponDrops.dispose();
     this.companyStandards.dispose();
     this.companyStandardTextures?.dispose();
@@ -526,15 +586,21 @@ export class SettlementCrowdRenderer {
       this.sources = { man, woman, cleric, raider };
       this.toolSources = tools;
       this.battlefieldWeaponDrops.configureSources(tools);
-      const manBatch = this.createAnimatedBatch('man', man);
-      this.animatedBatches = {
+      const manBatch = this.createAuthoredBatch('man', man);
+      this.authoredBatches = {
         man: manBatch,
         woman: variantsShareModelSource('man', 'woman')
           ? manBatch
-          : this.createAnimatedBatch('woman', woman),
-        cleric: this.createAnimatedBatch('cleric', cleric),
-        raider: this.createAnimatedBatch('raider', raider),
+          : this.createAuthoredBatch('woman', woman),
+        cleric: this.createAuthoredBatch('cleric', cleric),
+        raider: this.createAuthoredBatch('raider', raider),
       };
+      this.authoredBatchList.push(...uniqueAuthoredBatches(this.authoredBatches));
+      for (const batch of this.authoredBatchList) {
+        this.authoredBatchRequired.set(batch, 0);
+        this.authoredBatchNextSlot.set(batch, 0);
+        this.authoredSlotAppearances.set(batch, []);
+      }
       this.syncAgents(this.latestAgents, this.lastView);
       return true;
     } catch (error) {
@@ -545,38 +611,10 @@ export class SettlementCrowdRenderer {
 
   private pickAnimatedIds(
     agents: readonly CrowdRenderAgent[],
-    view?: CrowdViewState,
   ): Set<string> {
-    const orbitDistance = view?.orbitDistance;
-    if (orbitDistance === undefined) {
-      this.authoredRigsEnabled = true;
-    } else if (
-      this.authoredRigsEnabled
-      && orbitDistance >= AUTHORED_RIG_DISABLE_ORBIT_DISTANCE
-    ) {
-      this.authoredRigsEnabled = false;
-    } else if (
-      !this.authoredRigsEnabled
-      && orbitDistance <= AUTHORED_RIG_RESTORE_ORBIT_DISTANCE
-    ) {
-      this.authoredRigsEnabled = true;
-    }
     const animatedIds = this.animatedIds;
     animatedIds.clear();
-    if (!this.authoredRigsEnabled) return animatedIds;
-
-    const candidates = this.animatedCandidates;
-    candidates.length = 0;
-    for (const agent of agents) {
-      if (isWithinWorkAnimationRange(agent.x, agent.z, view)) {
-        candidates.push(agent);
-      }
-    }
-    candidates.sort((a, b) => compareCrowdAnimationPriority(a, b, view));
-    const count = Math.min(candidates.length, MAX_ANIMATED_VILLAGERS);
-    for (let index = 0; index < count; index++) {
-      animatedIds.add(candidates[index]!.id);
-    }
+    for (const agent of agents) animatedIds.add(agent.id);
     return animatedIds;
   }
 
@@ -592,7 +630,6 @@ export class SettlementCrowdRenderer {
     }
 
     for (const agent of agents) {
-      if (!animatedIds.has(agent.id)) continue;
       const sourceKey = sourceKeyForAgent(agent);
       let visual = this.animated.get(agent.id);
       if (
@@ -613,16 +650,23 @@ export class SettlementCrowdRenderer {
       if (visual.mode !== agent.mode || visual.actionMode !== nextActionMode) {
         this.transition(visual, agent.mode, nextActionMode);
       }
-      visual.actions.walk.setEffectiveTimeScale(
-        locomotionAnimationTimeScale('walk', agent.movementSpeed),
-      );
-      visual.actions.run.setEffectiveTimeScale(
-        locomotionAnimationTimeScale('run', agent.movementSpeed),
-      );
-      visual.actions.flee.setEffectiveTimeScale(
-        locomotionAnimationTimeScale('flee', agent.movementSpeed),
-      );
-      if (dt > 0) visual.mixer.update(dt);
+      if (visual.movementSpeed !== agent.movementSpeed) {
+        visual.actions.walk.setEffectiveTimeScale(
+          locomotionAnimationTimeScale('walk', agent.movementSpeed),
+        );
+        visual.actions.run.setEffectiveTimeScale(
+          locomotionAnimationTimeScale('run', agent.movementSpeed),
+        );
+        visual.actions.flee.setEffectiveTimeScale(
+          locomotionAnimationTimeScale('flee', agent.movementSpeed),
+        );
+        visual.movementSpeed = agent.movementSpeed;
+        this.lastLocomotionRateRefreshes += 1;
+      }
+      if (dt > 0) {
+        visual.mixer.update(dt);
+        this.lastMixerUpdates += 1;
+      }
       this.applyCombatPresentation(visual, agent, dt);
       if (visual.tool) {
         setWorkerToolDropped(visual.tool, Boolean(agent.battlefieldWeaponDrop));
@@ -700,8 +744,6 @@ export class SettlementCrowdRenderer {
     model.scale.setScalar(scale);
     model.position.y = -source.bounds.min.y * scale + 0.012;
 
-    const ownedMaterials: THREE.Material[] = [];
-    const colorBindings: AnimatedVillager['colorBindings'] = [];
     let skeleton: THREE.Skeleton | null = null;
     model.traverse((object) => {
       const mesh = object as THREE.SkinnedMesh;
@@ -730,6 +772,7 @@ export class SettlementCrowdRenderer {
     if (tool && agent.tool) {
       setWorkerToolVisible(tool, workerToolVisibleInMode(agent.tool, agent.mode));
       setWorkerToolDropped(tool, Boolean(agent.battlefieldWeaponDrop));
+      this.mountedAttachments.registerTool(tool);
     }
     const combatRig = bindCombatWeaponRig(model, agent.tool, tool);
 
@@ -796,9 +839,8 @@ export class SettlementCrowdRenderer {
       mode: agent.mode,
       actionMode,
       combatRig,
-      ownedMaterials,
-      colorBindings,
       skeleton,
+      movementSpeed: agent.movementSpeed,
     };
   }
 
@@ -809,6 +851,9 @@ export class SettlementCrowdRenderer {
     if (pooledVisual) this.idlePooledVisualCount -= 1;
     const visual = pooledVisual ?? this.createAnimatedVillager(agent);
     if (pooledVisual) this.resetPooledVillager(visual, agent);
+    if (pooledVisual?.tool && !this.mountedAttachments.hasTool(pooledVisual.tool)) {
+      this.mountedAttachments.registerTool(pooledVisual.tool);
+    }
     visual.root.visible = true;
     return visual;
   }
@@ -826,17 +871,13 @@ export class SettlementCrowdRenderer {
     visual.sourceKey = sourceKey;
     visual.mode = agent.mode;
     visual.actionMode = combatBaseActionMode(agent);
+    visual.movementSpeed = agent.movementSpeed;
     if (visual.combatRig) resetCombatWeaponRig(visual.combatRig);
     visual.root.name = `${sourceKey === 'cleric' ? 'Cleric' : sourceKey === 'raider' ? 'Ottoman raider' : agent.variant === 'woman' ? 'Woman' : 'Man'} villager ${agent.id}`;
     visual.root.userData.villagerId = agent.id;
     visual.root.userData.villagerGender = agent.variant;
     visual.model.scale.setScalar(scale);
     visual.model.position.y = -source.bounds.min.y * scale + MODEL_GROUNDING_HEIGHT;
-    for (const binding of visual.colorBindings) {
-      binding.material.color.setHex(
-        resolvePartColor(binding.sourceMaterialName, agent),
-      );
-    }
     restartPooledVillagerActions(
       visual.mixer,
       visual.actions,
@@ -947,8 +988,9 @@ export class SettlementCrowdRenderer {
     visual.mixer.stopAllAction();
     visual.root.visible = false;
     if (visual.tool) setWorkerToolVisible(visual.tool, false);
+    if (visual.tool) this.mountedAttachments.unregisterTool(visual.tool);
     this.animated.delete(id);
-    if (this.idlePooledVisualCount >= MAX_ANIMATED_VILLAGERS) {
+    if (this.idlePooledVisualCount >= MAX_IDLE_RIG_POOL) {
       this.disposeAnimatedVillager(visual);
       return;
     }
@@ -965,242 +1007,130 @@ export class SettlementCrowdRenderer {
   private disposeAnimatedVillager(visual: AnimatedVillager): void {
     visual.mixer.stopAllAction();
     visual.mixer.uncacheRoot(visual.model);
+    if (visual.tool) this.mountedAttachments.unregisterTool(visual.tool);
     if (visual.combatRig) disposeCombatWeaponRig(visual.combatRig);
-    for (const material of visual.ownedMaterials) material.dispose();
     visual.root.removeFromParent();
   }
 
-  private createAnimatedBatch(
+  private createAuthoredBatch(
     variant: VillagerSourceKey,
     source: VillagerSource,
-  ): AnimatedVariantBatch {
-    source.scene.updateMatrixWorld(true);
-    const sourceMeshes: THREE.SkinnedMesh[] = [];
-    source.scene.traverse((object) => {
-      const mesh = object as THREE.SkinnedMesh;
-      if (mesh.isSkinnedMesh) sourceMeshes.push(mesh);
-    });
-    const sourceSkeleton = sourceMeshes[0]?.skeleton;
-    if (!sourceSkeleton) throw new Error(`Missing ${variant} source skeleton`);
-    const bonesPerRig = sourceSkeleton.bones.length;
-    const rigsPerShard = animatedRigsPerShard(bonesPerRig);
-    const skeletonBytes = bonesPerRig
-      * rigsPerShard
-      * 16
-      * Float32Array.BYTES_PER_ELEMENT;
-    if (skeletonBytes > MAX_ANIMATED_SKELETON_BYTES) {
-      throw new Error(
-        `${variant} villager skeleton shard requires ${skeletonBytes} bytes; `
-          + `the cross-backend limit is ${MAX_ANIMATED_SKELETON_BYTES}`,
-      );
-    }
-    const shards = Array.from(
-      { length: Math.ceil(MAX_ANIMATED_VILLAGERS / rigsPerShard) },
-      (_, shardIndex) => {
-        const bones: THREE.Bone[] = [];
-        const boneInverses: THREE.Matrix4[] = [];
-        for (let slot = 0; slot < rigsPerShard; slot++) {
-          bones.push(...sourceSkeleton.bones);
-          boneInverses.push(...sourceSkeleton.boneInverses);
-        }
-        const skeleton = new THREE.Skeleton(bones, boneInverses);
-        const layers = sourceMeshes.map((sourceMesh) => {
-          const sourceMaterial = Array.isArray(sourceMesh.material)
-            ? sourceMesh.material[0]
-            : sourceMesh.material;
-          if (!(sourceMaterial instanceof THREE.MeshStandardMaterial)) {
-            throw new Error(
-              `${variant}/${sourceMesh.name} requires one MeshStandardMaterial`,
-            );
+  ): AuthoredSkinnedInstanceBatch {
+    // Keep the established outdoor response while retaining the authored PBR
+    // asset itself. The instanced node materials borrow every source texture;
+    // they do not bake, simplify, atlas, or replace the GLB material inputs.
+    if (!source.scene.userData.villagerLightingConfigured) {
+      source.scene.traverse((object) => {
+        const mesh = object as THREE.Mesh;
+        const materials = Array.isArray(mesh.material)
+          ? mesh.material
+          : mesh.material
+            ? [mesh.material]
+            : [];
+        for (const material of materials) {
+          if (material instanceof THREE.MeshStandardMaterial) {
+            configureVillagerMaterialLighting(material);
           }
-          const geometry = createReplicatedSkinnedGeometry(
-            sourceMesh.geometry,
-            bonesPerRig,
-            rigsPerShard,
-          );
-          const material = sourceMaterial.clone();
-          material.name = `${sourceMaterial.name}: aggregate close villagers`;
-          material.color.setHex(0xffffff);
-          configureVillagerMaterialLighting(material);
-          material.vertexColors = true;
-          const mesh = new THREE.SkinnedMesh(geometry, material);
-          mesh.name = `${variant} aggregate close villagers shard ${shardIndex}: ${sourceMaterial.name}`;
-          mesh.bindMode = sourceMesh.bindMode;
-          mesh.bind(skeleton, sourceMesh.bindMatrix);
-          mesh.castShadow = false;
-          mesh.receiveShadow = false;
-          mesh.frustumCulled = false;
-          mesh.visible = false;
-          geometry.setDrawRange(0, 0);
-          this.animatedGroup.add(mesh);
-          return {
-            mesh,
-            geometry,
-            material,
-            materialName: sourceMaterial.name,
-            sourceVertexCount: sourceMesh.geometry.getAttribute('position').count,
-            sourceDrawCount: sourceMesh.geometry.index?.count
-              ?? sourceMesh.geometry.getAttribute('position').count,
-            slotColors: new Uint32Array(rigsPerShard),
-            initializedColors: new Uint8Array(rigsPerShard),
-            dirtyColors: new Uint8Array(rigsPerShard),
-          } satisfies AnimatedBatchLayer;
-        });
-        return { skeleton, skeletonBytes, layers };
-      },
-    );
-    return { variant, bonesPerRig, rigsPerShard, shards };
+        }
+      });
+      source.scene.userData.villagerLightingConfigured = true;
+    }
+    return new AuthoredSkinnedInstanceBatch({
+      parent: this.animatedGroup,
+      sourceRoot: source.scene,
+      capacity: INITIAL_AUTHORED_BATCH_CAPACITY,
+      name: `${variant} exact authored crowd`,
+      castShadow: true,
+      receiveShadow: true,
+    });
   }
 
-  private updateAnimatedBatches(
+  private updateAuthoredBatches(
     agents: readonly CrowdRenderAgent[],
-    animatedIds: ReadonlySet<string>,
   ): void {
-    const batches = this.animatedBatches;
+    const batches = this.authoredBatches;
     if (!batches) return;
-    const counts: Record<VillagerSourceKey, number> = { man: 0, woman: 0, cleric: 0, raider: 0 };
-    for (const batch of uniqueAnimatedBatches(batches)) {
-      for (const shard of batch.shards) {
-        for (const layer of shard.layers) layer.dirtyColors.fill(0);
-      }
-    }
+
+    // Count first so storage grows deliberately before any slot is written.
+    // A shared source (for example an interim male/female asset) remains one
+    // batch and receives one continuous, omission-free slot range.
+    const required = this.authoredBatchRequired;
+    for (const batch of this.authoredBatchList) required.set(batch, 0);
     for (const agent of agents) {
-      if (!animatedIds.has(agent.id)) continue;
+      if (!this.animated.has(agent.id)) continue;
+      const batch = batches[sourceKeyForAgent(agent)];
+      required.set(batch, (required.get(batch) ?? 0) + 1);
+    }
+    for (const [batch, count] of required) {
+      batch.reserve(count);
+      batch.setCount(count);
+    }
+
+    const nextSlot = this.authoredBatchNextSlot;
+    for (const batch of this.authoredBatchList) nextSlot.set(batch, 0);
+    for (const agent of agents) {
       const visual = this.animated.get(agent.id);
       if (!visual) continue;
-      const batch: AnimatedVariantBatch = batches[sourceKeyForAgent(agent)];
-      const variantSlot = counts[batch.variant]++;
-      if (variantSlot >= MAX_ANIMATED_VILLAGERS) continue;
-      const shard = batch.shards[
-        Math.floor(variantSlot / batch.rigsPerShard)
-      ]!;
-      const shardSlot = variantSlot % batch.rigsPerShard;
-      const boneOffset = shardSlot * batch.bonesPerRig;
-      for (let bone = 0; bone < batch.bonesPerRig; bone++) {
-        shard.skeleton.bones[boneOffset + bone] = visual.skeleton.bones[bone]!;
-        shard.skeleton.boneInverses[boneOffset + bone] =
-          visual.skeleton.boneInverses[bone]!;
-      }
-      for (const layer of shard.layers) {
-        const color = resolvePartColor(layer.materialName, agent);
-        if (
-          layer.initializedColors[shardSlot]
-          && layer.slotColors[shardSlot] === color
-        ) {
-          continue;
-        }
-        layer.initializedColors[shardSlot] = 1;
-        layer.slotColors[shardSlot] = color;
-        layer.dirtyColors[shardSlot] = 1;
-        this.color.setHex(color);
-        const attribute = layer.geometry.getAttribute('color');
-        const array = attribute.array;
-        let offset = shardSlot * layer.sourceVertexCount * 3;
-        const end = offset + layer.sourceVertexCount * 3;
-        while (offset < end) {
-          array[offset++] = this.color.r;
-          array[offset++] = this.color.g;
-          array[offset++] = this.color.b;
-        }
-      }
+      const batch = batches[sourceKeyForAgent(agent)];
+      const slot = nextSlot.get(batch) ?? 0;
+      nextSlot.set(batch, slot + 1);
+
+      // This publishes the exact AnimationMixer pose and the clone's complete
+      // source transform chain. It intentionally retains unusual authored rig
+      // parents (including -90 degree axes or scale-100 import transforms).
+      batch.setFromCloneAt(slot, visual.model);
+      this.updateAuthoredSlotAppearance(batch, slot, agent);
     }
-    for (const batch of uniqueAnimatedBatches(batches)) {
-      for (let shardIndex = 0; shardIndex < batch.shards.length; shardIndex++) {
-        const shard = batch.shards[shardIndex]!;
-        const count = Math.min(
-          batch.rigsPerShard,
-          Math.max(
-            0,
-            counts[batch.variant] - shardIndex * batch.rigsPerShard,
-          ),
-        );
-        for (const layer of shard.layers) {
-          layer.mesh.visible = count > 0;
-          layer.geometry.setDrawRange(0, count * layer.sourceDrawCount);
-          publishAnimatedColorRanges(layer, count);
-        }
-      }
-    }
+    for (const batch of required.keys()) batch.commit();
   }
 
-}
+  /**
+   * Appearance is identity-stable while an actor occupies a batch slot. Avoid
+   * rebuilding and uploading the same material colors every animation frame;
+   * pose and transform palettes still update for every authored actor.
+   */
+  private updateAuthoredSlotAppearance(
+    batch: AuthoredSkinnedInstanceBatch,
+    slot: number,
+    agent: CrowdRenderAgent,
+  ): void {
+    const appearances = this.authoredSlotAppearances.get(batch);
+    if (!appearances) throw new Error('Missing exact authored batch appearance cache');
+    let cached = appearances[slot];
+    if (
+      cached
+      && cached.agentId === agent.id
+      && cached.tunicColor === agent.tunicColor
+      && cached.skinColor === agent.skinColor
+      && cached.hairColor === agent.hairColor
+    ) {
+      this.lastAppearanceColorReuses += 1;
+      return;
+    }
+    if (!cached) {
+      cached = {
+        agentId: agent.id,
+        tunicColor: agent.tunicColor,
+        skinColor: agent.skinColor,
+        hairColor: agent.hairColor,
+      };
+      appearances[slot] = cached;
+    } else {
+      cached.agentId = agent.id;
+      cached.tunicColor = agent.tunicColor;
+      cached.skinColor = agent.skinColor;
+      cached.hairColor = agent.hairColor;
+    }
+    for (const materialSlot of batch.materialSlots()) {
+      batch.setMaterialColorAt(
+        slot,
+        materialSlot.index,
+        resolvePartColor(materialSlot.name, agent),
+      );
+    }
+    this.lastAppearanceColorWrites += 1;
+  }
 
-function createReplicatedSkinnedGeometry(
-  source: THREE.BufferGeometry,
-  bonesPerRig: number,
-  rigCount: number,
-): THREE.BufferGeometry {
-  const merged = new THREE.BufferGeometry();
-  const sourceVertexCount = source.getAttribute('position').count;
-  for (const [name, sourceAttribute] of Object.entries(source.attributes)) {
-    if (sourceAttribute instanceof THREE.InterleavedBufferAttribute) {
-      throw new Error(`Villager ${name} attribute must remain non-interleaved`);
-    }
-    const attribute = sourceAttribute as THREE.BufferAttribute;
-    const itemCount = attribute.array.length;
-    const ArrayType = attribute.array.constructor as {
-      new(length: number): typeof attribute.array;
-    };
-    const values = new ArrayType(itemCount * rigCount);
-    for (let slot = 0; slot < rigCount; slot++) {
-      const targetOffset = slot * itemCount;
-      values.set(attribute.array, targetOffset);
-      if (name !== 'skinIndex') continue;
-      const boneOffset = slot * bonesPerRig;
-      for (let index = 0; index < itemCount; index++) {
-        values[targetOffset + index] += boneOffset;
-      }
-    }
-    const replicated = new THREE.BufferAttribute(
-      values,
-      attribute.itemSize,
-      attribute.normalized,
-    );
-    replicated.setUsage(attribute.usage);
-    merged.setAttribute(name, replicated);
-  }
-  const sourceIndex = source.index;
-  if (sourceIndex) {
-    const useUint32 = sourceVertexCount * rigCount > 65_535;
-    const values = useUint32
-      ? new Uint32Array(sourceIndex.count * rigCount)
-      : new Uint16Array(sourceIndex.count * rigCount);
-    for (let slot = 0; slot < rigCount; slot++) {
-      const vertexOffset = slot * sourceVertexCount;
-      const targetOffset = slot * sourceIndex.count;
-      for (let index = 0; index < sourceIndex.count; index++) {
-        values[targetOffset + index] = sourceIndex.getX(index) + vertexOffset;
-      }
-    }
-    merged.setIndex(new THREE.BufferAttribute(values, 1));
-  }
-  const vertexCount = sourceVertexCount * rigCount;
-  const colors = new THREE.Float32BufferAttribute(vertexCount * 3, 3);
-  colors.setUsage(THREE.DynamicDrawUsage);
-  merged.setAttribute('color', colors);
-  return merged;
-}
-
-function publishAnimatedColorRanges(
-  layer: AnimatedBatchLayer,
-  slotCount: number,
-): void {
-  const attribute = layer.geometry.getAttribute('color') as THREE.BufferAttribute;
-  attribute.clearUpdateRanges();
-  let runStart = -1;
-  for (let slot = 0; slot <= slotCount; slot++) {
-    if (slot < slotCount && layer.dirtyColors[slot]) {
-      if (runStart < 0) runStart = slot;
-      continue;
-    }
-    if (runStart < 0) continue;
-    attribute.addUpdateRange(
-      runStart * layer.sourceVertexCount * attribute.itemSize,
-      (slot - runStart) * layer.sourceVertexCount * attribute.itemSize,
-    );
-    runStart = -1;
-  }
-  if (attribute.updateRanges.length > 0) attribute.needsUpdate = true;
 }
 
 function configureActionSpeeds(

@@ -94,7 +94,6 @@ export function batchStaticOpaqueMeshes(
   options: StaticOpaqueMeshBatchOptions,
 ): StaticBuildingBatchStats {
   sourceRoot.updateWorldMatrix(true, true);
-  const rootWorldInverse = sourceRoot.matrixWorld.clone().invert();
   const entriesByKey = new Map<string, BatchEntry[]>();
   let retainedDraws = 0;
 
@@ -135,9 +134,7 @@ export function batchStaticOpaqueMeshes(
     }
     const transformed = entries.map(({ mesh }) => {
       const geometry = mesh.geometry.clone();
-      geometry.applyMatrix4(
-        new THREE.Matrix4().multiplyMatrices(rootWorldInverse, mesh.matrixWorld),
-      );
+      geometry.applyMatrix4(matrixRelativeToAncestor(mesh, sourceRoot));
       return geometry;
     });
     const merged = mergeGeometries(transformed, false);
@@ -179,6 +176,31 @@ export function batchStaticOpaqueMeshes(
     retainedDraws,
   } satisfies StaticBuildingBatchStats;
   return sourceRoot.userData[options.rootStatsKey] as StaticBuildingBatchStats;
+}
+
+/**
+ * Composes the authored local chain directly. Algebraically cancelling two
+ * world matrices leaves rotation-dependent float noise, which makes otherwise
+ * identical completed buildings miss exact-geometry reuse across markers.
+ */
+function matrixRelativeToAncestor(
+  object: THREE.Object3D,
+  ancestor: THREE.Object3D,
+): THREE.Matrix4 {
+  const matrices: THREE.Matrix4[] = [];
+  let current: THREE.Object3D | null = object;
+  while (current && current !== ancestor) {
+    matrices.push(current.matrix);
+    current = current.parent;
+  }
+  if (current !== ancestor) {
+    throw new Error('Static batch source must descend from its batching root.');
+  }
+  const relative = new THREE.Matrix4();
+  for (let index = matrices.length - 1; index >= 0; index -= 1) {
+    relative.multiply(matrices[index]!);
+  }
+  return relative;
 }
 
 function isStaticBatchCandidate(

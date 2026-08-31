@@ -6,6 +6,11 @@ export const DIRECTIONAL_SHADOW_TARGET_STEP_DEGREES = 0.12;
 export const DIRECTIONAL_SHADOW_MAX_STEP_DEGREES = 0.5;
 export const DIRECTIONAL_SHADOW_MIN_REFRESH_INTERVAL_MS = 100;
 
+export type DirectionalShadowRefreshReason =
+  | 'camera-refit'
+  | 'forest-casters'
+  | 'first-person-motion';
+
 const TARGET_STEP_DOT = Math.cos(
   DIRECTIONAL_SHADOW_TARGET_STEP_DEGREES * Math.PI / 180,
 );
@@ -56,4 +61,27 @@ export function shouldRefreshDirectionalShadowAtlas(
       firstPersonActive,
       cameraInteractionActive,
     );
+}
+
+/**
+ * Return the exact invalidation causes instead of collapsing them to a boolean.
+ * The production renderer uses this for frame-local evidence and to ensure one
+ * atlas upload is shared when several causes happen in the same frame.
+ */
+export function directionalShadowRefreshReasons(
+  shadowCameraNeedsRefit: boolean,
+  forestShadowCastersChanged: boolean,
+  firstPersonActive: boolean,
+  cameraInteractionActive: boolean,
+): DirectionalShadowRefreshReason[] {
+  const reasons: DirectionalShadowRefreshReason[] = [];
+  if (shadowCameraNeedsRefit) reasons.push('camera-refit');
+  if (forestShadowCastersChanged) reasons.push('forest-casters');
+  if (shouldRefreshFirstPersonDirectionalShadow(
+    firstPersonActive,
+    cameraInteractionActive,
+  )) {
+    reasons.push('first-person-motion');
+  }
+  return reasons;
 }

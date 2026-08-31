@@ -32,6 +32,7 @@ type ExtractionContract = {
     readonly roles: readonly ProceduralMaterialRole[];
   }>;
   readonly requiredNames: readonly string[];
+  readonly brownTimberNames: readonly string[];
 };
 
 const CONTRACTS = {
@@ -70,6 +71,15 @@ const CONTRACTS = {
       'MiningCampSortingCanopy',
       'Mining camp sorting awning',
     ],
+    brownTimberNames: [
+      'Mining camp sorting-canopy post',
+      'Mining camp windward sorting-canopy wall plate',
+      'Mining camp yard sorting-canopy wall plate',
+      'Mining camp sorting table',
+      'Mining camp field handcart bed',
+      'Mining camp handcart timber handle',
+      'Mining camp tool-rack rail',
+    ],
   },
   large_quarry: {
     alias: 'Quarry',
@@ -104,6 +114,14 @@ const CONTRACTS = {
       'Rich stone quarry stepped cut',
       'Quarry stone lifting crane',
       'Quarry cutters shelter',
+    ],
+    brownTimberNames: [
+      'Quarry crane mast',
+      'Quarry crane lifting boom',
+      'Quarry crane rear stay',
+      'Quarry face walkway weathered-board deck',
+      'Quarry face walkway timber bearer',
+      'Prepared quarry support beam',
     ],
   },
   mine: {
@@ -148,6 +166,16 @@ const CONTRACTS = {
       'Mineworks winding headframe',
       'Mineworks sorting-floor split-shingle weather roof',
     ],
+    brownTimberNames: [
+      'Mineworks inclined headframe leg',
+      'Mineworks headframe crown beam',
+      'Mineworks winding drum',
+      'Mineworks sorting-floor weathered-board deck',
+      'Mineworks sorting-floor timber bearer',
+      'Mineworks hand-sorting chute',
+      'Mineworks sorting tub',
+      'Prepared mineworks shaft-support beam',
+    ],
   },
 } as const satisfies Record<ExtractionKind, ExtractionContract>;
 
@@ -158,6 +186,13 @@ const LOCKED_PLACEMENT_BOUNDS = {
 } as const;
 
 const LIVING_VEGETATION_PATTERN = /\b(?:tree|sapling|bush|shrub|vine|foliage|grass|crop|flower|herb|moss|plant)\b/i;
+const BROWN_TIMBER_KEYS = new Set([
+  'timberDark',
+  'timberMid',
+  'timberLight',
+  'timberWeathered',
+  'stackedTimber',
+]);
 
 assert.equal(
   Object.hasOwn(PROCEDURAL_BUILDING_CATALOG, 'clay_pit'),
@@ -218,6 +253,21 @@ for (const kind of Object.keys(CONTRACTS) as ExtractionKind[]) {
       [],
       'The mobile Mining Camp must not acquire a centered pit or underground hoist vocabulary.',
     );
+    const sortingCanopy = root.getObjectByName('MiningCampSortingCanopy');
+    assert.ok(sortingCanopy);
+    const support = sortingCanopy.userData.roofSupportProfile as {
+      readonly windwardWallPlateY: number;
+      readonly yardWallPlateY: number;
+    };
+    assert.ok(
+      support.windwardWallPlateY > support.yardWallPlateY + 0.2,
+      'The high edge of the Mining Camp fly must be carried by a taller windward wall plate.',
+    );
+    assertNamedObjectY(root, 'Mining camp windward sorting-canopy wall plate', support.windwardWallPlateY);
+    assertNamedObjectY(root, 'Mining camp yard sorting-canopy wall plate', support.yardWallPlateY);
+  }
+  if (kind === 'mine') {
+    assertMineworksRoofSupports(root);
   }
 
   assert.equal(metrics.measurementKind, 'scene-graph-estimates-not-renderer-counters');
@@ -306,6 +356,9 @@ for (const kind of Object.keys(CONTRACTS) as ExtractionKind[]) {
   for (const requiredName of contract.requiredNames) {
     assert.ok(root.getObjectByName(requiredName), `${kind} is missing ${requiredName}.`);
   }
+  for (const timberName of contract.brownTimberNames) {
+    assertBrownTimber(root, kind, timberName);
+  }
 
   console.log([
     kind,
@@ -373,4 +426,85 @@ function auditFiniteGeometry(
       }
     }
   }
+}
+
+function assertNamedObjectY(root: THREE.Object3D, name: string, expectedY: number): void {
+  const object = root.getObjectByName(name);
+  assert.ok(object, `Missing support member ${name}.`);
+  assert.ok(
+    Math.abs(object.position.y - expectedY) <= 1e-6,
+    `${name} is not resolved from the roof support profile.`,
+  );
+}
+
+function assertMineworksRoofSupports(root: THREE.Group): void {
+  const headframe = root.getObjectByName('Mineworks winding headframe');
+  assert.ok(headframe);
+  const headframeSupport = headframe.userData.roofSupportProfile as {
+    readonly framePlateY: number;
+    readonly roofEaveY: number;
+    readonly roofRidgeY: number;
+    readonly roofHalfRun: number;
+    readonly roofThickness: number;
+  };
+  assert.ok(headframeSupport.roofRidgeY > headframeSupport.framePlateY);
+  const crownBeams: THREE.Object3D[] = [];
+  headframe.traverse((object) => {
+    if (object.name === 'Mineworks headframe crown beam') crownBeams.push(object);
+  });
+  assert.equal(crownBeams.length, 2);
+  headframe.updateWorldMatrix(true, true);
+  for (const beam of crownBeams) {
+    const bounds = new THREE.Box3().setFromObject(beam);
+    const center = bounds.getCenter(new THREE.Vector3());
+    const roofRise = headframeSupport.roofRidgeY - headframeSupport.roofEaveY;
+    const roofSurfaceY = headframeSupport.roofEaveY
+      + roofRise * (1 - Math.abs(center.z) / headframeSupport.roofHalfRun);
+    const undersideY = roofSurfaceY
+      - headframeSupport.roofThickness
+        * headframeSupport.roofHalfRun
+        / Math.hypot(headframeSupport.roofHalfRun, roofRise);
+    assert.ok(
+      bounds.max.y <= undersideY + 0.035,
+      `Mineworks crown beam at z=${center.z.toFixed(2)} protrudes through the shingle roof.`,
+    );
+  }
+
+  const sortingFrame = root.getObjectByName('Mineworks sorting-floor weather frame');
+  assert.ok(sortingFrame);
+  const sortingSupport = sortingFrame.userData.roofSupportProfile as {
+    readonly highSideWallPlateY: number;
+    readonly lowSideWallPlateY: number;
+  };
+  assert.ok(
+    sortingSupport.highSideWallPlateY > sortingSupport.lowSideWallPlateY + 0.3,
+    'Mineworks sorting-floor posts must rise with the single-slope roof.',
+  );
+  const roughTimber = sortingFrame.children.find(
+    (child) => child.userData.proceduralMaterialRole === 'rough-timber',
+  ) as THREE.Mesh | undefined;
+  assert.ok(roughTimber);
+  const primitives = roughTimber.userData.proceduralPrimitiveDiagnostics as Array<{
+    readonly semanticId: string;
+    readonly dimensions: readonly number[];
+  }>;
+  const highPosts = primitives.filter((primitive) => /-high-canopy-post$/.test(primitive.semanticId));
+  const lowPosts = primitives.filter((primitive) => /-low-canopy-post$/.test(primitive.semanticId));
+  assert.equal(highPosts.length, 2);
+  assert.equal(lowPosts.length, 2);
+  assert.ok(
+    Math.min(...highPosts.map((primitive) => primitive.dimensions[0]!))
+      > Math.max(...lowPosts.map((primitive) => primitive.dimensions[0]!)) + 0.3,
+    'Mineworks high-side canopy posts must terminate under the raised roof plane.',
+  );
+}
+
+function assertBrownTimber(root: THREE.Group, kind: ExtractionKind, name: string): void {
+  const object = root.getObjectByName(name) as THREE.Mesh | undefined;
+  assert.ok(object?.isMesh, `${kind} is missing brown timber mesh ${name}.`);
+  const material = Array.isArray(object.material) ? object.material[0] : object.material;
+  const key = material?.userData.buildingMaterialKey;
+  assert.ok(BROWN_TIMBER_KEYS.has(key), `${kind}/${name} uses non-timber material ${String(key)}.`);
+  const color = (material as THREE.MeshStandardMaterial).color;
+  assert.ok(color.r > color.g && color.g > color.b, `${kind}/${name} must retain the shared brown timber palette.`);
 }

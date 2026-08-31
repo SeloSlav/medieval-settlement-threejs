@@ -108,10 +108,10 @@ const PRESETS: Readonly<Record<CombatPlaytestPreset, CombatPlaytestPresetDefinit
     enemyCount: 64,
   },
   stress: {
-    label: 'Stress 192',
-    membersPerCompany: 12,
-    friendlyCount: 96,
-    enemyCount: 96,
+    label: 'Stress 512',
+    membersPerCompany: 32,
+    friendlyCount: 256,
+    enemyCount: 256,
   },
 };
 
@@ -186,7 +186,10 @@ export function combatPlaytestCamera(
     targetZ: site.z,
     yaw: -118 * Math.PI / 180 + axisAngle,
     pitch: 22 * Math.PI / 180,
-    distance: 46,
+    // Keep the sandbox close enough to inspect hand grips, bow strings and
+    // hit reactions. The live camera remains player-controlled after this
+    // initial framing, so the complete battlefield is still one wheel-out.
+    distance: 32,
   };
 }
 
@@ -716,7 +719,7 @@ export class CombatPlaytestOverlay {
       <div class="combat-playtest-overlay__presets" aria-label="Spawn presets">
         <button type="button" data-combat-playtest-preset="skirmish">24 v 24</button>
         <button type="button" data-combat-playtest-preset="field">48 v 48</button>
-        <button type="button" data-combat-playtest-preset="stress">96 v 96 stress</button>
+        <button type="button" data-combat-playtest-preset="stress">256 v 256 stress</button>
       </div>
       <p>Left-click or drag-select company circles. Right-click terrain or an enemy rank to move/attack. Camera controls remain live.</p>
       <small>Seed <code>${formatSeed(options.request.seed)}</code> · no server connection, reducers, recording, or save writes.</small>

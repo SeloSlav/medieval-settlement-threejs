@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { prepareGorskiArchitectureSourceScene } from './authoredArchitectureModels.ts';
+import { prepareGorskiArchitectureSourceScene } from './gorskiArchitectureSourcePreparation.ts';
 
 export const GORSKI_ARCHITECTURE_KIT_VERSION = '1.1.0';
 export const GORSKI_ARCHITECTURE_KIT_ROOT =

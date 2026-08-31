@@ -513,7 +513,7 @@ assert.ok(manureYard instanceof THREE.Group, 'the pastoral farmstead should expo
 const manureSegments = manureYard.children.filter(
   (child) => child.name === MANURE_STOCK_SEGMENT_NAME,
 );
-assert.equal(livestockVisualHeadCount('cattle', 50), 20);
+assert.equal(livestockVisualHeadCount('cattle', 50), 50);
 assert.equal(livestockVisualHeadCount('sheep', 60), 60);
 assert.equal(livestockVisualHeadCount('swine', 30), 30);
 assert.equal(manureSegments.length, MANURE_STOCKPILE_VISUAL_SEGMENTS);

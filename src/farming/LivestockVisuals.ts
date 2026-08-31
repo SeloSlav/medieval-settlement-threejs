@@ -17,6 +17,10 @@ import {
   neutralPastureHeadCapacity,
   pastureAreaHeadCapacity,
 } from './pastureCapacity.ts';
+import {
+  AuthoredAnimalInstanceBatch,
+  setAuthoredAnimalEvaluatorOnly,
+} from '../scene/AuthoredAnimalInstanceBatch.ts';
 
 type MotionMode = 'idle' | 'graze' | 'walk';
 type HerdActivity = 'rest' | 'graze' | 'move';
@@ -108,11 +112,6 @@ const TARGET_HEIGHTS = {
   swine: 0.78,
 } as const;
 
-const VISUAL_HEAD_CAP_BY_SPECIES: Record<LivestockSpecies, number> = {
-  cattle: 20,
-  sheep: 60,
-  swine: 30,
-};
 const MIN_EDGE_MARGIN = 0.12;
 const HERD_ANCHOR_MARGIN = 0.24;
 const WORK_GATE_OFFSET_M = 1.15;
@@ -122,17 +121,16 @@ const TAU = Math.PI * 2;
 export type CattleVisualKind = 'cow' | 'bull';
 
 /**
- * Keeps developed holdings visibly herd-scale without allowing several remote
- * farms to multiply animated skinned-mesh work without bound.
+ * One authoritative livestock head is one visible authored-model animal. The
+ * renderer may batch and spatially cull those meshes, but its submitted actor
+ * count remains exactly equal to the whole authoritative head count.
  */
 export function livestockVisualHeadCount(
   species: LivestockSpecies,
   headCount: number,
 ): number {
-  return Math.max(
-    0,
-    Math.min(VISUAL_HEAD_CAP_BY_SPECIES[species], Math.floor(headCount)),
-  );
+  void species;
+  return Number.isFinite(headCount) ? Math.max(0, Math.floor(headCount)) : 0;
 }
 
 /** Keeps cattle herds cow-heavy while adding one breeding bull once established. */
@@ -181,13 +179,14 @@ export function allocateLivestockVisualPastures<
   return assignments;
 }
 
-/** Close-world, rigged animals for authoritative livestock herds. */
+/** Full authored-model animals for authoritative livestock herds at every zoom. */
 export class LivestockVisuals {
   private readonly root = new THREE.Group();
   private readonly animals: AnimalVisual[] = [];
   private readonly departingAnimals: AnimalVisual[] = [];
   private readonly herdVisuals = new Map<string, HerdVisual>();
   private readonly getHeightAt: (x: number, z: number) => number;
+  private readonly batches = new Map<keyof typeof MODEL_URLS, AuthoredAnimalInstanceBatch>();
   private sources: Record<keyof typeof MODEL_URLS, AnimalSource> | null = null;
   private latestInput: ReplayableLivestockInput | null = null;
   private lastSignature = '';
@@ -250,6 +249,13 @@ export class LivestockVisuals {
       this.departingAnimals.splice(index, 1);
       this.disposeAnimal(animal);
     }
+    this.flushAuthoredBatches();
+  }
+
+  diagnostics(): Record<string, ReturnType<AuthoredAnimalInstanceBatch['diagnostics']>> {
+    return Object.fromEntries(
+      [...this.batches].map(([kind, batch]) => [kind, batch.diagnostics()]),
+    );
   }
 
   dispose(): void {
@@ -257,6 +263,8 @@ export class LivestockVisuals {
     this.latestInput = null;
     this.clearAnimals();
     this.clearDepartingAnimals();
+    for (const batch of this.batches.values()) batch.dispose();
+    this.batches.clear();
     if (this.sources) {
       const scenes = new Set(Object.values(this.sources).map((source) => source.scene));
       for (const scene of scenes) disposeModelResources(scene);
@@ -278,6 +286,7 @@ export class LivestockVisuals {
         return;
       }
       this.sources = { cow, bull, sheep, swine };
+      this.createAuthoredBatches();
       this.rebuildIfNeeded(true);
     } catch (error) {
       console.warn('[Livestock] Animated CC0 farm animals failed to load.', error);
@@ -359,6 +368,7 @@ export class LivestockVisuals {
     root.userData.herdBuildingId = herd.buildingId;
     root.userData.herdPastureId = herd.pastureId;
     root.add(model);
+    setAuthoredAnimalEvaluatorOnly(model, this.batches.has(modelKind));
     this.root.add(root);
 
     const mixer = new THREE.AnimationMixer(model);
@@ -661,6 +671,42 @@ export class LivestockVisuals {
     animal.mixer.stopAllAction();
     animal.mixer.uncacheRoot(animal.model);
     animal.root.removeFromParent();
+  }
+
+  private createAuthoredBatches(): void {
+    if (!this.sources) return;
+    const initialCapacity: Record<keyof typeof MODEL_URLS, number> = {
+      cow: 64,
+      bull: 16,
+      sheep: 128,
+      swine: 64,
+    };
+    for (const kind of Object.keys(MODEL_URLS) as Array<keyof typeof MODEL_URLS>) {
+      try {
+        this.batches.set(kind, new AuthoredAnimalInstanceBatch({
+          parent: this.root,
+          sourceRoot: this.sources[kind].scene,
+          capacity: initialCapacity[kind],
+          name: `${kind} exact-model livestock instances`,
+        }));
+      } catch (error) {
+        // Keep the same authored clone visible if a future asset has geometry
+        // the exact palette batch cannot yet express. Never substitute a proxy.
+        console.warn(`[Livestock] ${kind} exact-model batching unavailable.`, error);
+      }
+    }
+  }
+
+  private flushAuthoredBatches(): void {
+    const candidates = [...this.animals, ...this.departingAnimals];
+    for (const [kind, batch] of this.batches) {
+      const visible = candidates.filter(
+        (animal) => animal.modelKind === kind && animal.root.visible,
+      );
+      batch.beginFrame(visible.length);
+      for (const animal of visible) batch.submit(animal.model);
+      batch.endFrame();
+    }
   }
 }
 

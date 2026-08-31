@@ -11,7 +11,10 @@ import {
   gamePatchSpawnRadius,
 } from './foragingYields.ts';
 import type { ForagingNodeState } from '../resources/types.ts';
-import { AGENT_ANIMAL_RENDER_MAX_ORBIT_DISTANCE } from '../settlement/crowdView.ts';
+import {
+  AuthoredAnimalInstanceBatch,
+  setAuthoredAnimalEvaluatorOnly,
+} from '../scene/AuthoredAnimalInstanceBatch.ts';
 import {
   beginDeerMigration,
   chooseInitialDeerMode,
@@ -39,6 +42,7 @@ type DeerVisual = {
   sex: DeerSex;
   sexIndex: number;
   root: THREE.Group;
+  model: THREE.Group;
   mixer: THREE.AnimationMixer;
   actions: DeerAnimationSet;
   activeMode: DeerBehaviorMode;
@@ -63,10 +67,11 @@ export type DeerWildlifeVisuals = {
   update: (
     dtSeconds: number,
     firstPersonObserver: DeerObserver | null,
-    cameraDistance: number,
+    _cameraDistance: number,
     loggingSources?: readonly GameHabitatDisturbanceSource[],
   ) => void;
   sync: (nodes: Iterable<ForagingNodeState>) => void;
+  diagnostics: () => Partial<Record<DeerSex, ReturnType<AuthoredAnimalInstanceBatch['diagnostics']>>>;
   dispose: () => void;
 };
 
@@ -83,8 +88,8 @@ const DOE_TARGET_HEIGHT = 1.7;
 const STAG_TARGET_HEIGHT = 2;
 const TAU = Math.PI * 2;
 /**
- * Adds a small animated herd to each authoritative game-resource site. The static
- * map marker remains owned by ForagingMapIcons; this is only its close-world form.
+ * Adds every whole authoritative game animal to its habitat. Map icons remain
+ * an independent strategic overlay, never a replacement for these GLB actors.
  */
 export async function createDeerWildlifeVisuals(
   terrain: Terrain,
@@ -122,6 +127,7 @@ export async function createDeerWildlifeVisuals(
       stagCount: 0,
       update: () => undefined,
       sync: () => undefined,
+      diagnostics: () => ({}),
       dispose: () => undefined,
     };
   }
@@ -134,6 +140,23 @@ export async function createDeerWildlifeVisuals(
     doe: doeSource,
     stag: stagSource,
   };
+  const batches = new Map<DeerSex, AuthoredAnimalInstanceBatch>();
+  const initialCapacity = gameSites.reduce(
+    (sum, site) => sum + gamePatchMaxYield(site.isRich === true),
+    0,
+  );
+  for (const sex of ['doe', 'stag'] as const) {
+    try {
+      batches.set(sex, new AuthoredAnimalInstanceBatch({
+        parent: group,
+        sourceRoot: modelSources[sex].scene,
+        capacity: initialCapacity,
+        name: `${sex} exact-model wildlife instances`,
+      }));
+    } catch (error) {
+      console.warn(`[Deer] ${sex} exact-model batching unavailable; retaining exact rigs.`, error);
+    }
+  }
 
   const rng = mulberry32(seed ^ 0xd33f51);
   const deer: DeerVisual[] = [];
@@ -163,6 +186,7 @@ export async function createDeerWildlifeVisuals(
       root.name = sex === 'stag' ? 'Rigged roaming stag' : 'Rigged roaming doe';
       root.userData.deerSex = sex;
       root.add(model);
+      setAuthoredAnimalEvaluatorOnly(model, batches.has(sex));
       group.add(root);
 
       const mixer = new THREE.AnimationMixer(model);
@@ -202,6 +226,7 @@ export async function createDeerWildlifeVisuals(
         sex,
         sexIndex,
         root,
+        model,
         mixer,
         actions,
         activeMode: initialMode,
@@ -218,22 +243,10 @@ export async function createDeerWildlifeVisuals(
   const update = (
     dtSeconds: number,
     firstPersonObserver: DeerObserver | null,
-    cameraDistance: number,
+    _cameraDistance: number,
     loggingSources: readonly GameHabitatDisturbanceSource[] = [],
   ): void => {
-    const shouldShow = firstPersonObserver !== null
-      || cameraDistance <= AGENT_ANIMAL_RENDER_MAX_ORBIT_DISTANCE;
-    group.visible = shouldShow;
-    if (!shouldShow) {
-      for (const visual of deer) {
-        if (!snapDeerMigration(visual.motion, rng)) continue;
-        if (visual.motion.mode !== visual.activeMode) {
-          transitionAnimation(visual, visual.motion.mode);
-        }
-        syncDeerVisualTransform(visual, terrain);
-      }
-      return;
-    }
+    group.visible = true;
 
     for (const sources of loggingSourcesByHabitat.values()) sources.length = 0;
     const radiusSq = DEER_ROAM_RADIUS * DEER_ROAM_RADIUS;
@@ -263,6 +276,12 @@ export async function createDeerWildlifeVisuals(
       if (visual.root.visible) {
         visual.mixer.update(Math.min(Math.max(dtSeconds, 0), 0.1));
       }
+    }
+    for (const [sex, batch] of batches) {
+      const visible = deer.filter((visual) => visual.sex === sex && visual.root.visible);
+      batch.beginFrame(visible.length);
+      for (const visual of visible) batch.submit(visual.model);
+      batch.endFrame();
     }
   };
 
@@ -328,11 +347,16 @@ export async function createDeerWildlifeVisuals(
     stagCount,
     update,
     sync,
+    diagnostics: () => Object.fromEntries(
+      [...batches].map(([sex, batch]) => [sex, batch.diagnostics()]),
+    ),
     dispose: () => {
       for (const visual of deer) {
         visual.mixer.stopAllAction();
         visual.mixer.uncacheRoot(visual.root.children[0]);
       }
+      for (const batch of batches.values()) batch.dispose();
+      batches.clear();
       group.clear();
       disposeModelResources(doeSource.scene);
       disposeModelResources(stagSource.scene);

@@ -23,8 +23,6 @@ import {
   protectedWildStock,
 } from '../src/foraging/harvestReservePolicy.ts';
 import {
-  RICH_FISH_SCHOOL_VISUAL_CAPACITY,
-  SMALL_FISH_SCHOOL_VISUAL_CAPACITY,
   displayedFishSchoolCount,
   sampleFishBreach,
 } from '../src/foraging/FishWildlifeVisuals.ts';
@@ -317,10 +315,10 @@ assert.ok(
 );
 
 assert.equal(displayedFishSchoolCount(0, 120), 0);
-assert.equal(displayedFishSchoolCount(120, 120), SMALL_FISH_SCHOOL_VISUAL_CAPACITY);
-assert.equal(displayedFishSchoolCount(240, 240, true), RICH_FISH_SCHOOL_VISUAL_CAPACITY);
-assert.equal(displayedFishSchoolCount(60, 120), Math.ceil(SMALL_FISH_SCHOOL_VISUAL_CAPACITY / 2));
-assert.equal(displayedFishSchoolCount(0.01, 120), 1);
+assert.equal(displayedFishSchoolCount(120, 120), 120);
+assert.equal(displayedFishSchoolCount(240, 240, true), 240);
+assert.equal(displayedFishSchoolCount(60, 120), 60);
+assert.equal(displayedFishSchoolCount(0.01, 120), 0);
 
 const breachStart = sampleFishBreach(0, 0.9);
 const breachQuarter = sampleFishBreach(0.25, 0.9);
