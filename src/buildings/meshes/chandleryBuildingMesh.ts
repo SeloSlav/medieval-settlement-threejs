@@ -321,7 +321,7 @@ function emitWindow(
     height,
     shutters: face !== 'positive-z',
     frameMaterial: timberMaterial('weathered'),
-    sillMaterial: stoneMaterial('light'),
+    sillMaterial: timberMaterial('weathered'),
     namePrefix: 'Chandlery',
   });
 }
@@ -428,7 +428,7 @@ function emitCandleStock({ module }: ChandleryCompileContext): void {
 
 function emitApproach({ module }: ChandleryCompileContext): void {
   namedMesh(module, 'Chandlery worn roadside threshold step', new THREE.BoxGeometry(1.62, 0.2, 0.72), stoneMaterial('mid'), new THREE.Vector3(-2.45, 0.1, 3.68));
-  namedMesh(module, 'Chandlery road approach stone', new THREE.BoxGeometry(1.92, 0.12, 0.78), stoneMaterial('light'), new THREE.Vector3(-2.45, 0.06, 4.34));
+  namedMesh(module, 'Chandlery road approach stone', new THREE.BoxGeometry(1.92, 0.12, 0.78), stoneMaterial('mid'), new THREE.Vector3(-2.45, 0.06, 4.34));
 }
 
 const CHANDLERY_MODULE_REGISTRY: Record<ChandleryModuleId, ChandleryModuleEmitter> = {

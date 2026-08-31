@@ -8,6 +8,8 @@ import {
 } from '../buildingMaterials.ts';
 import { addDarkOpening, addGableShell, addPlankDoor } from './buildingMeshKit.ts';
 import { createCivilianToolStockpile } from './civilianToolStockpileMesh.ts';
+import { ProceduralGeometryWriter } from '../proceduralArchitecture/geometryWriter.ts';
+import { addProceduralMaterialSlotMeshes } from '../proceduralArchitecture/materialSlotMeshes.ts';
 
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -111,6 +113,8 @@ function addStoneLiftingCrane(group: THREE.Group): void {
   const darkTimber = timberMaterial('dark');
   const weatheredTimber = timberMaterial('weathered');
 
+  addCraneGroundedBracing(crane);
+
   addBeamBetween(
     crane,
     new THREE.Vector3(0, 0.15, 0),
@@ -178,9 +182,63 @@ function addStoneLiftingCrane(group: THREE.Group): void {
   group.add(crane);
 }
 
+/**
+ * Makes the derrick's load path legible: a stone bearing pad receives paired
+ * oak sole beams, and four raking braces resolve the mast load into that base.
+ * These final-size semantic members keep grain aligned with each brace.
+ */
+function addCraneGroundedBracing(crane: THREE.Group): void {
+  const bracing = new THREE.Group();
+  bracing.name = 'Quarry crane grounded bracing';
+  bracing.userData.architectureModule = 'quarry-hoist-frame';
+  bracing.userData.bracingSystem = 'four-way-raking-mast-braces';
+
+  const writer = new ProceduralGeometryWriter(['fieldstone', 'rough-timber']);
+  writer.addBox({
+    semanticId: 'quarry-crane-mast-bearing-pad',
+    moduleId: 'quarry-hoist-frame',
+    materialRole: 'fieldstone',
+    structuralUse: 'foundation-and-plinth',
+    center: [0, 0.23, 0],
+    size: [1.42, 0.46, 1.42],
+    uvOffsetMeters: [0.31, 0.19],
+  });
+  for (const z of [-1.08, 1.08]) {
+    writer.addMember({
+      semanticId: `quarry-crane-${z < 0 ? 'rear' : 'front'}-sole-beam`,
+      moduleId: 'quarry-hoist-frame',
+      materialRole: 'rough-timber',
+      structuralUse: 'timber-frame',
+      start: [-1.58, 0.48, z],
+      end: [1.58, 0.48, z],
+      width: 0.22,
+      depth: 0.26,
+    });
+  }
+  for (const x of [-1.42, 1.42]) {
+    for (const z of [-0.96, 0.96]) {
+      writer.addMember({
+        semanticId: `quarry-crane-${x < 0 ? 'left' : 'right'}-${z < 0 ? 'rear' : 'front'}-mast-brace`,
+        moduleId: 'quarry-hoist-frame',
+        materialRole: 'rough-timber',
+        structuralUse: 'timber-frame',
+        start: [x, 0.5, z],
+        end: [0, 3.08, 0],
+        width: 0.2,
+        depth: 0.2,
+      });
+    }
+  }
+  addProceduralMaterialSlotMeshes(bracing, writer.build(), {
+    namePrefix: 'Quarry crane grounded bracing',
+  });
+  crane.add(bracing);
+}
+
 function addCuttersShelter(group: THREE.Group): void {
   const house = new THREE.Group();
   house.name = 'Quarry cutters shelter';
+  house.userData.weatherProtection = 'steep-split-shingle-cutters-shelter';
   house.position.set(7.2, 0, 4.15);
   house.rotation.y = -Math.PI * 0.5;
   const shell = addGableShell(house, {
@@ -201,6 +259,8 @@ function addCuttersShelter(group: THREE.Group): void {
 function addBenchWalkway(group: THREE.Group): void {
   const walkway = new THREE.Group();
   walkway.name = 'Quarry face access walkway';
+  walkway.userData.architectureModule = 'quarry-bench-access';
+  walkway.userData.bracingSystem = 'posted-walkway-with-guard-frame';
   addMesh(
     walkway,
     new THREE.BoxGeometry(10.6, 0.25, 1.6),
@@ -215,7 +275,53 @@ function addBenchWalkway(group: THREE.Group): void {
       new THREE.Vector3(x, 0.43, -4.15),
     );
   }
+  addBenchWalkwayGuardFrame(walkway);
   group.add(walkway);
+}
+
+function addBenchWalkwayGuardFrame(walkway: THREE.Group): void {
+  const guard = new THREE.Group();
+  guard.name = 'Quarry access guard frame';
+  const writer = new ProceduralGeometryWriter(['rough-timber']);
+  const postXs = [-5.7, -3.05, -0.4, 2.25, 4.9] as const;
+  for (const [index, x] of postXs.entries()) {
+    writer.addMember({
+      semanticId: `quarry-walkway-guard-post-${index + 1}`,
+      moduleId: 'quarry-bench-access',
+      materialRole: 'rough-timber',
+      structuralUse: 'timber-frame',
+      start: [x, 0.86, -3.39],
+      end: [x, 1.72, -3.39],
+      width: 0.16,
+      depth: 0.16,
+    });
+    writer.addMember({
+      semanticId: `quarry-walkway-underdeck-knee-brace-${index + 1}`,
+      moduleId: 'quarry-bench-access',
+      materialRole: 'rough-timber',
+      structuralUse: 'timber-frame',
+      start: [x, 0.12, -4.14],
+      end: [x - 0.36, 0.76, -3.47],
+      width: 0.13,
+      depth: 0.13,
+    });
+  }
+  for (const [index, y] of [1.31, 1.68].entries()) {
+    writer.addMember({
+      semanticId: `quarry-walkway-guard-rail-${index + 1}`,
+      moduleId: 'quarry-bench-access',
+      materialRole: 'rough-timber',
+      structuralUse: 'timber-frame',
+      start: [postXs[0], y, -3.39],
+      end: [postXs[postXs.length - 1], y, -3.39],
+      width: 0.14,
+      depth: 0.14,
+    });
+  }
+  addProceduralMaterialSlotMeshes(guard, writer.build(), {
+    namePrefix: 'Quarry access guard frame',
+  });
+  walkway.add(guard);
 }
 
 function addLargeQuarryStoneStockpile(group: THREE.Group): void {
@@ -302,6 +408,10 @@ export function applyLargeQuarrySemanticContract(group: THREE.Group): void {
   group.name = 'Quarry';
   group.userData.semanticRole = 'rich-stone-quarry';
   group.userData.silhouette = 'broad-stepped-open-cut';
+  group.userData.architectureEra = 'circa-1550';
+  group.userData.architectureRegion = 'Gorski Kotar and Croatian Littoral';
+  group.userData.weatherProtection = ['steep-split-shingle-cutters-shelter'];
+  group.userData.livingVegetationOwner = 'SeedThree';
 }
 
 /** Adds only simulation-owned stores; the authored GLB stays a neutral fixed shell. */

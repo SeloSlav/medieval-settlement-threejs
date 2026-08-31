@@ -28,6 +28,7 @@ export function renderMarketplaceTradePanel(
   building: BuildingState,
   gameState: GameState,
   marketState: RegionalMarketState,
+  contractEfficiency = 1,
 ): string {
   const rules = gameState.tradingPostTradeRules;
   const activeRules = Array.from(rules?.values() ?? [])
@@ -75,6 +76,7 @@ export function renderMarketplaceTradePanel(
                 gameState,
                 marketState,
                 resource,
+                contractEfficiency,
               )).join('')}
             </div>
           </section>`).join('')}
@@ -87,13 +89,14 @@ function renderCommodityRow(
   gameState: GameState,
   marketState: RegionalMarketState,
   resource: TradeResourceKind,
+  contractEfficiency: number,
 ): string {
   const rule = tradingPostRule(gameState.tradingPostTradeRules, building.id, resource);
   const mode = rule?.mode ?? TRADE_MODE_NONE;
   const target = Math.max(0, Math.round(rule?.targetSurplus ?? 0));
   const outsideStock = settlementTradeStock(gameState, resource, false);
   const postStock = buildingTradeStock(building, resource);
-  const prices = tradingPostUnitPrices(resource, marketState);
+  const prices = tradingPostUnitPrices(resource, marketState, contractEfficiency);
   const lastResult = formatLastResult(rule?.lastTradeAmount ?? 0, rule?.lastTradeGold ?? 0);
   const status = mode === TRADE_MODE_EXPORT
     ? `Eligible: ${Math.max(0, Math.floor(outsideStock - target))} · Staged: ${Math.floor(postStock)}`

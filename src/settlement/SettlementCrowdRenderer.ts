@@ -29,6 +29,7 @@ import {
   type CombatWeaponRig,
 } from './combatWeaponAnimation.ts';
 import { CombatProjectileRenderer } from './CombatProjectileRenderer.ts';
+import { FallbackMilitaryEquipmentRenderer } from './FallbackMilitaryEquipmentRenderer.ts';
 import { configureVillagerMaterialLighting } from './villagerMaterialLighting.ts';
 import type {
   ClericAnimationMode,
@@ -259,6 +260,7 @@ export class SettlementCrowdRenderer {
   private readonly fallbackBody: FallbackPartLayer;
   private readonly fallbackLegs: FallbackPartLayer;
   private readonly fallbackHead: FallbackPartLayer;
+  private readonly fallbackMilitaryEquipment: FallbackMilitaryEquipmentRenderer;
   private readonly animated = new Map<string, AnimatedVillager>();
   private readonly animatedPool = new Map<string, AnimatedVillager[]>();
   private idlePooledVisualCount = 0;
@@ -286,6 +288,7 @@ export class SettlementCrowdRenderer {
     this.fallbackBody = this.createFallbackLayer('Villager loading body', BODY_GEOMETRY);
     this.fallbackLegs = this.createFallbackLayer('Villager loading legs', LEGS_GEOMETRY);
     this.fallbackHead = this.createFallbackLayer('Villager loading head', HEAD_GEOMETRY);
+    this.fallbackMilitaryEquipment = new FallbackMilitaryEquipmentRenderer(this.group, MAX_INSTANCES);
     this.ready = this.loadSources();
   }
 
@@ -321,12 +324,14 @@ export class SettlementCrowdRenderer {
     const animatedIds = this.pickAnimatedIds(visibleAgents, view);
     if (!this.sources) {
       this.updateFallback(visibleAgents);
+      this.fallbackMilitaryEquipment.sync(visibleAgents);
       return;
     }
 
     this.syncAnimatedVillagers(visibleAgents, animatedIds, dt);
     this.updateAnimatedBatches(visibleAgents, animatedIds);
     this.updateFallback(visibleAgents, animatedIds);
+    this.fallbackMilitaryEquipment.sync(visibleAgents, animatedIds);
   }
 
   beginFirstPlayableGpuPrewarm(): () => void {
@@ -395,6 +400,7 @@ export class SettlementCrowdRenderer {
       layer.material.dispose();
       layer.mesh.removeFromParent();
     }
+    this.fallbackMilitaryEquipment.dispose();
 
     if (this.sources) {
       for (const scene of uniqueSourceScenes(this.sources)) {

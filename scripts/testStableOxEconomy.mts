@@ -39,8 +39,8 @@ assert.match(
 );
 assert.match(
   reducer,
-  /oxen\.len\(\) >= usize::from\(STABLE_OX_SLOTS\)[\s\S]{0,420}find\(\|slot\|[\s\S]{0,260}spend_treasury_gold\(ctx, owner, STABLE_OX_PURCHASE_GOLD\)\?[\s\S]{0,220}stable_ox\(\)\.insert/,
-  'the server must claim an open bay and debit treasury gold before inserting the ox',
+  /oxen\.len\(\) >= usize::from\(STABLE_OX_SLOTS\)[\s\S]{0,420}find\(\|slot\|[\s\S]{0,420}husbandry_multiplier[\s\S]{0,220}stable_ox_purchase_gold\(husbandry_multiplier\)[\s\S]{0,220}stable_ox\(\)\.insert/,
+  'the server must claim an open bay and debit the rural-affinity-adjusted treasury cost before inserting the ox',
 );
 
 const reset = readFileSync('server/src/reducers/world_reset.rs', 'utf8');

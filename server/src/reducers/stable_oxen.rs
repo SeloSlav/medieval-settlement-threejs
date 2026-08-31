@@ -2,12 +2,12 @@ use std::collections::HashSet;
 
 use spacetimedb::{reducer, ReducerContext};
 
-use crate::balance_generated::{STABLE_OX_PURCHASE_GOLD, STABLE_OX_SLOTS};
+use crate::balance_generated::STABLE_OX_SLOTS;
 use crate::db::*;
 use crate::economy::spend_treasury_gold;
 use crate::ox_policy::{
-    is_ox_supported_workplace, ox_workplace_capacity, reconcile_ox_posting, OxPostingCandidate,
-    OxPostingError,
+    is_ox_supported_workplace, ox_workplace_capacity, reconcile_ox_posting,
+    stable_ox_purchase_gold, OxPostingCandidate, OxPostingError,
 };
 use crate::simulation::building_fire_state;
 use crate::tables::StableOx;
@@ -49,7 +49,9 @@ pub fn purchase_stable_ox(ctx: &ReducerContext, stable_id: u64) -> Result<(), St
         .find(|slot| !oxen.iter().any(|ox| ox.slot == *slot))
         .ok_or_else(|| "This stable has no open ox bay.".to_string())?;
 
-    spend_treasury_gold(ctx, owner, STABLE_OX_PURCHASE_GOLD)?;
+    let husbandry_multiplier =
+        crate::subregion_affinity::compute_land_use_profile(ctx).husbandry_multiplier();
+    spend_treasury_gold(ctx, owner, stable_ox_purchase_gold(husbandry_multiplier))?;
     ctx.db.stable_ox().insert(StableOx {
         id: 0,
         owner,

@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import {
+  createMilitaryEquipmentMaterials,
+  type MilitaryEquipmentMaterials,
+} from './militaryEquipmentMaterials.ts';
 
 export const MILITARY_EQUIPMENT_KINDS = [
   'spear',
@@ -78,18 +82,7 @@ export type MilitaryEquipmentMountDiagnostic = {
   semanticParts: string[];
 };
 
-type Materials = {
-  ash: THREE.MeshStandardMaterial;
-  walnut: THREE.MeshStandardMaterial;
-  steel: THREE.MeshStandardMaterial;
-  bluedSteel: THREE.MeshStandardMaterial;
-  brass: THREE.MeshStandardMaterial;
-  leather: THREE.MeshStandardMaterial;
-  oxblood: THREE.MeshStandardMaterial;
-  paintedWood: THREE.MeshStandardMaterial;
-  feather: THREE.MeshStandardMaterial;
-  cord: THREE.LineBasicMaterial;
-};
+type Materials = MilitaryEquipmentMaterials;
 
 const TARGET_LENGTHS: Record<MilitaryEquipmentKind, number> = {
   spear: 2.35,
@@ -113,7 +106,7 @@ const FORWARD_LEFT_HAND = [0.176702, -0.13146, -0.962764, -0.156782] as const;
 const NATURAL_RIGHT_HAND = [0, 0, 0, 1] as const;
 
 export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
-  const materials = createMaterials();
+  const materials = createMilitaryEquipmentMaterials();
   return {
     spear: source('spear', createSpear(materials), UPRIGHT_RIGHT_HAND),
     'spear-shield': source('spear-shield', createSpear(materials), UPRIGHT_RIGHT_HAND, [
@@ -190,82 +183,6 @@ export function isMilitaryEquipmentSource(
   value: { kind: string },
 ): value is MilitaryEquipmentSource {
   return (value as Partial<MilitaryEquipmentSource>).militaryEquipment === true;
-}
-
-function createMaterials(): Materials {
-  const material = (
-    name: string,
-    color: number,
-    roughness: number,
-    metalness: number,
-    pattern: 'wood' | 'leather' | 'metal' | 'paint' | 'feather',
-  ): THREE.MeshStandardMaterial => new THREE.MeshStandardMaterial({
-    name,
-    color: 0xffffff,
-    map: createSurfaceTexture(color, pattern),
-    roughness,
-    metalness,
-  });
-  return {
-    ash: material('Waxed ash weapon haft', 0x8b6235, 0.72, 0.015, 'wood'),
-    walnut: material('Dark walnut stock', 0x4c2f1d, 0.68, 0.01, 'wood'),
-    steel: material('Satin forged steel', 0xc2c4bd, 0.34, 0.66, 'metal'),
-    bluedSteel: material('Blued forged steel', 0x59605d, 0.44, 0.58, 'metal'),
-    brass: material('Cast brass fittings', 0xb99a55, 0.38, 0.64, 'metal'),
-    leather: material('Oiled brown leather', 0x4a2d1c, 0.82, 0, 'leather'),
-    oxblood: material('Oxblood frontier leather', 0x6d2f27, 0.78, 0, 'leather'),
-    paintedWood: material('Muted red painted shield wood', 0x7d3028, 0.76, 0, 'paint'),
-    feather: Object.assign(material('Goose-feather fletching', 0xd8d2be, 0.9, 0, 'feather'), { side: THREE.DoubleSide }),
-    cord: new THREE.LineBasicMaterial({
-      name: 'Hemp bow cord',
-      color: 0xd6c89d,
-    }),
-  };
-}
-
-/** Small deterministic shared maps keep close-ups tactile without asset IO. */
-function createSurfaceTexture(
-  base: number,
-  pattern: 'wood' | 'leather' | 'metal' | 'paint' | 'feather',
-): THREE.DataTexture {
-  const size = 64;
-  const data = new Uint8Array(size * size * 4);
-  const color = new THREE.Color(base);
-  const hash = (x: number, y: number): number => {
-    let value = Math.imul(x + 11, 374761393) ^ Math.imul(y + 17, 668265263);
-    value = Math.imul(value ^ (value >>> 13), 1274126177);
-    return ((value ^ (value >>> 16)) >>> 0) / 0xffffffff;
-  };
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      const noise = hash(x, y) - 0.5;
-      const grain = pattern === 'wood'
-        ? Math.sin((x + Math.sin(y * 0.22) * 5) * 0.46) * 0.06
-        : pattern === 'metal'
-          ? Math.sin(y * 2.8 + noise) * 0.018
-          : pattern === 'leather'
-            ? (hash(Math.floor(x / 3), Math.floor(y / 3)) - 0.5) * 0.11
-            : pattern === 'paint'
-              ? (noise * 0.07 - (hash(x * 3, y * 5) > 0.985 ? 0.14 : 0))
-              : Math.sin(y * 0.9) * 0.035;
-      const variation = THREE.MathUtils.clamp(1 + grain + noise * 0.035, 0.72, 1.16);
-      const offset = (y * size + x) * 4;
-      data[offset] = Math.round(THREE.MathUtils.clamp(color.r * variation, 0, 1) * 255);
-      data[offset + 1] = Math.round(THREE.MathUtils.clamp(color.g * variation, 0, 1) * 255);
-      data[offset + 2] = Math.round(THREE.MathUtils.clamp(color.b * variation, 0, 1) * 255);
-      data[offset + 3] = 255;
-    }
-  }
-  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
-  texture.name = `${pattern} procedural equipment surface`;
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(pattern === 'wood' ? 2 : 3, pattern === 'wood' ? 6 : 3);
-  texture.magFilter = THREE.LinearFilter;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.generateMipmaps = true;
-  texture.needsUpdate = true;
-  return texture;
 }
 
 function source(
@@ -374,10 +291,74 @@ function shapeGeometry(
   return geometry;
 }
 
+/** Elliptical sweep for a bow stave: readable limb flats without a mesh-per-segment cost. */
+function staveGeometry(
+  points: readonly THREE.Vector3[],
+  halfWidthAt: (fraction: number) => number,
+  halfDepthAt: (fraction: number) => number,
+  radialSegments = 8,
+): THREE.BufferGeometry {
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  const distances = [0];
+  for (let index = 1; index < points.length; index += 1) {
+    distances[index] = distances[index - 1]! + points[index]!.distanceTo(points[index - 1]!);
+  }
+  const totalDistance = Math.max(0.001, distances.at(-1)!);
+  for (let index = 0; index < points.length; index += 1) {
+    const previous = points[Math.max(0, index - 1)]!;
+    const next = points[Math.min(points.length - 1, index + 1)]!;
+    const tangent = next.clone().sub(previous).normalize();
+    const planarNormal = new THREE.Vector3(-tangent.y, tangent.x, 0).normalize();
+    const binormal = new THREE.Vector3(0, 0, 1);
+    const fraction = distances[index]! / totalDistance;
+    const halfWidth = halfWidthAt(fraction);
+    const halfDepth = halfDepthAt(fraction);
+    for (let radial = 0; radial <= radialSegments; radial += 1) {
+      const angle = radial / radialSegments * Math.PI * 2;
+      const vertex = points[index]!.clone()
+        .addScaledVector(planarNormal, Math.cos(angle) * halfWidth)
+        .addScaledVector(binormal, Math.sin(angle) * halfDepth);
+      positions.push(vertex.x, vertex.y, vertex.z);
+      uvs.push(fraction * 3.2, radial / radialSegments);
+    }
+  }
+  const row = radialSegments + 1;
+  for (let index = 0; index < points.length - 1; index += 1) {
+    for (let radial = 0; radial < radialSegments; radial += 1) {
+      const a = index * row + radial;
+      const b = a + row;
+      indices.push(a, b, a + 1, b, b + 1, a + 1);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+function addRivet(
+  group: THREE.Group,
+  material: THREE.Material,
+  name: string,
+  position: readonly [number, number, number],
+  radius = 0.01,
+): THREE.Mesh {
+  return add(group, new THREE.SphereGeometry(radius, 8, 5), material, name, position);
+}
+
 function createSpear(materials: Materials): THREE.Group {
   const group = new THREE.Group();
-  add(group, new THREE.CylinderGeometry(0.018, 0.023, 1.84, 12), materials.ash, 'Spear · tapered ash shaft', [0, 0.46, 0]);
-  add(group, new THREE.CylinderGeometry(0.03, 0.025, 0.14, 12), materials.bluedSteel, 'Spear · iron socket', [0, 1.41, 0]);
+  add(group, new THREE.CylinderGeometry(0.018, 0.023, 1.84, 14), materials.ash, 'Spear · tapered ash shaft', [0, 0.46, 0]);
+  add(group, new THREE.CylinderGeometry(0.03, 0.025, 0.14, 14), materials.bluedSteel, 'Spear · forged conical socket', [0, 1.41, 0]);
+  add(group, new THREE.TorusGeometry(0.027, 0.005, 5, 12), materials.bluedSteel, 'Spear · socket collar', [0, 1.345, 0], [Math.PI / 2, 0, 0]);
+  add(group, new RoundedBoxGeometry(0.012, 0.24, 0.008, 2, 0.002), materials.bluedSteel, 'Spear · front reinforcing langet', [0, 1.26, 0.021]);
+  add(group, new RoundedBoxGeometry(0.012, 0.24, 0.008, 2, 0.002), materials.bluedSteel, 'Spear · rear reinforcing langet', [0, 1.26, -0.021]);
   add(
     group,
     shapeGeometry([[0, -0.14], [0.042, 0.03], [0.03, 0.13], [0, 0.25], [-0.03, 0.13], [-0.042, 0.03]], 0.022, 0.005),
@@ -385,6 +366,16 @@ function createSpear(materials: Materials): THREE.Group {
     'Spear · leaf-shaped forged head',
     [0, 1.52, 0],
   );
+  add(
+    group,
+    shapeGeometry([[0, -0.105], [0.008, 0.03], [0.005, 0.16], [0, 0.225], [-0.005, 0.16], [-0.008, 0.03]], 0.006, 0.0015),
+    materials.bluedSteel,
+    'Spear · forged central blade ridge',
+    [0, 1.52, 0.014],
+  );
+  for (let index = 0; index < 3; index += 1) {
+    add(group, new THREE.TorusGeometry(0.0225, 0.003, 5, 10), materials.leather, 'Spear · socket binding', [0, 1.19 - index * 0.016, 0], [Math.PI / 2, 0, 0]);
+  }
   add(group, new THREE.ConeGeometry(0.034, 0.11, 10), materials.bluedSteel, 'Spear · iron butt cap', [0, -0.52, 0], [0, 0, Math.PI]);
   group.name = 'Procedural leaf spear';
   group.userData.equipmentIdentity = 'ordinary-leaf-spear';
@@ -393,8 +384,11 @@ function createSpear(materials: Materials): THREE.Group {
 
 function createPike(materials: Materials): THREE.Group {
   const group = new THREE.Group();
-  add(group, new THREE.CylinderGeometry(0.014, 0.019, 4.36, 10), materials.ash, 'Pike · long waxed-ash shaft', [0, 1.68, 0]);
-  add(group, new THREE.CylinderGeometry(0.021, 0.018, 0.18, 10), materials.bluedSteel, 'Pike · narrow iron socket', [0, 3.95, 0]);
+  add(group, new THREE.CylinderGeometry(0.014, 0.019, 4.36, 12), materials.ash, 'Pike · long waxed-ash shaft', [0, 1.68, 0]);
+  add(group, new THREE.CylinderGeometry(0.021, 0.018, 0.18, 12), materials.bluedSteel, 'Pike · narrow iron socket', [0, 3.95, 0]);
+  add(group, new THREE.TorusGeometry(0.0195, 0.004, 5, 10), materials.bluedSteel, 'Pike · socket collar', [0, 3.865, 0], [Math.PI / 2, 0, 0]);
+  add(group, new RoundedBoxGeometry(0.009, 0.44, 0.007, 2, 0.002), materials.bluedSteel, 'Pike · front reinforcing langet', [0, 3.69, 0.017]);
+  add(group, new RoundedBoxGeometry(0.009, 0.44, 0.007, 2, 0.002), materials.bluedSteel, 'Pike · rear reinforcing langet', [0, 3.69, -0.017]);
   add(
     group,
     shapeGeometry([[0, -0.1], [0.034, 0.03], [0.02, 0.14], [0, 0.26], [-0.02, 0.14], [-0.034, 0.03]], 0.018, 0.004),
@@ -402,6 +396,16 @@ function createPike(materials: Materials): THREE.Group {
     'Pike · compact armor-piercing head',
     [0, 4.08, 0],
   );
+  add(
+    group,
+    shapeGeometry([[0, -0.07], [0.006, 0.04], [0.003, 0.18], [0, 0.245], [-0.003, 0.18], [-0.006, 0.04]], 0.005, 0.001),
+    materials.bluedSteel,
+    'Pike · forged head ridge',
+    [0, 4.08, 0.011],
+  );
+  for (let index = 0; index < 4; index += 1) {
+    add(group, new THREE.TorusGeometry(0.0185, 0.003, 5, 10), materials.leather, 'Pike · lower-hand grip binding', [0, 0.18 + index * 0.022, 0], [Math.PI / 2, 0, 0]);
+  }
   add(group, new THREE.ConeGeometry(0.024, 0.1, 8), materials.bluedSteel, 'Pike · iron shoe', [0, -0.55, 0], [0, 0, Math.PI]);
   group.name = 'Procedural Landsknecht pike';
   group.userData.equipmentIdentity = 'mercenary-pike-and-katzbalger';
@@ -412,66 +416,158 @@ function createSword(materials: Materials, longSword: boolean): THREE.Group {
   const group = new THREE.Group();
   const bladeLength = longSword ? 0.77 : 0.61;
   const bladeWidth = longSword ? 0.026 : 0.023;
+  const guardSpan = longSword ? 0.17 : 0.145;
   add(
     group,
     shapeGeometry([
       [-bladeWidth, 0],
-      [-bladeWidth * 0.78, bladeLength * 0.72],
+      [-bladeWidth, bladeLength * 0.12],
+      [-bladeWidth * 0.82, bladeLength * 0.72],
       [0, bladeLength],
       [bladeWidth * 0.78, bladeLength * 0.72],
+      [bladeWidth, bladeLength * 0.12],
       [bladeWidth, 0],
-    ], longSword ? 0.024 : 0.022, 0.006),
+    ], longSword ? 0.021 : 0.019, 0.005),
     materials.steel,
     longSword ? 'Longsword · tapered double-edged blade' : 'Sidearm · tapered double-edged blade',
     [0, 0.17, 0],
   );
-  const fuller = add(
-    group,
-    new RoundedBoxGeometry(0.018, bladeLength * 0.68, 0.005, 2, 0.002),
-    materials.bluedSteel,
-    'Sword · recessed fuller',
-    [0, 0.2 + bladeLength * 0.34, 0.014],
-  );
-  fuller.scale.x = longSword ? 1.15 : 0.9;
+  for (const side of [-1, 1]) {
+    const fuller = add(
+      group,
+      new RoundedBoxGeometry(0.016, bladeLength * 0.63, 0.0035, 2, 0.0015),
+      materials.bluedSteel,
+      side > 0 ? 'Sword · front recessed fuller' : 'Sword · rear recessed fuller',
+      [0, 0.21 + bladeLength * 0.32, side * (longSword ? 0.012 : 0.011)],
+    );
+    fuller.scale.x = longSword ? 1.16 : 0.92;
+  }
+  add(group, new RoundedBoxGeometry(bladeWidth * 1.72, 0.075, 0.024, 2, 0.004), materials.bluedSteel, 'Sword · reinforced ricasso', [0, 0.2, 0]);
   const guardCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.15, 0.02, 0),
-    new THREE.Vector3(-0.07, 0.045, 0),
+    new THREE.Vector3(-guardSpan, 0.015, 0),
+    new THREE.Vector3(-guardSpan * 0.48, 0.046, 0),
     new THREE.Vector3(0, 0.032, 0),
-    new THREE.Vector3(0.07, 0.045, 0),
-    new THREE.Vector3(0.15, 0.02, 0),
+    new THREE.Vector3(guardSpan * 0.48, 0.046, 0),
+    new THREE.Vector3(guardSpan, 0.015, 0),
   ]);
   add(group, new THREE.TubeGeometry(guardCurve, 18, 0.014, 8, false), materials.bluedSteel, 'Sword · swept quillon guard');
+  add(group, new RoundedBoxGeometry(0.085, 0.038, 0.044, 3, 0.01), materials.brass, 'Sword · guard block and rain collar', [0, 0.025, 0]);
   add(group, new THREE.CylinderGeometry(0.027, 0.031, 0.19, 10), materials.leather, 'Sword · leather-bound grip', [0, -0.085, 0]);
   for (let index = 0; index < 5; index += 1) {
     add(group, new THREE.TorusGeometry(0.03, 0.004, 5, 12), materials.brass, 'Sword · grip wire', [0, -0.015 - index * 0.035, 0], [Math.PI / 2, 0, 0]);
   }
-  add(group, new THREE.SphereGeometry(longSword ? 0.045 : 0.04, 12, 8), materials.brass, 'Sword · wheel pommel', [0, -0.2, 0]);
+  const pommel = add(group, new THREE.SphereGeometry(longSword ? 0.048 : 0.042, 14, 9), materials.brass, 'Sword · wheel pommel', [0, -0.2, 0]);
+  pommel.scale.z = 0.52;
+  addRivet(group, materials.bluedSteel, 'Sword · front pommel peen', [0, -0.2, 0.025], longSword ? 0.012 : 0.01);
+  addRivet(group, materials.bluedSteel, 'Sword · rear pommel peen', [0, -0.2, -0.025], longSword ? 0.012 : 0.01);
   group.name = longSword ? 'Procedural longsword' : 'Procedural arming sword';
   group.userData.equipmentIdentity = longSword ? 'mail-company-longsword' : 'infantry-sidearm';
   return group;
 }
 
 function shieldOutline(kind: 'small' | 'medium' | 'large'): Array<readonly [number, number]> {
+  if (kind === 'large') {
+    return [
+      [0.22, 0.3], [0, 0.325], [-0.22, 0.3], [-0.3, 0.19], [-0.305, 0.04],
+      [-0.26, -0.12], [-0.17, -0.27], [0, -0.38], [0.17, -0.27], [0.26, -0.12],
+      [0.305, 0.04], [0.3, 0.19],
+    ];
+  }
   const count = kind === 'small' ? 28 : 36;
-  const radius = kind === 'small' ? 0.17 : kind === 'medium' ? 0.28 : 0.31;
+  const radius = kind === 'small' ? 0.17 : 0.275;
   return Array.from({ length: count }, (_, index) => {
     const angle = index / count * Math.PI * 2;
-    const handWorkedVariation = kind === 'small' ? 1 : 1 - 0.018 * Math.cos(angle * 4);
-    return [Math.cos(angle) * radius * handWorkedVariation, Math.sin(angle) * radius] as const;
+    const handWorkedVariation = kind === 'small' ? 1 : 1 - 0.016 * Math.cos(angle * 4);
+    return [
+      Math.cos(angle) * radius * handWorkedVariation * (kind === 'medium' ? 0.94 : 1),
+      Math.sin(angle) * radius * (kind === 'medium' ? 1.04 : 1),
+    ] as const;
   });
+}
+
+/** Shallow concentric shell gives bucklers and targes a real light-catching convexity. */
+function convexShieldGeometry(
+  outline: readonly (readonly [number, number])[],
+  thickness: number,
+  bulge: number,
+  rings = 4,
+): THREE.BufferGeometry {
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  const maxX = Math.max(...outline.map(([x]) => Math.abs(x)));
+  const maxY = Math.max(...outline.map(([, y]) => Math.abs(y)));
+  const push = (x: number, y: number, z: number): number => {
+    const index = positions.length / 3;
+    positions.push(x, y, z);
+    uvs.push(x / (maxX * 2) + 0.5, y / (maxY * 2) + 0.5);
+    return index;
+  };
+  const frontCenter = push(0, 0, thickness * 0.5 + bulge);
+  const backCenter = push(0, 0, -thickness * 0.5 + bulge * 0.24);
+  const frontRings: number[][] = [];
+  const backRings: number[][] = [];
+  for (let ring = 1; ring <= rings; ring += 1) {
+    const radius = ring / rings;
+    const crown = Math.pow(1 - radius, 1.45);
+    frontRings.push(outline.map(([x, y]) => push(x * radius, y * radius, thickness * 0.5 + bulge * crown)));
+    backRings.push(outline.map(([x, y]) => push(x * radius, y * radius, -thickness * 0.5 + bulge * crown * 0.24)));
+  }
+  const count = outline.length;
+  for (let side = 0; side < count; side += 1) {
+    const next = (side + 1) % count;
+    indices.push(frontCenter, frontRings[0]![side]!, frontRings[0]![next]!);
+    indices.push(backCenter, backRings[0]![next]!, backRings[0]![side]!);
+  }
+  for (let ring = 0; ring < rings - 1; ring += 1) {
+    for (let side = 0; side < count; side += 1) {
+      const next = (side + 1) % count;
+      const frontA = frontRings[ring]![side]!;
+      const frontB = frontRings[ring + 1]![side]!;
+      const frontC = frontRings[ring]![next]!;
+      const frontD = frontRings[ring + 1]![next]!;
+      indices.push(frontA, frontB, frontC, frontB, frontD, frontC);
+      const backA = backRings[ring]![side]!;
+      const backB = backRings[ring]![next]!;
+      const backC = backRings[ring + 1]![side]!;
+      const backD = backRings[ring + 1]![next]!;
+      indices.push(backA, backB, backC, backB, backD, backC);
+    }
+  }
+  const frontEdge = frontRings.at(-1)!;
+  const backEdge = backRings.at(-1)!;
+  for (let side = 0; side < count; side += 1) {
+    const next = (side + 1) % count;
+    indices.push(frontEdge[side]!, backEdge[side]!, frontEdge[next]!);
+    indices.push(backEdge[side]!, backEdge[next]!, frontEdge[next]!);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  return geometry;
 }
 
 function createShield(kind: 'small' | 'medium' | 'large', materials: Materials): THREE.Group {
   const group = new THREE.Group();
   const outline = shieldOutline(kind);
   const depth = kind === 'small' ? 0.034 : 0.042;
-  add(group, shapeGeometry(outline, depth, 0.012), materials.walnut, `${kind} shield · laminated timber body`);
-  const rimPoints = outline.map(([x, y]) => new THREE.Vector3(x, y, depth * 0.58));
+  const bulge = kind === 'small' ? 0.034 : kind === 'medium' ? 0.052 : 0.046;
+  add(
+    group,
+    convexShieldGeometry(outline, depth, bulge),
+    kind === 'small' ? materials.walnut : materials.paintedWood,
+    `${kind} shield · convex laminated and canvas-faced timber body`,
+  );
+  const rimPoints = outline.map(([x, y]) => new THREE.Vector3(x, y, depth * 0.5));
   add(
     group,
     new THREE.TubeGeometry(new THREE.CatmullRomCurve3(rimPoints, true, 'centripetal'), outline.length * 3, kind === 'large' ? 0.018 : 0.015, 6, true),
     materials.bluedSteel,
-    `${kind} shield · forged rim`,
+    `${kind} shield · rolled and riveted forged rim`,
   );
   const bossRadius = kind === 'small' ? 0.095 : kind === 'medium' ? 0.105 : 0.115;
   add(
@@ -479,14 +575,27 @@ function createShield(kind: 'small' | 'medium' | 'large', materials: Materials):
     new THREE.SphereGeometry(bossRadius, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2),
     materials.steel,
     `${kind} shield · raised iron boss`,
-    [0, 0, depth * 0.55],
+    [0, 0, depth * 0.5 + bulge * 0.82],
     [Math.PI / 2, 0, 0],
   );
-  if (kind !== 'small') {
-    add(group, new THREE.TorusGeometry(kind === 'large' ? 0.245 : 0.215, 0.018, 6, 36), materials.paintedWood, `${kind} shield · restrained painted ring`, [0, 0, depth * 0.72]);
+  add(group, new THREE.TorusGeometry(bossRadius * 1.05, 0.008, 5, 20), materials.bluedSteel, `${kind} shield · boss neck collar`, [0, 0, depth * 0.5 + bulge * 0.79]);
+  const rivetCount = kind === 'large' ? outline.length : 8;
+  for (let index = 0; index < rivetCount; index += 1) {
+    const outlineIndex = Math.floor(index / rivetCount * outline.length) % outline.length;
+    const [x, y] = outline[outlineIndex]!;
+    addRivet(
+      group,
+      materials.brass,
+      `${kind} shield · peened rim rivet`,
+      [x * 0.84, y * 0.84, depth * 0.5 + bulge * 0.1],
+      kind === 'small' ? 0.008 : 0.009,
+    );
   }
-  add(group, new RoundedBoxGeometry(kind === 'large' ? 0.42 : 0.3, 0.035, 0.035, 3, 0.01), materials.leather, `${kind} shield · rear arm strap`, [0, 0, -0.04], [0, 0, Math.PI / 2]);
-  add(group, new THREE.CylinderGeometry(0.018, 0.018, kind === 'small' ? 0.2 : 0.25, 8), materials.leather, `${kind} shield · hand grip`, [0, 0, -0.075], [0, 0, Math.PI / 2]);
+  add(group, new RoundedBoxGeometry(kind === 'large' ? 0.43 : 0.3, 0.037, 0.03, 3, 0.01), materials.leather, `${kind} shield · adjustable rear arm strap`, [0, 0.07, -depth * 0.62], [0, 0, Math.PI / 2]);
+  add(group, new THREE.CylinderGeometry(0.019, 0.019, kind === 'small' ? 0.2 : 0.25, 9), materials.walnut, `${kind} shield · shaped wooden hand grip`, [0, -0.04, -0.075], [0, 0, Math.PI / 2]);
+  for (const x of [-0.13, 0.13]) {
+    addRivet(group, materials.brass, `${kind} shield · rear strap rivet`, [x, 0.07, -depth * 0.73], 0.009);
+  }
   group.name = `Procedural ${kind} shield`;
   group.userData.equipmentIdentity = `${kind}-shield`;
   return group;
@@ -494,11 +603,20 @@ function createShield(kind: 'small' | 'medium' | 'large', materials: Materials):
 
 function createHalberd(materials: Materials): THREE.Group {
   const group = new THREE.Group();
-  add(group, new THREE.CylinderGeometry(0.021, 0.026, 1.92, 12), materials.ash, 'Halberd · tapered ash haft', [0, 0.45, 0]);
-  add(group, new THREE.CylinderGeometry(0.03, 0.027, 0.42, 12), materials.bluedSteel, 'Halberd · iron langet and socket', [0, 1.29, 0]);
+  add(group, new THREE.CylinderGeometry(0.021, 0.026, 1.92, 14), materials.ash, 'Halberd · tapered ash haft', [0, 0.45, 0]);
+  add(group, new THREE.CylinderGeometry(0.03, 0.027, 0.42, 14), materials.bluedSteel, 'Halberd · long forged socket', [0, 1.29, 0]);
+  add(group, new RoundedBoxGeometry(0.014, 0.62, 0.009, 2, 0.002), materials.bluedSteel, 'Halberd · front socket langet', [0, 1.05, 0.024]);
+  add(group, new RoundedBoxGeometry(0.014, 0.62, 0.009, 2, 0.002), materials.bluedSteel, 'Halberd · rear socket langet', [0, 1.05, -0.024]);
   add(group, shapeGeometry([[0, -0.08], [0.055, 0.08], [0, 0.31], [-0.055, 0.08]], 0.03, 0.007), materials.steel, 'Halberd · thrusting spike', [0, 1.49, 0]);
   add(group, shapeGeometry([[0, -0.15], [0.15, -0.11], [0.34, 0.03], [0.31, 0.25], [0.12, 0.18], [0, 0.12]], 0.036, 0.009), materials.steel, 'Halberd · crescent axe blade', [0.015, 1.34, 0]);
   add(group, shapeGeometry([[0, -0.06], [-0.3, 0.02], [-0.13, 0.12], [0, 0.1]], 0.032, 0.008), materials.bluedSteel, 'Halberd · armor-piercing rear hook', [-0.015, 1.34, 0]);
+  add(group, shapeGeometry([[0.08, -0.085], [0.15, -0.055], [0.315, 0.045], [0.296, 0.095], [0.14, 0.035]], 0.007, 0.002), materials.bluedSteel, 'Halberd · beveled axe cheek', [0.015, 1.34, 0.022]);
+  for (const x of [-0.023, 0.023]) {
+    addRivet(group, materials.brass, 'Halberd · peened head rivet', [x, 1.31, 0.033], 0.009);
+  }
+  for (let index = 0; index < 5; index += 1) {
+    add(group, new THREE.TorusGeometry(0.0245, 0.003, 5, 10), materials.leather, 'Halberd · lower-hand grip wrap', [0, 0.05 + index * 0.021, 0], [Math.PI / 2, 0, 0]);
+  }
   add(group, new THREE.ConeGeometry(0.033, 0.1, 10), materials.bluedSteel, 'Halberd · iron butt cap', [0, -0.55, 0], [0, 0, Math.PI]);
   group.name = 'Procedural Gorski Kotar halberd';
   group.userData.equipmentIdentity = 'armor-breaking-halberd';
@@ -516,8 +634,22 @@ function createBow(materials: Materials): THREE.Group {
     const x = 0.135 * Math.pow(Math.abs(centered), 1.7);
     points.push(new THREE.Vector3(x, y, 0));
   }
-  add(group, new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 72, 0.016, 9, false), materials.ash, 'Self bow · continuous yew-like stave');
-  add(group, new THREE.CylinderGeometry(0.027, 0.027, 0.17, 10), materials.leather, 'Self bow · leather grip', [0, 0, 0]);
+  add(
+    group,
+    staveGeometry(
+      points,
+      (fraction) => THREE.MathUtils.lerp(0.009, 0.024, Math.sin(Math.PI * fraction) ** 0.72),
+      (fraction) => THREE.MathUtils.lerp(0.006, 0.014, Math.sin(Math.PI * fraction) ** 0.58),
+    ),
+    materials.ash,
+    'Self bow · tapered D-section stave',
+  );
+  add(group, new RoundedBoxGeometry(0.052, 0.185, 0.036, 4, 0.012), materials.leather, 'Self bow · stitched leather grip', [0, 0, 0]);
+  for (const y of [-0.073, -0.036, 0, 0.036, 0.073]) {
+    add(group, new THREE.TorusGeometry(0.0255, 0.0028, 5, 10), materials.oxblood, 'Self bow · spiral grip binding', [0, y, 0], [Math.PI / 2, 0, 0]);
+  }
+  add(group, new THREE.CylinderGeometry(0.009, 0.014, 0.064, 8), materials.bone, 'Self bow · lower horn nock', [points[0]!.x, points[0]!.y, 0], [0, 0, 0.17]);
+  add(group, new THREE.CylinderGeometry(0.014, 0.009, 0.064, 8), materials.bone, 'Self bow · upper horn nock', [points.at(-1)!.x, points.at(-1)!.y, 0], [0, 0, -0.17]);
   const string = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([points[0]!, new THREE.Vector3(-0.055, 0, 0), points.at(-1)!]),
     materials.cord,
@@ -531,8 +663,18 @@ function createBow(materials: Materials): THREE.Group {
 
 function createCrossbow(materials: Materials): THREE.Group {
   const group = new THREE.Group();
-  add(group, new RoundedBoxGeometry(0.09, 0.73, 0.07, 4, 0.018), materials.walnut, 'Crossbow · carved walnut tiller', [0, 0.03, 0]);
+  add(
+    group,
+    shapeGeometry([
+      [-0.045, -0.36], [-0.066, -0.27], [-0.052, 0.25], [-0.034, 0.4],
+      [0.034, 0.4], [0.052, 0.25], [0.066, -0.27], [0.045, -0.36],
+    ], 0.072, 0.012),
+    materials.walnut,
+    'Crossbow · sculpted walnut tiller',
+  );
   add(group, new RoundedBoxGeometry(0.14, 0.17, 0.065, 3, 0.014), materials.leather, 'Crossbow · shouldered stock', [0, -0.36, 0.012], [0, 0, -0.13]);
+  add(group, new RoundedBoxGeometry(0.024, 0.59, 0.012, 2, 0.003), materials.bluedSteel, 'Crossbow · bolt groove and top rail', [0, 0.08, 0.044]);
+  add(group, new RoundedBoxGeometry(0.11, 0.035, 0.075, 2, 0.006), materials.brass, 'Crossbow · worn butt cap', [0, -0.435, 0.01], [0, 0, -0.13]);
   const prod = new THREE.CatmullRomCurve3([
     new THREE.Vector3(-0.32, 0.31, 0),
     new THREE.Vector3(-0.22, 0.27, 0.005),
@@ -541,9 +683,21 @@ function createCrossbow(materials: Materials): THREE.Group {
     new THREE.Vector3(0.32, 0.31, 0),
   ]);
   add(group, new THREE.TubeGeometry(prod, 36, 0.015, 8, false), materials.bluedSteel, 'Crossbow · forged steel prod');
-  add(group, new THREE.CylinderGeometry(0.043, 0.043, 0.085, 12), materials.brass, 'Crossbow · rotating nut', [0, 0.02, 0.025], [0, 0, Math.PI / 2]);
+  add(group, new THREE.CylinderGeometry(0.043, 0.043, 0.085, 14), materials.bone, 'Crossbow · antler rotating nut', [0, 0.02, 0.025], [0, 0, Math.PI / 2]);
+  addRivet(group, materials.bluedSteel, 'Crossbow · nut axle cap', [0.047, 0.02, 0.025], 0.011);
   add(group, new RoundedBoxGeometry(0.018, 0.16, 0.025, 3, 0.006), materials.bluedSteel, 'Crossbow · trigger lever', [0, -0.1, 0.055], [0.25, 0, 0]);
+  const triggerGuard = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.028, -0.04, 0.052),
+    new THREE.Vector3(-0.045, -0.13, 0.075),
+    new THREE.Vector3(0, -0.19, 0.07),
+    new THREE.Vector3(0.04, -0.12, 0.055),
+  ]);
+  add(group, new THREE.TubeGeometry(triggerGuard, 14, 0.006, 6, false), materials.bluedSteel, 'Crossbow · forged trigger bow');
   add(group, new THREE.TorusGeometry(0.07, 0.01, 6, 18, Math.PI * 1.4), materials.bluedSteel, 'Crossbow · spanning stirrup', [0, 0.41, 0], [Math.PI / 2, 0, -0.2]);
+  add(group, new RoundedBoxGeometry(0.016, 0.16, 0.008, 2, 0.002), materials.steel, 'Crossbow · spring bolt clip', [0, 0.18, 0.055], [-0.05, 0, 0]);
+  for (let index = 0; index < 5; index += 1) {
+    add(group, new THREE.TorusGeometry(0.036 + index * 0.002, 0.003, 5, 10), materials.leather, 'Crossbow · prod binding', [0, 0.29 + index * 0.012, 0], [Math.PI / 2, 0, 0]);
+  }
   const string = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(-0.32, 0.31, 0.012),
@@ -563,14 +717,31 @@ function createArrow(materials: Materials, length: number): THREE.Group {
   const arrow = new THREE.Group();
   add(arrow, new THREE.CylinderGeometry(0.004, 0.004, length, 6), materials.ash, 'Arrow · ash shaft', [0, length * 0.5, 0]);
   add(arrow, new THREE.ConeGeometry(0.014, 0.04, 6), materials.steel, 'Arrow · forged point', [0, length + 0.02, 0]);
-  add(arrow, shapeGeometry([[-0.022, 0], [0.022, 0], [0.012, 0.085], [-0.012, 0.085]], 0.004, 0.001), materials.feather, 'Arrow · goose fletching', [0, 0.02, 0]);
+  add(arrow, new THREE.TorusGeometry(0.007, 0.002, 4, 8), materials.bluedSteel, 'Arrow · point socket binding', [0, length - 0.002, 0], [Math.PI / 2, 0, 0]);
+  add(arrow, new THREE.CylinderGeometry(0.006, 0.005, 0.025, 6), materials.walnut, 'Arrow · reinforced hardwood self nock', [0, 0.002, 0]);
+  for (let vane = 0; vane < 3; vane += 1) {
+    add(
+      arrow,
+      shapeGeometry([[-0.021, 0], [0.02, 0], [0.012, 0.085], [-0.008, 0.095]], 0.0025, 0.0008),
+      materials.feather,
+      'Arrow · bound goose-feather vane',
+      [0, 0.02, 0],
+      [0, vane / 3 * Math.PI * 2, 0],
+    );
+  }
   return arrow;
 }
 
 function createQuiver(materials: Materials, arrowCount: number, arrowLength: number): THREE.Group {
   const group = new THREE.Group();
   add(group, new THREE.CylinderGeometry(0.09, 0.075, 0.5, 14, 1, true), materials.leather, 'Bow kit · leather quiver', [0, 0.19, 0]);
-  add(group, new THREE.TorusGeometry(0.09, 0.009, 6, 18), materials.brass, 'Bow kit · quiver mouth', [0, 0.44, 0], [Math.PI / 2, 0, 0]);
+  add(group, new THREE.CylinderGeometry(0.076, 0.076, 0.022, 14), materials.oxblood, 'Bow kit · reinforced quiver floor', [0, -0.068, 0]);
+  add(group, new THREE.TorusGeometry(0.09, 0.009, 6, 18), materials.brass, 'Bow kit · latten-bound quiver mouth', [0, 0.44, 0], [Math.PI / 2, 0, 0]);
+  add(group, new THREE.TorusGeometry(0.08, 0.008, 6, 16), materials.oxblood, 'Bow kit · lower leather binding', [0, -0.045, 0], [Math.PI / 2, 0, 0]);
+  add(group, new RoundedBoxGeometry(0.035, 0.48, 0.016, 2, 0.005), materials.oxblood, 'Bow kit · stitched suspension strap', [0.085, 0.2, -0.03], [0.08, 0, -0.08]);
+  for (const y of [0.04, 0.2, 0.36]) {
+    addRivet(group, materials.brass, 'Bow kit · suspension rivet', [0.087, y, -0.02], 0.007);
+  }
   for (let index = 0; index < arrowCount; index += 1) {
     const angle = index / arrowCount * Math.PI * 2;
     const arrow = createArrow(materials, arrowLength);
@@ -585,6 +756,10 @@ function createQuiver(materials: Materials, arrowCount: number, arrowLength: num
 
 function createBoltCase(materials: Materials): THREE.Group {
   const group = createQuiver(materials, 5, 0.34);
+  add(group, new RoundedBoxGeometry(0.026, 0.32, 0.022, 2, 0.006), materials.bluedSteel, 'Crossbow kit · belt-carried cranequin rack', [0.13, 0.21, 0.02], [0, 0, -0.08]);
+  add(group, new THREE.TorusGeometry(0.046, 0.012, 6, 16), materials.brass, 'Crossbow kit · cranequin gear housing', [0.13, 0.34, 0.035]);
+  add(group, new RoundedBoxGeometry(0.16, 0.018, 0.018, 2, 0.005), materials.bluedSteel, 'Crossbow kit · folding cranequin crank', [0.18, 0.38, 0.04], [0, 0, -0.42]);
+  add(group, new THREE.CylinderGeometry(0.015, 0.015, 0.085, 7), materials.walnut, 'Crossbow kit · cranequin crank handle', [0.25, 0.345, 0.04], [0, 0, -0.42]);
   group.scale.setScalar(0.82);
   group.name = 'Procedural crossbow bolt case';
   group.userData.equipmentIdentity = 'crossbow-bolt-kit';
@@ -600,9 +775,30 @@ function createKorda(materials: Materials): THREE.Group {
     'Uskok korda · single-edged frontier blade',
     [0, 0.12, 0],
   );
-  add(group, new THREE.BoxGeometry(0.19, 0.024, 0.032), materials.bluedSteel, 'Uskok korda · simple iron guard', [0, 0.1, 0]);
+  for (const side of [-1, 1]) {
+    add(
+      group,
+      shapeGeometry([[-0.011, 0.06], [-0.013, 0.43], [-0.01, 0.61], [0, 0.67], [0.009, 0.6], [0.014, 0.2], [0.013, 0.06]], 0.0035, 0.001),
+      materials.bluedSteel,
+      side > 0 ? 'Uskok korda · front forged fuller' : 'Uskok korda · rear forged fuller',
+      [0, 0.12, side * 0.011],
+    );
+  }
+  const guard = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.1, 0.105, -0.005),
+    new THREE.Vector3(-0.05, 0.125, 0),
+    new THREE.Vector3(0, 0.11, 0),
+    new THREE.Vector3(0.06, 0.095, 0),
+    new THREE.Vector3(0.105, 0.12, 0.005),
+  ]);
+  add(group, new THREE.TubeGeometry(guard, 14, 0.012, 7, false), materials.bluedSteel, 'Uskok korda · swept iron guard');
+  add(group, new RoundedBoxGeometry(0.062, 0.035, 0.036, 2, 0.008), materials.brass, 'Uskok korda · latten bolster', [0, 0.095, 0]);
   add(group, new THREE.CylinderGeometry(0.026, 0.031, 0.19, 10), materials.oxblood, 'Uskok korda · oxblood grip', [0, -0.005, 0]);
-  add(group, new THREE.SphereGeometry(0.038, 10, 7), materials.brass, 'Uskok korda · compact pommel', [0, -0.12, 0]);
+  for (let index = 0; index < 5; index += 1) {
+    add(group, new THREE.TorusGeometry(0.029, 0.003, 5, 10), materials.brass, 'Uskok korda · grip wire', [0, 0.055 - index * 0.035, 0], [Math.PI / 2, 0, 0]);
+  }
+  const pommel = add(group, new THREE.SphereGeometry(0.04, 12, 8), materials.brass, 'Uskok korda · compact disc pommel', [0, -0.12, 0]);
+  pommel.scale.z = 0.58;
   group.name = 'Procedural Uskok korda';
   group.userData.equipmentIdentity = 'uskok-korda-war-knife';
   return group;
@@ -618,8 +814,13 @@ function createFallbackDagger(materials: Materials): THREE.Group {
     'Ranged fallback dagger · double-edged blade',
     [0, 0.1, 0],
   );
-  add(group, new THREE.BoxGeometry(0.12, 0.018, 0.026), materials.bluedSteel, 'Ranged fallback dagger · iron guard', [0, 0.08, 0]);
+  add(group, new RoundedBoxGeometry(0.012, 0.2, 0.004, 2, 0.001), materials.bluedSteel, 'Ranged fallback dagger · recessed fuller', [0, 0.24, 0.009]);
+  add(group, new RoundedBoxGeometry(0.12, 0.02, 0.028, 2, 0.004), materials.bluedSteel, 'Ranged fallback dagger · iron guard', [0, 0.08, 0]);
+  add(group, new RoundedBoxGeometry(0.05, 0.025, 0.032, 2, 0.006), materials.brass, 'Ranged fallback dagger · grip bolster', [0, 0.066, 0]);
   add(group, new THREE.CylinderGeometry(0.02, 0.024, 0.12, 9), materials.leather, 'Ranged fallback dagger · leather grip', [0, 0.01, 0]);
+  for (let index = 0; index < 3; index += 1) {
+    add(group, new THREE.TorusGeometry(0.022, 0.0025, 5, 9), materials.brass, 'Ranged fallback dagger · grip wire', [0, 0.035 - index * 0.032, 0], [Math.PI / 2, 0, 0]);
+  }
   add(group, new THREE.SphereGeometry(0.028, 9, 6), materials.brass, 'Ranged fallback dagger · small pommel', [0, -0.065, 0]);
   group.name = 'Procedural ranged fallback dagger';
   group.userData.equipmentIdentity = 'ranged-fallback-dagger';
@@ -629,6 +830,8 @@ function createFallbackDagger(materials: Materials): THREE.Group {
 function createFallbackDaggerScabbard(materials: Materials): THREE.Group {
   const group = new THREE.Group();
   add(group, new RoundedBoxGeometry(0.052, 0.35, 0.036, 3, 0.009), materials.leather, 'Ranged fallback dagger · belt scabbard', [0, 0.12, 0]);
+  add(group, new THREE.ConeGeometry(0.033, 0.065, 8), materials.brass, 'Ranged fallback dagger · scabbard chape', [0, -0.087, 0], [0, 0, Math.PI]);
+  add(group, new THREE.TorusGeometry(0.029, 0.005, 5, 10), materials.brass, 'Ranged fallback dagger · scabbard throat', [0, 0.292, 0], [Math.PI / 2, 0, 0]);
   add(group, new THREE.BoxGeometry(0.12, 0.018, 0.026), materials.bluedSteel, 'Ranged fallback dagger · visible guard', [0, 0.31, 0]);
   add(group, new THREE.CylinderGeometry(0.02, 0.024, 0.11, 9), materials.leather, 'Ranged fallback dagger · visible grip', [0, 0.365, 0]);
   group.name = 'Procedural ranged fallback dagger scabbard';
@@ -638,19 +841,61 @@ function createFallbackDaggerScabbard(materials: Materials): THREE.Group {
 
 function createArquebus(materials: Materials): THREE.Group {
   const group = new THREE.Group();
-  add(group, new RoundedBoxGeometry(0.075, 0.96, 0.072, 3, 0.014), materials.walnut, 'Arquebus · carved walnut stock', [0, 0.05, 0]);
-  add(group, new RoundedBoxGeometry(0.13, 0.23, 0.08, 3, 0.016), materials.walnut, 'Arquebus · shouldered butt', [0.025, -0.42, 0], [0, 0, -0.08]);
-  add(group, new THREE.CylinderGeometry(0.022, 0.026, 0.72, 12), materials.bluedSteel, 'Arquebus · hand-forged barrel', [0, 0.43, 0.055]);
-  add(group, new THREE.TorusGeometry(0.035, 0.007, 6, 12), materials.brass, 'Arquebus · muzzle band', [0, 0.79, 0.055], [Math.PI / 2, 0, 0]);
+  add(
+    group,
+    shapeGeometry([
+      [-0.04, -0.48], [-0.082, -0.39], [-0.062, -0.2], [-0.045, 0.69],
+      [0.045, 0.69], [0.052, -0.2], [0.092, -0.35], [0.075, -0.5],
+    ], 0.074, 0.012),
+    materials.walnut,
+    'Arquebus · sculpted walnut full stock',
+  );
+  add(group, new RoundedBoxGeometry(0.14, 0.23, 0.08, 3, 0.016), materials.walnut, 'Arquebus · shouldered fishtail butt', [0.025, -0.42, 0], [0, 0, -0.08]);
+  add(group, new RoundedBoxGeometry(0.09, 0.05, 0.082, 2, 0.008), materials.brass, 'Arquebus · worn butt plate', [0.045, -0.525, 0], [0, 0, -0.08]);
+  add(group, new THREE.CylinderGeometry(0.022, 0.026, 0.72, 12), materials.bluedSteel, 'Arquebus · long hand-forged barrel', [0, 0.43, 0.055]);
+  for (const y of [0.18, 0.47, 0.7]) {
+    add(group, new THREE.TorusGeometry(0.028, 0.0055, 5, 12), materials.brass, 'Arquebus · latten barrel band', [0, y, 0.055], [Math.PI / 2, 0, 0]);
+  }
+  add(group, new THREE.TorusGeometry(0.035, 0.007, 6, 12), materials.brass, 'Arquebus · reinforced muzzle band', [0, 0.79, 0.055], [Math.PI / 2, 0, 0]);
+  add(group, new RoundedBoxGeometry(0.012, 0.025, 0.014, 2, 0.003), materials.steel, 'Arquebus · forged front sight', [0, 0.748, 0.086]);
+  add(group, new RoundedBoxGeometry(0.018, 0.02, 0.012, 2, 0.003), materials.steel, 'Arquebus · rear notch sight', [0, 0.18, 0.084]);
+  add(group, new THREE.CylinderGeometry(0.0055, 0.0065, 0.67, 7), materials.ash, 'Arquebus · under-barrel ramrod', [-0.025, 0.43, -0.05]);
+  for (const y of [0.18, 0.52, 0.7]) {
+    add(group, new THREE.TorusGeometry(0.011, 0.0035, 5, 9), materials.bluedSteel, 'Arquebus · ramrod thimble', [-0.025, y, -0.05], [Math.PI / 2, 0, 0]);
+  }
   const serpentine = new THREE.CatmullRomCurve3([
     new THREE.Vector3(0.035, 0.04, 0.055),
     new THREE.Vector3(0.09, 0.0, 0.06),
     new THREE.Vector3(0.065, -0.08, 0.055),
   ]);
-  add(group, new THREE.TubeGeometry(serpentine, 16, 0.009, 7, false), materials.bluedSteel, 'Arquebus · matchlock serpentine');
-  add(group, new THREE.CylinderGeometry(0.02, 0.02, 0.2, 8), materials.leather, 'Arquebus · slow match', [0.075, -0.05, 0.065], [0, 0, 0.4]);
-  add(group, new RoundedBoxGeometry(0.085, 0.075, 0.022, 2, 0.005), materials.brass, 'Arquebus · lock plate', [0.045, -0.04, 0.052]);
-  add(group, new RoundedBoxGeometry(0.07, 0.12, 0.03, 2, 0.006), materials.leather, 'Arquebus · shoulder sling', [-0.055, -0.1, -0.03], [0, 0, -0.2]);
+  add(group, new THREE.TubeGeometry(serpentine, 16, 0.009, 7, false), materials.bluedSteel, 'Arquebus · articulated matchlock serpentine');
+  const slowMatch = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.067, -0.075, 0.06),
+    new THREE.Vector3(0.11, -0.035, 0.07),
+    new THREE.Vector3(0.09, 0.055, 0.072),
+  ]);
+  add(group, new THREE.TubeGeometry(slowMatch, 12, 0.007, 6, false), materials.leather, 'Arquebus · smouldering slow-match cord');
+  add(group, new RoundedBoxGeometry(0.088, 0.09, 0.024, 2, 0.005), materials.brass, 'Arquebus · engraved lock plate', [0.045, -0.025, 0.052]);
+  add(group, new THREE.CylinderGeometry(0.032, 0.025, 0.035, 10), materials.bluedSteel, 'Arquebus · priming pan', [0.055, 0.055, 0.075], [0, 0, Math.PI / 2]);
+  add(group, new RoundedBoxGeometry(0.06, 0.042, 0.009, 2, 0.003), materials.brass, 'Arquebus · hinged pan cover', [0.057, 0.063, 0.095], [0.08, 0, -0.12]);
+  addRivet(group, materials.steel, 'Arquebus · serpentine pivot', [0.065, -0.035, 0.071], 0.011);
+  add(group, new RoundedBoxGeometry(0.014, 0.11, 0.02, 2, 0.004), materials.bluedSteel, 'Arquebus · trigger', [0.012, -0.12, 0.053], [0.32, 0, 0]);
+  const triggerGuard = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.025, -0.08, 0.045),
+    new THREE.Vector3(-0.04, -0.17, 0.07),
+    new THREE.Vector3(0.015, -0.21, 0.065),
+    new THREE.Vector3(0.042, -0.13, 0.045),
+  ]);
+  add(group, new THREE.TubeGeometry(triggerGuard, 14, 0.006, 6, false), materials.bluedSteel, 'Arquebus · forged trigger guard');
+  const sling = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.045, -0.4, -0.035),
+    new THREE.Vector3(-0.13, -0.1, -0.1),
+    new THREE.Vector3(-0.1, 0.46, -0.09),
+    new THREE.Vector3(-0.04, 0.62, -0.02),
+  ]);
+  add(group, new THREE.TubeGeometry(sling, 28, 0.008, 6, false), materials.leather, 'Arquebus · adjustable leather shoulder sling');
+  addRivet(group, materials.brass, 'Arquebus · rear sling stud', [-0.045, -0.4, -0.035], 0.009);
+  addRivet(group, materials.brass, 'Arquebus · forward sling stud', [-0.04, 0.62, -0.02], 0.009);
   group.name = 'Procedural Uskok matchlock arquebus';
   group.userData.equipmentIdentity = 'uskok-light-arquebus';
   return group;
@@ -659,6 +904,12 @@ function createArquebus(materials: Materials): THREE.Group {
 function createKatzbalgerScabbard(materials: Materials): THREE.Group {
   const group = new THREE.Group();
   add(group, new RoundedBoxGeometry(0.075, 0.67, 0.048, 3, 0.012), materials.leather, 'Katzbalger · leather scabbard', [0, 0.24, 0]);
+  add(group, new THREE.ConeGeometry(0.044, 0.095, 8), materials.brass, 'Katzbalger · latten scabbard chape', [0, -0.145, 0], [0, 0, Math.PI]);
+  add(group, new THREE.TorusGeometry(0.04, 0.006, 5, 11), materials.brass, 'Katzbalger · reinforced scabbard throat', [0, 0.575, 0], [Math.PI / 2, 0, 0]);
+  for (const y of [0.22, 0.43]) {
+    add(group, new THREE.TorusGeometry(0.042, 0.006, 5, 11), materials.oxblood, 'Katzbalger · suspension band', [0, y, 0], [Math.PI / 2, 0, 0]);
+    add(group, new THREE.TorusGeometry(0.024, 0.005, 5, 10), materials.brass, 'Katzbalger · belt suspension ring', [0.052, y, 0], [0, Math.PI / 2, 0]);
+  }
   add(group, new THREE.CylinderGeometry(0.027, 0.03, 0.16, 10), materials.oxblood, 'Katzbalger · visible grip', [0, 0.65, 0]);
   const guard = new THREE.CatmullRomCurve3([
     new THREE.Vector3(-0.16, 0.56, 0), new THREE.Vector3(-0.08, 0.6, 0.02),
@@ -674,8 +925,13 @@ function createKatzbalgerScabbard(materials: Materials): THREE.Group {
 function createUskokScabbard(materials: Materials): THREE.Group {
   const group = new THREE.Group();
   add(group, new RoundedBoxGeometry(0.075, 0.64, 0.045, 3, 0.012), materials.oxblood, 'Uskok kit · sidearm scabbard', [0, 0.23, 0], [0, 0, -0.12]);
+  add(group, new THREE.ConeGeometry(0.043, 0.09, 8), materials.brass, 'Uskok kit · sidearm scabbard chape', [-0.045, -0.105, 0], [0, 0, Math.PI - 0.12]);
+  add(group, new THREE.TorusGeometry(0.04, 0.006, 5, 11), materials.brass, 'Uskok kit · sidearm scabbard throat', [0.04, 0.54, 0], [Math.PI / 2, 0, -0.12]);
+  for (const y of [0.16, 0.39]) {
+    add(group, new THREE.TorusGeometry(0.041, 0.006, 5, 10), materials.leather, 'Uskok kit · decorated scabbard band', [0, y, 0], [Math.PI / 2, 0, -0.12]);
+  }
   add(group, new THREE.CylinderGeometry(0.025, 0.03, 0.16, 10), materials.leather, 'Uskok kit · sidearm hilt', [0, 0.62, 0], [0, 0, -0.12]);
-  add(group, new THREE.BoxGeometry(0.2, 0.022, 0.035), materials.brass, 'Uskok kit · sidearm guard', [0, 0.54, 0], [0, 0, -0.12]);
+  add(group, new RoundedBoxGeometry(0.2, 0.024, 0.035, 2, 0.005), materials.brass, 'Uskok kit · sidearm guard', [0, 0.54, 0], [0, 0, -0.12]);
   group.name = 'Procedural Uskok sidearm and scabbard';
   group.userData.equipmentIdentity = 'uskok-sidearm';
   return group;

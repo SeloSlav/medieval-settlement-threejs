@@ -70,6 +70,19 @@ const EXPECTED_KITS: Record<MilitaryEquipmentKind, ExpectedKit> = {
   },
 };
 
+const REQUIRED_CRAFT_DETAILS: Record<MilitaryEquipmentKind, readonly string[]> = {
+  spear: ['reinforcing langet', 'central blade ridge', 'socket binding'],
+  'spear-shield': ['reinforcing langet', 'convex laminated', 'peened rim rivet'],
+  'pike-kit': ['reinforcing langet', 'forged head ridge', 'katzbalger · latten scabbard chape'],
+  crossbow: ['antler rotating nut', 'spring bolt clip', 'belt-carried cranequin rack'],
+  sidearm: ['front recessed fuller', 'guard block and rain collar', 'pommel peen'],
+  'sidearm-shield': ['front recessed fuller', 'convex laminated', 'boss neck collar'],
+  'sword-shield': ['front recessed fuller', 'convex laminated', 'rolled and riveted forged rim'],
+  halberd: ['front socket langet', 'beveled axe cheek', 'peened head rivet'],
+  bow: ['tapered d-section stave', 'upper horn nock', 'stitched suspension strap'],
+  'uskok-kit': ['front forged fuller', 'under-barrel ramrod', 'hinged pan cover', 'forged front sight'],
+};
+
 const sorted = <T extends string>(values: readonly T[]): T[] => [...values].sort();
 
 assert.deepEqual(
@@ -126,6 +139,17 @@ for (const kind of EXPECTED_KINDS) {
   validateOptimizedAssembly(`${kind} primary`, source.scene);
   for (const [index, mount] of source.secondaryMounts.entries()) {
     validateOptimizedAssembly(`${kind} secondary ${index + 1}`, mount.scene);
+  }
+  const craftEvidence = [source.scene, ...source.secondaryMounts.map((mount) => mount.scene)]
+    .flatMap((assembly) => assembly.userData.semanticWeaponParts as string[])
+    .join('\n')
+    .toLowerCase();
+  for (const detail of REQUIRED_CRAFT_DETAILS[kind]) {
+    assert.equal(
+      craftEvidence.includes(detail),
+      true,
+      `${kind} must retain close-inspection construction evidence for ${detail}`,
+    );
   }
 
   const rig = createSemanticTestRig(0.63);
@@ -268,6 +292,16 @@ function validateOptimizedAssembly(label: string, assembly: THREE.Group): void {
     const shared = sharedMaterialByName.get(material.name);
     if (shared) assert.equal(material, shared, `${material.name} must be shared across the complete source catalog`);
     else sharedMaterialByName.set(material.name, material);
+    assert.equal(
+      material instanceof THREE.MeshStandardMaterial,
+      true,
+      `${label} must retain a lit PBR material rather than a flat-color shortcut`,
+    );
+    const pbr = material as THREE.MeshStandardMaterial;
+    assert.ok(pbr.map, `${label} ${material.name} requires an authored albedo response`);
+    assert.ok(pbr.roughnessMap, `${label} ${material.name} requires causal roughness microstructure`);
+    assert.ok(pbr.normalMap, `${label} ${material.name} requires filtered close-up surface relief`);
+    assert.ok(pbr.map.anisotropy >= 4, `${label} ${material.name} must resist grazing-angle texture blur`);
     const position = mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
     for (let index = 0; index < position.count; index += 1) {
       assert.equal(

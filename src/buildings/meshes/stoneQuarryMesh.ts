@@ -14,6 +14,8 @@ import {
   addSmallWindow,
 } from './buildingMeshKit.ts';
 import { createCivilianToolStockpile } from './civilianToolStockpileMesh.ts';
+import { ProceduralGeometryWriter } from '../proceduralArchitecture/geometryWriter.ts';
+import { addProceduralMaterialSlotMeshes } from '../proceduralArchitecture/materialSlotMeshes.ts';
 
 type MiningCampCommodity = 'iron' | 'salt' | 'clay';
 type MiningCampModuleId =
@@ -273,7 +275,87 @@ function addSortingCanopy(group: THREE.Group): void {
     highEdge: 'negativeZ',
     name: 'Mining camp sorting awning',
   });
+  addSortingCanopyWeatherFrame(group, halfWidth, halfDepth);
   addSortingBench(group);
+}
+
+/**
+ * Grounds the temporary fly on stone pads, triangulates its wall plate, and
+ * closes only the windward side with removable sewn-linen panels. The single
+ * material-slot meshes retain member/fabric-aligned physical UVs while keeping
+ * the camp visibly mobile rather than turning it into a permanent building.
+ */
+function addSortingCanopyWeatherFrame(
+  group: THREE.Group,
+  halfWidth: number,
+  halfDepth: number,
+): void {
+  const frame = new THREE.Group();
+  frame.name = 'Mining camp sorting-canopy weather frame';
+  frame.userData.architectureModule = 'knee-braced-sorting-fly';
+  frame.userData.bracingSystem = 'four-post-knee-braced-frame';
+  frame.userData.weatherProtection = 'removable-sewn-linen-windward-screen';
+
+  const writer = new ProceduralGeometryWriter([
+    'fieldstone',
+    'rough-timber',
+    'linen-canvas',
+  ]);
+  for (const x of [-halfWidth, halfWidth]) {
+    for (const z of [-halfDepth, halfDepth]) {
+      const side = x < 0 ? 'left' : 'right';
+      const end = z < 0 ? 'windward' : 'yard';
+      writer.addBox({
+        semanticId: `mining-camp-${side}-${end}-canopy-footing`,
+        moduleId: 'knee-braced-sorting-fly',
+        materialRole: 'fieldstone',
+        structuralUse: 'foundation-and-plinth',
+        center: [x, 0.14, z],
+        size: [0.48, 0.28, 0.48],
+        uvOffsetMeters: [x < 0 ? 0.17 : 0.61, z < 0 ? 0.23 : 0.73],
+      });
+      writer.addMember({
+        semanticId: `mining-camp-${side}-${end}-canopy-knee-brace`,
+        moduleId: 'knee-braced-sorting-fly',
+        materialRole: 'rough-timber',
+        structuralUse: 'roof-frame',
+        start: [x, 2.16, z],
+        end: [x - Math.sign(x) * 0.72, 2.9, z],
+        width: 0.14,
+        depth: 0.14,
+      });
+    }
+  }
+
+  const windwardZ = -halfDepth + 0.035;
+  for (const [index, y] of [1.48, 2.76].entries()) {
+    writer.addMember({
+      semanticId: `mining-camp-windward-screen-rail-${index + 1}`,
+      moduleId: 'knee-braced-sorting-fly',
+      materialRole: 'rough-timber',
+      structuralUse: 'timber-frame',
+      start: [-halfWidth + 0.06, y, windwardZ],
+      end: [halfWidth - 0.06, y, windwardZ],
+      width: 0.12,
+      depth: 0.12,
+    });
+  }
+  for (let panelIndex = 0; panelIndex < 3; panelIndex += 1) {
+    writer.addBox({
+      semanticId: `mining-camp-windward-storm-panel-${panelIndex + 1}`,
+      moduleId: 'knee-braced-sorting-fly',
+      materialRole: 'linen-canvas',
+      structuralUse: 'awning-and-fly',
+      center: [-2.02 + panelIndex * 2.02, 2.12, windwardZ + 0.018],
+      size: [1.88, 1.18, 0.036],
+      uvOffsetMeters: [panelIndex * 0.23, panelIndex * 0.11],
+    });
+  }
+
+  addProceduralMaterialSlotMeshes(frame, writer.build(), {
+    namePrefix: 'Mining camp sorting-canopy',
+  });
+  group.add(frame);
 }
 
 function addSortingBench(group: THREE.Group): void {
@@ -470,6 +552,13 @@ export function applyMiningCampSemanticContract(target: THREE.Group): void {
   target.userData.semanticRole = MINING_CAMP_PLAN.semanticRole;
   target.userData.extractionResources = [...MINING_CAMP_PLAN.resources];
   target.userData.silhouette = MINING_CAMP_PLAN.silhouette;
+  target.userData.architectureEra = 'circa-1550';
+  target.userData.architectureRegion = 'Gorski Kotar and Croatian Littoral';
+  target.userData.weatherProtection = [
+    'steep-split-shingle-day-shelter',
+    'removable-linen-sorting-fly',
+  ];
+  target.userData.livingVegetationOwner = 'SeedThree';
   target.userData.centeredResourceRequired = false;
   target.userData.architecturePlan = {
     ...MINING_CAMP_PLAN,

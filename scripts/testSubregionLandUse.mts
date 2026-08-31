@@ -7,7 +7,11 @@ import type {
 } from '../src/resources/types.ts';
 import { DEFAULT_WORLD_GENERATION_SETTINGS } from '../src/world/worldGenerationSettings.ts';
 import { computeLandUseProfile } from '../src/regions/landUseProfile.ts';
-import { buildingLandUseAffinities } from '../src/regions/buildingLandUseAffinity.ts';
+import {
+  buildingLandUseAffinities,
+  stableOxPurchaseGold,
+} from '../src/regions/buildingLandUseAffinity.ts';
+import { STABLE_OX_PURCHASE_GOLD } from '../src/generated/gameBalance.ts';
 import { withBuildingLandUseAffinities } from '../src/resources/inspector/buildingLandUseAffinityRenderer.ts';
 import {
   rasterizeSubregions,
@@ -132,6 +136,26 @@ assert.deepEqual(
 assert.equal(tanneryEffects[0]?.label, 'Bark gathering');
 assert.equal(tanneryEffects[0]?.bonus, empty.bonuses.woodland);
 assert.equal(tanneryEffects[0]?.effect, 'tanning throughput');
+const geographyAffinities = [
+  ['windmill', 'meadow', 'Open wind', 'milling throughput'],
+  ['stable', 'rural', 'Droving country', 'draft-ox procurement efficiency'],
+  ['granary', 'farmland', 'Grain country', 'grain cart capacity'],
+  ['monastery', 'farmland', 'Monastic granges', 'estate production rate'],
+  ['tavern', 'urban', 'Custom and footfall', 'staffed beverage service rate'],
+  ['trading_post', 'urban', 'Merchant quarter', 'regional import purchasing power'],
+] as const;
+for (const [buildingKind, landUseKind, label, effectLabel] of geographyAffinities) {
+  const affinity = buildingLandUseAffinities(buildingKind, industrial)[0];
+  assert.equal(affinity?.kind, landUseKind, `${buildingKind} should use existing ${landUseKind}`);
+  assert.equal(affinity?.label, label);
+  assert.equal(affinity?.effect, effectLabel);
+}
+const husbandryRich = {
+  ...empty,
+  bonuses: { ...empty.bonuses, rural: 0.12 },
+};
+assert.equal(stableOxPurchaseGold(empty), STABLE_OX_PURCHASE_GOLD);
+assert.equal(stableOxPurchaseGold(husbandryRich), 22);
 const swineAffinityView = withBuildingLandUseAffinities(
   {
     eyebrow: 'Building',
@@ -189,8 +213,23 @@ assert.match(
 );
 assert.match(
   serverEconomy,
-  /workshop_throughput_multiplier\(&building\.kind\)/,
+  /production_throughput_multiplier\(&building\.kind\)/,
   'processor cycle pacing must consume the composed authoritative affinity multiplier',
+);
+assert.match(serverAffinity, /kind == "windmill"[\s\S]{0,100}self\.meadow_multiplier\(\)/);
+assert.match(serverAffinity, /kind == "monastery"[\s\S]{0,100}self\.cultivation_multiplier\(\)/);
+assert.match(
+  serverEconomy,
+  /GRAIN_TRANSFER_PER_TRIP \* tick\.land_use_profile\(ctx\)\.cultivation_multiplier\(\)/,
+);
+const stableReducer = readFileSync('server/src/reducers/stable_oxen.rs', 'utf8');
+assert.match(stableReducer, /husbandry_multiplier[\s\S]{0,160}stable_ox_purchase_gold/);
+const tavernDistribution = readFileSync('server/src/simulation/household_distribution.rs', 'utf8');
+assert.match(tavernDistribution, /ResidenceNeedKind::Ale[\s\S]{0,120}industry_multiplier/);
+const tradingPostSimulation = readFileSync('server/src/simulation/trading_post_trade.rs', 'utf8');
+assert.match(
+  tradingPostSimulation,
+  /contract_efficiency[\s\S]*merchant_import_unit_price/,
 );
 
 const rasterField = {

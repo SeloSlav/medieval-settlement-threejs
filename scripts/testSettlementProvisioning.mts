@@ -201,8 +201,8 @@ assert.match(settlementHud, /Workplaces can also draw from shared fuel stores/);
 assert.doesNotMatch(settlementHud, /burgage/i);
 assert.match(
   householdDistribution,
-  /fn market_issue_cycle[\s\S]*MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY[\s\S]*ticks_per_check[\s\S]*sim_tick % ticks_per_check[\s\S]*Some\(MarketIssueCycle::Daily\)/,
-  'markets must check household needs several times per day without increasing the target lot',
+  /fn market_issue_cycle[\s\S]*tavern_issue_interval_ticks\([\s\S]*MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY[\s\S]*sim_tick % ticks_per_check[\s\S]*Some\(MarketIssueCycle::Daily\)/,
+  'markets must check household needs several times per day while allowing the Tavern affinity to shorten only its service cadence',
 );
 assert.match(
   householdDistribution,

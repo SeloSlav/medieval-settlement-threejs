@@ -34,7 +34,7 @@ use crate::simulation::residence_needs::{
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, Residence};
-use crate::tavern_service_policy::tavern_household_issue_lot;
+use crate::tavern_service_policy::{tavern_household_issue_lot, tavern_issue_interval_ticks};
 
 const MARKET_NEEDS: [ResidenceNeedKind; 8] = [
     ResidenceNeedKind::Food,
@@ -89,10 +89,16 @@ pub fn step_market_household_distribution(
     sim_tick: u64,
     environment: EnvironmentState,
 ) {
-    let Some(issue_cycle) = market_issue_cycle(sim_tick) else {
-        return;
-    };
+    let land_use_profile = tick.land_use_profile(ctx);
     for need_kind in MARKET_NEEDS {
+        let service_rate_multiplier = if need_kind == ResidenceNeedKind::Ale {
+            land_use_profile.industry_multiplier()
+        } else {
+            1.0
+        };
+        let Some(issue_cycle) = market_issue_cycle(sim_tick, service_rate_multiplier) else {
+            continue;
+        };
         let distribution_kind = if need_kind == ResidenceNeedKind::Ale {
             "tavern"
         } else {
@@ -298,10 +304,13 @@ pub fn step_market_household_distribution(
     }
 }
 
-fn market_issue_cycle(sim_tick: u64) -> Option<MarketIssueCycle> {
+fn market_issue_cycle(sim_tick: u64, service_rate_multiplier: f64) -> Option<MarketIssueCycle> {
     let ticks_per_day = (CALENDAR_SECONDS_PER_DAY / TICK_DT).round().max(1.0) as u64;
-    let checks_per_day = u64::from(MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY.max(1));
-    let ticks_per_check = ticks_per_day.div_ceil(checks_per_day).max(1);
+    let ticks_per_check = tavern_issue_interval_ticks(
+        ticks_per_day,
+        MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY,
+        service_rate_multiplier,
+    );
     if sim_tick == 0 || sim_tick % ticks_per_check != 0 {
         return None;
     }
@@ -659,19 +668,19 @@ mod tests {
             u64::from(crate::balance_generated::MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY);
         let ticks_per_check = ticks_per_day.div_ceil(checks_per_day);
         assert!(checks_per_day > 1);
-        assert_eq!(market_issue_cycle(0), None);
-        assert_eq!(market_issue_cycle(ticks_per_check - 1), None);
+        assert_eq!(market_issue_cycle(0, 1.0), None);
+        assert_eq!(market_issue_cycle(ticks_per_check - 1, 1.0), None);
         assert_eq!(
-            market_issue_cycle(ticks_per_check),
+            market_issue_cycle(ticks_per_check, 1.0),
             Some(MarketIssueCycle::Daily)
         );
-        assert_eq!(market_issue_cycle(ticks_per_check + 1), None);
+        assert_eq!(market_issue_cycle(ticks_per_check + 1, 1.0), None);
         assert_eq!(
-            market_issue_cycle(ticks_per_check * 2),
+            market_issue_cycle(ticks_per_check * 2, 1.0),
             Some(MarketIssueCycle::Daily)
         );
         assert_eq!(
-            market_issue_cycle(ticks_per_day),
+            market_issue_cycle(ticks_per_day, 1.0),
             Some(MarketIssueCycle::Daily)
         );
     }

@@ -4,9 +4,7 @@ use crate::db::*;
 use crate::economy::{trade_resource_for_commodity, CommodityKind};
 use crate::lifecycle::ensure_player_resources;
 use crate::tables::TradingPostTradeRule;
-use crate::trading_post_policy::{
-    clamp_trade_surplus, regional_exchange_sequence, valid_trade_mode,
-};
+use crate::trading_post_policy::{clamp_trade_surplus, regional_exchange_sequence, valid_trade_mode};
 
 #[reducer]
 pub fn set_trading_post_trade_rule(

@@ -30,6 +30,10 @@ pub fn regional_exchange_sequence(sim_tick: u64) -> u64 {
     sim_tick / interval_ticks
 }
 
+pub fn merchant_import_unit_price(base_price: f64, contract_efficiency: f64) -> f64 {
+    base_price.max(0.0) / contract_efficiency.max(1.0)
+}
+
 /// Export proceeds are civic funding for imports, so every exchange resolves
 /// exports before imports regardless of stable commodity code.
 pub fn trade_rule_settlement_key(mode: u8, commodity_kind: u8) -> (u8, u8) {
@@ -147,6 +151,12 @@ mod tests {
         assert_eq!(regional_exchange_sequence(interval_ticks - 1), 0);
         assert_eq!(regional_exchange_sequence(interval_ticks), 1);
         assert_eq!(regional_exchange_sequence(interval_ticks * 2), 2);
+    }
+
+    #[test]
+    fn urban_merchants_improve_import_purchasing_power() {
+        assert_eq!(merchant_import_unit_price(4.0, 1.0), 4.0);
+        assert!((merchant_import_unit_price(4.0, 1.12) - 3.571_428_571).abs() < 1e-9);
     }
 
     #[test]

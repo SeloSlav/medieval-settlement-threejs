@@ -119,7 +119,7 @@ export function addStoneEntranceSteps(
     const step = addMesh(
       stairRoot,
       new THREE.BoxGeometry(stepWidth, topHeight, treadDepth + 0.025),
-      stoneMaterial(stepIndex % 3 === 2 ? 'dark' : 'mid'),
+      stoneMaterial(stepIndex % 3 === 2 ? 'mortar' : 'mid'),
       new THREE.Vector3(
         0,
         -thresholdHeight + topHeight * 0.5,

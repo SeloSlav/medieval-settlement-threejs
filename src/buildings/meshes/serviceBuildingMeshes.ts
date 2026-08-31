@@ -13,6 +13,7 @@ import { getSharedWellWaterMaterial } from '../WellWaterMaterial.ts';
 import {
   addBarrel,
   addGableShell,
+  addHippedRoof,
   addLeanToRoof,
   addPlankDoor,
   addSmallWindow,
@@ -203,14 +204,15 @@ export function createWellMesh(): THREE.Group {
     new THREE.Vector3(0, 1.03, 0),
   );
 
-  const roof = addMesh(
-    group,
-    new THREE.ConeGeometry(dimensions.roofRadius, dimensions.roofHeight, 4),
-    shingleMaterial(),
-    new THREE.Vector3(0, dimensions.roofCenterY, 0),
-    new THREE.Euler(0, Math.PI * 0.25, 0),
-  );
-  roof.name = 'Well shingle roof';
+  addHippedRoof(group, {
+    width: dimensions.roofRadius * Math.SQRT2,
+    depth: dimensions.roofRadius * Math.SQRT2,
+    eaveY: dimensions.roofCenterY - dimensions.roofHeight * 0.5,
+    peakY: dimensions.roofCenterY + dimensions.roofHeight * 0.5,
+    thickness: 0.11,
+    material: shingleMaterial(),
+    name: 'Well joined four-sided shingle roof',
+  });
   const tieBeam = addMesh(
     group,
     new THREE.BoxGeometry(3.1, dimensions.tieBeamThickness, 0.16),

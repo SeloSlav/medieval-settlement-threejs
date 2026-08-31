@@ -81,6 +81,7 @@ assert.match(oxTeamRenderer, /doubles one present hauler’s carrying capacity/)
 assert.match(oxTeamRenderer, /postingLocked[\s\S]{0,420}postedCount >= maxCount[\s\S]{0,80}postingReadyAutomaticCount <= 0/);
 
 const stableRenderer = read('src/resources/inspector/stableRenderer.ts');
+assert.match(stableRenderer, /stableOxPurchaseGold\(context\.landUseProfile\)/);
 assert.match(stableRenderer, /Array\.from\(\{ length: STABLE_OX_SLOTS \}/);
 assert.match(stableRenderer, /data-stable-ox-slot/);
 assert.match(stableRenderer, /data-purchase-ox/);
@@ -88,7 +89,7 @@ assert.match(stableRenderer, /const purchaseDisabled = atCapacity \|\| treasuryS
 assert.match(stableRenderer, /const nextOpenSlot/);
 assert.match(stableRenderer, /data-state="purchase"/);
 assert.match(stableRenderer, /stable-ox-slot__portrait/);
-assert.match(stableRenderer, /encodeResourceCostTooltip\(\{[\s\S]{0,100}gold: STABLE_OX_PURCHASE_GOLD/);
+assert.match(stableRenderer, /encodeResourceCostTooltip\(\{[\s\S]{0,100}gold: purchaseGold/);
 assert.match(stableRenderer, /data-tooltip-cost="\$\{purchaseTooltipCost\}"/);
 assert.match(stableRenderer, /data-tooltip-cost-affordable="\$\{!treasuryShort\}"/);
 assert.doesNotMatch(stableRenderer, /BAY_LABELS|Bay \$\{/);

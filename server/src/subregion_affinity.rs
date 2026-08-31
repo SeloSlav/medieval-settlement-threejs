@@ -18,8 +18,12 @@ pub struct LandUseProfile {
 }
 
 impl LandUseProfile {
-    pub fn pollination_multiplier(self) -> f64 {
+    pub fn meadow_multiplier(self) -> f64 {
         1.0 + (self.meadow * 0.34).min(0.20)
+    }
+
+    pub fn pollination_multiplier(self) -> f64 {
+        self.meadow_multiplier()
     }
 
     pub fn forestry_multiplier(self) -> f64 {
@@ -50,7 +54,10 @@ impl LandUseProfile {
         1.0 + (self.urban * 0.60).min(0.12)
     }
 
-    pub fn workshop_throughput_multiplier(self, kind: &str) -> f64 {
+    /// Compose every land-use affinity that changes a building's production
+    /// cycle. Categories remain independent, so a tannery can benefit from
+    /// both woodland bark gathering and urban workshop practice.
+    pub fn production_throughput_multiplier(self, kind: &str) -> f64 {
         let industry = if is_urban_workshop(kind) {
             self.industry_multiplier()
         } else {
@@ -61,7 +68,17 @@ impl LandUseProfile {
         } else {
             1.0
         };
-        industry * woodland
+        let meadow = if kind == "windmill" {
+            self.meadow_multiplier()
+        } else {
+            1.0
+        };
+        let farmland = if kind == "monastery" {
+            self.cultivation_multiplier()
+        } else {
+            1.0
+        };
+        industry * woodland * meadow * farmland
     }
 }
 
@@ -226,14 +243,22 @@ mod tests {
         );
         assert!(urban_realm.industry_multiplier() > meadow_realm.industry_multiplier());
         assert!(
-            meadow_realm.workshop_throughput_multiplier("tannery")
-                > meadow_realm.workshop_throughput_multiplier("cobbler")
+            meadow_realm.production_throughput_multiplier("tannery")
+                > meadow_realm.production_throughput_multiplier("cobbler")
         );
         assert!(
-            (meadow_realm.workshop_throughput_multiplier("tannery")
+            (meadow_realm.production_throughput_multiplier("tannery")
                 - meadow_realm.forestry_multiplier() * meadow_realm.industry_multiplier())
             .abs()
                 < 1e-12
+        );
+        assert_eq!(
+            meadow_realm.production_throughput_multiplier("windmill"),
+            meadow_realm.meadow_multiplier()
+        );
+        assert_eq!(
+            urban_realm.production_throughput_multiplier("monastery"),
+            urban_realm.cultivation_multiplier()
         );
         assert!(meadow_realm.pollination_multiplier() <= 1.20);
         assert!(meadow_realm.meadow_grazing_multiplier() <= 1.10);

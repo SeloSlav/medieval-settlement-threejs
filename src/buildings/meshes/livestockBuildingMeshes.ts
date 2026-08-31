@@ -10,6 +10,7 @@ import {
 } from '../buildingMaterials.ts';
 import {
   addGableShell,
+  addHippedRoof,
   addLeanToRoof,
   addPlankDoor,
   addSmallWindow,
@@ -266,7 +267,17 @@ export function createSwineherdMesh(): THREE.Group {
 
   // Low sleeping sty with a broad fenced gate into woodland pannage.
   addMesh(group, new THREE.BoxGeometry(4.7, 1.25, 3.1), timberMaterial('dark'), new THREE.Vector3(3.6, 0.65, -0.4));
-  addMesh(group, new THREE.ConeGeometry(2.7, 1.15, 4), shingleMaterial(), new THREE.Vector3(3.6, 1.8, -0.4), new THREE.Euler(0, Math.PI * 0.25, 0));
+  addHippedRoof(group, {
+    width: 5.25,
+    depth: 3.65,
+    eaveY: 1.225,
+    peakY: 2.375,
+    thickness: 0.1,
+    material: shingleMaterial(),
+    centerX: 3.6,
+    centerZ: -0.4,
+    name: 'Swineherd joined sleeping-sty roof',
+  });
   addMesh(group, new THREE.BoxGeometry(1.7, 1.0, 0.12), timberMaterial('dark'), new THREE.Vector3(3.6, 0.62, 1.18));
   addTrough(group, 2.6, 3.2, 3.0);
   addFenceRun(group, 1.3, 5.0, 8.8, true);

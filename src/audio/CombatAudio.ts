@@ -38,7 +38,7 @@ const SCHEDULED_GLOBAL_INTERVAL_SECONDS = 0.065;
 const CHARGE_GLOBAL_INTERVAL_SECONDS = 0.18;
 const VOICE_GLOBAL_INTERVAL_SECONDS = 0.28;
 
-type CombatAttackSoundKind = Exclude<CombatAudioSoundKind, 'charge'>;
+export type CombatWeaponSoundKind = Exclude<CombatAudioSoundKind, 'charge'>;
 type CombatAudioPhase = 'attack' | 'charge' | 'flee';
 
 export type CombatAudioFighter = {
@@ -51,6 +51,8 @@ export type CombatAudioFighter = {
   attackCooldown?: number;
   issuedPolearms?: number;
   targetKind?: CombatTargetKind;
+  /** Weapon family currently visible in the combatant's hands. */
+  activeWeaponFamily?: CombatWeaponSoundKind;
 };
 
 export type CombatAudioSource = {
@@ -58,8 +60,7 @@ export type CombatAudioSource = {
   x: number;
   z: number;
   phase: CombatAudioPhase;
-  weaponFamily: CombatAttackSoundKind;
-  secondaryWeaponFamily: CombatAttackSoundKind | null;
+  weaponFamily: CombatWeaponSoundKind;
   defensiveImpact: boolean;
   attackCooldown: number | null;
   faction: CombatAgentFaction;
@@ -69,15 +70,20 @@ export type CombatAudioSource = {
 };
 
 export type CombatAudioSourceWorkspace = {
+  /** Bounded nearest candidates, reused every tick. */
   guards: CombatAudioFighter[];
   raiders: CombatAudioFighter[];
+  guardSelection: CombatAudioFighter[];
+  raiderSelection: CombatAudioFighter[];
+  guardBuckets: Map<string, CombatAudioFighter>;
+  raiderBuckets: Map<string, CombatAudioFighter>;
+  selectedIds: Set<string>;
   sourcePool: CombatAudioSource[];
   sources: CombatAudioSource[];
 };
 
 export type CombatAudioLoadout = {
-  primary: CombatAttackSoundKind;
-  secondary?: CombatAttackSoundKind;
+  primary: CombatWeaponSoundKind;
   defensiveImpact: boolean;
 };
 
@@ -85,6 +91,11 @@ export function createCombatAudioSourceWorkspace(): CombatAudioSourceWorkspace {
   return {
     guards: [],
     raiders: [],
+    guardSelection: [],
+    raiderSelection: [],
+    guardBuckets: new Map(),
+    raiderBuckets: new Map(),
+    selectedIds: new Set(),
     sourcePool: [],
     sources: [],
   };
@@ -110,21 +121,13 @@ export function combatAudioLoadoutForFighter(
     case 'crossbow':
       return { primary: 'crossbow', defensiveImpact: false };
     case 'mercenary-spear':
-      return {
-        primary: 'spear-pike',
-        secondary: 'sword-sidearm',
-        defensiveImpact: false,
-      };
+      return { primary: 'spear-pike', defensiveImpact: false };
     case 'polearm':
       return { primary: 'halberd-polearm', defensiveImpact: false };
     case 'bowman':
       return { primary: 'bow', defensiveImpact: false };
     case 'uskok':
-      return {
-        primary: 'arquebus',
-        secondary: 'sword-sidearm',
-        defensiveImpact: false,
-      };
+      return { primary: 'arquebus', defensiveImpact: false };
   }
 }
 
@@ -194,11 +197,19 @@ export function combatAudioGain(
 export function buildCombatAudioSources(
   fighters: Iterable<CombatAudioFighter>,
   workspace?: CombatAudioSourceWorkspace,
+  view?: CrowdViewState,
 ): CombatAudioSource[] {
-  const guards = workspace?.guards ?? [];
-  const raiders = workspace?.raiders ?? [];
+  const localWorkspace = workspace ?? createCombatAudioSourceWorkspace();
+  const guards = localWorkspace.guards;
+  const raiders = localWorkspace.raiders;
+  const guardBuckets = localWorkspace.guardBuckets;
+  const raiderBuckets = localWorkspace.raiderBuckets;
   guards.length = 0;
   raiders.length = 0;
+  guardBuckets.clear();
+  raiderBuckets.clear();
+  const listenerX = view?.listenerX ?? view?.centerX ?? 0;
+  const listenerZ = view?.listenerZ ?? view?.centerZ ?? 0;
   for (const fighter of fighters) {
     const attacking = fighter.status === 'fighting';
     const charging = fighter.status === 'advancing'
@@ -216,25 +227,132 @@ export function buildCombatAudioSources(
     const side = fighter.faction === 'raider' || fighter.faction === 'bandit'
       ? raiders
       : guards;
-    if (side.length < MAX_SOURCES_PER_SIDE) side.push(fighter);
+    const buckets = side === raiders ? raiderBuckets : guardBuckets;
+    insertNearestFighter(side, fighter, listenerX, listenerZ);
+    const bucket = combatSourceSelectionBucket(fighter);
+    const incumbent = buckets.get(bucket);
+    if (
+      !incumbent
+      || compareFighterProximity(fighter, incumbent, listenerX, listenerZ) < 0
+    ) {
+      buckets.set(bucket, fighter);
+    }
   }
 
-  guards.sort(compareFighterIds);
-  raiders.sort(compareFighterIds);
-  const sources = workspace?.sources ?? [];
+  const guardSelection = selectBalancedSide(
+    guards,
+    guardBuckets,
+    localWorkspace.guardSelection,
+    localWorkspace.selectedIds,
+    listenerX,
+    listenerZ,
+  );
+  const raiderSelection = selectBalancedSide(
+    raiders,
+    raiderBuckets,
+    localWorkspace.raiderSelection,
+    localWorkspace.selectedIds,
+    listenerX,
+    listenerZ,
+  );
+  const sources = localWorkspace.sources;
   sources.length = 0;
-  const maxSideLength = Math.max(guards.length, raiders.length);
+  const maxSideLength = Math.max(guardSelection.length, raiderSelection.length);
   for (let index = 0; index < maxSideLength; index += 1) {
-    const guard = guards[index];
-    const raider = raiders[index];
-    if (guard) pushCombatAudioSource(guard, sources, workspace?.sourcePool);
-    if (raider) pushCombatAudioSource(raider, sources, workspace?.sourcePool);
+    const guard = guardSelection[index];
+    const raider = raiderSelection[index];
+    if (guard) pushCombatAudioSource(guard, sources, localWorkspace.sourcePool);
+    if (raider) pushCombatAudioSource(raider, sources, localWorkspace.sourcePool);
   }
   return sources;
 }
 
-function compareFighterIds(left: CombatAudioFighter, right: CombatAudioFighter): number {
-  return left.id.localeCompare(right.id);
+function insertNearestFighter(
+  fighters: CombatAudioFighter[],
+  fighter: CombatAudioFighter,
+  listenerX: number,
+  listenerZ: number,
+): void {
+  let index: number;
+  if (fighters.length < MAX_SOURCES_PER_SIDE) {
+    fighters.push(fighter);
+    index = fighters.length - 1;
+  } else {
+    const farthest = fighters.at(-1)!;
+    if (compareFighterProximity(fighter, farthest, listenerX, listenerZ) >= 0) {
+      return;
+    }
+    index = fighters.length - 1;
+    fighters[index] = fighter;
+  }
+  while (
+    index > 0
+    && compareFighterProximity(
+      fighters[index]!,
+      fighters[index - 1]!,
+      listenerX,
+      listenerZ,
+    ) < 0
+  ) {
+    const previous = fighters[index - 1]!;
+    fighters[index - 1] = fighters[index]!;
+    fighters[index] = previous;
+    index -= 1;
+  }
+}
+
+function selectBalancedSide(
+  nearest: readonly CombatAudioFighter[],
+  buckets: ReadonlyMap<string, CombatAudioFighter>,
+  selection: CombatAudioFighter[],
+  selectedIds: Set<string>,
+  listenerX: number,
+  listenerZ: number,
+): CombatAudioFighter[] {
+  selection.length = 0;
+  selectedIds.clear();
+  for (const fighter of buckets.values()) selection.push(fighter);
+  selection.sort((left, right) => (
+    compareFighterProximity(left, right, listenerX, listenerZ)
+  ));
+  if (selection.length > MAX_SOURCES_PER_SIDE) {
+    selection.length = MAX_SOURCES_PER_SIDE;
+  }
+  for (const fighter of selection) selectedIds.add(fighter.id);
+  for (const fighter of nearest) {
+    if (selection.length >= MAX_SOURCES_PER_SIDE) break;
+    if (selectedIds.has(fighter.id)) continue;
+    selection.push(fighter);
+    selectedIds.add(fighter.id);
+  }
+  selection.sort((left, right) => (
+    compareFighterProximity(left, right, listenerX, listenerZ)
+  ));
+  return selection;
+}
+
+function compareFighterProximity(
+  left: CombatAudioFighter,
+  right: CombatAudioFighter,
+  listenerX: number,
+  listenerZ: number,
+): number {
+  const leftDx = left.x - listenerX;
+  const leftDz = left.z - listenerZ;
+  const rightDx = right.x - listenerX;
+  const rightDz = right.z - listenerZ;
+  const distanceDifference = leftDx * leftDx + leftDz * leftDz
+    - (rightDx * rightDx + rightDz * rightDz);
+  if (Math.abs(distanceDifference) > 1e-9) return distanceDifference;
+  return left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
+}
+
+function combatSourceSelectionBucket(fighter: CombatAudioFighter): string {
+  if (fighter.status === 'advancing') return 'charge';
+  if (fighter.status === 'retreating') return 'flee';
+  const loadout = combatAudioLoadoutForFighter(fighter);
+  const family = fighter.activeWeaponFamily ?? loadout.primary;
+  return `attack:${family}:${loadout.defensiveImpact ? 'shielded' : 'open'}`;
 }
 
 function pushCombatAudioSource(
@@ -243,6 +361,7 @@ function pushCombatAudioSource(
   sourcePool: CombatAudioSource[] | undefined,
 ): void {
   const loadout = combatAudioLoadoutForFighter(fighter);
+  const weaponFamily = fighter.activeWeaponFamily ?? loadout.primary;
   const phase = fighter.status === 'advancing'
     ? 'charge'
     : fighter.status === 'retreating'
@@ -256,8 +375,7 @@ function pushCombatAudioSource(
       x: fighter.x,
       z: fighter.z,
       phase,
-      weaponFamily: loadout.primary,
-      secondaryWeaponFamily: loadout.secondary ?? null,
+      weaponFamily,
       defensiveImpact: loadout.defensiveImpact,
       attackCooldown: null,
       faction: fighter.faction,
@@ -271,8 +389,7 @@ function pushCombatAudioSource(
   source.x = fighter.x;
   source.z = fighter.z;
   source.phase = phase;
-  source.weaponFamily = loadout.primary;
-  source.secondaryWeaponFamily = loadout.secondary ?? null;
+  source.weaponFamily = weaponFamily;
   source.defensiveImpact = loadout.defensiveImpact;
   source.attackCooldown = Number.isFinite(fighter.attackCooldown)
     ? Math.max(0, Number(fighter.attackCooldown))
@@ -680,17 +797,9 @@ export class CombatAudio {
 function attackSoundKind(
   source: CombatAudioSource,
   sequence: number,
-): CombatAttackSoundKind {
+): CombatWeaponSoundKind {
   if (source.defensiveImpact && sequence % 4 === 3) return 'shield-armor';
-  if (!source.secondaryWeaponFamily) return source.weaponFamily;
-  if (source.weaponFamily === 'arquebus') {
-    return sequence % 4 === 0
-      ? source.weaponFamily
-      : source.secondaryWeaponFamily;
-  }
-  return sequence % 5 === 4
-    ? source.secondaryWeaponFamily
-    : source.weaponFamily;
+  return source.weaponFamily;
 }
 
 function combatVoiceSoundKind(
@@ -744,7 +853,7 @@ function cadenceRange(kind: CombatAudioSoundKind): readonly [number, number] {
 }
 
 function attackPitch(
-  kind: CombatAttackSoundKind,
+  kind: CombatWeaponSoundKind,
 ): { base: number; step: number } {
   switch (kind) {
     case 'spear-pike': return { base: 0.93, step: 0.014 };

@@ -69,6 +69,7 @@ import {
   CombatAudio,
   createCombatAudioSourceWorkspace,
   type CombatAudioFighter,
+  type CombatWeaponSoundKind,
 } from '../audio/CombatAudio.ts';
 import {
   CROWD_SIM_DT,
@@ -117,6 +118,7 @@ import {
   residenceUpgradeWorkplaces,
 } from './residenceUpgradeWorkplaces.ts';
 import type { WorkerToolKind } from './workerTools.ts';
+import { resolveCombatWeaponPresentation } from './combatWeaponAnimation.ts';
 import {
   villagerDisplayName,
   villagerOccupation,
@@ -2259,7 +2261,7 @@ export class VillagerRenderer {
           : 1.34) * (isWading ? COMBAT_WADING_SPEED_MULTIPLIER : 1);
       renderAgent.active = true;
       renderAgents.push(renderAgent);
-      if (audioDt > 0) this.pushCombatAudioFighter(visual);
+      if (audioDt > 0) this.pushCombatAudioFighter(visual, renderAgent);
     }
     for (const corpse of this.violentCorpses.values()) {
       const appearanceSeed = pickVillagerAppearanceSeed(corpse.id, 0);
@@ -2293,6 +2295,7 @@ export class VillagerRenderer {
         buildCombatAudioSources(
           this.combatAudioFighters,
           this.combatAudioSourceWorkspace,
+          activeView,
         ),
         activeView,
       );
@@ -2449,8 +2452,15 @@ export class VillagerRenderer {
     this.farmSongSources.push(source);
   }
 
-  private pushCombatAudioFighter(visual: CombatAgentVisual): void {
+  private pushCombatAudioFighter(
+    visual: CombatAgentVisual,
+    renderAgent: CrowdRenderAgent,
+  ): void {
     const fighterIndex = this.combatAudioFighters.length;
+    const activeWeaponFamily = combatWeaponSoundFamily(
+      renderAgent.tool,
+      renderAgent.combatTargetDistance ?? Infinity,
+    );
     let fighter = this.combatAudioFighterPool[fighterIndex];
     if (!fighter) {
       fighter = {
@@ -2463,6 +2473,7 @@ export class VillagerRenderer {
         attackCooldown: visual.state.attackCooldown,
         issuedPolearms: visual.state.issuedPolearms,
         targetKind: visual.state.targetKind,
+        activeWeaponFamily,
       };
       this.combatAudioFighterPool.push(fighter);
     } else {
@@ -2475,6 +2486,7 @@ export class VillagerRenderer {
       fighter.attackCooldown = visual.state.attackCooldown;
       fighter.issuedPolearms = visual.state.issuedPolearms;
       fighter.targetKind = visual.state.targetKind;
+      fighter.activeWeaponFamily = activeWeaponFamily;
     }
     this.combatAudioFighters.push(fighter);
   }
@@ -5960,6 +5972,24 @@ function combatAttackSeconds(
     case 'polearm': return 1.08;
     case 'bowman': return targetDistance > 3.25 ? 1.55 : 0.9;
     case 'uskok': return targetDistance > 3.25 ? 2.8 : 0.84;
+  }
+}
+
+function combatWeaponSoundFamily(
+  tool: WorkerToolKind | null,
+  targetDistance: number,
+): CombatWeaponSoundKind | undefined {
+  if (!tool) return undefined;
+  const presentation = resolveCombatWeaponPresentation(tool, targetDistance);
+  switch (presentation?.family) {
+    case 'spear-pike': return 'spear-pike';
+    case 'sword-shield':
+    case 'uskok-sidearm': return 'sword-sidearm';
+    case 'halberd': return 'halberd-polearm';
+    case 'bow': return 'bow';
+    case 'crossbow': return 'crossbow';
+    case 'uskok-arquebus': return 'arquebus';
+    default: return undefined;
   }
 }
 

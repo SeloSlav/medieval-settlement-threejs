@@ -27,8 +27,8 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, TradingPostTradeRule};
 use crate::trading_post_policy::{
     affordable_import_units, exportable_surplus, import_deficit, import_rule_rotation_offset,
-    import_target_fulfillment, regional_exchange_sequence, trade_rule_settlement_key,
-    TRADE_MODE_EXPORT, TRADE_MODE_IMPORT,
+    import_target_fulfillment, merchant_import_unit_price, regional_exchange_sequence,
+    trade_rule_settlement_key, TRADE_MODE_EXPORT, TRADE_MODE_IMPORT,
 };
 
 pub fn trading_post_exports_commodity(
@@ -53,6 +53,7 @@ pub fn step_trading_post_trade(ctx: &ReducerContext, tick: &SimTickContext, cloc
         .map(|building| building.id)
         .collect();
     post_ids.sort_unstable();
+    let contract_efficiency = tick.land_use_profile(ctx).industry_multiplier();
     let current_exchange = regional_exchange_sequence(clock.sim_tick);
 
     for post_id in post_ids {
@@ -67,7 +68,7 @@ pub fn step_trading_post_trade(ctx: &ReducerContext, tick: &SimTickContext, cloc
         if !trading_post_operational(ctx, tick, clock, &post) {
             continue;
         }
-        settle_due_rules(ctx, &post, current_exchange);
+        settle_due_rules(ctx, &post, current_exchange, contract_efficiency);
         if clock.sim_tick % 5 == post.id % 5 {
             stage_one_export(ctx, tick, clock, &post);
         }
@@ -92,7 +93,12 @@ fn trading_post_operational(
     })
 }
 
-fn settle_due_rules(ctx: &ReducerContext, post: &Building, current_exchange: u64) {
+fn settle_due_rules(
+    ctx: &ReducerContext,
+    post: &Building,
+    current_exchange: u64,
+    contract_efficiency: f64,
+) {
     let mut rules: Vec<TradingPostTradeRule> = ctx
         .db
         .trading_post_trade_rule()
@@ -142,6 +148,7 @@ fn settle_due_rules(ctx: &ReducerContext, post: &Building, current_exchange: u64
                 commodity,
                 rule.target_surplus,
                 import_gold_budget,
+                contract_efficiency,
             ),
             _ => (0.0, 0.0),
         };
@@ -233,6 +240,7 @@ fn settle_import(
     commodity: CommodityKind,
     target_surplus: f64,
     gold_budget: f64,
+    contract_efficiency: f64,
 ) -> (f64, f64) {
     let Some(resource) = trade_resource_for_commodity(commodity) else {
         return (0.0, 0.0);
@@ -258,7 +266,8 @@ fn settle_import(
     let public_stock = owner_public_stock(ctx, owner, commodity);
     let deficit = import_deficit(public_stock, target_surplus);
     let multiplier = current_price_multiplier(ctx, owner, resource);
-    let unit_price = gold_cost / lot_amount * multiplier;
+    let unit_price =
+        merchant_import_unit_price(gold_cost / lot_amount * multiplier, contract_efficiency);
     let available_gold = whole_units(treasury_gold(ctx, owner).min(gold_budget.max(0.0)));
     let units = whole_units(affordable_import_units(
         deficit,

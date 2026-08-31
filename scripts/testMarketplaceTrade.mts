@@ -94,6 +94,11 @@ for (const resource of TRADE_RESOURCE_KINDS) {
   );
   const prices = tradingPostUnitPrices(resource, DEFAULT_REGIONAL_MARKET_STATE);
   assert.ok(prices.importGold > prices.exportGold && prices.exportGold > 0);
+  const urbanPrices = tradingPostUnitPrices(resource, DEFAULT_REGIONAL_MARKET_STATE, 1.12);
+  assert.ok(
+    urbanPrices.importGold > urbanPrices.exportGold,
+    `${resource} must retain a positive merchant spread at maximum Urban affinity`,
+  );
 }
 
 const regionalExchangeTicks = Math.ceil(
@@ -109,6 +114,10 @@ assert.ok(
   'two exchange opportunities must fit inside 30 real seconds at 4×',
 );
 assert.match(formatRegionalExchangeCountdown(0), /30 simulation seconds.*10 real seconds at 4×/);
+const ordinaryAlePrices = tradingPostUnitPrices('ale', DEFAULT_REGIONAL_MARKET_STATE);
+const urbanAlePrices = tradingPostUnitPrices('ale', DEFAULT_REGIONAL_MARKET_STATE, 1.12);
+assert.ok(urbanAlePrices.importGold < ordinaryAlePrices.importGold);
+assert.equal(urbanAlePrices.exportGold, ordinaryAlePrices.exportGold);
 
 const post = building('building-9', 'trading_post', { firewood: 11, charcoal: 4 });
 const storehouse = building('building-10', 'village_storehouse', { firewood: 42, charcoal: 8 });
@@ -346,7 +355,10 @@ assert.doesNotMatch(
 );
 
 const tradeRuleReducer = readFileSync('server/src/reducers/trading_post_trade.rs', 'utf8');
-assert.match(tradeRuleReducer, /regional_exchange_sequence\(config\.sim_tick\)/);
+assert.match(
+  tradeRuleReducer,
+  /regional_exchange_sequence\(config\.sim_tick\)/,
+);
 assert.match(tradeRuleReducer, /last_settled_month: current_exchange/);
 
 const localDistribution = readFileSync('server/src/simulation/marketplace_caravan.rs', 'utf8');

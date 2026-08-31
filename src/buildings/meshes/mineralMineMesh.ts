@@ -7,8 +7,15 @@ import {
   sharedBuildingMaterial,
   timberMaterial,
 } from '../buildingMaterials.ts';
-import { addDarkOpening, addGableShell, addPlankDoor } from './buildingMeshKit.ts';
+import {
+  addDarkOpening,
+  addGableShell,
+  addLeanToRoof,
+  addPlankDoor,
+} from './buildingMeshKit.ts';
 import { createCivilianToolStockpile } from './civilianToolStockpileMesh.ts';
+import { ProceduralGeometryWriter } from '../proceduralArchitecture/geometryWriter.ts';
+import { addProceduralMaterialSlotMeshes } from '../proceduralArchitecture/materialSlotMeshes.ts';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const IRON_DARK = metalMaterial('iron');
@@ -128,6 +135,7 @@ function addHeadframe(group: THREE.Group): void {
       'Mineworks headframe cross brace',
     );
   }
+  addHeadframeCrossBracing(headframe);
 
   for (const x of [-0.74, 0.74]) {
     addMesh(
@@ -147,13 +155,119 @@ function addHeadframe(group: THREE.Group): void {
     );
   }
 
-  addMesh(
-    headframe,
-    new THREE.BoxGeometry(3.7, 0.22, 3.1),
-    sharedBuildingMaterial('shingle'),
-    new THREE.Vector3(0, 8.42, 0),
-  ).name = 'Mineworks headframe weather cap';
+  addHeadframeWeatherRoof(headframe);
   group.add(headframe);
+}
+
+/** Completes both open transverse faces and ties them below the roof. */
+function addHeadframeCrossBracing(headframe: THREE.Group): void {
+  const bracing = new THREE.Group();
+  bracing.name = 'Mineworks headframe transverse cross bracing';
+  bracing.userData.architectureModule = 'shaft-headframe';
+  bracing.userData.bracingSystem = 'four-face-cross-braced-headframe';
+  const writer = new ProceduralGeometryWriter(['rough-timber']);
+
+  for (const zSign of [-1, 1] as const) {
+    const baseZ = zSign * 1.52;
+    const crownZ = zSign * 1.2;
+    writer.addMember({
+      semanticId: `mineworks-${zSign < 0 ? 'rear' : 'front'}-left-to-right-cross-brace`,
+      moduleId: 'shaft-headframe',
+      materialRole: 'rough-timber',
+      structuralUse: 'timber-frame',
+      start: [-2.22, 1.96, baseZ],
+      end: [1.48, 6.9, crownZ],
+      width: 0.22,
+      depth: 0.22,
+    });
+    writer.addMember({
+      semanticId: `mineworks-${zSign < 0 ? 'rear' : 'front'}-right-to-left-cross-brace`,
+      moduleId: 'shaft-headframe',
+      materialRole: 'rough-timber',
+      structuralUse: 'timber-frame',
+      start: [2.22, 1.96, baseZ],
+      end: [-1.48, 6.9, crownZ],
+      width: 0.22,
+      depth: 0.22,
+    });
+  }
+  for (const xSign of [-1, 1] as const) {
+    writer.addMember({
+      semanticId: `mineworks-${xSign < 0 ? 'left' : 'right'}-roof-sole-tie`,
+      moduleId: 'shaft-headframe',
+      materialRole: 'rough-timber',
+      structuralUse: 'roof-frame',
+      start: [xSign * 1.52, 7.82, -1.48],
+      end: [xSign * 1.52, 7.82, 1.48],
+      width: 0.24,
+      depth: 0.24,
+    });
+  }
+
+  addProceduralMaterialSlotMeshes(bracing, writer.build(), {
+    namePrefix: 'Mineworks headframe transverse cross bracing',
+  });
+  headframe.add(bracing);
+}
+
+/**
+ * A deep-eaved split-shingle cap replaces the former flat slab without raising
+ * the established headframe envelope. Two small overlapping ridge panels keep
+ * the wet-weather load path explicit and preserve roof-course-aligned UVs.
+ */
+function addHeadframeWeatherRoof(headframe: THREE.Group): void {
+  const roof = new THREE.Group();
+  roof.name = 'Mineworks headframe weather roof';
+  roof.userData.architectureModule = 'headframe-weather-cap';
+  roof.userData.weatherProtection = 'deep-eave-split-shingle-gable';
+  const writer = new ProceduralGeometryWriter(['split-shingles']);
+  writer.addRoofPanel({
+    semanticId: 'mineworks-headframe-left-weather-roof-plane',
+    moduleId: 'headframe-weather-cap',
+    materialRole: 'split-shingles',
+    structuralUse: 'roof-covering',
+    eaveOrigin: [-2.28, 7.78, -2.05],
+    eaveVector: [0, 0, 4.1],
+    slopeVector: [2.28, 0.73, 0],
+    thickness: 0.11,
+  });
+  writer.addRoofPanel({
+    semanticId: 'mineworks-headframe-right-weather-roof-plane',
+    moduleId: 'headframe-weather-cap',
+    materialRole: 'split-shingles',
+    structuralUse: 'roof-covering',
+    eaveOrigin: [2.28, 7.78, 2.05],
+    eaveVector: [0, 0, -4.1],
+    slopeVector: [-2.28, 0.73, 0],
+    thickness: 0.11,
+    uvOffsetMeters: [0.13, 0.07],
+  });
+  writer.addRoofPanel({
+    semanticId: 'mineworks-headframe-left-ridge-weather-course',
+    moduleId: 'headframe-weather-cap',
+    materialRole: 'split-shingles',
+    structuralUse: 'roof-ridge-and-cap',
+    eaveOrigin: [-0.17, 8.47, -2.08],
+    eaveVector: [0, 0, 4.16],
+    slopeVector: [0.17, 0.055, 0],
+    thickness: 0.055,
+    uvOffsetMeters: [0.31, 0.11],
+  });
+  writer.addRoofPanel({
+    semanticId: 'mineworks-headframe-right-ridge-weather-course',
+    moduleId: 'headframe-weather-cap',
+    materialRole: 'split-shingles',
+    structuralUse: 'roof-ridge-and-cap',
+    eaveOrigin: [0.17, 8.47, 2.08],
+    eaveVector: [0, 0, -4.16],
+    slopeVector: [-0.17, 0.055, 0],
+    thickness: 0.055,
+    uvOffsetMeters: [0.44, 0.17],
+  });
+  addProceduralMaterialSlotMeshes(roof, writer.build(), {
+    namePrefix: 'Mineworks headframe weather roof',
+  });
+  headframe.add(roof);
 }
 
 function addHoistHouse(group: THREE.Group): void {
@@ -197,6 +311,8 @@ function addHoistHouse(group: THREE.Group): void {
 function addOreSortingFloor(group: THREE.Group): void {
   const floor = new THREE.Group();
   floor.name = 'Mineworks sorting floor';
+  floor.userData.architectureModule = 'roofed-ore-sorting-yard';
+  floor.userData.weatherProtection = 'single-slope-split-shingle-canopy';
   floor.position.set(-7.15, 0, 3.9);
   floor.rotation.y = 0.18;
 
@@ -214,6 +330,7 @@ function addOreSortingFloor(group: THREE.Group): void {
       new THREE.Vector3(x, 0.25, 0),
     );
   }
+  addSortingFloorWeatherFrame(floor);
 
   const chute = addMesh(
     floor,
@@ -234,6 +351,65 @@ function addOreSortingFloor(group: THREE.Group): void {
     tub.name = 'Mineworks sorting tub';
   }
   group.add(floor);
+}
+
+function addSortingFloorWeatherFrame(floor: THREE.Group): void {
+  const shelter = new THREE.Group();
+  shelter.name = 'Mineworks sorting-floor weather frame';
+  shelter.userData.bracingSystem = 'four-post-knee-braced-sorting-canopy';
+  const writer = new ProceduralGeometryWriter(['rough-timber']);
+  for (const x of [-2.62, 2.62]) {
+    for (const z of [-1.2, 1.2]) {
+      const side = x < 0 ? 'left' : 'right';
+      const end = z < 0 ? 'high' : 'low';
+      writer.addMember({
+        semanticId: `mineworks-sorting-${side}-${end}-canopy-post`,
+        moduleId: 'roofed-ore-sorting-yard',
+        materialRole: 'rough-timber',
+        structuralUse: 'timber-frame',
+        start: [x, 0.68, z],
+        end: [x, 3.04, z],
+        width: 0.2,
+        depth: 0.2,
+      });
+      writer.addMember({
+        semanticId: `mineworks-sorting-${side}-${end}-canopy-knee-brace`,
+        moduleId: 'roofed-ore-sorting-yard',
+        materialRole: 'rough-timber',
+        structuralUse: 'roof-frame',
+        start: [x, 2.28, z],
+        end: [x - Math.sign(x) * 0.68, 3.03, z],
+        width: 0.13,
+        depth: 0.13,
+      });
+    }
+  }
+  for (const z of [-1.2, 1.2]) {
+    writer.addMember({
+      semanticId: `mineworks-sorting-${z < 0 ? 'high' : 'low'}-wall-plate`,
+      moduleId: 'roofed-ore-sorting-yard',
+      materialRole: 'rough-timber',
+      structuralUse: 'roof-frame',
+      start: [-2.78, 3.04, z],
+      end: [2.78, 3.04, z],
+      width: 0.19,
+      depth: 0.19,
+    });
+  }
+  addProceduralMaterialSlotMeshes(shelter, writer.build(), {
+    namePrefix: 'Mineworks sorting-floor weather frame',
+  });
+  addLeanToRoof(shelter, {
+    width: 6.35,
+    depth: 3.45,
+    thickness: 0.1,
+    material: sharedBuildingMaterial('shingle'),
+    position: new THREE.Vector3(0, 3.27, 0),
+    pitch: 0.16,
+    highEdge: 'negativeZ',
+    name: 'Mineworks sorting-floor split-shingle weather roof',
+  });
+  floor.add(shelter);
 }
 
 function stockpileNames(resource: MineworksResource): {
@@ -367,6 +543,13 @@ export function applyMineworksSemanticContract(group: THREE.Group): void {
   group.userData.semanticRole = 'rich-mineral-mineworks';
   group.userData.extractionResources = ['iron', 'salt', 'clay'];
   group.userData.silhouette = 'vertical-shaft-headframe';
+  group.userData.architectureEra = 'circa-1550';
+  group.userData.architectureRegion = 'Gorski Kotar and Croatian Littoral';
+  group.userData.weatherProtection = [
+    'deep-eave-headframe-shingle-cap',
+    'roofed-ore-sorting-floor',
+  ];
+  group.userData.livingVegetationOwner = 'SeedThree';
 }
 
 /** Adds only simulation-owned stores; the authored GLB stays a neutral fixed shell. */

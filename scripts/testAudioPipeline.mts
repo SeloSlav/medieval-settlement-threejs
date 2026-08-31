@@ -873,12 +873,47 @@ async function main(): Promise<void> {
   );
   const isolatedRangedSource = buildCombatAudioSources([
     { id: 'bow-far', faction: 'bowman', status: 'fighting', health: 80, x: 20, z: 0, attackCooldown: 0 },
-  ]);
+  ], undefined, closeCombatView);
   invariant(
     isolatedRangedSource.length === 1
     && isolatedRangedSource[0]?.id === 'bow-far'
     && isolatedRangedSource[0]?.weaponFamily === 'bow',
     'ranged attacks must emit from their fighter even without a nearby melee pair',
+  );
+  const visibleStanceSources = buildCombatAudioSources([
+    {
+      id: 'uskok-firearm-stance', faction: 'uskok', status: 'fighting', health: 80,
+      x: 1, z: 0, attackCooldown: 0, activeWeaponFamily: 'arquebus',
+    },
+    {
+      id: 'uskok-sidearm-stance', faction: 'uskok', status: 'fighting', health: 80,
+      x: 2, z: 0, attackCooldown: 0, activeWeaponFamily: 'sword-sidearm',
+    },
+    {
+      id: 'mercenary-visible-pike', faction: 'mercenary-spear', status: 'fighting', health: 80,
+      x: 3, z: 0, attackCooldown: 0, activeWeaponFamily: 'spear-pike',
+    },
+  ], undefined, closeCombatView);
+  invariant(
+    visibleStanceSources.find((source) => source.id === 'uskok-firearm-stance')?.weaponFamily
+      === 'arquebus'
+    && visibleStanceSources.find((source) => source.id === 'uskok-sidearm-stance')?.weaponFamily
+      === 'sword-sidearm'
+    && visibleStanceSources.find((source) => source.id === 'mercenary-visible-pike')?.weaponFamily
+      === 'spear-pike',
+    'combat Foley must follow the weapon family visibly held in the active stance',
+  );
+  const villagerAudioIntegration = await readFile(
+    path.join(PROJECT_ROOT, 'src', 'settlement', 'VillagerRenderer.ts'),
+    'utf8',
+  );
+  invariant(
+    /const activeWeaponFamily\s*=\s*combatWeaponSoundFamily\(/.test(villagerAudioIntegration)
+    && /fighter\.activeWeaponFamily\s*=\s*activeWeaponFamily/.test(villagerAudioIntegration)
+    && /case 'uskok-sidearm': return 'sword-sidearm'/.test(villagerAudioIntegration)
+    && /case 'uskok-arquebus': return 'arquebus'/.test(villagerAudioIntegration)
+    && /buildCombatAudioSources\([\s\S]{0,180}this\.combatAudioSourceWorkspace,[\s\S]{0,80}activeView/.test(villagerAudioIntegration),
+    'villager combat audio must publish the rendered weapon stance and listener view into source selection',
   );
   const combatStressFighters = Array.from(
     { length: 100_000 },
@@ -911,6 +946,57 @@ async function main(): Promise<void> {
   invariant(
     combatPairingElapsedMs < 250,
     `combat audio source selection should remain bounded with 100,000 defenders; took ${combatPairingElapsedMs.toFixed(1)}ms`,
+  );
+  const everyWeaponFamily = [
+    'spear-pike',
+    'sword-sidearm',
+    'halberd-polearm',
+    'bow',
+    'crossbow',
+    'arquebus',
+  ] as const;
+  const listenerSelectionFighters = [
+    ...Array.from({ length: 120 }, (_, index) => ({
+      id: `far-first-${index}`,
+      faction: 'guard' as const,
+      status: 'fighting' as const,
+      health: 100,
+      x: 500 + index,
+      z: 500,
+      activeWeaponFamily: 'spear-pike' as const,
+    })),
+    ...Array.from({ length: 60 }, (_, index) => ({
+      id: `near-spear-${index}`,
+      faction: 'guard' as const,
+      status: 'fighting' as const,
+      health: 100,
+      x: 1 + index * 0.04,
+      z: index % 2 * 0.1,
+      activeWeaponFamily: 'spear-pike' as const,
+    })),
+    ...everyWeaponFamily.slice(1).map((activeWeaponFamily, index) => ({
+      id: `near-reserved-family-${activeWeaponFamily}`,
+      faction: 'guard' as const,
+      status: 'fighting' as const,
+      health: 100,
+      x: 8 + index,
+      z: 0,
+      activeWeaponFamily,
+    })),
+  ];
+  const listenerSelectedSources = buildCombatAudioSources(
+    listenerSelectionFighters,
+    undefined,
+    closeCombatView,
+  );
+  const listenerSelectedFamilies = new Set(
+    listenerSelectedSources.map((source) => source.weaponFamily),
+  );
+  invariant(
+    listenerSelectedSources.length === COMBAT_AUDIO_MAX_SOURCES / 2
+    && listenerSelectedSources.every((source) => source.x < 20)
+    && everyWeaponFamily.every((family) => listenerSelectedFamilies.has(family)),
+    'listener-aware source selection must reject far first IDs while reserving every nearby weapon family',
   );
   const audioDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Audio');
   const combatPlayback: Array<{
@@ -1010,6 +1096,23 @@ async function main(): Promise<void> {
       'all weapon one-shots should stop as soon as the live engagement ends',
     );
     combatMixer.dispose();
+
+    const stancePlaybackStart = combatPlayback.length;
+    const stanceMixer = new CombatAudio();
+    stanceMixer.tick(0, visibleStanceSources, closeCombatView);
+    for (const source of visibleStanceSources) source.attackCooldown = 1;
+    stanceMixer.tick(0.016, visibleStanceSources, closeCombatView);
+    const stancePlayback = combatPlayback.slice(stancePlaybackStart)
+      .filter((audio) => audio.plays > 0)
+      .map((audio) => audio.src);
+    invariant(
+      stancePlayback.length === 3
+      && stancePlayback.some((src) => /\/sounds\/combat\/arquebus_attack_\d+\.mp3/.test(src))
+      && stancePlayback.some((src) => /\/sounds\/combat\/sword_sidearm_melee_\d+\.mp3/.test(src))
+      && stancePlayback.some((src) => /\/sounds\/combat\/pike_melee_\d+\.mp3/.test(src)),
+      'cooldown edges must play the Uskok firearm, Uskok Korda, and mercenary pike actually shown',
+    );
+    stanceMixer.dispose();
 
     const fallbackStart = combatPlayback.length;
     const fallbackMixer = new CombatAudio();

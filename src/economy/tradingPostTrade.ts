@@ -215,6 +215,7 @@ export function settlementTradeStock(
 export function tradingPostUnitPrices(
   resource: TradeResourceKind,
   market: RegionalMarketState,
+  contractEfficiency = 1,
 ): { importGold: number; exportGold: number } {
   const buy = MARKETPLACE_TRADE_OFFERS.find(
     (offer) => offer.kind === 'goldBuy' && offer.resource === resource,
@@ -223,9 +224,14 @@ export function tradingPostUnitPrices(
     (offer) => offer.kind === 'goldSell' && offer.resource === resource,
   );
   const multiplier = priceMultiplierFor(market, resource);
+  const efficiency = Math.max(1, Number.isFinite(contractEfficiency) ? contractEfficiency : 1);
   return {
-    importGold: buy?.kind === 'goldBuy' ? buy.goldCost / buy.amount * multiplier : 0,
-    exportGold: sell?.kind === 'goldSell' ? sell.goldYield / sell.amount * multiplier : 0,
+    importGold: buy?.kind === 'goldBuy'
+      ? buy.goldCost / buy.amount * multiplier / efficiency
+      : 0,
+    exportGold: sell?.kind === 'goldSell'
+      ? sell.goldYield / sell.amount * multiplier
+      : 0,
   };
 }
 

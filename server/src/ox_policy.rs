@@ -4,7 +4,8 @@
 //! Keeping the matching policy free of SpacetimeDB types makes its ordering and
 //! capacity rules host-testable and keeps the client contract explicit.
 
-use crate::balance_generated::STABLE_OX_MAX_PER_WORKPLACE;
+use crate::balance_generated::{STABLE_OX_MAX_PER_WORKPLACE, STABLE_OX_PURCHASE_GOLD};
+use crate::resource_units::whole_cost;
 
 /// Every workplace whose workers may be accompanied by a stable ox. The final
 /// three entries are logistics-only; the rest may receive a production boost.
@@ -47,6 +48,14 @@ pub fn ox_workplace_capacity(kind: &str) -> u32 {
         _ => 0,
     };
     type_capacity.min(STABLE_OX_MAX_PER_WORKPLACE)
+}
+
+/// Rural husbandry networks make trained draft animals easier to source. The
+/// multiplier expresses procurement efficiency, so dividing the authored
+/// price preserves the displayed percentage while whole civic gold still
+/// rounds upward.
+pub fn stable_ox_purchase_gold(husbandry_multiplier: f64) -> f64 {
+    whole_cost(STABLE_OX_PURCHASE_GOLD / husbandry_multiplier.max(1.0))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -330,6 +339,13 @@ mod tests {
         assert!(is_ox_production_workplace("lumber_mill"));
         assert!(is_ox_production_workplace("monastery"));
         assert!(!is_ox_supported_workplace("smithy"));
+    }
+
+    #[test]
+    fn rural_husbandry_reduces_whole_gold_procurement_cost() {
+        assert_eq!(stable_ox_purchase_gold(1.0), STABLE_OX_PURCHASE_GOLD);
+        assert_eq!(stable_ox_purchase_gold(1.12), 22.0);
+        assert!(stable_ox_purchase_gold(1.12) < stable_ox_purchase_gold(1.0));
     }
 
     #[test]

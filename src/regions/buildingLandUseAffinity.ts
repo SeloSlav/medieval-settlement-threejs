@@ -1,4 +1,7 @@
-import type { BuildingKind } from '../generated/gameBalance.ts';
+import {
+  STABLE_OX_PURCHASE_GOLD,
+  type BuildingKind,
+} from '../generated/gameBalance.ts';
 import {
   meadowGrazingBonus,
   woodlandPannageBonus,
@@ -57,6 +60,66 @@ export function buildingLandUseAffinities(
       profile.bonuses.meadow,
       'apiary forage and pollination',
       'Flower-rich open country supports stronger colonies.',
+    ));
+  }
+  if (kind === 'windmill') {
+    effects.push(effect(
+      profile,
+      'meadow',
+      'Open wind',
+      profile.bonuses.meadow,
+      'milling throughput',
+      'Broad open country sustains cleaner prevailing wind across the realm.',
+    ));
+  }
+  if (kind === 'stable') {
+    effects.push(effect(
+      profile,
+      'rural',
+      'Droving country',
+      profile.bonuses.rural,
+      'draft-ox procurement efficiency',
+      'A larger rural economy supplies breeders, drovers, fodder, and trained draft stock.',
+    ));
+  }
+  if (kind === 'granary') {
+    effects.push(effect(
+      profile,
+      'farmland',
+      'Grain country',
+      profile.bonuses.farmland,
+      'grain cart capacity',
+      'A larger cultivated hinterland develops better sacks, measures, loading practice, and grain handling.',
+    ));
+  }
+  if (kind === 'monastery') {
+    effects.push(effect(
+      profile,
+      'farmland',
+      'Monastic granges',
+      profile.bonuses.farmland,
+      'estate production rate',
+      'A larger cultivated hinterland shares seeds, husbandry practice, and estate labor with the religious house.',
+    ));
+  }
+  if (kind === 'tavern') {
+    effects.push(effect(
+      profile,
+      'urban',
+      'Custom and footfall',
+      profile.bonuses.urban,
+      'staffed beverage service rate',
+      'Denser settlement brings regular custom, runners, and practiced innkeeping without creating extra ale.',
+    ));
+  }
+  if (kind === 'trading_post') {
+    effects.push(effect(
+      profile,
+      'urban',
+      'Merchant quarter',
+      profile.bonuses.urban,
+      'regional import purchasing power',
+      'A larger urban economy supplies brokers, weights, credit, and commercial intelligence.',
     ));
   }
   if (kind === 'pastoral_farmstead') {
@@ -146,6 +209,11 @@ export function buildingLandUseAffinities(
     ));
   }
   return effects;
+}
+
+export function stableOxPurchaseGold(profile: LandUseProfile): number {
+  const procurementMultiplier = 1 + Math.max(0, profile.bonuses.rural);
+  return Math.ceil(STABLE_OX_PURCHASE_GOLD / procurementMultiplier - 1e-9);
 }
 
 function effect(

@@ -11,7 +11,10 @@ import {
   addProceduralWindow,
   type DoorEntranceAccess,
 } from './facadeOpeningKit.ts';
-import { createProceduralRoofPanelGeometry } from '../proceduralArchitecture/geometryWriter.ts';
+import {
+  createProceduralRoofPanelGeometry,
+  ProceduralGeometryWriter,
+} from '../proceduralArchitecture/geometryWriter.ts';
 
 export type GableShellOptions = {
   width: number;
@@ -49,6 +52,18 @@ export type LeanToRoofOptions = {
   position: THREE.Vector3;
   pitch: number;
   highEdge: LeanToHighEdge;
+  name: string;
+};
+
+export type HippedRoofOptions = {
+  width: number;
+  depth: number;
+  eaveY: number;
+  peakY: number;
+  thickness: number;
+  material: THREE.Material;
+  centerX?: number;
+  centerZ?: number;
   name: string;
 };
 
@@ -93,32 +108,149 @@ export function addLeanToRoof(group: THREE.Group, options: LeanToRoofOptions): T
     highEdge,
     name,
   } = options;
-  const rotation = new THREE.Euler();
+  const resolvedPitch = Math.abs(pitch);
+  const slopesAlongX = highEdge === 'negativeX' || highEdge === 'positiveX';
+  const slopeSpan = slopesAlongX ? width : depth;
+  const eaveSpan = slopesAlongX ? depth : width;
+  const run = Math.cos(resolvedPitch) * slopeSpan;
+  const rise = Math.sin(resolvedPitch) * slopeSpan;
+  const eaveVector = new THREE.Vector3();
+  const slopeVector = new THREE.Vector3();
   switch (highEdge) {
     case 'negativeX':
-      rotation.z = -Math.abs(pitch);
+      eaveVector.set(0, 0, -eaveSpan);
+      slopeVector.set(-run, rise, 0);
       break;
     case 'positiveX':
-      rotation.z = Math.abs(pitch);
+      eaveVector.set(0, 0, eaveSpan);
+      slopeVector.set(run, rise, 0);
       break;
     case 'negativeZ':
-      rotation.x = Math.abs(pitch);
+      eaveVector.set(eaveSpan, 0, 0);
+      slopeVector.set(0, rise, -run);
       break;
     case 'positiveZ':
-      rotation.x = -Math.abs(pitch);
+      eaveVector.set(-eaveSpan, 0, 0);
+      slopeVector.set(0, rise, run);
       break;
   }
 
-  const roof = addMesh(
-    group,
-    new THREE.BoxGeometry(width, thickness, depth),
-    material,
-    position,
-    rotation,
-  );
+  const roofRole = proceduralRoofRoleOrNull(material);
+  let geometry: THREE.BufferGeometry;
+  if (roofRole) {
+    // Place the writer's top skin around the former primitive centre. That
+    // preserves every authored clearance while giving porches, work bays, and
+    // cloisters a true eave/slope UV frame instead of box-projected courses.
+    const outward = new THREE.Vector3().crossVectors(eaveVector, slopeVector).normalize();
+    if (outward.y < 0) outward.negate();
+    const topCenter = position.clone().addScaledVector(outward, thickness * 0.5);
+    const eaveOrigin = topCenter.clone()
+      .addScaledVector(eaveVector, -0.5)
+      .addScaledVector(slopeVector, -0.5);
+    geometry = createProceduralRoofPanelGeometry({
+      semanticId: `lean-to-${highEdge}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+      moduleId: 'attached-lean-to-roof',
+      materialRole: roofRole,
+      structuralUse: 'roof-covering',
+      eaveOrigin: [eaveOrigin.x, eaveOrigin.y, eaveOrigin.z],
+      eaveVector: [eaveVector.x, eaveVector.y, eaveVector.z],
+      slopeVector: [slopeVector.x, slopeVector.y, slopeVector.z],
+      thickness,
+    });
+  } else {
+    // Flexible canvas flies need sewn-panel geometry and are intentionally not
+    // mislabelled as permanent roof covering. Preserve their existing thin
+    // fallback until the owning generator supplies a sagging fabric surface.
+    geometry = new THREE.BoxGeometry(width, thickness, depth);
+    if (highEdge === 'negativeX') geometry.rotateZ(-resolvedPitch);
+    if (highEdge === 'positiveX') geometry.rotateZ(resolvedPitch);
+    if (highEdge === 'negativeZ') geometry.rotateX(resolvedPitch);
+    if (highEdge === 'positiveZ') geometry.rotateX(-resolvedPitch);
+    geometry.translate(position.x, position.y, position.z);
+  }
+
+  const roof = addMesh(group, geometry, material, new THREE.Vector3());
   roof.name = name;
   roof.userData.leanToHighEdge = highEdge;
-  roof.userData.leanToPitch = Math.abs(pitch);
+  roof.userData.leanToPitch = resolvedPitch;
+  roof.userData.proceduralRoofShell = true;
+  roof.userData.proceduralRoofAttachment = 'lean-to';
+  return roof;
+}
+
+/**
+ * Adds a four-face hipped/pyramidal cap as one course-aligned material slot.
+ * This replaces four-sided ConeGeometry caps whose cylindrical UVs rotate and
+ * stretch shingles independently on every face.
+ */
+export function addHippedRoof(group: THREE.Group, options: HippedRoofOptions): THREE.Mesh {
+  const {
+    width,
+    depth,
+    eaveY,
+    peakY,
+    thickness,
+    material,
+    centerX = 0,
+    centerZ = 0,
+    name,
+  } = options;
+  if (![width, depth, thickness].every((value) => Number.isFinite(value) && value > 0)) {
+    throw new Error(`${name} hipped-roof dimensions must be finite and positive.`);
+  }
+  if (!Number.isFinite(eaveY) || !Number.isFinite(peakY) || peakY <= eaveY) {
+    throw new Error(`${name} hipped-roof peak must be finite and above its eave.`);
+  }
+  const role = proceduralRoofRole(material);
+  const halfW = width * 0.5;
+  const halfD = depth * 0.5;
+  const rise = peakY - eaveY;
+  const writer = new ProceduralGeometryWriter([role]);
+  const common = {
+    moduleId: 'joined-hipped-roof',
+    materialRole: role,
+    structuralUse: 'roof-covering' as const,
+    thickness,
+  };
+  writer.addRoofTriangle({
+    ...common,
+    semanticId: `${name}-positive-z-face`,
+    eaveOrigin: [centerX - halfW, eaveY, centerZ + halfD],
+    eaveVector: [width, 0, 0],
+    apexOffset: [0, rise, -halfD],
+  });
+  writer.addRoofTriangle({
+    ...common,
+    semanticId: `${name}-positive-x-face`,
+    eaveOrigin: [centerX + halfW, eaveY, centerZ + halfD],
+    eaveVector: [0, 0, -depth],
+    apexOffset: [-halfW, rise, 0],
+    uvOffsetMeters: [0.13, 0.07],
+  });
+  writer.addRoofTriangle({
+    ...common,
+    semanticId: `${name}-negative-z-face`,
+    eaveOrigin: [centerX + halfW, eaveY, centerZ - halfD],
+    eaveVector: [-width, 0, 0],
+    apexOffset: [0, rise, halfD],
+    uvOffsetMeters: [0.26, 0.14],
+  });
+  writer.addRoofTriangle({
+    ...common,
+    semanticId: `${name}-negative-x-face`,
+    eaveOrigin: [centerX - halfW, eaveY, centerZ - halfD],
+    eaveVector: [0, 0, depth],
+    apexOffset: [halfW, rise, 0],
+    uvOffsetMeters: [0.39, 0.21],
+  });
+  const slot = writer.build().slots[0];
+  if (!slot) throw new Error(`${name} hipped roof emitted no geometry.`);
+  const roof = addMesh(group, slot.geometry, material, new THREE.Vector3());
+  roof.name = name;
+  roof.userData.proceduralRoofShell = true;
+  roof.userData.proceduralRoofAttachment = 'hipped-cap';
+  roof.userData.proceduralMaterialRole = role;
+  roof.userData.proceduralPrimitiveCount = 4;
   return roof;
 }
 
@@ -328,17 +460,29 @@ export function addDarkOpening(
   width: number,
   height: number,
 ): void {
-  addMesh(
+  const resolvedFacade = resolveGableFacade(group, z);
+  const frame = addMesh(
     group,
     new THREE.BoxGeometry(width + 0.24, height + 0.2, 0.1),
     timberMaterial('dark'),
     new THREE.Vector3(x, y, z),
   );
-  addMesh(
+  frame.name = 'Building dark structural opening frame';
+  frame.userData.facadeOpeningRole = 'dark-opening-frame';
+  const reveal = addMesh(
     group,
     new THREE.BoxGeometry(width, height, 0.12),
     sharedBuildingMaterial('interiorDark'),
     new THREE.Vector3(x, y, z + 0.07),
+  );
+  reveal.name = 'Building dark recessed opening';
+  reveal.userData.facadeOpeningRole = 'dark-opening-reveal';
+  registerGableFacadeOpening(
+    resolvedFacade,
+    x,
+    y - height * 0.5 - 0.04,
+    y + height * 0.5 + 0.04,
+    width + 0.08,
   );
 }
 
@@ -370,13 +514,21 @@ export function addSmallWindow(
 function proceduralRoofRole(
   material: THREE.Material,
 ): 'split-shingles' | 'clay-tiles' | 'slate' {
+  const role = proceduralRoofRoleOrNull(material);
+  if (role) return role;
+  throw new Error(
+    `Gable roof material ${material.name || material.type} has no permitted circa-1550 roof role.`,
+  );
+}
+
+function proceduralRoofRoleOrNull(
+  material: THREE.Material,
+): 'split-shingles' | 'clay-tiles' | 'slate' | null {
   const name = material.name.toLowerCase();
   if (name.includes('clayred') || name.includes('claydark')) return 'clay-tiles';
   if (name.includes('slate')) return 'slate';
   if (name.includes('shingle')) return 'split-shingles';
-  throw new Error(
-    `Gable roof material ${material.name || material.type} has no permitted circa-1550 roof role.`,
-  );
+  return null;
 }
 
 function resolveGableFacade(
@@ -395,7 +547,13 @@ function resolveGableFacade(
       if (!best || distance < best.distance) best = { record, face, distance };
     }
   }
-  return best ? { record: best.record, face: best.face } : null;
+  // Side-wall, tower, and free-standing openings may share the same parent
+  // group. Only mutate a gable facade when the caller is genuinely on its
+  // front/rear plane; otherwise the nearest-record heuristic can cut a remote
+  // wall behind an unrelated vent.
+  return best && best.distance <= 0.35
+    ? { record: best.record, face: best.face }
+    : null;
 }
 
 function registerGableFacadeOpening(

@@ -46,6 +46,7 @@ export function renderMarketplaceInspector(
   );
   const rules = Array.from(context.gameState.tradingPostTradeRules?.values() ?? [])
     .filter((rule) => rule.buildingId === building.id && rule.mode !== 0);
+  const contractEfficiency = 1 + context.landUseProfile.bonuses.urban;
   const exchangeDue = tradingPostExchangeDue(rules, context.gameState.tick);
   const exchangeCountdown = formatRegionalExchangeCountdown(
     context.gameState.tick,
@@ -101,6 +102,7 @@ export function renderMarketplaceInspector(
       building,
       context.gameState,
       marketState,
+      contractEfficiency,
     ),
   };
 }

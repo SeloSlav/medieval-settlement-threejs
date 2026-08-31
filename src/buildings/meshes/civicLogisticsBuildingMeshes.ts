@@ -6,15 +6,26 @@ import {
   sharedBuildingDetailMaterial,
   shingleMaterial,
   stoneMaterial,
+  tileMaterial,
   timberMaterial,
 } from '../buildingMaterials.ts';
 import {
-  addDarkOpening,
   addGableShell,
+  addHippedRoof,
   addLeanToRoof,
   addPlankDoor,
   addSmallWindow,
 } from './buildingMeshKit.ts';
+import {
+  addProceduralDoor,
+  addProceduralWindow,
+} from './facadeOpeningKit.ts';
+import {
+  createProceduralMemberGeometry,
+  createProceduralRoofPanelGeometry,
+  ProceduralGeometryWriter,
+} from '../proceduralArchitecture/geometryWriter.ts';
+import { prepareBuildingGeometryUvs } from '../buildingMetricUvs.ts';
 import {
   WATCHTOWER_GALLERY_DECK_CENTER_Y,
   WATCHTOWER_GALLERY_DECK_THICKNESS,
@@ -51,6 +62,141 @@ export const GUARDHOUSE_PAYROLL_VISUAL_CAPACITY =
   BUILDING_DEFINITIONS.guardhouse.maxLabor
   * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY
   * GUARDHOUSE_PAYROLL_TARGET_DAYS;
+
+type TimberMember = Readonly<{
+  start: readonly [number, number, number];
+  end: readonly [number, number, number];
+  width: number;
+  depth: number;
+}>;
+
+function addStructuralTimberMember(
+  group: THREE.Group,
+  name: string,
+  member: TimberMember,
+): THREE.Mesh {
+  const mesh = addMesh(
+    group,
+    createProceduralMemberGeometry({
+      semanticId: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      moduleId: 'connected-timber-frame-member',
+      materialRole: 'rough-timber',
+      structuralUse: 'timber-frame',
+      start: member.start,
+      end: member.end,
+      width: member.width,
+      depth: member.depth,
+      upHint: [0, 1, 0],
+    }),
+    timberMaterial('dark'),
+    new THREE.Vector3(),
+  );
+  mesh.name = name;
+  mesh.userData.structuralStart = [...member.start];
+  mesh.userData.structuralEnd = [...member.end];
+  mesh.userData.structuralConnection = 'endpoint-authored';
+  return mesh;
+}
+
+function addJoinedTimberMembers(
+  group: THREE.Group,
+  name: string,
+  members: readonly TimberMember[],
+): THREE.Mesh {
+  const writer = new ProceduralGeometryWriter(['rough-timber']);
+  members.forEach((member, index) => {
+    writer.addMember({
+      semanticId: `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${index + 1}`,
+      moduleId: 'joined-timber-frame-members',
+      materialRole: 'rough-timber',
+      structuralUse: 'timber-frame',
+      start: member.start,
+      end: member.end,
+      width: member.width,
+      depth: member.depth,
+      upHint: [0, 1, 0],
+    });
+  });
+  const slot = writer.build().slots[0];
+  if (!slot) throw new Error(`${name} emitted no timber geometry.`);
+  const mesh = addMesh(
+    group,
+    slot.geometry,
+    timberMaterial('dark'),
+    new THREE.Vector3(),
+  );
+  mesh.name = name;
+  mesh.userData.structuralConnection = 'joined-endpoint-authored';
+  mesh.userData.structuralMemberCount = members.length;
+  return mesh;
+}
+
+function addTownHallCouncilPorchRoof(group: THREE.Group): void {
+  const roofMaterial = tileMaterial(0);
+  const eaveY = 3.62;
+  const rise = 1.08;
+  const depth = 2.36;
+  const halfWidth = 2.12;
+  const backZ = 3.08;
+  const frontZ = backZ + depth;
+  const left = addMesh(
+    group,
+    createProceduralRoofPanelGeometry({
+      semanticId: 'town-hall-council-porch-left-roof-plane',
+      moduleId: 'town-hall-front-cross-gable',
+      materialRole: 'clay-tiles',
+      structuralUse: 'roof-covering',
+      eaveOrigin: [-halfWidth, eaveY, frontZ],
+      eaveVector: [0, 0, -depth],
+      slopeVector: [halfWidth, rise, 0],
+      thickness: 0.12,
+    }),
+    roofMaterial,
+    new THREE.Vector3(),
+  );
+  left.name = 'Town hall council porch joined left roof plane';
+  const right = addMesh(
+    group,
+    createProceduralRoofPanelGeometry({
+      semanticId: 'town-hall-council-porch-right-roof-plane',
+      moduleId: 'town-hall-front-cross-gable',
+      materialRole: 'clay-tiles',
+      structuralUse: 'roof-covering',
+      eaveOrigin: [halfWidth, eaveY, backZ],
+      eaveVector: [0, 0, depth],
+      slopeVector: [-halfWidth, rise, 0],
+      thickness: 0.12,
+      uvOffsetMeters: [0.13, 0.07],
+    }),
+    roofMaterial,
+    new THREE.Vector3(),
+  );
+  right.name = 'Town hall council porch joined right roof plane';
+  for (const roof of [left, right]) {
+    roof.userData.proceduralRoofShell = true;
+    roof.userData.proceduralRoofAttachment = 'front-cross-gable';
+  }
+  addStructuralTimberMember(group, 'Town hall council porch front tie beam', {
+    start: [-halfWidth, eaveY - 0.13, frontZ - 0.06],
+    end: [halfWidth, eaveY - 0.13, frontZ - 0.06],
+    width: 0.22,
+    depth: 0.2,
+  });
+  for (const side of [-1, 1] as const) {
+    addStructuralTimberMember(group, `Town hall council porch ${side < 0 ? 'left' : 'right'} rafter`, {
+      start: [side * halfWidth, eaveY - 0.06, frontZ - 0.08],
+      end: [0, eaveY + rise - 0.04, frontZ - 0.08],
+      width: 0.18,
+      depth: 0.16,
+    });
+  }
+  addStructuralTimberMember(group, 'Town hall council porch king post', {
+    start: [0, eaveY - 0.13, frontZ - 0.08],
+    end: [0, eaveY + rise - 0.04, frontZ - 0.08],
+    width: 0.18,
+    depth: 0.16,
+  });
+}
 
 function addCrate(group: THREE.Group, x: number, y: number, z: number, scale = 1): void {
   addMesh(group, new THREE.BoxGeometry(1.0 * scale, 0.78 * scale, 0.82 * scale), timberMaterial('weathered'), new THREE.Vector3(x, y + 0.39 * scale, z));
@@ -179,39 +325,143 @@ export function createTownHallMesh(): THREE.Group {
     wallHeight: 4.05,
     ridgeHeight: 2.65,
     wallMaterial: residenceFacadeMaterial('yellow'),
-    roofMaterial: shingleMaterial(),
+    // Fired tile is kept to the principal civic roof; the cupola remains
+    // shingled so status reads through construction quality, not saturation.
+    roofMaterial: tileMaterial(0),
     stoneGroundFloor: true,
   });
 
-  // An arcaded public ground floor and balcony give the hall a civic facade.
+  // The road facade is a raised council porch with a real central portal and
+  // clear apertures cut through the shared shell. It no longer relies on dark
+  // rectangles over an intact stone ground floor.
+  addPlankDoor(
+    group,
+    0,
+    1.46,
+    shell.frontZ + 0.04,
+    1.64,
+    2.16,
+    'existing-platform',
+  );
+  for (const x of [-3.65, 3.65]) {
+    addSmallWindow(group, x, 2.28, shell.frontZ + 0.08, 1.08, 1.3);
+  }
   for (const x of [-3.75, -1.25, 1.25, 3.75]) {
-    addDarkOpening(group, x, 1.35, shell.frontZ + 0.04, 1.45, 2.15);
-    addSmallWindow(group, x, 4.0, shell.frontZ + 0.08, 0.74, 1.02);
+    addSmallWindow(group, x, 4.52, shell.frontZ + 0.08, 0.78, 1.08);
   }
-  addPlankDoor(group, 0, 1.43, -shell.frontZ - 0.05, 1.24, 2.2);
-  addMesh(group, new THREE.BoxGeometry(10.2, 0.22, 1.35), timberMaterial('dark'), new THREE.Vector3(0, 2.66, 4.05));
-  for (let x = -4.8; x <= 4.8; x += 1.2) {
-    addMesh(group, new THREE.BoxGeometry(0.12, 1.02, 0.12), timberMaterial('dark'), new THREE.Vector3(x, 3.12, 4.58));
+  addPlankDoor(group, -3.55, 1.43, shell.backZ - 0.05, 1.12, 2.06);
+  for (const x of [-1.4, 1.4, 3.9]) {
+    addSmallWindow(group, x, 4.25, shell.backZ - 0.06, 0.72, 0.94);
   }
-  addMesh(group, new THREE.BoxGeometry(10.15, 0.12, 0.12), timberMaterial('weathered'), new THREE.Vector3(0, 3.58, 4.58));
 
-  // Exterior stair, proclamation board, and bench communicate public use at street level.
-  for (let i = 0; i < 6; i++) {
-    addMesh(group, new THREE.BoxGeometry(2.15, 0.2, 0.48), stoneMaterial(i % 2 ? 'mid' : 'light'), new THREE.Vector3(-4.25, 0.12 + i * 0.2, 4.15 + i * 0.4));
+  const porchDeck = addMesh(
+    group,
+    new THREE.BoxGeometry(10.2, 0.24, 2.18),
+    timberMaterial('dark'),
+    new THREE.Vector3(0, 1.34, 4.34),
+  );
+  porchDeck.name = 'Town hall council porch joined deck';
+  for (const x of [-4.65, -2.75, 2.75, 4.65]) {
+    const post = addMesh(
+      group,
+      new THREE.BoxGeometry(0.22, 1.22, 0.22),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, 0.61, 4.72),
+    );
+    post.name = 'Town hall council porch deck support';
   }
-  addMesh(group, new THREE.BoxGeometry(2.25, 1.45, 0.12), timberMaterial('weathered'), new THREE.Vector3(3.55, 1.45, 4.72));
-  for (const x of [2.6, 4.5]) addMesh(group, new THREE.BoxGeometry(0.16, 2.4, 0.16), timberMaterial('dark'), new THREE.Vector3(x, 1.2, 4.68));
-  addMesh(group, new THREE.BoxGeometry(2.7, 0.18, 0.64), timberMaterial('mid'), new THREE.Vector3(0.25, 0.58, 5.05));
-  for (const x of [-0.75, 1.25]) addMesh(group, new THREE.BoxGeometry(0.16, 0.58, 0.16), timberMaterial('dark'), new THREE.Vector3(x, 0.3, 5.05));
+
+  // Low balustrade sections stop short of the central stair and portal.
+  for (const side of [-1, 1] as const) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(3.0, 0.14, 0.14),
+      timberMaterial('weathered'),
+      new THREE.Vector3(side * 3.45, 2.18, 5.28),
+    ).name = 'Town hall council porch handrail';
+    for (const xOffset of [-1.3, -0.65, 0, 0.65, 1.3]) {
+      addMesh(
+        group,
+        new THREE.BoxGeometry(0.11, 0.72, 0.11),
+        timberMaterial('dark'),
+        new THREE.Vector3(side * 3.45 + xOffset, 1.82, 5.28),
+      ).name = 'Town hall council porch baluster';
+    }
+  }
+
+  for (let step = 0; step < 7; step += 1) {
+    const height = (step + 1) * 0.2;
+    const stair = addMesh(
+      group,
+      new THREE.BoxGeometry(2.5 + (6 - step) * 0.04, height, 0.34),
+      stoneMaterial(step % 2 ? 'mid' : 'light'),
+      new THREE.Vector3(0, height * 0.5, 6.28 - step * 0.14),
+    );
+    stair.name = `Town hall council porch stair ${step + 1}`;
+  }
+
+  for (const x of [-1.78, 1.78]) {
+    addStructuralTimberMember(group, 'Town hall council porch roof post', {
+      start: [x, 1.46, 5.28],
+      end: [x, 3.5, 5.28],
+      width: 0.24,
+      depth: 0.24,
+    });
+  }
+  addTownHallCouncilPorchRoof(group);
+
+  // Proclamation board and bench remain subordinate civic evidence.
+  addMesh(group, new THREE.BoxGeometry(2.05, 1.25, 0.12), timberMaterial('weathered'), new THREE.Vector3(3.6, 2.12, 5.34)).name = 'Town hall proclamation board';
+  for (const x of [2.72, 4.48]) addMesh(group, new THREE.BoxGeometry(0.16, 1.5, 0.16), timberMaterial('dark'), new THREE.Vector3(x, 1.55, 5.3));
+  addMesh(group, new THREE.BoxGeometry(2.4, 0.18, 0.58), timberMaterial('mid'), new THREE.Vector3(-3.35, 1.76, 4.72)).name = 'Town hall porch bench';
+  for (const x of [-4.2, -2.5]) addMesh(group, new THREE.BoxGeometry(0.16, 0.46, 0.16), timberMaterial('dark'), new THREE.Vector3(x, 1.53, 4.72));
   addTownHallTreasuryChest(group);
 
-  // Compact bell cupola: a recognizable settlement landmark without reading as a church.
-  addMesh(group, new THREE.BoxGeometry(2.25, 1.8, 2.25), timberMaterial('dark'), new THREE.Vector3(0, 7.55, 0));
-  for (const z of [-1.14, 1.14]) addDarkOpening(group, 0, 7.55, z, 0.78, 0.92);
-  addBell(group, 0, 7.55, 1.22);
-  addMesh(group, new THREE.ConeGeometry(1.65, 2.0, 4), shingleMaterial(), new THREE.Vector3(0, 9.38, 0), new THREE.Euler(0, Math.PI * 0.25, 0));
-  addMesh(group, new THREE.BoxGeometry(0.1, 0.92, 0.1), metalMaterial('iron'), new THREE.Vector3(0, 10.72, 0));
-  addMesh(group, new THREE.BoxGeometry(0.58, 0.1, 0.1), metalMaterial('iron'), new THREE.Vector3(0, 10.88, 0));
+  // The compact civic bell lantern is an open, post-and-header structure with
+  // roof sleepers crossing the principal rafters. Its single mast replaces the
+  // former church-like cross silhouette.
+  const cupolaDeck = addMesh(
+    group,
+    new THREE.BoxGeometry(2.1, 0.2, 2.1),
+    timberMaterial('dark'),
+    new THREE.Vector3(0, 7.66, 0),
+  );
+  cupolaDeck.name = 'Town hall bell lantern roof-spanning sleeper deck';
+  for (const [x, z] of [[-0.78, -0.78], [-0.78, 0.78], [0.78, -0.78], [0.78, 0.78]] as const) {
+    addStructuralTimberMember(group, 'Town hall bell lantern connected post', {
+      start: [x, 7.68, z],
+      end: [x, 9.02, z],
+      width: 0.2,
+      depth: 0.2,
+    });
+  }
+  for (const z of [-0.78, 0.78]) {
+    addStructuralTimberMember(group, 'Town hall bell lantern header', {
+      start: [-0.9, 9.0, z],
+      end: [0.9, 9.0, z],
+      width: 0.2,
+      depth: 0.2,
+    });
+  }
+  for (const x of [-0.78, 0.78]) {
+    addStructuralTimberMember(group, 'Town hall bell lantern side header', {
+      start: [x, 9.0, -0.9],
+      end: [x, 9.0, 0.9],
+      width: 0.2,
+      depth: 0.2,
+    });
+  }
+  addBell(group, 0, 8.35, 0.08);
+  addHippedRoof(group, {
+    width: 2.45,
+    depth: 2.45,
+    eaveY: 9.02,
+    peakY: 10.55,
+    thickness: 0.13,
+    material: shingleMaterial(),
+    name: 'Town hall bell lantern joined shingle cap',
+  });
+  addMesh(group, new THREE.BoxGeometry(0.1, 0.62, 0.1), metalMaterial('iron'), new THREE.Vector3(0, 10.84, 0)).name = 'Town hall civic bell mast';
   return group;
 }
 

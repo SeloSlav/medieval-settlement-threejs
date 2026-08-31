@@ -55,6 +55,16 @@ export type ProceduralRoofPanelOptions = SemanticPrimitiveOptions & {
   readonly thickness: number;
 };
 
+export type ProceduralRoofTriangleOptions = SemanticPrimitiveOptions & {
+  /** First point of the lower eave edge on the visible roof surface. */
+  readonly eaveOrigin: ProceduralPoint3;
+  /** Full lower eave edge, from eaveOrigin to the second base corner. */
+  readonly eaveVector: ProceduralPoint3;
+  /** Vector from the eave midpoint to the roof apex. */
+  readonly apexOffset: ProceduralPoint3;
+  readonly thickness: number;
+};
+
 export type ProceduralUvFrameDiagnostic = {
   readonly projection: ProceduralUvProjection;
   readonly uAxis: ProceduralUvAxis;
@@ -67,7 +77,7 @@ export type ProceduralUvFrameDiagnostic = {
 };
 
 export type ProceduralPrimitiveDiagnostic = {
-  readonly primitive: 'box' | 'prism' | 'member' | 'roof-panel';
+  readonly primitive: 'box' | 'prism' | 'member' | 'roof-panel' | 'roof-triangle';
   readonly semanticId: string;
   readonly moduleId?: string;
   readonly materialRole: ProceduralMaterialRole;
@@ -362,6 +372,57 @@ export class ProceduralGeometryWriter {
     return this;
   }
 
+  addRoofTriangle(options: ProceduralRoofTriangleOptions): this {
+    const slot = this.slotFor(options, ['roof-course-aligned']);
+    const origin = finitePoint3(options.eaveOrigin, `${options.semanticId} eave origin`);
+    const eave = finitePoint3(options.eaveVector, `${options.semanticId} eave vector`);
+    const apexOffset = finitePoint3(options.apexOffset, `${options.semanticId} apex offset`);
+    const width = positiveDimension(eave.length(), `${options.semanticId} eave length`);
+    const slopeLength = positiveDimension(apexOffset.length(), `${options.semanticId} apex slope length`);
+    const thickness = positiveDimension(options.thickness, `${options.semanticId} thickness`);
+    const eaveAxis = eave.clone().multiplyScalar(1 / width);
+    const slopeAxis = apexOffset.clone().multiplyScalar(1 / slopeLength);
+    if (Math.abs(eaveAxis.dot(slopeAxis)) > ORTHOGONAL_EPSILON) {
+      throw new Error(`${options.semanticId} eave and apex vectors must be perpendicular.`);
+    }
+    const outward = new THREE.Vector3().crossVectors(eaveAxis, slopeAxis).normalize();
+    if (outward.y < 0) outward.negate();
+    const baseEnd = origin.clone().add(eave);
+    const apex = origin.clone().addScaledVector(eave, 0.5).add(apexOffset);
+    const top = [origin, baseEnd, apex] as const;
+    const bottom = top.map((point) => point.clone().addScaledVector(outward, -thickness));
+    const policy = slot.definition.uvPolicy;
+    const uvOffset = uvOffsetMeters(options);
+    const startIndex = slot.indices.length;
+    const topUvs = [
+      physicalUv(0, 0, policy, uvOffset),
+      physicalUv(width, 0, policy, uvOffset),
+      physicalUv(width * 0.5, slopeLength, policy, uvOffset),
+    ] as const;
+    appendConvexPolygon(slot, top, outward, topUvs);
+    appendConvexPolygon(
+      slot,
+      [bottom[2]!, bottom[1]!, bottom[0]!],
+      outward.clone().negate(),
+      [topUvs[2], topUvs[1], topUvs[0]],
+    );
+    const panelCenter = top.reduce(
+      (sum, point) => sum.add(point),
+      new THREE.Vector3(),
+    ).multiplyScalar(1 / 3)
+      .addScaledVector(outward, -thickness * 0.5);
+    appendRoofEdge(slot, [top[0], top[1], bottom[1]!, bottom[0]!], panelCenter, width, thickness, policy, uvOffset);
+    appendRoofEdge(slot, [top[1], top[2], bottom[2]!, bottom[1]!], panelCenter, top[1].distanceTo(top[2]), thickness, policy, uvOffset);
+    appendRoofEdge(slot, [top[2], top[0], bottom[0]!, bottom[2]!], panelCenter, top[2].distanceTo(top[0]), thickness, policy, uvOffset);
+
+    recordPrimitive(slot, options, 'roof-triangle', [width, slopeLength, thickness], startIndex, {
+      origin,
+      uDirection: eaveAxis,
+      vDirection: slopeAxis,
+    });
+    return this;
+  }
+
   build(): ProceduralGeometryWriterResult {
     const slots: CompiledProceduralMaterialSlot[] = [];
     let primitiveCount = 0;
@@ -446,6 +507,10 @@ export function createProceduralMemberGeometry(options: ProceduralMemberOptions)
 
 export function createProceduralRoofPanelGeometry(options: ProceduralRoofPanelOptions): THREE.BufferGeometry {
   return singleGeometry(options.materialRole, (writer) => writer.addRoofPanel(options));
+}
+
+export function createProceduralRoofTriangleGeometry(options: ProceduralRoofTriangleOptions): THREE.BufferGeometry {
+  return singleGeometry(options.materialRole, (writer) => writer.addRoofTriangle(options));
 }
 
 function singleGeometry(

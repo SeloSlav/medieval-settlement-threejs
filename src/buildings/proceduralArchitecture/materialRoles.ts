@@ -539,7 +539,8 @@ export function validateProceduralBuildingPlanMaterials(
       plan,
       /(?:temporary|open|camp|tent|fly|market|stall|awning)/i,
     );
-    if (!temporaryOrOpen || !openSiteVocabulary) {
+    const reversibleSite = plan.status === 'site' && plan.roof === 'open-workyard';
+    if (!temporaryOrOpen || (!openSiteVocabulary && !reversibleSite)) {
       addIssue(
         'canvas-use-not-temporary',
         `${plan.kind} uses linen canvas outside a temporary camp, open work site, or reversible market structure.`,

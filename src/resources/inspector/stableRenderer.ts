@@ -1,8 +1,8 @@
 import {
-  STABLE_OX_PURCHASE_GOLD,
   STABLE_OX_SLOTS,
 } from '../../generated/gameBalance.ts';
 import { fireDisabledBuildingIds, fireForTarget } from '../../fires/fireIncident.ts';
+import { stableOxPurchaseGold } from '../../regions/buildingLandUseAffinity.ts';
 import { assignStableOxen } from '../../settlement/stableOxen.ts';
 import {
   encodeResourceCostTooltip,
@@ -50,7 +50,8 @@ export function renderStableInspector(
     building.id,
   );
   const atCapacity = openSlots === 0;
-  const treasuryShort = treasuryGold + 1e-6 < STABLE_OX_PURCHASE_GOLD;
+  const purchaseGold = stableOxPurchaseGold(context.landUseProfile);
+  const treasuryShort = treasuryGold + 1e-6 < purchaseGold;
   const purchaseDisabled = atCapacity || treasuryShort || fire !== null;
   const nextOpenSlot = Array.from(
     { length: STABLE_OX_SLOTS },
@@ -72,12 +73,12 @@ export function renderStableInspector(
     : atCapacity
       ? 'All three authored bays are occupied.'
       : treasuryShort
-        ? `${renderResourceAmount('gold', STABLE_OX_PURCHASE_GOLD - treasuryGold, { compact: true })} more civic gold is required.`
+        ? `${renderResourceAmount('gold', purchaseGold - treasuryGold, { compact: true })} more civic gold is required.`
         : `${openSlots} ${openSlots === 1 ? 'bay remains' : 'bays remain'} after this order.`;
   const purchaseAvailabilityLabel = fire
     ? 'Purchases are paused until the stable is repaired.'
     : treasuryShort
-      ? `${Math.ceil(STABLE_OX_PURCHASE_GOLD - treasuryGold)} more gold is required.`
+      ? `${Math.ceil(purchaseGold - treasuryGold)} more gold is required.`
       : 'The ox will join the automatic assistance pool.';
   const purchaseTooltip = fire
     ? 'Purchases resume after the stable is repaired.'
@@ -85,7 +86,7 @@ export function renderStableInspector(
       ? 'The treasury cannot cover this purchase.'
       : 'Adds one ox to the automatic assistance pool.';
   const purchaseTooltipCost = encodeResourceCostTooltip({
-    gold: STABLE_OX_PURCHASE_GOLD,
+    gold: purchaseGold,
   });
 
   const haulingOxIds = new Set(
@@ -139,7 +140,7 @@ export function renderStableInspector(
           data-tooltip-cost="${purchaseTooltipCost}"
           data-tooltip-cost-label="Gold cost"
           data-tooltip-cost-affordable="${!treasuryShort}"
-          aria-label="Purchase a draft ox for ${STABLE_OX_PURCHASE_GOLD} gold. ${purchaseAvailabilityLabel}" ${purchaseDisabled ? 'aria-disabled="true"' : ''}>
+          aria-label="Purchase a draft ox for ${purchaseGold} gold. ${purchaseAvailabilityLabel}" ${purchaseDisabled ? 'aria-disabled="true"' : ''}>
           ${slotVisual}
         </button>
       </li>`;

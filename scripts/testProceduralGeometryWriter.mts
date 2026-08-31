@@ -10,6 +10,7 @@ import {
   createProceduralMemberGeometry,
   createProceduralPrismGeometry,
   createProceduralRoofPanelGeometry,
+  createProceduralRoofTriangleGeometry,
   ProceduralGeometryWriter,
   PROCEDURAL_GEOMETRY_WRITER_VERSION,
   type CompiledProceduralMaterialSlot,
@@ -71,14 +72,24 @@ writer.addRoofPanel({
   slopeVector: [0, 3, 2],
   thickness: 0.1,
 });
+writer.addRoofTriangle({
+  semanticId: 'test-hipped-roof-face',
+  moduleId: 'roof-module',
+  materialRole: 'split-shingles',
+  structuralUse: 'roof-covering',
+  eaveOrigin: [-2.2, 2.8, 2],
+  eaveVector: [4.4, 0, 0],
+  apexOffset: [0, 2.4, -2],
+  thickness: 0.1,
+});
 
 const result = writer.build();
 assert.equal(result.version, PROCEDURAL_GEOMETRY_WRITER_VERSION);
 assert.deepEqual(result.diagnostics, {
-  primitiveCount: 5,
-  triangleCount: 56,
-  vertexCount: 114,
-  indexCount: 168,
+  primitiveCount: 6,
+  triangleCount: 64,
+  vertexCount: 132,
+  indexCount: 192,
   materialSlotCount: 5,
   unusedMaterialRoles: [],
 });
@@ -143,7 +154,7 @@ assertVectorClose(member.diagnostics.primitives[0]?.uvFrame.uDirection, [0.6, 0.
 assert.ok(member.sharedMaterialKeys.includes('timberMid'));
 
 const roof = materialSlot(result, 'split-shingles');
-assert.equal(roof.diagnostics.triangleCount, 12);
+assert.equal(roof.diagnostics.triangleCount, 20);
 const roofUv = roof.geometry.getAttribute('uv');
 assertClose(roofUv.getX(1), 4.4 / 2.2);
 assertClose(roofUv.getY(2), Math.sqrt(13) / 2.2);
@@ -151,6 +162,8 @@ assert.equal(roof.diagnostics.primitives[0]?.uvFrame.projection, 'roof-course-al
 assert.equal(roof.diagnostics.primitives[0]?.uvFrame.uAxis, 'roof-eave');
 assert.equal(roof.diagnostics.primitives[0]?.uvFrame.vAxis, 'roof-slope');
 assert.deepEqual(roof.diagnostics.primitives[0]?.uvFrame.uDirection, [1, 0, 0]);
+assert.equal(roof.diagnostics.primitives[1]?.primitive, 'roof-triangle');
+assert.deepEqual(roof.diagnostics.primitives[1]?.dimensions, [4.4, Math.sqrt(9.76), 0.1]);
 
 // Existing addMesh must recognize the baked metric UV scale and leave the
 // writer's member-aligned coordinates untouched.
@@ -183,6 +196,10 @@ for (const geometry of [
   createProceduralRoofPanelGeometry({
     semanticId: 'factory-roof', materialRole: 'split-shingles', structuralUse: 'roof-covering',
     eaveOrigin: [0, 0, 0], eaveVector: [2, 0, 0], slopeVector: [0, 1, 1], thickness: 0.08,
+  }),
+  createProceduralRoofTriangleGeometry({
+    semanticId: 'factory-roof-triangle', materialRole: 'split-shingles', structuralUse: 'roof-covering',
+    eaveOrigin: [-1, 0, 0], eaveVector: [2, 0, 0], apexOffset: [0, 1.5, 1], thickness: 0.08,
   }),
 ]) {
   assert.ok(geometry.index);
@@ -243,6 +260,13 @@ assert.throws(
     eaveOrigin: [0, 0, 0], eaveVector: [2, 0, 0], slopeVector: [1, 1, 0], thickness: 0.08,
   }),
   /eave and slope vectors must be perpendicular/,
+);
+assert.throws(
+  () => createProceduralRoofTriangleGeometry({
+    semanticId: 'skew-roof-triangle', materialRole: 'split-shingles', structuralUse: 'roof-covering',
+    eaveOrigin: [0, 0, 0], eaveVector: [2, 0, 0], apexOffset: [1, 1, 0], thickness: 0.08,
+  }),
+  /eave and apex vectors must be perpendicular/,
 );
 assert.throws(
   () => new ProceduralGeometryWriter(['fieldstone']).addMember({

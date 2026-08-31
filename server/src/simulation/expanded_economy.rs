@@ -4997,7 +4997,7 @@ fn cycle_labor_if_ready_at_rate(
     }
     let affinity_multiplier = tick
         .land_use_profile(ctx)
-        .workshop_throughput_multiplier(&building.kind);
+        .production_throughput_multiplier(&building.kind);
     building.action_cooldown = (building.action_cooldown
         - TICK_DT * throughput_multiplier.max(0.0) * selected_rate * affinity_multiplier)
         .max(0.0);
@@ -5194,7 +5194,7 @@ fn dispatch_granary_grain(
         dispatch.commodity,
         TIMBER_DELIVERY_SPEED_MPS,
         TIMBER_DELIVERY_UNLOAD_SEC,
-        GRAIN_TRANSFER_PER_TRIP,
+        GRAIN_TRANSFER_PER_TRIP * tick.land_use_profile(ctx).cultivation_multiplier(),
         needed,
     )
 }
