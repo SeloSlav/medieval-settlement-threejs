@@ -98,6 +98,10 @@ pub fn hire_mercenary_company(ctx: &ReducerContext, town_hall_id: u64) -> Result
         ammunition_capacity: 0,
         formed_tick: tick,
         last_upkeep_tick: tick,
+        experience: 0,
+        level: 1,
+        battle_started_tick: 0,
+        last_combat_tick: 0,
     });
     ctx.db.mercenary_contract().insert(MercenaryContract {
         company_id: company.id,
@@ -500,6 +504,10 @@ fn recruit_resident_company(
         ammunition_capacity,
         formed_tick: tick,
         last_upkeep_tick: tick,
+        experience: 0,
+        level: 1,
+        battle_started_tick: 0,
+        last_combat_tick: 0,
     });
     for (slot, recruit) in recruits.into_iter().take(size as usize).enumerate() {
         let slot = slot as u32;

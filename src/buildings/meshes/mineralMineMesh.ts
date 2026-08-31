@@ -142,12 +142,12 @@ function addHeadframe(group: THREE.Group): void {
       headframe,
       new THREE.TorusGeometry(0.78, 0.1, 8, 20),
       metalMaterial('iron'),
-      new THREE.Vector3(x, 7.58, 0),
+      new THREE.Vector3(x, 7.45, 0),
       new THREE.Euler(0, Math.PI * 0.5, 0),
     ).name = 'Mineworks winding sheave';
     addBeamBetween(
       headframe,
-      new THREE.Vector3(x, 7.5, 0),
+      new THREE.Vector3(x, 7.37, 0),
       new THREE.Vector3(x, 0.7, 0),
       0.055,
       metalMaterial('iron'),
@@ -226,20 +226,20 @@ function addHeadframeWeatherRoof(headframe: THREE.Group): void {
     moduleId: 'headframe-weather-cap',
     materialRole: 'split-shingles',
     structuralUse: 'roof-covering',
-    eaveOrigin: [-2.28, 7.78, -2.05],
-    eaveVector: [0, 0, 4.1],
-    slopeVector: [2.28, 0.73, 0],
-    thickness: 0.11,
+    eaveOrigin: [-2.05, 7.78, -2.28],
+    eaveVector: [4.1, 0, 0],
+    slopeVector: [0, 0.73, 2.28],
+    thickness: 0.07,
   });
   writer.addRoofPanel({
     semanticId: 'mineworks-headframe-right-weather-roof-plane',
     moduleId: 'headframe-weather-cap',
     materialRole: 'split-shingles',
     structuralUse: 'roof-covering',
-    eaveOrigin: [2.28, 7.78, 2.05],
-    eaveVector: [0, 0, -4.1],
-    slopeVector: [-2.28, 0.73, 0],
-    thickness: 0.11,
+    eaveOrigin: [2.05, 7.78, 2.28],
+    eaveVector: [-4.1, 0, 0],
+    slopeVector: [0, 0.73, -2.28],
+    thickness: 0.07,
     uvOffsetMeters: [0.13, 0.07],
   });
   writer.addRoofPanel({
@@ -247,10 +247,10 @@ function addHeadframeWeatherRoof(headframe: THREE.Group): void {
     moduleId: 'headframe-weather-cap',
     materialRole: 'split-shingles',
     structuralUse: 'roof-ridge-and-cap',
-    eaveOrigin: [-0.17, 8.47, -2.08],
-    eaveVector: [0, 0, 4.16],
-    slopeVector: [0.17, 0.055, 0],
-    thickness: 0.055,
+    eaveOrigin: [-2.08, 8.47, -0.17],
+    eaveVector: [4.16, 0, 0],
+    slopeVector: [0, 0.055, 0.17],
+    thickness: 0.035,
     uvOffsetMeters: [0.31, 0.11],
   });
   writer.addRoofPanel({
@@ -258,10 +258,10 @@ function addHeadframeWeatherRoof(headframe: THREE.Group): void {
     moduleId: 'headframe-weather-cap',
     materialRole: 'split-shingles',
     structuralUse: 'roof-ridge-and-cap',
-    eaveOrigin: [0.17, 8.47, 2.08],
-    eaveVector: [0, 0, -4.16],
-    slopeVector: [-0.17, 0.055, 0],
-    thickness: 0.055,
+    eaveOrigin: [2.08, 8.47, 0.17],
+    eaveVector: [-4.16, 0, 0],
+    slopeVector: [0, 0.055, -0.17],
+    thickness: 0.035,
     uvOffsetMeters: [0.44, 0.17],
   });
   addProceduralMaterialSlotMeshes(roof, writer.build(), {

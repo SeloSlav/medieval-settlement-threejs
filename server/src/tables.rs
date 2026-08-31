@@ -2234,6 +2234,19 @@ pub struct MilitaryCompany {
     pub ammunition_capacity: u32,
     pub formed_tick: u64,
     pub last_upkeep_tick: u64,
+    /// Veteran progression is available only to resident professional companies.
+    /// Militia and hired mercenaries keep these defaults for schema uniformity.
+    #[default(0u64)]
+    pub experience: u64,
+    #[default(1u32)]
+    pub level: u32,
+    /// Non-zero while the company is inside one continuous engagement. Once
+    /// contact has been broken for the configured recovery window, survivors
+    /// earn the battle-survival award and this marker is cleared.
+    #[default(0u64)]
+    pub battle_started_tick: u64,
+    #[default(0u64)]
+    pub last_combat_tick: u64,
 }
 
 /// Private lifecycle state for hired outsiders. Keeping this separate from the

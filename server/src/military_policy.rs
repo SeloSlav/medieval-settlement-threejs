@@ -13,6 +13,13 @@ pub const MILITARY_DEMAND_MUSTER_ONLY: u8 = 0;
 pub const MILITARY_DEMAND_LIGHT_RATIONS: u8 = 1;
 pub const MILITARY_DEMAND_FULL_UPKEEP: u8 = 2;
 pub const MILITARY_DEMAND_CAMPAIGN_BURDEN: u8 = 3;
+pub const MILITARY_MAX_LEVEL: u32 = 10;
+pub const MILITARY_BATTLE_SURVIVAL_XP: u64 = 40;
+pub const MILITARY_ENEMY_COMPANY_XP: u64 = 75;
+/// A company must remain out of contact for this long before its current
+/// engagement counts as a survived battle. The delay prevents momentary
+/// spacing changes inside one fight from farming repeated awards.
+pub const MILITARY_BATTLE_END_SECONDS: f64 = 30.0;
 
 pub fn normalize_military_demands(value: u8) -> u8 {
     match value {
@@ -96,6 +103,41 @@ impl MilitaryKind {
                 | Self::UskokBorderInfantry
         )
     }
+
+    pub fn gains_veteran_experience(self) -> bool {
+        !matches!(self, Self::Militia | Self::MercenarySpears)
+    }
+}
+
+pub fn military_battle_end_ticks() -> u64 {
+    (MILITARY_BATTLE_END_SECONDS / TICK_DT).round().max(1.0) as u64
+}
+
+/// Total experience required to begin `level`. Level one begins at zero.
+pub fn military_level_start_experience(level: u32) -> u64 {
+    let capped = level.clamp(1, MILITARY_MAX_LEVEL);
+    (1..capped)
+        .map(|completed_level| 100 + u64::from(completed_level.saturating_sub(1)) * 40)
+        .sum()
+}
+
+pub fn military_level_for_experience(experience: u64) -> u32 {
+    (1..=MILITARY_MAX_LEVEL)
+        .rev()
+        .find(|level| experience >= military_level_start_experience(*level))
+        .unwrap_or(1)
+}
+
+pub fn veteran_health_multiplier(level: u32) -> f64 {
+    1.0 + f64::from(level.clamp(1, MILITARY_MAX_LEVEL) - 1) * 0.04
+}
+
+pub fn veteran_damage_multiplier(level: u32) -> f64 {
+    1.0 + f64::from(level.clamp(1, MILITARY_MAX_LEVEL) - 1) * 0.025
+}
+
+pub fn veteran_damage_taken_multiplier(level: u32) -> f64 {
+    (1.0 - f64::from(level.clamp(1, MILITARY_MAX_LEVEL) - 1) * 0.015).max(0.84)
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -634,5 +676,19 @@ mod tests {
             member_combat_profile(MilitaryKind::Crossbows, 7).armor_penetration
                 > member_combat_profile(MilitaryKind::Bowmen, 7).armor_penetration
         );
+    }
+
+    #[test]
+    fn veteran_progression_excludes_levies_and_hired_outsiders() {
+        assert!(!MilitaryKind::Militia.gains_veteran_experience());
+        assert!(!MilitaryKind::MercenarySpears.gains_veteran_experience());
+        assert!(MilitaryKind::Spearmen.gains_veteran_experience());
+        assert_eq!(military_level_for_experience(0), 1);
+        assert_eq!(military_level_for_experience(99), 1);
+        assert_eq!(military_level_for_experience(100), 2);
+        assert_eq!(military_level_start_experience(3), 240);
+        assert!(veteran_health_multiplier(5) > veteran_health_multiplier(1));
+        assert!(veteran_damage_multiplier(5) > veteran_damage_multiplier(1));
+        assert!(veteran_damage_taken_multiplier(5) < veteran_damage_taken_multiplier(1));
     }
 }

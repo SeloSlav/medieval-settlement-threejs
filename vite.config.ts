@@ -142,6 +142,7 @@ export default defineConfig(({ mode }) => {
         // Rust build output. Watching them can monopolize the Windows watcher
         // and prevent Vite from answering normal page and asset requests.
         ignored: [
+          ...(stableCapture ? ['**/*'] : []),
           '**/.tmp/**',
           '**/tmp/**',
           '**/_tmp/**',

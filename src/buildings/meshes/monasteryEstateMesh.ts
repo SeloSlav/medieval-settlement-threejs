@@ -16,7 +16,13 @@ import {
   timberMaterial,
 } from '../buildingMaterials.ts';
 import { addTriangularGableWall } from '../meshPrimitives.ts';
-import { addBarrel, addGableShell, addLeanToRoof, addPlankDoor } from './buildingMeshKit.ts';
+import {
+  addBarrel,
+  addGableShell,
+  addHippedRoof,
+  addLeanToRoof,
+  addPlankDoor,
+} from './buildingMeshKit.ts';
 import {
   createMonasteryPrecinctPlan,
   monasteryPlanZone,
@@ -645,13 +651,17 @@ function addAnimalYardInfrastructure(
       new THREE.Vector3(x, wallHeight * 0.5, shelterZ),
     ).name = 'Monastery animal shelter side wall';
   }
-  addMesh(
-    shelter,
-    new THREE.ConeGeometry(Math.max(shelterWidth, shelterDepth) * 0.72, 0.72, 4),
-    shingleMaterial(),
-    new THREE.Vector3(shelterX, wallHeight + 0.38, shelterZ),
-    new THREE.Euler(0, Math.PI * 0.25, 0),
-  ).name = 'Monastery animal shelter roof';
+  addHippedRoof(shelter, {
+    width: shelterWidth + 0.4,
+    depth: shelterDepth + 0.4,
+    eaveY: wallHeight + 0.02,
+    peakY: wallHeight + 0.74,
+    thickness: 0.08,
+    material: shingleMaterial(),
+    centerX: shelterX,
+    centerZ: shelterZ,
+    name: 'Monastery animal shelter joined hipped roof',
+  });
   addPreparedBed(
     shelter,
     shelterX,

@@ -470,7 +470,8 @@ export function createVillageStorehouseMesh(): THREE.Group {
   group.name = 'Village storehouse';
 
   // Raised masonry plinth protects construction stock from damp ground.
-  addMesh(group, new THREE.BoxGeometry(10.8, 0.7, 7.2), stoneMaterial('mid'), new THREE.Vector3(-0.35, 0.35, 0));
+  const plinth = addMesh(group, new THREE.BoxGeometry(10.8, 0.7, 7.2), stoneMaterial('mid'), new THREE.Vector3(-0.35, 0.35, 0));
+  plinth.name = 'Village storehouse raised limestone plinth';
   const shell = addGableShell(group, {
     width: 10.2,
     depth: 6.6,
@@ -491,10 +492,53 @@ export function createVillageStorehouseMesh(): THREE.Group {
     'existing-platform',
   );
   for (const x of [-4.2, 2.8]) addSmallWindow(group, x, 2.75, shell.frontZ + 0.06, 0.62, 0.52);
+  for (const x of [-3.15, 1.75]) {
+    addSmallWindow(group, x, 2.62, shell.backZ - 0.06, 0.54, 0.46);
+  }
 
-  // Loading platform and deep canopy make the warehouse function legible at game camera distance.
-  addMesh(group, new THREE.BoxGeometry(9.2, 0.32, 2.2), timberMaterial('dark'), new THREE.Vector3(-0.4, 0.72, 4.2));
-  for (const x of [-4.6, 3.8]) addMesh(group, new THREE.BoxGeometry(0.22, 3.1, 0.22), timberMaterial('dark'), new THREE.Vector3(x, 2.43, 5.0));
+  // Loading platform and deep canopy make the warehouse function legible at
+  // game-camera distance. Posts, wall ledger, front plate, rafters, and knee
+  // braces share exact endpoints, so the large roof visibly lands on timber.
+  const loadingPlatform = addMesh(group, new THREE.BoxGeometry(9.2, 0.32, 2.2), timberMaterial('dark'), new THREE.Vector3(-0.4, 0.72, 4.2));
+  loadingPlatform.name = 'Village storehouse joined loading platform';
+  const canopyPostXs = [-4.6, -2.45, 1.05, 3.8] as const;
+  const canopyMembers: TimberMember[] = [
+    {
+      start: [-4.82, 4.15, 2.93],
+      end: [4.02, 4.15, 2.93],
+      width: 0.22,
+      depth: 0.2,
+    },
+    {
+      start: [-4.82, 3.79, 5.52],
+      end: [4.02, 3.79, 5.52],
+      width: 0.24,
+      depth: 0.22,
+    },
+  ];
+  for (const x of canopyPostXs) {
+    canopyMembers.push(
+      {
+        start: [x, 0.88, 5.52],
+        end: [x, 3.79, 5.52],
+        width: 0.22,
+        depth: 0.22,
+      },
+      {
+        start: [x, 4.15, 2.93],
+        end: [x, 3.79, 5.52],
+        width: 0.16,
+        depth: 0.15,
+      },
+      {
+        start: [x, 2.98, 5.52],
+        end: [x + (x < -0.4 ? 0.58 : -0.58), 3.79, 5.52],
+        width: 0.15,
+        depth: 0.14,
+      },
+    );
+  }
+  addJoinedTimberMembers(group, 'Village storehouse connected loading canopy frame', canopyMembers);
   addLeanToRoof(group, {
     width: 9.4,
     depth: 2.75,
@@ -646,28 +690,88 @@ export function createWatchtowerMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Frontier watchtower';
 
-  // A compact limestone footing resists the wet mountain ground without reading as a castle keep.
-  addMesh(group, new THREE.BoxGeometry(4.6, 0.82, 4.6), stoneMaterial('mid'), new THREE.Vector3(0, 0.41, 0));
+  // Four limestone pads lift the oak frame out of wet soil without giving the
+  // timber tower the silhouette of a miniature masonry keep.
   for (const [x, z] of [[-1.45, -1.45], [1.45, -1.45], [-1.45, 1.45], [1.45, 1.45]] as const) {
-    addMesh(group, new THREE.BoxGeometry(0.46, 5.8, 0.46), timberMaterial('dark'), new THREE.Vector3(x, 3.72, z));
+    addMesh(group, new THREE.BoxGeometry(0.86, 0.82, 0.86), stoneMaterial('mid'), new THREE.Vector3(x, 0.41, z)).name = 'Watchtower limestone post pad';
+    addMesh(group, new THREE.BoxGeometry(0.46, 5.8, 0.46), timberMaterial('dark'), new THREE.Vector3(x, 3.72, z)).name = 'Watchtower principal oak post';
   }
+  addMesh(group, new THREE.BoxGeometry(2.44, 0.28, 2.44), stoneMaterial('mortar'), new THREE.Vector3(0, 0.14, 0)).name = 'Watchtower ground store drained floor';
 
-  // Braced open legs keep the silhouette legible while showing believable timber construction.
+  // The undercroft is a catalogued, physically enclosed ground store. Its
+  // rear door and front vent occupy literal gaps between wall panels.
+  const storeWall = timberMaterial('weathered');
+  const storeWallBase = 0.28;
+  const storeWallTop = 2.65;
+  const storeWallCenterY = (storeWallBase + storeWallTop) * 0.5;
+  const storeWallHeight = storeWallTop - storeWallBase;
+  for (const side of [-1, 1] as const) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(0.74, storeWallHeight, 0.14),
+      storeWall,
+      new THREE.Vector3(side * 0.85, storeWallCenterY, -1.22),
+    ).name = 'Watchtower ground store rear wall beside door';
+  }
+  addMesh(group, new THREE.BoxGeometry(0.96, 0.57, 0.14), storeWall, new THREE.Vector3(0, 2.365, -1.22)).name = 'Watchtower ground store door lintel wall';
+  addProceduralDoor(group, {
+    position: new THREE.Vector3(0, storeWallBase, -1.24),
+    face: 'negative-z',
+    width: 0.96,
+    height: 1.8,
+    namePrefix: 'Watchtower ground store',
+  });
+  for (const side of [-1, 1] as const) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(0.9, storeWallHeight, 0.14),
+      storeWall,
+      new THREE.Vector3(side * 0.77, storeWallCenterY, 1.22),
+    ).name = 'Watchtower ground store front wall beside vent';
+    addMesh(
+      group,
+      new THREE.BoxGeometry(0.14, storeWallHeight, 2.44),
+      storeWall,
+      new THREE.Vector3(side * 1.22, storeWallCenterY, 0),
+    ).name = 'Watchtower ground store side wall';
+  }
+  addMesh(group, new THREE.BoxGeometry(0.64, 0.91, 0.14), storeWall, new THREE.Vector3(0, 0.735, 1.22)).name = 'Watchtower ground store wall below vent';
+  addMesh(group, new THREE.BoxGeometry(0.64, 0.88, 0.14), storeWall, new THREE.Vector3(0, 2.21, 1.22)).name = 'Watchtower ground store wall above vent';
+  addProceduralWindow(group, {
+    position: new THREE.Vector3(0, 1.48, 1.24),
+    face: 'positive-z',
+    width: 0.64,
+    height: 0.58,
+    shutters: false,
+    namePrefix: 'Watchtower ground store ventilation',
+  });
+
+  // Endpoint-authored X braces and perimeter ties land on the principal posts
+  // and carry the gallery instead of approximating their span with rotated boxes.
+  const towerFrameMembers: TimberMember[] = [];
   for (const z of [-1.5, 1.5]) {
-    addMesh(group, new THREE.BoxGeometry(0.24, 4.1, 0.22), timberMaterial('weathered'), new THREE.Vector3(0, 3.35, z), new THREE.Euler(0, 0, 0.58));
-    addMesh(group, new THREE.BoxGeometry(0.24, 4.1, 0.22), timberMaterial('weathered'), new THREE.Vector3(0, 3.35, z), new THREE.Euler(0, 0, -0.58));
+    towerFrameMembers.push(
+      { start: [-1.45, 2.72, z], end: [1.45, 5.82, z], width: 0.2, depth: 0.18 },
+      { start: [1.45, 2.72, z], end: [-1.45, 5.82, z], width: 0.2, depth: 0.18 },
+      { start: [-1.45, 5.88, z], end: [1.45, 5.88, z], width: 0.22, depth: 0.2 },
+    );
   }
   for (const x of [-1.5, 1.5]) {
-    addMesh(group, new THREE.BoxGeometry(0.22, 4.1, 0.24), timberMaterial('weathered'), new THREE.Vector3(x, 3.35, 0), new THREE.Euler(0.58, 0, 0));
-    addMesh(group, new THREE.BoxGeometry(0.22, 4.1, 0.24), timberMaterial('weathered'), new THREE.Vector3(x, 3.35, 0), new THREE.Euler(-0.58, 0, 0));
+    towerFrameMembers.push(
+      { start: [x, 2.72, -1.45], end: [x, 5.82, 1.45], width: 0.2, depth: 0.18 },
+      { start: [x, 2.72, 1.45], end: [x, 5.82, -1.45], width: 0.2, depth: 0.18 },
+      { start: [x, 5.88, -1.45], end: [x, 5.88, 1.45], width: 0.22, depth: 0.2 },
+    );
   }
+  addJoinedTimberMembers(group, 'Watchtower joined bracing and gallery bearer frame', towerFrameMembers);
 
-  addMesh(
+  const galleryDeck = addMesh(
     group,
     new THREE.BoxGeometry(4.8, WATCHTOWER_GALLERY_DECK_THICKNESS, 4.8),
     timberMaterial('dark'),
     new THREE.Vector3(0, WATCHTOWER_GALLERY_DECK_CENTER_Y, 0),
   );
+  galleryDeck.name = 'Watchtower staffed gallery deck anchor';
   // A waist-high open gallery lets the staffed watch remain readable instead
   // of hiding villagers inside an undersized solid block.
   const gallery = new THREE.Group();
@@ -688,8 +792,17 @@ export function createWatchtowerMesh(): THREE.Group {
   }
   group.add(gallery);
 
-  // Steep shingle cap is the single dominant silhouette feature.
-  addMesh(group, new THREE.ConeGeometry(3.45, WATCHTOWER_ROOF_HEIGHT, 4), shingleMaterial(), new THREE.Vector3(0, WATCHTOWER_ROOF_CENTER_Y, 0), new THREE.Euler(0, Math.PI * 0.25, 0));
+  // Steep joined shingle cap is the single dominant silhouette feature. The
+  // eaves bear directly on the authored gallery top-beam elevation.
+  addHippedRoof(group, {
+    width: 4.9,
+    depth: 4.9,
+    eaveY: WATCHTOWER_ROOF_CENTER_Y - WATCHTOWER_ROOF_HEIGHT * 0.5,
+    peakY: WATCHTOWER_ROOF_CENTER_Y + WATCHTOWER_ROOF_HEIGHT * 0.5,
+    thickness: 0.15,
+    material: shingleMaterial(),
+    name: 'Watchtower joined steep shingle cap',
+  });
   addMesh(group, new THREE.BoxGeometry(0.11, 0.82, 0.11), metalMaterial('iron'), new THREE.Vector3(0, WATCHTOWER_ROOF_CENTER_Y + 1.64, 0));
 
   // Exterior ladder and warning bell explain access and early-warning gameplay.
@@ -727,6 +840,9 @@ export function createGuardhouseMesh(): THREE.Group {
   for (const x of [-3.85, 0.95]) {
     addSmallWindow(group, x, 2.55, shell.frontZ + 0.07, 0.58, 0.7);
   }
+  for (const x of [-3.55, 0.65]) {
+    addSmallWindow(group, x, 2.5, shell.backZ - 0.06, 0.54, 0.66);
+  }
 
   // Exposed oak framing gives the upper room a legible, locally built structure.
   for (const x of [-4.95, -2.62, -0.28, 2.05]) {
@@ -736,11 +852,23 @@ export function createGuardhouseMesh(): THREE.Group {
   addMesh(group, new THREE.BoxGeometry(7.45, 0.2, 0.18), timberMaterial('dark'), new THREE.Vector3(-1.45, 3.48, shell.frontZ + 0.14));
 
   // A deep lean-to covers drill equipment and provisions beside the street.
-  for (const x of [3.05, 6.25]) {
-    for (const z of [-2.35, 2.35]) {
-      addMesh(group, new THREE.BoxGeometry(0.22, 3.0, 0.22), timberMaterial('dark'), new THREE.Vector3(x, 1.5, z));
-    }
+  // Its stepped post heights follow the roof plane; wall ledger, plates,
+  // rafters, and knees are one endpoint-authored connected frame.
+  const drillYardMembers: TimberMember[] = [
+    { start: [1.88, 3.38, -2.55], end: [1.88, 3.38, 2.55], width: 0.22, depth: 0.2 },
+    { start: [3.05, 3.18, -2.55], end: [3.05, 3.18, 2.55], width: 0.22, depth: 0.2 },
+    { start: [6.25, 2.67, -2.55], end: [6.25, 2.67, 2.55], width: 0.24, depth: 0.22 },
+  ];
+  for (const z of [-2.35, 2.35] as const) {
+    drillYardMembers.push(
+      { start: [3.05, 0.58, z], end: [3.05, 3.18, z], width: 0.22, depth: 0.22 },
+      { start: [6.25, 0.08, z], end: [6.25, 2.67, z], width: 0.22, depth: 0.22 },
+      { start: [1.88, 3.38, z], end: [6.48, 2.64, z], width: 0.17, depth: 0.16 },
+      { start: [3.05, 2.35, z], end: [3.05, 3.18, z - Math.sign(z) * 0.7], width: 0.15, depth: 0.14 },
+      { start: [6.25, 1.88, z], end: [6.25, 2.67, z - Math.sign(z) * 0.7], width: 0.15, depth: 0.14 },
+    );
   }
+  addJoinedTimberMembers(group, 'Guardhouse connected drill-yard roof frame', drillYardMembers);
   addLeanToRoof(group, {
     width: 4.7,
     depth: 5.45,
@@ -796,27 +924,25 @@ export function createPalisadedRefugeMesh(): THREE.Group {
 
   // A low packed-earth and local-stone footing keeps the enclosure plausible
   // on wet mountain ground without turning it into a masonry fort.
-  const earthBerm = new THREE.Mesh(
+  const earthBerm = addMesh(
+    group,
     new THREE.TorusGeometry(7.45, 0.46, 6, 48),
     earth,
+    new THREE.Vector3(0, 0.18, 0),
+    new THREE.Euler(Math.PI * 0.5, 0, 0),
+    new THREE.Vector3(1, 0.76, 1),
   );
   earthBerm.name = 'Refuge earth berm';
-  earthBerm.rotation.x = Math.PI * 0.5;
-  earthBerm.scale.y = 0.76;
-  earthBerm.position.y = 0.18;
-  earthBerm.receiveShadow = true;
-  group.add(earthBerm);
 
-  const stoneDrain = new THREE.Mesh(
+  const stoneDrain = addMesh(
+    group,
     new THREE.TorusGeometry(7.1, 0.23, 5, 40),
     stoneMaterial('mid'),
+    new THREE.Vector3(0, 0.27, 0),
+    new THREE.Euler(Math.PI * 0.5, 0, 0),
+    new THREE.Vector3(1, 0.76, 1),
   );
   stoneDrain.name = 'Refuge stone drainage ring';
-  stoneDrain.rotation.x = Math.PI * 0.5;
-  stoneDrain.scale.y = 0.76;
-  stoneDrain.position.y = 0.27;
-  stoneDrain.receiveShadow = true;
-  group.add(stoneDrain);
 
   const stakePositions: Array<{ x: number; z: number; height: number }> = [];
   const stakeCount = 52;
@@ -834,18 +960,26 @@ export function createPalisadedRefugeMesh(): THREE.Group {
   }
 
   // Two instanced draws keep the many irregular stakes cheap at settlement scale.
-  const stakeGeometry = new THREE.CylinderGeometry(0.16, 0.21, 1, 6);
+  const referenceStakeHeight = 2.65;
   const stakeMaterial = timberMaterial('weathered');
+  const stakeGeometry = prepareBuildingGeometryUvs(
+    new THREE.CylinderGeometry(0.16, 0.21, referenceStakeHeight, 6),
+    stakeMaterial,
+  );
   const stakes = new THREE.InstancedMesh(
     stakeGeometry,
     stakeMaterial,
     stakePositions.length,
   );
   stakes.name = 'Refuge palisade stakes';
-  const tipGeometry = new THREE.ConeGeometry(0.205, 0.48, 6);
+  const tipMaterial = timberMaterial('dark');
+  const tipGeometry = prepareBuildingGeometryUvs(
+    new THREE.ConeGeometry(0.205, 0.48, 6),
+    tipMaterial,
+  );
   const tips = new THREE.InstancedMesh(
     tipGeometry,
-    timberMaterial('dark'),
+    tipMaterial,
     stakePositions.length,
   );
   tips.name = 'Refuge palisade stake tips';
@@ -854,7 +988,7 @@ export function createPalisadedRefugeMesh(): THREE.Group {
     const stake = stakePositions[index];
     transform.position.set(stake.x, 0.42 + stake.height * 0.5, stake.z);
     transform.rotation.set(0, index * 0.37, 0);
-    transform.scale.set(1, stake.height, 1);
+    transform.scale.set(1, stake.height / referenceStakeHeight, 1);
     transform.updateMatrix();
     stakes.setMatrixAt(index, transform.matrix);
 
@@ -870,67 +1004,125 @@ export function createPalisadedRefugeMesh(): THREE.Group {
   tips.castShadow = true;
   group.add(stakes, tips);
 
-  // Rough horizontal bindings make the wall read as a built enclosure rather
-  // than a decorative ring of isolated posts.
-  const railMaterial = timberMaterial('dark');
-  for (let segment = 0; segment < 12; segment += 1) {
-    const angle = (segment + 0.5) / 12 * Math.PI * 2;
-    if (Math.cos(angle) > 0.82) continue;
-    const x = Math.sin(angle) * 7.05;
-    const z = Math.cos(angle) * 5.35;
-    const tangent = Math.atan2(
-      Math.sin(angle) * 5.65,
-      Math.cos(angle) * 7.45,
-    );
+  // Every binding now terminates at neighbouring stakes. The single joined
+  // metric-UV mesh skips only the useful road gate instead of floating a few
+  // long decorative bars around the ellipse.
+  const palisadeBindings: TimberMember[] = [];
+  for (let index = 0; index < stakePositions.length; index += 1) {
+    const current = stakePositions[index];
+    const next = stakePositions[(index + 1) % stakePositions.length];
+    if (Math.hypot(next.x - current.x, next.z - current.z) > 1.5) continue;
     for (const y of [1.08, 2.08]) {
-      addMesh(
-        group,
-        new THREE.BoxGeometry(3.55, 0.15, 0.16),
-        railMaterial,
-        new THREE.Vector3(x, y, z),
-        new THREE.Euler(0, tangent, 0),
-      );
+      palisadeBindings.push({
+        start: [current.x, y, current.z],
+        end: [next.x, y, next.z],
+        width: 0.15,
+        depth: 0.14,
+      });
     }
   }
+  addJoinedTimberMembers(group, 'Refuge joined palisade horizontal bindings', palisadeBindings);
 
   // Heavier gate posts and two open leaves keep the refuge visually permeable:
   // warned families can actually reach shelter during an incursion.
   for (const x of [-1.72, 1.72]) {
-    addMesh(
+    const post = addMesh(
       group,
       new THREE.CylinderGeometry(0.25, 0.3, 3.25, 7),
       timberMaterial('dark'),
       new THREE.Vector3(x, 1.88, 5.25),
     );
+    post.name = 'Refuge road gate principal post';
   }
-  addMesh(
+  const gateHeader = addMesh(
     group,
     new THREE.BoxGeometry(4.0, 0.3, 0.34),
     timberMaterial('dark'),
     new THREE.Vector3(0, 3.42, 5.25),
   );
+  gateHeader.name = 'Refuge road gate joined header';
   for (const [x, yaw] of [[-2.38, -0.72], [2.38, 0.72]] as const) {
-    addMesh(
+    const leaf = addMesh(
       group,
       new THREE.BoxGeometry(1.48, 2.35, 0.18),
       timberMaterial('weathered'),
       new THREE.Vector3(x, 1.42, 5.88),
       new THREE.Euler(0, yaw, 0),
     );
+    leaf.name = 'Refuge road gate open timber leaf';
   }
+
+  // A low covered watch deck grows directly from the gate posts. It remains
+  // timber-scaled and open-sided, signalling refuge oversight rather than a
+  // fortified keep, while the full road opening stays clear below the deck.
+  const gateDeck = addMesh(
+    group,
+    new THREE.BoxGeometry(3.8, 0.22, 1.5),
+    timberMaterial('dark'),
+    new THREE.Vector3(0, 3.58, 4.72),
+  );
+  gateDeck.name = 'Refuge gate covered watch deck';
+  const gateWatchMembers: TimberMember[] = [];
+  for (const x of [-1.72, 1.72] as const) {
+    for (const z of [4.15, 5.25] as const) {
+      gateWatchMembers.push({
+        start: [x, z > 5 ? 3.48 : 0.3, z],
+        end: [x, 4.82, z],
+        width: 0.2,
+        depth: 0.2,
+      });
+    }
+    gateWatchMembers.push(
+      { start: [x, 4.82, 4.08], end: [x, 4.82, 5.32], width: 0.2, depth: 0.18 },
+      { start: [x, 4.1, 4.12], end: [x, 4.1, 5.28], width: 0.14, depth: 0.13 },
+      { start: [x, 3.62, 4.15], end: [x * 0.66, 4.82, 4.15], width: 0.15, depth: 0.14 },
+    );
+  }
+  for (const z of [4.15, 5.25] as const) {
+    gateWatchMembers.push(
+      { start: [-1.82, 4.82, z], end: [1.82, 4.82, z], width: 0.22, depth: 0.2 },
+      { start: [-1.72, 4.1, z], end: [1.72, 4.1, z], width: 0.14, depth: 0.13 },
+    );
+  }
+  // An interior-side ladder gives the deck an explicit access path without
+  // putting geometry in the road gate's central opening.
+  for (const x of [1.14, 1.58] as const) {
+    gateWatchMembers.push({ start: [x, 0.34, 3.78], end: [x, 3.56, 4.08], width: 0.1, depth: 0.1 });
+  }
+  for (let rung = 0; rung < 7; rung += 1) {
+    const ratio = rung / 6;
+    const y = 0.65 + rung * 0.43;
+    const z = 3.81 + ratio * 0.24;
+    gateWatchMembers.push({ start: [1.14, y, z], end: [1.58, y, z], width: 0.09, depth: 0.09 });
+  }
+  addJoinedTimberMembers(group, 'Refuge connected gate watch-platform frame and ladder', gateWatchMembers);
+  addHippedRoof(group, {
+    width: 4.1,
+    depth: 2.45,
+    eaveY: 4.82,
+    peakY: 6.08,
+    thickness: 0.14,
+    material: shingleMaterial(),
+    centerZ: 4.72,
+    name: 'Refuge gate watch-platform joined shingle cap',
+  });
 
   // A small covered emergency store and sleeping bench explain the refuge's
   // civilian role without adding an abstract garrison or logistics inventory.
-  for (const x of [-3.55, 0.15]) {
-    for (const z of [-2.85, 0.35]) {
-      addMesh(
-        group,
-        new THREE.BoxGeometry(0.2, 2.45, 0.2),
-        timberMaterial('dark'),
-        new THREE.Vector3(x, 1.42, z),
-      );
-    }
+  const shelterMembers: TimberMember[] = [
+    { start: [-3.55, 2.99, -3.05], end: [-3.55, 2.99, 0.55], width: 0.22, depth: 0.2 },
+    { start: [0.15, 2.31, -3.05], end: [0.15, 2.31, 0.55], width: 0.22, depth: 0.2 },
+  ];
+  for (const z of [-2.85, 0.35] as const) {
+    shelterMembers.push(
+      { start: [-3.55, 0.1, z], end: [-3.55, 2.99, z], width: 0.2, depth: 0.2 },
+      { start: [0.15, 0.1, z], end: [0.15, 2.31, z], width: 0.2, depth: 0.2 },
+      { start: [-3.9, 3.05, z], end: [0.52, 2.24, z], width: 0.16, depth: 0.15 },
+      { start: [-3.55, 2.2, z], end: [-3.55, 2.99, z - Math.sign(z + 1.25) * 0.58], width: 0.14, depth: 0.13 },
+      { start: [0.15, 1.62, z], end: [0.15, 2.31, z - Math.sign(z + 1.25) * 0.58], width: 0.14, depth: 0.13 },
+    );
   }
+  addJoinedTimberMembers(group, 'Refuge connected emergency-shelter roof frame', shelterMembers);
   addLeanToRoof(group, {
     width: 4.55,
     depth: 4.0,

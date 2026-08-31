@@ -4,9 +4,12 @@ use crate::db::*;
 use crate::economy::spend_treasury_gold;
 use crate::military_policy::{
     company_wages_enabled, local_company_requires_provisions, matchup_damage_multiplier,
-    member_combat_profile, military_day_ticks, military_stats, normalize_military_demands,
-    shield_wall_damage_multiplier, MilitaryKind, MERCENARY_IDLE_DEPARTURE_DAYS,
-    MERCENARY_MAX_CONTRACT_DAYS,
+    member_combat_profile, military_battle_end_ticks, military_day_ticks,
+    military_level_for_experience, military_stats, normalize_military_demands,
+    shield_wall_damage_multiplier, veteran_damage_multiplier,
+    veteran_damage_taken_multiplier, veteran_health_multiplier, MilitaryKind,
+    MERCENARY_IDLE_DEPARTURE_DAYS, MERCENARY_MAX_CONTRACT_DAYS,
+    MILITARY_BATTLE_SURVIVAL_XP, MILITARY_ENEMY_COMPANY_XP,
 };
 use crate::security_policy::RaidPortableStores;
 use crate::tables::{
@@ -77,7 +80,7 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
             ),
         }
     }
-    refresh_company_summaries(ctx, elapsed_seconds, military_demands);
+    refresh_company_summaries(ctx, sim_tick, elapsed_seconds, military_demands);
 }
 
 fn step_mustering_member(
@@ -205,9 +208,9 @@ fn step_active_member(
             agent.state = RETREATING;
             if distance(agent.x, agent.z, source.x, source.z) <= ARRIVAL_DISTANCE {
                 agent.state = HOLDING;
-                agent.health = (agent.health + dt * 2.0).min(agent.max_health);
             }
         }
+        regenerate_out_of_combat_health(&mut agent, dt);
         ctx.db.combat_agent().id().update(agent);
         return;
     }
@@ -255,6 +258,7 @@ fn step_active_member(
             agent.state = HOLDING;
             agent.route_progress = 0.0;
         }
+        regenerate_out_of_combat_health(&mut agent, dt);
         ctx.db.combat_agent().id().update(agent);
         return;
     }
@@ -342,6 +346,7 @@ fn step_active_member(
                 } else {
                     stats.damage
                 }) * profile.damage_scale
+                    * veteran_damage_multiplier(company.level)
                     * readiness.max(0.35)
                     * if charged_into_contact {
                         1.0 + profile.charge
@@ -371,7 +376,11 @@ fn step_active_member(
                 }
             }
             if enemy.health <= 0.0 {
+                let defeated_company = hostile_company_defeated(ctx, &enemy);
                 down_enemy(ctx, &mut enemy, tick);
+                if defeated_company {
+                    award_company_experience(ctx, company.id, MILITARY_ENEMY_COMPANY_XP);
+                }
             } else if range <= 2.75 && enemy.attack_cooldown <= 0.0 {
                 let hostile_damage = if enemy.faction == BANDIT {
                     10.0
@@ -392,6 +401,7 @@ fn step_active_member(
                     1.0
                 };
                 let mitigation = stats.damage_taken_multiplier
+                    * veteran_damage_taken_multiplier(company.level)
                     * shield_wall_damage_multiplier(kind, company.formation)
                     * (1.08 - company.cohesion.clamp(0.0, 1.0) * 0.18)
                     * armor_multiplier
@@ -441,19 +451,24 @@ fn step_active_member(
                 .is_some_and(|camp| camp.active)
         {
             agent.state = FIGHTING;
-            strike_camp(ctx, &mut agent, &company, order.target_camp_id, tick);
+            if strike_camp(ctx, &mut agent, &company, order.target_camp_id, tick) {
+                award_company_experience(ctx, company.id, MILITARY_ENEMY_COMPANY_XP);
+            }
         } else {
             agent.route_progress = 0.0;
             agent.target_kind = 6;
             agent.target_id = 0;
             agent.state = HOLDING;
         }
+        if agent.state != FIGHTING {
+            regenerate_out_of_combat_health(&mut agent, dt);
+        }
     } else {
         agent.route_progress = 0.0;
         agent.target_kind = 6;
         agent.target_id = 0;
         agent.state = HOLDING;
-        agent.health = (agent.health + dt * 0.12).min(agent.max_health);
+        regenerate_out_of_combat_health(&mut agent, dt);
     }
     agent.readiness = (company.morale * 0.55 + company.cohesion * 0.45).clamp(0.05, 1.0);
     agent.state_changed_tick = tick;
@@ -623,7 +638,12 @@ fn begin_mercenary_departure(ctx: &ReducerContext, company_id: u64) {
     }
 }
 
-fn refresh_company_summaries(ctx: &ReducerContext, dt: f64, military_demands: u8) {
+fn refresh_company_summaries(
+    ctx: &ReducerContext,
+    tick: u64,
+    dt: f64,
+    military_demands: u8,
+) {
     for mut company in ctx.db.military_company().iter().collect::<Vec<_>>() {
         let members = ctx
             .db
@@ -667,6 +687,36 @@ fn refresh_company_summaries(ctx: &ReducerContext, dt: f64, military_demands: u8
             }
             let health_ratio = health / living as f64;
             company.morale = company.morale.min(0.35 + health_ratio * 0.65);
+
+            if MilitaryKind::from_id(company.kind)
+                .is_some_and(MilitaryKind::gains_veteran_experience)
+            {
+                if fighting > 0 {
+                    if company.battle_started_tick == 0 {
+                        company.battle_started_tick = tick;
+                    }
+                    company.last_combat_tick = tick;
+                } else if company.battle_started_tick > 0
+                    && tick.saturating_sub(company.last_combat_tick)
+                        >= military_battle_end_ticks()
+                {
+                    let previous_level = company.level.max(1);
+                    company.experience = company
+                        .experience
+                        .saturating_add(MILITARY_BATTLE_SURVIVAL_XP);
+                    company.level = military_level_for_experience(company.experience);
+                    company.battle_started_tick = 0;
+                    company.last_combat_tick = 0;
+                    if company.level > previous_level {
+                        apply_veteran_level_health(
+                            ctx,
+                            company.id,
+                            previous_level,
+                            company.level,
+                        );
+                    }
+                }
+            }
         } else if living == 0 {
             company.state = 3;
         }
@@ -967,26 +1017,105 @@ fn strike_camp(
     company: &MilitaryCompany,
     camp_id: u64,
     tick: u64,
-) {
+) -> bool {
     if agent.attack_cooldown > 0.0 {
-        return;
+        return false;
     }
     let Some(kind) = MilitaryKind::from_id(company.kind) else {
-        return;
+        return false;
     };
     let Some(mut camp) = ctx.db.bandit_camp().id().find(&camp_id) else {
-        return;
+        return false;
     };
     if !camp.active {
-        return;
+        return false;
     }
     let stats = military_stats(kind);
-    camp.health = (camp.health - stats.damage * 0.72).max(0.0);
+    camp.health = (
+        camp.health - stats.damage * veteran_damage_multiplier(company.level) * 0.72
+    ).max(0.0);
     agent.attack_cooldown = stats.attack_seconds;
-    if camp.health <= 0.0 {
+    let destroyed = camp.health <= 0.0;
+    if destroyed {
         destroy_camp(ctx, &mut camp, tick);
     }
     ctx.db.bandit_camp().id().update(camp);
+    destroyed
+}
+
+fn regenerate_out_of_combat_health(agent: &mut CombatAgent, dt: f64) {
+    if agent.state == DOWNED || agent.health <= 0.0 || agent.health >= agent.max_health {
+        return;
+    }
+    // Percentage-based healing keeps light and heavy companies on a similar
+    // recovery clock while veteran maximum-health gains remain meaningful.
+    agent.health = (agent.health + agent.max_health * 0.004 * dt).min(agent.max_health);
+}
+
+fn hostile_company_defeated(ctx: &ReducerContext, defeated: &CombatAgent) -> bool {
+    defeated.raid_id > 0
+        && !ctx
+            .db
+            .combat_agent()
+            .raid_id()
+            .filter(&defeated.raid_id)
+            .any(|candidate| {
+                candidate.id != defeated.id
+                    && candidate.faction == defeated.faction
+                    && candidate.state != DOWNED
+                    && candidate.health > 0.0
+            })
+}
+
+fn award_company_experience(ctx: &ReducerContext, company_id: u64, amount: u64) {
+    let Some(mut company) = ctx.db.military_company().id().find(&company_id) else {
+        return;
+    };
+    let Some(kind) = MilitaryKind::from_id(company.kind) else {
+        return;
+    };
+    if !kind.gains_veteran_experience() || amount == 0 || company.state >= 2 {
+        return;
+    }
+    let previous_level = company.level.max(1);
+    company.experience = company.experience.saturating_add(amount);
+    company.level = military_level_for_experience(company.experience);
+    if company.level > previous_level {
+        apply_veteran_level_health(ctx, company.id, previous_level, company.level);
+    }
+    ctx.db.military_company().id().update(company);
+}
+
+fn apply_veteran_level_health(
+    ctx: &ReducerContext,
+    company_id: u64,
+    previous_level: u32,
+    next_level: u32,
+) {
+    let previous_multiplier = veteran_health_multiplier(previous_level);
+    let next_multiplier = veteran_health_multiplier(next_level);
+    if next_multiplier <= previous_multiplier {
+        return;
+    }
+    for member in ctx
+        .db
+        .military_member()
+        .company_id()
+        .filter(&company_id)
+        .collect::<Vec<_>>()
+    {
+        let Some(mut agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
+            continue;
+        };
+        if agent.state == DOWNED {
+            continue;
+        }
+        let previous_max = agent.max_health.max(1.0);
+        let base_max = previous_max / previous_multiplier;
+        agent.max_health = base_max * next_multiplier;
+        agent.health = (agent.health + agent.max_health - previous_max).min(agent.max_health);
+        ctx.db.combat_agent().id().update(agent);
+    }
 }
 
 fn resolve_return_home(

@@ -14,6 +14,7 @@ import {
   addBarrel,
   addDarkOpening,
   addGableShell,
+  addHippedRoof,
   addLeanToRoof,
   addPlankDoor,
   addSmallWindow,
@@ -553,7 +554,17 @@ export function createMonasteryMesh(
   group.add(court);
 
   addMesh(group, new THREE.BoxGeometry(2.1, 2.25, 2.1), stoneMaterial('light'), new THREE.Vector3(churchPlan.centerX, 6.4, churchPlan.centerZ));
-  addMesh(group, new THREE.ConeGeometry(1.55, 2.35, 4), tileMaterial(2), new THREE.Vector3(churchPlan.centerX, 8.7, churchPlan.centerZ), new THREE.Euler(0, Math.PI * 0.25, 0));
+  addHippedRoof(group, {
+    width: 2.65,
+    depth: 2.65,
+    eaveY: 7.525,
+    peakY: 9.875,
+    thickness: 0.12,
+    material: tileMaterial(2),
+    centerX: churchPlan.centerX,
+    centerZ: churchPlan.centerZ,
+    name: 'Monastery church joined clay-tile tower cap',
+  });
   addCross(group, churchPlan.centerX, 10.2, churchPlan.centerZ, 0.85);
   addSegmentedStockProps(
     group,

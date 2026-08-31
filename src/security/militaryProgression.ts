@@ -37,7 +37,42 @@ export type MilitaryCompanyState = {
   ammunition: number;
   ammunitionCapacity: number;
   formedTick: number;
+  experience: number;
+  level: number;
 };
+
+export const MILITARY_MAX_LEVEL = 10;
+
+export function militaryCompanyGainsExperience(kind: MilitaryCompanyKind): boolean {
+  return kind !== 'militia' && kind !== 'mercenary-spears';
+}
+
+/** Total experience required to begin the supplied level. */
+export function militaryLevelStartExperience(level: number): number {
+  const capped = Math.max(1, Math.min(MILITARY_MAX_LEVEL, Math.floor(level)));
+  let total = 0;
+  for (let completedLevel = 1; completedLevel < capped; completedLevel += 1) {
+    total += 100 + Math.max(0, completedLevel - 1) * 40;
+  }
+  return total;
+}
+
+export function militaryExperienceProgress(company: Pick<MilitaryCompanyState, 'experience' | 'level'>): {
+  current: number;
+  required: number;
+  fraction: number;
+  maximum: boolean;
+} {
+  const level = Math.max(1, Math.min(MILITARY_MAX_LEVEL, Math.floor(company.level)));
+  if (level >= MILITARY_MAX_LEVEL) {
+    return { current: 1, required: 1, fraction: 1, maximum: true };
+  }
+  const start = militaryLevelStartExperience(level);
+  const next = militaryLevelStartExperience(level + 1);
+  const required = Math.max(1, next - start);
+  const current = Math.max(0, Math.min(required, Math.floor(company.experience) - start));
+  return { current, required, fraction: current / required, maximum: false };
+}
 
 export type MilitaryRecruitmentCost = {
   polearms?: number;
@@ -231,6 +266,8 @@ export function syncMilitaryCompanies(
       ammunition: Number(row.ammunition),
       ammunitionCapacity: Number(row.ammunitionCapacity),
       formedTick: Number(row.formedTick),
+      experience: Number(row.experience),
+      level: Math.max(1, Number(row.level)),
     });
   }
   return companies;

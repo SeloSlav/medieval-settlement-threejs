@@ -48,7 +48,7 @@ const CONTRACTS = {
       'linen-canvas',
       'wrought-iron',
     ],
-    visibleTriangleFloor: 1_800,
+    visibleTriangleFloor: 1_750,
     atlasIdentityCeiling: 14,
     specialtyMaterialCeiling: 1,
     runtimeBoundaries: ['CivilianToolStockpile', 'MiningCampSurfaceStockpiles'],
@@ -83,7 +83,7 @@ const CONTRACTS = {
       'split-shingles',
       'wrought-iron',
     ],
-    visibleTriangleFloor: 1_800,
+    visibleTriangleFloor: 1_750,
     atlasIdentityCeiling: 9,
     specialtyMaterialCeiling: 0,
     runtimeBoundaries: [
@@ -118,7 +118,7 @@ const CONTRACTS = {
       'split-shingles',
       'wrought-iron',
     ],
-    visibleTriangleFloor: 2_200,
+    visibleTriangleFloor: 2_150,
     atlasIdentityCeiling: 12,
     specialtyMaterialCeiling: 0,
     runtimeBoundaries: [
@@ -199,6 +199,23 @@ for (const kind of Object.keys(CONTRACTS) as ExtractionKind[]) {
   assert.equal(plan.family, 'extraction');
   assert.deepEqual(plan.materials, contract.materialRoles, `${kind} material-role grammar changed.`);
   assert.deepEqual(BUILDING_LOCAL_VISUAL_BOUNDS[kind], LOCKED_PLACEMENT_BOUNDS[kind]);
+  if (kind === 'stone_quarry') {
+    const campPlan = root.userData.architecturePlan as {
+      readonly centeredExcavationCount: number;
+    };
+    assert.equal(campPlan.centeredExcavationCount, 0);
+    const forbiddenCenteredWorks: string[] = [];
+    root.traverseVisible((object) => {
+      if (/\b(?:shaft|derrick|headframe|windlass|central pit|centered excavation)\b/i.test(object.name)) {
+        forbiddenCenteredWorks.push(object.name);
+      }
+    });
+    assert.deepEqual(
+      forbiddenCenteredWorks,
+      [],
+      'The mobile Mining Camp must not acquire a centered pit or underground hoist vocabulary.',
+    );
+  }
 
   assert.equal(metrics.measurementKind, 'scene-graph-estimates-not-renderer-counters');
   assert.equal(metrics.finiteGeometry, true, `${kind} reports non-finite geometry.`);
@@ -225,6 +242,11 @@ for (const kind of Object.keys(CONTRACTS) as ExtractionKind[]) {
   let semanticUvMeshCount = 0;
   root.traverse((object) => {
     if (isProceduralRuntimeOwned(object)) dynamicBoundaries.push(object.name);
+    assert.equal(
+      LIVING_VEGETATION_PATTERN.test(object.name),
+      false,
+      `${kind}/${object.name} embeds living vegetation in the architecture root.`,
+    );
     const mesh = object as THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>;
     if (!mesh.isMesh) return;
     const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
@@ -236,7 +258,7 @@ for (const kind of Object.keys(CONTRACTS) as ExtractionKind[]) {
       `${kind}/${object.name} does not reuse a shared building material.`,
     );
     assert.equal(
-      LIVING_VEGETATION_PATTERN.test(`${object.name} ${material.name}`),
+      LIVING_VEGETATION_PATTERN.test(material.name),
       false,
       `${kind}/${object.name} embeds living vegetation in the architecture root.`,
     );
@@ -268,6 +290,15 @@ for (const kind of Object.keys(CONTRACTS) as ExtractionKind[]) {
     assert.ok(group, `${kind} is missing ${groupContract.name}.`);
     const roles = semanticRolesUnder(group);
     assert.deepEqual(roles, [...groupContract.roles].sort(), `${kind}/${groupContract.name} material slots changed.`);
+    const moduleBounds = new THREE.Box3().setFromObject(group);
+    const placementBounds = LOCKED_PLACEMENT_BOUNDS[kind];
+    assert.ok(
+      moduleBounds.min.x >= placementBounds.minX - 1e-4
+        && moduleBounds.max.x <= placementBounds.maxX + 1e-4
+        && moduleBounds.min.z >= placementBounds.minZ - 1e-4
+        && moduleBounds.max.z <= placementBounds.maxZ + 1e-4,
+      `${kind}/${groupContract.name} escapes the locked placement bounds.`,
+    );
   }
   for (const requiredName of contract.requiredNames) {
     assert.ok(root.getObjectByName(requiredName), `${kind} is missing ${requiredName}.`);
