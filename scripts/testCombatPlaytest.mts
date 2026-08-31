@@ -292,6 +292,11 @@ const playtest = readFileSync(new URL('../src/app/combatPlaytest.ts', import.met
 assert.match(app, /visualQaConditions \|\| this\.combatPlaytestRequest/);
 assert.match(app, /battleShowcaseWorldInput[\s\S]*treeRegistry: this\.treeRegistry/);
 assert.match(app, /setCommandHandler[\s\S]*combatPlaytest\.issueOrder/);
+assert.doesNotMatch(
+  app,
+  /setCompanyGuidesVisible\(true\)/,
+  'the combat playtest must not reveal company rings before the player selects a company',
+);
 assert.match(app, /!this\.battleShowcase && !this\.combatPlaytest/);
 assert.match(app, /if \(!this\.combatPlaytest\) \{[\s\S]*militiaCommands\?\.sync/);
 assert.match(bootstrap, /worldSettingsOverride[\s\S]*if \(!bridge\.worldSettingsOverride\) saveWorldGenerationSettings/);

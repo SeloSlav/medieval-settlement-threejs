@@ -245,14 +245,32 @@ const agents = new Map<string, CombatAgentState>([
 ]);
 controller.sync(agents, new Map<string, BanditCampState>());
 
+const companyRingRoot = scene.getObjectByName('Military company selection rings');
+assert.ok(companyRingRoot, 'the company selection-ring pool should be attached to the scene');
+assert.equal(
+  companyRingRoot.children.filter((ring) => ring.visible).length,
+  0,
+  'company selection rings must remain hidden until the player selects a company',
+);
+
 const screen = new THREE.Vector3(0, 3.2, 0).project(camera);
 const selectX = (screen.x * 0.5 + 0.5) * 200;
 const selectY = (-screen.y * 0.5 + 0.5) * 200;
 canvas.dispatch('mousedown', mouseEvent('mousedown', 0, selectX, selectY, 1, canvas));
 window.dispatchEvent(mouseEvent('mouseup', 0, selectX, selectY, 0, canvas));
 assert.equal(selectedCompany, 'company-a', 'left-click must select the whole company');
+assert.equal(
+  companyRingRoot.children.filter((ring) => ring.visible).length,
+  1,
+  'selecting one company should reveal exactly one company selection ring',
+);
 
 controller.clearSelection();
+assert.equal(
+  companyRingRoot.children.filter((ring) => ring.visible).length,
+  0,
+  'clearing selection must immediately hide every pooled company selection ring',
+);
 selectedCompany = null;
 selectedCompanyChanges = 0;
 camera.position.set(0, 3.5, 4.5);
@@ -271,6 +289,18 @@ assert.equal(
 );
 assert.equal(selectedCompanyChanges, 1, 'a direct soldier click must open exactly one company selection');
 assert.equal(ordinaryVillagerInspections, 0, 'a player soldier must not show the individual villager marker');
+
+// Combat can pull surviving members far apart. A selection marker must remain a
+// compact command affordance rather than stretching across the whole scattered
+// company and obscuring the battlefield.
+agents.set('friendly-2', combatAgent('friendly-2', 'militia', 'company-a', 120, 0));
+controller.sync(agents, new Map<string, BanditCampState>());
+const selectedRing = companyRingRoot.children.find((ring) => ring.visible);
+assert.ok(selectedRing, 'the selected company should retain its ring across simulation syncs');
+assert.ok(
+  selectedRing.scale.x <= 12 && selectedRing.scale.z <= 12,
+  'a scattered company selection ring must stay within the compact 12 m presentation cap',
+);
 
 capturedInspection = { militaryCompanyId: null };
 canvas.dispatch('mousedown', mouseEvent('mousedown', 0, 20, 20, 1, canvas));
