@@ -1344,12 +1344,14 @@ export async function bootstrapAppSession(
         );
       });
     },
-    onLeavingCompanySelected: (companyId) => {
-      const company = spacetimeStore.snapshot.militaryCompanies.get(companyId);
-      if (!company || company.kind !== 'mercenary-spears' || company.status !== 'leaving') return;
+    onCompanySelected: (companyId) => {
+      if (!companyId) {
+        resourceInspector.clearSelection();
+        return;
+      }
       villagerInspector.clearSelection();
-      resourceInspector.selectBuilding(company.sourceBuildingId);
-      resourceInspector.focusMercenaryContract(company.id);
+      worldMapUi.townReport.close();
+      resourceInspector.selectMilitaryCompany(companyId);
     },
   });
   const vineyardParcelMarkers = new VineyardParcelMarkers(

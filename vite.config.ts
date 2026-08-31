@@ -81,7 +81,8 @@ function explicitPublicAssetCopy(includeQaArchives: boolean): Plugin {
 
 export default defineConfig(({ mode }) => {
   const includeQaArchives = mode === 'visual-gauntlet';
-  const stableCapture = process.env.SELO_STABLE_CAPTURE === '1';
+  const stableCapture = process.env.SELO_STABLE_CAPTURE === '1'
+    || mode === 'stable-capture';
   const buildInputs: Record<string, string> = { game: gameEntry };
   if (includeQaArchives && existsSync(visualGauntletEntry)) {
     buildInputs['visual-gauntlet'] = visualGauntletEntry;
@@ -137,12 +138,11 @@ export default defineConfig(({ mode }) => {
       // A live capture must survive unrelated edits elsewhere in the shared
       // workspace while retaining Vite's development-only showcase gates.
       hmr: stableCapture ? false : undefined,
-      watch: {
+      watch: stableCapture ? null : {
         // These trees contain disposable worktrees, generated QA archives, and
         // Rust build output. Watching them can monopolize the Windows watcher
         // and prevent Vite from answering normal page and asset requests.
         ignored: [
-          ...(stableCapture ? ['**/*'] : []),
           '**/.tmp/**',
           '**/tmp/**',
           '**/_tmp/**',

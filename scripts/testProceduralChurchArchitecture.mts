@@ -57,6 +57,18 @@ for (const tier of [1, 2, 3] as const) {
       `${modelName} roof lost semantic physical UV geometry`,
     );
   }
+  const capName = tier === 1
+    ? 'Compact church timber belfry joined roof cap'
+    : tier === 2
+      ? 'Compact church stone belfry joined roof cap'
+      : 'Parish church joined belfry roof cap';
+  const belfryCap = requiredMesh(church, capName);
+  assert(
+    belfryCap.geometry.userData.proceduralGeometryWriter === 'semantic-physical-uv-v1',
+    `${modelName} belfry cap lost semantic physical UV geometry`,
+  );
+  assert(belfryCap.userData.proceduralPrimitiveCount === 4, `${modelName} belfry cap is not joined`);
+  assert((belfryCap.geometry.getIndex()?.count ?? 0) / 3 === 32, `${modelName} belfry cap topology changed`);
 
   if (tier === 3) {
     const gable = requiredMesh(church, 'Large Stone Church physical oculus gable wall');
@@ -71,7 +83,7 @@ for (const tier of [1, 2, 3] as const) {
   }
 }
 
-console.log('procedural church architecture passed (3 tiers, physical apertures, joined metric-UV roofs)');
+console.log('procedural church architecture passed (3 tiers, physical apertures, joined nave + belfry roofs)');
 
 function requiredObject(parent: THREE.Object3D, name: string): THREE.Object3D {
   const object = parent.getObjectByName(name);

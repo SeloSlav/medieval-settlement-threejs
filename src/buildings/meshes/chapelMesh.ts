@@ -15,6 +15,7 @@ import {
   addProceduralWindow,
   addStoneEntranceSteps,
 } from './facadeOpeningKit.ts';
+import { addHippedRoof } from './buildingMeshKit.ts';
 
 type ChapelMaterials = {
   limewash: THREE.MeshStandardMaterial;
@@ -521,13 +522,16 @@ function addBellTower(
   );
 
   const towerRoofY = belfryFloorY + belfryHeight + 0.63;
-  addMesh(
-    group,
-    new THREE.ConeGeometry(1.32, 1.48, 4),
-    roofMaterial,
-    new THREE.Vector3(0, towerRoofY, towerZ),
-    new THREE.Euler(0, Math.PI * 0.25, 0),
-  );
+  addHippedRoof(group, {
+    width: 1.32 * Math.SQRT2,
+    depth: 1.32 * Math.SQRT2,
+    eaveY: towerRoofY - 0.74,
+    peakY: towerRoofY + 0.74,
+    thickness: 0.1,
+    material: roofMaterial,
+    centerZ: towerZ,
+    name: 'Parish church joined belfry roof cap',
+  });
   addMesh(
     group,
     new THREE.CylinderGeometry(0.055, 0.055, 0.78, 8),
@@ -676,13 +680,18 @@ function addCompactBellCote(
     new THREE.Vector3(0, bellY, z),
   );
   bell.name = 'Compact church bell';
-  addMesh(
-    group,
-    new THREE.ConeGeometry(span * 0.72, stoneTier ? 1.08 : 0.9, 4),
-    roofMaterial,
-    new THREE.Vector3(0, baseY + height + (stoneTier ? 0.48 : 0.4), z),
-    new THREE.Euler(0, Math.PI * 0.25, 0),
-  );
+  const capHeight = stoneTier ? 1.08 : 0.9;
+  const capEaveY = baseY + height - 0.05;
+  addHippedRoof(group, {
+    width: span + 0.46,
+    depth: span + 0.46,
+    eaveY: capEaveY,
+    peakY: capEaveY + capHeight,
+    thickness: 0.085,
+    material: roofMaterial,
+    centerZ: z,
+    name: `Compact church ${stoneTier ? 'stone' : 'timber'} belfry joined roof cap`,
+  });
   const crossY = baseY + height + (stoneTier ? 1.22 : 1.02);
   addMesh(
     group,

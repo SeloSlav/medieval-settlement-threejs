@@ -13,6 +13,7 @@ type Options = {
   getHeightAt: (x: number, z: number) => number;
   isBlocked: () => boolean;
   onCommand: (ids: string[], x: number, z: number, campId: string | null) => void;
+  onCompanySelected?: (companyId: string | null) => void;
   onLeavingCompanySelected?: (companyId: string) => void;
 };
 
@@ -76,6 +77,7 @@ export class MilitiaCommandController {
     if (this.selected.size === 0) return;
     this.selected.clear();
     this.syncRings();
+    this.options.onCompanySelected?.(null);
   }
 
   sync(agents: ReadonlyMap<string, CombatAgentState>, camps: ReadonlyMap<string, BanditCampState>): void {
@@ -178,7 +180,10 @@ export class MilitiaCommandController {
     if (this.selected.size === 1) {
       const companyId = this.selected.values().next().value as string | undefined;
       const company = companyId ? this.companies.get(companyId) : undefined;
+      this.options.onCompanySelected?.(company?.id ?? null);
       if (company && !company.controllable) this.options.onLeavingCompanySelected?.(company.id);
+    } else {
+      this.options.onCompanySelected?.(null);
     }
   };
 

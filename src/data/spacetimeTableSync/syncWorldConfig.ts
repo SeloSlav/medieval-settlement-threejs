@@ -37,6 +37,7 @@ function sameGeneration(
     && current.conflictMode === next.conflictMode
     && current.enemyPressure === next.enemyPressure
     && current.banditCampsEnabled === next.banditCampsEnabled
+    && current.wildAnimalAttacksEnabled === next.wildAnimalAttacksEnabled
     && current.severeWeatherEnabled === next.severeWeatherEnabled
     && current.wellAquiferNetworksEnabled === next.wellAquiferNetworksEnabled
     && current.approvalDeclineRate === next.approvalDeclineRate

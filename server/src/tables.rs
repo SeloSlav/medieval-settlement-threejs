@@ -94,6 +94,9 @@ pub struct WorldConfig {
     /// 2 full upkeep, or 3 campaign burden.
     #[default(1)]
     pub military_demands: u8,
+    /// Infrequent fox incursions and coordinated wolf packs. Additive save field.
+    #[default(true)]
+    pub wild_animal_attacks_enabled: bool,
 }
 
 #[spacetimedb::table(accessor = player_resources, public)]

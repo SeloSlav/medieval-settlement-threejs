@@ -138,7 +138,10 @@ const CONTRACTS = {
     semanticGroups: [
       { name: 'Mineworks headframe transverse cross bracing', roles: ['rough-timber'] },
       { name: 'Mineworks headframe weather roof', roles: ['split-shingles'] },
-      { name: 'Mineworks sorting-floor weather frame', roles: ['rough-timber'] },
+      {
+        name: 'Mineworks sorting-floor weather frame',
+        roles: ['rough-timber', 'split-shingles'],
+      },
     ],
     requiredNames: [
       'Mineworks shaft collar',

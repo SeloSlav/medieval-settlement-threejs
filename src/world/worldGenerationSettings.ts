@@ -30,6 +30,8 @@ export type WorldGenerationSettings = {
   enemyPressure: number;
   /** Enables independent physical bandit camps and theft patrols. */
   banditCampsEnabled: boolean;
+  /** Enables infrequent fox incursions and coordinated wolf-pack attacks. */
+  wildAnimalAttacksEnabled: boolean;
   /** Enables ambient fires, lightning ignition, fire spread, and summer droughts. */
   severeWeatherEnabled: boolean;
   /** Makes well groundwater vary by location instead of using one reliable score at every site. */
@@ -103,6 +105,7 @@ export const DEFAULT_WORLD_GENERATION_SETTINGS: WorldGenerationSettings = {
   conflictMode: 'peaceful',
   enemyPressure: 0,
   banditCampsEnabled: true,
+  wildAnimalAttacksEnabled: true,
   severeWeatherEnabled: false,
   wellAquiferNetworksEnabled: false,
   approvalDeclineRate: 100,
@@ -211,6 +214,7 @@ export function normalizeWorldGenerationSettings(
       ? Math.max(1, clampPercent(partial.enemyPressure ?? 50))
       : 0,
     banditCampsEnabled: partial.banditCampsEnabled !== false,
+    wildAnimalAttacksEnabled: partial.wildAnimalAttacksEnabled !== false,
     severeWeatherEnabled: partial.severeWeatherEnabled === true,
     wellAquiferNetworksEnabled: partial.wellAquiferNetworksEnabled === true,
     approvalDeclineRate: normalizeWorldDifficultyRate(partial.approvalDeclineRate),

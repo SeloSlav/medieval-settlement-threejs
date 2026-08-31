@@ -98,6 +98,7 @@ import { hasCustomTreeWorkArea } from './treeWorkArea.ts';
 import { resourceNodeArtUrl } from './resourceNodeArt.ts';
 import { BUILDING_CARD_ART } from './buildingCardArt.ts';
 import { computeLandUseProfile } from '../regions/landUseProfile.ts';
+import { renderSelectedMilitaryCompanyInspector } from './inspector/militaryCompanyRenderer.ts';
 
 const INSPECTOR_TOOLTIP_MAX_LENGTH = 120;
 
@@ -443,6 +444,7 @@ export class ResourceInspector {
   private readonly marker: THREE.Mesh;
   private readonly hoverOutline: PlayerAuthoredHoverOutline;
   private selectedTarget: InspectableTarget | null = null;
+  private selectedMilitaryCompanyId: string | null = null;
   private heroImageSource: string | null = null;
   private heroImageRequestId = 0;
   private serviceCoverageBuildingId: string | null = null;
@@ -2259,6 +2261,21 @@ export class ResourceInspector {
     this.selectTarget(target);
   }
 
+  selectMilitaryCompany(companyId: string): void {
+    const company = [...(this.options.getMilitaryCompanies?.() ?? [])]
+      .find((candidate) => candidate.id === companyId);
+    if (!company) return;
+    this.serviceCoverageTabPreviewBuildingId = null;
+    this.clearServiceCoverage();
+    this.serviceCoverageProjection = null;
+    this.selectedTarget = null;
+    this.selectedMilitaryCompanyId = company.id;
+    this.marker.visible = false;
+    this.renderMilitaryCompany(company);
+    this.panel.hidden = false;
+    this.options.onSelectionChange?.(null);
+  }
+
   /** Moves keyboard focus into an inspector opened by an external HUD link. */
   focusPanel(): void {
     if (this.panel.hidden) return;
@@ -2286,6 +2303,16 @@ export class ResourceInspector {
   }
 
   refreshSelection(): void {
+    if (this.selectedMilitaryCompanyId) {
+      const company = [...(this.options.getMilitaryCompanies?.() ?? [])]
+        .find((candidate) => candidate.id === this.selectedMilitaryCompanyId);
+      if (!company) {
+        this.clearSelection(false);
+        return;
+      }
+      this.renderMilitaryCompany(company);
+      return;
+    }
     if (!this.selectedTarget) return;
     const latest = this.options.worldQueries.findInspectableTarget(this.selectedX, this.selectedZ);
     if (!latest) {
@@ -2401,6 +2428,7 @@ export class ResourceInspector {
       this.serviceCoverageTabPreviewBuildingId = null;
       this.clearServiceCoverage();
     }
+    this.selectedMilitaryCompanyId = null;
     this.selectedTarget = target;
     if (target.kind === 'quarry') {
       this.selectedX = target.definition.x;
@@ -2446,6 +2474,7 @@ export class ResourceInspector {
     this.clearServiceCoverage();
     this.serviceCoverageProjection = null;
     this.selectedTarget = null;
+    this.selectedMilitaryCompanyId = null;
     this.marker.visible = false;
     this.demolishSection.hidden = true;
     this.primaryActionSection.hidden = true;
@@ -2862,6 +2891,44 @@ export class ResourceInspector {
     this.renderedIdentity = identity;
   }
 
+  private renderMilitaryCompany(company: MilitaryCompanyState): void {
+    const view = renderSelectedMilitaryCompanyInspector(
+      company,
+      this.options.getCombatAgents?.(),
+    );
+    this.eyebrow.textContent = view.eyebrow;
+    this.title.textContent = view.title;
+    this.status.textContent = view.statusText;
+    this.status.hidden = view.statusText.length === 0;
+    this.status.dataset.state = view.statusState;
+    syncFocusableInspectorTooltip(this.status, view.title, '');
+    this.panel.dataset.inspectorTarget = 'military-company';
+    this.panel.dataset.inspectorKind = 'military';
+    this.heroSymbol.textContent = '⚔';
+    this.applyHeroImage(view.image);
+    this.serviceCoverageButton.hidden = true;
+    this.serviceCoverageButton.setAttribute('aria-pressed', 'false');
+    this.renderDetails(view.detailsHtml);
+
+    this.primaryActionSection.hidden = true;
+    this.primaryActionSection.innerHTML = '';
+    this.demolishSection.hidden = true;
+    this.demolishButton.hidden = true;
+    this.demolishSecondaryButton.hidden = true;
+    this.demolishHint.hidden = true;
+    this.demolishSecondaryHint.hidden = true;
+    this.laborSection.hidden = true;
+    this.oxTeamSection.hidden = true;
+
+    if (this.renderedSupplementalPanelHtml !== view.supplementalPanelHtml) {
+      this.supplementalPanelSection.innerHTML = view.supplementalPanelHtml;
+      this.standardizeSupplementalPanels();
+    }
+    this.supplementalPanelSection.hidden = view.supplementalPanelHtml.trim().length === 0;
+    this.renderedSupplementalPanelHtml = view.supplementalPanelHtml;
+    this.renderedIdentity = `military-company:${company.id}`;
+  }
+
   private syncServiceCoverageButton(
     target: InspectableTarget,
     projection: ServiceCoverageView | undefined = this.serviceCoverageProjection ?? undefined,
@@ -2943,8 +3010,10 @@ export class ResourceInspector {
     this.panel.dataset.inspectorTarget = target.kind;
     this.panel.dataset.inspectorKind = presentation.kind;
     this.heroSymbol.textContent = presentation.symbol;
+    this.applyHeroImage(presentation.image ?? null);
+  }
 
-    const source = presentation.image ?? null;
+  private applyHeroImage(source: string | null): void {
     if (source === this.heroImageSource) return;
 
     this.heroImageSource = source;

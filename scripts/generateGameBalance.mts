@@ -328,6 +328,8 @@ export type GameBalance = {
     stableOxSlots: number;
     stableOxMaxPerWorkplace: number;
     stableOxPurchaseGold: number;
+    kennelDogSlots: number;
+    kennelDogPurchaseGold: number;
     stoneSalvageFraction: number;
     timberSalvageFraction: number;
     goldSalvageFraction: number;
@@ -865,6 +867,7 @@ const simKindByKind: Record<string, string | null> = {
   marketplace: null,
   town_hall: null,
   stable: null,
+  kennel: null,
   village_storehouse: 'VillageStorehouse',
   watchtower: null,
   guardhouse: 'Guardhouse',
@@ -1007,6 +1010,8 @@ function generateRust(): string {
     `pub const STABLE_OX_SLOTS: u8 = ${b.economy.stableOxSlots};`,
     `pub const STABLE_OX_MAX_PER_WORKPLACE: u32 = ${b.economy.stableOxMaxPerWorkplace};`,
     `pub const STABLE_OX_PURCHASE_GOLD: f64 = ${rustF64(b.economy.stableOxPurchaseGold)};`,
+    `pub const KENNEL_DOG_SLOTS: u8 = ${b.economy.kennelDogSlots};`,
+    `pub const KENNEL_DOG_PURCHASE_GOLD: f64 = ${rustF64(b.economy.kennelDogPurchaseGold)};`,
     `pub const STONE_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.stoneSalvageFraction)};`,
     `pub const TIMBER_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.timberSalvageFraction)};`,
     `pub const IRONWORK_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.ironworkSalvageFraction)};`,
@@ -2090,6 +2095,8 @@ function generateTypeScript(): string {
     `export const STABLE_OX_SLOTS = ${b.economy.stableOxSlots};`,
     `export const STABLE_OX_MAX_PER_WORKPLACE = ${b.economy.stableOxMaxPerWorkplace};`,
     `export const STABLE_OX_PURCHASE_GOLD = ${b.economy.stableOxPurchaseGold};`,
+    `export const KENNEL_DOG_SLOTS = ${b.economy.kennelDogSlots};`,
+    `export const KENNEL_DOG_PURCHASE_GOLD = ${b.economy.kennelDogPurchaseGold};`,
     `export const STONE_SALVAGE_FRACTION = ${b.economy.stoneSalvageFraction};`,
     `export const TIMBER_SALVAGE_FRACTION = ${b.economy.timberSalvageFraction};`,
     `export const IRONWORK_SALVAGE_FRACTION = ${b.economy.ironworkSalvageFraction};`,

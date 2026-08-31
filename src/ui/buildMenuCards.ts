@@ -15,7 +15,7 @@ import {
 export type PlacementBuildMenuAction =
   | 'founders-camp'
   | 'lumber-mill' | 'stone-quarry' | 'large-quarry' | 'mine' | 'reforester' | 'woodcutters-lodge'
-  | 'well' | 'stable' | 'hunters-hall' | 'foragers-shed' | 'fishing-camp' | 'chapel' | 'wayside-shrine' | 'marketplace' | 'trading-post'
+  | 'well' | 'stable' | 'kennel' | 'hunters-hall' | 'foragers-shed' | 'fishing-camp' | 'chapel' | 'wayside-shrine' | 'marketplace' | 'trading-post'
   | 'threshing-barn' | 'monastery' | 'brewery' | 'tavern' | 'smokehouse'
   | 'granary' | 'bakery' | 'apiary' | 'watermill' | 'windmill' | 'carpenter'
   | 'spinning-retting-house' | 'weaver'
@@ -73,6 +73,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   residences: ['Residence', 'Provides homes for settlement families.'],
   well: ['Well', 'Draws and supplies water to nearby homes.', flow([], ['water'])],
   stable: ['Stable', 'Houses oxen for building, farm work, and hauling.'],
+  kennel: ['Kennel', 'Trains guard dogs that patrol the settlement and confront thieves.'],
   chapel: ['Church', 'Serves parish life through worship, tithes, and household support.'],
   wayside_shrine: ['Wayside shrine', 'Marks the roadside with a small place of prayer and devotion.'],
   dry_stone_wall: ['Dry-stone wall', 'Lines roads with walls of fitted stone.'],
@@ -131,7 +132,7 @@ const entry = (artKey: PlacementArtKey): BuildMenuEntry => ({
 
 /** Compatibility collection for systems that need the complete non-production civic set. */
 export const CIVIC_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('residences'), entry('well'), entry('stable'), entry('founders_camp'), entry('chapel'), entry('wayside_shrine'), entry('dry_stone_wall'), entry('monastery'), entry('marketplace'), entry('tavern'), entry('trading_post'), entry('town_hall'), entry('village_storehouse'), entry('granary'),
+  entry('residences'), entry('well'), entry('stable'), entry('kennel'), entry('founders_camp'), entry('chapel'), entry('wayside_shrine'), entry('dry_stone_wall'), entry('monastery'), entry('marketplace'), entry('tavern'), entry('trading_post'), entry('town_hall'), entry('village_storehouse'), entry('granary'),
 ];
 
 /** Sites whose crews gather raw resources from the landscape. */
@@ -179,7 +180,7 @@ export type BuildMenuCategory = {
 };
 
 const CIVIC_SERVICES_BUILD_MENU_ENTRIES = [
-  entry('residences'), entry('well'), entry('stable'), entry('founders_camp'), entry('town_hall'),
+  entry('residences'), entry('well'), entry('stable'), entry('kennel'), entry('founders_camp'), entry('town_hall'),
 ] as const;
 const TRADE_BUILD_MENU_ENTRIES = [
   entry('marketplace'), entry('trading_post'), entry('village_storehouse'), entry('granary'),

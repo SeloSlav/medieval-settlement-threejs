@@ -52,6 +52,7 @@ export function worldConfigRowToGeneration(row: WorldConfig): AuthoritativeWorld
       conflictMode: row.conflictEnabled ? 'frontier' : 'peaceful',
       enemyPressure: row.enemyPressure,
       banditCampsEnabled: row.banditCampsEnabled,
+      wildAnimalAttacksEnabled: row.wildAnimalAttacksEnabled,
       severeWeatherEnabled: row.severeWeatherEnabled,
       wellAquiferNetworksEnabled: row.wellAquiferNetworksEnabled,
       approvalDeclineRate: normalizeWorldDifficultyRate(row.approvalDeclineRate),
@@ -79,6 +80,7 @@ export function generationMatchesServer(
     && server.conflictMode === normalizedLocal.conflictMode
     && server.enemyPressure === normalizedLocal.enemyPressure
     && server.banditCampsEnabled === normalizedLocal.banditCampsEnabled
+    && server.wildAnimalAttacksEnabled === normalizedLocal.wildAnimalAttacksEnabled
     && server.severeWeatherEnabled === normalizedLocal.severeWeatherEnabled
     && server.wellAquiferNetworksEnabled === normalizedLocal.wellAquiferNetworksEnabled
     && server.approvalDeclineRate === normalizedLocal.approvalDeclineRate
@@ -154,6 +156,7 @@ export function settingsToConfigurePayload(settings: WorldGenerationSettings) {
     conflictEnabled: normalized.conflictMode === 'frontier',
     enemyPressure: normalized.enemyPressure,
     banditCampsEnabled: normalized.banditCampsEnabled,
+    wildAnimalAttacksEnabled: normalized.wildAnimalAttacksEnabled,
     severeWeatherEnabled: normalized.severeWeatherEnabled,
     wellAquiferNetworksEnabled: normalized.wellAquiferNetworksEnabled,
     approvalDeclineRate: normalized.approvalDeclineRate,

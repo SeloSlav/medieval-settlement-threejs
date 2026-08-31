@@ -10,7 +10,6 @@ import {
 import {
   addDarkOpening,
   addGableShell,
-  addLeanToRoof,
   addPlankDoor,
 } from './buildingMeshKit.ts';
 import { createCivilianToolStockpile } from './civilianToolStockpileMesh.ts';
@@ -357,7 +356,7 @@ function addSortingFloorWeatherFrame(floor: THREE.Group): void {
   const shelter = new THREE.Group();
   shelter.name = 'Mineworks sorting-floor weather frame';
   shelter.userData.bracingSystem = 'four-post-knee-braced-sorting-canopy';
-  const writer = new ProceduralGeometryWriter(['rough-timber']);
+  const writer = new ProceduralGeometryWriter(['rough-timber', 'split-shingles']);
   for (const x of [-2.62, 2.62]) {
     for (const z of [-1.2, 1.2]) {
       const side = x < 0 ? 'left' : 'right';
@@ -396,19 +395,21 @@ function addSortingFloorWeatherFrame(floor: THREE.Group): void {
       depth: 0.19,
     });
   }
-  addProceduralMaterialSlotMeshes(shelter, writer.build(), {
+  writer.addRoofPanel({
+    semanticId: 'mineworks-sorting-floor-split-shingle-weather-roof',
+    moduleId: 'roofed-ore-sorting-yard',
+    materialRole: 'split-shingles',
+    structuralUse: 'roof-covering',
+    eaveOrigin: [-3.175, 3.044, 1.703],
+    eaveVector: [6.35, 0, 0],
+    slopeVector: [0, 0.55, -3.406],
+    thickness: 0.1,
+  });
+  const slots = addProceduralMaterialSlotMeshes(shelter, writer.build(), {
     namePrefix: 'Mineworks sorting-floor weather frame',
   });
-  addLeanToRoof(shelter, {
-    width: 6.35,
-    depth: 3.45,
-    thickness: 0.1,
-    material: sharedBuildingMaterial('shingle'),
-    position: new THREE.Vector3(0, 3.27, 0),
-    pitch: 0.16,
-    highEdge: 'negativeZ',
-    name: 'Mineworks sorting-floor split-shingle weather roof',
-  });
+  const roof = slots.meshes.get('split-shingles');
+  if (roof) roof.name = 'Mineworks sorting-floor split-shingle weather roof';
   floor.add(shelter);
 }
 

@@ -7,6 +7,7 @@ export type WorldDifficultyRuleSettings = Pick<
   | 'conflictMode'
   | 'enemyPressure'
   | 'banditCampsEnabled'
+  | 'wildAnimalAttacksEnabled'
   | 'severeWeatherEnabled'
   | 'wellAquiferNetworksEnabled'
   | 'approvalDeclineRate'
@@ -40,6 +41,7 @@ export const WORLD_DIFFICULTY_PRESETS: readonly WorldDifficultyPreset[] = [
       conflictMode: 'peaceful',
       enemyPressure: 0,
       banditCampsEnabled: false,
+      wildAnimalAttacksEnabled: false,
       severeWeatherEnabled: false,
       wellAquiferNetworksEnabled: false,
       approvalDeclineRate: 0,
@@ -57,6 +59,7 @@ export const WORLD_DIFFICULTY_PRESETS: readonly WorldDifficultyPreset[] = [
       conflictMode: 'peaceful',
       enemyPressure: 0,
       banditCampsEnabled: true,
+      wildAnimalAttacksEnabled: true,
       severeWeatherEnabled: false,
       wellAquiferNetworksEnabled: false,
       approvalDeclineRate: 100,
@@ -74,6 +77,7 @@ export const WORLD_DIFFICULTY_PRESETS: readonly WorldDifficultyPreset[] = [
       conflictMode: 'frontier',
       enemyPressure: 100,
       banditCampsEnabled: true,
+      wildAnimalAttacksEnabled: true,
       severeWeatherEnabled: true,
       wellAquiferNetworksEnabled: true,
       approvalDeclineRate: 150,
@@ -95,6 +99,7 @@ export function difficultyPresetForSettings(
     preset.settings.conflictMode === settings.conflictMode
     && preset.settings.enemyPressure === settings.enemyPressure
     && preset.settings.banditCampsEnabled === settings.banditCampsEnabled
+    && preset.settings.wildAnimalAttacksEnabled === settings.wildAnimalAttacksEnabled
     && preset.settings.severeWeatherEnabled === settings.severeWeatherEnabled
     && preset.settings.wellAquiferNetworksEnabled === settings.wellAquiferNetworksEnabled
     && preset.settings.approvalDeclineRate === settings.approvalDeclineRate
@@ -132,6 +137,7 @@ export function describeWorldDifficulty(
   const summary = [
     `Settlement: ${settlement}`,
     `Bandit presence: ${settings.banditCampsEnabled ? 'Roaming camps' : 'None'}`,
+    `Wild animals: ${settings.wildAnimalAttacksEnabled ? 'Foxes and wolf packs' : 'Quiet'}`,
     `Military demands: ${militaryDemands}`,
     `Approval decline: ${approval}`,
     `Food spoilage: ${spoilage}`,

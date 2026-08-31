@@ -1,0 +1,11 @@
+Ultimate Animated Animal Pack
+Copyright Quaternius
+
+Source: https://quaternius.com/packs/ultimateanimatedanimals.html
+License: Creative Commons CC0 1.0 Universal (public domain dedication)
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Included runtime models:
+- quaternius-husky.gltf
+- quaternius-fox.gltf
+- quaternius-wolf.gltf
