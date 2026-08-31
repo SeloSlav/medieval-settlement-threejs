@@ -85,6 +85,7 @@ import RotateConstructionLaborReducer from "./rotate_construction_labor_reducer"
 import SetAllStorageAcceptanceReducer from "./set_all_storage_acceptance_reducer";
 import SetApiaryHarvestPolicyReducer from "./set_apiary_harvest_policy_reducer";
 import SetBreweryRecipePolicyReducer from "./set_brewery_recipe_policy_reducer";
+import SetBuildingDogsReducer from "./set_building_dogs_reducer";
 import SetBuildingOxenReducer from "./set_building_oxen_reducer";
 import SetBuildingProductionRateReducer from "./set_building_production_rate_reducer";
 import SetCarpenterCartServiceTargetReducer from "./set_carpenter_cart_service_target_reducer";
@@ -302,6 +303,9 @@ const tablesSchema = __schema({
   combat_agent: __table({
     name: 'combat_agent',
     indexes: [
+      { name: 'assigned_building_id', algorithm: 'btree', columns: [
+        'assignedBuildingId',
+      ] },
       { name: 'id', algorithm: 'btree', columns: [
         'id',
       ] },
@@ -835,6 +839,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_all_storage_acceptance", SetAllStorageAcceptanceReducer),
   __reducerSchema("set_apiary_harvest_policy", SetApiaryHarvestPolicyReducer),
   __reducerSchema("set_brewery_recipe_policy", SetBreweryRecipePolicyReducer),
+  __reducerSchema("set_building_dogs", SetBuildingDogsReducer),
   __reducerSchema("set_building_oxen", SetBuildingOxenReducer),
   __reducerSchema("set_building_production_rate", SetBuildingProductionRateReducer),
   __reducerSchema("set_carpenter_cart_service_target", SetCarpenterCartServiceTargetReducer),

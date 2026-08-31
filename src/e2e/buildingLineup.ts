@@ -514,8 +514,8 @@ const views = viewSpecs.map((spec) => {
     // The bookmark—not only the footprint—owns the proof-frame depth. Large
     // precincts can otherwise sit behind the curtain when `far` moves the eye
     // well outside the ordinary single-building inspection distance.
-    scene.fog.near = Math.max(scene.fog.near, distance * 0.24);
-    scene.fog.far = Math.max(scene.fog.far, distance + largest * 1.25);
+    scene.fog.near = Math.max(scene.fog.near, distance * 0.74);
+    scene.fog.far = Math.max(scene.fog.far, distance + largest * 2.5);
   }
   const direction = (
     compareServiceCoverage

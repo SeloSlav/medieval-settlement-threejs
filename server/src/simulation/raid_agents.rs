@@ -33,6 +33,7 @@ use crate::tables::{
 
 use super::delivery_trips::{deserialize_route_polyline, serialize_route_polyline};
 use super::fires::{ignite_raid_target, FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
+use super::military_steering::{melee_engagement_goal, ranged_firing_line_goal};
 use super::reclamation::ReclamationStock;
 use super::recover_stock_at;
 use super::settlement_security::{plunder_raid_target_at_contact, ContactRaidPlunder};
@@ -192,6 +193,7 @@ pub fn start_live_raid(
             faction: COMBAT_FACTION_RAIDER,
             source_building_id: 0,
             source_slot: index,
+            assigned_building_id: 0,
             target_kind: target.kind,
             target_id: target.id,
             x,
@@ -778,6 +780,8 @@ fn step_one_live_raid(
             continue;
         }
         agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
+        let previous_x = agent.x;
+        let previous_z = agent.z;
         if agent.faction == COMBAT_FACTION_RAIDER {
             step_raider(
                 ctx,
@@ -802,6 +806,8 @@ fn step_one_live_raid(
                 road_network,
             );
         }
+        agent.velocity_x = (agent.x - previous_x) / elapsed_seconds.max(1e-9);
+        agent.velocity_z = (agent.z - previous_z) / elapsed_seconds.max(1e-9);
     }
 
     for (target_id, damage) in damage_by_agent {
@@ -1371,7 +1377,9 @@ fn engage_agent(
     road_network: Option<&RoadNetwork>,
 ) {
     let distance = distance_squared(agent.x, agent.z, enemy.x, enemy.z);
-    if distance <= MELEE_RANGE_METERS * MELEE_RANGE_METERS {
+    let ranged_raider = agent.faction == COMBAT_FACTION_RAIDER && agent.source_slot % 4 == 3;
+    let strike_range = if ranged_raider { 12.0 } else { MELEE_RANGE_METERS };
+    if distance <= strike_range * strike_range {
         if agent.state != COMBAT_STATE_FIGHTING {
             agent.state_changed_tick = sim_tick;
         }
@@ -1383,11 +1391,31 @@ fn engage_agent(
         return;
     }
     agent.state = COMBAT_STATE_ADVANCING;
+    let goal = if ranged_raider {
+        ranged_firing_line_goal(
+            agent.source_slot as usize,
+            8,
+            agent.x,
+            agent.z,
+            enemy.x,
+            enemy.z,
+            strike_range,
+        )
+    } else {
+        melee_engagement_goal(
+            agent.raid_id.max(agent.source_building_id),
+            enemy.id,
+            agent.source_slot as usize,
+            enemy.x,
+            enemy.z,
+            strike_range,
+        )
+    };
     (agent.x, agent.z) = move_combatant_toward(
         agent.x,
         agent.z,
-        enemy.x,
-        enemy.z,
+        goal.0,
+        goal.1,
         speed,
         elapsed_seconds,
         road_network,
@@ -1727,6 +1755,8 @@ fn move_guard_home(
     elapsed_seconds: f64,
     road_network: Option<&RoadNetwork>,
 ) {
+    let previous_x = agent.x;
+    let previous_z = agent.z;
     if let Some(route) = muster_route {
         let direct_home_effort =
             combat_route_effort(road_network, agent.x, agent.z, agent.home_x, agent.home_z);
@@ -1752,6 +1782,8 @@ fn move_guard_home(
             agent.x = route_move.x;
             agent.z = route_move.z;
             agent.route_progress = route_move.progress;
+            agent.velocity_x = (agent.x - previous_x) / elapsed_seconds.max(1e-9);
+            agent.velocity_z = (agent.z - previous_z) / elapsed_seconds.max(1e-9);
             return;
         }
     }
@@ -1764,6 +1796,8 @@ fn move_guard_home(
         elapsed_seconds,
         road_network,
     );
+    agent.velocity_x = (agent.x - previous_x) / elapsed_seconds.max(1e-9);
+    agent.velocity_z = (agent.z - previous_z) / elapsed_seconds.max(1e-9);
 }
 
 fn step_recovering_guard(

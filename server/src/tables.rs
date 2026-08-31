@@ -1980,7 +1980,8 @@ pub struct ActiveRaid {
     accessor = combat_agent,
     public,
     index(accessor = owner, btree(columns = [owner])),
-    index(accessor = raid_id, btree(columns = [raid_id]))
+    index(accessor = raid_id, btree(columns = [raid_id])),
+    index(accessor = assigned_building_id, btree(columns = [assigned_building_id]))
 )]
 #[derive(Clone)]
 pub struct CombatAgent {
@@ -1995,6 +1996,11 @@ pub struct CombatAgent {
     /// Guardhouse backing a guard row, or zero for a raider.
     pub source_building_id: u64,
     pub source_slot: u32,
+    /// Durable civilian-animal posting. Guard dogs use this to remain with a
+    /// Hunter's Hall; zero leaves them on settlement-wide autonomous patrol.
+    /// Other combat factions always keep this field at zero.
+    #[default(0u64)]
+    pub assigned_building_id: u64,
     /// 0 = building, 1 = residence, 2 = cart, 3/4 = treasury at building/home,
     /// 5 = bandit camp, 6 = commanded ground position.
     pub target_kind: u8,

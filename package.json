@@ -182,6 +182,7 @@
     "test:marketplace-architecture": "npx tsx scripts/testMarketplaceArchitecture.mts",
     "test:specialist-workshop-architecture": "npx tsx scripts/testSpecialistWorkshopArchitecture.mts",
     "test:rural-workshop-architecture": "npx tsx scripts/testRuralWorkshopArchitecture.mts",
+    "test:special-sites-architecture": "node --experimental-strip-types scripts/testRemainingSpecialSitesArchitecture.mts",
     "test:building-material-atlas": "node --experimental-strip-types scripts/testBuildingMaterialAtlas.mts",
     "test:static-fixture-batch": "npx tsx scripts/testStaticFixtureBatch.mts",
     "test:static-shadow-batch": "npx tsx scripts/testStaticInstancedShadowBatch.mts",

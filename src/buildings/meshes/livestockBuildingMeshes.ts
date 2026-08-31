@@ -433,9 +433,28 @@ export function createSwineherdMesh(): THREE.Group {
     centerZ: -0.4,
     name: 'Swineherd joined sleeping-sty roof',
   });
-  const styGate = addMesh(group, new THREE.BoxGeometry(1.58, 0.92, 0.1), timberMaterial('mid'), new THREE.Vector3(3.6, 0.54, 1.18));
+  const styGate = new THREE.Group();
   styGate.name = 'Swineherd brown timber sty gate in literal opening';
+  styGate.position.set(3.6, 0, 1.18);
   styGate.userData.literalWallAperture = true;
+  styGate.userData.architectureRole = 'slatted-animal-gate';
+  group.add(styGate);
+  for (const x of [-0.71, 0.71]) {
+    addMesh(
+      styGate,
+      new THREE.BoxGeometry(0.1, 0.92, 0.1),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, 0.5, 0),
+    ).name = 'Swineherd sty gate brown timber stile';
+  }
+  for (const y of [0.24, 0.52, 0.8]) {
+    addMesh(
+      styGate,
+      new THREE.BoxGeometry(1.52, 0.11, 0.08),
+      timberMaterial('mid'),
+      new THREE.Vector3(0, y, 0),
+    ).name = 'Swineherd sty gate brown timber rail';
+  }
   addTrough(group, 2.6, 3.2, 3.0);
   addFenceRun(group, 1.3, 5.0, 8.8, true);
   addFenceRun(group, 6.0, 3.0, 4.0, false);

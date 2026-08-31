@@ -3327,6 +3327,21 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         ox.assigned_building_id = 0;
         ctx.db.stable_ox().id().update(ox);
     }
+    // Hunting dogs survive demolition of their assigned camp and return to
+    // ordinary settlement patrol. Their kennel ownership is unchanged.
+    for mut dog in ctx
+        .db
+        .combat_agent()
+        .assigned_building_id()
+        .filter(&building_id)
+        .filter(|agent| agent.faction == crate::reducers::kennel_dogs::GUARD_DOG_FACTION)
+        .collect::<Vec<_>>()
+    {
+        dog.assigned_building_id = 0;
+        dog.target_kind = 0;
+        dog.target_id = dog.source_building_id;
+        ctx.db.combat_agent().id().update(dog);
+    }
 
     // Physical demolition may repurpose this exact Building row into a
     // salvage pile, so remove stable-owned animals before that identity can

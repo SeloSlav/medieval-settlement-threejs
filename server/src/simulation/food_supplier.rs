@@ -3,6 +3,7 @@ use spacetimedb::ReducerContext;
 use crate::balance_generated::{
     FORAGER_REMEDIES_PER_HARVEST, FORAGER_REMEDY_SEASON_END_MONTH,
     FORAGER_REMEDY_SEASON_START_MONTH, GAME_PELTS_PER_ANIMAL,
+    KENNEL_DOG_HUNTING_RATE_BONUS, KENNEL_DOG_MAX_PER_HUNTERS_HALL,
 };
 use crate::building_defs::building_def;
 use crate::constants::{
@@ -15,6 +16,7 @@ use crate::economy::{
 };
 use crate::foraging_policy::{harvest_available, harvest_yield_multiplier};
 use crate::harvest_reserve_policy::harvestable_wild_stock;
+use crate::reducers::kennel_dogs::GUARD_DOG_FACTION;
 use crate::simulation::delivery_supplier::delivery_work_ready;
 use crate::simulation::delivery_trips::{
     available_free_haulers, onsite_building_labor, residence_has_inbound_remedy_trip,
@@ -113,8 +115,26 @@ fn step_food_supplier(
             } else {
                 1.0
             };
-        supplier.action_cooldown =
-            (supplier.action_cooldown - TICK_DT * wild_harvest_multiplier).max(0.0);
+        let hunting_dog_multiplier = if supplier.kind == "hunters_hall" {
+            let posted_dogs = ctx
+                .db
+                .combat_agent()
+                .assigned_building_id()
+                .filter(&supplier.id)
+                .filter(|agent| {
+                    agent.faction == GUARD_DOG_FACTION
+                        && agent.source_building_id > 0
+                        && agent.health > 0.0
+                })
+                .count()
+                .min(KENNEL_DOG_MAX_PER_HUNTERS_HALL as usize);
+            1.0 + posted_dogs as f64 * KENNEL_DOG_HUNTING_RATE_BONUS
+        } else {
+            1.0
+        };
+        supplier.action_cooldown = (supplier.action_cooldown
+            - TICK_DT * wild_harvest_multiplier * hunting_dog_multiplier)
+            .max(0.0);
     }
     let harvest_ready = onsite_labor > 0 && supplier.action_cooldown <= 0.0;
     let has_delivery_stock =

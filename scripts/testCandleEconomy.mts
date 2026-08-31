@@ -447,7 +447,16 @@ assert.ok(cards.includes('%22wax%22'));
 assert.ok(cards.includes('%22candles%22'));
 const buildingMeshes = source('src/buildings/BuildingMeshes.ts');
 assert.match(buildingMeshes, /createChandleryMesh/);
-assert.match(buildingMeshes, /case\s+'chandlery'\s*:\s*return\s+createChandleryMesh\(\)/);
+assert.match(
+  buildingMeshes,
+  /PROCEDURAL_BUILDING_GENERATORS\s*=\s*\{[\s\S]*?chandlery:\s*\(\)\s*=>\s*createChandleryMesh\(\)[\s\S]*?\}\s+satisfies\s+Record<BuildingKind,\s*ProceduralBuildingGenerator>/,
+  'the exhaustive procedural generator registry must route the Chandlery to its dedicated mesh',
+);
+assert.match(
+  buildingMeshes,
+  /return\s+PROCEDURAL_BUILDING_GENERATORS\[kind\]\(\{[\s\S]*?developmentTier,[\s\S]*?monasteryPlanting,[\s\S]*?\}\);/,
+  'runtime building creation must dispatch through the procedural generator registry',
+);
 
 const iconography = source('src/ui/iconography.css');
 for (const [resource, asset] of [
@@ -471,10 +480,18 @@ for (const [resource, asset] of [
     `${resource} inspector and cost tokens must use their painted resource icon`,
   );
 }
+const buildingCardArt = source('src/resources/buildingCardArt.ts');
 assert.match(
-  source('src/resources/ResourceInspector.ts'),
+  buildingCardArt,
   /chandlery:\s*'\/assets\/ui\/build-menu\/cards\/chandlery\.webp'/,
-  'the Chandlery inspector must use its own building artwork',
+  'the shared building-art registry must retain the Chandlery artwork',
+);
+const resourceInspector = source('src/resources/ResourceInspector.ts');
+assert.match(resourceInspector, /import\s+\{\s*BUILDING_CARD_ART\s*\}\s+from\s+'\.\/buildingCardArt\.ts'/);
+assert.match(
+  resourceInspector,
+  /const\s+image\s*=\s*BUILDING_CARD_ART\[target\.building\.kind\]/,
+  'the building inspector must resolve artwork through the shared registry',
 );
 
 const candleMeshPath = 'src/buildings/meshes/chandleryBuildingMesh.ts';

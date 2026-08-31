@@ -229,7 +229,7 @@ export function createChandleryPlan(
     modulePlacement('roadside-display-window', 'front-display-window', 'opening', 'surface:main-hall:front', { x: 0.45, y: 2.0, z: FRONT_Z + 0.09 }, ['masonry', 'timber', 'glass', 'interior'], 'front', 0),
     modulePlacement('rear-service-window', 'rear-window', 'opening', 'surface:main-hall:back', { x: -1.65, y: 2.05, z: -FRONT_Z - 0.09 }, ['masonry', 'timber', 'glass', 'interior'], 'back', -1),
     modulePlacement('left-cross-ventilation-window', 'side-window', 'opening', 'surface:main-hall:left', { x: -MAIN_WIDTH * 0.5 + 0.04, y: 2.0, z: -0.55 }, ['masonry', 'timber', 'glass', 'interior'], 'left', 0),
-    modulePlacement('heated-bay-louver', 'melt-bay-vent', 'opening', 'surface:main-hall:right', { x: 5.76, y: 1.72, z: -0.55 }, ['timber', 'interior'], 'right', 0),
+    modulePlacement('heated-bay-louver', 'melt-bay-vent', 'opening', 'surface:main-hall:right', { x: 5.76, y: 1.55, z: -0.55 }, ['timber', 'interior'], 'right', 0),
     modulePlacement('roadside-dipping-porch', 'dipping-porch', 'work', 'anchor:front-porch', { x: 0, y: 0, z: 3.72 }, ['timber', 'shingle']),
     modulePlacement('wax-melting-hearth', 'melting-hearth', 'work', 'anchor:heated-melt-bay', { x: 4.62, y: 0, z: -0.72 }, ['masonry', 'iron', 'interior']),
     modulePlacement('candle-dipping-frame', 'candle-dipping-rack', 'work', 'anchor:front-work-rack', { x: 0.65, y: 0, z: 4.02 }, ['timber', 'wax', 'interior']),
@@ -267,7 +267,7 @@ function namedMesh(
   return mesh;
 }
 
-function emitMainShell({ module }: ChandleryCompileContext): void {
+function emitMainShell({ module, plan }: ChandleryCompileContext): void {
   addGableShell(module, {
     width: MAIN_WIDTH,
     depth: MAIN_DEPTH,
@@ -278,6 +278,45 @@ function emitMainShell({ module }: ChandleryCompileContext): void {
     roofMaterial: sharedBuildingMaterial('shingle'),
     stoneGroundFloor: true,
   });
+  if (plan.debugMode === 'final') replaceLeftWallWithLiteralWindowAperture(module);
+}
+
+function replaceLeftWallWithLiteralWindowAperture(module: THREE.Group): void {
+  const solidWall = module.getObjectByName('Gable shell left side wall');
+  if (!(solidWall instanceof THREE.Mesh)) {
+    throw new Error('Chandlery left wall must exist before its side-window aperture is compiled.');
+  }
+  solidWall.removeFromParent();
+  solidWall.geometry.dispose();
+
+  const wallX = -(MAIN_WIDTH - 0.12) * 0.5;
+  const wallThickness = 0.16;
+  const wallZ0 = -(MAIN_DEPTH - 0.12 - wallThickness * 2) * 0.5;
+  const wallZ1 = -wallZ0;
+  const wallY0 = STONE_HEIGHT;
+  const wallY1 = STONE_HEIGHT + WALL_HEIGHT;
+  const openingZ0 = -1.04;
+  const openingZ1 = -0.06;
+  const openingY0 = 1.45;
+  const openingY1 = 2.55;
+  const material = sharedBuildingMaterial('plasterYellow');
+  const panels = [
+    ['lower', wallY0, openingY0, wallZ0, wallZ1],
+    ['upper', openingY1, wallY1, wallZ0, wallZ1],
+    ['rear-jamb', openingY0, openingY1, wallZ0, openingZ0],
+    ['front-jamb', openingY0, openingY1, openingZ1, wallZ1],
+  ] as const;
+  for (const [id, y0, y1, z0, z1] of panels) {
+    const panel = namedMesh(
+      module,
+      `Chandlery negative-x perforated wall ${id} panel`,
+      new THREE.BoxGeometry(wallThickness, y1 - y0, z1 - z0),
+      material,
+      new THREE.Vector3(wallX, (y0 + y1) * 0.5, (z0 + z1) * 0.5),
+    );
+    panel.userData.proceduralWallShell = true;
+    panel.userData.proceduralFacadeOpeningCount = 1;
+  }
 }
 
 function mainShellHost(root: THREE.Group): THREE.Group {
@@ -288,12 +327,15 @@ function mainShellHost(root: THREE.Group): THREE.Group {
   return host;
 }
 
-function emitMeltBayShell({ module }: ChandleryCompileContext): void {
+function emitMeltBayShell({ module, plan }: ChandleryCompileContext): void {
   namedMesh(module, 'Chandlery heated melt-bay stone floor', new THREE.BoxGeometry(2.3, 0.28, 3.34), stoneMaterial('mid'), new THREE.Vector3(4.66, 0.14, -0.55));
   namedMesh(module, 'Chandlery melt-bay dark service wall', new THREE.BoxGeometry(0.18, 2.3, 3.15), sharedBuildingMaterial('interiorDark'), new THREE.Vector3(4.02, 1.28, -0.55));
+  namedMesh(module, 'Chandlery melt-bay attached wall plate', new THREE.BoxGeometry(0.18, 0.16, 3.15), timberMaterial('dark'), new THREE.Vector3(4.02, 2.5, -0.55));
   for (const z of [-1.95, 0.85]) {
-    namedMesh(module, 'Chandlery melt-bay timber post', new THREE.BoxGeometry(0.2, 2.35, 0.2), timberMaterial('dark'), new THREE.Vector3(5.55, 1.18, z));
+    namedMesh(module, 'Chandlery melt-bay timber post', new THREE.BoxGeometry(0.2, 2.1, 0.2), timberMaterial('dark'), new THREE.Vector3(5.55, 1.05, z));
   }
+  namedMesh(module, 'Chandlery melt-bay low-eave wall plate', new THREE.BoxGeometry(0.18, 0.18, 3.0), timberMaterial('dark'), new THREE.Vector3(5.55, 2.17, -0.55));
+  addMeltBayOuterWall(module, plan.debugMode === 'final');
   addLeanToRoof(module, {
     width: 2.45,
     depth: 3.55,
@@ -304,6 +346,47 @@ function emitMeltBayShell({ module }: ChandleryCompileContext): void {
     highEdge: 'negativeX',
     name: 'Chandlery heated melt-bay lean-to roof',
   });
+}
+
+function addMeltBayOuterWall(module: THREE.Group, perforated: boolean): void {
+  const material = sharedBuildingMaterial('timberWeathered');
+  const x = 5.57;
+  const thickness = 0.12;
+  const z0 = -1.95;
+  const z1 = 0.85;
+  const y0 = 0.28;
+  const y1 = 2.08;
+  if (!perforated) {
+    namedMesh(
+      module,
+      'Chandlery melt-bay outer timber wall',
+      new THREE.BoxGeometry(thickness, y1 - y0, z1 - z0),
+      material,
+      new THREE.Vector3(x, (y0 + y1) * 0.5, (z0 + z1) * 0.5),
+    );
+    return;
+  }
+  const openingZ0 = -1.15;
+  const openingZ1 = 0.05;
+  const openingY0 = 1.04;
+  const openingY1 = 2.02;
+  const panels = [
+    ['lower', y0, openingY0, z0, z1],
+    ['upper', openingY1, y1, z0, z1],
+    ['rear-jamb', openingY0, openingY1, z0, openingZ0],
+    ['front-jamb', openingY0, openingY1, openingZ1, z1],
+  ] as const;
+  for (const [id, panelY0, panelY1, panelZ0, panelZ1] of panels) {
+    const panel = namedMesh(
+      module,
+      `Chandlery melt-bay perforated outer wall ${id} panel`,
+      new THREE.BoxGeometry(thickness, panelY1 - panelY0, panelZ1 - panelZ0),
+      material,
+      new THREE.Vector3(x, (panelY0 + panelY1) * 0.5, (panelZ0 + panelZ1) * 0.5),
+    );
+    panel.userData.proceduralWallShell = true;
+    panel.userData.proceduralFacadeOpeningCount = 1;
+  }
 }
 
 function emitFrontEntrance({ root, placement }: ChandleryCompileContext): void {

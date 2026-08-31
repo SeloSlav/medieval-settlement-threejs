@@ -934,20 +934,21 @@ export function createBakeryMesh(): THREE.Group {
   );
   ovenFlue.name = 'Bakery oven-to-chimney masonry flue';
   ovenFlue.userData.architectureRole = 'masonry-oven';
-  // Keep the stack on the oven axis. The previous offset stack read as an
-  // unrelated column and never visibly received the oven flue.
+  // Keep the stack on the oven axis and beyond the main roof eave. That lets
+  // the masonry oven receive a real flue without pretending a solid shingle
+  // panel has been cut around a roof penetration.
   const chimneyStack = addMesh(
     group,
     new THREE.BoxGeometry(0.72, 3.9, 0.72),
     stoneMaterial('mid'),
-    new THREE.Vector3(2.15, 4.35, 2.38),
+    new THREE.Vector3(2.15, 4.35, 3.55),
   );
   chimneyStack.name = 'Bakery oven-axis masonry chimney stack';
   const chimneyCap = addMesh(
     group,
     new THREE.BoxGeometry(0.92, 0.22, 0.92),
     stoneMaterial('mortar'),
-    new THREE.Vector3(2.15, 6.35, 2.38),
+    new THREE.Vector3(2.15, 6.35, 3.55),
   );
   chimneyCap.name = 'Bakery plain weathered chimney cap';
   addSegmentedStockProps(

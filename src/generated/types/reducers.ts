@@ -59,6 +59,7 @@ import RotateConstructionLaborReducer from "../rotate_construction_labor_reducer
 import SetAllStorageAcceptanceReducer from "../set_all_storage_acceptance_reducer";
 import SetApiaryHarvestPolicyReducer from "../set_apiary_harvest_policy_reducer";
 import SetBreweryRecipePolicyReducer from "../set_brewery_recipe_policy_reducer";
+import SetBuildingDogsReducer from "../set_building_dogs_reducer";
 import SetBuildingOxenReducer from "../set_building_oxen_reducer";
 import SetBuildingProductionRateReducer from "../set_building_production_rate_reducer";
 import SetCarpenterCartServiceTargetReducer from "../set_carpenter_cart_service_target_reducer";
@@ -175,6 +176,7 @@ export type RotateConstructionLaborParams = __Infer<typeof RotateConstructionLab
 export type SetAllStorageAcceptanceParams = __Infer<typeof SetAllStorageAcceptanceReducer>;
 export type SetApiaryHarvestPolicyParams = __Infer<typeof SetApiaryHarvestPolicyReducer>;
 export type SetBreweryRecipePolicyParams = __Infer<typeof SetBreweryRecipePolicyReducer>;
+export type SetBuildingDogsParams = __Infer<typeof SetBuildingDogsReducer>;
 export type SetBuildingOxenParams = __Infer<typeof SetBuildingOxenReducer>;
 export type SetBuildingProductionRateParams = __Infer<typeof SetBuildingProductionRateReducer>;
 export type SetCarpenterCartServiceTargetParams = __Infer<typeof SetCarpenterCartServiceTargetReducer>;

@@ -329,6 +329,7 @@ type ResourceInspectorOptions = {
   onPurchaseStableOx?: (stableId: string) => void | Promise<void>;
   onPurchaseKennelDog?: (kennelId: string) => void | Promise<void>;
   onSetBuildingOxen?: (buildingId: string, targetCount: number) => void | Promise<void>;
+  onSetBuildingDogs?: (buildingId: string, targetCount: number) => void | Promise<void>;
   onSetLivestockBreedingReserve?: (pastureId: string, breedingReserve: number) => void | Promise<void>;
   onSetLivestockHaymakingPercent?: (pastureId: string, haymakingPercent: number) => void | Promise<void>;
   onBeginFarmFieldPlacement?: (
@@ -947,6 +948,26 @@ export class ResourceInspector {
 
   private readonly onPanelClick = (event: MouseEvent): void => {
     event.stopPropagation();
+    const dogPostingButton = (event.target as HTMLElement)
+      .closest<HTMLButtonElement>('[data-dog-posting-delta]');
+    if (dogPostingButton && this.selectedTarget?.kind === 'building') {
+      if (dogPostingButton.disabled) return;
+      const team = dogPostingButton.closest<HTMLElement>('[data-hunting-dog-team]');
+      const delta = Number(dogPostingButton.dataset.dogPostingDelta);
+      const currentCount = Number(team?.dataset.postedCount);
+      const maxCount = Number(team?.dataset.maxCount);
+      if (Number.isFinite(delta) && Number.isFinite(currentCount) && Number.isFinite(maxCount)) {
+        const targetCount = Math.max(
+          0,
+          Math.min(Math.floor(maxCount), Math.floor(currentCount + delta)),
+        );
+        void this.options.onSetBuildingDogs?.(
+          this.selectedTarget.building.id,
+          targetCount,
+        );
+      }
+      return;
+    }
     const oxPostingButton = (event.target as HTMLElement)
       .closest<HTMLButtonElement>('[data-ox-posting-delta]');
     if (oxPostingButton && this.selectedTarget?.kind === 'building') {

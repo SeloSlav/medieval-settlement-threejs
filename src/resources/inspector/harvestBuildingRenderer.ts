@@ -58,7 +58,10 @@ import {
   REMEDY_DELIVERY_SPEED_MPS,
   REMEDY_DELIVERY_TARGET_DAYS,
   REMEDY_DELIVERY_UNLOAD_SEC,
+  KENNEL_DOG_HUNTING_RATE_BONUS,
+  KENNEL_DOG_MAX_PER_HUNTERS_HALL,
 } from '../../generated/gameBalance.ts';
+import { fireForTarget } from '../../fires/fireIncident.ts';
 import {
   compareStableEntityIds,
   localDeliveryDistancesFrom,
@@ -425,6 +428,38 @@ export function renderHarvestBuildingInspector(
         <p class="inspector-action-panel__hint" data-harvest-reserve-share>${reservePercent}% of capacity</p>
       </div>`
     : undefined;
+  const huntingDogs = building.kind === 'hunters_hall'
+    ? [...(context.combatAgents ?? [])].filter((agent) =>
+      agent.faction === 'dog'
+      && agent.sourceBuildingId != null
+      && agent.health > 0
+      && agent.status !== 'downed')
+    : [];
+  const assignedHuntingDogs = huntingDogs.filter((dog) =>
+    dog.assignedBuildingId === building.id).length;
+  const freeHuntingDogs = huntingDogs.filter((dog) =>
+    dog.assignedBuildingId == null).length;
+  const dogRateBonusPercent = Math.round(
+    assignedHuntingDogs * KENNEL_DOG_HUNTING_RATE_BONUS * 100,
+  );
+  const dogPostingLocked = fireForTarget(
+    context.gameState.fireIncidents.values(),
+    'building',
+    building.id,
+  ) != null;
+  const dogPanel = building.kind === 'hunters_hall'
+    ? `<div class="inspector-action-panel" data-inspector-panel-title="Hunting dogs" data-hunting-dog-team data-posted-count="${assignedHuntingDogs}" data-max-count="${KENNEL_DOG_MAX_PER_HUNTERS_HALL}">
+        <div class="resource-inspector-labor-row">
+          <span class="resource-inspector-labor-label"><span aria-hidden="true">🐕</span> Dogs at this camp</span>
+          <div class="resource-inspector-labor-controls">
+            <button type="button" class="resource-action-button resource-action-button--icon resource-inspector-labor-button" data-dog-posting-delta="-1" aria-label="Release one hunting dog to free patrol" ${dogPostingLocked || assignedHuntingDogs <= 0 ? 'disabled' : ''}>−</button>
+            <strong>${assignedHuntingDogs} / ${KENNEL_DOG_MAX_PER_HUNTERS_HALL}</strong>
+            <button type="button" class="resource-action-button resource-action-button--icon resource-inspector-labor-button" data-dog-posting-delta="1" aria-label="Assign one free dog to this hunting camp" ${dogPostingLocked || assignedHuntingDogs >= KENNEL_DOG_MAX_PER_HUNTERS_HALL || freeHuntingDogs <= 0 ? 'disabled' : ''}>+</button>
+          </div>
+        </div>
+        <p class="inspector-action-panel__hint">${assignedHuntingDogs > 0 ? `Hunting rate +${dogRateBonusPercent}%.` : 'No dogs assigned.'} ${freeHuntingDogs} free ${freeHuntingDogs === 1 ? 'dog' : 'dogs'} available.${dogPostingLocked ? ' Posting changes resume after fire recovery.' : ''} Dogs still intercept nearby threats; unassigned dogs wander and protect the whole settlement.</p>
+      </div>`
+    : undefined;
   const remedyRows = building.kind === 'foragers_shed'
     ? `<li><span>Medicinal harvest</span><span>${FORAGER_REMEDIES_PER_HARVEST.toFixed(1)} per gatherer-cycle · months ${FORAGER_REMEDY_SEASON_START_MONTH}–${FORAGER_REMEDY_SEASON_END_MONTH}</span></li>
       <li><span>Care dispatch rule</span><span>Least-covered sick home first · ${REMEDY_DELIVERY_TARGET_DAYS.toFixed(0)} treatment-day target · care preempts food on the shared cart</span></li>`
@@ -445,6 +480,7 @@ export function renderHarvestBuildingInspector(
       <li><span>Local food reserve</span><span>${Math.round(localFoodReserve)} protected · ${Math.round(institutionalSurplus)} central surplus</span></li>
       <li><span>Next surplus cart</span><span>${nextInstitutionalLabel}</span></li>
       ${remedyRows}
+      ${building.kind === 'hunters_hall' ? `<li><span>Hunting dogs</span><span>${assignedHuntingDogs} / ${KENNEL_DOG_MAX_PER_HUNTERS_HALL} assigned · +${dogRateBonusPercent}% meat and pelt rate</span></li>` : ''}
       ${reserveRows}
       ${deliveryRow}
     `,
@@ -453,6 +489,6 @@ export function renderHarvestBuildingInspector(
       hint: buildingDemolishHint(building.kind),
     },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
-    supplementalPanelHtml: reservePanel,
+    supplementalPanelHtml: [dogPanel, reservePanel].filter(Boolean).join('') || undefined,
   };
 }

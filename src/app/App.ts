@@ -1571,6 +1571,7 @@ export class App {
         herds: state.livestockHerds.values(),
         pastures: state.pastures.values(),
         backyardGardens: state.backyardGardens.values(),
+        combatAgents: snapshot.combatAgents.values(),
         laborPauseLabel,
       },
     ));

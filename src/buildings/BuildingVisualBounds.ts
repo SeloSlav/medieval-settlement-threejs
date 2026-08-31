@@ -51,7 +51,7 @@ export const BUILDING_LOCAL_VISUAL_BOUNDS = {
   monastery: { minX: -34.62, maxX: 34.62, minZ: -46.12, maxZ: 8.12 },
   brewery: { minX: -4.68, maxX: 5.52, minZ: -3.86, maxZ: 5.38 },
   tavern: { minX: -4.43, maxX: 4.43, minZ: -3.78, maxZ: 5.16 },
-  smokehouse: { minX: -5.43, maxX: 4.72, minZ: -3.29, maxZ: 5.22 },
+  smokehouse: { minX: -5.45, maxX: 4.72, minZ: -3.29, maxZ: 5.22 },
   granary: { minX: -5.08, maxX: 5.08, minZ: -3.86, maxZ: 4.9 },
   bakery: { minX: -4.18, maxX: 4.18, minZ: -3.70, maxZ: 4.77 },
   apiary: { minX: -4.45, maxX: 4.45, minZ: -4.97, maxZ: 3.78 },

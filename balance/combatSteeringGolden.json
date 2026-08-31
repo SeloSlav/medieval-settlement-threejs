@@ -1,0 +1,112 @@
+{
+  "description": "One synchronous hybrid-steering step shared by TypeScript and Rust. Agent ids are sorted so both uniform-grid bucket chains use the same deterministic descending-id traversal.",
+  "capacity": 4,
+  "dtSeconds": 0.05,
+  "tolerance": 1e-10,
+  "bounds": {
+    "minX": -100,
+    "maxX": 100,
+    "minZ": -100,
+    "maxZ": 100
+  },
+  "agents": [
+    {
+      "id": 257,
+      "ownerGroup": 1,
+      "team": 1,
+      "groupKind": 1,
+      "groupId": 9,
+      "faction": 3,
+      "targetId": 0,
+      "enabled": true,
+      "x": -0.7,
+      "z": -0.2,
+      "goalX": 4,
+      "goalZ": 0.4,
+      "speed": 2.2,
+      "velocityX": 1.2,
+      "velocityZ": 0
+    },
+    {
+      "id": 514,
+      "ownerGroup": 1,
+      "team": 2,
+      "groupKind": 1,
+      "groupId": 10,
+      "faction": 2,
+      "targetId": 0,
+      "enabled": true,
+      "x": 0.15,
+      "z": 0.1,
+      "goalX": -3,
+      "goalZ": -0.5,
+      "speed": 2.2,
+      "velocityX": -0.8,
+      "velocityZ": 0
+    },
+    {
+      "id": 771,
+      "ownerGroup": 1,
+      "team": 1,
+      "groupKind": 1,
+      "groupId": 9,
+      "faction": 3,
+      "targetId": 0,
+      "enabled": true,
+      "x": -0.1,
+      "z": 1.15,
+      "goalX": 3,
+      "goalZ": 1.4,
+      "speed": 2.2,
+      "velocityX": 0,
+      "velocityZ": 0.35
+    },
+    {
+      "id": 1028,
+      "ownerGroup": 1,
+      "team": 2,
+      "groupKind": 1,
+      "groupId": 12,
+      "faction": 2,
+      "targetId": 0,
+      "enabled": true,
+      "x": -0.25,
+      "z": -0.05,
+      "goalX": 2,
+      "goalZ": -2,
+      "speed": 2.2,
+      "velocityX": 0.2,
+      "velocityZ": -0.4
+    }
+  ],
+  "expected": [
+    {
+      "id": 257,
+      "x": -0.6211652353028545,
+      "z": -0.19152076767252943,
+      "velocityX": 1.5766952939429093,
+      "velocityZ": 0.16958464654941155
+    },
+    {
+      "id": 514,
+      "x": 0.08291042053461327,
+      "z": 0.09375248482589202,
+      "velocityX": -1.3417915893077343,
+      "velocityZ": -0.12495030348215963
+    },
+    {
+      "id": 771,
+      "x": -0.08249856136020821,
+      "z": 1.1913947950537742,
+      "velocityX": 0.35002877279583583,
+      "velocityZ": 0.8278959010754868
+    },
+    {
+      "id": 1028,
+      "x": -0.21104102319522414,
+      "z": -0.090260770204108,
+      "velocityX": 0.7791795360955174,
+      "velocityZ": -0.8052154040821597
+    }
+  ]
+}

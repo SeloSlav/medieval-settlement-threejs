@@ -1,15 +1,17 @@
-use spacetimedb::ReducerContext;
+use std::cell::RefCell;
 
+use spacetimedb::{Identity, ReducerContext};
+
+use crate::balance_generated::COMBAT_STEERING_SEPARATION_DISTANCE_M;
 use crate::db::*;
 use crate::economy::spend_treasury_gold;
 use crate::military_policy::{
     company_wages_enabled, local_company_requires_provisions, matchup_damage_multiplier,
     member_combat_profile, military_battle_end_ticks, military_day_ticks,
     military_level_for_experience, military_stats, normalize_military_demands,
-    shield_wall_damage_multiplier, veteran_damage_multiplier,
-    veteran_damage_taken_multiplier, veteran_health_multiplier, MilitaryKind,
-    MERCENARY_IDLE_DEPARTURE_DAYS, MERCENARY_MAX_CONTRACT_DAYS,
-    MILITARY_BATTLE_SURVIVAL_XP, MILITARY_ENEMY_COMPANY_XP,
+    shield_wall_damage_multiplier, veteran_damage_multiplier, veteran_damage_taken_multiplier,
+    veteran_health_multiplier, MilitaryKind, MERCENARY_IDLE_DEPARTURE_DAYS,
+    MERCENARY_MAX_CONTRACT_DAYS, MILITARY_BATTLE_SURVIVAL_XP, MILITARY_ENEMY_COMPANY_XP,
 };
 use crate::security_policy::RaidPortableStores;
 use crate::tables::{
@@ -17,6 +19,9 @@ use crate::tables::{
 };
 
 use super::bandits::destroy_camp;
+use super::military_steering::{
+    melee_engagement_goal, ranged_firing_line_goal, CombatSteeringGrid, SteeringBody,
+};
 use super::raid_agents::{down_external_raider, reclamation_from_raid_stores};
 use super::reclamation::recover_stock_at;
 
@@ -28,6 +33,7 @@ const FIRST_PLAYER_MILITARY: u8 = 3;
 const LAST_PLAYER_MILITARY: u8 = 10;
 const ADVANCING: u8 = 0;
 const FIGHTING: u8 = 1;
+const LOOTING: u8 = 2;
 const RETREATING: u8 = 3;
 const RETURNING: u8 = 4;
 const DOWNED: u8 = 5;
@@ -35,6 +41,14 @@ const MUSTERING: u8 = 8;
 const HOLDING: u8 = 9;
 const ARRIVAL_DISTANCE: f64 = 2.3;
 const DOWNED_LINGER_SECONDS: f64 = 7.0;
+
+thread_local! {
+    /// Reducer-local reusable storage. Spacetime reducers are transactionally
+    /// serialized, while thread-local ownership avoids a global lock and keeps
+    /// the hot vectors allocated between scheduler heartbeats.
+    static COMBAT_STEERING_GRID: RefCell<CombatSteeringGrid> =
+        RefCell::new(CombatSteeringGrid::default());
+}
 
 pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds: f64) {
     if !elapsed_seconds.is_finite() || elapsed_seconds <= 0.0 {
@@ -48,40 +62,52 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
         .map_or(1, |row| normalize_military_demands(row.military_demands));
     step_mercenary_contracts(ctx, sim_tick);
     step_company_upkeep(ctx, sim_tick, military_demands);
-    let members = ctx.db.military_member().iter().collect::<Vec<_>>();
-    for member in members {
-        let Some(agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
-            ctx.db
-                .military_member()
-                .combat_agent_id()
-                .delete(member.combat_agent_id);
-            continue;
-        };
-        if agent.state == DOWNED {
-            step_downed_member(ctx, agent, member, elapsed_seconds);
-            continue;
+    COMBAT_STEERING_GRID.with(|cell| {
+        let mut steering = cell.borrow_mut();
+        rebuild_steering_grid(ctx, &mut steering);
+        let members = ctx.db.military_member().iter().collect::<Vec<_>>();
+        for member in members {
+            let Some(agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
+                ctx.db
+                    .military_member()
+                    .combat_agent_id()
+                    .delete(member.combat_agent_id);
+                continue;
+            };
+            if agent.state == DOWNED {
+                step_downed_member(ctx, agent, member, elapsed_seconds);
+                continue;
+            }
+            let Some(company) = ctx.db.military_company().id().find(&member.company_id) else {
+                recover_member_kit(ctx, &agent);
+                ctx.db.militia_order().combat_agent_id().delete(agent.id);
+                ctx.db.military_member().combat_agent_id().delete(agent.id);
+                ctx.db.combat_agent().id().delete(agent.id);
+                continue;
+            };
+            match member.phase {
+                0 => step_mustering_member(ctx, agent, member, company, sim_tick, elapsed_seconds),
+                2 | 3 => step_returning_member(ctx, agent, member, company, elapsed_seconds),
+                _ => step_active_member(
+                    ctx,
+                    agent,
+                    member,
+                    company,
+                    sim_tick,
+                    elapsed_seconds,
+                    military_demands,
+                    &steering,
+                ),
+            }
         }
-        let Some(company) = ctx.db.military_company().id().find(&member.company_id) else {
-            recover_member_kit(ctx, &agent);
-            ctx.db.militia_order().combat_agent_id().delete(agent.id);
-            ctx.db.military_member().combat_agent_id().delete(agent.id);
-            ctx.db.combat_agent().id().delete(agent.id);
-            continue;
-        };
-        match member.phase {
-            0 => step_mustering_member(ctx, agent, member, company, sim_tick, elapsed_seconds),
-            2 | 3 => step_returning_member(ctx, agent, member, company, elapsed_seconds),
-            _ => step_active_member(
-                ctx,
-                agent,
-                member,
-                company,
-                sim_tick,
-                elapsed_seconds,
-                military_demands,
-            ),
-        }
-    }
+
+        // Hostile movement resolves earlier in the heartbeat. Rebuild from
+        // current canonical positions, then apply one synchronous all-living
+        // correction so player companies, raiders, bandits, guards, and
+        // hostile groups cannot pass through one another.
+        rebuild_steering_grid(ctx, &mut steering);
+        apply_global_combat_steering(ctx, &steering, elapsed_seconds);
+    });
     refresh_company_summaries(ctx, sim_tick, elapsed_seconds, military_demands);
 }
 
@@ -101,6 +127,8 @@ fn step_mustering_member(
     agent.state = MUSTERING;
     if distance(agent.x, agent.z, source.x, source.z) <= ARRIVAL_DISTANCE {
         agent.state = HOLDING;
+        agent.velocity_x = 0.0;
+        agent.velocity_z = 0.0;
         agent.target_kind = 6;
         agent.target_id = 0;
         agent.state_changed_tick = tick;
@@ -188,6 +216,7 @@ fn step_active_member(
     tick: u64,
     dt: f64,
     military_demands: u8,
+    steering: &CombatSteeringGrid,
 ) {
     if company.state >= 2 {
         member.phase = 2;
@@ -210,6 +239,8 @@ fn step_active_member(
             agent.state = RETREATING;
             if distance(agent.x, agent.z, source.x, source.z) <= ARRIVAL_DISTANCE {
                 agent.state = HOLDING;
+                agent.velocity_x = 0.0;
+                agent.velocity_z = 0.0;
             }
         }
         regenerate_out_of_combat_health(&mut agent, dt);
@@ -231,12 +262,7 @@ fn step_active_member(
     {
         agent.target_kind = 6;
         agent.target_id = 0;
-        let remaining = distance(
-            agent.x,
-            agent.z,
-            order.destination_x,
-            order.destination_z,
-        );
+        let remaining = distance(agent.x, agent.z, order.destination_x, order.destination_z);
         if remaining > ARRIVAL_DISTANCE {
             let profile = member_combat_profile(kind, member_seed(&member));
             let run_scale = if remaining > 14.0 && company.fatigue < 0.82 {
@@ -245,9 +271,8 @@ fn step_active_member(
                 1.0
             };
             walk_flocked(
-                ctx,
+                steering,
                 &mut agent,
-                company.id,
                 order.destination_x,
                 order.destination_z,
                 stats.speed * profile.speed_scale * run_scale,
@@ -258,6 +283,8 @@ fn step_active_member(
         } else {
             ctx.db.militia_order().combat_agent_id().delete(agent.id);
             agent.state = HOLDING;
+            agent.velocity_x = 0.0;
+            agent.velocity_z = 0.0;
             agent.route_progress = 0.0;
         }
         regenerate_out_of_combat_health(&mut agent, dt);
@@ -268,16 +295,13 @@ fn step_active_member(
     // Each soldier chooses a nearby opponent with a saturation penalty. This
     // spreads contact across the enemy line while flock steering keeps the
     // unselectable individuals attached to their atomic company.
-    if let Some((_score, mut enemy)) = nearest_distributed_enemy(ctx, &agent, company.id)
-        .filter(|(range, _)| *range <= stats.acquisition_range)
+    if let Some(mut enemy) =
+        retained_or_nearest_enemy(ctx, steering, &agent, stats.acquisition_range)
     {
         let range = distance(agent.x, agent.z, enemy.x, enemy.z);
         agent.target_kind = 7;
         agent.target_id = enemy.id;
-        let ranged_kind = matches!(
-            kind,
-            MilitaryKind::Crossbows | MilitaryKind::Bowmen
-        );
+        let ranged_kind = matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen);
         let can_shoot = ranged_kind && member.ammunition > 0;
         let strike_range = if can_shoot { stats.strike_range } else { 2.15 };
         let minimum_ranged_spacing = match kind {
@@ -302,12 +326,25 @@ fn step_active_member(
             } else {
                 1.0
             };
+            let rank = agent.source_slot as usize;
+            let movement_goal = if can_shoot {
+                ranged_firing_line_goal(
+                    rank,
+                    company.living_members.max(1) as usize,
+                    agent.x,
+                    agent.z,
+                    enemy.x,
+                    enemy.z,
+                    stats.strike_range,
+                )
+            } else {
+                melee_engagement_goal(company.id, enemy.id, rank, enemy.x, enemy.z, strike_range)
+            };
             walk_flocked(
-                ctx,
+                steering,
                 &mut agent,
-                company.id,
-                enemy.x,
-                enemy.z,
+                movement_goal.0,
+                movement_goal.1,
                 stats.speed * run_scale,
                 dt,
             );
@@ -317,9 +354,9 @@ fn step_active_member(
             let charged_into_contact = !can_shoot && agent.route_progress > 10.0;
             agent.route_progress = 0.0;
             agent.state = FIGHTING;
+            agent.velocity_x = 0.0;
+            agent.velocity_z = 0.0;
             enemy.state = FIGHTING;
-            enemy.target_kind = 7;
-            enemy.target_id = agent.id;
             enemy.target_kind = 7;
             enemy.target_id = agent.id;
             if agent.attack_cooldown <= 0.0 {
@@ -423,9 +460,8 @@ fn step_active_member(
                 1.0
             };
             walk_flocked(
-                ctx,
+                steering,
                 &mut agent,
-                company.id,
                 target.0,
                 target.1,
                 stats.speed * profile.speed_scale * run_scale,
@@ -442,6 +478,8 @@ fn step_active_member(
                 .is_some_and(|camp| camp.active)
         {
             agent.state = FIGHTING;
+            agent.velocity_x = 0.0;
+            agent.velocity_z = 0.0;
             if strike_camp(ctx, &mut agent, &company, order.target_camp_id, tick) {
                 award_company_experience(ctx, company.id, MILITARY_ENEMY_COMPANY_XP);
             }
@@ -450,6 +488,8 @@ fn step_active_member(
             agent.target_kind = 6;
             agent.target_id = 0;
             agent.state = HOLDING;
+            agent.velocity_x = 0.0;
+            agent.velocity_z = 0.0;
         }
         if agent.state != FIGHTING {
             regenerate_out_of_combat_health(&mut agent, dt);
@@ -459,6 +499,8 @@ fn step_active_member(
         agent.target_kind = 6;
         agent.target_id = 0;
         agent.state = HOLDING;
+        agent.velocity_x = 0.0;
+        agent.velocity_z = 0.0;
         regenerate_out_of_combat_health(&mut agent, dt);
     }
     agent.readiness = (company.morale * 0.55 + company.cohesion * 0.45).clamp(0.05, 1.0);
@@ -628,12 +670,7 @@ fn begin_mercenary_departure(ctx: &ReducerContext, company_id: u64) {
     }
 }
 
-fn refresh_company_summaries(
-    ctx: &ReducerContext,
-    tick: u64,
-    dt: f64,
-    military_demands: u8,
-) {
+fn refresh_company_summaries(ctx: &ReducerContext, tick: u64, dt: f64, military_demands: u8) {
     for mut company in ctx.db.military_company().iter().collect::<Vec<_>>() {
         let members = ctx
             .db
@@ -687,8 +724,7 @@ fn refresh_company_summaries(
                     }
                     company.last_combat_tick = tick;
                 } else if company.battle_started_tick > 0
-                    && tick.saturating_sub(company.last_combat_tick)
-                        >= military_battle_end_ticks()
+                    && tick.saturating_sub(company.last_combat_tick) >= military_battle_end_ticks()
                 {
                     let previous_level = company.level.max(1);
                     company.experience = company
@@ -698,12 +734,7 @@ fn refresh_company_summaries(
                     company.battle_started_tick = 0;
                     company.last_combat_tick = 0;
                     if company.level > previous_level {
-                        apply_veteran_level_health(
-                            ctx,
-                            company.id,
-                            previous_level,
-                            company.level,
-                        );
+                        apply_veteran_level_health(ctx, company.id, previous_level, company.level);
                     }
                 }
             }
@@ -718,39 +749,34 @@ fn refresh_company_summaries(
     }
 }
 
-fn nearest_distributed_enemy(
+fn retained_or_nearest_enemy(
     ctx: &ReducerContext,
+    steering: &CombatSteeringGrid,
     source: &CombatAgent,
-    company_id: u64,
-) -> Option<(f64, CombatAgent)> {
-    let company_agents = ctx
-        .db
-        .military_member()
-        .company_id()
-        .filter(&company_id)
-        .filter_map(|member| ctx.db.combat_agent().id().find(&member.combat_agent_id))
-        .filter(|agent| agent.state != DOWNED && agent.health > 0.0)
-        .collect::<Vec<_>>();
-    ctx.db
-        .combat_agent()
-        .owner()
-        .filter(&source.owner)
-        .filter(|enemy| {
-            matches!(enemy.faction, RAIDER | BANDIT | FOX | WOLF) && enemy.state != DOWNED && enemy.health > 0.0
-        })
-        .map(|enemy| {
-            let range = distance(source.x, source.z, enemy.x, enemy.z);
-            let assigned = company_agents
-                .iter()
-                .filter(|friend| friend.target_kind == 7 && friend.target_id == enemy.id)
-                .count() as f64;
-            // About two attackers per defender keeps a line engaged without
-            // creating one implausible dog-pile. Distance still dominates.
-            let score = range + assigned * 2.75;
-            (score, range, enemy)
-        })
-        .min_by(|left, right| left.0.total_cmp(&right.0))
-        .map(|(_, range, enemy)| (range, enemy))
+    acquisition_range: f64,
+) -> Option<CombatAgent> {
+    let retention_range = acquisition_range * 1.35;
+    if source.target_kind == 7 {
+        if let Some(enemy) = ctx
+            .db
+            .combat_agent()
+            .id()
+            .find(&source.target_id)
+            .filter(|enemy| {
+                enemy.owner == source.owner
+                    && matches!(enemy.faction, RAIDER | BANDIT | FOX | WOLF)
+                    && enemy.state != DOWNED
+                    && enemy.health > 0.0
+                    && distance(source.x, source.z, enemy.x, enemy.z) <= retention_range
+            })
+        {
+            return Some(enemy);
+        }
+    }
+    let id = steering.nearest_matching_id(source.id, acquisition_range, |faction| {
+        matches!(faction, RAIDER | BANDIT | FOX | WOLF)
+    })?;
+    ctx.db.combat_agent().id().find(&id)
 }
 
 #[derive(Clone, Copy)]
@@ -832,63 +858,226 @@ fn member_seed(member: &MilitaryMember) -> u64 {
     member.company_id.rotate_left(31) ^ member.residence_id ^ member.resident_slot as u64
 }
 
-fn walk_flocked(
+fn rebuild_steering_grid(ctx: &ReducerContext, steering: &mut CombatSteeringGrid) {
+    steering.begin();
+    for agent in ctx.db.combat_agent().iter() {
+        if agent.state == DOWNED || agent.health <= 0.0 {
+            continue;
+        }
+        let (group_kind, group_id) = ctx
+            .db
+            .military_member()
+            .combat_agent_id()
+            .find(&agent.id)
+            .map_or_else(
+                || match agent.faction {
+                    RAIDER => (2, agent.raid_id),
+                    BANDIT => (3, agent.raid_id),
+                    0 => (4, agent.source_building_id),
+                    FOX | WOLF => (5, agent.raid_id),
+                    _ => (6, agent.raid_id.max(agent.id)),
+                },
+                |member| (1, member.company_id),
+            );
+        let (goal_x, goal_z, speed) = canonical_steering_goal(ctx, &agent);
+        let (velocity_x, velocity_z) = if matches!(agent.state, FIGHTING | LOOTING) {
+            (0.0, 0.0)
+        } else {
+            (agent.velocity_x, agent.velocity_z)
+        };
+        steering.push(SteeringBody {
+            id: agent.id,
+            owner_group: identity_group(agent.owner),
+            group_kind,
+            group_id,
+            faction: agent.faction,
+            target_id: agent.target_id,
+            x: agent.x,
+            z: agent.z,
+            goal_x,
+            goal_z,
+            speed,
+            velocity_x,
+            velocity_z,
+        });
+    }
+    steering.finish();
+}
+
+fn canonical_steering_goal(ctx: &ReducerContext, agent: &CombatAgent) -> (f64, f64, f64) {
+    let speed = if let Some(member) = ctx.db.military_member().combat_agent_id().find(&agent.id) {
+        ctx.db
+            .military_company()
+            .id()
+            .find(&member.company_id)
+            .and_then(|company| MilitaryKind::from_id(company.kind))
+            .map_or(2.4, |kind| military_stats(kind).speed)
+    } else {
+        match agent.faction {
+            RAIDER => 2.65,
+            BANDIT => 2.15,
+            FOX => 3.35,
+            WOLF => 3.0,
+            _ => 2.4,
+        }
+    };
+    if matches!(agent.state, RETREATING | RETURNING) {
+        return (agent.home_x, agent.home_z, speed);
+    }
+    if let Some(order) = ctx.db.militia_order().combat_agent_id().find(&agent.id) {
+        return (order.destination_x, order.destination_z, speed);
+    }
+    if agent.target_kind == 7 {
+        if let Some(target) = ctx.db.combat_agent().id().find(&agent.target_id) {
+            if let Some(member) = ctx.db.military_member().combat_agent_id().find(&agent.id) {
+                if let Some(company) = ctx.db.military_company().id().find(&member.company_id) {
+                    if let Some(kind) = MilitaryKind::from_id(company.kind) {
+                        let stats = military_stats(kind);
+                        let rank = agent.source_slot as usize;
+                        let goal = if matches!(kind, MilitaryKind::Bowmen | MilitaryKind::Crossbows)
+                            && member.ammunition > 0
+                        {
+                            ranged_firing_line_goal(
+                                rank,
+                                company.living_members.max(1) as usize,
+                                agent.x,
+                                agent.z,
+                                target.x,
+                                target.z,
+                                stats.strike_range,
+                            )
+                        } else {
+                            melee_engagement_goal(
+                                company.id,
+                                target.id,
+                                rank,
+                                target.x,
+                                target.z,
+                                stats.strike_range,
+                            )
+                        };
+                        return (goal.0, goal.1, speed);
+                    }
+                }
+            }
+            let goal = if agent.faction == RAIDER && agent.source_slot % 4 == 3 {
+                ranged_firing_line_goal(
+                    agent.source_slot as usize,
+                    8,
+                    agent.x,
+                    agent.z,
+                    target.x,
+                    target.z,
+                    12.0,
+                )
+            } else {
+                melee_engagement_goal(
+                    agent.raid_id.max(agent.source_building_id),
+                    target.id,
+                    agent.source_slot as usize,
+                    target.x,
+                    target.z,
+                    2.15,
+                )
+            };
+            return (goal.0, goal.1, speed);
+        }
+    }
+    let target = match agent.target_kind {
+        0 | 3 => ctx
+            .db
+            .building()
+            .id()
+            .find(&agent.target_id)
+            .map(|target| (target.x, target.z)),
+        1 | 4 => ctx
+            .db
+            .residence()
+            .id()
+            .find(&agent.target_id)
+            .map(|target| (target.x, target.z)),
+        2 => ctx
+            .db
+            .delivery_trip()
+            .id()
+            .find(&agent.target_id)
+            .map(|target| (target.x, target.z)),
+        5 => ctx
+            .db
+            .bandit_camp()
+            .id()
+            .find(&agent.target_id)
+            .map(|target| (target.x, target.z)),
+        _ => None,
+    };
+    if let Some((x, z)) = target {
+        (x, z, speed)
+    } else if agent.velocity_x.hypot(agent.velocity_z) > 1e-8 {
+        (
+            agent.x + agent.velocity_x,
+            agent.z + agent.velocity_z,
+            speed,
+        )
+    } else {
+        (agent.x, agent.z, speed)
+    }
+}
+
+/// Final all-faction correction changes canonical coordinates but never grants
+/// another full movement step. Only the difference between the pre-integrated
+/// velocity and the globally steered velocity is projected into position.
+fn apply_global_combat_steering(
     ctx: &ReducerContext,
+    steering: &CombatSteeringGrid,
+    elapsed_seconds: f64,
+) {
+    let dt = elapsed_seconds.min(0.2);
+    for index in 0..steering.len() {
+        let source = steering.body(index);
+        let Some(mut agent) = ctx.db.combat_agent().id().find(&source.id) else {
+            continue;
+        };
+        if agent.state == DOWNED || agent.health <= 0.0 {
+            continue;
+        }
+        let output = steering.steer(source, source.goal_x, source.goal_z, source.speed, dt);
+        let mut correction_x = (output.velocity_x - source.velocity_x) * dt;
+        let mut correction_z = (output.velocity_z - source.velocity_z) * dt;
+        let correction_length = correction_x.hypot(correction_z);
+        let correction_limit = COMBAT_STEERING_SEPARATION_DISTANCE_M * 0.5;
+        if correction_length > correction_limit {
+            correction_x = correction_x / correction_length * correction_limit;
+            correction_z = correction_z / correction_length * correction_limit;
+        }
+        agent.x += correction_x;
+        agent.z += correction_z;
+        agent.velocity_x = output.velocity_x;
+        agent.velocity_z = output.velocity_z;
+        ctx.db.combat_agent().id().update(agent);
+    }
+}
+
+fn identity_group(owner: Identity) -> u64 {
+    let bytes = owner.to_u256().to_le_bytes();
+    bytes
+        .chunks_exact(8)
+        .map(|chunk| u64::from_le_bytes(chunk.try_into().expect("identity chunk")))
+        .fold(0_u64, |hash, word| hash.rotate_left(13) ^ word)
+}
+
+fn walk_flocked(
+    _steering: &CombatSteeringGrid,
     agent: &mut CombatAgent,
-    company_id: u64,
     goal_x: f64,
     goal_z: f64,
     speed: f64,
     dt: f64,
 ) {
-    let goal_dx = goal_x - agent.x;
-    let goal_dz = goal_z - agent.z;
-    let goal_distance = goal_dx.hypot(goal_dz);
-    if goal_distance <= 1e-6 {
-        return;
-    }
-    let mut separation_x = 0.0;
-    let mut separation_z = 0.0;
-    let mut center_x = 0.0;
-    let mut center_z = 0.0;
-    let mut neighbors = 0_u32;
-    for member in ctx.db.military_member().company_id().filter(&company_id) {
-        if member.combat_agent_id == agent.id || member.phase != 1 {
-            continue;
-        }
-        let Some(friend) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
-            continue;
-        };
-        if friend.state == DOWNED || friend.health <= 0.0 {
-            continue;
-        }
-        center_x += friend.x;
-        center_z += friend.z;
-        neighbors += 1;
-        let dx = agent.x - friend.x;
-        let dz = agent.z - friend.z;
-        let range = dx.hypot(dz);
-        if range > 1e-5 && range < 2.0 {
-            let pressure = (2.0 - range) / 2.0;
-            separation_x += dx / range * pressure;
-            separation_z += dz / range * pressure;
-        }
-    }
-    let mut steer_x = goal_dx / goal_distance;
-    let mut steer_z = goal_dz / goal_distance;
-    if neighbors > 0 {
-        center_x /= neighbors as f64;
-        center_z /= neighbors as f64;
-        let cohesion_dx = center_x - agent.x;
-        let cohesion_dz = center_z - agent.z;
-        let cohesion_length = cohesion_dx.hypot(cohesion_dz).max(1e-6);
-        steer_x += separation_x * 0.82 + cohesion_dx / cohesion_length * 0.16;
-        steer_z += separation_z * 0.82 + cohesion_dz / cohesion_length * 0.16;
-    }
-    let length = steer_x.hypot(steer_z).max(1e-6);
-    let step = (speed.max(0.0) * dt).min(goal_distance);
-    agent.x += steer_x / length * step;
-    agent.z += steer_z / length * step;
+    // Path/formation behavior performs the heartbeat's one base integration.
+    // The final global pass replaces only the velocity delta, making the net
+    // displacement equivalent to one steered step rather than integrating the
+    // agent a second time.
+    walk(agent, goal_x, goal_z, speed, dt);
 }
 
 fn down_enemy(ctx: &ReducerContext, enemy: &mut CombatAgent, tick: u64) {
@@ -1029,9 +1218,8 @@ fn strike_camp(
         return false;
     }
     let stats = military_stats(kind);
-    camp.health = (
-        camp.health - stats.damage * veteran_damage_multiplier(company.level) * 0.72
-    ).max(0.0);
+    camp.health =
+        (camp.health - stats.damage * veteran_damage_multiplier(company.level) * 0.72).max(0.0);
     agent.attack_cooldown = stats.attack_seconds;
     let destroyed = camp.health <= 0.0;
     if destroyed {
@@ -1213,19 +1401,29 @@ fn walk(agent: &mut CombatAgent, x: f64, z: f64, speed: f64, dt: f64) {
     let dz = z - agent.z;
     let distance = dx.hypot(dz);
     if distance <= 1e-6 {
+        agent.velocity_x = 0.0;
+        agent.velocity_z = 0.0;
         return;
     }
     let step = (speed.max(0.0) * dt).min(distance);
-    agent.x += dx / distance * step;
-    agent.z += dz / distance * step;
+    let move_x = dx / distance * step;
+    let move_z = dz / distance * step;
+    agent.x += move_x;
+    agent.z += move_z;
+    agent.velocity_x = move_x / dt.max(1e-9);
+    agent.velocity_z = move_z / dt.max(1e-9);
 }
 
 fn walk_away(agent: &mut CombatAgent, x: f64, z: f64, speed: f64, dt: f64) {
     let dx = agent.x - x;
     let dz = agent.z - z;
     let length = dx.hypot(dz).max(1e-6);
-    agent.x += dx / length * speed * dt;
-    agent.z += dz / length * speed * dt;
+    let move_x = dx / length * speed * dt;
+    let move_z = dz / length * speed * dt;
+    agent.x += move_x;
+    agent.z += move_z;
+    agent.velocity_x = move_x / dt.max(1e-9);
+    agent.velocity_z = move_z / dt.max(1e-9);
 }
 
 fn distance(ax: f64, az: f64, bx: f64, bz: f64) -> f64 {

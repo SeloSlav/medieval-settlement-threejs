@@ -351,6 +351,8 @@ export type GameBalance = {
     stableOxPurchaseGold: number;
     kennelDogSlots: number;
     kennelDogPurchaseGold: number;
+    kennelDogMaxPerHuntersHall: number;
+    kennelDogHuntingRateBonus: number;
     stoneSalvageFraction: number;
     timberSalvageFraction: number;
     goldSalvageFraction: number;
@@ -1053,6 +1055,8 @@ function generateRust(): string {
     `pub const STABLE_OX_PURCHASE_GOLD: f64 = ${rustF64(b.economy.stableOxPurchaseGold)};`,
     `pub const KENNEL_DOG_SLOTS: u8 = ${b.economy.kennelDogSlots};`,
     `pub const KENNEL_DOG_PURCHASE_GOLD: f64 = ${rustF64(b.economy.kennelDogPurchaseGold)};`,
+    `pub const KENNEL_DOG_MAX_PER_HUNTERS_HALL: u32 = ${b.economy.kennelDogMaxPerHuntersHall};`,
+    `pub const KENNEL_DOG_HUNTING_RATE_BONUS: f64 = ${rustF64(b.economy.kennelDogHuntingRateBonus)};`,
     `pub const STONE_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.stoneSalvageFraction)};`,
     `pub const TIMBER_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.timberSalvageFraction)};`,
     `pub const IRONWORK_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.ironworkSalvageFraction)};`,
@@ -2158,6 +2162,8 @@ function generateTypeScript(): string {
     `export const STABLE_OX_PURCHASE_GOLD = ${b.economy.stableOxPurchaseGold};`,
     `export const KENNEL_DOG_SLOTS = ${b.economy.kennelDogSlots};`,
     `export const KENNEL_DOG_PURCHASE_GOLD = ${b.economy.kennelDogPurchaseGold};`,
+    `export const KENNEL_DOG_MAX_PER_HUNTERS_HALL = ${b.economy.kennelDogMaxPerHuntersHall};`,
+    `export const KENNEL_DOG_HUNTING_RATE_BONUS = ${b.economy.kennelDogHuntingRateBonus};`,
     `export const STONE_SALVAGE_FRACTION = ${b.economy.stoneSalvageFraction};`,
     `export const TIMBER_SALVAGE_FRACTION = ${b.economy.timberSalvageFraction};`,
     `export const IRONWORK_SALVAGE_FRACTION = ${b.economy.ironworkSalvageFraction};`,

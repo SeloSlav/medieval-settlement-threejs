@@ -173,6 +173,8 @@
     "stableOxPurchaseGold": 24,
     "kennelDogSlots": 4,
     "kennelDogPurchaseGold": 18,
+    "kennelDogMaxPerHuntersHall": 3,
+    "kennelDogHuntingRateBonus": 0.2,
     "stoneSalvageFraction": 0.92,
     "timberSalvageFraction": 0.7,
     "ironworkSalvageFraction": 0.85,

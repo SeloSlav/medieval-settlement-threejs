@@ -411,6 +411,19 @@ const SETTLEMENT_HUD_HTML = `
               Posted oxen stay with one workplace. Auto oxen choose useful work.
             </p>
           </section>
+          <section class="settlement-hud__animals-section settlement-hud__animals-section--dogs" data-animals-dogs>
+            <header><strong>Guard dogs</strong><span data-animals-dog-meta>0 / 0 bays</span></header>
+            <div class="settlement-hud__animals-metrics" aria-label="Dog assignment summary">
+              <span><strong data-animals-dog-assigned>0</strong> Hunting</span>
+              <span><strong data-animals-dog-free>0</strong> Free patrol</span>
+            </div>
+            <div class="settlement-hud__animals-list" data-animals-dog-list>
+              <p class="settlement-hud__animals-empty">Build a Kennel and purchase a dog to begin the roster.</p>
+            </div>
+            <p class="settlement-hud__animals-note">
+              Hunting dogs work from one camp. Free dogs wander and protect the settlement.
+            </p>
+          </section>
           <section class="settlement-hud__animals-section" data-animals-herds>
             <header><strong>Managed herds</strong><span data-animals-herd-meta>0 head</span></header>
             <div class="settlement-hud__animal-ledger-list" data-animals-herd-list>
@@ -847,6 +860,10 @@ export class SettlementHud {
   private readonly animalsWorking: HTMLElement;
   private readonly animalsStableCapacity: HTMLElement;
   private readonly animalsList: HTMLElement;
+  private readonly animalsDogMeta: HTMLElement;
+  private readonly animalsDogAssigned: HTMLElement;
+  private readonly animalsDogFree: HTMLElement;
+  private readonly animalsDogList: HTMLElement;
   private readonly animalsHerdMeta: HTMLElement;
   private readonly animalsHerdList: HTMLElement;
   private readonly animalsBackyardMeta: HTMLElement;
@@ -1006,6 +1023,10 @@ export class SettlementHud {
     this.animalsWorking = this.mustElement('[data-animals-working]');
     this.animalsStableCapacity = this.mustElement('[data-animals-stable-capacity]');
     this.animalsList = this.mustElement('[data-animals-list]');
+    this.animalsDogMeta = this.mustElement('[data-animals-dog-meta]');
+    this.animalsDogAssigned = this.mustElement('[data-animals-dog-assigned]');
+    this.animalsDogFree = this.mustElement('[data-animals-dog-free]');
+    this.animalsDogList = this.mustElement('[data-animals-dog-list]');
     this.animalsHerdMeta = this.mustElement('[data-animals-herd-meta]');
     this.animalsHerdList = this.mustElement('[data-animals-herd-list]');
     this.animalsBackyardMeta = this.mustElement('[data-animals-backyard-meta]');
@@ -1231,6 +1252,7 @@ export class SettlementHud {
     this.displayedAnimalsSignature = view.signature;
     const knownHeads = view.ledger?.headCount ?? view.total;
     const backyardPens = view.ledger?.backyard.penCount ?? 0;
+    const dogs = view.ledger?.dogs;
     const hasLivestock = knownHeads > 0 || backyardPens > 0;
     this.animalsCount.textContent = `${knownHeads}${backyardPens > 0 ? '+' : ''}`;
     this.animalsPosted.textContent = view.posted.toString();
@@ -1248,10 +1270,16 @@ export class SettlementHud {
       ? `${view.ledger.herds.headCount} ${view.ledger.herds.headCount === 1 ? 'head' : 'heads'} · ${view.ledger.herds.holdingCount} ${view.ledger.herds.holdingCount === 1 ? 'holding' : 'holdings'}`
       : '0 head';
     this.animalsBackyardMeta.textContent = `${backyardPens} ${backyardPens === 1 ? 'pen' : 'pens'}`;
+    this.animalsDogMeta.textContent = dogs && dogs.capacity > 0
+      ? `${dogs.total} / ${dogs.capacity} bays · ${dogs.openBays} ready`
+      : 'No Kennel bays';
+    this.animalsDogAssigned.textContent = (dogs?.assigned ?? 0).toString();
+    this.animalsDogFree.textContent = (dogs?.free ?? 0).toString();
     const summary = [
       `Animals: ${knownHeads} known ${knownHeads === 1 ? 'head' : 'heads'}`,
       backyardPens > 0 ? `${backyardPens} household ${backyardPens === 1 ? 'pen' : 'pens'}` : null,
       `${view.total} draft ${view.total === 1 ? 'ox' : 'oxen'}`,
+      `${dogs?.total ?? 0} guard ${(dogs?.total ?? 0) === 1 ? 'dog' : 'dogs'}`,
       `${view.posted} posted`,
       `${view.automatic} automatic`,
     ].filter((part): part is string => part !== null).join(', ');
@@ -1310,6 +1338,50 @@ export class SettlementHud {
       }
       row.append(header, home, posting, activity);
       this.animalsList.appendChild(row);
+    });
+
+    this.animalsDogList.replaceChildren();
+    if (!dogs || dogs.entries.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'settlement-hud__animals-empty';
+      empty.textContent = 'Build a Kennel and purchase a dog to begin the roster.';
+      this.animalsDogList.appendChild(empty);
+    } else dogs.entries.forEach((entry, index) => {
+      const row = document.createElement('article');
+      row.className = 'settlement-hud__animal-row';
+      row.dataset.assignmentMode = entry.assignmentBuildingId ? 'posted' : 'automatic';
+      row.dataset.activity = entry.assignmentBuildingId ? 'assisting' : 'available';
+
+      const header = document.createElement('header');
+      const name = document.createElement('strong');
+      name.textContent = `Dog ${index + 1}`;
+      const mode = document.createElement('span');
+      mode.className = 'settlement-hud__animal-mode';
+      mode.textContent = entry.assignmentBuildingId ? 'Hunting' : 'Free';
+      header.append(name, mode);
+
+      const home = document.createElement('p');
+      home.className = 'settlement-hud__animal-home';
+      home.append('Home · ', this.createAnimalBuildingButton(
+        `${entry.kennelLabel}, Bay ${entry.bay}`,
+        entry.kennelId,
+      ));
+
+      const posting = document.createElement('p');
+      posting.className = 'settlement-hud__animal-posting';
+      posting.append(entry.assignmentBuildingId ? 'Assignment · ' : 'Assignment · Free patrol');
+      if (entry.assignmentBuildingId) {
+        posting.append(this.createAnimalBuildingButton(
+          entry.assignmentLabel,
+          entry.assignmentBuildingId,
+        ));
+      }
+
+      const activity = document.createElement('p');
+      activity.className = 'settlement-hud__animal-activity';
+      activity.textContent = entry.activityLabel;
+      row.append(header, home, posting, activity);
+      this.animalsDogList.appendChild(row);
     });
 
     this.animalsHerdList.replaceChildren();

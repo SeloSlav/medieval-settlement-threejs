@@ -379,10 +379,11 @@ sty.traverse((object) => {
   );
 });
 const styGate = swineherd.getObjectByName('Swineherd brown timber sty gate in literal opening');
-assert.ok(styGate instanceof THREE.Mesh);
+assert.ok(styGate instanceof THREE.Group);
 assert.equal(styGate.userData.literalWallAperture, true);
+assert.equal(objectsNamed(styGate, 'Swineherd sty gate brown timber stile').length, 2);
+assert.equal(objectsNamed(styGate, 'Swineherd sty gate brown timber rail').length, 3);
 assert.ok(swineherd.getObjectByName('Open brown timber livestock trough'));
 assert.ok(swineherd.getObjectByName('Swineherd wash trough water surface'));
 
 console.log(`rural workshop architecture passed: ${triangleReport.join(', ')}`);
-

@@ -27,6 +27,8 @@ export function renderKennelInspector(
     .sort((left, right) => left.sourceSlot - right.sourceSlot);
   const occupied = new Map(dogs.map((dog) => [dog.sourceSlot, dog]));
   const housed = occupied.size;
+  const assigned = dogs.filter((dog) => dog.assignedBuildingId != null).length;
+  const free = housed - assigned;
   const openSlots = Math.max(0, KENNEL_DOG_SLOTS - housed);
   const staffed = building.assignedLabor > 0;
   const fire = fireForTarget(context.gameState.fireIncidents.values(), 'building', building.id);
@@ -48,6 +50,12 @@ export function renderKennelInspector(
   const costTooltip = encodeResourceCostTooltip({ gold: KENNEL_DOG_PURCHASE_GOLD });
   const slots = Array.from({ length: KENNEL_DOG_SLOTS }, (_, slot) => {
     const dog = occupied.get(slot);
+    const assignedBuilding = dog?.assignedBuildingId
+      ? context.gameState.buildings.get(dog.assignedBuildingId) ?? null
+      : null;
+    const duty = assignedBuilding
+      ? `Hunting at ${context.worldQueries.getBuildingLabel(assignedBuilding.kind)}`
+      : 'Free settlement patrol';
     if (slot === nextOpenSlot) {
       return `<li class="stable-ox-slot" data-kennel-dog-slot="${slot}" data-state="purchase">
         <button type="button" class="resource-action-button stable-ox-slot__purchase" data-purchase-dog
@@ -59,7 +67,7 @@ export function renderKennelInspector(
         </button>
       </li>`;
     }
-    return `<li class="stable-ox-slot" data-kennel-dog-slot="${slot}" data-state="${dog ? 'occupied' : 'waiting'}" aria-label="${dog ? `Guard dog ${slot + 1}: ${dog.status}.` : 'Open dog bay.'}">
+    return `<li class="stable-ox-slot" data-kennel-dog-slot="${slot}" data-state="${dog ? 'occupied' : 'waiting'}" aria-label="${dog ? `Guard dog ${slot + 1}: ${duty}; ${dog.status}.` : 'Open dog bay.'}">
       <span class="stable-ox-slot__frame" aria-hidden="true"><span class="stable-ox-slot__plus"></span><span class="stable-ox-slot__portrait"></span></span>
     </li>`;
   }).join('');
@@ -81,7 +89,8 @@ export function renderKennelInspector(
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${buildingExtentRow(building.kind)}
       <li data-inspector-primary><span>Guard dogs</span><span>${housed} / ${KENNEL_DOG_SLOTS} · ${openSlots} open</span></li>
-      <li><span>Patrol</span><span>Roads, homes, and civic stores · autonomous</span></li>
+      <li><span>Assignments</span><span>${assigned} hunting · ${free} free patrol</span></li>
+      <li><span>Patrol</span><span>Free dogs cover roads, homes, and civic stores · autonomous</span></li>
       <li><span>Response</span><span>Singles out raiders, bandits, foxes, and wolves</span></li>
       <li><span>Keeper</span><span>At least one assigned worker is required for purchases</span></li>
     `,

@@ -114,6 +114,18 @@ export async function setBuildingOxen(
   });
 }
 
+export async function setBuildingDogs(
+  buildingId: string,
+  assignedDogs: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid hunting-dog workplace id.');
+  await callReducer('setBuildingDogs', 'set_building_dogs', {
+    buildingId: serverId,
+    assignedDogs: Math.max(0, Math.floor(assignedDogs)),
+  });
+}
+
 export async function placeBackyardGarden(
   residenceId: string,
   kind: BackyardGardenKind,

@@ -193,6 +193,7 @@ fn insert_animal(
         faction,
         source_building_id: 0,
         source_slot: slot,
+        assigned_building_id: 0,
         target_kind: target.kind,
         target_id: target.id,
         x,
@@ -278,7 +279,7 @@ fn dog_attack(ctx: &ReducerContext, dog: &mut CombatAgent, mut enemy: CombatAgen
 fn patrol_dog(ctx: &ReducerContext, dog: &mut CombatAgent, tick: u64, dt: f64) {
     let target = target_position(ctx, dog.target_kind, dog.target_id);
     if target.is_none() || target.is_some_and(|target| distance(dog.x, dog.z, target.x, target.z) < 1.3) {
-        if let Some(patrol) = dog_patrol_target(ctx, dog.owner, dog.id ^ tick / 90) {
+        if let Some(patrol) = dog_patrol_target(ctx, dog, dog.id ^ tick / 90) {
             dog.target_kind = patrol.kind;
             dog.target_id = patrol.id;
             dog.state = RETURNING;
@@ -522,6 +523,7 @@ fn down_guard_dog(dog: &mut CombatAgent, tick: u64) {
     dog.attack_cooldown = 7.0;
     dog.state_changed_tick = tick;
     dog.source_building_id = 0;
+    dog.assigned_building_id = 0;
     dog.target_kind = TARGET_GROUND;
     dog.target_id = 0;
 }
@@ -754,7 +756,23 @@ fn wolf_target(ctx: &ReducerContext, owner: Identity, seed: u64) -> Option<Targe
     }
 }
 
-fn dog_patrol_target(ctx: &ReducerContext, owner: Identity, seed: u64) -> Option<Target> {
+fn dog_patrol_target(ctx: &ReducerContext, dog: &CombatAgent, seed: u64) -> Option<Target> {
+    // Posted hunting dogs remain close enough to their camp to improve the
+    // hunt and intercept local threats. Wounded dogs return to their kennel
+    // first so durable hunting duty does not prevent ordinary recovery.
+    if dog.assigned_building_id > 0 {
+        let posted_target_id = if dog.health + 1e-6 < dog.max_health {
+            dog.source_building_id
+        } else {
+            dog.assigned_building_id
+        };
+        if let Some(building) = ctx.db.building().id().find(&posted_target_id) {
+            if building.owner == dog.owner && building.construction_complete {
+                return Some(target_building(building));
+            }
+        }
+    }
+    let owner = dog.owner;
     let buildings = ctx
         .db
         .building()
@@ -848,10 +866,14 @@ fn move_toward(agent: &mut CombatAgent, goal_x: f64, goal_z: f64, speed: f64, dt
     let dx = goal_x - agent.x;
     let dz = goal_z - agent.z;
     let range = dx.hypot(dz);
-    if range <= 1e-6 { return; }
+    if range <= 1e-6 { agent.velocity_x = 0.0; agent.velocity_z = 0.0; return; }
     let step = (speed * dt).min(range);
-    agent.x += dx / range * step;
-    agent.z += dz / range * step;
+    let move_x = dx / range * step;
+    let move_z = dz / range * step;
+    agent.x += move_x;
+    agent.z += move_z;
+    agent.velocity_x = move_x / dt.max(1e-9);
+    agent.velocity_z = move_z / dt.max(1e-9);
     agent.route_progress = range;
 }
 

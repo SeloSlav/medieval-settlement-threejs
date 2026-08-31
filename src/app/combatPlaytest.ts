@@ -613,7 +613,7 @@ export class CombatPlaytestSimulation {
     if (
       current
       && current.state.status !== 'downed'
-      && current.state.faction !== runtime.state.faction
+      && current.steeringTeam !== runtime.steeringTeam
     ) {
       return current;
     }

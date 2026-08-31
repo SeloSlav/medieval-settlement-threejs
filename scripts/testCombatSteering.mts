@@ -18,6 +18,37 @@ import {
 
 const bounds = { minX: -100, maxX: 100, minZ: -100, maxZ: 100 };
 
+type GoldenFixture = {
+  capacity: number;
+  dtSeconds: number;
+  tolerance: number;
+  bounds: typeof bounds;
+  agents: Array<{
+    id: number;
+    ownerGroup: number;
+    team: number;
+    groupKind: number;
+    groupId: number;
+    faction: number;
+    targetId: number;
+    enabled: boolean;
+    x: number;
+    z: number;
+    goalX: number;
+    goalZ: number;
+    speed: number;
+    velocityX: number;
+    velocityZ: number;
+  }>;
+  expected: Array<{
+    id: number;
+    x: number;
+    z: number;
+    velocityX: number;
+    velocityZ: number;
+  }>;
+};
+
 function agent(
   seed: number,
   x: number,
@@ -51,7 +82,13 @@ function agent(
   ];
   agents[2]!.steeringEnabled = false;
   const grid = new CanonicalCombatSteeringGrid(8);
-  for (let step = 0; step < 40; step += 1) grid.update(agents, agents.length, 0.05, bounds);
+  for (let step = 0; step < 40; step += 1) {
+    for (const runtime of agents) {
+      runtime.steeringGoalX = runtime.state.x;
+      runtime.steeringGoalZ = runtime.state.z;
+    }
+    grid.update(agents, agents.length, 0.05, bounds);
+  }
   assert.ok(
     Math.hypot(
       agents[0]!.state.x - agents[1]!.state.x,
@@ -104,7 +141,7 @@ function agent(
   const companyCenter = agent(200, 0, 0, 0, 0, 77, 1);
   const mate = agent(201, 1.9, 0, 1.9, 0, 77, 1);
   mate.steeringVelocityZ = 1;
-  const outsider = agent(202, 0, 1.9, 0, 1.9, 88, 2);
+  const outsider = agent(202, 0, 1.9, 0, 1.9, 77, 2);
   const agents = [companyCenter, mate, outsider];
   new CanonicalCombatSteeringGrid(8).update(agents, agents.length, 0.05, bounds);
   assert.ok(
@@ -114,6 +151,16 @@ function agent(
   assert.ok(
     companyCenter.steeringVelocityZ > 0,
     'local same-company alignment must inherit the company heading',
+  );
+  assert.equal(
+    outsider.steeringVelocityX,
+    0,
+    'a numeric company collision across teams must not leak cohesion',
+  );
+  assert.equal(
+    outsider.steeringVelocityZ,
+    0,
+    'a numeric company collision across teams must not leak alignment',
   );
 }
 
@@ -125,35 +172,69 @@ function agent(
   );
   assert.equal(new Set(slots).size, COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT);
   assert.ok(engagementSlotRadius(2.6) > engagementSlotRadius(1.2));
-  assert.equal(
-    rangedLineLateral(1, 8) - rangedLineLateral(0, 8),
-    COMBAT_STEERING_RANGED_LINE_SPACING_M,
-  );
+  assert.ok(Math.abs(
+    rangedLineLateral(1, 8) - rangedLineLateral(0, 8)
+      - COMBAT_STEERING_RANGED_LINE_SPACING_M,
+  ) < 1e-12);
   assert.equal(rangedLineDepth(4, 8), COMBAT_STEERING_RANGED_DEPTH_SPACING_M);
-  assert.equal(rangedPreferredDistance(20), 14.4);
+  assert.ok(Math.abs(rangedPreferredDistance(20) - 14.4) < 1e-12);
 }
 
-// Identical low-level inputs produce byte-for-byte stable golden outputs. This
-// API is also consumed by the Rust/TypeScript cross-language fixture test.
+// Both language implementations consume this exact fixture. Keeping expected
+// results in data (rather than regenerating them inside either test) catches
+// semantic drift even when shared constants still happen to match.
 {
-  const createGolden = () => {
-    const agents = [
-      agent(0x101, -0.7, -0.2, 4, 0.4, 9, 1),
-      agent(0x202, 0.15, 0.1, -3, -0.5, 10, 2),
-      agent(0x303, -0.1, 1.15, 3, 1.4, 9, 1),
-    ];
-    agents[0]!.steeringVelocityX = 1.2;
-    agents[1]!.steeringVelocityX = -0.8;
-    agents[2]!.steeringVelocityZ = 0.35;
-    return agents;
-  };
-  const a = createGolden();
-  const b = createGolden();
-  const gridA = new CanonicalCombatSteeringGrid(8);
-  const gridB = new CanonicalCombatSteeringGrid(8);
-  gridA.update(a, a.length, 0.05, bounds);
-  gridB.update(b, b.length, 0.05, bounds);
-  assert.deepEqual(a, b);
+  const golden = JSON.parse(readFileSync(
+    new URL('../balance/combatSteeringGolden.json', import.meta.url),
+    'utf8',
+  )) as GoldenFixture;
+  assert.deepEqual(
+    golden.agents.map(({ id }) => id),
+    golden.agents.map(({ id }) => id).sort((left, right) => left - right),
+    'golden bodies must remain seed-sorted for identical bucket traversal',
+  );
+  const createGolden = (): CombatSteeringAgent[] => golden.agents.map((input) => ({
+    state: { x: input.x, z: input.z },
+    steeringSeed: input.id,
+    steeringTeam: input.team,
+    steeringCompany: input.groupKind === 1 ? input.groupId : 0,
+    steeringEnabled: input.enabled,
+    steeringGoalX: input.goalX,
+    steeringGoalZ: input.goalZ,
+    steeringSpeed: input.speed,
+    steeringVelocityX: input.velocityX,
+    steeringVelocityZ: input.velocityZ,
+  }));
+  const first = createGolden();
+  const repeated = createGolden();
+  new CanonicalCombatSteeringGrid(golden.capacity).update(
+    first,
+    first.length,
+    golden.dtSeconds,
+    golden.bounds,
+  );
+  new CanonicalCombatSteeringGrid(golden.capacity).update(
+    repeated,
+    repeated.length,
+    golden.dtSeconds,
+    golden.bounds,
+  );
+  assert.deepEqual(first, repeated, 'identical golden inputs must remain deterministic');
+  for (const [index, expected] of golden.expected.entries()) {
+    const actual = first[index]!;
+    assert.equal(actual.steeringSeed, expected.id);
+    for (const [label, value, target] of [
+      ['x', actual.state.x, expected.x],
+      ['z', actual.state.z, expected.z],
+      ['velocityX', actual.steeringVelocityX, expected.velocityX],
+      ['velocityZ', actual.steeringVelocityZ, expected.velocityZ],
+    ] as const) {
+      assert.ok(
+        Math.abs(value - target) <= golden.tolerance,
+        `golden ${expected.id} ${label}: expected ${target}, received ${value}`,
+      );
+    }
+  }
 }
 
 // Keep 1,024-agent steering comfortably below a frame on ordinary CI hardware.

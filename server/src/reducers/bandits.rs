@@ -121,6 +121,7 @@ pub fn hire_mercenary_company(ctx: &ReducerContext, town_hall_id: u64) -> Result
             faction: kind.faction(),
             source_building_id: hall.id,
             source_slot: slot,
+            assigned_building_id: 0,
             target_kind: 6,
             target_id: 0,
             x: entry_x + ox,
@@ -519,7 +520,10 @@ fn recruit_resident_company(
             raid_id: company.id,
             faction: kind.faction(),
             source_building_id: source.id,
-            source_slot: recruit.resident_slot,
+            // Combat formation rank is company-local and must be unique.
+            // Household identity remains on MilitaryMember.resident_slot.
+            source_slot: slot,
+            assigned_building_id: 0,
             target_kind: 0,
             target_id: source.id,
             x,

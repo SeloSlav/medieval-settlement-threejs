@@ -1,5 +1,5 @@
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
-import { STABLE_OX_SLOTS } from '../generated/gameBalance.ts';
+import { KENNEL_DOG_SLOTS, STABLE_OX_SLOTS } from '../generated/gameBalance.ts';
 import {
   parseBuildingServerId,
   parseResidenceServerId,
@@ -14,6 +14,7 @@ import type {
   LivestockSpecies,
   PastureState,
 } from '../resources/types.ts';
+import type { CombatAgentState } from '../security/combatAgents.ts';
 import {
   assignStableOxen,
   type StableOxLike,
@@ -44,6 +45,26 @@ export type SettlementStableLedger = Readonly<{
   /** Open bays in completed, currently fire-safe Stables. */
   purchaseReadyOpenBays: number;
   unavailableStableCount: number;
+}>;
+
+export type SettlementDogRosterEntry = Readonly<{
+  id: string;
+  kennelId: string;
+  kennelLabel: string;
+  bay: number;
+  assignmentBuildingId: string | null;
+  assignmentLabel: string;
+  activityLabel: string;
+}>;
+
+export type SettlementDogLedger = Readonly<{
+  total: number;
+  assigned: number;
+  free: number;
+  kennelCount: number;
+  capacity: number;
+  openBays: number;
+  entries: readonly SettlementDogRosterEntry[];
 }>;
 
 export type SettlementHerdSpeciesLedgerEntry = Readonly<{
@@ -93,9 +114,10 @@ export type SettlementBackyardLedger = Readonly<{
 }>;
 
 export type SettlementLivestockLedger = Readonly<{
-  /** Exact draft-ox plus farm-herd heads. Backyard pens are intentionally excluded. */
+  /** Exact draft-ox, dog, and farm-herd heads. Backyard pens are intentionally excluded. */
   headCount: number;
   stable: SettlementStableLedger;
+  dogs: SettlementDogLedger;
   herds: SettlementHerdLedger;
   backyard: SettlementBackyardLedger;
 }>;
@@ -104,6 +126,7 @@ export type SettlementLivestockLedgerInput = Readonly<{
   herds?: Iterable<LivestockHerdState>;
   pastures?: Iterable<PastureState>;
   backyardGardens?: Iterable<BackyardGardenState>;
+  combatAgents?: Iterable<CombatAgentState>;
   /** Current schedule pause (holy day, Sabbath, raid response, etc.) for production labor. */
   laborPauseLabel?: string | null;
 }>;
@@ -153,6 +176,12 @@ export function buildSettlementAnimalsView(
     if (trip.oxId) tripByOxId.set(trip.oxId, trip);
   }
   const labels = numberedBuildingLabels(buildings);
+  const dogLedger = buildSettlementDogLedger(
+    livestock.combatAgents ?? [],
+    buildings,
+    disabledBuildingIds,
+    labels,
+  );
   const laborPauseLabel = livestock.laborPauseLabel?.trim() || null;
 
   const entries = orderedOxen.map<SettlementOxRosterEntry>((ox) => {
@@ -271,6 +300,7 @@ export function buildSettlementAnimalsView(
     buildings,
     disabledBuildingIds,
     livestock,
+    dogLedger,
   );
   const rosterSignature = entries.map((entry) => [
     entry.id,
@@ -292,6 +322,17 @@ export function buildSettlementAnimalsView(
     ledger.stable.capacity,
     ledger.stable.purchaseReadyOpenBays,
     ledger.stable.unavailableStableCount,
+    ledger.dogs.total,
+    ledger.dogs.assigned,
+    ledger.dogs.kennelCount,
+    ledger.dogs.capacity,
+    ...ledger.dogs.entries.map((entry) => [
+      entry.id,
+      entry.kennelId,
+      entry.bay,
+      entry.assignmentBuildingId ?? '',
+      entry.activityLabel,
+    ].join(':')),
     ...ledger.herds.species.map((entry) => [
       entry.species,
       entry.headCount,
@@ -344,6 +385,7 @@ function buildSettlementLivestockLedger(
   buildings: ReadonlyMap<string, BuildingState>,
   disabledBuildingIds: ReadonlySet<string>,
   input: SettlementLivestockLedgerInput,
+  dogs: SettlementDogLedger,
 ): SettlementLivestockLedger {
   const oxenByStable = new Map<string, number>();
   for (const ox of oxen) {
@@ -412,7 +454,7 @@ function buildSettlementLivestockLedger(
   const backyardPenCount = sumNumbers(backyardPens.map((entry) => entry.penCount), true);
   const unstockedPenCount = backyardPens.find((entry) => entry.kind === 'unstocked')?.penCount ?? 0;
   return {
-    headCount: oxen.length + herdHeadCount,
+    headCount: oxen.length + dogs.total + herdHeadCount,
     stable: {
       stableCount: stableIds.length,
       stableIds,
@@ -425,6 +467,7 @@ function buildSettlementLivestockLedger(
         0,
       ),
     },
+    dogs,
     herds: {
       headCount: herdHeadCount,
       holdingCount: livestockHoldingCount,
@@ -440,6 +483,76 @@ function buildSettlementLivestockLedger(
       unstockedPenCount,
       pens: backyardPens,
     },
+  };
+}
+
+function buildSettlementDogLedger(
+  combatAgents: Iterable<CombatAgentState>,
+  buildings: ReadonlyMap<string, BuildingState>,
+  disabledBuildingIds: ReadonlySet<string>,
+  labels: ReadonlyMap<string, string>,
+): SettlementDogLedger {
+  const dogs = [...combatAgents]
+    .filter((agent) =>
+      agent.faction === 'dog'
+      && agent.sourceBuildingId != null
+      && agent.health > 0
+      && agent.status !== 'downed')
+    .sort((left, right) =>
+      compareServerIds(
+        left.sourceBuildingId ?? '',
+        right.sourceBuildingId ?? '',
+        parseBuildingServerId,
+      )
+      || left.sourceSlot - right.sourceSlot
+      || left.id.localeCompare(right.id));
+  const kennelIds = [...buildings.values()]
+    .filter((building) => building.kind === 'kennel' && building.constructionComplete !== false)
+    .map((building) => building.id)
+    .sort((left, right) => compareServerIds(left, right, parseBuildingServerId));
+  const entries = dogs.map<SettlementDogRosterEntry>((dog) => {
+    const kennelId = dog.sourceBuildingId as string;
+    const assignmentBuildingId = dog.assignedBuildingId ?? null;
+    const assignmentLabel = assignmentBuildingId
+      ? labels.get(assignmentBuildingId) ?? "Former Hunter's Hall"
+      : 'Free patrol';
+    const responding = dog.status === 'fighting'
+      || (dog.status === 'advancing' && dog.targetKind === 'combat-agent');
+    return {
+      id: dog.id,
+      kennelId,
+      kennelLabel: labels.get(kennelId) ?? 'Kennel',
+      bay: dog.sourceSlot + 1,
+      assignmentBuildingId,
+      assignmentLabel,
+      activityLabel: responding
+        ? 'Responding to a nearby threat'
+        : assignmentBuildingId
+          ? `Hunting at ${assignmentLabel}`
+          : 'Wandering and protecting the settlement',
+    };
+  });
+  const assigned = entries.reduce(
+    (count, entry) => count + (entry.assignmentBuildingId ? 1 : 0),
+    0,
+  );
+  const occupiedByKennel = new Map<string, number>();
+  for (const entry of entries) {
+    occupiedByKennel.set(entry.kennelId, (occupiedByKennel.get(entry.kennelId) ?? 0) + 1);
+  }
+  const capacity = kennelIds.length * KENNEL_DOG_SLOTS;
+  const readyOpenBays = kennelIds.reduce((open, kennelId) =>
+    open + (disabledBuildingIds.has(kennelId)
+      ? 0
+      : Math.max(0, KENNEL_DOG_SLOTS - (occupiedByKennel.get(kennelId) ?? 0))), 0);
+  return {
+    total: entries.length,
+    assigned,
+    free: entries.length - assigned,
+    kennelCount: kennelIds.length,
+    capacity,
+    openBays: readyOpenBays,
+    entries,
   };
 }
 

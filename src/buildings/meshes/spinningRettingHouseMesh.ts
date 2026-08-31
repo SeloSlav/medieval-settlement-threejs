@@ -318,10 +318,11 @@ function mainShellHost(root: THREE.Group): THREE.Group {
 function emitWetBayShell({ module }: SpinningRettingHouseCompileContext): void {
   namedMesh(module, 'Spinning & Retting House wet-yard stone floor', new THREE.BoxGeometry(2.62, 0.24, 5.82), stoneMaterial('mid'), new THREE.Vector3(WET_BAY_CENTER_X, 0.12, WET_BAY_CENTER_Z));
   namedMesh(module, 'Spinning & Retting House wet-bay dark service wall', new THREE.BoxGeometry(0.16, 2.35, 5.55), sharedBuildingMaterial('interiorDark'), new THREE.Vector3(-2.48, 1.3, WET_BAY_CENTER_Z));
+  namedMesh(module, 'Spinning & Retting House wet-bay attached wall plate', new THREE.BoxGeometry(0.18, 0.26, 5.58), timberMaterial('dark'), new THREE.Vector3(-2.48, 2.595, WET_BAY_CENTER_Z));
   for (const z of [-2.58, 2.42]) {
-    namedMesh(module, 'Spinning & Retting House wet-bay timber post', new THREE.BoxGeometry(0.2, 2.42, 0.2), timberMaterial('dark'), new THREE.Vector3(-4.92, 1.21, z));
+    namedMesh(module, 'Spinning & Retting House wet-bay timber post', new THREE.BoxGeometry(0.2, 2.12, 0.2), timberMaterial('dark'), new THREE.Vector3(-4.92, 1.06, z));
   }
-  namedMesh(module, 'Spinning & Retting House wet-bay wall plate', new THREE.BoxGeometry(0.18, 0.18, 5.58), timberMaterial('weathered'), new THREE.Vector3(-4.92, 2.42, WET_BAY_CENTER_Z));
+  namedMesh(module, 'Spinning & Retting House wet-bay low-eave wall plate', new THREE.BoxGeometry(0.18, 0.18, 5.58), timberMaterial('weathered'), new THREE.Vector3(-4.92, 2.17, WET_BAY_CENTER_Z));
   addLeanToRoof(module, {
     width: 2.82,
     depth: 6.08,

@@ -7,7 +7,6 @@ use crate::db::*;
 use crate::security_policy::RaidPortableStores;
 use crate::tables::{BanditCamp, BanditIncident, CombatAgent};
 
-use super::military::step_military_world;
 use super::raid_agents::reclamation_from_raid_stores;
 use super::reclamation::{recover_stock_at, ReclamationStock};
 use super::settlement_security::{building_portable_stores, retain_unplundered_stores};
@@ -36,13 +35,11 @@ pub fn step_bandit_world(
 ) {
     if !enabled {
         clear_bandits(ctx);
-        step_military_world(ctx, sim_tick, elapsed);
         return;
     }
     ensure_camps(ctx, sim_tick, seed, map_size);
     dispatch_thefts(ctx, sim_tick);
     step_bandits(ctx, sim_tick, elapsed);
-    step_military_world(ctx, sim_tick, elapsed);
     cleanup_downed(ctx, elapsed);
 }
 
@@ -107,6 +104,7 @@ fn spawn_camp_defenders(ctx: &ReducerContext, camp: &BanditCamp, tick: u64) {
         ctx.db.combat_agent().insert(CombatAgent {
             id: 0, owner: camp.owner, raid_id: camp.id, faction: BANDIT,
             source_building_id: 0, source_slot: slot, target_kind: 5, target_id: camp.id,
+            assigned_building_id: 0,
             x: camp.x + angle.cos() * 5.0, z: camp.z + angle.sin() * 5.0,
             velocity_x: 0.0, velocity_z: 0.0,
             home_x: camp.x, home_z: camp.z, health: 64.0, max_health: 64.0,
@@ -320,9 +318,11 @@ fn incident(ctx: &ReducerContext, owner: Identity, camp_id: u64, kind: u8, build
 
 fn walk(agent: &mut CombatAgent, x: f64, z: f64, speed: f64, dt: f64) {
     let dx = x - agent.x; let dz = z - agent.z; let d = dx.hypot(dz);
-    if d <= 1e-6 { return; }
+    if d <= 1e-6 { agent.velocity_x = 0.0; agent.velocity_z = 0.0; return; }
     let step = (speed * dt).min(d);
-    agent.x += dx / d * step; agent.z += dz / d * step;
+    let move_x = dx / d * step; let move_z = dz / d * step;
+    agent.x += move_x; agent.z += move_z;
+    agent.velocity_x = move_x / dt.max(1e-9); agent.velocity_z = move_z / dt.max(1e-9);
 }
 fn dist(ax: f64, az: f64, bx: f64, bz: f64) -> f64 { (ax - bx).hypot(az - bz) }
 fn day_ticks() -> u64 { (CALENDAR_SECONDS_PER_DAY / TICK_DT).round().max(1.0) as u64 }

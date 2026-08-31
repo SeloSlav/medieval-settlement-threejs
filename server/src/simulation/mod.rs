@@ -101,6 +101,7 @@ pub(crate) use livestock::{
 pub use livestock::{step_pastoral_farmstead, step_swineherd};
 pub use lumber_mill::step_lumber_mill;
 pub use marketplace_caravan::{step_marketplace_caravans, try_dispatch_marketplace_caravan};
+pub use military::step_military_world;
 pub(crate) use oxen::{
     claim_haul_ox_for_workplace, ox_amplified_production_labor, paired_production_ox_count,
     release_haul_ox,

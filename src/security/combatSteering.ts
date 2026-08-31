@@ -197,7 +197,12 @@ export class CanonicalCombatSteeringGrid {
                 let awayZ: number;
                 let distance: number;
                 if (distanceSq <= COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ) {
-                  const angle = exactOverlapAngle(agent.steeringSeed, other.steeringSeed);
+                  const angle = exactOverlapAngle(
+                    agent.steeringSeed,
+                    other.steeringSeed,
+                    index,
+                    neighbor,
+                  );
                   awayX = Math.cos(angle);
                   awayZ = Math.sin(angle);
                   distance = 0;
@@ -242,8 +247,11 @@ export class CanonicalCombatSteeringGrid {
                   if (futureDistanceSq < SEPARATION_DISTANCE_SQ) {
                     let avoidX: number;
                     let avoidZ: number;
-                    if (futureDistanceSq <= COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ) {
-                      const side = agent.steeringSeed < other.steeringSeed ? -1 : 1;
+                    if (futureDistanceSq <= SEPARATION_DISTANCE_SQ * 0.16) {
+                      const lowSeed = Math.min(agent.steeringSeed, other.steeringSeed);
+                      const highSeed = Math.max(agent.steeringSeed, other.steeringSeed);
+                      const side = (mixSeed(lowSeed ^ Math.imul(highSeed, 0x9e37_79b1)) & 1)
+                        === 0 ? -1 : 1;
                       const relativeSpeed = Math.sqrt(relativeSpeedSq);
                       avoidX = -relativeVelocityZ / relativeSpeed * side;
                       avoidZ = relativeVelocityX / relativeSpeed * side;
@@ -265,6 +273,7 @@ export class CanonicalCombatSteeringGrid {
               if (
                 agent.steeringCompany !== 0
                 && agent.steeringCompany === other.steeringCompany
+                && agent.steeringTeam === other.steeringTeam
               ) {
                 const otherSpeed = Math.hypot(
                   other.steeringVelocityX,
@@ -330,9 +339,15 @@ export class CanonicalCombatSteeringGrid {
       if (steerLength > 1e-8) {
         const separationPressure = Math.hypot(separationX, separationZ)
           + Math.hypot(predictiveX, predictiveZ);
+        const flockPressure = companyNeighbors > 0
+          ? COMBAT_STEERING_ALIGNMENT_WEIGHT + COMBAT_STEERING_COHESION_WEIGHT
+          : 0;
         const motionSpeed = preferredLength > 1e-8
           ? Math.min(agent.steeringSpeed, preferredLength)
-          : Math.min(agent.steeringSpeed * 0.45, separationPressure * agent.steeringSpeed);
+          : Math.min(
+            agent.steeringSpeed * 0.45,
+            (separationPressure + flockPressure) * agent.steeringSpeed,
+          );
         desiredVelocityX = steerX / steerLength * motionSpeed;
         desiredVelocityZ = steerZ / steerLength * motionSpeed;
       }
@@ -420,8 +435,13 @@ export function rangedPreferredDistance(range: number): number {
   return range * COMBAT_STEERING_RANGED_PREFERRED_RANGE_FACTOR;
 }
 
-function exactOverlapAngle(leftSeed: number, rightSeed: number): number {
-  const leftFirst = leftSeed < rightSeed;
+function exactOverlapAngle(
+  leftSeed: number,
+  rightSeed: number,
+  leftIndex: number,
+  rightIndex: number,
+): number {
+  const leftFirst = leftSeed === rightSeed ? leftIndex < rightIndex : leftSeed < rightSeed;
   const low = leftFirst ? leftSeed : rightSeed;
   const high = leftFirst ? rightSeed : leftSeed;
   const angle = mixSeed(low ^ Math.imul(high, 0x9e37_79b1)) / 0x1_0000_0000

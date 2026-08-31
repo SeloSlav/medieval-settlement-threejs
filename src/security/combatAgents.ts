@@ -56,6 +56,8 @@ export type CombatAgentState = {
   faction: CombatAgentFaction;
   sourceBuildingId: string | null;
   sourceSlot: number;
+  /** Hunter's Hall duty for a dog; null keeps it on free settlement patrol. */
+  assignedBuildingId?: string | null;
   targetKind: CombatTargetKind;
   targetId: string;
   x: number;
@@ -232,6 +234,9 @@ export function syncCombatAgents(
         ? buildingClientId(row.sourceBuildingId)
         : null,
       sourceSlot: Number(row.sourceSlot),
+      assignedBuildingId: row.assignedBuildingId > 0n
+        ? buildingClientId(row.assignedBuildingId)
+        : null,
       targetKind,
       targetId: combatTargetClientId(targetKind, row.targetId),
       x: row.x,

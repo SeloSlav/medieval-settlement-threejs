@@ -65,6 +65,7 @@ export type InspectorSpacetimeActions = {
   onPurchaseStableOx: (stableId: string) => Promise<void>;
   onPurchaseKennelDog: (kennelId: string) => Promise<void>;
   onSetBuildingOxen: (buildingId: string, assignedOxen: number) => Promise<void>;
+  onSetBuildingDogs: (buildingId: string, assignedDogs: number) => Promise<void>;
   onSetLivestockBreedingReserve: (pastureId: string, breedingReserve: number) => Promise<void>;
   onSetLivestockHaymakingPercent: (pastureId: string, haymakingPercent: number) => Promise<void>;
   onSetEconomicActivityTaxRate: (townHallId: string, taxRate: number) => Promise<void>;
@@ -606,6 +607,14 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setBuildingOxen(buildingId, assignedOxen),
         'Could not change the ox posting.',
+      );
+    },
+    onSetBuildingDogs: async (buildingId, assignedDogs) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setBuildingDogs(buildingId, assignedDogs),
+        'Could not change the hunting-dog posting.',
       );
     },
     onSetLivestockBreedingReserve: async (pastureId, breedingReserve) => {

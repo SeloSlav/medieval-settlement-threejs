@@ -15,6 +15,7 @@ use crate::simulation::{
     step_guardhouse, step_household_discretionary_trade, step_hunters_hall,
     step_industrial_firewood_dispatch, step_institutional_food_dispatch, step_land_levies,
     step_large_quarry, step_live_raids, step_local_material_dispatch, step_lumber_mill,
+    step_military_world,
     step_market_household_distribution, step_marketplace_caravans,
     step_marketplace_material_dispatch, step_mine, step_monastery, step_natural_tree_regrowth,
     step_military_requisitions,
@@ -138,6 +139,11 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
             config.wild_animal_attacks_enabled,
             heartbeat_sim_seconds,
         );
+        // Every CombatAgent faction has now performed its one behavior/path
+        // integration. The military step updates player-company behavior and
+        // finishes with one bounded global steering correction, so no later
+        // mover can invalidate authoritative all-combatant separation.
+        step_military_world(ctx, config.sim_tick, heartbeat_sim_seconds);
     }
     if ctx.db.sim_pacing_state().id().find(&0).is_some() {
         ctx.db.sim_pacing_state().id().update(SimPacingState {
