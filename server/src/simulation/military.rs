@@ -12,6 +12,7 @@ use crate::military_policy::{
     veteran_health_multiplier, MilitaryKind, MERCENARY_IDLE_DEPARTURE_DAYS,
     MERCENARY_MAX_CONTRACT_DAYS, MILITARY_BATTLE_SURVIVAL_XP, MILITARY_ENEMY_COMPANY_XP,
 };
+use crate::raid_agent_policy::playable_half_for_map_size;
 use crate::security_policy::RaidPortableStores;
 use crate::tables::{
     mercenary_contract, CombatAgent, Corpse, MercenaryContract, MilitaryCompany, MilitaryMember,
@@ -20,6 +21,7 @@ use crate::tables::{
 use super::bandits::destroy_camp;
 use super::military_steering::{
     melee_engagement_goal, ranged_firing_line_goal, CombatSteeringGrid, SteeringBody,
+    SteeringBounds,
 };
 use super::raid_agents::{down_external_raider, reclamation_from_raid_stores};
 use super::reclamation::recover_stock_at;
@@ -153,12 +155,9 @@ fn prepare_military_scratch(
         while end < scratch.members.len() && scratch.members[end].company_id == company_id {
             end += 1;
         }
-        if let Some(frame) = build_ranged_company_frame(
-            ctx,
-            steering,
-            company_id,
-            &scratch.members[start..end],
-        ) {
+        if let Some(frame) =
+            build_ranged_company_frame(ctx, steering, company_id, &scratch.members[start..end])
+        {
             scratch.ranged_frames.push(frame);
         }
         start = end;
@@ -259,49 +258,53 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
                 let mut scratch = scratch_cell.borrow_mut();
                 prepare_military_scratch(ctx, &steering, &mut scratch);
                 for member in scratch.members.iter().cloned() {
-                let Some(agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
-                    ctx.db
-                        .military_member()
-                        .combat_agent_id()
-                        .delete(member.combat_agent_id);
-                    continue;
-                };
-                if agent.state == DOWNED {
-                    step_downed_member(ctx, agent, member, elapsed_seconds);
-                    continue;
-                }
-                let Some(company) = ctx.db.military_company().id().find(&member.company_id) else {
-                    recover_member_kit(ctx, &agent);
-                    ctx.db.militia_order().combat_agent_id().delete(agent.id);
-                    ctx.db.military_member().combat_agent_id().delete(agent.id);
-                    ctx.db.combat_agent().id().delete(agent.id);
-                    continue;
-                };
-                match member.phase {
-                    0 => step_mustering_member(
-                        ctx,
-                        agent,
-                        member,
-                        company,
-                        sim_tick,
-                        elapsed_seconds,
-                    ),
-                    2 | 3 => step_returning_member(ctx, agent, member, company, elapsed_seconds),
-                    _ => {
-                        let ranged_frame = scratch.ranged_frame(company.id);
-                        step_active_member(
+                    let Some(agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id)
+                    else {
+                        ctx.db
+                            .military_member()
+                            .combat_agent_id()
+                            .delete(member.combat_agent_id);
+                        continue;
+                    };
+                    if agent.state == DOWNED {
+                        step_downed_member(ctx, agent, member, elapsed_seconds);
+                        continue;
+                    }
+                    let Some(company) = ctx.db.military_company().id().find(&member.company_id)
+                    else {
+                        recover_member_kit(ctx, &agent);
+                        ctx.db.militia_order().combat_agent_id().delete(agent.id);
+                        ctx.db.military_member().combat_agent_id().delete(agent.id);
+                        ctx.db.combat_agent().id().delete(agent.id);
+                        continue;
+                    };
+                    match member.phase {
+                        0 => step_mustering_member(
                             ctx,
                             agent,
                             member,
                             company,
                             sim_tick,
                             elapsed_seconds,
-                            military_demands,
-                            &steering,
-                            ranged_frame,
-                        )
+                        ),
+                        2 | 3 => {
+                            step_returning_member(ctx, agent, member, company, elapsed_seconds)
+                        }
+                        _ => {
+                            let ranged_frame = scratch.ranged_frame(company.id);
+                            step_active_member(
+                                ctx,
+                                agent,
+                                member,
+                                company,
+                                sim_tick,
+                                elapsed_seconds,
+                                military_demands,
+                                &steering,
+                                ranged_frame,
+                            )
+                        }
                     }
-                }
                 }
 
                 // Goals and state decisions are now final, but the grid is rebuilt
@@ -533,7 +536,10 @@ fn step_active_member(
             // Retire while reloading/drawing, then resume fire once it has
             // rebuilt enough spacing.  Ammunition exhaustion disables this
             // branch and lets the member commit with the fallback sidearm.
-            walk_away(&mut agent, enemy.x, enemy.z, stats.speed * 0.78, dt);
+            let (threat_x, threat_z) = ranged_frame
+                .map(|frame| (frame.target_x, frame.target_z))
+                .unwrap_or((enemy.x, enemy.z));
+            walk_away(&mut agent, threat_x, threat_z, stats.speed * 0.78, dt);
             agent.route_progress = range;
             // This is a fighting withdrawal, not a morale retreat or a new
             // charge. Keeping the combat state prevents flee animations and
@@ -1256,17 +1262,14 @@ fn canonical_steering_goal(
                                 .ok()
                                 .map(|index| ranged_frames[index]);
                             let (line_source_x, line_source_z, line_target_x, line_target_z) =
-                                shared.map_or(
-                                    (source_x, source_z, target_x, target_z),
-                                    |frame| {
-                                        (
-                                            frame.source_x,
-                                            frame.source_z,
-                                            frame.target_x,
-                                            frame.target_z,
-                                        )
-                                    },
-                                );
+                                shared.map_or((source_x, source_z, target_x, target_z), |frame| {
+                                    (
+                                        frame.source_x,
+                                        frame.source_z,
+                                        frame.target_x,
+                                        frame.target_z,
+                                    )
+                                });
                             ranged_firing_line_goal(
                                 rank,
                                 company.living_members.max(1) as usize,
@@ -1366,7 +1369,21 @@ fn apply_global_combat_steering(
     motion_frame: &CombatMotionFrame,
     elapsed_seconds: f64,
 ) {
-    steering.integrate_all(elapsed_seconds);
+    let map_half = ctx
+        .db
+        .world_config()
+        .id()
+        .find(&0)
+        .map_or(540.0, |config| playable_half_for_map_size(config.map_size));
+    steering.integrate_all_bounded(
+        elapsed_seconds,
+        SteeringBounds {
+            min_x: -map_half,
+            max_x: map_half,
+            min_z: -map_half,
+            max_z: map_half,
+        },
+    );
     for index in 0..steering.len() {
         let source = steering.body(index);
         let Some(mut agent) = ctx.db.combat_agent().id().find(&source.id) else {

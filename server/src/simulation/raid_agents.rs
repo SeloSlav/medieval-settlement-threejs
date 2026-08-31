@@ -1443,27 +1443,23 @@ fn retained_or_nearest_enemy<'a>(
 ) -> Option<&'a CombatAgent> {
     let retention_distance_sq = (max_distance * 1.35).powi(2);
     if agent.engagement_target_id != 0 {
-        if let Some(candidate) = snapshot_by_id(snapshots, agent.engagement_target_id).filter(
-            |candidate| {
+        if let Some(candidate) =
+            snapshot_by_id(snapshots, agent.engagement_target_id).filter(|candidate| {
                 candidate.state != COMBAT_STATE_DOWNED
                     && candidate.health > EPSILON
                     && distance_squared(agent.x, agent.z, candidate.x, candidate.z)
                         <= retention_distance_sq
                     && matches(candidate)
-            },
-        ) {
+            })
+        {
             return Some(candidate);
         }
         agent.engagement_target_id = 0;
     }
-    let target_id = target_grid.nearest_matching_id(
-        agent.id,
-        max_distance,
-        |candidate_id, _, _| {
-            snapshot_by_id(snapshots, candidate_id)
-                .is_some_and(|candidate| matches(candidate))
-        },
-    )?;
+    let target_id =
+        target_grid.nearest_matching_id(agent.id, max_distance, |candidate_id, _, _| {
+            snapshot_by_id(snapshots, candidate_id).is_some_and(|candidate| matches(candidate))
+        })?;
     agent.engagement_target_id = target_id;
     snapshot_by_id(snapshots, target_id)
 }

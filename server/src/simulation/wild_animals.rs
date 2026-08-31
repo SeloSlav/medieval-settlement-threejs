@@ -5,8 +5,8 @@ use spacetimedb::{Identity, ReducerContext};
 use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
 use crate::economy::{
-    building_edible_food_stock, residence_edible_food_stock,
-    withdraw_building_edible_food, withdraw_residence_commodity, CommodityKind,
+    building_edible_food_stock, residence_edible_food_stock, withdraw_building_edible_food,
+    withdraw_residence_commodity, CommodityKind,
 };
 use crate::tables::{CombatAgent, Corpse};
 
@@ -88,8 +88,12 @@ fn spawn_due_incursions(
             spawn_through_tick,
             mix(seed ^ owner_seed, 0x464f58) % fox_interval,
             fox_interval,
-        )
-            && !ctx.db.combat_agent().owner().filter(&owner).any(|agent| agent.faction == FOX)
+        ) && !ctx
+            .db
+            .combat_agent()
+            .owner()
+            .filter(&owner)
+            .any(|agent| agent.faction == FOX)
         {
             if let Some(target) = fox_target(ctx, owner, tick ^ seed ^ owner_seed) {
                 spawn_fox(ctx, owner, tick, seed ^ owner_seed, map_size, target);
@@ -101,8 +105,12 @@ fn spawn_due_incursions(
             spawn_through_tick,
             mix(seed ^ owner_seed, 0x574f4c46) % wolf_interval,
             wolf_interval,
-        )
-            && !ctx.db.combat_agent().owner().filter(&owner).any(|agent| agent.faction == WOLF)
+        ) && !ctx
+            .db
+            .combat_agent()
+            .owner()
+            .filter(&owner)
+            .any(|agent| agent.faction == WOLF)
         {
             if let Some(target) = wolf_target(ctx, owner, tick ^ seed) {
                 spawn_wolf_pack(ctx, owner, tick, seed ^ owner_seed, map_size, target);
@@ -136,7 +144,20 @@ fn spawn_fox(
     target: Target,
 ) {
     let (x, z, home_x, home_z) = woodland_entry(target, seed, map_size, 78.0);
-    insert_animal(ctx, owner, 0x4000_0000_0000_0000 | tick, FOX, 0, target, x, z, home_x, home_z, 34.0, tick);
+    insert_animal(
+        ctx,
+        owner,
+        0x4000_0000_0000_0000 | tick,
+        FOX,
+        0,
+        target,
+        x,
+        z,
+        home_x,
+        home_z,
+        34.0,
+        tick,
+    );
 }
 
 fn spawn_wolf_pack(
@@ -149,7 +170,11 @@ fn spawn_wolf_pack(
 ) {
     let event_id = 0x8000_0000_0000_0000 | tick;
     let pack_roll = mix(seed, tick);
-    let count = if pack_roll % 5 == 0 { 1 } else { 4 + (pack_roll % 4) as u32 };
+    let count = if pack_roll % 5 == 0 {
+        1
+    } else {
+        4 + (pack_roll % 4) as u32
+    };
     let (x, z, home_x, home_z) = woodland_entry(target, seed ^ event_id, map_size, 92.0);
     for slot in 0..count {
         let angle = slot as f64 * 2.399_963_229_728_653;
@@ -279,7 +304,9 @@ fn dog_attack(ctx: &ReducerContext, dog: &mut CombatAgent, mut enemy: CombatAgen
 
 fn patrol_dog(ctx: &ReducerContext, dog: &mut CombatAgent, tick: u64, dt: f64) {
     let target = target_position(ctx, dog.target_kind, dog.target_id);
-    if target.is_none() || target.is_some_and(|target| distance(dog.x, dog.z, target.x, target.z) < 1.3) {
+    if target.is_none()
+        || target.is_some_and(|target| distance(dog.x, dog.z, target.x, target.z) < 1.3)
+    {
         if let Some(patrol) = dog_patrol_target(ctx, dog, dog.id ^ tick / 90) {
             dog.target_kind = patrol.kind;
             dog.target_id = patrol.id;
@@ -299,7 +326,12 @@ fn patrol_dog(ctx: &ReducerContext, dog: &mut CombatAgent, tick: u64, dt: f64) {
 }
 
 fn step_foxes(ctx: &ReducerContext, tick: u64, dt: f64) {
-    let foxes = ctx.db.combat_agent().iter().filter(|agent| agent.faction == FOX).collect::<Vec<_>>();
+    let foxes = ctx
+        .db
+        .combat_agent()
+        .iter()
+        .filter(|agent| agent.faction == FOX)
+        .collect::<Vec<_>>();
     for mut fox in foxes {
         if fox.state == DOWNED {
             continue;
@@ -343,7 +375,12 @@ fn step_foxes(ctx: &ReducerContext, tick: u64, dt: f64) {
 }
 
 fn step_wolves(ctx: &ReducerContext, tick: u64, dt: f64) {
-    let wolves = ctx.db.combat_agent().iter().filter(|agent| agent.faction == WOLF).collect::<Vec<_>>();
+    let wolves = ctx
+        .db
+        .combat_agent()
+        .iter()
+        .filter(|agent| agent.faction == WOLF)
+        .collect::<Vec<_>>();
     for mut wolf in wolves {
         if wolf.state == DOWNED {
             continue;
@@ -552,7 +589,12 @@ fn kill_stable_ox(ctx: &ReducerContext, ox_id: u64) -> bool {
 }
 
 fn retreat_pack(ctx: &ReducerContext, raid_id: u64, tick: u64) {
-    let pack = ctx.db.combat_agent().raid_id().filter(&raid_id).collect::<Vec<_>>();
+    let pack = ctx
+        .db
+        .combat_agent()
+        .raid_id()
+        .filter(&raid_id)
+        .collect::<Vec<_>>();
     for mut wolf in pack {
         if wolf.faction != WOLF || wolf.state == DOWNED {
             continue;
@@ -656,58 +698,74 @@ fn steal_residence_food(residence: &mut crate::tables::Residence, amount: f64) -
 }
 
 fn fox_target(ctx: &ReducerContext, owner: Identity, seed: u64) -> Option<Target> {
-    let food_target = || ctx.db
-        .building()
-        .owner()
-        .filter(&owner)
-        .filter(|building| {
-            building.construction_complete
-                && building.kind == "granary"
-                && building_edible_food_stock(building) > 0.0
-        })
-        .max_by(|left, right| building_edible_food_stock(left).total_cmp(&building_edible_food_stock(right)))
-        .map(target_building)
-        .or_else(|| {
-            ctx.db
-                .residence()
-                .owner()
-                .filter(&owner)
-                .filter(|residence| residence_edible_food_stock(residence) > 0.0)
-                .max_by(|left, right| residence_edible_food_stock(left).total_cmp(&residence_edible_food_stock(right)))
-                .map(target_residence)
-        });
-    let vulnerable_livestock = || ctx
-        .db
-        .building()
-        .owner()
-        .filter(&owner)
-        .filter(|building| building.construction_complete && (building.kind == "pastoral_farmstead" || building.kind == "swineherd"))
-        .find(|building| {
-            ctx.db
-                .pasture_herd()
-                .farmstead_id()
-                .filter(&building.id)
-                .any(|herd| herd.head_count > 0 && herd.species != 0)
-        })
-        .map(target_building);
-    let backyard = || ctx
-        .db
-        .residence()
-        .owner()
-        .filter(&owner)
-        .find(|residence| {
-            ctx.db
-                .backyard_garden()
-                .residence_id()
-                .filter(&residence.id)
-                .next()
-                .is_some()
-        })
-        .map(target_residence);
+    let food_target = || {
+        ctx.db
+            .building()
+            .owner()
+            .filter(&owner)
+            .filter(|building| {
+                building.construction_complete
+                    && building.kind == "granary"
+                    && building_edible_food_stock(building) > 0.0
+            })
+            .max_by(|left, right| {
+                building_edible_food_stock(left).total_cmp(&building_edible_food_stock(right))
+            })
+            .map(target_building)
+            .or_else(|| {
+                ctx.db
+                    .residence()
+                    .owner()
+                    .filter(&owner)
+                    .filter(|residence| residence_edible_food_stock(residence) > 0.0)
+                    .max_by(|left, right| {
+                        residence_edible_food_stock(left)
+                            .total_cmp(&residence_edible_food_stock(right))
+                    })
+                    .map(target_residence)
+            })
+    };
+    let vulnerable_livestock = || {
+        ctx.db
+            .building()
+            .owner()
+            .filter(&owner)
+            .filter(|building| {
+                building.construction_complete
+                    && (building.kind == "pastoral_farmstead" || building.kind == "swineherd")
+            })
+            .find(|building| {
+                ctx.db
+                    .pasture_herd()
+                    .farmstead_id()
+                    .filter(&building.id)
+                    .any(|herd| herd.head_count > 0 && herd.species != 0)
+            })
+            .map(target_building)
+    };
+    let backyard = || {
+        ctx.db
+            .residence()
+            .owner()
+            .filter(&owner)
+            .find(|residence| {
+                ctx.db
+                    .backyard_garden()
+                    .residence_id()
+                    .filter(&residence.id)
+                    .next()
+                    .is_some()
+            })
+            .map(target_residence)
+    };
     if seed % 4 == 0 {
-        backyard().or_else(vulnerable_livestock).or_else(food_target)
+        backyard()
+            .or_else(vulnerable_livestock)
+            .or_else(food_target)
     } else {
-        food_target().or_else(backyard).or_else(vulnerable_livestock)
+        food_target()
+            .or_else(backyard)
+            .or_else(vulnerable_livestock)
     }
 }
 
@@ -727,15 +785,29 @@ fn wolf_target(ctx: &ReducerContext, owner: Identity, seed: u64) -> Option<Targe
             .filter(&owner)
             .filter(|agent| agent.faction == DOG && agent.state != DOWNED && agent.health > 0.0)
             .min_by_key(|agent| agent.id)
-            .map(|agent| Target { kind: TARGET_COMBAT_AGENT, id: agent.id, x: agent.x, z: agent.z })
+            .map(|agent| Target {
+                kind: TARGET_COMBAT_AGENT,
+                id: agent.id,
+                x: agent.x,
+                z: agent.z,
+            })
     };
     let livestock_target = || {
         ctx.db
             .building()
             .owner()
             .filter(&owner)
-            .filter(|building| building.construction_complete && (building.kind == "pastoral_farmstead" || building.kind == "swineherd"))
-            .find(|building| ctx.db.pasture_herd().farmstead_id().filter(&building.id).any(|herd| herd.head_count > 0))
+            .filter(|building| {
+                building.construction_complete
+                    && (building.kind == "pastoral_farmstead" || building.kind == "swineherd")
+            })
+            .find(|building| {
+                ctx.db
+                    .pasture_herd()
+                    .farmstead_id()
+                    .filter(&building.id)
+                    .any(|herd| herd.head_count > 0)
+            })
             .map(target_building)
     };
     let residence_target = || {
@@ -743,17 +815,39 @@ fn wolf_target(ctx: &ReducerContext, owner: Identity, seed: u64) -> Option<Targe
             .residence()
             .owner()
             .filter(&owner)
-            .filter(|residence| residence.population > 0 || residence_edible_food_stock(residence) > 0.0)
+            .filter(|residence| {
+                residence.population > 0 || residence_edible_food_stock(residence) > 0.0
+            })
             .max_by_key(|residence| {
-                u64::from(ctx.db.backyard_garden().residence_id().filter(&residence.id).next().is_some()) * 10_000 + residence.id
+                u64::from(
+                    ctx.db
+                        .backyard_garden()
+                        .residence_id()
+                        .filter(&residence.id)
+                        .next()
+                        .is_some(),
+                ) * 10_000
+                    + residence.id
             })
             .map(target_residence)
     };
     match seed % 4 {
-        0 => ox_target().or_else(dog_target).or_else(livestock_target).or_else(residence_target),
-        1 => dog_target().or_else(ox_target).or_else(residence_target).or_else(livestock_target),
-        2 => livestock_target().or_else(residence_target).or_else(ox_target).or_else(dog_target),
-        _ => residence_target().or_else(livestock_target).or_else(ox_target).or_else(dog_target),
+        0 => ox_target()
+            .or_else(dog_target)
+            .or_else(livestock_target)
+            .or_else(residence_target),
+        1 => dog_target()
+            .or_else(ox_target)
+            .or_else(residence_target)
+            .or_else(livestock_target),
+        2 => livestock_target()
+            .or_else(residence_target)
+            .or_else(ox_target)
+            .or_else(dog_target),
+        _ => residence_target()
+            .or_else(livestock_target)
+            .or_else(ox_target)
+            .or_else(dog_target),
     }
 }
 
@@ -781,7 +875,12 @@ fn dog_patrol_target(ctx: &ReducerContext, dog: &CombatAgent, seed: u64) -> Opti
         .filter(&owner)
         .filter(|building| building.construction_complete && building.kind != "salvage_pile")
         .collect::<Vec<_>>();
-    let residences = ctx.db.residence().owner().filter(&owner).collect::<Vec<_>>();
+    let residences = ctx
+        .db
+        .residence()
+        .owner()
+        .filter(&owner)
+        .collect::<Vec<_>>();
     let total = buildings.len() + residences.len();
     if total == 0 {
         return None;
@@ -790,7 +889,9 @@ fn dog_patrol_target(ctx: &ReducerContext, dog: &CombatAgent, seed: u64) -> Opti
     if index < buildings.len() {
         Some(target_building(buildings[index].clone()))
     } else {
-        Some(target_residence(residences[index - buildings.len()].clone()))
+        Some(target_residence(
+            residences[index - buildings.len()].clone(),
+        ))
     }
 }
 
@@ -799,7 +900,11 @@ fn nearest_hostile(ctx: &ReducerContext, dog: &CombatAgent, radius: f64) -> Opti
         .combat_agent()
         .owner()
         .filter(&dog.owner)
-        .filter(|agent| matches!(agent.faction, 1 | 2 | FOX | WOLF) && agent.state != DOWNED && agent.health > 0.0)
+        .filter(|agent| {
+            matches!(agent.faction, 1 | 2 | FOX | WOLF)
+                && agent.state != DOWNED
+                && agent.health > 0.0
+        })
         .filter_map(|agent| {
             let range = distance(dog.x, dog.z, agent.x, agent.z);
             (range <= radius).then_some((range, agent))
@@ -808,12 +913,20 @@ fn nearest_hostile(ctx: &ReducerContext, dog: &CombatAgent, radius: f64) -> Opti
         .map(|(_, agent)| agent)
 }
 
-fn nearest_defender(ctx: &ReducerContext, animal: &CombatAgent, radius: f64) -> Option<CombatAgent> {
+fn nearest_defender(
+    ctx: &ReducerContext,
+    animal: &CombatAgent,
+    radius: f64,
+) -> Option<CombatAgent> {
     ctx.db
         .combat_agent()
         .owner()
         .filter(&animal.owner)
-        .filter(|agent| (agent.faction == 0 || agent.faction == DOG || (3..=11).contains(&agent.faction)) && agent.state != DOWNED && agent.health > 0.0)
+        .filter(|agent| {
+            (agent.faction == 0 || agent.faction == DOG || (3..=11).contains(&agent.faction))
+                && agent.state != DOWNED
+                && agent.health > 0.0
+        })
         .filter_map(|agent| {
             let range = distance(animal.x, animal.z, agent.x, agent.z);
             (range <= radius).then_some((range, agent))
@@ -826,29 +939,57 @@ fn target_position(ctx: &ReducerContext, kind: u8, id: u64) -> Option<Target> {
     match kind {
         TARGET_BUILDING => ctx.db.building().id().find(&id).map(target_building),
         TARGET_RESIDENCE => ctx.db.residence().id().find(&id).map(target_residence),
-        TARGET_COMBAT_AGENT => ctx.db.combat_agent().id().find(&id).map(|agent| Target { kind, id, x: agent.x, z: agent.z }),
+        TARGET_COMBAT_AGENT => ctx.db.combat_agent().id().find(&id).map(|agent| Target {
+            kind,
+            id,
+            x: agent.x,
+            z: agent.z,
+        }),
         TARGET_STABLE_OX => {
             let ox = ctx.db.stable_ox().id().find(&id)?;
-            let building_id = if ox.assigned_building_id > 0 { ox.assigned_building_id } else { ox.stable_id };
+            let building_id = if ox.assigned_building_id > 0 {
+                ox.assigned_building_id
+            } else {
+                ox.stable_id
+            };
             let building = ctx.db.building().id().find(&building_id)?;
-            Some(Target { kind, id, x: building.x, z: building.z })
+            Some(Target {
+                kind,
+                id,
+                x: building.x,
+                z: building.z,
+            })
         }
         _ => None,
     }
 }
 
 fn target_building(building: crate::tables::Building) -> Target {
-    Target { kind: TARGET_BUILDING, id: building.id, x: building.x, z: building.z }
+    Target {
+        kind: TARGET_BUILDING,
+        id: building.id,
+        x: building.x,
+        z: building.z,
+    }
 }
 
 fn target_residence(residence: crate::tables::Residence) -> Target {
-    Target { kind: TARGET_RESIDENCE, id: residence.id, x: residence.x, z: residence.z }
+    Target {
+        kind: TARGET_RESIDENCE,
+        id: residence.id,
+        x: residence.x,
+        z: residence.z,
+    }
 }
 
 fn woodland_entry(target: Target, seed: u64, map_size: u8, range: f64) -> (f64, f64, f64, f64) {
     let angle = (mix(seed, 0x454e5452) as f64 / u64::MAX as f64) * std::f64::consts::TAU;
     let (dx, dz) = (angle.cos(), angle.sin());
-    let half = match map_size { 0 => 408.5, 2 => 1_155.412_48, _ => 817.0 } - 8.0;
+    let half = match map_size {
+        0 => 408.5,
+        2 => 1_155.412_48,
+        _ => 817.0,
+    } - 8.0;
     let x = (target.x + dx * range).clamp(-half, half);
     let z = (target.z + dz * range).clamp(-half, half);
     let home_x = (target.x + dx * (range + 34.0)).clamp(-half, half);
@@ -857,7 +998,9 @@ fn woodland_entry(target: Target, seed: u64, map_size: u8, range: f64) -> (f64, 
 }
 
 fn wolf_pack_offset(slot: u32) -> (f64, f64) {
-    if slot == 0 { return (0.0, 0.0); }
+    if slot == 0 {
+        return (0.0, 0.0);
+    }
     let row = (slot + 1) / 2;
     let side = if slot % 2 == 0 { -1.0 } else { 1.0 };
     (side * (1.15 + row as f64 * 0.48), row as f64 * 0.72)
@@ -867,7 +1010,11 @@ fn move_toward(agent: &mut CombatAgent, goal_x: f64, goal_z: f64, speed: f64, dt
     let dx = goal_x - agent.x;
     let dz = goal_z - agent.z;
     let range = dx.hypot(dz);
-    if range <= 1e-6 { agent.velocity_x = 0.0; agent.velocity_z = 0.0; return; }
+    if range <= 1e-6 {
+        agent.velocity_x = 0.0;
+        agent.velocity_z = 0.0;
+        return;
+    }
     let step = (speed * dt).min(range);
     let move_x = dx / range * step;
     let move_z = dz / range * step;
@@ -879,7 +1026,12 @@ fn move_toward(agent: &mut CombatAgent, goal_x: f64, goal_z: f64, speed: f64, dt
 }
 
 fn cleanup_downed_animals(ctx: &ReducerContext, dt: f64) {
-    let animals = ctx.db.combat_agent().iter().filter(|agent| matches!(agent.faction, DOG | FOX | WOLF) && agent.state == DOWNED).collect::<Vec<_>>();
+    let animals = ctx
+        .db
+        .combat_agent()
+        .iter()
+        .filter(|agent| matches!(agent.faction, DOG | FOX | WOLF) && agent.state == DOWNED)
+        .collect::<Vec<_>>();
     for mut animal in animals {
         animal.attack_cooldown = (animal.attack_cooldown - dt).max(0.0);
         if animal.attack_cooldown <= 0.0 {
@@ -892,7 +1044,12 @@ fn cleanup_downed_animals(ctx: &ReducerContext, dt: f64) {
 }
 
 fn clear_hostile_wildlife(ctx: &ReducerContext) {
-    let animals = ctx.db.combat_agent().iter().filter(|agent| matches!(agent.faction, FOX | WOLF)).collect::<Vec<_>>();
+    let animals = ctx
+        .db
+        .combat_agent()
+        .iter()
+        .filter(|agent| matches!(agent.faction, FOX | WOLF))
+        .collect::<Vec<_>>();
     for animal in animals {
         ctx.db.militia_order().combat_agent_id().delete(animal.id);
         ctx.db.combat_agent().id().delete(animal.id);
@@ -913,9 +1070,12 @@ fn mix(mut value: u64, salt: u64) -> u64 {
 }
 
 fn identity_seed(identity: Identity) -> u64 {
-    identity.to_string().bytes().fold(0xcbf2_9ce4_8422_2325, |hash, byte| {
-        (hash ^ u64::from(byte)).wrapping_mul(0x1000_0000_01b3)
-    })
+    identity
+        .to_string()
+        .bytes()
+        .fold(0xcbf2_9ce4_8422_2325, |hash, byte| {
+            (hash ^ u64::from(byte)).wrapping_mul(0x1000_0000_01b3)
+        })
 }
 
 #[cfg(test)]

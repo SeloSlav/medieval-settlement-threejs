@@ -8,11 +8,10 @@ use crate::economy::{
     total_timber, treasury_gold, withdraw_building_commodity, CommodityKind,
 };
 use crate::military_policy::{
-    formation_offset, local_company_requires_provisions, member_combat_profile,
-    military_day_ticks, military_resupply_cost, military_stats, normalize_military_demands,
-    MilitaryCost, MilitaryKind, MERCENARY_MAX_CONTRACT_DAYS, MILITARY_FORMATION_COLUMN,
-    MILITARY_FORMATION_LINE, MILITARY_FORMATION_LOOSE, MILITARY_FORMATION_SHIELD_WALL,
-    MILITARY_PROVISION_ISSUE_DAYS,
+    formation_offset, local_company_requires_provisions, member_combat_profile, military_day_ticks,
+    military_resupply_cost, military_stats, normalize_military_demands, MilitaryCost, MilitaryKind,
+    MERCENARY_MAX_CONTRACT_DAYS, MILITARY_FORMATION_COLUMN, MILITARY_FORMATION_LINE,
+    MILITARY_FORMATION_LOOSE, MILITARY_FORMATION_SHIELD_WALL, MILITARY_PROVISION_ISSUE_DAYS,
 };
 use crate::raid_agent_policy::playable_half_for_map_size;
 use crate::security_policy::RaidPortableStores;
@@ -183,11 +182,7 @@ pub fn set_military_formation(
     if formation == MILITARY_FORMATION_SHIELD_WALL
         && matches!(
             MilitaryKind::from_id(company.kind),
-            Some(
-                MilitaryKind::Crossbows
-                    | MilitaryKind::Bowmen
-                    | MilitaryKind::Polearms
-            )
+            Some(MilitaryKind::Crossbows | MilitaryKind::Bowmen | MilitaryKind::Polearms)
         )
     {
         return Err(
@@ -412,10 +407,7 @@ pub fn resupply_military_company(ctx: &ReducerContext, company_id: u64) -> Resul
     let missing_ammunition = company
         .ammunition_capacity
         .saturating_sub(company.ammunition);
-    let ammunition_bundles = if matches!(
-        kind,
-        MilitaryKind::Crossbows | MilitaryKind::Bowmen
-    ) {
+    let ammunition_bundles = if matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen) {
         missing_ammunition.div_ceil(military_stats(kind).ammunition_per_member.max(1))
     } else {
         0
@@ -432,10 +424,7 @@ pub fn resupply_military_company(ctx: &ReducerContext, company_id: u64) -> Resul
     }
     company.ammunition = company.ammunition_capacity;
     ctx.db.military_company().id().update(company.clone());
-    if matches!(
-        kind,
-        MilitaryKind::Crossbows | MilitaryKind::Bowmen
-    ) {
+    if matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen) {
         for mut member in ctx
             .db
             .military_member()
@@ -479,10 +468,7 @@ fn recruit_resident_company(
         kind: kind as u8,
         source_building_id: source.id,
         state: 0,
-        formation: if matches!(
-            kind,
-            MilitaryKind::Crossbows | MilitaryKind::Bowmen
-        ) {
+        formation: if matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen) {
             MILITARY_FORMATION_LOOSE
         } else {
             MILITARY_FORMATION_LINE
@@ -554,7 +540,10 @@ fn recruit_resident_company(
             company_id: company.id,
             residence_id: recruit.residence_id,
             resident_slot: recruit.resident_slot,
-            person_identity: format!("residence-{}:person:{}", recruit.residence_id, recruit.resident_slot),
+            person_identity: format!(
+                "residence-{}:person:{}",
+                recruit.residence_id, recruit.resident_slot
+            ),
             phase,
             ammunition: 0,
             ammunition_capacity: stats.ammunition_per_member,
@@ -770,7 +759,11 @@ fn commodity_costs(cost: MilitaryCost) -> [(CommodityKind, u32, &'static str); 1
         (CommodityKind::Shields, cost.shields, "shields"),
         (CommodityKind::Bows, cost.bows, "bows"),
         (CommodityKind::Crossbows, cost.crossbows, "crossbows"),
-        (CommodityKind::PaddedArmor, cost.padded_armor, "padded armor"),
+        (
+            CommodityKind::PaddedArmor,
+            cost.padded_armor,
+            "padded armor",
+        ),
         (CommodityKind::MailArmor, cost.mail_armor, "mail armor"),
         (CommodityKind::Ammunition, cost.ammunition, "ammunition"),
         (CommodityKind::Ale, cost.ale, "ale"),
@@ -807,11 +800,7 @@ fn aggregate_commodity_stock(ctx: &ReducerContext, owner: Identity, kind: Commod
     (available - pending_equipment_reserved(ctx, owner, kind)).max(0.0)
 }
 
-fn pending_equipment_reserved(
-    ctx: &ReducerContext,
-    owner: Identity,
-    kind: CommodityKind,
-) -> f64 {
+fn pending_equipment_reserved(ctx: &ReducerContext, owner: Identity, kind: CommodityKind) -> f64 {
     ctx.db
         .military_company()
         .owner()

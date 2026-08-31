@@ -37,9 +37,7 @@ pub fn purchase_kennel_dog(ctx: &ReducerContext, kennel_id: u64) -> Result<(), S
         .combat_agent()
         .owner()
         .filter(&owner)
-        .filter(|agent| {
-            agent.faction == GUARD_DOG_FACTION && agent.source_building_id == kennel_id
-        })
+        .filter(|agent| agent.faction == GUARD_DOG_FACTION && agent.source_building_id == kennel_id)
         .collect::<Vec<_>>();
     if dogs.len() >= usize::from(KENNEL_DOG_SLOTS) {
         return Err(format!(
