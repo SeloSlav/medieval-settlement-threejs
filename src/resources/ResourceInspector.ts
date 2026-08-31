@@ -3574,6 +3574,7 @@ function appendFocusableInspectorTooltip(
 }
 
 function decorateInspectorRow(row: HTMLElement, label: string, value: string): void {
+  if (row.hasAttribute('data-inspector-custom-layout')) return;
   if (row.hasAttribute('data-inspector-resource-strip')) {
     row.classList.add('inspector-resource-strip-row');
     return;

@@ -12,6 +12,7 @@ import {
   BUILDING_AUDIO_CLIPS,
   CHAPEL_BELL_CLIPS,
   COMBAT_AUDIO_CLIPS,
+  COMBAT_DEATH_CLIPS,
   COMBAT_VOICE_CLIPS,
   FARM_WORKERS_SINGING_CLIP,
   FIRE_CRACKLE_CLIP,
@@ -84,6 +85,7 @@ function runtimeClips(): AudioClipDefinition[] {
     ...Object.values(WORKER_ACTIVITY_CLIPS).flat(),
     ...Object.values(COMBAT_AUDIO_CLIPS).flat(),
     ...Object.values(COMBAT_VOICE_CLIPS).flat(),
+    ...Object.values(COMBAT_DEATH_CLIPS).flat(),
     ...Object.values(BUILDING_AUDIO_CLIPS),
     ...Object.values(WORLD_FOLEY_CLIPS),
   ];
@@ -254,6 +256,21 @@ async function main(): Promise<void> {
     const metricByPath = new Map(
       metrics.map((metric) => [metric.path, metric]),
     );
+    for (const [voice, clips] of Object.entries(COMBAT_DEATH_CLIPS)) {
+      const durations = clips.map((clip) => {
+        const metric = metricByPath.get(clip.path);
+        invariant(metric, `Death clip was not decoded: ${clip.path}`);
+        return metric.duration;
+      });
+      invariant(
+        Math.max(...durations) - Math.min(...durations) >= 0.7,
+        `${voice} death reactions need clearly different timing envelopes`,
+      );
+      invariant(
+        new Set(durations.map((duration) => duration.toFixed(1))).size >= 4,
+        `${voice} death reactions need at least four distinct decoded durations`,
+      );
+    }
     const defaultEffectiveRms = (
       clip: AudioClipDefinition,
       preferenceGain: number,

@@ -27,11 +27,16 @@ const stableReducer = read('server/src/reducers/stable_oxen.rs');
 assert.match(stableReducer, /stable\.assigned_labor == 0/);
 assert.match(stableReducer, /Assign at least one stable hand/);
 
+const buildingReducers = read('server/src/reducers/buildings.rs');
+assert.match(buildingReducers, /building\.kind == "kennel"/);
+assert.match(buildingReducers, /GUARD_DOG_FACTION[\s\S]{0,160}source_building_id == building_id/);
+
 const wildlife = read('server/src/simulation/wild_animals.rs');
 assert.match(wildlife, /const FOX: u8 = 13/);
 assert.match(wildlife, /const WOLF: u8 = 14/);
 assert.match(wildlife, /day_ticks \* 9/);
 assert.match(wildlife, /day_ticks \* 14/);
+assert.match(wildlife, /recurring_phase_crossed/);
 assert.match(wildlife, /4 \+ \(pack_roll % 4\)/);
 assert.match(wildlife, /nearest_hostile\(ctx, &dog, 52\.0\)/);
 assert.match(wildlife, /wolf_pack_offset/);

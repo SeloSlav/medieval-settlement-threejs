@@ -421,6 +421,42 @@ async function main(): Promise<void> {
     invariant(asset, `Combat voice runtime clip has no suite manifest source: ${clip.path}`);
   }
 
+  const combatDeathAssets = manifest.assets.filter((asset) => (
+    asset.group === 'combat-death-voices-v1'
+  ));
+  invariant(
+    combatDeathAssets.length === 8
+    && Math.abs(combatDeathAssets.reduce(
+      (sum, asset) => sum + (asset.durationSeconds ?? 0),
+      0,
+    ) - 9.5) < 1e-9,
+    'Combat death suite must retain eight deliberately varied new reactions and its 9.5-second cost envelope',
+  );
+  invariant(
+    combatDeathAssets.every((asset) => (
+      asset.loop === false
+      && /strictly nonverbal/i.test(asset.prompt)
+      && /no words/i.test(asset.prompt)
+      && /intelligible language/i.test(asset.prompt)
+      && /crowd/i.test(asset.prompt)
+    )),
+    'Every death reaction must explicitly exclude language and crowds',
+  );
+  invariant(
+    COMBAT_DEATH_CLIPS.man.length === 5
+    && COMBAT_DEATH_CLIPS.woman.length === 5,
+    'Each death voice needs five runtime variants rather than one clip with pitch variation',
+  );
+  for (const clip of [
+    ...COMBAT_DEATH_CLIPS.man.slice(1),
+    ...COMBAT_DEATH_CLIPS.woman.slice(1),
+  ]) {
+    const asset = combatDeathAssets.find((candidate) => (
+      clip.path === `/${candidate.output.replace(/^public[\\/]/, '').replaceAll('\\', '/')}`
+    ));
+    invariant(asset, `Generated death runtime clip has no suite manifest source: ${clip.path}`);
+  }
+
   const buildingAssets = manifest.assets.filter((asset) => (
     asset.group === 'building-foley'
   ));
@@ -1291,6 +1327,11 @@ async function main(): Promise<void> {
       invariant(record.byteLength === (await stat(filename)).size, `Byte count mismatch for ${asset.id}`);
       invariant(record.sha256 === await sha256(filename), `SHA-256 mismatch for ${asset.id}`);
     }
+    const deathHashes = combatDeathAssets.map((asset) => records.get(asset.id)?.sha256);
+    invariant(
+      deathHashes.every(Boolean) && new Set(deathHashes).size === combatDeathAssets.length,
+      'Every generated death reaction must have distinct encoded audio',
+    );
   }
 
   console.log(

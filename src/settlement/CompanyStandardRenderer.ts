@@ -171,7 +171,9 @@ const OTTOMAN_LAYOUTS: readonly PanelLayout[] = [
     top: 3.4,
     width: 1.58,
     height: 1.34,
-    edgeProfile: [1, 0.91, 0.7, 0.91, 1],
+    // A single central fly point: the middle projects furthest from the pole,
+    // while the upper and lower fly corners taper inward.
+    edgeProfile: [0.72, 0.88, 1, 0.88, 0.72],
   },
 ];
 
@@ -340,7 +342,10 @@ export class CompanyStandardRenderer {
       const dz = agent.z - listenerZ;
       this.active.push({ agent, distance: Math.hypot(dx, dz) });
     }
-    this.active.sort((left, right) => left.agent.id.localeCompare(right.agent.id));
+    this.active.sort((left, right) => (
+      left.distance - right.distance
+      || left.agent.id.localeCompare(right.agent.id, undefined, { numeric: true })
+    ));
     this.droppedStandards = Math.max(0, this.active.length - this.capacity);
     if (this.active.length > this.capacity) this.active.length = this.capacity;
 
@@ -751,8 +756,12 @@ function stepPanel(
   windSpeed: number,
   elapsedSeconds: number,
 ): void {
-  const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(state.quaternion);
-  const pressure = (windX * normal.x + windZ * normal.z) * 0.19;
+  const q = state.quaternion;
+  // Third column of the quaternion rotation matrix: local cloth-plane normal
+  // in world space, calculated without allocating per-panel vectors.
+  const normalX = 2 * (q.x * q.z + q.w * q.y);
+  const normalZ = 1 - 2 * (q.x * q.x + q.y * q.y);
+  const pressure = (windX * normalX + windZ * normalZ) * 0.19;
   const dtSq = dt * dt;
   const damping = Math.pow(0.982, dt / FIXED_DT);
   for (let row = 0; row < panel.rows; row += 1) {
@@ -781,14 +790,16 @@ function stepPanel(
       const pressureForce = pressure * (0.55 + 0.45 * u);
       const drag = 0.035 + u * 0.025;
       panel.positions[offset] = x + vx
-        + (windX * drag + normal.x * (pressureForce + flutter)) * dtSq;
+        + (windX * drag + normalX * (pressureForce + flutter)) * dtSq;
       panel.positions[offset + 1] = y + vy + (-1.75 + flutter * 0.08) * dtSq;
       panel.positions[offset + 2] = z + vz
-        + (windZ * drag + normal.z * (pressureForce + flutter)) * dtSq;
+        + (windZ * drag + normalZ * (pressureForce + flutter)) * dtSq;
     }
   }
 
-  for (let iteration = 0; iteration < 4; iteration += 1) {
+  // Nine over-relaxed Gauss-Seidel passes keep the free edge supple while holding
+  // structural stretch below the perceptual rubber-sheet threshold.
+  for (let iteration = 0; iteration < 9; iteration += 1) {
     for (const constraint of panel.constraints) {
       solveConstraint(panel, constraint);
     }
@@ -818,7 +829,8 @@ function solveConstraint(
   if (distance < 1e-6) return;
   const correction = (distance - constraint.rest) / distance
     * 0.5
-    * constraint.stiffness;
+    * constraint.stiffness
+    * 1.16;
   const aPinned = constraint.a % panel.columns === 0;
   const bPinned = constraint.b % panel.columns === 0;
   const aWeight = aPinned ? 0 : bPinned ? 2 : 1;
@@ -910,11 +922,15 @@ function computeLayerNormals(layer: ClothLayer): void {
     const nx = aby * acz - abz * acy;
     const ny = abz * acx - abx * acz;
     const nz = abx * acy - aby * acx;
-    for (const offset of [ai, bi, ci]) {
-      layer.normals[offset] += nx;
-      layer.normals[offset + 1] += ny;
-      layer.normals[offset + 2] += nz;
-    }
+    layer.normals[ai] += nx;
+    layer.normals[ai + 1] += ny;
+    layer.normals[ai + 2] += nz;
+    layer.normals[bi] += nx;
+    layer.normals[bi + 1] += ny;
+    layer.normals[bi + 2] += nz;
+    layer.normals[ci] += nx;
+    layer.normals[ci + 1] += ny;
+    layer.normals[ci + 2] += nz;
   }
   for (let index = 0; index < layer.vertexCount; index += 1) {
     const offset = index * 3;
@@ -1216,6 +1232,6 @@ function shortestAngle(value: number): number {
   return Math.atan2(Math.sin(value), Math.cos(value));
 }
 
-function finiteOr(value: number, fallback: number): number {
-  return Number.isFinite(value) ? value : fallback;
+function finiteOr(value: number | undefined, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }

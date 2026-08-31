@@ -132,6 +132,7 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
         step_wild_animal_world(
             ctx,
             config.sim_tick,
+            config.sim_tick + u64::from(substeps),
             config.seed,
             config.map_size,
             config.wild_animal_attacks_enabled,

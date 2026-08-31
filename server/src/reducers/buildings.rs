@@ -3354,6 +3354,26 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         ctx.db.stable_ox().id().delete(ox.id);
     }
 
+    // Kennel dogs are durable combat agents, so remove the kennel's roster
+    // before this Building id can be reused by a physical salvage pile.
+    // Without this cleanup, demolishing and rebuilding could bypass the
+    // per-kennel capacity and leave dogs patrolling without a home kennel.
+    if building.kind == "kennel" {
+        for dog in ctx
+            .db
+            .combat_agent()
+            .owner()
+            .filter(&owner)
+            .filter(|agent| {
+                agent.faction == crate::reducers::kennel_dogs::GUARD_DOG_FACTION
+                    && agent.source_building_id == building_id
+            })
+            .collect::<Vec<_>>()
+        {
+            ctx.db.combat_agent().id().delete(dog.id);
+        }
+    }
+
     let physical_reclamation = ctx
         .db
         .player_resources()

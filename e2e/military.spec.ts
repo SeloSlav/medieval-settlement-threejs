@@ -95,10 +95,24 @@ test('selected professional company shows only health plus level and XP progress
     banditCampId: null, companyId: '24', homeResidenceId: 'residence-1',
     personIdentity: 'residence-1:person:0', stateChangedTick: 1,
   }]);
-  await page.setContent(`<main><h2>${view.statusText}</h2><ul data-inspector-details>${view.detailsHtml}</ul></main>`);
+  await page.setContent(`<main class="resource-inspector-panel" data-inspector-target="military-company">
+    <h2>${view.statusText}</h2>
+    <section class="resource-inspector-details"><ul data-inspector-details>${view.detailsHtml}</ul></section>
+    <section class="resource-inspector-supplemental">${view.supplementalPanelHtml}</section>
+  </main>`);
+  await page.addStyleTag({ path: 'src/ui/resourceInspector.css' });
+  await page.addStyleTag({ path: 'src/ui/polishedGameUi.css' });
+  await page.addStyleTag({ path: 'src/ui/inspectorSupplemental.css' });
   expect(await page.locator('main').innerText()).toContain('Level 2');
   await expect(page.locator('[data-company-health]')).toContainText('61 / 80');
   await expect(page.locator('[data-company-level="2"] [role="progressbar"]')).toHaveAttribute('aria-valuenow', '55');
+  const healthLabel = await page.locator('[data-company-health] .military-company-progress-label').boundingBox();
+  const experienceLabel = await page.locator('[data-company-level] .military-company-progress-label').boundingBox();
+  expect(Math.abs((healthLabel?.y ?? 0) - (experienceLabel?.y ?? 0))).toBeLessThan(1);
+  await expect(page.locator('[data-formation-kind="shield-wall"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-resupply-military-company]')).toContainText('Resupply');
+  await expect(page.locator('[data-disband-military-company]')).toContainText('Disband company');
+  await expect(page.locator('main')).not.toContainText('Surviving a battle');
   await expect(page.locator('main')).not.toContainText('Morale');
   await expect(page.locator('main')).not.toContainText('Cohesion');
   await expect(page.locator('main')).not.toContainText('Fatigue');

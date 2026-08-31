@@ -239,9 +239,18 @@ export const COMBAT_VOICE_CLIPS: Record<
   'raider-rout': combatVoiceVariants('raider', 'rout', 0.15),
 };
 
+function combatDeathVariants(
+  voice: 'male' | 'female',
+): readonly AudioClipDefinition[] {
+  return Array.from({ length: 5 }, (_, index) => ({
+    path: `/sounds/combat/selo/${voice}_dying_${index + 1}.mp3`,
+    volume: 0.2,
+  }));
+}
+
 export const COMBAT_DEATH_CLIPS = {
-  man: [{ path: '/sounds/combat/selo/male_dying_1.mp3', volume: 0.2 }],
-  woman: [{ path: '/sounds/combat/selo/female_dying_1.mp3', volume: 0.2 }],
+  man: combatDeathVariants('male'),
+  woman: combatDeathVariants('female'),
 } as const;
 
 function workerActivityVariants(

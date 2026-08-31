@@ -212,11 +212,11 @@ import {
   isPlayerMilitaryFaction,
   type CombatAgentState,
 } from '../security/combatAgents.ts';
+import { CompanyStandardBearerRegistry } from '../security/companyStandardBearers.ts';
 import {
   AnimalCombatRenderer,
   type AnimalCombatPose,
 } from './AnimalCombatRenderer.ts';
-import { COMBAT_WADING_SPEED_MULTIPLIER } from '../security/combatRiverNavigation.ts';
 import {
   SELECTED_AGENT_ROUTE_Y_OFFSET,
   type SelectedAgentRoutePoint,
@@ -454,6 +454,7 @@ export class VillagerRenderer {
   private readonly activityAudio = new WorkerActivityAudio();
   private readonly farmWorkerSongAudio = new FarmWorkerSongAudio();
   private readonly combatAudio = new CombatAudio();
+  private readonly companyStandardBearers = new CompanyStandardBearerRegistry();
   private readonly getGameSpeed: () => GameSpeed;
   private readonly getHeightAt: (x: number, z: number) => number;
   private readonly getRoadDeckY: ((x: number, z: number) => number | null) | null;
@@ -567,6 +568,10 @@ export class VillagerRenderer {
     return this.renderer.beginFirstPlayableGpuPrewarm();
   }
 
+  companyStandardDiagnostics() {
+    return this.renderer.companyStandardDiagnostics();
+  }
+
   setSchedule(
     clock: GameClock,
     laborPaused: boolean,
@@ -666,6 +671,7 @@ export class VillagerRenderer {
   }
 
   setCombatAgents(agents: ReadonlyMap<string, CombatAgentState>): void {
+    this.companyStandardBearers.sync(agents.values());
     const nextVisuals = new Map<string, CombatAgentVisual>();
     const nextGuardSlots = new Set<string>();
     const nextMilitaryPeople = new Set<string>();
@@ -1776,6 +1782,7 @@ export class VillagerRenderer {
     this.activityAudio.dispose();
     this.farmWorkerSongAudio.dispose();
     this.combatAudio.dispose();
+    this.companyStandardBearers.clear();
     this.oxen.dispose();
     this.combatAnimals.dispose();
     this.renderer.dispose();
@@ -2275,8 +2282,6 @@ export class VillagerRenderer {
         ?? combatAppearanceSeed(combat);
       const colors = pickVillagerColors(appearanceSeed);
       const target = this.nearestCombatOpponent(combat);
-      const isWading = this.isWaterAt?.(visual.displayX, visual.displayZ) === true
-        && this.getRoadDeckY?.(visual.displayX, visual.displayZ) == null;
       const yaw = target
         ? Math.atan2(
             target.displayX - visual.displayX,
@@ -2313,7 +2318,17 @@ export class VillagerRenderer {
       renderAgent.skinColor = residentSoldier?.skinColor ?? ordinaryGuard?.skinColor ?? colors.skin;
       renderAgent.hairColor = residentSoldier?.hairColor ?? ordinaryGuard?.hairColor
         ?? pickVillagerHairColor(appearanceSeed);
-      renderAgent.tool = combatToolFor(combat.faction);
+      const standardAssignment = this.companyStandardBearers.assignmentForAgent(combat.id);
+      if (standardAssignment) {
+        const standard = renderAgent.companyStandard ?? {
+          id: standardAssignment.companyKey,
+          faction: standardAssignment.side,
+        };
+        standard.id = standardAssignment.companyKey;
+        standard.faction = standardAssignment.side;
+        renderAgent.companyStandard = standard;
+      }
+      renderAgent.tool = standardAssignment ? 'sidearm' : combatToolFor(combat.faction);
       if (combat.status === 'fighting' && target) {
         const targetDx = target.displayX - visual.displayX;
         const targetDz = target.displayZ - visual.displayZ;
@@ -2334,13 +2349,10 @@ export class VillagerRenderer {
           ? 'run'
           : visual.displayMoveSpeed > 0.12 ? 'walk' : 'idle';
       }
-      renderAgent.movementSpeed = (combat.status === 'wounded-returning'
-        ? 0.68
-        : renderAgent.mode === 'run'
-          ? 2.35
-        : combat.faction === 'guard' || isPlayerMilitaryFaction(combat.faction)
-          ? 1.42
-          : 1.34) * (isWading ? COMBAT_WADING_SPEED_MULTIPLIER : 1);
+      // Drive the feet from the smoothed distance actually covered on screen.
+      // Authoritative intent speeds made the run clip race while replicated
+      // movement was still interpolating, producing a treadmill effect.
+      renderAgent.movementSpeed = Math.max(0, visual.displayMoveSpeed);
       renderAgent.active = true;
       renderAgents.push(renderAgent);
       if (audioDt > 0) this.pushCombatAudioFighter(visual, renderAgent);
@@ -6083,6 +6095,7 @@ function combatWeaponSoundFamily(
 }
 
 export function clearCrowdCombatPresentation(renderAgent: CrowdRenderAgent): void {
+  renderAgent.companyStandard = undefined;
   renderAgent.combatAttackCooldown = undefined;
   renderAgent.combatAttackSeconds = undefined;
   renderAgent.combatLocomotion = undefined;

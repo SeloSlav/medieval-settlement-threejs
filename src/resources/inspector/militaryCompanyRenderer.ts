@@ -26,6 +26,13 @@ const GUARDHOUSE_KIND_ID: Partial<Record<MilitaryCompanyKind, number>> = {
   'uskok-border-infantry': 8,
 };
 
+const FORMATION_GLYPH: Record<(typeof MILITARY_FORMATIONS)[number], string> = {
+  line: '••••',
+  column: '⋮',
+  'shield-wall': '▰▰▰',
+  loose: '·  ·  ·',
+};
+
 export type SelectedMilitaryCompanyInspectorView = {
   eyebrow: string;
   title: string;
@@ -52,8 +59,8 @@ export function renderSelectedMilitaryCompanyInspector(
   const experience = militaryExperienceProgress(company);
   const statusLabel = company.status[0]!.toUpperCase() + company.status.slice(1);
   const progressionDetails = gainsExperience
-    ? `<li data-inspector-primary class="military-company-progress-row" data-company-level="${company.level}">
-        <span>Experience</span>
+    ? `<li data-inspector-primary data-inspector-custom-layout class="military-company-progress-row" data-company-level="${company.level}">
+        <span class="military-company-progress-label">Experience</span>
         <span class="military-company-progress-value">
           <strong>${experience.maximum ? 'Mastered' : `${experience.current} / ${experience.required} XP`}</strong>
           <span class="military-company-progress" role="progressbar" aria-label="Company experience" aria-valuemin="0" aria-valuemax="${experience.required}" aria-valuenow="${experience.current}">
@@ -70,8 +77,8 @@ export function renderSelectedMilitaryCompanyInspector(
     statusState: company.status === 'active' ? 'active' : company.status === 'destroyed' ? 'warning' : 'idle',
     image: MILITARY_COMPANY_CARD_ART[company.kind],
     detailsHtml: `
-      <li data-inspector-primary class="military-company-progress-row" data-company-health>
-        <span>Health</span>
+      <li data-inspector-primary data-inspector-custom-layout class="military-company-progress-row" data-company-health>
+        <span class="military-company-progress-label">Health</span>
         <span class="military-company-progress-value">
           <strong>${healthLabel}</strong>
           <span class="military-company-progress military-company-progress--health" role="progressbar" aria-label="Company health" aria-valuemin="0" aria-valuemax="${Math.ceil(maxHealth)}" aria-valuenow="${Math.ceil(health)}">
@@ -81,13 +88,12 @@ export function renderSelectedMilitaryCompanyInspector(
       </li>
       ${progressionDetails}
     `,
-    supplementalPanelHtml: renderSelectedCompanyCommands(company, gainsExperience),
+    supplementalPanelHtml: renderSelectedCompanyCommands(company),
   };
 }
 
 function renderSelectedCompanyCommands(
   company: MilitaryCompanyState,
-  gainsExperience: boolean,
 ): string {
   const militaryDemands = getActiveWorldGeneration().militaryDemands;
   const canCommand = company.status === 'active' || company.status === 'mustering';
@@ -111,28 +117,26 @@ function renderSelectedCompanyCommands(
       && ['crossbows', 'bowmen', 'polearms', 'uskok-border-infantry'].includes(company.kind)
     ))
     .map((formation) => `
-      <button type="button" class="resource-action-button resource-action-button--icon resource-action-button--secondary"
+      <button type="button" class="resource-action-button military-formation-button${company.formation === formation ? ' is-selected' : ''}"
         data-military-company-id="${company.id}" data-military-formation="${MILITARY_FORMATIONS.indexOf(formation)}"
+        data-formation-kind="${formation}" aria-pressed="${company.formation === formation}"
+        data-tooltip="${company.formation === formation ? 'Current company formation.' : `Order the company into ${militaryFormationLabel(formation).toLowerCase()} formation.`}"
         ${!canCommand || company.formation === formation ? 'disabled' : ''}>
-        <span class="inspector-action-icon" data-action-icon="formation" aria-hidden="true"></span>
-        <span>${militaryFormationLabel(formation)}</span>
+        <span class="military-formation-button__glyph" aria-hidden="true">${FORMATION_GLYPH[formation]}</span>
+        <span class="military-formation-button__label">${militaryFormationLabel(formation)}</span>
       </button>
     `).join('');
   const lifecycleAction = mercenaryLeaving
-    ? `<button type="button" class="resource-action-button resource-action-button--icon" data-renew-mercenary-contract="${company.id}"><span class="inspector-action-icon" data-action-icon="mercenaries" aria-hidden="true"></span><span>Pay ${retainerGold} gold to retain company</span></button>`
-    : `<button type="button" class="resource-action-button resource-action-button--icon resource-action-button--secondary" data-disband-military-company="${company.id}" ${company.status === 'disbanding' || company.status === 'leaving' || company.status === 'destroyed' ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="disband-company" aria-hidden="true"></span><span>${company.kind === 'mercenary-spears' ? 'End contract and send to region edge' : 'Disband and return home'}</span></button>`;
+    ? `<button type="button" class="resource-action-button resource-action-button--icon military-company-action" data-renew-mercenary-contract="${company.id}" data-tooltip="Pay ${retainerGold} gold to recall the departing survivors."><span class="inspector-action-icon" data-action-icon="mercenaries" aria-hidden="true"></span><span class="military-company-action__copy"><strong>Retain company</strong><small>${retainerGold} gold</small></span></button>`
+    : `<button type="button" class="resource-action-button resource-action-button--icon resource-action-button--secondary military-company-action" data-disband-military-company="${company.id}" data-tooltip="${company.kind === 'mercenary-spears' ? 'End the contract and send the company to the region edge.' : 'Stand the company down and return its surviving members home.'}" ${company.status === 'disbanding' || company.status === 'leaving' || company.status === 'destroyed' ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="disband-company" aria-hidden="true"></span><span class="military-company-action__copy"><strong>${company.kind === 'mercenary-spears' ? 'End contract' : 'Disband company'}</strong></span></button>`;
   return `
     <div class="inspector-action-panel military-company-card" data-inspector-panel-title="Orders">
+      <h3 class="inspector-action-panel__title">Orders</h3>
       <div class="resource-action-row military-company-card__formations">${formationButtons}</div>
-      <div class="resource-action-row">
-        ${canResupply ? `<button type="button" class="resource-action-button resource-action-button--icon" data-resupply-military-company="${company.id}"><span class="inspector-action-icon" data-action-icon="resupply-company" aria-hidden="true"></span><span>${needsProvisions ? "Issue three days' supplies" : 'Replace ammunition'}<br><small>${militaryCostText(resupplyCost)}</small></span></button>` : ''}
+      <div class="resource-action-row military-company-card__actions">
+        ${canResupply ? `<button type="button" class="resource-action-button resource-action-button--icon military-company-action" data-resupply-military-company="${company.id}" data-tooltip="${needsProvisions ? "Issue three days' supplies." : 'Replace the company ammunition.'}"><span class="inspector-action-icon" data-action-icon="resupply-company" aria-hidden="true"></span><span class="military-company-action__copy"><strong>Resupply</strong><small>${militaryCostText(resupplyCost)}</small></span></button>` : ''}
         ${lifecycleAction}
       </div>
-      <p class="inspector-action-panel__hint">${gainsExperience
-        ? 'Surviving a battle and defeating an enemy company earns experience. Level gains strengthen the company while keeping combat ratings hidden; health recovers whenever the company is out of combat.'
-        : company.kind === 'militia'
-          ? 'Emergency militia do not retain veteran progression. Health still recovers outside combat.'
-          : 'Hired mercenaries do not enter the settlement veteran progression. Health still recovers outside combat.'}</p>
     </div>
   `;
 }

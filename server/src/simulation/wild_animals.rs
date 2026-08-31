@@ -38,6 +38,7 @@ struct Target {
 pub fn step_wild_animal_world(
     ctx: &ReducerContext,
     sim_tick: u64,
+    spawn_through_tick: u64,
     seed: u64,
     map_size: u8,
     enabled: bool,
@@ -49,7 +50,7 @@ pub fn step_wild_animal_world(
     if !enabled {
         clear_hostile_wildlife(ctx);
     } else {
-        spawn_due_incursions(ctx, sim_tick, seed, map_size);
+        spawn_due_incursions(ctx, sim_tick, spawn_through_tick, seed, map_size);
     }
     step_guard_dogs(ctx, sim_tick, elapsed);
     if enabled {
@@ -59,11 +60,19 @@ pub fn step_wild_animal_world(
     cleanup_downed_animals(ctx, elapsed);
 }
 
-fn spawn_due_incursions(ctx: &ReducerContext, tick: u64, seed: u64, map_size: u8) {
+fn spawn_due_incursions(
+    ctx: &ReducerContext,
+    tick: u64,
+    spawn_through_tick: u64,
+    seed: u64,
+    map_size: u8,
+) {
     let day_ticks = (CALENDAR_SECONDS_PER_DAY / TICK_DT).round().max(1.0) as u64;
-    if tick < day_ticks * 4 {
+    let grace_tick = day_ticks * 4;
+    if spawn_through_tick < grace_tick {
         return;
     }
+    let spawn_window_start = tick.max(grace_tick.saturating_sub(1));
     let owners = ctx
         .db
         .building()
@@ -74,7 +83,12 @@ fn spawn_due_incursions(ctx: &ReducerContext, tick: u64, seed: u64, map_size: u8
     for owner in owners {
         let owner_seed = identity_seed(owner);
         let fox_interval = day_ticks * 9;
-        if tick % fox_interval == (mix(seed ^ owner_seed, 0x464f58) % fox_interval)
+        if recurring_phase_crossed(
+            spawn_window_start,
+            spawn_through_tick,
+            mix(seed ^ owner_seed, 0x464f58) % fox_interval,
+            fox_interval,
+        )
             && !ctx.db.combat_agent().owner().filter(&owner).any(|agent| agent.faction == FOX)
         {
             if let Some(target) = fox_target(ctx, owner, tick ^ seed ^ owner_seed) {
@@ -82,7 +96,12 @@ fn spawn_due_incursions(ctx: &ReducerContext, tick: u64, seed: u64, map_size: u8
             }
         }
         let wolf_interval = day_ticks * 14;
-        if tick % wolf_interval == (mix(seed ^ owner_seed, 0x574f4c46) % wolf_interval)
+        if recurring_phase_crossed(
+            spawn_window_start,
+            spawn_through_tick,
+            mix(seed ^ owner_seed, 0x574f4c46) % wolf_interval,
+            wolf_interval,
+        )
             && !ctx.db.combat_agent().owner().filter(&owner).any(|agent| agent.faction == WOLF)
         {
             if let Some(target) = wolf_target(ctx, owner, tick ^ seed) {
@@ -90,6 +109,22 @@ fn spawn_due_incursions(ctx: &ReducerContext, tick: u64, seed: u64, map_size: u8
             }
         }
     }
+}
+
+/// Detect a recurring event crossed by this heartbeat's calendar step.
+/// Faster game speeds can advance several ticks at once, so exact equality
+/// would silently skip most world-seeded incursions.
+fn recurring_phase_crossed(start: u64, end: u64, phase: u64, interval: u64) -> bool {
+    if interval == 0 || end <= start {
+        return false;
+    }
+    let phase = phase % interval;
+    let base = start - start % interval;
+    let mut candidate = base.saturating_add(phase);
+    if candidate <= start {
+        candidate = candidate.saturating_add(interval);
+    }
+    candidate <= end
 }
 
 fn spawn_fox(
@@ -823,7 +858,15 @@ fn identity_seed(identity: Identity) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{mix, wolf_pack_offset};
+    use super::{mix, recurring_phase_crossed, wolf_pack_offset};
+
+    #[test]
+    fn recurring_spawn_phase_survives_multi_tick_speed_steps() {
+        assert!(recurring_phase_crossed(100, 106, 103, 900));
+        assert!(recurring_phase_crossed(898, 904, 2, 900));
+        assert!(!recurring_phase_crossed(100, 102, 103, 900));
+        assert!(!recurring_phase_crossed(103, 103, 103, 900));
+    }
 
     #[test]
     fn pack_offsets_are_stable_and_separated() {

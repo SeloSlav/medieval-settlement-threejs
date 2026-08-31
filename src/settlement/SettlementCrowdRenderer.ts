@@ -18,6 +18,7 @@ import {
   type WorkerToolSources,
 } from './workerTools.ts';
 import {
+  applyCompanyStandardBearerPose,
   applyCombatWeaponPose,
   bindCombatWeaponRig,
   combatWeaponReleaseOrigin,
@@ -30,7 +31,18 @@ import {
 } from './combatWeaponAnimation.ts';
 import { CombatProjectileRenderer } from './CombatProjectileRenderer.ts';
 import { FallbackMilitaryEquipmentRenderer } from './FallbackMilitaryEquipmentRenderer.ts';
+import {
+  CompanyStandardRenderer,
+  type CompanyStandardDiagnostic,
+  type CompanyStandardFaction,
+  type CompanyStandardRenderAgent,
+} from './CompanyStandardRenderer.ts';
+import {
+  createCompanyStandardTextures,
+  type CompanyStandardTextureSet,
+} from './companyStandardTextures.ts';
 import { configureVillagerMaterialLighting } from './villagerMaterialLighting.ts';
+import { locomotionAnimationTimeScale } from './locomotionAnimation.ts';
 import type {
   ClericAnimationMode,
   ClericAuthoredAnimationName,
@@ -42,7 +54,6 @@ const MAX_ANIMATED_VILLAGERS = 72;
 export const ANIMATED_RIGS_PER_SHARD = 8;
 export const MAX_ANIMATED_SKELETON_BYTES = 15_872;
 const MODEL_YAW_OFFSET = 0;
-const NOMINAL_WALK_SPEED = 1.2;
 const BODY_GEOMETRY = new THREE.CapsuleGeometry(0.22, 0.72, 4, 8);
 const LEGS_GEOMETRY = new THREE.CapsuleGeometry(0.16, 0.34, 4, 8);
 const HEAD_GEOMETRY = new THREE.SphereGeometry(0.19, 10, 10);
@@ -200,6 +211,11 @@ export type CrowdRenderAgent = {
   tool: WorkerToolKind | null;
   movementSpeed: number;
   active: boolean;
+  /** One stable company identity is attached to its currently elected bearer. */
+  companyStandard?: {
+    id: string;
+    faction: CompanyStandardFaction;
+  };
   combatAttackCooldown?: number;
   combatAttackSeconds?: number;
   combatLocomotion?: 'idle' | 'walk' | 'run';
@@ -208,6 +224,26 @@ export type CrowdRenderAgent = {
   combatTargetY?: number;
   combatTargetZ?: number;
 };
+
+export function compareCrowdAnimationPriority(
+  left: CrowdRenderAgent,
+  right: CrowdRenderAgent,
+  view?: CrowdViewState,
+): number {
+  const standardPriority = Number(Boolean(right.companyStandard))
+    - Number(Boolean(left.companyStandard));
+  if (standardPriority !== 0) return standardPriority;
+  if (view) {
+    const leftDx = left.x - view.centerX;
+    const leftDz = left.z - view.centerZ;
+    const rightDx = right.x - view.centerX;
+    const rightDz = right.z - view.centerZ;
+    const distancePriority = leftDx * leftDx + leftDz * leftDz
+      - rightDx * rightDx - rightDz * rightDz;
+    if (Math.abs(distancePriority) > 1e-8) return distancePriority;
+  }
+  return left.slot - right.slot || left.id.localeCompare(right.id, undefined, { numeric: true });
+}
 
 export type CrowdCombatAttackEvent = CombatWeaponAttackEvent & {
   agentId: string;
@@ -261,6 +297,11 @@ export class SettlementCrowdRenderer {
   private readonly fallbackLegs: FallbackPartLayer;
   private readonly fallbackHead: FallbackPartLayer;
   private readonly fallbackMilitaryEquipment: FallbackMilitaryEquipmentRenderer;
+  private readonly companyStandards: CompanyStandardRenderer;
+  private readonly companyStandardTextures: CompanyStandardTextureSet | null;
+  private readonly companyStandardAgents: CompanyStandardRenderAgent[] = [];
+  private readonly companyStandardAgentPool: CompanyStandardRenderAgent[] = [];
+  private readonly companyStandardGrip = new THREE.Vector3();
   private readonly animated = new Map<string, AnimatedVillager>();
   private readonly animatedPool = new Map<string, AnimatedVillager[]>();
   private idlePooledVisualCount = 0;
@@ -289,6 +330,14 @@ export class SettlementCrowdRenderer {
     this.fallbackLegs = this.createFallbackLayer('Villager loading legs', LEGS_GEOMETRY);
     this.fallbackHead = this.createFallbackLayer('Villager loading head', HEAD_GEOMETRY);
     this.fallbackMilitaryEquipment = new FallbackMilitaryEquipmentRenderer(this.group, MAX_INSTANCES);
+    this.companyStandardTextures = typeof document === 'undefined'
+      ? null
+      : createCompanyStandardTextures();
+    this.companyStandards = new CompanyStandardRenderer({
+      parent: this.group,
+      capacity: 64,
+      artwork: this.companyStandardTextures?.artwork,
+    });
     this.ready = this.loadSources();
   }
 
@@ -325,6 +374,7 @@ export class SettlementCrowdRenderer {
     if (!this.sources) {
       this.updateFallback(visibleAgents);
       this.fallbackMilitaryEquipment.sync(visibleAgents);
+      this.syncCompanyStandards(visibleAgents, view, dt);
       return;
     }
 
@@ -332,6 +382,7 @@ export class SettlementCrowdRenderer {
     this.updateAnimatedBatches(visibleAgents, animatedIds);
     this.updateFallback(visibleAgents, animatedIds);
     this.fallbackMilitaryEquipment.sync(visibleAgents, animatedIds);
+    this.syncCompanyStandards(visibleAgents, view, dt);
   }
 
   beginFirstPlayableGpuPrewarm(): () => void {
@@ -372,6 +423,10 @@ export class SettlementCrowdRenderer {
     return target;
   }
 
+  companyStandardDiagnostics(): CompanyStandardDiagnostic {
+    return this.companyStandards.diagnostics();
+  }
+
   dispose(): void {
     this.disposed = true;
     for (const id of this.animated.keys()) this.removeAnimatedVillager(id);
@@ -401,6 +456,10 @@ export class SettlementCrowdRenderer {
       layer.mesh.removeFromParent();
     }
     this.fallbackMilitaryEquipment.dispose();
+    this.companyStandards.dispose();
+    this.companyStandardTextures?.dispose();
+    this.companyStandardAgents.length = 0;
+    this.companyStandardAgentPool.length = 0;
 
     if (this.sources) {
       for (const scene of uniqueSourceScenes(this.sources)) {
@@ -567,15 +626,7 @@ export class SettlementCrowdRenderer {
         candidates.push(agent);
       }
     }
-    if (view) {
-      candidates.sort((a, b) => {
-        const aDx = a.x - view.centerX;
-        const aDz = a.z - view.centerZ;
-        const bDx = b.x - view.centerX;
-        const bDz = b.z - view.centerZ;
-        return aDx * aDx + aDz * aDz - (bDx * bDx + bDz * bDz);
-      });
-    }
+    candidates.sort((a, b) => compareCrowdAnimationPriority(a, b, view));
     const animatedIds = this.animatedIds;
     animatedIds.clear();
     const count = Math.min(candidates.length, MAX_ANIMATED_VILLAGERS);
@@ -619,17 +670,78 @@ export class SettlementCrowdRenderer {
         this.transition(visual, agent.mode, nextActionMode);
       }
       visual.actions.walk.setEffectiveTimeScale(
-        1.06 * Math.max(0.65, agent.movementSpeed / NOMINAL_WALK_SPEED),
+        locomotionAnimationTimeScale('walk', agent.movementSpeed),
       );
       visual.actions.run.setEffectiveTimeScale(
-        Math.max(0.8, agent.movementSpeed / NOMINAL_WALK_SPEED),
+        locomotionAnimationTimeScale('run', agent.movementSpeed),
       );
       visual.actions.flee.setEffectiveTimeScale(
-        Math.max(0.82, agent.movementSpeed / NOMINAL_WALK_SPEED),
+        locomotionAnimationTimeScale('flee', agent.movementSpeed),
       );
       if (dt > 0) visual.mixer.update(dt);
       this.applyCombatPresentation(visual, agent, dt);
+      if (agent.companyStandard && visual.combatRig) {
+        applyCompanyStandardBearerPose(visual.combatRig);
+      }
     }
+  }
+
+  private syncCompanyStandards(
+    agents: readonly CrowdRenderAgent[],
+    view: CrowdViewState | undefined,
+    dt: number,
+  ): void {
+    this.companyStandardAgents.length = 0;
+    this.group.updateWorldMatrix(true, false);
+    let index = 0;
+    for (const agent of agents) {
+      const assignment = agent.companyStandard;
+      if (!assignment) continue;
+      let standard = this.companyStandardAgentPool[index];
+      if (!standard) {
+        standard = {
+          id: assignment.id,
+          faction: assignment.faction,
+          x: agent.x,
+          y: agent.y,
+          z: agent.z,
+          yaw: agent.yaw,
+          appearanceSeed: agent.appearanceSeed,
+          active: true,
+        };
+        this.companyStandardAgentPool.push(standard);
+      }
+      standard.id = assignment.id;
+      standard.faction = assignment.faction;
+      standard.x = agent.x;
+      standard.y = agent.y;
+      standard.z = agent.z;
+      standard.yaw = agent.yaw;
+      standard.pitch = 0;
+      standard.roll = 0;
+      standard.appearanceSeed = agent.appearanceSeed;
+      standard.active = agent.active;
+      const animated = this.animated.get(agent.id);
+      if (animated?.combatRig) {
+        animated.combatRig.armBones.leftHand.getWorldPosition(this.companyStandardGrip);
+        this.group.worldToLocal(this.companyStandardGrip);
+        const grip = standard.gripPose ?? {
+          x: 0,
+          y: 0,
+          z: 0,
+        };
+        grip.x = this.companyStandardGrip.x;
+        grip.y = this.companyStandardGrip.y;
+        grip.z = this.companyStandardGrip.z;
+        grip.quaternion = undefined;
+        standard.gripPose = grip;
+      } else {
+        standard.gripPose = undefined;
+      }
+      this.companyStandardAgents.push(standard);
+      index += 1;
+    }
+    this.companyStandards.sync(this.companyStandardAgents, view, dt);
   }
 
   private createAnimatedVillager(agent: CrowdRenderAgent): AnimatedVillager {
@@ -1144,7 +1256,7 @@ function configureActionSpeeds(
   movementSpeed: number,
 ): void {
   actions.walk.setEffectiveTimeScale(
-    1.06 * Math.max(0.65, movementSpeed / NOMINAL_WALK_SPEED),
+    locomotionAnimationTimeScale('walk', movementSpeed),
   );
   actions.sit.setEffectiveTimeScale(1.15);
   actions.rest.setEffectiveTimeScale(0.72);
@@ -1170,8 +1282,12 @@ function configureActionSpeeds(
   actions.carry.setEffectiveTimeScale(0.9);
   actions.hurt.setEffectiveTimeScale(1);
   actions.fall.setEffectiveTimeScale(0.95);
-  actions.flee.setEffectiveTimeScale(1.08);
-  actions.run.setEffectiveTimeScale(1.05);
+  actions.flee.setEffectiveTimeScale(
+    locomotionAnimationTimeScale('flee', movementSpeed),
+  );
+  actions.run.setEffectiveTimeScale(
+    locomotionAnimationTimeScale('run', movementSpeed),
+  );
 }
 
 export function restartPooledVillagerActions(

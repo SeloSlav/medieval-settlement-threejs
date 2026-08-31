@@ -663,6 +663,94 @@
       "sha256": "66e63d239ebc7dfaf2cfc63228dac75fc5198b01151612e1e14107c4846bd4aa"
     },
     {
+      "id": "combat-death-female-2",
+      "output": "public/sounds/combat/selo/female_dying_2.mp3",
+      "generatedAt": "2026-08-31T00:49:21.355Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "8",
+      "byteLength": 13836,
+      "sha256": "a66644707c5847fa781dbb095e4ad24c29a86ef48398cd66d9470cb9210d14ec"
+    },
+    {
+      "id": "combat-death-female-3",
+      "output": "public/sounds/combat/selo/female_dying_3.mp3",
+      "generatedAt": "2026-08-31T00:49:23.867Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "13",
+      "byteLength": 21359,
+      "sha256": "2066b51cdacc58288a81de2ad15c3ecd2cb798265821c864aa0fb88baff4511c"
+    },
+    {
+      "id": "combat-death-female-4",
+      "output": "public/sounds/combat/selo/female_dying_4.mp3",
+      "generatedAt": "2026-08-31T00:49:25.795Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "10",
+      "byteLength": 17180,
+      "sha256": "5452d5d0caf733df4d1ae54d09119b3c55070a3340dc35aaf8323c1669093c0e"
+    },
+    {
+      "id": "combat-death-female-5",
+      "output": "public/sounds/combat/selo/female_dying_5.mp3",
+      "generatedAt": "2026-08-31T00:49:28.952Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "16",
+      "byteLength": 25539,
+      "sha256": "cd7619da92011f5f1c2ed6409130e57c1c5b03875dc324faa26db4404cc17b37"
+    },
+    {
+      "id": "combat-death-male-2",
+      "output": "public/sounds/combat/selo/male_dying_2.mp3",
+      "generatedAt": "2026-08-31T00:49:13.387Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "8",
+      "byteLength": 13836,
+      "sha256": "0792f4e894b046b5ca0ca203e2bfaa070a1a4579e095baa3e8cb4627b7ff7ce3"
+    },
+    {
+      "id": "combat-death-male-3",
+      "output": "public/sounds/combat/selo/male_dying_3.mp3",
+      "generatedAt": "2026-08-31T00:49:15.712Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "14",
+      "byteLength": 22195,
+      "sha256": "22ff3df330c17a953bfa07d7bf8e77e346e0e4f82009c6d13aa1e3b6a33b4041"
+    },
+    {
+      "id": "combat-death-male-4",
+      "output": "public/sounds/combat/selo/male_dying_4.mp3",
+      "generatedAt": "2026-08-31T00:49:17.704Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "11",
+      "byteLength": 17598,
+      "sha256": "25f2776f8943109225ac466b7688ef2c3a4601b3b14a54ad2ac3f7a2aadc65e5"
+    },
+    {
+      "id": "combat-death-male-5",
+      "output": "public/sounds/combat/selo/male_dying_5.mp3",
+      "generatedAt": "2026-08-31T00:49:19.606Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "16",
+      "byteLength": 27211,
+      "sha256": "e9ee5594d3cdf0098b8fca58ef15aee2b6b4f62ad01b2d55374e42bb5514ef8c"
+    },
+    {
       "id": "combat-formation-charge-1",
       "output": "public/sounds/combat/formation_charge_1.mp3",
       "generatedAt": "2026-08-30T21:56:43.881Z",
