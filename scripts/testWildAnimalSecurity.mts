@@ -72,6 +72,6 @@ assert.equal(easy.settings.wildAnimalAttacksEnabled, false);
 assert.equal(normal.settings.wildAnimalAttacksEnabled, true);
 assert.equal(hardcore.settings.wildAnimalAttacksEnabled, true);
 assert.ok(existsSync('public/assets/ui/icons/world-setup/wild-animal-attacks-atlas.png'));
-assert.ok(existsSync('public/assets/ui/build-menu/cards/kennel.png'));
+assert.ok(existsSync('public/assets/ui/build-menu/cards/kennel.webp'));
 
 console.log('wild animal security tests passed (kennel, staffing, patrols, foxes, wolves, and world rule)');

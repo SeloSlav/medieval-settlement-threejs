@@ -20,7 +20,7 @@ export const BUILDING_CARD_ART = {
   potter_kiln: '/assets/ui/build-menu/cards/potter-kiln.webp',
   well: '/assets/ui/build-menu/cards/water-well.webp',
   stable: '/assets/ui/build-menu/cards/stable.webp',
-  kennel: '/assets/ui/build-menu/cards/kennel.png',
+  kennel: '/assets/ui/build-menu/cards/kennel.webp',
   hunters_hall: '/assets/ui/build-menu/cards/hunter-hall.webp',
   foragers_shed: '/assets/ui/build-menu/cards/foragers-hut.webp',
   fishing_camp: '/assets/ui/build-menu/cards/fishing-camp.webp',
