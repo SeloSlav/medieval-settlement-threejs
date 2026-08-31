@@ -1818,6 +1818,17 @@
       "sha256": "fcd5ca95dda92bf3f64bcdf02ff9a8a4593077d4819d2f65b648107da88438a6"
     },
     {
+      "id": "world-event-bandits-detected",
+      "output": "public/sounds/world/event_bandits_detected.mp3",
+      "generatedAt": "2026-08-31T01:27:34.524Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "25",
+      "byteLength": 40586,
+      "sha256": "817f41bcad614009d60d9873977560875b8613fbd729c413ea54d93f64510a79"
+    },
+    {
       "id": "world-event-burial",
       "output": "public/sounds/world/event_burial.mp3",
       "generatedAt": "2026-08-04T10:42:59.072Z",
@@ -1827,6 +1838,17 @@
       "characterCost": "25",
       "byteLength": 40586,
       "sha256": "e57e8a7d04319bd4d72a85f8c2c7e134e2daf494c665b240393becfb35402b39"
+    },
+    {
+      "id": "world-event-ottoman-raiders-detected",
+      "output": "public/sounds/world/event_ottoman_raiders_detected.mp3",
+      "generatedAt": "2026-08-31T01:27:37.175Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "28",
+      "byteLength": 45183,
+      "sha256": "d6b0cd53d1a873d660395a9f2f5c6c65fb67ba27af3930ea9e7b18287c22ec9a"
     },
     {
       "id": "world-event-raid-alarm",
@@ -1871,6 +1893,17 @@
       "characterCost": "24",
       "byteLength": 39332,
       "sha256": "b5b513f2c58714f4259b15a54e1fea0d334975c1697a65de9dc45499b94e8e18"
+    },
+    {
+      "id": "world-event-wildlife-detected",
+      "output": "public/sounds/world/event_wildlife_detected.mp3",
+      "generatedAt": "2026-08-31T01:27:32.442Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "24",
+      "byteLength": 39332,
+      "sha256": "855ab9a177bc76f4ff52a2996018ea3ad5adbea7ca4bf3ac0b4b5facf61425a0"
     },
     {
       "id": "world-fire-bucket-1",

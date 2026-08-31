@@ -2918,7 +2918,6 @@ export class ResourceInspector {
   private renderMilitaryCompany(company: MilitaryCompanyState): void {
     const view = renderSelectedMilitaryCompanyInspector(
       company,
-      this.options.getCombatAgents?.(),
       { readOnlyPlaytest: company.id.startsWith('combat-playtest:') },
     );
     this.eyebrow.textContent = view.eyebrow;
@@ -3575,7 +3574,6 @@ function appendFocusableInspectorTooltip(
 }
 
 function decorateInspectorRow(row: HTMLElement, label: string, value: string): void {
-  if (row.hasAttribute('data-inspector-custom-layout')) return;
   if (row.hasAttribute('data-inspector-resource-strip')) {
     row.classList.add('inspector-resource-strip-row');
     return;

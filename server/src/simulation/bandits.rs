@@ -20,6 +20,8 @@ const RETURNING: u8 = 3;
 const DOWNED: u8 = 5;
 const HOLDING: u8 = 9;
 const CONTACT: f64 = 2.4;
+const CAMP_RESPAWN_DAYS: u64 = 8;
+const CAMP_DEFENDERS: u32 = 4;
 
 pub fn step_bandit_world(
     ctx: &ReducerContext,
@@ -54,35 +56,117 @@ fn clear_bandits(ctx: &ReducerContext) {
 fn ensure_camps(ctx: &ReducerContext, tick: u64, seed: u64, map_size: u8) {
     let owners = ctx.db.building().iter().map(|b| b.owner).collect::<HashSet<_>>();
     let count = match map_size { 0 => 1, 2 => 3, _ => 2 };
-    let half = match map_size { 0 => 408.5, 2 => 1_155.412_48, _ => 817.0 };
     for owner in owners {
-        let existing = ctx.db.bandit_camp().owner().filter(&owner).count();
-        for index in existing..count {
-            let hash = mix(seed ^ (index as u64 + 1).wrapping_mul(0x9e37_79b9));
-            let angle = unit(hash) * std::f64::consts::TAU;
-            let radius = half * (0.62 + unit(mix(hash)) * 0.18);
-            let camp = ctx.db.bandit_camp().insert(BanditCamp {
-                id: 0, owner, x: angle.cos() * radius, z: angle.sin() * radius,
-                health: 180.0, max_health: 180.0, active: true,
-                inventory_json: "[]".into(), spawned_tick: tick,
-                next_theft_tick: tick.saturating_add(day_ticks().saturating_mul(2 + index as u64)),
-                last_theft_tick: 0, destroyed_tick: 0,
+        let known = ctx.db.bandit_camp().owner().filter(&owner).count();
+        let active = ctx.db.bandit_camp().owner().filter(&owner).filter(|camp| camp.active).count();
+        if active >= count { continue; }
+        let mut new_rows_available = count.saturating_sub(known);
+        let mut reusable = ctx.db.bandit_camp().owner().filter(&owner)
+            .filter(|camp| !camp.active && camp_respawn_ready(tick, camp.destroyed_tick))
+            .collect::<Vec<_>>();
+        // Pop the oldest destroyed camp first. Reusing the persistent row keeps
+        // incident history stable while its new spawn position is authoritative.
+        reusable.sort_by(|left, right| right.destroyed_tick.cmp(&left.destroyed_tick)
+            .then_with(|| right.id.cmp(&left.id)));
+        for index in active..count {
+            let recycled = reusable.pop();
+            if recycled.is_none() && new_rows_available == 0 { break; }
+            if recycled.is_none() { new_rows_available -= 1; }
+            let entropy = recycled.as_ref().map_or(tick ^ index as u64, |camp| {
+                camp.id ^ camp.destroyed_tick.rotate_left(17)
             });
-            for slot in 0..4_u32 {
-                let a = slot as f64 / 4.0 * std::f64::consts::TAU;
-                ctx.db.combat_agent().insert(CombatAgent {
-                    id: 0, owner, raid_id: camp.id, faction: BANDIT,
-                    source_building_id: 0, source_slot: slot, target_kind: 5, target_id: camp.id,
-                    x: camp.x + a.cos() * 5.0, z: camp.z + a.sin() * 5.0,
-                    home_x: camp.x, home_z: camp.z, health: 64.0, max_health: 64.0,
-                    readiness: 0.62, state: HOLDING, attack_cooldown: 0.0,
-                    loot_progress: 0.0, loot_fraction: 0.0, carried_loot_json: String::new(),
-                    state_changed_tick: tick, route_progress: 0.0,
-                    raid_anchor_building_id: camp.id,
-                });
-            }
+            let (x, z) = camp_spawn_position(ctx, owner, seed, map_size, index, entropy);
+            let theft_delay_days = 2 + (index as u64 % 2);
+            let camp = if let Some(mut camp) = recycled {
+                camp.x = x; camp.z = z;
+                camp.health = 180.0; camp.max_health = 180.0; camp.active = true;
+                camp.inventory_json = "[]".into(); camp.spawned_tick = tick;
+                camp.next_theft_tick = tick.saturating_add(day_ticks().saturating_mul(theft_delay_days));
+                camp.last_theft_tick = 0; camp.destroyed_tick = 0;
+                ctx.db.bandit_camp().id().update(camp.clone());
+                camp
+            } else {
+                ctx.db.bandit_camp().insert(BanditCamp {
+                    id: 0, owner, x, z, health: 180.0, max_health: 180.0, active: true,
+                    inventory_json: "[]".into(), spawned_tick: tick,
+                    next_theft_tick: tick.saturating_add(day_ticks().saturating_mul(theft_delay_days)),
+                    last_theft_tick: 0, destroyed_tick: 0,
+                })
+            };
+            spawn_camp_defenders(ctx, &camp, tick);
         }
     }
+}
+
+fn spawn_camp_defenders(ctx: &ReducerContext, camp: &BanditCamp, tick: u64) {
+    for slot in 0..CAMP_DEFENDERS {
+        let angle = slot as f64 / CAMP_DEFENDERS as f64 * std::f64::consts::TAU;
+        ctx.db.combat_agent().insert(CombatAgent {
+            id: 0, owner: camp.owner, raid_id: camp.id, faction: BANDIT,
+            source_building_id: 0, source_slot: slot, target_kind: 5, target_id: camp.id,
+            x: camp.x + angle.cos() * 5.0, z: camp.z + angle.sin() * 5.0,
+            home_x: camp.x, home_z: camp.z, health: 64.0, max_health: 64.0,
+            readiness: 0.62, state: HOLDING, attack_cooldown: 0.0,
+            loot_progress: 0.0, loot_fraction: 0.0, carried_loot_json: String::new(),
+            state_changed_tick: tick, route_progress: 0.0,
+            raid_anchor_building_id: camp.id,
+        });
+    }
+}
+
+fn camp_respawn_ready(tick: u64, destroyed_tick: u64) -> bool {
+    destroyed_tick == 0
+        || tick >= destroyed_tick.saturating_add(day_ticks().saturating_mul(CAMP_RESPAWN_DAYS))
+}
+
+fn camp_spawn_position(
+    ctx: &ReducerContext,
+    owner: Identity,
+    seed: u64,
+    map_size: u8,
+    ordinal: usize,
+    entropy: u64,
+) -> (f64, f64) {
+    let half = match map_size { 0 => 408.5, 2 => 1_155.412_48, _ => 817.0 };
+    let buildings = ctx.db.building().owner().filter(&owner)
+        .filter(|building| building.construction_complete).collect::<Vec<_>>();
+    let foraging = ctx.db.foraging_node().iter().collect::<Vec<_>>();
+    let quarries = ctx.db.quarry().iter().collect::<Vec<_>>();
+    let active_camps = ctx.db.bandit_camp().owner().filter(&owner)
+        .filter(|camp| camp.active).collect::<Vec<_>>();
+    (0..32_u64)
+        .map(|candidate_index| {
+            let hash = mix(seed
+                ^ entropy.rotate_left(11)
+                ^ (ordinal as u64 + 1).wrapping_mul(0x9e37_79b9)
+                ^ candidate_index.wrapping_mul(0x94d0_49bb));
+            let angle = unit(hash) * std::f64::consts::TAU;
+            let radius = half * (0.58 + unit(mix(hash)) * 0.28);
+            let point = (angle.cos() * radius, angle.sin() * radius);
+            let town_clearance = buildings.iter()
+                .map(|building| dist(point.0, point.1, building.x, building.z))
+                .fold(half * 2.0, f64::min);
+            let forage_clearance = foraging.iter()
+                .map(|node| dist(point.0, point.1, node.x, node.z))
+                .fold(half * 2.0, f64::min);
+            let quarry_clearance = quarries.iter()
+                .map(|node| dist(point.0, point.1, node.x, node.z))
+                .fold(half * 2.0, f64::min);
+            let camp_clearance = active_camps.iter()
+                .map(|camp| dist(point.0, point.1, camp.x, camp.z))
+                .fold(half * 2.0, f64::min);
+            // Settlements dominate, but a camp cannot win merely by sitting on
+            // a food/deposit node or immediately beside another live camp.
+            let score = town_clearance
+                .min(forage_clearance * 1.45)
+                .min(quarry_clearance * 1.45)
+                .min(camp_clearance * 1.15);
+            (score, candidate_index, point)
+        })
+        .max_by(|left, right| left.0.total_cmp(&right.0)
+            .then_with(|| left.1.cmp(&right.1)))
+        .map(|(_, _, point)| point)
+        .unwrap_or((0.0, -half * 0.72))
 }
 
 fn dispatch_thefts(ctx: &ReducerContext, tick: u64) {
@@ -192,6 +276,7 @@ fn deposit(ctx: &ReducerContext, agent: &mut CombatAgent) {
 
 pub(super) fn destroy_camp(ctx: &ReducerContext, camp: &mut BanditCamp, tick: u64) {
     camp.active = false; camp.destroyed_tick = tick;
+    camp.next_theft_tick = tick.saturating_add(day_ticks().saturating_mul(CAMP_RESPAWN_DAYS));
     let bundles = serde_json::from_str::<Vec<RaidPortableStores>>(&camp.inventory_json).unwrap_or_default();
     let mut recovered = ReclamationStock::default();
     let mut total = 0.0;
@@ -238,3 +323,16 @@ fn mix(mut v: u64) -> u64 {
     v = (v ^ (v >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb); v ^ (v >> 31)
 }
 fn unit(v: u64) -> f64 { (v >> 11) as f64 / ((1_u64 << 53) as f64) }
+
+#[cfg(test)]
+mod tests {
+    use super::{camp_respawn_ready, day_ticks, CAMP_RESPAWN_DAYS};
+
+    #[test]
+    fn destroyed_camps_wait_before_respawning() {
+        let destroyed = 100;
+        let due = destroyed + day_ticks() * CAMP_RESPAWN_DAYS;
+        assert!(!camp_respawn_ready(due - 1, destroyed));
+        assert!(camp_respawn_ready(due, destroyed));
+    }
+}

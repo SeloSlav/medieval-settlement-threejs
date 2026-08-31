@@ -1469,7 +1469,7 @@ export async function bootstrapAppSession(
         focusZ = building.z;
         targetPresent = true;
       }
-    } else {
+    } else if (target.kind === 'residence') {
       const residence = state.residences.get(target.id);
       if (residence) {
         villagerInspector.clearSelection();
@@ -1478,6 +1478,10 @@ export async function bootstrapAppSession(
         focusZ = residence.z;
         targetPresent = true;
       }
+    } else {
+      resourceInspector.clearSelection();
+      villagerInspector.clearSelection();
+      targetPresent = true;
     }
 
     if (!targetPresent) {

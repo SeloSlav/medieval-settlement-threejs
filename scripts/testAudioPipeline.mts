@@ -689,12 +689,14 @@ async function main(): Promise<void> {
     orbitDistance: 18,
   };
   const worldAssets = manifest.assets.filter((asset) => (
-    asset.group === 'world-foley' || asset.group === 'movement-foley'
+    asset.group === 'world-foley'
+    || asset.group === 'movement-foley'
+    || asset.group === 'threat-alerts'
   ));
   invariant(
     worldAssets.length === Object.keys(WORLD_FOLEY_CLIPS).length
-    && worldAssets.length === 51,
-    'World Foley manifest and runtime catalog must retain all 51 cues',
+    && worldAssets.length === 54,
+    'World Foley manifest and runtime catalog must retain all 54 cues',
   );
   for (const [id, clip] of Object.entries(WORLD_FOLEY_CLIPS)) {
     const asset = worldAssets.find((candidate) => (

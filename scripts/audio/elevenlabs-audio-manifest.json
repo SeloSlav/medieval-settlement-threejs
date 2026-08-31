@@ -1782,6 +1782,36 @@
       "promptInfluence": 0.92
     },
     {
+      "id": "world-event-wildlife-detected",
+      "group": "threat-alerts",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_wildlife_detected.mp3",
+      "prompt": "Short distinct late-medieval wildlife warning signal for a strategy game: two quick hollow knocks on a hardwood watch clapper, a close dry branch snap, then one low restrained guard-dog growl, crisp and readable as a notification. No human voice, words, shouting, speech, melody, music, battle, gore, or ambient soundscape",
+      "durationSeconds": 2.4,
+      "loop": false,
+      "promptInfluence": 0.94
+    },
+    {
+      "id": "world-event-bandits-detected",
+      "group": "threat-alerts",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_bandits_detected.mp3",
+      "prompt": "Short distinct late-medieval bandit warning signal for a strategy game: three urgent bright strikes on a small iron watch bell followed by one brief wooden alarm-ratchet turn, dry, practical, and clearly recognizable as a notification. No human voice, words, shouting, speech, melody, music, combat, or ambient soundscape",
+      "durationSeconds": 2.5,
+      "loop": false,
+      "promptInfluence": 0.95
+    },
+    {
+      "id": "world-event-ottoman-raiders-detected",
+      "group": "threat-alerts",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_ottoman_raiders_detected.mp3",
+      "prompt": "Short distinct grave frontier-incursion warning signal for a late-medieval strategy game: two measured low bronze watch-bell strokes with one deep taut frame-drum impact between them, ominous but restrained and clearly readable as a notification. No human voice, words, shouting, speech, chant, ululation, melody, music, combat, or ambient soundscape",
+      "durationSeconds": 2.8,
+      "loop": false,
+      "promptInfluence": 0.95
+    },
+    {
       "id": "world-event-burial",
       "group": "world-foley",
       "kind": "sound-effect",

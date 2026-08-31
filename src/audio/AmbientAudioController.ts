@@ -37,6 +37,7 @@ import type {
   ChapelBellTier,
   FootstepEvent,
   MusicTrackId,
+  ThreatAlertSoundKind,
   UiSoundId,
 } from './audioCatalog.ts';
 import { FireAudio } from './FireAudio.ts';
@@ -361,6 +362,10 @@ export class AmbientAudioController {
 
   playFootstep(event: FootstepEvent): void {
     this.worldFoley.playFootstep(event);
+  }
+
+  playThreatAlert(kind: ThreatAlertSoundKind): void {
+    this.worldFoley.playThreatAlert(kind);
   }
 
   playBuildingSelection(

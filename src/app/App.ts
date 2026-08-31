@@ -126,6 +126,7 @@ import {
   hasActiveRaiderThreat,
   type CombatAgentState,
 } from '../security/combatAgents.ts';
+import { ThreatApproachTracker } from '../security/threatApproachAlerts.ts';
 import { settlementHasStaffedChapel } from '../logistics/landmarkAccess.ts';
 import { createSmokeTestHooks, installSmokeTestHooks } from '../e2e/smokeTestHooks.ts';
 import { sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
@@ -272,6 +273,7 @@ export class App {
     this.visualQaConditions,
   );
   private readonly settlementApprovalPacer = new SettlementApprovalPacer();
+  private readonly threatApproachTracker = new ThreatApproachTracker();
   private visualQaFoundersCampFixture: BuildingState | null = null;
   private showcaseViewApplied = false;
   private visualQaFoundersCampViewApplied = false;
@@ -1646,6 +1648,7 @@ export class App {
   }
 
   private notifySecurityChanges(snapshot: SpacetimeGameSnapshot): void {
+    this.notifyThreatApproaches(snapshot);
     this.notifyBanditChanges(snapshot);
     this.notifyMilitaryCompanyChanges(snapshot);
     const activeRaidId = snapshot.activeRaid?.raidId ?? null;
@@ -1837,6 +1840,44 @@ export class App {
     this.toastManager?.show(copy.toast, {
       variant: latest.kind === 'theft' ? 'error' : 'info',
       durationMs: 7_000,
+    });
+  }
+
+  private notifyThreatApproaches(snapshot: SpacetimeGameSnapshot): void {
+    const seed = snapshot.worldGeneration?.seed ?? 0;
+    const worldKey = `${snapshot.identityHex ?? 'unowned'}:${seed}`;
+    const alerts = this.threatApproachTracker.update(
+      snapshot.combatAgents.values(),
+      snapshot.simTick,
+      worldKey,
+    );
+    if (alerts.length === 0) return;
+
+    for (const alert of alerts) {
+      this.toolbar?.settlementHud.addLordReport({
+        id: alert.id,
+        kind: alert.kind === 'ottoman' ? 'military' : alert.kind,
+        tone: 'danger',
+        title: alert.title,
+        detail: alert.detail,
+        timeLabel: formatSettlementClock(snapshot.simTick),
+        target: {
+          kind: 'world',
+          id: alert.id,
+          x: alert.x,
+          z: alert.z,
+        },
+        targetLabel: alert.targetLabel,
+      });
+      this.ambientAudio?.playThreatAlert(alert.kind);
+    }
+
+    if (snapshot.gameSpeed === 1 || !this.spacetimeStore) return;
+    void this.spacetimeStore.setGameSpeed(1).catch((error) => {
+      const message = error instanceof Error
+        ? error.message
+        : 'The threat was reported, but the game could not be slowed to 1×.';
+      this.toastManager?.show(message, { variant: 'error', durationMs: 5_000 });
     });
   }
 

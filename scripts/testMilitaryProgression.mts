@@ -26,6 +26,10 @@ const difficulty = read('src/world/worldDifficulty.ts');
 const app = read('src/app/App.ts');
 const bootstrap = read('src/app/appBootstrap.ts');
 const inspector = read('src/resources/ResourceInspector.ts');
+const selectedCompanyCard = roster.slice(
+  roster.indexOf('export function renderSelectedMilitaryCompanyInspector'),
+  roster.indexOf('function renderSelectedCompanyCommands'),
+);
 
 const reducerSection = (start: string, end: string): string => {
   const startIndex = reducer.indexOf(start);
@@ -146,6 +150,11 @@ assert.match(simulation, /MILITARY_ENEMY_COMPANY_XP/);
 assert.match(simulation, /fn award_company_experience/);
 assert.match(simulation, /fn apply_veteran_level_health/);
 assert.match(simulation, /fn regenerate_out_of_combat_health/);
+assert.match(
+  simulation,
+  /military_member\(\)\s*\.company_id\(\)\s*\.filter\(&company_id\)/,
+  'level-up health must be applied to every living member of the atomic company',
+);
 assert.match(serverPolicy, /gains_veteran_experience[\s\S]*Self::Militia \| Self::MercenarySpears/);
 assert.match(serverPolicy, /veteran_health_multiplier/);
 assert.match(serverPolicy, /veteran_damage_multiplier/);
@@ -180,6 +189,9 @@ assert.match(commands, /onCompanySelected/);
 assert.match(bootstrap, /onCompanySelected:[\s\S]*?resourceInspector\.selectMilitaryCompany\(companyId\)/);
 assert.match(inspector, /selectMilitaryCompany\(companyId: string\)/);
 assert.match(inspector, /focusMercenaryContract\(companyId: string\)/);
+assert.match(selectedCompanyCard, /statusText: gainsExperience \? `Level \$\{company\.level\}/);
+assert.match(selectedCompanyCard, /detailsHtml: ''/);
+assert.doesNotMatch(selectedCompanyCard, /role="progressbar"|data-company-health|>Morale<|>Cohesion<|>Fatigue</);
 assert.match(villagers, /activeMilitaryPersonIdentities\.has\(agent\.personIdentity\)/);
 assert.match(villagers, /function combatToolFor/);
 assert.match(villagers, /\(combat\.routeProgress \?\? 0\) > 14/);

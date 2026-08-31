@@ -12,12 +12,12 @@ import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import { isRegionalMarketTrip } from '../logistics/deliveryTrips.ts';
 import type { FireIncidentState } from '../fires/fireIncident.ts';
 import type { CombatAgentState } from '../security/combatAgents.ts';
-import { hasActiveRaiderThreat } from '../security/combatAgents.ts';
 import type { Season, WeatherKind } from '../world/seasonPolicy.ts';
 import {
   WORLD_FOLEY_CLIPS,
   type FootstepEvent,
   type FootstepSurface,
+  type ThreatAlertSoundKind,
   type WorldFoleySoundId,
 } from './audioCatalog.ts';
 import {
@@ -181,8 +181,6 @@ export class WorldFoleyAudio {
   private initializedFires = false;
   private initializedTrips = false;
   private initializedBurials = false;
-  private initializedRaid = false;
-  private raidActive = false;
   private enabled = true;
   private volume = 1;
 
@@ -202,7 +200,6 @@ export class WorldFoleyAudio {
     this.syncFires(input.fireIncidents, input.buildings, input.residences);
     this.syncTrips(deliveryTrips);
     this.syncBurials(input.graveyards);
-    this.syncRaid(input.combatAgents, input.buildings);
 
     if ((input.view.orbitDistance ?? 240) > WORLD_FOLEY_MAX_ZOOM_DISTANCE) return;
     this.playScheduledCart(deliveryTrips);
@@ -230,6 +227,15 @@ export class WorldFoleyAudio {
       tuning.gain,
       { playbackRate: tuning.playbackRate, preservePitch: false },
     );
+  }
+
+  playThreatAlert(kind: ThreatAlertSoundKind): void {
+    const sound: WorldFoleySoundId = kind === 'wildlife'
+      ? 'event_wildlife_detected'
+      : kind === 'bandit'
+        ? 'event_bandits_detected'
+        : 'event_ottoman_raiders_detected';
+    this.playLocal(sound, 1, { playbackRate: 1, preservePitch: true });
   }
 
   setEnabled(enabled: boolean): void {
@@ -580,21 +586,6 @@ export class WorldFoleyAudio {
     this.initializedBurials = true;
   }
 
-  private syncRaid(
-    agents: Iterable<CombatAgentState>,
-    buildings: ReadonlyMap<string, BuildingState>,
-  ): void {
-    const active = hasActiveRaiderThreat(agents);
-    if (this.initializedRaid && active && !this.raidActive) {
-      const anchor = nearestAlarmBuilding(buildings.values(), this.view);
-      const x = anchor?.x ?? this.view?.listenerX ?? this.view?.centerX ?? 0;
-      const z = anchor?.z ?? this.view?.listenerZ ?? this.view?.centerZ ?? 0;
-      this.playAt('event_raid_alarm', x, z);
-    }
-    this.raidActive = active;
-    this.initializedRaid = true;
-  }
-
   private playAt(id: WorldFoleySoundId, x: number, z: number): void {
     const gain = worldFoleyGain(x, z, this.view ?? undefined);
     if (gain <= 0) return;
@@ -677,33 +668,6 @@ function graveyardCenter(graveyard: GraveyardState): { x: number; z: number } {
     z += corner.z;
   }
   return { x: x / graveyard.corners.length, z: z / graveyard.corners.length };
-}
-
-function nearestAlarmBuilding(
-  buildings: Iterable<BuildingState>,
-  view: CrowdViewState | null,
-): BuildingState | null {
-  const x = view?.listenerX ?? view?.centerX ?? 0;
-  const z = view?.listenerZ ?? view?.centerZ ?? 0;
-  let nearest: BuildingState | null = null;
-  let nearestDistance = Number.POSITIVE_INFINITY;
-  for (const building of buildings) {
-    if (
-      building.constructionComplete === false
-      || (
-        building.kind !== 'watchtower'
-        && building.kind !== 'guardhouse'
-        && building.kind !== 'town_hall'
-      )
-    ) {
-      continue;
-    }
-    const distance = Math.hypot(building.x - x, building.z - z);
-    if (distance >= nearestDistance) continue;
-    nearest = building;
-    nearestDistance = distance;
-  }
-  return nearest;
 }
 
 function deterministicIndex(value: string, count: number): number {

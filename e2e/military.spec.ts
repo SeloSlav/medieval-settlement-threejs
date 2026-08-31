@@ -68,7 +68,7 @@ test('offers a survivor-priced last-minute retainer to leaving mercenaries', asy
   await expect(page.locator('[data-disband-military-company]')).toHaveCount(0);
 });
 
-test('selected professional company shows only health plus level and XP progression', async ({ page }) => {
+test('selected professional company shows its level without aggregate or hidden combat stats', async ({ page }) => {
   const company: MilitaryCompanyState = {
     id: '24',
     kind: 'spearmen',
@@ -87,14 +87,7 @@ test('selected professional company shows only health plus level and XP progress
     experience: 155,
     level: 2,
   };
-  const view = renderSelectedMilitaryCompanyInspector(company, [{
-    id: '101', raidId: '24', faction: 'spearman', sourceBuildingId: 'guardhouse-1',
-    sourceSlot: 0, targetKind: 'ground', targetId: '0', x: 0, z: 0, homeX: 0, homeZ: 0,
-    health: 61, maxHealth: 80, readiness: 0.8, status: 'holding', attackCooldown: 0,
-    lootProgress: 0, carryingLoot: false, issuedPolearms: 1, raidAnchorBuildingId: null,
-    banditCampId: null, companyId: '24', homeResidenceId: 'residence-1',
-    personIdentity: 'residence-1:person:0', stateChangedTick: 1,
-  }]);
+  const view = renderSelectedMilitaryCompanyInspector(company);
   await page.setContent(`<main class="resource-inspector-panel" data-inspector-target="military-company">
     <h2>${view.statusText}</h2>
     <section class="resource-inspector-details"><ul data-inspector-details>${view.detailsHtml}</ul></section>
@@ -104,15 +97,15 @@ test('selected professional company shows only health plus level and XP progress
   await page.addStyleTag({ path: 'src/ui/polishedGameUi.css' });
   await page.addStyleTag({ path: 'src/ui/inspectorSupplemental.css' });
   expect(await page.locator('main').innerText()).toContain('Level 2');
-  await expect(page.locator('[data-company-health]')).toContainText('61 / 80');
-  await expect(page.locator('[data-company-level="2"] [role="progressbar"]')).toHaveAttribute('aria-valuenow', '55');
-  const healthLabel = await page.locator('[data-company-health] .military-company-progress-label').boundingBox();
-  const experienceLabel = await page.locator('[data-company-level] .military-company-progress-label').boundingBox();
-  expect(Math.abs((healthLabel?.y ?? 0) - (experienceLabel?.y ?? 0))).toBeLessThan(1);
+  await expect(page.locator('[data-inspector-details] > li')).toHaveCount(0);
+  await expect(page.locator('[role="progressbar"]')).toHaveCount(0);
   await expect(page.locator('[data-formation-kind="shield-wall"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-resupply-military-company]')).toContainText('Resupply');
   await expect(page.locator('[data-disband-military-company]')).toContainText('Disband company');
   await expect(page.locator('main')).not.toContainText('Surviving a battle');
+  await expect(page.locator('main')).not.toContainText('Health');
+  await expect(page.locator('main')).not.toContainText('Experience');
+  await expect(page.locator('main')).not.toContainText('Strength');
   await expect(page.locator('main')).not.toContainText('Morale');
   await expect(page.locator('main')).not.toContainText('Cohesion');
   await expect(page.locator('main')).not.toContainText('Fatigue');

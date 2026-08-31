@@ -4,7 +4,6 @@ import {
   militaryCompanyRequiresProvisions,
   militaryCostText,
   militaryCompanyGainsExperience,
-  militaryExperienceProgress,
   militaryFormationLabel,
   militaryKindLabel,
   militaryRecruitmentCost,
@@ -12,7 +11,6 @@ import {
   type MilitaryCompanyKind,
   type MilitaryCompanyState,
 } from '../../security/militaryProgression.ts';
-import type { CombatAgentState } from '../../security/combatAgents.ts';
 import { MILITARY_COMPANY_CARD_ART } from '../../security/militaryCompanyCardArt.ts';
 import { getActiveWorldGeneration } from '../../world/worldGenerationContext.ts';
 
@@ -45,34 +43,10 @@ export type SelectedMilitaryCompanyInspectorView = {
 
 export function renderSelectedMilitaryCompanyInspector(
   company: MilitaryCompanyState,
-  combatAgents: Iterable<CombatAgentState> | undefined,
   options: { readOnlyPlaytest?: boolean } = {},
 ): SelectedMilitaryCompanyInspectorView {
-  const agents = [...(combatAgents ?? [])].filter((agent) => (
-    agent.companyId === company.id
-    && agent.status !== 'downed'
-  ));
-  const health = agents.reduce((sum, agent) => sum + Math.max(0, agent.health), 0);
-  const maxHealth = agents.reduce((sum, agent) => sum + Math.max(1, agent.maxHealth), 0);
-  const healthFraction = maxHealth > 0 ? Math.max(0, Math.min(1, health / maxHealth)) : 0;
-  const healthLabel = `${Math.ceil(health)} / ${Math.ceil(maxHealth)}`;
   const gainsExperience = militaryCompanyGainsExperience(company.kind);
-  const experience = militaryExperienceProgress(company);
   const statusLabel = company.status[0]!.toUpperCase() + company.status.slice(1);
-  const ammunitionDetails = company.ammunitionCapacity > 0
-    ? `<li data-inspector-primary><span>${company.kind === 'bowmen' ? 'Arrows' : company.kind === 'crossbows' ? 'Bolts' : 'Shots'}</span><span>${company.ammunition} / ${company.ammunitionCapacity}</span></li>`
-    : '';
-  const progressionDetails = gainsExperience
-    ? `<li data-inspector-primary data-inspector-custom-layout class="military-company-progress-row" data-company-level="${company.level}">
-        <span class="military-company-progress-label">Experience</span>
-        <span class="military-company-progress-value">
-          <strong>${experience.maximum ? 'Mastered' : `${experience.current} / ${experience.required} XP`}</strong>
-          <span class="military-company-progress" role="progressbar" aria-label="Company experience" aria-valuemin="0" aria-valuemax="${experience.required}" aria-valuenow="${experience.current}">
-            <span style="width: ${(experience.fraction * 100).toFixed(2)}%"></span>
-          </span>
-        </span>
-      </li>`
-    : '';
 
   return {
     eyebrow: gainsExperience ? 'Veteran company' : 'Military company',
@@ -80,24 +54,7 @@ export function renderSelectedMilitaryCompanyInspector(
     statusText: gainsExperience ? `Level ${company.level} · ${statusLabel}` : statusLabel,
     statusState: company.status === 'active' ? 'active' : company.status === 'destroyed' ? 'warning' : 'idle',
     image: MILITARY_COMPANY_CARD_ART[company.kind],
-    detailsHtml: `
-      <li data-inspector-primary data-inspector-custom-layout class="military-company-progress-row" data-company-health>
-        <span class="military-company-progress-label">Health</span>
-        <span class="military-company-progress-value">
-          <strong>${healthLabel}</strong>
-          <span class="military-company-progress military-company-progress--health" role="progressbar" aria-label="Company health" aria-valuemin="0" aria-valuemax="${Math.ceil(maxHealth)}" aria-valuenow="${Math.ceil(health)}">
-            <span style="width: ${(healthFraction * 100).toFixed(2)}%"></span>
-          </span>
-        </span>
-      </li>
-      ${progressionDetails}
-      <li data-inspector-primary><span>Strength</span><span>${company.livingMembers} / ${company.targetSize} living</span></li>
-      <li data-inspector-primary><span>Formation</span><span>${militaryFormationLabel(company.formation)}</span></li>
-      <li data-inspector-primary><span>Morale</span><span>${Math.round(company.morale * 100)}%</span></li>
-      <li data-inspector-primary><span>Cohesion</span><span>${Math.round(company.cohesion * 100)}%</span></li>
-      <li data-inspector-primary><span>Fatigue</span><span>${Math.round(company.fatigue * 100)}%</span></li>
-      ${ammunitionDetails}
-    `,
+    detailsHtml: '',
     supplementalPanelHtml: renderSelectedCompanyCommands(
       company,
       options.readOnlyPlaytest === true,

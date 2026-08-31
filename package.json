@@ -49,6 +49,7 @@
     "test:backyard-commodity-identity": "npx tsx scripts/testBackyardCommodityIdentity.mts",
     "test:action-button-iconography": "npx tsx scripts/testActionButtonIconography.mts",
     "test:lord-reports": "npx tsx scripts/testLordReports.mts",
+    "test:threat-approach-alerts": "node --experimental-strip-types scripts/testThreatApproachAlerts.mts",
     "test:ui-typography": "node --experimental-strip-types scripts/testUiTypography.mts",
     "test:orchard-specializations": "npx tsx scripts/testOrchardSpecializations.mts",
     "test:animal-pen-specializations": "npx tsx scripts/testAnimalPenSpecializations.mts",

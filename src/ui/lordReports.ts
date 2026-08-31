@@ -23,7 +23,14 @@ import {
   SUNDAY_MASS_START_HOUR,
 } from '../settlement/chapelMass.ts';
 
-export type LordReportKind = 'sabbath' | 'labor' | 'storage' | 'fire' | 'bandit' | 'military';
+export type LordReportKind =
+  | 'sabbath'
+  | 'labor'
+  | 'storage'
+  | 'fire'
+  | 'bandit'
+  | 'wildlife'
+  | 'military';
 export type LordReportTone = 'settled' | 'notice' | 'warning' | 'danger';
 
 export type LordReportContext = {
@@ -31,7 +38,7 @@ export type LordReportContext = {
 };
 
 export type LordReportTarget = {
-  kind: 'building' | 'residence';
+  kind: 'building' | 'residence' | 'world';
   id: string;
   x: number;
   z: number;
@@ -513,6 +520,7 @@ const REPORT_SYMBOLS: Record<LordReportKind, string> = {
   storage: '▣',
   fire: '♦',
   bandit: '⚑',
+  wildlife: '◆',
   military: '⚔',
 };
 

@@ -13,6 +13,7 @@ import {
 } from '../src/security/militaryCompanyPresentation.ts';
 import { CombatPlaytestSimulation } from '../src/app/combatPlaytest.ts';
 import { renderSelectedMilitaryCompanyInspector } from '../src/resources/inspector/militaryCompanyRenderer.ts';
+import { militaryCompanyGainsExperience } from '../src/security/militaryProgression.ts';
 
 assert.ok(
   STRATEGIC_COMPANY_ICON_REVEAL_ZOOM_PERCENT
@@ -61,19 +62,21 @@ const playtest = new CombatPlaytestSimulation({
   preset: 'field',
   seed: 0x431a2e0d,
 });
-const agents = playtest.snapshot();
 const companies = playtest.companyStates();
 assert.equal(companies.size, 9, 'field sandbox should expose all nine friendly companies');
 for (const company of companies.values()) {
   assert.equal(company.targetSize, 8);
   assert.equal(company.livingMembers, 8);
   assert.equal(company.status, 'active');
-  const card = renderSelectedMilitaryCompanyInspector(company, agents.values(), {
+  const card = renderSelectedMilitaryCompanyInspector(company, {
     readOnlyPlaytest: true,
   });
-  assert.match(card.detailsHtml, /Strength/);
-  assert.match(card.detailsHtml, /Formation/);
-  assert.match(card.detailsHtml, /Morale/);
+  assert.equal(card.detailsHtml, '');
+  if (militaryCompanyGainsExperience(company.kind)) {
+    assert.match(card.statusText, /^Level \d+ · Active$/);
+  } else {
+    assert.equal(card.statusText, 'Active');
+  }
   assert.match(card.supplementalPanelHtml, /data-combat-playtest-company-card/);
   assert.match(card.supplementalPanelHtml, /right-click the terrain to move/i);
   assert.doesNotMatch(card.supplementalPanelHtml, /data-disband-military-company/);

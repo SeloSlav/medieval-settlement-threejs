@@ -82,6 +82,8 @@ export type FootstepEvent = FootstepMotion & {
   surface: FootstepSurface;
 };
 
+export type ThreatAlertSoundKind = 'wildlife' | 'bandit' | 'ottoman';
+
 export type WorldFoleySoundId =
   | 'cart_roll_1'
   | 'cart_roll_2'
@@ -115,6 +117,9 @@ export type WorldFoleySoundId =
   | 'event_residence_complete'
   | 'event_residence_upgrade'
   | 'event_raid_alarm'
+  | 'event_wildlife_detected'
+  | 'event_bandits_detected'
+  | 'event_ottoman_raiders_detected'
   | 'event_burial'
   | 'event_trade_arrival';
 
@@ -420,6 +425,9 @@ export const WORLD_FOLEY_CLIPS: Record<WorldFoleySoundId, AudioClipDefinition> =
   event_residence_complete: worldFoleyClip('event_residence_complete', 0.075),
   event_residence_upgrade: worldFoleyClip('event_residence_upgrade', 0.075),
   event_raid_alarm: worldFoleyClip('event_raid_alarm', 0.11),
+  event_wildlife_detected: worldFoleyClip('event_wildlife_detected', 0.16),
+  event_bandits_detected: worldFoleyClip('event_bandits_detected', 0.16),
+  event_ottoman_raiders_detected: worldFoleyClip('event_ottoman_raiders_detected', 0.17),
   event_burial: worldFoleyClip('event_burial', 0.065),
   event_trade_arrival: worldFoleyClip('event_trade_arrival', 0.075),
 };
