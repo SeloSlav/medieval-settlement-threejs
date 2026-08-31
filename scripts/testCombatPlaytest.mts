@@ -302,6 +302,8 @@ assert.match(playtest, /bowman:[\s\S]{0,140}health: 55[\s\S]{0,90}cadence: 1\.55
 assert.match(playtest, /minimumRange: 8/);
 assert.match(playtest, /minimumRange: 7\.25/);
 assert.match(playtest, /refreshMeleeEngagementRanks\(\)/);
+assert.match(playtest, /meleeRankCounts = new Map<RuntimeAgent, number>\(\)/);
+assert.doesNotMatch(playtest, /meleeEngagementRank = denseMeleeEngagementRank/);
 assert.match(playtest, /engagementSlotAngle\(\s*runtime\.meleeEngagementRank/);
 assert.match(playtest, /engagementSlotRadius\(stats\.range, runtime\.meleeEngagementRank\)/);
 assert.match(playtest, /rangedLineLateral\(input\.sourceSlot, input\.companySize\)/);

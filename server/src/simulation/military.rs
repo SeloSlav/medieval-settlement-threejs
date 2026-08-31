@@ -310,7 +310,7 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
         }
         COMBAT_STEERING_GRID.with(|cell| {
             let mut steering = cell.borrow_mut();
-            rebuild_steering_grid(ctx, &mut steering, None, &[], &[], elapsed_seconds);
+            rebuild_steering_grid(ctx, &mut steering, None, &[], &[], &[], elapsed_seconds);
             MILITARY_SCRATCH.with(|scratch_cell| {
                 let mut scratch = scratch_cell.borrow_mut();
                 prepare_military_scratch(ctx, &steering, &mut scratch);
@@ -335,6 +335,7 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
                         ctx.db.combat_agent().id().delete(agent.id);
                         continue;
                     };
+                    let melee_rank_hint = scratch.engagement_rank(agent.id);
                     match member.phase {
                         0 => step_mustering_member(
                             ctx,
@@ -359,6 +360,7 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
                                 military_demands,
                                 &steering,
                                 ranged_frame,
+                                melee_rank_hint,
                             )
                         }
                     }
@@ -495,6 +497,7 @@ fn step_active_member(
     military_demands: u8,
     steering: &CombatSteeringGrid,
     ranged_frame: Option<RangedCompanyFrame>,
+    melee_rank_hint: Option<DenseEngagementRank>,
 ) {
     if company.state >= 2 {
         member.phase = 2;
@@ -612,7 +615,7 @@ fn step_active_member(
             } else {
                 1.0
             };
-            let rank = agent.source_slot as usize;
+            let source_rank = agent.source_slot as usize;
             let movement_goal = if can_shoot {
                 let frame = ranged_frame.unwrap_or(RangedCompanyFrame {
                     company_id: company.id,
@@ -622,7 +625,7 @@ fn step_active_member(
                     target_z: enemy.z,
                 });
                 ranged_firing_line_goal(
-                    rank,
+                    source_rank,
                     company.living_members.max(1) as usize,
                     frame.source_x,
                     frame.source_z,
@@ -631,7 +634,17 @@ fn step_active_member(
                     stats.strike_range,
                 )
             } else {
-                melee_engagement_goal(company.id, enemy.id, rank, enemy.x, enemy.z, strike_range)
+                let engagement_rank = melee_rank_hint
+                    .filter(|hint| hint.target_id == enemy.id)
+                    .map_or(source_rank, |hint| hint.rank);
+                melee_engagement_goal(
+                    company.id,
+                    enemy.id,
+                    engagement_rank,
+                    enemy.x,
+                    enemy.z,
+                    strike_range,
+                )
             };
             walk_flocked(
                 steering,
@@ -1166,6 +1179,7 @@ fn rebuild_steering_grid(
     motion_frame: Option<&CombatMotionFrame>,
     ranged_frames: &[RangedCompanyFrame],
     raider_ranged_frames: &[RaiderRangedFrame],
+    engagement_ranks: &[DenseEngagementRank],
     elapsed_seconds: f64,
 ) {
     steering.begin();
@@ -1194,6 +1208,7 @@ fn rebuild_steering_grid(
             motion_frame,
             ranged_frames,
             raider_ranged_frames,
+            engagement_ranks,
         );
         let snapshot = motion_frame.and_then(|frame| frame.get(agent.id));
         let (x, z, velocity_x, velocity_z) = if let Some(snapshot) = snapshot {
@@ -1262,6 +1277,7 @@ fn canonical_steering_goal(
     motion_frame: Option<&CombatMotionFrame>,
     ranged_frames: &[RangedCompanyFrame],
     raider_ranged_frames: &[RaiderRangedFrame],
+    engagement_ranks: &[DenseEngagementRank],
 ) -> (f64, f64, f64) {
     let member = ctx.db.military_member().combat_agent_id().find(&agent.id);
     let company = member
@@ -1332,7 +1348,7 @@ fn canonical_steering_goal(
                 if let Some(company) = company.as_ref() {
                     if let Some(kind) = MilitaryKind::from_id(company.kind) {
                         let stats = military_stats(kind);
-                        let rank = agent.source_slot as usize;
+                        let source_rank = agent.source_slot as usize;
                         let goal = if matches!(kind, MilitaryKind::Bowmen | MilitaryKind::Crossbows)
                             && member.ammunition > 0
                         {
@@ -1350,7 +1366,7 @@ fn canonical_steering_goal(
                                     )
                                 });
                             ranged_firing_line_goal(
-                                rank,
+                                source_rank,
                                 company.living_members.max(1) as usize,
                                 line_source_x,
                                 line_source_z,
@@ -1359,10 +1375,16 @@ fn canonical_steering_goal(
                                 stats.strike_range,
                             )
                         } else {
+                            let engagement_rank = dense_engagement_rank(
+                                engagement_ranks,
+                                agent.id,
+                                target.id,
+                            )
+                            .unwrap_or(source_rank);
                             melee_engagement_goal(
                                 company.id,
                                 target.id,
-                                rank,
+                                engagement_rank,
                                 target_x,
                                 target_z,
                                 stats.strike_range,
@@ -1392,10 +1414,16 @@ fn canonical_steering_goal(
                         |frame| frame.goal(agent.source_slot, 12.0),
                     )
             } else {
+                let engagement_rank = dense_engagement_rank(
+                    engagement_ranks,
+                    agent.id,
+                    target.id,
+                )
+                .unwrap_or(agent.source_slot as usize);
                 melee_engagement_goal(
                     agent.raid_id.max(agent.source_building_id),
                     target.id,
-                    agent.source_slot as usize,
+                    engagement_rank,
                     target_x,
                     target_z,
                     2.15,
