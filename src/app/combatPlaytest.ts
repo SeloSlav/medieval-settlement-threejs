@@ -65,7 +65,6 @@ type RuntimeAgent = {
   orderX: number | null;
   orderZ: number | null;
   orderMode: 'move' | 'attack' | null;
-  rangedShotsFired: number;
 };
 
 type CombatStats = {
@@ -93,7 +92,6 @@ const FRIENDLY_FACTIONS = [
   'polearm',
   'bowman',
   'crossbow',
-  'uskok',
 ] as const satisfies readonly CombatAgentFaction[];
 
 const PRESETS: Readonly<Record<CombatPlaytestPreset, CombatPlaytestPresetDefinition>> = {
@@ -141,23 +139,11 @@ const COMBAT_STATS: Readonly<Record<CombatAgentFaction, CombatStats>> = {
     health: 55, damage: 10.5, cadence: 1.55, range: 20,
     speed: 2.5, detection: 22, minimumRange: 8,
   },
-  uskok: {
-    health: 72, damage: 15.5, cadence: 2.8, range: 13.5,
-    speed: 2.78, detection: 16, minimumRange: 6.5,
-  },
   dog: { health: 80, damage: 13, cadence: 1.05, range: 1.7, speed: 3.15, detection: 52 },
   fox: { health: 34, damage: 5, cadence: 1.4, range: 1.4, speed: 3.35, detection: 14 },
   wolf: { health: 68, damage: 9, cadence: 1.15, range: 1.7, speed: 2.55, detection: 12 },
 };
 
-const USKOK_MATCHLOCK_SHOTS = 8;
-const USKOK_KORDA_STATS: CombatStats = {
-  ...COMBAT_STATS.uskok,
-  damage: 13,
-  cadence: 0.84,
-  range: 2.15,
-  minimumRange: undefined,
-};
 const ATTACK_ORDER_PICK_RADIUS = 4.5;
 
 export function parseCombatPlaytestRequest(search: string): CombatPlaytestRequest | null {
@@ -281,11 +267,8 @@ export class CombatPlaytestSimulation {
         : 0;
       const ammunitionPerMember = kind === 'crossbows'
         ? 18
-        : kind === 'bowmen' ? 24 : kind === 'uskok-border-infantry' ? 8 : 0;
+        : kind === 'bowmen' ? 24 : 0;
       const ammunitionCapacity = ammunitionPerMember * members.length;
-      const ammunitionSpent = kind === 'uskok-border-infantry'
-        ? members.reduce((sum, member) => sum + member.rangedShotsFired, 0)
-        : 0;
       companies.set(id, {
         id,
         kind,
@@ -298,7 +281,7 @@ export class CombatPlaytestSimulation {
         cohesion: clamp(healthFraction, 0, 1),
         fatigue: clamp(0.12 + fightingFraction * 0.38, 0, 1),
         provisionDays: 3,
-        ammunition: Math.max(0, ammunitionCapacity - ammunitionSpent),
+        ammunition: ammunitionCapacity,
         ammunitionCapacity,
         formedTick: 0,
         experience: 0,
@@ -581,12 +564,6 @@ export class CombatPlaytestSimulation {
       opponent.state.id,
       (pendingDamage.get(opponent.state.id) ?? 0) + stats.damage,
     );
-    if (
-      runtime.state.faction === 'uskok'
-      && runtime.rangedShotsFired < USKOK_MATCHLOCK_SHOTS
-    ) {
-      runtime.rangedShotsFired += 1;
-    }
     const cadenceJitter = 0.92 + unitHash(
       this.seed ^ hashString(runtime.state.id) ^ Math.floor(this.elapsedSeconds * 4),
     ) * 0.16;
@@ -594,12 +571,6 @@ export class CombatPlaytestSimulation {
   }
 
   private statsFor(runtime: RuntimeAgent): CombatStats {
-    if (
-      runtime.state.faction === 'uskok'
-      && runtime.rangedShotsFired >= USKOK_MATCHLOCK_SHOTS
-    ) {
-      return USKOK_KORDA_STATS;
-    }
     return COMBAT_STATS[runtime.state.faction];
   }
 
@@ -709,7 +680,6 @@ export class CombatPlaytestSimulation {
       orderX: null,
       orderZ: null,
       orderMode: null,
-      rangedShotsFired: 0,
     };
   }
 

@@ -8,10 +8,12 @@ import {
   type CrowdRenderAgent,
   type VillagerRenderMode,
 } from '../src/settlement/SettlementCrowdRenderer.ts';
+import { StrategicHumanoidRenderer } from '../src/settlement/StrategicHumanoidRenderer.ts';
 import {
   isWithinWorkAnimationRange,
   type CrowdViewState,
 } from '../src/settlement/crowdView.ts';
+import { locomotionAnimationTimeScale } from '../src/settlement/locomotionAnimation.ts';
 
 const MAX_ANIMATED_VILLAGERS = 72;
 
@@ -121,54 +123,23 @@ assert.ok(
   `20k worst-case 1,024-agent selections took ${elapsedMs.toFixed(1)}ms`,
 );
 
-type FallbackLayer = {
-  mesh: THREE.InstancedMesh;
-  geometry: THREE.BufferGeometry;
-  material: THREE.MeshStandardMaterial;
-};
-type FallbackHarness = {
-  matrix: THREE.Matrix4;
-  position: THREE.Vector3;
-  quaternion: THREE.Quaternion;
-  euler: THREE.Euler;
-  color: THREE.Color;
-  scale: THREE.Vector3;
-  fallbackBody: FallbackLayer;
-  fallbackLegs: FallbackLayer;
-  fallbackHead: FallbackLayer;
-  updateFallback(agents: readonly CrowdRenderAgent[], excluded?: ReadonlySet<string>): void;
-};
-const makeFallbackLayer = (): FallbackLayer => {
-  const geometry = new THREE.BoxGeometry(0.25, 0.6, 0.2);
-  const material = new THREE.MeshStandardMaterial({ vertexColors: true });
-  return { geometry, material, mesh: new THREE.InstancedMesh(geometry, material, 1024) };
-};
-const fallbackHarness = Object.create(SettlementCrowdRenderer.prototype) as FallbackHarness;
-fallbackHarness.matrix = new THREE.Matrix4();
-fallbackHarness.position = new THREE.Vector3();
-fallbackHarness.quaternion = new THREE.Quaternion();
-fallbackHarness.euler = new THREE.Euler();
-fallbackHarness.color = new THREE.Color();
-fallbackHarness.scale = new THREE.Vector3(1, 1, 1);
-fallbackHarness.fallbackBody = makeFallbackLayer();
-fallbackHarness.fallbackLegs = makeFallbackLayer();
-fallbackHarness.fallbackHead = makeFallbackLayer();
+const strategicParent = new THREE.Group();
+const strategicHumanoids = new StrategicHumanoidRenderer(strategicParent, 1_024);
 const animatedBudget = new Set(agents.slice(0, 72).map((agent) => agent.id));
 const proxyFrames = 300;
 const proxyStartedAt = performance.now();
 for (let frame = 0; frame < proxyFrames; frame++) {
-  fallbackHarness.updateFallback(agents, animatedBudget);
+  strategicHumanoids.sync(agents, animatedBudget, 1 / 60);
 }
 const proxyElapsedMs = performance.now() - proxyStartedAt;
-assert.equal(fallbackHarness.fallbackBody.mesh.count, 952);
+assert.equal(strategicHumanoids.diagnostics().instances, 952);
+assert.equal(strategicHumanoids.diagnostics().capsuleProxyCount, 0);
 assert.ok(
   proxyElapsedMs / proxyFrames < 4,
-  `952-agent instanced overflow cost ${(proxyElapsedMs / proxyFrames).toFixed(2)}ms/frame`,
+  `952-agent articulated overflow cost ${(proxyElapsedMs / proxyFrames).toFixed(2)}ms/frame`,
 );
-for (const layer of [fallbackHarness.fallbackBody, fallbackHarness.fallbackLegs, fallbackHarness.fallbackHead]) {
-  layer.geometry.dispose();
-  layer.material.dispose();
-}
+strategicHumanoids.dispose();
+assert.equal(strategicParent.children.length, 0);
 
 const source = readFileSync(
   new URL('../src/settlement/SettlementCrowdRenderer.ts', import.meta.url),
@@ -258,7 +229,12 @@ const expectedWalkPhase = pooledAppearanceSeed % 997 / 997 * 2;
 assert.equal(pooledActions.idle.isRunning(), false);
 assert.equal(pooledActions.walk.isRunning(), true);
 assert.ok(Math.abs(pooledActions.walk.time - expectedWalkPhase) < 1e-12);
-assert.ok(Math.abs(pooledActions.walk.getEffectiveTimeScale() - 1.59) < 1e-12);
+assert.ok(
+  Math.abs(
+    pooledActions.walk.getEffectiveTimeScale()
+      - locomotionAnimationTimeScale('walk', 1.8),
+  ) < 1e-12,
+);
 animationMixer.update(0.5);
 restartPooledVillagerActions(
   animationMixer,
@@ -335,7 +311,7 @@ assert.match(source, /if \(pooledVisual\) this\.resetPooledVillager\(visual, age
 assert.match(source, /this\.idlePooledVisualCount >= MAX_ANIMATED_VILLAGERS/);
 assert.match(
   source,
-  /this\.syncAnimatedVillagers\(visibleAgents, animatedIds, dt\);\s*this\.updateAnimatedBatches\(visibleAgents, animatedIds\);\s*this\.updateFallback\(visibleAgents, animatedIds\);/,
+  /this\.syncAnimatedVillagers\(visibleAgents, animatedIds, dt\);\s*this\.updateAnimatedBatches\(visibleAgents, animatedIds\);\s*this\.strategicHumanoids\.sync\(visibleAgents, animatedIds, dt\);/,
 );
 assert.match(source, /MAX_INSTANCES = 1024/);
 assert.match(source, /mesh\.visible = false;\s*mesh\.castShadow = false;/);
@@ -346,6 +322,6 @@ assert.doesNotMatch(source, /mergeGeometries/);
 
 console.log(
   `Crowd renderer pacing tests passed (${iterations.toLocaleString()} selections in ${elapsedMs.toFixed(1)}ms; `
-    + `952-agent proxy update ${(proxyElapsedMs / proxyFrames).toFixed(2)}ms/frame; `
-    + '72 authored rigs plus instanced overflow up to 1,024 visible agents).',
+    + `952-agent articulated overflow update ${(proxyElapsedMs / proxyFrames).toFixed(2)}ms/frame; `
+    + '72 authored rigs plus zero-pill instanced humanoids up to 1,024 visible agents).',
 );

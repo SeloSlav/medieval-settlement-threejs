@@ -14,7 +14,6 @@ export const MILITARY_KINDS = [
   'footmen',
   'polearms',
   'bowmen',
-  'uskok-border-infantry',
 ] as const;
 export type MilitaryCompanyKind = (typeof MILITARY_KINDS)[number];
 
@@ -165,12 +164,6 @@ export const MILITARY_RECRUITMENT: Record<MilitaryCompanyKind, {
     cost: { bows: 8, ammunition: 8, preservedFood: 16, gold: 8 },
     source: 'guardhouse', residentMen: true, icon: 'bowmen',
     summary: 'Eight inexpensive fast-firing bowmen with twenty-four arrows each. Strong against light troops; crossbows remain the better armored-target answer.',
-  },
-  'uskok-border-infantry': {
-    label: 'Uskok border infantry', shortLabel: 'Uskoks', size: 8,
-    cost: { polearms: 4, sidearms: 8, paddedArmor: 8, ammunition: 8, ale: 8, preservedFood: 24, gold: 32 },
-    source: 'guardhouse', residentMen: true, icon: 'uskoks',
-    summary: 'Eight Croatian frontier professionals with eight light-matchlock shots each, then long korda war knives for close combat. Exceptional flankers and missile hunters; braced spears stop them.',
   },
 };
 

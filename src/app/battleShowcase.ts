@@ -102,7 +102,7 @@ type SiteCandidate = BattleShowcaseSite & {
   score: number;
 };
 
-const FRIENDLY_FACTIONS: readonly ('spearman' | 'polearm' | 'uskok')[] = [
+const FRIENDLY_FACTIONS: readonly ('spearman' | 'polearm' | 'footman')[] = [
   'spearman',
   'spearman',
   'spearman',
@@ -111,10 +111,10 @@ const FRIENDLY_FACTIONS: readonly ('spearman' | 'polearm' | 'uskok')[] = [
   'polearm',
   'polearm',
   'polearm',
-  'uskok',
-  'uskok',
-  'uskok',
-  'uskok',
+  'footman',
+  'footman',
+  'footman',
+  'footman',
 ];
 
 const FORMATION_LATERAL_SPACING = 1.92;
@@ -128,10 +128,10 @@ const FORMATION_OPENING_HALF_LENGTH = FORMATION_FRONT_DISTANCE
   + (BATTLE_SHOWCASE_FORMATION_ROWS - 1) * FORMATION_RANK_SPACING;
 const CROATIAN_PURSUER_COUNT = Math.round(BATTLE_SHOWCASE_FRIENDLY_COUNT * 2 / 3);
 
-const FRIENDLY_MAX_HEALTH: Readonly<Record<'spearman' | 'polearm' | 'uskok', number>> = {
+const FRIENDLY_MAX_HEALTH: Readonly<Record<'spearman' | 'polearm' | 'footman', number>> = {
   spearman: 74,
   polearm: 70,
-  uskok: 72,
+  footman: 78,
 };
 
 const CROATIAN_CASUALTY_AT: Readonly<Record<number, number>> = {

@@ -40,6 +40,8 @@ import {
   AGENT_WORK_ANIMATION_DISTANCE,
   buildCrowdViewState,
   isAgentAnimalRenderingEnabled,
+  isPeopleRenderingEnabled,
+  isWithinAnimalCrowdView,
   isWithinCrowdView,
   isWithinWorkAnimationRange,
 } from '../src/settlement/crowdView.ts';
@@ -68,17 +70,25 @@ const cutoffView = buildCrowdViewState(
   AGENT_ANIMAL_RENDER_MAX_ORBIT_DISTANCE,
 );
 assert.equal(isAgentAnimalRenderingEnabled(cutoffView), true);
+assert.equal(isPeopleRenderingEnabled(cutoffView), true);
 assert.equal(isWithinCrowdView(0, 0, cutoffView), true);
+assert.equal(isWithinAnimalCrowdView(0, 0, cutoffView), true);
 const strategicView = buildCrowdViewState(
   0,
   0,
   AGENT_ANIMAL_RENDER_MAX_ORBIT_DISTANCE + 0.01,
 );
 assert.equal(isAgentAnimalRenderingEnabled(strategicView), false);
+assert.equal(isPeopleRenderingEnabled(strategicView), true);
 assert.equal(
   isWithinCrowdView(0, 0, strategicView),
+  true,
+  'people must remain spatially eligible beyond the old strategic zoom cutoff',
+);
+assert.equal(
+  isWithinAnimalCrowdView(0, 0, strategicView),
   false,
-  'agents and animals must be hard-culled beyond the strategic-view cutoff',
+  'livestock and wildlife may retain the 210 m strategic zoom cutoff',
 );
 
 async function parseGlb(path: string) {

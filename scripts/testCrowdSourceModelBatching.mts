@@ -489,6 +489,21 @@ aggregateHarness.sources = null;
 aggregateHarness.toolSources = null;
 aggregateHarness.group = new THREE.Group();
 aggregateHarness.disposed = false;
+// This prototype harness owns only the aggregate-skinning resources under
+// test. Keep full-renderer subsystem teardown callable as new presentation
+// layers are added, without constructing browser/audio-dependent systems.
+const disposalStub = { dispose() {} };
+Object.assign(aggregateHarness as unknown as Record<string, unknown>, {
+  fallbackMilitaryEquipment: disposalStub,
+  battlefieldWeaponDrops: disposalStub,
+  companyStandards: disposalStub,
+  companyStandardTextures: null,
+  companyStandardAgents: [],
+  companyStandardAgentPool: [],
+  combatProjectiles: disposalStub,
+  pendingCombatAttackEvents: [],
+  strategicHumanoids: disposalStub,
+});
 aggregateHarness.dispose();
 const totalShardCount = uniqueAggregateBatches.reduce(
   (sum, batch) => sum + batch.shards.length,

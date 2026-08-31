@@ -65,7 +65,7 @@ export function renderGuardhouseInspector(
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `
       ${renderMilitaryRecruitmentPanels(
-        ['spearmen', 'men-at-arms', 'footmen', 'polearms', 'bowmen', 'crossbows', 'uskok-border-infantry'],
+        ['spearmen', 'men-at-arms', 'footmen', 'polearms', 'bowmen', 'crossbows'],
         suspendedByFire || building.constructionComplete === false,
       )}
       ${renderMilitaryCompanyRoster(companies)}

@@ -25,7 +25,7 @@ const BANDIT: u8 = 2;
 const FOX: u8 = 13;
 const WOLF: u8 = 14;
 const FIRST_PLAYER_MILITARY: u8 = 3;
-const LAST_PLAYER_MILITARY: u8 = 11;
+const LAST_PLAYER_MILITARY: u8 = 10;
 const ADVANCING: u8 = 0;
 const FIGHTING: u8 = 1;
 const RETREATING: u8 = 3;
@@ -276,16 +276,13 @@ fn step_active_member(
         agent.target_id = enemy.id;
         let ranged_kind = matches!(
             kind,
-            MilitaryKind::Crossbows
-                | MilitaryKind::Bowmen
-                | MilitaryKind::UskokBorderInfantry
+            MilitaryKind::Crossbows | MilitaryKind::Bowmen
         );
         let can_shoot = ranged_kind && member.ammunition > 0;
         let strike_range = if can_shoot { stats.strike_range } else { 2.15 };
         let minimum_ranged_spacing = match kind {
             MilitaryKind::Bowmen => 8.0,
             MilitaryKind::Crossbows => 7.25,
-            MilitaryKind::UskokBorderInfantry => 6.5,
             _ => 0.0,
         };
         if can_shoot && range < minimum_ranged_spacing {
@@ -338,9 +335,6 @@ fn step_active_member(
                 let profile = member_combat_profile(kind, member_seed(&member));
                 let exhausted_ranged_damage = match kind {
                     MilitaryKind::Crossbows | MilitaryKind::Bowmen => 4.0,
-                    // Uskoks draw their korda instead of clubbing with an
-                    // unloaded firearm, preserving their hybrid identity.
-                    MilitaryKind::UskokBorderInfantry => 13.0,
                     _ => stats.damage,
                 };
                 let raw_damage = (if ranged_kind && !can_shoot {
@@ -358,13 +352,7 @@ fn step_active_member(
                 let damage =
                     damage_against_hostile(kind, profile.armor_penetration, &enemy, raw_damage);
                 enemy.health = (enemy.health - damage).max(0.0);
-                agent.attack_cooldown = if kind == MilitaryKind::UskokBorderInfantry
-                    && !can_shoot
-                {
-                    0.84
-                } else {
-                    stats.attack_seconds
-                };
+                agent.attack_cooldown = stats.attack_seconds;
                 if can_shoot {
                     member.ammunition = member.ammunition.saturating_sub(1);
                     if let Some(mut latest) = ctx.db.military_company().id().find(&company.id) {
@@ -508,7 +496,6 @@ fn step_company_upkeep(ctx: &ReducerContext, tick: u64, military_demands: u8) {
                 MilitaryKind::Footmen | MilitaryKind::Polearms | MilitaryKind::Bowmen => {
                     company.living_members.div_ceil(2)
                 }
-                MilitaryKind::UskokBorderInfantry => company.living_members,
                 MilitaryKind::Militia => 0,
             };
             let wages = daily_wage.saturating_mul(elapsed_days.min(u32::MAX as u64) as u32);

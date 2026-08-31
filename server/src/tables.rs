@@ -2218,7 +2218,7 @@ pub struct MilitaryCompany {
     pub id: u64,
     pub owner: Identity,
     /// 0 militia, 1 spearmen, 2 men-at-arms, 3 crossbows, 4 mercenary spears,
-    /// 5 footmen, 6 polearms, 7 bowmen, 8 Uskok border infantry.
+    /// 5 footmen, 6 polearms, 7 bowmen.
     pub kind: u8,
     /// Town Hall for militia/mercenaries; guardhouse for professional companies.
     pub source_building_id: u64,

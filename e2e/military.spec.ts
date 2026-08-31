@@ -11,7 +11,6 @@ import type {
 
 const GUARDHOUSE_KINDS: readonly MilitaryCompanyKind[] = [
   'spearmen', 'men-at-arms', 'footmen', 'polearms', 'bowmen', 'crossbows',
-  'uskok-border-infantry',
 ];
 
 test('renders the complete counter roster with loaded woodcut icons', async ({ page }) => {
@@ -21,8 +20,6 @@ test('renders the complete counter roster with loaded woodcut icons', async ({ p
 
   const cards = page.locator('.military-recruitment-card');
   await expect(cards).toHaveCount(GUARDHOUSE_KINDS.length);
-  expect(await page.locator('main').innerText()).toContain('Uskok');
-
   const iconUrls = await cards.locator('.inspector-action-icon').evaluateAll((icons) => (
     icons.map((icon) => getComputedStyle(icon).backgroundImage)
   ));
@@ -30,7 +27,6 @@ test('renders the complete counter roster with loaded woodcut icons', async ({ p
   expect(iconUrls.some((url) => url.includes('footmen.png'))).toBe(true);
   expect(iconUrls.some((url) => url.includes('polearms.png'))).toBe(true);
   expect(iconUrls.some((url) => url.includes('bowmen.png'))).toBe(true);
-  expect(iconUrls.some((url) => url.includes('uskoks.png'))).toBe(true);
 });
 
 test('communicates the intended tactical counter relationships', async ({ page }) => {

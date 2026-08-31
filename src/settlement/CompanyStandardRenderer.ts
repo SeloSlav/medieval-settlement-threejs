@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
-  isAgentAnimalRenderingEnabled,
+  isPeopleRenderingEnabled,
   isWithinCrowdView,
   type CrowdViewState,
 } from './crowdView.ts';
@@ -327,7 +327,7 @@ export class CompanyStandardRenderer {
     dtSeconds = 0,
   ): void {
     if (this.disposed) return;
-    const renderEnabled = isAgentAnimalRenderingEnabled(view);
+    const renderEnabled = isPeopleRenderingEnabled(view);
     this.group.visible = renderEnabled;
     if (!renderEnabled) return;
 

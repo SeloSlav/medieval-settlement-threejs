@@ -42,7 +42,7 @@ import {
   surfaceAdjustedTravelSpeed,
 } from '../roads/roadTravel.ts';
 import {
-  isAgentAnimalRenderingEnabled,
+  isPeopleRenderingEnabled,
   type CrowdViewState,
 } from '../settlement/crowdView.ts';
 import { hashStringSeed } from '../utils/random.ts';
@@ -223,7 +223,7 @@ export class DeliveryAgentRenderer {
   }
 
   update(dt: number, view?: CrowdViewState): void {
-    const renderEnabled = isAgentAnimalRenderingEnabled(view);
+    const renderEnabled = isPeopleRenderingEnabled(view);
     if (this.group.visible !== renderEnabled) {
       this.group.visible = renderEnabled;
     }

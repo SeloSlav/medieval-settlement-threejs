@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { CombatAgentState } from '../security/combatAgents.ts';
-import { isWithinCrowdView, type CrowdViewState } from './crowdView.ts';
+import { isWithinAnimalCrowdView, type CrowdViewState } from './crowdView.ts';
 
 export type AnimalCombatPose = Readonly<{
   id: string;
@@ -50,7 +50,7 @@ export class AnimalCombatRenderer {
   sync(poses: readonly AnimalCombatPose[], view: CrowdViewState | undefined, dt: number): void {
     const active = new Set<string>();
     for (const pose of poses) {
-      if (!isWithinCrowdView(pose.x, pose.z, view)) continue;
+      if (!isWithinAnimalCrowdView(pose.x, pose.z, view)) continue;
       active.add(pose.id);
       let instance = this.instances.get(pose.id);
       if (!instance || instance.faction !== pose.faction) {

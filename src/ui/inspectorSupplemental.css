@@ -405,10 +405,6 @@
   background-image: url('/assets/ui/icons/actions/bowmen.png');
 }
 
-.inspector-action-icon[data-action-icon='uskoks'] {
-  background-image: url('/assets/ui/icons/actions/uskoks.png');
-}
-
 .inspector-action-icon[data-action-icon='disband-company'] {
   background-image: url('/assets/ui/icons/actions/disband-company.png');
 }

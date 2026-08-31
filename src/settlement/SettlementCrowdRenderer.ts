@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {
-  isAgentAnimalRenderingEnabled,
+  isPeopleRenderingEnabled,
   isWithinCrowdView,
   isWithinWorkAnimationRange,
   type CrowdViewState,
@@ -33,6 +33,10 @@ import {
 import { CombatProjectileRenderer } from './CombatProjectileRenderer.ts';
 import { FallbackMilitaryEquipmentRenderer } from './FallbackMilitaryEquipmentRenderer.ts';
 import {
+  StrategicHumanoidRenderer,
+  type StrategicHumanoidDiagnostic,
+} from './StrategicHumanoidRenderer.ts';
+import {
   BattlefieldWeaponDropRenderer,
   type BattlefieldWeaponDropDiagnostic,
   type BattlefieldWeaponDropOwnership,
@@ -60,9 +64,6 @@ const MAX_ANIMATED_VILLAGERS = 72;
 export const ANIMATED_RIGS_PER_SHARD = 8;
 export const MAX_ANIMATED_SKELETON_BYTES = 15_872;
 const MODEL_YAW_OFFSET = 0;
-const BODY_GEOMETRY = new THREE.CapsuleGeometry(0.22, 0.72, 4, 8);
-const LEGS_GEOMETRY = new THREE.CapsuleGeometry(0.16, 0.34, 4, 8);
-const HEAD_GEOMETRY = new THREE.SphereGeometry(0.19, 10, 10);
 
 const MODEL_URLS = {
   man: '/assets/models/villagers/worker-male-common-01-v002.glb',
@@ -108,12 +109,6 @@ const CLAMPED_ACTION_MODES = new Set<VillagerRenderMode>([
   'hurt',
   'fall',
 ]);
-
-type FallbackPartLayer = {
-  mesh: THREE.InstancedMesh;
-  geometry: THREE.BufferGeometry;
-  material: THREE.MeshStandardMaterial;
-};
 
 type VillagerSource = {
   scene: THREE.Group;
@@ -288,22 +283,16 @@ export function seatedVillagerContactHeight(
 
 /**
  * Renders the nearest 72 villagers with authored skeletal animations. Further
- * visible agents remain readable as three shared instanced body layers, which
- * keeps hundred-person companies present without creating hundreds of mixers.
+ * visible agents retain a complete eight-layer instanced humanoid silhouette,
+ * which keeps hundred-person companies present without hundreds of mixers or
+ * permanent capsule/pill proxies.
  */
 export class SettlementCrowdRenderer {
   readonly ready: Promise<boolean>;
   private readonly group = new THREE.Group();
   private readonly animatedGroup = new THREE.Group();
-  private readonly matrix = new THREE.Matrix4();
-  private readonly position = new THREE.Vector3();
-  private readonly quaternion = new THREE.Quaternion();
-  private readonly euler = new THREE.Euler();
   private readonly color = new THREE.Color();
-  private readonly scale = new THREE.Vector3(1, 1, 1);
-  private readonly fallbackBody: FallbackPartLayer;
-  private readonly fallbackLegs: FallbackPartLayer;
-  private readonly fallbackHead: FallbackPartLayer;
+  private readonly strategicHumanoids: StrategicHumanoidRenderer;
   private readonly fallbackMilitaryEquipment: FallbackMilitaryEquipmentRenderer;
   private readonly battlefieldWeaponDrops: BattlefieldWeaponDropRenderer;
   private readonly companyStandards: CompanyStandardRenderer;
@@ -335,9 +324,7 @@ export class SettlementCrowdRenderer {
     options.parent.add(this.group);
     this.combatProjectiles = new CombatProjectileRenderer(this.group);
 
-    this.fallbackBody = this.createFallbackLayer('Villager loading body', BODY_GEOMETRY);
-    this.fallbackLegs = this.createFallbackLayer('Villager loading legs', LEGS_GEOMETRY);
-    this.fallbackHead = this.createFallbackLayer('Villager loading head', HEAD_GEOMETRY);
+    this.strategicHumanoids = new StrategicHumanoidRenderer(this.group, MAX_INSTANCES);
     this.fallbackMilitaryEquipment = new FallbackMilitaryEquipmentRenderer(this.group, MAX_INSTANCES);
     this.battlefieldWeaponDrops = new BattlefieldWeaponDropRenderer(this.group);
     this.companyStandardTextures = typeof document === 'undefined'
@@ -365,7 +352,7 @@ export class SettlementCrowdRenderer {
     }
     this.lastView = view;
     const dt = Math.min(0.08, Math.max(0, dtSeconds));
-    const renderEnabled = isAgentAnimalRenderingEnabled(view);
+    const renderEnabled = isPeopleRenderingEnabled(view);
     if (this.group.visible !== renderEnabled) {
       this.group.visible = renderEnabled;
     }
@@ -382,7 +369,7 @@ export class SettlementCrowdRenderer {
 
     const animatedIds = this.pickAnimatedIds(visibleAgents, view);
     if (!this.sources) {
-      this.updateFallback(visibleAgents);
+      this.strategicHumanoids.sync(visibleAgents, undefined, dt);
       this.fallbackMilitaryEquipment.sync(visibleAgents);
       this.battlefieldWeaponDrops.sync(visibleAgents, view);
       this.syncCompanyStandards(visibleAgents, view, dt);
@@ -391,7 +378,7 @@ export class SettlementCrowdRenderer {
 
     this.syncAnimatedVillagers(visibleAgents, animatedIds, dt);
     this.updateAnimatedBatches(visibleAgents, animatedIds);
-    this.updateFallback(visibleAgents, animatedIds);
+    this.strategicHumanoids.sync(visibleAgents, animatedIds, dt);
     this.fallbackMilitaryEquipment.sync(visibleAgents, animatedIds);
     this.battlefieldWeaponDrops.sync(visibleAgents, view);
     this.syncCompanyStandards(visibleAgents, view, dt);
@@ -443,6 +430,10 @@ export class SettlementCrowdRenderer {
     return this.battlefieldWeaponDrops.diagnostics();
   }
 
+  strategicHumanoidDiagnostics(): StrategicHumanoidDiagnostic {
+    return this.strategicHumanoids.diagnostics();
+  }
+
   dispose(): void {
     this.disposed = true;
     for (const id of this.animated.keys()) this.removeAnimatedVillager(id);
@@ -466,11 +457,7 @@ export class SettlementCrowdRenderer {
       this.animatedBatches = null;
     }
 
-    for (const layer of [this.fallbackBody, this.fallbackLegs, this.fallbackHead]) {
-      layer.geometry.dispose();
-      layer.material.dispose();
-      layer.mesh.removeFromParent();
-    }
+    this.strategicHumanoids.dispose();
     this.fallbackMilitaryEquipment.dispose();
     this.battlefieldWeaponDrops.dispose();
     this.companyStandards.dispose();
@@ -544,93 +531,6 @@ export class SettlementCrowdRenderer {
       console.warn('[Villagers] Animated villager sources failed to load.', error);
       return false;
     }
-  }
-
-  private createFallbackLayer(
-    name: string,
-    geometry: THREE.BufferGeometry,
-  ): FallbackPartLayer {
-    const material = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      roughness: 0.9,
-      metalness: 0,
-    });
-    const mesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCES);
-    mesh.name = name;
-    mesh.count = 0;
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    mesh.frustumCulled = false;
-    this.group.add(mesh);
-    return { mesh, geometry, material };
-  }
-
-  private updateFallback(
-    agents: readonly CrowdRenderAgent[],
-    excludedIds?: ReadonlySet<string>,
-  ): void {
-    let count = 0;
-    let bodyColorsDirty = false;
-    let legColorsDirty = false;
-    let headColorsDirty = false;
-    for (const agent of agents) {
-      if (excludedIds?.has(agent.id)) continue;
-      if (count >= MAX_INSTANCES) break;
-      bodyColorsDirty = this.writeFallbackInstance(
-        this.fallbackBody.mesh,
-        count,
-        agent,
-        0.62,
-        agent.tunicColor,
-      ) || bodyColorsDirty;
-      legColorsDirty = this.writeFallbackInstance(
-        this.fallbackLegs.mesh,
-        count,
-        agent,
-        0.22,
-        darkenHex(agent.tunicColor, 0.55),
-      ) || legColorsDirty;
-      headColorsDirty = this.writeFallbackInstance(
-        this.fallbackHead.mesh,
-        count,
-        agent,
-        1.18,
-        agent.skinColor,
-      ) || headColorsDirty;
-      count++;
-    }
-    this.commitFallbackLayer(this.fallbackBody, count, bodyColorsDirty);
-    this.commitFallbackLayer(this.fallbackLegs, count, legColorsDirty);
-    this.commitFallbackLayer(this.fallbackHead, count, headColorsDirty);
-  }
-
-  private commitFallbackLayer(
-    layer: FallbackPartLayer,
-    count: number,
-    colorsDirty: boolean,
-  ): void {
-    layer.mesh.count = count;
-    publishInstanceAttributePrefix(layer.mesh.instanceMatrix, count);
-    if (colorsDirty && layer.mesh.instanceColor) {
-      publishInstanceAttributePrefix(layer.mesh.instanceColor, count);
-    }
-  }
-
-  private writeFallbackInstance(
-    mesh: THREE.InstancedMesh,
-    index: number,
-    agent: CrowdRenderAgent,
-    yOffset: number,
-    hexColor: number,
-  ): boolean {
-    this.position.set(agent.x, agent.y + yOffset, agent.z);
-    this.euler.set(0, agent.yaw, 0);
-    this.quaternion.setFromEuler(this.euler);
-    this.matrix.compose(this.position, this.quaternion, this.scale);
-    mesh.setMatrixAt(index, this.matrix);
-    this.color.setHex(hexColor);
-    return writeInstanceColorIfChanged(mesh, index, this.color);
   }
 
   private pickAnimatedIds(
@@ -1334,30 +1234,6 @@ export function restartPooledVillagerActions(
   }
 }
 
-function writeInstanceColorIfChanged(
-  mesh: THREE.InstancedMesh,
-  index: number,
-  color: THREE.Color,
-): boolean {
-  const attribute = mesh.instanceColor;
-  if (!attribute) {
-    mesh.setColorAt(index, color);
-    return true;
-  }
-  const offset = index * attribute.itemSize;
-  const array = attribute.array;
-  const red = Math.fround(color.r);
-  const green = Math.fround(color.g);
-  const blue = Math.fround(color.b);
-  if (
-    array[offset] === red
-    && array[offset + 1] === green
-    && array[offset + 2] === blue
-  ) return false;
-  attribute.setXYZ(index, color.r, color.g, color.b);
-  return true;
-}
-
 function sourceKeyForAgent(agent: CrowdRenderAgent): VillagerSourceKey {
   if (agent.presentation === 'cleric') return 'cleric';
   if (agent.presentation === 'raider') return 'raider';
@@ -1369,16 +1245,6 @@ function animatedPoolKey(
   tool: WorkerToolKind | null,
 ): string {
   return `${variant}:${tool ?? 'unarmed'}`;
-}
-
-function publishInstanceAttributePrefix(
-  attribute: THREE.InstancedBufferAttribute,
-  instanceCount: number,
-): void {
-  attribute.clearUpdateRanges();
-  if (instanceCount <= 0) return;
-  attribute.addUpdateRange(0, instanceCount * attribute.itemSize);
-  attribute.needsUpdate = true;
 }
 
 async function loadVillagerSource(

@@ -35,7 +35,6 @@ export type CombatAgentFaction =
   | 'footman'
   | 'polearm'
   | 'bowman'
-  | 'uskok'
   | 'dog'
   | 'fox'
   | 'wolf';
@@ -115,8 +114,7 @@ export function isPlayerMilitaryFaction(faction: CombatAgentFaction): boolean {
     || faction === 'mercenary-spear'
     || faction === 'footman'
     || faction === 'polearm'
-    || faction === 'bowman'
-    || faction === 'uskok';
+    || faction === 'bowman';
 }
 
 export function hasActiveRaiderThreat(
@@ -257,7 +255,6 @@ function combatFactionFromId(value: number): CombatAgentFaction {
   if (value === 8) return 'footman';
   if (value === 9) return 'polearm';
   if (value === 10) return 'bowman';
-  if (value === 11) return 'uskok';
   if (value === 12) return 'dog';
   if (value === 13) return 'fox';
   if (value === 14) return 'wolf';

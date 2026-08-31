@@ -73,7 +73,7 @@ import {
 } from '../audio/CombatAudio.ts';
 import {
   CROWD_SIM_DT,
-  isAgentAnimalRenderingEnabled,
+  isPeopleRenderingEnabled,
   isWithinCrowdView,
   type CrowdViewState,
 } from './crowdView.ts';
@@ -575,6 +575,10 @@ export class VillagerRenderer {
 
   companyStandardDiagnostics() {
     return this.renderer.companyStandardDiagnostics();
+  }
+
+  strategicHumanoidDiagnostics() {
+    return this.renderer.strategicHumanoidDiagnostics();
   }
 
   setSchedule(
@@ -1633,7 +1637,7 @@ export class VillagerRenderer {
     camera: THREE.Camera,
     domElement: HTMLElement,
   ): VillagerInspection | null {
-    if (!isAgentAnimalRenderingEnabled(this.lastView)) return null;
+    if (!isPeopleRenderingEnabled(this.lastView)) return null;
     const bounds = domElement.getBoundingClientRect();
     if (bounds.width <= 0 || bounds.height <= 0) return null;
 
@@ -6082,7 +6086,6 @@ function combatToolFor(faction: CombatAgentState['faction']): WorkerToolKind | n
     case 'man-at-arms': return 'sword-shield';
     case 'footman': return 'sidearm-shield';
     case 'polearm': return 'halberd';
-    case 'uskok': return 'uskok-kit';
     case 'dog':
     case 'fox':
     case 'wolf': return null;
@@ -6105,7 +6108,6 @@ function combatAttackSeconds(
     case 'footman': return 0.82;
     case 'polearm': return 1.08;
     case 'bowman': return targetDistance > 3.25 ? 1.55 : 0.9;
-    case 'uskok': return targetDistance > 3.25 ? 2.8 : 0.84;
     case 'dog': return 1.05;
     case 'fox': return 1.4;
     case 'wolf': return 1.15;
@@ -6120,12 +6122,10 @@ function combatWeaponSoundFamily(
   const presentation = resolveCombatWeaponPresentation(tool, targetDistance);
   switch (presentation?.family) {
     case 'spear-pike': return 'spear-pike';
-    case 'sword-shield':
-    case 'uskok-sidearm': return 'sword-sidearm';
+    case 'sword-shield': return 'sword-sidearm';
     case 'halberd': return 'halberd-polearm';
     case 'bow': return 'bow';
     case 'crossbow': return 'crossbow';
-    case 'uskok-arquebus': return 'arquebus';
     default: return undefined;
   }
 }
@@ -6148,7 +6148,7 @@ function combatUnitName(combat: CombatAgentState): string {
     militia: 'Militia spearman', spearman: 'Company spearman',
     'man-at-arms': 'Man-at-Arms', crossbow: 'Crossbowman',
     'mercenary-spear': 'Mercenary pikeman', footman: 'Footman',
-    polearm: 'Halberdier', bowman: 'Bowman', uskok: 'Uskok border soldier',
+    polearm: 'Halberdier', bowman: 'Bowman',
     dog: 'Guard dog', fox: 'Fox', wolf: 'Wolf',
   };
   return `${label[combat.faction]} #${combat.id}`;
@@ -6158,7 +6158,7 @@ function combatFactionInitials(faction: CombatAgentState['faction']): string {
   const labels: Record<CombatAgentState['faction'], string> = {
     guard: 'G', raider: 'OR', bandit: 'B', militia: 'M', spearman: 'SP',
     'man-at-arms': 'MA', crossbow: 'CB', 'mercenary-spear': 'MS',
-    footman: 'FT', polearm: 'PL', bowman: 'BW', uskok: 'US',
+    footman: 'FT', polearm: 'PL', bowman: 'BW',
     dog: 'GD', fox: 'FX', wolf: 'WP',
   };
   return labels[faction];
@@ -6170,7 +6170,6 @@ function combatOccupation(faction: CombatAgentState['faction']): string {
     'man-at-arms': 'Armored sword-and-shield professional', crossbow: 'Company crossbowman',
     'mercenary-spear': 'Hired mercenary pikeman', footman: 'Shielded footman',
     polearm: 'Armor-breaking polearm soldier', bowman: 'Company bowman',
-    uskok: 'Croatian frontier infantryman',
     dog: 'Kennel-trained settlement guard dog', fox: 'Solitary food thief',
     wolf: 'Coordinated pack hunter',
   };
@@ -6182,7 +6181,6 @@ function combatEquipmentLabel(faction: CombatAgentState['faction']): string {
     case 'footman': return 'Sidearm and small shield';
     case 'man-at-arms': return 'Sword, large shield, mail, and helmet';
     case 'polearm': return 'Halberd and light armor';
-    case 'uskok': return 'Light arquebus, war knife, and frontier kit';
     case 'militia': return 'Ordinary spear and clothing';
     case 'crossbow': return 'Steel crossbow, bolt case, and padded coat';
     case 'bowman': return 'War bow, quiver, arrows, and light clothing';

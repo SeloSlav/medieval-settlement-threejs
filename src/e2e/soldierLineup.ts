@@ -64,7 +64,6 @@ const TOOL_BY_COMPANY: Record<MilitaryCompanyKind, WorkerToolKind> = {
   footmen: 'sidearm-shield' as WorkerToolKind,
   polearms: 'halberd',
   bowmen: 'bow',
-  'uskok-border-infantry': 'uskok-kit' as WorkerToolKind,
 };
 
 const KIT_LABELS: Record<MilitaryCompanyKind, string> = {
@@ -76,7 +75,6 @@ const KIT_LABELS: Record<MilitaryCompanyKind, string> = {
   footmen: 'Sidearm · buckler · gambeson',
   polearms: 'Halberd · two-handed harness',
   bowmen: 'War bow · arrow quiver',
-  'uskok-border-infantry': 'Korda · arquebus · frontier kit',
 };
 
 const MELEE_KINDS = new Set<MilitaryCompanyKind>([
@@ -86,7 +84,6 @@ const MELEE_KINDS = new Set<MilitaryCompanyKind>([
   'mercenary-spears',
   'footmen',
   'polearms',
-  'uskok-border-infantry',
 ]);
 const RANGED_KINDS = new Set<MilitaryCompanyKind>(['crossbows', 'bowmen']);
 

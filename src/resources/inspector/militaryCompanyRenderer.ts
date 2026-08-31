@@ -21,7 +21,6 @@ const GUARDHOUSE_KIND_ID: Partial<Record<MilitaryCompanyKind, number>> = {
   footmen: 5,
   polearms: 6,
   bowmen: 7,
-  'uskok-border-infantry': 8,
 };
 
 const FORMATION_GLYPH: Record<(typeof MILITARY_FORMATIONS)[number], string> = {
@@ -93,7 +92,7 @@ function renderSelectedCompanyCommands(
   const formationButtons = MILITARY_FORMATIONS
     .filter((formation) => !(
       formation === 'shield-wall'
-      && ['crossbows', 'bowmen', 'polearms', 'uskok-border-infantry'].includes(company.kind)
+      && ['crossbows', 'bowmen', 'polearms'].includes(company.kind)
     ))
     .map((formation) => `
       <button type="button" class="resource-action-button military-formation-button${company.formation === formation ? ' is-selected' : ''}"
@@ -226,7 +225,7 @@ function renderCompany(
   const formationButtons = MILITARY_FORMATIONS
     .filter((formation) => !(
       formation === 'shield-wall'
-      && ['crossbows', 'bowmen', 'polearms', 'uskok-border-infantry'].includes(company.kind)
+      && ['crossbows', 'bowmen', 'polearms'].includes(company.kind)
     ))
     .map((formation) => `
       <button type="button" class="resource-action-button resource-action-button--icon resource-action-button--secondary"

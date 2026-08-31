@@ -43,7 +43,7 @@ import {
 import { hashStringSeed, mulberry32 } from '../utils/random.ts';
 import type { BackyardPlantCatalog } from '../vegetation/seedthree/backyardPlantAssets.ts';
 import type { CrowdViewState } from '../settlement/crowdView.ts';
-import { isWithinCrowdView } from '../settlement/crowdView.ts';
+import { isWithinAnimalCrowdView } from '../settlement/crowdView.ts';
 import type { DeciduousFoliagePresentation } from '../world/deciduousFoliagePolicy.ts';
 
 type ChickenVisual = {
@@ -338,14 +338,14 @@ export class BackyardGardenMarkers {
       } else {
         animateBackyardGardenMesh(marker, this.animationElapsedSeconds);
       }
-      const visible = isWithinCrowdView(marker.position.x, marker.position.z, view);
+      const visible = isWithinAnimalCrowdView(marker.position.x, marker.position.z, view);
       const fallbacks = marker.userData.backyardAnimalFallbacks as THREE.Object3D[] | undefined;
       for (const fallback of fallbacks ?? []) fallback.visible = visible;
     }
     for (const [residenceId, visuals] of this.chickens) {
       const marker = this.meshes.get(residenceId);
       if (!marker) continue;
-      const visible = isWithinCrowdView(marker.position.x, marker.position.z, view);
+      const visible = isWithinAnimalCrowdView(marker.position.x, marker.position.z, view);
       for (const chicken of visuals) {
         chicken.root.visible = visible;
         if (!visible) continue;
@@ -386,7 +386,7 @@ export class BackyardGardenMarkers {
     for (const [residenceId, visuals] of this.goats) {
       const marker = this.meshes.get(residenceId);
       if (!marker) continue;
-      const visible = isWithinCrowdView(marker.position.x, marker.position.z, view);
+      const visible = isWithinAnimalCrowdView(marker.position.x, marker.position.z, view);
       for (const goat of visuals) {
         goat.root.visible = visible;
         if (!visible) continue;
@@ -405,7 +405,7 @@ export class BackyardGardenMarkers {
     for (const [residenceId, visuals] of this.pigs) {
       const marker = this.meshes.get(residenceId);
       if (!marker) continue;
-      const visible = isWithinCrowdView(marker.position.x, marker.position.z, view);
+      const visible = isWithinAnimalCrowdView(marker.position.x, marker.position.z, view);
       for (const pig of visuals) {
         pig.root.visible = visible;
         if (!visible) continue;

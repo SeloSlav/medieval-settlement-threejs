@@ -16,7 +16,6 @@ export const MILITARY_COMPANY_STRATEGIC_ICON_ART = {
   footmen: '/assets/ui/icons/actions/footmen.png',
   polearms: '/assets/ui/icons/actions/polearms.png',
   bowmen: '/assets/ui/icons/actions/bowmen.png',
-  'uskok-border-infantry': '/assets/ui/icons/actions/uskoks.png',
 } as const satisfies Record<MilitaryCompanyKind, string>;
 
 /** Converts the per-soldier simulation faction back to its selectable company
@@ -34,7 +33,6 @@ export function militaryCompanyKindForFaction(
     case 'footman': return 'footmen';
     case 'polearm': return 'polearms';
     case 'bowman': return 'bowmen';
-    case 'uskok': return 'uskok-border-infantry';
     default: return null;
   }
 }

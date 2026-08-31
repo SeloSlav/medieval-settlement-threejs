@@ -3330,12 +3330,6 @@ fn equipped_member_kit(kind: MilitaryKind, slot: u32) -> RaidPortableStores {
             ammunition: 1.0,
             ..RaidPortableStores::default()
         },
-        MilitaryKind::UskokBorderInfantry => RaidPortableStores {
-            polearms: if slot % 2 == 0 { 1.0 } else { 0.0 },
-            sidearms: 1.0,
-            padded_armor: 1.0,
-            ..RaidPortableStores::default()
-        },
         MilitaryKind::MercenarySpears => RaidPortableStores::default(),
     }
 }

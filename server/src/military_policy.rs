@@ -45,7 +45,6 @@ pub enum MilitaryKind {
     Footmen = 5,
     Polearms = 6,
     Bowmen = 7,
-    UskokBorderInfantry = 8,
 }
 
 impl MilitaryKind {
@@ -59,7 +58,6 @@ impl MilitaryKind {
             5 => Some(Self::Footmen),
             6 => Some(Self::Polearms),
             7 => Some(Self::Bowmen),
-            8 => Some(Self::UskokBorderInfantry),
             _ => None,
         }
     }
@@ -74,7 +72,6 @@ impl MilitaryKind {
             Self::Footmen => 8,
             Self::Polearms => 9,
             Self::Bowmen => 10,
-            Self::UskokBorderInfantry => 11,
         }
     }
 
@@ -83,7 +80,7 @@ impl MilitaryKind {
             Self::Militia => 5,
             Self::Spearmen | Self::MenAtArms | Self::MercenarySpears => 8,
             Self::Crossbows => 6,
-            Self::Footmen | Self::Polearms | Self::Bowmen | Self::UskokBorderInfantry => 8,
+            Self::Footmen | Self::Polearms | Self::Bowmen => 8,
         }
     }
 
@@ -100,7 +97,6 @@ impl MilitaryKind {
                 | Self::Footmen
                 | Self::Polearms
                 | Self::Bowmen
-                | Self::UskokBorderInfantry
         )
     }
 
@@ -223,19 +219,6 @@ impl MilitaryCost {
                 ammunition: n,
                 preserved_food: n * 2,
                 gold: n,
-                ..Self::default()
-            },
-            // Uskoks are locally recruited frontier professionals, not a
-            // supernatural regional buff: light matchlocks, korda sidearms,
-            // ammunition and high wages buy mobile skirmishing power.
-            MilitaryKind::UskokBorderInfantry => Self {
-                polearms: n.div_ceil(2),
-                sidearms: n,
-                padded_armor: n,
-                ammunition: n,
-                ale: n,
-                preserved_food: n * 3,
-                gold: n * 4,
                 ..Self::default()
             },
         }
@@ -420,21 +403,6 @@ pub fn military_stats(kind: MilitaryKind) -> MilitaryStats {
             damage_taken_multiplier: 1.12,
             ammunition_per_member: 24,
         },
-        MilitaryKind::UskokBorderInfantry => MilitaryStats {
-            max_health: 72.0,
-            damage: 15.5,
-            // The ranged cadence includes priming, presenting and recovering
-            // the light matchlock. Once ammunition is exhausted, the military
-            // simulation switches to a faster korda melee cadence.
-            attack_seconds: 2.80,
-            speed: 2.78,
-            acquisition_range: 16.0,
-            strike_range: 13.5,
-            starting_morale: 0.80,
-            starting_cohesion: 0.69,
-            damage_taken_multiplier: 0.88,
-            ammunition_per_member: 8,
-        },
     }
 }
 
@@ -464,7 +432,6 @@ pub fn member_combat_profile(kind: MilitaryKind, stable_seed: u64) -> MemberComb
         MilitaryKind::Footmen => (10.0, 6.0, 5.0, 0.24, 0.08),
         MilitaryKind::Polearms => (7.0, 0.0, 14.0, 0.34, 0.48),
         MilitaryKind::Bowmen => (2.0, 0.0, 3.0, 0.0, 0.0),
-        MilitaryKind::UskokBorderInfantry => (6.0, 1.0, 10.0, 0.40, 0.05),
     };
     MemberCombatProfile {
         max_health: stats.max_health * (1.0 + signed(3) * 0.07),
@@ -494,18 +461,7 @@ pub fn matchup_damage_multiplier(attacker: MilitaryKind, defender: MilitaryKind)
             | MilitaryKind::Polearms,
         ) => 1.20,
         (MilitaryKind::MenAtArms, MilitaryKind::Footmen | MilitaryKind::Bowmen) => 1.15,
-        (
-            MilitaryKind::Bowmen,
-            MilitaryKind::Militia | MilitaryKind::Polearms | MilitaryKind::UskokBorderInfantry,
-        ) => 1.18,
-        (MilitaryKind::UskokBorderInfantry, MilitaryKind::Crossbows | MilitaryKind::Bowmen) => 1.32,
-        (MilitaryKind::UskokBorderInfantry, MilitaryKind::Footmen) => 1.14,
-        (MilitaryKind::UskokBorderInfantry, MilitaryKind::Spearmen | MilitaryKind::MenAtArms) => {
-            0.76
-        }
-        (MilitaryKind::Spearmen | MilitaryKind::MenAtArms, MilitaryKind::UskokBorderInfantry) => {
-            1.24
-        }
+        (MilitaryKind::Bowmen, MilitaryKind::Militia | MilitaryKind::Polearms) => 1.18,
         _ => 1.0,
     }
 }
@@ -557,7 +513,7 @@ mod tests {
 
     #[test]
     fn every_recruitment_path_has_a_real_limiting_cost() {
-        for id in 0..=8 {
+        for id in 0..=7 {
             let kind = MilitaryKind::from_id(id).unwrap();
             let cost = MilitaryCost::for_company(kind, kind.company_size());
             let total = cost.polearms
@@ -625,7 +581,6 @@ mod tests {
             MilitaryKind::Footmen,
             MilitaryKind::Polearms,
             MilitaryKind::Bowmen,
-            MilitaryKind::UskokBorderInfantry,
         ] {
             assert!(kind.requires_resident_men());
         }
@@ -634,17 +589,6 @@ mod tests {
             MilitaryCost::for_company(MilitaryKind::MercenarySpears, 8).gold,
             96,
         );
-    }
-
-    #[test]
-    fn uskoks_fire_matchlocks_then_retain_a_sidearm_fallback() {
-        let stats = military_stats(MilitaryKind::UskokBorderInfantry);
-        let cost = MilitaryCost::for_company(MilitaryKind::UskokBorderInfantry, 8);
-        assert_eq!(stats.ammunition_per_member, 8);
-        assert!(stats.strike_range > 10.0);
-        assert!(stats.attack_seconds > 2.0);
-        assert_eq!(cost.ammunition, 8);
-        assert_eq!(cost.sidearms, 8);
     }
 
     #[test]
@@ -666,10 +610,6 @@ mod tests {
     #[test]
     fn counter_web_has_distinct_answers() {
         assert!(matchup_damage_multiplier(MilitaryKind::Footmen, MilitaryKind::Spearmen) > 1.0);
-        assert!(
-            matchup_damage_multiplier(MilitaryKind::MenAtArms, MilitaryKind::UskokBorderInfantry)
-                > 1.0
-        );
         assert!(matchup_damage_multiplier(MilitaryKind::Polearms, MilitaryKind::MenAtArms) > 1.0);
         assert!(matchup_damage_multiplier(MilitaryKind::Crossbows, MilitaryKind::MenAtArms) > 1.0);
         assert!(

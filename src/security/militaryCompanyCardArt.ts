@@ -14,5 +14,4 @@ export const MILITARY_COMPANY_CARD_ART = {
   footmen: '/assets/ui/company-cards/footmen.webp',
   polearms: '/assets/ui/company-cards/polearms.webp',
   bowmen: '/assets/ui/company-cards/bowmen.webp',
-  'uskok-border-infantry': '/assets/ui/company-cards/uskok-border-infantry.webp',
 } as const satisfies Record<MilitaryCompanyKind, string>;

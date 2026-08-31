@@ -235,6 +235,7 @@
     "test:agent-navigation-performance": "node --experimental-strip-types scripts/testAgentNavigationPerformance.mts",
     "test:crowd-renderer-pacing": "node --experimental-strip-types scripts/testCrowdRendererPacing.mts",
     "test:crowd-source-model-batching": "node --experimental-strip-types scripts/testCrowdSourceModelBatching.mts",
+    "test:strategic-humanoid-renderer": "node --experimental-strip-types scripts/testStrategicHumanoidRenderer.mts",
     "test:shadow-bounds-pacing": "node --experimental-strip-types scripts/testShadowBoundsPacing.mts",
     "test:presentation-hot-path-pacing": "node --experimental-strip-types scripts/testPresentationHotPathPacing.mts",
     "test:building-static-batching": "node --experimental-strip-types scripts/testBuildingStaticBatching.mts",
