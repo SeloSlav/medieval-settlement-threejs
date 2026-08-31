@@ -20,6 +20,7 @@ export default __t.row({
   assignedBuildingId: __t.u64().name("assigned_building_id"),
   targetKind: __t.u8().name("target_kind"),
   targetId: __t.u64().name("target_id"),
+  engagementTargetId: __t.u64().name("engagement_target_id"),
   x: __t.f64(),
   z: __t.f64(),
   velocityX: __t.f64().name("velocity_x"),

@@ -34,9 +34,10 @@ use crate::tables::{
 
 use super::delivery_trips::{deserialize_route_polyline, serialize_route_polyline};
 use super::fires::{ignite_raid_target, FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
+#[cfg(test)]
+use super::military_steering::ranged_firing_line_goal;
 use super::military_steering::{
-    melee_engagement_goal, raider_ranged_firing_line_goal, ranged_firing_line_goal,
-    CombatSteeringGrid, SteeringBody,
+    melee_engagement_goal, raider_ranged_firing_line_goal, CombatSteeringGrid, SteeringBody,
 };
 use super::reclamation::ReclamationStock;
 use super::recover_stock_at;
