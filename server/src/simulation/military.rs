@@ -134,6 +134,107 @@ pub fn capture_combat_motion_frame(ctx: &ReducerContext) {
     COMBAT_MOTION_FRAME.with(|cell| cell.borrow_mut().capture(ctx));
 }
 
+fn prepare_military_scratch(
+    ctx: &ReducerContext,
+    steering: &CombatSteeringGrid,
+    scratch: &mut MilitaryScratch,
+) {
+    scratch.members.clear();
+    scratch.members.extend(ctx.db.military_member().iter());
+    scratch.members.sort_unstable_by(|left, right| {
+        left.company_id
+            .cmp(&right.company_id)
+            .then_with(|| left.combat_agent_id.cmp(&right.combat_agent_id))
+    });
+    scratch.ranged_frames.clear();
+    let mut start = 0;
+    while start < scratch.members.len() {
+        let company_id = scratch.members[start].company_id;
+        let mut end = start + 1;
+        while end < scratch.members.len() && scratch.members[end].company_id == company_id {
+            end += 1;
+        }
+        if let Some(frame) = build_ranged_company_frame(
+            ctx,
+            steering,
+            company_id,
+            &scratch.members[start..end],
+        ) {
+            scratch.ranged_frames.push(frame);
+        }
+        start = end;
+    }
+}
+
+fn build_ranged_company_frame(
+    ctx: &ReducerContext,
+    steering: &CombatSteeringGrid,
+    company_id: u64,
+    members: &[MilitaryMember],
+) -> Option<RangedCompanyFrame> {
+    let company = ctx.db.military_company().id().find(&company_id)?;
+    let kind = MilitaryKind::from_id(company.kind)?;
+    if !matches!(kind, MilitaryKind::Bowmen | MilitaryKind::Crossbows) {
+        return None;
+    }
+    let mut source_x = 0.0;
+    let mut source_z = 0.0;
+    let mut living = 0_usize;
+    let mut leader_id = 0_u64;
+    let mut retained_target_id = 0_u64;
+    for member in members {
+        let Some(index) = steering.index_of(member.combat_agent_id) else {
+            continue;
+        };
+        let body = steering.body(index);
+        source_x += body.x;
+        source_z += body.z;
+        living += 1;
+        if leader_id == 0 {
+            leader_id = member.combat_agent_id;
+        }
+        if retained_target_id == 0 {
+            retained_target_id = ctx
+                .db
+                .combat_agent()
+                .id()
+                .find(&member.combat_agent_id)
+                .map_or(0, |agent| agent.engagement_target_id);
+        }
+    }
+    if living == 0 || leader_id == 0 {
+        return None;
+    }
+    source_x /= living as f64;
+    source_z /= living as f64;
+    let retained_valid = (retained_target_id != 0)
+        .then(|| ctx.db.combat_agent().id().find(&retained_target_id))
+        .flatten()
+        .filter(|target| {
+            target.owner == company.owner
+                && matches!(target.faction, RAIDER | BANDIT | FOX | WOLF)
+                && target.state != DOWNED
+                && target.health > 0.0
+        })
+        .map(|target| target.id);
+    let target_id = retained_valid.or_else(|| {
+        steering.nearest_matching_id(
+            leader_id,
+            military_stats(kind).acquisition_range,
+            |_, faction, _| matches!(faction, RAIDER | BANDIT | FOX | WOLF),
+        )
+    })?;
+    let target = steering.body(steering.index_of(target_id)?);
+    Some(RangedCompanyFrame {
+        company_id,
+        source_x,
+        source_z,
+        target_id,
+        target_x: target.x,
+        target_z: target.z,
+    })
+}
+
 pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds: f64) {
     if !elapsed_seconds.is_finite() || elapsed_seconds <= 0.0 {
         return;
@@ -328,6 +429,7 @@ fn step_active_member(
     dt: f64,
     military_demands: u8,
     steering: &CombatSteeringGrid,
+    ranged_frame: Option<RangedCompanyFrame>,
 ) {
     if company.state >= 2 {
         member.phase = 2;
