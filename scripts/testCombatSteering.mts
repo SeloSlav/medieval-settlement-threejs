@@ -49,6 +49,16 @@ type GoldenFixture = {
   }>;
 };
 
+type ParityCase = Omit<GoldenFixture, 'tolerance'> & {
+  name: string;
+  steps: number;
+};
+
+type ParityCases = {
+  tolerance: number;
+  cases: ParityCase[];
+};
+
 function agent(
   seed: number,
   x: number,
@@ -69,6 +79,23 @@ function agent(
     steeringSpeed: 2.2,
     steeringVelocityX: 0,
     steeringVelocityZ: 0,
+  };
+}
+
+function fixtureAgent(input: GoldenFixture['agents'][number]): CombatSteeringAgent {
+  return {
+    state: { x: input.x, z: input.z },
+    steeringSeed: input.id,
+    steeringTeam: input.team,
+    steeringCompany: input.groupKind === 0
+      ? 0
+      : input.groupKind * 1_000_000 + input.groupId,
+    steeringEnabled: input.enabled,
+    steeringGoalX: input.goalX,
+    steeringGoalZ: input.goalZ,
+    steeringSpeed: input.speed,
+    steeringVelocityX: input.velocityX,
+    steeringVelocityZ: input.velocityZ,
   };
 }
 
@@ -236,18 +263,7 @@ function agent(
     golden.agents.map(({ id }) => id).sort((left, right) => left - right),
     'golden bodies must remain seed-sorted for identical bucket traversal',
   );
-  const createGolden = (): CombatSteeringAgent[] => golden.agents.map((input) => ({
-    state: { x: input.x, z: input.z },
-    steeringSeed: input.id,
-    steeringTeam: input.team,
-    steeringCompany: input.groupKind === 1 ? input.groupId : 0,
-    steeringEnabled: input.enabled,
-    steeringGoalX: input.goalX,
-    steeringGoalZ: input.goalZ,
-    steeringSpeed: input.speed,
-    steeringVelocityX: input.velocityX,
-    steeringVelocityZ: input.velocityZ,
-  }));
+  const createGolden = (): CombatSteeringAgent[] => golden.agents.map(fixtureAgent);
   const first = createGolden();
   const repeated = createGolden();
   new CanonicalCombatSteeringGrid(golden.capacity).update(
@@ -276,6 +292,57 @@ function agent(
         Math.abs(value - target) <= golden.tolerance,
         `golden ${expected.id} ${label}: expected ${target}, received ${value}`,
       );
+    }
+  }
+  for (let left = 0; left < first.length; left += 1) {
+    for (let right = left + 1; right < first.length; right += 1) {
+      const leftAgent = first[left]!;
+      const rightAgent = first[right]!;
+      assert.ok(
+        Math.hypot(
+          leftAgent.state.x - rightAgent.state.x,
+          leftAgent.state.z - rightAgent.state.z,
+        ) >= 0.82 - 1e-9,
+        `dense hard cleanup left ${leftAgent.steeringSeed}/${rightAgent.steeringSeed} penetrating`,
+      );
+    }
+  }
+}
+
+
+// Additional fixtures freeze the new hard-pass and grouping edge cases for
+// both TypeScript and Rust. Expected records are keyed subsets so the dense
+// top-K case stays reviewable without duplicating 26 uninteresting outputs.
+{
+  const parity = JSON.parse(readFileSync(
+    new URL('../balance/combatSteeringParityCases.json', import.meta.url),
+    'utf8',
+  )) as ParityCases;
+  for (const scenario of parity.cases) {
+    assert.deepEqual(
+      scenario.agents.map(({ id }) => id),
+      scenario.agents.map(({ id }) => id).sort((left, right) => left - right),
+      `${scenario.name} inputs must remain seed sorted`,
+    );
+    const agents = scenario.agents.map(fixtureAgent);
+    const grid = new CanonicalCombatSteeringGrid(scenario.capacity);
+    for (let step = 0; step < scenario.steps; step += 1) {
+      grid.update(agents, agents.length, scenario.dtSeconds, scenario.bounds);
+    }
+    for (const expected of scenario.expected) {
+      const actual = agents.find((candidate) => candidate.steeringSeed === expected.id);
+      assert.ok(actual, `${scenario.name} omitted expected body ${expected.id}`);
+      for (const [label, value, target] of [
+        ['x', actual.state.x, expected.x],
+        ['z', actual.state.z, expected.z],
+        ['velocityX', actual.steeringVelocityX, expected.velocityX],
+        ['velocityZ', actual.steeringVelocityZ, expected.velocityZ],
+      ] as const) {
+        assert.ok(
+          Math.abs(value - target) <= parity.tolerance,
+          `${scenario.name} ${expected.id} ${label}: expected ${target}, received ${value}`,
+        );
+      }
     }
   }
 }

@@ -583,6 +583,7 @@ fn step_warned_guard_muster(
         }
         let Some(route) = routes.get(&guard.source_building_id) else {
             guard.state = COMBAT_STATE_RETURNING;
+            guard.engagement_target_id = 0;
             guard.state_changed_tick = sim_tick;
             guard.velocity_x = 0.0;
             guard.velocity_z = 0.0;
@@ -1679,6 +1680,7 @@ fn raid_target_assault_position(
 fn down_agent(ctx: &ReducerContext, agent: &mut CombatAgent, active: &ActiveRaid, sim_tick: u64) {
     agent.health = 0.0;
     agent.state = COMBAT_STATE_DOWNED;
+    agent.engagement_target_id = 0;
     agent.state_changed_tick = sim_tick;
     agent.attack_cooldown = DOWNED_LINGER_SECONDS;
     agent.loot_progress = 0.0;
@@ -1723,6 +1725,7 @@ pub(super) fn down_external_raider(ctx: &ReducerContext, agent: &mut CombatAgent
     else {
         agent.health = 0.0;
         agent.state = COMBAT_STATE_DOWNED;
+        agent.engagement_target_id = 0;
         agent.state_changed_tick = sim_tick;
         agent.attack_cooldown = DOWNED_LINGER_SECONDS;
         return;
@@ -1805,6 +1808,7 @@ fn return_guards_and_finalize(
         }
         guards_still_returning += 1;
         agent.state = COMBAT_STATE_RETURNING;
+        agent.engagement_target_id = 0;
         move_guard_home(
             agent,
             guard_routes.get(&agent.source_building_id),
@@ -1920,6 +1924,7 @@ fn step_recovering_guard(
 ) -> bool {
     if matches!(agent.state, COMBAT_STATE_MUSTERING | COMBAT_STATE_HOLDING) {
         agent.state = COMBAT_STATE_RETURNING;
+        agent.engagement_target_id = 0;
         agent.state_changed_tick = sim_tick;
     }
     if agent.state == COMBAT_STATE_RETURNING {

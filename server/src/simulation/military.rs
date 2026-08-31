@@ -356,6 +356,7 @@ fn step_returning_member(
     company: MilitaryCompany,
     dt: f64,
 ) {
+    agent.engagement_target_id = 0;
     if member.phase == 2 {
         if MilitaryKind::from_id(company.kind) == Some(MilitaryKind::MercenarySpears) {
             let exit_x = member.original_home_x;
@@ -436,6 +437,7 @@ fn step_active_member(
         member.phase = 2;
         ctx.db.military_member().combat_agent_id().update(member);
         agent.state = RETURNING;
+        agent.engagement_target_id = 0;
         ctx.db.combat_agent().id().update(agent);
         return;
     }
@@ -447,6 +449,7 @@ fn step_active_member(
     agent.attack_cooldown = (agent.attack_cooldown - dt).max(0.0);
 
     if company.morale < 0.16 || agent.health / agent.max_health.max(1.0) < 0.18 {
+        agent.engagement_target_id = 0;
         ctx.db.militia_order().combat_agent_id().delete(agent.id);
         if let Some(source) = ctx.db.building().id().find(&company.source_building_id) {
             walk(&mut agent, source.x, source.z, stats.speed * 1.1, dt);
@@ -474,6 +477,7 @@ fn step_active_member(
         .find(&agent.id)
         .filter(|order| order.kind == 0)
     {
+        agent.engagement_target_id = 0;
         agent.target_kind = 6;
         agent.target_id = 0;
         let remaining = distance(agent.x, agent.z, order.destination_x, order.destination_z);
@@ -886,6 +890,7 @@ fn begin_mercenary_departure(ctx: &ReducerContext, company_id: u64) {
         member.phase = 2;
         ctx.db.military_member().combat_agent_id().update(member);
         agent.state = RETURNING;
+        agent.engagement_target_id = 0;
         agent.target_kind = 6;
         agent.target_id = 0;
         agent.route_progress = distance(agent.x, agent.z, agent.home_x, agent.home_z);
@@ -1430,6 +1435,7 @@ fn down_enemy(ctx: &ReducerContext, enemy: &mut CombatAgent, tick: u64) {
     }
     enemy.health = 0.0;
     enemy.state = DOWNED;
+    enemy.engagement_target_id = 0;
     enemy.state_changed_tick = tick;
     enemy.attack_cooldown = DOWNED_LINGER_SECONDS;
     if let Ok(stores) = serde_json::from_str::<RaidPortableStores>(&enemy.carried_loot_json) {
@@ -1456,6 +1462,7 @@ fn down_player_member(
 ) {
     agent.health = 0.0;
     agent.state = DOWNED;
+    agent.engagement_target_id = 0;
     agent.attack_cooldown = DOWNED_LINGER_SECONDS;
     agent.state_changed_tick = tick;
     ctx.db.militia_order().combat_agent_id().delete(agent.id);
@@ -1696,6 +1703,7 @@ fn begin_forced_return(ctx: &ReducerContext, agent: &mut CombatAgent, member: &m
     recover_member_kit(ctx, agent);
     agent.carried_loot_json.clear();
     agent.state = RETURNING;
+    agent.engagement_target_id = 0;
     member.phase = 3;
     ctx.db
         .military_member()

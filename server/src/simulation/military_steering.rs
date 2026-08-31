@@ -1049,6 +1049,25 @@ mod tests {
         }
     }
 
+    fn assert_minimum_clearance(grid: &CombatSteeringGrid) {
+        for left in 0..grid.len() {
+            for right in (left + 1)..grid.len() {
+                let left = grid.body(left);
+                let right = grid.body(right);
+                if left.owner_group != right.owner_group {
+                    continue;
+                }
+                assert!(
+                    (left.x - right.x).hypot(left.z - right.z)
+                        >= COMBAT_STEERING_SEPARATION_DISTANCE_M - 1e-9,
+                    "{} and {} violated physical clearance",
+                    left.id,
+                    right.id,
+                );
+            }
+        }
+    }
+
     #[test]
     fn typescript_and_rust_share_golden_steering_outputs() {
         let fixture: GoldenFixture =
@@ -1103,6 +1122,7 @@ mod tests {
                 );
             }
         }
+        assert_minimum_clearance(&grid);
     }
 
     #[test]
@@ -1143,6 +1163,47 @@ mod tests {
         assert_eq!(first, repeated);
         assert!(first.x.is_finite() && first.z.is_finite());
         assert!(first.x != 0.0 || first.z != 0.0);
+    }
+
+    #[test]
+    fn hard_constraint_separates_exact_overlap_canonically() {
+        let mut grid = CombatSteeringGrid::default();
+        grid.begin();
+        let mut first = body(41, 10, 0.0, 0.0);
+        first.velocity_x = 0.0;
+        let mut second = body(42, 20, 0.0, 0.0);
+        second.velocity_x = 0.0;
+        grid.push(first);
+        grid.push(second);
+        grid.finish();
+        grid.integrate_all(0.2);
+        assert_minimum_clearance(&grid);
+    }
+
+    #[test]
+    fn non_default_group_kind_still_aligns_and_coheres() {
+        let mut grouped = CombatSteeringGrid::default();
+        grouped.begin();
+        let mut source = body(51, 700, 0.0, 0.0);
+        source.group_kind = 9;
+        source.velocity_x = 0.0;
+        let mut partner = body(52, 700, 1.6, 0.7);
+        partner.group_kind = 9;
+        partner.velocity_x = 0.0;
+        grouped.push(source);
+        grouped.push(partner);
+        grouped.finish();
+        let with_group = grouped.steer(source, 0.0, 0.0, 2.0, 0.05);
+
+        let mut isolated = CombatSteeringGrid::default();
+        isolated.begin();
+        isolated.push(source);
+        isolated.finish();
+        let without_group = isolated.steer(source, 0.0, 0.0, 2.0, 0.05);
+        assert!(
+            with_group.x > without_group.x || with_group.z > without_group.z,
+            "group_kind != 1 must still receive same-group flock terms"
+        );
     }
 
     #[test]
@@ -1201,6 +1262,9 @@ mod tests {
             with_collision.velocity_x < without_collision.velocity_x,
             "the immediate other-group body must survive the 18-neighbor cap"
         );
+
+        crowded.integrate_all(0.05);
+        assert_minimum_clearance(&crowded);
     }
 
     #[test]
@@ -1314,5 +1378,35 @@ mod tests {
             rear.0 < first.0,
             "second rank must remain farther from its target"
         );
+    }
+
+    #[test]
+    fn spread_enemy_contacts_still_use_one_shared_ranged_line_heading() {
+        // Individual soldiers may retain opponents spread across the enemy
+        // front, but the company frame supplies this one anchor/heading.
+        let company_anchor = (0.0, 0.0);
+        let enemy_anchor = (20.0, 0.0);
+        let goals = (0..4)
+            .map(|rank| {
+                ranged_firing_line_goal(
+                    rank,
+                    8,
+                    company_anchor.0,
+                    company_anchor.1,
+                    enemy_anchor.0,
+                    enemy_anchor.1,
+                    20.0,
+                )
+            })
+            .collect::<Vec<_>>();
+        for pair in goals.windows(2) {
+            assert!((pair[0].0 - pair[1].0).abs() <= 1e-12);
+            assert!(
+                ((pair[1].1 - pair[0].1).abs()
+                    - COMBAT_STEERING_RANGED_LINE_SPACING_M)
+                    .abs()
+                    <= 1e-12
+            );
+        }
     }
 }
