@@ -198,7 +198,7 @@ fn refresh_combat_scratch(ctx: &ReducerContext, scratch: &mut MilitaryScratch) {
         .filter(|agent| agent.state != DOWNED && agent.health > 0.0)
     {
         let target_id = combat_engagement_target(agent);
-        if target_id == 0 {
+        if target_id == 0 || !combatant_uses_melee_rank(ctx, agent) {
             continue;
         }
         let (group_kind, group_id) = combat_group_key(ctx, agent);
@@ -1211,6 +1211,22 @@ fn combat_group_key(ctx: &ReducerContext, agent: &CombatAgent) -> (u8, u64) {
             },
             |member| (1, member.company_id),
         )
+}
+
+fn combatant_uses_melee_rank(ctx: &ReducerContext, agent: &CombatAgent) -> bool {
+    if agent.faction == RAIDER && agent.source_slot % 4 == 3 {
+        return false;
+    }
+    let Some(member) = ctx.db.military_member().combat_agent_id().find(&agent.id) else {
+        return true;
+    };
+    let Some(company) = ctx.db.military_company().id().find(&member.company_id) else {
+        return true;
+    };
+    !matches!(
+        MilitaryKind::from_id(company.kind),
+        Some(MilitaryKind::Bowmen | MilitaryKind::Crossbows)
+    ) || member.ammunition == 0
 }
 
 fn rebuild_steering_grid(

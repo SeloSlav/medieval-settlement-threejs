@@ -60,7 +60,7 @@ thread_local! {
 
 #[derive(Default)]
 struct RaidEngagementScratch {
-    stable_order: Vec<u64>,
+    stable_order: Vec<usize>,
     rank_counts: HashMap<EngagementRankKey, usize>,
 }
 
@@ -942,59 +942,82 @@ fn step_one_live_raid(
 
     RAID_TARGET_GRID.with(|grid_cell| {
         RAID_RANGED_FRAMES.with(|frame_cell| {
-            let mut target_grid = grid_cell.borrow_mut();
-            let mut ranged_frames = frame_cell.borrow_mut();
-            rebuild_raid_target_grid(&snapshots, active.raid_id, &mut target_grid);
-            collect_raider_ranged_frames(&snapshots, &mut ranged_frames);
-            let ranged_frame = ranged_frames
-                .iter()
-                .copied()
-                .find(|frame| frame.owner == active.owner && frame.raid_id == active.raid_id);
-            for snapshot in &snapshots {
-                let Some(agent) = agents.get_mut(&snapshot.id) else {
-                    continue;
-                };
-                if agent.state == COMBAT_STATE_DOWNED || agent.health <= EPSILON {
-                    agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
-                    agent.engagement_target_id = 0;
-                    if agent.faction == COMBAT_FACTION_RAIDER && agent.attack_cooldown <= EPSILON {
-                        delete_ids.insert(agent.id);
+            RAID_ENGAGEMENT_SCRATCH.with(|engagement_cell| {
+                let mut target_grid = grid_cell.borrow_mut();
+                let mut ranged_frames = frame_cell.borrow_mut();
+                let mut engagement = engagement_cell.borrow_mut();
+                rebuild_raid_target_grid(&snapshots, active.raid_id, &mut target_grid);
+                collect_raider_ranged_frames(&snapshots, &mut ranged_frames);
+                let ranged_frame = ranged_frames
+                    .iter()
+                    .copied()
+                    .find(|frame| frame.owner == active.owner && frame.raid_id == active.raid_id);
+                engagement.rank_counts.clear();
+                engagement.stable_order.clear();
+                engagement
+                    .stable_order
+                    .extend(0..snapshots.len());
+                engagement.stable_order.sort_unstable_by(|left_index, right_index| {
+                    let left = &snapshots[*left_index];
+                    let right = &snapshots[*right_index];
+                    left.source_slot
+                        .cmp(&right.source_slot)
+                        .then_with(|| left.id.cmp(&right.id))
+                });
+                let RaidEngagementScratch {
+                    stable_order,
+                    rank_counts,
+                } = &mut *engagement;
+                for snapshot_index in stable_order.iter().copied() {
+                    let snapshot_id = snapshots[snapshot_index].id;
+                    let Some(agent) = agents.get_mut(&snapshot_id) else {
+                        continue;
+                    };
+                    if agent.state == COMBAT_STATE_DOWNED || agent.health <= EPSILON {
+                        agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
+                        agent.engagement_target_id = 0;
+                        if agent.faction == COMBAT_FACTION_RAIDER && agent.attack_cooldown <= EPSILON
+                        {
+                            delete_ids.insert(agent.id);
+                        }
+                        continue;
                     }
-                    continue;
+                    agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
+                    let previous_x = agent.x;
+                    let previous_z = agent.z;
+                    if agent.faction == COMBAT_FACTION_RAIDER {
+                        step_raider(
+                            ctx,
+                            &active,
+                            agent,
+                            &snapshots,
+                            &target_grid,
+                            ranged_frame,
+                            rank_counts,
+                            raider_routes.get(&agent.id),
+                            &mut damage_by_agent,
+                            &mut delete_ids,
+                            sim_tick,
+                            elapsed_seconds,
+                            road_network,
+                        );
+                    } else {
+                        step_guard(
+                            agent,
+                            &snapshots,
+                            &target_grid,
+                            rank_counts,
+                            guard_routes.get(&agent.source_building_id),
+                            &mut damage_by_agent,
+                            sim_tick,
+                            elapsed_seconds,
+                            road_network,
+                        );
+                    }
+                    agent.velocity_x = (agent.x - previous_x) / elapsed_seconds.max(1e-9);
+                    agent.velocity_z = (agent.z - previous_z) / elapsed_seconds.max(1e-9);
                 }
-                agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
-                let previous_x = agent.x;
-                let previous_z = agent.z;
-                if agent.faction == COMBAT_FACTION_RAIDER {
-                    step_raider(
-                        ctx,
-                        &active,
-                        agent,
-                        &snapshots,
-                        &target_grid,
-                        ranged_frame,
-                        raider_routes.get(&agent.id),
-                        &mut damage_by_agent,
-                        &mut delete_ids,
-                        sim_tick,
-                        elapsed_seconds,
-                        road_network,
-                    );
-                } else {
-                    step_guard(
-                        agent,
-                        &snapshots,
-                        &target_grid,
-                        guard_routes.get(&agent.source_building_id),
-                        &mut damage_by_agent,
-                        sim_tick,
-                        elapsed_seconds,
-                        road_network,
-                    );
-                }
-                agent.velocity_x = (agent.x - previous_x) / elapsed_seconds.max(1e-9);
-                agent.velocity_z = (agent.z - previous_z) / elapsed_seconds.max(1e-9);
-            }
+            });
         });
     });
 
@@ -1117,6 +1140,7 @@ fn step_raider(
     snapshots: &[CombatAgent],
     target_grid: &CombatSteeringGrid,
     ranged_frame: Option<RaiderRangedFrame>,
+    engagement_rank_counts: &mut HashMap<EngagementRankKey, usize>,
     incursion_route: Option<&CachedCombatPath>,
     damage_by_agent: &mut HashMap<u64, f64>,
     delete_ids: &mut HashSet<u64>,
@@ -1186,6 +1210,7 @@ fn step_raider(
             agent,
             defender,
             ranged_frame,
+            engagement_rank_counts,
             RAIDER_SPEED_MPS,
             raider_damage(active.enemy_pressure),
             raider_attack_interval(active.enemy_pressure),
@@ -1329,6 +1354,7 @@ fn step_guard(
     agent: &mut CombatAgent,
     snapshots: &[CombatAgent],
     target_grid: &CombatSteeringGrid,
+    engagement_rank_counts: &mut HashMap<EngagementRankKey, usize>,
     muster_route: Option<&CachedCombatPath>,
     damage_by_agent: &mut HashMap<u64, f64>,
     sim_tick: u64,
@@ -1360,6 +1386,7 @@ fn step_guard(
             agent,
             enemy,
             None,
+            engagement_rank_counts,
             GUARD_SPEED_MPS,
             guard_damage(agent.readiness),
             guard_attack_interval(agent.readiness),
@@ -1417,6 +1444,7 @@ fn step_guard(
                         agent,
                         enemy,
                         None,
+                        engagement_rank_counts,
                         GUARD_SPEED_MPS,
                         guard_damage(agent.readiness),
                         guard_attack_interval(agent.readiness),
@@ -1477,6 +1505,7 @@ fn step_guard(
         agent,
         enemy,
         None,
+        engagement_rank_counts,
         GUARD_SPEED_MPS,
         guard_damage(agent.readiness),
         guard_attack_interval(agent.readiness),
@@ -1621,10 +1650,30 @@ fn snapshot_by_id(snapshots: &[CombatAgent], id: u64) -> Option<&CombatAgent> {
         .map(|index| &snapshots[index])
 }
 
+fn raid_engagement_rank_key(agent: &CombatAgent, target_id: u64) -> EngagementRankKey {
+    EngagementRankKey {
+        // This scratch map is cleared for each one-owner active raid. Keeping
+        // raid_id here still makes the key self-contained and deterministic.
+        owner_group: agent.raid_id,
+        group_kind: if agent.faction == COMBAT_FACTION_RAIDER {
+            2
+        } else {
+            4
+        },
+        group_id: if agent.faction == COMBAT_FACTION_RAIDER {
+            agent.raid_id
+        } else {
+            agent.source_building_id
+        },
+        target_id,
+    }
+}
+
 fn engage_agent(
     agent: &mut CombatAgent,
     enemy: &CombatAgent,
     ranged_frame: Option<RaiderRangedFrame>,
+    engagement_rank_counts: &mut HashMap<EngagementRankKey, usize>,
     speed: f64,
     damage: f64,
     attack_interval: f64,
@@ -1636,6 +1685,12 @@ fn engage_agent(
     agent.engagement_target_id = enemy.id;
     let distance = distance_squared(agent.x, agent.z, enemy.x, enemy.z);
     let ranged_raider = agent.faction == COMBAT_FACTION_RAIDER && agent.source_slot % 4 == 3;
+    let melee_rank = (!ranged_raider).then(|| {
+        next_dense_engagement_rank(
+            engagement_rank_counts,
+            raid_engagement_rank_key(agent, enemy.id),
+        )
+    });
     let strike_range = if ranged_raider {
         12.0
     } else {
@@ -1674,7 +1729,7 @@ fn engage_agent(
         melee_engagement_goal(
             agent.raid_id.max(agent.source_building_id),
             enemy.id,
-            agent.source_slot as usize,
+            melee_rank.expect("non-ranged combatant has a dense engagement rank"),
             enemy.x,
             enemy.z,
             strike_range,
