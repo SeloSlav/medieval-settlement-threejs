@@ -2384,8 +2384,13 @@ assert.match(
 );
 assert.match(
   villagerRenderer,
-  /for \(const visual of this\.combatAgentVisuals\.values\(\)\)[\s\S]*renderAgentFor\(`combat:\$\{combat\.id\}`\)[\s\S]*renderAgent\.tool = 'spear'/,
-  'the ordinary crowd renderer must materialize every replicated combat row with a visible weapon',
+  /for \(const visual of this\.combatAgentVisuals\.values\(\)\)[\s\S]*renderAgentFor\(`combat:\$\{combat\.id\}`\)[\s\S]*renderAgent\.tool = carriedStandardSidearm \? 'sidearm' : combatToolFor\(combat\.faction\)/,
+  'the ordinary crowd renderer must materialize every replicated combat row with its faction-appropriate weapon',
+);
+assert.match(
+  villagerRenderer,
+  /function combatToolFor\([\s\S]*case 'raider': return 'sidearm'[\s\S]*case 'spearman': return 'spear-shield'[\s\S]*case 'crossbow': return 'crossbow'[\s\S]*case 'bowman': return 'bow'[\s\S]*case 'polearm': return 'halberd'/,
+  'the replicated company roster must preserve distinct melee, missile, and polearm equipment',
 );
 assert.match(
   villagerRenderer,
@@ -2575,7 +2580,7 @@ assert.match(clientCombatAgents, /breaching a refuge/);
   );
   assert.match(combatInspection?.name ?? '', /Ottoman raider/);
   assert.equal(combatInspection?.householdLabel, 'Objective');
-  assert.equal(combatInspection?.household, 'Village storehouse');
+  assert.equal(combatInspection?.household, 'Storehouse');
   assert.equal(combatInspection?.crew, '53 / 80 health');
   assert.match(combatInspection?.pace ?? '', /carrying stolen stores/);
   assert.equal(combatInspection?.position.y, 3.02);
@@ -2683,8 +2688,14 @@ assert.match(
   /issued_guard_polearms_by_building[\s\S]*?serde_json::from_str::<RaidPortableStores>/,
 );
 assert.match(
-  serverRaidAgents,
-  /select_guard_muster_slots\([\s\S]*?carried_loot_json: serde_json::to_string\(&RaidPortableStores \{[\s\S]*?polearms: 1\.0/,
+  expandedEconomy,
+  /fn equipped_member_kit\([\s\S]*?MilitaryKind::Spearmen => RaidPortableStores \{[\s\S]*?polearms: 1\.0,[\s\S]*?shields: 1\.0,[\s\S]*?padded_armor: 1\.0/,
+  'recruited spear-company members must receive their complete physical equipment kit',
+);
+assert.match(
+  expandedEconomy,
+  /pub fn step_military_requisitions[\s\S]*?agent\.carried_loot_json =\s*serde_json::to_string\(&equipped_member_kit\(kind, agent\.source_slot\)\)/,
+  'military equipment must stay serialized on the persistent member who later answers a raid warning',
 );
 assert.match(
   serverSimulation,

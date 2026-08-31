@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  COMBAT_PLAYTEST_AGENT_PREFIX,
+  COMBAT_PLAYTEST_RANGED_TARGET_RETENTION_FACTOR,
   CombatPlaytestSimulation,
   combatPlaytestCamera,
   combatPlaytestPresetDefinition,
@@ -108,6 +110,47 @@ assert.ok(enemy.every((agent) => agent.status === 'advancing'));
     [...observed].sort(),
     ['bowman', 'crossbow'],
     'both ranged companies must enter their shared engagement frames',
+  );
+}
+
+// A designated ranged-company target is sticky through ordinary formation
+// motion, but must expire while still alive once the company deliberately
+// moves beyond 1.35x acquisition range.
+{
+  const retention = createSimulation('field');
+  const bowCompanyId = `${COMBAT_PLAYTEST_AGENT_PREFIX}company:bowman`;
+  let originalTargetId: string | null = null;
+  for (let step = 0; step < 300 && !originalTargetId; step += 1) {
+    retention.tick(0.05);
+    originalTargetId = retention.rangedCompanyTarget(bowCompanyId);
+  }
+  assert.ok(originalTargetId, 'bowmen must acquire a shared target for retention testing');
+  const bowIds = [...retention.snapshot().values()]
+    .filter((agent) => agent.faction === 'bowman')
+    .map((agent) => agent.id);
+  assert.equal(retention.issueOrder(bowIds, -80, -20), 1);
+  let replacementTargetId = originalTargetId;
+  for (let step = 0; step < 400 && replacementTargetId === originalTargetId; step += 1) {
+    retention.tick(0.05);
+    replacementTargetId = retention.rangedCompanyTarget(bowCompanyId);
+  }
+  assert.notEqual(
+    replacementTargetId,
+    originalTargetId,
+    'a ranged company must release a target beyond its retention envelope',
+  );
+  const retentionFrame = retention.snapshot();
+  const originalTarget = retentionFrame.get(originalTargetId);
+  assert.ok(originalTarget && originalTarget.status !== 'downed', 'retarget must not depend on death');
+  const livingBows = [...retentionFrame.values()].filter((agent) => (
+    agent.faction === 'bowman' && agent.status !== 'downed'
+  ));
+  const bowCenterX = average(livingBows.map((agent) => agent.x));
+  const bowCenterZ = average(livingBows.map((agent) => agent.z));
+  assert.ok(
+    Math.hypot(originalTarget.x - bowCenterX, originalTarget.z - bowCenterZ)
+      > 22 * COMBAT_PLAYTEST_RANGED_TARGET_RETENTION_FACTOR,
+    'live target must expire only after leaving 1.35x bow acquisition range',
   );
 }
 

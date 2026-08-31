@@ -315,10 +315,108 @@ impl CombatSteeringGrid {
             }
         }
 
+        self.pack_residual_hard_overlaps(bounds);
+
         for index in 0..self.ids.len() {
             self.output_velocity_xs[index] = (self.output_xs[index] - self.xs[index]) / dt;
             self.output_velocity_zs[index] = (self.output_zs[index] - self.zs[index]) / dt;
         }
+    }
+
+    /// The bounded Gauss-Seidel passes resolve ordinary contacts and swept
+    /// crossings. Pathological imports can place dozens of bodies at exactly
+    /// one coordinate, where a fixed pass count cannot converge. This final
+    /// deterministic incremental pack keeps every already-clear endpoint and
+    /// searches concentric local rings only for residual overlaps.
+    fn pack_residual_hard_overlaps(&mut self, bounds: SteeringBounds) {
+        let count = self.ids.len();
+        if count <= 1 {
+            return;
+        }
+        let bucket_count = (count.saturating_mul(2))
+            .next_power_of_two()
+            .max(MIN_BUCKETS);
+        self.heads.clear();
+        self.heads.resize(bucket_count, -1);
+        self.next.clear();
+        self.next.resize(count, -1);
+        self.cell_xs.resize(count, 0);
+        self.cell_zs.resize(count, 0);
+        self.bucket_mask = bucket_count - 1;
+
+        const ANGULAR_SLOTS: usize = 18;
+        let maximum_probes = count.saturating_mul(ANGULAR_SLOTS).max(ANGULAR_SLOTS);
+        for index in 0..count {
+            let base_x = self.output_xs[index];
+            let base_z = self.output_zs[index];
+            let phase = mix_seed(self.ids[index] as u32) as usize % ANGULAR_SLOTS;
+            let mut selected_x = base_x.clamp(bounds.min_x, bounds.max_x);
+            let mut selected_z = base_z.clamp(bounds.min_z, bounds.max_z);
+            let mut found = false;
+            for probe in 0..=maximum_probes {
+                let (candidate_x, candidate_z) = if probe == 0 {
+                    (selected_x, selected_z)
+                } else {
+                    let offset = probe - 1;
+                    let ring = offset / ANGULAR_SLOTS + 1;
+                    let slot = offset % ANGULAR_SLOTS;
+                    let angle = (slot + phase) as f64 / ANGULAR_SLOTS as f64
+                        * std::f64::consts::TAU;
+                    let radius = ring as f64 * HARD_SEPARATION_DISTANCE_M;
+                    (
+                        (base_x + angle.cos() * radius).clamp(bounds.min_x, bounds.max_x),
+                        (base_z + angle.sin() * radius).clamp(bounds.min_z, bounds.max_z),
+                    )
+                };
+                if self.hard_endpoint_is_clear(index, candidate_x, candidate_z) {
+                    selected_x = candidate_x;
+                    selected_z = candidate_z;
+                    found = true;
+                    break;
+                }
+            }
+            let _ = found;
+            self.output_xs[index] = selected_x;
+            self.output_zs[index] = selected_z;
+            let cell_x = cell_coordinate(selected_x);
+            let cell_z = cell_coordinate(selected_z);
+            self.cell_xs[index] = cell_x;
+            self.cell_zs[index] = cell_z;
+            let bucket = cell_hash(cell_x, cell_z, self.bucket_mask);
+            self.next[index] = self.heads[bucket];
+            self.heads[bucket] = index as i32;
+        }
+    }
+
+    fn hard_endpoint_is_clear(&self, index: usize, x: f64, z: f64) -> bool {
+        let cell_x = cell_coordinate(x);
+        let cell_z = cell_coordinate(z);
+        let cell_radius =
+            (COMBAT_STEERING_NEIGHBOR_RADIUS_M / COMBAT_STEERING_CELL_SIZE_M).ceil() as i32;
+        for delta_z in -cell_radius..=cell_radius {
+            let neighbor_cell_z = cell_z + delta_z;
+            for delta_x in -cell_radius..=cell_radius {
+                let neighbor_cell_x = cell_x + delta_x;
+                let bucket = cell_hash(neighbor_cell_x, neighbor_cell_z, self.bucket_mask);
+                let mut cursor = self.heads[bucket];
+                while cursor >= 0 {
+                    let other = cursor as usize;
+                    cursor = self.next[other];
+                    if self.cell_xs[other] != neighbor_cell_x
+                        || self.cell_zs[other] != neighbor_cell_z
+                        || self.owner_groups[other] != self.owner_groups[index]
+                    {
+                        continue;
+                    }
+                    let dx = x - self.output_xs[other];
+                    let dz = z - self.output_zs[other];
+                    if dx * dx + dz * dz < HARD_SEPARATION_DISTANCE_SQ {
+                        return false;
+                    }
+                }
+            }
+        }
+        true
     }
 
     fn project_hard_pair(&mut self, left: usize, right: usize, bounds: SteeringBounds) {
