@@ -93,6 +93,7 @@ export type MeleeEngagementRankMember = Pick<
   state: { sourceSlot: number };
   meleeEngaging: boolean;
   meleeEngagementTargetId: string | null;
+  meleeEngagementRank: number;
 };
 
 type RangedCompanyEngagement = {
@@ -249,7 +250,7 @@ export class CombatPlaytestSimulation {
   private readonly livingEnemies: RuntimeAgent[] = [];
   private readonly pendingDamage = new Map<string, number>();
   private readonly rangedEngagements = new Map<string, RangedCompanyEngagement>();
-  private readonly meleeRankCounts = new Map<RuntimeAgent, number>();
+  private readonly meleeRankCounts = new Map<string, number>();
   private readonly steering = new CanonicalCombatSteeringGrid(1_024);
   private readonly steeringBounds: CombatSteeringBounds;
   private preset: CombatPlaytestPreset;
@@ -765,25 +766,7 @@ export class CombatPlaytestSimulation {
       runtime.meleeEngaging = true;
       runtime.meleeEngagementTargetId = target.state.id;
     }
-    let previousTeam = Number.NaN;
-    let previousCompany = Number.NaN;
-    for (const runtime of this.runtimeList) {
-      if (
-        runtime.steeringTeam !== previousTeam
-        || runtime.steeringCompany !== previousCompany
-      ) {
-        this.meleeRankCounts.clear();
-        previousTeam = runtime.steeringTeam;
-        previousCompany = runtime.steeringCompany;
-      }
-      if (!runtime.meleeEngaging || !runtime.targetRuntime) {
-        runtime.meleeEngagementRank = 0;
-        continue;
-      }
-      const rank = this.meleeRankCounts.get(runtime.targetRuntime) ?? 0;
-      runtime.meleeEngagementRank = rank;
-      this.meleeRankCounts.set(runtime.targetRuntime, rank + 1);
-    }
+    assignDenseMeleeEngagementRanks(this.runtimeList, this.meleeRankCounts);
   }
 
   private attack(
@@ -978,33 +961,33 @@ export class CombatPlaytestSimulation {
  * Source slots remain the tie-breaker, but casualties no longer leave holes
  * that strand surviving attackers on outer rings beyond weapon reach.
  */
-export function denseMeleeEngagementRank(
-  source: MeleeEngagementRankMember,
+export function assignDenseMeleeEngagementRanks(
   members: readonly MeleeEngagementRankMember[],
-): number {
-  if (
-    !source.steeringEnabled
-    || !source.meleeEngaging
-    || source.meleeEngagementTargetId === null
-  ) return 0;
-  let rank = 0;
+  counts: Map<string, number>,
+): void {
+  let previousTeam = Number.NaN;
+  let previousCompany = Number.NaN;
   for (const candidate of members) {
+    if (
+      candidate.steeringTeam !== previousTeam
+      || candidate.steeringCompany !== previousCompany
+    ) {
+      counts.clear();
+      previousTeam = candidate.steeringTeam;
+      previousCompany = candidate.steeringCompany;
+    }
     if (
       !candidate.steeringEnabled
       || !candidate.meleeEngaging
-      || candidate.steeringTeam !== source.steeringTeam
-      || candidate.steeringCompany !== source.steeringCompany
-      || candidate.meleeEngagementTargetId !== source.meleeEngagementTargetId
-    ) continue;
-    if (
-      candidate.state.sourceSlot < source.state.sourceSlot
-      || (
-        candidate.state.sourceSlot === source.state.sourceSlot
-        && candidate.steeringSeed < source.steeringSeed
-      )
-    ) rank += 1;
+      || candidate.meleeEngagementTargetId === null
+    ) {
+      candidate.meleeEngagementRank = 0;
+      continue;
+    }
+    const rank = counts.get(candidate.meleeEngagementTargetId) ?? 0;
+    candidate.meleeEngagementRank = rank;
+    counts.set(candidate.meleeEngagementTargetId, rank + 1);
   }
-  return rank;
 }
 
 export class CombatPlaytestOverlay {

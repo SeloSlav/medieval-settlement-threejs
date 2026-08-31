@@ -37,7 +37,8 @@ use super::fires::{ignite_raid_target, FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDEN
 #[cfg(test)]
 use super::military_steering::ranged_firing_line_goal;
 use super::military_steering::{
-    melee_engagement_goal, raider_ranged_firing_line_goal, CombatSteeringGrid, SteeringBody,
+    melee_engagement_goal, next_dense_engagement_rank, raider_ranged_firing_line_goal,
+    CombatSteeringGrid, EngagementRankKey, SteeringBody,
 };
 use super::reclamation::ReclamationStock;
 use super::recover_stock_at;
@@ -53,6 +54,14 @@ thread_local! {
         RefCell::new(CombatSteeringGrid::default());
     static RAID_RANGED_FRAMES: RefCell<Vec<RaiderRangedFrame>> =
         RefCell::new(Vec::new());
+    static RAID_ENGAGEMENT_SCRATCH: RefCell<RaidEngagementScratch> =
+        RefCell::new(RaidEngagementScratch::default());
+}
+
+#[derive(Default)]
+struct RaidEngagementScratch {
+    stable_order: Vec<u64>,
+    rank_counts: HashMap<EngagementRankKey, usize>,
 }
 
 struct CachedCombatPath {

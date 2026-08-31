@@ -7,7 +7,7 @@ import {
   combatPlaytestCamera,
   combatPlaytestPresetDefinition,
   combatPlaytestWorldSettings,
-  denseMeleeEngagementRank,
+  assignDenseMeleeEngagementRanks,
   parseCombatPlaytestRequest,
   type MeleeEngagementRankMember,
   type CombatPlaytestPreset,
@@ -95,8 +95,11 @@ assert.ok(enemy.every((agent) => agent.status === 'advancing'));
     steeringEnabled: true,
     meleeEngaging: true,
     meleeEngagementTargetId: 'shared-target',
+    meleeEngagementRank: 0,
   }));
-  assert.equal(denseMeleeEngagementRank(cohort[10]!, cohort), 10);
+  const rankCounts = new Map<string, number>();
+  assignDenseMeleeEngagementRanks(cohort, rankCounts);
+  assert.equal(cohort[10]!.meleeEngagementRank, 10);
   assert.ok(
     engagementSlotRadius(2.6, 10) > 2.6,
     'the pre-casualty outer rank should begin beyond immediate spear strike range',
@@ -105,8 +108,9 @@ assert.ok(enemy.every((agent) => agent.status === 'advancing'));
     cohort[slot]!.steeringEnabled = false;
     cohort[slot]!.meleeEngaging = false;
   }
+  assignDenseMeleeEngagementRanks(cohort, rankCounts);
   for (let slot = 10; slot < 20; slot += 1) {
-    const promotedRank = denseMeleeEngagementRank(cohort[slot]!, cohort);
+    const promotedRank = cohort[slot]!.meleeEngagementRank;
     assert.equal(promotedRank, slot - 10, `source slot ${slot} must compact after casualties`);
     assert.ok(
       engagementSlotRadius(2.6, promotedRank) <= 2.6,
@@ -302,8 +306,8 @@ assert.match(playtest, /bowman:[\s\S]{0,140}health: 55[\s\S]{0,90}cadence: 1\.55
 assert.match(playtest, /minimumRange: 8/);
 assert.match(playtest, /minimumRange: 7\.25/);
 assert.match(playtest, /refreshMeleeEngagementRanks\(\)/);
-assert.match(playtest, /meleeRankCounts = new Map<RuntimeAgent, number>\(\)/);
-assert.doesNotMatch(playtest, /meleeEngagementRank = denseMeleeEngagementRank/);
+assert.match(playtest, /meleeRankCounts = new Map<string, number>\(\)/);
+assert.match(playtest, /assignDenseMeleeEngagementRanks\(this\.runtimeList, this\.meleeRankCounts\)/);
 assert.match(playtest, /engagementSlotAngle\(\s*runtime\.meleeEngagementRank/);
 assert.match(playtest, /engagementSlotRadius\(stats\.range, runtime\.meleeEngagementRank\)/);
 assert.match(playtest, /rangedLineLateral\(input\.sourceSlot, input\.companySize\)/);

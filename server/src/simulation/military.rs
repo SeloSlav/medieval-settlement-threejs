@@ -1173,6 +1173,46 @@ fn member_seed(member: &MilitaryMember) -> u64 {
     member.company_id.rotate_left(31) ^ member.residence_id ^ member.resident_slot as u64
 }
 
+fn dense_engagement_rank(
+    ranks: &[DenseEngagementRank],
+    agent_id: u64,
+    target_id: u64,
+) -> Option<usize> {
+    ranks
+        .binary_search_by_key(&agent_id, |entry| entry.agent_id)
+        .ok()
+        .map(|index| ranks[index])
+        .filter(|entry| entry.target_id == target_id)
+        .map(|entry| entry.rank)
+}
+
+fn combat_engagement_target(agent: &CombatAgent) -> u64 {
+    if agent.engagement_target_id != 0 {
+        agent.engagement_target_id
+    } else if agent.target_kind == 7 {
+        agent.target_id
+    } else {
+        0
+    }
+}
+
+fn combat_group_key(ctx: &ReducerContext, agent: &CombatAgent) -> (u8, u64) {
+    ctx.db
+        .military_member()
+        .combat_agent_id()
+        .find(&agent.id)
+        .map_or_else(
+            || match agent.faction {
+                RAIDER => (2, agent.raid_id),
+                BANDIT => (3, agent.raid_id),
+                0 => (4, agent.source_building_id),
+                FOX | WOLF => (5, agent.raid_id),
+                _ => (6, agent.raid_id.max(agent.id)),
+            },
+            |member| (1, member.company_id),
+        )
+}
+
 fn rebuild_steering_grid(
     ctx: &ReducerContext,
     steering: &mut CombatSteeringGrid,
@@ -1187,21 +1227,7 @@ fn rebuild_steering_grid(
         if agent.state == DOWNED || agent.health <= 0.0 {
             continue;
         }
-        let (group_kind, group_id) = ctx
-            .db
-            .military_member()
-            .combat_agent_id()
-            .find(&agent.id)
-            .map_or_else(
-                || match agent.faction {
-                    RAIDER => (2, agent.raid_id),
-                    BANDIT => (3, agent.raid_id),
-                    0 => (4, agent.source_building_id),
-                    FOX | WOLF => (5, agent.raid_id),
-                    _ => (6, agent.raid_id.max(agent.id)),
-                },
-                |member| (1, member.company_id),
-            );
+        let (group_kind, group_id) = combat_group_key(ctx, &agent);
         let (mut goal_x, mut goal_z, mut speed) = canonical_steering_goal(
             ctx,
             &agent,
@@ -1258,7 +1284,7 @@ fn rebuild_steering_grid(
             group_kind,
             group_id,
             faction: agent.faction,
-            target_id: agent.target_id,
+            target_id: combat_engagement_target(&agent),
             x,
             z,
             goal_x,
