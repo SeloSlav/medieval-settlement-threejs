@@ -7,6 +7,8 @@ import {
   COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT,
   COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ,
   COMBAT_STEERING_GOAL_WEIGHT,
+  COMBAT_STEERING_HARD_CLEARANCE_EPSILON_M,
+  COMBAT_STEERING_HARD_CONSTRAINT_ITERATIONS,
   COMBAT_STEERING_MAX_NEIGHBORS,
   COMBAT_STEERING_MAX_TURN_RADIANS_PER_SECOND,
   COMBAT_STEERING_NEIGHBOR_RADIUS_M,
@@ -29,6 +31,10 @@ const NEIGHBOR_CELL_RADIUS = Math.max(
   Math.ceil(COMBAT_STEERING_NEIGHBOR_RADIUS_M / COMBAT_STEERING_CELL_SIZE_M),
 );
 const STOP_DISTANCE_SQ = 0.0064;
+const HARD_SEPARATION_DISTANCE_M = COMBAT_STEERING_SEPARATION_DISTANCE_M
+  + COMBAT_STEERING_HARD_CLEARANCE_EPSILON_M;
+const HARD_SEPARATION_DISTANCE_SQ = HARD_SEPARATION_DISTANCE_M
+  * HARD_SEPARATION_DISTANCE_M;
 
 export type CombatSteeringAgent = {
   /** The canonical position used by simulation, targeting and rendering. */
@@ -77,6 +83,7 @@ export class CanonicalCombatSteeringGrid {
   private readonly neighborIndices: Int32Array;
   private readonly neighborPriority: Uint8Array;
   private readonly neighborMetric: Float64Array;
+  private readonly neighborDistance: Float64Array;
 
   constructor(capacity = 1_024) {
     this.capacity = Math.max(1, Math.floor(capacity));
@@ -96,6 +103,7 @@ export class CanonicalCombatSteeringGrid {
     this.neighborIndices = new Int32Array(COMBAT_STEERING_MAX_NEIGHBORS);
     this.neighborPriority = new Uint8Array(COMBAT_STEERING_MAX_NEIGHBORS);
     this.neighborMetric = new Float64Array(COMBAT_STEERING_MAX_NEIGHBORS);
+    this.neighborDistance = new Float64Array(COMBAT_STEERING_MAX_NEIGHBORS);
   }
 
   update(
@@ -466,6 +474,8 @@ export class CanonicalCombatSteeringGrid {
       this.nextZ[index] = clamp(z + velocityZ * dt, bounds.minZ, bounds.maxZ);
     }
 
+    this.applyHardSweptConstraints(agents, activeCount, dt, bounds);
+
     for (let index = 0; index < activeCount; index += 1) {
       const agent = agents[index]!;
       agent.steeringVelocityX = this.nextVelocityX[index]!;
@@ -480,6 +490,234 @@ export class CanonicalCombatSteeringGrid {
       Math.imul(cellX, 73_856_093)
       ^ Math.imul(cellZ, 19_349_663)
     ) & this.bucketMask;
+  }
+
+  /**
+   * Projects candidate relative trajectories onto deterministic collision-free
+   * tangent rays. This is a real canonical position/velocity constraint, not a
+   * presentation offset: a pair cannot tunnel through and exchange sides
+   * between simulation ticks. Fixed passes and fixed-size top-K scratch keep
+   * the hot path allocation-free and mirrorable by the Rust reducer.
+   */
+  private applyHardSweptConstraints(
+    agents: readonly CombatSteeringAgent[],
+    activeCount: number,
+    dt: number,
+    bounds: CombatSteeringBounds,
+  ): void {
+    for (
+      let iteration = 0;
+      iteration < COMBAT_STEERING_HARD_CONSTRAINT_ITERATIONS;
+      iteration += 1
+    ) {
+      for (let index = 0; index < activeCount; index += 1) {
+        const agent = agents[index]!;
+        if (!agent.steeringEnabled) continue;
+        const x = agent.state.x;
+        const z = agent.state.z;
+        let selectedNeighborCount = 0;
+
+        for (
+          let cellDeltaZ = -NEIGHBOR_CELL_RADIUS;
+          cellDeltaZ <= NEIGHBOR_CELL_RADIUS;
+          cellDeltaZ += 1
+        ) {
+          const neighborCellZ = this.cellZ[index]! + cellDeltaZ;
+          for (
+            let cellDeltaX = -NEIGHBOR_CELL_RADIUS;
+            cellDeltaX <= NEIGHBOR_CELL_RADIUS;
+            cellDeltaX += 1
+          ) {
+            const neighborCellX = this.cellX[index]! + cellDeltaX;
+            let neighbor = this.bucketHeads[this.bucketFor(neighborCellX, neighborCellZ)]!;
+            while (neighbor >= 0) {
+              if (
+                neighbor > index
+                && agents[neighbor]!.steeringEnabled
+                && this.cellX[neighbor] === neighborCellX
+                && this.cellZ[neighbor] === neighborCellZ
+              ) {
+                const other = agents[neighbor]!;
+                const startDeltaX = x - other.state.x;
+                const startDeltaZ = z - other.state.z;
+                const startDistanceSq = startDeltaX * startDeltaX
+                  + startDeltaZ * startDeltaZ;
+                if (startDistanceSq <= NEIGHBOR_RADIUS_SQ) {
+                  const endDeltaX = this.nextX[index]! - this.nextX[neighbor]!;
+                  const endDeltaZ = this.nextZ[index]! - this.nextZ[neighbor]!;
+                  const relativeStepX = endDeltaX - startDeltaX;
+                  const relativeStepZ = endDeltaZ - startDeltaZ;
+                  const relativeStepSq = relativeStepX * relativeStepX
+                    + relativeStepZ * relativeStepZ;
+                  const closestTime = relativeStepSq > 1e-12
+                    ? clamp(
+                      -(startDeltaX * relativeStepX + startDeltaZ * relativeStepZ)
+                        / relativeStepSq,
+                      0,
+                      1,
+                    )
+                    : 0;
+                  const closestX = startDeltaX + relativeStepX * closestTime;
+                  const closestZ = startDeltaZ + relativeStepZ * closestTime;
+                  const closestDistanceSq = closestX * closestX + closestZ * closestZ;
+                  if (closestDistanceSq < HARD_SEPARATION_DISTANCE_SQ) {
+                    let insertAt = selectedNeighborCount;
+                    while (insertAt > 0) {
+                      const previous = insertAt - 1;
+                      const previousIndex = this.neighborIndices[previous]!;
+                      const previousMetric = this.neighborMetric[previous]!;
+                      const previousDistance = this.neighborDistance[previous]!;
+                      const previousAgent = agents[previousIndex]!;
+                      const comesBefore = closestDistanceSq < previousMetric
+                        || (
+                          closestDistanceSq === previousMetric
+                          && (
+                            startDistanceSq < previousDistance
+                            || (
+                              startDistanceSq === previousDistance
+                              && (
+                                other.steeringSeed < previousAgent.steeringSeed
+                                || (
+                                  other.steeringSeed === previousAgent.steeringSeed
+                                  && neighbor < previousIndex
+                                )
+                              )
+                            )
+                          )
+                        );
+                      if (!comesBefore) break;
+                      if (insertAt < COMBAT_STEERING_MAX_NEIGHBORS) {
+                        this.neighborIndices[insertAt] = previousIndex;
+                        this.neighborMetric[insertAt] = previousMetric;
+                        this.neighborDistance[insertAt] = previousDistance;
+                      }
+                      insertAt -= 1;
+                    }
+                    if (insertAt < COMBAT_STEERING_MAX_NEIGHBORS) {
+                      this.neighborIndices[insertAt] = neighbor;
+                      this.neighborMetric[insertAt] = closestDistanceSq;
+                      this.neighborDistance[insertAt] = startDistanceSq;
+                      if (selectedNeighborCount < COMBAT_STEERING_MAX_NEIGHBORS) {
+                        selectedNeighborCount += 1;
+                      }
+                    }
+                  }
+                }
+              }
+              neighbor = this.next[neighbor]!;
+            }
+          }
+        }
+
+        for (let selected = 0; selected < selectedNeighborCount; selected += 1) {
+          const neighbor = this.neighborIndices[selected]!;
+          this.projectHardPair(agents, index, neighbor, bounds);
+        }
+      }
+    }
+
+    // Persist the constrained displacement as velocity. Prediction on the next
+    // tick therefore sees the actual canonical motion, not the rejected soft
+    // candidate velocity.
+    for (let index = 0; index < activeCount; index += 1) {
+      const agent = agents[index]!;
+      if (!agent.steeringEnabled) continue;
+      this.nextVelocityX[index] = (this.nextX[index]! - agent.state.x) / dt;
+      this.nextVelocityZ[index] = (this.nextZ[index]! - agent.state.z) / dt;
+    }
+  }
+
+  private projectHardPair(
+    agents: readonly CombatSteeringAgent[],
+    left: number,
+    right: number,
+    bounds: CombatSteeringBounds,
+  ): void {
+    const leftAgent = agents[left]!;
+    const rightAgent = agents[right]!;
+    let startDeltaX = leftAgent.state.x - rightAgent.state.x;
+    let startDeltaZ = leftAgent.state.z - rightAgent.state.z;
+    const startDistanceSq = startDeltaX * startDeltaX + startDeltaZ * startDeltaZ;
+    let startDistance = Math.sqrt(startDistanceSq);
+
+    if (startDistanceSq <= COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ) {
+      const angle = exactOverlapAngle(
+        leftAgent.steeringSeed,
+        rightAgent.steeringSeed,
+        left,
+        right,
+      );
+      startDeltaX = Math.cos(angle);
+      startDeltaZ = Math.sin(angle);
+      startDistance = 1;
+    }
+    const normalX = startDeltaX / startDistance;
+    const normalZ = startDeltaZ / startDistance;
+    const endDeltaX = this.nextX[left]! - this.nextX[right]!;
+    const endDeltaZ = this.nextZ[left]! - this.nextZ[right]!;
+    let correctionX = 0;
+    let correctionZ = 0;
+
+    if (startDistanceSq < HARD_SEPARATION_DISTANCE_SQ) {
+      // When imported/spawned bodies already penetrate, retain their original
+      // radial ordering and move the final pair onto the safe half-plane.
+      const projectedDistance = endDeltaX * normalX + endDeltaZ * normalZ;
+      const required = HARD_SEPARATION_DISTANCE_M - projectedDistance;
+      if (required <= 0) return;
+      correctionX = normalX * required;
+      correctionZ = normalZ * required;
+    } else {
+      const relativeStepX = endDeltaX - startDeltaX;
+      const relativeStepZ = endDeltaZ - startDeltaZ;
+      const relativeStepSq = relativeStepX * relativeStepX
+        + relativeStepZ * relativeStepZ;
+      if (relativeStepSq <= 1e-12) return;
+      const closestTime = clamp(
+        -(startDeltaX * relativeStepX + startDeltaZ * relativeStepZ) / relativeStepSq,
+        0,
+        1,
+      );
+      const closestX = startDeltaX + relativeStepX * closestTime;
+      const closestZ = startDeltaZ + relativeStepZ * closestTime;
+      if (closestX * closestX + closestZ * closestZ >= HARD_SEPARATION_DISTANCE_SQ) return;
+
+      // The deterministic side makes both implementations select the same
+      // boundary of the relative-velocity obstacle. Projecting onto the
+      // positive tangent ray preserves forward progress without tunnelling.
+      const radiusRatio = clamp(HARD_SEPARATION_DISTANCE_M / startDistance, 0, 1);
+      const inwardFactor = Math.sqrt(Math.max(0, 1 - radiusRatio * radiusRatio));
+      const side = pairPassingSide(leftAgent.steeringSeed, rightAgent.steeringSeed);
+      const perpendicularX = -normalZ * side;
+      const perpendicularZ = normalX * side;
+      const tangentX = -normalX * inwardFactor + perpendicularX * radiusRatio;
+      const tangentZ = -normalZ * inwardFactor + perpendicularZ * radiusRatio;
+      const along = Math.max(0, relativeStepX * tangentX + relativeStepZ * tangentZ);
+      correctionX = tangentX * along - relativeStepX;
+      correctionZ = tangentZ * along - relativeStepZ;
+    }
+
+    const halfCorrectionX = correctionX * 0.5;
+    const halfCorrectionZ = correctionZ * 0.5;
+    this.nextX[left] = clamp(
+      this.nextX[left]! + halfCorrectionX,
+      bounds.minX,
+      bounds.maxX,
+    );
+    this.nextZ[left] = clamp(
+      this.nextZ[left]! + halfCorrectionZ,
+      bounds.minZ,
+      bounds.maxZ,
+    );
+    this.nextX[right] = clamp(
+      this.nextX[right]! - halfCorrectionX,
+      bounds.minX,
+      bounds.maxX,
+    );
+    this.nextZ[right] = clamp(
+      this.nextZ[right]! - halfCorrectionZ,
+      bounds.minZ,
+      bounds.maxZ,
+    );
   }
 }
 
@@ -542,6 +780,12 @@ function mixSeed(value: number): number {
   mixed = Math.imul(mixed ^ (mixed >>> 13), 0xc2b2_ae35) >>> 0;
   mixed ^= mixed >>> 16;
   return mixed >>> 0;
+}
+
+function pairPassingSide(leftSeed: number, rightSeed: number): number {
+  const lowSeed = Math.min(leftSeed, rightSeed);
+  const highSeed = Math.max(leftSeed, rightSeed);
+  return (mixSeed(lowSeed ^ Math.imul(highSeed, 0x9e37_79b1)) & 1) === 0 ? -1 : 1;
 }
 
 function wrappedAngle(value: number): number {

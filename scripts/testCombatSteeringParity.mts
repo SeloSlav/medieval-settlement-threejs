@@ -49,6 +49,8 @@ const contracts = [
   ['COMBAT_STEERING_VELOCITY_RESPONSE_PER_SECOND', 'velocityResponsePerSecond'],
   ['COMBAT_STEERING_MAX_TURN_RADIANS_PER_SECOND', 'maxTurnRadiansPerSecond'],
   ['COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ', 'exactOverlapEpsilonSq'],
+  ['COMBAT_STEERING_HARD_CONSTRAINT_ITERATIONS', 'hardConstraintIterations'],
+  ['COMBAT_STEERING_HARD_CLEARANCE_EPSILON_M', 'hardClearanceEpsilonM'],
 ] as const;
 
 for (const [constantName, balanceKey] of contracts) {

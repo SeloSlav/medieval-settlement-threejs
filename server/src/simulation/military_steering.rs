@@ -234,7 +234,7 @@ impl CombatSteeringGrid {
         &self,
         source_id: u64,
         max_distance: f64,
-        mut matches: impl FnMut(u8) -> bool,
+        mut matches: impl FnMut(u64, u8, u64) -> bool,
     ) -> Option<u64> {
         let source = self.index_of(source_id)?;
         let cell_radius = (max_distance / COMBAT_STEERING_CELL_SIZE_M).ceil() as i32;
@@ -253,7 +253,11 @@ impl CombatSteeringGrid {
                         || self.cell_xs[index] != cell_x
                         || self.cell_zs[index] != cell_z
                         || self.owner_groups[index] != self.owner_groups[source]
-                        || !matches(self.factions[index])
+                        || !matches(
+                            self.ids[index],
+                            self.factions[index],
+                            self.target_ids[index],
+                        )
                     {
                         continue;
                     }

@@ -250,6 +250,8 @@ export type GameBalance = {
     velocityResponsePerSecond: number;
     maxTurnRadiansPerSecond: number;
     exactOverlapEpsilonSq: number;
+    hardConstraintIterations: number;
+    hardClearanceEpsilonM: number;
   };
   seasons: {
     springRainChance: number;
@@ -962,6 +964,8 @@ function generateRust(): string {
     `pub const COMBAT_STEERING_VELOCITY_RESPONSE_PER_SECOND: f64 = ${rustF64(b.combatSteering.velocityResponsePerSecond)};`,
     `pub const COMBAT_STEERING_MAX_TURN_RADIANS_PER_SECOND: f64 = ${rustF64(b.combatSteering.maxTurnRadiansPerSecond)};`,
     `pub const COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ: f64 = ${rustF64(b.combatSteering.exactOverlapEpsilonSq)};`,
+    `pub const COMBAT_STEERING_HARD_CONSTRAINT_ITERATIONS: usize = ${Math.max(1, Math.round(b.combatSteering.hardConstraintIterations))};`,
+    `pub const COMBAT_STEERING_HARD_CLEARANCE_EPSILON_M: f64 = ${rustF64(b.combatSteering.hardClearanceEpsilonM)};`,
     '',
     `pub const SPRING_RAIN_CHANCE: f64 = ${rustF64(b.seasons.springRainChance)};`,
     `pub const SPRING_RAIN_CROP_GROWTH_MULTIPLIER: f64 = ${rustF64(b.seasons.springRainCropGrowthMultiplier)};`,
@@ -2068,6 +2072,8 @@ function generateTypeScript(): string {
     `export const COMBAT_STEERING_VELOCITY_RESPONSE_PER_SECOND = ${b.combatSteering.velocityResponsePerSecond};`,
     `export const COMBAT_STEERING_MAX_TURN_RADIANS_PER_SECOND = ${b.combatSteering.maxTurnRadiansPerSecond};`,
     `export const COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ = ${b.combatSteering.exactOverlapEpsilonSq};`,
+    `export const COMBAT_STEERING_HARD_CONSTRAINT_ITERATIONS = ${Math.max(1, Math.round(b.combatSteering.hardConstraintIterations))};`,
+    `export const COMBAT_STEERING_HARD_CLEARANCE_EPSILON_M = ${b.combatSteering.hardClearanceEpsilonM};`,
     '',
     `export const SPRING_RAIN_CHANCE = ${b.seasons.springRainChance};`,
     `export const SPRING_RAIN_CROP_GROWTH_MULTIPLIER = ${b.seasons.springRainCropGrowthMultiplier};`,

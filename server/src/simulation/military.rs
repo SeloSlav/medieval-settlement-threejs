@@ -53,6 +53,33 @@ thread_local! {
     /// single steering integration at the end of the heartbeat.
     static COMBAT_MOTION_FRAME: RefCell<CombatMotionFrame> =
         RefCell::new(CombatMotionFrame::default());
+    static MILITARY_SCRATCH: RefCell<MilitaryScratch> =
+        RefCell::new(MilitaryScratch::default());
+}
+
+#[derive(Clone, Copy, Default)]
+struct RangedCompanyFrame {
+    company_id: u64,
+    source_x: f64,
+    source_z: f64,
+    target_id: u64,
+    target_x: f64,
+    target_z: f64,
+}
+
+#[derive(Default)]
+struct MilitaryScratch {
+    members: Vec<MilitaryMember>,
+    ranged_frames: Vec<RangedCompanyFrame>,
+}
+
+impl MilitaryScratch {
+    fn ranged_frame(&self, company_id: u64) -> Option<RangedCompanyFrame> {
+        self.ranged_frames
+            .binary_search_by_key(&company_id, |frame| frame.company_id)
+            .ok()
+            .map(|index| self.ranged_frames[index])
+    }
 }
 
 #[derive(Clone, Copy, Default)]
@@ -128,9 +155,11 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
         }
         COMBAT_STEERING_GRID.with(|cell| {
             let mut steering = cell.borrow_mut();
-            rebuild_steering_grid(ctx, &mut steering, None, elapsed_seconds);
-            let members = ctx.db.military_member().iter().collect::<Vec<_>>();
-            for member in members {
+            rebuild_steering_grid(ctx, &mut steering, None, &[], elapsed_seconds);
+            MILITARY_SCRATCH.with(|scratch_cell| {
+                let mut scratch = scratch_cell.borrow_mut();
+                prepare_military_scratch(ctx, &steering, &mut scratch);
+                for member in scratch.members.iter().cloned() {
                 let Some(agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
                     ctx.db
                         .military_member()
@@ -168,17 +197,25 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
                         elapsed_seconds,
                         military_demands,
                         &steering,
+                        scratch.ranged_frame(company.id),
                     ),
                 }
-            }
+                }
 
-            // Goals and state decisions are now final, but the grid is rebuilt
-            // from the shared pre-heartbeat snapshot. The final write replaces
-            // every provisional faction displacement with one synchronous
-            // integration, preventing two fast bodies from swapping sides
-            // before predictive avoidance sees them.
-            rebuild_steering_grid(ctx, &mut steering, Some(&frame), elapsed_seconds);
-            apply_global_combat_steering(ctx, &mut steering, &frame, elapsed_seconds);
+                // Goals and state decisions are now final, but the grid is rebuilt
+                // from the shared pre-heartbeat snapshot. The final write replaces
+                // every provisional faction displacement with one synchronous
+                // integration, preventing two fast bodies from swapping sides
+                // before predictive avoidance sees them.
+                rebuild_steering_grid(
+                    ctx,
+                    &mut steering,
+                    Some(&frame),
+                    &scratch.ranged_frames,
+                    elapsed_seconds,
+                );
+                apply_global_combat_steering(ctx, &mut steering, &frame, elapsed_seconds);
+            });
         });
         frame.captured = false;
     });
@@ -375,6 +412,7 @@ fn step_active_member(
         let range = distance(agent.x, agent.z, enemy.x, enemy.z);
         agent.target_kind = 7;
         agent.target_id = enemy.id;
+        agent.engagement_target_id = enemy.id;
         let ranged_kind = matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen);
         let can_shoot = ranged_kind && member.ammunition > 0;
         let strike_range = if can_shoot { stats.strike_range } else { 2.15 };
@@ -431,8 +469,7 @@ fn step_active_member(
             agent.velocity_x = 0.0;
             agent.velocity_z = 0.0;
             enemy.state = FIGHTING;
-            enemy.target_kind = 7;
-            enemy.target_id = agent.id;
+            enemy.engagement_target_id = agent.id;
             if agent.attack_cooldown <= 0.0 {
                 let readiness = (0.55 + company.morale * 0.25 + company.cohesion * 0.20)
                     * (1.0 - company.fatigue.clamp(0.0, 0.75) * 0.45)
@@ -518,6 +555,7 @@ fn step_active_member(
             }
         }
     } else if let Some(order) = ctx.db.militia_order().combat_agent_id().find(&agent.id) {
+        agent.engagement_target_id = 0;
         // Every member owns a formation-relative destination written by the
         // company command reducer. Preserve it even for camp attacks so the
         // formation advances as one body instead of collapsing onto one point.
@@ -569,6 +607,7 @@ fn step_active_member(
             regenerate_out_of_combat_health(&mut agent, dt);
         }
     } else {
+        agent.engagement_target_id = 0;
         agent.route_progress = 0.0;
         agent.target_kind = 6;
         agent.target_id = 0;
@@ -830,12 +869,19 @@ fn retained_or_nearest_enemy(
     acquisition_range: f64,
 ) -> Option<CombatAgent> {
     let retention_range = acquisition_range * 1.35;
-    if source.target_kind == 7 {
+    let retained_target_id = if source.engagement_target_id != 0 {
+        source.engagement_target_id
+    } else if source.target_kind == 7 {
+        source.target_id
+    } else {
+        0
+    };
+    if retained_target_id != 0 {
         if let Some(enemy) = ctx
             .db
             .combat_agent()
             .id()
-            .find(&source.target_id)
+            .find(&retained_target_id)
             .filter(|enemy| {
                 enemy.owner == source.owner
                     && matches!(enemy.faction, RAIDER | BANDIT | FOX | WOLF)
@@ -847,7 +893,7 @@ fn retained_or_nearest_enemy(
             return Some(enemy);
         }
     }
-    let id = steering.nearest_matching_id(source.id, acquisition_range, |faction| {
+    let id = steering.nearest_matching_id(source.id, acquisition_range, |_, faction, _| {
         matches!(faction, RAIDER | BANDIT | FOX | WOLF)
     })?;
     ctx.db.combat_agent().id().find(&id)

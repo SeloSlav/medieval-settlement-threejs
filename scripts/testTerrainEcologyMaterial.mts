@@ -200,8 +200,8 @@ assert.doesNotMatch(
 );
 assert.equal(
   (source.match(/\btexture\(/g) ?? []).length,
-  32,
-  'packed litter HRAO must retain a bounded texture-fetch budget',
+  26,
+  'removing the forest litter projections must also remove their six texture fetches',
 );
 const terrainTextureBindings = new Set(
   [...source.matchAll(/texture\(\s*(textures\.(?:meadow|dense|dry)\.(?:albedo|normal|roughness|ao)|roadTextures\.(?:albedo|roughness))/g)]
@@ -238,11 +238,10 @@ assert.doesNotMatch(
 );
 assert.match(source, /function mirroredTerrainAtlasUv/);
 assert.match(source, /const tileUv = mirroredTerrainAtlasUv\(grassUv\)/);
-assert.match(source, /function repeatingTerrainAtlasUv/);
-assert.match(
+assert.doesNotMatch(
   source,
-  /source === 'secondary'[\s\S]*?repeatingTerrainAtlasUv\(forestUv\)[\s\S]*?mirroredTerrainAtlasUv\(forestUv\)/,
-  'only the independently processed secondary litter may use ordinary repeat wrapping',
+  /packedForestLitter|repeatingTerrainAtlasUv/,
+  'the terrain shader must not expose atlas helpers for the removed forest litter cells',
 );
 assert.doesNotMatch(
   source,
@@ -311,19 +310,22 @@ assert.match(
 );
 assert.match(
   source,
-  /const baseColorNode = mix\(\s*grassOrDirtColorNode,\s*blendNodes\.forestColorNode,\s*forestSurfaceBlend/,
-  'forest litter must override both overview grass and close dirt after their zoom handoff',
+  /const baseColorNode = grassOrDirtColorNode;[\s\S]*?const stableBaseColorNode = stableGrassOrDirtColorNode;/,
+  'forest ground must share the meadow grass-to-close-dirt color handoff',
 );
 assert.match(
   source,
   /const forestSurfaceBlend = blendNodes\.forestBlend\.mul\([\s\S]*?wornMask/,
-  'forest litter must retain a smooth edge while yielding to roads, banks, and quarry pads',
+  'forest coverage must remain available for canopy shading while yielding to roads, banks, and quarry pads',
 );
 assert.match(
   source,
-  /const rainStableGrassOrDirtColorNode = applyCloseZoomDirtBlend\([\s\S]*?dirtSurface\.colorNode[\s\S]*?dirtSurfaceAmount[\s\S]*?const rainStableBaseColorNode = mix/,
+  /const rainStableGrassOrDirtColorNode = applyCloseZoomDirtBlend\([\s\S]*?dirtSurface\.colorNode[\s\S]*?dirtSurfaceAmount[\s\S]*?const rainStableBaseColorNode = rainStableGrassOrDirtColorNode;/,
   'rain must retain the authored layered dirt albedo instead of resolving to green meadow',
 );
+assert.match(source, /const baseRoughnessNode = grassOrDirtRoughnessNode;/);
+assert.match(source, /const baseNormalNode = grassOrDirtNormalNode;/);
+assert.match(source, /const baseAoNode = grassOrDirtAoNode;/);
 assert.match(source, /dirtSurface\.normalNode/);
 assert.match(source, /dirtSurface\.roughnessNode/);
 assert.match(source, /dirtSurface\.aoNode/);
@@ -514,7 +516,7 @@ assert.equal(packedTerrainAtlas.readUInt32BE(16), 1024);
 assert.equal(
   packedTerrainAtlas.readUInt32BE(20),
   4096,
-  'the packed terrain atlas must retain dry grass, snow, and two independent leaf-litter cells',
+  'the existing packed layout must remain stable for the unchanged dry and snow UV regions',
 );
 const packedTerrainHraoAtlas = readFileSync(
   `${projectRoot}public/assets/textures/terrain/gorski_dry_grass_v1/snow_leaf_hrao_atlas.png`,
@@ -525,11 +527,6 @@ assert.equal(
   4096,
   'the HRAO atlas must exactly match the packed terrain albedo layout',
 );
-const secondaryForestAlbedo = readFileSync(
-  `${projectRoot}public/assets/textures/terrain/gorski_forest_litter_secondary_v1/albedo.png`,
-);
-assert.equal(secondaryForestAlbedo.readUInt32BE(16), 1024);
-assert.equal(secondaryForestAlbedo.readUInt32BE(20), 1024);
 assert.match(source, /const revealStart = sub/);
 assert.match(source, /\.mul\(exposure\)/);
 assert.match(source, /function resolveTerrainWeather/);

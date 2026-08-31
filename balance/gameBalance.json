@@ -41,7 +41,9 @@
     "rangedPreferredRangeFactor": 0.72,
     "velocityResponsePerSecond": 10,
     "maxTurnRadiansPerSecond": 8,
-    "exactOverlapEpsilonSq": 0.00000001
+    "exactOverlapEpsilonSq": 0.00000001,
+    "hardConstraintIterations": 4,
+    "hardClearanceEpsilonM": 0.001
   },
   "seasons": {
     "springRainChance": 0.55,

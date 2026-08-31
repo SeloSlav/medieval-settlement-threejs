@@ -504,13 +504,13 @@ assert.match(
 );
 assert.match(
   terrainMaterialSource,
-  /const stableColorNode = mix\([\s\S]*?forestStableColorNode[\s\S]*?forestBlend/,
+  /const stableColorNode = grassStableColorNode;/,
 );
 assert.match(terrainMaterialSource, /const rainMoisture = smoothstep/);
 assert.match(terrainMaterialSource, /const grassRainStableColorNode = rainMacroColor/);
 assert.match(
   terrainMaterialSource,
-  /const rainStableColorNode = mix\([\s\S]*?forestRainStableColorNode[\s\S]*?forestBlend/,
+  /const rainStableColorNode = grassRainStableColorNode;/,
 );
 assert.match(
   terrainMaterialSource,

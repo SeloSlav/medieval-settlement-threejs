@@ -196,6 +196,7 @@ fn insert_animal(
         assigned_building_id: 0,
         target_kind: target.kind,
         target_id: target.id,
+        engagement_target_id: 0,
         x,
         z,
         velocity_x: 0.0,
