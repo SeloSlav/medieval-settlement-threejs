@@ -35,7 +35,8 @@ use crate::tables::{
 use super::delivery_trips::{deserialize_route_polyline, serialize_route_polyline};
 use super::fires::{ignite_raid_target, FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use super::military_steering::{
-    melee_engagement_goal, ranged_firing_line_goal, CombatSteeringGrid, SteeringBody,
+    melee_engagement_goal, raider_ranged_firing_line_goal, ranged_firing_line_goal,
+    CombatSteeringGrid, SteeringBody,
 };
 use super::reclamation::ReclamationStock;
 use super::recover_stock_at;
@@ -82,8 +83,8 @@ impl RaiderRangedFrame {
     }
 
     pub(crate) fn goal(self, source_slot: u32, strike_range: f64) -> (f64, f64) {
-        ranged_firing_line_goal(
-            (source_slot as usize) / 4,
+        raider_ranged_firing_line_goal(
+            source_slot,
             self.member_count.max(1),
             self.source_x,
             self.source_z,
@@ -167,19 +168,14 @@ pub(crate) fn collect_raider_ranged_frames(
                         && candidate.health > EPSILON
                 })
                 .min_by(|left, right| {
-                    distance_squared(
-                        frame.source_x,
-                        frame.source_z,
-                        left.x,
-                        left.z,
-                    )
-                    .total_cmp(&distance_squared(
-                        frame.source_x,
-                        frame.source_z,
-                        right.x,
-                        right.z,
-                    ))
-                    .then_with(|| left.id.cmp(&right.id))
+                    distance_squared(frame.source_x, frame.source_z, left.x, left.z)
+                        .total_cmp(&distance_squared(
+                            frame.source_x,
+                            frame.source_z,
+                            right.x,
+                            right.z,
+                        ))
+                        .then_with(|| left.id.cmp(&right.id))
                 })
         });
         if let Some(target) = target {
@@ -1652,8 +1648,8 @@ fn engage_agent(
             .filter(|frame| frame.matches(agent))
             .map_or_else(
                 || {
-                    ranged_firing_line_goal(
-                        (agent.source_slot as usize) / 4,
+                    raider_ranged_firing_line_goal(
+                        agent.source_slot,
                         1,
                         agent.x,
                         agent.z,
@@ -2295,10 +2291,8 @@ mod tests {
         // These are the soldiers' deliberately spread damage targets.
         // Per-target construction rotates their x coordinates; the shared
         // raid frame above keeps a single company heading instead.
-        let independently_twisted_a =
-            ranged_firing_line_goal(0, 4, 0.0, 0.0, 18.0, -8.0, 12.0);
-        let independently_twisted_b =
-            ranged_firing_line_goal(1, 4, 0.0, 0.0, 22.0, 9.0, 12.0);
+        let independently_twisted_a = ranged_firing_line_goal(0, 4, 0.0, 0.0, 18.0, -8.0, 12.0);
+        let independently_twisted_b = ranged_firing_line_goal(1, 4, 0.0, 0.0, 22.0, 9.0, 12.0);
         assert!((independently_twisted_a.0 - independently_twisted_b.0).abs() > 0.25);
     }
 }

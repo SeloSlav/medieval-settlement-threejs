@@ -20,8 +20,8 @@ use crate::tables::{
 
 use super::bandits::destroy_camp;
 use super::military_steering::{
-    melee_engagement_goal, ranged_firing_line_goal, CombatSteeringGrid, SteeringBody,
-    SteeringBounds,
+    melee_engagement_goal, raider_ranged_firing_line_goal, ranged_firing_line_goal,
+    CombatSteeringGrid, SteeringBody, SteeringBounds,
 };
 use super::raid_agents::{
     collect_raider_ranged_frames, down_external_raider, reclamation_from_raid_stores,
@@ -1146,14 +1146,13 @@ fn rebuild_steering_grid(
                 },
                 |member| (1, member.company_id),
             );
-        let (mut goal_x, mut goal_z, mut speed) =
-            canonical_steering_goal(
-                ctx,
-                &agent,
-                motion_frame,
-                ranged_frames,
-                raider_ranged_frames,
-            );
+        let (mut goal_x, mut goal_z, mut speed) = canonical_steering_goal(
+            ctx,
+            &agent,
+            motion_frame,
+            ranged_frames,
+            raider_ranged_frames,
+        );
         let snapshot = motion_frame.and_then(|frame| frame.get(agent.id));
         let (x, z, velocity_x, velocity_z) = if let Some(snapshot) = snapshot {
             let intended_dx = agent.x - snapshot.x;
@@ -1338,8 +1337,8 @@ fn canonical_steering_goal(
                     .find(|frame| frame.matches(agent))
                     .map_or_else(
                         || {
-                            ranged_firing_line_goal(
-                                (agent.source_slot as usize) / 4,
+                            raider_ranged_firing_line_goal(
+                                agent.source_slot,
                                 1,
                                 source_x,
                                 source_z,

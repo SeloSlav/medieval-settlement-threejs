@@ -360,8 +360,8 @@ impl CombatSteeringGrid {
                     let offset = probe - 1;
                     let ring = offset / ANGULAR_SLOTS + 1;
                     let slot = offset % ANGULAR_SLOTS;
-                    let angle = (slot + phase) as f64 / ANGULAR_SLOTS as f64
-                        * std::f64::consts::TAU;
+                    let angle =
+                        (slot + phase) as f64 / ANGULAR_SLOTS as f64 * std::f64::consts::TAU;
                     let radius = ring as f64 * HARD_SEPARATION_DISTANCE_M;
                     (
                         (base_x + angle.cos() * radius).clamp(bounds.min_x, bounds.max_x),
@@ -919,6 +919,30 @@ pub(crate) fn ranged_firing_line_goal(
     )
 }
 
+/// Ottoman warbands interleave missile soldiers every fourth source slot.
+/// Compressing those stable slots is part of the authoritative line contract:
+/// slots 3, 7, 11... become adjacent ranks 0, 1, 2..., all using one shared
+/// company source/target frame.
+pub(crate) fn raider_ranged_firing_line_goal(
+    source_slot: u32,
+    member_count: usize,
+    source_x: f64,
+    source_z: f64,
+    target_x: f64,
+    target_z: f64,
+    strike_range: f64,
+) -> (f64, f64) {
+    ranged_firing_line_goal(
+        (source_slot as usize) / 4,
+        member_count.max(1),
+        source_x,
+        source_z,
+        target_x,
+        target_z,
+        strike_range,
+    )
+}
+
 fn clear_and_reserve<T>(values: &mut Vec<T>, count: usize) {
     values.clear();
     if values.capacity() < count {
@@ -1331,12 +1355,7 @@ mod tests {
         for row in 0..8 {
             for column in 0..8 {
                 let id = (row * 8 + column + 1) as u64;
-                let mut combatant = body(
-                    id,
-                    id,
-                    column as f64 * 0.46,
-                    row as f64 * 0.46,
-                );
+                let mut combatant = body(id, id, column as f64 * 0.46, row as f64 * 0.46);
                 combatant.velocity_x = 0.0;
                 combatant.speed = 0.0;
                 grid.push(combatant);
@@ -1577,14 +1596,15 @@ mod tests {
 
     #[test]
     fn spread_enemy_contacts_still_use_one_shared_ranged_line_heading() {
-        // Individual soldiers may retain opponents spread across the enemy
-        // front, but the company frame supplies this one anchor/heading.
+        // Individual Ottoman ranks may retain opponents spread across the
+        // enemy front, but their per-raid frame supplies one anchor/heading.
         let company_anchor = (0.0, 0.0);
         let enemy_anchor = (20.0, 0.0);
-        let goals = (0..4)
-            .map(|rank| {
-                ranged_firing_line_goal(
-                    rank,
+        let goals = [3_u32, 7, 11, 15]
+            .into_iter()
+            .map(|source_slot| {
+                raider_ranged_firing_line_goal(
+                    source_slot,
                     8,
                     company_anchor.0,
                     company_anchor.1,
@@ -1601,5 +1621,9 @@ mod tests {
                     <= 1e-12
             );
         }
+
+        let independently_twisted_a = ranged_firing_line_goal(0, 4, 0.0, 0.0, 18.0, -8.0, 12.0);
+        let independently_twisted_b = ranged_firing_line_goal(1, 4, 0.0, 0.0, 22.0, 9.0, 12.0);
+        assert!((independently_twisted_a.0 - independently_twisted_b.0).abs() > 0.25);
     }
 }
