@@ -146,13 +146,85 @@ assert.equal(
   'capacity keeps the nearest stacked player and Ottoman standards first',
 );
 
+const strategicParent = new THREE.Group();
+const strategicRenderer = new CompanyStandardRenderer({ parent: strategicParent });
+const strategicView = {
+  centerX: 0,
+  centerZ: 0,
+  listenerX: 0,
+  listenerZ: 0,
+  viewRadius: 260,
+  orbitDistance: 180,
+};
+const strategicAgents: CompanyStandardRenderAgent[] = [
+  { id: 'north-west', faction: 'player', x: -110, y: 0, z: -80, yaw: 0 },
+  { id: 'north-east', faction: 'ottoman', x: 110, y: 0, z: -80, yaw: 0.4 },
+  { id: 'south-west', faction: 'player', x: -110, y: 0, z: 80, yaw: -0.2 },
+  { id: 'south-east', faction: 'ottoman', x: 110, y: 0, z: 80, yaw: 0.7 },
+];
+strategicRenderer.sync(strategicAgents, strategicView, 0);
+for (let frame = 0; frame < 8; frame += 1) {
+  for (let index = 0; index < strategicAgents.length; index += 1) {
+    const agent = strategicAgents[index]!;
+    // Each delta remains below the teleport threshold. With a paused/offline
+    // presentation dt this used to move only the hoist, leaving each free edge
+    // behind as a long world-space ribbon between separated companies.
+    agent.x += index % 2 === 0 ? 2.35 : -2.35;
+    agent.z += index < 2 ? 0.42 : -0.42;
+    agent.yaw += index % 2 === 0 ? 0.08 : -0.08;
+  }
+  strategicRenderer.sync(strategicAgents, strategicView, 0);
+  assert.ok(
+    maxDrawnClothTriangleEdge(strategicParent) < 2.25,
+    'separated moving standards must never batch into strategic-view cloth ribbons',
+  );
+}
+
 first.dispose();
 second.dispose();
 gripRenderer.dispose();
 lodRenderer.dispose();
+strategicRenderer.dispose();
 assert.equal(firstParent.children.length, 0);
 assert.equal(secondParent.children.length, 0);
 assert.equal(gripParent.children.length, 0);
 assert.equal(lodParent.children.length, 0);
+assert.equal(strategicParent.children.length, 0);
 
 console.log('Company standard renderer tests passed.');
+
+function maxDrawnClothTriangleEdge(parent: THREE.Object3D): number {
+  let maxEdge = 0;
+  parent.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh || !mesh.name.includes('standard cloth')) return;
+    const geometry = mesh.geometry;
+    const positions = geometry.getAttribute('position');
+    const indices = geometry.index;
+    if (!positions || !indices) return;
+    for (let offset = 0; offset < geometry.drawRange.count; offset += 3) {
+      const a = indices.getX(offset);
+      const b = indices.getX(offset + 1);
+      const c = indices.getX(offset + 2);
+      maxEdge = Math.max(
+        maxEdge,
+        drawnEdgeLength(positions, a, b),
+        drawnEdgeLength(positions, b, c),
+        drawnEdgeLength(positions, c, a),
+      );
+    }
+  });
+  return maxEdge;
+}
+
+function drawnEdgeLength(
+  positions: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
+  a: number,
+  b: number,
+): number {
+  return Math.hypot(
+    positions.getX(b) - positions.getX(a),
+    positions.getY(b) - positions.getY(a),
+    positions.getZ(b) - positions.getZ(a),
+  );
+}

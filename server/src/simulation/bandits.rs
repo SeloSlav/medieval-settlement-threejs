@@ -22,6 +22,9 @@ const HOLDING: u8 = 9;
 const CONTACT: f64 = 2.4;
 const CAMP_RESPAWN_DAYS: u64 = 8;
 const CAMP_DEFENDERS: u32 = 4;
+const CAMP_TOWN_CLEARANCE: f64 = 120.0;
+const CAMP_RESOURCE_CLEARANCE: f64 = 55.0;
+const CAMP_NEIGHBOR_CLEARANCE: f64 = 110.0;
 
 pub fn step_bandit_world(
     ctx: &ReducerContext,
@@ -155,17 +158,22 @@ fn camp_spawn_position(
             let camp_clearance = active_camps.iter()
                 .map(|camp| dist(point.0, point.1, camp.x, camp.z))
                 .fold(half * 2.0, f64::min);
+            let fully_clear = town_clearance >= CAMP_TOWN_CLEARANCE
+                && forage_clearance >= CAMP_RESOURCE_CLEARANCE
+                && quarry_clearance >= CAMP_RESOURCE_CLEARANCE
+                && camp_clearance >= CAMP_NEIGHBOR_CLEARANCE;
             // Settlements dominate, but a camp cannot win merely by sitting on
             // a food/deposit node or immediately beside another live camp.
             let score = town_clearance
                 .min(forage_clearance * 1.45)
                 .min(quarry_clearance * 1.45)
                 .min(camp_clearance * 1.15);
-            (score, candidate_index, point)
+            (fully_clear, score, candidate_index, point)
         })
-        .max_by(|left, right| left.0.total_cmp(&right.0)
-            .then_with(|| left.1.cmp(&right.1)))
-        .map(|(_, _, point)| point)
+        .max_by(|left, right| left.0.cmp(&right.0)
+            .then_with(|| left.1.total_cmp(&right.1))
+            .then_with(|| left.2.cmp(&right.2)))
+        .map(|(_, _, _, point)| point)
         .unwrap_or((0.0, -half * 0.72))
 }
 

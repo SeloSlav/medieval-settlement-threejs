@@ -155,6 +155,16 @@ assert.match(
   /military_member\(\)\s*\.company_id\(\)\s*\.filter\(&company_id\)/,
   'level-up health must be applied to every living member of the atomic company',
 );
+assert.match(
+  simulation,
+  /fn regenerate_out_of_combat_health[\s\S]*?if agent\.state == DOWNED \|\| agent\.health <= 0\.0/,
+  'dead or zero-health members must never regenerate',
+);
+assert.match(
+  simulation,
+  /fn apply_veteran_level_health[\s\S]*?if agent\.state == DOWNED \|\| agent\.health <= 0\.0/,
+  'level-up health must never revive a casualty',
+);
 assert.match(serverPolicy, /gains_veteran_experience[\s\S]*Self::Militia \| Self::MercenarySpears/);
 assert.match(serverPolicy, /veteran_health_multiplier/);
 assert.match(serverPolicy, /veteran_damage_multiplier/);

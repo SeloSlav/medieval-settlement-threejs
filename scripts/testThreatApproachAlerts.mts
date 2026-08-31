@@ -109,8 +109,12 @@ const banditSimulation = readFileSync('server/src/simulation/bandits.rs', 'utf8'
 assert.match(banditSimulation, /state: HOLDING/);
 assert.match(banditSimulation, /next_theft_tick:[\s\S]{0,140}day_ticks\(\)/);
 assert.match(banditSimulation, /CAMP_RESPAWN_DAYS: u64 = 8/);
+assert.match(banditSimulation, /CAMP_TOWN_CLEARANCE: f64 = 120\.0/);
+assert.match(banditSimulation, /CAMP_RESOURCE_CLEARANCE: f64 = 55\.0/);
+assert.match(banditSimulation, /CAMP_NEIGHBOR_CLEARANCE: f64 = 110\.0/);
 assert.match(banditSimulation, /camp_respawn_ready/);
 assert.match(banditSimulation, /forage_clearance/);
+assert.match(banditSimulation, /fully_clear/);
 assert.match(banditSimulation, /quarry_clearance/);
 assert.match(banditSimulation, /camp_clearance/);
 

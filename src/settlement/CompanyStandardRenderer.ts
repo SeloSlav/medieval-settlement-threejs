@@ -124,6 +124,7 @@ const MAX_ACCUMULATOR = FIXED_DT
 const MAX_INPUT_DT = 0.05;
 const TELEPORT_RESET_DISTANCE_SQ = 2.8 * 2.8;
 const ROTATION_RESET_RADIANS = 0.9;
+const MAX_RENDERABLE_CLOTH_EDGE_SQ = 2.25 * 2.25;
 const POLE_LOCAL_X = -0.32;
 const POLE_LOCAL_Z = 0.035;
 const POLE_GRIP_LOCAL_Y = 1.19;
@@ -213,6 +214,7 @@ type StandardState = {
   previousPitch: number;
   previousRoll: number;
   quaternion: THREE.Quaternion;
+  previousQuaternion: THREE.Quaternion;
   maxStretchRatio: number;
 };
 
@@ -504,9 +506,11 @@ export class CompanyStandardRenderer {
       previousPitch: frame.pitch,
       previousRoll: frame.roll,
       quaternion: new THREE.Quaternion(),
+      previousQuaternion: new THREE.Quaternion(),
       maxStretchRatio: 1,
     };
     updateFrameQuaternion(state);
+    state.previousQuaternion.copy(state.quaternion);
     this.rebuildStatePanels(state, lod);
     return state;
   }
@@ -522,6 +526,7 @@ export class CompanyStandardRenderer {
     state.previousYaw = state.yaw;
     state.previousPitch = state.pitch;
     state.previousRoll = state.roll;
+    state.previousQuaternion.copy(state.quaternion);
     state.x = frame.x;
     state.y = frame.y;
     state.z = frame.z;
@@ -538,12 +543,19 @@ export class CompanyStandardRenderer {
       Math.abs(shortestAngle(state.pitch - state.previousPitch)),
       Math.abs(shortestAngle(state.roll - state.previousRoll)),
     );
-    if (
-      dx * dx + dy * dy + dz * dz > TELEPORT_RESET_DISTANCE_SQ
-      || angularDelta > ROTATION_RESET_RADIANS
-    ) {
+    const teleported = dx * dx + dy * dy + dz * dz
+      > TELEPORT_RESET_DISTANCE_SQ;
+    if (teleported || angularDelta > ROTATION_RESET_RADIANS) {
       for (const panel of state.panels) resetPanelToFrame(state, panel);
       state.maxStretchRatio = 1;
+    } else if (dx !== 0 || dy !== 0 || dz !== 0 || angularDelta > 0) {
+      // Cloth particles live in world space, but their ownership is local to
+      // this bearer. Carry both current and previous nodes with the complete
+      // bearer-frame delta so a paused or low-rate far LOD cannot leave the
+      // free edge at an old company position while the hoist advances.
+      for (const panel of state.panels) {
+        advectPanelState(state, panel);
+      }
     }
   }
 
@@ -615,6 +627,10 @@ export class CompanyStandardRenderer {
       const state = this.states.get(agent.id);
       if (!state) continue;
       for (const panel of state.panels) {
+        if (!panelStateIsRenderable(panel)) {
+          resetPanelToFrame(state, panel);
+          state.maxStretchRatio = 1;
+        }
         writePanelToLayer(panel, this.layers[panel.layout.role]);
       }
     }
@@ -745,6 +761,90 @@ function resetPanelToFrame(state: StandardState, panel: ClothPanelState): void {
     writeWorldRestPoint(state, panel, index, panel.positions, index);
     copyNode(panel.positions, panel.previous, index);
   }
+}
+
+function advectPanelState(
+  state: StandardState,
+  panel: ClothPanelState,
+): void {
+  const current = state.quaternion;
+  const previous = state.previousQuaternion;
+  // current * inverse(previous), expanded here to avoid per-company temporary
+  // Quaternion and Vector3 allocation on the presentation hot path.
+  const qx = current.w * -previous.x
+    + current.x * previous.w
+    + current.y * -previous.z
+    - current.z * -previous.y;
+  const qy = current.w * -previous.y
+    - current.x * -previous.z
+    + current.y * previous.w
+    + current.z * -previous.x;
+  const qz = current.w * -previous.z
+    + current.x * -previous.y
+    - current.y * -previous.x
+    + current.z * previous.w;
+  const qw = current.w * previous.w
+    - current.x * -previous.x
+    - current.y * -previous.y
+    - current.z * -previous.z;
+  advectPanelArray(state, panel.positions, qx, qy, qz, qw);
+  advectPanelArray(state, panel.previous, qx, qy, qz, qw);
+}
+
+function advectPanelArray(
+  state: StandardState,
+  values: Float32Array,
+  qx: number,
+  qy: number,
+  qz: number,
+  qw: number,
+): void {
+  for (let offset = 0; offset < values.length; offset += 3) {
+    const x = values[offset]! - state.previousX;
+    const y = values[offset + 1]! - state.previousY;
+    const z = values[offset + 2]! - state.previousZ;
+    const ix = qw * x + qy * z - qz * y;
+    const iy = qw * y + qz * x - qx * z;
+    const iz = qw * z + qx * y - qy * x;
+    const iw = -qx * x - qy * y - qz * z;
+    values[offset] = state.x + ix * qw + iw * -qx + iy * -qz - iz * -qy;
+    values[offset + 1] = state.y + iy * qw + iw * -qy + iz * -qx - ix * -qz;
+    values[offset + 2] = state.z + iz * qw + iw * -qz + ix * -qy - iy * -qx;
+  }
+}
+
+function panelStateIsRenderable(panel: ClothPanelState): boolean {
+  for (let offset = 0; offset < panel.positions.length; offset += 1) {
+    if (
+      !Number.isFinite(panel.positions[offset])
+      || !Number.isFinite(panel.previous[offset])
+    ) return false;
+  }
+  for (let row = 0; row < panel.rows; row += 1) {
+    for (let column = 0; column < panel.columns; column += 1) {
+      const index = row * panel.columns + column;
+      if (
+        column + 1 < panel.columns
+        && nodeDistanceSq(panel.positions, index, index + 1)
+          > MAX_RENDERABLE_CLOTH_EDGE_SQ
+      ) return false;
+      if (
+        row + 1 < panel.rows
+        && nodeDistanceSq(panel.positions, index, index + panel.columns)
+          > MAX_RENDERABLE_CLOTH_EDGE_SQ
+      ) return false;
+    }
+  }
+  return true;
+}
+
+function nodeDistanceSq(values: Float32Array, a: number, b: number): number {
+  const ai = a * 3;
+  const bi = b * 3;
+  const dx = values[bi]! - values[ai]!;
+  const dy = values[bi + 1]! - values[ai + 1]!;
+  const dz = values[bi + 2]! - values[ai + 2]!;
+  return dx * dx + dy * dy + dz * dz;
 }
 
 function stepPanel(

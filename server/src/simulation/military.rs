@@ -624,7 +624,7 @@ fn begin_mercenary_departure(ctx: &ReducerContext, company_id: u64) {
         let Some(mut agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
             continue;
         };
-        if agent.state == DOWNED {
+        if agent.state == DOWNED || agent.health <= 0.0 {
             continue;
         }
         ctx.db
@@ -1118,7 +1118,7 @@ fn apply_veteran_level_health(
         let Some(mut agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
             continue;
         };
-        if agent.state == DOWNED {
+        if agent.state == DOWNED || agent.health <= 0.0 {
             continue;
         }
         let previous_max = agent.max_health.max(1.0);
