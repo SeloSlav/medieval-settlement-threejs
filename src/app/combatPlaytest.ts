@@ -12,6 +12,16 @@ import {
 import { applyTerrainPreset } from '../world/worldTerrainPresets.ts';
 import type { MilitaryCompanyState } from '../security/militaryProgression.ts';
 import { militaryCompanyKindForFaction } from '../security/militaryCompanyPresentation.ts';
+import {
+  CanonicalCombatSteeringGrid,
+  engagementSlotAngle,
+  engagementSlotRadius,
+  rangedLineDepth,
+  rangedLineLateral,
+  rangedPreferredDistance,
+  type CombatSteeringAgent,
+  type CombatSteeringBounds,
+} from '../security/combatSteering.ts';
 
 export const COMBAT_PLAYTEST_QUERY_PARAMETER = 'combatPlaytest';
 export const COMBAT_PLAYTEST_PRESET_PARAMETER = 'combatPreset';
@@ -59,12 +69,16 @@ type CombatPlaytestSimulationOptions = {
   seed: number;
 };
 
-type RuntimeAgent = {
+type RuntimeAgent = CombatSteeringAgent & {
   state: CombatAgentState;
   attackCooldown: number;
   orderX: number | null;
   orderZ: number | null;
   orderMode: 'move' | 'attack' | null;
+  targetRuntime: RuntimeAgent | null;
+  companySize: number;
+  rangedLateral: number;
+  rangedDepth: number;
 };
 
 type CombatStats = {
@@ -202,12 +216,24 @@ export class CombatPlaytestSimulation {
   private readonly playableHalf: number;
   private readonly seed: number;
   private readonly runtime = new Map<string, RuntimeAgent>();
+  private readonly runtimeList: RuntimeAgent[] = [];
+  private readonly livingFriendlies: RuntimeAgent[] = [];
+  private readonly livingEnemies: RuntimeAgent[] = [];
+  private readonly pendingDamage = new Map<string, number>();
+  private readonly steering = new CanonicalCombatSteeringGrid(1_024);
+  private readonly steeringBounds: CombatSteeringBounds;
   private preset: CombatPlaytestPreset;
   private elapsedSeconds = 0;
 
   constructor(options: CombatPlaytestSimulationOptions) {
     this.site = { ...options.site };
     this.playableHalf = Math.max(28, finiteOr(options.playableHalf, 248));
+    this.steeringBounds = {
+      minX: -this.playableHalf + 2,
+      maxX: this.playableHalf - 2,
+      minZ: -this.playableHalf + 2,
+      maxZ: this.playableHalf - 2,
+    };
     this.seed = options.seed >>> 0;
     this.preset = options.preset;
     this.reset(options.preset);
@@ -217,6 +243,10 @@ export class CombatPlaytestSimulation {
     this.preset = preset;
     this.elapsedSeconds = 0;
     this.runtime.clear();
+    this.runtimeList.length = 0;
+    this.livingFriendlies.length = 0;
+    this.livingEnemies.length = 0;
+    this.pendingDamage.clear();
     this.spawnFriendlies(PRESETS[preset].membersPerCompany);
     this.spawnEnemies(PRESETS[preset].membersPerCompany);
   }
@@ -373,31 +403,44 @@ export class CombatPlaytestSimulation {
     const dt = clamp(finiteOr(deltaSeconds, 0), 0, 0.05);
     if (dt <= 0) return;
     this.elapsedSeconds += dt;
-    const friendlies = [...this.runtime.values()].filter((runtime) =>
-      runtime.state.faction !== 'raider' && runtime.state.status !== 'downed'
-    );
-    const enemies = [...this.runtime.values()].filter((runtime) =>
-      runtime.state.faction === 'raider' && runtime.state.status !== 'downed'
-    );
-    for (const runtime of [...friendlies, ...enemies]) {
+    this.livingFriendlies.length = 0;
+    this.livingEnemies.length = 0;
+    for (const runtime of this.runtimeList) {
+      runtime.steeringEnabled = runtime.state.status !== 'downed';
+      runtime.steeringGoalX = runtime.state.x;
+      runtime.steeringGoalZ = runtime.state.z;
+      runtime.steeringSpeed = this.statsFor(runtime).speed;
+      if (!runtime.steeringEnabled) continue;
       runtime.attackCooldown = Math.max(0, runtime.attackCooldown - dt);
+      if (runtime.state.faction === 'raider') {
+        this.livingEnemies.push(runtime);
+      } else {
+        this.livingFriendlies.push(runtime);
+      }
     }
-    if (friendlies.length === 0 || enemies.length === 0) {
-      for (const survivor of [...friendlies, ...enemies]) {
+    if (this.livingFriendlies.length === 0 || this.livingEnemies.length === 0) {
+      for (const survivor of this.runtimeList) {
+        if (!survivor.steeringEnabled) continue;
         this.setStatus(survivor, 'holding');
         survivor.state.routeProgress = 0;
       }
       return;
     }
 
-    const pendingDamage = new Map<string, number>();
-    for (const friendly of friendlies) {
-      this.updateFriendly(friendly, enemies, dt, pendingDamage);
+    this.pendingDamage.clear();
+    for (const friendly of this.livingFriendlies) {
+      this.updateFriendly(friendly, this.livingEnemies, this.pendingDamage);
     }
-    for (const enemy of enemies) {
-      this.updateEnemy(enemy, friendlies, dt, pendingDamage);
+    for (const enemy of this.livingEnemies) {
+      this.updateEnemy(enemy, this.livingFriendlies, this.pendingDamage);
     }
-    for (const [targetId, damage] of pendingDamage) {
+    this.steering.update(
+      this.runtimeList,
+      this.runtimeList.length,
+      dt,
+      this.steeringBounds,
+    );
+    for (const [targetId, damage] of this.pendingDamage) {
       const target = this.runtime.get(targetId);
       if (!target || target.state.status === 'downed') continue;
       target.state.health = Math.max(0, target.state.health - damage);
@@ -406,6 +449,10 @@ export class CombatPlaytestSimulation {
       target.orderX = null;
       target.orderZ = null;
       target.orderMode = null;
+      target.targetRuntime = null;
+      target.steeringEnabled = false;
+      target.steeringVelocityX = 0;
+      target.steeringVelocityZ = 0;
       target.state.routeProgress = 0;
       target.state.targetKind = 'ground';
       target.state.targetId = `${COMBAT_PLAYTEST_AGENT_PREFIX}fallen`;
@@ -415,22 +462,15 @@ export class CombatPlaytestSimulation {
   private updateFriendly(
     runtime: RuntimeAgent,
     enemies: readonly RuntimeAgent[],
-    dt: number,
     pendingDamage: Map<string, number>,
   ): void {
-    const opponent = nearestOpponent(runtime, enemies);
+    const opponent = this.currentOpponent(runtime, enemies);
     if (!opponent) return;
     const stats = this.statsFor(runtime);
     const opponentDistance = distanceBetween(runtime, opponent);
     const ordered = runtime.orderX !== null && runtime.orderZ !== null;
     if (ordered && runtime.orderMode === 'move') {
-      const remaining = this.moveToward(
-        runtime,
-        runtime.orderX!,
-        runtime.orderZ!,
-        stats.speed,
-        dt,
-      );
+      const remaining = this.steerToward(runtime, runtime.orderX!, runtime.orderZ!, stats.speed);
       runtime.state.targetKind = 'ground';
       runtime.state.targetId = `${COMBAT_PLAYTEST_AGENT_PREFIX}ordered-ground`;
       if (remaining <= 0.08) {
@@ -444,21 +484,26 @@ export class CombatPlaytestSimulation {
     }
 
     if (stats.minimumRange && opponentDistance < stats.minimumRange) {
-      this.retireFrom(runtime, opponent, stats.speed, dt);
+      this.setRangedEngagementGoal(runtime, opponent, stats);
+      this.setStatus(runtime, 'fighting');
+      runtime.state.targetKind = 'combat-agent';
+      runtime.state.targetId = opponent.state.id;
+      runtime.state.routeProgress = opponentDistance;
       return;
     }
     if (opponentDistance <= stats.range) {
+      this.setEngagementGoal(runtime, opponent, stats);
       this.attack(runtime, opponent, stats, pendingDamage);
       return;
     }
 
     if (ordered && runtime.orderMode === 'attack') {
-      this.chase(runtime, opponent, stats.speed, dt);
+      this.chase(runtime, opponent, stats);
       return;
     }
 
     if (opponentDistance <= stats.detection) {
-      this.chase(runtime, opponent, stats.speed, dt);
+      this.chase(runtime, opponent, stats);
       return;
     }
     this.setStatus(runtime, 'holding');
@@ -468,42 +513,59 @@ export class CombatPlaytestSimulation {
   private updateEnemy(
     runtime: RuntimeAgent,
     friendlies: readonly RuntimeAgent[],
-    dt: number,
     pendingDamage: Map<string, number>,
   ): void {
-    const opponent = nearestOpponent(runtime, friendlies);
+    const opponent = this.currentOpponent(runtime, friendlies);
     if (!opponent) return;
     const stats = COMBAT_STATS.raider;
     if (distanceBetween(runtime, opponent) <= stats.range) {
+      this.setEngagementGoal(runtime, opponent, stats);
       this.attack(runtime, opponent, stats, pendingDamage);
       return;
     }
-    this.chase(runtime, opponent, stats.speed, dt);
+    this.chase(runtime, opponent, stats);
   }
 
   private chase(
     runtime: RuntimeAgent,
     opponent: RuntimeAgent,
-    speed: number,
-    dt: number,
+    stats: CombatStats,
   ): void {
-    const remaining = this.moveToward(
-      runtime,
-      opponent.state.x,
-      opponent.state.z,
-      speed,
-      dt,
+    this.setEngagementGoal(runtime, opponent, stats);
+    const remaining = Math.hypot(
+      runtime.steeringGoalX - runtime.state.x,
+      runtime.steeringGoalZ - runtime.state.z,
     );
+    this.setStatus(runtime, 'advancing');
     runtime.state.targetKind = 'combat-agent';
     runtime.state.targetId = opponent.state.id;
     runtime.state.routeProgress = remaining;
   }
 
-  private retireFrom(
+  private setEngagementGoal(
     runtime: RuntimeAgent,
     opponent: RuntimeAgent,
-    speed: number,
-    dt: number,
+    stats: CombatStats,
+  ): void {
+    if (stats.minimumRange) {
+      this.setRangedEngagementGoal(runtime, opponent, stats);
+      return;
+    }
+    const angle = engagementSlotAngle(
+      runtime.state.sourceSlot,
+      runtime.steeringCompany,
+      opponent.steeringSeed,
+    );
+    const radius = engagementSlotRadius(stats.range);
+    runtime.steeringGoalX = opponent.state.x + Math.cos(angle) * radius;
+    runtime.steeringGoalZ = opponent.state.z + Math.sin(angle) * radius;
+    runtime.steeringSpeed = stats.speed;
+  }
+
+  private setRangedEngagementGoal(
+    runtime: RuntimeAgent,
+    opponent: RuntimeAgent,
+    stats: CombatStats,
   ): void {
     let dx = runtime.state.x - opponent.state.x;
     let dz = runtime.state.z - opponent.state.z;
@@ -514,42 +576,50 @@ export class CombatPlaytestSimulation {
       dz = Math.sin(angle);
       distance = 1;
     }
-    const step = speed * dt;
-    runtime.state.x = clamp(
-      runtime.state.x + dx / distance * step,
-      -this.playableHalf + 2,
-      this.playableHalf - 2,
-    );
-    runtime.state.z = clamp(
-      runtime.state.z + dz / distance * step,
-      -this.playableHalf + 2,
-      this.playableHalf - 2,
-    );
-    // Tactical spacing is still an active combat posture. In particular, do
-    // not use `retreating`: that status owns morale rout animation and voices.
-    this.setStatus(runtime, 'fighting');
-    runtime.state.targetKind = 'combat-agent';
-    runtime.state.targetId = opponent.state.id;
-    runtime.state.routeProgress = distance;
+    const awayX = dx / distance;
+    const awayZ = dz / distance;
+    const preferredDistance = rangedPreferredDistance(stats.range) + runtime.rangedDepth;
+    runtime.steeringGoalX = opponent.state.x
+      + awayX * preferredDistance
+      - awayZ * runtime.rangedLateral;
+    runtime.steeringGoalZ = opponent.state.z
+      + awayZ * preferredDistance
+      + awayX * runtime.rangedLateral;
+    runtime.steeringSpeed = stats.speed;
   }
 
-  private moveToward(
+  private steerToward(
     runtime: RuntimeAgent,
     targetX: number,
     targetZ: number,
     speed: number,
-    dt: number,
   ): number {
     const dx = targetX - runtime.state.x;
     const dz = targetZ - runtime.state.z;
     const distance = Math.hypot(dx, dz);
-    if (distance <= 1e-6) return 0;
-    const step = Math.min(distance, speed * dt);
-    runtime.state.x += dx / distance * step;
-    runtime.state.z += dz / distance * step;
+    runtime.steeringGoalX = targetX;
+    runtime.steeringGoalZ = targetZ;
+    runtime.steeringSpeed = speed;
     this.setStatus(runtime, 'advancing');
     runtime.state.routeProgress = distance;
-    return Math.max(0, distance - step);
+    return distance;
+  }
+
+  private currentOpponent(
+    runtime: RuntimeAgent,
+    candidates: readonly RuntimeAgent[],
+  ): RuntimeAgent | null {
+    const current = runtime.targetRuntime;
+    if (
+      current
+      && current.state.status !== 'downed'
+      && current.state.faction !== runtime.state.faction
+    ) {
+      return current;
+    }
+    const next = nearestOpponent(runtime, candidates);
+    runtime.targetRuntime = next;
+    return next;
   }
 
   private attack(
@@ -598,7 +668,7 @@ export class CombatPlaytestSimulation {
           centerAxial + offset.axial + jitter.axial,
           centerLateral + offset.lateral + jitter.lateral,
         );
-        this.runtime.set(id, this.createRuntimeAgent({
+        const runtime = this.createRuntimeAgent({
           id,
           faction,
           companyId,
@@ -606,7 +676,10 @@ export class CombatPlaytestSimulation {
           sourceSlot: memberIndex,
           x: point.x,
           z: point.z,
-        }));
+          companySize: membersPerCompany,
+        });
+        this.runtime.set(id, runtime);
+        this.runtimeList.push(runtime);
       });
     });
   }
@@ -626,7 +699,7 @@ export class CombatPlaytestSimulation {
           centerAxial - offset.axial + jitter.axial,
           centerLateral + offset.lateral + jitter.lateral,
         );
-        this.runtime.set(id, this.createRuntimeAgent({
+        const runtime = this.createRuntimeAgent({
           id,
           faction: 'raider',
           companyId: null,
@@ -634,7 +707,10 @@ export class CombatPlaytestSimulation {
           sourceSlot: memberIndex,
           x: point.x,
           z: point.z,
-        }));
+          companySize: membersPerWarband,
+        });
+        this.runtime.set(id, runtime);
+        this.runtimeList.push(runtime);
       });
     }
   }
@@ -647,6 +723,7 @@ export class CombatPlaytestSimulation {
     sourceSlot: number;
     x: number;
     z: number;
+    companySize: number;
   }): RuntimeAgent {
     const stats = COMBAT_STATS[input.faction];
     return {
@@ -683,6 +760,19 @@ export class CombatPlaytestSimulation {
       orderX: null,
       orderZ: null,
       orderMode: null,
+      targetRuntime: null,
+      companySize: input.companySize,
+      rangedLateral: rangedLineLateral(input.sourceSlot, input.companySize),
+      rangedDepth: rangedLineDepth(input.sourceSlot, input.companySize),
+      steeringSeed: this.seed ^ hashString(input.id),
+      steeringTeam: input.faction === 'raider' ? 2 : 1,
+      steeringCompany: hashString(input.companyId ?? input.raidId) || 1,
+      steeringEnabled: true,
+      steeringGoalX: input.x,
+      steeringGoalZ: input.z,
+      steeringSpeed: stats.speed,
+      steeringVelocityX: 0,
+      steeringVelocityZ: 0,
     };
   }
 

@@ -196,6 +196,8 @@ pub fn start_live_raid(
             target_id: target.id,
             x,
             z,
+            velocity_x: 0.0,
+            velocity_z: 0.0,
             home_x: x,
             home_z: z,
             health: 80.0 + enemy_pressure.min(100) as f64 * 0.2,

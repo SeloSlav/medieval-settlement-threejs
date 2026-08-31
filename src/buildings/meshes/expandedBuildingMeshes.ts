@@ -65,7 +65,10 @@ import {
   monasteryCoreModule,
   type MonasteryPrecinctPlan,
 } from './monasteryPrecinctPlan.ts';
-import { createProceduralRoofPanelGeometry } from '../proceduralArchitecture/geometryWriter.ts';
+import {
+  createProceduralRoofPanelGeometry,
+  ProceduralGeometryWriter,
+} from '../proceduralArchitecture/geometryWriter.ts';
 
 export const LOCAL_RECEIPT_VISUAL_SEGMENTS = 3;
 export const LOCAL_RECEIPT_VISUAL_CAPACITY = STOREHOUSE_HAUL_PER_WORKER;
@@ -75,6 +78,130 @@ const canvas = sharedBuildingDetailMaterial('canvas');
 const copper = sharedBuildingDetailMaterial('brass');
 const hiveBlue = sharedBuildingDetailMaterial('paintBlue');
 const hiveRed = sharedBuildingDetailMaterial('paintRed');
+
+type JoinedTimberMember = Readonly<{
+  semanticId: string;
+  start: readonly [number, number, number];
+  end: readonly [number, number, number];
+  width?: number;
+  depth?: number;
+  upHint?: readonly [number, number, number];
+  structuralUse?: 'timber-frame' | 'roof-frame';
+}>;
+
+/**
+ * Emits one brown, member-aligned material slot for a complete structural
+ * assembly. End points are authored at ledgers, plates, posts, or machine
+ * bearings, so the visible frame cannot regress to a collection of floating
+ * primitive boxes.
+ */
+function addJoinedTimberFrame(
+  group: THREE.Group,
+  name: string,
+  moduleId: string,
+  members: readonly JoinedTimberMember[],
+): THREE.Mesh {
+  const writer = new ProceduralGeometryWriter(['rough-timber']);
+  for (const member of members) {
+    writer.addMember({
+      semanticId: member.semanticId,
+      moduleId,
+      materialRole: 'rough-timber',
+      structuralUse: member.structuralUse ?? 'timber-frame',
+      start: member.start,
+      end: member.end,
+      width: member.width ?? 0.18,
+      depth: member.depth ?? 0.18,
+      upHint: member.upHint ?? [0, 1, 0],
+    });
+  }
+  const slot = writer.build().slots[0];
+  if (!slot) throw new Error(`${name} emitted no structural timber.`);
+  const frame = addMesh(
+    group,
+    slot.geometry,
+    timberMaterial('dark'),
+    new THREE.Vector3(),
+  );
+  frame.name = name;
+  frame.userData.architectureRole = moduleId;
+  frame.userData.structuralConnection = 'joined-endpoint-authored';
+  frame.userData.structuralMemberCount = members.length;
+  frame.userData.proceduralMaterialRole = 'rough-timber';
+  frame.userData.proceduralPrimitiveDiagnostics = slot.diagnostics.primitives;
+  return frame;
+}
+
+export const PROCESSOR_WORKSHOP_ARCHITECTURE_PLANS = Object.freeze({
+  threshing_barn: Object.freeze({
+    semanticId: 'threshing-barn-opposed-cart-floor-v1',
+    typology: 'broad-boarded-barn-with-opposed-cart-doors',
+    literalOpenings: 5,
+    dynamicAnchors: Object.freeze([
+      'ThreshingGrainStockpile',
+      'ThreshingFlaxStockpile',
+      'ThreshingManureStockpile',
+    ]),
+  }),
+  brewery: Object.freeze({
+    semanticId: 'brewery-hearth-and-cooling-lean-to-v1',
+    typology: 'lime-rendered-brewhouse-with-open-kettle-bay',
+    literalOpenings: 2,
+    dynamicAnchors: Object.freeze([
+      'BreweryAleStockpile',
+      'BreweryBarleyStockpile',
+      'BreweryMaltStockpile',
+    ]),
+  }),
+  bakery: Object.freeze({
+    semanticId: 'bakery-attached-masonry-oven-v1',
+    typology: 'compact-lime-rendered-bakehouse-with-attached-oven',
+    literalOpenings: 2,
+    dynamicAnchors: Object.freeze(['BakeryFoodStockpile']),
+  }),
+  smokehouse: Object.freeze({
+    semanticId: 'smokehouse-sealed-log-chamber-v1',
+    typology: 'detached-log-smoking-chamber-with-fuel-lean-to',
+    literalOpenings: 4,
+    dynamicAnchors: Object.freeze([
+      'SmokehouseFirewoodStockpile',
+      'SmokehouseFreshFoodStockpile',
+      'SmokehouseSaltStockpile',
+      'SmokehousePotteryStockpile',
+      'SmokehousePreservedFoodStockpile',
+    ]),
+  }),
+  watermill: Object.freeze({
+    semanticId: 'watermill-streamside-wheel-house-v1',
+    typology: 'fieldstone-mill-house-with-connected-undershot-wheel',
+    literalOpenings: 2,
+    dynamicAnchors: Object.freeze([
+      'WatermillGrainStockpile',
+      'WatermillFlourStockpile',
+      'Watermill wheel',
+    ]),
+  }),
+  carpenter: Object.freeze({
+    semanticId: 'carpenter-open-bench-range-v1',
+    typology: 'boarded-workshop-with-braced-open-carpentry-bay',
+    literalOpenings: 2,
+    dynamicAnchors: Object.freeze([
+      'CarpenterTimberStockpile',
+      'CarpenterIronworkStockpile',
+      'CarpenterPolearmStockpile',
+    ]),
+  }),
+  weaver: Object.freeze({
+    semanticId: 'weaver-broad-lit-loom-bay-v1',
+    typology: 'lime-rendered-workshop-with-covered-loom-bay',
+    literalOpenings: 2,
+    dynamicAnchors: Object.freeze([
+      'WeaverYarnStockpile',
+      'WeaverLinenStockpile',
+      'ClothStockpile',
+    ]),
+  }),
+});
 
 function addChimney(group: THREE.Group, x: number, z: number, height = 4.8): void {
   addMesh(group, new THREE.BoxGeometry(0.72, height, 0.72), stoneMaterial('mid'), new THREE.Vector3(x, height * 0.5, z));
@@ -273,11 +400,62 @@ function addMonasteryTreasuryChest(group: THREE.Group): void {
 export function createThreshingBarnMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Threshing barn';
+  group.userData.architecturePlan = PROCESSOR_WORKSHOP_ARCHITECTURE_PLANS.threshing_barn;
   const shell = addGableShell(group, { width: 10.8, depth: 7.2, stoneHeight: 0.58, wallHeight: 3.25, ridgeHeight: 3.0, wallMaterial: timberMaterial('weathered'), roofMaterial: shingleMaterial() });
   addPlankDoor(group, -3.1, 0.62, shell.frontZ + 0.03, 1.25, 2.45);
   addPlankDoor(group, 0, 0.62, shell.frontZ + 0.03, 2.6, 2.7);
-  addDarkOpening(group, 0, 0.66, -shell.frontZ - 0.03, 3.7, 2.85);
+  // The central threshing floor is a real cross-passage: both cart doors cut
+  // the wall shell at the same bay and threshold instead of using a black
+  // rectangle on the rear wall.
+  addPlankDoor(group, 0, 0.62, shell.backZ - 0.03, 2.6, 2.7, 'ground-level');
   for (const x of [-4.2, 4.2]) addSmallWindow(group, x, 2.35, shell.frontZ + 0.03, 0.72, 0.8);
+  const halfDoor = 1.3;
+  addJoinedTimberFrame(
+    group,
+    'Threshing barn joined cart-bay and wall-plate frame',
+    'boarded-barn-frame',
+    [
+      ...([-1, 1] as const).flatMap((zSign) => [
+        {
+          semanticId: `threshing-barn-${zSign < 0 ? 'rear' : 'front'}-left-cart-jamb`,
+          start: [-halfDoor - 0.13, 0.58, zSign * 3.47] as const,
+          end: [-halfDoor - 0.13, 3.65, zSign * 3.47] as const,
+        },
+        {
+          semanticId: `threshing-barn-${zSign < 0 ? 'rear' : 'front'}-right-cart-jamb`,
+          start: [halfDoor + 0.13, 0.58, zSign * 3.47] as const,
+          end: [halfDoor + 0.13, 3.65, zSign * 3.47] as const,
+        },
+        {
+          semanticId: `threshing-barn-${zSign < 0 ? 'rear' : 'front'}-cart-lintel`,
+          start: [-halfDoor - 0.13, 3.38, zSign * 3.47] as const,
+          end: [halfDoor + 0.13, 3.38, zSign * 3.47] as const,
+        },
+      ]),
+      {
+        semanticId: 'threshing-barn-left-side-mid-post',
+        start: [-5.28, 0.58, 0],
+        end: [-5.28, 3.65, 0],
+      },
+      {
+        semanticId: 'threshing-barn-right-side-mid-post',
+        start: [5.28, 0.58, 0],
+        end: [5.28, 3.65, 0],
+      },
+      {
+        semanticId: 'threshing-barn-left-longitudinal-wall-plate',
+        start: [-5.28, 3.72, -3.47],
+        end: [-5.28, 3.72, 3.47],
+        structuralUse: 'roof-frame',
+      },
+      {
+        semanticId: 'threshing-barn-right-longitudinal-wall-plate',
+        start: [5.28, 3.72, -3.47],
+        end: [5.28, 3.72, 3.47],
+        structuralUse: 'roof-frame',
+      },
+    ],
+  );
   addSegmentedStockProps(
     group,
     'ThreshingGrainStockpile',
@@ -635,6 +813,7 @@ export function createMonasteryMesh(
 export function createBreweryMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Brewery';
+  group.userData.architecturePlan = PROCESSOR_WORKSHOP_ARCHITECTURE_PLANS.brewery;
   const shell = addGableShell(group, { width: 8.7, depth: 6.5, stoneHeight: 1.05, wallHeight: 3.05, ridgeHeight: 2.45, wallMaterial: residenceFacadeMaterial('lightOrange'), roofMaterial: shingleMaterial() });
   addPlankDoor(group, -1.8, 1.08, shell.frontZ + 0.03, 1.22, 2.05);
   addSmallWindow(group, 1.45, 2.35, shell.frontZ + 0.03, 0.88, 1.05);
@@ -646,8 +825,9 @@ export function createBreweryMesh(): THREE.Group {
     [[-3.9, 0, 4.1, 1], [-2.9, 0, 4.25, 0.85], [3.5, 0, 3.9, 1.1]],
     (segment, scale) => addBarrel(segment, 0, 0, scale),
   );
-  // Open brewing bay with a copper mash kettle and malt sacks.
-  for (const x of [2.45, 4.55]) addMesh(group, new THREE.BoxGeometry(0.18, 2.45, 0.18), timberMaterial('dark'), new THREE.Vector3(x, 1.22, 4.2));
+  // Open brewing bay with a copper mash kettle and malt sacks. The high-edge
+  // ledger keys into the house wall plate; two rafters terminate on a low
+  // eave beam carried by posts rather than leaving the canopy floating.
   addLeanToRoof(group, {
     width: 2.65,
     depth: 2.45,
@@ -658,8 +838,37 @@ export function createBreweryMesh(): THREE.Group {
     highEdge: 'negativeZ',
     name: 'Brewery open-bay roof',
   });
-  addMesh(group, new THREE.SphereGeometry(0.72, 12, 8), copper, new THREE.Vector3(3.45, 0.96, 4.15), new THREE.Euler(), new THREE.Vector3(1, 1.18, 1));
-  addMesh(group, new THREE.CylinderGeometry(0.16, 0.16, 1.6, 8), copper, new THREE.Vector3(3.45, 2.0, 4.15));
+  addJoinedTimberFrame(
+    group,
+    'Brewery joined cooling-bay roof frame',
+    'cooling-lean-to',
+    [
+      { semanticId: 'brewery-cooling-bay-wall-ledger', start: [2.15, 2.67, 3.18], end: [4.85, 2.67, 3.18], structuralUse: 'roof-frame' },
+      { semanticId: 'brewery-cooling-bay-eave-beam', start: [2.15, 2.37, 5.24], end: [4.85, 2.37, 5.24], structuralUse: 'roof-frame' },
+      { semanticId: 'brewery-cooling-bay-left-post', start: [2.28, 0, 5.24], end: [2.28, 2.37, 5.24] },
+      { semanticId: 'brewery-cooling-bay-right-post', start: [4.72, 0, 5.24], end: [4.72, 2.37, 5.24] },
+      { semanticId: 'brewery-cooling-bay-left-rafter', start: [2.28, 2.37, 5.24], end: [2.28, 2.67, 3.18], structuralUse: 'roof-frame' },
+      { semanticId: 'brewery-cooling-bay-right-rafter', start: [4.72, 2.37, 5.24], end: [4.72, 2.67, 3.18], structuralUse: 'roof-frame' },
+    ],
+  );
+  const hearth = addMesh(
+    group,
+    new THREE.CylinderGeometry(0.83, 0.88, 0.32, 10),
+    stoneMaterial('mid'),
+    new THREE.Vector3(3.45, 0.16, 4.15),
+  );
+  hearth.name = 'Brewery masonry kettle hearth';
+  hearth.userData.architectureRole = 'brewing-hearth';
+  const kettle = addMesh(group, new THREE.SphereGeometry(0.72, 12, 8), copper, new THREE.Vector3(3.45, 0.96, 4.15), new THREE.Euler(), new THREE.Vector3(1, 1.18, 1));
+  kettle.name = 'Brewery copper mash kettle seated on hearth';
+  const kettleRim = addMesh(
+    group,
+    new THREE.TorusGeometry(0.7, 0.055, 6, 16),
+    metalMaterial('iron'),
+    new THREE.Vector3(3.45, 1.65, 4.15),
+    new THREE.Euler(Math.PI * 0.5, 0, 0),
+  );
+  kettleRim.name = 'Brewery iron-supported mash-kettle rim';
   addSegmentedStockProps(
     group,
     'BreweryBarleyStockpile',
@@ -680,6 +889,7 @@ export function createBreweryMesh(): THREE.Group {
 export function createBakeryMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Village bakery';
+  group.userData.architecturePlan = PROCESSOR_WORKSHOP_ARCHITECTURE_PLANS.bakery;
   const shell = addGableShell(group, {
     width: 7.4,
     depth: 5.8,
@@ -695,36 +905,51 @@ export function createBakeryMesh(): THREE.Group {
 
   // A masonry oven and tall flue keep the workshop visually distinct from
   // the raised crop store next door.
-  addMesh(
+  const ovenBody = addMesh(
     group,
     new THREE.BoxGeometry(2.35, 1.45, 1.9),
     stoneMaterial('mid'),
     new THREE.Vector3(2.15, 0.74, 3.55),
   );
-  addMesh(
+  ovenBody.name = 'Bakery attached masonry oven body';
+  const ovenDome = addMesh(
     group,
     new THREE.SphereGeometry(1.14, 12, 7, 0, Math.PI * 2, 0, Math.PI * 0.52),
     stoneMaterial('mid'),
     new THREE.Vector3(2.15, 1.42, 3.55),
   );
-  addMesh(
+  ovenDome.name = 'Bakery attached masonry oven dome';
+  const ovenMouth = addMesh(
     group,
     new THREE.BoxGeometry(0.78, 0.72, 0.08),
-    timberMaterial('dark'),
+    sharedBuildingMaterial('interiorDark'),
     new THREE.Vector3(2.15, 0.78, 4.51),
   );
-  addMesh(
+  ovenMouth.name = 'Bakery recessed oven mouth';
+  const ovenFlue = addMesh(
+    group,
+    new THREE.BoxGeometry(0.64, 0.72, 1.35),
+    stoneMaterial('mid'),
+    new THREE.Vector3(2.15, 2.13, 2.98),
+  );
+  ovenFlue.name = 'Bakery oven-to-chimney masonry flue';
+  ovenFlue.userData.architectureRole = 'masonry-oven';
+  // Keep the stack on the oven axis. The previous offset stack read as an
+  // unrelated column and never visibly received the oven flue.
+  const chimneyStack = addMesh(
     group,
     new THREE.BoxGeometry(0.72, 3.9, 0.72),
     stoneMaterial('mid'),
-    new THREE.Vector3(2.75, 4.35, 1.45),
+    new THREE.Vector3(2.15, 4.35, 2.38),
   );
-  addMesh(
+  chimneyStack.name = 'Bakery oven-axis masonry chimney stack';
+  const chimneyCap = addMesh(
     group,
     new THREE.BoxGeometry(0.92, 0.22, 0.92),
     stoneMaterial('mortar'),
-    new THREE.Vector3(2.75, 6.35, 1.45),
+    new THREE.Vector3(2.15, 6.35, 2.38),
   );
+  chimneyCap.name = 'Bakery plain weathered chimney cap';
   addSegmentedStockProps(
     group,
     'BakeryFoodStockpile',
@@ -742,13 +967,25 @@ export function createBakeryMesh(): THREE.Group {
 export function createSmokehouseMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Smokehouse';
+  group.userData.architecturePlan = PROCESSOR_WORKSHOP_ARCHITECTURE_PLANS.smokehouse;
   const shell = addGableShell(group, { width: 6.4, depth: 5.5, stoneHeight: 1.5, wallHeight: 2.25, ridgeHeight: 2.2, wallMaterial: stackedTimberWallMaterial(), roofMaterial: shingleMaterial(), stoneGroundFloor: true });
   addPlankDoor(group, -1.0, 1.53, shell.frontZ + 0.03, 0.92, 1.78);
-  addSmallWindow(group, 1.25, 2.55, shell.frontZ + 0.03, 0.58, 0.72);
+  // A sealed smoking chamber needs small controllable vents, not a glazed
+  // domestic window. These three reveals all register literal wall holes.
+  addDarkOpening(group, 0.82, 3.12, shell.frontZ + 0.03, 0.28, 0.24);
+  addDarkOpening(group, 1.48, 3.12, shell.frontZ + 0.03, 0.28, 0.24);
+  addDarkOpening(group, 0, 3.18, shell.backZ - 0.03, 0.34, 0.24);
   addChimney(group, 1.85, -1.4, 5.4);
+  const firebox = addMesh(
+    group,
+    new THREE.BoxGeometry(1.45, 1.08, 1.32),
+    stoneMaterial('mid'),
+    new THREE.Vector3(1.85, 0.54, -1.4),
+  );
+  firebox.name = 'Smokehouse chimney-connected stone firebox';
+  firebox.userData.architectureRole = 'stone-firebox';
   const smoke = addMesh(group, new THREE.ConeGeometry(0.42, 1.5, 8), sharedBuildingDetailMaterial('smoke'), new THREE.Vector3(1.85, 6.2, -1.4));
   smoke.name = 'Smoke plume';
-  for (let i = -2; i <= 2; i++) addMesh(group, new THREE.BoxGeometry(0.08, 0.36, 0.08), metalMaterial('iron'), new THREE.Vector3(i * 0.2, 3.15, shell.frontZ + 0.08));
   // Fuel lean-to and restrained drying rail communicate the complete preservation process.
   addLeanToRoof(group, {
     width: 2.35,
@@ -760,7 +997,19 @@ export function createSmokehouseMesh(): THREE.Group {
     highEdge: 'positiveX',
     name: 'Smokehouse fuel lean-to roof',
   });
-  for (const z of [-0.9, 0.9]) addMesh(group, new THREE.BoxGeometry(0.16, 2.0, 0.16), timberMaterial('dark'), new THREE.Vector3(-5.1, 1.0, z));
+  addJoinedTimberFrame(
+    group,
+    'Smokehouse joined fuel-bay roof frame',
+    'service-lean-to',
+    [
+      { semanticId: 'smokehouse-fuel-bay-wall-ledger', start: [-3.14, 2.15, -1.05], end: [-3.14, 2.15, 1.05], structuralUse: 'roof-frame' },
+      { semanticId: 'smokehouse-fuel-bay-eave-beam', start: [-5.31, 1.84, -1.05], end: [-5.31, 1.84, 1.05], structuralUse: 'roof-frame' },
+      { semanticId: 'smokehouse-fuel-bay-front-post', start: [-5.31, 0, 0.92], end: [-5.31, 1.84, 0.92] },
+      { semanticId: 'smokehouse-fuel-bay-back-post', start: [-5.31, 0, -0.92], end: [-5.31, 1.84, -0.92] },
+      { semanticId: 'smokehouse-fuel-bay-front-rafter', start: [-5.31, 1.84, 0.92], end: [-3.14, 2.15, 0.92], structuralUse: 'roof-frame' },
+      { semanticId: 'smokehouse-fuel-bay-back-rafter', start: [-5.31, 1.84, -0.92], end: [-3.14, 2.15, -0.92], structuralUse: 'roof-frame' },
+    ],
+  );
   const fuelStockpile = new THREE.Group();
   fuelStockpile.name = 'SmokehouseFirewoodStockpile';
   fuelStockpile.visible = false;
@@ -1378,6 +1627,7 @@ export function createApiaryMesh(): THREE.Group {
 export function createWatermillMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Watermill';
+  group.userData.architecturePlan = PROCESSOR_WORKSHOP_ARCHITECTURE_PLANS.watermill;
   const shell = addGableShell(group, { width: 9.2, depth: 6.8, stoneHeight: 1.6, wallHeight: 2.75, ridgeHeight: 2.7, wallMaterial: residenceFacadeMaterial('white'), roofMaterial: shingleMaterial(), stoneGroundFloor: true });
   addPlankDoor(group, -1.7, 1.64, shell.frontZ + 0.03, 1.0, 1.9);
   addSmallWindow(group, 1.5, 2.85, shell.frontZ + 0.03, 0.78, 0.96);
@@ -1387,14 +1637,81 @@ export function createWatermillMesh(): THREE.Group {
   wheel.position.set(wheelX, 2.15, 0);
   group.add(wheel);
   addMesh(wheel, new THREE.TorusGeometry(2.15, 0.16, 8, 24), timberMaterial('dark'), new THREE.Vector3(), new THREE.Euler(0, Math.PI * 0.5, 0));
-  for (let i = 0; i < 12; i++) addMesh(wheel, new THREE.BoxGeometry(0.13, 4.05, 0.22), timberMaterial('weathered'), new THREE.Vector3(), new THREE.Euler(i * Math.PI / 12, 0, Math.PI * 0.5));
-  addMesh(wheel, new THREE.CylinderGeometry(0.26, 0.26, 2.2, 10), metalMaterial('iron'), new THREE.Vector3(), new THREE.Euler(0, 0, Math.PI * 0.5));
+  const wheelMembers: JoinedTimberMember[] = [];
   for (let i = 0; i < 12; i++) {
     const angle = i * Math.PI / 6;
-    addMesh(wheel, new THREE.BoxGeometry(0.4, 0.72, 1.05), timberMaterial('weathered'), new THREE.Vector3(0, Math.sin(angle) * 2.18, Math.cos(angle) * 2.18), new THREE.Euler(angle, 0, 0));
+    const sin = Math.sin(angle);
+    const cos = Math.cos(angle);
+    wheelMembers.push({
+      semanticId: `watermill-wheel-spoke-${i + 1}`,
+      start: [0, sin * 0.2, cos * 0.2],
+      end: [0, sin * 2.02, cos * 2.02],
+      width: 0.13,
+      depth: 0.18,
+      upHint: [1, 0, 0],
+    });
+    const centerY = sin * 2.18;
+    const centerZ = cos * 2.18;
+    const tangentY = cos * 0.39;
+    const tangentZ = -sin * 0.39;
+    wheelMembers.push({
+      semanticId: `watermill-wheel-paddle-${i + 1}`,
+      start: [0, centerY - tangentY, centerZ - tangentZ],
+      end: [0, centerY + tangentY, centerZ + tangentZ],
+      width: 0.34,
+      depth: 0.96,
+      upHint: [1, 0, 0],
+    });
   }
-  // Millrace trough and grain handling props distinguish flour milling from saw work.
-  addMesh(group, new THREE.BoxGeometry(1.6, 0.3, 7.8), stoneMaterial('mid'), new THREE.Vector3(wheelX + 0.65, 0.25, 0));
+  addJoinedTimberFrame(
+    wheel,
+    'Watermill joined wheel spokes and paddle boards',
+    'weathered-board-waterwheel',
+    wheelMembers,
+  );
+  const axle = addMesh(
+    wheel,
+    new THREE.CylinderGeometry(0.26, 0.26, 2.2, 10),
+    timberMaterial('dark'),
+    new THREE.Vector3(),
+    new THREE.Euler(0, 0, Math.PI * 0.5),
+  );
+  axle.name = 'Watermill timber axle entering axle-house bearing';
+  const gudgeon = addMesh(
+    wheel,
+    new THREE.CylinderGeometry(0.12, 0.12, 0.36, 8),
+    metalMaterial('iron'),
+    new THREE.Vector3(-1.14, 0, 0),
+    new THREE.Euler(0, 0, Math.PI * 0.5),
+  );
+  gudgeon.name = 'Watermill iron axle gudgeon';
+  const bearing = addMesh(
+    group,
+    new THREE.BoxGeometry(0.46, 0.72, 0.74),
+    stoneMaterial('mid'),
+    new THREE.Vector3(4.63, 2.15, 0),
+  );
+  bearing.name = 'Watermill wall-connected axle bearing block';
+  bearing.userData.architectureRole = 'axle-house';
+
+  // A shallow U-shaped race leaves physical clearance for the undershot
+  // paddles. The previous solid stone slab occupied the water channel itself.
+  const raceBottom = addMesh(
+    group,
+    new THREE.BoxGeometry(1.5, 0.14, 7.8),
+    stoneMaterial('mortar'),
+    new THREE.Vector3(wheelX, 0.07, 0),
+  );
+  raceBottom.name = 'Watermill open mill-race stone bed';
+  for (const x of [wheelX - 0.72, wheelX + 0.72]) {
+    const raceWall = addMesh(
+      group,
+      new THREE.BoxGeometry(0.18, 0.52, 7.8),
+      stoneMaterial('mid'),
+      new THREE.Vector3(x, 0.26, 0),
+    );
+    raceWall.name = 'Watermill open mill-race side wall';
+  }
   addSegmentedStockProps(
     group,
     'WatermillGrainStockpile',
@@ -1402,7 +1719,8 @@ export function createWatermillMesh(): THREE.Group {
     [[-3.7, 0, 4.05, 0.9], [-3.0, 0, 4.15, 0.72], [-3.55, 0, 4.7, 0.65]],
     (segment, scale) => addSack(segment, 0, 0, scale),
   );
-  addMesh(group, new THREE.BoxGeometry(1.5, 1.0, 1.35), timberMaterial('weathered'), new THREE.Vector3(-1.9, 0.52, 4.05));
+  const grainChest = addMesh(group, new THREE.BoxGeometry(1.5, 1.0, 1.35), timberMaterial('mid'), new THREE.Vector3(-1.9, 0.52, 4.05));
+  grainChest.name = 'Watermill brown timber grain chest';
   addSegmentedStockProps(
     group,
     'WatermillFlourStockpile',
@@ -1683,6 +2001,7 @@ export function createWindmillMesh(): THREE.Group {
 export function createCarpenterMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Carpenter and wheelwright';
+  group.userData.architecturePlan = PROCESSOR_WORKSHOP_ARCHITECTURE_PLANS.carpenter;
   const shell = addGableShell(group, { width: 7.2, depth: 5.6, stoneHeight: 0.7, wallHeight: 2.7, ridgeHeight: 2.2, wallMaterial: timberMaterial('weathered'), roofMaterial: shingleMaterial() });
   addPlankDoor(group, -1.3, 0.74, shell.frontZ + 0.03, 0.95, 1.86);
   addSmallWindow(group, 1.4, 1.85, shell.frontZ + 0.03, 0.82, 0.94);
@@ -1696,12 +2015,36 @@ export function createCarpenterMesh(): THREE.Group {
     highEdge: 'negativeX',
     name: 'Carpenter open-bay roof',
   });
-  for (const z of [-2.1, 2.1]) addMesh(group, new THREE.BoxGeometry(0.18, 2.6, 0.18), timberMaterial('dark'), new THREE.Vector3(6.35, 1.3, z));
+  addJoinedTimberFrame(
+    group,
+    'Carpenter joined lean-to, bench, and frame-saw structure',
+    'braced-open-frame',
+    [
+      { semanticId: 'carpenter-bay-wall-ledger', start: [3.56, 2.87, -2.38], end: [3.56, 2.87, 2.38], structuralUse: 'roof-frame' },
+      { semanticId: 'carpenter-bay-eave-beam', start: [6.7, 2.31, -2.38], end: [6.7, 2.31, 2.38], structuralUse: 'roof-frame' },
+      { semanticId: 'carpenter-bay-front-post', start: [6.7, 0, 2.12], end: [6.7, 2.31, 2.12] },
+      { semanticId: 'carpenter-bay-back-post', start: [6.7, 0, -2.12], end: [6.7, 2.31, -2.12] },
+      { semanticId: 'carpenter-bay-front-rafter', start: [6.7, 2.31, 2.12], end: [3.56, 2.87, 2.12], structuralUse: 'roof-frame' },
+      { semanticId: 'carpenter-bay-back-rafter', start: [6.7, 2.31, -2.12], end: [3.56, 2.87, -2.12], structuralUse: 'roof-frame' },
+      ...([3.85, 6.25] as const).flatMap((x) => ([-1.72, -0.88] as const).map((z) => ({
+        semanticId: `carpenter-workbench-leg-${x}-${z}`,
+        start: [x, 0, z] as const,
+        end: [x, 0.81, z] as const,
+        width: 0.16,
+        depth: 0.16,
+      }))),
+      { semanticId: 'carpenter-frame-saw-left-post', start: [4.15, 0.2, -0.2], end: [4.15, 2.25, -0.2], width: 0.16, depth: 0.16 },
+      { semanticId: 'carpenter-frame-saw-right-post', start: [5.85, 0.2, -0.2], end: [5.85, 2.25, -0.2], width: 0.16, depth: 0.16 },
+      { semanticId: 'carpenter-frame-saw-top-rail', start: [4.15, 2.25, -0.2], end: [5.85, 2.25, -0.2], width: 0.16, depth: 0.16 },
+      { semanticId: 'carpenter-frame-saw-bottom-rail', start: [4.15, 0.42, -0.2], end: [5.85, 0.42, -0.2], width: 0.13, depth: 0.14 },
+    ],
+  );
   for (let i = 0; i < 2; i++) {
     const x = 4.4 + i * 1.5;
     addCartWheel(group, x, 1.05, 1.2, 0.9 - i * 0.15);
   }
-  addMesh(group, new THREE.BoxGeometry(2.8, 0.22, 1.1), timberMaterial('weathered'), new THREE.Vector3(5.05, 0.92, -1.3));
+  const workbench = addMesh(group, new THREE.BoxGeometry(2.8, 0.22, 1.1), timberMaterial('mid'), new THREE.Vector3(5.05, 0.92, -1.3));
+  workbench.name = 'Carpenter brown timber workbench top';
   const timberStockpile = new THREE.Group();
   timberStockpile.name = 'CarpenterTimberStockpile';
   timberStockpile.visible = false;
@@ -1743,11 +2086,9 @@ export function createCarpenterMesh(): THREE.Group {
     segmentName: 'CarpenterPolearmSegment',
     segmentCount: CARPENTER_POLEARM_VISUAL_SEGMENTS,
   });
-  addMesh(group, new THREE.CylinderGeometry(0.13, 0.13, 3.1, 8), timberMaterial('dark'), new THREE.Vector3(5.12, 0.76, 0), new THREE.Euler(0, 0, Math.PI * 0.5));
   // Upright frame saw makes the open bay identifiable even before its props resolve.
-  for (const x of [4.15, 5.85]) addMesh(group, new THREE.BoxGeometry(0.16, 2.2, 0.16), timberMaterial('dark'), new THREE.Vector3(x, 1.2, -0.2));
-  addMesh(group, new THREE.BoxGeometry(2.05, 0.16, 0.16), timberMaterial('weathered'), new THREE.Vector3(5, 2.25, -0.2));
-  addMesh(group, new THREE.BoxGeometry(1.45, 0.05, 0.09), metalMaterial('steel'), new THREE.Vector3(5, 1.35, -0.2), new THREE.Euler(0, 0, -0.08));
+  const sawBlade = addMesh(group, new THREE.BoxGeometry(1.45, 0.05, 0.09), metalMaterial('steel'), new THREE.Vector3(5, 1.35, -0.2), new THREE.Euler(0, 0, -0.08));
+  sawBlade.name = 'Carpenter frame-saw tensioned blade';
   return group;
 }
 
@@ -1839,6 +2180,7 @@ function createClothStockpile(): THREE.Group {
 export function createWeaverMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = "Weaver's workshop";
+  group.userData.architecturePlan = PROCESSOR_WORKSHOP_ARCHITECTURE_PLANS.weaver;
   const shell = addGableShell(group, {
     width: 7.4,
     depth: 5.7,
@@ -1862,15 +2204,33 @@ export function createWeaverMesh(): THREE.Group {
     highEdge: 'negativeX',
     name: 'Weaver open-bay roof',
   });
-  for (const z of [-2.1, 2.1]) {
-    addMesh(group, new THREE.BoxGeometry(0.18, 2.55, 0.18), timberMaterial('dark'), new THREE.Vector3(6.55, 1.28, z));
-  }
-  for (const x of [4.25, 6.05]) {
-    addMesh(group, new THREE.BoxGeometry(0.17, 2.2, 0.17), timberMaterial('dark'), new THREE.Vector3(x, 1.26, 0));
-  }
-  for (const y of [0.48, 2.28]) {
-    addMesh(group, new THREE.BoxGeometry(2.05, 0.16, 0.18), timberMaterial('weathered'), new THREE.Vector3(5.15, y, 0));
-  }
+  addJoinedTimberFrame(
+    group,
+    'Weaver joined lean-to, loom, and bench frame',
+    'weathered-board-broad-lit-work-bay',
+    [
+      { semanticId: 'weaver-bay-wall-ledger', start: [3.68, 2.87, -2.38], end: [3.68, 2.87, 2.38], structuralUse: 'roof-frame' },
+      { semanticId: 'weaver-bay-eave-beam', start: [7.1, 2.27, -2.38], end: [7.1, 2.27, 2.38], structuralUse: 'roof-frame' },
+      { semanticId: 'weaver-bay-front-post', start: [7.1, 0, 2.12], end: [7.1, 2.27, 2.12] },
+      { semanticId: 'weaver-bay-back-post', start: [7.1, 0, -2.12], end: [7.1, 2.27, -2.12] },
+      { semanticId: 'weaver-bay-front-rafter', start: [7.1, 2.27, 2.12], end: [3.68, 2.87, 2.12], structuralUse: 'roof-frame' },
+      { semanticId: 'weaver-bay-back-rafter', start: [7.1, 2.27, -2.12], end: [3.68, 2.87, -2.12], structuralUse: 'roof-frame' },
+      { semanticId: 'weaver-loom-left-post', start: [4.25, 0.16, 0], end: [4.25, 2.28, 0], width: 0.17, depth: 0.17 },
+      { semanticId: 'weaver-loom-right-post', start: [6.05, 0.16, 0], end: [6.05, 2.28, 0], width: 0.17, depth: 0.17 },
+      { semanticId: 'weaver-loom-top-rail', start: [4.25, 2.28, 0], end: [6.05, 2.28, 0], width: 0.16, depth: 0.18 },
+      { semanticId: 'weaver-loom-bottom-rail', start: [4.25, 0.48, 0], end: [6.05, 0.48, 0], width: 0.16, depth: 0.18 },
+      ...([4.25, 6.05] as const).flatMap((x) => ([0.98, 1.52] as const).map((z) => ({
+        semanticId: `weaver-bench-leg-${x}-${z}`,
+        start: [x, 0, z] as const,
+        end: [x, 0.52, z] as const,
+        width: 0.15,
+        depth: 0.15,
+      }))),
+      { semanticId: 'weaver-cloth-drying-rail', start: [4.1, 1.82, 2.0], end: [6.35, 1.82, 2.0], width: 0.11, depth: 0.11 },
+      { semanticId: 'weaver-cloth-drying-left-post', start: [4.1, 0, 2.0], end: [4.1, 1.82, 2.0], width: 0.12, depth: 0.12 },
+      { semanticId: 'weaver-cloth-drying-right-post', start: [6.35, 0, 2.0], end: [6.35, 1.82, 2.0], width: 0.12, depth: 0.12 },
+    ],
+  );
   for (let index = 0; index < 8; index++) {
     addMesh(
       group,
@@ -1880,7 +2240,8 @@ export function createWeaverMesh(): THREE.Group {
     );
   }
   addMesh(group, new THREE.BoxGeometry(1.58, 0.72, 0.055), hiveBlue, new THREE.Vector3(5.15, 0.91, 0.04));
-  addMesh(group, new THREE.BoxGeometry(2.25, 0.2, 0.8), timberMaterial('weathered'), new THREE.Vector3(5.15, 0.62, 1.25));
+  const bench = addMesh(group, new THREE.BoxGeometry(2.25, 0.2, 0.8), timberMaterial('mid'), new THREE.Vector3(5.15, 0.62, 1.25));
+  bench.name = 'Weaver brown timber loom bench';
   addMesh(group, new THREE.CylinderGeometry(0.07, 0.07, 1.15, 8), timberMaterial('light'), new THREE.Vector3(5.15, 0.92, 1.25), new THREE.Euler(0, 0, Math.PI * 0.5));
 
   group.add(createWeaverYarnStockpile());

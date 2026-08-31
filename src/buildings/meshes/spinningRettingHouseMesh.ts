@@ -17,11 +17,9 @@ import {
 import {
   addGableShell,
   addLeanToRoof,
+  addPlankDoor,
+  addSmallWindow,
 } from './buildingMeshKit.ts';
-import {
-  addProceduralDoor,
-  addProceduralWindow,
-} from './facadeOpeningKit.ts';
 
 export type SpinningRettingHouseDebugMode = 'final' | 'massing';
 export type SpinningRettingHouseFacade = 'front' | 'back' | 'left' | 'right';
@@ -305,6 +303,18 @@ function emitMainShell({ module }: SpinningRettingHouseCompileContext): void {
   });
 }
 
+function mainShellHost(root: THREE.Group): THREE.Group {
+  const host = root.getObjectByName(
+    'Spinning & Retting House module: dry-fibre-workshop-shell',
+  );
+  if (!(host instanceof THREE.Group)) {
+    throw new Error(
+      'Spinning & Retting House main-shell module must compile before its facade openings.',
+    );
+  }
+  return host;
+}
+
 function emitWetBayShell({ module }: SpinningRettingHouseCompileContext): void {
   namedMesh(module, 'Spinning & Retting House wet-yard stone floor', new THREE.BoxGeometry(2.62, 0.24, 5.82), stoneMaterial('mid'), new THREE.Vector3(WET_BAY_CENTER_X, 0.12, WET_BAY_CENTER_Z));
   namedMesh(module, 'Spinning & Retting House wet-bay dark service wall', new THREE.BoxGeometry(0.16, 2.35, 5.55), sharedBuildingMaterial('interiorDark'), new THREE.Vector3(-2.48, 1.3, WET_BAY_CENTER_Z));
@@ -324,30 +334,29 @@ function emitWetBayShell({ module }: SpinningRettingHouseCompileContext): void {
   });
 }
 
-function emitFrontEntrance({ module, placement }: SpinningRettingHouseCompileContext): void {
-  addProceduralDoor(module, {
-    position: new THREE.Vector3(placement.anchor.x, placement.anchor.y, placement.anchor.z),
-    face: 'positive-z',
-    width: 1.04,
-    height: 1.92,
-    namePrefix: 'Spinning & Retting House',
-  });
+function emitFrontEntrance({ root, placement }: SpinningRettingHouseCompileContext): void {
+  addPlankDoor(
+    mainShellHost(root),
+    placement.anchor.x,
+    placement.anchor.y,
+    placement.anchor.z,
+    1.04,
+    1.92,
+  );
 }
 
 function emitWindow(
-  { module, placement }: SpinningRettingHouseCompileContext,
-  face: 'positive-z' | 'negative-z',
+  { root, placement }: SpinningRettingHouseCompileContext,
+  _face: 'positive-z' | 'negative-z',
 ): void {
-  addProceduralWindow(module, {
-    position: new THREE.Vector3(placement.anchor.x, placement.anchor.y, placement.anchor.z),
-    face,
-    width: 0.92,
-    height: 1.04,
-    shutters: face === 'negative-z',
-    frameMaterial: timberMaterial('weathered'),
-    sillMaterial: stoneMaterial('light'),
-    namePrefix: 'Spinning & Retting House',
-  });
+  addSmallWindow(
+    mainShellHost(root),
+    placement.anchor.x,
+    placement.anchor.y,
+    placement.anchor.z,
+    0.92,
+    1.04,
+  );
 }
 
 function emitLoftLouver({ module, placement }: SpinningRettingHouseCompileContext): void {

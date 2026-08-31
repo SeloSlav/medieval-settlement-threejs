@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
-import { isPlayerMilitaryFaction, type CombatAgentState } from './combatAgents.ts';
+import {
+  selectablePlayerMilitaryCompanyId,
+  type CombatAgentState,
+} from './combatAgents.ts';
 import type { BanditCampState } from './banditState.ts';
 import { SecondaryClickGesture } from '../input/SecondaryClickGesture.ts';
 import {
@@ -41,7 +44,7 @@ type CompanyVisual = {
 };
 
 /** The player-facing RTS unit is a whole company. Individual agents remain
- * authoritative for identity, casualties, kit, and formation spacing, but
+ * canonical for identity, casualties, kit, and formation spacing, but
  * selection, rings, and orders always operate on every living company member. */
 export class MilitiaCommandController {
   private readonly companies = new Map<string, CompanyVisual>();
@@ -128,17 +131,11 @@ export class MilitiaCommandController {
       ) {
         this.hostilePositions.push({ x: agent.x, z: agent.z });
       }
-      if (
-        !isPlayerMilitaryFaction(agent.faction)
-        || !agent.companyId
-        || agent.status === 'downed'
-        || agent.status === 'mustering'
-        || agent.status === 'wounded-returning'
-        || agent.status === 'recovering'
-      ) continue;
-      const members = grouped.get(agent.companyId) ?? [];
+      const companyId = selectablePlayerMilitaryCompanyId(agent);
+      if (!companyId) continue;
+      const members = grouped.get(companyId) ?? [];
       members.push(agent);
-      grouped.set(agent.companyId, members);
+      grouped.set(companyId, members);
     }
     for (const [id, members] of grouped) {
       members.sort((left, right) => left.id.localeCompare(right.id, undefined, { numeric: true }));
@@ -218,16 +215,29 @@ export class MilitiaCommandController {
     for (const company of this.companies.values()) {
       let intersectsBox = false;
       for (const agent of company.agents) {
-        projected.set(agent.x, this.options.getHeightAt(agent.x, agent.z) + 1.2, agent.z).project(this.options.camera);
-        const x = rect.left + (projected.x * 0.5 + 0.5) * rect.width;
-        const y = rect.top + (-projected.y * 0.5 + 0.5) * rect.height;
         if (click) {
-          const distance = Math.hypot(x - event.clientX, y - event.clientY);
-          if (distance <= 28 && (!nearest || distance < nearest.distance)) {
+          const distance = projectedCombatantHitDistance(
+            event.clientX,
+            event.clientY,
+            agent.x,
+            this.options.getHeightAt(agent.x, agent.z),
+            agent.z,
+            this.options.camera,
+            rect,
+            projected,
+          );
+          if (distance !== null && (!nearest || distance < nearest.distance)) {
             nearest = { companyId: company.id, distance };
           }
-        } else if (x >= minX && x <= maxX && y >= minY && y <= maxY && projected.z < 1) {
-          intersectsBox = true;
+        } else {
+          projected
+            .set(agent.x, this.options.getHeightAt(agent.x, agent.z) + 1.2, agent.z)
+            .project(this.options.camera);
+          const x = rect.left + (projected.x * 0.5 + 0.5) * rect.width;
+          const y = rect.top + (-projected.y * 0.5 + 0.5) * rect.height;
+          if (x >= minX && x <= maxX && y >= minY && y <= maxY && projected.z < 1) {
+            intersectsBox = true;
+          }
         }
       }
       if (intersectsBox) this.selected.add(company.id);
@@ -338,4 +348,65 @@ export class MilitiaCommandController {
     }
     for (const [id, ring] of this.rings) if (!visible.has(id)) ring.visible = false;
   }
+}
+
+function projectedCombatantHitDistance(
+  clientX: number,
+  clientY: number,
+  x: number,
+  groundY: number,
+  z: number,
+  camera: THREE.Camera,
+  bounds: DOMRect,
+  projected: THREE.Vector3,
+): number | null {
+  projected.set(x, groundY + 0.08, z).project(camera);
+  if (!isVisibleProjection(projected)) return null;
+  const feetX = bounds.left + (projected.x * 0.5 + 0.5) * bounds.width;
+  const feetY = bounds.top + (-projected.y * 0.5 + 0.5) * bounds.height;
+
+  projected.set(x, groundY + 1.72, z).project(camera);
+  if (!isVisibleProjection(projected)) return null;
+  const headX = bounds.left + (projected.x * 0.5 + 0.5) * bounds.width;
+  const headY = bounds.top + (-projected.y * 0.5 + 0.5) * bounds.height;
+  const projectedHeight = Math.hypot(feetX - headX, feetY - headY);
+  const hitRadius = Math.min(30, Math.max(11, projectedHeight * 0.34));
+  const distance = distanceToScreenSegment(
+    clientX,
+    clientY,
+    feetX,
+    feetY,
+    headX,
+    headY,
+  );
+  return distance <= hitRadius ? distance : null;
+}
+
+function isVisibleProjection(projected: THREE.Vector3): boolean {
+  return Number.isFinite(projected.x)
+    && Number.isFinite(projected.y)
+    && Number.isFinite(projected.z)
+    && projected.z >= -1
+    && projected.z <= 1;
+}
+
+function distanceToScreenSegment(
+  pointX: number,
+  pointY: number,
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+): number {
+  const segmentX = endX - startX;
+  const segmentY = endY - startY;
+  const lengthSquared = segmentX * segmentX + segmentY * segmentY;
+  if (lengthSquared <= 0.0001) return Math.hypot(pointX - startX, pointY - startY);
+  const t = Math.min(1, Math.max(0, (
+    (pointX - startX) * segmentX + (pointY - startY) * segmentY
+  ) / lengthSquared));
+  return Math.hypot(
+    pointX - (startX + segmentX * t),
+    pointY - (startY + segmentY * t),
+  );
 }

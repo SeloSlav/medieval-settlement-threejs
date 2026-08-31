@@ -21,10 +21,51 @@ import {
   WOOL_STOCKPILE_VISUAL_SEGMENTS,
 } from '../buildingStockpileVisuals.ts';
 import { createManureStockpile } from './manureStockpileMesh.ts';
+import { addLeanToSupportFrame } from './ruralWorkshopStructureKit.ts';
 
 const earth = sharedBuildingDetailMaterial('earth');
 const storedFodderCover = sharedBuildingDetailMaterial('canvas');
 const storedFodderBinding = sharedBuildingDetailMaterial('wicker');
+
+function addArchitectureDiagnostics(
+  root: THREE.Group,
+  signature: string,
+  modules: readonly string[],
+): void {
+  let triangleCount = 0;
+  let meshCount = 0;
+  const materialKeys = new Set<string>();
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    meshCount += 1;
+    const geometry = object.geometry;
+    triangleCount += geometry.index
+      ? geometry.index.count / 3
+      : (geometry.getAttribute('position')?.count ?? 0) / 3;
+    for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+      materialKeys.add(String(
+        material.userData.buildingMaterialKey
+        ?? material.userData.buildingDetailMaterialKey
+        ?? material.name,
+      ));
+    }
+  });
+  root.userData.architecturePlan = {
+    signature,
+    modules: [...modules],
+    deterministic: true,
+    roadFace: 'positive-z',
+    vegetationOwner: 'SeedThree',
+    embeddedVegetationGeometry: false,
+  };
+  root.userData.architectureDiagnostics = {
+    moduleCount: modules.length,
+    meshCount,
+    triangleCount: Math.round(triangleCount),
+    materialSlotCount: materialKeys.size,
+  };
+  root.userData.embeddedVegetationGeometry = false;
+}
 
 function createBareManureStockpile(
   name: string,
@@ -51,29 +92,61 @@ function addFenceRun(
   const posts = Math.max(2, Math.ceil(length / 2.2));
   for (let i = 0; i <= posts; i++) {
     const offset = (i / posts - 0.5) * length;
-    addMesh(
+    const post = addMesh(
       group,
       new THREE.CylinderGeometry(0.1, 0.13, 1.45, 6),
       timberMaterial('dark'),
       new THREE.Vector3(x + (alongX ? offset : 0), 0.72, z + (alongX ? 0 : offset)),
       new THREE.Euler(0, 0, i % 2 ? 0.035 : -0.025),
     );
+    post.name = 'Livestock enclosure brown timber fence post';
+    post.userData.architectureRole = 'fence-post';
   }
   for (const y of [0.48, 1.04]) {
-    addMesh(
+    const rail = addMesh(
       group,
       new THREE.BoxGeometry(alongX ? length : 0.12, 0.12, alongX ? 0.12 : length),
       timberMaterial('weathered'),
       new THREE.Vector3(x, y, z),
     );
+    rail.name = 'Livestock enclosure brown timber fence rail';
+    rail.userData.architectureRole = 'fence-rail';
   }
 }
 
 function addTrough(group: THREE.Group, x: number, z: number, length = 2.8): void {
-  addMesh(group, new THREE.BoxGeometry(length, 0.18, 0.9), timberMaterial('dark'), new THREE.Vector3(x, 0.38, z));
-  addMesh(group, new THREE.BoxGeometry(length - 0.25, 0.12, 0.54), earth, new THREE.Vector3(x, 0.53, z));
+  const trough = new THREE.Group();
+  trough.name = 'Open brown timber livestock trough';
+  trough.userData.architectureRole = 'open-feed-trough';
+  group.add(trough);
+  addMesh(
+    trough,
+    new THREE.BoxGeometry(length - 0.18, 0.13, 0.56),
+    timberMaterial('dark'),
+    new THREE.Vector3(x, 0.25, z),
+  ).name = 'Livestock trough bottom board';
+  for (const side of [-1, 1] as const) {
+    addMesh(
+      trough,
+      new THREE.BoxGeometry(length, 0.42, 0.12),
+      timberMaterial('mid'),
+      new THREE.Vector3(x, 0.43, z + side * 0.4),
+      new THREE.Euler(side * -0.08, 0, 0),
+    ).name = 'Livestock trough brown timber side board';
+  }
+  addMesh(
+    trough,
+    new THREE.BoxGeometry(length - 0.32, 0.07, 0.48),
+    earth,
+    new THREE.Vector3(x, 0.43, z),
+  ).name = 'Livestock trough feed surface';
   for (const end of [-1, 1]) {
-    addMesh(group, new THREE.BoxGeometry(0.18, 0.48, 1.0), timberMaterial('weathered'), new THREE.Vector3(x + end * length * 0.48, 0.35, z));
+    addMesh(
+      trough,
+      new THREE.BoxGeometry(0.18, 0.54, 0.92),
+      timberMaterial('weathered'),
+      new THREE.Vector3(x + end * length * 0.48, 0.34, z),
+    ).name = 'Livestock trough brown timber end board';
   }
 }
 
@@ -139,7 +212,7 @@ function createWoolStockpile(): THREE.Group {
     segment.position.set((column - 0.5) * 0.82, 0.36 + layer * 0.52, 0);
     addMesh(
       segment,
-      new THREE.DodecahedronGeometry(0.48, 1),
+      new THREE.DodecahedronGeometry(0.48, 0),
       residenceFacadeMaterial(index % 2 === 0 ? 'white' : 'grey'),
       new THREE.Vector3(),
       new THREE.Euler(0.08, index * 0.29, column ? 0.06 : -0.05),
@@ -214,38 +287,60 @@ export function createPastoralFarmsteadMesh(): THREE.Group {
   addSmallWindow(group, -0.8, 2.05, shell.frontZ + 0.03, 0.72, 0.86);
 
   // Deep open byre under a lean-to roof: immediately separates this from the crop farmstead.
-  for (const z of [-2.6, 2.6]) {
-    addMesh(group, new THREE.BoxGeometry(0.2, 2.55, 0.2), timberMaterial('dark'), new THREE.Vector3(5.2, 1.28, z));
-  }
-  addLeanToRoof(group, {
-    width: 4.8,
+  const byreRoof = addLeanToRoof(group, {
+    width: 3.4,
     depth: 6.2,
     thickness: 0.16,
     material: shingleMaterial(),
-    position: new THREE.Vector3(3.8, 2.78, 0),
+    position: new THREE.Vector3(4.62, 2.78, 0),
     pitch: 0.17,
     highEdge: 'negativeX',
     name: 'Pastoral farmstead byre roof',
+  });
+  addLeanToSupportFrame(group, byreRoof, {
+    namePrefix: 'Pastoral farmstead open byre',
+    highEdge: 'negativeX',
+    postCount: 3,
   });
   addMesh(group, new THREE.BoxGeometry(3.2, 0.18, 5.4), earth, new THREE.Vector3(3.65, 0.1, 0));
   addTrough(group, 3.7, 0, 3.2);
 
   // Hayrack and churns communicate dairy/fodder rather than grain processing.
   for (const x of [-5.2, -3.8]) {
-    addMesh(group, new THREE.BoxGeometry(0.14, 2.0, 0.14), timberMaterial('dark'), new THREE.Vector3(x, 1.0, -4.25));
+    addMesh(group, new THREE.BoxGeometry(0.14, 2.0, 0.14), timberMaterial('dark'), new THREE.Vector3(x, 1.0, -4.25)).name = 'Pastoral hayrack brown timber post';
+  }
+  for (const y of [0.28, 1.78]) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(1.54, 0.13, 0.13),
+      timberMaterial('mid'),
+      new THREE.Vector3(-4.5, y, -4.25),
+    ).name = 'Pastoral hayrack connected brown timber rail';
   }
   for (let i = 0; i < 6; i++) {
-    addMesh(group, new THREE.CylinderGeometry(0.05, 0.05, 2.0, 5), timberMaterial('weathered'), new THREE.Vector3(-4.5 + (i - 2.5) * 0.26, 1.02, -4.25), new THREE.Euler(0, 0, 0.3));
+    addMesh(group, new THREE.CylinderGeometry(0.05, 0.05, 1.55, 5), timberMaterial('weathered'), new THREE.Vector3(-4.5 + (i - 2.5) * 0.24, 1.03, -4.25), new THREE.Euler(0, 0, 0.18)).name = 'Pastoral hayrack brown timber slat';
   }
   group.add(createHayloftStockpile());
   group.add(createWoolStockpile());
   group.add(createPastoralSaltStockpile());
   group.add(createBareManureStockpile('PastoralManureStockpile', 5.45, -3.65));
   for (const [x, scale] of [[-0.2, 1], [0.65, 0.78]] as const) {
-    addMesh(group, new THREE.CylinderGeometry(0.3 * scale, 0.36 * scale, 0.82 * scale, 10), metalMaterial('iron'), new THREE.Vector3(x, 0.42 * scale, 4.0));
-    addMesh(group, new THREE.TorusGeometry(0.22 * scale, 0.035, 5, 10), metalMaterial('steel'), new THREE.Vector3(x, 0.9 * scale, 4.0), new THREE.Euler(Math.PI * 0.5, 0, 0));
+    addMesh(group, new THREE.CylinderGeometry(0.3 * scale, 0.36 * scale, 0.82 * scale, 10), timberMaterial('mid'), new THREE.Vector3(x, 0.42 * scale, 4.0)).name = 'Pastoral coopered brown timber milk churn';
+    for (const y of [0.18, 0.58]) {
+      addMesh(group, new THREE.TorusGeometry(0.31 * scale, 0.025, 5, 10), metalMaterial('iron'), new THREE.Vector3(x, y * scale, 4.0), new THREE.Euler(Math.PI * 0.5, 0, 0)).name = 'Pastoral milk churn iron hoop';
+    }
   }
   addFenceRun(group, 3.7, 4.7, 7.6, true);
+  addArchitectureDiagnostics(group, 'gorski-pastoral-farmstead-byre-v1', [
+    'low-gabled-farmhouse-range',
+    'literal-door-and-window',
+    'supported-open-byre',
+    'open-feed-trough',
+    'connected-hayrack',
+    'coopered-milk-churns',
+    'brown-timber-enclosure',
+    'typed-fodder-wool-salt-manure-stock',
+  ]);
   return group;
 }
 
@@ -265,8 +360,68 @@ export function createSwineherdMesh(): THREE.Group {
   addPlankDoor(group, -2.5, 0.48, shell.frontZ + 0.03, 0.82, 1.45);
   addSmallWindow(group, -0.5, 1.42, shell.frontZ + 0.03, 0.55, 0.58);
 
-  // Low sleeping sty with a broad fenced gate into woodland pannage.
-  addMesh(group, new THREE.BoxGeometry(4.7, 1.25, 3.1), timberMaterial('dark'), new THREE.Vector3(3.6, 0.65, -0.4));
+  // Low, genuinely hollow sleeping sty with a broad gate into woodland pannage.
+  const sty = new THREE.Group();
+  sty.name = 'Swineherd hollow framed sleeping sty';
+  sty.userData.architectureRole = 'literal-open-animal-shelter';
+  group.add(sty);
+  const styCenterX = 3.6;
+  const styCenterZ = -0.4;
+  const styWidth = 4.7;
+  const styDepth = 3.1;
+  const styHeight = 1.2;
+  const gateWidth = 1.7;
+  const frontPanelWidth = (styWidth - gateWidth) * 0.5;
+  addMesh(
+    sty,
+    new THREE.BoxGeometry(styWidth, styHeight, 0.14),
+    timberMaterial('weathered'),
+    new THREE.Vector3(styCenterX, styHeight * 0.5, styCenterZ - styDepth * 0.5),
+  ).name = 'Swineherd sty brown timber rear wall';
+  for (const side of [-1, 1] as const) {
+    addMesh(
+      sty,
+      new THREE.BoxGeometry(0.14, styHeight, styDepth - 0.14),
+      timberMaterial('weathered'),
+      new THREE.Vector3(
+        styCenterX + side * (styWidth * 0.5 - 0.07),
+        styHeight * 0.5,
+        styCenterZ,
+      ),
+    ).name = 'Swineherd sty brown timber side wall';
+    addMesh(
+      sty,
+      new THREE.BoxGeometry(frontPanelWidth, styHeight, 0.14),
+      timberMaterial('weathered'),
+      new THREE.Vector3(
+        styCenterX + side * (gateWidth * 0.5 + frontPanelWidth * 0.5),
+        styHeight * 0.5,
+        styCenterZ + styDepth * 0.5,
+      ),
+    ).name = 'Swineherd sty front wall beside literal gate';
+  }
+  for (const xSign of [-1, 1] as const) {
+    for (const zSign of [-1, 1] as const) {
+      addMesh(
+        sty,
+        new THREE.BoxGeometry(0.18, styHeight + 0.04, 0.18),
+        timberMaterial('dark'),
+        new THREE.Vector3(
+          styCenterX + xSign * (styWidth * 0.5 - 0.09),
+          (styHeight + 0.04) * 0.5,
+          styCenterZ + zSign * (styDepth * 0.5 - 0.09),
+        ),
+      ).name = 'Swineherd sty roof-bearing corner post';
+    }
+  }
+  for (const zSign of [-1, 1] as const) {
+    addMesh(
+      sty,
+      new THREE.BoxGeometry(styWidth, 0.16, 0.18),
+      timberMaterial('dark'),
+      new THREE.Vector3(styCenterX, styHeight + 0.01, styCenterZ + zSign * (styDepth * 0.5 - 0.09)),
+    ).name = 'Swineherd sty connected roof plate';
+  }
   addHippedRoof(group, {
     width: 5.25,
     depth: 3.65,
@@ -278,7 +433,9 @@ export function createSwineherdMesh(): THREE.Group {
     centerZ: -0.4,
     name: 'Swineherd joined sleeping-sty roof',
   });
-  addMesh(group, new THREE.BoxGeometry(1.7, 1.0, 0.12), timberMaterial('dark'), new THREE.Vector3(3.6, 0.62, 1.18));
+  const styGate = addMesh(group, new THREE.BoxGeometry(1.58, 0.92, 0.1), timberMaterial('mid'), new THREE.Vector3(3.6, 0.54, 1.18));
+  styGate.name = 'Swineherd brown timber sty gate in literal opening';
+  styGate.userData.literalWallAperture = true;
   addTrough(group, 2.6, 3.2, 3.0);
   addFenceRun(group, 1.3, 5.0, 8.8, true);
   addFenceRun(group, 6.0, 3.0, 4.0, false);
@@ -290,7 +447,23 @@ export function createSwineherdMesh(): THREE.Group {
       addMesh(group, new THREE.TorusGeometry(0.38 - band * 0.025, 0.025, 4, 10), sharedBuildingDetailMaterial('wicker'), new THREE.Vector3(x, 0.2 + band * 0.23, z), new THREE.Euler(Math.PI * 0.5, 0, 0));
     }
   }
-  addMesh(group, new THREE.BoxGeometry(2.1, 0.52, 1.0), stoneMaterial('mortar'), new THREE.Vector3(-4.0, 0.28, -3.4));
-  addMesh(group, new THREE.BoxGeometry(1.65, 0.12, 0.55), sharedBuildingDetailMaterial('water'), new THREE.Vector3(-4.0, 0.57, -3.4));
+  addMesh(group, new THREE.BoxGeometry(1.9, 0.18, 0.65), stoneMaterial('mortar'), new THREE.Vector3(-4.0, 0.14, -3.4)).name = 'Swineherd stone wash trough bed';
+  for (const side of [-1, 1] as const) {
+    addMesh(group, new THREE.BoxGeometry(2.1, 0.48, 0.2), stoneMaterial('mortar'), new THREE.Vector3(-4.0, 0.3, -3.4 + side * 0.45)).name = 'Swineherd stone wash trough side';
+  }
+  for (const end of [-1, 1] as const) {
+    addMesh(group, new THREE.BoxGeometry(0.2, 0.48, 1.1), stoneMaterial('mortar'), new THREE.Vector3(-4.0 + end * 0.95, 0.3, -3.4)).name = 'Swineherd stone wash trough end';
+  }
+  addMesh(group, new THREE.BoxGeometry(1.65, 0.06, 0.55), sharedBuildingDetailMaterial('water'), new THREE.Vector3(-4.0, 0.43, -3.4)).name = 'Swineherd wash trough water surface';
+  addArchitectureDiagnostics(group, 'gorski-woodland-swineherd-sty-v1', [
+    'small-boarded-herdsman-hut',
+    'literal-door-and-window',
+    'hollow-framed-sleeping-sty',
+    'literal-sty-gate-opening',
+    'joined-hipped-sty-roof',
+    'open-feed-and-stone-wash-troughs',
+    'brown-timber-pannage-enclosure',
+    'woven-mast-baskets',
+  ]);
   return group;
 }

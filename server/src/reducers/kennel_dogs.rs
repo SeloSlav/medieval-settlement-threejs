@@ -61,6 +61,8 @@ pub fn purchase_kennel_dog(ctx: &ReducerContext, kennel_id: u64) -> Result<(), S
         target_id: kennel_id,
         x: kennel.x + local_x,
         z: kennel.z + 1.1,
+        velocity_x: 0.0,
+        velocity_z: 0.0,
         home_x: kennel.x,
         home_z: kennel.z,
         health: 80.0,

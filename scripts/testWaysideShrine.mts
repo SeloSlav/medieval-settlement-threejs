@@ -59,11 +59,18 @@ assert.ok(plan.modules.some((module) => module.id === 'forged-iron-ridge-cross')
 
 const finalMesh = createWaysideShrineMesh();
 const meshNames: string[] = [];
+const primitiveSemanticIds: string[] = [];
 let meshCount = 0;
 finalMesh.traverse((object) => {
   if (!(object instanceof THREE.Mesh)) return;
   meshCount += 1;
   meshNames.push(object.name);
+  const diagnostics = object.userData.proceduralPrimitiveDiagnostics as
+    | ReadonlyArray<{ semanticId?: string }>
+    | undefined;
+  for (const diagnostic of diagnostics ?? []) {
+    if (diagnostic.semanticId) primitiveSemanticIds.push(diagnostic.semanticId);
+  }
   const materials = Array.isArray(object.material) ? object.material : [object.material];
   for (const material of materials) {
     assert.equal(
@@ -73,11 +80,20 @@ finalMesh.traverse((object) => {
     );
   }
 });
-assert.ok(meshCount >= 20, 'final shrine should retain authored close-view detail');
+assert.ok(
+  meshCount >= 12 && meshCount <= 20,
+  `final shrine should retain close-view detail in joined material slots (${meshCount} meshes)`,
+);
 assert.ok(meshNames.some((name) => name.includes('Marian icon')));
-assert.ok(meshNames.some((name) => name.includes('forged-iron cross')));
-assert.ok(meshNames.some((name) => name.includes('split-shingle roof')));
-assert.ok(finalMesh.userData.architectureDiagnostics.triangleCount > 0);
+assert.ok(primitiveSemanticIds.includes('wayside-shrine-cross-upright'));
+assert.ok(primitiveSemanticIds.includes('wayside-shrine-cross-arm'));
+assert.ok(primitiveSemanticIds.includes('wayside-shrine-left-shingle-roof'));
+assert.ok(primitiveSemanticIds.includes('wayside-shrine-right-shingle-roof'));
+assert.ok(
+  finalMesh.userData.architectureDiagnostics.triangleCount >= 800
+    && finalMesh.userData.architectureDiagnostics.triangleCount <= 1_200,
+  'final shrine should preserve devotional silhouette/detail inside its reviewed triangle budget',
+);
 
 const bounds = new THREE.Box3().setFromObject(finalMesh);
 const size = bounds.getSize(new THREE.Vector3());
@@ -89,7 +105,7 @@ const massingMesh = createWaysideShrineMesh('massing');
 const massingNames: string[] = [];
 massingMesh.traverse((object) => massingNames.push(object.name));
 assert.equal(massingNames.some((name) => name.includes('Marian icon')), false);
-assert.ok(massingNames.some((name) => name.includes('split-shingle roof')));
+assert.ok(massingNames.some((name) => name.includes('split-shingles material slot')));
 
 const inspectorSource = fs.readFileSync(
   'src/resources/inspector/waysideShrineRenderer.ts',

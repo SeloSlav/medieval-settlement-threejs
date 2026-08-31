@@ -213,6 +213,7 @@ import {
 } from '../fires/fireIncident.ts';
 import {
   isPlayerMilitaryFaction,
+  selectablePlayerMilitaryCompanyId,
   type CombatAgentState,
 } from '../security/combatAgents.ts';
 import { CompanyStandardBearerRegistry } from '../security/companyStandardBearers.ts';
@@ -415,6 +416,10 @@ type VillagerAgent = {
 
 export type VillagerInspection = {
   personIdentity: string;
+  /** Player military members are commanded as one atomic company. The person
+   * inspector exposes this routing hint so its capture-phase click handler can
+   * yield to the company selection controller instead of consuming the click. */
+  militaryCompanyId: string | null;
   modelVariant: VillagerModelVariant;
   name: string;
   initials: string;
@@ -1851,6 +1856,7 @@ export class VillagerRenderer {
 
     return {
       personIdentity: agent.personIdentity,
+      militaryCompanyId: null,
       modelVariant: agent.modelVariant,
       name,
       initials: name
@@ -2030,6 +2036,7 @@ export class VillagerRenderer {
     const y = this.resolveGroundY(visual.displayX, visual.displayZ) + 0.02;
     return {
       personIdentity,
+      militaryCompanyId: selectablePlayerMilitaryCompanyId(combat),
       modelVariant: residentSoldier?.modelVariant ?? ordinaryGuard?.modelVariant ?? 'man',
       name,
       initials: residentSoldier || ordinaryGuard

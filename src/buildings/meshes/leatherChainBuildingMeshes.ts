@@ -15,6 +15,7 @@ import {
   addPlankDoor,
   addSmallWindow,
 } from './buildingMeshKit.ts';
+import { addLeanToSupportFrame } from './ruralWorkshopStructureKit.ts';
 
 const LEATHER = sharedBuildingDetailMaterial('canvas');
 const DARK_LEATHER = sharedBuildingMaterial('timberDark');
@@ -108,6 +109,7 @@ function addShoePair(group: THREE.Group, scale = 1): void {
 function addDiagnostics(root: THREE.Group, signature: string, modules: readonly string[]): void {
   let triangleCount = 0;
   let meshCount = 0;
+  const materialKeys = new Set<string>();
   root.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
     meshCount += 1;
@@ -115,18 +117,29 @@ function addDiagnostics(root: THREE.Group, signature: string, modules: readonly 
     triangleCount += geometry.index
       ? geometry.index.count / 3
       : (geometry.getAttribute('position')?.count ?? 0) / 3;
+    for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+      materialKeys.add(String(
+        material.userData.buildingMaterialKey
+        ?? material.userData.buildingDetailMaterialKey
+        ?? material.name,
+      ));
+    }
   });
   root.userData.architecturePlan = {
     signature,
     modules: [...modules],
     deterministic: true,
     roadFace: 'positive-z',
+    vegetationOwner: 'SeedThree',
+    embeddedVegetationGeometry: false,
   };
   root.userData.architectureDiagnostics = {
     moduleCount: modules.length,
     meshCount,
     triangleCount: Math.round(triangleCount),
+    materialSlotCount: materialKeys.size,
   };
+  root.userData.embeddedVegetationGeometry = false;
 }
 
 /**
@@ -159,25 +172,20 @@ export function createTanneryMesh(): THREE.Group {
     ).name = 'Drying-loft louver';
   }
 
-  for (const x of [-2.45, 0, 2.45]) {
-    for (const z of [2.45, 4.35]) {
-      addMesh(
-        group,
-        new THREE.BoxGeometry(0.18, 2.15, 0.18),
-        timberMaterial('dark'),
-        new THREE.Vector3(x, 1.075, z),
-      );
-    }
-  }
-  addLeanToRoof(group, {
+  const wetYardRoof = addLeanToRoof(group, {
     width: 5.55,
     depth: 2.45,
     thickness: 0.15,
     material: sharedBuildingMaterial('shingle'),
-    position: new THREE.Vector3(0, 2.22, 3.38),
+    position: new THREE.Vector3(0, 2.22, 3.26),
     pitch: 0.16,
     highEdge: 'negativeZ',
     name: 'Deep tannery wet-yard roof',
+  });
+  addLeanToSupportFrame(group, wetYardRoof, {
+    namePrefix: 'Tannery wet-yard',
+    highEdge: 'negativeZ',
+    postCount: 3,
   });
 
   for (const x of [-1.85, 0, 1.85]) {
@@ -262,15 +270,7 @@ export function createCobblerMesh(): THREE.Group {
   addPlankDoor(group, -1.55, 0.62, shell.frontZ + 0.08, 1.02, 1.9);
   addSmallWindow(group, 0.95, 1.67, shell.frontZ + 0.1, 1.48, 1.15);
 
-  for (const x of [-2.18, 2.18]) {
-    addMesh(
-      group,
-      new THREE.BoxGeometry(0.17, 2.25, 0.17),
-      timberMaterial('dark'),
-      new THREE.Vector3(x, 1.125, 2.82),
-    );
-  }
-  addLeanToRoof(group, {
+  const workPorchRoof = addLeanToRoof(group, {
     width: 4.85,
     depth: 1.72,
     thickness: 0.14,
@@ -279,6 +279,10 @@ export function createCobblerMesh(): THREE.Group {
     pitch: 0.16,
     highEdge: 'negativeZ',
     name: 'Cobbler work porch roof',
+  });
+  addLeanToSupportFrame(group, workPorchRoof, {
+    namePrefix: 'Cobbler work porch',
+    highEdge: 'negativeZ',
   });
   addMesh(
     group,
@@ -290,7 +294,7 @@ export function createCobblerMesh(): THREE.Group {
     addMesh(
       group,
       new THREE.CylinderGeometry(0.1, 0.15, 0.55, 8),
-      timberMaterial('light'),
+      timberMaterial('mid'),
       new THREE.Vector3(x, 1.1, 2.48),
     ).name = 'Shoe last';
   }

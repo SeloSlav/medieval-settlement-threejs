@@ -10,9 +10,10 @@ import {
 import {
   addGableShell,
   addLeanToRoof,
+  addPlankDoor,
+  addSmallWindow,
 } from './buildingMeshKit.ts';
 import {
-  addProceduralDoor,
   addProceduralWindow,
 } from './facadeOpeningKit.ts';
 
@@ -279,6 +280,14 @@ function emitMainShell({ module }: ChandleryCompileContext): void {
   });
 }
 
+function mainShellHost(root: THREE.Group): THREE.Group {
+  const host = root.getObjectByName('Chandlery module: main-workshop-shell');
+  if (!(host instanceof THREE.Group)) {
+    throw new Error('Chandlery main-shell module must compile before its facade openings.');
+  }
+  return host;
+}
+
 function emitMeltBayShell({ module }: ChandleryCompileContext): void {
   namedMesh(module, 'Chandlery heated melt-bay stone floor', new THREE.BoxGeometry(2.3, 0.28, 3.34), stoneMaterial('mid'), new THREE.Vector3(4.66, 0.14, -0.55));
   namedMesh(module, 'Chandlery melt-bay dark service wall', new THREE.BoxGeometry(0.18, 2.3, 3.15), sharedBuildingMaterial('interiorDark'), new THREE.Vector3(4.02, 1.28, -0.55));
@@ -297,14 +306,18 @@ function emitMeltBayShell({ module }: ChandleryCompileContext): void {
   });
 }
 
-function emitFrontEntrance({ module, placement }: ChandleryCompileContext): void {
-  addProceduralDoor(module, {
-    position: new THREE.Vector3(placement.anchor.x, placement.anchor.y, placement.anchor.z),
-    face: 'positive-z',
-    width: 1.12,
-    height: 1.96,
-    namePrefix: 'Chandlery',
-  });
+function emitFrontEntrance({ root, placement }: ChandleryCompileContext): void {
+  // Openings must be registered against the same group that owns the shell.
+  // Emitting this leaf into its semantic child module left a plaster wall
+  // directly behind the dark reveal because addGableShell could not see it.
+  addPlankDoor(
+    mainShellHost(root),
+    placement.anchor.x,
+    placement.anchor.y,
+    placement.anchor.z,
+    1.12,
+    1.96,
+  );
 }
 
 function emitWindow(
@@ -313,13 +326,24 @@ function emitWindow(
   width: number,
   height: number,
 ): void {
-  const { module, placement } = context;
+  const { root, module, placement } = context;
+  if (face === 'positive-z' || face === 'negative-z') {
+    addSmallWindow(
+      mainShellHost(root),
+      placement.anchor.x,
+      placement.anchor.y,
+      placement.anchor.z,
+      width,
+      height,
+    );
+    return;
+  }
   addProceduralWindow(module, {
     position: new THREE.Vector3(placement.anchor.x, placement.anchor.y, placement.anchor.z),
     face,
     width,
     height,
-    shutters: face !== 'positive-z',
+    shutters: true,
     frameMaterial: timberMaterial('weathered'),
     sillMaterial: timberMaterial('weathered'),
     namePrefix: 'Chandlery',

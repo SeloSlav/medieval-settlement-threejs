@@ -197,6 +197,8 @@ fn insert_animal(
         target_id: target.id,
         x,
         z,
+        velocity_x: 0.0,
+        velocity_z: 0.0,
         home_x,
         home_z,
         health,

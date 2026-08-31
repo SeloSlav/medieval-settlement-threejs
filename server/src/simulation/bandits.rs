@@ -108,6 +108,7 @@ fn spawn_camp_defenders(ctx: &ReducerContext, camp: &BanditCamp, tick: u64) {
             id: 0, owner: camp.owner, raid_id: camp.id, faction: BANDIT,
             source_building_id: 0, source_slot: slot, target_kind: 5, target_id: camp.id,
             x: camp.x + angle.cos() * 5.0, z: camp.z + angle.sin() * 5.0,
+            velocity_x: 0.0, velocity_z: 0.0,
             home_x: camp.x, home_z: camp.z, health: 64.0, max_health: 64.0,
             readiness: 0.62, state: HOLDING, attack_cooldown: 0.0,
             loot_progress: 0.0, loot_fraction: 0.0, carried_loot_json: String::new(),

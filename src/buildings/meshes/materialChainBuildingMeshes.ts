@@ -8,10 +8,12 @@ import {
   timberMaterial,
 } from '../buildingMaterials.ts';
 import {
+  addDarkOpening,
   addGableShell,
   addLeanToRoof,
   addPlankDoor,
 } from './buildingMeshKit.ts';
+import { addLeanToSupportFrame } from './ruralWorkshopStructureKit.ts';
 import {
   CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS,
   POTTER_FIREWOOD_VISUAL_SEGMENTS,
@@ -35,18 +37,9 @@ function addTimberCanopy(
   center: THREE.Vector3,
   width: number,
   depth: number,
+  namePrefix: string,
 ): void {
-  for (const x of [-width * 0.42, width * 0.42]) {
-    for (const z of [-depth * 0.38, depth * 0.38]) {
-      addMesh(
-        group,
-        new THREE.BoxGeometry(0.17, 2.05, 0.17),
-        timberMaterial('dark'),
-        new THREE.Vector3(center.x + x, 1.025, center.z + z),
-      );
-    }
-  }
-  addLeanToRoof(group, {
+  const roof = addLeanToRoof(group, {
     width: width + 0.35,
     depth: depth + 0.45,
     thickness: 0.14,
@@ -54,8 +47,53 @@ function addTimberCanopy(
     position: new THREE.Vector3(center.x, 2.095, center.z),
     pitch: 0.1,
     highEdge: 'negativeZ',
-    name: 'Weathered craft-yard canopy',
+    name: `${namePrefix} joined split-shingle canopy roof`,
   });
+  addLeanToSupportFrame(group, roof, {
+    namePrefix,
+    highEdge: 'negativeZ',
+    freestanding: true,
+  });
+}
+
+function addArchitectureDiagnostics(
+  root: THREE.Group,
+  signature: string,
+  modules: readonly string[],
+): void {
+  let triangleCount = 0;
+  let meshCount = 0;
+  const materialKeys = new Set<string>();
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    meshCount += 1;
+    const geometry = object.geometry;
+    triangleCount += geometry.index
+      ? geometry.index.count / 3
+      : (geometry.getAttribute('position')?.count ?? 0) / 3;
+    for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+      materialKeys.add(String(
+        material.userData.buildingMaterialKey
+        ?? material.userData.buildingDetailMaterialKey
+        ?? material.name,
+      ));
+    }
+  });
+  root.userData.architecturePlan = {
+    signature,
+    modules: [...modules],
+    deterministic: true,
+    roadFace: 'positive-z',
+    vegetationOwner: 'SeedThree',
+    embeddedVegetationGeometry: false,
+  };
+  root.userData.architectureDiagnostics = {
+    moduleCount: modules.length,
+    meshCount,
+    triangleCount: Math.round(triangleCount),
+    materialSlotCount: materialKeys.size,
+  };
+  root.userData.embeddedVegetationGeometry = false;
 }
 
 function addClayLump(
@@ -220,7 +258,7 @@ function addFirewoodStockpile(
       addMesh(
         segment,
         new THREE.CylinderGeometry(0.12, 0.14, 0.86, 7),
-        timberMaterial(log % 2 === 0 ? 'mid' : 'light'),
+        timberMaterial(log % 2 === 0 ? 'mid' : 'weathered'),
         new THREE.Vector3(
           0,
           0.14 + Math.floor(log / 2) * 0.22,
@@ -237,7 +275,13 @@ function addFirewoodStockpile(
 export function createCharcoalBurnerMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = "Charcoal burner's yard";
-  addTimberCanopy(group, new THREE.Vector3(2.6, 0, 1.8), 3.2, 2.5);
+  addTimberCanopy(
+    group,
+    new THREE.Vector3(2.6, 0, 1.8),
+    3.2,
+    2.5,
+    'Charcoal burner tool shelter',
+  );
 
   addMesh(
     group,
@@ -274,7 +318,7 @@ export function createCharcoalBurnerMesh(): THREE.Group {
   group.add(smoke);
   for (let vent = 0; vent < 8; vent++) {
     const angle = (vent / 8) * Math.PI * 2;
-    addMesh(
+    const drawVent = addMesh(
       group,
       new THREE.CylinderGeometry(0.09, 0.09, 0.65, 6),
       timberMaterial('dark'),
@@ -284,6 +328,7 @@ export function createCharcoalBurnerMesh(): THREE.Group {
         -0.2 + Math.sin(angle) * 2.05,
       ),
     );
+    drawVent.name = 'Charcoal clamp brown timber draw vent';
   }
 
   const stockpile = new THREE.Group();
@@ -313,6 +358,14 @@ export function createCharcoalBurnerMesh(): THREE.Group {
       [2.45, 0.34, -2.68, -0.03],
     ] as const).slice(0, CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS),
   );
+  addArchitectureDiagnostics(group, 'gorski-charcoal-burner-yard-v1', [
+    'earth-covered-charcoal-clamp',
+    'clamp-draw-vents',
+    'freestanding-tool-shelter',
+    'typed-charcoal-stock',
+    'typed-firewood-stock',
+    'runtime-smoke-anchor',
+  ]);
   return group;
 }
 
@@ -346,27 +399,32 @@ export function createSmithyMesh(): THREE.Group {
     stoneGroundFloor: true,
   });
   addPlankDoor(group, -1.55, 0.65, shell.frontZ + 0.02, 1.15, 1.95);
+  addDarkOpening(group, 0.05, 1.92, shell.frontZ + 0.08, 0.92, 0.62);
   addMesh(
     group,
     new THREE.BoxGeometry(1.05, 3.7, 1.05),
     stoneMaterial('mid'),
     new THREE.Vector3(1.1, 3.15, -0.7),
-  );
+  ).name = 'Smithy masonry chimney shaft';
   addMesh(
     group,
     new THREE.CylinderGeometry(0.42, 0.58, 0.75, 9),
     stoneMaterial('mid'),
     new THREE.Vector3(1.1, 5.27, -0.7),
-  );
-  addLeanToRoof(group, {
-    width: 3.25,
+  ).name = 'Smithy masonry chimney weather cap';
+  const smithingBayRoof = addLeanToRoof(group, {
+    width: 2.25,
     depth: 2.5,
     thickness: 0.13,
     material: sharedBuildingMaterial('shingle'),
-    position: new THREE.Vector3(2.65, 2.55, 1.35),
+    position: new THREE.Vector3(3.1, 2.55, 1.35),
     pitch: 0.18,
     highEdge: 'negativeX',
     name: 'Smithing bay roof',
+  });
+  addLeanToSupportFrame(group, smithingBayRoof, {
+    namePrefix: 'Smithy open working bay',
+    highEdge: 'negativeX',
   });
   addMesh(
     group,
@@ -528,6 +586,15 @@ export function createSmithyMesh(): THREE.Group {
       ),
     );
   }
+  addArchitectureDiagnostics(group, 'gorski-forest-bloomery-smithy-v1', [
+    'low-gabled-smithy',
+    'literal-door-and-vent',
+    'masonry-hearth-and-stack',
+    'supported-open-working-bay',
+    'direct-process-bloomery',
+    'quench-tub',
+    'typed-material-stock',
+  ]);
   return group;
 }
 
@@ -546,7 +613,14 @@ export function createPotterKilnMesh(): THREE.Group {
     centerZ: -0.35,
   });
   addPlankDoor(group, -1.45, 0.45, shell.frontZ + 0.02, 1.05, 1.9);
-  addTimberCanopy(group, new THREE.Vector3(2.55, 0, 1.25), 3.4, 2.7);
+  addDarkOpening(group, -0.15, 1.74, shell.frontZ + 0.08, 0.72, 0.58);
+  addTimberCanopy(
+    group,
+    new THREE.Vector3(2.55, 0, 1.25),
+    3.4,
+    2.7,
+    'Potter drying shelter',
+  );
 
   addMesh(
     group,
@@ -605,6 +679,23 @@ export function createPotterKilnMesh(): THREE.Group {
     new THREE.Euler(0.08, 0, -0.24),
   );
   puddlingPaddle.name = 'Clay puddling paddle';
+
+  for (const x of [1.1, 3.2]) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(0.14, 1.35, 0.14),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, 0.675, 1.4),
+    ).name = 'Potter brown timber drying shelf upright';
+  }
+  for (const y of [0.08, 0.56, 1.04]) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(2.22, 0.1, 0.62),
+      timberMaterial('mid'),
+      new THREE.Vector3(2.15, y, 1.4),
+    ).name = 'Potter brown timber drying shelf';
+  }
 
   const clayStock = new THREE.Group();
   clayStock.name = 'PotterClayStockpile';
@@ -670,5 +761,14 @@ export function createPotterKilnMesh(): THREE.Group {
       [2.0, 0.34, -3.1, 0.02],
     ] as const).slice(0, POTTER_FIREWOOD_VISUAL_SEGMENTS),
   );
+  addArchitectureDiagnostics(group, 'gorski-detached-pottery-kiln-yard-v1', [
+    'lime-rendered-work-shelter',
+    'literal-door-and-vent',
+    'freestanding-drying-shelter',
+    'brown-timber-drying-shelves',
+    'domed-updraft-kiln',
+    'stone-lined-puddling-pit',
+    'typed-material-stock',
+  ]);
   return group;
 }

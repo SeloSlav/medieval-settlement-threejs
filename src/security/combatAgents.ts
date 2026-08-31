@@ -117,6 +117,26 @@ export function isPlayerMilitaryFaction(faction: CombatAgentFaction): boolean {
     || faction === 'bowman';
 }
 
+/** Returns the atomic RTS company that owns this fighter's primary selection.
+ * Mustering, casualties, and recovery actors remain individually inspectable
+ * because MilitiaCommandController intentionally does not group them. Returning
+ * companies stay selectable so their leaving-state UI can offer retention. */
+export function selectablePlayerMilitaryCompanyId(
+  agent: CombatAgentState,
+): string | null {
+  if (
+    !isPlayerMilitaryFaction(agent.faction)
+    || !agent.companyId
+    || agent.status === 'downed'
+    || agent.status === 'mustering'
+    || agent.status === 'wounded-returning'
+    || agent.status === 'recovering'
+  ) {
+    return null;
+  }
+  return agent.companyId;
+}
+
 export function hasActiveRaiderThreat(
   agents: Iterable<CombatAgentState>,
 ): boolean {

@@ -230,6 +230,27 @@ export type GameBalance = {
     movementSpeedMultiplier: number;
     roadSpeedMultiplier: number;
   };
+  combatSteering: {
+    cellSizeM: number;
+    neighborRadiusM: number;
+    separationDistanceM: number;
+    predictionSeconds: number;
+    maxNeighbors: number;
+    goalWeight: number;
+    separationWeight: number;
+    predictiveWeight: number;
+    alignmentWeight: number;
+    cohesionWeight: number;
+    engagementSlotCount: number;
+    engagementRadiusFactor: number;
+    engagementMinRadiusM: number;
+    rangedLineSpacingM: number;
+    rangedDepthSpacingM: number;
+    rangedPreferredRangeFactor: number;
+    velocityResponsePerSecond: number;
+    maxTurnRadiansPerSecond: number;
+    exactOverlapEpsilonSq: number;
+  };
   seasons: {
     springRainChance: number;
     springRainCropGrowthMultiplier: number;
@@ -919,6 +940,26 @@ function generateRust(): string {
     `pub const WORKFORCE_AVERAGE_WALK_SPEED_MPS: f64 = ${rustF64(b.workforce.averageWalkSpeedMps)};`,
     `pub const WORKFORCE_MOVEMENT_SPEED_MULTIPLIER: f64 = ${rustF64(b.workforce.movementSpeedMultiplier)};`,
     `pub const WORKFORCE_ROAD_SPEED_MULTIPLIER: f64 = ${rustF64(b.workforce.roadSpeedMultiplier)};`,
+    '',
+    `pub const COMBAT_STEERING_CELL_SIZE_M: f64 = ${rustF64(b.combatSteering.cellSizeM)};`,
+    `pub const COMBAT_STEERING_NEIGHBOR_RADIUS_M: f64 = ${rustF64(b.combatSteering.neighborRadiusM)};`,
+    `pub const COMBAT_STEERING_SEPARATION_DISTANCE_M: f64 = ${rustF64(b.combatSteering.separationDistanceM)};`,
+    `pub const COMBAT_STEERING_PREDICTION_SECONDS: f64 = ${rustF64(b.combatSteering.predictionSeconds)};`,
+    `pub const COMBAT_STEERING_MAX_NEIGHBORS: usize = ${Math.max(1, Math.round(b.combatSteering.maxNeighbors))};`,
+    `pub const COMBAT_STEERING_GOAL_WEIGHT: f64 = ${rustF64(b.combatSteering.goalWeight)};`,
+    `pub const COMBAT_STEERING_SEPARATION_WEIGHT: f64 = ${rustF64(b.combatSteering.separationWeight)};`,
+    `pub const COMBAT_STEERING_PREDICTIVE_WEIGHT: f64 = ${rustF64(b.combatSteering.predictiveWeight)};`,
+    `pub const COMBAT_STEERING_ALIGNMENT_WEIGHT: f64 = ${rustF64(b.combatSteering.alignmentWeight)};`,
+    `pub const COMBAT_STEERING_COHESION_WEIGHT: f64 = ${rustF64(b.combatSteering.cohesionWeight)};`,
+    `pub const COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT: usize = ${Math.max(1, Math.round(b.combatSteering.engagementSlotCount))};`,
+    `pub const COMBAT_STEERING_ENGAGEMENT_RADIUS_FACTOR: f64 = ${rustF64(b.combatSteering.engagementRadiusFactor)};`,
+    `pub const COMBAT_STEERING_ENGAGEMENT_MIN_RADIUS_M: f64 = ${rustF64(b.combatSteering.engagementMinRadiusM)};`,
+    `pub const COMBAT_STEERING_RANGED_LINE_SPACING_M: f64 = ${rustF64(b.combatSteering.rangedLineSpacingM)};`,
+    `pub const COMBAT_STEERING_RANGED_DEPTH_SPACING_M: f64 = ${rustF64(b.combatSteering.rangedDepthSpacingM)};`,
+    `pub const COMBAT_STEERING_RANGED_PREFERRED_RANGE_FACTOR: f64 = ${rustF64(b.combatSteering.rangedPreferredRangeFactor)};`,
+    `pub const COMBAT_STEERING_VELOCITY_RESPONSE_PER_SECOND: f64 = ${rustF64(b.combatSteering.velocityResponsePerSecond)};`,
+    `pub const COMBAT_STEERING_MAX_TURN_RADIANS_PER_SECOND: f64 = ${rustF64(b.combatSteering.maxTurnRadiansPerSecond)};`,
+    `pub const COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ: f64 = ${rustF64(b.combatSteering.exactOverlapEpsilonSq)};`,
     '',
     `pub const SPRING_RAIN_CHANCE: f64 = ${rustF64(b.seasons.springRainChance)};`,
     `pub const SPRING_RAIN_CROP_GROWTH_MULTIPLIER: f64 = ${rustF64(b.seasons.springRainCropGrowthMultiplier)};`,
@@ -2003,6 +2044,26 @@ function generateTypeScript(): string {
     `export const WORKFORCE_AVERAGE_WALK_SPEED_MPS = ${b.workforce.averageWalkSpeedMps};`,
     `export const WORKFORCE_MOVEMENT_SPEED_MULTIPLIER = ${b.workforce.movementSpeedMultiplier};`,
     `export const WORKFORCE_ROAD_SPEED_MULTIPLIER = ${b.workforce.roadSpeedMultiplier};`,
+    '',
+    `export const COMBAT_STEERING_CELL_SIZE_M = ${b.combatSteering.cellSizeM};`,
+    `export const COMBAT_STEERING_NEIGHBOR_RADIUS_M = ${b.combatSteering.neighborRadiusM};`,
+    `export const COMBAT_STEERING_SEPARATION_DISTANCE_M = ${b.combatSteering.separationDistanceM};`,
+    `export const COMBAT_STEERING_PREDICTION_SECONDS = ${b.combatSteering.predictionSeconds};`,
+    `export const COMBAT_STEERING_MAX_NEIGHBORS = ${Math.max(1, Math.round(b.combatSteering.maxNeighbors))};`,
+    `export const COMBAT_STEERING_GOAL_WEIGHT = ${b.combatSteering.goalWeight};`,
+    `export const COMBAT_STEERING_SEPARATION_WEIGHT = ${b.combatSteering.separationWeight};`,
+    `export const COMBAT_STEERING_PREDICTIVE_WEIGHT = ${b.combatSteering.predictiveWeight};`,
+    `export const COMBAT_STEERING_ALIGNMENT_WEIGHT = ${b.combatSteering.alignmentWeight};`,
+    `export const COMBAT_STEERING_COHESION_WEIGHT = ${b.combatSteering.cohesionWeight};`,
+    `export const COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT = ${Math.max(1, Math.round(b.combatSteering.engagementSlotCount))};`,
+    `export const COMBAT_STEERING_ENGAGEMENT_RADIUS_FACTOR = ${b.combatSteering.engagementRadiusFactor};`,
+    `export const COMBAT_STEERING_ENGAGEMENT_MIN_RADIUS_M = ${b.combatSteering.engagementMinRadiusM};`,
+    `export const COMBAT_STEERING_RANGED_LINE_SPACING_M = ${b.combatSteering.rangedLineSpacingM};`,
+    `export const COMBAT_STEERING_RANGED_DEPTH_SPACING_M = ${b.combatSteering.rangedDepthSpacingM};`,
+    `export const COMBAT_STEERING_RANGED_PREFERRED_RANGE_FACTOR = ${b.combatSteering.rangedPreferredRangeFactor};`,
+    `export const COMBAT_STEERING_VELOCITY_RESPONSE_PER_SECOND = ${b.combatSteering.velocityResponsePerSecond};`,
+    `export const COMBAT_STEERING_MAX_TURN_RADIANS_PER_SECOND = ${b.combatSteering.maxTurnRadiansPerSecond};`,
+    `export const COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ = ${b.combatSteering.exactOverlapEpsilonSq};`,
     '',
     `export const SPRING_RAIN_CHANCE = ${b.seasons.springRainChance};`,
     `export const SPRING_RAIN_CROP_GROWTH_MULTIPLIER = ${b.seasons.springRainCropGrowthMultiplier};`,

@@ -2001,6 +2001,13 @@ pub struct CombatAgent {
     pub target_id: u64,
     pub x: f64,
     pub z: f64,
+    /// Canonical planar velocity used by deterministic combat steering.
+    /// Persisting it with position lets predictive avoidance remain stable
+    /// across reducer heartbeats and server restarts.
+    #[default(0.0)]
+    pub velocity_x: f64,
+    #[default(0.0)]
+    pub velocity_z: f64,
     /// Guardhouse or incursion entry point used for a physical return/escape.
     pub home_x: f64,
     pub home_z: f64,

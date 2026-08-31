@@ -29,6 +29,7 @@ mod livestock;
 mod lumber_mill;
 mod marketplace_caravan;
 mod military;
+mod military_steering;
 mod oxen;
 mod production_labor_steward;
 mod raid_agents;

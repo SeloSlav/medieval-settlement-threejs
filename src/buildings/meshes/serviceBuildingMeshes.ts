@@ -191,18 +191,20 @@ export function createWellMesh(): THREE.Group {
     new THREE.Vector3(0, dimensions.windlassY, 0),
     new THREE.Euler(0, 0, Math.PI * 0.5),
   );
-  addMesh(
+  const wellRope = addMesh(
     group,
     new THREE.CylinderGeometry(0.025, 0.025, 1.15, 6),
-    timberMaterial('dark'),
+    sharedBuildingDetailMaterial('wicker'),
     new THREE.Vector3(0, 1.63, 0),
   );
-  addMesh(
+  wellRope.name = 'Well windlass fibre rope';
+  const wellBucket = addMesh(
     group,
     new THREE.CylinderGeometry(0.27, 0.22, 0.42, 10),
     timberMaterial('weathered'),
     new THREE.Vector3(0, 1.03, 0),
   );
+  wellBucket.name = 'Well brown-timber bucket';
 
   addHippedRoof(group, {
     width: dimensions.roofRadius * Math.SQRT2,
@@ -556,12 +558,13 @@ export function createHuntersHallMesh(): THREE.Group {
 function addHerbPorch(group: THREE.Group, frontZ: number): void {
   const porchZ = frontZ + 1.0;
   for (const x of [-2.0, 2.0]) {
-    addMesh(
+    const post = addMesh(
       group,
       new THREE.BoxGeometry(0.14, 2.48, 0.14),
       timberMaterial('dark'),
       new THREE.Vector3(x, 1.24, porchZ),
     );
+    post.name = "Forager's shed herb-porch structural post";
   }
   addLeanToRoof(group, {
     width: 4.35,
@@ -573,12 +576,13 @@ function addHerbPorch(group: THREE.Group, frontZ: number): void {
     highEdge: 'negativeZ',
     name: "Forager's shed herb porch roof",
   });
-  addMesh(
+  const dryingRail = addMesh(
     group,
     new THREE.BoxGeometry(4.0, 0.1, 0.1),
     timberMaterial('weathered'),
     new THREE.Vector3(0, 2.15, porchZ),
   );
+  dryingRail.name = "Forager's shed brown-timber drying rail";
   const remedyStockpile = new THREE.Group();
   remedyStockpile.name = 'ForagersRemedyStockpile';
   remedyStockpile.visible = false;
@@ -586,12 +590,13 @@ function addHerbPorch(group: THREE.Group, frontZ: number): void {
     const segment = new THREE.Group();
     segment.name = 'ForagersRemedySegment';
     const x = -1.5 + segmentIndex;
-    addMesh(
+    const basket = addMesh(
       segment,
       new THREE.CylinderGeometry(0.28, 0.22, 0.38, 9),
-      timberMaterial('light'),
+      sharedBuildingDetailMaterial('wicker'),
       new THREE.Vector3(x, 0.2, porchZ + 0.15),
     );
+    basket.name = 'Forager woven remedy basket';
     remedyStockpile.add(segment);
   }
   group.add(remedyStockpile);
@@ -602,19 +607,21 @@ function addHerbPorch(group: THREE.Group, frontZ: number): void {
   for (const x of [-1.5, -0.5, 0.5, 1.5]) {
     const segment = new THREE.Group();
     segment.name = 'ForagersFoodSegment';
-    addMesh(
+    const basket = addMesh(
       segment,
       new THREE.CylinderGeometry(0.38, 0.27, 0.42, 10),
-      timberMaterial('light'),
+      sharedBuildingDetailMaterial('wicker'),
       new THREE.Vector3(x, 0.23, porchZ + 0.15),
     );
-    addMesh(
+    basket.name = 'Forager woven food basket';
+    const rim = addMesh(
       segment,
       new THREE.TorusGeometry(0.33, 0.025, 5, 10),
-      timberMaterial('dark'),
+      sharedBuildingDetailMaterial('wicker'),
       new THREE.Vector3(x, 0.45, porchZ + 0.15),
       new THREE.Euler(Math.PI * 0.5, 0, 0),
     );
+    rim.name = 'Forager woven food-basket rim';
     foodStockpile.add(segment);
   }
   group.add(foodStockpile);

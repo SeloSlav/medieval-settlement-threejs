@@ -44,6 +44,15 @@ export function shouldDismissVillagerSelection(
   return button === 0 && !panelHidden && targetIsOutsidePanel;
 }
 
+/** Military companies own their members' primary click. Without this handoff,
+ * the capture-phase person inspector consumes the event and leaves only its
+ * small gold villager beacon instead of selecting the commandable company. */
+export function shouldYieldDirectAgentClickToMilitaryCompany(
+  inspection: Pick<VillagerInspection, 'militaryCompanyId'>,
+): boolean {
+  return inspection.militaryCompanyId !== null;
+}
+
 export class VillagerInspector {
   private readonly options: VillagerInspectorOptions;
   private readonly panel: HTMLElement;
@@ -264,7 +273,7 @@ export class VillagerInspector {
       this.options.camera,
       this.options.domElement,
     );
-    if (!inspection) return;
+    if (!inspection || shouldYieldDirectAgentClickToMilitaryCompany(inspection)) return;
 
     event.preventDefault();
     event.stopImmediatePropagation();

@@ -510,6 +510,13 @@ const views = viewSpecs.map((spec) => {
   const distance = designDistance * (
     cameraBookmark === 'near' ? 0.66 : cameraBookmark === 'far' ? 1.8 : 1
   );
+  if (!compareServiceCoverage && scene.fog instanceof THREE.Fog) {
+    // The bookmark—not only the footprint—owns the proof-frame depth. Large
+    // precincts can otherwise sit behind the curtain when `far` moves the eye
+    // well outside the ordinary single-building inspection distance.
+    scene.fog.near = Math.max(scene.fog.near, distance * 0.24);
+    scene.fog.far = Math.max(scene.fog.far, distance + largest * 1.25);
+  }
   const direction = (
     compareServiceCoverage
       ? new THREE.Vector3(0.62, 0.82, 1)

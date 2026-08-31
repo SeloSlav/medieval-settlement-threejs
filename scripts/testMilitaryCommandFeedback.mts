@@ -11,6 +11,10 @@ import {
 import { CombatPlaytestSimulation } from '../src/app/combatPlaytest.ts';
 
 type Listener = (event: Event) => void;
+type ListenerEntry = {
+  listener: Listener;
+  capture: boolean;
+};
 
 class FakeElement {
   readonly style: Record<string, string> = {};
@@ -24,7 +28,7 @@ class FakeElement {
   type = '';
   alt = '';
   draggable = false;
-  private readonly listeners = new Map<string, Set<Listener>>();
+  private readonly listeners = new Map<string, ListenerEntry[]>();
   private readonly attributes = new Map<string, string>();
 
   append(...children: unknown[]): void {
@@ -55,18 +59,33 @@ class FakeElement {
 
   remove(): void {}
 
-  addEventListener(type: string, listener: Listener): void {
-    const listeners = this.listeners.get(type) ?? new Set<Listener>();
-    listeners.add(listener);
+  addEventListener(
+    type: string,
+    listener: Listener,
+    options?: boolean | AddEventListenerOptions,
+  ): void {
+    const listeners = this.listeners.get(type) ?? [];
+    listeners.push({
+      listener,
+      capture: typeof options === 'boolean' ? options : options?.capture === true,
+    });
     this.listeners.set(type, listeners);
   }
 
   removeEventListener(type: string, listener: Listener): void {
-    this.listeners.get(type)?.delete(listener);
+    const listeners = this.listeners.get(type);
+    if (!listeners) return;
+    this.listeners.set(type, listeners.filter((entry) => entry.listener !== listener));
   }
 
   dispatch(type: string, event: MouseEvent): void {
-    for (const listener of this.listeners.get(type) ?? []) listener(event);
+    const ordered = [...(this.listeners.get(type) ?? [])]
+      .sort((left, right) => Number(right.capture) - Number(left.capture));
+    for (const entry of ordered) {
+      entry.listener(event);
+      if ((event as MouseEvent & { immediatePropagationStopped?: boolean })
+        .immediatePropagationStopped) return;
+    }
   }
 
   getBoundingClientRect(): DOMRect {
@@ -104,6 +123,38 @@ globalThis.document = {
 
 const { MilitiaCommandController } = await import(
   '../src/security/MilitiaCommandController.ts'
+);
+const { shouldYieldDirectAgentClickToMilitaryCompany } = await import(
+  '../src/ui/VillagerInspector.ts'
+);
+const { selectablePlayerMilitaryCompanyId } = await import(
+  '../src/security/combatAgents.ts'
+);
+
+assert.equal(
+  shouldYieldDirectAgentClickToMilitaryCompany({ militaryCompanyId: 'company-a' }),
+  true,
+  'the individual-person inspector must yield a player company member click to RTS selection',
+);
+assert.equal(
+  shouldYieldDirectAgentClickToMilitaryCompany({ militaryCompanyId: null }),
+  false,
+  'ordinary villagers and non-company combatants remain individually inspectable',
+);
+
+const selectableMilitia = combatAgent('selection-active', 'militia', 'company-a', 0, 0);
+assert.equal(selectablePlayerMilitaryCompanyId(selectableMilitia), 'company-a');
+for (const status of ['downed', 'mustering', 'wounded-returning', 'recovering'] as const) {
+  assert.equal(
+    selectablePlayerMilitaryCompanyId({ ...selectableMilitia, status }),
+    null,
+    `${status} actors must remain with individual inspection because command selection excludes them`,
+  );
+}
+assert.equal(
+  selectablePlayerMilitaryCompanyId({ ...selectableMilitia, status: 'returning' }),
+  'company-a',
+  'a leaving company remains selectable so the player can pay it to stay',
 );
 
 const start = sampleMilitaryOrderFeedback(0);
@@ -149,6 +200,25 @@ let pickedPoint = { x: 12, z: -6 };
 let nowMs = 4_000;
 const orders: { ids: string[]; x: number; z: number; campId: string | null }[] = [];
 let selectedCompany: string | null = null;
+let selectedCompanyChanges = 0;
+let ordinaryVillagerInspections = 0;
+let capturedInspection: { militaryCompanyId: string | null } | null = {
+  militaryCompanyId: 'company-a',
+};
+
+// Production constructs VillagerInspector first with a capture listener and
+// MilitiaCommandController later with a bubbling listener. Reproduce that
+// ordering so an individual-inspection regression cannot hide behind the
+// controller's isolated click-selection coverage.
+canvas.addEventListener('mousedown', (rawEvent) => {
+  const event = rawEvent as MouseEvent;
+  if (event.button !== 0 || !capturedInspection) return;
+  if (shouldYieldDirectAgentClickToMilitaryCompany(capturedInspection)) return;
+  ordinaryVillagerInspections += 1;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+}, { capture: true });
+
 const controller = new MilitiaCommandController({
   domElement: canvas as unknown as HTMLElement,
   uiRoot: uiRoot as unknown as HTMLElement,
@@ -161,7 +231,10 @@ const controller = new MilitiaCommandController({
   getZoomPercent: () => 100,
   isBlocked: () => false,
   onCommand: (ids, x, z, campId) => orders.push({ ids, x, z, campId }),
-  onCompanySelected: (companyId) => { selectedCompany = companyId; },
+  onCompanySelected: (companyId) => {
+    selectedCompany = companyId;
+    selectedCompanyChanges += 1;
+  },
   now: () => nowMs,
 });
 
@@ -172,12 +245,43 @@ const agents = new Map<string, CombatAgentState>([
 ]);
 controller.sync(agents, new Map<string, BanditCampState>());
 
-const screen = new THREE.Vector3(0, 1.2, 0).project(camera);
+const screen = new THREE.Vector3(0, 3.2, 0).project(camera);
 const selectX = (screen.x * 0.5 + 0.5) * 200;
 const selectY = (-screen.y * 0.5 + 0.5) * 200;
 canvas.dispatch('mousedown', mouseEvent('mousedown', 0, selectX, selectY, 1, canvas));
 window.dispatchEvent(mouseEvent('mouseup', 0, selectX, selectY, 0, canvas));
 assert.equal(selectedCompany, 'company-a', 'left-click must select the whole company');
+
+controller.clearSelection();
+selectedCompany = null;
+selectedCompanyChanges = 0;
+camera.position.set(0, 3.5, 4.5);
+camera.lookAt(0, 2.9, 0);
+camera.updateMatrixWorld(true);
+camera.updateProjectionMatrix();
+const projectedFeet = new THREE.Vector3(0, 2.08, 0).project(camera);
+const feetX = (projectedFeet.x * 0.5 + 0.5) * 200;
+const feetY = (-projectedFeet.y * 0.5 + 0.5) * 200;
+canvas.dispatch('mousedown', mouseEvent('mousedown', 0, feetX, feetY, 1, canvas));
+window.dispatchEvent(mouseEvent('mouseup', 0, feetX, feetY, 0, canvas));
+assert.equal(
+  selectedCompany,
+  'company-a',
+  'clicking the visible feet or lower body must select the whole company, not require the chest pivot',
+);
+assert.equal(selectedCompanyChanges, 1, 'a direct soldier click must open exactly one company selection');
+assert.equal(ordinaryVillagerInspections, 0, 'a player soldier must not show the individual villager marker');
+
+capturedInspection = { militaryCompanyId: null };
+canvas.dispatch('mousedown', mouseEvent('mousedown', 0, 20, 20, 1, canvas));
+window.dispatchEvent(mouseEvent('mouseup', 0, 20, 20, 0, canvas));
+assert.equal(ordinaryVillagerInspections, 1, 'an ordinary villager must remain directly inspectable');
+assert.equal(
+  selectedCompanyChanges,
+  1,
+  'the ordinary villager capture listener must keep its click away from company selection',
+);
+capturedInspection = null;
 
 canvas.dispatch('mousedown', mouseEvent('mousedown', 2, 70, 70, 2, canvas));
 window.dispatchEvent(mouseEvent('mouseup', 2, 70, 70, 0, canvas));
@@ -267,7 +371,7 @@ function mouseEvent(
   buttons: number,
   target: FakeElement,
 ): MouseEvent {
-  return {
+  const event = {
     type,
     button,
     clientX,
@@ -275,7 +379,12 @@ function mouseEvent(
     buttons,
     target,
     preventDefault() {},
-  } as unknown as MouseEvent;
+    stopImmediatePropagation() {
+      (event as typeof event & { immediatePropagationStopped?: boolean })
+        .immediatePropagationStopped = true;
+    },
+  };
+  return event as unknown as MouseEvent;
 }
 
 function combatAgent(
