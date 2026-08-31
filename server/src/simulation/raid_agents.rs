@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
 use spacetimedb::{Identity, ReducerContext};
@@ -33,7 +34,9 @@ use crate::tables::{
 
 use super::delivery_trips::{deserialize_route_polyline, serialize_route_polyline};
 use super::fires::{ignite_raid_target, FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
-use super::military_steering::{melee_engagement_goal, ranged_firing_line_goal};
+use super::military_steering::{
+    melee_engagement_goal, ranged_firing_line_goal, CombatSteeringGrid, SteeringBody,
+};
 use super::reclamation::ReclamationStock;
 use super::recover_stock_at;
 use super::settlement_security::{plunder_raid_target_at_contact, ContactRaidPlunder};
@@ -41,6 +44,12 @@ use super::SharedRoadNetworks;
 
 const EPSILON: f64 = 1e-9;
 const ARRIVAL_RANGE_METERS: f64 = 2.4;
+const GUARD_TARGET_ACQUISITION_METERS: f64 = 128.0;
+
+thread_local! {
+    static RAID_TARGET_GRID: RefCell<CombatSteeringGrid> =
+        RefCell::new(CombatSteeringGrid::default());
+}
 
 struct CachedCombatPath {
     path_distance: f64,
@@ -789,48 +798,59 @@ fn step_one_live_raid(
     // Living includes advancing, fighting, looting, and retreating raiders.
     // A calendar boundary can never finalize or despawn an active warband.
 
-    let snapshots = agents.values().cloned().collect::<Vec<_>>();
+    let mut snapshots = agents.values().cloned().collect::<Vec<_>>();
+    snapshots.sort_unstable_by_key(|agent| agent.id);
     let mut damage_by_agent = HashMap::<u64, f64>::new();
     let mut delete_ids = HashSet::<u64>::new();
 
-    for agent in agents.values_mut() {
-        if agent.state == COMBAT_STATE_DOWNED || agent.health <= EPSILON {
-            agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
-            if agent.faction == COMBAT_FACTION_RAIDER && agent.attack_cooldown <= EPSILON {
-                delete_ids.insert(agent.id);
+    RAID_TARGET_GRID.with(|grid_cell| {
+        let mut target_grid = grid_cell.borrow_mut();
+        rebuild_raid_target_grid(&snapshots, active.raid_id, &mut target_grid);
+        for snapshot in &snapshots {
+            let Some(agent) = agents.get_mut(&snapshot.id) else {
+                continue;
+            };
+            if agent.state == COMBAT_STATE_DOWNED || agent.health <= EPSILON {
+                agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
+                agent.engagement_target_id = 0;
+                if agent.faction == COMBAT_FACTION_RAIDER && agent.attack_cooldown <= EPSILON {
+                    delete_ids.insert(agent.id);
+                }
+                continue;
             }
-            continue;
+            agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
+            let previous_x = agent.x;
+            let previous_z = agent.z;
+            if agent.faction == COMBAT_FACTION_RAIDER {
+                step_raider(
+                    ctx,
+                    &active,
+                    agent,
+                    &snapshots,
+                    &target_grid,
+                    raider_routes.get(&agent.id),
+                    &mut damage_by_agent,
+                    &mut delete_ids,
+                    sim_tick,
+                    elapsed_seconds,
+                    road_network,
+                );
+            } else {
+                step_guard(
+                    agent,
+                    &snapshots,
+                    &target_grid,
+                    guard_routes.get(&agent.source_building_id),
+                    &mut damage_by_agent,
+                    sim_tick,
+                    elapsed_seconds,
+                    road_network,
+                );
+            }
+            agent.velocity_x = (agent.x - previous_x) / elapsed_seconds.max(1e-9);
+            agent.velocity_z = (agent.z - previous_z) / elapsed_seconds.max(1e-9);
         }
-        agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
-        let previous_x = agent.x;
-        let previous_z = agent.z;
-        if agent.faction == COMBAT_FACTION_RAIDER {
-            step_raider(
-                ctx,
-                &active,
-                agent,
-                &snapshots,
-                raider_routes.get(&agent.id),
-                &mut damage_by_agent,
-                &mut delete_ids,
-                sim_tick,
-                elapsed_seconds,
-                road_network,
-            );
-        } else {
-            step_guard(
-                agent,
-                &snapshots,
-                guard_routes.get(&agent.source_building_id),
-                &mut damage_by_agent,
-                sim_tick,
-                elapsed_seconds,
-                road_network,
-            );
-        }
-        agent.velocity_x = (agent.x - previous_x) / elapsed_seconds.max(1e-9);
-        agent.velocity_z = (agent.z - previous_z) / elapsed_seconds.max(1e-9);
-    }
+    });
 
     for (target_id, damage) in damage_by_agent {
         let Some(target) = agents.get_mut(&target_id) else {

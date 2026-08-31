@@ -79,6 +79,20 @@ type RuntimeAgent = CombatSteeringAgent & {
   companySize: number;
   rangedLateral: number;
   rangedDepth: number;
+  rangedEngagement: RangedCompanyEngagement | null;
+};
+
+type RangedCompanyEngagement = {
+  companyId: string;
+  steeringCompany: number;
+  centerX: number;
+  centerZ: number;
+  livingMembers: number;
+  designatedTarget: RuntimeAgent | null;
+  anchorX: number;
+  anchorZ: number;
+  awayX: number;
+  awayZ: number;
 };
 
 type CombatStats = {
@@ -220,6 +234,7 @@ export class CombatPlaytestSimulation {
   private readonly livingFriendlies: RuntimeAgent[] = [];
   private readonly livingEnemies: RuntimeAgent[] = [];
   private readonly pendingDamage = new Map<string, number>();
+  private readonly rangedEngagements = new Map<string, RangedCompanyEngagement>();
   private readonly steering = new CanonicalCombatSteeringGrid(1_024);
   private readonly steeringBounds: CombatSteeringBounds;
   private preset: CombatPlaytestPreset;
@@ -247,6 +262,7 @@ export class CombatPlaytestSimulation {
     this.livingFriendlies.length = 0;
     this.livingEnemies.length = 0;
     this.pendingDamage.clear();
+    this.rangedEngagements.clear();
     this.spawnFriendlies(PRESETS[preset].membersPerCompany);
     this.spawnEnemies(PRESETS[preset].membersPerCompany);
   }
@@ -427,6 +443,8 @@ export class CombatPlaytestSimulation {
       return;
     }
 
+    this.refreshRangedCompanyEngagements();
+
     this.pendingDamage.clear();
     for (const friendly of this.livingFriendlies) {
       this.updateFriendly(friendly, this.livingEnemies, this.pendingDamage);
@@ -567,22 +585,37 @@ export class CombatPlaytestSimulation {
     opponent: RuntimeAgent,
     stats: CombatStats,
   ): void {
-    let dx = runtime.state.x - opponent.state.x;
-    let dz = runtime.state.z - opponent.state.z;
-    let distance = Math.hypot(dx, dz);
-    if (distance <= 1e-6) {
-      const angle = unitHash(this.seed ^ hashString(runtime.state.id)) * Math.PI * 2;
-      dx = Math.cos(angle);
-      dz = Math.sin(angle);
-      distance = 1;
+    const engagement = runtime.rangedEngagement;
+    let anchorX = opponent.state.x;
+    let anchorZ = opponent.state.z;
+    let awayX: number;
+    let awayZ: number;
+    if (engagement && engagement.designatedTarget === opponent) {
+      // Every member consumes one shared company frame. Individual nearest
+      // enemies may be spread widely, but cannot twist each slot into a
+      // different radial fan.
+      anchorX = engagement.anchorX;
+      anchorZ = engagement.anchorZ;
+      awayX = engagement.awayX;
+      awayZ = engagement.awayZ;
+    } else {
+      let dx = runtime.state.x - anchorX;
+      let dz = runtime.state.z - anchorZ;
+      let distance = Math.hypot(dx, dz);
+      if (distance <= 1e-6) {
+        const angle = unitHash(this.seed ^ hashString(runtime.state.id)) * Math.PI * 2;
+        dx = Math.cos(angle);
+        dz = Math.sin(angle);
+        distance = 1;
+      }
+      awayX = dx / distance;
+      awayZ = dz / distance;
     }
-    const awayX = dx / distance;
-    const awayZ = dz / distance;
     const preferredDistance = rangedPreferredDistance(stats.range) + runtime.rangedDepth;
-    runtime.steeringGoalX = opponent.state.x
+    runtime.steeringGoalX = anchorX
       + awayX * preferredDistance
       - awayZ * runtime.rangedLateral;
-    runtime.steeringGoalZ = opponent.state.z
+    runtime.steeringGoalZ = anchorZ
       + awayZ * preferredDistance
       + awayX * runtime.rangedLateral;
     runtime.steeringSpeed = stats.speed;
@@ -609,6 +642,11 @@ export class CombatPlaytestSimulation {
     runtime: RuntimeAgent,
     candidates: readonly RuntimeAgent[],
   ): RuntimeAgent | null {
+    const companyTarget = runtime.rangedEngagement?.designatedTarget ?? null;
+    if (companyTarget && companyTarget.state.status !== 'downed') {
+      runtime.targetRuntime = companyTarget;
+      return companyTarget;
+    }
     const current = runtime.targetRuntime;
     if (
       current
@@ -620,6 +658,52 @@ export class CombatPlaytestSimulation {
     const next = nearestOpponent(runtime, candidates);
     runtime.targetRuntime = next;
     return next;
+  }
+
+  private refreshRangedCompanyEngagements(): void {
+    for (const engagement of this.rangedEngagements.values()) {
+      engagement.centerX = 0;
+      engagement.centerZ = 0;
+      engagement.livingMembers = 0;
+    }
+    for (const runtime of this.livingFriendlies) {
+      const engagement = runtime.rangedEngagement;
+      if (!engagement) continue;
+      engagement.centerX += runtime.state.x;
+      engagement.centerZ += runtime.state.z;
+      engagement.livingMembers += 1;
+    }
+    for (const engagement of this.rangedEngagements.values()) {
+      if (engagement.livingMembers <= 0) {
+        engagement.designatedTarget = null;
+        continue;
+      }
+      engagement.centerX /= engagement.livingMembers;
+      engagement.centerZ /= engagement.livingMembers;
+      let target = engagement.designatedTarget;
+      if (!target || target.state.status === 'downed') {
+        target = nearestOpponentPoint(
+          engagement.centerX,
+          engagement.centerZ,
+          this.livingEnemies,
+        );
+        engagement.designatedTarget = target;
+      }
+      if (!target) continue;
+      engagement.anchorX = target.state.x;
+      engagement.anchorZ = target.state.z;
+      let awayX = engagement.centerX - engagement.anchorX;
+      let awayZ = engagement.centerZ - engagement.anchorZ;
+      let awayLength = Math.hypot(awayX, awayZ);
+      if (awayLength <= 1e-6) {
+        const angle = unitHash(this.seed ^ engagement.steeringCompany) * Math.PI * 2;
+        awayX = Math.cos(angle);
+        awayZ = Math.sin(angle);
+        awayLength = 1;
+      }
+      engagement.awayX = awayX / awayLength;
+      engagement.awayZ = awayZ / awayLength;
+    }
   }
 
   private attack(
@@ -726,6 +810,26 @@ export class CombatPlaytestSimulation {
     companySize: number;
   }): RuntimeAgent {
     const stats = COMBAT_STATS[input.faction];
+    const steeringCompany = hashString(input.companyId ?? input.raidId) || 1;
+    let rangedEngagement: RangedCompanyEngagement | null = null;
+    if (stats.minimumRange && input.companyId) {
+      rangedEngagement = this.rangedEngagements.get(input.companyId) ?? null;
+      if (!rangedEngagement) {
+        rangedEngagement = {
+          companyId: input.companyId,
+          steeringCompany,
+          centerX: input.x,
+          centerZ: input.z,
+          livingMembers: 0,
+          designatedTarget: null,
+          anchorX: input.x,
+          anchorZ: input.z,
+          awayX: 1,
+          awayZ: 0,
+        };
+        this.rangedEngagements.set(input.companyId, rangedEngagement);
+      }
+    }
     return {
       state: {
         id: input.id,
@@ -764,9 +868,10 @@ export class CombatPlaytestSimulation {
       companySize: input.companySize,
       rangedLateral: rangedLineLateral(input.sourceSlot, input.companySize),
       rangedDepth: rangedLineDepth(input.sourceSlot, input.companySize),
+      rangedEngagement,
       steeringSeed: this.seed ^ hashString(input.id),
       steeringTeam: input.faction === 'raider' ? 2 : 1,
-      steeringCompany: hashString(input.companyId ?? input.raidId) || 1,
+      steeringCompany,
       steeringEnabled: true,
       steeringGoalX: input.x,
       steeringGoalZ: input.z,

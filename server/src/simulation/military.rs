@@ -542,13 +542,21 @@ fn step_active_member(
             };
             let rank = agent.source_slot as usize;
             let movement_goal = if can_shoot {
+                let frame = ranged_frame.unwrap_or(RangedCompanyFrame {
+                    company_id: company.id,
+                    source_x: agent.x,
+                    source_z: agent.z,
+                    target_id: enemy.id,
+                    target_x: enemy.x,
+                    target_z: enemy.z,
+                });
                 ranged_firing_line_goal(
                     rank,
                     company.living_members.max(1) as usize,
-                    agent.x,
-                    agent.z,
-                    enemy.x,
-                    enemy.z,
+                    frame.source_x,
+                    frame.source_z,
+                    frame.target_x,
+                    frame.target_z,
                     stats.strike_range,
                 )
             } else {
@@ -1084,6 +1092,7 @@ fn rebuild_steering_grid(
     ctx: &ReducerContext,
     steering: &mut CombatSteeringGrid,
     motion_frame: Option<&CombatMotionFrame>,
+    ranged_frames: &[RangedCompanyFrame],
     elapsed_seconds: f64,
 ) {
     steering.begin();
@@ -1107,7 +1116,7 @@ fn rebuild_steering_grid(
                 |member| (1, member.company_id),
             );
         let (mut goal_x, mut goal_z, mut speed) =
-            canonical_steering_goal(ctx, &agent, motion_frame);
+            canonical_steering_goal(ctx, &agent, motion_frame, ranged_frames);
         let snapshot = motion_frame.and_then(|frame| frame.get(agent.id));
         let (x, z, velocity_x, velocity_z) = if let Some(snapshot) = snapshot {
             let intended_dx = agent.x - snapshot.x;
@@ -1162,6 +1171,7 @@ fn canonical_steering_goal(
     ctx: &ReducerContext,
     agent: &CombatAgent,
     motion_frame: Option<&CombatMotionFrame>,
+    ranged_frames: &[RangedCompanyFrame],
 ) -> (f64, f64, f64) {
     let member = ctx.db.military_member().combat_agent_id().find(&agent.id);
     let company = member
@@ -1213,8 +1223,15 @@ fn canonical_steering_goal(
     if let Some(order) = ctx.db.militia_order().combat_agent_id().find(&agent.id) {
         return (order.destination_x, order.destination_z, speed);
     }
-    if agent.target_kind == 7 {
-        if let Some(target) = ctx.db.combat_agent().id().find(&agent.target_id) {
+    let engagement_target_id = if agent.engagement_target_id != 0 {
+        agent.engagement_target_id
+    } else if agent.target_kind == 7 {
+        agent.target_id
+    } else {
+        0
+    };
+    if engagement_target_id != 0 {
+        if let Some(target) = ctx.db.combat_agent().id().find(&engagement_target_id) {
             let (target_x, target_z) = motion_frame
                 .and_then(|frame| frame.get(target.id))
                 .map_or((target.x, target.z), |snapshot| (snapshot.x, snapshot.z));
@@ -1229,13 +1246,29 @@ fn canonical_steering_goal(
                         let goal = if matches!(kind, MilitaryKind::Bowmen | MilitaryKind::Crossbows)
                             && member.ammunition > 0
                         {
+                            let shared = ranged_frames
+                                .binary_search_by_key(&company.id, |frame| frame.company_id)
+                                .ok()
+                                .map(|index| ranged_frames[index]);
+                            let (line_source_x, line_source_z, line_target_x, line_target_z) =
+                                shared.map_or(
+                                    (source_x, source_z, target_x, target_z),
+                                    |frame| {
+                                        (
+                                            frame.source_x,
+                                            frame.source_z,
+                                            frame.target_x,
+                                            frame.target_z,
+                                        )
+                                    },
+                                );
                             ranged_firing_line_goal(
                                 rank,
                                 company.living_members.max(1) as usize,
-                                source_x,
-                                source_z,
-                                target_x,
-                                target_z,
+                                line_source_x,
+                                line_source_z,
+                                line_target_x,
+                                line_target_z,
                                 stats.strike_range,
                             )
                         } else {
