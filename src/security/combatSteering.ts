@@ -4,6 +4,7 @@ import {
   COMBAT_STEERING_COHESION_WEIGHT,
   COMBAT_STEERING_ENGAGEMENT_MIN_RADIUS_M,
   COMBAT_STEERING_ENGAGEMENT_RADIUS_FACTOR,
+  COMBAT_STEERING_ENGAGEMENT_RING_SPACING_M,
   COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT,
   COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ,
   COMBAT_STEERING_GOAL_WEIGHT,
@@ -83,7 +84,6 @@ export class CanonicalCombatSteeringGrid {
   private readonly neighborIndices: Int32Array;
   private readonly neighborPriority: Uint8Array;
   private readonly neighborMetric: Float64Array;
-  private readonly neighborDistance: Float64Array;
 
   constructor(capacity = 1_024) {
     this.capacity = Math.max(1, Math.floor(capacity));
@@ -103,7 +103,6 @@ export class CanonicalCombatSteeringGrid {
     this.neighborIndices = new Int32Array(COMBAT_STEERING_MAX_NEIGHBORS);
     this.neighborPriority = new Uint8Array(COMBAT_STEERING_MAX_NEIGHBORS);
     this.neighborMetric = new Float64Array(COMBAT_STEERING_MAX_NEIGHBORS);
-    this.neighborDistance = new Float64Array(COMBAT_STEERING_MAX_NEIGHBORS);
   }
 
   update(
@@ -510,12 +509,10 @@ export class CanonicalCombatSteeringGrid {
       iteration < COMBAT_STEERING_HARD_CONSTRAINT_ITERATIONS;
       iteration += 1
     ) {
+      if (iteration > 0) this.rebuildGridFromCandidatePositions(agents, activeCount);
       for (let index = 0; index < activeCount; index += 1) {
         const agent = agents[index]!;
         if (!agent.steeringEnabled) continue;
-        const x = agent.state.x;
-        const z = agent.state.z;
-        let selectedNeighborCount = 0;
 
         for (
           let cellDeltaZ = -NEIGHBOR_CELL_RADIUS;
@@ -537,84 +534,19 @@ export class CanonicalCombatSteeringGrid {
                 && this.cellX[neighbor] === neighborCellX
                 && this.cellZ[neighbor] === neighborCellZ
               ) {
-                const other = agents[neighbor]!;
-                const startDeltaX = x - other.state.x;
-                const startDeltaZ = z - other.state.z;
-                const startDistanceSq = startDeltaX * startDeltaX
-                  + startDeltaZ * startDeltaZ;
-                if (startDistanceSq <= NEIGHBOR_RADIUS_SQ) {
-                  const endDeltaX = this.nextX[index]! - this.nextX[neighbor]!;
-                  const endDeltaZ = this.nextZ[index]! - this.nextZ[neighbor]!;
-                  const relativeStepX = endDeltaX - startDeltaX;
-                  const relativeStepZ = endDeltaZ - startDeltaZ;
-                  const relativeStepSq = relativeStepX * relativeStepX
-                    + relativeStepZ * relativeStepZ;
-                  const closestTime = relativeStepSq > 1e-12
-                    ? clamp(
-                      -(startDeltaX * relativeStepX + startDeltaZ * relativeStepZ)
-                        / relativeStepSq,
-                      0,
-                      1,
-                    )
-                    : 0;
-                  const closestX = startDeltaX + relativeStepX * closestTime;
-                  const closestZ = startDeltaZ + relativeStepZ * closestTime;
-                  const closestDistanceSq = closestX * closestX + closestZ * closestZ;
-                  if (closestDistanceSq < HARD_SEPARATION_DISTANCE_SQ) {
-                    let insertAt = selectedNeighborCount;
-                    while (insertAt > 0) {
-                      const previous = insertAt - 1;
-                      const previousIndex = this.neighborIndices[previous]!;
-                      const previousMetric = this.neighborMetric[previous]!;
-                      const previousDistance = this.neighborDistance[previous]!;
-                      const previousAgent = agents[previousIndex]!;
-                      const comesBefore = closestDistanceSq < previousMetric
-                        || (
-                          closestDistanceSq === previousMetric
-                          && (
-                            startDistanceSq < previousDistance
-                            || (
-                              startDistanceSq === previousDistance
-                              && (
-                                other.steeringSeed < previousAgent.steeringSeed
-                                || (
-                                  other.steeringSeed === previousAgent.steeringSeed
-                                  && neighbor < previousIndex
-                                )
-                              )
-                            )
-                          )
-                        );
-                      if (!comesBefore) break;
-                      if (insertAt < COMBAT_STEERING_MAX_NEIGHBORS) {
-                        this.neighborIndices[insertAt] = previousIndex;
-                        this.neighborMetric[insertAt] = previousMetric;
-                        this.neighborDistance[insertAt] = previousDistance;
-                      }
-                      insertAt -= 1;
-                    }
-                    if (insertAt < COMBAT_STEERING_MAX_NEIGHBORS) {
-                      this.neighborIndices[insertAt] = neighbor;
-                      this.neighborMetric[insertAt] = closestDistanceSq;
-                      this.neighborDistance[insertAt] = startDistanceSq;
-                      if (selectedNeighborCount < COMBAT_STEERING_MAX_NEIGHBORS) {
-                        selectedNeighborCount += 1;
-                      }
-                    }
-                  }
-                }
+                // Hard correctness cannot share the soft steering's bounded
+                // influence set: every local swept/penetrating pair is a
+                // physical constraint, even in a 64-body pile-up.
+                this.projectHardPair(agents, index, neighbor, bounds);
               }
               neighbor = this.next[neighbor]!;
             }
           }
         }
-
-        for (let selected = 0; selected < selectedNeighborCount; selected += 1) {
-          const neighbor = this.neighborIndices[selected]!;
-          this.projectHardPair(agents, index, neighbor, bounds);
-        }
       }
     }
+
+    this.enforceFinalCandidateClearance(agents, activeCount, bounds);
 
     // Persist the constrained displacement as velocity. Prediction on the next
     // tick therefore sees the actual canonical motion, not the rejected soft
@@ -625,6 +557,112 @@ export class CanonicalCombatSteeringGrid {
       this.nextVelocityX[index] = (this.nextX[index]! - agent.state.x) / dt;
       this.nextVelocityZ[index] = (this.nextZ[index]! - agent.state.z) / dt;
     }
+  }
+
+  private rebuildGridFromCandidatePositions(
+    agents: readonly CombatSteeringAgent[],
+    activeCount: number,
+  ): void {
+    this.bucketHeads.fill(-1);
+    for (let index = 0; index < activeCount; index += 1) {
+      if (!agents[index]!.steeringEnabled) {
+        this.next[index] = -1;
+        continue;
+      }
+      const cellX = Math.floor(this.nextX[index]! / COMBAT_STEERING_CELL_SIZE_M);
+      const cellZ = Math.floor(this.nextZ[index]! / COMBAT_STEERING_CELL_SIZE_M);
+      const bucket = this.bucketFor(cellX, cellZ);
+      this.cellX[index] = cellX;
+      this.cellZ[index] = cellZ;
+      this.next[index] = this.bucketHeads[bucket]!;
+      this.bucketHeads[bucket] = index;
+    }
+  }
+
+  /**
+   * Pathological imports and same-point spawns can begin with more mutually
+   * penetrating constraints than a short PBD cleanup can converge. Finalize
+   * bodies in stable order into an incremental output-position grid; blocked
+   * candidates probe deterministic concentric slots until they find a point
+   * clear of every already finalized body. Ordinary valid formations accept
+   * their first candidate and pay one local query per soldier.
+   */
+  private enforceFinalCandidateClearance(
+    agents: readonly CombatSteeringAgent[],
+    activeCount: number,
+    bounds: CombatSteeringBounds,
+  ): void {
+    this.bucketHeads.fill(-1);
+    const slotsPerRing = COMBAT_STEERING_MAX_NEIGHBORS;
+    const maximumAttempts = Math.max(slotsPerRing, activeCount * slotsPerRing);
+    for (let index = 0; index < activeCount; index += 1) {
+      const agent = agents[index]!;
+      if (!agent.steeringEnabled) {
+        this.next[index] = -1;
+        continue;
+      }
+      const originX = this.nextX[index]!;
+      const originZ = this.nextZ[index]!;
+      let candidateX = originX;
+      let candidateZ = originZ;
+      let attempt = 0;
+      while (
+        !this.candidateClearsPlacedBodies(candidateX, candidateZ)
+        && attempt < maximumAttempts
+      ) {
+        const ring = Math.floor(attempt / slotsPerRing) + 1;
+        const slot = attempt % slotsPerRing;
+        const phase = mixSeed(agent.steeringSeed) % slotsPerRing;
+        const angle = (slot + phase) / slotsPerRing * Math.PI * 2;
+        const radius = ring * HARD_SEPARATION_DISTANCE_M;
+        candidateX = clamp(originX + Math.cos(angle) * radius, bounds.minX, bounds.maxX);
+        candidateZ = clamp(originZ + Math.sin(angle) * radius, bounds.minZ, bounds.maxZ);
+        attempt += 1;
+      }
+      this.nextX[index] = candidateX;
+      this.nextZ[index] = candidateZ;
+      const cellX = Math.floor(candidateX / COMBAT_STEERING_CELL_SIZE_M);
+      const cellZ = Math.floor(candidateZ / COMBAT_STEERING_CELL_SIZE_M);
+      const bucket = this.bucketFor(cellX, cellZ);
+      this.cellX[index] = cellX;
+      this.cellZ[index] = cellZ;
+      this.next[index] = this.bucketHeads[bucket]!;
+      this.bucketHeads[bucket] = index;
+    }
+  }
+
+  private candidateClearsPlacedBodies(candidateX: number, candidateZ: number): boolean {
+    const candidateCellX = Math.floor(candidateX / COMBAT_STEERING_CELL_SIZE_M);
+    const candidateCellZ = Math.floor(candidateZ / COMBAT_STEERING_CELL_SIZE_M);
+    for (
+      let cellDeltaZ = -NEIGHBOR_CELL_RADIUS;
+      cellDeltaZ <= NEIGHBOR_CELL_RADIUS;
+      cellDeltaZ += 1
+    ) {
+      const neighborCellZ = candidateCellZ + cellDeltaZ;
+      for (
+        let cellDeltaX = -NEIGHBOR_CELL_RADIUS;
+        cellDeltaX <= NEIGHBOR_CELL_RADIUS;
+        cellDeltaX += 1
+      ) {
+        const neighborCellX = candidateCellX + cellDeltaX;
+        let neighbor = this.bucketHeads[this.bucketFor(neighborCellX, neighborCellZ)]!;
+        while (neighbor >= 0) {
+          if (
+            this.cellX[neighbor] === neighborCellX
+            && this.cellZ[neighbor] === neighborCellZ
+          ) {
+            const deltaX = candidateX - this.nextX[neighbor]!;
+            const deltaZ = candidateZ - this.nextZ[neighbor]!;
+            if (deltaX * deltaX + deltaZ * deltaZ < HARD_SEPARATION_DISTANCE_SQ) {
+              return false;
+            }
+          }
+          neighbor = this.next[neighbor]!;
+        }
+      }
+    }
+    return true;
   }
 
   private projectHardPair(
@@ -729,16 +767,21 @@ export function engagementSlotAngle(
 ): number {
   const phase = mixSeed(companySeed ^ Math.imul(targetSeed, 0x9e37_79b1))
     % COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT;
-  const slot = (Math.max(0, Math.floor(sourceSlot)) + phase)
-    % COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT;
-  return slot / COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT * Math.PI * 2;
+  const rank = Math.max(0, Math.floor(sourceSlot));
+  const ring = Math.floor(rank / COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT);
+  const slot = rank % COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT;
+  const stagger = ring % 2 === 1 ? 0.5 : 0;
+  return (slot + phase + stagger) / COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT
+    * Math.PI * 2;
 }
 
-export function engagementSlotRadius(weaponRange: number): number {
+export function engagementSlotRadius(weaponRange: number, sourceSlot = 0): number {
+  const rank = Math.max(0, Math.floor(sourceSlot));
+  const ring = Math.floor(rank / COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT);
   return Math.max(
     COMBAT_STEERING_ENGAGEMENT_MIN_RADIUS_M,
     weaponRange * COMBAT_STEERING_ENGAGEMENT_RADIUS_FACTOR,
-  );
+  ) + ring * COMBAT_STEERING_ENGAGEMENT_RING_SPACING_M;
 }
 
 /** Stable line slot used by bow and crossbow companies while firing. */

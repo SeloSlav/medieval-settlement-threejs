@@ -378,7 +378,7 @@ assert.equal(
 );
 assert.equal(
   guardhouseFoodTarget(6, 6, GUARDHOUSE_FOOD_RESERVE_DEEP),
-  BUILDING_STORAGE_CAPS.guardhouse.food,
+  72,
 );
 assert.equal(normalizeGuardhouseFoodReserve(undefined), GUARDHOUSE_FOOD_RESERVE_STANDARD);
 assert.equal(normalizeGuardhouseFoodReserve(5), GUARDHOUSE_FOOD_RESERVE_STANDARD);
@@ -1807,28 +1807,23 @@ assert.match(
 assert.match(clientSecurity, /live contact still resolves the fight/);
 assert.match(watchtowerInspector, /Projected defense/);
 assert.match(watchtowerInspector, /context\.enemyPressure/);
-assert.match(guardhouseInspector, /Projected raid/);
-assert.match(guardhouseInspector, /context\.enemyPressure/);
-assert.match(guardhouseInspector, /Watch muster/);
-assert.match(guardhouseInspector, /Alert posture/);
-assert.match(guardhouseInspector, /ready to break cross-country when contact fixes a target/);
-assert.match(guardhouseInspector, /Raiders physically enter from the frontier/);
-assert.match(guardhouseInspector, /Warning received/);
-assert.match(guardhouseInspector, /ready for a direct response/);
-assert.match(guardhouseInspector, /Road conditions/);
-assert.match(guardhouseInspector, /Soft-road delay/);
-assert.match(guardhouseInspector, /Warned response/);
-assert.match(guardhouseInspector, /Cross-country reserve/);
-assert.match(guardhouseInspector, /ready to break cross-country/);
-assert.match(guardhouseInspector, /Inspect linked watchtower/);
-assert.match(guardhouseInspector, /Muster order/);
-assert.match(guardhouseInspector, /Nearest staffed watch/);
-assert.match(guardhouseInspector, /data-guardhouse-muster-watchtower/);
-assert.match(guardhouseInspector, /automatic reassignment suspended/);
+assert.match(guardhouseInspector, /Military establishment/);
+assert.match(guardhouseInspector, /militaryCompaniesAt/);
+assert.match(guardhouseInspector, /renderMilitaryRecruitmentPanels/);
 assert.match(
   guardhouseInspector,
-  /roadPathDistancesFrom/,
-  'the muster-post chooser should preview all watch routes from one road tree',
+  /'spearmen', 'men-at-arms', 'footmen', 'polearms', 'bowmen', 'crossbows'/,
+);
+assert.match(guardhouseInspector, /getActiveWorldGeneration\(\)\.militaryDemands/);
+assert.match(guardhouseInspector, /Fire outage — recruitment and supply suspended/);
+assert.match(guardhouseInspector, /Legacy guards[\s\S]*Folded into spear companies/);
+assert.match(guardhouseInspector, /Dead resident soldiers reduce the real household/);
+assert.match(guardhouseInspector, /recoverable battlefield site/);
+assert.match(guardhouseInspector, /Disband or lose every attached company/);
+assert.match(
+  guardhouseInspector,
+  /buildingLaborView/,
+  'assigned guardhouse labor must remain drill, armory, and quartermaster support',
 );
 assert.match(refugeInspector, /Warned demand/);
 assert.match(refugeInspector, /Resident capacity/);
@@ -2144,8 +2139,8 @@ assert.match(
 );
 assert.match(
   villagerRenderer,
-  /combat\.targetKind !== 'cart'[\s\S]*case 'looting': return attackingHolding \? 'fight' : 'gather'/,
-  'live forced entry at a stationary holding must use armed strikes while cart plunder remains a rummaging action',
+  /case 'looting': \{[\s\S]*combat\.faction === 'raider'[\s\S]*combat\.raidAnchorBuildingId\) return 'chop'[\s\S]*combat\.targetKind === 'cart'\) return 'gather'[\s\S]*combat\.lootProgress < RAIDER_ENTRY_BREAK_SECONDS\) return 'chop'[\s\S]*RAIDER_LOOT_CHEER_START_SECONDS\) return 'laugh'/,
+  'raiders must physically breach stationary holdings, rummage moving carts, and only celebrate after completing the loot action',
 );
 assert.match(
   serverRaidAgents,
@@ -2154,9 +2149,10 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
-  /distance <= MELEE_RANGE_METERS \* MELEE_RANGE_METERS[\s\S]*damage_by_agent\.entry\(enemy\.id\)[\s\S]*down_agent/,
-  'guards and raiders must exchange health damage only after closing to melee range',
+  /fn engage_agent\([\s\S]*ranged_raider[\s\S]*strike_range = if ranged_raider \{[\s\S]*12\.0[\s\S]*MELEE_RANGE_METERS[\s\S]*distance <= strike_range \* strike_range[\s\S]*damage_by_agent\.entry\(enemy\.id\)/,
+  'each physical attack must apply damage only inside its melee or Ottoman missile strike range',
 );
+assert.match(serverRaidAgents, /for \(target_id, damage\) in damage_by_agent[\s\S]*down_agent/);
 assert.match(
   serverRaidAgents,
   /military_company\(\)[\s\S]*source_building_id\(\)[\s\S]*military_member\(\)[\s\S]*combat_agent_id/,
@@ -2334,8 +2330,8 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
-  /unavailable_guard_slots[\s\S]*filter_map\(\|\(building_id, slot\)\|[\s\S]*select_guard_muster_slots/,
-  'wounded roster slots must not spawn again in a later raid',
+  /fn ensure_warned_guard_muster[\s\S]*military_company\(\)[\s\S]*company\.state == 1[\s\S]*military_member\(\)[\s\S]*member\.phase == 1[\s\S]*combat_agent\(\)\.id\(\)\.find[\s\S]*agent\.state == COMBAT_STATE_DOWNED[\s\S]*continue/,
+  'warnings must deploy only existing active company members and never rematerialize a downed roster slot',
 );
 assert.match(
   serverSimulation,
@@ -2357,8 +2353,8 @@ assert.match(
   /guardhouse_roster_count[\s\S]*wait until every guard has returned and recovered before demolition/,
   'a guardhouse with live company agents must remain physically present',
 );
-assert.match(guardhouseInspector, /Roster lock/);
-assert.match(guardhouseInspector, /physically return and finish recovery/);
+assert.match(guardhouseInspector, /companies\.some\(\(company\) => company\.status !== 'destroyed'\)/);
+assert.match(guardhouseInspector, /before removing its armory and return point/);
 assert.match(
   serverTables,
   /accessor = combat_agent,[\s\S]*public,[\s\S]*pub struct CombatAgent[\s\S]*pub x: f64,[\s\S]*pub health: f64,[\s\S]*pub carried_loot_json: String/,

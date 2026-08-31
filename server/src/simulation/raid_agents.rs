@@ -2271,3 +2271,34 @@ pub(super) fn reclamation_from_raid_stores(stores: RaidPortableStores) -> Reclam
         ..ReclamationStock::default()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn spread_guard_targets_do_not_twist_shared_raider_missile_line() {
+        let frame = RaiderRangedFrame {
+            owner: Identity::ZERO,
+            raid_id: 71,
+            source_x: 0.0,
+            source_z: 0.0,
+            target_x: 24.0,
+            target_z: 0.0,
+            member_count: 4,
+        };
+        let first = frame.goal(3, 12.0);
+        let second = frame.goal(7, 12.0);
+        assert!((first.0 - second.0).abs() <= 1e-12);
+        assert!((first.1 - second.1).abs() > 1.4);
+
+        // These are the soldiers' deliberately spread damage targets.
+        // Per-target construction rotates their x coordinates; the shared
+        // raid frame above keeps a single company heading instead.
+        let independently_twisted_a =
+            ranged_firing_line_goal(0, 4, 0.0, 0.0, 18.0, -8.0, 12.0);
+        let independently_twisted_b =
+            ranged_firing_line_goal(1, 4, 0.0, 0.0, 22.0, 9.0, 12.0);
+        assert!((independently_twisted_a.0 - independently_twisted_b.0).abs() > 0.25);
+    }
+}

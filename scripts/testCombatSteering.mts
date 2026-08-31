@@ -12,8 +12,10 @@ import {
 } from '../src/security/combatSteering.ts';
 import {
   COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT,
+  COMBAT_STEERING_ENGAGEMENT_RING_SPACING_M,
   COMBAT_STEERING_RANGED_DEPTH_SPACING_M,
   COMBAT_STEERING_RANGED_LINE_SPACING_M,
+  COMBAT_STEERING_SEPARATION_DISTANCE_M,
 } from '../src/generated/gameBalance.ts';
 
 const bounds = { minX: -100, maxX: 100, minZ: -100, maxZ: 100 };
@@ -99,6 +101,25 @@ function fixtureAgent(input: GoldenFixture['agents'][number]): CombatSteeringAge
   };
 }
 
+function assertMinimumClearance(
+  agents: readonly CombatSteeringAgent[],
+  label: string,
+): void {
+  for (let left = 0; left < agents.length; left += 1) {
+    for (let right = left + 1; right < agents.length; right += 1) {
+      const leftAgent = agents[left]!;
+      const rightAgent = agents[right]!;
+      assert.ok(
+        Math.hypot(
+          leftAgent.state.x - rightAgent.state.x,
+          leftAgent.state.z - rightAgent.state.z,
+        ) >= COMBAT_STEERING_SEPARATION_DISTANCE_M - 1e-9,
+        `${label} left ${leftAgent.steeringSeed}/${rightAgent.steeringSeed} penetrating`,
+      );
+    }
+  }
+}
+
 // The solver changes canonical simulation coordinates, including separation
 // across companies and opposing teams. Disabled/dead bodies remain fixed.
 {
@@ -154,21 +175,50 @@ function fixtureAgent(input: GoldenFixture['agents'][number]): CombatSteeringAge
   assert.equal(openedPassingLane, true, 'head-on prediction must open a deterministic passing side');
 }
 
+// Pathological imports may contain an entire company at one point or packed
+// into a few centimetres. The uncapped hard pass plus deterministic final
+// placement must resolve every pair in one canonical update.
+for (const scenario of ['exact-overlap', 'dense-grid'] as const) {
+  const createScenario = (): CombatSteeringAgent[] => Array.from({ length: 64 }, (_, index) => {
+    const x = scenario === 'exact-overlap' ? 0 : (index % 8) * 0.1;
+    const z = scenario === 'exact-overlap' ? 0 : Math.floor(index / 8) * 0.1;
+    return agent(index + 1, x, z, x, z, index + 1, index % 2 + 1);
+  });
+  const agents = createScenario();
+  const repeated = createScenario();
+  new CanonicalCombatSteeringGrid(64).update(agents, agents.length, 0.05, bounds);
+  new CanonicalCombatSteeringGrid(64).update(repeated, repeated.length, 0.05, bounds);
+  assert.deepEqual(agents, repeated, `${scenario} cleanup must remain deterministic`);
+  assertMinimumClearance(agents, scenario);
+}
+
 // Goal seeking remains dominant even at the maximum supported local crowd.
 {
   const center = agent(100, 0, 0, 20, 0, 100, 1);
   const agents = [center];
+  const crowdPositions: Array<readonly [number, number]> = [];
+  for (let x = -3; x <= 3.001; x += 0.86) {
+    for (let z = -3; z <= 3.001; z += 0.86) {
+      const distance = Math.hypot(x, z);
+      if (distance >= 0.95 && distance <= 3.15) crowdPositions.push([x, z]);
+    }
+  }
+  crowdPositions.sort((left, right) => left[0] - right[0] || left[1] - right[1]);
   for (let index = 0; index < 18; index += 1) {
-    const angle = index / 18 * Math.PI * 2;
-    agents.push(agent(
+    const [x, z] = crowdPositions[index]!;
+    const neighbor = agent(
       101 + index,
-      Math.cos(angle) * 0.55,
-      Math.sin(angle) * 0.55,
-      Math.cos(angle) * 0.55,
-      Math.sin(angle) * 0.55,
+      x,
+      z,
+      x,
+      z,
       1_000 + index,
       index % 2 + 1,
-    ));
+    );
+    const distance = Math.hypot(x, z);
+    neighbor.steeringVelocityX = -x / distance * 2.2;
+    neighbor.steeringVelocityZ = -z / distance * 2.2;
+    agents.push(neighbor);
   }
   new CanonicalCombatSteeringGrid(32).update(agents, agents.length, 0.05, bounds);
   assert.ok(center.state.x > 0, 'the formation/path goal must survive capped avoidance pressure');
@@ -234,14 +284,35 @@ function fixtureAgent(input: GoldenFixture['agents'][number]): CombatSteeringAge
   );
 }
 
-// Engagement slots are a one-to-one permutation for the first ring and ranged
-// formations preserve authored lateral/depth spacing without allocating tuples.
+// Engagement ranks use staggered concentric rings after the first ten bodies;
+// ranged formations preserve authored lateral/depth spacing without tuples.
 {
   const slots = Array.from({ length: COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT }, (_, sourceSlot) =>
     engagementSlotAngle(sourceSlot, 0x1234, 0x5678)
   );
   assert.equal(new Set(slots).size, COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT);
-  assert.ok(engagementSlotRadius(2.6) > engagementSlotRadius(1.2));
+  assert.ok(engagementSlotRadius(2.6, 0) > engagementSlotRadius(1.2, 0));
+  assert.ok(Math.abs(
+    engagementSlotRadius(2.6, COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT)
+      - engagementSlotRadius(2.6, 0)
+      - COMBAT_STEERING_ENGAGEMENT_RING_SPACING_M,
+  ) < 1e-12);
+  const oddRingStagger = wrappedAngleForTest(
+    engagementSlotAngle(COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT, 0x1234, 0x5678)
+      - engagementSlotAngle(0, 0x1234, 0x5678),
+  );
+  assert.ok(Math.abs(
+    Math.abs(oddRingStagger) - Math.PI / COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT,
+  ) < 1e-12);
+  const engagementGoals = new Set<string>();
+  for (let rank = 0; rank < 32; rank += 1) {
+    const angle = engagementSlotAngle(rank, 0x1234, 0x5678);
+    const radius = engagementSlotRadius(2.6, rank);
+    engagementGoals.add(`${(Math.cos(angle) * radius).toFixed(12)}:${(
+      Math.sin(angle) * radius
+    ).toFixed(12)}`);
+  }
+  assert.equal(engagementGoals.size, 32, '32 attackers must not receive repeated exact goals');
   assert.ok(Math.abs(
     rangedLineLateral(1, 8) - rangedLineLateral(0, 8)
       - COMBAT_STEERING_RANGED_LINE_SPACING_M,
@@ -294,19 +365,7 @@ function fixtureAgent(input: GoldenFixture['agents'][number]): CombatSteeringAge
       );
     }
   }
-  for (let left = 0; left < first.length; left += 1) {
-    for (let right = left + 1; right < first.length; right += 1) {
-      const leftAgent = first[left]!;
-      const rightAgent = first[right]!;
-      assert.ok(
-        Math.hypot(
-          leftAgent.state.x - rightAgent.state.x,
-          leftAgent.state.z - rightAgent.state.z,
-        ) >= 0.82 - 1e-9,
-        `dense hard cleanup left ${leftAgent.steeringSeed}/${rightAgent.steeringSeed} penetrating`,
-      );
-    }
-  }
+  assertMinimumClearance(first, 'dense hard cleanup');
 }
 
 
@@ -377,9 +436,13 @@ assert.match(source, /Int32Array/);
 assert.match(source, /Float64Array/);
 assert.match(source, /COMBAT_STEERING_NEIGHBOR_RADIUS_M/);
 assert.doesNotMatch(
-  source.slice(source.indexOf('  update('), source.indexOf('  private bucketFor')),
+  source.slice(source.indexOf('  update('), source.indexOf('/** Stable ring angle')),
   /new (?:Array|Map|Set|Int32Array|Float64Array)/,
   'the per-frame steering path must not allocate collections',
 );
 
 console.log('Canonical combat steering grid, engagement slots, ranged lines, determinism, and 1,024-agent performance passed.');
+
+function wrappedAngleForTest(value: number): number {
+  return Math.atan2(Math.sin(value), Math.cos(value));
+}

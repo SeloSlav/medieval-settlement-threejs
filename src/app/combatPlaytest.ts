@@ -28,6 +28,7 @@ export const COMBAT_PLAYTEST_PRESET_PARAMETER = 'combatPreset';
 export const COMBAT_PLAYTEST_SEED_PARAMETER = 'combatSeed';
 export const DEFAULT_COMBAT_PLAYTEST_SEED = 0x431a_2e0d;
 export const COMBAT_PLAYTEST_AGENT_PREFIX = 'combat-playtest:';
+export const COMBAT_PLAYTEST_RANGED_TARGET_RETENTION_FACTOR = 1.35;
 
 export type CombatPlaytestPreset = 'skirmish' | 'field' | 'stress';
 
@@ -93,6 +94,7 @@ type RangedCompanyEngagement = {
   anchorZ: number;
   awayX: number;
   awayZ: number;
+  acquisitionRange: number;
 };
 
 type CombatStats = {
@@ -273,6 +275,10 @@ export class CombatPlaytestSimulation {
 
   getSeed(): number {
     return this.seed;
+  }
+
+  rangedCompanyTarget(companyId: string): string | null {
+    return this.rangedEngagements.get(companyId)?.designatedTarget?.state.id ?? null;
   }
 
   snapshot(): Map<string, CombatAgentState> {
@@ -482,10 +488,7 @@ export class CombatPlaytestSimulation {
     enemies: readonly RuntimeAgent[],
     pendingDamage: Map<string, number>,
   ): void {
-    const opponent = this.currentOpponent(runtime, enemies);
-    if (!opponent) return;
     const stats = this.statsFor(runtime);
-    const opponentDistance = distanceBetween(runtime, opponent);
     const ordered = runtime.orderX !== null && runtime.orderZ !== null;
     if (ordered && runtime.orderMode === 'move') {
       const remaining = this.steerToward(runtime, runtime.orderX!, runtime.orderZ!, stats.speed);
@@ -500,6 +503,10 @@ export class CombatPlaytestSimulation {
       }
       return;
     }
+
+    const opponent = this.currentOpponent(runtime, enemies);
+    if (!opponent) return;
+    const opponentDistance = distanceBetween(runtime, opponent);
 
     if (stats.minimumRange && opponentDistance < stats.minimumRange) {
       this.setRangedEngagementGoal(runtime, opponent, stats);
@@ -574,7 +581,7 @@ export class CombatPlaytestSimulation {
       runtime.steeringCompany,
       opponent.steeringSeed,
     );
-    const radius = engagementSlotRadius(stats.range);
+    const radius = engagementSlotRadius(stats.range, runtime.state.sourceSlot);
     runtime.steeringGoalX = opponent.state.x + Math.cos(angle) * radius;
     runtime.steeringGoalZ = opponent.state.z + Math.sin(angle) * radius;
     runtime.steeringSpeed = stats.speed;
@@ -642,12 +649,16 @@ export class CombatPlaytestSimulation {
     runtime: RuntimeAgent,
     candidates: readonly RuntimeAgent[],
   ): RuntimeAgent | null {
-    const companyTarget = runtime.rangedEngagement?.designatedTarget ?? null;
-    if (companyTarget && companyTarget.state.status !== 'downed') {
-      runtime.targetRuntime = companyTarget;
-      runtime.state.targetKind = 'combat-agent';
-      runtime.state.targetId = companyTarget.state.id;
-      return companyTarget;
+    if (runtime.rangedEngagement) {
+      const companyTarget = runtime.rangedEngagement.designatedTarget;
+      if (companyTarget && companyTarget.state.status !== 'downed') {
+        runtime.targetRuntime = companyTarget;
+        runtime.state.targetKind = 'combat-agent';
+        runtime.state.targetId = companyTarget.state.id;
+        return companyTarget;
+      }
+      runtime.targetRuntime = null;
+      return null;
     }
     const current = runtime.targetRuntime;
     if (
@@ -683,11 +694,22 @@ export class CombatPlaytestSimulation {
       engagement.centerX /= engagement.livingMembers;
       engagement.centerZ /= engagement.livingMembers;
       let target = engagement.designatedTarget;
-      if (!target || target.state.status === 'downed') {
+      const retentionRange = engagement.acquisitionRange
+        * COMBAT_PLAYTEST_RANGED_TARGET_RETENTION_FACTOR;
+      const targetDistanceSq = target
+        ? (target.state.x - engagement.centerX) ** 2
+          + (target.state.z - engagement.centerZ) ** 2
+        : Number.POSITIVE_INFINITY;
+      if (
+        !target
+        || target.state.status === 'downed'
+        || targetDistanceSq > retentionRange * retentionRange
+      ) {
         target = nearestOpponentPoint(
           engagement.centerX,
           engagement.centerZ,
           this.livingEnemies,
+          engagement.acquisitionRange,
         );
         engagement.designatedTarget = target;
       }
@@ -828,6 +850,7 @@ export class CombatPlaytestSimulation {
           anchorZ: input.z,
           awayX: 1,
           awayZ: 0,
+          acquisitionRange: stats.detection,
         };
         this.rangedEngagements.set(input.companyId, rangedEngagement);
       }
@@ -1008,9 +1031,10 @@ function nearestOpponentPoint(
   x: number,
   z: number,
   candidates: readonly RuntimeAgent[],
+  maximumDistance: number,
 ): RuntimeAgent | null {
   let nearest: RuntimeAgent | null = null;
-  let nearestDistanceSquared = Number.POSITIVE_INFINITY;
+  let nearestDistanceSquared = maximumDistance * maximumDistance;
   for (const candidate of candidates) {
     const dx = candidate.state.x - x;
     const dz = candidate.state.z - z;
@@ -1019,8 +1043,7 @@ function nearestOpponentPoint(
       distanceSquared < nearestDistanceSquared
       || (
         distanceSquared === nearestDistanceSquared
-        && nearest
-        && candidate.state.id < nearest.state.id
+        && (!nearest || candidate.state.id < nearest.state.id)
       )
     ) {
       nearest = candidate;

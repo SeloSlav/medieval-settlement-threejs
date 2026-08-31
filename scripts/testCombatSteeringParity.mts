@@ -94,6 +94,17 @@ assert.ok(
   generated.COMBAT_STEERING_MAX_NEIGHBORS <= 24,
   'the deterministic neighbor cap must keep dense battles bounded',
 );
+assert.ok(
+  2 * generated.COMBAT_STEERING_ENGAGEMENT_MIN_RADIUS_M
+    * Math.sin(Math.PI / generated.COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT)
+    >= generated.COMBAT_STEERING_SEPARATION_DISTANCE_M,
+  'adjacent first-ring melee slots must preserve physical body clearance',
+);
+assert.ok(
+  generated.COMBAT_STEERING_ENGAGEMENT_RING_SPACING_M
+    >= generated.COMBAT_STEERING_SEPARATION_DISTANCE_M,
+  'successive melee engagement rings must not repeat an occupied radius',
+);
 
 console.log(
   `Combat steering balance parity passed (${contracts.length} shared constants).`,

@@ -7,14 +7,15 @@
 use crate::balance_generated::{
     COMBAT_STEERING_ALIGNMENT_WEIGHT, COMBAT_STEERING_CELL_SIZE_M, COMBAT_STEERING_COHESION_WEIGHT,
     COMBAT_STEERING_ENGAGEMENT_MIN_RADIUS_M, COMBAT_STEERING_ENGAGEMENT_RADIUS_FACTOR,
-    COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT, COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ,
-    COMBAT_STEERING_GOAL_WEIGHT, COMBAT_STEERING_HARD_CLEARANCE_EPSILON_M,
-    COMBAT_STEERING_HARD_CONSTRAINT_ITERATIONS, COMBAT_STEERING_MAX_NEIGHBORS,
-    COMBAT_STEERING_MAX_TURN_RADIANS_PER_SECOND, COMBAT_STEERING_NEIGHBOR_RADIUS_M,
-    COMBAT_STEERING_PREDICTION_SECONDS, COMBAT_STEERING_PREDICTIVE_WEIGHT,
-    COMBAT_STEERING_RANGED_DEPTH_SPACING_M, COMBAT_STEERING_RANGED_LINE_SPACING_M,
-    COMBAT_STEERING_RANGED_PREFERRED_RANGE_FACTOR, COMBAT_STEERING_SEPARATION_DISTANCE_M,
-    COMBAT_STEERING_SEPARATION_WEIGHT, COMBAT_STEERING_VELOCITY_RESPONSE_PER_SECOND,
+    COMBAT_STEERING_ENGAGEMENT_RING_SPACING_M, COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT,
+    COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ, COMBAT_STEERING_GOAL_WEIGHT,
+    COMBAT_STEERING_HARD_CLEARANCE_EPSILON_M, COMBAT_STEERING_HARD_CONSTRAINT_ITERATIONS,
+    COMBAT_STEERING_MAX_NEIGHBORS, COMBAT_STEERING_MAX_TURN_RADIANS_PER_SECOND,
+    COMBAT_STEERING_NEIGHBOR_RADIUS_M, COMBAT_STEERING_PREDICTION_SECONDS,
+    COMBAT_STEERING_PREDICTIVE_WEIGHT, COMBAT_STEERING_RANGED_DEPTH_SPACING_M,
+    COMBAT_STEERING_RANGED_LINE_SPACING_M, COMBAT_STEERING_RANGED_PREFERRED_RANGE_FACTOR,
+    COMBAT_STEERING_SEPARATION_DISTANCE_M, COMBAT_STEERING_SEPARATION_WEIGHT,
+    COMBAT_STEERING_VELOCITY_RESPONSE_PER_SECOND,
 };
 
 const HASH_X: u32 = 73_856_093;
@@ -55,13 +56,6 @@ struct NeighborCandidate {
     /// 0 immediate overlap, 1 predicted collision, 2 flock-only.
     priority: u8,
     distance_sq: f64,
-}
-
-#[derive(Clone, Copy)]
-struct HardNeighborCandidate {
-    index: usize,
-    closest_distance_sq: f64,
-    start_distance_sq: f64,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -263,19 +257,41 @@ impl CombatSteeringGrid {
         }
     }
 
+    fn rebuild_output_spatial_index(&mut self) {
+        let count = self.ids.len();
+        self.cell_xs.resize(count, 0);
+        self.cell_zs.resize(count, 0);
+        self.next.clear();
+        self.next.resize(count, -1);
+        for index in 0..count {
+            self.cell_xs[index] = cell_coordinate(self.output_xs[index]);
+            self.cell_zs[index] = cell_coordinate(self.output_zs[index]);
+        }
+        let bucket_count = (count.saturating_mul(2))
+            .next_power_of_two()
+            .max(MIN_BUCKETS);
+        self.heads.clear();
+        self.heads.resize(bucket_count, -1);
+        self.bucket_mask = bucket_count - 1;
+        for index in 0..count {
+            let bucket = cell_hash(self.cell_xs[index], self.cell_zs[index], self.bucket_mask);
+            self.next[index] = self.heads[bucket];
+            self.heads[bucket] = index as i32;
+        }
+    }
+
     fn apply_hard_swept_constraints(&mut self, dt: f64, bounds: SteeringBounds) {
-        let neighbor_radius_sq =
-            COMBAT_STEERING_NEIGHBOR_RADIUS_M * COMBAT_STEERING_NEIGHBOR_RADIUS_M;
         let cell_radius =
             (COMBAT_STEERING_NEIGHBOR_RADIUS_M / COMBAT_STEERING_CELL_SIZE_M).ceil() as i32;
-        for _ in 0..COMBAT_STEERING_HARD_CONSTRAINT_ITERATIONS {
+        for iteration in 0..COMBAT_STEERING_HARD_CONSTRAINT_ITERATIONS {
+            // The first pass broad-phases swept paths from the authoritative
+            // substep starts. Later Gauss-Seidel cleanup passes reindex the
+            // corrected endpoints so corrections that create a new local
+            // contact are never hidden by stale cells.
+            if iteration > 0 {
+                self.rebuild_output_spatial_index();
+            }
             for left in 0..self.ids.len() {
-                let mut candidates = [HardNeighborCandidate {
-                    index: 0,
-                    closest_distance_sq: f64::INFINITY,
-                    start_distance_sq: f64::INFINITY,
-                }; COMBAT_STEERING_MAX_NEIGHBORS];
-                let mut candidate_count = 0_usize;
                 for cell_delta_z in -cell_radius..=cell_radius {
                     let cell_z = self.cell_zs[left] + cell_delta_z;
                     for cell_delta_x in -cell_radius..=cell_radius {
@@ -292,48 +308,9 @@ impl CombatSteeringGrid {
                             {
                                 continue;
                             }
-                            let start_delta_x = self.xs[left] - self.xs[right];
-                            let start_delta_z = self.zs[left] - self.zs[right];
-                            let start_distance_sq =
-                                start_delta_x * start_delta_x + start_delta_z * start_delta_z;
-                            if start_distance_sq > neighbor_radius_sq {
-                                continue;
-                            }
-                            let end_delta_x = self.output_xs[left] - self.output_xs[right];
-                            let end_delta_z = self.output_zs[left] - self.output_zs[right];
-                            let relative_step_x = end_delta_x - start_delta_x;
-                            let relative_step_z = end_delta_z - start_delta_z;
-                            let relative_step_sq = relative_step_x * relative_step_x
-                                + relative_step_z * relative_step_z;
-                            let closest_time = if relative_step_sq > 1e-12 {
-                                (-(start_delta_x * relative_step_x
-                                    + start_delta_z * relative_step_z)
-                                    / relative_step_sq)
-                                    .clamp(0.0, 1.0)
-                            } else {
-                                0.0
-                            };
-                            let closest_x = start_delta_x + relative_step_x * closest_time;
-                            let closest_z = start_delta_z + relative_step_z * closest_time;
-                            let closest_distance_sq = closest_x * closest_x + closest_z * closest_z;
-                            if closest_distance_sq >= HARD_SEPARATION_DISTANCE_SQ {
-                                continue;
-                            }
-                            insert_hard_neighbor_candidate(
-                                &mut candidates,
-                                &mut candidate_count,
-                                HardNeighborCandidate {
-                                    index: right,
-                                    closest_distance_sq,
-                                    start_distance_sq,
-                                },
-                                &self.ids,
-                            );
+                            self.project_hard_pair(left, right, bounds);
                         }
                     }
-                }
-                for candidate in candidates.iter().take(candidate_count) {
-                    self.project_hard_pair(left, candidate.index, bounds);
                 }
             }
         }
@@ -796,10 +773,13 @@ pub(crate) fn melee_engagement_goal(
     let slots = COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT.max(1);
     let phase =
         mix_seed(company_id as u32 ^ (target_id as u32).wrapping_mul(0x9e37_79b1)) as usize % slots;
-    let slot = (company_rank + phase) % slots;
-    let angle = slot as f64 / slots as f64 * std::f64::consts::TAU;
+    let ring = company_rank / slots;
+    let slot = (company_rank % slots + phase) % slots;
+    let stagger = if ring % 2 == 0 { 0.0 } else { 0.5 };
+    let angle = (slot as f64 + stagger) / slots as f64 * std::f64::consts::TAU;
     let radius = (strike_range * COMBAT_STEERING_ENGAGEMENT_RADIUS_FACTOR)
-        .max(COMBAT_STEERING_ENGAGEMENT_MIN_RADIUS_M);
+        .max(COMBAT_STEERING_ENGAGEMENT_MIN_RADIUS_M)
+        + ring as f64 * COMBAT_STEERING_ENGAGEMENT_RING_SPACING_M;
     (
         target_x + angle.cos() * radius,
         target_z + angle.sin() * radius,
@@ -878,40 +858,6 @@ fn neighbor_candidate_precedes(
         || (left.priority == right.priority
             && (left.distance_sq < right.distance_sq
                 || (left.distance_sq == right.distance_sq && ids[left.index] < ids[right.index])))
-}
-
-fn insert_hard_neighbor_candidate(
-    candidates: &mut [HardNeighborCandidate; COMBAT_STEERING_MAX_NEIGHBORS],
-    count: &mut usize,
-    candidate: HardNeighborCandidate,
-    ids: &[u64],
-) {
-    let mut position = (*count).min(COMBAT_STEERING_MAX_NEIGHBORS);
-    while position > 0 && hard_neighbor_candidate_precedes(candidate, candidates[position - 1], ids)
-    {
-        position -= 1;
-    }
-    if position >= COMBAT_STEERING_MAX_NEIGHBORS {
-        return;
-    }
-    let upper = (*count).min(COMBAT_STEERING_MAX_NEIGHBORS - 1);
-    for index in (position..upper).rev() {
-        candidates[index + 1] = candidates[index];
-    }
-    candidates[position] = candidate;
-    *count = (*count + 1).min(COMBAT_STEERING_MAX_NEIGHBORS);
-}
-
-fn hard_neighbor_candidate_precedes(
-    left: HardNeighborCandidate,
-    right: HardNeighborCandidate,
-    ids: &[u64],
-) -> bool {
-    left.closest_distance_sq < right.closest_distance_sq
-        || (left.closest_distance_sq == right.closest_distance_sq
-            && (left.start_distance_sq < right.start_distance_sq
-                || (left.start_distance_sq == right.start_distance_sq
-                    && ids[left.index] < ids[right.index])))
 }
 
 fn cell_coordinate(value: f64) -> i32 {
@@ -1266,6 +1212,44 @@ mod tests {
     }
 
     #[test]
+    fn hard_constraint_separates_sixty_four_exact_overlaps() {
+        let mut grid = CombatSteeringGrid::default();
+        grid.begin();
+        for id in 1..=64 {
+            let mut combatant = body(id, id, 0.0, 0.0);
+            combatant.velocity_x = 0.0;
+            combatant.speed = 0.0;
+            grid.push(combatant);
+        }
+        grid.finish();
+        grid.integrate_all(0.2);
+        assert_minimum_clearance(&grid);
+    }
+
+    #[test]
+    fn hard_constraint_clears_dense_eight_by_eight_block() {
+        let mut grid = CombatSteeringGrid::default();
+        grid.begin();
+        for row in 0..8 {
+            for column in 0..8 {
+                let id = (row * 8 + column + 1) as u64;
+                let mut combatant = body(
+                    id,
+                    id,
+                    column as f64 * 0.46,
+                    row as f64 * 0.46,
+                );
+                combatant.velocity_x = 0.0;
+                combatant.speed = 0.0;
+                grid.push(combatant);
+            }
+        }
+        grid.finish();
+        grid.integrate_all(0.2);
+        assert_minimum_clearance(&grid);
+    }
+
+    #[test]
     fn non_default_group_kind_still_aligns_and_coheres() {
         let mut grouped = CombatSteeringGrid::default();
         grouped.begin();
@@ -1448,6 +1432,37 @@ mod tests {
             COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT,
             "unique company source slots must fill the first engagement ring one-to-one"
         );
+
+        let first_outer = melee_engagement_goal(
+            7,
+            99,
+            COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT,
+            10.0,
+            20.0,
+            2.4,
+        );
+        let inner_radius = (first.0 - 10.0).hypot(first.1 - 20.0);
+        let outer_radius = (first_outer.0 - 10.0).hypot(first_outer.1 - 20.0);
+        assert!(
+            (outer_radius - inner_radius - COMBAT_STEERING_ENGAGEMENT_RING_SPACING_M).abs()
+                <= 1e-12
+        );
+        let inner_angle = (first.1 - 20.0).atan2(first.0 - 10.0);
+        let outer_angle = (first_outer.1 - 20.0).atan2(first_outer.0 - 10.0);
+        let half_slot_angle = std::f64::consts::PI / COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT as f64;
+        let stagger_delta = (outer_angle - inner_angle).rem_euclid(std::f64::consts::TAU);
+        assert!((stagger_delta - half_slot_angle).abs() <= 1e-12);
+
+        let mut first_twenty_five = (0..25)
+            .map(|rank| melee_engagement_goal(7, 99, rank, 10.0, 20.0, 2.4))
+            .collect::<Vec<_>>();
+        first_twenty_five.sort_by(|left, right| {
+            left.0
+                .total_cmp(&right.0)
+                .then_with(|| left.1.total_cmp(&right.1))
+        });
+        first_twenty_five.dedup();
+        assert_eq!(first_twenty_five.len(), 25);
     }
 
     #[test]

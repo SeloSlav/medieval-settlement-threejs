@@ -86,13 +86,6 @@ impl MilitaryScratch {
             .ok()
             .map(|index| self.ranged_frames[index])
     }
-
-    fn raider_ranged_frame(&self, agent: &CombatAgent) -> Option<RaiderRangedFrame> {
-        self.raider_ranged_frames
-            .iter()
-            .copied()
-            .find(|frame| frame.owner == agent.owner && frame.raid_id == agent.raid_id)
-    }
 }
 
 #[derive(Clone, Copy, Default)]
@@ -234,6 +227,8 @@ fn build_ranged_company_frame(
                 && matches!(target.faction, RAIDER | BANDIT | FOX | WOLF)
                 && target.state != DOWNED
                 && target.health > 0.0
+                && distance(source_x, source_z, target.x, target.z)
+                    <= military_stats(kind).acquisition_range * 1.35
         })
         .map(|target| target.id);
     let target_id = retained_valid.or_else(|| {
@@ -536,9 +531,10 @@ fn step_active_member(
         return;
     }
 
-    // Each soldier chooses a nearby opponent with a saturation penalty. This
-    // spreads contact across the enemy line while flock steering keeps the
-    // unselectable individuals attached to their atomic company.
+    // Each soldier retains a live nearby opponent, otherwise choosing the
+    // nearest bounded-grid contact. Deterministic engagement rings distribute
+    // the company's physical approach even when several ranks share that
+    // opponent; flock steering keeps the unselectable soldiers coherent.
     if let Some(mut enemy) =
         retained_or_nearest_enemy(ctx, steering, &agent, stats.acquisition_range)
     {
@@ -1170,6 +1166,16 @@ fn rebuild_steering_grid(
                 goal_x = agent.x;
                 goal_z = agent.z;
                 speed = intended_distance / elapsed_seconds;
+            } else if matches!(agent.state, FIGHTING | LOOTING | HOLDING)
+                && agent.engagement_target_id == 0
+            {
+                // Contact resolution deliberately authored no displacement.
+                // In particular, a looter is already at the usable perimeter
+                // of its target; steering must not reinterpret that pause as
+                // a request to walk through the building to its center.
+                goal_x = snapshot.x;
+                goal_z = snapshot.z;
+                speed = 0.0;
             }
             (
                 snapshot.x,
@@ -1178,8 +1184,9 @@ fn rebuild_steering_grid(
                 snapshot.velocity_z,
             )
         } else if motion_frame.is_some() {
-            // A combatant spawned after capture is still a physical obstacle,
-            // but waits for the next heartbeat before taking its first step.
+            // A combatant spawned after capture is a stationary physical
+            // obstacle. Hard separation may move it, and the final writer
+            // persists that constrained position even without a snapshot.
             goal_x = agent.x;
             goal_z = agent.z;
             speed = 0.0;
@@ -1432,20 +1439,23 @@ fn apply_global_combat_steering(
         if agent.state == DOWNED || agent.health <= 0.0 {
             continue;
         }
-        if motion_frame.get(agent.id).is_none() {
-            continue;
-        }
-        let snapshot = motion_frame
-            .get(agent.id)
-            .expect("captured combatant checked above");
         let provisional_x = agent.x;
         let provisional_z = agent.z;
         let provisional_route_progress = agent.route_progress;
+        let snapshot = motion_frame.get(agent.id);
         agent.x = source.x;
         agent.z = source.z;
-        agent.velocity_x = source.velocity_x;
-        agent.velocity_z = source.velocity_z;
-        if agent.faction <= RAIDER {
+        if snapshot.is_some() {
+            agent.velocity_x = source.velocity_x;
+            agent.velocity_z = source.velocity_z;
+        } else {
+            // Spawn-tick bodies participate in hard depenetration, but that
+            // correction is not locomotion and must not seed prediction as if
+            // they had intentionally moved before their first behavior tick.
+            agent.velocity_x = 0.0;
+            agent.velocity_z = 0.0;
+        }
+        if let Some(snapshot) = snapshot.filter(|_| agent.faction <= RAIDER) {
             let intended_x = provisional_x - snapshot.x;
             let intended_z = provisional_z - snapshot.z;
             let intended_length_sq = intended_x * intended_x + intended_z * intended_z;
