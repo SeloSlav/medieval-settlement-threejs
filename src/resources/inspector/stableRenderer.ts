@@ -142,7 +142,7 @@ export function renderStableInspector(
     </span>`;
 
     if (isPurchaseSlot) {
-      return `<li class="stable-ox-slot" data-stable-ox-slot="${slot}" data-state="purchase" data-purchase-status="${fire ? 'paused' : treasuryShort ? 'unaffordable' : 'ready'}">
+      return `<li class="stable-ox-slot" data-stable-ox-slot="${slot}" data-state="purchase" data-purchase-status="${fire ? 'paused' : !staffed ? 'unstaffed' : treasuryShort ? 'unaffordable' : 'ready'}">
         <button type="button" class="resource-action-button stable-ox-slot__purchase" data-purchase-ox
           data-tooltip-title="Purchase draft ox"
           data-tooltip="${purchaseTooltip}"

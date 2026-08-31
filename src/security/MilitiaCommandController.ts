@@ -3,6 +3,10 @@ import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import { isPlayerMilitaryFaction, type CombatAgentState } from './combatAgents.ts';
 import type { BanditCampState } from './banditState.ts';
 import { SecondaryClickGesture } from '../input/SecondaryClickGesture.ts';
+import {
+  MilitaryOrderFeedbackRenderer,
+  type MilitaryOrderFeedbackDiagnostics,
+} from './MilitaryOrderFeedbackRenderer.ts';
 
 type Options = {
   domElement: HTMLElement;
@@ -15,6 +19,7 @@ type Options = {
   onCommand: (ids: string[], x: number, z: number, campId: string | null) => void;
   onCompanySelected?: (companyId: string | null) => void;
   onLeavingCompanySelected?: (companyId: string) => void;
+  now?: () => number;
 };
 
 export type MilitiaCommandHandler = Options['onCommand'];
@@ -38,8 +43,10 @@ export class MilitiaCommandController {
   private readonly overlay = document.createElement('div');
   private readonly ringRoot = new THREE.Group();
   private readonly rings = new Map<string, THREE.Mesh>();
+  private readonly hostilePositions: { x: number; z: number }[] = [];
   private dragStart: { x: number; y: number } | null = null;
   private readonly rightClick: SecondaryClickGesture;
+  private readonly orderFeedback: MilitaryOrderFeedbackRenderer;
   private readonly options: Options;
   private commandHandler: MilitiaCommandHandler;
   private companyGuidesVisible = false;
@@ -55,6 +62,7 @@ export class MilitiaCommandController {
     options.uiRoot.append(this.overlay);
     this.ringRoot.name = 'Military company selection rings';
     options.parent.add(this.ringRoot);
+    this.orderFeedback = new MilitaryOrderFeedbackRenderer(options.parent);
     this.rightClick = new SecondaryClickGesture({ onClick: this.issueOrder });
     options.domElement.addEventListener('mousedown', this.onMouseDown);
     window.addEventListener('mousemove', this.onMouseMove);
@@ -73,6 +81,15 @@ export class MilitiaCommandController {
     this.syncRings();
   }
 
+  /** Advances the short order acknowledgement on the ordinary render clock. */
+  update(timeMs: number): void {
+    this.orderFeedback.update(timeMs);
+  }
+
+  orderFeedbackDiagnostics(timeMs = this.now()): MilitaryOrderFeedbackDiagnostics {
+    return this.orderFeedback.diagnostics(timeMs);
+  }
+
   clearSelection(): void {
     if (this.selected.size === 0) return;
     this.selected.clear();
@@ -83,8 +100,15 @@ export class MilitiaCommandController {
   sync(agents: ReadonlyMap<string, CombatAgentState>, camps: ReadonlyMap<string, BanditCampState>): void {
     this.companies.clear();
     this.camps.clear();
+    this.hostilePositions.length = 0;
     const grouped = new Map<string, CombatAgentState[]>();
     for (const agent of agents.values()) {
+      if (
+        (agent.faction === 'raider' || agent.faction === 'bandit')
+        && agent.status !== 'downed'
+      ) {
+        this.hostilePositions.push({ x: agent.x, z: agent.z });
+      }
       if (
         !isPlayerMilitaryFaction(agent.faction)
         || !agent.companyId
@@ -118,6 +142,7 @@ export class MilitiaCommandController {
     window.removeEventListener('mousemove', this.onMouseMove);
     window.removeEventListener('mouseup', this.onMouseUp);
     this.rightClick.dispose();
+    this.orderFeedback.dispose();
     this.overlay.remove();
     this.ringRoot.removeFromParent();
     for (const ring of this.rings.values()) {
@@ -202,8 +227,23 @@ export class MilitiaCommandController {
         const company = this.companies.get(companyId);
         return company?.controllable ? company.agents.map((agent) => agent.id) : [];
       });
-    if (agentIds.length > 0) this.commandHandler(agentIds, point.x, point.z, campId);
+    if (agentIds.length === 0) return;
+    this.commandHandler(agentIds, point.x, point.z, campId);
+    const attacksHostile = campId !== null || this.hostilePositions.some((hostile) => (
+      Math.hypot(hostile.x - point.x, hostile.z - point.z) <= 5.25
+    ));
+    this.orderFeedback.show(
+      point.x,
+      this.options.getHeightAt(point.x, point.z) + 0.055,
+      point.z,
+      attacksHostile ? 'attack' : 'move',
+      this.now(),
+    );
   };
+
+  private now(): number {
+    return this.options.now?.() ?? performance.now();
+  }
 
   private updateOverlay(x: number, y: number): void {
     if (!this.dragStart) return;

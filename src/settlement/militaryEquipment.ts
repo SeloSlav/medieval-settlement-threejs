@@ -1119,6 +1119,21 @@ export function setMilitaryEquipmentCombatStance(
   applyMilitaryEquipmentVisibility(tool);
 }
 
+/**
+ * Separates a casualty's held weapon from the bone-mounted kit without
+ * discarding equipment that still belongs on the body (quiver, scabbard,
+ * bolt case, and similar harness pieces). The matching ground object is owned
+ * by BattlefieldWeaponDropRenderer; this flag only prevents the hand-mounted
+ * copy from drawing through the clamped death pose.
+ */
+export function setMilitaryEquipmentDropped(
+  tool: THREE.Group,
+  dropped: boolean,
+): void {
+  tool.userData.workerToolDropped = dropped;
+  applyMilitaryEquipmentVisibility(tool);
+}
+
 function defaultCombatStance(kind: MilitaryEquipmentKind): MilitaryEquipmentCombatStance {
   return kind === 'bow' || kind === 'crossbow' || kind === 'uskok-kit'
     ? 'ranged'
@@ -1128,6 +1143,7 @@ function defaultCombatStance(kind: MilitaryEquipmentKind): MilitaryEquipmentComb
 function applyMilitaryEquipmentVisibility(tool: THREE.Group): void {
   const mounts = tool.userData.workerToolMounts as THREE.Group[] | undefined;
   const visible = tool.userData.workerToolVisible !== false;
+  const dropped = tool.userData.workerToolDropped === true;
   const stance = tool.userData.workerToolCombatStance as
     | MilitaryEquipmentCombatStance
     | undefined;
@@ -1139,7 +1155,8 @@ function applyMilitaryEquipmentVisibility(tool: THREE.Group): void {
       || (role === 'melee-stowed' && stance === 'ranged')
       || (role === 'ranged-held' && stance === 'ranged')
       || (role === 'ranged-stowed' && stance === 'melee');
-    mount.visible = visible && roleVisible;
+    const held = role === 'melee-held' || role === 'ranged-held';
+    mount.visible = visible && roleVisible && !(dropped && held);
   }
 }
 

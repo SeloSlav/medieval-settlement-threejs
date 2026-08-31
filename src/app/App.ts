@@ -888,6 +888,7 @@ export class App {
     const worldDt = worldAnimationDelta(dt, gameSpeed);
     this.syncCombatPlaytest(time, dt);
     this.syncBattleShowcase(time);
+    this.militiaCommands?.update(time);
     this.syncBuildInteractionPerf();
     this.frontierRiskMarkers?.tick(worldDt);
     if (this.settlementPresentationTargets) {

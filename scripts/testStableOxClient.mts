@@ -51,7 +51,6 @@ assert.match(inspector, /data-inspector-ox-team/);
 assert.match(inspector, /data-ox-posting-delta="-1"[\s\S]{0,320}data-ox-posting-delta="1"/);
 assert.match(inspector, /onSetBuildingOxen\?\.[\s\S]{0,140}targetCount/);
 assert.match(inspector, /Automatic pool · \$\{oxTeam\.automaticPoolCount\}/);
-assert.match(inspector, /stable: '\/assets\/ui\/build-menu\/cards\/stable\.webp'/);
 assert.match(inspector, /target\.building\.kind === 'stable'/);
 assert.match(
   inspector,
@@ -85,7 +84,7 @@ assert.match(stableRenderer, /stableOxPurchaseGold\(context\.landUseProfile\)/);
 assert.match(stableRenderer, /Array\.from\(\{ length: STABLE_OX_SLOTS \}/);
 assert.match(stableRenderer, /data-stable-ox-slot/);
 assert.match(stableRenderer, /data-purchase-ox/);
-assert.match(stableRenderer, /const purchaseDisabled = atCapacity \|\| treasuryShort \|\| fire !== null/);
+assert.match(stableRenderer, /const purchaseDisabled = atCapacity \|\| treasuryShort \|\| fire !== null \|\| !staffed/);
 assert.match(stableRenderer, /const nextOpenSlot/);
 assert.match(stableRenderer, /data-state="purchase"/);
 assert.match(stableRenderer, /stable-ox-slot__portrait/);
@@ -106,8 +105,11 @@ assert.match(stableRenderer, /Automatic pool · hauling now/);
 assert.match(stableRenderer, /Automatic assistance pool/);
 assert.doesNotMatch(stableRenderer, /dispatch ready/);
 
+const buildingCardArt = read('src/resources/buildingCardArt.ts');
+assert.match(buildingCardArt, /stable: '\/assets\/ui\/build-menu\/cards\/stable\.webp'/);
+
 const buildMenuCards = read('src/ui/buildMenuCards.ts');
-assert.match(buildMenuCards, /persistent workplace postings or automatic assistance/);
+assert.match(buildMenuCards, /Houses oxen for building, farm work, and hauling/);
 assert.doesNotMatch(buildMenuCards, /automatically dispatched draft oxen/);
 
 const bootstrap = read('src/app/appBootstrap.ts');

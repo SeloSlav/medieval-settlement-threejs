@@ -29,8 +29,8 @@ const reducer = readFileSync('server/src/reducers/stable_oxen.rs', 'utf8');
 assert.match(reducer, /pub fn purchase_stable_ox\(/);
 assert.match(
   reducer,
-  /stable\.owner != owner \|\| stable\.kind != "stable"[\s\S]{0,220}!stable\.construction_complete[\s\S]{0,220}building_fire_state\(ctx, stable_id\)\.is_some\(\)/,
-  'purchase authority must validate ownership, stable kind, completion, and fire safety',
+  /stable\.owner != owner \|\| stable\.kind != "stable"[\s\S]{0,220}!stable\.construction_complete[\s\S]{0,220}building_fire_state\(ctx, stable_id\)\.is_some\(\)[\s\S]{0,220}stable\.assigned_labor == 0/,
+  'purchase authority must validate ownership, stable kind, completion, fire safety, and a stable hand',
 );
 assert.match(
   reducer,
@@ -63,7 +63,7 @@ assert.match(lifecycle, /gold: STARTING_GOLD/);
 const bootstrap = readFileSync('server/src/reducers/bootstrap.rs', 'utf8');
 assert.match(
   bootstrap,
-  /gold: resources\.gold\.max\(0\.0\)[\s\S]*resources\.gold = 0\.0/,
+  /materialize_physical_resource_ledger_at\(ctx, owner, Some\(\(x, z\)\)\)\?;[\s\S]*resources\.gold = 0\.0/,
   'founding must move the opening purse into the physical camp and clear the compatibility ledger',
 );
 
