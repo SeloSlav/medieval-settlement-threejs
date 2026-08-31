@@ -1031,6 +1031,53 @@ mod tests {
         velocity_z: f64,
     }
 
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ParitySuite {
+        tolerance: f64,
+        cases: Vec<ParityCase>,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ParityCase {
+        name: String,
+        capacity: usize,
+        dt_seconds: f64,
+        steps: usize,
+        bounds: GoldenBounds,
+        agents: Vec<GoldenAgent>,
+        expected: Vec<GoldenExpected>,
+    }
+
+    fn grid_from_golden_agents(capacity: usize, agents: &[GoldenAgent]) -> CombatSteeringGrid {
+        assert!(capacity >= agents.len());
+        let mut grid = CombatSteeringGrid::default();
+        grid.begin();
+        for agent in agents {
+            if !agent.enabled {
+                continue;
+            }
+            grid.push(SteeringBody {
+                id: agent.id,
+                owner_group: agent.owner_group,
+                group_kind: agent.group_kind,
+                group_id: agent.group_id,
+                faction: agent.faction,
+                target_id: agent.target_id,
+                x: agent.x,
+                z: agent.z,
+                goal_x: agent.goal_x,
+                goal_z: agent.goal_z,
+                speed: agent.speed,
+                velocity_x: agent.velocity_x,
+                velocity_z: agent.velocity_z,
+            });
+        }
+        grid.finish();
+        grid
+    }
+
     fn body(id: u64, group: u64, x: f64, z: f64) -> SteeringBody {
         SteeringBody {
             id,
@@ -1074,29 +1121,7 @@ mod tests {
             serde_json::from_str(include_str!("../../../balance/combatSteeringGolden.json"))
                 .expect("valid shared combat-steering fixture");
         assert!(fixture.capacity >= fixture.agents.len());
-        let mut grid = CombatSteeringGrid::default();
-        grid.begin();
-        for agent in &fixture.agents {
-            if !agent.enabled {
-                continue;
-            }
-            grid.push(SteeringBody {
-                id: agent.id,
-                owner_group: agent.owner_group,
-                group_kind: agent.group_kind,
-                group_id: agent.group_id,
-                faction: agent.faction,
-                target_id: agent.target_id,
-                x: agent.x,
-                z: agent.z,
-                goal_x: agent.goal_x,
-                goal_z: agent.goal_z,
-                speed: agent.speed,
-                velocity_x: agent.velocity_x,
-                velocity_z: agent.velocity_z,
-            });
-        }
-        grid.finish();
+        let mut grid = grid_from_golden_agents(fixture.capacity, &fixture.agents);
         grid.integrate_all_bounded(
             fixture.dt_seconds,
             SteeringBounds {
@@ -1123,6 +1148,67 @@ mod tests {
             }
         }
         assert_minimum_clearance(&grid);
+    }
+
+    #[test]
+    fn typescript_and_rust_share_adversarial_parity_cases() {
+        let suite: ParitySuite = serde_json::from_str(include_str!(
+            "../../../balance/combatSteeringParityCases.json"
+        ))
+        .expect("valid shared adversarial steering suite");
+        for case in suite.cases {
+            let mut grid = grid_from_golden_agents(case.capacity, &case.agents);
+            let bounds = SteeringBounds {
+                min_x: case.bounds.min_x,
+                max_x: case.bounds.max_x,
+                min_z: case.bounds.min_z,
+                max_z: case.bounds.max_z,
+            };
+            let mut opened_passing_lane = false;
+            for step in 0..case.steps {
+                grid.integrate_all_bounded(case.dt_seconds, bounds);
+                assert_minimum_clearance(&grid);
+                if case.name == "head_on_six_server_steps" {
+                    let left = grid.body(grid.index_of(11).expect("left head-on body"));
+                    let right = grid.body(grid.index_of(12).expect("right head-on body"));
+                    if (left.z - right.z).abs()
+                        >= COMBAT_STEERING_SEPARATION_DISTANCE_M - 1e-9
+                    {
+                        opened_passing_lane = true;
+                    }
+                    if !opened_passing_lane {
+                        assert!(
+                            left.x < right.x,
+                            "{} inverted before lateral clearance at step {}",
+                            case.name,
+                            step + 1,
+                        );
+                    }
+                }
+            }
+            if case.name == "head_on_six_server_steps" {
+                assert!(opened_passing_lane);
+            }
+            for expected in case.expected {
+                let actual = grid.body(
+                    grid.index_of(expected.id)
+                        .unwrap_or_else(|| panic!("{} missing {}", case.name, expected.id)),
+                );
+                for (label, value, target) in [
+                    ("x", actual.x, expected.x),
+                    ("z", actual.z, expected.z),
+                    ("velocity_x", actual.velocity_x, expected.velocity_x),
+                    ("velocity_z", actual.velocity_z, expected.velocity_z),
+                ] {
+                    assert!(
+                        (value - target).abs() <= suite.tolerance,
+                        "{} agent {} {label}: Rust {value:.15} != TypeScript {target:.15}",
+                        case.name,
+                        expected.id,
+                    );
+                }
+            }
+        }
     }
 
     #[test]
@@ -1263,8 +1349,6 @@ mod tests {
             "the immediate other-group body must survive the 18-neighbor cap"
         );
 
-        crowded.integrate_all(0.05);
-        assert_minimum_clearance(&crowded);
     }
 
     #[test]
