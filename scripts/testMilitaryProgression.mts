@@ -113,9 +113,16 @@ assert.match(
 );
 
 assert.match(simulation, /fn step_mustering_member/);
-assert.match(simulation, /fn nearest_distributed_enemy/);
+assert.match(simulation, /fn retained_or_nearest_enemy/);
+assert.match(simulation, /steering\.nearest_matching_id/);
+assert.match(simulation, /engagement_target_id/);
 assert.match(simulation, /fn walk_flocked/);
-assert.match(simulation, /assigned \* 2\.75/);
+assert.match(simulation, /melee_engagement_goal/);
+assert.doesNotMatch(
+  simulation,
+  /fn nearest_distributed_enemy/,
+  'military target acquisition must not regress to the old all-pairs saturation scan',
+);
 assert.match(simulation, /fn step_company_upkeep/);
 assert.match(simulation, /local_company_requires_provisions\(kind, military_demands\)/);
 assert.match(simulation, /company_wages_enabled\(kind, military_demands\)/);
@@ -185,7 +192,11 @@ for (const control of [
 ]) {
   assert.match(roster, new RegExp(control));
 }
-assert.match(commands, /grouped\.get\(agent\.companyId\)/);
+assert.match(
+  commands,
+  /selectablePlayerMilitaryCompanyId\(agent\)[\s\S]*grouped\.get\(companyId\)/,
+  'company selection must use the canonical controllable-company resolver before grouping agents',
+);
 assert.match(commands, /this\.selected\.add\(nearest\.companyId\)/);
 assert.match(commands, /flatMap\(\(companyId\)/);
 assert.match(commands, /ring\.scale\.setScalar\(company\.radius\)/);

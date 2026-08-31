@@ -23,7 +23,10 @@ use super::military_steering::{
     melee_engagement_goal, ranged_firing_line_goal, CombatSteeringGrid, SteeringBody,
     SteeringBounds,
 };
-use super::raid_agents::{down_external_raider, reclamation_from_raid_stores};
+use super::raid_agents::{
+    collect_raider_ranged_frames, down_external_raider, reclamation_from_raid_stores,
+    RaiderRangedFrame,
+};
 use super::reclamation::recover_stock_at;
 
 const RAIDER: u8 = 1;
@@ -72,6 +75,8 @@ struct RangedCompanyFrame {
 struct MilitaryScratch {
     members: Vec<MilitaryMember>,
     ranged_frames: Vec<RangedCompanyFrame>,
+    combatants: Vec<CombatAgent>,
+    raider_ranged_frames: Vec<RaiderRangedFrame>,
 }
 
 impl MilitaryScratch {
@@ -80,6 +85,13 @@ impl MilitaryScratch {
             .binary_search_by_key(&company_id, |frame| frame.company_id)
             .ok()
             .map(|index| self.ranged_frames[index])
+    }
+
+    fn raider_ranged_frame(&self, agent: &CombatAgent) -> Option<RaiderRangedFrame> {
+        self.raider_ranged_frames
+            .iter()
+            .copied()
+            .find(|frame| frame.owner == agent.owner && frame.raid_id == agent.raid_id)
     }
 }
 
@@ -162,6 +174,15 @@ fn prepare_military_scratch(
         }
         start = end;
     }
+}
+
+fn refresh_raider_ranged_scratch(ctx: &ReducerContext, scratch: &mut MilitaryScratch) {
+    scratch.combatants.clear();
+    scratch.combatants.extend(ctx.db.combat_agent().iter());
+    scratch
+        .combatants
+        .sort_unstable_by_key(|combatant| combatant.id);
+    collect_raider_ranged_frames(&scratch.combatants, &mut scratch.raider_ranged_frames);
 }
 
 fn build_ranged_company_frame(
@@ -253,7 +274,7 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
         }
         COMBAT_STEERING_GRID.with(|cell| {
             let mut steering = cell.borrow_mut();
-            rebuild_steering_grid(ctx, &mut steering, None, &[], elapsed_seconds);
+            rebuild_steering_grid(ctx, &mut steering, None, &[], &[], elapsed_seconds);
             MILITARY_SCRATCH.with(|scratch_cell| {
                 let mut scratch = scratch_cell.borrow_mut();
                 prepare_military_scratch(ctx, &steering, &mut scratch);
@@ -312,11 +333,13 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
                 // every provisional faction displacement with one synchronous
                 // integration, preventing two fast bodies from swapping sides
                 // before predictive avoidance sees them.
+                refresh_raider_ranged_scratch(ctx, &mut scratch);
                 rebuild_steering_grid(
                     ctx,
                     &mut steering,
                     Some(&frame),
                     &scratch.ranged_frames,
+                    &scratch.raider_ranged_frames,
                     elapsed_seconds,
                 );
                 apply_global_combat_steering(ctx, &mut steering, &frame, elapsed_seconds);
@@ -1104,6 +1127,7 @@ fn rebuild_steering_grid(
     steering: &mut CombatSteeringGrid,
     motion_frame: Option<&CombatMotionFrame>,
     ranged_frames: &[RangedCompanyFrame],
+    raider_ranged_frames: &[RaiderRangedFrame],
     elapsed_seconds: f64,
 ) {
     steering.begin();
@@ -1127,7 +1151,13 @@ fn rebuild_steering_grid(
                 |member| (1, member.company_id),
             );
         let (mut goal_x, mut goal_z, mut speed) =
-            canonical_steering_goal(ctx, &agent, motion_frame, ranged_frames);
+            canonical_steering_goal(
+                ctx,
+                &agent,
+                motion_frame,
+                ranged_frames,
+                raider_ranged_frames,
+            );
         let snapshot = motion_frame.and_then(|frame| frame.get(agent.id));
         let (x, z, velocity_x, velocity_z) = if let Some(snapshot) = snapshot {
             let intended_dx = agent.x - snapshot.x;
@@ -1183,6 +1213,7 @@ fn canonical_steering_goal(
     agent: &CombatAgent,
     motion_frame: Option<&CombatMotionFrame>,
     ranged_frames: &[RangedCompanyFrame],
+    raider_ranged_frames: &[RaiderRangedFrame],
 ) -> (f64, f64, f64) {
     let member = ctx.db.military_member().combat_agent_id().find(&agent.id);
     let company = member
@@ -1294,15 +1325,24 @@ fn canonical_steering_goal(
                 }
             }
             let goal = if agent.faction == RAIDER && agent.source_slot % 4 == 3 {
-                ranged_firing_line_goal(
-                    agent.source_slot as usize,
-                    8,
-                    source_x,
-                    source_z,
-                    target_x,
-                    target_z,
-                    12.0,
-                )
+                raider_ranged_frames
+                    .iter()
+                    .copied()
+                    .find(|frame| frame.matches(agent))
+                    .map_or_else(
+                        || {
+                            ranged_firing_line_goal(
+                                (agent.source_slot as usize) / 4,
+                                1,
+                                source_x,
+                                source_z,
+                                target_x,
+                                target_z,
+                                12.0,
+                            )
+                        },
+                        |frame| frame.goal(agent.source_slot, 12.0),
+                    )
             } else {
                 melee_engagement_goal(
                     agent.raid_id.max(agent.source_building_id),

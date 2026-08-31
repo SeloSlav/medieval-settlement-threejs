@@ -43,6 +43,7 @@ const contracts = [
   ['COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT', 'engagementSlotCount'],
   ['COMBAT_STEERING_ENGAGEMENT_RADIUS_FACTOR', 'engagementRadiusFactor'],
   ['COMBAT_STEERING_ENGAGEMENT_MIN_RADIUS_M', 'engagementMinRadiusM'],
+  ['COMBAT_STEERING_ENGAGEMENT_RING_SPACING_M', 'engagementRingSpacingM'],
   ['COMBAT_STEERING_RANGED_LINE_SPACING_M', 'rangedLineSpacingM'],
   ['COMBAT_STEERING_RANGED_DEPTH_SPACING_M', 'rangedDepthSpacingM'],
   ['COMBAT_STEERING_RANGED_PREFERRED_RANGE_FACTOR', 'rangedPreferredRangeFactor'],

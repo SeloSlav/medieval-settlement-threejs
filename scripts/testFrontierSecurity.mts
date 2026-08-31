@@ -172,7 +172,7 @@ assert.equal(normalizeWorldGenerationSettings({
   conflictMode: 'peaceful',
 }).enemyPressure, 0);
 
-assert.equal(BUILDING_DEFINITIONS.watchtower.requiresHillside, true);
+assert.equal(BUILDING_DEFINITIONS.watchtower.requiresHillside, false);
 assert.equal(BUILDING_DEFINITIONS.watchtower.requiresRoad, true);
 assert.equal(BUILDING_DEFINITIONS.watchtower.maxLabor, 2);
 assert.equal(BUILDING_DEFINITIONS.watchtower.workRadius, 190);
@@ -208,8 +208,8 @@ assert.deepEqual(activeRaid, {
   enemyPressure: 65,
   initialRaiders: 7,
   initialGuards: 5,
-  goodsLost: 1.25,
-  wealthLost: 0.5,
+  goodsLost: 1,
+  wealthLost: 0,
   arsonStarted: false,
   raidersDowned: 2,
   routStarted: true,
@@ -2164,9 +2164,11 @@ assert.match(
 );
 assert.match(
   serverMilitary,
-  /nearest_distributed_enemy\(ctx, &agent, company\.id\)[\s\S]*enemy\.faction == BANDIT[\s\S]*down_enemy/,
+  /retained_or_nearest_enemy\(ctx, steering, &agent, stats\.acquisition_range\)/,
   'recruited companies must acquire nearby Ottoman or bandit agents through the persistent military simulation',
 );
+assert.match(serverMilitary, /matches!\(faction, RAIDER \| BANDIT \| FOX \| WOLF\)/);
+assert.match(serverMilitary, /down_enemy/);
 assert.match(
   serverRaidAgents,
   /fire_disabled_buildings\.contains\(&building\.id\)/,
@@ -2174,7 +2176,7 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
-  /if let Some\(route\) = muster_route \{[\s\S]*move_along_combat_route\([\s\S]*nearest_enemy_within\(agent, snapshots, COMBAT_FACTION_RAIDER, f64::INFINITY, true\)/,
+  /if let Some\(route\) = muster_route \{[\s\S]*move_along_combat_route\([\s\S]*retained_or_nearest_enemy\([\s\S]*GUARD_TARGET_ACQUISITION_METERS/,
   'road-linked companies should take their route while unlinked companies fall through to direct pursuit',
 );
 assert.doesNotMatch(

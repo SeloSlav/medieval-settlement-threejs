@@ -244,6 +244,7 @@ export type GameBalance = {
     engagementSlotCount: number;
     engagementRadiusFactor: number;
     engagementMinRadiusM: number;
+    engagementRingSpacingM: number;
     rangedLineSpacingM: number;
     rangedDepthSpacingM: number;
     rangedPreferredRangeFactor: number;
@@ -958,6 +959,7 @@ function generateRust(): string {
     `pub const COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT: usize = ${Math.max(1, Math.round(b.combatSteering.engagementSlotCount))};`,
     `pub const COMBAT_STEERING_ENGAGEMENT_RADIUS_FACTOR: f64 = ${rustF64(b.combatSteering.engagementRadiusFactor)};`,
     `pub const COMBAT_STEERING_ENGAGEMENT_MIN_RADIUS_M: f64 = ${rustF64(b.combatSteering.engagementMinRadiusM)};`,
+    `pub const COMBAT_STEERING_ENGAGEMENT_RING_SPACING_M: f64 = ${rustF64(b.combatSteering.engagementRingSpacingM)};`,
     `pub const COMBAT_STEERING_RANGED_LINE_SPACING_M: f64 = ${rustF64(b.combatSteering.rangedLineSpacingM)};`,
     `pub const COMBAT_STEERING_RANGED_DEPTH_SPACING_M: f64 = ${rustF64(b.combatSteering.rangedDepthSpacingM)};`,
     `pub const COMBAT_STEERING_RANGED_PREFERRED_RANGE_FACTOR: f64 = ${rustF64(b.combatSteering.rangedPreferredRangeFactor)};`,
@@ -2066,6 +2068,7 @@ function generateTypeScript(): string {
     `export const COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT = ${Math.max(1, Math.round(b.combatSteering.engagementSlotCount))};`,
     `export const COMBAT_STEERING_ENGAGEMENT_RADIUS_FACTOR = ${b.combatSteering.engagementRadiusFactor};`,
     `export const COMBAT_STEERING_ENGAGEMENT_MIN_RADIUS_M = ${b.combatSteering.engagementMinRadiusM};`,
+    `export const COMBAT_STEERING_ENGAGEMENT_RING_SPACING_M = ${b.combatSteering.engagementRingSpacingM};`,
     `export const COMBAT_STEERING_RANGED_LINE_SPACING_M = ${b.combatSteering.rangedLineSpacingM};`,
     `export const COMBAT_STEERING_RANGED_DEPTH_SPACING_M = ${b.combatSteering.rangedDepthSpacingM};`,
     `export const COMBAT_STEERING_RANGED_PREFERRED_RANGE_FACTOR = ${b.combatSteering.rangedPreferredRangeFactor};`,
