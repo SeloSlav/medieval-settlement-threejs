@@ -2005,6 +2005,11 @@ pub struct CombatAgent {
     /// 5 = bandit camp, 6 = commanded ground position.
     pub target_kind: u8,
     pub target_id: u64,
+    /// Dedicated retained physical opponent. Raiders keep their economic
+    /// looting target in `target_kind`/`target_id`, so combat pursuit cannot
+    /// safely overload those fields.
+    #[default(0u64)]
+    pub engagement_target_id: u64,
     pub x: f64,
     pub z: f64,
     /// Canonical planar velocity used by deterministic combat steering.

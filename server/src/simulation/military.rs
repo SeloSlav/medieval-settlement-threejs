@@ -131,38 +131,45 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
             rebuild_steering_grid(ctx, &mut steering, None, elapsed_seconds);
             let members = ctx.db.military_member().iter().collect::<Vec<_>>();
             for member in members {
-            let Some(agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
-                ctx.db
-                    .military_member()
-                    .combat_agent_id()
-                    .delete(member.combat_agent_id);
-                continue;
-            };
-            if agent.state == DOWNED {
-                step_downed_member(ctx, agent, member, elapsed_seconds);
-                continue;
-            }
-            let Some(company) = ctx.db.military_company().id().find(&member.company_id) else {
-                recover_member_kit(ctx, &agent);
-                ctx.db.militia_order().combat_agent_id().delete(agent.id);
-                ctx.db.military_member().combat_agent_id().delete(agent.id);
-                ctx.db.combat_agent().id().delete(agent.id);
-                continue;
-            };
-            match member.phase {
-                0 => step_mustering_member(ctx, agent, member, company, sim_tick, elapsed_seconds),
-                2 | 3 => step_returning_member(ctx, agent, member, company, elapsed_seconds),
-                _ => step_active_member(
-                    ctx,
-                    agent,
-                    member,
-                    company,
-                    sim_tick,
-                    elapsed_seconds,
-                    military_demands,
-                    &steering,
-                ),
-            }
+                let Some(agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
+                    ctx.db
+                        .military_member()
+                        .combat_agent_id()
+                        .delete(member.combat_agent_id);
+                    continue;
+                };
+                if agent.state == DOWNED {
+                    step_downed_member(ctx, agent, member, elapsed_seconds);
+                    continue;
+                }
+                let Some(company) = ctx.db.military_company().id().find(&member.company_id) else {
+                    recover_member_kit(ctx, &agent);
+                    ctx.db.militia_order().combat_agent_id().delete(agent.id);
+                    ctx.db.military_member().combat_agent_id().delete(agent.id);
+                    ctx.db.combat_agent().id().delete(agent.id);
+                    continue;
+                };
+                match member.phase {
+                    0 => step_mustering_member(
+                        ctx,
+                        agent,
+                        member,
+                        company,
+                        sim_tick,
+                        elapsed_seconds,
+                    ),
+                    2 | 3 => step_returning_member(ctx, agent, member, company, elapsed_seconds),
+                    _ => step_active_member(
+                        ctx,
+                        agent,
+                        member,
+                        company,
+                        sim_tick,
+                        elapsed_seconds,
+                        military_demands,
+                        &steering,
+                    ),
+                }
             }
 
             // Goals and state decisions are now final, but the grid is rebuilt
@@ -1163,9 +1170,10 @@ fn canonical_steering_goal(
     }
 }
 
-/// Final all-faction correction changes canonical coordinates but never grants
-/// another full movement step. Only the difference between the pre-integrated
-/// velocity and the globally steered velocity is projected into position.
+/// Replace every faction reducer's provisional displacement with one shared,
+/// synchronous integration from the pre-heartbeat frame. Behavior/state and
+/// route decisions remain authoritative, while physical coordinates advance
+/// exactly once and cannot tunnel between faction-specific reducer phases.
 fn apply_global_combat_steering(
     ctx: &ReducerContext,
     steering: &mut CombatSteeringGrid,
@@ -1228,10 +1236,9 @@ fn walk_flocked(
     speed: f64,
     dt: f64,
 ) {
-    // Path/formation behavior performs the heartbeat's one base integration.
-    // The final global pass replaces only the velocity delta, making the net
-    // displacement equivalent to one steered step rather than integrating the
-    // agent a second time.
+    // This provisional walk records the faction reducer's authored direction
+    // and distance. The final global pass derives intent from its displacement,
+    // rewinds to the shared snapshot, and replaces it with one steered solve.
     walk(agent, goal_x, goal_z, speed, dt);
 }
 

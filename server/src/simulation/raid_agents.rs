@@ -346,8 +346,9 @@ pub(super) fn ensure_warned_guard_muster(
             .and_then(|preferred| towers.iter().find(|tower| tower.source_id == preferred))
             .or_else(|| {
                 towers.iter().min_by(|left, right| {
-                    distance_squared(guardhouse.x, guardhouse.z, left.x, left.z)
-                        .total_cmp(&distance_squared(guardhouse.x, guardhouse.z, right.x, right.z))
+                    distance_squared(guardhouse.x, guardhouse.z, left.x, left.z).total_cmp(
+                        &distance_squared(guardhouse.x, guardhouse.z, right.x, right.z),
+                    )
                 })
             });
         let Some(tower) = tower else {
@@ -370,7 +371,8 @@ pub(super) fn ensure_warned_guard_muster(
                 .collect::<Vec<_>>();
             let count = members.len().max(1) as f64;
             for (index, member) in members.into_iter().enumerate() {
-                let Some(mut agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
+                let Some(mut agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id)
+                else {
                     continue;
                 };
                 if agent.state == COMBAT_STATE_DOWNED {
@@ -385,7 +387,13 @@ pub(super) fn ensure_warned_guard_muster(
                     destination_z: tower.z,
                     target_camp_id: 0,
                 };
-                if ctx.db.militia_order().combat_agent_id().find(&agent.id).is_some() {
+                if ctx
+                    .db
+                    .militia_order()
+                    .combat_agent_id()
+                    .find(&agent.id)
+                    .is_some()
+                {
                     ctx.db.militia_order().combat_agent_id().update(order);
                 } else {
                     ctx.db.militia_order().insert(order);
@@ -1391,7 +1399,11 @@ fn engage_agent(
 ) {
     let distance = distance_squared(agent.x, agent.z, enemy.x, enemy.z);
     let ranged_raider = agent.faction == COMBAT_FACTION_RAIDER && agent.source_slot % 4 == 3;
-    let strike_range = if ranged_raider { 12.0 } else { MELEE_RANGE_METERS };
+    let strike_range = if ranged_raider {
+        12.0
+    } else {
+        MELEE_RANGE_METERS
+    };
     if distance <= strike_range * strike_range {
         if agent.state != COMBAT_STATE_FIGHTING {
             agent.state_changed_tick = sim_tick;
@@ -1612,11 +1624,7 @@ fn down_agent(ctx: &ReducerContext, agent: &mut CombatAgent, active: &ActiveRaid
 
 /// Applies the canonical Ottoman casualty bookkeeping when a persistent player
 /// company, rather than a legacy raid guard, lands the finishing blow.
-pub(super) fn down_external_raider(
-    ctx: &ReducerContext,
-    agent: &mut CombatAgent,
-    sim_tick: u64,
-) {
+pub(super) fn down_external_raider(ctx: &ReducerContext, agent: &mut CombatAgent, sim_tick: u64) {
     let Some(active) = ctx
         .db
         .active_raid()

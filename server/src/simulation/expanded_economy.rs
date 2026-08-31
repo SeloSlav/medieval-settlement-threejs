@@ -20,20 +20,20 @@ use crate::balance_generated::{
     CATTLE_GRAIN_PER_UNSUPPORTED_HEAD, CATTLE_HAY_PER_UNSUPPORTED_HEAD,
     CHANDLERY_CANDLES_PER_CYCLE, CHANDLERY_FIREWOOD_PER_CYCLE, CHANDLERY_WAX_PER_CYCLE,
     CHARCOAL_BURNER_CHARCOAL_PER_CYCLE, CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
-    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, COBBLER_LEATHER_PER_CYCLE,
-    COBBLER_SHOES_PER_CYCLE, FARM_GROWTH_SECONDS, FARM_WORK_METERS_PER_WORKER_PER_SEC,
-    GRAIN_TRANSFER_PER_TRIP, LEATHER_TRANSFER_PER_TRIP, MINE_CLAY_PER_CYCLE, MINE_IRON_PER_CYCLE,
-    MINE_SALT_PER_CYCLE, MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_FEAST_DRINK,
-    MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
-    MONASTERY_UNLINKED_PRODUCTIVITY, PANNAGE_WINTER_CAPACITY_MULTIPLIER, POTTER_CLAY_PER_CYCLE,
-    POTTER_FIREWOOD_PER_CYCLE, POTTER_POTTERY_PER_CYCLE, POTTER_ROOF_TILES_PER_CYCLE,
-    POTTER_WATER_PER_CYCLE, RICH_MINE_THROUGHPUT_MULTIPLIER, SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
+    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, COBBLER_LEATHER_PER_CYCLE, COBBLER_SHOES_PER_CYCLE,
+    FARM_GROWTH_SECONDS, FARM_WORK_METERS_PER_WORKER_PER_SEC, GRAIN_TRANSFER_PER_TRIP,
+    LEATHER_TRANSFER_PER_TRIP, MINE_CLAY_PER_CYCLE, MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE,
+    MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_FEAST_DRINK, MONASTERY_FEAST_FOOD,
+    MONASTERY_FEAST_HONEY, MONASTERY_PILGRIMAGE_GOLD_PER_DAY, MONASTERY_UNLINKED_PRODUCTIVITY,
+    PANNAGE_WINTER_CAPACITY_MULTIPLIER, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
+    POTTER_POTTERY_PER_CYCLE, POTTER_ROOF_TILES_PER_CYCLE, POTTER_WATER_PER_CYCLE,
+    RICH_MINE_THROUGHPUT_MULTIPLIER, SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
     SHEEP_HAY_PER_UNSUPPORTED_HEAD, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE,
     SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE,
-    SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
-    SMOKEHOUSE_SALT_PER_CYCLE, SPINNING_RETTING_FLAX_PER_CYCLE,
-    SPINNING_RETTING_FLAX_WATER_PER_CYCLE, SPINNING_RETTING_LINEN_PER_CYCLE,
-    SPINNING_RETTING_WOOL_PER_CYCLE, SPINNING_RETTING_YARN_PER_CYCLE, SUMMER_DROUGHT_DURATION_DAYS,
+    SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE,
+    SPINNING_RETTING_FLAX_PER_CYCLE, SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
+    SPINNING_RETTING_LINEN_PER_CYCLE, SPINNING_RETTING_WOOL_PER_CYCLE,
+    SPINNING_RETTING_YARN_PER_CYCLE, SUMMER_DROUGHT_DURATION_DAYS,
     SWINE_GRAIN_PER_UNSUPPORTED_HEAD, TANNERY_FIREWOOD_PER_CYCLE, TANNERY_HIDES_PER_CYCLE,
     TANNERY_LEATHER_PER_CYCLE, TANNERY_WATER_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP,
     THRESHING_GRAIN_PER_CYCLE, THRESHING_SHEAVES_PER_CYCLE, TICK_DT, TIMBER_DELIVERY_SPEED_MPS,
@@ -45,8 +45,7 @@ use crate::balance_generated::{
 };
 use crate::brewery_recipe_policy::{
     brewery_recipe_requests_input, normalize_brewery_recipe_policy, BREWERY_RECIPE_ALE,
-    BREWERY_RECIPE_AUTO, BREWERY_RECIPE_CIDER, BREWERY_RECIPE_MEAD,
-    BREWERY_RECIPE_PEAR_CIDER,
+    BREWERY_RECIPE_AUTO, BREWERY_RECIPE_CIDER, BREWERY_RECIPE_MEAD, BREWERY_RECIPE_PEAR_CIDER,
 };
 use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
@@ -124,13 +123,8 @@ use crate::residence_consumption_policy::daily_household_bill_due;
 use crate::resource_units::{
     deterministic_whole_lot, periodic_whole_units, whole_cost, whole_units,
 };
-use crate::security_policy::RaidPortableStores;
 use crate::season_policy::{EnvironmentState, WeatherKind};
-use crate::smokehouse_recipe_policy::{
-    normalize_smokehouse_recipe_policy, smokehouse_recipe_requests_input,
-    SMOKEHOUSE_RECIPE_AUTO, SMOKEHOUSE_RECIPE_CHEESE, SMOKEHOUSE_RECIPE_CURED_MEAT,
-    SMOKEHOUSE_RECIPE_SMOKED_FISH,
-};
+use crate::security_policy::RaidPortableStores;
 use crate::simulation::delivery_trips::{
     building_has_active_trip, building_has_conflicting_inbound_supply_trip,
     building_has_inbound_commodity_trip, building_has_inbound_supply_trip,
@@ -146,6 +140,10 @@ use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::trading_post_exports_commodity;
 use crate::simulation::{try_dispatch_guardhouse_payroll, try_dispatch_local_civic_receipts};
+use crate::smokehouse_recipe_policy::{
+    normalize_smokehouse_recipe_policy, smokehouse_recipe_requests_input, SMOKEHOUSE_RECIPE_AUTO,
+    SMOKEHOUSE_RECIPE_CHEESE, SMOKEHOUSE_RECIPE_CURED_MEAT, SMOKEHOUSE_RECIPE_SMOKED_FISH,
+};
 use crate::specialty_trade_policy::{
     apiary_is_accumulating, apiary_is_harvesting, producer_output_batch_fits,
     vineyard_is_harvesting,
@@ -1354,7 +1352,6 @@ pub fn step_local_material_dispatch(
         &mut used_sources,
         &mut used_targets,
     );
-
 }
 
 fn sort_local_material_candidates(candidates: &mut [LocalMaterialDispatchCandidate]) {
@@ -1513,9 +1510,7 @@ fn local_material_target_kinds(
             "windmill",
             "carpenter",
         ]),
-        ("potter_kiln", CommodityKind::Pottery) => {
-            Some(&["village_storehouse", "trading_post"])
-        }
+        ("potter_kiln", CommodityKind::Pottery) => Some(&["village_storehouse", "trading_post"]),
         ("spinning_retting_house", CommodityKind::Yarn | CommodityKind::Linen) => {
             Some(&["weaver", "village_storehouse"])
         }
@@ -3035,9 +3030,7 @@ pub fn step_smokehouse(
     ctx.db.building().id().update(smokehouse);
 }
 
-fn selected_smokehouse_recipe(
-    smokehouse: &Building,
-) -> Option<(CommodityKind, CommodityKind)> {
+fn selected_smokehouse_recipe(smokehouse: &Building) -> Option<(CommodityKind, CommodityKind)> {
     let policy = normalize_smokehouse_recipe_policy(smokehouse.smokehouse_recipe_policy);
     let recipe = |input: CommodityKind| {
         let output = input
@@ -3053,18 +3046,22 @@ fn selected_smokehouse_recipe(
             _ => unreachable!("smokehouse recipe policy is normalized"),
         }));
     }
-    [CommodityKind::Meat, CommodityKind::Fish, CommodityKind::Milk]
-        .into_iter()
-        .map(recipe)
-        .find(|(input, output)| {
-            building_commodity_stock(smokehouse, *input) + 1e-6 >= SMOKEHOUSE_FOOD_PER_CYCLE
-                && processor_output_headroom(
-                    building_commodity_stock(smokehouse, *output),
-                    building_commodity_cap(&smokehouse.kind, *output),
-                    smokehouse.processor_output_target_percent,
-                ) + 1e-6
-                    >= SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE
-        })
+    [
+        CommodityKind::Meat,
+        CommodityKind::Fish,
+        CommodityKind::Milk,
+    ]
+    .into_iter()
+    .map(recipe)
+    .find(|(input, output)| {
+        building_commodity_stock(smokehouse, *input) + 1e-6 >= SMOKEHOUSE_FOOD_PER_CYCLE
+            && processor_output_headroom(
+                building_commodity_stock(smokehouse, *output),
+                building_commodity_cap(&smokehouse.kind, *output),
+                smokehouse.processor_output_target_percent,
+            ) + 1e-6
+                >= SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE
+    })
 }
 
 pub fn step_charcoal_burner(
@@ -3107,12 +3104,13 @@ pub fn step_smithy(
     ctx.db.building().id().update(smithy);
 }
 
-type WorkshopRecipe = (&'static [(CommodityKind, f64)], &'static [(CommodityKind, f64)]);
+type WorkshopRecipe = (
+    &'static [(CommodityKind, f64)],
+    &'static [(CommodityKind, f64)],
+);
 
-const POLEARM_RECIPE_INPUTS: &[(CommodityKind, f64)] = &[
-    (CommodityKind::Timber, 2.0),
-    (CommodityKind::Ironwork, 1.0),
-];
+const POLEARM_RECIPE_INPUTS: &[(CommodityKind, f64)] =
+    &[(CommodityKind::Timber, 2.0), (CommodityKind::Ironwork, 1.0)];
 const SIDEARM_RECIPE_INPUTS: &[(CommodityKind, f64)] = &[
     (CommodityKind::Ironwork, 2.0),
     (CommodityKind::Leather, 1.0),
@@ -3122,10 +3120,8 @@ const SHIELD_RECIPE_INPUTS: &[(CommodityKind, f64)] = &[
     (CommodityKind::Leather, 1.0),
     (CommodityKind::Ironwork, 1.0),
 ];
-const PADDED_ARMOR_RECIPE_INPUTS: &[(CommodityKind, f64)] = &[
-    (CommodityKind::Linen, 2.0),
-    (CommodityKind::Leather, 1.0),
-];
+const PADDED_ARMOR_RECIPE_INPUTS: &[(CommodityKind, f64)] =
+    &[(CommodityKind::Linen, 2.0), (CommodityKind::Leather, 1.0)];
 const MAIL_ARMOR_RECIPE_INPUTS: &[(CommodityKind, f64)] = &[
     (CommodityKind::Ironwork, 4.0),
     (CommodityKind::Leather, 1.0),
@@ -3142,10 +3138,8 @@ const CROSSBOW_RECIPE_INPUTS: &[(CommodityKind, f64)] = &[
     (CommodityKind::Linen, 1.0),
     (CommodityKind::Leather, 1.0),
 ];
-const AMMUNITION_RECIPE_INPUTS: &[(CommodityKind, f64)] = &[
-    (CommodityKind::Timber, 1.0),
-    (CommodityKind::Ironwork, 1.0),
-];
+const AMMUNITION_RECIPE_INPUTS: &[(CommodityKind, f64)] =
+    &[(CommodityKind::Timber, 1.0), (CommodityKind::Ironwork, 1.0)];
 const ONE_POLEARM: &[(CommodityKind, f64)] = &[(CommodityKind::Polearms, 1.0)];
 const ONE_SIDEARM: &[(CommodityKind, f64)] = &[(CommodityKind::Sidearms, 1.0)];
 const ONE_SHIELD: &[(CommodityKind, f64)] = &[(CommodityKind::Shields, 1.0)];
@@ -3183,7 +3177,11 @@ fn request_military_workshop_inputs(
             CommodityKind::Timber => &["lumber_mill", "village_storehouse", "trading_post"],
             CommodityKind::Ironwork => &["smithy", "village_storehouse", "trading_post"],
             CommodityKind::Leather => &["tannery", "village_storehouse", "trading_post"],
-            CommodityKind::Linen => &["spinning_retting_house", "village_storehouse", "trading_post"],
+            CommodityKind::Linen => &[
+                "spinning_retting_house",
+                "village_storehouse",
+                "trading_post",
+            ],
             _ => continue,
         };
         request_connected_commodity(
@@ -3276,16 +3274,12 @@ fn equipment_source_kinds(commodity: CommodityKind) -> &'static [&'static str] {
         CommodityKind::Sidearms
         | CommodityKind::Shields
         | CommodityKind::PaddedArmor
-        | CommodityKind::MailArmor => &[
-            "weaponsmith_armorer",
-            "village_storehouse",
-            "trading_post",
-        ],
-        CommodityKind::Bows | CommodityKind::Crossbows | CommodityKind::Ammunition => &[
-            "bowyer_fletcher",
-            "village_storehouse",
-            "trading_post",
-        ],
+        | CommodityKind::MailArmor => {
+            &["weaponsmith_armorer", "village_storehouse", "trading_post"]
+        }
+        CommodityKind::Bows | CommodityKind::Crossbows | CommodityKind::Ammunition => {
+            &["bowyer_fletcher", "village_storehouse", "trading_post"]
+        }
         _ => &[],
     }
 }
@@ -3336,11 +3330,7 @@ fn equipped_member_kit(kind: MilitaryKind, _slot: u32) -> RaidPortableStores {
 
 /// Keeps mustering companies non-controllable until their complete finished
 /// kits have reached the Town Hall or Guardhouse on ordinary physical carts.
-pub fn step_military_requisitions(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    clock: &GameClock,
-) {
+pub fn step_military_requisitions(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock) {
     let companies = ctx
         .db
         .military_company()
@@ -3410,12 +3400,13 @@ pub fn step_military_requisitions(
             member.phase = 1;
             member.ammunition = stats.ammunition_per_member;
             member.ammunition_capacity = stats.ammunition_per_member;
-            ctx.db.military_member().combat_agent_id().update(member.clone());
-            agent.carried_loot_json = serde_json::to_string(&equipped_member_kit(
-                kind,
-                agent.source_slot,
-            ))
-            .unwrap_or_default();
+            ctx.db
+                .military_member()
+                .combat_agent_id()
+                .update(member.clone());
+            agent.carried_loot_json =
+                serde_json::to_string(&equipped_member_kit(kind, agent.source_slot))
+                    .unwrap_or_default();
             agent.state = 9;
             agent.target_kind = 6;
             agent.target_id = 0;
@@ -3485,13 +3476,7 @@ pub fn step_apiary(
         building.apiary_colony_health,
     );
     let mut apiary = if apiary_is_accumulating(clock.month as u8) {
-        accumulate_apiary_yield_cycle(
-            ctx,
-            tick,
-            clock,
-            building,
-            production_rate,
-        )
+        accumulate_apiary_yield_cycle(ctx, tick, clock, building, production_rate)
     } else if apiary_is_harvesting(clock.month as u8) {
         harvest_accumulated_apiary_yield(ctx, tick, clock, building)
     } else {
@@ -3578,22 +3563,16 @@ fn accumulate_apiary_yield_cycle(
     mut apiary: Building,
     throughput_multiplier: f64,
 ) -> Building {
-    let Some(labor) = cycle_labor_if_ready_at_rate(
-        ctx,
-        tick,
-        clock,
-        &mut apiary,
-        false,
-        throughput_multiplier,
-    ) else {
+    let Some(labor) =
+        cycle_labor_if_ready_at_rate(ctx, tick, clock, &mut apiary, false, throughput_multiplier)
+    else {
         return apiary;
     };
     let batch = whole_units(APIARY_HONEY_PER_CYCLE);
     if batch < 1.0 {
         return apiary;
     }
-    apiary.apiary_accumulated_honey =
-        whole_units(apiary.apiary_accumulated_honey.max(0.0)) + batch;
+    apiary.apiary_accumulated_honey = whole_units(apiary.apiary_accumulated_honey.max(0.0)) + batch;
     reset_cycle(&mut apiary, labor);
     apiary
 }
@@ -4522,14 +4501,12 @@ fn step_processor_with_labor(
     if productive_labor <= 1e-9 {
         return building;
     }
-    let selected_rate = crate::production_rate_policy::production_rate_multiplier(
-        building.production_rate_percent,
-    );
+    let selected_rate =
+        crate::production_rate_policy::production_rate_multiplier(building.production_rate_percent);
     if selected_rate <= 1e-9 {
         return building;
     }
-    building.action_cooldown =
-        (building.action_cooldown - TICK_DT * selected_rate).max(0.0);
+    building.action_cooldown = (building.action_cooldown - TICK_DT * selected_rate).max(0.0);
     if building.action_cooldown > 1e-6 {
         return building;
     }
@@ -4822,8 +4799,7 @@ pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityK
             return effective_milk_use_policy(
                 building.milk_use_policy,
                 building.processor_output_target_percent,
-            )
-                != MILK_USE_FRESH
+            ) != MILK_USE_FRESH
                 && building_commodity_room(building, CommodityKind::Cheese) > 1e-6;
         }
         if matches!(
@@ -4896,10 +4872,7 @@ fn brewery_input_recipe(commodity: CommodityKind) -> Option<u8> {
 /// Demand is narrower than physical acceptance for focused recipe buildings.
 /// A non-selected ingredient may remain stored or finish an already active
 /// trip, but no new supply trip should be created for it.
-pub(crate) fn processor_requests_input(
-    building: &Building,
-    commodity: CommodityKind,
-) -> bool {
+pub(crate) fn processor_requests_input(building: &Building, commodity: CommodityKind) -> bool {
     match building.kind.as_str() {
         "brewery" => brewery_input_recipe(commodity)
             .map(|recipe| brewery_recipe_requests_input(building.brewery_recipe_policy, recipe))
@@ -4983,9 +4956,8 @@ fn cycle_labor_if_ready_at_rate(
         }
         productive_labor
     };
-    let selected_rate = crate::production_rate_policy::production_rate_multiplier(
-        building.production_rate_percent,
-    );
+    let selected_rate =
+        crate::production_rate_policy::production_rate_multiplier(building.production_rate_percent);
     if selected_rate <= 1e-9 {
         return None;
     }
@@ -5584,8 +5556,7 @@ fn processor_input_target_for_building(
             building.milk_use_policy,
             building.processor_output_target_percent,
         );
-        per_cycle.max(0.0)
-            * farmhouse_cheese_salt_staging_cycles(milk_use)
+        per_cycle.max(0.0) * farmhouse_cheese_salt_staging_cycles(milk_use)
     } else {
         processor_input_target(per_cycle, building.processor_output_target_percent)
     }

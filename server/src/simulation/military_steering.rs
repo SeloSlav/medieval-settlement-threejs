@@ -190,13 +190,7 @@ impl CombatSteeringGrid {
             self.output_velocity_zs.clear();
             for index in 0..count {
                 let source = self.body(index);
-                let output = self.steer(
-                    source,
-                    source.goal_x,
-                    source.goal_z,
-                    source.speed,
-                    dt,
-                );
+                let output = self.steer(source, source.goal_x, source.goal_z, source.speed, dt);
                 self.output_xs.push(output.x);
                 self.output_zs.push(output.z);
                 self.output_velocity_xs.push(output.velocity_x);
@@ -204,10 +198,8 @@ impl CombatSteeringGrid {
             }
             self.xs.copy_from_slice(&self.output_xs);
             self.zs.copy_from_slice(&self.output_zs);
-            self.velocity_xs
-                .copy_from_slice(&self.output_velocity_xs);
-            self.velocity_zs
-                .copy_from_slice(&self.output_velocity_zs);
+            self.velocity_xs.copy_from_slice(&self.output_velocity_xs);
+            self.velocity_zs.copy_from_slice(&self.output_velocity_zs);
             self.rebuild_spatial_index();
             remaining -= dt;
         }
@@ -327,8 +319,8 @@ impl CombatSteeringGrid {
         let cell_radius =
             (COMBAT_STEERING_NEIGHBOR_RADIUS_M / COMBAT_STEERING_CELL_SIZE_M).ceil() as i32;
 
-        let own_persisted_speed_sq = source.velocity_x * source.velocity_x
-            + source.velocity_z * source.velocity_z;
+        let own_persisted_speed_sq =
+            source.velocity_x * source.velocity_x + source.velocity_z * source.velocity_z;
         let (own_velocity_x, own_velocity_z) = if own_persisted_speed_sq > 1e-8 {
             (source.velocity_x, source.velocity_z)
         } else {
@@ -480,12 +472,11 @@ impl CombatSteeringGrid {
                         let (avoid_x, avoid_z) = if predicted_sq <= separation_sq * 0.16 {
                             let low = source.id.min(self.ids[index]) as u32;
                             let high = source.id.max(self.ids[index]) as u32;
-                            let side =
-                                if mix_seed(low ^ high.wrapping_mul(0x9e37_79b1)) & 1 == 0 {
-                                    -1.0
-                                } else {
-                                    1.0
-                                };
+                            let side = if mix_seed(low ^ high.wrapping_mul(0x9e37_79b1)) & 1 == 0 {
+                                -1.0
+                            } else {
+                                1.0
+                            };
                             let relative_speed = relative_speed_sq.sqrt();
                             (
                                 -relative_velocity_z / relative_speed * side,
@@ -495,11 +486,8 @@ impl CombatSteeringGrid {
                             let distance = predicted_sq.sqrt();
                             (predicted_x / distance, predicted_z / distance)
                         };
-                        let urgency = (1.0
-                            - closest_time / COMBAT_STEERING_PREDICTION_SECONDS)
-                            * (1.0
-                                - predicted_sq.sqrt()
-                                    / COMBAT_STEERING_SEPARATION_DISTANCE_M);
+                        let urgency = (1.0 - closest_time / COMBAT_STEERING_PREDICTION_SECONDS)
+                            * (1.0 - predicted_sq.sqrt() / COMBAT_STEERING_SEPARATION_DISTANCE_M);
                         predictive_x += avoid_x * urgency;
                         predictive_z += avoid_z * urgency;
                         predictive_neighbors += 1;
@@ -672,9 +660,7 @@ fn insert_neighbor_candidate(
     ids: &[u64],
 ) {
     let mut position = (*count).min(COMBAT_STEERING_MAX_NEIGHBORS);
-    while position > 0
-        && neighbor_candidate_precedes(candidate, candidates[position - 1], ids)
-    {
+    while position > 0 && neighbor_candidate_precedes(candidate, candidates[position - 1], ids) {
         position -= 1;
     }
     if position >= COMBAT_STEERING_MAX_NEIGHBORS {
@@ -696,8 +682,7 @@ fn neighbor_candidate_precedes(
     left.priority < right.priority
         || (left.priority == right.priority
             && (left.distance_sq < right.distance_sq
-                || (left.distance_sq == right.distance_sq
-                    && ids[left.index] < ids[right.index])))
+                || (left.distance_sq == right.distance_sq && ids[left.index] < ids[right.index])))
 }
 
 fn cell_coordinate(value: f64) -> i32 {
@@ -922,6 +907,83 @@ mod tests {
         grid.finish();
         let output = grid.steer(grid.body(grid.index_of(1).unwrap()), 20.0, 0.0, 2.0, 0.05);
         assert!(output.x > 0.0, "formation/path goal must beat crowd forces");
+    }
+
+    #[test]
+    fn dense_flock_neighbors_cannot_hide_an_immediate_other_group_collision() {
+        let mut crowded = CombatSteeringGrid::default();
+        crowded.begin();
+        let mut source = body(100, 10, 0.0, 0.0);
+        source.goal_x = 10.0;
+        crowded.push(source);
+        for id in 1..=24 {
+            let angle = id as f64 * 0.71;
+            let radius = 1.1 + (id % 5) as f64 * 0.3;
+            crowded.push(body(id, 10, angle.cos() * radius, angle.sin() * radius));
+        }
+        crowded.push(body(999, 99, 0.12, 0.0));
+        crowded.finish();
+        let with_collision = crowded.steer(
+            crowded.body(crowded.index_of(100).unwrap()),
+            10.0,
+            0.0,
+            2.0,
+            0.05,
+        );
+
+        let mut flock_only = CombatSteeringGrid::default();
+        flock_only.begin();
+        flock_only.push(source);
+        for id in 1..=24 {
+            let angle = id as f64 * 0.71;
+            let radius = 1.1 + (id % 5) as f64 * 0.3;
+            flock_only.push(body(id, 10, angle.cos() * radius, angle.sin() * radius));
+        }
+        flock_only.finish();
+        let without_collision = flock_only.steer(
+            flock_only.body(flock_only.index_of(100).unwrap()),
+            10.0,
+            0.0,
+            2.0,
+            0.05,
+        );
+        assert!(
+            with_collision.velocity_x < without_collision.velocity_x,
+            "the immediate other-group body must survive the 18-neighbor cap"
+        );
+    }
+
+    #[test]
+    fn long_fast_heartbeat_substeps_predictive_crossing() {
+        let mut grid = CombatSteeringGrid::default();
+        grid.begin();
+        let mut left = body(1, 10, -1.0, 0.0);
+        left.goal_x = 12.0;
+        left.speed = 4.0;
+        left.velocity_x = 4.0;
+        let mut right = body(2, 20, 1.0, 0.0);
+        right.goal_x = -12.0;
+        right.speed = 4.0;
+        right.velocity_x = -4.0;
+        grid.push(left);
+        grid.push(right);
+        grid.finish();
+
+        for _ in 0..6 {
+            grid.integrate_all(0.2);
+            let left = grid.body(grid.index_of(1).unwrap());
+            let right = grid.body(grid.index_of(2).unwrap());
+            assert!(
+                (left.x - right.x).hypot(left.z - right.z) > 0.12,
+                "fast opponents must not tunnel into one another between substeps"
+            );
+        }
+        let left = grid.body(grid.index_of(1).unwrap());
+        let right = grid.body(grid.index_of(2).unwrap());
+        assert!(
+            (left.z - right.z).abs() > 0.2,
+            "predictive pass-side steering should create visible lateral clearance"
+        );
     }
 
     #[test]
