@@ -1603,6 +1603,7 @@ const serverMilitary = readFileSync('server/src/simulation/military.rs', 'utf8')
 const serverRoadNetwork = readFileSync('server/src/roads/network.rs', 'utf8');
 const frontierEconomy = readFileSync('server/src/frontier_economy_policy.rs', 'utf8');
 const expandedEconomy = readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
+const serverCommodities = readFileSync('server/src/economy/commodities.rs', 'utf8');
 const serverPolicy = readFileSync('server/src/security_policy.rs', 'utf8');
 assert.match(
   serverPolicy,
@@ -2733,13 +2734,18 @@ const smokehouseStepSource = expandedEconomy.slice(
 );
 assert.match(
   smokehouseStepSource,
-  /let selected_input = \[[\s\S]*?CommodityKind::Meat,[\s\S]*?CommodityKind::Fish,[\s\S]*?CommodityKind::Milk,[\s\S]*?\.preservation_output\(\)/,
+  /fn selected_smokehouse_recipe[\s\S]*?let recipe = \|input: CommodityKind\|[\s\S]*?\.preservation_output\(\)[\s\S]*?CommodityKind::Meat,[\s\S]*?CommodityKind::Fish,[\s\S]*?CommodityKind::Milk,[\s\S]*?\.map\(recipe\)/,
   'smokehouses must preserve concrete meat, fish, or milk inputs without an aggregate food commodity',
 );
 assert.match(
   smokehouseStepSource,
-  /for commodity in \[[\s\S]*CommodityKind::Cheese[\s\S]*CommodityKind::PreservedFood[\s\S]*dispatch_to_building_where\([\s\S]*&mut smokehouse,[\s\S]*commodity,[\s\S]*&\["granary"\],[\s\S]*\|target\| target\.granary_accepts_fresh_food/,
+  /for commodity in \[[\s\S]*CommodityKind::Cheese[\s\S]*CommodityKind::PreservedFood[\s\S]*dispatch_to_building_where\([\s\S]*&mut smokehouse,[\s\S]*commodity,[\s\S]*&\["granary"\],[\s\S]*\|target\| storage_accepts_commodity\(target, commodity\)/,
   'smokehouses may send cured household surplus only to granaries opted into perishable collection',
+);
+assert.match(
+  serverCommodities,
+  /\("granary", commodity\) if commodity\.is_fresh_food\(\) \|\| commodity\.is_preserved_food\(\)[\s\S]*building\.granary_accepts_fresh_food/,
+  'the shared storage-acceptance gate must preserve the granary perishable opt-in',
 );
 const guardhouseStepSource = expandedEconomy.slice(
   expandedEconomy.indexOf('pub fn step_guardhouse'),
@@ -2759,9 +2765,9 @@ assert.match(institutionalFoodDispatchSource, /InstitutionalFoodDispatchDuty::Cr
 assert.match(institutionalFoodDispatchSource, /InstitutionalFoodDispatchDuty::GuardReserve/);
 assert.match(expandedEconomy, /fn next_granary_guard_food_dispatch/);
 assert.match(expandedEconomy, /institutional_source_food_surplus/);
-assert.match(guardhouseInspector, /becomes an emergency claim/);
-assert.match(guardhouseInspector, /data-guardhouse-food-reserve/);
-assert.match(guardhouseInspector, /lock up more fresh food here/);
+assert.match(guardhouseInspector, /Military demands/);
+assert.match(guardhouseInspector, /Local companies consume light preserved rations; wages and ale are disabled/);
+assert.match(guardhouseInspector, /campaign rations, one ale per soldier per issue, and Treasury pay/);
 assert.match(townHallInspector, /Ration reserves/);
 assert.match(townHallInspector, /lean.*company.*deep/);
 assert.match(townHallInspector, /Frontier timetable/);
