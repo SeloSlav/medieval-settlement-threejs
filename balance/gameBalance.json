@@ -42,7 +42,7 @@
     "velocityResponsePerSecond": 10,
     "maxTurnRadiansPerSecond": 8,
     "exactOverlapEpsilonSq": 0.00000001,
-    "hardConstraintIterations": 4,
+    "hardConstraintIterations": 8,
     "hardClearanceEpsilonM": 0.001
   },
   "seasons": {

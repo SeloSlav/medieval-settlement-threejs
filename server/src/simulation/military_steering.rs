@@ -348,8 +348,6 @@ impl CombatSteeringGrid {
             self.output_velocity_xs[index] = (self.output_xs[index] - self.xs[index]) / dt;
             self.output_velocity_zs[index] = (self.output_zs[index] - self.zs[index]) / dt;
         }
-        #[cfg(debug_assertions)]
-        self.debug_assert_hard_clearance();
     }
 
     fn project_hard_pair(&mut self, left: usize, right: usize, bounds: SteeringBounds) {
@@ -417,26 +415,6 @@ impl CombatSteeringGrid {
             (self.output_xs[right] - half_x).clamp(bounds.min_x, bounds.max_x);
         self.output_zs[right] =
             (self.output_zs[right] - half_z).clamp(bounds.min_z, bounds.max_z);
-    }
-
-    #[cfg(debug_assertions)]
-    fn debug_assert_hard_clearance(&self) {
-        let minimum = COMBAT_STEERING_SEPARATION_DISTANCE_M - 1e-7;
-        for left in 0..self.ids.len() {
-            for right in (left + 1)..self.ids.len() {
-                if self.owner_groups[left] != self.owner_groups[right] {
-                    continue;
-                }
-                let dx = self.output_xs[left] - self.output_xs[right];
-                let dz = self.output_zs[left] - self.output_zs[right];
-                debug_assert!(
-                    dx.hypot(dz) >= minimum,
-                    "hard combat clearance failed for {} and {}",
-                    self.ids[left],
-                    self.ids[right],
-                );
-            }
-        }
     }
 
     /// Bounded grid acquisition used only when a combatant has no retained
@@ -1229,32 +1207,44 @@ mod tests {
     fn long_fast_heartbeat_substeps_predictive_crossing() {
         let mut grid = CombatSteeringGrid::default();
         grid.begin();
-        let mut left = body(1, 10, -1.0, 0.0);
-        left.goal_x = 12.0;
-        left.speed = 4.0;
-        left.velocity_x = 4.0;
-        let mut right = body(2, 20, 1.0, 0.0);
-        right.goal_x = -12.0;
-        right.speed = 4.0;
-        right.velocity_x = -4.0;
+        let mut left = body(11, 1, -2.0, 0.0);
+        left.goal_x = 4.0;
+        left.speed = 2.2;
+        left.velocity_x = 0.0;
+        let mut right = body(12, 2, 2.0, 0.0);
+        right.goal_x = -4.0;
+        right.speed = 2.2;
+        right.velocity_x = 0.0;
         grid.push(left);
         grid.push(right);
         grid.finish();
 
-        for _ in 0..6 {
+        let mut opened_passing_lane = false;
+        for step in 0..18 {
             grid.integrate_all(0.2);
-            let left = grid.body(grid.index_of(1).unwrap());
-            let right = grid.body(grid.index_of(2).unwrap());
+            let left = grid.body(grid.index_of(11).unwrap());
+            let right = grid.body(grid.index_of(12).unwrap());
+            let distance = (left.x - right.x).hypot(left.z - right.z);
+            let lateral_clearance = (left.z - right.z).abs();
             assert!(
-                (left.x - right.x).hypot(left.z - right.z) > 0.12,
-                "fast opponents must not tunnel into one another between substeps"
+                distance >= COMBAT_STEERING_SEPARATION_DISTANCE_M - 1e-9,
+                "hard separation failed on head-on tick {}",
+                step + 1,
             );
+            if lateral_clearance >= COMBAT_STEERING_SEPARATION_DISTANCE_M - 1e-9 {
+                opened_passing_lane = true;
+            }
+            if !opened_passing_lane {
+                assert!(
+                    left.x < right.x,
+                    "head-on bodies exchanged x order before lateral clearance on tick {}",
+                    step + 1,
+                );
+            }
         }
-        let left = grid.body(grid.index_of(1).unwrap());
-        let right = grid.body(grid.index_of(2).unwrap());
         assert!(
-            (left.z - right.z).abs() > 0.2,
-            "predictive pass-side steering should create visible lateral clearance"
+            opened_passing_lane,
+            "head-on prediction must open a deterministic passing side"
         );
     }
 

@@ -62,7 +62,6 @@ struct RangedCompanyFrame {
     company_id: u64,
     source_x: f64,
     source_z: f64,
-    target_id: u64,
     target_x: f64,
     target_z: f64,
 }
@@ -229,7 +228,6 @@ fn build_ranged_company_frame(
         company_id,
         source_x,
         source_z,
-        target_id,
         target_x: target.x,
         target_z: target.z,
     })
@@ -549,7 +547,6 @@ fn step_active_member(
                     company_id: company.id,
                     source_x: agent.x,
                     source_z: agent.z,
-                    target_id: enemy.id,
                     target_x: enemy.x,
                     target_z: enemy.z,
                 });

@@ -1,0 +1,92 @@
+{
+  "description": "Additional cross-language steering cases for capped threat selection, hard swept constraints, and non-company combat groups.",
+  "tolerance": 1e-9,
+  "cases": [
+    {
+      "name": "top_k_close_enemy_after_24_flock_neighbors",
+      "capacity": 32,
+      "dtSeconds": 0.05,
+      "steps": 1,
+      "bounds": { "minX": -100, "maxX": 100, "minZ": -100, "maxZ": 100 },
+      "agents": [
+        { "id": 1, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": 0, "z": 0, "goalX": 0, "goalZ": 0, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 10, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -3, "z": -0.42, "goalX": -3, "goalZ": -0.42, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 11, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -3, "z": 0.44, "goalX": -3, "goalZ": 0.44, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 12, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -2.14, "z": -2.14, "goalX": -2.14, "goalZ": -2.14, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 13, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -2.14, "z": -1.28, "goalX": -2.14, "goalZ": -1.28, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 14, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -2.14, "z": -0.42, "goalX": -2.14, "goalZ": -0.42, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 15, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -2.14, "z": 0.44, "goalX": -2.14, "goalZ": 0.44, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 16, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -2.14, "z": 1.3, "goalX": -2.14, "goalZ": 1.3, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 17, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -2.14, "z": 2.16, "goalX": -2.14, "goalZ": 2.16, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 18, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -1.28, "z": -2.14, "goalX": -1.28, "goalZ": -2.14, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 19, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -1.28, "z": -1.28, "goalX": -1.28, "goalZ": -1.28, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 20, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -1.28, "z": -0.42, "goalX": -1.28, "goalZ": -0.42, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 21, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -1.28, "z": 0.44, "goalX": -1.28, "goalZ": 0.44, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 22, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -1.28, "z": 1.3, "goalX": -1.28, "goalZ": 1.3, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 23, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -1.28, "z": 2.16, "goalX": -1.28, "goalZ": 2.16, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 24, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -0.42, "z": -3, "goalX": -0.42, "goalZ": -3, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 25, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -0.42, "z": -2.14, "goalX": -0.42, "goalZ": -2.14, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 26, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -0.42, "z": -1.28, "goalX": -0.42, "goalZ": -1.28, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 27, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -0.42, "z": 1.3, "goalX": -0.42, "goalZ": 1.3, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 28, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": -0.42, "z": 2.16, "goalX": -0.42, "goalZ": 2.16, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 29, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": 0.44, "z": -3, "goalX": 0.44, "goalZ": -3, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 30, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": 0.44, "z": -2.14, "goalX": 0.44, "goalZ": -2.14, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 31, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": 0.44, "z": -1.28, "goalX": 0.44, "goalZ": -1.28, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 32, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": 0.44, "z": 1.3, "goalX": 0.44, "goalZ": 1.3, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 33, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 77, "faction": 3, "targetId": 0, "enabled": true, "x": 0.44, "z": 2.16, "goalX": 0.44, "goalZ": 2.16, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 999, "ownerGroup": 1, "team": 2, "groupKind": 2, "groupId": 88, "faction": 2, "targetId": 1, "enabled": true, "x": -0.18, "z": 0, "goalX": -0.18, "goalZ": 0, "speed": 2.2, "velocityX": 0, "velocityZ": 0 }
+      ],
+      "expected": [
+        { "id": 1, "x": 0.3204991903423321, "z": -0.00025114800530782425, "velocityX": 6.4099838068466415, "velocityZ": -0.005022960106156485 },
+        { "id": 999, "x": -0.5005008096576679, "z": 0, "velocityX": -6.410016193153357, "velocityZ": 0 }
+      ]
+    },
+    {
+      "name": "head_on_six_server_steps",
+      "capacity": 4,
+      "dtSeconds": 0.2,
+      "steps": 6,
+      "bounds": { "minX": -100, "maxX": 100, "minZ": -100, "maxZ": 100 },
+      "agents": [
+        { "id": 11, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 1, "faction": 3, "targetId": 12, "enabled": true, "x": -2, "z": 0, "goalX": 4, "goalZ": 0, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 12, "ownerGroup": 1, "team": 2, "groupKind": 2, "groupId": 2, "faction": 2, "targetId": 11, "enabled": true, "x": 2, "z": 0, "goalX": -4, "goalZ": 0, "speed": 2.2, "velocityX": 0, "velocityZ": 0 }
+      ],
+      "expected": [
+        { "id": 11, "x": 0.2683265291792524, "z": -0.44483791128568323, "velocityX": 2.0620108984441132, "velocityZ": -0.2421918933193662 },
+        { "id": 12, "x": -0.2683265291792524, "z": 0.44483791128568323, "velocityX": -2.0620108984441132, "velocityZ": 0.2421918933193662 }
+      ]
+    },
+    {
+      "name": "exact_overlap_one_step",
+      "capacity": 4,
+      "dtSeconds": 0.05,
+      "steps": 1,
+      "bounds": { "minX": -100, "maxX": 100, "minZ": -100, "maxZ": 100 },
+      "agents": [
+        { "id": 41, "ownerGroup": 1, "team": 1, "groupKind": 1, "groupId": 4, "faction": 3, "targetId": 0, "enabled": true, "x": 0, "z": 0, "goalX": 0, "goalZ": 0, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 42, "ownerGroup": 1, "team": 2, "groupKind": 2, "groupId": 5, "faction": 2, "targetId": 0, "enabled": true, "x": 0, "z": 0, "goalX": 0, "goalZ": 0, "speed": 2.2, "velocityX": 0, "velocityZ": 0 }
+      ],
+      "expected": [
+        { "id": 41, "x": 0.12711340265881904, "z": 0.3903234977099085, "velocityX": 2.5422680531763806, "velocityZ": 7.806469954198169 },
+        { "id": 42, "x": -0.12711340265881907, "z": -0.3903234977099085, "velocityX": -2.542268053176381, "velocityZ": -7.806469954198169 }
+      ]
+    },
+    {
+      "name": "raid_group_alignment_without_company_kind",
+      "capacity": 4,
+      "dtSeconds": 0.05,
+      "steps": 1,
+      "bounds": { "minX": -100, "maxX": 100, "minZ": -100, "maxZ": 100 },
+      "agents": [
+        { "id": 301, "ownerGroup": 1, "team": 2, "groupKind": 2, "groupId": 55, "faction": 2, "targetId": 0, "enabled": true, "x": 0, "z": 0, "goalX": 0, "goalZ": 0, "speed": 2.2, "velocityX": 0, "velocityZ": 0 },
+        { "id": 302, "ownerGroup": 1, "team": 2, "groupKind": 2, "groupId": 55, "faction": 2, "targetId": 0, "enabled": true, "x": 1.9, "z": 0, "goalX": 1.9, "goalZ": 0, "speed": 2.2, "velocityX": 0, "velocityZ": 1 },
+        { "id": 303, "ownerGroup": 1, "team": 2, "groupKind": 3, "groupId": 55, "faction": 2, "targetId": 0, "enabled": true, "x": 0, "z": 1.9, "goalX": 0, "goalZ": 1.9, "speed": 2.2, "velocityX": 1, "velocityZ": 0 }
+      ],
+      "expected": [
+        { "id": 301, "x": 0.004801665445852302, "z": 0.007202498168778453, "velocityX": 0.09603330891704603, "velocityZ": 0.14404996337556905 },
+        { "id": 302, "x": 1.8913436745136778, "z": 0.030326532985631673, "velocityX": -0.17312650972644228, "velocityZ": 0.6065306597126334 },
+        { "id": 303, "x": 0.030326532985631673, "z": 1.9, "velocityX": 0.6065306597126334, "velocityZ": 0 }
+      ]
+    }
+  ]
+}
