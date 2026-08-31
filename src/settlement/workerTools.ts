@@ -7,6 +7,7 @@ import {
   isMilitaryEquipmentKind,
   isMilitaryEquipmentSource,
   setMilitaryEquipmentCombatStance,
+  setMilitaryEquipmentDropped,
   setMilitaryEquipmentVisible,
   type MilitaryEquipmentCombatStance,
   type MilitaryEquipmentKind,
@@ -223,6 +224,15 @@ export function setWorkerToolCombatStance(
 ): void {
   if (!tool.userData.workerToolMounts) return;
   setMilitaryEquipmentCombatStance(tool, stance);
+}
+
+/** Only bone-mounted military equipment can become a battlefield drop. */
+export function setWorkerToolDropped(
+  tool: THREE.Group,
+  dropped: boolean,
+): void {
+  if (!tool.userData.workerToolMounts) return;
+  setMilitaryEquipmentDropped(tool, dropped);
 }
 
 export function disposeWorkerToolSources(sources: WorkerToolSources): void {

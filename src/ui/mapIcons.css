@@ -95,6 +95,90 @@
 .settlement-map-icons[hidden] .settlement-map-icon,
 .settlement-map-icons.is-interaction-blocked .settlement-map-icon { pointer-events: none; }
 
+.military-company-map-icons {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  transition: opacity 0.14s ease;
+}
+
+.military-company-map-icon {
+  --company-edge: #d6b45e;
+  position: fixed;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: 43px;
+  height: 43px;
+  margin: -22px 0 0 -22px;
+  padding: 4px;
+  border: 2px solid color-mix(in srgb, var(--company-edge) 82%, #f6e6b3 18%);
+  border-radius: 999px;
+  color: #f7e8bd;
+  background:
+    radial-gradient(circle at 38% 30%, rgba(255, 242, 196, 0.19), transparent 42%),
+    rgba(28, 27, 21, 0.92);
+  box-shadow:
+    0 9px 22px rgba(0, 0, 0, 0.42),
+    0 0 0 2px rgba(41, 31, 17, 0.58),
+    inset 0 0 0 1px rgba(255, 238, 183, 0.12);
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
+  cursor: pointer;
+  transform-origin: 50% 70%;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.military-company-map-icon:hover,
+.military-company-map-icon:focus-visible,
+.military-company-map-icon.is-selected {
+  outline: none;
+  transform: translateY(-2px) scale(1.09);
+  border-color: #f0c84d;
+  box-shadow:
+    0 11px 26px rgba(0, 0, 0, 0.48),
+    0 0 0 3px rgba(225, 181, 56, 0.25),
+    inset 0 0 0 1px rgba(255, 241, 187, 0.22);
+}
+
+.military-company-map-icon[data-controllable='false'] {
+  --company-edge: #c97948;
+}
+
+.military-company-map-icon__woodcut {
+  display: block;
+  width: 31px;
+  height: 31px;
+  object-fit: contain;
+  filter: sepia(0.32) saturate(0.72) brightness(1.15) contrast(1.08)
+    drop-shadow(0 1px 1px rgba(0, 0, 0, 0.72));
+  pointer-events: none;
+  user-select: none;
+}
+
+.military-company-map-icon__count {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border: 1px solid rgba(246, 224, 164, 0.78);
+  border-radius: 999px;
+  color: #fff3ce;
+  background: #54401f;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.48);
+  font: 800 10px/1 Inter, ui-sans-serif, system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.military-company-map-icons[hidden] .military-company-map-icon {
+  pointer-events: none;
+}
+
 .quarry-map-icon::before,
 .foraging-map-icon::before {
   position: absolute;

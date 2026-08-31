@@ -266,9 +266,7 @@ fn dog_attack(ctx: &ReducerContext, dog: &mut CombatAgent, mut enemy: CombatAgen
             dog.health = (dog.health - 9.0).max(0.0);
             enemy.attack_cooldown = 1.15;
             if dog.health <= 0.0 {
-                dog.state = DOWNED;
-                dog.attack_cooldown = 7.0;
-                dog.state_changed_tick = tick;
+                down_guard_dog(dog, tick);
             }
         }
     }
@@ -411,9 +409,13 @@ fn wolf_bite_defender(ctx: &ReducerContext, wolf: &mut CombatAgent, tick: u64) {
         defender.health = (defender.health - 9.0).max(minimum);
         wolf.attack_cooldown = 1.15;
         if defender.health <= 0.0 {
-            defender.state = DOWNED;
-            defender.attack_cooldown = 7.0;
-            defender.state_changed_tick = tick;
+            if defender.faction == DOG {
+                down_guard_dog(&mut defender, tick);
+            } else {
+                defender.state = DOWNED;
+                defender.attack_cooldown = 7.0;
+                defender.state_changed_tick = tick;
+            }
         } else {
             defender.state = FIGHTING;
             defender.target_kind = TARGET_COMBAT_AGENT;
@@ -425,8 +427,7 @@ fn wolf_bite_defender(ctx: &ReducerContext, wolf: &mut CombatAgent, tick: u64) {
 
 fn damage_wolf_target(ctx: &ReducerContext, wolf: &CombatAgent, tick: u64) -> bool {
     if wolf.target_kind == TARGET_STABLE_OX {
-        if ctx.db.stable_ox().id().find(&wolf.target_id).is_some() {
-            ctx.db.stable_ox().id().delete(wolf.target_id);
+        if kill_stable_ox(ctx, wolf.target_id) {
             return true;
         }
     }
@@ -507,6 +508,42 @@ fn damage_wolf_target(ctx: &ReducerContext, wolf: &CombatAgent, tick: u64) -> bo
         }
     }
     false
+}
+
+/// A dead dog keeps its combat row briefly so the death animation remains
+/// visible, but it relinquishes its kennel immediately. Purchases and the
+/// inspector key occupancy by `source_building_id`, so this frees the authored
+/// bay in the same transaction without spawning two live dogs in one slot.
+fn down_guard_dog(dog: &mut CombatAgent, tick: u64) {
+    dog.health = 0.0;
+    dog.state = DOWNED;
+    dog.attack_cooldown = 7.0;
+    dog.state_changed_tick = tick;
+    dog.source_building_id = 0;
+    dog.target_kind = TARGET_GROUND;
+    dog.target_id = 0;
+}
+
+/// Remove an ox and every durable hauling reservation that pointed at it.
+/// Stable capacity is derived from live `stable_ox` rows, so deleting the row
+/// releases its stable bay immediately and allows a replacement purchase.
+fn kill_stable_ox(ctx: &ReducerContext, ox_id: u64) -> bool {
+    let Some(ox) = ctx.db.stable_ox().id().find(&ox_id) else {
+        return false;
+    };
+    for mut trip in ctx
+        .db
+        .delivery_trip()
+        .owner()
+        .filter(&ox.owner)
+        .filter(|trip| trip.ox_id == ox_id)
+        .collect::<Vec<_>>()
+    {
+        trip.ox_id = 0;
+        ctx.db.delivery_trip().id().update(trip);
+    }
+    ctx.db.stable_ox().id().delete(ox_id);
+    true
 }
 
 fn retreat_pack(ctx: &ReducerContext, raid_id: u64, tick: u64) {

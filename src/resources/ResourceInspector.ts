@@ -2919,6 +2919,7 @@ export class ResourceInspector {
     const view = renderSelectedMilitaryCompanyInspector(
       company,
       this.options.getCombatAgents?.(),
+      { readOnlyPlaytest: company.id.startsWith('combat-playtest:') },
     );
     this.eyebrow.textContent = view.eyebrow;
     this.title.textContent = view.title;

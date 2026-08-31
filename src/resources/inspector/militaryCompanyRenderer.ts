@@ -46,6 +46,7 @@ export type SelectedMilitaryCompanyInspectorView = {
 export function renderSelectedMilitaryCompanyInspector(
   company: MilitaryCompanyState,
   combatAgents: Iterable<CombatAgentState> | undefined,
+  options: { readOnlyPlaytest?: boolean } = {},
 ): SelectedMilitaryCompanyInspectorView {
   const agents = [...(combatAgents ?? [])].filter((agent) => (
     agent.companyId === company.id
@@ -58,6 +59,9 @@ export function renderSelectedMilitaryCompanyInspector(
   const gainsExperience = militaryCompanyGainsExperience(company.kind);
   const experience = militaryExperienceProgress(company);
   const statusLabel = company.status[0]!.toUpperCase() + company.status.slice(1);
+  const ammunitionDetails = company.ammunitionCapacity > 0
+    ? `<li data-inspector-primary><span>${company.kind === 'bowmen' ? 'Arrows' : company.kind === 'crossbows' ? 'Bolts' : 'Shots'}</span><span>${company.ammunition} / ${company.ammunitionCapacity}</span></li>`
+    : '';
   const progressionDetails = gainsExperience
     ? `<li data-inspector-primary data-inspector-custom-layout class="military-company-progress-row" data-company-level="${company.level}">
         <span class="military-company-progress-label">Experience</span>
@@ -87,14 +91,32 @@ export function renderSelectedMilitaryCompanyInspector(
         </span>
       </li>
       ${progressionDetails}
+      <li data-inspector-primary><span>Strength</span><span>${company.livingMembers} / ${company.targetSize} living</span></li>
+      <li data-inspector-primary><span>Formation</span><span>${militaryFormationLabel(company.formation)}</span></li>
+      <li data-inspector-primary><span>Morale</span><span>${Math.round(company.morale * 100)}%</span></li>
+      <li data-inspector-primary><span>Cohesion</span><span>${Math.round(company.cohesion * 100)}%</span></li>
+      <li data-inspector-primary><span>Fatigue</span><span>${Math.round(company.fatigue * 100)}%</span></li>
+      ${ammunitionDetails}
     `,
-    supplementalPanelHtml: renderSelectedCompanyCommands(company),
+    supplementalPanelHtml: renderSelectedCompanyCommands(
+      company,
+      options.readOnlyPlaytest === true,
+    ),
   };
 }
 
 function renderSelectedCompanyCommands(
   company: MilitaryCompanyState,
+  readOnlyPlaytest = false,
 ): string {
+  if (readOnlyPlaytest) {
+    return `
+      <div class="inspector-action-panel military-company-card" data-inspector-panel-title="Field orders" data-combat-playtest-company-card>
+        <h3 class="inspector-action-panel__title">Field orders</h3>
+        <p class="inspector-action-panel__hint">This is the isolated combat sandbox. Click a soldier or its strategic woodcut marker to select the whole company, drag across formations to select several, then right-click the terrain to move. Right-clicking an enemy orders an attack.</p>
+      </div>
+    `;
+  }
   const militaryDemands = getActiveWorldGeneration().militaryDemands;
   const canCommand = company.status === 'active' || company.status === 'mustering';
   const needsProvisions = militaryCompanyRequiresProvisions(company.kind, militaryDemands);

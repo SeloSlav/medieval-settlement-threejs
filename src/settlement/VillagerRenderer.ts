@@ -117,7 +117,10 @@ import {
   residenceIdForUpgradeWorkplace,
   residenceUpgradeWorkplaces,
 } from './residenceUpgradeWorkplaces.ts';
-import type { WorkerToolKind } from './workerTools.ts';
+import {
+  isMilitaryEquipmentKind,
+  type WorkerToolKind,
+} from './workerTools.ts';
 import { resolveCombatWeaponPresentation } from './combatWeaponAnimation.ts';
 import {
   villagerDisplayName,
@@ -455,6 +458,8 @@ export class VillagerRenderer {
   private readonly farmWorkerSongAudio = new FarmWorkerSongAudio();
   private readonly combatAudio = new CombatAudio();
   private readonly companyStandardBearers = new CompanyStandardBearerRegistry();
+  /** Keeps the outgoing bearer sidearm identity through the downed linger. */
+  private readonly fallenCompanyStandardBearers = new Set<string>();
   private readonly getGameSpeed: () => GameSpeed;
   private readonly getHeightAt: (x: number, z: number) => number;
   private readonly getRoadDeckY: ((x: number, z: number) => number | null) | null;
@@ -671,6 +676,21 @@ export class VillagerRenderer {
   }
 
   setCombatAgents(agents: ReadonlyMap<string, CombatAgentState>): void {
+    for (const bearerId of this.fallenCompanyStandardBearers) {
+      if (agents.get(bearerId)?.status !== 'downed') {
+        this.fallenCompanyStandardBearers.delete(bearerId);
+      }
+    }
+    // Capture the incumbent before sync elects its successor. This makes the
+    // actual sword seen in the old bearer's hand become the ground drop.
+    for (const state of agents.values()) {
+      if (
+        state.status === 'downed'
+        && this.companyStandardBearers.isBearer(state.id)
+      ) {
+        this.fallenCompanyStandardBearers.add(state.id);
+      }
+    }
     this.companyStandardBearers.sync(agents.values());
     const nextVisuals = new Map<string, CombatAgentVisual>();
     const nextGuardSlots = new Set<string>();
@@ -1783,6 +1803,7 @@ export class VillagerRenderer {
     this.farmWorkerSongAudio.dispose();
     this.combatAudio.dispose();
     this.companyStandardBearers.clear();
+    this.fallenCompanyStandardBearers.clear();
     this.oxen.dispose();
     this.combatAnimals.dispose();
     this.renderer.dispose();
@@ -2319,6 +2340,8 @@ export class VillagerRenderer {
       renderAgent.hairColor = residentSoldier?.hairColor ?? ordinaryGuard?.hairColor
         ?? pickVillagerHairColor(appearanceSeed);
       const standardAssignment = this.companyStandardBearers.assignmentForAgent(combat.id);
+      const carriedStandardSidearm = Boolean(standardAssignment)
+        || this.fallenCompanyStandardBearers.has(combat.id);
       if (standardAssignment) {
         const standard = renderAgent.companyStandard ?? {
           id: standardAssignment.companyKey,
@@ -2328,7 +2351,20 @@ export class VillagerRenderer {
         standard.faction = standardAssignment.side;
         renderAgent.companyStandard = standard;
       }
-      renderAgent.tool = standardAssignment ? 'sidearm' : combatToolFor(combat.faction);
+      renderAgent.tool = carriedStandardSidearm ? 'sidearm' : combatToolFor(combat.faction);
+      if (
+        combat.status === 'downed'
+        && renderAgent.tool
+        && isMilitaryEquipmentKind(renderAgent.tool)
+      ) {
+        renderAgent.battlefieldWeaponDrop = {
+          ownerId: combat.id,
+          kind: renderAgent.tool,
+          // Player-company kit is already materialized by the authoritative
+          // reclamation system at this same combat-agent position.
+          recoverable: isPlayerMilitaryFaction(combat.faction),
+        };
+      }
       if (combat.status === 'fighting' && target) {
         const targetDx = target.displayX - visual.displayX;
         const targetDz = target.displayZ - visual.displayZ;
@@ -6096,6 +6132,7 @@ function combatWeaponSoundFamily(
 
 export function clearCrowdCombatPresentation(renderAgent: CrowdRenderAgent): void {
   renderAgent.companyStandard = undefined;
+  renderAgent.battlefieldWeaponDrop = undefined;
   renderAgent.combatAttackCooldown = undefined;
   renderAgent.combatAttackSeconds = undefined;
   renderAgent.combatLocomotion = undefined;

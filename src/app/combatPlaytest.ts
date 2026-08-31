@@ -10,6 +10,8 @@ import {
   type WorldGenerationSettings,
 } from '../world/worldGenerationSettings.ts';
 import { applyTerrainPreset } from '../world/worldTerrainPresets.ts';
+import type { MilitaryCompanyState } from '../security/militaryProgression.ts';
+import { militaryCompanyKindForFaction } from '../security/militaryCompanyPresentation.ts';
 
 export const COMBAT_PLAYTEST_QUERY_PARAMETER = 'combatPlaytest';
 export const COMBAT_PLAYTEST_PRESET_PARAMETER = 'combatPreset';
@@ -247,6 +249,63 @@ export class CombatPlaytestSimulation {
       });
     }
     return agents;
+  }
+
+  /** Mirrors the sandbox's per-agent formations into the ordinary inspector
+   * shape. This keeps the playtest isolated while exercising the real unit
+   * card instead of a bespoke debug panel. */
+  companyStates(): Map<string, MilitaryCompanyState> {
+    const grouped = new Map<string, RuntimeAgent[]>();
+    for (const runtime of this.runtime.values()) {
+      const companyId = runtime.state.companyId;
+      if (!companyId || runtime.state.faction === 'raider') continue;
+      const members = grouped.get(companyId) ?? [];
+      members.push(runtime);
+      grouped.set(companyId, members);
+    }
+    const companies = new Map<string, MilitaryCompanyState>();
+    for (const [id, members] of grouped) {
+      const kind = militaryCompanyKindForFaction(members[0]!.state.faction);
+      if (!kind) continue;
+      const living = members.filter((member) => member.state.status !== 'downed');
+      const readiness = living.length > 0
+        ? living.reduce((sum, member) => sum + member.state.readiness, 0) / living.length
+        : 0;
+      const healthFraction = living.length > 0
+        ? living.reduce((sum, member) => (
+          sum + member.state.health / Math.max(1, member.state.maxHealth)
+        ), 0) / living.length
+        : 0;
+      const fightingFraction = living.length > 0
+        ? living.filter((member) => member.state.status === 'fighting').length / living.length
+        : 0;
+      const ammunitionPerMember = kind === 'crossbows'
+        ? 18
+        : kind === 'bowmen' ? 24 : kind === 'uskok-border-infantry' ? 8 : 0;
+      const ammunitionCapacity = ammunitionPerMember * members.length;
+      const ammunitionSpent = kind === 'uskok-border-infantry'
+        ? members.reduce((sum, member) => sum + member.rangedShotsFired, 0)
+        : 0;
+      companies.set(id, {
+        id,
+        kind,
+        sourceBuildingId: `${COMBAT_PLAYTEST_AGENT_PREFIX}field-command`,
+        status: living.length > 0 ? 'active' : 'destroyed',
+        formation: 'line',
+        targetSize: members.length,
+        livingMembers: living.length,
+        morale: clamp(readiness * 0.7 + healthFraction * 0.3, 0, 1),
+        cohesion: clamp(healthFraction, 0, 1),
+        fatigue: clamp(0.12 + fightingFraction * 0.38, 0, 1),
+        provisionDays: 3,
+        ammunition: Math.max(0, ammunitionCapacity - ammunitionSpent),
+        ammunitionCapacity,
+        formedTick: 0,
+        experience: 0,
+        level: 1,
+      });
+    }
+    return companies;
   }
 
   summary(): CombatPlaytestSummary {

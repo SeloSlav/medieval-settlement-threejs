@@ -76,6 +76,8 @@ import { createAgentWaterObstacleTest } from '../settlement/agentNavigation.ts';
 import type { FireEffectsRenderer } from '../fires/FireEffectsRenderer.ts';
 import { BanditCampRenderer } from '../security/BanditCampRenderer.ts';
 import { MilitiaCommandController } from '../security/MilitiaCommandController.ts';
+import type { CombatAgentState } from '../security/combatAgents.ts';
+import type { MilitaryCompanyState } from '../security/militaryProgression.ts';
 import type { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
 import { beginProgressiveStartupTextureLoad } from '../scene/startupTextures.ts';
 import {
@@ -128,6 +130,10 @@ export type AppBootstrapBridge = {
   onGameAudioEnabledChange?: (enabled: boolean) => void;
   onMusicEnabledChange?: (enabled: boolean) => void;
   onMusicVolumeChange?: (volume: number) => void;
+  /** Client-only combat sandboxes can surface their transient formations in
+   * the ordinary company inspector without writing fake server rows. */
+  getCombatAgentOverride?: () => Iterable<CombatAgentState> | undefined;
+  getMilitaryCompanyOverride?: () => Iterable<MilitaryCompanyState> | undefined;
 };
 
 export type SessionLiveContext = {
@@ -1223,8 +1229,10 @@ export async function bootstrapAppSession(
       spacetimeStore.snapshot.monasteryPolicy ?? DEFAULT_MONASTERY_POLICY,
     getMarketState: () => spacetimeStore.snapshot.marketState,
     getSettlementSecurity: () => spacetimeStore.snapshot.settlementSecurity,
-    getCombatAgents: () => spacetimeStore.snapshot.combatAgents.values(),
-    getMilitaryCompanies: () => spacetimeStore.snapshot.militaryCompanies.values(),
+    getCombatAgents: () => bridge.getCombatAgentOverride?.()
+      ?? spacetimeStore.snapshot.combatAgents.values(),
+    getMilitaryCompanies: () => bridge.getMilitaryCompanyOverride?.()
+      ?? spacetimeStore.snapshot.militaryCompanies.values(),
     getConflictEnabled: () =>
       spacetimeStore.snapshot.worldGeneration?.configured === true
       && spacetimeStore.snapshot.worldGeneration.conflictMode === 'frontier',
@@ -1335,6 +1343,7 @@ export async function bootstrapAppSession(
     terrainProjector: sceneManager.terrainProjector,
     parent: sceneManager.selectionGroup,
     getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
+    getZoomPercent: () => cameraController.getZoomPercent(),
     isBlocked: () => isWorldInspectionBlocked(placementGate),
     onCommand: (ids, x, z, campId) => {
       void spacetimeStore.commandMilitia(ids, x, z, campId).catch((error) => {

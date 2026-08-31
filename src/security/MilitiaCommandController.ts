@@ -7,6 +7,11 @@ import {
   MilitaryOrderFeedbackRenderer,
   type MilitaryOrderFeedbackDiagnostics,
 } from './MilitaryOrderFeedbackRenderer.ts';
+import { MilitaryCompanyStrategicOverlay } from './MilitaryCompanyStrategicOverlay.ts';
+import {
+  militaryCompanyKindForAgents,
+} from './militaryCompanyPresentation.ts';
+import type { MilitaryCompanyKind } from './militaryProgression.ts';
 
 type Options = {
   domElement: HTMLElement;
@@ -15,6 +20,7 @@ type Options = {
   terrainProjector: TerrainProjector;
   parent: THREE.Group;
   getHeightAt: (x: number, z: number) => number;
+  getZoomPercent?: () => number;
   isBlocked: () => boolean;
   onCommand: (ids: string[], x: number, z: number, campId: string | null) => void;
   onCompanySelected?: (companyId: string | null) => void;
@@ -26,6 +32,7 @@ export type MilitiaCommandHandler = Options['onCommand'];
 
 type CompanyVisual = {
   id: string;
+  kind: MilitaryCompanyKind;
   agents: CombatAgentState[];
   x: number;
   z: number;
@@ -47,6 +54,7 @@ export class MilitiaCommandController {
   private dragStart: { x: number; y: number } | null = null;
   private readonly rightClick: SecondaryClickGesture;
   private readonly orderFeedback: MilitaryOrderFeedbackRenderer;
+  private readonly strategicIcons: MilitaryCompanyStrategicOverlay;
   private readonly options: Options;
   private commandHandler: MilitiaCommandHandler;
   private companyGuidesVisible = false;
@@ -63,6 +71,15 @@ export class MilitiaCommandController {
     this.ringRoot.name = 'Military company selection rings';
     options.parent.add(this.ringRoot);
     this.orderFeedback = new MilitaryOrderFeedbackRenderer(options.parent);
+    this.strategicIcons = new MilitaryCompanyStrategicOverlay({
+      uiRoot: options.uiRoot,
+      domElement: options.domElement,
+      camera: options.camera,
+      getZoomPercent: options.getZoomPercent ?? (() => 100),
+      getHeightAt: options.getHeightAt,
+      isBlocked: options.isBlocked,
+      onSelect: this.selectCompany,
+    });
     this.rightClick = new SecondaryClickGesture({ onClick: this.issueOrder });
     options.domElement.addEventListener('mousedown', this.onMouseDown);
     window.addEventListener('mousemove', this.onMouseMove);
@@ -84,6 +101,7 @@ export class MilitiaCommandController {
   /** Advances the short order acknowledgement on the ordinary render clock. */
   update(timeMs: number): void {
     this.orderFeedback.update(timeMs);
+    this.strategicIcons.update();
   }
 
   orderFeedbackDiagnostics(timeMs = this.now()): MilitaryOrderFeedbackDiagnostics {
@@ -94,6 +112,7 @@ export class MilitiaCommandController {
     if (this.selected.size === 0) return;
     this.selected.clear();
     this.syncRings();
+    this.strategicIcons.setSelected(null);
     this.options.onCompanySelected?.(null);
   }
 
@@ -130,10 +149,23 @@ export class MilitiaCommandController {
         ...members.map((member) => Math.hypot(member.x - x, member.z - z) + 0.9),
       );
       const controllable = members.some((member) => member.status !== 'returning');
-      this.companies.set(id, { id, agents: members, x, z, radius, controllable });
+      const kind = militaryCompanyKindForAgents(members);
+      if (!kind) continue;
+      this.companies.set(id, { id, kind, agents: members, x, z, radius, controllable });
     }
     for (const camp of camps.values()) if (camp.active) this.camps.set(camp.id, camp);
     for (const id of [...this.selected]) if (!this.companies.has(id)) this.selected.delete(id);
+    this.strategicIcons.sync([...this.companies.values()].map((company) => ({
+      id: company.id,
+      kind: company.kind,
+      x: company.x,
+      z: company.z,
+      livingMembers: company.agents.length,
+      controllable: company.controllable,
+    })));
+    this.strategicIcons.setSelected(this.selected.size === 1
+      ? this.selected.values().next().value ?? null
+      : null);
     this.syncRings();
   }
 
@@ -143,6 +175,7 @@ export class MilitiaCommandController {
     window.removeEventListener('mouseup', this.onMouseUp);
     this.rightClick.dispose();
     this.orderFeedback.dispose();
+    this.strategicIcons.dispose();
     this.overlay.remove();
     this.ringRoot.removeFromParent();
     for (const ring of this.rings.values()) {
@@ -202,6 +235,9 @@ export class MilitiaCommandController {
     if (nearest) this.selected.add(nearest.companyId);
     this.cancelDrag();
     this.syncRings();
+    this.strategicIcons.setSelected(this.selected.size === 1
+      ? this.selected.values().next().value ?? null
+      : null);
     if (this.selected.size === 1) {
       const companyId = this.selected.values().next().value as string | undefined;
       const company = companyId ? this.companies.get(companyId) : undefined;
@@ -210,6 +246,17 @@ export class MilitiaCommandController {
     } else {
       this.options.onCompanySelected?.(null);
     }
+  };
+
+  private readonly selectCompany = (companyId: string): void => {
+    const company = this.companies.get(companyId);
+    if (!company) return;
+    this.selected.clear();
+    this.selected.add(companyId);
+    this.syncRings();
+    this.strategicIcons.setSelected(companyId);
+    this.options.onCompanySelected?.(companyId);
+    if (!company.controllable) this.options.onLeavingCompanySelected?.(companyId);
   };
 
   private readonly issueOrder = (event: MouseEvent): void => {

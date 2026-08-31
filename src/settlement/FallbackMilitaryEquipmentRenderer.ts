@@ -34,6 +34,7 @@ export const FALLBACK_MILITARY_EQUIPMENT_DRAW_CALL_BUDGET =
 
 export type FallbackMilitaryEquipmentAgent = {
   tool?: WorkerToolKind | null;
+  battlefieldWeaponDrop?: unknown;
   combatTargetDistance?: number;
   x: number;
   y: number;
@@ -120,6 +121,7 @@ export class FallbackMilitaryEquipmentRenderer {
     for (const agent of agents) {
       const id = 'id' in agent ? String(agent.id) : '';
       if (id && excludedIds?.has(id)) continue;
+      if (agent.battlefieldWeaponDrop) continue;
       const key = fallbackEquipmentKey(agent.tool, agent.combatTargetDistance);
       if (!key) continue;
       const layer = this.layers.get(key)!;

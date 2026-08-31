@@ -322,6 +322,8 @@ export class App {
         onMusicVolumeChange: (volume) => {
           this.startupMusic?.setMusicVolume(volume);
         },
+        getCombatAgentOverride: () => this.combatPlaytest?.snapshot().values(),
+        getMilitaryCompanyOverride: () => this.combatPlaytest?.companyStates().values(),
       });
     } catch (error) {
       this.startupMusic?.dispose();
@@ -1288,6 +1290,7 @@ export class App {
     const agents = playtest.snapshot();
     this.villagers.setCombatAgents(agents);
     this.militiaCommands.sync(agents, new Map());
+    this.resourceInspector?.refreshSelection();
     const summary = playtest.summary();
     this.combatPlaytestOverlay?.update(summary);
     const root = document.documentElement;

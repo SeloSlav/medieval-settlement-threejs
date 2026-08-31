@@ -172,6 +172,14 @@ export class MilitaryCompanyStrategicOverlay {
       if (this.options.isBlocked()) return;
       this.options.onSelect(marker.id);
     });
+    const woodcut = document.createElement('img');
+    woodcut.className = 'military-company-map-icon__woodcut';
+    woodcut.alt = '';
+    woodcut.draggable = false;
+    const count = document.createElement('span');
+    count.className = 'military-company-map-icon__count';
+    count.setAttribute('aria-hidden', 'true');
+    button.append(woodcut, count);
     this.syncButton(button, marker);
     return button;
   }
@@ -187,10 +195,12 @@ export class MilitaryCompanyStrategicOverlay {
       'aria-label',
       `${label}, ${marker.livingMembers} living. Select military company.`,
     );
-    button.innerHTML = `
-      <img class="military-company-map-icon__woodcut" src="${MILITARY_COMPANY_STRATEGIC_ICON_ART[marker.kind]}" alt="" draggable="false">
-      <span class="military-company-map-icon__count" aria-hidden="true">${marker.livingMembers}</span>
-    `;
+    const woodcut = button.querySelector<HTMLImageElement>('.military-company-map-icon__woodcut');
+    const art = MILITARY_COMPANY_STRATEGIC_ICON_ART[marker.kind];
+    if (woodcut?.getAttribute('src') !== art) woodcut?.setAttribute('src', art);
+    const count = button.querySelector<HTMLElement>('.military-company-map-icon__count');
+    const countText = String(marker.livingMembers);
+    if (count && count.textContent !== countText) count.textContent = countText;
     button.classList.toggle('is-selected', marker.id === this.selectedCompanyId);
     button.setAttribute('aria-pressed', String(marker.id === this.selectedCompanyId));
   }

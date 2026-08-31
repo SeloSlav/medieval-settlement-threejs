@@ -13,6 +13,7 @@ import {
   isMilitaryEquipmentKind,
   loadWorkerToolSources,
   setWorkerToolCombatStance,
+  setWorkerToolDropped,
   setWorkerToolVisible,
   type WorkerToolKind,
   type WorkerToolSources,
@@ -31,6 +32,11 @@ import {
 } from './combatWeaponAnimation.ts';
 import { CombatProjectileRenderer } from './CombatProjectileRenderer.ts';
 import { FallbackMilitaryEquipmentRenderer } from './FallbackMilitaryEquipmentRenderer.ts';
+import {
+  BattlefieldWeaponDropRenderer,
+  type BattlefieldWeaponDropDiagnostic,
+  type BattlefieldWeaponDropOwnership,
+} from './BattlefieldWeaponDropRenderer.ts';
 import {
   CompanyStandardRenderer,
   type CompanyStandardDiagnostic,
@@ -216,6 +222,8 @@ export type CrowdRenderAgent = {
     id: string;
     faction: CompanyStandardFaction;
   };
+  /** Explicit casualty detach event; never inferred from hurt/fall animation alone. */
+  battlefieldWeaponDrop?: BattlefieldWeaponDropOwnership;
   combatAttackCooldown?: number;
   combatAttackSeconds?: number;
   combatLocomotion?: 'idle' | 'walk' | 'run';
@@ -297,6 +305,7 @@ export class SettlementCrowdRenderer {
   private readonly fallbackLegs: FallbackPartLayer;
   private readonly fallbackHead: FallbackPartLayer;
   private readonly fallbackMilitaryEquipment: FallbackMilitaryEquipmentRenderer;
+  private readonly battlefieldWeaponDrops: BattlefieldWeaponDropRenderer;
   private readonly companyStandards: CompanyStandardRenderer;
   private readonly companyStandardTextures: CompanyStandardTextureSet | null;
   private readonly companyStandardAgents: CompanyStandardRenderAgent[] = [];
@@ -330,6 +339,7 @@ export class SettlementCrowdRenderer {
     this.fallbackLegs = this.createFallbackLayer('Villager loading legs', LEGS_GEOMETRY);
     this.fallbackHead = this.createFallbackLayer('Villager loading head', HEAD_GEOMETRY);
     this.fallbackMilitaryEquipment = new FallbackMilitaryEquipmentRenderer(this.group, MAX_INSTANCES);
+    this.battlefieldWeaponDrops = new BattlefieldWeaponDropRenderer(this.group);
     this.companyStandardTextures = typeof document === 'undefined'
       ? null
       : createCompanyStandardTextures();
@@ -374,6 +384,7 @@ export class SettlementCrowdRenderer {
     if (!this.sources) {
       this.updateFallback(visibleAgents);
       this.fallbackMilitaryEquipment.sync(visibleAgents);
+      this.battlefieldWeaponDrops.sync(visibleAgents, view);
       this.syncCompanyStandards(visibleAgents, view, dt);
       return;
     }
@@ -382,6 +393,7 @@ export class SettlementCrowdRenderer {
     this.updateAnimatedBatches(visibleAgents, animatedIds);
     this.updateFallback(visibleAgents, animatedIds);
     this.fallbackMilitaryEquipment.sync(visibleAgents, animatedIds);
+    this.battlefieldWeaponDrops.sync(visibleAgents, view);
     this.syncCompanyStandards(visibleAgents, view, dt);
   }
 
@@ -427,6 +439,10 @@ export class SettlementCrowdRenderer {
     return this.companyStandards.diagnostics();
   }
 
+  battlefieldWeaponDropDiagnostics(): BattlefieldWeaponDropDiagnostic {
+    return this.battlefieldWeaponDrops.diagnostics();
+  }
+
   dispose(): void {
     this.disposed = true;
     for (const id of this.animated.keys()) this.removeAnimatedVillager(id);
@@ -456,6 +472,7 @@ export class SettlementCrowdRenderer {
       layer.mesh.removeFromParent();
     }
     this.fallbackMilitaryEquipment.dispose();
+    this.battlefieldWeaponDrops.dispose();
     this.companyStandards.dispose();
     this.companyStandardTextures?.dispose();
     this.companyStandardAgents.length = 0;
@@ -511,6 +528,7 @@ export class SettlementCrowdRenderer {
       }
       this.sources = { man, woman, cleric, raider };
       this.toolSources = tools;
+      this.battlefieldWeaponDrops.configureSources(tools);
       const manBatch = this.createAnimatedBatch('man', man);
       this.animatedBatches = {
         man: manBatch,
@@ -680,6 +698,9 @@ export class SettlementCrowdRenderer {
       );
       if (dt > 0) visual.mixer.update(dt);
       this.applyCombatPresentation(visual, agent, dt);
+      if (visual.tool) {
+        setWorkerToolDropped(visual.tool, Boolean(agent.battlefieldWeaponDrop));
+      }
       if (agent.companyStandard && visual.combatRig) {
         applyCompanyStandardBearerPose(visual.combatRig);
       }
@@ -782,6 +803,7 @@ export class SettlementCrowdRenderer {
       : null;
     if (tool && agent.tool) {
       setWorkerToolVisible(tool, workerToolVisibleInMode(agent.tool, agent.mode));
+      setWorkerToolDropped(tool, Boolean(agent.battlefieldWeaponDrop));
     }
     const combatRig = bindCombatWeaponRig(model, agent.tool, tool);
 
@@ -897,10 +919,14 @@ export class SettlementCrowdRenderer {
       agent.movementSpeed,
     );
     if (visual.tool && visual.toolKind) {
+      // Pool entries may have belonged to a casualty. Restore the hand mount
+      // before applying the incoming owner's explicit detach state.
+      setWorkerToolDropped(visual.tool, false);
       setWorkerToolVisible(visual.tool, workerToolVisibleInMode(
         visual.toolKind,
         agent.mode,
       ));
+      setWorkerToolDropped(visual.tool, Boolean(agent.battlefieldWeaponDrop));
     }
   }
 
