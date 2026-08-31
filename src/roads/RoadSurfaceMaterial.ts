@@ -1,3 +1,4 @@
+import { Color } from 'three';
 import { MeshStandardNodeMaterial } from 'three/webgpu';
 import {
   attribute,
@@ -18,6 +19,10 @@ import {
   vec3,
 } from 'three/tsl';
 import type { BuildingMaterialAtlasTextureSet } from '../buildings/buildingMaterialAtlas.ts';
+import {
+  GORSKI_PALETTE,
+  GORSKI_TIMBER_TINT_STRENGTHS,
+} from '../buildings/buildingMaterials.ts';
 import type { TextureSet } from './RoadTextureLoader.ts';
 import { BRIDGE_SURFACE_CUT_THRESHOLD } from './roadDimensions.ts';
 
@@ -53,13 +58,15 @@ const BUILDING_ATLAS_HEIGHT = BUILDING_ATLAS_ROWS * BUILDING_ATLAS_CELL_SIZE;
 export const BRIDGE_DECK_ATLAS_TILE_ID = 'rough-hewn-timber';
 const BRIDGE_DECK_ATLAS_COLUMN = 4;
 const BRIDGE_DECK_ATLAS_TEXTURE_ROW = 3;
-// Linear-sRGB form of timberMid's authored #aa866b tint.
+/** Shared semantic tint used by bridge decks and ordinary timberMid members. */
+export const BRIDGE_TIMBER_TINT_HEX = GORSKI_PALETTE.timberMid;
+export const BRIDGE_TIMBER_TINT_STRENGTH = GORSKI_TIMBER_TINT_STRENGTHS.mid;
+const bridgeTimberColor = new Color(BRIDGE_TIMBER_TINT_HEX);
 const BRIDGE_TIMBER_TINT: [number, number, number] = [
-  0.40197778,
-  0.23839757,
-  0.14702727,
+  bridgeTimberColor.r,
+  bridgeTimberColor.g,
+  bridgeTimberColor.b,
 ];
-const BRIDGE_TIMBER_TINT_STRENGTH = 0.2;
 const BRIDGE_TIMBER_NORMAL_STRENGTH = 0.58;
 
 export type RoadWeatherUniforms = {

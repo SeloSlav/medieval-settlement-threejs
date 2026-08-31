@@ -37,7 +37,6 @@ export type CombatAudioSoundKind =
   | 'halberd-polearm'
   | 'bow'
   | 'crossbow'
-  | 'arquebus'
   | 'shield-armor'
   | 'charge';
 
@@ -207,7 +206,6 @@ export const COMBAT_AUDIO_CLIPS: Record<
   'halberd-polearm': combatVariants('halberd_polearm_melee', 4, 0.19),
   bow: combatVariants('bow_attack', 3, 0.16),
   crossbow: combatVariants('crossbow_attack', 3, 0.17),
-  arquebus: combatVariants('arquebus_attack', 3, 0.16),
   'shield-armor': combatVariants('shield_armor_impact', 4, 0.16),
   charge: combatVariants('formation_charge', 3, 0.14),
 };

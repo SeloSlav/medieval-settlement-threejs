@@ -39,7 +39,7 @@ const reducerSection = (start: string, end: string): string => {
   return reducer.slice(startIndex, endIndex);
 };
 
-for (const kind of ['militia', 'spearmen', 'men-at-arms', 'crossbows', 'mercenary-spears', 'footmen', 'polearms', 'bowmen', 'uskok-border-infantry']) {
+for (const kind of ['militia', 'spearmen', 'men-at-arms', 'crossbows', 'mercenary-spears', 'footmen', 'polearms', 'bowmen']) {
   assert.match(policy, new RegExp(`['\"]?${kind.replace('-', '\\-')}['\"]?\\s*:`));
 }
 assert.match(policy, /militia:[\s\S]*cost: \{ polearms: 5 \}/);
@@ -53,11 +53,6 @@ assert.deepEqual(militaryResupplyCost(8, 2), { preservedFood: 16, ale: 2 });
 assert.deepEqual(militaryResupplyCost(8, 3), { preservedFood: 16, ale: 8 });
 assert.deepEqual(militaryRecruitmentCost('mercenary-spears', 0), { gold: 96 });
 assert.deepEqual(militaryRecruitmentCost('mercenary-spears', 3), { gold: 96 });
-assert.deepEqual(militaryRecruitmentCost('uskok-border-infantry', 0), {
-  polearms: 4, sidearms: 8, paddedArmor: 8, ammunition: 8,
-  ale: 0, preservedFood: 0, gold: 0,
-});
-assert.match(policy, /Uskok border infantry[\s\S]*eight light-matchlock shots each[\s\S]*korda war knives/i);
 assert.equal(militaryCompanyRequiresProvisions('militia', 3), false);
 assert.equal(militaryCompanyRequiresProvisions('mercenary-spears', 3), false);
 assert.equal(militaryCompanyRequiresProvisions('spearmen', 0), false);
@@ -135,8 +130,8 @@ assert.match(simulation, /idle_too_long \|\| tick >= contract\.contract_end_tick
 assert.match(simulation, /fn recover_member_kit_at/);
 assert.match(simulation, /fn resolve_return_home/);
 assert.match(simulation, /fn down_player_member/);
-assert.match(simulation, /MilitaryKind::Crossbows[\s\S]{0,160}MilitaryKind::Bowmen[\s\S]{0,160}MilitaryKind::UskokBorderInfantry/);
-assert.match(simulation, /minimum_ranged_spacing[\s\S]*MilitaryKind::Bowmen[\s\S]*MilitaryKind::Crossbows[\s\S]*MilitaryKind::UskokBorderInfantry/);
+assert.match(simulation, /let ranged_kind = matches![\s\S]{0,160}MilitaryKind::Crossbows \| MilitaryKind::Bowmen/);
+assert.match(simulation, /minimum_ranged_spacing[\s\S]*MilitaryKind::Bowmen[\s\S]*MilitaryKind::Crossbows/);
 assert.match(simulation, /walk_away\(&mut agent[\s\S]{0,160}stats\.speed \* 0\.78/);
 assert.match(simulation, /fighting withdrawal[\s\S]{0,240}agent\.state = FIGHTING/);
 assert.match(simulation, /let charged_into_contact = !can_shoot/);
@@ -170,7 +165,7 @@ assert.match(serverPolicy, /veteran_health_multiplier/);
 assert.match(serverPolicy, /veteran_damage_multiplier/);
 assert.match(serverPolicy, /veteran_damage_taken_multiplier/);
 
-assert.match(guardhouse, /'spearmen', 'men-at-arms', 'footmen', 'polearms', 'bowmen', 'crossbows', 'uskok-border-infantry'/);
+assert.match(guardhouse, /'spearmen', 'men-at-arms', 'footmen', 'polearms', 'bowmen', 'crossbows'/);
 assert.match(townHall, /'militia', 'mercenary-spears'/);
 assert.match(roster, /data-militia-size/);
 assert.match(roster, /Array\.from\(\{ length: 12 \}/);
@@ -212,14 +207,16 @@ assert.match(equipment, /function createShield/);
 assert.match(equipment, /function createHalberd/);
 assert.match(equipment, /function createBow/);
 assert.match(equipment, /function createPike/);
-assert.match(equipment, /function createArquebus/);
-assert.match(equipment, /function createKorda/);
+assert.doesNotMatch(policy, /uskok|arquebus|matchlock/i);
+assert.doesNotMatch(serverPolicy, /UskokBorderInfantry|arquebus|matchlock/i);
+assert.doesNotMatch(simulation, /UskokBorderInfantry|arquebus|matchlock/i);
+assert.doesNotMatch(equipment, /uskok|arquebus|matchlock/i);
 assert.match(reducer, /fn mercenary_entry_point/);
 assert.match(reducer, /playable_half_for_map_size/);
 
 for (const icon of [
   'militia', 'spearmen', 'men-at-arms', 'crossbows', 'mercenaries',
-  'footmen', 'polearms', 'bowmen', 'uskoks',
+  'footmen', 'polearms', 'bowmen',
   'disband-company', 'resupply-company', 'formation',
 ]) {
   const path = `public/assets/ui/icons/actions/${icon}.png`;
@@ -238,11 +235,10 @@ assert.ok(statSync(militaryDemandsAtlas).size > 10_000);
 
 for (const kind of [
   'spearmen', 'men-at-arms', 'crossbows', 'footmen', 'polearms', 'bowmen',
-  'uskok-border-infantry',
 ]) {
   const path = `public/assets/ui/company-cards/${kind}.webp`;
   assert.ok(existsSync(path), `${path} must exist`);
   assert.ok(statSync(path).size > 10_000, `${path} should contain authored card art`);
 }
 
-console.log('Military progression contract valid: nine distinct company types including Men-at-Arms, counter roles, Uskok frontier infantry, variable militia strength, edge-arriving mercenaries with paid finite contracts, physical reversible edge departure and retainer recall, company-atomic flock orders, individual combat profiles, physical resident muster/return/salvage, formations, ammo, UI controls, and woodcut icons.');
+console.log('Military progression contract valid: eight distinct company types including Men-at-Arms, counter roles, variable militia strength, edge-arriving mercenaries with paid finite contracts, physical reversible edge departure and retainer recall, company-atomic flock orders, individual combat profiles, physical resident muster/return/salvage, formations, ammo, UI controls, and woodcut icons.');

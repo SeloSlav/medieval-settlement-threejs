@@ -55,95 +55,19 @@ import { createStableMesh } from './meshes/stableMesh.ts';
 import { createKennelMesh } from './meshes/kennelMesh.ts';
 import { createSpinningRettingHouseMesh } from './meshes/spinningRettingHouseMesh.ts';
 import {
+  createBowyerFletcherMesh,
+  createTradingPostMesh,
+  createWeaponsmithArmorerMesh,
+} from './meshes/specialistWorkshopMeshes.ts';
+import {
   compileProceduralBuilding,
   type ProceduralBuildingVisualRequest,
 } from './proceduralArchitecture/compiler.ts';
-import {
-  addMesh,
-  sharedBuildingDetailMaterial,
-  sharedBuildingMaterial,
-} from './buildingMaterials.ts';
 import type {
   MonasteryExtensionMask,
 } from './proceduralArchitecture/visualRequest.ts';
 
 const CANONICAL_PROCEDURAL_SEED = 1550;
-
-function addWeaponsmithYard(workshop: THREE.Group): void {
-  const iron = sharedBuildingMaterial('metalIron');
-  const wood = sharedBuildingMaterial('timberMid');
-  const hide = sharedBuildingDetailMaterial('wicker');
-  const rack = new THREE.Group();
-  rack.name = 'Weaponsmith yard racks';
-  rack.position.set(3.15, 0, 0.2);
-
-  for (const x of [-0.74, 0.74]) {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.9, 0.16), wood);
-    post.position.set(x, 0.95, 0);
-    rack.add(post);
-  }
-  const rail = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.14, 0.18), wood);
-  rail.position.set(0, 1.48, 0);
-  rack.add(rail);
-
-  const shield = new THREE.Mesh(new THREE.CylinderGeometry(0.57, 0.57, 0.14, 20), hide);
-  shield.rotation.z = Math.PI / 2;
-  shield.position.set(-0.38, 1.03, -0.16);
-  rack.add(shield);
-  const boss = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), iron);
-  boss.scale.x = 0.42;
-  boss.position.set(-0.47, 1.03, -0.16);
-  rack.add(boss);
-
-  for (const [index, z] of [-0.34, 0.02, 0.36].entries()) {
-    const weapon = new THREE.Group();
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.027, 0.027, 2.08, 7), wood);
-    shaft.position.y = 1.04;
-    const head = new THREE.Mesh(new THREE.ConeGeometry(0.095, 0.35, 5), iron);
-    head.position.y = 2.24;
-    weapon.add(shaft, head);
-    weapon.position.set(0.22 + index * 0.2, 0, z);
-    weapon.rotation.z = -0.08 + index * 0.07;
-    rack.add(weapon);
-  }
-  workshop.add(rack);
-}
-
-function addBowyerYard(workshop: THREE.Group): void {
-  const wood = sharedBuildingMaterial('timberMid');
-  const straw = sharedBuildingDetailMaterial('wicker');
-  const linen = sharedBuildingDetailMaterial('canvas');
-  const yard = new THREE.Group();
-  yard.name = 'Bowyer target and bow rack';
-  yard.position.set(3.0, 0, 0.25);
-
-  const stand = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.18, 0.56), wood);
-  stand.position.y = 0.28;
-  yard.add(stand);
-  const target = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.68, 0.3, 24), straw);
-  target.rotation.z = Math.PI / 2;
-  target.position.set(0, 1.15, 0);
-  yard.add(target);
-  for (const radius of [0.48, 0.26, 0.09]) {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.026, 6, 28), linen);
-    ring.rotation.y = Math.PI / 2;
-    ring.position.set(-0.17, 1.15, 0);
-    yard.add(ring);
-  }
-
-  const bowCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0.8, 0.35, -0.72),
-    new THREE.Vector3(1.02, 0.84, -0.8),
-    new THREE.Vector3(1.08, 1.36, -0.82),
-    new THREE.Vector3(0.8, 1.84, -0.72),
-  ]);
-  const bow = new THREE.Mesh(new THREE.TubeGeometry(bowCurve, 18, 0.035, 6, false), wood);
-  yard.add(bow);
-  const string = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 1.49, 5), linen);
-  string.position.set(0.8, 1.095, -0.72);
-  yard.add(string);
-  workshop.add(yard);
-}
 
 type ProceduralGeneratorContext = {
   readonly developmentTier?: 0 | 1 | 2 | 3;
@@ -157,52 +81,6 @@ type ProceduralGeneratorContext = {
 
 type ProceduralBuildingGenerator = (context: ProceduralGeneratorContext) => THREE.Group;
 
-function createWeaponsmithMesh(): THREE.Group {
-  const workshop = createSmithyMesh();
-  workshop.name = 'Weaponsmith and armorer';
-  addWeaponsmithYard(workshop);
-  return workshop;
-}
-
-function createBowyerMesh(): THREE.Group {
-  const workshop = createCarpenterMesh();
-  workshop.name = 'Bowyer and fletcher';
-  addBowyerYard(workshop);
-  return workshop;
-}
-
-function createTradingPostMesh(): THREE.Group {
-  const tradingPost = createVillageStorehouseMesh();
-  tradingPost.name = 'Trading post';
-  const canopy = new THREE.Group();
-  canopy.name = 'Trading post covered loading bay';
-  for (const x of [-2.15, 2.15]) {
-    const post = addMesh(
-      canopy,
-      new THREE.BoxGeometry(0.24, 2.55, 0.24),
-      sharedBuildingMaterial('timberDark'),
-      new THREE.Vector3(x, 1.275, 5.15),
-    );
-    post.name = 'Trading post loading-bay post';
-  }
-  const roof = addMesh(
-    canopy,
-    new THREE.BoxGeometry(5.1, 0.16, 2.75),
-    sharedBuildingMaterial('shingle'),
-    new THREE.Vector3(0, 2.72, 4.75),
-    new THREE.Euler(0.11, 0, 0),
-  );
-  roof.name = 'Trading post loading-bay shingle roof';
-  const sign = addMesh(
-    canopy,
-    new THREE.BoxGeometry(1.15, 0.62, 0.1),
-    sharedBuildingMaterial('timberWeathered'),
-    new THREE.Vector3(0, 2.2, 6.02),
-  );
-  sign.name = 'Trading post road signboard';
-  tradingPost.add(canopy);
-  return tradingPost;
-}
 
 /** Compile-time exhaustive generator registry for every canonical BuildingKind. */
 export const PROCEDURAL_BUILDING_GENERATORS = {
@@ -216,8 +94,8 @@ export const PROCEDURAL_BUILDING_GENERATORS = {
   mine: () => createMineralMineMesh(),
   charcoal_burner: () => createCharcoalBurnerMesh(),
   smithy: () => createSmithyMesh(),
-  weaponsmith_armorer: () => createWeaponsmithMesh(),
-  bowyer_fletcher: () => createBowyerMesh(),
+  weaponsmith_armorer: () => createWeaponsmithArmorerMesh(),
+  bowyer_fletcher: () => createBowyerFletcherMesh(),
   potter_kiln: () => createPotterKilnMesh(),
   well: () => createWellMesh(),
   stable: () => createStableMesh(),

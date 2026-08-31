@@ -58,6 +58,7 @@ import type { MilitiaCommandController } from '../security/MilitiaCommandControl
 import type { MilitaryCompanyState } from '../security/militaryProgression.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import type { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
+import type { StrategicHumanoidDiagnostic } from '../settlement/StrategicHumanoidRenderer.ts';
 import { raidWithdrawingCartCount } from '../logistics/deliveryTrips.ts';
 import { BuildToolbar, type ToolbarStats } from '../ui/BuildToolbar.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
@@ -1258,6 +1259,7 @@ export class App {
       reset: () => this.resetCombatPlaytest(),
       spawnPreset: (preset) => this.resetCombatPlaytest(preset),
       summary: () => this.combatPlaytest?.summary() ?? null,
+      crowdDiagnostics: () => this.villagers?.strategicHumanoidDiagnostics() ?? null,
     };
     const root = document.documentElement;
     root.dataset.combatPlaytestReady = 'true';
@@ -2133,6 +2135,7 @@ type CombatPlaytestDevHandle = {
   reset: () => void;
   spawnPreset: (preset: CombatPlaytestPreset) => void;
   summary: () => CombatPlaytestSummary | null;
+  crowdDiagnostics: () => StrategicHumanoidDiagnostic | null;
 };
 
 function publishBattleShowcaseFrame(

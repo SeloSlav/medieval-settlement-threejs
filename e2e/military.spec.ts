@@ -35,7 +35,7 @@ test('communicates the intended tactical counter relationships', async ({ page }
   expect(copy).toContain('breaks ordinary spear lines');
   expect(copy).toContain('armor breakers');
   expect(copy).toContain('crossbows remain the better armored-target answer');
-  expect(copy).toContain('braced spears stop them');
+  expect(copy).toContain('polearms punish their armor');
 });
 
 test('offers a survivor-priced last-minute retainer to leaving mercenaries', async ({ page }) => {

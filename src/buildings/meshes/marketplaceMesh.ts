@@ -561,7 +561,7 @@ function addSaltSack(group: THREE.Group, scale: number): void {
   addMesh(
     group,
     new THREE.CylinderGeometry(0.06 * scale, 0.1 * scale, 0.14 * scale, 7),
-    timberMaterial('light'),
+    sharedBuildingDetailMaterial('wicker'),
     new THREE.Vector3(0, 0.65 * scale, 0),
   );
 }

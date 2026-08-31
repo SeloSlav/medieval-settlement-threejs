@@ -185,6 +185,15 @@ export function applyBuildingMaterialAtlas(
 ): void {
   material.userData.buildingMaterialAtlas = 'gorski-building-atlas-v1';
   material.userData.buildingMaterialAtlasTile = options.tile;
+  material.userData.buildingMaterialAtlasTintStrength = THREE.MathUtils.clamp(
+    options.tintStrength ?? 0.25,
+    0,
+    1,
+  );
+  material.userData.buildingMaterialAtlasNormalStrength = Math.max(
+    0,
+    options.normalStrength ?? material.normalScale.x,
+  );
   const textures = getBuildingMaterialAtlasTextures();
   const index = TILE_ORDER.indexOf(options.tile);
   if (index < 0) throw new Error(`Unknown building material atlas tile: ${options.tile}`);
@@ -254,6 +263,15 @@ export function applyBuildingMaterialAtlasDirectUv(
   material.userData.buildingMaterialAtlas = 'gorski-building-atlas-v1';
   material.userData.buildingMaterialAtlasTile = options.tile;
   material.userData.buildingMaterialAtlasUvMode = 'direct';
+  material.userData.buildingMaterialAtlasTintStrength = THREE.MathUtils.clamp(
+    options.tintStrength ?? 0.25,
+    0,
+    1,
+  );
+  material.userData.buildingMaterialAtlasNormalStrength = Math.max(
+    0,
+    options.normalStrength ?? material.normalScale.x,
+  );
   const textures = getBuildingMaterialAtlasTextures();
   // The source UVs are baked in Blender's bottom-up convention, while the
   // shared Three texture retains flipY=true during bitmap hydration. Mirror

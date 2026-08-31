@@ -192,7 +192,7 @@ export function combatAudioGain(
 
 /**
  * Retains one bounded source per active attacker instead of only close melee
- * pairs. This lets bow, crossbow, and arquebus cooldown resets emit at the
+ * pairs. This lets bow and crossbow cooldown resets emit at the
  * shooter's own position while still keeping a triple-size showcase bounded.
  * Advancing fighters become charge/formation-movement sources and retreating
  * fighters remain present for sparse flee/rout reactions. Holding, aftermath,
@@ -850,7 +850,6 @@ function cadenceRange(kind: CombatAudioSoundKind): readonly [number, number] {
     case 'halberd-polearm': return [0.52, 0.42];
     case 'bow': return [0.78, 0.42];
     case 'crossbow': return [1.2, 0.72];
-    case 'arquebus': return [1.8, 1.1];
     case 'shield-armor': return [0.48, 0.4];
     case 'charge': return [0.5, 0.34];
   }
@@ -865,7 +864,6 @@ function attackPitch(
     case 'halberd-polearm': return { base: 0.92, step: 0.013 };
     case 'bow': return { base: 0.97, step: 0.008 };
     case 'crossbow': return { base: 0.98, step: 0.006 };
-    case 'arquebus': return { base: 0.985, step: 0.004 };
     case 'shield-armor': return { base: 0.94, step: 0.012 };
   }
 }

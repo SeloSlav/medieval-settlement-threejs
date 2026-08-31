@@ -675,7 +675,7 @@ export function createVillageStorehouseMesh(): THREE.Group {
     addMesh(
       segment,
       new THREE.CylinderGeometry(0.06, 0.1, 0.14, 7),
-      timberMaterial('light'),
+      sharedBuildingDetailMaterial('wicker'),
       new THREE.Vector3(x, y + 0.36, z),
     );
     saltStock.add(segment);

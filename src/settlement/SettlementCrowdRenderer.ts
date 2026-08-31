@@ -58,8 +58,17 @@ import type {
   ClericAuthoredAnimationName,
 } from './clericBehaviors.ts';
 
-const MAX_INSTANCES = 1024;
+/**
+ * Covers a full 1,024-person settlement plus large hostile companies,
+ * mercenaries, and retained casualties without dropping a visible person.
+ * GPU cost remains bounded because every strategic body part is instanced.
+ */
+const MAX_INSTANCES = 2048;
 const MAX_ANIMATED_VILLAGERS = 72;
+/** Far strategic views switch the whole crowd to the bounded instanced tier. */
+export const AUTHORED_RIG_DISABLE_ORBIT_DISTANCE = 112;
+/** Hysteresis prevents skeletal rigs churning while the camera crosses a tier. */
+export const AUTHORED_RIG_RESTORE_ORBIT_DISTANCE = 96;
 /** Upper bound; higher-bone rigs automatically use fewer slots per shard. */
 export const ANIMATED_RIGS_PER_SHARD = 8;
 export const MAX_ANIMATED_SKELETON_BYTES = 15_872;
@@ -315,6 +324,7 @@ export class SettlementCrowdRenderer {
   private animatedBatches: Record<VillagerSourceKey, AnimatedVariantBatch> | null = null;
   private readonly latestAgents: CrowdRenderAgent[] = [];
   private lastView: CrowdViewState | undefined;
+  private authoredRigsEnabled = true;
   private disposed = false;
 
   constructor(options: SettlementCrowdRendererOptions) {
@@ -537,6 +547,24 @@ export class SettlementCrowdRenderer {
     agents: readonly CrowdRenderAgent[],
     view?: CrowdViewState,
   ): Set<string> {
+    const orbitDistance = view?.orbitDistance;
+    if (orbitDistance === undefined) {
+      this.authoredRigsEnabled = true;
+    } else if (
+      this.authoredRigsEnabled
+      && orbitDistance >= AUTHORED_RIG_DISABLE_ORBIT_DISTANCE
+    ) {
+      this.authoredRigsEnabled = false;
+    } else if (
+      !this.authoredRigsEnabled
+      && orbitDistance <= AUTHORED_RIG_RESTORE_ORBIT_DISTANCE
+    ) {
+      this.authoredRigsEnabled = true;
+    }
+    const animatedIds = this.animatedIds;
+    animatedIds.clear();
+    if (!this.authoredRigsEnabled) return animatedIds;
+
     const candidates = this.animatedCandidates;
     candidates.length = 0;
     for (const agent of agents) {
@@ -545,8 +573,6 @@ export class SettlementCrowdRenderer {
       }
     }
     candidates.sort((a, b) => compareCrowdAnimationPriority(a, b, view));
-    const animatedIds = this.animatedIds;
-    animatedIds.clear();
     const count = Math.min(candidates.length, MAX_ANIMATED_VILLAGERS);
     for (let index = 0; index < count; index++) {
       animatedIds.add(candidates[index]!.id);

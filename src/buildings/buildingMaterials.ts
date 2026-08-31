@@ -31,6 +31,23 @@ export const GORSKI_PALETTE = {
   interiorDark: 0x1a1410,
 } as const;
 
+/**
+ * Atlas tint ownership for the complete construction-timber vocabulary.
+ *
+ * The source atlas deliberately carries grain, knots, silvering, and wear,
+ * while these shared colours keep every generator inside one regional brown
+ * timber family.  Weathered boards need the strongest tint because their
+ * source tile is intentionally silver-grey; without it, crates, fences,
+ * chests, troughs, and exterior boarding read as painted white wood.
+ */
+export const GORSKI_TIMBER_TINT_STRENGTHS = {
+  dark: 0.72,
+  mid: 0.58,
+  light: 0.58,
+  weathered: 0.9,
+  stacked: 0.62,
+} as const;
+
 export const RESIDENCE_FACADE_PALETTE = {
   white: 0xe8e2d8,
   yellow: 0xccb860,
@@ -127,11 +144,11 @@ const MATERIAL_DEFINITIONS: Record<BuildingMaterialKey, MaterialDefinition> = {
   masonryLight: { color: 0xf3eadb, roughness: 0.96, metalness: 0, atlasTile: 'limestone-ashlar', atlasMetersPerTile: 2.4, atlasTintStrength: 0.16, textureFamily: 'masonry', normalScale: 0.76, weathering: 'masonry', uniformIndirectLight: true },
   masonryMid: { color: 0xd8d0c2, roughness: 0.97, metalness: 0, atlasTile: 'fieldstone-mortar', atlasMetersPerTile: 2.4, atlasTintStrength: 0.2, textureFamily: 'masonry', normalScale: 0.82, weathering: 'masonry', uniformIndirectLight: true },
   masonryDark: { color: 0x858688, roughness: 0.98, metalness: 0, atlasTile: 'quarry-stone', atlasMetersPerTile: 2.4, atlasTintStrength: 0.36, textureFamily: 'masonry', normalScale: 0.82, weathering: 'masonry' },
-  timberDark: { color: 0xa07a5d, roughness: 0.94, metalness: 0, atlasTile: 'rough-hewn-timber', atlasMetersPerTile: 2, atlasTintStrength: 0.28, textureFamily: 'woodPlanks', normalScale: 0.76, weathering: 'timber', uniformIndirectLight: true },
-  timberMid: { color: 0xaa866b, roughness: 0.9, metalness: 0, atlasTile: 'rough-hewn-timber', atlasMetersPerTile: 2, atlasTintStrength: 0.2, textureFamily: 'woodPlanks', normalScale: 0.58, weathering: 'timber' },
-  timberLight: { color: 0xc2a184, roughness: 0.9, metalness: 0, atlasTile: 'sawn-planks', atlasMetersPerTile: 2, atlasTintStrength: 0.22, textureFamily: 'woodPlanks', normalScale: 0.55, weathering: 'timber' },
-  timberWeathered: { color: 0xd4c0a9, roughness: 0.96, metalness: 0, atlasTile: 'weathered-planks', atlasMetersPerTile: 2, atlasTintStrength: 0.18, textureFamily: 'woodPlanks', normalScale: 0.86, weathering: 'timber', uniformIndirectLight: true },
-  stackedTimber: { color: 0xc09269, roughness: 0.95, metalness: 0, atlasTile: 'stacked-log-wall', atlasMetersPerTile: 2, atlasTintStrength: 0.18, textureFamily: 'woodPlanks', normalScale: 0.76, weathering: 'timber', uniformIndirectLight: true },
+  timberDark: { color: GORSKI_PALETTE.timberDark, roughness: 0.94, metalness: 0, atlasTile: 'rough-hewn-timber', atlasMetersPerTile: 2, atlasTintStrength: GORSKI_TIMBER_TINT_STRENGTHS.dark, textureFamily: 'woodPlanks', normalScale: 0.76, weathering: 'timber', uniformIndirectLight: true },
+  timberMid: { color: GORSKI_PALETTE.timberMid, roughness: 0.9, metalness: 0, atlasTile: 'rough-hewn-timber', atlasMetersPerTile: 2, atlasTintStrength: GORSKI_TIMBER_TINT_STRENGTHS.mid, textureFamily: 'woodPlanks', normalScale: 0.58, weathering: 'timber' },
+  timberLight: { color: GORSKI_PALETTE.timberLight, roughness: 0.9, metalness: 0, atlasTile: 'sawn-planks', atlasMetersPerTile: 2, atlasTintStrength: GORSKI_TIMBER_TINT_STRENGTHS.light, textureFamily: 'woodPlanks', normalScale: 0.55, weathering: 'timber' },
+  timberWeathered: { color: GORSKI_PALETTE.timberWeathered, roughness: 0.96, metalness: 0, atlasTile: 'weathered-planks', atlasMetersPerTile: 2, atlasTintStrength: GORSKI_TIMBER_TINT_STRENGTHS.weathered, textureFamily: 'woodPlanks', normalScale: 0.86, weathering: 'timber', uniformIndirectLight: true },
+  stackedTimber: { color: GORSKI_PALETTE.timberMid, roughness: 0.95, metalness: 0, atlasTile: 'stacked-log-wall', atlasMetersPerTile: 2, atlasTintStrength: GORSKI_TIMBER_TINT_STRENGTHS.stacked, textureFamily: 'woodPlanks', normalScale: 0.76, weathering: 'timber', uniformIndirectLight: true },
   clayRed: { color: 0xffffff, roughness: 0.84, metalness: 0.01, atlasTile: 'clay-roof-tiles', atlasMetersPerTile: 2.2, atlasTintStrength: 0, textureFamily: 'clayTiles', normalScale: 0.74, weathering: 'roof' },
   clayDark: { color: 0xc58f84, roughness: 0.88, metalness: 0.01, atlasTile: 'clay-roof-tiles', atlasMetersPerTile: 2.2, atlasTintStrength: 0.32, textureFamily: 'clayTiles', normalScale: 0.78, weathering: 'roof' },
   shingle: { color: 0x928e85, roughness: 0.99, metalness: 0, atlasTile: 'split-shingles', atlasMetersPerTile: 2.2, atlasTintStrength: 0.28, textureFamily: 'woodPlanks', normalScale: 1.05, weathering: 'shingle', useDiffuseMap: false, uniformIndirectLight: true },

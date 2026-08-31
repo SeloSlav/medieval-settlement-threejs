@@ -40,7 +40,6 @@ export const WORKER_TOOL_URLS: Record<WorkerToolKind, string> = {
   'sword-shield': '',
   halberd: '',
   bow: '',
-  'uskok-kit': '',
 };
 
 type WorkerToolFit = {
@@ -95,7 +94,6 @@ const WORKER_TOOL_FIT: Record<WorkerToolKind, WorkerToolFit> = {
   'sword-shield': { targetLength: 1.05, gripFractionFromHandleEnd: 0.35 },
   halberd: { targetLength: 2.18, gripFractionFromHandleEnd: 0.30 },
   bow: { targetLength: 1.35, gripFractionFromHandleEnd: 0.50 },
-  'uskok-kit': { targetLength: 0.8, gripFractionFromHandleEnd: 0.2 },
 };
 
 export type WorkerHandToolSource = {

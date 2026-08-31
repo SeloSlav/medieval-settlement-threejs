@@ -95,7 +95,7 @@ function addSaltSack(group: THREE.Group, scale = 1): void {
   addMesh(
     group,
     new THREE.CylinderGeometry(0.06 * scale, 0.11 * scale, 0.15 * scale, 7),
-    timberMaterial('light'),
+    sharedBuildingDetailMaterial('wicker'),
     new THREE.Vector3(0, 0.71 * scale, 0),
   );
 }
@@ -1260,7 +1260,7 @@ function createWeaverYarnStockpile(): THREE.Group {
     addMesh(
       segment,
       new THREE.BoxGeometry(0.07, 0.09, 0.44),
-      timberMaterial('light'),
+      sharedBuildingDetailMaterial('wicker'),
       new THREE.Vector3(),
     );
     stockpile.add(segment);

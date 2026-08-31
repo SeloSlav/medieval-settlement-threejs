@@ -142,7 +142,7 @@ allKindsRenderer.sync(MILITARY_EQUIPMENT_KINDS.map((kind, index) => ({
 })), view);
 const allKinds = allKindsRenderer.diagnostics();
 assert.equal(allKinds.owners, MILITARY_EQUIPMENT_KINDS.length);
-assert.equal(allKinds.pieces, MILITARY_EQUIPMENT_KINDS.length + 1, 'Uskok kit drops both sword and arquebus');
+assert.equal(allKinds.pieces, MILITARY_EQUIPMENT_KINDS.length);
 assert.ok(
   allKinds.activeDrawCalls <= BATTLEFIELD_WEAPON_DROP_DRAW_CALL_BUDGET,
   `${allKinds.activeDrawCalls} exact-PBR draws exceeded the all-family budget`,

@@ -658,12 +658,13 @@ function addFishingRack(group: THREE.Group, centerX: number, centerZ: number): v
   );
   for (let strand = -3; strand <= 3; strand++) {
     const x = centerX + strand * 0.43;
-    addMesh(
+    const dryingCord = addMesh(
       group,
       new THREE.CylinderGeometry(0.018, 0.018, 1.35 - Math.abs(strand) * 0.08, 5),
-      timberMaterial('light'),
+      sharedBuildingDetailMaterial('wicker'),
       new THREE.Vector3(x, 1.62, centerZ),
     );
+    dryingCord.name = 'Fishing rack fibre drying cord';
   }
   const foodStockpile = new THREE.Group();
   foodStockpile.name = 'FishingFoodStockpile';

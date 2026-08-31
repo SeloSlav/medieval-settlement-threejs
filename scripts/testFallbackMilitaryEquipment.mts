@@ -8,19 +8,17 @@ import {
 } from '../src/settlement/FallbackMilitaryEquipmentRenderer.ts';
 import type { WorkerToolKind } from '../src/settlement/workerTools.ts';
 
-assert.equal(FALLBACK_MILITARY_EQUIPMENT_DRAW_CALL_BUDGET, 13);
-assert.equal(new Set(FALLBACK_MILITARY_EQUIPMENT_KEYS).size, 13);
+assert.equal(FALLBACK_MILITARY_EQUIPMENT_DRAW_CALL_BUDGET, 11);
+assert.equal(new Set(FALLBACK_MILITARY_EQUIPMENT_KEYS).size, 11);
 assert.equal(fallbackEquipmentKey('bow', 12), 'bow:ranged');
 assert.equal(fallbackEquipmentKey('bow', 2), 'bow:melee');
 assert.equal(fallbackEquipmentKey('crossbow', 12), 'crossbow:ranged');
 assert.equal(fallbackEquipmentKey('crossbow', 2), 'crossbow:melee');
-assert.equal(fallbackEquipmentKey('uskok-kit', 12), 'uskok-kit:ranged');
-assert.equal(fallbackEquipmentKey('uskok-kit', 2), 'uskok-kit:melee');
 assert.equal(fallbackEquipmentKey('axe', 4), null);
 
 const tools: WorkerToolKind[] = [
   'spear', 'spear-shield', 'pike-kit', 'sidearm', 'sidearm-shield',
-  'sword-shield', 'halberd', 'bow', 'crossbow', 'uskok-kit',
+  'sword-shield', 'halberd', 'bow', 'crossbow',
 ];
 const parent = new THREE.Group();
 const renderer = new FallbackMilitaryEquipmentRenderer(parent);
@@ -41,7 +39,7 @@ assert.ok(diagnostics.every((row) => row.triangles > 0));
 assert.ok(diagnostics.every((row) => row.triangles < 1_500), 'each rigid kit LOD must remain cheap');
 assert.ok(
   diagnostics.reduce((sum, row) => sum + row.triangles, 0) < 9_000,
-  'the complete thirteen-stance catalog must remain within its shared topology budget',
+  'the complete eleven-stance catalog must remain within its shared topology budget',
 );
 assert.equal(parent.children.length, 1);
 assert.equal(parent.children[0]!.children.length, FALLBACK_MILITARY_EQUIPMENT_DRAW_CALL_BUDGET);
@@ -57,4 +55,4 @@ assert.equal(
 renderer.dispose();
 assert.equal(parent.children.length, 0);
 
-console.log('Fallback military equipment arms every distance-LOD soldier in 13 bounded instanced draws.');
+console.log('Fallback military equipment arms every distance-LOD soldier in 11 bounded instanced draws.');

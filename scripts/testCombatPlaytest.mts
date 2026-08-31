@@ -31,24 +31,24 @@ assert.deepEqual(
     const definition = combatPlaytestPresetDefinition(preset);
     return [definition.friendlyCount, definition.enemyCount];
   }),
-  [[36, 36], [72, 72], [108, 108]],
+  [[32, 32], [64, 64], [96, 96]],
 );
 
 const simulation = createSimulation('field');
 assert.deepEqual(simulation.summary(), {
   preset: 'field',
   seed,
-  friendlyAlive: 72,
-  friendlyTotal: 72,
-  enemyAlive: 72,
-  enemyTotal: 72,
+  friendlyAlive: 64,
+  friendlyTotal: 64,
+  enemyAlive: 64,
+  enemyTotal: 64,
   outcome: 'active',
 });
 
 const opening = simulation.snapshot();
 const friendly = [...opening.values()].filter((agent) => agent.faction !== 'raider');
 const enemy = [...opening.values()].filter((agent) => agent.faction === 'raider');
-assert.equal(new Set(friendly.map((agent) => agent.companyId)).size, 9);
+assert.equal(new Set(friendly.map((agent) => agent.companyId)).size, 8);
 assert.deepEqual(
   [...new Set(friendly.map((agent) => agent.faction))].sort(),
   [
@@ -60,7 +60,6 @@ assert.deepEqual(
     'militia',
     'polearm',
     'spearman',
-    'uskok',
   ],
 );
 for (const faction of [
@@ -72,7 +71,6 @@ for (const faction of [
   'polearm',
   'bowman',
   'crossbow',
-  'uskok',
 ]) {
   assert.equal(friendly.filter((agent) => agent.faction === faction).length, 8);
 }
@@ -121,7 +119,7 @@ for (let step = 0; step < 1_200; step += 1) {
       if (
         agent.status !== 'fighting'
         || agent.targetKind !== 'combat-agent'
-        || (agent.faction !== 'bowman' && agent.faction !== 'crossbow' && agent.faction !== 'uskok')
+        || (agent.faction !== 'bowman' && agent.faction !== 'crossbow')
       ) return false;
       const previousTarget = before.get(agent.targetId);
       const nextAgent = frame.get(agent.id);
@@ -134,7 +132,7 @@ for (let step = 0; step < 1_200; step += 1) {
   }
   if (step % 10 !== 0) continue;
   const summary = simulation.summary();
-  sawCasualty ||= summary.friendlyAlive < 72 || summary.enemyAlive < 72;
+  sawCasualty ||= summary.friendlyAlive < 64 || summary.enemyAlive < 64;
 }
 assert.equal(
   sawRangedSpacing,
@@ -157,11 +155,11 @@ for (let step = 0; step < 400; step += 1) {
 assert.deepEqual([...deterministicA.snapshot()], [...deterministicB.snapshot()]);
 
 deterministicA.reset('stress');
-assert.equal(deterministicA.summary().friendlyTotal, 108);
-assert.equal(deterministicA.summary().enemyTotal, 108);
-assert.equal(deterministicA.snapshot().size, 216);
+assert.equal(deterministicA.summary().friendlyTotal, 96);
+assert.equal(deterministicA.summary().enemyTotal, 96);
+assert.equal(deterministicA.snapshot().size, 192);
 deterministicA.reset('stress');
-assert.equal(deterministicA.snapshot().size, 216);
+assert.equal(deterministicA.snapshot().size, 192);
 
 const camera = combatPlaytestCamera({ ...site, x: 14, z: -9 });
 assert.deepEqual([camera.targetX, camera.targetZ, camera.distance], [14, -9, 46]);
@@ -185,16 +183,13 @@ assert.match(bootstrap, /worldSettingsOverride[\s\S]*if \(!bridge\.worldSettings
 assert.match(commands, /setCompanyGuidesVisible/);
 assert.match(commands, /SecondaryClickGesture/);
 assert.match(styles, /combat-playtest-mode > :not\(\.combat-playtest-overlay\):not\(\.militia-selection-box\)/);
-assert.match(playtest, /uskok:[\s\S]{0,150}damage: 15\.5[\s\S]{0,100}cadence: 2\.8[\s\S]{0,100}range: 13\.5/);
 assert.match(playtest, /spearman:[\s\S]{0,140}health: 74[\s\S]{0,90}damage: 11\.5[\s\S]{0,90}range: 2\.6/);
 assert.match(playtest, /'man-at-arms':[\s\S]{0,140}health: 96[\s\S]{0,90}cadence: 0\.92[\s\S]{0,90}range: 2\.05/);
 assert.match(playtest, /crossbow:[\s\S]{0,140}health: 58[\s\S]{0,90}cadence: 2\.45[\s\S]{0,90}range: 17\.5/);
 assert.match(playtest, /polearm:[\s\S]{0,140}health: 70[\s\S]{0,90}damage: 17\.5[\s\S]{0,90}range: 2\.85/);
 assert.match(playtest, /bowman:[\s\S]{0,140}health: 55[\s\S]{0,90}cadence: 1\.55[\s\S]{0,90}range: 20/);
-assert.match(playtest, /USKOK_MATCHLOCK_SHOTS = 8/);
 assert.match(playtest, /minimumRange: 8/);
 assert.match(playtest, /minimumRange: 7\.25/);
-assert.match(playtest, /minimumRange: 6\.5/);
 assert.doesNotMatch(playtest, /retireFrom[\s\S]{0,900}setStatus\(runtime, 'retreating'\)/);
 
 console.log('Offline production-world combat playtest route, controls, isolation, and stress contract passed.');

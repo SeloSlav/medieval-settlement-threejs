@@ -81,7 +81,7 @@ function addLeatherRoll(group: THREE.Group, scale = 1): void {
     addMesh(
       group,
       new THREE.TorusGeometry(0.205 * scale, 0.022 * scale, 5, 10),
-      timberMaterial('light'),
+      sharedBuildingDetailMaterial('wicker'),
       new THREE.Vector3(x * scale, 0.2 * scale, 0),
       new THREE.Euler(0, Math.PI * 0.5, 0),
     );

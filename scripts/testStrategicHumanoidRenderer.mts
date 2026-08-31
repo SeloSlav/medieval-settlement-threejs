@@ -28,7 +28,6 @@ const EQUIPMENT: WorkerToolKind[] = [
   'halberd',
   'bow',
   'crossbow',
-  'uskok-kit',
 ];
 const MODES = ['idle', 'walk', 'run', 'fight', 'hurt', 'fall', 'flee'] as const;
 
@@ -71,6 +70,13 @@ function assertBattleContract(
     diagnostics.instances,
     count,
     `${label}: every combatant must have a strategic humanoid`,
+  );
+  assert.equal(diagnostics.requestedInstances, count);
+  assert.equal(diagnostics.capacityDroppedInstances, 0);
+  assert.equal(
+    diagnostics.livingInstances + diagnostics.downedInstances,
+    count,
+    `${label}: living and downed silhouettes must account for the formation`,
   );
   assert.equal(
     diagnostics.capsuleProxyCount,
@@ -166,6 +172,27 @@ assert.ok(
   averageUpdateMs < 6,
   `1,024 strategic humanoids cost ${averageUpdateMs.toFixed(2)}ms/frame`,
 );
+const overCapacityBattle = makeBattle(1_025);
+renderer.sync(overCapacityBattle, undefined, 1 / 60);
+assert.equal(renderer.diagnostics().requestedInstances, 1_025);
+assert.equal(renderer.diagnostics().instances, 1_024);
+assert.equal(
+  renderer.diagnostics().capacityDroppedInstances,
+  1,
+  'capacity pressure must be explicit instead of silently losing a soldier',
+);
+
+const supportedEnvelopeParent = new THREE.Group();
+const supportedEnvelopeRenderer = new StrategicHumanoidRenderer(supportedEnvelopeParent);
+supportedEnvelopeRenderer.sync(makeBattle(2_048), undefined, 1 / 60);
+assert.equal(supportedEnvelopeRenderer.diagnostics().requestedInstances, 2_048);
+assert.equal(supportedEnvelopeRenderer.diagnostics().instances, 2_048);
+assert.equal(
+  supportedEnvelopeRenderer.diagnostics().capacityDroppedInstances,
+  0,
+  'the shipped strategic envelope must retain a 1,024-person settlement plus battle forces',
+);
+supportedEnvelopeRenderer.dispose();
 
 const farView = buildCrowdViewState(
   0,
@@ -218,5 +245,5 @@ assert.equal(parent.children.length, 0);
 
 console.log(
   `Strategic humanoid contracts passed (96 v 96 and 216 represented; `
-    + `1,024 update ${averageUpdateMs.toFixed(2)}ms/frame; zero capsule proxies).`,
+    + `2,048 supported, 1,024 update ${averageUpdateMs.toFixed(2)}ms/frame; zero capsule proxies).`,
 );

@@ -422,36 +422,6 @@
       "promptInfluence": 0.92
     },
     {
-      "id": "combat-arquebus-attack-1",
-      "group": "combat-weapon-suite-v2",
-      "kind": "sound-effect",
-      "output": "public/sounds/combat/arquebus_attack_1.mp3",
-      "prompt": "One-shot close realistic sixteenth-century light matchlock arquebus firing outdoors: tiny priming-pan fizz, sharp black-powder crack, brief wooden stock resonance and restrained open-air tail, infantry firearm not cannon, no voice, no shout, no chant, no music, no cinematic boom",
-      "durationSeconds": 1.5,
-      "loop": false,
-      "promptInfluence": 0.93
-    },
-    {
-      "id": "combat-arquebus-attack-2",
-      "group": "combat-weapon-suite-v2",
-      "kind": "sound-effect",
-      "output": "public/sounds/combat/arquebus_attack_2.mp3",
-      "prompt": "One-shot close realistic Balkan frontier matchlock shot variation: brief serpentine mechanism click and powder ignition, dry medium-caliber arquebus report with a short outdoor echo, no cannon bass, no voice, no shout, no chant, no music, no cinematic impact",
-      "durationSeconds": 1.5,
-      "loop": false,
-      "promptInfluence": 0.93
-    },
-    {
-      "id": "combat-arquebus-attack-3",
-      "group": "combat-weapon-suite-v2",
-      "kind": "sound-effect",
-      "output": "public/sounds/combat/arquebus_attack_3.mp3",
-      "prompt": "One-shot close realistic light arquebus discharge: restrained match hiss immediately followed by a crisp black-powder snap, small timber stock knock and natural distant reflection, portable firearm scale, no voice, no shout, no chant, no music, no cinematic boom",
-      "durationSeconds": 1.5,
-      "loop": false,
-      "promptInfluence": 0.93
-    },
-    {
       "id": "combat-shield-armor-impact-1",
       "group": "combat-weapon-suite-v2",
       "kind": "sound-effect",

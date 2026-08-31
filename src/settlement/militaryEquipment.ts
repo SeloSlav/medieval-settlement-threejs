@@ -16,7 +16,6 @@ export const MILITARY_EQUIPMENT_KINDS = [
   'sword-shield',
   'halberd',
   'bow',
-  'uskok-kit',
 ] as const;
 
 export type MilitaryEquipmentKind = (typeof MILITARY_EQUIPMENT_KINDS)[number];
@@ -94,7 +93,6 @@ const TARGET_LENGTHS: Record<MilitaryEquipmentKind, number> = {
   'sword-shield': 1.08,
   halberd: 2.55,
   bow: 1.88,
-  'uskok-kit': 0.86,
 };
 
 // Sampled against the worker rig's authored idle, not the misleading T-pose.
@@ -147,35 +145,6 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
       mount(createFallbackDagger(materials), ['PalmR', 'R_Hand'], 0.42, RIGHT_PALM_POSITION, [0, 0, 0], NATURAL_RIGHT_HAND, 'melee-held'),
       mount(createFallbackDaggerScabbard(materials), ['Waist', 'Hips', 'Pelvis'], 0.46, [0.11, 0, 0.02], [0, 0, Math.PI - 0.2], undefined, 'melee-stowed'),
     ], 'ranged-held', ['PalmL', 'L_Hand'], LEFT_PALM_POSITION),
-    'uskok-kit': source('uskok-kit', createKorda(materials), NATURAL_RIGHT_HAND, [
-      mount(
-        createArquebus(materials),
-        ['Spine02', 'Spine2', 'Spine01', 'Spine'],
-        1.08,
-        [-0.065, 0.015, 0.09],
-        [0.06, -0.06, 0.5],
-        undefined,
-        'ranged-stowed',
-      ),
-      mount(
-        createArquebus(materials),
-        ['PalmR', 'R_Hand'],
-        1.08,
-        RIGHT_PALM_POSITION,
-        [0, 0, 0],
-        FORWARD_RIGHT_HAND,
-        'ranged-held',
-      ),
-      mount(
-        createUskokScabbard(materials),
-        ['Waist', 'Hips', 'Pelvis'],
-        0.86,
-        [0.1, 0, 0.015],
-        [0, 0, Math.PI - 0.18],
-        undefined,
-        'melee-stowed',
-      ),
-    ], 'melee-held'),
   };
 }
 
@@ -766,44 +735,6 @@ function createBoltCase(materials: Materials): THREE.Group {
   return group;
 }
 
-function createKorda(materials: Materials): THREE.Group {
-  const group = new THREE.Group();
-  add(
-    group,
-    shapeGeometry([[-0.021, 0], [-0.026, 0.45], [-0.023, 0.66], [0, 0.74], [0.02, 0.66], [0.03, 0.2], [0.027, 0]], 0.018, 0.004),
-    materials.steel,
-    'Uskok korda · single-edged frontier blade',
-    [0, 0.12, 0],
-  );
-  for (const side of [-1, 1]) {
-    add(
-      group,
-      shapeGeometry([[-0.011, 0.06], [-0.013, 0.43], [-0.01, 0.61], [0, 0.67], [0.009, 0.6], [0.014, 0.2], [0.013, 0.06]], 0.0035, 0.001),
-      materials.bluedSteel,
-      side > 0 ? 'Uskok korda · front forged fuller' : 'Uskok korda · rear forged fuller',
-      [0, 0.12, side * 0.011],
-    );
-  }
-  const guard = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.1, 0.105, -0.005),
-    new THREE.Vector3(-0.05, 0.125, 0),
-    new THREE.Vector3(0, 0.11, 0),
-    new THREE.Vector3(0.06, 0.095, 0),
-    new THREE.Vector3(0.105, 0.12, 0.005),
-  ]);
-  add(group, new THREE.TubeGeometry(guard, 14, 0.012, 7, false), materials.bluedSteel, 'Uskok korda · swept iron guard');
-  add(group, new RoundedBoxGeometry(0.062, 0.035, 0.036, 2, 0.008), materials.brass, 'Uskok korda · latten bolster', [0, 0.095, 0]);
-  add(group, new THREE.CylinderGeometry(0.026, 0.031, 0.19, 10), materials.oxblood, 'Uskok korda · oxblood grip', [0, -0.005, 0]);
-  for (let index = 0; index < 5; index += 1) {
-    add(group, new THREE.TorusGeometry(0.029, 0.003, 5, 10), materials.brass, 'Uskok korda · grip wire', [0, 0.055 - index * 0.035, 0], [Math.PI / 2, 0, 0]);
-  }
-  const pommel = add(group, new THREE.SphereGeometry(0.04, 12, 8), materials.brass, 'Uskok korda · compact disc pommel', [0, -0.12, 0]);
-  pommel.scale.z = 0.58;
-  group.name = 'Procedural Uskok korda';
-  group.userData.equipmentIdentity = 'uskok-korda-war-knife';
-  return group;
-}
-
 /** Compact belt dagger used only when a bow or crossbowman is forced into contact. */
 function createFallbackDagger(materials: Materials): THREE.Group {
   const group = new THREE.Group();
@@ -839,68 +770,6 @@ function createFallbackDaggerScabbard(materials: Materials): THREE.Group {
   return group;
 }
 
-function createArquebus(materials: Materials): THREE.Group {
-  const group = new THREE.Group();
-  add(
-    group,
-    shapeGeometry([
-      [-0.04, -0.48], [-0.082, -0.39], [-0.062, -0.2], [-0.045, 0.69],
-      [0.045, 0.69], [0.052, -0.2], [0.092, -0.35], [0.075, -0.5],
-    ], 0.074, 0.012),
-    materials.walnut,
-    'Arquebus · sculpted walnut full stock',
-  );
-  add(group, new RoundedBoxGeometry(0.14, 0.23, 0.08, 3, 0.016), materials.walnut, 'Arquebus · shouldered fishtail butt', [0.025, -0.42, 0], [0, 0, -0.08]);
-  add(group, new RoundedBoxGeometry(0.09, 0.05, 0.082, 2, 0.008), materials.brass, 'Arquebus · worn butt plate', [0.045, -0.525, 0], [0, 0, -0.08]);
-  add(group, new THREE.CylinderGeometry(0.022, 0.026, 0.72, 12), materials.bluedSteel, 'Arquebus · long hand-forged barrel', [0, 0.43, 0.055]);
-  for (const y of [0.18, 0.47, 0.7]) {
-    add(group, new THREE.TorusGeometry(0.028, 0.0055, 5, 12), materials.brass, 'Arquebus · latten barrel band', [0, y, 0.055], [Math.PI / 2, 0, 0]);
-  }
-  add(group, new THREE.TorusGeometry(0.035, 0.007, 6, 12), materials.brass, 'Arquebus · reinforced muzzle band', [0, 0.79, 0.055], [Math.PI / 2, 0, 0]);
-  add(group, new RoundedBoxGeometry(0.012, 0.025, 0.014, 2, 0.003), materials.steel, 'Arquebus · forged front sight', [0, 0.748, 0.086]);
-  add(group, new RoundedBoxGeometry(0.018, 0.02, 0.012, 2, 0.003), materials.steel, 'Arquebus · rear notch sight', [0, 0.18, 0.084]);
-  add(group, new THREE.CylinderGeometry(0.0055, 0.0065, 0.67, 7), materials.ash, 'Arquebus · under-barrel ramrod', [-0.025, 0.43, -0.05]);
-  for (const y of [0.18, 0.52, 0.7]) {
-    add(group, new THREE.TorusGeometry(0.011, 0.0035, 5, 9), materials.bluedSteel, 'Arquebus · ramrod thimble', [-0.025, y, -0.05], [Math.PI / 2, 0, 0]);
-  }
-  const serpentine = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0.035, 0.04, 0.055),
-    new THREE.Vector3(0.09, 0.0, 0.06),
-    new THREE.Vector3(0.065, -0.08, 0.055),
-  ]);
-  add(group, new THREE.TubeGeometry(serpentine, 16, 0.009, 7, false), materials.bluedSteel, 'Arquebus · articulated matchlock serpentine');
-  const slowMatch = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0.067, -0.075, 0.06),
-    new THREE.Vector3(0.11, -0.035, 0.07),
-    new THREE.Vector3(0.09, 0.055, 0.072),
-  ]);
-  add(group, new THREE.TubeGeometry(slowMatch, 12, 0.007, 6, false), materials.leather, 'Arquebus · smouldering slow-match cord');
-  add(group, new RoundedBoxGeometry(0.088, 0.09, 0.024, 2, 0.005), materials.brass, 'Arquebus · engraved lock plate', [0.045, -0.025, 0.052]);
-  add(group, new THREE.CylinderGeometry(0.032, 0.025, 0.035, 10), materials.bluedSteel, 'Arquebus · priming pan', [0.055, 0.055, 0.075], [0, 0, Math.PI / 2]);
-  add(group, new RoundedBoxGeometry(0.06, 0.042, 0.009, 2, 0.003), materials.brass, 'Arquebus · hinged pan cover', [0.057, 0.063, 0.095], [0.08, 0, -0.12]);
-  addRivet(group, materials.steel, 'Arquebus · serpentine pivot', [0.065, -0.035, 0.071], 0.011);
-  add(group, new RoundedBoxGeometry(0.014, 0.11, 0.02, 2, 0.004), materials.bluedSteel, 'Arquebus · trigger', [0.012, -0.12, 0.053], [0.32, 0, 0]);
-  const triggerGuard = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.025, -0.08, 0.045),
-    new THREE.Vector3(-0.04, -0.17, 0.07),
-    new THREE.Vector3(0.015, -0.21, 0.065),
-    new THREE.Vector3(0.042, -0.13, 0.045),
-  ]);
-  add(group, new THREE.TubeGeometry(triggerGuard, 14, 0.006, 6, false), materials.bluedSteel, 'Arquebus · forged trigger guard');
-  const sling = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.045, -0.4, -0.035),
-    new THREE.Vector3(-0.13, -0.1, -0.1),
-    new THREE.Vector3(-0.1, 0.46, -0.09),
-    new THREE.Vector3(-0.04, 0.62, -0.02),
-  ]);
-  add(group, new THREE.TubeGeometry(sling, 28, 0.008, 6, false), materials.leather, 'Arquebus · adjustable leather shoulder sling');
-  addRivet(group, materials.brass, 'Arquebus · rear sling stud', [-0.045, -0.4, -0.035], 0.009);
-  addRivet(group, materials.brass, 'Arquebus · forward sling stud', [-0.04, 0.62, -0.02], 0.009);
-  group.name = 'Procedural Uskok matchlock arquebus';
-  group.userData.equipmentIdentity = 'uskok-light-arquebus';
-  return group;
-}
-
 function createKatzbalgerScabbard(materials: Materials): THREE.Group {
   const group = new THREE.Group();
   add(group, new RoundedBoxGeometry(0.075, 0.67, 0.048, 3, 0.012), materials.leather, 'Katzbalger · leather scabbard', [0, 0.24, 0]);
@@ -919,21 +788,6 @@ function createKatzbalgerScabbard(materials: Materials): THREE.Group {
   add(group, new THREE.SphereGeometry(0.038, 10, 7), materials.brass, 'Katzbalger · pommel', [0, 0.75, 0]);
   group.name = 'Procedural Landsknecht Katzbalger scabbard';
   group.userData.equipmentIdentity = 'landsknecht-katzbalger';
-  return group;
-}
-
-function createUskokScabbard(materials: Materials): THREE.Group {
-  const group = new THREE.Group();
-  add(group, new RoundedBoxGeometry(0.075, 0.64, 0.045, 3, 0.012), materials.oxblood, 'Uskok kit · sidearm scabbard', [0, 0.23, 0], [0, 0, -0.12]);
-  add(group, new THREE.ConeGeometry(0.043, 0.09, 8), materials.brass, 'Uskok kit · sidearm scabbard chape', [-0.045, -0.105, 0], [0, 0, Math.PI - 0.12]);
-  add(group, new THREE.TorusGeometry(0.04, 0.006, 5, 11), materials.brass, 'Uskok kit · sidearm scabbard throat', [0.04, 0.54, 0], [Math.PI / 2, 0, -0.12]);
-  for (const y of [0.16, 0.39]) {
-    add(group, new THREE.TorusGeometry(0.041, 0.006, 5, 10), materials.leather, 'Uskok kit · decorated scabbard band', [0, y, 0], [Math.PI / 2, 0, -0.12]);
-  }
-  add(group, new THREE.CylinderGeometry(0.025, 0.03, 0.16, 10), materials.leather, 'Uskok kit · sidearm hilt', [0, 0.62, 0], [0, 0, -0.12]);
-  add(group, new RoundedBoxGeometry(0.2, 0.024, 0.035, 2, 0.005), materials.brass, 'Uskok kit · sidearm guard', [0, 0.54, 0], [0, 0, -0.12]);
-  group.name = 'Procedural Uskok sidearm and scabbard';
-  group.userData.equipmentIdentity = 'uskok-sidearm';
   return group;
 }
 
@@ -1055,7 +909,6 @@ function supportGripFor(
     case 'pike-kit': return [0, 0.5, 0];
     case 'halberd': return [0, 0.46, 0];
     case 'crossbow': return role === 'ranged-held' ? [0, 0.18, 0.025] : null;
-    case 'uskok-kit': return role === 'ranged-held' ? [0, 0.19, 0.045] : null;
     default: return null;
   }
 }
@@ -1065,7 +918,6 @@ function muzzleFor(
   role: MilitaryEquipmentCombatRole,
 ): readonly [number, number, number] | null {
   if (kind === 'crossbow' && role === 'ranged-held') return [0, 0.46, 0.052];
-  if (kind === 'uskok-kit' && role === 'ranged-held') return [0, 0.79, 0.055];
   return null;
 }
 
@@ -1135,7 +987,7 @@ export function setMilitaryEquipmentDropped(
 }
 
 function defaultCombatStance(kind: MilitaryEquipmentKind): MilitaryEquipmentCombatStance {
-  return kind === 'bow' || kind === 'crossbow' || kind === 'uskok-kit'
+  return kind === 'bow' || kind === 'crossbow'
     ? 'ranged'
     : 'melee';
 }

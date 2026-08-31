@@ -148,7 +148,7 @@ function createWoolStockpile(): THREE.Group {
     addMesh(
       segment,
       new THREE.TorusGeometry(0.35, 0.025, 5, 10),
-      timberMaterial('light'),
+      sharedBuildingDetailMaterial('wicker'),
       new THREE.Vector3(0, 0, 0),
       new THREE.Euler(Math.PI * 0.5, 0, 0),
     );
@@ -189,7 +189,7 @@ function createPastoralSaltStockpile(): THREE.Group {
     addMesh(
       segment,
       new THREE.CylinderGeometry(0.055 * scale, 0.11 * scale, 0.16 * scale, 7),
-      timberMaterial('light'),
+      sharedBuildingDetailMaterial('wicker'),
       new THREE.Vector3(0, 0.74 * scale, 0),
     );
     stockpile.add(segment);

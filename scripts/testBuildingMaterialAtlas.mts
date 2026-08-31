@@ -4,6 +4,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   disposeBuildingMaterialLibrary,
+  GORSKI_PALETTE,
+  GORSKI_TIMBER_TINT_STRENGTHS,
   sharedBuildingDetailMaterial,
   sharedBuildingMaterial,
   type BuildingDetailMaterialKey,
@@ -14,7 +16,11 @@ import {
   BUILDING_MATERIAL_ATLAS_TILES,
   getBuildingMaterialAtlasTextures,
 } from '../src/buildings/buildingMaterialAtlas.ts';
-import { BRIDGE_DECK_ATLAS_TILE_ID } from '../src/roads/RoadSurfaceMaterial.ts';
+import {
+  BRIDGE_DECK_ATLAS_TILE_ID,
+  BRIDGE_TIMBER_TINT_HEX,
+  BRIDGE_TIMBER_TINT_STRENGTH,
+} from '../src/roads/RoadSurfaceMaterial.ts';
 
 const atlasRoot = resolve('public/assets/textures/buildings/gorski_building_atlas_v1');
 const manifestPath = resolve(atlasRoot, 'manifest.json');
@@ -127,6 +133,16 @@ assert.equal(
   'rough-hewn-timber',
   'bridge decks should match the timberMid atlas surface used by doors and posts',
 );
+assert.equal(
+  BRIDGE_TIMBER_TINT_HEX,
+  GORSKI_PALETTE.timberMid,
+  'bridge decks and ordinary timberMid members must share one brown tint owner',
+);
+assert.equal(
+  BRIDGE_TIMBER_TINT_STRENGTH,
+  GORSKI_TIMBER_TINT_STRENGTHS.mid,
+  'bridge decks and ordinary timberMid members must share one atlas tint strength',
+);
 
 for (const [fileName, expected] of Object.entries(manifest.files)) {
   const path = resolve(atlasRoot, fileName);
@@ -159,6 +175,36 @@ const specialDetailKeys: readonly BuildingDetailMaterialKey[] = [
 const manifestTilesById = new Map(
   manifest.tiles.map((tile) => [tile.id, tile] as const),
 );
+
+const timberMaterialContracts = [
+  ['timberDark', GORSKI_PALETTE.timberDark, 'rough-hewn-timber', GORSKI_TIMBER_TINT_STRENGTHS.dark],
+  ['timberMid', GORSKI_PALETTE.timberMid, 'rough-hewn-timber', GORSKI_TIMBER_TINT_STRENGTHS.mid],
+  ['timberLight', GORSKI_PALETTE.timberLight, 'sawn-planks', GORSKI_TIMBER_TINT_STRENGTHS.light],
+  ['timberWeathered', GORSKI_PALETTE.timberWeathered, 'weathered-planks', GORSKI_TIMBER_TINT_STRENGTHS.weathered],
+  ['stackedTimber', GORSKI_PALETTE.timberMid, 'stacked-log-wall', GORSKI_TIMBER_TINT_STRENGTHS.stacked],
+] as const satisfies readonly (
+  readonly [BuildingMaterialKey, number, string, number]
+)[];
+
+for (const [key, colorHex, atlasTile, tintStrength] of timberMaterialContracts) {
+  const material = sharedBuildingMaterial(key);
+  assert.equal(material.color.getHex(), colorHex, `${key} must use the canonical Gorski brown palette`);
+  assert.equal(material.userData.buildingMaterialAtlasTile, atlasTile, `${key} must retain its semantic timber atlas tile`);
+  assert.equal(
+    material.userData.buildingMaterialAtlasTintStrength,
+    tintStrength,
+    `${key} must expose its canonical atlas tint strength for visual diagnostics`,
+  );
+  assert.equal(material.userData.buildingWeatheringProfile, 'timber');
+  assert.ok(
+    material.color.r > material.color.g && material.color.g > material.color.b,
+    `${key} must remain visibly brown rather than neutral white/grey`,
+  );
+  assert.ok(
+    material.color.r < 0.3,
+    `${key} base tint is too bright for the shared circa-1550 construction-timber family`,
+  );
+}
 
 function assertRuntimeAtlasScale(
   key: BuildingMaterialKey | BuildingDetailMaterialKey,

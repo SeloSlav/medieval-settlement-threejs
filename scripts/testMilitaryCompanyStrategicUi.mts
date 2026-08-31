@@ -39,7 +39,6 @@ assert.deepEqual([
   militaryCompanyKindForFaction('footman'),
   militaryCompanyKindForFaction('polearm'),
   militaryCompanyKindForFaction('bowman'),
-  militaryCompanyKindForFaction('uskok'),
 ], [
   'militia',
   'spearmen',
@@ -49,7 +48,6 @@ assert.deepEqual([
   'footmen',
   'polearms',
   'bowmen',
-  'uskok-border-infantry',
 ]);
 assert.equal(militaryCompanyKindForFaction('raider'), null);
 for (const art of Object.values(MILITARY_COMPANY_STRATEGIC_ICON_ART)) {
@@ -63,7 +61,7 @@ const playtest = new CombatPlaytestSimulation({
   seed: 0x431a2e0d,
 });
 const companies = playtest.companyStates();
-assert.equal(companies.size, 9, 'field sandbox should expose all nine friendly companies');
+assert.equal(companies.size, 8, 'field sandbox should expose all eight friendly companies');
 for (const company of companies.values()) {
   assert.equal(company.targetSize, 8);
   assert.equal(company.livingMembers, 8);

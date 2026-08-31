@@ -467,7 +467,7 @@ function createYarnStockpile(name: string, anchor: THREE.Vector3): THREE.Group {
     segment.name = 'YarnStockSegment';
     segment.position.set((index % 2) * 0.56, 0.26 + Math.floor(index / 2) * 0.36, 0);
     namedMesh(segment, 'Bound yarn hank', new THREE.TorusGeometry(0.23, 0.055, 7, 14), residenceFacadeMaterial(index % 2 ? 'grey' : 'white'), new THREE.Vector3(), new THREE.Euler(Math.PI * 0.5, 0, 0), new THREE.Vector3(1.35, 0.68, 1));
-    namedMesh(segment, 'Yarn hank tie', new THREE.BoxGeometry(0.07, 0.09, 0.42), timberMaterial('light'), new THREE.Vector3());
+    namedMesh(segment, 'Yarn hank tie', new THREE.BoxGeometry(0.07, 0.09, 0.42), sharedBuildingDetailMaterial('wicker'), new THREE.Vector3());
     stockpile.add(segment);
   }
   return stockpile;

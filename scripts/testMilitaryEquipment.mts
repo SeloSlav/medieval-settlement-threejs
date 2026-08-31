@@ -33,7 +33,6 @@ const EXPECTED_KINDS = [
   'sword-shield',
   'halberd',
   'bow',
-  'uskok-kit',
 ] as const satisfies readonly MilitaryEquipmentKind[];
 
 const EXPECTED_KITS: Record<MilitaryEquipmentKind, ExpectedKit> = {
@@ -60,14 +59,6 @@ const EXPECTED_KITS: Record<MilitaryEquipmentKind, ExpectedKit> = {
     secondaryLengths: [0.86, 1.88, 0.42, 0.46],
     secondaryRoles: ['always', 'ranged-stowed', 'melee-held', 'melee-stowed'],
   },
-  'uskok-kit': {
-    targetLength: 0.86,
-    primaryBone: 'R_Hand',
-    primaryRole: 'melee-held',
-    secondaryBones: ['Spine02', 'R_Hand', 'Waist'],
-    secondaryLengths: [1.08, 1.08, 0.86],
-    secondaryRoles: ['ranged-stowed', 'ranged-held', 'melee-stowed'],
-  },
 };
 
 const REQUIRED_CRAFT_DETAILS: Record<MilitaryEquipmentKind, readonly string[]> = {
@@ -80,7 +71,6 @@ const REQUIRED_CRAFT_DETAILS: Record<MilitaryEquipmentKind, readonly string[]> =
   'sword-shield': ['front recessed fuller', 'convex laminated', 'rolled and riveted forged rim'],
   halberd: ['front socket langet', 'beveled axe cheek', 'peened head rivet'],
   bow: ['tapered d-section stave', 'upper horn nock', 'stitched suspension strap'],
-  'uskok-kit': ['front forged fuller', 'under-barrel ramrod', 'hinged pan cover', 'forged front sight'],
 };
 
 const sorted = <T extends string>(values: readonly T[]): T[] => [...values].sort();

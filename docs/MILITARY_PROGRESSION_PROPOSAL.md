@@ -136,18 +136,7 @@ Treasury signing cost at recruitment.
 - Source: completed Guardhouse; eight resident men in loose order.
 - Ammunition: twenty-four arrows per man. Bows fire faster and cost less than
   crossbows, but pressure light targets rather than heavy armor.
-- Role: anti-light missile support; footmen and Uskoks can run them down.
-
-### Uskok border infantry
-
-- Source: completed Guardhouse; eight resident men.
-- Historical identity: Croatian frontier infantry inspired by the Senj/Klis
-  Uskok tradition, not a fantasy unit and not restricted to Gorski Kotar. Their
-  kit represents sidearms, axes/war-hammer techniques, some long weapons,
-  and light protection. Configured provisions and professional pay are added by
-  the world setting.
-- Role: fastest local company, with strong armor penetration and pursuit of
-  bow/crossbow ranks. Braced spears are their deliberate counter.
+- Role: anti-light missile support; footmen can run them down.
 
 ### Mercenary spear company
 
@@ -173,7 +162,7 @@ Treasury signing cost at recruitment.
 
 ## Counter web
 
-- Spears: defensive reach and bracing stop charging footmen/Uskoks, though
+- Spears: defensive reach and bracing stop charging footmen, though
   footmen win a prolonged unbraced close fight.
 - Men-at-Arms: heavy sword-and-shield line holders that resist arrows and light
   infantry; polearms and crossbows break their armor.
@@ -182,7 +171,6 @@ Treasury signing cost at recruitment.
 - Bowmen: rapid anti-light fire; poor penetration and weak melee.
 - Crossbows: slower armor-piercing volleys that punish dense spear, polearm, and armored
   foot formations; weak after an enemy closes.
-- Uskoks: mobile flank/pursuit specialists; braced spears stop them.
 - Militia: emergency mass, not a favorable specialist counter.
 
 ## Formation effects
@@ -253,7 +241,7 @@ leave the region at the edge, and the company disappears after the last exit.
 
 The Town Hall inspector contains militia and mercenary recruitment plus attached
 company rosters. The Guardhouse contains spear, Men-at-Arms, footman,
-polearm, bow, crossbow, and Uskok
+polearm, bow, and crossbow
 recruitment. Every roster shows state, survivors, formation, morale, cohesion,
 fatigue, enabled provisions, and ammunition where relevant, with controls for formation,
 resupply, and individual disbandment.

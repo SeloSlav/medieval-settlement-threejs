@@ -1,6 +1,10 @@
 import * as THREE from 'three';
+import {
+  isMilitaryEquipmentKind,
+  type WorkerToolKind,
+} from './workerTools.ts';
 
-const DEFAULT_CAPACITY = 1_024;
+const DEFAULT_CAPACITY = 2_048;
 const LAYER_NAMES = [
   'torso',
   'pelvis',
@@ -30,13 +34,17 @@ export type StrategicHumanoidAgent = {
   tunicColor: number;
   skinColor: number;
   hairColor: number;
-  tool?: unknown;
+  tool?: WorkerToolKind | null;
   movementSpeed: number;
+  active?: boolean;
   combatLocomotion?: 'idle' | 'walk' | 'run';
+  combatTargetDistance?: number;
 };
 
 export type StrategicHumanoidDiagnostic = {
   instances: number;
+  requestedInstances: number;
+  capacityDroppedInstances: number;
   livingInstances: number;
   downedInstances: number;
   layerDraws: number;
@@ -54,6 +62,7 @@ type StrategicLayer = {
   colors: Uint32Array;
   initializedColors: Uint8Array;
   triangleCount: number;
+  colorsDirty: boolean;
 };
 
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -88,6 +97,7 @@ export class StrategicHumanoidRenderer {
   private readonly color = new THREE.Color();
   private elapsedSeconds = 0;
   private instanceCount = 0;
+  private requestedCount = 0;
   private downedCount = 0;
   private readonly trianglesPerPerson: number;
 
@@ -158,12 +168,17 @@ export class StrategicHumanoidRenderer {
   ): void {
     this.elapsedSeconds += Math.min(0.08, Math.max(0, dtSeconds));
     let count = 0;
+    let requestedCount = 0;
     let downedCount = 0;
     for (const agent of agents) {
       if (excludedIds?.has(agent.id)) continue;
-      if (count >= this.capacity) break;
+      requestedCount += 1;
+      if (count >= this.capacity) continue;
 
       const isDowned = agent.mode === 'fall';
+      const hasMilitaryEquipment = Boolean(
+        agent.tool && isMilitaryEquipmentKind(agent.tool),
+      );
       if (isDowned) downedCount += 1;
       const femaleScale = agent.variant === 'woman' ? 0.955 : 1;
       const heightScale = femaleScale * (
@@ -192,27 +207,37 @@ export class StrategicHumanoidRenderer {
       if (motion === 'run') torsoPitch = -0.16;
       if (agent.mode === 'fight') {
         torsoPitch = -0.1;
-        leftArmSwing = -1.05 + Math.sin(phase * 0.72) * 0.16;
-        rightArmSwing = -0.72 + Math.cos(phase * 0.72) * 0.34;
-        armOutward = 0.015;
+        // Distance equipment is compiled around a +Z guard position. Keep
+        // both hands converged on that authored grip instead of letting the
+        // weapon float alongside an unrelated gesture.
+        leftArmSwing = 0.88 + Math.sin(phase * 0.72) * 0.1;
+        rightArmSwing = 0.68 + Math.cos(phase * 0.72) * 0.16;
+        armOutward = -0.12;
       } else if (agent.mode === 'hurt') {
         torsoPitch = 0.18;
         torsoRoll = ((agent.appearanceSeed & 1) ? 1 : -1) * 0.22;
-        leftArmSwing = 0.42;
-        rightArmSwing = -0.38;
-        armOutward = 0.28;
+        if (hasMilitaryEquipment) {
+          // A hit reaction bends the torso without releasing the weapon.
+          leftArmSwing = 0.78;
+          rightArmSwing = 0.58;
+          armOutward = -0.1;
+        } else {
+          leftArmSwing = 0.42;
+          rightArmSwing = -0.38;
+          armOutward = 0.28;
+        }
       } else if (
         agent.mode === 'chop'
         || agent.mode === 'mine'
         || agent.mode === 'build'
       ) {
         torsoPitch = -0.18;
-        const workingSwing = -0.72 + Math.sin(phase * 0.68) * 0.42;
+        const workingSwing = 0.72 + Math.sin(phase * 0.68) * 0.42;
         leftArmSwing = workingSwing;
         rightArmSwing = workingSwing + 0.12;
       } else if (agent.mode === 'carry' || agent.mode === 'gather') {
-        leftArmSwing = -0.86;
-        rightArmSwing = -0.86;
+        leftArmSwing = 0.86;
+        rightArmSwing = 0.86;
         armOutward = -0.03;
       } else if (agent.mode === 'sit' || agent.mode === 'rest') {
         torsoDrop = 0.23;
@@ -226,7 +251,7 @@ export class StrategicHumanoidRenderer {
         || agent.mode === 'sermon'
         || agent.mode === 'agree'
       ) {
-        rightArmSwing = -0.58 + Math.sin(phase * 0.45) * 0.24;
+        rightArmSwing = 0.58 + Math.sin(phase * 0.45) * 0.24;
         armOutward = 0.14;
       }
 
@@ -253,7 +278,11 @@ export class StrategicHumanoidRenderer {
       const tunicColor = normalizedHex(agent.tunicColor, 0x735442);
       const lowerColor = darkenHex(tunicColor, 0.53);
       const skinColor = normalizedHex(agent.skinColor, 0xb87958);
-      const headwearColor = strategicHeadwearColor(agent, tunicColor);
+      const headwearColor = strategicHeadwearColor(
+        agent,
+        tunicColor,
+        hasMilitaryEquipment,
+      );
       const shoulderX = 0.285 * bodyWidthScale;
       const hipX = 0.125 * bodyWidthScale;
 
@@ -316,6 +345,7 @@ export class StrategicHumanoidRenderer {
     }
 
     this.instanceCount = count;
+    this.requestedCount = requestedCount;
     this.downedCount = downedCount;
     for (const layer of this.layers.values()) this.commitLayer(layer, count);
     this.group.visible = count > 0;
@@ -324,6 +354,8 @@ export class StrategicHumanoidRenderer {
   diagnostics(): StrategicHumanoidDiagnostic {
     return {
       instances: this.instanceCount,
+      requestedInstances: this.requestedCount,
+      capacityDroppedInstances: Math.max(0, this.requestedCount - this.instanceCount),
       livingInstances: this.instanceCount - this.downedCount,
       downedInstances: this.downedCount,
       layerDraws: this.instanceCount > 0 ? STRATEGIC_HUMANOID_LAYER_COUNT : 0,
@@ -372,6 +404,7 @@ export class StrategicHumanoidRenderer {
       colors: new Uint32Array(this.capacity),
       initializedColors: new Uint8Array(this.capacity),
       triangleCount,
+      colorsDirty: false,
     });
     this.geometries.add(geometry);
     this.materials.add(material);
@@ -448,6 +481,7 @@ export class StrategicHumanoidRenderer {
       layer.colors[index] = color;
       this.color.setHex(color);
       layer.mesh.setColorAt(index, this.color);
+      layer.colorsDirty = true;
     }
   }
 
@@ -455,7 +489,10 @@ export class StrategicHumanoidRenderer {
     layer.mesh.count = count;
     layer.mesh.visible = count > 0;
     publishPrefix(layer.mesh.instanceMatrix, count);
-    if (layer.mesh.instanceColor) publishPrefix(layer.mesh.instanceColor, count);
+    if (layer.colorsDirty && layer.mesh.instanceColor) {
+      publishPrefix(layer.mesh.instanceColor, count);
+      layer.colorsDirty = false;
+    }
   }
 }
 
@@ -494,6 +531,7 @@ function locomotionFrequency(agent: StrategicHumanoidAgent): number {
 function strategicHeadwearColor(
   agent: StrategicHumanoidAgent,
   tunicColor: number,
+  hasMilitaryEquipment: boolean,
 ): number {
   if (agent.presentation === 'raider') {
     return mixHex(tunicColor, 0x872b23, 0.72);
@@ -501,7 +539,7 @@ function strategicHeadwearColor(
   if (agent.presentation === 'cleric') {
     return mixHex(agent.hairColor, 0x35291f, 0.68);
   }
-  if (agent.tool) {
+  if (hasMilitaryEquipment) {
     return mixHex(agent.hairColor, 0x667070, 0.52);
   }
   return normalizedHex(agent.hairColor, 0x493326);

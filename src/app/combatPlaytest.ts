@@ -98,20 +98,20 @@ const PRESETS: Readonly<Record<CombatPlaytestPreset, CombatPlaytestPresetDefinit
   skirmish: {
     label: 'Skirmish',
     membersPerCompany: 4,
-    friendlyCount: 36,
-    enemyCount: 36,
+    friendlyCount: 32,
+    enemyCount: 32,
   },
   field: {
     label: 'Field battle',
     membersPerCompany: 8,
-    friendlyCount: 72,
-    enemyCount: 72,
+    friendlyCount: 64,
+    enemyCount: 64,
   },
   stress: {
-    label: 'Stress 216',
+    label: 'Stress 192',
     membersPerCompany: 12,
-    friendlyCount: 108,
-    enemyCount: 108,
+    friendlyCount: 96,
+    enemyCount: 96,
   },
 };
 

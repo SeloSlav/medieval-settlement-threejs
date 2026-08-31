@@ -11,7 +11,6 @@ import type {
 
 const kinds: readonly MilitaryCompanyKind[] = [
   'spearmen', 'men-at-arms', 'footmen', 'polearms', 'bowmen', 'crossbows',
-  'uskok-border-infantry',
 ];
 const renderedKinds: readonly MilitaryCompanyKind[] = [...kinds, 'mercenary-spears'];
 const browser = await chromium.launch({ headless: true });
@@ -26,14 +25,13 @@ try {
     'armored sword-and-large-shield professionals',
     'armor breakers',
     'crossbows remain the better armored-target answer',
-    'braced spears stop them',
     'seven quiet days',
     'one Treasury gold per surviving man each day',
   ]) assert.ok(copy.includes(phrase), `missing counter guidance: ${phrase}`);
   const backgrounds = await page.locator('.inspector-action-icon').evaluateAll((icons) => (
     icons.map((icon) => getComputedStyle(icon).backgroundImage)
   ));
-  for (const icon of ['men-at-arms', 'footmen', 'polearms', 'bowmen', 'uskoks']) {
+  for (const icon of ['men-at-arms', 'footmen', 'polearms', 'bowmen']) {
     assert.ok(backgrounds.some((value) => value.includes(`${icon}.png`)), `${icon} icon missing`);
   }
   const leavingCompany: MilitaryCompanyState = {

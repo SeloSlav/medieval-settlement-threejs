@@ -22,8 +22,6 @@ export const FALLBACK_MILITARY_EQUIPMENT_KEYS = [
   'bow:melee',
   'crossbow:ranged',
   'crossbow:melee',
-  'uskok-kit:ranged',
-  'uskok-kit:melee',
 ] as const;
 
 export type FallbackMilitaryEquipmentKey =
@@ -174,7 +172,7 @@ export function fallbackEquipmentKey(
 }
 
 function defaultStance(kind: MilitaryEquipmentKind): MilitaryEquipmentCombatStance {
-  return kind === 'bow' || kind === 'crossbow' || kind === 'uskok-kit'
+  return kind === 'bow' || kind === 'crossbow'
     ? 'ranged'
     : 'melee';
 }
@@ -225,13 +223,6 @@ function createFallbackEquipmentGeometry(
       else {
         addDagger(parts);
         addCrossbow(parts, true);
-      }
-      break;
-    case 'uskok-kit':
-      if (stance === 'ranged') addArquebus(parts, false);
-      else {
-        addSword(parts, 0.86, false, true);
-        addArquebus(parts, true);
       }
       break;
   }
@@ -347,25 +338,6 @@ function addCrossbow(parts: ColoredPart[], stowed: boolean): void {
     addPart(parts, new THREE.CylinderGeometry(0.006, 0.006, 0.52, 4), COLORS.ash,
       multiply(mount, compose([0, 0.13, 0.055])));
   }
-}
-
-function addArquebus(parts: ColoredPart[], stowed: boolean): void {
-  const mount = stowed
-    ? compose([-0.05, 1, -0.19], [1.18, 0.1, -0.22])
-    : compose([-0.14, 0.84, 0.17], [Math.PI / 2, 0, 0]);
-  addPart(parts, new THREE.BoxGeometry(0.085, 0.94, 0.075), COLORS.walnut, mount);
-  addPart(parts, new THREE.CylinderGeometry(0.023, 0.027, 0.72, 7), COLORS.bluedSteel,
-    multiply(mount, compose([0, 0.43, 0.055])));
-  for (const y of [0.2, 0.62]) {
-    addPart(parts, new THREE.TorusGeometry(0.035, 0.006, 4, 8), COLORS.brass,
-      multiply(mount, compose([0, y, 0.055], [Math.PI / 2, 0, 0])));
-  }
-  addPart(parts, new THREE.BoxGeometry(0.08, 0.075, 0.025), COLORS.brass,
-    multiply(mount, compose([0.045, -0.04, 0.055])));
-  addPart(parts, new THREE.BoxGeometry(0.025, 0.19, 0.025), COLORS.bluedSteel,
-    multiply(mount, compose([0.075, -0.015, 0.07], [0, 0, 0.38])));
-  addPart(parts, new THREE.CylinderGeometry(0.008, 0.008, 0.78, 5), COLORS.steel,
-    multiply(mount, compose([-0.035, 0.34, -0.045])));
 }
 
 function addScabbard(parts: ColoredPart[], tilt: number): void {

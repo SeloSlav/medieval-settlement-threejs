@@ -3,6 +3,8 @@ import { performance } from 'node:perf_hooks';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import {
+  AUTHORED_RIG_DISABLE_ORBIT_DISTANCE,
+  AUTHORED_RIG_RESTORE_ORBIT_DISTANCE,
   restartPooledVillagerActions,
   SettlementCrowdRenderer,
   type CrowdRenderAgent,
@@ -20,6 +22,7 @@ const MAX_ANIMATED_VILLAGERS = 72;
 type SelectionHarness = {
   animatedCandidates: CrowdRenderAgent[];
   animatedIds: Set<string>;
+  authoredRigsEnabled: boolean;
   pickAnimatedIds(
     agents: readonly CrowdRenderAgent[],
     view?: CrowdViewState,
@@ -35,6 +38,7 @@ function createSelectionHarness(): SelectionHarness {
   const harness = Object.create(SettlementCrowdRenderer.prototype) as SelectionHarness;
   harness.animatedCandidates = [];
   harness.animatedIds = new Set<string>();
+  harness.authoredRigsEnabled = true;
   return harness;
 }
 
@@ -109,6 +113,32 @@ const idBuffer = harness.animatedIds;
 harness.pickAnimatedIds(agents, view);
 assert.equal(harness.animatedCandidates, candidateBuffer);
 assert.equal(harness.animatedIds, idBuffer);
+
+const rigLodView: CrowdViewState = {
+  ...view,
+  orbitDistance: AUTHORED_RIG_DISABLE_ORBIT_DISTANCE - 1,
+};
+assert.equal(harness.pickAnimatedIds(agents, rigLodView).size, 72);
+rigLodView.orbitDistance = AUTHORED_RIG_DISABLE_ORBIT_DISTANCE;
+assert.equal(harness.pickAnimatedIds(agents, rigLodView).size, 0);
+rigLodView.orbitDistance = (
+  AUTHORED_RIG_DISABLE_ORBIT_DISTANCE + AUTHORED_RIG_RESTORE_ORBIT_DISTANCE
+) / 2;
+assert.equal(
+  harness.pickAnimatedIds(agents, rigLodView).size,
+  0,
+  'zooming inward inside the hysteresis band must not immediately recreate 72 rigs',
+);
+rigLodView.orbitDistance = AUTHORED_RIG_RESTORE_ORBIT_DISTANCE;
+assert.equal(harness.pickAnimatedIds(agents, rigLodView).size, 72);
+rigLodView.orbitDistance = (
+  AUTHORED_RIG_DISABLE_ORBIT_DISTANCE + AUTHORED_RIG_RESTORE_ORBIT_DISTANCE
+) / 2;
+assert.equal(
+  harness.pickAnimatedIds(agents, rigLodView).size,
+  72,
+  'zooming outward inside the hysteresis band must retain authored rigs',
+);
 
 const iterations = 20_000;
 let checksum = 0;
@@ -313,7 +343,7 @@ assert.match(
   source,
   /this\.syncAnimatedVillagers\(visibleAgents, animatedIds, dt\);\s*this\.updateAnimatedBatches\(visibleAgents, animatedIds\);\s*this\.strategicHumanoids\.sync\(visibleAgents, animatedIds, dt\);/,
 );
-assert.match(source, /MAX_INSTANCES = 1024/);
+assert.match(source, /MAX_INSTANCES = 2048/);
 assert.match(source, /mesh\.visible = false;\s*mesh\.castShadow = false;/);
 assert.doesNotMatch(source, /castShadow = true/);
 assert.doesNotMatch(source, /shadowCaster|isWithinShadowRange/i);
@@ -323,5 +353,5 @@ assert.doesNotMatch(source, /mergeGeometries/);
 console.log(
   `Crowd renderer pacing tests passed (${iterations.toLocaleString()} selections in ${elapsedMs.toFixed(1)}ms; `
     + `952-agent articulated overflow update ${(proxyElapsedMs / proxyFrames).toFixed(2)}ms/frame; `
-    + '72 authored rigs plus zero-pill instanced humanoids up to 1,024 visible agents).',
+    + '72 authored rigs plus zero-pill instanced humanoids up to 2,048 visible agents).',
 );

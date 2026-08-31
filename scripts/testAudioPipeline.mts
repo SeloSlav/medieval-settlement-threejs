@@ -354,12 +354,12 @@ async function main(): Promise<void> {
     asset.group === 'combat-weapon-suite-v2'
   ));
   invariant(
-    combatSuiteAssets.length === 24
+    combatSuiteAssets.length === 21
     && Math.abs(combatSuiteAssets.reduce(
       (sum, asset) => sum + (asset.durationSeconds ?? 0),
       0,
-    ) - 32.5) < 1e-9,
-    'Combat weapon suite v2 must retain its 24 isolated cues and 32.5-second cost envelope',
+    ) - 28) < 1e-9,
+    'Combat weapon suite v2 must retain its 21 isolated cues and 28-second cost envelope',
   );
   invariant(
     combatSuiteAssets.every((asset) => (
@@ -372,7 +372,7 @@ async function main(): Promise<void> {
   );
   const automaticCombatClips = Object.values(COMBAT_AUDIO_CLIPS).flat();
   invariant(
-    automaticCombatClips.length === 28
+    automaticCombatClips.length === 25
     && automaticCombatClips.every((clip) => !/(?:selo|person_attack|angry_fighting|voice)/i.test(clip.path)),
     'Automatic combat playback must contain only weapon, shot, impact, and charge Foley',
   );
@@ -860,7 +860,6 @@ async function main(): Promise<void> {
     ['footman', 'sword-sidearm'],
     ['polearm', 'halberd-polearm'],
     ['bowman', 'bow'],
-    ['uskok', 'arquebus'],
   ] as const);
   for (const [faction, family] of expectedPrimaryFamilies) {
     invariant(
@@ -871,8 +870,7 @@ async function main(): Promise<void> {
   invariant(
     combatVoiceSideForFaction('raider') === 'raider'
     && combatVoiceSideForFaction('bandit') === 'raider'
-    && combatVoiceSideForFaction('guard') === 'defender'
-    && combatVoiceSideForFaction('uskok') === 'defender',
+    && combatVoiceSideForFaction('guard') === 'defender',
     'combat voice timbres should route raiders/bandits separately from defenders',
   );
   const reusableCombatFighters = [
@@ -920,11 +918,11 @@ async function main(): Promise<void> {
   );
   const visibleStanceSources = buildCombatAudioSources([
     {
-      id: 'uskok-firearm-stance', faction: 'uskok', status: 'fighting', health: 80,
-      x: 1, z: 0, attackCooldown: 0, activeWeaponFamily: 'arquebus',
+      id: 'crossbow-ranged-stance', faction: 'crossbow', status: 'fighting', health: 80,
+      x: 1, z: 0, attackCooldown: 0, activeWeaponFamily: 'crossbow',
     },
     {
-      id: 'uskok-sidearm-stance', faction: 'uskok', status: 'fighting', health: 80,
+      id: 'crossbow-sidearm-stance', faction: 'crossbow', status: 'fighting', health: 80,
       x: 2, z: 0, attackCooldown: 0, activeWeaponFamily: 'sword-sidearm',
     },
     {
@@ -933,9 +931,9 @@ async function main(): Promise<void> {
     },
   ], undefined, closeCombatView);
   invariant(
-    visibleStanceSources.find((source) => source.id === 'uskok-firearm-stance')?.weaponFamily
-      === 'arquebus'
-    && visibleStanceSources.find((source) => source.id === 'uskok-sidearm-stance')?.weaponFamily
+    visibleStanceSources.find((source) => source.id === 'crossbow-ranged-stance')?.weaponFamily
+      === 'crossbow'
+    && visibleStanceSources.find((source) => source.id === 'crossbow-sidearm-stance')?.weaponFamily
       === 'sword-sidearm'
     && visibleStanceSources.find((source) => source.id === 'mercenary-visible-pike')?.weaponFamily
       === 'spear-pike',
@@ -948,8 +946,8 @@ async function main(): Promise<void> {
   invariant(
     /const activeWeaponFamily\s*=\s*combatWeaponSoundFamily\(/.test(villagerAudioIntegration)
     && /fighter\.activeWeaponFamily\s*=\s*activeWeaponFamily/.test(villagerAudioIntegration)
-    && /case 'uskok-sidearm': return 'sword-sidearm'/.test(villagerAudioIntegration)
-    && /case 'uskok-arquebus': return 'arquebus'/.test(villagerAudioIntegration)
+    && /case 'sword-shield': return 'sword-sidearm'/.test(villagerAudioIntegration)
+    && /case 'crossbow': return 'crossbow'/.test(villagerAudioIntegration)
     && /buildCombatAudioSources\([\s\S]{0,180}this\.combatAudioSourceWorkspace,[\s\S]{0,80}activeView/.test(villagerAudioIntegration),
     'villager combat audio must publish the rendered weapon stance and listener view into source selection',
   );
@@ -991,7 +989,6 @@ async function main(): Promise<void> {
     'halberd-polearm',
     'bow',
     'crossbow',
-    'arquebus',
   ] as const;
   const listenerSelectionFighters = [
     ...Array.from({ length: 120 }, (_, index) => ({
@@ -1093,7 +1090,6 @@ async function main(): Promise<void> {
       { id: 'edge-halberd', faction: 'polearm', status: 'fighting', health: 80, x: 2, z: 0, attackCooldown: 0 },
       { id: 'edge-bow', faction: 'bowman', status: 'fighting', health: 80, x: 3, z: 0, attackCooldown: 0 },
       { id: 'edge-crossbow', faction: 'crossbow', status: 'fighting', health: 80, x: 4, z: 0, attackCooldown: 0 },
-      { id: 'edge-arquebus', faction: 'uskok', status: 'fighting', health: 80, x: 5, z: 0, attackCooldown: 0 },
     ]);
     const combatMixer = new CombatAudio();
     combatMixer.tick(0, edgeSources, closeCombatView);
@@ -1111,7 +1107,7 @@ async function main(): Promise<void> {
         .filter((audio) => audio.plays > 0)
         .every((audio) => (
           audio.volume > 0
-          && /\/sounds\/combat\/(?:pike_melee|sword_sidearm_melee|halberd_polearm_melee|bow_attack|crossbow_attack|arquebus_attack|shield_armor_impact)_\d+\.mp3/.test(audio.src)
+          && /\/sounds\/combat\/(?:pike_melee|sword_sidearm_melee|halberd_polearm_melee|bow_attack|crossbow_attack|shield_armor_impact)_\d+\.mp3/.test(audio.src)
           && !/(?:selo|person_attack|angry_fighting|voice)/i.test(audio.src)
         )),
       'cooldown-edge playback must be weapon-matched and contain no spoken/chanted combat path',
@@ -1145,10 +1141,10 @@ async function main(): Promise<void> {
       .map((audio) => audio.src);
     invariant(
       stancePlayback.length === 3
-      && stancePlayback.some((src) => /\/sounds\/combat\/arquebus_attack_\d+\.mp3/.test(src))
+      && stancePlayback.some((src) => /\/sounds\/combat\/crossbow_attack_\d+\.mp3/.test(src))
       && stancePlayback.some((src) => /\/sounds\/combat\/sword_sidearm_melee_\d+\.mp3/.test(src))
       && stancePlayback.some((src) => /\/sounds\/combat\/pike_melee_\d+\.mp3/.test(src)),
-      'cooldown edges must play the Uskok firearm, Uskok Korda, and mercenary pike actually shown',
+      'cooldown edges must play the ranged crossbow, fallback sidearm, and mercenary pike actually shown',
     );
     stanceMixer.dispose();
 

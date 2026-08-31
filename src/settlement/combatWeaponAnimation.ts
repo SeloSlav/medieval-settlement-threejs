@@ -7,9 +7,7 @@ export type CombatWeaponFamily =
   | 'sword-shield'
   | 'halberd'
   | 'bow'
-  | 'crossbow'
-  | 'uskok-arquebus'
-  | 'uskok-sidearm';
+  | 'crossbow';
 
 export type CombatAttackPhase =
   | 'recovery'
@@ -21,7 +19,7 @@ export type CombatAttackPhase =
   | 'aim'
   | 'release';
 
-export type CombatProjectileKind = 'arrow' | 'bolt' | 'lead-shot';
+export type CombatProjectileKind = 'arrow' | 'bolt';
 
 export type CombatWeaponPresentation = {
   family: CombatWeaponFamily;
@@ -141,11 +139,6 @@ export function resolveCombatWeaponPresentation(
       ? presentation('crossbow', 'ranged', true, 2.45, 'bolt', true)
       : presentation('sword-shield', 'melee', false, 0.9, null, false);
   }
-  if (tool === 'uskok-kit') {
-    return distantTarget
-      ? presentation('uskok-arquebus', 'ranged', true, 2.8, 'lead-shot', true)
-      : presentation('uskok-sidearm', 'melee', false, 0.84, null, false);
-  }
   return null;
 }
 
@@ -195,12 +188,8 @@ function rangedPhase(
   releaseEdge: boolean,
 ): { phase: CombatAttackPhase; progress: number } {
   if (releaseEdge) return { phase: 'release', progress: 1 };
-  const reloadEnd = family === 'crossbow'
-    ? 0.52
-    : family === 'uskok-arquebus' ? 0.58 : 0.34;
-  const drawEnd = family === 'crossbow'
-    ? 0.74
-    : family === 'uskok-arquebus' ? 0.78 : 0.72;
+  const reloadEnd = family === 'crossbow' ? 0.52 : 0.34;
+  const drawEnd = family === 'crossbow' ? 0.74 : 0.72;
   if (progress < reloadEnd) return phaseRange('reload', progress, 0, reloadEnd);
   if (progress < drawEnd) {
     return phaseRange(family === 'bow' ? 'draw' : 'wind-up', progress, reloadEnd, drawEnd);
@@ -822,7 +811,6 @@ function targetsForTimeline(
     case 'halberd':
       return meleeTargets(p, HALBERD_GUARD, HALBERD_WIND_UP, HALBERD_CONTACT, target);
     case 'sword-shield':
-    case 'uskok-sidearm':
       return meleeTargets(p, SWORD_GUARD, SWORD_WIND_UP, SWORD_CONTACT, target);
     case 'bow':
       return rangedTargets(p, 0.34, 0.72,
@@ -836,13 +824,6 @@ function targetsForTimeline(
         CROSSBOW_RELOAD,
         CROSSBOW_RAISED,
         CROSSBOW_AIM,
-        target,
-      );
-    case 'uskok-arquebus':
-      return rangedTargets(p, 0.58, 0.78,
-        ARQUEBUS_RELOAD,
-        ARQUEBUS_RAISED,
-        ARQUEBUS_AIM,
         target,
       );
   }
@@ -870,9 +851,6 @@ const BOW_AIM = keyTarget([0.06, 0.08, 0.94], [-0.38, 0.16, 0.18], -0.02, -0.1);
 const CROSSBOW_RELOAD = keyTarget([0.18, -0.3, 0.28], [-0.18, -0.34, 0.28], 0.13, 0);
 const CROSSBOW_RAISED = keyTarget([0.1, -0.02, 0.72], [-0.16, -0.04, 0.76], 0.01, 0);
 const CROSSBOW_AIM = keyTarget([0.08, 0.02, 0.84], [-0.1, 0.04, 0.9], -0.02, 0);
-const ARQUEBUS_RELOAD = keyTarget([0.18, -0.28, 0.3], [-0.2, -0.3, 0.28], 0.12, 0);
-const ARQUEBUS_RAISED = keyTarget([0.08, 0, 0.72], [-0.2, 0.04, 0.7], 0, -0.04);
-const ARQUEBUS_AIM = keyTarget([0.04, 0.02, 0.84], [-0.16, 0.1, 0.78], -0.03, -0.06);
 
 function keyTarget(
   left: ArmTarget,

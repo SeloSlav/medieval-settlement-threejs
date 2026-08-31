@@ -192,7 +192,8 @@ const MATERIALS = {
   darkSoil: new THREE.MeshStandardMaterial({ color: 0x35271d, roughness: 0.98 }),
   timber: sharedBuildingMaterial('timberMid'),
   darkTimber: sharedBuildingMaterial('timberDark'),
-  wicker: sharedBuildingMaterial('timberLight'),
+  lightTimber: sharedBuildingMaterial('timberLight'),
+  wicker: sharedBuildingDetailMaterial('wicker'),
   stone: sharedBuildingMaterial('masonryMid'),
   leaf: new THREE.MeshStandardMaterial({ color: 0x527a3d, roughness: 0.9 }),
   leafLight: new THREE.MeshStandardMaterial({ color: 0x739650, roughness: 0.9 }),
@@ -1757,13 +1758,13 @@ function addChickenPenFixtures(group: THREE.Group, plan: AnimalPenVisualPlan): v
   const { shelter, footprint } = plan;
   addMesh(group, new THREE.BoxGeometry(shelter.width * 0.72, 0.58, 0.18), MATERIALS.darkTimber, shelter.x, 0.46, shelter.z + shelter.depth * 0.44, undefined, undefined, 'ChickenNestingBoxes');
   for (let rung = 0; rung < 4; rung++) {
-    addMesh(group, new THREE.BoxGeometry(0.82, 0.07, 0.08), MATERIALS.wicker, shelter.x + 0.25, 0.14 + rung * 0.15, shelter.z + shelter.depth * 0.55 + rung * 0.11);
+    addMesh(group, new THREE.BoxGeometry(0.82, 0.07, 0.08), MATERIALS.lightTimber, shelter.x + 0.25, 0.14 + rung * 0.15, shelter.z + shelter.depth * 0.55 + rung * 0.11);
   }
   for (let index = 0; index < plan.fallbackAnimalCount; index++) {
     const bird = new THREE.Group();
     bird.name = 'HenFallback';
-    addMesh(bird, new THREE.SphereGeometry(0.19, 7, 5), index === 0 ? MATERIALS.darkTimber : MATERIALS.wicker, 0, 0.22, 0, new THREE.Euler(), new THREE.Vector3(1.12, 0.88, 0.82));
-    addMesh(bird, new THREE.SphereGeometry(0.11, 7, 5), MATERIALS.wicker, 0.15, 0.38, 0);
+    addMesh(bird, new THREE.SphereGeometry(0.19, 7, 5), index === 0 ? MATERIALS.darkTimber : MATERIALS.lightTimber, 0, 0.22, 0, new THREE.Euler(), new THREE.Vector3(1.12, 0.88, 0.82));
+    addMesh(bird, new THREE.SphereGeometry(0.11, 7, 5), MATERIALS.lightTimber, 0.15, 0.38, 0);
     addMesh(bird, new THREE.ConeGeometry(0.045, 0.14, 5), MATERIALS.terracotta, 0.27, 0.38, 0, new THREE.Euler(0, 0, -Math.PI * 0.5));
     bird.position.set((rng() - 0.34) * footprint.width * 0.72, 0, (rng() - 0.2) * footprint.depth * 0.62);
     bird.rotation.y = rng() * Math.PI * 2;
@@ -1775,7 +1776,7 @@ function addChickenPenFixtures(group: THREE.Group, plan: AnimalPenVisualPlan): v
 function addGoatPenFixtures(group: THREE.Group, plan: AnimalPenVisualPlan): void {
   const rng = mulberry32(plan.seed ^ 0x60a7);
   const { footprint } = plan;
-  addMesh(group, new THREE.BoxGeometry(1.05, 0.12, 0.62), MATERIALS.wicker, footprint.width * 0.22, 0.18, footprint.depth * 0.18, undefined, undefined, 'GoatMilkingStand');
+  addMesh(group, new THREE.BoxGeometry(1.05, 0.12, 0.62), MATERIALS.lightTimber, footprint.width * 0.22, 0.18, footprint.depth * 0.18, undefined, undefined, 'GoatMilkingStand');
   for (let index = 0; index < plan.fallbackAnimalCount; index++) {
     const goat = new THREE.Group();
     goat.name = 'GoatFallback';

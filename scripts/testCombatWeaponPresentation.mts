@@ -23,16 +23,12 @@ import {
 
 const bowPresentation = resolveCombatWeaponPresentation('bow', 12);
 const crossbowPresentation = resolveCombatWeaponPresentation('crossbow', 12);
-const arquebusPresentation = resolveCombatWeaponPresentation('uskok-kit', 12);
 assert.equal(bowPresentation?.family, 'bow');
 assert.equal(bowPresentation?.projectile, 'arrow');
 assert.equal(crossbowPresentation?.family, 'crossbow');
 assert.equal(crossbowPresentation?.projectile, 'bolt');
-assert.equal(arquebusPresentation?.family, 'uskok-arquebus');
-assert.equal(arquebusPresentation?.projectile, 'lead-shot');
 assert.equal(resolveCombatWeaponPresentation('bow', 2)?.family, 'sword-shield');
 assert.equal(resolveCombatWeaponPresentation('crossbow', 2)?.ranged, false);
-assert.equal(resolveCombatWeaponPresentation('uskok-kit', 2)?.family, 'uskok-sidearm');
 
 assert.ok(bowPresentation);
 assert.equal(sampleCombatAttackTimeline(bowPresentation, 1.55, null).phase, 'reload');
@@ -147,7 +143,7 @@ sampleCombatProjectile(
 assert.ok(Math.abs(projectileSample.position.x - 5) < 1e-6);
 assert.ok(Math.abs(projectileSample.position.y - 2) < 1e-6);
 assert.ok(Math.abs(projectileSample.direction.length() - 1) < 1e-6);
-assert.equal(COMBAT_PROJECTILE_DRAW_CALL_BUDGET, 4);
+assert.equal(COMBAT_PROJECTILE_DRAW_CALL_BUDGET, 2);
 
 const projectileParent = new THREE.Group();
 projectileParent.position.set(17, 3, -9);
@@ -161,20 +157,10 @@ for (let index = 0; index < 140; index += 1) {
     index,
   );
 }
-for (let index = 0; index < 32; index += 1) {
-  projectileRenderer.spawnRelease(
-    'lead-shot',
-    new THREE.Vector3(17, 4, -9),
-    new THREE.Vector3(29, 4, -7),
-    index,
-  );
-}
 projectileRenderer.update(0.2);
 const effectGroup = projectileParent.children[0] as THREE.Group;
 const effectCounts = effectGroup.children.map((child) => (child as THREE.InstancedMesh).count);
 assert.ok(effectCounts[0]! + effectCounts[1]! <= 96, 'projectiles must remain in the bounded shared pool');
-assert.ok(effectCounts[2]! <= 20, 'matchlock flashes must remain bounded');
-assert.ok(effectCounts[3]! <= 80, 'matchlock smoke must remain bounded');
 assert.equal(effectGroup.children.length, COMBAT_PROJECTILE_DRAW_CALL_BUDGET);
 
 projectileRenderer.dispose();

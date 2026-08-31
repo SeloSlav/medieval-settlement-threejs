@@ -3290,7 +3290,7 @@ fn equipment_source_kinds(commodity: CommodityKind) -> &'static [&'static str] {
     }
 }
 
-fn equipped_member_kit(kind: MilitaryKind, slot: u32) -> RaidPortableStores {
+fn equipped_member_kit(kind: MilitaryKind, _slot: u32) -> RaidPortableStores {
     match kind {
         MilitaryKind::Militia => RaidPortableStores {
             polearms: 1.0,

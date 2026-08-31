@@ -10,7 +10,7 @@ import type { WorkerToolKind, WorkerToolSources } from './workerTools.ts';
 
 export const BATTLEFIELD_WEAPON_DROP_CAPACITY = 256;
 export const BATTLEFIELD_WEAPON_DROP_MAX_ORBIT_DISTANCE = 150;
-/** Ten weapon families plus the Uskok secondary arquebus, batched by PBR role. */
+/** Nine weapon families batched by PBR role. */
 export const BATTLEFIELD_WEAPON_DROP_DRAW_CALL_BUDGET = 50;
 
 export type BattlefieldWeaponDropOwnership = {
@@ -99,20 +99,6 @@ export class BattlefieldWeaponDropRenderer {
       const pieces: DropPiece[] = [];
       pieces.push(this.createPiece(kind, 0, source, source.scene));
 
-      // Uskok border infantry carry both a korda and an arquebus. Both held
-      // weapons leave the body; the waist-mounted scabbard remains harnessed.
-      if (kind === 'uskok-kit') {
-        const arquebus = source.secondaryMounts.find(
-          (mount) => mount.combatRole === 'ranged-held',
-        );
-        if (arquebus) pieces.push(this.createPiece(
-          kind,
-          1,
-          source,
-          arquebus.scene,
-          arquebus.targetLength / arquebus.sourceLength,
-        ));
-      }
       this.piecesByKind.set(kind, pieces);
     }
   }
@@ -295,7 +281,7 @@ export function battlefieldWeaponDropTransform(
   const rightZ = -Math.sin(agent.yaw);
   const forwardX = Math.sin(agent.yaw);
   const forwardZ = Math.cos(agent.yaw);
-  const longWeaponLift = kind === 'crossbow' || kind === 'bow' || kind === 'uskok-kit'
+  const longWeaponLift = kind === 'crossbow' || kind === 'bow'
     ? 0.085
     : 0.055;
   return {
