@@ -73,6 +73,10 @@ export class CanonicalCombatSteeringGrid {
   private readonly nextVelocityZ: Float64Array;
   private readonly nextX: Float64Array;
   private readonly nextZ: Float64Array;
+  /** Reused fixed-size nearest/urgency set for one source body. */
+  private readonly neighborIndices: Int32Array;
+  private readonly neighborPriority: Uint8Array;
+  private readonly neighborMetric: Float64Array;
 
   constructor(capacity = 1_024) {
     this.capacity = Math.max(1, Math.floor(capacity));
@@ -89,6 +93,9 @@ export class CanonicalCombatSteeringGrid {
     this.nextVelocityZ = new Float64Array(this.capacity);
     this.nextX = new Float64Array(this.capacity);
     this.nextZ = new Float64Array(this.capacity);
+    this.neighborIndices = new Int32Array(COMBAT_STEERING_MAX_NEIGHBORS);
+    this.neighborPriority = new Uint8Array(COMBAT_STEERING_MAX_NEIGHBORS);
+    this.neighborMetric = new Float64Array(COMBAT_STEERING_MAX_NEIGHBORS);
   }
 
   update(
@@ -162,9 +169,18 @@ export class CanonicalCombatSteeringGrid {
       let companyNeighbors = 0;
       let separationNeighbors = 0;
       let predictiveNeighbors = 0;
-      let acceptedNeighbors = 0;
+      const ownPersistedSpeedSq = agent.steeringVelocityX * agent.steeringVelocityX
+        + agent.steeringVelocityZ * agent.steeringVelocityZ;
+      const ownVelocityX = ownPersistedSpeedSq > 1e-8
+        ? agent.steeringVelocityX : preferredX;
+      const ownVelocityZ = ownPersistedSpeedSq > 1e-8
+        ? agent.steeringVelocityZ : preferredZ;
+      let selectedNeighborCount = 0;
 
-      neighborCells: for (
+      // Select collision threats before flock-only neighbours, then retain the
+      // closest/most urgent fixed-size set. This prevents a dense friendly
+      // company from consuming the cap before a nearby enemy is considered.
+      for (
         let cellDeltaZ = -NEIGHBOR_CELL_RADIUS;
         cellDeltaZ <= NEIGHBOR_CELL_RADIUS;
         cellDeltaZ += 1
@@ -191,41 +207,8 @@ export class CanonicalCombatSteeringGrid {
                 neighbor = this.next[neighbor]!;
                 continue;
               }
-              let relevantNeighbor = false;
-              if (distanceSq < SEPARATION_DISTANCE_SQ) {
-                let awayX: number;
-                let awayZ: number;
-                let distance: number;
-                if (distanceSq <= COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ) {
-                  const angle = exactOverlapAngle(
-                    agent.steeringSeed,
-                    other.steeringSeed,
-                    index,
-                    neighbor,
-                  );
-                  awayX = Math.cos(angle);
-                  awayZ = Math.sin(angle);
-                  distance = 0;
-                } else {
-                  distance = Math.sqrt(distanceSq);
-                  awayX = deltaX / distance;
-                  awayZ = deltaZ / distance;
-                }
-                const pressure = 1 - distance / COMBAT_STEERING_SEPARATION_DISTANCE_M;
-                separationX += awayX * pressure;
-                separationZ += awayZ * pressure;
-                separationNeighbors += 1;
-                relevantNeighbor = true;
-              }
-
-              const ownPersistedSpeedSq = agent.steeringVelocityX * agent.steeringVelocityX
-                + agent.steeringVelocityZ * agent.steeringVelocityZ;
               const otherPersistedSpeedSq = other.steeringVelocityX * other.steeringVelocityX
                 + other.steeringVelocityZ * other.steeringVelocityZ;
-              const ownVelocityX = ownPersistedSpeedSq > 1e-8
-                ? agent.steeringVelocityX : preferredX;
-              const ownVelocityZ = ownPersistedSpeedSq > 1e-8
-                ? agent.steeringVelocityZ : preferredZ;
               const otherVelocityX = otherPersistedSpeedSq > 1e-8
                 ? other.steeringVelocityX : this.preferredX[neighbor]!;
               const otherVelocityZ = otherPersistedSpeedSq > 1e-8
@@ -234,6 +217,7 @@ export class CanonicalCombatSteeringGrid {
               const relativeVelocityZ = ownVelocityZ - otherVelocityZ;
               const relativeSpeedSq = relativeVelocityX * relativeVelocityX
                 + relativeVelocityZ * relativeVelocityZ;
+              let predictiveCollision = false;
               if (relativeSpeedSq > 1e-8) {
                 const toward = -(deltaX * relativeVelocityX + deltaZ * relativeVelocityZ);
                 const closestTime = Math.min(
@@ -245,58 +229,161 @@ export class CanonicalCombatSteeringGrid {
                   const futureZ = deltaZ + relativeVelocityZ * closestTime;
                   const futureDistanceSq = futureX * futureX + futureZ * futureZ;
                   if (futureDistanceSq < SEPARATION_DISTANCE_SQ) {
-                    let avoidX: number;
-                    let avoidZ: number;
-                    if (futureDistanceSq <= SEPARATION_DISTANCE_SQ * 0.16) {
-                      const lowSeed = Math.min(agent.steeringSeed, other.steeringSeed);
-                      const highSeed = Math.max(agent.steeringSeed, other.steeringSeed);
-                      const side = (mixSeed(lowSeed ^ Math.imul(highSeed, 0x9e37_79b1)) & 1)
-                        === 0 ? -1 : 1;
-                      const relativeSpeed = Math.sqrt(relativeSpeedSq);
-                      avoidX = -relativeVelocityZ / relativeSpeed * side;
-                      avoidZ = relativeVelocityX / relativeSpeed * side;
-                    } else {
-                      const futureDistance = Math.sqrt(futureDistanceSq);
-                      avoidX = futureX / futureDistance;
-                      avoidZ = futureZ / futureDistance;
-                    }
-                    const urgency = (1 - closestTime / COMBAT_STEERING_PREDICTION_SECONDS)
-                      * (1 - Math.sqrt(futureDistanceSq) / COMBAT_STEERING_SEPARATION_DISTANCE_M);
-                    predictiveX += avoidX * urgency;
-                    predictiveZ += avoidZ * urgency;
-                    predictiveNeighbors += 1;
-                    relevantNeighbor = true;
+                    predictiveCollision = true;
                   }
                 }
               }
-
-              if (
+              const sameCompany = (
                 agent.steeringCompany !== 0
                 && agent.steeringCompany === other.steeringCompany
                 && agent.steeringTeam === other.steeringTeam
-              ) {
-                const otherSpeed = Math.hypot(
-                  other.steeringVelocityX,
-                  other.steeringVelocityZ,
-                );
-                if (otherSpeed > 1e-8) {
-                  alignmentX += other.steeringVelocityX / otherSpeed;
-                  alignmentZ += other.steeringVelocityZ / otherSpeed;
-                }
-                cohesionX += other.state.x - x;
-                cohesionZ += other.state.z - z;
-                companyNeighbors += 1;
-                relevantNeighbor = true;
+              );
+              const immediateCollision = distanceSq < SEPARATION_DISTANCE_SQ;
+              if (!immediateCollision && !predictiveCollision && !sameCompany) {
+                neighbor = this.next[neighbor]!;
+                continue;
               }
-              if (relevantNeighbor) {
-                acceptedNeighbors += 1;
-                if (acceptedNeighbors >= COMBAT_STEERING_MAX_NEIGHBORS) {
-                  break neighborCells;
+
+              const priority = immediateCollision ? 0 : predictiveCollision ? 1 : 2;
+              const metric = distanceSq;
+              let insertAt = selectedNeighborCount;
+              while (insertAt > 0) {
+                const previous = insertAt - 1;
+                const previousIndex = this.neighborIndices[previous]!;
+                const previousPriority = this.neighborPriority[previous]!;
+                const previousMetric = this.neighborMetric[previous]!;
+                const previousAgent = agents[previousIndex]!;
+                const comesBefore = priority < previousPriority
+                  || (
+                    priority === previousPriority
+                    && (
+                      metric < previousMetric
+                      || (
+                        metric === previousMetric
+                        && (
+                          other.steeringSeed < previousAgent.steeringSeed
+                          || (
+                            other.steeringSeed === previousAgent.steeringSeed
+                            && neighbor < previousIndex
+                          )
+                        )
+                      )
+                    )
+                  );
+                if (!comesBefore) break;
+                if (insertAt < COMBAT_STEERING_MAX_NEIGHBORS) {
+                  this.neighborIndices[insertAt] = previousIndex;
+                  this.neighborPriority[insertAt] = previousPriority;
+                  this.neighborMetric[insertAt] = previousMetric;
+                }
+                insertAt -= 1;
+              }
+              if (insertAt < COMBAT_STEERING_MAX_NEIGHBORS) {
+                this.neighborIndices[insertAt] = neighbor;
+                this.neighborPriority[insertAt] = priority;
+                this.neighborMetric[insertAt] = metric;
+                if (selectedNeighborCount < COMBAT_STEERING_MAX_NEIGHBORS) {
+                  selectedNeighborCount += 1;
                 }
               }
             }
             neighbor = this.next[neighbor]!;
           }
+        }
+      }
+
+      for (let selected = 0; selected < selectedNeighborCount; selected += 1) {
+        const neighbor = this.neighborIndices[selected]!;
+        const other = agents[neighbor]!;
+        const deltaX = x - other.state.x;
+        const deltaZ = z - other.state.z;
+        const distanceSq = deltaX * deltaX + deltaZ * deltaZ;
+        if (distanceSq < SEPARATION_DISTANCE_SQ) {
+          let awayX: number;
+          let awayZ: number;
+          let distance: number;
+          if (distanceSq <= COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ) {
+            const angle = exactOverlapAngle(
+              agent.steeringSeed,
+              other.steeringSeed,
+              index,
+              neighbor,
+            );
+            awayX = Math.cos(angle);
+            awayZ = Math.sin(angle);
+            distance = 0;
+          } else {
+            distance = Math.sqrt(distanceSq);
+            awayX = deltaX / distance;
+            awayZ = deltaZ / distance;
+          }
+          const pressure = 1 - distance / COMBAT_STEERING_SEPARATION_DISTANCE_M;
+          separationX += awayX * pressure;
+          separationZ += awayZ * pressure;
+          separationNeighbors += 1;
+        }
+
+        const otherPersistedSpeedSq = other.steeringVelocityX * other.steeringVelocityX
+          + other.steeringVelocityZ * other.steeringVelocityZ;
+        const otherVelocityX = otherPersistedSpeedSq > 1e-8
+          ? other.steeringVelocityX : this.preferredX[neighbor]!;
+        const otherVelocityZ = otherPersistedSpeedSq > 1e-8
+          ? other.steeringVelocityZ : this.preferredZ[neighbor]!;
+        const relativeVelocityX = ownVelocityX - otherVelocityX;
+        const relativeVelocityZ = ownVelocityZ - otherVelocityZ;
+        const relativeSpeedSq = relativeVelocityX * relativeVelocityX
+          + relativeVelocityZ * relativeVelocityZ;
+        if (relativeSpeedSq > 1e-8) {
+          const toward = -(deltaX * relativeVelocityX + deltaZ * relativeVelocityZ);
+          const closestTime = Math.min(
+            COMBAT_STEERING_PREDICTION_SECONDS,
+            Math.max(0, toward / relativeSpeedSq),
+          );
+          if (closestTime > 0) {
+            const futureX = deltaX + relativeVelocityX * closestTime;
+            const futureZ = deltaZ + relativeVelocityZ * closestTime;
+            const futureDistanceSq = futureX * futureX + futureZ * futureZ;
+            if (futureDistanceSq < SEPARATION_DISTANCE_SQ) {
+              let avoidX: number;
+              let avoidZ: number;
+              if (futureDistanceSq <= SEPARATION_DISTANCE_SQ * 0.16) {
+                const lowSeed = Math.min(agent.steeringSeed, other.steeringSeed);
+                const highSeed = Math.max(agent.steeringSeed, other.steeringSeed);
+                const side = (mixSeed(lowSeed ^ Math.imul(highSeed, 0x9e37_79b1)) & 1)
+                  === 0 ? -1 : 1;
+                const relativeSpeed = Math.sqrt(relativeSpeedSq);
+                avoidX = -relativeVelocityZ / relativeSpeed * side;
+                avoidZ = relativeVelocityX / relativeSpeed * side;
+              } else {
+                const futureDistance = Math.sqrt(futureDistanceSq);
+                avoidX = futureX / futureDistance;
+                avoidZ = futureZ / futureDistance;
+              }
+              const urgency = (1 - closestTime / COMBAT_STEERING_PREDICTION_SECONDS)
+                * (1 - Math.sqrt(futureDistanceSq) / COMBAT_STEERING_SEPARATION_DISTANCE_M);
+              predictiveX += avoidX * urgency;
+              predictiveZ += avoidZ * urgency;
+              predictiveNeighbors += 1;
+            }
+          }
+        }
+
+        if (
+          agent.steeringCompany !== 0
+          && agent.steeringCompany === other.steeringCompany
+          && agent.steeringTeam === other.steeringTeam
+        ) {
+          const otherSpeed = Math.hypot(
+            other.steeringVelocityX,
+            other.steeringVelocityZ,
+          );
+          if (otherSpeed > 1e-8) {
+            alignmentX += other.steeringVelocityX / otherSpeed;
+            alignmentZ += other.steeringVelocityZ / otherSpeed;
+          }
+          cohesionX += other.state.x - x;
+          cohesionZ += other.state.z - z;
+          companyNeighbors += 1;
         }
       }
 

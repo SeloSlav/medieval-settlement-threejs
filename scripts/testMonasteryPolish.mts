@@ -312,11 +312,11 @@ for (const [containerName, segmentName, expectedSegments] of pantryGroups) {
 const stockedMonastery = building({
   id: 'stocked-monastery',
   constructionComplete: true,
-  food: 61,
-  cider: 41,
-  mead: 41,
-  honey: 81,
-  wine: 41,
+  meat: 51,
+  cider: 20,
+  mead: 20,
+  honey: 30,
+  wine: 30,
 });
 syncMonasteryStockpileVisuals(monasteryMarker, stockedMonastery);
 for (const [containerName, segmentName, expectedVisible] of [

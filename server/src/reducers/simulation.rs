@@ -5,7 +5,7 @@ use crate::db::*;
 use crate::economy::step_regional_markets;
 use crate::frontier_economy_policy::{armed_guards, guardhouse_payroll_buckets};
 use crate::simulation::{
-    materialize_all_physical_resource_ledgers, retire_legacy_food_items, retire_removed_buildings,
+    capture_combat_motion_frame, materialize_all_physical_resource_ledgers, retire_legacy_food_items, retire_removed_buildings,
     step_apiary, step_backyard_gardens, step_bakery, step_bandit_world, step_bowyer_fletcher, step_brewery, step_burials, step_carpenter,
     step_chandlery,
     step_chapel_parish, step_chapels, step_charcoal_burner, step_cobbler,
@@ -114,6 +114,9 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     // agents therefore advance on every scheduler heartbeat at the selected
     // speed instead of waiting for sparse economy/calendar substeps.
     if !holiday_protected {
+        // One shared pre-heartbeat snapshot makes the final steering solve the
+        // sole authoritative integration for every combat faction.
+        capture_combat_motion_frame(ctx);
         step_live_raids(
             ctx,
             config.sim_tick,

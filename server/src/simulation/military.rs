@@ -2,7 +2,6 @@ use std::cell::RefCell;
 
 use spacetimedb::{Identity, ReducerContext};
 
-use crate::balance_generated::COMBAT_STEERING_SEPARATION_DISTANCE_M;
 use crate::db::*;
 use crate::economy::spend_treasury_gold;
 use crate::military_policy::{
@@ -48,6 +47,62 @@ thread_local! {
     /// the hot vectors allocated between scheduler heartbeats.
     static COMBAT_STEERING_GRID: RefCell<CombatSteeringGrid> =
         RefCell::new(CombatSteeringGrid::default());
+    /// Canonical movement starts from the same pre-heartbeat state for every
+    /// faction. Behavior reducers may still advance their routes and resolve
+    /// combat first, but their provisional displacement is replaced by the
+    /// single steering integration at the end of the heartbeat.
+    static COMBAT_MOTION_FRAME: RefCell<CombatMotionFrame> =
+        RefCell::new(CombatMotionFrame::default());
+}
+
+#[derive(Clone, Copy, Default)]
+struct CombatMotionSnapshot {
+    id: u64,
+    x: f64,
+    z: f64,
+    velocity_x: f64,
+    velocity_z: f64,
+}
+
+#[derive(Default)]
+struct CombatMotionFrame {
+    snapshots: Vec<CombatMotionSnapshot>,
+    captured: bool,
+}
+
+impl CombatMotionFrame {
+    fn capture(&mut self, ctx: &ReducerContext) {
+        self.snapshots.clear();
+        self.snapshots.extend(
+            ctx.db
+                .combat_agent()
+                .iter()
+                .filter(|agent| agent.state != DOWNED && agent.health > 0.0)
+                .map(|agent| CombatMotionSnapshot {
+                    id: agent.id,
+                    x: agent.x,
+                    z: agent.z,
+                    velocity_x: agent.velocity_x,
+                    velocity_z: agent.velocity_z,
+                }),
+        );
+        self.snapshots.sort_unstable_by_key(|snapshot| snapshot.id);
+        self.captured = true;
+    }
+
+    fn get(&self, id: u64) -> Option<CombatMotionSnapshot> {
+        self.snapshots
+            .binary_search_by_key(&id, |snapshot| snapshot.id)
+            .ok()
+            .map(|index| self.snapshots[index])
+    }
+}
+
+/// Capture every existing living combatant before any faction-specific mover
+/// runs. New bodies created later in the same heartbeat remain stationary
+/// until the next frame rather than receiving an accidental second step.
+pub fn capture_combat_motion_frame(ctx: &ReducerContext) {
+    COMBAT_MOTION_FRAME.with(|cell| cell.borrow_mut().capture(ctx));
 }
 
 pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds: f64) {
@@ -62,11 +117,18 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
         .map_or(1, |row| normalize_military_demands(row.military_demands));
     step_mercenary_contracts(ctx, sim_tick);
     step_company_upkeep(ctx, sim_tick, military_demands);
-    COMBAT_STEERING_GRID.with(|cell| {
-        let mut steering = cell.borrow_mut();
-        rebuild_steering_grid(ctx, &mut steering);
-        let members = ctx.db.military_member().iter().collect::<Vec<_>>();
-        for member in members {
+    COMBAT_MOTION_FRAME.with(|frame_cell| {
+        let mut frame = frame_cell.borrow_mut();
+        // Defensive fallback for direct test/debug callers. The scheduled
+        // reducer always captures before hostile and animal movement.
+        if !frame.captured {
+            frame.capture(ctx);
+        }
+        COMBAT_STEERING_GRID.with(|cell| {
+            let mut steering = cell.borrow_mut();
+            rebuild_steering_grid(ctx, &mut steering, None, elapsed_seconds);
+            let members = ctx.db.military_member().iter().collect::<Vec<_>>();
+            for member in members {
             let Some(agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
                 ctx.db
                     .military_member()
@@ -99,14 +161,17 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
                     &steering,
                 ),
             }
-        }
+            }
 
-        // Hostile movement resolves earlier in the heartbeat. Rebuild from
-        // current canonical positions, then apply one synchronous all-living
-        // correction so player companies, raiders, bandits, guards, and
-        // hostile groups cannot pass through one another.
-        rebuild_steering_grid(ctx, &mut steering);
-        apply_global_combat_steering(ctx, &steering, elapsed_seconds);
+            // Goals and state decisions are now final, but the grid is rebuilt
+            // from the shared pre-heartbeat snapshot. The final write replaces
+            // every provisional faction displacement with one synchronous
+            // integration, preventing two fast bodies from swapping sides
+            // before predictive avoidance sees them.
+            rebuild_steering_grid(ctx, &mut steering, Some(&frame), elapsed_seconds);
+            apply_global_combat_steering(ctx, &mut steering, &frame, elapsed_seconds);
+        });
+        frame.captured = false;
     });
     refresh_company_summaries(ctx, sim_tick, elapsed_seconds, military_demands);
 }
@@ -858,7 +923,12 @@ fn member_seed(member: &MilitaryMember) -> u64 {
     member.company_id.rotate_left(31) ^ member.residence_id ^ member.resident_slot as u64
 }
 
-fn rebuild_steering_grid(ctx: &ReducerContext, steering: &mut CombatSteeringGrid) {
+fn rebuild_steering_grid(
+    ctx: &ReducerContext,
+    steering: &mut CombatSteeringGrid,
+    motion_frame: Option<&CombatMotionFrame>,
+    elapsed_seconds: f64,
+) {
     steering.begin();
     for agent in ctx.db.combat_agent().iter() {
         if agent.state == DOWNED || agent.health <= 0.0 {
@@ -879,11 +949,38 @@ fn rebuild_steering_grid(ctx: &ReducerContext, steering: &mut CombatSteeringGrid
                 },
                 |member| (1, member.company_id),
             );
-        let (goal_x, goal_z, speed) = canonical_steering_goal(ctx, &agent);
-        let (velocity_x, velocity_z) = if matches!(agent.state, FIGHTING | LOOTING) {
-            (0.0, 0.0)
+        let (mut goal_x, mut goal_z, mut speed) =
+            canonical_steering_goal(ctx, &agent, motion_frame);
+        let snapshot = motion_frame.and_then(|frame| frame.get(agent.id));
+        let (x, z, velocity_x, velocity_z) = if let Some(snapshot) = snapshot {
+            let intended_dx = agent.x - snapshot.x;
+            let intended_dz = agent.z - snapshot.z;
+            let intended_distance = intended_dx.hypot(intended_dz);
+            if intended_distance > 1e-9 && elapsed_seconds > 1e-9 {
+                // Preserve the exact authored path/formation/retreat choice
+                // made by the faction reducer. Steering owns how that intent
+                // is integrated, not which macro destination was selected.
+                goal_x = agent.x;
+                goal_z = agent.z;
+                speed = intended_distance / elapsed_seconds;
+            }
+            (
+                snapshot.x,
+                snapshot.z,
+                snapshot.velocity_x,
+                snapshot.velocity_z,
+            )
+        } else if motion_frame.is_some() {
+            // A combatant spawned after capture is still a physical obstacle,
+            // but waits for the next heartbeat before taking its first step.
+            goal_x = agent.x;
+            goal_z = agent.z;
+            speed = 0.0;
+            (agent.x, agent.z, 0.0, 0.0)
+        } else if matches!(agent.state, FIGHTING | LOOTING) {
+            (agent.x, agent.z, 0.0, 0.0)
         } else {
-            (agent.velocity_x, agent.velocity_z)
+            (agent.x, agent.z, agent.velocity_x, agent.velocity_z)
         };
         steering.push(SteeringBody {
             id: agent.id,
@@ -892,8 +989,8 @@ fn rebuild_steering_grid(ctx: &ReducerContext, steering: &mut CombatSteeringGrid
             group_id,
             faction: agent.faction,
             target_id: agent.target_id,
-            x: agent.x,
-            z: agent.z,
+            x,
+            z,
             goal_x,
             goal_z,
             speed,
@@ -904,14 +1001,20 @@ fn rebuild_steering_grid(ctx: &ReducerContext, steering: &mut CombatSteeringGrid
     steering.finish();
 }
 
-fn canonical_steering_goal(ctx: &ReducerContext, agent: &CombatAgent) -> (f64, f64, f64) {
-    let speed = if let Some(member) = ctx.db.military_member().combat_agent_id().find(&agent.id) {
-        ctx.db
-            .military_company()
-            .id()
-            .find(&member.company_id)
-            .and_then(|company| MilitaryKind::from_id(company.kind))
-            .map_or(2.4, |kind| military_stats(kind).speed)
+fn canonical_steering_goal(
+    ctx: &ReducerContext,
+    agent: &CombatAgent,
+    motion_frame: Option<&CombatMotionFrame>,
+) -> (f64, f64, f64) {
+    let member = ctx.db.military_member().combat_agent_id().find(&agent.id);
+    let company = member
+        .as_ref()
+        .and_then(|member| ctx.db.military_company().id().find(&member.company_id));
+    let speed = if let Some(kind) = company
+        .as_ref()
+        .and_then(|company| MilitaryKind::from_id(company.kind))
+    {
+        military_stats(kind).speed
     } else {
         match agent.faction {
             RAIDER => 2.65,
@@ -922,6 +1025,32 @@ fn canonical_steering_goal(ctx: &ReducerContext, agent: &CombatAgent) -> (f64, f
         }
     };
     if matches!(agent.state, RETREATING | RETURNING) {
+        if let (Some(member), Some(company)) = (member.as_ref(), company.as_ref()) {
+            if member.phase == 2 {
+                if MilitaryKind::from_id(company.kind) == Some(MilitaryKind::MercenarySpears) {
+                    return (member.original_home_x, member.original_home_z, speed);
+                }
+                if let Some(source) = ctx.db.building().id().find(&company.source_building_id) {
+                    return (source.x, source.z, speed);
+                }
+            } else if member.phase == 3 {
+                if let Some(home) = ctx
+                    .db
+                    .residence()
+                    .id()
+                    .find(&member.residence_id)
+                    .filter(|home| !home.abandoned)
+                {
+                    return (home.x, home.z, speed);
+                }
+            } else if agent.state == RETREATING {
+                // Morale retreat keeps the member active until it reaches the
+                // company's actual source building.
+                if let Some(source) = ctx.db.building().id().find(&company.source_building_id) {
+                    return (source.x, source.z, speed);
+                }
+            }
+        }
         return (agent.home_x, agent.home_z, speed);
     }
     if let Some(order) = ctx.db.militia_order().combat_agent_id().find(&agent.id) {
@@ -929,8 +1058,14 @@ fn canonical_steering_goal(ctx: &ReducerContext, agent: &CombatAgent) -> (f64, f
     }
     if agent.target_kind == 7 {
         if let Some(target) = ctx.db.combat_agent().id().find(&agent.target_id) {
-            if let Some(member) = ctx.db.military_member().combat_agent_id().find(&agent.id) {
-                if let Some(company) = ctx.db.military_company().id().find(&member.company_id) {
+            let (target_x, target_z) = motion_frame
+                .and_then(|frame| frame.get(target.id))
+                .map_or((target.x, target.z), |snapshot| (snapshot.x, snapshot.z));
+            let (source_x, source_z) = motion_frame
+                .and_then(|frame| frame.get(agent.id))
+                .map_or((agent.x, agent.z), |snapshot| (snapshot.x, snapshot.z));
+            if let Some(member) = member.as_ref() {
+                if let Some(company) = company.as_ref() {
                     if let Some(kind) = MilitaryKind::from_id(company.kind) {
                         let stats = military_stats(kind);
                         let rank = agent.source_slot as usize;
@@ -940,10 +1075,10 @@ fn canonical_steering_goal(ctx: &ReducerContext, agent: &CombatAgent) -> (f64, f
                             ranged_firing_line_goal(
                                 rank,
                                 company.living_members.max(1) as usize,
-                                agent.x,
-                                agent.z,
-                                target.x,
-                                target.z,
+                                source_x,
+                                source_z,
+                                target_x,
+                                target_z,
                                 stats.strike_range,
                             )
                         } else {
@@ -951,8 +1086,8 @@ fn canonical_steering_goal(ctx: &ReducerContext, agent: &CombatAgent) -> (f64, f
                                 company.id,
                                 target.id,
                                 rank,
-                                target.x,
-                                target.z,
+                                target_x,
+                                target_z,
                                 stats.strike_range,
                             )
                         };
@@ -964,10 +1099,10 @@ fn canonical_steering_goal(ctx: &ReducerContext, agent: &CombatAgent) -> (f64, f
                 ranged_firing_line_goal(
                     agent.source_slot as usize,
                     8,
-                    agent.x,
-                    agent.z,
-                    target.x,
-                    target.z,
+                    source_x,
+                    source_z,
+                    target_x,
+                    target_z,
                     12.0,
                 )
             } else {
@@ -975,8 +1110,8 @@ fn canonical_steering_goal(ctx: &ReducerContext, agent: &CombatAgent) -> (f64, f
                     agent.raid_id.max(agent.source_building_id),
                     target.id,
                     agent.source_slot as usize,
-                    target.x,
-                    target.z,
+                    target_x,
+                    target_z,
                     2.15,
                 )
             };
@@ -1013,9 +1148,12 @@ fn canonical_steering_goal(ctx: &ReducerContext, agent: &CombatAgent) -> (f64, f
     if let Some((x, z)) = target {
         (x, z, speed)
     } else if agent.velocity_x.hypot(agent.velocity_z) > 1e-8 {
+        let (source_x, source_z) = motion_frame
+            .and_then(|frame| frame.get(agent.id))
+            .map_or((agent.x, agent.z), |snapshot| (snapshot.x, snapshot.z));
         (
-            agent.x + agent.velocity_x,
-            agent.z + agent.velocity_z,
+            source_x + agent.velocity_x,
+            source_z + agent.velocity_z,
             speed,
         )
     } else {
@@ -1028,10 +1166,11 @@ fn canonical_steering_goal(ctx: &ReducerContext, agent: &CombatAgent) -> (f64, f
 /// velocity and the globally steered velocity is projected into position.
 fn apply_global_combat_steering(
     ctx: &ReducerContext,
-    steering: &CombatSteeringGrid,
+    steering: &mut CombatSteeringGrid,
+    motion_frame: &CombatMotionFrame,
     elapsed_seconds: f64,
 ) {
-    let dt = elapsed_seconds.min(0.2);
+    steering.integrate_all(elapsed_seconds);
     for index in 0..steering.len() {
         let source = steering.body(index);
         let Some(mut agent) = ctx.db.combat_agent().id().find(&source.id) else {
@@ -1040,19 +1179,13 @@ fn apply_global_combat_steering(
         if agent.state == DOWNED || agent.health <= 0.0 {
             continue;
         }
-        let output = steering.steer(source, source.goal_x, source.goal_z, source.speed, dt);
-        let mut correction_x = (output.velocity_x - source.velocity_x) * dt;
-        let mut correction_z = (output.velocity_z - source.velocity_z) * dt;
-        let correction_length = correction_x.hypot(correction_z);
-        let correction_limit = COMBAT_STEERING_SEPARATION_DISTANCE_M * 0.5;
-        if correction_length > correction_limit {
-            correction_x = correction_x / correction_length * correction_limit;
-            correction_z = correction_z / correction_length * correction_limit;
+        if motion_frame.get(agent.id).is_none() {
+            continue;
         }
-        agent.x += correction_x;
-        agent.z += correction_z;
-        agent.velocity_x = output.velocity_x;
-        agent.velocity_z = output.velocity_z;
+        agent.x = source.x;
+        agent.z = source.z;
+        agent.velocity_x = source.velocity_x;
+        agent.velocity_z = source.velocity_z;
         ctx.db.combat_agent().id().update(agent);
     }
 }

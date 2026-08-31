@@ -556,14 +556,23 @@ fn step_warned_guard_muster(
         .collect::<Vec<_>>()
     {
         if guard.state == COMBAT_STATE_HOLDING {
+            if guard.velocity_x != 0.0 || guard.velocity_z != 0.0 {
+                guard.velocity_x = 0.0;
+                guard.velocity_z = 0.0;
+                ctx.db.combat_agent().id().update(guard);
+            }
             continue;
         }
         let Some(route) = routes.get(&guard.source_building_id) else {
             guard.state = COMBAT_STATE_RETURNING;
             guard.state_changed_tick = sim_tick;
+            guard.velocity_x = 0.0;
+            guard.velocity_z = 0.0;
             ctx.db.combat_agent().id().update(guard);
             continue;
         };
+        let previous_x = guard.x;
+        let previous_z = guard.z;
         let route_move = move_along_combat_route(
             guard.x,
             guard.z,
@@ -578,9 +587,13 @@ fn step_warned_guard_muster(
         guard.x = route_move.x;
         guard.z = route_move.z;
         guard.route_progress = route_move.progress;
+        guard.velocity_x = (guard.x - previous_x) / elapsed_seconds.max(1e-9);
+        guard.velocity_z = (guard.z - previous_z) / elapsed_seconds.max(1e-9);
         if guard.route_progress + EPSILON >= route.path_distance {
             guard.state = COMBAT_STATE_HOLDING;
             guard.state_changed_tick = sim_tick;
+            guard.velocity_x = 0.0;
+            guard.velocity_z = 0.0;
         }
         ctx.db.combat_agent().id().update(guard);
     }
@@ -1829,6 +1842,8 @@ fn step_recovering_guard(
         return true;
     }
     if agent.state == COMBAT_STATE_DOWNED {
+        agent.velocity_x = 0.0;
+        agent.velocity_z = 0.0;
         agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
         if agent.attack_cooldown > EPSILON {
             ctx.db.combat_agent().id().update(agent);
@@ -1846,6 +1861,8 @@ fn step_recovering_guard(
             agent.z = agent.home_z;
             agent.state = COMBAT_STATE_RECOVERING;
             agent.state_changed_tick = sim_tick;
+            agent.velocity_x = 0.0;
+            agent.velocity_z = 0.0;
             // This reconnect/interrupted-raid path obeys the same physical
             // equipment invariant as normal raid finalization: a wounded
             // carrier returns the issued weapon to the rack only at home.
@@ -1872,6 +1889,11 @@ fn step_recovering_guard(
         >= guard_recovery_ticks(agent.readiness, ticks_per_day)
     {
         return false;
+    }
+    if agent.velocity_x != 0.0 || agent.velocity_z != 0.0 {
+        agent.velocity_x = 0.0;
+        agent.velocity_z = 0.0;
+        ctx.db.combat_agent().id().update(agent);
     }
     true
 }

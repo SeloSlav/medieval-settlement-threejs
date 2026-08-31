@@ -68,6 +68,10 @@ pub(crate) struct CombatSteeringGrid {
     cell_zs: Vec<i32>,
     next: Vec<i32>,
     heads: Vec<i32>,
+    output_xs: Vec<f64>,
+    output_zs: Vec<f64>,
+    output_velocity_xs: Vec<f64>,
+    output_velocity_zs: Vec<f64>,
     bucket_mask: usize,
 }
 
@@ -126,17 +130,7 @@ impl CombatSteeringGrid {
             self.cell_zs.push(cell_coordinate(body.z));
         }
 
-        let bucket_count = (count.saturating_mul(2))
-            .next_power_of_two()
-            .max(MIN_BUCKETS);
-        self.heads.clear();
-        self.heads.resize(bucket_count, -1);
-        self.bucket_mask = bucket_count - 1;
-        for index in 0..count {
-            let bucket = cell_hash(self.cell_xs[index], self.cell_zs[index], self.bucket_mask);
-            self.next[index] = self.heads[bucket];
-            self.heads[bucket] = index as i32;
-        }
+        self.rebuild_spatial_index();
     }
 
     pub(crate) fn len(&self) -> usize {
@@ -163,6 +157,75 @@ impl CombatSteeringGrid {
 
     pub(crate) fn index_of(&self, id: u64) -> Option<usize> {
         self.ids.binary_search(&id).ok()
+    }
+
+    /// Advance a complete combat frame synchronously. Scheduler speeds can
+    /// produce heartbeats longer than the steering prediction horizon, so the
+    /// full elapsed duration is split into <=200 ms solves. Every body reads
+    /// the same substep state, then all positions/velocities are committed
+    /// together before rebuilding the uniform grid for the next substep.
+    pub(crate) fn integrate_all(&mut self, elapsed_seconds: f64) {
+        if !elapsed_seconds.is_finite() || elapsed_seconds <= 0.0 || self.ids.is_empty() {
+            return;
+        }
+        let count = self.ids.len();
+        clear_and_reserve(&mut self.output_xs, count);
+        clear_and_reserve(&mut self.output_zs, count);
+        clear_and_reserve(&mut self.output_velocity_xs, count);
+        clear_and_reserve(&mut self.output_velocity_zs, count);
+        let mut remaining = elapsed_seconds;
+        while remaining > 1e-9 {
+            let dt = remaining.min(0.2);
+            self.output_xs.clear();
+            self.output_zs.clear();
+            self.output_velocity_xs.clear();
+            self.output_velocity_zs.clear();
+            for index in 0..count {
+                let source = self.body(index);
+                let output = self.steer(
+                    source,
+                    source.goal_x,
+                    source.goal_z,
+                    source.speed,
+                    dt,
+                );
+                self.output_xs.push(output.x);
+                self.output_zs.push(output.z);
+                self.output_velocity_xs.push(output.velocity_x);
+                self.output_velocity_zs.push(output.velocity_z);
+            }
+            self.xs.copy_from_slice(&self.output_xs);
+            self.zs.copy_from_slice(&self.output_zs);
+            self.velocity_xs
+                .copy_from_slice(&self.output_velocity_xs);
+            self.velocity_zs
+                .copy_from_slice(&self.output_velocity_zs);
+            self.rebuild_spatial_index();
+            remaining -= dt;
+        }
+    }
+
+    fn rebuild_spatial_index(&mut self) {
+        let count = self.ids.len();
+        self.cell_xs.resize(count, 0);
+        self.cell_zs.resize(count, 0);
+        self.next.clear();
+        self.next.resize(count, -1);
+        for index in 0..count {
+            self.cell_xs[index] = cell_coordinate(self.xs[index]);
+            self.cell_zs[index] = cell_coordinate(self.zs[index]);
+        }
+        let bucket_count = (count.saturating_mul(2))
+            .next_power_of_two()
+            .max(MIN_BUCKETS);
+        self.heads.clear();
+        self.heads.resize(bucket_count, -1);
+        self.bucket_mask = bucket_count - 1;
+        for index in 0..count {
+            let bucket = cell_hash(self.cell_xs[index], self.cell_zs[index], self.bucket_mask);
+            self.next[index] = self.heads[bucket];
+            self.heads[bucket] = index as i32;
+        }
     }
 
     /// Bounded grid acquisition used only when a combatant has no retained

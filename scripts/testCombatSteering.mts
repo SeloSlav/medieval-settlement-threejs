@@ -164,6 +164,30 @@ function agent(
   );
 }
 
+// Flock-only neighbours must never consume the cap before a closer collision
+// threat. The old traversal-order cap missed this enemy after 18 friendlies.
+{
+  const crowdedCenterVelocity = (includeEnemy: boolean): number => {
+    const center = agent(1, 0, 0, 0, 0, 77, 1);
+    const agents = [center];
+    for (let index = 0; index < 24; index += 1) {
+      const x = -1.2 - (index % 6) * 0.12;
+      const z = -1.1 - Math.floor(index / 6) * 0.15;
+      agents.push(agent(10 + index, x, z, x, z, 77, 1));
+    }
+    if (includeEnemy) agents.push(agent(999, -0.18, 0, -0.18, 0, 88, 2));
+    new CanonicalCombatSteeringGrid(64).update(agents, agents.length, 0.05, bounds);
+    return center.steeringVelocityX;
+  };
+  const flockOnly = crowdedCenterVelocity(false);
+  const withCloseEnemy = crowdedCenterVelocity(true);
+  assert.ok(flockOnly < 0, 'the friendly flock should pull toward its negative-x center');
+  assert.ok(
+    withCloseEnemy > 0.25,
+    'a close enemy must outrank more than 18 harmless flock-only neighbours',
+  );
+}
+
 // Engagement slots are a one-to-one permutation for the first ring and ranged
 // formations preserve authored lateral/depth spacing without allocating tuples.
 {
