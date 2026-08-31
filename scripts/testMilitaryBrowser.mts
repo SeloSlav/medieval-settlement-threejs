@@ -51,6 +51,8 @@ try {
     ammunition: 0,
     ammunitionCapacity: 0,
     formedTick: 1,
+    experience: 0,
+    level: 1,
   };
   await page.setContent(`<main>${renderMilitaryCompanyRoster([leavingCompany])}</main>`);
   const retainer = page.locator('[data-renew-mercenary-contract="91"]');

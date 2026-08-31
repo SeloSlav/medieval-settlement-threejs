@@ -48,6 +48,7 @@ mod tick_context;
 mod trading_post_trade;
 mod village_storehouse;
 mod well;
+mod wild_animals;
 mod woodcutters_lodge;
 
 pub use backyard_garden::{clear_backyard_garden_for_residence, step_backyard_gardens};
@@ -134,4 +135,5 @@ pub use village_storehouse::{
     step_storehouse_market_stalls, step_village_storehouse_overflow_collection,
 };
 pub use well::step_well;
+pub use wild_animals::step_wild_animal_world;
 pub use woodcutters_lodge::step_woodcutters_lodge;

@@ -27,4 +27,8 @@ export default __t.row({
   ammunitionCapacity: __t.u32().name("ammunition_capacity"),
   formedTick: __t.u64().name("formed_tick"),
   lastUpkeepTick: __t.u64().name("last_upkeep_tick"),
+  experience: __t.u64(),
+  level: __t.u32(),
+  battleStartedTick: __t.u64().name("battle_started_tick"),
+  lastCombatTick: __t.u64().name("last_combat_tick"),
 });

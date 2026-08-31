@@ -94,7 +94,7 @@ pub fn configure_world(
         || config.approval_decline_rate != approval_decline_rate
         || config.food_spoilage_rate != food_spoilage_rate
         || config.initial_goods_multiplier != initial_goods_multiplier
-        || config.military_demands != military_demands;
+        || config.military_demands != military_demands
         || config.wild_animal_attacks_enabled != wild_animal_attacks_enabled;
     let setup_changed = terrain_changed || resources_changed || rules_changed;
 

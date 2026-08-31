@@ -27,4 +27,5 @@ export default {
   foodSpoilageRate: __t.u8(),
   initialGoodsMultiplier: __t.u8(),
   militaryDemands: __t.u8(),
+  wildAnimalAttacksEnabled: __t.bool(),
 };

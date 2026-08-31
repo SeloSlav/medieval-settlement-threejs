@@ -629,6 +629,10 @@ export class SpacetimeGameStore {
     return spacetimeReducers.purchaseStableOx(stableId);
   }
 
+  purchaseKennelDog(kennelId: string): Promise<void> {
+    return spacetimeReducers.purchaseKennelDog(kennelId);
+  }
+
   setBuildingOxen(buildingId: string, assignedOxen: number): Promise<void> {
     return spacetimeReducers.setBuildingOxen(buildingId, assignedOxen);
   }

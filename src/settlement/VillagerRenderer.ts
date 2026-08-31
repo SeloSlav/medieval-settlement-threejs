@@ -212,6 +212,10 @@ import {
   isPlayerMilitaryFaction,
   type CombatAgentState,
 } from '../security/combatAgents.ts';
+import {
+  AnimalCombatRenderer,
+  type AnimalCombatPose,
+} from './AnimalCombatRenderer.ts';
 import { COMBAT_WADING_SPEED_MULTIPLIER } from '../security/combatRiverNavigation.ts';
 import {
   SELECTED_AGENT_ROUTE_Y_OFFSET,
@@ -445,6 +449,8 @@ export class VillagerRenderer {
   readonly visualAssetsReady: Promise<boolean>;
   private readonly renderer: SettlementCrowdRenderer;
   private readonly oxen: OxenRenderer;
+  private readonly combatAnimals: AnimalCombatRenderer;
+  private readonly combatAnimalPoses: AnimalCombatPose[] = [];
   private readonly activityAudio = new WorkerActivityAudio();
   private readonly farmWorkerSongAudio = new FarmWorkerSongAudio();
   private readonly combatAudio = new CombatAudio();
@@ -550,7 +556,11 @@ export class VillagerRenderer {
         this.getWorkerInspectionRoute(buildingId, workerSlot),
       getDeliveryRoute: options.getDeliveryOxRoute,
     });
-    this.visualAssetsReady = this.renderer.ready;
+    this.combatAnimals = new AnimalCombatRenderer(options.parent);
+    this.visualAssetsReady = Promise.all([
+      this.renderer.ready,
+      this.combatAnimals.ready,
+    ]).then((values) => values.every(Boolean));
   }
 
   beginFirstPlayableGpuPrewarm(): () => void {
@@ -673,7 +683,11 @@ export class VillagerRenderer {
         && prior.state.status === 'advancing'
         && state.status === 'fighting',
       );
-      if (state.status === 'downed' && prior?.state.status !== 'downed') {
+      if (
+        !isAnimalCombatFaction(state.faction)
+        && state.status === 'downed'
+        && prior?.state.status !== 'downed'
+      ) {
         const seed = combatAppearanceSeed(state);
         this.combatAudio.playDeath(
           state.id,
@@ -1763,6 +1777,7 @@ export class VillagerRenderer {
     this.farmWorkerSongAudio.dispose();
     this.combatAudio.dispose();
     this.oxen.dispose();
+    this.combatAnimals.dispose();
     this.renderer.dispose();
   }
 
@@ -1933,6 +1948,7 @@ export class VillagerRenderer {
 
   private describeCombatAgent(visual: CombatAgentVisual): VillagerInspection {
     const combat = visual.state;
+    const animal = isAnimalCombatFaction(combat.faction);
     const residentSoldier = this.agentForPersonIdentity(combat.personIdentity);
     const ordinaryGuard = combat.faction === 'guard' && combat.sourceBuildingId
       ? this.agents.get(
@@ -1955,7 +1971,13 @@ export class VillagerRenderer {
     const target = this.combatTargetLabel(combat);
     const activity = combatActivityLabel(combat, target);
     const health = `${Math.ceil(combat.health)} / ${Math.ceil(combat.maxHealth)}`;
-    const equipment = combat.faction === 'crossbow' || combat.faction === 'bowman'
+    const equipment = combat.faction === 'dog'
+      ? 'Teeth, speed, and trained protective instinct'
+      : combat.faction === 'fox'
+        ? combat.carryingLoot ? 'Carrying stolen food' : 'Avoids direct confrontation'
+        : combat.faction === 'wolf'
+          ? 'Pack coordination and sustained bite attacks'
+          : combat.faction === 'crossbow' || combat.faction === 'bowman'
       ? `${combat.faction === 'crossbow' ? 'Crossbow and bolts' : 'Bow and arrows'} · readiness ${Math.round(combat.readiness * 100)}%`
       : combat.faction === 'guard'
       ? combat.issuedPolearms > 0
@@ -1984,11 +2006,17 @@ export class VillagerRenderer {
             .toLocaleUpperCase()
         : combat.faction === 'guard' ? 'G'
           : combatFactionInitials(combat.faction),
-      eyebrow: combat.faction === 'guard' || isPlayerMilitaryFaction(combat.faction)
+      eyebrow: combat.faction === 'guard' || combat.faction === 'dog' || isPlayerMilitaryFaction(combat.faction)
         ? `Defender · ${status}`
         : `Hostile · ${status}`,
       occupation: combat.faction === 'guard'
         ? 'Guard company spearman'
+        : combat.faction === 'dog'
+          ? 'Kennel-trained settlement guard dog'
+          : combat.faction === 'fox'
+            ? 'Solitary food thief'
+            : combat.faction === 'wolf'
+              ? 'Coordinated pack hunter'
         : isPlayerMilitaryFaction(combat.faction)
           ? combatOccupation(combat.faction)
           : combat.faction === 'bandit'
@@ -1996,18 +2024,23 @@ export class VillagerRenderer {
             : 'Ottoman frontier raider',
       activity,
       activityState: combat.status === 'recovering' ? 'ready' : 'active',
-      workplaceLabel: combat.faction === 'guard' || isPlayerMilitaryFaction(combat.faction) ? 'Company' : 'Warband',
+      workplaceLabel: combat.faction === 'dog' ? 'Home kennel'
+        : combat.faction === 'fox' ? 'Range'
+          : combat.faction === 'wolf' ? 'Pack'
+            : combat.faction === 'guard' || isPlayerMilitaryFaction(combat.faction) ? 'Company' : 'Warband',
       workplace: guardhouse
         ? getBuildingDefinition(guardhouse.kind).label
-        : combat.faction === 'bandit' ? 'Bandit camp' : isPlayerMilitaryFaction(combat.faction) ? 'Town military' : 'Incursion party',
+        : combat.faction === 'fox' ? 'Woodland edge'
+          : combat.faction === 'wolf' ? `Pack #${combat.raidId}`
+            : combat.faction === 'bandit' ? 'Bandit camp' : isPlayerMilitaryFaction(combat.faction) ? 'Town military' : 'Incursion party',
       householdLabel: 'Objective',
       household: target,
       crewLabel: 'Condition',
       crew: `${health} health`,
-      paceLabel: combat.faction === 'guard' || isPlayerMilitaryFaction(combat.faction) ? 'Equipment' : 'Arms and spoils',
+      paceLabel: animal ? 'Traits' : combat.faction === 'guard' || isPlayerMilitaryFaction(combat.faction) ? 'Equipment' : 'Arms and spoils',
       pace: equipment,
       position: { x: visual.displayX, y, z: visual.displayZ },
-      route: [],
+      route: this.combatInspectionRoute(visual),
       visible: true,
     };
   }
@@ -2040,7 +2073,38 @@ export class VillagerRenderer {
     if (combat.targetKind === 'bandit-camp') return 'Bandit camp';
     if (combat.targetKind === 'ground') return 'Commanded position';
     if (combat.targetKind === 'combat-agent') return 'Nearest hostile rank';
+    if (combat.targetKind === 'stable-ox') return 'Draft ox';
     return 'Moving supply cart';
+  }
+
+  private combatInspectionRoute(visual: CombatAgentVisual): SelectedAgentRoutePoint[] {
+    const combat = visual.state;
+    let destination: { x: number; z: number } | null = null;
+    if (combat.targetKind === 'building' || combat.targetKind === 'treasury-building') {
+      destination = this.buildings.get(combat.targetId) ?? null;
+    } else if (combat.targetKind === 'residence' || combat.targetKind === 'treasury-residence') {
+      destination = this.residences.get(combat.targetId) ?? null;
+    } else if (combat.targetKind === 'combat-agent') {
+      const target = this.combatAgentVisuals.get(combat.targetId);
+      destination = target ? { x: target.displayX, z: target.displayZ } : null;
+    } else if (combat.status === 'returning' || combat.status === 'retreating') {
+      destination = { x: combat.homeX, z: combat.homeZ };
+    }
+    if (!destination || Math.hypot(destination.x - visual.displayX, destination.z - visual.displayZ) < 0.35) {
+      return [];
+    }
+    return [
+      {
+        x: visual.displayX,
+        y: this.resolveGroundY(visual.displayX, visual.displayZ) + SELECTED_AGENT_ROUTE_Y_OFFSET,
+        z: visual.displayZ,
+      },
+      {
+        x: destination.x,
+        y: this.resolveGroundY(destination.x, destination.z) + SELECTED_AGENT_ROUTE_Y_OFFSET,
+        z: destination.z,
+      },
+    ];
   }
 
   private isVisibleAgent(agent: VillagerAgent): boolean {
@@ -2180,8 +2244,26 @@ export class VillagerRenderer {
       }
     }
     const combatNowMs = performance.now();
+    this.combatAnimalPoses.length = 0;
     for (const visual of this.combatAgentVisuals.values()) {
       const combat = visual.state;
+      if (isAnimalCombatFaction(combat.faction)) {
+        const target = this.nearestCombatOpponent(combat);
+        const yaw = target
+          ? Math.atan2(target.displayX - visual.displayX, target.displayZ - visual.displayZ)
+          : visual.yaw;
+        this.combatAnimalPoses.push({
+          id: combat.id,
+          faction: combat.faction,
+          x: visual.displayX,
+          y: this.resolveGroundY(visual.displayX, visual.displayZ) + 0.02,
+          z: visual.displayZ,
+          yaw,
+          moveSpeed: visual.displayMoveSpeed,
+          status: combat.status,
+        });
+        continue;
+      }
       const residentSoldier = this.agentForPersonIdentity(combat.personIdentity);
       const ordinaryGuard = combat.faction === 'guard' && combat.sourceBuildingId
         ? this.agents.get(
@@ -2287,6 +2369,7 @@ export class VillagerRenderer {
     }
     const activeView = view ?? this.lastView;
     this.renderer.syncAgents(renderAgents, activeView, animationDt);
+    this.combatAnimals.sync(this.combatAnimalPoses, activeView, animationDt);
     const audioPaused = this.getGameSpeed() === 0;
     this.farmWorkerSongAudio.setPaused(audioPaused);
     if (audioDt > 0) {
@@ -5897,8 +5980,8 @@ function combatFactionsAreHostile(
   left: CombatAgentState['faction'],
   right: CombatAgentState['faction'],
 ): boolean {
-  const leftHostile = left === 'raider' || left === 'bandit';
-  const rightHostile = right === 'raider' || right === 'bandit';
+  const leftHostile = left === 'raider' || left === 'bandit' || left === 'fox' || left === 'wolf';
+  const rightHostile = right === 'raider' || right === 'bandit' || right === 'fox' || right === 'wolf';
   return leftHostile !== rightHostile;
 }
 
@@ -5938,7 +6021,7 @@ function combatRenderMode(
   }
 }
 
-function combatToolFor(faction: CombatAgentState['faction']): WorkerToolKind {
+function combatToolFor(faction: CombatAgentState['faction']): WorkerToolKind | null {
   switch (faction) {
     case 'guard': return 'spear-shield';
     case 'raider': return 'sidearm';
@@ -5952,6 +6035,9 @@ function combatToolFor(faction: CombatAgentState['faction']): WorkerToolKind {
     case 'footman': return 'sidearm-shield';
     case 'polearm': return 'halberd';
     case 'uskok': return 'uskok-kit';
+    case 'dog':
+    case 'fox':
+    case 'wolf': return null;
   }
 }
 
@@ -5972,6 +6058,9 @@ function combatAttackSeconds(
     case 'polearm': return 1.08;
     case 'bowman': return targetDistance > 3.25 ? 1.55 : 0.9;
     case 'uskok': return targetDistance > 3.25 ? 2.8 : 0.84;
+    case 'dog': return 1.05;
+    case 'fox': return 1.4;
+    case 'wolf': return 1.15;
   }
 }
 
@@ -6010,6 +6099,7 @@ function combatUnitName(combat: CombatAgentState): string {
     'man-at-arms': 'Man-at-Arms', crossbow: 'Crossbowman',
     'mercenary-spear': 'Mercenary pikeman', footman: 'Footman',
     polearm: 'Halberdier', bowman: 'Bowman', uskok: 'Uskok border soldier',
+    dog: 'Guard dog', fox: 'Fox', wolf: 'Wolf',
   };
   return `${label[combat.faction]} #${combat.id}`;
 }
@@ -6019,6 +6109,7 @@ function combatFactionInitials(faction: CombatAgentState['faction']): string {
     guard: 'G', raider: 'OR', bandit: 'B', militia: 'M', spearman: 'SP',
     'man-at-arms': 'MA', crossbow: 'CB', 'mercenary-spear': 'MS',
     footman: 'FT', polearm: 'PL', bowman: 'BW', uskok: 'US',
+    dog: 'GD', fox: 'FX', wolf: 'WP',
   };
   return labels[faction];
 }
@@ -6030,6 +6121,8 @@ function combatOccupation(faction: CombatAgentState['faction']): string {
     'mercenary-spear': 'Hired mercenary pikeman', footman: 'Shielded footman',
     polearm: 'Armor-breaking polearm soldier', bowman: 'Company bowman',
     uskok: 'Croatian frontier infantryman',
+    dog: 'Kennel-trained settlement guard dog', fox: 'Solitary food thief',
+    wolf: 'Coordinated pack hunter',
   };
   return labels[faction] ?? 'Company soldier';
 }
@@ -6047,6 +6140,9 @@ function combatEquipmentLabel(faction: CombatAgentState['faction']): string {
     case 'spearman': return 'Short spear, round shield, and quilted jack';
     case 'raider': return 'Arming sword and Ottoman frontier kit';
     case 'bandit': return 'Ordinary spear and scavenged clothing';
+    case 'dog': return 'Teeth and trained protective instinct';
+    case 'fox': return 'Speed and evasive instinct';
+    case 'wolf': return 'Pack hunting and powerful bite';
     default: return 'Spear, shield, and field kit';
   }
 }
@@ -6073,6 +6169,7 @@ function combatActivityLabel(
   switch (combat.status) {
     case 'advancing':
       return combat.faction === 'guard' || isPlayerMilitaryFaction(combat.faction)
+        || combat.faction === 'dog'
         ? `Moving to intercept the attack near ${target}`
         : `Advancing on ${target}`;
     case 'fighting':
@@ -6086,6 +6183,7 @@ function combatActivityLabel(
         ? 'Withdrawing toward the frontier with captured stores'
         : 'Withdrawing toward the frontier';
     case 'returning':
+      if (combat.faction === 'dog') return 'Continuing the settlement patrol';
       return combat.faction === 'bandit'
         ? combat.carryingLoot ? 'Returning to camp with stolen stores' : 'Returning to camp'
         : isPlayerMilitaryFaction(combat.faction)
@@ -6104,6 +6202,12 @@ function combatActivityLabel(
     case 'holding':
       return `Holding the watch line near ${target}`;
   }
+}
+
+function isAnimalCombatFaction(
+  faction: CombatAgentState['faction'],
+): faction is 'dog' | 'fox' | 'wolf' {
+  return faction === 'dog' || faction === 'fox' || faction === 'wolf';
 }
 
 function raiderTunicColor(seed: number): number {

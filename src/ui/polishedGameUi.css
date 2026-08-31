@@ -2693,6 +2693,10 @@ select:focus-visible {
   transition: opacity 140ms ease, filter 140ms ease, transform 140ms ease;
 }
 
+.stable-ox-slot[data-kennel-dog-slot] .stable-ox-slot__portrait {
+  background-image: url('/assets/ui/noble-setup/charges/hound.png');
+}
+
 .stable-ox-slot[data-state='occupied'] .stable-ox-slot__plus {
   opacity: 0;
 }

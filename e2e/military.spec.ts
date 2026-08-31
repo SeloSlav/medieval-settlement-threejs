@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   renderMilitaryCompanyRoster,
   renderMilitaryRecruitmentPanels,
+  renderSelectedMilitaryCompanyInspector,
 } from '../src/resources/inspector/militaryCompanyRenderer.ts';
 import type {
   MilitaryCompanyKind,
@@ -57,10 +58,48 @@ test('offers a survivor-priced last-minute retainer to leaving mercenaries', asy
     ammunition: 0,
     ammunitionCapacity: 0,
     formedTick: 1,
+    experience: 0,
+    level: 1,
   };
   await page.setContent(`<main>${renderMilitaryCompanyRoster([company])}</main>`);
   const retainer = page.locator('[data-renew-mercenary-contract="91"]');
   await expect(retainer).toHaveText('Pay 12 gold to retain company');
   await expect(page.locator('main')).toContainText('ignores all movement and attack orders');
   await expect(page.locator('[data-disband-military-company]')).toHaveCount(0);
+});
+
+test('selected professional company shows only health plus level and XP progression', async ({ page }) => {
+  const company: MilitaryCompanyState = {
+    id: '24',
+    kind: 'spearmen',
+    sourceBuildingId: 'guardhouse-1',
+    status: 'active',
+    formation: 'shield-wall',
+    targetSize: 8,
+    livingMembers: 8,
+    morale: 0.73,
+    cohesion: 0.81,
+    fatigue: 0.18,
+    provisionDays: 2,
+    ammunition: 0,
+    ammunitionCapacity: 0,
+    formedTick: 1,
+    experience: 155,
+    level: 2,
+  };
+  const view = renderSelectedMilitaryCompanyInspector(company, [{
+    id: '101', raidId: '24', faction: 'spearman', sourceBuildingId: 'guardhouse-1',
+    sourceSlot: 0, targetKind: 'ground', targetId: '0', x: 0, z: 0, homeX: 0, homeZ: 0,
+    health: 61, maxHealth: 80, readiness: 0.8, status: 'holding', attackCooldown: 0,
+    lootProgress: 0, carryingLoot: false, issuedPolearms: 1, raidAnchorBuildingId: null,
+    banditCampId: null, companyId: '24', homeResidenceId: 'residence-1',
+    personIdentity: 'residence-1:person:0', stateChangedTick: 1,
+  }]);
+  await page.setContent(`<main><h2>${view.statusText}</h2><ul data-inspector-details>${view.detailsHtml}</ul></main>`);
+  expect(await page.locator('main').innerText()).toContain('Level 2');
+  await expect(page.locator('[data-company-health]')).toContainText('61 / 80');
+  await expect(page.locator('[data-company-level="2"] [role="progressbar"]')).toHaveAttribute('aria-valuenow', '55');
+  await expect(page.locator('main')).not.toContainText('Morale');
+  await expect(page.locator('main')).not.toContainText('Cohesion');
+  await expect(page.locator('main')).not.toContainText('Fatigue');
 });

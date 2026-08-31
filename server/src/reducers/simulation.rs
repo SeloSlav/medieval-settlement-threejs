@@ -25,6 +25,7 @@ use crate::simulation::{
     step_storehouse_market_stalls, step_swineherd, step_tannery, step_threshing_barn,
     step_trading_post_trade, step_village_storehouse_overflow_collection, step_watermill,
     step_weaponsmith_armorer, step_weaver, step_well, step_windmill, step_woodcutters_lodge, try_dispatch_guardhouse_payroll,
+    step_wild_animal_world,
     SharedRoadNetworks, SimTickContext,
 };
 use crate::supply_policy::{INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS};
@@ -126,6 +127,14 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
             config.seed,
             config.map_size,
             config.bandit_camps_enabled,
+            heartbeat_sim_seconds,
+        );
+        step_wild_animal_world(
+            ctx,
+            config.sim_tick,
+            config.seed,
+            config.map_size,
+            config.wild_animal_attacks_enabled,
             heartbeat_sim_seconds,
         );
     }

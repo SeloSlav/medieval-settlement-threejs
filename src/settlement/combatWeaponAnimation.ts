@@ -370,6 +370,47 @@ export function restoreCombatWeaponPose(rig: CombatWeaponRig): void {
   rig.overlayApplied = false;
 }
 
+/**
+ * Keeps a company standard in the left hand while the right arm remains free
+ * to use its sword timeline. The standard itself is rendered in a shared
+ * cloth batch; this overlay gives the authored body a convincing, persistent
+ * grip without allowing walk, hurt, attack, or retreat clips to swing the pole
+ * through the bearer.
+ *
+ * Call after applyCombatWeaponPose(). The combat overlay already owns the
+ * frame's captured base pose, so replacing only the left-arm solution cannot
+ * disturb the right-hand attack or torso motion. Outside combat this function
+ * captures the animation pose itself and restoreCombatWeaponPose() releases it
+ * cleanly on the next frame.
+ */
+export function applyCompanyStandardBearerPose(rig: CombatWeaponRig): void {
+  if (!rig.overlayApplied) captureBaseQuaternions(rig);
+  const { armBones, referenceQuaternions } = rig;
+  armBones.leftClavicle.quaternion.copy(
+    referenceQuaternions.get(armBones.leftClavicle)!,
+  );
+  armBones.leftHand.quaternion.copy(
+    referenceQuaternions.get(armBones.leftHand)!,
+  );
+  rig.model.updateWorldMatrix(true, true);
+  // Low, slightly forward, and outside the hip: the hand supports a tall
+  // standard near its balance point instead of unrealistically lifting it at
+  // shoulder height. Values are fractions of the rig's measured arm length.
+  solveArm(
+    rig,
+    armBones.leftUpperArm,
+    armBones.leftForearm,
+    armBones.leftHand,
+    [0.46, -0.48, 0.16],
+    1,
+  );
+  armBones.leftHand.quaternion.copy(
+    referenceQuaternions.get(armBones.leftHand)!,
+  );
+  rig.model.updateWorldMatrix(true, true);
+  rig.overlayApplied = true;
+}
+
 export function resetCombatWeaponRig(rig: CombatWeaponRig): void {
   restoreCombatWeaponPose(rig);
   if (rig.nockedArrow) rig.nockedArrow.visible = false;

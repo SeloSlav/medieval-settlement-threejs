@@ -443,6 +443,50 @@
   margin: 0;
 }
 
+.resource-inspector-panel[data-inspector-target='military-company']
+  .resource-inspector-details [data-inspector-details] > .military-company-progress-row {
+  min-height: 68px;
+}
+
+.military-company-progress-row > .military-company-progress-value {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+}
+
+.military-company-progress-value > strong {
+  color: #eee3c8;
+  font-family: var(--ui-display);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.military-company-progress {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(222, 193, 126, 0.3);
+  border-radius: 999px;
+  background: rgba(5, 7, 5, 0.62);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.72);
+}
+
+.military-company-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #806329, #d4ad53 72%, #efd68c);
+  box-shadow: 0 0 8px rgba(218, 177, 80, 0.26);
+  transition: width 180ms ease-out;
+}
+
+.military-company-progress--health > span {
+  background: linear-gradient(90deg, #5f7235, #91ae58 72%, #c0d77b);
+  box-shadow: 0 0 8px rgba(140, 174, 81, 0.24);
+}
+
 .military-company-card__formations {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

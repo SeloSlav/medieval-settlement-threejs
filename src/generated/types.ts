@@ -528,6 +528,10 @@ export const MilitaryCompany = __t.object("MilitaryCompany", {
   ammunitionCapacity: __t.u32(),
   formedTick: __t.u64(),
   lastUpkeepTick: __t.u64(),
+  experience: __t.u64(),
+  level: __t.u32(),
+  battleStartedTick: __t.u64(),
+  lastCombatTick: __t.u64(),
 });
 export type MilitaryCompany = __Infer<typeof MilitaryCompany>;
 
@@ -1033,6 +1037,7 @@ export const WorldConfig = __t.object("WorldConfig", {
   initialGoodsMultiplier: __t.u8(),
   banditCampsEnabled: __t.bool(),
   militaryDemands: __t.u8(),
+  wildAnimalAttacksEnabled: __t.bool(),
 });
 export type WorldConfig = __Infer<typeof WorldConfig>;
 

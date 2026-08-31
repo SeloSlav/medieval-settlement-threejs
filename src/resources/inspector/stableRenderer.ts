@@ -14,10 +14,10 @@ import {
   buildingCostRows,
   buildingDemolishHint,
   buildingExtentRow,
+  buildingLaborView,
   buildingRoadAccessRow,
 } from './buildingCommon.ts';
 import {
-  hiddenLabor,
   type InspectorRenderContext,
   type InspectorView,
 } from './renderInspectableTarget.ts';
@@ -50,9 +50,10 @@ export function renderStableInspector(
     building.id,
   );
   const atCapacity = openSlots === 0;
+  const staffed = building.assignedLabor > 0;
   const purchaseGold = stableOxPurchaseGold(context.landUseProfile);
   const treasuryShort = treasuryGold + 1e-6 < purchaseGold;
-  const purchaseDisabled = atCapacity || treasuryShort || fire !== null;
+  const purchaseDisabled = atCapacity || treasuryShort || fire !== null || !staffed;
   const nextOpenSlot = Array.from(
     { length: STABLE_OX_SLOTS },
     (_, slot) => slot,
@@ -60,6 +61,8 @@ export function renderStableInspector(
 
   const status = fire
     ? ['Dispatch suspended during fire recovery', 'warning'] as const
+    : !staffed
+      ? ['Stable unstaffed · assign one stable hand', 'warning'] as const
     : atCapacity
       ? [`Three oxen housed · ${posted} posted, ${automaticPool} automatic`, 'ok'] as const
       : housed > 0
@@ -70,6 +73,8 @@ export function renderStableInspector(
 
   const purchaseHint = fire
     ? 'Purchases resume after the stable is repaired.'
+    : !staffed
+      ? 'Assign one stable hand before ordering oxen.'
     : atCapacity
       ? 'All three authored bays are occupied.'
       : treasuryShort
@@ -77,11 +82,15 @@ export function renderStableInspector(
         : `${openSlots} ${openSlots === 1 ? 'bay remains' : 'bays remain'} after this order.`;
   const purchaseAvailabilityLabel = fire
     ? 'Purchases are paused until the stable is repaired.'
+    : !staffed
+      ? 'A stable hand must be assigned first.'
     : treasuryShort
       ? `${Math.ceil(purchaseGold - treasuryGold)} more gold is required.`
       : 'The ox will join the automatic assistance pool.';
   const purchaseTooltip = fire
     ? 'Purchases resume after the stable is repaired.'
+    : !staffed
+      ? 'Assign one stable hand before purchasing an ox.'
     : treasuryShort
       ? 'The treasury cannot cover this purchase.'
       : 'Adds one ox to the automatic assistance pool.';
@@ -178,6 +187,6 @@ export function renderStableInspector(
       visible: true,
       hint: buildingDemolishHint(building.kind),
     },
-    labor: hiddenLabor(),
+      labor: buildingLaborView(building, context.populationStats, context.worldQueries),
   };
 }

@@ -54,9 +54,11 @@ export function renderSelectedMilitaryCompanyInspector(
   const progressionDetails = gainsExperience
     ? `<li data-inspector-primary class="military-company-progress-row" data-company-level="${company.level}">
         <span>Experience</span>
-        <strong>${experience.maximum ? 'Mastered' : `${experience.current} / ${experience.required} XP`}</strong>
-        <span class="military-company-progress" role="progressbar" aria-label="Company experience" aria-valuemin="0" aria-valuemax="${experience.required}" aria-valuenow="${experience.current}">
-          <span style="width: ${(experience.fraction * 100).toFixed(2)}%"></span>
+        <span class="military-company-progress-value">
+          <strong>${experience.maximum ? 'Mastered' : `${experience.current} / ${experience.required} XP`}</strong>
+          <span class="military-company-progress" role="progressbar" aria-label="Company experience" aria-valuemin="0" aria-valuemax="${experience.required}" aria-valuenow="${experience.current}">
+            <span style="width: ${(experience.fraction * 100).toFixed(2)}%"></span>
+          </span>
         </span>
       </li>`
     : '';
@@ -70,9 +72,11 @@ export function renderSelectedMilitaryCompanyInspector(
     detailsHtml: `
       <li data-inspector-primary class="military-company-progress-row" data-company-health>
         <span>Health</span>
-        <strong>${healthLabel}</strong>
-        <span class="military-company-progress military-company-progress--health" role="progressbar" aria-label="Company health" aria-valuemin="0" aria-valuemax="${Math.ceil(maxHealth)}" aria-valuenow="${Math.ceil(health)}">
-          <span style="width: ${(healthFraction * 100).toFixed(2)}%"></span>
+        <span class="military-company-progress-value">
+          <strong>${healthLabel}</strong>
+          <span class="military-company-progress military-company-progress--health" role="progressbar" aria-label="Company health" aria-valuemin="0" aria-valuemax="${Math.ceil(maxHealth)}" aria-valuenow="${Math.ceil(health)}">
+            <span style="width: ${(healthFraction * 100).toFixed(2)}%"></span>
+          </span>
         </span>
       </li>
       ${progressionDetails}

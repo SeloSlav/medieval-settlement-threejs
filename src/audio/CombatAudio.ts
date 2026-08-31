@@ -128,13 +128,19 @@ export function combatAudioLoadoutForFighter(
       return { primary: 'bow', defensiveImpact: false };
     case 'uskok':
       return { primary: 'arquebus', defensiveImpact: false };
+    case 'dog':
+    case 'fox':
+    case 'wolf':
+      return { primary: 'spear-pike', defensiveImpact: false };
   }
 }
 
 export function combatVoiceSideForFaction(
   faction: CombatAgentFaction,
 ): CombatVoiceSide {
-  return faction === 'raider' || faction === 'bandit' ? 'raider' : 'defender';
+  return faction === 'raider' || faction === 'bandit' || faction === 'fox' || faction === 'wolf'
+    ? 'raider'
+    : 'defender';
 }
 
 type CombatSoundSchedule = {

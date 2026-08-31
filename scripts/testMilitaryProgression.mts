@@ -68,6 +68,9 @@ assert.match(
 );
 
 assert.match(tables, /pub struct MilitaryCompany/);
+assert.match(tables, /pub experience: u64/);
+assert.match(tables, /pub level: u32/);
+assert.match(tables, /pub battle_started_tick: u64/);
 assert.match(tables, /pub struct MilitaryMember/);
 assert.match(tables, /pub struct MercenaryContract/);
 assert.match(reducer, /pub fn raise_militia/);
@@ -138,6 +141,15 @@ assert.match(simulation, /member_combat_profile/);
 assert.match(simulation, /damage_against_hostile/);
 assert.match(simulation, /shield_wall_damage_multiplier/);
 assert.match(simulation, /recover_stock_at/);
+assert.match(simulation, /MILITARY_BATTLE_SURVIVAL_XP/);
+assert.match(simulation, /MILITARY_ENEMY_COMPANY_XP/);
+assert.match(simulation, /fn award_company_experience/);
+assert.match(simulation, /fn apply_veteran_level_health/);
+assert.match(simulation, /fn regenerate_out_of_combat_health/);
+assert.match(serverPolicy, /gains_veteran_experience[\s\S]*Self::Militia \| Self::MercenarySpears/);
+assert.match(serverPolicy, /veteran_health_multiplier/);
+assert.match(serverPolicy, /veteran_damage_multiplier/);
+assert.match(serverPolicy, /veteran_damage_taken_multiplier/);
 
 assert.match(guardhouse, /'spearmen', 'men-at-arms', 'footmen', 'polearms', 'bowmen', 'crossbows', 'uskok-border-infantry'/);
 assert.match(townHall, /'militia', 'mercenary-spears'/);
@@ -164,8 +176,9 @@ assert.match(commands, /this\.selected\.add\(nearest\.companyId\)/);
 assert.match(commands, /flatMap\(\(companyId\)/);
 assert.match(commands, /ring\.scale\.setScalar\(company\.radius\)/);
 assert.match(commands, /onLeavingCompanySelected/);
-assert.match(bootstrap, /onLeavingCompanySelected:[\s\S]*?resourceInspector\.selectBuilding\(company\.sourceBuildingId\)/);
-assert.match(bootstrap, /resourceInspector\.focusMercenaryContract\(company\.id\)/);
+assert.match(commands, /onCompanySelected/);
+assert.match(bootstrap, /onCompanySelected:[\s\S]*?resourceInspector\.selectMilitaryCompany\(companyId\)/);
+assert.match(inspector, /selectMilitaryCompany\(companyId: string\)/);
 assert.match(inspector, /focusMercenaryContract\(companyId: string\)/);
 assert.match(villagers, /activeMilitaryPersonIdentities\.has\(agent\.personIdentity\)/);
 assert.match(villagers, /function combatToolFor/);
@@ -200,5 +213,14 @@ for (const icon of [
 const militaryDemandsAtlas = 'public/assets/ui/icons/world-setup/military-demands-atlas.png';
 assert.ok(existsSync(militaryDemandsAtlas));
 assert.ok(statSync(militaryDemandsAtlas).size > 10_000);
+
+for (const kind of [
+  'spearmen', 'men-at-arms', 'crossbows', 'footmen', 'polearms', 'bowmen',
+  'uskok-border-infantry',
+]) {
+  const path = `public/assets/ui/company-cards/${kind}.webp`;
+  assert.ok(existsSync(path), `${path} must exist`);
+  assert.ok(statSync(path).size > 10_000, `${path} should contain authored card art`);
+}
 
 console.log('Military progression contract valid: nine distinct company types including Men-at-Arms, counter roles, Uskok frontier infantry, variable militia strength, edge-arriving mercenaries with paid finite contracts, physical reversible edge departure and retainer recall, company-atomic flock orders, individual combat profiles, physical resident muster/return/salvage, formations, ammo, UI controls, and woodcut icons.');

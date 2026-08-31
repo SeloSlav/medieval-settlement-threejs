@@ -68,6 +68,7 @@ import PlaceFarmFieldReducer from "./place_farm_field_reducer";
 import PlaceGraveyardReducer from "./place_graveyard_reducer";
 import PlacePastureReducer from "./place_pasture_reducer";
 import PlaceVineyardReducer from "./place_vineyard_reducer";
+import PurchaseKennelDogReducer from "./purchase_kennel_dog_reducer";
 import PurchaseStableOxReducer from "./purchase_stable_ox_reducer";
 import RaiseMilitiaReducer from "./raise_militia_reducer";
 import RecallIdleSeasonalLaborReducer from "./recall_idle_seasonal_labor_reducer";
@@ -817,6 +818,7 @@ const reducersSchema = __reducers(
   __reducerSchema("place_graveyard", PlaceGraveyardReducer),
   __reducerSchema("place_pasture", PlacePastureReducer),
   __reducerSchema("place_vineyard", PlaceVineyardReducer),
+  __reducerSchema("purchase_kennel_dog", PurchaseKennelDogReducer),
   __reducerSchema("purchase_stable_ox", PurchaseStableOxReducer),
   __reducerSchema("raise_militia", RaiseMilitiaReducer),
   __reducerSchema("recall_idle_seasonal_labor", RecallIdleSeasonalLaborReducer),

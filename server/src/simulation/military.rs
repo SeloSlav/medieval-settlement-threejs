@@ -22,6 +22,8 @@ use super::reclamation::recover_stock_at;
 
 const RAIDER: u8 = 1;
 const BANDIT: u8 = 2;
+const FOX: u8 = 13;
+const WOLF: u8 = 14;
 const FIRST_PLAYER_MILITARY: u8 = 3;
 const LAST_PLAYER_MILITARY: u8 = 11;
 const ADVANCING: u8 = 0;
@@ -382,10 +384,11 @@ fn step_active_member(
                     award_company_experience(ctx, company.id, MILITARY_ENEMY_COMPANY_XP);
                 }
             } else if range <= 2.75 && enemy.attack_cooldown <= 0.0 {
-                let hostile_damage = if enemy.faction == BANDIT {
-                    10.0
-                } else {
-                    15.0 + enemy.readiness * 4.0
+                let hostile_damage = match enemy.faction {
+                    FOX => 5.0,
+                    WOLF => 11.0,
+                    BANDIT => 10.0,
+                    _ => 15.0 + enemy.readiness * 4.0,
                 };
                 let profile = member_combat_profile(kind, member_seed(&member));
                 let hostile = hostile_profile(&enemy);
@@ -746,7 +749,7 @@ fn nearest_distributed_enemy(
         .owner()
         .filter(&source.owner)
         .filter(|enemy| {
-            matches!(enemy.faction, RAIDER | BANDIT) && enemy.state != DOWNED && enemy.health > 0.0
+            matches!(enemy.faction, RAIDER | BANDIT | FOX | WOLF) && enemy.state != DOWNED && enemy.health > 0.0
         })
         .map(|enemy| {
             let range = distance(source.x, source.z, enemy.x, enemy.z);
@@ -772,6 +775,14 @@ struct HostileProfile {
 }
 
 fn hostile_profile(enemy: &CombatAgent) -> HostileProfile {
+    if enemy.faction == FOX || enemy.faction == WOLF {
+        return HostileProfile {
+            armor: 0.0,
+            shield: 0.0,
+            penetration: if enemy.faction == WOLF { 2.0 } else { 0.0 },
+            role: 0,
+        };
+    }
     if enemy.faction == BANDIT {
         return HostileProfile {
             armor: 1.5,

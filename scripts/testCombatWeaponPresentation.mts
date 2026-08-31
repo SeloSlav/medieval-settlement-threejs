@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {
+  applyCompanyStandardBearerPose,
   applyCombatWeaponPose,
   bindCombatWeaponRig,
   disposeCombatWeaponRig,
   resolveCombatWeaponPresentation,
+  restoreCombatWeaponPose,
   sampleCombatAttackTimeline,
 } from '../src/settlement/combatWeaponAnimation.ts';
 import {
@@ -95,6 +97,33 @@ const boltRelease = applyCombatWeaponPose(crossbowRig, {
 assert.equal(boltRelease?.event?.projectile, 'bolt');
 assert.equal(crossbowRig.loadedCrossbowBolt.visible, false);
 
+const standardRigModel = createSemanticCombatRig();
+const standardTool = attachMilitaryEquipment(standardRigModel, sources.sidearm);
+const standardRig = bindCombatWeaponRig(standardRigModel, 'sidearm', standardTool);
+assert.ok(standardRig);
+const standardBase = standardRig.ownedBones.map((bone) => bone.quaternion.clone());
+applyCombatWeaponPose(standardRig, {
+  tool: 'sidearm', targetDistance: 1.6, attackCooldown: 0.18,
+  attackSeconds: 1, dtSeconds: 0.016, logicalMode: 'fight',
+});
+const attackingRightHand = standardRig.armBones.rightHand.quaternion.clone();
+applyCompanyStandardBearerPose(standardRig);
+assert.ok(
+  standardRig.armBones.rightHand.quaternion.angleTo(attackingRightHand) < 1e-7,
+  'standard grip must not replace the bearer\'s right-hand sword attack',
+);
+const shoulder = standardRig.armBones.leftUpperArm.getWorldPosition(new THREE.Vector3());
+const grip = standardRig.armBones.leftHand.getWorldPosition(new THREE.Vector3());
+assert.ok(grip.x > shoulder.x, 'the standard grip should stay outside the bearer\'s left hip');
+assert.ok(grip.y < shoulder.y, 'the standard grip should remain below the shoulder');
+restoreCombatWeaponPose(standardRig);
+for (let index = 0; index < standardRig.ownedBones.length; index += 1) {
+  assert.ok(
+    standardRig.ownedBones[index]!.quaternion.angleTo(standardBase[index]!) < 1e-7,
+    'releasing the standard overlay must restore the authored animation pose',
+  );
+}
+
 assert.equal(combatBaseActionMode({
   mode: 'fight', tool: 'bow', combatAttackCooldown: 0.5, combatTargetDistance: 12,
   combatLocomotion: 'run',
@@ -151,6 +180,7 @@ assert.equal(effectGroup.children.length, COMBAT_PROJECTILE_DRAW_CALL_BUDGET);
 projectileRenderer.dispose();
 disposeCombatWeaponRig(bowRig);
 disposeCombatWeaponRig(crossbowRig);
+disposeCombatWeaponRig(standardRig);
 for (const source of Object.values(sources)) disposeMilitaryEquipmentSource(source);
 
 console.log('Combat weapon poses, ranged loading/release, persistent hit-reaction ownership, and pooled projectiles passed.');

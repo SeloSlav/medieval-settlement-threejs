@@ -370,6 +370,19 @@
   background-position: center bottom;
 }
 
+.world-setup-setting-row__icon[data-rule-icon='wild-animals'] {
+  background-image: url('/assets/ui/icons/world-setup/wild-animal-attacks-atlas.png');
+  background-size: auto 200%;
+}
+
+.world-setup-setting-row__icon[data-rule-icon='wild-animals'][data-state='off'] {
+  background-position: center top;
+}
+
+.world-setup-setting-row__icon[data-rule-icon='wild-animals'][data-state='on'] {
+  background-position: center bottom;
+}
+
 .world-setup-setting-row__icon[data-rule-icon='approval'][data-state='0'] {
   background-image: url('/assets/ui/icons/world-setup/approval-disabled.png');
 }

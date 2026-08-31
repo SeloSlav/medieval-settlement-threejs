@@ -32,4 +32,5 @@ export default __t.row({
   initialGoodsMultiplier: __t.u8().name("initial_goods_multiplier"),
   banditCampsEnabled: __t.bool().name("bandit_camps_enabled"),
   militaryDemands: __t.u8().name("military_demands"),
+  wildAnimalAttacksEnabled: __t.bool().name("wild_animal_attacks_enabled"),
 });

@@ -143,6 +143,9 @@ const COMBAT_STATS: Readonly<Record<CombatAgentFaction, CombatStats>> = {
     health: 72, damage: 15.5, cadence: 2.8, range: 13.5,
     speed: 2.78, detection: 16, minimumRange: 6.5,
   },
+  dog: { health: 80, damage: 13, cadence: 1.05, range: 1.7, speed: 3.15, detection: 52 },
+  fox: { health: 34, damage: 5, cadence: 1.4, range: 1.4, speed: 3.35, detection: 14 },
+  wolf: { health: 68, damage: 9, cadence: 1.15, range: 1.7, speed: 2.55, detection: 12 },
 };
 
 const USKOK_MATCHLOCK_SHOTS = 8;

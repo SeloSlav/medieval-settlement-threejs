@@ -30,6 +30,7 @@ import { fireForTarget } from '../../fires/fireIncident.ts';
 import { withBuildingLocalStorage } from './buildingLocalStorageRenderer.ts';
 import { renderWaysideShrineInspector } from './waysideShrineRenderer.ts';
 import { renderStableInspector } from './stableRenderer.ts';
+import { renderKennelInspector } from './kennelRenderer.ts';
 import { withBuildingOxTeam } from './buildingOxTeamRenderer.ts';
 import { withBuildingProductionRate } from './buildingProductionRateRenderer.ts';
 import { withBuildingLandUseAffinities } from './buildingLandUseAffinityRenderer.ts';
@@ -78,6 +79,8 @@ export function renderBuildingInspector(
       return renderWaysideShrineInspector(target, context);
     case 'stable':
       return renderStableInspector(target, context);
+    case 'kennel':
+      return renderKennelInspector(target, context);
     case 'marketplace':
       return renderMarketStallsInspector(target, context);
     case 'trading_post':

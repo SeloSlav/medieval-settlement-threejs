@@ -35,7 +35,10 @@ export type CombatAgentFaction =
   | 'footman'
   | 'polearm'
   | 'bowman'
-  | 'uskok';
+  | 'uskok'
+  | 'dog'
+  | 'fox'
+  | 'wolf';
 export type CombatAgentStatus = (typeof COMBAT_AGENT_STATES)[number];
 export type CombatTargetKind =
   | 'building'
@@ -45,7 +48,8 @@ export type CombatTargetKind =
   | 'treasury-residence'
   | 'bandit-camp'
   | 'ground'
-  | 'combat-agent';
+  | 'combat-agent'
+  | 'stable-ox';
 
 export type CombatAgentState = {
   id: string;
@@ -222,7 +226,7 @@ export function syncCombatAgents(
       status,
       attackCooldown: Math.max(0, row.attackCooldown),
       lootProgress: Math.max(0, row.lootProgress),
-      carryingLoot: (faction === 'raider' || faction === 'bandit') && row.carriedLootJson.length > 0,
+      carryingLoot: (faction === 'raider' || faction === 'bandit' || faction === 'fox') && row.carriedLootJson.length > 0,
       issuedPolearms: faction === 'guard' || playerMilitary ? issuedPolearms : 0,
       raidAnchorBuildingId: row.raidAnchorBuildingId > 0n && faction !== 'bandit' && !playerMilitary
         ? buildingClientId(row.raidAnchorBuildingId)
@@ -254,6 +258,9 @@ function combatFactionFromId(value: number): CombatAgentFaction {
   if (value === 9) return 'polearm';
   if (value === 10) return 'bowman';
   if (value === 11) return 'uskok';
+  if (value === 12) return 'dog';
+  if (value === 13) return 'fox';
+  if (value === 14) return 'wolf';
   return 'raider';
 }
 
@@ -441,6 +448,7 @@ function combatTargetKindFromId(value: number): CombatTargetKind | null {
     case 5: return 'bandit-camp';
     case 6: return 'ground';
     case 7: return 'combat-agent';
+    case 8: return 'stable-ox';
     default: return null;
   }
 }
@@ -460,6 +468,7 @@ function combatTargetClientId(kind: CombatTargetKind, id: bigint): string {
     case 'ground':
       return `ground-${id}`;
     case 'combat-agent':
+    case 'stable-ox':
       return id.toString();
   }
 }

@@ -94,6 +94,14 @@ export async function purchaseStableOx(stableId: string): Promise<void> {
   });
 }
 
+export async function purchaseKennelDog(kennelId: string): Promise<void> {
+  const serverId = parseBuildingServerId(kennelId);
+  if (serverId === null) throw new Error('Invalid Kennel id.');
+  await callReducer('purchaseKennelDog', 'purchase_kennel_dog', {
+    kennelId: serverId,
+  });
+}
+
 export async function setBuildingOxen(
   buildingId: string,
   assignedOxen: number,

@@ -35,7 +35,11 @@ const cases: BoundsCase[] = [
   })),
 ];
 
-assert.equal(BUILDING_KINDS.length, 45, 'visual-bounds regression must cover all 45 placeable kinds');
+assert.deepEqual(
+  Object.keys(BUILDING_LOCAL_VISUAL_BOUNDS).sort(),
+  [...BUILDING_KINDS].sort(),
+  'visual-bounds regression must cover every canonical building kind exactly once',
+);
 
 const failures: string[] = [];
 let measuredMeshes = 0;

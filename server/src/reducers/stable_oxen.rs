@@ -33,6 +33,9 @@ pub fn purchase_stable_ox(ctx: &ReducerContext, stable_id: u64) -> Result<(), St
     if building_fire_state(ctx, stable_id).is_some() {
         return Err("Repair this fire-damaged stable before purchasing oxen.".to_string());
     }
+    if stable.assigned_labor == 0 {
+        return Err("Assign at least one stable hand before purchasing oxen.".to_string());
+    }
 
     let oxen = ctx
         .db

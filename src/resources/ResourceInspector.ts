@@ -327,6 +327,7 @@ type ResourceInspectorOptions = {
   onSetLivestockSpecies?: (pastureId: string, species: Exclude<LivestockSpecies, 'swine'>) => void | Promise<void>;
   onTradeLivestock?: (pastureId: string, headDelta: number) => void | Promise<void>;
   onPurchaseStableOx?: (stableId: string) => void | Promise<void>;
+  onPurchaseKennelDog?: (kennelId: string) => void | Promise<void>;
   onSetBuildingOxen?: (buildingId: string, targetCount: number) => void | Promise<void>;
   onSetLivestockBreedingReserve?: (pastureId: string, breedingReserve: number) => void | Promise<void>;
   onSetLivestockHaymakingPercent?: (pastureId: string, haymakingPercent: number) => void | Promise<void>;
@@ -1160,6 +1161,29 @@ export class ResourceInspector {
             purchaseOxButton.removeAttribute('aria-busy');
             purchaseOxButton.removeAttribute('aria-disabled');
             if (idleLabel) purchaseOxButton.setAttribute('aria-label', idleLabel);
+          });
+        return;
+      }
+      const purchaseDogButton = (event.target as HTMLElement)
+        .closest<HTMLButtonElement>('[data-purchase-dog]');
+      if (building.kind === 'kennel' && purchaseDogButton) {
+        if (
+          purchaseDogButton.getAttribute('aria-disabled') === 'true'
+          || purchaseDogButton.dataset.purchasePending === 'true'
+        ) return;
+        const idleLabel = purchaseDogButton.getAttribute('aria-label');
+        purchaseDogButton.dataset.purchasePending = 'true';
+        purchaseDogButton.setAttribute('aria-busy', 'true');
+        purchaseDogButton.setAttribute('aria-disabled', 'true');
+        purchaseDogButton.setAttribute('aria-label', 'Purchasing guard dog.');
+        void Promise.resolve()
+          .then(() => this.options.onPurchaseKennelDog?.(building.id))
+          .finally(() => {
+            if (!purchaseDogButton.isConnected) return;
+            delete purchaseDogButton.dataset.purchasePending;
+            purchaseDogButton.removeAttribute('aria-busy');
+            purchaseDogButton.removeAttribute('aria-disabled');
+            if (idleLabel) purchaseDogButton.setAttribute('aria-label', idleLabel);
           });
         return;
       }

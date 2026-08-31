@@ -63,6 +63,7 @@ export type InspectorSpacetimeActions = {
   onSetLivestockSpecies: (pastureId: string, species: Exclude<LivestockSpecies, 'swine'>) => Promise<void>;
   onTradeLivestock: (pastureId: string, headDelta: number) => Promise<void>;
   onPurchaseStableOx: (stableId: string) => Promise<void>;
+  onPurchaseKennelDog: (kennelId: string) => Promise<void>;
   onSetBuildingOxen: (buildingId: string, assignedOxen: number) => Promise<void>;
   onSetLivestockBreedingReserve: (pastureId: string, breedingReserve: number) => Promise<void>;
   onSetLivestockHaymakingPercent: (pastureId: string, haymakingPercent: number) => Promise<void>;
@@ -582,6 +583,21 @@ export function createInspectorSpacetimeActions(
         toastManager.show(
           'Draft ox purchased. It joins automatic assistance until you post it to a workplace.',
         );
+      }
+    },
+    onPurchaseKennelDog: async (kennelId) => {
+      const store = requireReady();
+      if (!store) return;
+      let purchased = false;
+      await runReducer(
+        async () => {
+          await store.purchaseKennelDog(kennelId);
+          purchased = true;
+        },
+        'Could not purchase a guard dog.',
+      );
+      if (purchased) {
+        toastManager.show('Guard dog purchased. It has begun an autonomous settlement patrol.');
       }
     },
     onSetBuildingOxen: async (buildingId, assignedOxen) => {

@@ -175,6 +175,16 @@ export class WorldSetupPanel {
                   </div>
                 </div>
                 <div class="world-setup-setting-row">
+                  <span class="world-setup-setting-row__icon" data-rule-icon="wild-animals" role="img" aria-label="Wild animal attacks"></span>
+                  <div class="world-setup-arrow-select" data-world-selector="wild-animal-attacks">
+                    <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Previous wild animal attack setting">‹</button>
+                    <div class="world-setup-arrow-select__value" aria-live="polite">
+                      <strong data-wild-animal-attacks-value></strong><span data-wild-animal-attacks-description></span>
+                    </div>
+                    <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="1" aria-label="Next wild animal attack setting">›</button>
+                  </div>
+                </div>
+                <div class="world-setup-setting-row">
                   <span class="world-setup-setting-row__icon" data-rule-icon="military-demands" role="img" aria-label="Military demands"></span>
                   <div class="world-setup-arrow-select" data-world-selector="military-demands">
                     <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Lower military demands">‹</button>
@@ -303,6 +313,10 @@ export class WorldSetupPanel {
     const banditCampsIcon = this.backdrop.querySelector<HTMLElement>('[data-rule-icon="bandits"]')!;
     const banditCampsValue = this.backdrop.querySelector<HTMLElement>('[data-bandit-camps-value]')!;
     const banditCampsDescription = this.backdrop.querySelector<HTMLElement>('[data-bandit-camps-description]')!;
+    const wildAnimalAttacksSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="wild-animal-attacks"]')!;
+    const wildAnimalAttacksIcon = this.backdrop.querySelector<HTMLElement>('[data-rule-icon="wild-animals"]')!;
+    const wildAnimalAttacksValue = this.backdrop.querySelector<HTMLElement>('[data-wild-animal-attacks-value]')!;
+    const wildAnimalAttacksDescription = this.backdrop.querySelector<HTMLElement>('[data-wild-animal-attacks-description]')!;
     const militaryDemandsSelector = this.backdrop.querySelector<HTMLElement>('[data-world-selector="military-demands"]')!;
     const militaryDemandsIcon = this.backdrop.querySelector<HTMLElement>('[data-rule-icon="military-demands"]')!;
     const militaryDemandsValue = this.backdrop.querySelector<HTMLElement>('[data-military-demands-value]')!;
@@ -382,6 +396,12 @@ export class WorldSetupPanel {
       banditCampsDescription.textContent = this.draft.banditCampsEnabled
         ? 'Independent camps steal stored goods; they never damage buildings.'
         : 'No bandit camps or thefts.';
+      wildAnimalAttacksIcon.dataset.state = this.draft.wildAnimalAttacksEnabled ? 'on' : 'off';
+      wildAnimalAttacksValue.dataset.value = this.draft.wildAnimalAttacksEnabled ? 'on' : 'off';
+      wildAnimalAttacksValue.textContent = this.draft.wildAnimalAttacksEnabled ? 'Foxes & wolf packs' : 'Quiet wilds';
+      wildAnimalAttacksDescription.textContent = this.draft.wildAnimalAttacksEnabled
+        ? 'Infrequent food theft and livestock attacks; guard dogs and militia can intervene.'
+        : 'No hostile wildlife incursions.';
     };
 
     const syncHazardControls = (): void => {
@@ -484,6 +504,10 @@ export class WorldSetupPanel {
     });
     bindArrowSelector(banditCampsSelector, (step) => {
       this.draft.banditCampsEnabled = cycleValue(BOOLEAN_ORDER, this.draft.banditCampsEnabled, step);
+      syncGameplayControls();
+    });
+    bindArrowSelector(wildAnimalAttacksSelector, (step) => {
+      this.draft.wildAnimalAttacksEnabled = cycleValue(BOOLEAN_ORDER, this.draft.wildAnimalAttacksEnabled, step);
       syncGameplayControls();
     });
     bindArrowSelector(militaryDemandsSelector, (step) => {
