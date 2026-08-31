@@ -929,9 +929,39 @@ fn begin_raider_rout_if_broken(
             continue;
         }
         agent.state = COMBAT_STATE_RETREATING;
+        agent.engagement_target_id = 0;
         agent.state_changed_tick = sim_tick;
         agent.loot_progress = 0.0;
     }
+}
+
+fn rebuild_raid_target_grid(
+    snapshots: &[CombatAgent],
+    raid_id: u64,
+    grid: &mut CombatSteeringGrid,
+) {
+    grid.begin();
+    for agent in snapshots {
+        if agent.state == COMBAT_STATE_DOWNED || agent.health <= EPSILON {
+            continue;
+        }
+        grid.push(SteeringBody {
+            id: agent.id,
+            owner_group: raid_id.max(1),
+            group_kind: agent.faction,
+            group_id: raid_id,
+            faction: agent.faction,
+            target_id: agent.target_id,
+            x: agent.x,
+            z: agent.z,
+            goal_x: agent.x,
+            goal_z: agent.z,
+            speed: 0.0,
+            velocity_x: agent.velocity_x,
+            velocity_z: agent.velocity_z,
+        });
+    }
+    grid.finish();
 }
 
 fn step_raider(
@@ -939,6 +969,7 @@ fn step_raider(
     active: &ActiveRaid,
     agent: &mut CombatAgent,
     snapshots: &[CombatAgent],
+    target_grid: &CombatSteeringGrid,
     incursion_route: Option<&CachedCombatPath>,
     damage_by_agent: &mut HashMap<u64, f64>,
     delete_ids: &mut HashSet<u64>,
@@ -947,6 +978,7 @@ fn step_raider(
     road_network: Option<&RoadNetwork>,
 ) {
     if agent.state == COMBAT_STATE_RETREATING {
+        agent.engagement_target_id = 0;
         if distance_squared(agent.x, agent.z, agent.home_x, agent.home_z)
             <= ARRIVAL_RANGE_METERS * ARRIVAL_RANGE_METERS
         {
@@ -995,12 +1027,12 @@ fn step_raider(
         return;
     }
 
-    if let Some(defender) = nearest_enemy_within(
+    if let Some(defender) = retained_or_nearest_enemy(
         agent,
         snapshots,
-        COMBAT_FACTION_GUARD,
+        target_grid,
         RAIDER_ENGAGE_RANGE_METERS,
-        false,
+        |candidate| candidate.faction == COMBAT_FACTION_GUARD,
     ) {
         agent.loot_progress = 0.0;
         engage_agent(
@@ -1020,6 +1052,7 @@ fn step_raider(
     let Some((target_x, target_z, active_raid_anchor_id)) = raid_agent_target_position(ctx, agent)
     else {
         agent.state = COMBAT_STATE_RETREATING;
+        agent.engagement_target_id = 0;
         agent.state_changed_tick = sim_tick;
         return;
     };
@@ -1077,6 +1110,7 @@ fn step_raider(
         try_record_contact_civilian_casualty(ctx, agent, sim_tick);
     }
     agent.state = COMBAT_STATE_LOOTING;
+    agent.engagement_target_id = 0;
     agent.loot_progress += elapsed_seconds;
     if agent.loot_progress + EPSILON < raid_contact_duration(active_raid_anchor_id) {
         return;
@@ -1090,6 +1124,7 @@ fn step_raider(
     );
     record_contact_plunder(ctx, active, agent, plunder, sim_tick);
     agent.state = COMBAT_STATE_RETREATING;
+    agent.engagement_target_id = 0;
     agent.state_changed_tick = sim_tick;
     agent.loot_progress = 0.0;
 }
@@ -1145,33 +1180,33 @@ fn try_record_contact_civilian_casualty(
 fn step_guard(
     agent: &mut CombatAgent,
     snapshots: &[CombatAgent],
+    target_grid: &CombatSteeringGrid,
     muster_route: Option<&CachedCombatPath>,
     damage_by_agent: &mut HashMap<u64, f64>,
     sim_tick: u64,
     elapsed_seconds: f64,
     road_network: Option<&RoadNetwork>,
 ) {
-    let emergency_enemy = snapshots
-        .iter()
-        .filter(|candidate| {
+    let (guard_x, guard_z, guard_target_kind, guard_target_id) =
+        (agent.x, agent.z, agent.target_kind, agent.target_id);
+    let emergency_enemy = retained_or_nearest_enemy(
+        agent,
+        snapshots,
+        target_grid,
+        GUARD_TARGET_ACQUISITION_METERS,
+        |candidate| {
             candidate.faction == COMBAT_FACTION_RAIDER
-                && candidate.state != COMBAT_STATE_DOWNED
-                && candidate.health > EPSILON
                 && guard_breaks_route_for(
-                    agent.x,
-                    agent.z,
+                    guard_x,
+                    guard_z,
                     candidate.x,
                     candidate.z,
-                    candidate.target_kind == agent.target_kind
-                        && candidate.target_id == agent.target_id,
+                    candidate.target_kind == guard_target_kind
+                        && candidate.target_id == guard_target_id,
                     candidate.state,
                 )
-        })
-        .min_by(|left, right| {
-            distance_squared(agent.x, agent.z, left.x, left.z)
-                .total_cmp(&distance_squared(agent.x, agent.z, right.x, right.z))
-                .then_with(|| left.id.cmp(&right.id))
-        });
+        },
+    );
     if let Some(enemy) = emergency_enemy {
         engage_agent(
             agent,
@@ -1194,17 +1229,27 @@ fn step_guard(
             // direct cross-country pursuit versus finishing the road and then
             // crossing from its endpoint to the moving threat. Prefer a raider
             // assigned to this attacked holding, then reinforce elsewhere.
-            let route_enemy =
-                nearest_enemy_within(agent, snapshots, COMBAT_FACTION_RAIDER, f64::INFINITY, true)
-                    .or_else(|| {
-                        nearest_enemy_within(
-                            agent,
-                            snapshots,
-                            COMBAT_FACTION_RAIDER,
-                            f64::INFINITY,
-                            false,
-                        )
-                    });
+            let (target_kind, target_id) = (agent.target_kind, agent.target_id);
+            let route_enemy = retained_or_nearest_enemy(
+                agent,
+                snapshots,
+                target_grid,
+                GUARD_TARGET_ACQUISITION_METERS,
+                |candidate| {
+                    candidate.faction == COMBAT_FACTION_RAIDER
+                        && candidate.target_kind == target_kind
+                        && candidate.target_id == target_id
+                },
+            )
+            .or_else(|| {
+                retained_or_nearest_enemy(
+                    agent,
+                    snapshots,
+                    target_grid,
+                    GUARD_TARGET_ACQUISITION_METERS,
+                    |candidate| candidate.faction == COMBAT_FACTION_RAIDER,
+                )
+            });
             if let Some(enemy) = route_enemy {
                 let endpoint = route.polyline[route.polyline.len() - 1];
                 let direct_distance =
@@ -1254,16 +1299,27 @@ fn step_guard(
         }
     }
 
-    let enemy = nearest_enemy_within(agent, snapshots, COMBAT_FACTION_RAIDER, f64::INFINITY, true)
-        .or_else(|| {
-            nearest_enemy_within(
-                agent,
-                snapshots,
-                COMBAT_FACTION_RAIDER,
-                f64::INFINITY,
-                false,
-            )
-        });
+    let (target_kind, target_id) = (agent.target_kind, agent.target_id);
+    let enemy = retained_or_nearest_enemy(
+        agent,
+        snapshots,
+        target_grid,
+        GUARD_TARGET_ACQUISITION_METERS,
+        |candidate| {
+            candidate.faction == COMBAT_FACTION_RAIDER
+                && candidate.target_kind == target_kind
+                && candidate.target_id == target_id
+        },
+    )
+    .or_else(|| {
+        retained_or_nearest_enemy(
+            agent,
+            snapshots,
+            target_grid,
+            GUARD_TARGET_ACQUISITION_METERS,
+            |candidate| candidate.faction == COMBAT_FACTION_RAIDER,
+        )
+    });
     let Some(enemy) = enemy else {
         return;
     };
@@ -1377,34 +1433,45 @@ fn move_along_combat_route(
     )
 }
 
-fn nearest_enemy_within<'a>(
-    agent: &CombatAgent,
+fn retained_or_nearest_enemy<'a>(
+    agent: &mut CombatAgent,
     snapshots: &'a [CombatAgent],
-    faction: u8,
+    target_grid: &CombatSteeringGrid,
     max_distance: f64,
-    require_same_target: bool,
+    mut matches: impl FnMut(&CombatAgent) -> bool,
 ) -> Option<&'a CombatAgent> {
-    let max_distance_sq = max_distance * max_distance;
+    let retention_distance_sq = (max_distance * 1.35).powi(2);
+    if agent.engagement_target_id != 0 {
+        if let Some(candidate) = snapshot_by_id(snapshots, agent.engagement_target_id).filter(
+            |candidate| {
+                candidate.state != COMBAT_STATE_DOWNED
+                    && candidate.health > EPSILON
+                    && distance_squared(agent.x, agent.z, candidate.x, candidate.z)
+                        <= retention_distance_sq
+                    && matches(candidate)
+            },
+        ) {
+            return Some(candidate);
+        }
+        agent.engagement_target_id = 0;
+    }
+    let target_id = target_grid.nearest_matching_id(
+        agent.id,
+        max_distance,
+        |candidate_id, _, _| {
+            snapshot_by_id(snapshots, candidate_id)
+                .is_some_and(|candidate| matches(candidate))
+        },
+    )?;
+    agent.engagement_target_id = target_id;
+    snapshot_by_id(snapshots, target_id)
+}
+
+fn snapshot_by_id(snapshots: &[CombatAgent], id: u64) -> Option<&CombatAgent> {
     snapshots
-        .iter()
-        .filter(|candidate| {
-            candidate.faction == faction
-                && candidate.state != COMBAT_STATE_DOWNED
-                && candidate.health > EPSILON
-                && (!require_same_target
-                    || (candidate.target_kind == agent.target_kind
-                        && candidate.target_id == agent.target_id))
-        })
-        .filter_map(|candidate| {
-            let distance = distance_squared(agent.x, agent.z, candidate.x, candidate.z);
-            (distance <= max_distance_sq).then_some((candidate, distance))
-        })
-        .min_by(|(left, left_distance), (right, right_distance)| {
-            left_distance
-                .total_cmp(right_distance)
-                .then_with(|| left.id.cmp(&right.id))
-        })
-        .map(|(candidate, _)| candidate)
+        .binary_search_by_key(&id, |snapshot| snapshot.id)
+        .ok()
+        .map(|index| &snapshots[index])
 }
 
 fn engage_agent(

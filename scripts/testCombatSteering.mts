@@ -99,20 +99,32 @@ function agent(
   assert.deepEqual(agents[2]!.state, { x: 0, z: 0 }, 'downed agents must not be moved');
 }
 
-// A head-on pair cannot tunnel through and exchange sides in one server-sized
-// step; prediction sees persisted velocities before their capsules overlap.
+// A head-on pair cannot tunnel through or exchange sides over repeated
+// server-sized steps. X ordering may invert only after the deterministic
+// passing lane has opened at least one complete capsule diameter laterally.
 {
-  const left = agent(11, -0.62, 0, 4, 0, 1, 1);
-  const right = agent(12, 0.62, 0, -4, 0, 2, 2);
-  left.steeringVelocityX = 2.2;
-  right.steeringVelocityX = -2.2;
+  const left = agent(11, -2, 0, 4, 0, 1, 1);
+  const right = agent(12, 2, 0, -4, 0, 2, 2);
   const agents = [left, right];
-  new CanonicalCombatSteeringGrid(4).update(agents, agents.length, 0.2, bounds);
-  assert.ok(left.state.x < right.state.x, 'predictive avoidance must prevent tick-side swapping');
-  assert.ok(
-    Math.abs(left.state.z - right.state.z) > 0.01,
-    'head-on prediction must create a deterministic passing side',
-  );
+  const grid = new CanonicalCombatSteeringGrid(4);
+  let openedPassingLane = false;
+  for (let step = 0; step < 18; step += 1) {
+    grid.update(agents, agents.length, 0.2, bounds);
+    const distance = Math.hypot(
+      left.state.x - right.state.x,
+      left.state.z - right.state.z,
+    );
+    const lateralClearance = Math.abs(left.state.z - right.state.z);
+    assert.ok(distance >= 0.82 - 1e-9, `hard separation failed on head-on tick ${step + 1}`);
+    if (lateralClearance >= 0.82 - 1e-9) openedPassingLane = true;
+    if (!openedPassingLane) {
+      assert.ok(
+        left.state.x < right.state.x,
+        `head-on bodies exchanged x order before lateral clearance on tick ${step + 1}`,
+      );
+    }
+  }
+  assert.equal(openedPassingLane, true, 'head-on prediction must open a deterministic passing side');
 }
 
 // Goal seeking remains dominant even at the maximum supported local crowd.
@@ -170,9 +182,16 @@ function agent(
   const crowdedCenterVelocity = (includeEnemy: boolean): number => {
     const center = agent(1, 0, 0, 0, 0, 77, 1);
     const agents = [center];
+    const flockPositions: Array<readonly [number, number]> = [];
+    for (let x = -3; x <= 3.001; x += 0.86) {
+      for (let z = -3; z <= 3.001; z += 0.86) {
+        const distance = Math.hypot(x, z);
+        if (distance >= 0.95 && distance <= 3.15) flockPositions.push([x, z]);
+      }
+    }
+    flockPositions.sort((left, right) => left[0] - right[0] || left[1] - right[1]);
     for (let index = 0; index < 24; index += 1) {
-      const x = -1.2 - (index % 6) * 0.12;
-      const z = -1.1 - Math.floor(index / 6) * 0.15;
+      const [x, z] = flockPositions[index]!;
       agents.push(agent(10 + index, x, z, x, z, 77, 1));
     }
     if (includeEnemy) agents.push(agent(999, -0.18, 0, -0.18, 0, 88, 2));

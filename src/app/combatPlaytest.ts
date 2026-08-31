@@ -1002,6 +1002,32 @@ function nearestOpponent(
   return nearest;
 }
 
+function nearestOpponentPoint(
+  x: number,
+  z: number,
+  candidates: readonly RuntimeAgent[],
+): RuntimeAgent | null {
+  let nearest: RuntimeAgent | null = null;
+  let nearestDistanceSquared = Number.POSITIVE_INFINITY;
+  for (const candidate of candidates) {
+    const dx = candidate.state.x - x;
+    const dz = candidate.state.z - z;
+    const distanceSquared = dx * dx + dz * dz;
+    if (
+      distanceSquared < nearestDistanceSquared
+      || (
+        distanceSquared === nearestDistanceSquared
+        && nearest
+        && candidate.state.id < nearest.state.id
+      )
+    ) {
+      nearest = candidate;
+      nearestDistanceSquared = distanceSquared;
+    }
+  }
+  return nearest;
+}
+
 function distanceBetween(left: RuntimeAgent, right: RuntimeAgent): number {
   return Math.hypot(
     right.state.x - left.state.x,
