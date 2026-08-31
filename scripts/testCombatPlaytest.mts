@@ -78,6 +78,39 @@ assert.ok(enemy.every((agent) => agent.faction === 'raider'));
 assert.ok(friendly.every((agent) => agent.status === 'holding'));
 assert.ok(enemy.every((agent) => agent.status === 'advancing'));
 
+// The Ottoman ranks are deliberately spread across several lanes. Each ranged
+// company must nevertheless designate one stable company target/frame instead
+// of bending its individual lateral/depth slots around different nearest foes.
+{
+  const rangedFormation = createSimulation('field');
+  const observed = new Set<string>();
+  for (let step = 0; step < 220; step += 1) {
+    rangedFormation.tick(0.05);
+    const frame = [...rangedFormation.snapshot().values()];
+    for (const faction of ['bowman', 'crossbow'] as const) {
+      const targets = new Set(
+        frame
+          .filter((agent) => (
+            agent.faction === faction
+            && agent.status !== 'downed'
+            && agent.targetKind === 'combat-agent'
+          ))
+          .map((agent) => agent.targetId),
+      );
+      assert.ok(
+        targets.size <= 1,
+        `${faction} slots must share one designated target against spread enemies`,
+      );
+      if (targets.size === 1) observed.add(faction);
+    }
+  }
+  assert.deepEqual(
+    [...observed].sort(),
+    ['bowman', 'crossbow'],
+    'both ranged companies must enter their shared engagement frames',
+  );
+}
+
 const openingEnemyCenterX = average(enemy.map((agent) => agent.x));
 tickFor(simulation, 0.5);
 const chargedEnemyCenterX = average(

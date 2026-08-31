@@ -645,6 +645,8 @@ export class CombatPlaytestSimulation {
     const companyTarget = runtime.rangedEngagement?.designatedTarget ?? null;
     if (companyTarget && companyTarget.state.status !== 'downed') {
       runtime.targetRuntime = companyTarget;
+      runtime.state.targetKind = 'combat-agent';
+      runtime.state.targetId = companyTarget.state.id;
       return companyTarget;
     }
     const current = runtime.targetRuntime;

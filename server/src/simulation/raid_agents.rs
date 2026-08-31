@@ -1485,6 +1485,7 @@ fn engage_agent(
     elapsed_seconds: f64,
     road_network: Option<&RoadNetwork>,
 ) {
+    agent.engagement_target_id = enemy.id;
     let distance = distance_squared(agent.x, agent.z, enemy.x, enemy.z);
     let ranged_raider = agent.faction == COMBAT_FACTION_RAIDER && agent.source_slot % 4 == 3;
     let strike_range = if ranged_raider {

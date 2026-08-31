@@ -289,17 +289,20 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
                         elapsed_seconds,
                     ),
                     2 | 3 => step_returning_member(ctx, agent, member, company, elapsed_seconds),
-                    _ => step_active_member(
-                        ctx,
-                        agent,
-                        member,
-                        company,
-                        sim_tick,
-                        elapsed_seconds,
-                        military_demands,
-                        &steering,
-                        scratch.ranged_frame(company.id),
-                    ),
+                    _ => {
+                        let ranged_frame = scratch.ranged_frame(company.id);
+                        step_active_member(
+                            ctx,
+                            agent,
+                            member,
+                            company,
+                            sim_tick,
+                            elapsed_seconds,
+                            military_demands,
+                            &steering,
+                            ranged_frame,
+                        )
+                    }
                 }
                 }
 

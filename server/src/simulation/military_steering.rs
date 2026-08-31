@@ -8,7 +8,8 @@ use crate::balance_generated::{
     COMBAT_STEERING_ALIGNMENT_WEIGHT, COMBAT_STEERING_CELL_SIZE_M, COMBAT_STEERING_COHESION_WEIGHT,
     COMBAT_STEERING_ENGAGEMENT_MIN_RADIUS_M, COMBAT_STEERING_ENGAGEMENT_RADIUS_FACTOR,
     COMBAT_STEERING_ENGAGEMENT_SLOT_COUNT, COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ,
-    COMBAT_STEERING_GOAL_WEIGHT, COMBAT_STEERING_MAX_NEIGHBORS,
+    COMBAT_STEERING_GOAL_WEIGHT, COMBAT_STEERING_HARD_CLEARANCE_EPSILON_M,
+    COMBAT_STEERING_HARD_CONSTRAINT_ITERATIONS, COMBAT_STEERING_MAX_NEIGHBORS,
     COMBAT_STEERING_MAX_TURN_RADIANS_PER_SECOND, COMBAT_STEERING_NEIGHBOR_RADIUS_M,
     COMBAT_STEERING_PREDICTION_SECONDS, COMBAT_STEERING_PREDICTIVE_WEIGHT,
     COMBAT_STEERING_RANGED_DEPTH_SPACING_M, COMBAT_STEERING_RANGED_LINE_SPACING_M,
@@ -19,6 +20,10 @@ use crate::balance_generated::{
 const HASH_X: u32 = 73_856_093;
 const HASH_Z: u32 = 19_349_663;
 const MIN_BUCKETS: usize = 8;
+const HARD_SEPARATION_DISTANCE_M: f64 =
+    COMBAT_STEERING_SEPARATION_DISTANCE_M + COMBAT_STEERING_HARD_CLEARANCE_EPSILON_M;
+const HARD_SEPARATION_DISTANCE_SQ: f64 =
+    HARD_SEPARATION_DISTANCE_M * HARD_SEPARATION_DISTANCE_M;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct SteeringBody {
@@ -51,6 +56,30 @@ struct NeighborCandidate {
     /// 0 immediate overlap, 1 predicted collision, 2 flock-only.
     priority: u8,
     distance_sq: f64,
+}
+
+#[derive(Clone, Copy)]
+struct HardNeighborCandidate {
+    index: usize,
+    closest_distance_sq: f64,
+    start_distance_sq: f64,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SteeringBounds {
+    pub min_x: f64,
+    pub max_x: f64,
+    pub min_z: f64,
+    pub max_z: f64,
+}
+
+impl SteeringBounds {
+    const UNBOUNDED: Self = Self {
+        min_x: f64::NEG_INFINITY,
+        max_x: f64::INFINITY,
+        min_z: f64::NEG_INFINITY,
+        max_z: f64::INFINITY,
+    };
 }
 
 /// Reusable structure-of-arrays spatial grid. Bodies are sorted by stable id
@@ -173,6 +202,14 @@ impl CombatSteeringGrid {
     /// the same substep state, then all positions/velocities are committed
     /// together before rebuilding the uniform grid for the next substep.
     pub(crate) fn integrate_all(&mut self, elapsed_seconds: f64) {
+        self.integrate_all_bounded(elapsed_seconds, SteeringBounds::UNBOUNDED);
+    }
+
+    pub(crate) fn integrate_all_bounded(
+        &mut self,
+        elapsed_seconds: f64,
+        bounds: SteeringBounds,
+    ) {
         if !elapsed_seconds.is_finite() || elapsed_seconds <= 0.0 || self.ids.is_empty() {
             return;
         }
@@ -196,6 +233,7 @@ impl CombatSteeringGrid {
                 self.output_velocity_xs.push(output.velocity_x);
                 self.output_velocity_zs.push(output.velocity_z);
             }
+            self.apply_hard_swept_constraints(dt, bounds);
             self.xs.copy_from_slice(&self.output_xs);
             self.zs.copy_from_slice(&self.output_zs);
             self.velocity_xs.copy_from_slice(&self.output_velocity_xs);
@@ -225,6 +263,179 @@ impl CombatSteeringGrid {
             let bucket = cell_hash(self.cell_xs[index], self.cell_zs[index], self.bucket_mask);
             self.next[index] = self.heads[bucket];
             self.heads[bucket] = index as i32;
+        }
+    }
+
+    fn apply_hard_swept_constraints(&mut self, dt: f64, bounds: SteeringBounds) {
+        let neighbor_radius_sq =
+            COMBAT_STEERING_NEIGHBOR_RADIUS_M * COMBAT_STEERING_NEIGHBOR_RADIUS_M;
+        let cell_radius =
+            (COMBAT_STEERING_NEIGHBOR_RADIUS_M / COMBAT_STEERING_CELL_SIZE_M).ceil() as i32;
+        for _ in 0..COMBAT_STEERING_HARD_CONSTRAINT_ITERATIONS {
+            for left in 0..self.ids.len() {
+                let mut candidates = [HardNeighborCandidate {
+                    index: 0,
+                    closest_distance_sq: f64::INFINITY,
+                    start_distance_sq: f64::INFINITY,
+                }; COMBAT_STEERING_MAX_NEIGHBORS];
+                let mut candidate_count = 0_usize;
+                for cell_delta_z in -cell_radius..=cell_radius {
+                    let cell_z = self.cell_zs[left] + cell_delta_z;
+                    for cell_delta_x in -cell_radius..=cell_radius {
+                        let cell_x = self.cell_xs[left] + cell_delta_x;
+                        let bucket = cell_hash(cell_x, cell_z, self.bucket_mask);
+                        let mut cursor = self.heads[bucket];
+                        while cursor >= 0 {
+                            let right = cursor as usize;
+                            cursor = self.next[right];
+                            if right <= left
+                                || self.cell_xs[right] != cell_x
+                                || self.cell_zs[right] != cell_z
+                                || self.owner_groups[right] != self.owner_groups[left]
+                            {
+                                continue;
+                            }
+                            let start_delta_x = self.xs[left] - self.xs[right];
+                            let start_delta_z = self.zs[left] - self.zs[right];
+                            let start_distance_sq = start_delta_x * start_delta_x
+                                + start_delta_z * start_delta_z;
+                            if start_distance_sq > neighbor_radius_sq {
+                                continue;
+                            }
+                            let end_delta_x =
+                                self.output_xs[left] - self.output_xs[right];
+                            let end_delta_z =
+                                self.output_zs[left] - self.output_zs[right];
+                            let relative_step_x = end_delta_x - start_delta_x;
+                            let relative_step_z = end_delta_z - start_delta_z;
+                            let relative_step_sq = relative_step_x * relative_step_x
+                                + relative_step_z * relative_step_z;
+                            let closest_time = if relative_step_sq > 1e-12 {
+                                (-(start_delta_x * relative_step_x
+                                    + start_delta_z * relative_step_z)
+                                    / relative_step_sq)
+                                    .clamp(0.0, 1.0)
+                            } else {
+                                0.0
+                            };
+                            let closest_x = start_delta_x + relative_step_x * closest_time;
+                            let closest_z = start_delta_z + relative_step_z * closest_time;
+                            let closest_distance_sq =
+                                closest_x * closest_x + closest_z * closest_z;
+                            if closest_distance_sq >= HARD_SEPARATION_DISTANCE_SQ {
+                                continue;
+                            }
+                            insert_hard_neighbor_candidate(
+                                &mut candidates,
+                                &mut candidate_count,
+                                HardNeighborCandidate {
+                                    index: right,
+                                    closest_distance_sq,
+                                    start_distance_sq,
+                                },
+                                &self.ids,
+                            );
+                        }
+                    }
+                }
+                for candidate in candidates.iter().take(candidate_count) {
+                    self.project_hard_pair(left, candidate.index, bounds);
+                }
+            }
+        }
+
+        for index in 0..self.ids.len() {
+            self.output_velocity_xs[index] = (self.output_xs[index] - self.xs[index]) / dt;
+            self.output_velocity_zs[index] = (self.output_zs[index] - self.zs[index]) / dt;
+        }
+        #[cfg(debug_assertions)]
+        self.debug_assert_hard_clearance();
+    }
+
+    fn project_hard_pair(&mut self, left: usize, right: usize, bounds: SteeringBounds) {
+        let mut start_delta_x = self.xs[left] - self.xs[right];
+        let mut start_delta_z = self.zs[left] - self.zs[right];
+        let start_distance_sq =
+            start_delta_x * start_delta_x + start_delta_z * start_delta_z;
+        let mut start_distance = start_distance_sq.sqrt();
+        if start_distance_sq <= COMBAT_STEERING_EXACT_OVERLAP_EPSILON_SQ {
+            let angle = exact_overlap_angle(self.ids[left], self.ids[right]);
+            start_delta_x = angle.cos();
+            start_delta_z = angle.sin();
+            start_distance = 1.0;
+        }
+        let normal_x = start_delta_x / start_distance;
+        let normal_z = start_delta_z / start_distance;
+        let end_delta_x = self.output_xs[left] - self.output_xs[right];
+        let end_delta_z = self.output_zs[left] - self.output_zs[right];
+        let (correction_x, correction_z) = if start_distance_sq < HARD_SEPARATION_DISTANCE_SQ {
+            let projected_distance = end_delta_x * normal_x + end_delta_z * normal_z;
+            let required = HARD_SEPARATION_DISTANCE_M - projected_distance;
+            if required <= 0.0 {
+                return;
+            }
+            (normal_x * required, normal_z * required)
+        } else {
+            let relative_step_x = end_delta_x - start_delta_x;
+            let relative_step_z = end_delta_z - start_delta_z;
+            let relative_step_sq =
+                relative_step_x * relative_step_x + relative_step_z * relative_step_z;
+            if relative_step_sq <= 1e-12 {
+                return;
+            }
+            let closest_time = (-(start_delta_x * relative_step_x
+                + start_delta_z * relative_step_z)
+                / relative_step_sq)
+                .clamp(0.0, 1.0);
+            let closest_x = start_delta_x + relative_step_x * closest_time;
+            let closest_z = start_delta_z + relative_step_z * closest_time;
+            if closest_x * closest_x + closest_z * closest_z >= HARD_SEPARATION_DISTANCE_SQ {
+                return;
+            }
+            let radius_ratio = (HARD_SEPARATION_DISTANCE_M / start_distance).clamp(0.0, 1.0);
+            let inward_factor = (1.0 - radius_ratio * radius_ratio).max(0.0).sqrt();
+            let side = pair_passing_side(self.ids[left], self.ids[right]);
+            let perpendicular_x = -normal_z * side;
+            let perpendicular_z = normal_x * side;
+            let tangent_x = -normal_x * inward_factor + perpendicular_x * radius_ratio;
+            let tangent_z = -normal_z * inward_factor + perpendicular_z * radius_ratio;
+            let along =
+                (relative_step_x * tangent_x + relative_step_z * tangent_z).max(0.0);
+            (
+                tangent_x * along - relative_step_x,
+                tangent_z * along - relative_step_z,
+            )
+        };
+
+        let half_x = correction_x * 0.5;
+        let half_z = correction_z * 0.5;
+        self.output_xs[left] =
+            (self.output_xs[left] + half_x).clamp(bounds.min_x, bounds.max_x);
+        self.output_zs[left] =
+            (self.output_zs[left] + half_z).clamp(bounds.min_z, bounds.max_z);
+        self.output_xs[right] =
+            (self.output_xs[right] - half_x).clamp(bounds.min_x, bounds.max_x);
+        self.output_zs[right] =
+            (self.output_zs[right] - half_z).clamp(bounds.min_z, bounds.max_z);
+    }
+
+    #[cfg(debug_assertions)]
+    fn debug_assert_hard_clearance(&self) {
+        let minimum = COMBAT_STEERING_SEPARATION_DISTANCE_M - 1e-7;
+        for left in 0..self.ids.len() {
+            for right in (left + 1)..self.ids.len() {
+                if self.owner_groups[left] != self.owner_groups[right] {
+                    continue;
+                }
+                let dx = self.output_xs[left] - self.output_xs[right];
+                let dz = self.output_zs[left] - self.output_zs[right];
+                debug_assert!(
+                    dx.hypot(dz) >= minimum,
+                    "hard combat clearance failed for {} and {}",
+                    self.ids[left],
+                    self.ids[right],
+                );
+            }
         }
     }
 
@@ -689,6 +900,41 @@ fn neighbor_candidate_precedes(
                 || (left.distance_sq == right.distance_sq && ids[left.index] < ids[right.index])))
 }
 
+fn insert_hard_neighbor_candidate(
+    candidates: &mut [HardNeighborCandidate; COMBAT_STEERING_MAX_NEIGHBORS],
+    count: &mut usize,
+    candidate: HardNeighborCandidate,
+    ids: &[u64],
+) {
+    let mut position = (*count).min(COMBAT_STEERING_MAX_NEIGHBORS);
+    while position > 0
+        && hard_neighbor_candidate_precedes(candidate, candidates[position - 1], ids)
+    {
+        position -= 1;
+    }
+    if position >= COMBAT_STEERING_MAX_NEIGHBORS {
+        return;
+    }
+    let upper = (*count).min(COMBAT_STEERING_MAX_NEIGHBORS - 1);
+    for index in (position..upper).rev() {
+        candidates[index + 1] = candidates[index];
+    }
+    candidates[position] = candidate;
+    *count = (*count + 1).min(COMBAT_STEERING_MAX_NEIGHBORS);
+}
+
+fn hard_neighbor_candidate_precedes(
+    left: HardNeighborCandidate,
+    right: HardNeighborCandidate,
+    ids: &[u64],
+) -> bool {
+    left.closest_distance_sq < right.closest_distance_sq
+        || (left.closest_distance_sq == right.closest_distance_sq
+            && (left.start_distance_sq < right.start_distance_sq
+                || (left.start_distance_sq == right.start_distance_sq
+                    && ids[left.index] < ids[right.index])))
+}
+
 fn cell_coordinate(value: f64) -> i32 {
     (value / COMBAT_STEERING_CELL_SIZE_M).floor() as i32
 }
@@ -739,6 +985,16 @@ fn exact_overlap_angle(left_seed: u64, right_seed: u64) -> f64 {
     }
 }
 
+fn pair_passing_side(left_seed: u64, right_seed: u64) -> f64 {
+    let low = left_seed.min(right_seed) as u32;
+    let high = left_seed.max(right_seed) as u32;
+    if mix_seed(low ^ high.wrapping_mul(0x9e37_79b1)) & 1 == 0 {
+        -1.0
+    } else {
+        1.0
+    }
+}
+
 fn wrapped_angle(value: f64) -> f64 {
     value.sin().atan2(value.cos())
 }
@@ -754,8 +1010,18 @@ mod tests {
         capacity: usize,
         dt_seconds: f64,
         tolerance: f64,
+        bounds: GoldenBounds,
         agents: Vec<GoldenAgent>,
         expected: Vec<GoldenExpected>,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct GoldenBounds {
+        min_x: f64,
+        max_x: f64,
+        min_z: f64,
+        max_z: f64,
     }
 
     #[derive(Deserialize)]
@@ -834,16 +1100,18 @@ mod tests {
             });
         }
         grid.finish();
+        grid.integrate_all_bounded(
+            fixture.dt_seconds,
+            SteeringBounds {
+                min_x: fixture.bounds.min_x,
+                max_x: fixture.bounds.max_x,
+                min_z: fixture.bounds.min_z,
+                max_z: fixture.bounds.max_z,
+            },
+        );
         for expected in &fixture.expected {
             let index = grid.index_of(expected.id).expect("golden body in grid");
-            let body = grid.body(index);
-            let output = grid.steer(
-                body,
-                body.goal_x,
-                body.goal_z,
-                body.speed,
-                fixture.dt_seconds,
-            );
+            let output = grid.body(index);
             for (label, actual, expected_value) in [
                 ("x", output.x, expected.x),
                 ("z", output.z, expected.z),
