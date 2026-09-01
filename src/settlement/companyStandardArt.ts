@@ -26,6 +26,7 @@ export const CROATIAN_BANNER_ASPECT_RATIO = 1.62;
 export const CROATIAN_CHECKER_COLUMNS = 10;
 export const CROATIAN_CHECKER_ROWS = 6;
 export const OTTOMAN_FIELD_STANDARD_ASPECT_RATIO = 1.68;
+export const MERCENARY_FIELD_STANDARD_ASPECT_RATIO = 1.42;
 
 export const CROATIAN_CHECKER_COLORS = Object.freeze({
   red: '#9f2925',
@@ -39,6 +40,13 @@ export const OTTOMAN_FIELD_STANDARD_COLORS = Object.freeze({
   saffron: '#c49a36',
   green: '#31553a',
   gold: '#c7a753',
+} as const);
+
+export const MERCENARY_FIELD_STANDARD_COLORS = Object.freeze({
+  riverGreen: '#315744',
+  marshGreen: '#78915b',
+  muddyGold: '#c39a43',
+  frogCream: '#e2d5a5',
 } as const);
 
 export type CompanyStandardChargePlacement = Readonly<{
@@ -126,7 +134,26 @@ export type OttomanCompanyStandardArt = Readonly<{
   cacheKey: string;
 }>;
 
-export type CompanyStandardArt = PlayerCompanyStandardArt | OttomanCompanyStandardArt;
+export type MercenaryCompanyStandardArt = Readonly<{
+  version: typeof COMPANY_STANDARD_ART_VERSION;
+  faction: 'mercenary';
+  source: 'kupa-border-company-field-sign';
+  panel: Readonly<{
+    panel: 'mercenary-frog-standard';
+    aspectRatio: number;
+    flyProfile: 'swallowtail';
+    fieldColor: string;
+    bendColor: string;
+    trimColor: string;
+    emblem: 'croaking-frog';
+    emblemColor: string;
+  }>;
+  cacheKey: string;
+}>;
+
+export type CompanyStandardArt = PlayerCompanyStandardArt
+  | MercenaryCompanyStandardArt
+  | OttomanCompanyStandardArt;
 
 export type OttomanFieldStandardSample = Readonly<{
   insideCloth: boolean;
@@ -156,11 +183,14 @@ export function getCurrentPlayerCompanyStandardArt(): PlayerCompanyStandardArt {
 
 /** Shared faction entry point for the standard renderer and visual playtests. */
 export function resolveCompanyStandardArt(
-  faction: 'player' | 'ottoman',
+  faction: 'player' | 'mercenary' | 'ottoman',
   profile?: NobleProfile,
 ): CompanyStandardArt {
-  return faction === 'player'
-    ? resolvePlayerCompanyStandardArt(profile ?? getCurrentNobleProfile())
+  if (faction === 'player') {
+    return resolvePlayerCompanyStandardArt(profile ?? getCurrentNobleProfile());
+  }
+  return faction === 'mercenary'
+    ? resolveMercenaryCompanyStandardArt()
     : resolveOttomanCompanyStandardArt();
 }
 
@@ -267,6 +297,28 @@ export function resolveOttomanCompanyStandardArt(): OttomanCompanyStandardArt {
     explicitlyNotModernNationalFlag: true,
     panel,
     cacheKey: `ottoman-field-standard-v${COMPANY_STANDARD_ART_VERSION}-${fnv1a(signature)}`,
+  });
+}
+
+/** A deliberately boastful hired-company sign, separate from the lord's arms. */
+export function resolveMercenaryCompanyStandardArt(): MercenaryCompanyStandardArt {
+  const panel = Object.freeze({
+    panel: 'mercenary-frog-standard' as const,
+    aspectRatio: MERCENARY_FIELD_STANDARD_ASPECT_RATIO,
+    flyProfile: 'swallowtail' as const,
+    fieldColor: MERCENARY_FIELD_STANDARD_COLORS.riverGreen,
+    bendColor: MERCENARY_FIELD_STANDARD_COLORS.marshGreen,
+    trimColor: MERCENARY_FIELD_STANDARD_COLORS.muddyGold,
+    emblem: 'croaking-frog' as const,
+    emblemColor: MERCENARY_FIELD_STANDARD_COLORS.frogCream,
+  });
+  const signature = Object.values(panel).join('|');
+  return Object.freeze({
+    version: COMPANY_STANDARD_ART_VERSION,
+    faction: 'mercenary',
+    source: 'kupa-border-company-field-sign',
+    panel,
+    cacheKey: `mercenary-field-standard-v${COMPANY_STANDARD_ART_VERSION}-${fnv1a(signature)}`,
   });
 }
 

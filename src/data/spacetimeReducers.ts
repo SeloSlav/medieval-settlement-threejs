@@ -312,7 +312,7 @@ export async function runDebugMapAction(
     action: Math.max(0, Math.min(3, Math.floor(action))),
     x,
     z,
-    companyKind: Math.max(0, Math.min(7, Math.floor(companyKind))),
+    companyKind: Math.max(0, Math.min(10, Math.floor(companyKind))),
   });
 }
 

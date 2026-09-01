@@ -8,6 +8,7 @@ import {
 import {
   CROATIAN_BANNER_ASPECT_RATIO,
   LORD_BANNER_ASPECT_RATIO,
+  MERCENARY_FIELD_STANDARD_ASPECT_RATIO,
   OTTOMAN_FIELD_STANDARD_ASPECT_RATIO,
 } from '../src/settlement/companyStandardArt.ts';
 
@@ -15,6 +16,7 @@ assert.equal(COMPANY_STANDARD_TEXTURE_WIDTH, 512);
 const estimatedBytes = [
   LORD_BANNER_ASPECT_RATIO,
   CROATIAN_BANNER_ASPECT_RATIO,
+  MERCENARY_FIELD_STANDARD_ASPECT_RATIO,
   OTTOMAN_FIELD_STANDARD_ASPECT_RATIO,
 ].reduce((total, aspect) => {
   const height = Math.max(256, Math.round(COMPANY_STANDARD_TEXTURE_WIDTH / aspect));
@@ -40,9 +42,11 @@ for (const pattern of [
 assert.match(source, /THREE\.SRGBColorSpace/);
 assert.match(source, /THREE\.LinearMipmapLinearFilter/);
 assert.match(source, /player\.upper\.chargeMaskUrl/);
+assert.match(source, /paintMercenaryBanner/);
+assert.match(source, /Mercenary frog company-standard cloth/);
 assert.match(source, /for \(const stroke of art\.emblem\.strokes\)/);
 assert.doesNotMatch(source, /crescent|five-pointed-star/i);
 
 console.log(
-  `Shared woven standard maps cover all heraldry and both faction flags in ${estimatedBytes} bytes.`,
+  `Shared woven standard maps cover lord, mercenary, Croatian, and Ottoman flags in ${estimatedBytes} bytes.`,
 );

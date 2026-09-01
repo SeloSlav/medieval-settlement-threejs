@@ -45,6 +45,21 @@ export type MilitaryCompanyState = {
   level: number;
 };
 
+export const MERCENARY_COMPANY_NAMES = Object.freeze([
+  'The Croaking Frogs of Kupa',
+  'The Tipsy Pikes of Karlovac',
+  'The Muddy Boots of Mrežnica',
+  'The One-Eyed Roosters of Ozalj',
+  'The Saintly Scoundrels of Senj',
+  'The Black Badgers of Žumberak',
+  'The Copper Kettles of Varaždin',
+  'The Hungry Wolves of Una',
+  'The Bent Spoons of Sisak',
+  'The Loud Geese of Turopolje',
+  'The Drowned Rats of Korana',
+  'The Three-Legged Bears of Lika',
+] as const);
+
 export const MILITARY_MAX_LEVEL = 10;
 
 export function militaryCompanyGainsExperience(kind: MilitaryCompanyKind): boolean {
@@ -293,6 +308,24 @@ export function syncMilitaryCompanies(
 
 export function militaryKindLabel(kind: MilitaryCompanyKind): string {
   return MILITARY_RECRUITMENT[kind].label;
+}
+
+/** Stable contract-company identity derived from its authoritative company id. */
+export function mercenaryCompanyName(companyId: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < companyId.length; index += 1) {
+    hash ^= companyId.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return MERCENARY_COMPANY_NAMES[(hash >>> 0) % MERCENARY_COMPANY_NAMES.length]!;
+}
+
+export function militaryCompanyDisplayName(
+  company: Pick<MilitaryCompanyState, 'id' | 'kind'>,
+): string {
+  return company.kind === 'mercenary-spears'
+    ? mercenaryCompanyName(company.id)
+    : `${militaryKindLabel(company.kind)} #${company.id}`;
 }
 
 export function militaryFormationLabel(formation: MilitaryFormation): string {

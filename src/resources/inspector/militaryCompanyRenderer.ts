@@ -3,9 +3,9 @@ import {
   MILITARY_RECRUITMENT,
   militaryCompanyRequiresProvisions,
   militaryCostText,
+  militaryCompanyDisplayName,
   militaryCompanyGainsExperience,
   militaryFormationLabel,
-  militaryKindLabel,
   militaryRecruitmentCost,
   militaryResupplyCost,
   type MilitaryCompanyKind,
@@ -57,8 +57,10 @@ export function renderSelectedMilitaryCompanyInspector(
   const statusLabel = company.status[0]!.toUpperCase() + company.status.slice(1);
 
   return {
-    eyebrow: gainsExperience ? 'Veteran company' : 'Military company',
-    title: `${militaryKindLabel(company.kind)} #${company.id}`,
+    eyebrow: company.kind === 'mercenary-spears'
+      ? 'Mercenary company'
+      : gainsExperience ? 'Veteran company' : 'Military company',
+    title: militaryCompanyDisplayName(company),
     statusText: gainsExperience ? `Level ${company.level} · ${statusLabel}` : statusLabel,
     statusState: company.status === 'active' ? 'active' : company.status === 'destroyed' ? 'warning' : 'idle',
     image: MILITARY_COMPANY_CARD_ART[company.kind],
@@ -258,7 +260,7 @@ function renderCompany(
       </button>
     `).join('');
   return `
-    <div class="inspector-action-panel military-company-card" data-inspector-panel-title="${militaryKindLabel(company.kind)} #${company.id}">
+    <div class="inspector-action-panel military-company-card" data-inspector-panel-title="${militaryCompanyDisplayName(company)}">
       <ul class="resource-inspector-details military-company-card__details">
         <li><span>State</span><span>${company.status} · ${company.livingMembers} / ${company.targetSize} living</span></li>
         <li><span>Formation</span><span>${militaryFormationLabel(company.formation)}</span></li>

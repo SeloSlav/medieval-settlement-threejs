@@ -3,7 +3,7 @@ import {
   type CombatAgentState,
 } from './combatAgents.ts';
 
-export type CompanyStandardSide = 'player' | 'ottoman';
+export type CompanyStandardSide = 'player' | 'mercenary' | 'ottoman';
 
 export type CompanyStandardAssignment = {
   /** Faction-qualified identity; player company and raid ids can never collide. */
@@ -37,8 +37,13 @@ export function companyStandardIdentity(
 ): Pick<CompanyStandardAssignment, 'companyKey' | 'companyId' | 'side'> | null {
   if (isPlayerMilitaryFaction(agent.faction)) {
     const companyId = agent.companyId?.trim();
+    const mercenary = agent.faction === 'mercenary-spear';
     return companyId
-      ? { companyKey: `player:${companyId}`, companyId, side: 'player' }
+      ? {
+          companyKey: `${mercenary ? 'mercenary' : 'player'}:${companyId}`,
+          companyId,
+          side: mercenary ? 'mercenary' : 'player',
+        }
       : null;
   }
   if (agent.faction !== 'raider') return null;

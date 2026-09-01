@@ -38,10 +38,13 @@ for (const preset of ['field', 'stress'] as const satisfies readonly CombatPlayt
   const assignments = registry.sync(snapshot.values());
   const playerStandards = [...assignments.values()]
     .filter((row) => row.side === 'player').length;
-  const ottomanStandards = assignments.size - playerStandards;
+  const mercenaryStandards = [...assignments.values()]
+    .filter((row) => row.side === 'mercenary').length;
+  const ottomanStandards = [...assignments.values()]
+    .filter((row) => row.side === 'ottoman').length;
   assert.ok(assignments.size > 0, `${preset} must elect visible standards`);
   assert.equal(
-    playerStandards,
+    playerStandards + mercenaryStandards,
     ottomanStandards,
     `${preset} must expose one standard per company on both playtest sides`,
   );
@@ -102,7 +105,7 @@ for (const preset of ['field', 'stress'] as const satisfies readonly CombatPlayt
   assert.equal(diagnostics.standards, assignments.size);
   assert.equal(diagnostics.duplicateStandards, 0);
   assert.equal(diagnostics.droppedStandards, 0);
-  const expectedPanels = playerStandards * 2 + ottomanStandards;
+  const expectedPanels = playerStandards * 2 + mercenaryStandards + ottomanStandards;
   assert.equal(diagnostics.panels, expectedPanels);
   assert.equal(diagnostics.hardwareInstances, assignments.size);
   assert.equal(

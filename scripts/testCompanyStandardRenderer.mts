@@ -18,6 +18,15 @@ const agents: CompanyStandardRenderAgent[] = [
     appearanceSeed: 101,
   },
   {
+    id: 'mercenary-company-standard',
+    faction: 'mercenary',
+    x: 4,
+    y: 0,
+    z: -2,
+    yaw: 0.1,
+    appearanceSeed: 151,
+  },
+  {
     id: 'ottoman-company-standard',
     faction: 'ottoman',
     x: 8,
@@ -51,17 +60,22 @@ for (let frame = 0; frame < 90; frame += 1) {
 }
 
 const diagnostics = first.diagnostics();
-assert.equal(diagnostics.standards, 2);
-assert.equal(diagnostics.panels, 3, 'friendly standards stack two cloth panels');
-assert.equal(diagnostics.simulationNodes, 180);
-assert.equal(diagnostics.hardwareInstances, 2);
+assert.equal(diagnostics.standards, 3);
+assert.equal(diagnostics.panels, 4, 'resident lord standards stack two panels while mercenaries carry their own single field sign');
+assert.equal(diagnostics.simulationNodes, 240);
+assert.equal(diagnostics.hardwareInstances, 3);
 assert.equal(diagnostics.drawCalls, COMPANY_STANDARD_PERFORMANCE_BUDGET.maxDrawCalls);
 assert.ok(diagnostics.maxStretchRatio < 1.1, 'constraints cap visible rubber stretch');
 assert.equal(diagnostics.duplicateStandards, 0);
 assert.equal(diagnostics.ownershipResets, 0);
 assert.ok(diagnostics.maxOwnershipReachRatio < 1.1);
 assert.equal(COMPANY_STANDARD_VISUAL_CONTRACT.poleHeightMeters, 3.72);
+assert.equal(COMPANY_STANDARD_VISUAL_CONTRACT.mercenaryPanelCount, 1);
 assert.equal(COMPANY_STANDARD_VISUAL_CONTRACT.freeEdgeProfile, 'forked-and-tapered');
+
+const mercenarySnapshot = first.physicsSnapshot('mercenary-company-standard');
+assert.equal(mercenarySnapshot?.faction, 'mercenary');
+assert.equal(mercenarySnapshot?.panels[0]?.role, 'mercenary');
 
 const firstSnapshot = first.physicsSnapshot('friendly-company-standard');
 const secondSnapshot = second.physicsSnapshot('friendly-company-standard');

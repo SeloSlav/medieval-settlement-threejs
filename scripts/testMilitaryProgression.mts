@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import {
+  MERCENARY_COMPANY_NAMES,
+  mercenaryCompanyName,
+  militaryCompanyDisplayName,
   militaryCompanyRequiresProvisions,
   militaryCompanyWagesEnabled,
   militaryRecruitmentCost,
@@ -32,6 +35,7 @@ const horseRenderer = read('src/settlement/CavalryHorseRenderer.ts');
 const cavalryInspector = read('src/resources/inspector/cavalryYardRenderer.ts');
 const debugMenu = read('src/ui/DebugMenu.ts');
 const debugMenuCss = read('src/ui/debugMenu.css');
+const spacetimeReducers = read('src/data/spacetimeReducers.ts');
 const tools = read('src/settlement/workerTools.ts');
 const equipment = read('src/settlement/militaryEquipment.ts');
 const commands = read('src/security/MilitiaCommandController.ts');
@@ -52,6 +56,11 @@ const reducerSection = (start: string, end: string): string => {
   assert.notEqual(endIndex, -1, `Missing reducer section terminator: ${end}`);
   return reducer.slice(startIndex, endIndex);
 };
+
+const debugCompanyDeployment = reducerSection(
+  'pub fn deploy_debug_military_company',
+  '#[reducer]\npub fn set_military_formation',
+);
 
 for (const kind of ['militia', 'spearmen', 'men-at-arms', 'crossbows', 'mercenary-spears', 'footmen', 'polearms', 'bowmen', 'hussars', 'armored-lancers', 'mounted-archers']) {
   assert.match(policy, new RegExp(`['\"]?${kind.replace('-', '\\-')}['\"]?\\s*:`));
@@ -197,8 +206,8 @@ assert.match(roster, /data-renew-mercenary-contract/);
 assert.match(roster, /marching back to its original map edge and ignores all movement and attack orders/);
 assert.match(inspector, /onRenewMercenaryContract/);
 assert.match(inspector, /\[data-renew-mercenary-contract\]/);
-assert.match(app, /title: 'Mercenary company is leaving'/);
-assert.match(app, /title: 'Mercenary company has departed'/);
+assert.match(app, /title: `\$\{companyName\} are leaving`/);
+assert.match(app, /title: `\$\{militaryCompanyDisplayName\(company\)\} have departed`/);
 for (const control of [
   'data-recruit-military-kind',
   'data-hire-mercenary-company',
@@ -289,7 +298,20 @@ assert.match(raidPolicy, /OTTOMAN_ROLE_AZAB[\s\S]*OTTOMAN_ROLE_JANISSARY[\s\S]*O
 assert.match(raidPolicy, /three Azabs, two Janissaries, two Akıncıs/);
 for (const id of [8, 9, 10]) assert.match(debugMenu, new RegExp(`<option value="${id}">`));
 assert.match(debugMenu, /Math\.min\(10, Math\.floor\(Number\(this\.companyKind\.value\)\)\)/);
+assert.match(spacetimeReducers, /companyKind: Math\.max\(0, Math\.min\(10, Math\.floor\(companyKind\)\)\)/);
 assert.match(debugMenuCss, /\.debug-menu-backdrop\s*\{[\s\S]*?pointer-events:\s*auto/);
+assert.match(debugCompanyDeployment, /MilitaryKind::from_id\(kind_id\)/);
+assert.match(debugCompanyDeployment, /if kind\.is_mounted\(\)[\s\S]*cavalry_horse\(\)\.insert\(CavalryHorse/);
+assert.match(debugCompanyDeployment, /assigned_company_id: company\.id[\s\S]*assigned_combat_agent_id: agent\.id/);
+assert.ok(MERCENARY_COMPANY_NAMES.includes('The Croaking Frogs of Kupa'));
+assert.equal(mercenaryCompanyName('37'), mercenaryCompanyName('37'));
+assert.ok(MERCENARY_COMPANY_NAMES.includes(mercenaryCompanyName('37')));
+assert.equal(
+  militaryCompanyDisplayName({ id: '37', kind: 'mercenary-spears' }),
+  mercenaryCompanyName('37'),
+);
+assert.match(roster, /militaryCompanyDisplayName\(company\)/);
+assert.match(app, /const companyName = militaryCompanyDisplayName\(company\)/);
 assert.match(villagers, /\(combat\.routeProgress \?\? 0\) > 14/);
 assert.match(tools, /createMilitaryEquipmentSources/);
 assert.match(equipment, /function createCrossbow/);

@@ -74,6 +74,8 @@ export function createBackyardGoatModel(
   );
   beard.name = 'Procedural goat beard';
   beard.position.set(0, targetHeight * 0.55, targetHeight * 0.34);
+  beard.castShadow = true;
+  beard.receiveShadow = true;
   root.add(beard);
   return root;
 }

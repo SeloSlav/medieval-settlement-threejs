@@ -29,9 +29,10 @@ type SeasonTooltipItem = {
   season: string;
 };
 
-export function mountTooltips(root: HTMLElement): () => void {
+export function mountTooltips(root: HTMLElement, variantClass?: string): () => void {
   const tooltip = document.createElement('div');
   tooltip.className = 'ui-tooltip';
+  if (variantClass) tooltip.classList.add(variantClass);
   tooltip.id = 'ui-tooltip';
   tooltip.setAttribute('role', 'tooltip');
   tooltip.hidden = true;

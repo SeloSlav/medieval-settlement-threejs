@@ -1,15 +1,17 @@
 import * as THREE from 'three';
 import {
   getCurrentPlayerCompanyStandardArt,
+  resolveMercenaryCompanyStandardArt,
   resolveOttomanCompanyStandardArt,
   type CroatianCheckerboardBannerArt,
   type LordHeraldryBannerArt,
+  type MercenaryCompanyStandardArt,
   type OttomanFieldStandardPanelArt,
 } from './companyStandardArt.ts';
 import type { CompanyStandardArtwork } from './CompanyStandardRenderer.ts';
 
 export const COMPANY_STANDARD_TEXTURE_WIDTH = 512;
-export const COMPANY_STANDARD_TEXTURE_MEMORY_BUDGET_BYTES = 3_000_000;
+export const COMPANY_STANDARD_TEXTURE_MEMORY_BUDGET_BYTES = 4_000_000;
 
 export type CompanyStandardTextureSet = {
   artwork: CompanyStandardArtwork;
@@ -20,25 +22,29 @@ export type CompanyStandardTextureSet = {
 };
 
 /**
- * Compiles character-creation heraldry and the two faction identities into
- * three shared cloth maps. Every company instances these same maps, so adding
+ * Compiles character-creation heraldry and the three faction identities into
+ * four shared cloth maps. Every company instances these same maps, so adding
  * standards changes neither texture count nor material count as armies grow.
  */
 export function createCompanyStandardTextures(): CompanyStandardTextureSet {
   const player = getCurrentPlayerCompanyStandardArt();
+  const mercenary = resolveMercenaryCompanyStandardArt();
   const ottoman = resolveOttomanCompanyStandardArt();
   const heraldryCanvas = bannerCanvas(player.upper.aspectRatio);
   const croatianCanvas = bannerCanvas(player.lower.aspectRatio);
+  const mercenaryCanvas = bannerCanvas(mercenary.panel.aspectRatio);
   const ottomanCanvas = bannerCanvas(ottoman.panel.aspectRatio);
 
   paintHeraldryBanner(heraldryCanvas, player.upper);
   paintCroatianBanner(croatianCanvas, player.lower);
+  paintMercenaryBanner(mercenaryCanvas, mercenary);
   paintOttomanBanner(ottomanCanvas, ottoman.panel);
 
   const playerHeraldry = clothTexture(heraldryCanvas, 'Lord heraldry company-standard cloth');
   const playerCroatian = clothTexture(croatianCanvas, 'Croatian checkerboard company-standard cloth');
+  const mercenaryTexture = clothTexture(mercenaryCanvas, 'Mercenary frog company-standard cloth');
   const ottomanTexture = clothTexture(ottomanCanvas, 'Ottoman field-standard cloth');
-  const textures = [playerHeraldry, playerCroatian, ottomanTexture] as const;
+  const textures = [playerHeraldry, playerCroatian, mercenaryTexture, ottomanTexture] as const;
   let disposed = false;
   const ready = loadChargeMask(player.upper.chargeMaskUrl).then((image) => {
     if (disposed || !image) return;
@@ -56,9 +62,10 @@ export function createCompanyStandardTextures(): CompanyStandardTextureSet {
     artwork: {
       playerHeraldry,
       playerCroatian,
+      mercenary: mercenaryTexture,
       ottoman: ottomanTexture,
     },
-    cacheKey: `${player.cacheKey}|${ottoman.cacheKey}`,
+    cacheKey: `${player.cacheKey}|${mercenary.cacheKey}|${ottoman.cacheKey}`,
     ready,
     estimatedGpuBytes,
     dispose(): void {
@@ -305,6 +312,57 @@ function paintOttomanBanner(
   }
   context.restore();
   finishClothSurface(canvas, art.trimColor, 0xd3c4_7f19);
+}
+
+function paintMercenaryBanner(
+  canvas: HTMLCanvasElement,
+  art: MercenaryCompanyStandardArt,
+): void {
+  const context = context2d(canvas);
+  const { width, height } = canvas;
+  context.fillStyle = art.panel.fieldColor;
+  context.fillRect(0, 0, width, height);
+
+  context.save();
+  context.strokeStyle = art.panel.bendColor;
+  context.lineWidth = height * 0.22;
+  context.beginPath();
+  context.moveTo(-width * 0.08, height * 0.86);
+  context.lineTo(width * 1.08, height * 0.14);
+  context.stroke();
+  context.restore();
+
+  // A broad, heraldic frog: intentionally readable and a little ridiculous.
+  context.save();
+  context.translate(width * 0.54, height * 0.53);
+  context.fillStyle = art.panel.emblemColor;
+  context.strokeStyle = art.panel.trimColor;
+  context.lineWidth = Math.max(3, height * 0.018);
+  context.beginPath();
+  context.ellipse(0, height * 0.03, width * 0.16, height * 0.15, 0, 0, Math.PI * 2);
+  context.fill();
+  context.stroke();
+  for (const side of [-1, 1] as const) {
+    context.beginPath();
+    context.ellipse(side * width * 0.11, -height * 0.11, width * 0.055, height * 0.06, 0, 0, Math.PI * 2);
+    context.fill();
+    context.stroke();
+    context.beginPath();
+    context.moveTo(side * width * 0.1, height * 0.09);
+    context.lineTo(side * width * 0.24, height * 0.2);
+    context.lineTo(side * width * 0.3, height * 0.16);
+    context.stroke();
+  }
+  context.fillStyle = art.panel.fieldColor;
+  context.beginPath();
+  context.arc(-width * 0.11, -height * 0.12, height * 0.013, 0, Math.PI * 2);
+  context.arc(width * 0.11, -height * 0.12, height * 0.013, 0, Math.PI * 2);
+  context.fill();
+  context.beginPath();
+  context.arc(0, height * 0.035, width * 0.075, 0.1 * Math.PI, 0.9 * Math.PI);
+  context.stroke();
+  context.restore();
+  finishClothSurface(canvas, art.panel.trimColor, 0x4b75_a9d3);
 }
 
 function finishClothSurface(

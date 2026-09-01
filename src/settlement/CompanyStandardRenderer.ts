@@ -5,7 +5,7 @@ import {
   type CrowdViewState,
 } from './crowdView.ts';
 
-export type CompanyStandardFaction = 'player' | 'ottoman';
+export type CompanyStandardFaction = 'player' | 'mercenary' | 'ottoman';
 
 export type CompanyStandardRenderAgent = {
   /** Stable company/member-derived id. It owns the persistent cloth state. */
@@ -44,6 +44,7 @@ export type CompanyStandardRenderAgent = {
 export type CompanyStandardArtwork = {
   playerHeraldry?: THREE.Texture | null;
   playerCroatian?: THREE.Texture | null;
+  mercenary?: THREE.Texture | null;
   ottoman?: THREE.Texture | null;
 };
 
@@ -101,6 +102,7 @@ export type CompanyStandardRendererOptions = {
 export const COMPANY_STANDARD_VISUAL_CONTRACT = Object.freeze({
   poleHeightMeters: 3.72,
   playerPanelCount: 2,
+  mercenaryPanelCount: 1,
   ottomanPanelCount: 1,
   hoistEdgePinned: true,
   freeEdgeProfile: 'forked-and-tapered',
@@ -110,7 +112,7 @@ export const COMPANY_STANDARD_VISUAL_CONTRACT = Object.freeze({
 
 export const COMPANY_STANDARD_PERFORMANCE_BUDGET = Object.freeze({
   maxStandards: 512,
-  maxDrawCalls: 6,
+  maxDrawCalls: 7,
   fixedStepHz: 30,
   maxPhysicsStepsPerFrame: 2,
   nodesPerPanel: 60,
@@ -136,6 +138,7 @@ const FULL_QUALITY_GRID = [10, 6] as const;
 type CompanyStandardPanelRole =
   | 'player-heraldry'
   | 'player-croatian'
+  | 'mercenary'
   | 'ottoman';
 
 type PanelLayout = {
@@ -172,6 +175,18 @@ const OTTOMAN_LAYOUTS: readonly PanelLayout[] = [
     // A single central fly point: the middle projects furthest from the pole,
     // while the upper and lower fly corners taper inward.
     edgeProfile: [0.72, 0.88, 1, 0.88, 0.72],
+  },
+];
+
+const MERCENARY_LAYOUTS: readonly PanelLayout[] = [
+  {
+    role: 'mercenary',
+    top: 3.35,
+    width: 1.5,
+    height: 1.08,
+    // A forked fly distinguishes the hired company's own field sign from the
+    // lord's stacked heraldry and the Ottoman single-pointed standard.
+    edgeProfile: [1, 0.97, 0.72, 0.97, 1],
   },
 ];
 
@@ -288,6 +303,12 @@ export class CompanyStandardRenderer {
         0xc8b48c,
         'Croatian checkerboard lower standard cloth',
       ),
+      mercenary: createClothLayer(
+        'mercenary',
+        this.capacity,
+        0x315744,
+        'Mercenary frog standard cloth',
+      ),
       ottoman: createClothLayer(
         'ottoman',
         this.capacity,
@@ -320,6 +341,7 @@ export class CompanyStandardRenderer {
   setArtwork(artwork: CompanyStandardArtwork): void {
     this.setLayerMap(this.layers['player-heraldry'], artwork.playerHeraldry ?? null);
     this.setLayerMap(this.layers['player-croatian'], artwork.playerCroatian ?? null);
+    this.setLayerMap(this.layers.mercenary, artwork.mercenary ?? null);
     this.setLayerMap(this.layers.ottoman, artwork.ottoman ?? null);
   }
 
@@ -581,7 +603,9 @@ export class CompanyStandardRenderer {
     state: StandardState,
   ): void {
     const [columns, rows] = FULL_QUALITY_GRID;
-    const layouts = state.faction === 'player' ? PLAYER_LAYOUTS : OTTOMAN_LAYOUTS;
+    const layouts = state.faction === 'player'
+      ? PLAYER_LAYOUTS
+      : state.faction === 'mercenary' ? MERCENARY_LAYOUTS : OTTOMAN_LAYOUTS;
     state.panels = layouts.map((layout) => createPanelState(
       state,
       layout,
@@ -1369,6 +1393,7 @@ function sampleProfile(profile: readonly number[], t: number): number {
 
 function fallbackLayerColor(role: CompanyStandardPanelRole): number {
   if (role === 'ottoman') return 0x8a2528;
+  if (role === 'mercenary') return 0x315744;
   if (role === 'player-croatian') return 0xc8b48c;
   return 0x8f6f39;
 }

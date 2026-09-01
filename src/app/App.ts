@@ -55,7 +55,10 @@ import type { DeliveryAgentRenderer } from '../logistics/DeliveryAgentRenderer.t
 import type { FireEffectsRenderer } from '../fires/FireEffectsRenderer.ts';
 import type { BanditCampRenderer } from '../security/BanditCampRenderer.ts';
 import type { MilitiaCommandController } from '../security/MilitiaCommandController.ts';
-import type { MilitaryCompanyState } from '../security/militaryProgression.ts';
+import {
+  militaryCompanyDisplayName,
+  type MilitaryCompanyState,
+} from '../security/militaryProgression.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import type { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
 import type { AuthoredCrowdDiagnostic } from '../settlement/SettlementCrowdRenderer.ts';
@@ -1983,13 +1986,14 @@ export class App {
     for (const company of snapshot.militaryCompanies.values()) {
       if (company.kind !== 'mercenary-spears') continue;
       const previous = this.lastSeenMilitaryCompanies.get(company.id);
+      const companyName = militaryCompanyDisplayName(company);
       if (!previous) {
         this.toolbar?.settlementHud.addLordReport({
           id: `military-arrival:${company.id}:${company.formedTick}`,
           kind: 'military',
           tone: 'notice',
-          title: 'Mercenary company has arrived',
-          detail: `${company.livingMembers} hired spearmen have entered at a safe edge of the region, away from the town and known bandit camps. They await company orders there.`,
+          title: `${companyName} have arrived`,
+          detail: `${company.livingMembers} hired spearmen of ${companyName} have entered at a safe edge of the region, away from the town and known bandit camps. They await company orders there.`,
           timeLabel: formatSettlementClock(company.formedTick),
         });
         this.toastManager?.show('Mercenaries have arrived at the edge of the region.', {
@@ -2004,8 +2008,8 @@ export class App {
           id: `military-leaving:${company.id}:${snapshot.simTick}`,
           kind: 'military',
           tone: 'warning',
-          title: 'Mercenary company is leaving',
-          detail: `Company #${company.id} is marching to its original map edge and no longer accepts orders. Select its Town Hall roster and pay a two-day retainer before the last survivor exits if you need it to stay.`,
+          title: `${companyName} are leaving`,
+          detail: `${companyName} are marching to their original map edge and no longer accept orders. Select the Town Hall roster and pay a two-day retainer before the last survivor exits if you need them to stay.`,
           timeLabel: formatSettlementClock(snapshot.simTick),
           target: source ? { kind: 'building', id: source.id, x: source.x, z: source.z } : undefined,
           targetLabel: source ? 'Review mercenary contract' : undefined,
@@ -2026,8 +2030,8 @@ export class App {
         id: `military-departure:${company.id}:${snapshot.simTick}`,
         kind: 'military',
         tone: 'notice',
-        title: 'Mercenary company has departed',
-        detail: 'The final surviving contractor has crossed the map edge. The company has left the region and no longer draws daily Treasury pay.',
+        title: `${militaryCompanyDisplayName(company)} have departed`,
+        detail: `The final surviving contractor of ${militaryCompanyDisplayName(company)} has crossed the map edge. The company no longer draws daily Treasury pay.`,
         timeLabel: formatSettlementClock(snapshot.simTick),
       });
       this.toastManager?.show('A mercenary company has left the region.', {

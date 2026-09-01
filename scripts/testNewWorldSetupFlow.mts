@@ -115,6 +115,11 @@ assert.match(
 
 assert.match(worldPanel, /action: 'back' \| 'start'/);
 assert.match(worldPanel, /initialSettings\?: WorldGenerationSettings/);
+assert.match(worldPanel, /mountTooltips\(this\.backdrop, 'ui-tooltip--world-setup'\)/);
+assert.match(worldPanel, /tooltipAnchor\.dataset\.tooltipTitle = value/);
+assert.match(worldPanel, /tooltipAnchor\.dataset\.tooltip = description/);
+assert.match(worldPanel, /tooltipAnchor\.tabIndex = 0/);
+assert.match(worldPanel, /this\.disposeTooltips\(\);[\s\S]*?this\.backdrop\.remove\(\)/);
 assert.match(worldPanel, /data-setup-back[^>]*>[\s\S]*?Back to Heraldry/);
 assert.match(worldPanel, /data-map-seed-section/);
 assert.match(worldPanel, /data-randomize-seed>Randomize seed/);
@@ -126,8 +131,13 @@ assert.match(worldPanel, /data-world-selector="map-size"/);
 assert.match(worldPanel, /data-map-size-value/);
 assert.match(
   worldPanel,
-  /\{ \.\.\.DEFAULT_WORLD_GENERATION_SETTINGS, mapSize: 'small' \}/,
+  /\.\.\.DEFAULT_WORLD_GENERATION_SETTINGS,[\s\S]*?\.\.\.DEFAULT_WORLD_SETUP_DIFFICULTY\.settings,[\s\S]*?mapSize: 'small'/,
   'new map creation should default to the small map size',
+);
+assert.match(
+  worldPanel,
+  /const DEFAULT_WORLD_SETUP_DIFFICULTY = WORLD_DIFFICULTY_PRESETS\.find\([\s\S]*?preset\.id === 'easy'/,
+  'new map creation should default to Pampered Page',
 );
 assert.match(worldPanel, /data-setup-heading/);
 assert.match(worldPanel, /data-world-selector="difficulty-preset"/);
@@ -201,9 +211,24 @@ assert.match(worldCss, /military-demands-atlas\.png/);
 for (const state of [0, 1, 2, 3]) {
   assert.match(worldCss, new RegExp(`data-rule-icon='military-demands'\\]\\[data-state='${state}'`));
 }
+assert.match(worldCss, /data-state='2'[\s\S]*?military-full-upkeep\.png[\s\S]*?background-size: contain/);
+assert.match(worldCss, /data-state='3'[\s\S]*?military-campaign-burden\.png[\s\S]*?background-size: contain/);
+assert.match(worldCss, /data-rule-icon='wild-animals'\]\[data-state='off'[\s\S]*?wildlife-quiet\.png/);
+assert.match(worldCss, /data-rule-icon='wild-animals'\]\[data-state='on'[\s\S]*?wildlife-attacks\.png/);
 const militaryDemandsAtlas = 'public/assets/ui/icons/world-setup/military-demands-atlas.png';
 assert.ok(existsSync(militaryDemandsAtlas), `${militaryDemandsAtlas} must exist`);
 assert.ok(statSync(militaryDemandsAtlas).size > 10_000, 'the military setting atlas must contain authored raster art');
+for (const icon of [
+  'military-full-upkeep.png',
+  'military-campaign-burden.png',
+  'wildlife-quiet.png',
+  'wildlife-attacks.png',
+]) {
+  const path = `public/assets/ui/icons/world-setup/${icon}`;
+  assert.ok(existsSync(path), `${path} must exist`);
+  assert.ok(statSync(path).size > 10_000, `${path} must retain detailed authored art`);
+  assert.equal(readFileSync(path)[25], 6, `${path} must retain true RGBA transparency`);
+}
 assert.match(worldCss, /data-rule-icon='settlement'\]\[data-state='frontier'[\s\S]*?settlement-frontier\.png/);
 assert.match(worldCss, /data-rule-icon='approval'\]\[data-state='0'[\s\S]*?approval-disabled\.png/);
 assert.match(worldCss, /data-rule-icon='approval'\]\[data-state='50'[\s\S]*?approval-relaxed\.png/);
@@ -228,6 +253,7 @@ assert.match(
 );
 assert.doesNotMatch(worldPanel, /world-setup-logo/);
 assert.doesNotMatch(worldCss, /\.world-setup-logo/);
+assert.match(worldCss, /\.ui-tooltip\.ui-tooltip--world-setup[\s\S]*?z-index: 10005/);
 assert.match(settlementHud, /data-world-difficulty-badge/);
 assert.match(settlementHud, /describeWorldDifficulty\(getActiveWorldGeneration\(\)\)/);
 assert.match(settlementHud, /difficultyBadge\.dataset\.tooltipTitle = difficulty\.title/);

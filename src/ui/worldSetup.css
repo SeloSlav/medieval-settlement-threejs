@@ -157,6 +157,30 @@
   border-inline: 1px solid rgba(238, 232, 220, 0.11);
 }
 
+.world-setup-arrow-select__value[data-tooltip] {
+  cursor: help;
+}
+
+.world-setup-arrow-select__value[data-tooltip]:focus-visible {
+  outline: 1px solid rgba(225, 190, 105, 0.72);
+  outline-offset: -3px;
+}
+
+.ui-tooltip.ui-tooltip--world-setup {
+  z-index: 10005;
+  max-width: min(340px, calc(100vw - 24px));
+  padding: 11px 13px;
+  border-color: rgba(225, 190, 105, 0.42);
+  border-radius: 4px;
+  background:
+    linear-gradient(145deg, rgba(45, 42, 31, 0.98), rgba(17, 21, 16, 0.99)),
+    #171a15;
+  box-shadow:
+    0 20px 54px rgba(0, 0, 0, 0.56),
+    inset 3px 0 0 rgba(197, 155, 72, 0.64),
+    inset 0 1px 0 rgba(255, 244, 218, 0.08);
+}
+
 .world-setup-arrow-select__value strong {
   color: rgba(246, 235, 207, 0.98);
   font-size: 17px;
@@ -370,17 +394,12 @@
   background-position: center bottom;
 }
 
-.world-setup-setting-row__icon[data-rule-icon='wild-animals'] {
-  background-image: url('/assets/ui/icons/world-setup/wild-animal-attacks-atlas.png');
-  background-size: auto 200%;
-}
-
 .world-setup-setting-row__icon[data-rule-icon='wild-animals'][data-state='off'] {
-  background-position: center top;
+  background-image: url('/assets/ui/icons/world-setup/wildlife-quiet.png');
 }
 
 .world-setup-setting-row__icon[data-rule-icon='wild-animals'][data-state='on'] {
-  background-position: center bottom;
+  background-image: url('/assets/ui/icons/world-setup/wildlife-attacks.png');
 }
 
 .world-setup-setting-row__icon[data-rule-icon='approval'][data-state='0'] {
@@ -401,11 +420,15 @@
 }
 
 .world-setup-setting-row__icon[data-rule-icon='military-demands'][data-state='2'] {
-  background-position: 0 100%;
+  background-image: url('/assets/ui/icons/world-setup/military-full-upkeep.png');
+  background-position: center;
+  background-size: contain;
 }
 
 .world-setup-setting-row__icon[data-rule-icon='military-demands'][data-state='3'] {
-  background-position: 100% 100%;
+  background-image: url('/assets/ui/icons/world-setup/military-campaign-burden.png');
+  background-position: center;
+  background-size: contain;
 }
 
 .world-setup-setting-row__icon[data-rule-icon='approval'][data-state='50'] {

@@ -27,6 +27,14 @@ assert.deepEqual(
 );
 assert.deepEqual(
   companyStandardIdentity(candidate({
+    id: 'm1',
+    faction: 'mercenary-spear',
+    companyId: 'company-3',
+  })),
+  { companyKey: 'mercenary:company-3', companyId: 'company-3', side: 'mercenary' },
+);
+assert.deepEqual(
+  companyStandardIdentity(candidate({
     id: 'o1',
     faction: 'raider',
     companyId: null,
@@ -47,12 +55,15 @@ const opening: Candidate[] = [
   candidate({ id: 'ottoman-2', faction: 'raider', companyId: null, raidId: 'warband-a', sourceSlot: 2 }),
   candidate({ id: 'bows-4', faction: 'bowman', companyId: 'company-2', sourceSlot: 4 }),
   candidate({ id: 'bows-1', faction: 'bowman', companyId: 'company-2', sourceSlot: 1 }),
+  candidate({ id: 'merc-3', faction: 'mercenary-spear', companyId: 'company-3', sourceSlot: 3 }),
+  candidate({ id: 'merc-0', faction: 'mercenary-spear', companyId: 'company-3', sourceSlot: 0 }),
   candidate({ id: 'bandit-1', faction: 'bandit', companyId: null, raidId: 'camp-1' }),
 ];
 const first = registry.sync(opening);
-assert.equal(first.size, 3, 'two player companies and one Ottoman warband need three standards');
+assert.equal(first.size, 4, 'two resident companies, one mercenary company, and one Ottoman warband need four standards');
 assert.equal(first.get('player:company-1')?.bearerId, 'player-a');
 assert.equal(first.get('player:company-2')?.bearerId, 'bows-1');
+assert.equal(first.get('mercenary:company-3')?.bearerId, 'merc-0');
 assert.equal(first.get('ottoman:warband-a')?.bearerId, 'ottoman-2');
 assert.equal(registry.isBearer('player-a'), true);
 assert.equal(registry.isBearer('player-b'), false);

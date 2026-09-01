@@ -21,6 +21,7 @@ import {
   WORLD_DIFFICULTY_PRESET_ORDER,
   WORLD_DIFFICULTY_PRESETS,
 } from '../world/worldDifficulty.ts';
+import { mountTooltips } from './tooltips.ts';
 export type WorldSetupResult = {
   action: 'back' | 'start';
   settings: WorldGenerationSettings;
@@ -36,15 +37,35 @@ const DIFFICULTY_RATE_ORDER: readonly WorldDifficultyRate[] = [0, 50, 100, 150];
 const INITIAL_GOODS_ORDER = [1, 2] as const;
 const MILITARY_DEMAND_ORDER: readonly WorldMilitaryDemands[] = [0, 1, 2, 3];
 const BOOLEAN_ORDER = [false, true] as const;
+const DEFAULT_WORLD_SETUP_DIFFICULTY = WORLD_DIFFICULTY_PRESETS.find(
+  (preset) => preset.id === 'easy',
+)!;
 
 function cycleValue<T>(values: readonly T[], current: T, step: number): T {
   const currentIndex = Math.max(0, values.indexOf(current));
   return values[(currentIndex + step + values.length) % values.length]!;
 }
 
+function syncArrowSelectorCopy(
+  valueElement: HTMLElement,
+  descriptionElement: HTMLElement,
+  value: string,
+  description: string,
+): void {
+  valueElement.textContent = value;
+  descriptionElement.textContent = description;
+  const tooltipAnchor = valueElement.closest<HTMLElement>('.world-setup-arrow-select__value');
+  if (!tooltipAnchor) return;
+  tooltipAnchor.dataset.tooltipTitle = value;
+  tooltipAnchor.dataset.tooltip = description;
+  tooltipAnchor.tabIndex = 0;
+  tooltipAnchor.setAttribute('aria-label', `${value}. ${description}`);
+}
+
 export class WorldSetupPanel {
   private readonly backdrop: HTMLElement;
   private readonly resolve: (result: WorldSetupResult) => void;
+  private readonly disposeTooltips: () => void;
   private draft: WorldGenerationSettings;
 
   private constructor(
@@ -56,7 +77,11 @@ export class WorldSetupPanel {
     this.draft = options.initialSettings
       ? normalizeWorldGenerationSettings(options.initialSettings)
       : applyTerrainPreset(
-        { ...DEFAULT_WORLD_GENERATION_SETTINGS, mapSize: 'small' },
+        {
+          ...DEFAULT_WORLD_GENERATION_SETTINGS,
+          ...DEFAULT_WORLD_SETUP_DIFFICULTY.settings,
+          mapSize: 'small',
+        },
         'delnice_meadow',
       );
     this.backdrop = document.createElement('div');
@@ -275,6 +300,7 @@ export class WorldSetupPanel {
     `;
 
     parent.appendChild(this.backdrop);
+    this.disposeTooltips = mountTooltips(this.backdrop, 'ui-tooltip--world-setup');
     this.renderTerrainPresetOptions();
     this.bindEvents();
     this.backdrop.querySelector<HTMLElement>('[data-setup-heading]')!.focus();
@@ -373,9 +399,13 @@ export class WorldSetupPanel {
     const syncMapSizeControl = (): void => {
       const preset = MAP_SIZE_PRESETS[this.draft.mapSize];
       const playableKm = (preset.playableSize / 1000).toFixed(1);
-      mapSizeValue.textContent = preset.label;
       mapSizeValue.dataset.value = this.draft.mapSize;
-      mapSizeDescription.textContent = `${playableKm} km wide · ${preset.smallMapAreas}× small-map area`;
+      syncArrowSelectorCopy(
+        mapSizeValue,
+        mapSizeDescription,
+        preset.label,
+        `${playableKm} km wide · ${preset.smallMapAreas}× small-map area`,
+      );
     };
 
     const syncConflictControls = (): void => {
@@ -384,39 +414,57 @@ export class WorldSetupPanel {
       pressureControls.hidden = this.draft.conflictMode !== 'frontier';
       conflictModeIcon.dataset.state = this.draft.conflictMode;
       conflictModeValue.dataset.value = this.draft.conflictMode;
-      conflictModeValue.textContent = this.draft.conflictMode === 'frontier'
-        ? 'Contested frontier'
-        : 'Peaceful settlement';
-      conflictModeDescription.textContent = this.draft.conflictMode === 'frontier'
-        ? 'Periodic Ottoman raids; bandits use their own rule.'
-        : 'No Ottoman raids; bandits use their own rule.';
+      syncArrowSelectorCopy(
+        conflictModeValue,
+        conflictModeDescription,
+        this.draft.conflictMode === 'frontier' ? 'Contested frontier' : 'Peaceful settlement',
+        this.draft.conflictMode === 'frontier'
+          ? 'Periodic Ottoman raids; bandits use their own rule.'
+          : 'No Ottoman raids; bandits use their own rule.',
+      );
       banditCampsIcon.dataset.state = this.draft.banditCampsEnabled ? 'on' : 'off';
       banditCampsValue.dataset.value = this.draft.banditCampsEnabled ? 'on' : 'off';
-      banditCampsValue.textContent = this.draft.banditCampsEnabled ? 'Roaming bandits' : 'None';
-      banditCampsDescription.textContent = this.draft.banditCampsEnabled
-        ? 'Independent camps steal stored goods; they never damage buildings.'
-        : 'No bandit camps or thefts.';
+      syncArrowSelectorCopy(
+        banditCampsValue,
+        banditCampsDescription,
+        this.draft.banditCampsEnabled ? 'Roaming bandits' : 'None',
+        this.draft.banditCampsEnabled
+          ? 'Independent camps steal stored goods; they never damage buildings.'
+          : 'No bandit camps or thefts.',
+      );
       wildAnimalAttacksIcon.dataset.state = this.draft.wildAnimalAttacksEnabled ? 'on' : 'off';
       wildAnimalAttacksValue.dataset.value = this.draft.wildAnimalAttacksEnabled ? 'on' : 'off';
-      wildAnimalAttacksValue.textContent = this.draft.wildAnimalAttacksEnabled ? 'Foxes & wolf packs' : 'Quiet wilds';
-      wildAnimalAttacksDescription.textContent = this.draft.wildAnimalAttacksEnabled
-        ? 'Infrequent food theft and livestock attacks; guard dogs and militia can intervene.'
-        : 'No hostile wildlife incursions.';
+      syncArrowSelectorCopy(
+        wildAnimalAttacksValue,
+        wildAnimalAttacksDescription,
+        this.draft.wildAnimalAttacksEnabled ? 'Foxes & wolf packs' : 'Quiet wilds',
+        this.draft.wildAnimalAttacksEnabled
+          ? 'Infrequent food theft and livestock attacks; guard dogs and militia can intervene.'
+          : 'No hostile wildlife incursions.',
+      );
     };
 
     const syncHazardControls = (): void => {
       severeWeatherIcon.dataset.state = this.draft.severeWeatherEnabled ? 'on' : 'off';
       severeWeatherValue.dataset.value = this.draft.severeWeatherEnabled ? 'on' : 'off';
-      severeWeatherValue.textContent = this.draft.severeWeatherEnabled ? 'On' : 'Off';
-      severeWeatherDescription.textContent = this.draft.severeWeatherEnabled
-        ? 'Droughts, lightning, and fire.'
-        : 'Normal rain and frost only.';
+      syncArrowSelectorCopy(
+        severeWeatherValue,
+        severeWeatherDescription,
+        this.draft.severeWeatherEnabled ? 'On' : 'Off',
+        this.draft.severeWeatherEnabled
+          ? 'Droughts, lightning, and fire.'
+          : 'Normal rain and frost only.',
+      );
       aquiferNetworksIcon.dataset.state = this.draft.wellAquiferNetworksEnabled ? 'aquifers' : 'even';
       aquiferNetworksValue.dataset.value = this.draft.wellAquiferNetworksEnabled ? 'aquifers' : 'even';
-      aquiferNetworksValue.textContent = this.draft.wellAquiferNetworksEnabled ? 'Aquifers' : 'Even';
-      aquiferNetworksDescription.textContent = this.draft.wellAquiferNetworksEnabled
-        ? 'Well yield varies by location.'
-        : 'Every well has reliable yield.';
+      syncArrowSelectorCopy(
+        aquiferNetworksValue,
+        aquiferNetworksDescription,
+        this.draft.wellAquiferNetworksEnabled ? 'Aquifers' : 'Even',
+        this.draft.wellAquiferNetworksEnabled
+          ? 'Well yield varies by location.'
+          : 'Every well has reliable yield.',
+      );
     };
 
     const syncRuleControls = (): void => {
@@ -441,31 +489,36 @@ export class WorldSetupPanel {
       const approval = approvalCopy[this.draft.approvalDeclineRate];
       approvalDeclineIcon.dataset.state = String(this.draft.approvalDeclineRate);
       approvalDeclineValue.dataset.value = String(this.draft.approvalDeclineRate);
-      approvalDeclineValue.textContent = approval[0];
-      approvalDeclineDescription.textContent = approval[1];
+      syncArrowSelectorCopy(approvalDeclineValue, approvalDeclineDescription, approval[0], approval[1]);
       const food = foodCopy[this.draft.foodSpoilageRate];
       foodSpoilageIcon.dataset.state = String(this.draft.foodSpoilageRate);
       foodSpoilageValue.dataset.value = String(this.draft.foodSpoilageRate);
-      foodSpoilageValue.textContent = food[0];
-      foodSpoilageDescription.textContent = food[1];
+      syncArrowSelectorCopy(foodSpoilageValue, foodSpoilageDescription, food[0], food[1]);
       initialGoodsIcon.dataset.state = String(this.draft.initialGoodsMultiplier);
       initialGoodsValue.dataset.value = String(this.draft.initialGoodsMultiplier);
-      initialGoodsValue.textContent = this.draft.initialGoodsMultiplier === 2 ? 'Double' : 'Normal';
-      initialGoodsDescription.textContent = this.draft.initialGoodsMultiplier === 2
-        ? 'Twice the goods in the original camp.'
-        : 'Standard starting stock.';
+      syncArrowSelectorCopy(
+        initialGoodsValue,
+        initialGoodsDescription,
+        this.draft.initialGoodsMultiplier === 2 ? 'Double' : 'Normal',
+        this.draft.initialGoodsMultiplier === 2
+          ? 'Twice the goods in the original camp.'
+          : 'Standard starting stock.',
+      );
       const military = militaryCopy[this.draft.militaryDemands];
       militaryDemandsIcon.dataset.state = String(this.draft.militaryDemands);
       militaryDemandsValue.dataset.value = String(this.draft.militaryDemands);
-      militaryDemandsValue.textContent = military[0];
-      militaryDemandsDescription.textContent = military[1];
+      syncArrowSelectorCopy(militaryDemandsValue, militaryDemandsDescription, military[0], military[1]);
     };
 
     const syncDifficultyPresetControl = (): void => {
       const preset = difficultyPresetForSettings(this.draft);
       difficultyPresetValue.dataset.value = preset?.id ?? 'custom';
-      difficultyPresetValue.textContent = preset?.name ?? 'Custom';
-      difficultyPresetDescription.textContent = preset?.description ?? 'Individual rules adjusted.';
+      syncArrowSelectorCopy(
+        difficultyPresetValue,
+        difficultyPresetDescription,
+        preset?.name ?? 'Custom',
+        preset?.description ?? 'Individual rules adjusted.',
+      );
     };
 
     const syncGameplayControls = (): void => {
@@ -594,6 +647,7 @@ export class WorldSetupPanel {
 
     backButton.addEventListener('click', () => {
       const settings = readSettings();
+      this.disposeTooltips();
       this.backdrop.remove();
       this.resolve({ action: 'back', settings });
     });
@@ -601,6 +655,7 @@ export class WorldSetupPanel {
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       const settings = readSettings();
+      this.disposeTooltips();
       this.backdrop.remove();
       this.resolve({ action: 'start', settings });
     });

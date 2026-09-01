@@ -8,10 +8,13 @@ import {
   CROATIAN_CHECKER_ROWS,
   HERALDRY_PATTERN_CODES,
   LORD_BANNER_ASPECT_RATIO,
+  MERCENARY_FIELD_STANDARD_ASPECT_RATIO,
+  MERCENARY_FIELD_STANDARD_COLORS,
   OTTOMAN_FIELD_STANDARD_ASPECT_RATIO,
   OTTOMAN_FIELD_STANDARD_COLORS,
   getCurrentPlayerCompanyStandardArt,
   resolveCompanyStandardArt,
+  resolveMercenaryCompanyStandardArt,
   resolveOttomanCompanyStandardArt,
   resolvePlayerCompanyStandardArt,
   sampleCroatianCheckerboard,
@@ -153,6 +156,18 @@ assert.equal(resolveOttomanCompanyStandardArt().cacheKey, ottoman.cacheKey);
 assert.match(ottoman.cacheKey, /^ottoman-field-standard-v1-[0-9a-f]{8}$/);
 assert.equal(resolveCompanyStandardArt('ottoman').cacheKey, ottoman.cacheKey);
 assert.equal(resolveCompanyStandardArt('player', customProfile).cacheKey, art.cacheKey);
+
+const mercenary = resolveMercenaryCompanyStandardArt();
+assert.equal(mercenary.faction, 'mercenary');
+assert.equal(mercenary.source, 'kupa-border-company-field-sign');
+assert.equal(mercenary.panel.aspectRatio, MERCENARY_FIELD_STANDARD_ASPECT_RATIO);
+assert.equal(mercenary.panel.flyProfile, 'swallowtail');
+assert.equal(mercenary.panel.emblem, 'croaking-frog');
+assert.equal(mercenary.panel.fieldColor, MERCENARY_FIELD_STANDARD_COLORS.riverGreen);
+assert.equal(Object.isFrozen(mercenary), true);
+assert.equal(Object.isFrozen(mercenary.panel), true);
+assert.equal(resolveCompanyStandardArt('mercenary').cacheKey, mercenary.cacheKey);
+assert.match(mercenary.cacheKey, /^mercenary-field-standard-v1-[0-9a-f]{8}$/);
 
 const redField = sampleOttomanFieldStandard(ottoman.panel, 0.55, 0.2);
 const saffronField = sampleOttomanFieldStandard(ottoman.panel, 0.55, 0.48);
