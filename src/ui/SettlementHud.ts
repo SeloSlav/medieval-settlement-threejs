@@ -1398,7 +1398,7 @@ export class SettlementHud {
         const row = document.createElement('div');
         row.className = 'settlement-hud__animal-ledger-row';
         row.dataset.livestockKind = herd.species;
-        row.classList.toggle('is-undersupplied', herd.headCount > herd.suppliedCapacity);
+        row.classList.toggle('is-undersupplied', herd.presentHeadCount > herd.suppliedCapacity);
         const icon = document.createElement('span');
         icon.className = 'settlement-hud__animal-ledger-icon';
         icon.setAttribute('aria-hidden', 'true');
@@ -1408,7 +1408,7 @@ export class SettlementHud {
         const label = document.createElement('strong');
         label.textContent = herd.label;
         const detail = document.createElement('small');
-        detail.textContent = `${herd.holdingCount} ${herd.holdingCount === 1 ? 'holding' : 'holdings'} · ${formatLedgerAmount(herd.suppliedCapacity)} supplied · ${formatLedgerAmount(herd.forageCapacity)} ${herd.housingLabel === 'Pasture' ? 'forage' : 'pannage'}`;
+        detail.textContent = `${herd.holdingCount} ${herd.holdingCount === 1 ? 'holding' : 'holdings'}${herd.species === 'horses' ? ` · ${herd.presentHeadCount} present · ${herd.headCount - herd.presentHeadCount} away` : ''} · ${formatLedgerAmount(herd.suppliedCapacity)} supplied · ${formatLedgerAmount(herd.forageCapacity)} ${herd.housingLabel === 'Pasture' ? 'forage' : 'pannage'}`;
         copy.append(label, detail);
         const amount = document.createElement('strong');
         amount.className = 'settlement-hud__animal-ledger-value';

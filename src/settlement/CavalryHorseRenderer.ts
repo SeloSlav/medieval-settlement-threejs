@@ -21,6 +21,7 @@ type HorseVisual = {
   legs: readonly THREE.Group[];
   tail: THREE.Group;
   blanket: THREE.Mesh;
+  tack: readonly THREE.Object3D[];
   headPitch: number;
   elapsed: number;
 };
@@ -65,6 +66,7 @@ export class CavalryHorseRenderer {
       visual.root.position.set(pose.x, pose.y, pose.z);
       visual.root.rotation.y = pose.yaw;
       visual.blanket.material = this.blanketMaterials[pose.presentation];
+      for (const part of visual.tack) part.visible = pose.presentation !== 'pasture';
       const frameDt = Math.max(0, Math.min(0.1, dt));
       visual.elapsed += frameDt;
       animateHorse(visual, pose, frameDt);
@@ -113,7 +115,7 @@ export class CavalryHorseRenderer {
     const maneStrip = addPart(head, this.geometries.mane, mane, [0, 0.5, -0.05], [0.12, 0.6, 0.7]);
     maneStrip.rotation.x = -0.3;
     const blanketMesh = addPart(root, this.geometries.blanket, blanket, [0, 1.49, -0.04], [0.73, 0.09, 0.84]);
-    addPart(root, this.geometries.saddle, this.leather, [0, 1.56, -0.02], [0.52, 0.16, 0.51]);
+    const saddle = addPart(root, this.geometries.saddle, this.leather, [0, 1.56, -0.02], [0.52, 0.16, 0.51]);
     const rein = addPart(head, this.geometries.rein, this.leather, [0, 0.62, 0.79], [0.035, 0.39, 0.035]);
     rein.rotation.z = Math.PI * 0.5;
     const bit = addPart(head, this.geometries.bit, this.metal, [0, 0.52, 0.94], [0.035, 0.4, 0.035]);
@@ -149,6 +151,7 @@ export class CavalryHorseRenderer {
       legs,
       tail,
       blanket: blanketMesh,
+      tack: [blanketMesh, saddle, rein, bit],
       headPitch: 0,
       elapsed: (pose.appearanceSeed % 1000) / 113,
     };

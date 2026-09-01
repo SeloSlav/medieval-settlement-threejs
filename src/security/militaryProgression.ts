@@ -181,7 +181,7 @@ export const MILITARY_RECRUITMENT: Record<MilitaryCompanyKind, {
     label: 'Armored lancer company', shortLabel: 'Armored lancers', size: 6,
     cost: { polearms: 6, sidearms: 6, mailArmor: 6, ale: 6, preservedFood: 24, gold: 48 },
     source: 'cavalry-yard', residentMen: true, icon: 'armored-lancers',
-    summary: 'Six mail-armored lancers and trained warhorses. The strongest charge and holding power of the mounted roster, with severe remount, armor, and wage costs.',
+    summary: 'Six mail-armored lancers who collect reserved pasture horses before mustering. The strongest charge and holding power of the mounted roster, with severe horse, armor, and wage costs.',
   },
   'mounted-archers': {
     label: 'Mounted archer company', shortLabel: 'Mounted archers', size: 6,

@@ -247,7 +247,7 @@ impl MilitaryCost {
                 ..Self::default()
             },
             // Croatian-Hungarian frontier hussars: light lance, sidearm,
-            // small shield, and textile protection on a trained remount.
+            // small shield, and textile protection on a pasture-supplied horse.
             MilitaryKind::Hussars => Self {
                 polearms: n,
                 sidearms: n,

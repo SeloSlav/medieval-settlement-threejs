@@ -238,7 +238,7 @@ assert.match(
 );
 assert.match(
   livestockReducerSource,
-  /if herd\.head_count > 0 \{[\s\S]{0,180}Sell this pasture's current herd before changing its species/,
+  /if herd\.head_count > 0 \|\| attached_horses \{[\s\S]{0,180}Sell this pasture's current herd before changing its species/,
   'a stocked pasture must reject a species change until only that parcel is emptied',
 );
 assert.doesNotMatch(
@@ -263,8 +263,8 @@ assert.match(
 );
 assert.match(
   livestockReducerSource,
-  /if quantity > herd\.head_count[\s\S]{0,520}credit_treasury_gold\([\s\S]{0,160}sale_gold_per_head\(herd\.species\)/,
-  'animal sales must reject overselling and credit the species sale value',
+  /if quantity > available[\s\S]{0,1200}credit_treasury_gold\([\s\S]{0,160}sale_gold_per_head\(herd\.species\)/,
+  'animal sales must reject overselling available animals and credit the species sale value',
 );
 const livestockInspectorSource = fs.readFileSync('src/resources/inspector/livestockBuildingRenderer.ts', 'utf8');
 const pastureInspectorSource = fs.readFileSync('src/resources/inspector/pastureRenderer.ts', 'utf8');
@@ -602,7 +602,7 @@ assert.match(
 );
 assert.match(
   serverLivestock,
-  /parcel\.herd\.supplied_capacity = parcel[\s\S]{0,180}\.supplied_capacity[\s\S]{0,80}\.max\([\s\S]{0,180}\.pasture_capacity[\s\S]{0,100}\.min\(f64::from\(parcel\.herd\.head_count\)\)/,
+  /parcel\.herd\.supplied_capacity = parcel[\s\S]{0,180}\.supplied_capacity[\s\S]{0,80}\.max\([\s\S]{0,180}\.pasture_capacity[\s\S]{0,140}\.min\(f64::from\(physical_pasture_heads\(&parcel\.herd\)\)\)/,
   'fixed-cycle feed and water support must survive intervening simulation substeps',
 );
 assert.match(

@@ -141,7 +141,7 @@ export function renderLivestockBuildingInspector(
     ? 'Fence woodland pannage'
     : 'Fence pasture';
   const pastureControls = `<div class="inspector-action-panel" data-inspector-panel-title="Pastures">
-      <p class="resource-inspector-note">Draw independent livestock parcels inside this holding's work extent. Select a finished pasture to choose cattle, sheep, or horses, trade its animals, and configure its hay meadow. Pasture horses keep their home place while assigned to mounted companies.</p>
+      <p class="resource-inspector-note">Draw independent livestock parcels inside this holding's work extent. Select a finished pasture to choose its animals, buy or sell that herd, and configure its hay meadow. Pastoral parcels may hold cattle, sheep, or horses; horses keep their home place while assigned to mounted companies.</p>
       <div class="resource-action-row">
         <button type="button" class="resource-action-button resource-action-button--icon" data-land-parcel="pasture" data-tooltip-title="${pastureLabel}" data-tooltip="Lay out a fenced parcel inside this holding's work extent." data-tooltip-cost="${FREE_CONSTRUCTION_COST_TOOLTIP}" data-tooltip-cost-affordable="true"><span class="inspector-action-icon" data-action-icon="pasture-parcel" aria-hidden="true"></span><span>${pastureLabel}</span></button>
       </div>

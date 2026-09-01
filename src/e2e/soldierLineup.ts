@@ -78,9 +78,9 @@ const KIT_LABELS: Record<MilitaryCompanyKind, string> = {
   footmen: 'Sidearm · buckler · gambeson',
   polearms: 'Halberd · two-handed harness',
   bowmen: 'War bow · arrow quiver',
-  hussars: 'Lance · sidearm · small shield · padded coat · remount',
-  'armored-lancers': 'Lance · sidearm · mail · armored remount',
-  'mounted-archers': 'Composite bow · sidearm · quiver · remount',
+  hussars: 'Lance · sidearm · small shield · padded coat · pasture horse',
+  'armored-lancers': 'Lance · sidearm · mail · pasture horse',
+  'mounted-archers': 'Composite bow · sidearm · quiver · pasture horse',
 };
 
 const MELEE_KINDS = new Set<MilitaryCompanyKind>([

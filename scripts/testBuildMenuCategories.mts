@@ -137,17 +137,17 @@ assert.match(
 );
 assert.match(
   renderedCards,
-  /data-action="pastoral-farmstead"[\s\S]*?data-tooltip="Raises cattle and sheep for milk, wool, hides, manure, meat, and prepared Animal Feed\."/,
-  'the pastoral card must summarize what the holding produces',
+  /data-action="pastoral-farmstead"[\s\S]*?data-tooltip="Raises cattle, sheep, and pasture horses\.[^"]*use hay before feed[^"]*prepare Animal Feed from oats[^"]*water stays separate\."/,
+  'the pastoral card must summarize its cattle, sheep, horse, and fodder roles',
 );
 assert.match(
   renderedCards,
-  /data-action="swineherd"[\s\S]*?data-tooltip="Raises woodland pigs for meat and hides using prepared Animal Feed\."/,
+  /data-action="swineherd"[\s\S]*?data-tooltip="Raises pigs with woodland mast first, then prepared Animal Feed in lean periods; water is separate\."/,
   'the swineherd card must summarize what the holding produces',
 );
 assert.match(
   renderedCards,
-  /data-action="stable"[\s\S]*?data-tooltip="Houses oxen for building, farm work, and hauling\."/,
+  /data-action="stable"[\s\S]*?data-tooltip="Houses oxen for building, farm work, and hauling\.[^"]*never draw herd hay or Animal Feed\."/,
   'the stable card must summarize what its oxen do',
 );
 const cardResourceFlow = (action: string): { inputs: string[]; outputs: string[] } => {

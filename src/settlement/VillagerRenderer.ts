@@ -6397,8 +6397,8 @@ function combatEquipmentLabel(combat: CombatAgentState): string {
         ? 'War bow, sidearm, Ottoman cap, and disciplined field kit'
         : 'Sidearm, Ottoman cap, and disciplined field kit';
       case 'akinci': return ranged
-        ? 'Composite bow, sidearm, quiver, and fast remount'
-        : 'Sidearm, small shield, and fast remount';
+        ? 'Composite bow, sidearm, quiver, and pasture horse'
+        : 'Sidearm, small shield, and pasture horse';
       case 'sipahi': return 'Lance, sidearm, shield, mail, and trained warhorse';
       default: return ranged
         ? 'War bow, sidearm, and provincial field kit'
@@ -6414,9 +6414,9 @@ function combatEquipmentLabel(combat: CombatAgentState): string {
     case 'bowman': return 'War bow, quiver, arrows, and light clothing';
     case 'mercenary-spear': return 'Long pike, Katzbalger sidearm, and field kit';
     case 'spearman': return 'Short spear, round shield, and quilted jack';
-    case 'hussar': return 'Lance, sidearm, small shield, padded coat, and trained remount';
-    case 'armored-lancer': return 'Lance, sidearm, mail harness, and trained remount';
-    case 'mounted-archer': return 'Composite bow, quiver, sidearm, padded coat, and trained remount';
+    case 'hussar': return 'Lance, sidearm, small shield, padded coat, and pasture horse';
+    case 'armored-lancer': return 'Lance, sidearm, mail harness, and pasture horse';
+    case 'mounted-archer': return 'Composite bow, quiver, sidearm, padded coat, and pasture horse';
     case 'bandit': return 'Ordinary spear and scavenged clothing';
     case 'dog': return 'Teeth and trained protective instinct';
     case 'fox': return 'Speed and evasive instinct';

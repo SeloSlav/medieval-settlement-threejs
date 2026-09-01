@@ -70,7 +70,10 @@ export type SettlementDogLedger = Readonly<{
 export type SettlementHerdSpeciesLedgerEntry = Readonly<{
   species: LivestockSpecies;
   label: string;
+  /** Total owned head, including pasture horses currently deployed. */
   headCount: number;
+  /** Heads physically using this holding's forage, water, care, and winter feed. */
+  presentHeadCount: number;
   holdingCount: number;
   holdingIds: readonly string[];
   pastureCount: number;
@@ -336,6 +339,7 @@ export function buildSettlementAnimalsView(
     ...ledger.herds.species.map((entry) => [
       entry.species,
       entry.headCount,
+      entry.presentHeadCount,
       entry.holdingIds.join(','),
       entry.pastureCount,
       entry.pastureArea,
@@ -424,6 +428,9 @@ function buildSettlementLivestockLedger(
       species: row.species,
       label: row.label,
       headCount: sumNumbers(herds.map((herd) => herd.headCount), true),
+      presentHeadCount: sumNumbers(herds.map((herd) => (
+        herd.species === 'horses' ? herd.presentHeadCount : herd.headCount
+      )), true),
       holdingCount: holdingIds.length,
       holdingIds,
       pastureCount: pastures.length,

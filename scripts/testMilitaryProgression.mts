@@ -7,7 +7,6 @@ import {
   militaryResupplyCost,
 } from '../src/security/militaryProgression.ts';
 import {
-  CAVALRY_HORSE_REST_ANCHORS,
   CAVALRY_YARD_ARCHITECTURE_PLAN,
 } from '../src/buildings/meshes/cavalryYardMesh.ts';
 
@@ -16,8 +15,9 @@ const policy = read('src/security/militaryProgression.ts');
 const serverPolicy = read('server/src/military_policy.rs');
 const reducer = read('server/src/reducers/bandits.rs');
 const simulation = read('server/src/simulation/military.rs');
-const cavalrySimulation = read('server/src/simulation/cavalry.rs');
 const cavalryReducer = read('server/src/reducers/cavalry_horses.rs');
+const livestockReducer = read('server/src/reducers/livestock.rs');
+const livestockSimulation = read('server/src/simulation/livestock.rs');
 const cavalryPolicy = read('server/src/cavalry_policy.rs');
 const deliverySimulation = read('server/src/simulation/delivery_trips.rs');
 const raidPolicy = read('server/src/raid_agent_policy.rs');
@@ -233,35 +233,38 @@ assert.match(horseRenderer, /class CavalryHorseRenderer/);
 assert.match(horseRenderer, /animateHorse/);
 assert.match(horseRenderer, /pose\.activity === 'grazing'/);
 assert.match(horseRenderer, /visual\.blanket\.material = this\.blanketMaterials\[pose\.presentation\]/);
-assert.match(villagers, /anchor\.zone === 'paddock'/);
+assert.match(villagers, /function cavalryHorsePasturePose/);
+assert.match(villagers, /function pastureBilinearPoint/);
+assert.match(villagers, /horse\.atPasture/);
 assert.match(villagers, /activity = 'grazing'/);
 assert.match(villagers, /smoothHorseStep/);
 assert.equal(
   (villagers.match(/`horse:\$\{(?:pairedHorse|horse)\.id\}`/g) ?? []).length,
   2,
-  'the same authoritative horse render id must be used in the yard and under its rider',
+  'the same authoritative horse render id must be used in the pasture and under its rider',
 );
-assert.equal(CAVALRY_HORSE_REST_ANCHORS.length, 12);
-assert.equal(CAVALRY_HORSE_REST_ANCHORS.filter((anchor) => anchor.zone === 'stable').length, 6);
-assert.equal(CAVALRY_HORSE_REST_ANCHORS.filter((anchor) => anchor.zone === 'paddock').length, 6);
-assert.ok(CAVALRY_HORSE_REST_ANCHORS.every((anchor, index) => (
-  anchor.zone === (index % 2 === 0 ? 'stable' : 'paddock')
-)));
-assert.equal(CAVALRY_YARD_ARCHITECTURE_PLAN.diagnostics.stableBayCount, 6);
-assert.ok(CAVALRY_YARD_ARCHITECTURE_PLAN.modules.includes('schooling-ring'));
-assert.ok(CAVALRY_YARD_ARCHITECTURE_PLAN.modules.includes('feed-and-tack-store'));
+assert.equal(CAVALRY_YARD_ARCHITECTURE_PLAN.diagnostics.equipmentIssueBayCount, 6);
+assert.equal(CAVALRY_YARD_ARCHITECTURE_PLAN.diagnostics.hitchingPostCount, 3);
+assert.ok(CAVALRY_YARD_ARCHITECTURE_PLAN.modules.includes('mounted-drill-ring'));
+assert.ok(CAVALRY_YARD_ARCHITECTURE_PLAN.modules.includes('campaign-store'));
+assert.doesNotMatch(JSON.stringify(CAVALRY_YARD_ARCHITECTURE_PLAN), /stable|permanent.*horse/i);
 assert.match(tables, /pub struct CavalryHorse/);
+assert.match(tables, /pub pasture_id: u64/);
+assert.match(tables, /pub at_pasture: bool/);
+assert.match(tables, /pub present_head_count: u32/);
 assert.match(tables, /pub horse_oats: f64[\s\S]*pub horse_feed: f64[\s\S]*pub horse_water: f64/);
-assert.match(cavalryReducer, /pub fn purchase_cavalry_horse/);
-assert.match(cavalryReducer, /CAVALRY_HORSE_PURCHASE_GOLD/);
-assert.match(cavalryReducer, /horse_occupies_yard_place/);
+assert.match(cavalryReducer, /pub\(crate\) fn sync_horse_pasture_herd/);
+assert.match(cavalryReducer, /pub\(crate\) fn set_horse_at_pasture/);
+assert.match(livestockReducer, /const SPECIES_HORSE: u8 = 3/);
+assert.match(livestockReducer, /ctx\.db\.cavalry_horse\(\)\.insert/);
+assert.match(livestockSimulation, /physical_pasture_heads/);
 assert.match(cavalryPolicy, /matches!\(month, 12 \| 1 \| 2\)/);
 assert.match(cavalryPolicy, /animal_feed: 0\.0[\s\S]*oats: CAVALRY_HORSE_DAILY_OATS/);
 assert.match(cavalryPolicy, /animal_feed: CAVALRY_HORSE_DAILY_ANIMAL_FEED[\s\S]*oats: 0\.0/);
-assert.match(cavalrySimulation, /cavalry_daily_ration/);
-assert.match(cavalrySimulation, /building_fire_state/);
+assert.doesNotMatch(cavalryReducer, /pub fn purchase_cavalry_horse/);
 assert.match(reducer, /mount\.assigned_company_id = company\.id/);
 assert.match(reducer, /mount\.assigned_combat_agent_id = agent\.id/);
+assert.match(reducer, /available_pasture_horses_for_yard/);
 assert.match(
   serverPolicy,
   /Self::Hussars \| Self::ArmoredLancers \| Self::MountedArchers => 6/,
@@ -270,14 +273,16 @@ assert.match(
 assert.match(simulation, /release_mount_for_agent\(ctx, agent\.id, true\)/);
 assert.match(simulation, /release_mount_for_agent\(ctx, agent\.id, false\)/);
 assert.match(simulation, /company\.horse_feed[\s\S]*company\.horse_oats[\s\S]*company\.horse_water/);
-assert.match(reducer, /pub fn disband_cavalry_company_sell_mounts/);
-assert.match(reducer, /reserve_cavalry_return_places/);
+assert.match(simulation, /member\.phase == 4/);
+assert.match(simulation, /horse\.at_pasture = true/);
+assert.doesNotMatch(reducer, /pub fn disband_cavalry_company_sell_mounts/);
 assert.match(economySimulation, /CAVALRY_HORSE_FIELD_ISSUE_DAYS/);
 assert.match(economySimulation, /fn step_cavalry_company_field_resupply/);
 assert.match(deliverySimulation, /pub fn try_start_cavalry_company_supply_trip/);
 assert.match(deliverySimulation, /unload_commodity_to_military_company/);
-assert.match(cavalryInspector, /One rider, one horse/);
-assert.match(cavalryInspector, /oats Mar–Nov <em>or<\/em>[\s\S]*Animal Feed Dec–Feb/);
+assert.match(cavalryInspector, /No resident stable/);
+assert.match(cavalryInspector, /Pasture-supplied muster/);
+assert.match(cavalryInspector, /oats from March–November or Animal Feed in winter/);
 assert.match(raidPolicy, /OTTOMAN_ROLE_AZAB[\s\S]*OTTOMAN_ROLE_JANISSARY[\s\S]*OTTOMAN_ROLE_AKINCI[\s\S]*OTTOMAN_ROLE_SIPAHI/);
 assert.match(raidPolicy, /three Azabs, two Janissaries, two Akıncıs/);
 for (const id of [8, 9, 10]) assert.match(debugMenu, new RegExp(`<option value="${id}">`));
@@ -323,4 +328,4 @@ for (const kind of [
   assert.ok(statSync(path).size > 10_000, `${path} should contain authored card art`);
 }
 
-console.log('Military progression contract valid: eleven distinct company types including three one-horse-per-rider cavalry companies, supplied remount training, mounted villager poses and horse visuals, four-role Ottoman raid diversity, counter roles, resident muster/return/losses, formations, ammo, UI controls, and debug deployment.');
+console.log('Military progression contract valid: eleven distinct company types including three six-rider cavalry companies, pasture-owned exact horses with physical muster and return, mounted villager poses, seasonal field fodder, four-role Ottoman raid diversity, counter roles, resident losses, formations, ammo, UI controls, and debug deployment.');
