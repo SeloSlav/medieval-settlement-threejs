@@ -39,7 +39,6 @@ import { backyardGardenLabel } from '../residences/backyardGarden.ts';
 import { backyardGardenPhenology } from '../economy/backyardGardenTick.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import { resolvedPlacedBuildingYaw } from '../buildings/buildingPlacement.ts';
-import { CAVALRY_HORSE_REST_ANCHORS } from '../buildings/meshes/cavalryYardMesh.ts';
 import {
   marketplaceStallWorkerApproach,
   marketplaceStallWorkerPosition,
@@ -471,8 +470,8 @@ export class VillagerRenderer {
   private readonly cavalryHorsesRenderer: CavalryHorseRenderer;
   private readonly combatAnimalPoses: AnimalCombatPose[] = [];
   private readonly cavalryHorsePoses: CavalryHorsePose[] = [];
-  /** Client-only clock for deterministic paddock roaming; stops while simulation presentation is paused. */
-  private cavalryYardElapsedSeconds = 0;
+  /** Client-only clock for deterministic pasture roaming; stops while presentation is paused. */
+  private cavalryHorseElapsedSeconds = 0;
   private readonly activityAudio = new WorkerActivityAudio();
   private readonly farmWorkerSongAudio = new FarmWorkerSongAudio();
   private readonly combatAudio = new CombatAudio();
@@ -501,6 +500,7 @@ export class VillagerRenderer {
   private readonly combatAudioSourceWorkspace = createCombatAudioSourceWorkspace();
   private residences = new Map<string, ResidenceState>();
   private buildings = new Map<string, BuildingState>();
+  private pastures = new Map<string, PastureState>();
   private cavalryHorses = new Map<string, CavalryHorseState>();
   private backyardWorksites = new Map<string, BackyardWorksite>();
   private homePlotLeisureAreas = new Map<string, HomePlotLeisureArea>();
@@ -917,6 +917,7 @@ export class VillagerRenderer {
     this.fireDisabledResidenceIds = fireDisabledResidenceIds(fireIncidents);
     this.residences = new Map(residences.map((residence) => [residence.id, residence]));
     this.buildings = new Map(buildings.map((building) => [building.id, building]));
+    this.pastures = new Map(pastures.map((pasture) => [pasture.id, pasture]));
     this.cavalryHorses = new Map(
       [...(options.cavalryHorses ?? [])].map((horse) => [horse.id, horse]),
     );
@@ -2235,7 +2236,7 @@ export class VillagerRenderer {
     animationDt = 0,
     audioDt = animationDt,
   ): void {
-    this.cavalryYardElapsedSeconds += Math.max(0, Math.min(0.1, animationDt));
+    this.cavalryHorseElapsedSeconds += Math.max(0, Math.min(0.1, animationDt));
     const renderAgents = this.renderAgents;
     renderAgents.length = 0;
     if (audioDt > 0) {
@@ -2369,8 +2370,7 @@ export class VillagerRenderer {
       const pairedHorse = cavalryHorseByCombatAgent.get(combat.id);
       const mounted = isMountedCombatAgent(combat)
         && combat.status !== 'downed'
-        && combat.status !== 'mustering'
-        && (combat.faction === 'raider' || pairedHorse != null);
+        && (combat.faction === 'raider' || (pairedHorse != null && !pairedHorse.atPasture));
       renderAgent.mounted = mounted;
       if (mounted) {
         renderAgent.y = combatGroundY + CAVALRY_SADDLE_HEIGHT
@@ -2479,17 +2479,13 @@ export class VillagerRenderer {
       renderAgents.push(renderAgent);
     }
     for (const horse of this.cavalryHorses.values()) {
-      if (horse.assignedCombatAgentId != null) {
-        const assignedAgent = this.combatAgentVisuals.get(horse.assignedCombatAgentId)?.state;
-        if (assignedAgent?.status !== 'mustering') continue;
-      }
-      const yard = this.buildings.get(horse.cavalryYardId);
-      if (!yard || yard.kind !== 'cavalry_yard' || yard.constructionComplete === false) continue;
-      const pose = cavalryHorseYardPose(
-        yard,
+      if (!horse.atPasture || horse.pastureId === null) continue;
+      const pasture = this.pastures.get(horse.pastureId);
+      if (!pasture) continue;
+      const pose = cavalryHorsePasturePose(
+        pasture,
         horse,
-        this.roadNetwork,
-        this.cavalryYardElapsedSeconds,
+        this.cavalryHorseElapsedSeconds,
       );
       this.cavalryHorsePoses.push({
         id: `horse:${horse.id}`,
@@ -2499,7 +2495,7 @@ export class VillagerRenderer {
         yaw: pose.yaw,
         moveSpeed: pose.moveSpeed,
         activity: pose.activity,
-        presentation: 'yard',
+        presentation: 'pasture',
         appearanceSeed: horseAppearanceSeed(horse.id),
       });
     }
@@ -6247,10 +6243,9 @@ function cavalryHorsePresentation(combat: CombatAgentState): CavalryHorsePresent
   return 'ottoman';
 }
 
-function cavalryHorseYardPose(
-  yard: BuildingState,
+function cavalryHorsePasturePose(
+  pasture: PastureState,
   horse: CavalryHorseState,
-  roadNetwork: RoadNetwork | null,
   elapsedSeconds: number,
 ): {
   x: number;
@@ -6259,66 +6254,64 @@ function cavalryHorseYardPose(
   moveSpeed: number;
   activity: CavalryHorsePose['activity'];
 } {
-  const slot = Math.max(0, Math.min(
-    CAVALRY_HORSE_REST_ANCHORS.length - 1,
-    Math.floor(horse.slot),
-  ));
-  const anchor = CAVALRY_HORSE_REST_ANCHORS[slot]!;
-  const [anchorX, , anchorZ] = anchor.localPosition;
-  let localX: number = anchorX;
-  let localZ: number = anchorZ;
-  let localYaw = anchor.localYaw;
+  const seed = horseAppearanceSeed(horse.id);
+  const homeU = 0.16 + ((seed >>> 3) % 680) / 1000;
+  const homeV = 0.16 + ((seed >>> 13) % 680) / 1000;
+  const destinationU = 0.16 + ((seed >>> 19) % 680) / 1000;
+  const destinationV = 0.16 + ((Math.imul(seed, 2654435761) >>> 11) % 680) / 1000;
+  const home = pastureBilinearPoint(pasture, homeU, homeV);
+  const destination = pastureBilinearPoint(pasture, destinationU, destinationV);
+  let x = home.x;
+  let z = home.z;
+  let yaw = ((seed >>> 6) % 6283) / 1000;
   let moveSpeed = 0;
   let activity: CavalryHorsePose['activity'] = 'standing';
-  if (anchor.zone === 'paddock') {
-    const seed = horseAppearanceSeed(horse.id);
-    const destinationAngle = ((seed >>> 7) % 6283) / 1000;
-    const destinationDistance = 0.95 + ((seed >>> 20) % 1000) / 1000 * 1.15;
-    const destinationX = THREE.MathUtils.clamp(
-      anchorX + Math.sin(destinationAngle) * destinationDistance,
-      3.05,
-      9.45,
-    );
-    const destinationZ = THREE.MathUtils.clamp(
-      anchorZ + Math.cos(destinationAngle) * destinationDistance,
-      -4.65,
-      1.05,
-    );
-    const cycleSeconds = 30;
-    const cycleOffset = (seed % 30_000) / 1000;
-    const phase = (elapsedSeconds + cycleOffset) % cycleSeconds;
-    if (phase < 6) {
-      activity = 'standing';
-    } else if (phase < 13) {
-      const progress = smoothHorseStep((phase - 6) / 7);
-      localX = THREE.MathUtils.lerp(anchorX, destinationX, progress);
-      localZ = THREE.MathUtils.lerp(anchorZ, destinationZ, progress);
-      localYaw = Math.atan2(destinationX - anchorX, destinationZ - anchorZ);
-      moveSpeed = 0.46;
-      activity = 'walking';
-    } else if (phase < 21) {
-      localX = destinationX;
-      localZ = destinationZ;
-      localYaw = destinationAngle + Math.PI;
-      activity = 'grazing';
-    } else if (phase < 28) {
-      const progress = smoothHorseStep((phase - 21) / 7);
-      localX = THREE.MathUtils.lerp(destinationX, anchorX, progress);
-      localZ = THREE.MathUtils.lerp(destinationZ, anchorZ, progress);
-      localYaw = Math.atan2(anchorX - destinationX, anchorZ - destinationZ);
-      moveSpeed = 0.46;
-      activity = 'walking';
-    }
+  const cycleSeconds = 34;
+  const cycleOffset = (seed % 34_000) / 1000;
+  const phase = (elapsedSeconds + cycleOffset) % cycleSeconds;
+  if (phase < 7) {
+    activity = 'grazing';
+  } else if (phase < 15) {
+    const progress = smoothHorseStep((phase - 7) / 8);
+    x = THREE.MathUtils.lerp(home.x, destination.x, progress);
+    z = THREE.MathUtils.lerp(home.z, destination.z, progress);
+    yaw = Math.atan2(destination.x - home.x, destination.z - home.z);
+    moveSpeed = 0.5;
+    activity = 'walking';
+  } else if (phase < 25) {
+    x = destination.x;
+    z = destination.z;
+    activity = 'grazing';
+  } else if (phase < 33) {
+    const progress = smoothHorseStep((phase - 25) / 8);
+    x = THREE.MathUtils.lerp(destination.x, home.x, progress);
+    z = THREE.MathUtils.lerp(destination.z, home.z, progress);
+    yaw = Math.atan2(home.x - destination.x, home.z - destination.z);
+    moveSpeed = 0.5;
+    activity = 'walking';
   }
-  const yardYaw = resolvedPlacedBuildingYaw(yard, roadNetwork);
-  const cos = Math.cos(yardYaw);
-  const sin = Math.sin(yardYaw);
   return {
-    x: yard.x + localX * cos + localZ * sin,
-    z: yard.z - localX * sin + localZ * cos,
-    yaw: yardYaw + localYaw,
+    x,
+    z,
+    yaw,
     moveSpeed,
     activity,
+  };
+}
+
+function pastureBilinearPoint(
+  pasture: PastureState,
+  u: number,
+  v: number,
+): PointXZ {
+  const [a, b, c, d] = pasture.corners;
+  const topX = THREE.MathUtils.lerp(a.x, b.x, u);
+  const topZ = THREE.MathUtils.lerp(a.z, b.z, u);
+  const bottomX = THREE.MathUtils.lerp(d.x, c.x, u);
+  const bottomZ = THREE.MathUtils.lerp(d.z, c.z, u);
+  return {
+    x: THREE.MathUtils.lerp(topX, bottomX, v),
+    z: THREE.MathUtils.lerp(topZ, bottomZ, v),
   };
 }
 

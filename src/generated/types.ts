@@ -283,10 +283,9 @@ export type BurgageZone = __Infer<typeof BurgageZone>;
 export const CavalryHorse = __t.object("CavalryHorse", {
   id: __t.u64(),
   owner: __t.identity(),
-  cavalryYardId: __t.u64(),
+  pastureId: __t.u64(),
   slot: __t.u8(),
-  trainingDays: __t.u8(),
-  lastTrainingDay: __t.u64(),
+  atPasture: __t.bool(),
   assignedCompanyId: __t.u64(),
   assignedCombatAgentId: __t.u64(),
 });
@@ -603,6 +602,7 @@ export const PastureHerd = __t.object("PastureHerd", {
   owner: __t.identity(),
   species: __t.u8(),
   headCount: __t.u32(),
+  presentHeadCount: __t.u32(),
   health: __t.f64(),
   breedingProgress: __t.f64(),
   pastureCapacity: __t.f64(),

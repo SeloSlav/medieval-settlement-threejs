@@ -85,6 +85,7 @@ fn migrate_legacy_livestock_herd(ctx: &ReducerContext, legacy: LivestockHerd) {
             owner: pasture.owner,
             species: legacy.species,
             head_count: heads[index],
+            present_head_count: heads[index],
             health: legacy.health,
             breeding_progress: breeding_progress[index],
             pasture_capacity: 0.0,

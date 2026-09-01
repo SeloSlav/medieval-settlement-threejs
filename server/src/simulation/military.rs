@@ -3,10 +3,9 @@ use std::collections::HashMap;
 
 use spacetimedb::{Identity, ReducerContext};
 
-use crate::balance_generated::CAVALRY_HORSE_MOUNT_SALE_GOLD;
 use crate::cavalry_policy::cavalry_daily_ration;
 use crate::db::*;
-use crate::economy::{credit_treasury_gold, spend_treasury_gold};
+use crate::economy::spend_treasury_gold;
 use crate::military_policy::{
     company_wages_enabled, local_company_requires_provisions, matchup_damage_multiplier,
     member_combat_profile, military_battle_end_ticks, military_day_ticks,
@@ -350,7 +349,7 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
                             sim_tick,
                             elapsed_seconds,
                         ),
-                        2 | 3 => {
+                        2 | 3 | 4 => {
                             step_returning_member(ctx, agent, member, company, elapsed_seconds)
                         }
                         _ => {
@@ -406,11 +405,42 @@ fn step_mustering_member(
         begin_forced_return(ctx, &mut agent, &mut member);
         return;
     };
-    let muster_speed = MilitaryKind::from_id(company.kind)
-        .map(|kind| military_stats(kind).speed)
-        .unwrap_or(2.25);
+    let kind = MilitaryKind::from_id(company.kind);
+    if kind.is_some_and(MilitaryKind::is_mounted) {
+        let Some(horse) = ctx
+            .db
+            .cavalry_horse()
+            .assigned_combat_agent_id()
+            .filter(&agent.id)
+            .next()
+        else {
+            begin_forced_return(ctx, &mut agent, &mut member);
+            return;
+        };
+        if horse.at_pasture {
+            let Some(pasture) = ctx.db.pasture().id().find(&horse.pasture_id) else {
+                begin_forced_return(ctx, &mut agent, &mut member);
+                return;
+            };
+            let (pasture_x, pasture_z) = crate::reducers::cavalry_horses::pasture_center(&pasture);
+            walk(&mut agent, pasture_x, pasture_z, 2.25, dt);
+            agent.state = MUSTERING;
+            agent.target_kind = 10;
+            agent.target_id = pasture.id;
+            if distance(agent.x, agent.z, pasture_x, pasture_z) <= ARRIVAL_DISTANCE {
+                crate::reducers::cavalry_horses::set_horse_at_pasture(ctx, horse, false);
+                agent.velocity_x = 0.0;
+                agent.velocity_z = 0.0;
+            }
+            ctx.db.combat_agent().id().update(agent);
+            return;
+        }
+    }
+    let muster_speed = kind.map(|kind| military_stats(kind).speed).unwrap_or(2.25);
     walk(&mut agent, source.x, source.z, muster_speed, dt);
     agent.state = MUSTERING;
+    agent.target_kind = 0;
+    agent.target_id = source.id;
     if distance(agent.x, agent.z, source.x, source.z) <= ARRIVAL_DISTANCE {
         agent.state = HOLDING;
         agent.velocity_x = 0.0;
@@ -451,16 +481,7 @@ fn step_returning_member(
             }
             return;
         }
-        let return_building_id = ctx
-            .db
-            .cavalry_horse()
-            .assigned_combat_agent_id()
-            .filter(&agent.id)
-            .next()
-            .map(|horse| horse.cavalry_yard_id)
-            .filter(|yard_id| *yard_id > 0)
-            .unwrap_or(company.source_building_id);
-        if let Some(source) = ctx.db.building().id().find(&return_building_id) {
+        if let Some(source) = ctx.db.building().id().find(&company.source_building_id) {
             let return_speed = MilitaryKind::from_id(company.kind)
                 .map(|kind| military_stats(kind).speed)
                 .unwrap_or(2.2);
@@ -471,7 +492,30 @@ fn step_returning_member(
                 return;
             }
             recover_member_kit_at(ctx, &mut agent, source.x, source.z);
-            release_mount_for_agent(ctx, agent.id, false);
+            let paired_horse = ctx
+                .db
+                .cavalry_horse()
+                .assigned_combat_agent_id()
+                .filter(&agent.id)
+                .next();
+            if let Some(horse) = paired_horse {
+                if horse.pasture_id > 0
+                    && ctx.db.pasture().id().find(&horse.pasture_id).is_some()
+                {
+                    member.phase = 4;
+                    agent.target_kind = 10;
+                    agent.target_id = horse.pasture_id;
+                    agent.velocity_x = 0.0;
+                    agent.velocity_z = 0.0;
+                    ctx.db
+                        .military_member()
+                        .combat_agent_id()
+                        .update(member);
+                    ctx.db.combat_agent().id().update(agent);
+                    return;
+                }
+                release_mount_for_agent(ctx, agent.id, false);
+            }
         } else {
             recover_member_kit(ctx, &agent);
             agent.carried_loot_json.clear();
@@ -485,6 +529,59 @@ fn step_returning_member(
             .military_member()
             .combat_agent_id()
             .update(member.clone());
+    }
+
+    if member.phase == 4 {
+        let Some(mut horse) = ctx
+            .db
+            .cavalry_horse()
+            .assigned_combat_agent_id()
+            .filter(&agent.id)
+            .next()
+        else {
+            member.phase = 3;
+            ctx.db
+                .military_member()
+                .combat_agent_id()
+                .update(member.clone());
+            return;
+        };
+        let Some(pasture) = ctx.db.pasture().id().find(&horse.pasture_id) else {
+            release_mount_for_agent(ctx, agent.id, false);
+            member.phase = 3;
+            ctx.db
+                .military_member()
+                .combat_agent_id()
+                .update(member.clone());
+            return;
+        };
+        let (pasture_x, pasture_z) = crate::reducers::cavalry_horses::pasture_center(&pasture);
+        let return_speed = MilitaryKind::from_id(company.kind)
+            .map(|kind| military_stats(kind).speed)
+            .unwrap_or(2.2);
+        walk(&mut agent, pasture_x, pasture_z, return_speed, dt);
+        agent.state = RETURNING;
+        agent.target_kind = 10;
+        agent.target_id = pasture.id;
+        if distance(agent.x, agent.z, pasture_x, pasture_z) > ARRIVAL_DISTANCE {
+            ctx.db.combat_agent().id().update(agent);
+            return;
+        }
+        horse.at_pasture = true;
+        horse.assigned_company_id = 0;
+        horse.assigned_combat_agent_id = 0;
+        let pasture_id = horse.pasture_id;
+        ctx.db.cavalry_horse().id().update(horse);
+        crate::reducers::cavalry_horses::sync_horse_pasture_herd(ctx, pasture_id);
+        member.phase = 3;
+        agent.velocity_x = 0.0;
+        agent.velocity_z = 0.0;
+        ctx.db
+            .military_member()
+            .combat_agent_id()
+            .update(member.clone());
+        ctx.db.combat_agent().id().update(agent);
+        return;
     }
 
     let (home_id, home_x, home_z) = resolve_return_home(ctx, &mut member, &agent);
@@ -1425,6 +1522,20 @@ fn canonical_steering_goal(
                 if let Some(source) = ctx.db.building().id().find(&company.source_building_id) {
                     return (source.x, source.z, speed);
                 }
+            } else if member.phase == 4 {
+                if let Some(horse) = ctx
+                    .db
+                    .cavalry_horse()
+                    .assigned_combat_agent_id()
+                    .filter(&agent.id)
+                    .next()
+                {
+                    if let Some(pasture) = ctx.db.pasture().id().find(&horse.pasture_id) {
+                        let (x, z) =
+                            crate::reducers::cavalry_horses::pasture_center(&pasture);
+                        return (x, z, speed);
+                    }
+                }
             } else if member.phase == 3 {
                 if let Some(home) = ctx
                     .db
@@ -1567,6 +1678,12 @@ fn canonical_steering_goal(
             .id()
             .find(&agent.target_id)
             .map(|target| (target.x, target.z)),
+        10 => ctx
+            .db
+            .pasture()
+            .id()
+            .find(&agent.target_id)
+            .map(|pasture| crate::reducers::cavalry_horses::pasture_center(&pasture)),
         _ => None,
     };
     if let Some((x, z)) = target {
@@ -1989,24 +2106,18 @@ fn release_mount_for_agent(ctx: &ReducerContext, combat_agent_id: u64, lost: boo
     else {
         return;
     };
+    let pasture_id = horse.pasture_id;
     if lost {
         ctx.db.cavalry_horse().id().delete(horse.id);
-    } else if horse.cavalry_yard_id == 0 {
-        let owner = horse.owner;
+        crate::reducers::cavalry_horses::sync_horse_pasture_herd(ctx, pasture_id);
+    } else if horse.pasture_id == 0 {
         ctx.db.cavalry_horse().id().delete(horse.id);
-        credit_treasury_gold(ctx, owner, CAVALRY_HORSE_MOUNT_SALE_GOLD);
     } else {
+        horse.at_pasture = true;
         horse.assigned_company_id = 0;
         horse.assigned_combat_agent_id = 0;
-        horse.last_training_day = ctx
-            .db
-            .world_config()
-            .id()
-            .find(&0)
-            .map_or(horse.last_training_day, |world| {
-                super::game_clock(world.sim_tick).total_days
-            });
         ctx.db.cavalry_horse().id().update(horse);
+        crate::reducers::cavalry_horses::sync_horse_pasture_herd(ctx, pasture_id);
     }
 }
 

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { isWithinAnimalCrowdView, type CrowdViewState } from './crowdView.ts';
 
-export type CavalryHorsePresentation = 'yard' | 'hussar' | 'lancer' | 'archer' | 'ottoman';
+export type CavalryHorsePresentation = 'pasture' | 'hussar' | 'lancer' | 'archer' | 'ottoman';
 
 export type CavalryHorsePose = Readonly<{
   id: string;
@@ -40,7 +40,7 @@ export class CavalryHorseRenderer {
   private readonly leather = horseMaterial(0x3b2419, 0.92);
   private readonly metal = horseMaterial(0x858079, 0.42, 0.45);
   private readonly blanketMaterials: Record<CavalryHorsePresentation, THREE.MeshStandardMaterial> = {
-    yard: horseMaterial(0x786b50, 0.94),
+    pasture: horseMaterial(0x786b50, 0.94),
     hussar: horseMaterial(0x8f2f26, 0.88),
     lancer: horseMaterial(0x263b58, 0.82),
     archer: horseMaterial(0x435b35, 0.9),
@@ -48,7 +48,7 @@ export class CavalryHorseRenderer {
   };
 
   constructor(parent: THREE.Group) {
-    this.group.name = 'Cavalry horses and remounts';
+    this.group.name = 'Pasture and mounted horses';
     parent.add(this.group);
   }
 

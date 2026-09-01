@@ -13,10 +13,9 @@ import {
 export default __t.row({
   id: __t.u64().primaryKey(),
   owner: __t.identity(),
-  cavalryYardId: __t.u64().name("cavalry_yard_id"),
+  pastureId: __t.u64().name("pasture_id"),
   slot: __t.u8(),
-  trainingDays: __t.u8().name("training_days"),
-  lastTrainingDay: __t.u64().name("last_training_day"),
+  atPasture: __t.bool().name("at_pasture"),
   assignedCompanyId: __t.u64().name("assigned_company_id"),
   assignedCombatAgentId: __t.u64().name("assigned_combat_agent_id"),
 });

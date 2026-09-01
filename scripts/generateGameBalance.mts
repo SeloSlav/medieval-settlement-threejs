@@ -358,16 +358,12 @@ export type GameBalance = {
     stableOxSlots: number;
     stableOxMaxPerWorkplace: number;
     stableOxPurchaseGold: number;
-    cavalryHorseSlots: number;
-    cavalryHorsePurchaseGold: number;
-    cavalryHorseTrainingDays: number;
     cavalryHorseDailyAnimalFeed: number;
     cavalryHorseDailyOats: number;
     cavalryHorseDailyWater: number;
     cavalryHorseFieldIssueDays: number;
     cavalryHorseFieldTargetDays: number;
     cavalryHorseFieldReorderDays: number;
-    cavalryHorseMountSaleGold: number;
     kennelDogSlots: number;
     kennelDogPurchaseGold: number;
     kennelDogMaxPerHuntersHall: number;
@@ -852,6 +848,7 @@ export type GameBalance = {
     farmsteadSaltStagingPerCycle: number;
     cattle: LivestockSpeciesBalance;
     sheep: LivestockSpeciesBalance;
+    horses: LivestockSpeciesBalance;
     swine: LivestockSpeciesBalance;
   };
   buildings: Record<string, BuildingBalance>;
@@ -1082,16 +1079,12 @@ function generateRust(): string {
     `pub const STABLE_OX_SLOTS: u8 = ${b.economy.stableOxSlots};`,
     `pub const STABLE_OX_MAX_PER_WORKPLACE: u32 = ${b.economy.stableOxMaxPerWorkplace};`,
     `pub const STABLE_OX_PURCHASE_GOLD: f64 = ${rustF64(b.economy.stableOxPurchaseGold)};`,
-    `pub const CAVALRY_HORSE_SLOTS: u8 = ${b.economy.cavalryHorseSlots};`,
-    `pub const CAVALRY_HORSE_PURCHASE_GOLD: f64 = ${rustF64(b.economy.cavalryHorsePurchaseGold)};`,
-    `pub const CAVALRY_HORSE_TRAINING_DAYS: u8 = ${b.economy.cavalryHorseTrainingDays};`,
     `pub const CAVALRY_HORSE_DAILY_ANIMAL_FEED: f64 = ${rustF64(b.economy.cavalryHorseDailyAnimalFeed)};`,
     `pub const CAVALRY_HORSE_DAILY_OATS: f64 = ${rustF64(b.economy.cavalryHorseDailyOats)};`,
     `pub const CAVALRY_HORSE_DAILY_WATER: f64 = ${rustF64(b.economy.cavalryHorseDailyWater)};`,
     `pub const CAVALRY_HORSE_FIELD_ISSUE_DAYS: f64 = ${rustF64(b.economy.cavalryHorseFieldIssueDays)};`,
     `pub const CAVALRY_HORSE_FIELD_TARGET_DAYS: f64 = ${rustF64(b.economy.cavalryHorseFieldTargetDays)};`,
     `pub const CAVALRY_HORSE_FIELD_REORDER_DAYS: f64 = ${rustF64(b.economy.cavalryHorseFieldReorderDays)};`,
-    `pub const CAVALRY_HORSE_MOUNT_SALE_GOLD: f64 = ${rustF64(b.economy.cavalryHorseMountSaleGold)};`,
     `pub const KENNEL_DOG_SLOTS: u8 = ${b.economy.kennelDogSlots};`,
     `pub const KENNEL_DOG_PURCHASE_GOLD: f64 = ${rustF64(b.economy.kennelDogPurchaseGold)};`,
     `pub const KENNEL_DOG_MAX_PER_HUNTERS_HALL: u32 = ${b.economy.kennelDogMaxPerHuntersHall};`,
@@ -1624,6 +1617,21 @@ function generateRust(): string {
     `pub const SHEEP_BREEDING_PER_CYCLE: f64 = ${rustF64(b.livestock.sheep.breedingPerCycle)};`,
     `pub const SHEEP_HEALTH_RECOVERY_PER_CYCLE: f64 = ${rustF64(b.livestock.sheep.healthRecoveryPerCycle)};`,
     `pub const SHEEP_HEALTH_LOSS_PER_CYCLE: f64 = ${rustF64(b.livestock.sheep.healthLossPerCycle)};`,
+    `pub const HORSE_STARTER_HERD: u32 = ${b.livestock.horses.starterHerd};`,
+    `pub const HORSE_MAX_HERD: u32 = ${b.livestock.horses.maxHerd};`,
+    `pub const HORSE_PURCHASE_GOLD_PER_HEAD: f64 = ${rustF64(b.livestock.horses.purchaseGoldPerHead)};`,
+    `pub const HORSE_SALE_GOLD_PER_HEAD: f64 = ${rustF64(b.livestock.horses.saleGoldPerHead)};`,
+    `pub const HORSE_AREA_PER_HEAD: f64 = ${rustF64(b.livestock.horses.areaPerHead)};`,
+    `pub const HORSE_HEADS_PER_WORKER: f64 = ${rustF64(b.livestock.horses.headsPerWorker)};`,
+    `pub const HORSE_WATER_PER_HEAD_PER_CYCLE: f64 = ${rustF64(b.livestock.horses.waterPerHeadPerCycle)};`,
+    `pub const HORSE_MAX_SLOPE_DEGREES: f64 = ${rustF64(b.livestock.horses.maxSlopeDegrees ?? 0)};`,
+    `pub const HORSE_MOISTURE_IDEAL: f64 = ${rustF64(b.livestock.horses.moistureIdeal ?? 0)};`,
+    `pub const HORSE_MOISTURE_TOLERANCE: f64 = ${rustF64(b.livestock.horses.moistureTolerance ?? 1)};`,
+    `pub const HORSE_HAY_PER_UNSUPPORTED_HEAD: f64 = ${rustF64(b.livestock.horses.hayPerUnsupportedHead ?? 0)};`,
+    `pub const HORSE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE: f64 = ${rustF64(b.livestock.horses.hayYieldPerReservedCapacityPerCycle ?? 0)};`,
+    `pub const HORSE_GRAIN_PER_UNSUPPORTED_HEAD: f64 = ${rustF64(b.livestock.horses.grainPerUnsupportedHead)};`,
+    `pub const HORSE_HEALTH_RECOVERY_PER_CYCLE: f64 = ${rustF64(b.livestock.horses.healthRecoveryPerCycle)};`,
+    `pub const HORSE_HEALTH_LOSS_PER_CYCLE: f64 = ${rustF64(b.livestock.horses.healthLossPerCycle)};`,
     `pub const SWINE_STARTER_HERD: u32 = ${b.livestock.swine.starterHerd};`,
     `pub const SWINE_MAX_HERD: u32 = ${b.livestock.swine.maxHerd};`,
     `pub const SWINE_MINIMUM_BREEDING_RESERVE: u32 = ${b.livestock.swine.minimumBreedingReserve};`,
@@ -2208,16 +2216,12 @@ function generateTypeScript(): string {
     `export const STABLE_OX_SLOTS = ${b.economy.stableOxSlots};`,
     `export const STABLE_OX_MAX_PER_WORKPLACE = ${b.economy.stableOxMaxPerWorkplace};`,
     `export const STABLE_OX_PURCHASE_GOLD = ${b.economy.stableOxPurchaseGold};`,
-    `export const CAVALRY_HORSE_SLOTS = ${b.economy.cavalryHorseSlots};`,
-    `export const CAVALRY_HORSE_PURCHASE_GOLD = ${b.economy.cavalryHorsePurchaseGold};`,
-    `export const CAVALRY_HORSE_TRAINING_DAYS = ${b.economy.cavalryHorseTrainingDays};`,
     `export const CAVALRY_HORSE_DAILY_ANIMAL_FEED = ${b.economy.cavalryHorseDailyAnimalFeed};`,
     `export const CAVALRY_HORSE_DAILY_OATS = ${b.economy.cavalryHorseDailyOats};`,
     `export const CAVALRY_HORSE_DAILY_WATER = ${b.economy.cavalryHorseDailyWater};`,
     `export const CAVALRY_HORSE_FIELD_ISSUE_DAYS = ${b.economy.cavalryHorseFieldIssueDays};`,
     `export const CAVALRY_HORSE_FIELD_TARGET_DAYS = ${b.economy.cavalryHorseFieldTargetDays};`,
     `export const CAVALRY_HORSE_FIELD_REORDER_DAYS = ${b.economy.cavalryHorseFieldReorderDays};`,
-    `export const CAVALRY_HORSE_MOUNT_SALE_GOLD = ${b.economy.cavalryHorseMountSaleGold};`,
     `export const KENNEL_DOG_SLOTS = ${b.economy.kennelDogSlots};`,
     `export const KENNEL_DOG_PURCHASE_GOLD = ${b.economy.kennelDogPurchaseGold};`,
     `export const KENNEL_DOG_MAX_PER_HUNTERS_HALL = ${b.economy.kennelDogMaxPerHuntersHall};`,
@@ -2779,6 +2783,21 @@ function generateTypeScript(): string {
     `export const SHEEP_BREEDING_PER_CYCLE = ${b.livestock.sheep.breedingPerCycle};`,
     `export const SHEEP_HEALTH_RECOVERY_PER_CYCLE = ${b.livestock.sheep.healthRecoveryPerCycle};`,
     `export const SHEEP_HEALTH_LOSS_PER_CYCLE = ${b.livestock.sheep.healthLossPerCycle};`,
+    `export const HORSE_STARTER_HERD = ${b.livestock.horses.starterHerd};`,
+    `export const HORSE_MAX_HERD = ${b.livestock.horses.maxHerd};`,
+    `export const HORSE_PURCHASE_GOLD_PER_HEAD = ${b.livestock.horses.purchaseGoldPerHead};`,
+    `export const HORSE_SALE_GOLD_PER_HEAD = ${b.livestock.horses.saleGoldPerHead};`,
+    `export const HORSE_AREA_PER_HEAD = ${b.livestock.horses.areaPerHead};`,
+    `export const HORSE_HEADS_PER_WORKER = ${b.livestock.horses.headsPerWorker};`,
+    `export const HORSE_WATER_PER_HEAD_PER_CYCLE = ${b.livestock.horses.waterPerHeadPerCycle};`,
+    `export const HORSE_MAX_SLOPE_DEGREES = ${b.livestock.horses.maxSlopeDegrees ?? 0};`,
+    `export const HORSE_MOISTURE_IDEAL = ${b.livestock.horses.moistureIdeal ?? 0};`,
+    `export const HORSE_MOISTURE_TOLERANCE = ${b.livestock.horses.moistureTolerance ?? 1};`,
+    `export const HORSE_HAY_PER_UNSUPPORTED_HEAD = ${b.livestock.horses.hayPerUnsupportedHead ?? 0};`,
+    `export const HORSE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE = ${b.livestock.horses.hayYieldPerReservedCapacityPerCycle ?? 0};`,
+    `export const HORSE_GRAIN_PER_UNSUPPORTED_HEAD = ${b.livestock.horses.grainPerUnsupportedHead};`,
+    `export const HORSE_HEALTH_RECOVERY_PER_CYCLE = ${b.livestock.horses.healthRecoveryPerCycle};`,
+    `export const HORSE_HEALTH_LOSS_PER_CYCLE = ${b.livestock.horses.healthLossPerCycle};`,
     `export const SWINE_STARTER_HERD = ${b.livestock.swine.starterHerd};`,
     `export const SWINE_MAX_HERD = ${b.livestock.swine.maxHerd};`,
     `export const SWINE_MINIMUM_BREEDING_RESERVE = ${b.livestock.swine.minimumBreedingReserve};`,

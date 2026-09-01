@@ -647,10 +647,6 @@ export class SpacetimeGameStore {
     return spacetimeReducers.purchaseStableOx(stableId);
   }
 
-  purchaseCavalryHorse(cavalryYardId: string): Promise<void> {
-    return spacetimeReducers.purchaseCavalryHorse(cavalryYardId);
-  }
-
   purchaseKennelDog(kennelId: string): Promise<void> {
     return spacetimeReducers.purchaseKennelDog(kennelId);
   }
@@ -1301,10 +1297,6 @@ export class SpacetimeGameStore {
 
   disbandMilitaryCompany(companyId: string): Promise<void> {
     return spacetimeReducers.disbandMilitaryCompany(companyId);
-  }
-
-  disbandCavalryCompanySellMounts(companyId: string): Promise<void> {
-    return spacetimeReducers.disbandCavalryCompanySellMounts(companyId);
   }
 
   renewMercenaryContract(companyId: string): Promise<void> {

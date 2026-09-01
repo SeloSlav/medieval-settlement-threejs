@@ -25,6 +25,7 @@ use crate::balance_generated::{
     COBBLER_LEATHER_PER_CYCLE, COBBLER_SHOES_PER_CYCLE, FARM_GROWTH_SECONDS,
     FARM_WORK_METERS_PER_WORKER_PER_SEC, GRAIN_TRANSFER_PER_TRIP, LEATHER_TRANSFER_PER_TRIP,
     MINE_CLAY_PER_CYCLE, MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE, MINE_TIMBER_SUPPORT_PER_CYCLE,
+    HORSE_GRAIN_PER_UNSUPPORTED_HEAD, HORSE_HAY_PER_UNSUPPORTED_HEAD,
     MONASTERY_FEAST_DRINK, MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY,
     MONASTERY_PILGRIMAGE_GOLD_PER_DAY, MONASTERY_UNLINKED_PRODUCTIVITY,
     PANNAGE_WINTER_CAPACITY_MULTIPLIER, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
@@ -51,7 +52,7 @@ use crate::brewery_recipe_policy::{
 };
 use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
-use crate::cavalry_policy::{cavalry_daily_ration, horse_occupies_yard_place};
+use crate::cavalry_policy::cavalry_daily_ration;
 use crate::civilian_tool_policy::{
     civilian_tool_runway_cycles, civilian_tool_throughput_multiplier, civilian_tools_maintained,
     farm_tool_ironwork_per_completed_stage, farm_tool_throughput_multiplier, farm_tools_maintained,
@@ -168,7 +169,7 @@ use crate::supply_policy::{
     GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS,
     LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
-use crate::tables::{cavalry_horse, farm_field, Building, FarmField, Residence};
+use crate::tables::{farm_field, Building, FarmField, Residence};
 use crate::vineyard::fermentable_grapes;
 use crate::weaver_input_policy::{
     textile_recipe_requests_route, weaver_fibre_delivery_preference_rank, weaver_uses_flax,
@@ -3489,7 +3490,6 @@ pub fn step_military_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
 }
 
 fn step_cavalry_yard_requisitions(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock) {
-    const SUPPLY_RUNWAY_DAYS: f64 = 6.0;
     let yards = ctx
         .db
         .building()
@@ -3502,31 +3502,20 @@ fn step_cavalry_yard_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
         })
         .collect::<Vec<_>>();
     for yard in yards {
-        let horses = ctx
+        // The yard owns no mounts and keeps no stable inventory. It stages
+        // only field-resupply stock for mounted companies formed here.
+        let deployed = ctx
             .db
-            .cavalry_horse()
-            .cavalry_yard_id()
-            .filter(&yard.id)
-            .collect::<Vec<_>>();
-        let mut on_site = 0.0;
-        let mut deployed = 0.0;
-        for horse in &horses {
-            let assigned_state = (horse.assigned_company_id > 0)
-                .then(|| {
-                    ctx.db
-                        .military_company()
-                        .id()
-                        .find(&horse.assigned_company_id)
-                        .map(|company| company.state)
-                })
-                .flatten();
-            if horse.assigned_company_id == 0 || assigned_state == Some(0) {
-                on_site += 1.0;
-            } else if !horse_occupies_yard_place(horse.assigned_company_id, assigned_state) {
-                deployed += 1.0;
-            }
-        }
-        if on_site + deployed <= 0.0 {
+            .military_company()
+            .iter()
+            .filter(|company| {
+                company.source_building_id == yard.id
+                    && company.state == 1
+                    && MilitaryKind::from_id(company.kind).is_some_and(MilitaryKind::is_mounted)
+            })
+            .map(|company| f64::from(company.living_members))
+            .sum::<f64>();
+        if deployed <= 0.0 {
             continue;
         }
         let ration = cavalry_daily_ration(clock.month);
@@ -3568,8 +3557,7 @@ fn step_cavalry_yard_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
             if daily_per_horse <= 1e-6 {
                 continue;
             }
-            let desired = (on_site * daily_per_horse * SUPPLY_RUNWAY_DAYS
-                + deployed * daily_per_horse * CAVALRY_HORSE_FIELD_TARGET_DAYS)
+            let desired = (deployed * daily_per_horse * CAVALRY_HORSE_FIELD_TARGET_DAYS)
                 .min(building_commodity_cap(&yard.kind, commodity));
             request_connected_commodity(ctx, tick, clock, &yard, commodity, source_kinds, desired);
         }
@@ -5959,7 +5947,13 @@ fn pastoral_winter_animal_feed_reserve(
         .pasture_herd()
         .farmstead_id()
         .filter(&source.id)
-        .filter(|herd| herd.head_count > 0)
+        .filter(|herd| {
+            if herd.species == crate::reducers::livestock::SPECIES_HORSE {
+                herd.present_head_count > 0
+            } else {
+                herd.head_count > 0
+            }
+        })
         .collect::<Vec<_>>();
     if herds.is_empty() {
         return 0.0;
@@ -5982,6 +5976,11 @@ fn pastoral_winter_animal_feed_reserve(
                     SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
                     WINTER_PASTURE_CAPACITY_MULTIPLIER,
                 ),
+                crate::reducers::livestock::SPECIES_HORSE => (
+                    HORSE_HAY_PER_UNSUPPORTED_HEAD,
+                    HORSE_GRAIN_PER_UNSUPPORTED_HEAD,
+                    WINTER_PASTURE_CAPACITY_MULTIPLIER,
+                ),
                 _ => (
                     0.0,
                     SWINE_GRAIN_PER_UNSUPPORTED_HEAD,
@@ -5989,7 +5988,11 @@ fn pastoral_winter_animal_feed_reserve(
                 ),
             };
             Some(projected_winter_animal_feed(
-                herd.head_count,
+                if herd.species == crate::reducers::livestock::SPECIES_HORSE {
+                    herd.present_head_count
+                } else {
+                    herd.head_count
+                },
                 tick.livestock_grazing_capacity(ctx, &pasture, &herd),
                 herd.hay_stock,
                 hay_per_head,
@@ -6038,7 +6041,13 @@ fn livestock_source_has_feed_commitment(ctx: &ReducerContext, source: &Building)
         .pasture_herd()
         .farmstead_id()
         .filter(&source.id)
-        .any(|herd| herd.head_count > 0)
+        .any(|herd| {
+            if herd.species == crate::reducers::livestock::SPECIES_HORSE {
+                herd.present_head_count > 0
+            } else {
+                herd.head_count > 0
+            }
+        })
 }
 
 fn request_connected_commodity_with_source_availability(

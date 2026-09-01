@@ -55,7 +55,6 @@ import DemolishFarmFieldReducer from "./demolish_farm_field_reducer";
 import DemolishGraveyardReducer from "./demolish_graveyard_reducer";
 import DemolishPastureReducer from "./demolish_pasture_reducer";
 import DemolishResidenceReducer from "./demolish_residence_reducer";
-import DisbandCavalryCompanySellMountsReducer from "./disband_cavalry_company_sell_mounts_reducer";
 import DisbandMilitaryCompanyReducer from "./disband_military_company_reducer";
 import DisbandMilitiaReducer from "./disband_militia_reducer";
 import EnterWorldReducer from "./enter_world_reducer";
@@ -69,7 +68,6 @@ import PlaceFarmFieldReducer from "./place_farm_field_reducer";
 import PlaceGraveyardReducer from "./place_graveyard_reducer";
 import PlacePastureReducer from "./place_pasture_reducer";
 import PlaceVineyardReducer from "./place_vineyard_reducer";
-import PurchaseCavalryHorseReducer from "./purchase_cavalry_horse_reducer";
 import PurchaseKennelDogReducer from "./purchase_kennel_dog_reducer";
 import PurchaseStableOxReducer from "./purchase_stable_ox_reducer";
 import RaiseMilitiaReducer from "./raise_militia_reducer";
@@ -315,14 +313,14 @@ const tablesSchema = __schema({
       { name: 'assigned_company_id', algorithm: 'btree', columns: [
         'assignedCompanyId',
       ] },
-      { name: 'cavalry_yard_id', algorithm: 'btree', columns: [
-        'cavalryYardId',
-      ] },
       { name: 'id', algorithm: 'btree', columns: [
         'id',
       ] },
       { name: 'owner', algorithm: 'btree', columns: [
         'owner',
+      ] },
+      { name: 'pasture_id', algorithm: 'btree', columns: [
+        'pastureId',
       ] },
     ],
     constraints: [
@@ -838,7 +836,6 @@ const reducersSchema = __reducers(
   __reducerSchema("demolish_graveyard", DemolishGraveyardReducer),
   __reducerSchema("demolish_pasture", DemolishPastureReducer),
   __reducerSchema("demolish_residence", DemolishResidenceReducer),
-  __reducerSchema("disband_cavalry_company_sell_mounts", DisbandCavalryCompanySellMountsReducer),
   __reducerSchema("disband_military_company", DisbandMilitaryCompanyReducer),
   __reducerSchema("disband_militia", DisbandMilitiaReducer),
   __reducerSchema("enter_world", EnterWorldReducer),
@@ -852,7 +849,6 @@ const reducersSchema = __reducers(
   __reducerSchema("place_graveyard", PlaceGraveyardReducer),
   __reducerSchema("place_pasture", PlacePastureReducer),
   __reducerSchema("place_vineyard", PlaceVineyardReducer),
-  __reducerSchema("purchase_cavalry_horse", PurchaseCavalryHorseReducer),
   __reducerSchema("purchase_kennel_dog", PurchaseKennelDogReducer),
   __reducerSchema("purchase_stable_ox", PurchaseStableOxReducer),
   __reducerSchema("raise_militia", RaiseMilitiaReducer),

@@ -5,6 +5,8 @@ use crate::balance_generated::{
     CATTLE_MINIMUM_BREEDING_RESERVE, CATTLE_PURCHASE_GOLD_PER_HEAD, CATTLE_SALE_GOLD_PER_HEAD,
     LIVESTOCK_DEFAULT_HAYMAKING_PERCENT, LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT,
     LIVESTOCK_MIN_PASTURE_AREA, LIVESTOCK_MIN_PASTURE_EDGE, SHEEP_DEFAULT_BREEDING_RESERVE,
+    HORSE_MAX_HERD, HORSE_MAX_SLOPE_DEGREES, HORSE_PURCHASE_GOLD_PER_HEAD,
+    HORSE_SALE_GOLD_PER_HEAD,
     SHEEP_MAX_HERD, SHEEP_MAX_SLOPE_DEGREES, SHEEP_MINIMUM_BREEDING_RESERVE,
     SHEEP_PURCHASE_GOLD_PER_HEAD, SHEEP_SALE_GOLD_PER_HEAD, SWINE_DEFAULT_BREEDING_RESERVE,
     SWINE_MAX_HERD, SWINE_MAX_SLOPE_DEGREES, SWINE_MINIMUM_BREEDING_RESERVE,
@@ -24,16 +26,21 @@ use crate::placement_validation::{
 };
 use crate::roads::load_owner_road_network;
 use crate::simulation::grazing_capacity_for_pasture;
-use crate::tables::{farm_field, graveyard, pasture, pasture_herd, Pasture, PastureHerd};
+use crate::tables::{
+    cavalry_horse, farm_field, graveyard, pasture, pasture_herd, CavalryHorse, Pasture,
+    PastureHerd,
+};
 
 pub const SPECIES_CATTLE: u8 = 0;
 pub const SPECIES_SHEEP: u8 = 1;
 pub const SPECIES_SWINE: u8 = 2;
+pub const SPECIES_HORSE: u8 = 3;
 pub const PASTORAL_MANAGEMENT_UNITS: u32 = 60;
 pub const SWINE_MANAGEMENT_UNITS: u32 = 30;
 pub const CATTLE_MANAGEMENT_UNITS_PER_HEAD: u32 = 3;
 pub const SHEEP_MANAGEMENT_UNITS_PER_HEAD: u32 = 1;
 pub const SWINE_MANAGEMENT_UNITS_PER_HEAD: u32 = 1;
+pub const HORSE_MANAGEMENT_UNITS_PER_HEAD: u32 = 2;
 
 #[reducer]
 #[allow(clippy::too_many_arguments)]
@@ -291,8 +298,8 @@ pub fn set_livestock_species(
     pasture_id: u64,
     species: u8,
 ) -> Result<(), String> {
-    if !matches!(species, SPECIES_CATTLE | SPECIES_SHEEP) {
-        return Err("Pastoral pastures can hold cattle or sheep.".to_string());
+    if !matches!(species, SPECIES_CATTLE | SPECIES_SHEEP | SPECIES_HORSE) {
+        return Err("Pastoral pastures can hold cattle, sheep, or horses.".to_string());
     }
     let pasture = ctx
         .db
@@ -315,17 +322,18 @@ pub fn set_livestock_species(
             "You do not own this pasture and its completed pastoral farmstead.".to_string(),
         );
     }
-    let max_slope = if species == SPECIES_CATTLE {
-        CATTLE_MAX_SLOPE_DEGREES
-    } else {
-        SHEEP_MAX_SLOPE_DEGREES
+    let max_slope = match species {
+        SPECIES_CATTLE => CATTLE_MAX_SLOPE_DEGREES,
+        SPECIES_HORSE => HORSE_MAX_SLOPE_DEGREES,
+        _ => SHEEP_MAX_SLOPE_DEGREES,
     };
     if pasture.average_slope_degrees > max_slope + 1e-6 {
-        return Err(if species == SPECIES_CATTLE {
-            "This pasture is too steep for cattle; choose sheep instead.".to_string()
-        } else {
-            "This pasture is too steep for sheep.".to_string()
-        });
+        return Err(match species {
+            SPECIES_CATTLE => "This pasture is too steep for cattle; choose sheep instead.",
+            SPECIES_HORSE => "This pasture is too steep for horses.",
+            _ => "This pasture is too steep for sheep.",
+        }
+        .to_string());
     }
     crate::livestock_migration::migrate_legacy_livestock_herd_for_building(
         ctx,
@@ -341,11 +349,19 @@ pub fn set_livestock_species(
     if herd.species == species {
         return Ok(());
     }
-    if herd.head_count > 0 {
+    let attached_horses = ctx
+        .db
+        .cavalry_horse()
+        .pasture_id()
+        .filter(&pasture_id)
+        .next()
+        .is_some();
+    if herd.head_count > 0 || attached_horses {
         return Err("Sell this pasture's current herd before changing its species.".to_string());
     }
     herd.species = species;
     herd.head_count = 0;
+    herd.present_head_count = 0;
     herd.health = 0.82;
     herd.breeding_progress = 0.0;
     herd.pasture_capacity = 0.0;
@@ -428,27 +444,85 @@ pub fn trade_livestock(
         let cost = purchase_gold_per_head(herd.species) * f64::from(quantity);
         spend_treasury_gold(ctx, owner, cost)?;
         let was_empty = herd.head_count == 0;
-        herd.head_count += quantity;
+        if herd.species == SPECIES_HORSE {
+            let existing = ctx
+                .db
+                .cavalry_horse()
+                .pasture_id()
+                .filter(&pasture_id)
+                .collect::<Vec<_>>();
+            let mut open_slots = (0..HORSE_MAX_HERD as u8)
+                .filter(|slot| !existing.iter().any(|horse| horse.slot == *slot));
+            for _ in 0..quantity {
+                let slot = open_slots
+                    .next()
+                    .ok_or_else(|| "This horse pasture has no open roster place.".to_string())?;
+                ctx.db.cavalry_horse().insert(CavalryHorse {
+                    id: 0,
+                    owner,
+                    pasture_id,
+                    slot,
+                    at_pasture: true,
+                    assigned_company_id: 0,
+                    assigned_combat_agent_id: 0,
+                });
+            }
+            herd.head_count += quantity;
+            herd.present_head_count += quantity;
+        } else {
+            herd.head_count += quantity;
+            herd.present_head_count = herd.head_count;
+        }
         if was_empty {
             herd.health = 0.82;
             herd.breeding_progress = 0.0;
         }
     } else {
         let quantity = (-i64::from(head_delta)) as u32;
-        if quantity > herd.head_count {
+        let available_horses = (herd.species == SPECIES_HORSE).then(|| {
+            let mut horses = ctx
+                .db
+                .cavalry_horse()
+                .pasture_id()
+                .filter(&pasture_id)
+                .filter(|horse| {
+                    horse.at_pasture
+                        && horse.assigned_company_id == 0
+                        && horse.assigned_combat_agent_id == 0
+                })
+                .collect::<Vec<_>>();
+            horses.sort_by_key(|horse| (horse.slot, horse.id));
+            horses
+        });
+        let available = available_horses
+            .as_ref()
+            .map_or(herd.head_count, |horses| horses.len() as u32);
+        if quantity > available {
             return Err(format!(
-                "Only {} head are available to sell.",
-                herd.head_count
+                "Only {available} head are physically in this pasture and available to sell."
             ));
         }
         let previous_heads = herd.head_count;
-        herd.head_count -= quantity;
+        if let Some(horses) = available_horses {
+            for horse in horses.into_iter().take(quantity as usize) {
+                ctx.db.cavalry_horse().id().delete(horse.id);
+            }
+            herd.head_count = herd.head_count.saturating_sub(quantity);
+            herd.present_head_count = herd.present_head_count.saturating_sub(quantity);
+        } else {
+            herd.head_count -= quantity;
+            herd.present_head_count = herd.head_count;
+        }
         herd.supplied_capacity = herd.supplied_capacity.min(f64::from(herd.head_count));
-        herd.breeding_progress = retained_livestock_breeding_progress(
-            herd.breeding_progress,
-            previous_heads,
-            herd.head_count,
-        );
+        if herd.species == SPECIES_HORSE {
+            herd.breeding_progress = 0.0;
+        } else {
+            herd.breeding_progress = retained_livestock_breeding_progress(
+                herd.breeding_progress,
+                previous_heads,
+                herd.head_count,
+            );
+        }
         credit_treasury_gold(
             ctx,
             owner,
@@ -570,6 +644,19 @@ pub fn demolish_pasture(ctx: &ReducerContext, pasture_id: u64) -> Result<(), Str
         ctx,
         pasture.farmstead_id,
     );
+    if ctx
+        .db
+        .cavalry_horse()
+        .pasture_id()
+        .filter(&pasture_id)
+        .next()
+        .is_some()
+    {
+        return Err(
+            "Sell this pasture's horses after every mounted company has returned before removing its fencing."
+                .to_string(),
+        );
+    }
     if let Some(herd) = ctx.db.pasture_herd().pasture_id().find(&pasture_id) {
         if herd.head_count > 0 {
             return Err("Sell this pasture's animals before removing its fencing.".to_string());
@@ -587,6 +674,7 @@ pub fn unstocked_pasture_herd(pasture: &Pasture, species: u8) -> PastureHerd {
         owner: pasture.owner,
         species,
         head_count: 0,
+        present_head_count: 0,
         health: 0.82,
         breeding_progress: 0.0,
         pasture_capacity: 0.0,
@@ -613,6 +701,7 @@ pub(crate) fn management_units_per_head(species: u8) -> u32 {
     match species {
         SPECIES_CATTLE => CATTLE_MANAGEMENT_UNITS_PER_HEAD,
         SPECIES_SHEEP => SHEEP_MANAGEMENT_UNITS_PER_HEAD,
+        SPECIES_HORSE => HORSE_MANAGEMENT_UNITS_PER_HEAD,
         _ => SWINE_MANAGEMENT_UNITS_PER_HEAD,
     }
 }
@@ -646,6 +735,7 @@ fn minimum_breeding_reserve(species: u8) -> u32 {
     match species {
         SPECIES_CATTLE => CATTLE_MINIMUM_BREEDING_RESERVE,
         SPECIES_SHEEP => SHEEP_MINIMUM_BREEDING_RESERVE,
+        SPECIES_HORSE => 1,
         _ => SWINE_MINIMUM_BREEDING_RESERVE,
     }
 }
@@ -654,6 +744,7 @@ fn default_breeding_reserve(species: u8) -> u32 {
     match species {
         SPECIES_CATTLE => CATTLE_DEFAULT_BREEDING_RESERVE,
         SPECIES_SHEEP => SHEEP_DEFAULT_BREEDING_RESERVE,
+        SPECIES_HORSE => HORSE_MAX_HERD,
         _ => SWINE_DEFAULT_BREEDING_RESERVE,
     }
 }
@@ -662,6 +753,7 @@ fn maximum_herd(species: u8) -> u32 {
     match species {
         SPECIES_CATTLE => CATTLE_MAX_HERD,
         SPECIES_SHEEP => SHEEP_MAX_HERD,
+        SPECIES_HORSE => HORSE_MAX_HERD,
         _ => SWINE_MAX_HERD,
     }
 }
@@ -670,6 +762,7 @@ fn purchase_gold_per_head(species: u8) -> f64 {
     match species {
         SPECIES_CATTLE => CATTLE_PURCHASE_GOLD_PER_HEAD,
         SPECIES_SHEEP => SHEEP_PURCHASE_GOLD_PER_HEAD,
+        SPECIES_HORSE => HORSE_PURCHASE_GOLD_PER_HEAD,
         _ => SWINE_PURCHASE_GOLD_PER_HEAD,
     }
 }
@@ -678,6 +771,7 @@ fn sale_gold_per_head(species: u8) -> f64 {
     match species {
         SPECIES_CATTLE => CATTLE_SALE_GOLD_PER_HEAD,
         SPECIES_SHEEP => SHEEP_SALE_GOLD_PER_HEAD,
+        SPECIES_HORSE => HORSE_SALE_GOLD_PER_HEAD,
         _ => SWINE_SALE_GOLD_PER_HEAD,
     }
 }
@@ -685,8 +779,8 @@ fn sale_gold_per_head(species: u8) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        management_headroom, management_units_per_head, SPECIES_CATTLE, SPECIES_SHEEP,
-        SPECIES_SWINE,
+        management_headroom, management_units_per_head, SPECIES_CATTLE, SPECIES_HORSE,
+        SPECIES_SHEEP, SPECIES_SWINE,
     };
 
     #[test]
@@ -700,6 +794,7 @@ mod tests {
             60
         );
         assert_eq!(management_headroom("swineherd", 0, SPECIES_SWINE), 30);
+        assert_eq!(management_headroom("pastoral_farmstead", 0, SPECIES_HORSE), 30);
 
         let mixed_used = 10 * management_units_per_head(SPECIES_CATTLE)
             + 15 * management_units_per_head(SPECIES_SHEEP);

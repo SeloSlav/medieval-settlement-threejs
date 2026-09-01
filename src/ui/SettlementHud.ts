@@ -1390,10 +1390,10 @@ export class SettlementHud {
     if (herdRows.length === 0) {
       this.appendAnimalLedgerEmpty(
         this.animalsHerdList,
-        'No managed cattle, sheep, or swine.',
+        'No managed cattle, sheep, swine, or horses.',
       );
     } else {
-      const herdIcons = { cattle: '🐄', sheep: '🐑', swine: '🐖' } as const;
+      const herdIcons = { cattle: '🐄', sheep: '🐑', swine: '🐖', horses: '🐎' } as const;
       for (const herd of herdRows) {
         const row = document.createElement('div');
         row.className = 'settlement-hud__animal-ledger-row';

@@ -306,7 +306,9 @@ export class LivestockVisuals {
 
     for (const herd of this.latestInput.herds.values()) {
       const pasture = pasturesById.get(herd.pastureId);
-      if (!pasture || herd.headCount <= 0) continue;
+      // Horses are exact persistent entities rendered by VillagerRenderer so
+      // the same animal can graze, be collected, mount a rider, and return.
+      if (herd.species === 'horses' || !pasture || herd.headCount <= 0) continue;
       const herdVisual = this.createHerdVisual(herd, pasture);
       this.herdVisuals.set(herd.pastureId, herdVisual);
       const visualCount = livestockVisualHeadCount(herd.species, herd.headCount);

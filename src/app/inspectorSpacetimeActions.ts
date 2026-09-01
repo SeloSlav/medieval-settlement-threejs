@@ -42,7 +42,6 @@ export type InspectorSpacetimeActions = {
   onRecruitMilitaryCompany: (sourceBuildingId: string, kind: number) => Promise<void>;
   onHireMercenaryCompany: (townHallId: string) => Promise<void>;
   onDisbandMilitaryCompany: (companyId: string) => Promise<void>;
-  onDisbandCavalryCompanySellMounts: (companyId: string) => Promise<void>;
   onRenewMercenaryContract: (companyId: string) => Promise<void>;
   onResupplyMilitaryCompany: (companyId: string) => Promise<void>;
   onSetMilitaryFormation: (companyId: string, formation: number) => Promise<void>;
@@ -64,7 +63,6 @@ export type InspectorSpacetimeActions = {
   onSetLivestockSpecies: (pastureId: string, species: Exclude<LivestockSpecies, 'swine'>) => Promise<void>;
   onTradeLivestock: (pastureId: string, headDelta: number) => Promise<void>;
   onPurchaseStableOx: (stableId: string) => Promise<void>;
-  onPurchaseCavalryHorse: (cavalryYardId: string) => Promise<void>;
   onPurchaseKennelDog: (kennelId: string) => Promise<void>;
   onSetBuildingOxen: (buildingId: string, assignedOxen: number) => Promise<void>;
   onSetBuildingDogs: (buildingId: string, assignedDogs: number) => Promise<void>;
@@ -440,16 +438,8 @@ export function createInspectorSpacetimeActions(
       if (!store) return;
       await runReducer(async () => {
         await store.disbandMilitaryCompany(companyId);
-        toastManager.show('Company is leaving service. Mercenaries march to their original map edge; residents return equipment and walk home.');
+        toastManager.show('Company is leaving service. Residents return equipment; mounted survivors then return each exact horse to its home pasture before walking home.');
       }, 'Could not disband the company.');
-    },
-    onDisbandCavalryCompanySellMounts: async (companyId) => {
-      const store = requireReady();
-      if (!store) return;
-      await runReducer(async () => {
-        await store.disbandCavalryCompanySellMounts(companyId);
-        toastManager.show('The mounted company is returning. Each surviving horse will be sold only after it physically reaches the Cavalry Yard.');
-      }, 'Could not disband and sell this company’s mounts.');
     },
     onRenewMercenaryContract: async (companyId) => {
       const store = requireReady();
@@ -598,21 +588,6 @@ export function createInspectorSpacetimeActions(
         toastManager.show(
           'Draft ox purchased. It joins automatic assistance until you post it to a workplace.',
         );
-      }
-    },
-    onPurchaseCavalryHorse: async (cavalryYardId) => {
-      const store = requireReady();
-      if (!store) return;
-      let purchased = false;
-      await runReducer(
-        async () => {
-          await store.purchaseCavalryHorse(cavalryYardId);
-          purchased = true;
-        },
-        'Could not purchase the remount.',
-      );
-      if (purchased) {
-        toastManager.show('Remount purchased. Cavalry-yard hands will now train it while feed, oats, and water are available.');
       }
     },
     onPurchaseKennelDog: async (kennelId) => {

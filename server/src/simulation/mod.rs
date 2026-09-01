@@ -1,7 +1,6 @@
 mod backyard_garden;
 mod bandits;
 mod burial;
-mod cavalry;
 mod chapel;
 mod chapel_community;
 mod chapel_parish;
@@ -56,7 +55,6 @@ mod woodcutters_lodge;
 pub use backyard_garden::{clear_backyard_garden_for_residence, step_backyard_gardens};
 pub use bandits::{spawn_debug_bandit_camp, step_bandit_world};
 pub use burial::step_burials;
-pub use cavalry::step_cavalry_yards;
 pub use chapel::step_chapels;
 pub use chapel_parish::step_chapel_parish;
 pub use civic_receipts::try_dispatch_local_civic_receipts;

@@ -1387,7 +1387,7 @@ pub struct Graveyard {
 }
 
 /// Authoritative livestock attached to one authored grazing parcel. Species:
-/// 0 cattle, 1 sheep, 2 swine. A livestock building may therefore support
+/// 0 cattle, 1 sheep, 2 swine, 3 horses. A livestock building may therefore support
 /// several independent herds while its workers, trough water, prepared feed,
 /// processing rooms, and carts remain shared at the holding.
 #[spacetimedb::table(
@@ -1403,7 +1403,12 @@ pub struct PastureHerd {
     pub farmstead_id: u64,
     pub owner: Identity,
     pub species: u8,
+    /// Total animals owned by this parcel. For horse pastures this includes
+    /// mounts whose reserved home remains here while they are campaigning.
     pub head_count: u32,
+    /// Animals physically inside the fence now. This equals `head_count` for
+    /// ordinary aggregate herds; horse companies leave and return as real mounts.
+    pub present_head_count: u32,
     pub health: f64,
     /// Save-compatible seasonal pregnancy cohort. Whole units are confirmed
     /// offspring due in spring; the fractional remainder carries expected
@@ -1509,14 +1514,15 @@ pub struct StableOx {
     pub assigned_building_id: u64,
 }
 
-/// One purchased remount housed and trained at a dedicated Cavalry Yard.
-/// A mount is reserved to exactly one living combat agent while its company is
-/// fielded; surviving mounts return to their yard when the rider comes home.
+/// One purchased horse belonging to an authored Pastoral Farmstead pasture.
+/// Its pasture remains the reserved home while the animal is mustering or
+/// campaigning. A mount is paired to exactly one living combat agent until the
+/// surviving horse physically crosses back into that pasture on disband.
 #[spacetimedb::table(
     accessor = cavalry_horse,
     public,
     index(accessor = owner, btree(columns = [owner])),
-    index(accessor = cavalry_yard_id, btree(columns = [cavalry_yard_id])),
+    index(accessor = pasture_id, btree(columns = [pasture_id])),
     index(accessor = assigned_company_id, btree(columns = [assigned_company_id])),
     index(accessor = assigned_combat_agent_id, btree(columns = [assigned_combat_agent_id]))
 )]
@@ -1526,15 +1532,13 @@ pub struct CavalryHorse {
     #[auto_inc]
     pub id: u64,
     pub owner: Identity,
-    pub cavalry_yard_id: u64,
-    /// Zero-based authored loose-box/paddock roster slot.
+    /// Persistent reserved home pasture; zero is used only by debug-spawned field mounts.
+    pub pasture_id: u64,
+    /// Stable zero-based visual roster slot within the pasture.
     pub slot: u8,
-    /// Productive training days completed at a staffed and supplied yard.
-    #[default(0u8)]
-    pub training_days: u8,
-    /// Calendar day last considered by the training simulation.
-    #[default(0u64)]
-    pub last_training_day: u64,
+    /// True only while the physical horse is inside its home pasture. The
+    /// pasture remains reserved while this is false.
+    pub at_pasture: bool,
     /// Zero while available; otherwise the owning mounted company.
     #[default(0u64)]
     pub assigned_company_id: u64,

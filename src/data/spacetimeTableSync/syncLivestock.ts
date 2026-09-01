@@ -7,7 +7,7 @@ import type {
 } from '../../resources/types.ts';
 import { wholeResourceUnits } from '../../resources/resourceUnits.ts';
 
-const SPECIES: readonly LivestockSpecies[] = ['cattle', 'sheep', 'swine'];
+const SPECIES: readonly LivestockSpecies[] = ['cattle', 'sheep', 'swine', 'horses'];
 
 export function syncPastures(
   rows: Iterable<Pasture>,
@@ -50,6 +50,7 @@ export function syncLivestockHerds(
       buildingId,
       species: SPECIES[row.species] ?? 'cattle',
       headCount: wholeResourceUnits(row.headCount),
+      presentHeadCount: wholeResourceUnits(row.presentHeadCount),
       health: row.health,
       breedingProgress: row.breedingProgress,
       pastureCapacity: row.pastureCapacity,

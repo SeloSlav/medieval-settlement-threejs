@@ -5,6 +5,9 @@ import {
   CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
   CATTLE_GRAIN_PER_UNSUPPORTED_HEAD,
   DROUGHT_PASTURE_CAPACITY_MULTIPLIER,
+  HORSE_GRAIN_PER_UNSUPPORTED_HEAD,
+  HORSE_HAY_PER_UNSUPPORTED_HEAD,
+  HORSE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
   LIVESTOCK_ANIMAL_FEED_FODDER_VALUE,
   LIVESTOCK_ANIMAL_FEED_PER_CYCLE,
   LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE,
@@ -56,18 +59,21 @@ const FODDER_VALUE_PER_UNSUPPORTED_HEAD: Record<LivestockSpecies, number> = {
   cattle: CATTLE_GRAIN_PER_UNSUPPORTED_HEAD,
   sheep: SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
   swine: SWINE_GRAIN_PER_UNSUPPORTED_HEAD,
+  horses: HORSE_GRAIN_PER_UNSUPPORTED_HEAD,
 };
 
 const HAY_PER_UNSUPPORTED_HEAD: Record<LivestockSpecies, number> = {
   cattle: CATTLE_HAY_PER_UNSUPPORTED_HEAD,
   sheep: SHEEP_HAY_PER_UNSUPPORTED_HEAD,
   swine: 0,
+  horses: HORSE_HAY_PER_UNSUPPORTED_HEAD,
 };
 
 const HAY_YIELD_PER_RESERVED_CAPACITY: Record<LivestockSpecies, number> = {
   cattle: CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
   sheep: SHEEP_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
   swine: 0,
+  horses: HORSE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
 };
 
 function compareBuildingIds(a: string, b: string): number {
@@ -259,8 +265,11 @@ export function projectLivestockFodderHolding(
   const laborCyclesPerDay = baseCyclesPerDay
     * effectiveWorkers
     * productiveDayShare;
+  const husbandryHeads = herd.species === 'horses'
+    ? Math.max(0, herd.presentHeadCount)
+    : Math.max(0, herd.headCount);
   const suppliedHeads = Math.min(
-    Math.max(0, herd.headCount),
+    husbandryHeads,
     Math.max(0, herd.suppliedCapacity),
   );
   const workdaySupportedHeads = Math.min(
@@ -277,11 +286,12 @@ export function projectLivestockFodderHolding(
         + sabbathSupportedHeads * sabbathCareDayShare
     ) / nonHolidayDayShare
     : 0;
-  const productiveHeads = herd.species === 'swine'
+  const productiveHeads = herd.species === 'swine' || herd.species === 'horses'
     ? 0
     : careSupportedHeads * Math.min(1, Math.max(0, herd.health));
   const currentSeason = seasonForMonth(month);
-  const dairyActive = herd.species !== 'cattle' || isCattleMilkingMonth(month);
+  const dairyActive = (herd.species === 'sheep')
+    || (herd.species === 'cattle' && isCattleMilkingMonth(month));
   const milkUsePolicy = livestockMilkUsePolicyForBuilding(building).value;
   const dairyPreservedFoodPerCycle = dairyActive
     ? livestockMilkAllocationPerCycle(
@@ -297,10 +307,10 @@ export function projectLivestockFodderHolding(
       milkUsePolicy,
     )
     : 0;
-  const dairySaltStock = herd.species === 'swine'
+  const dairySaltStock = herd.species === 'swine' || herd.species === 'horses'
     ? 0
     : Math.max(0, building.salt ?? 0);
-  const dairySaltTarget = !dairyActive || herd.species === 'swine' || onsiteHumanWorkers <= 0
+  const dairySaltTarget = !dairyActive || onsiteHumanWorkers <= 0
     ? 0
     : LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE
       * farmhouseCheeseSaltStagingCycles(milkUsePolicy);
@@ -336,7 +346,7 @@ export function projectLivestockFodderHolding(
   const plannedCullHeads = cullsAffectThisWinter
     ? pendingLivestockCullHeads(
       herd.species,
-      herd.headCount,
+      husbandryHeads,
       herd.breedingReserve,
     )
     : 0;
@@ -344,7 +354,7 @@ export function projectLivestockFodderHolding(
     && onsiteHumanWorkers > 0
     ? livestockStorageSecuredCullHeads(
       herd.species,
-      herd.headCount,
+      husbandryHeads,
       herd.breedingReserve,
       (storageCaps.food ?? 0) - freshFoodStock(building),
       (storageCaps.preservedFood ?? 0) - preservedFoodStock(building),
@@ -358,7 +368,7 @@ export function projectLivestockFodderHolding(
   );
   const projectedHeadCount = Math.max(
     0,
-    herd.headCount - executableCullHeads,
+    husbandryHeads - executableCullHeads,
   );
   const summerReservedCapacity = basePastureCapacity * haymakingShare;
   const hayYieldMultiplier = isLivestockHaymakingMonth(month)
@@ -376,7 +386,7 @@ export function projectLivestockFodderHolding(
   const winterHayAvailable = month >= 3 && month <= LIVESTOCK_HAYMAKING_END_MONTH
     ? projectedHayStock
     : hayStock;
-  const currentUnsupportedHeads = Math.max(0, herd.headCount - herd.pastureCapacity);
+  const currentUnsupportedHeads = Math.max(0, husbandryHeads - herd.pastureCapacity);
   const animalFeedStock = Math.max(0, building.animalFeed ?? 0);
   const currentFeedPerDay = currentSeason === 'winter'
     ? currentUnsupportedHeads

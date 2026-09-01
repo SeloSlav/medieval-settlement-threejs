@@ -4,6 +4,11 @@ import {
   CATTLE_MAX_SLOPE_DEGREES,
   CATTLE_MOISTURE_IDEAL,
   CATTLE_MOISTURE_TOLERANCE,
+  HORSE_AREA_PER_HEAD,
+  HORSE_MAX_HERD,
+  HORSE_MAX_SLOPE_DEGREES,
+  HORSE_MOISTURE_IDEAL,
+  HORSE_MOISTURE_TOLERANCE,
   SHEEP_AREA_PER_HEAD,
   SHEEP_MAX_HERD,
   SHEEP_MAX_SLOPE_DEGREES,
@@ -46,7 +51,7 @@ type GrazingProfile = {
   moistureTolerance: number;
 };
 
-const GRAZING_PROFILE: Record<'cattle' | 'sheep', GrazingProfile> = {
+const GRAZING_PROFILE: Record<Exclude<LivestockSpecies, 'swine'>, GrazingProfile> = {
   cattle: {
     areaPerHead: CATTLE_AREA_PER_HEAD,
     maxSlopeDegrees: CATTLE_MAX_SLOPE_DEGREES,
@@ -59,6 +64,12 @@ const GRAZING_PROFILE: Record<'cattle' | 'sheep', GrazingProfile> = {
     moistureIdeal: SHEEP_MOISTURE_IDEAL,
     moistureTolerance: SHEEP_MOISTURE_TOLERANCE,
   },
+  horses: {
+    areaPerHead: HORSE_AREA_PER_HEAD,
+    maxSlopeDegrees: HORSE_MAX_SLOPE_DEGREES,
+    moistureIdeal: HORSE_MOISTURE_IDEAL,
+    moistureTolerance: HORSE_MOISTURE_TOLERANCE,
+  },
 };
 
 /** Area-only ceiling. Woodland pannage may be lower when mature trees are scarce. */
@@ -70,11 +81,13 @@ export function pastureAreaHeadCapacity(
     ? CATTLE_AREA_PER_HEAD
     : species === 'sheep'
       ? SHEEP_AREA_PER_HEAD
-      : SWINE_AREA_PER_HEAD;
+      : species === 'horses'
+        ? HORSE_AREA_PER_HEAD
+        : SWINE_AREA_PER_HEAD;
   return Math.max(0, pasture.area) / Math.max(1, areaPerHead);
 }
 
-/** Mirrors the authoritative neutral-season cattle/sheep grazing calculation. */
+/** Mirrors the authoritative neutral-season cattle, sheep, and horse grazing calculation. */
 export function neutralPastureHeadCapacity(
   pasture: PastureCapacityParcel,
   species: LivestockSpecies,
@@ -100,7 +113,7 @@ export function neutralPastureHeadCapacity(
   return pastureAreaHeadCapacity(pasture, species) * slopeQuality * moistureQuality;
 }
 
-/** Neutral-season capacity of every cattle/sheep parcel linked to one holding. */
+/** Neutral-season capacity of every grazing parcel linked to one holding. */
 export function neutralPastureHoldingHeadCapacity(
   pastures: Iterable<PastureCapacityParcel>,
   species: Exclude<LivestockSpecies, 'swine'>,
@@ -143,7 +156,9 @@ export function livestockHoldingWholeHeadLimit(
     ? CATTLE_MAX_HERD
     : species === 'sheep'
       ? SHEEP_MAX_HERD
-      : SWINE_MAX_HERD;
+      : species === 'horses'
+        ? HORSE_MAX_HERD
+        : SWINE_MAX_HERD;
   return Math.min(
     maximumHerd,
     Math.max(0, Math.floor(Math.max(0, neutralCapacity) + 1e-9)),
@@ -155,7 +170,7 @@ export const PASTORAL_MANAGEMENT_UNITS = 60;
 export const SWINE_MANAGEMENT_UNITS = 30;
 
 export function livestockManagementUnitsPerHead(species: LivestockSpecies): number {
-  return species === 'cattle' ? 3 : 1;
+  return species === 'cattle' ? 3 : species === 'horses' ? 2 : 1;
 }
 
 /**

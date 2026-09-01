@@ -8,7 +8,7 @@ use crate::economy::{
     building_edible_food_stock, residence_edible_food_stock, withdraw_building_edible_food,
     withdraw_residence_commodity, CommodityKind,
 };
-use crate::tables::{CombatAgent, Corpse};
+use crate::tables::{cavalry_horse, CombatAgent, Corpse};
 
 const DOG: u8 = 12;
 const FOX: u8 = 13;
@@ -533,10 +533,28 @@ fn damage_wolf_target(ctx: &ReducerContext, wolf: &CombatAgent, tick: u64) -> bo
                     .pasture_herd()
                     .farmstead_id()
                     .filter(&building.id)
-                    .filter(|herd| herd.head_count > 0)
+                    .filter(|herd| herd.present_head_count > 0)
                     .min_by_key(|herd| herd.pasture_id)
                 {
+                    if herd.species == crate::reducers::livestock::SPECIES_HORSE {
+                        if let Some(horse) = ctx
+                            .db
+                            .cavalry_horse()
+                            .pasture_id()
+                            .filter(&herd.pasture_id)
+                            .filter(|horse| horse.at_pasture)
+                            .min_by_key(|horse| horse.id)
+                        {
+                            ctx.db.cavalry_horse().id().delete(horse.id);
+                            crate::reducers::cavalry_horses::sync_horse_pasture_herd(
+                                ctx,
+                                herd.pasture_id,
+                            );
+                            return true;
+                        }
+                    }
                     herd.head_count = herd.head_count.saturating_sub(1);
+                    herd.present_head_count = herd.present_head_count.saturating_sub(1);
                     herd.health = (herd.health - 0.12).max(0.0);
                     ctx.db.pasture_herd().pasture_id().update(herd);
                     return true;
@@ -687,10 +705,15 @@ fn fox_contact_result(ctx: &ReducerContext, fox: &CombatAgent) -> (f64, bool) {
                     .pasture_herd()
                     .farmstead_id()
                     .filter(&building.id)
-                    .filter(|herd| herd.head_count > 0 && herd.species != 0)
+                    .filter(|herd| {
+                        herd.present_head_count > 0
+                            && herd.species != crate::reducers::livestock::SPECIES_CATTLE
+                            && herd.species != crate::reducers::livestock::SPECIES_HORSE
+                    })
                     .min_by_key(|herd| herd.pasture_id)
                 {
                     herd.head_count = herd.head_count.saturating_sub(1);
+                    herd.present_head_count = herd.present_head_count.saturating_sub(1);
                     herd.health = (herd.health - 0.06).max(0.0);
                     ctx.db.pasture_herd().pasture_id().update(herd);
                     return (0.0, true);
@@ -792,7 +815,11 @@ fn fox_target(ctx: &ReducerContext, owner: Identity, seed: u64) -> Option<Target
                     .pasture_herd()
                     .farmstead_id()
                     .filter(&building.id)
-                    .any(|herd| herd.head_count > 0 && herd.species != 0)
+                    .any(|herd| {
+                        herd.present_head_count > 0
+                            && herd.species != crate::reducers::livestock::SPECIES_CATTLE
+                            && herd.species != crate::reducers::livestock::SPECIES_HORSE
+                    })
             })
             .map(target_building)
     };
@@ -859,7 +886,7 @@ fn wolf_target(ctx: &ReducerContext, owner: Identity, seed: u64) -> Option<Targe
                     .pasture_herd()
                     .farmstead_id()
                     .filter(&building.id)
-                    .any(|herd| herd.head_count > 0)
+                    .any(|herd| herd.present_head_count > 0)
             })
             .map(target_building)
     };

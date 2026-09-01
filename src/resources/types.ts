@@ -351,7 +351,7 @@ export type FarmFieldState = {
   manureApplied?: number;
 };
 
-export const LIVESTOCK_SPECIES = ['cattle', 'sheep', 'swine'] as const;
+export const LIVESTOCK_SPECIES = ['cattle', 'sheep', 'swine', 'horses'] as const;
 export type LivestockSpecies = (typeof LIVESTOCK_SPECIES)[number];
 
 export type PastureState = {
@@ -409,7 +409,10 @@ export type LivestockHerdState = {
   /** Linked pastoral farmstead or swineherd that supplies labor, water, and stores. */
   buildingId: string;
   species: LivestockSpecies;
+  /** Total owned animals; horse companies keep their pasture place reserved while away. */
   headCount: number;
+  /** Animals physically inside this pasture now. */
+  presentHeadCount: number;
   health: number;
   /** Whole units are confirmed spring offspring; the fraction is conception progress. */
   breedingProgress: number;
@@ -441,10 +444,9 @@ export type StableOxState = {
 
 export type CavalryHorseState = {
   id: string;
-  cavalryYardId: string;
+  pastureId: string | null;
   slot: number;
-  trainingDays: number;
-  lastTrainingDay: number;
+  atPasture: boolean;
   assignedCompanyId: string | null;
   assignedCombatAgentId: string | null;
 };

@@ -461,6 +461,9 @@ export class WorldFoleyAudio {
     if (this.elapsedSeconds - this.lastAnimalPlayAt < ANIMAL_GLOBAL_INTERVAL_SECONDS) return;
     const candidates: AnimalCandidate[] = [];
     for (const herd of input.livestockHerds) {
+      // Exact horse visuals currently have no authored foley bank; do not map
+      // them to cattle calls merely because they share a pasture.
+      if (herd.species === 'horses') continue;
       if (herd.headCount <= 0) continue;
       const pasture = input.pastures.get(herd.pastureId);
       if (!pasture) continue;

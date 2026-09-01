@@ -496,7 +496,13 @@ fn source_exportable_stock(
             .pasture_herd()
             .farmstead_id()
             .filter(&building.id)
-            .any(|herd| herd.head_count > 0);
+            .any(|herd| {
+                if herd.species == 3 {
+                    herd.present_head_count > 0
+                } else {
+                    herd.head_count > 0
+                }
+            });
     let stock = if commodity == CommodityKind::OatGrain {
         livestock_feed_oat_exportable_stock(&building.kind, stock, has_feed_commitment)
     } else {

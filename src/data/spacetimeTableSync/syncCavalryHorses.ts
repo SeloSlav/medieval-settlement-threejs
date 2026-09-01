@@ -1,6 +1,6 @@
 import type { CavalryHorse } from '../../generated/types.ts';
 import type { CavalryHorseState } from '../../resources/types.ts';
-import { buildingClientId, cavalryHorseClientId } from '../spacetimeIds.ts';
+import { cavalryHorseClientId, pastureClientId } from '../spacetimeIds.ts';
 
 export type CavalryHorseRow = CavalryHorse;
 
@@ -14,10 +14,9 @@ export function syncCavalryHorses(
     if (row.owner.toHexString() !== identityHex) continue;
     horses.set(cavalryHorseClientId(row.id), {
       id: cavalryHorseClientId(row.id),
-      cavalryYardId: buildingClientId(row.cavalryYardId),
+      pastureId: row.pastureId === 0n ? null : pastureClientId(row.pastureId),
       slot: Math.max(0, Number(row.slot)),
-      trainingDays: Math.max(0, Number(row.trainingDays)),
-      lastTrainingDay: Math.max(0, Number(row.lastTrainingDay)),
+      atPasture: row.atPasture,
       assignedCompanyId: row.assignedCompanyId === 0n ? null : row.assignedCompanyId.toString(),
       assignedCombatAgentId: row.assignedCombatAgentId === 0n
         ? null

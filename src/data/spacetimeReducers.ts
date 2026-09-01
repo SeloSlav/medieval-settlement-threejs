@@ -94,14 +94,6 @@ export async function purchaseStableOx(stableId: string): Promise<void> {
   });
 }
 
-export async function purchaseCavalryHorse(cavalryYardId: string): Promise<void> {
-  const serverId = parseBuildingServerId(cavalryYardId);
-  if (serverId === null) throw new Error('Invalid Cavalry Yard id.');
-  await callReducer('purchaseCavalryHorse', 'purchase_cavalry_horse', {
-    cavalryYardId: serverId,
-  });
-}
-
 export async function purchaseKennelDog(kennelId: string): Promise<void> {
   const serverId = parseBuildingServerId(kennelId);
   if (serverId === null) throw new Error('Invalid Kennel id.');
@@ -458,7 +450,7 @@ export async function setLivestockSpecies(
   if (serverId === null) throw new Error('Invalid pasture id.');
   await callReducer('setLivestockSpecies', 'set_livestock_species', {
     pastureId: serverId,
-    species: species === 'sheep' ? 1 : 0,
+    species: species === 'sheep' ? 1 : species === 'horses' ? 3 : 0,
   });
 }
 
@@ -1300,13 +1292,6 @@ export async function hireMercenaryCompany(townHallId: string): Promise<void> {
 export async function disbandMilitaryCompany(companyId: string): Promise<void> {
   if (!/^\d+$/.test(companyId)) throw new Error('Invalid military company id.');
   await callReducer('disbandMilitaryCompany', 'disband_military_company', {
-    companyId: BigInt(companyId),
-  });
-}
-
-export async function disbandCavalryCompanySellMounts(companyId: string): Promise<void> {
-  if (!/^\d+$/.test(companyId)) throw new Error('Invalid cavalry company id.');
-  await callReducer('disbandCavalryCompanySellMounts', 'disband_cavalry_company_sell_mounts', {
     companyId: BigInt(companyId),
   });
 }

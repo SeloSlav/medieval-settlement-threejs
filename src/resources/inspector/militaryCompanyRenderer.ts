@@ -13,7 +13,6 @@ import {
 } from '../../security/militaryProgression.ts';
 import { MILITARY_COMPANY_CARD_ART } from '../../security/militaryCompanyCardArt.ts';
 import { getActiveWorldGeneration } from '../../world/worldGenerationContext.ts';
-import { CAVALRY_HORSE_MOUNT_SALE_GOLD } from '../../generated/gameBalance.ts';
 
 const RECRUITMENT_KIND_ID: Partial<Record<MilitaryCompanyKind, number>> = {
   spearmen: 1,
@@ -117,10 +116,7 @@ function renderSelectedCompanyCommands(
     `).join('');
   const lifecycleAction = mercenaryLeaving
     ? `<button type="button" class="resource-action-button resource-action-button--icon military-company-action" data-renew-mercenary-contract="${company.id}" data-tooltip="Pay ${retainerGold} gold to recall the departing survivors."><span class="inspector-action-icon" data-action-icon="mercenaries" aria-hidden="true"></span><span class="military-company-action__copy"><strong>Retain company</strong><small>${retainerGold} gold</small></span></button>`
-    : `<button type="button" class="resource-action-button resource-action-button--icon resource-action-button--secondary military-company-action" data-disband-military-company="${company.id}" data-tooltip="${company.kind === 'mercenary-spears' ? 'End the contract and send the company to the region edge.' : 'Stand the company down and return its surviving members home.'}" ${company.status === 'disbanding' || company.status === 'leaving' || company.status === 'destroyed' ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="disband-company" aria-hidden="true"></span><span class="military-company-action__copy"><strong>${company.kind === 'mercenary-spears' ? 'End contract' : 'Disband company'}</strong></span></button>`;
-  const sellMountsAction = mounted
-    ? `<button type="button" class="resource-action-button resource-action-button--icon resource-action-button--secondary military-company-action" data-disband-cavalry-company-sell-mounts="${company.id}" data-tooltip="The riders return physically, then each surviving remount is sold for ${CAVALRY_HORSE_MOUNT_SALE_GOLD} gold instead of occupying a Cavalry Yard place." ${company.status === 'disbanding' || company.status === 'destroyed' ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="disband-company" aria-hidden="true"></span><span class="military-company-action__copy"><strong>Disband &amp; sell mounts</strong><small>${CAVALRY_HORSE_MOUNT_SALE_GOLD} gold per survivor</small></span></button>`
-    : '';
+    : `<button type="button" class="resource-action-button resource-action-button--icon resource-action-button--secondary military-company-action" data-disband-military-company="${company.id}" data-tooltip="${company.kind === 'mercenary-spears' ? 'End the contract and send the company to the region edge.' : mounted ? 'Return equipment to the Cavalry Yard, ride each surviving horse to its reserved home pasture, then send the residents home.' : 'Stand the company down and return its surviving members home.'}" ${company.status === 'disbanding' || company.status === 'leaving' || company.status === 'destroyed' ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="disband-company" aria-hidden="true"></span><span class="military-company-action__copy"><strong>${company.kind === 'mercenary-spears' ? 'End contract' : 'Disband company'}</strong></span></button>`;
   const mountedSupplyRows = mounted
     ? `<ul class="resource-inspector-details military-company-card__details">
         <li><span>Horse field stores</span><span>${company.horseOats.toFixed(0)} oats · ${company.horseFeed.toFixed(0)} winter feed · ${company.horseWater.toFixed(0)} water</span></li>
@@ -135,7 +131,6 @@ function renderSelectedCompanyCommands(
       <div class="resource-action-row military-company-card__actions">
         ${canResupply ? `<button type="button" class="resource-action-button resource-action-button--icon military-company-action" data-resupply-military-company="${company.id}" data-tooltip="${needsProvisions ? "Issue three days' supplies." : 'Replace the company ammunition.'}"><span class="inspector-action-icon" data-action-icon="resupply-company" aria-hidden="true"></span><span class="military-company-action__copy"><strong>Resupply</strong><small>${militaryCostText(resupplyCost)}</small></span></button>` : ''}
         ${lifecycleAction}
-        ${sellMountsAction}
       </div>
     </div>
   `;
@@ -278,9 +273,8 @@ function renderCompany(
         ${mercenaryLeaving
           ? `<button type="button" class="resource-action-button resource-action-button--icon" data-renew-mercenary-contract="${company.id}"><span class="inspector-action-icon" data-action-icon="mercenaries" aria-hidden="true"></span><span>Pay ${retainerGold} gold to retain company</span></button>`
           : `<button type="button" class="resource-action-button resource-action-button--icon resource-action-button--secondary" data-disband-military-company="${company.id}" ${company.status === 'disbanding' || company.status === 'leaving' || company.status === 'destroyed' ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="disband-company" aria-hidden="true"></span><span>${company.kind === 'mercenary-spears' ? 'End contract and send to region edge' : 'Disband and return home'}</span></button>`}
-        ${mounted ? `<button type="button" class="resource-action-button resource-action-button--icon resource-action-button--secondary" data-disband-cavalry-company-sell-mounts="${company.id}" ${company.status === 'disbanding' || company.status === 'destroyed' ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="disband-company" aria-hidden="true"></span><span>Disband &amp; sell mounts<br><small>${CAVALRY_HORSE_MOUNT_SALE_GOLD} gold per surviving horse</small></span></button>` : ''}
       </div>
-      <p class="inspector-action-panel__hint">${mercenaryLeaving ? 'This company is marching back to its original map edge and ignores all movement and attack orders. Pay the displayed two-day retainer before its final survivor exits to restore control and begin a fresh contract.' : 'Click any soldier or drag across a formation to select the entire company. A compact selection circle marks the selected company; right-click moves or attacks with the company as one RTS unit.'} Fallen equipment creates a recoverable battlefield pile. Resident survivors return kit and walk back to their home—or the nearest available home if theirs was lost.</p>
+      <p class="inspector-action-panel__hint">${mercenaryLeaving ? 'This company is marching back to its original map edge and ignores all movement and attack orders. Pay the displayed two-day retainer before its final survivor exits to restore control and begin a fresh contract.' : 'Click any soldier or drag across a formation to select the entire company. A compact selection circle marks the selected company; right-click moves or attacks with the company as one RTS unit.'} Fallen equipment creates a recoverable battlefield pile. ${mounted ? 'Mounted survivors return kit to the Cavalry Yard, ride their exact horses back to the reserved home pastures, then walk home.' : 'Resident survivors return kit and walk back to their home—or the nearest available home if theirs was lost.'}</p>
     </div>
   `;
 }

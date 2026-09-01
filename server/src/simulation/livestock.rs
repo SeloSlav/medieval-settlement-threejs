@@ -11,6 +11,11 @@ use crate::balance_generated::{
     CATTLE_MOISTURE_IDEAL, CATTLE_MOISTURE_TOLERANCE, CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
     CATTLE_SLAUGHTER_FOOD_PER_HEAD, CATTLE_SLAUGHTER_HIDES_PER_HEAD,
     CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD, CATTLE_WATER_PER_HEAD_PER_CYCLE,
+    HORSE_AREA_PER_HEAD, HORSE_GRAIN_PER_UNSUPPORTED_HEAD, HORSE_HAY_PER_UNSUPPORTED_HEAD,
+    HORSE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE, HORSE_HEADS_PER_WORKER,
+    HORSE_HEALTH_LOSS_PER_CYCLE, HORSE_HEALTH_RECOVERY_PER_CYCLE, HORSE_MAX_HERD,
+    HORSE_MAX_SLOPE_DEGREES, HORSE_MOISTURE_IDEAL, HORSE_MOISTURE_TOLERANCE,
+    HORSE_WATER_PER_HEAD_PER_CYCLE,
     LIVESTOCK_ANIMAL_FEED_FODDER_VALUE,
     LIVESTOCK_ANIMAL_FEED_PER_CYCLE, LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
     LIVESTOCK_FEED_OAT_GRAIN_PER_CYCLE, LIVESTOCK_HAY_STORAGE_CAPACITY,
@@ -50,7 +55,8 @@ use crate::livestock_policy::{
 };
 use crate::ox_policy::ox_amplified_worker_count;
 use crate::reducers::livestock::{
-    management_headroom, management_units_per_head, SPECIES_CATTLE, SPECIES_SHEEP, SPECIES_SWINE,
+    management_headroom, management_units_per_head, SPECIES_CATTLE, SPECIES_HORSE,
+    SPECIES_SHEEP, SPECIES_SWINE,
 };
 use crate::resident_welfare_policy::deterministic_unit;
 use crate::resource_units::{whole_cost, whole_units};
@@ -64,7 +70,7 @@ use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::tick_context::SimTickContext;
-use crate::tables::{farm_field, Building, FarmField, Pasture, PastureHerd};
+use crate::tables::{cavalry_horse, farm_field, Building, FarmField, Pasture, PastureHerd};
 
 pub fn step_pastoral_farmstead(
     ctx: &ReducerContext,
@@ -124,6 +130,22 @@ fn step_livestock_building(
         if swine_building && parcel.herd.species != SPECIES_SWINE {
             parcel.herd.species = SPECIES_SWINE;
         }
+        if parcel.herd.species == SPECIES_HORSE {
+            let horses = ctx
+                .db
+                .cavalry_horse()
+                .pasture_id()
+                .filter(&parcel.pasture.id)
+                .collect::<Vec<_>>();
+            parcel.herd.head_count = horses.len().min(u32::MAX as usize) as u32;
+            parcel.herd.present_head_count = horses
+                .iter()
+                .filter(|horse| horse.at_pasture)
+                .count()
+                .min(u32::MAX as usize) as u32;
+        } else {
+            parcel.herd.present_head_count = parcel.herd.head_count;
+        }
         normalize_livestock_herd_stocks(&mut parcel.herd);
         parcel.base_capacity = tick.livestock_grazing_capacity(ctx, &parcel.pasture, &parcel.herd);
         let summer_hay_share = if parcel.herd.species != SPECIES_SWINE
@@ -150,9 +172,9 @@ fn step_livestock_building(
                 parcel
                     .herd
                     .pasture_capacity
-                    .min(f64::from(parcel.herd.head_count)),
+                    .min(f64::from(physical_pasture_heads(&parcel.herd))),
             )
-            .min(f64::from(parcel.herd.head_count));
+            .min(f64::from(physical_pasture_heads(&parcel.herd)));
     }
 
     let paused = labor_and_logistics_paused(ctx, tick, building.owner, clock);
@@ -174,7 +196,10 @@ fn step_livestock_building(
             parcels
                 .iter()
                 .map(|parcel| {
-                    let projected_head_count = if environment.season == Season::Autumn {
+                    let physical_heads = physical_pasture_heads(&parcel.herd);
+                    let projected_head_count = if parcel.herd.species == SPECIES_HORSE {
+                        physical_heads
+                    } else if environment.season == Season::Autumn {
                         let (slaughter_food, slaughter_preserved, slaughter_hides) =
                             species_slaughter_yields(parcel.herd.species);
                         let secured_culls = storage_secured_pending_cull_heads(
@@ -206,9 +231,9 @@ fn step_livestock_building(
                         cull_hides_room =
                             (cull_hides_room - secured_cull_count * slaughter_hides).max(0.0);
 
-                        parcel.herd.head_count.saturating_sub(secured_culls)
+                        physical_heads.saturating_sub(secured_culls)
                     } else {
-                        parcel.herd.head_count
+                        physical_heads
                     };
                     projected_winter_animal_feed(
                         projected_head_count,
@@ -405,6 +430,14 @@ struct HerdParcel {
     base_capacity: f64,
 }
 
+fn physical_pasture_heads(herd: &PastureHerd) -> u32 {
+    if herd.species == SPECIES_HORSE {
+        herd.present_head_count.min(herd.head_count)
+    } else {
+        herd.head_count
+    }
+}
+
 #[derive(Clone, Copy, Default)]
 struct HerdCycleInputs {
     hay_units: f64,
@@ -425,7 +458,7 @@ fn allocate_holding_cycle_inputs(
     let mut total_care_effort = 0.0;
 
     for (index, parcel) in parcels.iter().enumerate() {
-        let heads = f64::from(parcel.herd.head_count);
+        let heads = f64::from(physical_pasture_heads(&parcel.herd));
         let unsupported = (heads - parcel.herd.pasture_capacity).max(0.0);
         let hay_per_head = species_hay_per_unsupported_head(parcel.herd.species);
         let hay_units = if environment.season == Season::Winter && hay_per_head > 1e-9 {
@@ -541,6 +574,13 @@ fn run_livestock_cycle(
 ) -> bool {
     normalize_livestock_building_stocks(building);
     normalize_livestock_herd_stocks(herd);
+    let rostered_heads = herd.head_count;
+    let horse_pasture = herd.species == SPECIES_HORSE;
+    if horse_pasture {
+        herd.head_count = herd.present_head_count.min(rostered_heads);
+    } else {
+        herd.present_head_count = herd.head_count;
+    }
     herd.last_culled = 0;
     herd.last_hay_output = 0.0;
     herd.last_wool_output = 0.0;
@@ -550,6 +590,9 @@ fn run_livestock_cycle(
         herd.last_food_output = 0.0;
         herd.last_preserved_output = 0.0;
         herd.last_wool_gold = 0.0;
+        if horse_pasture {
+            herd.head_count = rostered_heads;
+        }
         return true;
     }
 
@@ -603,6 +646,20 @@ fn run_livestock_cycle(
     herd.health = (herd.health + health_recovery * support_ratio
         - health_loss * (1.0 - support_ratio))
         .clamp(0.12, 1.0);
+
+    // Riding horses are purchased as mature individual animals. Their pasture
+    // produces care and winter fodder, not milk, offspring, hides, or routine
+    // culls. Campaign losses delete the exact CavalryHorse row in combat.
+    if horse_pasture {
+        herd.breeding_progress = 0.0;
+        herd.last_food_output = 0.0;
+        herd.last_preserved_output = 0.0;
+        herd.last_wool_gold = 0.0;
+        herd.last_wool_output = 0.0;
+        herd.last_culled = 0;
+        herd.head_count = rostered_heads;
+        return true;
+    }
 
     let productive_heads = heads * support_ratio * herd.health;
     let milking_period = cattle_milking_period(clock.year, clock.month);
@@ -854,6 +911,7 @@ fn run_livestock_cycle(
             herd.last_preserved_output += cured_slaughter;
         }
     }
+    herd.present_head_count = herd.head_count;
     true
 }
 
@@ -1005,20 +1063,25 @@ pub(crate) fn grazing_capacity_for_pasture_with_mature_tree_points(
     }
 
     let (area_per_head, max_slope, moisture_ideal, moisture_tolerance) =
-        if herd.species == SPECIES_SHEEP {
-            (
+        match herd.species {
+            SPECIES_SHEEP => (
                 SHEEP_AREA_PER_HEAD,
                 SHEEP_MAX_SLOPE_DEGREES,
                 SHEEP_MOISTURE_IDEAL,
                 SHEEP_MOISTURE_TOLERANCE,
-            )
-        } else {
-            (
+            ),
+            SPECIES_HORSE => (
+                HORSE_AREA_PER_HEAD,
+                HORSE_MAX_SLOPE_DEGREES,
+                HORSE_MOISTURE_IDEAL,
+                HORSE_MOISTURE_TOLERANCE,
+            ),
+            _ => (
                 CATTLE_AREA_PER_HEAD,
                 CATTLE_MAX_SLOPE_DEGREES,
                 CATTLE_MOISTURE_IDEAL,
                 CATTLE_MOISTURE_TOLERANCE,
-            )
+            ),
         };
     let slope_quality =
         (1.0 - 0.35 * pasture.average_slope_degrees / max_slope.max(1.0)).clamp(0.5, 1.0);
@@ -1202,6 +1265,7 @@ fn species_grain_per_unsupported_head(species: u8) -> f64 {
     match species {
         SPECIES_CATTLE => CATTLE_GRAIN_PER_UNSUPPORTED_HEAD,
         SPECIES_SHEEP => SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
+        SPECIES_HORSE => HORSE_GRAIN_PER_UNSUPPORTED_HEAD,
         _ => SWINE_GRAIN_PER_UNSUPPORTED_HEAD,
     }
 }
@@ -1210,6 +1274,7 @@ fn species_hay_per_unsupported_head(species: u8) -> f64 {
     match species {
         SPECIES_CATTLE => CATTLE_HAY_PER_UNSUPPORTED_HEAD,
         SPECIES_SHEEP => SHEEP_HAY_PER_UNSUPPORTED_HEAD,
+        SPECIES_HORSE => HORSE_HAY_PER_UNSUPPORTED_HEAD,
         _ => 0.0,
     }
 }
@@ -1218,6 +1283,7 @@ fn species_hay_yield_per_reserved_capacity(species: u8) -> f64 {
     match species {
         SPECIES_CATTLE => CATTLE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
         SPECIES_SHEEP => SHEEP_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
+        SPECIES_HORSE => HORSE_HAY_YIELD_PER_RESERVED_CAPACITY_PER_CYCLE,
         _ => 0.0,
     }
 }
@@ -1226,6 +1292,7 @@ fn species_food_per_cycle(species: u8) -> f64 {
     match species {
         SPECIES_CATTLE => CATTLE_FOOD_PER_CYCLE_PER_HEAD,
         SPECIES_SHEEP => SHEEP_FOOD_PER_CYCLE_PER_HEAD,
+        SPECIES_HORSE => 0.0,
         _ => SWINE_FOOD_PER_CYCLE_PER_HEAD,
     }
 }
@@ -1234,6 +1301,7 @@ fn species_dairy_productive_share(species: u8) -> f64 {
     match species {
         SPECIES_CATTLE => CATTLE_DAIRY_PRODUCTIVE_SHARE,
         SPECIES_SHEEP => SHEEP_DAIRY_PRODUCTIVE_SHARE,
+        SPECIES_HORSE => 0.0,
         _ => SWINE_DAIRY_PRODUCTIVE_SHARE,
     }
     .clamp(0.0, 1.0)
@@ -1243,6 +1311,7 @@ fn species_preserved_per_cycle(species: u8) -> f64 {
     match species {
         SPECIES_CATTLE => CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
         SPECIES_SHEEP => SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
+        SPECIES_HORSE => 0.0,
         _ => 0.0,
     }
 }
@@ -1251,6 +1320,7 @@ fn species_breeding_per_cycle(species: u8) -> f64 {
     match species {
         SPECIES_CATTLE => CATTLE_BREEDING_PER_CYCLE,
         SPECIES_SHEEP => SHEEP_BREEDING_PER_CYCLE,
+        SPECIES_HORSE => 0.0,
         _ => SWINE_BREEDING_PER_CYCLE,
     }
 }
@@ -1259,6 +1329,7 @@ fn species_heads_per_worker(species: u8) -> f64 {
     match species {
         SPECIES_CATTLE => CATTLE_HEADS_PER_WORKER,
         SPECIES_SHEEP => SHEEP_HEADS_PER_WORKER,
+        SPECIES_HORSE => HORSE_HEADS_PER_WORKER,
         _ => SWINE_HEADS_PER_WORKER,
     }
 }
@@ -1267,6 +1338,7 @@ fn species_water_per_head_per_cycle(species: u8) -> f64 {
     match species {
         SPECIES_CATTLE => CATTLE_WATER_PER_HEAD_PER_CYCLE,
         SPECIES_SHEEP => SHEEP_WATER_PER_HEAD_PER_CYCLE,
+        SPECIES_HORSE => HORSE_WATER_PER_HEAD_PER_CYCLE,
         _ => SWINE_WATER_PER_HEAD_PER_CYCLE,
     }
 }
@@ -1283,6 +1355,7 @@ fn species_slaughter_yields(species: u8) -> (f64, f64, f64) {
             SHEEP_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
             SHEEP_SLAUGHTER_HIDES_PER_HEAD,
         ),
+        SPECIES_HORSE => (0.0, 0.0, 0.0),
         _ => (
             SWINE_SLAUGHTER_FOOD_PER_HEAD,
             SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
@@ -1298,6 +1371,7 @@ fn species_health_rates(species: u8) -> (f64, f64) {
             CATTLE_HEALTH_LOSS_PER_CYCLE,
         ),
         SPECIES_SHEEP => (SHEEP_HEALTH_RECOVERY_PER_CYCLE, SHEEP_HEALTH_LOSS_PER_CYCLE),
+        SPECIES_HORSE => (HORSE_HEALTH_RECOVERY_PER_CYCLE, HORSE_HEALTH_LOSS_PER_CYCLE),
         _ => (SWINE_HEALTH_RECOVERY_PER_CYCLE, SWINE_HEALTH_LOSS_PER_CYCLE),
     }
 }
@@ -1306,6 +1380,7 @@ fn species_max_herd(species: u8) -> u32 {
     match species {
         SPECIES_CATTLE => CATTLE_MAX_HERD,
         SPECIES_SHEEP => SHEEP_MAX_HERD,
+        SPECIES_HORSE => HORSE_MAX_HERD,
         _ => SWINE_MAX_HERD,
     }
 }

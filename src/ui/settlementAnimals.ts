@@ -114,7 +114,7 @@ export type SettlementBackyardLedger = Readonly<{
 }>;
 
 export type SettlementLivestockLedger = Readonly<{
-  /** Exact draft-ox, dog, and farm-herd heads. Backyard pens are intentionally excluded. */
+  /** Exact draft-ox, dog, and farm-herd heads, including deployed pasture-owned horses. */
   headCount: number;
   stable: SettlementStableLedger;
   dogs: SettlementDogLedger;
@@ -363,6 +363,7 @@ const HERD_SPECIES_ROWS = [
   { species: 'cattle', label: 'Cattle', housingLabel: 'Pasture' },
   { species: 'sheep', label: 'Sheep', housingLabel: 'Pasture' },
   { species: 'swine', label: 'Swine', housingLabel: 'Woodland pannage' },
+  { species: 'horses', label: 'Horses', housingLabel: 'Pasture' },
 ] as const satisfies readonly Readonly<{
   species: LivestockSpecies;
   label: string;

@@ -12,6 +12,11 @@ import {
   CATTLE_SLAUGHTER_HIDES_PER_HEAD,
   CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
   CATTLE_WATER_PER_HEAD_PER_CYCLE,
+  HORSE_HEADS_PER_WORKER,
+  HORSE_MAX_HERD,
+  HORSE_PURCHASE_GOLD_PER_HEAD,
+  HORSE_SALE_GOLD_PER_HEAD,
+  HORSE_WATER_PER_HEAD_PER_CYCLE,
   LIVESTOCK_AUTUMN_CULL_END_MONTH,
   LIVESTOCK_AUTUMN_CULL_START_MONTH,
   LIVESTOCK_DEFAULT_HAYMAKING_PERCENT,
@@ -59,6 +64,7 @@ export function livestockBreedingPhaseForMonth(
   species: LivestockSpecies,
   month: number,
 ): LivestockBreedingPhase {
+  if (species === 'horses') return 'waiting';
   const calendarMonth = Math.min(12, Math.max(1, Math.floor(month)));
   if (calendarMonth >= 3 && calendarMonth <= 5) return 'spring-births';
   if (species === 'cattle' && calendarMonth >= 6 && calendarMonth <= 8) {
@@ -175,6 +181,21 @@ const POLICY_BY_SPECIES: Record<LivestockSpecies, LivestockPolicyDefinition> = {
     headsPerWorker: SWINE_HEADS_PER_WORKER,
     waterPerHeadPerCycle: SWINE_WATER_PER_HEAD_PER_CYCLE,
     dairyProductiveShare: SWINE_DAIRY_PRODUCTIVE_SHARE,
+  },
+  horses: {
+    minimumReserve: 0,
+    defaultReserve: 0,
+    maximumHerd: HORSE_MAX_HERD,
+    slaughterFoodPerHead: 0,
+    slaughterPreservedFoodPerHead: 0,
+    slaughterHidesPerHead: 0,
+    preservedFoodPerCyclePerHead: 0,
+    milkPerCyclePerHead: 0,
+    purchaseGoldPerHead: HORSE_PURCHASE_GOLD_PER_HEAD,
+    saleGoldPerHead: HORSE_SALE_GOLD_PER_HEAD,
+    headsPerWorker: HORSE_HEADS_PER_WORKER,
+    waterPerHeadPerCycle: HORSE_WATER_PER_HEAD_PER_CYCLE,
+    dairyProductiveShare: 0,
   },
 };
 

@@ -20,6 +20,8 @@ import {
 import {
   CATTLE_MAX_SLOPE_DEGREES,
   CATTLE_STARTER_HERD,
+  HORSE_MAX_SLOPE_DEGREES,
+  HORSE_STARTER_HERD,
   LIVESTOCK_HAY_STORAGE_CAPACITY,
   LIVESTOCK_MINIMUM_BREEDING_HEADS,
   SHEEP_MAX_SLOPE_DEGREES,
@@ -36,11 +38,13 @@ const SPECIES_LABEL: Record<LivestockSpecies, string> = {
   cattle: 'Cattle pasture',
   sheep: 'Sheep pasture',
   swine: 'Woodland pannage',
+  horses: 'Horse pasture',
 };
 
 function starterHerd(species: LivestockSpecies): number {
   if (species === 'cattle') return CATTLE_STARTER_HERD;
   if (species === 'sheep') return SHEEP_STARTER_HERD;
+  if (species === 'horses') return HORSE_STARTER_HERD;
   return SWINE_STARTER_HERD;
 }
 
@@ -67,11 +71,17 @@ export function renderPastureInspector(
   );
   const cattleCapacity = neutralCapacityFor('cattle');
   const sheepCapacity = neutralCapacityFor('sheep');
+  const horseCapacity = neutralCapacityFor('horses');
   const cattleLimit = headLimitFor('cattle');
   const sheepLimit = headLimitFor('sheep');
-  const speciesCompatible = (species: 'cattle' | 'sheep'): boolean => (
+  const horseLimit = headLimitFor('horses');
+  const speciesCompatible = (species: 'cattle' | 'sheep' | 'horses'): boolean => (
     pasture.averageSlopeDegrees <= (
-      species === 'cattle' ? CATTLE_MAX_SLOPE_DEGREES : SHEEP_MAX_SLOPE_DEGREES
+      species === 'cattle'
+        ? CATTLE_MAX_SLOPE_DEGREES
+        : species === 'sheep'
+          ? SHEEP_MAX_SLOPE_DEGREES
+          : HORSE_MAX_SLOPE_DEGREES
     ) + 1e-6
     && headLimitFor(species) > 0
   );
@@ -85,13 +95,26 @@ export function renderPastureInspector(
   const treasuryGold = Math.max(0, context.resourceTotals.gold);
   const purchasePrice = herd ? livestockPurchaseGoldPerHead(herd.species) : 0;
   const salePrice = herd ? livestockSaleGoldPerHead(herd.species) : 0;
+  const pastureHorses = herd?.species === 'horses'
+    ? [...context.gameState.cavalryHorses.values()].filter((horse) => horse.pastureId === pasture.id)
+    : [];
+  const availableHorseCount = pastureHorses.filter((horse) => (
+    horse.atPasture && horse.assignedCompanyId === null
+  )).length;
+  const presentHeads = herd?.species === 'horses'
+    ? Math.max(0, herd.presentHeadCount)
+    : Math.max(0, herd?.headCount ?? 0);
+  const awayHorseCount = herd?.species === 'horses'
+    ? Math.max(0, herd.headCount - presentHeads)
+    : 0;
+  const sellableHeads = herd?.species === 'horses' ? availableHorseCount : herd?.headCount ?? 0;
   const breedingReserve = herd
     ? effectiveLivestockBreedingReserve(herd.species, herd.breedingReserve)
     : 0;
   const healthyEnough = Boolean(herd && herd.health >= 0.72);
-  const supportRatio = herd && herd.headCount > 0
-    ? Math.min(1, Math.max(0, herd.suppliedCapacity) / herd.headCount)
-    : 0;
+  const supportRatio = herd && presentHeads > 0
+    ? Math.min(1, Math.max(0, herd.suppliedCapacity) / presentHeads)
+    : 1;
   const month = gameClock(context.gameState.tick).month;
   const breedingPhase = herd ? livestockBreedingPhaseForMonth(herd.species, month) : 'waiting';
   const matingSeason = herd ? livestockMatingSeason(herd.species) : 'summer';
@@ -101,6 +124,8 @@ export function renderPastureInspector(
     : 0;
   const breedingStatus = !herd
     ? 'Choose the animals for this pasture'
+    : herd.species === 'horses'
+      ? `${availableHorseCount} available for muster · ${awayHorseCount} away with mounted companies`
     : breedingPhase === 'spring-births'
       ? pendingOffspring > 0
         ? `${pendingOffspring} offspring due this spring · stops at ${headLimit}`
@@ -121,31 +146,32 @@ export function renderPastureInspector(
     ? `<div class="inspector-action-panel" data-inspector-panel-title="Animals for this pasture">
         <p class="resource-inspector-note">Each fenced pasture keeps its own herd and carrying limit. ${herd?.headCount
           ? `Sell this pasture's ${herd.headCount} animals before changing species. The fence and every sibling pasture remain untouched.`
-          : 'Choose cattle or sheep for this empty pasture. Reclassifying an empty pasture does not affect its fence or siblings.'}</p>
+          : 'Choose cattle, sheep, or horses for this empty pasture. Reclassifying it does not affect its fence or siblings.'}</p>
         <div class="resource-action-row">
           <button type="button" class="resource-action-button resource-action-button--icon" data-livestock-species="cattle" ${herd?.species === 'cattle' || Boolean(herd?.headCount) || !speciesCompatible('cattle') ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="cattle-herd" aria-hidden="true"></span><span>Cattle · ${cattleLimit} max</span></button>
           <button type="button" class="resource-action-button resource-action-button--icon" data-livestock-species="sheep" ${herd?.species === 'sheep' || Boolean(herd?.headCount) || !speciesCompatible('sheep') ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="sheep-flock" aria-hidden="true"></span><span>Sheep · ${sheepLimit} max</span></button>
+          <button type="button" class="resource-action-button resource-action-button--icon" data-livestock-species="horses" ${herd?.species === 'horses' || Boolean(herd?.headCount) || !speciesCompatible('horses') ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="cavalry" aria-hidden="true"></span><span>Horses · ${horseLimit} max</span></button>
         </div>
-        <p class="inspector-action-panel__hint">This land supports ${cattleCapacity.toFixed(1)} cattle or ${sheepCapacity.toFixed(1)} sheep in neutral conditions.${pasture.averageSlopeDegrees > CATTLE_MAX_SLOPE_DEGREES ? ' It is too steep for cattle.' : ''}</p>
+        <p class="inspector-action-panel__hint">Neutral capacity: ${cattleCapacity.toFixed(1)} cattle, ${sheepCapacity.toFixed(1)} sheep, or ${horseCapacity.toFixed(1)} horses.${pasture.averageSlopeDegrees > CATTLE_MAX_SLOPE_DEGREES ? ' It is too steep for cattle.' : ''}${pasture.averageSlopeDegrees > HORSE_MAX_SLOPE_DEGREES ? ' It is too steep for horses.' : ''}</p>
       </div>`
     : '';
 
   const tradeControls = herd
     ? `<div class="inspector-action-panel" data-inspector-panel-title="Stock this pasture">
-        <p class="resource-inspector-note">Animals bought here belong only to this pasture. Its own land sets the purchase and spring-breeding ceiling.</p>
+        <p class="resource-inspector-note">Animals bought here belong to this pasture. ${herd.species === 'horses' ? 'A mounted company reserves its exact horses while away; they return here on disband.' : 'Its own land sets the purchase and spring-breeding ceiling.'}</p>
         <div class="resource-action-row">
           <button type="button" class="resource-action-button" data-livestock-trade="1" ${openSlots < 1 || treasuryGold + 1e-6 < purchasePrice ? 'disabled' : ''}>Buy 1 · ${renderResourceAmount('gold', purchasePrice, { compact: true })}</button>
           ${starterOrder > 1 ? `<button type="button" class="resource-action-button" data-livestock-trade="${starterOrder}" ${treasuryGold + 1e-6 < livestockPurchaseCost(herd.species, starterOrder) ? 'disabled' : ''}>Buy starter ${starterOrder} · ${renderResourceAmount('gold', livestockPurchaseCost(herd.species, starterOrder), { compact: true })}</button>` : ''}
-          ${herd.headCount > 0 ? `<button type="button" class="resource-action-button" data-livestock-trade="-1">Sell 1 · ${renderResourceAmount('gold', salePrice, { compact: true })}</button>` : ''}
-          ${herd.headCount > 1 ? `<button type="button" class="resource-action-button" data-livestock-trade="-${herd.headCount}">Sell all · ${renderResourceAmount('gold', livestockSaleProceeds(herd.species, herd.headCount), { compact: true })}</button>` : ''}
+          ${sellableHeads > 0 ? `<button type="button" class="resource-action-button" data-livestock-trade="-1">Sell 1 · ${renderResourceAmount('gold', salePrice, { compact: true })}</button>` : ''}
+          ${sellableHeads > 1 ? `<button type="button" class="resource-action-button" data-livestock-trade="-${sellableHeads}">Sell available ${sellableHeads} · ${renderResourceAmount('gold', livestockSaleProceeds(herd.species, sellableHeads), { compact: true })}</button>` : ''}
         </div>
-        <p class="inspector-action-panel__hint">${herd.headCount} / ${headLimit} head · ${openSlots} open. Regional stock sells for less than it costs, so changing a stocked pasture has a real replacement cost.</p>
+        <p class="inspector-action-panel__hint">${herd.headCount} / ${headLimit} owned · ${presentHeads} present · ${openSlots} open.${herd.species === 'horses' && sellableHeads < presentHeads ? ` ${presentHeads - sellableHeads} present horses are already reserved for muster.` : ''} Regional stock sells for less than it costs.</p>
       </div>`
     : farmstead?.kind === 'swineherd'
       ? '<div class="inspector-action-panel" data-inspector-panel-title="Stock this pannage"><p class="resource-inspector-note">The linked swineherd is preparing this parcel for pigs.</p></div>'
       : '';
 
-  const reserveControls = herd
+  const reserveControls = herd && herd.species !== 'horses'
     ? `<div class="inspector-action-panel" data-inspector-panel-title="Breeding reserve">
         <p class="resource-inspector-note">${herd.species === 'cattle' ? 'Cattle mate in summer' : herd.species === 'sheep' ? 'Sheep mate in autumn' : 'Woodland swine mate in autumn'} when healthy and supplied; confirmed offspring arrive in spring. Lowering the reserve marks surplus animals here for autumn culling.</p>
         <div class="resource-action-row">${livestockReservePresets(herd.species)
@@ -165,7 +191,7 @@ export function renderPastureInspector(
     : '';
 
   const parcelCapacity = !herd
-    ? `${cattleCapacity.toFixed(1)} cattle / ${sheepCapacity.toFixed(1)} sheep neutral`
+    ? `${cattleCapacity.toFixed(1)} cattle / ${sheepCapacity.toFixed(1)} sheep / ${horseCapacity.toFixed(1)} horses neutral`
     : herd.species === 'swine'
       ? `${neutralCapacity.toFixed(1)} pigs neutral · ${pastureAreaHeadCapacity(pasture, 'swine').toFixed(1)} by area / ${pannage.mastHeadCapacity.toFixed(1)} by mast (${matureTrees} mature trees)`
       : `${herd.pastureCapacity.toFixed(1)} now · ${neutralCapacity.toFixed(1)} in neutral conditions`;
@@ -179,17 +205,19 @@ export function renderPastureInspector(
     statusText: !farmstead
       ? 'Orphaned — livestock building missing'
       : !herd
-        ? farmstead.kind === 'swineherd' ? 'Awaiting pig herd setup' : 'Choose cattle or sheep'
+        ? farmstead.kind === 'swineherd' ? 'Awaiting pig herd setup' : 'Choose cattle, sheep, or horses'
         : herd.headCount <= 0
           ? `${herd.species} selected · buy breeding stock`
           : farmstead.assignedLabor <= 0
             ? 'Stocked · assign herders at the linked farmstead'
-            : herd.suppliedCapacity + 1e-6 < herd.headCount
-              ? `${(herd.headCount - herd.suppliedCapacity).toFixed(1)} head unsupported`
+            : herd.suppliedCapacity + 1e-6 < presentHeads
+              ? `${(presentHeads - herd.suppliedCapacity).toFixed(1)} present head unsupported`
+              : herd.species === 'horses' && awayHorseCount > 0
+                ? `${availableHorseCount} available · ${awayHorseCount} away`
               : 'Herd tended',
-    statusState: herd && herd.headCount > 0 && farmstead?.assignedLabor && herd.suppliedCapacity + 1e-6 >= herd.headCount
+    statusState: herd && herd.headCount > 0 && farmstead?.assignedLabor && herd.suppliedCapacity + 1e-6 >= presentHeads
       ? 'active'
-      : herd && herd.headCount > herd.suppliedCapacity
+      : herd && presentHeads > herd.suppliedCapacity
         ? 'warning'
         : 'idle',
     detailsHtml: `
@@ -197,12 +225,12 @@ export function renderPastureInspector(
       <li><span>Area</span><span>${Math.round(pasture.area)} m²</span></li>
       <li><span>Average slope</span><span>${pasture.averageSlopeDegrees.toFixed(1)}°</span></li>
       <li><span>Moisture</span><span>${Math.round(pasture.moisture * 100)}%</span></li>
-      <li><span>This pasture's herd</span><span>${herd ? `${herd.headCount} ${herd.species} · ${headLimit} maximum` : 'None'}</span></li>
+      <li><span>This pasture's herd</span><span>${herd ? `${herd.headCount} ${herd.species} owned · ${presentHeads} present${awayHorseCount ? ` · ${awayHorseCount} away` : ''} · ${headLimit} maximum` : 'None'}</span></li>
       <li><span>This pasture supports</span><span>${parcelCapacity}</span></li>
-      <li><span>Current full supply</span><span>${herd ? `${herd.suppliedCapacity.toFixed(1)} / ${herd.headCount} head` : 'Not stocked'}</span></li>
+      <li><span>Current full supply</span><span>${herd ? `${herd.suppliedCapacity.toFixed(1)} / ${presentHeads} present head` : 'Not stocked'}</span></li>
       <li><span>Health</span><span>${herd && herd.headCount > 0 ? `${Math.round(herd.health * 100)}%` : 'Not stocked'}</span></li>
-      <li><span>Herd movement</span><span>Confined within this fence · staffed shearing, milking, and culling rounds use the pasture entrance</span></li>
-      <li><span>Seasonal breeding</span><span>${breedingStatus}</span></li>
+      <li><span>Herd movement</span><span>${herd?.species === 'horses' ? 'Exact horses graze here, ride to the Cavalry Yard when mustered, and return here after disbanding' : 'Confined within this fence · staffed shearing, milking, and culling rounds use the pasture entrance'}</span></li>
+      <li><span>${herd?.species === 'horses' ? 'Military availability' : 'Seasonal breeding'}</span><span>${breedingStatus}</span></li>
       <li><span>Last husbandry cycle</span><span>${recentOutput}</span></li>
     `,
     demolish: {

@@ -13,16 +13,6 @@ pub fn cavalry_uses_winter_feed(month: u32) -> bool {
     matches!(month, 12 | 1 | 2)
 }
 
-/// Active field companies carry their horses with them and therefore vacate
-/// the authored yard places. Mustering and returning companies still occupy
-/// (or reserve) a physical place for every mount.
-pub fn horse_occupies_yard_place(
-    assigned_company_id: u64,
-    assigned_company_state: Option<u8>,
-) -> bool {
-    assigned_company_id == 0 || assigned_company_state != Some(1)
-}
-
 /// One horse-day always consumes water and exactly one seasonal fodder type.
 /// Oats represent ordinary campaigning fodder; stored animal feed replaces it
 /// during the pastureless winter months rather than stacking with it.
@@ -67,14 +57,5 @@ mod tests {
             assert_eq!(ration.animal_feed, 0.0);
             assert!(ration.oats > 0.0);
         }
-    }
-
-    #[test]
-    fn only_active_field_mounts_vacate_yard_places() {
-        assert!(horse_occupies_yard_place(0, None));
-        assert!(horse_occupies_yard_place(42, Some(0)));
-        assert!(!horse_occupies_yard_place(42, Some(1)));
-        assert!(horse_occupies_yard_place(42, Some(2)));
-        assert!(horse_occupies_yard_place(42, None));
     }
 }

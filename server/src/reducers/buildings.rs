@@ -3206,6 +3206,26 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
     {
         return Err("Sell this livestock holding's animals before demolition.".to_string());
     }
+    if building.kind == "pastoral_farmstead"
+        && ctx
+            .db
+            .pasture()
+            .farmstead_id()
+            .filter(&building_id)
+            .any(|pasture| {
+                ctx.db
+                    .cavalry_horse()
+                    .pasture_id()
+                    .filter(&pasture.id)
+                    .next()
+                    .is_some()
+            })
+    {
+        return Err(
+            "Every horse, including deployed mounts with a reserved home here, must be sold before demolition."
+                .to_string(),
+        );
+    }
     if matches!(building.kind.as_str(), "pastoral_farmstead" | "swineherd")
         && ctx
             .db
@@ -3382,20 +3402,6 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             ctx.db.delivery_trip().id().update(trip);
         }
         ctx.db.stable_ox().id().delete(ox.id);
-    }
-
-    // Unassigned remounts are part of the Cavalry Yard rather than a portable
-    // settlement herd. Demolition forfeits them after all companies have
-    // returned, preventing orphaned horse rows if this Building id becomes a
-    // physical reclamation pile.
-    for horse in ctx
-        .db
-        .cavalry_horse()
-        .cavalry_yard_id()
-        .filter(&building_id)
-        .collect::<Vec<_>>()
-    {
-        ctx.db.cavalry_horse().id().delete(horse.id);
     }
 
     // Kennel dogs are durable combat agents, so remove the kennel's roster
