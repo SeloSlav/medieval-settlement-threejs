@@ -46,6 +46,31 @@ function cycleValue<T>(values: readonly T[], current: T, step: number): T {
   return values[(currentIndex + step + values.length) % values.length]!;
 }
 
+function syncArrowSelectorTooltip(
+  valueElement: HTMLElement,
+  descriptionElement: HTMLElement,
+): void {
+  const tooltipAnchor = valueElement.closest<HTMLElement>('.world-setup-arrow-select__value');
+  if (!tooltipAnchor) return;
+  const isTruncated = [valueElement, descriptionElement].some((element) => (
+    element.scrollWidth > element.clientWidth + 1
+    || element.scrollHeight > element.clientHeight + 1
+  ));
+  if (!isTruncated) {
+    delete tooltipAnchor.dataset.tooltipTitle;
+    delete tooltipAnchor.dataset.tooltip;
+    tooltipAnchor.removeAttribute('tabindex');
+    tooltipAnchor.removeAttribute('aria-label');
+    return;
+  }
+  const value = valueElement.textContent?.trim() ?? '';
+  const description = descriptionElement.textContent?.trim() ?? '';
+  tooltipAnchor.dataset.tooltipTitle = value;
+  tooltipAnchor.dataset.tooltip = description;
+  tooltipAnchor.tabIndex = 0;
+  tooltipAnchor.setAttribute('aria-label', `${value}. ${description}`);
+}
+
 function syncArrowSelectorCopy(
   valueElement: HTMLElement,
   descriptionElement: HTMLElement,
@@ -54,18 +79,14 @@ function syncArrowSelectorCopy(
 ): void {
   valueElement.textContent = value;
   descriptionElement.textContent = description;
-  const tooltipAnchor = valueElement.closest<HTMLElement>('.world-setup-arrow-select__value');
-  if (!tooltipAnchor) return;
-  tooltipAnchor.dataset.tooltipTitle = value;
-  tooltipAnchor.dataset.tooltip = description;
-  tooltipAnchor.tabIndex = 0;
-  tooltipAnchor.setAttribute('aria-label', `${value}. ${description}`);
+  syncArrowSelectorTooltip(valueElement, descriptionElement);
 }
 
 export class WorldSetupPanel {
   private readonly backdrop: HTMLElement;
   private readonly resolve: (result: WorldSetupResult) => void;
   private readonly disposeTooltips: () => void;
+  private readonly selectorResizeObserver: ResizeObserver;
   private draft: WorldGenerationSettings;
 
   private constructor(
@@ -301,6 +322,17 @@ export class WorldSetupPanel {
 
     parent.appendChild(this.backdrop);
     this.disposeTooltips = mountTooltips(this.backdrop, 'ui-tooltip--world-setup');
+    this.selectorResizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const anchor = entry.target as HTMLElement;
+        const value = anchor.querySelector<HTMLElement>('strong');
+        const description = anchor.querySelector<HTMLElement>('span');
+        if (value && description) syncArrowSelectorTooltip(value, description);
+      }
+    });
+    for (const anchor of this.backdrop.querySelectorAll<HTMLElement>('.world-setup-arrow-select__value')) {
+      this.selectorResizeObserver.observe(anchor);
+    }
     this.renderTerrainPresetOptions();
     this.bindEvents();
     this.backdrop.querySelector<HTMLElement>('[data-setup-heading]')!.focus();
@@ -647,6 +679,7 @@ export class WorldSetupPanel {
 
     backButton.addEventListener('click', () => {
       const settings = readSettings();
+      this.selectorResizeObserver.disconnect();
       this.disposeTooltips();
       this.backdrop.remove();
       this.resolve({ action: 'back', settings });
@@ -655,6 +688,7 @@ export class WorldSetupPanel {
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       const settings = readSettings();
+      this.selectorResizeObserver.disconnect();
       this.disposeTooltips();
       this.backdrop.remove();
       this.resolve({ action: 'start', settings });

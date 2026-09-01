@@ -41,6 +41,7 @@ type CompanyVisual = {
   z: number;
   radius: number;
   controllable: boolean;
+  moving: boolean;
 };
 
 type CompanySelectionRing = {
@@ -142,12 +143,17 @@ export class MilitiaCommandController {
     this.camps.clear();
     this.hostilePositions.length = 0;
     const grouped = new Map<string, CombatAgentState[]>();
+    const hostileGrouped = new Map<string, CombatAgentState[]>();
     for (const agent of agents.values()) {
       if (
         (agent.faction === 'raider' || agent.faction === 'bandit')
         && agent.status !== 'downed'
       ) {
         this.hostilePositions.push({ x: agent.x, z: agent.z });
+        const hostileId = `hostile:${agent.faction}:${agent.raidId}`;
+        const hostileMembers = hostileGrouped.get(hostileId) ?? [];
+        hostileMembers.push(agent);
+        hostileGrouped.set(hostileId, hostileMembers);
       }
       const companyId = selectablePlayerMilitaryCompanyId(agent);
       if (!companyId) continue;
@@ -161,20 +167,43 @@ export class MilitiaCommandController {
       const z = members.reduce((sum, member) => sum + member.z, 0) / members.length;
       const radius = companySelectionFootprintRadius(members.length);
       const controllable = members.some((member) => member.status !== 'returning');
+      const moving = members.some((member) => (
+        member.status === 'advancing'
+        || member.status === 'retreating'
+        || member.status === 'returning'
+        || (member.routeProgress ?? 0) > 0.25
+      ));
       const kind = militaryCompanyKindForAgents(members);
       if (!kind) continue;
-      this.companies.set(id, { id, kind, agents: members, x, z, radius, controllable });
+      this.companies.set(id, { id, kind, agents: members, x, z, radius, controllable, moving });
     }
     for (const camp of camps.values()) if (camp.active) this.camps.set(camp.id, camp);
     for (const id of [...this.selected]) if (!this.companies.has(id)) this.selected.delete(id);
-    this.strategicIcons.sync([...this.companies.values()].map((company) => ({
+    const friendlyMarkers = [...this.companies.values()].map((company) => ({
       id: company.id,
       kind: company.kind,
       x: company.x,
       z: company.z,
       livingMembers: company.agents.length,
       controllable: company.controllable,
-    })));
+      moving: company.moving,
+      hostile: false,
+    }));
+    const hostileMarkers = [...hostileGrouped.entries()].map(([id, members]) => ({
+      id,
+      kind: members[0]!.faction === 'bandit' ? 'bandits' as const : 'raiders' as const,
+      x: members.reduce((sum, member) => sum + member.x, 0) / members.length,
+      z: members.reduce((sum, member) => sum + member.z, 0) / members.length,
+      livingMembers: members.length,
+      controllable: false,
+      moving: members.some((member) => (
+        member.status === 'advancing'
+        || member.status === 'retreating'
+        || (member.routeProgress ?? 0) > 0.25
+      )),
+      hostile: true,
+    }));
+    this.strategicIcons.sync([...friendlyMarkers, ...hostileMarkers]);
     this.strategicIcons.setSelected(this.selected.size === 1
       ? this.selected.values().next().value ?? null
       : null);

@@ -304,7 +304,8 @@ function addCampGrounding(parent: THREE.Group): void {
   ground.userData.fpNoCollision = true;
 }
 
-function getCampGroundMaterial(): THREE.MeshStandardMaterial {
+/** Shared irregular trampled-earth material for temporary encampments. */
+export function getCampGroundMaterial(): THREE.MeshStandardMaterial {
   if (campGroundMaterial) return campGroundMaterial;
 
   const size = 64;
@@ -421,7 +422,8 @@ function getCampGroundMaterial(): THREE.MeshStandardMaterial {
   return campGroundMaterial;
 }
 
-function getAgedTentCanvasMaterial(_variant: number): THREE.MeshStandardMaterial {
+/** Shared woven, mud-stained canvas used by temporary camp shelters. */
+export function getAgedTentCanvasMaterial(_variant: number): THREE.MeshStandardMaterial {
   if (tentCanvasMaterial) return tentCanvasMaterial;
 
   const size = 64;

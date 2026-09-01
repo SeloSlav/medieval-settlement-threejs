@@ -2395,6 +2395,7 @@ export class VillagerRenderer {
         (combat.routeProgress ?? 0) > 14,
         visual.hurtUntilMs > combatNowMs,
         visual.threatenUntilMs > combatNowMs,
+        visual.displayMoveSpeed,
       );
       renderAgent.tunicColor = residentSoldier?.tunicColor
         ?? ordinaryGuard?.tunicColor
@@ -6123,6 +6124,7 @@ function combatRenderMode(
   running = false,
   reactingToHit = false,
   threatening = false,
+  displayMoveSpeed = 0,
 ): VillagerRenderMode {
   if (combat.status === 'downed') return 'fall';
   if (reactingToHit) return 'hurt';
@@ -6147,6 +6149,10 @@ function combatRenderMode(
     case 'mustering':
       return 'walk';
     case 'holding': {
+      // Camp patrols retain the authoritative "holding" status while moving
+      // between nearby posts. Drive their animation from actual screen-space
+      // locomotion so they never slide around in an idle pose.
+      if (displayMoveSpeed > 0.12) return displayMoveSpeed > 1.85 ? 'run' : 'walk';
       if (combat.faction !== 'raider') return 'idle';
       const variations: VillagerRenderMode[] = ['idle', 'relax', 'look', 'wait'];
       return variations[combatAppearanceSeed(combat) % variations.length] ?? 'idle';

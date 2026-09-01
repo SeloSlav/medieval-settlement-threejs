@@ -1,4 +1,11 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import {
+  AuthoredAnimalInstanceBatch,
+  setAuthoredAnimalEvaluatorOnly,
+  type AuthoredAnimalMaterialColor,
+} from '../scene/AuthoredAnimalInstanceBatch.ts';
 import { isWithinAnimalCrowdView, type CrowdViewState } from './crowdView.ts';
 
 export type CavalryHorsePresentation = 'pasture' | 'hussar' | 'lancer' | 'archer' | 'ottoman';
@@ -15,203 +22,335 @@ export type CavalryHorsePose = Readonly<{
   appearanceSeed: number;
 }>;
 
+type HorseMotionMode = 'idle' | 'eat' | 'walk';
+type HorseSource = {
+  scene: THREE.Group;
+  bounds: THREE.Box3;
+  sourceHeight: number;
+  clips: Record<HorseMotionMode, THREE.AnimationClip>;
+  materialColors: Map<string, THREE.Color>;
+};
 type HorseVisual = {
   root: THREE.Group;
-  head: THREE.Group;
-  legs: readonly THREE.Group[];
-  tail: THREE.Group;
-  blanket: THREE.Mesh;
-  tack: readonly THREE.Object3D[];
-  headPitch: number;
-  elapsed: number;
+  model: THREE.Group;
+  mixer: THREE.AnimationMixer;
+  actions: Record<HorseMotionMode, THREE.AnimationAction>;
+  mode: HorseMotionMode;
+  appearanceSeed: number;
 };
 
 /** The authored saddle contact point above terrain, in metres. */
 export const CAVALRY_SADDLE_HEIGHT = 1.48;
 
-const COAT_COLORS = [0x5a3525, 0x2b211c, 0x806047, 0xb29a78, 0x473229] as const;
-const MANE_COLORS = [0x211815, 0x171313, 0x3c2a20] as const;
+const HORSE_MODEL_URL = '/assets/models/horses/quaternius-horse.gltf';
+const HORSE_TARGET_HEIGHT = 1.7;
+const HORSE_WALK_SPEED = 1.35;
+const HORSE_COAT_PALETTES = [
+  { main: 0x5a3525, dark: 0x2b211c, light: 0x806047, hair: 0x211815 },
+  { main: 0x372822, dark: 0x191412, light: 0x60463a, hair: 0x121010 },
+  { main: 0x8b6a4d, dark: 0x49372d, light: 0xb09272, hair: 0x30241f },
+  { main: 0xa88e69, dark: 0x554738, light: 0xc4ad88, hair: 0x3b3029 },
+  { main: 0x59463b, dark: 0x28201d, light: 0x806a58, hair: 0x181515 },
+] as const;
 
+/** Animated Quaternius CC0 horses shared by pastures and mounted companies. */
 export class CavalryHorseRenderer {
+  readonly ready: Promise<boolean>;
   private readonly group = new THREE.Group();
   private readonly visuals = new Map<string, HorseVisual>();
-  private readonly geometries = createHorseGeometries();
-  private readonly coatMaterials = COAT_COLORS.map((color) => horseMaterial(color, 0.86));
-  private readonly maneMaterials = MANE_COLORS.map((color) => horseMaterial(color, 0.95));
-  private readonly leather = horseMaterial(0x3b2419, 0.92);
-  private readonly metal = horseMaterial(0x858079, 0.42, 0.45);
-  private readonly blanketMaterials: Record<CavalryHorsePresentation, THREE.MeshStandardMaterial> = {
-    pasture: horseMaterial(0x786b50, 0.94),
-    hussar: horseMaterial(0x8f2f26, 0.88),
-    lancer: horseMaterial(0x263b58, 0.82),
-    archer: horseMaterial(0x435b35, 0.9),
-    ottoman: horseMaterial(0x8a3128, 0.86),
-  };
+  private source: HorseSource | null = null;
+  private batch: AuthoredAnimalInstanceBatch | null = null;
+  private disposed = false;
 
   constructor(parent: THREE.Group) {
-    this.group.name = 'Pasture and mounted horses';
+    this.group.name = 'Quaternius pasture and mounted horses';
     parent.add(this.group);
+    this.ready = this.loadSource();
   }
 
   sync(poses: readonly CavalryHorsePose[], view: CrowdViewState | undefined, dt: number): void {
     const active = new Set<string>();
+    const frameDt = Math.max(0, Math.min(0.1, dt));
     for (const pose of poses) {
       if (!isWithinAnimalCrowdView(pose.x, pose.z, view)) continue;
       active.add(pose.id);
       let visual = this.visuals.get(pose.id);
       if (!visual) {
-        visual = this.createVisual(pose);
-        this.visuals.set(pose.id, visual);
+        const created = this.createVisual(pose);
+        if (!created) continue;
+        visual = created;
+        this.visuals.set(pose.id, created);
       }
       visual.root.position.set(pose.x, pose.y, pose.z);
       visual.root.rotation.y = pose.yaw;
-      visual.blanket.material = this.blanketMaterials[pose.presentation];
-      for (const part of visual.tack) part.visible = pose.presentation !== 'pasture';
-      const frameDt = Math.max(0, Math.min(0.1, dt));
-      visual.elapsed += frameDt;
-      animateHorse(visual, pose, frameDt);
+
+      const nextMode = horseMotionMode(pose);
+      this.transition(visual, nextMode);
+      visual.actions.walk.setEffectiveTimeScale(
+        Math.max(0.68, Math.min(1.85, pose.moveSpeed / HORSE_WALK_SPEED)),
+      );
+      visual.mixer.update(frameDt);
     }
     for (const [id, visual] of this.visuals) {
       if (active.has(id)) continue;
-      visual.root.removeFromParent();
+      this.removeVisual(visual);
       this.visuals.delete(id);
     }
+    this.flushBatch();
+  }
+
+  diagnostics(): ReturnType<AuthoredAnimalInstanceBatch['diagnostics']> | null {
+    return this.batch?.diagnostics() ?? null;
   }
 
   dispose(): void {
+    this.disposed = true;
+    for (const visual of this.visuals.values()) this.removeVisual(visual);
     this.visuals.clear();
-    this.group.clear();
+    this.batch?.dispose();
+    this.batch = null;
+    if (this.source) disposeModelResources(this.source.scene);
+    this.source = null;
     this.group.removeFromParent();
-    for (const geometry of Object.values(this.geometries)) geometry.dispose();
-    for (const material of this.coatMaterials) material.dispose();
-    for (const material of this.maneMaterials) material.dispose();
-    for (const material of Object.values(this.blanketMaterials)) material.dispose();
-    this.leather.dispose();
-    this.metal.dispose();
   }
 
-  private createVisual(pose: CavalryHorsePose): HorseVisual {
-    const root = new THREE.Group();
-    root.name = `Cavalry horse ${pose.id}`;
-    root.userData.cavalryHorseId = pose.id;
-    const coat = this.coatMaterials[pose.appearanceSeed % this.coatMaterials.length]!;
-    const mane = this.maneMaterials[(pose.appearanceSeed >>> 4) % this.maneMaterials.length]!;
-    const blanket = this.blanketMaterials[pose.presentation];
-
-    addPart(root, this.geometries.body, coat, [0, 1.12, 0], [0.61, 0.55, 1.08]);
-    addPart(root, this.geometries.chest, coat, [0, 1.17, 0.67], [0.57, 0.66, 0.58]);
-    const head = new THREE.Group();
-    head.name = 'Articulated horse neck and head';
-    head.position.set(0, 1.26, 0.53);
-    root.add(head);
-    const neck = addPart(head, this.geometries.neck, coat, [0, 0.36, 0.19], [0.39, 0.78, 0.42]);
-    neck.rotation.x = -0.28;
-    addPart(head, this.geometries.head, coat, [0, 0.7, 0.5], [0.42, 0.42, 0.63]);
-    addPart(head, this.geometries.muzzle, coat, [0, 0.56, 0.94], [0.34, 0.3, 0.48]);
-    for (const side of [-1, 1] as const) {
-      const ear = addPart(head, this.geometries.ear, coat, [side * 0.16, 0.99, 0.43], [0.12, 0.34, 0.12]);
-      ear.rotation.z = side * -0.12;
-    }
-    const maneStrip = addPart(head, this.geometries.mane, mane, [0, 0.5, -0.05], [0.12, 0.6, 0.7]);
-    maneStrip.rotation.x = -0.3;
-    const blanketMesh = addPart(root, this.geometries.blanket, blanket, [0, 1.49, -0.04], [0.73, 0.09, 0.84]);
-    const saddle = addPart(root, this.geometries.saddle, this.leather, [0, 1.56, -0.02], [0.52, 0.16, 0.51]);
-    const rein = addPart(head, this.geometries.rein, this.leather, [0, 0.62, 0.79], [0.035, 0.39, 0.035]);
-    rein.rotation.z = Math.PI * 0.5;
-    const bit = addPart(head, this.geometries.bit, this.metal, [0, 0.52, 0.94], [0.035, 0.4, 0.035]);
-    bit.rotation.z = Math.PI * 0.5;
-
-    const legs: THREE.Group[] = [];
-    for (const x of [-0.34, 0.34] as const) {
-      for (const z of [-0.62, 0.62] as const) {
-        const leg = new THREE.Group();
-        leg.position.set(x, 1.09, z);
-        addPart(leg, this.geometries.upperLeg, coat, [0, -0.28, 0], [0.2, 0.59, 0.2]);
-        addPart(leg, this.geometries.lowerLeg, coat, [0, -0.75, 0.015], [0.145, 0.48, 0.145]);
-        addPart(leg, this.geometries.hoof, this.maneMaterials[0]!, [0, -1.01, 0.06], [0.2, 0.15, 0.3]);
-        root.add(leg);
-        legs.push(leg);
+  private async loadSource(): Promise<boolean> {
+    try {
+      const gltf = await new GLTFLoader().loadAsync(HORSE_MODEL_URL);
+      const bounds = new THREE.Box3().setFromObject(gltf.scene);
+      const sourceHeight = bounds.max.y - bounds.min.y;
+      if (!Number.isFinite(sourceHeight) || sourceHeight <= 0.001) {
+        throw new Error(`Invalid horse model bounds for ${HORSE_MODEL_URL}`);
       }
+      const source: HorseSource = {
+        scene: gltf.scene,
+        bounds,
+        sourceHeight,
+        clips: resolveHorseClips(gltf.animations),
+        materialColors: sourceMaterialColors(gltf.scene),
+      };
+      if (this.disposed) {
+        disposeModelResources(gltf.scene);
+        return false;
+      }
+      this.source = source;
+      try {
+        this.batch = new AuthoredAnimalInstanceBatch({
+          parent: this.group,
+          sourceRoot: gltf.scene,
+          capacity: 32,
+          name: 'Quaternius horse exact-model instances',
+          castShadow: true,
+          receiveShadow: true,
+        });
+      } catch (error) {
+        console.warn('[Cavalry horses] Exact-model batching unavailable; retaining exact rigs.', error);
+      }
+      return true;
+    } catch (error) {
+      console.warn('[Cavalry horses] Animated Quaternius horse failed to load.', error);
+      return false;
     }
-    const tail = new THREE.Group();
-    tail.position.set(0, 1.36, -1.02);
-    const tailMesh = addPart(tail, this.geometries.tail, mane, [0, -0.25, -0.14], [0.19, 0.72, 0.2]);
-    tailMesh.rotation.x = -0.34;
-    root.add(tail);
-    root.traverse((object) => {
-      const mesh = object as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-    });
+  }
+
+  private createVisual(pose: CavalryHorsePose): HorseVisual | null {
+    if (!this.source) return null;
+    const model = cloneSkinned(this.source.scene) as THREE.Group;
+    const scale = HORSE_TARGET_HEIGHT / this.source.sourceHeight;
+    model.scale.setScalar(scale);
+    model.position.y = -this.source.bounds.min.y * scale;
+    configureHorseMeshes(model, pose.appearanceSeed, this.batch === null);
+    setAuthoredAnimalEvaluatorOnly(model, this.batch !== null);
+
+    const root = new THREE.Group();
+    root.name = `Quaternius cavalry horse ${pose.id}`;
+    root.userData.cavalryHorseId = pose.id;
+    root.add(model);
+
+    const mixer = new THREE.AnimationMixer(model);
+    const actions: Record<HorseMotionMode, THREE.AnimationAction> = {
+      idle: mixer.clipAction(this.source.clips.idle, model),
+      eat: mixer.clipAction(this.source.clips.eat, model),
+      walk: mixer.clipAction(this.source.clips.walk, model),
+    };
+    for (const action of Object.values(actions)) {
+      action.enabled = true;
+      action.setLoop(THREE.LoopRepeat, Infinity);
+    }
+    const mode = horseMotionMode(pose);
+    actions[mode].play();
+    actions[mode].time = (pose.appearanceSeed % 1000) / 1000
+      * Math.max(0.1, actions[mode].getClip().duration);
     this.group.add(root);
     return {
       root,
-      head,
-      legs,
-      tail,
-      blanket: blanketMesh,
-      tack: [blanketMesh, saddle, rein, bit],
-      headPitch: 0,
-      elapsed: (pose.appearanceSeed % 1000) / 113,
+      model,
+      mixer,
+      actions,
+      mode,
+      appearanceSeed: pose.appearanceSeed,
     };
   }
-}
 
-function animateHorse(visual: HorseVisual, pose: CavalryHorsePose, dt: number): void {
-  const speed = Math.max(0, pose.moveSpeed);
-  const moving = pose.activity === 'walking' && speed > 0.15;
-  const gait = visual.elapsed * (moving ? 3.4 + Math.min(5.4, speed * 1.2) : 0.7);
-  const amplitude = moving ? Math.min(0.62, 0.16 + speed * 0.09) : 0.025;
-  for (let index = 0; index < visual.legs.length; index += 1) {
-    const phase = index === 0 || index === 3 ? 0 : Math.PI;
-    visual.legs[index]!.rotation.x = Math.sin(gait + phase) * amplitude;
+  private transition(visual: HorseVisual, nextMode: HorseMotionMode): void {
+    if (visual.mode === nextMode) return;
+    visual.actions[visual.mode].fadeOut(0.18);
+    visual.actions[nextMode].reset().fadeIn(0.18).play();
+    visual.mode = nextMode;
   }
-  visual.root.position.y = pose.y + (moving ? Math.abs(Math.sin(gait * 2)) * 0.025 : Math.sin(gait) * 0.008);
-  visual.tail.rotation.x = -0.12 + Math.sin(gait * 0.62) * (moving ? 0.12 : 0.045);
-  visual.tail.rotation.z = Math.sin(gait * 0.47) * 0.08;
-  const targetHeadPitch = pose.activity === 'grazing'
-    ? 1.02 + Math.sin(visual.elapsed * 0.42) * 0.055
-    : moving ? -0.035 + Math.sin(gait) * 0.025 : Math.sin(visual.elapsed * 0.37) * 0.018;
-  const headBlend = 1 - Math.exp(-Math.max(0, dt) * (pose.activity === 'grazing' ? 2.4 : 4.5));
-  visual.headPitch += (targetHeadPitch - visual.headPitch) * headBlend;
-  visual.head.rotation.x = visual.headPitch;
+
+  private removeVisual(visual: HorseVisual): void {
+    visual.mixer.stopAllAction();
+    visual.mixer.uncacheRoot(visual.model);
+    if (!this.batch) disposeClonedModelMaterials(visual.model);
+    visual.root.removeFromParent();
+  }
+
+  private flushBatch(): void {
+    if (!this.batch) return;
+    const visible = [...this.visuals.values()].filter((visual) => visual.root.visible);
+    this.batch.beginFrame(visible.length);
+    for (const visual of visible) {
+      this.batch.submit(visual.model, this.horseMaterialColors(visual.appearanceSeed));
+    }
+    this.batch.endFrame();
+  }
+
+  private horseMaterialColors(seed: number): AuthoredAnimalMaterialColor[] {
+    if (!this.batch || !this.source) return [];
+    const palette = HORSE_COAT_PALETTES[seed % HORSE_COAT_PALETTES.length]!;
+    const targetByName: Record<string, number> = {
+      Main: palette.main,
+      Main_Dark: palette.dark,
+      Main_Light: palette.light,
+      Hair: palette.hair,
+      Hooves: 0x2e2923,
+      Muzzle: 0x4d3528,
+      Eye_White: 0xd8d2c7,
+    };
+    const sourceByName = this.source.materialColors;
+    return this.batch.materialSlots().flatMap((slot) => {
+      const target = targetByName[slot.name];
+      const source = sourceByName.get(slot.name);
+      if (target === undefined || !source) return [];
+      const targetColor = new THREE.Color(target);
+      return [{
+        materialSlot: slot.index,
+        color: new THREE.Color(
+          targetColor.r / Math.max(1e-6, source.r),
+          targetColor.g / Math.max(1e-6, source.g),
+          targetColor.b / Math.max(1e-6, source.b),
+        ),
+      }];
+    });
+  }
 }
 
-function addPart(
-  parent: THREE.Object3D,
-  geometry: THREE.BufferGeometry,
-  material: THREE.Material,
-  position: readonly [number, number, number],
-  scale: readonly [number, number, number],
-): THREE.Mesh {
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set(...position);
-  mesh.scale.set(...scale);
-  parent.add(mesh);
-  return mesh;
+function horseMotionMode(pose: CavalryHorsePose): HorseMotionMode {
+  if (pose.activity === 'walking' && pose.moveSpeed > 0.15) return 'walk';
+  if (pose.activity === 'grazing') return 'eat';
+  return 'idle';
 }
 
-function horseMaterial(color: number, roughness: number, metalness = 0): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, roughness, metalness });
+function resolveHorseClips(
+  animations: readonly THREE.AnimationClip[],
+): Record<HorseMotionMode, THREE.AnimationClip> {
+  const find = (...names: string[]): THREE.AnimationClip | undefined => animations.find((clip) => {
+    const normalized = clip.name.toLowerCase();
+    return names.some((name) => normalized === name || normalized.endsWith(`|${name}`));
+  });
+  const idle = find('idle');
+  const eat = find('eating', 'idle_headlow');
+  const walk = find('walk');
+  if (!idle || !eat || !walk) {
+    throw new Error(`Missing Idle/Eating/Walk clips in ${HORSE_MODEL_URL}`);
+  }
+  return { idle, eat, walk };
 }
 
-function createHorseGeometries() {
-  return {
-    body: new THREE.SphereGeometry(1, 14, 10),
-    chest: new THREE.SphereGeometry(1, 12, 9),
-    neck: new THREE.CapsuleGeometry(0.5, 1, 5, 10),
-    head: new THREE.SphereGeometry(1, 12, 9),
-    muzzle: new THREE.SphereGeometry(1, 10, 7),
-    ear: new THREE.ConeGeometry(1, 2, 6),
-    mane: new THREE.BoxGeometry(1, 1, 1),
-    blanket: new THREE.BoxGeometry(1, 1, 1),
-    saddle: new THREE.SphereGeometry(1, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.55),
-    rein: new THREE.CylinderGeometry(1, 1, 1, 6),
-    bit: new THREE.CylinderGeometry(1, 1, 1, 6),
-    upperLeg: new THREE.CapsuleGeometry(0.5, 1, 4, 8),
-    lowerLeg: new THREE.CapsuleGeometry(0.5, 1, 4, 8),
-    hoof: new THREE.BoxGeometry(1, 1, 1),
-    tail: new THREE.CapsuleGeometry(0.5, 1, 4, 8),
-  } as const;
+function configureHorseMeshes(
+  model: THREE.Object3D,
+  seed: number,
+  clonePaletteMaterials: boolean,
+): void {
+  const palette = HORSE_COAT_PALETTES[seed % HORSE_COAT_PALETTES.length]!;
+  const targetByName: Record<string, number> = {
+    Main: palette.main,
+    Main_Dark: palette.dark,
+    Main_Light: palette.light,
+    Hair: palette.hair,
+    Hooves: 0x2e2923,
+    Muzzle: 0x4d3528,
+    Eye_White: 0xd8d2c7,
+  };
+  model.traverse((object) => {
+    const mesh = object as THREE.SkinnedMesh;
+    if (!mesh.isSkinnedMesh) return;
+    mesh.frustumCulled = false;
+    if (!clonePaletteMaterials) {
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      return;
+    }
+    const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    const materials = sources.map((source) => {
+      const material = source.clone();
+      if (material instanceof THREE.MeshStandardMaterial) {
+        const color = targetByName[material.name];
+        if (color !== undefined) material.color.setHex(color);
+        material.metalness = 0;
+        material.roughness = 0.88;
+      }
+      return material;
+    });
+    mesh.material = Array.isArray(mesh.material) ? materials : materials[0]!;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+  });
+}
+
+function sourceMaterialColors(source: THREE.Object3D): Map<string, THREE.Color> {
+  const colors = new Map<string, THREE.Color>();
+  source.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      if (material instanceof THREE.MeshStandardMaterial && !colors.has(material.name)) {
+        colors.set(material.name, material.color);
+      }
+    }
+  });
+  return colors;
+}
+
+function disposeClonedModelMaterials(model: THREE.Object3D): void {
+  const materials = new Set<THREE.Material>();
+  model.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      materials.add(material);
+    }
+  });
+  for (const material of materials) material.dispose();
+}
+
+function disposeModelResources(source: THREE.Object3D): void {
+  const geometries = new Set<THREE.BufferGeometry>();
+  const materials = new Set<THREE.Material>();
+  const textures = new Set<THREE.Texture>();
+  source.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (mesh.geometry) geometries.add(mesh.geometry);
+    for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      if (!material) continue;
+      materials.add(material);
+      for (const value of Object.values(material)) {
+        if (value instanceof THREE.Texture) textures.add(value);
+      }
+    }
+  });
+  for (const geometry of geometries) geometry.dispose();
+  for (const material of materials) material.dispose();
+  for (const texture of textures) texture.dispose();
 }

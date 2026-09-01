@@ -51,7 +51,7 @@ const labelTexture = (text: string) => {
   context.font = 'bold 35px Georgia'; context.textAlign = 'center'; context.fillStyle = '#eee6d1'; context.fillText(text, 256, 59);
   const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; return texture;
 };
-for (const [text, x] of [['ACTIVE BANDIT CAMP', -8], ['DESTROYED / RECOVERED', 8]] as const) {
+for (const [text, x] of [['ACTIVE BANDIT CAMP', -8], ['DESTROYED / REMOVED', 8]] as const) {
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture(text), depthTest: false }));
   sprite.position.set(x, 7.5, 0); sprite.scale.set(8, 1.5, 1); scene.add(sprite);
 }
@@ -68,6 +68,6 @@ addEventListener('resize', () => {
 (window as unknown as { __BANDIT_CAMP_QA__: unknown }).__BANDIT_CAMP_QA__ = {
   seed: 11,
   camera: [18, 13, 23],
-  campCount: 2,
+  activeCampCount: 1,
   renderer: () => ({ calls: renderer.info.render.calls, triangles: renderer.info.render.triangles }),
 };

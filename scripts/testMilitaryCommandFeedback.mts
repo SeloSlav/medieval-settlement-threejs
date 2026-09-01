@@ -354,6 +354,32 @@ assert.equal(controller.orderFeedbackDiagnostics(
   nowMs + MILITARY_ORDER_FEEDBACK_LIFETIME_SECONDS * 1_000,
 ).visible, false);
 
+const targetCamp: BanditCampState = {
+  id: 'bandit-camp-77',
+  x: 44,
+  z: 18,
+  health: 180,
+  maxHealth: 180,
+  active: true,
+  stolenGoods: 0,
+  spawnedTick: 0,
+  nextTheftTick: 0,
+  lastTheftTick: 0,
+  destroyedTick: 0,
+};
+controller.sync(agents, new Map([[targetCamp.id, targetCamp]]));
+pickedPoint = { x: 50.5, z: 20 };
+nowMs += 500;
+canvas.dispatch('mousedown', mouseEvent('mousedown', 2, 96, 96, 2, canvas));
+window.dispatchEvent(mouseEvent('mouseup', 2, 96, 96, 0, canvas));
+assert.equal(orders.length, 3, 'right-clicking anywhere in the physical camp footprint should issue an order');
+assert.equal(orders[2]?.campId, targetCamp.id, 'the order must carry the authoritative bandit camp target id');
+assert.equal(
+  controller.orderFeedbackDiagnostics().kind,
+  'attack',
+  'targeted bandit camps should use attack-order feedback',
+);
+
 controller.dispose();
 for (const type of ['mousemove', 'mouseup', 'blur']) {
   assert.equal(windowLike.listenerCount(type), 0, `dispose should release ${type} listeners`);

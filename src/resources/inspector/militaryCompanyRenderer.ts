@@ -12,6 +12,7 @@ import {
   type MilitaryCompanyState,
 } from '../../security/militaryProgression.ts';
 import { MILITARY_COMPANY_CARD_ART } from '../../security/militaryCompanyCardArt.ts';
+import { renderResourceAmount, renderResourceCost } from '../../ui/resourceCost.ts';
 import { getActiveWorldGeneration } from '../../world/worldGenerationContext.ts';
 
 const RECRUITMENT_KIND_ID: Partial<Record<MilitaryCompanyKind, number>> = {
@@ -38,6 +39,12 @@ const MOUNTED_KINDS = new Set<MilitaryCompanyKind>([
   'armored-lancers',
   'mounted-archers',
 ]);
+
+function renderStoredResourceAmount(kind: 'oatGrain' | 'water', amount: number): string {
+  const value = Math.max(0, Math.round(amount));
+  const label = kind === 'oatGrain' ? 'oats' : 'water';
+  return `<span class="resource-cost resource-cost--compact" role="img" aria-label="${value} ${label}"><span class="resource-cost__item" data-resource-cost="${kind}" title="${label[0]!.toUpperCase()}${label.slice(1)}"><span class="resource-cost__icon" aria-hidden="true"></span><span class="resource-cost__value">${value}</span></span></span>`;
+}
 
 export type SelectedMilitaryCompanyInspectorView = {
   eyebrow: string;
@@ -101,11 +108,12 @@ function renderSelectedCompanyCommands(
   const mercenaryLeaving = company.kind === 'mercenary-spears' && company.status === 'leaving';
   const mounted = MOUNTED_KINDS.has(company.kind);
   const retainerGold = company.livingMembers * 2;
-  const formationButtons = MILITARY_FORMATIONS
+  const availableFormations = MILITARY_FORMATIONS
     .filter((formation) => !(
       formation === 'shield-wall'
       && ['crossbows', 'bowmen', 'polearms', 'hussars', 'armored-lancers', 'mounted-archers'].includes(company.kind)
-    ))
+    ));
+  const formationButtons = availableFormations
     .map((formation) => `
       <button type="button" class="resource-action-button military-formation-button${company.formation === formation ? ' is-selected' : ''}"
         data-military-company-id="${company.id}" data-military-formation="${MILITARY_FORMATIONS.indexOf(formation)}"
@@ -117,21 +125,28 @@ function renderSelectedCompanyCommands(
       </button>
     `).join('');
   const lifecycleAction = mercenaryLeaving
-    ? `<button type="button" class="resource-action-button resource-action-button--icon military-company-action" data-renew-mercenary-contract="${company.id}" data-tooltip="Pay ${retainerGold} gold to recall the departing survivors."><span class="inspector-action-icon" data-action-icon="mercenaries" aria-hidden="true"></span><span class="military-company-action__copy"><strong>Retain company</strong><small>${retainerGold} gold</small></span></button>`
+    ? `<button type="button" class="resource-action-button resource-action-button--icon military-company-action" data-renew-mercenary-contract="${company.id}" data-tooltip="Pay ${retainerGold} gold to recall the departing survivors."><span class="inspector-action-icon" data-action-icon="mercenaries" aria-hidden="true"></span><span class="military-company-action__copy"><strong>Retain company</strong><small>${renderResourceAmount('gold', retainerGold, { compact: true })}</small></span></button>`
     : `<button type="button" class="resource-action-button resource-action-button--icon resource-action-button--secondary military-company-action" data-disband-military-company="${company.id}" data-tooltip="${company.kind === 'mercenary-spears' ? 'End the contract and send the company to the region edge.' : mounted ? 'Return equipment to the Cavalry Yard, ride each surviving horse to its reserved home pasture, then send the residents home.' : 'Stand the company down and return its surviving members home.'}" ${company.status === 'disbanding' || company.status === 'leaving' || company.status === 'destroyed' ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="disband-company" aria-hidden="true"></span><span class="military-company-action__copy"><strong>${company.kind === 'mercenary-spears' ? 'End contract' : 'Disband company'}</strong></span></button>`;
   const mountedSupplyRows = mounted
-    ? `<ul class="resource-inspector-details military-company-card__details">
-        <li><span>Horse field stores</span><span>${company.horseOats.toFixed(0)} oats · ${company.horseWater.toFixed(0)} water</span></li>
-        <li><span>Automatic resupply</span><span>Reorders at 2 days toward 5 while the company holds position</span></li>
-      </ul>`
+    ? `<div class="military-company-supplies">
+        <div class="military-company-supplies__heading">
+          <span>Horse field stores</span>
+          <span class="military-company-supplies__resources">
+            ${renderStoredResourceAmount('oatGrain', company.horseOats)}
+            ${renderStoredResourceAmount('water', company.horseWater)}
+          </span>
+        </div>
+        <p><strong>Automatic resupply</strong> Reorders at 2 days and restores 5 days while the company holds position.</p>
+      </div>`
     : '';
   return `
     <div class="inspector-action-panel military-company-card" data-inspector-panel-title="Orders">
       <h3 class="inspector-action-panel__title">Orders</h3>
       ${mountedSupplyRows}
-      <div class="resource-action-row military-company-card__formations">${formationButtons}</div>
+      <div class="military-company-card__section-heading">Formation</div>
+      <div class="resource-action-row military-company-card__formations" data-formation-count="${availableFormations.length}">${formationButtons}</div>
       <div class="resource-action-row military-company-card__actions">
-        ${canResupply ? `<button type="button" class="resource-action-button resource-action-button--icon military-company-action" data-resupply-military-company="${company.id}" data-tooltip="${needsProvisions ? "Issue three days' supplies." : 'Replace the company ammunition.'}"><span class="inspector-action-icon" data-action-icon="resupply-company" aria-hidden="true"></span><span class="military-company-action__copy"><strong>Resupply</strong><small>${militaryCostText(resupplyCost)}</small></span></button>` : ''}
+        ${canResupply ? `<button type="button" class="resource-action-button resource-action-button--icon military-company-action" data-resupply-military-company="${company.id}" data-tooltip="${needsProvisions ? "Issue three days' supplies." : 'Replace the company ammunition.'}"><span class="inspector-action-icon" data-action-icon="resupply-company" aria-hidden="true"></span><span class="military-company-action__copy"><strong>Resupply</strong><small>${renderResourceCost(resupplyCost, { compact: true })}</small></span></button>` : ''}
         ${lifecycleAction}
       </div>
     </div>

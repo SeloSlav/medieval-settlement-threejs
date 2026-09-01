@@ -4,11 +4,16 @@ import { join } from 'node:path';
 import {
   STRATEGIC_COMPANY_ICON_HIDE_ZOOM_PERCENT,
   STRATEGIC_COMPANY_ICON_REVEAL_ZOOM_PERCENT,
+  STRATEGIC_COMPANY_POSITION_SNAP_DISTANCE,
+  STRATEGIC_COMPANY_STATIONARY_DEAD_ZONE,
   resolveStrategicCompanyIconVisibility,
   strategicCompanyIconOpacity,
+  strategicCompanyPositionBlend,
 } from '../src/security/MilitaryCompanyStrategicOverlay.ts';
 import {
+  HOSTILE_COMPANY_STRATEGIC_ICON_ART,
   MILITARY_COMPANY_STRATEGIC_ICON_ART,
+  hostileCompanyStrategicLabel,
   militaryCompanyKindForFaction,
 } from '../src/security/militaryCompanyPresentation.ts';
 import { CombatPlaytestSimulation } from '../src/app/combatPlaytest.ts';
@@ -29,6 +34,22 @@ assert.equal(strategicCompanyIconOpacity(72), 1);
 assert.ok(strategicCompanyIconOpacity(80) > 0.45);
 assert.ok(strategicCompanyIconOpacity(80) < 0.55);
 assert.equal(strategicCompanyIconOpacity(88), 0);
+assert.equal(
+  strategicCompanyPositionBlend(STRATEGIC_COMPANY_STATIONARY_DEAD_ZONE, false, 1 / 60),
+  0,
+  'stationary formation jitter should stay inside the marker dead zone',
+);
+const movingBlend = strategicCompanyPositionBlend(2, true, 1 / 60);
+const stationaryBlend = strategicCompanyPositionBlend(2, false, 1 / 60);
+assert.ok(movingBlend > stationaryBlend && stationaryBlend > 0);
+assert.equal(
+  strategicCompanyPositionBlend(STRATEGIC_COMPANY_POSITION_SNAP_DISTANCE, true, 1 / 60),
+  1,
+  'large corrections should snap instead of dragging a stale marker across the map',
+);
+const oneThirtyFpsStep = strategicCompanyPositionBlend(2, true, 1 / 30);
+const twoSixtyFpsSteps = 1 - (1 - movingBlend) ** 2;
+assert.ok(Math.abs(oneThirtyFpsStep - twoSixtyFpsSteps) < 1e-9);
 
 assert.deepEqual([
   militaryCompanyKindForFaction('militia'),
@@ -53,6 +74,11 @@ assert.equal(militaryCompanyKindForFaction('raider'), null);
 for (const art of Object.values(MILITARY_COMPANY_STRATEGIC_ICON_ART)) {
   assert.ok(existsSync(join(process.cwd(), 'public', art.slice(1))), `missing woodcut ${art}`);
 }
+for (const art of Object.values(HOSTILE_COMPANY_STRATEGIC_ICON_ART)) {
+  assert.ok(existsSync(join(process.cwd(), 'public', art.slice(1))), `missing hostile woodcut ${art}`);
+}
+assert.equal(hostileCompanyStrategicLabel('raiders'), 'Enemy raiders');
+assert.equal(hostileCompanyStrategicLabel('bandits'), 'Bandit company');
 
 const playtest = new CombatPlaytestSimulation({
   site: { x: 0, z: 0, axisX: 1, axisZ: 0 },
@@ -85,7 +111,17 @@ const appSource = readFileSync('src/app/App.ts', 'utf8');
 const bootstrapSource = readFileSync('src/app/appBootstrap.ts', 'utf8');
 assert.match(controllerSource, /strategicIcons\.sync/);
 assert.match(controllerSource, /strategicIcons\.update/);
+assert.match(controllerSource, /member\.status === 'advancing'[\s\S]*?member\.routeProgress/);
+assert.match(controllerSource, /moving: company\.moving/);
 assert.match(controllerSource, /onSelect: this\.selectCompany/);
+assert.match(controllerSource, /hostileGrouped/);
+assert.match(controllerSource, /hostile:\s*true/);
+assert.match(controllerSource, /members\[0\]!\.faction === 'bandit' \? 'bandits'/);
+assert.match(
+  appSource,
+  /cameraController\?\.update\(dt\)[\s\S]*?worldMapUi\?\.update\(\)[\s\S]*?militiaCommands\?\.update\(time\)/,
+  'strategic companies must project from the same settled camera frame as resource icons',
+);
 assert.match(appSource, /getMilitaryCompanyOverride: \(\) => this\.combatPlaytest\?\.companyStates\(\)\.values\(\)/);
 assert.match(appSource, /this\.resourceInspector\?\.refreshSelection\(\)/);
 assert.match(bootstrapSource, /getMilitaryCompanyOverride\?\.\(\)/);

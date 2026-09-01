@@ -64,6 +64,7 @@
     "test:civic-receipts": "npx tsx scripts/testCivicReceipts.mts",
     "test:fiscal-policy": "npx tsx scripts/testFiscalPolicy.mts",
     "test:frontier-security": "node --experimental-strip-types scripts/testFrontierSecurity.mts",
+    "test:bandit-camp-presentation": "npx tsx scripts/testBanditCampPresentation.mts",
     "test:military-progression": "node --experimental-strip-types scripts/testMilitaryProgression.mts",
     "test:military-economy": "node --experimental-strip-types scripts/testMilitaryEconomy.mts",
     "test:military-browser": "node --experimental-strip-types scripts/testMilitaryBrowser.mts",

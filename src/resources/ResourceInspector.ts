@@ -55,7 +55,10 @@ import {
 } from '../fires/fireRecovery.ts';
 import type { SettlementSecurityState } from '../security/frontierSecurity.ts';
 import type { CombatAgentState } from '../security/combatAgents.ts';
-import type { MilitaryCompanyState } from '../security/militaryProgression.ts';
+import {
+  militaryCompanyDisplayName,
+  type MilitaryCompanyState,
+} from '../security/militaryProgression.ts';
 import { renderBuildingResourceCost } from '../ui/resourceCost.ts';
 import { BACKYARD_EXTENSION_CARD_ART } from '../ui/buildMenuCards.ts';
 import {
@@ -948,6 +951,61 @@ export class ResourceInspector {
 
   private readonly onPanelClick = (event: MouseEvent): void => {
     event.stopPropagation();
+    const raiseMilitia = (event.target as HTMLElement).closest<HTMLElement>('[data-raise-militia]');
+    if (raiseMilitia && this.selectedTarget?.kind === 'building' && this.selectedTarget.building.kind === 'town_hall') {
+      const sizePicker = raiseMilitia
+        .closest<HTMLElement>('.military-recruitment-card')
+        ?.querySelector<HTMLSelectElement>('[data-militia-size]');
+      void this.options.onRaiseMilitia?.(
+        this.selectedTarget.building.id,
+        Number(sizePicker?.value ?? raiseMilitia.dataset.raiseMilitia ?? 5),
+      );
+      return;
+    }
+    if ((event.target as HTMLElement).closest('[data-disband-militia]')) {
+      void this.options.onDisbandMilitia?.();
+      return;
+    }
+    const recruitMilitary = (event.target as HTMLElement).closest<HTMLElement>('[data-recruit-military-kind]');
+    if (
+      recruitMilitary
+      && this.selectedTarget?.kind === 'building'
+      && (this.selectedTarget.building.kind === 'guardhouse' || this.selectedTarget.building.kind === 'cavalry_yard')
+    ) {
+      void this.options.onRecruitMilitaryCompany?.(
+        this.selectedTarget.building.id,
+        Number(recruitMilitary.dataset.recruitMilitaryKind),
+      );
+      return;
+    }
+    const hireMercenaries = (event.target as HTMLElement).closest<HTMLElement>('[data-hire-mercenary-company]');
+    if (hireMercenaries && this.selectedTarget?.kind === 'building' && this.selectedTarget.building.kind === 'town_hall') {
+      void this.options.onHireMercenaryCompany?.(this.selectedTarget.building.id);
+      return;
+    }
+    const disbandMilitary = (event.target as HTMLElement).closest<HTMLElement>('[data-disband-military-company]');
+    if (disbandMilitary?.dataset.disbandMilitaryCompany) {
+      void this.confirmMilitaryCompanyDisband(disbandMilitary.dataset.disbandMilitaryCompany);
+      return;
+    }
+    const renewMercenaries = (event.target as HTMLElement).closest<HTMLElement>('[data-renew-mercenary-contract]');
+    if (renewMercenaries?.dataset.renewMercenaryContract) {
+      void this.options.onRenewMercenaryContract?.(renewMercenaries.dataset.renewMercenaryContract);
+      return;
+    }
+    const resupplyMilitary = (event.target as HTMLElement).closest<HTMLElement>('[data-resupply-military-company]');
+    if (resupplyMilitary?.dataset.resupplyMilitaryCompany) {
+      void this.options.onResupplyMilitaryCompany?.(resupplyMilitary.dataset.resupplyMilitaryCompany);
+      return;
+    }
+    const formation = (event.target as HTMLElement).closest<HTMLElement>('[data-military-formation]');
+    if (formation?.dataset.militaryCompanyId && formation.dataset.militaryFormation != null) {
+      void this.options.onSetMilitaryFormation?.(
+        formation.dataset.militaryCompanyId,
+        Number(formation.dataset.militaryFormation),
+      );
+      return;
+    }
     const dogPostingButton = (event.target as HTMLElement)
       .closest<HTMLButtonElement>('[data-dog-posting-delta]');
     if (dogPostingButton && this.selectedTarget?.kind === 'building') {
@@ -1709,6 +1767,30 @@ export class ResourceInspector {
     );
   };
 
+  private async confirmMilitaryCompanyDisband(companyId: string): Promise<void> {
+    const company = [...(this.options.getMilitaryCompanies?.() ?? [])]
+      .find((candidate) => candidate.id === companyId);
+    if (!company) return;
+    const mercenary = company.kind === 'mercenary-spears';
+    const mounted = company.kind === 'hussars'
+      || company.kind === 'armored-lancers'
+      || company.kind === 'mounted-archers';
+    const actionLabel = mercenary ? 'End contract' : 'Disband company';
+    const confirmed = await this.deleteDialog.confirm({
+      eyebrow: mercenary ? 'Confirm contract end' : 'Confirm stand-down',
+      title: actionLabel,
+      description: mercenary
+        ? `${militaryCompanyDisplayName(company)} will stop accepting orders and march back to the region edge.`
+        : mounted
+          ? `${militaryCompanyDisplayName(company)} will stand down. Survivors return their kit, ride each horse to its home pasture, then return home.`
+          : `${militaryCompanyDisplayName(company)} will stand down. Survivors return their equipment and go home.`,
+      confirmLabel: actionLabel,
+      cancelLabel: 'Keep company',
+    });
+    if (!confirmed) return;
+    await this.options.onDisbandMilitaryCompany?.(companyId);
+  }
+
   private async confirmDestructiveAction(
     actionLabel: string,
     targetLabel: string,
@@ -1874,61 +1956,6 @@ export class ResourceInspector {
         if (crop) void this.options.onSetFarmFieldFollowingCrop?.(field.id, crop);
         return;
       }
-      return;
-    }
-    const raiseMilitia = (event.target as HTMLElement).closest<HTMLElement>('[data-raise-militia]');
-    if (raiseMilitia && this.selectedTarget?.kind === 'building' && this.selectedTarget.building.kind === 'town_hall') {
-      const sizePicker = raiseMilitia
-        .closest<HTMLElement>('.military-recruitment-card')
-        ?.querySelector<HTMLSelectElement>('[data-militia-size]');
-      void this.options.onRaiseMilitia?.(
-        this.selectedTarget.building.id,
-        Number(sizePicker?.value ?? raiseMilitia.dataset.raiseMilitia ?? 5),
-      );
-      return;
-    }
-    if ((event.target as HTMLElement).closest('[data-disband-militia]')) {
-      void this.options.onDisbandMilitia?.();
-      return;
-    }
-    const recruitMilitary = (event.target as HTMLElement).closest<HTMLElement>('[data-recruit-military-kind]');
-    if (
-      recruitMilitary
-      && this.selectedTarget?.kind === 'building'
-      && (this.selectedTarget.building.kind === 'guardhouse' || this.selectedTarget.building.kind === 'cavalry_yard')
-    ) {
-      void this.options.onRecruitMilitaryCompany?.(
-        this.selectedTarget.building.id,
-        Number(recruitMilitary.dataset.recruitMilitaryKind),
-      );
-      return;
-    }
-    const hireMercenaries = (event.target as HTMLElement).closest<HTMLElement>('[data-hire-mercenary-company]');
-    if (hireMercenaries && this.selectedTarget?.kind === 'building' && this.selectedTarget.building.kind === 'town_hall') {
-      void this.options.onHireMercenaryCompany?.(this.selectedTarget.building.id);
-      return;
-    }
-    const disbandMilitary = (event.target as HTMLElement).closest<HTMLElement>('[data-disband-military-company]');
-    if (disbandMilitary?.dataset.disbandMilitaryCompany) {
-      void this.options.onDisbandMilitaryCompany?.(disbandMilitary.dataset.disbandMilitaryCompany);
-      return;
-    }
-    const renewMercenaries = (event.target as HTMLElement).closest<HTMLElement>('[data-renew-mercenary-contract]');
-    if (renewMercenaries?.dataset.renewMercenaryContract) {
-      void this.options.onRenewMercenaryContract?.(renewMercenaries.dataset.renewMercenaryContract);
-      return;
-    }
-    const resupplyMilitary = (event.target as HTMLElement).closest<HTMLElement>('[data-resupply-military-company]');
-    if (resupplyMilitary?.dataset.resupplyMilitaryCompany) {
-      void this.options.onResupplyMilitaryCompany?.(resupplyMilitary.dataset.resupplyMilitaryCompany);
-      return;
-    }
-    const formation = (event.target as HTMLElement).closest<HTMLElement>('[data-military-formation]');
-    if (formation?.dataset.militaryCompanyId && formation.dataset.militaryFormation) {
-      void this.options.onSetMilitaryFormation?.(
-        formation.dataset.militaryCompanyId,
-        Number(formation.dataset.militaryFormation),
-      );
       return;
     }
     if (this.selectedTarget?.kind !== 'building') return;

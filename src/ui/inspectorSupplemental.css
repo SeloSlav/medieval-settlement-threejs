@@ -451,6 +451,54 @@
   margin: 0;
 }
 
+.military-company-supplies {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 12px;
+  padding: 9px 10px;
+  border: 1px solid rgba(210, 177, 99, 0.14);
+  border-radius: 4px;
+  background: rgba(4, 7, 4, 0.28);
+}
+
+.military-company-supplies__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #d8c89f;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.military-company-supplies__resources {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.military-company-supplies p {
+  margin: 0;
+  color: #a99f89;
+  font-size: 9px;
+  line-height: 1.42;
+}
+
+.military-company-supplies p strong {
+  margin-right: 0.35em;
+  color: #c9b991;
+}
+
+.military-company-card__section-heading {
+  margin: 0 0 6px;
+  color: #ae9665;
+  font-family: Georgia, serif;
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
 .resource-inspector-panel[data-inspector-target='military-company']
   .resource-inspector-details[hidden] + .resource-inspector-supplemental {
   margin-top: 0;
@@ -458,24 +506,49 @@
   border-top: 0;
 }
 
+.resource-inspector-panel[data-inspector-target='military-company']
+  .resource-inspector-heading .road-controls-title {
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: 1.02;
+  text-overflow: clip;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .military-company-card__formations {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+.military-company-card__formations[data-formation-count='3'] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.military-company-card__formations[data-formation-count='3']
+  .military-formation-button {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 18px auto;
+  gap: 3px;
+  min-height: 48px;
+  text-align: center;
 }
 
 .military-company-card__formations .military-formation-button {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
+  grid-template-columns: 30px minmax(0, 1fr);
   align-items: center;
   gap: 7px;
   min-width: 0;
-  min-height: 38px;
-  padding: 5px 9px 5px 7px;
+  min-height: 42px;
+  padding: 6px 8px;
   border-color: rgba(210, 177, 99, 0.25);
   color: #cfc3aa;
   background: rgba(255, 255, 255, 0.018);
-  font-size: 9px;
+  font-size: 9.5px;
   text-align: left;
 }
 
@@ -499,6 +572,12 @@
   white-space: nowrap;
 }
 
+.military-company-card__formations[data-formation-count='3']
+  .military-formation-button__label {
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .military-company-card__formations .military-formation-button.is-selected,
 .military-company-card__formations .military-formation-button[aria-pressed='true'] {
   opacity: 1;
@@ -520,14 +599,14 @@
 .military-company-card__actions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 6px;
+  gap: 7px;
 }
 
 .military-company-action {
   justify-content: flex-start;
   min-width: 0;
-  min-height: 40px;
-  padding: 6px 9px;
+  min-height: 46px;
+  padding: 7px 10px;
   text-align: left;
 }
 
@@ -540,26 +619,24 @@
 .military-company-action__copy {
   display: grid;
   min-width: 0;
-  gap: 1px;
+  gap: 4px;
   line-height: 1.1;
 }
 
 .military-company-action__copy strong {
-  overflow: hidden;
   color: inherit;
-  font-size: 9px;
+  font-size: 9.5px;
   font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .military-company-action__copy small {
-  overflow: hidden;
   color: #a79a80;
-  font-size: 8px;
+  font-size: 8.5px;
   font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.military-company-action__copy .resource-cost {
+  justify-content: flex-start;
 }
 
 .resource-action-button--crop {

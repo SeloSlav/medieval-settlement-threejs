@@ -1,14 +1,29 @@
 import * as THREE from 'three';
 import type { Terrain } from '../terrain/Terrain.ts';
+import {
+  getAgedTentCanvasMaterial,
+  getCampGroundMaterial,
+} from '../buildings/meshes/foundersCampMesh.ts';
+import { metalMaterial, timberMaterial } from '../buildings/buildingMaterials.ts';
 import type { BanditCampState } from './banditState.ts';
 
-type CampVisual = { root: THREE.Group; intact: THREE.Group; ruin: THREE.Group };
+type CampVisual = { root: THREE.Group };
 
-const timber = new THREE.MeshStandardMaterial({ color: 0x35281d, roughness: 0.96 });
-const darkCloth = new THREE.MeshStandardMaterial({ color: 0x282622, roughness: 1, side: THREE.DoubleSide });
-const blackCloth = new THREE.MeshStandardMaterial({ color: 0x171817, roughness: 1, side: THREE.DoubleSide });
-const dirt = new THREE.MeshStandardMaterial({ color: 0x44392d, roughness: 1 });
-const iron = new THREE.MeshStandardMaterial({ color: 0x484946, roughness: 0.7, metalness: 0.42 });
+const timber = standardCampMaterial(
+  timberMaterial('dark'),
+  0x9b765a,
+  'Weathered textured bandit timber',
+);
+const darkCloth = banditCanvasMaterial(0xb2a28a, 'Weathered umber bandit canvas');
+const blackCloth = banditCanvasMaterial(0x83796a, 'Soot-darkened bandit canvas');
+const dirt = getCampGroundMaterial();
+const iron = standardCampMaterial(
+  metalMaterial('iron'),
+  0x9a9287,
+  'Worn bandit ironwork',
+  0.68,
+  0.35,
+);
 const ember = new THREE.MeshStandardMaterial({ color: 0x4a1f12, emissive: 0x5d1c08, emissiveIntensity: 0.65, roughness: 1 });
 
 /** Deterministic, low-cost outlaw encampment. Deliberately avoids the founder
@@ -28,6 +43,9 @@ export class BanditCampRenderer {
   sync(camps: Iterable<BanditCampState>): void {
     const keep = new Set<string>();
     for (const camp of camps) {
+      // Inactive rows remain authoritative so the scheduler can respawn them,
+      // but a destroyed physical camp must leave no ruin or click silhouette.
+      if (!camp.active || camp.health <= 0) continue;
       keep.add(camp.id);
       let visual = this.visuals.get(camp.id);
       if (!visual) {
@@ -36,17 +54,16 @@ export class BanditCampRenderer {
         this.root.add(visual.root);
       }
       visual.root.position.set(camp.x, this.terrain.getHeightAt(camp.x, camp.z) + 0.03, camp.z);
-      visual.intact.visible = camp.active;
-      visual.ruin.visible = !camp.active;
     }
     for (const [id, visual] of this.visuals) {
       if (keep.has(id)) continue;
-      visual.root.removeFromParent();
+      removeCampVisual(visual);
       this.visuals.delete(id);
     }
   }
 
   dispose(): void {
+    for (const visual of this.visuals.values()) removeCampVisual(visual);
     this.root.removeFromParent();
     this.visuals.clear();
   }
@@ -56,52 +73,36 @@ function createCamp(seed: number): CampVisual {
   const root = new THREE.Group();
   root.name = `Bandit camp ${seed}`;
   root.rotation.y = seeded(seed * 17) * Math.PI * 2;
-  const intact = new THREE.Group();
-  const ruin = new THREE.Group();
-  root.add(intact, ruin);
 
   const ground = new THREE.Mesh(new THREE.CircleGeometry(7.6, 24), dirt);
+  ground.name = 'Bandit camp trampled earth';
   ground.rotation.x = -Math.PI / 2;
   ground.scale.set(1, 0.76, 1);
   ground.receiveShadow = true;
-  intact.add(ground);
+  root.add(ground);
 
   for (let i = 0; i < 15; i += 1) {
     const angle = -2.62 + i / 14 * 5.24;
     if (Math.abs(angle) < 0.38) continue;
     const radius = 7.1 + (seeded(seed + i * 41) - 0.5) * 0.7;
     const stake = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.18, 2.7, 5), timber);
+    stake.name = 'Bandit textured perimeter stake';
     stake.position.set(Math.sin(angle) * radius, 1.25, Math.cos(angle) * radius);
     stake.rotation.z = (seeded(seed + i * 73) - 0.5) * 0.22;
     stake.castShadow = true;
-    intact.add(stake);
+    root.add(stake);
   }
-  addTent(intact, -2.35, -1.0, 1.0, darkCloth);
-  addTent(intact, 2.2, -1.55, -0.72, blackCloth);
-  addWeaponRack(intact, 3.45, 1.45);
-  addFirePit(intact, 0.2, 1.1);
-  addPennant(intact, -4.5, 2.5);
-
-  const brokenGround = ground.clone();
-  ruin.add(brokenGround);
-  for (let i = 0; i < 7; i += 1) {
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 2.5, 5), timber);
-    const angle = i / 7 * Math.PI * 2;
-    beam.position.set(Math.sin(angle) * 4.6, 0.2, Math.cos(angle) * 4.6);
-    beam.rotation.set(Math.PI / 2, angle, 0.35);
-    beam.castShadow = true;
-    ruin.add(beam);
-  }
-  const torn = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.8), darkCloth);
-  torn.rotation.x = -Math.PI / 2;
-  torn.position.set(-1.4, 0.08, -0.4);
-  ruin.add(torn);
-  ruin.visible = false;
-  return { root, intact, ruin };
+  addTent(root, -2.35, -1.0, 1.0, darkCloth);
+  addTent(root, 2.2, -1.55, -0.72, blackCloth);
+  addWeaponRack(root, 3.45, 1.45);
+  addFirePit(root, 0.2, 1.1);
+  addPennant(root, -4.5, 2.5);
+  return { root };
 }
 
 function addTent(parent: THREE.Group, x: number, z: number, yaw: number, material: THREE.Material): void {
   const tent = new THREE.Mesh(new THREE.ConeGeometry(2.1, 2.6, 4), material);
+  tent.name = 'Bandit weathered canvas tent';
   tent.position.set(x, 1.3, z);
   tent.rotation.y = yaw + Math.PI / 4;
   tent.scale.z = 0.72;
@@ -153,4 +154,45 @@ function addPennant(parent: THREE.Group, x: number, z: number): void {
 function seeded(value: number): number {
   const x = Math.sin(value * 12.9898) * 43758.5453;
   return x - Math.floor(x);
+}
+
+function banditCanvasMaterial(color: number, name: string): THREE.MeshStandardMaterial {
+  return standardCampMaterial(
+    getAgedTentCanvasMaterial(0),
+    color,
+    name,
+    0.98,
+    0,
+    THREE.DoubleSide,
+  );
+}
+
+/** Building materials use node shaders in the WebGPU game. Bandit camps also
+ * appear in the WebGL visual contract, so reuse their authored texture maps in
+ * a backend-neutral standard material instead of cloning the node shader. */
+function standardCampMaterial(
+  source: THREE.MeshStandardMaterial,
+  color: number,
+  name: string,
+  roughness = 0.96,
+  metalness = 0,
+  side: THREE.Side = THREE.FrontSide,
+): THREE.MeshStandardMaterial {
+  const material = new THREE.MeshStandardMaterial({
+    color,
+    map: source.map,
+    roughness,
+    metalness,
+    side,
+  });
+  material.name = name;
+  return material;
+}
+
+function removeCampVisual(visual: CampVisual): void {
+  visual.root.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (mesh.isMesh) mesh.geometry.dispose();
+  });
+  visual.root.removeFromParent();
 }

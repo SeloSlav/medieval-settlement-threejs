@@ -39,6 +39,8 @@ const spacetimeReducers = read('src/data/spacetimeReducers.ts');
 const tools = read('src/settlement/workerTools.ts');
 const equipment = read('src/settlement/militaryEquipment.ts');
 const commands = read('src/security/MilitiaCommandController.ts');
+const banditWorld = read('server/src/simulation/bandits.rs');
+const banditCampRenderer = read('src/security/BanditCampRenderer.ts');
 const actionCss = read('src/ui/inspectorSupplemental.css');
 const difficulty = read('src/world/worldDifficulty.ts');
 const app = read('src/app/App.ts');
@@ -120,6 +122,14 @@ assert.match(economySimulation, /company\.state = 1/);
 assert.match(reducer, /let mut company_ids = BTreeSet::new\(\)/);
 assert.match(reducer, /military_member\(\)\s*\.company_id\(\)\s*\.filter\(&company_id\)/);
 assert.match(reducer, /company_center_x/);
+assert.match(
+  simulation,
+  /fn strike_camp[\s\S]*camp\.health\s*=[\s\S]*if destroyed[\s\S]*destroy_camp/,
+  'a targeted active camp must lose health and enter the authoritative destruction flow',
+);
+assert.match(banditWorld, /pub\(super\) fn destroy_camp[\s\S]*camp\.active = false/);
+assert.match(banditCampRenderer, /if \(!camp\.active \|\| camp\.health <= 0\) continue/);
+assert.match(banditCampRenderer, /getAgedTentCanvasMaterial/);
 
 const militiaReducer = reducerSection('pub fn raise_militia', 'pub fn recruit_military_company');
 const mercenaryReducer = reducerSection('pub fn hire_mercenary_company', 'pub fn set_military_formation');
@@ -240,9 +250,51 @@ assert.match(villagers, /function combatToolFor/);
 assert.match(villagers, /CAVALRY_SADDLE_HEIGHT[\s\S]*seatedVillagerContactHeight/);
 assert.match(crowdRenderer, /agent\.mounted[\s\S]{0,100}return 'sit'/);
 assert.match(horseRenderer, /class CavalryHorseRenderer/);
-assert.match(horseRenderer, /animateHorse/);
-assert.match(horseRenderer, /pose\.activity === 'grazing'/);
-assert.match(horseRenderer, /visual\.blanket\.material = this\.blanketMaterials\[pose\.presentation\]/);
+assert.match(horseRenderer, /quaternius-horse\.gltf/);
+assert.match(horseRenderer, /GLTFLoader/);
+assert.match(horseRenderer, /cloneSkinned/);
+assert.match(horseRenderer, /AuthoredAnimalInstanceBatch/);
+assert.match(horseRenderer, /resolveHorseClips/);
+assert.match(horseRenderer, /pose\.activity === 'grazing'\) return 'eat'/);
+assert.doesNotMatch(horseRenderer, /function animateHorse|createHorseGeometries|CapsuleGeometry/);
+assert.doesNotMatch(
+  horseRenderer,
+  /model\.rotation\.y\s*=\s*Math\.PI/,
+  'the authored horse forward axis must match mounted-agent yaw',
+);
+assert.doesNotMatch(
+  horseRenderer,
+  /blanketGeometry|saddleGeometry|blanketMaterials|Cavalry saddle blanket|Cavalry leather saddle/,
+  'mounted horses must not be covered by procedural tack meshes',
+);
+const horseAssetPath = 'public/assets/models/horses/quaternius-horse.gltf';
+assert.ok(existsSync(horseAssetPath), 'the Quaternius horse source must ship with the game');
+assert.ok(statSync(horseAssetPath).size > 3_000_000, 'the complete authored horse rig must be retained');
+const horseAsset = JSON.parse(read(horseAssetPath)) as {
+  animations?: Array<{ name?: string }>;
+};
+const horseAnimationNames = new Set(horseAsset.animations?.map((clip) => clip.name));
+for (const animation of ['Idle', 'Eating', 'Walk', 'Gallop']) {
+  assert.ok(horseAnimationNames.has(animation), `Quaternius horse must retain ${animation}`);
+}
+assert.match(inspector, /private readonly onPanelClick[\s\S]*\[data-military-formation\]/);
+assert.doesNotMatch(
+  inspector.slice(inspector.indexOf('private readonly onSupplementalChange')),
+  /\[data-military-formation\]|\[data-disband-military-company\]/,
+  'military buttons must be delegated from click rather than select/slider change events',
+);
+assert.match(
+  inspector,
+  /confirmMilitaryCompanyDisband[\s\S]*deleteDialog\.confirm[\s\S]*if \(!confirmed\) return;[\s\S]*onDisbandMilitaryCompany/,
+  'company disbanding must use the shared confirmation dialog before the reducer',
+);
+assert.match(roster, /renderResourceCost\(resupplyCost, \{ compact: true \}\)/);
+assert.match(roster, /renderStoredResourceAmount\('oatGrain'[\s\S]*renderStoredResourceAmount\('water'/);
+assert.match(
+  villagers,
+  /case 'holding':[\s\S]{0,420}displayMoveSpeed > 0\.12[\s\S]{0,120}'run' : 'walk'/,
+  'moving bandit-camp patrols must use locomotion clips even while authoritatively holding',
+);
 assert.match(villagers, /function cavalryHorsePasturePose/);
 assert.match(villagers, /function pastureBilinearPoint/);
 assert.match(villagers, /horse\.atPasture/);

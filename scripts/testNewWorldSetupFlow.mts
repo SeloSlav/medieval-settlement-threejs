@@ -116,9 +116,13 @@ assert.match(
 assert.match(worldPanel, /action: 'back' \| 'start'/);
 assert.match(worldPanel, /initialSettings\?: WorldGenerationSettings/);
 assert.match(worldPanel, /mountTooltips\(this\.backdrop, 'ui-tooltip--world-setup'\)/);
-assert.match(worldPanel, /tooltipAnchor\.dataset\.tooltipTitle = value/);
-assert.match(worldPanel, /tooltipAnchor\.dataset\.tooltip = description/);
-assert.match(worldPanel, /tooltipAnchor\.tabIndex = 0/);
+assert.match(worldPanel, /element\.scrollWidth > element\.clientWidth \+ 1/);
+assert.match(worldPanel, /if \(!isTruncated\)[\s\S]*?delete tooltipAnchor\.dataset\.tooltip/);
+assert.match(worldPanel, /if \(!isTruncated\)[\s\S]*?tooltipAnchor\.removeAttribute\('tabindex'\)/);
+assert.match(worldPanel, /if \(!isTruncated\)[\s\S]*?tooltipAnchor\.removeAttribute\('aria-label'\)/);
+assert.match(worldPanel, /this\.selectorResizeObserver = new ResizeObserver/);
+assert.match(worldPanel, /this\.selectorResizeObserver\.observe\(anchor\)/);
+assert.match(worldPanel, /this\.selectorResizeObserver\.disconnect\(\);[\s\S]*?this\.disposeTooltips\(\)/);
 assert.match(worldPanel, /this\.disposeTooltips\(\);[\s\S]*?this\.backdrop\.remove\(\)/);
 assert.match(worldPanel, /data-setup-back[^>]*>[\s\S]*?Back to Heraldry/);
 assert.match(worldPanel, /data-map-seed-section/);

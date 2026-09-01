@@ -21,6 +21,19 @@ export const MILITARY_COMPANY_STRATEGIC_ICON_ART = {
   'mounted-archers': '/assets/ui/icons/actions/bowmen.png',
 } as const satisfies Record<MilitaryCompanyKind, string>;
 
+export type HostileCompanyStrategicKind = 'raiders' | 'bandits';
+
+/** Hostile formations share the same painted, circular strategic vocabulary as
+ * resource nodes while retaining a clearly hostile edge treatment. */
+export const HOSTILE_COMPANY_STRATEGIC_ICON_ART = {
+  raiders: '/assets/ui/icons/actions/men-at-arms.png',
+  bandits: '/assets/ui/icons/actions/mercenaries.png',
+} as const satisfies Record<HostileCompanyStrategicKind, string>;
+
+export function hostileCompanyStrategicLabel(kind: HostileCompanyStrategicKind): string {
+  return kind === 'bandits' ? 'Bandit company' : 'Enemy raiders';
+}
+
 /** Converts the per-soldier simulation faction back to its selectable company
  * identity. Guards and hostile agents are deliberately excluded: neither is a
  * player-commandable military company. */

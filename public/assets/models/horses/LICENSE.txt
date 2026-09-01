@@ -1,0 +1,16 @@
+Quaternius Ultimate Animated Animal Pack
+========================================
+
+The horse model in this directory is distributed by Quaternius under
+Creative Commons Zero v1.0 Universal (CC0 1.0):
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Included runtime model:
+- quaternius-horse.gltf (the pack's Horse.gltf)
+
+Official source:
+https://quaternius.com/packs/ultimateanimatedanimals.html
+
+The pack includes the authored horse rig and its Idle, Eating, Walk, Gallop,
+jump, attack, hit-reaction, and death animations. Attribution is not required
+under CC0; this file is retained so the asset's provenance remains auditable.

@@ -913,7 +913,6 @@ export class App {
     const worldDt = worldAnimationDelta(dt, gameSpeed);
     this.syncCombatPlaytest(time, dt);
     this.syncBattleShowcase(time);
-    this.militiaCommands?.update(time);
     this.syncBuildInteractionPerf();
     this.frontierRiskMarkers?.tick(worldDt);
     if (this.settlementPresentationTargets) {
@@ -953,6 +952,9 @@ export class App {
       renderOrbitDistance = this.cameraController?.getOrbitDistance() ?? 240;
       renderCameraInteractionActive = this.cameraController?.isNavigationActive() ?? false;
     }
+    // Project company markers after the active camera has settled for this
+    // frame, matching the stable resource-marker projection path above.
+    this.militiaCommands?.update(time);
     const crowdView = this.buildCrowdViewState();
     if (this.snapshotApplierDeps) {
       tickSettlementWorld(

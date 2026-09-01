@@ -146,6 +146,33 @@
   --company-edge: #c97948;
 }
 
+.military-company-map-icon[data-hostile='true'] {
+  --company-edge: #b84936;
+  pointer-events: none;
+  cursor: default;
+  background:
+    radial-gradient(circle at 38% 30%, rgba(255, 190, 147, 0.16), transparent 42%),
+    rgba(38, 22, 19, 0.94);
+  box-shadow:
+    0 9px 22px rgba(0, 0, 0, 0.46),
+    0 0 0 2px rgba(69, 23, 16, 0.64),
+    inset 0 0 0 1px rgba(255, 196, 157, 0.11);
+}
+
+.military-company-map-icon[data-hostile='true']:hover,
+.military-company-map-icon[data-hostile='true']:focus-visible {
+  border-color: #dc765e;
+  box-shadow:
+    0 11px 26px rgba(0, 0, 0, 0.5),
+    0 0 0 3px rgba(166, 54, 38, 0.24),
+    inset 0 0 0 1px rgba(255, 210, 176, 0.16);
+}
+
+.military-company-map-icon[data-hostile='true'] .military-company-map-icon__count {
+  border-color: rgba(244, 171, 143, 0.82);
+  background: #6b2c24;
+}
+
 .military-company-map-icon__woodcut {
   display: block;
   width: 31px;
