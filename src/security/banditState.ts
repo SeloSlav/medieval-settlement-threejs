@@ -112,7 +112,13 @@ export function formatBanditGoodsSummary(
   goods: readonly BanditRecoveredGood[],
   maxKinds = 3,
 ): string {
-  const positive = goods.filter((good) => good.amount > 0);
+  const positive = goods
+    .filter((good) => good.amount > 0)
+    .sort((left, right) => (
+      Number(right.kind === 'gold') - Number(left.kind === 'gold')
+      || right.amount - left.amount
+      || left.kind.localeCompare(right.kind)
+    ));
   if (positive.length === 0) return 'no stolen goods';
   const shown = positive.slice(0, Math.max(1, maxKinds));
   const labels = shown.map((good) => (

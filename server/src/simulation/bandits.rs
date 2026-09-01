@@ -21,6 +21,10 @@ const HOLDING: u8 = 9;
 const CONTACT: f64 = 2.4;
 const CAMP_RESPAWN_DAYS: u64 = 8;
 const CAMP_DEFENDERS: u32 = 4;
+const CAMP_CLEAR_GOLD_BOUNTY: f64 = 10.0;
+const CAMP_CLEAR_PRESERVED_FOOD: f64 = 6.0;
+const CAMP_CLEAR_APPLES: f64 = 8.0;
+const CAMP_CLEAR_FIREWOOD: f64 = 4.0;
 const CAMP_TOWN_CLEARANCE: f64 = 120.0;
 const CAMP_RESOURCE_CLEARANCE: f64 = 55.0;
 const CAMP_NEIGHBOR_CLEARANCE: f64 = 110.0;
@@ -461,14 +465,17 @@ pub(super) fn destroy_camp(ctx: &ReducerContext, camp: &mut BanditCamp, tick: u6
     camp.active = false;
     camp.destroyed_tick = tick;
     camp.next_theft_tick = tick.saturating_add(day_ticks().saturating_mul(CAMP_RESPAWN_DAYS));
-    let bundles =
+    let mut reward_bundles =
         serde_json::from_str::<Vec<RaidPortableStores>>(&camp.inventory_json).unwrap_or_default();
+    reward_bundles.push(camp_clear_reward());
     let mut recovered = ReclamationStock::default();
     let mut total = 0.0;
-    for bundle in bundles {
-        total += bundle.goods_amount();
+    for bundle in reward_bundles.iter().copied() {
+        total += bundle.goods_amount() + bundle.gold.max(0.0);
         recovered = recovered.merged(reclamation_from_raid_stores(bundle));
     }
+    let reward_json =
+        serde_json::to_string(&reward_bundles).unwrap_or_else(|_| camp.inventory_json.clone());
     credit_remote_recovery_to_settlement(ctx, camp.owner, recovered);
     incident(
         ctx,
@@ -476,7 +483,7 @@ pub(super) fn destroy_camp(ctx: &ReducerContext, camp: &mut BanditCamp, tick: u6
         camp.id,
         2,
         0,
-        &camp.inventory_json,
+        &reward_json,
         total,
         tick,
         camp.x,
@@ -492,6 +499,19 @@ pub(super) fn destroy_camp(ctx: &ReducerContext, camp: &mut BanditCamp, tick: u6
         .collect::<Vec<_>>()
     {
         ctx.db.combat_agent().id().delete(agent.id);
+    }
+}
+
+/// Guaranteed spoils make clearing a camp worthwhile even before its raiders
+/// have reached this settlement. Gold represents the lord's public bounty;
+/// preserved food, apples, and firewood are the camp's own seized provisions.
+fn camp_clear_reward() -> RaidPortableStores {
+    RaidPortableStores {
+        gold: CAMP_CLEAR_GOLD_BOUNTY,
+        preserved_food: CAMP_CLEAR_PRESERVED_FOOD,
+        apples: CAMP_CLEAR_APPLES,
+        firewood: CAMP_CLEAR_FIREWOOD,
+        ..RaidPortableStores::default()
     }
 }
 
@@ -574,7 +594,20 @@ fn unit(v: u64) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{camp_respawn_ready, day_ticks, CAMP_RESPAWN_DAYS};
+    use super::{
+        camp_clear_reward, camp_respawn_ready, day_ticks, CAMP_CLEAR_APPLES,
+        CAMP_CLEAR_FIREWOOD, CAMP_CLEAR_GOLD_BOUNTY, CAMP_CLEAR_PRESERVED_FOOD, CAMP_RESPAWN_DAYS,
+    };
+
+    #[test]
+    fn every_destroyed_camp_has_a_bounty_and_useful_provisions() {
+        let reward = camp_clear_reward();
+        assert_eq!(reward.gold, CAMP_CLEAR_GOLD_BOUNTY);
+        assert_eq!(reward.preserved_food, CAMP_CLEAR_PRESERVED_FOOD);
+        assert_eq!(reward.apples, CAMP_CLEAR_APPLES);
+        assert_eq!(reward.firewood, CAMP_CLEAR_FIREWOOD);
+        assert_eq!(reward.goods_amount(), 18.0);
+    }
 
     #[test]
     fn destroyed_camps_wait_before_respawning() {

@@ -1925,7 +1925,7 @@ export class App {
         : {
             title: 'Bandit camp destroyed',
             detail: amount > 0
-              ? `${goodsSummary} returned directly to settlement stores. No expedition is needed to collect a remote stockpile.`
+              ? `${goodsSummary} credited directly to settlement stores from the lord's bounty, seized camp provisions, and any stolen goods recovered there. No collection expedition is needed.`
               : 'The camp was destroyed, but no stolen goods remained to recover.',
             tone: 'settled' as const,
             toast: amount > 0

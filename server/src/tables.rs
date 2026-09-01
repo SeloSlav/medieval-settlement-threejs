@@ -2228,7 +2228,7 @@ pub struct BanditIncident {
     pub id: u64,
     pub owner: Identity,
     pub camp_id: u64,
-    /// 0 theft, 1 carrier intercepted, 2 camp destroyed and stock recovered.
+    /// 0 theft, 1 carrier intercepted, 2 camp destroyed and rewards credited.
     pub kind: u8,
     pub building_id: u64,
     pub goods_json: String,
