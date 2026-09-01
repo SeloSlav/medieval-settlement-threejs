@@ -280,6 +280,18 @@ export const BurgageZone = __t.object("BurgageZone", {
 });
 export type BurgageZone = __Infer<typeof BurgageZone>;
 
+export const CavalryHorse = __t.object("CavalryHorse", {
+  id: __t.u64(),
+  owner: __t.identity(),
+  cavalryYardId: __t.u64(),
+  slot: __t.u8(),
+  trainingDays: __t.u8(),
+  lastTrainingDay: __t.u64(),
+  assignedCompanyId: __t.u64(),
+  assignedCombatAgentId: __t.u64(),
+});
+export type CavalryHorse = __Infer<typeof CavalryHorse>;
+
 export const CombatAgent = __t.object("CombatAgent", {
   id: __t.u64(),
   owner: __t.identity(),

@@ -439,6 +439,16 @@ export type StableOxState = {
   assignedBuildingId: string | null;
 };
 
+export type CavalryHorseState = {
+  id: string;
+  cavalryYardId: string;
+  slot: number;
+  trainingDays: number;
+  lastTrainingDay: number;
+  assignedCompanyId: string | null;
+  assignedCombatAgentId: string | null;
+};
+
 export type BurgageFrontageEdge = 0 | 1 | 2 | 3;
 
 export type BurgageZoneState = {
@@ -597,6 +607,7 @@ export type GameState = {
   corpses?: Map<string, CorpseState>;
   livestockHerds: Map<string, LivestockHerdState>;
   stableOxen: Map<string, StableOxState>;
+  cavalryHorses: Map<string, CavalryHorseState>;
   burgageZones: Map<string, BurgageZoneState>;
   residences: Map<string, ResidenceState>;
   backyardGardens: Map<string, BackyardGardenState>;

@@ -452,6 +452,7 @@ export class App {
               graveyards: this.gameState.graveyards?.values() ?? [],
               corpses: this.gameState.corpses?.values() ?? [],
               deliveryTrips: this.gameState.deliveryTrips.values(),
+              cavalryHorses: this.gameState.cavalryHorses.values(),
               fireIncidents: this.gameState.fireIncidents.values(),
               roadNetwork: this.roadNetwork,
               foragingMonth: gameClock(this.gameState.tick).month,

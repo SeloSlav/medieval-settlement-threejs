@@ -18,13 +18,15 @@ use crate::balance_generated::{
     BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE, BREWERY_MALT_PER_CYCLE,
     BREWERY_MEAD_PER_CYCLE, CALENDAR_SECONDS_PER_DAY, CANDLE_TRANSFER_PER_TRIP,
     CATTLE_GRAIN_PER_UNSUPPORTED_HEAD, CATTLE_HAY_PER_UNSUPPORTED_HEAD,
-    CHANDLERY_CANDLES_PER_CYCLE, CHANDLERY_FIREWOOD_PER_CYCLE, CHANDLERY_WAX_PER_CYCLE,
-    CHARCOAL_BURNER_CHARCOAL_PER_CYCLE, CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
-    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, COBBLER_LEATHER_PER_CYCLE, COBBLER_SHOES_PER_CYCLE,
-    FARM_GROWTH_SECONDS, FARM_WORK_METERS_PER_WORKER_PER_SEC, GRAIN_TRANSFER_PER_TRIP,
-    LEATHER_TRANSFER_PER_TRIP, MINE_CLAY_PER_CYCLE, MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE,
-    MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_FEAST_DRINK, MONASTERY_FEAST_FOOD,
-    MONASTERY_FEAST_HONEY, MONASTERY_PILGRIMAGE_GOLD_PER_DAY, MONASTERY_UNLINKED_PRODUCTIVITY,
+    CAVALRY_HORSE_DAILY_ANIMAL_FEED, CAVALRY_HORSE_DAILY_OATS, CAVALRY_HORSE_DAILY_WATER,
+    CAVALRY_HORSE_TRAINING_DAYS, CHANDLERY_CANDLES_PER_CYCLE, CHANDLERY_FIREWOOD_PER_CYCLE,
+    CHANDLERY_WAX_PER_CYCLE, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
+    CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+    COBBLER_LEATHER_PER_CYCLE, COBBLER_SHOES_PER_CYCLE, FARM_GROWTH_SECONDS,
+    FARM_WORK_METERS_PER_WORKER_PER_SEC, GRAIN_TRANSFER_PER_TRIP, LEATHER_TRANSFER_PER_TRIP,
+    MINE_CLAY_PER_CYCLE, MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE, MINE_TIMBER_SUPPORT_PER_CYCLE,
+    MONASTERY_FEAST_DRINK, MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY,
+    MONASTERY_PILGRIMAGE_GOLD_PER_DAY, MONASTERY_UNLINKED_PRODUCTIVITY,
     PANNAGE_WINTER_CAPACITY_MULTIPLIER, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
     POTTER_POTTERY_PER_CYCLE, POTTER_ROOF_TILES_PER_CYCLE, POTTER_WATER_PER_CYCLE,
     RICH_MINE_THROUGHPUT_MULTIPLIER, SHEEP_GRAIN_PER_UNSUPPORTED_HEAD,
@@ -165,7 +167,7 @@ use crate::supply_policy::{
     GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS,
     LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
-use crate::tables::{farm_field, Building, FarmField, Residence};
+use crate::tables::{cavalry_horse, farm_field, Building, FarmField, Residence};
 use crate::vineyard::fermentable_grapes;
 use crate::weaver_input_policy::{
     textile_recipe_requests_route, weaver_fibre_delivery_preference_rank, weaver_uses_flax,
@@ -3324,6 +3326,26 @@ fn equipped_member_kit(kind: MilitaryKind, _slot: u32) -> RaidPortableStores {
             ammunition: 1.0,
             ..RaidPortableStores::default()
         },
+        MilitaryKind::Hussars => RaidPortableStores {
+            polearms: 1.0,
+            sidearms: 1.0,
+            shields: 1.0,
+            padded_armor: 1.0,
+            ..RaidPortableStores::default()
+        },
+        MilitaryKind::ArmoredLancers => RaidPortableStores {
+            polearms: 1.0,
+            sidearms: 1.0,
+            mail_armor: 1.0,
+            ..RaidPortableStores::default()
+        },
+        MilitaryKind::MountedArchers => RaidPortableStores {
+            sidearms: 1.0,
+            bows: 1.0,
+            padded_armor: 1.0,
+            ammunition: 1.0,
+            ..RaidPortableStores::default()
+        },
         MilitaryKind::MercenarySpears => RaidPortableStores::default(),
     }
 }
@@ -3331,6 +3353,7 @@ fn equipped_member_kit(kind: MilitaryKind, _slot: u32) -> RaidPortableStores {
 /// Keeps mustering companies non-controllable until their complete finished
 /// kits have reached the Town Hall or Guardhouse on ordinary physical carts.
 pub fn step_military_requisitions(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock) {
+    step_cavalry_yard_requisitions(ctx, tick, clock);
     let companies = ctx
         .db
         .military_company()
@@ -3418,6 +3441,83 @@ pub fn step_military_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
             .saturating_mul(company.living_members);
         company.ammunition = company.ammunition_capacity;
         ctx.db.military_company().id().update(company);
+    }
+}
+
+fn step_cavalry_yard_requisitions(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock) {
+    const SUPPLY_RUNWAY_DAYS: f64 = 6.0;
+    let yards = ctx
+        .db
+        .building()
+        .iter()
+        .filter(|building| {
+            building.kind == "cavalry_yard"
+                && building.construction_complete
+                && building.assigned_labor > 0
+                && !tick.building_disabled_by_fire(ctx, building.id)
+        })
+        .collect::<Vec<_>>();
+    for yard in yards {
+        let horses = ctx
+            .db
+            .cavalry_horse()
+            .cavalry_yard_id()
+            .filter(&yard.id)
+            .collect::<Vec<_>>();
+        let deployed = horses
+            .iter()
+            .filter(|horse| horse.assigned_company_id > 0)
+            .count() as f64;
+        let schooling = horses
+            .iter()
+            .filter(|horse| {
+                horse.assigned_company_id == 0 && horse.training_days < CAVALRY_HORSE_TRAINING_DAYS
+            })
+            .count()
+            .min(yard.assigned_labor as usize) as f64;
+        let supplied_horses = deployed + schooling;
+        if supplied_horses <= 0.0 {
+            continue;
+        }
+        let requests = [
+            (
+                CommodityKind::AnimalFeed,
+                &[
+                    "pastoral_farmstead",
+                    "swineherd",
+                    "village_storehouse",
+                    "trading_post",
+                    "founders_camp",
+                ][..],
+                CAVALRY_HORSE_DAILY_ANIMAL_FEED,
+            ),
+            (
+                CommodityKind::OatGrain,
+                &[
+                    "threshing_barn",
+                    "granary",
+                    "village_storehouse",
+                    "trading_post",
+                    "founders_camp",
+                ][..],
+                CAVALRY_HORSE_DAILY_OATS,
+            ),
+            (
+                CommodityKind::Water,
+                &[
+                    "well",
+                    "village_storehouse",
+                    "trading_post",
+                    "founders_camp",
+                ][..],
+                CAVALRY_HORSE_DAILY_WATER,
+            ),
+        ];
+        for (commodity, source_kinds, daily_per_horse) in requests {
+            let desired = (supplied_horses * daily_per_horse * SUPPLY_RUNWAY_DAYS)
+                .min(building_commodity_cap(&yard.kind, commodity));
+            request_connected_commodity(ctx, tick, clock, &yard, commodity, source_kinds, desired);
+        }
     }
 }
 

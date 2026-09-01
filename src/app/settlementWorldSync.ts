@@ -73,6 +73,12 @@ export function syncSettlementWorld(
     state.stableOxen,
     previous.stableOxen,
   );
+  const cavalryHorses = state.cavalryHorses ?? new Map();
+  const previousCavalryHorses = previous?.cavalryHorses ?? new Map();
+  const cavalryHorsesChanged = !previous || !mapEntriesShareValues(
+    cavalryHorses,
+    previousCavalryHorses,
+  );
   const burgageZonesChanged = !previous || !mapEntriesShareValues(
     state.burgageZones,
     previous.burgageZones,
@@ -179,6 +185,7 @@ export function syncSettlementWorld(
     || gardensChanged
     || burgageZonesChanged
     || stableOxenChanged
+    || cavalryHorsesChanged
   ) {
     targets.villagers?.sync({
       residences: state.residences.values(),
@@ -196,6 +203,7 @@ export function syncSettlementWorld(
       burgageZones: state.burgageZones.values(),
       deliveryTrips: state.deliveryTrips.values(),
       oxen: state.stableOxen.values(),
+      cavalryHorses: cavalryHorses.values(),
       fireIncidents: state.fireIncidents.values(),
       roadNetwork: targets.getRoadNetwork(),
       foragingMonth: gameClock(state.tick).month,

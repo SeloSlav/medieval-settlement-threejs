@@ -125,7 +125,11 @@ export function combatAudioLoadoutForFighter(
     case 'polearm':
       return { primary: 'halberd-polearm', defensiveImpact: false };
     case 'bowman':
+    case 'mounted-archer':
       return { primary: 'bow', defensiveImpact: false };
+    case 'hussar':
+    case 'armored-lancer':
+      return { primary: 'spear-pike', defensiveImpact: true };
     case 'dog':
     case 'fox':
     case 'wolf':

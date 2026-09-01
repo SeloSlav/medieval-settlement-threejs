@@ -19,6 +19,7 @@ import { syncFarmFields } from './syncFarmFields.ts';
 import { syncCorpses, syncGraveyards } from './syncBurials.ts';
 import { syncLivestockHerds, syncPastures } from './syncLivestock.ts';
 import { syncStableOxen, type StableOxRow } from './syncStableOxen.ts';
+import { syncCavalryHorses, type CavalryHorseRow } from './syncCavalryHorses.ts';
 import { syncVineyardParcels } from './syncVineyards.ts';
 import { syncMarketState } from './syncMarketState.ts';
 import { syncPlayerResources } from './syncPlayerResources.ts';
@@ -45,12 +46,20 @@ type StableOxTableHandle = TableHandle & {
   iter: () => Iterable<StableOxRow>;
 };
 
+type CavalryHorseTableHandle = TableHandle & {
+  iter: () => Iterable<CavalryHorseRow>;
+};
+
 function settlementTableFromDb(db: unknown): SettlementTableHandle | undefined {
   return (db as { settlement?: SettlementTableHandle }).settlement;
 }
 
 function stableOxTableFromDb(db: unknown): StableOxTableHandle | undefined {
   return (db as { stable_ox?: StableOxTableHandle }).stable_ox;
+}
+
+function cavalryHorseTableFromDb(db: unknown): CavalryHorseTableHandle | undefined {
+  return (db as { cavalry_horse?: CavalryHorseTableHandle }).cavalry_horse;
 }
 
 type TableChange<Row> =
@@ -71,6 +80,7 @@ export class GameTableSync {
     const db = connection.db;
     const settlementTable = settlementTableFromDb(db);
     const stableOxTable = stableOxTableFromDb(db);
+    const cavalryHorseTable = cavalryHorseTableFromDb(db);
 
     syncWorldConfig(db.world_config ? db.world_config.iter() : [], this.state);
     syncPlayerResources(db.player_resources ? db.player_resources.iter() : [], this.state);
@@ -114,6 +124,10 @@ export class GameTableSync {
     );
     this.state.stableOxen = syncStableOxen(
       stableOxTable ? stableOxTable.iter() : [],
+      this.state.identityHex,
+    );
+    this.state.cavalryHorses = syncCavalryHorses(
+      cavalryHorseTable ? cavalryHorseTable.iter() : [],
       this.state.identityHex,
     );
     this.state.burgageZones = syncBurgageZones(
@@ -189,6 +203,7 @@ export class GameTableSync {
     const db = connection.db;
     const settlementTable = settlementTableFromDb(db);
     const stableOxTable = stableOxTableFromDb(db);
+    const cavalryHorseTable = cavalryHorseTableFromDb(db);
     let notifyPending = false;
     const notify = (): void => {
       if (notifyPending) return;
@@ -421,6 +436,13 @@ export class GameTableSync {
     bindTable(stableOxTable, () => {
       this.state.stableOxen = syncStableOxen(
         stableOxTable ? stableOxTable.iter() : [],
+        this.state.identityHex,
+      );
+    });
+
+    bindTable(cavalryHorseTable, () => {
+      this.state.cavalryHorses = syncCavalryHorses(
+        cavalryHorseTable ? cavalryHorseTable.iter() : [],
         this.state.identityHex,
       );
     });

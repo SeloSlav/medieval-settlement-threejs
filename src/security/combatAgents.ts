@@ -35,10 +35,14 @@ export type CombatAgentFaction =
   | 'footman'
   | 'polearm'
   | 'bowman'
+  | 'hussar'
+  | 'armored-lancer'
+  | 'mounted-archer'
   | 'dog'
   | 'fox'
   | 'wolf';
 export type CombatAgentStatus = (typeof COMBAT_AGENT_STATES)[number];
+export type OttomanRaiderRole = 'azab' | 'janissary' | 'akinci' | 'sipahi';
 export type CombatTargetKind =
   | 'building'
   | 'residence'
@@ -56,6 +60,7 @@ export type CombatAgentState = {
   faction: CombatAgentFaction;
   sourceBuildingId: string | null;
   sourceSlot: number;
+  ottomanRole: OttomanRaiderRole | null;
   /** Hunter's Hall duty for a dog; null keeps it on free settlement patrol. */
   assignedBuildingId?: string | null;
   targetKind: CombatTargetKind;
@@ -116,7 +121,10 @@ export function isPlayerMilitaryFaction(faction: CombatAgentFaction): boolean {
     || faction === 'mercenary-spear'
     || faction === 'footman'
     || faction === 'polearm'
-    || faction === 'bowman';
+    || faction === 'bowman'
+    || faction === 'hussar'
+    || faction === 'armored-lancer'
+    || faction === 'mounted-archer';
 }
 
 /** Returns the atomic RTS company that owns this fighter's primary selection.
@@ -234,6 +242,9 @@ export function syncCombatAgents(
         ? buildingClientId(row.sourceBuildingId)
         : null,
       sourceSlot: Number(row.sourceSlot),
+      ottomanRole: faction === 'raider'
+        ? ottomanRaiderRole(Number(row.sourceSlot))
+        : null,
       assignedBuildingId: row.assignedBuildingId > 0n
         ? buildingClientId(row.assignedBuildingId)
         : null,
@@ -269,6 +280,33 @@ export function syncCombatAgents(
   return agents;
 }
 
+export function ottomanRaiderRole(sourceSlot: number): OttomanRaiderRole {
+  switch (Math.max(0, Math.floor(sourceSlot)) % 8) {
+    case 0:
+    case 1:
+    case 2: return 'azab';
+    case 3:
+    case 4: return 'janissary';
+    case 5:
+    case 6: return 'akinci';
+    default: return 'sipahi';
+  }
+}
+
+export function ottomanRaiderIsRanged(sourceSlot: number): boolean {
+  return [1, 2, 5, 6].includes(Math.max(0, Math.floor(sourceSlot)) % 8);
+}
+
+export function isMountedCombatAgent(
+  agent: Pick<CombatAgentState, 'faction' | 'ottomanRole'>,
+): boolean {
+  return agent.faction === 'hussar'
+    || agent.faction === 'armored-lancer'
+    || agent.faction === 'mounted-archer'
+    || (agent.faction === 'raider'
+      && (agent.ottomanRole === 'akinci' || agent.ottomanRole === 'sipahi'));
+}
+
 function combatFactionFromId(value: number): CombatAgentFaction {
   if (value === 0) return 'guard';
   if (value === 2) return 'bandit';
@@ -280,6 +318,9 @@ function combatFactionFromId(value: number): CombatAgentFaction {
   if (value === 8) return 'footman';
   if (value === 9) return 'polearm';
   if (value === 10) return 'bowman';
+  if (value === 11) return 'hussar';
+  if (value === 15) return 'armored-lancer';
+  if (value === 16) return 'mounted-archer';
   if (value === 12) return 'dog';
   if (value === 13) return 'fox';
   if (value === 14) return 'wolf';

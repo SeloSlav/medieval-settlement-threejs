@@ -21,6 +21,7 @@ import type {
   BuildingState,
   BackyardGardenState,
   BurgageZoneState,
+  CavalryHorseState,
   CorpseState,
   FarmFieldState,
   ForagingNodeState,
@@ -38,6 +39,7 @@ import { backyardGardenLabel } from '../residences/backyardGarden.ts';
 import { backyardGardenPhenology } from '../economy/backyardGardenTick.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import { resolvedPlacedBuildingYaw } from '../buildings/buildingPlacement.ts';
+import { CAVALRY_HORSE_REST_ANCHORS } from '../buildings/meshes/cavalryYardMesh.ts';
 import {
   marketplaceStallWorkerApproach,
   marketplaceStallWorkerPosition,
@@ -212,7 +214,9 @@ import {
   type FireIncidentState,
 } from '../fires/fireIncident.ts';
 import {
+  isMountedCombatAgent,
   isPlayerMilitaryFaction,
+  ottomanRaiderIsRanged,
   selectablePlayerMilitaryCompanyId,
   type CombatAgentState,
 } from '../security/combatAgents.ts';
@@ -221,6 +225,12 @@ import {
   AnimalCombatRenderer,
   type AnimalCombatPose,
 } from './AnimalCombatRenderer.ts';
+import {
+  CAVALRY_SADDLE_HEIGHT,
+  CavalryHorseRenderer,
+  type CavalryHorsePose,
+  type CavalryHorsePresentation,
+} from './CavalryHorseRenderer.ts';
 import {
   SELECTED_AGENT_ROUTE_Y_OFFSET,
   type SelectedAgentRoutePoint,
@@ -458,7 +468,11 @@ export class VillagerRenderer {
   private readonly renderer: SettlementCrowdRenderer;
   private readonly oxen: OxenRenderer;
   private readonly combatAnimals: AnimalCombatRenderer;
+  private readonly cavalryHorsesRenderer: CavalryHorseRenderer;
   private readonly combatAnimalPoses: AnimalCombatPose[] = [];
+  private readonly cavalryHorsePoses: CavalryHorsePose[] = [];
+  /** Client-only clock for deterministic paddock roaming; stops while simulation presentation is paused. */
+  private cavalryYardElapsedSeconds = 0;
   private readonly activityAudio = new WorkerActivityAudio();
   private readonly farmWorkerSongAudio = new FarmWorkerSongAudio();
   private readonly combatAudio = new CombatAudio();
@@ -487,6 +501,7 @@ export class VillagerRenderer {
   private readonly combatAudioSourceWorkspace = createCombatAudioSourceWorkspace();
   private residences = new Map<string, ResidenceState>();
   private buildings = new Map<string, BuildingState>();
+  private cavalryHorses = new Map<string, CavalryHorseState>();
   private backyardWorksites = new Map<string, BackyardWorksite>();
   private homePlotLeisureAreas = new Map<string, HomePlotLeisureArea>();
   private marketStallDutyByWorker = new Map<string, MarketStallDuty>();
@@ -568,6 +583,7 @@ export class VillagerRenderer {
       getDeliveryRoute: options.getDeliveryOxRoute,
     });
     this.combatAnimals = new AnimalCombatRenderer(options.parent);
+    this.cavalryHorsesRenderer = new CavalryHorseRenderer(options.parent);
     this.visualAssetsReady = Promise.all([
       this.renderer.ready,
       this.combatAnimals.ready,
@@ -852,6 +868,7 @@ export class VillagerRenderer {
     burgageZones?: Iterable<BurgageZoneState>;
     deliveryTrips?: Iterable<DeliveryTripState>;
     oxen?: Iterable<StableOxLike>;
+    cavalryHorses?: Iterable<CavalryHorseState>;
     fireIncidents?: Iterable<FireIncidentState>;
     roadNetwork: RoadNetwork | null;
     foragingMonth?: number;
@@ -900,6 +917,9 @@ export class VillagerRenderer {
     this.fireDisabledResidenceIds = fireDisabledResidenceIds(fireIncidents);
     this.residences = new Map(residences.map((residence) => [residence.id, residence]));
     this.buildings = new Map(buildings.map((building) => [building.id, building]));
+    this.cavalryHorses = new Map(
+      [...(options.cavalryHorses ?? [])].map((horse) => [horse.id, horse]),
+    );
     const month = options.foragingMonth ?? this.clock?.month ?? 1;
     const zonesById = new Map(burgageZones.map((zone) => [zone.id, zone]));
     const zoneLayouts = new Map(
@@ -1818,6 +1838,7 @@ export class VillagerRenderer {
     this.fallenCompanyStandardBearers.clear();
     this.oxen.dispose();
     this.combatAnimals.dispose();
+    this.cavalryHorsesRenderer.dispose();
     this.renderer.dispose();
   }
 
@@ -2025,7 +2046,7 @@ export class VillagerRenderer {
         ? `Polearm issued · readiness ${Math.round(combat.readiness * 100)}%`
         : `Unarmed · readiness ${Math.round(combat.readiness * 100)}%`
       : isPlayerMilitaryFaction(combat.faction)
-        ? `${combatEquipmentLabel(combat.faction)} · readiness ${Math.round(combat.readiness * 100)}%`
+        ? `${combatEquipmentLabel(combat)} · readiness ${Math.round(combat.readiness * 100)}%`
       : combat.faction === 'raider'
         ? combat.carryingLoot
           ? 'Sidearm · carrying stolen stores'
@@ -2060,7 +2081,7 @@ export class VillagerRenderer {
             : combat.faction === 'wolf'
               ? 'Coordinated pack hunter'
         : isPlayerMilitaryFaction(combat.faction)
-          ? combatOccupation(combat.faction)
+          ? combatOccupation(combat)
           : combat.faction === 'bandit'
             ? 'Local outlaw'
             : 'Ottoman frontier raider',
@@ -2214,6 +2235,7 @@ export class VillagerRenderer {
     animationDt = 0,
     audioDt = animationDt,
   ): void {
+    this.cavalryYardElapsedSeconds += Math.max(0, Math.min(0.1, animationDt));
     const renderAgents = this.renderAgents;
     renderAgents.length = 0;
     if (audioDt > 0) {
@@ -2287,6 +2309,13 @@ export class VillagerRenderer {
     }
     const combatNowMs = performance.now();
     this.combatAnimalPoses.length = 0;
+    this.cavalryHorsePoses.length = 0;
+    const cavalryHorseByCombatAgent = new Map<string, CavalryHorseState>();
+    for (const horse of this.cavalryHorses.values()) {
+      if (horse.assignedCombatAgentId) {
+        cavalryHorseByCombatAgent.set(horse.assignedCombatAgentId, horse);
+      }
+    }
     for (const visual of this.combatAgentVisuals.values()) {
       const combat = visual.state;
       if (isAnimalCombatFaction(combat.faction)) {
@@ -2327,7 +2356,8 @@ export class VillagerRenderer {
       clearCrowdCombatPresentation(renderAgent);
       renderAgent.slot = slot++;
       renderAgent.x = visual.displayX;
-      renderAgent.y = this.resolveGroundY(visual.displayX, visual.displayZ) + 0.02;
+      const combatGroundY = this.resolveGroundY(visual.displayX, visual.displayZ) + 0.02;
+      renderAgent.y = combatGroundY;
       renderAgent.z = visual.displayZ;
       renderAgent.yaw = yaw;
       renderAgent.appearanceSeed = appearanceSeed;
@@ -2336,6 +2366,29 @@ export class VillagerRenderer {
         ?? (combat.faction === 'bandit' || combat.faction === 'raider' || isPlayerMilitaryFaction(combat.faction)
           ? 'man'
           : appearanceSeed % 2 === 0 ? 'man' : 'woman');
+      const pairedHorse = cavalryHorseByCombatAgent.get(combat.id);
+      const mounted = isMountedCombatAgent(combat)
+        && combat.status !== 'downed'
+        && combat.status !== 'mustering'
+        && (combat.faction === 'raider' || pairedHorse != null);
+      renderAgent.mounted = mounted;
+      if (mounted) {
+        renderAgent.y = combatGroundY + CAVALRY_SADDLE_HEIGHT
+          - seatedVillagerContactHeight(renderAgent.variant, appearanceSeed);
+        this.cavalryHorsePoses.push({
+          id: pairedHorse ? `horse:${pairedHorse.id}` : `ottoman-horse:${combat.id}`,
+          x: visual.displayX,
+          y: combatGroundY,
+          z: visual.displayZ,
+          yaw,
+          moveSpeed: Math.max(0, visual.displayMoveSpeed),
+          activity: visual.displayMoveSpeed > 0.15 ? 'walking' : 'standing',
+          presentation: cavalryHorsePresentation(combat),
+          appearanceSeed: pairedHorse
+            ? horseAppearanceSeed(pairedHorse.id)
+            : combatAppearanceSeed(combat),
+        });
+      }
       renderAgent.presentation = combat.faction === 'raider' ? 'raider' : 'common';
       renderAgent.mode = combatRenderMode(
         combat,
@@ -2346,7 +2399,7 @@ export class VillagerRenderer {
       renderAgent.tunicColor = residentSoldier?.tunicColor
         ?? ordinaryGuard?.tunicColor
         ?? (combat.faction === 'raider'
-          ? raiderTunicColor(appearanceSeed)
+          ? raiderTunicColor(combat, appearanceSeed)
           : combat.faction === 'bandit'
             ? banditTunicColor(appearanceSeed)
             : colors.tunic);
@@ -2365,7 +2418,7 @@ export class VillagerRenderer {
         standard.faction = standardAssignment.side;
         renderAgent.companyStandard = standard;
       }
-      renderAgent.tool = carriedStandardSidearm ? 'sidearm' : combatToolFor(combat.faction);
+      renderAgent.tool = carriedStandardSidearm ? 'sidearm' : combatToolFor(combat);
       if (shouldCreateBattlefieldWeaponDrop(combat.status, renderAgent.tool)) {
         renderAgent.battlefieldWeaponDrop = {
           ownerId: combat.id,
@@ -2425,9 +2478,35 @@ export class VillagerRenderer {
       renderAgent.active = true;
       renderAgents.push(renderAgent);
     }
+    for (const horse of this.cavalryHorses.values()) {
+      if (horse.assignedCombatAgentId != null) {
+        const assignedAgent = this.combatAgentVisuals.get(horse.assignedCombatAgentId)?.state;
+        if (assignedAgent?.status !== 'mustering') continue;
+      }
+      const yard = this.buildings.get(horse.cavalryYardId);
+      if (!yard || yard.kind !== 'cavalry_yard' || yard.constructionComplete === false) continue;
+      const pose = cavalryHorseYardPose(
+        yard,
+        horse,
+        this.roadNetwork,
+        this.cavalryYardElapsedSeconds,
+      );
+      this.cavalryHorsePoses.push({
+        id: `horse:${horse.id}`,
+        x: pose.x,
+        y: this.resolveGroundY(pose.x, pose.z) + 0.02,
+        z: pose.z,
+        yaw: pose.yaw,
+        moveSpeed: pose.moveSpeed,
+        activity: pose.activity,
+        presentation: 'yard',
+        appearanceSeed: horseAppearanceSeed(horse.id),
+      });
+    }
     const activeView = view ?? this.lastView;
     this.renderer.syncAgents(renderAgents, activeView, animationDt);
     this.combatAnimals.sync(this.combatAnimalPoses, activeView, animationDt);
+    this.cavalryHorsesRenderer.sync(this.cavalryHorsePoses, activeView, animationDt);
     const audioPaused = this.getGameSpeed() === 0;
     this.farmWorkerSongAudio.setPaused(audioPaused);
     if (audioDt > 0) {
@@ -6079,16 +6158,25 @@ function combatRenderMode(
   }
 }
 
-function combatToolFor(faction: CombatAgentState['faction']): WorkerToolKind | null {
+function combatToolFor(combat: CombatAgentState): WorkerToolKind | null {
+  const { faction } = combat;
   switch (faction) {
     case 'guard': return 'spear-shield';
-    case 'raider': return 'sidearm';
+    case 'raider': {
+      if (ottomanRaiderIsRanged(combat.sourceSlot)) return 'bow';
+      if (combat.ottomanRole === 'azab') return 'spear';
+      if (combat.ottomanRole === 'sipahi') return 'spear-shield';
+      return 'sidearm';
+    }
     case 'bandit': return 'spear';
     case 'militia': return 'spear';
     case 'spearman': return 'spear-shield';
     case 'crossbow': return 'crossbow';
     case 'mercenary-spear': return 'pike-kit';
     case 'bowman': return 'bow';
+    case 'hussar': return 'spear-shield';
+    case 'armored-lancer': return 'spear';
+    case 'mounted-archer': return 'bow';
     case 'man-at-arms': return 'sword-shield';
     case 'footman': return 'sidearm-shield';
     case 'polearm': return 'halberd';
@@ -6114,6 +6202,9 @@ function combatAttackSeconds(
     case 'footman': return 0.82;
     case 'polearm': return 1.08;
     case 'bowman': return targetDistance > 3.25 ? 1.55 : 0.9;
+    case 'hussar': return 1.05;
+    case 'armored-lancer': return 1.16;
+    case 'mounted-archer': return targetDistance > 3.25 ? 1.5 : 0.9;
     case 'dog': return 1.05;
     case 'fox': return 1.4;
     case 'wolf': return 1.15;
@@ -6137,6 +6228,7 @@ function combatWeaponSoundFamily(
 }
 
 export function clearCrowdCombatPresentation(renderAgent: CrowdRenderAgent): void {
+  renderAgent.mounted = undefined;
   renderAgent.companyStandard = undefined;
   renderAgent.battlefieldWeaponDrop = undefined;
   renderAgent.combatAttackCooldown = undefined;
@@ -6148,13 +6240,122 @@ export function clearCrowdCombatPresentation(renderAgent: CrowdRenderAgent): voi
   renderAgent.combatTargetZ = undefined;
 }
 
+function cavalryHorsePresentation(combat: CombatAgentState): CavalryHorsePresentation {
+  if (combat.faction === 'hussar') return 'hussar';
+  if (combat.faction === 'armored-lancer') return 'lancer';
+  if (combat.faction === 'mounted-archer') return 'archer';
+  return 'ottoman';
+}
+
+function cavalryHorseYardPose(
+  yard: BuildingState,
+  horse: CavalryHorseState,
+  roadNetwork: RoadNetwork | null,
+  elapsedSeconds: number,
+): {
+  x: number;
+  z: number;
+  yaw: number;
+  moveSpeed: number;
+  activity: CavalryHorsePose['activity'];
+} {
+  const slot = Math.max(0, Math.min(
+    CAVALRY_HORSE_REST_ANCHORS.length - 1,
+    Math.floor(horse.slot),
+  ));
+  const anchor = CAVALRY_HORSE_REST_ANCHORS[slot]!;
+  const [anchorX, , anchorZ] = anchor.localPosition;
+  let localX: number = anchorX;
+  let localZ: number = anchorZ;
+  let localYaw = anchor.localYaw;
+  let moveSpeed = 0;
+  let activity: CavalryHorsePose['activity'] = 'standing';
+  if (anchor.zone === 'paddock') {
+    const seed = horseAppearanceSeed(horse.id);
+    const destinationAngle = ((seed >>> 7) % 6283) / 1000;
+    const destinationDistance = 0.95 + ((seed >>> 20) % 1000) / 1000 * 1.15;
+    const destinationX = THREE.MathUtils.clamp(
+      anchorX + Math.sin(destinationAngle) * destinationDistance,
+      3.05,
+      9.45,
+    );
+    const destinationZ = THREE.MathUtils.clamp(
+      anchorZ + Math.cos(destinationAngle) * destinationDistance,
+      -4.65,
+      1.05,
+    );
+    const cycleSeconds = 30;
+    const cycleOffset = (seed % 30_000) / 1000;
+    const phase = (elapsedSeconds + cycleOffset) % cycleSeconds;
+    if (phase < 6) {
+      activity = 'standing';
+    } else if (phase < 13) {
+      const progress = smoothHorseStep((phase - 6) / 7);
+      localX = THREE.MathUtils.lerp(anchorX, destinationX, progress);
+      localZ = THREE.MathUtils.lerp(anchorZ, destinationZ, progress);
+      localYaw = Math.atan2(destinationX - anchorX, destinationZ - anchorZ);
+      moveSpeed = 0.46;
+      activity = 'walking';
+    } else if (phase < 21) {
+      localX = destinationX;
+      localZ = destinationZ;
+      localYaw = destinationAngle + Math.PI;
+      activity = 'grazing';
+    } else if (phase < 28) {
+      const progress = smoothHorseStep((phase - 21) / 7);
+      localX = THREE.MathUtils.lerp(destinationX, anchorX, progress);
+      localZ = THREE.MathUtils.lerp(destinationZ, anchorZ, progress);
+      localYaw = Math.atan2(anchorX - destinationX, anchorZ - destinationZ);
+      moveSpeed = 0.46;
+      activity = 'walking';
+    }
+  }
+  const yardYaw = resolvedPlacedBuildingYaw(yard, roadNetwork);
+  const cos = Math.cos(yardYaw);
+  const sin = Math.sin(yardYaw);
+  return {
+    x: yard.x + localX * cos + localZ * sin,
+    z: yard.z - localX * sin + localZ * cos,
+    yaw: yardYaw + localYaw,
+    moveSpeed,
+    activity,
+  };
+}
+
+function smoothHorseStep(value: number): number {
+  const clamped = THREE.MathUtils.clamp(value, 0, 1);
+  return clamped * clamped * (3 - 2 * clamped);
+}
+
+function horseAppearanceSeed(id: string): number {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < id.length; index += 1) {
+    hash ^= id.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
 function combatUnitName(combat: CombatAgentState): string {
+  if (combat.faction === 'raider') {
+    const role = combat.ottomanRole ?? 'azab';
+    const roleLabel = role === 'akinci'
+      ? 'Akıncı horse archer'
+      : role === 'sipahi'
+        ? 'Timariot sipahi'
+        : role === 'janissary'
+          ? 'Janissary'
+          : 'Azab frontier infantry';
+    return `${roleLabel} #${combat.id}`;
+  }
   const label: Record<CombatAgentState['faction'], string> = {
     guard: 'Guard', raider: 'Ottoman raider', bandit: 'Bandit',
     militia: 'Militia spearman', spearman: 'Company spearman',
     'man-at-arms': 'Man-at-Arms', crossbow: 'Crossbowman',
     'mercenary-spear': 'Mercenary pikeman', footman: 'Footman',
     polearm: 'Halberdier', bowman: 'Bowman',
+    hussar: 'Frontier hussar', 'armored-lancer': 'Armored lancer',
+    'mounted-archer': 'Mounted archer',
     dog: 'Guard dog', fox: 'Fox', wolf: 'Wolf',
   };
   return `${label[combat.faction]} #${combat.id}`;
@@ -6165,24 +6366,52 @@ function combatFactionInitials(faction: CombatAgentState['faction']): string {
     guard: 'G', raider: 'OR', bandit: 'B', militia: 'M', spearman: 'SP',
     'man-at-arms': 'MA', crossbow: 'CB', 'mercenary-spear': 'MS',
     footman: 'FT', polearm: 'PL', bowman: 'BW',
+    hussar: 'HU', 'armored-lancer': 'AL', 'mounted-archer': 'HA',
     dog: 'GD', fox: 'FX', wolf: 'WP',
   };
   return labels[faction];
 }
 
-function combatOccupation(faction: CombatAgentState['faction']): string {
+function combatOccupation(combat: CombatAgentState): string {
+  const { faction } = combat;
+  if (faction === 'raider') {
+    switch (combat.ottomanRole) {
+      case 'janissary': return 'Ottoman household infantry';
+      case 'akinci': return 'Ottoman frontier light cavalry';
+      case 'sipahi': return 'Timariot armored cavalry';
+      default: return 'Ottoman provincial light infantry';
+    }
+  }
   const labels: Partial<Record<CombatAgentState['faction'], string>> = {
     militia: 'Town militia spearman', spearman: 'Spear company soldier',
     'man-at-arms': 'Armored sword-and-shield professional', crossbow: 'Company crossbowman',
     'mercenary-spear': 'Hired mercenary pikeman', footman: 'Shielded footman',
     polearm: 'Armor-breaking polearm soldier', bowman: 'Company bowman',
+    hussar: 'Frontier light cavalryman', 'armored-lancer': 'Mail-armored cavalryman',
+    'mounted-archer': 'Mounted frontier skirmisher',
     dog: 'Kennel-trained settlement guard dog', fox: 'Solitary food thief',
     wolf: 'Coordinated pack hunter',
   };
   return labels[faction] ?? 'Company soldier';
 }
 
-function combatEquipmentLabel(faction: CombatAgentState['faction']): string {
+function combatEquipmentLabel(combat: CombatAgentState): string {
+  const { faction } = combat;
+  if (faction === 'raider') {
+    const ranged = ottomanRaiderIsRanged(combat.sourceSlot);
+    switch (combat.ottomanRole) {
+      case 'janissary': return ranged
+        ? 'War bow, sidearm, Ottoman cap, and disciplined field kit'
+        : 'Sidearm, Ottoman cap, and disciplined field kit';
+      case 'akinci': return ranged
+        ? 'Composite bow, sidearm, quiver, and fast remount'
+        : 'Sidearm, small shield, and fast remount';
+      case 'sipahi': return 'Lance, sidearm, shield, mail, and trained warhorse';
+      default: return ranged
+        ? 'War bow, sidearm, and provincial field kit'
+        : 'Spear and provincial field kit';
+    }
+  }
   switch (faction) {
     case 'footman': return 'Sidearm and small shield';
     case 'man-at-arms': return 'Sword, large shield, mail, and helmet';
@@ -6192,7 +6421,9 @@ function combatEquipmentLabel(faction: CombatAgentState['faction']): string {
     case 'bowman': return 'War bow, quiver, arrows, and light clothing';
     case 'mercenary-spear': return 'Long pike, Katzbalger sidearm, and field kit';
     case 'spearman': return 'Short spear, round shield, and quilted jack';
-    case 'raider': return 'Arming sword and Ottoman frontier kit';
+    case 'hussar': return 'Lance, sidearm, small shield, padded coat, and trained remount';
+    case 'armored-lancer': return 'Lance, sidearm, mail harness, and trained remount';
+    case 'mounted-archer': return 'Composite bow, quiver, sidearm, padded coat, and trained remount';
     case 'bandit': return 'Ordinary spear and scavenged clothing';
     case 'dog': return 'Teeth and trained protective instinct';
     case 'fox': return 'Speed and evasive instinct';
@@ -6264,8 +6495,14 @@ function isAnimalCombatFaction(
   return faction === 'dog' || faction === 'fox' || faction === 'wolf';
 }
 
-function raiderTunicColor(seed: number): number {
-  const colors = [0x694037, 0x76533a, 0x55493c, 0x6b5b3f, 0x4d4639] as const;
+function raiderTunicColor(combat: CombatAgentState, seed: number): number {
+  const colors = combat.ottomanRole === 'janissary'
+    ? [0x792d2d, 0x2f4658, 0x6b593f] as const
+    : combat.ottomanRole === 'akinci'
+      ? [0x43593a, 0x684a31, 0x374942] as const
+      : combat.ottomanRole === 'sipahi'
+        ? [0x7a312d, 0x304767, 0x6a5734] as const
+        : [0x694037, 0x76533a, 0x55493c, 0x6b5b3f, 0x4d4639] as const;
   return colors[(seed >>> 12) % colors.length] ?? colors[0];
 }
 

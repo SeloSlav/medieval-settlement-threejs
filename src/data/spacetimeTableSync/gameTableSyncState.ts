@@ -19,6 +19,7 @@ import type {
   SettlementState,
   ResourceStockpile,
   StableOxState,
+  CavalryHorseState,
   TreeEntityState,
   VineyardParcelState,
 } from '../../resources/types.ts';
@@ -64,6 +65,7 @@ export type GameTableSyncState = {
   corpses: Map<string, CorpseState>;
   livestockHerds: Map<string, LivestockHerdState>;
   stableOxen: Map<string, StableOxState>;
+  cavalryHorses: Map<string, CavalryHorseState>;
   burgageZones: Map<string, BurgageZoneState>;
   residences: Map<string, ResidenceState>;
   backyardGardens: Map<string, BackyardGardenState>;

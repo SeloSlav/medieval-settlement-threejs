@@ -103,6 +103,9 @@ export class DebugMenu {
                 <option value="5">Footmen</option>
                 <option value="6">Polearms</option>
                 <option value="7">Bowmen</option>
+                <option value="8">Frontier hussars</option>
+                <option value="9">Armored lancers</option>
+                <option value="10">Mounted archers</option>
               </select>
             </label>
             <button type="button" class="debug-menu-primary" data-debug-action="company">Deploy on map</button>

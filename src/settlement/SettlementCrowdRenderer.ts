@@ -180,6 +180,8 @@ export type CrowdRenderAgent = {
   tool: WorkerToolKind | null;
   movementSpeed: number;
   active: boolean;
+  /** Uses the authored sitting lower-body pose at a horse saddle height. */
+  mounted?: boolean;
   /** One stable company identity is attached to its currently elected bearer. */
   companyStandard?: {
     id: string;
@@ -1936,6 +1938,7 @@ export function workerToolVisibleInMode(
 
 /** Keeps ranged and polearm legs neutral while the post-mixer combat rig owns the strike. */
 export function combatBaseActionMode(agent: CrowdRenderAgent): VillagerRenderMode {
+  if (agent.mounted && agent.mode !== 'fall' && agent.mode !== 'hurt') return 'sit';
   if (
     agent.mode !== 'fight'
     || !agent.tool

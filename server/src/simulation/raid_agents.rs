@@ -8,19 +8,21 @@ use crate::db::*;
 use crate::raid_agent_policy::{
     combat_state_blocks_guard_slot, combatant_morale_strength, distance_squared, formation_spawn,
     guard_attack_interval, guard_breaks_route_for, guard_damage, guard_recovery_ticks,
-    holding_assault_position, move_along_route, move_toward, per_raider_loot_fraction,
-    raid_contact_duration, raid_contact_range, raid_entry_point, raid_party_size,
-    raider_attack_interval, raider_company_should_rout, raider_damage, refuge_assault_position,
-    route_shortcut_is_worthwhile, route_shortcut_via_endpoint_is_worthwhile, RouteMove,
-    COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER, COMBAT_FACTION_GUARD, COMBAT_FACTION_RAIDER,
-    COMBAT_ROAD_SPEED_MULTIPLIER, COMBAT_STATE_ADVANCING, COMBAT_STATE_DOWNED,
-    COMBAT_STATE_FIGHTING, COMBAT_STATE_HOLDING, COMBAT_STATE_LOOTING, COMBAT_STATE_MUSTERING,
-    COMBAT_STATE_RECOVERING, COMBAT_STATE_RETREATING, COMBAT_STATE_RETURNING,
-    COMBAT_STATE_WOUNDED_RETURNING, COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP,
-    COMBAT_TARGET_RESIDENCE, COMBAT_TARGET_TREASURY_BUILDING, COMBAT_TARGET_TREASURY_RESIDENCE,
-    COMBAT_WADING_SPEED_MULTIPLIER, DEFAULT_BUILDING_ASSAULT_OUTER_RADIUS_METERS,
-    DOWNED_LINGER_SECONDS, GUARD_SPEED_MPS, MELEE_RANGE_METERS, RAIDER_ENGAGE_RANGE_METERS,
-    RAIDER_SPEED_MPS, RESIDENCE_ASSAULT_OUTER_RADIUS_METERS, WOUNDED_GUARD_SPEED_MPS,
+    holding_assault_position, move_along_route, move_toward, ottoman_raider_damage_multiplier,
+    ottoman_raider_health_multiplier, ottoman_raider_is_ranged, ottoman_raider_speed,
+    per_raider_loot_fraction, raid_contact_duration, raid_contact_range, raid_entry_point,
+    raid_party_size, raider_attack_interval, raider_company_should_rout, raider_damage,
+    refuge_assault_position, route_shortcut_is_worthwhile,
+    route_shortcut_via_endpoint_is_worthwhile, RouteMove, COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER,
+    COMBAT_FACTION_GUARD, COMBAT_FACTION_RAIDER, COMBAT_ROAD_SPEED_MULTIPLIER,
+    COMBAT_STATE_ADVANCING, COMBAT_STATE_DOWNED, COMBAT_STATE_FIGHTING, COMBAT_STATE_HOLDING,
+    COMBAT_STATE_LOOTING, COMBAT_STATE_MUSTERING, COMBAT_STATE_RECOVERING, COMBAT_STATE_RETREATING,
+    COMBAT_STATE_RETURNING, COMBAT_STATE_WOUNDED_RETURNING, COMBAT_TARGET_BUILDING,
+    COMBAT_TARGET_DELIVERY_TRIP, COMBAT_TARGET_RESIDENCE, COMBAT_TARGET_TREASURY_BUILDING,
+    COMBAT_TARGET_TREASURY_RESIDENCE, COMBAT_WADING_SPEED_MULTIPLIER,
+    DEFAULT_BUILDING_ASSAULT_OUTER_RADIUS_METERS, DOWNED_LINGER_SECONDS, GUARD_SPEED_MPS,
+    MELEE_RANGE_METERS, RAIDER_ENGAGE_RANGE_METERS, RESIDENCE_ASSAULT_OUTER_RADIUS_METERS,
+    WOUNDED_GUARD_SPEED_MPS,
 };
 use crate::resource_units::whole_units;
 use crate::roads::{RoadNetwork, RoadPathRoute};
@@ -114,7 +116,7 @@ pub(crate) fn collect_raider_ranged_frames(
     frames.clear();
     for agent in agents.iter().filter(|agent| {
         agent.faction == COMBAT_FACTION_RAIDER
-            && agent.source_slot % 4 == 3
+            && ottoman_raider_is_ranged(agent.source_slot)
             && agent.state != COMBAT_STATE_DOWNED
             && agent.health > EPSILON
     }) {
@@ -150,7 +152,7 @@ pub(crate) fn collect_raider_ranged_frames(
             .filter(|agent| {
                 frame.matches(agent)
                     && agent.faction == COMBAT_FACTION_RAIDER
-                    && agent.source_slot % 4 == 3
+                    && ottoman_raider_is_ranged(agent.source_slot)
                     && agent.state != COMBAT_STATE_DOWNED
                     && agent.health > EPSILON
             })
@@ -331,6 +333,8 @@ pub fn start_live_raid(
         let target_index = index as usize % targets.len();
         let target = targets[target_index];
         let (x, z) = formation_spawn(entry_x, entry_z, primary.x, primary.z, index);
+        let raider_health =
+            (80.0 + enemy_pressure.min(100) as f64 * 0.2) * ottoman_raider_health_multiplier(index);
         let inserted = ctx.db.combat_agent().insert(CombatAgent {
             id: 0,
             owner,
@@ -348,8 +352,8 @@ pub fn start_live_raid(
             velocity_z: 0.0,
             home_x: x,
             home_z: z,
-            health: 80.0 + enemy_pressure.min(100) as f64 * 0.2,
-            max_health: 80.0 + enemy_pressure.min(100) as f64 * 0.2,
+            health: raider_health,
+            max_health: raider_health,
             readiness: enemy_pressure.min(100) as f64 / 100.0,
             state: COMBAT_STATE_ADVANCING,
             attack_cooldown: index as f64 * 0.08,
@@ -1149,6 +1153,7 @@ fn step_raider(
     elapsed_seconds: f64,
     road_network: Option<&RoadNetwork>,
 ) {
+    let raider_speed = ottoman_raider_speed(agent.source_slot);
     if agent.state == COMBAT_STATE_RETREATING {
         agent.engagement_target_id = 0;
         if distance_squared(agent.x, agent.z, agent.home_x, agent.home_z)
@@ -1173,7 +1178,7 @@ fn step_raider(
                     agent.route_progress,
                     route.path_distance,
                     &route.polyline,
-                    RAIDER_SPEED_MPS,
+                    raider_speed,
                     elapsed_seconds,
                     false,
                     road_network,
@@ -1192,7 +1197,7 @@ fn step_raider(
             agent.z,
             agent.home_x,
             agent.home_z,
-            RAIDER_SPEED_MPS,
+            raider_speed,
             elapsed_seconds,
             road_network,
         );
@@ -1212,8 +1217,9 @@ fn step_raider(
             defender,
             ranged_frame,
             engagement_rank_counts,
-            RAIDER_SPEED_MPS,
-            raider_damage(active.enemy_pressure),
+            raider_speed,
+            raider_damage(active.enemy_pressure)
+                * ottoman_raider_damage_multiplier(agent.source_slot),
             raider_attack_interval(active.enemy_pressure),
             damage_by_agent,
             sim_tick,
@@ -1255,7 +1261,7 @@ fn step_raider(
                     agent.route_progress,
                     route.path_distance,
                     &route.polyline,
-                    RAIDER_SPEED_MPS,
+                    raider_speed,
                     elapsed_seconds,
                     true,
                     road_network,
@@ -1273,7 +1279,7 @@ fn step_raider(
             agent.z,
             target_x,
             target_z,
-            RAIDER_SPEED_MPS,
+            raider_speed,
             elapsed_seconds,
             road_network,
         );
@@ -1685,7 +1691,8 @@ fn engage_agent(
 ) {
     agent.engagement_target_id = enemy.id;
     let distance = distance_squared(agent.x, agent.z, enemy.x, enemy.z);
-    let ranged_raider = agent.faction == COMBAT_FACTION_RAIDER && agent.source_slot % 4 == 3;
+    let ranged_raider =
+        agent.faction == COMBAT_FACTION_RAIDER && ottoman_raider_is_ranged(agent.source_slot);
     let melee_rank = (!ranged_raider).then(|| {
         next_dense_engagement_rank(
             engagement_rank_counts,

@@ -45,6 +45,9 @@ pub enum MilitaryKind {
     Footmen = 5,
     Polearms = 6,
     Bowmen = 7,
+    Hussars = 8,
+    ArmoredLancers = 9,
+    MountedArchers = 10,
 }
 
 impl MilitaryKind {
@@ -58,6 +61,9 @@ impl MilitaryKind {
             5 => Some(Self::Footmen),
             6 => Some(Self::Polearms),
             7 => Some(Self::Bowmen),
+            8 => Some(Self::Hussars),
+            9 => Some(Self::ArmoredLancers),
+            10 => Some(Self::MountedArchers),
             _ => None,
         }
     }
@@ -72,6 +78,9 @@ impl MilitaryKind {
             Self::Footmen => 8,
             Self::Polearms => 9,
             Self::Bowmen => 10,
+            Self::Hussars => 11,
+            Self::ArmoredLancers => 15,
+            Self::MountedArchers => 16,
         }
     }
 
@@ -81,6 +90,7 @@ impl MilitaryKind {
             Self::Spearmen | Self::MenAtArms | Self::MercenarySpears => 8,
             Self::Crossbows => 6,
             Self::Footmen | Self::Polearms | Self::Bowmen => 8,
+            Self::Hussars | Self::ArmoredLancers | Self::MountedArchers => 6,
         }
     }
 
@@ -98,6 +108,21 @@ impl MilitaryKind {
                 | Self::Polearms
                 | Self::Bowmen
         )
+    }
+
+    pub fn requires_cavalry_yard(self) -> bool {
+        matches!(
+            self,
+            Self::Hussars | Self::ArmoredLancers | Self::MountedArchers
+        )
+    }
+
+    pub fn is_mounted(self) -> bool {
+        self.requires_cavalry_yard()
+    }
+
+    pub fn is_ranged(self) -> bool {
+        matches!(self, Self::Crossbows | Self::Bowmen | Self::MountedArchers)
     }
 
     pub fn gains_veteran_experience(self) -> bool {
@@ -219,6 +244,40 @@ impl MilitaryCost {
                 ammunition: n,
                 preserved_food: n * 2,
                 gold: n,
+                ..Self::default()
+            },
+            // Croatian-Hungarian frontier hussars: light lance, sidearm,
+            // small shield, and textile protection on a trained remount.
+            MilitaryKind::Hussars => Self {
+                polearms: n,
+                sidearms: n,
+                shields: n,
+                padded_armor: n,
+                ale: n.div_ceil(2),
+                preserved_food: n * 3,
+                gold: n * 5,
+                ..Self::default()
+            },
+            // A smaller, costly armored lance retinue built for shock action.
+            MilitaryKind::ArmoredLancers => Self {
+                polearms: n,
+                sidearms: n,
+                mail_armor: n,
+                ale: n,
+                preserved_food: n * 4,
+                gold: n * 8,
+                ..Self::default()
+            },
+            // Frontier horse archers use bows from horseback but retain a
+            // sidearm and padded coat for close fighting.
+            MilitaryKind::MountedArchers => Self {
+                bows: n,
+                sidearms: n,
+                padded_armor: n,
+                ammunition: n,
+                ale: n.div_ceil(2),
+                preserved_food: n * 3,
+                gold: n * 5,
                 ..Self::default()
             },
         }
@@ -403,6 +462,42 @@ pub fn military_stats(kind: MilitaryKind) -> MilitaryStats {
             damage_taken_multiplier: 1.12,
             ammunition_per_member: 24,
         },
+        MilitaryKind::Hussars => MilitaryStats {
+            max_health: 82.0,
+            damage: 15.5,
+            attack_seconds: 0.90,
+            speed: 4.65,
+            acquisition_range: 15.0,
+            strike_range: 2.8,
+            starting_morale: 0.76,
+            starting_cohesion: 0.70,
+            damage_taken_multiplier: 0.82,
+            ammunition_per_member: 0,
+        },
+        MilitaryKind::ArmoredLancers => MilitaryStats {
+            max_health: 112.0,
+            damage: 20.0,
+            attack_seconds: 1.04,
+            speed: 4.20,
+            acquisition_range: 16.0,
+            strike_range: 3.0,
+            starting_morale: 0.88,
+            starting_cohesion: 0.84,
+            damage_taken_multiplier: 0.55,
+            ammunition_per_member: 0,
+        },
+        MilitaryKind::MountedArchers => MilitaryStats {
+            max_health: 68.0,
+            damage: 11.5,
+            attack_seconds: 1.42,
+            speed: 5.05,
+            acquisition_range: 23.0,
+            strike_range: 20.5,
+            starting_morale: 0.70,
+            starting_cohesion: 0.62,
+            damage_taken_multiplier: 1.02,
+            ammunition_per_member: 24,
+        },
     }
 }
 
@@ -432,6 +527,9 @@ pub fn member_combat_profile(kind: MilitaryKind, stable_seed: u64) -> MemberComb
         MilitaryKind::Footmen => (10.0, 6.0, 5.0, 0.24, 0.08),
         MilitaryKind::Polearms => (7.0, 0.0, 14.0, 0.34, 0.48),
         MilitaryKind::Bowmen => (2.0, 0.0, 3.0, 0.0, 0.0),
+        MilitaryKind::Hussars => (8.0, 5.0, 4.0, 0.86, 0.04),
+        MilitaryKind::ArmoredLancers => (17.0, 2.0, 8.0, 1.18, 0.02),
+        MilitaryKind::MountedArchers => (5.0, 0.0, 4.0, 0.18, 0.0),
     };
     MemberCombatProfile {
         max_health: stats.max_health * (1.0 + signed(3) * 0.07),
@@ -462,6 +560,13 @@ pub fn matchup_damage_multiplier(attacker: MilitaryKind, defender: MilitaryKind)
         ) => 1.20,
         (MilitaryKind::MenAtArms, MilitaryKind::Footmen | MilitaryKind::Bowmen) => 1.15,
         (MilitaryKind::Bowmen, MilitaryKind::Militia | MilitaryKind::Polearms) => 1.18,
+        (MilitaryKind::Hussars, MilitaryKind::Bowmen | MilitaryKind::Crossbows) => 1.34,
+        (MilitaryKind::ArmoredLancers, MilitaryKind::Footmen | MilitaryKind::Bowmen) => 1.30,
+        (MilitaryKind::MountedArchers, MilitaryKind::MenAtArms | MilitaryKind::Polearms) => 0.86,
+        (
+            MilitaryKind::Polearms | MilitaryKind::Spearmen,
+            MilitaryKind::Hussars | MilitaryKind::ArmoredLancers,
+        ) => 1.32,
         _ => 1.0,
     }
 }
@@ -495,6 +600,17 @@ pub fn formation_offset(formation: u8, index: u32, count: u32) -> (f64, f64) {
     }
 }
 
+pub fn formation_offset_for_kind(
+    kind: MilitaryKind,
+    formation: u8,
+    index: u32,
+    count: u32,
+) -> (f64, f64) {
+    let (x, z) = formation_offset(formation, index, count);
+    let spacing = if kind.is_mounted() { 1.55 } else { 1.0 };
+    (x * spacing, z * spacing)
+}
+
 pub fn shield_wall_damage_multiplier(kind: MilitaryKind, formation: u8) -> f64 {
     if formation != MILITARY_FORMATION_SHIELD_WALL {
         return 1.0;
@@ -513,7 +629,7 @@ mod tests {
 
     #[test]
     fn every_recruitment_path_has_a_real_limiting_cost() {
-        for id in 0..=7 {
+        for id in 0..=10 {
             let kind = MilitaryKind::from_id(id).unwrap();
             let cost = MilitaryCost::for_company(kind, kind.company_size());
             let total = cost.polearms
@@ -581,6 +697,9 @@ mod tests {
             MilitaryKind::Footmen,
             MilitaryKind::Polearms,
             MilitaryKind::Bowmen,
+            MilitaryKind::Hussars,
+            MilitaryKind::ArmoredLancers,
+            MilitaryKind::MountedArchers,
         ] {
             assert!(kind.requires_resident_men());
         }

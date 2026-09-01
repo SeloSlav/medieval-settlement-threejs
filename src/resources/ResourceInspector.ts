@@ -158,7 +158,7 @@ type ResourceInspectorOptions = {
   onBalanceYearRoundLabor?: (townHallId: string) => void | Promise<void>;
   onRaiseMilitia?: (townHallId: string, requested: number) => void | Promise<void>;
   onDisbandMilitia?: () => void | Promise<void>;
-  onRecruitMilitaryCompany?: (guardhouseId: string, kind: number) => void | Promise<void>;
+  onRecruitMilitaryCompany?: (sourceBuildingId: string, kind: number) => void | Promise<void>;
   onHireMercenaryCompany?: (townHallId: string) => void | Promise<void>;
   onDisbandMilitaryCompany?: (companyId: string) => void | Promise<void>;
   onRenewMercenaryContract?: (companyId: string) => void | Promise<void>;
@@ -327,6 +327,7 @@ type ResourceInspectorOptions = {
   onSetLivestockSpecies?: (pastureId: string, species: Exclude<LivestockSpecies, 'swine'>) => void | Promise<void>;
   onTradeLivestock?: (pastureId: string, headDelta: number) => void | Promise<void>;
   onPurchaseStableOx?: (stableId: string) => void | Promise<void>;
+  onPurchaseCavalryHorse?: (cavalryYardId: string) => void | Promise<void>;
   onPurchaseKennelDog?: (kennelId: string) => void | Promise<void>;
   onSetBuildingOxen?: (buildingId: string, targetCount: number) => void | Promise<void>;
   onSetBuildingDogs?: (buildingId: string, targetCount: number) => void | Promise<void>;
@@ -1185,6 +1186,29 @@ export class ResourceInspector {
           });
         return;
       }
+      const purchaseHorseButton = (event.target as HTMLElement)
+        .closest<HTMLButtonElement>('[data-purchase-cavalry-horse]');
+      if (building.kind === 'cavalry_yard' && purchaseHorseButton) {
+        if (
+          purchaseHorseButton.getAttribute('aria-disabled') === 'true'
+          || purchaseHorseButton.dataset.purchasePending === 'true'
+        ) return;
+        const idleLabel = purchaseHorseButton.getAttribute('aria-label');
+        purchaseHorseButton.dataset.purchasePending = 'true';
+        purchaseHorseButton.setAttribute('aria-busy', 'true');
+        purchaseHorseButton.setAttribute('aria-disabled', 'true');
+        purchaseHorseButton.setAttribute('aria-label', 'Purchasing remount.');
+        void Promise.resolve()
+          .then(() => this.options.onPurchaseCavalryHorse?.(building.id))
+          .finally(() => {
+            if (!purchaseHorseButton.isConnected) return;
+            delete purchaseHorseButton.dataset.purchasePending;
+            purchaseHorseButton.removeAttribute('aria-busy');
+            purchaseHorseButton.removeAttribute('aria-disabled');
+            if (idleLabel) purchaseHorseButton.setAttribute('aria-label', idleLabel);
+          });
+        return;
+      }
       const purchaseDogButton = (event.target as HTMLElement)
         .closest<HTMLButtonElement>('[data-purchase-dog]');
       if (building.kind === 'kennel' && purchaseDogButton) {
@@ -1892,7 +1916,11 @@ export class ResourceInspector {
       return;
     }
     const recruitMilitary = (event.target as HTMLElement).closest<HTMLElement>('[data-recruit-military-kind]');
-    if (recruitMilitary && this.selectedTarget?.kind === 'building' && this.selectedTarget.building.kind === 'guardhouse') {
+    if (
+      recruitMilitary
+      && this.selectedTarget?.kind === 'building'
+      && (this.selectedTarget.building.kind === 'guardhouse' || this.selectedTarget.building.kind === 'cavalry_yard')
+    ) {
       void this.options.onRecruitMilitaryCompany?.(
         this.selectedTarget.building.id,
         Number(recruitMilitary.dataset.recruitMilitaryKind),

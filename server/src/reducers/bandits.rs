@@ -8,17 +8,18 @@ use crate::economy::{
     total_timber, treasury_gold, withdraw_building_commodity, CommodityKind,
 };
 use crate::military_policy::{
-    formation_offset, local_company_requires_provisions, member_combat_profile, military_day_ticks,
-    military_resupply_cost, military_stats, normalize_military_demands, MilitaryCost, MilitaryKind,
-    MERCENARY_MAX_CONTRACT_DAYS, MILITARY_FORMATION_COLUMN, MILITARY_FORMATION_LINE,
-    MILITARY_FORMATION_LOOSE, MILITARY_FORMATION_SHIELD_WALL, MILITARY_PROVISION_ISSUE_DAYS,
+    formation_offset, formation_offset_for_kind, local_company_requires_provisions,
+    member_combat_profile, military_day_ticks, military_resupply_cost, military_stats,
+    normalize_military_demands, MilitaryCost, MilitaryKind, MERCENARY_MAX_CONTRACT_DAYS,
+    MILITARY_FORMATION_COLUMN, MILITARY_FORMATION_LINE, MILITARY_FORMATION_LOOSE,
+    MILITARY_FORMATION_SHIELD_WALL, MILITARY_PROVISION_ISSUE_DAYS,
 };
 use crate::raid_agent_policy::playable_half_for_map_size;
 use crate::security_policy::RaidPortableStores;
 use crate::smallholding_policy::smallholding_assignable_population;
 use crate::tables::{
-    mercenary_contract, CombatAgent, MercenaryContract, MilitaryCompany, MilitaryMember,
-    MilitiaOrder,
+    cavalry_horse, mercenary_contract, CavalryHorse, CombatAgent, MercenaryContract,
+    MilitaryCompany, MilitaryMember, MilitiaOrder,
 };
 
 const MILITARY_HOLDING: u8 = 9;
@@ -64,6 +65,28 @@ pub fn recruit_military_company(
     }
     let guardhouse = require_recruitment_building(ctx, owner, guardhouse_id, "guardhouse")?;
     recruit_resident_company(ctx, owner, &guardhouse, kind, kind.company_size(), false)
+}
+
+/// Recruits a six-rider resident company from a completed Cavalry Yard. One
+/// fully trained, unassigned remount is paired transactionally with each man.
+#[reducer]
+pub fn recruit_cavalry_company(
+    ctx: &ReducerContext,
+    cavalry_yard_id: u64,
+    kind: u8,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    let Some(kind) = MilitaryKind::from_id(kind) else {
+        return Err("Unknown military company type.".into());
+    };
+    if !kind.requires_cavalry_yard() || !kind.requires_resident_men() {
+        return Err("This company is not recruited from a Cavalry Yard.".into());
+    }
+    let yard = require_recruitment_building(ctx, owner, cavalry_yard_id, "cavalry_yard")?;
+    if yard.assigned_labor == 0 {
+        return Err("Assign at least one groom before forming mounted troops.".into());
+    }
+    recruit_resident_company(ctx, owner, &yard, kind, kind.company_size(), false)
 }
 
 /// Hired spear companies are the sole non-resident force. They enter at the
@@ -174,7 +197,7 @@ pub fn deploy_debug_military_company(
     let size = kind.company_size();
     let tick = sim_tick(ctx);
     let stats = military_stats(kind);
-    let formation = if matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen) {
+    let formation = if kind.is_ranged() {
         MILITARY_FORMATION_LOOSE
     } else {
         MILITARY_FORMATION_LINE
@@ -184,7 +207,10 @@ pub fn deploy_debug_military_company(
         .building()
         .owner()
         .filter(&owner)
-        .filter(|building| building.construction_complete)
+        .filter(|building| {
+            building.construction_complete
+                && (!kind.is_mounted() || building.kind == "cavalry_yard")
+        })
         .min_by(|left, right| {
             point_distance(left.x, left.z, x, z)
                 .total_cmp(&point_distance(right.x, right.z, x, z))
@@ -224,7 +250,7 @@ pub fn deploy_debug_military_company(
         });
     }
     for slot in 0..size {
-        let (ox, oz) = formation_offset(formation, slot, size);
+        let (ox, oz) = formation_offset_for_kind(kind, formation, slot, size);
         let profile = member_combat_profile(kind, company.id.rotate_left(31) ^ slot as u64);
         let agent = ctx.db.combat_agent().insert(CombatAgent {
             id: 0,
@@ -269,6 +295,18 @@ pub fn deploy_debug_military_company(
             original_home_x: x,
             original_home_z: z,
         });
+        if kind.is_mounted() {
+            ctx.db.cavalry_horse().insert(CavalryHorse {
+                id: 0,
+                owner,
+                cavalry_yard_id: source_building_id,
+                slot: slot as u8,
+                training_days: crate::balance_generated::CAVALRY_HORSE_TRAINING_DAYS,
+                last_training_day: 0,
+                assigned_company_id: company.id,
+                assigned_combat_agent_id: agent.id,
+            });
+        }
     }
     Ok(company.id)
 }
@@ -296,7 +334,14 @@ pub fn set_military_formation(
     if formation == MILITARY_FORMATION_SHIELD_WALL
         && matches!(
             MilitaryKind::from_id(company.kind),
-            Some(MilitaryKind::Crossbows | MilitaryKind::Bowmen | MilitaryKind::Polearms)
+            Some(
+                MilitaryKind::Crossbows
+                    | MilitaryKind::Bowmen
+                    | MilitaryKind::Polearms
+                    | MilitaryKind::Hussars
+                    | MilitaryKind::ArmoredLancers
+                    | MilitaryKind::MountedArchers
+            )
         )
     {
         return Err(
@@ -377,8 +422,15 @@ pub fn command_militia(
         let company_center_x =
             (company_index as f64 - company_count.saturating_sub(1) as f64 * 0.5) * 10.0;
         for (member_index, (mut agent, _member)) in company_members.into_iter().enumerate() {
-            let (member_x, member_z) =
-                formation_offset(company.formation, member_index as u32, member_count);
+            let Some(company_kind) = MilitaryKind::from_id(company.kind) else {
+                continue;
+            };
+            let (member_x, member_z) = formation_offset_for_kind(
+                company_kind,
+                company.formation,
+                member_index as u32,
+                member_count,
+            );
             let (center_x, center_z, camp_id, kind) = target
                 .as_ref()
                 .map(|camp| (camp.x, camp.z, camp.id, 1))
@@ -521,7 +573,7 @@ pub fn resupply_military_company(ctx: &ReducerContext, company_id: u64) -> Resul
     let missing_ammunition = company
         .ammunition_capacity
         .saturating_sub(company.ammunition);
-    let ammunition_bundles = if matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen) {
+    let ammunition_bundles = if kind.is_ranged() {
         missing_ammunition.div_ceil(military_stats(kind).ammunition_per_member.max(1))
     } else {
         0
@@ -538,7 +590,7 @@ pub fn resupply_military_company(ctx: &ReducerContext, company_id: u64) -> Resul
     }
     company.ammunition = company.ammunition_capacity;
     ctx.db.military_company().id().update(company.clone());
-    if matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen) {
+    if kind.is_ranged() {
         for mut member in ctx
             .db
             .military_member()
@@ -561,6 +613,31 @@ fn recruit_resident_company(
     size: u32,
     _walk_to_muster: bool,
 ) -> Result<(), String> {
+    let mut mounts = if kind.is_mounted() {
+        let mut available = ctx
+            .db
+            .cavalry_horse()
+            .cavalry_yard_id()
+            .filter(&source.id)
+            .filter(|horse| {
+                horse.owner == owner
+                    && horse.assigned_company_id == 0
+                    && horse.assigned_combat_agent_id == 0
+                    && horse.training_days >= crate::balance_generated::CAVALRY_HORSE_TRAINING_DAYS
+            })
+            .collect::<Vec<_>>();
+        available.sort_by_key(|horse| (horse.slot, horse.id));
+        if available.len() < size as usize {
+            return Err(format!(
+                "Only {} trained, unassigned horses are ready; {} are required.",
+                available.len(),
+                size
+            ));
+        }
+        available
+    } else {
+        Vec::new()
+    };
     let recruits = select_available_men(ctx, owner, source.settlement_id, size);
     if recruits.len() < size as usize {
         return Err(format!(
@@ -582,7 +659,7 @@ fn recruit_resident_company(
         kind: kind as u8,
         source_building_id: source.id,
         state: 0,
-        formation: if matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen) {
+        formation: if kind.is_ranged() {
             MILITARY_FORMATION_LOOSE
         } else {
             MILITARY_FORMATION_LINE
@@ -664,6 +741,11 @@ fn recruit_resident_company(
             original_home_x: recruit.x,
             original_home_z: recruit.z,
         });
+        if let Some(mount) = mounts.get_mut(slot as usize) {
+            mount.assigned_company_id = company.id;
+            mount.assigned_combat_agent_id = agent.id;
+            ctx.db.cavalry_horse().id().update(mount.clone());
+        }
     }
     Ok(())
 }
@@ -954,7 +1036,7 @@ fn spend_commodity(
         .filter(|building| building.construction_complete)
         .collect::<Vec<_>>();
     buildings.sort_by_key(|building| match building.kind.as_str() {
-        "guardhouse" => 0,
+        "guardhouse" | "cavalry_yard" => 0,
         "village_storehouse" | "granary" => 1,
         _ => 2,
     });

@@ -14,13 +14,16 @@ import {
 import { MILITARY_COMPANY_CARD_ART } from '../../security/militaryCompanyCardArt.ts';
 import { getActiveWorldGeneration } from '../../world/worldGenerationContext.ts';
 
-const GUARDHOUSE_KIND_ID: Partial<Record<MilitaryCompanyKind, number>> = {
+const RECRUITMENT_KIND_ID: Partial<Record<MilitaryCompanyKind, number>> = {
   spearmen: 1,
   'men-at-arms': 2,
   crossbows: 3,
   footmen: 5,
   polearms: 6,
   bowmen: 7,
+  hussars: 8,
+  'armored-lancers': 9,
+  'mounted-archers': 10,
 };
 
 const FORMATION_GLYPH: Record<(typeof MILITARY_FORMATIONS)[number], string> = {
@@ -92,7 +95,7 @@ function renderSelectedCompanyCommands(
   const formationButtons = MILITARY_FORMATIONS
     .filter((formation) => !(
       formation === 'shield-wall'
-      && ['crossbows', 'bowmen', 'polearms'].includes(company.kind)
+      && ['crossbows', 'bowmen', 'polearms', 'hussars', 'armored-lancers', 'mounted-archers'].includes(company.kind)
     ))
     .map((formation) => `
       <button type="button" class="resource-action-button military-formation-button${company.formation === formation ? ' is-selected' : ''}"
@@ -140,7 +143,7 @@ export function renderMilitaryRecruitmentPanels(
       ? `data-raise-militia="${definition.size}"`
       : kind === 'mercenary-spears'
         ? 'data-hire-mercenary-company'
-        : `data-recruit-military-kind="${GUARDHOUSE_KIND_ID[kind]}"`;
+        : `data-recruit-military-kind="${RECRUITMENT_KIND_ID[kind]}"`;
     const timing = kind === 'militia'
       ? 'Selected men physically report here before the company becomes active.'
       : kind === 'mercenary-spears'
@@ -214,7 +217,7 @@ function renderCompany(
   const mercenaryLeaving = company.kind === 'mercenary-spears' && company.status === 'leaving';
   const retainerGold = company.livingMembers * 2;
   const ammunition = company.ammunitionCapacity > 0
-    ? `<li><span>${company.kind === 'bowmen' ? 'Arrows' : 'Bolts'}</span><span>${company.ammunition} / ${company.ammunitionCapacity}</span></li>`
+    ? `<li><span>${company.kind === 'bowmen' || company.kind === 'mounted-archers' ? 'Arrows' : 'Bolts'}</span><span>${company.ammunition} / ${company.ammunitionCapacity}</span></li>`
     : '';
   const provisions = needsProvisions
     ? `<li><span>Field provisions</span><span>${company.provisionDays.toFixed(1)} days</span></li>`
@@ -225,7 +228,7 @@ function renderCompany(
   const formationButtons = MILITARY_FORMATIONS
     .filter((formation) => !(
       formation === 'shield-wall'
-      && ['crossbows', 'bowmen', 'polearms'].includes(company.kind)
+      && ['crossbows', 'bowmen', 'polearms', 'hussars', 'armored-lancers', 'mounted-archers'].includes(company.kind)
     ))
     .map((formation) => `
       <button type="button" class="resource-action-button resource-action-button--icon resource-action-button--secondary"

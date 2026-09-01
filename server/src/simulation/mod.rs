@@ -1,6 +1,7 @@
 mod backyard_garden;
 mod bandits;
 mod burial;
+mod cavalry;
 mod chapel;
 mod chapel_community;
 mod chapel_parish;
@@ -55,6 +56,7 @@ mod woodcutters_lodge;
 pub use backyard_garden::{clear_backyard_garden_for_residence, step_backyard_gardens};
 pub use bandits::{spawn_debug_bandit_camp, step_bandit_world};
 pub use burial::step_burials;
+pub use cavalry::step_cavalry_yards;
 pub use chapel::step_chapels;
 pub use chapel_parish::step_chapel_parish;
 pub use civic_receipts::try_dispatch_local_civic_receipts;
@@ -69,13 +71,13 @@ pub use delivery_trips::{
 };
 pub use devotional_candles::step_devotional_candles;
 pub use expanded_economy::{
-    step_apiary, step_bakery, step_bowyer_fletcher, step_brewery, step_carpenter, step_chandlery, step_charcoal_burner,
-    step_cobbler, step_granary, step_guardhouse, step_industrial_firewood_dispatch,
-    step_institutional_food_dispatch, step_local_material_dispatch,
-    step_marketplace_material_dispatch, step_mine, step_monastery, step_potter_kiln,
-    step_military_requisitions,
-    step_seed_grain_distribution, step_smithy, step_smokehouse, step_spinning_retting_house,
-    step_tannery, step_threshing_barn, step_watermill, step_weaponsmith_armorer, step_weaver, step_windmill,
+    step_apiary, step_bakery, step_bowyer_fletcher, step_brewery, step_carpenter, step_chandlery,
+    step_charcoal_burner, step_cobbler, step_granary, step_guardhouse,
+    step_industrial_firewood_dispatch, step_institutional_food_dispatch,
+    step_local_material_dispatch, step_marketplace_material_dispatch, step_military_requisitions,
+    step_mine, step_monastery, step_potter_kiln, step_seed_grain_distribution, step_smithy,
+    step_smokehouse, step_spinning_retting_house, step_tannery, step_threshing_barn,
+    step_watermill, step_weaponsmith_armorer, step_weaver, step_windmill,
 };
 pub use fires::{
     building_fire_state, clear_fire_for_target, fire_response_needed_for_well,

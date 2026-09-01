@@ -48,6 +48,8 @@ const STONE_BUILDING_COSTS: Readonly<Record<string, number>> = {
   village_storehouse: 16,
   watchtower: 10,
   guardhouse: 20,
+  cavalry_yard: 28,
+  kennel: 4,
   monastery: 150,
   brewery: 24,
   tavern: 20,
@@ -105,7 +107,7 @@ assert.deepEqual(categoryKeys('food'), ['watermill', 'windmill', 'bakery', 'brew
 assert.deepEqual(categoryKeys('industry'), ['carpenter', 'spinning_retting_house', 'weaver', 'tannery', 'cobbler', 'chandlery', 'charcoal_burner', 'smithy', 'weaponsmith_armorer', 'bowyer_fletcher', 'potter_kiln']);
 assert.deepEqual(categoryKeys('faith'), ['chapel', 'monastery']);
 assert.deepEqual(categoryKeys('decorations'), ['wayside_shrine', 'dry_stone_wall']);
-assert.deepEqual(categoryKeys('military'), ['watchtower', 'guardhouse', 'palisaded_refuge']);
+assert.deepEqual(categoryKeys('military'), ['watchtower', 'guardhouse', 'cavalry_yard', 'palisaded_refuge']);
 assert.equal(BUILD_MENU_CATEGORIES.at(-1)?.conflictOnly, true);
 assert.equal(BUILDING_KIND_TO_MENU_ACTION.founders_camp, 'founders-camp');
 assert.equal(MENU_ACTION_TO_BUILDING_KIND['founders-camp'], 'founders_camp');

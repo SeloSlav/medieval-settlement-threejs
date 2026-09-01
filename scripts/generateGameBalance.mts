@@ -358,6 +358,12 @@ export type GameBalance = {
     stableOxSlots: number;
     stableOxMaxPerWorkplace: number;
     stableOxPurchaseGold: number;
+    cavalryHorseSlots: number;
+    cavalryHorsePurchaseGold: number;
+    cavalryHorseTrainingDays: number;
+    cavalryHorseDailyAnimalFeed: number;
+    cavalryHorseDailyOats: number;
+    cavalryHorseDailyWater: number;
     kennelDogSlots: number;
     kennelDogPurchaseGold: number;
     kennelDogMaxPerHuntersHall: number;
@@ -899,6 +905,7 @@ const simKindByKind: Record<string, string | null> = {
   marketplace: null,
   town_hall: null,
   stable: null,
+  cavalry_yard: null,
   kennel: null,
   village_storehouse: 'VillageStorehouse',
   watchtower: null,
@@ -1071,6 +1078,12 @@ function generateRust(): string {
     `pub const STABLE_OX_SLOTS: u8 = ${b.economy.stableOxSlots};`,
     `pub const STABLE_OX_MAX_PER_WORKPLACE: u32 = ${b.economy.stableOxMaxPerWorkplace};`,
     `pub const STABLE_OX_PURCHASE_GOLD: f64 = ${rustF64(b.economy.stableOxPurchaseGold)};`,
+    `pub const CAVALRY_HORSE_SLOTS: u8 = ${b.economy.cavalryHorseSlots};`,
+    `pub const CAVALRY_HORSE_PURCHASE_GOLD: f64 = ${rustF64(b.economy.cavalryHorsePurchaseGold)};`,
+    `pub const CAVALRY_HORSE_TRAINING_DAYS: u8 = ${b.economy.cavalryHorseTrainingDays};`,
+    `pub const CAVALRY_HORSE_DAILY_ANIMAL_FEED: f64 = ${rustF64(b.economy.cavalryHorseDailyAnimalFeed)};`,
+    `pub const CAVALRY_HORSE_DAILY_OATS: f64 = ${rustF64(b.economy.cavalryHorseDailyOats)};`,
+    `pub const CAVALRY_HORSE_DAILY_WATER: f64 = ${rustF64(b.economy.cavalryHorseDailyWater)};`,
     `pub const KENNEL_DOG_SLOTS: u8 = ${b.economy.kennelDogSlots};`,
     `pub const KENNEL_DOG_PURCHASE_GOLD: f64 = ${rustF64(b.economy.kennelDogPurchaseGold)};`,
     `pub const KENNEL_DOG_MAX_PER_HUNTERS_HALL: u32 = ${b.economy.kennelDogMaxPerHuntersHall};`,
@@ -2187,6 +2200,12 @@ function generateTypeScript(): string {
     `export const STABLE_OX_SLOTS = ${b.economy.stableOxSlots};`,
     `export const STABLE_OX_MAX_PER_WORKPLACE = ${b.economy.stableOxMaxPerWorkplace};`,
     `export const STABLE_OX_PURCHASE_GOLD = ${b.economy.stableOxPurchaseGold};`,
+    `export const CAVALRY_HORSE_SLOTS = ${b.economy.cavalryHorseSlots};`,
+    `export const CAVALRY_HORSE_PURCHASE_GOLD = ${b.economy.cavalryHorsePurchaseGold};`,
+    `export const CAVALRY_HORSE_TRAINING_DAYS = ${b.economy.cavalryHorseTrainingDays};`,
+    `export const CAVALRY_HORSE_DAILY_ANIMAL_FEED = ${b.economy.cavalryHorseDailyAnimalFeed};`,
+    `export const CAVALRY_HORSE_DAILY_OATS = ${b.economy.cavalryHorseDailyOats};`,
+    `export const CAVALRY_HORSE_DAILY_WATER = ${b.economy.cavalryHorseDailyWater};`,
     `export const KENNEL_DOG_SLOTS = ${b.economy.kennelDogSlots};`,
     `export const KENNEL_DOG_PURCHASE_GOLD = ${b.economy.kennelDogPurchaseGold};`,
     `export const KENNEL_DOG_MAX_PER_HUNTERS_HALL = ${b.economy.kennelDogMaxPerHuntersHall};`,

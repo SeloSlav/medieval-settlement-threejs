@@ -29,6 +29,63 @@ pub const COMBAT_TARGET_TREASURY_RESIDENCE: u8 = 4;
 pub const GUARD_SPEED_MPS: f64 = 1.42;
 pub const WOUNDED_GUARD_SPEED_MPS: f64 = 0.68;
 pub const RAIDER_SPEED_MPS: f64 = 1.34;
+pub const MOUNTED_RAIDER_SPEED_MPS: f64 = 2.55;
+
+pub const OTTOMAN_ROLE_AZAB: u8 = 0;
+pub const OTTOMAN_ROLE_JANISSARY: u8 = 1;
+pub const OTTOMAN_ROLE_AKINCI: u8 = 2;
+pub const OTTOMAN_ROLE_SIPAHI: u8 = 3;
+
+/// Stable mixed-company roster: three Azabs, two Janissaries, two Akıncıs,
+/// and one Timariot Sipahi per eight ranks. Small raids still begin with the
+/// common infantry expected of a frontier incursion.
+pub fn ottoman_raider_role(source_slot: u32) -> u8 {
+    match source_slot % 8 {
+        0..=2 => OTTOMAN_ROLE_AZAB,
+        3..=4 => OTTOMAN_ROLE_JANISSARY,
+        5..=6 => OTTOMAN_ROLE_AKINCI,
+        _ => OTTOMAN_ROLE_SIPAHI,
+    }
+}
+
+pub fn ottoman_raider_is_mounted(source_slot: u32) -> bool {
+    matches!(
+        ottoman_raider_role(source_slot),
+        OTTOMAN_ROLE_AKINCI | OTTOMAN_ROLE_SIPAHI
+    )
+}
+
+pub fn ottoman_raider_is_ranged(source_slot: u32) -> bool {
+    matches!(source_slot % 8, 1 | 2 | 5 | 6)
+}
+
+pub fn ottoman_raider_speed(source_slot: u32) -> f64 {
+    if ottoman_raider_is_mounted(source_slot) {
+        MOUNTED_RAIDER_SPEED_MPS
+    } else {
+        RAIDER_SPEED_MPS
+    }
+}
+
+pub fn ottoman_raider_health_multiplier(source_slot: u32) -> f64 {
+    match ottoman_raider_role(source_slot) {
+        OTTOMAN_ROLE_AZAB => 0.82,
+        OTTOMAN_ROLE_JANISSARY => 1.08,
+        OTTOMAN_ROLE_AKINCI => 0.94,
+        OTTOMAN_ROLE_SIPAHI => 1.28,
+        _ => 1.0,
+    }
+}
+
+pub fn ottoman_raider_damage_multiplier(source_slot: u32) -> f64 {
+    match ottoman_raider_role(source_slot) {
+        OTTOMAN_ROLE_AZAB => 0.82,
+        OTTOMAN_ROLE_JANISSARY => 1.12,
+        OTTOMAN_ROLE_AKINCI => 1.0,
+        OTTOMAN_ROLE_SIPAHI => 1.32,
+        _ => 1.0,
+    }
+}
 pub const COMBAT_ROAD_SPEED_MULTIPLIER: f64 = 1.35;
 pub const COMBAT_WADING_SPEED_MULTIPLIER: f64 = 0.6;
 // Direct combat movement includes fields, woodland, and the fordable rivers of

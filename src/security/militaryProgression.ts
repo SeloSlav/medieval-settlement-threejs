@@ -14,6 +14,9 @@ export const MILITARY_KINDS = [
   'footmen',
   'polearms',
   'bowmen',
+  'hussars',
+  'armored-lancers',
+  'mounted-archers',
 ] as const;
 export type MilitaryCompanyKind = (typeof MILITARY_KINDS)[number];
 
@@ -92,7 +95,7 @@ export const MILITARY_RECRUITMENT: Record<MilitaryCompanyKind, {
   shortLabel: string;
   size: number;
   cost: MilitaryRecruitmentCost;
-  source: 'town-hall' | 'guardhouse';
+  source: 'town-hall' | 'guardhouse' | 'cavalry-yard';
   residentMen: boolean;
   icon: string;
   summary: string;
@@ -164,6 +167,24 @@ export const MILITARY_RECRUITMENT: Record<MilitaryCompanyKind, {
     cost: { bows: 8, ammunition: 8, preservedFood: 16, gold: 8 },
     source: 'guardhouse', residentMen: true, icon: 'bowmen',
     summary: 'Eight inexpensive fast-firing bowmen with twenty-four arrows each. Strong against light troops; crossbows remain the better armored-target answer.',
+  },
+  hussars: {
+    label: 'Frontier hussar company', shortLabel: 'Hussars', size: 6,
+    cost: { polearms: 6, sidearms: 6, shields: 6, paddedArmor: 6, ale: 3, preservedFood: 18, gold: 30 },
+    source: 'cavalry-yard', residentMen: true, icon: 'hussars',
+    summary: 'Six Croatian-Hungarian light horse with lance, sidearm, small shield, and padded coat. Fast flanking cavalry that excels at overrunning missile troops.',
+  },
+  'armored-lancers': {
+    label: 'Armored lancer company', shortLabel: 'Armored lancers', size: 6,
+    cost: { polearms: 6, sidearms: 6, mailArmor: 6, ale: 6, preservedFood: 24, gold: 48 },
+    source: 'cavalry-yard', residentMen: true, icon: 'armored-lancers',
+    summary: 'Six mail-armored lancers and trained warhorses. The strongest charge and holding power of the mounted roster, with severe remount, armor, and wage costs.',
+  },
+  'mounted-archers': {
+    label: 'Mounted archer company', shortLabel: 'Mounted archers', size: 6,
+    cost: { bows: 6, sidearms: 6, paddedArmor: 6, ammunition: 6, ale: 3, preservedFood: 18, gold: 30 },
+    source: 'cavalry-yard', residentMen: true, icon: 'mounted-archers',
+    summary: 'Six frontier horse archers with bows, sidearms, and twenty-four arrows each. Highly mobile skirmishers that need spacing and suffer against braced spear or polearm troops.',
   },
 };
 

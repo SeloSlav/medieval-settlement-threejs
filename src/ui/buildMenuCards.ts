@@ -15,7 +15,7 @@ import {
 export type PlacementBuildMenuAction =
   | 'founders-camp'
   | 'lumber-mill' | 'stone-quarry' | 'large-quarry' | 'mine' | 'reforester' | 'woodcutters-lodge'
-  | 'well' | 'stable' | 'kennel' | 'hunters-hall' | 'foragers-shed' | 'fishing-camp' | 'chapel' | 'wayside-shrine' | 'marketplace' | 'trading-post'
+  | 'well' | 'stable' | 'cavalry-yard' | 'kennel' | 'hunters-hall' | 'foragers-shed' | 'fishing-camp' | 'chapel' | 'wayside-shrine' | 'marketplace' | 'trading-post'
   | 'threshing-barn' | 'monastery' | 'brewery' | 'tavern' | 'smokehouse'
   | 'granary' | 'bakery' | 'apiary' | 'watermill' | 'windmill' | 'carpenter'
   | 'spinning-retting-house' | 'weaver'
@@ -73,6 +73,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   residences: ['Residence', 'Provides homes for settlement families.'],
   well: ['Well', 'Draws and supplies water to nearby homes.', flow([], ['water'])],
   stable: ['Stable', 'Houses oxen for building, farm work, and hauling.'],
+  cavalry_yard: ['Cavalry Yard', 'Imports, houses, feeds, and trains one remount for every mounted soldier.', flow(['animalFeed', 'oatGrain', 'water'], [])],
   kennel: ['Kennel', 'Trains guard dogs that patrol the settlement and confront thieves.'],
   chapel: ['Church', 'Serves parish life through worship, tithes, and household support.'],
   wayside_shrine: ['Wayside shrine', 'Marks the roadside with a small place of prayer and devotion.'],
@@ -156,7 +157,7 @@ export const INDUSTRY_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 
 /** Conflict-enabled early warning and settlement defenses. */
 export const MILITARY_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('watchtower'), entry('guardhouse'), entry('palisaded_refuge'),
+  entry('watchtower'), entry('guardhouse'), entry('cavalry_yard'), entry('palisaded_refuge'),
 ];
 
 export type BuildMenuCategoryId =
@@ -204,7 +205,7 @@ export const BUILD_MENU_CATEGORIES: readonly BuildMenuCategory[] = [
   { id: 'industry', label: 'Industry', hint: 'Fuel, crafts, textiles, leather, candles, metal, and pottery', icon: 'industry', entries: WORKSHOP_BUILD_MENU_ENTRIES },
   { id: 'faith', label: 'Faith', hint: 'Parish and monastic institutions', icon: 'faith', entries: FAITH_BUILD_MENU_ENTRIES },
   { id: 'decorations', label: 'Decorations', hint: 'Roadside details and stone walls', icon: 'decorations', entries: DECORATION_BUILD_MENU_ENTRIES },
-  { id: 'military', label: 'Military', hint: 'Warning, defense, and refuge', icon: 'military', entries: MILITARY_BUILD_MENU_ENTRIES, conflictOnly: true },
+  { id: 'military', label: 'Military', hint: 'Warning, infantry, cavalry, defense, and refuge', icon: 'military', entries: MILITARY_BUILD_MENU_ENTRIES, conflictOnly: true },
 ];
 
 export const BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [

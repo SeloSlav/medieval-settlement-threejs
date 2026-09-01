@@ -64,6 +64,9 @@ const TOOL_BY_COMPANY: Record<MilitaryCompanyKind, WorkerToolKind> = {
   footmen: 'sidearm-shield' as WorkerToolKind,
   polearms: 'halberd',
   bowmen: 'bow',
+  hussars: 'spear-shield' as WorkerToolKind,
+  'armored-lancers': 'spear',
+  'mounted-archers': 'bow',
 };
 
 const KIT_LABELS: Record<MilitaryCompanyKind, string> = {
@@ -75,6 +78,9 @@ const KIT_LABELS: Record<MilitaryCompanyKind, string> = {
   footmen: 'Sidearm · buckler · gambeson',
   polearms: 'Halberd · two-handed harness',
   bowmen: 'War bow · arrow quiver',
+  hussars: 'Lance · sidearm · small shield · padded coat · remount',
+  'armored-lancers': 'Lance · sidearm · mail · armored remount',
+  'mounted-archers': 'Composite bow · sidearm · quiver · remount',
 };
 
 const MELEE_KINDS = new Set<MilitaryCompanyKind>([
@@ -84,8 +90,10 @@ const MELEE_KINDS = new Set<MilitaryCompanyKind>([
   'mercenary-spears',
   'footmen',
   'polearms',
+  'hussars',
+  'armored-lancers',
 ]);
-const RANGED_KINDS = new Set<MilitaryCompanyKind>(['crossbows', 'bowmen']);
+const RANGED_KINDS = new Set<MilitaryCompanyKind>(['crossbows', 'bowmen', 'mounted-archers']);
 
 const host = document.querySelector<HTMLElement>('#lineup-root');
 const labels = document.querySelector<HTMLElement>('#labels');

@@ -6,18 +6,29 @@ import {
   militaryRecruitmentCost,
   militaryResupplyCost,
 } from '../src/security/militaryProgression.ts';
+import {
+  CAVALRY_HORSE_REST_ANCHORS,
+  CAVALRY_YARD_ARCHITECTURE_PLAN,
+} from '../src/buildings/meshes/cavalryYardMesh.ts';
 
 const read = (path: string) => readFileSync(path, 'utf8');
 const policy = read('src/security/militaryProgression.ts');
 const serverPolicy = read('server/src/military_policy.rs');
 const reducer = read('server/src/reducers/bandits.rs');
 const simulation = read('server/src/simulation/military.rs');
+const cavalrySimulation = read('server/src/simulation/cavalry.rs');
+const cavalryReducer = read('server/src/reducers/cavalry_horses.rs');
+const raidPolicy = read('server/src/raid_agent_policy.rs');
 const economySimulation = read('server/src/simulation/expanded_economy.rs');
 const tables = read('server/src/tables.rs');
 const guardhouse = read('src/resources/inspector/guardhouseRenderer.ts');
 const townHall = read('src/resources/inspector/townHallRenderer.ts');
 const roster = read('src/resources/inspector/militaryCompanyRenderer.ts');
 const villagers = read('src/settlement/VillagerRenderer.ts');
+const crowdRenderer = read('src/settlement/SettlementCrowdRenderer.ts');
+const horseRenderer = read('src/settlement/CavalryHorseRenderer.ts');
+const cavalryInspector = read('src/resources/inspector/cavalryYardRenderer.ts');
+const debugMenu = read('src/ui/DebugMenu.ts');
 const tools = read('src/settlement/workerTools.ts');
 const equipment = read('src/settlement/militaryEquipment.ts');
 const commands = read('src/security/MilitiaCommandController.ts');
@@ -39,7 +50,7 @@ const reducerSection = (start: string, end: string): string => {
   return reducer.slice(startIndex, endIndex);
 };
 
-for (const kind of ['militia', 'spearmen', 'men-at-arms', 'crossbows', 'mercenary-spears', 'footmen', 'polearms', 'bowmen']) {
+for (const kind of ['militia', 'spearmen', 'men-at-arms', 'crossbows', 'mercenary-spears', 'footmen', 'polearms', 'bowmen', 'hussars', 'armored-lancers', 'mounted-archers']) {
   assert.match(policy, new RegExp(`['\"]?${kind.replace('-', '\\-')}['\"]?\\s*:`));
 }
 assert.match(policy, /militia:[\s\S]*cost: \{ polearms: 5 \}/);
@@ -74,6 +85,7 @@ assert.match(tables, /pub struct MilitaryMember/);
 assert.match(tables, /pub struct MercenaryContract/);
 assert.match(reducer, /pub fn raise_militia/);
 assert.match(reducer, /pub fn recruit_military_company/);
+assert.match(reducer, /pub fn recruit_cavalry_company/);
 assert.match(reducer, /pub fn hire_mercenary_company/);
 assert.match(reducer, /pub fn disband_military_company/);
 assert.match(reducer, /pub fn renew_mercenary_contract/);
@@ -90,6 +102,7 @@ assert.match(reducer, /let \(x, z\) = \(recruit\.x, recruit\.z\)/);
 assert.match(reducer, /spend_non_equipment_cost/);
 assert.match(reducer, /pending_equipment_reserved/);
 assert.match(economySimulation, /pub fn step_military_requisitions/);
+assert.match(economySimulation, /fn step_cavalry_yard_requisitions/);
 assert.match(economySimulation, /ordinary physical carts/);
 assert.match(economySimulation, /company\.state = 1/);
 assert.match(reducer, /let mut company_ids = BTreeSet::new\(\)/);
@@ -137,8 +150,8 @@ assert.match(simulation, /idle_too_long \|\| tick >= contract\.contract_end_tick
 assert.match(simulation, /fn recover_member_kit_at/);
 assert.match(simulation, /fn resolve_return_home/);
 assert.match(simulation, /fn down_player_member/);
-assert.match(simulation, /let ranged_kind = matches![\s\S]{0,160}MilitaryKind::Crossbows \| MilitaryKind::Bowmen/);
-assert.match(simulation, /minimum_ranged_spacing[\s\S]*MilitaryKind::Bowmen[\s\S]*MilitaryKind::Crossbows/);
+assert.match(simulation, /let ranged_kind = kind\.is_ranged\(\)/);
+assert.match(simulation, /minimum_ranged_spacing[\s\S]*MilitaryKind::Bowmen[\s\S]*MilitaryKind::Crossbows[\s\S]*MilitaryKind::MountedArchers/);
 assert.match(simulation, /walk_away\(&mut agent[\s\S]{0,160}stats\.speed \* 0\.78/);
 assert.match(simulation, /fighting withdrawal[\s\S]{0,240}agent\.state = FIGHTING/);
 assert.match(simulation, /let charged_into_contact = !can_shoot/);
@@ -212,6 +225,48 @@ assert.match(selectedCompanyCard, /detailsHtml: ''/);
 assert.doesNotMatch(selectedCompanyCard, /role="progressbar"|data-company-health|>Morale<|>Cohesion<|>Fatigue</);
 assert.match(villagers, /activeMilitaryPersonIdentities\.has\(agent\.personIdentity\)/);
 assert.match(villagers, /function combatToolFor/);
+assert.match(villagers, /CAVALRY_SADDLE_HEIGHT[\s\S]*seatedVillagerContactHeight/);
+assert.match(crowdRenderer, /agent\.mounted[\s\S]{0,100}return 'sit'/);
+assert.match(horseRenderer, /class CavalryHorseRenderer/);
+assert.match(horseRenderer, /animateHorse/);
+assert.match(horseRenderer, /pose\.activity === 'grazing'/);
+assert.match(horseRenderer, /visual\.blanket\.material = this\.blanketMaterials\[pose\.presentation\]/);
+assert.match(villagers, /anchor\.zone === 'paddock'/);
+assert.match(villagers, /activity = 'grazing'/);
+assert.match(villagers, /smoothHorseStep/);
+assert.equal(
+  (villagers.match(/`horse:\$\{(?:pairedHorse|horse)\.id\}`/g) ?? []).length,
+  2,
+  'the same authoritative horse render id must be used in the yard and under its rider',
+);
+assert.equal(CAVALRY_HORSE_REST_ANCHORS.length, 12);
+assert.equal(CAVALRY_HORSE_REST_ANCHORS.filter((anchor) => anchor.zone === 'stable').length, 6);
+assert.equal(CAVALRY_HORSE_REST_ANCHORS.filter((anchor) => anchor.zone === 'paddock').length, 6);
+assert.ok(CAVALRY_HORSE_REST_ANCHORS.every((anchor, index) => (
+  anchor.zone === (index % 2 === 0 ? 'stable' : 'paddock')
+)));
+assert.equal(CAVALRY_YARD_ARCHITECTURE_PLAN.diagnostics.stableBayCount, 6);
+assert.ok(CAVALRY_YARD_ARCHITECTURE_PLAN.modules.includes('schooling-ring'));
+assert.ok(CAVALRY_YARD_ARCHITECTURE_PLAN.modules.includes('feed-and-tack-store'));
+assert.match(tables, /pub struct CavalryHorse/);
+assert.match(cavalryReducer, /pub fn purchase_cavalry_horse/);
+assert.match(cavalryReducer, /CAVALRY_HORSE_PURCHASE_GOLD/);
+assert.match(cavalrySimulation, /withdraw_building_commodity[\s\S]*AnimalFeed[\s\S]*OatGrain[\s\S]*Water/);
+assert.match(cavalrySimulation, /building_fire_state/);
+assert.match(reducer, /mount\.assigned_company_id = company\.id/);
+assert.match(reducer, /mount\.assigned_combat_agent_id = agent\.id/);
+assert.match(
+  serverPolicy,
+  /Self::Hussars \| Self::ArmoredLancers \| Self::MountedArchers => 6/,
+  'every cavalry company must be a six-rider atomic formation, never one mounted actor',
+);
+assert.match(simulation, /release_mount_for_agent\(ctx, agent\.id, true\)/);
+assert.match(simulation, /release_mount_for_agent\(ctx, agent\.id, false\)/);
+assert.match(cavalryInspector, /One rider, one horse/);
+assert.match(cavalryInspector, /Animal Feed · \$\{dailyOats\} oats/);
+assert.match(raidPolicy, /OTTOMAN_ROLE_AZAB[\s\S]*OTTOMAN_ROLE_JANISSARY[\s\S]*OTTOMAN_ROLE_AKINCI[\s\S]*OTTOMAN_ROLE_SIPAHI/);
+assert.match(raidPolicy, /three Azabs, two Janissaries, two Akıncıs/);
+for (const id of [8, 9, 10]) assert.match(debugMenu, new RegExp(`<option value="${id}">`));
 assert.match(villagers, /\(combat\.routeProgress \?\? 0\) > 14/);
 assert.match(tools, /createMilitaryEquipmentSources/);
 assert.match(equipment, /function createCrossbow/);
@@ -254,4 +309,4 @@ for (const kind of [
   assert.ok(statSync(path).size > 10_000, `${path} should contain authored card art`);
 }
 
-console.log('Military progression contract valid: eight distinct company types including Men-at-Arms, counter roles, variable militia strength, edge-arriving mercenaries with paid finite contracts, physical reversible edge departure and retainer recall, company-atomic flock orders, individual combat profiles, physical resident muster/return/salvage, formations, ammo, UI controls, and woodcut icons.');
+console.log('Military progression contract valid: eleven distinct company types including three one-horse-per-rider cavalry companies, supplied remount training, mounted villager poses and horse visuals, four-role Ottoman raid diversity, counter roles, resident muster/return/losses, formations, ammo, UI controls, and debug deployment.');

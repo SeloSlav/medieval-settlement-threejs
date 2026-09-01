@@ -1509,6 +1509,40 @@ pub struct StableOx {
     pub assigned_building_id: u64,
 }
 
+/// One purchased remount housed and trained at a dedicated Cavalry Yard.
+/// A mount is reserved to exactly one living combat agent while its company is
+/// fielded; surviving mounts return to their yard when the rider comes home.
+#[spacetimedb::table(
+    accessor = cavalry_horse,
+    public,
+    index(accessor = owner, btree(columns = [owner])),
+    index(accessor = cavalry_yard_id, btree(columns = [cavalry_yard_id])),
+    index(accessor = assigned_company_id, btree(columns = [assigned_company_id])),
+    index(accessor = assigned_combat_agent_id, btree(columns = [assigned_combat_agent_id]))
+)]
+#[derive(Clone)]
+pub struct CavalryHorse {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    pub owner: Identity,
+    pub cavalry_yard_id: u64,
+    /// Zero-based authored loose-box/paddock roster slot.
+    pub slot: u8,
+    /// Productive training days completed at a staffed and supplied yard.
+    #[default(0u8)]
+    pub training_days: u8,
+    /// Calendar day last considered by the training simulation.
+    #[default(0u64)]
+    pub last_training_day: u64,
+    /// Zero while available; otherwise the owning mounted company.
+    #[default(0u64)]
+    pub assigned_company_id: u64,
+    /// Exact paired rider. Zero while the horse remains in the yard.
+    #[default(0u64)]
+    pub assigned_combat_agent_id: u64,
+}
+
 #[spacetimedb::table(accessor = road_network_state, public)]
 pub struct RoadNetworkState {
     #[primary_key]

@@ -16,6 +16,9 @@ export const MILITARY_COMPANY_STRATEGIC_ICON_ART = {
   footmen: '/assets/ui/icons/actions/footmen.png',
   polearms: '/assets/ui/icons/actions/polearms.png',
   bowmen: '/assets/ui/icons/actions/bowmen.png',
+  hussars: '/assets/ui/icons/actions/spearmen.png',
+  'armored-lancers': '/assets/ui/icons/actions/men-at-arms.png',
+  'mounted-archers': '/assets/ui/icons/actions/bowmen.png',
 } as const satisfies Record<MilitaryCompanyKind, string>;
 
 /** Converts the per-soldier simulation faction back to its selectable company
@@ -33,6 +36,9 @@ export function militaryCompanyKindForFaction(
     case 'footman': return 'footmen';
     case 'polearm': return 'polearms';
     case 'bowman': return 'bowmen';
+    case 'hussar': return 'hussars';
+    case 'armored-lancer': return 'armored-lancers';
+    case 'mounted-archer': return 'mounted-archers';
     default: return null;
   }
 }

@@ -47,6 +47,7 @@ import type {
   SettlementState,
   ResourceStockpile,
   StableOxState,
+  CavalryHorseState,
   TreeEntityState,
   VineyardParcelState,
 } from '../resources/types.ts';
@@ -143,6 +144,7 @@ export type SpacetimeGameSnapshot = {
   corpses: Map<string, CorpseState>;
   livestockHerds: Map<string, LivestockHerdState>;
   stableOxen: Map<string, StableOxState>;
+  cavalryHorses: Map<string, CavalryHorseState>;
   burgageZones: Map<string, BurgageZoneState>;
   residences: Map<string, ResidenceState>;
   backyardGardens: Map<string, BackyardGardenState>;
@@ -194,6 +196,7 @@ function createEmptyTableState(): GameTableSyncState {
     corpses: new Map(),
     livestockHerds: new Map(),
     stableOxen: new Map(),
+    cavalryHorses: new Map(),
     burgageZones: new Map(),
     residences: new Map(),
     backyardGardens: new Map(),
@@ -342,6 +345,7 @@ export class SpacetimeGameStore {
       corpses: this.snapshotMap(state.corpses),
       livestockHerds: this.snapshotMap(state.livestockHerds),
       stableOxen: this.snapshotMap(state.stableOxen),
+      cavalryHorses: this.snapshotMap(state.cavalryHorses),
       burgageZones: this.snapshotMap(state.burgageZones),
       residences: this.snapshotMap(state.residences),
       backyardGardens: this.snapshotMap(state.backyardGardens),
@@ -439,6 +443,7 @@ export class SpacetimeGameStore {
       corpses: snapshot.corpses,
       livestockHerds: snapshot.livestockHerds,
       stableOxen: snapshot.stableOxen,
+      cavalryHorses: snapshot.cavalryHorses,
       burgageZones: snapshot.burgageZones,
       residences: snapshot.residences,
       backyardGardens: snapshot.backyardGardens,
@@ -640,6 +645,10 @@ export class SpacetimeGameStore {
 
   purchaseStableOx(stableId: string): Promise<void> {
     return spacetimeReducers.purchaseStableOx(stableId);
+  }
+
+  purchaseCavalryHorse(cavalryYardId: string): Promise<void> {
+    return spacetimeReducers.purchaseCavalryHorse(cavalryYardId);
   }
 
   purchaseKennelDog(kennelId: string): Promise<void> {
@@ -1280,6 +1289,10 @@ export class SpacetimeGameStore {
 
   recruitMilitaryCompany(guardhouseId: string, kind: number): Promise<void> {
     return spacetimeReducers.recruitMilitaryCompany(guardhouseId, kind);
+  }
+
+  recruitCavalryCompany(cavalryYardId: string, kind: number): Promise<void> {
+    return spacetimeReducers.recruitCavalryCompany(cavalryYardId, kind);
   }
 
   hireMercenaryCompany(townHallId: string): Promise<void> {

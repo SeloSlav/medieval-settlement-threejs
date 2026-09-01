@@ -15,6 +15,7 @@ export const GAME_TABLE_SUBSCRIPTIONS = [
   'corpse',
   'pasture_herd',
   'stable_ox',
+  'cavalry_horse',
   'burgage_zone',
   'residence',
   'backyard_garden',

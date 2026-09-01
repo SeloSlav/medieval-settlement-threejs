@@ -39,7 +39,7 @@ export type InspectorSpacetimeActions = {
   onBalanceYearRoundLabor: (townHallId: string) => Promise<void>;
   onRaiseMilitia: (townHallId: string, requested: number) => Promise<void>;
   onDisbandMilitia: () => Promise<void>;
-  onRecruitMilitaryCompany: (guardhouseId: string, kind: number) => Promise<void>;
+  onRecruitMilitaryCompany: (sourceBuildingId: string, kind: number) => Promise<void>;
   onHireMercenaryCompany: (townHallId: string) => Promise<void>;
   onDisbandMilitaryCompany: (companyId: string) => Promise<void>;
   onRenewMercenaryContract: (companyId: string) => Promise<void>;
@@ -63,6 +63,7 @@ export type InspectorSpacetimeActions = {
   onSetLivestockSpecies: (pastureId: string, species: Exclude<LivestockSpecies, 'swine'>) => Promise<void>;
   onTradeLivestock: (pastureId: string, headDelta: number) => Promise<void>;
   onPurchaseStableOx: (stableId: string) => Promise<void>;
+  onPurchaseCavalryHorse: (cavalryYardId: string) => Promise<void>;
   onPurchaseKennelDog: (kennelId: string) => Promise<void>;
   onSetBuildingOxen: (buildingId: string, assignedOxen: number) => Promise<void>;
   onSetBuildingDogs: (buildingId: string, assignedDogs: number) => Promise<void>;
@@ -413,11 +414,15 @@ export function createInspectorSpacetimeActions(
         toastManager.show('Militia disbanded and returned to the free labor pool.');
       }, 'Could not disband militia.');
     },
-    onRecruitMilitaryCompany: async (guardhouseId, kind) => {
+    onRecruitMilitaryCompany: async (sourceBuildingId, kind) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(async () => {
-        await store.recruitMilitaryCompany(guardhouseId, kind);
+        if (kind >= 8) {
+          await store.recruitCavalryCompany(sourceBuildingId, kind);
+        } else {
+          await store.recruitMilitaryCompany(sourceBuildingId, kind);
+        }
         toastManager.show('Military company recruited. Drag-select its soldiers and right-click to command them.');
       }, 'Could not recruit the military company.');
     },
@@ -584,6 +589,21 @@ export function createInspectorSpacetimeActions(
         toastManager.show(
           'Draft ox purchased. It joins automatic assistance until you post it to a workplace.',
         );
+      }
+    },
+    onPurchaseCavalryHorse: async (cavalryYardId) => {
+      const store = requireReady();
+      if (!store) return;
+      let purchased = false;
+      await runReducer(
+        async () => {
+          await store.purchaseCavalryHorse(cavalryYardId);
+          purchased = true;
+        },
+        'Could not purchase the remount.',
+      );
+      if (purchased) {
+        toastManager.show('Remount purchased. Cavalry-yard hands will now train it while feed, oats, and water are available.');
       }
     },
     onPurchaseKennelDog: async (kennelId) => {

@@ -207,13 +207,12 @@ pub fn spawn_debug_wild_animals(
     x: f64,
     z: f64,
 ) -> Result<u32, String> {
-    let fox_target = fox_target(ctx, owner, tick ^ x.to_bits())
-        .ok_or_else(|| "Wild animals need a stocked building, home, herd, garden, or ox to target.".to_string())?;
+    let fox_target = fox_target(ctx, owner, tick ^ x.to_bits()).ok_or_else(|| {
+        "Wild animals need a stocked building, home, herd, garden, or ox to target.".to_string()
+    })?;
     let wolf_target = wolf_target(ctx, owner, tick ^ z.to_bits()).unwrap_or(fox_target);
-    let event_id = 0xd000_0000_0000_0000
-        ^ tick.rotate_left(13)
-        ^ x.to_bits().rotate_left(29)
-        ^ z.to_bits();
+    let event_id =
+        0xd000_0000_0000_0000 ^ tick.rotate_left(13) ^ x.to_bits().rotate_left(29) ^ z.to_bits();
     insert_animal(
         ctx,
         owner,
@@ -977,7 +976,10 @@ fn nearest_defender(
         .owner()
         .filter(&animal.owner)
         .filter(|agent| {
-            (agent.faction == 0 || agent.faction == DOG || (3..=11).contains(&agent.faction))
+            (agent.faction == 0
+                || agent.faction == DOG
+                || (3..=11).contains(&agent.faction)
+                || matches!(agent.faction, 15 | 16))
                 && agent.state != DOWNED
                 && agent.health > 0.0
         })

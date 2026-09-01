@@ -8,11 +8,11 @@ use crate::simulation::{
     capture_combat_motion_frame, materialize_all_physical_resource_ledgers,
     retire_legacy_food_items, retire_removed_buildings, step_apiary, step_backyard_gardens,
     step_bakery, step_bandit_world, step_bowyer_fletcher, step_brewery, step_burials,
-    step_carpenter, step_chandlery, step_chapel_parish, step_chapels, step_charcoal_burner,
-    step_cobbler, step_construction_labor_stewards, step_construction_sites, step_delivery_trips,
-    step_devotional_candles, step_fires, step_fishing_camp, step_foragers_shed,
-    step_foraging_lifecycle, step_founding_sites, step_fresh_food_spoilage, step_granary,
-    step_guardhouse, step_household_discretionary_trade, step_hunters_hall,
+    step_carpenter, step_cavalry_yards, step_chandlery, step_chapel_parish, step_chapels,
+    step_charcoal_burner, step_cobbler, step_construction_labor_stewards, step_construction_sites,
+    step_delivery_trips, step_devotional_candles, step_fires, step_fishing_camp,
+    step_foragers_shed, step_foraging_lifecycle, step_founding_sites, step_fresh_food_spoilage,
+    step_granary, step_guardhouse, step_household_discretionary_trade, step_hunters_hall,
     step_industrial_firewood_dispatch, step_institutional_food_dispatch, step_land_levies,
     step_large_quarry, step_live_raids, step_local_material_dispatch, step_lumber_mill,
     step_market_household_distribution, step_marketplace_caravans,
@@ -545,6 +545,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     // Recruitment reserves complete finished kits, then ordinary carts bring
     // them to the mustering hall. Companies become selectable only once every
     // recruit and every physical weapon/armor item is onsite.
+    step_cavalry_yards(ctx, &clock);
     step_military_requisitions(ctx, &tick, &clock);
 
     // Local producers have now completed this tick's work. Match their free

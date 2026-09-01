@@ -182,6 +182,12 @@ const COMBAT_STATS: Readonly<Record<CombatAgentFaction, CombatStats>> = {
     health: 55, damage: 10.5, cadence: 1.55, range: 20,
     speed: 2.5, detection: 22, minimumRange: 8,
   },
+  hussar: { health: 78, damage: 15, cadence: 1.05, range: 2.75, speed: 4.4, detection: 15 },
+  'armored-lancer': { health: 112, damage: 21, cadence: 1.16, range: 2.9, speed: 3.8, detection: 15 },
+  'mounted-archer': {
+    health: 66, damage: 11, cadence: 1.5, range: 19,
+    speed: 4.5, detection: 22, minimumRange: 7,
+  },
   dog: { health: 80, damage: 13, cadence: 1.05, range: 1.7, speed: 3.15, detection: 52 },
   fox: { health: 34, damage: 5, cadence: 1.4, range: 1.4, speed: 3.35, detection: 14 },
   wolf: { health: 68, damage: 9, cadence: 1.15, range: 1.7, speed: 2.55, detection: 12 },
@@ -901,6 +907,9 @@ export class CombatPlaytestSimulation {
         faction: input.faction,
         sourceBuildingId: null,
         sourceSlot: input.sourceSlot,
+        ottomanRole: input.faction === 'raider'
+          ? (['azab', 'azab', 'azab', 'janissary', 'janissary', 'akinci', 'akinci', 'sipahi'] as const)[input.sourceSlot % 8]!
+          : null,
         targetKind: 'ground',
         targetId: `${COMBAT_PLAYTEST_AGENT_PREFIX}staging-ground`,
         x: input.x,

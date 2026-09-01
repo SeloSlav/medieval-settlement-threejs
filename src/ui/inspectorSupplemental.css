@@ -405,6 +405,18 @@
   background-image: url('/assets/ui/icons/actions/bowmen.png');
 }
 
+.inspector-action-icon[data-action-icon='hussars'] {
+  background-image: url('/assets/ui/icons/actions/spearmen.png');
+}
+
+.inspector-action-icon[data-action-icon='armored-lancers'] {
+  background-image: url('/assets/ui/icons/actions/men-at-arms.png');
+}
+
+.inspector-action-icon[data-action-icon='mounted-archers'] {
+  background-image: url('/assets/ui/icons/actions/bowmen.png');
+}
+
 .inspector-action-icon[data-action-icon='disband-company'] {
   background-image: url('/assets/ui/icons/actions/disband-company.png');
 }

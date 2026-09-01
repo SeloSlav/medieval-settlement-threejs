@@ -68,11 +68,13 @@ import PlaceFarmFieldReducer from "./place_farm_field_reducer";
 import PlaceGraveyardReducer from "./place_graveyard_reducer";
 import PlacePastureReducer from "./place_pasture_reducer";
 import PlaceVineyardReducer from "./place_vineyard_reducer";
+import PurchaseCavalryHorseReducer from "./purchase_cavalry_horse_reducer";
 import PurchaseKennelDogReducer from "./purchase_kennel_dog_reducer";
 import PurchaseStableOxReducer from "./purchase_stable_ox_reducer";
 import RaiseMilitiaReducer from "./raise_militia_reducer";
 import RecallIdleSeasonalLaborReducer from "./recall_idle_seasonal_labor_reducer";
 import RecallTargetIdleProcessorLaborReducer from "./recall_target_idle_processor_labor_reducer";
+import RecruitCavalryCompanyReducer from "./recruit_cavalry_company_reducer";
 import RecruitMilitaryCompanyReducer from "./recruit_military_company_reducer";
 import RemoveRoadEdgeReducer from "./remove_road_edge_reducer";
 import RenameSettlementReducer from "./rename_settlement_reducer";
@@ -161,6 +163,7 @@ import BanditCampRow from "./bandit_camp_table";
 import BanditIncidentRow from "./bandit_incident_table";
 import BuildingRow from "./building_table";
 import BurgageZoneRow from "./burgage_zone_table";
+import CavalryHorseRow from "./cavalry_horse_table";
 import CombatAgentRow from "./combat_agent_table";
 import CorpseRow from "./corpse_table";
 import DeliveryTripRow from "./delivery_trip_table";
@@ -302,6 +305,29 @@ const tablesSchema = __schema({
       { name: 'burgage_zone_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, BurgageZoneRow),
+  cavalry_horse: __table({
+    name: 'cavalry_horse',
+    indexes: [
+      { name: 'assigned_combat_agent_id', algorithm: 'btree', columns: [
+        'assignedCombatAgentId',
+      ] },
+      { name: 'assigned_company_id', algorithm: 'btree', columns: [
+        'assignedCompanyId',
+      ] },
+      { name: 'cavalry_yard_id', algorithm: 'btree', columns: [
+        'cavalryYardId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'cavalry_horse_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CavalryHorseRow),
   combat_agent: __table({
     name: 'combat_agent',
     indexes: [
@@ -824,11 +850,13 @@ const reducersSchema = __reducers(
   __reducerSchema("place_graveyard", PlaceGraveyardReducer),
   __reducerSchema("place_pasture", PlacePastureReducer),
   __reducerSchema("place_vineyard", PlaceVineyardReducer),
+  __reducerSchema("purchase_cavalry_horse", PurchaseCavalryHorseReducer),
   __reducerSchema("purchase_kennel_dog", PurchaseKennelDogReducer),
   __reducerSchema("purchase_stable_ox", PurchaseStableOxReducer),
   __reducerSchema("raise_militia", RaiseMilitiaReducer),
   __reducerSchema("recall_idle_seasonal_labor", RecallIdleSeasonalLaborReducer),
   __reducerSchema("recall_target_idle_processor_labor", RecallTargetIdleProcessorLaborReducer),
+  __reducerSchema("recruit_cavalry_company", RecruitCavalryCompanyReducer),
   __reducerSchema("recruit_military_company", RecruitMilitaryCompanyReducer),
   __reducerSchema("remove_road_edge", RemoveRoadEdgeReducer),
   __reducerSchema("rename_settlement", RenameSettlementReducer),

@@ -698,6 +698,9 @@ function makeAgent(input: {
     faction: input.faction,
     sourceBuildingId: null,
     sourceSlot: input.index,
+    ottomanRole: input.side === 'ottoman'
+      ? (['azab', 'azab', 'azab', 'janissary', 'janissary', 'akinci', 'akinci', 'sipahi'] as const)[input.index % 8]!
+      : null,
     // The opening advance is an actual mutual charge, not a generic move
     // order. Keeping the paired opponent authoritative lets animation and
     // audio distinguish a charge from a bandit simply walking toward storage.

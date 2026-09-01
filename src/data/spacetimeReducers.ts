@@ -94,6 +94,14 @@ export async function purchaseStableOx(stableId: string): Promise<void> {
   });
 }
 
+export async function purchaseCavalryHorse(cavalryYardId: string): Promise<void> {
+  const serverId = parseBuildingServerId(cavalryYardId);
+  if (serverId === null) throw new Error('Invalid Cavalry Yard id.');
+  await callReducer('purchaseCavalryHorse', 'purchase_cavalry_horse', {
+    cavalryYardId: serverId,
+  });
+}
+
 export async function purchaseKennelDog(kennelId: string): Promise<void> {
   const serverId = parseBuildingServerId(kennelId);
   if (serverId === null) throw new Error('Invalid Kennel id.');
@@ -1265,7 +1273,19 @@ export async function recruitMilitaryCompany(
   if (serverId === null) throw new Error('Invalid guardhouse id.');
   await callReducer('recruitMilitaryCompany', 'recruit_military_company', {
     guardhouseId: serverId,
-    kind: Math.max(1, Math.min(8, Math.floor(kind))),
+    kind: Math.max(1, Math.min(10, Math.floor(kind))),
+  });
+}
+
+export async function recruitCavalryCompany(
+  cavalryYardId: string,
+  kind: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(cavalryYardId);
+  if (serverId === null) throw new Error('Invalid Cavalry Yard id.');
+  await callReducer('recruitCavalryCompany', 'recruit_cavalry_company', {
+    cavalryYardId: serverId,
+    kind: Math.max(8, Math.min(10, Math.floor(kind))),
   });
 }
 

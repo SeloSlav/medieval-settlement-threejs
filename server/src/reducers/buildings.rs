@@ -51,6 +51,7 @@ use crate::harvest_reserve_policy::{
 use crate::hydrology::{sample_world_well_groundwater_score, well_capacity_from_hydrology};
 use crate::labor_steward_policy::steward_deployable_labor;
 use crate::lifecycle::ensure_player_resources;
+use crate::livestock_policy::is_valid_milk_use_policy;
 use crate::marketplace_procurement_policy::{
     is_valid_marketplace_gold_reserve_target, is_valid_marketplace_iron_target,
     is_valid_marketplace_ironwork_target, is_valid_marketplace_salt_target,
@@ -60,7 +61,6 @@ use crate::monastery_estate_policy::{
     monastery_estate_fits_map, monastery_estate_is_near_map_edge,
     playable_half_for_monastery_map_size,
 };
-use crate::livestock_policy::is_valid_milk_use_policy;
 use crate::placement_validation::{
     building_footprints_too_close, building_overlaps_residence_zone,
     building_overlaps_resource_deposit, building_overlaps_road_surface,
@@ -77,13 +77,11 @@ use crate::processor_output_policy::{
     PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
 };
 use crate::production_rate_policy::{
-    is_production_rate_kind, is_valid_production_rate_percent,
-    DEFAULT_PRODUCTION_RATE_PERCENT,
+    is_production_rate_kind, is_valid_production_rate_percent, DEFAULT_PRODUCTION_RATE_PERCENT,
 };
 use crate::resource_units::{whole_cost, whole_units};
 use crate::roads::load_owner_road_network;
 use crate::seasonal_labor_policy::seasonal_production_active;
-use crate::smokehouse_recipe_policy::is_valid_smokehouse_recipe_policy;
 use crate::simulation::{
     building_fire_state, building_has_active_trip, building_has_inbound_commodity_trip,
     building_has_inbound_supply_trip, call_up_active_seasonal_labor_for_settlement,
@@ -92,6 +90,7 @@ use crate::simulation::{
     recall_idle_seasonal_labor_for_settlement, staffed_cart_workers_by_building, ReclamationStock,
     FIRE_TARGET_BUILDING,
 };
+use crate::smokehouse_recipe_policy::is_valid_smokehouse_recipe_policy;
 use crate::specialty_trade_policy::{is_valid_specialty_export_policy, SpecialtyMarketFamily};
 use crate::storage_acceptance_policy::{
     set_storage_masks_all, set_storage_masks_commodity, storage_kind_supports_commodity,
@@ -105,7 +104,8 @@ use crate::supply_policy::{
 };
 use crate::tables::graveyard;
 use crate::tables::{
-    farm_field, livestock_herd, pasture, pasture_herd, Building, ForagingNode, Quarry, WorldConfig,
+    cavalry_horse, farm_field, livestock_herd, military_company, pasture, pasture_herd, Building,
+    ForagingNode, Quarry, WorldConfig,
 };
 use crate::tree_work_area_policy::{supports_tree_work_area, validate_tree_work_area};
 use crate::weaver_input_policy::{
@@ -1369,14 +1369,16 @@ fn processor_output_room(building: &Building) -> Option<f64> {
                 building.processor_output_target_percent,
             )
         };
-        return Some(match normalize_weaver_input_policy(building.weaver_input_policy) {
-            WEAVER_INPUT_POLICY_WOOL_FIRST => headroom(CommodityKind::Yarn),
-            WEAVER_INPUT_POLICY_FLAX_FIRST => headroom(CommodityKind::Linen),
-            WEAVER_INPUT_POLICY_AUTO => {
-                headroom(CommodityKind::Yarn).max(headroom(CommodityKind::Linen))
-            }
-            _ => unreachable!("textile recipe policy is normalized"),
-        });
+        return Some(
+            match normalize_weaver_input_policy(building.weaver_input_policy) {
+                WEAVER_INPUT_POLICY_WOOL_FIRST => headroom(CommodityKind::Yarn),
+                WEAVER_INPUT_POLICY_FLAX_FIRST => headroom(CommodityKind::Linen),
+                WEAVER_INPUT_POLICY_AUTO => {
+                    headroom(CommodityKind::Yarn).max(headroom(CommodityKind::Linen))
+                }
+                _ => unreachable!("textile recipe policy is normalized"),
+            },
+        );
     }
     let commodity = if building.kind == "potter_kiln"
         && potter_fires_roof_tiles(building.potter_firing_policy)
@@ -2417,8 +2419,7 @@ pub fn set_smokehouse_recipe_policy(
         .id()
         .find(&building_id)
         .ok_or_else(|| "Smokehouse not found.".to_string())?;
-    if building.owner != owner || building.kind != "smokehouse" || !building.construction_complete
-    {
+    if building.owner != owner || building.kind != "smokehouse" || !building.construction_complete {
         return Err("You do not own this completed smokehouse.".to_string());
     }
     building.smokehouse_recipe_policy = recipe_policy;
@@ -2447,8 +2448,7 @@ pub fn set_building_production_rate(
         || !is_production_rate_kind(&building.kind)
     {
         return Err(
-            "You do not own this completed ironwork-maintained production building."
-                .to_string(),
+            "You do not own this completed ironwork-maintained production building.".to_string(),
         );
     }
     building.production_rate_percent = rate_percent;
@@ -3164,6 +3164,21 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             ));
         }
     }
+    if matches!(building.kind.as_str(), "guardhouse" | "cavalry_yard") {
+        let attached_companies = ctx
+            .db
+            .military_company()
+            .iter()
+            .filter(|company| company.source_building_id == building_id)
+            .count();
+        if attached_companies > 0 {
+            return Err(format!(
+                "Disband the {} attached military compan{} before demolition.",
+                attached_companies,
+                if attached_companies == 1 { "y" } else { "ies" },
+            ));
+        }
+    }
     if building.kind == "threshing_barn"
         && ctx
             .db
@@ -3367,6 +3382,20 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             ctx.db.delivery_trip().id().update(trip);
         }
         ctx.db.stable_ox().id().delete(ox.id);
+    }
+
+    // Unassigned remounts are part of the Cavalry Yard rather than a portable
+    // settlement herd. Demolition forfeits them after all companies have
+    // returned, preventing orphaned horse rows if this Building id becomes a
+    // physical reclamation pile.
+    for horse in ctx
+        .db
+        .cavalry_horse()
+        .cavalry_yard_id()
+        .filter(&building_id)
+        .collect::<Vec<_>>()
+    {
+        ctx.db.cavalry_horse().id().delete(horse.id);
     }
 
     // Kennel dogs are durable combat agents, so remove the kennel's roster

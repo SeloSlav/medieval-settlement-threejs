@@ -7,7 +7,7 @@ import {
   type BuildingKind,
 } from '../src/generated/gameBalance.ts';
 import {
-  EMPTY_CART_SPEED_MULTIPLIER,
+  deliveryTripTravelSpeed,
   type DeliveryTripState,
 } from '../src/logistics/deliveryTrips.ts';
 import { computeSettlementLaborPlan } from '../src/economy/settlementLabor.ts';
@@ -123,10 +123,12 @@ assert.equal(haulage.measuredTrips, 5);
 assert.equal(haulage.unresolvedTrips, 1);
 assert.equal(haulage.totalOneWayDistance, 890);
 assert.equal(haulage.averageOneWayDistance, 178);
-const loadedFirewoodSeconds = 200 + 30 + 300;
-const emptyTimberReturnSeconds = 50 / EMPTY_CART_SPEED_MULTIPLIER;
-const twoWorkerFoodUnloadSeconds = 15 + 120 / 2;
-const emptyFoodReturnSeconds = 100 / EMPTY_CART_SPEED_MULTIPLIER;
+const loadedFirewoodSeconds = 200 / deliveryTripTravelSpeed(haulageTrips.get('10')!)
+  + 30
+  + 300 / deliveryTripTravelSpeed(haulageTrips.get('10')!);
+const emptyTimberReturnSeconds = 50 / deliveryTripTravelSpeed(haulageTrips.get('2')!);
+const twoWorkerFoodUnloadSeconds = 15 + 120 / deliveryTripTravelSpeed(haulageTrips.get('3')!);
+const emptyFoodReturnSeconds = 100 / deliveryTripTravelSpeed(haulageTrips.get('4')!);
 assert.equal(
   haulage.totalRemainingTripSeconds,
   loadedFirewoodSeconds
@@ -227,8 +229,15 @@ const renderedInspector = renderTownHallInspector(
     worldHydrology: 0.5,
   },
 );
+const renderedAssignableWorkforce = Math.max(
+  0,
+  renderedPopulation.total - renderedPopulation.sick - renderedPopulation.dedicatedSmallholding,
+);
 assert.ok(renderedInspector.detailsHtml.includes(
-  `${renderedPopulation.assigned} / ${renderedPopulation.total} explicitly rostered · ${renderedPopulation.available} workplace-ready reserve · ${renderedPopulation.idle} currently idle · ${renderedPlan.openPermanentPosts} open permanent posts`,
+  `${renderedPopulation.assigned} / ${renderedAssignableWorkforce} assignable residents explicitly rostered · ${renderedPopulation.available} workplace-ready reserve · ${renderedPopulation.idle} currently idle`,
+));
+assert.ok(renderedInspector.detailsHtml.includes(
+  `${renderedPlan.openPermanentPosts} open permanent posts`,
 ));
 assert.ok(renderedInspector.detailsHtml.includes(
   `At full housing labor</span><span>${renderedPlan.populationAtFullHousing} people`,
@@ -267,6 +276,7 @@ assert.equal(
       flexibleAssigned: 4,
       cartAssigned: 1,
       sick: 0,
+      dedicatedSmallholding: 0,
       available: 4,
       idle: 0,
       housingCapacity: 0,
@@ -286,6 +296,7 @@ assert.equal(
       flexibleAssigned: 4,
       cartAssigned: 1,
       sick: 0,
+      dedicatedSmallholding: 0,
       available: 4,
       idle: 0,
       housingCapacity: 0,

@@ -3,8 +3,13 @@ use std::collections::HashMap;
 
 use spacetimedb::{Identity, ReducerContext};
 
+use crate::balance_generated::{
+    CAVALRY_HORSE_DAILY_ANIMAL_FEED, CAVALRY_HORSE_DAILY_OATS, CAVALRY_HORSE_DAILY_WATER,
+};
 use crate::db::*;
-use crate::economy::spend_treasury_gold;
+use crate::economy::{
+    building_commodity_stock, spend_treasury_gold, withdraw_building_commodity, CommodityKind,
+};
 use crate::military_policy::{
     company_wages_enabled, local_company_requires_provisions, matchup_damage_multiplier,
     member_combat_profile, military_battle_end_ticks, military_day_ticks,
@@ -13,13 +18,19 @@ use crate::military_policy::{
     veteran_health_multiplier, MilitaryKind, MERCENARY_IDLE_DEPARTURE_DAYS,
     MERCENARY_MAX_CONTRACT_DAYS, MILITARY_BATTLE_SURVIVAL_XP, MILITARY_ENEMY_COMPANY_XP,
 };
-use crate::raid_agent_policy::playable_half_for_map_size;
+use crate::raid_agent_policy::{
+    ottoman_raider_is_mounted, ottoman_raider_is_ranged, ottoman_raider_role,
+    playable_half_for_map_size, OTTOMAN_ROLE_AKINCI, OTTOMAN_ROLE_AZAB, OTTOMAN_ROLE_JANISSARY,
+    OTTOMAN_ROLE_SIPAHI,
+};
 use crate::security_policy::RaidPortableStores;
 use crate::tables::{
-    mercenary_contract, CombatAgent, Corpse, MercenaryContract, MilitaryCompany, MilitaryMember,
+    cavalry_horse, mercenary_contract, CombatAgent, Corpse, MercenaryContract, MilitaryCompany,
+    MilitaryMember,
 };
 
 use super::bandits::destroy_camp;
+use super::building_fire_state;
 use super::military_steering::{
     melee_engagement_goal, raider_ranged_firing_line_goal, ranged_firing_line_goal,
     rebuild_dense_engagement_ranks, CombatSteeringGrid, DenseEngagementRank, EngagementRankKey,
@@ -35,8 +46,6 @@ const RAIDER: u8 = 1;
 const BANDIT: u8 = 2;
 const FOX: u8 = 13;
 const WOLF: u8 = 14;
-const FIRST_PLAYER_MILITARY: u8 = 3;
-const LAST_PLAYER_MILITARY: u8 = 10;
 const ADVANCING: u8 = 0;
 const FIGHTING: u8 = 1;
 const LOOTING: u8 = 2;
@@ -227,7 +236,7 @@ fn build_ranged_company_frame(
 ) -> Option<RangedCompanyFrame> {
     let company = ctx.db.military_company().id().find(&company_id)?;
     let kind = MilitaryKind::from_id(company.kind)?;
-    if !matches!(kind, MilitaryKind::Bowmen | MilitaryKind::Crossbows) {
+    if !kind.is_ranged() {
         return None;
     }
     let mut source_x = 0.0;
@@ -401,7 +410,10 @@ fn step_mustering_member(
         begin_forced_return(ctx, &mut agent, &mut member);
         return;
     };
-    walk(&mut agent, source.x, source.z, 2.25, dt);
+    let muster_speed = MilitaryKind::from_id(company.kind)
+        .map(|kind| military_stats(kind).speed)
+        .unwrap_or(2.25);
+    walk(&mut agent, source.x, source.z, muster_speed, dt);
     agent.state = MUSTERING;
     if distance(agent.x, agent.z, source.x, source.z) <= ARRIVAL_DISTANCE {
         agent.state = HOLDING;
@@ -444,13 +456,17 @@ fn step_returning_member(
             return;
         }
         if let Some(source) = ctx.db.building().id().find(&company.source_building_id) {
-            walk(&mut agent, source.x, source.z, 2.2, dt);
+            let return_speed = MilitaryKind::from_id(company.kind)
+                .map(|kind| military_stats(kind).speed)
+                .unwrap_or(2.2);
+            walk(&mut agent, source.x, source.z, return_speed, dt);
             agent.state = RETURNING;
             if distance(agent.x, agent.z, source.x, source.z) > ARRIVAL_DISTANCE {
                 ctx.db.combat_agent().id().update(agent);
                 return;
             }
             recover_member_kit_at(ctx, &mut agent, source.x, source.z);
+            release_mount_for_agent(ctx, agent.id, false);
         } else {
             recover_member_kit(ctx, &agent);
             agent.carried_loot_json.clear();
@@ -510,7 +526,7 @@ fn step_active_member(
     let Some(kind) = MilitaryKind::from_id(company.kind) else {
         return;
     };
-    debug_assert!((FIRST_PLAYER_MILITARY..=LAST_PLAYER_MILITARY).contains(&agent.faction));
+    debug_assert_eq!(agent.faction, kind.faction());
     let stats = military_stats(kind);
     agent.attack_cooldown = (agent.attack_cooldown - dt).max(0.0);
 
@@ -587,12 +603,13 @@ fn step_active_member(
         agent.target_kind = 7;
         agent.target_id = enemy.id;
         agent.engagement_target_id = enemy.id;
-        let ranged_kind = matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen);
+        let ranged_kind = kind.is_ranged();
         let can_shoot = ranged_kind && member.ammunition > 0;
         let strike_range = if can_shoot { stats.strike_range } else { 2.15 };
         let minimum_ranged_spacing = match kind {
             MilitaryKind::Bowmen => 8.0,
             MilitaryKind::Crossbows => 7.25,
+            MilitaryKind::MountedArchers => 9.5,
             _ => 0.0,
         };
         if can_shoot && range < minimum_ranged_spacing {
@@ -676,7 +693,9 @@ fn step_active_member(
                     };
                 let profile = member_combat_profile(kind, member_seed(&member));
                 let exhausted_ranged_damage = match kind {
-                    MilitaryKind::Crossbows | MilitaryKind::Bowmen => 4.0,
+                    MilitaryKind::Crossbows
+                    | MilitaryKind::Bowmen
+                    | MilitaryKind::MountedArchers => 4.0,
                     _ => stats.damage,
                 };
                 let raw_damage = (if ranged_kind && !can_shoot {
@@ -831,11 +850,87 @@ fn step_company_upkeep(ctx: &ReducerContext, tick: u64, military_demands: u8) {
         company.last_upkeep_tick = company
             .last_upkeep_tick
             .saturating_add(elapsed_days.saturating_mul(day_ticks));
-        let requires_provisions = local_company_requires_provisions(kind, military_demands);
+        let (member_count, debug_member_count) = ctx
+            .db
+            .military_member()
+            .company_id()
+            .filter(&company.id)
+            .fold(
+                (0_u32, 0_u32),
+                |(member_count, debug_member_count), member| {
+                    (
+                        member_count.saturating_add(1),
+                        debug_member_count.saturating_add(u32::from(member.residence_id == 0)),
+                    )
+                },
+            );
+        let is_debug_company = member_count > 0 && member_count == debug_member_count;
+        let requires_provisions =
+            !is_debug_company && local_company_requires_provisions(kind, military_demands);
         if requires_provisions {
             company.provision_days = (company.provision_days - elapsed_days as f64).max(0.0);
         }
-        if company_wages_enabled(kind, military_demands) {
+        if kind.is_mounted() && !is_debug_company {
+            let requested_days = company.living_members as f64 * elapsed_days as f64;
+            let mut supply_ratio: f64 = 0.0;
+            if let Some(mut yard) = ctx
+                .db
+                .building()
+                .id()
+                .find(&company.source_building_id)
+                .filter(|yard| {
+                    yard.kind == "cavalry_yard"
+                        && yard.construction_complete
+                        && building_fire_state(ctx, yard.id).is_none()
+                })
+            {
+                let feed_need = requested_days * CAVALRY_HORSE_DAILY_ANIMAL_FEED;
+                let oats_need = requested_days * CAVALRY_HORSE_DAILY_OATS;
+                let water_need = requested_days * CAVALRY_HORSE_DAILY_WATER;
+                let ratio = |stock: f64, need: f64| {
+                    if need <= 1e-9 {
+                        1.0
+                    } else {
+                        (stock / need).clamp(0.0, 1.0)
+                    }
+                };
+                supply_ratio = ratio(
+                    building_commodity_stock(&yard, CommodityKind::AnimalFeed),
+                    feed_need,
+                )
+                .min(ratio(
+                    building_commodity_stock(&yard, CommodityKind::OatGrain),
+                    oats_need,
+                ))
+                .min(ratio(
+                    building_commodity_stock(&yard, CommodityKind::Water),
+                    water_need,
+                ));
+                withdraw_building_commodity(
+                    &mut yard,
+                    CommodityKind::AnimalFeed,
+                    feed_need * supply_ratio,
+                );
+                withdraw_building_commodity(
+                    &mut yard,
+                    CommodityKind::OatGrain,
+                    oats_need * supply_ratio,
+                );
+                withdraw_building_commodity(
+                    &mut yard,
+                    CommodityKind::Water,
+                    water_need * supply_ratio,
+                );
+                ctx.db.building().id().update(yard);
+            }
+            if supply_ratio < 0.999 {
+                let shortage = 1.0 - supply_ratio;
+                company.morale = (company.morale - 0.06 * shortage * elapsed_days as f64).max(0.05);
+                company.cohesion =
+                    (company.cohesion - 0.04 * shortage * elapsed_days as f64).max(0.08);
+            }
+        }
+        if !is_debug_company && company_wages_enabled(kind, military_demands) {
             let daily_wage = match kind {
                 MilitaryKind::Spearmen => company.living_members.div_ceil(4),
                 MilitaryKind::MenAtArms | MilitaryKind::Crossbows => {
@@ -845,6 +940,8 @@ fn step_company_upkeep(ctx: &ReducerContext, tick: u64, military_demands: u8) {
                 MilitaryKind::Footmen | MilitaryKind::Polearms | MilitaryKind::Bowmen => {
                     company.living_members.div_ceil(2)
                 }
+                MilitaryKind::Hussars | MilitaryKind::MountedArchers => company.living_members,
+                MilitaryKind::ArmoredLancers => company.living_members.saturating_mul(2),
                 MilitaryKind::Militia => 0,
             };
             let wages = daily_wage.saturating_mul(elapsed_days.min(u32::MAX as u64) as u32);
@@ -1121,31 +1218,32 @@ fn hostile_profile(enemy: &CombatAgent) -> HostileProfile {
     }
     // Ottoman parties are mixed atomic ranks. Source slot deterministically
     // supplies light infantry, spears, armored infantry, and missile troops.
-    match enemy.source_slot % 4 {
-        1 => HostileProfile {
-            armor: 7.0,
-            shield: 7.0,
+    match ottoman_raider_role(enemy.source_slot) {
+        OTTOMAN_ROLE_AZAB => HostileProfile {
+            armor: 3.0,
+            shield: 2.0,
             penetration: 3.0,
-            role: 1,
-        },
-        2 => HostileProfile {
-            armor: 12.0,
-            shield: 4.0,
-            penetration: 7.0,
-            role: 2,
-        },
-        3 => HostileProfile {
-            armor: 4.0,
-            shield: 0.0,
-            penetration: 8.0,
-            role: 3,
-        },
-        _ => HostileProfile {
-            armor: 6.0,
-            shield: 3.0,
-            penetration: 4.0,
             role: 0,
         },
+        OTTOMAN_ROLE_JANISSARY => HostileProfile {
+            armor: 9.0,
+            shield: 4.0,
+            penetration: 8.0,
+            role: 2,
+        },
+        OTTOMAN_ROLE_AKINCI => HostileProfile {
+            armor: 4.0,
+            shield: 0.0,
+            penetration: 5.0,
+            role: 4,
+        },
+        OTTOMAN_ROLE_SIPAHI => HostileProfile {
+            armor: 15.0,
+            shield: 6.0,
+            penetration: 9.0,
+            role: 5,
+        },
+        _ => unreachable!(),
     }
 }
 
@@ -1163,6 +1261,8 @@ fn damage_against_hostile(
         1 => MilitaryKind::Spearmen,
         2 => MilitaryKind::MenAtArms,
         3 => MilitaryKind::Bowmen,
+        4 => MilitaryKind::MountedArchers,
+        5 => MilitaryKind::ArmoredLancers,
         _ => MilitaryKind::Footmen,
     };
     let counter = matchup_damage_multiplier(kind, defender_kind);
@@ -1214,7 +1314,7 @@ fn combat_group_key(ctx: &ReducerContext, agent: &CombatAgent) -> (u8, u64) {
 }
 
 fn combatant_uses_melee_rank(ctx: &ReducerContext, agent: &CombatAgent) -> bool {
-    if agent.faction == RAIDER && agent.source_slot % 4 == 3 {
+    if agent.faction == RAIDER && ottoman_raider_is_ranged(agent.source_slot) {
         return false;
     }
     let Some(member) = ctx.db.military_member().combat_agent_id().find(&agent.id) else {
@@ -1225,7 +1325,7 @@ fn combatant_uses_melee_rank(ctx: &ReducerContext, agent: &CombatAgent) -> bool 
     };
     !matches!(
         MilitaryKind::from_id(company.kind),
-        Some(MilitaryKind::Bowmen | MilitaryKind::Crossbows)
+        Some(MilitaryKind::Bowmen | MilitaryKind::Crossbows | MilitaryKind::MountedArchers)
     ) || member.ammunition == 0
 }
 
@@ -1332,7 +1432,13 @@ fn canonical_steering_goal(
         military_stats(kind).speed
     } else {
         match agent.faction {
-            RAIDER => 2.65,
+            RAIDER => {
+                if ottoman_raider_is_mounted(agent.source_slot) {
+                    4.85
+                } else {
+                    2.65
+                }
+            }
             BANDIT => 2.15,
             FOX => 3.35,
             WOLF => 3.0,
@@ -1391,9 +1497,7 @@ fn canonical_steering_goal(
                     if let Some(kind) = MilitaryKind::from_id(company.kind) {
                         let stats = military_stats(kind);
                         let source_rank = agent.source_slot as usize;
-                        let goal = if matches!(kind, MilitaryKind::Bowmen | MilitaryKind::Crossbows)
-                            && member.ammunition > 0
-                        {
+                        let goal = if kind.is_ranged() && member.ammunition > 0 {
                             let shared = ranged_frames
                                 .binary_search_by_key(&company.id, |frame| frame.company_id)
                                 .ok()
@@ -1433,7 +1537,7 @@ fn canonical_steering_goal(
                     }
                 }
             }
-            let goal = if agent.faction == RAIDER && agent.source_slot % 4 == 3 {
+            let goal = if agent.faction == RAIDER && ottoman_raider_is_ranged(agent.source_slot) {
                 raider_ranged_frames
                     .iter()
                     .copied()
@@ -1631,6 +1735,7 @@ fn down_player_member(
     company: &MilitaryCompany,
     tick: u64,
 ) {
+    release_mount_for_agent(ctx, agent.id, true);
     agent.health = 0.0;
     agent.state = DOWNED;
     agent.engagement_target_id = 0;
@@ -1884,6 +1989,7 @@ fn begin_forced_return(ctx: &ReducerContext, agent: &mut CombatAgent, member: &m
 }
 
 fn finish_member_return(ctx: &ReducerContext, agent: &CombatAgent, company: &MilitaryCompany) {
+    release_mount_for_agent(ctx, agent.id, false);
     ctx.db.militia_order().combat_agent_id().delete(agent.id);
     ctx.db.military_member().combat_agent_id().delete(agent.id);
     ctx.db.combat_agent().id().delete(agent.id);
@@ -1899,6 +2005,25 @@ fn finish_member_return(ctx: &ReducerContext, agent: &CombatAgent, company: &Mil
             ctx.db.mercenary_contract().company_id().delete(company.id);
         }
         ctx.db.military_company().id().delete(company.id);
+    }
+}
+
+fn release_mount_for_agent(ctx: &ReducerContext, combat_agent_id: u64, lost: bool) {
+    let Some(mut horse) = ctx
+        .db
+        .cavalry_horse()
+        .assigned_combat_agent_id()
+        .filter(&combat_agent_id)
+        .next()
+    else {
+        return;
+    };
+    if lost {
+        ctx.db.cavalry_horse().id().delete(horse.id);
+    } else {
+        horse.assigned_company_id = 0;
+        horse.assigned_combat_agent_id = 0;
+        ctx.db.cavalry_horse().id().update(horse);
     }
 }
 
@@ -1957,8 +2082,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn player_faction_band_is_disjoint_from_hostiles() {
-        assert!(FIRST_PLAYER_MILITARY > BANDIT);
-        assert!(LAST_PLAYER_MILITARY >= FIRST_PLAYER_MILITARY);
+    fn player_factions_are_disjoint_from_hostiles_and_animals() {
+        for kind_id in 0..=10 {
+            let faction = MilitaryKind::from_id(kind_id).unwrap().faction();
+            assert!(!matches!(faction, RAIDER | BANDIT | FOX | WOLF));
+        }
     }
 }

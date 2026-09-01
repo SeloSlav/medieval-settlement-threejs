@@ -65,10 +65,13 @@ assert.match(villagerRenderer, /combat\.raidAnchorBuildingId\) return 'chop'/);
 assert.match(villagerRenderer, /combat\.targetKind === 'cart'\) return 'gather'/);
 assert.match(villagerRenderer, /RAIDER_LOOT_CHEER_START_SECONDS\) return 'laugh'/);
 assert.match(villagerRenderer, /case 'retreating': return combat\.faction === 'raider' \? 'flee' : 'walk'/);
-assert.match(villagerRenderer, /case 'raider': return 'sidearm'/);
+assert.match(villagerRenderer, /case 'raider': \{/);
+assert.match(villagerRenderer, /ottomanRaiderIsRanged\(combat\.sourceSlot\)\) return 'bow'/);
+assert.match(villagerRenderer, /combat\.ottomanRole === 'azab'\) return 'spear'/);
+assert.match(villagerRenderer, /combat\.ottomanRole === 'sipahi'\) return 'spear-shield'/);
 assert.match(license, /ottoman-raider-common-01-v001\.glb/);
 
-console.log('Ottoman raider model contract passed: dedicated rig, 14 semantic clips, combat-state mapping, sidearm, and provenance.');
+console.log('Ottoman raider model contract passed: dedicated rig, 14 semantic clips, combat-state mapping, role-specific arms, and provenance.');
 
 type GlbDocument = {
   animations?: Array<{ name?: string }>;

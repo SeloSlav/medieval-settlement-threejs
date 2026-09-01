@@ -140,6 +140,12 @@ pub const STARTING_GOLD: f64 = 60.0;
 pub const STABLE_OX_SLOTS: u8 = 3;
 pub const STABLE_OX_MAX_PER_WORKPLACE: u32 = 3;
 pub const STABLE_OX_PURCHASE_GOLD: f64 = 24.0;
+pub const CAVALRY_HORSE_SLOTS: u8 = 12;
+pub const CAVALRY_HORSE_PURCHASE_GOLD: f64 = 36.0;
+pub const CAVALRY_HORSE_TRAINING_DAYS: u8 = 10;
+pub const CAVALRY_HORSE_DAILY_ANIMAL_FEED: f64 = 1.0;
+pub const CAVALRY_HORSE_DAILY_OATS: f64 = 1.0;
+pub const CAVALRY_HORSE_DAILY_WATER: f64 = 2.0;
 pub const KENNEL_DOG_SLOTS: u8 = 4;
 pub const KENNEL_DOG_PURCHASE_GOLD: f64 = 18.0;
 pub const KENNEL_DOG_MAX_PER_HUNTERS_HALL: u32 = 3;
@@ -698,6 +704,7 @@ pub fn fire_building_base_flammability(kind: &str) -> f64 {
         "founders_camp" => 0.0,
         "town_hall" => 0.0,
         "stable" => 1.65,
+        "cavalry_yard" => 1.55,
         "kennel" => 1.5,
         "well" => 0.0,
         "marketplace" => 0.0,
@@ -2620,6 +2627,75 @@ const STABLE: BuildingDef = BuildingDef {
     sim_kind: None,
 };
 
+const CAVALRY_YARD: BuildingDef = BuildingDef {
+    kind: "cavalry_yard",
+    cost_timber: 96.0,
+    cost_stone: 28.0,
+    cost_gold: 0.0,
+    cost_ironwork: 8.0,
+    cost_roof_tiles: 0.0,
+    storage_total: 720.0,
+    storage_timber: 0.0,
+    storage_firewood: 0.0,
+    storage_stone: 0.0,
+    storage_water: 180.0,
+    storage_food: 96.0,
+    storage_grain: 120.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
+    storage_flax: 0.0,
+    storage_flour: 0.0,
+    storage_ale: 0.0,
+    storage_cider: 0.0,
+    storage_mead: 0.0,
+    storage_preserved_food: 0.0,
+    storage_honey: 0.0,
+    storage_wax: 0.0,
+    storage_candles: 0.0,
+    storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_yarn: 0.0,
+    storage_linen: 0.0,
+    storage_cloth: 0.0,
+    storage_pelts: 0.0,
+    storage_hides: 0.0,
+    storage_leather: 0.0,
+    storage_shoes: 0.0,
+    storage_ironwork: 0.0,
+    storage_polearms: 120.0,
+    storage_sidearms: 120.0,
+    storage_shields: 120.0,
+    storage_bows: 120.0,
+    storage_crossbows: 0.0,
+    storage_padded_armor: 120.0,
+    storage_mail_armor: 120.0,
+    storage_ammunition: 240.0,
+    storage_iron: 0.0,
+    storage_clay: 0.0,
+    storage_salt: 0.0,
+    storage_charcoal: 0.0,
+    storage_pottery: 0.0,
+    storage_roof_tiles: 0.0,
+    storage_manure: 0.0,
+    storage_remedies: 0.0,
+    storage_animal_feed: 120.0,
+    accepts_labor: true,
+    max_labor: 6,
+    work_radius: 0.0,
+    action_interval: 0.0,
+    pick_radius: 14.0,
+    requires_road: true,
+    faces_road: true,
+    requires_mature_trees: false,
+    requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: false,
+    requires_fish: false,
+    requires_water_shore: false,
+    requires_hillside: false,
+    sim_kind: None,
+};
+
 const KENNEL: BuildingDef = BuildingDef {
     kind: "kennel",
     cost_timber: 32.0,
@@ -4231,6 +4307,7 @@ const ALL: &[BuildingDef] = &[
     TRADING_POST,
     TOWN_HALL,
     STABLE,
+    CAVALRY_YARD,
     KENNEL,
     VILLAGE_STOREHOUSE,
     WATCHTOWER,

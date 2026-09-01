@@ -52,6 +52,7 @@ import {
 import { createCobblerMesh, createTanneryMesh } from './meshes/leatherChainBuildingMeshes.ts';
 import { createChandleryMesh } from './meshes/chandleryBuildingMesh.ts';
 import { createStableMesh } from './meshes/stableMesh.ts';
+import { createCavalryYardMesh } from './meshes/cavalryYardMesh.ts';
 import { createKennelMesh } from './meshes/kennelMesh.ts';
 import { createSpinningRettingHouseMesh } from './meshes/spinningRettingHouseMesh.ts';
 import {
@@ -99,6 +100,7 @@ export const PROCEDURAL_BUILDING_GENERATORS = {
   potter_kiln: () => createPotterKilnMesh(),
   well: () => createWellMesh(),
   stable: () => createStableMesh(),
+  cavalry_yard: () => createCavalryYardMesh(),
   kennel: () => createKennelMesh(),
   hunters_hall: () => createHuntersHallMesh(),
   foragers_shed: () => createForagersShedMesh(),

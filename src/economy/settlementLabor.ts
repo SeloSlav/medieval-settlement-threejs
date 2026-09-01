@@ -57,6 +57,7 @@ const BUILDING_LABOR_SECTORS: Record<BuildingKind, LaborSector> = {
   woodcutters_lodge: 'provisions',
   well: 'provisions',
   stable: 'logistics',
+  cavalry_yard: 'defense',
   kennel: 'defense',
   hunters_hall: 'provisions',
   foragers_shed: 'provisions',
