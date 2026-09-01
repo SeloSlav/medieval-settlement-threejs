@@ -540,7 +540,6 @@ export const MilitaryCompany = __t.object("MilitaryCompany", {
   fatigue: __t.f64(),
   provisionDays: __t.f64(),
   horseOats: __t.f64(),
-  horseFeed: __t.f64(),
   horseWater: __t.f64(),
   ammunition: __t.u32(),
   ammunitionCapacity: __t.u32(),

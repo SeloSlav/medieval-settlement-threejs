@@ -109,6 +109,19 @@ function assertNoMeshShadows(root: THREE.Object3D, label: string): void {
   });
 }
 
+function assertMeshShadows(root: THREE.Object3D, label: string): void {
+  let meshCount = 0;
+  root.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    meshCount += 1;
+    const meshLabel = mesh.name ? `${label} (${mesh.name})` : label;
+    assert.equal(mesh.castShadow, true, `${meshLabel} should cast shadows`);
+    assert.equal(mesh.receiveShadow, true, `${meshLabel} should receive shadows`);
+  });
+  assert.ok(meshCount > 0, `${label} should contain at least one mesh`);
+}
+
 const villagerAssets = [
   {
     variant: 'man',
@@ -365,9 +378,9 @@ assert.equal(
   'an empty return cart must retain its chassis without stale cargo geometry',
 );
 assert.equal(emptyCart.name, deliveryCartMeshName('stone', true, false, false));
-assertNoMeshShadows(cartA, 'delivery cart');
-assertNoMeshShadows(cartB, 'delivery cart');
-assertNoMeshShadows(emptyCart, 'delivery cart');
+assertMeshShadows(cartA, 'delivery cart');
+assertMeshShadows(cartB, 'delivery cart');
+assertMeshShadows(emptyCart, 'delivery cart');
 
 const cargoSignatures: Record<DeliveryCargoKind, string> = {
   firewood: 'Firewood split log 1',
@@ -533,7 +546,7 @@ worker.model.traverse((object) => {
   }
 });
 cartA.add(worker.root);
-assertNoMeshShadows(worker.root, 'delivery hauler');
+assertMeshShadows(worker.root, 'delivery hauler');
 assert.equal(worker.root.userData.deliveryCartWorker, true);
 assert.equal(worker.root.userData.deliveryCartCrewIndex, 0);
 assert.equal(worker.mode, 'walk');
@@ -798,22 +811,37 @@ assert.match(
 for (const sourcePath of [
   'src/settlement/SettlementCrowdRenderer.ts',
   'src/settlement/OxenRenderer.ts',
-  'src/settlement/workerTools.ts',
   'src/farming/LivestockVisuals.ts',
-  'src/logistics/DeliveryAgentRenderer.ts',
   'src/logistics/deliveryCartMesh.ts',
   'src/logistics/deliveryCartWorker.ts',
   'src/foraging/DeerWildlifeVisuals.ts',
-  'src/foraging/FishWildlifeVisuals.ts',
+  'src/residences/BackyardGardenMarkers.ts',
   'src/residences/backyardGoatAssets.ts',
   'src/residences/backyardPigAssets.ts',
   'src/residences/backyardChickenAssets.ts',
 ]) {
   const source = fs.readFileSync(sourcePath, 'utf8');
+  assert.match(
+    source,
+    /castShadow\s*[:=]\s*true/,
+    `${sourcePath} should opt its moving meshes into shadow casting`,
+  );
+  assert.match(
+    source,
+    /receiveShadow\s*[:=]\s*true/,
+    `${sourcePath} should opt its moving meshes into shadow receiving`,
+  );
+}
+
+for (const sourcePath of [
+  'src/settlement/workerTools.ts',
+  'src/foraging/FishWildlifeVisuals.ts',
+]) {
+  const source = fs.readFileSync(sourcePath, 'utf8');
   assert.doesNotMatch(
     source,
-    /castShadow\s*=\s*true|receiveShadow\s*=\s*true|shadowCastersChanged|isWithinShadowRange/i,
-    `${sourcePath} should remain outside the shadow system`,
+    /castShadow\s*[:=]\s*true|receiveShadow\s*[:=]\s*true/,
+    `${sourcePath} should retain its deliberate shadow exclusion`,
   );
 }
 

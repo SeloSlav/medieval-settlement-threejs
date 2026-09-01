@@ -642,6 +642,8 @@ export class BackyardGardenMarkers {
         sourceRoot,
         capacity: 32,
         name,
+        castShadow: true,
+        receiveShadow: true,
       });
     } catch (error) {
       console.warn(`[Livestock] ${name} batching unavailable; retaining exact rigs.`, error);

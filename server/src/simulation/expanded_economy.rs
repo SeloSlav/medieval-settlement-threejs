@@ -3393,10 +3393,9 @@ pub fn step_military_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
             }
         }
         let cavalry_issue = kind.is_mounted().then(|| {
-            let ration = cavalry_daily_ration(clock.month);
+            let ration = cavalry_daily_ration();
             let horse_days = company.living_members as f64 * CAVALRY_HORSE_FIELD_ISSUE_DAYS;
             [
-                (CommodityKind::AnimalFeed, ration.animal_feed * horse_days),
                 (CommodityKind::OatGrain, ration.oats * horse_days),
                 (CommodityKind::Water, ration.water * horse_days),
             ]
@@ -3451,7 +3450,6 @@ pub fn step_military_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
                 }
                 let issued = withdraw_building_commodity(&mut source, commodity, amount);
                 match commodity {
-                    CommodityKind::AnimalFeed => company.horse_feed += issued,
                     CommodityKind::OatGrain => company.horse_oats += issued,
                     CommodityKind::Water => company.horse_water += issued,
                     _ => {}
@@ -3518,19 +3516,8 @@ fn step_cavalry_yard_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
         if deployed <= 0.0 {
             continue;
         }
-        let ration = cavalry_daily_ration(clock.month);
+        let ration = cavalry_daily_ration();
         let requests = [
-            (
-                CommodityKind::AnimalFeed,
-                &[
-                    "pastoral_farmstead",
-                    "swineherd",
-                    "village_storehouse",
-                    "trading_post",
-                    "founders_camp",
-                ][..],
-                ration.animal_feed,
-            ),
             (
                 CommodityKind::OatGrain,
                 &[
@@ -3566,13 +3553,6 @@ fn step_cavalry_yard_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
 
 fn cavalry_supply_source_kinds(commodity: CommodityKind) -> &'static [&'static str] {
     match commodity {
-        CommodityKind::AnimalFeed => &[
-            "pastoral_farmstead",
-            "swineherd",
-            "village_storehouse",
-            "trading_post",
-            "founders_camp",
-        ],
         CommodityKind::OatGrain => &[
             "threshing_barn",
             "granary",
@@ -3595,7 +3575,7 @@ fn step_cavalry_company_field_resupply(
     tick: &SimTickContext,
     clock: &GameClock,
 ) {
-    let ration = cavalry_daily_ration(clock.month);
+    let ration = cavalry_daily_ration();
     let companies = ctx
         .db
         .military_company()
@@ -3641,21 +3621,12 @@ fn step_cavalry_company_field_resupply(
         });
         let (target_x, target_z) = (sum_x / count, sum_z / count);
         let living = company.living_members as f64;
-        let fodder = if ration.animal_feed > 0.0 {
-            (
-                CommodityKind::AnimalFeed,
-                company.horse_feed,
-                ration.animal_feed,
-            )
-        } else {
-            (CommodityKind::OatGrain, company.horse_oats, ration.oats)
-        };
         let mut needs = [
             (
-                fodder.0,
-                fodder.1,
-                fodder.2,
-                fodder.1 / (living * fodder.2).max(1e-9),
+                CommodityKind::OatGrain,
+                company.horse_oats,
+                ration.oats,
+                company.horse_oats / (living * ration.oats).max(1e-9),
             ),
             (
                 CommodityKind::Water,

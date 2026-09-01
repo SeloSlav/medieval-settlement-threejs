@@ -37,7 +37,6 @@ export type MilitaryCompanyState = {
   fatigue: number;
   provisionDays: number;
   horseOats: number;
-  horseFeed: number;
   horseWater: number;
   ammunition: number;
   ammunitionCapacity: number;
@@ -281,7 +280,6 @@ export function syncMilitaryCompanies(
       fatigue: clamp01(row.fatigue),
       provisionDays: Math.max(0, row.provisionDays),
       horseOats: Math.max(0, row.horseOats),
-      horseFeed: Math.max(0, row.horseFeed),
       horseWater: Math.max(0, row.horseWater),
       ammunition: Number(row.ammunition),
       ammunitionCapacity: Number(row.ammunitionCapacity),

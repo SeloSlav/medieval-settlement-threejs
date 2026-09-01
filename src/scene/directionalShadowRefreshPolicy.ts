@@ -9,7 +9,8 @@ export const DIRECTIONAL_SHADOW_MIN_REFRESH_INTERVAL_MS = 100;
 export type DirectionalShadowRefreshReason =
   | 'camera-refit'
   | 'forest-casters'
-  | 'first-person-motion';
+  | 'first-person-motion'
+  | 'dynamic-casters';
 
 const TARGET_STEP_DOT = Math.cos(
   DIRECTIONAL_SHADOW_TARGET_STEP_DEGREES * Math.PI / 180,
@@ -43,6 +44,18 @@ export function shouldRefreshFirstPersonDirectionalShadow(
   cameraInteractionActive: boolean,
 ): boolean {
   return firstPersonActive && cameraInteractionActive;
+}
+
+/**
+ * Animated agents write interpolated world transforms and skinning palettes on
+ * every advancing simulation frame. The shared atlas must render after those
+ * writes in the same frame; caching it would leave a previous pose on the
+ * ground and make otherwise smooth movement appear to jump.
+ */
+export function shouldRefreshDynamicAgentDirectionalShadow(
+  simulationDeltaSeconds: number,
+): boolean {
+  return Number.isFinite(simulationDeltaSeconds) && simulationDeltaSeconds > 0;
 }
 
 /**

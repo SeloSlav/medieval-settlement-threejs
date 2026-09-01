@@ -395,6 +395,8 @@ export class OxenRenderer {
           sourceRoot: gltf.scene,
           capacity: 16,
           name: 'Draft ox exact-model instances',
+          castShadow: true,
+          receiveShadow: true,
         });
       } catch (error) {
         console.warn('[Stable oxen] Exact-model batching unavailable; retaining exact rigs.', error);
@@ -998,8 +1000,8 @@ function configureModelMeshes(
       return material;
     });
     mesh.material = Array.isArray(mesh.material) ? cloned : cloned[0]!;
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
     mesh.frustumCulled = false;
   });
 }

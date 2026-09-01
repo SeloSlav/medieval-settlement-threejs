@@ -83,7 +83,7 @@ export function renderCavalryYardInspector(
       <li><span>No resident stable</span><span>This is a military production building. It never buys, breeds, stores, or permanently houses horses.</span></li>
       <li><span>Physical muster</span><span>Six selected residents walk to six reserved pasture horses, ride them here, and combine with the required weapons, armor, provisions, and assigned yard staff.</span></li>
       <li><span>Atomic company</span><span>All six riders form and operate as one company, matching infantry companies rather than producing a single mounted unit.</span></li>
-      <li><span>Field fodder</span><span>Mounted companies carry oats from March–November or Animal Feed in winter—never both for the same day. Pasture husbandry stops charging for horses while they are away.</span></li>
+      <li><span>Field fodder</span><span>Mounted companies carry oats and water year-round, with ambient campaign forage abstracted. Pasture husbandry stops charging for horses while they are away.</span></li>
       <li><span>Disband route</span><span>Survivors return equipment here, ride each exact horse back to its reserved home pasture, dismount, then walk home.</span></li>
     `,
     supplementalPanelHtml: `

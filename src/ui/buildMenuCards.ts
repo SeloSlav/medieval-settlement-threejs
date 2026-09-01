@@ -73,7 +73,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   residences: ['Residence', 'Provides homes for settlement families.'],
   well: ['Well', 'Draws and supplies water to nearby homes.', flow([], ['water'])],
   stable: ['Stable', 'Houses oxen used for construction, farm work, and hauling.'],
-  cavalry_yard: ['Cavalry Yard', 'Musters pasture-owned horses and residents into equipped mounted companies.', flow(['animalFeed', 'oatGrain', 'water'], [])],
+  cavalry_yard: ['Cavalry Yard', 'Musters pasture-owned horses and residents into equipped mounted companies.', flow(['oatGrain', 'water'], [])],
   kennel: ['Kennel', 'Trains guard dogs that patrol the settlement and confront thieves.'],
   chapel: ['Church', 'Serves parish life through worship, tithes, and household support.'],
   wayside_shrine: ['Wayside shrine', 'Marks the roadside with a small place of prayer and devotion.'],

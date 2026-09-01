@@ -24,7 +24,6 @@ export default __t.row({
   fatigue: __t.f64(),
   provisionDays: __t.f64().name("provision_days"),
   horseOats: __t.f64().name("horse_oats"),
-  horseFeed: __t.f64().name("horse_feed"),
   horseWater: __t.f64().name("horse_water"),
   ammunition: __t.u32(),
   ammunitionCapacity: __t.u32().name("ammunition_capacity"),

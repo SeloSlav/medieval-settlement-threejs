@@ -1455,7 +1455,7 @@ pub fn try_start_free_building_supply_trip(
     )
 }
 
-/// Sends one Cavalry Yard groom with a physical fodder or water cart to a
+/// Sends one Cavalry Yard groom with a physical oats or water cart to a
 /// stationary mounted company. The fixed route endpoint is intentional: field
 /// resupply succeeds only when the company holds close enough to receive it.
 #[allow(clippy::too_many_arguments)]
@@ -2482,7 +2482,6 @@ fn unload_commodity_to_military_company(
     };
     match commodity {
         CommodityKind::OatGrain => company.horse_oats += trip.amount,
-        CommodityKind::AnimalFeed => company.horse_feed += trip.amount,
         CommodityKind::Water => company.horse_water += trip.amount,
         _ => return,
     }

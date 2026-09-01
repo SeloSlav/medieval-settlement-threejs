@@ -181,7 +181,6 @@
     "stableOxSlots": 3,
     "stableOxMaxPerWorkplace": 3,
     "stableOxPurchaseGold": 24,
-    "cavalryHorseDailyAnimalFeed": 1,
     "cavalryHorseDailyOats": 1,
     "cavalryHorseDailyWater": 2,
     "cavalryHorseFieldIssueDays": 3,
@@ -1718,7 +1717,7 @@
     "cavalry_yard": {
       "label": "Cavalry Yard",
       "cost": { "timber": 96, "stone": 28, "ironwork": 8 },
-      "storage": { "total": 720, "timber": 0, "firewood": 0, "stone": 0, "water": 180, "food": 96, "grain": 120, "animalFeed": 120, "polearms": 120, "sidearms": 120, "shields": 120, "bows": 120, "paddedArmor": 120, "mailArmor": 120, "ammunition": 240 },
+      "storage": { "total": 720, "timber": 0, "firewood": 0, "stone": 0, "water": 180, "food": 96, "grain": 120, "polearms": 120, "sidearms": 120, "shields": 120, "bows": 120, "paddedArmor": 120, "mailArmor": 120, "ammunition": 240 },
       "workRadius": 0,
       "pickRadius": 14,
       "harvestInterval": 0,

@@ -118,6 +118,7 @@ import { markStartupCheckpoint } from '../app/startupDiagnostics.ts';
 import { setWorldAnimationTime } from './worldAnimationTime.ts';
 import {
   directionalShadowRefreshReasons,
+  shouldRefreshDynamicAgentDirectionalShadow,
   shouldRefreshDirectionalShadow,
   type DirectionalShadowRefreshReason,
 } from './directionalShadowRefreshPolicy.ts';
@@ -314,6 +315,7 @@ export class SceneManager {
     'camera-refit': 0,
     'forest-casters': 0,
     'first-person-motion': 0,
+    'dynamic-casters': 0,
     'static-casters': 0,
     'renderer-state': 0,
   };
@@ -1119,6 +1121,12 @@ export class SceneManager {
     this.fishWildlifeVisuals?.update(dt, cameraDistance, firstPersonActive);
     this.mushroomPatchVisuals?.updateCameraState(cameraDistance, firstPersonActive);
     this.renderFrame++;
+    // Settlement agents are advanced before SceneManager.render. Refresh the
+    // shared atlas from those exact interpolated transforms and animation
+    // palettes so the color and shadow passes never describe different poses.
+    if (shouldRefreshDynamicAgentDirectionalShadow(dt)) {
+      this.refreshShadowMap('dynamic-casters');
+    }
     const shadowRefreshNowMs = performance.now();
     const shadowCameraNeedsRefit = this.shouldRefitShadowMap(
       cameraDistance,

@@ -358,7 +358,6 @@ export type GameBalance = {
     stableOxSlots: number;
     stableOxMaxPerWorkplace: number;
     stableOxPurchaseGold: number;
-    cavalryHorseDailyAnimalFeed: number;
     cavalryHorseDailyOats: number;
     cavalryHorseDailyWater: number;
     cavalryHorseFieldIssueDays: number;
@@ -1079,7 +1078,6 @@ function generateRust(): string {
     `pub const STABLE_OX_SLOTS: u8 = ${b.economy.stableOxSlots};`,
     `pub const STABLE_OX_MAX_PER_WORKPLACE: u32 = ${b.economy.stableOxMaxPerWorkplace};`,
     `pub const STABLE_OX_PURCHASE_GOLD: f64 = ${rustF64(b.economy.stableOxPurchaseGold)};`,
-    `pub const CAVALRY_HORSE_DAILY_ANIMAL_FEED: f64 = ${rustF64(b.economy.cavalryHorseDailyAnimalFeed)};`,
     `pub const CAVALRY_HORSE_DAILY_OATS: f64 = ${rustF64(b.economy.cavalryHorseDailyOats)};`,
     `pub const CAVALRY_HORSE_DAILY_WATER: f64 = ${rustF64(b.economy.cavalryHorseDailyWater)};`,
     `pub const CAVALRY_HORSE_FIELD_ISSUE_DAYS: f64 = ${rustF64(b.economy.cavalryHorseFieldIssueDays)};`,
@@ -2216,7 +2214,6 @@ function generateTypeScript(): string {
     `export const STABLE_OX_SLOTS = ${b.economy.stableOxSlots};`,
     `export const STABLE_OX_MAX_PER_WORKPLACE = ${b.economy.stableOxMaxPerWorkplace};`,
     `export const STABLE_OX_PURCHASE_GOLD = ${b.economy.stableOxPurchaseGold};`,
-    `export const CAVALRY_HORSE_DAILY_ANIMAL_FEED = ${b.economy.cavalryHorseDailyAnimalFeed};`,
     `export const CAVALRY_HORSE_DAILY_OATS = ${b.economy.cavalryHorseDailyOats};`,
     `export const CAVALRY_HORSE_DAILY_WATER = ${b.economy.cavalryHorseDailyWater};`,
     `export const CAVALRY_HORSE_FIELD_ISSUE_DAYS = ${b.economy.cavalryHorseFieldIssueDays};`,

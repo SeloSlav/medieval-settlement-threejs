@@ -690,6 +690,8 @@ export class LivestockVisuals {
           sourceRoot: this.sources[kind].scene,
           capacity: initialCapacity[kind],
           name: `${kind} exact-model livestock instances`,
+          castShadow: true,
+          receiveShadow: true,
         }));
       } catch (error) {
         // Keep the same authored clone visible if a future asset has geometry
@@ -927,8 +929,8 @@ function configureModelMeshes(model: THREE.Object3D): void {
   model.traverse((object) => {
     const mesh = object as THREE.SkinnedMesh;
     if (!mesh.isSkinnedMesh) return;
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
     mesh.frustumCulled = false;
   });
 }

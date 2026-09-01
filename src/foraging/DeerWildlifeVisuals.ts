@@ -152,6 +152,8 @@ export async function createDeerWildlifeVisuals(
         sourceRoot: modelSources[sex].scene,
         capacity: initialCapacity,
         name: `${sex} exact-model wildlife instances`,
+        castShadow: true,
+        receiveShadow: true,
       }));
     } catch (error) {
       console.warn(`[Deer] ${sex} exact-model batching unavailable; retaining exact rigs.`, error);
@@ -506,8 +508,8 @@ function configureModelMeshes(model: THREE.Object3D): void {
   model.traverse((child) => {
     const mesh = child as THREE.SkinnedMesh;
     if (!mesh.isSkinnedMesh) return;
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
     mesh.frustumCulled = false;
   });
 }

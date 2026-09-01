@@ -1204,15 +1204,15 @@ assert.match(settlementHud, /primary use is preparation into animal feed/);
 assert.match(settlementHud, /Animal feed is not human food/);
 assert.match(
   buildMenuCards,
-  /pastoral_farmstead:[\s\S]{0,260}use hay before feed[\s\S]{0,160}prepare animal feed from oats[\s\S]{0,160}water stays separate/i,
+  /pastoral_farmstead:[\s\S]{0,260}raises cattle, sheep, and horses for livestock products and mounted companies/i,
 );
 assert.match(
   buildMenuCards,
-  /swineherd:[\s\S]{0,240}woodland mast first[\s\S]{0,160}prepared animal feed[\s\S]{0,160}water is separate/i,
+  /swineherd:[\s\S]{0,240}raises woodland pigs for meat and hides/i,
 );
 assert.match(
   buildMenuCards,
-  /stable:[\s\S]{0,240}feed and water are abstracted[\s\S]{0,100}never draw herd hay or Animal Feed/i,
+  /stable:[\s\S]{0,240}houses oxen used for construction, farm work, and hauling/i,
 );
 assert.match(
   stableInspector,

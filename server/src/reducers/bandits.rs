@@ -121,7 +121,6 @@ pub fn hire_mercenary_company(ctx: &ReducerContext, town_hall_id: u64) -> Result
         fatigue: 0.0,
         provision_days: 0.0,
         horse_oats: 0.0,
-        horse_feed: 0.0,
         horse_water: 0.0,
         ammunition: 0,
         ammunition_capacity: 0,
@@ -239,7 +238,6 @@ pub fn deploy_debug_military_company(
         fatigue: 0.0,
         provision_days: 30.0,
         horse_oats: 0.0,
-        horse_feed: 0.0,
         horse_water: 0.0,
         ammunition: ammunition_capacity,
         ammunition_capacity,
@@ -672,7 +670,6 @@ fn recruit_resident_company(
             0.0
         },
         horse_oats: 0.0,
-        horse_feed: 0.0,
         horse_water: 0.0,
         ammunition: 0,
         ammunition_capacity,

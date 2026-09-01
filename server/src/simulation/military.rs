@@ -974,8 +974,7 @@ fn step_company_upkeep(ctx: &ReducerContext, tick: u64, military_demands: u8) {
         }
         if kind.is_mounted() && !is_debug_company {
             let requested_days = company.living_members as f64 * elapsed_days as f64;
-            let ration = cavalry_daily_ration(super::game_clock(tick).month);
-            let feed_need = requested_days * ration.animal_feed;
+            let ration = cavalry_daily_ration();
             let oats_need = requested_days * ration.oats;
             let water_need = requested_days * ration.water;
             let ratio = |stock: f64, need: f64| {
@@ -985,10 +984,8 @@ fn step_company_upkeep(ctx: &ReducerContext, tick: u64, military_demands: u8) {
                     (stock / need).clamp(0.0, 1.0)
                 }
             };
-            let supply_ratio = ratio(company.horse_feed, feed_need)
-                .min(ratio(company.horse_oats, oats_need))
+            let supply_ratio = ratio(company.horse_oats, oats_need)
                 .min(ratio(company.horse_water, water_need));
-            company.horse_feed = (company.horse_feed - feed_need * supply_ratio).max(0.0);
             company.horse_oats = (company.horse_oats - oats_need * supply_ratio).max(0.0);
             company.horse_water = (company.horse_water - water_need * supply_ratio).max(0.0);
             if supply_ratio < 0.999 {

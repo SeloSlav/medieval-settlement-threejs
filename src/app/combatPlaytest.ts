@@ -358,7 +358,6 @@ export class CombatPlaytestSimulation {
         fatigue: clamp(0.12 + fightingFraction * 0.38, 0, 1),
         provisionDays: 3,
         horseOats: 0,
-        horseFeed: 0,
         horseWater: 0,
         ammunition: ammunitionCapacity,
         ammunitionCapacity,

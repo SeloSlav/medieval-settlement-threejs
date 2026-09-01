@@ -143,7 +143,6 @@ export const STARTING_GOLD = 60;
 export const STABLE_OX_SLOTS = 3;
 export const STABLE_OX_MAX_PER_WORKPLACE = 3;
 export const STABLE_OX_PURCHASE_GOLD = 24;
-export const CAVALRY_HORSE_DAILY_ANIMAL_FEED = 1;
 export const CAVALRY_HORSE_DAILY_OATS = 1;
 export const CAVALRY_HORSE_DAILY_WATER = 2;
 export const CAVALRY_HORSE_FIELD_ISSUE_DAYS = 3;
@@ -1932,7 +1931,7 @@ export const BUILDING_STORAGE_CAPS = {
   trading_post: { timber: 180, firewood: 120, stone: 180, total: 760, water: 72, food: 160, grain: 120, barley: 120, malt: 120, flour: 120, ale: 180, cider: 180, pearCider: 180, preservedFood: 120, honey: 140, wax: 160, candles: 160, wine: 160, wool: 120, yarn: 160, linen: 160, flax: 120, cloth: 160, pelts: 160, ironwork: 96, polearms: 80, sidearms: 80, shields: 80, bows: 80, crossbows: 80, paddedArmor: 80, mailArmor: 80, ammunition: 160, iron: 96, clay: 120, salt: 120, charcoal: 120, pottery: 144, hides: 160, leather: 160, shoes: 160, roofTiles: 120, manure: 160, remedies: 72 },
   town_hall: { timber: 0, firewood: 0, stone: 0, total: 320, polearms: 120, sidearms: 120, shields: 120, bows: 120, crossbows: 120, paddedArmor: 120, mailArmor: 120, ammunition: 240 },
   stable: { timber: 0, firewood: 0, stone: 0 },
-  cavalry_yard: { timber: 0, firewood: 0, stone: 0, total: 720, water: 180, food: 96, grain: 120, polearms: 120, sidearms: 120, shields: 120, bows: 120, paddedArmor: 120, mailArmor: 120, ammunition: 240, animalFeed: 120 },
+  cavalry_yard: { timber: 0, firewood: 0, stone: 0, total: 720, water: 180, food: 96, grain: 120, polearms: 120, sidearms: 120, shields: 120, bows: 120, paddedArmor: 120, mailArmor: 120, ammunition: 240 },
   kennel: { timber: 0, firewood: 0, stone: 0 },
   village_storehouse: { timber: 2500, firewood: 2500, stone: 2500, total: 2500, wax: 2500, candles: 2500, wool: 2500, yarn: 2500, linen: 2500, cloth: 2500, pelts: 2500, ironwork: 2500, polearms: 2500, sidearms: 2500, shields: 2500, bows: 2500, crossbows: 2500, paddedArmor: 2500, mailArmor: 2500, ammunition: 2500, iron: 2500, clay: 2500, salt: 2500, charcoal: 2500, pottery: 2500, hides: 2500, leather: 2500, shoes: 2500, remedies: 2500 },
   watchtower: { timber: 0, firewood: 0, stone: 0 },

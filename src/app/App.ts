@@ -919,6 +919,9 @@ export class App {
     this.buildingMarkers?.tick(worldDt);
     this.minimapTickState.keyHeld = this.input?.isDown('g') ?? false;
     this.worldMapUi?.minimap.tick(this.minimapTickState);
+    let renderOrbitDistance = 12;
+    let renderFirstPersonCrouching = false;
+    let renderCameraInteractionActive = false;
     if (firstPersonActive) {
       this.firstPersonController?.update(dt);
       this.toolbar?.setFirstPersonMode(true);
@@ -929,13 +932,9 @@ export class App {
       this.forestryWorkAreaTool?.update();
       this.updateBuildButtonPosition();
       this.worldMapUi?.update();
-      this.sceneManager?.render(
-        worldDt,
-        12,
-        true,
-        this.firstPersonController?.isCrouching() ?? false,
-        this.firstPersonController?.isCameraNavigationActive() ?? false,
-      );
+      renderFirstPersonCrouching = this.firstPersonController?.isCrouching() ?? false;
+      renderCameraInteractionActive =
+        this.firstPersonController?.isCameraNavigationActive() ?? false;
     } else {
       this.cameraController?.update(dt);
       this.firstPersonController?.updatePlacement();
@@ -948,16 +947,9 @@ export class App {
       this.forestryWorkAreaTool?.update();
       this.updateBuildButtonPosition();
       this.worldMapUi?.update();
-      this.sceneManager?.render(
-        worldDt,
-        this.cameraController?.getOrbitDistance(),
-        false,
-        false,
-        this.cameraController?.isNavigationActive() ?? false,
-      );
+      renderOrbitDistance = this.cameraController?.getOrbitDistance() ?? 240;
+      renderCameraInteractionActive = this.cameraController?.isNavigationActive() ?? false;
     }
-    this.startBattleCaptureIfRequested();
-    this.updateFps(time, rawDt);
     const crowdView = this.buildCrowdViewState();
     if (this.snapshotApplierDeps) {
       tickSettlementWorld(
@@ -969,6 +961,18 @@ export class App {
         this.villagers?.getActiveLoggingDisturbances(),
       );
     }
+    // Render only after every agent renderer has committed its interpolated
+    // transform and skinning palette. The directional shadow pass consumes the
+    // same frame state as the color pass instead of trailing by one update.
+    this.sceneManager?.render(
+      worldDt,
+      renderOrbitDistance,
+      firstPersonActive,
+      renderFirstPersonCrouching,
+      renderCameraInteractionActive,
+    );
+    this.startBattleCaptureIfRequested();
+    this.updateFps(time, rawDt);
     this.villagerInspector?.tick();
     this.ambientAudio?.setWorldPaused(gameSpeed === 0);
     this.ambientAudio?.tick(dt);

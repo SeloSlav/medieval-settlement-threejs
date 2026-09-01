@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import * as THREE from 'three';
 import {
@@ -7,9 +8,21 @@ import {
 } from '../src/scene/fitDirectionalShadow.ts';
 import {
   directionalShadowRefreshReasons,
+  shouldRefreshDynamicAgentDirectionalShadow,
   shouldRefreshDirectionalShadowAtlas,
   shouldRefreshFirstPersonDirectionalShadow,
 } from '../src/scene/directionalShadowRefreshPolicy.ts';
+
+assert.equal(
+  shouldRefreshDynamicAgentDirectionalShadow(1 / 60),
+  true,
+  'an advancing agent frame must refresh the directional atlas',
+);
+assert.equal(
+  shouldRefreshDynamicAgentDirectionalShadow(0),
+  false,
+  'a paused world may retain the cached directional atlas',
+);
 
 assert.equal(
   shouldRefreshFirstPersonDirectionalShadow(true, true),
@@ -40,6 +53,22 @@ assert.deepEqual(
   directionalShadowRefreshReasons(true, true, true, true),
   ['camera-refit', 'forest-casters', 'first-person-motion'],
   'coincident invalidations must retain exact causes while sharing one atlas upload',
+);
+
+const appSource = readFileSync('src/app/App.ts', 'utf8');
+const tickSource = appSource.slice(
+  appSource.indexOf('private readonly tick ='),
+  appSource.indexOf('private onForestReady'),
+);
+assert.ok(
+  tickSource.indexOf('tickSettlementWorld(') < tickSource.indexOf('this.sceneManager?.render('),
+  'agent interpolation and palette uploads must complete before the color and shadow passes',
+);
+const sceneManagerSource = readFileSync('src/scene/SceneManager.ts', 'utf8');
+assert.match(
+  sceneManagerSource,
+  /shouldRefreshDynamicAgentDirectionalShadow\(dt\)[\s\S]{0,160}refreshShadowMap\('dynamic-casters'\)/,
+  'advancing agents must invalidate the shared directional atlas every rendered frame',
 );
 assert.deepEqual(
   directionalShadowRefreshReasons(false, false, false, true),

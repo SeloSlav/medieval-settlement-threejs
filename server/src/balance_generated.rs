@@ -140,7 +140,6 @@ pub const STARTING_GOLD: f64 = 60.0;
 pub const STABLE_OX_SLOTS: u8 = 3;
 pub const STABLE_OX_MAX_PER_WORKPLACE: u32 = 3;
 pub const STABLE_OX_PURCHASE_GOLD: f64 = 24.0;
-pub const CAVALRY_HORSE_DAILY_ANIMAL_FEED: f64 = 1.0;
 pub const CAVALRY_HORSE_DAILY_OATS: f64 = 1.0;
 pub const CAVALRY_HORSE_DAILY_WATER: f64 = 2.0;
 pub const CAVALRY_HORSE_FIELD_ISSUE_DAYS: f64 = 3.0;
@@ -2693,7 +2692,7 @@ const CAVALRY_YARD: BuildingDef = BuildingDef {
     storage_roof_tiles: 0.0,
     storage_manure: 0.0,
     storage_remedies: 0.0,
-    storage_animal_feed: 120.0,
+    storage_animal_feed: 0.0,
     accepts_labor: true,
     max_labor: 6,
     work_radius: 0.0,

@@ -572,17 +572,17 @@ assert.match(
 assert.doesNotMatch(
   deliveryRenderer,
   /castShadow|receiveShadow|shadowCaster|isWithinShadowRange/i,
-  'delivery agents should not participate in shadow rendering or invalidation',
+  'delivery-agent orchestration should leave mesh shadow configuration to the visual factories',
 );
-assert.doesNotMatch(
+assert.match(
   read('src/logistics/deliveryCartMesh.ts'),
-  /castShadow\s*=\s*true|receiveShadow\s*=\s*true/,
-  'delivery carts should neither cast nor receive shadows',
+  /castShadow\s*=\s*true[\s\S]*receiveShadow\s*=\s*true/,
+  'delivery carts should cast and receive interpolated shadows',
 );
-assert.doesNotMatch(
+assert.match(
   read('src/logistics/deliveryCartWorker.ts'),
-  /castShadow\s*=\s*true|receiveShadow\s*=\s*true/,
-  'cart haulers should neither cast nor receive shadows',
+  /castShadow\s*=\s*true[\s\S]*receiveShadow\s*=\s*true/,
+  'cart haulers should cast and receive interpolated shadows',
 );
 assert.doesNotMatch(
   deliveryRenderer,

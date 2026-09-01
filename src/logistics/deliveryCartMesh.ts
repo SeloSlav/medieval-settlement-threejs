@@ -1333,8 +1333,8 @@ function addNamedMesh(
     scale,
   );
   mesh.name = name;
-  mesh.castShadow = false;
-  mesh.receiveShadow = false;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
   return mesh;
 }
 
@@ -1513,8 +1513,8 @@ function addQuaterniusCart(
       return clone;
     });
     mesh.material = Array.isArray(mesh.material) ? materials : materials[0]!;
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
     mesh.frustumCulled = false;
   });
 

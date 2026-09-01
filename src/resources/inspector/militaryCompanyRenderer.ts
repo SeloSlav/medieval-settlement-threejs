@@ -119,7 +119,7 @@ function renderSelectedCompanyCommands(
     : `<button type="button" class="resource-action-button resource-action-button--icon resource-action-button--secondary military-company-action" data-disband-military-company="${company.id}" data-tooltip="${company.kind === 'mercenary-spears' ? 'End the contract and send the company to the region edge.' : mounted ? 'Return equipment to the Cavalry Yard, ride each surviving horse to its reserved home pasture, then send the residents home.' : 'Stand the company down and return its surviving members home.'}" ${company.status === 'disbanding' || company.status === 'leaving' || company.status === 'destroyed' ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="disband-company" aria-hidden="true"></span><span class="military-company-action__copy"><strong>${company.kind === 'mercenary-spears' ? 'End contract' : 'Disband company'}</strong></span></button>`;
   const mountedSupplyRows = mounted
     ? `<ul class="resource-inspector-details military-company-card__details">
-        <li><span>Horse field stores</span><span>${company.horseOats.toFixed(0)} oats · ${company.horseFeed.toFixed(0)} winter feed · ${company.horseWater.toFixed(0)} water</span></li>
+        <li><span>Horse field stores</span><span>${company.horseOats.toFixed(0)} oats · ${company.horseWater.toFixed(0)} water</span></li>
         <li><span>Automatic resupply</span><span>Reorders at 2 days toward 5 while the company holds position</span></li>
       </ul>`
     : '';
@@ -238,7 +238,7 @@ function renderCompany(
     ? `<li><span>Field provisions</span><span>${company.provisionDays.toFixed(1)} days</span></li>`
     : '';
   const horseSupply = mounted
-    ? `<li><span>Horse field stores</span><span>${company.horseOats.toFixed(0)} oats · ${company.horseFeed.toFixed(0)} winter feed · ${company.horseWater.toFixed(0)} water</span></li>
+    ? `<li><span>Horse field stores</span><span>${company.horseOats.toFixed(0)} oats · ${company.horseWater.toFixed(0)} water</span></li>
        <li><span>Horse ration</span><span>Oats Mar–Nov; feed Dec–Feb; never both · water year-round</span></li>`
     : '';
   const mercenaryContract = company.kind === 'mercenary-spears'

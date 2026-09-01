@@ -2289,11 +2289,9 @@ pub struct MilitaryCompany {
     pub cohesion: f64,
     pub fatigue: f64,
     pub provision_days: f64,
-    /// Physical mounted-company stores carried in the field. Seasonal fodder
-    /// is mutually exclusive in daily use, but surplus may remain aboard when
-    /// the calendar crosses between winter feed and ordinary oats.
+    /// Physical oats and water carried by mounted companies in the field.
+    /// Pasture-local hay and winter Animal Feed never enter campaign stores.
     pub horse_oats: f64,
-    pub horse_feed: f64,
     pub horse_water: f64,
     pub ammunition: u32,
     pub ammunition_capacity: u32,

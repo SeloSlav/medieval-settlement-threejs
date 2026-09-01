@@ -47,7 +47,6 @@ try {
     fatigue: 0.25,
     provisionDays: 0,
     horseOats: 0,
-    horseFeed: 0,
     horseWater: 0,
     ammunition: 0,
     ammunitionCapacity: 0,

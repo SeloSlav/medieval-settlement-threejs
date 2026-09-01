@@ -391,10 +391,15 @@ assert.match(
 
 const sceneManagerSource = fs.readFileSync('src/scene/SceneManager.ts', 'utf8');
 const deerVisualSource = fs.readFileSync('src/foraging/DeerWildlifeVisuals.ts', 'utf8');
-assert.doesNotMatch(
+assert.match(
   deerVisualSource,
-  /castShadow\s*=\s*true|receiveShadow\s*=\s*true|caster batch|ShadowCastersChanged/i,
-  'deer visuals should not allocate, render, or invalidate dynamic shadows',
+  /castShadow\s*:\s*true[\s\S]*receiveShadow\s*:\s*true/,
+  'exact-model deer batches should cast and receive dynamic shadows',
+);
+assert.match(
+  deerVisualSource,
+  /mesh\.castShadow\s*=\s*true[\s\S]*mesh\.receiveShadow\s*=\s*true/,
+  'fallback deer meshes should cast and receive dynamic shadows',
 );
 assert.match(
   sceneManagerSource,
