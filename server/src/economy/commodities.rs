@@ -792,8 +792,7 @@ pub fn building_total_commodity_stock(building: &Building) -> f64 {
         .iter()
         .copied()
         .filter(|kind| {
-            *kind != CommodityKind::Gold
-                && building_commodity_cap(&building.kind, *kind) > 0.0
+            *kind != CommodityKind::Gold && building_commodity_cap(&building.kind, *kind) > 0.0
         })
         .map(|kind| whole_units(building_commodity_stock(building, kind)))
         .sum()
@@ -1434,9 +1433,7 @@ fn residence_grain_food_ready(residence: &Residence) -> bool {
 fn is_grain_food(commodity: CommodityKind) -> bool {
     matches!(
         commodity,
-        CommodityKind::OatGrain
-            | CommodityKind::RyeBread
-            | CommodityKind::MaslinBread
+        CommodityKind::OatGrain | CommodityKind::RyeBread | CommodityKind::MaslinBread
     )
 }
 
@@ -1536,7 +1533,10 @@ mod tests {
 
     #[test]
     fn shared_storage_capacity_is_authored_for_large_depots() {
-        assert_eq!(building_shared_storage_capacity("village_storehouse"), Some(2500.0));
+        assert_eq!(
+            building_shared_storage_capacity("village_storehouse"),
+            Some(2500.0)
+        );
         assert_eq!(building_shared_storage_capacity("granary"), Some(2500.0));
         assert_eq!(building_shared_storage_capacity("lumber_mill"), Some(50.0));
         assert_eq!(building_shared_storage_capacity("marketplace"), Some(400.0));

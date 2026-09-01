@@ -18,8 +18,8 @@ use crate::balance_generated::{
     BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE, BREWERY_MALT_PER_CYCLE,
     BREWERY_MEAD_PER_CYCLE, CALENDAR_SECONDS_PER_DAY, CANDLE_TRANSFER_PER_TRIP,
     CATTLE_GRAIN_PER_UNSUPPORTED_HEAD, CATTLE_HAY_PER_UNSUPPORTED_HEAD,
-    CAVALRY_HORSE_DAILY_ANIMAL_FEED, CAVALRY_HORSE_DAILY_OATS, CAVALRY_HORSE_DAILY_WATER,
-    CAVALRY_HORSE_TRAINING_DAYS, CHANDLERY_CANDLES_PER_CYCLE, CHANDLERY_FIREWOOD_PER_CYCLE,
+    CAVALRY_HORSE_FIELD_ISSUE_DAYS, CAVALRY_HORSE_FIELD_REORDER_DAYS,
+    CAVALRY_HORSE_FIELD_TARGET_DAYS, CHANDLERY_CANDLES_PER_CYCLE, CHANDLERY_FIREWOOD_PER_CYCLE,
     CHANDLERY_WAX_PER_CYCLE, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
     CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
     COBBLER_LEATHER_PER_CYCLE, COBBLER_SHOES_PER_CYCLE, FARM_GROWTH_SECONDS,
@@ -51,6 +51,7 @@ use crate::brewery_recipe_policy::{
 };
 use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
+use crate::cavalry_policy::{cavalry_daily_ration, horse_occupies_yard_place};
 use crate::civilian_tool_policy::{
     civilian_tool_runway_cycles, civilian_tool_throughput_multiplier, civilian_tools_maintained,
     farm_tool_ironwork_per_completed_stage, farm_tool_throughput_multiplier, farm_tools_maintained,
@@ -132,7 +133,7 @@ use crate::simulation::delivery_trips::{
     building_has_inbound_commodity_trip, building_has_inbound_supply_trip,
     building_has_regional_market_trip, onsite_building_labor, regional_market_export_route,
     start_regional_market_export_trip, try_start_building_supply_trip,
-    try_start_origin_rostered_building_supply_trip,
+    try_start_cavalry_company_supply_trip, try_start_origin_rostered_building_supply_trip,
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
@@ -3390,6 +3391,34 @@ pub fn step_military_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
                 );
             }
         }
+        let cavalry_issue = kind.is_mounted().then(|| {
+            let ration = cavalry_daily_ration(clock.month);
+            let horse_days = company.living_members as f64 * CAVALRY_HORSE_FIELD_ISSUE_DAYS;
+            [
+                (CommodityKind::AnimalFeed, ration.animal_feed * horse_days),
+                (CommodityKind::OatGrain, ration.oats * horse_days),
+                (CommodityKind::Water, ration.water * horse_days),
+            ]
+        });
+        if let Some(issue) = cavalry_issue {
+            for (commodity, amount) in issue {
+                if amount <= 1e-6 {
+                    continue;
+                }
+                if building_commodity_stock(&source, commodity) + 1e-6 < amount {
+                    complete = false;
+                    request_connected_commodity(
+                        ctx,
+                        tick,
+                        clock,
+                        &source,
+                        commodity,
+                        cavalry_supply_source_kinds(commodity),
+                        amount,
+                    );
+                }
+            }
+        }
         let members = ctx
             .db
             .military_member()
@@ -3412,6 +3441,20 @@ pub fn step_military_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
         for (commodity, amount) in military_equipment_costs(cost) {
             if amount > 0 {
                 withdraw_building_commodity(&mut source, commodity, amount as f64);
+            }
+        }
+        if let Some(issue) = cavalry_issue {
+            for (commodity, amount) in issue {
+                if amount <= 1e-6 {
+                    continue;
+                }
+                let issued = withdraw_building_commodity(&mut source, commodity, amount);
+                match commodity {
+                    CommodityKind::AnimalFeed => company.horse_feed += issued,
+                    CommodityKind::OatGrain => company.horse_oats += issued,
+                    CommodityKind::Water => company.horse_water += issued,
+                    _ => {}
+                }
             }
         }
         ctx.db.building().id().update(source);
@@ -3442,6 +3485,7 @@ pub fn step_military_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
         company.ammunition = company.ammunition_capacity;
         ctx.db.military_company().id().update(company);
     }
+    step_cavalry_company_field_resupply(ctx, tick, clock);
 }
 
 fn step_cavalry_yard_requisitions(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock) {
@@ -3464,21 +3508,28 @@ fn step_cavalry_yard_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
             .cavalry_yard_id()
             .filter(&yard.id)
             .collect::<Vec<_>>();
-        let deployed = horses
-            .iter()
-            .filter(|horse| horse.assigned_company_id > 0)
-            .count() as f64;
-        let schooling = horses
-            .iter()
-            .filter(|horse| {
-                horse.assigned_company_id == 0 && horse.training_days < CAVALRY_HORSE_TRAINING_DAYS
-            })
-            .count()
-            .min(yard.assigned_labor as usize) as f64;
-        let supplied_horses = deployed + schooling;
-        if supplied_horses <= 0.0 {
+        let mut on_site = 0.0;
+        let mut deployed = 0.0;
+        for horse in &horses {
+            let assigned_state = (horse.assigned_company_id > 0)
+                .then(|| {
+                    ctx.db
+                        .military_company()
+                        .id()
+                        .find(&horse.assigned_company_id)
+                        .map(|company| company.state)
+                })
+                .flatten();
+            if horse.assigned_company_id == 0 || assigned_state == Some(0) {
+                on_site += 1.0;
+            } else if !horse_occupies_yard_place(horse.assigned_company_id, assigned_state) {
+                deployed += 1.0;
+            }
+        }
+        if on_site + deployed <= 0.0 {
             continue;
         }
+        let ration = cavalry_daily_ration(clock.month);
         let requests = [
             (
                 CommodityKind::AnimalFeed,
@@ -3489,7 +3540,7 @@ fn step_cavalry_yard_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
                     "trading_post",
                     "founders_camp",
                 ][..],
-                CAVALRY_HORSE_DAILY_ANIMAL_FEED,
+                ration.animal_feed,
             ),
             (
                 CommodityKind::OatGrain,
@@ -3500,7 +3551,7 @@ fn step_cavalry_yard_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
                     "trading_post",
                     "founders_camp",
                 ][..],
-                CAVALRY_HORSE_DAILY_OATS,
+                ration.oats,
             ),
             (
                 CommodityKind::Water,
@@ -3510,13 +3561,157 @@ fn step_cavalry_yard_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
                     "trading_post",
                     "founders_camp",
                 ][..],
-                CAVALRY_HORSE_DAILY_WATER,
+                ration.water,
             ),
         ];
         for (commodity, source_kinds, daily_per_horse) in requests {
-            let desired = (supplied_horses * daily_per_horse * SUPPLY_RUNWAY_DAYS)
+            if daily_per_horse <= 1e-6 {
+                continue;
+            }
+            let desired = (on_site * daily_per_horse * SUPPLY_RUNWAY_DAYS
+                + deployed * daily_per_horse * CAVALRY_HORSE_FIELD_TARGET_DAYS)
                 .min(building_commodity_cap(&yard.kind, commodity));
             request_connected_commodity(ctx, tick, clock, &yard, commodity, source_kinds, desired);
+        }
+    }
+}
+
+fn cavalry_supply_source_kinds(commodity: CommodityKind) -> &'static [&'static str] {
+    match commodity {
+        CommodityKind::AnimalFeed => &[
+            "pastoral_farmstead",
+            "swineherd",
+            "village_storehouse",
+            "trading_post",
+            "founders_camp",
+        ],
+        CommodityKind::OatGrain => &[
+            "threshing_barn",
+            "granary",
+            "village_storehouse",
+            "trading_post",
+            "founders_camp",
+        ],
+        CommodityKind::Water => &[
+            "well",
+            "village_storehouse",
+            "trading_post",
+            "founders_camp",
+        ],
+        _ => &[],
+    }
+}
+
+fn step_cavalry_company_field_resupply(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+) {
+    let ration = cavalry_daily_ration(clock.month);
+    let companies = ctx
+        .db
+        .military_company()
+        .iter()
+        .filter(|company| {
+            company.state == 1
+                && company.living_members > 0
+                && MilitaryKind::from_id(company.kind).is_some_and(MilitaryKind::is_mounted)
+        })
+        .collect::<Vec<_>>();
+    for company in companies {
+        let members = ctx
+            .db
+            .military_member()
+            .company_id()
+            .filter(&company.id)
+            .collect::<Vec<_>>();
+        if members.is_empty()
+            || members.iter().all(|member| member.residence_id == 0)
+            || members.iter().any(|member| {
+                ctx.db
+                    .combat_agent()
+                    .id()
+                    .find(&member.combat_agent_id)
+                    .is_none_or(|agent| {
+                        agent.state != 9 || agent.velocity_x.hypot(agent.velocity_z) > 0.15
+                    })
+            })
+        {
+            continue;
+        }
+        let positions = members
+            .iter()
+            .filter_map(|member| ctx.db.combat_agent().id().find(&member.combat_agent_id))
+            .map(|agent| (agent.x, agent.z))
+            .collect::<Vec<_>>();
+        if positions.is_empty() {
+            continue;
+        }
+        let count = positions.len() as f64;
+        let (sum_x, sum_z) = positions.into_iter().fold((0.0, 0.0), |(x, z), position| {
+            (x + position.0, z + position.1)
+        });
+        let (target_x, target_z) = (sum_x / count, sum_z / count);
+        let living = company.living_members as f64;
+        let fodder = if ration.animal_feed > 0.0 {
+            (
+                CommodityKind::AnimalFeed,
+                company.horse_feed,
+                ration.animal_feed,
+            )
+        } else {
+            (CommodityKind::OatGrain, company.horse_oats, ration.oats)
+        };
+        let mut needs = [
+            (
+                fodder.0,
+                fodder.1,
+                fodder.2,
+                fodder.1 / (living * fodder.2).max(1e-9),
+            ),
+            (
+                CommodityKind::Water,
+                company.horse_water,
+                ration.water,
+                company.horse_water / (living * ration.water).max(1e-9),
+            ),
+        ];
+        if needs
+            .iter()
+            .all(|(_, _, _, runway)| *runway > CAVALRY_HORSE_FIELD_REORDER_DAYS)
+        {
+            continue;
+        }
+        needs.sort_by(|left, right| left.3.total_cmp(&right.3));
+        let Some(mut yard) = ctx
+            .db
+            .building()
+            .id()
+            .find(&company.source_building_id)
+            .filter(|yard| {
+                yard.kind == "cavalry_yard"
+                    && yard.construction_complete
+                    && yard.assigned_labor > 0
+                    && !tick.building_disabled_by_fire(ctx, yard.id)
+            })
+        else {
+            continue;
+        };
+        let Some(network) = tick.road_network(company.owner) else {
+            continue;
+        };
+        for (commodity, stock, daily_per_horse, runway) in needs {
+            if runway > CAVALRY_HORSE_FIELD_REORDER_DAYS {
+                continue;
+            }
+            let target_stock = living * daily_per_horse * CAVALRY_HORSE_FIELD_TARGET_DAYS;
+            let needed = (target_stock - stock).max(0.0);
+            if try_start_cavalry_company_supply_trip(
+                ctx, tick, clock, network, &mut yard, company.id, target_x, target_z, commodity,
+                needed,
+            ) {
+                break;
+            }
         }
     }
 }

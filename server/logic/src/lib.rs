@@ -22,6 +22,9 @@ pub mod civilian_tool_policy;
 #[path = "../../src/civic_receipts_policy.rs"]
 pub mod civic_receipts_policy;
 
+#[path = "../../src/cavalry_policy.rs"]
+pub mod cavalry_policy;
+
 #[path = "../../src/constants.rs"]
 pub mod constants;
 
@@ -95,12 +98,12 @@ pub mod raid_agent_policy;
 pub mod season_policy;
 #[path = "../../src/seasonal_labor_policy.rs"]
 pub mod seasonal_labor_policy;
+#[path = "../../src/security_policy.rs"]
+pub mod security_policy;
 #[path = "../../src/smallholding_policy.rs"]
 pub mod smallholding_policy;
 #[path = "../../src/smokehouse_recipe_policy.rs"]
 pub mod smokehouse_recipe_policy;
-#[path = "../../src/security_policy.rs"]
-pub mod security_policy;
 #[path = "../../src/wind_policy.rs"]
 pub mod wind_policy;
 

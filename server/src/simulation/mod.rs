@@ -41,7 +41,7 @@ mod residence_lifecycle;
 pub mod residence_needs;
 mod residence_settlement;
 mod residence_upgrades;
-mod road_logistics;
+pub(crate) mod road_logistics;
 mod seasonal_labor_steward;
 mod settlement_security;
 pub mod spatial;

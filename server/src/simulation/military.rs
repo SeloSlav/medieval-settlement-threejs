@@ -3,13 +3,10 @@ use std::collections::HashMap;
 
 use spacetimedb::{Identity, ReducerContext};
 
-use crate::balance_generated::{
-    CAVALRY_HORSE_DAILY_ANIMAL_FEED, CAVALRY_HORSE_DAILY_OATS, CAVALRY_HORSE_DAILY_WATER,
-};
+use crate::balance_generated::CAVALRY_HORSE_MOUNT_SALE_GOLD;
+use crate::cavalry_policy::cavalry_daily_ration;
 use crate::db::*;
-use crate::economy::{
-    building_commodity_stock, spend_treasury_gold, withdraw_building_commodity, CommodityKind,
-};
+use crate::economy::{credit_treasury_gold, spend_treasury_gold};
 use crate::military_policy::{
     company_wages_enabled, local_company_requires_provisions, matchup_damage_multiplier,
     member_combat_profile, military_battle_end_ticks, military_day_ticks,
@@ -30,7 +27,6 @@ use crate::tables::{
 };
 
 use super::bandits::destroy_camp;
-use super::building_fire_state;
 use super::military_steering::{
     melee_engagement_goal, raider_ranged_firing_line_goal, ranged_firing_line_goal,
     rebuild_dense_engagement_ranks, CombatSteeringGrid, DenseEngagementRank, EngagementRankKey,
@@ -455,7 +451,16 @@ fn step_returning_member(
             }
             return;
         }
-        if let Some(source) = ctx.db.building().id().find(&company.source_building_id) {
+        let return_building_id = ctx
+            .db
+            .cavalry_horse()
+            .assigned_combat_agent_id()
+            .filter(&agent.id)
+            .next()
+            .map(|horse| horse.cavalry_yard_id)
+            .filter(|yard_id| *yard_id > 0)
+            .unwrap_or(company.source_building_id);
+        if let Some(source) = ctx.db.building().id().find(&return_building_id) {
             let return_speed = MilitaryKind::from_id(company.kind)
                 .map(|kind| military_stats(kind).speed)
                 .unwrap_or(2.2);
@@ -872,57 +877,23 @@ fn step_company_upkeep(ctx: &ReducerContext, tick: u64, military_demands: u8) {
         }
         if kind.is_mounted() && !is_debug_company {
             let requested_days = company.living_members as f64 * elapsed_days as f64;
-            let mut supply_ratio: f64 = 0.0;
-            if let Some(mut yard) = ctx
-                .db
-                .building()
-                .id()
-                .find(&company.source_building_id)
-                .filter(|yard| {
-                    yard.kind == "cavalry_yard"
-                        && yard.construction_complete
-                        && building_fire_state(ctx, yard.id).is_none()
-                })
-            {
-                let feed_need = requested_days * CAVALRY_HORSE_DAILY_ANIMAL_FEED;
-                let oats_need = requested_days * CAVALRY_HORSE_DAILY_OATS;
-                let water_need = requested_days * CAVALRY_HORSE_DAILY_WATER;
-                let ratio = |stock: f64, need: f64| {
-                    if need <= 1e-9 {
-                        1.0
-                    } else {
-                        (stock / need).clamp(0.0, 1.0)
-                    }
-                };
-                supply_ratio = ratio(
-                    building_commodity_stock(&yard, CommodityKind::AnimalFeed),
-                    feed_need,
-                )
-                .min(ratio(
-                    building_commodity_stock(&yard, CommodityKind::OatGrain),
-                    oats_need,
-                ))
-                .min(ratio(
-                    building_commodity_stock(&yard, CommodityKind::Water),
-                    water_need,
-                ));
-                withdraw_building_commodity(
-                    &mut yard,
-                    CommodityKind::AnimalFeed,
-                    feed_need * supply_ratio,
-                );
-                withdraw_building_commodity(
-                    &mut yard,
-                    CommodityKind::OatGrain,
-                    oats_need * supply_ratio,
-                );
-                withdraw_building_commodity(
-                    &mut yard,
-                    CommodityKind::Water,
-                    water_need * supply_ratio,
-                );
-                ctx.db.building().id().update(yard);
-            }
+            let ration = cavalry_daily_ration(super::game_clock(tick).month);
+            let feed_need = requested_days * ration.animal_feed;
+            let oats_need = requested_days * ration.oats;
+            let water_need = requested_days * ration.water;
+            let ratio = |stock: f64, need: f64| {
+                if need <= 1e-9 {
+                    1.0
+                } else {
+                    (stock / need).clamp(0.0, 1.0)
+                }
+            };
+            let supply_ratio = ratio(company.horse_feed, feed_need)
+                .min(ratio(company.horse_oats, oats_need))
+                .min(ratio(company.horse_water, water_need));
+            company.horse_feed = (company.horse_feed - feed_need * supply_ratio).max(0.0);
+            company.horse_oats = (company.horse_oats - oats_need * supply_ratio).max(0.0);
+            company.horse_water = (company.horse_water - water_need * supply_ratio).max(0.0);
             if supply_ratio < 0.999 {
                 let shortage = 1.0 - supply_ratio;
                 company.morale = (company.morale - 0.06 * shortage * elapsed_days as f64).max(0.05);
@@ -2020,9 +1991,21 @@ fn release_mount_for_agent(ctx: &ReducerContext, combat_agent_id: u64, lost: boo
     };
     if lost {
         ctx.db.cavalry_horse().id().delete(horse.id);
+    } else if horse.cavalry_yard_id == 0 {
+        let owner = horse.owner;
+        ctx.db.cavalry_horse().id().delete(horse.id);
+        credit_treasury_gold(ctx, owner, CAVALRY_HORSE_MOUNT_SALE_GOLD);
     } else {
         horse.assigned_company_id = 0;
         horse.assigned_combat_agent_id = 0;
+        horse.last_training_day = ctx
+            .db
+            .world_config()
+            .id()
+            .find(&0)
+            .map_or(horse.last_training_day, |world| {
+                super::game_clock(world.sim_tick).total_days
+            });
         ctx.db.cavalry_horse().id().update(horse);
     }
 }

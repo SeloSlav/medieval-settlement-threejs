@@ -42,6 +42,7 @@ export type InspectorSpacetimeActions = {
   onRecruitMilitaryCompany: (sourceBuildingId: string, kind: number) => Promise<void>;
   onHireMercenaryCompany: (townHallId: string) => Promise<void>;
   onDisbandMilitaryCompany: (companyId: string) => Promise<void>;
+  onDisbandCavalryCompanySellMounts: (companyId: string) => Promise<void>;
   onRenewMercenaryContract: (companyId: string) => Promise<void>;
   onResupplyMilitaryCompany: (companyId: string) => Promise<void>;
   onSetMilitaryFormation: (companyId: string, formation: number) => Promise<void>;
@@ -441,6 +442,14 @@ export function createInspectorSpacetimeActions(
         await store.disbandMilitaryCompany(companyId);
         toastManager.show('Company is leaving service. Mercenaries march to their original map edge; residents return equipment and walk home.');
       }, 'Could not disband the company.');
+    },
+    onDisbandCavalryCompanySellMounts: async (companyId) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(async () => {
+        await store.disbandCavalryCompanySellMounts(companyId);
+        toastManager.show('The mounted company is returning. Each surviving horse will be sold only after it physically reaches the Cavalry Yard.');
+      }, 'Could not disband and sell this company’s mounts.');
     },
     onRenewMercenaryContract: async (companyId) => {
       const store = requireReady();

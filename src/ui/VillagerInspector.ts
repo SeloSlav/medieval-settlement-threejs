@@ -452,6 +452,7 @@ function deliveryDestinationLabel(
   }
   if (trip.destinationKind === 'fire') return 'Structure fire';
   if (trip.destinationKind === 'trade') return 'Regional exchange route';
+  if (trip.destinationKind === 'military') return `Mounted company #${trip.targetCompanyId ?? '?'}`;
   return 'Unknown destination';
 }
 

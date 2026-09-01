@@ -1,6 +1,7 @@
 use spacetimedb::{reducer, ReducerContext};
 
 use crate::balance_generated::{CAVALRY_HORSE_PURCHASE_GOLD, CAVALRY_HORSE_SLOTS};
+use crate::cavalry_policy::horse_occupies_yard_place;
 use crate::db::*;
 use crate::economy::spend_treasury_gold;
 use crate::simulation::{building_fire_state, game_clock};
@@ -34,6 +35,20 @@ pub fn purchase_cavalry_horse(ctx: &ReducerContext, cavalry_yard_id: u64) -> Res
         .cavalry_horse()
         .cavalry_yard_id()
         .filter(&yard.id)
+        .filter(|horse| {
+            horse_occupies_yard_place(
+                horse.assigned_company_id,
+                (horse.assigned_company_id > 0)
+                    .then(|| {
+                        ctx.db
+                            .military_company()
+                            .id()
+                            .find(&horse.assigned_company_id)
+                            .map(|company| company.state)
+                    })
+                    .flatten(),
+            )
+        })
         .collect::<Vec<_>>();
     if horses.len() >= usize::from(CAVALRY_HORSE_SLOTS) {
         return Err(format!(

@@ -95,7 +95,10 @@ pub const MILK_USE_BALANCED: u8 = 50;
 pub const MILK_USE_CHEESE_FIRST: u8 = 75;
 
 pub fn is_valid_milk_use_policy(configured: u8) -> bool {
-    matches!(configured, MILK_USE_FRESH | MILK_USE_BALANCED | MILK_USE_CHEESE_FIRST)
+    matches!(
+        configured,
+        MILK_USE_FRESH | MILK_USE_BALANCED | MILK_USE_CHEESE_FIRST
+    )
 }
 
 /// Oats staged at a pastoral holding with live animals have crossed the
@@ -390,12 +393,11 @@ mod tests {
         cattle_manure_output, cattle_milking_period, cattle_monthly_dairy_cycle_multiplier,
         effective_breeding_reserve, effective_milk_use_policy, essential_livestock_care_labor,
         farmhouse_cheese_salt_staging_cycles, haymaking_share, is_autumn_cull_month,
-        is_cattle_milking_month, is_haymaking_month, is_shearing_month,
-        livestock_breeding_phase, livestock_conception_progress_after_cycle,
-        livestock_cycles_per_calendar_day, livestock_feed_oat_exportable_stock,
-        livestock_holding_protects_feed_oats, livestock_milk_allocation,
-        livestock_spring_births, normalize_milk_use_policy, pending_cull_heads,
-        projected_winter_animal_feed, retain_priority_candidate,
+        is_cattle_milking_month, is_haymaking_month, is_shearing_month, livestock_breeding_phase,
+        livestock_conception_progress_after_cycle, livestock_cycles_per_calendar_day,
+        livestock_feed_oat_exportable_stock, livestock_holding_protects_feed_oats,
+        livestock_milk_allocation, livestock_spring_births, normalize_milk_use_policy,
+        pending_cull_heads, projected_winter_animal_feed, retain_priority_candidate,
         retained_livestock_breeding_progress, sheep_fleece_output,
         storage_secured_pending_cull_heads, LivestockBreedingPhase, MILK_USE_BALANCED,
         MILK_USE_CHEESE_FIRST, MILK_USE_FRESH,
@@ -450,8 +452,14 @@ mod tests {
     fn conception_is_herd_scaled_capacity_bounded_and_not_same_season_birth() {
         let progress = livestock_conception_progress_after_cycle(0.25, 5.0, 0.04, 5, 20);
         assert!((progress - 0.5).abs() < 1e-9);
-        assert_eq!(livestock_conception_progress_after_cycle(0.75, 5.0, 0.04, 5, 5), 0.75);
-        assert_eq!(livestock_conception_progress_after_cycle(1.8, 50.0, 1.0, 18, 20), 2.0);
+        assert_eq!(
+            livestock_conception_progress_after_cycle(0.75, 5.0, 0.04, 5, 5),
+            0.75
+        );
+        assert_eq!(
+            livestock_conception_progress_after_cycle(1.8, 50.0, 1.0, 18, 20),
+            2.0
+        );
     }
 
     #[test]
@@ -551,47 +559,29 @@ mod tests {
 
     #[test]
     fn surplus_requires_room_for_the_whole_animal_yield() {
-        assert!(can_cull_one(
-            10, 9, 7, 14, 9.0, 1.0, 1.0, 9.0, 1.0, 1.0
-        ));
-        assert!(!can_cull_one(
-            10, 9, 7, 14, 8.99, 1.0, 1.0, 9.0, 1.0, 1.0
-        ));
-        assert!(!can_cull_one(
-            10, 9, 7, 14, 9.0, 0.99, 1.0, 9.0, 1.0, 1.0
-        ));
-        assert!(!can_cull_one(
-            10, 9, 7, 14, 9.0, 1.0, 0.99, 9.0, 1.0, 1.0
-        ));
-        assert!(!can_cull_one(
-            8, 9, 7, 14, 90.0, 90.0, 90.0, 9.0, 1.0, 1.0
-        ));
+        assert!(can_cull_one(10, 9, 7, 14, 9.0, 1.0, 1.0, 9.0, 1.0, 1.0));
+        assert!(!can_cull_one(10, 9, 7, 14, 8.99, 1.0, 1.0, 9.0, 1.0, 1.0));
+        assert!(!can_cull_one(10, 9, 7, 14, 9.0, 0.99, 1.0, 9.0, 1.0, 1.0));
+        assert!(!can_cull_one(10, 9, 7, 14, 9.0, 1.0, 0.99, 9.0, 1.0, 1.0));
+        assert!(!can_cull_one(8, 9, 7, 14, 90.0, 90.0, 90.0, 9.0, 1.0, 1.0));
     }
 
     #[test]
     fn winter_projection_only_counts_whole_carcasses_that_fit() {
         assert_eq!(
-            storage_secured_pending_cull_heads(
-                10, 7, 14, 15.0, 1.5, 1.5, 3.0, 5.0, 0.5, 1.0
-            ),
+            storage_secured_pending_cull_heads(10, 7, 14, 15.0, 1.5, 1.5, 3.0, 5.0, 0.5, 1.0),
             3
         );
         assert_eq!(
-            storage_secured_pending_cull_heads(
-                10, 7, 14, 14.99, 1.5, 1.5, 3.0, 5.0, 0.5, 1.0
-            ),
+            storage_secured_pending_cull_heads(10, 7, 14, 14.99, 1.5, 1.5, 3.0, 5.0, 0.5, 1.0),
             2
         );
         assert_eq!(
-            storage_secured_pending_cull_heads(
-                10, 7, 14, 50.0, 50.0, 50.0, 50.0, 5.0, 0.5, 1.0
-            ),
+            storage_secured_pending_cull_heads(10, 7, 14, 50.0, 50.0, 50.0, 50.0, 5.0, 0.5, 1.0),
             3
         );
         assert_eq!(
-            storage_secured_pending_cull_heads(
-                7, 7, 14, 50.0, 50.0, 50.0, 50.0, 5.0, 0.5, 1.0
-            ),
+            storage_secured_pending_cull_heads(7, 7, 14, 50.0, 50.0, 50.0, 50.0, 5.0, 0.5, 1.0),
             0
         );
     }
@@ -602,33 +592,23 @@ mod tests {
         // salt capacity. The second carcass therefore needs 5.5 fresh-food
         // room; the same split is used by the live culling cycle.
         assert_eq!(
-            storage_secured_pending_cull_heads(
-                9, 7, 14, 10.5, 0.5, 0.5, 2.0, 5.0, 0.5, 1.0
-            ),
+            storage_secured_pending_cull_heads(9, 7, 14, 10.5, 0.5, 0.5, 2.0, 5.0, 0.5, 1.0),
             2
         );
         assert_eq!(
-            storage_secured_pending_cull_heads(
-                9, 7, 14, 10.49, 0.5, 0.5, 2.0, 5.0, 0.5, 1.0
-            ),
+            storage_secured_pending_cull_heads(9, 7, 14, 10.49, 0.5, 0.5, 2.0, 5.0, 0.5, 1.0),
             1
         );
         assert_eq!(
-            storage_secured_pending_cull_heads(
-                9, 7, 14, 11.0, 0.0, 0.0, 2.0, 5.0, 0.5, 1.0
-            ),
+            storage_secured_pending_cull_heads(9, 7, 14, 11.0, 0.0, 0.0, 2.0, 5.0, 0.5, 1.0),
             2
         );
         assert_eq!(
-            storage_secured_pending_cull_heads(
-                9, 7, 14, 10.0, 0.0, 0.0, 2.0, 5.0, 0.5, 1.0
-            ),
+            storage_secured_pending_cull_heads(9, 7, 14, 10.0, 0.0, 0.0, 2.0, 5.0, 0.5, 1.0),
             1
         );
         assert_eq!(
-            storage_secured_pending_cull_heads(
-                9, 7, 14, 50.0, 50.0, 50.0, 1.0, 5.0, 0.5, 1.0
-            ),
+            storage_secured_pending_cull_heads(9, 7, 14, 50.0, 50.0, 50.0, 1.0, 5.0, 0.5, 1.0),
             1
         );
     }
@@ -712,12 +692,12 @@ mod tests {
         assert!(!is_cattle_milking_month(12));
         assert_eq!(cattle_milking_period(1, 1), 1);
         assert_eq!(cattle_milking_period(2, 3), 15);
-        assert!((
-            cattle_monthly_dairy_cycle_multiplier(CALENDAR_SECONDS_PER_DAY)
-                - f64::from(CALENDAR_DAYS_PER_MONTH)
-        )
-        .abs()
-            < 1e-9);
+        assert!(
+            (cattle_monthly_dairy_cycle_multiplier(CALENDAR_SECONDS_PER_DAY)
+                - f64::from(CALENDAR_DAYS_PER_MONTH))
+            .abs()
+                < 1e-9
+        );
     }
 
     #[test]

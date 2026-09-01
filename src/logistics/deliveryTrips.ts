@@ -95,6 +95,7 @@ export const DELIVERY_DESTINATION_KINDS = [
   'wealth',
   'care',
   'trade',
+  'military',
 ] as const;
 export type DeliveryDestinationKind = (typeof DELIVERY_DESTINATION_KINDS)[number];
 
@@ -105,6 +106,8 @@ export type DeliveryTripState = {
   residenceId: string | null;
   destinationKind: DeliveryDestinationKind;
   targetBuildingId: string | null;
+  /** Company rendezvous for a physical field-supply cart. */
+  targetCompanyId?: string | null;
   cargoKind: DeliveryCargoKind;
   amount: number;
   phase: DeliveryTripPhase;
@@ -484,6 +487,8 @@ export function destinationKindFromId(value: number): DeliveryDestinationKind | 
       return 'care';
     case 5:
       return 'trade';
+    case 6:
+      return 'military';
     default:
       return null;
   }
@@ -685,7 +690,7 @@ export function resolveTripEndpoints(
     return null;
   }
 
-  if (trip.destinationKind === 'trade') return null;
+  if (trip.destinationKind === 'trade' || trip.destinationKind === 'military') return null;
 
   if (!trip.residenceId) return null;
   const residence = state.residences.get(trip.residenceId);

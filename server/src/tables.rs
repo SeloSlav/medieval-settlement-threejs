@@ -2285,6 +2285,12 @@ pub struct MilitaryCompany {
     pub cohesion: f64,
     pub fatigue: f64,
     pub provision_days: f64,
+    /// Physical mounted-company stores carried in the field. Seasonal fodder
+    /// is mutually exclusive in daily use, but surplus may remain aboard when
+    /// the calendar crosses between winter feed and ordinary oats.
+    pub horse_oats: f64,
+    pub horse_feed: f64,
+    pub horse_water: f64,
     pub ammunition: u32,
     pub ammunition_capacity: u32,
     pub formed_tick: u64,

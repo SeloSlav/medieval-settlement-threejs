@@ -364,6 +364,10 @@ export type GameBalance = {
     cavalryHorseDailyAnimalFeed: number;
     cavalryHorseDailyOats: number;
     cavalryHorseDailyWater: number;
+    cavalryHorseFieldIssueDays: number;
+    cavalryHorseFieldTargetDays: number;
+    cavalryHorseFieldReorderDays: number;
+    cavalryHorseMountSaleGold: number;
     kennelDogSlots: number;
     kennelDogPurchaseGold: number;
     kennelDogMaxPerHuntersHall: number;
@@ -1084,6 +1088,10 @@ function generateRust(): string {
     `pub const CAVALRY_HORSE_DAILY_ANIMAL_FEED: f64 = ${rustF64(b.economy.cavalryHorseDailyAnimalFeed)};`,
     `pub const CAVALRY_HORSE_DAILY_OATS: f64 = ${rustF64(b.economy.cavalryHorseDailyOats)};`,
     `pub const CAVALRY_HORSE_DAILY_WATER: f64 = ${rustF64(b.economy.cavalryHorseDailyWater)};`,
+    `pub const CAVALRY_HORSE_FIELD_ISSUE_DAYS: f64 = ${rustF64(b.economy.cavalryHorseFieldIssueDays)};`,
+    `pub const CAVALRY_HORSE_FIELD_TARGET_DAYS: f64 = ${rustF64(b.economy.cavalryHorseFieldTargetDays)};`,
+    `pub const CAVALRY_HORSE_FIELD_REORDER_DAYS: f64 = ${rustF64(b.economy.cavalryHorseFieldReorderDays)};`,
+    `pub const CAVALRY_HORSE_MOUNT_SALE_GOLD: f64 = ${rustF64(b.economy.cavalryHorseMountSaleGold)};`,
     `pub const KENNEL_DOG_SLOTS: u8 = ${b.economy.kennelDogSlots};`,
     `pub const KENNEL_DOG_PURCHASE_GOLD: f64 = ${rustF64(b.economy.kennelDogPurchaseGold)};`,
     `pub const KENNEL_DOG_MAX_PER_HUNTERS_HALL: u32 = ${b.economy.kennelDogMaxPerHuntersHall};`,
@@ -2206,6 +2214,10 @@ function generateTypeScript(): string {
     `export const CAVALRY_HORSE_DAILY_ANIMAL_FEED = ${b.economy.cavalryHorseDailyAnimalFeed};`,
     `export const CAVALRY_HORSE_DAILY_OATS = ${b.economy.cavalryHorseDailyOats};`,
     `export const CAVALRY_HORSE_DAILY_WATER = ${b.economy.cavalryHorseDailyWater};`,
+    `export const CAVALRY_HORSE_FIELD_ISSUE_DAYS = ${b.economy.cavalryHorseFieldIssueDays};`,
+    `export const CAVALRY_HORSE_FIELD_TARGET_DAYS = ${b.economy.cavalryHorseFieldTargetDays};`,
+    `export const CAVALRY_HORSE_FIELD_REORDER_DAYS = ${b.economy.cavalryHorseFieldReorderDays};`,
+    `export const CAVALRY_HORSE_MOUNT_SALE_GOLD = ${b.economy.cavalryHorseMountSaleGold};`,
     `export const KENNEL_DOG_SLOTS = ${b.economy.kennelDogSlots};`,
     `export const KENNEL_DOG_PURCHASE_GOLD = ${b.economy.kennelDogPurchaseGold};`,
     `export const KENNEL_DOG_MAX_PER_HUNTERS_HALL = ${b.economy.kennelDogMaxPerHuntersHall};`,

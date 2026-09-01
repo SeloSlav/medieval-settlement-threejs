@@ -2,6 +2,8 @@ use std::collections::{BTreeSet, HashSet};
 
 use spacetimedb::{reducer, Identity, ReducerContext};
 
+use crate::balance_generated::CAVALRY_HORSE_SLOTS;
+use crate::cavalry_policy::horse_occupies_yard_place;
 use crate::db::*;
 use crate::economy::{
     available_building_labor, building_commodity_stock, spend_treasury_gold, total_ironwork,
@@ -15,7 +17,10 @@ use crate::military_policy::{
     MILITARY_FORMATION_SHIELD_WALL, MILITARY_PROVISION_ISSUE_DAYS,
 };
 use crate::raid_agent_policy::playable_half_for_map_size;
+use crate::roads::load_owner_road_network;
 use crate::security_policy::RaidPortableStores;
+use crate::simulation::building_fire_state;
+use crate::simulation::road_logistics::local_delivery_distance;
 use crate::smallholding_policy::smallholding_assignable_population;
 use crate::tables::{
     cavalry_horse, mercenary_contract, CavalryHorse, CombatAgent, MercenaryContract,
@@ -116,6 +121,9 @@ pub fn hire_mercenary_company(ctx: &ReducerContext, town_hall_id: u64) -> Result
         cohesion: stats.starting_cohesion,
         fatigue: 0.0,
         provision_days: 0.0,
+        horse_oats: 0.0,
+        horse_feed: 0.0,
+        horse_water: 0.0,
         ammunition: 0,
         ammunition_capacity: 0,
         formed_tick: tick,
@@ -231,6 +239,9 @@ pub fn deploy_debug_military_company(
         cohesion: stats.starting_cohesion,
         fatigue: 0.0,
         provision_days: 30.0,
+        horse_oats: 0.0,
+        horse_feed: 0.0,
+        horse_water: 0.0,
         ammunition: ammunition_capacity,
         ammunition_capacity,
         formed_tick: tick,
@@ -467,7 +478,24 @@ pub fn command_militia(
 
 #[reducer]
 pub fn disband_military_company(ctx: &ReducerContext, company_id: u64) -> Result<(), String> {
-    begin_disband(ctx, ctx.sender(), company_id)
+    begin_disband(ctx, ctx.sender(), company_id, false)
+}
+
+/// Stands down a mounted company without requiring empty return places. Each
+/// surviving horse still walks back with its rider, then leaves the simulation
+/// as a remount sale and returns half its import price to the Treasury.
+#[reducer]
+pub fn disband_cavalry_company_sell_mounts(
+    ctx: &ReducerContext,
+    company_id: u64,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    let company = owned_company(ctx, owner, company_id)?;
+    let kind = MilitaryKind::from_id(company.kind).ok_or("Unknown company type.")?;
+    if !kind.is_mounted() {
+        return Err("Only a mounted company has remounts to sell.".into());
+    }
+    begin_disband(ctx, owner, company_id, true)
 }
 
 /// Re-signs a mercenary company while its surviving members are still inside
@@ -551,7 +579,7 @@ pub fn disband_militia(ctx: &ReducerContext) -> Result<(), String> {
         .map(|company| company.id)
         .collect::<Vec<_>>();
     for id in ids {
-        begin_disband(ctx, owner, id)?;
+        begin_disband(ctx, owner, id, false)?;
     }
     Ok(())
 }
@@ -674,6 +702,9 @@ fn recruit_resident_company(
         } else {
             0.0
         },
+        horse_oats: 0.0,
+        horse_feed: 0.0,
+        horse_water: 0.0,
         ammunition: 0,
         ammunition_capacity,
         formed_tick: tick,
@@ -750,10 +781,26 @@ fn recruit_resident_company(
     Ok(())
 }
 
-fn begin_disband(ctx: &ReducerContext, owner: Identity, company_id: u64) -> Result<(), String> {
+fn begin_disband(
+    ctx: &ReducerContext,
+    owner: Identity,
+    company_id: u64,
+    sell_mounts: bool,
+) -> Result<(), String> {
     let mut company = owned_company(ctx, owner, company_id)?;
     if company.state >= 2 {
         return Ok(());
+    }
+    let kind = MilitaryKind::from_id(company.kind).ok_or("Unknown company type.")?;
+    let return_places = if kind.is_mounted() {
+        reserve_cavalry_return_places(ctx, owner, &company, sell_mounts)?
+    } else {
+        Vec::new()
+    };
+    for (mut horse, yard_id, slot) in return_places {
+        horse.cavalry_yard_id = yard_id;
+        horse.slot = slot;
+        ctx.db.cavalry_horse().id().update(horse);
     }
     company.state = 2;
     ctx.db.military_company().id().update(company.clone());
@@ -775,10 +822,156 @@ fn begin_disband(ctx: &ReducerContext, owner: Identity, company_id: u64) -> Resu
         ctx.db.military_member().combat_agent_id().update(member);
         agent.state = 4;
         agent.target_kind = 0;
-        agent.target_id = company.source_building_id;
+        agent.target_id = ctx
+            .db
+            .cavalry_horse()
+            .assigned_combat_agent_id()
+            .filter(&agent.id)
+            .next()
+            .map_or(company.source_building_id, |horse| {
+                if horse.cavalry_yard_id == 0 {
+                    company.source_building_id
+                } else {
+                    horse.cavalry_yard_id
+                }
+            });
         ctx.db.combat_agent().id().update(agent);
     }
     Ok(())
+}
+
+fn reserve_cavalry_return_places(
+    ctx: &ReducerContext,
+    owner: Identity,
+    company: &MilitaryCompany,
+    sell_mounts: bool,
+) -> Result<Vec<(CavalryHorse, u64, u8)>, String> {
+    let mut mounts = ctx
+        .db
+        .cavalry_horse()
+        .iter()
+        .filter(|horse| horse.owner == owner && horse.assigned_company_id == company.id)
+        .collect::<Vec<_>>();
+    mounts.sort_by_key(|horse| (horse.slot, horse.id));
+    if sell_mounts {
+        return Ok(mounts.into_iter().map(|horse| (horse, 0, 0)).collect());
+    }
+    if mounts.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let (center_x, center_z) = company_center(ctx, company).unwrap_or_else(|| {
+        ctx.db
+            .building()
+            .id()
+            .find(&company.source_building_id)
+            .map_or((0.0, 0.0), |yard| (yard.x, yard.z))
+    });
+    let source_settlement_id = ctx
+        .db
+        .building()
+        .id()
+        .find(&company.source_building_id)
+        .map_or(0, |yard| yard.settlement_id);
+    let network = load_owner_road_network(ctx, owner);
+    let mut yards = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|yard| {
+            yard.kind == "cavalry_yard"
+                && yard.construction_complete
+                && building_fire_state(ctx, yard.id).is_none()
+                && network.as_ref().map_or(true, |network| {
+                    local_delivery_distance(network, center_x, center_z, yard.x, yard.z).is_some()
+                })
+        })
+        .collect::<Vec<_>>();
+    yards.sort_by(|left, right| {
+        (left.id != company.source_building_id)
+            .cmp(&(right.id != company.source_building_id))
+            .then_with(|| {
+                (left.settlement_id != source_settlement_id)
+                    .cmp(&(right.settlement_id != source_settlement_id))
+            })
+            .then_with(|| {
+                let left_distance = network
+                    .as_ref()
+                    .and_then(|network| {
+                        local_delivery_distance(network, center_x, center_z, left.x, left.z)
+                    })
+                    .unwrap_or_else(|| point_distance(center_x, center_z, left.x, left.z));
+                let right_distance = network
+                    .as_ref()
+                    .and_then(|network| {
+                        local_delivery_distance(network, center_x, center_z, right.x, right.z)
+                    })
+                    .unwrap_or_else(|| point_distance(center_x, center_z, right.x, right.z));
+                left_distance.total_cmp(&right_distance)
+            })
+            .then_with(|| left.id.cmp(&right.id))
+    });
+
+    let mut occupied = HashSet::<(u64, u8)>::new();
+    for horse in ctx
+        .db
+        .cavalry_horse()
+        .iter()
+        .filter(|horse| horse.owner == owner && horse.assigned_company_id != company.id)
+    {
+        let assigned_state = (horse.assigned_company_id > 0)
+            .then(|| {
+                ctx.db
+                    .military_company()
+                    .id()
+                    .find(&horse.assigned_company_id)
+                    .map(|assigned| assigned.state)
+            })
+            .flatten();
+        if horse_occupies_yard_place(horse.assigned_company_id, assigned_state) {
+            occupied.insert((horse.cavalry_yard_id, horse.slot));
+        }
+    }
+
+    let mount_count = mounts.len();
+    let mut reservations = Vec::with_capacity(mount_count);
+    for horse in mounts {
+        let place = yards.iter().find_map(|yard| {
+            (0..CAVALRY_HORSE_SLOTS)
+                .find(|slot| !occupied.contains(&(yard.id, *slot)))
+                .map(|slot| (yard.id, slot))
+        });
+        let Some((yard_id, slot)) = place else {
+            return Err(format!(
+                "No room for all {} surviving mounts. Free or build connected Cavalry Yard places, or use Disband & sell mounts.",
+                mount_count
+            ));
+        };
+        occupied.insert((yard_id, slot));
+        reservations.push((horse, yard_id, slot));
+    }
+    Ok(reservations)
+}
+
+fn company_center(ctx: &ReducerContext, company: &MilitaryCompany) -> Option<(f64, f64)> {
+    let positions = ctx
+        .db
+        .military_member()
+        .company_id()
+        .filter(&company.id)
+        .filter_map(|member| ctx.db.combat_agent().id().find(&member.combat_agent_id))
+        .filter(|agent| agent.state != 5)
+        .map(|agent| (agent.x, agent.z))
+        .collect::<Vec<_>>();
+    if positions.is_empty() {
+        return None;
+    }
+    let count = positions.len() as f64;
+    let (x, z) = positions.into_iter().fold((0.0, 0.0), |(x, z), position| {
+        (x + position.0, z + position.1)
+    });
+    Some((x / count, z / count))
 }
 
 fn require_recruitment_building(

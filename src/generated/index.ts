@@ -55,6 +55,7 @@ import DemolishFarmFieldReducer from "./demolish_farm_field_reducer";
 import DemolishGraveyardReducer from "./demolish_graveyard_reducer";
 import DemolishPastureReducer from "./demolish_pasture_reducer";
 import DemolishResidenceReducer from "./demolish_residence_reducer";
+import DisbandCavalryCompanySellMountsReducer from "./disband_cavalry_company_sell_mounts_reducer";
 import DisbandMilitaryCompanyReducer from "./disband_military_company_reducer";
 import DisbandMilitiaReducer from "./disband_militia_reducer";
 import EnterWorldReducer from "./enter_world_reducer";
@@ -837,6 +838,7 @@ const reducersSchema = __reducers(
   __reducerSchema("demolish_graveyard", DemolishGraveyardReducer),
   __reducerSchema("demolish_pasture", DemolishPastureReducer),
   __reducerSchema("demolish_residence", DemolishResidenceReducer),
+  __reducerSchema("disband_cavalry_company_sell_mounts", DisbandCavalryCompanySellMountsReducer),
   __reducerSchema("disband_military_company", DisbandMilitaryCompanyReducer),
   __reducerSchema("disband_militia", DisbandMilitiaReducer),
   __reducerSchema("enter_world", EnterWorldReducer),

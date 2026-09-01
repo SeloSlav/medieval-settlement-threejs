@@ -53,8 +53,11 @@ export function syncDeliveryTrips(
         ? residenceClientId(row.residenceId)
         : null,
       destinationKind,
-      targetBuildingId: row.targetBuildingId > 0n
+      targetBuildingId: destinationKind !== 'military' && row.targetBuildingId > 0n
         ? buildingClientId(row.targetBuildingId)
+        : null,
+      targetCompanyId: destinationKind === 'military' && row.targetBuildingId > 0n
+        ? row.targetBuildingId.toString()
         : null,
       cargoKind,
       amount: wholeResourceUnits(row.amount),

@@ -161,6 +161,7 @@ type ResourceInspectorOptions = {
   onRecruitMilitaryCompany?: (sourceBuildingId: string, kind: number) => void | Promise<void>;
   onHireMercenaryCompany?: (townHallId: string) => void | Promise<void>;
   onDisbandMilitaryCompany?: (companyId: string) => void | Promise<void>;
+  onDisbandCavalryCompanySellMounts?: (companyId: string) => void | Promise<void>;
   onRenewMercenaryContract?: (companyId: string) => void | Promise<void>;
   onResupplyMilitaryCompany?: (companyId: string) => void | Promise<void>;
   onSetMilitaryFormation?: (companyId: string, formation: number) => void | Promise<void>;
@@ -1935,6 +1936,13 @@ export class ResourceInspector {
     const disbandMilitary = (event.target as HTMLElement).closest<HTMLElement>('[data-disband-military-company]');
     if (disbandMilitary?.dataset.disbandMilitaryCompany) {
       void this.options.onDisbandMilitaryCompany?.(disbandMilitary.dataset.disbandMilitaryCompany);
+      return;
+    }
+    const sellCavalryMounts = (event.target as HTMLElement).closest<HTMLElement>('[data-disband-cavalry-company-sell-mounts]');
+    if (sellCavalryMounts?.dataset.disbandCavalryCompanySellMounts) {
+      void this.options.onDisbandCavalryCompanySellMounts?.(
+        sellCavalryMounts.dataset.disbandCavalryCompanySellMounts,
+      );
       return;
     }
     const renewMercenaries = (event.target as HTMLElement).closest<HTMLElement>('[data-renew-mercenary-contract]');

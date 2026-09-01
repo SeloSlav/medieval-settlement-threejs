@@ -1304,6 +1304,13 @@ export async function disbandMilitaryCompany(companyId: string): Promise<void> {
   });
 }
 
+export async function disbandCavalryCompanySellMounts(companyId: string): Promise<void> {
+  if (!/^\d+$/.test(companyId)) throw new Error('Invalid cavalry company id.');
+  await callReducer('disbandCavalryCompanySellMounts', 'disband_cavalry_company_sell_mounts', {
+    companyId: BigInt(companyId),
+  });
+}
+
 export async function renewMercenaryContract(companyId: string): Promise<void> {
   if (!/^\d+$/.test(companyId)) throw new Error('Invalid mercenary company id.');
   await callReducer('renewMercenaryContract', 'renew_mercenary_contract', {

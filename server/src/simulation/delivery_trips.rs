@@ -110,6 +110,7 @@ pub const DELIVERY_DESTINATION_FIRE: u8 = 2;
 pub const DELIVERY_DESTINATION_RESIDENCE_WEALTH: u8 = 3;
 pub const DELIVERY_DESTINATION_RESIDENCE_REMEDY: u8 = 4;
 pub const DELIVERY_DESTINATION_REGIONAL_TRADE: u8 = 5;
+pub const DELIVERY_DESTINATION_MILITARY_COMPANY: u8 = 6;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum TripCargoKind {
@@ -169,6 +170,11 @@ enum TripDestination {
         x: f64,
         z: f64,
     },
+    MilitaryCompany {
+        id: u64,
+        x: f64,
+        z: f64,
+    },
     RegionalTrade {
         market_id: u64,
         contract_code: u64,
@@ -194,6 +200,7 @@ impl TripDestination {
             Self::ResidenceWealth { id, .. } => (DELIVERY_DESTINATION_RESIDENCE_WEALTH, id, 0),
             Self::ResidenceRemedy { id, .. } => (DELIVERY_DESTINATION_RESIDENCE_REMEDY, id, 0),
             Self::Building { id, .. } => (DELIVERY_DESTINATION_BUILDING, 0, id),
+            Self::MilitaryCompany { id, .. } => (DELIVERY_DESTINATION_MILITARY_COMPANY, 0, id),
             Self::RegionalTrade {
                 market_id,
                 contract_code,
@@ -214,6 +221,7 @@ impl TripDestination {
             | Self::ResidenceWealth { x, z, .. }
             | Self::ResidenceRemedy { x, z, .. }
             | Self::Building { x, z, .. }
+            | Self::MilitaryCompany { x, z, .. }
             | Self::RegionalTrade { x, z, .. }
             | Self::FireBuilding { x, z, .. }
             | Self::FireResidence { x, z, .. } => (x, z),
@@ -353,7 +361,26 @@ pub fn building_has_inbound_supply_trip(ctx: &ReducerContext, building_id: u64) 
         .delivery_trip()
         .target_building_id()
         .filter(&building_id)
-        .any(|trip| delivery_cargo_is_approaching(trip.phase, trip.amount))
+        .any(|trip| {
+            trip.destination_kind == DELIVERY_DESTINATION_BUILDING
+                && delivery_cargo_is_approaching(trip.phase, trip.amount)
+        })
+}
+
+pub fn military_company_has_inbound_supply_trip(
+    ctx: &ReducerContext,
+    company_id: u64,
+    commodity: CommodityKind,
+) -> bool {
+    ctx.db
+        .delivery_trip()
+        .target_building_id()
+        .filter(&company_id)
+        .any(|trip| {
+            trip.destination_kind == DELIVERY_DESTINATION_MILITARY_COMPANY
+                && trip.cargo_kind == commodity.as_u8()
+                && delivery_cargo_is_approaching(trip.phase, trip.amount)
+        })
 }
 
 /// Marketplaces may receive different table commodities at the same time, but
@@ -1428,6 +1455,77 @@ pub fn try_start_free_building_supply_trip(
     )
 }
 
+/// Sends one Cavalry Yard groom with a physical fodder or water cart to a
+/// stationary mounted company. The fixed route endpoint is intentional: field
+/// resupply succeeds only when the company holds close enough to receive it.
+#[allow(clippy::too_many_arguments)]
+pub fn try_start_cavalry_company_supply_trip(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    network: &RoadNetwork,
+    origin: &mut Building,
+    company_id: u64,
+    target_x: f64,
+    target_z: f64,
+    commodity: CommodityKind,
+    needed: f64,
+) -> bool {
+    if origin.kind != "cavalry_yard"
+        || origin.assigned_labor == 0
+        || tick.building_disabled_by_fire(ctx, origin.id)
+        || building_has_active_trip(ctx, origin.id)
+        || military_company_has_inbound_supply_trip(ctx, company_id, commodity)
+        || building_commodity_stock(origin, commodity) <= 1e-6
+    {
+        return false;
+    }
+    let labor_source = DeliveryLaborSource::Building(origin.id);
+    let workers = delivery_labor_available(ctx, origin.owner, labor_source).min(1);
+    if workers == 0 {
+        return false;
+    }
+    let ox_id = claim_trip_ox(ctx, tick, origin, labor_source);
+    let load = building_commodity_stock(origin, commodity)
+        .min(ox_amplified_cart_capacity(
+            STOREHOUSE_HAUL_PER_WORKER,
+            workers,
+            ox_id,
+        ))
+        .min(needed);
+    if load <= 1e-6 {
+        release_haul_ox(tick, ox_id);
+        return false;
+    }
+    let started = try_start_road_trip(
+        ctx,
+        tick,
+        clock,
+        network,
+        StartTripSpec {
+            origin: origin.clone(),
+            destination: TripDestination::MilitaryCompany {
+                id: company_id,
+                x: target_x,
+                z: target_z,
+            },
+            cargo_kind: commodity.as_u8(),
+            delivery_workers: workers,
+            labor_source,
+            speed_mps: TIMBER_DELIVERY_SPEED_MPS,
+            unload_seconds: TIMBER_DELIVERY_UNLOAD_SEC,
+            load_amount: load,
+            ox_id,
+        },
+        |source, amount| withdraw_building_commodity(source, commodity, amount),
+        |source| *origin = source.clone(),
+    );
+    if started {
+        ctx.db.building().id().update(origin.clone());
+    }
+    started
+}
+
 #[allow(clippy::too_many_arguments)]
 fn try_start_building_supply_trip_with_labor(
     ctx: &ReducerContext,
@@ -2247,6 +2345,11 @@ fn trip_route(
             local_delivery_route(network, building.x, building.z, target.x, target.z)
                 .map(|route| route.route)
         }
+        DELIVERY_DESTINATION_MILITARY_COMPANY => {
+            let (target_x, target_z) = military_company_center(ctx, trip.target_building_id)?;
+            local_delivery_route(network, building.x, building.z, target_x, target_z)
+                .map(|route| route.route)
+        }
         DELIVERY_DESTINATION_REGIONAL_TRADE => None,
         _ => {
             let residence = ctx.db.residence().id().find(&trip.residence_id)?;
@@ -2288,6 +2391,8 @@ fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip, sim_tick: u64)
                 log::warn!("Regional export exchange failed; returning its cargo: {error}");
             }
         }
+    } else if trip.destination_kind == DELIVERY_DESTINATION_MILITARY_COMPANY {
+        unload_commodity_to_military_company(ctx, trip, commodity);
     } else if trip.destination_kind == DELIVERY_DESTINATION_BUILDING {
         unload_commodity_to_building(ctx, trip, commodity);
     } else if trip.destination_kind == DELIVERY_DESTINATION_RESIDENCE_WEALTH
@@ -2326,6 +2431,63 @@ fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip, sim_tick: u64)
     } else if let Some(need_kind) = residence_need_for_delivery_commodity(commodity) {
         unload_need_to_residence(ctx, trip, need_kind, commodity);
     }
+}
+
+fn military_company_center(ctx: &ReducerContext, company_id: u64) -> Option<(f64, f64)> {
+    let company = ctx
+        .db
+        .military_company()
+        .id()
+        .find(&company_id)
+        .filter(|company| company.state == 1 && company.living_members > 0)?;
+    let positions = ctx
+        .db
+        .military_member()
+        .company_id()
+        .filter(&company.id)
+        .filter_map(|member| ctx.db.combat_agent().id().find(&member.combat_agent_id))
+        .filter(|agent| agent.state != 5)
+        .map(|agent| (agent.x, agent.z))
+        .collect::<Vec<_>>();
+    if positions.is_empty() {
+        return None;
+    }
+    let count = positions.len() as f64;
+    let (x, z) = positions.into_iter().fold((0.0, 0.0), |(x, z), position| {
+        (x + position.0, z + position.1)
+    });
+    Some((x / count, z / count))
+}
+
+fn unload_commodity_to_military_company(
+    ctx: &ReducerContext,
+    trip: &mut DeliveryTrip,
+    commodity: CommodityKind,
+) {
+    let Some((company_x, company_z)) = military_company_center(ctx, trip.target_building_id) else {
+        return;
+    };
+    // A moving force can outrun the fixed rendezvous. Cargo then remains on
+    // the cart and physically returns to the yard instead of teleporting.
+    if (company_x - trip.x).hypot(company_z - trip.z) > 8.0 {
+        return;
+    }
+    let Some(mut company) = ctx
+        .db
+        .military_company()
+        .id()
+        .find(&trip.target_building_id)
+    else {
+        return;
+    };
+    match commodity {
+        CommodityKind::OatGrain => company.horse_oats += trip.amount,
+        CommodityKind::AnimalFeed => company.horse_feed += trip.amount,
+        CommodityKind::Water => company.horse_water += trip.amount,
+        _ => return,
+    }
+    trip.amount = 0.0;
+    ctx.db.military_company().id().update(company);
 }
 
 fn unload_food_to_residence(

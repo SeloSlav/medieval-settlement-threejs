@@ -1303,6 +1303,10 @@ export class SpacetimeGameStore {
     return spacetimeReducers.disbandMilitaryCompany(companyId);
   }
 
+  disbandCavalryCompanySellMounts(companyId: string): Promise<void> {
+    return spacetimeReducers.disbandCavalryCompanySellMounts(companyId);
+  }
+
   renewMercenaryContract(companyId: string): Promise<void> {
     return spacetimeReducers.renewMercenaryContract(companyId);
   }

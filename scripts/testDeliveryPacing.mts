@@ -120,6 +120,7 @@ const regionalExportTrip: DeliveryTripState = {
   amount: 12,
 };
 assert.equal(destinationKindFromId(5), 'trade');
+assert.equal(destinationKindFromId(6), 'military');
 assert.equal(isRegionalImportTrip(regionalExportTrip), false);
 assert.equal(isRegionalExportTrip(regionalExportTrip), true);
 assert.equal(isRegionalMarketTrip(regionalExportTrip), true);
@@ -450,6 +451,11 @@ assert.match(
   deliveryServer,
   /DELIVERY_DESTINATION_REGIONAL_TRADE:\s*u8\s*=\s*5/,
   'the existing delivery row must expose one explicit two-way trade destination code',
+);
+assert.match(
+  deliveryServer,
+  /DELIVERY_DESTINATION_MILITARY_COMPANY:\s*u8\s*=\s*6/,
+  'server should expose mounted-company field resupply as a distinct visible cart destination',
 );
 assert.match(
   deliveryServer,

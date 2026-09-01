@@ -32,12 +32,22 @@ export function renderCavalryYardInspector(
   const horses = [...context.gameState.cavalryHorses.values()]
     .filter((horse) => horse.cavalryYardId === building.id)
     .sort((left, right) => left.slot - right.slot || left.id.localeCompare(right.id));
-  const horseBySlot = new Map(horses.map((horse) => [horse.slot, horse]));
+  const companyById = new Map(
+    [...(context.militaryCompanies ?? [])].map((company) => [company.id, company]),
+  );
+  const horseOccupiesPlace = (horse: CavalryHorseState): boolean => {
+    if (horse.assignedCompanyId == null) return true;
+    return companyById.get(horse.assignedCompanyId)?.status !== 'active';
+  };
+  const occupyingHorses = horses.filter(horseOccupiesPlace);
+  const horseBySlot = new Map(occupyingHorses.map((horse) => [horse.slot, horse]));
   const companies = militaryCompaniesAt(context.militaryCompanies, building.id);
   const fire = fireForTarget(context.gameState.fireIncidents.values(), 'building', building.id);
-  const housed = horses.length;
-  const trained = horses.filter((horse) => horse.trainingDays >= CAVALRY_HORSE_TRAINING_DAYS).length;
-  const assigned = horses.filter((horse) => horse.assignedCompanyId != null).length;
+  const housed = occupyingHorses.length;
+  const trained = occupyingHorses.filter((horse) => horse.trainingDays >= CAVALRY_HORSE_TRAINING_DAYS).length;
+  const assigned = horses.filter((horse) => horse.assignedCompanyId != null && companyById.get(horse.assignedCompanyId)?.status === 'active').length;
+  const returning = horses.filter((horse) => horse.assignedCompanyId != null && companyById.get(horse.assignedCompanyId)?.status === 'disbanding').length;
+  const onSite = occupyingHorses.length - returning;
   const ready = horses.filter((horse) => horse.trainingDays >= CAVALRY_HORSE_TRAINING_DAYS && horse.assignedCompanyId == null).length;
   const inTraining = horses.filter((horse) => horse.trainingDays < CAVALRY_HORSE_TRAINING_DAYS).length;
   const openSlots = Math.max(0, CAVALRY_HORSE_SLOTS - housed);
@@ -47,10 +57,9 @@ export function renderCavalryYardInspector(
   const treasuryShort = treasuryGold + 1e-6 < CAVALRY_HORSE_PURCHASE_GOLD;
   const purchaseDisabled = fire != null || !staffed || atCapacity || treasuryShort;
   const dailyTrainingCapacity = Math.min(inTraining, Math.max(0, building.assignedLabor));
-  const suppliedHorseDays = dailyTrainingCapacity + assigned;
-  const dailyFeed = suppliedHorseDays * CAVALRY_HORSE_DAILY_ANIMAL_FEED;
-  const dailyOats = suppliedHorseDays * CAVALRY_HORSE_DAILY_OATS;
-  const dailyWater = suppliedHorseDays * CAVALRY_HORSE_DAILY_WATER;
+  const dailyFeed = onSite * CAVALRY_HORSE_DAILY_ANIMAL_FEED;
+  const dailyOats = onSite * CAVALRY_HORSE_DAILY_OATS;
+  const dailyWater = onSite * CAVALRY_HORSE_DAILY_WATER;
 
   const slotRows = Array.from({ length: CAVALRY_HORSE_SLOTS }, (_, slot) => {
     const horse = horseBySlot.get(slot);
@@ -62,7 +71,7 @@ export function renderCavalryYardInspector(
     : !staffed
       ? ['Unstaffed — assign cavalry-yard hands', 'warning'] as const
       : ready >= 6
-        ? [`${ready} trained remounts ready · ${assigned} in service`, 'ok'] as const
+        ? [`${ready} trained remounts ready · ${assigned} deployed`, 'ok'] as const
         : inTraining > 0
           ? [`${inTraining} remounts in training · ${ready} ready`, 'active'] as const
           : [`${housed} / ${CAVALRY_HORSE_SLOTS} remounts · ${ready} ready`, 'idle'] as const;
@@ -85,11 +94,13 @@ export function renderCavalryYardInspector(
       ${buildingCostRows(getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${buildingExtentRow(building.kind)}
-      <li data-inspector-primary><span>Horse places</span><span>${housed} / ${CAVALRY_HORSE_SLOTS} · ${trained} trained · ${assigned} deployed</span></li>
-      <li><span>Training</span><span>${CAVALRY_HORSE_TRAINING_DAYS} supplied days per remount · one horse trained per assigned hand each day</span></li>
-      <li><span>Daily draw now</span><span>${dailyFeed} Animal Feed · ${dailyOats} oats · ${dailyWater} water</span></li>
-      <li><span>One rider, one horse</span><span>Each six-man cavalry company reserves six trained remounts while serving</span></li>
-      <li><span>Losses and return</span><span>A fallen rider also loses his mount; surviving horses return here when the company disbands</span></li>
+      <li data-inspector-primary><span>Horse places</span><span>${housed} / ${CAVALRY_HORSE_SLOTS} occupied or reserved · ${assigned} deployed</span></li>
+      <li><span>On site</span><span>${onSite} horses · ${trained} trained · ${returning} return places reserved</span></li>
+      <li><span>Training throughput</span><span>${dailyTrainingCapacity} now · ${CAVALRY_HORSE_TRAINING_DAYS} supplied days per remount · one horse per assigned hand each day</span></li>
+      <li><span>Daily on-site ration</span><span>${dailyOats} oats Mar–Nov <em>or</em> ${dailyFeed} Animal Feed Dec–Feb · ${dailyWater} water</span></li>
+      <li><span>One rider, one horse</span><span>Every six-rider company requires six individually trained, physically represented remounts.</span></li>
+      <li><span>Field throughput</span><span>Active companies vacate their six places. This yard can school the next real horses while deployed riders carry cart-delivered supplies.</span></li>
+      <li><span>Losses and return</span><span>A fallen rider loses his mount. Survivors reserve places across connected Cavalry Yards, or may return and be sold.</span></li>
     `,
     supplementalPanelHtml: `
       <div class="inspector-action-panel" data-inspector-panel-title="Remount yard">
@@ -101,7 +112,7 @@ export function renderCavalryYardInspector(
           <span class="inspector-action-icon" data-action-icon="hussars" aria-hidden="true"></span>
           <span>Purchase remount<br><small>${CAVALRY_HORSE_PURCHASE_GOLD} gold</small></span>
         </button>
-        <p class="inspector-action-panel__hint">Treasury: ${renderResourceAmount('gold', treasuryGold, { compact: true })}. Yard stocks: ${Math.floor(building.animalFeed ?? 0)} feed · ${Math.floor(building.oatGrain ?? 0)} oats · ${Math.floor(building.water)} water.</p>
+        <p class="inspector-action-panel__hint">Treasury: ${renderResourceAmount('gold', treasuryGold, { compact: true })}. Yard stocks: ${Math.floor(building.animalFeed ?? 0)} winter feed · ${Math.floor(building.oatGrain ?? 0)} oats · ${Math.floor(building.water)} water. Seasonal fodder is an alternative, never a duplicate charge.</p>
       </div>
       ${renderMilitaryRecruitmentPanels(
         ['hussars', 'armored-lancers', 'mounted-archers'],
@@ -121,7 +132,7 @@ export function renderCavalryYardInspector(
 
 function horseStatusRow(horse: CavalryHorseState, slot: number): string {
   const status = horse.assignedCompanyId != null
-    ? `Company #${horse.assignedCompanyId}`
+    ? `On site or reserved · company #${horse.assignedCompanyId}`
     : horse.trainingDays >= CAVALRY_HORSE_TRAINING_DAYS
       ? 'Trained and ready'
       : `Training ${horse.trainingDays} / ${CAVALRY_HORSE_TRAINING_DAYS} days`;
