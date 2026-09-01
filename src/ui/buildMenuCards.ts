@@ -72,7 +72,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   founders_camp: ["Founders' camp", 'Establishes a civic foothold from which a settlement can grow.'],
   residences: ['Residence', 'Provides homes for settlement families.'],
   well: ['Well', 'Draws and supplies water to nearby homes.', flow([], ['water'])],
-  stable: ['Stable', 'Houses oxen for building, farm work, and hauling. Their feed and water are abstracted; they never draw herd hay or Animal Feed.'],
+  stable: ['Stable', 'Houses oxen used for construction, farm work, and hauling.'],
   cavalry_yard: ['Cavalry Yard', 'Musters pasture-owned horses and residents into equipped mounted companies.', flow(['animalFeed', 'oatGrain', 'water'], [])],
   kennel: ['Kennel', 'Trains guard dogs that patrol the settlement and confront thieves.'],
   chapel: ['Church', 'Serves parish life through worship, tithes, and household support.'],
@@ -115,8 +115,8 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   tannery: ['Tannery', 'Tans livestock hides into workable leather.', flow(['hides', 'water', 'firewood'], ['leather'])],
   cobbler: ["Cobbler's workshop", 'Cuts leather into finished shoes for prosperous households.', flow(['leather'], ['shoes'])],
   chandlery: ['Chandlery', 'Makes beeswax candles for households and regional trade.', flow(['wax', 'firewood'], ['candles'])],
-  pastoral_farmstead: ['Pastoral farmstead', 'Raises cattle, sheep, and pasture horses. Herds use hay before feed in winter; staff prepare Animal Feed from oats; water stays separate.', flow(['water', 'oatGrain'], ['animalFeed', 'milk', 'wool', 'hides', 'manure', 'meat'])],
-  swineherd: ['Woodland swineherd', 'Raises pigs with woodland mast first, then prepared Animal Feed in lean periods; water is separate.', flow(['water', 'animalFeed'], ['meat', 'hides'])],
+  pastoral_farmstead: ['Pastoral farmstead', 'Raises cattle, sheep, and horses for livestock products and mounted companies.', flow(['water', 'oatGrain'], ['animalFeed', 'milk', 'wool', 'hides', 'manure', 'meat'])],
+  swineherd: ['Woodland swineherd', 'Raises woodland pigs for meat and hides.', flow(['water', 'animalFeed'], ['meat', 'hides'])],
 };
 
 const action = (kind: PlayerPlaceableBuildingKind): PlacementBuildMenuAction =>

@@ -214,7 +214,7 @@ export class DebugMenu {
     this.armedAction = null;
     this.actionPending = true;
     this.placementHint.textContent = `Deploying ${ACTION_LABELS[action]}…`;
-    const companyKind = Math.max(0, Math.min(7, Math.floor(Number(this.companyKind.value))));
+    const companyKind = Math.max(0, Math.min(10, Math.floor(Number(this.companyKind.value))));
     void this.options.onRunMapAction(action, point.x, point.z, companyKind)
       .then(() => {
         this.status.textContent = `${ACTION_LABELS[action][0]!.toUpperCase()}${ACTION_LABELS[action].slice(1)} placed at ${point.x.toFixed(0)}, ${point.z.toFixed(0)}.`;

@@ -137,17 +137,17 @@ assert.match(
 );
 assert.match(
   renderedCards,
-  /data-action="pastoral-farmstead"[\s\S]*?data-tooltip="Raises cattle, sheep, and pasture horses\.[^"]*use hay before feed[^"]*prepare Animal Feed from oats[^"]*water stays separate\."/,
-  'the pastoral card must summarize its cattle, sheep, horse, and fodder roles',
+  /data-action="pastoral-farmstead"[\s\S]*?data-tooltip="Raises cattle, sheep, and horses for livestock products and mounted companies\."/,
+  'the pastoral card must summarize its cattle, sheep, horse, and mounted-company roles',
 );
 assert.match(
   renderedCards,
-  /data-action="swineherd"[\s\S]*?data-tooltip="Raises pigs with woodland mast first, then prepared Animal Feed in lean periods; water is separate\."/,
+  /data-action="swineherd"[\s\S]*?data-tooltip="Raises woodland pigs for meat and hides\."/,
   'the swineherd card must summarize what the holding produces',
 );
 assert.match(
   renderedCards,
-  /data-action="stable"[\s\S]*?data-tooltip="Houses oxen for building, farm work, and hauling\.[^"]*never draw herd hay or Animal Feed\."/,
+  /data-action="stable"[\s\S]*?data-tooltip="Houses oxen used for construction, farm work, and hauling\."/,
   'the stable card must summarize what its oxen do',
 );
 const cardResourceFlow = (action: string): { inputs: string[]; outputs: string[] } => {
@@ -499,8 +499,8 @@ for (const description of descriptions) {
   );
 }
 assert.match(renderedCards, /data-action="threshing-barn"[\s\S]*?data-tooltip="Cultivates grain and flax fields and threshes harvested sheaves\."/);
-assert.match(renderedCards, /data-action="pastoral-farmstead"[\s\S]*?data-tooltip="Raises cattle and sheep for milk, wool, hides, manure, meat, and prepared Animal Feed\."/);
-assert.match(renderedCards, /data-action="swineherd"[\s\S]*?data-tooltip="Raises woodland pigs for meat and hides using prepared Animal Feed\."/);
+assert.match(renderedCards, /data-action="pastoral-farmstead"[\s\S]*?data-tooltip="Raises cattle, sheep, and horses for livestock products and mounted companies\."/);
+assert.match(renderedCards, /data-action="swineherd"[\s\S]*?data-tooltip="Raises woodland pigs for meat and hides\."/);
 assert.match(renderedCards, /data-action="stone-quarry"[\s\S]*?data-tooltip="Extracts stone, iron, salt, and clay from nearby surface deposits\."/);
 assert.ok(
   [...renderedCards.matchAll(/data-tooltip-flow="([^"]+)"/g)].length >= 20,

@@ -8,6 +8,7 @@
   color: #e9e0c9;
   background: rgba(7, 8, 7, 0.76);
   backdrop-filter: blur(5px);
+  pointer-events: auto;
 }
 
 .debug-menu-backdrop[hidden] { display: none; }
