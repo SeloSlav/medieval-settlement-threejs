@@ -8,7 +8,7 @@ use crate::security_policy::RaidPortableStores;
 use crate::tables::{BanditCamp, BanditIncident, CombatAgent};
 
 use super::raid_agents::reclamation_from_raid_stores;
-use super::reclamation::{recover_stock_at, ReclamationStock};
+use super::reclamation::{credit_remote_recovery_to_settlement, ReclamationStock};
 use super::settlement_security::{building_portable_stores, retain_unplundered_stores};
 
 const BANDIT: u8 = 2;
@@ -469,7 +469,7 @@ pub(super) fn destroy_camp(ctx: &ReducerContext, camp: &mut BanditCamp, tick: u6
         total += bundle.goods_amount();
         recovered = recovered.merged(reclamation_from_raid_stores(bundle));
     }
-    let _ = recover_stock_at(ctx, camp.owner, camp.x, camp.z, recovered);
+    credit_remote_recovery_to_settlement(ctx, camp.owner, recovered);
     incident(
         ctx,
         camp.owner,

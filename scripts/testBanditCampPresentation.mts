@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { BanditCampRenderer } from '../src/security/BanditCampRenderer.ts';
-import type { BanditCampState } from '../src/security/banditState.ts';
+import {
+  formatBanditGoodsSummary,
+  parseBanditGoods,
+  type BanditCampState,
+} from '../src/security/banditState.ts';
 import type { Terrain } from '../src/terrain/Terrain.ts';
 
 const parent = new THREE.Group();
@@ -46,7 +51,41 @@ assert.equal(physicalRoot.children.length, 1, 'a later authoritative respawn sho
 renderer.dispose();
 assert.equal(parent.children.length, 0, 'dispose should remove the physical camp root');
 
-console.log('Bandit camps use shared textured camp materials and disappear when destroyed.');
+const recoveredGoods = parseBanditGoods(JSON.stringify([
+  { timber: 5, rye_grain: 2, gold: 1 },
+  { timber: 3, rye_grain: 0, cloth: 4 },
+]));
+assert.deepEqual(recoveredGoods, [
+  { kind: 'timber', amount: 8 },
+  { kind: 'cloth', amount: 4 },
+  { kind: 'rye_grain', amount: 2 },
+  { kind: 'gold', amount: 1 },
+]);
+assert.equal(
+  formatBanditGoodsSummary(recoveredGoods),
+  '8 timber, 4 cloth and 2 rye grain, plus 1 more kind',
+  'the lord report should identify recovered materials instead of showing only an opaque total',
+);
+
+const serverBandits = readFileSync('server/src/simulation/bandits.rs', 'utf8');
+const destroyCampSource = serverBandits.slice(
+  serverBandits.indexOf('pub(super) fn destroy_camp'),
+  serverBandits.indexOf('\nfn cleanup_downed'),
+);
+assert.match(destroyCampSource, /credit_remote_recovery_to_settlement\(ctx, camp\.owner, recovered\)/);
+assert.doesNotMatch(
+  destroyCampSource,
+  /recover_stock_at/,
+  'destroying a distant camp must not leave its reward at the camp coordinates',
+);
+const serverReclamation = readFileSync('server/src/simulation/reclamation.rs', 'utf8');
+assert.match(
+  serverReclamation,
+  /pub fn credit_remote_recovery_to_settlement[\s\S]*physical_treasury_seat[\s\S]*deposit_building_commodity/,
+  'remote recovery should fill usable storage and retain overflow at the civic treasury seat',
+);
+
+console.log('Bandit camps are textured, disappear when destroyed, and report recovered goods.');
 
 function banditCamp(
   overrides: Partial<BanditCampState>,

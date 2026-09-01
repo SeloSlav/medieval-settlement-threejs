@@ -1,6 +1,6 @@
 //! Physical recovery of goods left where a structure was dismantled.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use spacetimedb::ReducerContext;
 
@@ -11,7 +11,8 @@ use crate::building_defs::building_def;
 use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
 use crate::db::*;
 use crate::economy::{
-    building_commodity_room, building_commodity_stock, storage_accepts_commodity, CommodityKind,
+    building_commodity_room, building_commodity_stock, deposit_building_commodity,
+    storage_accepts_commodity, CommodityKind,
 };
 use crate::placement_validation::{
     building_overlaps_road_surface, resolved_building_placement_yaw,
@@ -1011,6 +1012,123 @@ impl ReclamationStock {
         Self::from_building(building)
             .merged(self)
             .replace_building_inventory(building);
+    }
+}
+
+/// Credit recovered remote loot into immediately usable settlement inventory.
+///
+/// Ordinary reclamation remains physical and local to the loss site. Camp
+/// clearance is deliberately different: requiring another cart expedition to
+/// a defeated frontier camp makes the reward easy to miss and can strand it
+/// beyond the owner's road network. Permanent stores receive what they have
+/// room for, while the civic treasury seat accepts any remaining whole units
+/// as an authoritative remote-clearance receipt. No salvage pile is created or
+/// reused by this path.
+pub fn credit_remote_recovery_to_settlement(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    stock: ReclamationStock,
+) {
+    let stock = stock.normalized();
+    if stock.is_empty() {
+        return;
+    }
+
+    let physical_storage = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled);
+    if !physical_storage {
+        for commodity in RECOVERY_ORDER {
+            crate::economy::credit_treasury_commodity(
+                ctx,
+                owner,
+                commodity,
+                stock.amount(commodity),
+            );
+        }
+        return;
+    }
+
+    // Reserve the civic seat for overflow. Keeping it out of the ordinary
+    // candidate list prevents a stale clone from overwriting earlier deposits.
+    let mut civic_seat = crate::economy::physical_treasury_seat(ctx, owner);
+    let mut stores = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| {
+            building.construction_complete
+                && !matches!(
+                    building.kind.as_str(),
+                    "founders_camp" | "salvage_pile" | "town_hall"
+                )
+        })
+        .collect::<Vec<_>>();
+    stores.sort_by_key(|building| {
+        (
+            match building.kind.as_str() {
+                "village_storehouse" => 0_u8,
+                "granary" => 1,
+                _ => 2,
+            },
+            building.id,
+        )
+    });
+
+    let mut overflow = ReclamationStock::default();
+    let mut changed_store_ids = HashSet::new();
+    for commodity in RECOVERY_ORDER {
+        let mut remaining = stock.amount(commodity);
+        if remaining < 1.0 {
+            continue;
+        }
+        for store in &mut stores {
+            if remaining < 1.0 {
+                break;
+            }
+            if !storage_accepts_commodity(store, commodity)
+                || building_commodity_room(store, commodity) < 1.0
+            {
+                continue;
+            }
+            let deposited = deposit_building_commodity(store, commodity, remaining);
+            if deposited >= 1.0 {
+                changed_store_ids.insert(store.id);
+            }
+            remaining = (remaining - deposited).max(0.0);
+        }
+        if remaining >= 1.0 {
+            overflow = overflow.merged(ReclamationStock::from_commodity(commodity, remaining));
+        }
+    }
+
+    for store in stores {
+        if changed_store_ids.contains(&store.id) {
+            ctx.db.building().id().update(store);
+        }
+    }
+    if overflow.is_empty() {
+        return;
+    }
+    if let Some(ref mut seat) = civic_seat {
+        overflow.add_to_building(seat);
+        ctx.db.building().id().update(seat.clone());
+        return;
+    }
+
+    // A physical realm should always have a completed camp or Town Hall. Keep
+    // the reward lossless if an incomplete bootstrap state reaches this path.
+    for commodity in RECOVERY_ORDER {
+        crate::economy::credit_treasury_commodity(
+            ctx,
+            owner,
+            commodity,
+            overflow.amount(commodity),
+        );
     }
 }
 

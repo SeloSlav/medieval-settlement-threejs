@@ -54,6 +54,7 @@ import { buildBuildingWorldMapMarkers } from '../map/worldMapMarkers.ts';
 import type { DeliveryAgentRenderer } from '../logistics/DeliveryAgentRenderer.ts';
 import type { FireEffectsRenderer } from '../fires/FireEffectsRenderer.ts';
 import type { BanditCampRenderer } from '../security/BanditCampRenderer.ts';
+import { formatBanditGoodsSummary } from '../security/banditState.ts';
 import type { MilitiaCommandController } from '../security/MilitiaCommandController.ts';
 import {
   militaryCompanyDisplayName,
@@ -1904,7 +1905,9 @@ export class App {
     }
     if (latest.id === this.lastSeenBanditIncidentId) return;
     this.lastSeenBanditIncidentId = latest.id;
-    const amount = Math.round(latest.goodsTotal);
+    const recoveredAmount = latest.recoveredGoods.reduce((sum, good) => sum + good.amount, 0);
+    const amount = Math.round(recoveredAmount || latest.goodsTotal);
+    const goodsSummary = formatBanditGoodsSummary(latest.recoveredGoods);
     const copy = latest.kind === 'theft'
       ? {
           title: 'Bandits stole from the settlement',
@@ -1921,9 +1924,13 @@ export class App {
           }
         : {
             title: 'Bandit camp destroyed',
-            detail: `${amount} accumulated stolen ${amount === 1 ? 'item was' : 'items were'} recovered at the camp.`,
+            detail: amount > 0
+              ? `${goodsSummary} returned directly to settlement stores. No expedition is needed to collect a remote stockpile.`
+              : 'The camp was destroyed, but no stolen goods remained to recover.',
             tone: 'settled' as const,
-            toast: `Bandit camp destroyed; ${amount} stolen ${amount === 1 ? 'item was' : 'items were'} recovered.`,
+            toast: amount > 0
+              ? `Bandit camp destroyed — ${goodsSummary} credited to settlement stores.`
+              : 'Bandit camp destroyed; no stolen goods remained.',
           };
     this.toolbar?.settlementHud.addLordReport({
       id: `bandit:${latest.id}`,
