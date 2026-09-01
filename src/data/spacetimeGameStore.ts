@@ -553,6 +553,19 @@ export class SpacetimeGameStore {
     return spacetimeReducers.grantCheatResources(amount);
   }
 
+  setDebugDate(year: number, month: number, monthDay: number): Promise<void> {
+    return spacetimeReducers.setDebugDate(year, month, monthDay);
+  }
+
+  runDebugMapAction(
+    action: number,
+    x: number,
+    z: number,
+    companyKind: number,
+  ): Promise<void> {
+    return spacetimeReducers.runDebugMapAction(action, x, z, companyKind);
+  }
+
   placeFarmField(input: {
     farmsteadId: string;
     corners: Array<{ x: number; z: number }>;

@@ -98,6 +98,7 @@ import { DEFAULT_MONASTERY_POLICY } from '../economy/monasteryPolicy.ts';
 import { beginNewWorld, resolveWorldGenerationSettings } from './worldBootstrapFlow.ts';
 import { LoadingScreen } from '../ui/LoadingScreen.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
+import { DebugMenu, type DebugMapAction } from '../ui/DebugMenu.ts';
 import { TutorialOverlay } from '../ui/TutorialOverlay.ts';
 import type { VillagerInspector } from '../ui/VillagerInspector.ts';
 import {
@@ -119,6 +120,7 @@ import {
 } from '../ui/toastMessages.ts';
 import { renameSettlement } from '../data/spacetimeReducers.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
+import { gameClock } from '../world/gameCalendar.ts';
 
 const REPORT_FOCUS_ZOOM_PERCENT = 50;
 
@@ -172,6 +174,7 @@ export type BootstrappedSession = {
   burialMarkers: BurialMarkers;
   livestockVisuals: LivestockVisuals;
   toolbar: BuildToolbar;
+  debugMenu: DebugMenu | null;
   toastManager: ToastManager;
   tutorialOverlay: TutorialOverlay;
   disposeTooltips: () => void;
@@ -312,6 +315,7 @@ export async function bootstrapAppSession(
   let farmFieldTool: FarmFieldTool;
   let forestryWorkAreaTool: ForestryWorkAreaTool;
   let toolbar: BuildToolbar;
+  let debugMenu: DebugMenu | null = null;
   let toastManager: ToastManager;
   let tutorialOverlay: TutorialOverlay;
   let resourceInspector: ResourceInspector;
@@ -1127,20 +1131,93 @@ export async function bootstrapAppSession(
       void beginNewWorld(() => sessionGate.isReady());
     },
     onReplayTutorials: () => tutorialOverlay.replayAll(),
-    onGrantCheatResources: async (amount) => {
-      requireSessionReady();
-      await spacetimeStore.grantCheatResources(amount);
-      toastManager?.show(
-        `Cheat mode active: ${amount.toLocaleString()} of every resource.`,
-        { variant: 'info', durationMs: 4200 },
-      );
-    },
   });
   toolbar.setMapSize(worldSettings.mapSize);
   toolbar.setConflictEnabled(worldSettings.conflictMode === 'frontier');
 
   const disposeTooltips = mountTooltips(uiRoot);
   toastManager = new ToastManager(uiRoot);
+  if (import.meta.env.DEV) {
+    const debugActionId: Record<DebugMapAction, number> = {
+      wildlife: 0,
+      bandits: 1,
+      raiders: 2,
+      company: 3,
+    };
+    debugMenu = new DebugMenu(uiRoot, {
+      domElement: sceneManager.renderer.domElement,
+      getDate: () => {
+        const clock = gameClock(spacetimeStore.snapshot.simTick);
+        return { year: clock.year, month: clock.month, monthDay: clock.monthDay };
+      },
+      pickMapPoint: (clientX, clientY) => sceneManager.terrainProjector.pick(clientX, clientY),
+      onGrantResources: async (amount) => {
+        requireSessionReady();
+        await spacetimeStore.grantCheatResources(amount);
+        toastManager.show(
+          `Granted ${amount.toLocaleString()} of every resource.`,
+          { variant: 'info', durationMs: 3600 },
+        );
+      },
+      onSetDate: async ({ year, month, monthDay }) => {
+        requireSessionReady();
+        await spacetimeStore.setDebugDate(year, month, monthDay);
+        toastManager.show(
+          `Calendar set to ${monthDay}/${month}, Year ${year}.`,
+          { variant: 'info', durationMs: 3200 },
+        );
+      },
+      onRunMapAction: async (action, x, z, companyKind) => {
+        requireSessionReady();
+        await spacetimeStore.runDebugMapAction(
+          debugActionId[action],
+          x,
+          z,
+          companyKind,
+        );
+        const label = action === 'wildlife'
+          ? 'Wild animals initiated'
+          : action === 'bandits'
+            ? 'Bandit camp placed'
+            : action === 'raiders'
+              ? 'Ottoman raid initiated'
+              : 'Military company deployed';
+        toastManager.show(`${label} at ${x.toFixed(0)}, ${z.toFixed(0)}.`, {
+          variant: 'info',
+          durationMs: 3600,
+        });
+      },
+      onPlacementArmed: () => {
+        roadTool.setEnabled(false);
+        buildingTool.setMode('off');
+        burgageTool.setEnabled(false);
+        farmFieldTool.setEnabled(false);
+        forestryWorkAreaTool.setEnabled(false);
+        toolbar.closeMenusForExternalTool();
+        resourceInspector?.clearSelection();
+        villagerInspector?.clearSelection();
+        bridge.syncToolbar();
+      },
+      onOpenChange: (open) => {
+        firstPersonController.onMenuOpenChange(open);
+        cameraController.setInputEnabled(
+          !open
+          && !firstPersonController.isActive()
+          && !tutorialOverlay.isGameplayBlocking(),
+        );
+      },
+      canOpenFromKeyboard: () =>
+        !toolbar.isGameMenuOpen()
+        && !firstPersonController.isActive()
+        && !roadTool.isEnabled()
+        && !buildingTool.isEnabled()
+        && !burgageTool.isEnabled()
+        && !farmFieldTool.isEnabled()
+        && !forestryWorkAreaTool.isEnabled()
+        && !uiRoot.querySelector('.alert-dialog-backdrop:not([hidden])')
+        && !tutorialOverlay.isGameplayBlocking(),
+    });
+  }
   spacetimeStore.setRoadSyncFailedListener((error) => {
     const message = error instanceof Error ? error.message : 'Road sync failed.';
     toastManager?.show(`Road sync failed: ${message}`, { variant: 'error', durationMs: 6000 });
@@ -1682,7 +1759,10 @@ export async function bootstrapAppSession(
   placementGate.isFarmFieldToolEnabled = () => farmFieldTool.isEnabled();
   placementGate.isForestryWorkAreaToolEnabled = () => forestryWorkAreaTool.isEnabled();
   placementGate.isFirstPersonActive = () => firstPersonController.isInteractionActive();
-  placementGate.isMenuOpen = () => toolbar.isGameMenuOpen();
+  placementGate.isMenuOpen = () =>
+    toolbar.isGameMenuOpen()
+    || (debugMenu?.isOpen() ?? false)
+    || (debugMenu?.isPlacementActive() ?? false);
 
   const worldMapUi = createWorldMapUi({
     uiRoot,
@@ -1784,6 +1864,7 @@ export async function bootstrapAppSession(
     burialMarkers,
     livestockVisuals,
     toolbar,
+    debugMenu,
     toastManager,
     tutorialOverlay,
     disposeTooltips,

@@ -196,6 +196,60 @@ fn spawn_wolf_pack(
     }
 }
 
+/// Development-menu entry point. Unlike the recurring world event, the
+/// requested map position is the physical incursion entry selected by the
+/// player. The ordinary target selectors and animal simulation take over from
+/// the next heartbeat.
+pub fn spawn_debug_wild_animals(
+    ctx: &ReducerContext,
+    owner: Identity,
+    tick: u64,
+    x: f64,
+    z: f64,
+) -> Result<u32, String> {
+    let fox_target = fox_target(ctx, owner, tick ^ x.to_bits())
+        .ok_or_else(|| "Wild animals need a stocked building, home, herd, garden, or ox to target.".to_string())?;
+    let wolf_target = wolf_target(ctx, owner, tick ^ z.to_bits()).unwrap_or(fox_target);
+    let event_id = 0xd000_0000_0000_0000
+        ^ tick.rotate_left(13)
+        ^ x.to_bits().rotate_left(29)
+        ^ z.to_bits();
+    insert_animal(
+        ctx,
+        owner,
+        event_id,
+        FOX,
+        0,
+        fox_target,
+        x - 1.8,
+        z,
+        x,
+        z,
+        34.0,
+        tick,
+    );
+    let wolf_count = 5_u32;
+    for slot in 0..wolf_count {
+        let angle = slot as f64 * 2.399_963_229_728_653;
+        let radius = 1.2 + slot as f64 * 0.38;
+        insert_animal(
+            ctx,
+            owner,
+            event_id ^ 0x574f_4c46,
+            WOLF,
+            slot,
+            wolf_target,
+            x + angle.cos() * radius,
+            z + angle.sin() * radius,
+            x,
+            z,
+            68.0,
+            tick,
+        );
+    }
+    Ok(wolf_count + 1)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn insert_animal(
     ctx: &ReducerContext,

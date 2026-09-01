@@ -294,6 +294,28 @@ export async function grantCheatResources(amount: number): Promise<void> {
   await callReducer('grantCheatResources', 'grant_cheat_resources', { amount });
 }
 
+export async function setDebugDate(year: number, month: number, monthDay: number): Promise<void> {
+  await callReducer('setDebugDate', 'set_debug_date', {
+    year: Math.floor(year),
+    month: Math.floor(month),
+    monthDay: Math.floor(monthDay),
+  });
+}
+
+export async function runDebugMapAction(
+  action: number,
+  x: number,
+  z: number,
+  companyKind: number,
+): Promise<void> {
+  await callReducer('runDebugMapAction', 'run_debug_map_action', {
+    action: Math.max(0, Math.min(3, Math.floor(action))),
+    x,
+    z,
+    companyKind: Math.max(0, Math.min(7, Math.floor(companyKind))),
+  });
+}
+
 const cropId = (crop: FarmCrop): number => FARM_CROP_DEFINITIONS[crop].id;
 
 export async function placeFarmField(input: {

@@ -232,7 +232,7 @@ export class BuildToolbar {
       }
       return;
     }
-    if (key === 'm') {
+    if (key === 'o') {
       event.preventDefault();
       event.stopPropagation();
       this.setOverlayMenuOpen(!this.overlayMenuOpen);
@@ -283,7 +283,6 @@ export class BuildToolbar {
       canOpenMenuFromKeyboard?: () => boolean;
       onNewWorld?: () => void;
       onReplayTutorials?: () => void;
-      onGrantCheatResources?: (amount: number) => Promise<void>;
       onSetGameSpeed?: (speed: GameSpeed) => void;
       onAudioEnabledChange?: (enabled: boolean) => void;
       onAmbienceVolumeChange?: (volume: number) => void;
@@ -394,9 +393,9 @@ export class BuildToolbar {
           <span class="gk-icon gk-icon--construction gk-icon--hammer" aria-hidden="true"></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">B</span>
         </button>
-        <button type="button" class="construction-dock-button construction-dock-button--hotkey construction-dock-button--overlay" data-action="overlay-menu" data-tooltip="Map overlays (M)" aria-label="Map overlays (M)" aria-controls="map-overlay-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false">
+        <button type="button" class="construction-dock-button construction-dock-button--hotkey construction-dock-button--overlay" data-action="overlay-menu" data-tooltip="Map overlays (O)" aria-label="Map overlays (O)" aria-controls="map-overlay-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false">
           <span class="map-overlay-launcher-icon" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span class="construction-dock-button__hotkey" aria-hidden="true">M</span>
+          <span class="construction-dock-button__hotkey" aria-hidden="true">O</span>
         </button>
         <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="city-admin" data-tooltip="Select Town Hall administration (I)" aria-label="Select Town Hall administration (I)" aria-pressed="false">
           <span class="gk-icon gk-icon--construction gk-icon--town-hall" aria-hidden="true"></span>
@@ -462,7 +461,6 @@ export class BuildToolbar {
       canOpenFromKeyboard: handlers.canOpenMenuFromKeyboard,
       onNewWorld: handlers.onNewWorld,
       onReplayTutorials: handlers.onReplayTutorials,
-      onGrantCheatResources: handlers.onGrantCheatResources,
       onAudioEnabledChange: handlers.onAudioEnabledChange,
       onAmbienceVolumeChange: handlers.onAmbienceVolumeChange,
       onForestWindEnabledChange: handlers.onForestWindEnabledChange,
@@ -788,7 +786,7 @@ export class BuildToolbar {
       ? vineyardSuitabilityVisible
         ? 'Grape suitability map is active during vineyard layout'
         : 'Crop suitability map is active during field layout'
-      : 'Map overlays (M)';
+      : 'Map overlays (O)';
     if (this.cropSuitabilityActive) this.setOverlayMenuOpen(false);
     this.syncMapOverlayLegend();
     this.builderStatusBar.innerHTML = placingStarterCamp ? '' : renderToolbarStatus(stats);
@@ -926,6 +924,11 @@ export class BuildToolbar {
 
   isBuildMenuOpen(): boolean {
     return this.buildMenuOpen;
+  }
+
+  closeMenusForExternalTool(): void {
+    this.closeAllBuildMenus();
+    dismissDockToggles(this.dockToggles);
   }
 
   setFirstPersonMode(active: boolean): void {

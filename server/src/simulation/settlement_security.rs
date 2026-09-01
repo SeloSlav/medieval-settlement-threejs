@@ -66,6 +66,114 @@ pub fn ensure_settlement_security(ctx: &ReducerContext, owner: Identity) {
     });
 }
 
+/// Starts a normal live Ottoman incursion from an exact development-menu map
+/// position. Target selection is deliberately compact here: the nearest
+/// stocked holding is attacked, falling back to an occupied home and then any
+/// completed non-immune building so a sparse test settlement remains usable.
+pub fn start_debug_live_raid(
+    ctx: &ReducerContext,
+    owner: Identity,
+    tick: u64,
+    world_seed: u64,
+    map_size: u8,
+    x: f64,
+    z: f64,
+) -> Result<u32, String> {
+    if ctx.db.active_raid().owner().find(&owner).is_some() {
+        return Err("An Ottoman raid is already active.".into());
+    }
+    let building_target = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| {
+            building.construction_complete
+                && !raid_immune_building_kind(&building.kind)
+                && building_portable_value(building, 0.0) > 1e-9
+        })
+        .min_by(|left, right| {
+            distance_squared(left.x, left.z, x, z)
+                .total_cmp(&distance_squared(right.x, right.z, x, z))
+                .then_with(|| left.id.cmp(&right.id))
+        })
+        .map(|building| LiveRaidTarget {
+            kind: RaidTargetKind::Building.as_u8(),
+            id: building.id,
+            raid_anchor_building_id: 0,
+            x: building.x,
+            z: building.z,
+            loot_fraction: raid_contact_loss_fraction(65),
+        });
+    let residence_target = || {
+        ctx.db
+            .residence()
+            .owner()
+            .filter(&owner)
+            .filter(|residence| !residence.abandoned && residence.population > 0)
+            .min_by(|left, right| {
+                distance_squared(left.x, left.z, x, z)
+                    .total_cmp(&distance_squared(right.x, right.z, x, z))
+                    .then_with(|| left.id.cmp(&right.id))
+            })
+            .map(|residence| LiveRaidTarget {
+                kind: RaidTargetKind::Residence.as_u8(),
+                id: residence.id,
+                raid_anchor_building_id: 0,
+                x: residence.x,
+                z: residence.z,
+                loot_fraction: raid_contact_loss_fraction(65),
+            })
+    };
+    let fallback_building = || {
+        ctx.db
+            .building()
+            .owner()
+            .filter(&owner)
+            .filter(|building| {
+                building.construction_complete && !raid_immune_building_kind(&building.kind)
+            })
+            .min_by(|left, right| {
+                distance_squared(left.x, left.z, x, z)
+                    .total_cmp(&distance_squared(right.x, right.z, x, z))
+                    .then_with(|| left.id.cmp(&right.id))
+            })
+            .map(|building| LiveRaidTarget {
+                kind: RaidTargetKind::Building.as_u8(),
+                id: building.id,
+                raid_anchor_building_id: 0,
+                x: building.x,
+                z: building.z,
+                loot_fraction: raid_contact_loss_fraction(65),
+            })
+    };
+    let target = building_target
+        .or_else(residence_target)
+        .or_else(fallback_building)
+        .ok_or_else(|| "Place at least one completed settlement building before starting a raid.".to_string())?;
+    let roads = load_owner_road_network(ctx, owner);
+    let started = start_live_raid(
+        ctx,
+        owner,
+        tick,
+        None,
+        65,
+        world_seed,
+        playable_half_for_map_size(map_size),
+        Some((x, z)),
+        &[target],
+        roads.as_ref(),
+    )
+    .ok_or_else(|| "Could not start the Ottoman raid.".to_string())?;
+    Ok(started.raiders)
+}
+
+fn distance_squared(ax: f64, az: f64, bx: f64, bz: f64) -> f64 {
+    let dx = ax - bx;
+    let dz = az - bz;
+    dx * dx + dz * dz
+}
+
 pub fn step_settlement_security(
     ctx: &ReducerContext,
     sim_tick: u64,

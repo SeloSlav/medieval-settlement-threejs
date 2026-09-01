@@ -1,9 +1,18 @@
 use spacetimedb::{reducer, ReducerContext};
 
 use crate::db::*;
+use crate::balance_generated::{
+    CALENDAR_DAYS_PER_MONTH, CALENDAR_DAY_START_OFFSET_SECONDS, CALENDAR_MONTHS_PER_YEAR,
+    CALENDAR_SECONDS_PER_DAY, CALENDAR_START_MONTH, TICK_DT,
+};
 use crate::economy::{building_commodity_stock, CommodityKind, ALL_COMMODITIES};
 use crate::lifecycle::ensure_player_resources;
-use crate::simulation::{materialize_physical_resource_stock, ReclamationStock};
+use crate::raid_agent_policy::playable_half_for_map_size;
+use crate::reducers::bandits::deploy_debug_military_company;
+use crate::simulation::{
+    materialize_physical_resource_stock, spawn_debug_bandit_camp, spawn_debug_wild_animals,
+    start_debug_live_raid, ReclamationStock,
+};
 use crate::tables::PlayerResources;
 
 const MAX_CHEAT_RESOURCE_AMOUNT: f64 = 1_000_000_000.0;
@@ -177,6 +186,124 @@ pub fn grant_cheat_resources(ctx: &ReducerContext, amount: f64) -> Result<(), St
     Ok(())
 }
 
+fn debug_date_sim_tick(
+    current_sim_tick: u64,
+    year: u32,
+    month: u32,
+    month_day: u32,
+) -> Result<u64, String> {
+    if !(1..=9_999).contains(&year) {
+        return Err("Debug year must be from 1 to 9,999.".into());
+    }
+    if !(1..=CALENDAR_MONTHS_PER_YEAR).contains(&month) {
+        return Err(format!(
+            "Debug month must be from 1 to {CALENDAR_MONTHS_PER_YEAR}."
+        ));
+    }
+    if !(1..=CALENDAR_DAYS_PER_MONTH).contains(&month_day) {
+        return Err(format!(
+            "Debug day must be from 1 to {CALENDAR_DAYS_PER_MONTH}."
+        ));
+    }
+    let days_per_year = u64::from(CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR);
+    let start_day = u64::from(
+        CALENDAR_START_MONTH.saturating_sub(1) * CALENDAR_DAYS_PER_MONTH,
+    );
+    let requested_day = u64::from(year - 1)
+        .saturating_mul(days_per_year)
+        .saturating_add(u64::from((month - 1) * CALENDAR_DAYS_PER_MONTH + month_day - 1));
+    if requested_day < start_day {
+        return Err(format!(
+            "The playable calendar begins on 1/{CALENDAR_START_MONTH}/1."
+        ));
+    }
+    let current_calendar_seconds = current_sim_tick as f64 * TICK_DT
+        + CALENDAR_DAY_START_OFFSET_SECONDS;
+    let seconds_into_day = current_calendar_seconds.rem_euclid(CALENDAR_SECONDS_PER_DAY);
+    let requested_total_days = requested_day - start_day;
+    let requested_elapsed_seconds = requested_total_days as f64 * CALENDAR_SECONDS_PER_DAY
+        + seconds_into_day
+        - CALENDAR_DAY_START_OFFSET_SECONDS;
+    if requested_elapsed_seconds < 0.0 {
+        return Err("That opening-date time is earlier than the playable calendar start.".into());
+    }
+    Ok((requested_elapsed_seconds / TICK_DT).round().max(0.0) as u64)
+}
+
+/// Replaces only the rational-calendar date. The current displayed time of
+/// day is retained to make seasonal and holiday testing predictable.
+#[reducer]
+pub fn set_debug_date(
+    ctx: &ReducerContext,
+    year: u32,
+    month: u32,
+    month_day: u32,
+) -> Result<(), String> {
+    let Some(mut config) = ctx.db.world_config().id().find(&0) else {
+        return Err("World configuration not found.".into());
+    };
+    config.sim_tick = debug_date_sim_tick(config.sim_tick, year, month, month_day)?;
+    ctx.db.world_config().id().update(config);
+    Ok(())
+}
+
+/// Runs one of the authoritative click-placement playtest actions.
+/// 0 wildlife, 1 bandit camp, 2 Ottoman raid, 3 player company.
+#[reducer]
+pub fn run_debug_map_action(
+    ctx: &ReducerContext,
+    action: u8,
+    x: f64,
+    z: f64,
+    company_kind: u8,
+) -> Result<(), String> {
+    if !x.is_finite() || !z.is_finite() {
+        return Err("Debug placement must be a finite map position.".into());
+    }
+    let Some(mut config) = ctx.db.world_config().id().find(&0) else {
+        return Err("World configuration not found.".into());
+    };
+    let playable_half = playable_half_for_map_size(config.map_size);
+    if x.abs() > playable_half || z.abs() > playable_half {
+        return Err("Debug placement is outside the playable map.".into());
+    }
+    let owner = ctx.sender();
+    let tick = config.sim_tick;
+    let seed = config.seed;
+    let map_size = config.map_size;
+    match action {
+        0 => {
+            config.wild_animal_attacks_enabled = true;
+            ctx.db.world_config().id().update(config);
+            spawn_debug_wild_animals(ctx, owner, tick, x, z)?;
+        }
+        1 => {
+            config.bandit_camps_enabled = true;
+            ctx.db.world_config().id().update(config);
+            spawn_debug_bandit_camp(ctx, owner, tick, x, z);
+        }
+        2 => {
+            config.conflict_enabled = true;
+            config.enemy_pressure = config.enemy_pressure.max(65);
+            ctx.db.world_config().id().update(config);
+            start_debug_live_raid(
+                ctx,
+                owner,
+                tick,
+                seed,
+                map_size,
+                x,
+                z,
+            )?;
+        }
+        3 => {
+            deploy_debug_military_company(ctx, owner, company_kind, x, z)?;
+        }
+        _ => return Err("Unknown debug map action.".into()),
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -214,5 +341,19 @@ mod tests {
                 "cheat top-up omitted {commodity:?}",
             );
         }
+    }
+
+    #[test]
+    fn debug_date_replaces_date_but_preserves_time_of_day() {
+        let current = debug_date_sim_tick(0, 2, 7, 14).unwrap();
+        let clock = crate::simulation::game_clock(current);
+        assert_eq!((clock.year, clock.month, clock.month_day), (2, 7, 14));
+        assert_eq!((clock.hour, clock.minute), (8, 0));
+
+        let midday_tick = (CALENDAR_SECONDS_PER_DAY * 0.25 / TICK_DT).round() as u64;
+        let moved = debug_date_sim_tick(midday_tick, 3, 12, 30).unwrap();
+        let moved_clock = crate::simulation::game_clock(moved);
+        let original_clock = crate::simulation::game_clock(midday_tick);
+        assert_eq!((moved_clock.hour, moved_clock.minute), (original_clock.hour, original_clock.minute));
     }
 }

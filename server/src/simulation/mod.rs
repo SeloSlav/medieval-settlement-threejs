@@ -53,7 +53,7 @@ mod wild_animals;
 mod woodcutters_lodge;
 
 pub use backyard_garden::{clear_backyard_garden_for_residence, step_backyard_gardens};
-pub use bandits::step_bandit_world;
+pub use bandits::{spawn_debug_bandit_camp, step_bandit_world};
 pub use burial::step_burials;
 pub use chapel::step_chapels;
 pub use chapel_parish::step_chapel_parish;
@@ -129,7 +129,9 @@ pub use seasonal_labor_steward::{
     reconcile_seasonal_labor_for_settlement, settlement_has_staffed_town_hall,
     step_seasonal_labor_stewards,
 };
-pub use settlement_security::{ensure_settlement_security, step_settlement_security};
+pub use settlement_security::{
+    ensure_settlement_security, start_debug_live_raid, step_settlement_security,
+};
 pub use stone_quarry::step_stone_quarry;
 pub use tick_context::{SharedRoadNetworks, SimTickContext};
 pub use trading_post_trade::{step_trading_post_trade, trading_post_exports_commodity};
@@ -137,5 +139,5 @@ pub use village_storehouse::{
     step_storehouse_market_stalls, step_village_storehouse_overflow_collection,
 };
 pub use well::step_well;
-pub use wild_animals::step_wild_animal_world;
+pub use wild_animals::{spawn_debug_wild_animals, step_wild_animal_world};
 pub use woodcutters_lodge::step_woodcutters_lodge;

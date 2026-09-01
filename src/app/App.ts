@@ -61,6 +61,7 @@ import type { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
 import type { AuthoredCrowdDiagnostic } from '../settlement/SettlementCrowdRenderer.ts';
 import { raidWithdrawingCartCount } from '../logistics/deliveryTrips.ts';
 import { BuildToolbar, type ToolbarStats } from '../ui/BuildToolbar.ts';
+import type { DebugMenu } from '../ui/DebugMenu.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
 import type { VillagerInspector } from '../ui/VillagerInspector.ts';
 import {
@@ -209,6 +210,7 @@ export class App {
   private burialMarkers: BurialMarkers | null = null;
   private livestockVisuals: LivestockVisuals | null = null;
   private toolbar: BuildToolbar | null = null;
+  private debugMenu: DebugMenu | null = null;
   private toastManager: ToastManager | null = null;
   private tutorialOverlay: BootstrappedSession['tutorialOverlay'] | null = null;
   private disposeTooltips: (() => void) | null = null;
@@ -386,6 +388,7 @@ export class App {
     this.burialMarkers = session.burialMarkers;
     this.livestockVisuals = session.livestockVisuals;
     this.toolbar = session.toolbar;
+    this.debugMenu = session.debugMenu;
     this.toastManager = session.toastManager;
     this.tutorialOverlay = session.tutorialOverlay;
     this.disposeTooltips = session.disposeTooltips;
@@ -856,6 +859,7 @@ export class App {
     this.disposeTooltips = null;
     this.firstPersonController?.dispose();
     this.cameraController?.dispose();
+    this.debugMenu?.dispose();
     this.toolbar?.dispose();
     this.input?.dispose();
     this.ambientAudio?.dispose();

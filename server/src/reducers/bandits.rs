@@ -159,6 +159,120 @@ pub fn hire_mercenary_company(ctx: &ReducerContext, town_hall_id: u64) -> Result
     Ok(())
 }
 
+/// Creates a fully fielded, cost-free company at an exact debug-menu map
+/// position. Debug companies deliberately use non-resident members so a
+/// playtest does not rewrite household population or labor assignments.
+pub fn deploy_debug_military_company(
+    ctx: &ReducerContext,
+    owner: Identity,
+    kind_id: u8,
+    x: f64,
+    z: f64,
+) -> Result<u64, String> {
+    let kind = MilitaryKind::from_id(kind_id)
+        .ok_or_else(|| "Unknown military company type.".to_string())?;
+    let size = kind.company_size();
+    let tick = sim_tick(ctx);
+    let stats = military_stats(kind);
+    let formation = if matches!(kind, MilitaryKind::Crossbows | MilitaryKind::Bowmen) {
+        MILITARY_FORMATION_LOOSE
+    } else {
+        MILITARY_FORMATION_LINE
+    };
+    let source_building_id = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| building.construction_complete)
+        .min_by(|left, right| {
+            point_distance(left.x, left.z, x, z)
+                .total_cmp(&point_distance(right.x, right.z, x, z))
+                .then_with(|| left.id.cmp(&right.id))
+        })
+        .map_or(0, |building| building.id);
+    let ammunition_capacity = stats.ammunition_per_member.saturating_mul(size);
+    let company = ctx.db.military_company().insert(MilitaryCompany {
+        id: 0,
+        owner,
+        kind: kind as u8,
+        source_building_id,
+        state: 1,
+        formation,
+        target_size: size,
+        living_members: size,
+        morale: stats.starting_morale,
+        cohesion: stats.starting_cohesion,
+        fatigue: 0.0,
+        provision_days: 30.0,
+        ammunition: ammunition_capacity,
+        ammunition_capacity,
+        formed_tick: tick,
+        last_upkeep_tick: tick,
+        experience: 0,
+        level: 1,
+        battle_started_tick: 0,
+        last_combat_tick: 0,
+    });
+    if kind == MilitaryKind::MercenarySpears {
+        ctx.db.mercenary_contract().insert(MercenaryContract {
+            company_id: company.id,
+            owner,
+            contract_end_tick: tick
+                .saturating_add(military_day_ticks().saturating_mul(MERCENARY_MAX_CONTRACT_DAYS)),
+            last_engagement_tick: tick,
+        });
+    }
+    for slot in 0..size {
+        let (ox, oz) = formation_offset(formation, slot, size);
+        let profile = member_combat_profile(kind, company.id.rotate_left(31) ^ slot as u64);
+        let agent = ctx.db.combat_agent().insert(CombatAgent {
+            id: 0,
+            owner,
+            raid_id: company.id,
+            faction: kind.faction(),
+            source_building_id,
+            source_slot: slot,
+            assigned_building_id: 0,
+            target_kind: 6,
+            target_id: 0,
+            engagement_target_id: 0,
+            x: x + ox,
+            z: z + oz,
+            velocity_x: 0.0,
+            velocity_z: 0.0,
+            home_x: x,
+            home_z: z,
+            health: profile.max_health,
+            max_health: profile.max_health,
+            readiness: stats.starting_morale,
+            state: MILITARY_HOLDING,
+            attack_cooldown: 0.0,
+            loot_progress: 0.0,
+            loot_fraction: 0.0,
+            carried_loot_json: serde_json::to_string(&RaidPortableStores::default())
+                .unwrap_or_default(),
+            state_changed_tick: tick,
+            route_progress: 0.0,
+            raid_anchor_building_id: 0,
+        });
+        ctx.db.military_member().insert(MilitaryMember {
+            combat_agent_id: agent.id,
+            owner,
+            company_id: company.id,
+            residence_id: 0,
+            resident_slot: slot,
+            person_identity: format!("debug-company:{}:{slot}", company.id),
+            phase: 1,
+            ammunition: stats.ammunition_per_member,
+            ammunition_capacity: stats.ammunition_per_member,
+            original_home_x: x,
+            original_home_z: z,
+        });
+    }
+    Ok(company.id)
+}
+
 #[reducer]
 pub fn set_military_formation(
     ctx: &ReducerContext,

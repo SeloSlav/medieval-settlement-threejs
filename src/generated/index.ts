@@ -82,6 +82,7 @@ import ResetWorldReducer from "./reset_world_reducer";
 import ResupplyMilitaryCompanyReducer from "./resupply_military_company_reducer";
 import RetrofitResidenceTileRoofReducer from "./retrofit_residence_tile_roof_reducer";
 import RotateConstructionLaborReducer from "./rotate_construction_labor_reducer";
+import RunDebugMapActionReducer from "./run_debug_map_action_reducer";
 import SetAllStorageAcceptanceReducer from "./set_all_storage_acceptance_reducer";
 import SetApiaryHarvestPolicyReducer from "./set_apiary_harvest_policy_reducer";
 import SetBreweryRecipePolicyReducer from "./set_brewery_recipe_policy_reducer";
@@ -93,6 +94,7 @@ import SetCarpenterPolearmReserveReducer from "./set_carpenter_polearm_reserve_r
 import SetChapelParishPolicyReducer from "./set_chapel_parish_policy_reducer";
 import SetConstructionLaborStewardReducer from "./set_construction_labor_steward_reducer";
 import SetConstructionPriorityReducer from "./set_construction_priority_reducer";
+import SetDebugDateReducer from "./set_debug_date_reducer";
 import SetEconomicActivityTaxRateReducer from "./set_economic_activity_tax_rate_reducer";
 import SetFarmFieldCropReducer from "./set_farm_field_crop_reducer";
 import SetFarmFieldFollowingCropReducer from "./set_farm_field_following_crop_reducer";
@@ -836,6 +838,7 @@ const reducersSchema = __reducers(
   __reducerSchema("resupply_military_company", ResupplyMilitaryCompanyReducer),
   __reducerSchema("retrofit_residence_tile_roof", RetrofitResidenceTileRoofReducer),
   __reducerSchema("rotate_construction_labor", RotateConstructionLaborReducer),
+  __reducerSchema("run_debug_map_action", RunDebugMapActionReducer),
   __reducerSchema("set_all_storage_acceptance", SetAllStorageAcceptanceReducer),
   __reducerSchema("set_apiary_harvest_policy", SetApiaryHarvestPolicyReducer),
   __reducerSchema("set_brewery_recipe_policy", SetBreweryRecipePolicyReducer),
@@ -847,6 +850,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_chapel_parish_policy", SetChapelParishPolicyReducer),
   __reducerSchema("set_construction_labor_steward", SetConstructionLaborStewardReducer),
   __reducerSchema("set_construction_priority", SetConstructionPriorityReducer),
+  __reducerSchema("set_debug_date", SetDebugDateReducer),
   __reducerSchema("set_economic_activity_tax_rate", SetEconomicActivityTaxRateReducer),
   __reducerSchema("set_farm_field_crop", SetFarmFieldCropReducer),
   __reducerSchema("set_farm_field_following_crop", SetFarmFieldFollowingCropReducer),

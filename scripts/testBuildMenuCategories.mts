@@ -41,6 +41,7 @@ import { BUILDING_COSTS, BUILDING_DEFINITIONS } from '../src/generated/gameBalan
 const STONE_BUILDING_COSTS: Readonly<Record<string, number>> = {
   potter_kiln: 16,
   well: 30,
+  kennel: 4,
   chapel: 24,
   wayside_shrine: 8,
   town_hall: 30,
@@ -69,7 +70,7 @@ for (const [kind, cost] of Object.entries(BUILDING_COSTS)) {
 }
 
 assert.deepEqual(keys(CIVIC_BUILD_MENU_ENTRIES), [
-  'residences', 'well', 'stable', 'founders_camp', 'chapel', 'wayside_shrine', 'dry_stone_wall', 'monastery', 'marketplace', 'tavern', 'trading_post', 'town_hall',
+  'residences', 'well', 'stable', 'kennel', 'founders_camp', 'chapel', 'wayside_shrine', 'dry_stone_wall', 'monastery', 'marketplace', 'tavern', 'trading_post', 'town_hall',
   'village_storehouse', 'granary',
 ]);
 assert.deepEqual(keys(GATHERING_BUILD_MENU_ENTRIES), [
@@ -94,7 +95,7 @@ assert.deepEqual(BUILD_MENU_CATEGORIES.map((category) => category.id), [
   'civic', 'trade', 'gathering', 'agriculture',
   'food', 'industry', 'faith', 'decorations', 'military',
 ]);
-assert.deepEqual(categoryKeys('civic'), ['residences', 'well', 'stable', 'founders_camp', 'town_hall']);
+assert.deepEqual(categoryKeys('civic'), ['residences', 'well', 'stable', 'kennel', 'founders_camp', 'town_hall']);
 assert.deepEqual(categoryKeys('trade'), ['marketplace', 'trading_post', 'village_storehouse', 'granary']);
 assert.deepEqual(categoryKeys('gathering'), [
   'lumber_mill', 'woodcutters_lodge', 'reforester', 'stone_quarry', 'large_quarry', 'mine', 'hunters_hall', 'foragers_shed', 'fishing_camp',

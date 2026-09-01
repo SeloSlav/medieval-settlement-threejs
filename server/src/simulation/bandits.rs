@@ -183,6 +183,34 @@ fn spawn_camp_defenders(ctx: &ReducerContext, camp: &BanditCamp, tick: u64) {
     }
 }
 
+/// Places an extra active camp at an exact development-menu map position.
+/// It intentionally sits outside the configured ambient camp count so it can
+/// be used repeatedly for combat and pathing playtests.
+pub fn spawn_debug_bandit_camp(
+    ctx: &ReducerContext,
+    owner: Identity,
+    tick: u64,
+    x: f64,
+    z: f64,
+) -> u64 {
+    let camp = ctx.db.bandit_camp().insert(BanditCamp {
+        id: 0,
+        owner,
+        x,
+        z,
+        health: 180.0,
+        max_health: 180.0,
+        active: true,
+        inventory_json: "[]".into(),
+        spawned_tick: tick,
+        next_theft_tick: tick.saturating_add(day_ticks().saturating_mul(2)),
+        last_theft_tick: 0,
+        destroyed_tick: 0,
+    });
+    spawn_camp_defenders(ctx, &camp, tick);
+    camp.id
+}
+
 fn camp_respawn_ready(tick: u64, destroyed_tick: u64) -> bool {
     destroyed_tick == 0
         || tick >= destroyed_tick.saturating_add(day_ticks().saturating_mul(CAMP_RESPAWN_DAYS))
