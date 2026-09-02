@@ -5742,7 +5742,7 @@ fn request_connected_commodity_with_source_availability(
                 .db
                 .military_company()
                 .iter()
-                .any(|company| company.state == 0 && company.source_building_id == target.id))
+                .any(|company| company.state < 2 && company.source_building_id == target.id))
         || labor_and_logistics_paused(ctx, tick, target.owner, clock)
         || !processor_requests_input(target, commodity)
         || !processor_accepts_input(target, commodity)

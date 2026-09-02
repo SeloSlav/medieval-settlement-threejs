@@ -24,6 +24,7 @@ type Options = {
   terrainProjector: TerrainProjector;
   parent: THREE.Group;
   getHeightAt: (x: number, z: number) => number;
+  getAgentPosition?: (id: string) => Readonly<{ x: number; z: number }> | null;
   getZoomPercent?: () => number;
   isBlocked: () => boolean;
   onCommand: (
@@ -48,36 +49,19 @@ type CompanyVisual = {
   agents: CombatAgentState[];
   x: number;
   z: number;
-  radius: number;
   controllable: boolean;
   moving: boolean;
 };
 
-type CompanySelectionRing = {
-  mesh: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
-  radius: number;
+type UnitSelectionRing = {
+  mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+  agent: CombatAgentState;
 };
 
-const MIN_COMPANY_SELECTION_RADIUS = 1.7;
-const MAX_COMPANY_SELECTION_RADIUS = 8;
-const COMPANY_SELECTION_RING_WIDTH = 0.18;
-
-/** A tactical selection affordance, not a live bounding circle. Deriving this
- * from the logical formation keeps casualties and distant melee stragglers
- * from stretching the marker across the battlefield. */
-export function companySelectionFootprintRadius(memberCount: number): number {
-  const count = Math.max(1, Math.floor(memberCount));
-  const columns = count <= 4 ? 2 : 4;
-  const rows = Math.ceil(count / columns);
-  const occupiedColumns = Math.min(count, columns);
-  const halfWidth = Math.max(0, occupiedColumns - 1) * 1.34 * 0.5 + 0.18;
-  const halfDepth = Math.max(0, rows - 1) * 1.28 * 0.5;
-  return THREE.MathUtils.clamp(
-    Math.hypot(halfWidth, halfDepth) + 0.9,
-    MIN_COMPANY_SELECTION_RADIUS,
-    MAX_COMPANY_SELECTION_RADIUS,
-  );
-}
+const UNIT_SELECTION_RING_RADIUS = 0.56;
+const MOUNTED_SELECTION_RING_RADIUS = 1.05;
+const UNIT_SELECTION_RING_WIDTH = 0.065;
+const UNIT_SELECTION_RING_LIFT = 0.025;
 
 /** The player-facing RTS unit is a whole company. Individual agents remain
  * canonical for identity, casualties, kit, and formation spacing, but
@@ -88,7 +72,18 @@ export class MilitiaCommandController {
   private readonly selected = new Set<string>();
   private readonly overlay = document.createElement('div');
   private readonly ringRoot = new THREE.Group();
-  private readonly rings = new Map<string, CompanySelectionRing>();
+  private readonly rings = new Map<string, UnitSelectionRing>();
+  private readonly ringMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.96,
+    toneMapped: false,
+    depthWrite: false,
+    depthTest: true,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
+  });
   private readonly hostilePositions: { id: string; x: number; z: number }[] = [];
   private dragStart: { x: number; y: number } | null = null;
   private readonly rightClick: SecondaryClickGesture;
@@ -134,6 +129,7 @@ export class MilitiaCommandController {
   update(timeMs: number, crowdView?: CrowdViewState): void {
     this.orderFeedback.update(timeMs);
     this.strategicIcons.update(timeMs, crowdView);
+    for (const ring of this.rings.values()) this.updateRingPosition(ring);
   }
 
   orderFeedbackDiagnostics(timeMs = this.now()): MilitaryOrderFeedbackDiagnostics {
@@ -175,7 +171,6 @@ export class MilitiaCommandController {
       members.sort((left, right) => left.id.localeCompare(right.id, undefined, { numeric: true }));
       const x = members.reduce((sum, member) => sum + member.x, 0) / members.length;
       const z = members.reduce((sum, member) => sum + member.z, 0) / members.length;
-      const radius = companySelectionFootprintRadius(members.length);
       const controllable = members.some((member) => member.status !== 'returning');
       const moving = members.some((member) => (
         member.status === 'advancing'
@@ -185,7 +180,7 @@ export class MilitiaCommandController {
       ));
       const kind = militaryCompanyKindForAgents(members);
       if (!kind) continue;
-      this.companies.set(id, { id, kind, agents: members, x, z, radius, controllable, moving });
+      this.companies.set(id, { id, kind, agents: members, x, z, controllable, moving });
     }
     for (const camp of camps.values()) if (camp.active) this.camps.set(camp.id, camp);
     for (const id of [...this.selected]) if (!this.companies.has(id)) this.selected.delete(id);
@@ -231,9 +226,9 @@ export class MilitiaCommandController {
     this.ringRoot.removeFromParent();
     for (const ring of this.rings.values()) {
       ring.mesh.geometry.dispose();
-      ring.mesh.material.dispose();
     }
     this.rings.clear();
+    this.ringMaterial.dispose();
   }
 
   private readonly onMouseDown = (event: MouseEvent): void => {
@@ -388,47 +383,65 @@ export class MilitiaCommandController {
     for (const id of this.selected) {
       const company = this.companies.get(id);
       if (!company) continue;
-      visible.add(id);
-      let pooled = this.rings.get(id);
-      if (!pooled) {
-        const ring = new THREE.Mesh(
-          companySelectionRingGeometry(company.radius),
-          new THREE.MeshBasicMaterial({
-            color: 0xe1b538,
-            transparent: true,
-            opacity: 0.78,
-            depthWrite: false,
-            depthTest: true,
-            polygonOffset: true,
-            polygonOffsetFactor: -1,
-            polygonOffsetUnits: -1,
-          }),
-        );
-        ring.rotation.x = -Math.PI / 2;
-        ring.renderOrder = 8;
-        pooled = { mesh: ring, radius: company.radius };
-        this.rings.set(id, pooled);
-        this.ringRoot.add(ring);
-      } else if (Math.abs(pooled.radius - company.radius) > 0.001) {
-        const previous = pooled.mesh.geometry;
-        pooled.mesh.geometry = companySelectionRingGeometry(company.radius);
-        pooled.radius = company.radius;
-        previous.dispose();
+      for (const agent of company.agents) {
+        visible.add(agent.id);
+        let ring = this.rings.get(agent.id);
+        if (!ring) {
+          const mesh = new THREE.Mesh(unitSelectionRingGeometry(agent), this.ringMaterial);
+          mesh.name = `Military unit selection ring: ${agent.id}`;
+          mesh.renderOrder = 8;
+          ring = { mesh, agent };
+          this.rings.set(agent.id, ring);
+          this.ringRoot.add(mesh);
+        }
+        ring.agent = agent;
+        this.updateRingPosition(ring, true);
       }
-      const ring = pooled.mesh;
-      ring.position.set(company.x, this.options.getHeightAt(company.x, company.z) + 0.06, company.z);
-      ring.visible = true;
     }
-    for (const [id, ring] of this.rings) if (!visible.has(id)) ring.mesh.visible = false;
+    for (const [id, ring] of this.rings) {
+      if (visible.has(id)) continue;
+      ring.mesh.removeFromParent();
+      ring.mesh.geometry.dispose();
+      this.rings.delete(id);
+    }
+  }
+
+  private updateRingPosition(ring: UnitSelectionRing, force = false): void {
+    const { x, z } = this.options.getAgentPosition?.(ring.agent.id) ?? ring.agent;
+    const mesh = ring.mesh;
+    if (!force && mesh.position.x === x && mesh.position.z === z) return;
+    const groundY = this.options.getHeightAt(x, z);
+    mesh.position.set(x, groundY, z);
+    const position = mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
+    // Keep the annulus in the ground's XZ plane and drape both edges over the
+    // surface. Ordinary depth testing lets bodies and nearer terrain occlude it.
+    for (let vertex = 0; vertex < position.count; vertex += 1) {
+      position.setY(vertex, this.options.getHeightAt(
+        x + position.getX(vertex),
+        z + position.getZ(vertex),
+      ) + UNIT_SELECTION_RING_LIFT - groundY);
+    }
+    position.needsUpdate = true;
+    mesh.geometry.computeBoundingSphere();
   }
 }
 
-function companySelectionRingGeometry(radius: number): THREE.RingGeometry {
-  return new THREE.RingGeometry(
-    Math.max(0.05, radius - COMPANY_SELECTION_RING_WIDTH),
+function unitSelectionRingGeometry(agent: CombatAgentState): THREE.BufferGeometry {
+  const mounted = agent.faction === 'hussar'
+    || agent.faction === 'armored-lancer'
+    || agent.faction === 'mounted-archer';
+  const radius = mounted ? MOUNTED_SELECTION_RING_RADIUS : UNIT_SELECTION_RING_RADIUS;
+  const ring = new THREE.RingGeometry(
+    radius - UNIT_SELECTION_RING_WIDTH,
     radius,
-    64,
+    48,
   );
+  ring.rotateX(-Math.PI / 2);
+  // Dynamic overlays use a stable non-indexed buffer on both render backends.
+  const geometry = ring.toNonIndexed();
+  ring.dispose();
+  (geometry.getAttribute('position') as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage);
+  return geometry;
 }
 
 function projectedCombatantHitDistance(

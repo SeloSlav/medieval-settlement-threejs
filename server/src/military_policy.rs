@@ -626,6 +626,16 @@ pub fn military_stance_available(kind: MilitaryKind, stance: u8) -> bool {
 /// efficiently along narrow roads.
 pub fn formation_offset(formation: u8, index: u32, count: u32) -> (f64, f64) {
     let count = count.max(1);
+    let local = uncentered_formation_offset(formation, index, count);
+    let center = (0..count).fold((0.0, 0.0), |center, slot| {
+        let offset = uncentered_formation_offset(formation, slot, count);
+        (center.0 + offset.0, center.1 + offset.1)
+    });
+    (local.0 - center.0 / count as f64, local.1 - center.1 / count as f64)
+}
+
+fn uncentered_formation_offset(formation: u8, index: u32, count: u32) -> (f64, f64) {
+    let count = count.max(1);
     match formation {
         MILITARY_FORMATION_COLUMN => (0.0, index as f64 * -1.35),
         MILITARY_FORMATION_SHIELD_WALL => {

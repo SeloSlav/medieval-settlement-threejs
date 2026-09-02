@@ -1462,7 +1462,8 @@ export async function bootstrapAppSession(
     camera: sceneManager.camera,
     terrainProjector: sceneManager.terrainProjector,
     parent: sceneManager.selectionGroup,
-    getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
+    getHeightAt: (x, z) => sceneManager.terrain.getSurfaceHeightAt(x, z),
+    getAgentPosition: (id) => villagers.getCombatAgentPosition(id),
     getZoomPercent: () => cameraController.getZoomPercent(),
     isBlocked: () => isWorldInspectionBlocked(placementGate),
     onCommand: (ids, x, z, campId, targetAgentId, order) => {

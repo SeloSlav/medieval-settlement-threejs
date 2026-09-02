@@ -1,5 +1,31 @@
 import * as THREE from 'three';
 
+/** Height on the rendered a-c-b / b-c-d triangles, for surface decals. */
+export function sampleTerrainMeshSurfaceHeight(
+  geometry: THREE.BufferGeometry,
+  x: number,
+  z: number,
+  resolution: number,
+  size: number,
+): number {
+  const positions = geometry.getAttribute('position') as THREE.BufferAttribute;
+  const step = size / (resolution - 1);
+  const gridX = THREE.MathUtils.clamp((x + size * 0.5) / step, 0, resolution - 1);
+  const gridZ = THREE.MathUtils.clamp((z + size * 0.5) / step, 0, resolution - 1);
+  const x0 = Math.min(Math.floor(gridX), resolution - 2);
+  const z0 = Math.min(Math.floor(gridZ), resolution - 2);
+  const tx = gridX - x0;
+  const tz = gridZ - z0;
+  const h10 = readVertexY(positions, resolution, x0 + 1, z0);
+  const h01 = readVertexY(positions, resolution, x0, z0 + 1);
+  if (tx + tz <= 1) {
+    const h00 = readVertexY(positions, resolution, x0, z0);
+    return h00 + tx * (h10 - h00) + tz * (h01 - h00);
+  }
+  const h11 = readVertexY(positions, resolution, x0 + 1, z0 + 1);
+  return h11 + (1 - tx) * (h01 - h11) + (1 - tz) * (h10 - h11);
+}
+
 export function sampleTerrainMeshHeight(
   geometry: THREE.BufferGeometry,
   x: number,

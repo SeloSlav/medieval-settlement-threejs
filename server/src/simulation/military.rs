@@ -58,6 +58,7 @@ const DOWNED: u8 = 5;
 const MUSTERING: u8 = 8;
 const HOLDING: u8 = 9;
 const ARRIVAL_DISTANCE: f64 = 2.3;
+const FORMATION_ARRIVAL_DISTANCE: f64 = 0.18;
 const DOWNED_LINGER_SECONDS: f64 = 7.0;
 
 thread_local! {
@@ -700,7 +701,7 @@ fn step_active_member(
         agent.target_kind = 6;
         agent.target_id = 0;
         let remaining = distance(agent.x, agent.z, order.destination_x, order.destination_z);
-        if remaining > ARRIVAL_DISTANCE {
+        if remaining > FORMATION_ARRIVAL_DISTANCE {
             let profile = member_combat_profile(kind, member_seed(&member));
             let run_scale = if remaining > 14.0 && company.fatigue < 0.82 {
                 1.45

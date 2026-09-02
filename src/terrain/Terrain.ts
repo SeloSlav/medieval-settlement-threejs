@@ -4,6 +4,7 @@ import type { QuarryLayout } from '../quarries/QuarryLayout.ts';
 import {
   sampleTerrainMeshAttributeX,
   sampleTerrainMeshHeight,
+  sampleTerrainMeshSurfaceHeight,
 } from './TerrainMeshHeight.ts';
 import type { WorldDimensions } from '../world/worldGenerationSettings.ts';
 import { resolveWorldDimensions } from '../world/worldGenerationSettings.ts';
@@ -77,6 +78,10 @@ export class Terrain {
 
   getHeightAt(x: number, z: number): number {
     return sampleTerrainMeshHeight(this.mesh.geometry, x, z, this.resolution, this.size);
+  }
+
+  getSurfaceHeightAt(x: number, z: number): number {
+    return sampleTerrainMeshSurfaceHeight(this.mesh.geometry, x, z, this.resolution, this.size);
   }
 
   /** Samples the same baked woodland mask used by terrain shading and groundcover. */

@@ -954,9 +954,6 @@ export class App {
       renderCameraInteractionActive = this.cameraController?.isNavigationActive() ?? false;
     }
     const crowdView = this.buildCrowdViewState();
-    // Project company markers after the active camera has settled and use the
-    // exact crowd visibility envelope that owns authored soldier submission.
-    this.militiaCommands?.update(time, crowdView);
     if (this.snapshotApplierDeps) {
       tickSettlementWorld(
         this.snapshotApplierDeps.settlementWorld,
@@ -967,6 +964,9 @@ export class App {
         this.villagers?.getActiveLoggingDisturbances(),
       );
     }
+    // Use the settled camera and this frame's interpolated soldier positions
+    // for strategic markers and terrain-following individual selection rings.
+    this.militiaCommands?.update(time, crowdView);
     // Render only after every agent renderer has committed its interpolated
     // transform and skinning palette. The directional shadow pass consumes the
     // same frame state as the color pass instead of trailing by one update.

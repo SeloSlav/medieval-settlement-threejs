@@ -1718,6 +1718,11 @@ export class VillagerRenderer {
     return this.oxen.pickOx(clientX, clientY, camera, domElement);
   }
 
+  /** Final interpolated ground position shared by soldier selection rings. */
+  getCombatAgentPosition(id: string): Readonly<{ x: number; z: number }> | null {
+    return this.renderAgentsById.get(`combat:${id}`) ?? null;
+  }
+
   inspectOx(oxId: string): OxInspection | null {
     return this.oxen.inspectOx(oxId);
   }

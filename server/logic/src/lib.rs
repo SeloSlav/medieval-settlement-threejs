@@ -19,6 +19,9 @@ pub mod chapel_parish_policy;
 #[path = "../../src/civilian_tool_policy.rs"]
 pub mod civilian_tool_policy;
 
+#[path = "../../src/combat_navigation.rs"]
+pub mod combat_navigation;
+
 #[path = "../../src/civic_receipts_policy.rs"]
 pub mod civic_receipts_policy;
 

@@ -1639,8 +1639,8 @@ export class SettlementHud {
       projectedTargets,
       'Ordinary scout reports are uncertain, with larger parties easier to notice. A staffed watchtower reliably reports only an approach lane inside its effective sight radius.',
       'One watchman provides 78% of a tower’s full sight radius; two provide full coverage. Towers farther toward the correct map edge report earlier, while towers on another side provide no warning for this raid.',
-      'Each armed company reinforces only its nearest road-linked staffed tower. Short routes give a full muster; long, soft, or missing routes weaken that watch district.',
-      'Unlinked armed companies still materialize at their guardhouse and immediately head cross-country for the nearest attacked holding. They are not credited to a specific watch-district forecast; linked roads remain the faster coordinated response.',
+      'District forecasts account for recruited companies and their road access to staffed towers.',
+      'Command recruited companies in the field to meet an attack; buildings do not create extra defenders when the alarm sounds.',
       'Incursions strike the richest exposed holdings first; watched holdings remain vulnerable if the guard muster is insufficient.',
       formatRaidReport(security),
     ].filter(Boolean).join(' · ');

@@ -710,6 +710,7 @@ for (const view of views) {
 render();
 await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 render();
+await rendererBackend.waitForSubmittedWork();
 window.__BUILDING_LINEUP_READY__ = true;
 window.__BUILDING_LINEUP_METRICS__ = {
   seed: selectedKinds.length === 1

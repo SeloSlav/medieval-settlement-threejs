@@ -1643,7 +1643,7 @@ assert.match(refugeInspector, /building inventories, loaded carts, and Town Hall
 assert.match(townHallInspector, /Civilian refuge capacity/);
 assert.match(townHallInspector, /computeRefugeShelterPlan/);
 assert.match(townHallInspector, /still deploy cross-country/);
-assert.match(settlementHud, /Unlinked armed companies still materialize/);
+assert.match(settlementHud, /Command recruited companies in the field/);
 assert.match(clientSecurity, /no loss was resolved off-map/);
 assert.doesNotMatch(clientSecurity, /Watch bells scattered the raiders/);
 assert.match(frontierMarkers, /InstancedMesh/);

@@ -13,6 +13,7 @@ mod chapel_parish_policy;
 mod chapel_upgrade_policy;
 mod civic_receipts_policy;
 mod civilian_tool_policy;
+mod combat_navigation;
 mod constants;
 mod construction_priority;
 mod db;
