@@ -634,6 +634,14 @@ pub fn fatigue_effectiveness(fatigue: f64) -> f64 {
     (1.0 - fatigue.clamp(0.0, 1.0)).max(0.05)
 }
 
+pub fn militia_muster_size(requested: u32, available_men: u32, polearms: u32) -> u32 {
+    requested.min(available_men).min(polearms)
+}
+
+pub fn optional_militia_armor(tier: u8, padded: u32, mail: u32) -> u8 {
+    if tier >= 3 && mail > 0 { 2 } else if tier >= 2 && padded > 0 { 1 } else { 0 }
+}
+
 pub fn ordered_run_multiplier(running: bool, fatigue: f64) -> f64 {
     if running && fatigue < 0.95 { 1.45 } else { 1.0 }
 }
@@ -663,6 +671,19 @@ pub fn shot_lane_intersection(sx: f64, sz: f64, tx: f64, tz: f64, x: f64, z: f64
 
 pub fn bracing_cancels_charge(kind: MilitaryKind, formation: u8, stationary: bool, frontal: bool) -> bool {
     kind.can_brace() && formation == MILITARY_FORMATION_BRACE && stationary && frontal
+}
+
+pub fn missile_evasion_chance(formation: u8, stance: u8) -> f64 {
+    let base = if formation == MILITARY_FORMATION_LOOSE { 0.25 } else { 0.10 };
+    base * if stance == MILITARY_STANCE_MISSILE_ALERT { 2.0 } else { 1.0 }
+}
+
+pub fn missile_is_evaded(formation: u8, stance: u8, attacker: u64, defender: u64, tick: u64) -> bool {
+    let mut seed = attacker.wrapping_mul(0x9e3779b97f4a7c15) ^ defender.rotate_left(23) ^ tick.wrapping_mul(0xbf58476d1ce4e5b9);
+    seed ^= seed >> 30;
+    seed = seed.wrapping_mul(0xbf58476d1ce4e5b9);
+    seed ^= seed >> 27;
+    (seed >> 11) as f64 / ((1_u64 << 53) as f64) < missile_evasion_chance(formation, stance)
 }
 
 pub fn deployed_formation_offset(kind: MilitaryKind, formation: u8, columns: u32, index: u32, count: u32) -> (f64, f64) {
@@ -827,7 +848,7 @@ pub fn stance_damage_taken_multiplier(stance: u8, incoming_ranged: bool) -> f64 
         MILITARY_STANCE_STAND_GROUND => 0.5,
         MILITARY_STANCE_PUSH_FORWARD => 1.08,
         MILITARY_STANCE_GIVE_GROUND => 0.92,
-        MILITARY_STANCE_MISSILE_ALERT if incoming_ranged => 0.5,
+        MILITARY_STANCE_MISSILE_ALERT if incoming_ranged => 1.0,
         MILITARY_STANCE_MISSILE_ALERT => 2.0,
         _ => 1.0,
     }
@@ -915,7 +936,7 @@ pub fn incoming_company_damage_multiplier(
         1.0
     };
     let spacing_multiplier = if defense.formation == MILITARY_FORMATION_LOOSE {
-        if attack.ranged { 0.82 } else { 1.12 }
+        if attack.ranged { 1.0 } else { 1.12 }
     } else {
         1.0
     };
@@ -1174,7 +1195,8 @@ mod tests {
         );
         assert!(braced < moving);
         assert_eq!(moving, ordinary);
-        assert!(rear > ordinary);
+        assert_eq!(rear, ordinary); // Rear damage is separate from armor and bracing.
+        assert!(is_rear_attack(0.0, 1.0, 0.0, 0.0, 0.0, -5.0));
         assert!(military_formation_available(MilitaryKind::Polearms, MILITARY_FORMATION_BRACE));
     }
 
@@ -1199,8 +1221,8 @@ mod tests {
         assert_eq!(incoming_company_damage_multiplier(defense, rear),
             incoming_company_damage_multiplier(line, rear));
         let loose = CompanyDefense { formation: MILITARY_FORMATION_LOOSE, ..defense };
-        assert!(incoming_company_damage_multiplier(loose, attack)
-            < incoming_company_damage_multiplier(line, attack));
+        assert!(missile_evasion_chance(loose.formation, loose.stance)
+            > missile_evasion_chance(line.formation, line.stance));
         let melee = IncomingMilitaryAttack { ranged: false, ..attack };
         assert!(incoming_company_damage_multiplier(loose, melee)
             > incoming_company_damage_multiplier(line, melee));
@@ -1239,12 +1261,83 @@ mod tests {
         assert!(stance_damage_multiplier(MILITARY_STANCE_PUSH_FORWARD) > 1.0);
         assert!(stance_fatigue_multiplier(MILITARY_STANCE_PUSH_FORWARD) > 1.0);
         assert!(
-            stance_damage_taken_multiplier(MILITARY_STANCE_MISSILE_ALERT, true)
-                < stance_damage_taken_multiplier(MILITARY_STANCE_BALANCED, true)
+            missile_evasion_chance(MILITARY_FORMATION_LINE, MILITARY_STANCE_MISSILE_ALERT)
+                > missile_evasion_chance(MILITARY_FORMATION_LINE, MILITARY_STANCE_BALANCED)
         );
         assert!(
             stance_damage_taken_multiplier(MILITARY_STANCE_MISSILE_ALERT, false)
                 > stance_damage_taken_multiplier(MILITARY_STANCE_BALANCED, false)
         );
+    }
+
+    #[test]
+    fn pace_exhaustion_and_equipment_change_real_exertion() {
+        assert_eq!(ordered_run_multiplier(false, 0.0), 1.0);
+        assert!(ordered_run_multiplier(true, 0.2) > 1.0);
+        assert_eq!(ordered_run_multiplier(true, 1.0), 1.0);
+        assert_eq!(fatigue_effectiveness(0.5), 0.5);
+        assert!(equipment_exertion_multiplier(15.0, 8.0) > equipment_exertion_multiplier(2.0, 0.0));
+    }
+
+    #[test]
+    fn front_flank_and_rear_are_distinct_in_every_orientation() {
+        for (fx,fz) in [(0.0,1.0),(1.0,0.0),(0.0,-1.0),(-1.0,0.0)] {
+            assert!(is_front_attack(fx,fz,0.0,0.0,fx*10.0,fz*10.0));
+            assert!(is_rear_attack(fx,fz,0.0,0.0,-fx*10.0,-fz*10.0));
+            assert!(!is_rear_attack(fx,fz,0.0,0.0,fz*10.0,-fx*10.0));
+            assert!(!is_front_attack(fx,fz,0.0,0.0,fz*10.0,-fx*10.0));
+        }
+    }
+
+    #[test]
+    fn bracing_cancels_only_stationary_frontal_interceptions() {
+        for kind in [MilitaryKind::Spearmen, MilitaryKind::Polearms, MilitaryKind::MercenarySpears] {
+            assert!(bracing_cancels_charge(kind, MILITARY_FORMATION_BRACE, true, true));
+            assert!(!bracing_cancels_charge(kind, MILITARY_FORMATION_BRACE, false, true));
+            assert!(!bracing_cancels_charge(kind, MILITARY_FORMATION_BRACE, true, false));
+            assert!(!bracing_cancels_charge(kind, MILITARY_FORMATION_LINE, true, true));
+        }
+    }
+
+    #[test]
+    fn arrow_lane_is_finite_and_allows_clear_shots() {
+        assert_eq!(shot_lane_intersection(0.0,0.0,0.0,20.0,0.0,10.0), Some(0.5));
+        for (x,z) in [(0.0,-5.0),(0.0,25.0),(2.0,10.0),(0.0,0.0)] {
+            assert_eq!(shot_lane_intersection(0.0,0.0,0.0,20.0,x,z), None);
+        }
+    }
+
+    #[test]
+    fn missile_alert_doubles_evasion_and_stand_ground_trades_attack_speed() {
+        for formation in [MILITARY_FORMATION_LINE, MILITARY_FORMATION_LOOSE] {
+            assert_eq!(missile_evasion_chance(formation, MILITARY_STANCE_MISSILE_ALERT), 2.0 * missile_evasion_chance(formation, MILITARY_STANCE_BALANCED));
+            let normal = (0..10000).filter(|t| missile_is_evaded(formation, 0, 17, 32, *t)).count();
+            let alert = (0..10000).filter(|t| missile_is_evaded(formation, 4, 17, 32, *t)).count();
+            assert!(alert > normal * 18 / 10 && alert < normal * 22 / 10);
+        }
+        assert_eq!(stance_damage_taken_multiplier(MILITARY_STANCE_STAND_GROUND, false), 0.5);
+        assert_eq!(stance_attack_interval_multiplier(MILITARY_STANCE_STAND_GROUND), 2.0);
+        assert_eq!(stance_damage_taken_multiplier(MILITARY_STANCE_MISSILE_ALERT, false), 2.0);
+        assert!(stance_morale_required(MILITARY_STANCE_PUSH_FORWARD) > stance_morale_required(MILITARY_STANCE_BALANCED));
+    }
+
+    #[test]
+    fn slope_favors_downhill_and_bounds_extremes() {
+        assert!(slope_effectiveness(10.0,0.0,40.0) > 1.0);
+        assert!(slope_effectiveness(0.0,10.0,40.0) < 1.0);
+        assert_eq!(slope_effectiveness(10.0,10.0,40.0), 1.0);
+        assert!(slope_effectiveness(0.0,10000.0,0.0) > 0.0);
+    }
+
+    #[test]
+    fn militia_can_muster_short_without_optional_armor() {
+        assert_eq!(militia_muster_size(5,3,8), 3);
+        assert_eq!(militia_muster_size(5,8,2), 2);
+        assert_eq!(militia_muster_size(5,8,0), 0);
+        assert_eq!(optional_militia_armor(1,9,9), 0);
+        assert_eq!(optional_militia_armor(2,9,9), 1);
+        assert_eq!(optional_militia_armor(3,9,9), 2);
+        assert_eq!(optional_militia_armor(3,1,0), 1);
+        assert_eq!(optional_militia_armor(3,0,0), 0);
     }
 }

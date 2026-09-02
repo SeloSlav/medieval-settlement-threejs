@@ -28,6 +28,7 @@
       companies = Array.from({ length: count }, (_, i) => ({
         id: String(i + 1), kind: kinds[i % kinds.length], sourceBuildingId: 'guardhouse-1',
         status: 'active', departureRequested: false, formation: 'line', stance: 'balanced',
+        formationColumns: 0, running: false, fireAtWill: false,
         targetSize: 30, livingMembers: i === 1 ? 24 : 30, morale: 1, cohesion: 1,
         fatigue: [0.1, 0.65, 0.25, 0.45, 0.1, 0.3][i % 6], provisionDays: 2,
         horseOats: 0, horseWater: 0, ammunition: 12, ammunitionCapacity: 30,
@@ -53,6 +54,8 @@
         for (const c of companies.filter(c => ids.includes(c.id))) {
           if (order.kind === 'formation') c.formation = MILITARY_FORMATIONS[order.value];
           if (order.kind === 'stance') c.stance = MILITARY_STANCES[order.value];
+          if (order.kind === 'running') c.running = order.value === 1;
+          if (order.kind === 'fire-at-will') c.fireAtWill = order.value === 1;
           if (order.kind === 'reinforce') c.livingMembers = c.targetSize;
           if (order.kind === 'disband') c.status = 'disbanding';
         }

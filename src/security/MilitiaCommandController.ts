@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { militaryDeploymentFromDrag, type MilitaryDeployment } from './militaryDeployment.ts';
 import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import {
   selectablePlayerMilitaryCompanyId,
@@ -34,6 +35,7 @@ type Options = {
     campId: string | null,
     targetAgentId: string | null,
     order: 'move' | 'attack',
+    deployment?: MilitaryDeployment,
   ) => void;
   onCompanySelected?: (companyId: string | null) => void;
   onLeavingCompanySelected?: (companyId: string) => void;
@@ -72,6 +74,7 @@ export class MilitiaCommandController {
   private readonly selected = new Set<string>();
   private readonly overlay = document.createElement('div');
   private readonly ringRoot = new THREE.Group();
+  private readonly formationPreview = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffe0a0, depthTest: false, transparent: true, opacity: 0.85 }));
   private readonly rings = new Map<string, UnitSelectionRing>();
   private readonly ringMaterial = new THREE.MeshBasicMaterial({
     color: 0xffffff,
@@ -103,6 +106,8 @@ export class MilitiaCommandController {
     options.uiRoot.append(this.overlay);
     this.ringRoot.name = 'Military company selection rings';
     options.parent.add(this.ringRoot);
+    this.formationPreview.visible = false;
+    options.parent.add(this.formationPreview);
     this.orderFeedback = new MilitaryOrderFeedbackRenderer(options.parent);
     this.strategicIcons = new MilitaryCompanyStrategicOverlay({
       uiRoot: options.uiRoot,
@@ -114,7 +119,12 @@ export class MilitiaCommandController {
       onSelect: this.selectCompany,
       onHostileFocus: (marker) => options.onHostileFocus?.(marker.x, marker.z),
     });
-    this.rightClick = new SecondaryClickGesture({ onClick: this.issueOrder });
+    this.rightClick = new SecondaryClickGesture({
+      onClick: this.issueOrder,
+      onDrag: (x, y, event) => this.dragFormation(x, y, event, true),
+      onDragMove: (x, y, event) => this.dragFormation(x, y, event, false),
+      onCancel: () => { this.formationPreview.visible = false; },
+    });
     options.domElement.addEventListener('mousedown', this.onMouseDown);
     window.addEventListener('mousemove', this.onMouseMove);
     window.addEventListener('mouseup', this.onMouseUp);
@@ -138,6 +148,7 @@ export class MilitiaCommandController {
 
   clearSelection(notify = true): void {
     if (this.selected.size === 0) return;
+    this.rightClick.cancel();
     this.selected.clear();
     this.syncRings();
     this.strategicIcons.setSelected(null);
@@ -216,6 +227,9 @@ export class MilitiaCommandController {
   }
 
   dispose(): void {
+    this.formationPreview.removeFromParent();
+    this.formationPreview.geometry.dispose();
+    this.formationPreview.material.dispose();
     this.options.domElement.removeEventListener('mousedown', this.onMouseDown);
     window.removeEventListener('mousemove', this.onMouseMove);
     window.removeEventListener('mouseup', this.onMouseUp);
@@ -234,7 +248,7 @@ export class MilitiaCommandController {
   private readonly onMouseDown = (event: MouseEvent): void => {
     if (this.options.isBlocked() || this.companies.size === 0) return;
     if (event.button === 2) {
-      if (this.selected.size > 0) this.rightClick.begin(event);
+      if (this.selected.size > 0 && !event.altKey) this.rightClick.begin(event);
       return;
     }
     if (event.button !== 0 || event.target !== this.options.domElement) return;
@@ -309,6 +323,37 @@ export class MilitiaCommandController {
 
   getSelectedCompanyIds(): string[] {
     return [...this.selected];
+  }
+
+  shouldBlockCameraInput(event: MouseEvent): boolean {
+    return event.button === 2 && !event.altKey && this.selected.size > 0 && !this.options.isBlocked();
+  }
+
+  private dragFormation(x: number, y: number, event: MouseEvent, commit: boolean): void {
+    if (this.options.isBlocked() || !this.selected.size) { this.formationPreview.visible = false; return; }
+    // TerrainProjector returns reusable scratch storage: preserve the first hit.
+    const hit = this.options.terrainProjector.pick(x, y);
+    const start = hit ? { x: hit.x, z: hit.z } : null;
+    const end = this.options.terrainProjector.pick(event.clientX, event.clientY);
+    if (!start || !end) return;
+    const companies = [...this.selected].map(id => this.companies.get(id)).filter((c): c is CompanyVisual => !!c?.controllable);
+    if (!companies.length) return;
+    const source = { x: companies.reduce((sum, c) => sum + c.x, 0) / companies.length, z: companies.reduce((sum, c) => sum + c.z, 0) / companies.length };
+    const deployment = militaryDeploymentFromDrag(start, end, source);
+    if (!commit) {
+      const points = Array.from({ length: 25 }, (_, i) => {
+        const px = start.x + (end.x-start.x) * i/24;
+        const pz = start.z + (end.z-start.z) * i/24;
+        return new THREE.Vector3(px, this.options.getHeightAt(px,pz) + 0.12, pz);
+      });
+      this.formationPreview.geometry.dispose();
+      this.formationPreview.geometry = new THREE.BufferGeometry().setFromPoints(points);
+      this.formationPreview.visible = true;
+      return;
+    }
+    const witnesses = companies.map(c => c.agents.find(a => a.status !== 'downed')!.id);
+    this.commandHandler(witnesses, deployment.x, deployment.z, null, null, 'move', deployment);
+    this.orderFeedback.show(deployment.x, this.options.getHeightAt(deployment.x, deployment.z) + 0.055, deployment.z, 'move', this.now());
   }
 
   readonly selectCompany = (companyId: string): boolean => {

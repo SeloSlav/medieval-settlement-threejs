@@ -202,6 +202,9 @@ camera.updateMatrixWorld(true);
 camera.updateProjectionMatrix();
 
 let pickedPoint = { x: 12, z: -6 };
+let dragPicking = false;
+const dragHitScratch = new THREE.Vector3();
+const deployments: { facingX: number; facingZ: number; frontage: number }[] = [];
 let terrainHeight = (_x: number, _z: number): number => 2;
 const renderedPositions = new Map<string, { x: number; z: number }>();
 let nowMs = 4_000;
@@ -237,20 +240,23 @@ const controller = new MilitiaCommandController({
   uiRoot: uiRoot as unknown as HTMLElement,
   camera,
   terrainProjector: {
-    pick: () => ({ x: pickedPoint.x, y: 0, z: pickedPoint.z }),
+    pick: (x: number, y: number) => dragPicking ? dragHitScratch.set(x, 0, y) : ({ x: pickedPoint.x, y: 0, z: pickedPoint.z }),
   } as never,
   parent: scene,
   getHeightAt: (x, z) => terrainHeight(x, z),
   getAgentPosition: (id) => renderedPositions.get(id) ?? null,
   getZoomPercent: () => 100,
   isBlocked: () => false,
-  onCommand: (ids, x, z, campId, targetAgentId) => orders.push({
+  onCommand: (ids, x, z, campId, targetAgentId, _kind, deployment) => {
+    if (deployment) deployments.push(deployment);
+    orders.push({
     ids,
     x,
     z,
     campId,
     targetAgentId,
-  }),
+    });
+  },
   onCompanySelected: (companyId) => {
     selectedCompany = companyId;
     selectedCompanyChanges += 1;
@@ -402,13 +408,13 @@ assert.equal(controller.orderFeedbackDiagnostics().visible, true);
 
 pickedPoint = { x: -18, z: 9 };
 nowMs += 250;
-canvas.dispatch('mousedown', mouseEvent('mousedown', 2, 90, 90, 2, canvas));
+canvas.dispatch('mousedown', { ...mouseEvent('mousedown', 2, 90, 90, 2, canvas), altKey: true } as MouseEvent);
 window.dispatchEvent(mouseEvent('mousemove', 0, 102, 90, 2, canvas));
 window.dispatchEvent(mouseEvent('mouseup', 2, 102, 90, 0, canvas));
 assert.equal(
   orders.length,
   1,
-  'a right-button camera drag must never emit a destination order or marker',
+  'Alt plus right-drag pans without emitting a company order',
 );
 
 canvas.dispatch('mousedown', mouseEvent('mousedown', 2, 90, 90, 2, canvas));
@@ -450,6 +456,19 @@ assert.equal(
   'attack',
   'targeted bandit camps should use attack-order feedback',
 );
+
+dragPicking = true;
+const deploymentOrderCount = orders.length;
+assert.equal(controller.shouldBlockCameraInput(mouseEvent('mousedown', 2, 30, 40, 2, canvas)), true);
+assert.equal(controller.shouldBlockCameraInput({ ...mouseEvent('mousedown', 2, 30, 40, 2, canvas), altKey: true } as MouseEvent), false);
+canvas.dispatch('mousedown', mouseEvent('mousedown', 2, 30, 40, 2, canvas));
+window.dispatchEvent(mouseEvent('mousemove', 0, 50, 40, 2, canvas));
+assert.equal(deployments.length, 0, 'the formation preview must not issue orders before release');
+window.dispatchEvent(mouseEvent('mouseup', 2, 50, 40, 0, canvas));
+assert.equal(orders.length, deploymentOrderCount + 1);
+assert.deepEqual(deployments[0], { x: 40, z: 40, facingX: -0, facingZ: 1, frontage: 20 });
+assert.equal(orders.at(-1)?.x, 40, 'reused terrain-hit scratch must not collapse the drag to its endpoint');
+dragPicking = false;
 
 camera.position.set(4, 12, 18);
 camera.lookAt(4, 2, 0);

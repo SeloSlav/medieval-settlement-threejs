@@ -310,6 +310,7 @@ export async function bootstrapAppSession(
   };
 
   let cameraController: CameraController;
+  let militaryBlocksCameraInput = (_event: MouseEvent): boolean => false;
   let firstPersonController: FirstPersonController;
   let roadTool: RoadTool;
   let buildingTool: BuildingTool;
@@ -452,7 +453,8 @@ export async function bootstrapAppSession(
         ?? null;
     },
     shouldIgnoreInput: (event) =>
-      (roadTool?.shouldBlockCameraInput(event) ?? false)
+      militaryBlocksCameraInput(event)
+      || (roadTool?.shouldBlockCameraInput(event) ?? false)
       || (buildingTool?.shouldBlockCameraInput(event) ?? false)
       || (burgageTool?.shouldBlockCameraInput(event) ?? false)
       || (farmFieldTool?.shouldBlockCameraInput(event) ?? false)
@@ -1518,8 +1520,11 @@ export async function bootstrapAppSession(
     getAgentPosition: (id) => villagers.getCombatAgentPosition(id),
     getZoomPercent: () => cameraController.getZoomPercent(),
     isBlocked: () => isWorldInspectionBlocked(placementGate),
-    onCommand: (ids, x, z, campId, targetAgentId, order) => {
-      void spacetimeStore.commandMilitia(ids, x, z, campId, targetAgentId).then(() => {
+    onCommand: (ids, x, z, campId, targetAgentId, order, deployment) => {
+      const command = deployment
+        ? spacetimeStore.deployMilitaryFormation(ids, x, z, deployment.facingX, deployment.facingZ, deployment.frontage)
+        : spacetimeStore.commandMilitia(ids, x, z, campId, targetAgentId);
+      void command.then(() => {
         ambientAudio.playUiSound(
           order === 'attack' ? 'military_attack_order' : 'military_move_order',
         );
@@ -1554,6 +1559,7 @@ export async function bootstrapAppSession(
       );
     },
   });
+  militaryBlocksCameraInput = event => militiaCommands.shouldBlockCameraInput(event);
   const vineyardParcelMarkers = new VineyardParcelMarkers(
     sceneManager.selectionGroup,
     (x, z) => sceneManager.terrain.getHeightAt(x, z),

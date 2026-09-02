@@ -1,10 +1,10 @@
 import type { CombatAgentState } from '../security/combatAgents.ts';
 import { MILITARY_COMPANY_CARD_ART } from '../security/militaryCompanyCardArt.ts';
 import { MILITARY_COMPANY_STRATEGIC_ICON_ART } from '../security/militaryCompanyPresentation.ts';
-import { militaryCompanyDisplayName, type MilitaryCompanyState } from '../security/militaryProgression.ts';
+import { militaryCompanyDisplayName, militaryCompanyRankLabel, type MilitaryCompanyState } from '../security/militaryProgression.ts';
 import { AlertDialog } from './AlertDialog.ts';
 import {
-  militaryCompanyVitals, militaryOrderAvailable, renderMilitaryOrders,
+  militaryOrderAvailable, renderMilitaryOrders,
   type MilitaryOrder,
 } from './militaryMenuPresentation.ts';
 
@@ -14,7 +14,7 @@ export type MilitaryMenuHandlers = {
   onClose: () => void;
 };
 
-type CompanyCard = { button: HTMLButtonElement; count: HTMLElement; health: HTMLElement; fatigue: HTMLElement };
+type CompanyCard = { button: HTMLButtonElement; count: HTMLElement };
 
 export class MilitaryMenu {
   readonly element = document.createElement('section');
@@ -90,10 +90,9 @@ export class MilitaryMenu {
     if (card && this.isOpen) this.revealCard(card);
   }
 
-  sync(companies: Iterable<MilitaryCompanyState>, agents: Iterable<CombatAgentState>): void {
+  sync(companies: Iterable<MilitaryCompanyState>, _agents: Iterable<CombatAgentState>): void {
     this.companies = [...companies].filter((c) => c.status !== 'destroyed')
       .sort((a, b) => a.formedTick - b.formedTick || a.id.localeCompare(b.id, undefined, { numeric: true }));
-    const vitals = militaryCompanyVitals(agents);
     const live = new Set(this.companies.map((c) => c.id));
     for (const [id, card] of this.cards) {
       if (live.has(id)) continue;
@@ -108,21 +107,19 @@ export class MilitaryMenu {
         button.type = 'button';
         button.className = 'military-unit-card';
         button.dataset.militaryCompany = company.id;
-        button.innerHTML = `<span class="military-unit-card__frame"><img class="military-unit-card__art" src="${MILITARY_COMPANY_CARD_ART[company.kind]}" alt="" draggable="false"><span class="military-unit-card__type" style="background-image:url('${MILITARY_COMPANY_STRATEGIC_ICON_ART[company.kind]}')" aria-hidden="true"></span><span class="military-unit-card__count" data-count></span></span>
-          <span class="military-unit-card__meters"><span class="military-unit-card__meter" role="meter" aria-label="Health" aria-valuemin="0" aria-valuemax="100"><span data-health></span></span><span class="military-unit-card__meter military-unit-card__meter--fatigue" role="meter" aria-label="Fatigue" aria-valuemin="0" aria-valuemax="100"><span data-fatigue></span></span></span>`;
-        card = { button, count: button.querySelector('[data-count]')!, health: button.querySelector('[data-health]')!, fatigue: button.querySelector('[data-fatigue]')! };
+        button.innerHTML = `<span class="military-unit-card__frame"><img class="military-unit-card__art" src="${MILITARY_COMPANY_CARD_ART[company.kind]}" alt="" draggable="false"><span class="military-unit-card__type" style="background-image:url('${MILITARY_COMPANY_STRATEGIC_ICON_ART[company.kind]}')" aria-hidden="true"></span><span class="military-unit-card__count" data-count></span></span>`;
+        card = { button, count: button.querySelector('[data-count]')! };
         this.cards.set(company.id, card);
       }
       // Preserve nodes and focus during simulation ticks, including while scrolling.
       const position = this.cardsRoot.children[index];
       if (position !== card.button) this.cardsRoot.insertBefore(card.button, position ?? null);
       const name = militaryCompanyDisplayName(company);
-      card.button.dataset.tooltip = name;
+      const rank = militaryCompanyRankLabel(company);
+      card.button.dataset.tooltip = rank ? `${name} — ${rank}` : name;
       card.button.dataset.companyStatus = company.status;
       card.button.setAttribute('aria-label', `${name}, ${company.livingMembers}/${company.targetSize}, ${company.status}`);
       card.count.textContent = `${company.livingMembers}/${company.targetSize}`;
-      this.updateMeter(card.health, vitals.get(company.id)?.health ?? 0);
-      this.updateMeter(card.fatigue, company.fatigue);
     });
     this.empty.hidden = this.companies.length > 0;
     this.syncSelection();
@@ -134,12 +131,6 @@ export class MilitaryMenu {
     this.observer.disconnect();
     this.dialog.dispose();
     this.element.remove();
-  }
-
-  private updateMeter(fill: HTMLElement, value: number): void {
-    const percent = Math.round(Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0)) * 100);
-    fill.style.width = `${percent}%`;
-    fill.parentElement!.setAttribute('aria-valuenow', String(percent));
   }
 
   private syncSelection(): void {

@@ -1001,7 +1001,7 @@ fn recruit_resident_company(
     let target_size = size;
     let mut recruits = select_available_men(ctx, owner, source.settlement_id, size);
     let size = if kind == MilitaryKind::Militia {
-        size.min(recruits.len() as u32).min(aggregate_commodity_stock(ctx, owner, CommodityKind::Polearms).floor() as u32)
+        crate::military_policy::militia_muster_size(size, recruits.len() as u32, aggregate_commodity_stock(ctx, owner, CommodityKind::Polearms).floor() as u32)
     } else { size };
     if size == 0 { return Err("No available men with polearms can answer the muster.".into()); }
     recruits.truncate(size as usize);
@@ -1115,9 +1115,10 @@ fn recruit_resident_company(
             ),
             optional_armor: if kind == MilitaryKind::Militia {
                 let tier = ctx.db.residence().id().find(&recruit.residence_id).map_or(1, |r| r.tier);
-                if tier >= 3 && mail_available > 0 { mail_available -= 1; 2 }
-                else if tier >= 2 && padded_available > 0 { padded_available -= 1; 1 }
-                else { 0 }
+                let armor = crate::military_policy::optional_militia_armor(tier, padded_available, mail_available);
+                if armor == 2 { mail_available -= 1; }
+                if armor == 1 { padded_available -= 1; }
+                armor
             } else { 0 },
             phase,
             ammunition: 0,

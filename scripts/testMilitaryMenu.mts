@@ -27,7 +27,12 @@ assert.ok(militaryCompanyFocusZoom(0) <= 170, 'do not drop into the close ground
 
 const orders = renderMilitaryOrders([spear]);
 assert.match(orders, /data-formation-kind="brace"/);
-assert.match(orders, /aria-label="Line" data-tooltip="Line"/);
+assert.match(orders, /aria-label="Line" data-tooltip="Spreads the company across a broad front for a direct engagement\."/);
+assert.match(orders, /data-military-order="running"/);
+assert.doesNotMatch(orders, /data-military-order="fire-at-will"/);
+assert.match(renderMilitaryOrders([bow]), /data-military-order="fire-at-will"/);
+assert.equal(militaryOrderAvailable({ ...spear, fatigue: 1 }, { kind: 'running', value: 1 }), false);
+assert.equal(militaryOrderAvailable({ ...spear, morale: 0.2 }, { kind: 'stance', value: 2 }), false);
 assert.doesNotMatch(orders, /__label|formation-button__label|<small>/);
 assert.doesNotMatch(renderMilitaryOrders([spear, bow]), /data-formation-kind="brace"/);
 assert.equal(renderMilitaryOrders([]), '', 'there should be no command row or selection prompt before selecting a company');
@@ -40,6 +45,8 @@ assert.equal(militaryOrderAvailable({ ...spear, status: 'destroyed' }, { kind: '
 assert.equal(militaryOrderAvailable(companies[0]!, { kind: 'formation', value: 1 }), false, 'sandbox orders must never reach server reducers');
 
 const bootstrap = readFileSync('src/app/appBootstrap.ts', 'utf8');
+const menuSource = readFileSync('src/ui/MilitaryMenu.ts', 'utf8');
+assert.doesNotMatch(menuSource, /data-health|data-fatigue|role="meter"|aria-valuenow/, 'combat conditions remain implicit rather than numerical meters');
 assert.doesNotMatch(bootstrap, /resourceInspector\.selectMilitaryCompany/);
 assert.match(bootstrap, /onCompanySelected:[\s\S]*toolbar\.selectMilitaryCompanies\(\[companyId\]\)/);
 assert.match(bootstrap, /onSelectMilitaryCompany:[\s\S]*militiaCommands\.selectCompany\(companyId\)[\s\S]*focusWorldPositionAtZoom/);

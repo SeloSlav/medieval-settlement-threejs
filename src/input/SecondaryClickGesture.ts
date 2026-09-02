@@ -2,6 +2,9 @@ const DEFAULT_DRAG_THRESHOLD_PX = 5;
 
 type SecondaryClickGestureOptions = {
   onClick: (event: MouseEvent) => void;
+  onDrag?: (startX: number, startY: number, event: MouseEvent) => void;
+  onDragMove?: (startX: number, startY: number, event: MouseEvent) => void;
+  onCancel?: () => void;
   dragThresholdPx?: number;
 };
 
@@ -46,6 +49,7 @@ export class SecondaryClickGesture {
     window.removeEventListener('mousemove', this.onMouseMove);
     window.removeEventListener('mouseup', this.onMouseUp);
     window.removeEventListener('blur', this.onWindowBlur);
+    this.options.onCancel?.();
   }
 
   dispose(): void {
@@ -66,14 +70,18 @@ export class SecondaryClickGesture {
       return;
     }
     this.updateDragState(event.clientX, event.clientY);
+    if (this.dragged) this.options.onDragMove?.(this.startX, this.startY, event);
   };
 
   private readonly onMouseUp = (event: MouseEvent): void => {
     if (!this.tracking || event.button !== 2) return;
     this.updateDragState(event.clientX, event.clientY);
     const wasClick = !this.dragged;
+    const startX = this.startX;
+    const startY = this.startY;
     this.cancel();
     if (wasClick) this.options.onClick(event);
+    else this.options.onDrag?.(startX, startY, event);
   };
 
   private readonly onWindowBlur = (): void => {

@@ -85,7 +85,7 @@ assert.match(tables, /pub path_distance: f64,[\s\S]{0,80}pub route_polyline_json
 assert.match(reducers, /target_agent_id[\s\S]*selected hostile is no longer available/);
 assert.match(reducers, /let mut company_ids = BTreeSet::new\(\)[\s\S]*company_ids\.insert\(member\.company_id\)/);
 assert.match(military, /find\(&order\.target_agent_id\)/);
-assert.match(military, /formation_offset_for_kind[\s\S]*rotate_formation_offset/);
+assert.match(military, /deployed_formation_offset[\s\S]*rotate_formation_offset/);
 assert.match(military, /COMBAT_WADING_SPEED_MULTIPLIER[\s\S]*COMBAT_ROAD_SPEED_MULTIPLIER/);
 assert.match(military, /charged_into_contact[\s\S]*formation_charge_multiplier/);
 assert.match(military, /MILITARY_FORMATION_BRACE[\s\S]*is_front_attack/);

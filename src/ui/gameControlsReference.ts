@@ -48,6 +48,14 @@ export const GAME_CONTROL_SECTIONS: readonly GameControlSection[] = [
     ],
   },
   {
+    title: 'Company orders',
+    entries: [
+      { action: 'Move or attack', keys: 'Right-click' },
+      { action: 'Set formation frontage and depth', keys: 'Right-drag' },
+      { action: 'Pan with a company selected', keys: 'Alt + right-drag / WASD' },
+    ],
+  },
+  {
     title: 'Road placement',
     entries: [
       { action: 'Place point', keys: 'Left-click' },

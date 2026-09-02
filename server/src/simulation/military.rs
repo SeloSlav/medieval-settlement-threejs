@@ -841,7 +841,7 @@ fn step_active_member(
                 company.formation,
                 company.formation_columns,
                 agent.source_slot,
-                company.target_size.max(company.living_members).max(1),
+                company.living_members.max(1),
             );
             let offset = rotate_formation_offset(
                 local.0,
@@ -1659,6 +1659,8 @@ fn mitigate_player_damage(
     let attacker_kind = (0..=10).filter_map(MilitaryKind::from_id).find(|kind| kind.faction() == attacker.faction);
     let incoming_ranged = attacker_kind.map_or(hostile.ranged, MilitaryKind::is_ranged);
     let penetration = attacker_kind.map_or(hostile.penetration, |kind| member_combat_profile(kind, attacker.id).armor_penetration);
+    if incoming_ranged && crate::military_policy::missile_is_evaded(company.formation, company.stance, attacker.id, defender.id,
+        ctx.db.world_config().id().find(&0).map_or(0, |w| w.sim_tick)) { return 0.0; }
     let incoming_front = is_front_attack(
         company.facing_x,
         company.facing_z,
@@ -1913,9 +1915,7 @@ fn rebuild_steering_grid(
                 goal_x = agent.x;
                 goal_z = agent.z;
                 speed = intended_distance / elapsed_seconds;
-            } else if matches!(agent.state, FIGHTING | LOOTING | HOLDING)
-                && agent.engagement_target_id == 0
-            {
+            } else if matches!(agent.state, FIGHTING | LOOTING | HOLDING) {
                 // Contact resolution deliberately authored no displacement.
                 // In particular, a looter is already at the usable perimeter
                 // of its target; steering must not reinterpret that pause as

@@ -1402,6 +1402,30 @@ mod tests {
     }
 
     #[test]
+    fn dragged_frontage_physically_changes_rank_depth_and_facing() {
+        use crate::military_policy::{deployed_formation_offset, rotate_formation_offset, MilitaryKind};
+        for columns in [1,2,4,8] {
+            let mut grid = CombatSteeringGrid::default();
+            grid.begin();
+            for rank in 0..8 {
+                let local = deployed_formation_offset(MilitaryKind::Spearmen, 0, columns, rank, 8);
+                let offset = rotate_formation_offset(local.0, local.1, 1.0, 0.0);
+                let mut soldier = body(rank as u64 + 1, 10, rank as f64 * 1.6, 0.0);
+                soldier.goal_x = 25.0 + offset.0;
+                soldier.goal_z = 25.0 + offset.1;
+                grid.push(soldier);
+            }
+            grid.finish();
+            for _ in 0..600 { grid.integrate_all(0.1); }
+            for rank in 0..8 {
+                let soldier = grid.body(rank);
+                assert!((soldier.x-soldier.goal_x).hypot(soldier.z-soldier.goal_z) < 0.19, "columns {columns}: {soldier:?}");
+            }
+            assert_minimum_clearance(&grid);
+        }
+    }
+
+    #[test]
     fn exact_overlaps_are_resolved_deterministically_without_nan() {
         let mut grid = CombatSteeringGrid::default();
         grid.begin();

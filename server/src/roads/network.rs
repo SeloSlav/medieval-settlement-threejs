@@ -1387,6 +1387,19 @@ mod tests {
     use std::time::Instant;
 
     #[test]
+    fn combat_elevation_interpolates_the_published_ground_not_world_axes() {
+        let heights: Vec<f64> = (0..256).map(|i| (i % 16) as f64 * 2.0 + (i / 16) as f64 * 3.0).collect();
+        let snapshot = serde_json::json!({ "nodes": [], "edges": [], "riverNavigation": {
+            "resolution": 16, "startX": 0, "startZ": 0, "spanX": 15, "spanZ": 15,
+            "wetCellsHex": "00".repeat(32), "heights": heights
+        }});
+        let network = RoadNetwork::from_snapshot_json(&snapshot.to_string()).unwrap();
+        assert_eq!(network.combat_elevation(4.5, 7.5), 31.5);
+        assert_eq!(network.combat_elevation(15.0,15.0), 75.0);
+        assert_eq!(network.combat_elevation(-10.0,-10.0), 0.0);
+    }
+
+    #[test]
     fn empty_snapshot_still_supports_cross_country_logistics() {
         let network = RoadNetwork::from_snapshot_json(r#"{"nodes":[],"edges":[]}"#)
             .expect("an empty but valid owner network");
