@@ -330,8 +330,8 @@
   height: 32px;
   background-position: center;
   background-repeat: no-repeat;
-  background-size: cover;
-  filter: sepia(0.32) saturate(0.72) contrast(1.12) brightness(0.86);
+  background-size: 30px 30px;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.72));
 }
 
 .land-use-affinity-badge strong {
@@ -346,23 +346,23 @@
 }
 
 .land-use-affinity-badge[data-land-use-kind='meadow'] .land-use-affinity-icon {
-  background-image: url('/assets/ui/build-menu/cards/pasture.webp');
+  background-image: url('/assets/ui/icons/affinities/pollination.png');
 }
 
 .land-use-affinity-badge[data-land-use-kind='woodland'] .land-use-affinity-icon {
-  background-image: url('/assets/ui/build-menu/cards/woodcutters-lodge.webp');
+  background-image: url('/assets/ui/icons/affinities/forestry.png');
 }
 
 .land-use-affinity-badge[data-land-use-kind='farmland'] .land-use-affinity-icon {
-  background-image: url('/assets/ui/build-menu/cards/grain-field.webp');
+  background-image: url('/assets/ui/icons/affinities/cultivation.png');
 }
 
 .land-use-affinity-badge[data-land-use-kind='rural'] .land-use-affinity-icon {
-  background-image: url('/assets/ui/build-menu/cards/pastoral-farmstead.webp');
+  background-image: url('/assets/ui/icons/affinities/husbandry.png');
 }
 
 .land-use-affinity-badge[data-land-use-kind='urban'] .land-use-affinity-icon {
-  background-image: url('/assets/ui/build-menu/cards/smithy.webp');
+  background-image: url('/assets/ui/icons/affinities/industry.png');
 }
 
 .inspector-action-icon[data-action-icon='cattle-herd'] {
