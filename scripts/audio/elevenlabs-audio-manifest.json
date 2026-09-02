@@ -1036,10 +1036,10 @@
       "group": "ui-game-hierarchy",
       "kind": "sound-effect",
       "output": "public/sounds/ui/game_cancel.mp3",
-      "prompt": "Ultra-short soft medieval game UI off click: one small oak peg gently disengages from a wooden detent with a muted low tick, subtly descending, dry and quiet. A single centered transient with no tail. No pop, scrape, paper, whoosh, reverb, metal, voice, melody, error tone, bell, chime, magic, or modern button sound",
+      "prompt": "Authentic close natural Foley only: a small hand-carved oak latch is gently released, making one soft dull wooden clack. Low-energy, slightly imperfect organic wood, dry, non-tonal, with no resonance or tail. Absolutely no electronic or arcade sound, beep, bloop, chime, synthesizer, musical note, spring, plastic, metal, paper, scrape, pop, whoosh, reverb, or voice",
       "durationSeconds": 0.5,
       "loop": false,
-      "promptInfluence": 0.98
+      "promptInfluence": 0.99
     },
     {
       "id": "ui-game-danger",

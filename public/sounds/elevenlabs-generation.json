@@ -1567,13 +1567,13 @@
     {
       "id": "ui-game-cancel",
       "output": "public/sounds/ui/game_cancel.mp3",
-      "generatedAt": "2026-09-02T10:31:39.140Z",
+      "generatedAt": "2026-09-02T10:38:27.771Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
       "outputFormat": "mp3_44100_128",
       "characterCost": "5",
       "byteLength": 8821,
-      "sha256": "314cefb69e4da95700976eb848f681cf0f3a0064475ea6708f533898bba3ebc1"
+      "sha256": "c8b765aba38e91b612b9758bad4bcc829e3ec91e83503a59519b0bca7fad30fd"
     },
     {
       "id": "ui-game-danger",
