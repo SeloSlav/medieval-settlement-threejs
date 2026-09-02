@@ -521,10 +521,17 @@ export class GameTableSync {
         this.state.identityHex,
       );
       // A pace/facing order can arrive without any soldier moving this tick.
-      this.state.combatAgents = syncCombatAgents(
-        db.combat_agent ? db.combat_agent.iter() : [], this.state.identityHex,
-        db.military_company ? db.military_company.iter() : [],
-      );
+      const orders = new Map([...(db.military_company?.iter() ?? [])].map(row => [row.id.toString(), row]));
+      let agents = this.state.combatAgents;
+      for (const [id, agent] of agents) {
+        const company = agent.companyId ? orders.get(agent.companyId) : undefined;
+        if (!company) continue;
+        const running = company.running && company.fatigue < 0.95;
+        if (agent.running === running && agent.companyFacingX === company.facingX && agent.companyFacingZ === company.facingZ) continue;
+        if (agents === this.state.combatAgents) agents = new Map(agents);
+        agents.set(id, { ...agent, running, companyFacingX: company.facingX, companyFacingZ: company.facingZ });
+      }
+      this.state.combatAgents = agents;
     });
 
     bindTable(db.bandit_camp, () => {

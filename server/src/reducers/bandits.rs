@@ -411,7 +411,7 @@ pub fn set_military_tactics(ctx: &ReducerContext, company_id: u64, running: bool
 #[reducer]
 pub fn deploy_military_formation(ctx: &ReducerContext, agent_ids: Vec<u64>, destination_x: f64, destination_z: f64, facing_x: f64, facing_z: f64, frontage: f64) -> Result<(), String> {
     if !frontage.is_finite() || !(0.5..=200.0).contains(&frontage)
-        || !facing_x.is_finite() || !facing_z.is_finite() || facing_x.hypot(facing_z) < 0.001 {
+        || !facing_x.is_finite() || !facing_z.is_finite() || !facing_x.hypot(facing_z).is_finite() || facing_x.hypot(facing_z) < 0.001 {
         return Err("Invalid formation frontage or facing.".into());
     }
     command_companies(ctx, agent_ids, destination_x, destination_z, 0, 0, Some((facing_x, facing_z, frontage)))
@@ -443,11 +443,12 @@ fn command_companies(ctx: &ReducerContext, agent_ids: Vec<u64>, destination_x: f
     let target = if target_camp_id == 0 {
         None
     } else {
-        ctx.db
+        Some(ctx.db
             .bandit_camp()
             .id()
             .find(&target_camp_id)
             .filter(|camp| camp.owner == owner && camp.active)
+            .ok_or("The selected bandit camp is no longer available.")?)
     };
     let target_agent = if target_agent_id == 0 {
         None
@@ -484,6 +485,23 @@ fn command_companies(ctx: &ReducerContext, agent_ids: Vec<u64>, destination_x: f
     let road_network = load_owner_road_network(ctx, owner);
     let navigation = crate::simulation::build_owner_combat_navigation(ctx, owner, road_network.as_ref());
     let company_count = company_ids.len() as u32;
+    let company_spacing = if let Some((_, _, frontage)) = deployment {
+        frontage / company_count.max(1) as f64 + 2.5
+    } else {
+        company_ids.iter().filter_map(|id| ctx.db.military_company().id().find(id))
+            .filter_map(|company| {
+                let kind = MilitaryKind::from_id(company.kind)?;
+                let count = company.living_members.max(1);
+                let mut bounds = (0.0_f64, 0.0_f64);
+                for slot in 0..count {
+                    let offset = crate::military_policy::deployed_formation_offset(kind, company.formation, company.formation_columns, slot, count);
+                    bounds.0 = bounds.0.min(offset.0);
+                    bounds.1 = bounds.1.max(offset.0);
+                }
+                Some(bounds.1 - bounds.0 + 2.5)
+            }).fold(5.0_f64, f64::max)
+    };
+    let mut orders_issued = 0_u32;
     for (company_index, company_id) in company_ids.into_iter().enumerate() {
         let Some(mut company) = ctx
             .db
@@ -543,7 +561,7 @@ fn command_companies(ctx: &ReducerContext, agent_ids: Vec<u64>, destination_x: f
             ctx.db.military_company().id().update(company.clone());
         }
         let company_lateral =
-            (company_index as f64 - company_count.saturating_sub(1) as f64 * 0.5) * 10.0;
+            (company_index as f64 - company_count.saturating_sub(1) as f64 * 0.5) * company_spacing;
         let (company_offset_x, company_offset_z) = rotate_formation_offset(
             company_lateral,
             0.0,
@@ -602,6 +620,7 @@ fn command_companies(ctx: &ReducerContext, agent_ids: Vec<u64>, destination_x: f
             agent.target_id = if hostile_id > 0 { hostile_id } else { camp_id };
             agent.engagement_target_id = hostile_id;
             agent.state = 0;
+            orders_issued += 1;
             ctx.db.combat_agent().id().update(agent.clone());
             let order = MilitiaOrder {
                 combat_agent_id: agent.id,
@@ -627,6 +646,7 @@ fn command_companies(ctx: &ReducerContext, agent_ids: Vec<u64>, destination_x: f
             }
         }
     }
+    if orders_issued == 0 { return Err("No selected company can receive orders.".into()); }
     Ok(())
 }
 

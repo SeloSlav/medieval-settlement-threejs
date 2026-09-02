@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { syncCombatAgents } from '../src/security/combatAgents.ts';
-import type { CombatAgent } from '../src/generated/types.ts';
+import type { CombatAgent, MilitaryCompany } from '../src/generated/types.ts';
 import {
   MILITARY_FORMATIONS,
   MILITARY_STANCES,
@@ -76,6 +76,11 @@ const residentSoldier = {
 assert.equal(syncCombatAgents([residentSoldier], 'test-owner').get('5')?.personIdentity, 'residence-42:person:2');
 assert.equal(syncCombatAgents([{ ...residentSoldier, sourceSlot: 0 }], 'test-owner').get('5')?.personIdentity, 'residence-42:person:2');
 assert.equal(syncCombatAgents([residentSoldier], 'different-owner').size, 0);
+const tacticalCompany = { id: 77n, running: true, fatigue: .4, facingX: 1, facingZ: 0 } as MilitaryCompany;
+const orderedSoldier = syncCombatAgents([residentSoldier], 'test-owner', [tacticalCompany]).get('5')!;
+assert.equal(orderedSoldier.running, true, 'short orders must still use the explicitly ordered run mode');
+assert.deepEqual([orderedSoldier.companyFacingX, orderedSoldier.companyFacingZ], [1, 0]);
+assert.equal(syncCombatAgents([residentSoldier], 'test-owner', [{ ...tacticalCompany, fatigue: 1 }]).get('5')?.running, false);
 
 assert.match(tables, /pub resident_slot: u32/);
 assert.match(tables, /pub target_agent_id: u64/);
@@ -88,6 +93,9 @@ assert.match(military, /find\(&order\.target_agent_id\)/);
 assert.match(military, /deployed_formation_offset[\s\S]*rotate_formation_offset/);
 assert.match(military, /COMBAT_WADING_SPEED_MULTIPLIER[\s\S]*COMBAT_ROAD_SPEED_MULTIPLIER/);
 assert.match(military, /charged_into_contact[\s\S]*formation_charge_multiplier/);
+assert.match(military, /is_debug_military_member\(&member.person_identity\)/);
+assert.match(military, /target_camp_id > 0[\s\S]*camp\.active/);
+assert.match(military, /friendly_in_lane\.is_none\(\) \|\| company\.fire_at_will/);
 assert.match(military, /MILITARY_FORMATION_BRACE[\s\S]*is_front_attack/);
 assert.match(military, /member\.ammunition = member\.ammunition\.saturating_sub\(1\)[\s\S]*sync_member_ammunition_kit/);
 assert.match(military, /recoverable_ammunition_bundles\(\s*member.ammunition,\s*member.ammunition_capacity,?\s*\)/);

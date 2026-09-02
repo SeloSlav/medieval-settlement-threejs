@@ -2492,7 +2492,7 @@ assert.match(
 );
 assert.match(
   expandedEconomy,
-  /pub fn step_military_requisitions[\s\S]*?agent\.carried_loot_json =\s*serde_json::to_string\(&equipped_member_kit\(kind, agent\.source_slot\)\)/,
+  /pub fn step_military_requisitions[\s\S]*?let mut kit = equipped_member_kit\(kind, agent\.source_slot\)[\s\S]*?member\.optional_armor[\s\S]*?agent\.carried_loot_json = serde_json::to_string\(&kit\)/,
   'military equipment must stay serialized on the persistent member who later answers a raid warning',
 );
 assert.match(

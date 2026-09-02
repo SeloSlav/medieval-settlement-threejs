@@ -168,16 +168,14 @@ impl CombatMotionFrame {
 /// Capture every existing living combatant before any faction-specific mover
 /// runs. New bodies created later in the same heartbeat remain stationary
 /// until the next frame rather than receiving an accidental second step.
-pub fn capture_combat_motion_frame(ctx: &ReducerContext) {
+pub fn capture_combat_motion_frame(ctx: &ReducerContext, road_networks: Option<&SharedRoadNetworks>) {
     COMBAT_MOTION_FRAME.with(|cell| cell.borrow_mut().capture(ctx));
     BATTLEFIELD_BODIES.with(|cell| {
         let mut bodies = cell.borrow_mut();
         bodies.clear();
-        let mut roads = HashMap::new();
         bodies.extend(ctx.db.combat_agent().iter().filter(|a| a.state != DOWNED && a.health > 0.0)
             .map(|a| {
-                let network = roads.entry(a.owner).or_insert_with(|| crate::roads::load_owner_road_network(ctx, a.owner));
-                let h = network.as_ref().map_or(0.0, |n| n.combat_elevation(a.x,a.z));
+                let h = road_networks.and_then(|networks| networks.get(&a.owner)).map_or(0.0, |n| n.combat_elevation(a.x,a.z));
                 (a.id, a.owner, a.faction, a.x, a.z, h)
             }));
     });
@@ -442,7 +440,7 @@ pub fn step_military_world(
         });
         frame.captured = false;
     });
-    refresh_company_summaries(ctx, sim_tick, elapsed_seconds, military_demands);
+    refresh_company_summaries(ctx, sim_tick, elapsed_seconds, military_demands, road_networks);
 }
 
 /// Equip at the source, then physically join the surviving field ranks. Only
@@ -1370,7 +1368,7 @@ fn begin_mercenary_departure(ctx: &ReducerContext, company_id: u64) {
     }
 }
 
-fn refresh_company_summaries(ctx: &ReducerContext, tick: u64, dt: f64, military_demands: u8) {
+fn refresh_company_summaries(ctx: &ReducerContext, tick: u64, dt: f64, military_demands: u8, road_networks: Option<&SharedRoadNetworks>) {
     let incoming_targets = hostile_engagement_targets(ctx);
     for mut company in ctx.db.military_company().iter().collect::<Vec<_>>() {
         let members = ctx
@@ -1470,7 +1468,7 @@ fn refresh_company_summaries(ctx: &ReducerContext, tick: u64, dt: f64, military_
             if company.morale < stance_morale_required(company.stance) { company.stance = 0; }
             if company.kind == MilitaryKind::Militia as u8 {
                 let source_settlement = ctx.db.building().id().find(&company.source_building_id).map(|s| s.settlement_id);
-                let home = crate::settlements::residential_settlement_for_position(ctx, company.owner, center.0 / living as f64, center.1 / living as f64);
+                let home = crate::settlements::residential_settlement_on_roads(ctx, company.owner, center.0 / living as f64, center.1 / living as f64, road_networks.and_then(|networks| networks.get(&company.owner)));
                 if source_settlement.is_some() && home == source_settlement {
                     company.morale = (company.morale + dt * 0.0012).min(1.0);
                 }

@@ -395,6 +395,19 @@ fn scored_settlements_for_position(
     x: f64,
     z: f64,
 ) -> Vec<(f64, u64)> {
+    let network = load_owner_road_network(ctx, owner);
+    scored_settlements_on_roads(ctx, owner, x, z, network.as_ref())
+}
+
+/// Combat already owns the heartbeat's parsed road graph; avoid reparsing the
+/// attached elevation grid for each militia company's home-region morale check.
+pub fn residential_settlement_on_roads(ctx: &ReducerContext, owner: Identity, x: f64, z: f64, network: Option<&RoadNetwork>) -> Option<u64> {
+    scored_settlements_on_roads(ctx, owner, x, z, network).into_iter()
+        .find(|(effort, _)| *effort <= RESIDENTIAL_SETTLEMENT_REACH + EPSILON)
+        .map(|(_, id)| id)
+}
+
+fn scored_settlements_on_roads(ctx: &ReducerContext, owner: Identity, x: f64, z: f64, network: Option<&RoadNetwork>) -> Vec<(f64, u64)> {
     let mut settlements = ctx
         .db
         .settlement()
@@ -406,12 +419,11 @@ fn scored_settlements_for_position(
         return Vec::new();
     }
 
-    let network = load_owner_road_network(ctx, owner);
     let mut scored = settlements
         .into_iter()
         .map(|settlement| {
             let mut best = travel_effort(
-                network.as_ref(),
+                network,
                 x,
                 z,
                 settlement.anchor_x,
@@ -425,7 +437,7 @@ fn scored_settlements_for_position(
                 .filter(is_community_influence_building)
             {
                 best = best.min(travel_effort(
-                    network.as_ref(),
+                    network,
                     x,
                     z,
                     building.x,
@@ -440,7 +452,7 @@ fn scored_settlements_for_position(
                 .filter(|residence| !residence.abandoned && residence.population > 0)
             {
                 best = best.min(travel_effort(
-                    network.as_ref(),
+                    network,
                     x,
                     z,
                     residence.x,

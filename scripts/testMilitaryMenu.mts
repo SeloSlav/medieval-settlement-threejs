@@ -50,4 +50,4 @@ assert.doesNotMatch(menuSource, /data-health|data-fatigue|role="meter"|aria-valu
 assert.doesNotMatch(bootstrap, /resourceInspector\.selectMilitaryCompany/);
 assert.match(bootstrap, /onCompanySelected:[\s\S]*toolbar\.selectMilitaryCompanies\(\[companyId\]\)/);
 assert.match(bootstrap, /onSelectMilitaryCompany:[\s\S]*militiaCommands\.selectCompany\(companyId\)[\s\S]*focusWorldPositionAtZoom/);
-console.log('Military tray: live health, casualty-safe focus, formation availability, lifecycle orders, and world-selection wiring passed.');
+console.log('Military tray: compact stat-free controls, casualty-safe focus, tactical toggles, lifecycle orders, and world-selection wiring passed.');

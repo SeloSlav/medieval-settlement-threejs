@@ -112,7 +112,7 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     if !holiday_protected {
         // One shared pre-heartbeat snapshot makes the final steering solve the
         // sole authoritative integration for every combat faction.
-        capture_combat_motion_frame(ctx);
+        capture_combat_motion_frame(ctx, shared_road_networks.as_ref());
         step_live_raids(
             ctx,
             config.sim_tick,
