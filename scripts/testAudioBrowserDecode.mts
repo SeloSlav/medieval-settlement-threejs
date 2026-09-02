@@ -318,6 +318,32 @@ async function main(): Promise<void> {
     const setupPresetRms = defaultEffectiveRms(UI_SOUNDS.setup_preset, DEFAULT_SOUND_EFFECTS_VOLUME);
     const setupAdvanceRms = defaultEffectiveRms(UI_SOUNDS.setup_advance, DEFAULT_SOUND_EFFECTS_VOLUME);
     const setupCommitRms = defaultEffectiveRms(UI_SOUNDS.setup_commit, DEFAULT_SOUND_EFFECTS_VOLUME);
+    const gamePressRms = defaultEffectiveRms(UI_SOUNDS.game_press, DEFAULT_SOUND_EFFECTS_VOLUME);
+    const gameTabRms = defaultEffectiveRms(UI_SOUNDS.game_tab, DEFAULT_SOUND_EFFECTS_VOLUME);
+    const gameToggleRms = defaultEffectiveRms(UI_SOUNDS.game_toggle, DEFAULT_SOUND_EFFECTS_VOLUME);
+    const gamePanelRms = defaultEffectiveRms(UI_SOUNDS.game_panel, DEFAULT_SOUND_EFFECTS_VOLUME);
+    const gameTransactionRms = defaultEffectiveRms(
+      UI_SOUNDS.game_transaction,
+      DEFAULT_SOUND_EFFECTS_VOLUME,
+    );
+    const gameDangerRms = defaultEffectiveRms(UI_SOUNDS.game_danger, DEFAULT_SOUND_EFFECTS_VOLUME);
+    const confirmRms = defaultEffectiveRms(UI_SOUNDS.confirm, DEFAULT_SOUND_EFFECTS_VOLUME);
+    const wildlifeEntryRms = defaultEffectiveRms(
+      WORLD_FOLEY_CLIPS.event_wildlife_town_entry,
+      DEFAULT_SOUND_EFFECTS_VOLUME,
+    );
+    const banditCampRms = defaultEffectiveRms(
+      WORLD_FOLEY_CLIPS.event_bandit_camp_established,
+      DEFAULT_SOUND_EFFECTS_VOLUME,
+    );
+    const banditEntryRms = defaultEffectiveRms(
+      WORLD_FOLEY_CLIPS.event_bandits_town_entry,
+      DEFAULT_SOUND_EFFECTS_VOLUME,
+    );
+    const ottomanMapEntryRms = defaultEffectiveRms(
+      WORLD_FOLEY_CLIPS.event_ottoman_raiders_detected,
+      DEFAULT_SOUND_EFFECTS_VOLUME,
+    );
     invariant(
       averageScoreRms >= busyAmbienceUnderScore * 1.2
       && averageScoreRms <= busyAmbienceUnderScore * 2.2,
@@ -348,6 +374,45 @@ async function main(): Promise<void> {
       setupCommitRms >= setupAdvanceRms * 1.3,
       'Final world commitment needs clear headroom above ordinary step navigation',
     );
+    invariant(
+      gamePressRms < gameTabRms
+      && gameTabRms < gameToggleRms
+      && gameToggleRms < gamePanelRms
+      && gamePanelRms < gameTransactionRms
+      && gameTransactionRms < gameDangerRms
+      && gameDangerRms < confirmRms,
+      'Decoded in-game UI cues must preserve the routine-to-confirmation hierarchy',
+    );
+    invariant(
+      banditCampRms < banditEntryRms
+      && wildlifeEntryRms < banditEntryRms
+      && banditCampRms < ottomanMapEntryRms,
+      'Threat announcements must preserve camp < bandit breach and wildlife < human-incursion urgency',
+    );
+    invariant(
+      ottomanMapEntryRms >= 0.02,
+      'Ottoman map entry must be immediately audible as an early strategic warning',
+    );
+    const revisedBuildingRms = [
+      BUILDING_AUDIO_CLIPS.weaponsmith_armorer,
+      BUILDING_AUDIO_CLIPS.bowyer_fletcher,
+      BUILDING_AUDIO_CLIPS.well,
+      BUILDING_AUDIO_CLIPS.stable,
+      BUILDING_AUDIO_CLIPS.cavalry_yard,
+      BUILDING_AUDIO_CLIPS.kennel,
+      BUILDING_AUDIO_CLIPS.spinning_retting_house,
+      BUILDING_AUDIO_CLIPS.tannery,
+      BUILDING_AUDIO_CLIPS.cobbler,
+      BUILDING_AUDIO_CLIPS.chandlery,
+    ].map((clip) => defaultEffectiveRms(clip, DEFAULT_SOUND_EFFECTS_VOLUME));
+    invariant(
+      revisedBuildingRms.every((rms) => rms >= 0.0015 && rms <= 0.008),
+      'Revised building-selection cues must stay audible without becoming announcement-level sounds',
+    );
+    invariant(
+      defaultEffectiveRms(BUILDING_AUDIO_CLIPS.well, DEFAULT_SOUND_EFFECTS_VOLUME) >= 0.004,
+      'The splash-forward well cue must remain clearly audible at default settings',
+    );
 
     const totalSeconds = metrics.reduce((sum, metric) => sum + metric.duration, 0);
     const quietest = [...metrics].sort((a, b) => a.rms - b.rms)[0];
@@ -376,7 +441,9 @@ async function main(): Promise<void> {
       for (const metric of metrics.filter((entry) => (
         entry.path.startsWith('/sounds/music/')
         || entry.path.startsWith('/sounds/combat/')
-        || entry.path.startsWith('/sounds/ui/setup_')
+        || entry.path.startsWith('/sounds/ui/')
+        || entry.path.startsWith('/sounds/buildings/')
+        || entry.path.startsWith('/sounds/world/event_')
         || Object.values(AMBIENT_LAYERS).some((clip) => clip.path === entry.path)
       ))) {
         const clip = clipByPath.get(metric.path);
@@ -384,6 +451,9 @@ async function main(): Promise<void> {
           ? DEFAULT_MUSIC_VOLUME
           : metric.path.startsWith('/sounds/ui/')
             ? DEFAULT_SOUND_EFFECTS_VOLUME
+            : metric.path.startsWith('/sounds/buildings/')
+              || metric.path.startsWith('/sounds/world/')
+              ? DEFAULT_SOUND_EFFECTS_VOLUME
             : metric.path.startsWith('/sounds/combat/')
               ? 1
               : DEFAULT_AMBIENCE_VOLUME;

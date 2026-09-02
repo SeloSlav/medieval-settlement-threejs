@@ -1116,10 +1116,100 @@
       "group": "building-foley",
       "kind": "sound-effect",
       "output": "public/sounds/buildings/well.mp3",
-      "prompt": "Short quiet village-well Foley: a wooden windlass turns with one gentle axle creak and a rope tightens around the drum, with a faint bucket water movement below, no voices, no music",
+      "prompt": "Short unmistakable village-well selection Foley: a wooden bucket breaks the water surface with one clear close splash, water sloshes inside it, then wet rope pulls taut against the timber windlass. Water must be the dominant first sound; restrained wood creak only after the splash, no voices, no music, no river ambience",
       "durationSeconds": 2.5,
       "loop": false,
       "promptInfluence": 0.87
+    },
+    {
+      "id": "building-weaponsmith-armorer",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/weaponsmith_armorer.mp3",
+      "prompt": "Short distinctive late-medieval armorer Foley: one compact hammer tap seats a rivet into a mail link over a small iron stake, followed by a brief controlled rustle of chainmail. Crisp metal detail without a large forge anvil ring, no voices, no music",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "building-bowyer-fletcher",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/bowyer_fletcher.mp3",
+      "prompt": "Short distinctive medieval bowyer and fletcher Foley: a bowstring is drawn a little and released into a low dry twang, followed by two feather arrow shafts sliding together on a wooden bench. No arrow shot, impact, voices, or music",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "building-stable",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/stable.mp3",
+      "prompt": "Short calm late-medieval stable selection Foley: one horse gives a soft close nasal exhale while a leather halter and small wooden stall latch settle. Single calm horse, no neigh, hoof steps, people, cart, ambience, or music",
+      "durationSeconds": 2.3,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "building-cavalry-yard",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/cavalry_yard.mp3",
+      "prompt": "Short distinctive late-medieval cavalry-yard Foley: a horse stamps one firm hoof on packed earth, then a saddle stirrup and bridle rings give a restrained leather-and-iron jingle. No neigh, gallop, human voice, battle, or music",
+      "durationSeconds": 2.3,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "building-kennel",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/kennel.mp3",
+      "prompt": "Short unmistakable medieval working-dog kennel selection Foley: one alert adult guard dog gives a single compact friendly bark, then its leather collar shifts beside a wooden kennel gate. One dog only, no growling, pack, human voice, outdoor ambience, or music",
+      "durationSeconds": 2.1,
+      "loop": false,
+      "promptInfluence": 0.94
+    },
+    {
+      "id": "building-spinning-retting-house",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/spinning_retting_house.mp3",
+      "prompt": "Short distinctive medieval flax retting and spinning workshop Foley: wet flax fibres lift from a shallow wooden vat with a clear small water slosh, followed by one soft turn of a wooden spinning wheel. No loom clack, voices, river ambience, or music",
+      "durationSeconds": 2.5,
+      "loop": false,
+      "promptInfluence": 0.91
+    },
+    {
+      "id": "building-tannery",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/tannery.mp3",
+      "prompt": "Short distinctive medieval tannery Foley: a blunt two-handled fleshing knife makes one firm scrape across a damp hide stretched on a timber beam, followed by a small wet leather fold. No cutting, gore, fire, voices, or music",
+      "durationSeconds": 2.3,
+      "loop": false,
+      "promptInfluence": 0.93
+    },
+    {
+      "id": "building-cobbler",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/cobbler.mp3",
+      "prompt": "Short intimate medieval cobbler Foley: waxed thread pulls firmly through thick leather, then one tiny wooden-handled hammer tap lands on a shoe sole over a cobbler's last. Close dry craft detail, no carpentry plane, voices, footsteps, or music",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "building-chandlery",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/chandlery.mp3",
+      "prompt": "Short distinctive medieval chandlery Foley: a row of candle wicks is dipped once into warm liquid beeswax with a soft viscous movement, then a finished beeswax candle is placed gently on a wooden rack. No pottery clink, flame, voices, or music",
+      "durationSeconds": 2.4,
+      "loop": false,
+      "promptInfluence": 0.91
     },
     {
       "id": "building-hunters-hall",
@@ -1882,34 +1972,44 @@
       "promptInfluence": 0.92
     },
     {
-      "id": "world-event-wildlife-detected",
-      "group": "threat-alerts",
-      "kind": "sound-effect",
-      "output": "public/sounds/world/event_wildlife_detected.mp3",
-      "prompt": "Short distinct late-medieval wildlife warning signal for a strategy game: two quick hollow knocks on a hardwood watch clapper, a close dry branch snap, then one low restrained guard-dog growl, crisp and readable as a notification. No human voice, words, shouting, speech, melody, music, battle, gore, or ambient soundscape",
-      "durationSeconds": 2.4,
-      "loop": false,
-      "promptInfluence": 0.94
-    },
-    {
-      "id": "world-event-bandits-detected",
-      "group": "threat-alerts",
-      "kind": "sound-effect",
-      "output": "public/sounds/world/event_bandits_detected.mp3",
-      "prompt": "Short distinct late-medieval bandit warning signal for a strategy game: three urgent bright strikes on a small iron watch bell followed by one brief wooden alarm-ratchet turn, dry, practical, and clearly recognizable as a notification. No human voice, words, shouting, speech, melody, music, combat, or ambient soundscape",
-      "durationSeconds": 2.5,
-      "loop": false,
-      "promptInfluence": 0.95
-    },
-    {
       "id": "world-event-ottoman-raiders-detected",
       "group": "threat-alerts",
       "kind": "sound-effect",
       "output": "public/sounds/world/event_ottoman_raiders_detected.mp3",
-      "prompt": "Short distinct grave frontier-incursion warning signal for a late-medieval strategy game: two measured low bronze watch-bell strokes with one deep taut frame-drum impact between them, ominous but restrained and clearly readable as a notification. No human voice, words, shouting, speech, chant, ululation, melody, music, combat, or ambient soundscape",
-      "durationSeconds": 2.8,
+      "prompt": "Medieval acoustic warning fanfare for Ottoman raiders entering the map: two distant low natural-brass war-trumpet blasts, then one broad rising sustained trumpet call over a single deep field-drum hit. Grave, martial early warning, not combat; breath-driven period brass, imperfect attacks, short valley echo. No voice, speech, chant, shout, crowd, ululation, electronics, telephone, ringtone, siren, beep, bell, chime, or synthesizer",
+      "durationSeconds": 3.6,
       "loop": false,
-      "promptInfluence": 0.95
+      "promptInfluence": 0.98
+    },
+    {
+      "id": "world-event-bandit-camp-established",
+      "group": "threat-announcements-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_bandit_camp_established.mp3",
+      "prompt": "Medieval acoustic announcement for a new bandit camp: one rough low natural horn plays a slow three-note descending signal, with a deep hide-drum thump under the final note. Dark, suspicious, deliberate, not urgent; breath-driven animal horn or primitive brass, coarse attack, short forest echo. No voice, speech, chant, shout, crowd, electronics, telephone, ringtone, siren, beep, bell, chime, tuned percussion, or synthesizer",
+      "durationSeconds": 3.2,
+      "loop": false,
+      "promptInfluence": 0.98
+    },
+    {
+      "id": "world-event-bandits-town-entry",
+      "group": "threat-announcements-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_bandits_town_entry.mp3",
+      "prompt": "Medieval acoustic town-breach alarm on a close natural-brass watch trumpet: three fast ascending blasts, then one longer urgent final blast. Forceful breath-driven period brass with imperfect attacks and a short timber-street echo; much more urgent than the slow bandit-camp horn. No voice, speech, chant, shout, crowd, electronics, telephone, ringtone, alarm clock, siren, beep, bell, chime, clock-like pulse, or synthesizer",
+      "durationSeconds": 3.0,
+      "loop": false,
+      "promptInfluence": 0.99
+    },
+    {
+      "id": "world-event-wildlife-town-entry",
+      "group": "threat-announcements-v2",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_wildlife_town_entry.mp3",
+      "prompt": "Urgent compact strategy-game announcement that dangerous wild animals have entered the settlement: frantic guard-dog barking twice at close distance, a fence rail rattles, then two fast hollow hardwood watch-clapper knocks. Clearly a wildlife breach rather than human raiders, no growling attack, human voice, speech, gore, melody, music, or long ambience",
+      "durationSeconds": 2.6,
+      "loop": false,
+      "promptInfluence": 0.96
     },
     {
       "id": "world-event-burial",

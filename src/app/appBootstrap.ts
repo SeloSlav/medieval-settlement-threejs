@@ -1377,7 +1377,7 @@ export async function bootstrapAppSession(
             building.chapelTier ?? 3,
             `building:${building.id}`,
           );
-        } else if (building.kind !== 'wayside_shrine') {
+        } else {
           ambientAudio.playBuildingSelection(
             building.kind,
             `building:${building.id}`,

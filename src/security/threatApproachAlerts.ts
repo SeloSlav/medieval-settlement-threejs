@@ -1,10 +1,23 @@
 import type { CombatAgentState } from './combatAgents.ts';
+import type { BanditCampState } from './banditState.ts';
+import type { ThreatAlertSoundKind } from '../audio/audioCatalog.ts';
 
 export type ThreatApproachKind = 'wildlife' | 'bandit' | 'ottoman';
+export type ThreatAnnouncementPhase = 'camp-established' | 'map-entry' | 'town-entry';
+
+export const THREAT_TOWN_ENTRY_DISTANCE_METERS = 40;
+
+export type ThreatTownTarget = {
+  id: string;
+  x: number;
+  z: number;
+};
 
 export type ThreatApproachAlert = {
   id: string;
   kind: ThreatApproachKind;
+  phase: ThreatAnnouncementPhase;
+  sound: ThreatAlertSoundKind;
   title: string;
   detail: string;
   targetLabel: string;
@@ -48,55 +61,71 @@ function threatGroups(agents: Iterable<CombatAgentState>): Map<string, ThreatGro
   return groups;
 }
 
-function wildlifeCopy(agents: readonly CombatAgentState[]): Pick<
+function hasEnteredTown(
+  agent: CombatAgentState,
+  targets: ReadonlyMap<string, ThreatTownTarget>,
+): boolean {
+  if (
+    agent.status !== 'advancing'
+    && agent.status !== 'fighting'
+    && agent.status !== 'looting'
+  ) return false;
+  const target = targets.get(agent.targetId);
+  if (!target) return false;
+  return Math.hypot(agent.x - target.x, agent.z - target.z)
+    <= THREAT_TOWN_ENTRY_DISTANCE_METERS;
+}
+
+function groupCopy(group: ThreatGroup, phase: 'map-entry' | 'town-entry'): Pick<
   ThreatApproachAlert,
   'title' | 'detail' | 'targetLabel'
 > {
-  const wolves = agents.filter((agent) => agent.faction === 'wolf').length;
-  const foxes = agents.length - wolves;
-  if (wolves > 0) {
-    const pack = wolves === 1 ? 'A lone wolf is' : `A pack of ${wolves} wolves is`;
+  if (phase === 'map-entry') {
     return {
-      title: wolves === 1 ? 'Lone wolf approaching the settlement' : 'Wolf pack approaching the settlement',
-      detail: `${pack} moving against people, livestock, or food stores. The game has slowed to 1× so the militia can be formed.`,
-      targetLabel: wolves === 1 ? 'View the detected wolf' : 'View the detected wolf pack',
+      title: 'Ottoman raiders have entered the map',
+      detail: `${group.agents.length} Ottoman ${group.agents.length === 1 ? 'raider has' : 'raiders have'} crossed the frontier. The game has slowed to 1× so the settlement has time to muster before they reach the town.`,
+      targetLabel: 'View the Ottoman incursion',
+    };
+  }
+  if (group.kind === 'wildlife') {
+    const wolves = group.agents.filter((agent) => agent.faction === 'wolf').length;
+    const animals = group.agents.length === 1 ? 'A wild animal has' : `${group.agents.length} wild animals have`;
+    return {
+      title: wolves > 1 ? 'Wolf pack inside the settlement' : 'Wild animal inside the settlement',
+      detail: `${animals} crossed into the built settlement and may now reach people, livestock, or stores. The game has slowed to 1× for an immediate response.`,
+      targetLabel: 'View the wildlife breach',
     };
   }
   return {
-    title: foxes === 1 ? 'Fox approaching the settlement' : 'Foxes approaching the settlement',
-    detail: `${foxes === 1 ? 'A fox has' : `${foxes} foxes have`} committed to a food raid. The game has slowed to 1× so guards can intercept ${foxes === 1 ? 'it' : 'them'}.`,
-    targetLabel: foxes === 1 ? 'View the detected fox' : 'View the detected foxes',
+    title: 'Bandits have entered the settlement',
+    detail: `${group.agents.length === 1 ? 'A bandit has' : `${group.agents.length} bandits have`} crossed among the settlement buildings. Guards must intercept them before they reach the stores.`,
+    targetLabel: 'View the bandit breach',
   };
 }
 
-function groupCopy(group: ThreatGroup): Pick<
-  ThreatApproachAlert,
-  'title' | 'detail' | 'targetLabel'
-> {
-  if (group.kind === 'wildlife') return wildlifeCopy(group.agents);
-  if (group.kind === 'bandit') {
-    return {
-      title: 'Bandits detected on the approach',
-      detail: `${group.agents.length === 1 ? 'A bandit has' : `${group.agents.length} bandits have`} left camp or entered combat near the settlement. The game has slowed to 1× so guards can respond.`,
-      targetLabel: 'View the detected bandits',
-    };
-  }
-  return {
-    title: 'Ottoman raiders detected',
-    detail: `${group.agents.length} Ottoman ${group.agents.length === 1 ? 'raider has' : 'raiders have'} crossed the frontier and committed to the attack. The game has slowed to 1× so the settlement can muster.`,
-    targetLabel: 'View the Ottoman incursion',
-  };
+function soundForGroup(
+  group: ThreatGroup,
+  phase: 'map-entry' | 'town-entry',
+): ThreatAlertSoundKind {
+  if (phase === 'map-entry') return 'ottoman-map-entry';
+  return group.kind === 'wildlife' ? 'wildlife-town-entry' : 'bandit-town-entry';
 }
 
-function alertForGroup(group: ThreatGroup, simTick: number): ThreatApproachAlert {
-  const copy = groupCopy(group);
+function alertForGroup(
+  group: ThreatGroup,
+  phase: 'map-entry' | 'town-entry',
+  simTick: number,
+): ThreatApproachAlert {
+  const copy = groupCopy(group, phase);
   const center = group.agents.reduce(
     (sum, agent) => ({ x: sum.x + agent.x, z: sum.z + agent.z }),
     { x: 0, z: 0 },
   );
   return {
-    id: `threat-approach:${group.key}:${simTick}`,
+    id: `threat-${phase}:${group.key}:${simTick}`,
     kind: group.kind,
+    phase,
+    sound: soundForGroup(group, phase),
     ...copy,
     x: center.x / group.agents.length,
     z: center.z / group.agents.length,
@@ -104,13 +133,32 @@ function alertForGroup(group: ThreatGroup, simTick: number): ThreatApproachAlert
   };
 }
 
+function campEstablishedAlert(camp: BanditCampState, simTick: number): ThreatApproachAlert {
+  return {
+    id: `threat-camp-established:${camp.id}:${simTick}`,
+    kind: 'bandit',
+    phase: 'camp-established',
+    sound: 'bandit-camp-established',
+    title: 'Bandit camp established',
+    detail: 'Scouts report that outlaws have raised a new camp in the surrounding country. Its patrols will begin probing settlement stores unless the camp is cleared.',
+    targetLabel: 'View the new bandit camp',
+    x: camp.x,
+    z: camp.z,
+    count: 1,
+  };
+}
+
 /**
- * Tracks group-level hostile rising edges. Resting bandits remain invisible;
- * the same camp can report again only after its patrol has returned and a new
- * theft or battle begins.
+ * Tracks announcement boundaries per hostile group: Ottoman map entry,
+ * bandit camp creation, and bandit or wildlife town entry. Resting and
+ * approaching bandits stay silent; a camp may report a later breach only
+ * after its previous patrol has returned.
  */
 export class ThreatApproachTracker {
   private activeGroupKeys = new Set<string>();
+  private breachedGroupKeys = new Set<string>();
+  private activeCampIds = new Set<string>();
+  private campsInitialized = false;
   private worldKey: string | null = null;
   private lastSimTick: number | null = null;
 
@@ -118,27 +166,66 @@ export class ThreatApproachTracker {
     agents: Iterable<CombatAgentState>,
     simTick: number,
     worldKey: string,
+    camps: Iterable<BanditCampState> = [],
+    townTargets: Iterable<ThreatTownTarget> = [],
   ): ThreatApproachAlert[] {
     if (
       this.worldKey !== worldKey
       || (this.lastSimTick !== null && simTick < this.lastSimTick)
     ) {
       this.activeGroupKeys.clear();
+      this.breachedGroupKeys.clear();
+      this.activeCampIds.clear();
+      this.campsInitialized = false;
     }
     this.worldKey = worldKey;
     this.lastSimTick = simTick;
 
+    const activeCamps = [...camps]
+      .filter((camp) => camp.active && camp.health > 0)
+      .sort((left, right) => left.id.localeCompare(right.id));
+    const currentCampIds = new Set(activeCamps.map((camp) => camp.id));
+    const campAlerts = this.campsInitialized
+      ? activeCamps
+        .filter((camp) => !this.activeCampIds.has(camp.id))
+        .map((camp) => campEstablishedAlert(camp, simTick))
+      : [];
+    this.campsInitialized = true;
+    this.activeCampIds = currentCampIds;
+
     const currentGroups = threatGroups(agents);
-    const alerts = [...currentGroups.values()]
-      .filter((group) => !this.activeGroupKeys.has(group.key))
+    const currentGroupKeys = new Set(currentGroups.keys());
+    const townTargetById = new Map([...townTargets].map((target) => [target.id, target]));
+    const townEntryGroups = [...currentGroups.values()].filter((group) => (
+      group.kind !== 'ottoman'
+      && group.agents.some((agent) => hasEnteredTown(agent, townTargetById))
+    ));
+    const townEntryKeys = new Set(townEntryGroups.map((group) => group.key));
+    const mapEntryAlerts = [...currentGroups.values()]
+      .filter((group) => (
+        group.kind === 'ottoman'
+        && !this.activeGroupKeys.has(group.key)
+      ))
       .sort((left, right) => left.key.localeCompare(right.key))
-      .map((group) => alertForGroup(group, simTick));
+      .map((group) => alertForGroup(group, 'map-entry', simTick));
+    const townEntryAlerts = townEntryGroups
+      .filter((group) => !this.breachedGroupKeys.has(group.key))
+      .sort((left, right) => left.key.localeCompare(right.key))
+      .map((group) => alertForGroup(group, 'town-entry', simTick));
+    const alerts = [...campAlerts, ...mapEntryAlerts, ...townEntryAlerts];
     this.activeGroupKeys = new Set(currentGroups.keys());
+    for (const key of [...this.breachedGroupKeys]) {
+      if (!currentGroupKeys.has(key)) this.breachedGroupKeys.delete(key);
+    }
+    for (const key of townEntryKeys) this.breachedGroupKeys.add(key);
     return alerts;
   }
 
   reset(): void {
     this.activeGroupKeys.clear();
+    this.breachedGroupKeys.clear();
+    this.activeCampIds.clear();
+    this.campsInitialized = false;
     this.worldKey = null;
     this.lastSimTick = null;
   }

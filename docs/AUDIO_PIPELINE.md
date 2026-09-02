@@ -158,9 +158,28 @@ bell toll for each church tier. A church selection plays its tier's toll once at
 exactly 1.0x playback speed. The daily Angelus reuses that same toll at 06:00,
 12:00, and 18:00, sequenced in code as 3, pause, 3, pause, 3, pause, then 9 strokes
 (18 total), so the timing is exact and is not compressed by audio generation.
+
+The recognition-critical facilities use their own source vocabulary rather
+than a generic placeholder: the Weaponsmith & Armorer, Bowyer & Fletcher,
+Well, Stable, Cavalry Yard, Kennel, Spinning & Retting House, Tannery, Cobbler,
+and Chandlery all have distinct cues. The Well begins with a dominant bucket
+splash; the Kennel begins with one working-dog bark. Material-family sharing is
+still deliberate where it reads cleanly, especially residences and timber
+storage. Wayside Shrines participate in selection playback like other finished
+buildings.
+
 The `world-foley` group adds short event-driven cart, logistics, construction,
 demolition, first-person surface, fire-response, animal, seasonal, raid,
 burial, trade, and household milestone cues. Runtime schedules are sparse and
 distance-bounded; state transitions come from the replicated game state rather
 than random background playback. The same playback-only tail treatment is
 applied to these cues.
+
+Threat announcements follow game-state boundaries instead of general
+proximity. Ottoman raid groups warn once when they first enter the map, giving
+the player muster time; they do not play a second town-breach sound. Bandit
+patrols remain silent on the distant approach, announce once when their camp is
+newly established, and announce again only when the patrol enters town.
+Wildlife likewise announces only on town entry. Each group is edge-tracked so
+multiple replicated agents produce one sound and one Lord Report, while a
+returned bandit patrol may announce a later independent breach.

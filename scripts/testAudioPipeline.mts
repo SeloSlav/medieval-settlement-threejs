@@ -493,6 +493,37 @@ async function main(): Promise<void> {
       `Building Foley runtime path differs from its manifest output: ${kind}`,
     );
   }
+  const deliberatelyDistinctBuildingKinds = [
+    'weaponsmith_armorer',
+    'bowyer_fletcher',
+    'well',
+    'stable',
+    'cavalry_yard',
+    'kennel',
+    'spinning_retting_house',
+    'tannery',
+    'cobbler',
+    'chandlery',
+  ] as const;
+  invariant(
+    new Set(deliberatelyDistinctBuildingKinds.map((kind) => (
+      BUILDING_AUDIO_CLIPS[kind].path
+    ))).size === deliberatelyDistinctBuildingKinds.length,
+    'Recognition-critical facilities must not fall back to another building family cue',
+  );
+  const wellAsset = buildingAssets.find((asset) => asset.id === 'building-well');
+  invariant(
+    wellAsset && /splash/i.test(wellAsset.prompt) && /dominant/i.test(wellAsset.prompt),
+    'The well prompt must keep water splash dominant over its windlass mechanics',
+  );
+  const appBootstrapSource = await readFile(
+    path.join(PROJECT_ROOT, 'src', 'app', 'appBootstrap.ts'),
+    'utf8',
+  );
+  invariant(
+    !/building\.kind\s*!==\s*['"]wayside_shrine['"]/.test(appBootstrapSource),
+    'Wayside Shrine has an authored selection cue and must not be muted by the click handler',
+  );
   const chapelBellAssets = manifest.assets.filter((asset) => (
     asset.group === 'chapel-bells'
   ));
@@ -692,11 +723,12 @@ async function main(): Promise<void> {
     asset.group === 'world-foley'
     || asset.group === 'movement-foley'
     || asset.group === 'threat-alerts'
+    || asset.group === 'threat-announcements-v2'
   ));
   invariant(
     worldAssets.length === Object.keys(WORLD_FOLEY_CLIPS).length
-    && worldAssets.length === 54,
-    'World Foley manifest and runtime catalog must retain all 54 cues',
+    && worldAssets.length === 55,
+    'World Foley manifest and runtime catalog must retain all 55 cues',
   );
   for (const [id, clip] of Object.entries(WORLD_FOLEY_CLIPS)) {
     const asset = worldAssets.find((candidate) => (

@@ -33,6 +33,8 @@
     "audio:validate": "node --experimental-strip-types scripts/testAudioPipeline.mts",
     "audio:verify": "node --experimental-strip-types scripts/testAudioPipeline.mts --require-generated",
     "audio:browser-verify": "node --experimental-strip-types scripts/testAudioBrowserDecode.mts",
+    "test:ui-audio-hierarchy": "node --experimental-strip-types scripts/testUiAudioHierarchy.mts",
+    "test:ui-audio-browser": "node --experimental-strip-types scripts/testUiAudioHierarchyBrowser.mts",
     "test:lodge-logistics": "npx tsx scripts/testLodgeLogistics.mts",
     "test:industrial-firewood": "npx tsx scripts/testIndustrialFirewoodLogistics.mts",
     "test:fuel-reserves": "node --experimental-strip-types scripts/testFuelReservePolicy.mts",

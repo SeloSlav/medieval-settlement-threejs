@@ -9,6 +9,16 @@ type UiSoundDecision = {
   playbackRate?: number;
 };
 
+export type UiControlSemantics = {
+  override?: string;
+  disabled: boolean;
+  text: string;
+  role: string | null;
+  hasPopup: boolean;
+  expanded: string | null;
+  pressed: string | null;
+};
+
 const INTERACTION_SOUND_IDS = [
   'game_press',
   'game_tab',
@@ -26,7 +36,7 @@ const ADJUSTMENT_INTERVAL_MS = 45;
 const DANGER_PATTERN = /\b(delete|demolish|destroy|remove|reset|abandon|disband|new world|danger)\b/;
 const TRANSACTION_PATTERN = /\b(buy|sell|trade|upgrade|repair|rebuild|hire|recruit|pay|purchase|order)\b/;
 const PANEL_PATTERN = /\b(open|close|back|cancel|return|menu|settings|controls|tutorial|report|inspect)\b/;
-const TAB_PATTERN = /\b(tab|category|option|filter|formation|speed|preset|card)\b/;
+const TAB_PATTERN = /\b(tab|category|filter|formation|speed|preset|card)\b/;
 const CONFIRM_PATTERN = /\b(confirm|continue|save|apply|accept|start|rename|grant|deploy|build)\b/;
 
 function semanticText(control: HTMLElement): string {
@@ -39,45 +49,55 @@ function semanticText(control: HTMLElement): string {
   ].filter(Boolean).join(' ').toLowerCase().replaceAll('_', ' ').replaceAll('-', ' ');
 }
 
-function explicitDecision(control: HTMLElement): UiSoundDecision | null | undefined {
-  const override = control.dataset.uiSound;
+function explicitDecision(override?: string): UiSoundDecision | null | undefined {
   if (!override) return undefined;
   if (override === 'none') return null;
   if (!(override in UI_SOUNDS)) return undefined;
   return { id: override as UiSoundId };
 }
 
-/** Classifies a control after its click handler has updated ARIA state. */
-export function uiSoundForControl(control: HTMLElement): UiSoundDecision | null {
-  const explicit = explicitDecision(control);
+export function uiSoundForSemantics(control: UiControlSemantics): UiSoundDecision | null {
+  const explicit = explicitDecision(control.override);
   if (explicit !== undefined) return explicit;
-  if (
-    control instanceof HTMLButtonElement
-    && (control.disabled || control.getAttribute('aria-disabled') === 'true')
-  ) return null;
+  if (control.disabled) return null;
 
-  const semantics = semanticText(control);
+  const semantics = control.text;
   if (DANGER_PATTERN.test(semantics)) return { id: 'game_danger' };
   if (TRANSACTION_PATTERN.test(semantics)) return { id: 'game_transaction' };
 
-  if (PANEL_PATTERN.test(semantics) || control.hasAttribute('aria-haspopup')) {
-    const expanded = control.getAttribute('aria-expanded');
-    const closing = expanded === 'false' || /\b(close|back|cancel|return)\b/.test(semantics);
+  if (
+    (control.role === 'tab' || TAB_PATTERN.test(semantics))
+    && !control.hasPopup
+    && control.expanded === null
+  ) return { id: 'game_tab' };
+
+  if (PANEL_PATTERN.test(semantics) || control.hasPopup || control.expanded !== null) {
+    const closing = control.expanded === 'false' || /\b(close|back|cancel|return)\b/.test(semantics);
     return { id: 'game_panel', playbackRate: closing ? 0.92 : 1.06 };
   }
 
-  if (
-    control.getAttribute('role') === 'tab'
-    || TAB_PATTERN.test(semantics)
-  ) return { id: 'game_tab' };
-
-  const pressed = control.getAttribute('aria-pressed');
-  if (pressed !== null) {
-    return { id: 'game_toggle', playbackRate: pressed === 'true' ? 1.06 : 0.94 };
+  if (control.pressed !== null) {
+    return { id: 'game_toggle', playbackRate: control.pressed === 'true' ? 1.06 : 0.94 };
   }
 
   if (CONFIRM_PATTERN.test(semantics)) return { id: 'confirm' };
   return { id: 'game_press' };
+}
+
+/** Classifies a control after its click handler has updated ARIA state. */
+export function uiSoundForControl(control: HTMLElement): UiSoundDecision | null {
+  return uiSoundForSemantics({
+    override: control.dataset.uiSound,
+    disabled: (
+      (control instanceof HTMLButtonElement && control.disabled)
+      || control.getAttribute('aria-disabled') === 'true'
+    ),
+    text: semanticText(control),
+    role: control.getAttribute('role'),
+    hasPopup: control.hasAttribute('aria-haspopup'),
+    expanded: control.getAttribute('aria-expanded'),
+    pressed: control.getAttribute('aria-pressed'),
+  });
 }
 
 /**
@@ -87,14 +107,14 @@ export function uiSoundForControl(control: HTMLElement): UiSoundDecision | null 
  */
 export class UiInteractionAudio {
   private readonly clickRevision = new WeakMap<Event, number>();
+  private readonly root: HTMLElement;
+  private readonly audio: UiAudio;
   private lastAdjustmentAt = Number.NEGATIVE_INFINITY;
 
-  constructor(
-    private readonly root: HTMLElement,
-    private readonly audio: UiAudio,
-  ) {
+  constructor(root: HTMLElement, audio: UiAudio) {
+    this.root = root;
+    this.audio = audio;
     root.addEventListener('click', this.captureClick, true);
-    root.addEventListener('click', this.playClick);
     root.addEventListener('change', this.playChangedControl);
     root.addEventListener('input', this.playRangeAdjustment);
   }
@@ -105,21 +125,21 @@ export class UiInteractionAudio {
 
   dispose(): void {
     this.root.removeEventListener('click', this.captureClick, true);
-    this.root.removeEventListener('click', this.playClick);
     this.root.removeEventListener('change', this.playChangedControl);
     this.root.removeEventListener('input', this.playRangeAdjustment);
   }
 
   private readonly captureClick = (event: Event): void => {
-    this.clickRevision.set(event, this.audio.getPlayRevision());
-  };
-
-  private readonly playClick = (event: Event): void => {
-    if (this.clickRevision.get(event) !== this.audio.getPlayRevision()) return;
     const target = event.target;
     if (!(target instanceof Element)) return;
     const control = target.closest<HTMLElement>(CONTROL_SELECTOR);
     if (!control || !this.root.contains(control)) return;
+    this.clickRevision.set(event, this.audio.getPlayRevision());
+    queueMicrotask(() => this.playCapturedClick(event, control));
+  };
+
+  private readonly playCapturedClick = (event: Event, control: HTMLElement): void => {
+    if (this.clickRevision.get(event) !== this.audio.getPlayRevision()) return;
     const decision = uiSoundForControl(control);
     if (!decision) return;
     this.audio.play(decision.id, {

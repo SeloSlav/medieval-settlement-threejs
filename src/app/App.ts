@@ -1956,6 +1956,11 @@ export class App {
       snapshot.combatAgents.values(),
       snapshot.simTick,
       worldKey,
+      snapshot.banditCamps.values(),
+      [
+        ...snapshot.buildings.values(),
+        ...snapshot.residences.values(),
+      ],
     );
     if (alerts.length === 0) return;
 
@@ -1975,7 +1980,7 @@ export class App {
         },
         targetLabel: alert.targetLabel,
       });
-      this.ambientAudio?.playThreatAlert(alert.kind);
+      this.ambientAudio?.playThreatAlert(alert.sound);
     }
 
     if (snapshot.gameSpeed === 1 || !this.spacetimeStore) return;

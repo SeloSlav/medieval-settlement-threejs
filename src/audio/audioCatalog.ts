@@ -94,7 +94,11 @@ export type FootstepEvent = FootstepMotion & {
   surface: FootstepSurface;
 };
 
-export type ThreatAlertSoundKind = 'wildlife' | 'bandit' | 'ottoman';
+export type ThreatAlertSoundKind =
+  | 'wildlife-town-entry'
+  | 'bandit-camp-established'
+  | 'bandit-town-entry'
+  | 'ottoman-map-entry';
 
 export type WorldFoleySoundId =
   | 'cart_roll_1'
@@ -129,9 +133,10 @@ export type WorldFoleySoundId =
   | 'event_residence_complete'
   | 'event_residence_upgrade'
   | 'event_raid_alarm'
-  | 'event_wildlife_detected'
-  | 'event_bandits_detected'
   | 'event_ottoman_raiders_detected'
+  | 'event_bandit_camp_established'
+  | 'event_bandits_town_entry'
+  | 'event_wildlife_town_entry'
   | 'event_burial'
   | 'event_trade_arrival';
 
@@ -308,12 +313,12 @@ export const UI_SOUNDS: Record<UiSoundId, AudioClipDefinition> = {
   setup_back: { path: '/sounds/ui/setup_back.mp3', volume: 0.24 },
   setup_advance: { path: '/sounds/ui/setup_advance.mp3', volume: 0.45 },
   setup_commit: { path: '/sounds/ui/setup_commit.mp3', volume: 0.36 },
-  game_press: { path: '/sounds/ui/game_press.mp3', volume: 0.12 },
-  game_tab: { path: '/sounds/ui/game_tab.mp3', volume: 0.16 },
-  game_toggle: { path: '/sounds/ui/game_toggle.mp3', volume: 0.14 },
-  game_panel: { path: '/sounds/ui/game_panel.mp3', volume: 0.2 },
-  game_transaction: { path: '/sounds/ui/game_transaction.mp3', volume: 0.22 },
-  game_danger: { path: '/sounds/ui/game_danger.mp3', volume: 0.24 },
+  game_press: { path: '/sounds/ui/game_press.mp3', volume: 0.13 },
+  game_tab: { path: '/sounds/ui/game_tab.mp3', volume: 0.35 },
+  game_toggle: { path: '/sounds/ui/game_toggle.mp3', volume: 0.15 },
+  game_panel: { path: '/sounds/ui/game_panel.mp3', volume: 0.11 },
+  game_transaction: { path: '/sounds/ui/game_transaction.mp3', volume: 0.19 },
+  game_danger: { path: '/sounds/ui/game_danger.mp3', volume: 0.23 },
 };
 
 function personSelectionVariants(
@@ -358,8 +363,8 @@ export const BUILDING_AUDIO_CLIPS: Record<
   mine: { path: '/sounds/buildings/mine.mp3', volume: 0.065 },
   charcoal_burner: { path: '/sounds/buildings/charcoal_burner.mp3', volume: 0.05 },
   smithy: { path: '/sounds/buildings/smithy.mp3', volume: 0.065 },
-  weaponsmith_armorer: { path: '/sounds/buildings/smithy.mp3', volume: 0.065 },
-  bowyer_fletcher: { path: '/sounds/buildings/carpenter.mp3', volume: 0.055 },
+  weaponsmith_armorer: { path: '/sounds/buildings/weaponsmith_armorer.mp3', volume: 0.06 },
+  bowyer_fletcher: { path: '/sounds/buildings/bowyer_fletcher.mp3', volume: 0.055 },
   potter_kiln: { path: '/sounds/buildings/potter_kiln.mp3', volume: 0.055 },
   well: { path: '/sounds/buildings/well.mp3', volume: 0.05 },
   hunters_hall: { path: '/sounds/buildings/hunters_hall.mp3', volume: 0.05 },
@@ -369,9 +374,9 @@ export const BUILDING_AUDIO_CLIPS: Record<
   marketplace: { path: '/sounds/buildings/marketplace.mp3', volume: 0.04 },
   trading_post: { path: '/sounds/buildings/trading_post.mp3', volume: 0.05 },
   town_hall: { path: '/sounds/buildings/town_hall.mp3', volume: 0.04 },
-  stable: { path: '/sounds/buildings/pastoral_farmstead.mp3', volume: 0.05 },
-  cavalry_yard: { path: '/sounds/buildings/guardhouse.mp3', volume: 0.05 },
-  kennel: { path: '/sounds/buildings/hunters_hall.mp3', volume: 0.045 },
+  stable: { path: '/sounds/buildings/stable.mp3', volume: 0.05 },
+  cavalry_yard: { path: '/sounds/buildings/cavalry_yard.mp3', volume: 0.05 },
+  kennel: { path: '/sounds/buildings/kennel.mp3', volume: 0.05 },
   village_storehouse: { path: '/sounds/buildings/village_storehouse.mp3', volume: 0.045 },
   watchtower: { path: '/sounds/buildings/watchtower.mp3', volume: 0.045 },
   guardhouse: { path: '/sounds/buildings/guardhouse.mp3', volume: 0.05 },
@@ -389,11 +394,11 @@ export const BUILDING_AUDIO_CLIPS: Record<
   watermill: { path: '/sounds/buildings/watermill.mp3', volume: 0.055 },
   windmill: { path: '/sounds/buildings/windmill.mp3', volume: 0.055 },
   carpenter: { path: '/sounds/buildings/carpenter.mp3', volume: 0.06 },
-  spinning_retting_house: { path: '/sounds/buildings/weaver.mp3', volume: 0.05 },
+  spinning_retting_house: { path: '/sounds/buildings/spinning_retting_house.mp3', volume: 0.05 },
   weaver: { path: '/sounds/buildings/weaver.mp3', volume: 0.05 },
-  tannery: { path: '/sounds/buildings/smokehouse.mp3', volume: 0.045 },
-  cobbler: { path: '/sounds/buildings/carpenter.mp3', volume: 0.045 },
-  chandlery: { path: '/sounds/buildings/potter_kiln.mp3', volume: 0.045 },
+  tannery: { path: '/sounds/buildings/tannery.mp3', volume: 0.05 },
+  cobbler: { path: '/sounds/buildings/cobbler.mp3', volume: 0.05 },
+  chandlery: { path: '/sounds/buildings/chandlery.mp3', volume: 0.05 },
   residence: { path: '/sounds/buildings/residence.mp3', volume: 0.035 },
 };
 
@@ -452,9 +457,10 @@ export const WORLD_FOLEY_CLIPS: Record<WorldFoleySoundId, AudioClipDefinition> =
   event_residence_complete: worldFoleyClip('event_residence_complete', 0.075),
   event_residence_upgrade: worldFoleyClip('event_residence_upgrade', 0.075),
   event_raid_alarm: worldFoleyClip('event_raid_alarm', 0.11),
-  event_wildlife_detected: worldFoleyClip('event_wildlife_detected', 0.16),
-  event_bandits_detected: worldFoleyClip('event_bandits_detected', 0.16),
-  event_ottoman_raiders_detected: worldFoleyClip('event_ottoman_raiders_detected', 0.17),
+  event_ottoman_raiders_detected: worldFoleyClip('event_ottoman_raiders_detected', 0.22),
+  event_bandit_camp_established: worldFoleyClip('event_bandit_camp_established', 0.14),
+  event_bandits_town_entry: worldFoleyClip('event_bandits_town_entry', 0.18),
+  event_wildlife_town_entry: worldFoleyClip('event_wildlife_town_entry', 0.18),
   event_burial: worldFoleyClip('event_burial', 0.065),
   event_trade_arrival: worldFoleyClip('event_trade_arrival', 0.075),
 };

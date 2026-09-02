@@ -230,11 +230,13 @@ export class WorldFoleyAudio {
   }
 
   playThreatAlert(kind: ThreatAlertSoundKind): void {
-    const sound: WorldFoleySoundId = kind === 'wildlife'
-      ? 'event_wildlife_detected'
-      : kind === 'bandit'
-        ? 'event_bandits_detected'
-        : 'event_ottoman_raiders_detected';
+    const sounds: Record<ThreatAlertSoundKind, WorldFoleySoundId> = {
+      'wildlife-town-entry': 'event_wildlife_town_entry',
+      'bandit-camp-established': 'event_bandit_camp_established',
+      'bandit-town-entry': 'event_bandits_town_entry',
+      'ottoman-map-entry': 'event_ottoman_raiders_detected',
+    };
+    const sound = sounds[kind];
     this.playLocal(sound, 1, { playbackRate: 1, preservePitch: true });
   }
 

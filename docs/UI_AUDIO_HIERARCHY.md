@@ -28,10 +28,38 @@ preferences as gameplay. Its small vocabulary is preloaded when the wizard
 mounts, avoiding first-click latency. Navigation cues are allowed to finish
 after a panel unmounts so transitions never cut off their semantic feedback.
 
+## Live-game vocabulary
+
+The live interface uses delegated semantic audio at the shared UI root. This
+covers existing and dynamically mounted controls without adding a click call
+to every panel.
+
+| Cue | Meaning | Examples | Relative weight |
+| --- | --- | --- | --- |
+| `game_press` | Routine action | Ordinary utility button | 1 |
+| `game_tab` | Move within a peer set | Build category, formation, speed | 2 |
+| `game_toggle` | Change binary state | Road tool, overlay, checkbox | 3 |
+| `game_panel` | Change UI depth | Open menu, inspector, close/back | 4 |
+| `game_transaction` | Spend or alter an asset | Buy, trade, upgrade, repair | 5 |
+| `game_danger` | Destructive intent | Demolish, remove, reset, new world | 6 |
+| `confirm` | Successful commitment | Confirm, save, accepted server action | 7 |
+| `error` | Rejected outcome | Invalid or failed action | Interruptive |
+
+Open/on directions use a slightly raised playback rate; close/off directions
+use a lowered rate. Sliders map their value continuously to pitch and are
+limited to one tick every 45 ms.
+
+Controls can override automatic classification with `data-ui-sound` set to a
+catalog ID, or opt out with `data-ui-sound="none"`. Explicit result sounds
+emitted by a control handler take precedence over delegated feedback, avoiding
+double-triggered clicks. Asynchronous outcomes may deliberately follow the
+immediate intent cue with a later confirmation or error.
+
 ## Authoring and provenance
 
 The source prompts and settings are in
-`scripts/audio/elevenlabs-audio-manifest.json` under the `ui-hierarchy` group.
+`scripts/audio/elevenlabs-audio-manifest.json` under the `ui-hierarchy` and
+`ui-game-hierarchy` groups.
 Generated MP3 hashes and ElevenLabs model details are recorded in
 `public/sounds/elevenlabs-generation.json`.
 
@@ -39,6 +67,7 @@ Generate or verify this group with:
 
 ```powershell
 npm run audio:generate -- --group ui-hierarchy
+npm run audio:generate -- --group ui-game-hierarchy
 npm run audio:verify
 npm run audio:browser-verify
 ```
