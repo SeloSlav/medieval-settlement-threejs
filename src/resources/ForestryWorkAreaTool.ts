@@ -32,6 +32,7 @@ type ForestryWorkAreaToolOptions = {
   getHeightAt: (x: number, z: number) => number;
   onCommit: (commit: ForestryWorkAreaCommit) => void | Promise<void>;
   onModeChanged: () => void;
+  onToolCancelled?: () => void;
   onCommitFailed?: (message: string) => void;
   isBlocked: () => boolean;
 };
@@ -196,6 +197,7 @@ export class ForestryWorkAreaTool {
     if (!this.enabled || this.commitPending || this.options.isBlocked()) return;
     event.preventDefault();
     this.setEnabled(false);
+    this.options.onToolCancelled?.();
   };
 
   private readonly onWheel = (event: WheelEvent): void => {

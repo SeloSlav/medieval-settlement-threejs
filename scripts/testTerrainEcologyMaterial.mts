@@ -5,6 +5,8 @@ import * as THREE from 'three';
 import {
   createTerrainGrassMaterial,
   createTerrainGrassMaterialWithRiverShore,
+  FOREST_GROUND_TEXTURE_BLEND_END,
+  FOREST_GROUND_TEXTURE_BLEND_START,
   TERRAIN_FULL_RAIN_ALBEDO_DETAIL_FLOOR,
   TERRAIN_FULL_RAIN_AO_DETAIL_FLOOR,
   TERRAIN_FULL_RAIN_DIRT_DETAIL_FLOOR,
@@ -105,8 +107,8 @@ assert.match(
   /overviewLightColor = vec3\(0\.12, 0\.24, 0\.045\)[\s\S]*?overviewDarkColor = vec3\(0\.022, 0\.052, 0\.01\)[\s\S]*?overviewDryColor = vec3\(0\.2, 0\.225, 0\.065\)/,
   'strategic terrain families should favor meadow green over the former yellow cast',
 );
-assert.match(ecologySource, /const stableColorNode = grassStableColorNode;/);
-assert.match(ecologySource, /const colorNode = grassColorNode;/);
+assert.match(ecologySource, /const stableColorNode = mix\([\s\S]*?forestStableColorNode[\s\S]*?forestGroundBlend/);
+assert.match(ecologySource, /const colorNode = mix\([\s\S]*?forestColorNode[\s\S]*?forestGroundBlend/);
 assert.doesNotMatch(
   ecologySource,
   /const (?:macroTint|ecologyTint|forestTint|drainageTint|hierarchyTint|broadSoilValue) =/,
@@ -114,20 +116,92 @@ assert.doesNotMatch(
 );
 assert.match(ecologySource, /const rainMoisture = smoothstep/);
 assert.match(ecologySource, /const grassRainStableColorNode = rainMacroColor/);
-assert.match(ecologySource, /const rainStableColorNode = grassRainStableColorNode;/);
+assert.match(
+  ecologySource,
+  /const rainStableColorNode = mix\([\s\S]*?forestRainStableColorNode[\s\S]*?forestGroundBlend/,
+);
 assert.match(
   ecologySource,
   /const grassColorNode = mix\(\s*overviewTexturedColor,\s*blendedColor,\s*closeMaterialDetail/,
 );
 assert.match(ecologySource, /attribute\('forestBlend', 'float'\)/);
-assert.doesNotMatch(
+assert.match(
   ecologySource,
-  /packedForestLitter|forestSample|forestHrao|forestColorNode|forestStableColorNode|forestRainStableColorNode|forestBumpNode|forestNormalNode|forestRoughnessNode|forestAoNode/,
-  'forest ground must not retain a separate leaf-litter material path',
+  /const forestGroundBlend = smoothstep\([\s\S]*?FOREST_GROUND_TEXTURE_BLEND_START[\s\S]*?FOREST_GROUND_TEXTURE_BLEND_END[\s\S]*?forestBlendAttribute/,
+  'forest litter must use its own inset mask without moving other forest systems',
 );
-assert.match(ecologySource, /const normalNode = grassNormalNode;/);
-assert.match(ecologySource, /const roughnessNode = grassRoughnessNode;/);
-assert.match(ecologySource, /const aoNode = grassAoNode;/);
+assert.equal(FOREST_GROUND_TEXTURE_BLEND_START, 0.12);
+assert.equal(FOREST_GROUND_TEXTURE_BLEND_END, 0.96);
+const forestHraoProjections = [
+  ['A', 'primary'],
+  ['B', 'secondary'],
+  ['C', 'secondary'],
+] as const;
+for (const [projectionIndex, [projection, sourceName]] of forestHraoProjections.entries()) {
+  assert.match(
+    ecologySource,
+    new RegExp(`packedForestLitterUv\\(forestUv${projection}, '${sourceName}'\\)`),
+  );
+  assert.match(ecologySource, new RegExp(`packedForestLitterGradient\\(forestUv${projection}\\.dFdx\\(\\)\\)`));
+  assert.match(ecologySource, new RegExp(`packedForestLitterGradient\\(forestUv${projection}\\.dFdy\\(\\)\\)`));
+  const sampleStart = ecologySource.indexOf(`const forestHraoSample${projection} =`);
+  const nextProjection = forestHraoProjections[projectionIndex + 1]?.[0];
+  const sampleEnd = nextProjection
+    ? ecologySource.indexOf(`const forestHraoSample${nextProjection} =`, sampleStart)
+    : ecologySource.indexOf('// Reuse the existing broad ecology fields', sampleStart);
+  assert.ok(sampleStart >= 0 && sampleEnd > sampleStart);
+  const hraoSampleSource = ecologySource.slice(sampleStart, sampleEnd);
+  assert.match(hraoSampleSource, /texture\(\s*textures\.dry\.roughness/);
+  assert.match(
+    hraoSampleSource,
+    new RegExp(`packedForestLitterUv\\(forestUv${projection}, '${sourceName}'\\)`),
+  );
+  assert.match(
+    hraoSampleSource,
+    new RegExp(`\\.grad\\(\\s*packedForestLitterGradient\\(forestUv${projection}\\.dFdx\\(\\)\\),\\s*packedForestLitterGradient\\(forestUv${projection}\\.dFdy\\(\\)\\)`),
+    `forest HRAO projection ${projection} must use explicit atlas-safe gradients`,
+  );
+}
+assert.match(ecologySource, /const forestSecondaryProjection = smoothstep/);
+assert.match(ecologySource, /const forestPrimaryWeight = mix/);
+assert.match(
+  ecologySource,
+  /const forestPrimaryWeight = mix\([\s\S]*?float\(0\.12\)[\s\S]*?float\(0\.26\)/,
+  'the motif-heavy primary litter must remain a minority layer',
+);
+assert.match(
+  ecologySource,
+  /const forestSecondaryColor = mix\([\s\S]*?forestSampleB[\s\S]*?forestSampleC[\s\S]*?forestSecondaryProjection[\s\S]*?const forestColor = mix\([\s\S]*?forestSecondaryColor[\s\S]*?forestSampleA[\s\S]*?forestPrimaryWeight/,
+  'leaf litter must blend independent sources through broad ecology fields',
+);
+assert.match(
+  ecologySource,
+  /const forestSecondaryHrao = mix\([\s\S]*?forestHraoSampleB[\s\S]*?forestHraoSampleC[\s\S]*?forestSecondaryProjection[\s\S]*?const forestHrao = mix\([\s\S]*?forestSecondaryHrao[\s\S]*?forestHraoSampleA[\s\S]*?forestPrimaryWeight/,
+  'leaf-litter height, roughness, and AO must use the same material weights as albedo',
+);
+assert.match(
+  ecologySource,
+  /const forestGrain = smoothstep\([\s\S]*?float\(0\.008\)[\s\S]*?float\(0\.12\)[\s\S]*?forestLuminance/,
+  'leaf-litter contrast must be resolved over the authored albedo luminance range',
+);
+assert.match(
+  ecologySource,
+  /const forestDetailColorNode = forestColor\.rgb;/,
+  'close leaf litter must preserve the authored albedo without a second dark tint',
+);
+assert.match(
+  ecologySource,
+  /const forestDetailStableColorNode = mix\([\s\S]*?vec3\(0\.024, 0\.015, 0\.01\)[\s\S]*?vec3\(0\.16, 0\.095, 0\.055\)/,
+  'the stable leaf-litter remap must retain the source texture mean luminance',
+);
+assert.match(
+  ecologySource,
+  /const forestColorNode = forestDetailColorNode;[\s\S]*?const forestStableColorNode = forestDetailStableColorNode;/,
+  'the authored forest-floor texture must remain active at every camera height',
+);
+assert.match(ecologySource, /const forestBumpNode = bumpMap\(\s*forestHrao\.r/);
+assert.match(ecologySource, /const forestNormalNode = normalize\([\s\S]*?forestBumpNode,[\s\S]*?rainNormalVisibility/);
+assert.match(ecologySource, /const forestDetailRoughnessNode = forestHrao\.g;/);
 assert.match(
   ecologySource,
   /const meadowNormal = reorientTerrainNormalSample\([\s\S]*?textures\.meadow\.normal[\s\S]*?meadowUv,[\s\S]*?1,[\s\S]*?0,[\s\S]*?0,[\s\S]*?1/,
@@ -147,6 +221,16 @@ assert.match(
   ecologySource,
   /const dryRoughness = \(texture\(\s*textures\.dry\.roughness,\s*packedDrySnowUv\(dryUv, false\),?\s*\) as TslNode\)\.g;/,
   'dry grass roughness must read G from the dry cell of the reused HRAO atlas',
+);
+assert.match(
+  ecologySource,
+  /const forestDetailAoNode = mix\([\s\S]*?float\(0\.9\)[\s\S]*?float\(1\)[\s\S]*?forestHrao\.b/,
+  'close leaf litter must retain soft AO rather than being darkened twice',
+);
+assert.match(
+  ecologySource,
+  /const forestAoNode = mix\([\s\S]*?float\(1\)[\s\S]*?forestDetailAoNode,[\s\S]*?rainAoVisibility/,
+  'forest-floor AO must remain detailed at every camera height',
 );
 assert.match(ecologySource, /vec3\(0\.12, 0\.24, 0\.045\)/);
 assert.match(ecologySource, /vec3\(0\.022, 0\.052, 0\.01\)/);
@@ -200,8 +284,8 @@ assert.doesNotMatch(
 );
 assert.equal(
   (source.match(/\btexture\(/g) ?? []).length,
-  26,
-  'removing the forest litter projections must also remove their six texture fetches',
+  32,
+  'packed litter HRAO must retain a bounded texture-fetch budget',
 );
 const terrainTextureBindings = new Set(
   [...source.matchAll(/texture\(\s*(textures\.(?:meadow|dense|dry)\.(?:albedo|normal|roughness|ao)|roadTextures\.(?:albedo|roughness))/g)]
@@ -238,10 +322,11 @@ assert.doesNotMatch(
 );
 assert.match(source, /function mirroredTerrainAtlasUv/);
 assert.match(source, /const tileUv = mirroredTerrainAtlasUv\(grassUv\)/);
-assert.doesNotMatch(
+assert.match(source, /function repeatingTerrainAtlasUv/);
+assert.match(
   source,
-  /packedForestLitter|repeatingTerrainAtlasUv/,
-  'the terrain shader must not expose atlas helpers for the removed forest litter cells',
+  /source === 'secondary'[\s\S]*?repeatingTerrainAtlasUv\(forestUv\)[\s\S]*?mirroredTerrainAtlasUv\(forestUv\)/,
+  'only the independently processed secondary litter may use ordinary repeat wrapping',
 );
 assert.doesNotMatch(
   source,
@@ -310,22 +395,23 @@ assert.match(
 );
 assert.match(
   source,
-  /const baseColorNode = grassOrDirtColorNode;[\s\S]*?const stableBaseColorNode = stableGrassOrDirtColorNode;/,
-  'forest ground must share the meadow grass-to-close-dirt color handoff',
+  /const baseColorNode = mix\(\s*grassOrDirtColorNode,\s*blendNodes\.forestColorNode,\s*forestSurfaceBlend/,
+  'forest litter must override overview grass and close dirt only after the inset handoff',
 );
 assert.match(
   source,
-  /const forestSurfaceBlend = blendNodes\.forestBlend\.mul\([\s\S]*?wornMask/,
-  'forest coverage must remain available for canopy shading while yielding to roads, banks, and quarry pads',
+  /const forestCanopyBlend = blendNodes\.forestBlend\.mul\([\s\S]*?const forestSurfaceBlend = blendNodes\.forestGroundBlend\.mul\([\s\S]*?wornMask/,
+  'the inset litter edge must not move canopy shading or other forest coverage',
 );
+assert.match(source, /canopyInterior[\s\S]*?\.mul\(forestCanopyBlend\)/);
 assert.match(
   source,
-  /const rainStableGrassOrDirtColorNode = applyCloseZoomDirtBlend\([\s\S]*?dirtSurface\.colorNode[\s\S]*?dirtSurfaceAmount[\s\S]*?const rainStableBaseColorNode = rainStableGrassOrDirtColorNode;/,
+  /const rainStableGrassOrDirtColorNode = applyCloseZoomDirtBlend\([\s\S]*?dirtSurface\.colorNode[\s\S]*?dirtSurfaceAmount[\s\S]*?const rainStableBaseColorNode = mix/,
   'rain must retain the authored layered dirt albedo instead of resolving to green meadow',
 );
-assert.match(source, /const baseRoughnessNode = grassOrDirtRoughnessNode;/);
-assert.match(source, /const baseNormalNode = grassOrDirtNormalNode;/);
-assert.match(source, /const baseAoNode = grassOrDirtAoNode;/);
+assert.match(source, /const baseRoughnessNode = mix\([\s\S]*?blendNodes\.forestRoughnessNode[\s\S]*?forestSurfaceBlend/);
+assert.match(source, /const baseNormalNode = normalize\([\s\S]*?blendNodes\.forestNormalNode[\s\S]*?forestSurfaceBlend/);
+assert.match(source, /const baseAoNode = mix\([\s\S]*?blendNodes\.forestAoNode[\s\S]*?forestSurfaceBlend/);
 assert.match(source, /dirtSurface\.normalNode/);
 assert.match(source, /dirtSurface\.roughnessNode/);
 assert.match(source, /dirtSurface\.aoNode/);
@@ -516,7 +602,7 @@ assert.equal(packedTerrainAtlas.readUInt32BE(16), 1024);
 assert.equal(
   packedTerrainAtlas.readUInt32BE(20),
   4096,
-  'the existing packed layout must remain stable for the unchanged dry and snow UV regions',
+  'the packed terrain atlas must retain dry grass, snow, and two independent leaf-litter cells',
 );
 const packedTerrainHraoAtlas = readFileSync(
   `${projectRoot}public/assets/textures/terrain/gorski_dry_grass_v1/snow_leaf_hrao_atlas.png`,
@@ -527,6 +613,11 @@ assert.equal(
   4096,
   'the HRAO atlas must exactly match the packed terrain albedo layout',
 );
+const secondaryForestAlbedo = readFileSync(
+  `${projectRoot}public/assets/textures/terrain/gorski_forest_litter_secondary_v1/albedo.png`,
+);
+assert.equal(secondaryForestAlbedo.readUInt32BE(16), 1024);
+assert.equal(secondaryForestAlbedo.readUInt32BE(20), 1024);
 assert.match(source, /const revealStart = sub/);
 assert.match(source, /\.mul\(exposure\)/);
 assert.match(source, /function resolveTerrainWeather/);

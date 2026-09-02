@@ -150,6 +150,7 @@ type FarmFieldToolOptions = {
     southExposure: number;
   }) => Promise<void> | void;
   onModeChanged: () => void;
+  onToolCancelled?: () => void;
   onPlacementRejected?: (reason: FarmFieldPlacementFailureReason) => void;
   onPlacementFailed?: (message: string) => void;
   onCropChanged?: (crop: FarmCrop, recommendation: string) => void;
@@ -616,7 +617,10 @@ export class FarmFieldTool {
     if (!this.enabled || this.options.isBlocked()) return;
     event.preventDefault();
     if (this.hasDraft()) this.undoLastStep();
-    else this.setEnabled(false);
+    else {
+      this.setEnabled(false);
+      this.options.onToolCancelled?.();
+    }
   };
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {

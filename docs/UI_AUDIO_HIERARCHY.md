@@ -14,7 +14,7 @@ restrained brass, and wax so they belong to one late-medieval material world.
 | `setup_preset` | Apply a bundled configuration | Heraldry preset, difficulty preset, random seed | 4 |
 | `setup_back` | Reverse navigation | Back to Legacy or Heraldry | 4 |
 | `setup_advance` | Commit one wizard step | Legacy to Heraldry, Heraldry to Map | 5 |
-| `setup_commit` | Final consequential action | Start world | 6 |
+| `setup_commit` | Cross from setup into the world | Start world; iron latch and opening oak door | 6 |
 | `error` | Rejected or invalid input | Invalid world seed | Interruptive |
 
 Fine-control ticks are limited to one every 42 ms. Range position maps to
@@ -40,6 +40,7 @@ to every panel.
 | `game_tab` | Move within a peer set | Build category, formation, speed | 2 |
 | `game_toggle` | Change binary state | Road tool, overlay, checkbox | 3 |
 | `game_panel` | Change UI depth | Open menu, inspector, close/back | 4 |
+| `game_cancel` | Leave an active world tool | Stationary right-click exits placement | 4 |
 | `game_transaction` | Spend or alter an asset | Buy, trade, upgrade, repair | 5 |
 | `game_danger` | Destructive intent | Demolish, remove, reset, new world | 6 |
 | `confirm` | Successful commitment | Confirm, save, accepted server action | 7 |

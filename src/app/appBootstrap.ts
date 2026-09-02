@@ -536,6 +536,7 @@ export async function bootstrapAppSession(
       ambientAudio.playUiSound('road_place');
     },
     onStateChanged: () => bridge.syncToolbar(),
+    onToolCancelled: () => ambientAudio.playUiSound('game_cancel'),
     getBuildings: () => buildingMarkers.getRoadConnectionSources(),
     getBurgageZones: () => liveContext.gameState.burgageZones.values(),
     isBlocked: () => isRoadPlacementBlocked(placementGate),
@@ -604,6 +605,7 @@ export async function bootstrapAppSession(
     getDeliveryTravelSpeedMultiplier: (origin) =>
       worldQueries.getDeliveryTravelSpeedMultiplier(origin),
     onModeChanged: () => bridge.syncToolbar(),
+    onToolCancelled: () => ambientAudio.playUiSound('game_cancel'),
     onPlacementPreviewChanged: () => bridge.syncToolbar(),
     describePlacementFailure: describeBuildingPlacementBlocker,
     onPlacementRejected: (reason) => {
@@ -663,6 +665,7 @@ export async function bootstrapAppSession(
       await spacetimeStore.demolishBurgageZone(zoneId);
     },
     onModeChanged: () => bridge.syncToolbar(),
+    onToolCancelled: () => ambientAudio.playUiSound('game_cancel'),
     onPlacementRejected: (reason) => {
       if (reason === 'insufficient_resources') return;
       ambientAudio.playUiSound('error');
@@ -749,6 +752,7 @@ export async function bootstrapAppSession(
       ambientAudio.playUiSound('building_place');
     },
     onModeChanged: () => bridge.syncToolbar(),
+    onToolCancelled: () => ambientAudio.playUiSound('game_cancel'),
     onPlacementRejected: (reason) => {
       ambientAudio.playUiSound('error');
       toastManager?.show(
@@ -787,6 +791,7 @@ export async function bootstrapAppSession(
       resourceInspector?.refreshSelection();
       bridge.syncToolbar();
     },
+    onToolCancelled: () => ambientAudio.playUiSound('game_cancel'),
     onCommitFailed: (message) => {
       ambientAudio.playUiSound('error');
       toastManager?.show(message, { variant: 'error' });

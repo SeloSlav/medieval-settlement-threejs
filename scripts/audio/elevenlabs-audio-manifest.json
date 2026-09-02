@@ -976,10 +976,10 @@
       "group": "ui-hierarchy",
       "kind": "sound-effect",
       "output": "public/sounds/ui/setup_commit.mp3",
-      "prompt": "Immediate compact premium medieval strategy game final commitment sound: a signet presses decisively into warm sealing wax on a charter, supported by one deep controlled oak desk thump and a brief refined brass glint, authoritative and satisfying without being loud, short dry tail, no reverb, no melody, no voice",
-      "durationSeconds": 1.05,
+      "prompt": "Immediate compact medieval game transition cue: a firm wrought-iron latch releases with one decisive click, then a stout oak door swings open on a short low wooden hinge creak and stops softly. Clear two-part gesture from an enclosed room toward the outside world; weighty but not cinematic. No footsteps, voices, crowd, music, bell, chime, magic, modern mechanism, long reverb, or ambience",
+      "durationSeconds": 1.5,
       "loop": false,
-      "promptInfluence": 0.92
+      "promptInfluence": 0.96
     },
     {
       "id": "ui-game-press",
@@ -1030,6 +1030,16 @@
       "durationSeconds": 0.7,
       "loop": false,
       "promptInfluence": 0.9
+    },
+    {
+      "id": "ui-game-cancel",
+      "group": "ui-game-hierarchy",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/game_cancel.mp3",
+      "prompt": "Immediate short medieval strategy game tool-cancel cue: a carved oak planning peg is pulled cleanly from a fitted map-board socket with one dry release pop, followed by a tiny parchment slip drawing back. Clear retracting physical gesture, restrained but unmistakable. No error tone, melody, voice, reverb, magic, bell, chime, or modern sound",
+      "durationSeconds": 0.65,
+      "loop": false,
+      "promptInfluence": 0.95
     },
     {
       "id": "ui-game-danger",

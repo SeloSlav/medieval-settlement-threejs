@@ -35,7 +35,10 @@ import { ForestCanopyOcclusionMap } from './ForestCanopyOcclusion.ts';
 type TslNode = {
   abs(): TslNode;
   add(value: TslNode): TslNode;
+  dFdx(): TslNode;
+  dFdy(): TslNode;
   div(value: TslNode): TslNode;
+  grad(gradX: TslNode, gradY: TslNode): TslNode;
   level(value: TslNode): TslNode;
   mul(value: TslNode): TslNode;
   sub(value: TslNode): TslNode;
@@ -68,6 +71,8 @@ export const FOREST_CANOPY_SUN_OPENING_RELIEF = 0.72;
 export const FOREST_CANOPY_SUN_OPENING_FAR_VISIBILITY = 0.14;
 export const FOREST_CANOPY_SUN_OPENING_FADE_START_METERS = 110;
 export const FOREST_CANOPY_SUN_OPENING_FADE_END_METERS = 260;
+export const FOREST_GROUND_TEXTURE_BLEND_START = 0.12;
+export const FOREST_GROUND_TEXTURE_BLEND_END = 0.96;
 export const TERRAIN_TOPOGRAPHY_INTERVAL_METERS = 2;
 
 const TERRAIN_TOPOGRAPHY_VISIBILITY_KEY = 'terrainTopographyVisibility';
@@ -141,10 +146,10 @@ function resolveTerrainWeather(
 
 function mirroredTerrainAtlasUv(sourceUv: TslNode): TslNode {
   // Manual fract-only wrapping creates a jump from one image edge to the
-  // other at every integer UV. The authored snow is not edge-matched, so that
-  // jump appeared as evenly spaced dashed seams across the terrain. A
-  // triangle-wave fold meets each repeated tile at the same image edge and
-  // preserves continuity while keeping packed V samples isolated.
+  // other at every integer UV. The authored snow and litter are not edge-
+  // matched, so that jump appeared as evenly spaced dashed seams across the
+  // terrain. A triangle-wave fold meets each repeated tile at the same image
+  // edge and preserves continuity while keeping packed V samples isolated.
   return sub(
     float(1) as TslNode,
     (fract(sourceUv.mul(float(0.5) as TslNode)) as TslNode)
@@ -154,12 +159,20 @@ function mirroredTerrainAtlasUv(sourceUv: TslNode): TslNode {
   ) as TslNode;
 }
 
+function repeatingTerrainAtlasUv(sourceUv: TslNode): TslNode {
+  // Both forest sources are processed as seamless tiles. Explicit gradients
+  // below keep the discontinuous repeat from requesting a coarse atlas mip at
+  // each boundary, so litter can repeat normally without mirror symmetry.
+  return fract(sourceUv) as TslNode;
+}
+
 function packedDrySnowUv(grassUv: TslNode, snow: boolean): TslNode {
   const tileUv = mirroredTerrainAtlasUv(grassUv);
-  // Only the dry and snow regions of the packed atlas are sampled. Each
-  // manually mirrored cell has a 64px reflected gutter around an 896px content
-  // window, keeping the packed color/HRAO coordinates aligned with standalone
-  // MirroredRepeat normal and AO maps while isolating generated mips.
+  // Texture.flipY maps the image rows to secondary leaf, primary leaf, snow,
+  // then dry from low to high V. Each manually mirrored cell has a 64px
+  // reflected gutter around an 896px content window, keeping the packed
+  // color/HRAO coordinates aligned with standalone MirroredRepeat normal and
+  // AO maps while isolating generated mips.
   return vec2(
     tileUv.x
       .mul(float(0.875) as TslNode)
@@ -167,6 +180,33 @@ function packedDrySnowUv(grassUv: TslNode, snow: boolean): TslNode {
     tileUv.y
       .mul(float(0.21875) as TslNode)
       .add(float(snow ? 0.515625 : 0.765625) as TslNode),
+  ) as TslNode;
+}
+
+function packedForestLitterUv(
+  forestUv: TslNode,
+  source: 'primary' | 'secondary',
+): TslNode {
+  const tileUv = source === 'secondary'
+    ? repeatingTerrainAtlasUv(forestUv)
+    : mirroredTerrainAtlasUv(forestUv);
+  // Keep a full-mip safety border inside each leaf quarter of the packed
+  // atlas. The explicit gradients prevent the repeat discontinuity itself
+  // from selecting snow-contaminated coarse mips.
+  return vec2(
+    tileUv.x
+      .mul(float(0.856) as TslNode)
+      .add(float(0.072) as TslNode),
+    tileUv.y
+      .mul(float(0.214) as TslNode)
+      .add(float(source === 'secondary' ? 0.018 : 0.268) as TslNode),
+  ) as TslNode;
+}
+
+function packedForestLitterGradient(gradient: TslNode): TslNode {
+  return vec2(
+    gradient.x.mul(float(0.856) as TslNode),
+    gradient.y.mul(float(0.214) as TslNode),
   ) as TslNode;
 }
 
@@ -240,16 +280,59 @@ function buildGrassBlendNodes(
       .add(grassUv.y.mul(float(0.65) as TslNode))
       .add(float(0.43) as TslNode),
   ) as TslNode;
+  // Leaf forms need a much smaller world scale than grass clumps. Three
+  // decorrelated projections keep the authored litter scale. The independent
+  // secondary source uses ordinary repeat wrapping, while the old mirrored
+  // source remains only as a low-weight variation layer. All three projections
+  // reuse the same packed albedo binding, so this adds no samplers.
+  const forestUvA = vec2(
+    grassUv.x
+      .mul(float(9) as TslNode)
+      .sub(grassUv.y.mul(float(7.6) as TslNode))
+      .add(float(0.23) as TslNode),
+    grassUv.x
+      .mul(float(7.6) as TslNode)
+      .add(grassUv.y.mul(float(9) as TslNode))
+      .add(float(0.67) as TslNode),
+  ) as TslNode;
+  const forestUvB = vec2(
+    grassUv.x
+      .mul(float(-6.8) as TslNode)
+      .sub(grassUv.y.mul(float(10.2) as TslNode))
+      .add(float(0.73) as TslNode),
+    grassUv.x
+      .mul(float(10.2) as TslNode)
+      .sub(grassUv.y.mul(float(6.8) as TslNode))
+      .add(float(0.31) as TslNode),
+  ) as TslNode;
+  const forestUvC = vec2(
+    grassUv.x
+      .mul(float(10.7) as TslNode)
+      .add(grassUv.y.mul(float(3.9) as TslNode))
+      .add(float(0.41) as TslNode),
+    grassUv.x
+      .mul(float(-3.9) as TslNode)
+      .add(grassUv.y.mul(float(10.7) as TslNode))
+      .add(float(0.89) as TslNode),
+  ) as TslNode;
   const meadowColor = texture(textures.meadow.albedo, meadowUv) as TslNode;
   const denseColor = texture(textures.dense.albedo, denseUv) as TslNode;
   const dryColor = texture(
     textures.dry.albedo,
     packedDrySnowUv(dryUv, false),
   ) as TslNode;
+  const forestBlendAttribute = attribute('forestBlend', 'float') as TslNode;
   const forestBlend = smoothstep(
     float(0.04) as TslNode,
     float(0.96) as TslNode,
-    attribute('forestBlend', 'float') as TslNode,
+    forestBlendAttribute,
+  ) as TslNode;
+  // The litter begins just inside the forest boundary. The original forest
+  // coverage remains unchanged for canopy shade, ecology, and vegetation.
+  const forestGroundBlend = smoothstep(
+    float(FOREST_GROUND_TEXTURE_BLEND_START) as TslNode,
+    float(FOREST_GROUND_TEXTURE_BLEND_END) as TslNode,
+    forestBlendAttribute,
   ) as TslNode;
   const blendedColor = meadowColor.rgb
     .mul(w.x)
@@ -328,6 +411,115 @@ function buildGrassBlendNodes(
     .add(densePatch.mul(float(0.27) as TslNode))
     .add((sub(float(1) as TslNode, meadowPatch) as TslNode).mul(float(0.15) as TslNode)) as TslNode;
   const macro = macroA.mul(float(0.68) as TslNode).add(macroB.mul(float(0.32) as TslNode));
+  const forestSampleA = (texture(
+    textures.dry.albedo,
+    packedForestLitterUv(forestUvA, 'primary'),
+  ) as TslNode).grad(
+    packedForestLitterGradient(forestUvA.dFdx()),
+    packedForestLitterGradient(forestUvA.dFdy()),
+  ) as TslNode;
+  const forestSampleB = (texture(
+    textures.dry.albedo,
+    packedForestLitterUv(forestUvB, 'secondary'),
+  ) as TslNode).grad(
+    packedForestLitterGradient(forestUvB.dFdx()),
+    packedForestLitterGradient(forestUvB.dFdy()),
+  ) as TslNode;
+  const forestSampleC = (texture(
+    textures.dry.albedo,
+    packedForestLitterUv(forestUvC, 'secondary'),
+  ) as TslNode).grad(
+    packedForestLitterGradient(forestUvC.dFdx()),
+    packedForestLitterGradient(forestUvC.dFdy()),
+  ) as TslNode;
+  // The dry roughness binding is a packed linear HRAO atlas. Reusing this
+  // sampler gives both litter identities coherent relief, roughness, and AO
+  // without consuming another portable WebGPU texture slot.
+  const forestHraoSampleA = (texture(
+    textures.dry.roughness,
+    packedForestLitterUv(forestUvA, 'primary'),
+  ) as TslNode).grad(
+    packedForestLitterGradient(forestUvA.dFdx()),
+    packedForestLitterGradient(forestUvA.dFdy()),
+  ) as TslNode;
+  const forestHraoSampleB = (texture(
+    textures.dry.roughness,
+    packedForestLitterUv(forestUvB, 'secondary'),
+  ) as TslNode).grad(
+    packedForestLitterGradient(forestUvB.dFdx()),
+    packedForestLitterGradient(forestUvB.dFdy()),
+  ) as TslNode;
+  const forestHraoSampleC = (texture(
+    textures.dry.roughness,
+    packedForestLitterUv(forestUvC, 'secondary'),
+  ) as TslNode).grad(
+    packedForestLitterGradient(forestUvC.dFdx()),
+    packedForestLitterGradient(forestUvC.dFdy()),
+  ) as TslNode;
+  // Reuse the existing broad ecology fields to move gradually between the
+  // projections. Their boundaries are much larger than a litter tile, so no
+  // new cell/grid structure is introduced and every PBR response shares the
+  // same primary/secondary material weights.
+  const forestSecondaryProjection = smoothstep(
+    float(0.24) as TslNode,
+    float(0.76) as TslNode,
+    macroA,
+  ) as TslNode;
+  const forestPrimaryWeight = mix(
+    float(0.12) as TslNode,
+    float(0.26) as TslNode,
+    smoothstep(
+      float(0.3) as TslNode,
+      float(0.74) as TslNode,
+      macroB,
+    ) as TslNode,
+  ) as TslNode;
+  const forestSecondaryColor = mix(
+    forestSampleB,
+    forestSampleC,
+    forestSecondaryProjection,
+  ) as TslNode;
+  const forestColor = mix(
+    forestSecondaryColor,
+    forestSampleA,
+    forestPrimaryWeight,
+  ) as TslNode;
+  const forestSecondaryHrao = mix(
+    forestHraoSampleB,
+    forestHraoSampleC,
+    forestSecondaryProjection,
+  ) as TslNode;
+  const forestHrao = mix(
+    forestSecondaryHrao,
+    forestHraoSampleA,
+    forestPrimaryWeight,
+  ) as TslNode;
+  const forestLuminance = forestColor.r
+    .mul(float(0.299) as TslNode)
+    .add(forestColor.g.mul(float(0.587) as TslNode))
+    .add(forestColor.b.mul(float(0.114) as TslNode)) as TslNode;
+  const forestGrain = smoothstep(
+    float(0.008) as TslNode,
+    float(0.12) as TslNode,
+    forestLuminance,
+  ) as TslNode;
+  // The atlas is already an authored sRGB albedo. Keep its decoded linear
+  // luminance intact at close range instead of applying a second brown tint.
+  const forestDetailColorNode = forestColor.rgb;
+  // Bound the high-frequency litter contrast for mip-stable views while
+  // preserving the atlas mean. The former near-black remap halved the source
+  // luminance before lighting and made the whole forest footprint a dark basin.
+  const forestDetailStableColorNode = mix(
+    vec3(0.024, 0.015, 0.01) as TslNode,
+    vec3(0.16, 0.095, 0.055) as TslNode,
+    forestGrain,
+  ) as TslNode;
+  // Forest litter is a persistent terrain identity, not close-camera detail.
+  // Keep the authored atlas active at every camera height instead of replacing
+  // it with a flat brown overview color when the general ground-detail LOD fades.
+  const forestColorNode = forestDetailColorNode;
+  const forestStableColorNode = forestDetailStableColorNode;
+
   // Strategic zoom uses three broad, overlapping coverages instead of the
   // near-camera vertex mix alone. A small baseline keeps each texture present;
   // the three independent fields then gather light meadow, pale dry grass and
@@ -503,12 +695,26 @@ function buildGrassBlendNodes(
   ) as TslNode;
   const grassRainStableColorNode = rainMacroColor
     .mul(rainDrainageTint) as TslNode;
-  const rainStableColorNode = grassRainStableColorNode;
+  const forestRainStableColorNode = forestStableColorNode
+    .mul(vec3(0.72, 0.78, 0.74) as TslNode) as TslNode;
+  const rainStableColorNode = mix(
+    grassRainStableColorNode,
+    forestRainStableColorNode,
+    forestGroundBlend,
+  ) as TslNode;
   // Preserve the original authored grass/dirt presentation in fair weather.
   // Broad ecological fields continue to drive weather and frost, but must not
   // tint the entire terrain green before the close-zoom dirt blend is applied.
-  const stableColorNode = grassStableColorNode;
-  const colorNode = grassColorNode;
+  const stableColorNode = mix(
+    grassStableColorNode,
+    forestStableColorNode,
+    forestGroundBlend,
+  ) as TslNode;
+  const colorNode = mix(
+    grassColorNode,
+    forestColorNode,
+    forestGroundBlend,
+  ) as TslNode;
   // normalMap() derives one tangent frame from the base terrain UV. Rotate
   // each sampled tangent normal out of its hardware mirrored tile and back
   // through its authored UV transform before blending, so lighting lobes stay
@@ -554,7 +760,20 @@ function buildGrassBlendNodes(
     normalDetailStrength.mul(rainNormalVisibility),
   ) as TslNode;
   const grassNormalNode = normalMap(resolvedNormalSample);
-  const normalNode = grassNormalNode;
+  const forestBumpNode = bumpMap(
+    forestHrao.r,
+    float(0.14) as TslNode,
+  ) as TslNode;
+  const forestNormalNode = normalize(
+    mix(
+      grassNormalNode,
+      forestBumpNode,
+      rainNormalVisibility,
+    ) as TslNode,
+  ) as TslNode;
+  const normalNode = normalize(
+    mix(grassNormalNode, forestNormalNode, forestGroundBlend) as TslNode,
+  ) as TslNode;
 
   const meadowRoughness = (texture(textures.meadow.roughness, meadowUv) as TslNode).r;
   const denseRoughness = (texture(textures.dense.roughness, denseUv) as TslNode).r;
@@ -573,7 +792,13 @@ function buildGrassBlendNodes(
     blendedRoughness,
     roughnessDetailStrength,
   ) as TslNode;
-  const roughnessNode = grassRoughnessNode;
+  const forestDetailRoughnessNode = forestHrao.g;
+  const forestRoughnessNode = forestDetailRoughnessNode;
+  const roughnessNode = mix(
+    grassRoughnessNode,
+    forestRoughnessNode,
+    forestGroundBlend,
+  ) as TslNode;
 
   const meadowAo = (texture(textures.meadow.ao!, meadowUv) as TslNode).r;
   const denseAo = (texture(textures.dense.ao!, denseUv) as TslNode).r;
@@ -594,7 +819,23 @@ function buildGrassBlendNodes(
     blendedAo,
     aoDetailStrength.mul(rainAoVisibility),
   ) as TslNode;
-  const aoNode = grassAoNode;
+  // Canopy occlusion multiplies this later, so retain only conservative local
+  // crevice AO from the generated height field.
+  const forestDetailAoNode = mix(
+    float(0.9) as TslNode,
+    float(1) as TslNode,
+    forestHrao.b,
+  ) as TslNode;
+  const forestAoNode = mix(
+    float(1) as TslNode,
+    forestDetailAoNode,
+    rainAoVisibility,
+  ) as TslNode;
+  const aoNode = mix(
+    grassAoNode,
+    forestAoNode,
+    forestGroundBlend,
+  ) as TslNode;
 
   return {
     colorNode,
@@ -608,7 +849,14 @@ function buildGrassBlendNodes(
     grassNormalNode,
     grassRoughnessNode,
     grassAoNode,
+    forestColorNode,
+    forestStableColorNode,
+    forestRainStableColorNode,
+    forestNormalNode,
+    forestRoughnessNode,
+    forestAoNode,
     forestBlend,
+    forestGroundBlend,
     grassUv,
     macro,
     moisture,
@@ -1046,7 +1294,7 @@ function applyTerrainTopographyOverlay(
     .mul(visibility)
     .mul(float(0.28) as TslNode) as TslNode;
 
-  // A small warm lift reads on meadow grass, wet soil, and snow
+  // A small warm lift reads on meadow, forest litter, wet soil, and snow
   // without flattening any of their authored material identities.
   return baseColor.add(
     (vec3(0.34, 0.33, 0.22) as TslNode).mul(ink),
@@ -1155,7 +1403,10 @@ export function createTerrainGrassMaterialWithRiverShore(
     float(0.74) as TslNode,
   ) as TslNode;
   const wornMask = max(max(shoreBlend, roadWear) as TslNode, quarryPad) as TslNode;
-  const forestSurfaceBlend = blendNodes.forestBlend.mul(
+  const forestCanopyBlend = blendNodes.forestBlend.mul(
+    sub(float(1) as TslNode, wornMask) as TslNode,
+  ) as TslNode;
+  const forestSurfaceBlend = blendNodes.forestGroundBlend.mul(
     sub(float(1) as TslNode, wornMask) as TslNode,
   ) as TslNode;
   const canopyField = attribute('forestCanopyOcclusion', 'vec4') as TslNode;
@@ -1189,7 +1440,7 @@ export function createTerrainGrassMaterialWithRiverShore(
     .mul(float(FOREST_CANOPY_SUN_OPENING_RELIEF) as TslNode) as TslNode;
   const canopyGroundShade = canopyInterior
     .mul(sub(float(1) as TslNode, canopyOpeningRelief) as TslNode)
-    .mul(forestSurfaceBlend) as TslNode;
+    .mul(forestCanopyBlend) as TslNode;
   const canopyColorFactor = mix(
     float(1) as TslNode,
     float(FOREST_CANOPY_GROUND_SHADE_MIN) as TslNode,
@@ -1275,11 +1526,18 @@ export function createTerrainGrassMaterialWithRiverShore(
     dirtSurface.colorNode,
     dirtSurfaceAmount,
   );
-  // Forest ground uses the same surface handoff as meadow: grass at strategic
-  // zoom and the shared dirt layer up close. Forest coverage still drives the
-  // existing canopy shade and ecological shelter.
-  const baseColorNode = grassOrDirtColorNode;
-  const stableBaseColorNode = stableGrassOrDirtColorNode;
+  // Apply the inset forest surface last so its feathered boundary resolves
+  // toward overview grass and close dirt before litter reaches the interior.
+  const baseColorNode = mix(
+    grassOrDirtColorNode,
+    blendNodes.forestColorNode,
+    forestSurfaceBlend,
+  ) as TslNode;
+  const stableBaseColorNode = mix(
+    stableGrassOrDirtColorNode,
+    blendNodes.forestStableColorNode,
+    forestSurfaceBlend,
+  ) as TslNode;
   // Rain resolves the meadow to a stable low-frequency color, but the close
   // dirt layer must remain brown and textured instead of being replaced by
   // the green rain-meadow fallback.
@@ -1288,7 +1546,11 @@ export function createTerrainGrassMaterialWithRiverShore(
     dirtSurface.colorNode,
     dirtSurfaceAmount,
   );
-  const rainStableBaseColorNode = rainStableGrassOrDirtColorNode;
+  const rainStableBaseColorNode = mix(
+    rainStableGrassOrDirtColorNode,
+    blendNodes.forestRainStableColorNode,
+    forestSurfaceBlend,
+  ) as TslNode;
   const wetBaseColorNode = applyTerrainWetColor(
     baseColorNode.mul(canopyColorFactor) as TslNode,
     stableBaseColorNode.mul(canopyColorFactor) as TslNode,
@@ -1369,7 +1631,11 @@ export function createTerrainGrassMaterialWithRiverShore(
     roughnessWithWear as TslNode,
     meadowWeight as TslNode,
   ) as TslNode;
-  const baseRoughnessNode = grassOrDirtRoughnessNode;
+  const baseRoughnessNode = mix(
+    grassOrDirtRoughnessNode,
+    blendNodes.forestRoughnessNode,
+    forestSurfaceBlend,
+  ) as TslNode;
   const roughnessNode = applyTerrainSnowRoughness(
     baseRoughnessNode,
     snowNodes.roughnessNode,
@@ -1383,13 +1649,23 @@ export function createTerrainGrassMaterialWithRiverShore(
       dirtSurfaceAmount,
     ) as TslNode,
   ) as TslNode;
-  const baseNormalNode = grassOrDirtNormalNode;
+  const baseNormalNode = normalize(
+    mix(
+      grassOrDirtNormalNode,
+      blendNodes.forestNormalNode,
+      forestSurfaceBlend,
+    ) as TslNode,
+  ) as TslNode;
   const grassOrDirtAoNode = mix(
     blendNodes.grassAoNode,
     dirtSurface.aoNode,
     dirtSurfaceAmount,
   ) as TslNode;
-  const baseAoNode = grassOrDirtAoNode;
+  const baseAoNode = mix(
+    grassOrDirtAoNode,
+    blendNodes.forestAoNode,
+    forestSurfaceBlend,
+  ) as TslNode;
 
   const material = new MeshStandardNodeMaterial();
   material.name = 'Grass blend terrain with river shore';

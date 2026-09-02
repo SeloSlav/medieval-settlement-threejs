@@ -1565,6 +1565,17 @@
       "sha256": "cfb6414d0e989df115b2d976d1f3107ae3ad4739f69e7d5fedbdd714902acb5e"
     },
     {
+      "id": "ui-game-cancel",
+      "output": "public/sounds/ui/game_cancel.mp3",
+      "generatedAt": "2026-09-02T10:28:33.105Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "6",
+      "byteLength": 11328,
+      "sha256": "58cefe6e62d89c8d8b453c2e39839cf6fcf44629765dd7c2887d72f0f6ee61ea"
+    },
+    {
       "id": "ui-game-danger",
       "output": "public/sounds/ui/game_danger.mp3",
       "generatedAt": "2026-09-02T08:50:21.919Z",
@@ -1688,13 +1699,13 @@
     {
       "id": "ui-setup-commit",
       "output": "public/sounds/ui/setup_commit.mp3",
-      "generatedAt": "2026-09-02T08:31:22.721Z",
+      "generatedAt": "2026-09-02T10:21:57.033Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
       "outputFormat": "mp3_44100_128",
-      "characterCost": "11",
-      "byteLength": 17598,
-      "sha256": "2461faef1ee4f406f0e022ef3df0c2db8c59b28d7e026d22d7997872b3b8e479"
+      "characterCost": "15",
+      "byteLength": 24703,
+      "sha256": "a812dde1ae5d8509c6c3df6abd6bcd3844a6311862ddc7ffce2d0ea861b1b849"
     },
     {
       "id": "ui-setup-portrait-select",

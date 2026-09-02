@@ -85,6 +85,7 @@ type BurgageToolOptions = {
   onBurgageZonePlaced?: (zoneId: string) => void;
   onDemolishBurgageZone: (zoneId: string) => void | Promise<void>;
   onModeChanged: () => void;
+  onToolCancelled?: () => void;
   onPlacementRejected?: (reason: BurgagePlacementFailureReason) => void;
   onPlacementFailed?: (message: string) => void;
   onUndoFailed?: (message: string) => void;
@@ -500,6 +501,7 @@ export class BurgageTool {
       this.undoLastStep();
     } else {
       this.setEnabled(false);
+      this.options.onToolCancelled?.();
     }
   };
 

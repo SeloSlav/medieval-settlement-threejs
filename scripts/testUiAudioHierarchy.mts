@@ -41,6 +41,7 @@ assert.deepEqual(decide({ text: 'confirm rename' }), { id: 'confirm' });
 assert.equal(decide({ disabled: true }), null);
 assert.equal(decide({ override: 'none' }), null);
 assert.deepEqual(decide({ override: 'game_transaction' }), { id: 'game_transaction' });
+assert.deepEqual(decide({ override: 'game_cancel' }), { id: 'game_cancel' });
 
 const source = readFileSync('src/audio/UiInteractionAudio.ts', 'utf8');
 assert.match(source, /getPlayRevision\(\)/);

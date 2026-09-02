@@ -139,7 +139,19 @@ for (const path of placementTools) {
     /if \(event\.button === 2\)/,
     `${path} must not cancel placement on right-button down`,
   );
+  assert.match(
+    source,
+    /onToolCancelled\?\.\(\)/,
+    `${path} must report a completed secondary-click tool exit for audio feedback`,
+  );
 }
+
+const appBootstrap = readFileSync('src/app/appBootstrap.ts', 'utf8');
+assert.equal(
+  appBootstrap.match(/onToolCancelled: \(\) => ambientAudio\.playUiSound\('game_cancel'\)/g)?.length,
+  placementTools.length,
+  'every secondary-click placement exit must play the dedicated cancel cue',
+);
 
 for (const path of [
   'src/roads/RoadTool.ts',

@@ -24,6 +24,7 @@ const INTERACTION_SOUND_IDS = [
   'game_tab',
   'game_toggle',
   'game_panel',
+  'game_cancel',
   'game_transaction',
   'game_danger',
   'confirm',

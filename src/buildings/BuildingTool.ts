@@ -74,6 +74,7 @@ type BuildingToolOptions = {
   mapBounds: TerrainBounds;
   getDeliveryTravelSpeedMultiplier?: (origin: { x: number; z: number }) => number;
   onModeChanged: () => void;
+  onToolCancelled?: () => void;
   onPlacementPreviewChanged?: () => void;
   describePlacementFailure?: (reason: BuildingPlacementFailureReason) => string;
   onPlacementRejected?: (reason: BuildingPlacementFailureReason) => void;
@@ -331,6 +332,7 @@ export class BuildingTool {
     if (this.mode === 'off' || this.options.isBlocked()) return;
     event.preventDefault();
     this.setMode('off');
+    this.options.onToolCancelled?.();
   };
 
   private async placeAt(

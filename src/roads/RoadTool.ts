@@ -76,6 +76,7 @@ export class RoadTool {
     onPlacementRejected?: (event: RoadPlacementRejectedEvent) => void;
     onDryStoneWallStartRejected?: () => void;
     onToggle?: () => void;
+    onToolCancelled?: () => void;
     isBlocked: () => boolean;
     getBuildings: () => Iterable<BuildingRoadConnectionSource>;
     getBurgageZones: () => Iterable<BurgageZoneState>;
@@ -131,6 +132,7 @@ export class RoadTool {
     onPlacementRejected?: (event: RoadPlacementRejectedEvent) => void;
     onDryStoneWallStartRejected?: () => void;
     onToggle?: () => void;
+    onToolCancelled?: () => void;
     isBlocked: () => boolean;
     getBuildings: () => Iterable<BuildingRoadConnectionSource>;
     getBurgageZones: () => Iterable<BurgageZoneState>;
@@ -418,6 +420,7 @@ export class RoadTool {
       return;
     }
     this.setEnabled(false);
+    this.options.onToolCancelled?.();
   };
 
   private readonly onPointerMove = (event: MouseEvent): void => {
