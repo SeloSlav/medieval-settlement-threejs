@@ -22,6 +22,16 @@
       "promptInfluence": 0.68
     },
     {
+      "id": "ambient-founders-camp-day",
+      "group": "founders-camp-ambience-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ambient/founders_camp_day.mp3",
+      "prompt": "Seamless restrained daytime ambience of a tiny newly founded late-medieval camp: low steady campfire, sparse indistinct settler murmur with no clear words, occasional burdened footsteps on earth, a sack or wooden crate lifted, carried, and set down, canvas and rope shifting. Tired practical activity with quiet gaps; no town crowd, carts, doors, livestock chorus, workshop rhythm, music, bells, shouting, or modern sound",
+      "durationSeconds": 30,
+      "loop": true,
+      "promptInfluence": 0.96
+    },
+    {
       "id": "ambient-town-interior-day",
       "group": "town-depth-ambience-v1",
       "kind": "sound-effect",
@@ -1030,16 +1040,6 @@
       "durationSeconds": 0.7,
       "loop": false,
       "promptInfluence": 0.9
-    },
-    {
-      "id": "ui-game-cancel",
-      "group": "ui-game-hierarchy",
-      "kind": "sound-effect",
-      "output": "public/sounds/ui/game_cancel.mp3",
-      "prompt": "Authentic close natural Foley only: a small hand-carved oak latch is gently released, making one soft dull wooden clack. Low-energy, slightly imperfect organic wood, dry, non-tonal, with no resonance or tail. Absolutely no electronic or arcade sound, beep, bloop, chime, synthesizer, musical note, spring, plastic, metal, paper, scrape, pop, whoosh, reverb, or voice",
-      "durationSeconds": 0.5,
-      "loop": false,
-      "promptInfluence": 0.99
     },
     {
       "id": "ui-game-danger",

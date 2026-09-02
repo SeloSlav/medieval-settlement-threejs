@@ -155,9 +155,12 @@
 
 /* Top HUD and its flyout ledgers ---------------------------------------- */
 
-.settlement-vitals__zoom-label,
-.noble-hud__gold .settlement-hud__label {
+.settlement-vitals__zoom-label {
   font-size: var(--ui-readable-caption);
+}
+
+.noble-hud__gold .settlement-hud__label {
+  font-size: 11px;
 }
 
 .settlement-vitals__zoom-value,

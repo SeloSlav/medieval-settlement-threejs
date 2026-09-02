@@ -2,6 +2,7 @@ import type { BuildingKind } from '../generated/gameBalance.ts';
 
 export type AmbientLayerId =
   | 'birds_wind_day'
+  | 'founders_camp_day'
   | 'village_day'
   | 'town_interior_day'
   | 'night_insects'
@@ -150,6 +151,7 @@ export type WorldFoleySoundId =
 
 export const AMBIENT_LAYERS: Record<AmbientLayerId, AudioClipDefinition> = {
   birds_wind_day: { path: '/sounds/ambient/birds_wind_day.mp3', volume: 0.95, loop: true },
+  founders_camp_day: { path: '/sounds/ambient/founders_camp_day.mp3', volume: 0.12, loop: true },
   village_day: { path: '/sounds/ambient/village_day.mp3', volume: 0.45, loop: true },
   town_interior_day: { path: '/sounds/ambient/town_interior_day.mp3', volume: 0.16, loop: true },
   night_insects: { path: '/sounds/ambient/night_insects.mp3', volume: 0.75, loop: true },

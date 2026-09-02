@@ -58,6 +58,17 @@
       "sha256": "1755de6b27e42909fdbcaf7215abf55b422b0cc0e6384b28287c6f6cd23d1ea7"
     },
     {
+      "id": "ambient-founders-camp-day",
+      "output": "public/sounds/ambient/founders_camp_day.mp3",
+      "generatedAt": "2026-09-02T10:48:34.513Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "300",
+      "byteLength": 481115,
+      "sha256": "bb2d72c1a9702d48503f8417aa146f797bdcbc7269c82f214545e0926112e706"
+    },
+    {
       "id": "ambient-light-rain",
       "output": "public/sounds/ambient/light_rain.mp3",
       "generatedAt": "2026-07-28T05:59:27.656Z",
@@ -1563,17 +1574,6 @@
       "characterCost": "7",
       "byteLength": 12164,
       "sha256": "cfb6414d0e989df115b2d976d1f3107ae3ad4739f69e7d5fedbdd714902acb5e"
-    },
-    {
-      "id": "ui-game-cancel",
-      "output": "public/sounds/ui/game_cancel.mp3",
-      "generatedAt": "2026-09-02T10:38:27.771Z",
-      "endpoint": "/v1/sound-generation",
-      "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "5",
-      "byteLength": 8821,
-      "sha256": "c8b765aba38e91b612b9758bad4bcc829e3ec91e83503a59519b0bca7fad30fd"
     },
     {
       "id": "ui-game-danger",

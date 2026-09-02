@@ -26,6 +26,7 @@ export const AMBIENT_LAYER_FADES: Record<
   { inSeconds: number; outSeconds: number }
 > = {
   birds_wind_day: { inSeconds: 4.5, outSeconds: 5.5 },
+  founders_camp_day: { inSeconds: 3.5, outSeconds: 4.5 },
   village_day: { inSeconds: 3.5, outSeconds: 4.5 },
   town_interior_day: { inSeconds: 4, outSeconds: 5 },
   night_insects: { inSeconds: 5, outSeconds: 6 },
@@ -55,6 +56,7 @@ export class AmbientAudio {
   private targetScoreDuckGain = 1;
   private readonly ambientTracks: Record<AmbientLayerId, AmbientTrackState> = {
     birds_wind_day: createAmbientTrackState(),
+    founders_camp_day: createAmbientTrackState(),
     village_day: createAmbientTrackState(),
     town_interior_day: createAmbientTrackState(),
     night_insects: createAmbientTrackState(),

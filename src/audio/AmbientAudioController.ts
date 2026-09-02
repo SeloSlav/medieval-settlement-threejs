@@ -117,6 +117,7 @@ export class AmbientAudioController {
   };
   private readonly ambientRuleState: AmbientRuleState = {
     overviewActive: false,
+    foundersCampActive: false,
     villageActive: false,
     townInteriorActive: false,
   };
@@ -251,6 +252,7 @@ export class AmbientAudioController {
         isNight: this.presentationIsNight ?? false,
       });
       this.ambientRuleState.overviewActive = ambient.state.overviewActive;
+      this.ambientRuleState.foundersCampActive = ambient.state.foundersCampActive;
       this.ambientRuleState.villageActive = ambient.state.villageActive;
       this.ambientRuleState.townInteriorActive = ambient.state.townInteriorActive;
       this.audio.setAmbientMix({

@@ -90,8 +90,12 @@ cost.
 ## Runtime mix
 
 - Day/night, settlement depth, overview zoom, rain, river distance, and chapel
-  schedule drive the ambient layers. Settlement ambience has three scales:
-  `village_day` is the actual village-life loop imported from Selo Empire and
+  schedule drive the ambient layers. An isolated founders camp is a separate
+  pre-town acoustic state: `founders_camp_day` provides a restrained campfire,
+  sparse indistinct chatter, burdened footsteps, and supply handling without
+  activating or stacking the established village and town-interior loops.
+  Established settlement ambience has three scales: `village_day` is the
+  actual village-life loop imported from Selo Empire and
   serves as the outskirts bed; `town_interior_day` adds close footsteps,
   carts, doors, animals, and indistinct daily life only inside
   civic or burgage cores at close zoom; and four HRTF-positioned production

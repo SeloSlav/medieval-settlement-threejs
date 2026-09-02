@@ -63,6 +63,9 @@ The source prompts and settings are in
 `ui-game-hierarchy` groups.
 Generated MP3 hashes and ElevenLabs model details are recorded in
 `public/sounds/elevenlabs-generation.json`.
+The `game_cancel.mp3` cue is the authorized user-provided
+`small_wooden_latch_c_#3-1788345667176.mp3` recording. It is intentionally
+absent from the ElevenLabs manifest and checksum-locked against replacement.
 
 Generate or verify this group with:
 

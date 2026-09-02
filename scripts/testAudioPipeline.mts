@@ -151,6 +151,8 @@ const EXPECTED_SELO_VILLAGE_DAY_SHA256 =
   '7fcd2f6cda2522b6f6991e550f4990e52e18a1f74d2e1ff703ea723270f611ae';
 const EXPECTED_FOREST_WIND_SHA256 =
   '68e697dbe79d3cb4491500e6e4fd1039b69b9e257048dbe9e13e2939b91f44d2';
+const EXPECTED_USER_GAME_CANCEL_SHA256 =
+  'a257077139f6a372dcdd7c29db1a9e1383e74aaec043e655015ff57a40482c74';
 
 function invariant(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -251,14 +253,24 @@ async function main(): Promise<void> {
     settlementZones: [],
     cameraTarget: { x: 0, z: 0 },
     orbitDistance: OVERVIEW_ENTER_DISTANCE - 0.01,
-    previous: { overviewActive: false, villageActive: false, townInteriorActive: false },
+    previous: {
+      overviewActive: false,
+      foundersCampActive: false,
+      villageActive: false,
+      townInteriorActive: false,
+    },
     isNight: false,
   });
   const retainedOverview = evaluateAmbientRules({
     settlementZones: [],
     cameraTarget: { x: 0, z: 0 },
     orbitDistance: OVERVIEW_EXIT_DISTANCE + 0.01,
-    previous: { overviewActive: true, villageActive: false, townInteriorActive: false },
+    previous: {
+      overviewActive: true,
+      foundersCampActive: false,
+      villageActive: false,
+      townInteriorActive: false,
+    },
     isNight: false,
   });
   invariant(
@@ -313,14 +325,24 @@ async function main(): Promise<void> {
     settlementZones: townZones,
     cameraTarget: { x: 90, z: 0 },
     orbitDistance: 88,
-    previous: { overviewActive: false, villageActive: false, townInteriorActive: false },
+    previous: {
+      overviewActive: false,
+      foundersCampActive: false,
+      villageActive: false,
+      townInteriorActive: false,
+    },
     isNight: false,
   });
   const interiorAmbience = evaluateAmbientRules({
     settlementZones: townZones,
     cameraTarget: { x: 0, z: 0 },
     orbitDistance: 24,
-    previous: { overviewActive: false, villageActive: true, townInteriorActive: false },
+    previous: {
+      overviewActive: false,
+      foundersCampActive: false,
+      villageActive: true,
+      townInteriorActive: false,
+    },
     isNight: false,
   });
   invariant(
@@ -334,6 +356,65 @@ async function main(): Promise<void> {
     && interiorAmbience.detailMix > 0.95
     && interiorAmbience.overlayMix < 0.7,
     'Town cores need strong close detail while making space in the distant bed',
+  );
+  const foundersCamp = {
+    id: 'founders-camp-a',
+    kind: 'founders_camp',
+    x: 0,
+    z: 0,
+    workRadius: 80,
+    constructionComplete: true,
+    assignedLabor: 1,
+  } as BuildingState;
+  const foundersCampZones = buildSettlementZones([foundersCamp], []);
+  const foundersCampAmbience = evaluateAmbientRules({
+    settlementZones: foundersCampZones,
+    cameraTarget: { x: 0, z: 0 },
+    orbitDistance: 88,
+    previous: {
+      overviewActive: false,
+      foundersCampActive: false,
+      villageActive: false,
+      townInteriorActive: false,
+    },
+    isNight: false,
+  });
+  invariant(
+    foundersCampZones.length === 1
+    && foundersCampZones[0]?.kind === 'founders-camp'
+    && foundersCampAmbience.overlayLayer === 'founders_camp_day'
+    && foundersCampAmbience.overlayMix > 0.95
+    && foundersCampAmbience.detailLayer === null,
+    'An isolated founders camp needs its restrained pre-town loop without village or town detail',
+  );
+  const earlyCampZones = buildSettlementZones([
+    foundersCamp,
+    {
+      id: 'early-well-a',
+      kind: 'well',
+      x: 8,
+      z: 0,
+      workRadius: 20,
+      constructionComplete: true,
+      assignedLabor: 0,
+    } as BuildingState,
+  ], []);
+  const earlyCampAmbience = evaluateAmbientRules({
+    settlementZones: earlyCampZones,
+    cameraTarget: { x: 0, z: 0 },
+    orbitDistance: 88,
+    previous: {
+      overviewActive: false,
+      foundersCampActive: true,
+      villageActive: false,
+      townInteriorActive: false,
+    },
+    isNight: false,
+  });
+  invariant(
+    earlyCampAmbience.overlayLayer === 'founders_camp_day'
+    && earlyCampAmbience.detailLayer === null,
+    'Nearby early structures must not turn the founders camp into a busy town mix',
   );
   invariant(
     productionPocketZoomGain(24) === 1
@@ -931,6 +1012,15 @@ async function main(): Promise<void> {
   invariant(
     await sha256(villageDayPath) === EXPECTED_SELO_VILLAGE_DAY_SHA256,
     'The imported Selo Empire village ambience does not match its recorded source hash.',
+  );
+
+  const gameCancelPath = path.resolve(
+    PROJECT_ROOT,
+    `public${UI_SOUNDS.game_cancel.path}`,
+  );
+  invariant(
+    await sha256(gameCancelPath) === EXPECTED_USER_GAME_CANCEL_SHA256,
+    'The user-provided wooden latch cancel cue does not match its recorded source hash.',
   );
 
   invariant(

@@ -1369,12 +1369,11 @@
 
 .noble-hud__gold.settlement-hud__stat {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  grid-template-rows: 10px 24px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-rows: minmax(35px, auto);
   align-items: center;
   justify-content: start;
   column-gap: 7px;
-  row-gap: 1px;
   min-height: 35px;
   padding: 0;
   border: 0;
@@ -1383,7 +1382,7 @@
 
 .noble-hud .noble-hud__gold.settlement-hud__stat::before {
   grid-column: 1;
-  grid-row: 1 / span 2;
+  grid-row: 1;
   align-self: center;
   width: 34px;
   height: 34px;
@@ -1394,18 +1393,20 @@
   display: block;
   grid-column: 2;
   grid-row: 1;
-  align-self: end;
+  align-self: center;
   color: #a99c80;
   font-size: 8px;
   font-weight: 800;
-  letter-spacing: 0.12em;
-  line-height: 1;
+  letter-spacing: 0.1em;
+  line-height: 1.05;
+  text-wrap: balance;
   text-transform: uppercase;
 }
 
 .noble-hud__gold .settlement-hud__value {
-  grid-column: 2;
-  grid-row: 2;
+  grid-column: 3;
+  grid-row: 1;
+  align-self: center;
   color: #ecd188;
   font-size: 21px;
   font-variant-numeric: tabular-nums;
@@ -1763,7 +1764,7 @@ button.noble-hud__report-body:not(:disabled):focus-visible {
     right: 7px;
     grid-template-columns: 88px minmax(0, 1fr);
     gap: 11px;
-    width: 238px;
+    width: 260px;
     min-height: 96px;
   }
   .noble-hud__portrait-shell,
@@ -1774,7 +1775,10 @@ button.noble-hud__report-body:not(:disabled):focus-visible {
   .noble-hud__title-row { padding-bottom: 4px; }
   .noble-hud__name { font-size: 11px; }
   .noble-hud__difficulty { padding-inline: 4px; font-size: 6px; }
-  .noble-hud__gold.settlement-hud__stat { grid-template-columns: 29px minmax(0, 1fr); }
+  .noble-hud__gold.settlement-hud__stat {
+    grid-template-columns: 29px minmax(0, 1fr) auto;
+    column-gap: 5px;
+  }
   .noble-hud .noble-hud__gold.settlement-hud__stat::before { width: 29px; height: 29px; }
   .noble-hud__gold .settlement-hud__value { font-size: 18px; }
   .noble-hud__eye { bottom: 2px; left: -8px; width: 30px; height: 30px; }

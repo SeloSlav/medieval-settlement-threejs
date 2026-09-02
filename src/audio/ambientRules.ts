@@ -4,6 +4,7 @@ import type { AmbientLayerId } from './audioCatalog.ts';
 
 export type AmbientRuleState = {
   overviewActive: boolean;
+  foundersCampActive: boolean;
   villageActive: boolean;
   townInteriorActive: boolean;
 };
@@ -18,6 +19,7 @@ export type AmbientRuleResult = {
 };
 
 export type SettlementZone = {
+  kind: 'founders-camp' | 'town';
   x: number;
   z: number;
   interiorRadius: number;
@@ -73,6 +75,7 @@ export function buildSettlementZones(
     const primaryAnchor = building.kind === 'town_hall';
     const foundingAnchor = building.kind === 'founders_camp';
     zones.push({
+      kind: foundingAnchor ? 'founders-camp' : 'town',
       x: building.x,
       z: building.z,
       interiorRadius: primaryAnchor ? 52 : foundingAnchor ? 36 : 28,
@@ -89,6 +92,7 @@ export function buildSettlementZones(
       Math.hypot(zone.cornerD.x - x, zone.cornerD.z - z),
     );
     zones.push({
+      kind: 'town',
       x,
       z,
       interiorRadius: Math.max(30, parcelExtent + 16),
@@ -109,9 +113,10 @@ export function evaluateAmbientRules(params: {
     ? params.orbitDistance >= OVERVIEW_EXIT_DISTANCE
     : params.orbitDistance >= OVERVIEW_ENTER_DISTANCE;
 
-  let outskirtsMix = 0;
-  let interiorGeographicMix = 0;
-  const exitMultiplier = params.previous.villageActive
+  let foundersCampMix = 0;
+  let townOutskirtsMix = 0;
+  let townInteriorGeographicMix = 0;
+  const townExitMultiplier = params.previous.villageActive
     ? VILLAGE_EXIT_RADIUS_MULTIPLIER
     : 1;
   for (const zone of params.settlementZones) {
@@ -119,7 +124,20 @@ export function evaluateAmbientRules(params: {
       params.cameraTarget.x - zone.x,
       params.cameraTarget.z - zone.z,
     );
-    const outskirtsRadius = zone.outskirtsRadius * exitMultiplier;
+    if (zone.kind === 'founders-camp') {
+      const campExitMultiplier = params.previous.foundersCampActive
+        ? VILLAGE_EXIT_RADIUS_MULTIPLIER
+        : 1;
+      const campRadius = zone.outskirtsRadius * campExitMultiplier;
+      const zoneCampMix = 1 - smoothstep(
+        campRadius * 0.42,
+        campRadius,
+        distance,
+      );
+      foundersCampMix = Math.max(foundersCampMix, zoneCampMix);
+      continue;
+    }
+    const outskirtsRadius = zone.outskirtsRadius * townExitMultiplier;
     const interiorRadius = zone.interiorRadius * (
       params.previous.townInteriorActive ? VILLAGE_EXIT_RADIUS_MULTIPLIER : 1
     );
@@ -133,25 +151,32 @@ export function evaluateAmbientRules(params: {
       interiorRadius,
       distance,
     );
-    outskirtsMix = Math.max(outskirtsMix, zoneOutskirtsMix);
-    interiorGeographicMix = Math.max(interiorGeographicMix, zoneInteriorMix);
+    townOutskirtsMix = Math.max(townOutskirtsMix, zoneOutskirtsMix);
+    townInteriorGeographicMix = Math.max(
+      townInteriorGeographicMix,
+      zoneInteriorMix,
+    );
   }
   const interiorZoomMix = 1 - smoothstep(
     TOWN_INTERIOR_FULL_ZOOM_DISTANCE,
     TOWN_INTERIOR_SILENT_ZOOM_DISTANCE,
     params.orbitDistance,
   );
-  let interiorMix = interiorGeographicMix * interiorZoomMix;
+  let townInteriorMix = townInteriorGeographicMix * interiorZoomMix;
   // Keep the diffuse outskirts bed underneath the close layer, but make room
   // for readable local detail rather than stacking both at full strength.
-  outskirtsMix *= 1 - interiorMix * 0.35;
+  townOutskirtsMix *= 1 - townInteriorMix * 0.35;
   if (params.isNight || overviewActive) {
-    outskirtsMix = 0;
-    interiorMix = 0;
+    foundersCampMix = 0;
+    townOutskirtsMix = 0;
+    townInteriorMix = 0;
   }
-  const villageActive =
-    outskirtsMix > 0.01 || interiorMix > 0.01;
-  const townInteriorActive = interiorMix > 0.01;
+  const townMix = Math.max(townOutskirtsMix, townInteriorMix);
+  const foundersCampActive = foundersCampMix > 0.01;
+  const foundersCampDominant = foundersCampActive && foundersCampMix >= townMix;
+  const villageActive = townMix > 0.01;
+  const settlementActive = foundersCampActive || villageActive;
+  const townInteriorActive = !foundersCampDominant && townInteriorMix > 0.01;
 
   const baseLayer: AmbientLayerId = overviewActive
     ? 'open_wind_overview'
@@ -159,19 +184,28 @@ export function evaluateAmbientRules(params: {
       ? 'night_insects'
       : 'birds_wind_day';
   const overlayLayer: AmbientLayerId | null =
-    !overviewActive && !params.isNight && villageActive ? 'village_day' : null;
+    !overviewActive && !params.isNight && settlementActive
+      ? foundersCampDominant
+        ? 'founders_camp_day'
+        : 'village_day'
+      : null;
   const detailLayer: AmbientLayerId | null =
     !overviewActive && !params.isNight && townInteriorActive
       ? 'town_interior_day'
       : null;
 
   return {
-    state: { overviewActive, villageActive, townInteriorActive },
+    state: {
+      overviewActive,
+      foundersCampActive,
+      villageActive,
+      townInteriorActive,
+    },
     baseLayer,
     overlayLayer,
-    overlayMix: outskirtsMix,
+    overlayMix: foundersCampDominant ? foundersCampMix : townOutskirtsMix,
     detailLayer,
-    detailMix: interiorMix,
+    detailMix: foundersCampDominant ? 0 : townInteriorMix,
   };
 }
 
