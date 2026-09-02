@@ -68,10 +68,15 @@ assert.equal(
 );
 
 const serverBandits = readFileSync('server/src/simulation/bandits.rs', 'utf8');
-assert.match(serverBandits, /CAMP_CLEAR_GOLD_BOUNTY: f64 = 10\.0/);
-assert.match(serverBandits, /CAMP_CLEAR_PRESERVED_FOOD: f64 = 6\.0/);
-assert.match(serverBandits, /CAMP_CLEAR_APPLES: f64 = 8\.0/);
-assert.match(serverBandits, /CAMP_CLEAR_FIREWOOD: f64 = 4\.0/);
+assert.match(serverBandits, /CAMP_CLEAR_GOLD_MIN: u32 = 8/);
+assert.match(serverBandits, /CAMP_CLEAR_GOLD_MAX: u32 = 16/);
+assert.match(
+  serverBandits,
+  /fn camp_clear_reward[\s\S]*spawned_tick[\s\S]*camp_clear_reward_from_entropy/,
+  'camp loot should be deterministic from the camp spawn rather than rerolled on destruction',
+);
+assert.match(serverBandits, /reward\.apples[\s\S]*reward\.preserved_food[\s\S]*reward\.rye_bread/);
+assert.match(serverBandits, /reward\.firewood[\s\S]*reward\.cloth[\s\S]*reward\.ammunition/);
 const destroyCampSource = serverBandits.slice(
   serverBandits.indexOf('pub(super) fn destroy_camp'),
   serverBandits.indexOf('\nfn cleanup_downed'),
@@ -79,7 +84,7 @@ const destroyCampSource = serverBandits.slice(
 assert.match(destroyCampSource, /credit_remote_recovery_to_settlement\(ctx, camp\.owner, recovered\)/);
 assert.match(
   destroyCampSource,
-  /reward_bundles\.push\(camp_clear_reward\(\)\)/,
+  /reward_bundles\.push\(camp_clear_reward\(camp\)\)/,
   'every cleared camp should add its own bounty and provisions to stolen inventory',
 );
 assert.doesNotMatch(

@@ -21,10 +21,8 @@ const HOLDING: u8 = 9;
 const CONTACT: f64 = 2.4;
 const CAMP_RESPAWN_DAYS: u64 = 8;
 const CAMP_DEFENDERS: u32 = 4;
-const CAMP_CLEAR_GOLD_BOUNTY: f64 = 10.0;
-const CAMP_CLEAR_PRESERVED_FOOD: f64 = 6.0;
-const CAMP_CLEAR_APPLES: f64 = 8.0;
-const CAMP_CLEAR_FIREWOOD: f64 = 4.0;
+const CAMP_CLEAR_GOLD_MIN: u32 = 8;
+const CAMP_CLEAR_GOLD_MAX: u32 = 16;
 const CAMP_TOWN_CLEARANCE: f64 = 120.0;
 const CAMP_RESOURCE_CLEARANCE: f64 = 55.0;
 const CAMP_NEIGHBOR_CLEARANCE: f64 = 110.0;
@@ -467,7 +465,7 @@ pub(super) fn destroy_camp(ctx: &ReducerContext, camp: &mut BanditCamp, tick: u6
     camp.next_theft_tick = tick.saturating_add(day_ticks().saturating_mul(CAMP_RESPAWN_DAYS));
     let mut reward_bundles =
         serde_json::from_str::<Vec<RaidPortableStores>>(&camp.inventory_json).unwrap_or_default();
-    reward_bundles.push(camp_clear_reward());
+    reward_bundles.push(camp_clear_reward(camp));
     let mut recovered = ReclamationStock::default();
     let mut total = 0.0;
     for bundle in reward_bundles.iter().copied() {
@@ -502,17 +500,69 @@ pub(super) fn destroy_camp(ctx: &ReducerContext, camp: &mut BanditCamp, tick: u6
     }
 }
 
-/// Guaranteed spoils make clearing a camp worthwhile even before its raiders
-/// have reached this settlement. Gold represents the lord's public bounty;
-/// preserved food, apples, and firewood are the camp's own seized provisions.
-fn camp_clear_reward() -> RaidPortableStores {
-    RaidPortableStores {
-        gold: CAMP_CLEAR_GOLD_BOUNTY,
-        preserved_food: CAMP_CLEAR_PRESERVED_FOOD,
-        apples: CAMP_CLEAR_APPLES,
-        firewood: CAMP_CLEAR_FIREWOOD,
+/// Guaranteed but varied spoils make each camp worth clearing before its
+/// raiders reach this settlement. The roll is fixed at camp spawn rather than
+/// destruction, so saving beside a nearly defeated camp cannot reroll it.
+fn camp_clear_reward(camp: &BanditCamp) -> RaidPortableStores {
+    let entropy = mix(
+        camp.id
+            ^ camp.spawned_tick.rotate_left(17)
+            ^ camp.x.to_bits().rotate_left(31)
+            ^ camp.z.to_bits().rotate_left(47),
+    );
+    camp_clear_reward_from_entropy(entropy)
+}
+
+fn camp_clear_reward_from_entropy(entropy: u64) -> RaidPortableStores {
+    let mut reward = RaidPortableStores {
+        gold: reward_units(entropy, 0x10, CAMP_CLEAR_GOLD_MIN, CAMP_CLEAR_GOLD_MAX),
         ..RaidPortableStores::default()
+    };
+
+    // One recognizable food cache is always present.
+    match reward_variant(entropy, 0x20, 5) {
+        0 => reward.apples = reward_units(entropy, 0x21, 6, 12),
+        1 => reward.preserved_food = reward_units(entropy, 0x22, 5, 10),
+        2 => reward.rye_bread = reward_units(entropy, 0x23, 5, 10),
+        3 => {
+            reward.cheese = reward_units(entropy, 0x24, 3, 6);
+            reward.smoked_fish = reward_units(entropy, 0x25, 2, 5);
+        }
+        _ => {
+            reward.honey = reward_units(entropy, 0x26, 3, 6);
+            reward.meat = reward_units(entropy, 0x27, 3, 7);
+        }
     }
+
+    // A second roll describes what else the outlaws kept around the camp.
+    match reward_variant(entropy, 0x30, 5) {
+        0 => reward.firewood = reward_units(entropy, 0x31, 4, 9),
+        1 => reward.cloth = reward_units(entropy, 0x32, 2, 5),
+        2 => reward.ammunition = reward_units(entropy, 0x33, 4, 9),
+        3 => reward.salt = reward_units(entropy, 0x34, 3, 7),
+        _ => reward.ale = reward_units(entropy, 0x35, 3, 7),
+    }
+
+    // Some camps have one smaller, unusual prize in addition to provisions.
+    if reward_variant(entropy, 0x40, 5) < 2 {
+        match reward_variant(entropy, 0x41, 4) {
+            0 => reward.candles = reward_units(entropy, 0x42, 2, 4),
+            1 => reward.leather = reward_units(entropy, 0x43, 2, 4),
+            2 => reward.pottery = reward_units(entropy, 0x44, 2, 5),
+            _ => reward.remedies = reward_units(entropy, 0x45, 1, 3),
+        }
+    }
+
+    reward.normalized_whole()
+}
+
+fn reward_variant(entropy: u64, salt: u64, variants: u64) -> u64 {
+    mix(entropy ^ salt) % variants.max(1)
+}
+
+fn reward_units(entropy: u64, salt: u64, minimum: u32, maximum: u32) -> f64 {
+    let span = u64::from(maximum.saturating_sub(minimum)) + 1;
+    f64::from(minimum) + reward_variant(entropy, salt, span) as f64
 }
 
 fn cleanup_downed(ctx: &ReducerContext, dt: f64) {
@@ -595,18 +645,43 @@ fn unit(v: u64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        camp_clear_reward, camp_respawn_ready, day_ticks, CAMP_CLEAR_APPLES,
-        CAMP_CLEAR_FIREWOOD, CAMP_CLEAR_GOLD_BOUNTY, CAMP_CLEAR_PRESERVED_FOOD, CAMP_RESPAWN_DAYS,
+        camp_clear_reward_from_entropy, camp_respawn_ready, day_ticks, CAMP_CLEAR_GOLD_MAX,
+        CAMP_CLEAR_GOLD_MIN, CAMP_RESPAWN_DAYS,
     };
 
     #[test]
-    fn every_destroyed_camp_has_a_bounty_and_useful_provisions() {
-        let reward = camp_clear_reward();
-        assert_eq!(reward.gold, CAMP_CLEAR_GOLD_BOUNTY);
-        assert_eq!(reward.preserved_food, CAMP_CLEAR_PRESERVED_FOOD);
-        assert_eq!(reward.apples, CAMP_CLEAR_APPLES);
-        assert_eq!(reward.firewood, CAMP_CLEAR_FIREWOOD);
-        assert_eq!(reward.goods_amount(), 18.0);
+    fn every_destroyed_camp_has_varied_bounty_and_provisions() {
+        let mut signatures = std::collections::HashSet::new();
+        for entropy in 1..=64 {
+            let reward = camp_clear_reward_from_entropy(entropy);
+            assert!(reward.gold >= f64::from(CAMP_CLEAR_GOLD_MIN));
+            assert!(reward.gold <= f64::from(CAMP_CLEAR_GOLD_MAX));
+            assert!(reward.goods_amount() >= 7.0);
+            signatures.insert(format!(
+                "{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}",
+                reward.gold,
+                reward.apples,
+                reward.preserved_food,
+                reward.rye_bread,
+                reward.cheese,
+                reward.smoked_fish,
+                reward.honey,
+                reward.meat,
+                reward.firewood,
+                reward.cloth,
+                reward.ammunition,
+                reward.salt,
+                reward.ale,
+                reward.candles,
+                reward.leather,
+                reward.pottery + reward.remedies,
+            ));
+        }
+        assert!(signatures.len() >= 24);
+        assert_eq!(
+            camp_clear_reward_from_entropy(42),
+            camp_clear_reward_from_entropy(42),
+        );
     }
 
     #[test]
