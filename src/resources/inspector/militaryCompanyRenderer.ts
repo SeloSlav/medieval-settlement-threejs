@@ -14,6 +14,7 @@ import {
   militaryReinforcementCost,
   militaryResupplyCost,
   militaryStanceAvailable,
+  militaryStanceMoraleRequired,
   militaryStanceDescription,
   militaryStanceLabel,
   type MilitaryCompanyKind,
@@ -157,7 +158,7 @@ function renderSelectedCompanyCommands(
       <button type="button" class="resource-action-button military-formation-button${company.stance === stance ? ' is-selected' : ''}"
         data-military-company-id="${company.id}" data-military-stance="${MILITARY_STANCES.indexOf(stance)}"
         aria-pressed="${company.stance === stance}" data-tooltip="${militaryStanceDescription(stance)}"
-        ${!canCommand || company.stance === stance ? 'disabled' : ''}>
+        ${!canCommand || company.stance === stance || company.morale < militaryStanceMoraleRequired(stance) ? 'disabled' : ''}>
         <span class="military-formation-button__glyph" aria-hidden="true">${STANCE_GLYPH[stance]}</span>
         <span class="military-formation-button__label">${militaryStanceLabel(stance)}</span>
       </button>
@@ -314,7 +315,7 @@ function renderCompany(
       <button type="button" class="resource-action-button military-formation-button${company.stance === stance ? ' is-selected' : ''}"
         data-military-company-id="${company.id}" data-military-stance="${MILITARY_STANCES.indexOf(stance)}"
         aria-pressed="${company.stance === stance}" data-tooltip="${militaryStanceDescription(stance)}"
-        ${!canCommand || company.stance === stance ? 'disabled' : ''}>
+        ${!canCommand || company.stance === stance || company.morale < militaryStanceMoraleRequired(stance) ? 'disabled' : ''}>
         <span class="military-formation-button__glyph" aria-hidden="true">${STANCE_GLYPH[stance]}</span>
         <span class="military-formation-button__label">${militaryStanceLabel(stance)}</span>
       </button>

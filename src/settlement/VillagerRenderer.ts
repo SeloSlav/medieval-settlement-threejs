@@ -2352,7 +2352,10 @@ export class VillagerRenderer {
         ?? combatAppearanceSeed(combat);
       const colors = pickVillagerColors(appearanceSeed);
       const target = this.nearestCombatOpponent(combat);
-      const yaw = target
+      const yaw = combat.companyFacingX !== undefined && combat.companyFacingZ !== undefined
+        && (combat.status === 'holding' || combat.status === 'fighting')
+        ? Math.atan2(combat.companyFacingX, combat.companyFacingZ)
+        : target
         ? Math.atan2(
             target.displayX - visual.displayX,
             target.displayZ - visual.displayZ,
@@ -2398,7 +2401,7 @@ export class VillagerRenderer {
       renderAgent.presentation = combat.faction === 'raider' ? 'raider' : 'common';
       renderAgent.mode = combatRenderMode(
         combat,
-        (combat.routeProgress ?? 0) > 14,
+        combat.running ?? ((combat.routeProgress ?? 0) > 14),
         visual.hurtUntilMs > combatNowMs,
         visual.threatenUntilMs > combatNowMs,
         visual.displayMoveSpeed,

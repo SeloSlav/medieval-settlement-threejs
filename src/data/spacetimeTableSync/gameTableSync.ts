@@ -155,6 +155,7 @@ export class GameTableSync {
     this.state.combatAgents = syncCombatAgents(
       db.combat_agent ? db.combat_agent.iter() : [],
       this.state.identityHex,
+      db.military_company ? db.military_company.iter() : [],
     );
     this.state.militaryCompanies = syncMilitaryCompanies(
       db.military_company ? db.military_company.iter() : [],
@@ -504,6 +505,7 @@ export class GameTableSync {
         this.state.combatAgents = syncCombatAgents(
           db.combat_agent ? db.combat_agent.iter() : [],
           this.state.identityHex,
+          db.military_company ? db.military_company.iter() : [],
         );
       });
       db.combat_agent.onInsert((_ctx, row) => combatChanges.insert(row));
@@ -517,6 +519,11 @@ export class GameTableSync {
       this.state.militaryCompanies = syncMilitaryCompanies(
         db.military_company ? db.military_company.iter() : [],
         this.state.identityHex,
+      );
+      // A pace/facing order can arrive without any soldier moving this tick.
+      this.state.combatAgents = syncCombatAgents(
+        db.combat_agent ? db.combat_agent.iter() : [], this.state.identityHex,
+        db.military_company ? db.military_company.iter() : [],
       );
     });
 

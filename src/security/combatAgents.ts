@@ -1,4 +1,4 @@
-import type { CombatAgent } from '../generated/types.ts';
+import type { CombatAgent, MilitaryCompany } from '../generated/types.ts';
 import {
   CALENDAR_SECONDS_PER_DAY,
   SIM_TICK_SECONDS,
@@ -83,7 +83,11 @@ export type CombatAgentState = {
   homeResidenceId: string | null;
   personIdentity: string | null;
   stateChangedTick: number;
-  /** Remaining direct-order/chase distance. Values above 14 m use the run clip. */
+  /** Authoritative company intent; hostiles use their own movement presentation. */
+  running?: boolean;
+  companyFacingX?: number;
+  companyFacingZ?: number;
+  /** Remaining direct-order/chase distance. */
   routeProgress?: number;
 };
 
@@ -219,9 +223,11 @@ export function issuedGuardPolearmsByCompany(
 export function syncCombatAgents(
   rows: Iterable<CombatAgent>,
   identityHex: string | null,
+  companyRows: Iterable<MilitaryCompany> = [],
 ): Map<string, CombatAgentState> {
-  const agents = new Map<string, CombatAgentState>();
+    const agents = new Map<string, CombatAgentState>();
   if (!identityHex) return agents;
+  const companies = new Map([...companyRows].map(row => [row.id.toString(), row]));
   for (const row of rows) {
     if (row.owner.toHexString() !== identityHex) continue;
     const status = COMBAT_AGENT_STATES[Number(row.state)];
@@ -231,6 +237,7 @@ export function syncCombatAgents(
     const faction = combatFactionFromId(Number(row.faction));
     const issuedPolearms = carriedPolearms(row.carriedLootJson);
     const playerMilitary = isPlayerMilitaryFaction(faction);
+    const company = playerMilitary ? companies.get(row.raidId.toString()) : undefined;
     const homeResidenceId = playerMilitary && row.raidAnchorBuildingId > 0n
       ? residenceClientId(row.raidAnchorBuildingId)
       : null;
@@ -275,6 +282,9 @@ export function syncCombatAgents(
         : null,
       stateChangedTick: Number(row.stateChangedTick),
       routeProgress: Math.max(0, row.routeProgress),
+      running: company ? company.running && company.fatigue < 0.95 : undefined,
+      companyFacingX: company?.facingX,
+      companyFacingZ: company?.facingZ,
     });
   }
   return agents;

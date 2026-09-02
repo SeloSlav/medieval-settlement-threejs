@@ -1172,7 +1172,7 @@ fn step_company_upkeep(ctx: &ReducerContext, tick: u64, military_demands: u8) {
                 |(member_count, debug_member_count), member| {
                     (
                         member_count.saturating_add(1),
-                        debug_member_count.saturating_add(u32::from(member.residence_id == 0)),
+                        debug_member_count.saturating_add(u32::from(crate::military_policy::is_debug_military_member(&member.person_identity))),
                     )
                 },
             );
@@ -1310,7 +1310,8 @@ fn step_mercenary_contracts(ctx: &ReducerContext, tick: u64) {
                         .militia_order()
                         .combat_agent_id()
                         .find(&agent.id)
-                        .is_some_and(|order| order.target_camp_id > 0)
+                        .is_some_and(|order| order.target_camp_id > 0
+                            && ctx.db.bandit_camp().id().find(&order.target_camp_id).is_some_and(|camp| camp.active))
             });
         let idle_too_long = tick.saturating_sub(contract.last_engagement_tick) >= idle_limit;
         let departure = mercenary_departure_decision(

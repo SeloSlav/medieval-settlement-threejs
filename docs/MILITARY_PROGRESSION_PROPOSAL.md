@@ -12,8 +12,8 @@ equipment repair remain intentionally outside this pass.
 1. Every local soldier is a specific healthy adult male resident. Recruitment
    reserves that household slot and subtracts the man from free settlement
    labor until he returns or dies. Mercenaries are the only outsiders.
-   A resident-backed company therefore requires its full roster as currently
-   unreserved labor in addition to every listed material cost.
+   Permanent companies require their full unreserved roster and listed kit;
+   emergency militia muster as many men as available labor and polearms allow.
 2. Local recruitment first reserves exact residents and its non-equipment
    cost. Those men physically report to the source building while ordinary
    carts bring each mustering rank's exact equipment requirement. The company
@@ -75,8 +75,11 @@ Treasury signing cost at recruitment.
 - Source: completed Town Hall.
 - Roster: player-selected from one to twelve currently unreserved resident men;
   the Town Hall picker defaults to five and previews one polearm per man.
-- Cost: one polearm per man; no armor, pay, or carried field provisions.
-- Formation: line, column, shield wall, or loose order.
+- Cost: one polearm per man; no required armor, pay, or carried field provisions.
+  House-tier recruits may reserve available padded armor; prosperous-house
+  recruits prefer available mail. These are existing equipment bundles, not new
+  helmet commodities, and a lack of armor never prevents a militia muster.
+- Formation: line, column, or loose order, with drag-authored rank depth.
 - Behavior: every selected man walks from his actual home to the Town Hall to
   receive his spear. The company becomes active only after all survivors arrive.
 - Role: cheap emergency numbers against bandits and intentionally poor against
@@ -281,8 +284,9 @@ game’s existing inspector art. Resident soldiers keep their exact villager nam
 appearance, household identity, and male model. Enlisted identities are hidden
 from the civilian renderer until they return. Spear troops carry the existing
 spear model; crossbow, bow, footman, polearm, and Men-at-Arms troops carry
-lightweight procedural weapons and shields. Long orders use the authored run clip; short approaches
-and formation correction use walk.
+lightweight procedural weapons and shields. Player companies use the explicit
+walk/run order for locomotion clips; formation facing also drives stationary
+soldier presentation, matching the server's shield and bracing direction.
 
 A leaving mercenary company remains world-selectable with an orange formation
 circle, but right-click movement and attack orders are rejected by both client
@@ -296,6 +300,47 @@ while keeping every soldier visible at strategy-camera distance. The
 individual bodies are presentation and casualty records inside a single RTS
 company: the player sees one company-sized selection circle and cannot peel one
 soldier away with an individual order.
+
+## Battlefield command completion
+
+The [Manor Lords warfare reference](https://wiki.hoodedhorse.com/Manor_Lords/Warfare/en)
+informs battlefield behavior, without importing Retinue, its unit types, its
+36-person roster sizes, its named mercenary packages, or its equipment economy.
+Our existing mercenary names, prices, daily wages, seven-day inactivity rule,
+and maximum contract term remain the current contract design.
+
+- Run is a single toggle: walking conserves stamina; running is faster and
+  costs more stamina, with heavier armor and shields increasing exertion.
+  Exhausted companies revert to walking and regain stamina while idle.
+- Right-drag draws a front rank and controls formation depth; the server
+  computes, rotates, and navigates every living soldier's destination. A
+  normal right-click retains ground-move or focus-attack behavior. Alt plus
+  right-drag pans while a company is selected.
+- Ranged companies have one safe-fire toggle. Safe fire holds shots across
+  friendly ranks; risky fire can strike the intervening friendly soldier,
+  consume ammunition, and invoke the ordinary casualty/kit bookkeeping.
+- Front shields absorb damage at a stamina cost. Rear hits inflict double
+  damage in both melee and missile combat; side hits bypass the shield without
+  receiving the rear multiplier. Stationary, facing braced spear/polearm ranks
+  cancel and reflect the incoming charge bonus.
+- Fatigue affects both attack and defense. Terrain elevation is sampled with
+  the existing river-navigation snapshot, so uphill movement and fighting are
+  disadvantaged and downhill fighting is favored. Surrounding enemies and
+  rainy weather reduce effectiveness; the rain penalty applies to missiles.
+- Give Ground physically withdraws; Push Forward physically presses into
+  contact; Stand Ground doubles defense at half attack speed; Missile Alert
+  doubles missile evasion but halves melee defense. Low morale disables
+  demanding stances, depletion causes retreat, and militia recover morale more
+  readily in their home community.
+- Loose order trades close-combat effectiveness for missile evasion and
+  mobility. All stance and formation tooltips remain short behavioral
+  descriptions, without exposing numerical modifiers or XP.
+
+The native suite exercises rotated physical rank-depth changes, charge/bracing
+conditions, directional defenses, evasion probabilities, fatigue, shot lanes,
+understrength recruitment, optional armor, and terrain interpolation. Client
+tests cover drag ownership, pooled terrain-pick scratch, command dispatch,
+role-specific toggles, morale gates, and the absence of combat meters.
 
 ## Explicit future boundary
 

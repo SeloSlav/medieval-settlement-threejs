@@ -642,6 +642,10 @@ pub fn optional_militia_armor(tier: u8, padded: u32, mail: u32) -> u8 {
     if tier >= 3 && mail > 0 { 2 } else if tier >= 2 && padded > 0 { 1 } else { 0 }
 }
 
+pub fn is_debug_military_member(person_identity: &str) -> bool {
+    person_identity.starts_with("debug-company:")
+}
+
 pub fn ordered_run_multiplier(running: bool, fatigue: f64) -> f64 {
     if running && fatigue < 0.95 { 1.45 } else { 1.0 }
 }
@@ -1339,5 +1343,12 @@ mod tests {
         assert_eq!(optional_militia_armor(3,9,9), 2);
         assert_eq!(optional_militia_armor(3,1,0), 1);
         assert_eq!(optional_militia_armor(3,0,0), 0);
+    }
+
+    #[test]
+    fn hired_outsiders_are_not_free_debug_troops() {
+        assert!(is_debug_military_member("debug-company:7:0"));
+        assert!(!is_debug_military_member("mercenary:7:0"));
+        assert!(!is_debug_military_member("residence-7:person:0"));
     }
 }
