@@ -48,7 +48,14 @@ export type UiSoundId =
   | 'road_place'
   | 'building_place'
   | 'confirm'
-  | 'error';
+  | 'error'
+  | 'setup_portrait_select'
+  | 'setup_choice'
+  | 'setup_preset'
+  | 'setup_adjust'
+  | 'setup_back'
+  | 'setup_advance'
+  | 'setup_commit';
 
 export type PersonSelectionVoice = 'male' | 'female';
 
@@ -286,6 +293,15 @@ export const UI_SOUNDS: Record<UiSoundId, AudioClipDefinition> = {
   building_place: { path: '/sounds/ui/building_place.mp3', volume: 0.34 },
   confirm: { path: '/sounds/ui/confirm.mp3', volume: 0.28 },
   error: { path: '/sounds/ui/error.mp3', volume: 0.3 },
+  // New-world setup uses a coherent material palette while transient weight
+  // carries meaning: browse < edit < navigate < commit.
+  setup_portrait_select: { path: '/sounds/ui/setup_portrait_select.mp3', volume: 0.16 },
+  setup_choice: { path: '/sounds/ui/setup_choice.mp3', volume: 0.24 },
+  setup_preset: { path: '/sounds/ui/setup_preset.mp3', volume: 0.13 },
+  setup_adjust: { path: '/sounds/ui/setup_adjust.mp3', volume: 0.1 },
+  setup_back: { path: '/sounds/ui/setup_back.mp3', volume: 0.24 },
+  setup_advance: { path: '/sounds/ui/setup_advance.mp3', volume: 0.45 },
+  setup_commit: { path: '/sounds/ui/setup_commit.mp3', volume: 0.36 },
 };
 
 function personSelectionVariants(

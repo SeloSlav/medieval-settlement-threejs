@@ -872,6 +872,76 @@
       "promptInfluence": 0.85
     },
     {
+      "id": "ui-setup-portrait-select",
+      "group": "ui-hierarchy",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/setup_portrait_select.mp3",
+      "prompt": "Immediate ultra-short premium medieval strategy game UI selection sound: a small carved wooden portrait medallion settles onto taut parchment with one warm precise wooden tick and the faintest dry paper touch, intimate and tactile, single centered transient, no tail, no reverb, no melody, no voice",
+      "durationSeconds": 0.5,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "ui-setup-choice",
+      "group": "ui-hierarchy",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/setup_choice.mp3",
+      "prompt": "Immediate ultra-short premium medieval strategy game UI choice sound: a tiny carved heraldic tile seats into a shallow oak tray with a crisp light wood click and subtle parchment texture, lighter than a confirmation, single dry centered transient, no tail, no reverb, no melody, no voice",
+      "durationSeconds": 0.5,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "ui-setup-preset",
+      "group": "ui-hierarchy",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/setup_preset.mp3",
+      "prompt": "Immediate short premium medieval strategy game UI preset sound: a miniature painted heraldic shield is placed onto oak, one warm wooden contact followed by a very small refined brass rim tick, clearly more substantial than a normal choice but still restrained, dry close sound, no reverb, no melody, no voice",
+      "durationSeconds": 0.65,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "ui-setup-adjust",
+      "group": "ui-hierarchy",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/setup_adjust.mp3",
+      "prompt": "Immediate ultra-short premium medieval strategy game UI adjustment detent: one tiny dry wooden ratchet tick with a nearly inaudible soft brass pin, delicate and low energy for repeated slider and arrow changes, isolated transient, absolutely no tail, no reverb, no melody, no voice",
+      "durationSeconds": 0.5,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "ui-setup-back",
+      "group": "ui-hierarchy",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/setup_back.mp3",
+      "prompt": "Immediate short premium medieval strategy game backward navigation sound: a stiff parchment card slides gently back across oak and ends in one soft low wooden stop, a subtle descending physical gesture without musical notes, dry and restrained, no reverb, no voice",
+      "durationSeconds": 0.6,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "ui-setup-advance",
+      "group": "ui-hierarchy",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/setup_advance.mp3",
+      "prompt": "Clearly audible immediate premium medieval strategy game step-advance UI sound, close-miked at full normal level: one firm compact parchment folio snap forward immediately followed by a prominent clean polished brass clasp click, confident two-part rising physical gesture, strong transients and minimal silence, dry centered mix, no reverb, no melody, no voice",
+      "durationSeconds": 0.7,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "ui-setup-commit",
+      "group": "ui-hierarchy",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/setup_commit.mp3",
+      "prompt": "Immediate compact premium medieval strategy game final commitment sound: a signet presses decisively into warm sealing wax on a charter, supported by one deep controlled oak desk thump and a brief refined brass glint, authoritative and satisfying without being loud, short dry tail, no reverb, no melody, no voice",
+      "durationSeconds": 1.05,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
       "id": "building-founders-camp",
       "group": "building-foley",
       "kind": "sound-effect",

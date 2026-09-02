@@ -1433,6 +1433,83 @@
       "sha256": "abdb3f30ef12131b5f1df45f22d63b86d11cc857287cab386f1d26e926e80e33"
     },
     {
+      "id": "ui-setup-adjust",
+      "output": "public/sounds/ui/setup_adjust.mp3",
+      "generatedAt": "2026-09-02T08:31:15.600Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "5",
+      "byteLength": 8821,
+      "sha256": "e996c879e4363507bb596c41ea5a515e834dbe28ca0a47441d8e582d17f65959"
+    },
+    {
+      "id": "ui-setup-advance",
+      "output": "public/sounds/ui/setup_advance.mp3",
+      "generatedAt": "2026-09-02T08:37:33.282Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "7",
+      "byteLength": 12164,
+      "sha256": "c203edb119fff3773171909ddad935d408a8b17b5315e630e2ec29b02acd4200"
+    },
+    {
+      "id": "ui-setup-back",
+      "output": "public/sounds/ui/setup_back.mp3",
+      "generatedAt": "2026-09-02T08:31:19.012Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "6",
+      "byteLength": 10493,
+      "sha256": "66010586f52f2d78505c0c52f3616a030e2903ab905bcbeb70588c4cbd6eaa0f"
+    },
+    {
+      "id": "ui-setup-choice",
+      "output": "public/sounds/ui/setup_choice.mp3",
+      "generatedAt": "2026-09-02T08:31:11.225Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "5",
+      "byteLength": 8821,
+      "sha256": "c094f3c570caac0c020c386329b5aa547ea1c17938a6eb4b1cd8d471f481574c"
+    },
+    {
+      "id": "ui-setup-commit",
+      "output": "public/sounds/ui/setup_commit.mp3",
+      "generatedAt": "2026-09-02T08:31:22.721Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "11",
+      "byteLength": 17598,
+      "sha256": "2461faef1ee4f406f0e022ef3df0c2db8c59b28d7e026d22d7997872b3b8e479"
+    },
+    {
+      "id": "ui-setup-portrait-select",
+      "output": "public/sounds/ui/setup_portrait_select.mp3",
+      "generatedAt": "2026-09-02T08:30:50.405Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "5",
+      "byteLength": 8821,
+      "sha256": "770dcfd137473cf27d6a1bc869627fca189e4fd26bebaccbb8ba3393d6e1320a"
+    },
+    {
+      "id": "ui-setup-preset",
+      "output": "public/sounds/ui/setup_preset.mp3",
+      "generatedAt": "2026-09-02T08:31:13.387Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "6",
+      "byteLength": 11328,
+      "sha256": "4cb942814a1e20c6d1a8668287a8a25c67aa133125bc11cf6b2e2df78bde53cd"
+    },
+    {
       "id": "worker-cut-crop-1",
       "output": "public/sounds/workers/cut_crop_1.mp3",
       "generatedAt": "2026-07-28T05:57:01.003Z",

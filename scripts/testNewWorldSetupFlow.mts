@@ -4,6 +4,8 @@ import { describeWorldDifficulty } from '../src/world/worldDifficulty.ts';
 import { DEFAULT_WORLD_GENERATION_SETTINGS } from '../src/world/worldGenerationSettings.ts';
 
 const noblePanel = readFileSync('src/ui/NobleSetupPanel.ts', 'utf8');
+const setupUiAudio = readFileSync('src/audio/SetupUiAudio.ts', 'utf8');
+const audioCatalog = readFileSync('src/audio/audioCatalog.ts', 'utf8');
 const nobleProfile = readFileSync('src/ui/nobleProfile.ts', 'utf8');
 const worldPanel = readFileSync('src/ui/WorldSetupPanel.ts', 'utf8');
 const worldDifficulty = readFileSync('src/world/worldDifficulty.ts', 'utf8');
@@ -18,6 +20,24 @@ assert.match(noblePanel, /export type NobleSetupStep = 'house' \| 'heraldry'/);
 assert.match(noblePanel, /data-setup-step="house"/);
 assert.match(noblePanel, /data-setup-step="heraldry"/);
 assert.match(noblePanel, /Choose Your Legacy/);
+assert.match(noblePanel, /setup_portrait_select/);
+assert.match(noblePanel, /setup_advance/);
+assert.match(noblePanel, /setup_back/);
+assert.match(worldPanel, /setup_commit/);
+assert.match(worldPanel, /playDirectionalAdjustment/);
+assert.match(setupUiAudio, /ADJUSTMENT_SOUND_INTERVAL_MS = 42/);
+assert.match(setupUiAudio, /0\.92 \+ normalized \* 0\.16/);
+for (const sound of [
+  'setup_portrait_select',
+  'setup_choice',
+  'setup_preset',
+  'setup_adjust',
+  'setup_back',
+  'setup_advance',
+  'setup_commit',
+]) {
+  assert.match(audioCatalog, new RegExp(`${sound}:`));
+}
 assert.doesNotMatch(noblePanel, /Choose Your Noble House/);
 assert.match(noblePanel, /Continue to Heraldry/);
 assert.match(noblePanel, /Continue to Map Generation/);

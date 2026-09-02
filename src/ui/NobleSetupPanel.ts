@@ -15,6 +15,7 @@ import {
   type HeraldryPattern,
   type NobleProfile,
 } from './nobleProfile.ts';
+import { SetupUiAudio } from '../audio/SetupUiAudio.ts';
 import { mountTooltips } from './tooltips.ts';
 
 export type NobleSetupStep = 'house' | 'heraldry';
@@ -37,6 +38,7 @@ function heraldryMatches(left: Heraldry, right: Heraldry): boolean {
 }
 
 export class NobleSetupPanel {
+  private readonly setupAudio = new SetupUiAudio();
   private readonly backdrop: HTMLElement;
   private readonly resolve: (profile: NobleProfile) => void;
   private readonly heading: HTMLElement;
@@ -296,25 +298,46 @@ export class NobleSetupPanel {
     });
     this.tilingInput.addEventListener('input', () => {
       this.draft.heraldry.patternTiling = Number(this.tilingInput.value);
+      this.setupAudio.playAdjustment(
+        this.draft.heraldry.patternTiling,
+        Number(this.tilingInput.min),
+        Number(this.tilingInput.max),
+      );
       this.clearPresetSelection();
       this.syncHeraldry();
     });
     this.angleInput.addEventListener('input', () => {
       this.draft.heraldry.patternAngle = Number(this.angleInput.value);
+      this.setupAudio.playAdjustment(
+        this.draft.heraldry.patternAngle,
+        Number(this.angleInput.min),
+        Number(this.angleInput.max),
+      );
       this.clearPresetSelection();
       this.syncHeraldry();
     });
     this.countInput.addEventListener('input', () => {
       this.draft.heraldry.chargeCount = Number(this.countInput.value);
+      this.setupAudio.playAdjustment(
+        this.draft.heraldry.chargeCount,
+        Number(this.countInput.min),
+        Number(this.countInput.max),
+      );
       this.clearPresetSelection();
       this.syncHeraldry();
     });
     this.scaleInput.addEventListener('input', () => {
       this.draft.heraldry.chargeScale = Number(this.scaleInput.value) / 100;
+      this.setupAudio.playAdjustment(
+        Number(this.scaleInput.value),
+        Number(this.scaleInput.min),
+        Number(this.scaleInput.max),
+      );
       this.clearPresetSelection();
       this.syncHeraldry();
     });
     this.backButton.addEventListener('click', () => {
+      this.setupAudio.play('setup_back');
       this.step = 'house';
       this.syncStep(true);
     });
@@ -325,10 +348,12 @@ export class NobleSetupPanel {
       this.previewName.value = this.draft.displayName;
       this.heraldryHouseName.textContent = this.draft.displayName;
       if (this.step === 'house') {
+        this.setupAudio.play('setup_advance');
         this.step = 'heraldry';
         this.syncStep(true);
         return;
       }
+      this.setupAudio.play('setup_advance');
       setCurrentNobleProfile(this.draft);
       const profile = getCurrentNobleProfile();
       this.disposeTooltips();
@@ -337,6 +362,7 @@ export class NobleSetupPanel {
       // mounts underneath it before the fade completes. Otherwise the persistent
       // app loader flashes through during the handoff.
       this.resolve(profile);
+      this.setupAudio.disposeAfterTail();
       window.setTimeout(() => {
         this.backdrop.remove();
       }, 180);
@@ -353,6 +379,7 @@ export class NobleSetupPanel {
       applyHeraldryToElement(shield, preset);
       button.appendChild(shield);
       button.addEventListener('click', () => {
+        this.setupAudio.play('setup_preset');
         this.draft.heraldry = { ...preset };
         this.selectedPreset = index;
         this.syncHeraldry();
@@ -377,6 +404,7 @@ export class NobleSetupPanel {
           : '<i class="noble-setup-noble__portrait-placeholder" aria-hidden="true"></i>'}
       `;
       button.addEventListener('click', () => {
+        this.setupAudio.play('setup_portrait_select');
         this.draft.nobleId = noble.id;
         this.draft.displayName = noble.name;
         this.syncIdentity();
@@ -402,6 +430,7 @@ export class NobleSetupPanel {
       applyHeraldryToElement(shield, patternHeraldry);
       button.append(shield, document.createTextNode(pattern.name));
       button.addEventListener('click', () => {
+        this.setupAudio.play('setup_choice');
         this.draft.heraldry.pattern = pattern.id as HeraldryPattern;
         this.clearPresetSelection();
         this.syncHeraldry();
@@ -421,6 +450,7 @@ export class NobleSetupPanel {
       icon.style.setProperty('--charge-icon', `url("${chargeAssetUrl(charge.id)}")`);
       button.append(icon, document.createTextNode(charge.name));
       button.addEventListener('click', () => {
+        this.setupAudio.play('setup_choice');
         this.draft.heraldry.charge = charge.id as HeraldryCharge;
         this.clearPresetSelection();
         this.syncHeraldry();
@@ -443,6 +473,7 @@ export class NobleSetupPanel {
       button.setAttribute('aria-label', tincture.name);
       button.title = tincture.name;
       button.addEventListener('click', () => {
+        this.setupAudio.play('setup_choice');
         this.draft.heraldry[key] = tincture.value;
         this.clearPresetSelection();
         this.syncHeraldry();

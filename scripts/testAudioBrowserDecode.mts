@@ -29,6 +29,7 @@ import {
 import {
   DEFAULT_AMBIENCE_VOLUME,
   DEFAULT_MUSIC_VOLUME,
+  DEFAULT_SOUND_EFFECTS_VOLUME,
 } from '../src/audio/audioPreferences.ts';
 import { AMBIENT_SCORE_DUCK_GAIN } from '../src/audio/AmbientAudio.ts';
 
@@ -307,6 +308,16 @@ async function main(): Promise<void> {
       AMBIENT_LAYERS.open_wind_overview,
       DEFAULT_AMBIENCE_VOLUME,
     );
+    const setupAdjustRms = defaultEffectiveRms(UI_SOUNDS.setup_adjust, DEFAULT_SOUND_EFFECTS_VOLUME);
+    const setupChoiceRms = defaultEffectiveRms(UI_SOUNDS.setup_choice, DEFAULT_SOUND_EFFECTS_VOLUME);
+    const setupBackRms = defaultEffectiveRms(UI_SOUNDS.setup_back, DEFAULT_SOUND_EFFECTS_VOLUME);
+    const setupPortraitRms = defaultEffectiveRms(
+      UI_SOUNDS.setup_portrait_select,
+      DEFAULT_SOUND_EFFECTS_VOLUME,
+    );
+    const setupPresetRms = defaultEffectiveRms(UI_SOUNDS.setup_preset, DEFAULT_SOUND_EFFECTS_VOLUME);
+    const setupAdvanceRms = defaultEffectiveRms(UI_SOUNDS.setup_advance, DEFAULT_SOUND_EFFECTS_VOLUME);
+    const setupCommitRms = defaultEffectiveRms(UI_SOUNDS.setup_commit, DEFAULT_SOUND_EFFECTS_VOLUME);
     invariant(
       averageScoreRms >= busyAmbienceUnderScore * 1.2
       && averageScoreRms <= busyAmbienceUnderScore * 2.2,
@@ -322,6 +333,20 @@ async function main(): Promise<void> {
       overviewWindRms >= dayRms * 1.4
       && overviewWindRms <= dayRms * 2.2,
       'Decoded overview wind should be broader than the close daytime bed without dominating it',
+    );
+    invariant(
+      setupAdjustRms < setupChoiceRms
+      && setupAdjustRms < setupBackRms
+      && setupChoiceRms < setupPortraitRms
+      && setupBackRms < setupPortraitRms
+      && setupPortraitRms < setupPresetRms
+      && setupPresetRms < setupAdvanceRms
+      && setupAdvanceRms < setupCommitRms,
+      'Decoded setup cues must preserve the authored adjustment-to-commit hierarchy',
+    );
+    invariant(
+      setupCommitRms >= setupAdvanceRms * 1.3,
+      'Final world commitment needs clear headroom above ordinary step navigation',
     );
 
     const totalSeconds = metrics.reduce((sum, metric) => sum + metric.duration, 0);
@@ -351,14 +376,17 @@ async function main(): Promise<void> {
       for (const metric of metrics.filter((entry) => (
         entry.path.startsWith('/sounds/music/')
         || entry.path.startsWith('/sounds/combat/')
+        || entry.path.startsWith('/sounds/ui/setup_')
         || Object.values(AMBIENT_LAYERS).some((clip) => clip.path === entry.path)
       ))) {
         const clip = clipByPath.get(metric.path);
         const preferenceGain = metric.path.startsWith('/sounds/music/')
           ? DEFAULT_MUSIC_VOLUME
-          : metric.path.startsWith('/sounds/combat/')
-            ? 1
-            : DEFAULT_AMBIENCE_VOLUME;
+          : metric.path.startsWith('/sounds/ui/')
+            ? DEFAULT_SOUND_EFFECTS_VOLUME
+            : metric.path.startsWith('/sounds/combat/')
+              ? 1
+              : DEFAULT_AMBIENCE_VOLUME;
         const effectiveRms =
           metric.rms * (clip?.volume ?? 1) * preferenceGain;
         console.log(

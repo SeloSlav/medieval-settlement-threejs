@@ -21,6 +21,7 @@ import {
   WORLD_DIFFICULTY_PRESET_ORDER,
   WORLD_DIFFICULTY_PRESETS,
 } from '../world/worldDifficulty.ts';
+import { SetupUiAudio } from '../audio/SetupUiAudio.ts';
 import { mountTooltips } from './tooltips.ts';
 export type WorldSetupResult = {
   action: 'back' | 'start';
@@ -83,6 +84,7 @@ function syncArrowSelectorCopy(
 }
 
 export class WorldSetupPanel {
+  private readonly setupAudio = new SetupUiAudio();
   private readonly backdrop: HTMLElement;
   private readonly resolve: (result: WorldSetupResult) => void;
   private readonly disposeTooltips: () => void;
@@ -421,6 +423,7 @@ export class WorldSetupPanel {
 
     for (const button of landscapeGrid.querySelectorAll<HTMLButtonElement>('[data-terrain-preset]')) {
       button.addEventListener('click', () => {
+        this.setupAudio.play('setup_choice');
         const preset = button.dataset.terrainPreset as WorldTerrainPreset;
         this.draft = applyTerrainPreset(this.draft, preset);
         syncLandscapeControls();
@@ -563,9 +566,15 @@ export class WorldSetupPanel {
     const bindArrowSelector = (
       selector: HTMLElement,
       onStep: (step: number) => void,
+      feedback: 'adjust' | 'preset' = 'adjust',
     ): void => {
       for (const button of selector.querySelectorAll<HTMLButtonElement>('[data-selector-step]')) {
-        button.addEventListener('click', () => onStep(Number(button.dataset.selectorStep)));
+        button.addEventListener('click', () => {
+          const step = Number(button.dataset.selectorStep);
+          if (feedback === 'preset') this.setupAudio.play('setup_preset');
+          else this.setupAudio.playDirectionalAdjustment(step);
+          onStep(step);
+        });
       }
     };
 
@@ -579,7 +588,7 @@ export class WorldSetupPanel {
       const nextPreset = WORLD_DIFFICULTY_PRESETS.find((preset) => preset.id === nextPresetId)!;
       Object.assign(this.draft, nextPreset.settings);
       syncGameplayControls();
-    });
+    }, 'preset');
     bindArrowSelector(conflictModeSelector, (step) => {
       this.draft.conflictMode = cycleValue(CONFLICT_MODE_ORDER, this.draft.conflictMode, step);
       if (this.draft.conflictMode === 'frontier' && this.draft.enemyPressure <= 0) {
@@ -605,6 +614,11 @@ export class WorldSetupPanel {
     });
     pressureSlider.addEventListener('input', () => {
       this.draft.enemyPressure = Number(pressureSlider.value);
+      this.setupAudio.playAdjustment(
+        this.draft.enemyPressure,
+        Number(pressureSlider.min),
+        Number(pressureSlider.max),
+      );
       pressureValue.textContent = pressureSlider.value;
       syncDifficultyPresetControl();
     });
@@ -645,26 +659,44 @@ export class WorldSetupPanel {
 
     topographySlider.addEventListener('input', () => {
       this.draft.topography = Number(topographySlider.value);
+      this.setupAudio.playAdjustment(
+        this.draft.topography,
+        Number(topographySlider.min),
+        Number(topographySlider.max),
+      );
       topographyValue.textContent = String(this.draft.topography);
     });
     hydrologySlider.addEventListener('input', () => {
       this.draft.hydrology = Number(hydrologySlider.value);
+      this.setupAudio.playAdjustment(
+        this.draft.hydrology,
+        Number(hydrologySlider.min),
+        Number(hydrologySlider.max),
+      );
       hydrologyValue.textContent = String(this.draft.hydrology);
     });
     forestSlider.addEventListener('input', () => {
       this.draft.forestDensity = Number(forestSlider.value);
+      this.setupAudio.playAdjustment(
+        this.draft.forestDensity,
+        Number(forestSlider.min),
+        Number(forestSlider.max),
+      );
       forestValue.textContent = String(this.draft.forestDensity);
     });
     randomizeButton.addEventListener('click', () => {
+      this.setupAudio.play('setup_preset');
       this.draft.seed = seedForTerrainPreset(randomWorldSeed(), this.draft.terrainPreset);
       seedInput.value = formatSeedHex(this.draft.seed);
     });
     seedInput.addEventListener('change', () => {
       const parsed = parseSeedHex(seedInput.value);
       if (parsed === null) {
+        this.setupAudio.play('error');
         seedInput.value = formatSeedHex(this.draft.seed);
         return;
       }
+      this.setupAudio.play('setup_choice');
       this.draft.seed = seedForTerrainPreset(parsed, this.draft.terrainPreset);
       seedInput.value = formatSeedHex(this.draft.seed);
     });
@@ -678,20 +710,24 @@ export class WorldSetupPanel {
     };
 
     backButton.addEventListener('click', () => {
+      this.setupAudio.play('setup_back');
       const settings = readSettings();
       this.selectorResizeObserver.disconnect();
       this.disposeTooltips();
       this.backdrop.remove();
       this.resolve({ action: 'back', settings });
+      this.setupAudio.disposeAfterTail();
     });
 
     form.addEventListener('submit', (event) => {
       event.preventDefault();
+      this.setupAudio.play('setup_commit');
       const settings = readSettings();
       this.selectorResizeObserver.disconnect();
       this.disposeTooltips();
       this.backdrop.remove();
       this.resolve({ action: 'start', settings });
+      this.setupAudio.disposeAfterTail();
     });
   }
 

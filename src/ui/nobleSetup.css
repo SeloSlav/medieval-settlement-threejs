@@ -600,9 +600,13 @@
 
 .noble-setup-color-setting {
   display: grid;
-  grid-template-columns: 92px 1fr;
+  grid-template-columns: 120px 1fr;
   align-items: center;
   gap: 8px;
+}
+
+.noble-setup-color-setting > span {
+  white-space: nowrap;
 }
 
 .noble-setup-colors {
