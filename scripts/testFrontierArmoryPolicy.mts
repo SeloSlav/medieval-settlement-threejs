@@ -3,27 +3,22 @@ import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
   CARPENTER_POLEARM_RESERVE_DEFAULT,
-  CARPENTER_POLEARM_RESERVE_LEGACY,
   CARPENTER_POLEARM_RESERVE_PRESETS,
   carpenterArmoryPlan,
   carpenterPolearmShortfall,
-  guardhousePolearmTarget,
   normalizeCarpenterPolearmReserve,
 } from '../src/economy/carpenterArmoryPolicy.ts';
 
 assert.equal(CARPENTER_POLEARM_RESERVE_DEFAULT, 6);
-assert.equal(CARPENTER_POLEARM_RESERVE_LEGACY, 24);
 assert.deepEqual(
   CARPENTER_POLEARM_RESERVE_PRESETS.map((preset) => preset.reserve),
   [0, 2, 6, 12, 24],
 );
-assert.equal(normalizeCarpenterPolearmReserve(Number.NaN), 24);
+assert.equal(normalizeCarpenterPolearmReserve(Number.NaN), 6);
 assert.equal(normalizeCarpenterPolearmReserve(200), 24);
 assert.equal(normalizeCarpenterPolearmReserve(-2), 0);
 assert.equal(carpenterPolearmShortfall(2, 6), 4);
 assert.equal(carpenterPolearmShortfall(8, 6), 0);
-assert.equal(guardhousePolearmTarget(0), 0);
-assert.equal(guardhousePolearmTarget(6.8), 6);
 
 const oneCompany = carpenterArmoryPlan({
   polearms: 2,
@@ -64,18 +59,18 @@ assert.deepEqual(fittingsConserved, {
   ironworkToTarget: 4,
 });
 
-const legacy = carpenterArmoryPlan({
+const defaulted = carpenterArmoryPlan({
   polearms: 4,
   timber: 0,
   ironwork: 0,
 });
-assert.equal(legacy.reserve, 24, 'missing legacy rows must preserve the former full-workshop target');
+assert.equal(defaulted.reserve, 6, 'missing policy values use the current one-company reserve');
 
 const schema = readFileSync('server/src/tables.rs', 'utf8');
 assert.match(
   schema,
-  /#\[default\(24u8\)\]\s+pub carpenter_polearm_reserve: u8/,
-  'additive schema migration must preserve the former 24-polearm behavior',
+  /#\[default\(6u8\)\]\s+pub carpenter_polearm_reserve: u8/,
+  'the clean schema default must match newly placed carpenters',
 );
 
 const buildingReducers = readFileSync('server/src/reducers/buildings.rs', 'utf8');
@@ -96,10 +91,15 @@ assert.match(
   /carpenter_polearm_shortfall\(building\.polearms, building\.carpenter_polearm_reserve\)[\s\S]*?if polearm_shortfall > 1e-6[\s\S]*?request_connected_commodity/,
   'carpenters must request inputs only while below their finished reserve',
 );
+assert.doesNotMatch(
+  serverEconomy,
+  /dispatch_polearms_to_guardhouse|guardhouse_polearm_target/,
+  'assigned guardhouse labor must never generate an abstract weapon demand',
+);
 assert.match(
   serverEconomy,
-  /dispatch_polearms_to_guardhouse[\s\S]*?guardhouse_polearm_target\(target\.assigned_labor\)[\s\S]*?desired_stock - target\.polearms/,
-  'guardhouse delivery must stop at one polearm per assigned guard',
+  /step_military_requisitions[\s\S]*?military_equipment_costs\(cost\)[\s\S]*?request_connected_commodity\([\s\S]*?all_at_muster[\s\S]*?withdraw_building_commodity/,
+  'finished weapons must instead move through exact company requisitions',
 );
 
 const inspector = readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8');
@@ -110,8 +110,8 @@ assert.match(
 );
 assert.match(
   inspector,
-  /One polearm per assigned guard/,
-  'the inspector must explain bounded company issue',
+  /exact company requisition carts them to its muster point/,
+  'the inspector must explain physical company requisitions',
 );
 
 const performanceStarted = performance.now();

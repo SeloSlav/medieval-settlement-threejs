@@ -4,10 +4,13 @@ import {
   MERCENARY_COMPANY_NAMES,
   mercenaryCompanyName,
   militaryCompanyDisplayName,
+  militaryCompanyRankLabel,
   militaryCompanyRequiresProvisions,
   militaryCompanyWagesEnabled,
+  militaryFormationAvailable,
   militaryRecruitmentCost,
   militaryResupplyCost,
+  militaryStanceAvailable,
 } from '../src/security/militaryProgression.ts';
 import {
   CAVALRY_YARD_ARCHITECTURE_PLAN,
@@ -106,6 +109,7 @@ assert.match(reducer, /pub fn renew_mercenary_contract/);
 assert.match(reducer, /survivors\.len\(\)[\s\S]*?saturating_mul\(2\)/);
 assert.match(reducer, /MilitaryKind::MercenarySpears[\s\S]*?begin_disband/);
 assert.match(reducer, /pub fn resupply_military_company/);
+assert.match(reducer, /pub fn reinforce_military_company/);
 assert.match(reducer, /MilitaryCost::for_company_with_demands\(kind, size, demands\)/);
 assert.match(reducer, /military_resupply_cost\(company\.living_members, demands\)/);
 assert.match(reducer, /provision_days: 0\.0/);
@@ -121,7 +125,8 @@ assert.match(economySimulation, /ordinary physical carts/);
 assert.match(economySimulation, /company\.state = 1/);
 assert.match(reducer, /let mut company_ids = BTreeSet::new\(\)/);
 assert.match(reducer, /military_member\(\)\s*\.company_id\(\)\s*\.filter\(&company_id\)/);
-assert.match(reducer, /company_center_x/);
+assert.match(reducer, /company_center\(&company_members\)/);
+assert.match(reducer, /rotate_formation_offset/);
 assert.match(
   simulation,
   /fn strike_camp[\s\S]*camp\.health\s*=[\s\S]*if destroyed[\s\S]*destroy_camp/,
@@ -163,18 +168,18 @@ assert.match(simulation, /local_company_requires_provisions\(kind, military_dema
 assert.match(simulation, /company_wages_enabled\(kind, military_demands\)/);
 assert.match(simulation, /fn step_mercenary_contracts/);
 assert.match(simulation, /MERCENARY_IDLE_DEPARTURE_DAYS/);
-assert.match(simulation, /MERCENARY_MAX_CONTRACT_DAYS/);
+assert.match(simulation, /departure_requested/);
 assert.match(simulation, /fn begin_mercenary_departure/);
 assert.match(simulation, /fn step_returning_member/);
 assert.match(simulation, /let exit_x = member\.original_home_x/);
 assert.match(simulation, /last_engagement_tick/);
-assert.match(simulation, /idle_too_long \|\| tick >= contract\.contract_end_tick/);
+assert.match(simulation, /let departure_due = company\.departure_requested[\s\S]*idle_too_long[\s\S]*contract\.contract_end_tick/);
 assert.match(simulation, /fn recover_member_kit_at/);
 assert.match(simulation, /fn resolve_return_home/);
 assert.match(simulation, /fn down_player_member/);
 assert.match(simulation, /let ranged_kind = kind\.is_ranged\(\)/);
 assert.match(simulation, /minimum_ranged_spacing[\s\S]*MilitaryKind::Bowmen[\s\S]*MilitaryKind::Crossbows[\s\S]*MilitaryKind::MountedArchers/);
-assert.match(simulation, /walk_away\(&mut agent[\s\S]{0,160}stats\.speed \* 0\.78/);
+assert.match(simulation, /walk_away\([\s\S]{0,260}stats\.speed \* 0\.78/);
 assert.match(simulation, /fighting withdrawal[\s\S]{0,240}agent\.state = FIGHTING/);
 assert.match(simulation, /let charged_into_contact = !can_shoot/);
 assert.match(simulation, /deliberate terrain move is authoritative[\s\S]*filter\(\|order\| order\.kind == 0\)[\s\S]*return;/);
@@ -211,9 +216,9 @@ assert.match(guardhouse, /'spearmen', 'men-at-arms', 'footmen', 'polearms', 'bow
 assert.match(townHall, /'militia', 'mercenary-spears'/);
 assert.match(roster, /data-militia-size/);
 assert.match(roster, /Array\.from\(\{ length: 12 \}/);
-assert.match(roster, /1 gold\/man\/day · 7 quiet days · 21-day term/);
+assert.match(roster, /idle for seven days/);
 assert.match(roster, /data-renew-mercenary-contract/);
-assert.match(roster, /marching back to its original map edge and ignores all movement and attack orders/);
+assert.match(roster, /will leave after its current engagement/);
 assert.match(inspector, /onRenewMercenaryContract/);
 assert.match(inspector, /\[data-renew-mercenary-contract\]/);
 assert.match(app, /title: `\$\{companyName\} are leaving`/);
@@ -223,7 +228,9 @@ for (const control of [
   'data-hire-mercenary-company',
   'data-disband-military-company',
   'data-resupply-military-company',
+  'data-reinforce-military-company',
   'data-military-formation',
+  'data-military-stance',
 ]) {
   assert.match(roster, new RegExp(control));
 }
@@ -242,8 +249,15 @@ assert.match(commands, /onCompanySelected/);
 assert.match(bootstrap, /onCompanySelected:[\s\S]*?resourceInspector\.selectMilitaryCompany\(companyId\)/);
 assert.match(inspector, /selectMilitaryCompany\(companyId: string\)/);
 assert.match(inspector, /focusMercenaryContract\(companyId: string\)/);
-assert.match(selectedCompanyCard, /statusText: gainsExperience \? `Level \$\{company\.level\}/);
+assert.match(selectedCompanyCard, /statusText: rank \? `\$\{rank\} · \$\{statusLabel\}`/);
 assert.match(selectedCompanyCard, /detailsHtml: ''/);
+assert.equal(militaryCompanyRankLabel({ kind: 'spearmen', level: 1 }), 'Unproven');
+assert.equal(militaryCompanyRankLabel({ kind: 'spearmen', level: 4 }), 'Veteran');
+assert.equal(militaryCompanyRankLabel({ kind: 'militia', level: 10 }), null);
+assert.equal(militaryFormationAvailable('spearmen', 'brace'), true);
+assert.equal(militaryFormationAvailable('crossbows', 'brace'), false);
+assert.equal(militaryFormationAvailable('hussars', 'wedge'), true);
+assert.equal(militaryStanceAvailable('hussars', 'give-ground'), false);
 assert.doesNotMatch(selectedCompanyCard, /role="progressbar"|data-company-health|>Morale<|>Cohesion<|>Fatigue</);
 assert.match(villagers, /activeMilitaryPersonIdentities\.has\(agent\.personIdentity\)/);
 assert.match(villagers, /function combatToolFor/);
@@ -278,6 +292,7 @@ for (const animation of ['Idle', 'Eating', 'Walk', 'Gallop']) {
   assert.ok(horseAnimationNames.has(animation), `Quaternius horse must retain ${animation}`);
 }
 assert.match(inspector, /private readonly onPanelClick[\s\S]*\[data-military-formation\]/);
+assert.match(inspector, /private readonly onPanelClick[\s\S]*\[data-military-stance\]/);
 assert.doesNotMatch(
   inspector.slice(inspector.indexOf('private readonly onSupplementalChange')),
   /\[data-military-formation\]|\[data-disband-military-company\]/,

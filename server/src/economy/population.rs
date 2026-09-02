@@ -1,5 +1,3 @@
-use std::collections::{HashMap, HashSet};
-
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::CONSTRUCTION_MAX_BUILDERS;
@@ -10,9 +8,6 @@ use crate::constants::{
 };
 use crate::construction_priority::CONSTRUCTION_PRIORITY_HOLD;
 use crate::db::*;
-use crate::raid_agent_policy::{
-    combat_state_blocks_guard_slot, combat_state_commits_guard_labor, COMBAT_FACTION_GUARD,
-};
 use crate::residence_upgrade_policy::residence_project_active;
 use crate::simulation::{
     building_fire_state, preempt_free_hauler_trips, preserve_in_transit_cart_labor,
@@ -104,40 +99,21 @@ pub fn settlement_population(housed: u32, legacy_unhoused_population_bonus_enabl
 }
 
 fn total_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
-    let roster_floors = guardhouse_roster_floors(ctx, owner);
-    if roster_floors.is_empty() {
-        return ctx
-            .db
-            .building()
-            .owner()
-            .filter(&owner)
-            .map(|building| building.assigned_labor)
-            .sum();
-    }
     ctx.db
         .building()
         .owner()
         .filter(&owner)
-        .map(|building| {
-            building
-                .assigned_labor
-                .max(roster_floors.get(&building.id).copied().unwrap_or(0))
-        })
+        .map(|building| building.assigned_labor)
         .sum()
 }
 
 fn total_workplace_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
-    let roster_floors = guardhouse_roster_floors(ctx, owner);
     ctx.db
         .building()
         .owner()
         .filter(&owner)
         .filter(|building| building.construction_complete)
-        .map(|building| {
-            building
-                .assigned_labor
-                .max(roster_floors.get(&building.id).copied().unwrap_or(0))
-        })
+        .map(|building| building.assigned_labor)
         .sum()
 }
 
@@ -149,82 +125,6 @@ fn total_construction_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) 
         .filter(|building| !building.construction_complete)
         .map(|building| building.assigned_labor)
         .sum()
-}
-
-pub fn guardhouse_roster_floors(
-    ctx: &ReducerContext,
-    owner: spacetimedb::Identity,
-) -> HashMap<u64, u32> {
-    let mut floors = HashMap::<u64, u32>::new();
-    for agent in ctx
-        .db
-        .combat_agent()
-        .owner()
-        .filter(&owner)
-        .filter(|agent| {
-            agent.faction == COMBAT_FACTION_GUARD
-                && agent.source_building_id > 0
-                && combat_state_commits_guard_labor(agent.state)
-        })
-    {
-        // Source slots identify individual villagers. A company cannot shrink
-        // past a guard who is fighting, returning, or recovering and then
-        // assign that same villager to another workplace.
-        floors
-            .entry(agent.source_building_id)
-            .and_modify(|floor| *floor = (*floor).max(agent.source_slot.saturating_add(1)))
-            .or_insert_with(|| agent.source_slot.saturating_add(1));
-    }
-    floors
-}
-
-pub fn guardhouse_roster_floor(
-    ctx: &ReducerContext,
-    owner: spacetimedb::Identity,
-    building_id: u64,
-) -> u32 {
-    guardhouse_roster_floors(ctx, owner)
-        .get(&building_id)
-        .copied()
-        .unwrap_or(0)
-}
-
-pub fn guardhouse_roster_count(
-    ctx: &ReducerContext,
-    owner: spacetimedb::Identity,
-    building_id: u64,
-) -> u32 {
-    ctx.db
-        .combat_agent()
-        .owner()
-        .filter(&owner)
-        .filter(|agent| {
-            agent.faction == COMBAT_FACTION_GUARD
-                && agent.source_building_id == building_id
-                && combat_state_commits_guard_labor(agent.state)
-        })
-        .map(|agent| agent.source_slot)
-        .collect::<HashSet<_>>()
-        .len() as u32
-}
-
-pub fn guardhouse_casualty_count(
-    ctx: &ReducerContext,
-    owner: spacetimedb::Identity,
-    building_id: u64,
-) -> u32 {
-    ctx.db
-        .combat_agent()
-        .owner()
-        .filter(&owner)
-        .filter(|agent| {
-            agent.faction == COMBAT_FACTION_GUARD
-                && agent.source_building_id == building_id
-                && combat_state_blocks_guard_slot(agent.state)
-        })
-        .map(|agent| agent.source_slot)
-        .collect::<HashSet<_>>()
-        .len() as u32
 }
 
 fn total_residence_project_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
@@ -260,7 +160,18 @@ fn total_free_hauler_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -
 }
 
 pub fn available_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
-    let military_residents = ctx
+    total_population(ctx, owner).saturating_sub(
+        total_assigned_labor(ctx, owner)
+            .saturating_add(total_free_hauler_labor(ctx, owner))
+            .saturating_add(active_military_resident_count(ctx, owner)),
+    )
+}
+
+fn active_military_resident_count(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+) -> u32 {
+    ctx
         .db
         .military_member()
         .owner()
@@ -274,19 +185,16 @@ pub fn available_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identi
                     .find(&member.combat_agent_id)
                     .is_some_and(|agent| agent.state != 5)
         })
-        .count() as u32;
-    total_population(ctx, owner).saturating_sub(
-        total_assigned_labor(ctx, owner)
-            .saturating_add(total_free_hauler_labor(ctx, owner))
-            .saturating_add(military_residents),
-    )
+        .count() as u32
 }
 
 /// Healthy residents who are not explicitly rostered to completed
 /// workplaces. Builders, household-project crews, and free haulers remain in
 /// this reserve because a workplace call-up may preempt those temporary jobs.
 pub fn available_workplace_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
-    total_population(ctx, owner).saturating_sub(total_workplace_labor(ctx, owner))
+    total_population(ctx, owner).saturating_sub(
+        total_workplace_labor(ctx, owner).saturating_add(active_military_resident_count(ctx, owner)),
+    )
 }
 
 fn preempt_flexible_labor_to_capacity(
@@ -383,18 +291,13 @@ pub fn preempt_flexible_labor_for_workplace_callup(
 /// Clamp building assignments immediately after residence population is lost.
 pub fn reconcile_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) {
     let cart_floors = staffed_cart_workers_by_building(ctx, owner);
-    let roster_floors = guardhouse_roster_floors(ctx, owner);
     let assignments = ctx
         .db
         .building()
         .owner()
         .filter(&owner)
         .map(|building| {
-            let minimum_labor = cart_floors
-                .get(&building.id)
-                .copied()
-                .unwrap_or(0)
-                .max(roster_floors.get(&building.id).copied().unwrap_or(0));
+            let minimum_labor = cart_floors.get(&building.id).copied().unwrap_or(0);
             LaborAssignment {
                 building_id: building.id,
                 assigned_labor: building.assigned_labor.max(minimum_labor),
@@ -489,36 +392,6 @@ pub fn assign_building_labor(
     {
         return Err("Repair this fire-damaged building before assigning more workers.".to_string());
     }
-    let roster_floor = guardhouse_roster_floor(ctx, owner, building.id);
-    if requested_labor < roster_floor {
-        let roster_count = guardhouse_roster_count(ctx, owner, building.id);
-        let casualty_count = guardhouse_casualty_count(ctx, owner, building.id);
-        let fielded_count = roster_count.saturating_sub(casualty_count);
-        let reason = match (fielded_count, casualty_count) {
-            (fielded, 0) => format!(
-                "{} guard{} remain deployed or are still returning to this company.",
-                fielded,
-                if fielded == 1 { "" } else { "s" },
-            ),
-            (0, casualties) => format!(
-                "{} wounded guard{} remain committed to this company until recovery.",
-                casualties,
-                if casualties == 1 { "" } else { "s" },
-            ),
-            (fielded, casualties) => format!(
-                "{} guard{} remain deployed or returning and {} wounded guard{} remain in recovery.",
-                fielded,
-                if fielded == 1 { "" } else { "s" },
-                casualties,
-                if casualties == 1 { "" } else { "s" },
-            ),
-        };
-        return Err(format!(
-            "{} Their roster positions through slot {} cannot be released.",
-            reason, roster_floor
-        ));
-    }
-
     let building_cap = if building.construction_complete {
         building_max_labor(&building.kind)
     } else {
@@ -532,10 +405,7 @@ pub fn assign_building_labor(
     }
 
     let population = total_population(ctx, owner);
-    let current_commitment =
-        building
-            .assigned_labor
-            .max(guardhouse_roster_floor(ctx, owner, building.id));
+    let current_commitment = building.assigned_labor;
     let assigned_elsewhere = if building.construction_complete {
         total_workplace_labor(ctx, owner).saturating_sub(current_commitment)
     } else {

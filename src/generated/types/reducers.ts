@@ -49,6 +49,7 @@ import RecallIdleSeasonalLaborReducer from "../recall_idle_seasonal_labor_reduce
 import RecallTargetIdleProcessorLaborReducer from "../recall_target_idle_processor_labor_reducer";
 import RecruitCavalryCompanyReducer from "../recruit_cavalry_company_reducer";
 import RecruitMilitaryCompanyReducer from "../recruit_military_company_reducer";
+import ReinforceMilitaryCompanyReducer from "../reinforce_military_company_reducer";
 import RemoveRoadEdgeReducer from "../remove_road_edge_reducer";
 import RenameSettlementReducer from "../rename_settlement_reducer";
 import RenewMercenaryContractReducer from "../renew_mercenary_contract_reducer";
@@ -96,6 +97,7 @@ import SetMarketplaceSeedGrainTargetReducer from "../set_marketplace_seed_grain_
 import SetMarketplaceSpecialtyExportPolicyReducer from "../set_marketplace_specialty_export_policy_reducer";
 import SetMarketplaceSpecialtyFamilyExportPolicyReducer from "../set_marketplace_specialty_family_export_policy_reducer";
 import SetMilitaryFormationReducer from "../set_military_formation_reducer";
+import SetMilitaryStanceReducer from "../set_military_stance_reducer";
 import SetMonasteryCharterReducer from "../set_monastery_charter_reducer";
 import SetMonasteryNextExtensionReducer from "../set_monastery_next_extension_reducer";
 import SetMonasteryPlantingReducer from "../set_monastery_planting_reducer";
@@ -169,6 +171,7 @@ export type RecallIdleSeasonalLaborParams = __Infer<typeof RecallIdleSeasonalLab
 export type RecallTargetIdleProcessorLaborParams = __Infer<typeof RecallTargetIdleProcessorLaborReducer>;
 export type RecruitCavalryCompanyParams = __Infer<typeof RecruitCavalryCompanyReducer>;
 export type RecruitMilitaryCompanyParams = __Infer<typeof RecruitMilitaryCompanyReducer>;
+export type ReinforceMilitaryCompanyParams = __Infer<typeof ReinforceMilitaryCompanyReducer>;
 export type RemoveRoadEdgeParams = __Infer<typeof RemoveRoadEdgeReducer>;
 export type RenameSettlementParams = __Infer<typeof RenameSettlementReducer>;
 export type RenewMercenaryContractParams = __Infer<typeof RenewMercenaryContractReducer>;
@@ -216,6 +219,7 @@ export type SetMarketplaceSeedGrainTargetParams = __Infer<typeof SetMarketplaceS
 export type SetMarketplaceSpecialtyExportPolicyParams = __Infer<typeof SetMarketplaceSpecialtyExportPolicyReducer>;
 export type SetMarketplaceSpecialtyFamilyExportPolicyParams = __Infer<typeof SetMarketplaceSpecialtyFamilyExportPolicyReducer>;
 export type SetMilitaryFormationParams = __Infer<typeof SetMilitaryFormationReducer>;
+export type SetMilitaryStanceParams = __Infer<typeof SetMilitaryStanceReducer>;
 export type SetMonasteryCharterParams = __Infer<typeof SetMonasteryCharterReducer>;
 export type SetMonasteryNextExtensionParams = __Infer<typeof SetMonasteryNextExtensionReducer>;
 export type SetMonasteryPlantingParams = __Infer<typeof SetMonasteryPlantingReducer>;

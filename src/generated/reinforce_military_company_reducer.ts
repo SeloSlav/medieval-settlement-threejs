@@ -11,9 +11,5 @@ import {
 } from "spacetimedb";
 
 export default {
-  agentIds: __t.array(__t.u64()),
-  destinationX: __t.f64(),
-  destinationZ: __t.f64(),
-  targetCampId: __t.u64(),
-  targetAgentId: __t.u64(),
+  companyId: __t.u64(),
 };

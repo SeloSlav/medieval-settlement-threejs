@@ -75,6 +75,7 @@ import RecallIdleSeasonalLaborReducer from "./recall_idle_seasonal_labor_reducer
 import RecallTargetIdleProcessorLaborReducer from "./recall_target_idle_processor_labor_reducer";
 import RecruitCavalryCompanyReducer from "./recruit_cavalry_company_reducer";
 import RecruitMilitaryCompanyReducer from "./recruit_military_company_reducer";
+import ReinforceMilitaryCompanyReducer from "./reinforce_military_company_reducer";
 import RemoveRoadEdgeReducer from "./remove_road_edge_reducer";
 import RenameSettlementReducer from "./rename_settlement_reducer";
 import RenewMercenaryContractReducer from "./renew_mercenary_contract_reducer";
@@ -122,6 +123,7 @@ import SetMarketplaceSeedGrainTargetReducer from "./set_marketplace_seed_grain_t
 import SetMarketplaceSpecialtyExportPolicyReducer from "./set_marketplace_specialty_export_policy_reducer";
 import SetMarketplaceSpecialtyFamilyExportPolicyReducer from "./set_marketplace_specialty_family_export_policy_reducer";
 import SetMilitaryFormationReducer from "./set_military_formation_reducer";
+import SetMilitaryStanceReducer from "./set_military_stance_reducer";
 import SetMonasteryCharterReducer from "./set_monastery_charter_reducer";
 import SetMonasteryNextExtensionReducer from "./set_monastery_next_extension_reducer";
 import SetMonasteryPlantingReducer from "./set_monastery_planting_reducer";
@@ -856,6 +858,7 @@ const reducersSchema = __reducers(
   __reducerSchema("recall_target_idle_processor_labor", RecallTargetIdleProcessorLaborReducer),
   __reducerSchema("recruit_cavalry_company", RecruitCavalryCompanyReducer),
   __reducerSchema("recruit_military_company", RecruitMilitaryCompanyReducer),
+  __reducerSchema("reinforce_military_company", ReinforceMilitaryCompanyReducer),
   __reducerSchema("remove_road_edge", RemoveRoadEdgeReducer),
   __reducerSchema("rename_settlement", RenameSettlementReducer),
   __reducerSchema("renew_mercenary_contract", RenewMercenaryContractReducer),
@@ -903,6 +906,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_marketplace_specialty_export_policy", SetMarketplaceSpecialtyExportPolicyReducer),
   __reducerSchema("set_marketplace_specialty_family_export_policy", SetMarketplaceSpecialtyFamilyExportPolicyReducer),
   __reducerSchema("set_military_formation", SetMilitaryFormationReducer),
+  __reducerSchema("set_military_stance", SetMilitaryStanceReducer),
   __reducerSchema("set_monastery_charter", SetMonasteryCharterReducer),
   __reducerSchema("set_monastery_next_extension", SetMonasteryNextExtensionReducer),
   __reducerSchema("set_monastery_planting", SetMonasteryPlantingReducer),

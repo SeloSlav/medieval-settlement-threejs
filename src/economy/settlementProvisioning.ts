@@ -4,8 +4,6 @@ import {
   CHARCOAL_HOUSEHOLD_FUEL_VALUE,
   FRESH_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR,
   FRESH_FOOD_STORAGE_RESIDENCE_FACTOR,
-  GUARDHOUSE_FOOD_PER_GUARD_PER_DAY,
-  GUARDHOUSE_WAGE_PER_GUARD_PER_DAY,
   PRESERVED_FOOD_SPOILAGE_PER_DAY,
   PRESERVED_FOOD_STORAGE_CART_FACTOR,
   PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
@@ -75,7 +73,6 @@ import {
   householdFoodUnitsPerMonth,
   householdFoodUnitsPerMonthForTier,
 } from './householdBillDemand.ts';
-import { averageNonHolidayCalendarDayShare } from '../world/holidayCalendar.ts';
 
 export const WINTER_RESERVE_DAYS = CALENDAR_DAYS_PER_MONTH * 3;
 export const PROVISION_WARNING_DAYS = 5;
@@ -666,11 +663,13 @@ export function computeSettlementProvisioning(input: {
 
   }
 
-  let assignedGuards = 0;
-  let armedGuards = 0;
-  let guardFoodStock = 0;
-  let guardPayChestGold = 0;
-  let guardProvisionRunwayDays = Number.POSITIVE_INFINITY;
+  // Field-company provisions and wages are explicit military transactions,
+  // not continuous consumption inferred from guardhouse support labor.
+  const assignedGuards = 0;
+  const armedGuards = 0;
+  const guardFoodStock = 0;
+  const guardPayChestGold = 0;
+  const guardProvisionRunwayDays = Number.POSITIVE_INFINITY;
   for (const building of state.buildings.values()) {
     const fireDisabled = fireDisabledBuildings.has(building.id);
     const householdCharcoal = building.kind === 'marketplace'
@@ -755,35 +754,9 @@ export function computeSettlementProvisioning(input: {
       usablePreservedFoodWeightedStock += preservedFoodSpoilageExposure(building)
         * buildingPreservedFoodStorageFactor(building.kind);
     }
-    if (
-      building.kind !== 'guardhouse'
-      || building.constructionComplete === false
-      || building.assignedLabor <= 0
-      || fireDisabled
-    ) {
-      continue;
-    }
-    assignedGuards += building.assignedLabor;
-    const armedHere = Math.min(
-      building.assignedLabor,
-      Math.floor(Math.max(0, building.polearms ?? 0)),
-    );
-    armedGuards += armedHere;
-    const guardFood = edibleFoodMealEquivalents(building);
-    guardFoodStock += guardFood;
-    guardPayChestGold += finiteStock(building.gold);
-    if (armedHere > 0) {
-      guardProvisionRunwayDays = Math.min(
-        guardProvisionRunwayDays,
-        runwayDays(
-          guardFood,
-          armedHere * GUARDHOUSE_FOOD_PER_GUARD_PER_DAY,
-        ),
-      );
-    }
   }
 
-  let guardPayrollInTransitGold = 0;
+  const guardPayrollInTransitGold = 0;
   for (const trip of state.deliveryTrips.values()) {
     if (
       isPreservedFoodCargo(trip.cargoKind)
@@ -813,17 +786,6 @@ export function computeSettlementProvisioning(input: {
             * PRESERVED_FOOD_STORAGE_CART_FACTOR;
       }
     }
-    if (
-      trip.destinationKind !== 'building'
-      || trip.targetBuildingId === null
-      || trip.cargoKind !== 'gold'
-      || trip.phase === 'inbound'
-      || fireDisabledBuildings.has(trip.targetBuildingId)
-      || state.buildings.get(trip.targetBuildingId)?.kind !== 'guardhouse'
-    ) {
-      continue;
-    }
-    guardPayrollInTransitGold += finiteStock(trip.amount);
   }
 
   if (roadProvisionBranches && roadComponentFor) {
@@ -923,11 +885,10 @@ export function computeSettlementProvisioning(input: {
     0,
     grossHouseholdFoodPerDay - householdPreservedFoodRotationPerDay,
   );
-  const guardFoodPerDay = armedGuards * GUARDHOUSE_FOOD_PER_GUARD_PER_DAY;
+  const guardFoodPerDay = 0;
   const grossFoodDemandPerDay = grossHouseholdFoodPerDay + guardFoodPerDay;
   const totalFoodPerDay = householdFoodPerDay + guardFoodPerDay;
-  const averageFreshFoodDemandPerCalendarDay = householdFoodPerDay
-    + guardFoodPerDay * averageNonHolidayCalendarDayShare();
+  const averageFreshFoodDemandPerCalendarDay = householdFoodPerDay;
   const foodPreservation = analyzeFreshFoodPreservation(
     state,
     freshFoodSpoilageFractionPerDay,
@@ -967,7 +928,7 @@ export function computeSettlementProvisioning(input: {
   const winterFirewoodPerDay = heatedHouseholds
     * householdFirewoodUnitsPerDay(WINTER_FIREWOOD_DEMAND_MULTIPLIER);
   const winterFirewoodNeed = winterFirewoodPerDay * WINTER_RESERVE_DAYS;
-  const guardWagePerDay = armedGuards * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY;
+  const guardWagePerDay = 0;
   const roadBranches = roadProvisionBranches === null
     ? null
     : finalizeRoadProvisioning(

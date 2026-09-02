@@ -2,9 +2,9 @@
 
 ## Status
 
-Implemented in the authoritative SpacetimeDB simulation on 2026-08-30. This
-document replaces the earlier proposal and records the live gameplay contract.
-Mounted troops, siege engines, firearms, dedicated armorer buildings, and
+Implemented in the authoritative SpacetimeDB simulation and consolidated on
+2026-09-02. This document replaces the earlier proposal and records the live
+gameplay contract. Siege engines, firearms, dedicated armorer buildings, and
 equipment repair remain intentionally outside this pass.
 
 ## Core rules
@@ -14,11 +14,10 @@ equipment repair remain intentionally outside this pass.
    labor until he returns or dies. Mercenaries are the only outsiders.
    A resident-backed company therefore requires its full roster as currently
    unreserved labor in addition to every listed material cost.
-2. Local recruitment is atomic: the company forms only when every required man
-   and every complete equipment/provision lot selected by the world setting is available. Goods are withdrawn
-   from completed Guardhouses, Storehouses, Granaries, other physical holdings,
-   and only then legacy treasury stock. Timber and ironwork use their existing
-   aggregate physical-store spending paths.
+2. Local recruitment first reserves exact residents and its non-equipment
+   cost. Those men physically report to the source building while ordinary
+   carts bring each mustering rank's exact equipment requirement. The company
+   becomes controllable only after every surviving rank is present and equipped.
 3. Issued equipment remains carried by each combat agent. A local survivor
    returns it to the recruiting building during disbandment; battlefield deaths
    leave a physical reclamation pile for ordinary haulers. A surviving
@@ -30,10 +29,12 @@ equipment repair remain intentionally outside this pass.
    one member or drawing across any part of its formation selects the complete
    company, draws one circle around its footprint, and expands every order to
    all living members. They auto-acquire nearby bandits and Ottoman raiders,
-   while explicit orders move them, hold them, or attack a bandit camp.
-5. Morale, cohesion, fatigue, configured pay and field provisions, formation, individual
-   health/armor/damage quality, and finite missile ammunition affect real
-   combat. A broken company retreats.
+   while explicit orders move them, hold them, attack a camp, or retain a
+   specific hostile-agent target authoritatively.
+5. Morale, cohesion, fatigue, configured pay and field provisions, formation,
+   individual equipment quality, and finite missile ammunition affect real
+   combat. These values remain simulation internals rather than dashboard
+   meters; a broken company visibly retreats and casualties shrink its formation.
 6. Militia and mercenary spear companies are Town Hall forces in every game
    mode. They never depend on Ottoman conflict, raid pressure, an enabled
    Guardhouse, or another military building. This preserves a complete answer
@@ -78,8 +79,8 @@ Treasury signing cost at recruitment.
 - Formation: line, column, shield wall, or loose order.
 - Behavior: every selected man walks from his actual home to the Town Hall to
   receive his spear. The company becomes active only after all survivors arrive.
-- Role: cheap emergency numbers against bandits. At 52 health and 8 base damage,
-  militia are intentionally poor against disciplined Ottoman forces.
+- Role: cheap emergency numbers against bandits and intentionally poor against
+  disciplined Ottoman forces.
 
 ### Spear company
 
@@ -98,8 +99,8 @@ Treasury signing cost at recruitment.
 - Equipment cost: 8 sidearms, 8 shields, and 8 mail armor. The selected setting
   adds any initial ration issue and pay.
 - Paid-tier daily pay: one gold per two survivors.
-- Role: armored sword-and-large-shield professionals with 96 base health, high
-  morale/cohesion, and the strongest shield-wall mitigation. They hold against
+- Role: armored sword-and-large-shield professionals with strong staying power
+  and the best shield-wall discipline. They hold against
   arrows and light footmen but are slow and intentionally lose to armor-piercing
   crossbows and polearms. They share neither spear reach nor spear bracing.
 
@@ -173,19 +174,26 @@ Treasury signing cost at recruitment.
   foot formations; weak after an enemy closes.
 - Militia: emergency mass, not a favorable specialist counter.
 
-## Formation effects
+## Formations and stances
 
-- Line: balanced default frontage.
-- Column: compact depth for coherent movement.
-- Shield wall: reduced incoming close-combat damage for militia, spears,
-  Men-at-Arms, mercenaries, and footmen; Men-at-Arms receive the greatest
-  benefit. Crossbows cannot use it.
-- Loose order: wider spacing and the crossbow default.
+- Line: a broad frontage for direct engagements.
+- Column: a narrow marching shape for roads and repositioning.
+- Shield wall: a tight shielded front available only to appropriate infantry.
+- Loose order: wider spacing for missile troops and skirmish movement.
+- Brace: stationary spear or polearm ranks prepared for a frontal mounted charge.
+- Wedge: a mounted point intended to carry a charge through contact.
+
+Available formations depend on company equipment. Companies also choose among
+balanced, stand-ground, push-forward, give-ground, and missile-alert stances.
+The inspector describes each in one short sentence and deliberately does not
+publish numerical modifiers.
 
 Formation offsets are authoritative, so a single company order preserves the
 chosen shape instead of stacking every soldier on one destination point.
 Movement combines the assigned goal with short-range separation and low-weight
-company cohesion. Enemy choice is per soldier: distance carries a saturation
+company cohesion. Road surfaces improve military movement and wading slows it;
+neither missing roads nor missing routes prevent cross-country deployment.
+Enemy choice is per soldier: distance carries a saturation
 penalty so roughly two men engage one target before the rank spreads to the
 next-nearest opponent. The player still orders only the atomic company.
 
@@ -241,10 +249,12 @@ leave the region at the edge, and the company disappears after the last exit.
 
 The Town Hall inspector contains militia and mercenary recruitment plus attached
 company rosters. The Guardhouse contains spear, Men-at-Arms, footman,
-polearm, bow, and crossbow
-recruitment. Every roster shows state, survivors, formation, morale, cohesion,
-fatigue, enabled provisions, and ammunition where relevant, with controls for formation,
-resupply, and individual disbandment.
+polearm, bow, and crossbow recruitment. World selection stays intentionally
+sparse: a qualitative rank, a lifecycle state, the chosen formation and stance,
+and only the actions currently relevant. It does not expose health, damage, XP
+progress, morale, cohesion, fatigue, or contract countdown meters. Losses are
+legible from the shrinking physical formation; battle survivors advance through
+qualitative ranks.
 
 All military actions use a dedicated woodcut icon suite consistent with the
 game’s existing inspector art. Resident soldiers keep their exact villager name,
@@ -269,7 +279,7 @@ soldier away with an individual order.
 
 ## Explicit future boundary
 
-No cavalry, siege weapons, crossbow production
-building, equipment-repair queue, or additional military building is introduced.
-Those systems should arrive only with the corresponding horse, fodder, tack,
-ore, smithing, woodworking, training-time, repair, and transport economies.
+No siege weapons, firearms, crossbow-production building, equipment-repair
+queue, or additional military building is introduced. Those systems should
+arrive only with the corresponding ore, smithing, woodworking, training-time,
+repair, and transport economies.

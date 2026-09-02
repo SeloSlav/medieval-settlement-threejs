@@ -20,8 +20,23 @@ export const MILITARY_KINDS = [
 ] as const;
 export type MilitaryCompanyKind = (typeof MILITARY_KINDS)[number];
 
-export const MILITARY_FORMATIONS = ['line', 'column', 'shield-wall', 'loose'] as const;
+export const MILITARY_FORMATIONS = [
+  'line',
+  'column',
+  'shield-wall',
+  'loose',
+  'brace',
+  'wedge',
+] as const;
 export type MilitaryFormation = (typeof MILITARY_FORMATIONS)[number];
+export const MILITARY_STANCES = [
+  'balanced',
+  'stand-ground',
+  'push-forward',
+  'give-ground',
+  'missile-alert',
+] as const;
+export type MilitaryStance = (typeof MILITARY_STANCES)[number];
 export type MilitaryCompanyStatus = 'mustering' | 'active' | 'disbanding' | 'leaving' | 'destroyed';
 
 export type MilitaryCompanyState = {
@@ -29,7 +44,9 @@ export type MilitaryCompanyState = {
   kind: MilitaryCompanyKind;
   sourceBuildingId: string;
   status: MilitaryCompanyStatus;
+  departureRequested: boolean;
   formation: MilitaryFormation;
+  stance: MilitaryStance;
   targetSize: number;
   livingMembers: number;
   morale: number;
@@ -211,9 +228,21 @@ export function militaryRecruitmentCost(
   kind: MilitaryCompanyKind,
   demands: WorldMilitaryDemands,
 ): MilitaryRecruitmentCost {
-  const cost = { ...MILITARY_RECRUITMENT[kind].cost };
-  if (kind === 'militia' || kind === 'mercenary-spears') return cost;
+  return militaryReinforcementCost(kind, MILITARY_RECRUITMENT[kind].size, demands);
+}
+
+export function militaryReinforcementCost(
+  kind: MilitaryCompanyKind,
+  requested: number,
+  demands: WorldMilitaryDemands,
+): MilitaryRecruitmentCost {
   const size = MILITARY_RECRUITMENT[kind].size;
+  const count = Math.max(1, Math.floor(requested));
+  const cost = Object.fromEntries(
+    (Object.entries(MILITARY_RECRUITMENT[kind].cost) as Array<[keyof MilitaryRecruitmentCost, number]>)
+      .map(([resource, amount]) => [resource, Math.ceil(amount / size * count)]),
+  ) as MilitaryRecruitmentCost;
+  if (kind === 'militia' || kind === 'mercenary-spears') return cost;
   switch (normalizeMilitaryDemands(demands)) {
     case 0:
       cost.ale = 0;
@@ -222,16 +251,16 @@ export function militaryRecruitmentCost(
       break;
     case 1:
       cost.ale = 0;
-      cost.preservedFood = size;
+      cost.preservedFood = count;
       cost.gold = 0;
       break;
     case 2:
-      cost.ale = Math.ceil(size / 4);
-      cost.preservedFood = size * 2;
+      cost.ale = Math.ceil(count / 4);
+      cost.preservedFood = count * 2;
       break;
     case 3:
-      cost.ale = size;
-      cost.preservedFood = size * 2;
+      cost.ale = count;
+      cost.preservedFood = count * 2;
       break;
   }
   return cost;
@@ -277,17 +306,20 @@ export function syncMilitaryCompanies(
     if (row.owner.toHexString() !== identityHex) continue;
     const kind = MILITARY_KINDS[Number(row.kind)];
     const formation = MILITARY_FORMATIONS[Number(row.formation)];
+    const stance = MILITARY_STANCES[Number(row.stance)];
     const rawStatus = (['mustering', 'active', 'disbanding', 'destroyed'] as const)[Number(row.state)];
     const status = rawStatus === 'disbanding' && kind === 'mercenary-spears'
       ? 'leaving'
       : rawStatus;
-    if (!kind || !formation || !status) continue;
+    if (!kind || !formation || !stance || !status) continue;
     companies.set(row.id.toString(), {
       id: row.id.toString(),
       kind,
       sourceBuildingId: buildingClientId(row.sourceBuildingId),
       status,
+      departureRequested: row.departureRequested,
       formation,
+      stance,
       targetSize: Number(row.targetSize),
       livingMembers: Number(row.livingMembers),
       morale: clamp01(row.morale),
@@ -334,6 +366,65 @@ export function militaryFormationLabel(formation: MilitaryFormation): string {
     case 'loose': return 'Loose order';
     default: return formation[0]!.toUpperCase() + formation.slice(1);
   }
+}
+
+export function militaryFormationDescription(formation: MilitaryFormation): string {
+  switch (formation) {
+    case 'line': return 'Spreads the company across a broad front for a direct engagement.';
+    case 'column': return 'Keeps the company narrow for roads and rapid repositioning.';
+    case 'shield-wall': return 'Locks shielded infantry into a tight front against missiles and frontal attacks.';
+    case 'loose': return 'Widens spacing to reduce missile losses and help skirmishers maneuver.';
+    case 'brace': return 'Plants spear or polearm ranks to meet a frontal cavalry charge.';
+    case 'wedge': return 'Forms mounted troops into a point for a decisive charge.';
+  }
+}
+
+export function militaryFormationAvailable(
+  kind: MilitaryCompanyKind,
+  formation: MilitaryFormation,
+): boolean {
+  if (formation === 'shield-wall') {
+    return ['spearmen', 'men-at-arms', 'mercenary-spears', 'footmen'].includes(kind);
+  }
+  if (formation === 'brace') return ['spearmen', 'mercenary-spears', 'polearms'].includes(kind);
+  if (formation === 'wedge') return ['hussars', 'armored-lancers', 'mounted-archers'].includes(kind);
+  return true;
+}
+
+export function militaryStanceLabel(stance: MilitaryStance): string {
+  return stance.split('-').map((part) => part[0]!.toUpperCase() + part.slice(1)).join(' ');
+}
+
+export function militaryStanceDescription(stance: MilitaryStance): string {
+  switch (stance) {
+    case 'balanced': return 'Maintains an adaptable pace and engages threats normally.';
+    case 'stand-ground': return 'Holds this ground and waits for the enemy to close.';
+    case 'push-forward': return 'Presses the attack aggressively and tires more quickly.';
+    case 'give-ground': return 'Yields ground under pressure while keeping the company together.';
+    case 'missile-alert': return 'Spreads attention against incoming missiles but risks close combat.';
+  }
+}
+
+export function militaryStanceAvailable(
+  kind: MilitaryCompanyKind,
+  stance: MilitaryStance,
+): boolean {
+  const mounted = ['hussars', 'armored-lancers', 'mounted-archers'].includes(kind);
+  const ranged = ['crossbows', 'bowmen', 'mounted-archers'].includes(kind);
+  if (stance === 'push-forward') return !ranged || mounted;
+  if (stance === 'give-ground' || stance === 'missile-alert') return !mounted;
+  return true;
+}
+
+export function militaryCompanyRankLabel(
+  company: Pick<MilitaryCompanyState, 'kind' | 'level'>,
+): string | null {
+  if (!militaryCompanyGainsExperience(company.kind)) return null;
+  if (company.level >= 9) return 'Household elite';
+  if (company.level >= 7) return 'Hardened';
+  if (company.level >= 4) return 'Veteran';
+  if (company.level >= 2) return 'Seasoned';
+  return 'Unproven';
 }
 
 export function militaryCostText(cost: MilitaryRecruitmentCost): string {

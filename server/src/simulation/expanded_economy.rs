@@ -64,10 +64,8 @@ use crate::devotional_candle_policy::monastery_liturgy_prestige_multiplier;
 use crate::economy::{
     available_unreserved_building_ironwork, building_commodity_cap, building_commodity_room,
     building_commodity_stock, building_edible_food_stock, building_fresh_food_stock,
-    building_preservable_food_stock, credit_monastery_export_receipt,
-    credit_settlement_household_income, deposit_building_commodity,
-    first_building_edible_commodity, flour_bulk_stock, restore_treasury_gold, spend_treasury_gold,
-    storage_accepts_commodity, treasury_gold, withdraw_building_commodity,
+    building_preservable_food_stock, credit_monastery_export_receipt, deposit_building_commodity,
+    flour_bulk_stock, storage_accepts_commodity, withdraw_building_commodity,
     withdraw_building_edible_food, CommodityKind, FRESH_FOOD_COMMODITIES,
 };
 use crate::extraction_policy::{
@@ -87,11 +85,7 @@ use crate::farming::{
     STAGE_PLOUGHING, STAGE_SOWING,
 };
 use crate::frontier_economy_policy::{
-    armed_guards, carpenter_polearm_shortfall, guard_daily_upkeep, guardhouse_food_runway_days,
-    guardhouse_food_target, guardhouse_polearm_coverage, guardhouse_polearm_target,
-    next_guard_readiness, select_guardhouse_armament_candidate, select_guardhouse_food_candidate,
-    CARPENTER_IRONWORK_PER_POLEARM, CARPENTER_TIMBER_PER_POLEARM,
-    GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
+    carpenter_polearm_shortfall, CARPENTER_IRONWORK_PER_POLEARM, CARPENTER_TIMBER_PER_POLEARM,
 };
 use crate::fuel_reserve_policy::{
     combined_fuel_equivalent, marketplace_fuel_reserve_target_for_households,
@@ -143,7 +137,7 @@ use crate::simulation::residence_needs::{apply_need_consumed_at_source, Residenc
 use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::trading_post_exports_commodity;
-use crate::simulation::{try_dispatch_guardhouse_payroll, try_dispatch_local_civic_receipts};
+use crate::simulation::try_dispatch_local_civic_receipts;
 use crate::smokehouse_recipe_policy::{
     normalize_smokehouse_recipe_policy, smokehouse_recipe_requests_input, SMOKEHOUSE_RECIPE_AUTO,
     SMOKEHOUSE_RECIPE_CHEESE, SMOKEHOUSE_RECIPE_CURED_MEAT, SMOKEHOUSE_RECIPE_SMOKED_FISH,
@@ -217,13 +211,6 @@ struct RoutedGrainTarget {
     desired_stock: f64,
 }
 
-struct RoutedGuardFoodTarget {
-    building: Building,
-    distance: f64,
-    runway_days: f64,
-    desired_stock: f64,
-}
-
 struct RoutedSeedTarget {
     building: Building,
     distance: f64,
@@ -244,15 +231,14 @@ struct InstitutionalFoodDispatchCandidate {
 /// destination after production for this tick. The destination's logistics
 /// worker collects the load; producers never lose production labor to hauling.
 /// Granary workers later stock Marketplace food stalls and serve households.
-/// Building update order therefore cannot let an older granary, smokehouse, or
-/// guardhouse seize a cart before a more urgent destination is considered.
+/// Building update order therefore cannot let an older granary or smokehouse
+/// seize a cart before a more urgent destination is considered.
 pub fn step_institutional_food_dispatch(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
     sources: Vec<Building>,
 ) {
-    let conflict_enabled = frontier_economy_enabled(ctx);
     let mut candidates = Vec::new();
 
     for source in sources {
@@ -278,7 +264,7 @@ pub fn step_institutional_food_dispatch(
             livestock_source_has_feed_commitment(ctx, &source),
         );
         for target_id in
-            tick.building_ids_for_kinds(ctx, source.owner, &["guardhouse", "smokehouse", "granary"])
+            tick.building_ids_for_kinds(ctx, source.owner, &["smokehouse", "granary"])
         {
             let Some(target) = ctx.db.building().id().find(&target_id) else {
                 continue;
@@ -304,7 +290,7 @@ pub fn step_institutional_food_dispatch(
                     continue;
                 }
                 let Some((duty, priority, runway, _)) =
-                    institutional_food_target_plan(&target, commodity, conflict_enabled)
+                    institutional_food_target_plan(&target, commodity)
                 else {
                     continue;
                 };
@@ -360,7 +346,7 @@ pub fn step_institutional_food_dispatch(
             continue;
         }
         let Some((_, _, _, desired_stock)) =
-            institutional_food_target_plan(&target, candidate.commodity, conflict_enabled)
+            institutional_food_target_plan(&target, candidate.commodity)
         else {
             continue;
         };
@@ -413,35 +399,11 @@ pub fn step_institutional_food_dispatch(
 fn institutional_food_target_plan(
     target: &Building,
     commodity: CommodityKind,
-    conflict_enabled: bool,
 ) -> Option<(InstitutionalFoodDispatchDuty, u8, f64, f64)> {
     if !target.construction_complete || target.assigned_labor == 0 {
         return None;
     }
     match target.kind.as_str() {
-        "guardhouse" if conflict_enabled => {
-            let desired_stock = guardhouse_food_target(
-                target.assigned_labor,
-                target.polearms,
-                target.guardhouse_food_reserve,
-            );
-            let stock = building_edible_food_stock(target);
-            if desired_stock <= 1e-6 || stock + 1e-6 >= desired_stock {
-                return None;
-            }
-            let runway = guardhouse_food_runway_days(target.assigned_labor, target.polearms, stock);
-            let duty = if runway + 1e-9 < GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS {
-                InstitutionalFoodDispatchDuty::CriticalGuard
-            } else {
-                InstitutionalFoodDispatchDuty::GuardReserve
-            };
-            Some((
-                duty,
-                target.guardhouse_pay_priority.saturating_add(1),
-                runway,
-                desired_stock,
-            ))
-        }
         "smokehouse" if smokehouse_requests_food_input(target, commodity) => {
             let per_cycle = SMOKEHOUSE_FOOD_PER_CYCLE;
             let desired_stock =
@@ -1241,11 +1203,6 @@ fn marketplace_material_target(
         let desired = requirement.min(building_commodity_cap(&target.kind, commodity));
         return (desired > 1e-6).then_some((1.0, desired));
     }
-    if target.kind == "guardhouse" && commodity == CommodityKind::Polearms {
-        let desired = guardhouse_polearm_target(target.assigned_labor)
-            .min(building_commodity_cap(&target.kind, commodity));
-        return (desired > 1e-6).then_some((1.0, desired));
-    }
     let per_cycle = directly_dispatched_processor_input_per_cycle(&target.kind, commodity);
     if per_cycle <= 1e-6 {
         return None;
@@ -1831,32 +1788,16 @@ pub fn step_granary(
 ) {
     let mut granary = building;
     let grain_dispatch = next_granary_grain_dispatch(ctx, tick, clock, &granary);
-    let guard_food_dispatch = next_granary_guard_food_dispatch(ctx, tick, clock, &granary);
     let grain_is_critical = grain_dispatch
         .as_ref()
         .is_some_and(|dispatch| dispatch.runway_cycles < GRAIN_CRITICAL_RUNWAY_CYCLES);
-    let guard_food_preempts_grain = guard_food_dispatch.as_ref().is_some_and(|guard| {
-        !grain_is_critical
-            || grain_dispatch.as_ref().is_some_and(|grain| {
-                let guard_urgency =
-                    guard.runway_days / GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS.max(1e-9);
-                let grain_urgency = grain.runway_cycles / GRAIN_CRITICAL_RUNWAY_CYCLES.max(1e-9);
-                guard_urgency < grain_urgency - 1e-9
-                    || ((guard_urgency - grain_urgency).abs() <= 1e-9
-                        && guard.building.id < grain.building.id)
-            })
-    });
-    if guard_food_preempts_grain {
-        if let Some(dispatch) = guard_food_dispatch.as_ref() {
-            dispatch_granary_guard_food(ctx, tick, clock, &mut granary, dispatch);
-        }
-    } else if grain_is_critical {
+    if grain_is_critical {
         if let Some(dispatch) = grain_dispatch.as_ref() {
             dispatch_granary_grain(ctx, tick, clock, &mut granary, dispatch);
         }
     }
-    // Once urgent milling grain and military provisions are covered, granary
-    // keepers replenish the workshops that consume centralized farm goods.
+    // Once urgent milling grain is covered, granary keepers replenish the
+    // workshops that consume centralized farm goods.
     for flour in [CommodityKind::RyeFlour, CommodityKind::MaslinFlour] {
         dispatch_to_building(ctx, tick, clock, &mut granary, flour, &["bakery"]);
     }
@@ -3352,15 +3293,16 @@ fn equipped_member_kit(kind: MilitaryKind, _slot: u32) -> RaidPortableStores {
     }
 }
 
-/// Keeps mustering companies non-controllable until their complete finished
-/// kits have reached the Town Hall or Guardhouse on ordinary physical carts.
+/// Keeps mustering ranks non-controllable until their complete finished kits
+/// have reached the source building on ordinary physical carts. The same path
+/// equips initial companies and later replacement ranks.
 pub fn step_military_requisitions(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock) {
     step_cavalry_yard_requisitions(ctx, tick, clock);
     let companies = ctx
         .db
         .military_company()
         .iter()
-        .filter(|company| company.state == 0)
+        .filter(|company| company.state < 2)
         .collect::<Vec<_>>();
     for mut company in companies {
         let Some(kind) = MilitaryKind::from_id(company.kind) else {
@@ -3372,7 +3314,21 @@ pub fn step_military_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
         let Some(mut source) = ctx.db.building().id().find(&company.source_building_id) else {
             continue;
         };
-        let cost = MilitaryCost::for_company(kind, company.target_size);
+        if tick.building_disabled_by_fire(ctx, source.id) {
+            continue;
+        }
+        let members = ctx
+            .db
+            .military_member()
+            .company_id()
+            .filter(&company.id)
+            .filter(|member| member.phase == 0)
+            .collect::<Vec<_>>();
+        if members.is_empty() {
+            continue;
+        }
+        let mustering_count = members.len().min(u32::MAX as usize) as u32;
+        let cost = MilitaryCost::for_company(kind, mustering_count);
         let mut complete = true;
         for (commodity, amount) in military_equipment_costs(cost) {
             if amount == 0 {
@@ -3394,7 +3350,7 @@ pub fn step_military_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
         }
         let cavalry_issue = kind.is_mounted().then(|| {
             let ration = cavalry_daily_ration();
-            let horse_days = company.living_members as f64 * CAVALRY_HORSE_FIELD_ISSUE_DAYS;
+            let horse_days = mustering_count as f64 * CAVALRY_HORSE_FIELD_ISSUE_DAYS;
             [
                 (CommodityKind::OatGrain, ration.oats * horse_days),
                 (CommodityKind::Water, ration.water * horse_days),
@@ -3419,13 +3375,7 @@ pub fn step_military_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
                 }
             }
         }
-        let members = ctx
-            .db
-            .military_member()
-            .company_id()
-            .filter(&company.id)
-            .collect::<Vec<_>>();
-        if !complete || members.iter().any(|member| member.phase != 0) {
+        if !complete {
             continue;
         }
         let all_at_muster = members.iter().all(|member| {
@@ -3478,10 +3428,25 @@ pub fn step_military_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
             ctx.db.combat_agent().id().update(agent);
         }
         company.state = 1;
-        company.ammunition_capacity = stats
-            .ammunition_per_member
-            .saturating_mul(company.living_members);
-        company.ammunition = company.ammunition_capacity;
+        let living_members = ctx
+            .db
+            .military_member()
+            .company_id()
+            .filter(&company.id)
+            .filter(|member| {
+                ctx.db
+                    .combat_agent()
+                    .id()
+                    .find(&member.combat_agent_id)
+                    .is_some_and(|agent| agent.state != 5 && agent.health > 0.0)
+            })
+            .collect::<Vec<_>>();
+        company.living_members = living_members.len().min(u32::MAX as usize) as u32;
+        company.ammunition_capacity = living_members
+            .iter()
+            .map(|member| member.ammunition_capacity)
+            .sum();
+        company.ammunition = living_members.iter().map(|member| member.ammunition).sum();
         ctx.db.military_company().id().update(company);
     }
     step_cavalry_company_field_resupply(ctx, tick, clock);
@@ -4510,14 +4475,6 @@ fn dispatch_monastery_estate_export(
     }
 }
 
-fn frontier_economy_enabled(ctx: &ReducerContext) -> bool {
-    ctx.db
-        .world_config()
-        .id()
-        .find(&0)
-        .is_some_and(|config| config.conflict_enabled)
-}
-
 pub fn step_carpenter(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -4591,87 +4548,19 @@ pub fn step_carpenter(
         deposit_building_commodity(&mut building, CommodityKind::Polearms, 1.0);
         reset_cycle(&mut building, labor);
     }
-    dispatch_polearms_to_guardhouse(ctx, tick, clock, &mut building);
     ctx.db.building().id().update(building);
 }
 
 pub fn step_guardhouse(
     ctx: &ReducerContext,
-    tick: &SimTickContext,
-    clock: &GameClock,
+    _tick: &SimTickContext,
+    _clock: &GameClock,
     mut building: Building,
 ) {
-    if !frontier_economy_enabled(ctx) {
-        building.action_cooldown = 0.0;
-        ctx.db.building().id().update(building);
-        return;
-    }
-
-    let armed_guards = armed_guards(building.assigned_labor, building.polearms);
-    if armed_guards <= 1e-6 {
-        if daily_household_bill_due(clock) {
-            building.action_cooldown = next_guard_readiness(
-                building.action_cooldown,
-                0.0,
-                CALENDAR_SECONDS_PER_DAY,
-                CALENDAR_SECONDS_PER_DAY,
-            );
-        }
-        ctx.db.building().id().update(building);
-        return;
-    }
-
-    let physical_payroll = ctx
-        .db
-        .player_resources()
-        .owner()
-        .find(&building.owner)
-        .is_some_and(|resources| resources.physical_founding_site_enabled);
-    if physical_payroll {
-        try_dispatch_guardhouse_payroll(ctx, tick, clock, &building, armed_guards);
-    }
-    if !daily_household_bill_due(clock) {
-        ctx.db.building().id().update(building);
-        return;
-    }
-    let available_gold = if physical_payroll {
-        building.gold
-    } else {
-        treasury_gold(ctx, building.owner)
-    };
-    let upkeep = guard_daily_upkeep(
-        armed_guards,
-        building_edible_food_stock(&building),
-        available_gold,
-        building.id,
-        clock.total_days,
-    );
-    withdraw_building_edible_food(&mut building, upkeep.food_used);
-    let wage_paid = upkeep.wage_paid;
-    if physical_payroll {
-        let withdrawn = withdraw_building_commodity(&mut building, CommodityKind::Gold, wage_paid);
-        let credited = credit_settlement_household_income(ctx, building.owner, withdrawn);
-        // A fully capped household sector cannot absorb more private coin;
-        // keep the remainder in the company chest rather than deleting it.
-        deposit_building_commodity(
-            &mut building,
-            CommodityKind::Gold,
-            (withdrawn - credited).max(0.0),
-        );
-    } else {
-        if spend_treasury_gold(ctx, building.owner, wage_paid).is_ok() {
-            let credited = credit_settlement_household_income(ctx, building.owner, wage_paid);
-            if credited + 1e-9 < wage_paid {
-                restore_treasury_gold(ctx, building.owner, wage_paid - credited);
-            }
-        }
-    }
-    building.action_cooldown = next_guard_readiness(
-        building.action_cooldown,
-        upkeep.supply_ratio,
-        CALENDAR_SECONDS_PER_DAY,
-        CALENDAR_SECONDS_PER_DAY,
-    );
+    // Guardhouses now support one authoritative model: resident-backed
+    // MilitaryCompany rows. Labor here represents staff and drill support;
+    // food, wages, readiness, casualties, and deployment live on the company.
+    building.action_cooldown = if building.assigned_labor > 0 { 1.0 } else { 0.0 };
     ctx.db.building().id().update(building);
 }
 
@@ -5419,112 +5308,6 @@ fn dispatch_granary_grain(
     )
 }
 
-/// Central military provisions leave from the granary so target-side pulls
-/// cannot bypass its household/preservation policy. Only an armed company
-/// below the emergency runway is eligible; lowest runway, route, then stable
-/// id determines which guardhouse receives the next cart.
-fn next_granary_guard_food_dispatch(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    clock: &GameClock,
-    source: &Building,
-) -> Option<RoutedGuardFoodTarget> {
-    if !frontier_economy_enabled(ctx)
-        || source.kind != "granary"
-        || source.assigned_labor <= 1
-        || labor_and_logistics_paused(ctx, tick, source.owner, clock)
-        || building_has_active_trip(ctx, source.id)
-    {
-        return None;
-    }
-    let transferable =
-        institutional_source_food_surplus(ctx, tick, source, building_edible_food_stock(source));
-    if transferable <= 1e-6 {
-        return None;
-    }
-    let network = tick.road_network(source.owner)?;
-    select_guardhouse_food_candidate(
-        tick.building_ids_for_kinds(ctx, source.owner, &["guardhouse"])
-            .into_iter()
-            .filter_map(|target_id| ctx.db.building().id().find(&target_id))
-            .filter_map(|target| {
-                if target.id == source.id
-                    || target.kind != "guardhouse"
-                    || !target.construction_complete
-                    || tick.building_disabled_by_fire(ctx, target.id)
-                    || target.assigned_labor == 0
-                    || building_has_inbound_supply_trip(ctx, target.id)
-                {
-                    return None;
-                }
-                let desired_stock = guardhouse_food_target(
-                    target.assigned_labor,
-                    target.polearms,
-                    target.guardhouse_food_reserve,
-                );
-                let target_food = building_edible_food_stock(&target);
-                if desired_stock <= 1e-6 || target_food + 1e-6 >= desired_stock {
-                    return None;
-                }
-                let runway_days = guardhouse_food_runway_days(
-                    target.assigned_labor,
-                    target.polearms,
-                    target_food,
-                );
-                if runway_days + 1e-9 >= GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS {
-                    return None;
-                }
-                local_delivery_distance(network, source.x, source.z, target.x, target.z).map(
-                    |distance| RoutedGuardFoodTarget {
-                        building: target,
-                        distance,
-                        runway_days,
-                        desired_stock,
-                    },
-                )
-            }),
-        |candidate| candidate.runway_days,
-        |candidate| candidate.distance,
-        |candidate| candidate.building.id,
-    )
-}
-
-fn dispatch_granary_guard_food(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    clock: &GameClock,
-    source: &mut Building,
-    dispatch: &RoutedGuardFoodTarget,
-) -> bool {
-    let Some(network) = tick.road_network(source.owner) else {
-        return false;
-    };
-    let transferable =
-        institutional_source_food_surplus(ctx, tick, source, building_edible_food_stock(source));
-    let Some(commodity) = first_building_edible_commodity(source) else {
-        return false;
-    };
-    let needed = (dispatch.desired_stock - building_edible_food_stock(&dispatch.building))
-        .max(0.0)
-        .min(transferable)
-        .min(building_commodity_stock(source, commodity))
-        .min(building_commodity_room(&dispatch.building, commodity));
-    try_start_building_supply_trip(
-        ctx,
-        tick,
-        clock,
-        network,
-        source,
-        &dispatch.building,
-        1,
-        commodity,
-        TIMBER_DELIVERY_SPEED_MPS,
-        TIMBER_DELIVERY_UNLOAD_SEC,
-        GRAIN_TRANSFER_PER_TRIP,
-        needed,
-    )
-}
-
 pub(crate) fn dispatch_to_building(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -5534,84 +5317,6 @@ pub(crate) fn dispatch_to_building(
     target_kinds: &[&str],
 ) {
     dispatch_to_building_where(ctx, tick, clock, source, commodity, target_kinds, |_| true);
-}
-
-fn dispatch_polearms_to_guardhouse(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    clock: &GameClock,
-    source: &mut Building,
-) {
-    if labor_and_logistics_paused(ctx, tick, source.owner, clock)
-        || building_has_active_trip(ctx, source.id)
-        || source.polearms <= 1e-6
-    {
-        return;
-    }
-    let Some(network) = tick.road_network(source.owner) else {
-        return;
-    };
-    let Some((routed_target, desired_stock)) = select_guardhouse_armament_candidate(
-        tick.building_ids_for_kinds(ctx, source.owner, &["guardhouse"])
-            .into_iter()
-            .filter_map(|target_id| ctx.db.building().id().find(&target_id))
-            .filter_map(|target| {
-                if target.id == source.id
-                    || target.kind != "guardhouse"
-                    || !target.construction_complete
-                    || tick.building_disabled_by_fire(ctx, target.id)
-                    || building_has_inbound_supply_trip(ctx, target.id)
-                {
-                    return None;
-                }
-                let desired_stock = guardhouse_polearm_target(target.assigned_labor).min(
-                    building_commodity_cap(&target.kind, CommodityKind::Polearms),
-                );
-                if desired_stock <= 1e-6 || target.polearms + 1e-6 >= desired_stock {
-                    return None;
-                }
-                local_delivery_distance(network, source.x, source.z, target.x, target.z).map(
-                    |distance| {
-                        (
-                            RoutedBuilding {
-                                building: target,
-                                distance,
-                            },
-                            desired_stock,
-                        )
-                    },
-                )
-            }),
-        |candidate| candidate.0.building.guardhouse_pay_priority,
-        |candidate| {
-            guardhouse_polearm_coverage(
-                candidate.0.building.assigned_labor,
-                candidate.0.building.polearms,
-            )
-        },
-        |candidate| candidate.0.distance,
-        |candidate| candidate.0.building.id,
-    ) else {
-        return;
-    };
-    let target = &routed_target.building;
-    let needed = (desired_stock - target.polearms)
-        .max(0.0)
-        .min(source.polearms);
-    try_start_building_supply_trip(
-        ctx,
-        tick,
-        clock,
-        network,
-        source,
-        target,
-        1,
-        CommodityKind::Polearms,
-        TIMBER_DELIVERY_SPEED_MPS,
-        TIMBER_DELIVERY_UNLOAD_SEC,
-        commodity_transfer_per_trip(CommodityKind::Polearms),
-        needed,
-    );
 }
 
 fn dispatch_to_building_where(

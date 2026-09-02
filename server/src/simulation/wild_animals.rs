@@ -271,6 +271,7 @@ fn insert_animal(
         faction,
         source_building_id: 0,
         source_slot: slot,
+        resident_slot: 0,
         assigned_building_id: 0,
         target_kind: target.kind,
         target_id: target.id,

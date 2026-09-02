@@ -55,6 +55,7 @@ import {
   type SettlementSecurityState,
 } from '../src/security/frontierSecurity.ts';
 import type { BuildingState, GameState, ResidenceState } from '../src/resources/types.ts';
+import type { MilitaryCompanyState } from '../src/security/militaryProgression.ts';
 import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import {
@@ -640,9 +641,16 @@ for (const site of [
 ]) {
   districtState.buildings.set(site.id, site);
 }
+const westMusterPlan = computeGuardhouseMusterPlan(
+  districtState,
+  districtRoads,
+  1,
+  [militaryCompany('west-ranks', westCompany.id, 4)],
+);
 const districtProjection = projectRaidTargets(districtState, 1, {
   enemyPressure: 50,
   roadNetwork: districtRoads,
+  guardhouseMusterPlan: westMusterPlan,
 });
 assert.equal(
   districtProjection[0]?.id,
@@ -672,6 +680,11 @@ districtState.buildings.set(unarmedCompany.id, unarmedCompany);
 const balancedMusterPlan = computeGuardhouseMusterPlan(
   districtState,
   districtRoads,
+  1,
+  [
+    militaryCompany('west-ranks', westCompany.id, 4),
+    militaryCompany('east-ranks', eastCompany.id, 4),
+  ],
 );
 assert.equal(balancedMusterPlan.staffedTowers, 2);
 assert.equal(balancedMusterPlan.linkedGuardhouses, 2);
@@ -708,6 +721,11 @@ districtState.fireIncidents.set(
 const fireDisabledMusterPlan = computeGuardhouseMusterPlan(
   districtState,
   districtRoads,
+  1,
+  [
+    militaryCompany('west-ranks', westCompany.id, 4),
+    militaryCompany('east-ranks', eastCompany.id, 4),
+  ],
 );
 assert.equal(
   fireDisabledMusterPlan.assignmentsByGuardhouse.has(eastCompany.id),
@@ -752,6 +770,8 @@ assert.equal(
   computeGuardhouseMusterPlan(
     tiedMusterState,
     tiedMusterRoads,
+    1,
+    [militaryCompany('tie-ranks', tiedCompany.id, 1)],
   ).assignmentsByGuardhouse.get(tiedCompany.id)?.towerId,
   earlierTieWatch.id,
   'equal road-distance watch claims must use stable tower identity',
@@ -774,6 +794,8 @@ assert.equal(
   computeGuardhouseMusterPlan(
     tiedMusterState,
     tiedMusterRoads,
+    1,
+    [militaryCompany('tie-ranks', orderedTieCompany.id, 1)],
   ).assignmentsByGuardhouse.get(orderedTieCompany.id)?.towerId,
   laterTieWatch.id,
   'a persisted muster order must override automatic nearest/stable selection',
@@ -795,6 +817,8 @@ assert.equal(
   computeGuardhouseMusterPlan(
     tiedMusterState,
     tiedMusterRoads,
+    1,
+    [militaryCompany('tie-ranks', orderedTieCompany.id, 1)],
   ).assignmentsByGuardhouse.has(orderedTieCompany.id),
   false,
   'an unstaffed ordered post must leave the company waiting rather than moving to the active watch',
@@ -1815,11 +1839,10 @@ assert.match(
   guardhouseInspector,
   /'spearmen', 'men-at-arms', 'footmen', 'polearms', 'bowmen', 'crossbows'/,
 );
-assert.match(guardhouseInspector, /getActiveWorldGeneration\(\)\.militaryDemands/);
+assert.doesNotMatch(guardhouseInspector, /getActiveWorldGeneration\(\)\.militaryDemands/);
 assert.match(guardhouseInspector, /Fire outage — recruitment and supply suspended/);
-assert.match(guardhouseInspector, /Legacy guards[\s\S]*Folded into spear companies/);
-assert.match(guardhouseInspector, /Dead resident soldiers reduce the real household/);
-assert.match(guardhouseInspector, /recoverable battlefield site/);
+assert.doesNotMatch(guardhouseInspector, /Legacy guards|Dead resident soldiers|recoverable battlefield site/);
+assert.match(guardhouseInspector, /Forms, equips, provisions, and drills resident military companies/);
 assert.match(guardhouseInspector, /Disband or lose every attached company/);
 assert.match(
   guardhouseInspector,
@@ -1905,20 +1928,20 @@ assert.match(
   /start_live_raid\([\s\S]*?&live_targets,[\s\S]*?road_network\.as_ref\(\)/,
   'a due frontier raid must materialize replicated people rather than resolve an abstract outcome',
 );
+assert.doesNotMatch(
+  serverSimulation,
+  /ensure_warned_guard_muster/,
+  'frontier warnings must not create or commandeer a second guardhouse army',
+);
 assert.match(
   serverSimulation,
-  /warning_started_tick > 0[\s\S]*ensure_warned_guard_muster\([\s\S]*state\.next_raid_tick/,
-  'a detected approach must dispatch physical guard agents before contact',
+  /company_guard_readiness_by_source[\s\S]*military_company\(\)[\s\S]*company\.state == 1[\s\S]*company\.living_members/,
+  'the frontier forecast must derive guardhouse readiness from actual active companies',
 );
 assert.match(
-  serverRaidAgents,
-  /fn ensure_warned_guard_muster[\s\S]*military_company\(\)[\s\S]*company\.state == 1[\s\S]*MilitiaOrder[\s\S]*combat_agent_id: agent\.id/,
-  'a warning must dispatch already recruited, active companies rather than mint hidden guardhouse labor',
-);
-assert.match(
-  serverRaidAgents,
-  /fn step_warned_guard_muster[\s\S]*move_along_combat_route\([\s\S]*COMBAT_STATE_HOLDING/,
-  'warned guards must physically march and hold their watch line',
+  serverMilitary,
+  /retained_or_nearest_enemy\([\s\S]*RAIDER \| BANDIT \| FOX \| WOLF/,
+  'recruited companies must acquire live Ottoman raiders through the ordinary military combat path',
 );
 assert.match(
   serverRaidAgents,
@@ -1927,8 +1950,8 @@ assert.match(
 );
 assert.match(
   serverRaidAgents,
-  /COMBAT_STATE_MUSTERING \| COMBAT_STATE_HOLDING[\s\S]*COMBAT_STATE_RETURNING[\s\S]*move_guard_home/,
-  'a cancelled warning must send the deployed people and issued weapons physically home',
+  /company_guard_strength[\s\S]*is_player_military_faction\(agent\.faction\)[\s\S]*field_guard_strength = legacy_guard_strength \+ company_guard_strength/,
+  'actual nearby companies must contribute to Ottoman rout pressure',
 );
 assert.doesNotMatch(
   serverSimulation,
@@ -2155,9 +2178,9 @@ assert.match(
 );
 assert.match(serverRaidAgents, /for \(target_id, damage\) in damage_by_agent[\s\S]*down_agent/);
 assert.match(
-  serverRaidAgents,
-  /military_company\(\)[\s\S]*source_building_id\(\)[\s\S]*military_member\(\)[\s\S]*combat_agent_id/,
-  'every warned defender must come from a persistent recruited company and member record',
+  serverMilitary,
+  /scratch\.members\.iter\(\)\.cloned\(\)[\s\S]*military_company\(\)\.id\(\)\.find\(&member\.company_id\)/,
+  'every active defender must come from a persistent recruited company and member record',
 );
 assert.match(
   serverMilitary,
@@ -2166,30 +2189,25 @@ assert.match(
 );
 assert.match(serverMilitary, /matches!\(faction, RAIDER \| BANDIT \| FOX \| WOLF\)/);
 assert.match(serverMilitary, /down_enemy/);
-assert.match(
-  serverRaidAgents,
-  /fire_disabled_buildings\.contains\(&building\.id\)/,
-  'a burning guardhouse must not materialize an emergency company',
-);
-assert.match(
-  serverRaidAgents,
-  /if let Some\(route\) = muster_route \{[\s\S]*move_along_combat_route\([\s\S]*retained_or_nearest_enemy\([\s\S]*GUARD_TARGET_ACQUISITION_METERS/,
-  'road-linked companies should take their route while unlinked companies fall through to direct pursuit',
-);
 assert.doesNotMatch(
   serverRaidAgents,
-  /let Some\(route\) = muster_route else/,
-  'a missing route must not make a physical guard company wait while a live incursion is active',
+  /ensure_warned_guard_muster/,
+  'a warning must never materialize an emergency guardhouse company',
+);
+assert.match(
+  serverMilitary,
+  /combat_segment_speed_multiplier\([\s\S]*COMBAT_WADING_SPEED_MULTIPLIER[\s\S]*COMBAT_ROAD_SPEED_MULTIPLIER/,
+  'company movement must honor authoritative road and wading terrain multipliers',
 );
 assert.doesNotMatch(
   serverRaidAgents,
   /let Some\(network\) = road_network else \{\s*return 0;/,
   'missing roads must never erase otherwise fit armed defenders from the live simulation',
 );
-assert.match(
+assert.doesNotMatch(
   serverRaidAgents,
-  /MilitiaOrder[\s\S]*destination_x: tower\.x \+ lateral \* 1\.45[\s\S]*militia_order\(\)\.insert/,
-  'each responding company must receive a formation-relative post at its selected watchtower',
+  /MilitiaOrder/,
+  'frontier warnings must not override player-authored company orders',
 );
 assert.match(
   serverRaidAgents,
@@ -2323,36 +2341,28 @@ assert.doesNotMatch(
 assert.match(serverRaidAgentPolicy, /fn cached_company_routes_stay_cheap_for_a_large_guard_response/);
 assert.match(serverRaidAgentPolicy, /pub fn guard_recovery_ticks/);
 assert.match(serverRaidAgentPolicy, /pub fn combat_state_blocks_guard_slot/);
-assert.match(serverRaidAgentPolicy, /pub fn combat_state_commits_guard_labor/);
+assert.doesNotMatch(serverRaidAgentPolicy, /pub fn combat_state_commits_guard_labor/);
 assert.match(
   serverRaidAgents,
   /COMBAT_STATE_WOUNDED_RETURNING[\s\S]*WOUNDED_GUARD_SPEED_MPS[\s\S]*COMBAT_STATE_RECOVERING/,
   'a downed guard must physically return before recuperating at the source guardhouse',
 );
-assert.match(
-  serverRaidAgents,
-  /fn ensure_warned_guard_muster[\s\S]*military_company\(\)[\s\S]*company\.state == 1[\s\S]*military_member\(\)[\s\S]*member\.phase == 1[\s\S]*combat_agent\(\)\.id\(\)\.find[\s\S]*agent\.state == COMBAT_STATE_DOWNED[\s\S]*continue/,
-  'warnings must deploy only existing active company members and never rematerialize a downed roster slot',
-);
-assert.match(
-  serverSimulation,
-  /unavailable_guard_slots[\s\S]*fn settlement_guard_districts[\s\S]*filter_map\(\|\(building_id, slot\)\|[\s\S]*select_guard_muster_slots/,
-  'the settlement defense forecast must subtract persistent guard casualties',
-);
+assert.doesNotMatch(serverRaidAgents, /fn ensure_warned_guard_muster/);
+assert.doesNotMatch(serverSimulation, /unavailable_guard_slots|select_guard_muster_slots/);
 assert.match(
   serverPopulation,
-  /guardhouse_roster_floor[\s\S]*requested_labor < roster_floor/,
-  'labor reassignment must not duplicate a deployed, returning, or recovering guard in another workplace',
+  /active_military_resident_count[\s\S]*available_workplace_labor[\s\S]*active_military_resident_count/,
+  'active resident-backed soldiers must remain unavailable to ordinary workplace call-ups',
+);
+assert.doesNotMatch(
+  serverPopulation,
+  /guardhouse_roster_floor/,
+  'labor accounting must not retain a second guardhouse-agent roster',
 );
 assert.match(
   serverBuildingReducers,
-  /let roster_floors = guardhouse_roster_floors[\s\S]*minimum_labor:[\s\S]*roster_floors/,
-  'automatic year-round labor balancing must preserve every live company roster slot',
-);
-assert.match(
-  serverBuildingReducers,
-  /guardhouse_roster_count[\s\S]*wait until every guard has returned and recovered before demolition/,
-  'a guardhouse with live company agents must remain physically present',
+  /"town_hall" \| "guardhouse" \| "cavalry_yard"[\s\S]*military_company\(\)[\s\S]*source_building_id == building_id[\s\S]*Disband the/,
+  'a source building with an attached real company must remain physically present',
 );
 assert.match(guardhouseInspector, /companies\.some\(\(company\) => company\.status !== 'destroyed'\)/);
 assert.match(guardhouseInspector, /before removing its armory and return point/);
@@ -2385,12 +2395,12 @@ assert.match(
 );
 assert.match(
   villagerRenderer,
-  /for \(const visual of this\.combatAgentVisuals\.values\(\)\)[\s\S]*renderAgentFor\(`combat:\$\{combat\.id\}`\)[\s\S]*renderAgent\.tool = carriedStandardSidearm \? 'sidearm' : combatToolFor\(combat\.faction\)/,
+  /for \(const visual of this\.combatAgentVisuals\.values\(\)\)[\s\S]*renderAgentFor\(`combat:\$\{combat\.id\}`\)[\s\S]*renderAgent\.tool = carriedStandardSidearm \? 'sidearm' : combatToolFor\(combat\)/,
   'the ordinary crowd renderer must materialize every replicated combat row with its faction-appropriate weapon',
 );
 assert.match(
   villagerRenderer,
-  /function combatToolFor\([\s\S]*case 'raider': return 'sidearm'[\s\S]*case 'spearman': return 'spear-shield'[\s\S]*case 'crossbow': return 'crossbow'[\s\S]*case 'bowman': return 'bow'[\s\S]*case 'polearm': return 'halberd'/,
+  /function combatToolFor\([\s\S]*case 'raider': \{[\s\S]*return 'sidearm'[\s\S]*case 'spearman': return 'spear-shield'[\s\S]*case 'crossbow': return 'crossbow'[\s\S]*case 'bowman': return 'bow'[\s\S]*case 'polearm': return 'halberd'/,
   'the replicated company roster must preserve distinct melee, missile, and polearm equipment',
 );
 assert.match(
@@ -2400,12 +2410,17 @@ assert.match(
 );
 assert.match(
   villagerRenderer,
-  /private describeCombatAgent[\s\S]*health[\s\S]*readiness[\s\S]*carrying stolen stores[\s\S]*Objective/,
-  'fighter inspection must expose combat condition, equipment, spoils, and objective',
+  /private describeCombatAgent[\s\S]*combatEquipmentLabel\(combat\)[\s\S]*carrying stolen stores[\s\S]*Objective/,
+  'fighter inspection must expose only concise role, equipment, spoils, and objective context',
 );
+const combatInspectionSource = villagerRenderer.slice(
+  villagerRenderer.indexOf('private describeCombatAgent'),
+  villagerRenderer.indexOf('private combatTargetLabel'),
+);
+assert.doesNotMatch(combatInspectionSource, /\/ \$\{Math\.ceil\(combat\.maxHealth\)\}|readiness \$\{/);
 assert.match(
   villagerRenderer,
-  /renderAgentFor\(`combat:\$\{combat\.id\}`\)[\s\S]*renderAgent\.y = this\.resolveGroundY\(visual\.displayX, visual\.displayZ\) \+ 0\.02/,
+  /renderAgentFor\(`combat:\$\{combat\.id\}`\)[\s\S]*combatGroundY = this\.resolveGroundY\(visual\.displayX, visual\.displayZ\) \+ 0\.02[\s\S]*renderAgent\.y = combatGroundY/,
   'combatants following a bridge route must render on the sampled deck rather than below it',
 );
 assert.match(
@@ -2579,10 +2594,10 @@ assert.match(clientCombatAgents, /breaching a refuge/);
   const combatInspection = combatPresentation.inspectVillager(
     `combat:${inspectedRaider.id}`,
   );
-  assert.match(combatInspection?.name ?? '', /Ottoman raider/);
+  assert.match(combatInspection?.name ?? '', /Azab frontier infantry/);
   assert.equal(combatInspection?.householdLabel, 'Objective');
   assert.equal(combatInspection?.household, 'Storehouse');
-  assert.equal(combatInspection?.crew, '53 / 80 health');
+  assert.equal(combatInspection?.crew, 'Withdrawing');
   assert.match(combatInspection?.pace ?? '', /carrying stolen stores/);
   assert.equal(combatInspection?.position.y, 3.02);
   const guardInspection = combatPresentation.inspectVillager(
@@ -2590,8 +2605,8 @@ assert.match(clientCombatAgents, /breaching a refuge/);
   );
   assert.equal(guardInspection?.workplaceLabel, 'Company');
   assert.equal(guardInspection?.workplace, 'Frontier guardhouse');
-  assert.equal(guardInspection?.crew, '62 / 80 health');
-  assert.match(guardInspection?.pace ?? '', /Polearm issued · readiness 80%/);
+  assert.equal(guardInspection?.crew, 'In close combat');
+  assert.equal(guardInspection?.pace, 'Polearm issued');
 
   const renderedCombatAgents = (
     combatPresentation as unknown as {
@@ -2713,10 +2728,8 @@ assert.match(serverFires, /pub fn ignite_raid_target/);
 assert.match(serverFires, /FIRE_SOURCE_RAID/);
 assert.match(frontierEconomy, /CARPENTER_TIMBER_PER_POLEARM/);
 assert.match(frontierEconomy, /CARPENTER_IRONWORK_PER_POLEARM/);
-assert.match(frontierEconomy, /GUARDHOUSE_WAGE_PER_GUARD_PER_DAY/);
-assert.match(frontierEconomy, /GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS:\s*f64\s*=\s*3\.0/);
-assert.match(frontierEconomy, /pub fn guardhouse_food_target/);
-assert.match(frontierEconomy, /pub fn select_guardhouse_food_candidate/);
+assert.doesNotMatch(frontierEconomy, /GUARDHOUSE_WAGE_PER_GUARD_PER_DAY/);
+assert.doesNotMatch(frontierEconomy, /guardhouse_food_target|select_guardhouse_food_candidate/);
 assert.match(expandedEconomy, /CommodityKind::Ironwork/);
 assert.match(expandedEconomy, /CARPENTER_IRONWORK_PER_POLEARM/);
 assert.doesNotMatch(expandedEconomy, /CARPENTER_GOLD_PER_POLEARM/);
@@ -2725,9 +2738,7 @@ const granaryStepSource = expandedEconomy.slice(
   expandedEconomy.indexOf('pub fn step_granary'),
   expandedEconomy.indexOf('fn step_farmstead_fields'),
 );
-assert.match(granaryStepSource, /next_granary_guard_food_dispatch/);
-assert.match(granaryStepSource, /guard_food_preempts_grain/);
-assert.match(granaryStepSource, /GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS/);
+assert.doesNotMatch(granaryStepSource, /next_granary_guard_food_dispatch|guard_food_preempts_grain/);
 const smokehouseStepSource = expandedEconomy.slice(
   expandedEconomy.indexOf('pub fn step_smokehouse'),
   expandedEconomy.indexOf('pub fn step_apiary'),
@@ -2760,16 +2771,11 @@ const institutionalFoodDispatchSource = expandedEconomy.slice(
   expandedEconomy.indexOf('pub fn step_institutional_food_dispatch'),
   expandedEconomy.indexOf('pub fn step_threshing_barn'),
 );
-assert.match(institutionalFoodDispatchSource, /guardhouse_food_target/);
-assert.match(institutionalFoodDispatchSource, /InstitutionalFoodDispatchDuty::CriticalGuard/);
-assert.match(institutionalFoodDispatchSource, /InstitutionalFoodDispatchDuty::GuardReserve/);
-assert.match(expandedEconomy, /fn next_granary_guard_food_dispatch/);
+assert.doesNotMatch(institutionalFoodDispatchSource, /guardhouse|CriticalGuard|GuardReserve/);
+assert.doesNotMatch(expandedEconomy, /fn next_granary_guard_food_dispatch/);
 assert.match(expandedEconomy, /institutional_source_food_surplus/);
-assert.match(guardhouseInspector, /Military demands/);
-assert.match(guardhouseInspector, /Local companies consume light preserved rations; wages and ale are disabled/);
-assert.match(guardhouseInspector, /campaign rations, one ale per soldier per issue, and civic treasury pay/);
-assert.match(townHallInspector, /Ration reserves/);
-assert.match(townHallInspector, /lean.*company.*deep/);
+assert.doesNotMatch(guardhouseInspector, /Military demands|readiness|health|experience/);
+assert.doesNotMatch(townHallInspector, /Ration reserves|Next-day payroll|Civic cash priority/);
 assert.match(townHallInspector, /Frontier timetable/);
 assert.match(townHallInspector, /Watch districts/);
 assert.match(townHallInspector, /weakest likely district/);
@@ -2794,11 +2800,8 @@ assert.match(
   readFileSync('src/generated/set_guardhouse_food_reserve_reducer.ts', 'utf8'),
   /reservePerGuard: __t\.u8\(\)/,
 );
-assert.match(villagerRenderer, /workplaceSlot < Math\.floor\(workplace\?\.polearms/);
-assert.match(villagerRenderer, /Keeping watch from the frontier gallery/);
+assert.doesNotMatch(villagerRenderer, /if \(kind === 'guardhouse'\)[\s\S]{0,120}return .*spear/);
 assert.match(villagerRenderer, /setFrontierAlert/);
-assert.match(villagerRenderer, /Marching by road to the linked frontier watch/);
-assert.match(villagerRenderer, /watchtowerMusterPosition/);
 assert.match(serverPolicy, /RAID_SEASON_START_MONTH:\s*u32\s*=\s*4/);
 assert.match(serverPolicy, /RAID_SEASON_END_MONTH:\s*u32\s*=\s*10/);
 assert.match(serverPolicy, /guardhouse_muster_efficiency/);
@@ -2932,6 +2935,7 @@ for (let index = 0; index < 40; index += 1) {
   );
   districtPerfState.buildings.set(watch.id, watch);
 }
+const districtPerfCompanies: MilitaryCompanyState[] = [];
 for (let index = 0; index < 10; index += 1) {
   const company = {
     ...building(
@@ -2948,6 +2952,7 @@ for (let index = 0; index < 10; index += 1) {
       : undefined,
   };
   districtPerfState.buildings.set(company.id, company);
+  districtPerfCompanies.push(militaryCompany(`district-perf-ranks-${index}`, company.id, 6));
 }
 for (let index = 0; index < 10_000; index += 1) {
   const site = {
@@ -2967,6 +2972,7 @@ const districtMusterPlan = computeGuardhouseMusterPlan(
   districtPerfState,
   districtPerfRoads,
   SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
+  districtPerfCompanies,
 );
 const districtMusterElapsedMs = performance.now() - districtMusterStarted;
 assert.equal(districtMusterPlan.linkedGuardhouses, 10);
@@ -3156,6 +3162,35 @@ assert.ok(
 console.log(
   `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-watch/1,000-refuge/100,000-site target projection; ${districtMusterElapsedMs.toFixed(1)} ms for 40-watch/10-company muster planning; ${districtProjectionElapsedMs.toFixed(1)} ms for cached 40-watch/10-company/10,000-holding district projection; ${shelterProjectionElapsedMs.toFixed(1)} ms for 1,000-watch/100,000-home refuge readout; ${refugeAssignmentElapsedMs.toFixed(1)} ms for 1,000-refuge/100,000-home capacity assignment; ${cachedRefugeProjectionElapsedMs.toFixed(1)} ms for cached 1,000-refuge/100,000-home target projection; ${cartProjectionElapsedMs.toFixed(1)} ms for 100,000-cart target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
 );
+
+function militaryCompany(
+  id: string,
+  sourceBuildingId: string,
+  livingMembers: number,
+): MilitaryCompanyState {
+  return {
+    id,
+    kind: 'spearmen',
+    sourceBuildingId,
+    status: 'active',
+    departureRequested: false,
+    formation: 'line',
+    stance: 'balanced',
+    targetSize: livingMembers,
+    livingMembers,
+    morale: 1,
+    cohesion: 1,
+    fatigue: 0,
+    provisionDays: 0,
+    horseOats: 0,
+    horseWater: 0,
+    ammunition: 0,
+    ammunitionCapacity: 0,
+    formedTick: 0,
+    experience: 0,
+    level: 1,
+  };
+}
 
 function building(
   id: string,

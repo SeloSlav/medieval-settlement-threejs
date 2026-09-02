@@ -47,7 +47,6 @@ import {
 import {
   computeInTransitResourceTotals,
   computeGoldAwaitingCollection,
-  computeGuardhousePayrollGold,
   computePrivateHouseholdWealth,
   computePopulationStats,
   computeResourceTotals,
@@ -1456,7 +1455,6 @@ export async function bootstrapAppSession(
     gameState.physicalFoundingSiteEnabled === true,
     computeInTransitResourceTotals(gameState.deliveryTrips.values()),
     computeGoldAwaitingCollection(gameState.buildings.values()),
-    computeGuardhousePayrollGold(gameState.buildings.values()),
     computePrivateHouseholdWealth(gameState.residences.values()),
   );
   const militiaCommands = new MilitiaCommandController({
@@ -1468,8 +1466,8 @@ export async function bootstrapAppSession(
     getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
     getZoomPercent: () => cameraController.getZoomPercent(),
     isBlocked: () => isWorldInspectionBlocked(placementGate),
-    onCommand: (ids, x, z, campId, order) => {
-      void spacetimeStore.commandMilitia(ids, x, z, campId).then(() => {
+    onCommand: (ids, x, z, campId, targetAgentId, order) => {
+      void spacetimeStore.commandMilitia(ids, x, z, campId, targetAgentId).then(() => {
         ambientAudio.playUiSound(
           order === 'attack' ? 'military_attack_order' : 'military_move_order',
         );

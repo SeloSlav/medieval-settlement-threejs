@@ -43,8 +43,10 @@ export type InspectorSpacetimeActions = {
   onHireMercenaryCompany: (townHallId: string) => Promise<void>;
   onDisbandMilitaryCompany: (companyId: string) => Promise<void>;
   onRenewMercenaryContract: (companyId: string) => Promise<void>;
+  onReinforceMilitaryCompany: (companyId: string) => Promise<void>;
   onResupplyMilitaryCompany: (companyId: string) => Promise<void>;
   onSetMilitaryFormation: (companyId: string, formation: number) => Promise<void>;
+  onSetMilitaryStance: (companyId: string, stance: number) => Promise<void>;
   onSetConstructionPriority: (buildingId: string, priority: number) => Promise<void>;
   onSetTradingPostTradeRule: (
     buildingId: string,
@@ -477,6 +479,14 @@ export function createInspectorSpacetimeActions(
         toastManager.show('Mercenary retainer paid. The company has halted its departure and accepts orders again.');
       }, 'Could not renew the mercenary contract.');
     },
+    onReinforceMilitaryCompany: async (companyId) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(async () => {
+        await store.reinforceMilitaryCompany(companyId);
+        toastManager.show('Replacement ranks are reporting to the company muster point.');
+      }, 'Could not reinforce the company.');
+    },
     onResupplyMilitaryCompany: async (companyId) => {
       const store = requireReady();
       if (!store) return;
@@ -491,6 +501,14 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setMilitaryFormation(companyId, formation),
         'Could not change the company formation.',
+      );
+    },
+    onSetMilitaryStance: async (companyId, stance) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setMilitaryStance(companyId, stance),
+        'Could not change the company stance.',
       );
     },
     onSpecializeOrchard: async (residenceId, kind) => {

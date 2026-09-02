@@ -54,9 +54,6 @@ import {
   LOCAL_RECEIPT_VISUAL_CAPACITY,
 } from './meshes/expandedBuildingMeshes.ts';
 import {
-  GUARDHOUSE_PAYROLL_VISUAL_CAPACITY,
-} from './meshes/civicLogisticsBuildingMeshes.ts';
-import {
   animateFoundersCampfire,
   FOUNDERS_CAMPFIRE_NAME,
   FOUNDERS_CAMP_STONE_WINTER_ACCUMULATION_NAME,
@@ -1102,17 +1099,6 @@ function syncBuildingVisualState(
         'MonasteryGoldSegment',
         building.gold,
         LOCAL_RECEIPT_VISUAL_CAPACITY,
-      );
-    }
-  }
-  if (building.kind === 'guardhouse') {
-    const chest = marker.getObjectByName('GuardhousePayrollChest');
-    if (chest instanceof THREE.Group) {
-      syncStockpileSegments(
-        chest,
-        'GuardhousePayrollSegment',
-        building.gold,
-        GUARDHOUSE_PAYROLL_VISUAL_CAPACITY,
       );
     }
   }

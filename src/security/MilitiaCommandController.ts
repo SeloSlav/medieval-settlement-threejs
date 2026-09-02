@@ -31,6 +31,7 @@ type Options = {
     x: number,
     z: number,
     campId: string | null,
+    targetAgentId: string | null,
     order: 'move' | 'attack',
   ) => void;
   onCompanySelected?: (companyId: string | null) => void;
@@ -88,7 +89,7 @@ export class MilitiaCommandController {
   private readonly overlay = document.createElement('div');
   private readonly ringRoot = new THREE.Group();
   private readonly rings = new Map<string, CompanySelectionRing>();
-  private readonly hostilePositions: { x: number; z: number }[] = [];
+  private readonly hostilePositions: { id: string; x: number; z: number }[] = [];
   private dragStart: { x: number; y: number } | null = null;
   private readonly rightClick: SecondaryClickGesture;
   private readonly orderFeedback: MilitaryOrderFeedbackRenderer;
@@ -158,7 +159,7 @@ export class MilitiaCommandController {
         (agent.faction === 'raider' || agent.faction === 'bandit')
         && agent.status !== 'downed'
       ) {
-        this.hostilePositions.push({ x: agent.x, z: agent.z });
+        this.hostilePositions.push({ id: agent.id, x: agent.x, z: agent.z });
         const hostileId = `hostile:${agent.faction}:${agent.raidId}`;
         const hostileMembers = hostileGrouped.get(hostileId) ?? [];
         hostileMembers.push(agent);
@@ -332,20 +333,31 @@ export class MilitiaCommandController {
       const distance = Math.hypot(camp.x - point.x, camp.z - point.z);
       if (distance < nearest) { nearest = distance; campId = camp.id; }
     }
+    let targetAgentId: string | null = null;
+    for (const hostile of this.hostilePositions) {
+      const distance = Math.hypot(hostile.x - point.x, hostile.z - point.z);
+      if (distance <= 5.25 && distance < nearest) {
+        nearest = distance;
+        campId = null;
+        targetAgentId = hostile.id;
+      }
+    }
     const agentIds = [...this.selected]
       .flatMap((companyId) => {
         const company = this.companies.get(companyId);
-        return company?.controllable ? company.agents.map((agent) => agent.id) : [];
+        const witness = company?.controllable
+          ? company.agents.find((agent) => agent.status !== 'downed')
+          : undefined;
+        return witness ? [witness.id] : [];
       });
     if (agentIds.length === 0) return;
-    const attacksHostile = campId !== null || this.hostilePositions.some((hostile) => (
-      Math.hypot(hostile.x - point.x, hostile.z - point.z) <= 5.25
-    ));
+    const attacksHostile = campId !== null || targetAgentId !== null;
     this.commandHandler(
       agentIds,
       point.x,
       point.z,
       campId,
+      targetAgentId,
       attacksHostile ? 'attack' : 'move',
     );
     this.orderFeedback.show(

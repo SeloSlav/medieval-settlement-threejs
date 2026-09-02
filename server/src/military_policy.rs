@@ -128,6 +128,23 @@ impl MilitaryKind {
     pub fn gains_veteran_experience(self) -> bool {
         !matches!(self, Self::Militia | Self::MercenarySpears)
     }
+
+    pub fn has_large_shields(self) -> bool {
+        matches!(
+            self,
+            Self::Spearmen | Self::MenAtArms | Self::MercenarySpears | Self::Footmen
+        )
+    }
+
+    pub fn can_brace(self) -> bool {
+        matches!(self, Self::Spearmen | Self::MercenarySpears | Self::Polearms)
+    }
+}
+
+pub fn is_player_military_faction(faction: u8) -> bool {
+    (0..=10).any(|kind| {
+        MilitaryKind::from_id(kind).is_some_and(|military_kind| military_kind.faction() == faction)
+    })
 }
 
 pub fn military_battle_end_ticks() -> u64 {
@@ -575,6 +592,34 @@ pub const MILITARY_FORMATION_LINE: u8 = 0;
 pub const MILITARY_FORMATION_COLUMN: u8 = 1;
 pub const MILITARY_FORMATION_SHIELD_WALL: u8 = 2;
 pub const MILITARY_FORMATION_LOOSE: u8 = 3;
+pub const MILITARY_FORMATION_BRACE: u8 = 4;
+pub const MILITARY_FORMATION_WEDGE: u8 = 5;
+
+pub const MILITARY_STANCE_BALANCED: u8 = 0;
+pub const MILITARY_STANCE_STAND_GROUND: u8 = 1;
+pub const MILITARY_STANCE_PUSH_FORWARD: u8 = 2;
+pub const MILITARY_STANCE_GIVE_GROUND: u8 = 3;
+pub const MILITARY_STANCE_MISSILE_ALERT: u8 = 4;
+
+pub fn military_formation_available(kind: MilitaryKind, formation: u8) -> bool {
+    match formation {
+        MILITARY_FORMATION_LINE | MILITARY_FORMATION_COLUMN | MILITARY_FORMATION_LOOSE => true,
+        MILITARY_FORMATION_SHIELD_WALL => kind.has_large_shields(),
+        MILITARY_FORMATION_BRACE => kind.can_brace(),
+        MILITARY_FORMATION_WEDGE => kind.is_mounted(),
+        _ => false,
+    }
+}
+
+pub fn military_stance_available(kind: MilitaryKind, stance: u8) -> bool {
+    match stance {
+        MILITARY_STANCE_BALANCED | MILITARY_STANCE_STAND_GROUND => true,
+        MILITARY_STANCE_PUSH_FORWARD => !kind.is_ranged() || kind.is_mounted(),
+        MILITARY_STANCE_GIVE_GROUND => !kind.is_mounted(),
+        MILITARY_STANCE_MISSILE_ALERT => !kind.is_mounted(),
+        _ => false,
+    }
+}
 
 /// Stable local offset for company orders. Formation is gameplay-relevant:
 /// shield wall is dense, loose order gives missile spacing, and column moves
@@ -587,6 +632,24 @@ pub fn formation_offset(formation: u8, index: u32, count: u32) -> (f64, f64) {
             let center = (count.saturating_sub(1) as f64) * 0.5;
             ((index as f64 - center) * 1.05, 0.0)
         }
+        MILITARY_FORMATION_BRACE => {
+            let columns = count.div_ceil(2).max(1);
+            let row = index / columns;
+            let column = index % columns;
+            let center = (columns.saturating_sub(1) as f64) * 0.5;
+            ((column as f64 - center) * 1.25, -(row as f64) * 1.05)
+        }
+        MILITARY_FORMATION_WEDGE => {
+            let mut row = 0_u32;
+            let mut first_in_row = 0_u32;
+            while first_in_row + row + 1 <= index {
+                first_in_row += row + 1;
+                row += 1;
+            }
+            let position = index.saturating_sub(first_in_row);
+            let center = row as f64 * 0.5;
+            ((position as f64 - center) * 1.75, -(row as f64) * 1.55)
+        }
         MILITARY_FORMATION_LOOSE => {
             let columns = 3_u32;
             let row = index / columns;
@@ -597,6 +660,116 @@ pub fn formation_offset(formation: u8, index: u32, count: u32) -> (f64, f64) {
             let center = (count.saturating_sub(1) as f64) * 0.5;
             ((index as f64 - center) * 1.55, 0.0)
         }
+    }
+}
+
+/// Converts a company-local lateral/depth offset into world space. `facing`
+/// points toward the company's front and is normalized defensively so a stale
+/// or absent facing can never collapse a formation.
+pub fn rotate_formation_offset(
+    lateral: f64,
+    depth: f64,
+    facing_x: f64,
+    facing_z: f64,
+) -> (f64, f64) {
+    let length = facing_x.hypot(facing_z);
+    let (forward_x, forward_z) = if length > 1e-9 && length.is_finite() {
+        (facing_x / length, facing_z / length)
+    } else {
+        (0.0, 1.0)
+    };
+    let right_x = forward_z;
+    let right_z = -forward_x;
+    (
+        right_x * lateral + forward_x * depth,
+        right_z * lateral + forward_z * depth,
+    )
+}
+
+pub fn is_front_attack(
+    facing_x: f64,
+    facing_z: f64,
+    defender_x: f64,
+    defender_z: f64,
+    attacker_x: f64,
+    attacker_z: f64,
+) -> bool {
+    let facing_length = facing_x.hypot(facing_z);
+    let attack_x = attacker_x - defender_x;
+    let attack_z = attacker_z - defender_z;
+    let attack_length = attack_x.hypot(attack_z);
+    if facing_length <= 1e-9 || attack_length <= 1e-9 {
+        return true;
+    }
+    (facing_x * attack_x + facing_z * attack_z) / (facing_length * attack_length) >= 0.35
+}
+
+pub fn formation_speed_multiplier(formation: u8) -> f64 {
+    match formation {
+        MILITARY_FORMATION_COLUMN => 1.10,
+        MILITARY_FORMATION_SHIELD_WALL | MILITARY_FORMATION_BRACE => 0.72,
+        MILITARY_FORMATION_LOOSE => 1.04,
+        MILITARY_FORMATION_WEDGE => 1.08,
+        _ => 1.0,
+    }
+}
+
+pub fn formation_charge_multiplier(formation: u8) -> f64 {
+    if formation == MILITARY_FORMATION_WEDGE {
+        1.24
+    } else {
+        1.0
+    }
+}
+
+pub fn stance_speed_multiplier(stance: u8) -> f64 {
+    match stance {
+        MILITARY_STANCE_STAND_GROUND => 0.72,
+        MILITARY_STANCE_PUSH_FORWARD => 1.12,
+        MILITARY_STANCE_GIVE_GROUND => 0.82,
+        MILITARY_STANCE_MISSILE_ALERT => 0.92,
+        _ => 1.0,
+    }
+}
+
+pub fn stance_damage_multiplier(stance: u8) -> f64 {
+    match stance {
+        MILITARY_STANCE_STAND_GROUND => 0.82,
+        MILITARY_STANCE_PUSH_FORWARD => 1.12,
+        MILITARY_STANCE_GIVE_GROUND => 0.88,
+        MILITARY_STANCE_MISSILE_ALERT => 0.90,
+        _ => 1.0,
+    }
+}
+
+pub fn stance_attack_interval_multiplier(stance: u8) -> f64 {
+    match stance {
+        MILITARY_STANCE_STAND_GROUND => 1.48,
+        MILITARY_STANCE_PUSH_FORWARD => 0.84,
+        MILITARY_STANCE_GIVE_GROUND => 1.12,
+        MILITARY_STANCE_MISSILE_ALERT => 1.08,
+        _ => 1.0,
+    }
+}
+
+pub fn stance_damage_taken_multiplier(stance: u8, incoming_ranged: bool) -> f64 {
+    match stance {
+        MILITARY_STANCE_STAND_GROUND => 0.74,
+        MILITARY_STANCE_PUSH_FORWARD => 1.08,
+        MILITARY_STANCE_GIVE_GROUND => 0.92,
+        MILITARY_STANCE_MISSILE_ALERT if incoming_ranged => 0.62,
+        MILITARY_STANCE_MISSILE_ALERT => 1.38,
+        _ => 1.0,
+    }
+}
+
+pub fn stance_fatigue_multiplier(stance: u8) -> f64 {
+    match stance {
+        MILITARY_STANCE_STAND_GROUND => 0.78,
+        MILITARY_STANCE_PUSH_FORWARD => 1.48,
+        MILITARY_STANCE_GIVE_GROUND => 0.92,
+        MILITARY_STANCE_MISSILE_ALERT => 1.08,
+        _ => 1.0,
     }
 }
 
@@ -749,5 +922,73 @@ mod tests {
         assert!(veteran_health_multiplier(5) > veteran_health_multiplier(1));
         assert!(veteran_damage_multiplier(5) > veteran_damage_multiplier(1));
         assert!(veteran_damage_taken_multiplier(5) < veteran_damage_taken_multiplier(1));
+    }
+
+    #[test]
+    fn formations_are_role_specific_and_authored_in_company_space() {
+        assert!(military_formation_available(
+            MilitaryKind::Spearmen,
+            MILITARY_FORMATION_BRACE,
+        ));
+        assert!(!military_formation_available(
+            MilitaryKind::Crossbows,
+            MILITARY_FORMATION_BRACE,
+        ));
+        assert!(military_formation_available(
+            MilitaryKind::Hussars,
+            MILITARY_FORMATION_WEDGE,
+        ));
+        assert!(!military_formation_available(
+            MilitaryKind::Hussars,
+            MILITARY_FORMATION_SHIELD_WALL,
+        ));
+
+        let local = formation_offset(MILITARY_FORMATION_LINE, 0, 5);
+        let north = rotate_formation_offset(local.0, local.1, 0.0, 1.0);
+        let east = rotate_formation_offset(local.0, local.1, 1.0, 0.0);
+        assert!((north.0 - local.0).abs() < 1e-9);
+        assert!((north.1 - local.1).abs() < 1e-9);
+        assert!((east.0 - local.1).abs() < 1e-9);
+        assert!((east.1 + local.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn wedge_and_brace_have_distinct_battlefield_jobs() {
+        assert!(formation_charge_multiplier(MILITARY_FORMATION_WEDGE) > 1.0);
+        assert!(formation_speed_multiplier(MILITARY_FORMATION_BRACE) < 1.0);
+        let brace_front = formation_offset(MILITARY_FORMATION_BRACE, 0, 8);
+        let brace_rear = formation_offset(MILITARY_FORMATION_BRACE, 7, 8);
+        assert!(brace_front.1 > brace_rear.1);
+        let wedge_tip = formation_offset(MILITARY_FORMATION_WEDGE, 0, 6);
+        let wedge_rear = formation_offset(MILITARY_FORMATION_WEDGE, 5, 6);
+        assert!(wedge_tip.1 > wedge_rear.1);
+    }
+
+    #[test]
+    fn directional_defense_distinguishes_front_and_rear() {
+        assert!(is_front_attack(0.0, 1.0, 10.0, 10.0, 10.0, 14.0));
+        assert!(!is_front_attack(0.0, 1.0, 10.0, 10.0, 10.0, 6.0));
+    }
+
+    #[test]
+    fn stance_tradeoffs_and_role_limits_remain_distinct() {
+        assert!(military_stance_available(
+            MilitaryKind::Bowmen,
+            MILITARY_STANCE_MISSILE_ALERT,
+        ));
+        assert!(!military_stance_available(
+            MilitaryKind::Hussars,
+            MILITARY_STANCE_GIVE_GROUND,
+        ));
+        assert!(stance_damage_multiplier(MILITARY_STANCE_PUSH_FORWARD) > 1.0);
+        assert!(stance_fatigue_multiplier(MILITARY_STANCE_PUSH_FORWARD) > 1.0);
+        assert!(
+            stance_damage_taken_multiplier(MILITARY_STANCE_MISSILE_ALERT, true)
+                < stance_damage_taken_multiplier(MILITARY_STANCE_BALANCED, true)
+        );
+        assert!(
+            stance_damage_taken_multiplier(MILITARY_STANCE_MISSILE_ALERT, false)
+                > stance_damage_taken_multiplier(MILITARY_STANCE_BALANCED, false)
+        );
     }
 }

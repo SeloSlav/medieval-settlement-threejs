@@ -129,36 +129,6 @@ pub struct RouteMove {
     pub reached_end: bool,
 }
 
-/// Chooses the actual roster slots that can take weapons from the guardhouse
-/// rack. A wounded low-numbered slot must not prevent a later fit villager
-/// from mustering with an otherwise available polearm.
-pub fn select_guard_muster_slots(
-    assigned_labor: u32,
-    onsite_polearms: f64,
-    unavailable_slots: &[u32],
-) -> Vec<u32> {
-    let weapon_count = if onsite_polearms.is_finite() {
-        onsite_polearms.floor().max(0.0) as u32
-    } else {
-        0
-    }
-    .min(assigned_labor);
-    if weapon_count == 0 {
-        return Vec::new();
-    }
-    let mut selected = Vec::with_capacity(weapon_count as usize);
-    for slot in 0..assigned_labor {
-        if unavailable_slots.contains(&slot) {
-            continue;
-        }
-        selected.push(slot);
-        if selected.len() >= weapon_count as usize {
-            break;
-        }
-    }
-    selected
-}
-
 pub fn raid_party_size(enemy_pressure: u8) -> u32 {
     // Mirrors the established 2.5 + pressure * 0.065 raid-strength curve,
     // while materializing whole people and retaining a strict replication cap.
@@ -613,25 +583,6 @@ pub fn combat_state_blocks_guard_slot(state: u8) -> bool {
     )
 }
 
-/// Every live guard row is still one specific villager on the source
-/// guardhouse roster. Fit guards release their slot only after physically
-/// reaching home and being removed; casualties retain it through recovery.
-pub fn combat_state_commits_guard_labor(state: u8) -> bool {
-    matches!(
-        state,
-        COMBAT_STATE_ADVANCING
-            | COMBAT_STATE_FIGHTING
-            | COMBAT_STATE_LOOTING
-            | COMBAT_STATE_RETREATING
-            | COMBAT_STATE_RETURNING
-            | COMBAT_STATE_DOWNED
-            | COMBAT_STATE_WOUNDED_RETURNING
-            | COMBAT_STATE_RECOVERING
-            | COMBAT_STATE_MUSTERING
-            | COMBAT_STATE_HOLDING
-    )
-}
-
 /// Civilian emergency posture follows hostile people still capable of acting
 /// on the map. A downed raider, returning guard, or recuperating casualty may
 /// keep the raid aftermath visible without freezing the settlement economy.
@@ -803,17 +754,6 @@ mod tests {
         assert_eq!(playable_half_for_map_size(0) * 2.0, 817.0);
         assert_eq!(playable_half_for_map_size(1) * 2.0, 1080.0);
         assert_eq!(playable_half_for_map_size(2) * 2.0, 1344.0);
-    }
-
-    #[test]
-    fn muster_uses_later_fit_slots_and_only_onsite_weapons() {
-        assert_eq!(
-            select_guard_muster_slots(4, 3.0, &[0]),
-            vec![1, 2, 3],
-            "a wounded first roster slot must not strand the third rack weapon",
-        );
-        assert_eq!(select_guard_muster_slots(5, 2.8, &[1, 3]), vec![0, 2],);
-        assert!(select_guard_muster_slots(4, f64::NAN, &[]).is_empty());
     }
 
     #[test]
@@ -1101,25 +1041,6 @@ mod tests {
         assert!(combat_state_blocks_guard_slot(COMBAT_STATE_RECOVERING));
         assert!(!combat_state_blocks_guard_slot(COMBAT_STATE_RETURNING));
         assert!(!combat_state_blocks_guard_slot(COMBAT_STATE_FIGHTING));
-    }
-
-    #[test]
-    fn every_live_guard_state_commits_the_same_villager_to_the_company() {
-        for state in [
-            COMBAT_STATE_ADVANCING,
-            COMBAT_STATE_FIGHTING,
-            COMBAT_STATE_LOOTING,
-            COMBAT_STATE_RETREATING,
-            COMBAT_STATE_RETURNING,
-            COMBAT_STATE_DOWNED,
-            COMBAT_STATE_WOUNDED_RETURNING,
-            COMBAT_STATE_RECOVERING,
-            COMBAT_STATE_MUSTERING,
-            COMBAT_STATE_HOLDING,
-        ] {
-            assert!(combat_state_commits_guard_labor(state));
-        }
-        assert!(!combat_state_commits_guard_labor(u8::MAX));
     }
 
     #[test]

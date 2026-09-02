@@ -10,9 +10,9 @@ use crate::construction_priority::CONSTRUCTION_PRIORITY_URGENT;
 use crate::db::*;
 use crate::economy::{
     available_building_labor, building_cost, construction_treasury_reservation_excluding_building,
-    guardhouse_roster_count, initial_construction_labor, reconcile_building_labor,
-    spend_aggregate_roof_tiles, spend_aggregate_stone, spend_aggregate_timber, total_ironwork,
-    total_roof_tiles, total_stone, total_timber, CommodityKind,
+    initial_construction_labor, reconcile_building_labor, spend_aggregate_roof_tiles,
+    spend_aggregate_stone, spend_aggregate_timber, total_ironwork, total_roof_tiles, total_stone,
+    total_timber, CommodityKind,
 };
 use crate::fire_recovery_policy::{fire_recovery_cost, FireRecoveryCost};
 use crate::lifecycle::ensure_player_resources;
@@ -92,12 +92,6 @@ fn repair_building(
     if !building.construction_complete {
         return Err("This building is already being reconstructed.".to_string());
     }
-    if building.kind == "guardhouse" && guardhouse_roster_count(ctx, owner, building.id) > 0 {
-        return Err(
-            "This company still has guards deployed, returning, or recovering; begin reconstruction after every guard has returned and recovered.".to_string(),
-        );
-    }
-
     let base = building_cost(&building.kind)?;
     let timber_multiplier = if has_operational_carpenter_support(ctx, owner, &building) {
         CARPENTER_TIMBER_COST_MULTIPLIER

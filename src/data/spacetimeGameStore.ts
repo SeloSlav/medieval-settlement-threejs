@@ -1275,8 +1275,15 @@ export class SpacetimeGameStore {
     destinationX: number,
     destinationZ: number,
     targetCampId?: string | null,
+    targetAgentId?: string | null,
   ): Promise<void> {
-    return spacetimeReducers.commandMilitia(agentIds, destinationX, destinationZ, targetCampId);
+    return spacetimeReducers.commandMilitia(
+      agentIds,
+      destinationX,
+      destinationZ,
+      targetCampId,
+      targetAgentId,
+    );
   }
 
   disbandMilitia(): Promise<void> {
@@ -1303,12 +1310,20 @@ export class SpacetimeGameStore {
     return spacetimeReducers.renewMercenaryContract(companyId);
   }
 
+  reinforceMilitaryCompany(companyId: string): Promise<void> {
+    return spacetimeReducers.reinforceMilitaryCompany(companyId);
+  }
+
   resupplyMilitaryCompany(companyId: string): Promise<void> {
     return spacetimeReducers.resupplyMilitaryCompany(companyId);
   }
 
   setMilitaryFormation(companyId: string, formation: number): Promise<void> {
     return spacetimeReducers.setMilitaryFormation(companyId, formation);
+  }
+
+  setMilitaryStance(companyId: string, stance: number): Promise<void> {
+    return spacetimeReducers.setMilitaryStance(companyId, stance);
   }
 
   private emit(): void {

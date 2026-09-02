@@ -524,11 +524,17 @@
   margin-bottom: 10px;
 }
 
-.military-company-card__formations[data-formation-count='3'] {
+.military-company-card__formations[data-formation-count='3'],
+.military-company-card__formations[data-formation-count='5'],
+.military-company-card__formations[data-formation-count='6'] {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .military-company-card__formations[data-formation-count='3']
+  .military-formation-button,
+.military-company-card__formations[data-formation-count='5']
+  .military-formation-button,
+.military-company-card__formations[data-formation-count='6']
   .military-formation-button {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 18px auto;
@@ -573,6 +579,10 @@
 }
 
 .military-company-card__formations[data-formation-count='3']
+  .military-formation-button__label,
+.military-company-card__formations[data-formation-count='5']
+  .military-formation-button__label,
+.military-company-card__formations[data-formation-count='6']
   .military-formation-button__label {
   overflow: visible;
   text-overflow: clip;

@@ -298,6 +298,7 @@ export const CombatAgent = __t.object("CombatAgent", {
   faction: __t.u8(),
   sourceBuildingId: __t.u64(),
   sourceSlot: __t.u32(),
+  residentSlot: __t.u32(),
   assignedBuildingId: __t.u64(),
   targetKind: __t.u8(),
   targetId: __t.u64(),
@@ -532,7 +533,11 @@ export const MilitaryCompany = __t.object("MilitaryCompany", {
   kind: __t.u8(),
   sourceBuildingId: __t.u64(),
   state: __t.u8(),
+  departureRequested: __t.bool(),
   formation: __t.u8(),
+  stance: __t.u8(),
+  facingX: __t.f64(),
+  facingZ: __t.f64(),
   targetSize: __t.u32(),
   livingMembers: __t.u32(),
   morale: __t.f64(),
@@ -574,6 +579,7 @@ export const MilitiaOrder = __t.object("MilitiaOrder", {
   destinationX: __t.f64(),
   destinationZ: __t.f64(),
   targetCampId: __t.u64(),
+  targetAgentId: __t.u64(),
 });
 export type MilitiaOrder = __Infer<typeof MilitiaOrder>;
 

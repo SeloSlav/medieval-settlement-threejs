@@ -2034,7 +2034,6 @@ export class VillagerRenderer {
     const status = combatStatusLabel(combat.status);
     const target = this.combatTargetLabel(combat);
     const activity = combatActivityLabel(combat, target);
-    const health = `${Math.ceil(combat.health)} / ${Math.ceil(combat.maxHealth)}`;
     const equipment = combat.faction === 'dog'
       ? 'Teeth, speed, and trained protective instinct'
       : combat.faction === 'fox'
@@ -2042,13 +2041,13 @@ export class VillagerRenderer {
         : combat.faction === 'wolf'
           ? 'Pack coordination and sustained bite attacks'
           : combat.faction === 'crossbow' || combat.faction === 'bowman'
-      ? `${combat.faction === 'crossbow' ? 'Crossbow and bolts' : 'Bow and arrows'} · readiness ${Math.round(combat.readiness * 100)}%`
+      ? combat.faction === 'crossbow' ? 'Crossbow and bolts' : 'Bow and arrows'
       : combat.faction === 'guard'
       ? combat.issuedPolearms > 0
-        ? `Polearm issued · readiness ${Math.round(combat.readiness * 100)}%`
-        : `Unarmed · readiness ${Math.round(combat.readiness * 100)}%`
+        ? 'Polearm issued'
+        : 'Unarmed'
       : isPlayerMilitaryFaction(combat.faction)
-        ? `${combatEquipmentLabel(combat)} · readiness ${Math.round(combat.readiness * 100)}%`
+        ? combatEquipmentLabel(combat)
       : combat.faction === 'raider'
         ? combat.carryingLoot
           ? 'Sidearm · carrying stolen stores'
@@ -2100,8 +2099,8 @@ export class VillagerRenderer {
             : combat.faction === 'bandit' ? 'Bandit camp' : isPlayerMilitaryFaction(combat.faction) ? 'Town military' : 'Incursion party',
       householdLabel: 'Objective',
       household: target,
-      crewLabel: 'Condition',
-      crew: `${health} health`,
+      crewLabel: isPlayerMilitaryFaction(combat.faction) ? 'Role' : 'Condition',
+      crew: isPlayerMilitaryFaction(combat.faction) ? combatOccupation(combat) : status,
       paceLabel: animal ? 'Traits' : combat.faction === 'guard' || isPlayerMilitaryFaction(combat.faction) ? 'Equipment' : 'Arms and spoils',
       pace: equipment,
       position: { x: visual.displayX, y, z: visual.displayZ },
@@ -5632,9 +5631,6 @@ export class VillagerRenderer {
       || (kind === 'monastery' && agent.workTarget?.id?.includes(':monastery:vineyard:'))
     ) return 'hoe';
     if (kind === 'carpenter' || kind === 'smithy') return 'hammer';
-    if (kind === 'guardhouse') {
-      return agent.workplaceSlot < Math.floor(workplace?.polearms ?? 0) ? 'spear' : null;
-    }
     return null;
   }
 }

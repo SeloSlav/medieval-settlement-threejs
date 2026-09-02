@@ -5,6 +5,7 @@ use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{building_def, CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
+use crate::military_policy::is_player_military_faction;
 use crate::raid_agent_policy::{
     combat_state_blocks_guard_slot, combatant_morale_strength, distance_squared, formation_spawn,
     guard_attack_interval, guard_breaks_route_for, guard_damage, guard_recovery_ticks,
@@ -26,12 +27,9 @@ use crate::raid_agent_policy::{
 };
 use crate::resource_units::whole_units;
 use crate::roads::{RoadNetwork, RoadPathRoute};
-use crate::security_policy::{
-    raid_arson_occurs, scheduled_raid_ticks, RaidPortableStores, WatchArea,
-};
+use crate::security_policy::{raid_arson_occurs, scheduled_raid_ticks, RaidPortableStores};
 use crate::tables::{
-    settlement_security, ActiveRaid, Building, CombatAgent, Corpse, GuardMusterRoute,
-    RaidIncursionRoute,
+    settlement_security, ActiveRaid, CombatAgent, Corpse, GuardMusterRoute, RaidIncursionRoute,
 };
 
 use super::delivery_trips::{deserialize_route_polyline, serialize_route_polyline};
@@ -342,6 +340,7 @@ pub fn start_live_raid(
             faction: COMBAT_FACTION_RAIDER,
             source_building_id: 0,
             source_slot: index,
+            resident_slot: 0,
             assigned_building_id: 0,
             target_kind: target.kind,
             target_id: target.id,
@@ -464,100 +463,6 @@ fn route_from_formation(x: f64, z: f64, base: &RoadPathRoute) -> RoadPathRoute {
         distance: RoadNetwork::polyline_length_xz(&polyline),
         polyline,
     }
-}
-
-/// Materialize an early warning as actual guards and issued weapons on the
-/// map. Only road-linked companies can reach an assigned watch before contact;
-/// unlinked companies still form at their guardhouse when the raiders appear.
-pub(super) fn ensure_warned_guard_muster(
-    ctx: &ReducerContext,
-    owner: Identity,
-    warned_raid_id: u64,
-    sim_tick: u64,
-    buildings: &[Building],
-    towers: &[WatchArea],
-    road_network: Option<&RoadNetwork>,
-    fire_disabled_buildings: &HashSet<u64>,
-) -> u32 {
-    if warned_raid_id == 0 || towers.is_empty() {
-        return 0;
-    }
-    let _ = road_network;
-    let mut deployed = 0_u32;
-    for guardhouse in buildings.iter().filter(|building| {
-        building.owner == owner
-            && building.construction_complete
-            && building.kind == "guardhouse"
-            && !fire_disabled_buildings.contains(&building.id)
-    }) {
-        let tower = guardhouse
-            .guardhouse_muster_watchtower_id
-            .checked_sub(0)
-            .and_then(|preferred| towers.iter().find(|tower| tower.source_id == preferred))
-            .or_else(|| {
-                towers.iter().min_by(|left, right| {
-                    distance_squared(guardhouse.x, guardhouse.z, left.x, left.z).total_cmp(
-                        &distance_squared(guardhouse.x, guardhouse.z, right.x, right.z),
-                    )
-                })
-            });
-        let Some(tower) = tower else {
-            continue;
-        };
-        for company in ctx
-            .db
-            .military_company()
-            .source_building_id()
-            .filter(&guardhouse.id)
-            .filter(|company| company.owner == owner && company.state == 1)
-            .collect::<Vec<_>>()
-        {
-            let members = ctx
-                .db
-                .military_member()
-                .company_id()
-                .filter(&company.id)
-                .filter(|member| member.phase == 1)
-                .collect::<Vec<_>>();
-            let count = members.len().max(1) as f64;
-            for (index, member) in members.into_iter().enumerate() {
-                let Some(mut agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id)
-                else {
-                    continue;
-                };
-                if agent.state == COMBAT_STATE_DOWNED {
-                    continue;
-                }
-                let lateral = index as f64 - (count - 1.0) * 0.5;
-                let order = crate::tables::MilitiaOrder {
-                    combat_agent_id: agent.id,
-                    owner,
-                    kind: 0,
-                    destination_x: tower.x + lateral * 1.45,
-                    destination_z: tower.z,
-                    target_camp_id: 0,
-                };
-                if ctx
-                    .db
-                    .militia_order()
-                    .combat_agent_id()
-                    .find(&agent.id)
-                    .is_some()
-                {
-                    ctx.db.militia_order().combat_agent_id().update(order);
-                } else {
-                    ctx.db.militia_order().insert(order);
-                }
-                agent.state = COMBAT_STATE_ADVANCING;
-                agent.target_kind = 6;
-                agent.target_id = 0;
-                agent.state_changed_tick = sim_tick;
-                ctx.db.combat_agent().id().update(agent);
-                deployed += 1;
-            }
-        }
-    }
-    deployed
 }
 
 pub fn step_live_raids(
@@ -908,7 +813,10 @@ fn step_one_live_raid(
         .combat_agent()
         .owner()
         .filter(&active.owner)
-        .filter(|agent| agent.raid_id == active.raid_id)
+        .filter(|agent| {
+            agent.raid_id == active.raid_id
+                && matches!(agent.faction, COMBAT_FACTION_GUARD | COMBAT_FACTION_RAIDER)
+        })
         .map(|agent| (agent.id, agent))
         .collect::<HashMap<_, _>>();
     let guard_routes = load_guard_muster_paths(ctx, active.owner, active.raid_id);
@@ -1073,7 +981,7 @@ fn begin_raider_rout_if_broken(
         })
         .map(|agent| combatant_morale_strength(agent.health, agent.max_health, agent.readiness))
         .sum::<f64>();
-    let field_guard_strength = agents
+    let legacy_guard_strength = agents
         .values()
         .filter(|agent| {
             agent.faction == COMBAT_FACTION_GUARD
@@ -1082,6 +990,31 @@ fn begin_raider_rout_if_broken(
         })
         .map(|agent| combatant_morale_strength(agent.health, agent.max_health, agent.readiness))
         .sum::<f64>();
+    let raider_positions = agents
+        .values()
+        .filter(|agent| {
+            agent.faction == COMBAT_FACTION_RAIDER
+                && agent.state != COMBAT_STATE_DOWNED
+                && agent.health > EPSILON
+        })
+        .map(|agent| (agent.x, agent.z))
+        .collect::<Vec<_>>();
+    let company_guard_strength = ctx
+        .db
+        .combat_agent()
+        .owner()
+        .filter(&active.owner)
+        .filter(|agent| {
+            is_player_military_faction(agent.faction)
+                && agent.state != COMBAT_STATE_DOWNED
+                && agent.health > EPSILON
+                && raider_positions
+                    .iter()
+                    .any(|(x, z)| distance_squared(agent.x, agent.z, *x, *z) <= 28.0 * 28.0)
+        })
+        .map(|agent| combatant_morale_strength(agent.health, agent.max_health, agent.readiness))
+        .sum::<f64>();
+    let field_guard_strength = legacy_guard_strength + company_guard_strength;
 
     if !raider_company_should_rout(
         latest.initial_raiders,
@@ -2215,23 +2148,6 @@ fn step_recovering_guard(
         ctx.db.combat_agent().id().update(agent);
     }
     true
-}
-
-pub(super) fn unavailable_guard_slots(
-    ctx: &ReducerContext,
-    owner: Identity,
-) -> HashSet<(u64, u32)> {
-    ctx.db
-        .combat_agent()
-        .owner()
-        .filter(&owner)
-        .filter(|agent| {
-            agent.faction == COMBAT_FACTION_GUARD
-                && crate::raid_agent_policy::combat_state_commits_guard_labor(agent.state)
-                && agent.source_building_id > 0
-        })
-        .map(|agent| (agent.source_building_id, agent.source_slot))
-        .collect()
 }
 
 pub(super) fn issued_guard_polearms_by_building(

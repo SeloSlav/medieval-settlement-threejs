@@ -3,7 +3,6 @@ use spacetimedb::ReducerContext;
 use crate::balance_generated::{BASE_SPEED_DENOMINATOR, BASE_SPEED_NUMERATOR, TICK_DT};
 use crate::db::*;
 use crate::economy::step_regional_markets;
-use crate::frontier_economy_policy::{armed_guards, guardhouse_payroll_buckets};
 use crate::simulation::{
     capture_combat_motion_frame, materialize_all_physical_resource_ledgers,
     retire_legacy_food_items, retire_removed_buildings, step_apiary, step_backyard_gardens,
@@ -24,8 +23,7 @@ use crate::simulation::{
     step_stone_quarry, step_storehouse_market_stalls, step_swineherd, step_tannery,
     step_threshing_barn, step_trading_post_trade, step_village_storehouse_overflow_collection,
     step_watermill, step_weaponsmith_armorer, step_weaver, step_well, step_wild_animal_world,
-    step_windmill, step_woodcutters_lodge, try_dispatch_guardhouse_payroll, SharedRoadNetworks,
-    SimTickContext,
+    step_windmill, step_woodcutters_lodge, SharedRoadNetworks, SimTickContext,
 };
 use crate::supply_policy::{INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS};
 use crate::tables::WorldConfig;
@@ -144,7 +142,12 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
         // integration. The military step updates player-company behavior and
         // finishes with one bounded global steering correction, so no later
         // mover can invalidate authoritative all-combatant separation.
-        step_military_world(ctx, config.sim_tick, heartbeat_sim_seconds);
+        step_military_world(
+            ctx,
+            config.sim_tick,
+            heartbeat_sim_seconds,
+            shared_road_networks.as_ref(),
+        );
     }
     if ctx.db.sim_pacing_state().id().find(&0).is_some() {
         ctx.db.sim_pacing_state().id().update(SimPacingState {
@@ -254,9 +257,9 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     let mut hunters_hall_ids: Vec<u64> = Vec::new();
     let mut foragers_shed_ids: Vec<u64> = Vec::new();
     let mut fishing_camp_ids: Vec<u64> = Vec::new();
+    let mut guardhouse_ids: Vec<u64> = Vec::new();
     let mut chapel_ids: Vec<u64> = Vec::new();
     let mut monastery_ids: Vec<u64> = Vec::new();
-    let mut guardhouse_payroll_ids: Vec<(u8, u64)> = Vec::new();
     let mut village_storehouse_ids: Vec<u64> = Vec::new();
     let mut reclamation_pile_ids: Vec<u64> = Vec::new();
     let mut trading_post_ids: Vec<u64> = Vec::new();
@@ -308,9 +311,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             crate::building_defs::BuildingSimKind::FishingCamp => {
                 fishing_camp_ids.push(building.id)
             }
-            crate::building_defs::BuildingSimKind::Guardhouse => {
-                guardhouse_payroll_ids.push((building.guardhouse_pay_priority, building.id))
-            }
+            crate::building_defs::BuildingSimKind::Guardhouse => guardhouse_ids.push(building.id),
             crate::building_defs::BuildingSimKind::VillageStorehouse => {
                 village_storehouse_ids.push(building.id)
             }
@@ -338,29 +339,6 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             | crate::building_defs::BuildingSimKind::Chandlery
             | crate::building_defs::BuildingSimKind::Swineherd => {
                 expanded_ids.push((sim_kind, building.id))
-            }
-        }
-    }
-
-    // Residence-upgrade grants are already reserved by the treasury ledger.
-    // Among unreserved coin, explicit company pay priorities get the first
-    // chance to send a lockbox. Marketplace working-cash targets then compete
-    // for the remaining free haulers, treasury chests, and gold. The later
-    // guardhouse step sees the inbound trip and will not dispatch twice.
-    let payroll_buckets = guardhouse_payroll_buckets(guardhouse_payroll_ids);
-    if conflict_enabled {
-        for payroll_bucket in payroll_buckets.iter().rev() {
-            for building_id in payroll_bucket {
-                let Some(building) = ctx.db.building().id().find(building_id) else {
-                    continue;
-                };
-                try_dispatch_guardhouse_payroll(
-                    ctx,
-                    &tick,
-                    &clock,
-                    &building,
-                    armed_guards(building.assigned_labor, building.polearms),
-                );
             }
         }
     }
@@ -589,13 +567,11 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         .collect();
     step_institutional_food_dispatch(ctx, &tick, &clock, institutional_food_sources);
 
-    for payroll_bucket in payroll_buckets.into_iter().rev() {
-        for building_id in payroll_bucket {
-            let Some(building) = ctx.db.building().id().find(&building_id) else {
-                continue;
-            };
-            step_guardhouse(ctx, &tick, &clock, building);
-        }
+    for building_id in guardhouse_ids {
+        let Some(building) = ctx.db.building().id().find(&building_id) else {
+            continue;
+        };
+        step_guardhouse(ctx, &tick, &clock, building);
     }
 
     step_backyard_gardens(ctx, &tick, &clock, environment);

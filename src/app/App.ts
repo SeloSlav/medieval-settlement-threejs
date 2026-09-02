@@ -29,7 +29,6 @@ import type { ForestryWorkAreaTool } from '../resources/ForestryWorkAreaTool.ts'
 import {
   computeInTransitResourceTotals,
   computeGoldAwaitingCollection,
-  computeGuardhousePayrollGold,
   computePrivateHouseholdWealth,
   computePopulationStats,
   computeResourceTotals,
@@ -1851,10 +1850,11 @@ export class App {
         ? computeRefugeShelterPlan(state)
         : null;
       const guardhouseMusterPlan = enabled && this.roadNetwork
-        ? computeGuardhouseMusterPlan(
+          ? computeGuardhouseMusterPlan(
             state,
             this.roadNetwork,
             roadSpeedMultiplier,
+            snapshot.militaryCompanies.values(),
           )
         : null;
       this.projectedRaidTargets = enabled
@@ -1875,7 +1875,6 @@ export class App {
       this.villagers?.setFrontierAlert(
         enabled && raidThreatActive,
         refugePlan?.refugeByResidence,
-        guardhouseMusterPlan?.assignmentsByGuardhouse,
       );
       this.frontierRiskMarkers?.sync(
         this.projectedRaidTargets,
@@ -2169,7 +2168,6 @@ export class App {
       presentationState.physicalFoundingSiteEnabled === true,
       computeInTransitResourceTotals(this.gameState.deliveryTrips.values()),
       computeGoldAwaitingCollection(presentationState.buildings.values()),
-      computeGuardhousePayrollGold(presentationState.buildings.values()),
       computePrivateHouseholdWealth(presentationState.residences.values()),
     );
     this.resourceInspector.refreshSelection();

@@ -140,7 +140,10 @@ for (const company of companies.values()) {
   });
   assert.equal(card.detailsHtml, '');
   if (militaryCompanyGainsExperience(company.kind)) {
-    assert.match(card.statusText, /^Level \d+ · Active$/);
+    assert.match(
+      card.statusText,
+      /^(Unproven|Seasoned|Veteran|Hardened|Household elite) · Active$/,
+    );
   } else {
     assert.equal(card.statusText, 'Active');
   }

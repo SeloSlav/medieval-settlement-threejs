@@ -9,7 +9,6 @@ import {
 } from './carpenterSupport.ts';
 
 export const CARPENTER_POLEARM_RESERVE_DEFAULT = 6;
-export const CARPENTER_POLEARM_RESERVE_LEGACY = 24;
 export const CARPENTER_POLEARM_RESERVE_MAX = 24;
 
 export const CARPENTER_POLEARM_RESERVE_PRESETS = [
@@ -29,7 +28,7 @@ export type CarpenterArmoryPlan = {
 };
 
 export function normalizeCarpenterPolearmReserve(reserve: number): number {
-  if (!Number.isFinite(reserve)) return CARPENTER_POLEARM_RESERVE_LEGACY;
+  if (!Number.isFinite(reserve)) return CARPENTER_POLEARM_RESERVE_DEFAULT;
   return Math.max(0, Math.min(CARPENTER_POLEARM_RESERVE_MAX, Math.floor(reserve)));
 }
 
@@ -38,10 +37,6 @@ export function carpenterPolearmShortfall(stock: number, reserve: number): numbe
     0,
     normalizeCarpenterPolearmReserve(reserve) - Math.max(0, stock),
   );
-}
-
-export function guardhousePolearmTarget(assignedLabor: number): number {
-  return Math.max(0, Math.floor(assignedLabor));
 }
 
 export function carpenterArmoryPlan(
@@ -55,7 +50,7 @@ export function carpenterArmoryPlan(
   >,
 ): CarpenterArmoryPlan {
   const reserve = normalizeCarpenterPolearmReserve(
-    building.carpenterPolearmReserve ?? CARPENTER_POLEARM_RESERVE_LEGACY,
+    building.carpenterPolearmReserve ?? CARPENTER_POLEARM_RESERVE_DEFAULT,
   );
   const stock = Math.max(0, building.polearms ?? 0);
   const shortfall = carpenterPolearmShortfall(stock, reserve);

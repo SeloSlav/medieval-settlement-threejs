@@ -27,10 +27,7 @@ import {
   type ProjectedRaidTarget,
   type SettlementSecurityState,
 } from '../security/frontierSecurity.ts';
-import {
-  formatProvisionRunway,
-  type SettlementProvisioning,
-} from '../economy/settlementProvisioning.ts';
+import type { SettlementProvisioning } from '../economy/settlementProvisioning.ts';
 import type { SettlementApproval } from '../economy/settlementApproval.ts';
 import type { AuthoritativeWorldGeneration } from '../world/worldConfigAuthority.ts';
 import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
@@ -1651,7 +1648,7 @@ export class SettlementHud {
 
   setProvisioningState(provisioning: SettlementProvisioning, _month: number): void {
     this.setWelfareState(provisioning);
-    const foodHasDemand = provisioning.foodConsumers > 0 || provisioning.armedGuards > 0;
+    const foodHasDemand = provisioning.foodConsumers > 0;
     this.setSupplyRunway(
       this.foodStat,
       this.foodRunwayValue,
@@ -1697,11 +1694,8 @@ export class SettlementHud {
     );
     delete this.goldStat.dataset.tooltipTitle;
     delete this.goldStat.dataset.tooltip;
-    const hasGuardWageContext = provisioning.armedGuards > 0;
-    this.goldCardContext.hidden = !hasGuardWageContext;
-    this.goldCardContext.textContent = hasGuardWageContext
-      ? `Guard wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day; current funds cover ${formatProvisionRunway(provisioning.guardWageRunwayDays)}.`
-      : '';
+    this.goldCardContext.hidden = true;
+    this.goldCardContext.textContent = '';
   }
 
   private setSupplyRunway(
@@ -2470,13 +2464,9 @@ function formatResidenceResidents(residents: number): string {
 }
 
 function formatFoodDemandSource(provisioning: SettlementProvisioning): string {
-  const residences = provisioning.foodConsumers > 0
+  return provisioning.foodConsumers > 0
     ? formatResidenceResidents(provisioning.foodConsumers)
     : '';
-  const guards = provisioning.armedGuards > 0
-    ? `${provisioning.armedGuards} armed ${provisioning.armedGuards === 1 ? 'guard' : 'guards'}`
-    : '';
-  return residences && guards ? `${residences} plus ${guards}` : residences || guards;
 }
 
 function supplyRunwayLevel(

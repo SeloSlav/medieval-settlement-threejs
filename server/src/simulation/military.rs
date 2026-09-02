@@ -8,17 +8,22 @@ use crate::db::*;
 use crate::economy::spend_treasury_gold;
 use crate::military_policy::{
     company_wages_enabled, local_company_requires_provisions, matchup_damage_multiplier,
+    formation_charge_multiplier, formation_speed_multiplier, is_front_attack,
     member_combat_profile, military_battle_end_ticks, military_day_ticks,
     military_level_for_experience, military_stats, normalize_military_demands,
-    shield_wall_damage_multiplier, veteran_damage_multiplier, veteran_damage_taken_multiplier,
+    rotate_formation_offset, shield_wall_damage_multiplier, stance_attack_interval_multiplier,
+    stance_damage_multiplier, stance_damage_taken_multiplier, stance_fatigue_multiplier,
+    stance_speed_multiplier, veteran_damage_multiplier, veteran_damage_taken_multiplier,
     veteran_health_multiplier, MilitaryKind, MERCENARY_IDLE_DEPARTURE_DAYS,
-    MERCENARY_MAX_CONTRACT_DAYS, MILITARY_BATTLE_SURVIVAL_XP, MILITARY_ENEMY_COMPANY_XP,
+    MILITARY_BATTLE_SURVIVAL_XP, MILITARY_ENEMY_COMPANY_XP, MILITARY_FORMATION_BRACE,
+    MILITARY_STANCE_GIVE_GROUND, MILITARY_STANCE_STAND_GROUND,
 };
 use crate::raid_agent_policy::{
     ottoman_raider_is_mounted, ottoman_raider_is_ranged, ottoman_raider_role,
-    playable_half_for_map_size, OTTOMAN_ROLE_AKINCI, OTTOMAN_ROLE_AZAB, OTTOMAN_ROLE_JANISSARY,
-    OTTOMAN_ROLE_SIPAHI,
+    playable_half_for_map_size, COMBAT_ROAD_SPEED_MULTIPLIER, COMBAT_WADING_SPEED_MULTIPLIER,
+    OTTOMAN_ROLE_AKINCI, OTTOMAN_ROLE_AZAB, OTTOMAN_ROLE_JANISSARY, OTTOMAN_ROLE_SIPAHI,
 };
+use crate::roads::RoadNetwork;
 use crate::security_policy::RaidPortableStores;
 use crate::tables::{
     cavalry_horse, mercenary_contract, CombatAgent, Corpse, MercenaryContract, MilitaryCompany,
@@ -36,6 +41,7 @@ use super::raid_agents::{
     RaiderRangedFrame,
 };
 use super::reclamation::recover_stock_at;
+use super::SharedRoadNetworks;
 
 const RAIDER: u8 = 1;
 const BANDIT: u8 = 2;
@@ -293,7 +299,12 @@ fn build_ranged_company_frame(
     })
 }
 
-pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds: f64) {
+pub fn step_military_world(
+    ctx: &ReducerContext,
+    sim_tick: u64,
+    elapsed_seconds: f64,
+    road_networks: Option<&SharedRoadNetworks>,
+) {
     if !elapsed_seconds.is_finite() || elapsed_seconds <= 0.0 {
         return;
     }
@@ -340,6 +351,7 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
                         continue;
                     };
                     let melee_rank_hint = scratch.engagement_rank(agent.id);
+                    let road_network = road_networks.and_then(|networks| networks.get(&agent.owner));
                     match member.phase {
                         0 => step_mustering_member(
                             ctx,
@@ -348,9 +360,17 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
                             company,
                             sim_tick,
                             elapsed_seconds,
+                            road_network,
                         ),
                         2 | 3 | 4 => {
-                            step_returning_member(ctx, agent, member, company, elapsed_seconds)
+                            step_returning_member(
+                                ctx,
+                                agent,
+                                member,
+                                company,
+                                elapsed_seconds,
+                                road_network,
+                            )
                         }
                         _ => {
                             let ranged_frame = scratch.ranged_frame(company.id);
@@ -365,6 +385,7 @@ pub fn step_military_world(ctx: &ReducerContext, sim_tick: u64, elapsed_seconds:
                                 &steering,
                                 ranged_frame,
                                 melee_rank_hint,
+                                road_network,
                             )
                         }
                     }
@@ -400,6 +421,7 @@ fn step_mustering_member(
     company: MilitaryCompany,
     tick: u64,
     dt: f64,
+    road_network: Option<&RoadNetwork>,
 ) {
     let Some(source) = ctx.db.building().id().find(&company.source_building_id) else {
         begin_forced_return(ctx, &mut agent, &mut member);
@@ -423,7 +445,7 @@ fn step_mustering_member(
                 return;
             };
             let (pasture_x, pasture_z) = crate::reducers::cavalry_horses::pasture_center(&pasture);
-            walk(&mut agent, pasture_x, pasture_z, 2.25, dt);
+            walk(&mut agent, pasture_x, pasture_z, 2.25, dt, road_network);
             agent.state = MUSTERING;
             agent.target_kind = 10;
             agent.target_id = pasture.id;
@@ -437,7 +459,7 @@ fn step_mustering_member(
         }
     }
     let muster_speed = kind.map(|kind| military_stats(kind).speed).unwrap_or(2.25);
-    walk(&mut agent, source.x, source.z, muster_speed, dt);
+    walk(&mut agent, source.x, source.z, muster_speed, dt, road_network);
     agent.state = MUSTERING;
     agent.target_kind = 0;
     agent.target_id = source.id;
@@ -458,13 +480,14 @@ fn step_returning_member(
     mut member: MilitaryMember,
     company: MilitaryCompany,
     dt: f64,
+    road_network: Option<&RoadNetwork>,
 ) {
     agent.engagement_target_id = 0;
     if member.phase == 2 {
         if MilitaryKind::from_id(company.kind) == Some(MilitaryKind::MercenarySpears) {
             let exit_x = member.original_home_x;
             let exit_z = member.original_home_z;
-            walk(&mut agent, exit_x, exit_z, 2.35, dt);
+            walk(&mut agent, exit_x, exit_z, 2.35, dt, road_network);
             agent.home_x = exit_x;
             agent.home_z = exit_z;
             agent.target_kind = 6;
@@ -485,7 +508,7 @@ fn step_returning_member(
             let return_speed = MilitaryKind::from_id(company.kind)
                 .map(|kind| military_stats(kind).speed)
                 .unwrap_or(2.2);
-            walk(&mut agent, source.x, source.z, return_speed, dt);
+            walk(&mut agent, source.x, source.z, return_speed, dt, road_network);
             agent.state = RETURNING;
             if distance(agent.x, agent.z, source.x, source.z) > ARRIVAL_DISTANCE {
                 ctx.db.combat_agent().id().update(agent);
@@ -559,7 +582,7 @@ fn step_returning_member(
         let return_speed = MilitaryKind::from_id(company.kind)
             .map(|kind| military_stats(kind).speed)
             .unwrap_or(2.2);
-        walk(&mut agent, pasture_x, pasture_z, return_speed, dt);
+        walk(&mut agent, pasture_x, pasture_z, return_speed, dt, road_network);
         agent.state = RETURNING;
         agent.target_kind = 10;
         agent.target_id = pasture.id;
@@ -591,9 +614,11 @@ fn step_returning_member(
         finish_member_return(ctx, &agent, &company);
         return;
     }
-    walk(&mut agent, home_x, home_z, 2.15, dt);
+    walk(&mut agent, home_x, home_z, 2.15, dt, road_network);
     agent.home_x = home_x;
     agent.home_z = home_z;
+    agent.raid_anchor_building_id = home_id;
+    agent.resident_slot = member.resident_slot;
     agent.target_kind = 1;
     agent.target_id = home_id;
     agent.state = RETURNING;
@@ -616,6 +641,7 @@ fn step_active_member(
     steering: &CombatSteeringGrid,
     ranged_frame: Option<RangedCompanyFrame>,
     melee_rank_hint: Option<DenseEngagementRank>,
+    road_network: Option<&RoadNetwork>,
 ) {
     if company.state >= 2 {
         member.phase = 2;
@@ -636,7 +662,14 @@ fn step_active_member(
         agent.engagement_target_id = 0;
         ctx.db.militia_order().combat_agent_id().delete(agent.id);
         if let Some(source) = ctx.db.building().id().find(&company.source_building_id) {
-            walk(&mut agent, source.x, source.z, stats.speed * 1.1, dt);
+            walk(
+                &mut agent,
+                source.x,
+                source.z,
+                stats.speed * 1.1,
+                dt,
+                road_network,
+            );
             agent.state = RETREATING;
             if distance(agent.x, agent.z, source.x, source.z) <= ARRIVAL_DISTANCE {
                 agent.state = HOLDING;
@@ -677,8 +710,13 @@ fn step_active_member(
                 &mut agent,
                 order.destination_x,
                 order.destination_z,
-                stats.speed * profile.speed_scale * run_scale,
+                stats.speed
+                    * profile.speed_scale
+                    * run_scale
+                    * formation_speed_multiplier(company.formation)
+                    * stance_speed_multiplier(company.stance),
                 dt,
+                road_network,
             );
             agent.route_progress = remaining;
             agent.state = ADVANCING;
@@ -694,12 +732,36 @@ fn step_active_member(
         return;
     }
 
+    let direct_order = ctx
+        .db
+        .militia_order()
+        .combat_agent_id()
+        .find(&agent.id)
+        .filter(|order| order.kind == 2);
+    let direct_enemy = direct_order.as_ref().and_then(|order| {
+        ctx.db
+            .combat_agent()
+            .id()
+            .find(&order.target_agent_id)
+            .filter(|enemy| {
+                enemy.owner == agent.owner
+                    && matches!(enemy.faction, RAIDER | BANDIT | FOX | WOLF)
+                    && enemy.state != DOWNED
+                    && enemy.health > 0.0
+            })
+    });
+    if direct_order.is_some() && direct_enemy.is_none() {
+        ctx.db.militia_order().combat_agent_id().delete(agent.id);
+        agent.engagement_target_id = 0;
+    }
+
     // Each soldier retains a live nearby opponent, otherwise choosing the
     // nearest bounded-grid contact. Deterministic engagement rings distribute
     // the company's physical approach even when several ranks share that
     // opponent; flock steering keeps the unselectable soldiers coherent.
-    if let Some(mut enemy) =
-        retained_or_nearest_enemy(ctx, steering, &agent, stats.acquisition_range)
+    if let Some(mut enemy) = direct_enemy
+        .clone()
+        .or_else(|| retained_or_nearest_enemy(ctx, steering, &agent, stats.acquisition_range))
     {
         let range = distance(agent.x, agent.z, enemy.x, enemy.z);
         agent.target_kind = 7;
@@ -708,6 +770,49 @@ fn step_active_member(
         let ranged_kind = kind.is_ranged();
         let can_shoot = ranged_kind && member.ammunition > 0;
         let strike_range = if can_shoot { stats.strike_range } else { 2.15 };
+        if direct_enemy.is_some() && range > stats.acquisition_range * 0.72 {
+            let local = crate::military_policy::formation_offset_for_kind(
+                kind,
+                company.formation,
+                agent.source_slot,
+                company.target_size.max(company.living_members).max(1),
+            );
+            let offset = rotate_formation_offset(
+                local.0,
+                local.1,
+                company.facing_x,
+                company.facing_z,
+            );
+            walk_flocked(
+                steering,
+                &mut agent,
+                enemy.x + offset.0,
+                enemy.z + offset.1,
+                stats.speed
+                    * formation_speed_multiplier(company.formation)
+                    * stance_speed_multiplier(company.stance),
+                dt,
+                road_network,
+            );
+            agent.route_progress = range;
+            agent.state = ADVANCING;
+            agent.target_kind = 7;
+            agent.target_id = enemy.id;
+            agent.engagement_target_id = enemy.id;
+            ctx.db.combat_agent().id().update(agent);
+            return;
+        }
+        if company.stance == MILITARY_STANCE_STAND_GROUND
+            && direct_enemy.is_none()
+            && range > strike_range + 0.75
+        {
+            agent.state = HOLDING;
+            agent.velocity_x = 0.0;
+            agent.velocity_z = 0.0;
+            agent.engagement_target_id = 0;
+            ctx.db.combat_agent().id().update(agent);
+            return;
+        }
         let minimum_ranged_spacing = match kind {
             MilitaryKind::Bowmen => 8.0,
             MilitaryKind::Crossbows => 7.25,
@@ -722,7 +827,14 @@ fn step_active_member(
             let (threat_x, threat_z) = ranged_frame
                 .map(|frame| (frame.target_x, frame.target_z))
                 .unwrap_or((enemy.x, enemy.z));
-            walk_away(&mut agent, threat_x, threat_z, stats.speed * 0.78, dt);
+            walk_away(
+                &mut agent,
+                threat_x,
+                threat_z,
+                stats.speed * 0.78 * stance_speed_multiplier(company.stance),
+                dt,
+                road_network,
+            );
             agent.route_progress = range;
             // This is a fighting withdrawal, not a morale retreat or a new
             // charge. Keeping the combat state prevents flee animations and
@@ -770,17 +882,37 @@ fn step_active_member(
                 &mut agent,
                 movement_goal.0,
                 movement_goal.1,
-                stats.speed * run_scale,
+                stats.speed
+                    * run_scale
+                    * formation_speed_multiplier(company.formation)
+                    * stance_speed_multiplier(company.stance),
                 dt,
+                road_network,
             );
             agent.route_progress = range;
             agent.state = ADVANCING;
         } else {
-            let charged_into_contact = !can_shoot && agent.route_progress > 10.0;
+            let charged_into_contact = !can_shoot
+                && agent.state == ADVANCING
+                && agent.velocity_x.hypot(agent.velocity_z) >= stats.speed * 0.55;
+            let enemy_was_advancing = enemy.state == ADVANCING;
+            let enemy_was_charging = enemy_was_advancing
+                && enemy.velocity_x.hypot(enemy.velocity_z) >= 1.0;
             agent.route_progress = 0.0;
             agent.state = FIGHTING;
-            agent.velocity_x = 0.0;
-            agent.velocity_z = 0.0;
+            if company.stance == MILITARY_STANCE_GIVE_GROUND && !kind.is_mounted() {
+                walk_away(
+                    &mut agent,
+                    enemy.x,
+                    enemy.z,
+                    stats.speed * 0.24,
+                    dt,
+                    road_network,
+                );
+            } else {
+                agent.velocity_x = 0.0;
+                agent.velocity_z = 0.0;
+            }
             enemy.state = FIGHTING;
             enemy.engagement_target_id = agent.id;
             if agent.attack_cooldown <= 0.0 {
@@ -806,18 +938,21 @@ fn step_active_member(
                     stats.damage
                 }) * profile.damage_scale
                     * veteran_damage_multiplier(company.level)
+                    * stance_damage_multiplier(company.stance)
                     * readiness.max(0.35)
                     * if charged_into_contact {
-                        1.0 + profile.charge
+                        (1.0 + profile.charge) * formation_charge_multiplier(company.formation)
                     } else {
                         1.0
                     };
                 let damage =
                     damage_against_hostile(kind, profile.armor_penetration, &enemy, raw_damage);
                 enemy.health = (enemy.health - damage).max(0.0);
-                agent.attack_cooldown = stats.attack_seconds;
+                agent.attack_cooldown =
+                    stats.attack_seconds * stance_attack_interval_multiplier(company.stance);
                 if can_shoot {
                     member.ammunition = member.ammunition.saturating_sub(1);
+                    sync_member_ammunition_kit(&mut agent, &member);
                     if let Some(mut latest) = ctx.db.military_company().id().find(&company.id) {
                         latest.ammunition = latest.ammunition.saturating_sub(1);
                         ctx.db.military_company().id().update(latest);
@@ -834,35 +969,56 @@ fn step_active_member(
                 if defeated_company {
                     award_company_experience(ctx, company.id, MILITARY_ENEMY_COMPANY_XP);
                 }
-            } else if range <= 2.75 && enemy.attack_cooldown <= 0.0 {
-                let hostile_damage = match enemy.faction {
-                    FOX => 5.0,
-                    WOLF => 11.0,
-                    BANDIT => 10.0,
-                    _ => 15.0 + enemy.readiness * 4.0,
-                };
-                let profile = member_combat_profile(kind, member_seed(&member));
+            } else {
                 let hostile = hostile_profile(&enemy);
+                if range > hostile.strike_range || enemy.attack_cooldown > 0.0 {
+                    ctx.db.combat_agent().id().update(enemy);
+                    ctx.db.combat_agent().id().update(agent);
+                    return;
+                }
+                let hostile_damage = hostile.damage;
+                let profile = member_combat_profile(kind, member_seed(&member));
                 let armor_after_penetration = (profile.armor - hostile.penetration).max(0.0);
                 let armor_multiplier = 1.0 / (1.0 + armor_after_penetration * 0.055);
-                let shield_multiplier = (1.0 - profile.shield * 0.022).clamp(0.64, 1.0);
-                let brace_multiplier = if company.formation
-                    == crate::military_policy::MILITARY_FORMATION_SHIELD_WALL
-                    && enemy.state == ADVANCING
+                let incoming_front = is_front_attack(
+                    company.facing_x,
+                    company.facing_z,
+                    agent.x,
+                    agent.z,
+                    enemy.x,
+                    enemy.z,
+                );
+                let shield_multiplier = if incoming_front {
+                    (1.0 - profile.shield * 0.022).clamp(0.64, 1.0)
+                } else {
+                    1.0
+                };
+                let brace_multiplier = if company.formation == MILITARY_FORMATION_BRACE
+                    && kind.can_brace()
+                    && enemy_was_charging
+                    && incoming_front
                 {
                     (1.0 - profile.bracing * 0.34).clamp(0.62, 1.0)
                 } else {
                     1.0
                 };
+                let wall_multiplier = if incoming_front {
+                    shield_wall_damage_multiplier(kind, company.formation)
+                } else {
+                    1.0
+                };
+                let flank_multiplier = if incoming_front { 1.0 } else { 1.18 };
                 let mitigation = stats.damage_taken_multiplier
                     * veteran_damage_taken_multiplier(company.level)
-                    * shield_wall_damage_multiplier(kind, company.formation)
+                    * wall_multiplier
+                    * stance_damage_taken_multiplier(company.stance, hostile.ranged)
                     * (1.08 - company.cohesion.clamp(0.0, 1.0) * 0.18)
                     * armor_multiplier
                     * shield_multiplier
-                    * brace_multiplier;
+                    * brace_multiplier
+                    * flank_multiplier;
                 agent.health = (agent.health - hostile_damage * mitigation).max(0.0);
-                enemy.attack_cooldown = if enemy.faction == BANDIT { 1.2 } else { 1.0 };
+                enemy.attack_cooldown = hostile.attack_seconds;
             }
             ctx.db.combat_agent().id().update(enemy);
             if agent.health <= 0.0 {
@@ -891,8 +1047,13 @@ fn step_active_member(
                 &mut agent,
                 target.0,
                 target.1,
-                stats.speed * profile.speed_scale * run_scale,
+                stats.speed
+                    * profile.speed_scale
+                    * run_scale
+                    * formation_speed_multiplier(company.formation)
+                    * stance_speed_multiplier(company.stance),
                 dt,
+                road_network,
             );
             agent.route_progress = remaining;
             agent.state = ADVANCING;
@@ -1012,7 +1173,7 @@ fn step_company_upkeep(ctx: &ReducerContext, tick: u64, military_demands: u8) {
             let wages = daily_wage.saturating_mul(elapsed_days.min(u32::MAX as u64) as u32);
             let paid = spend_treasury_gold(ctx, company.owner, wages as f64).is_ok();
             if !paid && kind == MilitaryKind::MercenarySpears {
-                begin_mercenary_departure(ctx, company.id);
+                request_mercenary_departure_after_engagement(ctx, &company, tick);
                 continue;
             }
             if !paid {
@@ -1027,39 +1188,46 @@ fn step_company_upkeep(ctx: &ReducerContext, tick: u64, military_demands: u8) {
     }
 }
 
-fn step_mercenary_contracts(ctx: &ReducerContext, tick: u64) {
-    let day_ticks = military_day_ticks();
-    let idle_limit = day_ticks.saturating_mul(MERCENARY_IDLE_DEPARTURE_DAYS);
-    let max_contract = day_ticks.saturating_mul(MERCENARY_MAX_CONTRACT_DAYS);
-
-    // Existing saves may contain hired companies created before lifecycle rows
-    // existed. Give them a fresh full contract instead of dismissing them on
-    // the migration tick.
-    for company in ctx
-        .db
-        .military_company()
-        .iter()
-        .filter(|company| company.kind == MilitaryKind::MercenarySpears as u8 && company.state < 2)
-        .collect::<Vec<_>>()
-    {
-        if ctx
+fn request_mercenary_departure_after_engagement(
+    ctx: &ReducerContext,
+    company: &MilitaryCompany,
+    tick: u64,
+) {
+    let mut pending_company = company.clone();
+    pending_company.departure_requested = true;
+    ctx.db.military_company().id().update(pending_company);
+    let requested = MercenaryContract {
+        company_id: company.id,
+        owner: company.owner,
+        contract_end_tick: tick,
+        last_engagement_tick: ctx
             .db
             .mercenary_contract()
             .company_id()
             .find(&company.id)
-            .is_none()
-        {
-            ctx.db.mercenary_contract().insert(MercenaryContract {
-                company_id: company.id,
-                owner: company.owner,
-                contract_end_tick: tick.saturating_add(max_contract),
-                last_engagement_tick: tick,
-            });
-        }
+            .map_or(tick, |contract| contract.last_engagement_tick),
+    };
+    if ctx
+        .db
+        .mercenary_contract()
+        .company_id()
+        .find(&company.id)
+        .is_some()
+    {
+        ctx.db
+            .mercenary_contract()
+            .company_id()
+            .update(requested);
+    } else {
+        ctx.db.mercenary_contract().insert(requested);
     }
+}
 
+fn step_mercenary_contracts(ctx: &ReducerContext, tick: u64) {
+    let day_ticks = military_day_ticks();
+    let idle_limit = day_ticks.saturating_mul(MERCENARY_IDLE_DEPARTURE_DAYS);
     for mut contract in ctx.db.mercenary_contract().iter().collect::<Vec<_>>() {
-        let Some(company) = ctx
+        let Some(mut company) = ctx
             .db
             .military_company()
             .id()
@@ -1091,13 +1259,20 @@ fn step_mercenary_contracts(ctx: &ReducerContext, tick: u64) {
                         .find(&agent.id)
                         .is_some_and(|order| order.target_camp_id > 0)
             });
+        let idle_too_long = tick.saturating_sub(contract.last_engagement_tick) >= idle_limit;
+        let departure_due = company.departure_requested
+            || idle_too_long
+            || tick >= contract.contract_end_tick;
         if engaged {
             contract.last_engagement_tick = tick;
             ctx.db.mercenary_contract().company_id().update(contract);
+            if departure_due && !company.departure_requested {
+                company.departure_requested = true;
+                ctx.db.military_company().id().update(company);
+            }
             continue;
         }
-        let idle_too_long = tick.saturating_sub(contract.last_engagement_tick) >= idle_limit;
-        if idle_too_long || tick >= contract.contract_end_tick {
+        if departure_due {
             begin_mercenary_departure(ctx, company.id);
         }
     }
@@ -1111,6 +1286,7 @@ fn begin_mercenary_departure(ctx: &ReducerContext, company_id: u64) {
         return;
     }
     company.state = 2;
+    company.departure_requested = false;
     ctx.db.military_company().id().update(company);
     for mut member in ctx
         .db
@@ -1152,6 +1328,10 @@ fn refresh_company_summaries(ctx: &ReducerContext, tick: u64, dt: f64, military_
         let mut moving = 0_u32;
         let mut fighting = 0_u32;
         let mut health = 0.0;
+        let mut ammunition = 0_u32;
+        let mut ammunition_capacity = 0_u32;
+        let mut facing_x = 0.0;
+        let mut facing_z = 0.0;
         for member in &members {
             let Some(agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
                 continue;
@@ -1161,6 +1341,25 @@ fn refresh_company_summaries(ctx: &ReducerContext, tick: u64, dt: f64, military_
             }
             living += 1;
             health += agent.health / agent.max_health.max(1.0);
+            ammunition = ammunition.saturating_add(member.ammunition);
+            ammunition_capacity = ammunition_capacity.saturating_add(member.ammunition_capacity);
+            if agent.engagement_target_id > 0 {
+                if let Some(target) = ctx.db.combat_agent().id().find(&agent.engagement_target_id) {
+                    let dx = target.x - agent.x;
+                    let dz = target.z - agent.z;
+                    let length = dx.hypot(dz);
+                    if length > 1e-6 {
+                        facing_x += dx / length;
+                        facing_z += dz / length;
+                    }
+                }
+            } else {
+                let speed = agent.velocity_x.hypot(agent.velocity_z);
+                if speed > 1e-6 {
+                    facing_x += agent.velocity_x / speed;
+                    facing_z += agent.velocity_z / speed;
+                }
+            }
             if matches!(agent.state, ADVANCING | RETREATING | RETURNING | MUSTERING) {
                 moving += 1;
             }
@@ -1169,10 +1368,19 @@ fn refresh_company_summaries(ctx: &ReducerContext, tick: u64, dt: f64, military_
             }
         }
         company.living_members = living;
+        company.ammunition = ammunition;
+        company.ammunition_capacity = ammunition_capacity;
+        let facing_length = facing_x.hypot(facing_z);
+        if facing_length > 1e-6 {
+            company.facing_x = facing_x / facing_length;
+            company.facing_z = facing_z / facing_length;
+        }
         if company.state < 2 && living > 0 {
             let exertion = (moving as f64 * 0.35 + fighting as f64) / living as f64;
             if exertion > 0.01 {
-                company.fatigue = (company.fatigue + dt * 0.0035 * exertion).min(1.0);
+                company.fatigue = (company.fatigue
+                    + dt * 0.0035 * exertion * stance_fatigue_multiplier(company.stance))
+                    .min(1.0);
             } else {
                 company.fatigue = (company.fatigue - dt * 0.0025).max(0.0);
                 company.cohesion = (company.cohesion + dt * 0.0008).min(1.0);
@@ -1262,6 +1470,10 @@ struct HostileProfile {
     shield: f64,
     penetration: f64,
     role: u8,
+    ranged: bool,
+    strike_range: f64,
+    damage: f64,
+    attack_seconds: f64,
 }
 
 fn hostile_profile(enemy: &CombatAgent) -> HostileProfile {
@@ -1271,6 +1483,10 @@ fn hostile_profile(enemy: &CombatAgent) -> HostileProfile {
             shield: 0.0,
             penetration: if enemy.faction == WOLF { 2.0 } else { 0.0 },
             role: 0,
+            ranged: false,
+            strike_range: 2.75,
+            damage: if enemy.faction == WOLF { 11.0 } else { 5.0 },
+            attack_seconds: 1.0,
         };
     }
     if enemy.faction == BANDIT {
@@ -1279,6 +1495,10 @@ fn hostile_profile(enemy: &CombatAgent) -> HostileProfile {
             shield: 0.0,
             penetration: 1.0,
             role: 0,
+            ranged: false,
+            strike_range: 2.75,
+            damage: 10.0,
+            attack_seconds: 1.2,
         };
     }
     // Ottoman parties are mixed atomic ranks. Source slot deterministically
@@ -1289,24 +1509,40 @@ fn hostile_profile(enemy: &CombatAgent) -> HostileProfile {
             shield: 2.0,
             penetration: 3.0,
             role: 0,
+            ranged: false,
+            strike_range: 2.75,
+            damage: 15.0 + enemy.readiness * 4.0,
+            attack_seconds: 1.9,
         },
         OTTOMAN_ROLE_JANISSARY => HostileProfile {
             armor: 9.0,
             shield: 4.0,
             penetration: 8.0,
             role: 2,
+            ranged: true,
+            strike_range: 12.0,
+            damage: 15.0 + enemy.readiness * 4.0,
+            attack_seconds: 2.0,
         },
         OTTOMAN_ROLE_AKINCI => HostileProfile {
             armor: 4.0,
             shield: 0.0,
             penetration: 5.0,
             role: 4,
+            ranged: true,
+            strike_range: 12.0,
+            damage: 14.0 + enemy.readiness * 3.5,
+            attack_seconds: 1.8,
         },
         OTTOMAN_ROLE_SIPAHI => HostileProfile {
             armor: 15.0,
             shield: 6.0,
             penetration: 9.0,
             role: 5,
+            ranged: false,
+            strike_range: 2.9,
+            damage: 17.0 + enemy.readiness * 4.5,
+            attack_seconds: 1.75,
         },
         _ => unreachable!(),
     }
@@ -1781,11 +2017,12 @@ fn walk_flocked(
     goal_z: f64,
     speed: f64,
     dt: f64,
+    road_network: Option<&RoadNetwork>,
 ) {
     // This provisional walk records the faction reducer's authored direction
     // and distance. The final global pass derives intent from its displacement,
     // rewinds to the shared snapshot, and replaces it with one steered solve.
-    walk(agent, goal_x, goal_z, speed, dt);
+    walk(agent, goal_x, goal_z, speed, dt, road_network);
 }
 
 fn down_enemy(ctx: &ReducerContext, enemy: &mut CombatAgent, tick: u64) {
@@ -1821,6 +2058,7 @@ fn down_player_member(
     tick: u64,
 ) {
     release_mount_for_agent(ctx, agent.id, true);
+    sync_member_ammunition_kit(agent, member);
     agent.health = 0.0;
     agent.state = DOWNED;
     agent.engagement_target_id = 0;
@@ -1829,30 +2067,19 @@ fn down_player_member(
     ctx.db.militia_order().combat_agent_id().delete(agent.id);
     recover_member_kit_at(ctx, agent, agent.x, agent.z);
     if member.residence_id > 0 {
-        let mut residence_id = member.residence_id;
-        let home = ctx
-            .db
-            .residence()
-            .id()
-            .find(&member.residence_id)
-            .or_else(|| {
-                ctx.db
-                    .residence()
-                    .owner()
-                    .filter(&agent.owner)
-                    .filter(|residence| residence.population > 0)
-                    .min_by(|left, right| {
-                        distance(agent.x, agent.z, left.x, left.z)
-                            .total_cmp(&distance(agent.x, agent.z, right.x, right.z))
-                    })
-            });
-        if let Some(mut home) = home {
-            residence_id = home.id;
+        let home = ctx.db.residence().id().find(&member.residence_id);
+        let residence_id = if let Some(mut home) = home {
+            let residence_id = home.id;
             home.population = home.population.saturating_sub(1);
             home.sick_population = home.sick_population.min(home.population);
             home.deaths_total = home.deaths_total.saturating_add(1);
             ctx.db.residence().id().update(home);
-        }
+            residence_id
+        } else {
+            // The recruit's household was destroyed while he was deployed.
+            // Never charge the casualty to an unrelated nearby household.
+            0
+        };
         ctx.db.corpse().insert(Corpse {
             id: 0,
             owner: agent.owner,
@@ -1874,10 +2101,21 @@ fn down_player_member(
     }
     if let Some(mut latest) = ctx.db.military_company().id().find(&company.id) {
         latest.living_members = latest.living_members.saturating_sub(1);
+        latest.ammunition = latest.ammunition.saturating_sub(member.ammunition);
+        latest.ammunition_capacity = latest
+            .ammunition_capacity
+            .saturating_sub(member.ammunition_capacity);
         latest.morale = (latest.morale - 0.11).max(0.04);
         latest.cohesion = (latest.cohesion - 0.07).max(0.08);
         ctx.db.military_company().id().update(latest);
     }
+    let mut downed_member = member.clone();
+    downed_member.ammunition = 0;
+    downed_member.ammunition_capacity = 0;
+    ctx.db
+        .military_member()
+        .combat_agent_id()
+        .update(downed_member);
 }
 
 fn step_downed_member(
@@ -2056,7 +2294,10 @@ fn resolve_return_home(
     }
     member.residence_id = replacement.id;
     member.resident_slot = replacement.population.saturating_sub(1);
-    member.person_identity = format!("{}:person:{}", member.residence_id, member.resident_slot);
+    member.person_identity = format!(
+        "residence-{}:person:{}",
+        member.residence_id, member.resident_slot
+    );
     (replacement.id, replacement.x, replacement.z)
 }
 
@@ -2122,6 +2363,17 @@ fn recover_member_kit(ctx: &ReducerContext, agent: &CombatAgent) {
     recover_member_kit_at(ctx, &mut agent.clone(), agent.x, agent.z);
 }
 
+fn sync_member_ammunition_kit(agent: &mut CombatAgent, member: &MilitaryMember) {
+    let Ok(mut stores) = serde_json::from_str::<RaidPortableStores>(&agent.carried_loot_json) else {
+        return;
+    };
+    if stores.ammunition <= 0.0 && member.ammunition_capacity == 0 {
+        return;
+    }
+    stores.ammunition = if member.ammunition > 0 { 1.0 } else { 0.0 };
+    agent.carried_loot_json = serde_json::to_string(&stores).unwrap_or_default();
+}
+
 fn recover_member_kit_at(ctx: &ReducerContext, agent: &mut CombatAgent, x: f64, z: f64) {
     let Ok(stores) = serde_json::from_str::<RaidPortableStores>(&agent.carried_loot_json) else {
         return;
@@ -2134,7 +2386,14 @@ fn recover_member_kit_at(ctx: &ReducerContext, agent: &mut CombatAgent, x: f64, 
     agent.carried_loot_json.clear();
 }
 
-fn walk(agent: &mut CombatAgent, x: f64, z: f64, speed: f64, dt: f64) {
+fn walk(
+    agent: &mut CombatAgent,
+    x: f64,
+    z: f64,
+    speed: f64,
+    dt: f64,
+    road_network: Option<&RoadNetwork>,
+) {
     let dx = x - agent.x;
     let dz = z - agent.z;
     let distance = dx.hypot(dz);
@@ -2143,7 +2402,23 @@ fn walk(agent: &mut CombatAgent, x: f64, z: f64, speed: f64, dt: f64) {
         agent.velocity_z = 0.0;
         return;
     }
-    let step = (speed.max(0.0) * dt).min(distance);
+    let base_step = speed.max(0.0) * dt;
+    let fast_step = (base_step * COMBAT_ROAD_SPEED_MULTIPLIER).min(distance);
+    let candidate_x = agent.x + dx / distance * fast_step;
+    let candidate_z = agent.z + dz / distance * fast_step;
+    let surface_multiplier = road_network
+        .map(|network| {
+            network.combat_segment_speed_multiplier(
+                agent.x,
+                agent.z,
+                candidate_x,
+                candidate_z,
+                COMBAT_WADING_SPEED_MULTIPLIER,
+                COMBAT_ROAD_SPEED_MULTIPLIER,
+            )
+        })
+        .unwrap_or(1.0);
+    let step = (base_step * surface_multiplier).min(distance);
     let move_x = dx / distance * step;
     let move_z = dz / distance * step;
     agent.x += move_x;
@@ -2152,16 +2427,25 @@ fn walk(agent: &mut CombatAgent, x: f64, z: f64, speed: f64, dt: f64) {
     agent.velocity_z = move_z / dt.max(1e-9);
 }
 
-fn walk_away(agent: &mut CombatAgent, x: f64, z: f64, speed: f64, dt: f64) {
+fn walk_away(
+    agent: &mut CombatAgent,
+    x: f64,
+    z: f64,
+    speed: f64,
+    dt: f64,
+    road_network: Option<&RoadNetwork>,
+) {
     let dx = agent.x - x;
     let dz = agent.z - z;
     let length = dx.hypot(dz).max(1e-6);
-    let move_x = dx / length * speed * dt;
-    let move_z = dz / length * speed * dt;
-    agent.x += move_x;
-    agent.z += move_z;
-    agent.velocity_x = move_x / dt.max(1e-9);
-    agent.velocity_z = move_z / dt.max(1e-9);
+    walk(
+        agent,
+        agent.x + dx / length * speed.max(0.0),
+        agent.z + dz / length * speed.max(0.0),
+        speed,
+        dt,
+        road_network,
+    );
 }
 
 fn distance(ax: f64, az: f64, bx: f64, bz: f64) -> f64 {

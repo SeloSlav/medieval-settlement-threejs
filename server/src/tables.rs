@@ -731,11 +731,8 @@ pub struct Building {
     /// Finished woven cloth awaiting sale. Appended for additive save compatibility.
     #[default(0.0)]
     pub cloth: f64,
-    /// Finished polearms retained at a carpenter after current company deliveries.
-    ///
-    /// Existing saves keep the former full-workshop behavior; newly placed
-    /// carpenters start with a smaller one-company reserve.
-    #[default(24u8)]
+    /// Finished polearms retained at a carpenter for military requisitions.
+    #[default(6u8)]
     pub carpenter_polearm_reserve: u8,
     /// Order in which this company claims scarce weapons, routine supplies,
     /// and treasury wages. Existing saves remain at normal priority; ignored
@@ -2029,11 +2026,17 @@ pub struct CombatAgent {
     pub owner: Identity,
     pub raid_id: u64,
     /// 0 = settlement guard, 1 = hostile Ottoman raider, 2 = local bandit,
-    /// 3 = player-raised town militia.
+    /// 3+ = player-controlled military company kinds.
     pub faction: u8,
     /// Guardhouse backing a guard row, or zero for a raider.
     pub source_building_id: u64,
+    /// Company-local formation rank. This is deliberately distinct from a
+    /// resident's household slot.
     pub source_slot: u32,
+    /// Exact household slot for resident-backed military members. Zero for
+    /// non-residents; `raid_anchor_building_id` carries the residence id.
+    #[default(0u32)]
+    pub resident_slot: u32,
     /// Durable civilian-animal posting. Guard dogs use this to remain with a
     /// Hunter's Hall; zero leaves them on settlement-wide autonomous patrol.
     /// Other combat factions always keep this field at zero.
@@ -2248,11 +2251,13 @@ pub struct MilitiaOrder {
     #[primary_key]
     pub combat_agent_id: u64,
     pub owner: Identity,
-    /// 0 move/hold, 1 attack camp.
+    /// 0 move/hold, 1 attack camp, 2 attack a specific hostile combatant.
     pub kind: u8,
     pub destination_x: f64,
     pub destination_z: f64,
     pub target_camp_id: u64,
+    #[default(0u64)]
+    pub target_agent_id: u64,
 }
 
 /// One persistent, player-controlled body of troops.
@@ -2274,14 +2279,30 @@ pub struct MilitaryCompany {
     pub id: u64,
     pub owner: Identity,
     /// 0 militia, 1 spearmen, 2 men-at-arms, 3 crossbows, 4 mercenary spears,
-    /// 5 footmen, 6 polearms, 7 bowmen.
+    /// 5 footmen, 6 polearms, 7 bowmen, 8 hussars, 9 armored lancers,
+    /// 10 mounted archers.
     pub kind: u8,
-    /// Town Hall for militia/mercenaries; guardhouse for professional companies.
+    /// Town Hall for militia/mercenaries, Guardhouse for professional infantry,
+    /// and Cavalry Yard for mounted companies.
     pub source_building_id: u64,
     /// 0 mustering, 1 ready/fielded, 2 disbanding, 3 destroyed.
     pub state: u8,
-    /// 0 line, 1 column, 2 shield wall, 3 loose order.
+    /// A mercenary contract has ended or been dismissed, but the company will
+    /// finish its current engagement before beginning its departure.
+    #[default(false)]
+    pub departure_requested: bool,
+    /// 0 line, 1 column, 2 shield wall, 3 loose order, 4 brace, 5 wedge.
     pub formation: u8,
+    /// 0 balanced, 1 stand ground, 2 push forward, 3 give ground,
+    /// 4 missile alert.
+    #[default(0u8)]
+    pub stance: u8,
+    /// Persistent planar company facing used to rotate formation slots and
+    /// resolve directional shields, rear attacks, and bracing.
+    #[default(0.0)]
+    pub facing_x: f64,
+    #[default(1.0)]
+    pub facing_z: f64,
     pub target_size: u32,
     pub living_members: u32,
     /// Replicated condition values used by the roster and combat model.

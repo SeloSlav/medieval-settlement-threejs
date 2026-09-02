@@ -183,10 +183,6 @@ import {
   type SettlementTextilePlan,
 } from '../../economy/settlementTextiles.ts';
 import {
-  computeSettlementArmamentPlan,
-  type SettlementArmamentPlan,
-} from '../../economy/settlementArmament.ts';
-import {
   computeSettlementSpecialtyExportPlan,
   type SettlementSpecialtyExportPlan,
   type SpecialtyExportAttentionKind,
@@ -209,20 +205,11 @@ import {
   formatTripPhaseLabel,
 } from '../../logistics/deliveryTrips.ts';
 import {
-  guardhousePayrollDispatchPlan,
-  guardhousePayrollInTransitGold,
-  guardhousePayrollPlan,
-} from '../../security/guardhousePayrollPolicy.ts';
-import {
   computeRefugeShelterPlan,
   formatFrontierForecast,
   formatFrontierRaidTiming,
   formatRaidReport,
   frontierThreatLabel,
-  GUARDHOUSE_FOOD_RESERVE_DEEP,
-  GUARDHOUSE_FOOD_RESERVE_LEAN,
-  guardhouseFoodTarget,
-  normalizeGuardhouseFoodReserve,
   type RefugeShelterPlan,
   type SettlementSecurityState,
 } from '../../security/frontierSecurity.ts';
@@ -1378,54 +1365,6 @@ export function renderSettlementBackyardEconomyRows(
   `;
 }
 
-export function renderSettlementArmamentRows(
-  plan: SettlementArmamentPlan,
-): string {
-  const inspect = plan.firstExposedGuardhouseId === null
-    ? ''
-    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstExposedGuardhouseId}" aria-label="Inspect first road-exposed guardhouse">Inspect company</button>`;
-  const finishedCoverage = plan.assignedGuards > 0
-    ? `${plan.armableFromFinishedStock} / ${plan.assignedGuards} armable after approaching carts and finished stock at staffed road-linked carpenters`
-    : 'No guards currently assigned';
-  const readyCraftCoverage = plan.assignedGuards > 0
-    ? ` &middot; ${plan.armableAfterReadyCrafts} / ${plan.assignedGuards} after polearms whose inputs are already onsite or approaching their carpenter`
-    : '';
-  const remainingGap = plan.unarmedAfterReadyCrafts > 0
-    ? ` &middot; ${plan.unarmedAfterReadyCrafts} still exposed${inspect}`
-    : plan.assignedGuards > 0
-      ? ' &middot; current establishment physically covered'
-      : '';
-  const unavailablePolearms = plan.unavailableFinishedPolearms > 0.05
-    ? ` &middot; ${Math.round(plan.unavailableFinishedPolearms)} in treasury, excess company stock, idle shops, or disconnected stores`
-    : '';
-  const unavailableIronwork = plan.unavailableIronwork > 0.05
-    ? ` &middot; ${Math.round(plan.unavailableIronwork)} ironwork outside a staffed armory route`
-    : '';
-  const roads = plan.roadPlan;
-  const roadRow = roads === null || roads.guardBranches === 0
-    ? ''
-    : `<li><span>Armory roads</span><span>${roads.staffedArmoryGuardBranches} / ${roads.guardBranches} guard branches have a staffed carpenter route &middot; ${roads.finishedStockCoveredBranches} covered by finished arms &middot; ${roads.readyCraftCoveredBranches} covered after ready crafts &middot; ${roads.exposedGuardBranches} still short &middot; ${roads.unservedGuardBranches} without staffed armory${roads.fragmentationGuards > 0.05 ? ` &middot; ${roads.fragmentationGuards.toFixed(1)} guards blocked by branch fragmentation` : ' &middot; no ready arms stranded by topology'}</span></li>`;
-  const workOrders = plan.staffedCarpenters === 0
-    ? 'No staffed carpenter can execute a polearm order'
-    : `${Math.floor(plan.readyArmoryOutput)} / ${Math.ceil(plan.selectedArmoryOutput)} selected polearms have timber and ironwork onsite or approaching after each shop&rsquo;s chosen repair buffer &middot; remaining targets claim ${Math.ceil(plan.timberNeededForTargets)} timber + ${Math.ceil(plan.ironworkNeededForTargets)} ironwork &middot; connected source branches currently hold ${Math.round(plan.roadSourceTimber)} timber + ${Math.round(plan.roadSourceIronwork)} ironwork (${Math.round(plan.roadSourceSmithyIronwork)} locally forged + ${Math.round(plan.roadSourceMarketIronwork)} market-held) before cart contention${plan.firstSupplyingSmithyId === null ? '' : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstSupplyingSmithyId}" aria-label="Inspect first local armory ironwork source">Inspect smithy</button>`}`;
-  const fireOutages = (
-    plan.fireDisabledWatchtowers
-    + plan.fireDisabledGuardhouses
-    + plan.fireDisabledCarpenters
-  ) === 0
-    ? ''
-    : `<li><span>Defense fire outages</span><span>${plan.fireDisabledWatchtowers} staffed ${plan.fireDisabledWatchtowers === 1 ? 'watchtower' : 'watchtowers'} + ${plan.fireDisabledGuardhouses} ${plan.fireDisabledGuardhouses === 1 ? 'guardhouse' : 'guardhouses'} + ${plan.fireDisabledCarpenters} staffed ${plan.fireDisabledCarpenters === 1 ? 'armory' : 'armories'} offline &middot; ${plan.fireDisabledArmedGuards} equipped of ${plan.fireDisabledAssignedGuards} assigned guards unavailable${plan.firstFireDisabledDefenseBuildingId === null ? '' : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstFireDisabledDefenseBuildingId}" aria-label="Inspect first fire-disabled defense building">Inspect outage</button>`}</span></li>`;
-
-  return `
-    ${fireOutages}
-    <li><span>Armed establishment</span><span>${plan.armedGuards} / ${plan.assignedGuards} guards armed onsite &middot; ${plan.operationalGuardhouses} / ${plan.guardhouses} guardhouses operational &middot; ${finishedCoverage}${readyCraftCoverage}${remainingGap}</span></li>
-    <li><span>Company priorities</span><span>${plan.highPriorityCompanies} high &middot; ${plan.normalPriorityCompanies} normal &middot; ${plan.lowPriorityCompanies} low &middot; governs scarce polearms, routine provisions, and wages</span></li>
-    ${roadRow}
-    <li><span>Armory work orders</span><span>${workOrders}</span></li>
-    <li><span>Military stores</span><span>${Math.round(plan.polearmStock)} polearms owned${plan.polearmsInTransit > 0.05 ? ` &middot; ${Math.round(plan.polearmsInTransit)} on carts` : ''} &middot; ${Math.round(plan.serviceableFinishedPolearms)} serviceable to current guard branches${unavailablePolearms} &middot; ${Math.round(plan.ironworkStock)} ironwork owned${plan.ironworkInTransit > 0.05 ? ` &middot; ${Math.round(plan.ironworkInTransit)} on carts` : ''} &middot; ${Math.round(plan.serviceableIronwork)} at staffed armories, approaching them, or in their staffed smithies and markets${unavailableIronwork}</span></li>
-  `;
-}
-
 function formatSeasonalLabor(plan: SettlementSeasonalLaborPlan): string {
   const fire = plan.fireDisabledSites > 0
     ? `${plan.fireDisabledSites} fire-disabled ${plan.fireDisabledSites === 1 ? 'site' : 'sites'}`
@@ -2024,56 +1963,6 @@ export function renderTownHallInspector(
   const yearRoundLaborInspectButton = yearRoundLaborInspectId === null
     ? ''
     : ` <button type="button" class="inspector-jump-button" data-inspect-building="${yearRoundLaborInspectId}" aria-label="Inspect first year-round crew balance site">Inspect</button>`;
-  const payrollInTransit = guardhousePayrollInTransitGold(
-    context.gameState.deliveryTrips.values(),
-  );
-  const guardhousePayroll = guardhousePayrollPlan(
-    context.gameState.buildings.values(),
-    context.resourceTotals.gold,
-    fireDisabled,
-    payrollInTransit,
-  );
-  const payrollDispatch = guardhousePayrollDispatchPlan({
-    payroll: guardhousePayroll,
-    buildings: context.gameState.buildings.values(),
-    trips: context.gameState.deliveryTrips.values(),
-    treasuryGold: context.resourceTotals.gold,
-    physicalEconomy:
-      context.gameState.physicalFoundingSiteEnabled === true
-      && (context.conflictEnabled ?? false),
-    freeHaulers: context.populationStats.idle,
-    roadComponentFor:
-      typeof context.worldQueries.getRoadComponentId === 'function'
-        ? (candidate) => context.worldQueries.getRoadComponentId(
-            candidate.x,
-            candidate.z,
-          )
-        : undefined,
-  });
-  const payrollGoldDue = guardhousePayroll.reduce((sum, company) => sum + company.dailyWage, 0);
-  const payrollGoldFunded = guardhousePayroll.reduce((sum, company) => sum + company.fundedGold, 0);
-  const payrollGoldOnsite = guardhousePayroll.reduce((sum, company) => sum + company.onsiteGold, 0);
-  const payrollGoldInTransit = guardhousePayroll.reduce(
-    (sum, company) => sum + company.inTransitGold,
-    0,
-  );
-  const underfundedCompany = guardhousePayroll.find((company) => company.fundedRatio < 0.999);
-  let leanReserveCompanies = 0;
-  let deepReserveCompanies = 0;
-  let guardProvisionTarget = 0;
-  for (const company of guardhousePayroll) {
-    const reserve = normalizeGuardhouseFoodReserve(company.building.guardhouseFoodReserve);
-    if (reserve === GUARDHOUSE_FOOD_RESERVE_LEAN) leanReserveCompanies += 1;
-    if (reserve === GUARDHOUSE_FOOD_RESERVE_DEEP) deepReserveCompanies += 1;
-    guardProvisionTarget += guardhouseFoodTarget(
-      company.building.assignedLabor,
-      company.building.polearms,
-      reserve,
-    );
-  }
-  const standardReserveCompanies = guardhousePayroll.length
-    - leanReserveCompanies
-    - deepReserveCompanies;
   const livestockFodder = computeSettlementLivestockFodderPlan(
     context.gameState,
     environment.pastureCapacityMultiplier,
@@ -2157,17 +2046,6 @@ export function renderTownHallInspector(
         )
       : undefined,
   });
-  const armamentPlan = context.conflictEnabled
-    ? computeSettlementArmamentPlan({
-        state: context.gameState,
-        roadComponentFor: typeof context.worldQueries.getRoadComponentId === 'function'
-          ? (candidate) => context.worldQueries.getRoadComponentId(
-              candidate.x,
-              candidate.z,
-            )
-          : undefined,
-      })
-    : null;
   const processingWeek = `${production.capacityDaysPerWeek.toFixed(1)}-day average productive week · operational staffed capacity if supplied · watermills at ${Math.round(production.watermillThroughputMultiplier * 100)}% river power, windmills use their local exposure × ${Math.round(production.windmillWeatherThroughputMultiplier * 100)}% weather, with each mill's tool condition applied`;
   const productionFireOutageRow = production.fireDisabledProcessorSites === 0
     ? ''
@@ -2274,10 +2152,7 @@ export function renderTownHallInspector(
     state: context.gameState,
     seedShortfall: farmPlan.seedGrainShortfall,
     seedGrainByHolding: farmPlan.seedGrainByHolding,
-    availableGold:
-      context.gameState.physicalFoundingSiteEnabled === true
-        ? payrollDispatch.remainingTreasuryGold
-        : context.resourceTotals.gold,
+    availableGold: context.resourceTotals.gold,
     nextLotGoldCost: marketplaceTradeOfferCost(
       MARKETPLACE_SEED_GRAIN_IMPORT_OFFER,
       marketState,
@@ -2549,18 +2424,6 @@ export function renderTownHallInspector(
       ${centralGrainReserveRow}
       ${livestockFodderRows}
       ${frontierSecurityRows}
-      ${armamentPlan === null ? '' : renderSettlementArmamentRows(armamentPlan)}
-      ${provisioning.armedGuards > 0 ? `<li><span>Guardhouse food</span><span>${Math.round(provisioning.guardFoodStock)} on site · first shortfall ${formatProvisionRunway(provisioning.guardProvisionRunwayDays)}</span></li>
-      <li><span>Ration reserves</span><span>${Math.round(provisioning.guardFoodStock)} / ${Math.ceil(guardProvisionTarget)} food target · ${leanReserveCompanies} lean · ${standardReserveCompanies} company · ${deepReserveCompanies} deep</span></li>
-      <li><span>Guard wages</span><span>${provisioning.guardWagePerDay.toFixed(1)} gold / ordinary day · ${formatProvisionRunway(provisioning.guardWageRunwayDays)} across treasury, pay chests, and incoming carts</span></li>
-      <li><span>Physical payroll</span><span>${Math.round(payrollGoldOnsite)} in company chests · ${Math.round(payrollGoldInTransit)} on treasury carts · ${Math.round(context.resourceTotals.gold)} still spendable at civic treasuries</span></li>
-      <li><span>Civic cash priority</span><span>${
-        context.gameState.physicalFoundingSiteEnabled === true
-          ? `Residence-upgrade grants stay protected · ${payrollDispatch.reorderDueCompanies} ${payrollDispatch.reorderDueCompanies === 1 ? 'company' : 'companies'} below the pay-chest reorder point${payrollDispatch.inboundCompanies > 0 ? `, ${payrollDispatch.inboundCompanies} already receiving coin` : ''} · ${payrollDispatch.projectedCarts} reachable payroll ${payrollDispatch.projectedCarts === 1 ? 'cart claims' : 'carts claim'} ${Math.round(payrollDispatch.projectedGold)} gold before market reserve carts · ${Math.round(payrollDispatch.remainingTreasuryGold)} remains for market working cash${payrollDispatch.firstClaimBuildingId ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${payrollDispatch.firstClaimBuildingId}" aria-label="Inspect first guardhouse payroll cash claim">Inspect first claim</button>` : ''}`
-          : 'Legacy treasury · direct spending follows simulation order'
-      }</span></li>
-      <li><span>Next-day payroll</span><span>${Math.round(payrollGoldFunded)} / ${Math.ceil(payrollGoldDue)} gold secured or treasury-funded${underfundedCompany ? ` · ${guardhousePayroll.filter((company) => company.fundedRatio < 0.999).length} companies at risk <button type="button" class="inspector-jump-button" data-inspect-building="${underfundedCompany.building.id}" aria-label="Inspect first underfunded guardhouse">Inspect</button>` : ' · all companies funded'}</span></li>
-      ` : ''}
     `,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
@@ -2738,7 +2601,7 @@ export function renderTownHallInspector(
       </div>
       ${renderMilitaryRecruitmentPanels(
         ['militia', 'mercenary-spears'],
-        building.constructionComplete === false,
+        building.constructionComplete === false || fireDisabled.has(building.id),
       )}
       ${renderMilitaryCompanyRoster(
         militaryCompaniesAt(context.militaryCompanies, building.id),

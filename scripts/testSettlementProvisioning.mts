@@ -3,8 +3,6 @@ import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
   CALENDAR_SECONDS_PER_DAY,
-  GUARDHOUSE_FOOD_PER_GUARD_PER_DAY,
-  GUARDHOUSE_WAGE_PER_GUARD_PER_DAY,
   PRESERVED_FOOD_SPOILAGE_PER_DAY,
   PRESERVED_FOOD_STORAGE_MARKETPLACE_FACTOR,
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
@@ -46,7 +44,6 @@ import type {
 } from '../src/resources/types.ts';
 import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
-import { averageNonHolidayCalendarDayShare } from '../src/world/holidayCalendar.ts';
 
 const serverCalendar = readFileSync(
   new URL('../server/src/simulation/game_calendar.rs', import.meta.url),
@@ -257,16 +254,19 @@ assert.match(
   /Households keep consuming provisions and service shortage clocks continue/,
   'the Chapel inspector must explain that household needs continue through an observed Sabbath',
 );
-assert.match(guardhouseInspector, /Food endurance/);
-assert.match(guardhouseInspector, /PROVISION_WARNING_DAYS/);
-assert.match(townHallInspector, /first shortfall/);
+assert.doesNotMatch(guardhouseInspector, /Food endurance|PROVISION_WARNING_DAYS|payroll/i);
+assert.match(guardhouseInspector, /Forms, equips, provisions, and drills resident military companies/);
 assert.match(townHallInspector, /Household delivery buffer/);
 assert.match(townHallInspector, /Road-branch provisions/);
 assert.match(townHallInspector, /first road-branch provision exposure/);
 assert.match(townHallInspector, /Cured ration displacement/);
 assert.match(townHallInspector, /average calendar-day fresh demand after/);
 assert.match(townHallInspector, /fresh\/ordinary day/);
-assert.match(townHallInspector, /gold \/ ordinary day/);
+assert.doesNotMatch(
+  townHallInspector,
+  /gold \/ ordinary day/,
+  'the settlement ledger must not resurrect the retired abstract guard payroll',
+);
 assert.doesNotMatch(
   townHallInspector,
   /Â/,
@@ -299,11 +299,11 @@ const provisioning = computeSettlementProvisioning({
 
 assert.equal(provisioning.foodConsumers, 7);
 assert.equal(provisioning.heatedResidents, 7);
-assert.equal(provisioning.assignedGuards, 3);
-assert.equal(provisioning.armedGuards, 2, 'each ready guard must have one whole polearm');
-assert.equal(provisioning.unarmedGuards, 1);
-assert.equal(provisioning.guardFoodStock, 9);
-assert.ok(Math.abs(provisioning.guardProvisionRunwayDays - 10) < 1e-9);
+assert.equal(provisioning.assignedGuards, 0);
+assert.equal(provisioning.armedGuards, 0);
+assert.equal(provisioning.unarmedGuards, 0);
+assert.equal(provisioning.guardFoodStock, 0);
+assert.equal(provisioning.guardProvisionRunwayDays, Infinity);
 assert.equal(provisioning.householdBufferHouseholds, 2);
 assert.equal(provisioning.householdBufferReadyHouseholds, 0);
 assert.equal(provisioning.householdBufferCoverage, 0);
@@ -327,20 +327,13 @@ assert.equal(
 );
 assert.equal(provisioning.householdPreservedFoodRotationTargetPerDay, 0);
 assert.equal(provisioning.householdPreservedFoodRotationPerDay, 0);
-assert.equal(provisioning.guardFoodPerDay, 2 * GUARDHOUSE_FOOD_PER_GUARD_PER_DAY);
+assert.equal(provisioning.guardFoodPerDay, 0);
 assert.equal(provisioning.grossFoodDemandPerDay, provisioning.totalFoodPerDay);
 assert.ok(Math.abs(
   provisioning.averageFreshFoodDemandPerCalendarDay
-    - (
-      provisioning.householdFoodPerDay
-      + provisioning.guardFoodPerDay * averageNonHolidayCalendarDayShare()
-    )
+    - provisioning.householdFoodPerDay
 ) < 1e-9);
-assert.ok(
-  provisioning.averageFreshFoodDemandPerCalendarDay
-    < provisioning.totalFoodPerDay,
-  'named holidays waive guard upkeep but shift household monthly bills to an ordinary day',
-);
+assert.equal(provisioning.averageFreshFoodDemandPerCalendarDay, provisioning.totalFoodPerDay);
 assert.ok(Math.abs(
   provisioning.foodRunwayDays
   - provisioning.foodStock
@@ -355,8 +348,8 @@ assert.ok(
   `expected 8.6 winter firewood days, received ${provisioning.winterFirewoodRunwayDays}`,
 );
 assert.ok(Math.abs(provisioning.winterFirewoodCoverage - 2 / 21) < 1e-9);
-assert.equal(provisioning.guardWagePerDay, 2 * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY);
-assert.ok(Math.abs(provisioning.guardWageRunwayDays - 10) < 1e-9);
+assert.equal(provisioning.guardWagePerDay, 0);
+assert.equal(provisioning.guardWageRunwayDays, Infinity);
 assert.equal(provisioning.roadBranches, null, 'legacy callers may omit road topology');
 assert.equal(settlementProvisionLevel(provisioning, 10), 'critical');
 assert.equal(shouldShowProvisioning(provisioning, 10), true);
@@ -483,12 +476,9 @@ const physicalPayroll = computeSettlementProvisioning({
   freshFoodSpoilageFractionPerDay: 0,
   sabbathObserved: true,
 });
-assert.equal(physicalPayroll.guardPayChestGold, 4);
-assert.equal(physicalPayroll.guardPayrollInTransitGold, 3);
-assert.ok(
-  Math.abs(physicalPayroll.guardWageRunwayDays - 20) < 1e-9,
-  'guard wage runway must include treasury gold, local pay chests, and outbound payroll carts',
-);
+assert.equal(physicalPayroll.guardPayChestGold, 0);
+assert.equal(physicalPayroll.guardPayrollInTransitGold, 0);
+assert.equal(physicalPayroll.guardWageRunwayDays, Infinity);
 
 state.fireIncidents.set('guardhouse-fire', {
   id: 'guardhouse-fire',
@@ -608,13 +598,13 @@ const locallyStarved = computeSettlementProvisioning({
 assert.ok(locallyStarved.foodRunwayDays > 100, 'aggregate village food can look abundant');
 assert.equal(
   locallyStarved.guardProvisionRunwayDays,
-  0,
-  'guard readiness must use food physically stored at the guardhouse',
+  Infinity,
+  'guardhouse support labor must not create an abstract company food demand',
 );
 assert.equal(
   settlementProvisionLevel(locallyStarved, 7),
-  'critical',
-  'an empty guardhouse must not be hidden by remote aggregate food',
+  'none',
+  'an empty guardhouse must not create a hidden provisioning emergency',
 );
 
 const splitBranchState = emptyGameState();

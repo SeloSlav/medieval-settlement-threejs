@@ -271,7 +271,7 @@ export function syncCombatAgents(
       companyId: playerMilitary ? row.raidId.toString() : null,
       homeResidenceId,
       personIdentity: homeResidenceId
-        ? `${homeResidenceId}:person:${Number(row.sourceSlot)}`
+        ? `${homeResidenceId}:person:${Number(row.residentSlot)}`
         : null,
       stateChangedTick: Number(row.stateChangedTick),
       routeProgress: Math.max(0, row.routeProgress),

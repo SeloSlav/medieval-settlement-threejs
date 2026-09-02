@@ -371,18 +371,14 @@ pub fn institutional_dispatchable_food_stock(
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum InstitutionalFoodDispatchDuty {
-    CriticalGuard,
     PreservationBuffer,
-    GuardReserve,
     GranaryIntake,
 }
 
 /// Compare a physical fresh-food cart's possible destinations.
 ///
-/// A company below its three-day emergency floor is the only demand that can
-/// outrank preservation. Otherwise staffed smokehouses secure their small
-/// working batch before ordinary company reserves and granary centralization.
-/// Player-set work/company priority leads within each non-emergency duty, then
+/// Staffed smokehouses secure their small working batch before granary
+/// centralization. Player-set work priority leads within each duty, then
 /// the lowest stock runway, shortest road, and stable ids keep the result
 /// efficient and deterministic.
 pub fn compare_institutional_food_dispatch_candidates(
@@ -400,12 +396,8 @@ pub fn compare_institutional_food_dispatch_candidates(
     b_source_id: u64,
 ) -> Ordering {
     a_duty.cmp(&b_duty).then_with(|| {
-        let priority_order = if a_duty == InstitutionalFoodDispatchDuty::CriticalGuard {
-            Ordering::Equal
-        } else {
-            grain_work_priority(b_priority).cmp(&grain_work_priority(a_priority))
-        };
-        priority_order
+        grain_work_priority(b_priority)
+            .cmp(&grain_work_priority(a_priority))
             .then_with(|| a_runway.total_cmp(&b_runway))
             .then_with(|| a_distance.total_cmp(&b_distance))
             .then_with(|| a_target_id.cmp(&b_target_id))
@@ -947,10 +939,8 @@ mod tests {
     }
 
     #[test]
-    fn institutional_food_protects_emergencies_then_preservation() {
-        use InstitutionalFoodDispatchDuty::{
-            CriticalGuard, GranaryIntake, GuardReserve, PreservationBuffer,
-        };
+    fn institutional_food_prioritizes_preservation_then_granary_intake() {
+        use InstitutionalFoodDispatchDuty::{GranaryIntake, PreservationBuffer};
         assert_eq!(
             INSTITUTIONAL_FOOD_SOURCE_KINDS,
             &[
@@ -987,44 +977,9 @@ mod tests {
         );
         assert_eq!(
             compare_institutional_food_dispatch_candidates(
-                CriticalGuard,
-                1,
-                2.9,
-                400.0,
-                40,
-                4,
-                PreservationBuffer,
-                3,
-                0.0,
-                10.0,
-                10,
-                1,
-            ),
-            Ordering::Less,
-            "a critical company must beat even a high-priority nearby smokehouse"
-        );
-        assert_eq!(
-            compare_institutional_food_dispatch_candidates(
                 PreservationBuffer,
                 1,
                 0.0,
-                400.0,
-                40,
-                4,
-                GuardReserve,
-                3,
-                0.0,
-                10.0,
-                10,
-                1,
-            ),
-            Ordering::Less
-        );
-        assert_eq!(
-            compare_institutional_food_dispatch_candidates(
-                GuardReserve,
-                1,
-                1.0,
                 400.0,
                 40,
                 4,

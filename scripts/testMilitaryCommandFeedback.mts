@@ -202,7 +202,13 @@ camera.updateProjectionMatrix();
 
 let pickedPoint = { x: 12, z: -6 };
 let nowMs = 4_000;
-const orders: { ids: string[]; x: number; z: number; campId: string | null }[] = [];
+const orders: {
+  ids: string[];
+  x: number;
+  z: number;
+  campId: string | null;
+  targetAgentId: string | null;
+}[] = [];
 let selectedCompany: string | null = null;
 let selectedCompanyChanges = 0;
 let ordinaryVillagerInspections = 0;
@@ -234,7 +240,13 @@ const controller = new MilitiaCommandController({
   getHeightAt: () => 2,
   getZoomPercent: () => 100,
   isBlocked: () => false,
-  onCommand: (ids, x, z, campId) => orders.push({ ids, x, z, campId }),
+  onCommand: (ids, x, z, campId, targetAgentId) => orders.push({
+    ids,
+    x,
+    z,
+    campId,
+    targetAgentId,
+  }),
   onCompanySelected: (companyId) => {
     selectedCompany = companyId;
     selectedCompanyChanges += 1;
@@ -321,10 +333,11 @@ canvas.dispatch('mousedown', mouseEvent('mousedown', 2, 70, 70, 2, canvas));
 window.dispatchEvent(mouseEvent('mouseup', 2, 70, 70, 0, canvas));
 assert.equal(orders.length, 1, 'stationary secondary click must issue exactly one order');
 assert.deepEqual(orders[0], {
-  ids: ['friendly-1', 'friendly-2'],
+  ids: ['friendly-1'],
   x: 12,
   z: -6,
   campId: null,
+  targetAgentId: 'raider-1',
 });
 assert.equal(
   controller.orderFeedbackDiagnostics().kind,
@@ -347,7 +360,7 @@ assert.equal(
 canvas.dispatch('mousedown', mouseEvent('mousedown', 2, 90, 90, 2, canvas));
 window.dispatchEvent(mouseEvent('mouseup', 2, 90, 90, 0, canvas));
 assert.equal(orders.length, 2);
-assert.deepEqual(orders[1]?.ids, ['friendly-1', 'friendly-2']);
+assert.deepEqual(orders[1]?.ids, ['friendly-1']);
 assert.equal(controller.orderFeedbackDiagnostics().kind, 'move');
 assert.deepEqual(
   [controller.orderFeedbackDiagnostics().x, controller.orderFeedbackDiagnostics().z],

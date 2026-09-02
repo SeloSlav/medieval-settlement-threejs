@@ -17,6 +17,7 @@ export default __t.row({
   faction: __t.u8(),
   sourceBuildingId: __t.u64().name("source_building_id"),
   sourceSlot: __t.u32().name("source_slot"),
+  residentSlot: __t.u32().name("resident_slot"),
   assignedBuildingId: __t.u64().name("assigned_building_id"),
   targetKind: __t.u8().name("target_kind"),
   targetId: __t.u64().name("target_id"),

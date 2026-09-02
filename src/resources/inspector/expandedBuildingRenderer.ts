@@ -61,7 +61,6 @@ import {
   institutionalFoodDutyLabel,
   institutionalFoodSurplus,
 } from '../../logistics/foodLogistics.ts';
-import { compareStableEntityIds } from '../../logistics/roadLogistics.ts';
 import {
   formatGrainWorkingBuffer,
   GRAIN_CRITICAL_RUNWAY_CYCLES,
@@ -165,7 +164,6 @@ import {
 } from '../../vineyards/vineyardSuitability.ts';
 import { environmentFor } from '../../world/seasonPolicy.ts';
 import { buildingStorageCaps } from '../resourceTotals.ts';
-import { GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS } from '../../security/frontierSecurity.ts';
 import { processorOutputCommodityForBuilding } from '../../economy/processorOutputPolicy.ts';
 import { civicReceiptCollectionPlan } from '../../economy/civicReceipts.ts';
 import {
@@ -527,32 +525,8 @@ function outboundTripTarget(
       if (seedTarget) return seedTarget;
     }
     const grainDispatch = context.worldQueries.getNextGranaryGrainDispatch(building);
-    const guardFoodDispatch = context.conflictEnabled
-      ? context.worldQueries.getNextGranaryGuardFoodDispatch(building)
-      : null;
     const grainIsCritical = grainDispatch != null
       && grainDispatch.runwayCycles < GRAIN_CRITICAL_RUNWAY_CYCLES;
-    const guardFoodPreemptsGrain = guardFoodDispatch != null
-      && (
-        !grainIsCritical
-        || grainDispatch != null && (() => {
-          const guardUrgency = guardFoodDispatch.runwayDays
-            / GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS;
-          const grainUrgency = grainDispatch.runwayCycles
-            / GRAIN_CRITICAL_RUNWAY_CYCLES;
-          return guardUrgency < grainUrgency - 1e-9
-            || (
-              Math.abs(guardUrgency - grainUrgency) <= 1e-9
-              && compareStableEntityIds(
-                guardFoodDispatch.target.id,
-                grainDispatch.target.id,
-              ) < 0
-            );
-        })()
-      );
-    if (guardFoodPreemptsGrain) {
-      return guardFoodDispatch.target;
-    }
     if (grainIsCritical) {
       return grainDispatch.target;
     }
@@ -1316,7 +1290,7 @@ export function renderExpandedBuildingInspector(
       <li><span>Support state</span><span>${building.assignedLabor > 0 ? 'Skilled construction active across this road network' : 'Inactive — requires at least 1 craftsperson'}</span></li>
       ${armory ? `<li><span>Armory reserve</span><span>${armory.reserve <= 0 ? `${armory.stock.toFixed(0)} stored · production paused` : `${armory.stock.toFixed(0)} / ${armory.reserve} polearms`}</span></li>
       <li><span>Inputs to target</span><span>${armory.shortfall <= 0 ? 'Reserve stocked' : renderResourceCost({ timber: armory.timberToTarget, ironwork: armory.ironworkToTarget }, { compact: true })}</span></li>
-      <li><span>Company issue</span><span>One polearm per assigned guard · surplus remains here</span></li>` : ''}`
+      <li><span>Company issue</span><span>Finished weapons remain here until a military requisition carts them to its muster point</span></li>` : ''}`
     : '';
   return {
     eyebrow: 'Settlement building',
@@ -1733,7 +1707,7 @@ function renderCarpenterPolicyPanel(
         <div class="resource-action-row">${CARPENTER_POLEARM_RESERVE_PRESETS
           .map((preset) => `<button type="button" class="resource-action-button" data-carpenter-polearm-reserve="${preset.reserve}" ${armory.reserve === preset.reserve ? 'disabled' : ''}>${preset.label} · ${preset.reserve}</button>`)
           .join('')}</div>
-        <p class="inspector-action-panel__hint">Carpenters first issue one weapon to each assigned guard, then rebuild this local reserve. “Cartwright only” disables weapon crafting so timber and fittings remain available for framing and physical cart repair.</p>
+        <p class="inspector-action-panel__hint">Finished polearms remain in this workshop until an exact company requisition carts them to its muster point. “Cartwright only” disables weapon crafting so timber and fittings remain available for framing and physical cart repair.</p>
       ` : ''}
     </div>
   `;

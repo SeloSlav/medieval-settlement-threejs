@@ -17,6 +17,7 @@ import type {
 } from '../logistics/deliveryTrips.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { BuildingState, GameState, ResidenceState } from '../resources/types.ts';
+import type { MilitaryCompanyState } from './militaryProgression.ts';
 import { buildingKindLabel } from '../resources/WorldLayoutRegistry.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import { edibleFoodStock, type FoodInventoryLike } from '../economy/foodInventory.ts';
@@ -734,6 +735,7 @@ export function computeGuardhouseMusterPlan(
   gameState: GameState,
   roadNetwork: RoadNetwork,
   roadSpeedMultiplier = 1,
+  militaryCompanies: Iterable<MilitaryCompanyState> = [],
 ): GuardhouseMusterPlan {
   const fireDisabled = fireDisabledBuildingIds(gameState.fireIncidents.values());
   const towers = [...gameState.buildings.values()]
@@ -760,6 +762,18 @@ export function computeGuardhouseMusterPlan(
   const normalizedRoadSpeed = normalizeRoadSpeedMultiplier(
     roadSpeedMultiplier,
   );
+  const companyReadinessBySource = new Map<string, { assigned: number; ready: number }>();
+  for (const company of militaryCompanies) {
+    if (company.status !== 'active' || company.livingMembers <= 0) continue;
+    const current = companyReadinessBySource.get(company.sourceBuildingId)
+      ?? { assigned: 0, ready: 0 };
+    current.assigned += company.livingMembers;
+    current.ready += company.livingMembers
+      * clamp01(company.morale)
+      * clamp01(company.cohesion)
+      * (1 - clamp01(company.fatigue) * 0.45);
+    companyReadinessBySource.set(company.sourceBuildingId, current);
+  }
   const pathfinder = roadNetwork.getPathfinder();
   for (const guardhouse of gameState.buildings.values()) {
     if (
@@ -767,11 +781,8 @@ export function computeGuardhouseMusterPlan(
       || guardhouse.constructionComplete === false
       || fireDisabled.has(guardhouse.id)
     ) continue;
-    const armed = armedGuardCount(
-      guardhouse.assignedLabor,
-      guardhouse.polearms,
-    );
-    if (armed <= 0) continue;
+    const companyReadiness = companyReadinessBySource.get(guardhouse.id);
+    if (!companyReadiness || companyReadiness.assigned <= 0) continue;
 
     const distances = pathfinder.roadPathDistancesFrom(
       guardhouse.x,
@@ -789,7 +800,7 @@ export function computeGuardhouseMusterPlan(
 
     const tower = towers[linkedTowerIndex]!;
     const routeDistance = distances[linkedTowerIndex]!;
-    const rawReady = armed * clamp01(guardhouse.actionCooldown);
+    const rawReady = companyReadiness.ready;
     const responseDistance = guardhouseMusterResponseDistance(
       routeDistance,
       normalizedRoadSpeed,
@@ -895,16 +906,7 @@ export function projectRaidTargets(
     refugeIndex,
     refuges.length,
   );
-  const districtReadiness = options
-    ? (
-        options.guardhouseMusterPlan
-        ?? computeGuardhouseMusterPlan(
-          gameState,
-          options.roadNetwork,
-          options.roadSpeedMultiplier,
-        )
-      ).readinessByWatch
-    : null;
+  const districtReadiness = options?.guardhouseMusterPlan?.readinessByWatch ?? null;
 
   const selected: ProjectedRaidTargetCandidate[] = [];
   const consider = (input: ProjectedRaidTargetInput): void => {

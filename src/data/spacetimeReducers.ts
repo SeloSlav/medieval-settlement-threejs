@@ -1240,16 +1240,19 @@ export async function commandMilitia(
   destinationX: number,
   destinationZ: number,
   targetCampId?: string | null,
+  targetAgentId?: string | null,
 ): Promise<void> {
   const ids = agentIds
     .map((id) => /^\d+$/.test(id) ? BigInt(id) : null)
     .filter((id): id is bigint => id !== null);
   const campMatch = targetCampId ? /^bandit-camp-(\d+)$/.exec(targetCampId) : null;
+  const hostileId = targetAgentId && /^\d+$/.test(targetAgentId) ? BigInt(targetAgentId) : 0n;
   await callReducer('commandMilitia', 'command_militia', {
     agentIds: ids,
     destinationX,
     destinationZ,
     targetCampId: campMatch ? BigInt(campMatch[1]!) : 0n,
+    targetAgentId: hostileId,
   });
 }
 
@@ -1303,6 +1306,13 @@ export async function renewMercenaryContract(companyId: string): Promise<void> {
   });
 }
 
+export async function reinforceMilitaryCompany(companyId: string): Promise<void> {
+  if (!/^\d+$/.test(companyId)) throw new Error('Invalid military company id.');
+  await callReducer('reinforceMilitaryCompany', 'reinforce_military_company', {
+    companyId: BigInt(companyId),
+  });
+}
+
 export async function resupplyMilitaryCompany(companyId: string): Promise<void> {
   if (!/^\d+$/.test(companyId)) throw new Error('Invalid military company id.');
   await callReducer('resupplyMilitaryCompany', 'resupply_military_company', {
@@ -1317,7 +1327,18 @@ export async function setMilitaryFormation(
   if (!/^\d+$/.test(companyId)) throw new Error('Invalid military company id.');
   await callReducer('setMilitaryFormation', 'set_military_formation', {
     companyId: BigInt(companyId),
-    formation: Math.max(0, Math.min(3, Math.floor(formation))),
+    formation: Math.max(0, Math.min(5, Math.floor(formation))),
+  });
+}
+
+export async function setMilitaryStance(
+  companyId: string,
+  stance: number,
+): Promise<void> {
+  if (!/^\d+$/.test(companyId)) throw new Error('Invalid military company id.');
+  await callReducer('setMilitaryStance', 'set_military_stance', {
+    companyId: BigInt(companyId),
+    stance: Math.max(0, Math.min(4, Math.floor(stance))),
   });
 }
 

@@ -21,8 +21,8 @@ pub use commodities::{
     building_commodity_cap, building_commodity_room, building_commodity_stock,
     building_edible_food_stock, building_food_progression_met, building_fresh_food_stock,
     building_preservable_food_stock, building_preserved_food_stock, credit_treasury_commodity,
-    deposit_building_commodity, deposit_residence_commodity, first_building_edible_commodity,
-    flour_bulk_stock, food_category, food_commodity_advances_residence_progression,
+    deposit_building_commodity, deposit_residence_commodity, flour_bulk_stock, food_category,
+    food_commodity_advances_residence_progression,
     household_food_units_per_day_for_tier, residence_commodity_stock, residence_edible_food_stock,
     residence_food_category_mask, residence_food_progression_met,
     residence_food_progression_required_slots, residence_food_progression_slots,
@@ -61,9 +61,8 @@ pub use parish_accounting::{
 };
 pub use population::{
     assign_building_labor, available_building_labor, available_workplace_labor,
-    guardhouse_roster_count, guardhouse_roster_floors, initial_construction_labor,
-    preempt_flexible_labor_for_workplace_callup, queued_construction_callup_labor,
-    reconcile_building_labor, residence_population_for_parcel,
+    initial_construction_labor, preempt_flexible_labor_for_workplace_callup,
+    queued_construction_callup_labor, reconcile_building_labor, residence_population_for_parcel,
 };
 pub use regional_market::{
     ensure_market_state, price_multiplier_for, record_market_trade, step_regional_markets,
@@ -78,7 +77,7 @@ pub use storage::{
     construction_treasury_reservation_excluding_building, credit_treasury_gold,
     credit_treasury_gold_for_settlement, credit_treasury_stone, credit_treasury_timber,
     deposit_building, residence_firewood_capacity, residence_food_capacity,
-    residence_water_capacity, restore_treasury_gold, spend_treasury_gold, total_ironwork,
+    residence_water_capacity, spend_treasury_gold, total_ironwork,
     total_roof_tiles, total_stone, total_timber, treasury_gold, withdraw_building,
     withdraw_building_water,
 };

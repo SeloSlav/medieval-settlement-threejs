@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { edibleFoodStock } from '../economy/foodInventory.ts';
 import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
 import {
@@ -10,7 +9,6 @@ import {
 export const CARPENTER_TIMBER_VISUAL_SEGMENTS = 5;
 export const CARPENTER_IRONWORK_VISUAL_SEGMENTS = 3;
 export const CARPENTER_POLEARM_VISUAL_SEGMENTS = 6;
-export const GUARDHOUSE_FOOD_VISUAL_SEGMENTS = 2;
 export const GUARDHOUSE_POLEARM_VISUAL_SEGMENTS = 6;
 
 export function armoryStockpileVisualSignature(
@@ -41,12 +39,6 @@ export function armoryStockpileVisualSignature(
       }`;
     case 'guardhouse':
       return `:company-store:${
-        stockpileVisualLevel(
-          edibleFoodStock(building),
-          BUILDING_STORAGE_CAPS.guardhouse.food,
-          GUARDHOUSE_FOOD_VISUAL_SEGMENTS,
-        )
-      }:${
         stockpileVisualLevel(
           Math.max(0, (building.polearms ?? 0) - issuedGuardPolearms),
           BUILDING_STORAGE_CAPS.guardhouse.polearms ?? 0,
@@ -88,13 +80,6 @@ export function syncArmoryStockpileVisuals(
       );
       break;
     case 'guardhouse':
-      syncNamedStockpile(
-        marker,
-        'GuardhouseFoodStockpile',
-        'GuardhouseFoodSegment',
-        edibleFoodStock(building),
-        BUILDING_STORAGE_CAPS.guardhouse.food,
-      );
       syncNamedStockpile(
         marker,
         'GuardhousePolearmStockpile',

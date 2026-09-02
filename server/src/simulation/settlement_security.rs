@@ -7,8 +7,7 @@ use crate::db::*;
 use crate::economy::CommodityKind;
 use crate::raid_agent_policy::{
     playable_half_for_map_size, raid_approach_from_entry, raid_entry_point,
-    raid_entry_point_for_approach, raid_party_size, select_guard_muster_slots,
-    COMBAT_FACTION_GUARD, COMBAT_STATE_HOLDING, COMBAT_TARGET_BUILDING, RAID_APPROACH_UNKNOWN,
+    raid_entry_point_for_approach, raid_party_size, RAID_APPROACH_UNKNOWN,
 };
 use crate::resource_units::whole_units;
 use crate::roads::{load_owner_road_network, RoadNetwork};
@@ -27,9 +26,7 @@ use crate::tables::{
 };
 
 use super::fires::FIRE_TARGET_BUILDING;
-use super::raid_agents::{
-    ensure_warned_guard_muster, issued_guard_polearms_by_building, unavailable_guard_slots,
-};
+use super::raid_agents::issued_guard_polearms_by_building;
 use super::{start_live_raid, LiveRaidTarget};
 
 struct SettlementExposure {
@@ -293,36 +290,32 @@ fn step_owner_security(
     let refuge_assignments =
         settlement_refuge_assignments(&residences, &watch_index, &refuge_index);
     let road_network = load_owner_road_network(ctx, owner);
-    let unavailable_guard_slots = unavailable_guard_slots(ctx, owner);
     let issued_guard_polearms = issued_guard_polearms_by_building(ctx, owner);
-    let staffed_watch_ids = towers
-        .iter()
-        .map(|tower| tower.source_id)
-        .collect::<HashSet<_>>();
-    let deployed_guard_readiness_by_watch = ctx
+    let company_guard_readiness_by_source = ctx
         .db
-        .combat_agent()
+        .military_company()
         .owner()
         .filter(&owner)
-        .filter(|agent| {
-            agent.faction == COMBAT_FACTION_GUARD
-                && agent.state == COMBAT_STATE_HOLDING
-                && agent.target_kind == COMBAT_TARGET_BUILDING
-                && staffed_watch_ids.contains(&agent.target_id)
-        })
-        .fold(HashMap::<u64, f64>::new(), |mut readiness, agent| {
-            *readiness.entry(agent.target_id).or_insert(0.0) += agent.readiness.clamp(0.0, 1.0);
+        .filter(|company| company.state == 1 && company.living_members > 0)
+        .fold(HashMap::<u64, (f64, f64)>::new(), |mut readiness, company| {
+            let assigned = f64::from(company.living_members);
+            let ready = assigned
+                * company.morale.clamp(0.0, 1.0)
+                * company.cohesion.clamp(0.0, 1.0)
+                * (1.0 - company.fatigue.clamp(0.0, 1.0) * 0.45);
+            let entry = readiness.entry(company.source_building_id).or_insert((0.0, 0.0));
+            entry.0 += ready;
+            entry.1 += assigned;
             readiness
-        });
+        })
+        ;
     let (district_ready_guards, assigned_guards, readiness_by_watch) = settlement_guard_districts(
         &buildings,
         &towers,
         road_network.as_ref(),
         environment.road_speed_multiplier(),
         &fire_disabled_buildings,
-        &unavailable_guard_slots,
-        &issued_guard_polearms,
-        &deployed_guard_readiness_by_watch,
+        &company_guard_readiness_by_source,
     );
     let exposure = settlement_exposure(
         &buildings,
@@ -438,19 +431,6 @@ fn step_owner_security(
                 }
             }
         }
-    }
-
-    if state.warning_started_tick > 0 {
-        ensure_warned_guard_muster(
-            ctx,
-            owner,
-            state.next_raid_tick,
-            sim_tick,
-            &buildings,
-            &towers,
-            road_network.as_ref(),
-            &fire_disabled_buildings,
-        );
     }
 
     if sim_tick >= state.next_raid_tick && is_raid_season(month) {
@@ -1503,9 +1483,7 @@ fn settlement_guard_districts(
     road_network: Option<&RoadNetwork>,
     road_speed_multiplier: f64,
     fire_disabled_buildings: &HashSet<u64>,
-    unavailable_guard_slots: &HashSet<(u64, u32)>,
-    issued_guard_polearms: &HashMap<u64, f64>,
-    deployed_guard_readiness_by_watch: &HashMap<u64, f64>,
+    company_guard_readiness_by_source: &HashMap<u64, (f64, f64)>,
 ) -> (f64, f64, HashMap<u64, f64>) {
     let watch_positions = towers
         .iter()
@@ -1515,35 +1493,20 @@ fn settlement_guard_districts(
         .iter()
         .map(|tower| tower.source_id)
         .collect::<Vec<_>>();
-    let mut total_ready = deployed_guard_readiness_by_watch.values().sum::<f64>();
+    let mut total_ready = 0.0;
     let mut assigned = 0.0;
-    let mut readiness_by_watch = deployed_guard_readiness_by_watch.clone();
+    let mut readiness_by_watch = HashMap::new();
 
     for guardhouse in buildings.iter().filter(|building| {
         building.construction_complete
             && building.kind == "guardhouse"
             && !fire_disabled_buildings.contains(&building.id)
     }) {
-        assigned += guardhouse.assigned_labor as f64;
-        let onsite_polearms = (guardhouse.polearms
-            - issued_guard_polearms
-                .get(&guardhouse.id)
-                .copied()
-                .unwrap_or(0.0))
-        .max(0.0);
-        let unavailable_here = unavailable_guard_slots
-            .iter()
-            .filter_map(|(building_id, slot)| (*building_id == guardhouse.id).then_some(*slot))
-            .collect::<Vec<_>>();
-        let armed_here = select_guard_muster_slots(
-            guardhouse.assigned_labor,
-            onsite_polearms,
-            &unavailable_here,
-        )
-        .len() as f64;
-        if armed_here <= 1e-9 {
+        let Some((ready_here, assigned_here)) = company_guard_readiness_by_source.get(&guardhouse.id)
+        else {
             continue;
-        }
+        };
+        assigned += *assigned_here;
         let Some(network) = road_network else {
             continue;
         };
@@ -1559,7 +1522,7 @@ fn settlement_guard_districts(
         let tower = &towers[watch_index];
         let muster_efficiency =
             guardhouse_muster_efficiency(Some(muster_distance), road_speed_multiplier);
-        let effective = armed_here * guardhouse.action_cooldown.clamp(0.0, 1.0) * muster_efficiency;
+        let effective = *ready_here * muster_efficiency;
         total_ready += effective;
         *readiness_by_watch.entry(tower.source_id).or_insert(0.0) += effective;
     }

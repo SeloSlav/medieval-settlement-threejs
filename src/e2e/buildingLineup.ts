@@ -200,8 +200,6 @@ const STOCKED_PREVIEW_PREFIXES = [
   'LinenStockSegment',
   'ClothStockpile',
   'ClothStockSegment',
-  'GuardhouseFoodStockpile',
-  'GuardhouseFoodSegment',
   'GuardhousePolearmStockpile',
   'GuardhousePolearmSegment',
   'ThreshingGrainStockpile',

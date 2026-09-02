@@ -17,4 +17,5 @@ export default __t.row({
   destinationX: __t.f64().name("destination_x"),
   destinationZ: __t.f64().name("destination_z"),
   targetCampId: __t.u64().name("target_camp_id"),
+  targetAgentId: __t.u64().name("target_agent_id"),
 });

@@ -905,23 +905,6 @@ export function computeGoldAwaitingCollection(
   return gold;
 }
 
-/** Gold already committed to local guard-company pay chests. */
-export function computeGuardhousePayrollGold(
-  buildings: Iterable<BuildingState>,
-): number {
-  let gold = 0;
-  for (const building of buildings) {
-    if (
-      building.kind === 'guardhouse'
-      && building.constructionComplete !== false
-      && Number.isFinite(building.gold)
-    ) {
-      gold += Math.max(0, building.gold);
-    }
-  }
-  return gold;
-}
-
 /** Private savings held by households, never spendable from the civic treasury. */
 export function computePrivateHouseholdWealth(
   residences: Iterable<ResidenceState>,

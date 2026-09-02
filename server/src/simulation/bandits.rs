@@ -160,6 +160,7 @@ fn spawn_camp_defenders(ctx: &ReducerContext, camp: &BanditCamp, tick: u64) {
             faction: BANDIT,
             source_building_id: 0,
             source_slot: slot,
+            resident_slot: 0,
             target_kind: 5,
             target_id: camp.id,
             engagement_target_id: 0,

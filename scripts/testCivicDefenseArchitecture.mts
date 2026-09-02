@@ -1,10 +1,7 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
-import {
-  GUARDHOUSE_FOOD_VISUAL_SEGMENTS,
-  GUARDHOUSE_POLEARM_VISUAL_SEGMENTS,
-} from '../src/buildings/armoryStockpileVisuals.ts';
+import { GUARDHOUSE_POLEARM_VISUAL_SEGMENTS } from '../src/buildings/armoryStockpileVisuals.ts';
 import {
   BUILDING_DETAIL_CASTER_BATCH_FLAG,
 } from '../src/buildings/buildingDetailShadowBatch.ts';
@@ -12,9 +9,6 @@ import {
   BUILDING_LOCAL_VISUAL_BOUNDS,
   BUILDING_VISUAL_BOUNDS_SAFETY_MARGIN,
 } from '../src/buildings/BuildingVisualBounds.ts';
-import {
-  GUARDHOUSE_PAYROLL_VISUAL_SEGMENTS,
-} from '../src/buildings/meshes/civicLogisticsBuildingMeshes.ts';
 import {
   KENNEL_ARCHITECTURE_PLAN,
   KENNEL_DOG_REST_ANCHORS,
@@ -441,10 +435,6 @@ assertNamedCount(storehouse, 'TradingPostReceiptSegment', 3);
 const guardhouse = model('guardhouse');
 assertHiddenRuntimeGroup(guardhouse, 'GuardhousePolearmStockpile');
 assertNamedCount(guardhouse, 'GuardhousePolearmSegment', GUARDHOUSE_POLEARM_VISUAL_SEGMENTS);
-assertHiddenRuntimeGroup(guardhouse, 'GuardhouseFoodStockpile');
-assertNamedCount(guardhouse, 'GuardhouseFoodSegment', GUARDHOUSE_FOOD_VISUAL_SEGMENTS);
-assertHiddenRuntimeGroup(guardhouse, 'GuardhousePayrollChest');
-assertNamedCount(guardhouse, 'GuardhousePayrollSegment', GUARDHOUSE_PAYROLL_VISUAL_SEGMENTS);
 
 const watchtower = model('watchtower');
 const [galleryDeck] = assertNamedCount(watchtower, 'Watchtower staffed gallery deck anchor', 1) as THREE.Mesh<THREE.BoxGeometry>[];

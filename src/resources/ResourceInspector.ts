@@ -165,8 +165,10 @@ type ResourceInspectorOptions = {
   onHireMercenaryCompany?: (townHallId: string) => void | Promise<void>;
   onDisbandMilitaryCompany?: (companyId: string) => void | Promise<void>;
   onRenewMercenaryContract?: (companyId: string) => void | Promise<void>;
+  onReinforceMilitaryCompany?: (companyId: string) => void | Promise<void>;
   onResupplyMilitaryCompany?: (companyId: string) => void | Promise<void>;
   onSetMilitaryFormation?: (companyId: string, formation: number) => void | Promise<void>;
+  onSetMilitaryStance?: (companyId: string, stance: number) => void | Promise<void>;
   onSetConstructionPriority?: (buildingId: string, priority: number) => void | Promise<void>;
   onSetTradingPostTradeRule?: (
     buildingId: string,
@@ -471,7 +473,6 @@ export class ResourceInspector {
   private storedTotals: ResourceTotals | null = null;
   private inTransitTotals: ResourceTotals | undefined;
   private goldAwaitingCollection = 0;
-  private guardhousePayrollGold = 0;
   private privateHouseholdWealth = 0;
   private populationStats: PopulationStats = {
     total: 0,
@@ -1007,11 +1008,24 @@ export class ResourceInspector {
       void this.options.onResupplyMilitaryCompany?.(resupplyMilitary.dataset.resupplyMilitaryCompany);
       return;
     }
+    const reinforceMilitary = (event.target as HTMLElement).closest<HTMLElement>('[data-reinforce-military-company]');
+    if (reinforceMilitary?.dataset.reinforceMilitaryCompany) {
+      void this.options.onReinforceMilitaryCompany?.(reinforceMilitary.dataset.reinforceMilitaryCompany);
+      return;
+    }
     const formation = (event.target as HTMLElement).closest<HTMLElement>('[data-military-formation]');
     if (formation?.dataset.militaryCompanyId && formation.dataset.militaryFormation != null) {
       void this.options.onSetMilitaryFormation?.(
         formation.dataset.militaryCompanyId,
         Number(formation.dataset.militaryFormation),
+      );
+      return;
+    }
+    const stance = (event.target as HTMLElement).closest<HTMLElement>('[data-military-stance]');
+    if (stance?.dataset.militaryCompanyId && stance.dataset.militaryStance != null) {
+      void this.options.onSetMilitaryStance?.(
+        stance.dataset.militaryCompanyId,
+        Number(stance.dataset.militaryStance),
       );
       return;
     }
@@ -2129,7 +2143,6 @@ export class ResourceInspector {
     starterCampCreated: boolean,
     inTransit?: ResourceTotals,
     goldAwaitingCollection = 0,
-    guardhousePayrollGold = 0,
     privateHouseholdWealth = 0,
   ): void {
     this.populationStats = population;
@@ -2137,7 +2150,6 @@ export class ResourceInspector {
     this.storedTotals = storedTotals;
     this.inTransitTotals = inTransit;
     this.goldAwaitingCollection = goldAwaitingCollection;
-    this.guardhousePayrollGold = guardhousePayrollGold;
     this.privateHouseholdWealth = privateHouseholdWealth;
     this.renderHudResourceTotals();
     const displayedPopulation = starterCampCreated ? population.total : 0;
@@ -2187,9 +2199,6 @@ export class ResourceInspector {
       const details = [];
       if (resource === 'gold' && this.goldAwaitingCollection > 1e-6) {
         details.push(`${formatTransitAmount(this.goldAwaitingCollection)} awaiting collection`);
-      }
-      if (resource === 'gold' && this.guardhousePayrollGold > 1e-6) {
-        details.push(`${formatTransitAmount(this.guardhousePayrollGold)} committed to company payroll`);
       }
       if (resource === 'gold' && this.privateHouseholdWealth > 1e-6) {
         details.push(`${formatTransitAmount(this.privateHouseholdWealth)} private household savings`);

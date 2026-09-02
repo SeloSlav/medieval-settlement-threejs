@@ -904,12 +904,6 @@ pub fn building_edible_food_stock(building: &Building) -> f64 {
         .sum()
 }
 
-pub fn first_building_edible_commodity(building: &Building) -> Option<CommodityKind> {
-    FOOD_CONSUMPTION_ORDER
-        .into_iter()
-        .find(|kind| building_commodity_stock(building, *kind) > 1e-6)
-}
-
 pub fn withdraw_building_edible_food(building: &mut Building, meal_amount: f64) -> f64 {
     let mut remaining = meal_amount.max(0.0);
     let mut meals_withdrawn = 0.0;

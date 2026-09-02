@@ -19,7 +19,6 @@ mod food_supplier;
 mod foraging_respawn;
 mod founding_site;
 mod game_calendar;
-mod guardhouse_payroll;
 mod household_discretionary_trade;
 mod household_distribution;
 mod labor_schedule;
@@ -89,7 +88,6 @@ pub use food_supplier::{step_fishing_camp, step_foragers_shed, step_hunters_hall
 pub use foraging_respawn::step_foraging_lifecycle;
 pub use founding_site::step_founding_sites;
 pub use game_calendar::{calendar_day_started, game_clock, holiday_observance, GameClock};
-pub use guardhouse_payroll::try_dispatch_guardhouse_payroll;
 pub use household_discretionary_trade::step_household_discretionary_trade;
 pub use household_distribution::{distribute_well_water, step_market_household_distribution};
 pub use labor_schedule::{labor_and_logistics_paused, production_labor_paused};

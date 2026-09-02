@@ -1,13 +1,21 @@
 import {
   MILITARY_FORMATIONS,
+  MILITARY_STANCES,
   MILITARY_RECRUITMENT,
+  militaryCompanyRankLabel,
   militaryCompanyRequiresProvisions,
   militaryCostText,
   militaryCompanyDisplayName,
   militaryCompanyGainsExperience,
   militaryFormationLabel,
+  militaryFormationAvailable,
+  militaryFormationDescription,
   militaryRecruitmentCost,
+  militaryReinforcementCost,
   militaryResupplyCost,
+  militaryStanceAvailable,
+  militaryStanceDescription,
+  militaryStanceLabel,
   type MilitaryCompanyKind,
   type MilitaryCompanyState,
 } from '../../security/militaryProgression.ts';
@@ -32,6 +40,16 @@ const FORMATION_GLYPH: Record<(typeof MILITARY_FORMATIONS)[number], string> = {
   column: '⋮',
   'shield-wall': '▰▰▰',
   loose: '·  ·  ·',
+  brace: '⌁⌁⌁',
+  wedge: '••›',
+};
+
+const STANCE_GLYPH: Record<(typeof MILITARY_STANCES)[number], string> = {
+  balanced: '◇',
+  'stand-ground': '▥',
+  'push-forward': '»',
+  'give-ground': '‹',
+  'missile-alert': '⌃',
 };
 
 const MOUNTED_KINDS = new Set<MilitaryCompanyKind>([
@@ -61,14 +79,15 @@ export function renderSelectedMilitaryCompanyInspector(
   options: { readOnlyPlaytest?: boolean } = {},
 ): SelectedMilitaryCompanyInspectorView {
   const gainsExperience = militaryCompanyGainsExperience(company.kind);
+  const rank = militaryCompanyRankLabel(company);
   const statusLabel = company.status[0]!.toUpperCase() + company.status.slice(1);
 
   return {
     eyebrow: company.kind === 'mercenary-spears'
       ? 'Mercenary company'
-      : gainsExperience ? 'Veteran company' : 'Military company',
+      : gainsExperience ? 'Standing company' : 'Military company',
     title: militaryCompanyDisplayName(company),
-    statusText: gainsExperience ? `Level ${company.level} · ${statusLabel}` : statusLabel,
+    statusText: rank ? `${rank} · ${statusLabel}` : statusLabel,
     statusState: company.status === 'active' ? 'active' : company.status === 'destroyed' ? 'warning' : 'idle',
     image: MILITARY_COMPANY_CARD_ART[company.kind],
     detailsHtml: '',
@@ -105,23 +124,40 @@ function renderSelectedCompanyCommands(
     && company.kind !== 'mercenary-spears'
     && company.status === 'active'
     && (needsProvisions || missingAmmunitionBundles > 0);
-  const mercenaryLeaving = company.kind === 'mercenary-spears' && company.status === 'leaving';
+  const mercenaryLeaving = company.kind === 'mercenary-spears'
+    && (company.status === 'leaving' || company.departureRequested);
   const mounted = MOUNTED_KINDS.has(company.kind);
   const retainerGold = company.livingMembers * 2;
+  const missingRanks = Math.max(0, company.targetSize - company.livingMembers);
+  const canReinforce = company.status === 'active'
+    && missingRanks > 0
+    && company.kind !== 'militia'
+    && company.kind !== 'mercenary-spears';
+  const reinforcementCost = canReinforce
+    ? militaryReinforcementCost(company.kind, missingRanks, militaryDemands)
+    : {};
   const availableFormations = MILITARY_FORMATIONS
-    .filter((formation) => !(
-      formation === 'shield-wall'
-      && ['crossbows', 'bowmen', 'polearms', 'hussars', 'armored-lancers', 'mounted-archers'].includes(company.kind)
-    ));
+    .filter((formation) => militaryFormationAvailable(company.kind, formation));
   const formationButtons = availableFormations
     .map((formation) => `
       <button type="button" class="resource-action-button military-formation-button${company.formation === formation ? ' is-selected' : ''}"
         data-military-company-id="${company.id}" data-military-formation="${MILITARY_FORMATIONS.indexOf(formation)}"
         data-formation-kind="${formation}" aria-pressed="${company.formation === formation}"
-        data-tooltip="${company.formation === formation ? 'Current company formation.' : `Order the company into ${militaryFormationLabel(formation).toLowerCase()} formation.`}"
+        data-tooltip="${militaryFormationDescription(formation)}"
         ${!canCommand || company.formation === formation ? 'disabled' : ''}>
         <span class="military-formation-button__glyph" aria-hidden="true">${FORMATION_GLYPH[formation]}</span>
         <span class="military-formation-button__label">${militaryFormationLabel(formation)}</span>
+      </button>
+    `).join('');
+  const availableStances = MILITARY_STANCES
+    .filter((stance) => militaryStanceAvailable(company.kind, stance));
+  const stanceButtons = availableStances.map((stance) => `
+      <button type="button" class="resource-action-button military-formation-button${company.stance === stance ? ' is-selected' : ''}"
+        data-military-company-id="${company.id}" data-military-stance="${MILITARY_STANCES.indexOf(stance)}"
+        aria-pressed="${company.stance === stance}" data-tooltip="${militaryStanceDescription(stance)}"
+        ${!canCommand || company.stance === stance ? 'disabled' : ''}>
+        <span class="military-formation-button__glyph" aria-hidden="true">${STANCE_GLYPH[stance]}</span>
+        <span class="military-formation-button__label">${militaryStanceLabel(stance)}</span>
       </button>
     `).join('');
   const lifecycleAction = mercenaryLeaving
@@ -145,7 +181,10 @@ function renderSelectedCompanyCommands(
       ${mountedSupplyRows}
       <div class="military-company-card__section-heading">Formation</div>
       <div class="resource-action-row military-company-card__formations" data-formation-count="${availableFormations.length}">${formationButtons}</div>
+      <div class="military-company-card__section-heading">Stance</div>
+      <div class="resource-action-row military-company-card__formations" data-formation-count="${availableStances.length}">${stanceButtons}</div>
       <div class="resource-action-row military-company-card__actions">
+        ${canReinforce ? `<button type="button" class="resource-action-button resource-action-button--icon military-company-action" data-reinforce-military-company="${company.id}" data-tooltip="Call ${missingRanks} replacement ${missingRanks === 1 ? 'man' : 'men'} to muster with this company."><span class="inspector-action-icon" data-action-icon="militia" aria-hidden="true"></span><span class="military-company-action__copy"><strong>Reinforce</strong><small>${renderResourceCost(reinforcementCost, { compact: true })}</small></span></button>` : ''}
         ${canResupply ? `<button type="button" class="resource-action-button resource-action-button--icon military-company-action" data-resupply-military-company="${company.id}" data-tooltip="${needsProvisions ? "Issue three days' supplies." : 'Replace the company ammunition.'}"><span class="inspector-action-icon" data-action-icon="resupply-company" aria-hidden="true"></span><span class="military-company-action__copy"><strong>Resupply</strong><small>${renderResourceCost(resupplyCost, { compact: true })}</small></span></button>` : ''}
         ${lifecycleAction}
       </div>
@@ -231,7 +270,6 @@ function renderCompany(
   company: MilitaryCompanyState,
   militaryDemands: ReturnType<typeof getActiveWorldGeneration>['militaryDemands'],
 ): string {
-  const percent = (value: number) => `${Math.round(value * 100)}%`;
   const canCommand = company.status === 'active' || company.status === 'mustering';
   const needsProvisions = militaryCompanyRequiresProvisions(company.kind, militaryDemands);
   const missingAmmunition = Math.max(0, company.ammunitionCapacity - company.ammunition);
@@ -245,53 +283,59 @@ function renderCompany(
     && company.kind !== 'mercenary-spears'
     && company.status === 'active'
     && (needsProvisions || missingAmmunitionBundles > 0);
-  const mercenaryLeaving = company.kind === 'mercenary-spears' && company.status === 'leaving';
-  const mounted = MOUNTED_KINDS.has(company.kind);
+  const mercenaryLeaving = company.kind === 'mercenary-spears'
+    && (company.status === 'leaving' || company.departureRequested);
   const retainerGold = company.livingMembers * 2;
-  const ammunition = company.ammunitionCapacity > 0
-    ? `<li><span>${company.kind === 'bowmen' || company.kind === 'mounted-archers' ? 'Arrows' : 'Bolts'}</span><span>${company.ammunition} / ${company.ammunitionCapacity}</span></li>`
-    : '';
-  const provisions = needsProvisions
-    ? `<li><span>Field provisions</span><span>${company.provisionDays.toFixed(1)} days</span></li>`
-    : '';
-  const horseSupply = mounted
-    ? `<li><span>Horse field stores</span><span>${company.horseOats.toFixed(0)} oats · ${company.horseWater.toFixed(0)} water</span></li>
-       <li><span>Horse ration</span><span>Oats Mar–Nov; feed Dec–Feb; never both · water year-round</span></li>`
-    : '';
-  const mercenaryContract = company.kind === 'mercenary-spears'
-    ? `<li><span>Contract</span><span>1 gold/man/day · 7 quiet days · 21-day term</span></li>`
-    : '';
+  const rank = militaryCompanyRankLabel(company);
+  const missingRanks = Math.max(0, company.targetSize - company.livingMembers);
+  const canReinforce = company.status === 'active'
+    && missingRanks > 0
+    && company.kind !== 'militia'
+    && company.kind !== 'mercenary-spears';
+  const reinforcementCost = canReinforce
+    ? militaryReinforcementCost(company.kind, missingRanks, militaryDemands)
+    : {};
   const formationButtons = MILITARY_FORMATIONS
-    .filter((formation) => !(
-      formation === 'shield-wall'
-      && ['crossbows', 'bowmen', 'polearms', 'hussars', 'armored-lancers', 'mounted-archers'].includes(company.kind)
-    ))
+    .filter((formation) => militaryFormationAvailable(company.kind, formation))
     .map((formation) => `
-      <button type="button" class="resource-action-button resource-action-button--icon resource-action-button--secondary"
+      <button type="button" class="resource-action-button military-formation-button${company.formation === formation ? ' is-selected' : ''}"
         data-military-company-id="${company.id}" data-military-formation="${MILITARY_FORMATIONS.indexOf(formation)}"
+        aria-pressed="${company.formation === formation}" data-tooltip="${militaryFormationDescription(formation)}"
         ${!canCommand || company.formation === formation ? 'disabled' : ''}>
-        <span class="inspector-action-icon" data-action-icon="formation" aria-hidden="true"></span>
-        <span>${militaryFormationLabel(formation)}</span>
+        <span class="military-formation-button__glyph" aria-hidden="true">${FORMATION_GLYPH[formation]}</span>
+        <span class="military-formation-button__label">${militaryFormationLabel(formation)}</span>
+      </button>
+    `).join('');
+  const stanceButtons = MILITARY_STANCES
+    .filter((stance) => militaryStanceAvailable(company.kind, stance))
+    .map((stance) => `
+      <button type="button" class="resource-action-button military-formation-button${company.stance === stance ? ' is-selected' : ''}"
+        data-military-company-id="${company.id}" data-military-stance="${MILITARY_STANCES.indexOf(stance)}"
+        aria-pressed="${company.stance === stance}" data-tooltip="${militaryStanceDescription(stance)}"
+        ${!canCommand || company.stance === stance ? 'disabled' : ''}>
+        <span class="military-formation-button__glyph" aria-hidden="true">${STANCE_GLYPH[stance]}</span>
+        <span class="military-formation-button__label">${militaryStanceLabel(stance)}</span>
       </button>
     `).join('');
   return `
     <div class="inspector-action-panel military-company-card" data-inspector-panel-title="${militaryCompanyDisplayName(company)}">
       <ul class="resource-inspector-details military-company-card__details">
         <li><span>State</span><span>${company.status} · ${company.livingMembers} / ${company.targetSize} living</span></li>
-        <li><span>Formation</span><span>${militaryFormationLabel(company.formation)}</span></li>
-        <li><span>Morale</span><span>${percent(company.morale)}</span></li>
-        <li><span>Cohesion</span><span>${percent(company.cohesion)}</span></li>
-        <li><span>Fatigue</span><span>${percent(company.fatigue)}</span></li>
-        ${provisions}${horseSupply}${mercenaryContract}${ammunition}
+        ${rank ? `<li><span>Rank</span><span>${rank}</span></li>` : ''}
+        <li><span>Orders</span><span>${militaryFormationLabel(company.formation)} · ${militaryStanceLabel(company.stance)}</span></li>
       </ul>
-      <div class="resource-action-row military-company-card__formations">${formationButtons}</div>
-      <div class="resource-action-row">
+      <div class="military-company-card__section-heading">Formation</div>
+      <div class="resource-action-row military-company-card__formations" data-formation-count="${MILITARY_FORMATIONS.filter((formation) => militaryFormationAvailable(company.kind, formation)).length}">${formationButtons}</div>
+      <div class="military-company-card__section-heading">Stance</div>
+      <div class="resource-action-row military-company-card__formations" data-formation-count="${MILITARY_STANCES.filter((stance) => militaryStanceAvailable(company.kind, stance)).length}">${stanceButtons}</div>
+      <div class="resource-action-row military-company-card__actions">
+        ${canReinforce ? `<button type="button" class="resource-action-button resource-action-button--icon" data-reinforce-military-company="${company.id}" data-tooltip="Call ${missingRanks} replacement ${missingRanks === 1 ? 'man' : 'men'} to muster with this company."><span class="inspector-action-icon" data-action-icon="militia" aria-hidden="true"></span><span>Reinforce<br><small>${militaryCostText(reinforcementCost)}</small></span></button>` : ''}
         ${canResupply ? `<button type="button" class="resource-action-button resource-action-button--icon" data-resupply-military-company="${company.id}"><span class="inspector-action-icon" data-action-icon="resupply-company" aria-hidden="true"></span><span>${needsProvisions ? "Issue three days' supplies" : 'Replace ammunition'}<br><small>${militaryCostText(resupplyCost)}</small></span></button>` : ''}
         ${mercenaryLeaving
           ? `<button type="button" class="resource-action-button resource-action-button--icon" data-renew-mercenary-contract="${company.id}"><span class="inspector-action-icon" data-action-icon="mercenaries" aria-hidden="true"></span><span>Pay ${retainerGold} gold to retain company</span></button>`
           : `<button type="button" class="resource-action-button resource-action-button--icon resource-action-button--secondary" data-disband-military-company="${company.id}" ${company.status === 'disbanding' || company.status === 'leaving' || company.status === 'destroyed' ? 'disabled' : ''}><span class="inspector-action-icon" data-action-icon="disband-company" aria-hidden="true"></span><span>${company.kind === 'mercenary-spears' ? 'End contract and send to region edge' : 'Disband and return home'}</span></button>`}
       </div>
-      <p class="inspector-action-panel__hint">${mercenaryLeaving ? 'This company is marching back to its original map edge and ignores all movement and attack orders. Pay the displayed two-day retainer before its final survivor exits to restore control and begin a fresh contract.' : 'Click any soldier or drag across a formation to select the entire company. A compact selection circle marks the selected company; right-click moves or attacks with the company as one RTS unit.'} Fallen equipment creates a recoverable battlefield pile. ${mounted ? 'Mounted survivors return kit to the Cavalry Yard, ride their exact horses back to the reserved home pastures, then walk home.' : 'Resident survivors return kit and walk back to their home—or the nearest available home if theirs was lost.'}</p>
+      ${mercenaryLeaving ? '<p class="inspector-action-panel__hint">The company will leave after its current engagement; retain it here to keep it in service.</p>' : ''}
     </div>
   `;
 }

@@ -39,7 +39,9 @@ try {
     kind: 'mercenary-spears',
     sourceBuildingId: 'town-hall-1',
     status: 'leaving',
+    departureRequested: false,
     formation: 'line',
+    stance: 'balanced',
     targetSize: 8,
     livingMembers: 6,
     morale: 0.6,
@@ -58,7 +60,7 @@ try {
   const retainer = page.locator('[data-renew-mercenary-contract="91"]');
   await retainer.waitFor();
   assert.equal((await retainer.innerText()).trim(), 'Pay 12 gold to retain company');
-  assert.ok((await page.locator('main').innerText()).includes('ignores all movement and attack orders'));
+  assert.ok((await page.locator('main').innerText()).includes('will leave after its current engagement'));
   assert.equal(await page.locator('[data-disband-military-company]').count(), 0);
   console.log(`Military browser UI passed: ${renderedKinds.length} recruitment cards, the finite mercenary term, reversible edge departure, and all new woodcut icons rendered.`);
 } finally {

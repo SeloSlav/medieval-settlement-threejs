@@ -6,7 +6,6 @@ import {
   CARPENTER_IRONWORK_VISUAL_SEGMENTS,
   CARPENTER_POLEARM_VISUAL_SEGMENTS,
   CARPENTER_TIMBER_VISUAL_SEGMENTS,
-  GUARDHOUSE_FOOD_VISUAL_SEGMENTS,
   GUARDHOUSE_POLEARM_VISUAL_SEGMENTS,
   syncArmoryStockpileVisuals,
 } from '../src/buildings/armoryStockpileVisuals.ts';
@@ -32,12 +31,6 @@ const stockGroups = [
     'CarpenterPolearmStockpile',
     'CarpenterPolearmSegment',
     CARPENTER_POLEARM_VISUAL_SEGMENTS,
-  ],
-  [
-    'guardhouse',
-    'GuardhouseFoodStockpile',
-    'GuardhouseFoodSegment',
-    GUARDHOUSE_FOOD_VISUAL_SEGMENTS,
   ],
   [
     'guardhouse',
@@ -94,12 +87,6 @@ syncArmoryStockpileVisuals(
 );
 assertVisibleSegments(
   guardhouseMarker,
-  'GuardhouseFoodStockpile',
-  'GuardhouseFoodSegment',
-  2,
-);
-assertVisibleSegments(
-  guardhouseMarker,
   'GuardhousePolearmStockpile',
   'GuardhousePolearmSegment',
   3,
@@ -116,12 +103,6 @@ assertVisibleSegments(
   1,
 );
 syncArmoryStockpileVisuals(guardhouseMarker, building('guardhouse'));
-assertVisibleSegments(
-  guardhouseMarker,
-  'GuardhouseFoodStockpile',
-  'GuardhouseFoodSegment',
-  0,
-);
 assertVisibleSegments(
   guardhouseMarker,
   'GuardhousePolearmStockpile',

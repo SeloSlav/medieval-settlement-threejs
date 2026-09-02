@@ -25,8 +25,7 @@ use crate::economy::{
     assign_building_labor as set_building_labor, available_building_labor,
     available_workplace_labor, building_commodity_cap, building_commodity_stock, building_cost,
     building_salvage_refund, construction_treasury_reservation, credit_treasury_commodity,
-    guardhouse_roster_count, guardhouse_roster_floors, initial_construction_labor,
-    preempt_flexible_labor_for_workplace_callup, spend_aggregate_ironwork,
+    initial_construction_labor, preempt_flexible_labor_for_workplace_callup, spend_aggregate_ironwork,
     spend_aggregate_roof_tiles, spend_aggregate_stone, spend_aggregate_timber, spend_treasury_gold,
     total_ironwork, total_roof_tiles, total_stone, total_timber, CommodityKind,
 };
@@ -2022,7 +2021,6 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext, town_hall_id: u64) -> Resu
     let mut fire_disabled_sites = Vec::new();
     let mut fire_recalled_labor = 0_u32;
     let cart_floors = staffed_cart_workers_by_building(ctx, owner);
-    let roster_floors = guardhouse_roster_floors(ctx, owner);
     for building in ctx.db.building().owner().filter(&owner).filter(|building| {
         building.construction_complete && building.settlement_id == settlement_id
     }) {
@@ -2034,11 +2032,7 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext, town_hall_id: u64) -> Resu
         }
         if building_fire_state(ctx, building.id).is_some() {
             if building.assigned_labor > 0 {
-                let cart_floor = cart_floors
-                    .get(&building.id)
-                    .copied()
-                    .unwrap_or(0)
-                    .max(roster_floors.get(&building.id).copied().unwrap_or(0));
+                let cart_floor = cart_floors.get(&building.id).copied().unwrap_or(0);
                 let releasable = building.assigned_labor.saturating_sub(cart_floor);
                 available_labor = available_labor.saturating_add(releasable);
                 fire_recalled_labor = fire_recalled_labor.saturating_add(releasable);
@@ -2050,11 +2044,7 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext, town_hall_id: u64) -> Resu
             building_id: building.id,
             priority: CONSTRUCTION_PRIORITY_NORMAL,
             assigned_labor: building.assigned_labor,
-            minimum_labor: cart_floors
-                .get(&building.id)
-                .copied()
-                .unwrap_or(0)
-                .max(roster_floors.get(&building.id).copied().unwrap_or(0)),
+            minimum_labor: cart_floors.get(&building.id).copied().unwrap_or(0),
             max_labor: def.max_labor,
         });
     }
@@ -2078,9 +2068,9 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext, town_hall_id: u64) -> Resu
         {
             continue;
         }
-        let roster_floor = roster_floors.get(&building.id).copied().unwrap_or(0);
-        preserve_in_transit_cart_labor(ctx, building.id, roster_floor);
-        building.assigned_labor = roster_floor;
+        let cart_floor = cart_floors.get(&building.id).copied().unwrap_or(0);
+        preserve_in_transit_cart_labor(ctx, building.id, cart_floor);
+        building.assigned_labor = cart_floor;
         ctx.db.building().id().update(building);
     }
     for (building_id, target_labor) in rotation.targets {
@@ -3154,17 +3144,10 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
                 .to_string(),
         );
     }
-    if building.kind == "guardhouse" {
-        let committed = guardhouse_roster_count(ctx, owner, building.id);
-        if committed > 0 {
-            return Err(format!(
-                "This company still has {} guard{} deployed, returning, or recovering; wait until every guard has returned and recovered before demolition.",
-                committed,
-                if committed == 1 { "" } else { "s" },
-            ));
-        }
-    }
-    if matches!(building.kind.as_str(), "guardhouse" | "cavalry_yard") {
+    if matches!(
+        building.kind.as_str(),
+        "town_hall" | "guardhouse" | "cavalry_yard"
+    ) {
         let attached_companies = ctx
             .db
             .military_company()

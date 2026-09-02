@@ -57,6 +57,7 @@ pub fn purchase_kennel_dog(ctx: &ReducerContext, kennel_id: u64) -> Result<(), S
         faction: GUARD_DOG_FACTION,
         source_building_id: kennel_id,
         source_slot: u32::from(slot),
+        resident_slot: 0,
         assigned_building_id: 0,
         target_kind: 0,
         target_id: kennel_id,

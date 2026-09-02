@@ -38,11 +38,6 @@ import {
   WATCHTOWER_ROOF_HEIGHT,
 } from '../watchtowerLayout.ts';
 import {
-  BUILDING_DEFINITIONS,
-  GUARDHOUSE_PAYROLL_TARGET_DAYS,
-  GUARDHOUSE_WAGE_PER_GUARD_PER_DAY,
-} from '../../generated/gameBalance.ts';
-import {
   STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS,
   STOREHOUSE_IRON_VISUAL_SEGMENTS,
   STOREHOUSE_CLAY_VISUAL_SEGMENTS,
@@ -50,19 +45,10 @@ import {
   STOREHOUSE_STONE_VISUAL_SEGMENTS,
   STOREHOUSE_TIMBER_VISUAL_SEGMENTS,
 } from '../buildingStockpileVisuals.ts';
-import {
-  GUARDHOUSE_FOOD_VISUAL_SEGMENTS,
-  GUARDHOUSE_POLEARM_VISUAL_SEGMENTS,
-} from '../armoryStockpileVisuals.ts';
+import { GUARDHOUSE_POLEARM_VISUAL_SEGMENTS } from '../armoryStockpileVisuals.ts';
 import { addStockedPolearmRack } from './polearmRack.ts';
 
 const earth = sharedBuildingDetailMaterial('earth');
-export const GUARDHOUSE_PAYROLL_VISUAL_SEGMENTS = 3;
-export const GUARDHOUSE_PAYROLL_VISUAL_CAPACITY =
-  BUILDING_DEFINITIONS.guardhouse.maxLabor
-  * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY
-  * GUARDHOUSE_PAYROLL_TARGET_DAYS;
-
 type TimberMember = Readonly<{
   start: readonly [number, number, number];
   end: readonly [number, number, number];
@@ -303,49 +289,6 @@ function addTradingPostProceedsChest(group: THREE.Group): void {
       new THREE.BoxGeometry(0.07, 0.45, 0.52),
       metalMaterial('iron'),
       new THREE.Vector3(x, y + 0.26, z),
-    );
-    chest.add(segment);
-  });
-  group.add(chest);
-}
-
-function addGuardhousePayrollChest(group: THREE.Group): void {
-  const chest = new THREE.Group();
-  chest.name = 'GuardhousePayrollChest';
-  chest.visible = false;
-  const placements = [
-    [3.3, 0.06, 1.45],
-    [4.05, 0.06, 1.45],
-    [4.8, 0.06, 1.45],
-  ] as const;
-  placements.forEach(([x, y, z], index) => {
-    const segment = new THREE.Group();
-    segment.name = 'GuardhousePayrollSegment';
-    segment.visible = false;
-    addMesh(
-      segment,
-      new THREE.BoxGeometry(0.62, 0.42, 0.5),
-      timberMaterial(index === 1 ? 'weathered' : 'dark'),
-      new THREE.Vector3(x, y + 0.23, z),
-    );
-    addMesh(
-      segment,
-      new THREE.CylinderGeometry(0.25, 0.25, 0.62, 8, 1, false, 0, Math.PI),
-      timberMaterial('weathered'),
-      new THREE.Vector3(x, y + 0.48, z),
-      new THREE.Euler(0, 0, Math.PI * 0.5),
-    );
-    addMesh(
-      segment,
-      new THREE.BoxGeometry(0.07, 0.48, 0.54),
-      metalMaterial('iron'),
-      new THREE.Vector3(x, y + 0.32, z),
-    );
-    addMesh(
-      segment,
-      new THREE.BoxGeometry(0.14, 0.18, 0.08),
-      sharedBuildingDetailMaterial('brass'),
-      new THREE.Vector3(x, y + 0.32, z + 0.29),
     );
     chest.add(segment);
   });
@@ -948,23 +891,6 @@ export function createGuardhouseMesh(): THREE.Group {
     segmentName: 'GuardhousePolearmSegment',
     segmentCount: GUARDHOUSE_POLEARM_VISUAL_SEGMENTS,
   });
-  const foodStockpile = new THREE.Group();
-  foodStockpile.name = 'GuardhouseFoodStockpile';
-  foodStockpile.visible = false;
-  const foodCrates = [
-    [5.55, 0.02, -0.1, 1.08],
-    [3.75, 0.02, -0.52, 0.75],
-  ] as const;
-  for (let index = 0; index < GUARDHOUSE_FOOD_VISUAL_SEGMENTS; index += 1) {
-    const segment = new THREE.Group();
-    segment.name = 'GuardhouseFoodSegment';
-    const [x, y, z, scale] = foodCrates[index];
-    addCrate(segment, x, y, z, scale, `guardhouse-food-crate-${index + 1}`);
-    foodStockpile.add(segment);
-  }
-  group.add(foodStockpile);
-  addGuardhousePayrollChest(group);
-
   // A compact palisade fragment frames the drill yard without implying a full
   // wall system. The posts and tips are two shared-material instance draws,
   // rather than fourteen tiny meshes with alternating near-white timber.
