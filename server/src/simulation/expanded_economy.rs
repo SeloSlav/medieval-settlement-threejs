@@ -3408,6 +3408,7 @@ pub fn step_military_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
         }
         ctx.db.building().id().update(source);
         let stats = military_stats(kind);
+        let joining_ids = members.iter().map(|member| member.combat_agent_id).collect::<Vec<_>>();
         for mut member in members {
             let Some(mut agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
                 continue;
@@ -3447,6 +3448,7 @@ pub fn step_military_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
             .map(|member| member.ammunition_capacity)
             .sum();
         company.ammunition = living_members.iter().map(|member| member.ammunition).sum();
+        super::military::join_mustered_members(ctx, &company, &joining_ids);
         ctx.db.military_company().id().update(company);
     }
     step_cavalry_company_field_resupply(ctx, tick, clock);

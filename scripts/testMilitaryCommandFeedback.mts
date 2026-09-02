@@ -9,6 +9,7 @@ import {
   sampleMilitaryOrderFeedback,
 } from '../src/security/MilitaryOrderFeedbackRenderer.ts';
 import { CombatPlaytestSimulation } from '../src/app/combatPlaytest.ts';
+import { sampleTerrainMeshSurfaceHeight } from '../src/terrain/TerrainMeshHeight.ts';
 
 type Listener = (event: Event) => void;
 type ListenerEntry = {
@@ -201,6 +202,8 @@ camera.updateMatrixWorld(true);
 camera.updateProjectionMatrix();
 
 let pickedPoint = { x: 12, z: -6 };
+let terrainHeight = (_x: number, _z: number): number => 2;
+const renderedPositions = new Map<string, { x: number; z: number }>();
 let nowMs = 4_000;
 const orders: {
   ids: string[];
@@ -237,7 +240,8 @@ const controller = new MilitiaCommandController({
     pick: () => ({ x: pickedPoint.x, y: 0, z: pickedPoint.z }),
   } as never,
   parent: scene,
-  getHeightAt: () => 2,
+  getHeightAt: (x, z) => terrainHeight(x, z),
+  getAgentPosition: (id) => renderedPositions.get(id) ?? null,
   getZoomPercent: () => 100,
   isBlocked: () => false,
   onCommand: (ids, x, z, campId, targetAgentId) => orders.push({
@@ -257,6 +261,7 @@ const controller = new MilitiaCommandController({
 const agents = new Map<string, CombatAgentState>([
   ['friendly-1', combatAgent('friendly-1', 'militia', 'company-a', 0, 0)],
   ['friendly-2', combatAgent('friendly-2', 'militia', 'company-a', 1, 0)],
+  ['other-company-1', combatAgent('other-company-1', 'spearman', 'company-b', 8, 0)],
   ['raider-1', combatAgent('raider-1', 'raider', null, 12, -6)],
 ]);
 controller.sync(agents, new Map<string, BanditCampState>());
@@ -277,9 +282,15 @@ window.dispatchEvent(mouseEvent('mouseup', 0, selectX, selectY, 0, canvas));
 assert.equal(selectedCompany, 'company-a', 'left-click must select the whole company');
 assert.equal(
   companyRingRoot.children.filter((ring) => ring.visible).length,
-  1,
-  'selecting one company should reveal exactly one company selection ring',
+  2,
+  'selecting a company must ring every member, without marking the other company or enemies',
 );
+for (const child of companyRingRoot.children) {
+  const ring = child as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+  assert.equal(ring.material.color.getHex(), 0xffffff);
+  assert.equal(ring.material.depthTest, true, 'soldiers and terrain must occlude the rings');
+  assert.equal(ring.material.depthWrite, false);
+}
 
 controller.clearSelection();
 assert.equal(
@@ -306,17 +317,60 @@ assert.equal(
 assert.equal(selectedCompanyChanges, 1, 'a direct soldier click must open exactly one company selection');
 assert.equal(ordinaryVillagerInspections, 0, 'a player soldier must not show the individual villager marker');
 
-// Combat can pull surviving members far apart. A selection marker must remain a
-// compact command affordance rather than stretching across the whole scattered
-// company and obscuring the battlefield.
+// Scattered soldiers keep their own compact markers at their feet.
 agents.set('friendly-2', combatAgent('friendly-2', 'militia', 'company-a', 120, 0));
 controller.sync(agents, new Map<string, BanditCampState>());
-const selectedRing = companyRingRoot.children.find((ring) => ring.visible);
-assert.ok(selectedRing, 'the selected company should retain its ring across simulation syncs');
-assert.ok(
-  selectedRing.scale.x <= 12 && selectedRing.scale.z <= 12,
-  'a scattered company selection ring must stay within the compact 12 m presentation cap',
+assert.deepEqual(companyRingRoot.children.map((ring) => ring.position.x), [0, 120]);
+const movingRing = companyRingRoot.children[1] as THREE.Mesh<THREE.BufferGeometry>;
+const movingGeometry = movingRing.geometry;
+const movingAttribute = movingGeometry.getAttribute('position');
+terrainHeight = (x, z) => 2 + x * 0.3 + z * 0.2 + Math.abs(z) * 0.4;
+renderedPositions.set('friendly-2', { x: 119.25, z: 0.15 });
+controller.update(nowMs);
+assert.equal(movingRing.position.x, 119.25, 'rings follow interpolated motion between simulation ticks');
+assert.equal(movingRing.position.z, 0.15);
+assert.equal(movingRing.geometry, movingGeometry, 'motion must reuse the uploaded geometry');
+assert.equal(movingGeometry.getAttribute('position'), movingAttribute);
+let lowestY = Infinity;
+let highestY = -Infinity;
+for (let vertex = 0; vertex < movingAttribute.count; vertex += 1) {
+  const x = movingRing.position.x + movingAttribute.getX(vertex);
+  const z = movingRing.position.z + movingAttribute.getZ(vertex);
+  const y = movingRing.position.y + movingAttribute.getY(vertex);
+  assert.ok(Math.abs(y - terrainHeight(x, z) - 0.025) < 1e-5, 'both ring edges must hug the terrain');
+  assert.ok(Math.hypot(movingAttribute.getX(vertex), movingAttribute.getZ(vertex)) < 0.57);
+  lowestY = Math.min(lowestY, y);
+  highestY = Math.max(highestY, y);
+}
+assert.ok(highestY - lowestY > 0.3, 'the ring must wrap the ridge instead of using one flat elevation');
+agents.set('friendly-2', { ...agents.get('friendly-2')!, status: 'downed' });
+controller.sync(agents, new Map());
+assert.equal(companyRingRoot.children.length, 1, 'casualties immediately lose their selection ring');
+assert.equal(movingRing.parent, null, 'removed rings must leave the scene');
+terrainHeight = () => 2;
+
+// Surface decals must agree with actual mesh triangles on non-planar cells.
+const terrainGeometry = new THREE.BufferGeometry();
+terrainGeometry.setAttribute('position', new THREE.Float32BufferAttribute(
+  [-1, 0, -1, 1, 2, -1, -1, 1, 1, 1, 5, 1], 3,
+));
+terrainGeometry.setIndex([0, 2, 1, 1, 2, 3]);
+const terrainMaterial = new THREE.MeshBasicMaterial();
+const terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
+terrainMesh.updateMatrixWorld(true);
+const terrainRay = new THREE.Raycaster();
+for (const [x, z] of [[-0.8, -0.5], [0.7, 0.5], [0, 0], [1, 1]]) {
+  terrainRay.set(new THREE.Vector3(x, 10, z), new THREE.Vector3(0, -1, 0));
+  const hit = terrainRay.intersectObject(terrainMesh)[0];
+  assert.ok(hit);
+  assert.ok(Math.abs(sampleTerrainMeshSurfaceHeight(terrainGeometry, x, z, 2, 2) - hit.point.y) < 1e-6);
+}
+assert.equal(
+  sampleTerrainMeshSurfaceHeight(terrainGeometry, 2, 2, 2, 2), 5,
+  'surface sampling clamps to the terrain edge',
 );
+terrainGeometry.dispose();
+terrainMaterial.dispose();
 
 capturedInspection = { militaryCompanyId: null };
 canvas.dispatch('mousedown', mouseEvent('mousedown', 0, 20, 20, 1, canvas));
@@ -397,7 +451,21 @@ assert.equal(
   'targeted bandit camps should use attack-order feedback',
 );
 
+camera.position.set(4, 12, 18);
+camera.lookAt(4, 2, 0);
+camera.updateMatrixWorld(true);
+const otherCompanyScreen = new THREE.Vector3(8, 3.2, 0).project(camera);
+const otherX = (otherCompanyScreen.x * 0.5 + 0.5) * 200;
+const otherY = (-otherCompanyScreen.y * 0.5 + 0.5) * 200;
+canvas.dispatch('mousedown', mouseEvent('mousedown', 0, otherX, otherY, 1, canvas));
+window.dispatchEvent(mouseEvent('mouseup', 0, otherX, otherY, 0, canvas));
+assert.equal(selectedCompany, 'company-b');
+assert.deepEqual(
+  companyRingRoot.children.map((ring) => ring.position.x), [8],
+  'switching companies must remove every previous member ring',
+);
 controller.dispose();
+assert.equal(companyRingRoot.parent, null);
 for (const type of ['mousemove', 'mouseup', 'blur']) {
   assert.equal(windowLike.listenerCount(type), 0, `dispose should release ${type} listeners`);
 }
@@ -434,7 +502,7 @@ assert.ok(
   'attack-ordered company members should acquire individual nearby hostile targets',
 );
 
-console.log('Military company right-click orders and pooled destination feedback passed.');
+console.log('Military company selection, terrain-hugging unit rings, and order feedback passed.');
 
 function mouseEvent(
   type: 'mousedown' | 'mousemove' | 'mouseup',

@@ -444,6 +444,7 @@ pub fn command_militia(
         }
     }
     let road_network = load_owner_road_network(ctx, owner);
+    let navigation = crate::simulation::build_owner_combat_navigation(ctx, owner, road_network.as_ref());
     let company_count = company_ids.len() as u32;
     for (company_index, company_id) in company_ids.into_iter().enumerate() {
         let Some(mut company) = ctx
@@ -518,8 +519,10 @@ pub fn command_militia(
             } else {
                 (destination_x, destination_z, 0, 0, 0)
             };
-            let x = center_x + company_offset_x + member_x;
-            let z = center_z + company_offset_z + member_z;
+            let (x, z) = navigation.outside((
+                center_x + company_offset_x + member_x,
+                center_z + company_offset_z + member_z,
+            ));
             let route = (hostile_id == 0)
                 .then(|| {
                     road_network
@@ -790,7 +793,7 @@ pub fn reinforce_military_company(ctx: &ReducerContext, company_id: u64) -> Resu
         let formation_slot = first_formation_slot.saturating_add(index as u32);
         let profile = member_combat_profile(
             kind,
-            company.id.rotate_left(31) ^ recruit.residence_id ^ formation_slot as u64,
+            company.id.rotate_left(31) ^ recruit.residence_id ^ recruit.resident_slot as u64,
         );
         let agent = ctx.db.combat_agent().insert(CombatAgent {
             id: 0,
@@ -997,7 +1000,7 @@ fn recruit_resident_company(
         let kit = RaidPortableStores::default();
         let profile = member_combat_profile(
             kind,
-            company.id.rotate_left(31) ^ recruit.residence_id ^ slot as u64,
+            company.id.rotate_left(31) ^ recruit.residence_id ^ recruit.resident_slot as u64,
         );
         let agent = ctx.db.combat_agent().insert(CombatAgent {
             id: 0,
@@ -1612,6 +1615,7 @@ fn reform_company_at_current_position(ctx: &ReducerContext, company: &MilitaryCo
         .collect::<Vec<_>>();
     members.sort_by_key(|(agent, _)| agent.source_slot);
     let center = company_center(&members);
+    let navigation = crate::simulation::build_owner_combat_navigation(ctx, company.owner, None);
     let count = members.len() as u32;
     for (index, (mut agent, _)) in members.into_iter().enumerate() {
         let local = formation_offset_for_kind(kind, company.formation, index as u32, count);
@@ -1621,12 +1625,13 @@ fn reform_company_at_current_position(ctx: &ReducerContext, company: &MilitaryCo
             company.facing_x,
             company.facing_z,
         );
+        let destination = navigation.outside((center.0 + offset.0, center.1 + offset.1));
         let order = MilitiaOrder {
             combat_agent_id: agent.id,
             owner: company.owner,
             kind: 0,
-            destination_x: center.0 + offset.0,
-            destination_z: center.1 + offset.1,
+            destination_x: destination.0,
+            destination_z: destination.1,
             target_camp_id: 0,
             target_agent_id: 0,
             path_distance: 0.0,

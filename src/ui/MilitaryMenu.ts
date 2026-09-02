@@ -1,0 +1,235 @@
+import type { CombatAgentState } from '../security/combatAgents.ts';
+import { MILITARY_COMPANY_CARD_ART } from '../security/militaryCompanyCardArt.ts';
+import { MILITARY_COMPANY_STRATEGIC_ICON_ART } from '../security/militaryCompanyPresentation.ts';
+import { militaryCompanyDisplayName, type MilitaryCompanyState } from '../security/militaryProgression.ts';
+import { AlertDialog } from './AlertDialog.ts';
+import {
+  escapeMilitaryHtml, militaryCompanyVitals, militaryOrderAvailable, renderMilitaryOrders,
+  type MilitaryOrder,
+} from './militaryMenuPresentation.ts';
+
+export type MilitaryMenuHandlers = {
+  onSelectCompany: (id: string) => void;
+  onOrder: (ids: string[], order: MilitaryOrder) => Promise<void>;
+  onClose: () => void;
+};
+
+type CompanyCard = { button: HTMLButtonElement; count: HTMLElement; health: HTMLElement; fatigue: HTMLElement };
+
+export class MilitaryMenu {
+  readonly element = document.createElement('section');
+  private readonly viewport: HTMLElement;
+  private readonly cardsRoot: HTMLElement;
+  private readonly orders: HTMLElement;
+  private readonly rail: HTMLElement;
+  private readonly showOrders: HTMLButtonElement;
+  private readonly previous: HTMLButtonElement;
+  private readonly next: HTMLButtonElement;
+  private readonly empty: HTMLElement;
+  private readonly cards = new Map<string, CompanyCard>();
+  private readonly observer: ResizeObserver;
+  private readonly dialog: AlertDialog;
+  private companies: MilitaryCompanyState[] = [];
+  private selected = new Set<string>();
+  private ordersHidden = false;
+  private ordersHtml = '';
+  private pending = false;
+
+  constructor(parent: HTMLElement, private readonly handlers: MilitaryMenuHandlers) {
+    this.element.className = 'military-menu';
+    this.element.id = 'military-menu';
+    this.element.setAttribute('aria-label', 'Military');
+    this.element.hidden = true;
+    this.element.innerHTML = `
+      <div class="military-menu__rail" data-military-orders-rail>
+        <div class="military-menu__orders" data-military-orders></div>
+        <button type="button" class="military-menu__utility" data-hide-orders aria-label="Hide orders" data-tooltip="Hide orders">×</button>
+      </div>
+      <div class="military-menu__roster">
+        <button type="button" class="military-menu__scroll" data-scroll-previous aria-label="Scroll companies left">‹</button>
+        <div class="military-menu__viewport" data-military-viewport tabindex="0" aria-label="Company cards">
+          <div class="military-menu__cards" data-military-cards></div>
+          <p class="military-menu__empty" data-military-empty>No companies in service.</p>
+        </div>
+        <button type="button" class="military-menu__scroll" data-scroll-next aria-label="Scroll companies right">›</button>
+        <div class="military-menu__utilities">
+          <button type="button" class="military-menu__utility" data-close-military aria-label="Close military" data-tooltip="Close military">×</button>
+          <button type="button" class="military-menu__utility" data-show-orders aria-label="Show orders" data-tooltip="Show orders" hidden>⌃</button>
+        </div>
+      </div>`;
+    parent.prepend(this.element);
+    const find = <T extends HTMLElement>(selector: string) => this.element.querySelector<T>(selector)!;
+    this.viewport = find('[data-military-viewport]');
+    this.cardsRoot = find('[data-military-cards]');
+    this.orders = find('[data-military-orders]');
+    this.rail = find('[data-military-orders-rail]');
+    this.showOrders = find('[data-show-orders]');
+    this.previous = find('[data-scroll-previous]');
+    this.next = find('[data-scroll-next]');
+    this.empty = find('[data-military-empty]');
+    this.dialog = new AlertDialog(parent.closest<HTMLElement>('[data-ui-root]') ?? parent);
+    find('[data-close-military]').addEventListener('click', handlers.onClose);
+    find('[data-hide-orders]').addEventListener('click', () => this.setOrdersHidden(true));
+    this.showOrders.addEventListener('click', () => this.setOrdersHidden(false));
+    this.previous.addEventListener('click', () => this.scroll(-1));
+    this.next.addEventListener('click', () => this.scroll(1));
+    this.viewport.addEventListener('scroll', this.syncScroll);
+    this.element.addEventListener('wheel', this.onWheel, { passive: false });
+    this.element.addEventListener('mousedown', (event) => event.stopPropagation());
+    this.element.addEventListener('click', this.onClick);
+    this.observer = new ResizeObserver(this.syncScroll);
+    this.observer.observe(this.viewport);
+    this.renderOrders();
+  }
+
+  get isOpen(): boolean { return !this.element.hidden; }
+
+  setOpen(open: boolean): void {
+    this.element.hidden = !open;
+    if (open) this.syncScroll();
+  }
+
+  select(ids: readonly string[]): void {
+    this.selected = new Set(ids);
+    this.syncSelection();
+    this.renderOrders();
+    const card = this.cards.get(ids[0] ?? '')?.button;
+    if (card && this.isOpen) this.revealCard(card);
+  }
+
+  sync(companies: Iterable<MilitaryCompanyState>, agents: Iterable<CombatAgentState>): void {
+    this.companies = [...companies].filter((c) => c.status !== 'destroyed')
+      .sort((a, b) => a.formedTick - b.formedTick || a.id.localeCompare(b.id, undefined, { numeric: true }));
+    const vitals = militaryCompanyVitals(agents);
+    const live = new Set(this.companies.map((c) => c.id));
+    for (const [id, card] of this.cards) {
+      if (live.has(id)) continue;
+      card.button.remove();
+      this.cards.delete(id);
+      this.selected.delete(id);
+    }
+    this.companies.forEach((company, index) => {
+      let card = this.cards.get(company.id);
+      if (!card) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'military-unit-card';
+        button.dataset.militaryCompany = company.id;
+        button.innerHTML = `<span class="military-unit-card__frame"><img class="military-unit-card__art" src="${MILITARY_COMPANY_CARD_ART[company.kind]}" alt="" draggable="false"><span class="military-unit-card__type" style="background-image:url('${MILITARY_COMPANY_STRATEGIC_ICON_ART[company.kind]}')" aria-hidden="true"></span><span class="military-unit-card__count" data-count></span></span>
+          <span class="military-unit-card__meters"><span class="military-unit-card__meter" role="meter" aria-label="Health" aria-valuemin="0" aria-valuemax="100"><span data-health></span></span><span class="military-unit-card__meter military-unit-card__meter--fatigue" role="meter" aria-label="Fatigue" aria-valuemin="0" aria-valuemax="100"><span data-fatigue></span></span></span>`;
+        card = { button, count: button.querySelector('[data-count]')!, health: button.querySelector('[data-health]')!, fatigue: button.querySelector('[data-fatigue]')! };
+        this.cards.set(company.id, card);
+      }
+      // Preserve nodes and focus during simulation ticks, including while scrolling.
+      const position = this.cardsRoot.children[index];
+      if (position !== card.button) this.cardsRoot.insertBefore(card.button, position ?? null);
+      const name = militaryCompanyDisplayName(company);
+      card.button.dataset.tooltip = name;
+      card.button.dataset.companyStatus = company.status;
+      card.button.setAttribute('aria-label', `${name}, ${company.livingMembers}/${company.targetSize}, ${company.status}`);
+      card.count.textContent = `${company.livingMembers}/${company.targetSize}`;
+      this.updateMeter(card.health, vitals.get(company.id)?.health ?? 0);
+      this.updateMeter(card.fatigue, company.fatigue);
+    });
+    this.empty.hidden = this.companies.length > 0;
+    this.syncSelection();
+    this.renderOrders();
+    this.syncScroll();
+  }
+
+  dispose(): void {
+    this.observer.disconnect();
+    this.dialog.dispose();
+    this.element.remove();
+  }
+
+  private updateMeter(fill: HTMLElement, value: number): void {
+    const percent = Math.round(Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0)) * 100);
+    fill.style.width = `${percent}%`;
+    fill.parentElement!.setAttribute('aria-valuenow', String(percent));
+  }
+
+  private syncSelection(): void {
+    for (const [id, card] of this.cards) {
+      card.button.classList.toggle('is-selected', this.selected.has(id));
+      card.button.setAttribute('aria-pressed', String(this.selected.has(id)));
+    }
+  }
+
+  private renderOrders(): void {
+    const html = renderMilitaryOrders(this.companies.filter((c) => this.selected.has(c.id)));
+    if (html !== this.ordersHtml) {
+      this.orders.innerHTML = html;
+      this.ordersHtml = html;
+    }
+    this.orders.inert = this.pending;
+    this.orders.setAttribute('aria-busy', String(this.pending));
+  }
+
+  private setOrdersHidden(hidden: boolean): void {
+    this.ordersHidden = hidden;
+    this.rail.hidden = hidden;
+    this.showOrders.hidden = !hidden;
+    if (hidden) this.showOrders.focus({ preventScroll: true });
+    else this.rail.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus({ preventScroll: true });
+  }
+
+  private readonly syncScroll = (): void => {
+    const max = this.viewport.scrollWidth - this.viewport.clientWidth;
+    this.element.classList.toggle('is-scrollable', max > 2);
+    this.previous.disabled = this.viewport.scrollLeft <= 1;
+    this.next.disabled = this.viewport.scrollLeft >= max - 1;
+  };
+
+  private scroll(direction: number): void {
+    this.viewport.scrollBy({ left: direction * Math.max(110, this.viewport.clientWidth * .75), behavior: 'smooth' });
+  }
+
+  private revealCard(card: HTMLElement): void {
+    const viewportRect = this.viewport.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+    if (cardRect.left < viewportRect.left) this.viewport.scrollLeft += cardRect.left - viewportRect.left - 6;
+    else if (cardRect.right > viewportRect.right) this.viewport.scrollLeft += cardRect.right - viewportRect.right + 6;
+  }
+
+  private readonly onWheel = (event: WheelEvent): void => {
+    event.preventDefault();
+    event.stopPropagation();
+    const target = this.rail.contains(event.target as Node) ? this.orders : this.viewport;
+    const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    target.scrollLeft += delta * (event.deltaMode === 1 ? 24 : event.deltaMode === 2 ? target.clientWidth : 1);
+  };
+
+  private readonly onClick = (event: MouseEvent): void => {
+    const button = (event.target as Element).closest<HTMLButtonElement>('button');
+    if (!button || button.disabled) return;
+    if (button.dataset.militaryCompany) this.handlers.onSelectCompany(button.dataset.militaryCompany);
+    if (button.dataset.militaryOrder) void this.issueOrder(button);
+  };
+
+  private async issueOrder(button: HTMLButtonElement): Promise<void> {
+    if (this.pending) return;
+    const kind = button.dataset.militaryOrder as MilitaryOrder['kind'];
+    const order: MilitaryOrder = kind === 'formation' || kind === 'stance'
+      ? { kind, value: Number(button.dataset.orderValue) } : { kind };
+    const companies = this.companies.filter((c) => this.selected.has(c.id));
+    if (!companies.length || !companies.every((c) => militaryOrderAvailable(c, order))) return;
+    this.pending = true;
+    this.renderOrders();
+    try {
+      if (kind === 'disband') {
+        const confirmed = await this.dialog.confirm({
+          title: 'Disband company',
+          description: `${companies.map(militaryCompanyDisplayName).join(', ')} will leave service. Survivors return their equipment and go home; mercenaries march to the region edge.`,
+          confirmLabel: 'Disband', cancelLabel: 'Keep company',
+        });
+        if (!confirmed) return;
+      }
+      const ids = companies.map((c) => c.id).filter((id) => this.companies.some((c) => c.id === id && militaryOrderAvailable(c, order)));
+      if (ids.length) await this.handlers.onOrder(ids, order);
+    } finally {
+      this.pending = false;
+      this.renderOrders();
+    }
+  }
+}

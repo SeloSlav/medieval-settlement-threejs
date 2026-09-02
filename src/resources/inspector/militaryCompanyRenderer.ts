@@ -273,8 +273,8 @@ function renderCompany(
   const canCommand = company.status === 'active' || company.status === 'mustering';
   const needsProvisions = militaryCompanyRequiresProvisions(company.kind, militaryDemands);
   const missingAmmunition = Math.max(0, company.ammunitionCapacity - company.ammunition);
-  const ammunitionPerBundle = company.targetSize > 0
-    ? Math.max(1, Math.ceil(company.ammunitionCapacity / company.targetSize))
+  const ammunitionPerBundle = company.livingMembers > 0
+    ? Math.max(1, Math.ceil(company.ammunitionCapacity / company.livingMembers))
     : 1;
   const missingAmmunitionBundles = Math.ceil(missingAmmunition / ammunitionPerBundle);
   const resupplyCost = militaryResupplyCost(company.livingMembers, militaryDemands);

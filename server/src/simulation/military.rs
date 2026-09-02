@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::cavalry_policy::cavalry_daily_ration;
+use crate::combat_navigation::{CombatNavigation, CombatObstacle};
 use crate::db::*;
 use crate::economy::spend_treasury_gold;
 use crate::military_policy::{
@@ -39,7 +40,7 @@ use super::military_steering::{
     EngagementRankSeed, SteeringBody, SteeringBounds,
 };
 use super::raid_agents::{
-    collect_raider_ranged_frames, down_external_raider, move_along_combat_route,
+    collect_raider_ranged_frames, down_external_raider,
     reclamation_from_raid_stores, RaiderRangedFrame,
 };
 use super::reclamation::recover_stock_at;
@@ -62,6 +63,7 @@ const FORMATION_ARRIVAL_DISTANCE: f64 = 0.18;
 const DOWNED_LINGER_SECONDS: f64 = 7.0;
 
 thread_local! {
+    static COMBAT_NAVIGATION: RefCell<HashMap<Identity, CombatNavigation>> = RefCell::new(HashMap::new());
     /// Reducer-local reusable storage. Spacetime reducers are transactionally
     /// serialized, while thread-local ownership avoids a global lock and keeps
     /// the hot vectors allocated between scheduler heartbeats.
@@ -311,6 +313,16 @@ pub fn step_military_world(
     if !elapsed_seconds.is_finite() || elapsed_seconds <= 0.0 {
         return;
     }
+    COMBAT_NAVIGATION.with(|cell| {
+        let owners = ctx.db.combat_agent().iter().map(|agent| agent.owner).collect::<HashSet<_>>();
+        let mut navigation = cell.borrow_mut();
+        navigation.clear();
+        for owner in owners {
+            navigation.insert(owner, build_owner_combat_navigation(
+                ctx, owner, road_networks.and_then(|networks| networks.get(&owner)),
+            ));
+        }
+    });
     let military_demands = ctx
         .db
         .world_config()
@@ -415,6 +427,46 @@ pub fn step_military_world(
         frame.captured = false;
     });
     refresh_company_summaries(ctx, sim_tick, elapsed_seconds, military_demands);
+}
+
+/// Equip at the source, then physically join the surviving field ranks. Only
+/// newcomers receive a move; existing combat/withdrawal orders remain intact.
+pub(super) fn join_mustered_members(
+    ctx: &ReducerContext,
+    company: &MilitaryCompany,
+    joining_ids: &[u64],
+) {
+    let Some(kind) = MilitaryKind::from_id(company.kind) else { return; };
+    let mut agents = ctx.db.military_member().company_id().filter(&company.id)
+        .filter(|member| member.phase == 1)
+        .filter_map(|member| ctx.db.combat_agent().id().find(&member.combat_agent_id))
+        .filter(|agent| agent.state != DOWNED && agent.health > 0.0)
+        .collect::<Vec<_>>();
+    agents.sort_by_key(|agent| (agent.source_slot, agent.id));
+    let veterans = agents.iter().filter(|agent| !joining_ids.contains(&agent.id)).collect::<Vec<_>>();
+    let anchors = if veterans.is_empty() { agents.iter().collect::<Vec<_>>() } else { veterans };
+    if anchors.is_empty() { return; }
+    let center = anchors.iter().fold((0.0, 0.0), |sum, agent| (sum.0 + agent.x, sum.1 + agent.z));
+    let center = (center.0 / anchors.len() as f64, center.1 / anchors.len() as f64);
+    let navigation = build_owner_combat_navigation(ctx, company.owner, None);
+    let count = agents.len() as u32;
+    for (rank, mut agent) in agents.into_iter().enumerate() {
+        agent.source_slot = rank as u32;
+        if joining_ids.contains(&agent.id) {
+            let local = crate::military_policy::formation_offset_for_kind(kind, company.formation, rank as u32, count);
+            let offset = rotate_formation_offset(local.0, local.1, company.facing_x, company.facing_z);
+            let goal = navigation.outside((center.0 + offset.0, center.1 + offset.1));
+            ctx.db.militia_order().combat_agent_id().delete(agent.id);
+            ctx.db.militia_order().insert(crate::tables::MilitiaOrder {
+                combat_agent_id: agent.id, owner: company.owner, kind: 0,
+                destination_x: goal.0, destination_z: goal.1,
+                target_camp_id: 0, target_agent_id: 0,
+                path_distance: 0.0, route_polyline_json: String::new(),
+            });
+            agent.state = ADVANCING;
+        }
+        ctx.db.combat_agent().id().update(agent);
+    }
 }
 
 fn step_mustering_member(
@@ -1308,12 +1360,20 @@ fn refresh_company_summaries(ctx: &ReducerContext, tick: u64, dt: f64, military_
         let mut ammunition_capacity = 0_u32;
         let mut facing_x = 0.0;
         let mut facing_z = 0.0;
+        let mut formation_rank = 0_u32;
         for member in &members {
-            let Some(agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
+            let Some(mut agent) = ctx.db.combat_agent().id().find(&member.combat_agent_id) else {
                 continue;
             };
             if agent.state == DOWNED {
                 continue;
+            }
+            if member.phase == 1 {
+                if agent.source_slot != formation_rank {
+                    agent.source_slot = formation_rank;
+                    ctx.db.combat_agent().id().update(agent.clone());
+                }
+                formation_rank += 1;
             }
             living += 1;
             health += agent.health / agent.max_health.max(1.0);
@@ -1329,7 +1389,7 @@ fn refresh_company_summaries(ctx: &ReducerContext, tick: u64, dt: f64, military_
                         facing_z += dz / length;
                     }
                 }
-            } else {
+            } else if ctx.db.militia_order().combat_agent_id().find(&agent.id).is_none() {
                 let speed = agent.velocity_x.hypot(agent.velocity_z);
                 if speed > 1e-6 {
                     facing_x += agent.velocity_x / speed;
@@ -2037,11 +2097,19 @@ fn apply_global_combat_steering(
         let provisional_z = agent.z;
         let provisional_route_progress = agent.route_progress;
         let snapshot = motion_frame.get(agent.id);
-        agent.x = source.x;
-        agent.z = source.z;
+        let final_position = COMBAT_NAVIGATION.with(|cell| {
+            let navigation = cell.borrow();
+            let Some(navigation) = navigation.get(&agent.owner) else { return (source.x, source.z); };
+            let goal = canonical_steering_goal(ctx, &agent, None, &[], &[], &[]);
+            let start = snapshot.map_or((agent.x, agent.z), |frame| (frame.x, frame.z));
+            navigation.constrain_step(start, (goal.0, goal.1), (source.x, source.z))
+        });
+        agent.x = final_position.0;
+        agent.z = final_position.1;
         if snapshot.is_some() {
-            agent.velocity_x = source.velocity_x;
-            agent.velocity_z = source.velocity_z;
+            let snapshot = snapshot.expect("existing motion frame");
+            agent.velocity_x = (agent.x - snapshot.x) / elapsed_seconds.max(1e-9);
+            agent.velocity_z = (agent.z - snapshot.z) / elapsed_seconds.max(1e-9);
         } else {
             // Spawn-tick bodies participate in hard depenetration, but that
             // correction is not locomotion and must not seed prediction as if
@@ -2054,8 +2122,8 @@ fn apply_global_combat_steering(
             let intended_z = provisional_z - snapshot.z;
             let intended_length_sq = intended_x * intended_x + intended_z * intended_z;
             if intended_length_sq > 1e-12 {
-                let final_x = source.x - snapshot.x;
-                let final_z = source.z - snapshot.z;
+                let final_x = agent.x - snapshot.x;
+                let final_z = agent.z - snapshot.z;
                 let progress_fraction = ((final_x * intended_x + final_z * intended_z)
                     / intended_length_sq)
                     .clamp(0.0, 1.0);
@@ -2104,20 +2172,17 @@ fn walk_order_route(
         {
             let progress = route_progress_for_position(&polyline, agent.x, agent.z)
                 .clamp(0.0, order.path_distance);
-            let route_move = move_along_combat_route(
-                agent.x,
-                agent.z,
-                progress,
-                order.path_distance,
-                &polyline,
-                speed,
-                dt,
-                true,
-                road_network,
-            );
-            agent.x = route_move.x;
-            agent.z = route_move.z;
-            agent.route_progress = route_move.progress;
+            let mut traversed = 0.0;
+            let mut goal = *polyline.last().expect("nonempty route");
+            for segment in polyline.windows(2) {
+                traversed += distance(segment[0][0], segment[0][1], segment[1][0], segment[1][1]);
+                if traversed > progress + 0.05 {
+                    goal = segment[1];
+                    break;
+                }
+            }
+            walk(agent, goal[0], goal[1], speed, dt, road_network);
+            agent.route_progress = progress;
             return;
         }
     }
@@ -2536,6 +2601,11 @@ fn walk(
     dt: f64,
     road_network: Option<&RoadNetwork>,
 ) {
+    let (x, z) = COMBAT_NAVIGATION.with(|cell| {
+        cell.borrow().get(&agent.owner).map_or((x, z), |navigation| {
+            navigation.next_waypoint((agent.x, agent.z), (x, z))
+        })
+    });
     let dx = x - agent.x;
     let dz = z - agent.z;
     let distance = dx.hypot(dz);
@@ -2567,6 +2637,26 @@ fn walk(
     agent.z += move_z;
     agent.velocity_x = move_x / dt.max(1e-9);
     agent.velocity_z = move_z / dt.max(1e-9);
+}
+
+/// Shared by movement and order creation; uses placement-time building yaw.
+pub fn build_owner_combat_navigation(
+    ctx: &ReducerContext,
+    owner: Identity,
+    roads: Option<&RoadNetwork>,
+) -> CombatNavigation {
+    let mut navigation = CombatNavigation::default();
+    for building in ctx.db.building().owner().filter(&owner) {
+        let yaw = crate::placement_validation::resolved_existing_building_yaw(roads, &building);
+        let corners = crate::placement_validation::building_footprint_polygon_at_yaw(
+            &building.kind, building.x, building.z, yaw,
+        );
+        navigation.push(CombatObstacle::from_corners(corners.map(|point| (point.x, point.z))));
+    }
+    for home in ctx.db.residence().owner().filter(&owner) {
+        navigation.push(CombatObstacle::rectangle(home.x, home.z, 3.3, 3.7, home.yaw));
+    }
+    navigation
 }
 
 fn walk_away(

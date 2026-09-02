@@ -1046,6 +1046,19 @@ mod tests {
     }
 
     #[test]
+    fn switching_formations_preserves_the_company_center_including_partial_ranks() {
+        for formation in 0..=5 {
+            for count in 1..=24 {
+                let center = (0..count).fold((0.0, 0.0), |sum, rank| {
+                    let offset = formation_offset(formation, rank, count);
+                    (sum.0 + offset.0, sum.1 + offset.1)
+                });
+                assert!(center.0.abs() < 1e-8 && center.1.abs() < 1e-8);
+            }
+        }
+    }
+
+    #[test]
     fn directional_defense_distinguishes_front_and_rear() {
         assert!(is_front_attack(0.0, 1.0, 10.0, 10.0, 10.0, 14.0));
         assert!(!is_front_attack(0.0, 1.0, 10.0, 10.0, 10.0, 6.0));

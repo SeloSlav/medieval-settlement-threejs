@@ -1642,7 +1642,7 @@ assert.match(refugeInspector, /No automatic loss reduction/);
 assert.match(refugeInspector, /building inventories, loaded carts, and Town Hall treasury remain where stored/);
 assert.match(townHallInspector, /Civilian refuge capacity/);
 assert.match(townHallInspector, /computeRefugeShelterPlan/);
-assert.match(townHallInspector, /still deploy cross-country/);
+assert.match(townHallInspector, /command recruited companies in the field/);
 assert.match(settlementHud, /Command recruited companies in the field/);
 assert.match(clientSecurity, /no loss was resolved off-map/);
 assert.doesNotMatch(clientSecurity, /Watch bells scattered the raiders/);

@@ -28,6 +28,7 @@ mod livestock;
 mod lumber_mill;
 mod marketplace_caravan;
 mod military;
+pub use military::build_owner_combat_navigation;
 mod military_steering;
 mod oxen;
 mod production_labor_steward;

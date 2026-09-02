@@ -126,7 +126,7 @@ impl CombatNavigation {
         if self.obstacles.is_empty() { return goal; }
         let length = distance(start, goal);
         let local_goal = if length > 36.0 {
-            (start.0 + (goal.0 - start.0) * 36.0 / length, start.1 + (goal.1 - start.1) * 36.0 / length)
+            self.outside((start.0 + (goal.0 - start.0) * 36.0 / length, start.1 + (goal.1 - start.1) * 36.0 / length))
         } else { goal };
         let candidates = self.candidates(start, local_goal, 16.0);
         let blocked = |a, b| self.candidates(a, b, 0.0).into_iter().any(|index| {
