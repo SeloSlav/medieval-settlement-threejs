@@ -464,6 +464,15 @@ assert.deepEqual(
   companyRingRoot.children.map((ring) => ring.position.x), [8],
   'switching companies must remove every previous member ring',
 );
+assert.equal(controller.selectCompany('company-a'), true, 'a tray card must select through the same controller as a world click');
+assert.equal(selectedCompany, 'company-a');
+assert.deepEqual(controller.getSelectedCompanyIds(), ['company-a']);
+assert.equal(controller.selectCompany('missing-company'), false);
+assert.deepEqual(controller.getSelectedCompanyIds(), ['company-a'], 'stale card clicks must not replace a valid selection');
+const changesBeforeBuildingSelection = selectedCompanyChanges;
+controller.clearSelection(false);
+assert.deepEqual(controller.getSelectedCompanyIds(), []);
+assert.equal(selectedCompanyChanges, changesBeforeBuildingSelection, 'switching to building inspection must not clear that new inspector through a selection callback');
 controller.dispose();
 assert.equal(companyRingRoot.parent, null);
 for (const type of ['mousemove', 'mouseup', 'blur']) {

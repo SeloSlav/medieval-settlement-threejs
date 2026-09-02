@@ -2287,6 +2287,12 @@ pub struct MilitaryCompany {
     pub departure_requested: bool,
     /// 0 line, 1 column, 2 shield wall, 3 loose order, 4 brace, 5 wedge.
     pub formation: u8,
+    /// Zero uses the formation preset; otherwise the player-authored frontage
+    /// determines this many files, with the remaining soldiers forming ranks.
+    pub formation_columns: u32,
+    pub running: bool,
+    /// False holds missiles whenever a friendly soldier crosses the shot lane.
+    pub fire_at_will: bool,
     /// 0 balanced, 1 stand ground, 2 push forward, 3 give ground,
     /// 4 missile alert.
     #[default(0u8)]
@@ -2363,6 +2369,9 @@ pub struct MilitaryMember {
     pub residence_id: u64,
     pub resident_slot: u32,
     pub person_identity: String,
+    /// Optional militia protection reserved from existing physical stock:
+    /// 0 none, 1 padded armor, 2 mail armor. Not a requirement to raise militia.
+    pub optional_armor: u8,
     /// 0 walking to muster, 1 active, 2 returning kit, 3 returning home.
     pub phase: u8,
     pub ammunition: u32,

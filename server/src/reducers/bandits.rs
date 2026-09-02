@@ -118,6 +118,9 @@ pub fn hire_mercenary_company(ctx: &ReducerContext, town_hall_id: u64) -> Result
         state: 1,
         departure_requested: false,
         formation: MILITARY_FORMATION_LINE,
+        formation_columns: 0,
+        running: false,
+        fire_at_will: false,
         stance: 0,
         facing_x: 0.0,
         facing_z: 1.0,
@@ -186,6 +189,7 @@ pub fn hire_mercenary_company(ctx: &ReducerContext, town_hall_id: u64) -> Result
             residence_id: 0,
             resident_slot: slot,
             person_identity: format!("mercenary:{}:{slot}", company.id),
+            optional_armor: 0,
             phase: 1,
             ammunition: 0,
             ammunition_capacity: 0,
@@ -240,6 +244,9 @@ pub fn deploy_debug_military_company(
         state: 1,
         departure_requested: false,
         formation,
+        formation_columns: 0,
+        running: false,
+        fire_at_will: false,
         stance: 0,
         facing_x: 0.0,
         facing_z: 1.0,
@@ -310,6 +317,7 @@ pub fn deploy_debug_military_company(
             residence_id: 0,
             resident_slot: slot,
             person_identity: format!("debug-company:{}:{slot}", company.id),
+            optional_armor: 0,
             phase: 1,
             ammunition: stats.ammunition_per_member,
             ammunition_capacity: stats.ammunition_per_member,
@@ -358,6 +366,7 @@ pub fn set_military_formation(
         return Err("This formation is not available to this company type.".into());
     }
     company.formation = formation;
+    company.formation_columns = 0;
     ctx.db.military_company().id().update(company.clone());
     reform_company_at_current_position(ctx, &company);
     Ok(())
@@ -378,9 +387,34 @@ pub fn set_military_stance(
     if !military_stance_available(kind, stance) {
         return Err("This stance is not available to this company type.".into());
     }
+    if company.morale < crate::military_policy::stance_morale_required(stance) {
+        return Err("This company is too shaken to adopt that stance.".into());
+    }
     company.stance = stance;
     ctx.db.military_company().id().update(company);
     Ok(())
+}
+
+#[reducer]
+pub fn set_military_tactics(ctx: &ReducerContext, company_id: u64, running: bool, fire_at_will: bool) -> Result<(), String> {
+    let mut company = owned_company(ctx, ctx.sender(), company_id)?;
+    if company.state >= 2 { return Err("This company is leaving service.".into()); }
+    let kind = MilitaryKind::from_id(company.kind).ok_or("Unknown military company type.")?;
+    if fire_at_will && !kind.is_ranged() { return Err("Only missile companies can change their firing policy.".into()); }
+    if running && company.fatigue >= 0.95 { return Err("This company must rest before running.".into()); }
+    company.running = running;
+    company.fire_at_will = fire_at_will;
+    ctx.db.military_company().id().update(company);
+    Ok(())
+}
+
+#[reducer]
+pub fn deploy_military_formation(ctx: &ReducerContext, agent_ids: Vec<u64>, destination_x: f64, destination_z: f64, facing_x: f64, facing_z: f64, frontage: f64) -> Result<(), String> {
+    if !frontage.is_finite() || !(0.5..=200.0).contains(&frontage)
+        || !facing_x.is_finite() || !facing_z.is_finite() || facing_x.hypot(facing_z) < 0.001 {
+        return Err("Invalid formation frontage or facing.".into());
+    }
+    command_companies(ctx, agent_ids, destination_x, destination_z, 0, 0, Some((facing_x, facing_z, frontage)))
 }
 
 /// Shared RTS company-order endpoint. Agent ids are only selection witnesses: naming
@@ -395,6 +429,10 @@ pub fn command_militia(
     target_camp_id: u64,
     target_agent_id: u64,
 ) -> Result<(), String> {
+    command_companies(ctx, agent_ids, destination_x, destination_z, target_camp_id, target_agent_id, None)
+}
+
+fn command_companies(ctx: &ReducerContext, agent_ids: Vec<u64>, destination_x: f64, destination_z: f64, target_camp_id: u64, target_agent_id: u64, deployment: Option<(f64, f64, f64)>) -> Result<(), String> {
     if !destination_x.is_finite() || !destination_z.is_finite() {
         return Err("Military destination must be finite.".into());
     }
@@ -483,7 +521,23 @@ pub fn command_militia(
         let direction_x = order_center_x - current_x;
         let direction_z = order_center_z - current_z;
         let direction_length = direction_x.hypot(direction_z);
-        if direction_length > 1e-6 {
+        if let Some((fx, fz, frontage)) = deployment {
+            let kind = MilitaryKind::from_id(company.kind).ok_or("Unknown military company type.")?;
+            let spacing = match company.formation {
+                MILITARY_FORMATION_LOOSE => 2.8,
+                MILITARY_FORMATION_SHIELD_WALL => 1.05,
+                MILITARY_FORMATION_BRACE => 1.25,
+                _ => 1.55,
+            } * if kind.is_mounted() { 1.55 } else { 1.0 };
+            company.facing_x = fx / fx.hypot(fz);
+            company.facing_z = fz / fx.hypot(fz);
+            // Dragging authors a rectangular line; wedge remains a dedicated preset.
+            if company.formation == MILITARY_FORMATION_WEDGE || company.formation == MILITARY_FORMATION_COLUMN {
+                company.formation = MILITARY_FORMATION_LINE;
+            }
+            company.formation_columns = ((frontage / company_count.max(1) as f64 / spacing).floor() as u32 + 1).clamp(1, member_count.max(1));
+            ctx.db.military_company().id().update(company.clone());
+        } else if direction_length > 1e-6 {
             company.facing_x = direction_x / direction_length;
             company.facing_z = direction_z / direction_length;
             ctx.db.military_company().id().update(company.clone());
@@ -500,9 +554,10 @@ pub fn command_militia(
             let Some(company_kind) = MilitaryKind::from_id(company.kind) else {
                 continue;
             };
-            let (member_x, member_z) = formation_offset_for_kind(
+            let (member_x, member_z) = crate::military_policy::deployed_formation_offset(
                 company_kind,
                 company.formation,
+                company.formation_columns,
                 member_index as u32,
                 member_count,
             );
@@ -836,6 +891,7 @@ pub fn reinforce_military_company(ctx: &ReducerContext, company_id: u64) -> Resu
                 "residence-{}:person:{}",
                 recruit.residence_id, recruit.resident_slot
             ),
+            optional_armor: 0,
             phase: 0,
             ammunition: 0,
             ammunition_capacity: stats.ammunition_per_member,
@@ -942,7 +998,13 @@ fn recruit_resident_company(
     } else {
         Vec::new()
     };
-    let recruits = select_available_men(ctx, owner, source.settlement_id, size);
+    let target_size = size;
+    let mut recruits = select_available_men(ctx, owner, source.settlement_id, size);
+    let size = if kind == MilitaryKind::Militia {
+        size.min(recruits.len() as u32).min(aggregate_commodity_stock(ctx, owner, CommodityKind::Polearms).floor() as u32)
+    } else { size };
+    if size == 0 { return Err("No available men with polearms can answer the muster.".into()); }
+    recruits.truncate(size as usize);
     if recruits.len() < size as usize {
         return Err(format!(
             "Only {} unassigned adult men are available; {} are required.",
@@ -969,10 +1031,13 @@ fn recruit_resident_company(
         } else {
             MILITARY_FORMATION_LINE
         },
+        formation_columns: 0,
+        running: false,
+        fire_at_will: false,
         stance: 0,
         facing_x: 0.0,
         facing_z: 1.0,
-        target_size: size,
+        target_size,
         living_members: size,
         morale: stats.starting_morale,
         cohesion: stats.starting_cohesion,
@@ -993,6 +1058,8 @@ fn recruit_resident_company(
         battle_started_tick: 0,
         last_combat_tick: 0,
     });
+    let mut padded_available = aggregate_commodity_stock(ctx, owner, CommodityKind::PaddedArmor).floor() as u32;
+    let mut mail_available = aggregate_commodity_stock(ctx, owner, CommodityKind::MailArmor).floor() as u32;
     for (slot, recruit) in recruits.into_iter().take(size as usize).enumerate() {
         let slot = slot as u32;
         let phase = 0;
@@ -1046,6 +1113,12 @@ fn recruit_resident_company(
                 "residence-{}:person:{}",
                 recruit.residence_id, recruit.resident_slot
             ),
+            optional_armor: if kind == MilitaryKind::Militia {
+                let tier = ctx.db.residence().id().find(&recruit.residence_id).map_or(1, |r| r.tier);
+                if tier >= 3 && mail_available > 0 { mail_available -= 1; 2 }
+                else if tier >= 2 && padded_available > 0 { padded_available -= 1; 1 }
+                else { 0 }
+            } else { 0 },
             phase,
             ammunition: 0,
             ammunition_capacity: stats.ammunition_per_member,
@@ -1417,6 +1490,12 @@ fn pending_equipment_reserved(ctx: &ReducerContext, owner: Identity, kind: Commo
                 return None;
             }
             let cost = MilitaryCost::for_company(military_kind, pending);
+            let optional = ctx.db.military_member().company_id().filter(&company.id)
+                .filter(|m| m.phase == 0 && match kind {
+                    CommodityKind::PaddedArmor => m.optional_armor == 1,
+                    CommodityKind::MailArmor => m.optional_armor == 2,
+                    _ => false,
+                }).count() as f64;
             let amount = match kind {
                 CommodityKind::Polearms => cost.polearms,
                 CommodityKind::Sidearms => cost.sidearms,
@@ -1428,7 +1507,7 @@ fn pending_equipment_reserved(ctx: &ReducerContext, owner: Identity, kind: Commo
                 CommodityKind::Ammunition => cost.ammunition,
                 _ => 0,
             };
-            Some(amount as f64)
+            Some(amount as f64 + optional)
         })
         .sum()
 }
@@ -1618,7 +1697,7 @@ fn reform_company_at_current_position(ctx: &ReducerContext, company: &MilitaryCo
     let navigation = crate::simulation::build_owner_combat_navigation(ctx, company.owner, None);
     let count = members.len() as u32;
     for (index, (mut agent, _)) in members.into_iter().enumerate() {
-        let local = formation_offset_for_kind(kind, company.formation, index as u32, count);
+        let local = crate::military_policy::deployed_formation_offset(kind, company.formation, company.formation_columns, index as u32, count);
         let offset = rotate_formation_offset(
             local.0,
             local.1,

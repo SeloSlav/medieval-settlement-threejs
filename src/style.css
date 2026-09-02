@@ -91,7 +91,12 @@ button {
 /* The combat playtest is an offline renderer/controller sandbox. Keep the
  * ordinary economy HUD out of reach so a playtest can never issue save-backed
  * actions, while preserving the controller's drag-selection rectangle. */
-[data-ui-root].combat-playtest-mode > :not(.combat-playtest-overlay):not(.militia-selection-box) {
+[data-ui-root].combat-playtest-mode > :not(.combat-playtest-overlay):not(.militia-selection-box):not(.hud-bottom-center) {
+  display: none !important;
+}
+
+[data-ui-root].combat-playtest-mode .hud-bottom-center > :not(.military-menu):not(.construction-dock),
+[data-ui-root].combat-playtest-mode .construction-dock > :not([data-action='military-menu']) {
   display: none !important;
 }
 

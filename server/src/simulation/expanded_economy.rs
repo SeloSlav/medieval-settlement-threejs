@@ -3328,7 +3328,9 @@ pub fn step_military_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
             continue;
         }
         let mustering_count = members.len().min(u32::MAX as usize) as u32;
-        let cost = MilitaryCost::for_company(kind, mustering_count);
+        let mut cost = MilitaryCost::for_company(kind, mustering_count);
+        cost.padded_armor += members.iter().filter(|m| m.optional_armor == 1).count() as u32;
+        cost.mail_armor += members.iter().filter(|m| m.optional_armor == 2).count() as u32;
         let mut complete = true;
         for (commodity, amount) in military_equipment_costs(cost) {
             if amount == 0 {
@@ -3420,9 +3422,10 @@ pub fn step_military_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
                 .military_member()
                 .combat_agent_id()
                 .update(member.clone());
-            agent.carried_loot_json =
-                serde_json::to_string(&equipped_member_kit(kind, agent.source_slot))
-                    .unwrap_or_default();
+            let mut kit = equipped_member_kit(kind, agent.source_slot);
+            if member.optional_armor == 1 { kit.padded_armor = 1.0; }
+            if member.optional_armor == 2 { kit.mail_armor = 1.0; }
+            agent.carried_loot_json = serde_json::to_string(&kit).unwrap_or_default();
             agent.state = 9;
             agent.target_kind = 6;
             agent.target_id = 0;

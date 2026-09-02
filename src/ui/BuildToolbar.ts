@@ -407,8 +407,9 @@ export class BuildToolbar {
           <span class="gk-icon gk-icon--construction gk-icon--hammer" aria-hidden="true"></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">B</span>
         </button>
-        <button type="button" class="construction-dock-button" data-action="military-menu" data-tooltip="Military" aria-label="Military" aria-controls="military-menu" aria-expanded="false" aria-pressed="false">
+        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="military-menu" data-tooltip="Military (V)" aria-label="Military (V)" aria-keyshortcuts="V" aria-controls="military-menu" aria-expanded="false" aria-pressed="false">
           <span class="military-launcher-icon" aria-hidden="true"></span>
+          <span class="construction-dock-button__hotkey" aria-hidden="true">V</span>
         </button>
         <button type="button" class="construction-dock-button construction-dock-button--hotkey construction-dock-button--overlay" data-action="overlay-menu" data-tooltip="Map overlays (O)" aria-label="Map overlays (O)" aria-controls="map-overlay-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false">
           <span class="map-overlay-launcher-icon" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -540,7 +541,12 @@ export class BuildToolbar {
       getActive: () => this.buildMenuOpen,
       setActive: (active) => this.setBuildMenuOpen(active),
     };
-    this.dockToggles = [this.buildMenuToggle];
+    this.dockToggles = [this.buildMenuToggle, {
+      button: this.militaryButton,
+      hotkey: 'v',
+      getActive: () => this.militaryMenu.isOpen,
+      setActive: (active) => this.setMilitaryMenuOpen(active),
+    }];
     for (const toggle of this.dockToggles) {
       syncDockToggleButton(toggle);
     }

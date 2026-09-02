@@ -621,6 +621,66 @@ pub fn military_stance_available(kind: MilitaryKind, stance: u8) -> bool {
     }
 }
 
+pub fn stance_morale_required(stance: u8) -> f64 {
+    match stance {
+        MILITARY_STANCE_PUSH_FORWARD => 0.45,
+        MILITARY_STANCE_STAND_GROUND | MILITARY_STANCE_MISSILE_ALERT => 0.30,
+        _ => 0.16,
+    }
+}
+
+/// Fatigue is spent stamina: its loss applies equally to attack and defense.
+pub fn fatigue_effectiveness(fatigue: f64) -> f64 {
+    (1.0 - fatigue.clamp(0.0, 1.0)).max(0.05)
+}
+
+pub fn ordered_run_multiplier(running: bool, fatigue: f64) -> f64 {
+    if running && fatigue < 0.95 { 1.45 } else { 1.0 }
+}
+
+pub fn equipment_exertion_multiplier(armor: f64, shield: f64) -> f64 {
+    1.0 + armor.max(0.0) * 0.035 + shield.max(0.0) * 0.04
+}
+
+pub fn slope_effectiveness(source_height: f64, target_height: f64, distance: f64) -> f64 {
+    (1.0 + (source_height - target_height) / distance.max(1.0) * 0.75).clamp(0.65, 1.25)
+}
+
+pub fn is_rear_attack(fx: f64, fz: f64, dx: f64, dz: f64, ax: f64, az: f64) -> bool {
+    let length = fx.hypot(fz) * (ax - dx).hypot(az - dz);
+    length > 1e-9 && (fx * (ax - dx) + fz * (az - dz)) / length < -0.35
+}
+
+/// Checks a finite arrow lane, excluding the archer and the target endpoints.
+pub fn shot_lane_intersection(sx: f64, sz: f64, tx: f64, tz: f64, x: f64, z: f64) -> Option<f64> {
+    let dx = tx - sx;
+    let dz = tz - sz;
+    let length_squared = dx * dx + dz * dz;
+    if length_squared < 1e-9 { return None; }
+    let t = ((x - sx) * dx + (z - sz) * dz) / length_squared;
+    (t > 0.025 && t < 0.985 && (x - sx - t * dx).hypot(z - sz - t * dz) < 0.65).then_some(t)
+}
+
+pub fn bracing_cancels_charge(kind: MilitaryKind, formation: u8, stationary: bool, frontal: bool) -> bool {
+    kind.can_brace() && formation == MILITARY_FORMATION_BRACE && stationary && frontal
+}
+
+pub fn deployed_formation_offset(kind: MilitaryKind, formation: u8, columns: u32, index: u32, count: u32) -> (f64, f64) {
+    if columns == 0 || formation == MILITARY_FORMATION_WEDGE {
+        return formation_offset_for_kind(kind, formation, index, count);
+    }
+    let columns = columns.clamp(1, count.max(1));
+    let spacing = match formation {
+        MILITARY_FORMATION_LOOSE => 2.8,
+        MILITARY_FORMATION_SHIELD_WALL => 1.05,
+        MILITARY_FORMATION_BRACE => 1.25,
+        _ => 1.55,
+    } * if kind.is_mounted() { 1.55 } else { 1.0 };
+    let center = (0..count.max(1)).fold((0.0, 0.0), |(x,z), i| (x + (i % columns) as f64, z + (i / columns) as f64));
+    (((index % columns) as f64 - center.0 / count.max(1) as f64) * spacing,
+     -((index / columns) as f64 - center.1 / count.max(1) as f64) * spacing)
+}
+
 /// Stable local offset for company orders. Formation is gameplay-relevant:
 /// shield wall is dense, loose order gives missile spacing, and column moves
 /// efficiently along narrow roads.
@@ -744,7 +804,7 @@ pub fn stance_speed_multiplier(stance: u8) -> f64 {
 
 pub fn stance_damage_multiplier(stance: u8) -> f64 {
     match stance {
-        MILITARY_STANCE_STAND_GROUND => 0.82,
+        MILITARY_STANCE_STAND_GROUND => 1.0,
         MILITARY_STANCE_PUSH_FORWARD => 1.12,
         MILITARY_STANCE_GIVE_GROUND => 0.88,
         MILITARY_STANCE_MISSILE_ALERT => 0.90,
@@ -754,7 +814,7 @@ pub fn stance_damage_multiplier(stance: u8) -> f64 {
 
 pub fn stance_attack_interval_multiplier(stance: u8) -> f64 {
     match stance {
-        MILITARY_STANCE_STAND_GROUND => 1.48,
+        MILITARY_STANCE_STAND_GROUND => 2.0,
         MILITARY_STANCE_PUSH_FORWARD => 0.84,
         MILITARY_STANCE_GIVE_GROUND => 1.12,
         MILITARY_STANCE_MISSILE_ALERT => 1.08,
@@ -764,11 +824,11 @@ pub fn stance_attack_interval_multiplier(stance: u8) -> f64 {
 
 pub fn stance_damage_taken_multiplier(stance: u8, incoming_ranged: bool) -> f64 {
     match stance {
-        MILITARY_STANCE_STAND_GROUND => 0.74,
+        MILITARY_STANCE_STAND_GROUND => 0.5,
         MILITARY_STANCE_PUSH_FORWARD => 1.08,
         MILITARY_STANCE_GIVE_GROUND => 0.92,
-        MILITARY_STANCE_MISSILE_ALERT if incoming_ranged => 0.62,
-        MILITARY_STANCE_MISSILE_ALERT => 1.38,
+        MILITARY_STANCE_MISSILE_ALERT if incoming_ranged => 0.5,
+        MILITARY_STANCE_MISSILE_ALERT => 2.0,
         _ => 1.0,
     }
 }
@@ -868,7 +928,6 @@ pub fn incoming_company_damage_multiplier(
         * brace_multiplier
         * wall_multiplier
         * spacing_multiplier
-        * if attack.frontal { 1.0 } else { 1.18 }
 }
 
 /// Partial quivers remain usable by the soldier, but are not an intact whole

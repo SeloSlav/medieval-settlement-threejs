@@ -1318,6 +1318,16 @@ export async function setMilitaryStance(
   });
 }
 
+export async function setMilitaryTactics(companyId: string, running: boolean, fireAtWill: boolean): Promise<void> {
+  if (!/^\d+$/.test(companyId)) throw new Error('Invalid military company id.');
+  await callReducer('setMilitaryTactics', 'set_military_tactics', { companyId: BigInt(companyId), running, fireAtWill });
+}
+
+export async function deployMilitaryFormation(agentIds: string[], destinationX: number, destinationZ: number, facingX: number, facingZ: number, frontage: number): Promise<void> {
+  const ids = agentIds.filter(id => /^\d+$/.test(id)).map(id => BigInt(id));
+  await callReducer('deployMilitaryFormation', 'deploy_military_formation', { agentIds: ids, destinationX, destinationZ, facingX, facingZ, frontage });
+}
+
 export async function syncRoadNetwork(snapshotJson: string): Promise<void> {
   await callReducer('syncRoadNetwork', 'sync_road_network', { snapshotJson });
 }

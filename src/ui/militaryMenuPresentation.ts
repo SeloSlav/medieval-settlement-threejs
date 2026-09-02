@@ -3,6 +3,7 @@ import {
   MILITARY_FORMATIONS, MILITARY_STANCES,
   militaryCompanyRequiresProvisions, militaryFormationAvailable, militaryFormationLabel,
   militaryStanceAvailable, militaryStanceLabel,
+  militaryFormationDescription, militaryStanceDescription, militaryStanceMoraleRequired,
   type MilitaryCompanyState, type MilitaryFormation, type MilitaryStance,
 } from '../security/militaryProgression.ts';
 import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
@@ -10,6 +11,7 @@ import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
 export type MilitaryOrder =
   | { kind: 'formation'; value: number }
   | { kind: 'stance'; value: number }
+  | { kind: 'running' | 'fire-at-will'; value: number }
   | { kind: 'reinforce' | 'resupply' | 'retain' | 'disband' };
 
 const dots = (points: number[][]) => points.map(([x, y]) => `<rect x="${x}" y="${y}" width="4" height="4" rx=".6"/>`).join('');
@@ -66,7 +68,10 @@ export function militaryOrderAvailable(company: MilitaryCompanyState, order: Mil
     case 'formation': return (active || company.status === 'mustering')
       && militaryFormationAvailable(company.kind, MILITARY_FORMATIONS[order.value]!);
     case 'stance': return (active || company.status === 'mustering')
-      && militaryStanceAvailable(company.kind, MILITARY_STANCES[order.value]!);
+      && militaryStanceAvailable(company.kind, MILITARY_STANCES[order.value]!)
+      && company.morale >= militaryStanceMoraleRequired(MILITARY_STANCES[order.value]!);
+    case 'running': return active && (order.value === 0 || company.fatigue < 0.95);
+    case 'fire-at-will': return active && ['bowmen', 'crossbows', 'mounted-archers'].includes(company.kind);
     case 'retain': return company.kind === 'mercenary-spears' && company.status !== 'destroyed'
       && (company.status === 'leaving' || company.departureRequested);
     case 'disband': return (active || company.status === 'mustering') && !company.departureRequested;
@@ -79,7 +84,7 @@ export function militaryOrderAvailable(company: MilitaryCompanyState, order: Mil
 }
 
 export function renderMilitaryOrders(companies: readonly MilitaryCompanyState[]): string {
-  if (!companies.length) return '<span class="military-menu__hint">Select a company</span>';
+  if (!companies.length) return '';
   const buttons = (kind: 'formation' | 'stance', names: readonly (MilitaryFormation | MilitaryStance)[]) => names.flatMap((name, value) => {
     const supported = companies.every((company) => kind === 'formation'
       ? militaryFormationAvailable(company.kind, name as MilitaryFormation)
@@ -88,7 +93,8 @@ export function renderMilitaryOrders(companies: readonly MilitaryCompanyState[])
     const selected = companies.every((company) => company[kind] === name);
     const enabled = companies.every((company) => militaryOrderAvailable(company, { kind, value }));
     const label = kind === 'formation' ? militaryFormationLabel(name as MilitaryFormation) : militaryStanceLabel(name as MilitaryStance);
-    return `<button type="button" class="military-order${selected ? ' is-selected' : ''}" data-military-order="${kind}" data-order-value="${value}" data-${kind}-kind="${name}" aria-label="${label}" data-tooltip="${label}" aria-pressed="${selected}" ${enabled ? '' : 'disabled'}>${militaryOrderIcon(kind, name)}</button>`;
+    const description = kind === 'formation' ? militaryFormationDescription(name as MilitaryFormation) : militaryStanceDescription(name as MilitaryStance);
+    return `<button type="button" class="military-order${selected ? ' is-selected' : ''}" data-military-order="${kind}" data-order-value="${value}" data-${kind}-kind="${name}" aria-label="${label}" data-tooltip="${description}" aria-pressed="${selected}" ${enabled ? '' : 'disabled'}>${militaryOrderIcon(kind, name)}</button>`;
   }).join('');
   const actions = [
     ['reinforce', 'Reinforce', 'militia'], ['resupply', 'Resupply', 'resupply-company'],
@@ -96,7 +102,18 @@ export function renderMilitaryOrders(companies: readonly MilitaryCompanyState[])
   ] as const;
   const lifecycle = actions.filter(([kind]) => companies.every((company) => militaryOrderAvailable(company, { kind })))
     .map(([kind, label, icon]) => `<button type="button" class="military-order" data-military-order="${kind}" aria-label="${label}" data-tooltip="${label}"><span class="inspector-action-icon" data-action-icon="${icon}" aria-hidden="true"></span></button>`).join('');
-  return `<div class="military-menu__order-group" role="group" aria-label="Formations">${buttons('formation', MILITARY_FORMATIONS)}</div>
+  const toggle = (kind: 'running' | 'fire-at-will', current: boolean, label: string, description: string, icon: string) => {
+    const value = current ? 0 : 1;
+    const enabled = companies.every(company => militaryOrderAvailable(company, { kind, value }));
+    return `<button type="button" class="military-order${current ? ' is-selected' : ''}" data-military-order="${kind}" data-order-value="${value}" aria-label="${label}" data-tooltip="${description}" aria-pressed="${current}" ${enabled ? '' : 'disabled'}><svg viewBox="0 0 28 28" aria-hidden="true">${icon}</svg></button>`;
+  };
+  const running = companies.every(c => c.running);
+  const risky = companies.every(c => c.fireAtWill);
+  const pace = toggle('running', running, 'Run', running ? 'Walk to conserve strength for the fight.' : 'Run to cover ground quickly at the cost of stamina.', '<circle cx="17" cy="4" r="3"/><path d="m12 8 6 2 4 7-3 1-4-6-3 6 7 6-2 2-9-7 2-7-5 4-2-2zM8 19l3 2-5 6-3-2z"/>');
+  const fire = companies.every(c => ['bowmen', 'crossbows', 'mounted-archers'].includes(c.kind))
+    ? toggle('fire-at-will', risky, 'Risk friendly fire', risky ? 'Hold shots whenever friendly soldiers are in the firing lane.' : 'Keep shooting even when friendly soldiers risk being hit.', '<path d="m4 23 17-17h-7V3h12v12h-3V8L6 25zM3 8h8v3H3z"/>') : '';
+  return `<div class="military-menu__order-group" role="group" aria-label="Movement and fire">${pace}${fire}</div>
+    <div class="military-menu__order-group" role="group" aria-label="Formations">${buttons('formation', MILITARY_FORMATIONS)}</div>
     <div class="military-menu__order-group" role="group" aria-label="Stances">${buttons('stance', MILITARY_STANCES)}</div>
     ${lifecycle ? `<div class="military-menu__order-group" role="group" aria-label="Company actions">${lifecycle}</div>` : ''}`;
 }

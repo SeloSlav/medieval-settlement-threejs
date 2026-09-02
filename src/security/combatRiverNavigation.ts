@@ -10,6 +10,8 @@ export type CombatRiverNavigationGrid = {
   spanX: number;
   spanZ: number;
   wetCellsHex: string;
+  /** Rendered terrain samples, shared with authoritative combat slope rules. */
+  heights?: number[];
 };
 
 const BYTE_HEX = Array.from(
@@ -27,10 +29,12 @@ const BYTE_HEX = Array.from(
  */
 export function encodeCombatRiverNavigation(
   riverField: RiverField,
+  getHeightAt?: (x: number, z: number) => number,
 ): CombatRiverNavigationGrid {
   const resolution = COMBAT_RIVER_NAVIGATION_RESOLUTION;
   const cellCount = resolution * resolution;
   const bytes = new Uint8Array(Math.ceil(cellCount / 8));
+  const heights = getHeightAt ? new Array<number>(cellCount) : undefined;
   const stepX = riverField.spanX / (resolution - 1);
   const stepZ = riverField.spanZ / (resolution - 1);
 
@@ -38,6 +42,7 @@ export function encodeCombatRiverNavigation(
     const z = riverField.startZ + gridZ * stepZ;
     for (let gridX = 0; gridX < resolution; gridX++) {
       const x = riverField.startX + gridX * stepX;
+      if (heights && getHeightAt) heights[gridZ * resolution + gridX] = Math.round(getHeightAt(x, z) * 100) / 100;
       if (!riverField.isRenderedWetAt(x, z)) continue;
       const index = gridZ * resolution + gridX;
       bytes[index >>> 3] |= 1 << (index & 7);
@@ -51,6 +56,7 @@ export function encodeCombatRiverNavigation(
     spanX: riverField.spanX,
     spanZ: riverField.spanZ,
     wetCellsHex: Array.from(bytes, (value) => BYTE_HEX[value]).join(''),
+    heights,
   };
 }
 

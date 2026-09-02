@@ -22,7 +22,6 @@ export class MilitaryMenu {
   private readonly cardsRoot: HTMLElement;
   private readonly orders: HTMLElement;
   private readonly rail: HTMLElement;
-  private readonly showOrders: HTMLButtonElement;
   private readonly previous: HTMLButtonElement;
   private readonly next: HTMLButtonElement;
   private readonly empty: HTMLElement;
@@ -42,9 +41,9 @@ export class MilitaryMenu {
     this.element.setAttribute('aria-label', 'Military');
     this.element.hidden = true;
     this.element.innerHTML = `
-      <div class="military-menu__rail" data-military-orders-rail>
+      <button type="button" class="military-menu__utility military-menu__close" data-close-military aria-label="Close military" data-tooltip="Close military">×</button>
+      <div class="military-menu__rail" data-military-orders-rail hidden>
         <div class="military-menu__orders" data-military-orders></div>
-        <button type="button" class="military-menu__utility" data-hide-orders aria-label="Hide orders" data-tooltip="Hide orders">×</button>
       </div>
       <div class="military-menu__roster">
         <button type="button" class="military-menu__scroll" data-scroll-previous aria-label="Scroll companies left">‹</button>
@@ -53,10 +52,6 @@ export class MilitaryMenu {
           <p class="military-menu__empty" data-military-empty>No companies in service.</p>
         </div>
         <button type="button" class="military-menu__scroll" data-scroll-next aria-label="Scroll companies right">›</button>
-        <div class="military-menu__utilities">
-          <button type="button" class="military-menu__utility" data-close-military aria-label="Close military" data-tooltip="Close military">×</button>
-          <button type="button" class="military-menu__utility" data-show-orders aria-label="Show orders" data-tooltip="Show orders" hidden>⌃</button>
-        </div>
       </div>`;
     parent.prepend(this.element);
     const find = <T extends HTMLElement>(selector: string) => this.element.querySelector<T>(selector)!;
@@ -64,14 +59,11 @@ export class MilitaryMenu {
     this.cardsRoot = find('[data-military-cards]');
     this.orders = find('[data-military-orders]');
     this.rail = find('[data-military-orders-rail]');
-    this.showOrders = find('[data-show-orders]');
     this.previous = find('[data-scroll-previous]');
     this.next = find('[data-scroll-next]');
     this.empty = find('[data-military-empty]');
     this.dialog = new AlertDialog(parent.closest<HTMLElement>('[data-ui-root]') ?? parent);
     find('[data-close-military]').addEventListener('click', handlers.onClose);
-    find('[data-hide-orders]').addEventListener('click', () => this.setOrdersHidden(true));
-    this.showOrders.addEventListener('click', () => this.setOrdersHidden(false));
     this.previous.addEventListener('click', () => this.scroll(-1));
     this.next.addEventListener('click', () => this.scroll(1));
     this.viewport.addEventListener('scroll', this.syncScroll);
@@ -158,7 +150,9 @@ export class MilitaryMenu {
   }
 
   private renderOrders(): void {
-    const html = renderMilitaryOrders(this.companies.filter((c) => this.selected.has(c.id)));
+    const selectedCompanies = this.companies.filter((c) => this.selected.has(c.id));
+    this.rail.hidden = selectedCompanies.length === 0;
+    const html = renderMilitaryOrders(selectedCompanies);
     if (html !== this.ordersHtml) {
       const focused = this.orders.contains(document.activeElement)
         ? document.activeElement as HTMLButtonElement : null;
@@ -174,13 +168,6 @@ export class MilitaryMenu {
     }
     this.orders.inert = this.pending;
     this.orders.setAttribute('aria-busy', String(this.pending));
-  }
-
-  private setOrdersHidden(hidden: boolean): void {
-    this.rail.hidden = hidden;
-    this.showOrders.hidden = !hidden;
-    if (hidden) this.showOrders.focus({ preventScroll: true });
-    else this.rail.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus({ preventScroll: true });
   }
 
   private readonly syncScroll = (): void => {
@@ -219,7 +206,7 @@ export class MilitaryMenu {
   private async issueOrder(button: HTMLButtonElement): Promise<void> {
     if (this.pending) return;
     const kind = button.dataset.militaryOrder as MilitaryOrder['kind'];
-    const order: MilitaryOrder = kind === 'formation' || kind === 'stance'
+    const order: MilitaryOrder = kind === 'formation' || kind === 'stance' || kind === 'running' || kind === 'fire-at-will'
       ? { kind, value: Number(button.dataset.orderValue) } : { kind };
     const companies = this.companies.filter((c) => this.selected.has(c.id));
     if (!companies.length || !companies.every((c) => militaryOrderAvailable(c, order))) return;

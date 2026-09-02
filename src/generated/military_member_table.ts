@@ -17,6 +17,7 @@ export default __t.row({
   residenceId: __t.u64().name("residence_id"),
   residentSlot: __t.u32().name("resident_slot"),
   personIdentity: __t.string().name("person_identity"),
+  optionalArmor: __t.u8().name("optional_armor"),
   phase: __t.u8(),
   ammunition: __t.u32(),
   ammunitionCapacity: __t.u32().name("ammunition_capacity"),

@@ -533,6 +533,9 @@ export const MilitaryCompany = __t.object("MilitaryCompany", {
   state: __t.u8(),
   departureRequested: __t.bool(),
   formation: __t.u8(),
+  formationColumns: __t.u32(),
+  running: __t.bool(),
+  fireAtWill: __t.bool(),
   stance: __t.u8(),
   facingX: __t.f64(),
   facingZ: __t.f64(),
@@ -562,6 +565,7 @@ export const MilitaryMember = __t.object("MilitaryMember", {
   residenceId: __t.u64(),
   residentSlot: __t.u32(),
   personIdentity: __t.string(),
+  optionalArmor: __t.u8(),
   phase: __t.u8(),
   ammunition: __t.u32(),
   ammunitionCapacity: __t.u32(),
@@ -1064,3 +1068,4 @@ export const WorldConfig = __t.object("WorldConfig", {
   wildAnimalAttacksEnabled: __t.bool(),
 });
 export type WorldConfig = __Infer<typeof WorldConfig>;
+

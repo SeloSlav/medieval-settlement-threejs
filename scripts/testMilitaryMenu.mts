@@ -30,7 +30,7 @@ assert.match(orders, /data-formation-kind="brace"/);
 assert.match(orders, /aria-label="Line" data-tooltip="Line"/);
 assert.doesNotMatch(orders, /__label|formation-button__label|<small>/);
 assert.doesNotMatch(renderMilitaryOrders([spear, bow]), /data-formation-kind="brace"/);
-assert.match(renderMilitaryOrders([]), /Select a company/);
+assert.equal(renderMilitaryOrders([]), '', 'there should be no command row or selection prompt before selecting a company');
 assert.equal(militaryOrderAvailable(spear, { kind: 'formation', value: 1 }), true);
 assert.equal(militaryOrderAvailable({ ...spear, status: 'leaving' }, { kind: 'formation', value: 1 }), false);
 assert.equal(militaryOrderAvailable({ ...spear, livingMembers: 4 }, { kind: 'reinforce' }), true);

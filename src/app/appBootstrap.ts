@@ -276,7 +276,7 @@ export async function bootstrapAppSession(
   const sessionGate = new SessionConnectionGate();
   const roadNetwork = new RoadNetwork();
   roadNetwork.setRiverNavigation(
-    encodeCombatRiverNavigation(sceneManager.riverField),
+    encodeCombatRiverNavigation(sceneManager.riverField, (x, z) => sceneManager.terrain.getHeightAt(x, z)),
   );
   sceneManager.riverField.prepareNavigationWaterIndex();
   const isAgentNavigationBlockedByWater = createAgentWaterObstacleTest(
@@ -1001,6 +1001,14 @@ export async function bootstrapAppSession(
     onMilitaryOrder: async (ids, order) => {
       for (const id of ids) {
         switch (order.kind) {
+          case 'running':
+          case 'fire-at-will': {
+            const company = spacetimeStore.snapshot.militaryCompanies.get(id);
+            if (company) await spacetimeStore.setMilitaryTactics(id,
+              order.kind === 'running' ? order.value === 1 : company.running,
+              order.kind === 'fire-at-will' ? order.value === 1 : company.fireAtWill);
+            break;
+          }
           case 'formation': await inspectorActions.onSetMilitaryFormation(id, order.value); break;
           case 'stance': await inspectorActions.onSetMilitaryStance(id, order.value); break;
           case 'reinforce': await inspectorActions.onReinforceMilitaryCompany(id); break;

@@ -1055,6 +1055,7 @@ export class App {
   private syncToolbar(): void {
     if (!this.toolbar || !this.roadNetwork || !this.roadTool || !this.roadSelection || !this.buildingTool || !this.burgageTool || !this.farmFieldTool) return;
     const starterCampRequired = !this.visualQaConditions
+      && !this.combatPlaytestRequest
       && this.gameState?.physicalFoundingSiteEnabled !== true
       && (this.gameState?.buildings.size ?? 0) === 0
       && (this.gameState?.residences.size ?? 0) === 0

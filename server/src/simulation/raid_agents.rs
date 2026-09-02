@@ -1672,7 +1672,9 @@ fn engage_agent(
     if distance <= strike_range * strike_range {
         let attacker_was_charging = agent.state == COMBAT_STATE_ADVANCING
             && agent.velocity_x.hypot(agent.velocity_z) >= 1.0;
-        let resolved_damage = if is_player_military_faction(enemy.faction) {
+        let resolved_damage = if agent.attack_cooldown > EPSILON { 0.0 } else if is_player_military_faction(enemy.faction) {
+            let reflected = super::military::external_charge_reflection(ctx, enemy, agent, damage, attacker_was_charging);
+            *damage_by_agent.entry(agent.id).or_insert(0.0) += reflected;
             super::military::mitigate_external_player_damage(
                 ctx,
                 enemy,

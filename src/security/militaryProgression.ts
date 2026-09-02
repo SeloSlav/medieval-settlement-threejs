@@ -46,6 +46,9 @@ export type MilitaryCompanyState = {
   status: MilitaryCompanyStatus;
   departureRequested: boolean;
   formation: MilitaryFormation;
+  formationColumns: number;
+  running: boolean;
+  fireAtWill: boolean;
   stance: MilitaryStance;
   targetSize: number;
   livingMembers: number;
@@ -319,6 +322,9 @@ export function syncMilitaryCompanies(
       status,
       departureRequested: row.departureRequested,
       formation,
+      formationColumns: row.formationColumns,
+      running: row.running,
+      fireAtWill: row.fireAtWill,
       stance,
       targetSize: Number(row.targetSize),
       livingMembers: Number(row.livingMembers),
@@ -373,7 +379,7 @@ export function militaryFormationDescription(formation: MilitaryFormation): stri
     case 'line': return 'Spreads the company across a broad front for a direct engagement.';
     case 'column': return 'Keeps the company narrow for roads and rapid repositioning.';
     case 'shield-wall': return 'Locks shielded infantry into a tight front against missiles and frontal attacks.';
-    case 'loose': return 'Widens spacing to reduce missile losses and help skirmishers maneuver.';
+    case 'loose': return 'Spreads out to evade arrows and move swiftly at the cost of close combat.';
     case 'brace': return 'Plants spear or polearm ranks to meet a frontal cavalry charge.';
     case 'wedge': return 'Forms mounted troops into a point for a decisive charge.';
   }
@@ -414,6 +420,12 @@ export function militaryStanceAvailable(
   if (stance === 'push-forward') return !ranged || mounted;
   if (stance === 'give-ground' || stance === 'missile-alert') return !mounted;
   return true;
+}
+
+export function militaryStanceMoraleRequired(stance: MilitaryStance): number {
+  if (stance === 'push-forward') return 0.45;
+  if (stance === 'stand-ground' || stance === 'missile-alert') return 0.30;
+  return 0.16;
 }
 
 export function militaryCompanyRankLabel(

@@ -29,6 +29,7 @@ import DemolishFarmFieldReducer from "../demolish_farm_field_reducer";
 import DemolishGraveyardReducer from "../demolish_graveyard_reducer";
 import DemolishPastureReducer from "../demolish_pasture_reducer";
 import DemolishResidenceReducer from "../demolish_residence_reducer";
+import DeployMilitaryFormationReducer from "../deploy_military_formation_reducer";
 import DisbandMilitaryCompanyReducer from "../disband_military_company_reducer";
 import DisbandMilitiaReducer from "../disband_militia_reducer";
 import EnterWorldReducer from "../enter_world_reducer";
@@ -96,6 +97,7 @@ import SetMarketplaceSpecialtyExportPolicyReducer from "../set_marketplace_speci
 import SetMarketplaceSpecialtyFamilyExportPolicyReducer from "../set_marketplace_specialty_family_export_policy_reducer";
 import SetMilitaryFormationReducer from "../set_military_formation_reducer";
 import SetMilitaryStanceReducer from "../set_military_stance_reducer";
+import SetMilitaryTacticsReducer from "../set_military_tactics_reducer";
 import SetMonasteryCharterReducer from "../set_monastery_charter_reducer";
 import SetMonasteryNextExtensionReducer from "../set_monastery_next_extension_reducer";
 import SetMonasteryPlantingReducer from "../set_monastery_planting_reducer";
@@ -149,6 +151,7 @@ export type DemolishFarmFieldParams = __Infer<typeof DemolishFarmFieldReducer>;
 export type DemolishGraveyardParams = __Infer<typeof DemolishGraveyardReducer>;
 export type DemolishPastureParams = __Infer<typeof DemolishPastureReducer>;
 export type DemolishResidenceParams = __Infer<typeof DemolishResidenceReducer>;
+export type DeployMilitaryFormationParams = __Infer<typeof DeployMilitaryFormationReducer>;
 export type DisbandMilitaryCompanyParams = __Infer<typeof DisbandMilitaryCompanyReducer>;
 export type DisbandMilitiaParams = __Infer<typeof DisbandMilitiaReducer>;
 export type EnterWorldParams = __Infer<typeof EnterWorldReducer>;
@@ -216,6 +219,7 @@ export type SetMarketplaceSpecialtyExportPolicyParams = __Infer<typeof SetMarket
 export type SetMarketplaceSpecialtyFamilyExportPolicyParams = __Infer<typeof SetMarketplaceSpecialtyFamilyExportPolicyReducer>;
 export type SetMilitaryFormationParams = __Infer<typeof SetMilitaryFormationReducer>;
 export type SetMilitaryStanceParams = __Infer<typeof SetMilitaryStanceReducer>;
+export type SetMilitaryTacticsParams = __Infer<typeof SetMilitaryTacticsReducer>;
 export type SetMonasteryCharterParams = __Infer<typeof SetMonasteryCharterReducer>;
 export type SetMonasteryNextExtensionParams = __Infer<typeof SetMonasteryNextExtensionReducer>;
 export type SetMonasteryPlantingParams = __Infer<typeof SetMonasteryPlantingReducer>;
@@ -245,3 +249,4 @@ export type TradeLivestockParams = __Infer<typeof TradeLivestockReducer>;
 export type UpgradeChapelParams = __Infer<typeof UpgradeChapelReducer>;
 export type UpgradeFlowerGardenLuxuryParams = __Infer<typeof UpgradeFlowerGardenLuxuryReducer>;
 export type UpgradeResidenceParams = __Infer<typeof UpgradeResidenceReducer>;
+

@@ -55,6 +55,7 @@ import DemolishFarmFieldReducer from "./demolish_farm_field_reducer";
 import DemolishGraveyardReducer from "./demolish_graveyard_reducer";
 import DemolishPastureReducer from "./demolish_pasture_reducer";
 import DemolishResidenceReducer from "./demolish_residence_reducer";
+import DeployMilitaryFormationReducer from "./deploy_military_formation_reducer";
 import DisbandMilitaryCompanyReducer from "./disband_military_company_reducer";
 import DisbandMilitiaReducer from "./disband_militia_reducer";
 import EnterWorldReducer from "./enter_world_reducer";
@@ -122,6 +123,7 @@ import SetMarketplaceSpecialtyExportPolicyReducer from "./set_marketplace_specia
 import SetMarketplaceSpecialtyFamilyExportPolicyReducer from "./set_marketplace_specialty_family_export_policy_reducer";
 import SetMilitaryFormationReducer from "./set_military_formation_reducer";
 import SetMilitaryStanceReducer from "./set_military_stance_reducer";
+import SetMilitaryTacticsReducer from "./set_military_tactics_reducer";
 import SetMonasteryCharterReducer from "./set_monastery_charter_reducer";
 import SetMonasteryNextExtensionReducer from "./set_monastery_next_extension_reducer";
 import SetMonasteryPlantingReducer from "./set_monastery_planting_reducer";
@@ -836,6 +838,7 @@ const reducersSchema = __reducers(
   __reducerSchema("demolish_graveyard", DemolishGraveyardReducer),
   __reducerSchema("demolish_pasture", DemolishPastureReducer),
   __reducerSchema("demolish_residence", DemolishResidenceReducer),
+  __reducerSchema("deploy_military_formation", DeployMilitaryFormationReducer),
   __reducerSchema("disband_military_company", DisbandMilitaryCompanyReducer),
   __reducerSchema("disband_militia", DisbandMilitiaReducer),
   __reducerSchema("enter_world", EnterWorldReducer),
@@ -903,6 +906,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_marketplace_specialty_family_export_policy", SetMarketplaceSpecialtyFamilyExportPolicyReducer),
   __reducerSchema("set_military_formation", SetMilitaryFormationReducer),
   __reducerSchema("set_military_stance", SetMilitaryStanceReducer),
+  __reducerSchema("set_military_tactics", SetMilitaryTacticsReducer),
   __reducerSchema("set_monastery_charter", SetMonasteryCharterReducer),
   __reducerSchema("set_monastery_next_extension", SetMonasteryNextExtensionReducer),
   __reducerSchema("set_monastery_planting", SetMonasteryPlantingReducer),
@@ -987,3 +991,4 @@ export class DbConnection extends __DbConnectionImpl<typeof REMOTE_MODULE> {
     return new SubscriptionBuilder(this);
   };
 }
+

@@ -45,6 +45,8 @@ struct RiverNavigationRow {
     span_x: f64,
     span_z: f64,
     wet_cells_hex: String,
+    #[serde(default)]
+    heights: Vec<f32>,
 }
 
 #[derive(Debug, Clone)]
@@ -55,6 +57,7 @@ struct RiverNavigationGrid {
     span_x: f64,
     span_z: f64,
     wet_cells: Vec<u8>,
+    heights: Vec<f32>,
 }
 
 #[derive(Debug, Clone)]
@@ -93,6 +96,20 @@ struct EdgeProjection {
 }
 
 impl RoadNetwork {
+    /// Bilinear sampling of the same terrain grid published with river navigation.
+    pub fn combat_elevation(&self, x: f64, z: f64) -> f64 {
+        let Some(grid) = &self.river_navigation else { return 0.0; };
+        let n = grid.resolution;
+        if grid.heights.len() != n * n || !x.is_finite() || !z.is_finite() { return 0.0; }
+        let gx = ((x-grid.start_x) / grid.span_x * (n-1) as f64).clamp(0.0, (n-1) as f64);
+        let gz = ((z-grid.start_z) / grid.span_z * (n-1) as f64).clamp(0.0, (n-1) as f64);
+        let ix = (gx.floor() as usize).min(n-2);
+        let iz = (gz.floor() as usize).min(n-2);
+        let (tx, tz) = (gx-ix as f64, gz-iz as f64);
+        let h = |x: usize, z: usize| grid.heights[z*n+x] as f64;
+        (h(ix,iz)*(1.0-tx) + h(ix+1,iz)*tx)*(1.0-tz)
+            + (h(ix,iz+1)*(1.0-tx) + h(ix+1,iz+1)*tx)*tz
+    }
     pub fn from_snapshot_json(json: &str) -> Option<Self> {
         let snapshot: RoadSnapshot = serde_json::from_str(json).ok()?;
         let river_navigation = snapshot
@@ -1078,6 +1095,8 @@ impl RiverNavigationGrid {
             span_x: row.span_x,
             span_z: row.span_z,
             wet_cells,
+            heights: if row.heights.len() == row.resolution * row.resolution
+                && row.heights.iter().all(|h| h.is_finite() && h.abs() <= 10_000.0) { row.heights } else { Vec::new() },
         })
     }
 

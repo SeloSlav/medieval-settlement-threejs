@@ -1318,6 +1318,14 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setMilitaryStance(companyId, stance);
   }
 
+  setMilitaryTactics(companyId: string, running: boolean, fireAtWill: boolean): Promise<void> {
+    return spacetimeReducers.setMilitaryTactics(companyId, running, fireAtWill);
+  }
+
+  deployMilitaryFormation(agentIds: string[], x: number, z: number, facingX: number, facingZ: number, frontage: number): Promise<void> {
+    return spacetimeReducers.deployMilitaryFormation(agentIds, x, z, facingX, facingZ, frontage);
+  }
+
   private emit(): void {
     const snapshot = this.snapshot;
     for (const listener of this.listeners) {
