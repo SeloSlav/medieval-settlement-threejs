@@ -27,7 +27,7 @@ equipment repair remain intentionally outside this pass.
 4. Companies use the shared drag-select and right-click RTS command language.
    A company—not an individual soldier—is the smallest selectable unit. Clicking
    one member or drawing across any part of its formation selects the complete
-   company, draws one circle around its footprint, and expands every order to
+   company, highlights its soldiers together, and expands every order to
    all living members. They auto-acquire nearby bandits and Ottoman raiders,
    while explicit orders move them, hold them, attack a camp, or retain a
    specific hostile-agent target authoritatively.
@@ -288,8 +288,8 @@ lightweight procedural weapons and shields. Player companies use the explicit
 walk/run order for locomotion clips; formation facing also drives stationary
 soldier presentation, matching the server's shield and bracing direction.
 
-A leaving mercenary company remains world-selectable with an orange formation
-circle, but right-click movement and attack orders are rejected by both client
+A leaving mercenary company remains world-selectable, but right-click movement
+and attack orders are rejected by both client
 and server. Selecting it opens its source Town Hall roster directly at the
 retainer action; the matching urgent Lord's report links to the same roster.
 
@@ -298,8 +298,8 @@ agents, up to the 1,024-person crowd ceiling, use three shared instanced body
 layers. This bounds mixers, skinned submissions, allocations, and draw calls
 while keeping every soldier visible at strategy-camera distance. The
 individual bodies are presentation and casualty records inside a single RTS
-company: the player sees one company-sized selection circle and cannot peel one
-soldier away with an individual order.
+company: selection highlights its members together and cannot peel one soldier
+away with an individual order.
 
 ## Battlefield command completion
 
