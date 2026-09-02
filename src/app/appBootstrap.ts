@@ -328,6 +328,7 @@ export async function bootstrapAppSession(
     interactionRoot: uiRoot,
     camera: sceneManager.camera,
     audioParent: sceneManager.scene,
+    getTerrainY: (x, z) => sceneManager.terrain.getHeightAt(x, z),
     riverLayout: sceneManager.riverField.layout,
     getRiverWaterSurfaceY: sceneManager.getBridgeSamplingContext().getWaterSurfaceY,
     gameplayMusicInitiallyActive: !bridge.deferGameplayMusic,

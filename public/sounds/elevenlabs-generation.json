@@ -91,15 +91,59 @@
       "sha256": "04d516de7fb96ca8dde67e30461f4172fab46ec985842dbe4a415206bbbd7dd8"
     },
     {
-      "id": "ambient-village-day",
-      "output": "public/sounds/ambient/village_day.mp3",
-      "generatedAt": "2026-08-19T09:03:30.176Z",
+      "id": "ambient-town-interior-day",
+      "output": "public/sounds/ambient/town_interior_day.mp3",
+      "generatedAt": "2026-09-02T09:52:08.965Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
       "outputFormat": "mp3_44100_128",
       "characterCost": "300",
       "byteLength": 481115,
-      "sha256": "ed35d386fbbae8d8dde72e284d42bdd5a0b7e151325affdee2587b96addf9a63"
+      "sha256": "f67a2d6c29a68999f839eb3b0bc604f22b88fe337a696bfe894e7d285619a76a"
+    },
+    {
+      "id": "ambient-worksite-food-farm",
+      "output": "public/sounds/ambient/worksite_food_farm.mp3",
+      "generatedAt": "2026-09-02T09:52:25.276Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "180",
+      "byteLength": 289271,
+      "sha256": "4f3bcb31eb1f8f0c66cdc46ce22521e1c980c5a7a15ac5e6e4ae839815b57a05"
+    },
+    {
+      "id": "ambient-worksite-metal-stone",
+      "output": "public/sounds/ambient/worksite_metal_stone.mp3",
+      "generatedAt": "2026-09-02T09:52:19.560Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "180",
+      "byteLength": 289271,
+      "sha256": "80b8e2b77cf83f536b5fef66e9d289823b39d2bf0b8a4a8594fee5d0de613f07"
+    },
+    {
+      "id": "ambient-worksite-textile-leather",
+      "output": "public/sounds/ambient/worksite_textile_leather.mp3",
+      "generatedAt": "2026-09-02T09:52:30.764Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "180",
+      "byteLength": 289271,
+      "sha256": "ad541748f4c23bdcf3a07881c82d4d1a3647ca3531ad0360972224333bdf017c"
+    },
+    {
+      "id": "ambient-worksite-wood",
+      "output": "public/sounds/ambient/worksite_wood.mp3",
+      "generatedAt": "2026-09-02T09:52:14.232Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "180",
+      "byteLength": 289271,
+      "sha256": "5cb667dec417ac98758911604c97952beab6fd0fe39625b556cd2cb2792d90be"
     },
     {
       "id": "building-apiary",

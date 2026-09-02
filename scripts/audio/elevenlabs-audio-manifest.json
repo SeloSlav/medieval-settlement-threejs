@@ -22,14 +22,54 @@
       "promptInfluence": 0.68
     },
     {
-      "id": "ambient-village-day",
-      "group": "ambient-core",
+      "id": "ambient-town-interior-day",
+      "group": "town-depth-ambience-v1",
       "kind": "sound-effect",
-      "output": "public/sounds/ambient/village_day.mp3",
-      "prompt": "Seamless subdued ambience of a distant late-medieval village heard from far across a field in heavy mist, warm muffled low-frequency wash of indistinct human activity and soft earth movement, dark diffuse steady background texture, calm, natural, and very low detail",
+      "output": "public/sounds/ambient/town_interior_day.mp3",
+      "prompt": "Seamless close daytime ambience inside a small late-medieval Croatian mountain town: soft indistinct neighbor murmur with no intelligible words, scattered dirt footsteps, a wooden handcart passing, occasional timber door, quiet chicken and dog far apart. Restrained everyday life, natural open air, no music, bells, shouting, modern sound, or prominent repeating event",
       "durationSeconds": 30,
       "loop": true,
-      "promptInfluence": 0.82
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "ambient-worksite-wood",
+      "group": "town-depth-ambience-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ambient/worksite_wood.mp3",
+      "prompt": "Seamless restrained close ambience of an active late-medieval woodworking yard: irregular hand-saw strokes, drawknife scraping, small wooden mallet taps, timber pieces shifted on earth. Sparse natural working rhythm, no single loud impact, no voices, music, machinery, birds, bells, or modern sound; matched loop edges",
+      "durationSeconds": 18,
+      "loop": true,
+      "promptInfluence": 0.91
+    },
+    {
+      "id": "ambient-worksite-metal-stone",
+      "group": "town-depth-ambience-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ambient/worksite_metal_stone.mp3",
+      "prompt": "Seamless restrained close ambience of a late-medieval forge and masonry work pocket: sparse irregular iron hammer taps, low anvil body, stone chisel scrapes, charcoal settling. Dry practical hand work, never rhythmic or musical, no loud clang climax, voices, machinery, bells, birds, or modern sound; matched loop edges",
+      "durationSeconds": 18,
+      "loop": true,
+      "promptInfluence": 0.91
+    },
+    {
+      "id": "ambient-worksite-food-farm",
+      "group": "town-depth-ambience-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ambient/worksite_food_farm.mp3",
+      "prompt": "Seamless restrained close ambience of a late-medieval food and farm workyard: grain scooped into sacks, a wooden paddle stirring, soft hand-mill and basket movement, occasional straw handling. Gentle irregular labor texture, no prominent animal call, voices, music, bells, machinery, or modern sound; matched loop edges",
+      "durationSeconds": 18,
+      "loop": true,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "ambient-worksite-textile-leather",
+      "group": "town-depth-ambience-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ambient/worksite_textile_leather.mp3",
+      "prompt": "Seamless restrained close ambience of a late-medieval textile and leather workshop: soft irregular hand-loom clacks, spindle whirr, cloth drawn across timber, hide and leather handled on a bench. Intimate dry craft texture, not rhythmic music, no voices, bells, animals, machinery, or modern sound; matched loop edges",
+      "durationSeconds": 18,
+      "loop": true,
+      "promptInfluence": 0.91
     },
     {
       "id": "ambient-night",
@@ -1977,7 +2017,7 @@
       "kind": "sound-effect",
       "output": "public/sounds/world/event_ottoman_raiders_detected.mp3",
       "prompt": "Medieval acoustic warning fanfare for Ottoman raiders entering the map: two distant low natural-brass war-trumpet blasts, then one broad rising sustained trumpet call over a single deep field-drum hit. Grave, martial early warning, not combat; breath-driven period brass, imperfect attacks, short valley echo. No voice, speech, chant, shout, crowd, ululation, electronics, telephone, ringtone, siren, beep, bell, chime, or synthesizer",
-      "durationSeconds": 3.6,
+      "durationSeconds": 3.0,
       "loop": false,
       "promptInfluence": 0.98
     },
@@ -1987,7 +2027,7 @@
       "kind": "sound-effect",
       "output": "public/sounds/world/event_bandit_camp_established.mp3",
       "prompt": "Medieval acoustic announcement for a new bandit camp: one rough low natural horn plays a slow three-note descending signal, with a deep hide-drum thump under the final note. Dark, suspicious, deliberate, not urgent; breath-driven animal horn or primitive brass, coarse attack, short forest echo. No voice, speech, chant, shout, crowd, electronics, telephone, ringtone, siren, beep, bell, chime, tuned percussion, or synthesizer",
-      "durationSeconds": 3.2,
+      "durationSeconds": 3.0,
       "loop": false,
       "promptInfluence": 0.98
     },

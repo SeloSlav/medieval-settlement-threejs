@@ -5,18 +5,23 @@ import type { AmbientLayerId } from './audioCatalog.ts';
 export type AmbientRuleState = {
   overviewActive: boolean;
   villageActive: boolean;
+  townInteriorActive: boolean;
 };
 
 export type AmbientRuleResult = {
   state: AmbientRuleState;
   baseLayer: AmbientLayerId;
   overlayLayer: AmbientLayerId | null;
+  overlayMix: number;
+  detailLayer: AmbientLayerId | null;
+  detailMix: number;
 };
 
 export type SettlementZone = {
   x: number;
   z: number;
-  radius: number;
+  interiorRadius: number;
+  outskirtsRadius: number;
 };
 
 type CameraTarget = {
@@ -32,8 +37,26 @@ type CameraTarget = {
 export const OVERVIEW_ENTER_DISTANCE = BASELINE_ORBIT_DISTANCE * 2.1;
 export const OVERVIEW_EXIT_DISTANCE = BASELINE_ORBIT_DISTANCE * 1.85;
 const VILLAGE_EXIT_RADIUS_MULTIPLIER = 1.15;
-const MIN_SETTLEMENT_RADIUS = 48;
-const BURGAGE_ZONE_RADIUS = 56;
+const TOWN_INTERIOR_FULL_ZOOM_DISTANCE = 38;
+const TOWN_INTERIOR_SILENT_ZOOM_DISTANCE = 112;
+const TOWN_AMBIENCE_ANCHOR_KINDS = new Set<BuildingState['kind']>([
+  'founders_camp',
+  'town_hall',
+  'marketplace',
+  'trading_post',
+  'chapel',
+  'wayside_shrine',
+  'village_storehouse',
+  'granary',
+  'well',
+  'tavern',
+  'stable',
+  'kennel',
+  'watchtower',
+  'guardhouse',
+  'palisaded_refuge',
+  'monastery',
+]);
 
 export function buildSettlementZones(
   buildings: Iterable<BuildingState>,
@@ -41,17 +64,35 @@ export function buildSettlementZones(
 ): SettlementZone[] {
   const zones: SettlementZone[] = [];
   for (const building of buildings) {
+    if (
+      building.constructionComplete === false
+      || !TOWN_AMBIENCE_ANCHOR_KINDS.has(building.kind)
+    ) {
+      continue;
+    }
+    const primaryAnchor = building.kind === 'town_hall';
+    const foundingAnchor = building.kind === 'founders_camp';
     zones.push({
       x: building.x,
       z: building.z,
-      radius: Math.max(MIN_SETTLEMENT_RADIUS, building.workRadius),
+      interiorRadius: primaryAnchor ? 52 : foundingAnchor ? 36 : 28,
+      outskirtsRadius: primaryAnchor ? 108 : foundingAnchor ? 78 : 66,
     });
   }
   for (const zone of burgageZones) {
+    const x = (zone.cornerA.x + zone.cornerB.x + zone.cornerC.x + zone.cornerD.x) * 0.25;
+    const z = (zone.cornerA.z + zone.cornerB.z + zone.cornerC.z + zone.cornerD.z) * 0.25;
+    const parcelExtent = Math.max(
+      Math.hypot(zone.cornerA.x - x, zone.cornerA.z - z),
+      Math.hypot(zone.cornerB.x - x, zone.cornerB.z - z),
+      Math.hypot(zone.cornerC.x - x, zone.cornerC.z - z),
+      Math.hypot(zone.cornerD.x - x, zone.cornerD.z - z),
+    );
     zones.push({
-      x: (zone.cornerA.x + zone.cornerB.x + zone.cornerC.x + zone.cornerD.x) * 0.25,
-      z: (zone.cornerA.z + zone.cornerB.z + zone.cornerC.z + zone.cornerD.z) * 0.25,
-      radius: BURGAGE_ZONE_RADIUS,
+      x,
+      z,
+      interiorRadius: Math.max(30, parcelExtent + 16),
+      outskirtsRadius: Math.max(72, parcelExtent + 56),
     });
   }
   return zones;
@@ -68,22 +109,49 @@ export function evaluateAmbientRules(params: {
     ? params.orbitDistance >= OVERVIEW_EXIT_DISTANCE
     : params.orbitDistance >= OVERVIEW_ENTER_DISTANCE;
 
-  const nearestZone = params.settlementZones.reduce<{ distance: number; radius: number } | null>((best, zone) => {
-    const distance = Math.hypot(params.cameraTarget.x - zone.x, params.cameraTarget.z - zone.z);
-    if (!best || distance < best.distance) {
-      return { distance, radius: zone.radius };
-    }
-    return best;
-  }, null);
-
-  const villageThreshold = nearestZone
-    ? nearestZone.radius * (params.previous.villageActive ? VILLAGE_EXIT_RADIUS_MULTIPLIER : 1)
-    : 0;
+  let outskirtsMix = 0;
+  let interiorGeographicMix = 0;
+  const exitMultiplier = params.previous.villageActive
+    ? VILLAGE_EXIT_RADIUS_MULTIPLIER
+    : 1;
+  for (const zone of params.settlementZones) {
+    const distance = Math.hypot(
+      params.cameraTarget.x - zone.x,
+      params.cameraTarget.z - zone.z,
+    );
+    const outskirtsRadius = zone.outskirtsRadius * exitMultiplier;
+    const interiorRadius = zone.interiorRadius * (
+      params.previous.townInteriorActive ? VILLAGE_EXIT_RADIUS_MULTIPLIER : 1
+    );
+    const zoneOutskirtsMix = 1 - smoothstep(
+      outskirtsRadius * 0.52,
+      outskirtsRadius,
+      distance,
+    );
+    const zoneInteriorMix = 1 - smoothstep(
+      interiorRadius * 0.48,
+      interiorRadius,
+      distance,
+    );
+    outskirtsMix = Math.max(outskirtsMix, zoneOutskirtsMix);
+    interiorGeographicMix = Math.max(interiorGeographicMix, zoneInteriorMix);
+  }
+  const interiorZoomMix = 1 - smoothstep(
+    TOWN_INTERIOR_FULL_ZOOM_DISTANCE,
+    TOWN_INTERIOR_SILENT_ZOOM_DISTANCE,
+    params.orbitDistance,
+  );
+  let interiorMix = interiorGeographicMix * interiorZoomMix;
+  // Keep the diffuse outskirts bed underneath the close layer, but make room
+  // for readable local detail rather than stacking both at full strength.
+  outskirtsMix *= 1 - interiorMix * 0.35;
+  if (params.isNight || overviewActive) {
+    outskirtsMix = 0;
+    interiorMix = 0;
+  }
   const villageActive =
-    !params.isNight &&
-    !overviewActive &&
-    !!nearestZone &&
-    nearestZone.distance <= villageThreshold;
+    outskirtsMix > 0.01 || interiorMix > 0.01;
+  const townInteriorActive = interiorMix > 0.01;
 
   const baseLayer: AmbientLayerId = overviewActive
     ? 'open_wind_overview'
@@ -92,11 +160,18 @@ export function evaluateAmbientRules(params: {
       : 'birds_wind_day';
   const overlayLayer: AmbientLayerId | null =
     !overviewActive && !params.isNight && villageActive ? 'village_day' : null;
+  const detailLayer: AmbientLayerId | null =
+    !overviewActive && !params.isNight && townInteriorActive
+      ? 'town_interior_day'
+      : null;
 
   return {
-    state: { overviewActive, villageActive },
+    state: { overviewActive, villageActive, townInteriorActive },
     baseLayer,
     overlayLayer,
+    overlayMix: outskirtsMix,
+    detailLayer,
+    detailMix: interiorMix,
   };
 }
 
@@ -106,4 +181,10 @@ export function selectAmbientWeatherLayer(
   overviewActive: boolean,
 ): AmbientLayerId | null {
   return isRaining && !overviewActive ? 'light_rain' : null;
+}
+
+function smoothstep(edge0: number, edge1: number, value: number): number {
+  if (edge0 === edge1) return value < edge0 ? 0 : 1;
+  const t = Math.max(0, Math.min(1, (value - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
 }

@@ -20,6 +20,8 @@ export type RiverSoundPoint = {
 export type RiverAudioConfig = {
   camera: THREE.Camera;
   parent: THREE.Object3D;
+  /** Shared world-audio listener; omitted only by isolated legacy callers. */
+  listener?: THREE.AudioListener;
   riverLayout: RiverLayout;
   getWaterSurfaceY: (x: number, z: number) => number;
 };
@@ -113,6 +115,7 @@ function considerWaterDisc(
 export class RiverAudio {
   private readonly config: RiverAudioConfig;
   private readonly listener: THREE.AudioListener;
+  private readonly ownsListener: boolean;
   private readonly source: THREE.PositionalAudio;
   private readonly hasRiverSound: boolean;
   private readonly targetPosition = new THREE.Vector3();
@@ -129,7 +132,8 @@ export class RiverAudio {
 
   constructor(config: RiverAudioConfig) {
     this.config = config;
-    this.listener = new THREE.AudioListener();
+    this.listener = config.listener ?? new THREE.AudioListener();
+    this.ownsListener = config.listener == null;
     this.source = new THREE.PositionalAudio(this.listener);
     this.hasRiverSound = config.riverLayout.terrainPreset !== 'delnice_meadow';
     this.source.name = 'Spatial river water audio';
@@ -141,7 +145,7 @@ export class RiverAudio {
       .setRolloffFactor(1);
     this.source.setLoop(RIVER_WATER_CLIP.loop ?? true);
     this.source.setVolume(0);
-    config.camera.add(this.listener);
+    if (this.ownsListener) config.camera.add(this.listener);
     config.parent.add(this.source);
     if (!this.hasRiverSound) {
       this.enabled = false;
@@ -221,7 +225,7 @@ export class RiverAudio {
     this.stopPlayback();
     this.source.disconnect();
     this.source.removeFromParent();
-    this.listener.removeFromParent();
+    if (this.ownsListener) this.listener.removeFromParent();
   }
 
   private load(): void {

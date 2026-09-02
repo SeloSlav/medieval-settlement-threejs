@@ -47,6 +47,9 @@ npm run audio:generate -- --id music-charter-beneath-firs
 # Replace the current river asset with a native seamless ElevenLabs loop.
 npm run audio:generate -- --id ambient-river --force
 
+# Regenerate the close-town bed and four spatial workshop-family loops.
+npm run audio:generate -- --group town-depth-ambience-v1 --force
+
 # Audit the weapon-matched combat suite without spending (24 cues, 32.5 s).
 npm run audio:generate -- --group combat-weapon-suite-v2 --dry-run
 
@@ -86,12 +89,21 @@ cost.
 
 ## Runtime mix
 
-- Day/night, village proximity, overview zoom, rain, river distance, and
-  chapel schedule drive the existing ambient layers. At overview zoom, the
+- Day/night, settlement depth, overview zoom, rain, river distance, and chapel
+  schedule drive the ambient layers. Settlement ambience has three scales:
+  `village_day` is the actual village-life loop imported from Selo Empire and
+  serves as the outskirts bed; `town_interior_day` adds close footsteps,
+  carts, doors, animals, and indistinct daily life only inside
+  civic or burgage cores at close zoom; and four HRTF-positioned production
+  loops follow nearby staffed wood, metal/stone, food/farm, or textile/leather
+  workplaces. At most two workshop families play at once. Unfinished,
+  unstaffed, fire-repairing, production-paused, nighttime, Sabbath/holiday,
+  and strategic-zoom workplaces remain silent. Remote industries no longer
+  create a false generic village bed by themselves. At overview zoom, the
   rain layer drops out so the environmental mix is wind-only.
-  `open_wind_overview.mp3` is the authorized overview wind imported from Selo
-  Empire and is checksum-locked so ElevenLabs regeneration does not replace
-  it. A broad zoom hysteresis band prevents wheel movement near the boundary
+  Both `village_day.mp3` and `open_wind_overview.mp3` are authorized imports
+  from Selo Empire and are checksum-locked so ElevenLabs regeneration does not
+  replace them. A broad zoom hysteresis band prevents wheel movement near the boundary
   from repeatedly switching beds, and role-specific 3.5–6.5 second envelopes
   smooth base, village, weather, and overview transitions.
 - SeedThree's gapless temperate WAV is a separate close-detail forest bed.
@@ -143,8 +155,8 @@ cost.
   Sound effects scales worker impacts, footsteps and other world Foley,
   building activity, combat, fires, chapel bells, and UI feedback. The master
   switch still mutes every layer. The five gameplay score cues are normalized
-  against browser-decoded source RMS, and the combined rain/village bed is
-  regression-checked against their default effective level.
+  against browser-decoded source RMS, and the worst-case rain/town/two-worksite
+  mix is regression-checked against their default effective level.
 
 The `ambient-extra`, `worker-foley`, and `ui` groups drive active fire
 incidents, visible worker activities, and placement feedback respectively.

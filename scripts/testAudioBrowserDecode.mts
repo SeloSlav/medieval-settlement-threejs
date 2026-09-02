@@ -19,6 +19,7 @@ import {
   MUSIC_TRACKS,
   OX_SELECTION_CLIPS,
   PERSON_SELECTION_CLIPS,
+  PRODUCTION_POCKET_CLIPS,
   RIVER_WATER_CLIP,
   STARTUP_MUSIC_CLIP,
   UI_SOUNDS,
@@ -76,6 +77,7 @@ function runtimeClips(): AudioClipDefinition[] {
   return [
     ...Object.values(AMBIENT_LAYERS),
     ...Object.values(CHAPEL_BELL_CLIPS),
+    ...Object.values(PRODUCTION_POCKET_CLIPS),
     RIVER_WATER_CLIP,
     FARM_WORKERS_SINGING_CLIP,
     FIRE_CRACKLE_CLIP,
@@ -302,8 +304,20 @@ async function main(): Promise<void> {
       AMBIENT_LAYERS.light_rain,
       DEFAULT_AMBIENCE_VOLUME,
     );
-    const busyAmbienceUnderScore = Math.hypot(dayRms, villageRms, rainRms)
-      * AMBIENT_SCORE_DUCK_GAIN;
+    const townInteriorRms = defaultEffectiveRms(
+      AMBIENT_LAYERS.town_interior_day,
+      DEFAULT_AMBIENCE_VOLUME,
+    );
+    const productionPocketRms = Object.values(PRODUCTION_POCKET_CLIPS)
+      .map((clip) => defaultEffectiveRms(clip, DEFAULT_AMBIENCE_VOLUME))
+      .sort((left, right) => right - left);
+    const busyAmbienceUnderScore = Math.hypot(
+      dayRms,
+      villageRms * 0.65,
+      townInteriorRms,
+      rainRms,
+      ...productionPocketRms.slice(0, 2),
+    ) * AMBIENT_SCORE_DUCK_GAIN;
     const overviewWindRms = defaultEffectiveRms(
       AMBIENT_LAYERS.open_wind_overview,
       DEFAULT_AMBIENCE_VOLUME,
@@ -347,7 +361,10 @@ async function main(): Promise<void> {
     invariant(
       averageScoreRms >= busyAmbienceUnderScore * 1.2
       && averageScoreRms <= busyAmbienceUnderScore * 2.2,
-      'Decoded score and busy ambience are outside the intended default balance',
+      'Decoded score and busy ambience are outside the intended default balance'
+      + ` (score ${averageScoreRms.toFixed(4)}, busy ambience`
+      + ` ${busyAmbienceUnderScore.toFixed(4)}, town ${townInteriorRms.toFixed(4)}, pockets`
+      + ` ${productionPocketRms.map((rms) => rms.toFixed(4)).join(', ')})`,
     );
     invariant(
       startupScoreRms >= averageScoreRms * 0.8
@@ -359,6 +376,14 @@ async function main(): Promise<void> {
       overviewWindRms >= dayRms * 1.4
       && overviewWindRms <= dayRms * 2.2,
       'Decoded overview wind should be broader than the close daytime bed without dominating it',
+    );
+    invariant(
+      townInteriorRms >= 0.0025
+      && townInteriorRms <= 0.012
+      && productionPocketRms.every((rms) => rms >= 0.0015 && rms <= 0.01),
+      `Close town layers are outside the intended restrained mix`
+      + ` (interior ${townInteriorRms.toFixed(4)}, pockets`
+      + ` ${productionPocketRms.map((rms) => rms.toFixed(4)).join(', ')})`,
     );
     invariant(
       setupAdjustRms < setupChoiceRms
@@ -387,7 +412,9 @@ async function main(): Promise<void> {
       banditCampRms < banditEntryRms
       && wildlifeEntryRms < banditEntryRms
       && banditCampRms < ottomanMapEntryRms,
-      'Threat announcements must preserve camp < bandit breach and wildlife < human-incursion urgency',
+      'Threat announcements must preserve camp < bandit breach and wildlife < human-incursion urgency'
+      + ` (camp ${banditCampRms.toFixed(4)}, breach ${banditEntryRms.toFixed(4)},`
+      + ` wildlife ${wildlifeEntryRms.toFixed(4)}, Ottoman ${ottomanMapEntryRms.toFixed(4)})`,
     );
     invariant(
       ottomanMapEntryRms >= 0.02,

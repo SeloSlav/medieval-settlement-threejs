@@ -15,6 +15,8 @@ type AmbientMix = {
   baseVolume?: number;
   overlayLayer?: AmbientLayerId | null;
   overlayVolume?: number;
+  detailLayer?: AmbientLayerId | null;
+  detailVolume?: number;
   weatherLayer?: AmbientLayerId | null;
   weatherVolume?: number;
 };
@@ -25,6 +27,7 @@ export const AMBIENT_LAYER_FADES: Record<
 > = {
   birds_wind_day: { inSeconds: 4.5, outSeconds: 5.5 },
   village_day: { inSeconds: 3.5, outSeconds: 4.5 },
+  town_interior_day: { inSeconds: 4, outSeconds: 5 },
   night_insects: { inSeconds: 5, outSeconds: 6 },
   open_wind_overview: { inSeconds: 5.5, outSeconds: 6.5 },
   light_rain: { inSeconds: 5, outSeconds: 6 },
@@ -53,6 +56,7 @@ export class AmbientAudio {
   private readonly ambientTracks: Record<AmbientLayerId, AmbientTrackState> = {
     birds_wind_day: createAmbientTrackState(),
     village_day: createAmbientTrackState(),
+    town_interior_day: createAmbientTrackState(),
     night_insects: createAmbientTrackState(),
     open_wind_overview: createAmbientTrackState(),
     light_rain: createAmbientTrackState(),
@@ -111,6 +115,15 @@ export class AmbientAudio {
         mix.overlayVolume ?? clip.volume ?? 1,
       );
       this.ensureAmbientTrackLoaded(mix.overlayLayer);
+    }
+    if (mix.detailLayer) {
+      const clip = AMBIENT_LAYERS[mix.detailLayer];
+      this.ambientTracks[mix.detailLayer].targetMix = 1;
+      this.ambientTracks[mix.detailLayer].mixVolume = Math.max(
+        0,
+        mix.detailVolume ?? clip.volume ?? 1,
+      );
+      this.ensureAmbientTrackLoaded(mix.detailLayer);
     }
     if (mix.weatherLayer) {
       const clip = AMBIENT_LAYERS[mix.weatherLayer];
@@ -181,9 +194,11 @@ export class AmbientAudio {
     this.setAmbientMix({
       baseLayer: null,
       overlayLayer: null,
+      detailLayer: null,
       weatherLayer: null,
       baseVolume: 0,
       overlayVolume: 0,
+      detailVolume: 0,
       weatherVolume: 0,
     });
     for (const id of AMBIENT_LAYER_IDS) {

@@ -18,6 +18,7 @@ import {
   MUSIC_TRACKS,
   OX_SELECTION_CLIPS,
   PERSON_SELECTION_CLIPS,
+  PRODUCTION_POCKET_CLIPS,
   RIVER_WATER_CLIP,
   UI_SOUNDS,
   WORKER_ACTIVITY_CLIPS,
@@ -63,17 +64,26 @@ import {
   forestWindTargetMix,
 } from '../src/audio/forestWindRules.ts';
 import {
+  buildSettlementZones,
   evaluateAmbientRules,
   OVERVIEW_ENTER_DISTANCE,
   OVERVIEW_EXIT_DISTANCE,
   selectAmbientWeatherLayer,
 } from '../src/audio/ambientRules.ts';
+import type { BuildingState } from '../src/resources/types.ts';
 import {
   DEFAULT_AMBIENCE_VOLUME,
   DEFAULT_MUSIC_VOLUME,
   DEFAULT_SOUND_EFFECTS_VOLUME,
 } from '../src/audio/audioPreferences.ts';
 import { riverAudioGain } from '../src/audio/RiverAudio.ts';
+import { productionPocketVolume } from '../src/audio/ProductionPocketAudio.ts';
+import {
+  buildProductionPocketTargets,
+  PRODUCTION_POCKET_MAX_ACTIVE,
+  productionPocketDistanceGain,
+  productionPocketZoomGain,
+} from '../src/audio/productionPocketRules.ts';
 import {
   buildCombatAudioSources,
   CombatAudio,
@@ -137,6 +147,8 @@ const EXPECTED_FARM_SONG_SHA256 =
   '4c7639f2abcbdad954db703744a0866b3e81afa4d2f27d6bd51907819e26f1c5';
 const EXPECTED_SELO_OVERVIEW_WIND_SHA256 =
   '388cdc56f19ea6d106af8d46c78b5d6bfa3cb6ea860542998f3190129a2d8305';
+const EXPECTED_SELO_VILLAGE_DAY_SHA256 =
+  '7fcd2f6cda2522b6f6991e550f4990e52e18a1f74d2e1ff703ea723270f611ae';
 const EXPECTED_SEEDTHREE_TEMPERATE_WIND_SHA256 =
   'abb8b3d6bd7988734b148bfda5135b740a54d4fe516ce1d71ee07e0cb3642328';
 
@@ -162,6 +174,7 @@ function runtimeClips(): AudioClipDefinition[] {
   return [
     ...Object.values(AMBIENT_LAYERS),
     ...Object.values(CHAPEL_BELL_CLIPS),
+    ...Object.values(PRODUCTION_POCKET_CLIPS),
     RIVER_WATER_CLIP,
     FARM_WORKERS_SINGING_CLIP,
     FIRE_CRACKLE_CLIP,
@@ -238,14 +251,14 @@ async function main(): Promise<void> {
     settlementZones: [],
     cameraTarget: { x: 0, z: 0 },
     orbitDistance: OVERVIEW_ENTER_DISTANCE - 0.01,
-    previous: { overviewActive: false, villageActive: false },
+    previous: { overviewActive: false, villageActive: false, townInteriorActive: false },
     isNight: false,
   });
   const retainedOverview = evaluateAmbientRules({
     settlementZones: [],
     cameraTarget: { x: 0, z: 0 },
     orbitDistance: OVERVIEW_EXIT_DISTANCE + 0.01,
-    previous: { overviewActive: true, villageActive: false },
+    previous: { overviewActive: true, villageActive: false, townInteriorActive: false },
     isNight: false,
   });
   invariant(
@@ -271,6 +284,113 @@ async function main(): Promise<void> {
   invariant(
     selectAmbientWeatherLayer(true, true) === null,
     'Overview zoom should remove rain from the wind-only ambience mix',
+  );
+  const townHall = {
+    id: 'town-hall-a',
+    kind: 'town_hall',
+    x: 0,
+    z: 0,
+    workRadius: 140,
+    constructionComplete: true,
+    assignedLabor: 1,
+  } as BuildingState;
+  const staffedSmithy = {
+    id: 'smithy-a',
+    kind: 'smithy',
+    x: 160,
+    z: 0,
+    workRadius: 48,
+    constructionComplete: true,
+    assignedLabor: 2,
+    productionRatePercent: 50,
+  } as BuildingState;
+  const townZones = buildSettlementZones([townHall, staffedSmithy], []);
+  invariant(
+    townZones.length === 1,
+    'Remote production buildings must not create false generic settlement beds',
+  );
+  const outskirtsAmbience = evaluateAmbientRules({
+    settlementZones: townZones,
+    cameraTarget: { x: 90, z: 0 },
+    orbitDistance: 88,
+    previous: { overviewActive: false, villageActive: false, townInteriorActive: false },
+    isNight: false,
+  });
+  const interiorAmbience = evaluateAmbientRules({
+    settlementZones: townZones,
+    cameraTarget: { x: 0, z: 0 },
+    orbitDistance: 24,
+    previous: { overviewActive: false, villageActive: true, townInteriorActive: false },
+    isNight: false,
+  });
+  invariant(
+    outskirtsAmbience.overlayLayer === 'village_day'
+    && outskirtsAmbience.overlayMix > 0
+    && outskirtsAmbience.detailLayer === null,
+    'Settlement outskirts need the distant bed without close-town detail',
+  );
+  invariant(
+    interiorAmbience.detailLayer === 'town_interior_day'
+    && interiorAmbience.detailMix > 0.95
+    && interiorAmbience.overlayMix < 0.7,
+    'Town cores need strong close detail while making space in the distant bed',
+  );
+  invariant(
+    productionPocketZoomGain(24) === 1
+    && productionPocketZoomGain(104) === 0
+    && productionPocketDistanceGain(10) === 1
+    && productionPocketDistanceGain(72) === 0,
+    'Production pockets must require both close zoom and local proximity',
+  );
+  const productionTargets = buildProductionPocketTargets({
+    buildings: [
+      { ...staffedSmithy, x: 5 },
+      {
+        ...staffedSmithy,
+        id: 'carpenter-a',
+        kind: 'carpenter',
+        x: 8,
+      },
+      {
+        ...staffedSmithy,
+        id: 'bakery-a',
+        kind: 'bakery',
+        x: 12,
+      },
+      {
+        ...staffedSmithy,
+        id: 'weaver-idle',
+        kind: 'weaver',
+        x: 3,
+        assignedLabor: 0,
+      },
+    ],
+    listener: { x: 0, z: 0 },
+    orbitDistance: 24,
+    isNight: false,
+    laborPaused: false,
+  });
+  invariant(
+    productionTargets.length === PRODUCTION_POCKET_MAX_ACTIVE
+    && productionTargets.some((target) => target.kind === 'metal-stone')
+    && productionTargets.some((target) => target.kind === 'wood')
+    && productionTargets.every((target) => target.sourceId !== 'weaver-idle'),
+    'The nearest active workshop families must win the bounded positional mix',
+  );
+  invariant(
+    buildProductionPocketTargets({
+      buildings: [staffedSmithy],
+      listener: { x: 0, z: 0 },
+      orbitDistance: 24,
+      isNight: false,
+      laborPaused: true,
+    }).length === 0,
+    'Scheduled labor pauses must silence production pockets',
+  );
+  invariant(
+    productionPocketVolume(PRODUCTION_POCKET_CLIPS.wood, 1, 0.5, 1)
+      === (PRODUCTION_POCKET_CLIPS.wood.volume ?? 1) * 0.5,
+    'The ambience preference must scale positional production loops',
   );
   invariant(
     forestWindTargetMix({
@@ -802,6 +922,15 @@ async function main(): Promise<void> {
   invariant(
     await sha256(overviewWindPath) === EXPECTED_SELO_OVERVIEW_WIND_SHA256,
     'The imported Selo Empire overview wind does not match its recorded source hash.',
+  );
+
+  const villageDayPath = path.resolve(
+    PROJECT_ROOT,
+    `public${AMBIENT_LAYERS.village_day.path}`,
+  );
+  invariant(
+    await sha256(villageDayPath) === EXPECTED_SELO_VILLAGE_DAY_SHA256,
+    'The imported Selo Empire village ambience does not match its recorded source hash.',
   );
 
   invariant(

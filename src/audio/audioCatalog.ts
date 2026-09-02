@@ -3,9 +3,16 @@ import type { BuildingKind } from '../generated/gameBalance.ts';
 export type AmbientLayerId =
   | 'birds_wind_day'
   | 'village_day'
+  | 'town_interior_day'
   | 'night_insects'
   | 'open_wind_overview'
   | 'light_rain';
+
+export type ProductionPocketKind =
+  | 'wood'
+  | 'metal-stone'
+  | 'food-farm'
+  | 'textile-leather';
 
 export type MusicTrackId =
   | 'a_charter_beneath_the_firs'
@@ -143,9 +150,18 @@ export type WorldFoleySoundId =
 export const AMBIENT_LAYERS: Record<AmbientLayerId, AudioClipDefinition> = {
   birds_wind_day: { path: '/sounds/ambient/birds_wind_day.mp3', volume: 0.95, loop: true },
   village_day: { path: '/sounds/ambient/village_day.mp3', volume: 0.45, loop: true },
+  town_interior_day: { path: '/sounds/ambient/town_interior_day.mp3', volume: 0.16, loop: true },
   night_insects: { path: '/sounds/ambient/night_insects.mp3', volume: 0.75, loop: true },
   open_wind_overview: { path: '/sounds/ambient/open_wind_overview.mp3', volume: 0.8, loop: true },
   light_rain: { path: '/sounds/ambient/light_rain.mp3', volume: 0.7, loop: true },
+};
+
+/** Quiet close-work loops spatially anchored to at most two active workshop families. */
+export const PRODUCTION_POCKET_CLIPS: Record<ProductionPocketKind, AudioClipDefinition> = {
+  wood: { path: '/sounds/ambient/worksite_wood.mp3', volume: 0.04, loop: true },
+  'metal-stone': { path: '/sounds/ambient/worksite_metal_stone.mp3', volume: 0.06, loop: true },
+  'food-farm': { path: '/sounds/ambient/worksite_food_farm.mp3', volume: 0.06, loop: true },
+  'textile-leather': { path: '/sounds/ambient/worksite_textile_leather.mp3', volume: 0.14, loop: true },
 };
 
 /** One authentic bell toll per church tier, reused for clicks and Angelus strokes. */
@@ -457,7 +473,7 @@ export const WORLD_FOLEY_CLIPS: Record<WorldFoleySoundId, AudioClipDefinition> =
   event_residence_complete: worldFoleyClip('event_residence_complete', 0.075),
   event_residence_upgrade: worldFoleyClip('event_residence_upgrade', 0.075),
   event_raid_alarm: worldFoleyClip('event_raid_alarm', 0.11),
-  event_ottoman_raiders_detected: worldFoleyClip('event_ottoman_raiders_detected', 0.22),
+  event_ottoman_raiders_detected: worldFoleyClip('event_ottoman_raiders_detected', 0.54),
   event_bandit_camp_established: worldFoleyClip('event_bandit_camp_established', 0.14),
   event_bandits_town_entry: worldFoleyClip('event_bandits_town_entry', 0.18),
   event_wildlife_town_entry: worldFoleyClip('event_wildlife_town_entry', 0.18),

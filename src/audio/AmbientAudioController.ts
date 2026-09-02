@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import type { FireIncidentState } from '../fires/fireIncident.ts';
 import type {
   BackyardGardenState,
@@ -21,6 +21,7 @@ import type {
 } from '../world/seasonPolicy.ts';
 import type { SettlementSchedule } from '../world/settlementSchedule.ts';
 import { AmbientAudio } from './AmbientAudio.ts';
+import { AMBIENT_LAYERS } from './audioCatalog.ts';
 import {
   buildSettlementZones,
   evaluateAmbientRules,
@@ -59,6 +60,8 @@ import {
   AgentSelectionAudio,
   type AgentSelectionKind,
 } from './AgentSelectionAudio.ts';
+import { ProductionPocketAudio } from './ProductionPocketAudio.ts';
+import { buildProductionPocketTargets } from './productionPocketRules.ts';
 
 export type AmbientAudioControllerConfig = {
   getCameraTarget: () => { x: number; z: number };
@@ -78,6 +81,7 @@ export type AmbientAudioControllerConfig = {
   getCombatAgents: () => Iterable<CombatAgentState>;
   camera: THREE.Camera;
   audioParent: THREE.Object3D;
+  getTerrainY: (x: number, z: number) => number;
   riverLayout: RiverLayout;
   getRiverWaterSurfaceY: (x: number, z: number) => number;
   unlockElement: HTMLElement;
@@ -87,9 +91,11 @@ export type AmbientAudioControllerConfig = {
 
 export class AmbientAudioController {
   private readonly audio = new AmbientAudio();
+  private readonly spatialListener: THREE.AudioListener;
   private readonly forestWind = new ForestWindAudio();
   private readonly chapelBell = new ChapelBellPlayer();
   private readonly riverAudio: RiverAudio;
+  private readonly productionPocketAudio: ProductionPocketAudio;
   private readonly soundtrack = new SoundtrackAudio();
   private readonly uiAudio = new UiAudio();
   private readonly uiInteractionAudio: UiInteractionAudio;
@@ -109,7 +115,11 @@ export class AmbientAudioController {
     orbitDistance: 0,
     enabled: true,
   };
-  private readonly ambientRuleState: AmbientRuleState = { overviewActive: false, villageActive: false };
+  private readonly ambientRuleState: AmbientRuleState = {
+    overviewActive: false,
+    villageActive: false,
+    townInteriorActive: false,
+  };
   private readonly buildingAudioView: CrowdViewState = {
     centerX: 0,
     centerZ: 0,
@@ -144,11 +154,19 @@ export class AmbientAudioController {
       config.interactionRoot,
       this.uiAudio,
     );
+    this.spatialListener = new THREE.AudioListener();
+    config.camera.add(this.spatialListener);
     this.riverAudio = new RiverAudio({
       camera: config.camera,
       parent: config.audioParent,
+      listener: this.spatialListener,
       riverLayout: config.riverLayout,
       getWaterSurfaceY: config.getRiverWaterSurfaceY,
+    });
+    this.productionPocketAudio = new ProductionPocketAudio({
+      listener: this.spatialListener,
+      parent: config.audioParent,
+      getGroundY: config.getTerrainY,
     });
     this.fireAudio = new FireAudio({
       getListener: config.getCameraTarget,
@@ -163,6 +181,7 @@ export class AmbientAudioController {
     this.audio.setVolume(getAmbienceVolume());
     this.forestWind.setVolume(getAmbienceVolume());
     this.riverAudio.setVolume(getAmbienceVolume());
+    this.productionPocketAudio.setVolume(getAmbienceVolume());
     this.setSoundEffectsVolume(getSoundEffectsVolume());
     this.soundtrack.setVolume(getMusicVolume());
     this.setEnabled(isGameAudioEnabled());
@@ -173,6 +192,7 @@ export class AmbientAudioController {
     this.running = true;
     this.lastAmbientEvalAtMs = 0;
     this.riverAudio.start();
+    this.productionPocketAudio.start();
     this.soundtrack.start();
   }
 
@@ -232,14 +252,29 @@ export class AmbientAudioController {
       });
       this.ambientRuleState.overviewActive = ambient.state.overviewActive;
       this.ambientRuleState.villageActive = ambient.state.villageActive;
+      this.ambientRuleState.townInteriorActive = ambient.state.townInteriorActive;
       this.audio.setAmbientMix({
         baseLayer: ambient.baseLayer,
         overlayLayer: ambient.overlayLayer,
+        overlayVolume: ambient.overlayLayer
+          ? (AMBIENT_LAYERS[ambient.overlayLayer].volume ?? 1) * ambient.overlayMix
+          : 0,
+        detailLayer: ambient.detailLayer,
+        detailVolume: ambient.detailLayer
+          ? (AMBIENT_LAYERS[ambient.detailLayer].volume ?? 1) * ambient.detailMix
+          : 0,
         weatherLayer: selectAmbientWeatherLayer(
           this.isRaining,
           ambient.state.overviewActive,
         ),
       });
+      this.productionPocketAudio.setTargets(buildProductionPocketTargets({
+        buildings: buildingSnapshot.values(),
+        listener,
+        orbitDistance,
+        isNight: this.presentationIsNight ?? false,
+        laborPaused: schedule?.laborPaused ?? false,
+      }));
       this.forestWind.setTargetMix(forestWindTargetMix({
         canopyCover: this.config.getForestCanopyCover(listener.x, listener.z),
         orbitDistance,
@@ -254,9 +289,11 @@ export class AmbientAudioController {
     const scoreActive = this.soundtrack.isAudible() || this.externalScoreActive;
     this.audio.setScoreActive(scoreActive);
     this.forestWind.setScoreActive(scoreActive);
+    this.productionPocketAudio.setScoreActive(scoreActive);
     this.audio.tick(dtSeconds);
     this.forestWind.tick(dtSeconds);
     this.riverAudio.tick(dtSeconds);
+    this.productionPocketAudio.tick(dtSeconds);
     this.fireAudio.tick(dtSeconds);
     const listener = this.config.getCameraTarget();
     this.buildingAudioView.centerX = listener.x;
@@ -287,6 +324,7 @@ export class AmbientAudioController {
     this.audio.setEnabled(enabled);
     this.forestWind.setEnabled(enabled && this.forestWindEnabled);
     this.riverAudio.setEnabled(enabled);
+    this.productionPocketAudio.setEnabled(enabled);
     this.fireAudio.setEnabled(enabled);
     this.buildingAudio.setEnabled(enabled);
     this.worldFoley.setEnabled(enabled);
@@ -338,6 +376,7 @@ export class AmbientAudioController {
     this.audio.setPaused(paused);
     this.forestWind.setPaused(paused);
     this.riverAudio.setPaused(paused);
+    this.productionPocketAudio.setPaused(paused);
     this.fireAudio.setPaused(paused);
   }
 
@@ -349,6 +388,7 @@ export class AmbientAudioController {
     this.audio.setVolume(volume);
     this.forestWind.setVolume(volume);
     this.riverAudio.setVolume(volume);
+    this.productionPocketAudio.setVolume(volume);
   }
 
   setSoundEffectsVolume(volume: number): void {
@@ -396,6 +436,8 @@ export class AmbientAudioController {
     this.forestWind.dispose();
     this.chapelBell.dispose();
     this.riverAudio.dispose();
+    this.productionPocketAudio.dispose();
+    this.spatialListener.removeFromParent();
     this.fireAudio.dispose();
     this.buildingAudio.dispose();
     this.worldFoley.dispose();
@@ -448,7 +490,10 @@ function syncPlacedChapels(
 
 function settlementSignature(buildings: BuildingState[], burgageZones: BurgageZoneState[]): string {
   const buildingPart = buildings
-    .map((building) => `${building.kind}:${building.x.toFixed(2)}:${building.z.toFixed(2)}:${building.workRadius}`)
+    .map((building) => (
+      `${building.kind}:${building.x.toFixed(2)}:${building.z.toFixed(2)}`
+      + `:${building.workRadius}:${building.constructionComplete === false ? 0 : 1}`
+    ))
     .sort()
     .join('|');
   const zonePart = burgageZones
