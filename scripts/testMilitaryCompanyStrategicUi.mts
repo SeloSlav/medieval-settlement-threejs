@@ -2,14 +2,21 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  HOSTILE_COMPANY_COMPACT_MARKER_HEIGHT_PX,
+  HOSTILE_COMPANY_COMPACT_MARKER_SCALE,
+  HOSTILE_COMPANY_FULL_MARKER_MAX_HEIGHT_PX,
+  HOSTILE_COMPANY_READABLE_HEIGHT_PX,
   STRATEGIC_COMPANY_ICON_HIDE_ZOOM_PERCENT,
   STRATEGIC_COMPANY_ICON_REVEAL_ZOOM_PERCENT,
   STRATEGIC_COMPANY_POSITION_SNAP_DISTANCE,
   STRATEGIC_COMPANY_STATIONARY_DEAD_ZONE,
+  hostileCompanyMarkerPresentation,
+  projectedCompanyBodyHeightPx,
   resolveStrategicCompanyIconVisibility,
   strategicCompanyIconOpacity,
   strategicCompanyPositionBlend,
 } from '../src/security/MilitaryCompanyStrategicOverlay.ts';
+import * as THREE from 'three';
 import {
   HOSTILE_COMPANY_STRATEGIC_ICON_ART,
   MILITARY_COMPANY_STRATEGIC_ICON_ART,
@@ -34,6 +41,42 @@ assert.equal(strategicCompanyIconOpacity(72), 1);
 assert.ok(strategicCompanyIconOpacity(80) > 0.45);
 assert.ok(strategicCompanyIconOpacity(80) < 0.55);
 assert.equal(strategicCompanyIconOpacity(88), 0);
+assert.deepEqual(
+  hostileCompanyMarkerPresentation(HOSTILE_COMPANY_READABLE_HEIGHT_PX, false),
+  { opacity: 1, scale: 1, compact: false },
+  'a culled hostile company must retain its full marker at every zoom',
+);
+assert.deepEqual(
+  hostileCompanyMarkerPresentation(HOSTILE_COMPANY_FULL_MARKER_MAX_HEIGHT_PX, true),
+  { opacity: 1, scale: 1, compact: false },
+);
+const compactHostile = hostileCompanyMarkerPresentation(
+  HOSTILE_COMPANY_COMPACT_MARKER_HEIGHT_PX,
+  true,
+);
+assert.equal(compactHostile.opacity, 1);
+assert.equal(compactHostile.scale, HOSTILE_COMPANY_COMPACT_MARKER_SCALE);
+assert.equal(compactHostile.compact, true);
+const fadingHostile = hostileCompanyMarkerPresentation(
+  (HOSTILE_COMPANY_COMPACT_MARKER_HEIGHT_PX + HOSTILE_COMPANY_READABLE_HEIGHT_PX) / 2,
+  true,
+);
+assert.ok(fadingHostile.opacity > 0.45 && fadingHostile.opacity < 0.55);
+assert.equal(fadingHostile.compact, true);
+assert.equal(
+  hostileCompanyMarkerPresentation(HOSTILE_COMPANY_READABLE_HEIGHT_PX, true).opacity,
+  0,
+  'the hostile marker may disappear only once submitted bodies are readable',
+);
+assert.equal(
+  projectedCompanyBodyHeightPx(
+    new THREE.Vector3(0, 0.1, 0),
+    new THREE.Vector3(0, 0.2, 0),
+    1280,
+    720,
+  ),
+  36,
+);
 assert.equal(
   strategicCompanyPositionBlend(STRATEGIC_COMPANY_STATIONARY_DEAD_ZONE, false, 1 / 60),
   0,
@@ -119,11 +162,12 @@ assert.match(controllerSource, /hostile:\s*true/);
 assert.match(controllerSource, /members\[0\]!\.faction === 'bandit' \? 'bandits'/);
 assert.match(
   appSource,
-  /cameraController\?\.update\(dt\)[\s\S]*?worldMapUi\?\.update\(\)[\s\S]*?militiaCommands\?\.update\(time\)/,
+  /cameraController\?\.update\(dt\)[\s\S]*?worldMapUi\?\.update\(\)[\s\S]*?militiaCommands\?\.update\(time, crowdView\)/,
   'strategic companies must project from the same settled camera frame as resource icons',
 );
 assert.match(appSource, /getMilitaryCompanyOverride: \(\) => this\.combatPlaytest\?\.companyStates\(\)\.values\(\)/);
 assert.match(appSource, /this\.resourceInspector\?\.refreshSelection\(\)/);
 assert.match(bootstrapSource, /getMilitaryCompanyOverride\?\.\(\)/);
+assert.match(bootstrapSource, /onHostileFocus:[\s\S]*?focusWorldPositionAtZoom/);
 
 console.log('Military company strategic icons and playtest unit-card contracts passed.');

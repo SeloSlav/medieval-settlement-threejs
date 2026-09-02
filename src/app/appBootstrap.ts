@@ -124,6 +124,7 @@ import type { GameSpeed } from '../world/gameSpeed.ts';
 import { gameClock } from '../world/gameCalendar.ts';
 
 const REPORT_FOCUS_ZOOM_PERCENT = 50;
+const HOSTILE_COMPANY_FOCUS_ZOOM_PERCENT = 200;
 
 export type AppBootstrapBridge = {
   syncToolbar: () => void;
@@ -1449,6 +1450,16 @@ export async function bootstrapAppSession(
       villagerInspector.clearSelection();
       worldMapUi.townReport.close();
       resourceInspector.selectMilitaryCompany(companyId);
+    },
+    onHostileFocus: (x, z) => {
+      villagerInspector.clearSelection();
+      resourceInspector.clearSelection();
+      worldMapUi.townReport.close();
+      cameraController.focusWorldPositionAtZoom(
+        x,
+        z,
+        HOSTILE_COMPANY_FOCUS_ZOOM_PERCENT,
+      );
     },
   });
   const vineyardParcelMarkers = new VineyardParcelMarkers(

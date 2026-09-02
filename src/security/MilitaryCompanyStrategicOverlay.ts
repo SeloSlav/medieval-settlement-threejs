@@ -1,4 +1,8 @@
 import * as THREE from 'three';
+import {
+  isWithinCrowdView,
+  type CrowdViewState,
+} from '../settlement/crowdView.ts';
 import type { MilitaryCompanyKind } from './militaryProgression.ts';
 import {
   HOSTILE_COMPANY_STRATEGIC_ICON_ART,
@@ -14,6 +18,14 @@ export const STRATEGIC_COMPANY_ICON_REVEAL_ZOOM_PERCENT = 72;
 export const STRATEGIC_COMPANY_ICON_HIDE_ZOOM_PERCENT = 88;
 export const STRATEGIC_COMPANY_STATIONARY_DEAD_ZONE = 0.8;
 export const STRATEGIC_COMPANY_POSITION_SNAP_DISTANCE = 32;
+/** A company below this projected height still reads as a map symbol. */
+export const HOSTILE_COMPANY_FULL_MARKER_MAX_HEIGHT_PX = 14;
+/** The compact marker takes over while authored bodies become recognizable. */
+export const HOSTILE_COMPANY_COMPACT_MARKER_HEIGHT_PX = 22;
+/** At this height the authored company is readable without a marker. */
+export const HOSTILE_COMPANY_READABLE_HEIGHT_PX = 34;
+export const HOSTILE_COMPANY_COMPACT_MARKER_SCALE = 0.64;
+const STRATEGIC_COMPANY_BODY_HEIGHT_METERS = 1.72;
 const STRATEGIC_COMPANY_MOVING_RESPONSE = 12;
 const STRATEGIC_COMPANY_STATIONARY_RESPONSE = 4.5;
 const MAX_POSITION_FILTER_DELTA_SECONDS = 0.05;
@@ -37,14 +49,23 @@ type StrategicCompanyIconOptions = {
   getHeightAt: (x: number, z: number) => number;
   isBlocked: () => boolean;
   onSelect: (companyId: string) => void;
+  onHostileFocus?: (marker: StrategicCompanyMarker) => void;
 };
 
 type IconEntry = {
   marker: StrategicCompanyMarker;
   button: HTMLButtonElement;
   projected: THREE.Vector3;
+  feetProjected: THREE.Vector3;
+  headProjected: THREE.Vector3;
   displayX: number;
   displayZ: number;
+};
+
+export type HostileCompanyMarkerPresentation = {
+  opacity: number;
+  scale: number;
+  compact: boolean;
 };
 
 /** Filters company motion in world space so camera movement remains exact.
@@ -90,13 +111,63 @@ export function strategicCompanyIconOpacity(zoomPercent: number): number {
   );
 }
 
+/** Hostile markers hand off to authored bodies only when those bodies are both
+ * submitted by the crowd renderer and large enough to recognize on screen. */
+export function hostileCompanyMarkerPresentation(
+  projectedBodyHeightPx: number,
+  worldPresentationVisible: boolean,
+): HostileCompanyMarkerPresentation {
+  if (!worldPresentationVisible || !Number.isFinite(projectedBodyHeightPx)) {
+    return { opacity: 1, scale: 1, compact: false };
+  }
+  const bodyHeight = Math.max(0, projectedBodyHeightPx);
+  const compactProgress = THREE.MathUtils.smoothstep(
+    bodyHeight,
+    HOSTILE_COMPANY_FULL_MARKER_MAX_HEIGHT_PX,
+    HOSTILE_COMPANY_COMPACT_MARKER_HEIGHT_PX,
+  );
+  const opacity = 1 - THREE.MathUtils.smoothstep(
+    bodyHeight,
+    HOSTILE_COMPANY_COMPACT_MARKER_HEIGHT_PX,
+    HOSTILE_COMPANY_READABLE_HEIGHT_PX,
+  );
+  return {
+    opacity,
+    scale: THREE.MathUtils.lerp(
+      1,
+      HOSTILE_COMPANY_COMPACT_MARKER_SCALE,
+      compactProgress,
+    ),
+    compact: bodyHeight >= HOSTILE_COMPANY_COMPACT_MARKER_HEIGHT_PX
+      && opacity > 0.02,
+  };
+}
+
+export function projectedCompanyBodyHeightPx(
+  feet: THREE.Vector3,
+  head: THREE.Vector3,
+  viewportWidth: number,
+  viewportHeight: number,
+): number {
+  if (
+    !Number.isFinite(viewportWidth)
+    || !Number.isFinite(viewportHeight)
+    || viewportWidth <= 0
+    || viewportHeight <= 0
+  ) return Number.NaN;
+  return Math.hypot(
+    (head.x - feet.x) * viewportWidth * 0.5,
+    (head.y - feet.y) * viewportHeight * 0.5,
+  );
+}
+
 /** Lightweight DOM projection for whole-company strategic markers. One button
  * is retained per active company; there are no per-soldier DOM allocations. */
 export class MilitaryCompanyStrategicOverlay {
   private readonly options: StrategicCompanyIconOptions;
   private readonly root: HTMLElement;
   private readonly entries = new Map<string, IconEntry>();
-  private visible = false;
+  private friendlyVisible = false;
   private selectedCompanyId: string | null = null;
   private lastUpdateTimeMs: number | null = null;
 
@@ -124,6 +195,8 @@ export class MilitaryCompanyStrategicOverlay {
         marker,
         button,
         projected: new THREE.Vector3(),
+        feetProjected: new THREE.Vector3(),
+        headProjected: new THREE.Vector3(),
         displayX: marker.x,
         displayZ: marker.z,
       });
@@ -148,17 +221,18 @@ export class MilitaryCompanyStrategicOverlay {
     }
   }
 
-  update(timeMs = performance.now()): void {
+  update(timeMs = performance.now(), crowdView?: CrowdViewState): void {
     const deltaSeconds = this.lastUpdateTimeMs === null
       ? 0
       : Math.max(0, (timeMs - this.lastUpdateTimeMs) / 1000);
     this.lastUpdateTimeMs = timeMs;
-    this.visible = resolveStrategicCompanyIconVisibility(
-      this.visible,
+    const blocked = this.options.isBlocked();
+    this.friendlyVisible = resolveStrategicCompanyIconVisibility(
+      this.friendlyVisible,
       this.options.getZoomPercent(),
-      this.options.isBlocked(),
+      blocked,
     );
-    if (!this.visible || this.entries.size === 0) {
+    if (blocked || this.entries.size === 0) {
       this.root.hidden = true;
       for (const entry of this.entries.values()) {
         entry.displayX = entry.marker.x;
@@ -167,9 +241,7 @@ export class MilitaryCompanyStrategicOverlay {
       return;
     }
     this.root.hidden = false;
-    this.root.style.opacity = strategicCompanyIconOpacity(
-      this.options.getZoomPercent(),
-    ).toFixed(3);
+    this.root.style.opacity = '1';
     const rect = this.options.domElement.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) {
       this.root.hidden = true;
@@ -186,10 +258,11 @@ export class MilitaryCompanyStrategicOverlay {
       );
       entry.displayX += offsetX * positionBlend;
       entry.displayZ += offsetZ * positionBlend;
+      const groundY = this.options.getHeightAt(entry.displayX, entry.displayZ);
       entry.projected
         .set(
           entry.displayX,
-          this.options.getHeightAt(entry.displayX, entry.displayZ) + 3.15,
+          groundY + 3.15,
           entry.displayZ,
         )
         .project(this.options.camera);
@@ -199,8 +272,51 @@ export class MilitaryCompanyStrategicOverlay {
         && entry.projected.x <= 1.08
         && entry.projected.y >= -1.08
         && entry.projected.y <= 1.08;
-      entry.button.hidden = !inView;
-      if (!inView) continue;
+      let markerOpacity = strategicCompanyIconOpacity(this.options.getZoomPercent());
+      let markerScale = 1;
+      let compact = false;
+      if (entry.marker.hostile) {
+        entry.feetProjected
+          .set(entry.displayX, groundY + 0.02, entry.displayZ)
+          .project(this.options.camera);
+        entry.headProjected
+          .set(
+            entry.displayX,
+            groundY + STRATEGIC_COMPANY_BODY_HEIGHT_METERS,
+            entry.displayZ,
+          )
+          .project(this.options.camera);
+        const presentation = hostileCompanyMarkerPresentation(
+          projectedCompanyBodyHeightPx(
+            entry.feetProjected,
+            entry.headProjected,
+            rect.width,
+            rect.height,
+          ),
+          crowdView !== undefined
+            && inView
+            && entry.feetProjected.z >= -1
+            && entry.feetProjected.z <= 1
+            && entry.headProjected.z >= -1
+            && entry.headProjected.z <= 1
+            && isWithinCrowdView(entry.marker.x, entry.marker.z, crowdView),
+        );
+        markerOpacity = presentation.opacity;
+        markerScale = presentation.scale;
+        compact = presentation.compact;
+      } else if (!this.friendlyVisible) {
+        markerOpacity = 0;
+      }
+      const markerVisible = inView && markerOpacity > 0.02;
+      entry.button.hidden = !markerVisible;
+      entry.button.style.opacity = markerOpacity.toFixed(3);
+      entry.button.style.setProperty('--company-marker-scale', markerScale.toFixed(3));
+      entry.button.classList.toggle('is-compact', compact);
+      if (!markerVisible) {
+        entry.displayX = entry.marker.x;
+        entry.displayZ = entry.marker.z;
+        continue;
+      }
       entry.button.style.left = `${rect.left + (entry.projected.x * 0.5 + 0.5) * rect.width}px`;
       entry.button.style.top = `${rect.top + (-entry.projected.y * 0.5 + 0.5) * rect.height}px`;
     }
@@ -222,8 +338,13 @@ export class MilitaryCompanyStrategicOverlay {
     button.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      if (this.options.isBlocked() || marker.hostile) return;
-      this.options.onSelect(marker.id);
+      if (this.options.isBlocked()) return;
+      const current = this.entries.get(marker.id)?.marker ?? marker;
+      if (current.hostile) {
+        this.options.onHostileFocus?.(current);
+        return;
+      }
+      this.options.onSelect(current.id);
     });
     const woodcut = document.createElement('img');
     woodcut.className = 'military-company-map-icon__woodcut';
@@ -248,16 +369,17 @@ export class MilitaryCompanyStrategicOverlay {
     button.dataset.militaryCompanyKind = marker.kind;
     button.dataset.controllable = String(marker.controllable);
     button.dataset.hostile = String(marker.hostile);
-    button.tabIndex = marker.hostile ? -1 : 0;
-    button.setAttribute('aria-disabled', String(marker.hostile));
+    const hostileFocusable = marker.hostile && Boolean(this.options.onHostileFocus);
+    button.tabIndex = marker.hostile && !hostileFocusable ? -1 : 0;
+    button.setAttribute('aria-disabled', String(marker.hostile && !hostileFocusable));
     button.dataset.tooltipTitle = label;
     button.dataset.tooltip = marker.hostile
-      ? `${marker.livingMembers} living · enemy company`
+      ? `${marker.livingMembers} living · click to focus enemy company`
       : `${marker.livingMembers} living · click to select company`;
     button.setAttribute(
       'aria-label',
       marker.hostile
-        ? `${label}, ${marker.livingMembers} living. Enemy company.`
+        ? `${label}, ${marker.livingMembers} living. Focus enemy company.`
         : `${label}, ${marker.livingMembers} living. Select military company.`,
     );
     const woodcut = button.querySelector<HTMLImageElement>('.military-company-map-icon__woodcut');

@@ -127,14 +127,15 @@
   pointer-events: auto;
   cursor: pointer;
   transform-origin: 50% 70%;
-  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  transform: scale(var(--company-marker-scale, 1));
+  transition: opacity 0.14s ease, transform 0.14s ease, border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
 .military-company-map-icon:hover,
 .military-company-map-icon:focus-visible,
 .military-company-map-icon.is-selected {
   outline: none;
-  transform: translateY(-2px) scale(1.09);
+  transform: translateY(-2px) scale(calc(var(--company-marker-scale, 1) * 1.09));
   border-color: #f0c84d;
   box-shadow:
     0 11px 26px rgba(0, 0, 0, 0.48),
@@ -148,8 +149,8 @@
 
 .military-company-map-icon[data-hostile='true'] {
   --company-edge: #b84936;
-  pointer-events: none;
-  cursor: default;
+  pointer-events: auto;
+  cursor: crosshair;
   background:
     radial-gradient(circle at 38% 30%, rgba(255, 190, 147, 0.16), transparent 42%),
     rgba(38, 22, 19, 0.94);
@@ -157,6 +158,11 @@
     0 9px 22px rgba(0, 0, 0, 0.46),
     0 0 0 2px rgba(69, 23, 16, 0.64),
     inset 0 0 0 1px rgba(255, 196, 157, 0.11);
+}
+
+.military-company-map-icon[data-hostile='true'].is-compact .military-company-map-icon__woodcut,
+.military-company-map-icon[data-hostile='true'].is-compact .military-company-map-icon__count {
+  opacity: 0;
 }
 
 .military-company-map-icon[data-hostile='true']:hover,
@@ -182,6 +188,7 @@
     drop-shadow(0 1px 1px rgba(0, 0, 0, 0.72));
   pointer-events: none;
   user-select: none;
+  transition: opacity 0.14s ease;
 }
 
 .military-company-map-icon__count {
@@ -200,6 +207,7 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.48);
   font: 800 10px/1 Inter, ui-sans-serif, system-ui, sans-serif;
   pointer-events: none;
+  transition: opacity 0.14s ease;
 }
 
 .military-company-map-icons[hidden] .military-company-map-icon {

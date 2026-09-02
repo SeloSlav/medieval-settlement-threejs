@@ -17,7 +17,11 @@ type ListenerEntry = {
 };
 
 class FakeElement {
-  readonly style: Record<string, string> = {};
+  readonly style = {
+    setProperty(name: string, value: string): void {
+      (this as unknown as Record<string, string>)[name] = value;
+    },
+  } as CSSStyleDeclaration;
   readonly children: unknown[] = [];
   readonly dataset: Record<string, string> = {};
   readonly classList = { toggle: (_name: string, _enabled?: boolean) => false };

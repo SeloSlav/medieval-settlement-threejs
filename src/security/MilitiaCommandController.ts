@@ -15,6 +15,7 @@ import {
   militaryCompanyKindForAgents,
 } from './militaryCompanyPresentation.ts';
 import type { MilitaryCompanyKind } from './militaryProgression.ts';
+import type { CrowdViewState } from '../settlement/crowdView.ts';
 
 type Options = {
   domElement: HTMLElement;
@@ -28,6 +29,7 @@ type Options = {
   onCommand: (ids: string[], x: number, z: number, campId: string | null) => void;
   onCompanySelected?: (companyId: string | null) => void;
   onLeavingCompanySelected?: (companyId: string) => void;
+  onHostileFocus?: (x: number, z: number) => void;
   now?: () => number;
 };
 
@@ -108,6 +110,7 @@ export class MilitiaCommandController {
       getHeightAt: options.getHeightAt,
       isBlocked: options.isBlocked,
       onSelect: this.selectCompany,
+      onHostileFocus: (marker) => options.onHostileFocus?.(marker.x, marker.z),
     });
     this.rightClick = new SecondaryClickGesture({ onClick: this.issueOrder });
     options.domElement.addEventListener('mousedown', this.onMouseDown);
@@ -121,9 +124,9 @@ export class MilitiaCommandController {
   }
 
   /** Advances the short order acknowledgement on the ordinary render clock. */
-  update(timeMs: number): void {
+  update(timeMs: number, crowdView?: CrowdViewState): void {
     this.orderFeedback.update(timeMs);
-    this.strategicIcons.update();
+    this.strategicIcons.update(timeMs, crowdView);
   }
 
   orderFeedbackDiagnostics(timeMs = this.now()): MilitaryOrderFeedbackDiagnostics {

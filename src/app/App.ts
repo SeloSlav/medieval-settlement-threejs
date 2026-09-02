@@ -954,10 +954,10 @@ export class App {
       renderOrbitDistance = this.cameraController?.getOrbitDistance() ?? 240;
       renderCameraInteractionActive = this.cameraController?.isNavigationActive() ?? false;
     }
-    // Project company markers after the active camera has settled for this
-    // frame, matching the stable resource-marker projection path above.
-    this.militiaCommands?.update(time);
     const crowdView = this.buildCrowdViewState();
+    // Project company markers after the active camera has settled and use the
+    // exact crowd visibility envelope that owns authored soldier submission.
+    this.militiaCommands?.update(time, crowdView);
     if (this.snapshotApplierDeps) {
       tickSettlementWorld(
         this.snapshotApplierDeps.settlementWorld,
