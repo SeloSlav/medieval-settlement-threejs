@@ -942,6 +942,66 @@
       "promptInfluence": 0.92
     },
     {
+      "id": "ui-game-press",
+      "group": "ui-game-hierarchy",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/game_press.mp3",
+      "prompt": "Immediate ultra-short premium medieval strategy game routine button press: one small smooth oak peg depresses into a fitted wooden socket with a precise soft dry click, neutral and low-energy for frequent use, centered close transient, no tail, no reverb, no melody, no voice",
+      "durationSeconds": 0.5,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "ui-game-tab",
+      "group": "ui-game-hierarchy",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/game_tab.mp3",
+      "prompt": "Immediate ultra-short premium medieval strategy game tab selection: a stiff parchment index tab slides a finger-width across an oak ledger and seats with one crisp light wooden stop, clear but unobtrusive, dry centered transient, no tail, no reverb, no melody, no voice",
+      "durationSeconds": 0.5,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "ui-game-toggle",
+      "group": "ui-game-hierarchy",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/game_toggle.mp3",
+      "prompt": "Immediate ultra-short premium medieval strategy game toggle: one tiny polished brass pin moves through a carved oak detent with a clean mechanical tick, suitable for pitch-shifting between off and on, delicate and dry, centered isolated transient, no tail, no reverb, no melody, no voice",
+      "durationSeconds": 0.5,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "ui-game-panel",
+      "group": "ui-game-hierarchy",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/game_panel.mp3",
+      "prompt": "Immediate short premium medieval strategy game panel movement: a compact leather-bound oak ledger cover moves on a small refined hinge and settles with a muted parchment-lined wooden contact, suitable for pitch-shifting between close and open, tactile but restrained, dry close mix, no reverb, no melody, no voice",
+      "durationSeconds": 0.65,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "ui-game-transaction",
+      "group": "ui-game-hierarchy",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/game_transaction.mp3",
+      "prompt": "Immediate short premium medieval strategy game transaction intent: one small period silver coin touches a wooden ledger beside a compact clerk stamp, two restrained precise contacts, more consequential than a routine click but lighter than final confirmation, dry centered mix, no reverb, no melody, no voice",
+      "durationSeconds": 0.7,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "ui-game-danger",
+      "group": "ui-game-hierarchy",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/game_danger.mp3",
+      "prompt": "Immediate short premium medieval strategy game destructive-action intent: a dark iron latch drops once against a dense oak block with a controlled low clack, sober caution rather than alarm, distinct from error and final confirmation, compact dry centered sound, no reverb, no melody, no voice",
+      "durationSeconds": 0.75,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
       "id": "building-founders-camp",
       "group": "building-foley",
       "kind": "sound-effect",

@@ -55,7 +55,13 @@ export type UiSoundId =
   | 'setup_adjust'
   | 'setup_back'
   | 'setup_advance'
-  | 'setup_commit';
+  | 'setup_commit'
+  | 'game_press'
+  | 'game_tab'
+  | 'game_toggle'
+  | 'game_panel'
+  | 'game_transaction'
+  | 'game_danger';
 
 export type PersonSelectionVoice = 'male' | 'female';
 
@@ -302,6 +308,12 @@ export const UI_SOUNDS: Record<UiSoundId, AudioClipDefinition> = {
   setup_back: { path: '/sounds/ui/setup_back.mp3', volume: 0.24 },
   setup_advance: { path: '/sounds/ui/setup_advance.mp3', volume: 0.45 },
   setup_commit: { path: '/sounds/ui/setup_commit.mp3', volume: 0.36 },
+  game_press: { path: '/sounds/ui/game_press.mp3', volume: 0.12 },
+  game_tab: { path: '/sounds/ui/game_tab.mp3', volume: 0.16 },
+  game_toggle: { path: '/sounds/ui/game_toggle.mp3', volume: 0.14 },
+  game_panel: { path: '/sounds/ui/game_panel.mp3', volume: 0.2 },
+  game_transaction: { path: '/sounds/ui/game_transaction.mp3', volume: 0.22 },
+  game_danger: { path: '/sounds/ui/game_danger.mp3', volume: 0.24 },
 };
 
 function personSelectionVariants(

@@ -15,6 +15,7 @@ import {
 } from '../src/world/worldGenerationSettings.ts';
 import {
   applyTerrainPreset,
+  isTerrainPresetAvailableForMapSize,
   seedForTerrainPreset,
   terrainPresetFromSeed,
   type WorldTerrainPreset,
@@ -33,6 +34,25 @@ const authoredPresets = [
   'vinodol_coast',
   'lic_polje',
 ] as const;
+
+for (const preset of authoredPresets) {
+  assert.equal(isTerrainPresetAvailableForMapSize(preset, 'medium'), true);
+  assert.equal(isTerrainPresetAvailableForMapSize(preset, 'large'), true);
+}
+assert.equal(isTerrainPresetAvailableForMapSize('kupa_valley', 'small'), false);
+assert.equal(isTerrainPresetAvailableForMapSize('vinodol_coast', 'small'), false);
+for (const preset of ['risnjak_pass', 'delnice_meadow', 'lic_polje', 'custom'] as const) {
+  assert.equal(isTerrainPresetAvailableForMapSize(preset, 'small'), true);
+}
+
+for (const restrictedPreset of ['kupa_valley', 'vinodol_coast'] as const) {
+  const normalized = normalizeWorldGenerationSettings({
+    seed: seedForTerrainPreset(0x1234_5678, restrictedPreset),
+    mapSize: 'small',
+  });
+  assert.equal(normalized.terrainPreset, 'delnice_meadow');
+  assert.equal(terrainPresetFromSeed(normalized.seed), 'delnice_meadow');
+}
 
 for (const [mapSize, preset] of Object.entries(MAP_SIZE_PRESETS)) {
   const dimensions = resolveWorldDimensions(mapSize as keyof typeof MAP_SIZE_PRESETS);

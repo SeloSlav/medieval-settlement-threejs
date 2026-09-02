@@ -16,6 +16,11 @@ export class UiAudio {
   private readonly preloaders: HTMLAudioElement[] = [];
   private enabled = true;
   private volume = 1;
+  private playRevision = 0;
+
+  getPlayRevision(): number {
+    return this.playRevision;
+  }
 
   preload(ids: readonly UiSoundId[]): void {
     if (!this.enabled || typeof Audio === 'undefined') return;
@@ -41,6 +46,7 @@ export class UiAudio {
       ?? this.pool[0];
     const clip = UI_SOUNDS[id];
     if (!audio || !clip) return;
+    this.playRevision += 1;
     audio.pause();
     audio.currentTime = 0;
     audio.src = clip.path;

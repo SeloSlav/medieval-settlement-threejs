@@ -32,6 +32,7 @@ import type { ChapelBellPosition, ChapelBellTick } from './ChapelBellPlayer.ts';
 import { RiverAudio } from './RiverAudio.ts';
 import { SoundtrackAudio } from './SoundtrackAudio.ts';
 import { UiAudio } from './UiAudio.ts';
+import { UiInteractionAudio } from './UiInteractionAudio.ts';
 import type {
   BuildingAudioKind,
   ChapelBellTier,
@@ -80,6 +81,7 @@ export type AmbientAudioControllerConfig = {
   riverLayout: RiverLayout;
   getRiverWaterSurfaceY: (x: number, z: number) => number;
   unlockElement: HTMLElement;
+  interactionRoot: HTMLElement;
   gameplayMusicInitiallyActive?: boolean;
 };
 
@@ -90,6 +92,7 @@ export class AmbientAudioController {
   private readonly riverAudio: RiverAudio;
   private readonly soundtrack = new SoundtrackAudio();
   private readonly uiAudio = new UiAudio();
+  private readonly uiInteractionAudio: UiInteractionAudio;
   private readonly agentSelectionAudio = new AgentSelectionAudio();
   private readonly fireAudio: FireAudio;
   private readonly buildingAudio = new BuildingAudio();
@@ -137,6 +140,10 @@ export class AmbientAudioController {
 
   constructor(config: AmbientAudioControllerConfig) {
     this.config = config;
+    this.uiInteractionAudio = new UiInteractionAudio(
+      config.interactionRoot,
+      this.uiAudio,
+    );
     this.riverAudio = new RiverAudio({
       camera: config.camera,
       parent: config.audioParent,
@@ -287,6 +294,7 @@ export class AmbientAudioController {
       enabled && this.musicEnabled && this.gameplayMusicActive,
     );
     this.uiAudio.setEnabled(enabled);
+    if (enabled) this.uiInteractionAudio.preload();
     this.agentSelectionAudio.setEnabled(enabled);
     if (!enabled) {
       this.running = false;
@@ -381,6 +389,7 @@ export class AmbientAudioController {
 
   dispose(): void {
     this.setExternalScoreActive(false);
+    this.uiInteractionAudio.dispose();
     this.config.unlockElement.removeEventListener('pointerdown', this.onUnlock, { capture: true });
     window.removeEventListener('keydown', this.onUnlock, { capture: true });
     this.audio.dispose();

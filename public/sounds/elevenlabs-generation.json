@@ -1422,6 +1422,72 @@
       "sha256": "cfb6414d0e989df115b2d976d1f3107ae3ad4739f69e7d5fedbdd714902acb5e"
     },
     {
+      "id": "ui-game-danger",
+      "output": "public/sounds/ui/game_danger.mp3",
+      "generatedAt": "2026-09-02T08:50:21.919Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "8",
+      "byteLength": 12582,
+      "sha256": "773c3988204b7a6e6cd239cae787df23c43d34f4dd06d1382df187bab07f43e4"
+    },
+    {
+      "id": "ui-game-panel",
+      "output": "public/sounds/ui/game_panel.mp3",
+      "generatedAt": "2026-09-02T08:50:17.674Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "6",
+      "byteLength": 11328,
+      "sha256": "b4973cb21ba457cf41aa54feeb88bd185752e9cdd042b205f4c5657d01d18aac"
+    },
+    {
+      "id": "ui-game-press",
+      "output": "public/sounds/ui/game_press.mp3",
+      "generatedAt": "2026-09-02T08:50:11.882Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "5",
+      "byteLength": 8821,
+      "sha256": "d0a0da0cef6feada7ae97b582d697a49233f3dfbc4884c3702b55a23c2e95f06"
+    },
+    {
+      "id": "ui-game-tab",
+      "output": "public/sounds/ui/game_tab.mp3",
+      "generatedAt": "2026-09-02T08:50:13.788Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "5",
+      "byteLength": 8821,
+      "sha256": "f691c23de166ab108689e9e9eec36a21c7c685f8cc1b4d8a526aee91fdae5337"
+    },
+    {
+      "id": "ui-game-toggle",
+      "output": "public/sounds/ui/game_toggle.mp3",
+      "generatedAt": "2026-09-02T08:50:15.638Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "5",
+      "byteLength": 8821,
+      "sha256": "92ef74ac5594ef7c29f93e58ecb4144128d38254e09b4913b021cd4c7f9f6edb"
+    },
+    {
+      "id": "ui-game-transaction",
+      "output": "public/sounds/ui/game_transaction.mp3",
+      "generatedAt": "2026-09-02T08:50:19.824Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "7",
+      "byteLength": 12164,
+      "sha256": "dd7a93d86627ce0aca250c9a6e46ca7dc8b08dad7e928078309a07183d82ee2e"
+    },
+    {
       "id": "ui-road-place",
       "output": "public/sounds/ui/road_place.mp3",
       "generatedAt": "2026-07-28T05:57:25.987Z",

@@ -267,6 +267,19 @@
   text-transform: uppercase;
 }
 
+.world-setup-landscape-option__requirement {
+  justify-self: start;
+  padding: 2px 5px;
+  color: rgba(244, 206, 128, 0.9);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid rgba(215, 180, 99, 0.28);
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
 .world-setup-landscape-option__description {
   align-self: start;
   color: var(--muted);
@@ -298,6 +311,18 @@
     rgba(255, 255, 255, 0.075);
   outline: none;
   transform: translateY(-1px);
+}
+
+.world-setup-landscape-option:disabled,
+.world-setup-landscape-option.is-unavailable {
+  cursor: not-allowed;
+  opacity: 0.46;
+  filter: saturate(0.55);
+}
+
+.world-setup-landscape-option:disabled:hover {
+  background: rgba(255, 255, 255, 0.035);
+  transform: none;
 }
 
 .world-setup-landscape-option.is-selected {

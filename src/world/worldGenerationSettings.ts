@@ -1,4 +1,10 @@
-import { terrainPresetFromSeed, type WorldTerrainPreset } from './worldTerrainPresets.ts';
+import {
+  getWorldTerrainPreset,
+  isTerrainPresetAvailableForMapSize,
+  seedForTerrainPreset,
+  terrainPresetFromSeed,
+  type WorldTerrainPreset,
+} from './worldTerrainPresets.ts';
 
 export const DEFAULT_WORLD_SEED = 0x71a2e0d;
 
@@ -189,20 +195,42 @@ export function parseSeedHex(raw: string): number | null {
 export function normalizeWorldGenerationSettings(
   partial: Partial<WorldGenerationSettings>,
 ): WorldGenerationSettings {
-  const seed = typeof partial.seed === 'number' && Number.isFinite(partial.seed)
+  const requestedSeed = typeof partial.seed === 'number' && Number.isFinite(partial.seed)
     ? partial.seed >>> 0
     : DEFAULT_WORLD_GENERATION_SETTINGS.seed;
   const mapSize = partial.mapSize === 'small' || partial.mapSize === 'large'
     ? partial.mapSize
     : 'medium';
+  const requestedTerrainPreset = terrainPresetFromSeed(requestedSeed);
+  const terrainPreset = isTerrainPresetAvailableForMapSize(requestedTerrainPreset, mapSize)
+    ? requestedTerrainPreset
+    : 'delnice_meadow';
+  const seed = terrainPreset === requestedTerrainPreset
+    ? requestedSeed
+    : seedForTerrainPreset(requestedSeed, terrainPreset);
+  const fallbackTerrain = terrainPreset === requestedTerrainPreset
+    ? null
+    : getWorldTerrainPreset(terrainPreset);
   const conflictMode = partial.conflictMode === 'frontier' ? 'frontier' : 'peaceful';
   return {
     seed,
-    terrainPreset: terrainPresetFromSeed(seed),
+    terrainPreset,
     mapSize,
-    topography: clampPercent(partial.topography ?? DEFAULT_WORLD_GENERATION_SETTINGS.topography),
-    hydrology: clampPercent(partial.hydrology ?? DEFAULT_WORLD_GENERATION_SETTINGS.hydrology),
-    forestDensity: clampPercent(partial.forestDensity ?? DEFAULT_WORLD_GENERATION_SETTINGS.forestDensity),
+    topography: clampPercent(
+      fallbackTerrain?.topography
+        ?? partial.topography
+        ?? DEFAULT_WORLD_GENERATION_SETTINGS.topography,
+    ),
+    hydrology: clampPercent(
+      fallbackTerrain?.hydrology
+        ?? partial.hydrology
+        ?? DEFAULT_WORLD_GENERATION_SETTINGS.hydrology,
+    ),
+    forestDensity: clampPercent(
+      fallbackTerrain?.forestDensity
+        ?? partial.forestDensity
+        ?? DEFAULT_WORLD_GENERATION_SETTINGS.forestDensity,
+    ),
     resourceAbundance: clampPercent(
       partial.resourceAbundance ?? DEFAULT_WORLD_GENERATION_SETTINGS.resourceAbundance,
     ),

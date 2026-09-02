@@ -325,6 +325,7 @@ export async function bootstrapAppSession(
   const { AmbientAudioController } = await import('../audio/AmbientAudioController.ts');
   const ambientAudio = new AmbientAudioController({
     unlockElement: sceneManager.renderer.domElement,
+    interactionRoot: uiRoot,
     camera: sceneManager.camera,
     audioParent: sceneManager.scene,
     riverLayout: sceneManager.riverField.layout,

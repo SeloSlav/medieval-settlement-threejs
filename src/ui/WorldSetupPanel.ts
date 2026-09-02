@@ -12,6 +12,7 @@ import {
 } from '../world/worldGenerationSettings.ts';
 import {
   applyTerrainPreset,
+  isTerrainPresetAvailableForMapSize,
   seedForTerrainPreset,
   WORLD_TERRAIN_PRESETS,
   type WorldTerrainPreset,
@@ -415,16 +416,22 @@ export class WorldSetupPanel {
       seedInput.value = formatSeedHex(this.draft.seed);
       customLandscapeControls.hidden = this.draft.terrainPreset !== 'custom';
       for (const option of landscapeGrid.querySelectorAll<HTMLButtonElement>('[data-terrain-preset]')) {
-        const isSelected = option.dataset.terrainPreset === this.draft.terrainPreset;
+        const preset = option.dataset.terrainPreset as WorldTerrainPreset;
+        const isAvailable = isTerrainPresetAvailableForMapSize(preset, this.draft.mapSize);
+        const isSelected = preset === this.draft.terrainPreset;
+        option.disabled = !isAvailable;
+        option.classList.toggle('is-unavailable', !isAvailable);
         option.classList.toggle('is-selected', isSelected);
         option.setAttribute('aria-pressed', String(isSelected));
+        option.title = isAvailable ? '' : 'Requires a Medium or Large map.';
       }
     };
 
     for (const button of landscapeGrid.querySelectorAll<HTMLButtonElement>('[data-terrain-preset]')) {
       button.addEventListener('click', () => {
-        this.setupAudio.play('setup_choice');
         const preset = button.dataset.terrainPreset as WorldTerrainPreset;
+        if (!isTerrainPresetAvailableForMapSize(preset, this.draft.mapSize)) return;
+        this.setupAudio.play('setup_choice');
         this.draft = applyTerrainPreset(this.draft, preset);
         syncLandscapeControls();
       });
@@ -580,7 +587,11 @@ export class WorldSetupPanel {
 
     bindArrowSelector(mapSizeSelector, (step) => {
       this.draft.mapSize = cycleValue(MAP_SIZE_ORDER, this.draft.mapSize, step);
+      if (!isTerrainPresetAvailableForMapSize(this.draft.terrainPreset, this.draft.mapSize)) {
+        this.draft = applyTerrainPreset(this.draft, 'delnice_meadow');
+      }
       syncMapSizeControl();
+      syncLandscapeControls();
     });
     bindArrowSelector(difficultyPresetSelector, (step) => {
       const currentPreset = difficultyPresetForSettings(this.draft)?.id ?? 'normal';
@@ -739,19 +750,26 @@ export class WorldSetupPanel {
     ];
     grid.innerHTML = displayPresets.map((preset) => {
       const selected = preset.id === this.draft.terrainPreset ? ' is-selected' : '';
+      const available = isTerrainPresetAvailableForMapSize(preset.id, this.draft.mapSize);
+      const unavailable = available ? '' : ' is-unavailable';
+      const sizeRequirement = preset.minMapSize === 'small'
+        ? ''
+        : `<span class="world-setup-landscape-option__requirement">${preset.minMapSize} map or larger</span>`;
       const features = preset.features
         .map((feature) => `<span>${feature}</span>`)
         .join('');
       return `
         <button
           type="button"
-          class="world-setup-landscape-option${selected}"
+          class="world-setup-landscape-option${selected}${unavailable}"
           data-terrain-preset="${preset.id}"
           aria-pressed="${preset.id === this.draft.terrainPreset}"
+          ${available ? '' : 'disabled title="Requires a Medium or Large map."'}
         >
           <span class="world-setup-landscape-option__heading">
             <strong>${preset.name}</strong>
             ${preset.region ? `<small>${preset.region}</small>` : ''}
+            ${sizeRequirement}
           </span>
           <span class="world-setup-landscape-option__description">${preset.description}</span>
           <span class="world-setup-landscape-option__features">${features}</span>

@@ -1,4 +1,7 @@
-import type { WorldGenerationSettings } from './worldGenerationSettings.ts';
+import type {
+  WorldGenerationSettings,
+  WorldMapSize,
+} from './worldGenerationSettings.ts';
 
 export type WorldTerrainPreset =
   | 'kupa_valley'
@@ -17,6 +20,7 @@ export type WorldTerrainPresetDefinition = {
   topography: number;
   hydrology: number;
   forestDensity: number;
+  minMapSize: WorldMapSize;
 };
 
 const PRESET_SEED_MASK = 0xfff0_0000;
@@ -42,6 +46,7 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     topography: 78,
     hydrology: 58,
     forestDensity: 70,
+    minMapSize: 'medium',
   },
   {
     id: 'risnjak_pass',
@@ -53,6 +58,7 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     topography: 92,
     hydrology: 46,
     forestDensity: 84,
+    minMapSize: 'small',
   },
   {
     id: 'delnice_meadow',
@@ -64,6 +70,7 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     topography: 76,
     hydrology: 0,
     forestDensity: 30,
+    minMapSize: 'small',
   },
   {
     id: 'vinodol_coast',
@@ -75,6 +82,7 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     topography: 68,
     hydrology: 38,
     forestDensity: 45,
+    minMapSize: 'medium',
   },
   // Lič is documented as a settled Frankapan possession by 1477, but the old
   // village was abandoned through much of the 16th century after Ottoman
@@ -91,6 +99,7 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     topography: 84,
     hydrology: 34,
     forestDensity: 42,
+    minMapSize: 'small',
   },
   {
     id: 'custom',
@@ -102,6 +111,7 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     topography: 50,
     hydrology: 50,
     forestDensity: 50,
+    minMapSize: 'small',
   },
 ] as const;
 
@@ -113,6 +123,19 @@ export function getWorldTerrainPreset(
   preset: WorldTerrainPreset,
 ): WorldTerrainPresetDefinition {
   return PRESETS_BY_ID[preset];
+}
+
+const MAP_SIZE_RANK: Record<WorldMapSize, number> = {
+  small: 0,
+  medium: 1,
+  large: 2,
+};
+
+export function isTerrainPresetAvailableForMapSize(
+  preset: WorldTerrainPreset,
+  mapSize: WorldMapSize,
+): boolean {
+  return MAP_SIZE_RANK[mapSize] >= MAP_SIZE_RANK[getWorldTerrainPreset(preset).minMapSize];
 }
 
 /**
