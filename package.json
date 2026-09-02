@@ -30,6 +30,7 @@
     "generate:celestial-catalog": "node scripts/generateCelestialCatalog.mjs",
     "test:hydrology": "npx tsx scripts/testHydrology.mts",
     "audio:generate": "node --experimental-strip-types scripts/generateElevenLabsAudio.mts",
+    "audio:process-forest-wind": "node --experimental-strip-types scripts/processForestWindAudio.mts",
     "audio:validate": "node --experimental-strip-types scripts/testAudioPipeline.mts",
     "audio:verify": "node --experimental-strip-types scripts/testAudioPipeline.mts --require-generated",
     "audio:browser-verify": "node --experimental-strip-types scripts/testAudioBrowserDecode.mts",

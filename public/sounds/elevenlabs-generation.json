@@ -137,13 +137,13 @@
     {
       "id": "ambient-worksite-wood",
       "output": "public/sounds/ambient/worksite_wood.mp3",
-      "generatedAt": "2026-09-02T09:52:14.232Z",
+      "generatedAt": "2026-09-02T10:17:01.554Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
       "outputFormat": "mp3_44100_128",
       "characterCost": "180",
       "byteLength": 289271,
-      "sha256": "5cb667dec417ac98758911604c97952beab6fd0fe39625b556cd2cb2792d90be"
+      "sha256": "d91f4da5f14bb9bd9980ce4034c2657ea761a156a0e6414c989a75a0dc57c701"
     },
     {
       "id": "building-apiary",

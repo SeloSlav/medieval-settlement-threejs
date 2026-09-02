@@ -56,7 +56,7 @@ import {
   FOREST_WIND_CLIP_VOLUME,
   FOREST_WIND_FADE_IN_SECONDS,
   FOREST_WIND_FADE_OUT_SECONDS,
-  SEEDTHREE_TEMPERATE_WIND_URL,
+  FOREST_WIND_URL,
 } from '../src/audio/ForestWindAudio.ts';
 import {
   FOREST_WIND_FIRST_PERSON_FLOOR,
@@ -149,8 +149,8 @@ const EXPECTED_SELO_OVERVIEW_WIND_SHA256 =
   '388cdc56f19ea6d106af8d46c78b5d6bfa3cb6ea860542998f3190129a2d8305';
 const EXPECTED_SELO_VILLAGE_DAY_SHA256 =
   '7fcd2f6cda2522b6f6991e550f4990e52e18a1f74d2e1ff703ea723270f611ae';
-const EXPECTED_SEEDTHREE_TEMPERATE_WIND_SHA256 =
-  'abb8b3d6bd7988734b148bfda5135b740a54d4fe516ce1d71ee07e0cb3642328';
+const EXPECTED_FOREST_WIND_SHA256 =
+  '68e697dbe79d3cb4491500e6e4fd1039b69b9e257048dbe9e13e2939b91f44d2';
 
 function invariant(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -398,7 +398,7 @@ async function main(): Promise<void> {
       orbitDistance: FOREST_WIND_SILENT_RTS_DISTANCE,
       firstPersonActive: false,
     }) === 0,
-    'SeedThree forest wind must stay out of ordinary strategic views',
+    'Soft forest wind must stay out of ordinary strategic views',
   );
   invariant(
     forestWindTargetMix({ canopyCover: 0, orbitDistance: 12, firstPersonActive: false }) === 0
@@ -415,13 +415,13 @@ async function main(): Promise<void> {
     FOREST_WIND_CLIP_VOLUME <= 0.05
     && FOREST_WIND_FADE_IN_SECONDS >= 2
     && FOREST_WIND_FADE_OUT_SECONDS > FOREST_WIND_FADE_IN_SECONDS,
-    'SeedThree forest wind must remain subtle and release more slowly than it enters',
+    'Soft forest wind must remain subtle and release more slowly than it enters',
   );
-  const seedThreeWindPath = fileURLToPath(SEEDTHREE_TEMPERATE_WIND_URL);
-  await assertWav(seedThreeWindPath);
+  const forestWindPath = fileURLToPath(FOREST_WIND_URL);
+  await assertWav(forestWindPath);
   invariant(
-    await sha256(seedThreeWindPath) === EXPECTED_SEEDTHREE_TEMPERATE_WIND_SHA256,
-    'The SeedThree temperate wind loop does not match its vendored source hash',
+    await sha256(forestWindPath) === EXPECTED_FOREST_WIND_SHA256,
+    'The softened forest wind loop does not match its processed source hash',
   );
 
   const manifest = JSON.parse(

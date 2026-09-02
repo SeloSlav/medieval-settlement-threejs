@@ -106,7 +106,9 @@ cost.
   replace them. A broad zoom hysteresis band prevents wheel movement near the boundary
   from repeatedly switching beds, and role-specific 3.5–6.5 second envelopes
   smooth base, village, weather, and overview transitions.
-- SeedThree's gapless temperate WAV is a separate close-detail forest bed.
+- A softened derivative of SeedThree's gapless temperate WAV is a separate
+  close-detail forest bed. Its runtime version is low-pass filtered at 2.6 kHz
+  and attenuated 7.5 dB to remove the raw source's crackly, overbearing edge.
   Strategic views hear it only while zoomed into measured living canopy;
   first-person view retains a faint open-ground breeze and reaches full level
   under trees. Felling and site clearance reduce the sampled canopy mix, and

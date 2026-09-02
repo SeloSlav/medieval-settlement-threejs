@@ -36,10 +36,10 @@
       "group": "town-depth-ambience-v1",
       "kind": "sound-effect",
       "output": "public/sounds/ambient/worksite_wood.mp3",
-      "prompt": "Seamless restrained close ambience of an active late-medieval woodworking yard: irregular hand-saw strokes, drawknife scraping, small wooden mallet taps, timber pieces shifted on earth. Sparse natural working rhythm, no single loud impact, no voices, music, machinery, birds, bells, or modern sound; matched loop edges",
+      "prompt": "Seamless close ambience of one late-medieval woodcutter chopping logs with a hand-forged felling axe. Only irregular solid axe impacts into wood: varied heavy and light chops, occasional bark or wood crack, and natural pauses; no other activity. Human manual pace, sparse and uneven. Absolutely no saw of any kind, sawing, scraping, buzzing, whirring, motor, machinery, voices, music, birds, bells, or modern sound; matched loop edges",
       "durationSeconds": 18,
       "loop": true,
-      "promptInfluence": 0.91
+      "promptInfluence": 0.98
     },
     {
       "id": "ambient-worksite-metal-stone",

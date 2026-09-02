@@ -1,12 +1,12 @@
 import { AMBIENT_SCORE_DUCK_GAIN } from './AmbientAudio.ts';
 
 /**
- * SeedThree's authored temperate WAV is intentionally referenced in place.
- * Vite emits it as a hashed production asset while development keeps the
- * vendored source and its provenance together.
+ * Runtime derivative of SeedThree's temperate forest loop. The source remains
+ * vendored for provenance; this version is low-pass filtered and attenuated so
+ * it reads as a soft wind bed rather than harsh full-range noise.
  */
-export const SEEDTHREE_TEMPERATE_WIND_URL = new URL(
-  '../../vendor/seedthree/assets/audio/wind_temperate.wav',
+export const FOREST_WIND_URL = new URL(
+  '../../public/sounds/ambient/forest_wind_temperate_soft.wav',
   import.meta.url,
 ).href;
 
@@ -106,7 +106,7 @@ export class ForestWindAudio {
 
   private ensureAudio(): void {
     if (this.audio) return;
-    const audio = new Audio(SEEDTHREE_TEMPERATE_WIND_URL);
+    const audio = new Audio(FOREST_WIND_URL);
     audio.loop = true;
     audio.preload = 'auto';
     audio.volume = 0;
