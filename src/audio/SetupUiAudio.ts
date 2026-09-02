@@ -6,7 +6,7 @@ import {
 import { UiAudio } from './UiAudio.ts';
 
 const ADJUSTMENT_SOUND_INTERVAL_MS = 42;
-const SETUP_AUDIO_TAIL_MS = 1_800;
+const SETUP_AUDIO_TAIL_MS = 3_200;
 
 /**
  * Semantic UI audio for the pre-game setup flow.

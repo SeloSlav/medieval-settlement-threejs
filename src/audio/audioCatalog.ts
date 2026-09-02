@@ -334,7 +334,7 @@ export const UI_SOUNDS: Record<UiSoundId, AudioClipDefinition> = {
   game_tab: { path: '/sounds/ui/game_tab.mp3', volume: 0.35 },
   game_toggle: { path: '/sounds/ui/game_toggle.mp3', volume: 0.15 },
   game_panel: { path: '/sounds/ui/game_panel.mp3', volume: 0.11 },
-  game_cancel: { path: '/sounds/ui/game_cancel.mp3', volume: 0.18 },
+  game_cancel: { path: '/sounds/ui/game_cancel.mp3', volume: 0.12 },
   game_transaction: { path: '/sounds/ui/game_transaction.mp3', volume: 0.19 },
   game_danger: { path: '/sounds/ui/game_danger.mp3', volume: 0.23 },
 };
