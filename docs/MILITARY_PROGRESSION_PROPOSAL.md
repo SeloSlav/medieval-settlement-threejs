@@ -193,6 +193,12 @@ chosen shape instead of stacking every soldier on one destination point.
 Movement combines the assigned goal with short-range separation and low-weight
 company cohesion. Road surfaces improve military movement and wading slows it;
 neither missing roads nor missing routes prevent cross-country deployment.
+Ground orders cache road/bridge polylines. Local visibility routing detours
+around placement-oriented buildings and residences, and a final swept check
+prevents crowd separation or long heartbeats from pushing men through them.
+Ground destinations inside structures resolve to the perimeter; actual muster
+and home entry remain possible. Changing formation creates precise physical
+slot orders around the existing company center, without changing household IDs.
 Enemy choice is per soldier: distance carries a saturation
 penalty so roughly two men engage one target before the rank spreads to the
 next-nearest opponent. The player still orders only the atomic company.
@@ -216,12 +222,25 @@ Mixed Ottoman ranks expose light infantry, spears, armored infantry, and
 missile profiles so the counter choice matters. The existing Ottoman raid
 bookkeeping receives kills made by these persistent companies, preserving raid
 casualty, rout, loot, arson, and report behavior.
+Ottoman target acquisition and ranged fire include active player companies
+regardless of raid ID; the raid loop leaves company movement to the military
+simulation. Both attack paths share frontal shields and stationary bracing.
 
 When a resident soldier dies, his exact household loses one resident and gains
 a violent-death record and corpse using the villager fall animation/death-audio
 pipeline. Company morale and cohesion fall. His carried kit becomes a physical
 reclamation site. The corpse remains for the burial system; the combat row is
 removed after its downed presentation interval.
+Surviving ammunition and capacity are recomputed from living members. Partial
+or spent quivers cannot be recovered as intact ammunition bundles.
+
+Depleted permanent companies can recruit replacements through their original
+building. New residents collect equipment (and assigned horses for cavalry),
+then march to join the surviving company without interrupting its orders.
+Burning or otherwise fire-disabled recruitment buildings reject recruitment.
+Town Halls, Guardhouses, and Cavalry Yards cannot be demolished while companies
+remain attached. Guardhouses are armories/recruitment sites, not a second pool
+of labor-derived defenders with duplicate wages, rations, or readiness.
 
 ## Disbanding and return home
 
@@ -237,8 +256,9 @@ Disbandment is physical rather than a roster deletion:
    population abstraction rather than leaving an immortal unit.
 
 Mercenaries follow the same command and battlefield rules while contracted.
-Dismissal, nonpayment, inactivity, or contract expiry changes them to an
-uncontrollable leaving company whose survivors physically walk to their
+Dismissal, nonpayment, inactivity, or contract expiry requests departure. The
+company finishes its current engagement, including incoming fire during a
+withdrawal, before becoming an uncontrollable leaving company. Survivors walk to their
 original arrival edge. The player receives an urgent Lord's report linked to
 the source Town Hall and may pay the displayed two-day retainer before the last
 survivor exits. A successful recall restores the company at its current

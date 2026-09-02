@@ -1301,6 +1301,11 @@ export class App {
   private startCombatPlaytest(session: BootstrappedSession): void {
     const request = this.combatPlaytestRequest;
     if (!request || this.combatPlaytest || !this.gameState) return;
+    // Start with natural terrain even when the main game saved a map overlay.
+    // Keep this local to the playtest so the saved preference stays intact.
+    const overlaySelection = { mode: 'none', crop: 'wheat' } as const;
+    session.sceneManager.setMapOverlaySelection(overlaySelection);
+    session.toolbar.setMapOverlaySelection(overlaySelection);
     const settings = session.sceneManager.worldLayout.settings;
     const dimensions = resolveWorldDimensions(settings.mapSize);
     const site = selectBattleShowcaseSite(battleShowcaseWorldInput(

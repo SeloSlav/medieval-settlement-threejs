@@ -2560,7 +2560,7 @@ assert.doesNotMatch(guardhouseInspector, /Military demands|readiness|health|expe
 assert.doesNotMatch(townHallInspector, /Ration reserves|Next-day payroll|Civic cash priority/);
 assert.match(townHallInspector, /Frontier timetable/);
 assert.match(townHallInspector, /Watch districts/);
-assert.match(townHallInspector, /weakest likely district/);
+assert.doesNotMatch(townHallInspector, /weakest likely district.*guards/);
 assert.match(townHallInspector, /Last incursion/);
 const buildingSchema = readFileSync('server/src/tables.rs', 'utf8');
 assert.doesNotMatch(buildingSchema, /guardhouse_food_reserve|guardhouse_pay_priority/);
