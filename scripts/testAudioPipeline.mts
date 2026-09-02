@@ -925,11 +925,15 @@ async function main(): Promise<void> {
     || asset.group === 'movement-foley'
     || asset.group === 'threat-alerts'
     || asset.group === 'threat-announcements-v2'
+    || (
+      asset.group === 'gameplay-gap-pass-v1'
+      && asset.output.replaceAll('\\', '/').startsWith('public/sounds/world/')
+    )
   ));
   invariant(
     worldAssets.length === Object.keys(WORLD_FOLEY_CLIPS).length
-    && worldAssets.length === 55,
-    'World Foley manifest and runtime catalog must retain all 55 cues',
+    && worldAssets.length === 67,
+    'World Foley manifest and runtime catalog must retain all 67 cues',
   );
   for (const [id, clip] of Object.entries(WORLD_FOLEY_CLIPS)) {
     const asset = worldAssets.find((candidate) => (

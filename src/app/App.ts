@@ -1780,6 +1780,7 @@ export class App {
       this.lastSeenRaidWarningTick = warningTick;
       if (activeRaidId === null && snapshot.worldGeneration) {
         const clock = gameClock(snapshot.simTick);
+        this.ambientAudio?.playWorldNotification('event_raid_alarm');
         this.toastManager?.show(
           formatIncomingRaidWarning(
             snapshot.settlementSecurity,
@@ -1799,6 +1800,12 @@ export class App {
     }
     if (raidTick <= 0 || raidTick === this.lastSeenRaidTick) return;
     this.lastSeenRaidTick = raidTick;
+    this.ambientAudio?.playWorldNotification(
+      snapshot.settlementSecurity.lastOutcome === 'plundered'
+        || snapshot.settlementSecurity.lastOutcome === 'arson'
+        ? 'event_raid_loss'
+        : 'event_raid_victory',
+    );
     this.toastManager?.show(formatRaidReport(snapshot.settlementSecurity), {
       variant: snapshot.settlementSecurity.lastOutcome === 'plundered'
         || snapshot.settlementSecurity.lastOutcome === 'arson'
@@ -1947,6 +1954,11 @@ export class App {
       variant: latest.kind === 'theft' ? 'error' : 'info',
       durationMs: 7_000,
     });
+    if (latest.kind === 'theft') {
+      this.ambientAudio?.playWorldNotification('event_bandit_theft');
+    } else if (latest.kind === 'camp-destroyed') {
+      this.ambientAudio?.playWorldNotification('event_bandit_camp_destroyed');
+    }
   }
 
   private notifyThreatApproaches(snapshot: SpacetimeGameSnapshot): void {
@@ -2015,6 +2027,7 @@ export class App {
           variant: 'info',
           durationMs: 7_000,
         });
+        this.ambientAudio?.playWorldNotification('event_mercenary_arrival');
         continue;
       }
       if (company.status === 'leaving' && previous.status !== 'leaving') {
@@ -2033,6 +2046,7 @@ export class App {
           variant: 'error',
           durationMs: 9_000,
         });
+        this.ambientAudio?.playWorldNotification('event_mercenary_leaving');
       }
     }
     for (const company of this.lastSeenMilitaryCompanies.values()) {
@@ -2053,6 +2067,7 @@ export class App {
         variant: 'info',
         durationMs: 7_000,
       });
+      this.ambientAudio?.playWorldNotification('event_mercenary_departure');
     }
     this.lastSeenMilitaryCompanies = current;
   }

@@ -177,11 +177,29 @@ export function createInspectorSpacetimeActions(
   getGameState: () => GameState,
   isSessionReady: () => boolean,
   toastManager: ToastManager,
+  audioFeedback?: {
+    playError: () => void;
+    playParcelRemoval: (x: number, z: number) => void;
+  },
 ): InspectorSpacetimeActions {
+  const showError = (message: string): void => {
+    audioFeedback?.playError();
+    toastManager.show(message, { variant: 'error' });
+  };
+  const parcelCenter = (
+    corners: readonly { x: number; z: number }[],
+  ): { x: number; z: number } | null => {
+    if (corners.length === 0) return null;
+    const total = corners.reduce(
+      (sum, corner) => ({ x: sum.x + corner.x, z: sum.z + corner.z }),
+      { x: 0, z: 0 },
+    );
+    return { x: total.x / corners.length, z: total.z / corners.length };
+  };
   const requireReady = (): SpacetimeGameStore | null => {
     const store = getStore();
     if (!store || !isSessionReady()) {
-      toastManager.show('SpacetimeDB is not connected.', { variant: 'error' });
+      showError('SpacetimeDB is not connected.');
       return null;
     }
     return store;
@@ -190,12 +208,14 @@ export function createInspectorSpacetimeActions(
   const runReducer = async (
     action: () => Promise<void>,
     fallbackMessage: string,
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     try {
       await action();
+      return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : fallbackMessage;
-      toastManager.show(message, { variant: 'error' });
+      showError(message);
+      return false;
     }
   };
 
@@ -208,7 +228,17 @@ export function createInspectorSpacetimeActions(
     onDemolishBurgageZone: async (zoneId) => {
       const store = requireReady();
       if (!store) return;
-      await runReducer(() => store.demolishBurgageZone(zoneId), 'Residence plot demolition failed.');
+      const zone = getGameState().burgageZones.get(zoneId);
+      const removed = await runReducer(
+        () => store.demolishBurgageZone(zoneId),
+        'Residence plot demolition failed.',
+      );
+      if (removed && zone) {
+        audioFeedback?.playParcelRemoval(
+          (zone.cornerA.x + zone.cornerB.x + zone.cornerC.x + zone.cornerD.x) * 0.25,
+          (zone.cornerA.z + zone.cornerB.z + zone.cornerC.z + zone.cornerD.z) * 0.25,
+        );
+      }
     },
     onDemolishResidence: async (residenceId) => {
       const store = requireReady();
@@ -259,23 +289,21 @@ export function createInspectorSpacetimeActions(
       const state = getGameState();
       const residence = state.residences.get(residenceId);
       if (!residence) {
-        toastManager.show('Residence not found.', { variant: 'error' });
+        showError('Residence not found.');
         return;
       }
       if (state.backyardGardens.has(residenceId)) {
-        toastManager.show('This backyard already has a garden.', { variant: 'error' });
+        showError('This backyard already has a garden.');
         return;
       }
       if (residenceHasActiveProject(residence)) {
-        toastManager.show('This household already has improvement works underway.', {
-          variant: 'error',
-        });
+        showError('This household already has improvement works underway.');
         return;
       }
 
       const shortfall = describeBackyardGardenShortfall(computeResourceTotals(state), kind);
       if (shortfall) {
-        toastManager.show(shortfall, { variant: 'error' });
+        showError(shortfall);
         return;
       }
 
@@ -500,7 +528,12 @@ export function createInspectorSpacetimeActions(
     onDemolishFarmField: async (fieldId) => {
       const store = requireReady();
       if (!store) return;
-      await runReducer(() => store.demolishFarmField(fieldId), 'Could not remove field.');
+      const center = parcelCenter(getGameState().farmFields.get(fieldId)?.corners ?? []);
+      const removed = await runReducer(
+        () => store.demolishFarmField(fieldId),
+        'Could not remove field.',
+      );
+      if (removed && center) audioFeedback?.playParcelRemoval(center.x, center.z);
     },
     onSetFarmFieldCrop: async (fieldId, crop) => {
       const store = requireReady();
@@ -547,15 +580,22 @@ export function createInspectorSpacetimeActions(
     onDemolishPasture: async (pastureId) => {
       const store = requireReady();
       if (!store) return;
-      await runReducer(() => store.demolishPasture(pastureId), 'Could not remove pasture.');
+      const center = parcelCenter(getGameState().pastures.get(pastureId)?.corners ?? []);
+      const removed = await runReducer(
+        () => store.demolishPasture(pastureId),
+        'Could not remove pasture.',
+      );
+      if (removed && center) audioFeedback?.playParcelRemoval(center.x, center.z);
     },
     onDemolishGraveyard: async (graveyardId) => {
       const store = requireReady();
       if (!store) return;
-      await runReducer(
+      const center = parcelCenter(getGameState().graveyards?.get(graveyardId)?.corners ?? []);
+      const removed = await runReducer(
         () => store.demolishGraveyard(graveyardId),
         'Could not remove burial ground.',
       );
+      if (removed && center) audioFeedback?.playParcelRemoval(center.x, center.z);
     },
     onSetLivestockSpecies: async (pastureId, species) => {
       const store = requireReady();

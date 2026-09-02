@@ -41,6 +41,7 @@ import type {
   MusicTrackId,
   ThreatAlertSoundKind,
   UiSoundId,
+  WorldNotificationSoundId,
 } from './audioCatalog.ts';
 import { FireAudio } from './FireAudio.ts';
 import { BuildingAudio } from './BuildingAudio.ts';
@@ -416,6 +417,14 @@ export class AmbientAudioController {
 
   playThreatAlert(kind: ThreatAlertSoundKind): void {
     this.worldFoley.playThreatAlert(kind);
+  }
+
+  playWorldNotification(id: WorldNotificationSoundId): void {
+    this.worldFoley.playNotification(id);
+  }
+
+  playParcelRemoval(x: number, z: number): void {
+    this.worldFoley.playParcelRemoval(x, z);
   }
 
   playBuildingSelection(

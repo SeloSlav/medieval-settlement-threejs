@@ -47,6 +47,14 @@ const WALL_MAX_SAMPLES = 640;
 
 export type RoadToolMode = 'road' | 'dry-stone-wall' | 'off';
 
+export type RoadNetworkChangeKind =
+  | 'road-place'
+  | 'dry-stone-wall-place'
+  | 'road-remove'
+  | 'dry-stone-wall-remove'
+  | 'undo'
+  | 'redo';
+
 export type RoadDeleteRequest = ({
   kind: 'road';
   edgeId: string;
@@ -70,7 +78,7 @@ export class RoadTool {
     sceneManager: SceneManager;
     selection: RoadSelection;
     terrainProjector: TerrainProjector;
-    onNetworkChanged: () => void;
+    onNetworkChanged: (change: RoadNetworkChangeKind) => void;
     onStateChanged: () => void;
     onDeleteRequested: (request: RoadDeleteRequest | null) => void;
     onPlacementRejected?: (event: RoadPlacementRejectedEvent) => void;
@@ -126,7 +134,7 @@ export class RoadTool {
     sceneManager: SceneManager;
     selection: RoadSelection;
     terrainProjector: TerrainProjector;
-    onNetworkChanged: () => void;
+    onNetworkChanged: (change: RoadNetworkChangeKind) => void;
     onStateChanged: () => void;
     onDeleteRequested: (request: RoadDeleteRequest | null) => void;
     onPlacementRejected?: (event: RoadPlacementRejectedEvent) => void;
@@ -299,7 +307,9 @@ export class RoadTool {
     this.redoStack.length = 0;
     this.cancelDraft(false);
     this.options.selection.setSelected(null);
-    this.options.onNetworkChanged();
+    this.options.onNetworkChanged(
+      this.mode === 'dry-stone-wall' ? 'dry-stone-wall-place' : 'road-place',
+    );
     this.options.onStateChanged();
   }
 
@@ -309,7 +319,7 @@ export class RoadTool {
     this.redoStack.push(this.options.network.snapshot());
     this.options.network.restore(snapshot);
     this.options.selection.setSelected(null);
-    this.options.onNetworkChanged();
+    this.options.onNetworkChanged('undo');
   }
 
   redo(): void {
@@ -318,7 +328,7 @@ export class RoadTool {
     this.undoStack.push(this.options.network.snapshot());
     this.options.network.restore(snapshot);
     this.options.selection.setSelected(null);
-    this.options.onNetworkChanged();
+    this.options.onNetworkChanged('redo');
   }
 
   deleteSelected(): void {
@@ -326,7 +336,7 @@ export class RoadTool {
     if (this.options.selection.deleteSelected()) {
       this.undoStack.push(snapshot);
       this.redoStack.length = 0;
-      this.options.onNetworkChanged();
+      this.options.onNetworkChanged('road-remove');
     }
   }
 
@@ -336,7 +346,7 @@ export class RoadTool {
     this.undoStack.push(snapshot);
     this.redoStack.length = 0;
     this.options.selection.setSelected(null);
-    this.options.onNetworkChanged();
+    this.options.onNetworkChanged('road-remove');
     this.refreshPreview();
     this.options.onStateChanged();
   }
@@ -347,7 +357,7 @@ export class RoadTool {
     this.undoStack.push(snapshot);
     this.redoStack.length = 0;
     this.options.selection.setSelected(null);
-    this.options.onNetworkChanged();
+    this.options.onNetworkChanged('dry-stone-wall-remove');
     this.refreshPreview();
     this.options.onStateChanged();
   }

@@ -26,7 +26,13 @@ type Options = {
   getHeightAt: (x: number, z: number) => number;
   getZoomPercent?: () => number;
   isBlocked: () => boolean;
-  onCommand: (ids: string[], x: number, z: number, campId: string | null) => void;
+  onCommand: (
+    ids: string[],
+    x: number,
+    z: number,
+    campId: string | null,
+    order: 'move' | 'attack',
+  ) => void;
   onCompanySelected?: (companyId: string | null) => void;
   onLeavingCompanySelected?: (companyId: string) => void;
   onHostileFocus?: (x: number, z: number) => void;
@@ -332,10 +338,16 @@ export class MilitiaCommandController {
         return company?.controllable ? company.agents.map((agent) => agent.id) : [];
       });
     if (agentIds.length === 0) return;
-    this.commandHandler(agentIds, point.x, point.z, campId);
     const attacksHostile = campId !== null || this.hostilePositions.some((hostile) => (
       Math.hypot(hostile.x - point.x, hostile.z - point.z) <= 5.25
     ));
+    this.commandHandler(
+      agentIds,
+      point.x,
+      point.z,
+      campId,
+      attacksHostile ? 'attack' : 'move',
+    );
     this.orderFeedback.show(
       point.x,
       this.options.getHeightAt(point.x, point.z) + 0.055,

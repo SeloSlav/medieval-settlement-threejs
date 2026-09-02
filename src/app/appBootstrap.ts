@@ -520,7 +520,7 @@ export async function bootstrapAppSession(
     selection: roadSelection,
     terrainProjector: sceneManager.terrainProjector,
     onToggle: toggleRoadTool,
-    onNetworkChanged: () => {
+    onNetworkChanged: (change) => {
       sceneManager.syncRoadNetwork(roadNetwork);
       worldMapUi.minimap.syncRoads();
       syncPlacedBuildingTerrain({
@@ -534,7 +534,19 @@ export async function bootstrapAppSession(
       roadSelection.refresh();
       bridge.syncToolbar();
       spacetimeStore.queueRoadSync(roadNetwork.snapshot());
-      ambientAudio.playUiSound('road_place');
+      ambientAudio.playUiSound(
+        change === 'road-place'
+          ? 'road_place'
+          : change === 'dry-stone-wall-place'
+            ? 'dry_stone_wall_place'
+            : change === 'road-remove'
+              ? 'road_remove'
+              : change === 'dry-stone-wall-remove'
+                ? 'dry_stone_wall_remove'
+                : change === 'undo'
+                  ? 'edit_undo'
+                  : 'edit_redo',
+      );
     },
     onStateChanged: () => bridge.syncToolbar(),
     onToolCancelled: () => ambientAudio.playUiSound('game_cancel'),
@@ -610,12 +622,13 @@ export async function bootstrapAppSession(
     onPlacementPreviewChanged: () => bridge.syncToolbar(),
     describePlacementFailure: describeBuildingPlacementBlocker,
     onPlacementRejected: (reason) => {
-      if (reason === 'insufficient_resources') return;
       ambientAudio.playUiSound('error');
+      if (reason === 'insufficient_resources') return;
       toastManager?.showMessageId(buildingPlacementReasonToToastId(reason), { variant: 'error' });
     },
     onPlacementFailed: (message, kind) => {
       if (isConstructionResourceShortfallMessage(message)) {
+        ambientAudio.playUiSound('error');
         buildingTool.markPlacementResourceShortfall(kind);
         bridge.syncToolbar();
         return;
@@ -630,9 +643,11 @@ export async function bootstrapAppSession(
       );
     },
     onUndoFailed: (message) => {
+      ambientAudio.playUiSound('error');
       toastManager?.show(message, { variant: 'error' });
     },
     onRedoFailed: (message) => {
+      ambientAudio.playUiSound('error');
       toastManager?.show(message, { variant: 'error' });
     },
     isBlocked: () => isBuildingPlacementBlocked(placementGate),
@@ -663,27 +678,38 @@ export async function bootstrapAppSession(
     },
     onDemolishBurgageZone: async (zoneId) => {
       requireSessionReady();
+      const zone = liveContext.gameState.burgageZones.get(zoneId);
       await spacetimeStore.demolishBurgageZone(zoneId);
+      if (zone) {
+        ambientAudio.playParcelRemoval(
+          (zone.cornerA.x + zone.cornerB.x + zone.cornerC.x + zone.cornerD.x) * 0.25,
+          (zone.cornerA.z + zone.cornerB.z + zone.cornerC.z + zone.cornerD.z) * 0.25,
+        );
+      }
     },
     onModeChanged: () => bridge.syncToolbar(),
     onToolCancelled: () => ambientAudio.playUiSound('game_cancel'),
     onPlacementRejected: (reason) => {
-      if (reason === 'insufficient_resources') return;
       ambientAudio.playUiSound('error');
+      if (reason === 'insufficient_resources') return;
       toastManager?.showMessageId(burgagePlacementReasonToToastId(reason), { variant: 'error' });
     },
     onPlacementFailed: (message) => {
       if (isConstructionResourceShortfallMessage(message)) {
+        ambientAudio.playUiSound('error');
         burgageTool.markPlacementResourceShortfall();
         bridge.syncToolbar();
         return;
       }
+      ambientAudio.playUiSound('error');
       toastManager?.show(message, { variant: 'error' });
     },
     onUndoFailed: (message) => {
+      ambientAudio.playUiSound('error');
       toastManager?.show(message, { variant: 'error' });
     },
     onRedoFailed: (message) => {
+      ambientAudio.playUiSound('error');
       toastManager?.show(message, { variant: 'error' });
     },
     onPickRejected: (reason) => {
@@ -761,7 +787,10 @@ export async function bootstrapAppSession(
         { variant: 'error' },
       );
     },
-    onPlacementFailed: (message) => toastManager?.show(message, { variant: 'error' }),
+    onPlacementFailed: (message) => {
+      ambientAudio.playUiSound('error');
+      toastManager?.show(message, { variant: 'error' });
+    },
     onCropChanged: (crop, recommendation) => toastManager?.show(
       `${crop[0].toUpperCase()}${crop.slice(1)} selected · ${recommendation}.`,
       { variant: 'info', durationMs: 2400 },
@@ -1229,6 +1258,7 @@ export async function bootstrapAppSession(
   }
   spacetimeStore.setRoadSyncFailedListener((error) => {
     const message = error instanceof Error ? error.message : 'Road sync failed.';
+    ambientAudio.playUiSound('error');
     toastManager?.show(`Road sync failed: ${message}`, { variant: 'error', durationMs: 6000 });
   });
   const inspectorActions = createInspectorSpacetimeActions(
@@ -1236,6 +1266,10 @@ export async function bootstrapAppSession(
     () => liveContext.gameState,
     () => sessionGate.isReady(),
     toastManager,
+    {
+      playError: () => ambientAudio.playUiSound('error'),
+      playParcelRemoval: (x, z) => ambientAudio.playParcelRemoval(x, z),
+    },
   );
   const { VillagerInspector } = await import('../ui/VillagerInspector.ts');
   villagerInspector = new VillagerInspector({
@@ -1434,8 +1468,13 @@ export async function bootstrapAppSession(
     getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
     getZoomPercent: () => cameraController.getZoomPercent(),
     isBlocked: () => isWorldInspectionBlocked(placementGate),
-    onCommand: (ids, x, z, campId) => {
-      void spacetimeStore.commandMilitia(ids, x, z, campId).catch((error) => {
+    onCommand: (ids, x, z, campId, order) => {
+      void spacetimeStore.commandMilitia(ids, x, z, campId).then(() => {
+        ambientAudio.playUiSound(
+          order === 'attack' ? 'military_attack_order' : 'military_move_order',
+        );
+      }).catch((error) => {
+        ambientAudio.playUiSound('error');
         toastManager?.show(
           error instanceof Error ? error.message : 'Could not issue military company order.',
           { variant: 'error' },
@@ -1447,6 +1486,7 @@ export async function bootstrapAppSession(
         resourceInspector.clearSelection();
         return;
       }
+      ambientAudio.playUiSound('military_company_select');
       villagerInspector.clearSelection();
       worldMapUi.townReport.close();
       resourceInspector.selectMilitaryCompany(companyId);
@@ -1805,9 +1845,18 @@ export async function bootstrapAppSession(
       sceneManager.setIllustratedMapImage(canvas, stampCanvas, bounds);
     },
     onTerrainImageUpdated: () => sceneManager.invalidateIllustratedMapImage(),
-    onQuarrySelect: (quarryId) => resourceInspector.selectQuarry(quarryId),
-    onForagingSelect: (nodeId) => resourceInspector.selectForaging(nodeId),
-    onClaySelect: (nodeId) => resourceInspector.selectQuarry(nodeId),
+    onQuarrySelect: (quarryId) => {
+      resourceInspector.selectQuarry(quarryId);
+      ambientAudio.playUiSound('quarry_select');
+    },
+    onForagingSelect: (nodeId) => {
+      resourceInspector.selectForaging(nodeId);
+      ambientAudio.playUiSound('foraging_select');
+    },
+    onClaySelect: (nodeId) => {
+      resourceInspector.selectQuarry(nodeId);
+      ambientAudio.playUiSound('quarry_select');
+    },
     onSettlementSelect: (settlementId) => {
       resourceInspector.clearSelection();
       villagerInspector.clearSelection();

@@ -1565,6 +1565,50 @@
       "sha256": "40afb80f3fce6d793439ee597ff557d1445517eda7d321937f88d45f576da9c7"
     },
     {
+      "id": "ui-dry-stone-wall-place",
+      "output": "public/sounds/ui/dry_stone_wall_place.mp3",
+      "generatedAt": "2026-09-02T16:23:13.785Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "9",
+      "byteLength": 15090,
+      "sha256": "a886e6e732a805582087febc8618c78736bcb3f9bd1d8133cace0eaaac373984"
+    },
+    {
+      "id": "ui-dry-stone-wall-remove",
+      "output": "public/sounds/ui/dry_stone_wall_remove.mp3",
+      "generatedAt": "2026-09-02T16:23:17.062Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "9",
+      "byteLength": 15090,
+      "sha256": "0a2136c8f9f9c49934db2c6251d0e33962819f98b2fb12fb98045f2765958b0d"
+    },
+    {
+      "id": "ui-edit-redo",
+      "output": "public/sounds/ui/edit_redo.mp3",
+      "generatedAt": "2026-09-02T16:23:20.449Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "6",
+      "byteLength": 10493,
+      "sha256": "8e3ee437a32286c548b82b95eba390a21d56db5452045760c8b32bc31fd9cb82"
+    },
+    {
+      "id": "ui-edit-undo",
+      "output": "public/sounds/ui/edit_undo.mp3",
+      "generatedAt": "2026-09-02T16:23:18.684Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "6",
+      "byteLength": 10493,
+      "sha256": "daca45e998b5056a2d019155509408e8f236a1b75185d3d4fbde56cfc7862814"
+    },
+    {
       "id": "ui-error",
       "output": "public/sounds/ui/error.mp3",
       "generatedAt": "2026-07-28T05:57:28.979Z",
@@ -1574,6 +1618,17 @@
       "characterCost": "7",
       "byteLength": 12164,
       "sha256": "cfb6414d0e989df115b2d976d1f3107ae3ad4739f69e7d5fedbdd714902acb5e"
+    },
+    {
+      "id": "ui-foraging-select",
+      "output": "public/sounds/ui/foraging_select.mp3",
+      "generatedAt": "2026-09-02T16:23:30.939Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "7",
+      "byteLength": 12164,
+      "sha256": "8687cf31deb0942e4570c12fac05fbcba4edb9061d169244415a9d96fa3c5065"
     },
     {
       "id": "ui-game-danger",
@@ -1642,6 +1697,50 @@
       "sha256": "dd7a93d86627ce0aca250c9a6e46ca7dc8b08dad7e928078309a07183d82ee2e"
     },
     {
+      "id": "ui-military-attack-order",
+      "output": "public/sounds/ui/military_attack_order.mp3",
+      "generatedAt": "2026-09-02T16:23:25.298Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "9",
+      "byteLength": 15090,
+      "sha256": "e58214bea89a5ebe6b5a2b1011422956d8c56995add09fa4b3b7b75fbbc89653"
+    },
+    {
+      "id": "ui-military-company-select",
+      "output": "public/sounds/ui/military_company_select.mp3",
+      "generatedAt": "2026-09-02T16:23:27.406Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "8",
+      "byteLength": 13836,
+      "sha256": "c65519c5641dac0284a27f17b650514cedc5bfe8139810e6eac26def6575ec35"
+    },
+    {
+      "id": "ui-military-move-order",
+      "output": "public/sounds/ui/military_move_order.mp3",
+      "generatedAt": "2026-09-02T16:23:22.731Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "8",
+      "byteLength": 13836,
+      "sha256": "02abd097b0c4dd0221a3a4ee18abd43867378972785121a9301f927a747959d1"
+    },
+    {
+      "id": "ui-quarry-select",
+      "output": "public/sounds/ui/quarry_select.mp3",
+      "generatedAt": "2026-09-02T16:23:29.412Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "7",
+      "byteLength": 12164,
+      "sha256": "0608c0976a131aa742ba3681f7b1c7a7905e47f4437158e88ca03e3eac219364"
+    },
+    {
       "id": "ui-road-place",
       "output": "public/sounds/ui/road_place.mp3",
       "generatedAt": "2026-07-28T05:57:25.987Z",
@@ -1651,6 +1750,17 @@
       "characterCost": "8",
       "byteLength": 13836,
       "sha256": "abdb3f30ef12131b5f1df45f22d63b86d11cc857287cab386f1d26e926e80e33"
+    },
+    {
+      "id": "ui-road-remove",
+      "output": "public/sounds/ui/road_remove.mp3",
+      "generatedAt": "2026-09-02T16:23:15.396Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "8",
+      "byteLength": 13836,
+      "sha256": "31e73036b0f11f5110464ad8469d8c34aefc22bf638213646f1eb0337cb98b88"
     },
     {
       "id": "ui-setup-adjust",
@@ -1961,6 +2071,28 @@
       "sha256": "2a9773387cef0c79da9ad288f5cafbdf0c17517a8b602f347e904e2102323671"
     },
     {
+      "id": "world-animal-horse-1",
+      "output": "public/sounds/world/animal_horse_1.mp3",
+      "generatedAt": "2026-09-02T16:23:33.775Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "12",
+      "byteLength": 20106,
+      "sha256": "1d5752495bd54426b7e1a37d26a896d36d38998bfd211dc8105104c3171e7047"
+    },
+    {
+      "id": "world-animal-horse-2",
+      "output": "public/sounds/world/animal_horse_2.mp3",
+      "generatedAt": "2026-09-02T16:23:35.778Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "12",
+      "byteLength": 20106,
+      "sha256": "bd3df51a731990160f13a6b95087c056cc68fb36cf9b7829a53d0534d01ad3f8"
+    },
+    {
       "id": "world-animal-sheep-1",
       "output": "public/sounds/world/animal_sheep_1.mp3",
       "generatedAt": "2026-08-04T10:42:23.027Z",
@@ -2115,6 +2247,17 @@
       "sha256": "fcd5ca95dda92bf3f64bcdf02ff9a8a4593077d4819d2f65b648107da88438a6"
     },
     {
+      "id": "world-event-bandit-camp-destroyed",
+      "output": "public/sounds/world/event_bandit_camp_destroyed.mp3",
+      "generatedAt": "2026-09-02T16:23:44.409Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "28",
+      "byteLength": 45183,
+      "sha256": "d364ffd2a2616e3df3dde5d8ceacb60e7c995431c5f48c0922b1d2da8e19f9bb"
+    },
+    {
       "id": "world-event-bandit-camp-established",
       "output": "public/sounds/world/event_bandit_camp_established.mp3",
       "generatedAt": "2026-09-02T09:36:28.916Z",
@@ -2124,6 +2267,17 @@
       "characterCost": "32",
       "byteLength": 52288,
       "sha256": "609313e62b001781444d1d1e5c108095f56cc7c8d0d1577185ad19fac543478c"
+    },
+    {
+      "id": "world-event-bandit-theft",
+      "output": "public/sounds/world/event_bandit_theft.mp3",
+      "generatedAt": "2026-09-02T16:23:42.167Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "28",
+      "byteLength": 45183,
+      "sha256": "5ffbeba336d24aa8030c4bf2217192d0ea94ac82c50873c7aa216b0e36abb0f9"
     },
     {
       "id": "world-event-bandits-town-entry",
@@ -2137,6 +2291,17 @@
       "sha256": "b4034e3df9f5141ffc470f6f8e1cf83146f7363cffc859c716ee1d0d253798c8"
     },
     {
+      "id": "world-event-building-complete",
+      "output": "public/sounds/world/event_building_complete.mp3",
+      "generatedAt": "2026-09-02T16:24:00.544Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "18",
+      "byteLength": 29301,
+      "sha256": "2c3896acd9be51bdea49ae8592d4aa44445a1090dec2d884541751a20fa1421c"
+    },
+    {
       "id": "world-event-burial",
       "output": "public/sounds/world/event_burial.mp3",
       "generatedAt": "2026-08-04T10:42:59.072Z",
@@ -2146,6 +2311,50 @@
       "characterCost": "25",
       "byteLength": 40586,
       "sha256": "e57e8a7d04319bd4d72a85f8c2c7e134e2daf494c665b240393becfb35402b39"
+    },
+    {
+      "id": "world-event-fire-alarm",
+      "output": "public/sounds/world/event_fire_alarm.mp3",
+      "generatedAt": "2026-09-02T16:23:39.924Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "28",
+      "byteLength": 45183,
+      "sha256": "4153901de11d6ef4bf2df72f27322e982ba6d6c1439542df934b331a612d157b"
+    },
+    {
+      "id": "world-event-mercenary-arrival",
+      "output": "public/sounds/world/event_mercenary_arrival.mp3",
+      "generatedAt": "2026-09-02T16:23:46.607Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "28",
+      "byteLength": 45183,
+      "sha256": "816decb54e44feba1cb535826bc0437a30deed4ceb1994a28d524027b40ffbce"
+    },
+    {
+      "id": "world-event-mercenary-departure",
+      "output": "public/sounds/world/event_mercenary_departure.mp3",
+      "generatedAt": "2026-09-02T16:23:51.461Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "28",
+      "byteLength": 45183,
+      "sha256": "2a4eaee7a1afaeba375cf3415c5324388256d2ed92e2da1c5e0508d8cc2b6fd4"
+    },
+    {
+      "id": "world-event-mercenary-leaving",
+      "output": "public/sounds/world/event_mercenary_leaving.mp3",
+      "generatedAt": "2026-09-02T16:23:48.749Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "28",
+      "byteLength": 45183,
+      "sha256": "f3e8a2524b12632b408d094b525f7d6fea463ee00b9f30ab6025ea4deb44b31b"
     },
     {
       "id": "world-event-ottoman-raiders-detected",
@@ -2161,13 +2370,35 @@
     {
       "id": "world-event-raid-alarm",
       "output": "public/sounds/world/event_raid_alarm.mp3",
-      "generatedAt": "2026-08-04T10:42:56.456Z",
+      "generatedAt": "2026-09-02T16:23:12.056Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
       "outputFormat": "mp3_44100_128",
       "characterCost": "28",
       "byteLength": 45183,
-      "sha256": "266195596d2f9585e163476d6e77857dd2f49eb47898ff3d19b7af5a3336ecc1"
+      "sha256": "c31828e71838e464017b7959bf9d84a3e95983d8d08846d44e669f8c55a604fa"
+    },
+    {
+      "id": "world-event-raid-loss",
+      "output": "public/sounds/world/event_raid_loss.mp3",
+      "generatedAt": "2026-09-02T16:23:58.285Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "30",
+      "byteLength": 48945,
+      "sha256": "f438e5f9dfd1573ba097d26eaf4ddea0442e132e81b666bb2183a384b7b80564"
+    },
+    {
+      "id": "world-event-raid-victory",
+      "output": "public/sounds/world/event_raid_victory.mp3",
+      "generatedAt": "2026-09-02T16:23:56.111Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "30",
+      "byteLength": 48945,
+      "sha256": "4a2490696a9214fb0bd29ead4d347c9be10271f4fc89554224fc5e93c38fc801"
     },
     {
       "id": "world-event-residence-complete",
@@ -2465,6 +2696,17 @@
       "characterCost": "11",
       "byteLength": 18434,
       "sha256": "f59ce3b3f31c0fb5681769f7eee4986922303622bd89bf91b25ec070f796bb66"
+    },
+    {
+      "id": "world-parcel-remove",
+      "output": "public/sounds/world/parcel_remove.mp3",
+      "generatedAt": "2026-09-02T16:23:37.696Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "11",
+      "byteLength": 18434,
+      "sha256": "9801562eb97ead570479fa3e4c759370d9e3c436125195daa5529dd2b6e7f7a2"
     },
     {
       "id": "world-season-autumn-leaves",

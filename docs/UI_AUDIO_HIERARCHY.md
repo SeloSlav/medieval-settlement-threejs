@@ -45,6 +45,13 @@ to every panel.
 | `game_danger` | Destructive intent | Demolish, remove, reset, new world | 6 |
 | `confirm` | Successful commitment | Confirm, save, accepted server action | 7 |
 | `error` | Rejected outcome | Invalid or failed action | Interruptive |
+| `road_place` / `dry_stone_wall_place` | Commit terrain infrastructure | Road or wall accepted | Material-specific |
+| `road_remove` / `dry_stone_wall_remove` | Remove terrain infrastructure | Road or wall deleted | Material-specific |
+| `edit_undo` / `edit_redo` | Reverse or restore a road edit | Road-tool history | Directional |
+| `military_move_order` | Accepted tactical movement | Right-click open ground | Tactical |
+| `military_attack_order` | Accepted hostile order | Right-click enemy or camp | Tactical, heavier |
+| `military_company_select` | Formation selected | Click or drag-select company | Tactical |
+| `quarry_select` / `foraging_select` | Strategic resource selected | Map resource icons | Material-specific |
 
 Open/on directions use a slightly raised playback rate; close/off directions
 use a lowered rate. Sliders map their value continuously to pitch and are
@@ -54,13 +61,15 @@ Controls can override automatic classification with `data-ui-sound` set to a
 catalog ID, or opt out with `data-ui-sound="none"`. Explicit result sounds
 emitted by a control handler take precedence over delegated feedback, avoiding
 double-triggered clicks. Asynchronous outcomes may deliberately follow the
-immediate intent cue with a later confirmation or error.
+immediate intent cue with a later confirmation or error. Inspector reducer
+failures, invalid placements, road synchronization failures, and rejected
+military orders all emit the shared `error` cue.
 
 ## Authoring and provenance
 
 The source prompts and settings are in
-`scripts/audio/elevenlabs-audio-manifest.json` under the `ui-hierarchy` and
-`ui-game-hierarchy` groups.
+`scripts/audio/elevenlabs-audio-manifest.json` under the `ui-hierarchy`,
+`ui-game-hierarchy`, and `gameplay-gap-pass-v1` groups.
 Generated MP3 hashes and ElevenLabs model details are recorded in
 `public/sounds/elevenlabs-generation.json`.
 The `game_cancel.mp3` cue is the authorized user-provided

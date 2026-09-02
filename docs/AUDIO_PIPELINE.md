@@ -193,6 +193,23 @@ distance-bounded; state transitions come from the replicated game state rather
 than random background playback. The same playback-only tail treatment is
 applied to these cues.
 
+The `gameplay-gap-pass-v1` group closes player-feedback boundaries with
+non-vocal period-acoustic cues. It distinguishes road and dry-stone-wall
+placement, removal, undo, and redo; acknowledges military move and attack
+orders only after server acceptance; gives military companies, quarries, and
+foraging nodes material-specific selection cues; adds exact horse pasture
+foley; and gives land-parcel removal a physical stake-and-earth sound. Remote
+building completion falls back to a quiet centered completion cue only when
+its normal timber or stone world Foley is inaudible, avoiding double playback.
+
+Critical reports are audible independently of camera distance. A newly
+reported fire combines its local ignition, when close enough, with one global
+fire signal. The formerly orphaned raid-warning cue now plays at the warning
+boundary. Bandit theft and camp destruction, mercenary arrival, contract
+departure stages, and raid victory or loss each have distinct natural-horn or
+field-trumpet announcements. Their prompts explicitly exclude voices,
+ringtones, bells, electronics, and synthesized tones.
+
 Threat announcements follow game-state boundaries instead of general
 proximity. Ottoman raid groups warn once when they first enter the map, giving
 the player muster time; they do not play a second town-breach sound. Bandit

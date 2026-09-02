@@ -18,6 +18,7 @@ import {
   type FootstepEvent,
   type FootstepSurface,
   type ThreatAlertSoundKind,
+  type WorldNotificationSoundId,
   type WorldFoleySoundId,
 } from './audioCatalog.ts';
 import {
@@ -76,7 +77,7 @@ type FireSnapshot = {
 
 type AnimalCandidate = {
   id: string;
-  kind: 'cattle' | 'sheep' | 'swine' | 'chicken' | 'deer';
+  kind: 'cattle' | 'sheep' | 'swine' | 'chicken' | 'deer' | 'horse';
   x: number;
   z: number;
 };
@@ -240,6 +241,15 @@ export class WorldFoleyAudio {
     this.playLocal(sound, 1, { playbackRate: 1, preservePitch: true });
   }
 
+  playNotification(id: WorldNotificationSoundId): void {
+    this.playLocal(id, 1, { playbackRate: 1, preservePitch: true });
+  }
+
+  playParcelRemoval(x: number, z: number): void {
+    const spatialGain = worldFoleyGain(x, z, this.view ?? undefined);
+    this.playLocal('parcel_remove', spatialGain > 0 ? spatialGain : 0.55);
+  }
+
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
     if (!enabled) this.stopAll();
@@ -312,11 +322,15 @@ export class WorldFoleyAudio {
       const next = structureSnapshot(building);
       const prior = this.buildingSnapshots.get(building.id);
       if (prior && !prior.complete && next.complete) {
-        this.playAt(
-          next.stone ? 'construction_stone' : 'construction_timber',
-          next.x,
-          next.z,
-        );
+        const localGain = worldFoleyGain(next.x, next.z, this.view ?? undefined);
+        if (localGain > 0) {
+          this.playLocal(
+            next.stone ? 'construction_stone' : 'construction_timber',
+            localGain,
+          );
+        } else {
+          this.playNotification('event_building_complete');
+        }
       }
       this.buildingSnapshots.set(building.id, next);
     }
@@ -345,12 +359,14 @@ export class WorldFoleyAudio {
     residences: ReadonlyMap<string, ResidenceState>,
   ): void {
     const activeIds = new Set<string>();
+    let fireAlarmNeeded = false;
     for (const incident of incidents) {
       activeIds.add(incident.id);
       const prior = this.fireSnapshots.get(incident.id);
       if (this.initializedFires) {
         if (!prior && incident.status === 'burning') {
           this.playAt('fire_ignite', incident.x, incident.z);
+          fireAlarmNeeded = true;
         } else if (prior) {
           if (incident.waterDelivered > prior.waterDelivered + 1e-6) {
             const sequence = this.fireSequences.get(incident.id) ?? 0;
@@ -382,6 +398,7 @@ export class WorldFoleyAudio {
         waterDelivered: incident.waterDelivered,
       });
     }
+    if (fireAlarmNeeded) this.playNotification('event_fire_alarm');
     for (const id of this.fireSnapshots.keys()) {
       if (!activeIds.has(id)) {
         this.fireSnapshots.delete(id);
@@ -463,9 +480,6 @@ export class WorldFoleyAudio {
     if (this.elapsedSeconds - this.lastAnimalPlayAt < ANIMAL_GLOBAL_INTERVAL_SECONDS) return;
     const candidates: AnimalCandidate[] = [];
     for (const herd of input.livestockHerds) {
-      // Exact horse visuals currently have no authored foley bank; do not map
-      // them to cattle calls merely because they share a pasture.
-      if (herd.species === 'horses') continue;
       if (herd.headCount <= 0) continue;
       const pasture = input.pastures.get(herd.pastureId);
       if (!pasture) continue;
@@ -478,7 +492,7 @@ export class WorldFoleyAudio {
       );
       candidates.push({
         id: `herd:${herd.pastureId}`,
-        kind: herd.species,
+        kind: herd.species === 'horses' ? 'horse' : herd.species,
         x: center.x,
         z: center.z,
       });

@@ -54,6 +54,11 @@ export type CombatVoiceSoundKind = `${CombatVoiceSide}-${CombatVoiceCue}`;
 
 export type UiSoundId =
   | 'road_place'
+  | 'dry_stone_wall_place'
+  | 'road_remove'
+  | 'dry_stone_wall_remove'
+  | 'edit_undo'
+  | 'edit_redo'
   | 'building_place'
   | 'confirm'
   | 'error'
@@ -70,7 +75,12 @@ export type UiSoundId =
   | 'game_panel'
   | 'game_cancel'
   | 'game_transaction'
-  | 'game_danger';
+  | 'game_danger'
+  | 'military_move_order'
+  | 'military_attack_order'
+  | 'military_company_select'
+  | 'quarry_select'
+  | 'foraging_select';
 
 export type PersonSelectionVoice = 'male' | 'female';
 
@@ -109,6 +119,18 @@ export type ThreatAlertSoundKind =
   | 'bandit-town-entry'
   | 'ottoman-map-entry';
 
+export type WorldNotificationSoundId =
+  | 'event_raid_alarm'
+  | 'event_fire_alarm'
+  | 'event_bandit_theft'
+  | 'event_bandit_camp_destroyed'
+  | 'event_mercenary_arrival'
+  | 'event_mercenary_leaving'
+  | 'event_mercenary_departure'
+  | 'event_raid_victory'
+  | 'event_raid_loss'
+  | 'event_building_complete';
+
 export type WorldFoleySoundId =
   | 'cart_roll_1'
   | 'cart_roll_2'
@@ -136,12 +158,15 @@ export type WorldFoleySoundId =
   | 'animal_chicken_2'
   | 'animal_deer_1'
   | 'animal_deer_2'
+  | 'animal_horse_1'
+  | 'animal_horse_2'
+  | 'parcel_remove'
   | 'season_winter_gust'
   | 'season_autumn_leaves'
   | 'season_rain_roof'
   | 'event_residence_complete'
   | 'event_residence_upgrade'
-  | 'event_raid_alarm'
+  | WorldNotificationSoundId
   | 'event_ottoman_raiders_detected'
   | 'event_bandit_camp_established'
   | 'event_bandits_town_entry'
@@ -320,6 +345,11 @@ export const WORKER_ACTIVITY_CLIPS: Record<
 
 export const UI_SOUNDS: Record<UiSoundId, AudioClipDefinition> = {
   road_place: { path: '/sounds/ui/road_place.mp3', volume: 0.34 },
+  dry_stone_wall_place: { path: '/sounds/ui/dry_stone_wall_place.mp3', volume: 0.22 },
+  road_remove: { path: '/sounds/ui/road_remove.mp3', volume: 0.17 },
+  dry_stone_wall_remove: { path: '/sounds/ui/dry_stone_wall_remove.mp3', volume: 0.19 },
+  edit_undo: { path: '/sounds/ui/edit_undo.mp3', volume: 0.13 },
+  edit_redo: { path: '/sounds/ui/edit_redo.mp3', volume: 0.13 },
   building_place: { path: '/sounds/ui/building_place.mp3', volume: 0.34 },
   confirm: { path: '/sounds/ui/confirm.mp3', volume: 0.28 },
   error: { path: '/sounds/ui/error.mp3', volume: 0.3 },
@@ -339,6 +369,11 @@ export const UI_SOUNDS: Record<UiSoundId, AudioClipDefinition> = {
   game_cancel: { path: '/sounds/ui/game_cancel.mp3', volume: 0.1 },
   game_transaction: { path: '/sounds/ui/game_transaction.mp3', volume: 0.19 },
   game_danger: { path: '/sounds/ui/game_danger.mp3', volume: 0.23 },
+  military_move_order: { path: '/sounds/ui/military_move_order.mp3', volume: 0.2 },
+  military_attack_order: { path: '/sounds/ui/military_attack_order.mp3', volume: 0.24 },
+  military_company_select: { path: '/sounds/ui/military_company_select.mp3', volume: 0.18 },
+  quarry_select: { path: '/sounds/ui/quarry_select.mp3', volume: 0.14 },
+  foraging_select: { path: '/sounds/ui/foraging_select.mp3', volume: 0.13 },
 };
 
 function personSelectionVariants(
@@ -471,12 +506,24 @@ export const WORLD_FOLEY_CLIPS: Record<WorldFoleySoundId, AudioClipDefinition> =
   animal_chicken_2: worldFoleyClip('animal_chicken_2', 0.04),
   animal_deer_1: worldFoleyClip('animal_deer_1', 0.04),
   animal_deer_2: worldFoleyClip('animal_deer_2', 0.04),
+  animal_horse_1: worldFoleyClip('animal_horse_1', 0.045),
+  animal_horse_2: worldFoleyClip('animal_horse_2', 0.045),
+  parcel_remove: worldFoleyClip('parcel_remove', 0.075),
   season_winter_gust: worldFoleyClip('season_winter_gust', 0.035),
   season_autumn_leaves: worldFoleyClip('season_autumn_leaves', 0.035),
   season_rain_roof: worldFoleyClip('season_rain_roof', 0.04),
   event_residence_complete: worldFoleyClip('event_residence_complete', 0.075),
   event_residence_upgrade: worldFoleyClip('event_residence_upgrade', 0.075),
   event_raid_alarm: worldFoleyClip('event_raid_alarm', 0.11),
+  event_fire_alarm: worldFoleyClip('event_fire_alarm', 0.2),
+  event_bandit_theft: worldFoleyClip('event_bandit_theft', 0.18),
+  event_bandit_camp_destroyed: worldFoleyClip('event_bandit_camp_destroyed', 0.16),
+  event_mercenary_arrival: worldFoleyClip('event_mercenary_arrival', 0.16),
+  event_mercenary_leaving: worldFoleyClip('event_mercenary_leaving', 0.16),
+  event_mercenary_departure: worldFoleyClip('event_mercenary_departure', 0.14),
+  event_raid_victory: worldFoleyClip('event_raid_victory', 0.18),
+  event_raid_loss: worldFoleyClip('event_raid_loss', 0.2),
+  event_building_complete: worldFoleyClip('event_building_complete', 0.11),
   event_ottoman_raiders_detected: worldFoleyClip('event_ottoman_raiders_detected', 0.54),
   event_bandit_camp_established: worldFoleyClip('event_bandit_camp_established', 0.14),
   event_bandits_town_entry: worldFoleyClip('event_bandits_town_entry', 0.18),

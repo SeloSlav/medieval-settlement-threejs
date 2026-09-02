@@ -2013,13 +2013,13 @@
     },
     {
       "id": "world-event-raid-alarm",
-      "group": "world-foley",
+      "group": "gameplay-gap-pass-v1",
       "kind": "sound-effect",
       "output": "public/sounds/world/event_raid_alarm.mp3",
-      "prompt": "Short restrained late-medieval village raid alarm: two urgent strikes on a small iron watch bell from a timber tower, clear but not cinematic, no shouting, no battle, no music",
+      "prompt": "Late-medieval raid warning: one low natural-brass watch trumpet gives two separated grave blasts and a short rising final call, breath-driven with imperfect attacks and restrained valley reflection. Clear strategic warning, not combat. No human voice, speech, shout, crowd, telephone, ringtone, siren, beep, bell, chime, clock pulse, electronics, synthesizer, or cinematic orchestra",
       "durationSeconds": 2.8,
       "loop": false,
-      "promptInfluence": 0.92
+      "promptInfluence": 0.99
     },
     {
       "id": "world-event-ottoman-raiders-detected",
@@ -2190,6 +2190,226 @@
       "durationSeconds": 1.55,
       "loop": false,
       "promptInfluence": 0.95
+    },
+    {
+      "id": "ui-dry-stone-wall-place",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/dry_stone_wall_place.mp3",
+      "prompt": "Very short tactile medieval strategy confirmation: two small rough dry stones seat firmly together with one dusty grit crunch, close, dry, restrained, no collapse, no masonry hammer, no voice, no music, no electronic or arcade sound",
+      "durationSeconds": 0.9,
+      "loop": false,
+      "promptInfluence": 0.97
+    },
+    {
+      "id": "ui-road-remove",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/road_remove.mp3",
+      "prompt": "Very short tactile medieval strategy removal cue: one small wooden road marker is pulled from compact earth followed by a soft dry soil brush, low energy and non-tonal, no shovel strike, no voice, no music, no electronic or arcade sound",
+      "durationSeconds": 0.8,
+      "loop": false,
+      "promptInfluence": 0.97
+    },
+    {
+      "id": "ui-dry-stone-wall-remove",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/dry_stone_wall_remove.mp3",
+      "prompt": "Very short tactile medieval strategy removal cue: one hand-sized rough stone lifts from a dry wall with a little grit and is set softly on earth, restrained and close, no collapse, no crash, no voice, no music, no electronic sound",
+      "durationSeconds": 0.9,
+      "loop": false,
+      "promptInfluence": 0.97
+    },
+    {
+      "id": "ui-edit-undo",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/edit_undo.mp3",
+      "prompt": "Tiny medieval strategy undo cue: a parchment planning slip draws back across an oak table and one small wooden tally token clicks softly, dry, subtle, descending physical motion, no melody, voice, whoosh, magic, electronic or arcade sound",
+      "durationSeconds": 0.6,
+      "loop": false,
+      "promptInfluence": 0.97
+    },
+    {
+      "id": "ui-edit-redo",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/edit_redo.mp3",
+      "prompt": "Tiny medieval strategy redo cue: a parchment planning slip pushes forward across an oak table and one small wooden tally token seats softly, dry, subtle, forward physical motion, no melody, voice, whoosh, magic, electronic or arcade sound",
+      "durationSeconds": 0.6,
+      "loop": false,
+      "promptInfluence": 0.97
+    },
+    {
+      "id": "ui-military-move-order",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/military_move_order.mp3",
+      "prompt": "Short grounded medieval tactical move acknowledgement: a wooden command baton taps a parchment map once, followed by one leather harness shift and planted boot on packed earth, decisive but restrained, no voice, shout, horn, music, magic, electronic or arcade sound",
+      "durationSeconds": 0.8,
+      "loop": false,
+      "promptInfluence": 0.97
+    },
+    {
+      "id": "ui-military-attack-order",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/military_attack_order.mp3",
+      "prompt": "Short grounded medieval tactical attack acknowledgement: a steel sidearm clears a leather scabbard by a few inches with one firm shield-grip thump, controlled and dangerous, no clash, battle, voice, shout, horn, music, electronic or arcade sound",
+      "durationSeconds": 0.9,
+      "loop": false,
+      "promptInfluence": 0.98
+    },
+    {
+      "id": "ui-military-company-select",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/military_company_select.mp3",
+      "prompt": "Short restrained medieval formation-selection cue: one synchronized boot settle, quiet mail and leather shift, and a wooden spear butt touches packed earth, compact and disciplined, no voice, chant, shout, battle, music, electronic or arcade sound",
+      "durationSeconds": 0.8,
+      "loop": false,
+      "promptInfluence": 0.97
+    },
+    {
+      "id": "ui-quarry-select",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/quarry_select.mp3",
+      "prompt": "Tiny tactile medieval resource-selection cue: one light iron chisel tap on dense natural stone with a short dry mineral body, close and restrained, no mining rhythm, crumble, voice, music, electronic or arcade sound",
+      "durationSeconds": 0.7,
+      "loop": false,
+      "promptInfluence": 0.97
+    },
+    {
+      "id": "ui-foraging-select",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/foraging_select.mp3",
+      "prompt": "Tiny tactile medieval resource-selection cue: a woven willow basket handle flexes once through two dry leaves, soft organic and close, no bird, animal, footsteps, voice, music, electronic or arcade sound",
+      "durationSeconds": 0.7,
+      "loop": false,
+      "promptInfluence": 0.97
+    },
+    {
+      "id": "world-animal-horse-1",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/animal_horse_1.mp3",
+      "prompt": "One isolated realistic calm pasture horse sound at medium distance: a soft low nasal nicker with one quiet breath, adult farm horse, natural outdoor perspective, no hoofbeat, harness, rider, stable crowd, human voice, music, or other animals",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.96
+    },
+    {
+      "id": "world-animal-horse-2",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/animal_horse_2.mp3",
+      "prompt": "One isolated realistic calm pasture horse variation at medium distance: a brief airy snort and relaxed exhale, adult farm horse, natural outdoor perspective, no neigh scream, hoofbeat, harness, rider, human voice, music, or other animals",
+      "durationSeconds": 1.2,
+      "loop": false,
+      "promptInfluence": 0.96
+    },
+    {
+      "id": "world-parcel-remove",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/parcel_remove.mp3",
+      "prompt": "Short physical medieval land-parcel removal Foley: one weathered wooden boundary stake pulls from soil, dry grass folds, and loose earth settles, restrained and practical, no demolition crash, tools, voice, music, electronic or arcade sound",
+      "durationSeconds": 1.1,
+      "loop": false,
+      "promptInfluence": 0.97
+    },
+    {
+      "id": "world-event-fire-alarm",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_fire_alarm.mp3",
+      "prompt": "Late-medieval fire announcement: one urgent low natural-brass watch-trumpet blast, two fast rough wooden alarm-clapper knocks, then a shorter trumpet answer. Breath-driven, imperfect, grave and immediately distinct from raid signals. No human voice, speech, shout, crowd, telephone, ringtone, siren, beep, bell, chime, electronics, synthesizer, or orchestra",
+      "durationSeconds": 2.8,
+      "loop": false,
+      "promptInfluence": 0.99
+    },
+    {
+      "id": "world-event-bandit-theft",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_bandit_theft.mp3",
+      "prompt": "Medieval acoustic loss announcement for bandits escaping with stores: a low natural horn gives one falling two-note call over a single muted hide-drum thud, tense and concise, no human voice, speech, shout, crowd, telephone, ringtone, siren, beep, bell, chime, electronics, synthesizer, or orchestra",
+      "durationSeconds": 2.8,
+      "loop": false,
+      "promptInfluence": 0.99
+    },
+    {
+      "id": "world-event-bandit-camp-destroyed",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_bandit_camp_destroyed.mp3",
+      "prompt": "Restrained medieval success announcement for a bandit camp cleared: a rough low natural horn rises through three measured notes and resolves over one soft field-drum hit, relieved rather than triumphant, no voice, shout, crowd, telephone, ringtone, bell, chime, electronics, synthesizer, or cinematic orchestra",
+      "durationSeconds": 2.8,
+      "loop": false,
+      "promptInfluence": 0.99
+    },
+    {
+      "id": "world-event-mercenary-arrival",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_mercenary_arrival.mp3",
+      "prompt": "Restrained late-medieval mercenary arrival announcement: two measured natural field-trumpet notes, one planted boot and quiet mail settling beneath the second note, formal and guarded, no human voice, speech, shout, crowd, telephone, ringtone, bell, chime, electronics, synthesizer, or orchestra",
+      "durationSeconds": 2.8,
+      "loop": false,
+      "promptInfluence": 0.99
+    },
+    {
+      "id": "world-event-mercenary-leaving",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_mercenary_leaving.mp3",
+      "prompt": "Late-medieval contract warning for mercenaries beginning to leave: a natural field trumpet plays a restrained descending three-note call over two slow boot steps, sober and recoverable rather than catastrophic, no voice, speech, shout, crowd, telephone, ringtone, bell, chime, electronics, synthesizer, or orchestra",
+      "durationSeconds": 2.8,
+      "loop": false,
+      "promptInfluence": 0.99
+    },
+    {
+      "id": "world-event-mercenary-departure",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_mercenary_departure.mp3",
+      "prompt": "Restrained late-medieval mercenary departure announcement: one distant low natural-trumpet farewell note, a final quiet mail shift, and receding boot step, conclusive but not tragic, no voice, speech, shout, crowd, telephone, ringtone, bell, chime, electronics, synthesizer, or orchestra",
+      "durationSeconds": 2.8,
+      "loop": false,
+      "promptInfluence": 0.99
+    },
+    {
+      "id": "world-event-raid-victory",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_raid_victory.mp3",
+      "prompt": "Grounded late-medieval raid-repelled announcement: a low natural field trumpet rises through three broad notes and holds a modest final tone over one deep hide-drum impact, resolute and relieved, no human voice, cheering, crowd, telephone, ringtone, bell, chime, electronics, synthesizer, or cinematic orchestra",
+      "durationSeconds": 3.0,
+      "loop": false,
+      "promptInfluence": 0.99
+    },
+    {
+      "id": "world-event-raid-loss",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_raid_loss.mp3",
+      "prompt": "Grave late-medieval raid-loss announcement: a low natural field trumpet falls through three slow notes over two separated deep hide-drum impacts, heavy and restrained, no human voice, crying, crowd, telephone, ringtone, bell, chime, electronics, synthesizer, or cinematic orchestra",
+      "durationSeconds": 3.0,
+      "loop": false,
+      "promptInfluence": 0.99
+    },
+    {
+      "id": "world-event-building-complete",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_building_complete.mp3",
+      "prompt": "Short restrained remote construction-complete notification: one firm wooden mallet seats a final oak peg, followed by a warm brief timber-frame settling creak and tiny iron fitting tick, satisfying but humble, no voice, fanfare, music, electronic or arcade sound",
+      "durationSeconds": 1.8,
+      "loop": false,
+      "promptInfluence": 0.97
     },
     {
       "id": "music-charter-beneath-firs",
