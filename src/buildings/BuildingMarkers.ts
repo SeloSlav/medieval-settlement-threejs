@@ -25,10 +25,6 @@ import type {
   LivestockHerdState,
 } from '../resources/types.ts';
 import type { EnvironmentState } from '../world/seasonPolicy.ts';
-import {
-  getGuardhouseMusterState,
-  guardhouseMusterResponseBand,
-} from '../security/frontierSecurity.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { areBuildingShadowsEnabled } from '../scene/shadowPreference.ts';
@@ -118,7 +114,6 @@ type BuildingMarkersOptions = {
   terrain: Terrain;
   parent: THREE.Group;
   getRoadNetwork?: () => RoadNetwork | null;
-  getRoadConditionSpeedMultiplier?: () => number;
   onShadowCastersChanged?: () => void;
 };
 
@@ -130,7 +125,6 @@ type LivestockBuildingVisualState = {
 export class BuildingMarkers {
   private readonly terrain: Terrain;
   private readonly getRoadNetwork?: () => RoadNetwork | null;
-  private readonly getRoadConditionSpeedMultiplier?: () => number;
   private readonly onShadowCastersChanged?: () => void;
   private readonly group = new THREE.Group();
   private readonly buildingMeshes = new Map<string, THREE.Group>();
@@ -145,12 +139,7 @@ export class BuildingMarkers {
   private watermillThroughputMultiplier = 1;
   private windmillWeatherThroughputMultiplier = 1;
   private charcoalBurnerThroughputMultiplier = 1;
-  private readonly guardhouseMusterRoute: THREE.InstancedMesh<
-    THREE.BoxGeometry,
-    THREE.MeshBasicMaterial
-  >;
   private readonly marketplaceSupplyLinks: MarketplaceSupplyLinks;
-  private guardhouseMusterSignature = '';
   private previewBuilding: THREE.Group | null = null;
   private previewKind: BuildingKind | null = null;
   private lastPreviewSignature = '';
@@ -164,7 +153,6 @@ export class BuildingMarkers {
   constructor(options: BuildingMarkersOptions) {
     this.terrain = options.terrain;
     this.getRoadNetwork = options.getRoadNetwork;
-    this.getRoadConditionSpeedMultiplier = options.getRoadConditionSpeedMultiplier;
     this.onShadowCastersChanged = options.onShadowCastersChanged;
     this.group.name = 'Building markers';
     this.staticBatches = new BuildingStaticBatches(this.group);
@@ -173,8 +161,6 @@ export class BuildingMarkers {
       'Batched completed-building shadow proxies',
       areBuildingShadowsEnabled(),
     );
-    this.guardhouseMusterRoute = createGuardhouseMusterRoute();
-    this.group.add(this.guardhouseMusterRoute);
     this.marketplaceSupplyLinks = new MarketplaceSupplyLinks({
       parent: this.group,
       terrain: this.terrain,
@@ -189,7 +175,6 @@ export class BuildingMarkers {
     const fireDisabled = fireDisabledBuildingIds(
       gameState?.fireIncidents.values() ?? [],
     );
-    this.syncGuardhouseMusterRoute(building, gameState, fireDisabled);
     this.syncMarketplaceSupplyLinks(building, gameState, fireDisabled);
   }
 
@@ -677,7 +662,6 @@ export class BuildingMarkers {
       this.previewBuilding = null;
       this.previewKind = null;
     }
-    disposeObject3D(this.guardhouseMusterRoute);
     this.marketplaceSupplyLinks.dispose();
     for (const id of [...this.buildingMeshes.keys()]) {
       this.removeBuilding(id);
@@ -685,86 +669,6 @@ export class BuildingMarkers {
     this.staticBatches.dispose();
     this.shadowProxyBatch.dispose();
     this.group.removeFromParent();
-  }
-
-  private syncGuardhouseMusterRoute(
-    building: BuildingState | null,
-    gameState: GameState | undefined,
-    fireDisabled: ReadonlySet<string>,
-  ): void {
-    const network = this.getRoadNetwork?.() ?? null;
-    if (
-      building?.kind !== 'guardhouse'
-      || building.constructionComplete === false
-      || fireDisabled.has(building.id)
-      || !gameState
-      || !network
-    ) {
-      this.guardhouseMusterSignature = '';
-      this.guardhouseMusterRoute.visible = false;
-      return;
-    }
-
-    const towerSignature: string[] = [];
-    for (const candidate of gameState.buildings.values()) {
-      if (candidate.kind !== 'watchtower') continue;
-      towerSignature.push([
-        candidate.id,
-        candidate.constructionComplete === false ? 0 : 1,
-        candidate.assignedLabor,
-        fireDisabled.has(candidate.id) ? 1 : 0,
-        candidate.x.toFixed(2),
-        candidate.z.toFixed(2),
-      ].join(':'));
-    }
-    const roadSpeedMultiplier = this.getRoadConditionSpeedMultiplier?.() ?? 1;
-    const signature = [
-      building.id,
-      building.x.toFixed(2),
-      building.z.toFixed(2),
-      fireDisabled.has(building.id) ? 1 : 0,
-      network.getTopologyRevision(),
-      roadSpeedMultiplier.toFixed(3),
-      towerSignature.join('|'),
-    ].join(';');
-    if (signature === this.guardhouseMusterSignature) return;
-    this.guardhouseMusterSignature = signature;
-
-    const muster = getGuardhouseMusterState(
-      building,
-      gameState,
-      (ax, az, bx, bz) => network.getPathfinder().roadPathDistance(ax, az, bx, bz),
-      roadSpeedMultiplier,
-    );
-    const linkedTower = muster.linkedTowerId
-      ? gameState.buildings.get(muster.linkedTowerId)
-      : null;
-    if (!linkedTower) {
-      this.guardhouseMusterRoute.visible = false;
-      return;
-    }
-    const route = network.getPathfinder().roadPathRoute(
-      building.x,
-      building.z,
-      linkedTower.x,
-      linkedTower.z,
-    );
-    if (!route || route.polyline.length < 2) {
-      this.guardhouseMusterRoute.visible = false;
-      return;
-    }
-
-    const responseBand = guardhouseMusterResponseBand(muster.efficiency);
-    this.guardhouseMusterRoute.material.color.setHex(responseBand === 'full'
-      ? 0x9aca6f
-      : responseBand === 'delayed'
-        ? 0xf0a63f
-        : 0xe2573e);
-    syncGuardhouseMusterRouteInstances(
-      this.guardhouseMusterRoute,
-      route.polyline,
-      this.terrain,
-    );
   }
 
   private syncMarketplaceSupplyLinks(
@@ -1525,102 +1429,3 @@ function foundersCampMatchesInitialVisualState(building: BuildingState): boolean
     && (building.gold > 1e-6) === (STARTING_GOLD > 1e-6);
 }
 
-const MAX_GUARDHOUSE_MUSTER_DASHES = 512;
-const GUARDHOUSE_MUSTER_DASH_STRIDE = 3.35;
-const GUARDHOUSE_MUSTER_DASH_FILL = 0.66;
-
-function createGuardhouseMusterRoute(): THREE.InstancedMesh<
-  THREE.BoxGeometry,
-  THREE.MeshBasicMaterial
-> {
-  const material = new THREE.MeshBasicMaterial({
-    color: 0x9aca6f,
-    transparent: true,
-    opacity: 0.84,
-    depthWrite: false,
-    depthTest: false,
-  });
-  const route = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(1, 0.08, 0.54),
-    material,
-    MAX_GUARDHOUSE_MUSTER_DASHES,
-  );
-  route.name = 'Selected guardhouse muster route';
-  route.count = 0;
-  route.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  route.renderOrder = 14;
-  route.visible = false;
-  route.frustumCulled = false;
-  return route;
-}
-
-function syncGuardhouseMusterRouteInstances(
-  route: THREE.InstancedMesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>,
-  polyline: readonly { x: number; z: number }[],
-  terrain: Terrain,
-): void {
-  const segmentLengths: number[] = [];
-  let totalLength = 0;
-  for (let index = 0; index < polyline.length - 1; index += 1) {
-    const start = polyline[index]!;
-    const end = polyline[index + 1]!;
-    const length = Math.hypot(end.x - start.x, end.z - start.z);
-    segmentLengths.push(length);
-    totalLength += length;
-  }
-  if (totalLength <= 1e-6) {
-    route.count = 0;
-    route.visible = false;
-    return;
-  }
-
-  const stride = Math.max(
-    GUARDHOUSE_MUSTER_DASH_STRIDE,
-    totalLength / MAX_GUARDHOUSE_MUSTER_DASHES,
-  );
-  const dashLength = stride * GUARDHOUSE_MUSTER_DASH_FILL;
-  const matrix = new THREE.Matrix4();
-  const position = new THREE.Vector3();
-  const rotation = new THREE.Quaternion();
-  const scale = new THREE.Vector3();
-  const up = new THREE.Vector3(0, 1, 0);
-  let segmentIndex = 0;
-  let segmentStartDistance = 0;
-  let dashCount = 0;
-
-  for (
-    let dashStart = 0;
-    dashStart < totalLength - 1e-6 && dashCount < MAX_GUARDHOUSE_MUSTER_DASHES;
-    dashStart += stride
-  ) {
-    const visibleLength = Math.min(dashLength, totalLength - dashStart);
-    const midpointDistance = dashStart + visibleLength * 0.5;
-    while (
-      segmentIndex < segmentLengths.length - 1
-      && segmentStartDistance + segmentLengths[segmentIndex]! < midpointDistance
-    ) {
-      segmentStartDistance += segmentLengths[segmentIndex]!;
-      segmentIndex += 1;
-    }
-    const start = polyline[segmentIndex]!;
-    const end = polyline[segmentIndex + 1]!;
-    const segmentLength = Math.max(1e-9, segmentLengths[segmentIndex]!);
-    const t = THREE.MathUtils.clamp(
-      (midpointDistance - segmentStartDistance) / segmentLength,
-      0,
-      1,
-    );
-    const x = THREE.MathUtils.lerp(start.x, end.x, t);
-    const z = THREE.MathUtils.lerp(start.z, end.z, t);
-    position.set(x, terrain.getHeightAt(x, z) + 0.34, z);
-    rotation.setFromAxisAngle(up, -Math.atan2(end.z - start.z, end.x - start.x));
-    scale.set(visibleLength, 1, 1);
-    matrix.compose(position, rotation, scale);
-    route.setMatrixAt(dashCount, matrix);
-    dashCount += 1;
-  }
-
-  route.count = dashCount;
-  route.instanceMatrix.needsUpdate = dashCount > 0;
-  route.visible = dashCount > 0;
-}

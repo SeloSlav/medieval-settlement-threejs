@@ -248,8 +248,6 @@ function buildingStateFromRow(
     harvestReservePercent: row.harvestReservePercent,
     carpenterPolearmReserve: wholeResourceUnits(row.carpenterPolearmReserve),
     carpenterCartServiceTargetTrips: row.carpenterCartServiceTargetTrips,
-    guardhousePayPriority: row.guardhousePayPriority,
-    guardhouseFoodReserve: wholeResourceUnits(row.guardhouseFoodReserve),
     guardhouseMusterWatchtowerId: row.guardhouseMusterWatchtowerId == null
       || row.guardhouseMusterWatchtowerId === 0n
       ? undefined

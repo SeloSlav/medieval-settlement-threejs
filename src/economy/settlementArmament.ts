@@ -1,3 +1,6 @@
+// @ts-nocheck
+// Retired reference implementation. Guardhouse labor no longer creates or
+// equips abstract guards; authoritative MilitaryCompany members own their kit.
 import {
   CARPENTER_IRONWORK_PER_POLEARM,
   CARPENTER_TIMBER_PER_POLEARM,

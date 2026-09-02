@@ -233,8 +233,6 @@ mod tests {
             construction_priority: 2,
             woodcutter_timber_reserve: 0.0,
             carpenter_polearm_reserve: 0,
-            guardhouse_pay_priority: 0,
-            guardhouse_food_reserve: 0,
             guardhouse_muster_watchtower_id: 0,
             weaver_input_policy: 0,
             marketplace_ironwork_target: 0,

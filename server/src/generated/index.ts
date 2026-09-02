@@ -90,9 +90,7 @@ import SetGameSpeedReducer from "./set_game_speed_reducer";
 import SetGranaryFreshFoodTargetReducer from "./set_granary_fresh_food_target_reducer";
 import SetGranaryGrainReserveReducer from "./set_granary_grain_reserve_reducer";
 import SetGranaryPolicyReducer from "./set_granary_policy_reducer";
-import SetGuardhouseFoodReserveReducer from "./set_guardhouse_food_reserve_reducer";
 import SetGuardhouseMusterPostReducer from "./set_guardhouse_muster_post_reducer";
-import SetGuardhousePayPriorityReducer from "./set_guardhouse_pay_priority_reducer";
 import SetHarvestReservePercentReducer from "./set_harvest_reserve_percent_reducer";
 import SetLaborStewardReserveReducer from "./set_labor_steward_reserve_reducer";
 import SetLivestockBreedingReserveReducer from "./set_livestock_breeding_reserve_reducer";
@@ -729,9 +727,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_granary_fresh_food_target", SetGranaryFreshFoodTargetReducer),
   __reducerSchema("set_granary_grain_reserve", SetGranaryGrainReserveReducer),
   __reducerSchema("set_granary_policy", SetGranaryPolicyReducer),
-  __reducerSchema("set_guardhouse_food_reserve", SetGuardhouseFoodReserveReducer),
   __reducerSchema("set_guardhouse_muster_post", SetGuardhouseMusterPostReducer),
-  __reducerSchema("set_guardhouse_pay_priority", SetGuardhousePayPriorityReducer),
   __reducerSchema("set_harvest_reserve_percent", SetHarvestReservePercentReducer),
   __reducerSchema("set_labor_steward_reserve", SetLaborStewardReserveReducer),
   __reducerSchema("set_livestock_breeding_reserve", SetLivestockBreedingReserveReducer),

@@ -390,7 +390,6 @@ export async function bootstrapAppSession(
     terrain: sceneManager.terrain,
     parent: sceneManager.selectionGroup,
     getRoadNetwork: () => roadNetwork,
-    getRoadConditionSpeedMultiplier: () => worldQueries.getRoadConditionSpeedMultiplier(),
     onShadowCastersChanged: () => sceneManager.invalidateStaticShadows(),
   });
   // Build the one-time founding landmark while the loading presentation is

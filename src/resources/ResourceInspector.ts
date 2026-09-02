@@ -269,14 +269,6 @@ type ResourceInspectorOptions = {
     buildingId: string,
     targetTrips: number,
   ) => void | Promise<void>;
-  onSetGuardhousePayPriority?: (
-    buildingId: string,
-    payPriority: number,
-  ) => void | Promise<void>;
-  onSetGuardhouseFoodReserve?: (
-    buildingId: string,
-    reservePerGuard: number,
-  ) => void | Promise<void>;
   onSetGuardhouseMusterPost?: (
     buildingId: string,
     watchtowerId: string | null,
@@ -1439,26 +1431,6 @@ export class ResourceInspector {
       this.selectedTarget?.kind === 'building'
       && this.selectedTarget.building.kind === 'guardhouse'
     ) {
-      const reserveValue = (event.target as HTMLElement)
-        .closest<HTMLElement>('[data-guardhouse-food-reserve]')
-        ?.dataset.guardhouseFoodReserve;
-      if (reserveValue != null) {
-        void this.options.onSetGuardhouseFoodReserve?.(
-          this.selectedTarget.building.id,
-          Number(reserveValue),
-        );
-        return;
-      }
-      const priorityValue = (event.target as HTMLElement)
-        .closest<HTMLElement>('[data-guardhouse-pay-priority]')
-        ?.dataset.guardhousePayPriority;
-      if (priorityValue != null) {
-        void this.options.onSetGuardhousePayPriority?.(
-          this.selectedTarget.building.id,
-          Number(priorityValue),
-        );
-        return;
-      }
       const musterWatchtowerId = (event.target as HTMLElement)
         .closest<HTMLElement>('[data-guardhouse-muster-watchtower]')
         ?.dataset.guardhouseMusterWatchtower;

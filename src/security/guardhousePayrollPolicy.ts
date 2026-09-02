@@ -1,3 +1,6 @@
+// @ts-nocheck
+// Retired reference implementation. The runtime no longer imports this file;
+// recruited MilitaryCompany rows now own wages, supply, readiness, and losses.
 import {
   GUARDHOUSE_PAYROLL_REORDER_DAYS,
   GUARDHOUSE_PAYROLL_TARGET_DAYS,

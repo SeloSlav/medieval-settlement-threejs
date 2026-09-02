@@ -808,14 +808,31 @@ fn step_one_live_raid(
     elapsed_seconds: f64,
     road_network: Option<&RoadNetwork>,
 ) {
+    let active_player_agent_ids = ctx
+        .db
+        .military_member()
+        .owner()
+        .filter(&active.owner)
+        .filter(|member| member.phase == 1)
+        .filter(|member| {
+            ctx.db
+                .military_company()
+                .id()
+                .find(&member.company_id)
+                .is_some_and(|company| company.state == 1)
+        })
+        .map(|member| member.combat_agent_id)
+        .collect::<HashSet<_>>();
     let mut agents = ctx
         .db
         .combat_agent()
         .owner()
         .filter(&active.owner)
         .filter(|agent| {
-            agent.raid_id == active.raid_id
-                && matches!(agent.faction, COMBAT_FACTION_GUARD | COMBAT_FACTION_RAIDER)
+            (agent.raid_id == active.raid_id
+                && matches!(agent.faction, COMBAT_FACTION_GUARD | COMBAT_FACTION_RAIDER))
+                || (is_player_military_faction(agent.faction)
+                    && active_player_agent_ids.contains(&agent.id))
         })
         .map(|agent| (agent.id, agent))
         .collect::<HashMap<_, _>>();
@@ -885,6 +902,12 @@ fn step_one_live_raid(
                     let Some(agent) = agents.get_mut(&snapshot_id) else {
                         continue;
                     };
+                    // Company behavior and movement remain owned by the global
+                    // military heartbeat. Their raid snapshots are present so
+                    // Ottoman ranks can acquire and damage them authoritatively.
+                    if is_player_military_faction(agent.faction) {
+                        continue;
+                    }
                     if agent.state == COMBAT_STATE_DOWNED || agent.health <= EPSILON {
                         agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);
                         agent.engagement_target_id = 0;
@@ -916,6 +939,7 @@ fn step_one_live_raid(
                         );
                     } else {
                         step_guard(
+                            ctx,
                             agent,
                             &snapshots,
                             &target_grid,
@@ -999,11 +1023,8 @@ fn begin_raider_rout_if_broken(
         })
         .map(|agent| (agent.x, agent.z))
         .collect::<Vec<_>>();
-    let company_guard_strength = ctx
-        .db
-        .combat_agent()
-        .owner()
-        .filter(&active.owner)
+    let company_guard_strength = agents
+        .values()
         .filter(|agent| {
             is_player_military_faction(agent.faction)
                 && agent.state != COMBAT_STATE_DOWNED
@@ -1142,10 +1163,14 @@ fn step_raider(
         snapshots,
         target_grid,
         RAIDER_ENGAGE_RANGE_METERS,
-        |candidate| candidate.faction == COMBAT_FACTION_GUARD,
+        |candidate| {
+            candidate.faction == COMBAT_FACTION_GUARD
+                || is_player_military_faction(candidate.faction)
+        },
     ) {
         agent.loot_progress = 0.0;
         engage_agent(
+            ctx,
             agent,
             defender,
             ranged_frame,
@@ -1291,6 +1316,7 @@ fn try_record_contact_civilian_casualty(
 }
 
 fn step_guard(
+    ctx: &ReducerContext,
     agent: &mut CombatAgent,
     snapshots: &[CombatAgent],
     target_grid: &CombatSteeringGrid,
@@ -1323,6 +1349,7 @@ fn step_guard(
     );
     if let Some(enemy) = emergency_enemy {
         engage_agent(
+            ctx,
             agent,
             enemy,
             None,
@@ -1381,6 +1408,7 @@ fn step_guard(
                     COMBAT_CROSS_COUNTRY_ROUTE_MULTIPLIER,
                 ) {
                     engage_agent(
+                        ctx,
                         agent,
                         enemy,
                         None,
@@ -1442,6 +1470,7 @@ fn step_guard(
         return;
     };
     engage_agent(
+        ctx,
         agent,
         enemy,
         None,
@@ -1610,6 +1639,7 @@ fn raid_engagement_rank_key(agent: &CombatAgent, target_id: u64) -> EngagementRa
 }
 
 fn engage_agent(
+    ctx: &ReducerContext,
     agent: &mut CombatAgent,
     enemy: &CombatAgent,
     ranged_frame: Option<RaiderRangedFrame>,
@@ -1638,12 +1668,25 @@ fn engage_agent(
         MELEE_RANGE_METERS
     };
     if distance <= strike_range * strike_range {
+        let attacker_was_charging = agent.state == COMBAT_STATE_ADVANCING
+            && agent.velocity_x.hypot(agent.velocity_z) >= 1.0;
+        let resolved_damage = if is_player_military_faction(enemy.faction) {
+            super::military::mitigate_external_player_damage(
+                ctx,
+                enemy,
+                agent,
+                damage,
+                attacker_was_charging,
+            )
+        } else {
+            damage
+        };
         if agent.state != COMBAT_STATE_FIGHTING {
             agent.state_changed_tick = sim_tick;
         }
         agent.state = COMBAT_STATE_FIGHTING;
         if agent.attack_cooldown <= EPSILON {
-            *damage_by_agent.entry(enemy.id).or_insert(0.0) += damage;
+            *damage_by_agent.entry(enemy.id).or_insert(0.0) += resolved_damage;
             agent.attack_cooldown = attack_interval;
         }
         return;
@@ -1828,6 +1871,10 @@ fn raid_target_assault_position(
 }
 
 fn down_agent(ctx: &ReducerContext, agent: &mut CombatAgent, active: &ActiveRaid, sim_tick: u64) {
+    if is_player_military_faction(agent.faction) {
+        super::military::down_external_player_member(ctx, agent, sim_tick);
+        return;
+    }
     agent.health = 0.0;
     agent.state = COMBAT_STATE_DOWNED;
     agent.engagement_target_id = 0;
@@ -1895,6 +1942,9 @@ fn return_guards_and_finalize(
 ) {
     let mut guards_still_returning = 0_u32;
     for agent in agents.values_mut() {
+        if is_player_military_faction(agent.faction) {
+            continue;
+        }
         if agent.faction != COMBAT_FACTION_GUARD {
             if agent.state == COMBAT_STATE_DOWNED {
                 agent.attack_cooldown = (agent.attack_cooldown - elapsed_seconds).max(0.0);

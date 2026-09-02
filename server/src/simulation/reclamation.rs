@@ -1387,7 +1387,6 @@ pub fn insert_reclamation_pile(
         wool: stock.wool.max(0.0),
         cloth: stock.cloth.max(0.0),
         carpenter_polearm_reserve: 0,
-        guardhouse_pay_priority: 0,
         marketplace_ironwork_target: 0,
         marketplace_specialty_export_policy: 0,
         granary_fresh_food_target_percent:
@@ -1410,7 +1409,6 @@ pub fn insert_reclamation_pile(
         production_rate_percent:
             crate::production_rate_policy::DEFAULT_PRODUCTION_RATE_PERCENT,
         production_maintenance_progress: 0.0,
-        guardhouse_food_reserve: 0,
         marketplace_seed_grain_target: 0,
         founding_shelter_active: false,
         marketplace_pending_trade_code: 0,

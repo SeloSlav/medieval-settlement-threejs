@@ -1,6 +1,5 @@
 import {
   CALENDAR_SECONDS_PER_DAY,
-  GUARDHOUSE_FOOD_PER_GUARD_PER_DAY,
   GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE,
   GUARDHOUSE_LONG_MUSTER_EFFICIENCY,
   GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE,
@@ -20,7 +19,6 @@ import type { BuildingState, GameState, ResidenceState } from '../resources/type
 import type { MilitaryCompanyState } from './militaryProgression.ts';
 import { buildingKindLabel } from '../resources/WorldLayoutRegistry.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
-import { edibleFoodStock, type FoodInventoryLike } from '../economy/foodInventory.ts';
 import { householdProsperityBand } from '../economy/householdWealth.ts';
 
 export type SettlementSecurityState = {
@@ -67,29 +65,6 @@ export const DEFAULT_SETTLEMENT_SECURITY: SettlementSecurityState = {
   estimatedLossFraction: 0,
 };
 
-export const GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS = 3;
-export const GUARDHOUSE_FOOD_BUFFER_PER_GUARD = 6;
-export const GUARDHOUSE_MIN_FOOD_BUFFER = 12;
-export const GUARDHOUSE_FOOD_RESERVE_LEAN = 3;
-export const GUARDHOUSE_FOOD_RESERVE_STANDARD = GUARDHOUSE_FOOD_BUFFER_PER_GUARD;
-export const GUARDHOUSE_FOOD_RESERVE_DEEP = 12;
-export const GUARDHOUSE_FOOD_RESERVES = [
-  {
-    reservePerGuard: GUARDHOUSE_FOOD_RESERVE_LEAN,
-    label: 'Lean',
-    hint: 'Frees fresh food and cart capacity, but leaves little disruption margin.',
-  },
-  {
-    reservePerGuard: GUARDHOUSE_FOOD_RESERVE_STANDARD,
-    label: 'Company',
-    hint: 'The established company buffer used by existing settlements.',
-  },
-  {
-    reservePerGuard: GUARDHOUSE_FOOD_RESERVE_DEEP,
-    label: 'Deep',
-    hint: 'Ties up more perishable food for a longer frontier interruption.',
-  },
-] as const;
 export const WATCH_COVERAGE_CELL_SIZE = 128;
 export const FRONTIER_SECURITY_UPDATE_INTERVAL_TICKS = 300;
 export const RAID_SEASON_START_MONTH = 4;
@@ -98,126 +73,6 @@ const CLOTH_RAID_VALUE_MULTIPLIER = 1.5;
 const IRONWORK_RAID_VALUE_MULTIPLIER = 2;
 const POLEARM_RAID_VALUE_MULTIPLIER = 4;
 
-type GuardhouseFoodCandidateLike = Pick<
-  BuildingState,
-  'id' | 'kind' | 'polearms' | 'assignedLabor' | 'constructionComplete'
-  | 'guardhouseFoodReserve'
-> & FoodInventoryLike;
-
-export type RoutedGuardhouseFoodTarget<T extends GuardhouseFoodCandidateLike> = {
-  target: T;
-  desiredStock: number;
-  runwayDays: number;
-  routeDistance: number;
-};
-
-export function armedGuardCount(
-  assignedLabor: number,
-  polearms: number | undefined,
-): number {
-  return Math.max(0, Math.min(assignedLabor, Math.floor(polearms ?? 0)));
-}
-
-export function guardhouseFoodTarget(
-  assignedLabor: number,
-  polearms: number | undefined,
-  reservePerGuard: number | undefined = GUARDHOUSE_FOOD_RESERVE_STANDARD,
-): number {
-  const armed = armedGuardCount(assignedLabor, polearms);
-  return armed <= 0
-    ? 0
-    : Math.max(
-        GUARDHOUSE_MIN_FOOD_BUFFER,
-        armed * normalizeGuardhouseFoodReserve(reservePerGuard),
-      );
-}
-
-export function normalizeGuardhouseFoodReserve(
-  reservePerGuard: number | undefined,
-): number {
-  const normalized = Math.floor(reservePerGuard ?? GUARDHOUSE_FOOD_RESERVE_STANDARD);
-  return GUARDHOUSE_FOOD_RESERVES.some(
-    (candidate) => candidate.reservePerGuard === normalized,
-  )
-    ? normalized
-    : GUARDHOUSE_FOOD_RESERVE_STANDARD;
-}
-
-export function guardhouseFoodReserveLabel(
-  reservePerGuard: number | undefined,
-): string {
-  const normalized = normalizeGuardhouseFoodReserve(reservePerGuard);
-  return GUARDHOUSE_FOOD_RESERVES.find(
-    (candidate) => candidate.reservePerGuard === normalized,
-  )?.label ?? 'Company';
-}
-
-export function guardhouseFoodRunwayDays(
-  assignedLabor: number,
-  polearms: number | undefined,
-  foodStock: number,
-): number {
-  const dailyFood = armedGuardCount(assignedLabor, polearms)
-    * GUARDHOUSE_FOOD_PER_GUARD_PER_DAY;
-  return dailyFood <= 1e-9
-    ? Infinity
-    : Math.max(0, foodStock) / dailyFood;
-}
-
-export function selectCriticalGuardhouseFoodTarget<
-  T extends GuardhouseFoodCandidateLike,
->(
-  targets: Iterable<T>,
-  sourceId: string,
-  routeDistanceFor: (target: T) => number | null,
-  hasInboundSupply: (target: T) => boolean = () => false,
-): RoutedGuardhouseFoodTarget<T> | null {
-  let best: RoutedGuardhouseFoodTarget<T> | null = null;
-  for (const target of targets) {
-    if (
-      target.id === sourceId
-      || target.kind !== 'guardhouse'
-      || target.constructionComplete === false
-      || target.assignedLabor <= 0
-      || hasInboundSupply(target)
-    ) continue;
-    const desiredStock = guardhouseFoodTarget(
-      target.assignedLabor,
-      target.polearms,
-      target.guardhouseFoodReserve,
-    );
-    const foodStock = edibleFoodStock(target);
-    const runwayDays = guardhouseFoodRunwayDays(
-      target.assignedLabor,
-      target.polearms,
-      foodStock,
-    );
-    if (
-      desiredStock <= 1e-6
-      || foodStock + 1e-6 >= desiredStock
-      || runwayDays + 1e-9 >= GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS
-    ) continue;
-    const routeDistance = routeDistanceFor(target);
-    if (routeDistance == null || !Number.isFinite(routeDistance)) continue;
-    const candidate = { target, desiredStock, runwayDays, routeDistance };
-    if (
-      best == null
-      || candidate.runwayDays < best.runwayDays - 1e-9
-      || (
-        Math.abs(candidate.runwayDays - best.runwayDays) <= 1e-9
-        && candidate.routeDistance < best.routeDistance - 1e-6
-      )
-      || (
-        Math.abs(candidate.runwayDays - best.runwayDays) <= 1e-9
-        && Math.abs(candidate.routeDistance - best.routeDistance) <= 1e-6
-        && compareStableIds(candidate.target.id, best.target.id) < 0
-      )
-    ) {
-      best = candidate;
-    }
-  }
-  return best;
-}
 
 export function settlementSecurityFromRow(row: SettlementSecurity): SettlementSecurityState {
   return {
@@ -428,20 +283,6 @@ export function watchtowerEffectiveRadius(
   return tower.assignedLabor === 1 ? tower.workRadius * 0.78 : tower.workRadius;
 }
 
-export type GuardhouseMusterState = {
-  fireDisabled: boolean;
-  routeDistance: number | null;
-  responseDistance: number | null;
-  linkedTowerId: string | null;
-  staffedTowers: number;
-  roadSpeedMultiplier: number;
-  efficiency: number;
-  rawReady: number;
-  effectiveReady: number;
-  emergencyEfficiency: number;
-  emergencyReady: number;
-};
-
 export type GuardhouseMusterAssignment = {
   guardhouseId: string;
   towerId: string;
@@ -592,16 +433,6 @@ export function guardhouseMusterEfficiency(
   return clamp01(1 + (GUARDHOUSE_LONG_MUSTER_EFFICIENCY - 1) * progress);
 }
 
-export type GuardhouseMusterResponseBand = 'full' | 'delayed' | 'weak';
-
-export function guardhouseMusterResponseBand(
-  efficiency: number,
-): GuardhouseMusterResponseBand {
-  const normalized = clamp01(efficiency);
-  if (normalized >= 0.999) return 'full';
-  return normalized >= 0.75 ? 'delayed' : 'weak';
-}
-
 export function normalizeGuardhouseMusterWatchtowerId(
   watchtowerId: string | undefined,
 ): string | null {
@@ -649,80 +480,6 @@ export function selectGuardhouseMusterWatchIndex(
     }
   }
   return nearestIndex;
-}
-
-export function getGuardhouseMusterState(
-  guardhouse: BuildingState,
-  gameState: GameState,
-  getRoadPathDistance: (ax: number, az: number, bx: number, bz: number) => number | null,
-  roadSpeedMultiplier = 1,
-  roadDistancesByWatch?: ReadonlyMap<string, number | null>,
-): GuardhouseMusterState {
-  const fireDisabled = fireDisabledBuildingIds(gameState.fireIncidents.values());
-  const guardhouseFireDisabled = fireDisabled.has(guardhouse.id);
-  const towers = [...gameState.buildings.values()].filter(
-    (building) =>
-      building.kind === 'watchtower'
-      && building.constructionComplete !== false
-      && building.assignedLabor > 0
-      && !fireDisabled.has(building.id),
-  );
-  const normalizedRoadSpeed = normalizeRoadSpeedMultiplier(roadSpeedMultiplier);
-  if (guardhouseFireDisabled) {
-    return {
-      fireDisabled: guardhouseFireDisabled,
-      routeDistance: null,
-      responseDistance: null,
-      linkedTowerId: null,
-      staffedTowers: towers.length,
-      roadSpeedMultiplier: normalizedRoadSpeed,
-      efficiency: 0,
-      rawReady: 0,
-      effectiveReady: 0,
-      emergencyEfficiency: 0,
-      emergencyReady: 0,
-    };
-  }
-  const distances = towers.map((tower) =>
-    roadDistancesByWatch?.has(tower.id)
-      ? roadDistancesByWatch.get(tower.id) ?? null
-      : getRoadPathDistance(guardhouse.x, guardhouse.z, tower.x, tower.z));
-  const linkedTowerIndex = selectGuardhouseMusterWatchIndex(
-    normalizeGuardhouseMusterWatchtowerId(
-      guardhouse.guardhouseMusterWatchtowerId,
-    ),
-    towers,
-    distances,
-  );
-  const routeDistance = linkedTowerIndex < 0
-    ? null
-    : distances[linkedTowerIndex] ?? null;
-  const linkedTowerId = linkedTowerIndex < 0
-    ? null
-    : towers[linkedTowerIndex]!.id;
-  const armed = armedGuardCount(guardhouse.assignedLabor, guardhouse.polearms);
-  const rawReady = armed * clamp01(guardhouse.actionCooldown);
-  const emergencyEfficiency = guardhouseMusterEfficiency(null, normalizedRoadSpeed);
-  const responseDistance = guardhouseMusterResponseDistance(
-    routeDistance,
-    normalizedRoadSpeed,
-  );
-  const efficiency = routeDistance == null
-    ? 0
-    : guardhouseMusterEfficiency(routeDistance, normalizedRoadSpeed);
-  return {
-    fireDisabled: false,
-    routeDistance,
-    responseDistance,
-    linkedTowerId,
-    staffedTowers: towers.length,
-    roadSpeedMultiplier: normalizedRoadSpeed,
-    efficiency,
-    rawReady,
-    effectiveReady: rawReady * efficiency,
-    emergencyEfficiency,
-    emergencyReady: rawReady * emergencyEfficiency,
-  };
 }
 
 /**

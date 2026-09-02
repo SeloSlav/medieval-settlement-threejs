@@ -134,8 +134,11 @@ Residence variety must not be color-only.
 Residence tiers are structural, not cosmetic:
 
 - Tier 1 is a compact single-storey-plus-attic cottage for three people. It must read lower, narrower, and humbler than the established two-storey family.
-- Tier 2 is the canonical two-storey Gorski house for six people, using the three established archetypes.
-- Tier 3 is a wider, taller prosperous house for ten people. It gains a working annex or lean-to as well as additional upper-storey mass.
+- Tier 1 wall faces are assembled from bounded local presets: earthy daub, exposed fieldstone, and weathered timber. Each cottage uses all three systems, only one or two full walls may be stone, and the gable infill remains timber so the result reads as repaired and accumulated rather than uniformly designed.
+- Tier 1 through Tier 3 wooden roofs use a restrained seeded family of earth-brown, smoke-brown, and mossed-brown shingles. Avoid broad silver-white or cold grey shingle fields.
+- Tier 2 is the canonical compact two-storey Gorski house for six people, using the three established archetypes.
+- Tier 3 is a wider, taller prosperous house for ten people. It gains a working annex plus one seeded prosperity feature: an offset roof dormer, a covered front gallery, or a second working annex.
+- Tier 4 retains fired clay tile, but the orange is smoke-darkened and dirt-muted rather than clean or saturated. Its cross-gable may be centered or modestly offset.
 - Paint, roof, trim, archetype, chimney, and firewood variants persist across tiers because the deterministic residence id seed does not change on upgrade.
 - Backyard gardens remain parcel features rather than being baked into a tier mesh.
 

@@ -432,12 +432,6 @@ export type GameBalance = {
   frontierEconomy: {
     carpenterTimberPerPolearm: number;
     carpenterIronworkPerPolearm: number;
-    guardhouseFoodPerGuardPerDay: number;
-    guardhouseWagePerGuardPerDay: number;
-    guardhousePayrollTargetDays: number;
-    guardhousePayrollReorderDays: number;
-    guardhouseTrainingPerDay: number;
-    guardhouseReadinessDecayPerDay: number;
     guardhouseFullMusterRoadDistance: number;
     guardhouseLongMusterRoadDistance: number;
     guardhouseLongMusterEfficiency: number;
@@ -1152,12 +1146,6 @@ function generateRust(): string {
     '',
     `pub const CARPENTER_TIMBER_PER_POLEARM: f64 = ${rustF64(b.frontierEconomy.carpenterTimberPerPolearm)};`,
     `pub const CARPENTER_IRONWORK_PER_POLEARM: f64 = ${rustF64(b.frontierEconomy.carpenterIronworkPerPolearm)};`,
-    `pub const GUARDHOUSE_FOOD_PER_GUARD_PER_DAY: f64 = ${rustF64(b.frontierEconomy.guardhouseFoodPerGuardPerDay)};`,
-    `pub const GUARDHOUSE_WAGE_PER_GUARD_PER_DAY: f64 = ${rustF64(b.frontierEconomy.guardhouseWagePerGuardPerDay)};`,
-    `pub const GUARDHOUSE_PAYROLL_TARGET_DAYS: f64 = ${rustF64(b.frontierEconomy.guardhousePayrollTargetDays)};`,
-    `pub const GUARDHOUSE_PAYROLL_REORDER_DAYS: f64 = ${rustF64(b.frontierEconomy.guardhousePayrollReorderDays)};`,
-    `pub const GUARDHOUSE_TRAINING_PER_DAY: f64 = ${rustF64(b.frontierEconomy.guardhouseTrainingPerDay)};`,
-    `pub const GUARDHOUSE_READINESS_DECAY_PER_DAY: f64 = ${rustF64(b.frontierEconomy.guardhouseReadinessDecayPerDay)};`,
     `pub const GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE: f64 = ${rustF64(b.frontierEconomy.guardhouseFullMusterRoadDistance)};`,
     `pub const GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE: f64 = ${rustF64(b.frontierEconomy.guardhouseLongMusterRoadDistance)};`,
     `pub const GUARDHOUSE_LONG_MUSTER_EFFICIENCY: f64 = ${rustF64(b.frontierEconomy.guardhouseLongMusterEfficiency)};`,
@@ -2288,12 +2276,6 @@ function generateTypeScript(): string {
     '',
     `export const CARPENTER_TIMBER_PER_POLEARM = ${b.frontierEconomy.carpenterTimberPerPolearm};`,
     `export const CARPENTER_IRONWORK_PER_POLEARM = ${b.frontierEconomy.carpenterIronworkPerPolearm};`,
-    `export const GUARDHOUSE_FOOD_PER_GUARD_PER_DAY = ${b.frontierEconomy.guardhouseFoodPerGuardPerDay};`,
-    `export const GUARDHOUSE_WAGE_PER_GUARD_PER_DAY = ${b.frontierEconomy.guardhouseWagePerGuardPerDay};`,
-    `export const GUARDHOUSE_PAYROLL_TARGET_DAYS = ${b.frontierEconomy.guardhousePayrollTargetDays};`,
-    `export const GUARDHOUSE_PAYROLL_REORDER_DAYS = ${b.frontierEconomy.guardhousePayrollReorderDays};`,
-    `export const GUARDHOUSE_TRAINING_PER_DAY = ${b.frontierEconomy.guardhouseTrainingPerDay};`,
-    `export const GUARDHOUSE_READINESS_DECAY_PER_DAY = ${b.frontierEconomy.guardhouseReadinessDecayPerDay};`,
     `export const GUARDHOUSE_FULL_MUSTER_ROAD_DISTANCE = ${b.frontierEconomy.guardhouseFullMusterRoadDistance};`,
     `export const GUARDHOUSE_LONG_MUSTER_ROAD_DISTANCE = ${b.frontierEconomy.guardhouseLongMusterRoadDistance};`,
     `export const GUARDHOUSE_LONG_MUSTER_EFFICIENCY = ${b.frontierEconomy.guardhouseLongMusterEfficiency};`,

@@ -976,48 +976,16 @@ fn step_active_member(
                     ctx.db.combat_agent().id().update(agent);
                     return;
                 }
-                let hostile_damage = hostile.damage;
-                let profile = member_combat_profile(kind, member_seed(&member));
-                let armor_after_penetration = (profile.armor - hostile.penetration).max(0.0);
-                let armor_multiplier = 1.0 / (1.0 + armor_after_penetration * 0.055);
-                let incoming_front = is_front_attack(
-                    company.facing_x,
-                    company.facing_z,
-                    agent.x,
-                    agent.z,
-                    enemy.x,
-                    enemy.z,
+                let hostile_damage = mitigate_player_damage(
+                    kind,
+                    &member,
+                    &company,
+                    &agent,
+                    &enemy,
+                    hostile.damage,
+                    enemy_was_charging,
                 );
-                let shield_multiplier = if incoming_front {
-                    (1.0 - profile.shield * 0.022).clamp(0.64, 1.0)
-                } else {
-                    1.0
-                };
-                let brace_multiplier = if company.formation == MILITARY_FORMATION_BRACE
-                    && kind.can_brace()
-                    && enemy_was_charging
-                    && incoming_front
-                {
-                    (1.0 - profile.bracing * 0.34).clamp(0.62, 1.0)
-                } else {
-                    1.0
-                };
-                let wall_multiplier = if incoming_front {
-                    shield_wall_damage_multiplier(kind, company.formation)
-                } else {
-                    1.0
-                };
-                let flank_multiplier = if incoming_front { 1.0 } else { 1.18 };
-                let mitigation = stats.damage_taken_multiplier
-                    * veteran_damage_taken_multiplier(company.level)
-                    * wall_multiplier
-                    * stance_damage_taken_multiplier(company.stance, hostile.ranged)
-                    * (1.08 - company.cohesion.clamp(0.0, 1.0) * 0.18)
-                    * armor_multiplier
-                    * shield_multiplier
-                    * brace_multiplier
-                    * flank_multiplier;
-                agent.health = (agent.health - hostile_damage * mitigation).max(0.0);
+                agent.health = (agent.health - hostile_damage).max(0.0);
                 enemy.attack_cooldown = hostile.attack_seconds;
             }
             ctx.db.combat_agent().id().update(enemy);
@@ -1546,6 +1514,95 @@ fn hostile_profile(enemy: &CombatAgent) -> HostileProfile {
         },
         _ => unreachable!(),
     }
+}
+
+fn mitigate_player_damage(
+    kind: MilitaryKind,
+    member: &MilitaryMember,
+    company: &MilitaryCompany,
+    defender: &CombatAgent,
+    attacker: &CombatAgent,
+    raw_damage: f64,
+    attacker_was_charging: bool,
+) -> f64 {
+    let hostile = hostile_profile(attacker);
+    let stats = military_stats(kind);
+    let profile = member_combat_profile(kind, member_seed(member));
+    let armor_after_penetration = (profile.armor - hostile.penetration).max(0.0);
+    let armor_multiplier = 1.0 / (1.0 + armor_after_penetration * 0.055);
+    let incoming_front = is_front_attack(
+        company.facing_x,
+        company.facing_z,
+        defender.x,
+        defender.z,
+        attacker.x,
+        attacker.z,
+    );
+    let shield_multiplier = if incoming_front {
+        (1.0 - profile.shield * 0.022).clamp(0.64, 1.0)
+    } else {
+        1.0
+    };
+    let brace_multiplier = if company.formation == MILITARY_FORMATION_BRACE
+        && kind.can_brace()
+        && attacker_was_charging
+        && incoming_front
+    {
+        (1.0 - profile.bracing * 0.34).clamp(0.62, 1.0)
+    } else {
+        1.0
+    };
+    let wall_multiplier = if incoming_front {
+        shield_wall_damage_multiplier(kind, company.formation)
+    } else {
+        1.0
+    };
+    let flank_multiplier = if incoming_front { 1.0 } else { 1.18 };
+    let mitigation = stats.damage_taken_multiplier
+        * veteran_damage_taken_multiplier(company.level)
+        * wall_multiplier
+        * stance_damage_taken_multiplier(company.stance, hostile.ranged)
+        * (1.08 - company.cohesion.clamp(0.0, 1.0) * 0.18)
+        * armor_multiplier
+        * shield_multiplier
+        * brace_multiplier
+        * flank_multiplier;
+    raw_damage.max(0.0) * mitigation
+}
+
+/// Resolves damage authored by another combat simulation against a recruited
+/// company member through the same armor, facing, stance, and formation rules
+/// as the ordinary military heartbeat.
+pub(super) fn mitigate_external_player_damage(
+    ctx: &ReducerContext,
+    defender: &CombatAgent,
+    attacker: &CombatAgent,
+    raw_damage: f64,
+    attacker_was_charging: bool,
+) -> f64 {
+    let Some(member) = ctx
+        .db
+        .military_member()
+        .combat_agent_id()
+        .find(&defender.id)
+    else {
+        return raw_damage.max(0.0);
+    };
+    let Some(company) = ctx.db.military_company().id().find(&member.company_id) else {
+        return raw_damage.max(0.0);
+    };
+    let Some(kind) = MilitaryKind::from_id(company.kind) else {
+        return raw_damage.max(0.0);
+    };
+    mitigate_player_damage(
+        kind,
+        &member,
+        &company,
+        defender,
+        attacker,
+        raw_damage,
+        attacker_was_charging,
+    )
 }
 
 fn damage_against_hostile(
@@ -2116,6 +2173,37 @@ fn down_player_member(
         .military_member()
         .combat_agent_id()
         .update(downed_member);
+}
+
+/// Applies the canonical resident, equipment, ammunition, mount, corpse, and
+/// company-strength bookkeeping when another combat simulation downs a member.
+pub(super) fn down_external_player_member(
+    ctx: &ReducerContext,
+    agent: &mut CombatAgent,
+    tick: u64,
+) {
+    let Some(member) = ctx
+        .db
+        .military_member()
+        .combat_agent_id()
+        .find(&agent.id)
+    else {
+        agent.health = 0.0;
+        agent.state = DOWNED;
+        agent.engagement_target_id = 0;
+        agent.state_changed_tick = tick;
+        agent.attack_cooldown = DOWNED_LINGER_SECONDS;
+        return;
+    };
+    let Some(company) = ctx.db.military_company().id().find(&member.company_id) else {
+        agent.health = 0.0;
+        agent.state = DOWNED;
+        agent.engagement_target_id = 0;
+        agent.state_changed_tick = tick;
+        agent.attack_cooldown = DOWNED_LINGER_SECONDS;
+        return;
+    };
+    down_player_member(ctx, agent, &member, &company, tick);
 }
 
 fn step_downed_member(

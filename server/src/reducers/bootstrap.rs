@@ -295,7 +295,6 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         granary_grain_reserve: 0.0,
         harvest_reserve_percent: 0,
         carpenter_polearm_reserve: 0,
-        guardhouse_pay_priority: 0,
         marketplace_ironwork_target: 0,
         marketplace_specialty_export_policy: 0,
         granary_fresh_food_target_percent: GRANARY_FRESH_FOOD_TARGET_DEFAULT_PERCENT,
@@ -309,7 +308,6 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         processor_output_target_percent: PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
         production_rate_percent: DEFAULT_PRODUCTION_RATE_PERCENT,
         production_maintenance_progress: 0.0,
-        guardhouse_food_reserve: 0,
         marketplace_seed_grain_target: 0,
         marketplace_pending_trade_code: 0,
         marketplace_gold_reserve_target:

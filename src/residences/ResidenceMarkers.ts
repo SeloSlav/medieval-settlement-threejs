@@ -14,7 +14,6 @@ import {
 import {
   addMesh,
   residenceFacadeMaterial,
-  residenceRoofMaterial,
   sharedBuildingDetailMaterial,
   sharedBuildingMaterial,
   stoneMaterial,
@@ -26,6 +25,11 @@ import {
   pickResidenceAppearance,
   residenceGroundDoorLocalX,
   type ResidenceArchetype,
+  type ResidenceFootprintProfile,
+  type ResidenceRoofTone,
+  type TierFourGablePosition,
+  type TierOneWallFinish,
+  type TierOneWallPlan,
   type ResidenceTrimColor,
 } from './residenceAppearance.ts';
 import { getNeedStock } from './residenceNeedState.ts';
@@ -136,8 +140,22 @@ function dimensionsForArchetype(archetype: ResidenceArchetype): HouseDimensions 
   }
 }
 
-function dimensionsForTier(archetype: ResidenceArchetype, tier: ResidenceTier): HouseDimensions {
-  const base = dimensionsForArchetype(archetype);
+function dimensionsForTier(
+  archetype: ResidenceArchetype,
+  tier: ResidenceTier,
+  footprint: ResidenceFootprintProfile,
+): HouseDimensions {
+  const footprintScale = footprint === 'narrow-deep'
+    ? { width: 0.93, depth: 1.06 }
+    : footprint === 'broad-shallow'
+      ? { width: 1.07, depth: 0.95 }
+      : { width: 1, depth: 1 };
+  const archetypeBase = dimensionsForArchetype(archetype);
+  const base = {
+    ...archetypeBase,
+    width: archetypeBase.width * footprintScale.width,
+    depth: archetypeBase.depth * footprintScale.depth,
+  };
   if (tier === 1) {
     return {
       width: base.width * 0.76,
@@ -151,6 +169,50 @@ function dimensionsForTier(archetype: ResidenceArchetype, tier: ResidenceTier): 
   if (tier === 4) return { width: base.width * 1.38, depth: base.depth * 1.28, foundationHeight: 0.72, groundHeight: 2.72, upperHeight: 2.7, ridgeHeight: 2.95 };
   if (tier === 3) return { width: base.width * 1.22, depth: base.depth * 1.14, foundationHeight: 0.62, groundHeight: 2.58, upperHeight: 2.55, ridgeHeight: 2.78 };
   return base;
+}
+
+const SHINGLE_TONE_TINTS: Record<ResidenceRoofTone, readonly [number, number, number]> = {
+  'earth-brown': [0.8, 0.68, 0.53],
+  'smoke-brown': [0.66, 0.58, 0.5],
+  'mossed-brown': [0.69, 0.67, 0.5],
+};
+
+const FIRED_CLAY_TONE_TINTS: Record<ResidenceRoofTone, readonly [number, number, number]> = {
+  'earth-brown': [0.78, 0.62, 0.52],
+  'smoke-brown': [0.66, 0.5, 0.43],
+  'mossed-brown': [0.72, 0.57, 0.46],
+};
+
+/**
+ * Keeps all residences on the shared shingle/tile materials while making the
+ * seeded roof tone part of the geometry's batchable vertex-colour payload.
+ */
+function applyResidenceRoofTone(
+  group: THREE.Group,
+  tone: ResidenceRoofTone,
+  tier: ResidenceTier,
+): void {
+  const tint = tier === 4 ? FIRED_CLAY_TONE_TINTS[tone] : SHINGLE_TONE_TINTS[tone];
+  group.traverse((object) => {
+    if (!(object instanceof THREE.Mesh) || object.userData.residenceRoofSurface !== true) return;
+    if (object.userData.residenceRoofEdgeRole !== undefined || Array.isArray(object.material)) return;
+    const weathering = object.material.userData.buildingWeatheringProfile;
+    if (weathering !== 'shingle' && weathering !== 'roof') return;
+    const colors = object.geometry.getAttribute('color');
+    if (!colors) return;
+    for (let index = 0; index < colors.count; index += 1) {
+      colors.setXYZ(
+        index,
+        colors.getX(index) * tint[0],
+        colors.getY(index) * tint[1],
+        colors.getZ(index) * tint[2],
+      );
+    }
+    colors.needsUpdate = true;
+    object.userData.residenceRoofTone = tone;
+    object.geometry.userData.residenceRoofTone = tone;
+    object.geometry.userData.residenceRoofToneTint = [...tint];
+  });
 }
 
 function residenceTrimMaterial(trim: ResidenceTrimColor): THREE.MeshStandardMaterial {
@@ -357,8 +419,9 @@ function addTierFourFacadeFinish(
   }
 }
 
-function addTierFourCrossGable(
+function addTierThreeOffsetDormer(
   group: THREE.Group,
+  entrySide: -1 | 1,
   halfDepth: number,
   wallTop: number,
   roofMaterial: THREE.Material,
@@ -367,6 +430,143 @@ function addTierFourCrossGable(
   shutterMaterial: THREE.MeshStandardMaterial,
   roofFinish: ResidenceRoofFinish,
 ): void {
+  const feature = new THREE.Group();
+  feature.name = 'Residence tier-three offset roof dormer';
+  feature.position.x = entrySide * 0.78;
+  feature.userData.residenceTierThreeFeature = 'offset-dormer';
+  group.add(feature);
+
+  const width = 1.58;
+  const depth = 0.9;
+  const wallHeight = 0.76;
+  const ridgeHeight = 0.68;
+  const baseY = wallTop + 0.2;
+  const centerZ = halfDepth + 0.01;
+  const halfWidth = width * 0.5;
+  const roofOverhang = 0.16;
+  const roofHalfSpan = halfWidth + roofOverhang;
+  const pitch = Math.atan2(ridgeHeight, halfWidth);
+  const eaveDrop = roofOverhang * Math.tan(pitch);
+  const slopeLength = roofHalfSpan / Math.cos(pitch);
+
+  const dormerWall = addMesh(
+    feature,
+    new THREE.BoxGeometry(width, wallHeight, depth),
+    wallMaterial,
+    new THREE.Vector3(0, baseY + wallHeight * 0.5, centerZ),
+  );
+  dormerWall.name = 'Residence tier-three dormer wall mass';
+  dormerWall.userData.residenceFacadeModule = 'tier-3-offset-dormer';
+  for (const zSign of [-1, 1] as const) {
+    addTriangularGableWall(
+      feature,
+      'z',
+      centerZ + zSign * (depth * 0.5 - 0.035),
+      halfWidth,
+      baseY + wallHeight,
+      ridgeHeight,
+      0.12,
+      wallMaterial,
+    );
+  }
+  for (const side of [-1, 1] as const) {
+    const roof = addMesh(
+      feature,
+      new THREE.BoxGeometry(slopeLength, 0.11, depth + 0.3),
+      roofMaterial,
+      new THREE.Vector3(
+        side * roofHalfSpan * 0.5,
+        baseY + wallHeight + (ridgeHeight - eaveDrop) * 0.5,
+        centerZ,
+      ),
+      new THREE.Euler(0, 0, side * -pitch),
+    );
+    roof.name = `Residence tier-three dormer shingle roof ${side < 0 ? 'left' : 'right'}`;
+    roof.userData.residenceRoofSurface = true;
+    roof.userData.residenceRoofFinish = roofFinish;
+    roof.userData.residenceRoofModule = 'tier-3-offset-dormer-roof';
+    applyWarmShingleBackFaceFinish(roof);
+  }
+  addFrontWindow(
+    feature,
+    windowMaterial,
+    shutterMaterial,
+    0,
+    baseY + wallHeight * 0.52,
+    centerZ + depth * 0.5 + 0.015,
+    0.54,
+    0.62,
+    false,
+  );
+}
+
+function addTierThreeCoveredGallery(
+  group: THREE.Group,
+  width: number,
+  frontZ: number,
+  foundationHeight: number,
+  roofMaterial: THREE.Material,
+  roofFinish: ResidenceRoofFinish,
+): void {
+  const gallery = new THREE.Group();
+  gallery.name = 'Residence tier-three covered front gallery';
+  gallery.userData.residenceTierThreeFeature = 'covered-gallery';
+  group.add(gallery);
+
+  const galleryWidth = width * 0.72;
+  const depth = 0.96;
+  const centerZ = frontZ + depth * 0.46;
+  const deckY = foundationHeight + 0.12;
+  const canopyY = foundationHeight + 2.24;
+  const postHeight = canopyY - deckY;
+  const deck = addMesh(
+    gallery,
+    new THREE.BoxGeometry(galleryWidth, 0.14, depth),
+    timberMaterial('mid'),
+    new THREE.Vector3(0, deckY, centerZ),
+  );
+  deck.name = 'Residence tier-three gallery plank deck';
+  for (const x of [-galleryWidth * 0.46, galleryWidth * 0.46]) {
+    const post = addMesh(
+      gallery,
+      new THREE.BoxGeometry(0.15, postHeight, 0.15),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, deckY + postHeight * 0.5, centerZ + depth * 0.38),
+    );
+    post.name = 'Residence tier-three gallery support post';
+  }
+  const canopy = addMesh(
+    gallery,
+    new THREE.BoxGeometry(galleryWidth + 0.38, 0.13, depth + 0.34),
+    roofMaterial,
+    new THREE.Vector3(0, canopyY, centerZ - 0.02),
+    new THREE.Euler(-0.11, 0, 0),
+  );
+  canopy.name = 'Residence tier-three covered-gallery shingle roof';
+  canopy.userData.residenceRoofSurface = true;
+  canopy.userData.residenceRoofFinish = roofFinish;
+  canopy.userData.residenceRoofModule = 'tier-3-covered-gallery-roof';
+  applyWarmShingleBackFaceFinish(canopy);
+}
+
+function addTierFourCrossGable(
+  group: THREE.Group,
+  buildingWidth: number,
+  halfDepth: number,
+  wallTop: number,
+  roofMaterial: THREE.Material,
+  wallMaterial: THREE.Material,
+  windowMaterial: THREE.MeshStandardMaterial,
+  shutterMaterial: THREE.MeshStandardMaterial,
+  roofFinish: ResidenceRoofFinish,
+  position: TierFourGablePosition,
+): void {
+  const feature = new THREE.Group();
+  feature.name = 'Residence tier-four cross-gable feature';
+  feature.position.x = position * buildingWidth * 0.14;
+  feature.userData.residenceTierFourGablePosition = position;
+  feature.userData.residenceTierFourGableOffsetMeters = feature.position.x;
+  group.add(feature);
   const width = 2.45;
   const depth = 1.12;
   const wallHeight = 1.08;
@@ -381,16 +581,16 @@ function addTierFourCrossGable(
   const slopeLength = roofHalfSpan / Math.cos(pitch);
 
   const dormerWall = addMesh(
-    group,
+    feature,
     new THREE.BoxGeometry(width, wallHeight, depth),
     wallMaterial,
     new THREE.Vector3(0, baseY + wallHeight * 0.5, centerZ),
   );
-  dormerWall.name = 'Residence tier-four central cross-gable mass';
+  dormerWall.name = 'Residence tier-four cross-gable mass';
   dormerWall.userData.residenceFacadeModule = 'tier-4-cross-gable';
   for (const zSign of [-1, 1] as const) {
     addTriangularGableWall(
-      group,
+      feature,
       'z',
       centerZ + zSign * (depth * 0.5 - 0.035),
       halfWidth,
@@ -402,7 +602,7 @@ function addTierFourCrossGable(
   }
   for (const side of [-1, 1] as const) {
     const roof = addMesh(
-      group,
+      feature,
       new THREE.BoxGeometry(slopeLength, 0.12, depth + 0.32),
       roofMaterial,
       new THREE.Vector3(
@@ -418,7 +618,7 @@ function addTierFourCrossGable(
     roof.userData.residenceRoofModule = 'tier-4-cross-gable-roof';
   }
   addFrontWindow(
-    group,
+    feature,
     windowMaterial,
     shutterMaterial,
     0,
@@ -678,60 +878,93 @@ function addTierOneWallShellWithOpenings(
   foundationHeight: number,
   wallTop: number,
   openings: TierOneWallOpeningPlan,
-  material: THREE.Material,
+  wallPlan: TierOneWallPlan,
+  materials: Readonly<Record<TierOneWallFinish, THREE.Material>>,
   seed: number,
-): THREE.Mesh {
+): THREE.Group {
   const halfW = width * 0.5;
   const halfD = depth * 0.5;
   const thickness = 0.18;
-  const parts: BoxPart[] = [];
-  appendPartitionedWall(
-    parts,
-    'front-back',
-    -halfW + 0.1,
-    halfW - 0.1,
-    foundationHeight,
-    wallTop,
-    halfD - thickness * 0.5,
-    thickness,
-    openings.front,
-  );
-  appendPartitionedWall(
-    parts,
-    'front-back',
-    -halfW + 0.1,
-    halfW - 0.1,
-    foundationHeight,
-    wallTop,
-    -halfD + thickness * 0.5,
-    thickness,
-    [],
-  );
-  for (const side of [-1, 1] as const) {
+  const shell = new THREE.Group();
+  shell.name = 'Residence tier-one wall shell with true apertures';
+  group.add(shell);
+
+  const faces = [
+    {
+      id: 'front',
+      orientation: 'front-back',
+      horizontalMin: -halfW + 0.1,
+      horizontalMax: halfW - 0.1,
+      fixedCoordinate: halfD - thickness * 0.5,
+      openings: openings.front,
+    },
+    {
+      id: 'rear',
+      orientation: 'front-back',
+      horizontalMin: -halfW + 0.1,
+      horizontalMax: halfW - 0.1,
+      fixedCoordinate: -halfD + thickness * 0.5,
+      openings: [],
+    },
+    {
+      id: 'left',
+      orientation: 'side',
+      horizontalMin: -halfD + 0.1,
+      horizontalMax: halfD - 0.1,
+      fixedCoordinate: -halfW + thickness * 0.5,
+      openings: openings.sides,
+    },
+    {
+      id: 'right',
+      orientation: 'side',
+      horizontalMin: -halfD + 0.1,
+      horizontalMax: halfD - 0.1,
+      fixedCoordinate: halfW - thickness * 0.5,
+      openings: openings.sides,
+    },
+  ] as const;
+
+  for (let faceIndex = 0; faceIndex < faces.length; faceIndex += 1) {
+    const face = faces[faceIndex]!;
+    const parts: BoxPart[] = [];
     appendPartitionedWall(
       parts,
-      'side',
-      -halfD + 0.1,
-      halfD - 0.1,
+      face.orientation,
+      face.horizontalMin,
+      face.horizontalMax,
       foundationHeight,
       wallTop,
-      side * (halfW - thickness * 0.5),
+      face.fixedCoordinate,
       thickness,
-      openings.sides,
+      face.openings,
     );
+    const finish = wallPlan[face.id];
+    let geometry = mergeBoxParts(parts);
+    if (finish === 'earthy-daub') {
+      geometry = applyTierOneDaubTint(geometry, seed + faceIndex * 131);
+    } else if (finish === 'fieldstone') {
+      geometry = applyTierOneRubbleTint(geometry, seed + faceIndex * 137);
+    }
+    const wall = addMesh(
+      shell,
+      geometry,
+      materials[finish],
+      new THREE.Vector3(),
+    );
+    wall.name = `Residence tier-one ${finish} wall ${face.id}`;
+    wall.userData.residenceWallConstruction = 'segmented-around-openings';
+    wall.userData.residenceWallFace = face.id;
+    wall.userData.residenceWallFinish = finish;
+    wall.userData.residenceSurfaceRole = finish === 'earthy-daub'
+      ? 'clay-lime-daub'
+      : finish;
   }
-  const wall = addMesh(
-    group,
-    applyTierOneDaubTint(mergeBoxParts(parts), seed),
-    material,
-    new THREE.Vector3(),
-  );
-  wall.name = 'Residence tier-one wall shell with true apertures';
-  wall.userData.residenceWallOpeningCount =
+
+  shell.userData.residenceWallOpeningCount =
     openings.front.length + openings.sides.length * 2;
-  wall.userData.residenceWallConstruction = 'segmented-around-openings';
-  wall.userData.residenceSurfaceRole = 'clay-lime-daub';
-  return wall;
+  shell.userData.residenceWallConstruction = 'mixed-face-segmented-around-openings';
+  shell.userData.residenceWallPlan = { ...wallPlan };
+  return shell;
 }
 
 function appendPartitionedWall(
@@ -2361,8 +2594,19 @@ export function createResidenceMesh(
   _legacyTiledRoof = false,
 ): THREE.Group {
   const appearance = pickResidenceAppearance(seed);
-  const { facade, roof, archetype, entrySide, trim } = appearance;
-  const dimensions = dimensionsForTier(archetype, tier);
+  const {
+    facade,
+    roof,
+    roofTone,
+    archetype,
+    entrySide,
+    trim,
+    footprint,
+    tierOneWalls,
+    tierThreeFeature,
+    tierFourGablePosition,
+  } = appearance;
+  const dimensions = dimensionsForTier(archetype, tier, footprint);
   const tierOneStructuralMaterial =
     tier === 1
       ? tierOneResidenceMaterial('structural-timber')
@@ -2379,15 +2623,18 @@ export function createResidenceMesh(
     tier === 1
       ? tierOneResidenceMaterial('wattle-daub')
       : residenceFacadeMaterial(facade);
+  const tierOneWallMaterials: Readonly<Record<TierOneWallFinish, THREE.Material>> = {
+    'earthy-daub': wallMaterial,
+    fieldstone: stoneMaterial('mid'),
+    'weathered-timber': tierOneWeatheredMaterial,
+  };
   const roofFinish = residenceRoofFinishForTier(tier);
   const effectiveTiledRoof = roofFinish === 'fired-clay-tile';
   const roofSurfaceMaterial = roofFinish === 'fired-clay-tile'
     ? sharedBuildingMaterial('clayRed')
     : roofFinish === 'bundled-thatch'
       ? tierOneResidenceMaterial('thatch')
-      : tier === 1
-        ? sharedBuildingMaterial('shingle')
-        : residenceRoofMaterial(roof);
+      : sharedBuildingMaterial('shingle');
   // Course boards and ridge caps must stay on the same shared roof surface as
   // their substrate. Using the wall-timber material here makes merged courses
   // read as long chocolate bands and bypasses shingle UV/weathering.
@@ -2409,10 +2656,15 @@ export function createResidenceMesh(
   group.userData.residenceArchetype = archetype;
   group.userData.residenceTier = tier;
   group.userData.residenceRoof = roof;
+  group.userData.residenceRoofTone = roofTone;
+  group.userData.residenceFootprintProfile = footprint;
+  group.userData.residenceTierOneWallPlan = { ...tierOneWalls };
+  group.userData.residenceTierThreeFeature = tierThreeFeature;
+  group.userData.residenceTierFourGablePosition = tierFourGablePosition;
   group.userData.residenceTiledRoof = effectiveTiledRoof;
   group.userData.residenceRoofFinish = roofFinish;
   group.userData.residenceRoofTierContract = tier === 1
-    ? 'tier-1-split-softwood-shingle'
+    ? 'tier-1-earth-toned-split-softwood-shingle'
     : tier >= 4
       ? 'tier-4-fired-tile'
       : 'tier-2-3-split-wood';
@@ -2420,22 +2672,36 @@ export function createResidenceMesh(
   group.userData.residenceBuildingPlan = {
     tier,
     seed,
+    appearance: {
+      archetype,
+      footprint,
+      roofTone,
+      tierOneWalls: { ...tierOneWalls },
+      tierThreeFeature,
+      tierFourGablePosition,
+    },
     massing: tier === 1
-      ? ['low-longhouse-mass', 'irregular-split-shingle-roof']
+      ? ['low-longhouse-mass', footprint, 'irregular-split-shingle-roof']
       : tier === 4
-        ? ['expanded-two-storey-mass', 'central-cross-gable']
-        : ['two-storey-house-mass'],
+        ? ['expanded-two-storey-mass', `${tierFourGablePosition === 0 ? 'centered' : 'offset'}-cross-gable`]
+        : tier === 3
+          ? ['wider-two-storey-mass', 'working-side-annex', tierThreeFeature]
+          : ['compact-two-storey-house-mass', archetype],
     facadeModules: tier === 4
       ? ['stone-ground-storey', 'ashlar-corner-piers', 'dressed-floor-band', 'cross-gable']
       : tier === 1
         ? [
             'rough-rubble-footing',
-            'clay-lime-daub-infill',
+            'mixed-daub-fieldstone-timber-wall-faces',
             'true-wall-apertures',
             'hewn-sill-post-side-brace-frame',
+            'weathered-timber-gables',
           ]
-        : ['stone-ground-storey', 'plastered-upper-storey'],
+        : tier === 3
+          ? ['stone-ground-storey', 'plastered-upper-storey', tierThreeFeature]
+          : ['stone-ground-storey', 'plastered-upper-storey', archetype],
     roofFinish,
+    roofTone,
   };
 
   const { width, depth, foundationHeight, groundHeight, upperHeight, ridgeHeight } = dimensions;
@@ -2512,7 +2778,8 @@ export function createResidenceMesh(
         foundationHeight,
         wallTop,
         tierOneOpenings,
-        wallMaterial,
+        tierOneWalls,
+        tierOneWallMaterials,
         seed,
       )
     : addMesh(
@@ -2756,17 +3023,14 @@ export function createResidenceMesh(
       wallTop,
       ridgeHeight,
       0.16,
-      wallMaterial,
+      tier === 1 ? tierOneWeatheredMaterial : wallMaterial,
     );
     if (tier === 1) {
       const gable = group.children[beforeGable] as THREE.Mesh | undefined;
       if (gable?.isMesh) {
-        applyTierOneDaubTint(
-          gable.geometry,
-          seed + (zSign > 0 ? 1_109 : 1_103),
-        );
-        gable.name = `Residence earthy daub gable ${zSign > 0 ? 'front' : 'rear'}`;
-        gable.userData.residenceSurfaceRole = 'clay-lime-daub';
+        gable.name = `Residence weathered timber gable ${zSign > 0 ? 'front' : 'rear'}`;
+        gable.userData.residenceSurfaceRole = 'weathered-timber';
+        gable.userData.residenceGableFinish = 'weathered-timber';
       }
     }
   }
@@ -2790,6 +3054,7 @@ export function createResidenceMesh(
   if (tier === 4) {
     addTierFourCrossGable(
       group,
+      width,
       halfD,
       wallTop,
       roofSurfaceMaterial,
@@ -2797,6 +3062,7 @@ export function createResidenceMesh(
       windowMaterial,
       shutterMaterial,
       roofFinish,
+      tierFourGablePosition,
     );
   }
 
@@ -2826,6 +3092,43 @@ export function createResidenceMesh(
       foundationHeight,
       roofSurfaceMaterial,
     );
+  }
+
+  if (tier === 3) {
+    if (tierThreeFeature === 'offset-dormer') {
+      addTierThreeOffsetDormer(
+        group,
+        entrySide,
+        halfD,
+        wallTop,
+        roofSurfaceMaterial,
+        wallMaterial,
+        windowMaterial,
+        shutterMaterial,
+        roofFinish,
+      );
+    } else if (tierThreeFeature === 'covered-gallery') {
+      addTierThreeCoveredGallery(
+        group,
+        width,
+        frontZ,
+        foundationHeight,
+        roofSurfaceMaterial,
+        roofFinish,
+      );
+    } else {
+      addWorkingLeanTo(
+        group,
+        entrySide,
+        halfW,
+        foundationHeight,
+        roofSurfaceMaterial,
+      );
+      const twinAnnexMarker = new THREE.Group();
+      twinAnnexMarker.name = 'Residence tier-three twin working annexes';
+      twinAnnexMarker.userData.residenceTierThreeFeature = 'twin-annex';
+      group.add(twinAnnexMarker);
+    }
   }
 
   const chimneyEmitter = new THREE.Object3D();
@@ -2878,6 +3181,7 @@ export function createResidenceMesh(
   group.add(firewoodPile);
   addLogPile(firewoodPile, entrySide * (halfW - 0.72), -halfD - 0.72, 0, 4, 2.15, 0.19);
   addResidenceUpgradeWorks(group, dimensions);
+  applyResidenceRoofTone(group, roofTone, tier);
 
   return group;
 }
@@ -2901,7 +3205,7 @@ export function createInitialResidenceConstructionMesh(seed = 0): THREE.Group {
   marker.add(completedStructure);
 
   const appearance = pickResidenceAppearance(seed);
-  const dimensions = dimensionsForTier(appearance.archetype, 1);
+  const dimensions = dimensionsForTier(appearance.archetype, 1, appearance.footprint);
   const halfWidth = dimensions.width * 0.5;
   const halfDepth = dimensions.depth * 0.5;
   const frame = new THREE.Group();

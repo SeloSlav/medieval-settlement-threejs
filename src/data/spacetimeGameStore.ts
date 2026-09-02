@@ -869,14 +869,6 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setCarpenterCartServiceTarget(buildingId, targetTrips);
   }
 
-  setGuardhousePayPriority(buildingId: string, payPriority: number): Promise<void> {
-    return spacetimeReducers.setGuardhousePayPriority(buildingId, payPriority);
-  }
-
-  setGuardhouseFoodReserve(buildingId: string, reservePerGuard: number): Promise<void> {
-    return spacetimeReducers.setGuardhouseFoodReserve(buildingId, reservePerGuard);
-  }
-
   setGuardhouseMusterPost(buildingId: string, watchtowerId: string | null): Promise<void> {
     return spacetimeReducers.setGuardhouseMusterPost(buildingId, watchtowerId);
   }

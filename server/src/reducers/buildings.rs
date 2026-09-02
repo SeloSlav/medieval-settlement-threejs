@@ -36,9 +36,7 @@ use crate::extraction_policy::{
 use crate::farm_work_policy::is_valid_threshing_priority;
 use crate::foraging_policy::harvest_available;
 use crate::frontier_economy_policy::{
-    is_valid_carpenter_polearm_reserve, is_valid_guardhouse_food_reserve,
-    is_valid_guardhouse_pay_priority, CARPENTER_POLEARM_RESERVE_DEFAULT,
-    GUARDHOUSE_FOOD_RESERVE_STANDARD, GUARDHOUSE_PAY_PRIORITY_NORMAL,
+    is_valid_carpenter_polearm_reserve, CARPENTER_POLEARM_RESERVE_DEFAULT,
 };
 use crate::granary_policy::{
     is_valid_granary_fresh_food_target_percent, normalize_granary_grain_reserve,
@@ -868,16 +866,6 @@ pub(crate) fn place_building_internal(
     } else {
         0
     };
-    let guardhouse_pay_priority = if kind == "guardhouse" {
-        GUARDHOUSE_PAY_PRIORITY_NORMAL
-    } else {
-        0
-    };
-    let guardhouse_food_reserve = if kind == "guardhouse" {
-        GUARDHOUSE_FOOD_RESERVE_STANDARD
-    } else {
-        0
-    };
     let chapel_tier = if kind == "chapel" { 1 } else { 0 };
     let harvest_reserve_percent = default_harvest_reserve_percent(&kind);
     ctx.db.building().insert(Building {
@@ -940,8 +928,6 @@ pub(crate) fn place_building_internal(
         construction_priority: CONSTRUCTION_PRIORITY_NORMAL,
         woodcutter_timber_reserve: 0.0,
         carpenter_polearm_reserve,
-        guardhouse_pay_priority,
-        guardhouse_food_reserve,
         marketplace_ironwork_target: 0,
         marketplace_seed_grain_target: 0,
         marketplace_pending_trade_code: 0,
@@ -2748,54 +2734,6 @@ pub fn set_carpenter_cart_service_target(
         return Err("You do not own this completed carpenter workshop.".to_string());
     }
     building.carpenter_cart_service_target_trips = target_trips;
-    ctx.db.building().id().update(building);
-    Ok(())
-}
-
-#[reducer]
-pub fn set_guardhouse_pay_priority(
-    ctx: &ReducerContext,
-    building_id: u64,
-    pay_priority: u8,
-) -> Result<(), String> {
-    if !is_valid_guardhouse_pay_priority(pay_priority) {
-        return Err("Guardhouse company priority must be low, normal, or high.".to_string());
-    }
-    let owner = ctx.sender();
-    let mut building = ctx
-        .db
-        .building()
-        .id()
-        .find(&building_id)
-        .ok_or_else(|| "Guardhouse not found.".to_string())?;
-    if building.owner != owner || building.kind != "guardhouse" || !building.construction_complete {
-        return Err("You do not own this completed guardhouse.".to_string());
-    }
-    building.guardhouse_pay_priority = pay_priority;
-    ctx.db.building().id().update(building);
-    Ok(())
-}
-
-#[reducer]
-pub fn set_guardhouse_food_reserve(
-    ctx: &ReducerContext,
-    building_id: u64,
-    reserve_per_guard: u8,
-) -> Result<(), String> {
-    if !is_valid_guardhouse_food_reserve(reserve_per_guard) {
-        return Err("Guardhouse ration reserve must be 3, 6, or 12 food per guard.".to_string());
-    }
-    let owner = ctx.sender();
-    let mut building = ctx
-        .db
-        .building()
-        .id()
-        .find(&building_id)
-        .ok_or_else(|| "Guardhouse not found.".to_string())?;
-    if building.owner != owner || building.kind != "guardhouse" || !building.construction_complete {
-        return Err("You do not own this completed guardhouse.".to_string());
-    }
-    building.guardhouse_food_reserve = reserve_per_guard;
     ctx.db.building().id().update(building);
     Ok(())
 }

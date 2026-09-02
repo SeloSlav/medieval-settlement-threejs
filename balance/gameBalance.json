@@ -256,12 +256,6 @@
   "frontierEconomy": {
     "carpenterTimberPerPolearm": 2,
     "carpenterIronworkPerPolearm": 1,
-    "guardhouseFoodPerGuardPerDay": 0.45,
-    "guardhouseWagePerGuardPerDay": 0.35,
-    "guardhousePayrollTargetDays": 10,
-    "guardhousePayrollReorderDays": 5,
-    "guardhouseTrainingPerDay": 1,
-    "guardhouseReadinessDecayPerDay": 0.5,
     "guardhouseFullMusterRoadDistance": 240,
     "guardhouseLongMusterRoadDistance": 720,
     "guardhouseLongMusterEfficiency": 0.65,

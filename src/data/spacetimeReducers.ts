@@ -894,30 +894,6 @@ export async function setCarpenterCartServiceTarget(
   );
 }
 
-export async function setGuardhousePayPriority(
-  buildingId: string,
-  payPriority: number,
-): Promise<void> {
-  const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) throw new Error('Invalid guardhouse id.');
-  await callReducer('setGuardhousePayPriority', 'set_guardhouse_pay_priority', {
-    buildingId: serverId,
-    payPriority: Math.max(0, Math.min(2, Math.floor(payPriority))),
-  });
-}
-
-export async function setGuardhouseFoodReserve(
-  buildingId: string,
-  reservePerGuard: number,
-): Promise<void> {
-  const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) throw new Error('Invalid guardhouse id.');
-  await callReducer('setGuardhouseFoodReserve', 'set_guardhouse_food_reserve', {
-    buildingId: serverId,
-    reservePerGuard: Math.max(0, Math.min(12, Math.floor(reservePerGuard))),
-  });
-}
-
 export async function setGuardhouseMusterPost(
   buildingId: string,
   watchtowerId: string | null,

@@ -113,10 +113,6 @@ import {
   fireDisabledResidenceIds,
   fireForTarget,
 } from '../fires/fireIncident.ts';
-import {
-  selectCriticalGuardhouseFoodTarget,
-  type RoutedGuardhouseFoodTarget,
-} from '../security/frontierSecurity.ts';
 import { gameClock } from '../world/gameCalendar.ts';
 import { environmentFor } from '../world/seasonPolicy.ts';
 import {
@@ -1630,52 +1626,6 @@ export class WorldQueries {
         reservations.get(market.id) === commodity,
     );
     return assignments.get(source.id) ?? null;
-  }
-
-  getNextGranaryGuardFoodDispatch(
-    granary: BuildingState,
-  ): RoutedGuardhouseFoodTarget<BuildingState> | null {
-    const state = this.getGameState();
-    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
-    if (
-      granary.kind !== 'granary'
-      || granary.constructionComplete === false
-      || granary.assignedLabor <= 0
-      || fireDisabled.has(granary.id)
-    ) {
-      return null;
-    }
-    const claimedHouseholds = this.getClaimedResidencesForFoodSupplier(granary).length;
-    const transferable = institutionalFoodSurplus(
-      edibleFoodStock(granary),
-      claimedHouseholds,
-      BUILDING_STORAGE_CAPS.granary.food,
-    );
-    if (transferable <= 1e-6) return null;
-
-    const network = this.getRoadNetwork();
-    const inboundTargets = new Set<string>();
-    for (const trip of state.deliveryTrips.values()) {
-      if (
-        trip.phase !== 'inbound'
-        && trip.destinationKind === 'building'
-        && trip.targetBuildingId
-      ) {
-        inboundTargets.add(trip.targetBuildingId);
-      }
-    }
-    return selectCriticalGuardhouseFoodTarget(
-      this.fireEnabledBuildings(state, fireDisabled),
-      granary.id,
-      (target) => localDeliveryDistance(
-        network,
-        granary.x,
-        granary.z,
-        target.x,
-        target.z,
-      ),
-      (target) => inboundTargets.has(target.id),
-    );
   }
 
   findNearestRoadLinkedResidence(

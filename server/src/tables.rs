@@ -734,11 +734,6 @@ pub struct Building {
     /// Finished polearms retained at a carpenter for military requisitions.
     #[default(6u8)]
     pub carpenter_polearm_reserve: u8,
-    /// Order in which this company claims scarce weapons, routine supplies,
-    /// and treasury wages. Existing saves remain at normal priority; ignored
-    /// by other building kinds.
-    #[default(1u8)]
-    pub guardhouse_pay_priority: u8,
     /// Desired ironwork held at this marketplace in whole six-unit import lots.
     /// Existing saves default to manual-only procurement; ignored elsewhere.
     #[default(0u8)]
@@ -765,11 +760,6 @@ pub struct Building {
     /// down and restart production. Appended for additive save compatibility.
     #[default(100u8)]
     pub processor_output_target_percent: u8,
-    /// Fresh-food units reserved per armed guard. Appended so existing saves
-    /// retain the former six-unit company standard without reordering fields;
-    /// ignored by other building kinds.
-    #[default(6u8)]
-    pub guardhouse_food_reserve: u8,
     /// Desired seed grain held at this Trading Post in whole twenty-four-unit
     /// import lots. Appended for additive save compatibility; existing saves
     /// remain manual-only, and farmsteads must still collect the grain by road.
@@ -2333,11 +2323,11 @@ pub struct MilitaryCompany {
     pub last_combat_tick: u64,
 }
 
-/// Private lifecycle state for hired outsiders. Keeping this separate from the
-/// public company row lets existing saves add mercenary contract behavior
-/// without changing the replicated company schema.
+/// Replicated lifecycle state for hired outsiders. The client may use these
+/// timestamps for compact contract messaging without exposing combat stats.
 #[spacetimedb::table(
     accessor = mercenary_contract,
+    public,
     index(accessor = owner, btree(columns = [owner]))
 )]
 #[derive(Clone)]

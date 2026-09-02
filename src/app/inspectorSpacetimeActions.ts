@@ -144,8 +144,6 @@ export type InspectorSpacetimeActions = {
   onSetWoodcutterTimberReserve: (buildingId: string, timberReserve: number) => Promise<void>;
   onSetCarpenterPolearmReserve: (buildingId: string, polearmReserve: number) => Promise<void>;
   onSetCarpenterCartServiceTarget: (buildingId: string, targetTrips: number) => Promise<void>;
-  onSetGuardhousePayPriority: (buildingId: string, payPriority: number) => Promise<void>;
-  onSetGuardhouseFoodReserve: (buildingId: string, reservePerGuard: number) => Promise<void>;
   onSetGuardhouseMusterPost: (
     buildingId: string,
     watchtowerId: string | null,
@@ -974,22 +972,6 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setCarpenterCartServiceTarget(buildingId, targetTrips),
         'Could not update the carpenter cart-service depth.',
-      );
-    },
-    onSetGuardhousePayPriority: async (buildingId, payPriority) => {
-      const store = requireReady();
-      if (!store) return;
-      await runReducer(
-        () => store.setGuardhousePayPriority(buildingId, payPriority),
-        'Could not update the guardhouse company priority.',
-      );
-    },
-    onSetGuardhouseFoodReserve: async (buildingId, reservePerGuard) => {
-      const store = requireReady();
-      if (!store) return;
-      await runReducer(
-        () => store.setGuardhouseFoodReserve(buildingId, reservePerGuard),
-        'Could not update the guardhouse ration reserve.',
       );
     },
     onSetGuardhouseMusterPost: async (buildingId, watchtowerId) => {

@@ -12,11 +12,6 @@ import {
   normalizeStaffingPriority,
   type StaffingPriority,
 } from '../economy/staffingPriority.ts';
-import {
-  GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
-  guardhouseFoodRunwayDays,
-  guardhouseFoodTarget,
-} from '../security/frontierSecurity.ts';
 import type { BuildingKind, BuildingState, ResidenceState } from '../resources/types.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import { foodDeliveryTripSeconds } from './deliveryLogistics.ts';
@@ -58,9 +53,7 @@ export type FoodLaborSplit = {
 
 export type GranaryDispatchDuty = 'households' | 'preservation';
 export type InstitutionalFoodDispatchDuty =
-  | 'critical-guard'
   | 'preservation-buffer'
-  | 'guard-reserve'
   | 'granary-intake';
 
 export const INSTITUTIONAL_FOOD_SOURCE_KINDS = [
@@ -84,8 +77,6 @@ type InstitutionalFoodDestinationLike = Pick<
   | 'constructionPriority'
   | 'processorOutputTargetPercent'
   | 'smokehouseRecipePolicy'
-  | 'guardhousePayPriority'
-  | 'guardhouseFoodReserve'
   | 'granaryAcceptsFreshFood'
   | 'granaryFreshFoodTargetPercent'
 > & FoodInventoryLike;
@@ -242,9 +233,8 @@ export function peekNextFoodDeliveryTarget(
 
 /**
  * Mirrors the server's producer-owned institutional food decision. Household
- * claims are protected before this selector is called. A guard emergency
- * leads, followed by a smokehouse working batch, routine guard reserves, and
- * finally enabled granary collection. Within a duty, selected priority,
+ * claims are protected before this selector is called. A smokehouse working
+ * batch leads enabled granary collection. Within a duty, selected priority,
  * lowest runway, road distance, and stable id decide.
  */
 export function selectInstitutionalFoodTarget<
@@ -252,7 +242,7 @@ export function selectInstitutionalFoodTarget<
 >(
   targets: Iterable<T>,
   sourceId: string,
-  conflictEnabled: boolean,
+  _conflictEnabled: boolean,
   routeDistanceFor: (target: T) => number | null,
   hasInboundSupply: (target: T) => boolean = () => false,
   acceptsFood: (target: T) => boolean = () => true,
@@ -268,7 +258,6 @@ export function selectInstitutionalFoodTarget<
     ) continue;
     const plan = institutionalFoodTargetPlan(
       target,
-      conflictEnabled,
       acceptsFood(target),
       sourceFood,
     );
@@ -287,43 +276,16 @@ export function institutionalFoodDutyLabel(
   duty: InstitutionalFoodDispatchDuty,
 ): string {
   switch (duty) {
-    case 'critical-guard': return 'Emergency company rations';
     case 'preservation-buffer': return 'Smokehouse working batch';
-    case 'guard-reserve': return 'Company ration reserve';
     case 'granary-intake': return 'Granary fresh-food reserve';
   }
 }
 
 function institutionalFoodTargetPlan<T extends InstitutionalFoodDestinationLike>(
   target: T,
-  conflictEnabled: boolean,
   acceptsFood: boolean,
   sourceFood: FoodInventoryLike | undefined,
 ): Omit<RoutedInstitutionalFoodDestination<T>, 'target' | 'routeDistance'> | null {
-  if (target.kind === 'guardhouse' && conflictEnabled) {
-    const stock = edibleFoodStock(target);
-    const desiredStock = guardhouseFoodTarget(
-      target.assignedLabor,
-      target.polearms,
-      target.guardhouseFoodReserve,
-    );
-    if (desiredStock <= 1e-6 || stock + 1e-6 >= desiredStock) return null;
-    const runway = guardhouseFoodRunwayDays(
-      target.assignedLabor,
-      target.polearms,
-      stock,
-    );
-    return {
-      duty: runway + 1e-9 < GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS
-        ? 'critical-guard'
-        : 'guard-reserve',
-      desiredStock,
-      runway,
-      priority: normalizeStaffingPriority(
-        Math.max(1, Math.min(3, (target.guardhousePayPriority ?? 1) + 1)),
-      ),
-    };
-  }
   if (target.kind === 'smokehouse' && acceptsFood) {
     const policy = normalizeSmokehouseRecipePolicy(target.smokehouseRecipePolicy);
     const selectedInput = policy === SMOKEHOUSE_RECIPE_AUTO
@@ -384,18 +346,13 @@ function institutionalFoodCandidatePrecedes<
   right: RoutedInstitutionalFoodDestination<T>,
 ): boolean {
   const dutyRank: Record<InstitutionalFoodDispatchDuty, number> = {
-    'critical-guard': 0,
-    'preservation-buffer': 1,
-    'guard-reserve': 2,
-    'granary-intake': 3,
+    'preservation-buffer': 0,
+    'granary-intake': 1,
   };
   if (dutyRank[left.duty] !== dutyRank[right.duty]) {
     return dutyRank[left.duty] < dutyRank[right.duty];
   }
-  if (
-    left.duty !== 'critical-guard'
-    && left.priority !== right.priority
-  ) {
+  if (left.priority !== right.priority) {
     return left.priority > right.priority;
   }
   if (Math.abs(left.runway - right.runway) > 1e-9) {

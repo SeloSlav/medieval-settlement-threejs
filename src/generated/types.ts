@@ -120,7 +120,6 @@ export const Building = __t.object("Building", {
   wool: __t.f64(),
   cloth: __t.f64(),
   carpenterPolearmReserve: __t.u8(),
-  guardhousePayPriority: __t.u8(),
   marketplaceIronworkTarget: __t.u8(),
   marketplaceSpecialtyExportPolicy: __t.u8(),
   granaryFreshFoodTargetPercent: __t.u8(),
@@ -128,7 +127,6 @@ export const Building = __t.object("Building", {
   storehouseStoneTargetPercent: __t.u8(),
   storehouseFirewoodTargetPercent: __t.u8(),
   processorOutputTargetPercent: __t.u8(),
-  guardhouseFoodReserve: __t.u8(),
   marketplaceSeedGrainTarget: __t.u8(),
   foundingShelterActive: __t.bool(),
   marketplacePendingTradeCode: __t.u8(),
@@ -1064,4 +1062,3 @@ export const WorldConfig = __t.object("WorldConfig", {
   wildAnimalAttacksEnabled: __t.bool(),
 });
 export type WorldConfig = __Infer<typeof WorldConfig>;
-

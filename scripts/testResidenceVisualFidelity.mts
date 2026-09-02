@@ -15,8 +15,21 @@ import { createResidenceMesh } from '../src/residences/ResidenceMarkers.ts';
 import { pickResidenceAppearance } from '../src/residences/residenceAppearance.ts';
 
 const seeds = [0, 1, 2, 7, 19, 101] as const;
+const appearanceSweep = Array.from({ length: 64 }, (_, seed) => pickResidenceAppearance(seed));
+
+assert.equal(new Set(appearanceSweep.map((appearance) => appearance.roofTone)).size, 3);
+assert.equal(new Set(appearanceSweep.map((appearance) => appearance.footprint)).size, 3);
+assert.equal(new Set(appearanceSweep.map((appearance) => appearance.tierThreeFeature)).size, 3);
+assert.equal(new Set(appearanceSweep.map((appearance) => (
+  JSON.stringify(appearance.tierOneWalls)
+))).size, 5);
+assert.deepEqual(
+  new Set(appearanceSweep.map((appearance) => appearance.tierFourGablePosition)),
+  new Set([-1, 0, 1]),
+);
 
 for (const seed of seeds) {
+  const appearance = pickResidenceAppearance(seed);
   const residence = createResidenceMesh(seed, 1);
   const duplicate = createResidenceMesh(seed, 1);
   const bounds = new THREE.Box3().setFromObject(residence);
@@ -33,7 +46,12 @@ for (const seed of seeds) {
   );
   assert.ok(size.y > size.x * 0.8, 'tier-one silhouette should read compact and steep, not squat');
   assert.equal(residence.userData.residenceRoofFinish, 'split-wood-shingle');
-  assert.equal(residence.userData.residenceRoofTierContract, 'tier-1-split-softwood-shingle');
+  assert.equal(
+    residence.userData.residenceRoofTierContract,
+    'tier-1-earth-toned-split-softwood-shingle',
+  );
+  assert.equal(residence.userData.residenceRoofTone, appearance.roofTone);
+  assert.equal(residence.userData.residenceFootprintProfile, appearance.footprint);
 
   assertNamedPart(residence, 'Residence low rubble fieldstone footing');
   assertNamedPart(residence, 'Residence tier-one wall shell with true apertures');
@@ -73,6 +91,7 @@ for (const seed of seeds) {
   assertResidenceYardHasNoChoppingBlock(residence);
   assertSideWindowOpeningClearance(residence, 1);
   assertTierOneWindowCutouts(residence);
+  assertTierOneWallVariation(residence, appearance.tierOneWalls);
   assertTierOneFacadeTimbers(residence);
   assertTierOneRoofSmokeContract(residence);
   assertJoinedSemanticResidenceRoof(residence, 1);
@@ -147,8 +166,9 @@ assertNamedPart(auditedWoodResidence, 'Residence door threshold');
 
 for (const tier of [1, 2, 3, 4] as const) {
   for (let seed = 0; seed < 64; seed += 1) {
+    const appearance = pickResidenceAppearance(seed);
     assert.equal(
-      pickResidenceAppearance(seed).roof,
+      appearance.roof,
       'brown',
       'the appearance seed remains deterministic independently of the tier roof contract',
     );
@@ -159,6 +179,11 @@ for (const tier of [1, 2, 3, 4] as const) {
       residence.userData.residenceRoof,
       'brown',
       'the palette seed should remain stable across tier model changes',
+    );
+    assert.equal(residence.userData.residenceRoofTone, appearance.roofTone);
+    assert.equal(
+      residence.userData.residenceBuildingPlan.appearance.roofTone,
+      appearance.roofTone,
     );
     const expectedFieldMaterial = tier === 4
         ? 'Shared building material: clayRed'
@@ -184,10 +209,22 @@ for (const tier of [1, 2, 3, 4] as const) {
       tier === 4 ? 'fired-clay-tile' : 'split-wood-shingle',
     );
     assert.equal(residence.userData.residenceBuildingPlan.tier, tier);
+    for (const field of collectRoofFieldSurfaces(residence)) {
+      assert.equal(field.userData.residenceRoofTone, appearance.roofTone);
+      assert.deepEqual(
+        field.geometry.userData.residenceRoofToneTint,
+        tier === 4
+          ? firedClayTint(appearance.roofTone)
+          : shingleTint(appearance.roofTone),
+      );
+    }
+    if (tier === 3) assertTierThreeFeature(residence, appearance.tierThreeFeature);
     if (tier === 4) {
       assert.equal(residence.userData.residenceTiledRoof, true);
-      assertNamedPart(residence, 'Residence tier-four central cross-gable mass');
+      assertNamedPart(residence, 'Residence tier-four cross-gable mass');
       assertNamedPart(residence, 'Residence tier-four ashlar upper-storey corner pier');
+      const gable = residence.getObjectByName('Residence tier-four cross-gable feature');
+      assert.equal(gable?.userData.residenceTierFourGablePosition, appearance.tierFourGablePosition);
     }
   }
 }
@@ -310,7 +347,8 @@ function assertTierOneWindowCutouts(root: THREE.Object3D): void {
     'tier-one open windows must cover the front and both side walls',
   );
 
-  const wallShell = namedMesh(root, 'Residence tier-one wall shell with true apertures');
+  const wallSurfaces = collectTierOneWallSurfaces(root);
+  assert.equal(wallSurfaces.length, 4, 'tier-one wall assembly needs one owned mesh per face');
   for (const opening of openings) {
     const roles = new Set<string>();
     opening.traverse((part) => {
@@ -341,11 +379,57 @@ function assertTierOneWindowCutouts(root: THREE.Object3D): void {
       0.55,
     );
     assert.equal(
-      raycaster.intersectObject(wallShell, false).length,
+      raycaster.intersectObjects(wallSurfaces, false).length,
       0,
       `${String(opening.userData.facadeOpeningFace)} window must be a true wall cut-through`,
     );
   }
+}
+
+function collectTierOneWallSurfaces(root: THREE.Object3D): THREE.Mesh[] {
+  const surfaces: THREE.Mesh[] = [];
+  root.traverse((object) => {
+    if (object instanceof THREE.Mesh && typeof object.userData.residenceWallFace === 'string') {
+      surfaces.push(object);
+    }
+  });
+  return surfaces;
+}
+
+function assertTierOneWallVariation(
+  root: THREE.Object3D,
+  expected: Readonly<Record<'front' | 'rear' | 'left' | 'right', string>>,
+): void {
+  const shell = root.getObjectByName('Residence tier-one wall shell with true apertures');
+  assert.ok(shell instanceof THREE.Group);
+  assert.deepEqual(shell.userData.residenceWallPlan, expected);
+  assert.deepEqual(root.userData.residenceTierOneWallPlan, expected);
+
+  const surfaces = collectTierOneWallSurfaces(root);
+  assert.deepEqual(
+    new Set(surfaces.map((surface) => surface.userData.residenceWallFace)),
+    new Set(['front', 'rear', 'left', 'right']),
+  );
+  assert.deepEqual(
+    new Set(surfaces.map((surface) => surface.userData.residenceWallFinish)),
+    new Set(['earthy-daub', 'fieldstone', 'weathered-timber']),
+    'every rough cottage must visibly mix all three local wall systems',
+  );
+  const stoneWallCount = surfaces.filter(
+    (surface) => surface.userData.residenceWallFinish === 'fieldstone',
+  ).length;
+  assert.ok(stoneWallCount >= 1 && stoneWallCount <= 2);
+  const timberGables: THREE.Mesh[] = [];
+  root.traverse((object) => {
+    if (object instanceof THREE.Mesh && object.userData.residenceGableFinish === 'weathered-timber') {
+      timberGables.push(object);
+    }
+  });
+  assert.equal(timberGables.length, 2, 'both tier-one gable fields must remain timber');
+  assert.deepEqual(
+    new Set(timberGables.map(materialName)),
+    new Set(['Shared building material: timberWeathered']),
+  );
 }
 
 function assertTierOneFacadeTimbers(root: THREE.Object3D): void {
@@ -407,9 +491,10 @@ function assertTierOneFacadeTimbers(root: THREE.Object3D): void {
     root.userData.residenceBuildingPlan.facadeModules,
     [
       'rough-rubble-footing',
-      'clay-lime-daub-infill',
+      'mixed-daub-fieldstone-timber-wall-faces',
       'true-wall-apertures',
       'hewn-sill-post-side-brace-frame',
+      'weathered-timber-gables',
     ],
   );
   root.traverse((object) => {
@@ -611,7 +696,10 @@ function materialName(mesh: THREE.Mesh): string {
 }
 
 function assertResidenceValueSeparation(root: THREE.Object3D): void {
-  const plaster = namedMesh(root, 'Residence tier-one wall shell with true apertures');
+  const plaster = collectTierOneWallSurfaces(root).find(
+    (surface) => surface.userData.residenceWallFinish === 'earthy-daub',
+  );
+  assert.ok(plaster, 'mixed tier-one wall plan must retain an earthy daub face');
   const stone = namedMesh(root, 'Residence low rubble fieldstone footing');
   const aperture = namedMesh(root, 'Residence shadowed plank door aperture');
   const roofPlane = namedMesh(root, 'Residence joined semantic main roof');
@@ -695,6 +783,38 @@ function assertResidenceValueSeparation(root: THREE.Object3D): void {
     weatheringProfile: 'shingle',
     textureFamily: 'woodPlanks',
   });
+}
+
+function shingleTint(tone: string): readonly [number, number, number] {
+  if (tone === 'smoke-brown') return [0.66, 0.58, 0.5];
+  if (tone === 'mossed-brown') return [0.69, 0.67, 0.5];
+  return [0.8, 0.68, 0.53];
+}
+
+function firedClayTint(tone: string): readonly [number, number, number] {
+  if (tone === 'smoke-brown') return [0.66, 0.5, 0.43];
+  if (tone === 'mossed-brown') return [0.72, 0.57, 0.46];
+  return [0.78, 0.62, 0.52];
+}
+
+function assertTierThreeFeature(root: THREE.Object3D, feature: string): void {
+  if (feature === 'offset-dormer') {
+    assertNamedPart(root, 'Residence tier-three offset roof dormer');
+    assertNamedPart(root, 'Residence tier-three dormer wall mass');
+    return;
+  }
+  if (feature === 'covered-gallery') {
+    assertNamedPart(root, 'Residence tier-three covered front gallery');
+    assertNamedPart(root, 'Residence tier-three covered-gallery shingle roof');
+    return;
+  }
+  assert.equal(feature, 'twin-annex');
+  assertNamedPart(root, 'Residence tier-three twin working annexes');
+  assert.equal(
+    root.getObjectsByProperty('name', 'Residence working-annex roof').length,
+    2,
+    'the twin-annex tier-three plan needs one working wing on each side',
+  );
 }
 
 function assertBuildingMaterialLifecycle(): void {
