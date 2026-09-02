@@ -537,8 +537,8 @@ export class SpacetimeGameStore {
     return spacetimeReducers.repairFireDamage(targetKind, targetId);
   }
 
-  placeBuilding(kind: BuildingKind, x: number, z: number): Promise<void> {
-    return spacetimeReducers.placeBuilding(kind, x, z);
+  placeBuilding(kind: BuildingKind, x: number, z: number, yaw?: number): Promise<void> {
+    return spacetimeReducers.placeBuilding(kind, x, z, yaw);
   }
 
   async setGameSpeed(speed: GameSpeed): Promise<void> {

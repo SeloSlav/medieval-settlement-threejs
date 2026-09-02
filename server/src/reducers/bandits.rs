@@ -20,6 +20,7 @@ use crate::raid_agent_policy::playable_half_for_map_size;
 use crate::roads::load_owner_road_network;
 use crate::security_policy::RaidPortableStores;
 use crate::simulation::building_fire_state;
+use crate::simulation::serialize_route_polyline;
 use crate::simulation::road_logistics::local_delivery_distance;
 use crate::smallholding_policy::smallholding_assignable_population;
 use crate::tables::{
@@ -442,6 +443,7 @@ pub fn command_militia(
             }
         }
     }
+    let road_network = load_owner_road_network(ctx, owner);
     let company_count = company_ids.len() as u32;
     for (company_index, company_id) in company_ids.into_iter().enumerate() {
         let Some(mut company) = ctx
@@ -518,6 +520,22 @@ pub fn command_militia(
             };
             let x = center_x + company_offset_x + member_x;
             let z = center_z + company_offset_z + member_z;
+            let route = (hostile_id == 0)
+                .then(|| {
+                    road_network
+                        .as_ref()
+                        .and_then(|network| network.road_path_route(agent.x, agent.z, x, z))
+                })
+                .flatten();
+            let (path_distance, route_polyline_json) = route.map_or_else(
+                || (0.0, String::new()),
+                |route| {
+                    (
+                        route.distance,
+                        serialize_route_polyline(&route.polyline),
+                    )
+                },
+            );
             agent.target_kind = match order_kind {
                 1 => 5,
                 2 => 7,
@@ -535,6 +553,8 @@ pub fn command_militia(
                 destination_z: z,
                 target_camp_id: camp_id,
                 target_agent_id: hostile_id,
+                path_distance,
+                route_polyline_json,
             };
             if ctx
                 .db
@@ -1172,9 +1192,9 @@ fn require_recruitment_building(
             expected_kind.replace('_', " ")
         ));
     }
-    if building_fire_state(ctx, building.id) == Some(0) {
+    if building_fire_state(ctx, building.id).is_some() {
         return Err(format!(
-            "The {} cannot recruit while it is burning.",
+            "The {} cannot recruit during a fire outage.",
             expected_kind.replace('_', " ")
         ));
     }
@@ -1609,6 +1629,8 @@ fn reform_company_at_current_position(ctx: &ReducerContext, company: &MilitaryCo
             destination_z: center.1 + offset.1,
             target_camp_id: 0,
             target_agent_id: 0,
+            path_distance: 0.0,
+            route_polyline_json: String::new(),
         };
         if ctx
             .db

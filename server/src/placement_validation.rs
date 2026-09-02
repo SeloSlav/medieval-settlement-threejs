@@ -107,11 +107,11 @@ pub fn building_overlaps_residence_zone(
     kind: &str,
     x: f64,
     z: f64,
+    yaw: f64,
 ) -> bool {
     if building_def(kind).is_none() {
         return false;
     }
-    let network = load_owner_road_network(ctx, owner);
 
     for zone in ctx.db.burgage_zone().owner().filter(&owner) {
         let zone_polygon = [
@@ -132,7 +132,7 @@ pub fn building_overlaps_residence_zone(
                 z: zone.corner_dz,
             },
         ];
-        if zone_overlaps_building_footprint(&zone_polygon, kind, x, z, network.as_ref()) {
+        if zone_overlaps_building_footprint_at_yaw(&zone_polygon, kind, x, z, yaw) {
             return true;
         }
     }
@@ -164,19 +164,6 @@ pub fn burgage_zone_overlaps_buildings(
     false
 }
 
-pub fn zone_overlaps_building_footprint(
-    zone: &[Point2; 4],
-    kind: &str,
-    x: f64,
-    z: f64,
-    network: Option<&RoadNetwork>,
-) -> bool {
-    let yaw = network
-        .map(|roads| road_aware_building_placement_yaw(roads, kind, x, z))
-        .unwrap_or_else(|| building_placement_yaw(x, z));
-    zone_overlaps_building_footprint_at_yaw(zone, kind, x, z, yaw)
-}
-
 pub fn zone_overlaps_building_footprint_at_yaw(
     zone: &[Point2; 4],
     kind: &str,
@@ -202,13 +189,15 @@ pub fn building_footprints_too_close(
     candidate_kind: &str,
     candidate_x: f64,
     candidate_z: f64,
+    candidate_yaw: f64,
     other_kind: &str,
     other_x: f64,
     other_z: f64,
     other_yaw: Option<f64>,
     network: Option<&RoadNetwork>,
 ) -> bool {
-    let candidate = building_footprint_polygon(candidate_kind, candidate_x, candidate_z, network);
+    let candidate =
+        building_footprint_polygon_at_yaw(candidate_kind, candidate_x, candidate_z, candidate_yaw);
     let other = other_yaw
         .map(|yaw| building_footprint_polygon_at_yaw(other_kind, other_x, other_z, yaw))
         .unwrap_or_else(|| building_footprint_polygon(other_kind, other_x, other_z, network));
@@ -288,16 +277,15 @@ pub fn is_on_resource_deposit(ctx: &ReducerContext, x: f64, z: f64) -> bool {
 
 pub fn building_overlaps_resource_deposit(
     ctx: &ReducerContext,
-    owner: Identity,
     kind: &str,
     x: f64,
     z: f64,
+    yaw: f64,
 ) -> bool {
     if kind != "monastery" {
         return is_on_resource_deposit(ctx, x, z);
     }
-    let network = load_owner_road_network(ctx, owner);
-    let polygon = building_footprint_polygon(kind, x, z, network.as_ref());
+    let polygon = building_footprint_polygon_at_yaw(kind, x, z, yaw);
     ctx.db.quarry().iter().any(|deposit| {
         polygon_overlaps_circle(
             &polygon,
@@ -447,8 +435,23 @@ fn minimum_polygon_distance(a: &[Point2; 4], b: &[Point2; 4]) -> f64 {
 }
 
 pub fn building_overlaps_road_surface(network: &RoadNetwork, kind: &str, x: f64, z: f64) -> bool {
+    building_overlaps_road_surface_at_yaw(
+        network,
+        kind,
+        x,
+        z,
+        road_aware_building_placement_yaw(network, kind, x, z),
+    )
+}
+
+pub fn building_overlaps_road_surface_at_yaw(
+    network: &RoadNetwork,
+    kind: &str,
+    x: f64,
+    z: f64,
+    yaw: f64,
+) -> bool {
     if kind == "monastery" {
-        let yaw = road_aware_building_placement_yaw(network, kind, x, z);
         let columns = (MONASTERY_ESTATE_WIDTH / 5.5).ceil() as usize;
         let rows = (MONASTERY_ESTATE_DEPTH / 5.5).ceil() as usize;
         let cos = yaw.cos();
@@ -469,7 +472,6 @@ pub fn building_overlaps_road_surface(network: &RoadNetwork, kind: &str, x: f64,
         return false;
     }
     let pad = building_pad_params(kind);
-    let yaw = road_aware_building_placement_yaw(network, kind, x, z);
     let cos = yaw.cos();
     let sin = yaw.sin();
 
@@ -500,8 +502,7 @@ pub fn building_overlaps_road_surface(network: &RoadNetwork, kind: &str, x: f64,
 
 fn road_aware_building_placement_yaw(network: &RoadNetwork, kind: &str, x: f64, z: f64) -> f64 {
     let uses_road_facing_yaw = building_def(kind).is_some_and(|def| {
-        def.faces_road
-            || (!def.requires_water_shore && !matches!(kind, "large_quarry" | "mine"))
+        def.faces_road || (!def.requires_water_shore && !matches!(kind, "large_quarry" | "mine"))
     });
     if uses_road_facing_yaw {
         if let Some((road_x, road_z)) = network.nearest_point(x, z, ROAD_FACING_SNAP_DISTANCE) {

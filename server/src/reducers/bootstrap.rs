@@ -10,7 +10,6 @@ use crate::db::*;
 use crate::foraging_policy::preserves_runtime_location_during_bootstrap;
 use crate::granary_policy::GRANARY_FRESH_FOOD_TARGET_DEFAULT_PERCENT;
 use crate::lifecycle::ensure_player_resources;
-use crate::placement_validation::resolved_building_placement_yaw;
 use crate::processor_output_policy::PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT;
 use crate::production_rate_policy::DEFAULT_PRODUCTION_RATE_PERCENT;
 use crate::quarry_balance::preserve_extracted_stone;
@@ -203,7 +202,12 @@ pub fn bootstrap_founding_site(ctx: &ReducerContext, x: f64, z: f64) -> Result<(
 /// Establishes the one physical starting point chosen by a new player. The
 /// caller performs the same terrain and overlap validation as other buildings
 /// before entering this founding-specific resource transfer.
-pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Result<(), String> {
+pub(crate) fn place_founding_camp(
+    ctx: &ReducerContext,
+    x: f64,
+    z: f64,
+    placement_yaw: f64,
+) -> Result<(), String> {
     validate_founding_site_coordinates(x, z)?;
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
@@ -225,7 +229,6 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
     let building_id = next_available_building_id(ctx, config.next_building_id)?;
     let initial_goods_multiplier = config.initial_goods_multiplier;
     let settlement = crate::settlements::create_initial_settlement(ctx, owner, building_id, x, z)?;
-    let placement_yaw = resolved_building_placement_yaw(None, "founders_camp", x, z);
     ctx.db.building().insert(Building {
         id: building_id,
         owner,

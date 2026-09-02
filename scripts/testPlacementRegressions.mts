@@ -2328,7 +2328,7 @@ assert.match(
 );
 assert.match(
   placementValidation,
-  /zone_overlaps_building_footprint\([\s\S]*road_aware_building_placement_yaw[\s\S]*pad\.radius_x \* pad\.inner_fade \* BUILDING_FOOTPRINT_SCALE/,
+  /zone_overlaps_building_footprint_at_yaw\([\s\S]*pad\.radius_x \* pad\.inner_fade \* BUILDING_FOOTPRINT_SCALE/,
   'authoritative residence conflicts must use the rotated visible building footprint instead of the broad pick-radius square',
 );
 assert.match(

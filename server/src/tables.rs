@@ -2248,6 +2248,10 @@ pub struct MilitiaOrder {
     pub target_camp_id: u64,
     #[default(0u64)]
     pub target_agent_id: u64,
+    /// Cached server-authored road/bridge route for static destinations.
+    /// Dynamic focus-fire targets deliberately use live direct pursuit.
+    pub path_distance: f64,
+    pub route_polyline_json: String,
 }
 
 /// One persistent, player-controlled body of troops.

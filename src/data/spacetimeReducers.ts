@@ -286,8 +286,8 @@ export async function repairFireDamage(
   });
 }
 
-export async function placeBuilding(kind: BuildingKind, x: number, z: number): Promise<void> {
-  await callReducer('placeBuilding', 'place_building', { kind, x, z });
+export async function placeBuilding(kind: BuildingKind, x: number, z: number, yaw?: number): Promise<void> {
+  await callReducer('placeBuilding', 'place_building', { kind, x, z, yaw });
 }
 
 export async function grantCheatResources(amount: number): Promise<void> {

@@ -50,7 +50,7 @@ declare global {
     __BUILDING_LINEUP_METRICS__?: {
       seed: number | null;
       camera: 'near' | 'design' | 'far';
-      debugMode: 'final' | 'massing';
+      debugMode: 'final' | 'massing' | 'materials';
       presentation: 'final' | 'no-post';
       lightingMode: LineupLightingMode;
       rendererBackend: string;
@@ -94,6 +94,15 @@ const showStockedState = lineupParams.get('stocked') === '1'
 const showCampSeating = lineupParams.get('seating') === '1';
 const showStableOxen = lineupParams.get('oxen') === '3';
 const compareResidences = lineupParams.get('compare') === 'residences';
+const residenceMaterialProof = compareResidences && lineupParams.get('debug') === 'materials';
+const requestedResidenceTierValue = Number(lineupParams.get('residence-tier'));
+const requestedResidenceTier = requestedResidenceTierValue === 1
+  || requestedResidenceTierValue === 2
+  || requestedResidenceTierValue === 3
+  || requestedResidenceTierValue === 4
+  ? requestedResidenceTierValue
+  : null;
+const residenceVariantSeeds = [6, 8, 9, 17] as const;
 const compareServiceCoverage = lineupParams.get('compare') === 'service-coverage';
 const compareChurchTiers = lineupParams.get('compare') === 'church-tiers';
 const compareArchitectureKit = lineupParams.get('compare') === 'architecture-kit';
@@ -245,7 +254,16 @@ if (!root || !labels) throw new Error('Building lineup host is missing.');
 const labelBandHeight = Number.parseFloat(
   getComputedStyle(document.documentElement).getPropertyValue('--lineup-label-band-height'),
 ) || 38;
-if (compareServiceCoverage) {
+if (compareResidences && requestedResidenceTier !== null) {
+  const heading = document.querySelector('h1');
+  const subtitle = document.querySelector('header p');
+  if (heading) heading.textContent = `Residence Tier ${requestedResidenceTier} · Seeded Variants`;
+  if (subtitle) {
+    subtitle.textContent = requestedResidenceTier === 4
+      ? 'Narrow, balanced, and broad plans · Soot-darkened, weathered fired-clay roofs'
+      : 'Narrow, balanced, and broad plans · Earth, smoke, and mossed-brown roofs';
+  }
+} else if (compareServiceCoverage) {
   const heading = document.querySelector('h1');
   const subtitle = document.querySelector('header p');
   if (heading) heading.textContent = 'Service Territory Readability';
@@ -344,7 +362,12 @@ const viewSpecs = architectureKitViewSpecs ?? (constructionKind
       { mesh: createBuildingMesh('chapel', 3), label: 'Tier 3 · Large stone church' },
     ]
   : compareResidences
-  ? [
+  ? requestedResidenceTier !== null
+    ? residenceVariantSeeds.map((seed) => ({
+        mesh: createResidenceMesh(seed, requestedResidenceTier),
+        label: `Residence · tier ${requestedResidenceTier} · seed ${seed}`,
+      }))
+    : [
       { mesh: createResidenceMesh(1, 1), label: 'Residence · tier 1' },
       { mesh: createResidenceMesh(2, 2), label: 'Residence · tier 2' },
       { mesh: createResidenceMesh(3, 3), label: 'Residence · tier 3' },
@@ -400,6 +423,24 @@ const comparisonLookY = comparisonMode
   ? new THREE.Box3().setFromObject(viewSpecs[0]!.mesh).getSize(new THREE.Vector3()).y * 0.4
   : null;
 
+// Inspection-only materials: no atlas, vertex tint, emissive fill, or extra
+// passes. These expose silhouette/joins and face ownership independently.
+const residenceProofMaterials = compareResidences
+  && (architectureDebugMode === 'massing' || residenceMaterialProof)
+  ? {
+      massing: new THREE.MeshStandardMaterial({ color: 0xaaa69d, roughness: 1 }),
+      stone: new THREE.MeshBasicMaterial({ color: 0x5d8fb0 }),
+      plaster: new THREE.MeshBasicMaterial({ color: 0xd6b980 }),
+      timber: new THREE.MeshBasicMaterial({ color: 0x754f33 }),
+      roof: new THREE.MeshBasicMaterial({ color: 0x789763 }),
+      other: new THREE.MeshBasicMaterial({ color: 0x263239 }),
+    }
+  : null;
+if (residenceMaterialProof) {
+  const subtitle = document.querySelector('header p');
+  if (subtitle) subtitle.textContent = 'Material ownership · Stone blue · Daub ochre · Timber brown · Roof green';
+}
+
 const views = viewSpecs.map((spec) => {
   if (Number.isFinite(requestedClockHour)) {
     setTierOneChurchClockTime(spec.mesh, {
@@ -426,6 +467,21 @@ const views = viewSpecs.map((spec) => {
     // caster set. Neutral proof retains the old all-caster inspection mode.
     if (lightingMode === 'neutral-proof') mesh.castShadow = true;
     mesh.receiveShadow = true;
+    if (residenceProofMaterials) {
+      const source = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+      const profile = source.userData.buildingWeatheringProfile;
+      mesh.material = !residenceMaterialProof
+        ? residenceProofMaterials.massing
+        : mesh.userData.residenceRoofSurface === true && !mesh.userData.residenceRoofEdgeRole
+          ? residenceProofMaterials.roof
+          : profile === 'masonry'
+            ? residenceProofMaterials.stone
+            : profile === 'plaster'
+              ? residenceProofMaterials.plaster
+              : profile === 'timber'
+                ? residenceProofMaterials.timber
+                : residenceProofMaterials.other;
+    }
   });
   scene.add(building);
 
@@ -499,11 +555,15 @@ const views = viewSpecs.map((spec) => {
 
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, Math.max(160, footprintScale * 4));
   const largest = comparisonLargest ?? Math.max(size.x, size.y * 1.2, size.z);
+  const residenceCellAspect = compareResidences
+    ? (root.clientWidth / COLS) / Math.max(1, root.clientHeight / ROWS - labelBandHeight)
+    : 1;
   const designDistance = Math.max(
     13,
     largest
       / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)))
-      * (compareServiceCoverage ? 1.08 : 1.24),
+      * (compareServiceCoverage ? 1.08 : 1.24)
+      / Math.min(1, residenceCellAspect),
   );
   const distance = designDistance * (
     cameraBookmark === 'near' ? 0.66 : cameraBookmark === 'far' ? 1.8 : 1
@@ -660,7 +720,7 @@ window.__BUILDING_LINEUP_METRICS__ = {
         : null
     : null,
   camera: cameraBookmark,
-  debugMode: architectureDebugMode,
+  debugMode: residenceMaterialProof ? 'materials' : architectureDebugMode,
   presentation: presentationMode,
   lightingMode,
   rendererBackend: rendererBackend.kind,

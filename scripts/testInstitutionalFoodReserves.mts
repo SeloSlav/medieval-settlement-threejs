@@ -105,8 +105,6 @@ type InstitutionalTarget = {
   constructionPriority?: number;
   processorOutputTargetPercent?: number;
   smokehouseRecipePolicy?: number;
-  guardhousePayPriority?: number;
-  guardhouseFoodReserve?: number;
   granaryAcceptsFreshFood?: boolean;
   granaryFreshFoodTargetPercent?: number;
 };
@@ -127,8 +125,6 @@ const destination = (
   constructionComplete: true,
   constructionPriority: 2,
   processorOutputTargetPercent: 50,
-  guardhousePayPriority: 1,
-  guardhouseFoodReserve: 6,
   granaryAcceptsFreshFood: true,
   granaryFreshFoodTargetPercent: 75,
   ...extra,
@@ -146,14 +142,12 @@ const selectedEmergency = selectInstitutionalFoodTarget(
   true,
   (target) => target.id === 'guard' ? 500 : 10,
 );
-assert.equal(selectedEmergency?.target.id, 'guard');
-assert.equal(selectedEmergency?.duty, 'critical-guard');
+assert.equal(selectedEmergency?.target.id, 'smoke');
+assert.equal(selectedEmergency?.duty, 'preservation-buffer');
 
 const routineGuard = destination('routine-guard', 'guardhouse', 12, {
   assignedLabor: 4,
   polearms: 4,
-  guardhouseFoodReserve: 12,
-  guardhousePayPriority: 2,
 });
 const selectedPreservation = selectInstitutionalFoodTarget(
   [routineGuard, highSmokehouse],
@@ -220,8 +214,8 @@ assert.equal(
     true,
     () => 20,
   )?.target.id,
-  'routine-guard',
-  'ordinary company reserve must fill before optional granary centralization',
+  'granary',
+  'empty guardhouses must not claim food for nonexistent abstract guards',
 );
 assert.equal(
   selectInstitutionalFoodTarget(
@@ -309,10 +303,10 @@ assert.match(
   /fn dispatch_to_building_where_limited[\s\S]*?!processor_requests_input\(&target, commodity\)[\s\S]*?!processor_accepts_input\(&target, commodity\)/,
   'Granary and generic producer dispatch must distinguish active demand from physical acceptance',
 );
-assert.match(
+assert.doesNotMatch(
   expandedEconomy,
-  /InstitutionalFoodDispatchDuty::CriticalGuard[\s\S]*?InstitutionalFoodDispatchDuty::GuardReserve/,
-  'armed companies must expose separate emergency and routine reserve duties',
+  /InstitutionalFoodDispatchDuty::CriticalGuard|InstitutionalFoodDispatchDuty::GuardReserve/,
+  'real companies consume provisions through military upkeep, not duplicate guardhouse carts',
 );
 assert.doesNotMatch(
   expandedEconomy,
@@ -351,7 +345,7 @@ assert.match(
 );
 assert.match(
   expandedEconomy,
-  /fn livestock_source_has_feed_commitment[\s\S]{0,300}pasture_herd\(\)[\s\S]{0,100}farmstead_id\(\)[\s\S]{0,100}filter\(&source\.id\)[\s\S]{0,100}head_count > 0/,
+  /fn livestock_source_has_feed_commitment[\s\S]{0,300}pasture_herd\(\)[\s\S]{0,100}farmstead_id\(\)[\s\S]{0,100}filter\(&source\.id\)[\s\S]{0,350}head_count > 0/,
   'authoritative oat protection must aggregate live pasture herds linked to the source holding',
 );
 assert.match(
@@ -360,11 +354,12 @@ assert.match(
   'institutional source surplus must subtract livestock-local oats only with a live feed commitment',
 );
 assert.match(supplyPolicy, /pub enum InstitutionalFoodDispatchDuty/);
-assert.match(supplyPolicy, /CriticalGuard[\s\S]*PreservationBuffer[\s\S]*GuardReserve[\s\S]*GranaryIntake/);
+assert.match(supplyPolicy, /PreservationBuffer[\s\S]*GranaryIntake/);
+assert.doesNotMatch(supplyPolicy, /CriticalGuard|GuardReserve/);
 assert.match(
   simulationReducer,
-  /for \(sim_kind, building_id\) in expanded_ids[\s\S]*step_institutional_food_dispatch[\s\S]*for payroll_bucket/,
-  'institutional dispatch must run after producers attempt household carts and before guard upkeep',
+  /for \(sim_kind, building_id\) in expanded_ids[\s\S]*step_institutional_food_dispatch/,
+  'institutional dispatch must run after producers attempt household carts',
 );
 const outboundDispatch = expandedEconomy.slice(
   expandedEconomy.indexOf('pub(crate) fn dispatch_to_building'),
@@ -401,11 +396,11 @@ assert.doesNotMatch(
   /Household priority|Dispatch priority|Next seed cart|Next grain cart|Next preservation buffer|data-granary-households-first|data-granary-fresh-food-target|data-granary-grain-reserve|data-inspector-panel-title="Protected grain/,
 );
 assert.match(buildingReducers, /granary_households_first: true/);
-assert.match(granaryInspector, /critical company before this working batch/);
-assert.match(granaryInspector, /Smokehouse batch → routine company reserve → enabled granary intake/);
+assert.match(granaryInspector, /then supply this working batch/);
+assert.match(granaryInspector, /Smokehouse batch → enabled granary intake/);
 assert.match(granaryInspector, /Producer-owned carts protect local Marketplace reserves/);
-assert.match(guardhouseInspector, /becomes an emergency claim/);
-assert.match(guardhouseInspector, /None until polearms arm the company/);
+assert.match(guardhouseInspector, /Ready to form a military company/);
+assert.doesNotMatch(guardhouseInspector, /emergency claim|polearms arm the company/);
 assert.match(
   resourceTotals,
   /const stockedLivestockBuildings = new Set\([\s\S]{0,240}herd\.headCount > 0[\s\S]{0,100}herd\.buildingId[\s\S]*livestockHoldingProtectsFeedOats\([\s\S]{0,80}building\.kind,[\s\S]{0,100}stockedLivestockBuildings\.has\(building\.id\)[\s\S]{0,120}reservedOatGrain \+=/,

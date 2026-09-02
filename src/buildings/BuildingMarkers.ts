@@ -584,13 +584,13 @@ export class BuildingMarkers {
     };
   }
 
-  showPendingPlacement(kind: BuildingKind, x: number, z: number): void {
+  showPendingPlacement(kind: BuildingKind, x: number, z: number, yaw?: number): void {
     this.clearPendingPlacement();
     const marker = kind === 'founders_camp'
       ? this.takeFoundersCampMesh()
       : createConstructionSiteMesh(kind, 0, 0, 0);
     marker.name = 'Pending building placement';
-    marker.rotation.y = buildingPlacementYaw(kind, x, z, this.getRoadNetwork?.() ?? null);
+    marker.rotation.y = yaw ?? buildingPlacementYaw(kind, x, z, this.getRoadNetwork?.() ?? null);
     marker.position.set(x, this.terrain.getHeightAt(x, z), z);
     this.pendingPlacement = marker;
     this.pendingPlacementKind = kind;
@@ -618,8 +618,10 @@ export class BuildingMarkers {
     valid: boolean,
     visible: boolean,
     wildlifePreview?: BuildingPlacementWildlifePreview,
+    placementYaw?: number,
   ): void {
-    const signature = `${kind}|${x.toFixed(2)}|${z.toFixed(2)}|${valid ? 1 : 0}|${visible ? 1 : 0}|${wildlifePreview?.signature ?? ''}`;
+    const yaw = placementYaw ?? buildingPlacementYaw(kind, x, z, this.getRoadNetwork?.() ?? null);
+    const signature = `${kind}|${x.toFixed(2)}|${z.toFixed(2)}|${yaw.toFixed(5)}|${valid ? 1 : 0}|${visible ? 1 : 0}|${wildlifePreview?.signature ?? ''}`;
     if (signature === this.lastPreviewSignature) return;
     this.lastPreviewSignature = signature;
     if (!visible) {
@@ -638,7 +640,6 @@ export class BuildingMarkers {
     }
     updateBuildingPreviewAppearance(this.previewBuilding, valid);
 
-    const yaw = buildingPlacementYaw(kind, x, z, this.getRoadNetwork?.() ?? null);
     updateBuildingPreviewGeometry(
       this.previewBuilding,
       kind,

@@ -92,6 +92,8 @@ pub mod labor_steward_policy;
 #[allow(dead_code)]
 #[path = "../../src/simulation/military_steering.rs"]
 pub mod military_steering;
+#[path = "../../src/military_policy.rs"]
+pub mod military_policy;
 #[path = "../../src/raid_agent_policy.rs"]
 pub mod raid_agent_policy;
 #[path = "../../src/season_policy.rs"]

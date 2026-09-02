@@ -14,6 +14,7 @@ export type TierOneWallFace = 'front' | 'rear' | 'left' | 'right';
 export type TierOneWallPlan = Readonly<Record<TierOneWallFace, TierOneWallFinish>>;
 export type TierThreeFeature = 'offset-dormer' | 'covered-gallery' | 'twin-annex';
 export type TierFourGablePosition = -1 | 0 | 1;
+export type TierTwoUpperFinish = 'boarded' | 'limewashed';
 
 export type ResidenceAppearance = {
   facade: FacadeColor;
@@ -26,6 +27,7 @@ export type ResidenceAppearance = {
   tierOneWalls: TierOneWallPlan;
   tierThreeFeature: TierThreeFeature;
   tierFourGablePosition: TierFourGablePosition;
+  tierTwoUpperFinish: TierTwoUpperFinish;
 };
 
 const FACADE_COLORS: readonly FacadeColor[] = [
@@ -107,6 +109,7 @@ export function pickResidenceAppearance(seed: number): ResidenceAppearance {
   const tierOneWalls = pick(TIER_ONE_WALL_PLANS, rng);
   const tierThreeFeature = pick(TIER_THREE_FEATURES, rng);
   const tierFourGablePosition = pick(TIER_FOUR_GABLE_POSITIONS, rng);
+  const tierTwoUpperFinish = pick(['boarded', 'boarded', 'limewashed'] as const, rng);
   return {
     facade,
     roof,
@@ -118,6 +121,7 @@ export function pickResidenceAppearance(seed: number): ResidenceAppearance {
     tierOneWalls,
     tierThreeFeature,
     tierFourGablePosition,
+    tierTwoUpperFinish,
   };
 }
 

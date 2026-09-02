@@ -91,7 +91,7 @@ export function describeToolbarStatus(stats: ToolbarStats): string {
       const materialCost = hasBuildingResourceCost(cost)
         ? ` | Cost ${formatBuildingCost(cost)}`
         : '';
-      return `${stats.statusDetail}${materialCost}`;
+      return `${stats.statusDetail}${materialCost} · L-drag rotate off road · L-click place`;
     }
     const hint = placementStatusHint(stats.mode, stats.wellAquiferNetworksEnabled === true);
     const label = getBuildingDefinition(stats.mode).label;
@@ -103,7 +103,7 @@ export function describeToolbarStatus(stats: ToolbarStats): string {
           ? ' — carpenter-supported: 10% less timber; cart speed awaits repair timber and ironwork'
           : ' — carpenter-supported: 10% less timber; cart service disabled to conserve fittings'
       : '';
-    return `Click terrain to place a ${label.toLowerCase()} (${formatBuildingCost(cost)})${support}${hint}`;
+    return `Click terrain to place a ${label.toLowerCase()} (${formatBuildingCost(cost)})${support}${hint} · L-drag rotate off road`;
   }
   if (stats.mode === 'residences') {
     const detail = stats.statusDetail ?? 'Set a road frontage, then shape two independent back corners';
@@ -151,7 +151,7 @@ export function renderToolbarStatus(stats: ToolbarStats): string {
     });
     if (stats.statusDetail) {
       const hasMaterialCost = hasBuildingResourceCost(cost);
-      return `${escapeHtml(stats.statusDetail)}${hasMaterialCost ? ` <span aria-hidden="true">|</span> Cost ${costMarkup}` : ''}`;
+      return `${escapeHtml(stats.statusDetail)}${hasMaterialCost ? ` <span aria-hidden="true">|</span> Cost ${costMarkup}` : ''} · L-drag rotate off road · L-click place`;
     }
 
     const hint = placementStatusHint(stats.mode, stats.wellAquiferNetworksEnabled === true);
@@ -163,7 +163,7 @@ export function renderToolbarStatus(stats: ToolbarStats): string {
           ? ' — carpenter-supported: 10% less timber; cart speed awaits repair timber and ironwork'
           : ' — carpenter-supported: 10% less timber; cart service disabled to conserve fittings'
       : '';
-    return `Click terrain to place a ${escapeHtml(label.toLowerCase())} (${costMarkup})${escapeHtml(support)}${escapeHtml(hint)}`;
+    return `Click terrain to place a ${escapeHtml(label.toLowerCase())} (${costMarkup})${escapeHtml(support)}${escapeHtml(hint)} · L-drag rotate off road`;
   }
 
   if (stats.mode === 'residences' && stats.placementCost) {

@@ -14,4 +14,5 @@ export default {
   kind: __t.string(),
   x: __t.f64(),
   z: __t.f64(),
+  yaw: __t.option(__t.f64()),
 };

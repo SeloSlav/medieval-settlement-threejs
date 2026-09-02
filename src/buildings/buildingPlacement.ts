@@ -52,6 +52,7 @@ export function buildingPlacementYaw(
   x: number,
   z: number,
   roadNetwork?: RoadNetwork | null,
+  fallbackYaw?: number,
 ): number {
   if (roadNetwork && (buildingFacesRoad(kind) || buildingUsesRoadsideSnap(kind))) {
     const snap = roadNetwork.findSnap(new THREE.Vector3(x, 0, z), ROAD_FACING_SNAP_DISTANCE);
@@ -63,7 +64,7 @@ export function buildingPlacementYaw(
       }
     }
   }
-  return pseudoRandomYaw(x, z);
+  return fallbackYaw ?? pseudoRandomYaw(x, z);
 }
 
 /**

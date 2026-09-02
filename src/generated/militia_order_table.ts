@@ -18,4 +18,6 @@ export default __t.row({
   destinationZ: __t.f64().name("destination_z"),
   targetCampId: __t.u64().name("target_camp_id"),
   targetAgentId: __t.u64().name("target_agent_id"),
+  pathDistance: __t.f64().name("path_distance"),
+  routePolylineJson: __t.string().name("route_polyline_json"),
 });

@@ -190,7 +190,7 @@ assert.equal(
     statusDetail: promisingStatus,
     buildingCost: { timber: 0, stone: 0 },
   }),
-  promisingStatus,
+  `${promisingStatus} · L-drag rotate off road · L-click place`,
   'the status formatter should accept a post-placement founding outlook',
 );
 
@@ -663,7 +663,7 @@ assert.match(
 );
 assert.match(
   buildingTool,
-  /showPendingPlacement\(kind, x, z\);[\s\S]*?requestAnimationFrame[\s\S]*?onPlaceBuilding\(kind, x, z\)/,
+  /showPendingPlacement\(kind, x, z, yaw\);[\s\S]*?requestAnimationFrame[\s\S]*?onPlaceBuilding\(kind, x, z, yaw\)/,
   'the optimistic camp marker must paint before authoritative placement work starts',
 );
 

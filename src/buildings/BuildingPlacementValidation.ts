@@ -93,6 +93,7 @@ type BuildingPlacementContext = {
   getNaturalHeightAt: (x: number, z: number) => number;
   countMatureTreesInRadius?: (x: number, z: number, radius: number) => number | null;
   roadNetwork?: RoadNetwork;
+  yaw?: number;
   mapBounds?: TerrainBounds;
   mapSize?: WorldMapSize;
   physicalFoundingSiteEnabled?: boolean;
@@ -127,7 +128,7 @@ export function validateBuildingPlacement(
     return { ok: false, reason: 'monastery_exists' };
   }
   const fishingFootprintTouchesWater = kind === 'fishing_camp'
-    && sampleBuildingFootprintPoints(kind, x, z, context.roadNetwork)
+    && sampleBuildingFootprintPoints(kind, x, z, context.roadNetwork, context.yaw)
       .some((point) => context.isWaterAt(point.x, point.z));
   if (
     kind !== 'large_quarry'
@@ -137,7 +138,7 @@ export function validateBuildingPlacement(
   }
 
   if (kind === 'monastery' && context.mapBounds) {
-    const yaw = buildingPlacementYaw(kind, x, z, context.roadNetwork);
+    const yaw = context.yaw ?? buildingPlacementYaw(kind, x, z, context.roadNetwork);
     if (!monasteryEstateFitsMap(x, z, yaw, context.mapBounds)) {
       return { ok: false, reason: 'outside_map' };
     }
@@ -160,6 +161,7 @@ export function validateBuildingPlacement(
       z,
       context.getNaturalHeightAt,
       context.roadNetwork,
+      context.yaw,
     );
     if (slope < MONASTERY_MIN_FOOTPRINT_SLOPE) {
       return { ok: false, reason: 'requires_hillside' };
@@ -170,12 +172,12 @@ export function validateBuildingPlacement(
   } else if (
     kind !== 'large_quarry'
     && kind !== 'mine'
-    && isFootprintTooUneven(kind, x, z, context.getNaturalHeightAt, context.roadNetwork)
+    && isFootprintTooUneven(kind, x, z, context.getNaturalHeightAt, context.roadNetwork, context.yaw)
   ) {
     return { ok: false, reason: 'too_steep' };
   }
 
-  if (context.roadNetwork && buildingFootprintOverlapsRoadSurface(kind, x, z, context.roadNetwork)) {
+  if (context.roadNetwork && buildingFootprintOverlapsRoadSurface(kind, x, z, context.roadNetwork, context.yaw)) {
     return { ok: false, reason: 'on_road' };
   }
 
@@ -185,6 +187,7 @@ export function validateBuildingPlacement(
     z,
     foragingNodes,
     context.roadNetwork,
+    context.yaw,
   )) {
     return { ok: false, reason: 'on_resource_deposit' };
   }
@@ -193,7 +196,7 @@ export function validateBuildingPlacement(
     kind !== 'large_quarry'
     && kind !== 'mine'
     && (kind === 'monastery'
-      ? monasteryEstateSamples(kind, x, z, context.roadNetwork)
+      ? monasteryEstateSamples(kind, x, z, context.roadNetwork, context.yaw)
         .some((point) => context.isResourceDepositAt?.(point.x, point.z) === true)
       : context.isResourceDepositAt?.(x, z))
   ) {
@@ -206,11 +209,12 @@ export function validateBuildingPlacement(
     z,
     context.burgageZones,
     context.roadNetwork,
+    context.yaw,
   )) {
     return { ok: false, reason: 'within_residence_zone' };
   }
 
-  const footprint = buildingFootprintPolygon(x, z, kind, context.roadNetwork);
+  const footprint = buildingFootprintPolygon(x, z, kind, context.roadNetwork, context.yaw);
   for (const field of context.farmFields ?? []) {
     if (convexPolygonsOverlap2(footprint, field.corners)) {
       return { ok: false, reason: 'within_farm_field' };
@@ -337,7 +341,7 @@ export function validateBuildingPlacement(
   }
 
   for (const building of buildings) {
-    if (buildingFootprintsTooClose(kind, x, z, building, context.roadNetwork)) {
+    if (buildingFootprintsTooClose(kind, x, z, building, context.roadNetwork, context.yaw)) {
       return { ok: false, reason: 'too_close' };
     }
   }
@@ -490,8 +494,9 @@ function isFootprintTooUneven(
   z: number,
   getNaturalHeightAt: (x: number, z: number) => number,
   roadNetwork?: RoadNetwork,
+  yaw?: number,
 ): boolean {
-  return footprintHeightDelta(kind, x, z, getNaturalHeightAt, roadNetwork)
+  return footprintHeightDelta(kind, x, z, getNaturalHeightAt, roadNetwork, yaw)
     > MAX_FOOTPRINT_HEIGHT_DELTA;
 }
 
@@ -501,8 +506,9 @@ function footprintHeightDelta(
   z: number,
   getNaturalHeightAt: (x: number, z: number) => number,
   roadNetwork?: RoadNetwork,
+  yaw?: number,
 ): number {
-  const heights = sampleBuildingFootprintHeights(kind, x, z, getNaturalHeightAt, roadNetwork);
+  const heights = sampleBuildingFootprintHeights(kind, x, z, getNaturalHeightAt, roadNetwork, yaw);
   let minHeight = Number.POSITIVE_INFINITY;
   let maxHeight = Number.NEGATIVE_INFINITY;
   for (const height of heights) {
@@ -586,8 +592,9 @@ export function buildingFootprintOverlapsRoadSurface(
   x: number,
   z: number,
   roadNetwork: RoadNetwork,
+  yaw?: number,
 ): boolean {
-  for (const point of monasteryEstateSamples(kind, x, z, roadNetwork)) {
+  for (const point of monasteryEstateSamples(kind, x, z, roadNetwork, yaw)) {
     if (isOnRoadSurface(point.x, point.z, roadNetwork)) return true;
   }
   return false;
@@ -598,9 +605,10 @@ function monasteryEstateSamples(
   x: number,
   z: number,
   roadNetwork?: RoadNetwork | null,
+  placementYaw?: number,
 ): Array<{ x: number; z: number }> {
-  if (kind !== 'monastery') return sampleBuildingFootprintPoints(kind, x, z, roadNetwork);
-  const yaw = buildingPlacementYaw(kind, x, z, roadNetwork);
+  if (kind !== 'monastery') return sampleBuildingFootprintPoints(kind, x, z, roadNetwork, placementYaw);
+  const yaw = placementYaw ?? buildingPlacementYaw(kind, x, z, roadNetwork);
   return sampleMonasteryEstatePoints(x, z, yaw);
 }
 
@@ -610,8 +618,9 @@ function buildingFootprintOverlapsStaticForagingResource(
   z: number,
   nodes: Iterable<ForagingNodeState>,
   roadNetwork?: RoadNetwork | null,
+  placementYaw?: number,
 ): boolean {
-  const yaw = buildingPlacementYaw(kind, x, z, roadNetwork);
+  const yaw = placementYaw ?? buildingPlacementYaw(kind, x, z, roadNetwork);
   const footprint = getBuildingFootprintCorners(kind, x, z, yaw);
   for (const node of nodes) {
     const radius = node.kind === 'berries'

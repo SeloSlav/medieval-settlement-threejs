@@ -312,6 +312,35 @@ pub fn move_toward(x: f64, z: f64, target_x: f64, target_z: f64, max_distance: f
     (x + dx * scale, z + dz * scale)
 }
 
+/// Project actual position onto a cached route so combat interruptions and
+/// collision avoidance cannot leave a company with stale movement progress.
+pub fn route_progress_for_position(polyline: &[[f64; 2]], x: f64, z: f64) -> f64 {
+    let mut best_distance_sq = f64::INFINITY;
+    let mut best_progress = 0.0;
+    let mut prefix = 0.0;
+    for segment in polyline.windows(2) {
+        let start = segment[0];
+        let end = segment[1];
+        let dx = end[0] - start[0];
+        let dz = end[1] - start[1];
+        let length_sq = dx * dx + dz * dz;
+        let length = length_sq.sqrt();
+        if length <= 1e-9 {
+            continue;
+        }
+        let t = (((x - start[0]) * dx + (z - start[1]) * dz) / length_sq).clamp(0.0, 1.0);
+        let projected_x = start[0] + dx * t;
+        let projected_z = start[1] + dz * t;
+        let distance_sq = (x - projected_x).powi(2) + (z - projected_z).powi(2);
+        if distance_sq < best_distance_sq {
+            best_distance_sq = distance_sq;
+            best_progress = prefix + length * t;
+        }
+        prefix += length;
+    }
+    best_progress
+}
+
 /// Advance toward one end of a cached road route without making the route a
 /// rail. A guard who broke formation to fight first rejoins the last point
 /// reached, then continues along the road. Movement remains capped by
@@ -707,6 +736,18 @@ fn mix64(mut value: u64) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn company_route_progress_rejoins_from_actual_position_with_a_capped_step() {
+        let route = [[0.0, 0.0], [10.0, 0.0], [10.0, 10.0]];
+        assert_eq!(route_progress_for_position(&route, -2.0, 0.0), 0.0);
+        assert_eq!(route_progress_for_position(&route, 12.0, 5.0), 15.0);
+        assert_eq!(route_progress_for_position(&route, 10.0, 20.0), 20.0);
+        let rejoin = move_along_route(12.0, 5.0, 15.0, 20.0, &route, 1.0, true);
+        assert_eq!((rejoin.x, rejoin.z, rejoin.progress), (11.0, 5.0, 15.0));
+        let next = move_along_route(11.0, 5.0, 15.0, 20.0, &route, 2.0, true);
+        assert_eq!((next.x, next.z, next.progress), (10.0, 6.0, 16.0));
+    }
     use std::time::Instant;
 
     #[test]

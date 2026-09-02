@@ -23,11 +23,12 @@ export function buildingFootprintPolygon(
   z: number,
   kind: BuildingKind,
   roadNetwork?: RoadNetwork | null,
+  placementYaw?: number,
 ): Point2[] {
   // Some older parcel tools do not own the road network needed to reproduce
   // a placed building's road-facing yaw. Preserve their conservative proxy
   // until those validators and their server reducers migrate together.
-  if (roadNetwork === undefined) {
+  if (roadNetwork === undefined && placementYaw === undefined) {
     const radius = getBuildingDefinition(kind).pickRadius * LEGACY_BUILDING_FOOTPRINT_SCALE;
     return [
       { x: x - radius, z: z - radius },
@@ -36,7 +37,7 @@ export function buildingFootprintPolygon(
       { x: x - radius, z: z + radius },
     ];
   }
-  const yaw = buildingPlacementYaw(kind, x, z, roadNetwork);
+  const yaw = placementYaw ?? buildingPlacementYaw(kind, x, z, roadNetwork);
   return getBuildingFootprintCorners(kind, x, z, yaw);
 }
 
@@ -44,7 +45,7 @@ export function buildingFootprintPolygonFromState(
   building: BuildingState,
   roadNetwork?: RoadNetwork | null,
 ): Point2[] {
-  return buildingFootprintPolygon(building.x, building.z, building.kind, roadNetwork);
+  return buildingFootprintPolygon(building.x, building.z, building.kind, roadNetwork, building.yaw);
 }
 
 export function buildingOverlapsResidenceZone(
@@ -53,8 +54,9 @@ export function buildingOverlapsResidenceZone(
   z: number,
   zones: Iterable<BurgageZoneState>,
   roadNetwork?: RoadNetwork | null,
+  yaw?: number,
 ): boolean {
-  const footprint = buildingFootprintPolygon(x, z, kind, roadNetwork);
+  const footprint = buildingFootprintPolygon(x, z, kind, roadNetwork, yaw);
   for (const zone of zones) {
     if (convexPolygonsOverlap2(footprint, burgageZonePolygon(zone))) {
       return true;

@@ -39,18 +39,22 @@ type BuildingPlacementUndoEntry = {
   kind: BuildingKind;
   x: number;
   z: number;
+  yaw: number;
 };
 
 type BuildingPlacementRedoEntry = {
   kind: BuildingKind;
   x: number;
   z: number;
+  yaw: number;
 };
 
 const BUILDING_POSITION_TOLERANCE = 0.75;
 const BUILDING_SYNC_WAIT_MS = 2000;
 const BUILDING_SYNC_POLL_MS = 50;
 const PREVIEW_VALIDATION_INTERVAL_MS = 110;
+const ROTATION_DRAG_THRESHOLD_PX = 5;
+const ROTATION_RADIANS_PER_PIXEL = 0.012;
 
 function isTypingTarget(target: EventTarget | null): boolean {
   const element = target as HTMLElement | null;
@@ -63,7 +67,7 @@ type BuildingToolOptions = {
   terrainProjector: TerrainProjector;
   markers: BuildingMarkers;
   getState: () => GameState;
-  onPlaceBuilding: (kind: BuildingKind, x: number, z: number) => void | Promise<void>;
+  onPlaceBuilding: (kind: BuildingKind, x: number, z: number, yaw: number) => void | Promise<void>;
   onDemolishBuilding: (buildingId: string) => void | Promise<void>;
   isWaterAt: (x: number, z: number) => boolean;
   isResourceDepositAt?: (x: number, z: number) => boolean;
@@ -96,6 +100,7 @@ export class BuildingTool {
   private lastPreviewZ = Number.NaN;
   private lastValidatedX = Number.NaN;
   private lastValidatedZ = Number.NaN;
+  private lastValidatedYaw = Number.NaN;
   private lastPreviewValidation: BuildingPlacementResult | null = null;
   private lastValidationTime = 0;
   private validationDirty = false;
@@ -107,6 +112,15 @@ export class BuildingTool {
   private placementPending = false;
   private placementIntentVersion = 0;
   private roadSnapEnabled = true;
+  private manualYaw: number | undefined;
+  private primaryGesture: {
+    startX: number;
+    startY: number;
+    x: number;
+    z: number;
+    yaw: number;
+    dragged: boolean;
+  } | null = null;
   private readonly secondaryClickGesture: SecondaryClickGesture;
 
   constructor(options: BuildingToolOptions) {
@@ -118,6 +132,9 @@ export class BuildingTool {
     options.domElement.addEventListener('mousemove', this.onPointerMove);
     options.domElement.addEventListener('mouseenter', this.onPointerEnter);
     options.domElement.addEventListener('mouseleave', this.onPointerLeave);
+    window.addEventListener('mousemove', this.onRotationMove);
+    window.addEventListener('mouseup', this.onPointerUp);
+    window.addEventListener('blur', this.onWindowBlur);
     window.addEventListener('keydown', this.onKeyDown, { capture: true });
   }
 
@@ -188,7 +205,7 @@ export class BuildingTool {
   }
 
   shouldBlockCameraInput(_event: MouseEvent | WheelEvent): boolean {
-    return false;
+    return this.primaryGesture !== null;
   }
 
   setMode(mode: BuildingToolMode): void {
@@ -199,6 +216,8 @@ export class BuildingTool {
   private activateMode(mode: BuildingToolMode): void {
     this.secondaryClickGesture.cancel();
     if (mode !== 'off' && (this.options.isBlocked() || this.placementPending)) return;
+    this.primaryGesture = null;
+    this.manualYaw = undefined;
     this.mode = mode;
     this.resetPreviewCache();
     if (mode === 'off') {
@@ -216,12 +235,14 @@ export class BuildingTool {
   update(): void {
     if (this.mode === 'off') return;
     if (this.options.isBlocked()) {
+      this.primaryGesture = null;
       this.clearPreview();
       return;
     }
     if (this.pointerDirty) {
       this.pointerDirty = false;
-      this.processPointerHover();
+      if (this.primaryGesture) this.refreshPreview();
+      else this.processPointerHover();
       return;
     }
     this.maybeRefreshWildlifePreview();
@@ -229,11 +250,15 @@ export class BuildingTool {
   }
 
   dispose(): void {
+    this.primaryGesture = null;
     this.secondaryClickGesture.dispose();
     this.options.domElement.removeEventListener('mousedown', this.onPointerDown, { capture: true });
     this.options.domElement.removeEventListener('mousemove', this.onPointerMove);
     this.options.domElement.removeEventListener('mouseenter', this.onPointerEnter);
     this.options.domElement.removeEventListener('mouseleave', this.onPointerLeave);
+    window.removeEventListener('mousemove', this.onRotationMove);
+    window.removeEventListener('mouseup', this.onPointerUp);
+    window.removeEventListener('blur', this.onWindowBlur);
     window.removeEventListener('keydown', this.onKeyDown, { capture: true });
   }
 
@@ -273,7 +298,7 @@ export class BuildingTool {
 
   private readonly onPointerLeave = (): void => {
     this.pointerInside = false;
-    this.clearPreview();
+    if (!this.primaryGesture) this.clearPreview();
   };
 
   private readonly onPointerMove = (event: MouseEvent): void => {
@@ -302,30 +327,95 @@ export class BuildingTool {
 
   private readonly onPointerDown = (event: MouseEvent): void => {
     if (this.mode === 'off' || this.options.isBlocked()) return;
+    if (event.button !== 0) this.primaryGesture = null;
     if (this.secondaryClickGesture.begin(event)) return;
-
     if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    // A click immediately after a rotation uses the preview left at its pivot.
+    // A moved cursor first catches up with the ordinary hover placement.
+    if (this.pointerDirty || !Number.isFinite(this.lastPreviewX)
+      || event.clientX !== this.pointerX || event.clientY !== this.pointerY) {
+      this.pointerX = event.clientX;
+      this.pointerY = event.clientY;
+      this.processPointerHover();
+    }
+    this.pointerDirty = false;
+    if (!Number.isFinite(this.lastPreviewX)) return;
+    this.primaryGesture = {
+      startX: event.clientX,
+      startY: event.clientY,
+      x: this.lastPreviewX,
+      z: this.lastPreviewZ,
+      yaw: this.resolveYaw(this.mode, this.lastPreviewX, this.lastPreviewZ),
+      dragged: false,
+    };
+  };
 
-    const point = this.options.terrainProjector.pick(event.clientX, event.clientY);
-    if (!point) return;
+  private updateRotationGesture(event: MouseEvent): void {
+    const gesture = this.primaryGesture;
+    if (!gesture) return;
+    this.pointerX = event.clientX;
+    this.pointerY = event.clientY;
+    const dx = event.clientX - gesture.startX;
+    const dy = event.clientY - gesture.startY;
+    gesture.dragged ||= Math.hypot(dx, dy) > ROTATION_DRAG_THRESHOLD_PX;
+    if (!gesture.dragged) return;
+    const yaw = gesture.yaw + dx * ROTATION_RADIANS_PER_PIXEL;
+    this.manualYaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
+    this.pointerDirty = true;
+  }
 
-    const resolved = this.resolvePoint(this.mode, point.x, point.z);
-    const validation = this.validate(this.mode, resolved.x, resolved.z);
+  private readonly onRotationMove = (event: MouseEvent): void => {
+    if (!this.primaryGesture) return;
+    if ((event.buttons & 1) === 0 || this.options.isBlocked()) {
+      this.primaryGesture = null;
+      this.pointerDirty = false;
+      if (!this.pointerInside) this.clearPreview();
+      return;
+    }
+    this.updateRotationGesture(event);
+  };
+
+  private readonly onPointerUp = (event: MouseEvent): void => {
+    if (event.button !== 0 || !this.primaryGesture) return;
+    const gesture = this.primaryGesture;
+    this.updateRotationGesture(event);
+    this.pointerDirty = false;
+    if (this.mode === 'off' || this.options.isBlocked()) {
+      this.primaryGesture = null;
+      this.clearPreview();
+      return;
+    }
+    // Never commit a drag, even if the cursor returns to its starting point.
+    if (gesture.dragged) {
+      this.refreshPreview();
+      this.primaryGesture = null;
+      if (!this.pointerInside) this.clearPreview();
+      return;
+    }
+    this.primaryGesture = null;
+    if (!this.options.domElement.contains(event.target as Node)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const { x, z } = gesture;
+    const yaw = this.resolveYaw(this.mode, x, z);
+    const validation = this.validate(this.mode, x, z);
     if (!validation.ok) {
-      event.preventDefault();
-      event.stopPropagation();
+      this.revalidatePreview();
       this.options.onPlacementRejected?.(validation.reason);
       return;
     }
-
-    event.preventDefault();
-    event.stopPropagation();
-
     const kind = this.mode;
     this.placementPending = true;
     this.setMode('off');
     const placementIntentVersion = this.placementIntentVersion;
-    void this.placeAt(kind, resolved.x, resolved.z, placementIntentVersion);
+    void this.placeAt(kind, x, z, yaw, placementIntentVersion);
+  };
+
+  private readonly onWindowBlur = (): void => {
+    this.primaryGesture = null;
+    this.clearPreview();
   };
 
   private readonly onSecondaryClick = (event: MouseEvent): void => {
@@ -339,23 +429,24 @@ export class BuildingTool {
     kind: BuildingKind,
     x: number,
     z: number,
+    yaw: number,
     placementIntentVersion: number,
   ): Promise<void> {
     const stateBeforePlacement = this.options.getState();
     const isFoundersCampBootstrap = kind === 'founders_camp'
       && stateBeforePlacement.physicalFoundingSiteEnabled !== true;
     const beforeIds = new Set(stateBeforePlacement.buildings.keys());
-    this.options.markers.showPendingPlacement(kind, x, z);
+    this.options.markers.showPendingPlacement(kind, x, z, yaw);
     try {
       // Let the optimistic marker reach the screen before network and
       // authoritative world-sync work can occupy the main thread.
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      await this.options.onPlaceBuilding(kind, x, z);
+      await this.options.onPlaceBuilding(kind, x, z, yaw);
       this.placementPending = false;
       const buildingId = await waitForPlacedBuilding(this.options.getState, beforeIds, kind, x, z);
       this.options.markers.clearPendingPlacement();
       if (buildingId && !isFoundersCampBootstrap) {
-        this.undoStack.push({ buildingId, kind, x, z });
+        this.undoStack.push({ buildingId, kind, x, z, yaw });
         this.redoStack.length = 0;
       }
       if (buildingId) {
@@ -368,6 +459,9 @@ export class BuildingTool {
       this.options.markers.clearPendingPlacement();
       if (!this.options.isBlocked() && this.placementIntentVersion === placementIntentVersion) {
         this.setMode(kind);
+        this.manualYaw = yaw;
+        this.resetPreviewCache();
+        this.refreshPreviewAt(new THREE.Vector3(x, 0, z));
       }
       this.options.onPlacementFailed?.(message, kind);
       return;
@@ -383,6 +477,7 @@ export class BuildingTool {
         kind: entry.kind,
         x: entry.x,
         z: entry.z,
+        yaw: entry.yaw,
       });
     } catch (error) {
       this.undoStack.push(entry);
@@ -397,7 +492,7 @@ export class BuildingTool {
     if (!entry) return;
     const beforeIds = new Set(this.options.getState().buildings.keys());
     try {
-      await this.options.onPlaceBuilding(entry.kind, entry.x, entry.z);
+      await this.options.onPlaceBuilding(entry.kind, entry.x, entry.z, entry.yaw);
       const buildingId = await waitForPlacedBuilding(
         this.options.getState,
         beforeIds,
@@ -413,6 +508,7 @@ export class BuildingTool {
         kind: entry.kind,
         x: entry.x,
         z: entry.z,
+        yaw: entry.yaw,
       });
     } catch (error) {
       this.redoStack.push(entry);
@@ -425,6 +521,11 @@ export class BuildingTool {
   private refreshPreview(): void {
     if (this.mode === 'off' || this.options.isBlocked()) {
       this.clearPreview();
+      return;
+    }
+
+    if (this.primaryGesture) {
+      this.refreshPreviewAt(new THREE.Vector3(this.primaryGesture.x, 0, this.primaryGesture.z));
       return;
     }
 
@@ -460,12 +561,7 @@ export class BuildingTool {
     valid: boolean,
     visible: boolean,
   ): void {
-    const yaw = buildingPlacementYaw(
-      kind,
-      x,
-      z,
-      this.options.getRoadNetwork?.() ?? null,
-    );
+    const yaw = this.resolveYaw(kind, x, z);
     const wildlifePreview = resolveBuildingPlacementWildlifePreview(
       kind,
       x,
@@ -481,6 +577,7 @@ export class BuildingTool {
       valid,
       visible,
       wildlifePreview,
+      yaw,
     );
   }
 
@@ -493,12 +590,7 @@ export class BuildingTool {
     ) {
       return;
     }
-    const yaw = buildingPlacementYaw(
-      this.mode,
-      this.lastPreviewX,
-      this.lastPreviewZ,
-      this.options.getRoadNetwork?.() ?? null,
-    );
+    const yaw = this.resolveYaw(this.mode, this.lastPreviewX, this.lastPreviewZ);
     const wildlifePreview = resolveBuildingPlacementWildlifePreview(
       this.mode,
       this.lastPreviewX,
@@ -516,6 +608,7 @@ export class BuildingTool {
       this.lastPreviewValidation.ok,
       true,
       wildlifePreview,
+      yaw,
     );
   }
 
@@ -593,9 +686,12 @@ export class BuildingTool {
   }
 
   private getPreviewValidation(x: number, z: number): BuildingPlacementResult {
+    const yaw = this.resolveYaw(this.mode as BuildingKind, x, z);
     const dx = x - this.lastValidatedX;
     const dz = z - this.lastValidatedZ;
-    if (this.lastPreviewValidation && Number.isFinite(this.lastValidatedX) && Math.hypot(dx, dz) < 0.02) {
+    if (!this.validationDirty && this.lastPreviewValidation
+      && Number.isFinite(this.lastValidatedX) && Math.hypot(dx, dz) < 0.02
+      && yaw === this.lastValidatedYaw) {
       this.validationDirty = false;
       return this.lastPreviewValidation;
     }
@@ -618,6 +714,7 @@ export class BuildingTool {
     const result = this.validate(this.mode as BuildingKind, x, z);
     this.lastValidatedX = x;
     this.lastValidatedZ = z;
+    this.lastValidatedYaw = this.resolveYaw(this.mode as BuildingKind, x, z);
     this.lastPreviewValidation = result;
     this.lastValidationTime = performance.now();
     this.validationDirty = false;
@@ -658,6 +755,7 @@ export class BuildingTool {
     this.lastPreviewZ = Number.NaN;
     this.lastValidatedX = Number.NaN;
     this.lastValidatedZ = Number.NaN;
+    this.lastValidatedYaw = Number.NaN;
     this.lastPreviewValidation = null;
     this.lastValidationTime = 0;
     this.validationDirty = false;
@@ -725,6 +823,7 @@ export class BuildingTool {
       getNaturalHeightAt: this.options.getNaturalHeightAt,
       countMatureTreesInRadius: this.options.countMatureTreesInRadius,
       roadNetwork: this.options.getRoadNetwork?.(),
+      yaw: this.resolveYaw(kind, x, z),
       mapBounds: this.options.mapBounds,
       mapSize: this.options.getMapSize(),
       physicalFoundingSiteEnabled: state.physicalFoundingSiteEnabled,
@@ -768,9 +867,20 @@ export class BuildingTool {
           candidateX,
           candidateZ,
           fullRoadNetwork,
+          this.resolveYaw(kind, candidateX, candidateZ),
         )
         : undefined,
+      this.manualYaw === undefined ? undefined : this.resolveYaw(kind, roadsidePoint.x, roadsidePoint.z),
     );
+  }
+
+  private resolveYaw(kind: BuildingKind, x: number, z: number): number {
+    // Road snapping owns the facing near a road; retain the manual angle as
+    // the fallback when moving the preview back into open terrain.
+    const roads = this.roadSnapEnabled || this.manualYaw === undefined
+      ? this.options.getRoadNetwork?.()
+      : null;
+    return buildingPlacementYaw(kind, x, z, roads, this.manualYaw);
   }
 
   private clearPreview(): void {

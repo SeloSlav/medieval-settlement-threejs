@@ -593,9 +593,9 @@ export async function bootstrapAppSession(
     terrainProjector: sceneManager.terrainProjector,
     markers: buildingMarkers,
     getState: () => liveContext.gameState,
-    onPlaceBuilding: async (kind, x, z) => {
+    onPlaceBuilding: async (kind, x, z, yaw) => {
       requireSessionReady();
-      await spacetimeStore.placeBuilding(kind, x, z);
+      await spacetimeStore.placeBuilding(kind, x, z, yaw);
       ambientAudio.playUiSound('building_place');
     },
     onDemolishBuilding: async (buildingId) => {

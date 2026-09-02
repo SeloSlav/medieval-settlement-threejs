@@ -28,12 +28,13 @@ export function buildingFootprintAt(
   x: number,
   z: number,
   roadNetwork?: RoadNetwork | null,
+  yaw?: number,
 ): Point2[] {
   return getBuildingFootprintCorners(
     kind,
     x,
     z,
-    buildingPlacementYaw(kind, x, z, roadNetwork),
+    yaw ?? buildingPlacementYaw(kind, x, z, roadNetwork),
   );
 }
 
@@ -43,9 +44,10 @@ export function buildingFootprintEdgeDistance(
   candidateZ: number,
   other: Pick<BuildingState, 'kind' | 'x' | 'z' | 'yaw'>,
   roadNetwork?: RoadNetwork | null,
+  yaw?: number,
 ): number {
   return distanceBetweenConvexPolygons2(
-    buildingFootprintAt(candidateKind, candidateX, candidateZ, roadNetwork),
+    buildingFootprintAt(candidateKind, candidateX, candidateZ, roadNetwork, yaw),
     getBuildingFootprintCorners(
       other.kind,
       other.x,
@@ -61,6 +63,7 @@ export function buildingFootprintsTooClose(
   candidateZ: number,
   other: Pick<BuildingState, 'kind' | 'x' | 'z' | 'yaw'>,
   roadNetwork?: RoadNetwork | null,
+  yaw?: number,
 ): boolean {
   return buildingFootprintEdgeDistance(
     candidateKind,
@@ -68,6 +71,7 @@ export function buildingFootprintsTooClose(
     candidateZ,
     other,
     roadNetwork,
+    yaw,
   ) < BUILDING_EDGE_CLEARANCE - CLEARANCE_EPSILON;
 }
 
@@ -83,11 +87,12 @@ export function resolveBuildingEdgeSnap(
   buildings: Iterable<BuildingState>,
   roadNetwork?: RoadNetwork | null,
   isBlocked?: (x: number, z: number) => boolean,
+  yaw?: number,
 ): { x: number; z: number } {
   const existingBuildings = [...buildings];
   if (existingBuildings.length === 0) return { x, z };
 
-  const footprint = buildingFootprintAt(kind, x, z, roadNetwork);
+  const footprint = buildingFootprintAt(kind, x, z, roadNetwork, yaw);
   const center = { x, z };
   const proposals: Array<{ x: number; z: number; movement: number }> = [];
 
@@ -128,10 +133,11 @@ export function resolveBuildingEdgeSnap(
         proposal.z,
         building,
         roadNetwork,
+        yaw,
       );
       if (Math.abs(targetGap - BUILDING_EDGE_CLEARANCE) > SNAP_RESULT_TOLERANCE) continue;
       if (existingBuildings.some((other) =>
-        buildingFootprintsTooClose(kind, proposal.x, proposal.z, other, roadNetwork)
+        buildingFootprintsTooClose(kind, proposal.x, proposal.z, other, roadNetwork, yaw)
       )) {
         continue;
       }

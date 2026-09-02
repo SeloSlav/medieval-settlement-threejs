@@ -143,7 +143,7 @@ pub(crate) fn collect_raider_ranged_frames(
         frame.source_z /= frame.member_count as f64;
 
         // The lowest stable ranged rank owns target retention for the shared
-        // line. If that target disappeared, choose the closest live guard to
+        // line. If that target disappeared, choose the closest live defender to
         // the company centroid with an id tie-break, once for the whole raid.
         let retained_target_id = agents
             .iter()
@@ -161,7 +161,8 @@ pub(crate) fn collect_raider_ranged_frames(
                 agents.iter().find(|candidate| {
                     candidate.id == retained_target_id
                         && candidate.owner == frame.owner
-                        && candidate.faction != COMBAT_FACTION_RAIDER
+                        && (candidate.faction == COMBAT_FACTION_GUARD
+                            || is_player_military_faction(candidate.faction))
                         && candidate.state != COMBAT_STATE_DOWNED
                         && candidate.health > EPSILON
                 })
@@ -172,8 +173,9 @@ pub(crate) fn collect_raider_ranged_frames(
                 .iter()
                 .filter(|candidate| {
                     candidate.owner == frame.owner
-                        && candidate.raid_id == frame.raid_id
-                        && candidate.faction == COMBAT_FACTION_GUARD
+                        && ((candidate.raid_id == frame.raid_id
+                            && candidate.faction == COMBAT_FACTION_GUARD)
+                            || is_player_military_faction(candidate.faction))
                         && candidate.state != COMBAT_STATE_DOWNED
                         && candidate.health > EPSILON
                 })
@@ -1538,7 +1540,7 @@ fn move_combatant_toward(
     move_toward(x, z, target_x, target_z, base_distance * surface_multiplier)
 }
 
-fn move_along_combat_route(
+pub(super) fn move_along_combat_route(
     x: f64,
     z: f64,
     progress: f64,

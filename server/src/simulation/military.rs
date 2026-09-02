@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use spacetimedb::{Identity, ReducerContext};
 
@@ -11,16 +11,17 @@ use crate::military_policy::{
     formation_charge_multiplier, formation_speed_multiplier, is_front_attack,
     member_combat_profile, military_battle_end_ticks, military_day_ticks,
     military_level_for_experience, military_stats, normalize_military_demands,
-    rotate_formation_offset, shield_wall_damage_multiplier, stance_attack_interval_multiplier,
-    stance_damage_multiplier, stance_damage_taken_multiplier, stance_fatigue_multiplier,
-    stance_speed_multiplier, veteran_damage_multiplier, veteran_damage_taken_multiplier,
-    veteran_health_multiplier, MilitaryKind, MERCENARY_IDLE_DEPARTURE_DAYS,
+    rotate_formation_offset, stance_attack_interval_multiplier,
+    stance_damage_multiplier, stance_fatigue_multiplier,
+    stance_speed_multiplier, veteran_damage_multiplier,
+    veteran_health_multiplier, incoming_company_damage_multiplier, recoverable_ammunition_bundles,
+    CompanyDefense, IncomingMilitaryAttack, MilitaryKind, MERCENARY_IDLE_DEPARTURE_DAYS,
     MILITARY_BATTLE_SURVIVAL_XP, MILITARY_ENEMY_COMPANY_XP, MILITARY_FORMATION_BRACE,
     MILITARY_STANCE_GIVE_GROUND, MILITARY_STANCE_STAND_GROUND,
 };
 use crate::raid_agent_policy::{
     ottoman_raider_is_mounted, ottoman_raider_is_ranged, ottoman_raider_role,
-    playable_half_for_map_size, COMBAT_ROAD_SPEED_MULTIPLIER, COMBAT_WADING_SPEED_MULTIPLIER,
+    playable_half_for_map_size, route_progress_for_position, COMBAT_ROAD_SPEED_MULTIPLIER, COMBAT_WADING_SPEED_MULTIPLIER,
     OTTOMAN_ROLE_AKINCI, OTTOMAN_ROLE_AZAB, OTTOMAN_ROLE_JANISSARY, OTTOMAN_ROLE_SIPAHI,
 };
 use crate::roads::RoadNetwork;
@@ -31,14 +32,15 @@ use crate::tables::{
 };
 
 use super::bandits::destroy_camp;
+use super::delivery_trips::deserialize_route_polyline;
 use super::military_steering::{
     melee_engagement_goal, raider_ranged_firing_line_goal, ranged_firing_line_goal,
     rebuild_dense_engagement_ranks, CombatSteeringGrid, DenseEngagementRank, EngagementRankKey,
     EngagementRankSeed, SteeringBody, SteeringBounds,
 };
 use super::raid_agents::{
-    collect_raider_ranged_frames, down_external_raider, reclamation_from_raid_stores,
-    RaiderRangedFrame,
+    collect_raider_ranged_frames, down_external_raider, move_along_combat_route,
+    reclamation_from_raid_stores, RaiderRangedFrame,
 };
 use super::reclamation::recover_stock_at;
 use super::SharedRoadNetworks;
@@ -705,11 +707,10 @@ fn step_active_member(
             } else {
                 1.0
             };
-            walk_flocked(
+            walk_order_route(
                 steering,
                 &mut agent,
-                order.destination_x,
-                order.destination_z,
+                &order,
                 stats.speed
                     * profile.speed_scale
                     * run_scale
@@ -718,7 +719,6 @@ fn step_active_member(
                 dt,
                 road_network,
             );
-            agent.route_progress = remaining;
             agent.state = ADVANCING;
         } else {
             ctx.db.militia_order().combat_agent_id().delete(agent.id);
@@ -802,7 +802,8 @@ fn step_active_member(
             ctx.db.combat_agent().id().update(agent);
             return;
         }
-        if company.stance == MILITARY_STANCE_STAND_GROUND
+        if (company.stance == MILITARY_STANCE_STAND_GROUND
+            || (company.formation == MILITARY_FORMATION_BRACE && kind.can_brace()))
             && direct_enemy.is_none()
             && range > strike_range + 0.75
         {
@@ -898,6 +899,8 @@ fn step_active_member(
             let enemy_was_advancing = enemy.state == ADVANCING;
             let enemy_was_charging = enemy_was_advancing
                 && enemy.velocity_x.hypot(enemy.velocity_z) >= 1.0;
+            let defender_was_stationary = agent.state != ADVANCING
+                && agent.velocity_x.hypot(agent.velocity_z) < 0.25;
             agent.route_progress = 0.0;
             agent.state = FIGHTING;
             if company.stance == MILITARY_STANCE_GIVE_GROUND && !kind.is_mounted() {
@@ -984,6 +987,7 @@ fn step_active_member(
                     &enemy,
                     hostile.damage,
                     enemy_was_charging,
+                    defender_was_stationary,
                 );
                 agent.health = (agent.health - hostile_damage).max(0.0);
                 enemy.attack_cooldown = hostile.attack_seconds;
@@ -1010,11 +1014,10 @@ fn step_active_member(
             } else {
                 1.0
             };
-            walk_flocked(
+            walk_order_route(
                 steering,
                 &mut agent,
-                target.0,
-                target.1,
+                &order,
                 stats.speed
                     * profile.speed_scale
                     * run_scale
@@ -1023,7 +1026,6 @@ fn step_active_member(
                 dt,
                 road_network,
             );
-            agent.route_progress = remaining;
             agent.state = ADVANCING;
         } else if order.kind == 1
             && ctx
@@ -1194,6 +1196,7 @@ fn request_mercenary_departure_after_engagement(
 fn step_mercenary_contracts(ctx: &ReducerContext, tick: u64) {
     let day_ticks = military_day_ticks();
     let idle_limit = day_ticks.saturating_mul(MERCENARY_IDLE_DEPARTURE_DAYS);
+    let incoming_targets = hostile_engagement_targets(ctx);
     for mut contract in ctx.db.mercenary_contract().iter().collect::<Vec<_>>() {
         let Some(mut company) = ctx
             .db
@@ -1216,10 +1219,13 @@ fn step_mercenary_contracts(ctx: &ReducerContext, tick: u64) {
             .military_member()
             .company_id()
             .filter(&company.id)
+            .filter(|member| member.phase == 1)
             .filter_map(|member| ctx.db.combat_agent().id().find(&member.combat_agent_id))
+            .filter(|agent| agent.state != DOWNED && agent.health > 0.0)
             .any(|agent| {
                 agent.state == FIGHTING
                     || agent.target_kind == 7
+                    || incoming_targets.contains(&agent.id)
                     || ctx
                         .db
                         .militia_order()
@@ -1285,6 +1291,7 @@ fn begin_mercenary_departure(ctx: &ReducerContext, company_id: u64) {
 }
 
 fn refresh_company_summaries(ctx: &ReducerContext, tick: u64, dt: f64, military_demands: u8) {
+    let incoming_targets = hostile_engagement_targets(ctx);
     for mut company in ctx.db.military_company().iter().collect::<Vec<_>>() {
         let members = ctx
             .db
@@ -1331,7 +1338,7 @@ fn refresh_company_summaries(ctx: &ReducerContext, tick: u64, dt: f64, military_
             if matches!(agent.state, ADVANCING | RETREATING | RETURNING | MUSTERING) {
                 moving += 1;
             }
-            if agent.state == FIGHTING {
+            if agent.state == FIGHTING || incoming_targets.contains(&agent.id) {
                 fighting += 1;
             }
         }
@@ -1393,6 +1400,20 @@ fn refresh_company_summaries(ctx: &ReducerContext, tick: u64, dt: f64, military_
             ctx.db.military_company().id().update(company);
         }
     }
+}
+
+fn hostile_engagement_targets(ctx: &ReducerContext) -> HashSet<u64> {
+    ctx.db
+        .combat_agent()
+        .iter()
+        .filter(|agent| {
+            matches!(agent.faction, RAIDER | BANDIT | FOX | WOLF)
+                && agent.state != DOWNED
+                && agent.health > 0.0
+                && agent.engagement_target_id > 0
+        })
+        .map(|agent| agent.engagement_target_id)
+        .collect()
 }
 
 fn retained_or_nearest_enemy(
@@ -1524,12 +1545,9 @@ fn mitigate_player_damage(
     attacker: &CombatAgent,
     raw_damage: f64,
     attacker_was_charging: bool,
+    defender_was_stationary: bool,
 ) -> f64 {
     let hostile = hostile_profile(attacker);
-    let stats = military_stats(kind);
-    let profile = member_combat_profile(kind, member_seed(member));
-    let armor_after_penetration = (profile.armor - hostile.penetration).max(0.0);
-    let armor_multiplier = 1.0 / (1.0 + armor_after_penetration * 0.055);
     let incoming_front = is_front_attack(
         company.facing_x,
         company.facing_z,
@@ -1538,35 +1556,23 @@ fn mitigate_player_damage(
         attacker.x,
         attacker.z,
     );
-    let shield_multiplier = if incoming_front {
-        (1.0 - profile.shield * 0.022).clamp(0.64, 1.0)
-    } else {
-        1.0
-    };
-    let brace_multiplier = if company.formation == MILITARY_FORMATION_BRACE
-        && kind.can_brace()
-        && attacker_was_charging
-        && incoming_front
-    {
-        (1.0 - profile.bracing * 0.34).clamp(0.62, 1.0)
-    } else {
-        1.0
-    };
-    let wall_multiplier = if incoming_front {
-        shield_wall_damage_multiplier(kind, company.formation)
-    } else {
-        1.0
-    };
-    let flank_multiplier = if incoming_front { 1.0 } else { 1.18 };
-    let mitigation = stats.damage_taken_multiplier
-        * veteran_damage_taken_multiplier(company.level)
-        * wall_multiplier
-        * stance_damage_taken_multiplier(company.stance, hostile.ranged)
-        * (1.08 - company.cohesion.clamp(0.0, 1.0) * 0.18)
-        * armor_multiplier
-        * shield_multiplier
-        * brace_multiplier
-        * flank_multiplier;
+    let mitigation = incoming_company_damage_multiplier(
+        CompanyDefense {
+            kind,
+            member_seed: member_seed(member),
+            formation: company.formation,
+            stance: company.stance,
+            level: company.level,
+            cohesion: company.cohesion,
+            stationary: defender_was_stationary,
+        },
+        IncomingMilitaryAttack {
+            penetration: hostile.penetration,
+            ranged: hostile.ranged,
+            frontal: incoming_front,
+            charging: attacker_was_charging,
+        },
+    );
     raw_damage.max(0.0) * mitigation
 }
 
@@ -1602,6 +1608,7 @@ pub(super) fn mitigate_external_player_damage(
         attacker,
         raw_damage,
         attacker_was_charging,
+        defender.state != ADVANCING && defender.velocity_x.hypot(defender.velocity_z) < 0.25,
     )
 }
 
@@ -2082,6 +2089,49 @@ fn walk_flocked(
     walk(agent, goal_x, goal_z, speed, dt, road_network);
 }
 
+fn walk_order_route(
+    steering: &CombatSteeringGrid,
+    agent: &mut CombatAgent,
+    order: &crate::tables::MilitiaOrder,
+    speed: f64,
+    dt: f64,
+    road_network: Option<&RoadNetwork>,
+) {
+    if order.path_distance > 1e-6 {
+        if let Some(polyline) = deserialize_route_polyline(&order.route_polyline_json)
+            .filter(|polyline| polyline.len() >= 2)
+        {
+            let progress = route_progress_for_position(&polyline, agent.x, agent.z)
+                .clamp(0.0, order.path_distance);
+            let route_move = move_along_combat_route(
+                agent.x,
+                agent.z,
+                progress,
+                order.path_distance,
+                &polyline,
+                speed,
+                dt,
+                true,
+                road_network,
+            );
+            agent.x = route_move.x;
+            agent.z = route_move.z;
+            agent.route_progress = route_move.progress;
+            return;
+        }
+    }
+    walk_flocked(
+        steering,
+        agent,
+        order.destination_x,
+        order.destination_z,
+        speed,
+        dt,
+        road_network,
+    );
+    agent.route_progress = 0.0;
+}
+
 fn down_enemy(ctx: &ReducerContext, enemy: &mut CombatAgent, tick: u64) {
     if enemy.faction == RAIDER {
         down_external_raider(ctx, enemy, tick);
@@ -2458,7 +2508,10 @@ fn sync_member_ammunition_kit(agent: &mut CombatAgent, member: &MilitaryMember) 
     if stores.ammunition <= 0.0 && member.ammunition_capacity == 0 {
         return;
     }
-    stores.ammunition = if member.ammunition > 0 { 1.0 } else { 0.0 };
+    stores.ammunition = f64::from(recoverable_ammunition_bundles(
+        member.ammunition,
+        member.ammunition_capacity,
+    ));
     agent.carried_loot_json = serde_json::to_string(&stores).unwrap_or_default();
 }
 

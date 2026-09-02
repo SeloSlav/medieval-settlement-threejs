@@ -578,6 +578,8 @@ export const MilitiaOrder = __t.object("MilitiaOrder", {
   destinationZ: __t.f64(),
   targetCampId: __t.u64(),
   targetAgentId: __t.u64(),
+  pathDistance: __t.f64(),
+  routePolylineJson: __t.string(),
 });
 export type MilitiaOrder = __Infer<typeof MilitiaOrder>;
 

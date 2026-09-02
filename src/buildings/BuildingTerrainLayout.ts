@@ -179,8 +179,9 @@ export function sampleBuildingFootprintHeights(
   z: number,
   sampleNaturalHeight: (x: number, z: number) => number,
   roadNetwork?: RoadNetwork | null,
+  yaw?: number,
 ): number[] {
-  return sampleBuildingFootprintPoints(kind, x, z, roadNetwork)
+  return sampleBuildingFootprintPoints(kind, x, z, roadNetwork, yaw)
     .map((point) => sampleNaturalHeight(point.x, point.z));
 }
 
@@ -189,8 +190,9 @@ export function sampleBuildingFootprintPoints(
   x: number,
   z: number,
   roadNetwork?: RoadNetwork | null,
+  yaw?: number,
 ): Array<{ x: number; z: number }> {
-  const rotation = buildingPlacementYaw(kind, x, z, roadNetwork);
+  const rotation = yaw ?? buildingPlacementYaw(kind, x, z, roadNetwork);
   return sampleBuildingFootprintPointsAtYaw(kind, x, z, rotation);
 }
 

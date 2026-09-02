@@ -25,9 +25,10 @@ use crate::economy::{
     assign_building_labor as set_building_labor, available_building_labor,
     available_workplace_labor, building_commodity_cap, building_commodity_stock, building_cost,
     building_salvage_refund, construction_treasury_reservation, credit_treasury_commodity,
-    initial_construction_labor, preempt_flexible_labor_for_workplace_callup, spend_aggregate_ironwork,
-    spend_aggregate_roof_tiles, spend_aggregate_stone, spend_aggregate_timber, spend_treasury_gold,
-    total_ironwork, total_roof_tiles, total_stone, total_timber, CommodityKind,
+    initial_construction_labor, preempt_flexible_labor_for_workplace_callup,
+    spend_aggregate_ironwork, spend_aggregate_roof_tiles, spend_aggregate_stone,
+    spend_aggregate_timber, spend_treasury_gold, total_ironwork, total_roof_tiles, total_stone,
+    total_timber, CommodityKind,
 };
 use crate::extraction_policy::{
     mineworks_clay_commodity, mineworks_geological_commodity, mining_camp_clay_commodity,
@@ -60,9 +61,9 @@ use crate::monastery_estate_policy::{
 };
 use crate::placement_validation::{
     building_footprints_too_close, building_overlaps_residence_zone,
-    building_overlaps_resource_deposit, building_overlaps_road_surface,
+    building_overlaps_resource_deposit, building_overlaps_road_surface_at_yaw,
     building_site_contains_point_at_yaw, resolved_building_placement_yaw,
-    resolved_existing_building_yaw, zone_overlaps_building_footprint,
+    resolved_existing_building_yaw, zone_overlaps_building_footprint_at_yaw,
 };
 use crate::potter_firing_policy::{is_valid_potter_firing_policy, potter_fires_roof_tiles};
 use crate::processor_labor_policy::{
@@ -152,6 +153,7 @@ fn is_too_close_to_buildings(
     x: f64,
     z: f64,
     road_network: Option<&crate::roads::RoadNetwork>,
+    yaw: f64,
 ) -> bool {
     for building in ctx.db.building().owner().filter(&owner) {
         let other_yaw = resolved_existing_building_yaw(road_network, &building);
@@ -159,6 +161,7 @@ fn is_too_close_to_buildings(
             kind,
             x,
             z,
+            yaw,
             &building.kind,
             building.x,
             building.z,
@@ -177,8 +180,8 @@ fn building_overlaps_farm_field(
     kind: &str,
     x: f64,
     z: f64,
+    yaw: f64,
 ) -> bool {
-    let network = load_owner_road_network(ctx, owner);
     ctx.db.farm_field().owner().filter(&owner).any(|field| {
         let polygon = [
             Point2 {
@@ -198,7 +201,7 @@ fn building_overlaps_farm_field(
                 z: field.corner_dz,
             },
         ];
-        zone_overlaps_building_footprint(&polygon, kind, x, z, network.as_ref())
+        zone_overlaps_building_footprint_at_yaw(&polygon, kind, x, z, yaw)
     })
 }
 
@@ -208,8 +211,8 @@ fn building_overlaps_pasture(
     kind: &str,
     x: f64,
     z: f64,
+    yaw: f64,
 ) -> bool {
-    let network = load_owner_road_network(ctx, owner);
     ctx.db.pasture().owner().filter(&owner).any(|pasture| {
         let polygon = [
             Point2 {
@@ -229,7 +232,7 @@ fn building_overlaps_pasture(
                 z: pasture.corner_dz,
             },
         ];
-        zone_overlaps_building_footprint(&polygon, kind, x, z, network.as_ref())
+        zone_overlaps_building_footprint_at_yaw(&polygon, kind, x, z, yaw)
     })
 }
 
@@ -387,11 +390,17 @@ fn founders_camp_gold_refund(
 }
 
 #[reducer]
-pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Result<(), String> {
+pub fn place_building(
+    ctx: &ReducerContext,
+    kind: String,
+    x: f64,
+    z: f64,
+    yaw: Option<f64>,
+) -> Result<(), String> {
     if kind == "remote_work_camp" {
         return Err("Overnight work camps have been removed.".to_string());
     }
-    place_building_internal(ctx, kind, x, z).map(|_| ())
+    place_building_internal(ctx, kind, x, z, yaw).map(|_| ())
 }
 
 fn building_overlaps_vineyard(
@@ -400,8 +409,8 @@ fn building_overlaps_vineyard(
     kind: &str,
     x: f64,
     z: f64,
+    yaw: f64,
 ) -> bool {
-    let network = load_owner_road_network(ctx, owner);
     ctx.db
         .vineyard_parcel()
         .owner()
@@ -425,7 +434,7 @@ fn building_overlaps_vineyard(
                     z: vineyard.corner_dz,
                 },
             ];
-            zone_overlaps_building_footprint(&polygon, kind, x, z, network.as_ref())
+            zone_overlaps_building_footprint_at_yaw(&polygon, kind, x, z, yaw)
         })
 }
 
@@ -434,7 +443,11 @@ pub(crate) fn place_building_internal(
     kind: String,
     x: f64,
     z: f64,
+    yaw: Option<f64>,
 ) -> Result<u64, String> {
+    if !x.is_finite() || !z.is_finite() || yaw.is_some_and(|value| !value.is_finite()) {
+        return Err("Building position and rotation must be finite.".into());
+    }
     let def = building_def_or_err(&kind)?;
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
@@ -453,12 +466,18 @@ pub(crate) fn place_building_internal(
         return Err("Place the founders' camp before building the settlement.".into());
     }
 
+    // Capture one orientation for validation, construction, and the final mesh.
+    let road_network = load_owner_road_network(ctx, owner);
+    let placement_yaw = yaw
+        .map(|angle| angle.sin().atan2(angle.cos()))
+        .unwrap_or_else(|| resolved_building_placement_yaw(road_network.as_ref(), &kind, x, z));
+
     let on_rich_stone = kind == "large_quarry" && has_rich_stone_at_center(ctx, x, z);
     let on_mineworks_deposit = kind == "mine" && has_mineworks_deposit_at_center(ctx, x, z);
 
     if !on_rich_stone
         && !on_mineworks_deposit
-        && building_overlaps_resource_deposit(ctx, owner, &kind, x, z)
+        && building_overlaps_resource_deposit(ctx, &kind, x, z, placement_yaw)
     {
         return Err("Cannot build over a physical resource deposit.".to_string());
     }
@@ -473,7 +492,7 @@ pub(crate) fn place_building_internal(
     // can exist in a fresh world: a generated physical resource deposit. Later
     // camps continue through the normal construction pipeline.
     if kind == "founders_camp" && !physical_founding_site_enabled {
-        crate::reducers::bootstrap::place_founding_camp(ctx, x, z)?;
+        crate::reducers::bootstrap::place_founding_camp(ctx, x, z, placement_yaw)?;
         return Ok(0);
     }
 
@@ -494,10 +513,6 @@ pub(crate) fn place_building_internal(
     // server's authoritative groundwater network is deliberately separate from
     // that visible mask, so it must never be used as an open-water proxy here.
 
-    // Parsing and indexing the serialized road graph is one of the more expensive
-    // placement checks. Reuse one snapshot for overlap, landmark, and carpenter checks.
-    let road_network = load_owner_road_network(ctx, owner);
-    let placement_yaw = resolved_building_placement_yaw(road_network.as_ref(), &kind, x, z);
     crate::settlements::ensure_owner_settlements(ctx, owner);
     let planned_settlement = if is_founders_camp_expansion {
         Some(crate::settlements::create_planned_settlement(
@@ -677,23 +692,22 @@ pub(crate) fn place_building_internal(
         }
     }
 
-    if building_overlaps_residence_zone(ctx, owner, &kind, x, z) {
+    if building_overlaps_residence_zone(ctx, owner, &kind, x, z, placement_yaw) {
         return Err("Cannot build inside a residence plot.".to_string());
     }
-    if building_overlaps_farm_field(ctx, owner, &kind, x, z) {
+    if building_overlaps_farm_field(ctx, owner, &kind, x, z, placement_yaw) {
         return Err("Cannot build inside cultivated farmland.".to_string());
     }
-    if building_overlaps_pasture(ctx, owner, &kind, x, z) {
+    if building_overlaps_pasture(ctx, owner, &kind, x, z, placement_yaw) {
         return Err("Cannot build inside a fenced pasture.".to_string());
     }
-    if building_overlaps_vineyard(ctx, owner, &kind, x, z) {
+    if building_overlaps_vineyard(ctx, owner, &kind, x, z, placement_yaw) {
         return Err("Cannot build inside a vineyard parcel.".to_string());
     }
 
-    if road_network
-        .as_ref()
-        .is_some_and(|network| building_overlaps_road_surface(network, &kind, x, z))
-    {
+    if road_network.as_ref().is_some_and(|network| {
+        building_overlaps_road_surface_at_yaw(network, &kind, x, z, placement_yaw)
+    }) {
         return Err("Cannot build on a road.".to_string());
     }
 
@@ -744,7 +758,15 @@ pub(crate) fn place_building_internal(
         return Err("No fish shoal within work range.".to_string());
     }
 
-    if is_too_close_to_buildings(ctx, owner, &kind, x, z, road_network.as_ref()) {
+    if is_too_close_to_buildings(
+        ctx,
+        owner,
+        &kind,
+        x,
+        z,
+        road_network.as_ref(),
+        placement_yaw,
+    ) {
         return Err("Too close to another building.".to_string());
     }
 

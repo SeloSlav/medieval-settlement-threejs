@@ -13,7 +13,6 @@ import {
 } from '../src/ui/constructionDockToggle.ts';
 import { selectProjectedRaidAttentionTarget } from '../src/ui/SettlementHud.ts';
 import {
-  armedGuardCount,
   computeGuardhouseMusterPlan,
   computeRefugeShelterPlan,
   countHouseholdsShelteredByPalisadedRefuge,
@@ -27,13 +26,8 @@ import {
   FRONTIER_SECURITY_UPDATE_INTERVAL_TICKS,
   frontierDefenseFireSignature,
   frontierThreatLabel,
-  getGuardhouseMusterState,
-  guardhouseFoodReserveLabel,
-  guardhouseFoodRunwayDays,
-  guardhouseFoodTarget,
   guardhouseMusterEfficiency,
   guardhouseMusterResponseDistance,
-  guardhouseMusterResponseBand,
   isFrontierAlertActive,
   isFrontierRaidSeason,
   isPalisadedRefugeRallyActive,
@@ -43,14 +37,8 @@ import {
   projectedRaidArsonChance,
   projectedRaidPartySize,
   raidTargetCanShelter,
-  normalizeGuardhouseFoodReserve,
-  selectCriticalGuardhouseFoodTarget,
   selectGuardhouseMusterWatchIndex,
   watchtowerEffectiveRadius,
-  GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
-  GUARDHOUSE_FOOD_RESERVE_DEEP,
-  GUARDHOUSE_FOOD_RESERVE_LEAN,
-  GUARDHOUSE_FOOD_RESERVE_STANDARD,
   WATCH_COVERAGE_CELL_SIZE,
   type SettlementSecurityState,
 } from '../src/security/frontierSecurity.ts';
@@ -283,7 +271,6 @@ assert.deepEqual(
   }),
   { ok: true },
 );
-assert.equal(GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS, 3);
 assert.equal(WATCH_COVERAGE_CELL_SIZE, 128);
 assert.equal(FRONTIER_SECURITY_UPDATE_INTERVAL_TICKS, 300);
 assert.equal(isFrontierRaidSeason(3), false);
@@ -328,9 +315,6 @@ assert.equal(
 assert.equal(guardhouseMusterEfficiency(190, SPRING_RAIN_ROAD_SPEED_MULTIPLIER), 1);
 assert.ok(guardhouseMusterEfficiency(240, SPRING_RAIN_ROAD_SPEED_MULTIPLIER) < 1);
 assert.equal(guardhouseMusterEfficiency(null, SPRING_RAIN_ROAD_SPEED_MULTIPLIER), 0.4);
-assert.equal(guardhouseMusterResponseBand(1), 'full');
-assert.equal(guardhouseMusterResponseBand(0.825), 'delayed');
-assert.equal(guardhouseMusterResponseBand(0.65), 'weak');
 assert.equal(normalizeGuardhouseMusterWatchtowerId(undefined), null);
 assert.equal(normalizeGuardhouseMusterWatchtowerId('0'), null);
 assert.equal(normalizeGuardhouseMusterWatchtowerId(' 42 '), '42');
@@ -369,163 +353,32 @@ const guardhouse = {
   actionCooldown: 1,
   polearms: 4,
 };
-assert.equal(armedGuardCount(6, 2.9), 2);
-assert.equal(guardhouseFoodTarget(6, 0), 0);
-assert.equal(guardhouseFoodTarget(6, 2.9), 12);
-assert.equal(guardhouseFoodTarget(6, 6), 36);
-assert.equal(
-  guardhouseFoodTarget(6, 6, GUARDHOUSE_FOOD_RESERVE_LEAN),
-  18,
-);
-assert.equal(
-  guardhouseFoodTarget(6, 6, GUARDHOUSE_FOOD_RESERVE_DEEP),
-  72,
-);
-assert.equal(normalizeGuardhouseFoodReserve(undefined), GUARDHOUSE_FOOD_RESERVE_STANDARD);
-assert.equal(normalizeGuardhouseFoodReserve(5), GUARDHOUSE_FOOD_RESERVE_STANDARD);
-assert.equal(guardhouseFoodReserveLabel(GUARDHOUSE_FOOD_RESERVE_LEAN), 'Lean');
-assert.equal(guardhouseFoodReserveLabel(GUARDHOUSE_FOOD_RESERVE_DEEP), 'Deep');
-assert.ok(Math.abs(guardhouseFoodRunwayDays(6, 6, 8.1) - 3) < 1e-9);
-assert.equal(guardhouseFoodRunwayDays(6, 0, 0), Infinity);
-const emptyFarCompany = {
-  ...building('empty-far-company', 'guardhouse', 80, 0, 6),
-  polearms: 6,
-  ryeBread: 0,
-};
-const lowNearCompany = {
-  ...building('low-near-company', 'guardhouse', 10, 0, 6),
-  polearms: 6,
-  ryeBread: 1.35,
-};
-assert.equal(
-  selectCriticalGuardhouseFoodTarget(
-    [lowNearCompany, emptyFarCompany],
-    'central-granary',
-    (target) => target.x,
-  )?.target.id,
-  emptyFarCompany.id,
-  'the lowest guard-food runway should beat the shorter route',
-);
-const equalNearCompany = { ...lowNearCompany, id: 'equal-near', x: 8 };
-const equalFarCompany = { ...lowNearCompany, id: 'equal-far', x: 40 };
-assert.equal(
-  selectCriticalGuardhouseFoodTarget(
-    [equalFarCompany, equalNearCompany],
-    'central-granary',
-    (target) => target.x,
-  )?.target.id,
-  equalNearCompany.id,
-  'equal guard-food runway should prefer the shorter road route',
-);
-assert.equal(
-  selectCriticalGuardhouseFoodTarget(
-    [emptyFarCompany, lowNearCompany],
-    'central-granary',
-    (target) => target.x,
-    (target) => target.id === emptyFarCompany.id,
-  )?.target.id,
-  lowNearCompany.id,
-  'multiple granaries must skip a company with food already inbound',
-);
-assert.equal(
-  selectCriticalGuardhouseFoodTarget(
-    [{ ...emptyFarCompany, polearms: 0 }],
-    'central-granary',
-    (target) => target.x,
-  ),
-  null,
-  'unarmed companies must not warehouse food they cannot consume',
-);
-const deepCriticalCompany = {
-  ...emptyFarCompany,
-  id: 'deep-critical-company',
-  ryeBread: 1.35,
-  guardhouseFoodReserve: GUARDHOUSE_FOOD_RESERVE_DEEP,
-};
-assert.equal(
-  selectCriticalGuardhouseFoodTarget(
-    [deepCriticalCompany],
-    'central-granary',
-    (target) => target.x,
-  )?.desiredStock,
-  72,
-  'the selected reserve depth must change the authoritative destination fill ceiling',
-);
 musterState.buildings.set(musterTower.id, musterTower);
 musterState.buildings.set(guardhouse.id, guardhouse);
-const linkedMuster = getGuardhouseMusterState(
-  guardhouse,
-  musterState,
-  (_ax, _az, bx) => bx === musterTower.x ? 480 : null,
-);
-assert.equal(linkedMuster.staffedTowers, 1);
-assert.equal(linkedMuster.routeDistance, 480);
-assert.equal(linkedMuster.linkedTowerId, musterTower.id);
-assert.equal(linkedMuster.efficiency, 0.825);
-assert.equal(linkedMuster.rawReady, 4);
-assert.equal(linkedMuster.effectiveReady, 3.3);
+const musterRoads = new RoadNetwork();
+musterRoads.addRoadPath([new THREE.Vector3(0, 0, 0), new THREE.Vector3(400, 0, 0)]);
 assert.equal(
-  getGuardhouseMusterState(
-    guardhouse,
-    musterState,
-    () => {
-      throw new Error('precomputed watch routes should avoid another path solve');
-    },
-    1,
-    new Map([[musterTower.id, 480]]),
-  ).linkedTowerId,
-  musterTower.id,
-);
-const wetLinkedMuster = getGuardhouseMusterState(
-  guardhouse,
-  musterState,
-  (_ax, _az, bx) => bx === musterTower.x ? 480 : null,
-  SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
-);
-assert.equal(wetLinkedMuster.roadSpeedMultiplier, SPRING_RAIN_ROAD_SPEED_MULTIPLIER);
-assert.ok(
-  Math.abs(
-    (wetLinkedMuster.responseDistance ?? 0)
-      - 480 / SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
-  ) < 1e-9,
-);
-assert.ok(wetLinkedMuster.effectiveReady < linkedMuster.effectiveReady);
-const unlinkedMuster = getGuardhouseMusterState(guardhouse, musterState, () => null);
-assert.equal(unlinkedMuster.linkedTowerId, null);
-assert.equal(
-  unlinkedMuster.effectiveReady,
+  computeGuardhouseMusterPlan(musterState, musterRoads).linkedGuardhouses,
   0,
-  'an unlinked company must not reinforce a watch district on another road branch',
+  'labor and loose polearms must not create an abstract company',
 );
+const realMusterCompany = militaryCompany('muster-ranks', guardhouse.id, 4);
 assert.equal(
-  unlinkedMuster.emergencyEfficiency,
-  0.4,
-  'an unlinked company should retain the established local contact-response efficiency',
-);
-assert.equal(
-  unlinkedMuster.emergencyReady,
-  1.6,
-  'armed guards must remain a visible physical reserve even without early warning',
+  computeGuardhouseMusterPlan(musterState, musterRoads, 1, [realMusterCompany])
+    .assignmentsByGuardhouse.get(guardhouse.id)?.rawReady,
+  4,
+  'only living recruited company members contribute defense readiness',
 );
 musterState.fireIncidents.set('muster-watch-fire', fire('muster-watch-fire', musterTower.id));
-const watchFireMuster = getGuardhouseMusterState(
-  guardhouse,
-  musterState,
-  () => 480,
+assert.equal(
+  computeGuardhouseMusterPlan(musterState, musterRoads, 1, [realMusterCompany]).staffedTowers,
+  0,
 );
-assert.equal(watchFireMuster.staffedTowers, 0);
-assert.equal(watchFireMuster.linkedTowerId, null);
-assert.equal(watchFireMuster.effectiveReady, 0);
 musterState.fireIncidents.set('company-fire', fire('company-fire', guardhouse.id));
-const companyFireMuster = getGuardhouseMusterState(
-  guardhouse,
-  musterState,
-  () => 480,
+assert.equal(
+  computeGuardhouseMusterPlan(musterState, musterRoads, 1, [realMusterCompany]).linkedGuardhouses,
+  0,
 );
-assert.equal(companyFireMuster.fireDisabled, true);
-assert.equal(companyFireMuster.rawReady, 0);
-assert.equal(companyFireMuster.effectiveReady, 0);
-assert.equal(companyFireMuster.emergencyReady, 0);
 assert.equal(
   frontierDefenseFireSignature(musterState),
   `guardhouse:${guardhouse.id}|watchtower:${musterTower.id}`,
@@ -776,15 +629,6 @@ assert.equal(
   earlierTieWatch.id,
   'equal road-distance watch claims must use stable tower identity',
 );
-assert.equal(
-  getGuardhouseMusterState(
-    tiedCompany,
-    tiedMusterState,
-    () => 50,
-  ).linkedTowerId,
-  earlierTieWatch.id,
-  'the selected-company inspector must show the same stable tied watch',
-);
 const orderedTieCompany = {
   ...tiedCompany,
   guardhouseMusterWatchtowerId: laterTieWatch.id,
@@ -800,15 +644,6 @@ assert.equal(
   laterTieWatch.id,
   'a persisted muster order must override automatic nearest/stable selection',
 );
-assert.equal(
-  getGuardhouseMusterState(
-    orderedTieCompany,
-    tiedMusterState,
-    () => 50,
-  ).linkedTowerId,
-  laterTieWatch.id,
-  'the guardhouse inspector must honor the same persisted post order',
-);
 tiedMusterState.buildings.set(laterTieWatch.id, {
   ...laterTieWatch,
   assignedLabor: 0,
@@ -822,14 +657,6 @@ assert.equal(
   ).assignmentsByGuardhouse.has(orderedTieCompany.id),
   false,
   'an unstaffed ordered post must leave the company waiting rather than moving to the active watch',
-);
-assert.equal(
-  getGuardhouseMusterState(
-    orderedTieCompany,
-    tiedMusterState,
-    () => 50,
-  ).linkedTowerId,
-  null,
 );
 
 const refugeProjectionState = emptyGameState();
@@ -1385,12 +1212,10 @@ assert.ok(
   deploymentRoads.getTopologyRevision() > initialRoadRevision,
   'frontier route overlays need an inexpensive topology revision for cache invalidation',
 );
-let deploymentRoadSpeedMultiplier = 1;
 const deploymentMarkers = new BuildingMarkers({
   terrain: { getHeightAt: () => 4 } as never,
   parent: deploymentParent,
   getRoadNetwork: () => deploymentRoads,
-  getRoadConditionSpeedMultiplier: () => deploymentRoadSpeedMultiplier,
 });
 const deploymentState = emptyGameState();
 const deploymentTower = { ...tower, x: 0, z: 0 };
@@ -1417,24 +1242,8 @@ deploymentMarkers.setBuildingSelectionOverlays(
 deploymentMarkers.setBuildingSelectionOverlays(deploymentGuardhouse, deploymentState);
 const musterRoute = deploymentParent.getObjectByName(
   'Selected guardhouse muster route',
-) as THREE.InstancedMesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>;
-assert.ok(musterRoute.visible, 'a linked guardhouse selection should trace its actual road muster');
-assert.ok(
-  musterRoute.count > 2 && musterRoute.count <= 512,
-  'the muster overlay needs a bounded set of world-space road dashes',
 );
-assert.equal(
-  musterRoute.material.color.getHex(),
-  0x9aca6f,
-  'a route at the dry full-muster limit should use the green response color',
-);
-deploymentRoadSpeedMultiplier = SPRING_RAIN_ROAD_SPEED_MULTIPLIER;
-deploymentMarkers.setBuildingSelectionOverlays(deploymentGuardhouse, deploymentState);
-assert.equal(
-  musterRoute.material.color.getHex(),
-  0xf0a63f,
-  'soft spring roads should turn the same limit route into an amber delay',
-);
+assert.equal(musterRoute, undefined, 'guardhouse selection must not show a retired abstract-guard route');
 const overlayCacheStarted = performance.now();
 for (let index = 0; index < 10_000; index += 1) {
   deploymentMarkers.setBuildingSelectionOverlays(deploymentGuardhouse, deploymentState);
@@ -1444,33 +1253,6 @@ assert.ok(
   overlayCacheElapsedMs < 250,
   `10,000 cached frontier overlay refreshes took ${overlayCacheElapsedMs.toFixed(1)} ms`,
 );
-deploymentState.fireIncidents.set(
-  'deployment-watch-fire',
-  fire('deployment-watch-fire', deploymentTower.id),
-);
-deploymentMarkers.setBuildingSelectionOverlays(deploymentGuardhouse, deploymentState);
-assert.equal(
-  musterRoute.visible,
-  false,
-  'a fire-disabled watch must invalidate a cached guardhouse muster route',
-);
-deploymentState.fireIncidents.clear();
-deploymentMarkers.setBuildingSelectionOverlays(deploymentGuardhouse, deploymentState);
-assert.equal(musterRoute.visible, true);
-deploymentState.fireIncidents.set(
-  'deployment-company-fire',
-  fire('deployment-company-fire', deploymentGuardhouse.id),
-);
-deploymentMarkers.setBuildingSelectionOverlays(deploymentGuardhouse, deploymentState);
-assert.equal(
-  musterRoute.visible,
-  false,
-  'a fire-disabled guardhouse must not display an operational muster route',
-);
-deploymentState.fireIncidents.clear();
-deploymentState.buildings.set(deploymentTower.id, { ...deploymentTower, assignedLabor: 0 });
-deploymentMarkers.setBuildingSelectionOverlays(deploymentGuardhouse, deploymentState);
-assert.equal(musterRoute.visible, false, 'an unstaffed watch must remove the muster route');
 deploymentMarkers.dispose();
 assert.equal(deploymentParent.children.length, 0);
 
@@ -1867,12 +1649,12 @@ assert.doesNotMatch(clientSecurity, /Watch bells scattered the raiders/);
 assert.match(frontierMarkers, /InstancedMesh/);
 assert.match(frontierMarkers, /RAID_TARGET_MARKER_THREAT_THRESHOLD/);
 assert.match(frontierMarkers, /MAX_RAID_TARGET_MARKERS\s*=\s*4/);
-assert.match(buildingMarkers, /Selected guardhouse muster route/);
+assert.doesNotMatch(buildingMarkers, /Selected guardhouse muster route/);
 assert.doesNotMatch(
   buildingMarkers,
   /Selected building extent|Selected building fire spread range/,
 );
-assert.match(buildingMarkers, /MAX_GUARDHOUSE_MUSTER_DASHES\s*=\s*512/);
+assert.doesNotMatch(buildingMarkers, /MAX_GUARDHOUSE_MUSTER_DASHES/);
 assert.match(resourceInspector, /onSelectionChange\?\.\(latest\)/);
 assert.match(app, /resourceInspector\?\.refreshSelection\(\)/);
 assert.match(
@@ -2781,24 +2563,12 @@ assert.match(townHallInspector, /Watch districts/);
 assert.match(townHallInspector, /weakest likely district/);
 assert.match(townHallInspector, /Last incursion/);
 const buildingSchema = readFileSync('server/src/tables.rs', 'utf8');
-assert.match(
-  buildingSchema,
-  /#\[default\(6u8\)\]\s+pub guardhouse_food_reserve: u8/,
-  'existing guardhouses must retain the former six-food-per-guard reserve',
-);
+assert.doesNotMatch(buildingSchema, /guardhouse_food_reserve|guardhouse_pay_priority/);
 const buildingReducers = readFileSync('server/src/reducers/buildings.rs', 'utf8');
-assert.match(
-  buildingReducers,
-  /set_guardhouse_food_reserve[\s\S]*is_valid_guardhouse_food_reserve[\s\S]*building\.guardhouse_food_reserve = reserve_per_guard/,
-  'ration depth must remain owner-validated and server authoritative',
-);
-assert.match(
+assert.doesNotMatch(buildingReducers, /set_guardhouse_food_reserve|set_guardhouse_pay_priority/);
+assert.doesNotMatch(
   readFileSync('src/generated/building_table.ts', 'utf8'),
-  /guardhouseFoodReserve: __t\.u8\(\)/,
-);
-assert.match(
-  readFileSync('src/generated/set_guardhouse_food_reserve_reducer.ts', 'utf8'),
-  /reservePerGuard: __t\.u8\(\)/,
+  /guardhouseFoodReserve|guardhousePayPriority/,
 );
 assert.doesNotMatch(villagerRenderer, /if \(kind === 'guardhouse'\)[\s\S]{0,120}return .*spear/);
 assert.match(villagerRenderer, /setFrontierAlert/);
@@ -3135,32 +2905,8 @@ assert.ok(
   `100,000-cart bounded target projection took ${cartProjectionElapsedMs.toFixed(1)} ms`,
 );
 
-const guardFoodCandidates = Array.from({ length: 100_000 }, (_, index) => ({
-  ...building(
-    `guard-${index}`,
-    'guardhouse',
-    100_000 - index,
-    0,
-    6,
-  ),
-  polearms: 6,
-  food: index === 99_999 ? 0 : 1.35,
-}));
-const guardFoodStarted = performance.now();
-const guardFoodTarget = selectCriticalGuardhouseFoodTarget(
-  guardFoodCandidates,
-  'central-granary',
-  (target) => target.x,
-);
-const guardFoodElapsedMs = performance.now() - guardFoodStarted;
-assert.equal(guardFoodTarget?.target.id, 'guard-99999');
-assert.ok(
-  guardFoodElapsedMs < 250,
-  `100,000-company food arbitration took ${guardFoodElapsedMs.toFixed(1)} ms`,
-);
-
 console.log(
-  `frontier security tests passed (${elapsedMs.toFixed(1)} ms for 10,000-site coverage; ${projectionElapsedMs.toFixed(1)} ms for 1,000-watch/1,000-refuge/100,000-site target projection; ${districtMusterElapsedMs.toFixed(1)} ms for 40-watch/10-company muster planning; ${districtProjectionElapsedMs.toFixed(1)} ms for cached 40-watch/10-company/10,000-holding district projection; ${shelterProjectionElapsedMs.toFixed(1)} ms for 1,000-watch/100,000-home refuge readout; ${refugeAssignmentElapsedMs.toFixed(1)} ms for 1,000-refuge/100,000-home capacity assignment; ${cachedRefugeProjectionElapsedMs.toFixed(1)} ms for cached 1,000-refuge/100,000-home target projection; ${cartProjectionElapsedMs.toFixed(1)} ms for 100,000-cart target projection; ${guardFoodElapsedMs.toFixed(1)} ms for 100,000-company food arbitration; ${overlayCacheElapsedMs.toFixed(1)} ms for 10,000 cached overlay refreshes)`,
+  `frontier security tests passed (${elapsedMs.toFixed(1)} ms coverage; ${projectionElapsedMs.toFixed(1)} ms target projection; ${districtMusterElapsedMs.toFixed(1)} ms real-company planning; ${districtProjectionElapsedMs.toFixed(1)} ms district projection; ${shelterProjectionElapsedMs.toFixed(1)} ms refuge readout; ${refugeAssignmentElapsedMs.toFixed(1)} ms refuge assignment; ${cachedRefugeProjectionElapsedMs.toFixed(1)} ms cached refuge projection; ${cartProjectionElapsedMs.toFixed(1)} ms cart projection; ${overlayCacheElapsedMs.toFixed(1)} ms selection refreshes)`,
 );
 
 function militaryCompany(

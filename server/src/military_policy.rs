@@ -796,6 +796,77 @@ pub fn shield_wall_damage_multiplier(kind: MilitaryKind, formation: u8) -> f64 {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct CompanyDefense {
+    pub kind: MilitaryKind,
+    pub member_seed: u64,
+    pub formation: u8,
+    pub stance: u8,
+    pub level: u32,
+    pub cohesion: f64,
+    pub stationary: bool,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct IncomingMilitaryAttack {
+    pub penetration: f64,
+    pub ranged: bool,
+    pub frontal: bool,
+    pub charging: bool,
+}
+
+/// Shared by company combat and Ottoman-authored attacks; formation promises
+/// must have the same effect regardless of which simulation owns the attacker.
+pub fn incoming_company_damage_multiplier(
+    defense: CompanyDefense,
+    attack: IncomingMilitaryAttack,
+) -> f64 {
+    let profile = member_combat_profile(defense.kind, defense.member_seed);
+    let armor = (profile.armor - attack.penetration).max(0.0);
+    let armor_multiplier = 1.0 / (1.0 + armor * 0.055);
+    let shield_multiplier = if attack.frontal {
+        (1.0 - profile.shield * 0.022).clamp(0.64, 1.0)
+    } else {
+        1.0
+    };
+    let brace_multiplier = if defense.formation == MILITARY_FORMATION_BRACE
+        && defense.kind.can_brace()
+        && defense.stationary
+        && attack.charging
+        && attack.frontal
+    {
+        (1.0 - profile.bracing * 0.34).clamp(0.62, 1.0)
+    } else {
+        1.0
+    };
+    let wall_multiplier = if attack.frontal {
+        shield_wall_damage_multiplier(defense.kind, defense.formation)
+    } else {
+        1.0
+    };
+    let spacing_multiplier = if defense.formation == MILITARY_FORMATION_LOOSE {
+        if attack.ranged { 0.82 } else { 1.12 }
+    } else {
+        1.0
+    };
+    military_stats(defense.kind).damage_taken_multiplier
+        * veteran_damage_taken_multiplier(defense.level)
+        * stance_damage_taken_multiplier(defense.stance, attack.ranged)
+        * (1.08 - defense.cohesion.clamp(0.0, 1.0) * 0.18)
+        * armor_multiplier
+        * shield_multiplier
+        * brace_multiplier
+        * wall_multiplier
+        * spacing_multiplier
+        * if attack.frontal { 1.0 } else { 1.18 }
+}
+
+/// Partial quivers remain usable by the soldier, but are not an intact whole
+/// commodity bundle that can be recovered and issued again at full capacity.
+pub fn recoverable_ammunition_bundles(rounds: u32, capacity: u32) -> u32 {
+    u32::from(capacity > 0 && rounds >= capacity)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -968,6 +1039,76 @@ mod tests {
     fn directional_defense_distinguishes_front_and_rear() {
         assert!(is_front_attack(0.0, 1.0, 10.0, 10.0, 10.0, 14.0));
         assert!(!is_front_attack(0.0, 1.0, 10.0, 10.0, 10.0, 6.0));
+    }
+
+    #[test]
+    fn bracing_requires_a_stationary_frontal_interception_including_polearms() {
+        let defense = CompanyDefense {
+            kind: MilitaryKind::Polearms,
+            member_seed: 42,
+            formation: MILITARY_FORMATION_BRACE,
+            stance: MILITARY_STANCE_BALANCED,
+            level: 1,
+            cohesion: 1.0,
+            stationary: true,
+        };
+        let attack = IncomingMilitaryAttack {
+            penetration: 3.0,
+            ranged: false,
+            frontal: true,
+            charging: true,
+        };
+        let braced = incoming_company_damage_multiplier(defense, attack);
+        let moving = incoming_company_damage_multiplier(
+            CompanyDefense { stationary: false, ..defense }, attack,
+        );
+        let ordinary = incoming_company_damage_multiplier(
+            defense, IncomingMilitaryAttack { charging: false, ..attack },
+        );
+        let rear = incoming_company_damage_multiplier(
+            defense, IncomingMilitaryAttack { frontal: false, ..attack },
+        );
+        assert!(braced < moving);
+        assert_eq!(moving, ordinary);
+        assert!(rear > ordinary);
+        assert!(military_formation_available(MilitaryKind::Polearms, MILITARY_FORMATION_BRACE));
+    }
+
+    #[test]
+    fn shield_wall_and_loose_order_have_directional_tradeoffs() {
+        let defense = CompanyDefense {
+            kind: MilitaryKind::Spearmen,
+            member_seed: 7,
+            formation: MILITARY_FORMATION_SHIELD_WALL,
+            stance: MILITARY_STANCE_BALANCED,
+            level: 1,
+            cohesion: 1.0,
+            stationary: true,
+        };
+        let attack = IncomingMilitaryAttack {
+            penetration: 2.0, ranged: true, frontal: true, charging: false,
+        };
+        let line = CompanyDefense { formation: MILITARY_FORMATION_LINE, ..defense };
+        let rear = IncomingMilitaryAttack { frontal: false, ..attack };
+        assert!(incoming_company_damage_multiplier(defense, attack)
+            < incoming_company_damage_multiplier(line, attack));
+        assert_eq!(incoming_company_damage_multiplier(defense, rear),
+            incoming_company_damage_multiplier(line, rear));
+        let loose = CompanyDefense { formation: MILITARY_FORMATION_LOOSE, ..defense };
+        assert!(incoming_company_damage_multiplier(loose, attack)
+            < incoming_company_damage_multiplier(line, attack));
+        let melee = IncomingMilitaryAttack { ranged: false, ..attack };
+        assert!(incoming_company_damage_multiplier(loose, melee)
+            > incoming_company_damage_multiplier(line, melee));
+    }
+
+    #[test]
+    fn spent_or_partial_ammunition_cannot_be_recovered_as_a_fresh_bundle() {
+        assert_eq!(recoverable_ammunition_bundles(24, 24), 1);
+        assert_eq!(recoverable_ammunition_bundles(23, 24), 0);
+        assert_eq!(recoverable_ammunition_bundles(1, 24), 0);
+        assert_eq!(recoverable_ammunition_bundles(0, 24), 0);
+        assert_eq!(recoverable_ammunition_bundles(0, 0), 0);
     }
 
     #[test]

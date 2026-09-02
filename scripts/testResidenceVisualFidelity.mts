@@ -20,6 +20,7 @@ const appearanceSweep = Array.from({ length: 64 }, (_, seed) => pickResidenceApp
 assert.equal(new Set(appearanceSweep.map((appearance) => appearance.roofTone)).size, 3);
 assert.equal(new Set(appearanceSweep.map((appearance) => appearance.footprint)).size, 3);
 assert.equal(new Set(appearanceSweep.map((appearance) => appearance.tierThreeFeature)).size, 3);
+assert.equal(new Set(appearanceSweep.map((appearance) => appearance.tierTwoUpperFinish)).size, 2);
 assert.equal(new Set(appearanceSweep.map((appearance) => (
   JSON.stringify(appearance.tierOneWalls)
 ))).size, 5);
@@ -37,7 +38,7 @@ for (const seed of seeds) {
 
   assert.equal(residence.userData.residenceRoof, 'brown');
   assert.ok(
-    Number(residence.userData.residenceRoofPitchDegrees) >= 47,
+    Number(residence.userData.residenceRoofPitchDegrees) >= 47 - 1e-9,
     'tier-one cottages need a steep, wet-snow-shedding roof pitch',
   );
   assert.ok(
@@ -173,6 +174,13 @@ for (const tier of [1, 2, 3, 4] as const) {
       'the appearance seed remains deterministic independently of the tier roof contract',
     );
     const residence = createResidenceMesh(seed, tier);
+    if (tier === 1) {
+      assertTierOneWallVariation(residence, appearance.tierOneWalls);
+      assert.ok(
+        Number(residence.userData.residenceRoofPitchDegrees) >= 47 - 1e-9,
+        'even broad-footprint cottages must retain a steep weather roof',
+      );
+    }
     assertSideWindowOpeningClearance(residence, tier);
     assertJoinedSemanticResidenceRoof(residence, tier);
     assert.equal(
@@ -186,7 +194,7 @@ for (const tier of [1, 2, 3, 4] as const) {
       appearance.roofTone,
     );
     const expectedFieldMaterial = tier === 4
-        ? 'Shared building material: clayRed'
+        ? 'Shared building material: clayDark'
         : 'Shared building material: shingle';
     assert.deepEqual(
       new Set(collectRoofFieldSurfaces(residence).map(materialName)),
@@ -218,6 +226,16 @@ for (const tier of [1, 2, 3, 4] as const) {
           : shingleTint(appearance.roofTone),
       );
     }
+    if (tier === 2) {
+      const upperWall = namedMesh(residence, 'Residence upper wall core');
+      assert.equal(residence.userData.residenceTierTwoUpperFinish, appearance.tierTwoUpperFinish);
+      if (appearance.tierTwoUpperFinish === 'boarded') {
+        assert.equal(materialName(upperWall), 'Shared building material: timberWeathered');
+        assertNamedPart(residence, 'Residence tier-two boarded upper-storey frame');
+      } else {
+        assert.match(materialName(upperWall), /plaster/);
+      }
+    }
     if (tier === 3) assertTierThreeFeature(residence, appearance.tierThreeFeature);
     if (tier === 4) {
       assert.equal(residence.userData.residenceTiledRoof, true);
@@ -233,7 +251,7 @@ assertResidenceCameraContract();
 assertBuildingMaterialLifecycle();
 
 console.log(
-  `residence visual-fidelity checks passed (${seeds.length} deterministic cottages, open apertures, split-softwood shingles, roof smoke, isolated 16:9 judge)`,
+  `residence visual-fidelity checks passed (64 seeds × 4 tiers, ${seeds.length} duplicate cottage checks, mixed wall plans, earthy roofs, distinct tier features, open apertures, roof smoke, isolated 16:9 judge)`,
 );
 
 function assertNamedPart(root: THREE.Object3D, name: string): void {
@@ -792,20 +810,38 @@ function shingleTint(tone: string): readonly [number, number, number] {
 }
 
 function firedClayTint(tone: string): readonly [number, number, number] {
-  if (tone === 'smoke-brown') return [0.66, 0.5, 0.43];
-  if (tone === 'mossed-brown') return [0.72, 0.57, 0.46];
-  return [0.78, 0.62, 0.52];
+  if (tone === 'smoke-brown') return [0.48, 0.3, 0.24];
+  if (tone === 'mossed-brown') return [0.54, 0.35, 0.23];
+  return [0.6, 0.38, 0.25];
 }
 
 function assertTierThreeFeature(root: THREE.Object3D, feature: string): void {
   if (feature === 'offset-dormer') {
     assertNamedPart(root, 'Residence tier-three offset roof dormer');
     assertNamedPart(root, 'Residence tier-three dormer wall mass');
+    const dormer = root.getObjectByName('Residence tier-three offset roof dormer')!;
+    assert.equal(dormer.userData.residenceDormerHost, 'side-roof-slope');
+    assert.equal(Math.abs(dormer.rotation.y), Math.PI * 0.5);
+    root.updateMatrixWorld(true);
+    const pane = namedMesh(dormer, 'Residence front window pane');
+    const paneCenter = pane.getWorldPosition(new THREE.Vector3());
+    const outward = new THREE.Vector3(Math.sign(dormer.position.x), 0, 0);
+    const ray = new THREE.Raycaster(
+      paneCenter.clone().addScaledVector(outward, 10),
+      outward.clone().negate(),
+    );
+    const hits = ray.intersectObjects([...collectRoofFieldSurfaces(root), pane], false);
+    assert.equal(hits[0]?.object, pane, 'the dormer window must stand clear of the main roof');
     return;
   }
   if (feature === 'covered-gallery') {
     assertNamedPart(root, 'Residence tier-three covered front gallery');
     assertNamedPart(root, 'Residence tier-three covered-gallery shingle roof');
+    assert.equal(
+      root.getObjectByName('Residence stone-portal porch roof'),
+      undefined,
+      'the full-width gallery replaces the small portal canopy instead of overlapping it',
+    );
     return;
   }
   assert.equal(feature, 'twin-annex');

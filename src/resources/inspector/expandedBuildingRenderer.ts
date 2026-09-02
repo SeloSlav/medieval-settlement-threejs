@@ -1186,8 +1186,8 @@ export function renderExpandedBuildingInspector(
       )
     : null;
   const institutionalFoodRows = building.kind === 'smokehouse'
-    ? `<li><span>Fresh-food priority</span><span>Producer-owned carts protect local Marketplace reserves, then serve a critical company before this working batch</span></li>
-      <li><span>Shared arbitration</span><span>Smokehouse batch → routine company reserve → enabled granary intake · lowest runway, road length, and stable order break ties</span></li>`
+    ? `<li><span>Fresh-food priority</span><span>Producer-owned carts protect local Marketplace reserves, then supply this working batch</span></li>
+      <li><span>Shared arbitration</span><span>Smokehouse batch → enabled granary intake</span></li>`
     : routineFreshFoodSource
       ? `<li><span>Local food reserve</span><span>${Math.round(edibleFoodStock(building) - routineFreshFoodSurplus)} protected · ${Math.round(routineFreshFoodSurplus)} central surplus</span></li>
         <li><span>Next surplus cart</span><span>${routineFreshFoodDispatch

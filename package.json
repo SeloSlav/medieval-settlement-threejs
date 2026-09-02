@@ -219,6 +219,7 @@
     "test:first-person-collision-performance": "node --experimental-strip-types scripts/testFirstPersonCollisionPerformance.mts",
     "test:client-sync": "npx tsx scripts/testClientSyncScheduling.mts",
     "test:spacetime-schema-parity": "node --experimental-strip-types scripts/testSpacetimeSchemaParity.mts",
+    "test:building-rotation": "node --experimental-strip-types scripts/testBuildingRotation.mts",
     "test:placement-regressions": "node --experimental-strip-types scripts/testPlacementRegressions.mts",
     "test:road-building-connections": "npx tsx scripts/testRoadBuildingConnections.mts",
     "test:road-boundary-snapping": "npx tsx scripts/testRoadBoundarySnapping.mts",

@@ -3485,9 +3485,9 @@ assert.ok(
 );
 assert.ok(
   batchedHamlet.group.children.some((object) => (
-    (object as THREE.Mesh).material?.name === 'Shared building material: thatch'
+    (object as THREE.Mesh).material?.name === 'Shared building material: shingle'
   )),
-  'the batched 17-home Tier-1 fabric must retain its bundled-thatch material',
+  'the batched 17-home Tier-1 fabric must retain its earth-toned split-shingle material',
 );
 assert.ok(
   batchedHamlet.group.children.every((object) => (

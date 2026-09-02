@@ -136,7 +136,7 @@ Residence tiers are structural, not cosmetic:
 - Tier 1 is a compact single-storey-plus-attic cottage for three people. It must read lower, narrower, and humbler than the established two-storey family.
 - Tier 1 wall faces are assembled from bounded local presets: earthy daub, exposed fieldstone, and weathered timber. Each cottage uses all three systems, only one or two full walls may be stone, and the gable infill remains timber so the result reads as repaired and accumulated rather than uniformly designed.
 - Tier 1 through Tier 3 wooden roofs use a restrained seeded family of earth-brown, smoke-brown, and mossed-brown shingles. Avoid broad silver-white or cold grey shingle fields.
-- Tier 2 is the canonical compact two-storey Gorski house for six people, using the three established archetypes.
+- Tier 2 is the canonical compact two-storey Gorski house for six people, using the three established archetypes. Its upper storey is usually weathered boarding and occasionally limewashed, but the gables remain timber; tier 3 upgrades to a fuller limewashed upper mass.
 - Tier 3 is a wider, taller prosperous house for ten people. It gains a working annex plus one seeded prosperity feature: an offset roof dormer, a covered front gallery, or a second working annex.
 - Tier 4 retains fired clay tile, but the orange is smoke-darkened and dirt-muted rather than clean or saturated. Its cross-gable may be centered or modestly offset.
 - Paint, roof, trim, archetype, chimney, and firewood variants persist across tiers because the deterministic residence id seed does not change on upgrade.
@@ -151,7 +151,9 @@ Residence tiers are structural, not cosmetic:
 
 Narrow and wide parcels should affect the architecture, not merely stretch the same mesh.
 
-The current procedural residence family in `ResidenceMarkers.ts` and `residenceAppearance.ts` establishes three canonical archetypes: `stone_portal`, `timber_balcony`, and `working_lean_to`. Preserve this level of structural variation when extending the family. All three use an exposed-stone lower storey, a limewashed upper storey, steep weather roof, deterministic paint/roof/trim choices, and the state-driven firewood pile.
+The current procedural residence family in `ResidenceMarkers.ts` and `residenceAppearance.ts` establishes three canonical archetypes: `stone_portal`, `timber_balcony`, and `working_lean_to`. Preserve this level of structural variation when extending the family. Above tier 1, all three use an exposed-stone lower storey and a boarded or limewashed upper storey according to tier, with steep weather roofs, deterministic paint/roof/trim choices, and the state-driven firewood pile.
+
+Inspect the upgrade progression at `/building-lineup.html?compare=residences`. Add `residence-tier=1` (through `4`) for fixed seeds 6, 8, 9, and 17. `debug=materials` isolates wall/roof ownership; `debug=massing` removes textures, tint, and emissive fill. The same seeds support `camera=near|design|far`, `presentation=no-post`, `lighting=neutral-proof`, and a numeric `yaw` in radians. Keep these inspections deterministic and keep geometry tint batchable on the shared material library.
 
 The current non-residential family is also canonical. Its dedicated meshes live in `src/buildings/meshes/`: `industryBuildingMeshes.ts`, `serviceBuildingMeshes.ts`, `stoneQuarryMesh.ts`, `marketplaceMesh.ts`, `chapelMesh.ts`, and `expandedBuildingMeshes.ts`. Shared enclosed-building construction belongs in `buildingMeshKit.ts`; do not regress to one generic hut with scale and prop substitutions.
 
