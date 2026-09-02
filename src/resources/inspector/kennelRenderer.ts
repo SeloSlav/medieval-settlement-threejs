@@ -97,7 +97,7 @@ export function renderKennelInspector(
     supplementalPanelHtml: `<div class="inspector-action-panel stable-ox-panel" data-inspector-panel-title="Dog team">
       <p class="resource-inspector-note">Dogs persist as individually selectable guard agents with health, patrol routes, and combat behavior.</p>
       <ol class="stable-ox-slots" aria-label="Kennel dog bays">${slots}</ol>
-      <p class="inspector-action-panel__hint">${unavailable} Treasury: ${renderResourceAmount('gold', treasuryGold, { compact: true })}.</p>
+      <p class="inspector-action-panel__hint">${unavailable} Civic treasury: ${renderResourceAmount('gold', treasuryGold, { compact: true })}.</p>
     </div>`,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),

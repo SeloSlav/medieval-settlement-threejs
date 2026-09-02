@@ -389,7 +389,7 @@ export function evaluateResidenceUpgrade(
   const requiredResources = [
     ['timber', 'Timber', totals.timber, definition.timber],
     ['stone', 'Stone', totals.stone, definition.stone],
-    ['gold', physicalEconomy ? 'Treasury gold' : 'Gold', totals.gold, funding.civicGoldRequired],
+    ['gold', physicalEconomy ? 'Civic treasury gold' : 'Gold', totals.gold, funding.civicGoldRequired],
     ['roofTiles', 'Fired roof tiles', totals.roofTiles, definition.roofTiles],
   ] as const;
   const resources = requiredResources.filter(([, , , required]) => required > 0).map(

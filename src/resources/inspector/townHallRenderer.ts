@@ -2419,7 +2419,7 @@ export function renderTownHallInspector(
       ${buildingCostRows(getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Role</span><span>Settlement government, taxation, and economic ledger</span></li>
-      <li><span>Treasury chest</span><span>${building.gold.toFixed(0)} gold secured here${inboundTreasuryGold > 1e-6 ? ` · ${inboundTreasuryGold.toFixed(0)} incoming by handcart` : ''}</span></li>
+      <li><span>Civic treasury seat</span><span>${building.gold.toFixed(0)} public gold secured in the settlement's permanent lockbox${inboundTreasuryGold > 1e-6 ? ` · ${inboundTreasuryGold.toFixed(0)} incoming by handcart` : ''}</span></li>
       <li><span>Population</span><span>${context.populationStats.total}</span></li>
       <li><span>Pantry safeguard</span><span>${pantrySafeguard.label} · ${pantrySafeguard.hint}</span></li>
       ${renderSettlementWelfareRows(provisioning.welfare)}

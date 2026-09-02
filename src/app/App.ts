@@ -30,6 +30,7 @@ import {
   computeInTransitResourceTotals,
   computeGoldAwaitingCollection,
   computeGuardhousePayrollGold,
+  computePrivateHouseholdWealth,
   computePopulationStats,
   computeResourceTotals,
   computeStoredResourceTotals,
@@ -1925,7 +1926,7 @@ export class App {
         : {
             title: 'Bandit camp destroyed',
             detail: amount > 0
-              ? `${goodsSummary} credited directly to settlement stores from the lord's bounty, seized camp provisions, and any stolen goods recovered there. No collection expedition is needed.`
+              ? `${goodsSummary} credited directly to settlement stores from the Crown bounty, seized camp provisions, and any stolen goods recovered there. No collection expedition is needed.`
               : 'The camp was destroyed, but no stolen goods remained to recover.',
             tone: 'settled' as const,
             toast: amount > 0
@@ -2040,7 +2041,7 @@ export class App {
         kind: 'military',
         tone: 'notice',
         title: `${militaryCompanyDisplayName(company)} have departed`,
-        detail: `The final surviving contractor of ${militaryCompanyDisplayName(company)} has crossed the map edge. The company no longer draws daily Treasury pay.`,
+        detail: `The final surviving contractor of ${militaryCompanyDisplayName(company)} has crossed the map edge. The company no longer draws daily civic treasury pay.`,
         timeLabel: formatSettlementClock(snapshot.simTick),
       });
       this.toastManager?.show('A mercenary company has left the region.', {
@@ -2149,6 +2150,7 @@ export class App {
       computeInTransitResourceTotals(this.gameState.deliveryTrips.values()),
       computeGoldAwaitingCollection(presentationState.buildings.values()),
       computeGuardhousePayrollGold(presentationState.buildings.values()),
+      computePrivateHouseholdWealth(presentationState.residences.values()),
     );
     this.resourceInspector.refreshSelection();
   }

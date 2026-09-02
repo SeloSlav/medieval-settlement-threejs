@@ -26,7 +26,7 @@ try {
     'armor breakers',
     'crossbows remain the better armored-target answer',
     'seven quiet days',
-    'one Treasury gold per surviving man each day',
+    'one civic treasury gold per surviving man each day',
   ]) assert.ok(copy.includes(phrase), `missing counter guidance: ${phrase}`);
   const backgrounds = await page.locator('.inspector-action-icon').evaluateAll((icons) => (
     icons.map((icon) => getComputedStyle(icon).backgroundImage)

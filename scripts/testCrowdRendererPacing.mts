@@ -3,8 +3,10 @@ import { performance } from 'node:perf_hooks';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import {
+  combatAnimationCadenceScale,
   restartPooledVillagerActions,
   SettlementCrowdRenderer,
+  villagerAnimationStartTime,
   type CrowdRenderAgent,
   type VillagerRenderMode,
 } from '../src/settlement/SettlementCrowdRenderer.ts';
@@ -111,21 +113,37 @@ const pooledActions = Object.fromEntries(actionModes.map((mode) => [
 pooledActions.idle.play();
 animationMixer.update(0.4);
 const appearanceSeed = 431;
+const animationRateScale = combatAnimationCadenceScale(appearanceSeed);
 restartPooledVillagerActions(
   animationMixer,
   pooledActions,
   'walk',
   appearanceSeed,
   1.8,
+  animationRateScale,
 );
-const expectedWalkPhase = appearanceSeed % 997 / 997 * 2;
+const expectedWalkPhase = villagerAnimationStartTime('walk', appearanceSeed, 2);
 assert.equal(pooledActions.idle.isRunning(), false);
 assert.equal(pooledActions.walk.isRunning(), true);
 assert.ok(Math.abs(pooledActions.walk.time - expectedWalkPhase) < 1e-12);
 assert.ok(Math.abs(
   pooledActions.walk.getEffectiveTimeScale()
-    - locomotionAnimationTimeScale('walk', 1.8),
+    - locomotionAnimationTimeScale('walk', 1.8) * animationRateScale,
 ) < 1e-12);
+assert.equal(villagerAnimationStartTime('fall', appearanceSeed, 2), 0);
+assert.notEqual(
+  villagerAnimationStartTime('idle', appearanceSeed, 2),
+  villagerAnimationStartTime('walk', appearanceSeed, 2),
+  'each looping semantic clip should have an independently salted phase',
+);
+const combatCadences = Array.from(
+  { length: 64 },
+  (_, index) => combatAnimationCadenceScale(index * 2_654_435_761 >>> 0),
+);
+assert.ok(combatCadences.every((cadence) => cadence >= 0.96 && cadence <= 1.04));
+assert.ok(new Set(combatCadences.map((cadence) => cadence.toFixed(5))).size > 56);
+assert.match(source, /this\.transition\(visual, agent\.mode, nextActionMode, agent\.appearanceSeed\)/);
+assert.match(source, /nextAction\.time = villagerAnimationStartTime/);
 
 console.log(
   `Exact crowd selection verified: ${agents.length} authored rigs at near and strategic zoom (${elapsedMs.toFixed(1)}ms selection benchmark).`,

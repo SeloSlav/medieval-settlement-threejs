@@ -48,6 +48,7 @@ import {
   computeInTransitResourceTotals,
   computeGoldAwaitingCollection,
   computeGuardhousePayrollGold,
+  computePrivateHouseholdWealth,
   computePopulationStats,
   computeResourceTotals,
   computeStoredResourceTotals,
@@ -1414,6 +1415,7 @@ export async function bootstrapAppSession(
     computeInTransitResourceTotals(gameState.deliveryTrips.values()),
     computeGoldAwaitingCollection(gameState.buildings.values()),
     computeGuardhousePayrollGold(gameState.buildings.values()),
+    computePrivateHouseholdWealth(gameState.residences.values()),
   );
   const militiaCommands = new MilitiaCommandController({
     domElement: sceneManager.renderer.domElement,

@@ -9,6 +9,7 @@ import {
 } from '../src/resources/resourceLocator.ts';
 import {
   computeInTransitResourceTotals,
+  computePrivateHouseholdWealth,
   computeResourceTotals,
   computeStoredResourceTotals,
   HUD_RESOURCE_KINDS,
@@ -158,6 +159,15 @@ const physicalFoodState = gameState({
     routePolylineJson: '[]',
   }]]),
 });
+assert.equal(
+  computePrivateHouseholdWealth([
+    household,
+    residence({ id: 'residence-2', householdWealth: 20 }),
+    residence({ id: 'residence-3', householdWealth: -5 }),
+  ]),
+  100,
+  'the treasury breakdown should total private savings without treating debt as public gold',
+);
 
 const ryeBreadCart = {
   ...physicalFoodState.deliveryTrips.get('cart-1')!,

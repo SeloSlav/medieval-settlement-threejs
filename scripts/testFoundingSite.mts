@@ -1254,6 +1254,8 @@ assert.match(simulationReducer, /step_founding_sites\(ctx, &tick, &clock\)/);
 const foundersInspector = read('src/resources/inspector/foundersCampRenderer.ts');
 assert.match(foundersInspector, /connect the camp and Town Hall by road/);
 assert.match(foundersInspector, /awaiting the next free hauler/);
+assert.match(foundersInspector, /spendable civic gold · secured in the founding lockbox/);
+assert.match(foundersInspector, /secured gold is spendable and later moves to permanent civic storage/);
 assert.match(foundersInspector, /Permanent storage/);
 assert.match(foundersInspector, /planFoundingStockyardRelocation/);
 const buildingMarkersSource = read('src/buildings/BuildingMarkers.ts');
@@ -1304,8 +1306,15 @@ assert.match(
   'an empty initial replicated tree map must not hide the generated forest before authoritative rows arrive',
 );
 const townHallInspector = read('src/resources/inspector/townHallRenderer.ts');
-assert.match(townHallInspector, /Treasury chest/);
+assert.match(townHallInspector, /Civic treasury seat/);
 assert.match(townHallInspector, /incoming by handcart/);
+const settlementHud = read('src/ui/SettlementHud.ts');
+assert.match(settlementHud, /Civic treasury/);
+assert.match(settlementHud, /Spendable civic gold/);
+assert.match(settlementHud, /Separate gold/);
+const resourceInspector = read('src/resources/ResourceInspector.ts');
+assert.match(resourceInspector, /Total civic gold held/);
+assert.match(resourceInspector, /private household savings/);
 
 const perfBuildings = new Map<string, BuildingState>([
   [clearedCamp.id, clearedCamp],

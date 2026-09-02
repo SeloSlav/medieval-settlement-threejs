@@ -35,9 +35,9 @@ export const HUD_RESOURCE_CARD_PRESENTATION: Record<
     totalDetail: 'All physically stored water across wells, workplaces, and homes. Loaded carts remain listed separately until unloading.',
   },
   gold: {
-    label: 'Treasury',
-    surplusDetail: 'Spendable gold across community lockboxes and the Town Hall treasury.',
-    totalDetail: 'All civic gold secured in founders’ lockboxes, reclamation chests, or Town Hall treasuries, including coin committed to active home projects. Market working cash, company pay chests, and moving lockboxes remain separate.',
+    label: 'Civic treasury',
+    surplusDetail: 'Spendable public gold across founding lockboxes, reclamation chests, and Town Hall treasuries.',
+    totalDetail: 'All civic gold secured in founding lockboxes, reclamation chests, or Town Hall treasuries, including coin committed to active home projects. Market receipts, company pay chests, private household savings, and moving lockboxes remain separate.',
   },
 };
 

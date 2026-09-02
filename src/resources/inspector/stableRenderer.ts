@@ -126,7 +126,7 @@ export function renderStableInspector(
         ? fire
           ? 'Purchases paused'
           : treasuryShort
-            ? 'Treasury short'
+            ? 'Civic treasury short'
             : 'Add draft ox'
         : 'Fills in order'
       : ox.assignedBuildingId == null
@@ -180,7 +180,7 @@ export function renderStableInspector(
       <div class="inspector-action-panel stable-ox-panel" data-inspector-panel-title="Ox team">
         <p class="resource-inspector-note">Post oxen persistently from an eligible workplace card. Posted oxen wait here whenever no laborer is available; every unposted ox remains in the automatic assistance pool.</p>
         <ol class="stable-ox-slots" aria-label="Stable ox bays">${slotIndicators}</ol>
-        <p class="inspector-action-panel__hint">${purchaseHint} Treasury: ${renderResourceAmount('gold', treasuryGold, { compact: true })}. Each purchase permanently occupies the first open bay.</p>
+        <p class="inspector-action-panel__hint">${purchaseHint} Civic treasury: ${renderResourceAmount('gold', treasuryGold, { compact: true })}. Each purchase permanently occupies the first open bay.</p>
       </div>
     `,
     demolish: {

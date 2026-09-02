@@ -48,7 +48,7 @@ export function renderSalvagePileInspector(
       <li><span>Active cart</span><span>${activeHaul}</span></li>
       <li><span>Construction claim</span><span>Reserved sites may take reclaimed timber and stone before depot clearance</span></li>
       <li><span>Clearance rule</span><span>One free hauler moves a cartload at a time; the footprint clears when all goods and carts are gone</span></li>
-      ${building.gold > 1e-6 ? '<li><span>Treasury recovery</span><span>Requires a Town Hall or the founding lockbox; roads speed the cart</span></li>' : ''}
+      ${building.gold > 1e-6 ? '<li><span>Civic treasury recovery</span><span>Requires a Town Hall or the founding lockbox; roads speed the cart</span></li>' : ''}
     `,
     demolish: hiddenDemolish(),
     labor: hiddenLabor(),

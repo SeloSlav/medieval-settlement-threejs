@@ -101,20 +101,20 @@ const SETTLEMENT_HUD_HTML = `
         ></span>
         <div class="settlement-hud__people-card settlement-hud__resource-card noble-hud__gold-card" data-hud-card data-resource-card="gold">
           <div class="settlement-hud__stat settlement-hud__stat--gold noble-hud__gold" tabindex="0" data-resource="gold" aria-describedby="settlement-gold-card">
-            <span class="settlement-hud__label">Treasury</span>
+            <span class="settlement-hud__label">Civic treasury</span>
             <strong class="settlement-hud__value" data-stockpile="gold">0</strong>
           </div>
-          <section id="settlement-gold-card" class="settlement-hud__people-panel settlement-hud__resource-panel" aria-label="Treasury ledger" aria-live="off">
+          <section id="settlement-gold-card" class="settlement-hud__people-panel settlement-hud__resource-panel" aria-label="Civic treasury ledger" aria-live="off">
             <header class="settlement-hud__people-header">
-              <strong>Treasury</strong>
+              <strong>Civic treasury</strong>
               <span data-resource-card-mode-label="gold">Available surplus</span>
             </header>
             <div class="settlement-hud__resource-reading">
               <strong data-resource-card-amount="gold">0</strong>
-              <span>Gold on hand</span>
+              <span data-resource-card-reading-label="gold">Spendable civic gold</span>
             </div>
             <div class="settlement-hud__resource-transit" data-resource-card-transit-row="gold" hidden>
-              <span>Movement</span>
+              <span>Separate gold</span>
               <strong data-stockpile-transit="gold"></strong>
             </div>
             <p class="settlement-hud__resource-detail" data-resource-card-detail="gold">${HUD_RESOURCE_CARD_PRESENTATION.gold.surplusDetail}</p>

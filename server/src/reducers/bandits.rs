@@ -993,7 +993,7 @@ fn require_cost(ctx: &ReducerContext, owner: Identity, cost: MilitaryCost) -> Re
     }
     if treasury_gold(ctx, owner) + 1e-6 < cost.gold as f64 {
         return Err(format!(
-            "Not enough Treasury gold (need {} more).",
+            "Not enough civic treasury gold (need {} more).",
             (cost.gold as f64 - treasury_gold(ctx, owner)).ceil() as u32
         ));
     }

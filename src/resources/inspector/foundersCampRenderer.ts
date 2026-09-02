@@ -241,7 +241,7 @@ export function renderFoundersCampInspector(
     : building.gold <= 1e-6
       ? 'Empty'
       : completedTownHall === null
-        ? `${building.gold.toFixed(0)} gold · awaiting a valid civic treasury`
+        ? `${building.gold.toFixed(0)} spendable civic gold · secured in the founding lockbox`
         : townHallRoadDistance === null
           ? `${building.gold.toFixed(0)} gold · connect the camp and Town Hall by road`
           : `${building.gold.toFixed(0)} gold · awaiting the next free hauler`;
@@ -270,6 +270,7 @@ export function renderFoundersCampInspector(
       <li><span>Clearance order</span><span>${shelterActive ? 'Starter food moves before bulk fuel; other committed stores remain until every founder is housed' : 'Construction materials move first; provisions, drink, textiles, armaments, and water follow to compatible permanent stores'}</span></li>
       <li><span>Active cart</span><span>${activeTrip ? formatTripPhaseLabel(activeTrip.phase) : 'None'}</span></li>
       <li><span>Lockbox</span><span>${lockboxStatus}</span></li>
+      <li><span>Lockbox role</span><span>Acts as the early civic treasury; its secured gold is spendable and later moves to permanent civic storage</span></li>
       <li><span>Final clearance</span><span>The camp disbands after every founder is housed, every cart returns, and its yard and lockbox are empty; no Town Hall or Storehouse is required once nothing remains</span></li>
     `,
     demolish: hiddenDemolish(),

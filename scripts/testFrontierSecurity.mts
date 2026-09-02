@@ -2767,7 +2767,7 @@ assert.match(expandedEconomy, /fn next_granary_guard_food_dispatch/);
 assert.match(expandedEconomy, /institutional_source_food_surplus/);
 assert.match(guardhouseInspector, /Military demands/);
 assert.match(guardhouseInspector, /Local companies consume light preserved rations; wages and ale are disabled/);
-assert.match(guardhouseInspector, /campaign rations, one ale per soldier per issue, and Treasury pay/);
+assert.match(guardhouseInspector, /campaign rations, one ale per soldier per issue, and civic treasury pay/);
 assert.match(townHallInspector, /Ration reserves/);
 assert.match(townHallInspector, /lean.*company.*deep/);
 assert.match(townHallInspector, /Frontier timetable/);

@@ -165,7 +165,7 @@ export const MILITARY_RECRUITMENT: Record<MilitaryCompanyKind, {
     source: 'town-hall',
     residentMen: false,
     icon: 'mercenaries',
-    summary: 'Eight hired Landsknecht-style pikemen enter at the safest map edge with long pikes and Katzbalger sidearms. They cost one Treasury gold per surviving man each day. Dismissal, nonpayment, seven quiet days, or the end of their three-week term sends them marching back to that edge without accepting orders; a two-day retainer can recall survivors before they exit.',
+    summary: 'Eight hired Landsknecht-style pikemen enter at the safest map edge with long pikes and Katzbalger sidearms. They cost one civic treasury gold per surviving man each day. Dismissal, nonpayment, seven quiet days, or the end of their three-week term sends them marching back to that edge without accepting orders; a two-day retainer can recall survivors before they exit.',
   },
   footmen: {
     label: 'Footman company', shortLabel: 'Footmen', size: 8,
@@ -341,7 +341,7 @@ export function militaryCostText(cost: MilitaryRecruitmentCost): string {
     polearms: 'polearms', sidearms: 'sidearms', shields: 'shields', bows: 'bows',
     crossbows: 'crossbows', paddedArmor: 'padded armor', mailArmor: 'mail armor',
     ammunition: 'ammunition bundles', ale: 'ale',
-    preservedFood: 'preserved food', gold: 'Treasury gold',
+    preservedFood: 'preserved food', gold: 'civic treasury gold',
   };
   return (Object.entries(cost) as Array<[keyof MilitaryRecruitmentCost, number]>)
     .filter(([, amount]) => amount > 0)

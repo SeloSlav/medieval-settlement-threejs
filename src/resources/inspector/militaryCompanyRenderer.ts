@@ -178,7 +178,7 @@ export function renderMilitaryRecruitmentPanels(
     const timing = kind === 'militia'
       ? 'Selected men physically report here before the company becomes active.'
       : kind === 'mercenary-spears'
-        ? 'They enter at a safe map edge and cost one Treasury gold per surviving man each day. When dismissed, unpaid, idle for seven days, or at the end of their three-week term, they stop accepting orders and march back to that edge. A two-day retainer can recall survivors before they exit.'
+        ? 'They enter at a safe map edge and cost one civic treasury gold per surviving man each day. When dismissed, unpaid, idle for seven days, or at the end of their three-week term, they stop accepting orders and march back to that edge. A two-day retainer can recall survivors before they exit.'
         : militaryDemands === 0
           ? 'Only equipment and available resident labor are required; local provisions and wages are disabled.'
           : militaryDemands === 1

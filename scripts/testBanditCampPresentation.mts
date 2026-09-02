@@ -101,7 +101,7 @@ assert.match(
 const app = readFileSync('src/app/App.ts', 'utf8');
 assert.match(
   app,
-  /lord's bounty, seized camp provisions, and any stolen goods recovered there/,
+  /Crown bounty, seized camp provisions, and any stolen goods recovered there/,
   'the lord report should explain the three sources of a camp-clear reward',
 );
 

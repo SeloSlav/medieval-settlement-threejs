@@ -422,6 +422,7 @@ export class ResourceInspector {
   private readonly resourceCardAmounts: Record<HudResourceCardKind, HTMLElement>;
   private readonly resourceCardModeLabels: Record<HudResourceCardKind, HTMLElement>;
   private readonly resourceCardDetails: Record<HudResourceCardKind, HTMLElement>;
+  private readonly goldResourceReadingLabel: HTMLElement;
   private readonly surplusResourceTooltips = new Map<HudResourceKind, string>();
   private readonly populationValue: HTMLElement;
   private readonly housingValue: HTMLElement;
@@ -471,6 +472,7 @@ export class ResourceInspector {
   private inTransitTotals: ResourceTotals | undefined;
   private goldAwaitingCollection = 0;
   private guardhousePayrollGold = 0;
+  private privateHouseholdWealth = 0;
   private populationStats: PopulationStats = {
     total: 0,
     assigned: 0,
@@ -640,6 +642,10 @@ export class ResourceInspector {
         this.mustElement(options.uiRoot, `[data-resource-card-detail="${resource}"]`),
       ]),
     ) as Record<HudResourceCardKind, HTMLElement>;
+    this.goldResourceReadingLabel = this.mustElement(
+      options.uiRoot,
+      '[data-resource-card-reading-label="gold"]',
+    );
     this.stockpileValues = {
       timber: this.mustElement(options.uiRoot, '[data-stockpile="timber"]'),
       stone: this.mustElement(options.uiRoot, '[data-stockpile="stone"]'),
@@ -891,6 +897,9 @@ export class ResourceInspector {
         ? presentation.totalDetail
         : presentation.surplusDetail;
     }
+    this.goldResourceReadingLabel.textContent = showingTotal
+      ? 'Total civic gold held'
+      : 'Spendable civic gold';
 
     for (const resource of HUD_RESOURCE_KINDS) {
       const stat = this.stockpileValues[resource]
@@ -2121,6 +2130,7 @@ export class ResourceInspector {
     inTransit?: ResourceTotals,
     goldAwaitingCollection = 0,
     guardhousePayrollGold = 0,
+    privateHouseholdWealth = 0,
   ): void {
     this.populationStats = population;
     this.surplusTotals = surplusTotals;
@@ -2128,6 +2138,7 @@ export class ResourceInspector {
     this.inTransitTotals = inTransit;
     this.goldAwaitingCollection = goldAwaitingCollection;
     this.guardhousePayrollGold = guardhousePayrollGold;
+    this.privateHouseholdWealth = privateHouseholdWealth;
     this.renderHudResourceTotals();
     const displayedPopulation = starterCampCreated ? population.total : 0;
     const displayedOpenLivingPlaces = starterCampCreated ? population.vacant : 0;
@@ -2175,13 +2186,16 @@ export class ResourceInspector {
       const amount = Math.max(0, this.inTransitTotals?.[resource] ?? 0);
       const details = [];
       if (resource === 'gold' && this.goldAwaitingCollection > 1e-6) {
-        details.push(`+${formatTransitAmount(this.goldAwaitingCollection)} awaiting collection`);
+        details.push(`${formatTransitAmount(this.goldAwaitingCollection)} awaiting collection`);
       }
       if (resource === 'gold' && this.guardhousePayrollGold > 1e-6) {
-        details.push(`${formatTransitAmount(this.guardhousePayrollGold)} in company pay chests`);
+        details.push(`${formatTransitAmount(this.guardhousePayrollGold)} committed to company payroll`);
+      }
+      if (resource === 'gold' && this.privateHouseholdWealth > 1e-6) {
+        details.push(`${formatTransitAmount(this.privateHouseholdWealth)} private household savings`);
       }
       if (amount > 1e-6) {
-        details.push(`+${formatTransitAmount(amount)} en route`);
+        details.push(`${formatTransitAmount(amount)} in transit`);
       }
       const resourceCardTransitRow = transit.closest<HTMLElement>(
         '[data-resource-card-transit-row]',

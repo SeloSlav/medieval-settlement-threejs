@@ -32,8 +32,8 @@ export function renderGuardhouseInspector(
     : militaryDemands === 1
       ? 'Local companies consume light preserved rations; wages and ale are disabled. Missile ammunition is explicitly replaced.'
       : militaryDemands === 2
-        ? 'Local companies consume preserved rations, shared ale, and Treasury pay. Missile ammunition is explicitly replaced.'
-        : 'Local companies consume campaign rations, one ale per soldier per issue, and Treasury pay. Missile ammunition is explicitly replaced.';
+        ? 'Local companies consume preserved rations, shared ale, and civic treasury pay. Missile ammunition is explicitly replaced.'
+        : 'Local companies consume campaign rations, one ale per soldier per issue, and civic treasury pay. Missile ammunition is explicitly replaced.';
   const status = suspendedByFire
     ? ['Fire outage — recruitment and supply suspended', 'warning'] as const
     : companies.length === 0

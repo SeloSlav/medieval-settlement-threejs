@@ -32,6 +32,7 @@ import {
   type BuildingKind,
   type BuildingState,
   type GameState,
+  type ResidenceState,
 } from './types.ts';
 import { smallholdingDedicatedResidents } from '../economy/smallholding.ts';
 import {
@@ -916,6 +917,19 @@ export function computeGuardhousePayrollGold(
       && Number.isFinite(building.gold)
     ) {
       gold += Math.max(0, building.gold);
+    }
+  }
+  return gold;
+}
+
+/** Private savings held by households, never spendable from the civic treasury. */
+export function computePrivateHouseholdWealth(
+  residences: Iterable<ResidenceState>,
+): number {
+  let gold = 0;
+  for (const residence of residences) {
+    if (Number.isFinite(residence.householdWealth)) {
+      gold += Math.max(0, residence.householdWealth);
     }
   }
   return gold;
