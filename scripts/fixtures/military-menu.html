@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Military menu UI fixture</title></head>
+<body>
+  <div id="app"><div data-ui-root></div></div>
+  <aside class="fixture-controls">
+    <button data-fixture="world">Select company in world</button>
+    <button data-fixture="many">20 companies</button>
+    <button data-fixture="damage">Wound selected company</button>
+    <button data-fixture="remove">Remove selected company</button>
+    <button data-fixture="empty">Empty roster</button>
+    <output data-fixture-result>Ready</output>
+  </aside>
+  <script type="module">
+    import '/src/style.css';
+    import { BuildToolbar } from '/src/ui/BuildToolbar.ts';
+    import { mountTooltips } from '/src/ui/tooltips.ts';
+    import { MILITARY_FORMATIONS, MILITARY_STANCES } from '/src/security/militaryProgression.ts';
+    import { militaryCompanyFocusZoom, militaryCompanyVitals } from '/src/ui/militaryMenuPresentation.ts';
+    const root = document.querySelector('[data-ui-root]');
+    const result = document.querySelector('[data-fixture-result]');
+    const kinds = ['spearmen', 'footmen', 'crossbows', 'polearms', 'bowmen', 'men-at-arms'];
+    let companies = [];
+    let agents = [];
+    let selected = '1';
+    const sync = () => toolbar.militaryMenu.sync(companies, agents);
+    const seed = (count) => {
+      companies = Array.from({ length: count }, (_, i) => ({
+        id: String(i + 1), kind: kinds[i % kinds.length], sourceBuildingId: 'guardhouse-1',
+        status: 'active', departureRequested: false, formation: 'line', stance: 'balanced',
+        targetSize: 30, livingMembers: i === 1 ? 24 : 30, morale: 1, cohesion: 1,
+        fatigue: [0.1, 0.65, 0.25, 0.45, 0.1, 0.3][i % 6], provisionDays: 2,
+        horseOats: 0, horseWater: 0, ammunition: 12, ammunitionCapacity: 30,
+        formedTick: i, experience: 0, level: 1,
+      }));
+      agents = companies.flatMap((c, i) => Array.from({ length: c.livingMembers }, (_, j) => ({
+        id: `${c.id}-${j}`, companyId: c.id, health: i === 1 ? 60 : 100, maxHealth: 100,
+        status: 'holding', x: i * 30 + (j % 6), z: Math.floor(j / 6),
+      })));
+      sync();
+    };
+    const select = (id, focus) => {
+      selected = id;
+      toolbar.selectMilitaryCompanies([id]);
+      const point = militaryCompanyVitals(agents).get(id);
+      result.textContent = `Selected ${id}${focus && point ? `; camera ${point.x.toFixed(1)}, ${point.z.toFixed(1)}; zoom ${militaryCompanyFocusZoom(point.radius).toFixed(0)}%` : '; world selection'}`;
+    };
+    const toolbar = new BuildToolbar(root, {
+      onOpenRoads() {}, onBuildRoad() {}, onSelectBuilding() {}, onSelectDryStoneWall() {},
+      onPlaceStarterCamp() {}, onSelectResidences() {}, onCancelPlacement() {}, onToggleCityAdministration() {},
+      onSelectMilitaryCompany: (id) => select(id, true),
+      onMilitaryOrder: async (ids, order) => {
+        for (const c of companies.filter(c => ids.includes(c.id))) {
+          if (order.kind === 'formation') c.formation = MILITARY_FORMATIONS[order.value];
+          if (order.kind === 'stance') c.stance = MILITARY_STANCES[order.value];
+          if (order.kind === 'reinforce') c.livingMembers = c.targetSize;
+          if (order.kind === 'disband') c.status = 'disbanding';
+        }
+        result.textContent = `Order ${order.kind} ${'value' in order ? order.value : ''} to ${ids.join(',')}`;
+        sync();
+      },
+    });
+    mountTooltips(root);
+    seed(6);
+    document.querySelector('[data-fixture="world"]').onclick = () => select(companies[1]?.id ?? '1', false);
+    document.querySelector('[data-fixture="many"]').onclick = () => seed(20);
+    document.querySelector('[data-fixture="empty"]').onclick = () => { companies = []; agents = []; sync(); };
+    document.querySelector('[data-fixture="damage"]').onclick = () => { agents.filter(a => a.companyId === selected).forEach(a => a.health = 35); sync(); };
+    document.querySelector('[data-fixture="remove"]').onclick = () => { companies = companies.filter(c => c.id !== selected); sync(); };
+  </script>
+  <style>
+    body { background: radial-gradient(ellipse at 35% 30%, #545c40, #202820 70%); }
+    .fixture-controls { position: absolute; z-index: 20; top: 14px; left: 14px; right: 14px; display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; }
+    .fixture-controls button { color: #efe2c3; border: 1px solid #9e8f63; border-radius: 3px; background: #252d22; padding: 8px; cursor: pointer; }
+    .fixture-controls output { flex-basis: 100%; padding: 8px 0; color: #efe2c3; }
+  </style>
+</body>
+</html>

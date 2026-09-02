@@ -87,6 +87,7 @@ import {
 } from './startupDiagnostics.ts';
 import { sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
 import { BuildToolbar } from '../ui/BuildToolbar.ts';
+import { militaryCompanyFocusZoom, militaryCompanyVitals } from '../ui/militaryMenuPresentation.ts';
 import type { BuildingKind } from '../generated/gameBalance.ts';
 import { ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT } from '../economy/villageEconomy.ts';
 import { DEFAULT_FISCAL_POLICY } from '../economy/fiscalPolicy.ts';
@@ -976,6 +977,34 @@ export async function bootstrapAppSession(
 
   toolbar = new BuildToolbar(uiRoot, {
     onOpenRoads: toggleRoadTool,
+    onSelectMilitaryCompany: (companyId) => {
+      if (!militiaCommands.selectCompany(companyId)) {
+        militiaCommands.clearSelection();
+        resourceInspector.clearSelection();
+        villagerInspector.clearSelection();
+        worldMapUi.townReport.close();
+        toolbar.selectMilitaryCompanies([companyId]);
+      }
+      const agents = bridge.getCombatAgentOverride?.() ?? spacetimeStore.snapshot.combatAgents.values();
+      const company = [...(bridge.getMilitaryCompanyOverride?.() ?? spacetimeStore.snapshot.militaryCompanies.values())]
+        .find((c) => c.id === companyId);
+      const vitals = militaryCompanyVitals(agents).get(companyId);
+      const source = company ? liveContext.gameState.buildings.get(company.sourceBuildingId) : undefined;
+      const focus = vitals ?? source;
+      if (focus) cameraController.focusWorldPositionAtZoom(focus.x, focus.z, militaryCompanyFocusZoom(vitals?.radius ?? 0));
+    },
+    onMilitaryOrder: async (ids, order) => {
+      for (const id of ids) {
+        switch (order.kind) {
+          case 'formation': await inspectorActions.onSetMilitaryFormation(id, order.value); break;
+          case 'stance': await inspectorActions.onSetMilitaryStance(id, order.value); break;
+          case 'reinforce': await inspectorActions.onReinforceMilitaryCompany(id); break;
+          case 'resupply': await inspectorActions.onResupplyMilitaryCompany(id); break;
+          case 'retain': await inspectorActions.onRenewMercenaryContract(id); break;
+          case 'disband': await inspectorActions.onDisbandMilitaryCompany(id); break;
+        }
+      }
+    },
     onSetRoadSnap: (enabled) => buildingTool.setRoadSnapEnabled(enabled),
     onBuildRoad: () => {
       if (farmFieldTool.isEnabled()) {
@@ -1482,12 +1511,14 @@ export async function bootstrapAppSession(
     onCompanySelected: (companyId) => {
       if (!companyId) {
         resourceInspector.clearSelection();
+        toolbar.selectMilitaryCompanies(militiaCommands.getSelectedCompanyIds());
         return;
       }
       ambientAudio.playUiSound('military_company_select');
       villagerInspector.clearSelection();
       worldMapUi.townReport.close();
-      resourceInspector.selectMilitaryCompany(companyId);
+      resourceInspector.clearSelection();
+      toolbar.selectMilitaryCompanies([companyId]);
     },
     onHostileFocus: (x, z) => {
       villagerInspector.clearSelection();

@@ -307,15 +307,20 @@ export class MilitiaCommandController {
     }
   };
 
-  private readonly selectCompany = (companyId: string): void => {
+  getSelectedCompanyIds(): string[] {
+    return [...this.selected];
+  }
+
+  readonly selectCompany = (companyId: string): boolean => {
     const company = this.companies.get(companyId);
-    if (!company) return;
+    if (!company) return false;
     this.selected.clear();
     this.selected.add(companyId);
     this.syncRings();
     this.strategicIcons.setSelected(companyId);
     this.options.onCompanySelected?.(companyId);
     if (!company.controllable) this.options.onLeavingCompanySelected?.(companyId);
+    return true;
   };
 
   private readonly issueOrder = (event: MouseEvent): void => {

@@ -877,6 +877,28 @@ pub fn recoverable_ammunition_bundles(rounds: u32, capacity: u32) -> u32 {
     u32::from(capacity > 0 && rounds >= capacity)
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MercenaryDeparture {
+    Stay,
+    AfterBattle,
+    Now,
+}
+
+pub fn mercenary_departure_decision(
+    requested: bool,
+    contract_expired: bool,
+    inactivity_expired: bool,
+    engaged: bool,
+) -> MercenaryDeparture {
+    if !requested && !contract_expired && (!inactivity_expired || engaged) {
+        MercenaryDeparture::Stay
+    } else if engaged {
+        MercenaryDeparture::AfterBattle
+    } else {
+        MercenaryDeparture::Now
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1132,6 +1154,17 @@ mod tests {
         assert_eq!(recoverable_ammunition_bundles(1, 24), 0);
         assert_eq!(recoverable_ammunition_bundles(0, 24), 0);
         assert_eq!(recoverable_ammunition_bundles(0, 0), 0);
+    }
+
+    #[test]
+    fn mercenary_dismissal_nonpayment_and_expiry_wait_for_combat_to_end() {
+        // Both dismissal and failed wages set the authoritative request flag.
+        assert_eq!(mercenary_departure_decision(true, false, false, true), MercenaryDeparture::AfterBattle);
+        assert_eq!(mercenary_departure_decision(false, true, false, true), MercenaryDeparture::AfterBattle);
+        assert_eq!(mercenary_departure_decision(true, true, true, false), MercenaryDeparture::Now);
+        assert_eq!(mercenary_departure_decision(false, false, true, false), MercenaryDeparture::Now);
+        assert_eq!(mercenary_departure_decision(false, false, true, true), MercenaryDeparture::Stay);
+        assert_eq!(mercenary_departure_decision(false, false, false, false), MercenaryDeparture::Stay);
     }
 
     #[test]

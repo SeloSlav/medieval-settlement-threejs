@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Military controls verification</title>
+<link rel="stylesheet" href="/src/style.css">
+<style>
+  body { overflow: auto; padding: 24px; background: #181711; }
+  main { display: flex; align-items: start; flex-wrap: wrap; gap: 18px; }
+  article { width: 350px; padding: 14px; background: #29261f; border: 1px solid #75654c; }
+  h2 { margin: 0 0 5px; font-size: 20px; }
+  output { display: block; min-height: 20px; }
+</style>
+<h1>Company controls</h1>
+<p>Isolated UI fixture: no database connection or gameplay changes.</p>
+<main></main>
+<script type="module">
+  import { renderSelectedMilitaryCompanyInspector } from '/src/resources/inspector/militaryCompanyRenderer.ts';
+  import { MILITARY_FORMATIONS, MILITARY_STANCES } from '/src/security/militaryProgression.ts';
+  const companies = ['spearmen', 'polearms', 'armored-lancers', 'mercenary-spears'].map((kind, i) => ({
+    id: String(i + 1), kind, sourceBuildingId: 'building-1', status: 'active',
+    departureRequested: kind === 'mercenary-spears', formation: 'line', stance: 'balanced',
+    targetSize: 8, livingMembers: 6, morale: .8, cohesion: .8, fatigue: 0,
+    provisionDays: 3, horseOats: 12, horseWater: 12, ammunition: 0,
+    ammunitionCapacity: 0, formedTick: 1, experience: 350, level: 4,
+  }));
+  const main = document.querySelector('main');
+  function render() {
+    main.innerHTML = companies.map(company => {
+      const view = renderSelectedMilitaryCompanyInspector(company);
+      return `<article data-company="${company.id}"><h2>${view.title}</h2><p>${view.statusText}</p>${view.supplementalPanelHtml}<output aria-live="polite"></output></article>`;
+    }).join('');
+  }
+  main.addEventListener('click', event => {
+    const button = event.target.closest('button');
+    if (!button) return;
+    const id = button.closest('article').dataset.company;
+    const company = companies.find(company => company.id === id);
+    if (button.dataset.militaryFormation !== undefined) company.formation = MILITARY_FORMATIONS[Number(button.dataset.militaryFormation)];
+    else if (button.dataset.militaryStance !== undefined) company.stance = MILITARY_STANCES[Number(button.dataset.militaryStance)];
+    else return;
+    render();
+    document.querySelector(`[data-company="${id}"] output`).textContent = `${company.formation} · ${company.stance}`;
+  });
+  render();
+</script>
+</html>

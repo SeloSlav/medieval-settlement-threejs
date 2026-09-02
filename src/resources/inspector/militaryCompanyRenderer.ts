@@ -80,7 +80,9 @@ export function renderSelectedMilitaryCompanyInspector(
 ): SelectedMilitaryCompanyInspectorView {
   const gainsExperience = militaryCompanyGainsExperience(company.kind);
   const rank = militaryCompanyRankLabel(company);
-  const statusLabel = company.status[0]!.toUpperCase() + company.status.slice(1);
+  const statusLabel = company.departureRequested && company.status === 'active'
+    ? 'Leaving after battle'
+    : company.status[0]!.toUpperCase() + company.status.slice(1);
 
   return {
     eyebrow: company.kind === 'mercenary-spears'

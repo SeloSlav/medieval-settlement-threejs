@@ -75,10 +75,10 @@ const typedBuildingSchemaPrefix = [
   'construction_treasury_stone granary_accepts_fresh_food ironwork',
   'granary_households_first construction_priority woodcutter_timber_reserve',
   'granary_grain_reserve harvest_reserve_percent wool cloth carpenter_polearm_reserve',
-  'carpenter_polearm_reserve marketplace_ironwork_target marketplace_specialty_export_policy',
+  'marketplace_ironwork_target marketplace_specialty_export_policy',
   'granary_fresh_food_target_percent storehouse_timber_target_percent',
   'storehouse_stone_target_percent storehouse_firewood_target_percent',
-  'storehouse_firewood_target_percent processor_output_target_percent marketplace_seed_grain_target',
+  'processor_output_target_percent marketplace_seed_grain_target',
   'founding_shelter_active marketplace_pending_trade_code chapel_monastery_tithe_due',
   'civic_receipts_gold marketplace_gold_reserve_target barley malt flax',
   'guardhouse_muster_watchtower_id weaver_input_policy iron clay salt charcoal pottery',
@@ -189,10 +189,13 @@ for (const kind of [
 }
 
 for (const kind of Object.keys(BUILDING_COSTS) as (keyof typeof BUILDING_COSTS)[]) {
+  const militaryFittings: Partial<Record<keyof typeof BUILDING_COSTS, number>> = {
+    weaponsmith_armorer: 8, bowyer_fletcher: 4, cavalry_yard: 8,
+  };
   assert.equal(
     getBuildingCost(kind).ironwork ?? 0,
-    0,
-    `${kind} construction must not consume maintenance ironwork`,
+    militaryFittings[kind] ?? 0,
+    `${kind} must charge only its authored military construction fittings`,
   );
 }
 

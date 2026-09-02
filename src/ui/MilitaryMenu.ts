@@ -4,7 +4,7 @@ import { MILITARY_COMPANY_STRATEGIC_ICON_ART } from '../security/militaryCompany
 import { militaryCompanyDisplayName, type MilitaryCompanyState } from '../security/militaryProgression.ts';
 import { AlertDialog } from './AlertDialog.ts';
 import {
-  escapeMilitaryHtml, militaryCompanyVitals, militaryOrderAvailable, renderMilitaryOrders,
+  militaryCompanyVitals, militaryOrderAvailable, renderMilitaryOrders,
   type MilitaryOrder,
 } from './militaryMenuPresentation.ts';
 
@@ -31,11 +31,12 @@ export class MilitaryMenu {
   private readonly dialog: AlertDialog;
   private companies: MilitaryCompanyState[] = [];
   private selected = new Set<string>();
-  private ordersHidden = false;
   private ordersHtml = '';
   private pending = false;
+  private readonly handlers: MilitaryMenuHandlers;
 
-  constructor(parent: HTMLElement, private readonly handlers: MilitaryMenuHandlers) {
+  constructor(parent: HTMLElement, handlers: MilitaryMenuHandlers) {
+    this.handlers = handlers;
     this.element.className = 'military-menu';
     this.element.id = 'military-menu';
     this.element.setAttribute('aria-label', 'Military');
@@ -167,7 +168,6 @@ export class MilitaryMenu {
   }
 
   private setOrdersHidden(hidden: boolean): void {
-    this.ordersHidden = hidden;
     this.rail.hidden = hidden;
     this.showOrders.hidden = !hidden;
     if (hidden) this.showOrders.focus({ preventScroll: true });

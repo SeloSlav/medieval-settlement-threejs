@@ -1376,6 +1376,32 @@ mod tests {
     }
 
     #[test]
+    fn formation_orders_physically_reform_a_line_into_every_supported_shape() {
+        use crate::military_policy::{formation_offset_for_kind, MilitaryKind};
+        for formation in 0..=5 {
+            let mut grid = CombatSteeringGrid::default();
+            grid.begin();
+            for rank in 0..8 {
+                let start = formation_offset_for_kind(MilitaryKind::Spearmen, 0, rank, 8);
+                let goal = formation_offset_for_kind(MilitaryKind::Spearmen, formation, rank, 8);
+                let mut soldier = body(rank as u64 + 1, 10, start.0, start.1);
+                soldier.goal_x = goal.0;
+                soldier.goal_z = goal.1;
+                soldier.velocity_x = 0.0;
+                grid.push(soldier);
+            }
+            grid.finish();
+            for _ in 0..300 { grid.integrate_all(0.1); }
+            for rank in 0..8 {
+                let soldier = grid.body(rank);
+                assert!((soldier.x - soldier.goal_x).hypot(soldier.z - soldier.goal_z) < 0.19,
+                    "formation {formation}, rank {rank} failed to reach its physical slot: {soldier:?}");
+            }
+            assert_minimum_clearance(&grid);
+        }
+    }
+
+    #[test]
     fn exact_overlaps_are_resolved_deterministically_without_nan() {
         let mut grid = CombatSteeringGrid::default();
         grid.begin();

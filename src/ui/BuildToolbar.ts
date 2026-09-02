@@ -1,4 +1,5 @@
 import { CompassHud } from './CompassHud.ts';
+import { MilitaryMenu, type MilitaryMenuHandlers } from './MilitaryMenu.ts';
 import { GameMenu } from './GameMenu.ts';
 import type { BurgageLayoutHudState } from '../residences/BurgageTool.ts';
 import {
@@ -80,6 +81,8 @@ type DeletePopupOptions = {
 export class BuildToolbar {
   private readonly roadButton: HTMLButtonElement;
   private readonly buildMenuButton: HTMLButtonElement;
+  private readonly militaryButton: HTMLButtonElement;
+  readonly militaryMenu: MilitaryMenu;
   private readonly overlayButton: HTMLButtonElement;
   private readonly overlayMenu: HTMLElement;
   private readonly overlayCropPicker: HTMLElement;
@@ -222,6 +225,12 @@ export class BuildToolbar {
       return;
     }
     if (key === 'escape') {
+      if (this.militaryMenu.isOpen) {
+        this.setMilitaryMenuOpen(false);
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+      }
       if (this.overlayMenuOpen) {
         this.setOverlayMenuOpen(false);
         event.preventDefault();
@@ -266,6 +275,8 @@ export class BuildToolbar {
     handlers: {
       onOpenRoads: () => void;
       onBuildRoad: () => void;
+      onSelectMilitaryCompany?: MilitaryMenuHandlers['onSelectCompany'];
+      onMilitaryOrder?: MilitaryMenuHandlers['onOrder'];
       onSelectBuilding: (kind: BuildingKind) => void;
       onSelectDryStoneWall: () => void;
       onPlaceStarterCamp: () => void;
@@ -384,7 +395,7 @@ export class BuildToolbar {
           </span>
         </button>
 
-        <nav class="construction-dock" data-construction-dock aria-label="Construction tools">
+        <nav class="construction-dock" data-construction-dock aria-label="Base menu">
         <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="road" data-tooltip="Roads (R)" aria-label="Roads (R)" aria-pressed="false">
           <span class="gk-icon gk-icon--construction gk-icon--road" aria-hidden="true"></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">R</span>
@@ -392,6 +403,9 @@ export class BuildToolbar {
         <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="build-menu" data-tooltip="Build menu (B)" aria-label="Build menu (B)" aria-controls="build-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false">
           <span class="gk-icon gk-icon--construction gk-icon--hammer" aria-hidden="true"></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">B</span>
+        </button>
+        <button type="button" class="construction-dock-button" data-action="military-menu" data-tooltip="Military" aria-label="Military" aria-controls="military-menu" aria-expanded="false" aria-pressed="false">
+          <span class="military-launcher-icon" aria-hidden="true"></span>
         </button>
         <button type="button" class="construction-dock-button construction-dock-button--hotkey construction-dock-button--overlay" data-action="overlay-menu" data-tooltip="Map overlays (O)" aria-label="Map overlays (O)" aria-controls="map-overlay-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false">
           <span class="map-overlay-launcher-icon" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -472,6 +486,13 @@ export class BuildToolbar {
 
     this.roadButton = this.mustButton(root, '[data-action="road"]');
     this.buildMenuButton = this.mustButton(root, '[data-action="build-menu"]');
+    this.militaryButton = this.mustButton(root, '[data-action="military-menu"]');
+    this.militaryMenu = new MilitaryMenu(this.mustElement(root, '[data-hud-bottom-center]'), {
+      onSelectCompany: (id) => handlers.onSelectMilitaryCompany?.(id),
+      onOrder: (ids, order) => handlers.onMilitaryOrder?.(ids, order) ?? Promise.resolve(),
+      onClose: () => this.setMilitaryMenuOpen(false),
+    });
+    this.militaryButton.addEventListener('click', () => this.setMilitaryMenuOpen(!this.militaryMenu.isOpen));
     this.overlayButton = this.mustButton(root, '[data-action="overlay-menu"]');
     this.cityAdminButton = this.mustButton(root, '[data-action="city-admin"]');
     this.settingsButton = this.mustButton(root, '[data-action="settings"]');
@@ -615,6 +636,7 @@ export class BuildToolbar {
     this.constructionDock.classList.toggle('is-session-blocked', !enabled);
     this.roadButton.disabled = !enabled;
     this.buildMenuButton.disabled = !enabled;
+    this.militaryButton.disabled = !enabled;
     this.overlayButton.disabled = !enabled || this.cropSuitabilityActive;
     this.cityAdminButton.disabled = !enabled;
     this.starterCampButton.disabled = !enabled;
@@ -926,6 +948,23 @@ export class BuildToolbar {
     return this.buildMenuOpen;
   }
 
+  setMilitaryMenuOpen(open: boolean): void {
+    const allowed = open && this.gameplayEnabled && !this.firstPersonActive && !this.starterCampRequired;
+    if (allowed) {
+      this.closeAllBuildMenus();
+      this.toolbarHandlers.onCancelPlacement();
+    }
+    this.militaryMenu.setOpen(allowed);
+    this.militaryButton.setAttribute('aria-expanded', String(allowed));
+    this.militaryButton.setAttribute('aria-pressed', String(allowed));
+    this.militaryButton.classList.toggle('is-active', allowed);
+  }
+
+  selectMilitaryCompanies(ids: readonly string[]): void {
+    if (ids.length) this.setMilitaryMenuOpen(true);
+    this.militaryMenu.select(ids);
+  }
+
   closeMenusForExternalTool(): void {
     this.closeAllBuildMenus();
     dismissDockToggles(this.dockToggles);
@@ -967,6 +1006,7 @@ export class BuildToolbar {
   }
 
   dispose(): void {
+    this.militaryMenu.dispose();
     this.unsubscribeLandUseProfile();
     this.buildMenuOutsideSecondaryClick.dispose();
     window.removeEventListener('keydown', this.onKeyDown, true);
@@ -1016,11 +1056,13 @@ export class BuildToolbar {
   private closeAllBuildMenus(): void {
     this.setBuildMenuOpen(false);
     this.setOverlayMenuOpen(false);
+    this.setMilitaryMenuOpen(false);
   }
 
   private beginBrowsingBuildMenu(): void {
     this.toolbarHandlers.onCancelPlacement();
     this.setOverlayMenuOpen(false);
+    this.setMilitaryMenuOpen(false);
   }
 
   private setOverlayMenuOpen(open: boolean): void {
@@ -1029,6 +1071,7 @@ export class BuildToolbar {
     if (!allowed) this.buildMenuOutsideSecondaryClick.cancel();
     if (allowed) {
       this.setBuildMenuOpen(false);
+      this.setMilitaryMenuOpen(false);
     }
     this.overlayMenuOpen = allowed;
     this.overlayMenu.hidden = !allowed;

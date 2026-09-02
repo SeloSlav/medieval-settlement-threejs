@@ -17,6 +17,7 @@ use crate::military_policy::{
     stance_speed_multiplier, veteran_damage_multiplier,
     veteran_health_multiplier, incoming_company_damage_multiplier, recoverable_ammunition_bundles,
     CompanyDefense, IncomingMilitaryAttack, MilitaryKind, MERCENARY_IDLE_DEPARTURE_DAYS,
+    mercenary_departure_decision, MercenaryDeparture,
     MILITARY_BATTLE_SURVIVAL_XP, MILITARY_ENEMY_COMPANY_XP, MILITARY_FORMATION_BRACE,
     MILITARY_STANCE_GIVE_GROUND, MILITARY_STANCE_STAND_GROUND,
 };
@@ -1287,19 +1288,19 @@ fn step_mercenary_contracts(ctx: &ReducerContext, tick: u64) {
                         .is_some_and(|order| order.target_camp_id > 0)
             });
         let idle_too_long = tick.saturating_sub(contract.last_engagement_tick) >= idle_limit;
-        let departure_due = company.departure_requested
-            || idle_too_long
-            || tick >= contract.contract_end_tick;
+        let departure = mercenary_departure_decision(
+            company.departure_requested, tick >= contract.contract_end_tick, idle_too_long, engaged,
+        );
         if engaged {
             contract.last_engagement_tick = tick;
             ctx.db.mercenary_contract().company_id().update(contract);
-            if departure_due && !company.departure_requested {
+            if departure == MercenaryDeparture::AfterBattle && !company.departure_requested {
                 company.departure_requested = true;
                 ctx.db.military_company().id().update(company);
             }
             continue;
         }
-        if departure_due {
+        if departure == MercenaryDeparture::Now {
             begin_mercenary_departure(ctx, company.id);
         }
     }
@@ -1778,6 +1779,7 @@ fn rebuild_steering_grid(
             raider_ranged_frames,
             engagement_ranks,
         );
+        let macro_goal = (goal_x, goal_z);
         let snapshot = motion_frame.and_then(|frame| frame.get(agent.id));
         let (x, z, velocity_x, velocity_z) = if let Some(snapshot) = snapshot {
             let intended_dx = agent.x - snapshot.x;
@@ -1820,6 +1822,20 @@ fn rebuild_steering_grid(
         } else {
             (agent.x, agent.z, agent.velocity_x, agent.velocity_z)
         };
+        if speed > 0.0 && motion_frame.is_some() {
+            COMBAT_NAVIGATION.with(|cell| {
+                let navigation = cell.borrow();
+                let Some(navigation) = navigation.get(&agent.owner) else { return; };
+                let length = distance(x, z, goal_x, goal_z);
+                if length <= 1e-8 { return; }
+                let lookahead = length.max(3.0);
+                let proposed = (x + (goal_x - x) / length * lookahead, z + (goal_z - z) / length * lookahead);
+                let constrained = navigation.constrain_step((x, z), macro_goal, proposed);
+                if distance(constrained.0, constrained.1, proposed.0, proposed.1) > 1e-5 {
+                    (goal_x, goal_z) = navigation.next_waypoint((x, z), macro_goal);
+                }
+            });
+        }
         steering.push(SteeringBody {
             id: agent.id,
             owner_group: identity_group(agent.owner),
@@ -1914,7 +1930,7 @@ fn canonical_steering_goal(
         }
         return (agent.home_x, agent.home_z, speed);
     }
-    if let Some(order) = ctx.db.militia_order().combat_agent_id().find(&agent.id) {
+    if let Some(order) = ctx.db.militia_order().combat_agent_id().find(&agent.id).filter(|order| order.kind != 2) {
         return (order.destination_x, order.destination_z, speed);
     }
     let engagement_target_id = if agent.engagement_target_id != 0 {

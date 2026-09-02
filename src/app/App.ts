@@ -1395,6 +1395,7 @@ export class App {
     const agents = playtest.snapshot();
     this.villagers.setCombatAgents(agents);
     this.militiaCommands.sync(agents, new Map());
+    this.toolbar?.militaryMenu.sync(playtest.companyStates().values(), agents.values());
     this.resourceInspector?.refreshSelection();
     const summary = playtest.summary();
     this.combatPlaytestOverlay?.update(summary);
@@ -1565,6 +1566,7 @@ export class App {
     this.banditCamps?.sync(snapshot.banditCamps.values());
     if (!this.combatPlaytest) {
       this.militiaCommands?.sync(snapshot.combatAgents, snapshot.banditCamps);
+      this.toolbar?.militaryMenu.sync(snapshot.militaryCompanies.values(), snapshot.combatAgents.values());
     }
     const raidThreatActive = hasActiveRaiderThreat(snapshot.combatAgents.values());
     const withdrawingCarts = raidWithdrawingCartCount(

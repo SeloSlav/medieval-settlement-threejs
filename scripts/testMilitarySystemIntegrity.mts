@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { syncCombatAgents } from '../src/security/combatAgents.ts';
+import type { CombatAgent } from '../src/generated/types.ts';
 import {
   MILITARY_FORMATIONS,
   MILITARY_STANCES,
@@ -61,9 +63,25 @@ assert.equal(militaryCompanyRankLabel({ kind: 'spearmen', level: 1 }), 'Unproven
 assert.equal(militaryCompanyRankLabel({ kind: 'spearmen', level: 7 }), 'Hardened');
 assert.equal(militaryCompanyRankLabel({ kind: 'militia', level: 10 }), null);
 
+// Formation rank can change after losses; the enlisted civilian identity must not.
+const residentSoldier = {
+  id: 5n, owner: { toHexString: () => 'test-owner' }, raidId: 77n,
+  faction: 4, state: 9, targetKind: 6, targetId: 0n,
+  sourceBuildingId: 1n, sourceSlot: 11, residentSlot: 2,
+  assignedBuildingId: 0n, raidAnchorBuildingId: 42n,
+  x: 0, z: 0, homeX: 0, homeZ: 0, health: 80, maxHealth: 80,
+  readiness: 1, attackCooldown: 0, lootProgress: 0, carriedLootJson: '{}',
+  stateChangedTick: 0n, routeProgress: 0,
+} as unknown as CombatAgent;
+assert.equal(syncCombatAgents([residentSoldier], 'test-owner').get('5')?.personIdentity, 'residence-42:person:2');
+assert.equal(syncCombatAgents([{ ...residentSoldier, sourceSlot: 0 }], 'test-owner').get('5')?.personIdentity, 'residence-42:person:2');
+assert.equal(syncCombatAgents([residentSoldier], 'different-owner').size, 0);
+
 assert.match(tables, /pub resident_slot: u32/);
 assert.match(tables, /pub target_agent_id: u64/);
 assert.match(tables, /pub departure_requested: bool/);
+assert.match(tables, /accessor = mercenary_contract,[\s\S]{0,90}public/);
+assert.match(tables, /pub path_distance: f64,[\s\S]{0,80}pub route_polyline_json: String/);
 assert.match(reducers, /target_agent_id[\s\S]*selected hostile is no longer available/);
 assert.match(reducers, /let mut company_ids = BTreeSet::new\(\)[\s\S]*company_ids\.insert\(member\.company_id\)/);
 assert.match(military, /find\(&order\.target_agent_id\)/);
@@ -72,8 +90,22 @@ assert.match(military, /COMBAT_WADING_SPEED_MULTIPLIER[\s\S]*COMBAT_ROAD_SPEED_M
 assert.match(military, /charged_into_contact[\s\S]*formation_charge_multiplier/);
 assert.match(military, /MILITARY_FORMATION_BRACE[\s\S]*is_front_attack/);
 assert.match(military, /member\.ammunition = member\.ammunition\.saturating_sub\(1\)[\s\S]*sync_member_ammunition_kit/);
+assert.match(military, /recoverable_ammunition_bundles\(\s*member.ammunition,\s*member.ammunition_capacity,?\s*\)/);
+assert.match(military, /company\.ammunition_capacity = ammunition_capacity/);
+assert.match(military, /incoming_targets.contains\(&agent.id\)/);
+assert.match(military, /FORMATION_ARRIVAL_DISTANCE: f64 = 0\.18/);
+assert.match(military, /agent.source_slot = formation_rank/);
+assert.match(military, /build_owner_combat_navigation[\s\S]*constrain_step/);
+assert.match(reducers, /network\.road_path_route\(agent.x, agent.z, x, z\)/);
+assert.match(reducers, /building_fire_state\(ctx, building.id\).is_some\(\)/);
+assert.match(reducers, /pub fn reinforce_military_company/);
+assert.match(economy, /member.phase == 0[\s\S]*join_mustered_members/);
+assert.match(raids, /active_player_agent_ids.contains\(&agent.id\)/);
+assert.match(raids, /is_player_military_faction\(agent.faction\)[\s\S]{0,300}continue/);
+assert.match(raids, /mitigate_external_player_damage/);
+assert.match(raids, /down_external_player_member/);
 assert.match(military, /pending_company\.departure_requested = true/);
-assert.match(military, /let engaged =[\s\S]*let departure_due = company\.departure_requested[\s\S]*if engaged/);
+assert.match(military, /let engaged =[\s\S]*mercenary_departure_decision\([\s\S]*if engaged/);
 assert.match(population, /active_military_resident_count[\s\S]*available_workplace_labor[\s\S]*active_military_resident_count/);
 assert.match(buildings, /military_company\(\)[\s\S]*source_building_id == building_id/);
 assert.doesNotMatch(raids, /MilitiaOrder|ensure_warned_guard_muster/);
