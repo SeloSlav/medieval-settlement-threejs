@@ -15,7 +15,7 @@
 }
 .military-menu__orders {
   display: flex; align-items: center; justify-content: safe center; flex: 1; min-width: 0; gap: 9px;
-  overflow-x: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #c4ab72 #201e1a;
+  overflow-x: auto; overflow-y: hidden; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #c4ab72 #201e1a;
 }
 .military-menu__order-group { display: flex; flex: none; gap: 4px; }
 .military-menu__order-group + .military-menu__order-group { border-left: 1px solid #e9cf9842; padding-left: 9px; }
@@ -34,7 +34,7 @@
 .military-menu__rail > .military-menu__utility { margin-left: auto; }
 .military-menu__hint { color: #ecdec8b5; font-size: 12px; padding: 8px; }
 .military-menu__roster { position: relative; display: flex; align-items: center; min-width: 0; padding: 0 34px; }
-.military-menu__viewport { flex: 1; min-width: 0; overflow-x: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #c4ab72 #201e1a80; }
+.military-menu__viewport { flex: 1; min-width: 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #c4ab72 #201e1a80; }
 .military-menu__cards { display: flex; justify-content: safe center; gap: 10px; min-width: 100%; width: max-content; padding: 5px 5px 8px; }
 .military-menu__scroll { position: absolute; top: 58px; width: 25px; height: 38px; font-size: 28px; }
 .military-menu__scroll[data-scroll-previous] { left: 0; }
@@ -79,4 +79,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .military-unit-card__frame, .military-unit-card__meter > span { transition: none; }
+}
+@media (max-width: 780px) {
+  .military-menu { margin-bottom: 40px; }
 }

@@ -160,8 +160,17 @@ export class MilitaryMenu {
   private renderOrders(): void {
     const html = renderMilitaryOrders(this.companies.filter((c) => this.selected.has(c.id)));
     if (html !== this.ordersHtml) {
+      const focused = this.orders.contains(document.activeElement)
+        ? document.activeElement as HTMLButtonElement : null;
+      const kind = focused?.dataset.militaryOrder;
+      const value = focused?.dataset.orderValue;
+      const scroll = this.orders.scrollLeft;
       this.orders.innerHTML = html;
       this.ordersHtml = html;
+      this.orders.scrollLeft = scroll;
+      if (kind) [...this.orders.querySelectorAll<HTMLButtonElement>('button')]
+        .find((button) => button.dataset.militaryOrder === kind && button.dataset.orderValue === value)
+        ?.focus({ preventScroll: true });
     }
     this.orders.inert = this.pending;
     this.orders.setAttribute('aria-busy', String(this.pending));

@@ -191,6 +191,7 @@ export class BuildToolbar {
     onSetMapOverlay?: (selection: MapOverlaySelection) => void;
   };
   private readonly onToggleCityAdministration: () => void;
+  private readonly onMilitaryMenuOpen: (() => void) | undefined;
   private cityAdministrationOpen = false;
   private gameplayEnabled = true;
   private conflictEnabled = false;
@@ -202,6 +203,7 @@ export class BuildToolbar {
   private readonly requestGameSpeed: (speed: GameSpeed) => void;
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (isTypingTarget(event.target) || this.isGameMenuOpen()) return;
+    if (this.root.querySelector('.alert-dialog-backdrop:not([hidden])')) return;
     if (!this.gameplayEnabled) return;
     if (this.starterCampRequired) return;
     if (event.altKey || event.ctrlKey || event.metaKey) return;
@@ -277,6 +279,7 @@ export class BuildToolbar {
       onBuildRoad: () => void;
       onSelectMilitaryCompany?: MilitaryMenuHandlers['onSelectCompany'];
       onMilitaryOrder?: MilitaryMenuHandlers['onOrder'];
+      onMilitaryMenuOpen?: () => void;
       onSelectBuilding: (kind: BuildingKind) => void;
       onSelectDryStoneWall: () => void;
       onPlaceStarterCamp: () => void;
@@ -453,6 +456,7 @@ export class BuildToolbar {
       onClick: this.onBuildMenuOutsideSecondaryClick,
     });
     this.onToggleCityAdministration = handlers.onToggleCityAdministration;
+    this.onMilitaryMenuOpen = handlers.onMilitaryMenuOpen;
     this.requestGameSpeed = (speed) => {
       if (!this.gameplayEnabled) return;
       handlers.onSetGameSpeed?.(speed);
@@ -951,8 +955,10 @@ export class BuildToolbar {
   setMilitaryMenuOpen(open: boolean): void {
     const allowed = open && this.gameplayEnabled && !this.firstPersonActive && !this.starterCampRequired;
     if (allowed) {
-      this.closeAllBuildMenus();
+      this.setBuildMenuOpen(false);
+      this.setOverlayMenuOpen(false);
       this.toolbarHandlers.onCancelPlacement();
+      if (!this.militaryMenu.isOpen) this.onMilitaryMenuOpen?.();
     }
     this.militaryMenu.setOpen(allowed);
     this.militaryButton.setAttribute('aria-expanded', String(allowed));

@@ -136,12 +136,12 @@ export class MilitiaCommandController {
     return this.orderFeedback.diagnostics(timeMs);
   }
 
-  clearSelection(): void {
+  clearSelection(notify = true): void {
     if (this.selected.size === 0) return;
     this.selected.clear();
     this.syncRings();
     this.strategicIcons.setSelected(null);
-    this.options.onCompanySelected?.(null);
+    if (notify) this.options.onCompanySelected?.(null);
   }
 
   sync(agents: ReadonlyMap<string, CombatAgentState>, camps: ReadonlyMap<string, BanditCampState>): void {

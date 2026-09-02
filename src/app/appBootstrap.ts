@@ -977,6 +977,11 @@ export async function bootstrapAppSession(
 
   toolbar = new BuildToolbar(uiRoot, {
     onOpenRoads: toggleRoadTool,
+    onMilitaryMenuOpen: () => {
+      resourceInspector?.clearSelection();
+      villagerInspector?.clearSelection();
+      worldMapUi.townReport.close();
+    },
     onSelectMilitaryCompany: (companyId) => {
       if (!militiaCommands.selectCompany(companyId)) {
         militiaCommands.clearSelection();
@@ -1310,7 +1315,12 @@ export async function bootstrapAppSession(
     isBlocked: () => isWorldInspectionBlocked(placementGate),
     onDirectAgentClick: (kind) => ambientAudio.playAgentSelection(kind),
     onSelectionChange: (selected) => {
-      if (selected) resourceInspector?.clearSelection();
+      if (selected) {
+        resourceInspector?.clearSelection();
+        militiaCommands.clearSelection(false);
+        toolbar.militaryMenu.select([]);
+        toolbar.setMilitaryMenuOpen(false);
+      }
     },
   });
   const inspectorSettlement = (settlementId?: string) =>
@@ -1464,6 +1474,11 @@ export async function bootstrapAppSession(
       }
     },
     onSelectionChange: (target) => {
+      if (target) {
+        militiaCommands.clearSelection(false);
+        toolbar.militaryMenu.select([]);
+        toolbar.setMilitaryMenuOpen(false);
+      }
       if (target) villagerInspector.clearSelection();
       if (target) worldMapUi.townReport.close();
       toolbar.setCityAdministrationOpen(target?.kind === 'building' && target.building.kind === 'town_hall');

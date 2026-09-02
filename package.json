@@ -77,6 +77,7 @@
     "test:combat-steering": "npx tsx scripts/testCombatSteering.mts",
     "test:combat-steering-parity": "npx tsx scripts/testCombatSteeringParity.mts",
     "test:military-company-strategic-ui": "npx tsx scripts/testMilitaryCompanyStrategicUi.mts",
+    "test:military-menu": "node --experimental-strip-types scripts/testMilitaryMenu.mts",
     "test:company-standard-bearers": "npx tsx scripts/testCompanyStandardBearers.mts",
     "test:combat-presentation": "npx tsx scripts/testCombatWeaponPresentation.mts",
     "test:battlefield-weapon-drops": "npx tsx scripts/testBattlefieldWeaponDrops.mts",

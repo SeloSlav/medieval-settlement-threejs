@@ -12,10 +12,6 @@ export type MilitaryOrder =
   | { kind: 'stance'; value: number }
   | { kind: 'reinforce' | 'resupply' | 'retain' | 'disband' };
 
-export function escapeMilitaryHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
-}
-
 const dots = (points: number[][]) => points.map(([x, y]) => `<rect x="${x}" y="${y}" width="4" height="4" rx=".6"/>`).join('');
 const formationIcons: Record<MilitaryFormation, string> = {
   line: dots([[2, 8], [8, 8], [14, 8], [20, 8], [2, 14], [8, 14], [14, 14], [20, 14]]),

@@ -1,0 +1,8 @@
+C:\WebProjects\medieval-road-system\target/maincloud-audit\wasm32-unknown-unknown\debug\deps\spacetimedb_query_builder-572b7c4de3e5cb4a.d: C:\Users\Asus\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-query-builder-2.6.1\src\lib.rs C:\Users\Asus\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-query-builder-2.6.1\src\expr.rs C:\Users\Asus\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-query-builder-2.6.1\src\join.rs C:\Users\Asus\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-query-builder-2.6.1\src\table.rs
+
+C:\WebProjects\medieval-road-system\target/maincloud-audit\wasm32-unknown-unknown\debug\deps\libspacetimedb_query_builder-572b7c4de3e5cb4a.rmeta: C:\Users\Asus\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-query-builder-2.6.1\src\lib.rs C:\Users\Asus\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-query-builder-2.6.1\src\expr.rs C:\Users\Asus\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-query-builder-2.6.1\src\join.rs C:\Users\Asus\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-query-builder-2.6.1\src\table.rs
+
+C:\Users\Asus\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-query-builder-2.6.1\src\lib.rs:
+C:\Users\Asus\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-query-builder-2.6.1\src\expr.rs:
+C:\Users\Asus\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-query-builder-2.6.1\src\join.rs:
+C:\Users\Asus\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-query-builder-2.6.1\src\table.rs:
