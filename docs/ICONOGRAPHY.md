@@ -131,6 +131,27 @@ accessible name, description, and cost. If a card or inspector illustration
 cannot load or decode, the failed bitmap is removed and the labeled hammer or
 inspector-symbol fallback remains visible; broken-image chrome is never shown.
 
+## World-setup bandits and military rations
+
+These controls use standalone transparent PNGs under
+`public/assets/ui/icons/world-setup/`, not cropped atlas cells:
+
+- `bandits-none.png`: empty tent and cold hearth.
+- `bandits-roaming.png`: hooded thief carrying a loot sack.
+- `military-muster-only.png`: spear and calling horn.
+- `military-light-rations.png`: one ration sack and spear.
+- `military-full-upkeep.png`: one ration sack, ale tankard, wage purse, and spear.
+
+Each 256 × 256 RGBA export preserves the generated alpha and uses Lanczos3
+downsampling with 20 px clear padding. CSS owns centered `contain` sizing at
+58 px on desktop and 48 px on narrow screens. Favor broad light fills, heavy
+carved contours, and sparse hatching over scenes or noisy textile detail.
+Do not threshold the alpha or use nearest-neighbor scaling.
+
+The exact built-in generation prompts and original master locations are recorded
+in [the generation manifest](art/world-setup-woodcuts.json). It also records the
+unused campaign-burden variant generated before that setting was removed.
+
 ## Generation brief
 
 Use `map-resources.png`, the standalone Yarn and Linen material icons, and the

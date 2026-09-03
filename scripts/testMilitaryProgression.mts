@@ -77,12 +77,14 @@ assert.deepEqual(militaryRecruitmentCost('spearmen', 0), {
   polearms: 8, shields: 8, paddedArmor: 8, ale: 0, preservedFood: 0, gold: 0,
 });
 assert.deepEqual(militaryResupplyCost(8, 1), { preservedFood: 8 });
-assert.deepEqual(militaryResupplyCost(8, 2), { preservedFood: 16, ale: 2 });
-assert.deepEqual(militaryResupplyCost(8, 3), { preservedFood: 16, ale: 8 });
+assert.deepEqual(militaryResupplyCost(8, 2), { preservedFood: 8, ale: 8 });
+assert.deepEqual(militaryRecruitmentCost('spearmen', 2), {
+  polearms: 8, shields: 8, paddedArmor: 8, ale: 8, preservedFood: 8, gold: 8,
+});
 assert.deepEqual(militaryRecruitmentCost('mercenary-spears', 0), { gold: 96 });
-assert.deepEqual(militaryRecruitmentCost('mercenary-spears', 3), { gold: 96 });
-assert.equal(militaryCompanyRequiresProvisions('militia', 3), false);
-assert.equal(militaryCompanyRequiresProvisions('mercenary-spears', 3), false);
+assert.deepEqual(militaryRecruitmentCost('mercenary-spears', 2), { gold: 96 });
+assert.equal(militaryCompanyRequiresProvisions('militia', 2), false);
+assert.equal(militaryCompanyRequiresProvisions('mercenary-spears', 2), false);
 assert.equal(militaryCompanyRequiresProvisions('spearmen', 0), false);
 assert.equal(militaryCompanyRequiresProvisions('spearmen', 1), true);
 assert.equal(militaryCompanyWagesEnabled('spearmen', 1), false);
@@ -407,9 +409,11 @@ for (const icon of [
   );
 }
 
-const militaryDemandsAtlas = 'public/assets/ui/icons/world-setup/military-demands-atlas.png';
-assert.ok(existsSync(militaryDemandsAtlas));
-assert.ok(statSync(militaryDemandsAtlas).size > 10_000);
+for (const icon of ['muster-only', 'light-rations', 'full-upkeep']) {
+  const path = `public/assets/ui/icons/world-setup/military-${icon}.png`;
+  assert.ok(existsSync(path), `${path} must exist`);
+  assert.ok(statSync(path).size > 10_000, `${path} must contain authored woodcut art`);
+}
 
 for (const kind of [
   'spearmen', 'men-at-arms', 'crossbows', 'footmen', 'polearms', 'bowmen',

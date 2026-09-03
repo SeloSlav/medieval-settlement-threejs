@@ -258,12 +258,8 @@ export function militaryReinforcementCost(
       cost.gold = 0;
       break;
     case 2:
-      cost.ale = Math.ceil(count / 4);
-      cost.preservedFood = count * 2;
-      break;
-    case 3:
       cost.ale = count;
-      cost.preservedFood = count * 2;
+      cost.preservedFood = count;
       break;
   }
   return cost;
@@ -294,8 +290,7 @@ export function militaryResupplyCost(
   switch (normalizeMilitaryDemands(demands)) {
     case 0: return {};
     case 1: return { preservedFood: living };
-    case 2: return { preservedFood: living * 2, ale: Math.ceil(living / 4) };
-    case 3: return { preservedFood: living * 2, ale: living };
+    case 2: return { preservedFood: living, ale: living };
   }
 }
 

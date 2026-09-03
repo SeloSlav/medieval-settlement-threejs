@@ -162,10 +162,10 @@ fn validate_percent(value: u8, label: &str) -> Result<(), String> {
 }
 
 fn validate_difficulty_rate(value: u8, label: &str) -> Result<(), String> {
-    if matches!(value, 0 | 50 | 100 | 150) {
+    if matches!(value, 0 | 100 | 150) {
         return Ok(());
     }
-    Err(format!("{label} must be 0, 50, 100, or 150"))
+    Err(format!("{label} must be 0, 100, or 150"))
 }
 
 fn validate_initial_goods_multiplier(value: u8) -> Result<(), String> {
@@ -176,10 +176,10 @@ fn validate_initial_goods_multiplier(value: u8) -> Result<(), String> {
 }
 
 fn validate_military_demands(value: u8) -> Result<(), String> {
-    if value <= 3 {
+    if value <= 2 {
         return Ok(());
     }
-    Err("military_demands must be 0, 1, 2, or 3".into())
+    Err("military_demands must be 0, 1, or 2".into())
 }
 
 pub fn default_world_config() -> WorldConfig {

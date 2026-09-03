@@ -353,16 +353,6 @@
   margin-bottom: 12px;
 }
 
-.world-setup-difficulty-preset__label {
-  display: block;
-  margin: 0 0 6px;
-  color: rgba(238, 232, 220, 0.72);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
 .world-setup-difficulty-preset .world-setup-arrow-select {
   min-height: 64px;
   border-color: rgba(215, 180, 99, 0.28);
@@ -406,17 +396,12 @@
   background-image: url('/assets/ui/icons/world-setup/settlement-frontier.png');
 }
 
-.world-setup-setting-row__icon[data-rule-icon='bandits'] {
-  background-image: url('/assets/ui/icons/world-setup/bandit-presence-atlas.png');
-  background-size: auto 200%;
-}
-
 .world-setup-setting-row__icon[data-rule-icon='bandits'][data-state='off'] {
-  background-position: center top;
+  background-image: url('/assets/ui/icons/world-setup/bandits-none.png');
 }
 
 .world-setup-setting-row__icon[data-rule-icon='bandits'][data-state='on'] {
-  background-position: center bottom;
+  background-image: url('/assets/ui/icons/world-setup/bandits-roaming.png');
 }
 
 .world-setup-setting-row__icon[data-rule-icon='wild-animals'][data-state='off'] {
@@ -431,33 +416,16 @@
   background-image: url('/assets/ui/icons/world-setup/approval-disabled.png');
 }
 
-.world-setup-setting-row__icon[data-rule-icon='military-demands'] {
-  background-image: url('/assets/ui/icons/world-setup/military-demands-atlas.png');
-  background-size: 200% 200%;
-}
-
 .world-setup-setting-row__icon[data-rule-icon='military-demands'][data-state='0'] {
-  background-position: 0 0;
+  background-image: url('/assets/ui/icons/world-setup/military-muster-only.png');
 }
 
 .world-setup-setting-row__icon[data-rule-icon='military-demands'][data-state='1'] {
-  background-position: 100% 0;
+  background-image: url('/assets/ui/icons/world-setup/military-light-rations.png');
 }
 
 .world-setup-setting-row__icon[data-rule-icon='military-demands'][data-state='2'] {
   background-image: url('/assets/ui/icons/world-setup/military-full-upkeep.png');
-  background-position: center;
-  background-size: contain;
-}
-
-.world-setup-setting-row__icon[data-rule-icon='military-demands'][data-state='3'] {
-  background-image: url('/assets/ui/icons/world-setup/military-campaign-burden.png');
-  background-position: center;
-  background-size: contain;
-}
-
-.world-setup-setting-row__icon[data-rule-icon='approval'][data-state='50'] {
-  background-image: url('/assets/ui/icons/world-setup/approval-relaxed.png');
 }
 
 .world-setup-setting-row__icon[data-rule-icon='approval'][data-state='100'] {
@@ -470,10 +438,6 @@
 
 .world-setup-setting-row__icon[data-rule-icon='food'][data-state='0'] {
   background-image: url('/assets/ui/icons/world-setup/food-none.png');
-}
-
-.world-setup-setting-row__icon[data-rule-icon='food'][data-state='50'] {
-  background-image: url('/assets/ui/icons/world-setup/food-reduced.png');
 }
 
 .world-setup-setting-row__icon[data-rule-icon='food'][data-state='100'] {
@@ -783,11 +747,6 @@
 
   .world-setup-difficulty-preset {
     margin-bottom: 8px;
-  }
-
-  .world-setup-difficulty-preset__label {
-    margin-bottom: 4px;
-    font-size: 12px;
   }
 
   .world-setup-difficulty-preset .world-setup-arrow-select {

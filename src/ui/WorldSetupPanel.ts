@@ -35,9 +35,9 @@ export type WorldSetupOptions = {
 
 const MAP_SIZE_ORDER: readonly WorldMapSize[] = ['small', 'medium', 'large'];
 const CONFLICT_MODE_ORDER = ['peaceful', 'frontier'] as const;
-const DIFFICULTY_RATE_ORDER: readonly WorldDifficultyRate[] = [0, 50, 100, 150];
+const DIFFICULTY_RATE_ORDER: readonly WorldDifficultyRate[] = [0, 100, 150];
 const INITIAL_GOODS_ORDER = [1, 2] as const;
-const MILITARY_DEMAND_ORDER: readonly WorldMilitaryDemands[] = [0, 1, 2, 3];
+const MILITARY_DEMAND_ORDER: readonly WorldMilitaryDemands[] = [0, 1, 2];
 const BOOLEAN_ORDER = [false, true] as const;
 const DEFAULT_WORLD_SETUP_DIFFICULTY = WORLD_DIFFICULTY_PRESETS.find(
   (preset) => preset.id === 'easy',
@@ -185,10 +185,8 @@ export class WorldSetupPanel {
             <section class="world-setup-section world-setup-game-rules" aria-label="Gameplay rules">
               <div class="world-setup-section-heading">
                 <h2 class="world-setup-section__title">Gameplay rules</h2>
-                <span>Optional difficulty</span>
               </div>
               <div class="world-setup-difficulty-preset">
-                <span class="world-setup-difficulty-preset__label">Rule preset</span>
                 <div class="world-setup-arrow-select" data-world-selector="difficulty-preset">
                   <button type="button" class="world-setup-arrow-select__arrow" data-selector-step="-1" aria-label="Previous difficulty preset">‹</button>
                   <div class="world-setup-arrow-select__value" aria-live="polite">
@@ -461,8 +459,8 @@ export class WorldSetupPanel {
         conflictModeDescription,
         this.draft.conflictMode === 'frontier' ? 'Contested frontier' : 'Peaceful settlement',
         this.draft.conflictMode === 'frontier'
-          ? 'Periodic Ottoman raids; bandits use their own rule.'
-          : 'No Ottoman raids; bandits use their own rule.',
+          ? 'Periodic Ottoman raids.'
+          : 'No Ottoman raids.',
       );
       banditCampsIcon.dataset.state = this.draft.banditCampsEnabled ? 'on' : 'off';
       banditCampsValue.dataset.value = this.draft.banditCampsEnabled ? 'on' : 'off';
@@ -471,7 +469,7 @@ export class WorldSetupPanel {
         banditCampsDescription,
         this.draft.banditCampsEnabled ? 'Roaming bandits' : 'None',
         this.draft.banditCampsEnabled
-          ? 'Independent camps steal stored goods; they never damage buildings.'
+        ? 'Bandit camps steal stored goods; they never damage buildings.'
           : 'No bandit camps or thefts.',
       );
       wildAnimalAttacksIcon.dataset.state = this.draft.wildAnimalAttacksEnabled ? 'on' : 'off';
@@ -512,21 +510,18 @@ export class WorldSetupPanel {
     const syncRuleControls = (): void => {
       const approvalCopy: Record<WorldDifficultyRate, readonly [string, string]> = {
         0: ['Disabled', 'No passive approval loss.'],
-        50: ['Relaxed', 'Approval falls 50% slower.'],
         100: ['Normal', 'Standard approval decline.'],
         150: ['Demanding', 'Approval falls 50% faster.'],
       };
       const foodCopy: Record<WorldDifficultyRate, readonly [string, string]> = {
         0: ['None', 'Food never spoils.'],
-        50: ['Reduced', 'Food spoils 50% slower.'],
         100: ['Normal', 'Standard seasonal spoilage.'],
         150: ['Harsh', 'Food spoils 50% faster.'],
       };
       const militaryCopy: Record<WorldMilitaryDemands, readonly [string, string]> = {
         0: ['Muster only', 'Equipment and available resident men only.'],
         1: ['Light rations', 'One preserved ration per soldier for three field days.'],
-        2: ['Full upkeep', 'Two rations per soldier, shared ale, and wages.'],
-        3: ['Campaign burden', 'Two rations and one ale per soldier, plus wages.'],
+        2: ['Full upkeep', 'One preserved ration and one ale per soldier, plus wages, every three field days.'],
       };
       const approval = approvalCopy[this.draft.approvalDeclineRate];
       approvalDeclineIcon.dataset.state = String(this.draft.approvalDeclineRate);

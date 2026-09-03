@@ -225,9 +225,7 @@ export function renderMilitaryRecruitmentPanels(
           ? 'Only equipment and available resident labor are required; local provisions and wages are disabled.'
           : militaryDemands === 1
             ? 'Equipment, available resident labor, and one three-day preserved ration per soldier are required; local wages are disabled.'
-            : militaryDemands === 2
-              ? 'Equipment, resident labor, a three-day ration issue, shared ale, and professional wages are required.'
-              : 'Equipment, resident labor, two preserved rations and one ale per soldier, and professional wages are required.';
+            : 'Equipment and resident labor are required, plus one preserved ration and one ale per soldier and professional wages every three field days.';
     const militiaSize = kind === 'militia'
       ? `<label class="military-size-picker">
           <span>Militia company size</span>

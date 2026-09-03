@@ -11,7 +11,7 @@ use crate::military_policy::{
     deployed_formation_offset, ordered_run_multiplier, fatigue_effectiveness,
     equipment_exertion_multiplier, stance_morale_required, is_rear_attack,
     shot_lane_intersection, bracing_cancels_charge,
-    company_wages_enabled, local_company_requires_provisions, matchup_damage_multiplier,
+    company_wage_periods_due, company_wages_enabled, local_company_requires_provisions, matchup_damage_multiplier,
     formation_charge_multiplier, formation_speed_multiplier, is_front_attack,
     member_combat_profile, military_battle_end_ticks, military_day_ticks,
     military_level_for_experience, military_stats, normalize_military_demands,
@@ -1157,9 +1157,16 @@ fn step_company_upkeep(ctx: &ReducerContext, tick: u64, military_demands: u8) {
         let Some(kind) = MilitaryKind::from_id(company.kind) else {
             continue;
         };
-        company.last_upkeep_tick = company
+        let next_upkeep_tick = company
             .last_upkeep_tick
             .saturating_add(elapsed_days.saturating_mul(day_ticks));
+        let wage_periods = company_wage_periods_due(
+            kind,
+            company.formed_tick,
+            company.last_upkeep_tick,
+            next_upkeep_tick,
+        );
+        company.last_upkeep_tick = next_upkeep_tick;
         let (member_count, debug_member_count) = ctx
             .db
             .military_member()
@@ -1203,8 +1210,8 @@ fn step_company_upkeep(ctx: &ReducerContext, tick: u64, military_demands: u8) {
                     (company.cohesion - 0.04 * shortage * elapsed_days as f64).max(0.08);
             }
         }
-        if !is_debug_company && company_wages_enabled(kind, military_demands) {
-            let daily_wage = match kind {
+        if !is_debug_company && company_wages_enabled(kind, military_demands) && wage_periods > 0 {
+            let wage_per_period = match kind {
                 MilitaryKind::Spearmen => company.living_members.div_ceil(4),
                 MilitaryKind::MenAtArms | MilitaryKind::Crossbows => {
                     company.living_members.div_ceil(2)
@@ -1217,14 +1224,14 @@ fn step_company_upkeep(ctx: &ReducerContext, tick: u64, military_demands: u8) {
                 MilitaryKind::ArmoredLancers => company.living_members.saturating_mul(2),
                 MilitaryKind::Militia => 0,
             };
-            let wages = daily_wage.saturating_mul(elapsed_days.min(u32::MAX as u64) as u32);
+            let wages = wage_per_period.saturating_mul(wage_periods.min(u32::MAX as u64) as u32);
             let paid = spend_treasury_gold(ctx, company.owner, wages as f64).is_ok();
             if !paid && kind == MilitaryKind::MercenarySpears {
                 request_mercenary_departure_after_engagement(ctx, &company, tick);
                 continue;
             }
             if !paid {
-                company.morale = (company.morale - 0.08 * elapsed_days as f64).max(0.05);
+                company.morale = (company.morale - 0.08 * wage_periods as f64).max(0.05);
             }
         }
         if requires_provisions && company.provision_days <= 0.0 {

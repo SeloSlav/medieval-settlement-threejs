@@ -224,27 +224,32 @@ assert.match(worldCss, /\.world-setup-difficulty-preset \.world-setup-arrow-sele
 assert.match(worldCss, /\.world-setup-setting-row__icon\s*\{[\s\S]*?background-size: contain/);
 assert.match(worldCss, /world-setup\/settlement-mode\.png/);
 assert.match(worldCss, /world-setup\/groundwater\.png/);
-assert.match(worldCss, /bandit-presence-atlas\.png/);
-assert.match(worldCss, /data-rule-icon='bandits'\]\[data-state='off'[\s\S]*?background-position: center top/);
-assert.match(worldCss, /data-rule-icon='bandits'\]\[data-state='on'[\s\S]*?background-position: center bottom/);
-const banditPresenceAtlas = 'public/assets/ui/icons/world-setup/bandit-presence-atlas.png';
-assert.ok(existsSync(banditPresenceAtlas), `${banditPresenceAtlas} must exist`);
-assert.ok(statSync(banditPresenceAtlas).size > 10_000, 'the bandit setting atlas must contain authored raster art');
-assert.equal(readFileSync(banditPresenceAtlas)[25], 6, 'the bandit atlas must retain true RGBA transparency');
-assert.match(worldCss, /military-demands-atlas\.png/);
-for (const state of [0, 1, 2, 3]) {
-  assert.match(worldCss, new RegExp(`data-rule-icon='military-demands'\\]\\[data-state='${state}'`));
+// Each state owns a complete, antialiased icon, not a crop of a noisy atlas.
+assert.doesNotMatch(worldCss, /(?:bandit-presence|military-demands)-atlas\.png/);
+for (const [rule, state, icon] of [
+  ['bandits', 'off', 'bandits-none'],
+  ['bandits', 'on', 'bandits-roaming'],
+  ['military-demands', '0', 'military-muster-only'],
+  ['military-demands', '1', 'military-light-rations'],
+  ['military-demands', '2', 'military-full-upkeep'],
+]) {
+  const selector = `.world-setup-setting-row__icon[data-rule-icon='${rule}'][data-state='${state}']`;
+  const ruleBody = worldCss.split(`${selector} {`)[1]?.split('}')[0];
+  assert.ok(ruleBody, `${rule}/${state} must have its own icon rule`);
+  assert.ok(ruleBody.includes(`/world-setup/${icon}.png`), `${rule}/${state} must map to ${icon}`);
+  assert.doesNotMatch(ruleBody, /background-(?:size|position):/, `${icon} must inherit centered contain sizing`);
+  const path = `public/assets/ui/icons/world-setup/${icon}.png`;
+  assert.ok(existsSync(path), `${path} must exist`);
+  const png = readFileSync(path);
+  assert.ok(png.length > 10_000, `${path} must retain authored woodcut art`);
+  assert.equal(png.toString('hex', 0, 8), '89504e470d0a1a0a', `${path} must be a PNG`);
+  assert.equal(png[25], 6, `${path} must retain true RGBA transparency`);
+  assert.equal(png.readUInt32BE(16), png.readUInt32BE(20), `${path} must be square`);
+  assert.ok(png.readUInt32BE(16) >= 256, `${path} must support high-DPI display`);
 }
-assert.match(worldCss, /data-state='2'[\s\S]*?military-full-upkeep\.png[\s\S]*?background-size: contain/);
-assert.match(worldCss, /data-state='3'[\s\S]*?military-campaign-burden\.png[\s\S]*?background-size: contain/);
 assert.match(worldCss, /data-rule-icon='wild-animals'\]\[data-state='off'[\s\S]*?wildlife-quiet\.png/);
 assert.match(worldCss, /data-rule-icon='wild-animals'\]\[data-state='on'[\s\S]*?wildlife-attacks\.png/);
-const militaryDemandsAtlas = 'public/assets/ui/icons/world-setup/military-demands-atlas.png';
-assert.ok(existsSync(militaryDemandsAtlas), `${militaryDemandsAtlas} must exist`);
-assert.ok(statSync(militaryDemandsAtlas).size > 10_000, 'the military setting atlas must contain authored raster art');
 for (const icon of [
-  'military-full-upkeep.png',
-  'military-campaign-burden.png',
   'wildlife-quiet.png',
   'wildlife-attacks.png',
 ]) {
@@ -255,10 +260,8 @@ for (const icon of [
 }
 assert.match(worldCss, /data-rule-icon='settlement'\]\[data-state='frontier'[\s\S]*?settlement-frontier\.png/);
 assert.match(worldCss, /data-rule-icon='approval'\]\[data-state='0'[\s\S]*?approval-disabled\.png/);
-assert.match(worldCss, /data-rule-icon='approval'\]\[data-state='50'[\s\S]*?approval-relaxed\.png/);
 assert.match(worldCss, /data-rule-icon='approval'\]\[data-state='150'[\s\S]*?approval-demanding\.png/);
 assert.match(worldCss, /data-rule-icon='food'\]\[data-state='0'[\s\S]*?food-none\.png/);
-assert.match(worldCss, /data-rule-icon='food'\]\[data-state='50'[\s\S]*?food-reduced\.png/);
 assert.match(worldCss, /data-rule-icon='food'\]\[data-state='100'[\s\S]*?food-normal\.png/);
 assert.match(worldCss, /data-rule-icon='supplies'\]\[data-state='1'[\s\S]*?supplies-normal\.png/);
 assert.match(worldCss, /data-rule-icon='weather'\]\[data-state='off'[\s\S]*?weather-normal\.png/);
@@ -315,12 +318,12 @@ assert.match(normalDifficulty.summary, /Military demands: Light rations/);
 const customDifficulty = describeWorldDifficulty({
   ...DEFAULT_WORLD_GENERATION_SETTINGS,
   severeWeatherEnabled: true,
-  foodSpoilageRate: 50,
+  foodSpoilageRate: 150,
 });
 assert.equal(customDifficulty.id, 'custom');
 assert.equal(customDifficulty.badgeLabel, 'Custom');
 assert.equal(customDifficulty.title, 'Custom Difficulty');
-assert.match(customDifficulty.summary, /Food spoilage: Reduced/);
+assert.match(customDifficulty.summary, /Food spoilage: Harsh/);
 assert.match(customDifficulty.summary, /Weather: Severe/);
 
 console.log('new-world setup flow tests passed');

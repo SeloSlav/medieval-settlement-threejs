@@ -77,10 +77,10 @@ pub struct WorldConfig {
     /// Appended and disabled so existing and new settlements keep forgiving well placement.
     #[default(false)]
     pub well_aquifer_networks_enabled: bool,
-    /// Passive approval-loss pace: 0, 50, 100, or 150 percent of standard.
+    /// Passive approval-loss pace: 0, 100, or 150 percent of standard.
     #[default(100)]
     pub approval_decline_rate: u8,
-    /// Fresh and preserved food-loss pace: 0, 50, 100, or 150 percent of standard.
+    /// Fresh and preserved food-loss pace: 0, 100, or 150 percent of standard.
     #[default(100)]
     pub food_spoilage_rate: u8,
     /// Goods multiplier for the original founders' camp only: 1 or 2.
@@ -91,7 +91,7 @@ pub struct WorldConfig {
     #[default(false)]
     pub bandit_camps_enabled: bool,
     /// Local non-militia upkeep: 0 muster only, 1 light rations,
-    /// 2 full upkeep, or 3 campaign burden.
+    /// 2 full upkeep (one ration and ale per soldier, plus wages, per three days).
     #[default(1)]
     pub military_demands: u8,
     /// Infrequent fox incursions and coordinated wolf packs. Additive save field.

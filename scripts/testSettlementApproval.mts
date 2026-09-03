@@ -303,12 +303,12 @@ const disabledDecline = paceSettlementApproval(
   true,
   0,
 );
-const relaxedDecline = paceSettlementApproval(
+const normalDecline = paceSettlementApproval(
   severeTarget,
   difficultyStart.state,
   fiveMinutesMs,
   true,
-  50,
+  100,
 );
 const demandingDecline = paceSettlementApproval(
   severeTarget,
@@ -318,7 +318,8 @@ const demandingDecline = paceSettlementApproval(
   150,
 );
 assert.equal(disabledDecline.state.score, APPROVAL_BASE_SCORE);
-assert.ok(relaxedDecline.state.score > APPROVAL_BASE_SCORE - 1);
+assert.ok(normalDecline.state.score < disabledDecline.state.score);
+assert.ok(normalDecline.state.score > demandingDecline.state.score);
 assert.ok(demandingDecline.state.score < APPROVAL_BASE_SCORE - 1);
 
 let background = paceSettlementApproval(severeTarget, null, 0, true);

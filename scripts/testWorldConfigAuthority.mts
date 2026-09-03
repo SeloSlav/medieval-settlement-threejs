@@ -42,10 +42,10 @@ const row = {
   wildAnimalAttacksEnabled: true,
   severeWeatherEnabled: true,
   wellAquiferNetworksEnabled: true,
-  approvalDeclineRate: 50,
+  approvalDeclineRate: 0,
   foodSpoilageRate: 150,
   initialGoodsMultiplier: 2,
-  militaryDemands: 3,
+  militaryDemands: 2,
   configured: true,
 } satisfies WorldConfig;
 
@@ -61,10 +61,10 @@ assert.equal(generation.banditCampsEnabled, true);
 assert.equal(generation.wildAnimalAttacksEnabled, true);
 assert.equal(generation.severeWeatherEnabled, true);
 assert.equal(generation.wellAquiferNetworksEnabled, true);
-assert.equal(generation.approvalDeclineRate, 50);
+assert.equal(generation.approvalDeclineRate, 0);
 assert.equal(generation.foodSpoilageRate, 150);
 assert.equal(generation.initialGoodsMultiplier, 2);
-assert.equal(generation.militaryDemands, 3);
+assert.equal(generation.militaryDemands, 2);
 assert.equal(generation.configured, true);
 
 assert.equal(
@@ -443,14 +443,14 @@ async function testDifficultySetupContract(): Promise<void> {
   assert.match(difficultySource, /id: 'hardcore'[\s\S]*enemyPressure: 100[\s\S]*severeWeatherEnabled: true[\s\S]*approvalDeclineRate: 150[\s\S]*foodSpoilageRate: 150/);
   assert.match(difficultySource, /id: 'easy'[\s\S]*?militaryDemands: 0/);
   assert.match(difficultySource, /id: 'normal'[\s\S]*?militaryDemands: 1/);
-  assert.match(difficultySource, /id: 'hardcore'[\s\S]*?militaryDemands: 3/);
+  assert.match(difficultySource, /id: 'hardcore'[\s\S]*?militaryDemands: 2/);
   assert.match(setupSource, /difficultyPresetValue\.textContent = preset\?\.name \?\? 'Custom'/);
   assert.match(setupSource, /data-world-selector="approval-decline"/);
   assert.match(setupSource, /0: \['Disabled', 'No passive approval loss\.'\][\s\S]*150: \['Demanding'/);
   assert.match(setupSource, /data-world-selector="food-spoilage"[\s\S]*Food never spoils/);
   assert.match(setupSource, /data-world-selector="initial-goods"[\s\S]*Twice the goods in the original camp/);
   assert.match(setupSource, /data-world-selector="military-demands"/);
-  assert.match(setupSource, /Muster only[\s\S]*Light rations[\s\S]*Full upkeep[\s\S]*Campaign burden/);
+  assert.match(setupSource, /Muster only[\s\S]*Light rations[\s\S]*Full upkeep/);
   assert.match(settingsSource, /approvalDeclineRate:\s*100/);
   assert.match(settingsSource, /foodSpoilageRate:\s*100/);
   assert.match(settingsSource, /initialGoodsMultiplier:\s*1/);
@@ -478,8 +478,8 @@ async function testBanditPresenceContract(): Promise<void> {
     new URL('../server/src/simulation/bandits.rs', import.meta.url),
     'utf8',
   );
-  assert.match(setupSource, /No Ottoman raids; bandits use their own rule\./);
-  assert.match(setupSource, /Independent camps steal stored goods; they never damage buildings\./);
+  assert.match(setupSource, /No Ottoman raids\./);
+  assert.match(setupSource, /Bandit camps steal stored goods; they never damage buildings\./);
   assert.match(
     difficultySource,
     /id: 'normal'[\s\S]*?conflictMode: 'peaceful'[\s\S]*?banditCampsEnabled: true/,

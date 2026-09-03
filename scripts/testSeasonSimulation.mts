@@ -238,13 +238,12 @@ assert.deepEqual(
 );
 const normalSpoilage = environmentFor(12345, 50, springClock, false, 100);
 const noSpoilage = environmentFor(12345, 50, springClock, false, 0);
-const reducedSpoilage = environmentFor(12345, 50, springClock, false, 50);
 const harshSpoilage = environmentFor(12345, 50, springClock, false, 150);
 assert.equal(noSpoilage.freshFoodSpoilageFractionPerDay, 0);
 assert.equal(noSpoilage.preservedFoodSpoilageFractionPerDay, 0);
 assert.equal(
-  reducedSpoilage.freshFoodSpoilageFractionPerDay,
-  normalSpoilage.freshFoodSpoilageFractionPerDay * 0.5,
+  harshSpoilage.freshFoodSpoilageFractionPerDay,
+  normalSpoilage.freshFoodSpoilageFractionPerDay * 1.5,
 );
 assert.equal(
   harshSpoilage.preservedFoodSpoilageFractionPerDay,

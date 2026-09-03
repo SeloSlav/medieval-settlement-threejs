@@ -10,10 +10,10 @@ export const DEFAULT_WORLD_SEED = 0x71a2e0d;
 
 export type WorldMapSize = 'small' | 'medium' | 'large';
 export type WorldConflictMode = 'peaceful' | 'frontier';
-export type WorldDifficultyRate = 0 | 50 | 100 | 150;
+export type WorldDifficultyRate = 0 | 100 | 150;
 export type WorldInitialGoodsMultiplier = 1 | 2;
-/** 0 = equipment only, 1 = light rations, 2 = full upkeep, 3 = campaign burden. */
-export type WorldMilitaryDemands = 0 | 1 | 2 | 3;
+/** 0 = equipment only, 1 = light rations, 2 = full upkeep. */
+export type WorldMilitaryDemands = 0 | 1 | 2;
 
 export type WorldGenerationSettings = {
   seed: number;
@@ -292,7 +292,7 @@ function clampPercent(value: number): number {
 }
 
 export function normalizeWorldDifficultyRate(value: number | undefined): WorldDifficultyRate {
-  return value === 0 || value === 50 || value === 150 ? value : 100;
+  return value === 0 || value === 150 ? value : 100;
 }
 
 export function normalizeInitialGoodsMultiplier(
@@ -304,5 +304,5 @@ export function normalizeInitialGoodsMultiplier(
 export function normalizeMilitaryDemands(
   value: number | undefined,
 ): WorldMilitaryDemands {
-  return value === 0 || value === 2 || value === 3 ? value : 1;
+  return value === 0 || value === 2 ? value : 1;
 }

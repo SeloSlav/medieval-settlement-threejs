@@ -653,7 +653,7 @@
 
 .noble-setup-patterns {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5px;
 }
 
@@ -1228,6 +1228,10 @@
     overflow: visible;
   }
   .noble-setup-charges { max-height: none; overflow: visible; }
+}
+
+@media (max-height: 800px) {
+  .noble-setup-patterns { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-height: 760px) and (min-width: 821px) {

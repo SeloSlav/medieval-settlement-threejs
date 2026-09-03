@@ -83,7 +83,7 @@ export const WORLD_DIFFICULTY_PRESETS: readonly WorldDifficultyPreset[] = [
       approvalDeclineRate: 150,
       foodSpoilageRate: 150,
       initialGoodsMultiplier: 1,
-      militaryDemands: 3,
+      militaryDemands: 2,
     },
   },
 ];
@@ -115,13 +115,11 @@ export function describeWorldDifficulty(
   const preset = difficultyPresetForSettings(settings);
   const approval = {
     0: 'Disabled',
-    50: 'Relaxed',
     100: 'Normal',
     150: 'Demanding',
   }[settings.approvalDeclineRate];
   const spoilage = {
     0: 'None',
-    50: 'Reduced',
     100: 'Normal',
     150: 'Harsh',
   }[settings.foodSpoilageRate];
@@ -132,7 +130,6 @@ export function describeWorldDifficulty(
     0: 'Muster only',
     1: 'Light rations',
     2: 'Full upkeep',
-    3: 'Campaign burden',
   }[settings.militaryDemands];
   const summary = [
     `Settlement: ${settlement}`,
