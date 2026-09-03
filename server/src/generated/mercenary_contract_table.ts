@@ -10,18 +10,9 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default {
-  farmsteadId: __t.u64(),
-  cornerAx: __t.f64(),
-  cornerAz: __t.f64(),
-  cornerBx: __t.f64(),
-  cornerBz: __t.f64(),
-  cornerCx: __t.f64(),
-  cornerCz: __t.f64(),
-  cornerDx: __t.f64(),
-  cornerDz: __t.f64(),
-  crop: __t.u8(),
-  nextCrop: __t.u8(),
-  followingCrop: __t.u8(),
-  averageSlopeDegrees: __t.f64(),
-};
+export default __t.row({
+  companyId: __t.u64().primaryKey().name("company_id"),
+  owner: __t.identity(),
+  contractEndTick: __t.u64().name("contract_end_tick"),
+  lastEngagementTick: __t.u64().name("last_engagement_tick"),
+});

@@ -16,6 +16,7 @@ export default __t.row({
   owner: __t.identity(),
   species: __t.u8(),
   headCount: __t.u32().name("head_count"),
+  presentHeadCount: __t.u32().name("present_head_count"),
   health: __t.f64(),
   breedingProgress: __t.f64().name("breeding_progress"),
   pastureCapacity: __t.f64().name("pasture_capacity"),

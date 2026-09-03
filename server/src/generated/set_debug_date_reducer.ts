@@ -11,17 +11,7 @@ import {
 } from "spacetimedb";
 
 export default {
-  farmsteadId: __t.u64(),
-  cornerAx: __t.f64(),
-  cornerAz: __t.f64(),
-  cornerBx: __t.f64(),
-  cornerBz: __t.f64(),
-  cornerCx: __t.f64(),
-  cornerCz: __t.f64(),
-  cornerDx: __t.f64(),
-  cornerDz: __t.f64(),
-  crop: __t.u8(),
-  nextCrop: __t.u8(),
-  followingCrop: __t.u8(),
-  averageSlopeDegrees: __t.f64(),
+  year: __t.u32(),
+  month: __t.u32(),
+  monthDay: __t.u32(),
 };

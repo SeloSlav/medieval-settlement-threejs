@@ -66,7 +66,6 @@ export default __t.row({
   milk: __t.f64(),
   apples: __t.f64(),
   cherries: __t.f64(),
-  vegetables: __t.f64(),
   eggs: __t.f64(),
   grapes: __t.f64(),
   curedMeat: __t.f64().name("cured_meat"),
@@ -86,4 +85,5 @@ export default __t.row({
   aroniaJam: __t.f64().name("aronia_jam"),
   rosehipJam: __t.f64().name("rosehip_jam"),
   settlementId: __t.u64().name("settlement_id"),
+  smallholding: __t.bool(),
 });
