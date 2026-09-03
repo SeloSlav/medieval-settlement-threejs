@@ -105,7 +105,8 @@ export class DevelopmentMenu {
 
   openMenu(): void {
     if (this.open) return;
-    this.returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : this.launcher;
+    this.returnFocus = document.activeElement instanceof HTMLElement && document.activeElement !== document.body
+      ? document.activeElement : this.launcher;
     this.open = true;
     this.resetArmed = false;
     this.element.hidden = false;
@@ -154,6 +155,7 @@ export class DevelopmentMenu {
       this.selected = id;
       this.resetArmed = false;
       this.render();
+      this.element.querySelector<HTMLElement>('.development-ledger')!.scrollTop = 0;
       if (button.hasAttribute('data-development-prerequisite')) {
         this.element.querySelector<HTMLButtonElement>(`[data-development-skill="${id}"]`)!.focus({ preventScroll: true });
       }
@@ -162,7 +164,7 @@ export class DevelopmentMenu {
       if (this.state.unlock(this.selected)) {
         this.resetArmed = false;
         this.render();
-        this.announce(`${DEVELOPMENT_SKILL_BY_ID.get(this.selected)!.name} learned. ${this.state.points} development points remaining. Prototype only; no simulation effects.`);
+        this.announce(`${DEVELOPMENT_SKILL_BY_ID.get(this.selected)!.name} learned. ${this.state.points} development ${this.state.points === 1 ? 'point' : 'points'} remaining. Prototype only; no simulation effects.`);
         this.element.querySelector<HTMLButtonElement>(`[data-development-skill="${this.selected}"]`)!.focus({ preventScroll: true });
       }
     } else if (button.hasAttribute('data-development-reset')) {

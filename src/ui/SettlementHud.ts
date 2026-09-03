@@ -713,7 +713,7 @@ const SETTLEMENT_HUD_HTML = `
               <strong class="settlement-hud__value" data-stockpile="shoes">0</strong>
               <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="shoes" hidden></span>
             </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ale" data-tooltip="Brewery ale; Taverns can serve it, apple cider, pear cider, or mead to prosperous households.">
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ale" data-tooltip="Brewed from malted barley at the Brewery and served by Taverns to prosperous households.">
               <span class="settlement-hud__label">Ale</span>
               <strong class="settlement-hud__value" data-stockpile="ale">0</strong>
               <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ale" hidden></span>
@@ -753,12 +753,12 @@ const SETTLEMENT_HUD_HTML = `
               <strong class="settlement-hud__value" data-stockpile="preservedFood">0</strong>
               <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="preservedFood" hidden></span>
             </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="animalFeed" data-tooltip="Animal feed is not human food. It is prepared winter fodder stored locally at livestock holdings.">
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="animalFeed" data-tooltip="Prepared winter fodder stored locally at livestock holdings.">
               <span class="settlement-hud__label">Animal feed</span>
               <strong class="settlement-hud__value" data-stockpile="animalFeed">0</strong>
               <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="animalFeed" hidden></span>
             </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pelts" data-tooltip="Fur-on wild-game skins from hunting. Store them in a Storehouse or export them through a Trading Post for Regional Wealth.">
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pelts" data-tooltip="Fur-on wild-game skins from hunting. Store them in a Storehouse or export them through a Trading Post.">
               <span class="settlement-hud__label">Pelts</span>
               <strong class="settlement-hud__value" data-stockpile="pelts">0</strong>
               <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="pelts" hidden></span>

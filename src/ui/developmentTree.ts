@@ -23,7 +23,7 @@ export const DEVELOPMENT_BRANCHES: readonly DevelopmentBranch[] = [
     skills: [
       { id: 'field-stewards', name: 'Field Stewards', description: 'Careful field planning reduces the labor needed to plough and sow crops.', icon: 'ploughshare', requires: [] },
       { id: 'deep-furrows', name: 'Deep Furrows', description: 'Experienced ox teams prepare larger fields with less ploughing work.', icon: 'bull', requires: ['field-stewards'] },
-      { id: 'living-soil', name: 'Living Soil', description: 'Manure and worked fallow restore more fertility between harvests.', icon: 'oak-branch', requires: ['field-stewards'] },
+      { id: 'living-soil', name: 'Living Soil', description: 'Manure and worked fallow restore more fertility between harvests.', icon: 'manure', requires: ['field-stewards'] },
       { id: 'harvest-hands', name: 'Harvest Hands', description: 'Practised harvest crews gather ripe crops faster before the autumn deadline.', icon: 'scythe', requires: ['deep-furrows'] },
       { id: 'orchard-keepers', name: 'Orchard Keepers', description: 'Tended household orchards produce more fruit from every mature tree.', icon: 'grape-cluster', requires: ['living-soil'] },
       { id: 'breadbasket', name: 'Breadbasket', description: 'Coordinated fields, orchards, and granaries increase the estate’s harvest yield.', icon: 'wheat-sheaf', requires: ['harvest-hands', 'orchard-keepers'] },
@@ -55,7 +55,7 @@ export const DEVELOPMENT_BRANCHES: readonly DevelopmentBranch[] = [
     id: 'woodland', name: 'Woodland & Waters', motto: 'Take wisely; leave life behind.', angle: 180,
     skills: [
       { id: 'woodland-lore', name: 'Woodland Lore', description: 'Local knowledge helps foresters and gatherers bring home more useful woodland resources.', icon: 'oak-branch', requires: [] },
-      { id: 'coppice-craft', name: 'Coppice Craft', description: 'Managed regrowth improves the long-term supply of firewood from worked woodland.', icon: 'single-axe', requires: ['woodland-lore'] },
+      { id: 'coppice-craft', name: 'Coppice Craft', description: 'Managed regrowth improves the long-term supply of firewood from worked woodland.', icon: 'reforester', requires: ['woodland-lore'] },
       { id: 'hunters-paths', name: 'Hunters’ Paths', description: 'Experienced hunters recover more meat and hides from each hunted animal.', icon: 'stag', requires: ['woodland-lore'] },
       { id: 'forest-gardens', name: 'Forest Gardens', description: 'Carefully tended gathering grounds improve seasonal berry and mushroom yields.', icon: 'bee', requires: ['coppice-craft'] },
       { id: 'river-wardens', name: 'River Wardens', description: 'Selective fishing preserves more breeding stock while maintaining a useful catch.', icon: 'fish', requires: ['hunters-paths'] },
@@ -97,7 +97,7 @@ export class DevelopmentState {
 
 /** Shared radial geometry for the HTML nodes and SVG dependency lines. */
 export function developmentSkillPosition(branch: DevelopmentBranch, index: number): { x: number; y: number } {
-  const [radius, offset] = [[142, 0], [235, -22], [235, 22], [325, -21], [325, 21], [398, 0]][index];
+  const [radius, offset] = [[142, 0], [235, -22], [235, 22], [325, -29], [325, 29], [398, 0]][index];
   const angle = (branch.angle + offset) * Math.PI / 180;
   return { x: 450 + Math.cos(angle) * radius, y: 450 + Math.sin(angle) * radius };
 }
@@ -116,6 +116,7 @@ export function developmentIconUrl(icon: string): string {
     spear: 'icons/actions/trained-spears.png', 'round-shield': 'icons/materials/shields.png',
     stag: 'icons/materials/pelts.png', bee: 'icons/backyards/herb-garden.png',
     fish: 'build-menu/cards/fishing-camp.webp', 'hunting-horn': 'icons/affinities/pollination.png',
+    manure: 'icons/materials/manure.png', reforester: 'build-menu/cards/reforester.webp',
   };
   return `/assets/ui/${artwork[icon]}`;
 }

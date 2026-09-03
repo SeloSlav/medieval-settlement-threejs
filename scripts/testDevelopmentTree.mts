@@ -54,6 +54,11 @@ const independent = new DevelopmentState();
 assert.equal(independent.points, 9, 'new map sessions start fresh');
 const menu = readFileSync('src/ui/DevelopmentMenu.ts', 'utf8');
 const model = readFileSync('src/ui/developmentTree.ts', 'utf8');
+const document = readFileSync('docs/DEVELOPMENT_POINTS.md', 'utf8');
+for (const skill of DEVELOPMENT_SKILLS) {
+  assert.ok(document.includes(skill.name), `Missing skill in design document: ${skill.name}`);
+  assert.ok(document.includes(skill.description), `Description differs in design document: ${skill.name}`);
+}
 assert.doesNotMatch(menu + model, /\.reducers\b|localStorage|sessionStorage|fetch\(/, 'prototype must not mutate or persist simulation data');
 const toolbar = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
 assert.match(toolbar, /this\.settlementHud\.root\.append\(developmentButton\)/);
