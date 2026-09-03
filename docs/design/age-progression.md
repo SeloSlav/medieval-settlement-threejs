@@ -395,8 +395,9 @@ Age I is the implemented baseline. Its exact authoritative resource and building
 
 - **Land and construction:** timber, stone, firewood, clay, charcoal, pottery, roof tiles, water, iron, ironwork, and gold.
 - **Field crops and milling:** rye, oats, barley, maslin, sheaves, grain, malt, flour, rye bread, and maslin bread.
-- **Fresh food:** meat, fish, berries, mushrooms, milk, eggs, apples, pears, cherries, grapes, cabbage, carrots, beetroot, and other vegetables.
-- **Preserved food:** cured meat, smoked fish, cheese, aronia jam, rosehip jam, and the existing aggregate preserved-food compatibility stock.
+- **Fresh food:** meat, fish, berries, mushrooms, milk, eggs, apples, pears, cherries, grapes, cabbage, carrots, and beetroot.
+- **Savory preserves:** cured meat, smoked fish, and cheese.
+- **Sweet preserves:** honey, aronia jam, and rosehip jam.
 - **Beverages:** ale, apple cider, pear cider, mead, and wine. **Rakija is excluded.**
 - **Animal and woodland products:** game, honey, wax, manure, animal feed, pelts, hides, and wool.
 - **Textiles and household goods:** flax, yarn, linen, cloth, leather, shoes, candles, remedies, and polearms.

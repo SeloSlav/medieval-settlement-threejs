@@ -11,6 +11,10 @@ assert.equal(foods.size, HUD_FOOD_RESOURCE_KINDS.length, 'Each food should appea
 const sweetPreserves = HUD_FOOD_GROUPS.find(({ id }) => id === 'sweetPreserves');
 assert.equal(sweetPreserves?.label, 'Sweet preserves');
 assert.deepEqual(sweetPreserves?.kinds, ['aroniaJam', 'rosehipJam', 'honey']);
+const savoryPreserves = HUD_FOOD_GROUPS.find(({ id }) => id === 'savoryPreserves');
+assert.equal(savoryPreserves?.label, 'Savory preserves');
+assert.deepEqual(savoryPreserves?.kinds, ['curedMeat', 'smokedFish', 'cheese']);
+assert.equal(HUD_FOOD_GROUPS.some(({ id }) => id === 'preservedFood'), false);
 assert.equal(HUD_FOOD_GROUPS.some(({ id }) => id === 'honey'), false);
 for (const kind of [
   ...FRESH_FOOD_KINDS, ...PRESERVED_FOOD_KINDS, ...BREAD_GRAIN_KINDS,
@@ -18,7 +22,11 @@ for (const kind of [
 ]) {
   assert.ok(foods.has(kind), `Food panel is missing ${kind}`);
 }
-const visibleResources = new Set<string>([...HUD_RESOURCE_KINDS, ...foods]);
+const visibleResources = new Set<string>([
+  ...HUD_RESOURCE_KINDS,
+  ...foods,
+  ...HUD_FOOD_GROUPS.map(({ id }) => id),
+]);
 for (const kind of new Set([...TRADE_RESOURCE_KINDS, ...RESOURCE_COST_KINDS])) {
   assert.ok(visibleResources.has(kind), `HUD menus are missing ${kind}`);
 }

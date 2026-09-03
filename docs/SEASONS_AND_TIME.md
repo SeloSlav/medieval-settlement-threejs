@@ -676,7 +676,7 @@ and performs no shortest-path solves.
 
 Prosperity throughput uses the same topology rule. Staffed smokehouses,
 breweries, Spinning & Retting Houses, Weavers, and potters contribute their
-preserved-food, ale, prepared-fibre, clothing, and pottery capacity only to
+savory-preserve, ale, prepared-fibre, clothing, and pottery capacity only to
 their own road component. Textile capacity is the smaller of the local
 preparation and weaving stages before it joins the other resident-equivalent
 outputs. Complete branch capacities are summed, while split specializations are
@@ -852,7 +852,8 @@ Food is stored in several places:
   fishing camps, swineherds, apiaries, vineyards, and similar producers.
 - Granaries pull wild food from connected producers, hold up to their configured
   food capacity, bake flour into food, supply smokehouses, and deliver to homes.
-- Smokehouses turn fresh food plus firewood into preserved food.
+- Smokehouses turn meat, fish, or milk plus firewood and salt into cured meat,
+  smoked fish, or cheese.
 - Residences hold delivered food in their household need stock.
 - Treasury food exists as an overflow/salvage fallback, but is the least efficient
   place to leave it.
@@ -864,7 +865,7 @@ Food is stored in several places:
 Fresh food decays proportionally each simulation step. Granaries reduce spoilage to
 35% of the seasonal rate, smokehouses to 55%, monasteries to 65%, and marketplaces
 to 80%. Unprotected producer stock takes the full rate and treasury overflow takes
-120%. Grain, flour, preserved food, honey, ale, and wine are not part of the fresh
+120%. Grain, flour, savory and sweet preserves, honey, ale, and wine are not part of the fresh
 food spoilage pass.
 
 ## Balance knobs
@@ -881,5 +882,5 @@ The most important tuning sequence is:
 3. Tune winter firewood and pasture multipliers against one full six-hour year.
 4. Tune drought frequency before drought severity; frequent severe droughts create
    unavoidable spirals.
-5. Preserve a recovery route: trade, granary buffers, preserved food, grain-fed
+5. Preserve a recovery route: trade, granary buffers, named preserves, grain-fed
    livestock, and protected fish populations must all remain viable responses.

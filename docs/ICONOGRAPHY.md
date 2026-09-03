@@ -85,7 +85,7 @@ depend on the order below.
 | `map-resources.png` | stone, game, berries / mushrooms, fish, clay |
 | `construction-actions.png` | road, hammer, agriculture / industry, defense, water / town hall, settings, camp |
 | `hud-resources-core.png` | timber, stone, firewood / water, food, gold / population, housing, labor |
-| `hud-resources-goods-a.png` | grain, barley, malt / flour, ale, preserved food / honey, wine, wool |
+| `hud-resources-goods-a.png` | grain, barley, malt / flour, ale, savory preserves / sweet preserves, wine, wool |
 | `hud-resources-goods-b.png` | flax, cloth / ironwork, polearms |
 | `hud-resources-foods.png` | bread, meat, fish, berries / mushrooms, milk, apples, cherries / vegetables, eggs, grapes, unused / cured meat, smoked fish, cheese, honey |
 

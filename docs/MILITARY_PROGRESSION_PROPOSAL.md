@@ -57,9 +57,9 @@ lasts three calendar days; the listed amounts are not charged again each day.
 | Setting | Recruitment and resupply issue | Daily local wages |
 | --- | --- | --- |
 | Muster only (Easy) | Equipment and available resident labor only | Disabled |
-| Light rations (Normal) | 1 preserved food per living soldier | Disabled |
-| Full upkeep | 2 preserved food per living soldier + 1 ale per 4 living soldiers | Enabled |
-| Campaign burden (Hardcore) | 2 preserved food + 1 ale per living soldier | Enabled |
+| Light rations (Normal) | 1 savory preserve per living soldier | Disabled |
+| Full upkeep | 2 savory preserves per living soldier + 1 ale per 4 living soldiers | Enabled |
+| Campaign burden (Hardcore) | 2 savory preserves + 1 ale per living soldier | Enabled |
 
 Militia always require only one polearm per selected resident and never draw
 provisions or wages. Mercenaries always use their independent 96-gold hiring

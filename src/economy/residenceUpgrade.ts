@@ -202,7 +202,7 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       roofTiles: RESIDENCE_TILE_ROOF_TILE_COST,
       requiredChapelTier: requiredChapelTierForResidence(tier),
       serviceKinds: activeResidenceNeedKinds(tier),
-      addedNeeds: 'cured provisions, pottery, luxury goods, the complete food standard, and a level-3 church standard; the house gains its fired-tile roof',
+      addedNeeds: 'savory preserves, pottery, luxury goods, the complete food standard, and a level-3 church standard; the house gains its fired-tile roof',
     };
   }
   return null;

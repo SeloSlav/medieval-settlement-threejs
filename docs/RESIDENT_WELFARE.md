@@ -24,12 +24,13 @@ housing capacity.
   were made locally or imported; promotion never requires a named local
   producer building.
 - Food variety counts categories rather than labels in the pantry: grains,
-  vegetables, fruits, animal produce, meats, fish, foraged foods, and sweet
-  preserves. Honey, aronia jam, and rosehip jam therefore count as one category;
-  apples and legacy cherries do not count twice, nor do milk, eggs, and cheese.
+  vegetables, fruits, animal produce, meats, fish, foraged foods, savory
+  preserves, and sweet preserves. Honey, aronia jam, and rosehip jam therefore
+  count as one Sweet preserves category; cured meat, smoked fish, and cheese
+  count as one Savory preserves category.
   Market delivery planning prefers a category the destination home is missing.
-- Preserved food is an emergency substitute for fresh food. It is not consumed
-  as an unavoidable second daily meal.
+- Savory preserves are an emergency substitute for fresh food. They replace a
+  meal slot rather than becoming an unavoidable second daily meal.
 - No need shortage removes residents through migration or abandons a home.
   Supplying food again reduces hunger and heals malnutrition gradually.
 
