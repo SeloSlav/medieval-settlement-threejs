@@ -161,13 +161,15 @@ export class BuildToolbar {
     this.hideDeletePopup(true);
   };
   private readonly onBuildMenuOutsideMouseDown = (event: MouseEvent): void => {
-    if (!this.isAnyBuildMenuOpen()) return;
+    if (!this.isAnyBuildMenuOpen() && !this.militaryMenu.isOpen) return;
+    if (this.root.querySelector('.alert-dialog-backdrop:not([hidden])')) return;
     const target = event.target;
     if (!(target instanceof Node)) return;
     if (this.constructionDock.contains(target)) return;
     if (
       this.buildMenu.contains(target)
       || this.overlayMenu.contains(target)
+      || this.militaryMenu.element.contains(target)
       || this.roadSnapControl.contains(target)
     ) return;
 
@@ -181,7 +183,7 @@ export class BuildToolbar {
     }
   };
   private readonly onBuildMenuOutsideSecondaryClick = (event: MouseEvent): void => {
-    if (!this.isAnyBuildMenuOpen()) return;
+    if (!this.isAnyBuildMenuOpen() && !this.militaryMenu.isOpen) return;
     event.preventDefault();
     this.closeAllBuildMenus();
   };
@@ -519,7 +521,6 @@ export class BuildToolbar {
     this.militaryMenu = new MilitaryMenu(this.mustElement(root, '[data-hud-bottom-center]'), {
       onSelectCompany: (id) => handlers.onSelectMilitaryCompany?.(id),
       onOrder: (ids, order) => handlers.onMilitaryOrder?.(ids, order) ?? Promise.resolve(),
-      onClose: () => this.setMilitaryMenuOpen(false),
     });
     this.militaryButton.addEventListener('click', () => this.setMilitaryMenuOpen(!this.militaryMenu.isOpen));
     this.overlayButton = this.mustButton(root, '[data-action="overlay-menu"]');
@@ -985,6 +986,7 @@ export class BuildToolbar {
 
   setMilitaryMenuOpen(open: boolean): void {
     const allowed = open && this.gameplayEnabled && !this.firstPersonActive && !this.starterCampRequired;
+    if (!allowed) this.buildMenuOutsideSecondaryClick.cancel();
     if (allowed) {
       this.setBuildMenuOpen(false);
       this.setOverlayMenuOpen(false);

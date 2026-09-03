@@ -46,6 +46,14 @@ assert.equal(militaryOrderAvailable(companies[0]!, { kind: 'formation', value: 1
 
 const bootstrap = readFileSync('src/app/appBootstrap.ts', 'utf8');
 const menuSource = readFileSync('src/ui/MilitaryMenu.ts', 'utf8');
+const toolbarSource = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
+assert.doesNotMatch(menuSource, /data-close-military|military-menu__close|onClose/, 'the military tray uses outside-click dismissal instead of a close button');
+for (const handler of ['onBuildMenuOutsideMouseDown', 'onBuildMenuOutsideSecondaryClick']) {
+  assert.match(toolbarSource, new RegExp(`${handler} = \\(event: MouseEvent\\): void => \\{\\s*if \\(!this\\.isAnyBuildMenuOpen\\(\\) && !this\\.militaryMenu\\.isOpen\\) return;`), 'both primary and secondary outside clicks must dismiss the military tray');
+}
+assert.match(toolbarSource, /onBuildMenuOutsideMouseDown[\s\S]*?this\.militaryMenu\.element\.contains\(target\)/, 'clicking company cards or orders must keep the tray open');
+assert.match(toolbarSource, /onBuildMenuOutsideMouseDown[\s\S]*?querySelector\('\.alert-dialog-backdrop:not\(\[hidden\]\)'\)\) return;/, 'confirmation dialogs must not count as outside clicks');
+assert.match(toolbarSource, /setMilitaryMenuOpen\(open: boolean\): void \{\s*const allowed[^\n]*\n\s*if \(!allowed\) this\.buildMenuOutsideSecondaryClick\.cancel\(\);/, 'closing the military tray must cancel pending secondary-click gestures');
 assert.doesNotMatch(menuSource, /data-health|data-fatigue|role="meter"|aria-valuenow/, 'combat conditions remain implicit rather than numerical meters');
 assert.doesNotMatch(bootstrap, /resourceInspector\.selectMilitaryCompany/);
 assert.match(bootstrap, /onCompanySelected:[\s\S]*toolbar\.selectMilitaryCompanies\(\[companyId\]\)/);

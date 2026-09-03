@@ -28,8 +28,8 @@ export const GRADE_SPLIT_HIGHLIGHT_END = 1.05;
 export const GRADE_SPLIT_HIGHLIGHT_STRENGTH = 0.065;
 export const GRADE_SPLIT_HIGHLIGHT_TINT = [1.045, 1.012, 0.94] as const;
 export const GRADE_FILMIC_PIVOT = 0.18;
-export const GRADE_FILMIC_POWER = 1.075;
-export const GRADE_FILMIC_BLEND = 0.6;
+export const GRADE_FILMIC_POWER = 1.035;
+export const GRADE_FILMIC_BLEND = 0.34;
 export const GRADE_GRAIN_STRENGTH = 0.0025;
 
 export function buildGradeGlslVertexShader(): string {

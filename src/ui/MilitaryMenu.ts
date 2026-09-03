@@ -11,7 +11,6 @@ import {
 export type MilitaryMenuHandlers = {
   onSelectCompany: (id: string) => void;
   onOrder: (ids: string[], order: MilitaryOrder) => Promise<void>;
-  onClose: () => void;
 };
 
 type CompanyCard = { button: HTMLButtonElement; count: HTMLElement };
@@ -41,7 +40,6 @@ export class MilitaryMenu {
     this.element.setAttribute('aria-label', 'Military');
     this.element.hidden = true;
     this.element.innerHTML = `
-      <button type="button" class="military-menu__utility military-menu__close" data-close-military aria-label="Close military" data-tooltip="Close military">×</button>
       <div class="military-menu__rail" data-military-orders-rail hidden>
         <div class="military-menu__orders" data-military-orders></div>
       </div>
@@ -63,7 +61,6 @@ export class MilitaryMenu {
     this.next = find('[data-scroll-next]');
     this.empty = find('[data-military-empty]');
     this.dialog = new AlertDialog(parent.closest<HTMLElement>('[data-ui-root]') ?? parent);
-    find('[data-close-military]').addEventListener('click', handlers.onClose);
     this.previous.addEventListener('click', () => this.scroll(-1));
     this.next.addEventListener('click', () => this.scroll(1));
     this.viewport.addEventListener('scroll', this.syncScroll);

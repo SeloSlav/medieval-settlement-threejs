@@ -454,6 +454,9 @@ export class ResourceInspector {
   private serviceCoverageProjection: ServiceCoverageView | null = null;
   private serviceCoverageTabPreviewBuildingId: string | null = null;
   private renderedIdentity = '';
+  private renderedDetailsHtml: string | null = null;
+  private renderedDetailsTarget: string | undefined;
+  private renderedDetailRows: { html: string; row: HTMLElement }[] = [];
   private renderedSupplementalPanelHtml = '';
   private selectedX = 0;
   private selectedZ = 0;
@@ -3115,12 +3118,21 @@ export class ResourceInspector {
   }
 
   private renderDetails(detailsHtml: string): void {
-    this.detailList.innerHTML = detailsHtml;
-    const rows = [...this.detailList.children]
+    const target = this.panel.dataset.inspectorTarget;
+    if (this.renderedDetailsHtml === detailsHtml && this.renderedDetailsTarget === target) return;
+    this.renderedDetailsHtml = detailsHtml;
+    this.renderedDetailsTarget = target;
+    // Prepare rows off-DOM so filtering and decoration never detach live badges.
+    const template = document.createElement('template');
+    template.innerHTML = detailsHtml;
+    const rows = [...template.content.children]
       .filter((element): element is HTMLElement => element instanceof HTMLElement);
     const detailsSection = this.detailList.closest<HTMLElement>('.resource-inspector-details');
     if (detailsSection) detailsSection.hidden = rows.length === 0;
-    if (rows.length === 0) return;
+    if (rows.length === 0) {
+      this.syncDetailRows([]);
+      return;
+    }
     const ranked = rows.map((row, index) => {
       const label = row.firstElementChild?.textContent?.trim() ?? '';
       const value = row.lastElementChild?.textContent?.trim() ?? '';
@@ -3140,7 +3152,7 @@ export class ResourceInspector {
       this.panel.dataset.inspectorTarget === 'residence'
       && residenceSummaryRows.length > 0
     ) {
-      this.detailList.replaceChildren(...withInspectorSectionHeadings(residenceSummaryRows));
+      this.syncDetailRows(withInspectorSectionHeadings(residenceSummaryRows));
       return;
     }
     if (this.panel.dataset.inspectorTarget === 'building') {
@@ -3151,7 +3163,7 @@ export class ResourceInspector {
           || row.hasAttribute('data-land-use-affinities')
           || row.hasAttribute('data-construction-summary'))
         .map(({ row }) => row);
-      this.detailList.replaceChildren(...withInspectorSectionHeadings(compactRows));
+      this.syncDetailRows(withInspectorSectionHeadings(compactRows));
       return;
     }
     const pinnedPrimaryRows = ranked
@@ -3185,7 +3197,24 @@ export class ResourceInspector {
     }
 
     const visibleRows = rows.filter((row) => primaryRows.has(row));
-    this.detailList.replaceChildren(...withInspectorSectionHeadings(visibleRows));
+    this.syncDetailRows(withInspectorSectionHeadings(visibleRows));
+  }
+
+  private syncDetailRows(rows: readonly HTMLElement[]): void {
+    const remaining = [...this.renderedDetailRows];
+    const next = rows.map((row) => {
+      const html = row.outerHTML;
+      // Compare authored markup, not live DOM: tooltips add aria-describedby.
+      const index = remaining.findIndex((entry) => entry.html === html);
+      return index < 0 ? { html, row } : remaining.splice(index, 1)[0]!;
+    });
+    for (const { row } of remaining) row.remove();
+    let cursor = this.detailList.firstChild;
+    for (const { row } of next) {
+      if (row !== cursor) this.detailList.insertBefore(row, cursor);
+      cursor = row.nextSibling;
+    }
+    this.renderedDetailRows = next;
   }
 
   private standardizeSupplementalPanels(): void {

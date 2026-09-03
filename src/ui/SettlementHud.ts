@@ -774,19 +774,20 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__stores-status" data-military-stores-status>0</strong>
       </summary>
       <div class="settlement-hud__stores-grid" aria-label="Military equipment stores">
-        <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2">
-          <strong>Arms</strong>
+        <div class="settlement-hud__stores-grid-header settlement-hud__people-header settlement-hud__supply-header" role="heading" aria-level="2">
+          <strong>Military stores</strong>
           <span data-military-stores-mode-label>Available surplus</span>
         </div>
+        <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3"><strong>Arms</strong></div>
         <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="polearms" data-tooltip="${RESOURCE_DESCRIPTIONS.polearms}"><span class="settlement-hud__label">Polearms</span><strong class="settlement-hud__value" data-stockpile="polearms">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="polearms" hidden></span></div>
         <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="sidearms" data-tooltip="${RESOURCE_DESCRIPTIONS.sidearms}"><span class="settlement-hud__label">Sidearms</span><strong class="settlement-hud__value" data-stockpile="sidearms">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="sidearms" hidden></span></div>
         <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="bows" data-tooltip="${RESOURCE_DESCRIPTIONS.bows}"><span class="settlement-hud__label">Bows</span><strong class="settlement-hud__value" data-stockpile="bows">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="bows" hidden></span></div>
         <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="crossbows" data-tooltip="${RESOURCE_DESCRIPTIONS.crossbows}"><span class="settlement-hud__label">Crossbows</span><strong class="settlement-hud__value" data-stockpile="crossbows">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="crossbows" hidden></span></div>
-        <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2"><strong>Protection</strong></div>
+        <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3"><strong>Protection</strong></div>
         <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="shields" data-tooltip="${RESOURCE_DESCRIPTIONS.shields}"><span class="settlement-hud__label">Shields</span><strong class="settlement-hud__value" data-stockpile="shields">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="shields" hidden></span></div>
         <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="paddedArmor" data-tooltip="${RESOURCE_DESCRIPTIONS.paddedArmor}"><span class="settlement-hud__label">Padded</span><strong class="settlement-hud__value" data-stockpile="paddedArmor">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="paddedArmor" hidden></span></div>
         <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="mailArmor" data-tooltip="${RESOURCE_DESCRIPTIONS.mailArmor}"><span class="settlement-hud__label">Mail</span><strong class="settlement-hud__value" data-stockpile="mailArmor">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="mailArmor" hidden></span></div>
-        <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2"><strong>Ammunition</strong></div>
+        <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3"><strong>Ammunition</strong></div>
         <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ammunition" data-tooltip="${RESOURCE_DESCRIPTIONS.ammunition}"><span class="settlement-hud__label">Ammunition</span><strong class="settlement-hud__value" data-stockpile="ammunition">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ammunition" hidden></span></div>
       </div>
     </details>
