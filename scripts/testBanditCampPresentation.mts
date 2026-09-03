@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { BanditCampRenderer } from '../src/security/BanditCampRenderer.ts';
+import { timberMaterial } from '../src/buildings/buildingMaterials.ts';
 import {
   formatBanditGoodsSummary,
   parseBanditGoods,
@@ -22,7 +23,7 @@ assert.equal(physicalRoot.children[0]!.position.y, 2.53, 'camp should follow ter
 
 const tents: THREE.Mesh[] = [];
 physicalRoot.traverse((object) => {
-  if (object instanceof THREE.Mesh && object.name === 'Bandit weathered canvas tent') {
+  if (object instanceof THREE.Mesh && object.name === 'Weathered tent canvas shell') {
     tents.push(object);
   }
 });
@@ -31,7 +32,24 @@ for (const tent of tents) {
   const material = tent.material as THREE.MeshStandardMaterial;
   assert.ok(material.map, 'bandit tents must use the founders-camp woven canvas texture');
   assert.match(material.map.name, /founding canvas/i);
+  assert.notEqual(tent.geometry.type, 'ConeGeometry', 'shelters must be the full open A-frame assembly');
+  assert.ok(tent.parent!.getObjectByName('Open tent interior'));
+  assert.ok(tent.parent!.getObjectByName('Taut tent guy rope'));
+  assert.ok(tent.parent!.getObjectByName('Rolled wool blanket'));
 }
+const stumps: THREE.Mesh[] = [];
+physicalRoot.traverse((object) => {
+  if (object instanceof THREE.Mesh && object.name === 'Camp fireside stump seat') stumps.push(object);
+});
+assert.equal(stumps.length, 3, 'the red ember disc is replaced by founders log seats');
+for (const stump of stumps) {
+  assert.ok((stump.material as THREE.MeshStandardMaterial).map);
+  assert.equal(stump.material, timberMaterial('dark'), 'stumps reuse the actual founders wood material');
+}
+renderer.tick(1 / 30);
+assert.equal(renderer.standardDiagnostics()?.standards, 1);
+assert.equal(renderer.standardDiagnostics()?.panels, 1);
+assert.equal(renderer.standardDiagnostics()?.simulationNodes, 60);
 const texturedTimber = physicalRoot.getObjectByName('Bandit textured perimeter stake') as THREE.Mesh;
 assert.ok(texturedTimber, 'the camp should retain physical timber and prop meshes');
 assert.ok(
@@ -45,6 +63,7 @@ assert.equal(
   0,
   'an inactive destroyed camp must disappear instead of swapping to a ruin mesh',
 );
+assert.equal(renderer.standardDiagnostics()?.standards, 0, 'destroying a camp removes its flag and cloth state');
 
 renderer.sync([active]);
 assert.equal(physicalRoot.children.length, 1, 'a later authoritative respawn should recreate the camp');

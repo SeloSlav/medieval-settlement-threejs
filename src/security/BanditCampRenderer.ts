@@ -1,43 +1,37 @@
 import * as THREE from 'three';
 import type { Terrain } from '../terrain/Terrain.ts';
 import {
+  addCampAFrameShelter,
+  addCampStumpSeat,
   getAgedTentCanvasMaterial,
   getCampGroundMaterial,
 } from '../buildings/meshes/foundersCampMesh.ts';
 import { metalMaterial, timberMaterial } from '../buildings/buildingMaterials.ts';
 import type { BanditCampState } from './banditState.ts';
+import { CampStandardRenderer, createCampStandardAnchor } from '../settlement/CampStandardRenderer.ts';
 
 type CampVisual = { root: THREE.Group };
 
-const timber = standardCampMaterial(
-  timberMaterial('dark'),
-  0x9b765a,
-  'Weathered textured bandit timber',
-);
+const timber = timberMaterial('dark');
 const darkCloth = banditCanvasMaterial(0xb2a28a, 'Weathered umber bandit canvas');
 const blackCloth = banditCanvasMaterial(0x83796a, 'Soot-darkened bandit canvas');
 const dirt = getCampGroundMaterial();
-const iron = standardCampMaterial(
-  metalMaterial('iron'),
-  0x9a9287,
-  'Worn bandit ironwork',
-  0.68,
-  0.35,
-);
-const ember = new THREE.MeshStandardMaterial({ color: 0x4a1f12, emissive: 0x5d1c08, emissiveIntensity: 0.65, roughness: 1 });
+const iron = metalMaterial('iron');
 
 /** Deterministic, low-cost outlaw encampment. Deliberately avoids the founder
  * camp's stocked crates and supply piles: crooked perimeter stakes, dark
- * shelters, a weapon rack, and torn pennant are the identity read at distance. */
+ * shelters, a weapon rack, and planted outlaw standard distinguish it. */
 export class BanditCampRenderer {
   private readonly root = new THREE.Group();
   private readonly visuals = new Map<string, CampVisual>();
   private readonly terrain: Terrain;
+  private readonly standards: CampStandardRenderer;
 
   constructor(terrain: Terrain, parent: THREE.Group) {
     this.terrain = terrain;
     this.root.name = 'Physical bandit camps';
     parent.add(this.root);
+    this.standards = new CampStandardRenderer(parent, (x, z) => this.terrain.getHeightAt(x, z));
   }
 
   sync(camps: Iterable<BanditCampState>): void {
@@ -60,9 +54,19 @@ export class BanditCampRenderer {
       removeCampVisual(visual);
       this.visuals.delete(id);
     }
+    this.tick(0);
+  }
+
+  tick(dtSeconds: number): void {
+    this.standards.sync(this.root.children, dtSeconds);
+  }
+
+  standardDiagnostics() {
+    return this.standards.diagnostics();
   }
 
   dispose(): void {
+    this.standards.dispose();
     for (const visual of this.visuals.values()) removeCampVisual(visual);
     this.root.removeFromParent();
     this.visuals.clear();
@@ -92,23 +96,20 @@ function createCamp(seed: number): CampVisual {
     stake.castShadow = true;
     root.add(stake);
   }
-  addTent(root, -2.35, -1.0, 1.0, darkCloth);
-  addTent(root, 2.2, -1.55, -0.72, blackCloth);
+  // Full-size founders' A-frames, with entrances turned into the clearing.
+  addCampAFrameShelter(root, -2.65, -1.7, -2.85, 0, null, darkCloth);
+  addCampAFrameShelter(root, 2.65, -1.7, 2.85, 1, null, blackCloth);
   addWeaponRack(root, 3.45, 1.45);
-  addFirePit(root, 0.2, 1.1);
-  addPennant(root, -4.5, 2.5);
+  addCampStumpSeat(root, 0.2, 1.1);
+  addCampStumpSeat(root, -1.35, 2.2);
+  addCampStumpSeat(root, 1.25, 2.7);
+  const standard = createCampStandardAnchor('bandit');
+  standard.position.set(-4.5, 0, 2.5);
+  root.add(standard);
+  root.traverse((object) => {
+    if (object instanceof THREE.Mesh && object !== ground) object.castShadow = true;
+  });
   return { root };
-}
-
-function addTent(parent: THREE.Group, x: number, z: number, yaw: number, material: THREE.Material): void {
-  const tent = new THREE.Mesh(new THREE.ConeGeometry(2.1, 2.6, 4), material);
-  tent.name = 'Bandit weathered canvas tent';
-  tent.position.set(x, 1.3, z);
-  tent.rotation.y = yaw + Math.PI / 4;
-  tent.scale.z = 0.72;
-  tent.castShadow = true;
-  tent.receiveShadow = true;
-  parent.add(tent);
 }
 
 function addWeaponRack(parent: THREE.Group, x: number, z: number): void {
@@ -134,57 +135,14 @@ function addWeaponRack(parent: THREE.Group, x: number, z: number): void {
   parent.add(rack);
 }
 
-function addFirePit(parent: THREE.Group, x: number, z: number): void {
-  const pit = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.72, 0.12, 12), ember);
-  pit.position.set(x, 0.09, z);
-  pit.receiveShadow = true;
-  parent.add(pit);
-}
-
-function addPennant(parent: THREE.Group, x: number, z: number): void {
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.08, 4.2, 6), timber);
-  pole.position.set(x, 2.1, z);
-  pole.castShadow = true;
-  const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 0.72), blackCloth);
-  flag.position.set(x + 0.64, 3.55, z);
-  flag.geometry.translate(0, 0, 0);
-  parent.add(pole, flag);
-}
-
 function seeded(value: number): number {
   const x = Math.sin(value * 12.9898) * 43758.5453;
   return x - Math.floor(x);
 }
 
 function banditCanvasMaterial(color: number, name: string): THREE.MeshStandardMaterial {
-  return standardCampMaterial(
-    getAgedTentCanvasMaterial(0),
-    color,
-    name,
-    0.98,
-    0,
-    THREE.DoubleSide,
-  );
-}
-
-/** Building materials use node shaders in the WebGPU game. Bandit camps also
- * appear in the WebGL visual contract, so reuse their authored texture maps in
- * a backend-neutral standard material instead of cloning the node shader. */
-function standardCampMaterial(
-  source: THREE.MeshStandardMaterial,
-  color: number,
-  name: string,
-  roughness = 0.96,
-  metalness = 0,
-  side: THREE.Side = THREE.FrontSide,
-): THREE.MeshStandardMaterial {
-  const material = new THREE.MeshStandardMaterial({
-    color,
-    map: source.map,
-    roughness,
-    metalness,
-    side,
-  });
+  const material = getAgedTentCanvasMaterial(0).clone();
+  material.color.setHex(color);
   material.name = name;
   return material;
 }

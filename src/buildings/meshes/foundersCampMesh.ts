@@ -19,6 +19,7 @@ import {
   updateFireEffect,
 } from '../../fires/FireEffect.ts';
 import { markBuildingDetailShadowCaster } from '../buildingShadowProxy.ts';
+import { createCampStandardAnchor } from '../../settlement/CampStandardRenderer.ts';
 import {
   installBuildingDetailCasterBatches,
 } from '../buildingDetailShadowBatch.ts';
@@ -877,20 +878,20 @@ function addLivedInTextiles(parent: THREE.Group): void {
   parent.add(textiles);
 }
 
-function addAFrameShelter(
+export function addCampAFrameShelter(
   parent: THREE.Group,
   x: number,
   z: number,
   yaw: number,
   fabricVariant: number,
   omittedGuySide: -1 | 1 | null = null,
-): void {
+  canvasMaterial = getAgedTentCanvasMaterial(fabricVariant),
+): THREE.Group {
   const shelter = new THREE.Group();
   shelter.name = 'Founding canvas tent';
   shelter.position.set(x, 0, z);
   shelter.rotation.y = yaw;
   shelter.userData.fpCollisionAggregate = true;
-  const canvasMaterial = getAgedTentCanvasMaterial(fabricVariant);
 
   // Submit the five canvas pieces as one shell. They already share one
   // material, so keeping them as separate meshes only multiplied draw calls;
@@ -986,6 +987,7 @@ function addAFrameShelter(
   bedroll.userData.fpNoCollision = true;
 
   parent.add(shelter);
+  return shelter;
 }
 
 function createAFrameCanvasGeometry(): THREE.BufferGeometry {
@@ -1778,11 +1780,14 @@ export function createFoundersCampMesh(): THREE.Group {
 
   addCampGrounding(group);
   addFoundingFootTraffic(group);
+  const standard = createCampStandardAnchor('player');
+  standard.position.set(-6.8, 0, -1.8);
+  group.add(standard);
 
   const shelters = new THREE.Group();
   shelters.name = 'FoundingShelters';
   FOUNDERS_CAMP_TENT_PLACEMENTS.forEach(({ x, z, yaw }, index) => {
-    addAFrameShelter(shelters, x, z, yaw, index);
+    addCampAFrameShelter(shelters, x, z, yaw, index);
   });
   group.add(shelters);
 
@@ -1816,33 +1821,11 @@ export function createFoundersCampMesh(): THREE.Group {
     );
     leg.name = 'Camp bench leg';
   }
-  const stumpCapThickness = 0.05;
-  const stumpBodyHeight = FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT
-    - stumpCapThickness;
-  const stumpSeat = addMesh(
+  addCampStumpSeat(
     shelters,
-    new THREE.CylinderGeometry(0.38, 0.43, stumpBodyHeight, 10),
-    timberMaterial('dark'),
-    new THREE.Vector3(
-      FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.x,
-      stumpBodyHeight / 2,
-      FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.z,
-    ),
-    new THREE.Euler(0, 0.18, 0),
+    FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.x,
+    FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.z,
   );
-  stumpSeat.name = 'Camp fireside stump seat';
-  const stumpSeatTop = addMesh(
-    shelters,
-    new THREE.CylinderGeometry(0.37, 0.38, stumpCapThickness, 10),
-    timberMaterial('weathered'),
-    new THREE.Vector3(
-      FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.x,
-      FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT - stumpCapThickness / 2,
-      FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.z,
-    ),
-    new THREE.Euler(0, 0.18, 0),
-  );
-  stumpSeatTop.name = 'Camp fireside stump seat top';
 
   addFoundingProvisions(shelters);
   addFoundingWorkyard(shelters);
@@ -1867,4 +1850,36 @@ export function createFoundersCampMesh(): THREE.Group {
   });
   installBuildingDetailCasterBatches(group, 'Founders exact caster batches');
   return group;
+}
+
+/** Shared full-height log seat, including its separate weathered cut top. */
+export function addCampStumpSeat(parent: THREE.Group, x: number, z: number): void {
+  const stumpCapThickness = 0.05;
+  const stumpBodyHeight = FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT
+    - stumpCapThickness;
+  const stumpSeat = addMesh(
+    parent,
+    new THREE.CylinderGeometry(0.38, 0.43, stumpBodyHeight, 10),
+    timberMaterial('dark'),
+    new THREE.Vector3(
+      x,
+      stumpBodyHeight / 2,
+      z,
+    ),
+    new THREE.Euler(0, 0.18, 0),
+  );
+  stumpSeat.name = 'Camp fireside stump seat';
+  const stumpSeatTop = addMesh(
+    parent,
+    new THREE.CylinderGeometry(0.37, 0.38, stumpCapThickness, 10),
+    timberMaterial('weathered'),
+    new THREE.Vector3(
+      x,
+      FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT - stumpCapThickness / 2,
+      z,
+    ),
+    new THREE.Euler(0, 0.18, 0),
+  );
+  stumpSeatTop.name = 'Camp fireside stump seat top';
+
 }

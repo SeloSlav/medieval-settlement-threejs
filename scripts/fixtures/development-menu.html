@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Development tree — client preview</title></head>
+<body>
+  <div id="app"><div data-ui-root></div></div>
+  <script type="module">
+    import '/src/style.css';
+    import { BuildToolbar } from '/src/ui/BuildToolbar.ts';
+    import { mountTooltips } from '/src/ui/tooltips.ts';
+    const root = document.querySelector('[data-ui-root]');
+    const toolbar = new BuildToolbar(root, {
+      onOpenRoads() {}, onBuildRoad() {}, onSelectBuilding() {}, onSelectDryStoneWall() {},
+      onPlaceStarterCamp() {}, onSelectResidences() {}, onCancelPlacement() {}, onToggleCityAdministration() {},
+      onSetGameSpeed(speed) {
+        root.querySelectorAll('[data-game-speed]').forEach(button => button.setAttribute('aria-pressed', String(Number(button.dataset.gameSpeed) === speed)));
+      },
+    });
+    mountTooltips(root);
+    // Exercise the production launcher, HUD satellites, and input ownership, without a database.
+    root.querySelector('[data-action="developments"]').click();
+    window.addEventListener('pagehide', () => toolbar.dispose(), { once: true });
+  </script>
+</body>
+</html>

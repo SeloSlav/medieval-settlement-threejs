@@ -25,6 +25,7 @@
 @import url('./ui/tutorialOverlay.css');
 @import url('/src/ui/readability.css');
 @import url('./ui/militaryMenu.css');
+@import url('./ui/developmentMenu.css');
 
 :root {
   --ink: #eee8dc;

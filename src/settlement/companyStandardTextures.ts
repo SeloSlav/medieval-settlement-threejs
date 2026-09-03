@@ -76,6 +76,35 @@ export function createCompanyStandardTextures(): CompanyStandardTextureSet {
   };
 }
 
+/** Outlaw field sign on the same woven, hemmed cloth as military standards. */
+export function createBanditCampStandardTexture(): THREE.CanvasTexture {
+  const canvas = bannerCanvas(1.5 / 1.08);
+  const context = context2d(canvas);
+  const { width, height } = canvas;
+  context.fillStyle = '#302b26';
+  context.fillRect(0, 0, width, height);
+  context.translate(width * 0.44, height * 0.5);
+  for (const angle of [-Math.PI / 4, Math.PI / 4]) {
+    context.save();
+    context.rotate(angle);
+    context.fillStyle = '#d2b989';
+    context.beginPath();
+    context.moveTo(-width * 0.025, height * 0.15);
+    context.lineTo(-width * 0.025, -height * 0.22);
+    context.lineTo(0, -height * 0.34);
+    context.lineTo(width * 0.025, -height * 0.22);
+    context.lineTo(width * 0.025, height * 0.15);
+    context.closePath();
+    context.fill();
+    context.fillRect(-width * 0.09, height * 0.12, width * 0.18, height * 0.035);
+    context.fillRect(-width * 0.017, height * 0.15, width * 0.034, height * 0.15);
+    context.restore();
+  }
+  context.resetTransform();
+  finishClothSurface(canvas, '#8e7653', 0xbad17);
+  return clothTexture(canvas, 'Bandit crossed blades camp-standard cloth');
+}
+
 function bannerCanvas(aspectRatio: number): HTMLCanvasElement {
   if (typeof document === 'undefined') {
     throw new Error('Company-standard textures require a browser canvas.');

@@ -987,6 +987,7 @@ export class App {
     // Use the settled camera and this frame's interpolated soldier positions
     // for strategic markers and terrain-following individual selection rings.
     this.militiaCommands?.update(time, crowdView);
+    this.banditCamps?.tick(worldDt);
     // Render only after every agent renderer has committed its interpolated
     // transform and skinning palette. The directional shadow pass consumes the
     // same frame state as the color pass instead of trailing by one update.

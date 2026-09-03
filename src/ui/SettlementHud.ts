@@ -28,6 +28,7 @@ import {
 } from '../security/frontierSecurity.ts';
 import type { SettlementProvisioning } from '../economy/settlementProvisioning.ts';
 import type { SettlementApproval } from '../economy/settlementApproval.ts';
+import { FOOD_CATEGORY_LABELS, foodCategory } from '../economy/foodInventory.ts';
 import type { AuthoritativeWorldGeneration } from '../world/worldConfigAuthority.ts';
 import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
 import { describeWorldDifficulty } from '../world/worldDifficulty.ts';
@@ -526,51 +527,60 @@ const SETTLEMENT_HUD_HTML = `
           id="settlement-food-breakdown"
           class="settlement-hud__stores-grid settlement-hud__food-grid"
           data-food-breakdown
-          aria-label="Food stores by commodity"
+          aria-label="Food stores by household food group"
         >
-          <div class="settlement-hud__stores-grid-header settlement-hud__people-header settlement-hud__supply-header" role="heading" aria-level="2">
-            <strong>Food supply</strong>
-            <span data-food-stores-mode-label>Available surplus</span>
-          </div>
-          <div class="settlement-hud__supply-summary" data-supply-kind="food" data-food-supply-summary>
-            <strong data-food-supply-months>--</strong>
-            <span class="settlement-hud__supply-line" data-supply-icon="population" data-food-supply-use>No occupied residences are using food yet.</span>
-            <span class="settlement-hud__supply-line" data-supply-icon="food" data-food-supply-total>All usable food across stores and residence pantries sets this estimate.</span>
-          </div>
-          ${FOOD_RESOURCE_KINDS.map((kind) => `
-            <div
-              class="settlement-hud__stat settlement-hud__stat--store settlement-hud__food-card"
-              data-food-breakdown-row="${kind}"
-              data-food-resource="${kind}"
-              data-tooltip-title="${FOOD_RESOURCE_LABELS[kind]}"
-              data-tooltip="Available for household meals."
-            >
-              <span class="settlement-hud__label">${FOOD_RESOURCE_LABELS[kind]}</span>
-              <strong class="settlement-hud__value" data-food-breakdown-stored="${kind}">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-food-breakdown-transit="${kind}" hidden></span>
-              <span data-food-breakdown-homes="${kind}" hidden>0</span>
-              <span data-food-breakdown-surplus="${kind}" hidden>0</span>
+          <div class="settlement-hud__stores-scroll">
+            <div class="settlement-hud__stores-grid-header settlement-hud__people-header settlement-hud__supply-header" role="heading" aria-level="2">
+              <strong>Food supply</strong>
+              <span data-food-stores-mode-label>Available surplus</span>
             </div>
-          `).join('')}
-          <div
-            class="settlement-hud__stat settlement-hud__stat--store settlement-hud__food-card settlement-hud__food-card--legacy"
-            data-food-breakdown-row="legacyPreservedFood"
-            data-food-resource="legacyPreservedFood"
-            data-tooltip-title="Legacy preserved staples"
-            data-tooltip="Compatibility cured stock from an older save."
-            hidden
-          >
-            <span class="settlement-hud__label">Legacy preserved staples</span>
-            <strong class="settlement-hud__value" data-food-breakdown-stored="legacyPreservedFood">0</strong>
-            <span class="settlement-hud__sub settlement-hud__sub--transit" data-food-breakdown-transit="legacyPreservedFood" hidden></span>
-            <span data-food-breakdown-homes="legacyPreservedFood" hidden>0</span>
-            <span data-food-breakdown-surplus="legacyPreservedFood" hidden>0</span>
+            <div class="settlement-hud__supply-summary" data-supply-kind="food" data-food-supply-summary>
+              <strong data-food-supply-months>--</strong>
+              <span class="settlement-hud__supply-line" data-supply-icon="population" data-food-supply-use>No occupied residences are using food yet.</span>
+              <span class="settlement-hud__supply-line" data-supply-icon="food" data-food-supply-total>All usable food across stores and residence pantries sets this estimate.</span>
+            </div>
+            ${Object.entries(FOOD_CATEGORY_LABELS).map(([category, label]) => `
+              <section class="settlement-hud__stores-section" data-food-category="${category}" aria-labelledby="settlement-food-category-${category}">
+                <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3" id="settlement-food-category-${category}"><strong>${label}</strong></div>
+                ${FOOD_RESOURCE_KINDS.filter((kind) => foodCategory(kind) === category).map((kind) => `
+                  <div
+                    class="settlement-hud__stat settlement-hud__stat--store settlement-hud__food-card"
+                    data-food-breakdown-row="${kind}"
+                    data-food-resource="${kind}"
+                    data-tooltip-title="${FOOD_RESOURCE_LABELS[kind]}"
+                    data-tooltip="Available for household meals."
+                  >
+                    <span class="settlement-hud__label">${FOOD_RESOURCE_LABELS[kind]}</span>
+                    <strong class="settlement-hud__value" data-food-breakdown-stored="${kind}">0</strong>
+                    <span class="settlement-hud__sub settlement-hud__sub--transit" data-food-breakdown-transit="${kind}" hidden></span>
+                    <span data-food-breakdown-homes="${kind}" hidden>0</span>
+                    <span data-food-breakdown-surplus="${kind}" hidden>0</span>
+                  </div>
+                `).join('')}
+                ${category === 'grains' ? `
+                  <div
+                    class="settlement-hud__stat settlement-hud__stat--store settlement-hud__food-card settlement-hud__food-card--legacy"
+                    data-food-breakdown-row="legacyPreservedFood"
+                    data-food-resource="legacyPreservedFood"
+                    data-tooltip-title="Legacy preserved staples"
+                    data-tooltip="Compatibility cured stock from an older save."
+                    hidden
+                  >
+                    <span class="settlement-hud__label">Legacy preserved staples</span>
+                    <strong class="settlement-hud__value" data-food-breakdown-stored="legacyPreservedFood">0</strong>
+                    <span class="settlement-hud__sub settlement-hud__sub--transit" data-food-breakdown-transit="legacyPreservedFood" hidden></span>
+                    <span data-food-breakdown-homes="legacyPreservedFood" hidden>0</span>
+                    <span data-food-breakdown-surplus="legacyPreservedFood" hidden>0</span>
+                  </div>
+                ` : ''}
+              </section>
+            `).join('')}
+            <span data-food-breakdown-empty hidden></span>
+            <span data-food-breakdown-total-stored hidden>0</span>
+            <span data-food-breakdown-total-transit hidden>0</span>
+            <span data-food-breakdown-total-homes hidden>0</span>
+            <span data-food-breakdown-total-surplus hidden>0</span>
           </div>
-          <span data-food-breakdown-empty hidden></span>
-          <span data-food-breakdown-total-stored hidden>0</span>
-          <span data-food-breakdown-total-transit hidden>0</span>
-          <span data-food-breakdown-total-homes hidden>0</span>
-          <span data-food-breakdown-total-surplus hidden>0</span>
         </div>
       </details>
     </div>
@@ -583,170 +593,178 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__stores-status" data-specialty-stores-status>0</strong>
       </summary>
       <div class="settlement-hud__stores-grid" aria-label="Goods and provisions">
-      <div class="settlement-hud__stores-grid-header settlement-hud__people-header settlement-hud__supply-header" role="heading" aria-level="2">
-        <strong>Goods &amp; provisions</strong>
-        <span data-specialty-stores-mode-label>Available surplus</span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ryeGrain" data-tooltip="Grain for rye flour and bread.">
-        <span class="settlement-hud__label">Rye grain</span>
-        <strong class="settlement-hud__value" data-stockpile="ryeGrain">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ryeGrain" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="oatGrain" data-tooltip="Oats are edible by people, but each unit provides only half a human meal; their primary use is preparation into animal feed at staffed Pastoral farmsteads.">
-        <span class="settlement-hud__label">Oats</span>
-        <strong class="settlement-hud__value" data-stockpile="oatGrain">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="oatGrain" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="animalFeed" data-tooltip="Animal feed is not human food. It is prepared winter fodder stored locally at livestock holdings.">
-        <span class="settlement-hud__label">Animal feed</span>
-        <strong class="settlement-hud__value" data-stockpile="animalFeed">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="animalFeed" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="maslinGrain" data-tooltip="Mixed wheat–rye grain for maslin flour and bread.">
-        <span class="settlement-hud__label">Maslin grain</span>
-        <strong class="settlement-hud__value" data-stockpile="maslinGrain">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="maslinGrain" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="barley" data-tooltip="Grain used to make malt and ale.">
-        <span class="settlement-hud__label">Barley</span>
-        <strong class="settlement-hud__value" data-stockpile="barley">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="barley" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="malt" data-tooltip="Processed barley used to brew ale.">
-        <span class="settlement-hud__label">Malt</span>
-        <strong class="settlement-hud__value" data-stockpile="malt">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="malt" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ryeFlour" data-tooltip="Flour used to bake rye bread.">
-        <span class="settlement-hud__label">Rye flour</span>
-        <strong class="settlement-hud__value" data-stockpile="ryeFlour">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ryeFlour" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="maslinFlour" data-tooltip="Flour used to bake maslin bread.">
-        <span class="settlement-hud__label">Maslin flour</span>
-        <strong class="settlement-hud__value" data-stockpile="maslinFlour">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="maslinFlour" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ale" data-tooltip="Brewery ale; Taverns can serve it, apple cider, pear cider, or mead to prosperous households.">
-        <span class="settlement-hud__label">Ale</span>
-        <strong class="settlement-hud__value" data-stockpile="ale">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ale" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="cider" data-tooltip="Apple beverage served by staffed Taverns.">
-        <span class="settlement-hud__label">Apple cider</span>
-        <strong class="settlement-hud__value" data-stockpile="cider">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="cider" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pearCider" data-tooltip="Pear beverage kept separate from apple cider and served by staffed Taverns.">
-        <span class="settlement-hud__label">Pear cider</span>
-        <strong class="settlement-hud__value" data-stockpile="pearCider">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="pearCider" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="mead" data-tooltip="Honey beverage served by staffed Taverns.">
-        <span class="settlement-hud__label">Mead</span>
-        <strong class="settlement-hud__value" data-stockpile="mead">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="mead" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="preservedFood" data-tooltip="Long-lasting food for winter and shortages.">
-        <span class="settlement-hud__label">Preserved</span>
-        <strong class="settlement-hud__value" data-stockpile="preservedFood">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="preservedFood" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="honey" data-tooltip="Physical food and Tier-4 luxury good; Mead-selected Brewhouses can ferment it into mead.">
-        <span class="settlement-hud__label">Honey</span>
-        <strong class="settlement-hud__value" data-stockpile="honey">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="honey" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wax" data-tooltip="Beeswax collected intermittently from backyard and forest apiaries for candle making.">
-        <span class="settlement-hud__label">Beeswax</span>
-        <strong class="settlement-hud__value" data-stockpile="wax">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wax" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="candles" data-tooltip="Finished Chandlery goods that can supply Tier-4 household luxury demand.">
-        <span class="settlement-hud__label">Candles</span>
-        <strong class="settlement-hud__value" data-stockpile="candles">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="candles" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wine" data-tooltip="Drink for prosperous households and monastery hospitality.">
-        <span class="settlement-hud__label">Wine</span>
-        <strong class="settlement-hud__value" data-stockpile="wine">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wine" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wool" data-tooltip="Sheep fleece spun into yarn at a Spinning &amp; Retting House.">
-        <span class="settlement-hud__label">Wool</span>
-        <strong class="settlement-hud__value" data-stockpile="wool">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wool" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="flax" data-tooltip="Plant fibre retted with water into linen at a Spinning &amp; Retting House.">
-        <span class="settlement-hud__label">Flax</span>
-        <strong class="settlement-hud__value" data-stockpile="flax">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="flax" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="yarn" data-tooltip="Spun wool yarn hauled to Weavers for clothing production.">
-        <span class="settlement-hud__label">Yarn</span>
-        <strong class="settlement-hud__value" data-stockpile="yarn">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="yarn" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="linen" data-tooltip="Retted flax linen hauled to Weavers for clothing production.">
-        <span class="settlement-hud__label">Linen</span>
-        <strong class="settlement-hud__value" data-stockpile="linen">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="linen" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="cloth" data-tooltip="Finished clothing used by households and for trade.">
-        <span class="settlement-hud__label">Clothing</span>
-        <strong class="settlement-hud__value" data-stockpile="cloth">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="cloth" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pelts" data-tooltip="Fur-on wild-game skins from hunting. Store them in a Storehouse or export them through a Trading Post for Regional Wealth.">
-        <span class="settlement-hud__label">Pelts</span>
-        <strong class="settlement-hud__value" data-stockpile="pelts">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="pelts" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="hides" data-tooltip="Untanned livestock hides supplied by backyard goats and autumn cattle culls for Tannery production.">
-        <span class="settlement-hud__label">Hides</span>
-        <strong class="settlement-hud__value" data-stockpile="hides">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="hides" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="leather" data-tooltip="Tanned leather ready for a cobbler or trade.">
-        <span class="settlement-hud__label">Leather</span>
-        <strong class="settlement-hud__value" data-stockpile="leather">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="leather" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="shoes" data-tooltip="Finished footwear required by Tier 3 and Tier 4 households.">
-        <span class="settlement-hud__label">Shoes</span>
-        <strong class="settlement-hud__value" data-stockpile="shoes">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="shoes" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="iron" data-tooltip="Metal used by smithies to make ironwork.">
-        <span class="settlement-hud__label">Iron</span>
-        <strong class="settlement-hud__value" data-stockpile="iron">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="iron" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="clay" data-tooltip="Raw material used to make pottery and roof tiles.">
-        <span class="settlement-hud__label">Clay</span>
-        <strong class="settlement-hud__value" data-stockpile="clay">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="clay" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="salt" data-tooltip="Mineral used to cure meat and preserve food.">
-        <span class="settlement-hud__label">Salt</span>
-        <strong class="settlement-hud__value" data-stockpile="salt">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="salt" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pottery" data-tooltip="Fired vessels used by prosperous households and regional trade.">
-        <span class="settlement-hud__label">Pottery</span>
-        <strong class="settlement-hud__value" data-stockpile="pottery">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="pottery" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="roofTiles" data-tooltip="Durable roofing used to upgrade prosperous homes.">
-        <span class="settlement-hud__label">Roof tiles</span>
-        <strong class="settlement-hud__value" data-stockpile="roofTiles">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="roofTiles" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ironwork" data-tooltip="Tools and fittings used for construction and faster production.">
-        <span class="settlement-hud__label">Ironwork</span>
-        <strong class="settlement-hud__value" data-stockpile="ironwork">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ironwork" hidden></span>
-      </div>
+        <div class="settlement-hud__stores-scroll">
+          <div class="settlement-hud__stores-grid-header settlement-hud__people-header settlement-hud__supply-header" role="heading" aria-level="2">
+            <strong>Goods &amp; provisions</strong>
+            <span data-specialty-stores-mode-label>Available surplus</span>
+          </div>
+          <section class="settlement-hud__stores-section" data-provision-category="productionInputs" aria-labelledby="settlement-provision-category-productionInputs">
+            <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3" id="settlement-provision-category-productionInputs"><strong>Production inputs</strong></div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ryeGrain" data-tooltip="Grain for rye flour and bread.">
+              <span class="settlement-hud__label">Rye grain</span>
+              <strong class="settlement-hud__value" data-stockpile="ryeGrain">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ryeGrain" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="oatGrain" data-tooltip="Oats are edible by people, but each unit provides only half a human meal; their primary use is preparation into animal feed at staffed Pastoral farmsteads.">
+              <span class="settlement-hud__label">Oats</span>
+              <strong class="settlement-hud__value" data-stockpile="oatGrain">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="oatGrain" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="maslinGrain" data-tooltip="Mixed wheat–rye grain for maslin flour and bread.">
+              <span class="settlement-hud__label">Maslin grain</span>
+              <strong class="settlement-hud__value" data-stockpile="maslinGrain">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="maslinGrain" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="barley" data-tooltip="Grain used to make malt and ale.">
+              <span class="settlement-hud__label">Barley</span>
+              <strong class="settlement-hud__value" data-stockpile="barley">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="barley" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="malt" data-tooltip="Processed barley used to brew ale.">
+              <span class="settlement-hud__label">Malt</span>
+              <strong class="settlement-hud__value" data-stockpile="malt">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="malt" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ryeFlour" data-tooltip="Flour used to bake rye bread.">
+              <span class="settlement-hud__label">Rye flour</span>
+              <strong class="settlement-hud__value" data-stockpile="ryeFlour">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ryeFlour" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="maslinFlour" data-tooltip="Flour used to bake maslin bread.">
+              <span class="settlement-hud__label">Maslin flour</span>
+              <strong class="settlement-hud__value" data-stockpile="maslinFlour">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="maslinFlour" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="iron" data-tooltip="Metal used by smithies to make ironwork.">
+              <span class="settlement-hud__label">Iron</span>
+              <strong class="settlement-hud__value" data-stockpile="iron">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="iron" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="clay" data-tooltip="Raw material used to make pottery and roof tiles.">
+              <span class="settlement-hud__label">Clay</span>
+              <strong class="settlement-hud__value" data-stockpile="clay">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="clay" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="salt" data-tooltip="Mineral used to cure meat and preserve food.">
+              <span class="settlement-hud__label">Salt</span>
+              <strong class="settlement-hud__value" data-stockpile="salt">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="salt" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wool" data-tooltip="Sheep fleece spun into yarn at a Spinning &amp; Retting House.">
+              <span class="settlement-hud__label">Wool</span>
+              <strong class="settlement-hud__value" data-stockpile="wool">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wool" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="flax" data-tooltip="Plant fibre retted with water into linen at a Spinning &amp; Retting House.">
+              <span class="settlement-hud__label">Flax</span>
+              <strong class="settlement-hud__value" data-stockpile="flax">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="flax" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="yarn" data-tooltip="Spun wool yarn hauled to Weavers for clothing production.">
+              <span class="settlement-hud__label">Yarn</span>
+              <strong class="settlement-hud__value" data-stockpile="yarn">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="yarn" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="linen" data-tooltip="Retted flax linen hauled to Weavers for clothing production.">
+              <span class="settlement-hud__label">Linen</span>
+              <strong class="settlement-hud__value" data-stockpile="linen">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="linen" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="hides" data-tooltip="Untanned livestock hides supplied by backyard goats and autumn cattle culls for Tannery production.">
+              <span class="settlement-hud__label">Hides</span>
+              <strong class="settlement-hud__value" data-stockpile="hides">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="hides" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="leather" data-tooltip="Tanned leather ready for a cobbler or trade.">
+              <span class="settlement-hud__label">Leather</span>
+              <strong class="settlement-hud__value" data-stockpile="leather">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="leather" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wax" data-tooltip="Beeswax collected intermittently from backyard and forest apiaries for candle making.">
+              <span class="settlement-hud__label">Beeswax</span>
+              <strong class="settlement-hud__value" data-stockpile="wax">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wax" hidden></span>
+            </div>
+          </section>
+          <section class="settlement-hud__stores-section" data-provision-category="commodities" aria-labelledby="settlement-provision-category-commodities">
+            <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3" id="settlement-provision-category-commodities"><strong>Commodities</strong></div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ironwork" data-tooltip="Tools and fittings used for construction and faster production.">
+              <span class="settlement-hud__label">Ironwork</span>
+              <strong class="settlement-hud__value" data-stockpile="ironwork">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ironwork" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pottery" data-tooltip="Fired vessels used by prosperous households and regional trade.">
+              <span class="settlement-hud__label">Pottery</span>
+              <strong class="settlement-hud__value" data-stockpile="pottery">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="pottery" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="roofTiles" data-tooltip="Durable roofing used to upgrade prosperous homes.">
+              <span class="settlement-hud__label">Roof tiles</span>
+              <strong class="settlement-hud__value" data-stockpile="roofTiles">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="roofTiles" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="cloth" data-tooltip="Finished clothing used by households and for trade.">
+              <span class="settlement-hud__label">Clothing</span>
+              <strong class="settlement-hud__value" data-stockpile="cloth">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="cloth" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="shoes" data-tooltip="Finished footwear required by Tier 3 and Tier 4 households.">
+              <span class="settlement-hud__label">Shoes</span>
+              <strong class="settlement-hud__value" data-stockpile="shoes">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="shoes" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ale" data-tooltip="Brewery ale; Taverns can serve it, apple cider, pear cider, or mead to prosperous households.">
+              <span class="settlement-hud__label">Ale</span>
+              <strong class="settlement-hud__value" data-stockpile="ale">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ale" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="cider" data-tooltip="Apple beverage served by staffed Taverns.">
+              <span class="settlement-hud__label">Apple cider</span>
+              <strong class="settlement-hud__value" data-stockpile="cider">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="cider" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pearCider" data-tooltip="Pear beverage kept separate from apple cider and served by staffed Taverns.">
+              <span class="settlement-hud__label">Pear cider</span>
+              <strong class="settlement-hud__value" data-stockpile="pearCider">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="pearCider" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="mead" data-tooltip="Honey beverage served by staffed Taverns.">
+              <span class="settlement-hud__label">Mead</span>
+              <strong class="settlement-hud__value" data-stockpile="mead">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="mead" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wine" data-tooltip="Drink for prosperous households and monastery hospitality.">
+              <span class="settlement-hud__label">Wine</span>
+              <strong class="settlement-hud__value" data-stockpile="wine">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wine" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="candles" data-tooltip="Finished Chandlery goods that can supply Tier-4 household luxury demand.">
+              <span class="settlement-hud__label">Candles</span>
+              <strong class="settlement-hud__value" data-stockpile="candles">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="candles" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="honey" data-tooltip="Physical food and Tier-4 luxury good; Mead-selected Brewhouses can ferment it into mead.">
+              <span class="settlement-hud__label">Honey</span>
+              <strong class="settlement-hud__value" data-stockpile="honey">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="honey" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="preservedFood" data-tooltip="Long-lasting food for winter and shortages.">
+              <span class="settlement-hud__label">Preserved</span>
+              <strong class="settlement-hud__value" data-stockpile="preservedFood">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="preservedFood" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="animalFeed" data-tooltip="Animal feed is not human food. It is prepared winter fodder stored locally at livestock holdings.">
+              <span class="settlement-hud__label">Animal feed</span>
+              <strong class="settlement-hud__value" data-stockpile="animalFeed">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="animalFeed" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pelts" data-tooltip="Fur-on wild-game skins from hunting. Store them in a Storehouse or export them through a Trading Post for Regional Wealth.">
+              <span class="settlement-hud__label">Pelts</span>
+              <strong class="settlement-hud__value" data-stockpile="pelts">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="pelts" hidden></span>
+            </div>
+          </section>
+        </div>
       </div>
     </details>
     <details class="settlement-hud__stores settlement-hud__military-stores" data-military-stores>

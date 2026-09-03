@@ -5,7 +5,7 @@ import {
   type CrowdViewState,
 } from './crowdView.ts';
 
-export type CompanyStandardFaction = 'player' | 'mercenary' | 'ottoman';
+export type CompanyStandardFaction = 'player' | 'mercenary' | 'ottoman' | 'bandit';
 
 export type CompanyStandardRenderAgent = {
   /** Stable company/member-derived id. It owns the persistent cloth state. */
@@ -34,6 +34,8 @@ export type CompanyStandardRenderAgent = {
   };
   /** Stable variation only; never feed frame counters into this value. */
   appearanceSeed?: number;
+  /** Camp anchors name the pole foot, not a soldier's body origin. */
+  planted?: boolean;
 };
 
 /**
@@ -46,6 +48,7 @@ export type CompanyStandardArtwork = {
   playerCroatian?: THREE.Texture | null;
   mercenary?: THREE.Texture | null;
   ottoman?: THREE.Texture | null;
+  bandit?: THREE.Texture | null;
 };
 
 export type CompanyStandardWindSample = {
@@ -94,6 +97,8 @@ export type CompanyStandardPhysicsSnapshot = {
 
 export type CompanyStandardRendererOptions = {
   parent: THREE.Group;
+  /** Camp cloth is a persistent site prop; armies keep their existing cheaper shadow policy. */
+  clothCastShadow?: boolean;
   capacity?: number;
   artwork?: CompanyStandardArtwork;
   windSampler?: CompanyStandardWindSampler;
@@ -112,7 +117,7 @@ export const COMPANY_STANDARD_VISUAL_CONTRACT = Object.freeze({
 
 export const COMPANY_STANDARD_PERFORMANCE_BUDGET = Object.freeze({
   maxStandards: 512,
-  maxDrawCalls: 7,
+  maxDrawCalls: 8,
   fixedStepHz: 30,
   maxPhysicsStepsPerFrame: 2,
   nodesPerPanel: 60,
@@ -139,6 +144,7 @@ type CompanyStandardPanelRole =
   | 'player-heraldry'
   | 'player-croatian'
   | 'mercenary'
+  | 'bandit'
   | 'ottoman';
 
 type PanelLayout = {
@@ -188,6 +194,10 @@ const MERCENARY_LAYOUTS: readonly PanelLayout[] = [
     // lord's stacked heraldry and the Ottoman single-pointed standard.
     edgeProfile: [1, 0.97, 0.72, 0.97, 1],
   },
+];
+
+const BANDIT_LAYOUTS: readonly PanelLayout[] = [
+  { ...MERCENARY_LAYOUTS[0]!, role: 'bandit' },
 ];
 
 type ClothConstraint = {
@@ -309,6 +319,9 @@ export class CompanyStandardRenderer {
         0x315744,
         'Mercenary frog standard cloth',
       ),
+      bandit: createClothLayer(
+        'bandit', this.capacity, 0x302b26, 'Bandit outlaw standard cloth',
+      ),
       ottoman: createClothLayer(
         'ottoman',
         this.capacity,
@@ -316,7 +329,10 @@ export class CompanyStandardRenderer {
         'Ottoman field standard cloth',
       ),
     };
-    for (const layer of Object.values(this.layers)) this.group.add(layer.mesh);
+    for (const layer of Object.values(this.layers)) {
+      layer.mesh.castShadow = options.clothCastShadow ?? false;
+      this.group.add(layer.mesh);
+    }
 
     const hardware = createStandardHardwareGeometry();
     this.hardwareGeometry = hardware.geometry;
@@ -343,6 +359,7 @@ export class CompanyStandardRenderer {
     this.setLayerMap(this.layers['player-croatian'], artwork.playerCroatian ?? null);
     this.setLayerMap(this.layers.mercenary, artwork.mercenary ?? null);
     this.setLayerMap(this.layers.ottoman, artwork.ottoman ?? null);
+    this.setLayerMap(this.layers.bandit, artwork.bandit ?? null);
   }
 
   sync(
@@ -605,7 +622,8 @@ export class CompanyStandardRenderer {
     const [columns, rows] = FULL_QUALITY_GRID;
     const layouts = state.faction === 'player'
       ? PLAYER_LAYOUTS
-      : state.faction === 'mercenary' ? MERCENARY_LAYOUTS : OTTOMAN_LAYOUTS;
+      : state.faction === 'mercenary' ? MERCENARY_LAYOUTS
+        : state.faction === 'bandit' ? BANDIT_LAYOUTS : OTTOMAN_LAYOUTS;
     state.panels = layouts.map((layout) => createPanelState(
       state,
       layout,
@@ -1328,10 +1346,13 @@ function resolveStandardFrame(agent: CompanyStandardRenderAgent): {
 
   const grip = agent.gripPose;
   if (!grip) {
+    const footOffset = agent.planted
+      ? new THREE.Vector3(POLE_LOCAL_X, 0, POLE_LOCAL_Z).applyQuaternion(quaternion)
+      : new THREE.Vector3();
     return {
-      x: finiteOr(agent.x, 0),
+      x: finiteOr(agent.x, 0) - footOffset.x,
       y: finiteOr(agent.y, 0),
-      z: finiteOr(agent.z, 0),
+      z: finiteOr(agent.z, 0) - footOffset.z,
       yaw,
       pitch,
       roll,
@@ -1392,6 +1413,7 @@ function sampleProfile(profile: readonly number[], t: number): number {
 }
 
 function fallbackLayerColor(role: CompanyStandardPanelRole): number {
+  if (role === 'bandit') return 0x302b26;
   if (role === 'ottoman') return 0x8a2528;
   if (role === 'mercenary') return 0x315744;
   if (role === 'player-croatian') return 0xc8b48c;

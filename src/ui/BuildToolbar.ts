@@ -1,6 +1,7 @@
 import { CompassHud } from './CompassHud.ts';
 import { MilitaryMenu, type MilitaryMenuHandlers } from './MilitaryMenu.ts';
 import { GameMenu } from './GameMenu.ts';
+import { DevelopmentMenu } from './DevelopmentMenu.ts';
 import type { BurgageLayoutHudState } from '../residences/BurgageTool.ts';
 import {
   FERTILITY_OVERLAY_CROPS,
@@ -127,6 +128,7 @@ export class BuildToolbar {
   private readonly compassHud: CompassHud;
   private readonly buildMenuOutsideSecondaryClick: SecondaryClickGesture;
   private gameMenu: GameMenu | null = null;
+  readonly developmentMenu: DevelopmentMenu;
   private firstPersonActive = false;
   private firstPersonPlacementActive = false;
   private starterCampRequired = false;
@@ -464,6 +466,28 @@ export class BuildToolbar {
     };
     const hudStack = this.mustElement(root, '.hud-right-stack');
     this.settlementHud = new SettlementHud(hudStack, this.requestGameSpeed);
+    const developmentButton = document.createElement('button');
+    developmentButton.type = 'button';
+    developmentButton.className = 'development-launcher';
+    developmentButton.dataset.action = 'developments';
+    developmentButton.setAttribute('aria-controls', 'development-menu');
+    developmentButton.setAttribute('aria-haspopup', 'dialog');
+    developmentButton.setAttribute('aria-expanded', 'false');
+    developmentButton.innerHTML = '<img src="/assets/ui/icons/monastery/scriptorium-archive.png" alt=""/><span class="development-launcher__badge" data-development-badge>9</span>';
+    this.settlementHud.root.append(developmentButton);
+    // Install its keyboard owner before toolbar/settings listeners.
+    this.developmentMenu = new DevelopmentMenu(root, developmentButton, (open) => {
+      if (open) {
+        this.closeAllBuildMenus();
+        this.hideDeletePopup(true);
+        handlers.onCancelPlacement();
+      }
+      handlers.onMenuOpenChange?.(open);
+    });
+    developmentButton.addEventListener('click', () => {
+      if (!this.gameplayEnabled || this.isGameMenuOpen()) return;
+      this.developmentMenu.openMenu();
+    });
     this.toolbarHandlers = {
       onSelectBuilding: handlers.onSelectBuilding,
       onSelectResidences: handlers.onSelectResidences,
@@ -477,7 +501,7 @@ export class BuildToolbar {
       onShadowPreferenceChange: () => handlers.onShadowPreferenceChange?.(),
       onDistantCanopyCardsChange: handlers.onDistantCanopyCardsChange,
       onOpenChange: handlers.onMenuOpenChange,
-      canOpenFromKeyboard: handlers.canOpenMenuFromKeyboard,
+      canOpenFromKeyboard: () => !this.developmentMenu.isOpen() && handlers.canOpenMenuFromKeyboard?.() !== false,
       onNewWorld: handlers.onNewWorld,
       onReplayTutorials: handlers.onReplayTutorials,
       onAudioEnabledChange: handlers.onAudioEnabledChange,
@@ -652,6 +676,7 @@ export class BuildToolbar {
     this.starterCampButton.disabled = !enabled;
     this.settlementHud.setSpeedControlsEnabled(enabled && !this.starterCampRequired);
     if (!enabled) {
+      this.developmentMenu.close();
       this.closeAllBuildMenus();
       dismissDockToggles(this.dockToggles);
     }
@@ -951,7 +976,7 @@ export class BuildToolbar {
   }
 
   isGameMenuOpen(): boolean {
-    return (this.gameMenu?.isOpen() ?? false) || (this.gameMenu?.isControlsOpen() ?? false);
+    return this.developmentMenu.isOpen() || (this.gameMenu?.isOpen() ?? false) || (this.gameMenu?.isControlsOpen() ?? false);
   }
 
   isBuildMenuOpen(): boolean {
@@ -978,6 +1003,7 @@ export class BuildToolbar {
   }
 
   closeMenusForExternalTool(): void {
+    this.developmentMenu.close();
     this.closeAllBuildMenus();
     dismissDockToggles(this.dockToggles);
   }
@@ -991,6 +1017,7 @@ export class BuildToolbar {
     this.zoomStat.hidden = active;
     this.compassHud.setVisible(active);
     if (active) {
+      this.developmentMenu.close();
       this.closeAllBuildMenus();
       dismissDockToggles(this.dockToggles);
       this.setBuildButtonPosition(null, false);
@@ -1018,6 +1045,7 @@ export class BuildToolbar {
   }
 
   dispose(): void {
+    this.developmentMenu.dispose();
     this.militaryMenu.dispose();
     this.unsubscribeLandUseProfile();
     this.buildMenuOutsideSecondaryClick.dispose();

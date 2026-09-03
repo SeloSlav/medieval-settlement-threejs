@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CampStandardRenderer } from '../settlement/CampStandardRenderer.ts';
 import { edibleFoodStock } from '../economy/foodInventory.ts';
 import { breadGrainStock, flourStock, grainSheafStock } from '../economy/cropGoods.ts';
 import {
@@ -133,6 +134,7 @@ export class BuildingMarkers {
   private readonly shadowProxyBatch: BatchedBuildingShadowProxies;
   private readonly staticBatches: BuildingStaticBatches;
   private readonly foundersCampfires = new Set<THREE.Group>();
+  private readonly campStandards: CampStandardRenderer;
   private readonly watermillWheels = new Set<THREE.Group>();
   private readonly windmillSails = new Map<THREE.Group, number>();
   private foundersCampfireNightLighting = 0;
@@ -158,6 +160,7 @@ export class BuildingMarkers {
     this.getRoadNetwork = options.getRoadNetwork;
     this.onShadowCastersChanged = options.onShadowCastersChanged;
     this.group.name = 'Building markers';
+    this.campStandards = new CampStandardRenderer(this.group, (x, z) => this.terrain.getHeightAt(x, z));
     this.staticBatches = new BuildingStaticBatches(this.group);
     this.shadowProxyBatch = new BatchedBuildingShadowProxies(
       this.group,
@@ -521,6 +524,7 @@ export class BuildingMarkers {
   }
 
   tick(dtSeconds: number): void {
+    this.campStandards.sync(this.buildingMeshes.values(), dtSeconds);
     for (const campfire of this.foundersCampfires) {
       animateFoundersCampfire(campfire, dtSeconds);
     }
@@ -671,6 +675,7 @@ export class BuildingMarkers {
   }
 
   dispose(): void {
+    this.campStandards.dispose();
     this.clearPendingPlacement();
     if (this.prewarmedFoundersCamp) {
       disposeObject3D(this.prewarmedFoundersCamp);

@@ -68,6 +68,7 @@
     "test:fiscal-policy": "npx tsx scripts/testFiscalPolicy.mts",
     "test:frontier-security": "node --experimental-strip-types scripts/testFrontierSecurity.mts",
     "test:bandit-camp-presentation": "npx tsx scripts/testBanditCampPresentation.mts",
+    "test:camp-standards": "npx tsx scripts/testCampStandards.mts",
     "test:military-progression": "node --experimental-strip-types scripts/testMilitaryProgression.mts",
     "test:military-system-integrity": "node --experimental-strip-types scripts/testMilitarySystemIntegrity.mts",
     "test:military-economy": "node --experimental-strip-types scripts/testMilitaryEconomy.mts",

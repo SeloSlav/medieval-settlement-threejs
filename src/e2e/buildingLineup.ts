@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CampStandardRenderer } from '../settlement/CampStandardRenderer.ts';
 import { createBuildingMesh } from '../buildings/BuildingMeshes.ts';
 import { initializeBuildingMaterialLibrary } from '../buildings/buildingMaterials.ts';
 import { BUILDING_KINDS } from '../generated/gameBalance.ts';
@@ -790,10 +791,12 @@ function createServiceCoveragePreview(
   return group;
 }
 
+const campStandards = views.map((view) => new CampStandardRenderer(view.scene));
 let previousFrameMs = performance.now();
 function animate(nowMs: number): void {
   const dtSeconds = Math.min(0.1, Math.max(0, nowMs - previousFrameMs) / 1000);
   previousFrameMs = nowMs;
+  views.forEach((view, index) => campStandards[index]!.sync(view.scene.children, dtSeconds));
   for (const view of views) {
     const campfire = view.scene.getObjectByName(FOUNDERS_CAMPFIRE_NAME);
     if (campfire instanceof THREE.Group) {

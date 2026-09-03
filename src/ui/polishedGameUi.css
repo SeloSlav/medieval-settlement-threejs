@@ -1495,8 +1495,30 @@ select:focus-visible {
 }
 
 .settlement-hud__food-grid {
+  --stores-columns: 4;
   grid-template-columns: repeat(4, minmax(76px, 1fr));
   width: min(356px, calc(100vw - 28px));
+}
+
+.settlement-hud__stores-scroll {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(var(--stores-columns, 5), minmax(0, 1fr));
+  gap: 1px;
+  max-height: calc(100dvh - 110px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #786644 transparent;
+}
+
+.settlement-hud__stores-section {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  gap: 1px;
+  min-width: 0;
+  margin-top: 6px;
 }
 
 .settlement-hud__fuel-grid {
