@@ -62,8 +62,6 @@ import {
   freshFoodSpoilageExposure,
   isFreshFoodCargo,
   isSavoryPreserveCargo,
-  preservedFoodMealEquivalents,
-  preservedFoodSpoilageExposure,
   savoryPreservesMealEquivalents,
   savoryPreservesSpoilageExposure,
 } from './foodInventory.ts';

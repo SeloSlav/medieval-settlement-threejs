@@ -18,6 +18,7 @@ import {
   preservableFoodStock,
   preservedFoodStock,
   preservedFoodMealEquivalents,
+  savoryPreservesStock,
 } from '../src/economy/foodInventory.ts';
 import {
   cargoKindFromId,
@@ -47,6 +48,11 @@ const pantry = {
 assert.equal(freshFoodStock(pantry), 15);
 assert.equal(preservableFoodStock(pantry), 6);
 assert.equal(preservedFoodStock(pantry), 21);
+assert.equal(
+  savoryPreservesStock({ curedMeat: 6, smokedFish: 7, cheese: 8, aroniaJam: 9, rosehipJam: 10, honey: 11 }),
+  21,
+  'sweet preserves must remain outside the Tier-4 and military savory-preserve role',
+);
 assert.equal(edibleFoodStock(pantry), 45);
 assert.equal(freshFoodMealEquivalents(pantry), 15);
 assert.equal(preservedFoodMealEquivalents(pantry), 21);
