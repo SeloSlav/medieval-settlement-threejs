@@ -679,7 +679,7 @@ export function computeSettlementProvisioning(input: {
       ? finiteStock(building.charcoal)
       : 0;
     householdCharcoalStock += householdCharcoal;
-    const operationalPreservedFoodSupplier =
+    const operationalSavoryPreservesSupplier =
       !fireDisabled
       && SAVORY_PRESERVE_SUPPLIER_KINDS.includes(building.kind)
       && isOperationalSpecialtySupplier(building)
@@ -733,7 +733,7 @@ export function computeSettlementProvisioning(input: {
           + finiteStock(building.charcoal) * CHARCOAL_HOUSEHOLD_FUEL_VALUE;
       }
       if (
-        operationalPreservedFoodSupplier
+        operationalSavoryPreservesSupplier
         && savoryPreservesMealEquivalents(building) > 1e-6
       ) {
         const branch = roadProvisionBranch(
@@ -750,7 +750,7 @@ export function computeSettlementProvisioning(input: {
         );
       }
     }
-    if (operationalPreservedFoodSupplier) {
+    if (operationalSavoryPreservesSupplier) {
       const stock = savoryPreservesMealEquivalents(building);
       usablePreservedFoodStock += stock;
       usablePreservedFoodWeightedStock += savoryPreservesSpoilageExposure(building)

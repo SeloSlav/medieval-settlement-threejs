@@ -8,7 +8,9 @@ use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{CATTLE_PLOUGH_WORK_MULTIPLIER, MONASTERY_COVERAGE_RADIUS};
 use crate::db::*;
-use crate::economy::{building_edible_food_stock, building_preserved_food_stock, CommodityKind};
+use crate::economy::{
+    building_edible_food_stock, building_savory_preserves_stock, CommodityKind,
+};
 use crate::farming::{
     field_manure_required, field_seed_crop, field_seed_grain_remaining, CROP_OATS, CROP_RYE,
     CROP_WHEAT,
@@ -1506,9 +1508,12 @@ impl SimTickContext {
 }
 
 fn stall_need_for_commodity(commodity: CommodityKind) -> Option<ResidenceNeedKind> {
-    if commodity.is_preserved_food() {
+    if commodity.is_savory_preserve() {
         Some(ResidenceNeedKind::SavoryPreserves)
-    } else if commodity.is_fresh_food() || commodity == CommodityKind::Honey {
+    } else if commodity.is_fresh_food()
+        || commodity.is_preserved_food()
+        || commodity == CommodityKind::Honey
+    {
         Some(ResidenceNeedKind::Food)
     } else {
         match commodity {
@@ -1529,7 +1534,7 @@ fn stall_need_for_commodity(commodity: CommodityKind) -> Option<ResidenceNeedKin
 
 fn marketplace_stall_stock(building: &Building, need_kind: ResidenceNeedKind) -> f64 {
     if need_kind == ResidenceNeedKind::Food {
-        (building_edible_food_stock(building) - building_preserved_food_stock(building)).max(0.0)
+        (building_edible_food_stock(building) - building_savory_preserves_stock(building)).max(0.0)
     } else if need_kind == ResidenceNeedKind::Pottery {
         // Pottery and candles share the staffed Household wares counter, but
         // only pottery satisfies the distinct Pottery residence need.

@@ -151,7 +151,7 @@ const RESIDENCE_NEED_ICON_RESOURCES: Record<ResidenceNeedKind, ResourceCostKind>
 };
 
 const NEED_SOURCE_FLOWER_LUXURY = 65_534;
-const PRESERVED_NEED_SOURCE_KINDS = new Set<ResourceCostKind>([
+const SAVORY_PRESERVE_NEED_SOURCE_KINDS = new Set<ResourceCostKind>([
   'curedMeat',
   'smokedFish',
   'cheese',
@@ -437,7 +437,7 @@ export function renderResidenceInspector(
   const householdFreshMeals = residence.foodInventoryMigrated === true
     ? physicalFreshMeals
     : Math.max(physicalFreshMeals, getNeedStock(residence.needs, 'food'));
-  const householdPreservedFood = residence.foodInventoryMigrated === true
+  const householdSavoryPreserves = residence.foodInventoryMigrated === true
     ? physicalSavoryPreserves
     : Math.max(
         physicalSavoryPreserves,
@@ -445,7 +445,7 @@ export function renderResidenceInspector(
       );
   const billAllocation = allocatePreservedMeal(
     householdFreshMeals,
-    householdPreservedFood,
+    householdSavoryPreserves,
     grossFoodPerMonth,
     preservedFoodRotationPerMonth,
     residence.tier >= 4,
@@ -485,7 +485,7 @@ export function renderResidenceInspector(
     ? freshFoodRunwayWithPreservedRotation({
         freshStock: householdFreshMeals,
         grossFoodDemandPerDay: grossFoodPerDay,
-        preservedStock: householdPreservedFood,
+        preservedStock: householdSavoryPreserves,
         preservedRotationPerDay: preservedFoodRotationPerDay,
         preservedFoodSpoilageFractionPerDay:
           environment.preservedFoodSpoilageFractionPerDay
@@ -495,17 +495,17 @@ export function renderResidenceInspector(
   const foodRunwayLabel = foodRunwayDays == null
     ? '—'
     : formatFoodRunwayDays(foodRunwayDays);
-  const preservedFoodRunwayDays = residence.tier >= 4
+  const savoryPreservesRunwayDays = residence.tier >= 4
     ? spoilageAdjustedRunwayDays(
-        householdPreservedFood,
+        householdSavoryPreserves,
         preservedFoodRotationPerDay,
         environment.preservedFoodSpoilageFractionPerDay
           * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
       )
     : null;
-  const preservedFoodRunwayLabel = preservedFoodRunwayDays == null
+  const savoryPreservesRunwayLabel = savoryPreservesRunwayDays == null
     ? '—'
-    : formatSpecialtyRunwayDays(preservedFoodRunwayDays);
+    : formatSpecialtyRunwayDays(savoryPreservesRunwayDays);
   const aleRunwayDays = residence.tier >= 2 ? residenceAleRunwayDays(residence) : null;
   const aleRunwayLabel = aleRunwayDays == null
     ? '—'
@@ -683,10 +683,10 @@ export function renderResidenceInspector(
         ...(residence.tier >= 4
           ? [{
               kind: 'savoryPreserves' as const,
-              amount: householdPreservedFood,
+              amount: householdSavoryPreserves,
               title: 'Savory preserves',
               amountLabel: `Stock · cap ${RESIDENCE_PRESERVED_FOOD_CAPACITY}`,
-              detail: `${preservedFoodRunwayLabel} runway · ${savoryPreservesSupplierLabel}`,
+              detail: `${savoryPreservesRunwayLabel} runway · ${savoryPreservesSupplierLabel}`,
               className: getNeed(residence.needs, 'savoryPreserves').deficitTicks > 0 ? 'is-warning' : '',
             }]
           : []),
@@ -887,9 +887,9 @@ export function renderResidenceInspector(
       ${residence.tier > 0 ? householdFoodVarietyRow(residence, foodAndDrinkSection) : ''}
       ${residence.tier > 0 ? householdFoodContentsRow(residence, foodAndDrinkSection) : ''}
       ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Next monthly food bill</span><span>${billAllocation.freshUsed.toFixed(0)} fresh + ${preservedBillUse.toFixed(0)} cured${billAllocation.preservedFallbackUsed > 1e-6 ? ` (${billAllocation.preservedFallbackUsed.toFixed(0)} fallback)` : ''}${billAllocation.unmet > 1e-6 ? ` &middot; ${billAllocation.unmet.toFixed(0)} unmet` : ''} &middot; ${grossFoodPerMonth.toFixed(0)} units due</span></li>` : ''}
-      ${residence.tier >= 4 ? `<li data-inspector-primary data-inspector-section="${foodAndDrinkSection}"><span>Savory preserves</span><span>${householdPreservedFood.toFixed(1)} / ${RESIDENCE_PRESERVED_FOOD_CAPACITY} · ${preservedFoodRunwayLabel} runway</span></li>` : ''}
+      ${residence.tier >= 4 ? `<li data-inspector-primary data-inspector-section="${foodAndDrinkSection}"><span>Savory preserves</span><span>${householdSavoryPreserves.toFixed(1)} / ${RESIDENCE_PRESERVED_FOOD_CAPACITY} · ${savoryPreservesRunwayLabel} runway</span></li>` : ''}
       ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Cupboard aging</span><span>${formatPreservedFoodLoss(
-        householdPreservedFood
+        householdSavoryPreserves
         * environment.preservedFoodSpoilageFractionPerDay
         * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
       )} · consume or replenish regularly</span></li>` : ''}
@@ -1055,7 +1055,7 @@ export function residenceNeedSource(
   }
   if (kind === 'savoryPreserves') {
     const sources = foodSources.filter(({ kind: sourceKind }) =>
-      PRESERVED_NEED_SOURCE_KINDS.has(sourceKind));
+      SAVORY_PRESERVE_NEED_SOURCE_KINDS.has(sourceKind));
     const primary = sources[0];
     return primary
       ? {
