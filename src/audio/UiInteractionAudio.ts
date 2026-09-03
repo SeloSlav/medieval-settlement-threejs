@@ -26,6 +26,7 @@ const INTERACTION_SOUND_IDS = [
   'game_panel',
   'game_cancel',
   'game_transaction',
+  'development_unlock',
   'game_danger',
   'confirm',
   'error',

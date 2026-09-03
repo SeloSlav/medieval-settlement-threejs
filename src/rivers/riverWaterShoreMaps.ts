@@ -74,7 +74,10 @@ export function encodeWaterFlowDirection(
   ];
 }
 
-export function createRiverWaterShoreMaps(riverField: RiverField): RiverWaterShoreMaps {
+export function createRiverWaterShoreMaps(
+  riverField: RiverField,
+  options: { includeChannelRocks?: boolean } = {},
+): RiverWaterShoreMaps {
   const {
     resolution: fieldResolution,
     startX,
@@ -117,7 +120,9 @@ export function createRiverWaterShoreMaps(riverField: RiverField): RiverWaterSho
     }
   }
 
-  const channelRocks = createRiverChannelRockPlacements(riverField);
+  const channelRocks = options.includeChannelRocks === false
+    ? []
+    : createRiverChannelRockPlacements(riverField);
   for (const rock of channelRocks) {
     if (rock.rapidEnergy <= 0.001) continue;
     let sampledPeak = 0;

@@ -29,6 +29,7 @@ try {
       <button id="transaction">Upgrade residence</button>
       <button id="danger">Demolish building</button>
       <button id="explicit">Save</button>
+      <button id="development" data-ui-sound="development_unlock">Unlock</button>
       <label><input id="checkbox" type="checkbox" /> Audio</label>
       <select id="select"><option>One</option><option>Two</option></select>
       <input id="range" type="range" min="0" max="100" value="20" />
@@ -80,6 +81,7 @@ try {
       '#transaction',
       '#danger',
       '#explicit',
+      '#development',
     ]) await click(selector);
 
     const checkbox = document.querySelector<HTMLInputElement>('#checkbox')!;
@@ -99,7 +101,7 @@ try {
     return { plays, beforeDispose };
   });
 
-  assert.deepEqual(result.plays.slice(0, 9), [
+  assert.deepEqual(result.plays.slice(0, 10), [
     { id: 'game_press', rate: null },
     { id: 'game_tab', rate: null },
     { id: 'game_toggle', rate: 1.06 },
@@ -109,13 +111,14 @@ try {
     { id: 'game_transaction', rate: null },
     { id: 'game_danger', rate: null },
     { id: 'confirm', rate: null },
+    { id: 'development_unlock', rate: null },
   ]);
-  assert.deepEqual(result.plays.slice(9, 11), [
+  assert.deepEqual(result.plays.slice(10, 12), [
     { id: 'game_toggle', rate: 1.06 },
     { id: 'game_tab', rate: null },
   ]);
-  assert.equal(result.plays[11]?.id, 'game_toggle');
-  assert(Math.abs((result.plays[11]?.rate ?? 0) - 0.94) < 1e-9);
+  assert.equal(result.plays[12]?.id, 'game_toggle');
+  assert(Math.abs((result.plays[12]?.rate ?? 0) - 0.94) < 1e-9);
   assert.equal(result.plays.length, result.beforeDispose);
   console.log('UI audio browser behavior tests passed');
 } finally {

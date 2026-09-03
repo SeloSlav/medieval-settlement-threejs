@@ -33,6 +33,7 @@ import {
   DEFAULT_SOUND_EFFECTS_VOLUME,
 } from '../src/audio/audioPreferences.ts';
 import { AMBIENT_SCORE_DUCK_GAIN } from '../src/audio/AmbientAudio.ts';
+import { FOREST_WIND_URL } from '../src/audio/ForestWindAudio.ts';
 
 type AudioAsset = {
   id: string;
@@ -163,7 +164,10 @@ async function main(): Promise<void> {
       asset,
     ]),
   );
-  const paths = [...new Set(runtimeClips().map((clip) => clip.path))].sort();
+  const paths = [...new Set([
+    ...runtimeClips().map((clip) => clip.path),
+    FOREST_WIND_URL,
+  ])].sort();
   const staticServer = await startStaticServer();
   const browser = await chromium.launch({ headless: true });
   try {
@@ -340,6 +344,10 @@ async function main(): Promise<void> {
       UI_SOUNDS.game_transaction,
       DEFAULT_SOUND_EFFECTS_VOLUME,
     );
+    const developmentUnlockRms = defaultEffectiveRms(
+      UI_SOUNDS.development_unlock,
+      DEFAULT_SOUND_EFFECTS_VOLUME,
+    );
     const gameDangerRms = defaultEffectiveRms(UI_SOUNDS.game_danger, DEFAULT_SOUND_EFFECTS_VOLUME);
     const confirmRms = defaultEffectiveRms(UI_SOUNDS.confirm, DEFAULT_SOUND_EFFECTS_VOLUME);
     const wildlifeEntryRms = defaultEffectiveRms(
@@ -407,6 +415,13 @@ async function main(): Promise<void> {
       && gameTransactionRms < gameDangerRms
       && gameDangerRms < confirmRms,
       'Decoded in-game UI cues must preserve the routine-to-confirmation hierarchy',
+    );
+    invariant(
+      developmentUnlockRms >= confirmRms * 1.05
+      && developmentUnlockRms <= confirmRms * 1.35,
+      `Development unlock must sit confidently above final confirmation`
+      + ` (transaction ${gameTransactionRms.toFixed(4)}, unlock`
+      + ` ${developmentUnlockRms.toFixed(4)}, confirm ${confirmRms.toFixed(4)})`,
     );
     invariant(
       banditCampRms < banditEntryRms

@@ -509,10 +509,12 @@ function createSpeciesBucket(
   );
   // The real LOD2 tree stays resident under every far-card slot. Zooming then
   // changes only one opacity uniform; no geometry swaps at the fade boundary.
-  const nearSlotIndices = slots.map((_, index) => index);
-  const overviewSlotIndices = slots.flatMap((slot, index) => slot.forceOverview ? [index] : []);
+  const colorSelection = createSeedThreeStableColorSlotSelection(slots);
+  const shadowSelection = createSeedThreeStableRtsShadowSlotSelection(slots);
+  const nearSlotIndices = colorSelection.near;
+  const overviewSlotIndices = colorSelection.overview;
   writeSeedThreeLodMatrices(nearSet, slots, nearSlotIndices);
-  writeSeedThreeLodMatrices(nearShadowSet, slots, nearSlotIndices);
+  writeSeedThreeLodMatrices(nearShadowSet, slots, shadowSelection.near);
   writeSeedThreeLodMatrices(overviewSet, slots, overviewSlotIndices);
   return {
     preset: presetKey,
@@ -579,7 +581,7 @@ export function getSeedThreeForestStartupTiming(): SeedThreeForestStartupTiming 
 
 export async function createSeedThreeForest(
   placements: ForestTreePlacement[],
-  terrain: Terrain,
+  terrain: Pick<Terrain, 'getHeightAt' | 'generationSize'>,
   maxAnisotropy: number,
   treeSeed: number,
   renderer: WebGPURenderer,
@@ -685,7 +687,9 @@ export async function createSeedThreeForest(
       visibilityRadius,
       enabled: true,
       forceOverview: placement.edgeBand?.maximumDetail === 'overview-card'
+        || placement.visualOnly === 'terrain-horizon'
         || Math.max(Math.abs(placement.x), Math.abs(placement.z)) >= terrain.generationSize * 0.44,
+      overviewOnly: placement.visualOnly === 'terrain-horizon',
       seasonalDeciduous: gorskiKotarSpeciesIsDeciduous(placement.species),
     };
     visibilityItems[layoutIndex] = {
@@ -1313,11 +1317,13 @@ function selectionsByBucket(
   for (const layoutIndex of staticLodPartition.nearIndices) {
     const mapping = forest.slotByLayoutIndex[layoutIndex];
     if (!mapping) continue;
+    if (forest.buckets[mapping.bucketIndex]?.slots[mapping.slotIndex]?.overviewOnly) continue;
     desired[mapping.bucketIndex]?.near.push(mapping.slotIndex);
   }
   for (const layoutIndex of staticLodPartition.overviewIndices) {
     const mapping = forest.slotByLayoutIndex[layoutIndex];
     if (!mapping) continue;
+    if (forest.buckets[mapping.bucketIndex]?.slots[mapping.slotIndex]?.overviewOnly) continue;
     desired[mapping.bucketIndex]?.overview.push(mapping.slotIndex);
   }
   return desired;

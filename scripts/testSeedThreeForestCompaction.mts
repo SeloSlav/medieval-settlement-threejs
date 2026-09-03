@@ -208,6 +208,22 @@ assert.deepEqual(
   { near: [0, 1, 2], overview: [1] },
   'strategic shadow residency must be independent of camera selection',
 );
+assert.deepEqual(
+  createSeedThreeStableColorSlotSelection([
+    {},
+    { forceOverview: true, overviewOnly: true },
+  ]),
+  { near: [0], overview: [1] },
+  'terrain-horizon SeedThree slots must submit only through the overview pass',
+);
+assert.deepEqual(
+  createSeedThreeStableRtsShadowSlotSelection([
+    {},
+    { forceOverview: true, overviewOnly: true },
+  ]),
+  { near: [0], overview: [] },
+  'terrain-horizon SeedThree slots must never enter the shadow atlas',
+);
 
 const exactParityJob = createSeedThreeBucketMatrixWriteJob(
   exactColorSource,

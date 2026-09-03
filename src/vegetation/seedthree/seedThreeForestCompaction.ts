@@ -24,6 +24,8 @@ export type SeedThreeTreeSlot = {
   enabled: boolean;
   /** Static low-detail assignment for remote terrain-edge trees. */
   forceOverview?: boolean;
+  /** Never submit this visual-only slot to the near or shadow passes. */
+  overviewOnly?: boolean;
   /** Broadleaf or larch instance eligible for seasonal color and leaf drop. */
   seasonalDeciduous?: boolean;
   /** Render-only crowns inherit the visibility/harvest state of a gameplay tree. */
@@ -142,9 +144,10 @@ export type SeedThreeLayoutSlotMapping = {
 
 /** Camera-independent color identities for the world-resident LOD2 layer. */
 export function createSeedThreeStableColorSlotSelection(
-  slots: readonly Pick<SeedThreeTreeSlot, 'forceOverview'>[],
+  slots: readonly Pick<SeedThreeTreeSlot, 'forceOverview' | 'overviewOnly'>[],
 ): { near: number[]; overview: number[] } {
-  const near = slots.map((_, slotIndex) => slotIndex);
+  const near = slots.flatMap((slot, slotIndex) =>
+    slot.overviewOnly ? [] : [slotIndex]);
   const overview = slots.flatMap((slot, slotIndex) =>
     slot.forceOverview ? [slotIndex] : []);
   return { near, overview };
@@ -152,9 +155,13 @@ export function createSeedThreeStableColorSlotSelection(
 
 /** Camera-independent caster identities used by the strategic shadow atlas. */
 export function createSeedThreeStableRtsShadowSlotSelection(
-  slots: readonly Pick<SeedThreeTreeSlot, 'forceOverview'>[],
+  slots: readonly Pick<SeedThreeTreeSlot, 'forceOverview' | 'overviewOnly'>[],
 ): { near: number[]; overview: number[] } {
-  return createSeedThreeStableColorSlotSelection(slots);
+  const color = createSeedThreeStableColorSlotSelection(slots);
+  return {
+    near: color.near,
+    overview: color.overview.filter((slotIndex) => !slots[slotIndex]?.overviewOnly),
+  };
 }
 
 type PassPartitionedInstancedMesh = THREE.InstancedMesh & {

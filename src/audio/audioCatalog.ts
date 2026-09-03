@@ -75,6 +75,7 @@ export type UiSoundId =
   | 'game_panel'
   | 'game_cancel'
   | 'game_transaction'
+  | 'development_unlock'
   | 'game_danger'
   | 'military_move_order'
   | 'military_attack_order'
@@ -368,6 +369,7 @@ export const UI_SOUNDS: Record<UiSoundId, AudioClipDefinition> = {
   game_panel: { path: '/sounds/ui/game_panel.mp3', volume: 0.11 },
   game_cancel: { path: '/sounds/ui/game_cancel.mp3', volume: 0.1 },
   game_transaction: { path: '/sounds/ui/game_transaction.mp3', volume: 0.19 },
+  development_unlock: { path: '/sounds/ui/development_unlock.mp3', volume: 0.65 },
   game_danger: { path: '/sounds/ui/game_danger.mp3', volume: 0.23 },
   military_move_order: { path: '/sounds/ui/military_move_order.mp3', volume: 0.2 },
   military_attack_order: { path: '/sounds/ui/military_attack_order.mp3', volume: 0.24 },

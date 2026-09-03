@@ -714,6 +714,27 @@ export function getSharedRiverWaterMaterial(
 
   disposeSharedRiverWaterMaterial();
 
+  sharedWaterMaterial = createRiverWaterMaterial(shoreMaps, profile);
+  sharedShoreMaps = shoreMaps;
+  sharedWaterProfile = profile;
+  sharedWaterColorNodes = sharedWaterMaterial.userData.waterColorNodes as Record<
+    RiverWaterDebugMode,
+    TslNode
+  >;
+  return sharedWaterMaterial;
+}
+
+/**
+ * Creates an owned instance of the authored river material. The main river
+ * uses the shared singleton above; visual-only outer-world water uses this
+ * factory with its own low-resolution shore/flow field so both surfaces keep
+ * the same optical language without sharing incompatible map coordinates.
+ */
+export function createRiverWaterMaterial(
+  shoreMaps: RiverWaterShoreMaps,
+  profile: WaterSurfaceProfile = RIVER_WATER_PROFILE,
+): MeshPhysicalNodeMaterial {
+
   const nodes = buildRiverWaterShaderNodes(shoreMaps, profile);
   const material = new MeshPhysicalNodeMaterial();
   material.name = profile.id === 'coastal'
@@ -759,11 +780,8 @@ export function getSharedRiverWaterMaterial(
     'foam-field',
   ] satisfies RiverWaterDebugMode[];
   material.userData.channelRockCount = shoreMaps.channelRockCount ?? 0;
-  sharedWaterMaterial = material;
-  sharedShoreMaps = shoreMaps;
-  sharedWaterProfile = profile;
-  sharedWaterColorNodes = nodes.colorNodes;
-  return sharedWaterMaterial;
+  material.userData.waterColorNodes = nodes.colorNodes;
+  return material;
 }
 
 export function normalizeRiverWaterNightAmount(amount: number): number {

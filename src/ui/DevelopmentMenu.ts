@@ -81,7 +81,7 @@ export class DevelopmentMenu {
             <div class="development-detail__heading"><img data-detail-icon alt=""/><div><span data-detail-tier></span><h2 id="development-skill-title"></h2></div></div>
             <p class="development-detail__description" data-detail-description></p>
             <div class="development-requirements"><h3>Prerequisites <span data-requirement-mode></span></h3><div data-detail-requires></div></div>
-            <button type="button" class="development-unlock" data-development-unlock>Unlock <span>1 point</span></button>
+            <button type="button" class="development-unlock" data-development-unlock data-ui-sound="development_unlock">Unlock <span>1 point</span></button>
           </section>
           <button type="button" class="development-reset" data-development-reset>Reset developments</button>
           <p class="development-announcement" role="status" aria-live="polite" data-development-announcement></p>

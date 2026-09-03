@@ -2,16 +2,6 @@
   "schemaVersion": 1,
   "assets": [
     {
-      "id": "ambient-river",
-      "group": "ambient-core",
-      "kind": "sound-effect",
-      "output": "public/sounds/ambient/river_water_rushing.mp3",
-      "prompt": "Seamless natural loop of a broad, fast mountain river heard from its grassy bank, layered rushing current, small rapids over stones, gentle eddies, no birds, no voices, no music, no dramatic splash, realistic outdoor ambience",
-      "durationSeconds": 30,
-      "loop": true,
-      "promptInfluence": 0.72
-    },
-    {
       "id": "ambient-forest-day",
       "group": "ambient-core",
       "kind": "sound-effect",

@@ -4,6 +4,8 @@ import {
   TerrainHorizon,
   TERRAIN_HORIZON_PARAMETERS,
 } from '../src/terrain/TerrainHorizon.ts';
+import { RiverLayout } from '../src/rivers/RiverLayout.ts';
+import { WORLD_TERRAIN_PRESETS } from '../src/world/worldTerrainPresets.ts';
 
 const TERRAIN_SIZE = 80;
 const RESOLUTION = 9;
@@ -67,23 +69,50 @@ const source = createSourceGeometry();
 const material = new THREE.MeshStandardMaterial({ vertexColors: true });
 const horizon = createHorizon(source, material);
 const diagnostics = horizon.getDiagnostics();
+const playableHalf = TERRAIN_SIZE * 0.5;
 
-assert.equal(diagnostics.drawCalls, 1);
+assert.ok(
+  diagnostics.drawCalls <= TERRAIN_HORIZON_PARAMETERS.budget.maximumDrawCalls,
+  `outer world exceeded draw-call budget: ${diagnostics.drawCalls}`,
+);
+assert.equal(diagnostics.terrainDrawCalls, 1);
 assert.equal(diagnostics.castsShadows, false);
 assert.equal(diagnostics.receivesShadows, false);
 assert.equal(diagnostics.updatesPerFrame, false);
 assert.equal(horizon.mesh.castShadow, false);
 assert.equal(horizon.mesh.receiveShadow, false);
 assert.equal(horizon.mesh.children.length, 0, 'the horizon must remain one draw object');
+assert.ok(horizon.group.children.includes(horizon.mesh));
+assert.ok(horizon.group.children.length <= TERRAIN_HORIZON_PARAMETERS.budget.maximumDrawCalls);
 assert.ok(
   diagnostics.outerHalfExtent - diagnostics.innerHalfExtent >=
     FAR_DISTANCE * TERRAIN_HORIZON_PARAMETERS.coverage.farPlaneMultiplier,
   'the outer edge must stay beyond the camera far plane from the playable edge',
 );
 assert.ok(
-  diagnostics.triangleCount <= TERRAIN_HORIZON_PARAMETERS.budget.maximumTriangles,
+  diagnostics.triangleCount <= TERRAIN_HORIZON_PARAMETERS.budget.maximumTerrainTriangles,
   `the static horizon exceeded its triangle budget: ${diagnostics.triangleCount}`,
 );
+assert.ok(
+  diagnostics.waterTriangles <= TERRAIN_HORIZON_PARAMETERS.budget.maximumWaterTriangles,
+  `outer hydrology exceeded its triangle budget: ${diagnostics.waterTriangles}`,
+);
+assert.ok(
+  diagnostics.seedThreeOverviewTrees
+    <= TERRAIN_HORIZON_PARAMETERS.budget.maximumSeedThreeOverviewTrees,
+  'outer SeedThree placement budget must remain bounded',
+);
+assert.equal(diagnostics.seedThreeNearTrees, 0);
+assert.equal(diagnostics.seedThreeShadowTrees, 0);
+assert.ok(diagnostics.hydrologyPaths >= 1, 'wet custom terrain should receive an outer watershed');
+assert.ok(diagnostics.topologyAmplitudeMeters > 0, 'outer terrain should carry regional relief');
+for (const placement of horizon.getForestPlacements()) {
+  assert.equal(placement.visualOnly, 'terrain-horizon');
+  assert.ok(
+    Math.max(Math.abs(placement.x), Math.abs(placement.z)) > playableHalf,
+    'outer SeedThree trees must stay outside the playable map',
+  );
+}
 for (let index = 1; index < diagnostics.lodRows.length; index++) {
   const previous = diagnostics.lodRows[index - 1]!;
   const current = diagnostics.lodRows[index]!;
@@ -98,7 +127,6 @@ for (let index = 1; index < diagnostics.lodRows.length; index++) {
 const horizonPositions = horizon.mesh.geometry.getAttribute('position');
 const horizonIndices = horizon.mesh.geometry.getIndex();
 assert.ok(horizonIndices);
-const playableHalf = TERRAIN_SIZE * 0.5;
 let seamVertices = 0;
 for (let index = 0; index < horizonPositions.count; index++) {
   const x = horizonPositions.getX(index);
@@ -140,6 +168,11 @@ assert.deepEqual(
   Array.from(horizon.mesh.geometry.getAttribute('position').array),
   'identical seed and inputs must produce identical horizon geometry',
 );
+assert.deepEqual(
+  second.getForestPlacements(),
+  horizon.getForestPlacements(),
+  'outer SeedThree placement must be deterministic',
+);
 
 const productionColors = horizon.mesh.geometry.getAttribute('color');
 horizon.setDebugMode('lod');
@@ -147,11 +180,82 @@ assert.notEqual(horizon.mesh.material, material);
 assert.notEqual(horizon.mesh.geometry.getAttribute('color'), productionColors);
 horizon.setDebugMode('height');
 assert.notEqual(horizon.mesh.geometry.getAttribute('color'), productionColors);
+horizon.setDebugMode('hydrology');
+assert.notEqual(horizon.mesh.geometry.getAttribute('color'), productionColors);
+horizon.setDebugMode('forest');
+assert.notEqual(horizon.mesh.geometry.getAttribute('color'), productionColors);
 horizon.setDebugMode('wireframe');
 assert.equal((horizon.mesh.material as THREE.MeshBasicMaterial).wireframe, true);
 horizon.setDebugMode('final');
 assert.equal(horizon.mesh.material, material);
 assert.equal(horizon.mesh.geometry.getAttribute('color'), productionColors);
+
+for (const preset of WORLD_TERRAIN_PRESETS) {
+  const presetLayout = RiverLayout.create({
+    bounds: {
+      minX: -playableHalf,
+      maxX: playableHalf,
+      minZ: -playableHalf,
+      maxZ: playableHalf,
+    },
+    seed: 0x13572468,
+    riverCount: 3,
+    tributaryCount: 1,
+    terrainPreset: preset.id,
+  });
+  const presetHorizon = new TerrainHorizon({
+    sourceGeometry: source,
+    material,
+    terrainSize: TERRAIN_SIZE,
+    sourceResolution: RESOLUTION,
+    farDistance: FAR_DISTANCE,
+    seed: 0x13572468,
+    sampleHeight: testHeight,
+    settings: {
+      seed: 0x13572468,
+      terrainPreset: preset.id,
+      topography: preset.topography,
+      hydrology: preset.hydrology,
+      forestDensity: preset.forestDensity,
+    },
+    riverLayout: presetLayout,
+  });
+  const evidence = presetHorizon.getDiagnostics();
+  assert.ok(
+    evidence.drawCalls <= TERRAIN_HORIZON_PARAMETERS.budget.maximumDrawCalls,
+    `${preset.id} exceeded the horizon draw budget`,
+  );
+  assert.ok(
+    evidence.triangleCount <= TERRAIN_HORIZON_PARAMETERS.budget.maximumTerrainTriangles,
+    `${preset.id} exceeded the terrain triangle budget`,
+  );
+  assert.ok(
+    evidence.waterTriangles <= TERRAIN_HORIZON_PARAMETERS.budget.maximumWaterTriangles,
+    `${preset.id} exceeded the outer-water triangle budget`,
+  );
+  assert.ok(
+    presetHorizon.getForestPlacements().length > 0,
+    `${preset.id} should seed a sparse SeedThree horizon forest`,
+  );
+  if (preset.hydrology >= 18 || preset.id === 'vinodol_coast') {
+    assert.equal(evidence.waterDrawCalls, 1, `${preset.id} should render outer hydrology`);
+  }
+  const presetPositions = presetHorizon.mesh.geometry.getAttribute('position');
+  let hasRegionalRelief = false;
+  for (let vertex = 0; vertex < presetPositions.count; vertex++) {
+    const x = presetPositions.getX(vertex);
+    const z = presetPositions.getZ(vertex);
+    if (
+      Math.max(Math.abs(x), Math.abs(z)) > playableHalf + 120
+      && Math.abs(presetPositions.getY(vertex) - testHeight(x, z)) > 0.2
+    ) {
+      hasRegionalRelief = true;
+      break;
+    }
+  }
+  assert.ok(hasRegionalRelief, `${preset.id} should add topology beyond the seam`);
+  presetHorizon.dispose();
+}
 
 const requiredAttributes = [
   'position',

@@ -80,6 +80,10 @@ export type ForestPropsOptions = {
   forestCores?: ForestCore[];
   /** Shared accepted layout used by both the 3D forest and illustrated map. */
   treePlacements?: readonly ForestTreePlacement[];
+  /** SeedThree overview-only trees on the visual terrain beyond gameplay. */
+  visualOnlyTreePlacements?: readonly ForestTreePlacement[];
+  /** Height sampler for visual-only placements outside Terrain's finite mesh. */
+  visualOnlyHeightAt?: (x: number, z: number) => number;
 };
 
 type TreePlacement = ForestTreePlacement;
@@ -224,9 +228,22 @@ export async function createForestProps(
     const seedThree = await import('../vegetation/seedthree/seedThreeForestBuilder.ts');
     const { disposeSeedThreeAssetCache } = await import('../vegetation/seedthree/seedThreeAssets.ts');
     const { disposeSeedThreeBranchCardCache } = await import('../vegetation/seedthree/seedThreeBranchCards.ts');
+    const renderTreePlacements = options.visualOnlyTreePlacements?.length
+      ? [...allTreePlacements, ...options.visualOnlyTreePlacements]
+      : allTreePlacements;
+    const finiteHalf = terrain.size * 0.5;
+    const seedThreeTerrain = options.visualOnlyHeightAt
+      ? {
+          generationSize: terrain.generationSize,
+          getHeightAt: (x: number, z: number) =>
+            Math.max(Math.abs(x), Math.abs(z)) <= finiteHalf
+              ? terrain.getHeightAt(x, z)
+              : options.visualOnlyHeightAt!(x, z),
+        }
+      : terrain;
     const seedThreeForest = await seedThree.createSeedThreeForest(
-      allTreePlacements,
-      terrain,
+      renderTreePlacements,
+      seedThreeTerrain,
       maxAnisotropy,
       options?.treeSeed ?? 0x5eedf0a5,
       options.webgpuRenderer as WebGPURenderer,

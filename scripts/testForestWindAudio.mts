@@ -15,7 +15,7 @@ import {
 } from '../src/audio/forestWindRules.ts';
 import { FireAudio } from '../src/audio/FireAudio.ts';
 
-const windPath = fileURLToPath(FOREST_WIND_URL);
+const windPath = fileURLToPath(new URL(`../public${FOREST_WIND_URL}`, import.meta.url));
 const windStat = await stat(windPath);
 const header = await readFile(windPath);
 const controllerSource = await readFile(
@@ -27,30 +27,8 @@ const villagerRendererSource = await readFile(
   'utf8',
 );
 
-assert.ok(windStat.isFile() && windStat.size > 1_000_000, 'soft forest wind WAV must be present');
-assert.equal(header.toString('ascii', 0, 4), 'RIFF', 'soft forest wind must have a RIFF header');
-assert.equal(header.toString('ascii', 8, 12), 'WAVE', 'soft forest wind must be a WAV asset');
-assert.equal(header.readUInt16LE(20), 1, 'soft forest wind must remain PCM');
-assert.equal(header.readUInt16LE(22), 1, 'soft forest wind must remain mono');
-assert.equal(header.readUInt32LE(24), 32_000, 'soft forest wind must retain its source rate');
-assert.equal(header.readUInt16LE(34), 16, 'soft forest wind must remain 16-bit');
-
-let peak = 0;
-let squareSum = 0;
-let deltaSum = 0;
-let previous = 0;
-const sampleCount = (header.length - 44) / 2;
-for (let index = 0; index < sampleCount; index += 1) {
-  const sample = header.readInt16LE(44 + index * 2) / 32_768;
-  peak = Math.max(peak, Math.abs(sample));
-  squareSum += sample * sample;
-  if (index > 0) deltaSum += Math.abs(sample - previous);
-  previous = sample;
-}
-const rms = Math.sqrt(squareSum / sampleCount);
-const meanDelta = deltaSum / (sampleCount - 1);
-assert.ok(peak < 0.18 && rms < 0.035, 'soft forest wind must have restrained baked-in level');
-assert.ok(meanDelta < 0.009, 'soft forest wind must suppress the source crackle and harshness');
+assert.ok(windStat.isFile() && windStat.size > 100_000, 'forest wind MP3 must be present');
+assert.equal(header.toString('ascii', 0, 3), 'ID3', 'forest wind must retain its MP3 container');
 
 assert.equal(
   forestWindTargetMix({

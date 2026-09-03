@@ -38,6 +38,33 @@ all rights reserved, and follow the same reuse terms above.
 through ElevenLabs. Their prompts, settings, and non-secret provenance live in
 the normal audio manifest and generation report.
 
+## Development unlock
+
+`ui/development_unlock.mp3` is an unchanged copy of the user-provided
+`Heavy_oak_and_iron_g_#2-1788466170992.mp3` recording, adopted on 2026-09-03.
+Its SHA-256 digest is
+`38e10625738380fac0495a6c577322fa0b54e4c01b9ced1b70ed8f4eaf73d54c`.
+It is intentionally absent from the ElevenLabs manifest and generation report.
+
+## River water
+
+`ambient/river_water_rushing.mp3` is an unchanged copy of the user-provided
+`WATRFlow-Natural_ambient_soun-Elevenlabs.mp3` recording, adopted on 2026-09-03.
+Its SHA-256 digest is
+`883cbb48bc7f4a7858ac06f1d4a012084eb6164b46fcb2e208c630d72a6145e9`.
+It retains the existing river volume, loop, HRTF positioning, and linear
+distance falloff and is absent from the generation manifest and report.
+
+## Forest wind
+
+`ambient/forest_wind.mp3` is an unchanged copy of the user-provided
+`AMBForst-A_calm_and_peaceful_-Elevenlabs.mp3` recording, adopted on 2026-09-03.
+Its SHA-256 digest is
+`0744372614a5259f400659de6dc9b7c263aa2552a23aa554f2c0ba3f5fd8ea8a`.
+It replaces only the dedicated forest-wind layer and retains that layer's
+existing volume, fades, canopy response, camera-distance behavior, and score
+ducking. The separate daytime bird ambience is unchanged.
+
 ## ElevenLabs generations
 
 Prompts and generation settings live in

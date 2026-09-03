@@ -395,6 +395,8 @@ export class SceneManager {
       sourceResolution: terrain.resolution,
       farDistance: this.camera.far,
       seed: worldLayout.settings.seed,
+      settings: worldLayout.settings,
+      riverLayout: worldLayout.riverLayout,
     });
     this.terrainProjector = new TerrainProjector(this.terrain, this.camera, this.renderer.domElement);
     this.sky = new SkyCloudMesh({
@@ -449,7 +451,7 @@ export class SceneManager {
 
     this.scene.add(
       this.sky,
-      this.terrainHorizon.mesh,
+      this.terrainHorizon.group,
       this.terrain.mesh,
       this.riverSystem.group,
       this.quarrySystem.group,
@@ -735,6 +737,8 @@ export class SceneManager {
         densityScale: forestDensityScale(this.worldLayout.settings.forestDensity),
         forestCores: this.worldLayout.forestCores,
         treePlacements: this.resolveForestTreePlacements(),
+        visualOnlyTreePlacements: this.terrainHorizon.getForestPlacements(),
+        visualOnlyHeightAt: this.terrainHorizon.getHeightAt,
       },
     ));
     const mushroomPatchPromise = startStage('mushrooms', () => (

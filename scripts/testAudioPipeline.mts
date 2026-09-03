@@ -152,10 +152,14 @@ const EXPECTED_SELO_OVERVIEW_WIND_SHA256 =
   '388cdc56f19ea6d106af8d46c78b5d6bfa3cb6ea860542998f3190129a2d8305';
 const EXPECTED_SELO_VILLAGE_DAY_SHA256 =
   '7fcd2f6cda2522b6f6991e550f4990e52e18a1f74d2e1ff703ea723270f611ae';
-const EXPECTED_FOREST_WIND_SHA256 =
-  '68e697dbe79d3cb4491500e6e4fd1039b69b9e257048dbe9e13e2939b91f44d2';
+const EXPECTED_USER_FOREST_WIND_SHA256 =
+  '0744372614a5259f400659de6dc9b7c263aa2552a23aa554f2c0ba3f5fd8ea8a';
 const EXPECTED_USER_GAME_CANCEL_SHA256 =
   'a257077139f6a372dcdd7c29db1a9e1383e74aaec043e655015ff57a40482c74';
+const EXPECTED_USER_DEVELOPMENT_UNLOCK_SHA256 =
+  '38e10625738380fac0495a6c577322fa0b54e4c01b9ced1b70ed8f4eaf73d54c';
+const EXPECTED_USER_RIVER_WATER_SHA256 =
+  '883cbb48bc7f4a7858ac06f1d4a012084eb6164b46fcb2e208c630d72a6145e9';
 
 function invariant(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -501,11 +505,10 @@ async function main(): Promise<void> {
     && FOREST_WIND_FADE_OUT_SECONDS > FOREST_WIND_FADE_IN_SECONDS,
     'Soft forest wind must remain subtle and release more slowly than it enters',
   );
-  const forestWindPath = fileURLToPath(FOREST_WIND_URL);
-  await assertWav(forestWindPath);
+  const forestWindPath = path.resolve(PROJECT_ROOT, `public${FOREST_WIND_URL}`);
   invariant(
-    await sha256(forestWindPath) === EXPECTED_FOREST_WIND_SHA256,
-    'The softened forest wind loop does not match its processed source hash',
+    await sha256(forestWindPath) === EXPECTED_USER_FOREST_WIND_SHA256,
+    'The user-provided forest wind does not match its recorded source hash',
   );
 
   const manifest = JSON.parse(
@@ -1028,6 +1031,19 @@ async function main(): Promise<void> {
   invariant(
     await sha256(gameCancelPath) === EXPECTED_USER_GAME_CANCEL_SHA256,
     'The user-provided wooden latch cancel cue does not match its recorded source hash.',
+  );
+  const developmentUnlockPath = path.resolve(
+    PROJECT_ROOT,
+    `public${UI_SOUNDS.development_unlock.path}`,
+  );
+  invariant(
+    await sha256(developmentUnlockPath) === EXPECTED_USER_DEVELOPMENT_UNLOCK_SHA256,
+    'The user-provided development unlock cue does not match its recorded source hash.',
+  );
+  const riverWaterPath = path.resolve(PROJECT_ROOT, `public${RIVER_WATER_CLIP.path}`);
+  invariant(
+    await sha256(riverWaterPath) === EXPECTED_USER_RIVER_WATER_SHA256,
+    'The user-provided river-water ambience does not match its recorded source hash.',
   );
 
   invariant(

@@ -91,17 +91,6 @@
       "sha256": "1b8e8a9aa2a74190b86069ad7c6b044b492dfaf7de6212e39bc6c9991a0125e2"
     },
     {
-      "id": "ambient-river",
-      "output": "public/sounds/ambient/river_water_rushing.mp3",
-      "generatedAt": "2026-07-28T05:58:51.289Z",
-      "endpoint": "/v1/sound-generation",
-      "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "301",
-      "byteLength": 481115,
-      "sha256": "04d516de7fb96ca8dde67e30461f4172fab46ec985842dbe4a415206bbbd7dd8"
-    },
-    {
       "id": "ambient-town-interior-day",
       "output": "public/sounds/ambient/town_interior_day.mp3",
       "generatedAt": "2026-09-02T09:52:08.965Z",

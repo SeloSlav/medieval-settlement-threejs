@@ -49,7 +49,7 @@ type RuntimeSceneManager = {
   selectionGroup: THREE.Group;
   previewGroup: THREE.Group;
   terrain: { mesh: THREE.Mesh };
-  terrainHorizon?: { mesh: THREE.Mesh };
+  terrainHorizon?: { group: THREE.Group; mesh: THREE.Mesh };
   grassField: {
     group: THREE.Group;
     getStreamTelemetry(target?: GrassStreamTelemetry): GrassStreamTelemetry;
@@ -1190,7 +1190,7 @@ export function installVisualPerformanceHooksIfRequested(
     selectionVisible: manager.selectionGroup.visible,
     previewVisible: manager.previewGroup.visible,
     terrainVisible: manager.terrain.mesh.visible,
-    terrainHorizonVisible: manager.terrainHorizon?.mesh.visible ?? true,
+    terrainHorizonVisible: manager.terrainHorizon?.group.visible ?? true,
     // Vegetation is intentionally constructed after App.start resolves.
     // Both groups default visible when they appear, so the profiling baseline
     // must not capture their temporary pre-build absence as "disabled".
@@ -1332,7 +1332,7 @@ export function installVisualPerformanceHooksIfRequested(
       case 'terrain':
         manager.terrain.mesh.visible = enabled && initial.terrainVisible;
         if (manager.terrainHorizon) {
-          manager.terrainHorizon.mesh.visible = enabled && initial.terrainHorizonVisible;
+          manager.terrainHorizon.group.visible = enabled && initial.terrainHorizonVisible;
         }
         break;
       case 'groundcover':

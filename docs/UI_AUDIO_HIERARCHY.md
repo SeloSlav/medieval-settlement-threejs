@@ -44,6 +44,7 @@ to every panel.
 | `game_transaction` | Spend or alter an asset | Buy, trade, upgrade, repair | 5 |
 | `game_danger` | Destructive intent | Demolish, remove, reset, new world | 6 |
 | `confirm` | Successful commitment | Confirm, save, accepted server action | 7 |
+| `development_unlock` | Earn lasting knowledge | Unlock a development | 8, rare |
 | `error` | Rejected outcome | Invalid or failed action | Interruptive |
 | `road_place` / `dry_stone_wall_place` | Commit terrain infrastructure | Road or wall accepted | Material-specific |
 | `road_remove` / `dry_stone_wall_remove` | Remove terrain infrastructure | Road or wall deleted | Material-specific |
@@ -75,6 +76,8 @@ Generated MP3 hashes and ElevenLabs model details are recorded in
 The `game_cancel.mp3` cue is the authorized user-provided
 `small_wooden_latch_c_#3-1788345667176.mp3` recording. It is intentionally
 absent from the ElevenLabs manifest and checksum-locked against replacement.
+The `development_unlock.mp3` cue likewise uses the authorized user-provided
+`Heavy_oak_and_iron_g_#2-1788466170992.mp3` recording and is checksum-locked.
 
 Generate or verify this group with:
 
@@ -91,6 +94,9 @@ npm run audio:browser-verify
   visual control differs.
 - Add a cue only when players must hear a new class of meaning: destructive
   confirmation, warning escalation, acquisition, loss, or modal interruption.
+- Development unlocks use a sturdy latch, a decisive oak-door opening, and a
+  firm wooden stop. The cue is reserved for a successful unlock and never plays
+  while merely browsing.
 - Keep routine UI transients dry and centered. Reserve stereo width, long
   tails, and strong low-frequency energy for rare, high-consequence events.
 - Never sonify hover by default. Focus and hover sounds are reserved for dense

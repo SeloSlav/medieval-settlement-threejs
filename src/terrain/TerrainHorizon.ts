@@ -1,8 +1,20 @@
 import * as THREE from 'three';
+import type { ForestTreePlacement } from '../props/forestPlacements.ts';
+import type { RiverLayout } from '../rivers/RiverLayout.ts';
 import { sampleTerrainBlendWeights, sampleTerrainUv } from './TerrainBlendWeights.ts';
 import { sampleBaseTerrainHeight } from './TerrainHeight.ts';
+import {
+  TerrainHorizonWorld,
+  type TerrainHorizonWorldSettings,
+} from './TerrainHorizonWorld.ts';
 
-export type TerrainHorizonDebugMode = 'final' | 'lod' | 'height' | 'wireframe';
+export type TerrainHorizonDebugMode =
+  | 'final'
+  | 'lod'
+  | 'height'
+  | 'hydrology'
+  | 'forest'
+  | 'wireframe';
 
 export type TerrainHorizonLodRow = {
   halfExtent: number;
@@ -12,7 +24,8 @@ export type TerrainHorizonLodRow = {
 
 export type TerrainHorizonDiagnostics = {
   seed: number;
-  drawCalls: 1;
+  drawCalls: number;
+  terrainDrawCalls: 1;
   vertexCount: number;
   triangleCount: number;
   innerHalfExtent: number;
@@ -23,6 +36,14 @@ export type TerrainHorizonDiagnostics = {
   castsShadows: false;
   receivesShadows: false;
   updatesPerFrame: false;
+  topologyAmplitudeMeters: number;
+  hydrologyPaths: number;
+  hydrologyLakes: number;
+  waterTriangles: number;
+  waterDrawCalls: 0 | 1;
+  seedThreeOverviewTrees: number;
+  seedThreeNearTrees: 0;
+  seedThreeShadowTrees: 0;
 };
 
 export type TerrainHorizonOptions = {
@@ -33,6 +54,8 @@ export type TerrainHorizonOptions = {
   farDistance: number;
   seed: number;
   sampleHeight?: (x: number, z: number) => number;
+  settings?: TerrainHorizonWorldSettings;
+  riverLayout?: RiverLayout | null;
 };
 
 /**
@@ -46,13 +69,17 @@ export const TERRAIN_HORIZON_PARAMETERS = Object.freeze({
     minimumExtensionMeters: 1_200,
   }),
   lod: Object.freeze({
-    distanceFractions: Object.freeze([0, 0.015, 0.06, 0.18, 0.45, 1]),
-    segmentCapsPerSide: Object.freeze([Number.POSITIVE_INFINITY, 192, 128, 96, 64, 48]),
-    filterCellMultipliers: Object.freeze([0, 2, 4, 8, 16, 32]),
+    distanceFractions: Object.freeze([0, 0.012, 0.035, 0.075, 0.14, 0.24, 0.38, 0.56, 0.78, 1]),
+    segmentCapsPerSide: Object.freeze([
+      Number.POSITIVE_INFINITY, 256, 192, 160, 128, 96, 80, 64, 56, 48,
+    ]),
+    filterCellMultipliers: Object.freeze([0, 1, 2, 4, 7, 11, 16, 22, 28, 36]),
   }),
   budget: Object.freeze({
-    drawCalls: 1,
-    maximumTriangles: 8_192,
+    maximumDrawCalls: 2,
+    maximumTerrainTriangles: 12_288,
+    maximumWaterTriangles: 8_192,
+    maximumSeedThreeOverviewTrees: 180,
   }),
 });
 
@@ -62,12 +89,16 @@ export const TERRAIN_HORIZON_PARAMETERS = Object.freeze({
  * vegetation streaming, or the directional-shadow atlas.
  */
 export class TerrainHorizon {
+  readonly group = new THREE.Group();
   readonly mesh: THREE.Mesh;
 
   private readonly productionMaterial: THREE.Material;
   private readonly productionColors: THREE.BufferAttribute;
   private readonly lodDebugColors: THREE.BufferAttribute;
   private readonly heightDebugColors: THREE.BufferAttribute;
+  private readonly hydrologyDebugColors: THREE.BufferAttribute;
+  private readonly forestDebugColors: THREE.BufferAttribute;
+  private readonly world: TerrainHorizonWorld;
   private readonly debugMaterial = new THREE.MeshBasicMaterial({
     name: 'Terrain horizon diagnostics',
     vertexColors: true,
@@ -77,11 +108,36 @@ export class TerrainHorizon {
   private readonly evidence: TerrainHorizonDiagnostics;
 
   constructor(options: TerrainHorizonOptions) {
-    const geometryResult = createTerrainHorizonGeometry(options);
+    const innerHalfExtent = options.terrainSize * 0.5;
+    const extensionDistance = resolveHorizonExtensionDistance(options.farDistance);
+    const settings = options.settings ?? {
+      seed: options.seed,
+      terrainPreset: 'custom',
+      topography: 50,
+      hydrology: 50,
+      forestDensity: 50,
+    };
+    this.world = new TerrainHorizonWorld({
+      innerHalfExtent,
+      outerHalfExtent: innerHalfExtent + extensionDistance,
+      settings,
+      riverLayout: options.riverLayout ?? null,
+      sampleBaseHeight: options.sampleHeight ?? sampleBaseTerrainHeight,
+    });
+    const geometryResult = createTerrainHorizonGeometry({
+      ...options,
+      sampleHeight: this.world.getHeightAt,
+      sampleForestBlend: this.world.sampleForestBlend,
+      sampleShoreBlend: this.world.sampleShoreBlend,
+      sampleHydrologyDebug: this.world.sampleHydrologyDebug,
+      sampleForestDebug: this.world.sampleForestDebug,
+    });
     this.productionMaterial = options.material;
     this.productionColors = geometryResult.productionColors;
     this.lodDebugColors = geometryResult.lodDebugColors;
     this.heightDebugColors = geometryResult.heightDebugColors;
+    this.hydrologyDebugColors = geometryResult.hydrologyDebugColors;
+    this.forestDebugColors = geometryResult.forestDebugColors;
     this.mesh = new THREE.Mesh(geometryResult.geometry, this.productionMaterial);
     this.mesh.name = 'Infinite terrain horizon (static LOD)';
     this.mesh.castShadow = false;
@@ -92,9 +148,18 @@ export class TerrainHorizon {
     this.mesh.userData.terrainHorizon = true;
     this.mesh.userData.gameplay = false;
     this.mesh.userData.deterministicSeed = options.seed >>> 0;
+    this.group.name = 'Infinite outer world (visual only)';
+    this.group.matrixAutoUpdate = false;
+    this.group.updateMatrix();
+    this.group.userData.gameplay = false;
+    this.group.userData.terrainHorizon = true;
+    this.group.add(this.mesh);
+    if (this.world.waterMesh) this.group.add(this.world.waterMesh);
+    const worldEvidence = this.world.diagnostics;
     this.evidence = {
       seed: options.seed >>> 0,
-      drawCalls: 1,
+      drawCalls: 1 + worldEvidence.waterDrawCalls,
+      terrainDrawCalls: 1,
       vertexCount: geometryResult.vertexCount,
       triangleCount: geometryResult.triangleCount,
       innerHalfExtent: geometryResult.lodRows[0]!.halfExtent,
@@ -105,11 +170,15 @@ export class TerrainHorizon {
       castsShadows: false,
       receivesShadows: false,
       updatesPerFrame: false,
+      ...worldEvidence,
     };
   }
 
   setDebugMode(mode: TerrainHorizonDebugMode): void {
     this.debugMaterial.wireframe = mode === 'wireframe';
+    if (this.world.waterMesh) {
+      this.world.waterMesh.visible = mode === 'final' || mode === 'hydrology';
+    }
     if (mode === 'final') {
       this.mesh.geometry.setAttribute('color', this.productionColors);
       this.mesh.material = this.productionMaterial;
@@ -117,7 +186,13 @@ export class TerrainHorizon {
     }
     this.mesh.geometry.setAttribute(
       'color',
-      mode === 'height' ? this.heightDebugColors : this.lodDebugColors,
+      mode === 'height'
+        ? this.heightDebugColors
+        : mode === 'hydrology'
+          ? this.hydrologyDebugColors
+          : mode === 'forest'
+            ? this.forestDebugColors
+            : this.lodDebugColors,
     );
     this.mesh.material = this.debugMaterial;
   }
@@ -129,9 +204,16 @@ export class TerrainHorizon {
     };
   }
 
+  getForestPlacements(): readonly ForestTreePlacement[] {
+    return this.world.forestPlacements;
+  }
+
+  getHeightAt = (x: number, z: number): number => this.world.getHeightAt(x, z);
+
   dispose(): void {
     this.mesh.geometry.dispose();
     this.debugMaterial.dispose();
+    this.world.dispose();
   }
 }
 
@@ -140,11 +222,21 @@ type GeometryBuildResult = {
   productionColors: THREE.BufferAttribute;
   lodDebugColors: THREE.BufferAttribute;
   heightDebugColors: THREE.BufferAttribute;
+  hydrologyDebugColors: THREE.BufferAttribute;
+  forestDebugColors: THREE.BufferAttribute;
   vertexCount: number;
   triangleCount: number;
   sourceCellSize: number;
   extensionDistance: number;
   lodRows: readonly TerrainHorizonLodRow[];
+};
+
+type TerrainHorizonGeometryOptions = TerrainHorizonOptions & {
+  sampleHeight: (x: number, z: number) => number;
+  sampleForestBlend: (x: number, z: number) => number;
+  sampleShoreBlend: (x: number, z: number) => number;
+  sampleHydrologyDebug: (x: number, z: number) => number;
+  sampleForestDebug: (x: number, z: number) => number;
 };
 
 type AttributeArrays = {
@@ -160,6 +252,8 @@ type AttributeArrays = {
   dirtZoomGates: number[];
   canopyOcclusion: number[];
   heights: number[];
+  hydrologyDebug: number[];
+  forestDebug: number[];
 };
 
 const LOD_DEBUG_PALETTE = [
@@ -170,14 +264,11 @@ const LOD_DEBUG_PALETTE = [
   new THREE.Color(0x8c63d9),
 ] as const;
 
-function createTerrainHorizonGeometry(options: TerrainHorizonOptions): GeometryBuildResult {
+function createTerrainHorizonGeometry(options: TerrainHorizonGeometryOptions): GeometryBuildResult {
   const sourceSegments = Math.max(1, Math.floor(options.sourceResolution) - 1);
   const sourceCellSize = options.terrainSize / sourceSegments;
   const innerHalfExtent = options.terrainSize * 0.5;
-  const extensionDistance = Math.max(
-    options.farDistance * TERRAIN_HORIZON_PARAMETERS.coverage.farPlaneMultiplier,
-    TERRAIN_HORIZON_PARAMETERS.coverage.minimumExtensionMeters,
-  );
+  const extensionDistance = resolveHorizonExtensionDistance(options.farDistance);
   const lodRows = createLodRows(
     innerHalfExtent,
     extensionDistance,
@@ -197,6 +288,8 @@ function createTerrainHorizonGeometry(options: TerrainHorizonOptions): GeometryB
     dirtZoomGates: [],
     canopyOcclusion: [],
     heights: [],
+    hydrologyDebug: [],
+    forestDebug: [],
   };
   const indices: number[] = [];
   const heightSampler = options.sampleHeight ?? sampleBaseTerrainHeight;
@@ -218,6 +311,10 @@ function createTerrainHorizonGeometry(options: TerrainHorizonOptions): GeometryB
         side,
         debugColor,
         heightSampler,
+        options.sampleForestBlend,
+        options.sampleShoreBlend,
+        options.sampleHydrologyDebug,
+        options.sampleForestDebug,
       );
     }
   }
@@ -239,6 +336,14 @@ function createTerrainHorizonGeometry(options: TerrainHorizonOptions): GeometryB
     3,
   );
   const heightColors = new THREE.BufferAttribute(heightDebugColors, 3);
+  const hydrologyDebugColors = new THREE.BufferAttribute(
+    createScalarDebugColors(arrays.hydrologyDebug, 0x202a24, 0x25b6df),
+    3,
+  );
+  const forestDebugColors = new THREE.BufferAttribute(
+    createScalarDebugColors(arrays.forestDebug, 0x342c22, 0x35c765),
+    3,
+  );
   geometry.setAttribute('color', productionColors);
 
   const staticMaskValues = new Float32Array(arrays.forestBlends.length * 3);
@@ -271,6 +376,8 @@ function createTerrainHorizonGeometry(options: TerrainHorizonOptions): GeometryB
     productionColors,
     lodDebugColors,
     heightDebugColors: heightColors,
+    hydrologyDebugColors,
+    forestDebugColors,
     vertexCount: arrays.heights.length,
     triangleCount: indices.length / 3,
     sourceCellSize,
@@ -311,6 +418,10 @@ function appendLodStrip(
   side: number,
   debugColor: THREE.Color,
   sampleHeight: (x: number, z: number) => number,
+  sampleForestBlend: (x: number, z: number) => number,
+  sampleShoreBlend: (x: number, z: number) => number,
+  sampleHydrologyDebug: (x: number, z: number) => number,
+  sampleForestDebug: (x: number, z: number) => number,
 ): void {
   const innerIndices = appendSideRow(
     arrays,
@@ -322,6 +433,10 @@ function appendLodStrip(
     side,
     debugColor,
     sampleHeight,
+    sampleForestBlend,
+    sampleShoreBlend,
+    sampleHydrologyDebug,
+    sampleForestDebug,
   );
   const outerIndices = appendSideRow(
     arrays,
@@ -333,6 +448,10 @@ function appendLodStrip(
     side,
     debugColor,
     sampleHeight,
+    sampleForestBlend,
+    sampleShoreBlend,
+    sampleHydrologyDebug,
+    sampleForestDebug,
   );
 
   let innerIndex = 0;
@@ -372,6 +491,10 @@ function appendSideRow(
   side: number,
   debugColor: THREE.Color,
   sampleHeight: (x: number, z: number) => number,
+  sampleForestBlend: (x: number, z: number) => number,
+  sampleShoreBlend: (x: number, z: number) => number,
+  sampleHydrologyDebug: (x: number, z: number) => number,
+  sampleForestDebug: (x: number, z: number) => number,
 ): number[] {
   const rowIndices: number[] = [];
   for (let segment = 0; segment <= row.segmentsPerSide; segment++) {
@@ -390,6 +513,10 @@ function appendSideRow(
       sourceCellSize,
       debugColor,
       sampleHeight,
+      sampleForestBlend,
+      sampleShoreBlend,
+      sampleHydrologyDebug,
+      sampleForestDebug,
     ));
   }
   return rowIndices;
@@ -405,6 +532,10 @@ function appendVertex(
   sourceCellSize: number,
   debugColor: THREE.Color,
   sampleHeight: (x: number, z: number) => number,
+  sampleForestBlend: (x: number, z: number) => number,
+  sampleShoreBlend: (x: number, z: number) => number,
+  sampleHydrologyDebug: (x: number, z: number) => number,
+  sampleForestDebug: (x: number, z: number) => number,
 ): number {
   const vertexIndex = arrays.heights.length;
   const sourcePosition = sourceGeometry.getAttribute('position');
@@ -451,12 +582,18 @@ function appendVertex(
     arrays.productionColors.push(...sampleTerrainBlendWeights(x, z));
   }
   arrays.lodDebugColors.push(debugColor.r, debugColor.g, debugColor.b);
-  arrays.forestBlends.push(sourceAttributeX(sourceGeometry, 'forestBlend', sourceVertexIndex));
-  arrays.shoreBlends.push(sourceAttributeX(sourceGeometry, 'shoreBlend', sourceVertexIndex));
+  arrays.forestBlends.push(sourceVertexIndex === null
+    ? sampleForestBlend(x, z)
+    : sourceAttributeX(sourceGeometry, 'forestBlend', sourceVertexIndex));
+  arrays.shoreBlends.push(sourceVertexIndex === null
+    ? sampleShoreBlend(x, z)
+    : sourceAttributeX(sourceGeometry, 'shoreBlend', sourceVertexIndex));
   arrays.roadWearBlends.push(sourceAttributeX(sourceGeometry, 'roadWearBlend', sourceVertexIndex));
   arrays.quarryPadBlends.push(sourceAttributeX(sourceGeometry, 'quarryPadBlend', sourceVertexIndex));
   arrays.dirtZoomGates.push(0);
   appendSourceCanopy(arrays.canopyOcclusion, sourceGeometry, sourceVertexIndex);
+  arrays.hydrologyDebug.push(sampleHydrologyDebug(x, z));
+  arrays.forestDebug.push(sampleForestDebug(x, z));
   return vertexIndex;
 }
 
@@ -536,4 +673,27 @@ function createHeightDebugColors(heights: readonly number[]): Float32Array {
     color.toArray(result, index * 3);
   }
   return result;
+}
+
+function createScalarDebugColors(
+  values: readonly number[],
+  lowHex: number,
+  highHex: number,
+): Float32Array {
+  const low = new THREE.Color(lowHex);
+  const high = new THREE.Color(highHex);
+  const color = new THREE.Color();
+  const result = new Float32Array(values.length * 3);
+  for (let index = 0; index < values.length; index++) {
+    color.copy(low).lerp(high, THREE.MathUtils.clamp(values[index] ?? 0, 0, 1));
+    color.toArray(result, index * 3);
+  }
+  return result;
+}
+
+function resolveHorizonExtensionDistance(farDistance: number): number {
+  return Math.max(
+    farDistance * TERRAIN_HORIZON_PARAMETERS.coverage.farPlaneMultiplier,
+    TERRAIN_HORIZON_PARAMETERS.coverage.minimumExtensionMeters,
+  );
 }

@@ -1,16 +1,9 @@
 import { AMBIENT_SCORE_DUCK_GAIN } from './AmbientAudio.ts';
 
-/**
- * Runtime derivative of SeedThree's temperate forest loop. The source remains
- * vendored for provenance; this version is low-pass filtered and attenuated so
- * it reads as a soft wind bed rather than harsh full-range noise.
- */
-export const FOREST_WIND_URL = new URL(
-  '../../public/sounds/ambient/forest_wind_temperate_soft.wav',
-  import.meta.url,
-).href;
+/** User-provided forest wind recording used by the canopy-reactive wind bed. */
+export const FOREST_WIND_URL = '/sounds/ambient/forest_wind.mp3';
 
-/** SeedThree ships a normalized loop; this trim keeps it a close-detail bed. */
+/** Keep the established wind mix beneath the broader environmental ambience. */
 export const FOREST_WIND_CLIP_VOLUME = 0.04;
 export const FOREST_WIND_FADE_IN_SECONDS = 2.8;
 export const FOREST_WIND_FADE_OUT_SECONDS = 4.2;

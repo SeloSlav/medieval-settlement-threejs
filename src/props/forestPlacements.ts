@@ -39,6 +39,12 @@ type TreePlacement = {
     bandDistance: number;
     maximumDetail: 'overview-card';
   };
+  /**
+   * Visual-only trees outside the playable heightfield are rendered through
+   * SeedThree's overview pass but never enter gameplay, collision, shadows,
+   * undergrowth, or the resident LOD2 tree layer.
+   */
+  visualOnly?: 'terrain-horizon';
 };
 
 type TreeForm = 'narrow' | 'broad' | 'young' | 'midstory';
