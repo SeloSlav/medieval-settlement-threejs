@@ -23,6 +23,7 @@ __pycache__/
 # Rust build artifacts
 server/target/
 server/target-*/
+/.codex-tmp/bindings-target/
 
 # Playwright
 playwright-report/
