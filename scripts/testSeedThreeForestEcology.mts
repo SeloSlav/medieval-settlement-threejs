@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as THREE from 'three';
+import {
+  BASELINE_ORBIT_DISTANCE,
+  LIVE_WORLD_MIN_ZOOM_PERCENT,
+  RTS_ORBIT_DISTANCE,
+} from '../src/camera/CameraCurves.ts';
 import { buildForestEdgeEcology } from '../vendor/seedthree/src/core/forest-ecology.js';
 import {
   HARVEST_STUMP_HIDE_DISTANCE,
@@ -158,21 +163,31 @@ const forestBuilderSource = readFileSync(
 assert.match(stumpSource, /resolveBark\?\.\(placement\.species\)/);
 assert.match(stumpSource, /Fresh stump growth rings/);
 assert.match(stumpSource, /\[barkMaterial, cutFaceMaterial, barkMaterial\]/);
-assert.match(stumpSource, /mesh\.visible = nextCount > 0/);
+assert.match(stumpSource, /mesh\.visible = mesh\.count > 0/);
 assert.match(forestBuilderSource, /resolveSeedThreeHarvestStumpBark/);
 assert.match(forestBuilderSource, /map:\s*assets\.barkTexture/);
 assert.match(forestBuilderSource, /normalMap:\s*assets\.barkNormal/);
 assert.match(forestBuilderSource, /roughnessMap:\s*assets\.barkRoughness/);
 
-assert.equal(HARVEST_STUMP_HIDE_DISTANCE, 144);
-assert.equal(HARVEST_STUMP_SHOW_DISTANCE, 128);
+const outermostLiveWorldDistance = BASELINE_ORBIT_DISTANCE / (LIVE_WORLD_MIN_ZOOM_PERCENT / 100);
+assert.ok(HARVEST_STUMP_SHOW_DISTANCE > outermostLiveWorldDistance);
+assert.ok(HARVEST_STUMP_HIDE_DISTANCE > HARVEST_STUMP_SHOW_DISTANCE);
+for (const distance of [24, BASELINE_ORBIT_DISTANCE, RTS_ORBIT_DISTANCE, outermostLiveWorldDistance]) {
+  for (const visible of [false, true]) {
+    assert.equal(shouldShowHarvestStumps(visible, distance, false), true,
+      `stumps must remain available throughout playable zoom, including ${distance} m`);
+  }
+}
 let harvestStumpsVisible = true;
-harvestStumpsVisible = shouldShowHarvestStumps(harvestStumpsVisible, 144.01, false);
-assert.equal(harvestStumpsVisible, false, 'stumps must disappear beyond the 144 m cutoff');
-harvestStumpsVisible = shouldShowHarvestStumps(harvestStumpsVisible, 136, false);
+harvestStumpsVisible = shouldShowHarvestStumps(harvestStumpsVisible, HARVEST_STUMP_HIDE_DISTANCE + 0.01, false);
+assert.equal(harvestStumpsVisible, false, 'stumps may disappear beyond the live-world envelope');
+const hysteresisMidpoint = (HARVEST_STUMP_HIDE_DISTANCE + HARVEST_STUMP_SHOW_DISTANCE) / 2;
+harvestStumpsVisible = shouldShowHarvestStumps(harvestStumpsVisible, hysteresisMidpoint, false);
 assert.equal(harvestStumpsVisible, false, 'the hysteresis band must prevent zoom flicker');
-harvestStumpsVisible = shouldShowHarvestStumps(harvestStumpsVisible, 128, false);
-assert.equal(harvestStumpsVisible, true, 'stumps must return once the camera is within 128 m');
+assert.equal(shouldShowHarvestStumps(true, hysteresisMidpoint, false), true);
+harvestStumpsVisible = shouldShowHarvestStumps(harvestStumpsVisible, HARVEST_STUMP_SHOW_DISTANCE, false);
+assert.equal(harvestStumpsVisible, true, 'stumps must return before re-entering the playable zoom range');
+assert.equal(shouldShowHarvestStumps(true, Number.NaN, false), false);
 assert.equal(
   shouldShowHarvestStumps(false, 999, true),
   true,

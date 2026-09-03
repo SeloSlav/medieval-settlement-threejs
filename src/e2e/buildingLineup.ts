@@ -105,6 +105,7 @@ const requestedResidenceTier = requestedResidenceTierValue === 1
 const residenceVariantSeeds = [6, 8, 9, 17] as const;
 const compareServiceCoverage = lineupParams.get('compare') === 'service-coverage';
 const compareChurchTiers = lineupParams.get('compare') === 'church-tiers';
+const showChurchResidenceReference = compareChurchTiers && lineupParams.get('reference') === 'residence';
 const compareArchitectureKit = lineupParams.get('compare') === 'architecture-kit';
 const requestedChapelTierValue = Number(lineupParams.get('tier'));
 const requestedChapelTier = requestedChapelTierValue === 1
@@ -233,7 +234,7 @@ const STOCKED_PREVIEW_PREFIXES = [
 const COLS = compareServiceCoverage
   ? 3
   : compareChurchTiers
-    ? 3
+    ? showChurchResidenceReference ? 4 : 3
   : compareArchitectureKit
     ? 4
   : compareResidences
@@ -276,7 +277,7 @@ if (compareResidences && requestedResidenceTier !== null) {
   const heading = document.querySelector('h1');
   const subtitle = document.querySelector('header p');
   if (heading) heading.textContent = 'Church Upgrade Lineup';
-  if (subtitle) subtitle.textContent = 'Reserved final footprint · timber → stone → landmark';
+  if (subtitle) subtitle.textContent = 'Fixed fenced plot · tier 1 church = twice tier 1 residence height';
 } else if (compareArchitectureKit) {
   const heading = document.querySelector('h1');
   const subtitle = document.querySelector('header p');
@@ -359,9 +360,12 @@ const viewSpecs = architectureKitViewSpecs ?? (constructionKind
     ]
   : compareChurchTiers
   ? [
-      { mesh: createBuildingMesh('chapel', 1), label: 'Tier 1 · Delnice parish church' },
+      { mesh: createBuildingMesh('chapel', 1), label: 'Tier 1 · Wooden church' },
       { mesh: createBuildingMesh('chapel', 2), label: 'Tier 2 · Small stone church' },
       { mesh: createBuildingMesh('chapel', 3), label: 'Tier 3 · Large stone church' },
+      ...(showChurchResidenceReference
+        ? [{ mesh: createResidenceMesh(6, 1), label: 'Tier 1 residence · height reference' }]
+        : []),
     ]
   : compareResidences
   ? requestedResidenceTier !== null
@@ -422,12 +426,14 @@ const comparisonLargest = comparisonMode
     }))
   : null;
 const comparisonLookY = comparisonMode
-  ? new THREE.Box3().setFromObject(viewSpecs[0]!.mesh).getSize(new THREE.Vector3()).y * 0.4
+  ? (compareChurchTiers
+      ? Math.max(...viewSpecs.map(({ mesh }) => new THREE.Box3().setFromObject(mesh).getSize(new THREE.Vector3()).y))
+      : new THREE.Box3().setFromObject(viewSpecs[0]!.mesh).getSize(new THREE.Vector3()).y) * 0.4
   : null;
 
 // Inspection-only materials: no atlas, vertex tint, emissive fill, or extra
 // passes. These expose silhouette/joins and face ownership independently.
-const residenceProofMaterials = compareResidences
+const residenceProofMaterials = (compareResidences || compareChurchTiers || selectedKinds[0] === 'chapel')
   && (architectureDebugMode === 'massing' || residenceMaterialProof)
   ? {
       massing: new THREE.MeshStandardMaterial({ color: 0xaaa69d, roughness: 1 }),
@@ -557,7 +563,7 @@ const views = viewSpecs.map((spec) => {
 
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, Math.max(160, footprintScale * 4));
   const largest = comparisonLargest ?? Math.max(size.x, size.y * 1.2, size.z);
-  const residenceCellAspect = compareResidences
+  const residenceCellAspect = compareResidences || compareChurchTiers
     ? (root.clientWidth / COLS) / Math.max(1, root.clientHeight / ROWS - labelBandHeight)
     : 1;
   const designDistance = Math.max(

@@ -16,15 +16,10 @@
 .development-launcher:hover { background: #d6b2631c; }
 .development-launcher__badge { position: absolute; right: 0; bottom: -2px; display: grid; place-items: center; min-width: 18px; height: 18px; border: 1px solid #a88c53; border-radius: 50%; background: #29271d; font: 12px Georgia, serif; }
 
-/* Satellites are already direct children of the UI root; never reparent live HUDs. */
-[data-ui-root].has-development-open > :not(.development-menu):not(.noble-hud):not(.settlement-vitals) { visibility: hidden !important; pointer-events: none !important; }
-[data-ui-root].has-development-open > :not(.development-menu):not(.noble-hud):not(.settlement-vitals) * { visibility: hidden !important; }
-[data-ui-root].has-development-open > .noble-hud,
-[data-ui-root].has-development-open > .settlement-vitals { z-index: 41; }
-[data-ui-root].has-development-open > .noble-hud { top: max(10px, env(safe-area-inset-top, 0px)); }
+[data-ui-root].has-development-open > :not(.development-menu) { visibility: hidden !important; pointer-events: none !important; }
+[data-ui-root].has-development-open > :not(.development-menu) * { visibility: hidden !important; }
 .development-menu {
   --dev-ink: #e9dfc5;
-  --dev-muted: #aca18a;
   position: fixed;
   inset: 0;
   z-index: 40;
@@ -42,12 +37,10 @@
 }
 .development-menu[hidden] { display: none; }
 .development-menu button { font-family: inherit; }
-.development-menu button:focus-visible,
-.development-menu summary:focus-visible { outline: 2px solid #e7cf8c; outline-offset: 5px; }
-.development-header { display: flex; justify-content: space-between; gap: 24px; align-items: center; padding-right: 308px; flex-shrink: 0; }
+.development-menu button:focus-visible { outline: 2px solid #e7cf8c; outline-offset: 5px; }
+.development-header { display: flex; justify-content: space-between; gap: 24px; align-items: center; flex-shrink: 0; }
 .development-eyebrow { margin: 0 0 8px; font: 11px/1.4 system-ui, sans-serif; letter-spacing: .18em; text-transform: uppercase; color: #b49a62; }
 .development-header h1 { margin: 0; font-size: clamp(28px, 2.9vw, 44px); line-height: 1; font-weight: 400; letter-spacing: .035em; }
-.development-subtitle { margin: 10px 0 0; color: var(--dev-muted); font-size: 14px; }
 .development-close { border: 0; padding: 10px 0; background: transparent; color: #c3b69c; white-space: nowrap; cursor: pointer; font-size: 13px; }
 .development-close:hover { color: #f4de9f; }
 .development-close kbd { margin-left: 12px; padding: 4px 6px; border: 1px solid #89764d66; font: 10px system-ui, sans-serif; text-transform: uppercase; }
@@ -56,7 +49,7 @@
 .development-wheel {
   position: relative;
   container-type: inline-size;
-  width: min(100%, calc(100dvh - 166px));
+  width: min(100%, calc(100dvh - 124px));
   min-width: 500px;
   max-width: 860px;
   aspect-ratio: 1;
@@ -79,7 +72,6 @@
 .development-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 19%; display: grid; justify-items: center; gap: 4px; text-align: center; }
 .development-heraldry { width: 8cqw; height: 9.4cqw; filter: saturate(.7); }
 .development-center strong { font-size: clamp(12px, 1.8cqw, 16px); font-weight: 400; }
-.development-center > span:last-child { font-size: clamp(9px, 1.3cqw, 11px); color: #b5a989; }
 .development-node { position: absolute; z-index: 2; display: grid; justify-items: center; align-content: start; gap: 5px; width: 14%; padding: 0; color: #c7bda5; border: 0; background: none; transform: translate(-50%, -29%); cursor: pointer; }
 .development-node:focus-visible { outline: none !important; }
 .development-node:focus-visible .development-node__seal { outline: 2px solid #f5e2a5; outline-offset: 5px; }
@@ -110,17 +102,15 @@
 .development-legend .is-learned { background: #d9c18a; border-color: #d9c18a; }
 .development-legend .is-available { border-color: #d9c18a; }
 .development-legend .is-locked { background: #5f5d50; }
-.development-ledger { align-self: center; max-height: calc(100dvh - 240px); overflow: auto; padding: 4px 10px 12px 0; scrollbar-width: thin; scrollbar-color: #665838 transparent; }
+.development-ledger { align-self: center; max-height: calc(100dvh - 124px); overflow: auto; padding: 4px 10px 12px 0; scrollbar-width: thin; scrollbar-color: #665838 transparent; }
 .development-budget { display: flex; gap: 18px; align-items: center; }
 .development-budget__number { white-space: nowrap; }
 .development-budget__number strong { color: #ead39a; font-size: 60px; font-weight: 400; line-height: 1; }
 .development-budget__number > span { margin-left: 5px; font-size: 19px; color: #8e8265; }
-.development-budget h2 { margin: 0 0 5px; font-size: 17px; font-weight: 400; }
-.development-budget p { margin: 0; font: 11px/1.5 system-ui, sans-serif; color: var(--dev-muted); }
+.development-budget h2 { margin: 0; font-size: 17px; font-weight: 400; }
 .development-budget__marks { display: flex; gap: 7px; margin: 16px 0 12px; }
 .development-budget__marks i { flex: 1; height: 3px; background: #bfa368; }
 .development-budget__marks .is-spent { background: #37392b; }
-.development-budget__rule { margin: 0 0 22px; color: var(--dev-muted); font-size: 13px; line-height: 1.6; }
 .development-detail { padding: 22px 0 20px; border-top: 1px solid #ac915e4d; border-bottom: 1px solid #ac915e33; }
 .development-detail__heading { display: flex; gap: 14px; align-items: center; margin: 18px 0; }
 .development-detail__heading > img { width: 62px; height: 62px; padding: 7px; background: #b5a37b; border: 1px solid #d1bc80; border-radius: 50%; object-fit: contain; filter: saturate(.5); }
@@ -134,54 +124,37 @@
 .development-requirements button:hover { color: #ebd599; }
 .development-requirements button.is-met { color: #b9c195; }
 .development-requirements p { margin: 0; color: #b9c195; font-size: 13px; }
-.development-status { min-height: 32px; margin: 19px 0 10px; color: #bfa77a; font-size: 12px; line-height: 1.5; }
-.development-unlock { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 43px; padding: 10px 12px; border: 1px solid #b69b5e; background: linear-gradient(120deg, #75603a66, #bca25c18); color: #f0db9e; font-size: 13px; cursor: pointer; }
+.development-unlock { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 43px; margin-top: 20px; padding: 10px 12px; border: 1px solid #b69b5e; background: linear-gradient(120deg, #75603a66, #bca25c18); color: #f0db9e; font-size: 13px; cursor: pointer; }
 .development-unlock span { font-size: 11px; white-space: nowrap; }
 .development-unlock:hover:not(:disabled) { background: #826c3e88; }
 .development-unlock:disabled { border-color: #776d4944; color: #a59a7f; background: #24271d; cursor: default; }
-.development-guide { padding: 17px 0; border-bottom: 1px solid #ac915e33; }
-.development-guide summary { color: #d0bd91; font-size: 13px; cursor: pointer; }
-.development-guide p, .development-prototype p { color: #a09681; font: 11px/1.65 system-ui, sans-serif; }
-.development-prototype { padding-top: 17px; }
-.development-prototype > span { color: #b7a478; font: 10px system-ui, sans-serif; text-transform: uppercase; letter-spacing: .13em; }
-.development-prototype button { margin-top: 4px; padding: 5px 0; border: 0; border-bottom: 1px solid #78623b; color: #b8a47b; font-size: 12px; background: transparent; cursor: pointer; }
-.development-prototype button:hover { color: #efdaa0; }
+.development-reset { margin-top: 17px; padding: 5px 0; border: 0; border-bottom: 1px solid #78623b; color: #b8a47b; font-size: 12px; background: transparent; cursor: pointer; }
+.development-reset:hover { color: #efdaa0; }
 .development-announcement { position: absolute; inset: 0 auto auto 0; margin: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-.development-footer { display: flex; justify-content: space-between; gap: 20px; padding-right: 320px; margin-top: 10px; color: #776d57; font-size: 11px; flex-shrink: 0; }
 @media (min-width: 1500px) { .development-menu { padding-left: 5vw; padding-right: 4vw; } .development-content { grid-template-columns: minmax(500px, 1fr) 350px; } }
 @media (min-width: 1001px) and (max-height: 850px) {
   .development-budget__number strong { font-size: 46px; }
-  .development-budget__rule { font-size: 12px; margin-bottom: 12px; }
   .development-budget__marks { margin: 10px 0 8px; }
   .development-detail { padding: 14px 0; }
   .development-detail__heading { margin: 12px 0; gap: 12px; }
   .development-detail__heading > img { width: 48px; height: 48px; }
   .development-detail h2 { font-size: 23px; }
   .development-detail__description { min-height: 0; margin-bottom: 14px; line-height: 1.5; }
-  .development-status { min-height: 0; margin: 12px 0; }
   .development-detail .development-eyebrow { margin-bottom: 4px; }
-  .development-guide { padding: 14px 0; }
 }
 @media (max-width: 1000px) {
-  .development-menu { padding: 26px 20px 100px; }
-  .development-header { padding-right: 300px; align-items: flex-start; flex-direction: column; gap: 8px; }
+  .development-menu { padding: 26px 20px; }
   .development-header h1 { font-size: 30px; }
   .development-content { grid-template-columns: 1fr; min-height: auto; gap: 28px; margin-top: 20px; }
   .development-wheel { width: min(100%, 720px); min-width: 0; }
   .development-ledger { max-height: none; overflow: visible; width: min(100%, 560px); justify-self: center; }
-  .development-footer { padding: 0; justify-content: center; }
-  .development-footer span:last-child { display: none; }
 }
 @media (max-width: 600px) {
-  .development-menu { padding: 130px 12px 110px; }
-  .development-header { padding-right: 0; flex-direction: row; }
-  .development-header .development-eyebrow { letter-spacing: .06em; font-size: 10px; }
-  .development-subtitle { font-size: 12px; }
+  .development-menu { padding: 24px 12px; }
   .development-close { font-size: 0; }
   .development-close kbd { font-size: 11px; }
   .development-atlas { overflow-x: auto; justify-items: start; padding: 8px; }
   .development-wheel { width: 520px; min-width: 520px; }
   .development-legend { justify-self: center; }
-  .development-footer { font-size: 10px; }
 }
 @media (prefers-reduced-motion: reduce) { .development-node__seal { transition: none; } }

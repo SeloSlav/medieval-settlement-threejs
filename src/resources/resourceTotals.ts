@@ -194,6 +194,8 @@ export const HUD_RESOURCE_KINDS = [
   'charcoal',
   'pottery',
   'roofTiles',
+  'manure',
+  'remedies',
 ] as const satisfies readonly (keyof ResourceTotals)[];
 
 export type HudResourceKind = (typeof HUD_RESOURCE_KINDS)[number];

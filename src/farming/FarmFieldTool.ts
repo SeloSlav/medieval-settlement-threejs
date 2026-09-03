@@ -570,8 +570,10 @@ export class FarmFieldTool {
     this.originFootprintPreview.dispose();
   }
 
-  private readonly onPointerEnter = (): void => {
+  private readonly onPointerEnter = (event: MouseEvent): void => {
     this.pointerInside = true;
+    this.pointerClientX = event.clientX;
+    this.pointerClientY = event.clientY;
     this.pointerDirty = true;
   };
 
@@ -583,6 +585,7 @@ export class FarmFieldTool {
 
   private readonly onPointerMove = (event: MouseEvent): void => {
     if (!this.enabled || this.options.isBlocked()) return;
+    this.pointerInside = true;
     this.pointerClientX = event.clientX;
     this.pointerClientY = event.clientY;
     this.pointerDirty = true;
@@ -595,6 +598,10 @@ export class FarmFieldTool {
     const picked = this.options.terrainProjector.pick(event.clientX, event.clientY);
     if (!picked) return;
     const point = this.snapPointToLinkedParcel({ x: picked.x, z: picked.z });
+    this.pointerInside = true;
+    this.pointerClientX = event.clientX;
+    this.pointerClientY = event.clientY;
+    this.hoverPoint = point;
     if (this.points.length > 0
       && Math.hypot(point.x - this.points[this.points.length - 1].x, point.z - this.points[this.points.length - 1].z) < MIN_CLICK_DISTANCE) return;
     event.preventDefault();
@@ -661,6 +668,7 @@ export class FarmFieldTool {
 
   private clearDraft(): void {
     this.points = [];
+    this.hoverPoint = null;
     this.fixedCorners = null;
     this.previewCorners = null;
     this.validationDirty = false;
@@ -706,6 +714,8 @@ export class FarmFieldTool {
       this.mode === 'field' ? this.crop : 'fallow',
       this.resolveDraftPath(),
       this.mode,
+      this.fixedCorners ?? this.points,
+      this.fixedCorners ? null : this.hoverPoint,
     );
   }
 
@@ -719,6 +729,8 @@ export class FarmFieldTool {
       this.mode === 'field' ? this.crop : 'fallow',
       this.resolveDraftPath(),
       this.mode,
+      this.fixedCorners ?? this.points,
+      this.fixedCorners ? null : this.hoverPoint,
     );
   }
 
@@ -788,6 +800,8 @@ export class FarmFieldTool {
       this.mode === 'field' ? this.crop : 'fallow',
       this.resolveDraftPath(),
       this.mode,
+      this.fixedCorners ?? this.points,
+      this.fixedCorners ? null : this.hoverPoint,
     );
     if (this.mode === 'pasture') this.options.onModeChanged();
   }

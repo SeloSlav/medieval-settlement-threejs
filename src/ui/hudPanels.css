@@ -18,7 +18,8 @@
   position: absolute;
   top: 14px;
   right: 14px;
-  z-index: 4;
+  /* Hover cards must clear the construction dock and its floating controls. */
+  z-index: 8;
   display: flex;
   flex-direction: column;
   align-items: stretch;

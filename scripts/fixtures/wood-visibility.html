@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Harvest stumps and residence fuel — visual regression</title>
+<style>
+  body { margin: 0; background: #313d32; color: #ede5d2; font: 13px system-ui; }
+  header { position: absolute; inset: 0 0 auto; padding: 12px; background: #20261ee8; z-index: 1; }
+  label { margin-right: 12px; } select { margin-left: 5px; padding: 4px; }
+  output { display: block; margin-top: 7px; font: 12px monospace; }
+  canvas { display: block; }
+</style>
+<header>
+  <label>Fuel<select id="fuel"><option>0</option><option selected>1</option><option>30</option><option>60</option></select></label>
+  <label>Tier<select id="tier"><option selected>1</option><option>2</option><option>3</option><option>4</option></select></label>
+  <label>Seed<select id="seed"><option selected>0</option><option>7</option><option>19</option></select></label>
+  <label>View<select id="view"><option selected>Near</option><option>Settlement</option><option>Far</option><option>Rear</option></select></label>
+  <label>Regrowth<select id="phase"><option>stump</option><option selected>growing</option><option>mature</option></select></label>
+  <label>Lighting<select id="grade"><option selected>No post</option><option>ACES</option></select></label>
+  <output id="metrics">Loading fixed-seed WebGPU inspection…</output>
+</header>
+<script type="module">
+  import * as THREE from 'three';
+  import { WebGPURenderer } from 'three/webgpu';
+  import { ResidenceMarkers } from '/src/residences/ResidenceMarkers.ts';
+  import { createDefaultNeeds } from '/src/residences/residenceNeedState.ts';
+  import { initializeBuildingMaterialLibrary } from '/src/buildings/buildingMaterials.ts';
+  import { ForestManager } from '/src/props/ForestManager.ts';
+  import { createStubForestInstances } from '/src/props/forestInstanceStub.ts';
+  const renderer = new WebGPURenderer({ antialias: true });
+  renderer.setPixelRatio(1);
+  renderer.setSize(innerWidth, innerHeight);
+  await renderer.init();
+  document.body.append(renderer.domElement);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color('#80949a');
+  scene.add(new THREE.HemisphereLight(0xc7dded, 0x675341, 2.1));
+  const sun = new THREE.DirectionalLight(0xffe1b7, 2.4);
+  sun.position.set(18, 28, 14);
+  scene.add(sun);
+  const height = (x, z) => 0.035 * x - 0.02 * z;
+  const groundGeometry = new THREE.PlaneGeometry(700, 700, 1, 1);
+  groundGeometry.rotateX(-Math.PI / 2);
+  const pos = groundGeometry.getAttribute('position');
+  for (let i = 0; i < pos.count; i++) pos.setY(i, height(pos.getX(i), pos.getZ(i)));
+  groundGeometry.computeVertexNormals();
+  const ground = new THREE.Mesh(groundGeometry, new THREE.MeshStandardMaterial({ color: 0x73815d, roughness: 1 }));
+  scene.add(ground);
+  const root = new THREE.Group();
+  scene.add(root);
+  const markers = new ResidenceMarkers(root);
+  const forestRoot = new THREE.Group();
+  scene.add(forestRoot);
+  const placements = Array.from({ length: 12 }, (_, i) => ({
+    x: -10 + (i % 4) * 2.4, z: 4 + Math.floor(i / 4) * 2.8,
+    scale: 0.8 + (i % 3) * 0.3, species: i % 2 ? 'silverFir' : 'beech', form: 'broad',
+  }));
+  const manager = new ForestManager(forestRoot, createStubForestInstances(placements),
+    { group: new THREE.Group(), instances: [] }, null, [], { mesh: ground, getHeightAt: height }, () => {});
+  const residence = {
+    id: 'fuel-0', zoneId: 'fixture-zone', parcelIndex: 0, x: 0, z: 0, yaw: 0,
+    tier: 1, population: 4, populationCapacity: 4, settlementTicks: 0,
+    needs: createDefaultNeeds(), abandoned: false, householdWealth: 8,
+    upgradeTargetTier: 0, upgradeProgress: 0, upgradeRequiredTimber: 0,
+    upgradeRequiredStone: 0, upgradeRequiredGold: 0, upgradeRequiredRoofTiles: 0,
+    upgradeDeliveredTimber: 0, upgradeDeliveredStone: 0, upgradeDeliveredGold: 0,
+    upgradeDeliveredRoofTiles: 0, upgradeReservedTimber: 0, upgradeReservedStone: 0,
+    upgradeReservedGold: 0, upgradeReservedRoofTiles: 0, upgradeAssignedLabor: 0,
+    upgradePriority: 2, tiledRoof: false,
+  };
+  const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 1000);
+  let distance = 0;
+  function update() {
+    residence.id = `fuel-${document.querySelector('#seed').value}`;
+    residence.tier = Number(document.querySelector('#tier').value);
+    residence.needs.firewood.stock = Number(document.querySelector('#fuel').value);
+    markers.syncResidences([residence], height);
+    const pile = root.getObjectByName('FirewoodPile');
+    const side = Math.sign(pile.position.x);
+    const view = document.querySelector('#view').value;
+    const vector = view === 'Near' ? [side * 13, 10, 18]
+      : view === 'Settlement' ? [side * 38, 37, 50]
+      : view === 'Rear' ? [side * 13, 10, -18] : [side * 130, 160, 155];
+    camera.position.set(...vector);
+    camera.lookAt(-2, 1, 2);
+    distance = camera.position.distanceTo(new THREE.Vector3(-2, 1, 2));
+    const phase = document.querySelector('#phase').value;
+    manager.applyTreePhases(placements.map((_, layoutIndex) => ({ layoutIndex, phase,
+      growthProgress: phase === 'mature' ? 1 : phase === 'growing' ? 0.5 : 0 })));
+    manager.updateCameraState(camera, distance, false, { minX: -400, maxX: 400, minZ: -400, maxZ: 400 });
+    renderer.toneMapping = document.querySelector('#grade').value === 'ACES' ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+  }
+  for (const select of document.querySelectorAll('select')) select.addEventListener('change', update);
+  await initializeBuildingMaterialLibrary(8);
+  update();
+  renderer.setAnimationLoop(() => {
+    renderer.info.reset();
+    renderer.render(scene, camera);
+    const pile = root.getObjectByName('FirewoodPile');
+    const stumps = forestRoot.getObjectByName('Harvest stumps');
+    const count = stumps.visible ? stumps.children.reduce((sum, mesh) => sum + (mesh.visible ? mesh.count : 0), 0) : 0;
+    document.querySelector('#metrics').textContent = `WebGPU · DPR 1 · fixed time · ${distance.toFixed(1)} m · ${pile.visible ? pile.children.filter(c => c.visible).length : 0} fuel logs · ${count} harvest stumps · ${renderer.info.render.drawCalls} draws · ${renderer.info.render.triangles} triangles`;
+  });
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+</script>
+</html>

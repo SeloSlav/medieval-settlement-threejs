@@ -39,7 +39,7 @@ export const BUILDING_LOCAL_VISUAL_BOUNDS = {
   hunters_hall: { minX: -4.88, maxX: 5.03, minZ: -4.30, maxZ: 4.38 },
   foragers_shed: { minX: -3.46, maxX: 3.46, minZ: -3.13, maxZ: 4.15 },
   fishing_camp: { minX: -8.04, maxX: 8.75, minZ: -5.05, maxZ: 4.55 },
-  chapel: { minX: -5.46, maxX: 5.46, minZ: -8.82, maxZ: 9.40 },
+  chapel: { minX: -7.09, maxX: 7.09, minZ: -9.45, maxZ: 9.45 },
   wayside_shrine: { minX: -1.42, maxX: 1.42, minZ: -1.30, maxZ: 1.51 },
   marketplace: { minX: -5.68, maxX: 5.40, minZ: -3.09, maxZ: 3.42 },
   trading_post: { minX: -6.68, maxX: 5.40, minZ: -5.36, maxZ: 7.30 },

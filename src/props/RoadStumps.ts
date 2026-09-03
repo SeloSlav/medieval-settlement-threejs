@@ -9,6 +9,7 @@ type StumpPlacement = {
 
 type StumpSlot = {
   mesh: THREE.InstancedMesh;
+  /** Dense draw index, or -1 while this tree has no visible stump. */
   instanceIndex: number;
 };
 
@@ -34,8 +35,7 @@ export type HarvestStumpInstances = {
   group: THREE.Group;
   meshes: THREE.InstancedMesh[];
   slots: StumpSlot[];
-  visibleLayouts: boolean[];
-  visibleCounts: Map<THREE.InstancedMesh, number>;
+  activeLayoutIndices: Map<THREE.InstancedMesh, number[]>;
   dirtyMeshes: Set<THREE.InstancedMesh>;
   ownedMaterials: THREE.Material[];
   ownedTextures: THREE.Texture[];
@@ -47,13 +47,14 @@ const STUMP_RADIAL_SEGMENTS = 12;
 const STUMP_TEXTURE_SIZE = 128;
 
 /**
- * Harvest stumps are close-world detail. At this orbit distance their cut
- * faces are only a few pixels tall, so the strategic forest can omit them.
+ * Harvest sites are gameplay information, including in the default 240 m RTS
+ * view and the outermost ~346 m live-world zoom. Cull only beyond that envelope;
+ * sparse instance prefixes keep the cost proportional to actual cut trees.
  */
-export const HARVEST_STUMP_HIDE_DISTANCE = 144;
+export const HARVEST_STUMP_HIDE_DISTANCE = 384;
 
 /** Re-enter slightly closer than the hide boundary to avoid wheel-zoom flicker. */
-export const HARVEST_STUMP_SHOW_DISTANCE = 128;
+export const HARVEST_STUMP_SHOW_DISTANCE = 360;
 
 export function shouldShowHarvestStumps(
   currentlyVisible: boolean,
@@ -82,8 +83,7 @@ export function createHarvestStumpInstances(
   group.name = 'Harvest stumps';
   const meshes: THREE.InstancedMesh[] = [];
   const slots: StumpSlot[] = Array.from({ length: placements.length });
-  const visibleLayouts = Array.from({ length: placements.length }, () => false);
-  const visibleCounts = new Map<THREE.InstancedMesh, number>();
+  const activeLayoutIndices = new Map<THREE.InstancedMesh, number[]>();
   const dirtyMeshes = new Set<THREE.InstancedMesh>();
   const ownedMaterials: THREE.Material[] = [];
   const ownedTextures: THREE.Texture[] = [];
@@ -183,13 +183,14 @@ diffuseColor.rgb = mix(
     mesh.receiveShadow = true;
     mesh.frustumCulled = false;
     mesh.visible = false;
-    mesh.count = layoutIndices.length;
+    mesh.count = 0;
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     meshes.push(mesh);
-    visibleCounts.set(mesh, 0);
+    activeLayoutIndices.set(mesh, []);
     group.add(mesh);
 
-    layoutIndices.forEach((layoutIndex, instanceIndex) => {
-      slots[layoutIndex] = { mesh, instanceIndex };
+    layoutIndices.forEach((layoutIndex) => {
+      slots[layoutIndex] = { mesh, instanceIndex: -1 };
     });
   }
 
@@ -197,8 +198,7 @@ diffuseColor.rgb = mix(
     group,
     meshes,
     slots,
-    visibleLayouts,
-    visibleCounts,
+    activeLayoutIndices,
     dirtyMeshes,
     ownedMaterials,
     ownedTextures,
@@ -217,6 +217,13 @@ export function updateHarvestStumpInstance(
 ): void {
   const slot = instances.slots[layoutIndex];
   if (!slot) return;
+  if (slot.instanceIndex < 0) {
+    const active = instances.activeLayoutIndices.get(slot.mesh)!;
+    slot.instanceIndex = active.length;
+    active.push(layoutIndex);
+    slot.mesh.count = active.length;
+    slot.mesh.visible = true;
+  }
 
   const matrix = new THREE.Matrix4();
   const quaternion = new THREE.Quaternion();
@@ -227,20 +234,31 @@ export function updateHarvestStumpInstance(
   quaternion.setFromEuler(new THREE.Euler(0, yaw, 0));
   matrix.compose(position, quaternion, scaleVector);
   slot.mesh.setMatrixAt(slot.instanceIndex, matrix);
-  setHarvestStumpVisibility(instances, layoutIndex, true);
   instances.dirtyMeshes.add(slot.mesh);
 }
 
 export function hideHarvestStumpInstance(
   instances: HarvestStumpInstances,
   layoutIndex: number,
-  hiddenMatrix: THREE.Matrix4,
 ): void {
   const slot = instances.slots[layoutIndex];
-  if (!slot) return;
-  slot.mesh.setMatrixAt(slot.instanceIndex, hiddenMatrix);
-  setHarvestStumpVisibility(instances, layoutIndex, false);
-  instances.dirtyMeshes.add(slot.mesh);
+  if (!slot || slot.instanceIndex < 0) return;
+  const mesh = slot.mesh;
+  const active = instances.activeLayoutIndices.get(mesh)!;
+  const lastInstanceIndex = active.length - 1;
+  const lastLayoutIndex = active.pop()!;
+  if (slot.instanceIndex !== lastInstanceIndex) {
+    // Fill the hole with the final live stump and move its reverse mapping too.
+    const matrix = new THREE.Matrix4();
+    mesh.getMatrixAt(lastInstanceIndex, matrix);
+    mesh.setMatrixAt(slot.instanceIndex, matrix);
+    active[slot.instanceIndex] = lastLayoutIndex;
+    instances.slots[lastLayoutIndex].instanceIndex = slot.instanceIndex;
+  }
+  slot.instanceIndex = -1;
+  mesh.count = active.length;
+  mesh.visible = mesh.count > 0;
+  instances.dirtyMeshes.add(mesh);
 }
 
 export function commitHarvestStumpInstanceUpdates(
@@ -282,21 +300,6 @@ export function disposeHarvestStumpInstances(instances: HarvestStumpInstances): 
   for (const mesh of instances.meshes) mesh.geometry.dispose();
   for (const material of new Set(instances.ownedMaterials)) material.dispose();
   for (const texture of new Set(instances.ownedTextures)) texture.dispose();
-}
-
-function setHarvestStumpVisibility(
-  instances: HarvestStumpInstances,
-  layoutIndex: number,
-  visible: boolean,
-): void {
-  if (instances.visibleLayouts[layoutIndex] === visible) return;
-  instances.visibleLayouts[layoutIndex] = visible;
-  const mesh = instances.slots[layoutIndex]?.mesh;
-  if (!mesh) return;
-  const delta = visible ? 1 : -1;
-  const nextCount = Math.max(0, (instances.visibleCounts.get(mesh) ?? 0) + delta);
-  instances.visibleCounts.set(mesh, nextCount);
-  mesh.visible = nextCount > 0;
 }
 
 function createStumpGeometry(): THREE.BufferGeometry {

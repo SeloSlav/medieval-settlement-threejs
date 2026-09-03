@@ -33,7 +33,15 @@ for (const seed of seeds) {
   const appearance = pickResidenceAppearance(seed);
   const residence = createResidenceMesh(seed, 1);
   const duplicate = createResidenceMesh(seed, 1);
-  const bounds = new THREE.Box3().setFromObject(residence);
+  // Judge the house silhouette, not hidden inventory or construction props.
+  // Box3.setFromObject includes invisible descendants such as the fuel pile.
+  residence.updateWorldMatrix(true, true);
+  const bounds = new THREE.Box3();
+  residence.traverseVisible((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    object.geometry.computeBoundingBox();
+    bounds.union(object.geometry.boundingBox!.clone().applyMatrix4(object.matrixWorld));
+  });
   const size = bounds.getSize(new THREE.Vector3());
 
   assert.equal(residence.userData.residenceRoof, 'brown');

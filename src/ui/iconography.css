@@ -886,16 +886,20 @@
   background-image: url('/assets/ui/icons/materials/shoes.png');
 }
 
+.settlement-hud__stat[data-resource='manure']::before,
+.settlement-hud__stat[data-resource='remedies']::before,
 .resource-cost__item[data-resource-cost='manure'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='remedies'] .resource-cost__icon {
   background-position: center;
   background-size: contain;
 }
 
+.settlement-hud__stat[data-resource='manure']::before,
 .resource-cost__item[data-resource-cost='manure'] .resource-cost__icon {
   background-image: url('/assets/ui/icons/materials/manure.png');
 }
 
+.settlement-hud__stat[data-resource='remedies']::before,
 .resource-cost__item[data-resource-cost='remedies'] .resource-cost__icon {
   background-image: url('/assets/ui/icons/materials/remedies.png');
 }
@@ -966,6 +970,33 @@
   background-image: url('/assets/ui/icons/provisions/maslin-bread.png');
 }
 
+.settlement-hud__food-card:is(
+  [data-food-resource$='Sheaves'],
+  [data-food-resource='ryeGrain'],
+  [data-food-resource='maslinGrain'],
+  [data-food-resource$='Flour']
+)::before {
+  background-position: center;
+  background-size: contain;
+}
+
+.settlement-hud__food-card[data-food-resource='ryeSheaves']::before { background-image: url('/assets/ui/icons/provisions/rye-sheaves.png'); }
+.settlement-hud__food-card[data-food-resource='oatSheaves']::before { background-image: url('/assets/ui/icons/provisions/oat-sheaves.png'); }
+.settlement-hud__food-card[data-food-resource='barleySheaves']::before { background-image: url('/assets/ui/icons/provisions/barley-sheaves.png'); }
+.settlement-hud__food-card[data-food-resource='maslinSheaves']::before { background-image: url('/assets/ui/icons/provisions/maslin-sheaves.png'); }
+.settlement-hud__food-card[data-food-resource='ryeGrain']::before { background-image: url('/assets/ui/icons/provisions/rye-grain.png'); }
+.settlement-hud__food-card[data-food-resource='maslinGrain']::before { background-image: url('/assets/ui/icons/provisions/maslin-grain.png'); }
+.settlement-hud__food-card[data-food-resource='ryeFlour']::before { background-image: url('/assets/ui/icons/provisions/rye-flour.png'); }
+.settlement-hud__food-card[data-food-resource='maslinFlour']::before { background-image: url('/assets/ui/icons/provisions/maslin-flour.png'); }
+
+.settlement-hud__food-card[data-food-resource='barley']::before,
+.settlement-hud__food-card[data-food-resource='malt']::before {
+  background-image: url('/assets/ui/icons/hud-resources-goods-a.png');
+  background-size: 300% 300%;
+}
+.settlement-hud__food-card[data-food-resource='barley']::before { background-position: 50% 0; }
+.settlement-hud__food-card[data-food-resource='malt']::before { background-position: 100% 0; }
+
 .settlement-hud__food-card[data-food-resource='bread']::before { background-position: 0 0; }
 .settlement-hud__food-card[data-food-resource='meat']::before { background-position: 33.333% 0; }
 .settlement-hud__food-card[data-food-resource='fish']::before { background-position: 66.667% 0; }
@@ -982,7 +1013,7 @@
 .settlement-hud__food-card[data-food-resource='cheese']::before { background-position: 66.667% 100%; }
 .settlement-hud__food-card[data-food-resource='honey']::before { background-position: 100% 100%; }
 
-.settlement-hud__food-card[data-food-resource='legacyPreservedFood']::before {
+.settlement-hud__food-card[data-food-resource='preservedFood']::before {
   background-image: url('/assets/ui/icons/hud-resources-goods-a.png');
   background-position: 100% 50%;
   background-size: 300% 300%;

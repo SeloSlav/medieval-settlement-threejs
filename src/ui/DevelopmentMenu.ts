@@ -30,13 +30,12 @@ export class DevelopmentMenu {
     this.element.id = 'development-menu';
     this.element.className = 'development-menu';
     this.element.hidden = true;
-    // The lord profile and time controls intentionally remain interactive outside this dialog.
     this.element.setAttribute('role', 'dialog');
+    this.element.setAttribute('aria-modal', 'true');
     this.element.setAttribute('aria-labelledby', 'development-title');
     this.element.innerHTML = `
       <header class="development-header">
-        <div><p class="development-eyebrow">The estate’s legacy · map-wide</p><h1 id="development-title">Developments</h1>
-          <p class="development-subtitle">Choose what your lands will become.</p></div>
+        <h1 id="development-title">Developments</h1>
         <button type="button" class="development-close" data-development-close aria-label="Close developments">Return to estate <kbd>Esc</kbd></button>
       </header>
       <div class="development-content">
@@ -57,7 +56,7 @@ export class DevelopmentMenu {
                 }).join('');
               }).join('')).join('')}
             </svg>
-            <div class="development-center"><span data-development-heraldry></span><strong>Your estate</strong><span>One shared legacy</span></div>
+            <div class="development-center"><span data-development-heraldry></span><strong>Your estate</strong></div>
             ${DEVELOPMENT_BRANCHES.map(branch => `
               <div class="development-branch-label development-branch-label--${branch.id}"><span>${branch.name}</span><small data-branch-count="${branch.id}">0 / 6</small></div>
               ${branch.skills.map((skill, index) => {
@@ -72,23 +71,19 @@ export class DevelopmentMenu {
           <div class="development-legend" aria-label="Skill states"><span><i class="is-learned"></i>Learned</span><span><i class="is-available"></i>Available</span><span><i class="is-locked"></i>Locked</span></div>
         </div>
         <aside class="development-ledger" aria-label="Development details">
-          <div class="development-budget"><div class="development-budget__number"><strong data-development-points>9</strong><span>/ ${DEVELOPMENT_POINT_CAP}</span></div><div><h2>Development points</h2><p>Available across the entire map</p></div></div>
+          <div class="development-budget"><div class="development-budget__number"><strong data-development-points>9</strong><span>/ ${DEVELOPMENT_POINT_CAP}</span></div><h2>Development points</h2></div>
           <div class="development-budget__marks" aria-hidden="true">${Array.from({ length: DEVELOPMENT_POINT_CAP }, () => '<i></i>').join('')}</div>
-          <p class="development-budget__rule">One complete branch. Half of another.<br>Every development costs one point.</p>
           <section class="development-detail" aria-labelledby="development-skill-title">
             <p class="development-eyebrow" data-detail-branch></p>
             <div class="development-detail__heading"><img data-detail-icon alt=""/><div><span data-detail-tier></span><h2 id="development-skill-title"></h2></div></div>
             <p class="development-detail__description" data-detail-description></p>
             <div class="development-requirements"><h3>Prerequisites <span data-requirement-mode></span></h3><div data-detail-requires></div></div>
-            <p class="development-status" data-detail-status></p>
-            <button type="button" class="development-unlock" data-development-unlock>Unlock development <span>1 point</span></button>
+            <button type="button" class="development-unlock" data-development-unlock>Unlock <span>1 point</span></button>
           </section>
-          <details class="development-guide"><summary>How will points be earned?</summary><p>Grow occupied residences, put useful buildings to work, bring harvests into storage, and protect the estate from bandits, raiders, and dangerous wildlife.</p><p>Planned cap: 9 points over roughly 10–14 hours of mixed-speed play. Peaceful play can also reach the cap; no region conquest is required.</p><p>This is a design preview: earning points is not connected yet.</p></details>
-          <div class="development-prototype"><span>Client-side preview</span><p>All 9 points are granted for testing. Effects are proposals only; the simulation is unchanged. Choices last until reload.</p><button type="button" data-development-reset>Reset preview · refund all points</button></div>
+          <button type="button" class="development-reset" data-development-reset>Reset developments</button>
           <p class="development-announcement" role="status" aria-live="polite" data-development-announcement></p>
         </aside>
-      </div>
-      <footer class="development-footer"><span>Four traditions. One estate.</span><span>Choose a seal to inspect · unlock in the ledger</span></footer>`;
+      </div>`;
     const shield = createHeraldryShield('development-heraldry');
     applyHeraldryToElement(shield, getCurrentNobleProfile().heraldry);
     this.element.querySelector('[data-development-heraldry]')!.append(shield);
@@ -112,7 +107,7 @@ export class DevelopmentMenu {
     this.element.hidden = false;
     this.root.classList.add('has-development-open');
     for (const child of this.root.children) {
-      if (!(child instanceof HTMLElement) || child === this.element || child.matches('.noble-hud, .settlement-vitals')) continue;
+      if (!(child instanceof HTMLElement) || child === this.element) continue;
       this.inertBeforeOpen.set(child, child.inert);
       child.inert = true;
     }
@@ -164,7 +159,7 @@ export class DevelopmentMenu {
       if (this.state.unlock(this.selected)) {
         this.resetArmed = false;
         this.render();
-        this.announce(`${DEVELOPMENT_SKILL_BY_ID.get(this.selected)!.name} learned. ${this.state.points} development ${this.state.points === 1 ? 'point' : 'points'} remaining. Prototype only; no simulation effects.`);
+        this.announce(`${DEVELOPMENT_SKILL_BY_ID.get(this.selected)!.name} learned. ${this.state.points} development ${this.state.points === 1 ? 'point' : 'points'} remaining.`);
         this.element.querySelector<HTMLButtonElement>(`[data-development-skill="${this.selected}"]`)!.focus({ preventScroll: true });
       }
     } else if (button.hasAttribute('data-development-reset')) {
@@ -172,10 +167,10 @@ export class DevelopmentMenu {
         this.state.reset();
         this.resetArmed = false;
         this.render();
-        this.announce('Preview reset. All 9 development points refunded.');
+        this.announce('All 9 development points refunded.');
       } else {
         this.resetArmed = true;
-        button.textContent = 'Confirm reset · clear all choices';
+        button.textContent = 'Confirm reset';
         this.announce('Press Confirm reset again to clear your choices and refund all points.');
       }
     }
@@ -189,7 +184,7 @@ export class DevelopmentMenu {
       event.preventDefault();
       if (!event.repeat) this.close();
     } else if (event.key === 'Tab') {
-      const focusable = [...this.root.querySelectorAll<HTMLElement>('.development-menu button:not(:disabled), .development-menu summary, .noble-hud button:not(:disabled), .noble-hud [tabindex="0"], .settlement-vitals button:not(:disabled), .settlement-vitals [tabindex="0"]')]
+      const focusable = [...this.element.querySelectorAll<HTMLElement>('button:not(:disabled)')]
         .filter(el => el.checkVisibility() && !el.closest('[inert]'));
       const index = focusable.indexOf(document.activeElement as HTMLElement);
       const next = (index + (event.shiftKey ? -1 : 1) + focusable.length) % focusable.length;
@@ -206,7 +201,7 @@ export class DevelopmentMenu {
     this.element.querySelector('[data-development-points]')!.textContent = String(this.state.points);
     this.launcher.querySelector('[data-development-badge]')!.textContent = String(this.state.points);
     this.launcher.setAttribute('aria-label', `Developments, ${this.state.points} points available`);
-    this.launcher.dataset.tooltip = `Developments · ${this.state.points} of ${DEVELOPMENT_POINT_CAP} points available across the map`;
+    this.launcher.dataset.tooltip = `Developments · ${this.state.points} points available`;
     this.element.querySelectorAll('.development-budget__marks i').forEach((mark, i) => mark.classList.toggle('is-spent', i >= this.state.points));
     for (const branch of DEVELOPMENT_BRANCHES) {
       this.element.querySelector(`[data-branch-count="${branch.id}"]`)!.textContent = `${branch.skills.filter(skill => this.state.has(skill.id)).length} / 6`;
@@ -234,11 +229,10 @@ export class DevelopmentMenu {
     this.element.querySelector<HTMLImageElement>('[data-detail-icon]')!.src = developmentIconUrl(skill.icon);
     this.element.querySelector('[data-detail-description]')!.textContent = skill.description;
     this.element.querySelector('[data-requirement-mode]')!.textContent = skill.requires.length > 1 ? '· both required' : '';
-    this.element.querySelector('[data-detail-requires]')!.innerHTML = skill.requires.length ? skill.requires.map(id => `<button type="button" data-development-prerequisite="${id}" class="${this.state.has(id) ? 'is-met' : ''}"><span aria-hidden="true">${this.state.has(id) ? '✓' : LOCK}</span>${escapeHtml(DEVELOPMENT_SKILL_BY_ID.get(id)!.name)}</button>`).join('') : '<p>No prerequisites · begin here</p>';
-    this.element.querySelector('[data-detail-status]')!.textContent = status === 'learned' ? 'Learned for the entire map.' : status === 'locked' ? 'Locked · learn the prerequisites first.' : status === 'unaffordable' ? 'No points left · reset the preview to try another path.' : 'Available · your next step awaits.';
+    this.element.querySelector('[data-detail-requires]')!.innerHTML = skill.requires.length ? skill.requires.map(id => `<button type="button" data-development-prerequisite="${id}" class="${this.state.has(id) ? 'is-met' : ''}"><span aria-hidden="true">${this.state.has(id) ? '✓' : LOCK}</span>${escapeHtml(DEVELOPMENT_SKILL_BY_ID.get(id)!.name)}</button>`).join('') : '<p>None</p>';
     const unlock = this.element.querySelector<HTMLButtonElement>('[data-development-unlock]')!;
     unlock.disabled = status !== 'available';
-    unlock.innerHTML = status === 'learned' ? 'Development learned <span>✓</span>' : status === 'locked' ? 'Prerequisites required <span>1 point</span>' : status === 'unaffordable' ? 'No points remaining <span>0 / 9</span>' : 'Unlock development <span>1 point</span>';
-    this.element.querySelector('[data-development-reset]')!.textContent = 'Reset preview · refund all points';
+    unlock.innerHTML = status === 'learned' ? 'Learned <span>✓</span>' : status === 'locked' ? 'Locked <span>1 point</span>' : status === 'unaffordable' ? 'No points remaining <span>0 / 9</span>' : 'Unlock <span>1 point</span>';
+    this.element.querySelector('[data-development-reset]')!.textContent = 'Reset developments';
   }
 }

@@ -1566,6 +1566,9 @@ export class FarmFieldPreview {
   private readonly fill: THREE.Mesh;
   private readonly border: THREE.Mesh;
   private readonly guides: THREE.Mesh;
+  private readonly cornerMarkers: THREE.InstancedMesh;
+  private readonly hoverMarker: THREE.Mesh;
+  private readonly cornerMatrix = new THREE.Matrix4();
   private lastSignature = '';
 
   constructor(getHeightAt: (x: number, z: number) => number) {
@@ -1630,6 +1633,39 @@ export class FarmFieldPreview {
     this.border.renderOrder = 15;
     this.border.frustumCulled = false;
     this.group.add(this.border);
+
+    // Use the same cursor ring and fixed corner anchors as residence plots.
+    const cornerGeometry = new THREE.RingGeometry(0.25, 0.46, 20);
+    cornerGeometry.rotateX(-Math.PI * 0.5);
+    const markerMaterial = new THREE.MeshBasicMaterial({
+      color: 0xfffdf5,
+      transparent: true,
+      opacity: 0.96,
+      depthTest: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -4,
+    });
+    this.cornerMarkers = new THREE.InstancedMesh(cornerGeometry, markerMaterial, 4);
+    this.cornerMarkers.name = 'Land parcel corner anchors';
+    this.cornerMarkers.renderOrder = 17;
+    this.cornerMarkers.frustumCulled = false;
+    this.cornerMarkers.count = 0;
+    this.cornerMarkers.visible = false;
+    this.group.add(this.cornerMarkers);
+
+    const hoverGeometry = new THREE.RingGeometry(0.22, 0.52, 20);
+    hoverGeometry.rotateX(-Math.PI * 0.5);
+    const hoverMaterial = markerMaterial.clone();
+    hoverMaterial.opacity = 0.82;
+    this.hoverMarker = new THREE.Mesh(hoverGeometry, hoverMaterial);
+    this.hoverMarker.name = 'Land parcel hover anchor';
+    this.hoverMarker.renderOrder = 17;
+    this.hoverMarker.frustumCulled = false;
+    this.hoverMarker.visible = false;
+    this.group.add(this.hoverMarker);
   }
 
   show(
@@ -1638,7 +1674,32 @@ export class FarmFieldPreview {
     _crop: FarmCrop,
     draftPath: readonly Point2[] = [],
     mode: 'field' | 'pasture' | 'graveyard' | 'vineyard' = 'field',
+    placedPoints: readonly Point2[] = corners ?? [],
+    hoverPoint: Point2 | null = null,
   ): void {
+    const markerColor = corners ? valid ? 0xfffdf5 : 0xff5d50 : 0xffd27a;
+    (this.cornerMarkers.material as THREE.MeshBasicMaterial).color.setHex(markerColor);
+    (this.hoverMarker.material as THREE.MeshBasicMaterial).color.setHex(markerColor);
+    this.cornerMarkers.count = Math.min(4, placedPoints.length);
+    this.cornerMarkers.visible = this.cornerMarkers.count > 0;
+    for (let index = 0; index < this.cornerMarkers.count; index += 1) {
+      const point = placedPoints[index];
+      this.cornerMatrix.makeTranslation(
+        point.x,
+        this.getHeightAt(point.x, point.z) + 0.2,
+        point.z,
+      );
+      this.cornerMarkers.setMatrixAt(index, this.cornerMatrix);
+    }
+    this.cornerMarkers.instanceMatrix.needsUpdate = this.cornerMarkers.visible;
+    this.hoverMarker.visible = hoverPoint !== null;
+    if (hoverPoint) {
+      this.hoverMarker.position.set(
+        hoverPoint.x,
+        this.getHeightAt(hoverPoint.x, hoverPoint.z) + 0.2,
+        hoverPoint.z,
+      );
+    }
     if (!corners) {
       if (draftPath.length >= 2) {
         const signature = `draft|${mode}|${draftPath
@@ -1668,7 +1729,10 @@ export class FarmFieldPreview {
         return;
       }
       this.lastSignature = '';
-      this.group.visible = false;
+      this.fill.visible = false;
+      this.guides.visible = false;
+      this.border.visible = false;
+      this.group.visible = this.cornerMarkers.visible || this.hoverMarker.visible;
       return;
     }
 

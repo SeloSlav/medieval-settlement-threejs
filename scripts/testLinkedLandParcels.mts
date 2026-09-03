@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import * as THREE from 'three';
+import { FarmFieldTool } from '../src/farming/FarmFieldTool.ts';
+import type { FarmFieldCorners } from '../src/farming/farmFieldMath.ts';
+import { getBuildingFootprintHalfExtents } from '../src/buildings/BuildingFootprint.ts';
 import {
   snapLandParcelDraftPoint,
   snapLandParcelPoint,
@@ -9,7 +13,7 @@ import {
   snapBurgageBoundaryPoint,
   snapBurgageFrontagePoint,
 } from '../src/residences/burgagePlotSnap.ts';
-import type { BurgageZoneState } from '../src/resources/types.ts';
+import type { BuildingState, BurgageZoneState, GameState } from '../src/resources/types.ts';
 import { renderGraveyardInspector } from '../src/resources/inspector/graveyardRenderer.ts';
 import { convexPolygonsOverlap2 } from '../src/utils/polygonGeometry.ts';
 
@@ -274,6 +278,10 @@ assert.doesNotMatch(pastures.match(/pub fn place_pasture[\s\S]*?\n\}/)?.[0] ?? '
 const graveyards = source('server/src/reducers/graveyards.rs');
 assert.match(graveyards, /GRAVEYARD_MAX_DISTANCE/);
 assert.doesNotMatch(graveyards, /GRAVEYARD_ADJACENCY_DISTANCE|must directly adjoin/);
+assert.match(graveyards, /burgage_zone_overlaps_buildings\(ctx, owner, &corners\)/,
+  'graveyards must share the authoritative rotated-footprint check used by residence plots');
+assert.doesNotMatch(graveyards, /building_pick_radius|zone_overlaps_footprint\(/,
+  'the selection-radius square must not reject land outside the visible church boundary');
 
 const vineyards = source('server/src/reducers/vineyards.rs');
 assert.match(vineyards, /VINEYARD_MONASTERY_MAX_DISTANCE/);
@@ -286,4 +294,105 @@ const economy = source('server/src/simulation/expanded_economy.rs');
 assert.match(economy, /Aggregate before applying the diminishing area curve/);
 assert.match(economy, /vineyard_site \/ vineyard_area[\s\S]*vineyard_shape \/ vineyard_area/);
 
-console.log('unlimited linked land parcels, range-only placement, and same-origin snapping checks passed');
+// Exercise the actual mouse lifecycle, including activation without mouseenter.
+const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+const testWindow = new EventTarget();
+Object.defineProperty(globalThis, 'window', { configurable: true, value: testWindow });
+const canvas = new EventTarget();
+const chapel = {
+  id: 'placement-chapel', kind: 'chapel', x: 20, z: -20, yaw: 0,
+  constructionComplete: true, workRadius: 38,
+} as BuildingState;
+const state = {
+  buildings: new Map([[chapel.id, chapel]]),
+  burgageZones: new Map(), farmFields: new Map(), pastures: new Map(),
+  graveyards: new Map(), vineyardParcels: new Map(),
+} as GameState;
+let committed = 0;
+const placementTool = new FarmFieldTool({
+  domElement: canvas as unknown as HTMLElement,
+  camera: new THREE.PerspectiveCamera(),
+  terrainProjector: { pick: (x: number, z: number) => new THREE.Vector3(x, 0, z) } as never,
+  getState: () => state,
+  getHeightAt: () => 0,
+  isWaterAt: () => false,
+  isResourceDepositAt: () => false,
+  onCommit: () => {}, onCommitPasture: () => {}, onCommitVineyard: () => {},
+  onCommitGraveyard: () => { committed += 1; },
+  onModeChanged: () => {}, isBlocked: () => false,
+});
+const previewRoot = new THREE.Group();
+placementTool.attachTo(previewRoot);
+const preview = previewRoot.getObjectByName('Terrain-hugging land parcel preview')!;
+const hover = preview.getObjectByName('Land parcel hover anchor') as THREE.Mesh;
+const anchors = preview.getObjectByName('Land parcel corner anchors') as THREE.InstancedMesh;
+const border = preview.getObjectByName('Farmland dotted border') as THREE.Mesh;
+const mouse = (type: string, x: number, z: number): void => {
+  canvas.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), {
+    clientX: x, clientY: z, button: 0, altKey: false,
+  }));
+  placementTool.update();
+};
+const key = (value: string): void => {
+  testWindow.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { key: value }));
+};
+const { halfWidth } = getBuildingFootprintHalfExtents('chapel');
+const besideChurch = (inset = 0): FarmFieldCorners => {
+  const local = [[halfWidth + inset, -4], [halfWidth + inset + 8, -4],
+    [halfWidth + inset + 8, 4], [halfWidth + inset, 4]];
+  return local.map(([x, z]) => ({
+    x: chapel.x + x * Math.cos(chapel.yaw!) + z * Math.sin(chapel.yaw!),
+    z: chapel.z - x * Math.sin(chapel.yaw!) + z * Math.cos(chapel.yaw!),
+  })) as unknown as FarmFieldCorners;
+};
+try {
+  placementTool.setMode('graveyard', chapel.id);
+  const validator = placementTool as unknown as {
+    validate(corners: FarmFieldCorners): { ok: boolean; reason?: string };
+  };
+  for (const yaw of [0, Math.PI / 2, 0.63, -1.09]) {
+    chapel.yaw = yaw;
+    assert.equal(validator.validate(besideChurch(0.1)).ok, true,
+      `burial ground just outside the church must be accepted at yaw ${yaw}`);
+    assert.equal(validator.validate(besideChurch()).ok, true,
+      `a shared church boundary must be accepted at yaw ${yaw}`);
+    assert.equal(validator.validate(besideChurch(-0.5)).reason, 'building',
+      `burial ground crossing the church boundary must be rejected at yaw ${yaw}`);
+  }
+  chapel.yaw = 0;
+  const corners = besideChurch(0.1);
+  mouse('mousemove', corners[0].x, corners[0].z);
+  assert.equal(preview.visible && hover.visible, true,
+    'a cursor ring must appear before the first click, even without mouseenter');
+  assert.equal(anchors.count, 0);
+  mouse('mouseleave', corners[0].x, corners[0].z);
+  assert.equal(preview.visible, false, 'leaving the canvas must hide an unstarted preview');
+  mouse('mousedown', corners[0].x, corners[0].z);
+  assert.equal(preview.visible && anchors.visible, true, 'the first click must leave a visible corner');
+  assert.equal(anchors.count, 1);
+  mouse('mouseleave', corners[0].x, corners[0].z);
+  assert.equal(preview.visible && anchors.visible, true, 'leaving must preserve the first fixed corner');
+  assert.equal(hover.visible, false);
+  mouse('mousemove', corners[1].x, corners[1].z);
+  assert.equal(border.visible, true, 'the boundary must follow the next corner under the mouse');
+  for (const point of corners.slice(1)) mouse('mousedown', point.x, point.z);
+  assert.equal(placementTool.isDraftBuildable(), true);
+  assert.equal(anchors.count, 4);
+  assert.equal(hover.visible, false, 'a completed draft must hide the moving cursor marker');
+  key('Backspace');
+  assert.equal(anchors.count, 3, 'undo must remove only the final fixed corner');
+  assert.equal(hover.visible, true, 'undo must restore the moving corner marker');
+  mouse('mousedown', corners[3].x, corners[3].z);
+  placementTool.commitDraft();
+  await Promise.resolve();
+  assert.equal(committed, 1);
+  assert.equal(preview.visible, false, 'successful placement must clear the draft markers');
+  placementTool.setEnabled(false);
+  assert.equal(previewRoot.getObjectByName('Linked land-parcel origin footprint warning')!.visible, false);
+} finally {
+  placementTool.dispose();
+  if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow);
+  else Reflect.deleteProperty(globalThis, 'window');
+}
+
+console.log('linked parcels: snapping, church footprint boundaries, mouse preview, undo, and commit checks passed');

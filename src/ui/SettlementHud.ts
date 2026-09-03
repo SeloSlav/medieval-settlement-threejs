@@ -28,13 +28,10 @@ import {
 } from '../security/frontierSecurity.ts';
 import type { SettlementProvisioning } from '../economy/settlementProvisioning.ts';
 import type { SettlementApproval } from '../economy/settlementApproval.ts';
-import { FOOD_CATEGORY_LABELS, foodCategory } from '../economy/foodInventory.ts';
 import type { AuthoritativeWorldGeneration } from '../world/worldConfigAuthority.ts';
 import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
 import { describeWorldDifficulty } from '../world/worldDifficulty.ts';
 import {
-  FOOD_RESOURCE_KINDS,
-  FOOD_RESOURCE_LABELS,
   HUD_RESOURCE_KINDS,
   isHudResourceKind,
   type HudResourceKind,
@@ -57,7 +54,8 @@ import {
   type LordReportTarget,
 } from './lordReports.ts';
 import { HUD_RESOURCE_CARD_PRESENTATION } from './hudResourceCards.ts';
-import { RESOURCE_DESCRIPTIONS, foodResourceTooltip } from './resourceDescriptions.ts';
+import { HUD_FOOD_GROUPS, hudFoodResourceLabel, hudFoodResourceTooltip } from './hudFoodCards.ts';
+import { RESOURCE_DESCRIPTIONS } from './resourceDescriptions.ts';
 import type { SettlementAnimalsView } from './settlementAnimals.ts';
 import {
   EMPTY_SETTLEMENT_PEOPLE_VIEW,
@@ -528,7 +526,7 @@ const SETTLEMENT_HUD_HTML = `
           id="settlement-food-breakdown"
           class="settlement-hud__stores-grid settlement-hud__food-grid"
           data-food-breakdown
-          aria-label="Food stores by household food group"
+          aria-label="Food and harvest stores"
         >
           <div class="settlement-hud__stores-scroll">
             <div class="settlement-hud__stores-grid-header settlement-hud__people-header settlement-hud__supply-header" role="heading" aria-level="2">
@@ -540,40 +538,26 @@ const SETTLEMENT_HUD_HTML = `
               <span class="settlement-hud__supply-line" data-supply-icon="population" data-food-supply-use>No occupied residences are using food yet.</span>
               <span class="settlement-hud__supply-line" data-supply-icon="food" data-food-supply-total>All usable food across stores and residence pantries sets this estimate.</span>
             </div>
-            ${Object.entries(FOOD_CATEGORY_LABELS).map(([category, label]) => `
+            ${HUD_FOOD_GROUPS.map(({ id: category, label, kinds }) => `
               <section class="settlement-hud__stores-section" data-food-category="${category}" aria-labelledby="settlement-food-category-${category}">
                 <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3" id="settlement-food-category-${category}"><strong>${label}</strong></div>
-                ${FOOD_RESOURCE_KINDS.filter((kind) => foodCategory(kind) === category).map((kind) => `
+                ${kinds.map((kind) => `
                   <div
                     class="settlement-hud__stat settlement-hud__stat--store settlement-hud__food-card"
+                    tabindex="0"
                     data-food-breakdown-row="${kind}"
                     data-food-resource="${kind}"
-                    data-tooltip-title="${FOOD_RESOURCE_LABELS[kind]}"
-                    data-tooltip="${foodResourceTooltip(kind)}"
+                    aria-label="${hudFoodResourceLabel(kind)}"
+                    data-tooltip-title="${hudFoodResourceLabel(kind)}"
+                    data-tooltip="${hudFoodResourceTooltip(kind)}"
                   >
-                    <span class="settlement-hud__label">${FOOD_RESOURCE_LABELS[kind]}</span>
+                    <span class="settlement-hud__label">${hudFoodResourceLabel(kind)}</span>
                     <strong class="settlement-hud__value" data-food-breakdown-stored="${kind}">0</strong>
                     <span class="settlement-hud__sub settlement-hud__sub--transit" data-food-breakdown-transit="${kind}" hidden></span>
                     <span data-food-breakdown-homes="${kind}" hidden>0</span>
                     <span data-food-breakdown-surplus="${kind}" hidden>0</span>
                   </div>
                 `).join('')}
-                ${category === 'grains' ? `
-                  <div
-                    class="settlement-hud__stat settlement-hud__stat--store settlement-hud__food-card settlement-hud__food-card--legacy"
-                    data-food-breakdown-row="legacyPreservedFood"
-                    data-food-resource="legacyPreservedFood"
-                    data-tooltip-title="Preserved provisions"
-                    data-tooltip="${foodResourceTooltip('preservedFood')}"
-                    hidden
-                  >
-                    <span class="settlement-hud__label">Preserved provisions</span>
-                    <strong class="settlement-hud__value" data-food-breakdown-stored="legacyPreservedFood">0</strong>
-                    <span class="settlement-hud__sub settlement-hud__sub--transit" data-food-breakdown-transit="legacyPreservedFood" hidden></span>
-                    <span data-food-breakdown-homes="legacyPreservedFood" hidden>0</span>
-                    <span data-food-breakdown-surplus="legacyPreservedFood" hidden>0</span>
-                  </div>
-                ` : ''}
               </section>
             `).join('')}
             <span data-food-breakdown-empty hidden></span>
@@ -650,6 +634,16 @@ const SETTLEMENT_HUD_HTML = `
               <span class="settlement-hud__label">Salt</span>
               <strong class="settlement-hud__value" data-stockpile="salt">0</strong>
               <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="salt" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="manure" data-tooltip="${RESOURCE_DESCRIPTIONS.manure}">
+              <span class="settlement-hud__label">Manure</span>
+              <strong class="settlement-hud__value" data-stockpile="manure">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="manure" hidden></span>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="remedies" data-tooltip="${RESOURCE_DESCRIPTIONS.remedies}">
+              <span class="settlement-hud__label">Remedies</span>
+              <strong class="settlement-hud__value" data-stockpile="remedies">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="remedies" hidden></span>
             </div>
             <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wool" data-tooltip="${RESOURCE_DESCRIPTIONS.wool}">
               <span class="settlement-hud__label">Wool</span>

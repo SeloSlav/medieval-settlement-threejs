@@ -4,12 +4,12 @@ use crate::balance_generated::{
     GRAVEYARD_MAX_DISTANCE, GRAVEYARD_MAX_SLOPE, GRAVEYARD_MIN_AREA, GRAVEYARD_MIN_EDGE,
     GRAVE_AREA_PER_BURIAL,
 };
-use crate::burgage::{convex_zones_overlap, zone_corners_polygon, zone_overlaps_footprint, Point2};
+use crate::burgage::{convex_zones_overlap, zone_corners_polygon, Point2};
 use crate::db::*;
 use crate::farming::{
     corners_from_values, edge_lengths, is_valid_convex_quadrilateral, point_in_field, polygon_area,
 };
-use crate::placement_validation::{building_pick_radius, zone_overlaps_resource_deposit};
+use crate::placement_validation::{burgage_zone_overlaps_buildings, zone_overlaps_resource_deposit};
 use crate::tables::{corpse, farm_field, graveyard, Graveyard, Pasture};
 
 #[reducer]
@@ -82,13 +82,9 @@ pub fn place_graveyard(
     // generated surface-water layout, so it must not contradict that result.
 
     let polygon = zone_corners_polygon(&corners);
-    for building in ctx.db.building().owner().filter(&owner) {
-        let Some(radius) = building_pick_radius(&building.kind) else {
-            continue;
-        };
-        if zone_overlaps_footprint(&polygon, building.x, building.z, radius) {
-            return Err("Burial ground overlaps a building.".to_string());
-        }
+    // Match the visible footprint, including each building's placement-time yaw.
+    if burgage_zone_overlaps_buildings(ctx, owner, &corners) {
+        return Err("Burial ground overlaps a building.".to_string());
     }
     for zone in ctx.db.burgage_zone().owner().filter(&owner) {
         if convex_zones_overlap(

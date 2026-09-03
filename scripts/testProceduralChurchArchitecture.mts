@@ -1,9 +1,45 @@
 import * as THREE from 'three';
+import { readFileSync } from 'node:fs';
 import { createChapelMesh } from '../src/buildings/meshes/chapelMesh.ts';
+import { createResidenceMesh } from '../src/residences/ResidenceMarkers.ts';
+import { BUILDING_PAD_PARAMS, getBuildingFootprintHalfExtents } from '../src/buildings/BuildingFootprint.ts';
+import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
+import { batchCompletedBuildingStaticMeshes } from '../src/buildings/staticBuildingBatch.ts';
+import { BuildingStaticBatches } from '../src/buildings/BuildingStaticBatches.ts';
+
+const plot = getBuildingFootprintHalfExtents('chapel');
+const heights: number[] = [];
+const serverPlacement = readFileSync('server/src/placement_validation.rs', 'utf8');
+const serverPad = serverPlacement.match(/"chapel" => BuildingPadParams \{([^}]+)\}/)?.[1] ?? '';
+for (const [serverName, clientName] of [
+  ['radius_x', 'radiusX'], ['radius_z', 'radiusZ'],
+  ['inner_fade', 'innerFade'], ['outer_fade', 'outerFade'],
+] as const) {
+  assert(Number(serverPad.match(new RegExp(`${serverName}: ([0-9.]+)`))?.[1]) === BUILDING_PAD_PARAMS.chapel[clientName],
+    `Server church ${serverName} must match the client's permanent plot`);
+}
 
 for (const tier of [1, 2, 3] as const) {
   const church = createChapelMesh(tier);
   church.updateMatrixWorld(true);
+  const churchBounds = new THREE.Box3().setFromObject(church);
+  heights.push(churchBounds.max.y - churchBounds.min.y);
+  assert(churchBounds.min.x >= -plot.halfWidth - 1e-5 && churchBounds.max.x <= plot.halfWidth + 1e-5
+    && churchBounds.min.z >= -plot.halfDepth - 1e-5 && churchBounds.max.z <= plot.halfDepth + 1e-5,
+  `Church tier ${tier} must fit its permanent collision footprint`);
+  const fence = requiredObject(church, 'Churchyard permanent footprint fence');
+  const fenceBounds = new THREE.Box3().setFromObject(fence);
+  assert(Math.abs(fenceBounds.min.x + plot.halfWidth) < 1e-5
+    && Math.abs(fenceBounds.max.x - plot.halfWidth) < 1e-5
+    && Math.abs(fenceBounds.min.z + plot.halfDepth) < 1e-5
+    && Math.abs(fenceBounds.max.z - plot.halfDepth) < 1e-5,
+  `Church tier ${tier} fence must mark all four edges of the reserved footprint`);
+  assert(fence.parent === church && fence.scale.equals(new THREE.Vector3(1, 1, 1)),
+    'The churchyard must remain independent of tier-model scaling');
+  const fenceMeshes: THREE.Mesh[] = [];
+  fence.traverse((object) => { if (object instanceof THREE.Mesh) fenceMeshes.push(object); });
+  assert(new THREE.Raycaster(new THREE.Vector3(0, 0.6, plot.halfDepth + 1), new THREE.Vector3(0, 0, -1), 0, 2)
+    .intersectObjects(fenceMeshes, false).length === 0, 'The front entrance must stay open');
   const modelName = tier === 1
     ? 'Small Wooden Church'
     : tier === 2
@@ -109,14 +145,14 @@ for (const tier of [1, 2, 3] as const) {
     : requiredMeshes(
         church,
         `Compact church belfry ${tier === 1 ? 'timber' : 'stone'} support post`,
-        2,
+        4,
       );
   const upperBeams = tier === 3
     ? [
         ...requiredMeshes(church, 'Parish church belfry transverse upper beam', 2),
         ...requiredMeshes(church, 'Parish church belfry longitudinal upper beam', 2),
       ]
-    : requiredMeshes(church, 'Compact church belfry upper beam', 1);
+    : requiredMeshes(church, 'Compact church belfry upper beam', 4);
   const lowerSupport = requiredMesh(
     church,
     tier === 3
@@ -126,6 +162,21 @@ for (const tier of [1, 2, 3] as const) {
   const lowerSupportBounds = new THREE.Box3().setFromObject(lowerSupport);
   const upperBeamBounds = boundsOf(upperBeams);
   const capBounds = new THREE.Box3().setFromObject(belfryCap);
+  const roofBase = requiredMesh(church, 'Church roof-fitted belfry base');
+  const roofBaseBounds = new THREE.Box3().setFromObject(roofBase);
+  assert(roofBaseBounds.intersectsBox(lowerSupportBounds), `${modelName} tower plinth must join its sill`);
+  // At every support corner, verify real triangles connect the base to the
+  // sloping roof. A box resting on the ridge alone fails these vertical probes.
+  for (const post of supportPosts) {
+    const corner = post.getWorldPosition(new THREE.Vector3());
+    const roofHit = new THREE.Raycaster(new THREE.Vector3(corner.x, naveRoofBounds.max.y + 1, corner.z),
+      new THREE.Vector3(0, -1, 0)).intersectObjects(roofPlanes, false)[0];
+    assert(roofHit, `${modelName} tower corner must sit over the nave roof`);
+    const undersideHit = new THREE.Raycaster(roofHit.point.clone().add(new THREE.Vector3(0, -2, 0)),
+      new THREE.Vector3(0, 1, 0)).intersectObject(roofBase, false)[0];
+    assert(undersideHit && undersideHit.point.y <= roofHit.point.y + 1e-4,
+      `${modelName} tower corner floats above the roof`);
+  }
 
   assert(
     lowerSupportBounds.max.y > naveRoofBounds.max.y + 0.08,
@@ -244,7 +295,27 @@ for (const tier of [1, 2, 3] as const) {
   }
 }
 
-console.log('procedural church architecture passed (3 tiers, aligned curved apertures, clear connected belfries, joined roofs)');
+for (const seed of [0, 6, 8, 9, 17, 42]) {
+  const homeHeight = new THREE.Box3().setFromObject(createResidenceMesh(seed, 1)).getSize(new THREE.Vector3()).y;
+  assert(Math.abs(heights[0]! / homeHeight - 2) < 0.001,
+    `Tier 1 church must be twice the height of tier 1 residence seed ${seed}`);
+}
+assert(heights[0]! < heights[1]! && heights[1]! < heights[2]!, 'Church upgrades must increase height');
+// Exercise the production replacement path: geometry moves out of the marker
+// into shared batches, leaving a proxy that must reserve the same churchyard.
+const batches = new BuildingStaticBatches(new THREE.Group());
+for (const tier of [1, 2, 3] as const) {
+  const marker = createBuildingMesh('chapel', tier);
+  batchCompletedBuildingStaticMeshes(marker);
+  batches.registerBuilding('church-upgrade', marker);
+  const collision = requiredMesh(marker, 'Building collision geometry proxy');
+  assert(Math.abs(collision.scale.x - plot.halfWidth * 2) < 1e-4
+    && Math.abs(collision.scale.z - plot.halfDepth * 2) < 1e-4
+    && Math.abs(collision.position.x) < 1e-4 && Math.abs(collision.position.z) < 1e-4,
+  `Church tier ${tier} batching must preserve the permanent collision footprint`);
+}
+batches.dispose();
+console.log(`procedural church architecture passed (3 fitted towers, fixed fenced plot and batched collision, server parity, 2x residence height; church heights ${heights.map(h => h.toFixed(3)).join(', ')} m)`);
 
 function requiredObject(parent: THREE.Object3D, name: string): THREE.Object3D {
   const object = parent.getObjectByName(name);

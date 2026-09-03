@@ -161,8 +161,8 @@ export const PROCEDURAL_BUILDING_CATALOG = {
     historicalNote: 'Unfenced riverside work compound with separate clean circulation to both doors.',
   },
   chapel: {
-    family: 'religious', status: 'landmark', roof: 'spire', massing: ['nave', 'sanctuary', 'west-bell-tower'],
-    modules: ['true-arched-openings', 'nave-roof', 'belfry', 'regional-flared-spire', 'iron-cross'],
+    family: 'religious', status: 'landmark', roof: 'spire', massing: ['nave', 'roof-mounted-belfry', 'fenced-churchyard'],
+    modules: ['true-arched-openings', 'nave-roof', 'roof-fitted-tower-base', 'four-post-belfry', 'regional-flared-spire', 'iron-cross', 'permanent-footprint-fence'],
     materials: ['fieldstone', 'limestone-ashlar', 'lime-plaster', 'rough-timber', 'weathered-boards', 'split-shingles', 'clay-tiles', 'wrought-iron'], dynamicSlots: ['clock', 'bell', 'devotional-light'],
     triangleTarget: 14_000, triangleCeiling: 24_000, drawCallTarget: 10,
     historicalNote: 'Tiered parish church progression based on compact Gorski Kotar forms and a restrained Delnice-like silhouette.',

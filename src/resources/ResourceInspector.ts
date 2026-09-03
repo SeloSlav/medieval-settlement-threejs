@@ -3,22 +3,18 @@ import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import type { SceneManager } from '../scene/SceneManager.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 import {
-  FOOD_RESOURCE_KINDS,
   HUD_RESOURCE_KINDS,
   computeResourceTotals,
   computeMarketplaceTradeAvailability,
   maxAssignableLabor,
   type HudResourceKind,
-  type FoodResourceKind,
   type PopulationStats,
   type ResourceTotals,
 } from './resourceTotals.ts';
+import { HUD_FOOD_RESOURCE_KINDS, hudFoodResourceTooltip, type HudFoodResourceKind } from '../ui/hudFoodCards.ts';
 
-const FOOD_BREAKDOWN_ROW_KINDS = [
-  ...FOOD_RESOURCE_KINDS,
-  'legacyPreservedFood',
-] as const;
-type FoodBreakdownRowKind = FoodResourceKind | 'legacyPreservedFood';
+const FOOD_BREAKDOWN_ROW_KINDS = HUD_FOOD_RESOURCE_KINDS;
+type FoodBreakdownRowKind = HudFoodResourceKind;
 type FoodBreakdownRowElements = {
   row: HTMLElement;
   stored: HTMLElement;
@@ -92,8 +88,6 @@ import {
   type ServiceCoverageView,
 } from './serviceCoverage.ts';
 import { PlayerAuthoredHoverOutline } from './PlayerAuthoredHoverOutline.ts';
-import type { FoodInventoryKind } from '../economy/foodInventory.ts';
-import { foodResourceTooltip } from '../ui/resourceDescriptions.ts';
 import { AlertDialog } from '../ui/AlertDialog.ts';
 import { hasCustomTreeWorkArea } from './treeWorkArea.ts';
 import { resourceNodeArtUrl } from './resourceNodeArt.ts';
@@ -681,6 +675,8 @@ export class ResourceInspector {
       iron: this.mustElement(options.uiRoot, '[data-stockpile="iron"]'),
       clay: this.mustElement(options.uiRoot, '[data-stockpile="clay"]'),
       salt: this.mustElement(options.uiRoot, '[data-stockpile="salt"]'),
+      manure: this.mustElement(options.uiRoot, '[data-stockpile="manure"]'),
+      remedies: this.mustElement(options.uiRoot, '[data-stockpile="remedies"]'),
       charcoal: this.mustElement(options.uiRoot, '[data-stockpile="charcoal"]'),
       pottery: this.mustElement(options.uiRoot, '[data-stockpile="pottery"]'),
       roofTiles: this.mustElement(options.uiRoot, '[data-stockpile="roofTiles"]'),
@@ -2238,24 +2234,22 @@ export class ResourceInspector {
     const showingTotal = this.resourceTotalsPresentation === 'total';
     const amountLabel = showingTotal ? 'Total stored' : 'Available surplus';
     for (const kind of FOOD_BREAKDOWN_ROW_KINDS) {
-      const stored = Math.max(0, this.storedTotals[kind]);
-      const transit = Math.max(0, this.inTransitTotals?.[kind] ?? 0);
-      const surplus = Math.max(0, this.surplusTotals[kind]);
+      // The preservedFood total includes cheese, cured meat, fish, and jams;
+      // this row shows only the staples, with each other food listed separately.
+      const resource = kind === 'preservedFood' ? 'legacyPreservedFood' : kind;
+      const stored = Math.max(0, this.storedTotals[resource]);
+      const transit = Math.max(0, this.inTransitTotals?.[resource] ?? 0);
+      const surplus = Math.max(0, this.surplusTotals[resource]);
       const displayed = showingTotal ? stored : surplus;
       const homes = Math.max(0, stored - surplus);
       const elements = this.foodBreakdownRows[kind];
       const stocked = stored + transit > 1e-6;
-      const namedFood = (FOOD_RESOURCE_KINDS as readonly string[]).includes(kind);
-      const visible = namedFood || stocked;
-      const inventoryKind = (kind === 'legacyPreservedFood'
-          ? 'preservedFood'
-          : kind) as FoodInventoryKind;
-      elements.row.hidden = !visible;
+      elements.row.hidden = false;
       elements.row.classList.toggle('is-empty', !stocked);
       elements.stored.textContent = formatTransitAmount(displayed);
       elements.row.dataset.tooltipAmount = formatTransitAmount(displayed);
       elements.row.dataset.tooltipAmountLabel = amountLabel;
-      elements.row.dataset.tooltip = foodResourceTooltip(inventoryKind);
+      elements.row.dataset.tooltip = hudFoodResourceTooltip(kind);
       elements.transit.hidden = transit <= 1e-6;
       elements.transit.textContent = transit > 1e-6
         ? `+${formatTransitAmount(transit)} cart`

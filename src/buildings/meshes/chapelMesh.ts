@@ -16,6 +16,7 @@ import {
   addStoneEntranceSteps,
 } from './facadeOpeningKit.ts';
 import { addHippedRoof } from './buildingMeshKit.ts';
+import { getBuildingFootprintHalfExtents } from '../BuildingFootprint.ts';
 
 type ChapelMaterials = {
   limewash: THREE.MeshStandardMaterial;
@@ -32,7 +33,90 @@ type ChapelMaterials = {
  * parish church. Keep the scale on a nested procedural-model group so runtime
  * helpers (notably the shadow proxy) can still attach to an unscaled root.
  */
-export const PARISH_CHURCH_MODEL_SCALE = 1.25;
+export const PARISH_CHURCH_MODEL_SCALE = 1.5;
+
+// The current tier-one residence is 5.2885 m from footing to roof crown.
+// Measure the church through its cross, preserving uniform proportions.
+const TIER_ONE_CHURCH_HEIGHT = 2 * 5.2885;
+
+type ChurchRoofProfile = {
+  width: number;
+  wallTop: number;
+  ridgeHeight: number;
+};
+
+/** A closed tower plinth whose inverted-V underside seats into both slopes. */
+function addBelfryRoofBase(
+  group: THREE.Group,
+  roof: ChurchRoofProfile,
+  width: number,
+  depth: number,
+  towerZ: number,
+  topY: number,
+  material: THREE.Material,
+): void {
+  const halfWidth = width * 0.5;
+  const ridgeY = roof.wallTop + roof.ridgeHeight + 0.02;
+  const pitch = (roof.ridgeHeight + 0.06) / (roof.width * 0.5 + 0.25);
+  // Embed the bottom by 6 cm; touching only the ridge leaves the corners
+  // floating. The exposed walls follow the roof down to all four corners.
+  const bottomAtRidge = ridgeY - 0.06;
+  const bottomAtEdge = bottomAtRidge - halfWidth * pitch;
+  const outline = new THREE.Shape();
+  outline.moveTo(-halfWidth, bottomAtEdge);
+  outline.lineTo(0, bottomAtRidge);
+  outline.lineTo(halfWidth, bottomAtEdge);
+  outline.lineTo(halfWidth, topY);
+  outline.lineTo(-halfWidth, topY);
+  outline.closePath();
+  const geometry = new THREE.ExtrudeGeometry(outline, { depth, bevelEnabled: false, steps: 1 });
+  geometry.translate(0, 0, -depth * 0.5);
+  const base = addMesh(group, geometry, material, new THREE.Vector3(0, 0, towerZ));
+  base.name = 'Church roof-fitted belfry base';
+  base.userData.architectureRole = 'roof-fitted-tower-base';
+  base.userData.roofSeat = { ridgeY, pitch, halfWidth, depth, towerZ };
+}
+
+/** The fence belongs to the permanent plot, outside the scaled tier model. */
+function addChurchyardFence(root: THREE.Group): void {
+  const { halfWidth, halfDepth } = getBuildingFootprintHalfExtents('chapel');
+  const fence = new THREE.Group();
+  fence.name = 'Churchyard permanent footprint fence';
+  fence.userData.architectureRole = 'permanent-footprint-fence';
+  fence.userData.footprint = { halfWidth, halfDepth };
+  root.add(fence);
+  const postWidth = 0.2;
+  const x = halfWidth - postWidth * 0.5;
+  const z = halfDepth - postWidth * 0.5;
+  const gateHalfWidth = 1.5;
+  const runs = [
+    [-x, -z, x, -z],
+    [-x, -z, -x, z],
+    [x, -z, x, z],
+    [-x, z, -gateHalfWidth - postWidth * 0.5, z],
+    [gateHalfWidth + postWidth * 0.5, z, x, z],
+  ] as const;
+  const placedPosts = new Set<string>();
+  for (const [x1, z1, x2, z2] of runs) {
+    const length = Math.hypot(x2 - x1, z2 - z1);
+    const bays = Math.ceil(length / 1.8);
+    for (let i = 0; i <= bays; i++) {
+      const px = THREE.MathUtils.lerp(x1, x2, i / bays);
+      const pz = THREE.MathUtils.lerp(z1, z2, i / bays);
+      const key = `${px.toFixed(4)}:${pz.toFixed(4)}`;
+      if (placedPosts.has(key)) continue;
+      placedPosts.add(key);
+      addMesh(fence, new THREE.BoxGeometry(postWidth, 1.25, postWidth), timberMaterial('dark'),
+        new THREE.Vector3(px, 0.625, pz)).name = 'Churchyard fence post';
+    }
+    for (const y of [0.4, 0.92]) {
+      addMesh(fence, new THREE.BoxGeometry(length, 0.12, 0.1), timberMaterial('weathered'),
+        new THREE.Vector3((x1 + x2) * 0.5, y, (z1 + z2) * 0.5),
+        new THREE.Euler(0, -Math.atan2(z2 - z1, x2 - x1), 0)).name = 'Churchyard fence rail';
+    }
+  }
+  fence.userData.entranceWidth = gateHalfWidth * 2;
+}
 
 function createChapelMaterials(): ChapelMaterials {
   return {
@@ -453,15 +537,18 @@ function addBellTower(
   group: THREE.Group,
   materials: ChapelMaterials,
   towerZ: number,
-  roofY: number,
+  roof: ChurchRoofProfile,
   roofMaterial: THREE.Material,
 ): void {
   const baseSize = 1.62;
-  const belfryFloorY = roofY + 0.18;
+  const belfryFloorY = roof.wallTop + roof.ridgeHeight + 0.28;
   const belfryHeight = 2.08;
   // Keep the yoke tucked beneath the belfry's upper beams so the bell reads as
   // suspended from the steeple ceiling instead of floating near the floor.
   const bellLift = 0.63;
+
+  addBelfryRoofBase(group, roof, baseSize, baseSize, towerZ, belfryFloorY,
+    stoneMaterial('light'));
 
   const footing = addMesh(
     group,
@@ -653,40 +740,50 @@ function addCompactBellCote(
   group: THREE.Group,
   materials: ChapelMaterials,
   z: number,
-  baseY: number,
+  roof: ChurchRoofProfile,
   roofMaterial: THREE.Material,
   stoneTier: boolean,
 ): void {
   const span = stoneTier ? 1.42 : 1.18;
+  const baseY = roof.wallTop + roof.ridgeHeight + 0.25;
   const height = stoneTier ? 1.72 : 1.45;
   const upperBeamHeight = 0.2;
   const bellHeight = 0.58;
   const bellClearance = 0.04;
   const bellY = baseY + height - upperBeamHeight * 0.5 - bellClearance - bellHeight * 0.5;
   const postMaterial = stoneTier ? stoneMaterial('light') : timberMaterial('dark');
+  addBelfryRoofBase(group, roof, span + 0.2, span + 0.2, z, baseY + 0.04, postMaterial);
   for (const x of [-span * 0.5, span * 0.5]) {
-    const post = addMesh(
-      group,
-      new THREE.BoxGeometry(stoneTier ? 0.24 : 0.18, height, 0.22),
-      postMaterial,
-      new THREE.Vector3(x, baseY + height * 0.5, z),
-    );
-    post.name = `Compact church belfry ${stoneTier ? 'stone' : 'timber'} support post`;
+    for (const zSign of [-1, 1]) {
+      const post = addMesh(
+        group,
+        new THREE.BoxGeometry(stoneTier ? 0.24 : 0.18, height, 0.22),
+        postMaterial,
+        new THREE.Vector3(x, baseY + height * 0.5, z + zSign * span * 0.5),
+      );
+      post.name = `Compact church belfry ${stoneTier ? 'stone' : 'timber'} support post`;
+    }
   }
   const lowerBeam = addMesh(
     group,
-    new THREE.BoxGeometry(span + 0.28, stoneTier ? 0.2 : 0.18, 0.3),
+    new THREE.BoxGeometry(span + 0.28, stoneTier ? 0.2 : 0.18, span + 0.28),
     postMaterial,
     new THREE.Vector3(0, baseY + (stoneTier ? 0.1 : 0.09), z),
   );
   lowerBeam.name = 'Compact church belfry lower sill beam';
-  const upperBeam = addMesh(
-    group,
-    new THREE.BoxGeometry(span + 0.28, upperBeamHeight, 0.34),
-    postMaterial,
-    new THREE.Vector3(0, baseY + height, z),
-  );
-  upperBeam.name = 'Compact church belfry upper beam';
+  for (const side of [-1, 1]) {
+    for (const alongX of [true, false]) {
+      const upperBeam = addMesh(
+        group,
+        new THREE.BoxGeometry(alongX ? span + 0.28 : 0.22, upperBeamHeight, alongX ? 0.22 : span + 0.28),
+        postMaterial,
+        new THREE.Vector3(alongX ? 0 : side * span * 0.5, baseY + height, z + (alongX ? side * span * 0.5 : 0)),
+      );
+      upperBeam.name = 'Compact church belfry upper beam';
+    }
+  }
+  addMesh(group, new THREE.BoxGeometry(span, 0.16, 0.16), timberMaterial('dark'),
+    new THREE.Vector3(0, baseY + height - 0.12, z)).name = 'Compact church bell suspension yoke';
   const bell = addMesh(
     group,
     new THREE.CylinderGeometry(0.18, 0.34, bellHeight, 10),
@@ -738,6 +835,8 @@ function createCompactChurchMesh(tier: 1 | 2): THREE.Group {
   const halfW = width * 0.5;
   const halfD = depth * 0.5;
   const wallTop = foundationHeight + wallHeight;
+  const unscaledHeight = wallTop + ridgeHeight + 0.25 + 1.45 + 1.02 + 0.31;
+  group.scale.setScalar(stoneTier ? 1.5 : TIER_ONE_CHURCH_HEIGHT / unscaledHeight);
   const frontZ = halfD - 0.04;
   const wallMaterial = stoneTier
     ? stoneMaterial('light')
@@ -871,7 +970,7 @@ function createCompactChurchMesh(tier: 1 | 2): THREE.Group {
     group,
     materials,
     -halfD * 0.35,
-    wallTop + ridgeHeight + 0.075,
+    { width, wallTop, ridgeHeight },
     roofMaterial,
     stoneTier,
   );
@@ -980,7 +1079,7 @@ function createLargeStoneChurchMesh(): THREE.Group {
     }
   }
 
-  addBellTower(group, materials, 1.18, wallTop + ridgeHeight, roofMaterial);
+  addBellTower(group, materials, 1.18, { width, wallTop, ridgeHeight }, roofMaterial);
 
   const frontGableZ = halfD + 0.12;
   const oculus = new THREE.Group();
@@ -1009,23 +1108,11 @@ function createLargeStoneChurchMesh(): THREE.Group {
   oculusSurround.name = 'Chapel oculus stone perimeter surround';
   oculusSurround.userData.facadeOpeningRole = 'window-frame';
 
-  // A low parish wall frames the entrance without obscuring the facade.
-  for (const side of [-1, 1] as const) {
-    for (let i = 0; i < 3; i++) {
-      addMesh(
-        group,
-        new THREE.BoxGeometry(0.82, 0.44 + (i % 2) * 0.06, 0.46),
-        stoneMaterial(i % 2 === 0 ? 'light' : 'mid'),
-        new THREE.Vector3(side * (1.78 + i * 0.72), 0.22, halfD + 0.82 + i * 0.12),
-        new THREE.Euler(0, side * (0.08 + i * 0.035), 0),
-      );
-    }
-  }
-
   return root;
 }
 
 export function createChapelMesh(tier: 1 | 2 | 3 = 3): THREE.Group {
-  if (tier === 1 || tier === 2) return createCompactChurchMesh(tier);
-  return createLargeStoneChurchMesh();
+  const root = tier === 3 ? createLargeStoneChurchMesh() : createCompactChurchMesh(tier);
+  addChurchyardFence(root);
+  return root;
 }

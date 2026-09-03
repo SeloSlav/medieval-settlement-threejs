@@ -230,10 +230,6 @@ export class ForestManager {
       resolveHarvestStumpBark,
     );
     this.group.add(this.harvestStumps.group);
-    for (let i = 0; i < this.placements.length; i++) {
-      this.hideHarvestStump(i);
-    }
-    commitHarvestStumpInstanceUpdates(this.harvestStumps);
   }
 
   getTreeLayouts(): ForestTreeLayout[] {
@@ -444,14 +440,12 @@ export class ForestManager {
         this.showTree(layoutIndex);
         break;
       case 'stump':
+      case 'growing':
+        // The felled trunk remains a visible harvest-site marker throughout
+        // recovery. Entering the simulation's growing phase must not erase it
+        // while there is no authored replacement sapling visual.
         this.hideTree(layoutIndex);
         this.showHarvestStump(layoutIndex);
-        break;
-      case 'growing':
-        // Reforestation remains simulation-active, but it stays visually empty
-        // until a Seloslav/SeedThree sapling asset replaces the removed cone proxy.
-        this.hideTree(layoutIndex);
-        this.hideHarvestStump(layoutIndex);
         break;
       default: {
         const unreachable: never = phase;
@@ -1005,7 +999,7 @@ export class ForestManager {
   }
 
   private hideHarvestStump(layoutIndex: number): void {
-    hideHarvestStumpInstance(this.harvestStumps, layoutIndex, this.hiddenMatrix);
+    hideHarvestStumpInstance(this.harvestStumps, layoutIndex);
   }
 
   private commitTreeInstanceUpdates(): void {

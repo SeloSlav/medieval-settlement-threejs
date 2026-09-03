@@ -39,7 +39,7 @@ import {
 } from './residenceAppearance.ts';
 import { getNeedStock } from './residenceNeedState.ts';
 import type { ResidenceState } from '../resources/types.ts';
-import { RESIDENCE_FIREWOOD_CAPACITY } from '../generated/gameBalance.ts';
+import { createResidenceFirewoodPile, syncFirewoodPile } from './residenceFirewoodPile.ts';
 import { hashStringSeed } from '../utils/random.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
 import { residenceWindowActivity } from './householdRoutine.ts';
@@ -3194,13 +3194,13 @@ export function createResidenceMesh(
   }
   group.add(chimneyEmitter);
 
-  const firewoodPile = new THREE.Group();
-  firewoodPile.name = 'FirewoodPile';
-  firewoodPile.visible = false;
-  // Scale stock around its ground anchor so smaller piles stay outside the house.
-  firewoodPile.position.set(entrySide * (halfW - 0.72), 0, -halfD - 0.72);
+  // The entry-side front corner is visible from the lane, clear of the door
+  // and of the working lean-to on the opposite side of the house.
+  const firewoodPile = createResidenceFirewoodPile(
+    entrySide * (halfW + 0.9),
+    halfD - 0.55,
+  );
   group.add(firewoodPile);
-  addLogPile(firewoodPile, 0, 0, 0, 4, 2.15, 0.19);
   addResidenceUpgradeWorks(group, dimensions);
   applyResidenceRoofTone(group, roofTone, tier);
 
@@ -3523,6 +3523,7 @@ export class ResidenceMarkers {
     getHeightAt: (x: number, z: number) => number,
   ): void {
     const nextIds = new Set<string>();
+    let firewoodChanged = false;
     for (const residence of residences) {
       nextIds.add(residence.id);
       this.residenceStates.set(residence.id, residence);
@@ -3641,7 +3642,11 @@ export class ResidenceMarkers {
         this.recomputeHouseholdWindowActivity(residence.id, residence.population);
       }
       this.applyWindowGlowForResidence(marker, residence.id);
-      syncFirewoodPile(marker, getNeedStock(residence.needs, 'firewood'));
+      firewoodChanged = syncFirewoodPile(
+        marker,
+        getNeedStock(residence.needs, 'firewood'),
+        getHeightAt,
+      ) || firewoodChanged;
       syncInitialResidenceConstruction(marker, residence);
       syncResidenceUpgradeWorks(marker, residence);
     }
@@ -3668,7 +3673,7 @@ export class ResidenceMarkers {
       this.appliedWindowGlow.delete(id);
       this.appliedWindowOccupied.delete(id);
     }
-    if (this.shadowProxyBatch.flush()) {
+    if (this.shadowProxyBatch.flush() || firewoodChanged) {
       this.onShadowCastersChanged?.();
     }
     this.staticBatches.finalizeGeometryBuffers();
@@ -3986,21 +3991,6 @@ function mapsEqual<K, V>(left: ReadonlyMap<K, V>, right: ReadonlyMap<K, V>): boo
 
 function householdMemberCount(population: number): number {
   return Math.max(0, Math.min(32, Math.floor(population)));
-}
-
-function syncFirewoodPile(marker: THREE.Group, firewoodStock: number): void {
-  const pile = marker.getObjectByName('FirewoodPile');
-  if (!(pile instanceof THREE.Group)) return;
-
-  if (firewoodStock <= 0.05) {
-    pile.visible = false;
-    return;
-  }
-
-  pile.visible = true;
-  const fill = Math.min(1, firewoodStock / RESIDENCE_FIREWOOD_CAPACITY);
-  const scale = 0.42 + fill * 0.58;
-  pile.scale.setScalar(scale);
 }
 
 function disposeGroup(group: THREE.Group): void {

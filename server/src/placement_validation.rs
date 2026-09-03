@@ -661,10 +661,11 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
             outer_fade: 1.3,
         },
         "chapel" => BuildingPadParams {
-            radius_x: 5.6,
-            radius_z: 7.3,
+            // Permanent fenced churchyard, shared by every upgrade tier.
+            radius_x: 8.5,
+            radius_z: 11.35,
             inner_fade: 0.9,
-            outer_fade: 1.28,
+            outer_fade: 1.22,
         },
         "wayside_shrine" => BuildingPadParams {
             radius_x: 1.65,
