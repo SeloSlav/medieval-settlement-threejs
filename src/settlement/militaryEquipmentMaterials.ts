@@ -296,7 +296,8 @@ export function createMilitaryEquipmentMaterials(
 
   const cord = new THREE.LineBasicMaterial({
     name: 'Hemp bow cord',
-    color: 0xd6c89d,
+    // Muted waxed hemp keeps the unlit string from reading as bright white.
+    color: 0x786b52,
     fog: true,
     toneMapped: true,
   });
