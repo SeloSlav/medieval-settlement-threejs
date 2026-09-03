@@ -21,7 +21,7 @@ import {
 } from '../logistics/roadLogistics.ts';
 import {
   isOperationalSpecialtySupplier,
-  PRESERVED_FOOD_SUPPLIER_KINDS,
+  SAVORY_PRESERVE_SUPPLIER_KINDS,
 } from '../logistics/specialtyLogistics.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
 import type { ResourceTotals } from '../resources/resourceTotals.ts';
@@ -679,7 +679,7 @@ export function computeSettlementProvisioning(input: {
     householdCharcoalStock += householdCharcoal;
     const operationalPreservedFoodSupplier =
       !fireDisabled
-      && PRESERVED_FOOD_SUPPLIER_KINDS.includes(building.kind)
+      && SAVORY_PRESERVE_SUPPLIER_KINDS.includes(building.kind)
       && isOperationalSpecialtySupplier(building)
       && marketHasActiveStall(building, 'savoryPreserves');
     if (fireDisabled) {
@@ -840,7 +840,7 @@ export function computeSettlementProvisioning(input: {
             isPreservedFoodCargo(trip.cargoKind)
             && (
               !isOperationalSpecialtySupplier(targetBuilding)
-              || !PRESERVED_FOOD_SUPPLIER_KINDS.includes(targetBuilding.kind)
+              || !SAVORY_PRESERVE_SUPPLIER_KINDS.includes(targetBuilding.kind)
             )
           )
         )

@@ -9,16 +9,15 @@ import {
   compareResidencesForSpecialtyDelivery,
   findRoadLinkedSupplierForResidence,
   peekNextSpecialtyDeliveryTarget,
-  PRESERVED_FOOD_PRODUCER_KINDS,
-  PRESERVED_FOOD_SUPPLIER_KINDS,
+  SAVORY_PRESERVE_PRODUCER_KINDS,
+  SAVORY_PRESERVE_SUPPLIER_KINDS,
   residenceAleRunwayDays,
   residenceClothRunwayDays,
-  residencePreservedFoodRunwayDays,
+  residenceSavoryPreservesRunwayDays,
   residencePotteryRunwayDays,
   residenceShoesRunwayDays,
   SPECIALTY_CONSUMPTION_SECONDS_PER_DAY,
 } from '../src/logistics/specialtyLogistics.ts';
-import { selectDirectProcessorInputTarget } from '../src/logistics/processorInputLogistics.ts';
 import { createDefaultNeeds, mergeNeedRow } from '../src/residences/residenceNeedState.ts';
 import type { BuildingState, ResidenceState } from '../src/resources/types.ts';
 import type { RoadNetwork } from '../src/roads/RoadNetwork.ts';
@@ -50,7 +49,9 @@ function building(
     ale: 80,
     cider: 0,
     mead: 0,
-    preservedFood: 80,
+    curedMeat: 80,
+    smokedFish: 0,
+    cheese: 0,
     honey: 0,
     wine: 0,
     gold: 0,
@@ -64,7 +65,7 @@ function residence(
   id: string,
   x: number,
   population: number,
-  needKind: 'ale' | 'preservedFood' | 'cloth' | 'shoes' | 'pottery',
+  needKind: 'ale' | 'savoryPreserves' | 'cloth' | 'shoes' | 'pottery',
   stock: number,
 ): ResidenceState {
   return {
@@ -76,7 +77,7 @@ function residence(
     yaw: 0,
     population,
     populationCapacity: Math.max(10, population),
-    tier: needKind === 'preservedFood' || needKind === 'pottery' ? 4 : 3,
+    tier: needKind === 'savoryPreserves' || needKind === 'pottery' ? 4 : 3,
     settlementTicks: 0,
     needs: mergeNeedRow(createDefaultNeeds(), needKind, {
       stock,
@@ -95,24 +96,24 @@ const network = {
 } as unknown as RoadNetwork;
 
 assert.deepEqual(ALE_SUPPLIER_KINDS, ['tavern']);
-assert.deepEqual(PRESERVED_FOOD_PRODUCER_KINDS, ['smokehouse', 'pastoral_farmstead']);
+assert.deepEqual(SAVORY_PRESERVE_PRODUCER_KINDS, ['smokehouse', 'pastoral_farmstead']);
 assert.deepEqual(
-  PRESERVED_FOOD_SUPPLIER_KINDS,
+  SAVORY_PRESERVE_SUPPLIER_KINDS,
   ['marketplace'],
 );
 assert.deepEqual(CLOTH_SUPPLIER_KINDS, ['marketplace']);
 assert.deepEqual(SHOES_PRODUCER_KINDS, ['cobbler']);
 assert.deepEqual(SHOES_SUPPLIER_KINDS, ['marketplace']);
 assert.deepEqual(POTTERY_SUPPLIER_KINDS, ['marketplace']);
-assert.equal(PRESERVED_FOOD_SUPPLIER_KINDS.includes('granary'), false);
+assert.equal(SAVORY_PRESERVE_SUPPLIER_KINDS.includes('granary'), false);
 assert.equal(SPECIALTY_CONSUMPTION_SECONDS_PER_DAY, CALENDAR_SECONDS_PER_DAY);
-const preservedRunway = residencePreservedFoodRunwayDays(
-  residence('preserved-runway', 0, 4, 'preservedFood', 7),
+const preservedRunway = residenceSavoryPreservesRunwayDays(
+  residence('preserved-runway', 0, 4, 'savoryPreserves', 7),
 );
 assert.ok((preservedRunway ?? 0) > 30);
 assert.equal(
-  residencePreservedFoodRunwayDays(
-    residence('preserved-no-spoilage', 0, 4, 'preservedFood', 7),
+  residenceSavoryPreservesRunwayDays(
+    residence('preserved-no-spoilage', 0, 4, 'savoryPreserves', 7),
     1,
     0,
   ),
@@ -120,8 +121,8 @@ assert.equal(
   'seven cured units must cover seven monthly household slots before spoilage',
 );
 assert.equal(
-  residencePreservedFoodRunwayDays(
-    residence('preserved-large-household', 0, 10, 'preservedFood', 7),
+  residenceSavoryPreservesRunwayDays(
+    residence('preserved-large-household', 0, 10, 'savoryPreserves', 7),
     1,
     0,
   ),
@@ -129,8 +130,8 @@ assert.equal(
   'cured runway must not shrink with resident count',
 );
 assert.equal(
-  residencePreservedFoodRunwayDays(
-    residence('winter-preserved-runway', 0, 4, 'preservedFood', 7),
+  residenceSavoryPreservesRunwayDays(
+    residence('winter-preserved-runway', 0, 4, 'savoryPreserves', 7),
     1.75,
     0,
   ),
@@ -141,18 +142,18 @@ const seasonalRunwayHome = residence(
   'seasonal-preserved-runway',
   0,
   4,
-  'preservedFood',
+  'savoryPreserves',
   7,
 );
 assert.ok(
   (
-    residencePreservedFoodRunwayDays(
+    residenceSavoryPreservesRunwayDays(
       seasonalRunwayHome,
       1,
       PRESERVED_FOOD_SPOILAGE_PER_DAY * 0.5,
     ) ?? 0
   ) > (
-    residencePreservedFoodRunwayDays(
+    residenceSavoryPreservesRunwayDays(
       seasonalRunwayHome,
       1,
       PRESERVED_FOOD_SPOILAGE_PER_DAY * 1.25,
@@ -189,7 +190,7 @@ assert.ok(
   'household pottery runway must model slow vessel breakage on the calendar-day cadence',
 );
 
-const home = residence('home', 0, 4, 'preservedFood', 0);
+const home = residence('home', 0, 4, 'savoryPreserves', 0);
 const granary = building('granary', 'granary', 1);
 const farmstead = building('farmstead', 'pastoral_farmstead', 8);
 const smokehouse = building('smokehouse', 'smokehouse', 20);
@@ -199,7 +200,7 @@ assert.equal(
     home,
     [granary, smokehouse, farmstead, foodMarket],
     network,
-    'preservedFood',
+    'savoryPreserves',
   )?.id,
   foodMarket.id,
   'a stocked Marketplace must redistribute preserved food from granary stalls',
@@ -241,41 +242,27 @@ assert.equal(
   goodsMarket.id,
   'only a stocked Marketplace goods stall should claim household footwear service',
 );
-const emptySmokehouse = { ...building('empty-smokehouse', 'smokehouse', 2), preservedFood: 0 };
-const emptyGranary = { ...granary, preservedFood: 0 };
+const emptySmokehouse = {
+  ...building('empty-smokehouse', 'smokehouse', 2),
+  curedMeat: 0,
+  smokedFish: 0,
+  cheese: 0,
+};
+const emptyGranary = { ...granary, curedMeat: 0, smokedFish: 0, cheese: 0 };
 assert.equal(
   findRoadLinkedSupplierForResidence(
     home,
     [emptyGranary, emptySmokehouse, farmstead],
     network,
-    'preservedFood',
+    'savoryPreserves',
   )?.id,
   undefined,
   'producers never provide direct household service without Marketplace stock',
 );
-const curedOverflow = selectDirectProcessorInputTarget(
-  [granary, farmstead],
-  smokehouse.id,
-  'preservedFood',
-  (target) => Math.abs(target.x - smokehouse.x),
-);
-assert.equal(curedOverflow?.target.id, granary.id);
-assert.equal(curedOverflow?.duty, 'workshop-overflow');
-assert.equal(curedOverflow?.desiredStock, 180);
-const localOnlyGranary = {
-  ...granary,
-  id: 'local-only-granary',
-  granaryAcceptsFreshFood: false,
-};
-assert.equal(
-  selectDirectProcessorInputTarget(
-    [localOnlyGranary],
-    smokehouse.id,
-    'preservedFood',
-    (target) => Math.abs(target.x - smokehouse.x),
-  ),
-  null,
-  'a granary with perishable collection disabled must leave cured surplus in its producer loft',
+assert.doesNotMatch(
+  fs.readFileSync('src/logistics/processorInputLogistics.ts', 'utf8'),
+  /['"]preservedFood['"]|\| 'preservedFood'/,
+  'the retired generic preserve must not survive as a processor routing commodity',
 );
 const emptyTavern = {
   ...building('empty-tavern', 'tavern', 2),
@@ -327,8 +314,8 @@ assert.doesNotMatch(
 const marketplaceCaravan = fs.readFileSync('server/src/simulation/marketplace_caravan.rs', 'utf8');
 assert.match(
   marketStallPolicy,
-  /MARKET_FOOD_STALL_NEEDS[\s\S]*ResidenceNeedKind::PreservedFood[\s\S]*MARKET_STALL_GROUP_FOOD/,
-  'fresh and preserved food carts must reserve granary-run Marketplace stall workers',
+  /MARKET_FOOD_STALL_NEEDS[\s\S]*ResidenceNeedKind::SavoryPreserves[\s\S]*MARKET_STALL_GROUP_FOOD/,
+  'fresh food and savory-preserve carts must reserve granary-run Marketplace stall workers',
 );
 assert.match(tickContext, /MARKET_STALL_GROUP_FOOD[\s\S]*"granary"/);
 assert.match(
@@ -349,15 +336,15 @@ assert.equal(
   goodsMarket.id,
   'only a stocked Marketplace goods stall should claim household-ware service',
 );
-assert.match(marketplaceCaravan, /ResidenceNeedKind::PreservedFood/);
+assert.match(marketplaceCaravan, /ResidenceNeedKind::SavoryPreserves/);
 assert.match(marketplaceCaravan, /ResidenceNeedKind::Cloth/);
 assert.match(marketplaceCaravan, /ResidenceNeedKind::Shoes/);
 assert.match(marketplaceCaravan, /ResidenceNeedKind::Pottery/);
 const expanded = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 assert.match(
   expanded,
-  /step_granary[\s\S]*?GranaryDispatchDuty::Households[\s\S]*?CommodityKind::RyeBread[\s\S]*?CommodityKind::PreservedFood[\s\S]*?&\["marketplace"\]/,
-  'a granary must stock Marketplace food stalls with staple and cured goods',
+  /step_granary[\s\S]*?GranaryDispatchDuty::Households[\s\S]*?CommodityKind::RyeBread[\s\S]*?CommodityKind::Cheese[\s\S]*?CommodityKind::SmokedFish[\s\S]*?CommodityKind::CuredMeat[\s\S]*?&\["marketplace"\]/,
+  'a granary must stock Marketplace food stalls with staple and named savory preserves',
 );
 assert.match(
   expanded,
@@ -366,8 +353,8 @@ assert.match(
 );
 assert.match(
   expanded,
-  /step_smokehouse[\s\S]*?for commodity in \[[\s\S]*?CommodityKind::Cheese[\s\S]*?CommodityKind::PreservedFood[\s\S]*?dispatch_to_building_where\([\s\S]*?commodity[\s\S]*?&\["granary"\][\s\S]*?storage_accepts_commodity/,
-  'a smokehouse must centralize cured output at an accepting granary before market delivery',
+  /step_smokehouse[\s\S]*?for commodity in \[[\s\S]*?CommodityKind::Cheese[\s\S]*?CommodityKind::SmokedFish[\s\S]*?CommodityKind::CuredMeat[\s\S]*?dispatch_to_building_where\([\s\S]*?commodity[\s\S]*?&\["granary"\][\s\S]*?storage_accepts_commodity/,
+  'a smokehouse must centralize each named savory output at an accepting granary before market delivery',
 );
 assert.match(
   expanded,
@@ -382,7 +369,7 @@ assert.match(
 const residenceUpgrades = fs.readFileSync('server/src/reducers/residences.rs', 'utf8');
 assert.doesNotMatch(
   residenceUpgrades,
-  /PRESERVED_FOOD_PRODUCER_KINDS|CLOTH_PRODUCER_KINDS|SHOES_PRODUCER_KINDS|POTTERY_PRODUCER_KINDS/,
+  /SAVORY_PRESERVE_PRODUCER_KINDS|CLOTH_PRODUCER_KINDS|SHOES_PRODUCER_KINDS|POTTERY_PRODUCER_KINDS/,
   'residence promotion must not require a local producer for future-tier goods',
 );
 assert.match(residenceUpgrades, /residence_promotion_needs\(residence\.tier\)/);

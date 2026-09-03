@@ -112,7 +112,7 @@ const emptyBranchTarget = reserveTarget(
   oneResidentFallbackPerDay,
   PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
 );
-remoteSmokehouse.preservedFood = emptyBranchTarget * 2;
+remoteSmokehouse.curedMeat = emptyBranchTarget * 2;
 splitState.buildings.set(remoteSmokehouse.id, remoteSmokehouse);
 const splitPlan = computeSettlementPreservationReservePlan(splitState, {
   sabbathObserved: false,
@@ -138,7 +138,7 @@ cartState.deliveryTrips.set(
     id: 'preserved-cart',
     originId: cartOrigin.id,
     residenceId: cartHome.id,
-    cargoKind: 'preservedFood',
+    cargoKind: 'curedMeat',
     amount: reserveTarget(
       oneResidentFallbackPerDay,
       PRESERVED_FOOD_STORAGE_CART_FACTOR,
@@ -172,7 +172,7 @@ returningState.deliveryTrips.set(
     id: 'returning-cart',
     originId: returningOrigin.id,
     residenceId: returningHome.id,
-    cargoKind: 'preservedFood',
+    cargoKind: 'smokedFish',
     amount: preparedTarget,
     phase: 'inbound',
   }),
@@ -194,7 +194,7 @@ fireState.residences.set(healthyHome.id, healthyHome);
 const burningHome = residence('burning-home', 3, 9);
 fireState.residences.set(burningHome.id, burningHome);
 const burningStore = building('burning-store', 'smokehouse', 1);
-burningStore.preservedFood = 7;
+burningStore.cheese = 7;
 fireState.buildings.set(burningStore.id, burningStore);
 fireState.fireIncidents.set(
   'home-fire',
@@ -444,8 +444,8 @@ assert.match(
 );
 assert.match(
   residenceNeedAuthority,
-  /ResidenceNeedKind::PreservedFood[\s\S]*preserved\.deficit_ticks\s*=\s*u32::from\(!result\.preserved_slot_met\)/,
-  'preserved-food status should remain tied to the shared monthly meal withdrawal',
+  /ResidenceNeedKind::SavoryPreserves[\s\S]*preserved\.deficit_ticks\s*=\s*u32::from\(!result\.preserved_slot_met\)/,
+  'savory-preserve status should remain tied to the shared monthly meal withdrawal',
 );
 assert.match(
   residenceNeedAuthority,
@@ -454,7 +454,7 @@ assert.match(
 assert.match(
   residenceNeedAuthority,
   /all_slots_met:\s*slots_consumed as usize == slots\.len\(\) && preserved_slot_met/,
-  'the preserved ration must replace a normal category slot instead of adding a second meal',
+  'the savory-preserve ration must replace a normal category slot instead of adding a second meal',
 );
 
 const townHallSource = readFileSync(
@@ -477,7 +477,7 @@ assert.match(townHallSource, /before tier-4 promotions/);
 assert.match(townHallSource, /winter design peak/);
 assert.match(townHallSource, /rotated rations displace the same fresh-food calories/);
 assert.match(residenceSource, /Prosperity planning load/);
-assert.match(residenceSource, /winter-peak preserved ration/);
+assert.match(residenceSource, /winter-peak savory preserves/);
 
 const perfState = emptyGameState();
 perfState.physicalFoundingSiteEnabled = true;
@@ -487,7 +487,7 @@ for (let index = 0; index < 50_000; index += 1) {
   perfState.residences.set(home.id, home);
   const smokehouse = building(`perf-smokehouse-${index}`, 'smokehouse', 1);
   smokehouse.x = index % 200;
-  smokehouse.preservedFood = index % 7;
+  smokehouse.curedMeat = index % 7;
   smokehouse.salt = index % 3;
   smokehouse.pottery = index % 2;
   perfState.buildings.set(smokehouse.id, smokehouse);
@@ -536,7 +536,9 @@ function building(
     grain: 0,
     flour: 0,
     ale: 0,
-    preservedFood: 0,
+    curedMeat: 0,
+    smokedFish: 0,
+    cheese: 0,
     honey: 0,
     wine: 0,
     polearms: 0,
@@ -562,7 +564,7 @@ function building(
 function residence(
   id: string,
   population: number,
-  preservedFood: number,
+  savoryPreserves: number,
 ): ResidenceState {
   return {
     id,
@@ -579,13 +581,14 @@ function residence(
       firewood: { stock: 0, deficitSeconds: 0 },
       water: { stock: 0, deficitSeconds: 0 },
       food: { stock: 0, deficitSeconds: 0 },
-      preservedFood: { stock: preservedFood, deficitSeconds: 0 },
+      savoryPreserves: { stock: savoryPreserves, deficitSeconds: 0 },
       ale: { stock: 0, deficitSeconds: 0 },
       cloth: { stock: 0, deficitSeconds: 0 },
       pottery: { stock: 0, deficitSeconds: 0 },
     },
     abandoned: false,
     householdWealth: 0,
+    curedMeat: savoryPreserves,
   };
 }
 

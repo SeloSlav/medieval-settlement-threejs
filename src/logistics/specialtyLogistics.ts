@@ -30,7 +30,7 @@ export const MONASTERY_MIN_PARISH_POPULATION = 12;
 
 export type SpecialtyNeedKind = 'ale' | 'savoryPreserves' | 'cloth' | 'shoes' | 'pottery';
 
-const PRESERVED_FOOD_PRODUCER_KINDS: readonly BuildingKind[] = [
+const SAVORY_PRESERVE_PRODUCER_KINDS: readonly BuildingKind[] = [
   'smokehouse',
   'pastoral_farmstead',
 ];
@@ -38,7 +38,7 @@ const ALE_PRODUCER_KINDS: readonly BuildingKind[] = ['tavern'];
 const CLOTH_PRODUCER_KINDS: readonly BuildingKind[] = ['weaver'];
 const SHOES_PRODUCER_KINDS: readonly BuildingKind[] = ['cobbler'];
 const POTTERY_PRODUCER_KINDS: readonly BuildingKind[] = ['potter_kiln'];
-const PRESERVED_FOOD_SUPPLIER_KINDS: readonly BuildingKind[] = ['marketplace'];
+const SAVORY_PRESERVE_SUPPLIER_KINDS: readonly BuildingKind[] = ['marketplace'];
 const ALE_SUPPLIER_KINDS: readonly BuildingKind[] = ['tavern'];
 const CLOTH_SUPPLIER_KINDS: readonly BuildingKind[] = ['marketplace'];
 const SHOES_SUPPLIER_KINDS: readonly BuildingKind[] = ['marketplace'];
@@ -187,7 +187,7 @@ export function residencePreservedFoodRunwaySeconds(
   ) * SPECIALTY_CONSUMPTION_SECONDS_PER_DAY;
 }
 
-export function residencePreservedFoodRunwayDays(
+export function residenceSavoryPreservesRunwayDays(
   residence: ResidenceState,
   seasonalDemandMultiplier = 1,
   ambientSpoilageFractionPerDay = PRESERVED_FOOD_SPOILAGE_PER_DAY,
@@ -336,14 +336,14 @@ function supplierKindsForNeed(needKind: SpecialtyNeedKind): readonly BuildingKin
   if (needKind === 'cloth') return CLOTH_SUPPLIER_KINDS;
   if (needKind === 'shoes') return SHOES_SUPPLIER_KINDS;
   if (needKind === 'pottery') return POTTERY_SUPPLIER_KINDS;
-  return PRESERVED_FOOD_SUPPLIER_KINDS;
+  return SAVORY_PRESERVE_SUPPLIER_KINDS;
 }
 
 function upgradeSupplierKindsForNeed(
   needKind: SpecialtyNeedKind,
 ): readonly BuildingKind[] {
   return needKind === 'savoryPreserves'
-    ? PRESERVED_FOOD_PRODUCER_KINDS
+    ? SAVORY_PRESERVE_PRODUCER_KINDS
     : needKind === 'ale'
       ? ALE_PRODUCER_KINDS
       : needKind === 'cloth'
@@ -384,12 +384,12 @@ export function formatSpecialtyRunwayDays(days: number): string {
 }
 
 export {
-  PRESERVED_FOOD_PRODUCER_KINDS,
+  SAVORY_PRESERVE_PRODUCER_KINDS,
   ALE_PRODUCER_KINDS,
   CLOTH_PRODUCER_KINDS,
   SHOES_PRODUCER_KINDS,
   POTTERY_PRODUCER_KINDS,
-  PRESERVED_FOOD_SUPPLIER_KINDS,
+  SAVORY_PRESERVE_SUPPLIER_KINDS,
   ALE_SUPPLIER_KINDS,
   CLOTH_SUPPLIER_KINDS,
   SHOES_SUPPLIER_KINDS,

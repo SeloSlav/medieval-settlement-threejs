@@ -83,27 +83,27 @@ assert.ok(
 );
 
 const curedState = emptyGameState();
-curedState.stockpile.preservedFood = 10;
+curedState.stockpile.curedMeat = 10;
 const curedGranary = building('cured-granary', 'granary', 0);
-curedGranary.preservedFood = 20;
+curedGranary.curedMeat = 20;
 curedState.buildings.set(curedGranary.id, curedGranary);
 const curedSmokehouse = building('cured-smokehouse', 'smokehouse', 0);
-curedSmokehouse.preservedFood = 10;
+curedSmokehouse.curedMeat = 10;
 curedState.buildings.set(curedSmokehouse.id, curedSmokehouse);
 const curedMarket = building('cured-market', 'marketplace', 0);
-curedMarket.preservedFood = 10;
+curedMarket.curedMeat = 10;
 curedState.buildings.set(curedMarket.id, curedMarket);
 const curedHolding = building('cured-holding', 'pastoral_farmstead', 0);
-curedHolding.preservedFood = 10;
+curedHolding.curedMeat = 10;
 curedState.buildings.set(curedHolding.id, curedHolding);
 const curedHome = residence('cured-home', 0);
 curedHome.tier = 3;
-curedHome.needs.preservedFood.stock = 10;
-curedHome.preservedFood = 10;
+curedHome.needs.savoryPreserves.stock = 10;
+curedHome.curedMeat = 10;
 curedState.residences.set(curedHome.id, curedHome);
 curedState.deliveryTrips.set(
   'cured-cart',
-  deliveryTrip('cured-cart', 'preservedFood', 10, 'outbound'),
+  deliveryTrip('cured-cart', 'curedMeat', 10, 'outbound'),
 );
 const curedPreservation = analyzeFreshFoodPreservation(
   curedState,
@@ -125,7 +125,7 @@ assert.ok(
   Math.abs(
     curedPreservation.spoilagePerDay
     - expectedCuredWeightedStock
-      * foodSpoilageMultiplier('preservedFood')
+      * foodSpoilageMultiplier('curedMeat')
       * PRESERVED_FOOD_SPOILAGE_PER_DAY,
   ) < 1e-9,
 );
@@ -156,7 +156,7 @@ assert.ok(
   Math.abs(
     winterCuredPreservation.spoilagePerDay
     - expectedCuredWeightedStock
-      * foodSpoilageMultiplier('preservedFood')
+      * foodSpoilageMultiplier('curedMeat')
       * winterCuredRate,
   ) < 1e-9,
   'current climate must scale every physical cured-food store through the shared diagnostic pass',
@@ -177,14 +177,14 @@ assert.equal(
 
 const foundingWeatherState = emptyGameState();
 const weatherproofCamp = building('weatherproof-camp', 'founders_camp', 30);
-weatherproofCamp.preservedFood = 20;
+weatherproofCamp.curedMeat = 20;
 foundingWeatherState.buildings.set(weatherproofCamp.id, weatherproofCamp);
 const foundingFoodCart = deliveryTrip('founding-rye-bread-cart', 'ryeBread', 12, 'outbound');
 foundingFoodCart.buildingId = weatherproofCamp.id;
 foundingWeatherState.deliveryTrips.set(foundingFoodCart.id, foundingFoodCart);
 const foundingCuredCart = deliveryTrip(
   'founding-cured-cart',
-  'preservedFood',
+  'curedMeat',
   8,
   'outbound',
 );
@@ -206,7 +206,7 @@ cartState.deliveryTrips.set('outbound-food', deliveryTrip('outbound-food', 'ryeB
 cartState.deliveryTrips.set('returning-food', deliveryTrip('returning-food', 'ryeBread', 6, 'inbound'));
 cartState.deliveryTrips.set(
   'preserved-food',
-  deliveryTrip('preserved-food', 'preservedFood', 40, 'outbound'),
+  deliveryTrip('preserved-food', 'smokedFish', 40, 'outbound'),
 );
 const cartPreservation = analyzeFreshFoodPreservation(cartState, ambientSpoilage);
 assert.equal(cartPreservation.totalStock, 30);
