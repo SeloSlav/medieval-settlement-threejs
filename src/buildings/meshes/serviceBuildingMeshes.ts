@@ -11,6 +11,9 @@ import {
 } from '../buildingMaterials.ts';
 import { getSharedWellWaterMaterial } from '../WellWaterMaterial.ts';
 import { createFishingBoatMesh } from './fishingBoatMesh.ts';
+import { addCampAFrameShelter, createCampfireEffects } from './foundersCampMesh.ts';
+import { CAMP_HIDE_METERS_PER_REPEAT } from '../campHideSurface.ts';
+import { createDrapedCanopyGeometry } from './drapedCanopyGeometry.ts';
 import {
   addBarrel,
   addGableShell,
@@ -226,73 +229,6 @@ export function createWellMesh(): THREE.Group {
   return group;
 }
 
-function createSaggingClothPanelGeometry(
-  corners: readonly [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3],
-  segmentsU: number,
-  segmentsV: number,
-  sag: number,
-  seed: number,
-): THREE.BufferGeometry {
-  const metersPerCanvasRepeat = 1.2;
-  const positions: number[] = [];
-  const uvs: number[] = [];
-  const indices: number[] = [];
-  const [a, b, c, d] = corners;
-  const bottom = new THREE.Vector3();
-  const top = new THREE.Vector3();
-  const point = new THREE.Vector3();
-  // Keep the woven atlas at a stable real-world density even when the panel is
-  // skewed. Averaging opposite edges avoids stretching the tent slope or the
-  // processing fly merely because their hand-set posts are not perfectly
-  // square. Marking the geometry as already metric-mapped prevents addMesh()
-  // from replacing these fabric-aligned UVs with dominant-axis projection.
-  const physicalUSpan = (a.distanceTo(b) + d.distanceTo(c)) * 0.5;
-  const physicalVSpan = (a.distanceTo(d) + b.distanceTo(c)) * 0.5;
-
-  for (let vIndex = 0; vIndex <= segmentsV; vIndex += 1) {
-    const v = vIndex / segmentsV;
-    for (let uIndex = 0; uIndex <= segmentsU; uIndex += 1) {
-      const u = uIndex / segmentsU;
-      bottom.lerpVectors(a, b, u);
-      top.lerpVectors(d, c, u);
-      point.lerpVectors(bottom, top, v);
-      const handmade = Math.sin((u * 9.7 + v * 4.1 + seed * 0.17) * Math.PI) * 0.012;
-      point.y -= Math.sin(Math.PI * u) * Math.sin(Math.PI * v) * sag;
-      point.y += handmade * Math.sin(Math.PI * u) * Math.sin(Math.PI * v);
-      positions.push(point.x, point.y, point.z);
-      uvs.push(
-        u * physicalUSpan / metersPerCanvasRepeat,
-        v * physicalVSpan / metersPerCanvasRepeat,
-      );
-    }
-  }
-  const stride = segmentsU + 1;
-  for (let v = 0; v < segmentsV; v += 1) {
-    for (let u = 0; u < segmentsU; u += 1) {
-      const i0 = v * stride + u;
-      const i1 = i0 + 1;
-      const i2 = i0 + stride + 1;
-      const i3 = i0 + stride;
-      indices.push(i0, i1, i2, i0, i2, i3);
-    }
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  geometry.computeBoundingBox();
-  geometry.computeBoundingSphere();
-  geometry.userData.metricUvMeters = metersPerCanvasRepeat;
-  geometry.userData.proceduralPhysicalUv = {
-    uAxis: 'panel-edge-a-to-b',
-    vAxis: 'panel-edge-a-to-d',
-    physicalUSpan,
-    physicalVSpan,
-  };
-  return geometry;
-}
-
 function addRoundPoleBetween(
   group: THREE.Group,
   start: THREE.Vector3,
@@ -320,83 +256,22 @@ function addRoundPoleBetween(
 }
 
 function addHunterSleepingTent(group: THREE.Group): void {
-  const canvas = sharedBuildingDetailMaterial('canvas');
-  const poles = timberMaterial('weathered');
-  const halfWidth = 1.72;
-  const halfDepth = 2.22;
-  const groundY = 0.12;
-  const ridgeY = 2.62;
-  const centerX = -2.75;
-  const centerZ = -0.45;
-
-  const ridgeRear = new THREE.Vector3(centerX, ridgeY, centerZ - halfDepth);
-  const ridgeFront = new THREE.Vector3(centerX, ridgeY, centerZ + halfDepth);
-  for (const side of [-1, 1] as const) {
-    const eaveRear = new THREE.Vector3(centerX + side * halfWidth, groundY, centerZ - halfDepth);
-    const eaveFront = new THREE.Vector3(centerX + side * halfWidth, groundY, centerZ + halfDepth);
-    const cloth = addMesh(
-      group,
-      createSaggingClothPanelGeometry(
-        [ridgeRear, ridgeFront, eaveFront, eaveRear],
-        12,
-        7,
-        0.1,
-        side * 17,
-      ),
-      canvas,
-      new THREE.Vector3(),
-    );
-    cloth.name = `Hunter sleeping tent canvas ${side < 0 ? 'left' : 'right'}`;
-    cloth.userData.proceduralFabric = true;
-    cloth.userData.fabricRole = 'sleeping-tent';
-  }
-
-  addRoundPoleBetween(
-    group,
-    ridgeRear.clone().add(new THREE.Vector3(0, 0.035, -0.18)),
-    ridgeFront.clone().add(new THREE.Vector3(0, 0.035, 0.22)),
-    0.055,
-    poles,
-    'Hunter tent ridge pole',
-  );
-  for (const z of [centerZ - halfDepth, centerZ + halfDepth]) {
-    const peak = new THREE.Vector3(centerX, ridgeY + 0.08, z);
-    for (const side of [-1, 1] as const) {
-      addRoundPoleBetween(
-        group,
-        new THREE.Vector3(centerX + side * (halfWidth + 0.08), 0, z),
-        peak,
-        0.05,
-        poles,
-        'Hunter tent A-frame pole',
-      );
-    }
-  }
-
-  const rearShape = new THREE.Shape();
-  rearShape.moveTo(-halfWidth, groundY);
-  rearShape.lineTo(halfWidth, groundY);
-  rearShape.lineTo(0, ridgeY);
-  rearShape.closePath();
-  const rear = addMesh(
-    group,
-    new THREE.ShapeGeometry(rearShape),
-    canvas,
-    new THREE.Vector3(centerX, 0, centerZ - halfDepth - 0.018),
-  );
-  rear.name = 'Hunter sleeping tent closed rear canvas';
-  // ShapeGeometry is authored in XY and already faces the open front/rear axis.
-  rear.userData.proceduralFabric = true;
+  // Reuse the actual founder shelter, including its door flaps, seams, repair
+  // patch, guy ropes, stakes and bedroll. Its authored entrance faces -Z.
+  const tent = addCampAFrameShelter(group, -2.55, -0.9, Math.PI, 0);
+  tent.userData.fabricRole = 'sleeping-tent';
 }
 
 function addHunterProcessingFly(group: THREE.Group): void {
-  const canvas = sharedBuildingDetailMaterial('canvas');
+  const hide = sharedBuildingDetailMaterial('hide');
   const darkWood = timberMaterial('dark');
   const weatheredWood = timberMaterial('weathered');
-  const x0 = 0.2;
-  const x1 = 4.9;
-  const z0 = -2.2;
-  const z1 = 2.15;
+  // Inset the supports so the loose hide can fold over them inside the
+  // existing canopy footprint, without encroaching on the front hearth.
+  const x0 = 0.42;
+  const x1 = 4.68;
+  const z0 = -1.98;
+  const z1 = 1.91;
   const corners = [
     new THREE.Vector3(x0, 2.42, z0),
     new THREE.Vector3(x1, 2.3, z0),
@@ -413,14 +288,22 @@ function addHunterProcessingFly(group: THREE.Group): void {
       'Hunter processing fly post',
       8,
     );
+    const binding = addMesh(
+      group,
+      new THREE.TorusGeometry(0.084, 0.018, 5, 12),
+      sharedBuildingDetailMaterial('wicker'),
+      new THREE.Vector3(corner.x, corner.y - 0.075, corner.z),
+      new THREE.Euler(Math.PI / 2, 0, 0),
+    );
+    binding.name = 'Hunter hide canopy post binding';
   }
   const fly = addMesh(
     group,
-    createSaggingClothPanelGeometry(corners, 10, 8, 0.2, 1550),
-    canvas,
+    createDrapedCanopyGeometry(corners, CAMP_HIDE_METERS_PER_REPEAT),
+    hide,
     new THREE.Vector3(),
   );
-  fly.name = 'Hunter processing fly sagging canvas';
+  fly.name = 'Hunter processing fly stitched brown hide';
   fly.userData.proceduralFabric = true;
   fly.userData.fabricRole = 'processing-fly';
 
@@ -472,19 +355,24 @@ function addHunterProcessingFly(group: THREE.Group): void {
 function addHunterHearth(group: THREE.Group): void {
   const stone = stoneMaterial('mid');
   const logs = timberMaterial('dark');
-  const center = new THREE.Vector3(-0.05, 0, 2.05);
+  // Keep the whole hearth in the open front yard, beyond the fly's +Z edge.
+  const center = new THREE.Vector3(-0.05, 0, 3.35);
+  const hearth = new THREE.Group();
+  hearth.name = 'Hunter hearth';
+  hearth.position.copy(center);
+  group.add(hearth);
   const stoneCount = 11;
   for (let index = 0; index < stoneCount; index += 1) {
     const angle = index / stoneCount * Math.PI * 2;
     const radius = 0.72 + Math.sin(index * 2.17) * 0.035;
     const rock = addMesh(
-      group,
+      hearth,
       new THREE.DodecahedronGeometry(0.23 + (index % 3) * 0.018, 0),
       stone,
       new THREE.Vector3(
-        center.x + Math.cos(angle) * radius,
+        Math.cos(angle) * radius,
         0.15,
-        center.z + Math.sin(angle) * radius,
+        Math.sin(angle) * radius,
       ),
       new THREE.Euler(0.08 * (index % 2), angle, -0.05 * (index % 3)),
     );
@@ -494,27 +382,28 @@ function addHunterHearth(group: THREE.Group): void {
   const campfire = new THREE.Group();
   campfire.name = 'HunterCampfire';
   campfire.userData.runtimeFireAnchor = true;
-  group.add(campfire);
+  hearth.add(campfire);
+  campfire.add(createCampfireEffects());
   for (const [index, angle] of [0.72, -0.72, 0].entries()) {
     const start = new THREE.Vector3(
-      center.x - Math.cos(angle) * 0.48,
+      -Math.cos(angle) * 0.48,
       0.3 + index * 0.035,
-      center.z - Math.sin(angle) * 0.48,
+      -Math.sin(angle) * 0.48,
     );
     const end = new THREE.Vector3(
-      center.x + Math.cos(angle) * 0.48,
+      Math.cos(angle) * 0.48,
       0.3 + index * 0.035,
-      center.z + Math.sin(angle) * 0.48,
+      Math.sin(angle) * 0.48,
     );
     addRoundPoleBetween(campfire, start, end, 0.1, logs, 'Hunter hearth fire log', 8);
   }
   // Three wooden cooking poles stand on bare ground outside the stone ring;
   // no dangling metal rod or baked pot is included.
-  const tripodTop = new THREE.Vector3(center.x, 2.28, center.z);
+  const tripodTop = new THREE.Vector3(0, 2.28, 0);
   for (const angle of [0, Math.PI * 2 / 3, Math.PI * 4 / 3]) {
     addRoundPoleBetween(
-      group,
-      new THREE.Vector3(center.x + Math.cos(angle) * 1.04, 0, center.z + Math.sin(angle) * 1.04),
+      hearth,
+      new THREE.Vector3(Math.cos(angle) * 1.04, 0, Math.sin(angle) * 1.04),
       tripodTop,
       0.035,
       timberMaterial('weathered'),

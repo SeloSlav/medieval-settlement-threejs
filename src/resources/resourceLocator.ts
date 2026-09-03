@@ -231,8 +231,8 @@ export function locatePhysicalResource(
         kind: 'legacy-ledger',
         id: 'legacy-ledger',
         amount: ledgerAmount,
-        label: 'Legacy settlement ledger',
-        detail: 'materializes at a recovery pile when this save enters the physical economy',
+        label: 'Settlement reserves',
+        detail: 'reserve supplies recorded in the settlement accounts',
       });
     }
   }
@@ -248,7 +248,7 @@ function buildingResourceHolding(
       amount: edibleFoodStock(building),
       detail: building.constructionComplete === false
         ? 'meals held at this construction site'
-        : 'named food commodities stored on site',
+        : 'food stored on site',
     };
   }
   if (resource === 'preservedFood') {
@@ -306,7 +306,7 @@ function residenceLocation(
     z: residence.z,
     amount,
     label: `Household · parcel ${residence.parcelIndex + 1}`,
-    detail: 'stored in the household buffer',
+    detail: 'kept in household stores',
   };
 }
 

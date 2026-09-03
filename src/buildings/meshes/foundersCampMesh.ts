@@ -15,6 +15,8 @@ import {
 } from '../buildingStockpileVisuals.ts';
 import {
   createFireEffect,
+  disposeFireEffect,
+  fireEffectFromRoot,
   setFireEffectNightLighting,
   updateFireEffect,
 } from '../../fires/FireEffect.ts';
@@ -1659,9 +1661,11 @@ function animateFirelitCampSmoke(
   smoke.instanceMatrix.needsUpdate = true;
 }
 
-function addCampfire(parent: THREE.Group): THREE.Group {
+/** Shared flame, smoke, sparks, and light; keep the physical hearth outside
+ * this group at staffed worksites so extinguishing it never hides the logs. */
+export function createCampfireEffects(name = 'Campfire effects'): THREE.Group {
   const fire = createFireEffect({
-    name: FOUNDERS_CAMPFIRE_NAME,
+    name,
     scale: 0.74,
     intensity: 0.82,
     nightLighting: 1,
@@ -1675,10 +1679,22 @@ function addCampfire(parent: THREE.Group): THREE.Group {
     lightIntensity: 22,
   });
   const campfire = fire.root;
+  campfire.userData.runtimeCampfireEffect = true;
+  addFirelitCampSmoke(campfire);
+  return campfire;
+}
+
+/** The same complete hearth, crossed logs, tripod, and cookpot for both camps. */
+export function addCampfire(
+  parent: THREE.Group,
+  x = FOUNDERS_CAMPFIRE_POSITION.x,
+  z = FOUNDERS_CAMPFIRE_POSITION.z,
+): THREE.Group {
+  const campfire = createCampfireEffects(FOUNDERS_CAMPFIRE_NAME);
   campfire.position.set(
-    FOUNDERS_CAMPFIRE_POSITION.x,
+    x,
     0,
-    FOUNDERS_CAMPFIRE_POSITION.z,
+    z,
   );
 
   for (let index = 0; index < 10; index += 1) {
@@ -1742,25 +1758,40 @@ function addCampfire(parent: THREE.Group): THREE.Group {
     new THREE.Vector3(0, 1.58, 0),
     new THREE.Vector3(0, 1.18, 0),
   );
-  addFirelitCampSmoke(campfire);
-
   parent.add(campfire);
   return campfire;
 }
 
-export function setFoundersCampfireNightLighting(
+export function setCampfireNightLighting(
   campfire: THREE.Group,
   nightLighting: number,
 ): void {
   setFireEffectNightLighting(campfire, nightLighting);
 }
 
-export function animateFoundersCampfire(
+export function animateCampfire(
   campfire: THREE.Group,
   dtSeconds: number,
 ): void {
+  if (!fireEffectFromRoot(campfire)?.active) return;
   updateFireEffect(campfire, dtSeconds, 0.82);
   animateFirelitCampSmoke(campfire, dtSeconds);
+}
+
+export function disposeCampfire(campfire: THREE.Group): void {
+  const effect = fireEffectFromRoot(campfire);
+  const sharedGeometries = new Set(effect?.sparks.map((spark) => spark.mesh.geometry));
+  const disposed = new Set<THREE.BufferGeometry>();
+  campfire.traverse((object) => {
+    // Sprite quads and spark geometry belong to Three.js/the shared effect;
+    // only this camp's hearth model and lit-smoke instances belong to it.
+    if (!(object instanceof THREE.Mesh) || sharedGeometries.has(object.geometry)) return;
+    if (disposed.has(object.geometry)) return;
+    disposed.add(object.geometry);
+    object.geometry.dispose();
+  });
+  litSmokeByCampfire.delete(campfire);
+  disposeFireEffect(campfire);
 }
 
 export function setFoundersCampWinterAccumulation(

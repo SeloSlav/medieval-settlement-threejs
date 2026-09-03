@@ -21,11 +21,11 @@ export const POTTER_FIRING_POLICY_PRESETS = [
   {
     policy: POTTER_FIRE_VESSELS,
     label: 'Vessels',
-    hint: 'Fire household wares and preserving crocks for storehouse market stalls, smokehouses, and trade.',
+    hint: 'Fire household vessels for Marketplaces and trade.',
   },
   {
     policy: POTTER_FIRE_ROOF_TILES,
     label: 'Roof tiles',
-    hint: 'Divert the same clay, water, firewood, labor, and kiln time to rare prosperous-house roofing.',
+    hint: 'Fire clay roof tiles for homes and other buildings.',
   },
 ] as const;

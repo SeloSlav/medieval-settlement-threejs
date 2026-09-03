@@ -62,7 +62,7 @@ export const STOREHOUSE_STOCK_TARGET_PRESETS = [
   {
     percent: 100,
     label: 'Fill',
-    hint: 'Matches the original behavior and collects until physical capacity.',
+    hint: 'Collects goods until the available storage is full.',
   },
 ] as const;
 

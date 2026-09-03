@@ -16,8 +16,6 @@ import {
   type TradingPostTradeMode,
 } from '../../economy/tradingPostTrade.ts';
 import {
-  REGIONAL_EXCHANGE_INTERVAL_SECONDS,
-  SIM_REALTIME_RATE,
   STOREHOUSE_HAUL_PER_WORKER,
   type TradeResourceKind,
 } from '../../generated/gameBalance.ts';
@@ -35,7 +33,6 @@ export function renderMarketplaceTradePanel(
     .filter((rule) => rule.buildingId === building.id && rule.mode !== TRADE_MODE_NONE);
   const exchangeDue = tradingPostExchangeDue(activeRules, gameState.tick);
   const exchangeCountdown = formatRegionalExchangeCountdown(gameState.tick, exchangeDue);
-  const intervalAt4x = Math.ceil(REGIONAL_EXCHANGE_INTERVAL_SECONDS / (SIM_REALTIME_RATE * 4));
   const stagedUnits = activeRules
     .filter((rule) => rule.mode === TRADE_MODE_EXPORT)
     .reduce((total, rule) => total + buildingTradeStock(building, rule.commodity), 0);
@@ -56,7 +53,7 @@ export function renderMarketplaceTradePanel(
         </div>
         <span class="trading-post-ledger__settlement">${exchangeCountdown}</span>
       </header>
-      <p class="trading-post-ledger__intro">Set one desired settlement surplus for every commodity. Export haulers continuously stage only stock above that floor in this Trading Post. Every ${REGIONAL_EXCHANGE_INTERVAL_SECONDS}-simulation-second window (~${intervalAt4x} real seconds at 4×), staged exports sell before imports buy enough to reach their floor, limited by storage and civic gold. Available coin is shared in conserved partial tranches across every due import: the least-filled target is considered first, while equally filled targets rotate each window. This lets genuine export proceeds fund every recurring shortage without making imports free. Each successful local cart advances a saved fair route cursor, so staged goods take bounded turns reaching their eligible Marketplace, Tavern, Well, or other serving outlet. The regional exchange is abstract—only local collection and distribution use visible haulers. Imported ironwork held here can supply construction, but Trading Post carts do not refill civilian tool racks; keep a staffed road-linked smithy to deliver replacement tools.</p>
+      <p class="trading-post-ledger__intro">Traders sell goods above each reserve before buying shortages with civic gold. Limited coin is shared among imports; local haulers collect and deliver goods.</p>
       <div class="trading-post-ledger__summary">
         <span><strong>${activeRules.length}</strong> active rules</span>
         <span><strong>${Math.floor(stagedUnits)}</strong> export units staged</span>

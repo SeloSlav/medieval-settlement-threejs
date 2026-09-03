@@ -62,13 +62,13 @@ export function withBuildingLocalStorage(
       : `${formatResourceCostAmount(total)} / ${formatResourceCostAmount(capacity)} total`;
   const tooltip = foundingSupplies
     ? items.length > 0
-      ? 'Take-only starter goods. Workers may use them for construction or haul them to compatible permanent storage; this camp does not accept deliveries.'
-      : 'This take-only founding yard is empty and does not accept deliveries.'
+      ? 'Founding supplies for construction and stocking permanent stores. The camp accepts no incoming deliveries.'
+      : 'The founding supplies are exhausted. The camp accepts no incoming deliveries.'
     : capacity == null
       ? items.length > 0
-        ? 'Exact goods physically stored at this building now.'
+        ? 'Goods stored at this building.'
         : 'Nothing is currently stored at this building.'
-      : `Exact goods physically stored here. This building has one combined ${formatResourceCostAmount(capacity)}-unit capacity for all accepted resources.`;
+      : `Goods stored here share space for ${formatResourceCostAmount(capacity)} in total.`;
   const encodedItems = items.length > 0
     ? ` data-tooltip-resources="${encodeURIComponent(JSON.stringify(items))}"`
     : '';

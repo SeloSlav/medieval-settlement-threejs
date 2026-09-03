@@ -4,6 +4,7 @@ import {
   type ResourceCostEntry,
   type ResourceCostKind,
 } from '../../ui/resourceCost.ts';
+import { RESOURCE_DESCRIPTIONS } from '../../ui/resourceDescriptions.ts';
 
 const INSPECTOR_RESOURCE_TOOLTIP_MAX_LENGTH = 120;
 
@@ -35,7 +36,7 @@ export function renderInspectorResourceToken(
   const formattedAmount = amount == null ? '' : formatResourceCostAmount(amount);
   const resourceLabel = resourceCostLabel(options.kind);
   const title = options.title?.trim() || capitalize(resourceLabel);
-  const detail = compactTooltipDetail(options.detail?.trim() || 'Current amount');
+  const detail = compactTooltipDetail(options.detail?.trim() || RESOURCE_DESCRIPTIONS[options.kind]);
   const amountLabel = options.amountLabel?.trim() || 'On site';
   const displayValue = options.displayValue?.trim() || formattedAmount;
   const showAmount = options.showAmount !== false && displayValue.length > 0;

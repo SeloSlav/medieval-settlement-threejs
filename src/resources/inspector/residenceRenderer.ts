@@ -979,8 +979,8 @@ function renderResidenceTierNeedsRow(
         : ' Pantry empty. The Founders’ Camp does not serve homes directly; use a staffed, road-linked Marketplace food stall or the household’s own food-producing backyard.'
       : '';
     const detail = occupied
-      ? `${met ? 'Met' : 'Not currently met'} for this Tier ${tier} household.${churchRequirement}${source?.detail ?? foodSupplyDetail}`
-      : `Inactive until this Tier ${tier} residence is occupied.${churchRequirement}`;
+      ? `${met ? 'Met' : 'Not currently met'} for this household.${churchRequirement}${source?.detail ?? foodSupplyDetail}`
+      : `Not needed until this residence is occupied.${churchRequirement}`;
     const resourcesAttribute = source?.resources && source.resources.length > 0
       ? ` data-tooltip-resources="${encodeURIComponent(JSON.stringify(
           source.resources.map(({ kind: sourceKind, amount }) => ({ kind: sourceKind, amount })),
@@ -1051,7 +1051,7 @@ export function residenceNeedSource(
           label: primary.label,
           resourceKind: primary.kind,
           ariaLabel: `representative pantry item ${primary.label}`,
-          detail: ` Qualifying food groups: ${groups.length > 0 ? groups.join(', ') : 'none'}. Pantry: ${formatNeedSourceInventory(foodSources)}.`,
+          detail: ` Food groups: ${groups.length > 0 ? groups.join(', ') : 'none'}. Pantry: ${formatNeedSourceInventory(foodSources)}.`,
           resources: foodSources,
         }
       : null;

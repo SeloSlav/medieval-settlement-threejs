@@ -105,10 +105,12 @@ assert.match(
 );
 assert.match(inspector, /staffed Tavern/);
 const buildCards = readFileSync('src/ui/buildMenuCards.ts', 'utf8');
-assert.match(buildCards, /Brews ale, presses distinct apple or pear cider, or ferments mead/);
-assert.match(buildCards, /food, luxury honey, and mead/);
+assert.match(buildCards, /Malts barley for ale, makes apple or pear cider, and ferments honey into mead/);
+assert.match(buildCards, /harvests honey and beeswax in autumn/);
 const settlementHud = readFileSync('src/ui/SettlementHud.ts', 'utf8');
-assert.match(settlementHud, /Tier-4 luxury good; Mead-selected Brewhouses/);
+assert.match(settlementHud, /RESOURCE_DESCRIPTIONS\.honey/);
+const resourceDescriptions = readFileSync('src/ui/resourceDescriptions.ts', 'utf8');
+assert.match(resourceDescriptions, /honey: 'Honey from apiaries, eaten at the table or fermented into mead at a Brewhouse\.'/);
 
 const iconPath = 'public/assets/ui/icons/resource-mead.png';
 assert.ok(existsSync(iconPath));

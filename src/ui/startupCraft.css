@@ -1,0 +1,383 @@
+/* Gorski Kotar, c. 1550 — an iron-bound estate ledger.
+ * PAINT ONLY: existing setup styles own layout, type metrics, border widths,
+ * hit areas, overflow and breakpoints. Added furniture is pointer-transparent
+ * and out of flow. Nothing here applies to the gameplay HUD.
+ */
+.noble-setup-backdrop,
+.world-setup-backdrop {
+  --craft-hide: url('/assets/ui/startup-craft/ledger-leather.png');
+  --craft-oak: url('/assets/ui/startup-craft/smoked-oak.png');
+  --craft-frame: url('/assets/ui/startup-craft/iron-frame.svg');
+  --craft-ivory: #e8dfca;
+  --craft-muted: #bcb3a0;
+}
+
+/* The landscape stays untouched; the panels become worn ledger covers. */
+.noble-setup-shell,
+.world-setup-dialog {
+  border-color: #292c25;
+  border-radius: 1px;
+  background:
+    linear-gradient(100deg, #141a17a6, #10161280 50%, #101611b8),
+    var(--craft-hide) center / 630px 630px repeat,
+    #262720;
+  box-shadow: 0 24px 72px #0008, inset 0 0 24px #060b0999;
+  backdrop-filter: none;
+}
+
+.noble-setup-shell::before,
+.world-setup-dialog::before {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  content: '';
+  border: 0 solid transparent;
+  border-image: var(--craft-frame) 24 / 16px / 0 stretch;
+  pointer-events: none;
+}
+
+.noble-setup-heading,
+.world-setup-wizard-heading {
+  border-bottom-color: #171d17;
+  background:
+    linear-gradient(90deg, #111a17a6, #34382a40 48%, #111a17b0),
+    var(--craft-oak) center / 620px 300px repeat,
+    #37382e;
+  box-shadow: inset 0 1px #afa38a38, inset 0 -3px #121813, 0 1px #8e826044;
+}
+
+.noble-setup-heading::after {
+  /* Keep the existing title-rule box, but remove its luminous gold stroke. */
+  background: url('/assets/ui/startup-craft/carved-rule.svg') center / 100% 100% no-repeat;
+  box-shadow: 0 1px #090e0b66;
+}
+
+.noble-setup-heading h1 {
+  color: var(--craft-ivory);
+  text-shadow: 0 2px 1px #080e0b, 0 0 8px #0c110a;
+}
+
+.noble-setup-identity {
+  background: linear-gradient(100deg, #55493616, #15201b18);
+}
+
+.noble-setup-actions,
+.world-setup-actions {
+  border-top-color: #81786366;
+  background:
+    linear-gradient(#151d18aa, #111712c4),
+    var(--craft-oak) center / 620px 300px repeat,
+    #292b23;
+  box-shadow: inset 0 2px #090e0acc, inset 0 3px #84775d44, 0 -5px 18px #080c0733;
+}
+
+.world-setup-actions__navigation {
+  border-top-color: #8d806344;
+  background: #0b140e26;
+}
+
+/* Pressed metal counters and an oxblood active seal. */
+.new-game-setup-steps li { color: #a9a394; }
+.new-game-setup-steps li > span {
+  color: #b7b19e;
+  border-color: #5e6457;
+  background: radial-gradient(circle at 38% 26%, #51594a, #282f26 60%, #171f17);
+  box-shadow: inset 0 1px #b7b39659, inset 0 -2px #0c160e, 0 1px 3px #0008;
+  text-shadow: 0 1px #000;
+}
+.new-game-setup-steps li:not(:last-child)::after {
+  background: linear-gradient(90deg, #94856b59, #94856b26);
+  box-shadow: 0 1px #0b140b80;
+}
+.new-game-setup-steps li[aria-current='step'] { color: #f1e6cb; }
+.new-game-setup-steps li[aria-current='step'] > span {
+  color: #f3e4c8;
+  border-color: #ab8c72;
+  background: radial-gradient(circle at 35% 25%, #955c46, #683e33 62%, #3e2d26);
+  box-shadow: inset 0 1px #d7ad8166, inset 0 -2px #321b16, 0 1px 4px #0009;
+}
+.new-game-setup-steps li.is-complete { color: #bfc6b0; }
+.new-game-setup-steps li.is-complete > span {
+  color: #d8deca;
+  border-color: #7a846b;
+  background: radial-gradient(circle at 35% 25%, #5a6850, #333f31 65%, #1b281f);
+}
+
+/* Mouldings overlay the portraits without resizing or recropping images. */
+.noble-setup-portrait-frame,
+.noble-setup-heraldry-portrait-frame {
+  border-color: #4e4b3e;
+  border-radius: 0;
+  box-shadow: 0 9px 20px #0008, 0 0 0 1px #111811;
+}
+.noble-setup-portrait-frame::after,
+.noble-setup-heraldry-portrait-frame::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  content: '';
+  border: 0 solid transparent;
+  border-image: var(--craft-frame) 24 / 14px / 0 stretch;
+  box-shadow: inset 0 0 12px #0b130999;
+  pointer-events: none;
+}
+.noble-setup-noble {
+  border-color: #55564a;
+  border-radius: 0;
+  box-shadow: 0 2px 3px #0008;
+}
+.noble-setup-noble::before {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  content: '';
+  border: 0 solid transparent;
+  border-image: var(--craft-frame) 24 / 7px / 0 stretch;
+  pointer-events: none;
+}
+.noble-setup-noble.is-selected::after,
+.noble-setup-preset.is-selected::after {
+  z-index: 2;
+  border-color: #c1b38e;
+  box-shadow: inset 0 0 4px #e6d6a73d;
+}
+.noble-setup-heraldry-profile,
+.noble-setup-editor-panel,
+.noble-setup-presets {
+  border-color: #77736573;
+  border-radius: 1px;
+  background:
+    linear-gradient(125deg, #25332cb8, #0c1612ba),
+    var(--craft-hide) 20% 40% / 490px 490px repeat,
+    #202820;
+  box-shadow: inset 0 1px #c3b39933, inset 0 0 0 3px #0b130b66, 0 2px 6px #0005;
+}
+.noble-setup-editor-title {
+  border-bottom-color: #96836859;
+  background: linear-gradient(90deg, #6d61532e, #3d3a291a);
+  box-shadow: 0 1px #0a130e99;
+}
+.noble-setup-editor-title > span {
+  border-color: #8d8068;
+  color: #d1c3a7;
+  background: radial-gradient(circle at 35% 25%, #525748, #232e25);
+  box-shadow: inset 0 1px #d3c5a538, 0 1px 2px #0008;
+}
+.noble-setup-editor-title h3,
+.noble-setup-section-heading h3,
+.world-setup-section__title {
+  color: #ded4bd;
+  text-shadow: 0 1px 2px #071008;
+}
+.noble-setup-eyebrow,
+.noble-setup-name-label > span,
+.noble-setup-color-setting > span { color: #c2b7a0; }
+.noble-setup-portrait-caption small,
+.noble-setup-heraldry-identity small { color: #a39f90; }
+
+/* Recessed writing fields. Heraldic tinctures retain their original colors. */
+.noble-setup-name-label input,
+.world-setup-seed-input {
+  border-color: #756b55;
+  border-radius: 1px;
+  color: #e7dcc1;
+  background:
+    linear-gradient(#1117109e, #141b14a3),
+    var(--craft-hide) center / 360px 360px repeat,
+    #1c241b;
+  box-shadow: inset 0 2px 5px #0009, inset 0 -1px #b6a88b47, 0 1px #050c07;
+  text-shadow: 0 1px #080e08;
+}
+.noble-setup-pattern,
+.noble-setup-charge,
+.noble-setup-preset {
+  border-color: #79756570;
+  color: #d4cdb9;
+  background:
+    linear-gradient(#3c433ba8, #1d2b22ba),
+    var(--craft-hide) center / 340px 340px repeat,
+    #29382d;
+  box-shadow: inset 0 1px #d0c3a938, inset 0 -2px #09130a99, 0 1px 2px #0006;
+}
+.noble-setup-charge > span { background: #e3decb; }
+.noble-setup-color {
+  border-color: #737669;
+  background: #222c23;
+  box-shadow: inset 0 1px #b6b69a40, 0 1px #070f09;
+}
+.noble-setup-color.is-selected {
+  border-color: #d4c6a2;
+  box-shadow: 0 0 0 1px #96876980;
+}
+.noble-setup-noble:is(:hover, :focus-visible, .is-selected),
+.noble-setup-preset:is(:hover, :focus-visible, .is-selected),
+.noble-setup-pattern:is(:hover, :focus-visible, .is-selected),
+.noble-setup-charge:is(:hover, :focus-visible, .is-selected) {
+  border-color: #b5a280;
+  box-shadow: inset 0 0 0 1px #bca77c80, inset 0 1px #eedcc366, 0 2px 5px #0007;
+}
+.noble-setup-pattern.is-selected,
+.noble-setup-charge.is-selected,
+.noble-setup-preset.is-selected {
+  background:
+    linear-gradient(#80534194, #4d362aca),
+    var(--craft-hide) center / 340px 340px repeat,
+    #48372b;
+  color: #f2e5ca;
+}
+
+/* Oak action tablets with an iron edge and a muted red forward action. */
+.noble-setup-actions button,
+.noble-setup-actions .noble-setup-back,
+.world-setup-back,
+.world-setup-start,
+.world-setup-randomize {
+  position: relative;
+  color: #e5dbc4;
+  border-color: #8c8068;
+  border-radius: 1px;
+  background:
+    linear-gradient(#242b2280, #131c16aa),
+    var(--craft-oak) center / 440px 220px repeat,
+    #3c3e30;
+  box-shadow: inset 0 1px #dbceb159, inset 0 -2px #0a120dcc, 0 3px 6px #0007;
+  text-shadow: 0 1px 2px #070e08;
+}
+.noble-setup-actions [data-setup-next],
+.world-setup-start {
+  color: #f2e4c9;
+  border-color: #a28d6a;
+  background:
+    linear-gradient(#743b2dbc, #412d21c9),
+    var(--craft-oak) center / 440px 220px repeat,
+    #613d2c;
+  box-shadow: inset 0 1px #d8b99770, inset 0 -2px #28160ecc, 0 3px 8px #0008;
+}
+.noble-setup-actions button::before,
+.world-setup-back::before,
+.world-setup-start::before,
+.world-setup-randomize::before {
+  position: absolute;
+  inset: 0;
+  content: '';
+  border: 0 solid transparent;
+  border-image: var(--craft-frame) 24 / 8px / 0 stretch;
+  pointer-events: none;
+}
+.noble-setup-actions button:hover,
+.world-setup-back:hover,
+.world-setup-start:hover,
+.world-setup-randomize:hover {
+  border-color: #d0bb91;
+  color: #fff1d5;
+  filter: brightness(1.16);
+}
+
+/* Map settings are inset leaves of the same ledger. */
+.world-setup-map-size {
+  background:
+    linear-gradient(#171f19b0, #171f19b0),
+    var(--craft-hide) center / 630px 630px repeat,
+    #242c24;
+}
+.world-setup-arrow-select,
+.world-setup-difficulty-preset .world-setup-arrow-select {
+  border-color: #8a7f6266;
+  background:
+    linear-gradient(#29332a99, #15241a99),
+    var(--craft-hide) center / 430px 430px repeat,
+    #263227;
+  box-shadow: inset 0 1px #bfb09429, inset 0 -1px #060f09aa;
+}
+.world-setup-arrow-select__arrow {
+  color: #c5b795;
+  background:
+    linear-gradient(#3541328a, #18251aba),
+    var(--craft-oak) center / 340px 170px repeat,
+    #303d2e;
+  box-shadow: inset 0 1px #bbae9059, inset 0 -1px #060f09cc;
+  text-shadow: 0 2px 1px #070c06;
+}
+.world-setup-arrow-select__arrow:hover {
+  color: #f0e5cb;
+  background-color: #536046;
+  filter: brightness(1.2);
+}
+.world-setup-arrow-select__value { border-inline-color: #0f1a11a6; }
+.world-setup-difficulty-preset .world-setup-arrow-select__value strong { color: #e5d8b8; }
+.world-setup-landscape-option {
+  border-color: #77776388;
+  border-radius: 1px;
+  background:
+    linear-gradient(135deg, #364639ad, #17261db3),
+    var(--craft-hide) center / 430px 430px repeat,
+    #293c2e;
+  box-shadow: inset 0 1px #c5bd9c29, inset 0 0 0 3px #0d160e66, 0 2px 4px #0005;
+}
+.world-setup-landscape-option:is(:hover, :focus-visible, .is-selected) {
+  border-color: #bbaa81;
+  background:
+    linear-gradient(135deg, #636b499e, #35432cba),
+    var(--craft-hide) center / 430px 430px repeat,
+    #394631;
+  box-shadow: inset 0 0 0 2px #ad9c7566, inset 0 1px #e3d1a857, 0 2px 6px #0006;
+}
+.world-setup-landscape-option::after {
+  background: url('/assets/ui/startup-craft/carved-rule.svg') center / 100% 100% no-repeat;
+}
+.world-setup-landscape-option__requirement {
+  color: #d3c7ae;
+  border-top-color: #93836b66;
+  background:
+    linear-gradient(#3c3025bf, #2c281ec9),
+    var(--craft-oak) center / 430px 210px repeat,
+    #3b3327;
+  text-shadow: 0 1px #11170f;
+}
+.world-setup-landscape-option:disabled:hover {
+  background:
+    linear-gradient(135deg, #364639ad, #17261db3),
+    var(--craft-hide) center / 430px 430px repeat,
+    #293c2e;
+  border-color: #77776388;
+  box-shadow: inset 0 1px #c5bd9c29, inset 0 0 0 3px #0d160e66, 0 2px 4px #0005;
+}
+.world-setup-setting-row,
+.world-setup-setting-list,
+.world-setup-column--rules,
+.world-setup-pressure,
+.world-setup-custom-landscape { border-color: #817b634d; }
+.world-setup-setting-row { background: #101c1238; }
+.noble-setup-slider-row,
+.world-setup-footer-seed__label,
+.world-setup-footer-seed__label small { color: var(--craft-muted); }
+.noble-setup-slider-row strong,
+.world-setup-slider-label strong { color: #cfc4a5; }
+.noble-setup-slider-row input,
+.world-setup-slider { accent-color: #aa9470; }
+.world-setup-scroll,
+.world-setup-column,
+.world-setup-setting-list,
+.noble-setup-charges { scrollbar-color: #7d806c #142017; }
+.noble-setup-charges::-webkit-scrollbar-thumb {
+  background: #7d806c;
+  border-color: #142017;
+  border-radius: 1px;
+}
+
+/* Keyboard focus remains unambiguous against the decorative edge wear. */
+.noble-setup-backdrop :is(button, input):focus-visible,
+.world-setup-backdrop :is(button, input):focus-visible {
+  outline: 2px solid #dfcfaa;
+  outline-offset: -3px;
+}
+.ui-tooltip.ui-tooltip--noble-setup,
+.ui-tooltip.ui-tooltip--world-setup {
+  border-color: #968970;
+  border-radius: 1px;
+  background:
+    linear-gradient(#141e16cc, #101b14dd),
+    url('/assets/ui/startup-craft/ledger-leather.png') center / 430px 430px repeat,
+    #1e2a20;
+  box-shadow: inset 0 1px #bfb2924d, 0 8px 26px #0009;
+}

@@ -18,6 +18,8 @@ import {
 } from '../src/buildings/bulkStockpileVisuals.ts';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignature.ts';
+import { batchCompletedBuildingStaticMeshes } from '../src/buildings/staticBuildingBatch.ts';
+import { BuildingStaticBatches } from '../src/buildings/BuildingStaticBatches.ts';
 import type { BuildingKind, BuildingState } from '../src/resources/types.ts';
 
 const stockGroups = [
@@ -96,16 +98,41 @@ for (const [kind, containerName, segmentName, segmentCount] of stockGroups) {
 }
 
 const lodgeMarker = createBuildingMesh('woodcutters_lodge');
-syncBulkStockpileVisuals(
-  lodgeMarker,
-  building('woodcutters_lodge', { firewood: 31 }),
-);
-assertVisibleSegments(
-  lodgeMarker,
-  'WoodcuttersFirewoodStockpile',
-  'WoodcuttersFirewoodSegment',
-  3,
-);
+const lodgeFirewood = lodgeMarker.getObjectByName('WoodcuttersFirewoodStockpile');
+assert.ok(lodgeFirewood instanceof THREE.Group);
+const rearBounds = new THREE.Box3().setFromObject(lodgeFirewood);
+assert.ok(rearBounds.max.z < -2.95, 'firewood must sit entirely behind the lodge rear wall');
+assert.ok(Math.abs(rearBounds.min.y) < 0.02, 'firewood must rest on the ground');
+const lodgeLogs: THREE.Mesh[] = [];
+lodgeFirewood.traverse((object) => {
+  if (object instanceof THREE.Mesh) lodgeLogs.push(object);
+});
+assert.equal(lodgeLogs.length, 24, 'four procedural three-row piles must contain 24 logs');
+
+// Exercise the same retained dynamic subtree used by completed in-game buildings.
+batchCompletedBuildingStaticMeshes(lodgeMarker);
+const lodgeScene = new THREE.Group();
+lodgeScene.add(lodgeMarker);
+const lodgeStaticBatches = new BuildingStaticBatches(lodgeScene);
+lodgeStaticBatches.registerBuilding('woodcutters_lodge-1', lodgeMarker);
+for (const [firewood, expected] of [
+  [0, 0], [1, 1], [12, 1], [13, 2], [25, 2], [26, 3], [37, 3],
+  [38, 4], [50, 4], [31, 3], [13, 2], [1, 1], [0, 0],
+] as const) {
+  syncBulkStockpileVisuals(lodgeMarker, building('woodcutters_lodge', { firewood }));
+  assertVisibleSegments(
+    lodgeMarker,
+    'WoodcuttersFirewoodStockpile',
+    'WoodcuttersFirewoodSegment',
+    expected,
+  );
+  let visibleLogs = 0;
+  lodgeFirewood.traverseVisible((object) => {
+    if (object instanceof THREE.Mesh) visibleLogs += 1;
+  });
+  assert.equal(visibleLogs, expected * 6, `${firewood} firewood must update rendered logs after batching`);
+}
+lodgeStaticBatches.dispose();
 
 const quarryMarker = createBuildingMesh('stone_quarry');
 assert.equal(quarryMarker.name, 'Mining Camp');

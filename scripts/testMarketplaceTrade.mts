@@ -269,11 +269,10 @@ assert.deepEqual(
 const panel = renderMarketplaceTradePanel(post, state, DEFAULT_REGIONAL_MARKET_STATE);
 assert.match(panel, /Regional trade ledger/);
 assert.match(panel, /In 30 simulation seconds.*10 real seconds at 4×/);
-assert.match(panel, /staged exports sell before imports/);
-assert.match(panel, /shared in conserved partial tranches across every due import/);
-assert.match(panel, /successful local cart advances a saved fair route cursor/);
-assert.match(panel, /regional exchange is abstract/i);
-assert.match(panel, /only local collection and distribution use visible haulers/i);
+assert.match(panel, /sell goods above each reserve before buying shortages with civic gold/);
+assert.match(panel, /Limited coin is shared among imports/);
+assert.match(panel, /local haulers collect and deliver goods/i);
+assert.doesNotMatch(panel, /conserved partial tranches|saved fair route cursor|exchange is abstract/);
 assert.match(panel, /data-trading-post-scroll/);
 assert.match(panel, /2\/2<\/strong> cart haulers/);
 assert.match(panel, /units per collection cart/);

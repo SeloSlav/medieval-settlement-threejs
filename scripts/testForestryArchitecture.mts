@@ -185,12 +185,9 @@ for (const [kind, factory] of cases) {
 
 const woodcutters = createWoodcuttersLodgeMesh();
 const firewood = woodcutters.getObjectByName('WoodcuttersFirewoodStockpile');
-const tools = woodcutters.getObjectByName('CivilianToolStockpile');
-assert.ok(firewood instanceof THREE.Group && tools instanceof THREE.Group);
+assert.ok(firewood instanceof THREE.Group);
 assert.equal(firewood.visible, false);
-assert.equal(tools.visible, false);
 assert.equal(firewood.children.filter((child) => child.name === 'WoodcuttersFirewoodSegment').length, 4);
-assert.equal(tools.children.filter((child) => child.name === 'CivilianToolSegment').length, 4);
 assert.equal(woodcutters.getObjectByName('Woodcutters empty brown timber splitting block') instanceof THREE.Mesh, true);
 
 console.log('forestry architecture tests passed (literal apertures, connected annexes, brown timber, runtime anchors)');

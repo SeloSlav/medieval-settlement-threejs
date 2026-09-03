@@ -240,8 +240,8 @@ export function renderMarketStallsInspector(
       kind: 'firewood',
       amount: fuelEquivalent,
       title: 'Household fuel',
-      detail: `${assignmentDetail('firewood', MARKETPLACE_GOODS_STALL_SLOTS, 'No stocked Storehouse table')} · Target: ${fuelTarget.toFixed(0)} equivalents · Runway: ${formatFuelRunway(fuelRunway, coveredHouseholds)}`,
-      amountLabel: 'Fuel equivalents',
+      detail: `${assignmentDetail('firewood', MARKETPLACE_GOODS_STALL_SLOTS, 'No stocked Storehouse table')} · Target: ${fuelTarget.toFixed(0)} in firewood · Lasts: ${formatFuelRunway(fuelRunway, coveredHouseholds)}`,
+      amountLabel: 'Heat value in firewood',
       resources: resourcesIn(fuelKinds),
     },
     {
@@ -265,7 +265,7 @@ export function renderMarketStallsInspector(
     {
       kind: 'remedies',
       amount: Math.max(0, building.remedies ?? 0),
-      detail: 'Targeted care-cart stock',
+      detail: 'Medicinal supplies reserved for deliveries to sick households.',
       amountLabel: 'On site',
     },
     {
@@ -277,7 +277,7 @@ export function renderMarketStallsInspector(
         : heldTax + 1e-6 >= LOCAL_MARKET_TAX_CART_THRESHOLD
           ? 'Collection: awaiting free hauler'
           : heldTax > 1e-6
-            ? `Collection: batching toward ${Math.ceil(LOCAL_MARKET_TAX_CART_THRESHOLD)}`
+            ? `Collection: waiting for ${Math.ceil(LOCAL_MARKET_TAX_CART_THRESHOLD)} gold`
             : 'Collection: empty',
       amountLabel: 'Held here',
     },
@@ -285,7 +285,6 @@ export function renderMarketStallsInspector(
       .filter((item) => !representedKinds.has(item.kind))
       .map((item): InspectorResourceTokenOptions => ({
         ...item,
-        detail: 'Marketplace stock',
         amountLabel: 'On site',
       })),
   ];
@@ -315,7 +314,7 @@ export function renderMarketStallsInspector(
       <li data-inspector-primary data-inspector-detail="Food and goods tables are staffed by road-linked Granary and Storehouse workers."><span>Stalls</span><span>${foodAssignments.length}/${MARKETPLACE_FOOD_STALL_SLOTS} food · ${goodsAssignments.length}/${MARKETPLACE_GOODS_STALL_SLOTS} goods${standbyWorkers > 0 ? ` · ${standbyWorkers} standby` : ''}</span></li>
       <li data-inspector-primary data-inspector-detail="Every road-connected home is eligible; exact road length chooses the nearest stocked Marketplace."><span>Reach</span><span>${roadConnectedHomes} homes · ${roadConnectedPopulation} residents</span></li>
       <li data-inspector-primary><span>Household issues</span><span>Checks ${MARKETPLACE_HOUSEHOLD_ISSUE_CHECKS_PER_DAY} times per day and replenishes each connected household's monthly bill buffer when needed</span></li>
-      <li data-inspector-primary data-inspector-detail="Seasonal target: ${MARKETPLACE_FUEL_RESERVE_DAYS} days at ${fuelDemandPerDay.toFixed(2)} fuel-equivalents per day for ${coveredHouseholds} covered households."><span>Fuel runway</span><span>${fuelEquivalent.toFixed(0)}/${fuelTarget.toFixed(0)} eq · ${formatFuelRunway(fuelRunway, coveredHouseholds)}</span></li>
+      <li data-inspector-primary data-inspector-detail="Fuel for ${coveredHouseholds} households over ${MARKETPLACE_FUEL_RESERVE_DAYS} days. Charcoal provides twice the household heat of firewood."><span>Fuel runway</span><span>${fuelEquivalent.toFixed(0)}/${fuelTarget.toFixed(0)} eq · ${formatFuelRunway(fuelRunway, coveredHouseholds)}</span></li>
       <li data-inspector-secondary><span>Cart</span><span>${cartLabel}</span></li>
     `,
     demolish: {

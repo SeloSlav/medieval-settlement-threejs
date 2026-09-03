@@ -472,7 +472,7 @@ const WOODCUTTERS_ARCHITECTURE_PLAN = Object.freeze({
       kind: 'cutting-bench',
     },
   },
-  runtimeAnchors: ['WoodcuttersFirewoodStockpile', 'CivilianToolStockpile'],
+  runtimeAnchors: ['WoodcuttersFirewoodStockpile'],
   embeddedVegetationGeometry: false,
 } as const satisfies ForestryArchitecturePlan);
 
@@ -743,6 +743,5 @@ export function createWoodcuttersLodgeMesh(): THREE.Group {
   );
   addChoppingShelter(group, shell.halfW);
   group.add(createWoodcuttersFirewoodStockpile());
-  group.add(createCivilianToolStockpile(new THREE.Vector3(-2.7, 0, 3.55), -0.12));
   return group;
 }

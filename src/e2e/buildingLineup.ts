@@ -14,8 +14,7 @@ import { createWaysideShrineMesh } from '../buildings/meshes/waysideShrineMesh.t
 import { createSpinningRettingHouseMesh } from '../buildings/meshes/spinningRettingHouseMesh.ts';
 import { createPreferredRenderer } from '../scene/RendererBackend.ts';
 import {
-  animateFoundersCampfire,
-  FOUNDERS_CAMPFIRE_NAME,
+  animateCampfire,
 } from '../buildings/meshes/foundersCampMesh.ts';
 import {
   FOUNDERS_CAMP_BENCH_SEAT,
@@ -124,6 +123,8 @@ const selectedKinds = comparisonMode
     ? [requestedKind as (typeof BUILDING_KINDS)[number]]
     : BUILDING_KINDS;
 const STOCKED_PREVIEW_PREFIXES = [
+  'WoodcuttersFirewoodStockpile',
+  'WoodcuttersFirewoodSegment',
   'MarketTimberStageSegment',
   'MarketStoneStageSegment',
   'MarketCratedStageSegment',
@@ -792,16 +793,19 @@ function createServiceCoveragePreview(
 }
 
 const campStandards = views.map((view) => new CampStandardRenderer(view.scene));
+const campfires: THREE.Group[] = [];
+for (const view of views) view.scene.traverse((object) => {
+  if (object instanceof THREE.Group && object.userData.runtimeCampfireEffect === true) {
+    campfires.push(object);
+  }
+});
 let previousFrameMs = performance.now();
 function animate(nowMs: number): void {
   const dtSeconds = Math.min(0.1, Math.max(0, nowMs - previousFrameMs) / 1000);
   previousFrameMs = nowMs;
   views.forEach((view, index) => campStandards[index]!.sync(view.scene.children, dtSeconds));
+  for (const campfire of campfires) animateCampfire(campfire, dtSeconds);
   for (const view of views) {
-    const campfire = view.scene.getObjectByName(FOUNDERS_CAMPFIRE_NAME);
-    if (campfire instanceof THREE.Group) {
-      animateFoundersCampfire(campfire, dtSeconds);
-    }
     view.campSeating?.renderer.syncAgents(
       view.campSeating.agents,
       {

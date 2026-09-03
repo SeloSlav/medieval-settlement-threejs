@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96" fill="none">
+  <defs>
+    <linearGradient id="iron" x1="0" y1="0" x2="96" y2="96" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#858072"/><stop offset=".2" stop-color="#494a43"/>
+      <stop offset=".5" stop-color="#333832"/><stop offset=".76" stop-color="#696457"/><stop offset="1" stop-color="#292c28"/>
+    </linearGradient>
+    <linearGradient id="edge" x2="0" y2="1">
+      <stop stop-color="#aaa08a"/><stop offset=".4" stop-color="#655f50"/><stop offset="1" stop-color="#35362f"/>
+    </linearGradient>
+    <g id="corner">
+      <path d="M2 2H23L19 6H9V19L5 24H2Z" fill="url(#iron)" stroke="#1b1e1a"/>
+      <path d="M3 3H20M4 5V18" stroke="#aaa08a" stroke-opacity=".65"/>
+      <path d="M6 5 14 13 10 17 3 10Z" fill="url(#iron)" stroke="#292d27"/>
+      <path d="m5 5 8 8" stroke="#b2a48a" stroke-opacity=".5"/>
+      <path d="m8 7 2 2-2 2-2-2Z" fill="#9b927e" stroke="#252820" stroke-width=".8"/>
+      <path d="M13 4h3M4 13v3M16 7l2-1" stroke="#c0b292" stroke-width=".6" stroke-opacity=".38"/>
+    </g>
+  </defs>
+  <path d="M3 3H93V93H3Z" stroke="#111610" stroke-width="6"/>
+  <path d="M5 5H91V91H5Z" stroke="url(#edge)" stroke-width="4"/>
+  <path d="M8 8H88V88H8Z" stroke="#10150f" stroke-width="2"/>
+  <path d="M10 10H86V86H10Z" stroke="#928370" stroke-opacity=".45"/>
+  <path d="M26 5h7m9 0h9m13 0h5m-43 86h6m10 0h12m13 0h3M5 28v6m0 17v8m86-34v8m0 16v13" stroke="#c4baa3" stroke-opacity=".22" stroke-width=".65"/>
+  <use href="#corner"/><use href="#corner" transform="translate(96 0) rotate(90)"/>
+  <use href="#corner" transform="translate(96 96) rotate(180)"/><use href="#corner" transform="translate(0 96) rotate(270)"/>
+</svg>

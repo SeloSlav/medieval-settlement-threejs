@@ -2,15 +2,19 @@ import * as THREE from 'three';
 import type { Terrain } from '../terrain/Terrain.ts';
 import {
   addCampAFrameShelter,
+  addCampfire,
   addCampStumpSeat,
+  animateCampfire,
+  disposeCampfire,
   getAgedTentCanvasMaterial,
   getCampGroundMaterial,
+  setCampfireNightLighting,
 } from '../buildings/meshes/foundersCampMesh.ts';
 import { metalMaterial, timberMaterial } from '../buildings/buildingMaterials.ts';
 import type { BanditCampState } from './banditState.ts';
 import { CampStandardRenderer, createCampStandardAnchor } from '../settlement/CampStandardRenderer.ts';
 
-type CampVisual = { root: THREE.Group };
+type CampVisual = { root: THREE.Group; campfire: THREE.Group };
 
 const timber = timberMaterial('dark');
 const darkCloth = banditCanvasMaterial(0xb2a28a, 'Weathered umber bandit canvas');
@@ -26,6 +30,7 @@ export class BanditCampRenderer {
   private readonly visuals = new Map<string, CampVisual>();
   private readonly terrain: Terrain;
   private readonly standards: CampStandardRenderer;
+  private nightLighting = 0;
 
   constructor(terrain: Terrain, parent: THREE.Group) {
     this.terrain = terrain;
@@ -44,6 +49,7 @@ export class BanditCampRenderer {
       let visual = this.visuals.get(camp.id);
       if (!visual) {
         visual = createCamp(Number(camp.id.replace(/\D/g, '')) || 1);
+        setCampfireNightLighting(visual.campfire, this.nightLighting);
         this.visuals.set(camp.id, visual);
         this.root.add(visual.root);
       }
@@ -59,6 +65,14 @@ export class BanditCampRenderer {
 
   tick(dtSeconds: number): void {
     this.standards.sync(this.root.children, dtSeconds);
+    for (const visual of this.visuals.values()) animateCampfire(visual.campfire, dtSeconds);
+  }
+
+  setCampfireNightLighting(nightLighting: number): void {
+    this.nightLighting = THREE.MathUtils.clamp(nightLighting, 0, 1);
+    for (const visual of this.visuals.values()) {
+      setCampfireNightLighting(visual.campfire, this.nightLighting);
+    }
   }
 
   standardDiagnostics() {
@@ -100,16 +114,17 @@ function createCamp(seed: number): CampVisual {
   addCampAFrameShelter(root, -2.65, -1.7, -2.85, 0, null, darkCloth);
   addCampAFrameShelter(root, 2.65, -1.7, 2.85, 1, null, blackCloth);
   addWeaponRack(root, 3.45, 1.45);
-  addCampStumpSeat(root, 0.2, 1.1);
-  addCampStumpSeat(root, -1.35, 2.2);
-  addCampStumpSeat(root, 1.25, 2.7);
+  const campfire = addCampfire(root, 0, 1.65);
+  addCampStumpSeat(root, 0.1, 3.35);
+  addCampStumpSeat(root, -1.5, 2.35);
+  addCampStumpSeat(root, 1.55, 2.4);
   const standard = createCampStandardAnchor('bandit');
   standard.position.set(-4.5, 0, 2.5);
   root.add(standard);
   root.traverse((object) => {
     if (object instanceof THREE.Mesh && object !== ground) object.castShadow = true;
   });
-  return { root };
+  return { root, campfire };
 }
 
 function addWeaponRack(parent: THREE.Group, x: number, z: number): void {
@@ -148,6 +163,7 @@ function banditCanvasMaterial(color: number, name: string): THREE.MeshStandardMa
 }
 
 function removeCampVisual(visual: CampVisual): void {
+  disposeCampfire(visual.campfire);
   visual.root.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (mesh.isMesh) mesh.geometry.dispose();

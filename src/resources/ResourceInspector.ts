@@ -92,10 +92,8 @@ import {
   type ServiceCoverageView,
 } from './serviceCoverage.ts';
 import { PlayerAuthoredHoverOutline } from './PlayerAuthoredHoverOutline.ts';
-import {
-  foodSpoilageLabel,
-  type FoodInventoryKind,
-} from '../economy/foodInventory.ts';
+import type { FoodInventoryKind } from '../economy/foodInventory.ts';
+import { foodResourceTooltip } from '../ui/resourceDescriptions.ts';
 import { AlertDialog } from '../ui/AlertDialog.ts';
 import { hasCustomTreeWorkArea } from './treeWorkArea.ts';
 import { resourceNodeArtUrl } from './resourceNodeArt.ts';
@@ -353,7 +351,7 @@ type ResourceInspectorOptions = {
 };
 
 const DEFAULT_TOTAL_RESOURCE_TOOLTIP =
-  'All physically stored stock for this resource, including household reserves and goods committed to active projects. Loaded carts remain listed separately until unloading.';
+  'All stored stock, including household reserves and goods committed to active projects. Goods in transit are counted separately until unloaded.';
 
 const NON_SPECIALTY_HUD_RESOURCE_KINDS = new Set<HudResourceKind>([
   'timber',
@@ -866,7 +864,7 @@ export class ResourceInspector {
         : 'Showing realm-wide surplus goods. Show total realm holdings.',
     );
     this.resourceTotalsModeButton.dataset.tooltip = showingTotal
-      ? 'All physical goods across every community, including goods committed to active construction and home projects. Activate to show realm surplus.'
+      ? 'All stored goods across every community, including supplies reserved for construction and home improvements. Activate to show realm surplus.'
       : 'Goods available across every community after active construction and home-project commitments are deducted. Activate to show all realm holdings.';
     this.resourceTotalsModeButton.dataset.tooltipTitle = showingTotal
       ? 'Total realm holdings'
@@ -904,9 +902,10 @@ export class ResourceInspector {
         delete stat.dataset.tooltipAmountLabel;
         continue;
       }
+      const description = this.surplusResourceTooltips.get(resource);
       const tooltip = showingTotal
-        ? DEFAULT_TOTAL_RESOURCE_TOOLTIP
-        : this.surplusResourceTooltips.get(resource);
+        ? [description, DEFAULT_TOTAL_RESOURCE_TOOLTIP].filter(Boolean).join('\n\n')
+        : description;
       if (tooltip) stat.dataset.tooltip = tooltip;
     }
   }
@@ -2253,7 +2252,7 @@ export class ResourceInspector {
       elements.stored.textContent = formatTransitAmount(displayed);
       elements.row.dataset.tooltipAmount = formatTransitAmount(displayed);
       elements.row.dataset.tooltipAmountLabel = amountLabel;
-      elements.row.dataset.tooltip = foodSpoilageLabel(inventoryKind);
+      elements.row.dataset.tooltip = foodResourceTooltip(inventoryKind);
       elements.transit.hidden = transit <= 1e-6;
       elements.transit.textContent = transit > 1e-6
         ? `+${formatTransitAmount(transit)} cart`

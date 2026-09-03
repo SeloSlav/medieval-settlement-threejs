@@ -29,22 +29,22 @@ export const BREWERY_RECIPE_PRESETS = [
   {
     policy: BREWERY_RECIPE_CIDER,
     label: 'Apple cider',
-    hint: 'Press 4 apples into 1 apple cider without malting or brewing fuel.',
+    hint: 'Make 1 apple cider from 4 apples.',
   },
   {
     policy: BREWERY_RECIPE_PEAR_CIDER,
     label: 'Pear cider',
-    hint: 'Press 4 pears into 1 pear cider without malting or brewing fuel.',
+    hint: 'Make 1 pear cider from 4 pears.',
   },
   {
     policy: BREWERY_RECIPE_MEAD,
     label: 'Mead',
-    hint: 'Ferment 1 honey into 1 mead without malting or brewing fuel.',
+    hint: 'Ferment 1 honey into 1 mead.',
   },
   {
     policy: BREWERY_RECIPE_AUTO,
     label: 'Auto',
-    hint: 'Use the best-stocked complete recipe; ties preserve ale production.',
+    hint: 'Brew with the most plentiful ingredients on hand.',
   },
 ] as const;
 

@@ -193,6 +193,10 @@ for (const kind of CIVILIAN_TOOL_SITE_KINDS) {
 
   const marker = createBuildingMesh(kind);
   const stockpile = marker.getObjectByName('CivilianToolStockpile');
+  if (kind === 'woodcutters_lodge') {
+    assert.equal(stockpile, undefined, 'the lodge must not display the exterior axe rack');
+    continue;
+  }
   assert.ok(stockpile instanceof THREE.Group, `${kind} must render its onsite tools`);
   assert.equal(
     stockpile.children.filter((child) => child.name === 'CivilianToolSegment').length,

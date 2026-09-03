@@ -119,8 +119,8 @@ assert.match(
 );
 assert.match(
   resourceInspector,
-  /const tooltip = showingTotal[\s\S]{0,100}\? DEFAULT_TOTAL_RESOURCE_TOOLTIP[\s\S]{0,100}: this\.surplusResourceTooltips\.get\(resource\)/,
-  'every HUD resource without a tailored total tooltip must receive the truthful total-mode fallback',
+  /const tooltip = showingTotal[\s\S]{0,100}\? \[description, DEFAULT_TOTAL_RESOURCE_TOOLTIP\][\s\S]{0,100}: description/,
+  'total-mode resource cards must retain their description alongside the explanation of stored amounts',
 );
 assert.match(backyardCss, /\.resource-inspector-hero-image\[hidden\]\s*\{\s*display:\s*none/);
 assert.match(backyardCss, /\.resource-inspector-hero-art\.is-art-unavailable\s*\{/);
@@ -297,7 +297,7 @@ assert.match(inspectorResourceTokens, /inspector-resource-strip[\s\S]{0,520}role
 assert.match(inspectorResourceTokens, /const INSPECTOR_RESOURCE_TOOLTIP_MAX_LENGTH = 120/);
 assert.match(
   inspectorResourceTokens,
-  /const detail = compactTooltipDetail\(options\.detail\?\.trim\(\) \|\| 'Current amount'\)/,
+  /const detail = compactTooltipDetail\(options\.detail\?\.trim\(\) \|\| RESOURCE_DESCRIPTIONS\[options\.kind\]\)/,
   'resource-token details must use the concise tooltip path',
 );
 assert.match(
@@ -825,7 +825,7 @@ assert.match(resourceInspector, /data-monastery-extension-choice[\s\S]{0,500}onS
 assert.doesNotMatch(expandedBuildingRenderer, /monastery-planting-grid|data-monastery-(?:orchard|croft)-choice/);
 assert.doesNotMatch(resourceInspector, /data-monastery-croft-choice/);
 assert.match(expandedBuildingRenderer, /Mixed orchard and kitchen gardens/);
-assert.match(expandedBuildingRenderer, /no apple-versus-pear or cabbage-versus-carrot choices/i);
+assert.match(expandedBuildingRenderer, /mixed orchard and kitchen gardens supply the monastery table/i);
 
 console.log('Complete backyard, upgrade, monastery, commodity, crop, livestock, land-project, demolition, recovery, build-category, and map-overlay icon contracts passed.');
 

@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { BanditCampRenderer } from '../src/security/BanditCampRenderer.ts';
 import { timberMaterial } from '../src/buildings/buildingMaterials.ts';
+import { FOUNDERS_CAMPFIRE_NAME } from '../src/buildings/meshes/foundersCampMesh.ts';
+import { fireEffectFromRoot } from '../src/fires/FireEffect.ts';
 import {
   formatBanditGoodsSummary,
   parseBanditGoods,
@@ -47,6 +49,28 @@ for (const stump of stumps) {
   assert.equal(stump.material, timberMaterial('dark'), 'stumps reuse the actual founders wood material');
 }
 renderer.tick(1 / 30);
+const campfire = physicalRoot.getObjectByName(FOUNDERS_CAMPFIRE_NAME);
+assert.ok(campfire instanceof THREE.Group, 'bandits share the complete founders campfire model');
+assert.ok(campfire.getObjectByName('Founding campfire hearth stone'));
+assert.ok(campfire.getObjectByName('Founding campfire crossed log'));
+assert.ok(campfire.getObjectByName('Campfire cooking tripod'));
+assert.ok(campfire.getObjectByName('Hanging camp cookpot'));
+const fire = fireEffectFromRoot(campfire)!;
+assert.ok(fire?.active, 'an active bandit camp is occupied by design');
+assert.equal(fire.flames.length, 5);
+assert.equal(fire.smoke.length, 7);
+const elapsed = fire.elapsedSeconds;
+const smokePosition = fire.smoke[0]!.sprite.position.clone();
+renderer.tick(0.25);
+assert.equal(fire.elapsedSeconds, elapsed + 0.25);
+assert.ok(fire.smoke[0]!.sprite.position.distanceTo(smokePosition) > 0, 'bandit smoke must animate');
+const daylightIntensity = fire.light.intensity;
+renderer.setCampfireNightLighting(1);
+renderer.tick(0);
+assert.ok(fire.light.intensity > daylightIntensity, 'bandit firelight follows the night cycle');
+renderer.sync([banditCamp({ stolenGoods: 0 })]);
+assert.equal(physicalRoot.getObjectByName(FOUNDERS_CAMPFIRE_NAME), campfire);
+assert.equal(fire.active, true, 'empty supplies do not extinguish an occupied outlaw camp');
 assert.equal(renderer.standardDiagnostics()?.standards, 1);
 assert.equal(renderer.standardDiagnostics()?.panels, 1);
 assert.equal(renderer.standardDiagnostics()?.simulationNodes, 60);
@@ -64,10 +88,15 @@ assert.equal(
   'an inactive destroyed camp must disappear instead of swapping to a ruin mesh',
 );
 assert.equal(renderer.standardDiagnostics()?.standards, 0, 'destroying a camp removes its flag and cloth state');
+assert.equal(fireEffectFromRoot(campfire), null, 'destroying a camp disposes its fire effect');
 
 renderer.sync([active]);
 assert.equal(physicalRoot.children.length, 1, 'a later authoritative respawn should recreate the camp');
+const respawnedFireRoot = physicalRoot.getObjectByName(FOUNDERS_CAMPFIRE_NAME) as THREE.Group;
+assert.equal(fireEffectFromRoot(respawnedFireRoot)?.active, true);
+assert.equal(fireEffectFromRoot(respawnedFireRoot)?.nightLighting, 1);
 renderer.dispose();
+assert.equal(fireEffectFromRoot(respawnedFireRoot), null);
 assert.equal(parent.children.length, 0, 'dispose should remove the physical camp root');
 
 const recoveredGoods = parseBanditGoods(JSON.stringify([

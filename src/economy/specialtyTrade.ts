@@ -41,7 +41,7 @@ export const MARKETPLACE_SPECIALTY_EXPORT_POLICIES = [
     value: 2,
     label: 'Favorable 105%+',
     minRate: 1.05,
-    hint: 'Wait for strong demand, accepting storage backpressure in exchange for better prices.',
+    hint: 'Let stocks build up while waiting for better prices.',
   },
 ] as const;
 

@@ -353,6 +353,27 @@ export const PROCEDURAL_MATERIAL_ROLE_REGISTRY = {
       note: 'Heavy linen cloth is appropriate for temporary camps, market awnings, and reversible processing flies, never as a permanent settlement roof or wall structure.',
     },
   },
+  'stitched-hide': {
+    sharedMaterialKeys: [],
+    sharedDetailMaterialKeys: ['hide'],
+    atlasTiles: [],
+    historicallyPermittedUses: ['temporary-shelter', 'awning-and-fly'],
+    prohibitedUses: ['load-bearing-masonry', 'timber-frame', 'roof-frame', 'roof-covering'],
+    uvPolicy: {
+      projection: 'fabric-panel-aligned',
+      uAxis: 'fabric-weft',
+      vAxis: 'fabric-warp',
+      metersPerRepeat: [1.6, 1.6],
+      rotateWithMember: true,
+      course: { mode: 'sewn-fabric-panels', nominalHeightMeters: [0.7, 1.4], overlapMeters: 0.035, stagger: 'none' },
+    },
+    evidence: {
+      ...BASE_EVIDENCE,
+      confidence: 'medium',
+      scope: 'conditional',
+      note: 'Sewn brown animal hides form the hunter processing fly; a fixed camp covering, not harvested inventory. Uses the dedicated existing hide texture set rather than a linen atlas tile.',
+    },
+  },
   wicker: {
     sharedMaterialKeys: [],
     sharedDetailMaterialKeys: ['wicker'],

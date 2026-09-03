@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { MeshStandardNodeMaterial } from 'three/webgpu';
+import { MeshPhysicalNodeMaterial, MeshStandardNodeMaterial } from 'three/webgpu';
 import { prepareBuildingGeometryUvs } from './buildingMetricUvs.ts';
 import {
   applyBuildingMaterialAtlas,
@@ -10,6 +10,13 @@ import {
   type BuildingMaterialAtlasTile,
 } from './buildingMaterialAtlas.ts';
 import { disposeSharedWellWaterMaterial } from './WellWaterMaterial.ts';
+import {
+  applyCampHideSurface,
+  CAMP_HIDE_METERS_PER_REPEAT,
+  disposeCampHideSurface,
+  getCampHideSurfaceStats,
+  initializeCampHideSurface,
+} from './campHideSurface.ts';
 
 export const GORSKI_PALETTE = {
   stoneWhite: 0xe6dfd0,
@@ -182,6 +189,7 @@ export type BuildingDetailMaterialKey =
   | 'smoke'
   | 'earth'
   | 'canvas'
+  | 'hide'
   | 'foliage'
   | 'crop';
 
@@ -204,6 +212,7 @@ const DETAIL_MATERIAL_DEFINITIONS: Record<BuildingDetailMaterialKey, DetailMater
   smoke: { color: 0x77736d, roughness: 1, metalness: 0, transparent: true, opacity: 0.28, depthWrite: false },
   earth: { color: 0x6d5235, roughness: 1, metalness: 0, atlasTile: 'packed-earth', atlasMetersPerTile: 2, atlasTintStrength: 0.24, buildingNormalScale: 0.52 },
   canvas: { color: 0xc8b58d, roughness: 0.98, metalness: 0, atlasTile: 'linen-canvas', atlasMetersPerTile: 1.2, atlasTintStrength: 0.2, buildingNormalScale: 0.46, side: THREE.DoubleSide },
+  hide: { color: 0xd0b395, roughness: 0.94, metalness: 0, atlasMetersPerTile: CAMP_HIDE_METERS_PER_REPEAT, side: THREE.DoubleSide },
   foliage: { color: 0x526f3b, roughness: 1, metalness: 0 },
   crop: { color: 0xb69a48, roughness: 1, metalness: 0 },
 };
@@ -271,7 +280,9 @@ export function sharedBuildingDetailMaterial(key: BuildingDetailMaterialKey): Bu
     buildingNormalScale,
     ...parameters
   } = definition;
-  const material = new MeshStandardNodeMaterial() as BuildingAtlasMaterial;
+  const material = (key === 'hide'
+    ? new MeshPhysicalNodeMaterial()
+    : new MeshStandardNodeMaterial()) as BuildingAtlasMaterial;
   material.setValues(parameters);
   material.name = `Shared building detail material: ${key}`;
   material.userData.sharedBuildingMaterial = true;
@@ -285,15 +296,23 @@ export function sharedBuildingDetailMaterial(key: BuildingDetailMaterialKey): Bu
   return material;
 }
 
-/** Loads the three-texture, twenty-surface building atlas once. */
+/** Loads the shared building atlas and the specialty sewn-hide surface once. */
 export function initializeBuildingMaterialLibrary(
   maxAnisotropy = 8,
   preloadTexture?: (texture: THREE.Texture) => void,
 ): Promise<void> {
   if (textureLoadPromise) {
-    return initializeBuildingMaterialAtlas(maxAnisotropy, preloadTexture);
+    return textureLoadPromise.then(async () => {
+      await Promise.all([
+        initializeBuildingMaterialAtlas(maxAnisotropy, preloadTexture),
+        initializeCampHideSurface(maxAnisotropy, preloadTexture),
+      ]);
+    });
   }
-  textureLoadPromise = initializeBuildingMaterialAtlas(maxAnisotropy, preloadTexture).then(() => {
+  textureLoadPromise = Promise.all([
+    initializeBuildingMaterialAtlas(maxAnisotropy, preloadTexture),
+    initializeCampHideSurface(maxAnisotropy, preloadTexture),
+  ]).then(() => {
     for (const [key, material] of materialCache) {
       applyTextureSet(material, MATERIAL_DEFINITIONS[key]);
     }
@@ -301,7 +320,7 @@ export function initializeBuildingMaterialLibrary(
       applyDetailTextureSet(material, DETAIL_MATERIAL_DEFINITIONS[key]);
     }
     // The deterministic startup fallbacks have been superseded by the atlas.
-    // Release them immediately so the library settles at three resident maps.
+    // Release them immediately; only the atlas and specialty hide maps remain.
     splitWoodShingleMap?.dispose();
     splitWoodShingleMap = null;
   }).catch((error: unknown) => {
@@ -318,6 +337,7 @@ export function disposeBuildingMaterialLibrary(): void {
   detailMaterialCache.clear();
   disposeSharedWellWaterMaterial();
   disposeBuildingMaterialAtlas();
+  disposeCampHideSurface();
   splitWoodShingleMap?.dispose();
   splitWoodShingleMap = null;
   textureLoadPromise = null;
@@ -325,11 +345,12 @@ export function disposeBuildingMaterialLibrary(): void {
 
 export function getBuildingMaterialLibraryStats(): { constructionMaterials: number; detailMaterials: number; textures: number; loaded: boolean } {
   const atlas = getBuildingMaterialAtlasStats();
+  const hide = getCampHideSurfaceStats();
   return {
     constructionMaterials: materialCache.size,
     detailMaterials: detailMaterialCache.size,
-    textures: atlas.textures + (splitWoodShingleMap ? 1 : 0),
-    loaded: atlas.loaded,
+    textures: atlas.textures + hide.textures + (splitWoodShingleMap ? 1 : 0),
+    loaded: atlas.loaded && hide.loaded,
   };
 }
 
@@ -501,6 +522,10 @@ function applyDetailTextureSet(
   material: BuildingAtlasMaterial,
   definition: DetailMaterialDefinition,
 ): void {
+  if (material.userData.buildingDetailMaterialKey === 'hide') {
+    applyCampHideSurface(material);
+    return;
+  }
   if (!definition.atlasTile) return;
   applyBuildingMaterialAtlas(material, {
     tile: definition.atlasTile,

@@ -22,17 +22,17 @@ export const HUD_RESOURCE_CARD_PRESENTATION: Record<
   timber: {
     label: 'Timber',
     surplusDetail: 'Unreserved timber in yards, mills, and depots.',
-    totalDetail: 'All timber stored at physical yards, mills, and depots, including stock committed to active construction and home projects. Loaded carts remain listed separately until unloading.',
+    totalDetail: 'All stored timber, including supplies reserved for construction and home improvements. Timber in transit is counted separately until unloaded.',
   },
   stone: {
     label: 'Stone',
     surplusDetail: 'Unreserved stone in quarry yards and depots.',
-    totalDetail: 'All stone stored at physical quarry yards and depots, including stock committed to active construction and home projects. Loaded carts remain listed separately until unloading.',
+    totalDetail: 'All stored stone, including supplies reserved for construction and home improvements. Stone in transit is counted separately until unloaded.',
   },
   water: {
     label: 'Water',
-    surplusDetail: 'Water in wells, workplaces, and homes.',
-    totalDetail: 'All physically stored water across wells, workplaces, and homes. Loaded carts remain listed separately until unloading.',
+    surplusDetail: 'Water available in wells and workplaces after household reserves are set aside.',
+    totalDetail: 'All water stored in wells, workplaces, and homes. Water in transit is counted separately until unloaded.',
   },
   gold: {
     label: 'Civic treasury',

@@ -1695,7 +1695,7 @@ function renderCarpenterPolicyPanel(
   const armory = carpenterArmoryPlan(building);
   return `
     <div class="inspector-action-panel" data-inspector-panel-title="Cart and armory">
-      <p class="resource-inspector-note">Cart-service depth — protected working capital for accelerated departures.</p>
+      <p class="resource-inspector-note">Cart supplies — reserve timber and fittings to keep carts in good repair.</p>
       <div class="resource-action-row">${CARPENTER_CART_SERVICE_TARGET_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-carpenter-cart-service-target="${preset.trips}" title="${preset.hint}" ${serviceTarget === preset.trips ? 'disabled' : ''}>${preset.label} · ${preset.trips}</button>`)
         .join('')}</div>
@@ -1707,7 +1707,7 @@ function renderCarpenterPolicyPanel(
         <div class="resource-action-row">${CARPENTER_POLEARM_RESERVE_PRESETS
           .map((preset) => `<button type="button" class="resource-action-button" data-carpenter-polearm-reserve="${preset.reserve}" ${armory.reserve === preset.reserve ? 'disabled' : ''}>${preset.label} · ${preset.reserve}</button>`)
           .join('')}</div>
-        <p class="inspector-action-panel__hint">Finished polearms remain in this workshop until an exact company requisition carts them to its muster point. “Cartwright only” disables weapon crafting so timber and fittings remain available for framing and physical cart repair.</p>
+        <p class="inspector-action-panel__hint">Finished polearms wait here until a company orders them. “Cartwright only” reserves the shop for building work and cart repair.</p>
       ` : ''}
     </div>
   `;
@@ -1717,7 +1717,7 @@ function renderFarmsteadFieldPanel(building: BuildingState): string {
   const threshingPriority = normalizeThreshingPriority(building.threshingPriority);
   return `
     <div class="inspector-action-panel" data-inspector-panel-title="Threshing">
-      <p class="resource-inspector-note">Threshing priority — the same onsite crew works fields and converts stored sheaves into typed grain. A ready harvest always pre-empts threshing.</p>
+      <p class="resource-inspector-note">Threshing priority — the farm crew separates grain from stored sheaves. Ripe harvests always take precedence.</p>
       <div class="resource-action-row">${THRESHING_PRIORITY_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-threshing-priority="${preset.priority}" title="${preset.hint}" ${threshingPriority === preset.priority ? 'disabled' : ''}>${preset.label}</button>`)
         .join('')}</div>
@@ -1734,11 +1734,11 @@ function renderApiaryHarvestPolicyPanel(building: BuildingState): string {
   const selected = apiaryHarvestPolicy(building.apiaryHarvestPolicy);
   return `
     <div class="inspector-action-panel" data-inspector-panel-title="Honey harvest">
-      <p class="resource-inspector-note">Honey harvest · choose how much winter food the beekeepers protect and how much whole-unit yield they accumulate during Spring and Summer.</p>
+      <p class="resource-inspector-note">Honey harvest · choose how much honey to gather and how much to leave for the colony through winter.</p>
       <div class="resource-action-row">${APIARY_HARVEST_POLICIES
         .map((policy) => `<button type="button" class="resource-action-button" data-apiary-harvest-policy="${policy.value}" title="${policy.hint}" ${selected.value === policy.value ? 'disabled' : ''}>${policy.label} · ${policy.reserve} reserve · ${Math.round(policy.yieldMultiplier * 100)}%</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">Workers tend the hives and accumulate yield from March through August, then extract that crop into physical Honey from September through November. Unharvested hive yield is lost when winter begins. The reserve protects stored Honey from town-processing and export carts; in winter the colony consumes up to ${APIARY_WINTER_HONEY_REQUIRED} honey, and a shortfall damages next season's colony health. Forage and health multiply accumulated yield, while nearby healthy hives provide bounded pollination.</p>
+      <p class="inspector-action-panel__hint">Beekeepers tend hives from March through August and gather honey and beeswax in autumn. Honey left unharvested is lost at winter’s arrival. The colony needs up to ${APIARY_WINTER_HONEY_REQUIRED} honey through winter; a shortage weakens next year’s hives. Reserved honey stays with the apiary.</p>
     </div>
   `;
 }
@@ -1758,13 +1758,13 @@ function renderMonasteryPolicyPanel(building: BuildingState, context: InspectorR
   const nextExtension = building.monasteryNextExtension ?? 0;
   return `
     <div class="inspector-action-panel" data-inspector-panel-title="Monastery estate">
-      <p class="inspector-action-panel__hint"><strong>${archetype.name}</strong> · ${archetype.payoff}. Assign residents to the eight-cell community; without a monk on site the estate and every service remain dormant. The fixed estate is intentionally non-granular: mixed apples and pears, kitchen gardens, apiary, cattle and sheep, and workshops resolve into abstract proceeds.</p>
+      <p class="inspector-action-panel__hint"><strong>${archetype.name}</strong> · ${archetype.payoff}. Assign residents to the eight-cell community; without a monk on site the estate and every service remain dormant. The orchard, gardens, apiary, livestock, and workshops earn income for the estate.</p>
       <div class="city-admin-panel__slider-label"><span>Enclosed estate</span><strong>Mixed orchard and kitchen gardens</strong></div>
-      <p class="inspector-action-panel__hint">There are no apple-versus-pear or cabbage-versus-carrot choices. The visual estate canonically grows a useful mixture; its orchard also supplies one house-cider output, while ordinary regional activity is presented as gold-in/gold-out administration.</p>
+      <p class="inspector-action-panel__hint">The mixed orchard and kitchen gardens supply the monastery table and estate trade. Apples and pears also supply the house cider press.</p>
       <div class="resource-action-row">
         <button type="button" class="resource-action-button resource-action-button--icon" data-land-parcel="vineyard" data-tooltip-title="Vineyard parcel" data-tooltip="Lay out a grape-growing parcel inside this monastery’s work extent." data-tooltip-cost="${FREE_CONSTRUCTION_COST_TOOLTIP}" data-tooltip-cost-affordable="true"><span class="inspector-action-icon" data-action-icon="field-parcel" aria-hidden="true"></span><span>${vineyards.length > 0 ? `Add vineyard parcel · ${vineyards.length} laid out (${Math.round(vineyardArea)} m²)` : 'Lay out vineyard parcel'}</span></button>
       </div>
-      <p class="inspector-action-panel__hint">Vineyards are the one deliberate physical exception. Lay out free-form parcels inside the work extent; monks harvest them in September–October, then report to the separate visible vintner and wine cellar to press and ferment grapes into actual wine.</p>
+      <p class="inspector-action-panel__hint">Monks harvest vineyard grapes in September and October, then press and ferment them into wine for hospitality and sale.</p>
       <div class="city-admin-panel__slider-label"><span>Next reserved extension</span><strong>${monasteryExtensionCount(extensions)} / 4 complete</strong></div>
       ${availableExtensions.length > 0
         ? `<div class="monastery-extension-grid" role="group" aria-label="Choose the next monastery extension">
@@ -1776,7 +1776,7 @@ function renderMonasteryPolicyPanel(building: BuildingState, context: InspectorR
         : '<p class="inspector-action-panel__hint monastery-extension-grid__complete">Estate fully developed · all four extensions complete.</p>'}
       <p class="inspector-action-panel__hint">These are four independent extensions, not upgrade tiers: they add visible buildings and services inside the already reserved precinct without enlarging or subdividing its plots. The monks begin the selected project automatically when its cost and working reserve are secured. ${availableExtensions.map((extension) => `${extension.label}: ${extension.payoff}`).join(' · ')}</p>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-monastery-feasts ${policy.feastsEnabled ? 'checked' : ''} /><span>Provision hospitality and feast days</span></label>
-      <p class="inspector-action-panel__hint">Enabled houses protect ${feastBatchCost}. Orchard cider and apiary mead stretch the common table, while vintner-made wine increases offering prestige; any mixed cellar earns a modest lavish-hospitality bonus. When available, estate meat, cheese, and milk are all served before the rest of the pantry completes the feast. Feast crowds still gather visibly; ordinary pilgrims and infirmary patients remain abstract service simulation. Daily hospitality uses ${dailyHospitalityCost}.</p>
+      <p class="inspector-action-panel__hint">Enabled houses protect ${feastBatchCost}. Orchard cider and apiary mead stretch the common table, while vintner-made wine increases offering prestige; any mixed cellar earns a modest lavish-hospitality bonus. When available, estate meat, cheese, and milk are all served before the rest of the pantry completes the feast. Pilgrims and sick villagers also receive care from the monastery. Daily hospitality uses ${dailyHospitalityCost}.</p>
       <label class="city-admin-panel__slider-label"><span>Parish tithe share</span><strong data-policy-monastery-tithe-value>${Math.round(policy.titheShare * 100)}%</strong></label>
       <input class="city-admin-panel__slider" type="range" data-policy-monastery-tithe min="0" max="80" step="5" value="${Math.round(policy.titheShare * 100)}" />
       <div class="city-admin-panel__range-hints"><span>Church keeps all</span><span>Monastery-led</span></div>

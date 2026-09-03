@@ -5,11 +5,11 @@ import { performance } from 'node:perf_hooks';
 import * as THREE from 'three';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import {
-  animateFoundersCampfire,
+  animateCampfire,
   FOUNDERS_CAMPFIRE_NAME,
   FOUNDERS_CAMP_STONE_WINTER_ACCUMULATION_NAME,
   FOUNDERS_CAMP_TIMBER_WINTER_ACCUMULATION_NAME,
-  setFoundersCampfireNightLighting,
+  setCampfireNightLighting,
   setFoundersCampWinterAccumulation,
 } from '../src/buildings/meshes/foundersCampMesh.ts';
 import {
@@ -286,12 +286,12 @@ campfire.traverse((object) => {
     && candidate.geometry instanceof THREE.ConeGeometry;
 });
 assert.equal(hasConeFlame, false, 'the campfire should not regress to cone-shaped flames');
-setFoundersCampfireNightLighting(campfire, 0);
-animateFoundersCampfire(campfire, 0.1);
+setCampfireNightLighting(campfire, 0);
+animateCampfire(campfire, 0.1);
 const daylightIntensity = campfireLight.intensity;
 const daylightFlameScale = flame.scale.y;
-setFoundersCampfireNightLighting(campfire, 1);
-animateFoundersCampfire(campfire, 0.13);
+setCampfireNightLighting(campfire, 1);
+animateCampfire(campfire, 0.13);
 assert.ok(
   campfireLight.intensity > daylightIntensity + 12,
   'the campfire must keep a strong warm light throughout the night',
@@ -1261,8 +1261,8 @@ assert.match(foundersInspector, /planFoundingStockyardRelocation/);
 const buildingMarkersSource = read('src/buildings/BuildingMarkers.ts');
 assert.match(
   buildingMarkersSource,
-  /building\.kind === 'founders_camp'\s*&& building\.foundingShelterActive !== false[\s\S]*?this\.foundersCampfires\.add/,
-  'a struck camp must not keep an invisible fire effect in the per-frame animation set',
+  /building\.kind === 'founders_camp'\s*\? building\.foundingShelterActive !== false[\s\S]*?setFireEffectActive\(campfire, lit\)/,
+  'a struck camp must deactivate its fire effect when its shelters are packed up',
 );
 const appSource = read('src/app/App.ts');
 assert.match(

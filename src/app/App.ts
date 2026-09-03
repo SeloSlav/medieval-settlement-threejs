@@ -558,6 +558,7 @@ export class App {
       settlementHud: this.toolbar?.settlementHud ?? null,
       sceneManager: this.sceneManager,
       buildingMarkers: this.buildingMarkers,
+      banditCamps: this.banditCamps,
       residenceMarkers: this.residenceMarkers,
       villagers: this.villagers,
       ambientAudio: this.ambientAudio,

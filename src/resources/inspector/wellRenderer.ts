@@ -125,7 +125,7 @@ export function renderWellInspector(
     detailsHtml: `
       ${buildingCostRows(cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
-      <li data-inspector-secondary data-inspector-detail="Routine water service needs no assigned worker or last-mile cart."><span>Labor</span><span>None</span></li>
+      <li data-inspector-secondary data-inspector-detail="Homes and workshops draw water without a dedicated well keeper."><span>Labor</span><span>None</span></li>
       <li><span>Well groundwater</span><span>${wellAquiferNetworksEnabled
         ? `${hydrologyGradeLabel(hydrology)} (${Math.round(hydrology * 100)}%)`
         : 'Even yield at every site'}</span></li>
@@ -136,7 +136,7 @@ export function renderWellInspector(
       ${buildingExtentRow(building.kind)}
       <li><span>Homes connected now</span><span>${claimedResidences.length === 0 ? 'None' : claimedResidences.length}</span></li>
       <li><span>Workshop demand</span><span>${workshopDemand || 'None'}</span></li>
-      <li data-inspector-secondary data-inspector-detail="Connected homes draw first from real well storage; nearby road-connected workshops then fill their real input buffers from the remainder."><span>Distribution</span><span>Automatic in radius · homes first</span></li>
+      <li data-inspector-secondary data-inspector-detail="Homes draw water first; nearby workshops with road access take what remains."><span>Distribution</span><span>Automatic in radius · homes first</span></li>
       <li data-inspector-secondary data-inspector-detail="Fire calls reserve new water before homes and workshops; all useful free haulers may respond together."><span>Fire priority</span><span>Emergency calls first</span></li>
       ${deliveryRow}
     `,

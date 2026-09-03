@@ -51,14 +51,14 @@ import {
   LOCAL_RECEIPT_VISUAL_CAPACITY,
 } from './meshes/expandedBuildingMeshes.ts';
 import {
-  animateFoundersCampfire,
-  FOUNDERS_CAMPFIRE_NAME,
+  animateCampfire,
+  disposeCampfire,
   FOUNDERS_CAMP_STONE_WINTER_ACCUMULATION_NAME,
   FOUNDERS_CAMP_TIMBER_WINTER_ACCUMULATION_NAME,
-  setFoundersCampfireNightLighting,
+  setCampfireNightLighting,
   setFoundersCampWinterAccumulation,
 } from './meshes/foundersCampMesh.ts';
-import { disposeFireEffect } from '../fires/FireEffect.ts';
+import { setFireEffectActive } from '../fires/FireEffect.ts';
 import {
   constructionDeliveredRatio,
   createConstructionSiteMesh,
@@ -133,11 +133,11 @@ export class BuildingMarkers {
   private readonly buildingStates = new Map<string, BuildingState>();
   private readonly shadowProxyBatch: BatchedBuildingShadowProxies;
   private readonly staticBatches: BuildingStaticBatches;
-  private readonly foundersCampfires = new Set<THREE.Group>();
+  private readonly campfiresByMarker = new Map<THREE.Group, THREE.Group[]>();
   private readonly campStandards: CampStandardRenderer;
   private readonly watermillWheels = new Set<THREE.Group>();
   private readonly windmillSails = new Map<THREE.Group, number>();
-  private foundersCampfireNightLighting = 0;
+  private campfireNightLighting = 0;
   private foundersCampWinterAccumulation = false;
   private watermillThroughputMultiplier = 1;
   private windmillWeatherThroughputMultiplier = 1;
@@ -457,6 +457,7 @@ export class BuildingMarkers {
       const building = this.buildingStates.get(id);
       const destroyed = ids.has(id);
       marker.visible = !destroyed;
+      if (building) this.syncCampfireOccupancy(marker, building);
       this.staticBatches.setBuildingVisible(id, !destroyed);
       if (
         destroyed
@@ -480,10 +481,12 @@ export class BuildingMarkers {
     }
   }
 
-  setFoundersCampfireNightLighting(nightLighting: number): void {
-    this.foundersCampfireNightLighting = THREE.MathUtils.clamp(nightLighting, 0, 1);
-    for (const campfire of this.foundersCampfires) {
-      setFoundersCampfireNightLighting(campfire, this.foundersCampfireNightLighting);
+  setCampfireNightLighting(nightLighting: number): void {
+    this.campfireNightLighting = THREE.MathUtils.clamp(nightLighting, 0, 1);
+    for (const campfires of this.campfiresByMarker.values()) {
+      for (const campfire of campfires) {
+        setCampfireNightLighting(campfire, this.campfireNightLighting);
+      }
     }
   }
 
@@ -525,8 +528,8 @@ export class BuildingMarkers {
 
   tick(dtSeconds: number): void {
     this.campStandards.sync(this.buildingMeshes.values(), dtSeconds);
-    for (const campfire of this.foundersCampfires) {
-      animateFoundersCampfire(campfire, dtSeconds);
+    for (const campfires of this.campfiresByMarker.values()) {
+      for (const campfire of campfires) animateCampfire(campfire, dtSeconds);
     }
     const wheelRotation = Math.min(Math.max(dtSeconds, 0), 0.1)
       * 0.55
@@ -755,7 +758,7 @@ export class BuildingMarkers {
     const useCompletedMesh = buildingUsesCompletedMesh(building);
     const visualSignature = buildingMeshSignature(building);
     if (marker && marker.userData.visualSignature !== visualSignature) {
-      this.unregisterFoundersCampfire(marker);
+      this.unregisterCampfires(marker);
       this.unregisterWatermillWheel(marker);
       this.unregisterWindmillSails(marker);
       this.staticBatches.removeBuilding(building.id);
@@ -835,19 +838,7 @@ export class BuildingMarkers {
           this.foundersCampWinterAccumulation,
         );
       }
-      if (
-        building.kind === 'founders_camp'
-        && building.foundingShelterActive !== false
-      ) {
-        const campfire = marker.getObjectByName(FOUNDERS_CAMPFIRE_NAME);
-        if (campfire instanceof THREE.Group) {
-          setFoundersCampfireNightLighting(
-            campfire,
-            this.foundersCampfireNightLighting,
-          );
-          this.foundersCampfires.add(campfire);
-        }
-      }
+      this.registerCampfires(marker);
       if (operational) {
         if (!marker.userData.staticBuildingBatchStats) {
           batchCompletedBuildingStaticMeshes(marker);
@@ -869,6 +860,7 @@ export class BuildingMarkers {
     marker.position.set(building.x, y, building.z);
     const destroyed = this.destroyedBuildingIds.has(building.id);
     marker.visible = !destroyed;
+    this.syncCampfireOccupancy(marker, building);
     this.staticBatches.updateBuilding(building.id, marker, !destroyed);
     if (operational && !destroyed && building.kind !== 'founders_camp') {
       this.shadowProxyBatch.upsertBuilding(
@@ -900,7 +892,7 @@ export class BuildingMarkers {
   private removeBuilding(id: string): void {
     const marker = this.buildingMeshes.get(id);
     if (!marker) return;
-    this.unregisterFoundersCampfire(marker);
+    this.unregisterCampfires(marker);
     this.unregisterWatermillWheel(marker);
     this.unregisterWindmillSails(marker);
     this.staticBatches.removeBuilding(id);
@@ -913,11 +905,38 @@ export class BuildingMarkers {
     this.buildingStates.delete(id);
   }
 
-  private unregisterFoundersCampfire(marker: THREE.Group): void {
-    const campfire = marker.getObjectByName(FOUNDERS_CAMPFIRE_NAME);
-    if (!(campfire instanceof THREE.Group)) return;
-    this.foundersCampfires.delete(campfire);
-    disposeFireEffect(campfire);
+  private registerCampfires(marker: THREE.Group): void {
+    const campfires: THREE.Group[] = [];
+    marker.traverse((object) => {
+      if (!(object instanceof THREE.Group) || object.userData.runtimeCampfireEffect !== true) return;
+      setCampfireNightLighting(object, this.campfireNightLighting);
+      campfires.push(object);
+    });
+    if (campfires.length > 0) this.campfiresByMarker.set(marker, campfires);
+  }
+
+  private syncCampfireOccupancy(marker: THREE.Group, building: BuildingState): void {
+    const campfires = this.campfiresByMarker.get(marker);
+    if (!campfires) return;
+    // Occupancy, not production, fuel stock, or the workday schedule, owns a
+    // campfire. Founders remain occupants until their shelters are packed up.
+    const occupied = building.kind === 'founders_camp'
+      ? building.foundingShelterActive !== false
+      : building.assignedLabor > 0;
+    const lit = occupied
+      && building.constructionComplete !== false
+      && !this.destroyedBuildingIds.has(building.id);
+    for (const campfire of campfires) {
+      setFireEffectActive(campfire, lit);
+      if (lit) animateCampfire(campfire, 0);
+    }
+  }
+
+  private unregisterCampfires(marker: THREE.Group): void {
+    for (const campfire of this.campfiresByMarker.get(marker) ?? []) {
+      disposeCampfire(campfire);
+    }
+    this.campfiresByMarker.delete(marker);
   }
 
   private registerWatermillWheel(marker: THREE.Group): void {

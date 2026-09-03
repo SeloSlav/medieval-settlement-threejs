@@ -3,6 +3,7 @@ import { SIM_REALTIME_RATE } from '../generated/gameBalance.ts';
 import { simElapsedSeconds, type GameClock } from '../world/gameCalendar.ts';
 import type { AmbientAudioController } from '../audio/AmbientAudioController.ts';
 import type { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
+import type { BanditCampRenderer } from '../security/BanditCampRenderer.ts';
 import type { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
 import type { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
 import type { GameState } from '../resources/types.ts';
@@ -35,6 +36,7 @@ export type SettlementPresentationTargets = {
   settlementHud: SettlementHud | null;
   sceneManager: SceneManager | null;
   buildingMarkers: BuildingMarkers | null;
+  banditCamps?: BanditCampRenderer | null;
   residenceMarkers: ResidenceMarkers | null;
   villagers: VillagerRenderer | null;
   ambientAudio: AmbientAudioController | null;
@@ -237,7 +239,10 @@ export class SettlementPresentationController {
       presentationDayNight.isNight,
     );
     targets.sceneManager?.applyDayNight(presentationDayNight);
-    targets.buildingMarkers?.setFoundersCampfireNightLighting(
+    targets.buildingMarkers?.setCampfireNightLighting(
+      presentationDayNight.nightAmount * HOUSEHOLD_LIGHTING_VISUAL_SCALE,
+    );
+    targets.banditCamps?.setCampfireNightLighting(
       presentationDayNight.nightAmount * HOUSEHOLD_LIGHTING_VISUAL_SCALE,
     );
     targets.buildingMarkers?.setChapelTowerClock(schedule.clock);

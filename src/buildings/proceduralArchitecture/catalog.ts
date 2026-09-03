@@ -41,6 +41,7 @@ export type ProceduralMaterialRole =
   | 'clay-tiles'
   | 'slate'
   | 'linen-canvas'
+  | 'stitched-hide'
   | 'wicker'
   | 'wrought-iron';
 
@@ -147,7 +148,7 @@ export const PROCEDURAL_BUILDING_CATALOG = {
   hunters_hall: {
     family: 'service', status: 'site', roof: 'canvas-fly', massing: ['temporary-sleeping-tent', 'open-processing-fly', 'hearth-yard'],
     modules: ['canvas-a-frame-tent', 'hide-processing-fly', 'stone-hearth', 'empty-tool-frame', 'work-table'],
-    materials: ['packed-earth', 'linen-canvas', 'rough-timber', 'weathered-boards', 'fieldstone', 'wicker'], dynamicSlots: ['food-stock', 'hearth-fire', 'smoke'],
+    materials: ['packed-earth', 'linen-canvas', 'stitched-hide', 'rough-timber', 'weathered-boards', 'fieldstone', 'wicker'], dynamicSlots: ['food-stock', 'hearth-fire', 'smoke'],
     triangleTarget: 3_800, triangleCeiling: 6_500, drawCallTarget: 8,
     historicalNote: 'A mobile woodland hunting camp rather than a permanent lodge; game carcasses are runtime state.',
   },
