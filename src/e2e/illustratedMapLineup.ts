@@ -70,7 +70,7 @@ metrics.textContent = [
   `${result.canvas.width}×${result.canvas.height}`,
   `seed ${result.diagnostics.seed}`,
   `${result.diagnostics.woodland.drawnTreeGlyphCount} etched trees`,
-  `${result.diagnostics.elevation.mountainRangeCount} ridge groups`,
+  `${result.diagnostics.elevation.contourLevelCount} contours / ${result.diagnostics.elevation.contourIntervalMeters} m`,
   `${Math.round(bakeDurationMs)} ms bake`,
 ].join(' · ');
 

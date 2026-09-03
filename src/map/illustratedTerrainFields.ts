@@ -7,9 +7,9 @@ import {
  * Field contract for the one-time 2D illustrated terrain bake:
  *
  * stable world XZ
- *   -> accepted tree placements + normalized elevation + slope/ridge
- *   -> exact tree-glyph projection + mountain prominence
- *   -> spatially faithful woodland + layered ridge marks
+ *   -> accepted tree placements + sampled terrain height
+ *   -> exact tree-glyph projection + equal-height paths
+ *   -> spatially faithful woodland + dotted charcoal contours
  *
  * Keep these perceptual constants together so visual tuning does not become a
  * collection of unrelated thresholds hidden in the canvas renderer.
@@ -21,19 +21,6 @@ export const ILLUSTRATED_TERRAIN_FIELDS = {
     densityFull: 0.72,
     neighbourSupportStart: 0.18,
     neighbourSupportFull: 0.5,
-  },
-  elevation: {
-    contourQuantiles: [0.38, 0.53, 0.66, 0.77, 0.86, 0.93],
-    lowQuantile: 0.12,
-    shoulderQuantile: 0.62,
-    summitQuantile: 0.95,
-    mountainSpacingAuthorPixels: 52,
-    mountainStart: 0.28,
-    guaranteedSummitElevation: 0.9,
-    guaranteedCoverageRadiusSpacing: 0.68,
-    reliefGateStartMeters: 7,
-    reliefGateFullMeters: 30,
-    narrowSummitReliefWeight: 0.55,
   },
 } as const;
 
@@ -72,8 +59,16 @@ export const ILLUSTRATED_TERRAIN_STYLE = {
   },
   contours: {
     ink: { r: 64, g: 59, b: 53 },
-    alpha: 0.14,
-    lineWidthAuthorPixels: 0.48,
+    alpha: 0.43,
+    indexAlpha: 0.56,
+    lineWidthAuthorPixels: 0.72,
+    indexWidthAuthorPixels: 0.95,
+    spacingAuthorPixels: 2.7,
+    markLengthMinAuthorPixels: 0.18,
+    markLengthRangeAuthorPixels: 1.2,
+    driftAuthorPixels: 0.5,
+    rubAlphaScale: 0.12,
+    rubWidthScale: 2.2,
   },
   grassland: {
     glyphSpacingAuthorPixels: 22,
@@ -81,17 +76,6 @@ export const ILLUSTRATED_TERRAIN_STYLE = {
     ink: { r: 64, g: 59, b: 53 },
     alpha: 0.24,
     lineWidthAuthorPixels: 0.46,
-  },
-  mountains: {
-    outlineAlphaMin: 0.22,
-    outlineAlphaProminence: 0.1,
-    fillAlphaMin: 0.012,
-    fillAlphaProminence: 0.018,
-    baselineAlphaMin: 0.13,
-    baselineAlphaProminence: 0.08,
-    scaleBase: 0.48,
-    scaleProminence: 0.22,
-    scaleVariation: 0.08,
   },
   woodland: {
     outlineAlpha: 0.45,
@@ -108,7 +92,7 @@ export const ILLUSTRATED_TERRAIN_STYLE = {
 } as const;
 
 export const ILLUSTRATED_TERRAIN_FIELD_CONTRACT =
-  'world-xz>accepted-tree-placements,elevation,slope-ridge>exact-tree-glyphs,mountain-prominence>species-glyphs,ridge-marks';
+  'world-xz>accepted-tree-placements,terrain-height>exact-tree-glyphs,equal-height-paths>species-glyphs,dotted-charcoal-contours';
 
 export type IllustratedWoodlandField = {
   /** Authoritative generated forest density at the requested world point. */
@@ -213,135 +197,21 @@ export function sampleGeneratedWoodlandField(options: {
 export type IllustratedElevationStats = {
   minimum: number;
   maximum: number;
-  low: number;
-  shoulder: number;
-  summit: number;
-  broadRelief: number;
-  extremeRelief: number;
-  robustRelief: number;
-  reliefGate: number;
 };
 
-export type IllustratedElevationField = {
-  normalizedElevation: number;
-  slope: number;
-  ridge: number;
-  edgeHighland: number;
-  mountainProminence: number;
-};
-
-/** Robust quantiles prevent one quarry pit or single spike owning the art. */
+/** Keep the full height range so narrow summits still receive contours. */
 export function resolveIllustratedElevationStats(
   heightSamples: ArrayLike<number>,
 ): IllustratedElevationStats {
-  const sorted = Array.from(heightSamples, (value) => Number.isFinite(value) ? value : 0)
-    .sort((a, b) => a - b);
-  if (sorted.length === 0) {
-    return {
-      minimum: 0,
-      maximum: 0,
-      low: 0,
-      shoulder: 0,
-      summit: 0,
-      broadRelief: 0,
-      extremeRelief: 0,
-      robustRelief: 0,
-      reliefGate: 0,
-    };
+  let minimum = Infinity;
+  let maximum = -Infinity;
+  for (let index = 0; index < heightSamples.length; index++) {
+    const height = heightSamples[index];
+    if (!Number.isFinite(height)) continue;
+    minimum = Math.min(minimum, height);
+    maximum = Math.max(maximum, height);
   }
-  const minimum = sorted[0] ?? 0;
-  const maximum = sorted[sorted.length - 1] ?? minimum;
-  const low = sampleQuantile(sorted, ILLUSTRATED_TERRAIN_FIELDS.elevation.lowQuantile);
-  const shoulder = sampleQuantile(sorted, ILLUSTRATED_TERRAIN_FIELDS.elevation.shoulderQuantile);
-  const broadSummit = sampleQuantile(sorted, ILLUSTRATED_TERRAIN_FIELDS.elevation.summitQuantile);
-  const extremeRelief = Math.max(0, maximum - low);
-  const broadRelief = Math.max(0, broadSummit - low);
-  // A sub-five-percent summit lies above the broad quantile by definition.
-  // Preserve the broad statistic for ordinary ranges, but let a weighted
-  // extreme open the relief gate so the exhaustive summit audit can see it.
-  const robustRelief = Math.max(
-    broadRelief,
-    extremeRelief * ILLUSTRATED_TERRAIN_FIELDS.elevation.narrowSummitReliefWeight,
-  );
-  const summit = Math.max(broadSummit, low + extremeRelief * 0.92);
-  return {
-    minimum,
-    maximum,
-    low,
-    shoulder,
-    summit,
-    broadRelief,
-    extremeRelief,
-    robustRelief,
-    reliefGate: smoothstep(
-      ILLUSTRATED_TERRAIN_FIELDS.elevation.reliefGateStartMeters,
-      ILLUSTRATED_TERRAIN_FIELDS.elevation.reliefGateFullMeters,
-      robustRelief,
-    ),
-  };
-}
-
-/**
- * Converts sampled terrain causes into the one field that may emit mountains.
- * `neighbourRange` and `heightAboveNeighbourMean` are measured in metres;
- * `edgeProximity` is 0 at map centre and 1 at its outer boundary.
- */
-export function sampleIllustratedElevationField(options: {
-  height: number;
-  neighbourRange: number;
-  heightAboveNeighbourMean: number;
-  edgeProximity: number;
-  stats: IllustratedElevationStats;
-}): IllustratedElevationField {
-  const span = Math.max(options.stats.summit - options.stats.low, 0.001);
-  const shoulderNormalized = saturate(
-    (options.stats.shoulder - options.stats.low) / span,
-  );
-  const normalizedElevation = saturate((options.height - options.stats.low) / span);
-  const highland = smoothstep(shoulderNormalized, 1, normalizedElevation);
-  const slope = smoothstep(0.025, 0.3, Math.max(0, options.neighbourRange) / span);
-  const ridge = smoothstep(
-    0.008,
-    0.12,
-    Math.max(0, options.heightAboveNeighbourMean) / span,
-  );
-  const edgeHighland = highland * smoothstep(0.62, 0.96, saturate(options.edgeProximity));
-  const mountainProminence = options.stats.reliefGate * saturate(
-    highland * 0.72
-      + slope * 0.14
-      + ridge * 0.2
-      + edgeHighland * 0.16,
-  );
-  return {
-    normalizedElevation,
-    slope,
-    ridge,
-    edgeHighland,
-    mountainProminence,
-  };
-}
-
-/**
- * The exhaustive grid audit uses this categorical contract. It is deliberately
- * independent of placement randomness: a genuinely high/prominent sampled
- * summit must be covered by a range, while flat maps fail through reliefGate.
- */
-export function isGuaranteedIllustratedMountainSummit(
-  field: IllustratedElevationField,
-): boolean {
-  return field.normalizedElevation
-      >= ILLUSTRATED_TERRAIN_FIELDS.elevation.guaranteedSummitElevation
-    && field.mountainProminence
-      >= ILLUSTRATED_TERRAIN_FIELDS.elevation.mountainStart;
-}
-
-function sampleQuantile(sorted: readonly number[], quantile: number): number {
-  if (sorted.length <= 1) return sorted[0] ?? 0;
-  const index = saturate(quantile) * (sorted.length - 1);
-  const lower = Math.floor(index);
-  const upper = Math.min(sorted.length - 1, lower + 1);
-  const t = index - lower;
-  return (sorted[lower] ?? 0) * (1 - t) + (sorted[upper] ?? 0) * t;
+  return minimum === Infinity ? { minimum: 0, maximum: 0 } : { minimum, maximum };
 }
 
 function smoothstep(edge0: number, edge1: number, value: number): number {

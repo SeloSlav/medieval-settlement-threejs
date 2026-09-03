@@ -8,13 +8,16 @@ import { riverFieldBounds } from './worldToMapPercent.ts';
 import { yieldToMain } from '../utils/yieldToMain.ts';
 import {
   ILLUSTRATED_TERRAIN_FIELD_CONTRACT,
-  ILLUSTRATED_TERRAIN_FIELDS,
   ILLUSTRATED_TERRAIN_STYLE,
-  isGuaranteedIllustratedMountainSummit,
   resolveIllustratedElevationStats,
-  sampleIllustratedElevationField,
   type IllustratedElevationStats,
 } from './illustratedTerrainFields.ts';
+import {
+  MAP_CONTOUR_LEVELS,
+  resolveTerrainContourLevels,
+  traceTerrainContours,
+  type TerrainContourPath,
+} from './terrainContours.ts';
 import {
   projectIllustratedWoodland,
   type IllustratedWoodlandGlyph,
@@ -29,7 +32,7 @@ const MAP_ART_RESOLUTION = 512;
 const MINIMAP_RESOLUTION = 2048;
 const MAP_ART_SCALE = MINIMAP_RESOLUTION / MAP_ART_RESOLUTION;
 const ROWS_PER_YIELD = 32 * MAP_ART_SCALE;
-const RELIEF_GRID_RESOLUTION = 82;
+const RELIEF_GRID_RESOLUTION = 161;
 const GRASS_GLYPH_SPACING = ILLUSTRATED_TERRAIN_STYLE.grassland
   .glyphSpacingAuthorPixels * MAP_ART_SCALE;
 
@@ -55,17 +58,9 @@ export type TerrainMinimapImage = {
 export type IllustratedTerrainMapDiagnostics = {
   fieldContract: typeof ILLUSTRATED_TERRAIN_FIELD_CONTRACT;
   seed: number;
-  elevation: IllustratedElevationStats & {
-    contourLevelCount: number;
-    mountainRangeCount: number;
-    mountainPeakCount: number;
-    forcedMountainRangeCount: number;
-    strongestMountainProminence: number;
-    summitCoverageGuaranteed: boolean;
-  };
+  elevation: ReliefDrawingDiagnostics;
   woodland: IllustratedWoodlandProjection['diagnostics'] & {
     drawnTreeGlyphCount: number;
-    suppressedForMountainCount: number;
     suppressedForWaterCount: number;
   };
 };
@@ -105,7 +100,6 @@ export async function createTerrainMinimapImage(
     woodlandProjection,
     seed,
     waterMask,
-    relief.mountainFootprints,
   );
   drawWaterHatching(context, waterMask, seed);
   drawInkBorder(context);
@@ -113,7 +107,7 @@ export async function createTerrainMinimapImage(
   const diagnostics: IllustratedTerrainMapDiagnostics = {
     fieldContract: ILLUSTRATED_TERRAIN_FIELD_CONTRACT,
     seed,
-    elevation: relief.diagnostics,
+    elevation: relief,
     woodland: woodlandDiagnostics,
   };
 
@@ -124,19 +118,20 @@ export async function createTerrainMinimapImage(
   canvas.dataset.paperField = 'broad-middle-tooth-fibres-edge-patina';
   canvas.dataset.terrainMarkMaking = 'seeded-organic-charcoal-etching';
   canvas.dataset.terrainHierarchy = 'roads-buildings-stamps-over-relief';
-  canvas.dataset.mountainRanges = String(diagnostics.elevation.mountainRangeCount);
-  canvas.dataset.mountainSummitCovered = String(diagnostics.elevation.summitCoverageGuaranteed);
+  canvas.dataset.elevationStyle = 'dotted-charcoal-contours';
+  canvas.dataset.contourIntervalMeters = String(diagnostics.elevation.contourIntervalMeters);
+  canvas.dataset.contourLevels = String(diagnostics.elevation.contourLevelCount);
+  canvas.dataset.contourPaths = String(diagnostics.elevation.contourPathCount);
   canvas.dataset.woodlandSource = 'accepted-tree-placements';
   canvas.dataset.woodlandSourceTrees = String(diagnostics.woodland.sourceTreeCount);
   canvas.dataset.woodlandProjectedGlyphs = String(diagnostics.woodland.treeGlyphCount);
   canvas.dataset.woodlandGlyphs = String(diagnostics.woodland.drawnTreeGlyphCount);
-  canvas.dataset.woodlandMountainSuppressions = String(diagnostics.woodland.suppressedForMountainCount);
   canvas.dataset.woodlandOrphans = String(diagnostics.woodland.orphanGlyphCount);
   canvas.dataset.woodlandSignature = diagnostics.woodland.signature;
   canvas.setAttribute('role', 'img');
   canvas.setAttribute(
     'aria-label',
-    'Hand-drawn parchment terrain map showing rivers, relief, grassland, and forest',
+    'Hand-drawn parchment terrain map showing rivers, dotted elevation contours, grassland, and forest',
   );
   return { canvas, bounds, diagnostics };
 }
@@ -383,30 +378,11 @@ function drawFeatheredPaperOval(
   context.restore();
 }
 
-type ElevationArtGrid = {
-  heights: Float32Array;
-  stats: IllustratedElevationStats;
-};
-
 type ReliefDrawingDiagnostics = IllustratedElevationStats & {
+  contourIntervalMeters: number;
   contourLevelCount: number;
-  mountainRangeCount: number;
-  mountainPeakCount: number;
-  forcedMountainRangeCount: number;
-  strongestMountainProminence: number;
-  summitCoverageGuaranteed: boolean;
-};
-
-type ReliefDrawingResult = {
-  diagnostics: ReliefDrawingDiagnostics;
-  mountainFootprints: IllustratedFeatureFootprint[];
-};
-
-type IllustratedFeatureFootprint = {
-  x: number;
-  y: number;
-  radiusX: number;
-  radiusY: number;
+  contourPathCount: number;
+  contourMarkCount: number;
 };
 
 async function drawReliefLines(
@@ -415,363 +391,126 @@ async function drawReliefLines(
   bounds: TerrainBounds,
   waterMask: Uint8Array,
   seed: number,
-): Promise<ReliefDrawingResult> {
+): Promise<ReliefDrawingDiagnostics> {
   const heights = new Float32Array(RELIEF_GRID_RESOLUTION * RELIEF_GRID_RESOLUTION);
-  const sortedHeights: number[] = [];
   const denominator = RELIEF_GRID_RESOLUTION - 1;
-
   for (let row = 0; row < RELIEF_GRID_RESOLUTION; row++) {
     if (row > 0 && row % 16 === 0) await yieldToMain();
-    const z = bounds.minZ + (row / denominator) * (bounds.maxZ - bounds.minZ);
+    const z = bounds.minZ + row / denominator * (bounds.maxZ - bounds.minZ);
     for (let column = 0; column < RELIEF_GRID_RESOLUTION; column++) {
-      const x = bounds.minX + (column / denominator) * (bounds.maxX - bounds.minX);
-      const height = terrain.getHeightAt(x, z);
-      heights[row * RELIEF_GRID_RESOLUTION + column] = height;
-      sortedHeights.push(height);
+      const x = bounds.minX + column / denominator * (bounds.maxX - bounds.minX);
+      heights[row * RELIEF_GRID_RESOLUTION + column] = terrain.getHeightAt(x, z);
     }
   }
-
-  sortedHeights.sort((a, b) => a - b);
-  const levels = ILLUSTRATED_TERRAIN_FIELDS.elevation.contourQuantiles
-    .map((quantile) => sortedHeights[Math.floor((sortedHeights.length - 1) * quantile)])
-    .filter((level, index, values) => index === 0 || Math.abs(level - values[index - 1]) > 0.08);
   const stats = resolveIllustratedElevationStats(heights);
+  const { intervalMeters, levels } = resolveTerrainContourLevels(stats.minimum, stats.maximum);
+  const diagnostics: ReliefDrawingDiagnostics = {
+    ...stats,
+    contourIntervalMeters: intervalMeters,
+    contourLevelCount: levels.length,
+    contourPathCount: 0,
+    contourMarkCount: 0,
+  };
+  if (!levels.length) return diagnostics;
 
-  context.save();
-  const contourInk = ILLUSTRATED_TERRAIN_STYLE.contours.ink;
-  context.strokeStyle = `rgba(${contourInk.r}, ${contourInk.g}, ${contourInk.b}, ${ILLUSTRATED_TERRAIN_STYLE.contours.alpha})`;
-  context.lineWidth = ILLUSTRATED_TERRAIN_STYLE.contours.lineWidthAuthorPixels
-    * MAP_ART_SCALE;
-  context.lineCap = 'round';
-  context.lineJoin = 'round';
-  context.setLineDash([2 * MAP_ART_SCALE, 3.1 * MAP_ART_SCALE]);
-
-  for (let levelIndex = 0; levelIndex < levels.length; levelIndex++) {
-    const level = levels[levelIndex];
-    context.lineDashOffset = mapHash(levelIndex, 19, seed) * 4 * MAP_ART_SCALE;
-    context.beginPath();
-
-    for (let row = 0; row < RELIEF_GRID_RESOLUTION - 1; row++) {
-      for (let column = 0; column < RELIEF_GRID_RESOLUTION - 1; column++) {
-        const centerX = ((column + 0.5) / denominator) * (MINIMAP_RESOLUTION - 1);
-        const centerY = ((row + 0.5) / denominator) * (MINIMAP_RESOLUTION - 1);
-        if (isWaterPixel(waterMask, centerX, centerY)) continue;
-
-        const topLeft = heights[row * RELIEF_GRID_RESOLUTION + column];
-        const topRight = heights[row * RELIEF_GRID_RESOLUTION + column + 1];
-        const bottomRight = heights[(row + 1) * RELIEF_GRID_RESOLUTION + column + 1];
-        const bottomLeft = heights[(row + 1) * RELIEF_GRID_RESOLUTION + column];
-        const segments = contourSegments(topLeft, topRight, bottomRight, bottomLeft, level);
-
-        for (const [fromEdge, toEdge] of segments) {
-          const from = contourEdgePoint(
-            fromEdge,
-            column,
-            row,
-            topLeft,
-            topRight,
-            bottomRight,
-            bottomLeft,
-            level,
-            denominator,
-          );
-          const to = contourEdgePoint(
-            toEdge,
-            column,
-            row,
-            topLeft,
-            topRight,
-            bottomRight,
-            bottomLeft,
-            level,
-            denominator,
-          );
-          context.moveTo(from.x, from.y);
-          context.lineTo(to.x, to.y);
-        }
-      }
+  // A separate ink sheet lets the exact river mask erase charcoal from water,
+  // including thin tributaries that can run through a single contour cell.
+  const inkCanvas = document.createElement('canvas');
+  inkCanvas.width = MINIMAP_RESOLUTION;
+  inkCanvas.height = MINIMAP_RESOLUTION;
+  const ink = inkCanvas.getContext('2d')!;
+  ink.lineCap = 'round';
+  ink.lineJoin = 'round';
+  for (const level of levels) {
+    const paths = traceTerrainContours(heights, RELIEF_GRID_RESOLUTION, level);
+    const index = Math.round(level / intervalMeters);
+    const isIndex = index % MAP_CONTOUR_LEVELS.indexEvery === 0;
+    diagnostics.contourPathCount += paths.length;
+    for (let pathIndex = 0; pathIndex < paths.length; pathIndex++) {
+      diagnostics.contourMarkCount += drawCharcoalContour(
+        ink, paths[pathIndex], isIndex,
+        seed ^ Math.imul(index, 0x45d9f3b) ^ Math.imul(pathIndex + 1, 0x119de1f3),
+      );
     }
-
-    context.stroke();
+    await yieldToMain();
   }
 
+  const pixels = ink.getImageData(0, 0, MINIMAP_RESOLUTION, MINIMAP_RESOLUTION);
+  for (let row = 0; row < MINIMAP_RESOLUTION; row++) {
+    if (row > 0 && row % ROWS_PER_YIELD === 0) await yieldToMain();
+    for (let column = 0; column < MINIMAP_RESOLUTION; column++) {
+      const index = row * MINIMAP_RESOLUTION + column;
+      if (waterMask[index]) pixels.data[index * 4 + 3] = 0;
+    }
+  }
+  ink.putImageData(pixels, 0, 0);
+  context.save();
+  context.beginPath();
+  context.rect(5 * MAP_ART_SCALE, 5 * MAP_ART_SCALE,
+    MINIMAP_RESOLUTION - 10 * MAP_ART_SCALE, MINIMAP_RESOLUTION - 10 * MAP_ART_SCALE);
+  context.clip();
+  context.drawImage(inkCanvas, 0, 0);
   context.restore();
-  const mountainDiagnostics = await drawMountainRanges(
-    context,
-    { heights, stats },
-    waterMask,
-    seed,
-  );
-  return {
-    diagnostics: {
-      ...stats,
-      contourLevelCount: levels.length,
-      mountainRangeCount: mountainDiagnostics.mountainRangeCount,
-      mountainPeakCount: mountainDiagnostics.mountainPeakCount,
-      forcedMountainRangeCount: mountainDiagnostics.forcedMountainRangeCount,
-      strongestMountainProminence: mountainDiagnostics.strongestMountainProminence,
-      summitCoverageGuaranteed: mountainDiagnostics.summitCoverageGuaranteed,
-    },
-    mountainFootprints: mountainDiagnostics.mountainFootprints,
-  };
+  return diagnostics;
 }
 
-async function drawMountainRanges(
+function drawCharcoalContour(
   context: CanvasRenderingContext2D,
-  elevation: ElevationArtGrid,
-  waterMask: Uint8Array,
-  seed: number,
-): Promise<{
-  mountainRangeCount: number;
-  mountainPeakCount: number;
-  forcedMountainRangeCount: number;
-  strongestMountainProminence: number;
-  summitCoverageGuaranteed: boolean;
-  mountainFootprints: IllustratedFeatureFootprint[];
-}> {
-  const spacing = ILLUSTRATED_TERRAIN_FIELDS.elevation.mountainSpacingAuthorPixels
-    * MAP_ART_SCALE;
-  const inset = 18 * MAP_ART_SCALE;
-  let mountainRangeCount = 0;
-  let mountainPeakCount = 0;
-  let rowIndex = 0;
-  const drawnRanges: IllustratedFeatureFootprint[] = [];
-
-  context.save();
-  context.lineCap = 'round';
-  context.lineJoin = 'round';
-
-  for (let row = inset; row < MINIMAP_RESOLUTION - inset; row += spacing) {
-    if (rowIndex > 0 && rowIndex % 4 === 0) await yieldToMain();
-    const stagger = rowIndex % 2 === 0 ? 0 : spacing * 0.5;
-    let columnIndex = 0;
-    for (
-      let column = inset + stagger;
-      column < MINIMAP_RESOLUTION - inset;
-      column += spacing
-    ) {
-      const jitterX = (
-        mapHash(columnIndex, rowIndex, seed ^ 0x5e11) - 0.5
-      ) * spacing * 0.52;
-      const jitterY = (
-        mapHash(columnIndex, rowIndex, seed ^ 0x197b) - 0.5
-      ) * spacing * 0.42;
-      const pixelX = column + jitterX;
-      const pixelY = row + jitterY;
-      const field = sampleElevationGridField(elevation, pixelX, pixelY);
-      const prominence = field.mountainProminence;
-      if (prominence < ILLUSTRATED_TERRAIN_FIELDS.elevation.mountainStart) {
-        columnIndex++;
-        continue;
-      }
-      const placementChance = clamp01((prominence - 0.1) / 0.72) * 0.96;
-      if (mapHash(columnIndex + 71, rowIndex - 43, seed) > placementChance) {
-        columnIndex++;
-        continue;
-      }
-
-      const rangeScale = resolveMountainRangeScale(prominence, columnIndex, rowIndex, seed);
-      const footprintRadiusX = 14 * rangeScale;
-      const footprintRadiusY = 8.5 * rangeScale;
-      if (intersectsFeatureFootprints(
-        pixelX,
-        pixelY,
-        footprintRadiusX,
-        footprintRadiusY,
-        drawnRanges,
-      )) {
-        columnIndex++;
-        continue;
-      }
-      if (!isLandFootprintClear(
-        waterMask,
-        pixelX,
-        pixelY,
-        footprintRadiusX,
-        footprintRadiusY,
-      )) {
-        columnIndex++;
-        continue;
-      }
-
-      const peakCount = resolveMountainPeakCount(prominence, columnIndex, rowIndex, seed);
-      drawMountainRangeGlyph(
-        context,
-        pixelX,
-        pixelY,
-        rangeScale,
-        peakCount,
-        prominence,
-        seed ^ Math.imul(rowIndex + 1, 0x45d9f3b) ^ Math.imul(columnIndex + 1, 0x27d4eb2d),
-      );
-      mountainRangeCount++;
-      mountainPeakCount += peakCount;
-      drawnRanges.push({
-        x: pixelX,
-        y: pixelY,
-        radiusX: footprintRadiusX,
-        radiusY: footprintRadiusY,
-      });
-      columnIndex++;
-    }
-    rowIndex++;
-  }
-
-  const strongestSummit = await findStrongestGuaranteedMountainCandidate(
-    elevation,
-    waterMask,
-    seed,
-    inset,
-  );
-  let forcedMountainRangeCount = 0;
-  let summitCoverageGuaranteed = strongestSummit === null;
-  if (strongestSummit) {
-    const coverageRadius = spacing
-      * ILLUSTRATED_TERRAIN_FIELDS.elevation.guaranteedCoverageRadiusSpacing;
-    const summitAlreadyCovered = drawnRanges.some((range) => Math.hypot(
-      range.x - strongestSummit.x,
-      range.y - strongestSummit.y,
-    ) <= coverageRadius);
-    if (!summitAlreadyCovered) {
-      const peakCount = Math.max(
-        3,
-        resolveMountainPeakCount(
-          strongestSummit.prominence,
-          strongestSummit.gridColumn,
-          strongestSummit.gridRow,
-          seed,
-        ),
-      );
-      drawMountainRangeGlyph(
-        context,
-        strongestSummit.x,
-        strongestSummit.y,
-        strongestSummit.rangeScale,
-        peakCount,
-        strongestSummit.prominence,
-        seed
-          ^ Math.imul(strongestSummit.gridRow + 1, 0x45d9f3b)
-          ^ Math.imul(strongestSummit.gridColumn + 1, 0x27d4eb2d),
-      );
-      mountainRangeCount++;
-      mountainPeakCount += peakCount;
-      forcedMountainRangeCount = 1;
-      drawnRanges.push({
-        x: strongestSummit.x,
-        y: strongestSummit.y,
-        radiusX: 14 * strongestSummit.rangeScale,
-        radiusY: 8.5 * strongestSummit.rangeScale,
-      });
-    }
-    summitCoverageGuaranteed = true;
-  }
-
-  context.restore();
-  return {
-    mountainRangeCount,
-    mountainPeakCount,
-    forcedMountainRangeCount,
-    strongestMountainProminence: strongestSummit?.prominence ?? 0,
-    summitCoverageGuaranteed,
-    mountainFootprints: drawnRanges,
-  };
-}
-
-type GuaranteedMountainCandidate = {
-  x: number;
-  y: number;
-  gridColumn: number;
-  gridRow: number;
-  rawHeight: number;
-  prominence: number;
-  rangeScale: number;
-};
-
-async function findStrongestGuaranteedMountainCandidate(
-  elevation: ElevationArtGrid,
-  waterMask: Uint8Array,
-  seed: number,
-  inset: number,
-): Promise<GuaranteedMountainCandidate | null> {
-  let strongest: GuaranteedMountainCandidate | null = null;
-  const denominator = RELIEF_GRID_RESOLUTION - 1;
-
-  for (let gridRow = 0; gridRow < RELIEF_GRID_RESOLUTION; gridRow++) {
-    if (gridRow > 0 && gridRow % 12 === 0) await yieldToMain();
-    for (let gridColumn = 0; gridColumn < RELIEF_GRID_RESOLUTION; gridColumn++) {
-      const sourceX = gridColumn / denominator * (MINIMAP_RESOLUTION - 1);
-      const sourceY = gridRow / denominator * (MINIMAP_RESOLUTION - 1);
-      const field = sampleElevationGridField(elevation, sourceX, sourceY);
-      if (!isGuaranteedIllustratedMountainSummit(field)) continue;
-
-      const x = Math.max(inset, Math.min(MINIMAP_RESOLUTION - inset, sourceX));
-      const y = Math.max(inset, Math.min(MINIMAP_RESOLUTION - inset, sourceY));
-      const rangeScale = resolveMountainRangeScale(
-        field.mountainProminence,
-        gridColumn,
-        gridRow,
-        seed,
-      );
-      if (!isLandFootprintClear(
-        waterMask,
-        x,
-        y,
-        14 * rangeScale,
-        8.5 * rangeScale,
-      )) continue;
-
-      const rawHeight = elevation.heights[
-        gridRow * RELIEF_GRID_RESOLUTION + gridColumn
-      ] ?? elevation.stats.minimum;
-      if (
-        strongest
-        && rawHeight < strongest.rawHeight - 1e-5
-      ) continue;
-      if (
-        strongest
-        && Math.abs(rawHeight - strongest.rawHeight) <= 1e-5
-        && field.mountainProminence <= strongest.prominence
-      ) continue;
-      strongest = {
-        x,
-        y,
-        gridColumn,
-        gridRow,
-        rawHeight,
-        prominence: field.mountainProminence,
-        rangeScale,
-      };
-    }
-  }
-  return strongest;
-}
-
-function resolveMountainRangeScale(
-  prominence: number,
-  gridColumn: number,
-  gridRow: number,
+  path: TerrainContourPath,
+  isIndex: boolean,
   seed: number,
 ): number {
-  return (
-    ILLUSTRATED_TERRAIN_STYLE.mountains.scaleBase
-      + prominence * ILLUSTRATED_TERRAIN_STYLE.mountains.scaleProminence
-      + mapHash(gridColumn - 19, gridRow + 31, seed)
-        * ILLUSTRATED_TERRAIN_STYLE.mountains.scaleVariation
-  ) * MAP_ART_SCALE;
-}
+  const style = ILLUSTRATED_TERRAIN_STYLE.contours;
+  const random = mulberry32(seed);
+  const color = style.ink;
+  const alpha = isIndex ? style.indexAlpha : style.alpha;
+  const width = isIndex ? style.indexWidthAuthorPixels : style.lineWidthAuthorPixels;
+  let distanceToMark = random() * style.spacingAuthorPixels * MAP_ART_SCALE;
+  let markCount = 0;
 
-function resolveMountainPeakCount(
-  prominence: number,
-  gridColumn: number,
-  gridRow: number,
-  seed: number,
-): number {
-  return Math.min(
-    3,
-    2 + Math.floor(
-      prominence * 0.85 + mapHash(gridColumn, gridRow, seed ^ 0x33f1) * 0.5,
-    ),
-  );
+  for (let pointIndex = 1; pointIndex < path.points.length; pointIndex++) {
+    const from = path.points[pointIndex - 1];
+    const to = path.points[pointIndex];
+    const dx = (to.x - from.x) * (MINIMAP_RESOLUTION - 1);
+    const dy = (to.y - from.y) * (MINIMAP_RESOLUTION - 1);
+    const length = Math.hypot(dx, dy);
+    if (length < 1e-6) continue;
+    const tangentX = dx / length;
+    const tangentY = dy / length;
+    while (distanceToMark < length) {
+      const drift = (random() - 0.5) * style.driftAuthorPixels * MAP_ART_SCALE;
+      const x = from.x * (MINIMAP_RESOLUTION - 1) + tangentX * distanceToMark - tangentY * drift;
+      const y = from.y * (MINIMAP_RESOLUTION - 1) + tangentY * distanceToMark + tangentX * drift;
+      const halfLength = (style.markLengthMinAuthorPixels
+        + random() ** 2 * style.markLengthRangeAuthorPixels) * MAP_ART_SCALE * 0.5;
+      const pressure = 0.7 + random() * 0.6;
+      const markWidth = width * (0.75 + random() * 0.5) * MAP_ART_SCALE;
+
+      context.beginPath();
+      context.moveTo(x - tangentX * halfLength, y - tangentY * halfLength);
+      context.lineTo(x + tangentX * halfLength, y + tangentY * halfLength);
+      // A soft rub below each mark and an uneven dark core mimic charcoal
+      // catching the paper tooth, without a continuous machine-dashed line.
+      context.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * style.rubAlphaScale})`;
+      context.lineWidth = markWidth * style.rubWidthScale;
+      context.stroke();
+      context.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * pressure})`;
+      context.lineWidth = markWidth;
+      context.stroke();
+
+      const toothOffset = (random() - 0.5) * markWidth * 1.9;
+      context.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.5})`;
+      context.beginPath();
+      context.arc(x - tangentY * toothOffset, y + tangentX * toothOffset,
+        (0.09 + random() * 0.15) * MAP_ART_SCALE, 0, Math.PI * 2);
+      context.fill();
+      markCount++;
+      // Carry the distance through cell boundaries so no square grid shows.
+      distanceToMark += style.spacingAuthorPixels * (0.72 + random() * 0.56) * MAP_ART_SCALE;
+    }
+    distanceToMark -= length;
+  }
+  return markCount;
 }
 
 function drawGrassGlyphs(
@@ -833,7 +572,6 @@ async function drawForestGlyphs(
   projection: IllustratedWoodlandProjection,
   seed: number,
   waterMask: Uint8Array,
-  mountainFootprints: readonly IllustratedFeatureFootprint[],
 ): Promise<IllustratedTerrainMapDiagnostics['woodland']> {
   const glyphs = [...projection.glyphs].sort((a, b) => (
     a.authorY - b.authorY
@@ -850,7 +588,6 @@ async function drawForestGlyphs(
   context.lineCap = 'round';
   context.lineJoin = 'round';
   let drawnTreeGlyphCount = 0;
-  let suppressedForMountainCount = 0;
   let suppressedForWaterCount = 0;
 
   for (let glyphIndex = 0; glyphIndex < glyphs.length; glyphIndex++) {
@@ -863,16 +600,6 @@ async function drawForestGlyphs(
       continue;
     }
     const symbolScale = glyph.symbolScaleAuthorPixels * MAP_ART_SCALE;
-    if (intersectsFeatureFootprints(
-      pixelX,
-      pixelY - symbolScale * 2.8,
-      symbolScale * 3.5,
-      symbolScale * 5.2,
-      mountainFootprints,
-    )) {
-      suppressedForMountainCount++;
-      continue;
-    }
     const lean = (
       mapHash(glyph.layoutIndex, 73, seed ^ 0x731f) - 0.5
     ) * symbolScale * 4;
@@ -902,7 +629,6 @@ async function drawForestGlyphs(
   return {
     ...projection.diagnostics,
     drawnTreeGlyphCount,
-    suppressedForMountainCount,
     suppressedForWaterCount,
   };
 }
@@ -921,236 +647,6 @@ function hasWoodlandGlyphNear(
     const dy = glyph.authorY - authorY;
     return dx * dx + dy * dy <= radiusSquared;
   });
-}
-
-function sampleElevationGridField(
-  elevation: ElevationArtGrid,
-  pixelX: number,
-  pixelY: number,
-): ReturnType<typeof sampleIllustratedElevationField> {
-  const gridX = clamp01(pixelX / (MINIMAP_RESOLUTION - 1))
-    * (RELIEF_GRID_RESOLUTION - 1);
-  const gridY = clamp01(pixelY / (MINIMAP_RESOLUTION - 1))
-    * (RELIEF_GRID_RESOLUTION - 1);
-  const centerColumn = Math.round(gridX);
-  const centerRow = Math.round(gridY);
-  const height = sampleElevationGridHeight(elevation.heights, gridX, gridY);
-  let neighbourSum = 0;
-  let neighbourMinimum = Infinity;
-  let neighbourMaximum = -Infinity;
-  let neighbourCount = 0;
-
-  for (let rowOffset = -1; rowOffset <= 1; rowOffset++) {
-    for (let columnOffset = -1; columnOffset <= 1; columnOffset++) {
-      if (rowOffset === 0 && columnOffset === 0) continue;
-      const sample = elevation.heights[
-        clampGridIndex(centerRow + rowOffset) * RELIEF_GRID_RESOLUTION
-          + clampGridIndex(centerColumn + columnOffset)
-      ] ?? height;
-      neighbourSum += sample;
-      neighbourMinimum = Math.min(neighbourMinimum, sample);
-      neighbourMaximum = Math.max(neighbourMaximum, sample);
-      neighbourCount++;
-    }
-  }
-
-  const neighbourMean = neighbourCount > 0 ? neighbourSum / neighbourCount : height;
-  const normalizedX = clamp01(pixelX / (MINIMAP_RESOLUTION - 1));
-  const normalizedY = clamp01(pixelY / (MINIMAP_RESOLUTION - 1));
-  return sampleIllustratedElevationField({
-    height,
-    neighbourRange: Math.max(0, neighbourMaximum - neighbourMinimum),
-    heightAboveNeighbourMean: height - neighbourMean,
-    edgeProximity: Math.max(
-      Math.abs(normalizedX * 2 - 1),
-      Math.abs(normalizedY * 2 - 1),
-    ),
-    stats: elevation.stats,
-  });
-}
-
-function sampleElevationGridHeight(
-  heights: Float32Array,
-  gridX: number,
-  gridY: number,
-): number {
-  const column0 = clampGridIndex(Math.floor(gridX));
-  const row0 = clampGridIndex(Math.floor(gridY));
-  const column1 = clampGridIndex(column0 + 1);
-  const row1 = clampGridIndex(row0 + 1);
-  const tx = clamp01(gridX - column0);
-  const ty = clamp01(gridY - row0);
-  const topLeft = heights[row0 * RELIEF_GRID_RESOLUTION + column0] ?? 0;
-  const topRight = heights[row0 * RELIEF_GRID_RESOLUTION + column1] ?? topLeft;
-  const bottomLeft = heights[row1 * RELIEF_GRID_RESOLUTION + column0] ?? topLeft;
-  const bottomRight = heights[row1 * RELIEF_GRID_RESOLUTION + column1] ?? bottomLeft;
-  const top = topLeft * (1 - tx) + topRight * tx;
-  const bottom = bottomLeft * (1 - tx) + bottomRight * tx;
-  return top * (1 - ty) + bottom * ty;
-}
-
-function clampGridIndex(value: number): number {
-  return Math.max(0, Math.min(RELIEF_GRID_RESOLUTION - 1, value));
-}
-
-function drawMountainRangeGlyph(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  scale: number,
-  peakCount: number,
-  prominence: number,
-  seed: number,
-): void {
-  const rangeWidth = (17 + peakCount * 3.8 + prominence * 5) * scale;
-  const peakSpacing = rangeWidth / Math.max(peakCount - 0.25, 1);
-  context.save();
-  const mountainStyle = ILLUSTRATED_TERRAIN_STYLE.mountains;
-  const mountainInk = ILLUSTRATED_TERRAIN_STYLE.paper.terrainInk;
-  context.strokeStyle = `rgba(${mountainInk.r}, ${mountainInk.g}, ${mountainInk.b}, ${mountainStyle.outlineAlphaMin + prominence * mountainStyle.outlineAlphaProminence})`;
-  context.fillStyle = `rgba(111, 105, 91, ${mountainStyle.fillAlphaMin + prominence * mountainStyle.fillAlphaProminence})`;
-  context.lineWidth = (0.54 + prominence * 0.1) * MAP_ART_SCALE;
-
-  for (let peakIndex = 0; peakIndex < peakCount; peakIndex++) {
-    const horizontal = peakCount <= 1
-      ? 0
-      : peakIndex / (peakCount - 1) - 0.5;
-    const peakX = x
-      + horizontal * rangeWidth * 0.7
-      + (mapHash(peakIndex, 11, seed) - 0.5) * peakSpacing * 0.36;
-    const baselineY = y
-      + (mapHash(peakIndex, 29, seed) - 0.5) * 2.2 * scale
-      + Math.abs(horizontal) * 1.15 * scale;
-    const height = (
-      8.2
-        + prominence * 5.8
-        + mapHash(peakIndex, 47, seed) * 3.1
-    ) * scale * (1 - Math.abs(horizontal) * 0.12);
-    const halfWidth = peakSpacing * (
-      0.68 + mapHash(peakIndex, 67, seed) * 0.18
-    );
-    drawMountainPeak(
-      context,
-      peakX,
-      baselineY,
-      halfWidth,
-      height,
-      mapHash(peakIndex, 83, seed) > 0.5 ? 1 : -1,
-      scale,
-    );
-  }
-
-  context.strokeStyle = `rgba(${mountainInk.r}, ${mountainInk.g}, ${mountainInk.b}, ${mountainStyle.baselineAlphaMin + prominence * mountainStyle.baselineAlphaProminence})`;
-  context.lineWidth = 0.46 * MAP_ART_SCALE;
-  context.beginPath();
-  context.moveTo(x - rangeWidth * 0.47, y + 1.3 * scale);
-  context.quadraticCurveTo(
-    x - rangeWidth * 0.17,
-    y - 0.5 * scale,
-    x + rangeWidth * 0.06,
-    y + 0.9 * scale,
-  );
-  context.quadraticCurveTo(
-    x + rangeWidth * 0.28,
-    y + 2 * scale,
-    x + rangeWidth * 0.49,
-    y + 0.45 * scale,
-  );
-  context.stroke();
-  context.restore();
-}
-
-function drawMountainPeak(
-  context: CanvasRenderingContext2D,
-  x: number,
-  baselineY: number,
-  halfWidth: number,
-  height: number,
-  shadedSide: -1 | 1,
-  scale: number,
-): void {
-  const summitY = baselineY - height;
-  const summitNotch = Math.max(0.8 * scale, halfWidth * 0.075);
-  context.beginPath();
-  context.moveTo(x - halfWidth, baselineY);
-  context.quadraticCurveTo(
-    x - halfWidth * 0.45,
-    baselineY - height * 0.42,
-    x - summitNotch,
-    summitY + summitNotch * 0.28,
-  );
-  context.lineTo(x, summitY);
-  context.lineTo(x + summitNotch * 0.72, summitY + summitNotch * 0.95);
-  context.lineTo(x + summitNotch * 1.42, summitY + summitNotch * 0.52);
-  context.quadraticCurveTo(
-    x + halfWidth * 0.52,
-    baselineY - height * 0.38,
-    x + halfWidth,
-    baselineY,
-  );
-  context.quadraticCurveTo(x, baselineY + height * 0.08, x - halfWidth, baselineY);
-  context.closePath();
-  context.fill();
-  context.stroke();
-
-  const sideX = x + halfWidth * shadedSide;
-  context.beginPath();
-  context.moveTo(x + summitNotch * 0.34 * shadedSide, summitY + summitNotch * 0.72);
-  context.quadraticCurveTo(
-    x + halfWidth * 0.2 * shadedSide,
-    summitY + height * 0.38,
-    sideX * 0.72 + x * 0.28,
-    baselineY - height * 0.08,
-  );
-  context.stroke();
-
-  context.save();
-  context.globalAlpha *= 0.62;
-  context.lineWidth = 0.48 * MAP_ART_SCALE;
-  for (let hatchIndex = 1; hatchIndex <= 3; hatchIndex++) {
-    const t = 0.24 + hatchIndex * 0.16;
-    const slopeX = x + halfWidth * shadedSide * t;
-    const slopeY = summitY + height * t;
-    context.beginPath();
-    context.moveTo(slopeX, slopeY);
-    context.lineTo(
-      slopeX + halfWidth * shadedSide * (0.11 + hatchIndex * 0.025),
-      slopeY + height * 0.13,
-    );
-    context.stroke();
-  }
-  context.restore();
-}
-
-function isLandFootprintClear(
-  waterMask: Uint8Array,
-  x: number,
-  y: number,
-  radiusX: number,
-  radiusY: number,
-): boolean {
-  return !isWaterPixel(waterMask, x, y)
-    && !isWaterPixel(waterMask, x - radiusX * 0.72, y)
-    && !isWaterPixel(waterMask, x + radiusX * 0.72, y)
-    && !isWaterPixel(waterMask, x, y - radiusY * 0.72)
-    && !isWaterPixel(waterMask, x, y + radiusY * 0.72);
-}
-
-function intersectsFeatureFootprints(
-  x: number,
-  y: number,
-  radiusX: number,
-  radiusY: number,
-  footprints: readonly IllustratedFeatureFootprint[],
-): boolean {
-  for (const footprint of footprints) {
-    const combinedX = Math.max(1, radiusX + footprint.radiusX);
-    const combinedY = Math.max(1, radiusY + footprint.radiusY);
-    const dx = (x - footprint.x) / combinedX;
-    const dy = (y - footprint.y) / combinedY;
-    if (dx * dx + dy * dy < 1) return true;
-  }
-  return false;
 }
 
 function drawWaterHatching(
@@ -1477,78 +973,6 @@ function drawInkBorder(context: CanvasRenderingContext2D): void {
     MINIMAP_RESOLUTION - 19 * MAP_ART_SCALE,
   );
   context.restore();
-}
-
-type ContourEdge = 0 | 1 | 2 | 3;
-type ContourSegment = readonly [ContourEdge, ContourEdge];
-
-function contourSegments(
-  topLeft: number,
-  topRight: number,
-  bottomRight: number,
-  bottomLeft: number,
-  level: number,
-): readonly ContourSegment[] {
-  const cellCase = (topLeft >= level ? 1 : 0)
-    | (topRight >= level ? 2 : 0)
-    | (bottomRight >= level ? 4 : 0)
-    | (bottomLeft >= level ? 8 : 0);
-  return CONTOUR_SEGMENTS[cellCase];
-}
-
-const CONTOUR_SEGMENTS: readonly (readonly ContourSegment[])[] = [
-  [],
-  [[3, 0]],
-  [[0, 1]],
-  [[3, 1]],
-  [[1, 2]],
-  [[3, 0], [1, 2]],
-  [[0, 2]],
-  [[3, 2]],
-  [[2, 3]],
-  [[0, 2]],
-  [[0, 1], [2, 3]],
-  [[1, 2]],
-  [[1, 3]],
-  [[0, 1]],
-  [[3, 0]],
-  [],
-];
-
-function contourEdgePoint(
-  edge: ContourEdge,
-  column: number,
-  row: number,
-  topLeft: number,
-  topRight: number,
-  bottomRight: number,
-  bottomLeft: number,
-  level: number,
-  denominator: number,
-): { x: number; y: number } {
-  let gridX = column;
-  let gridY = row;
-  if (edge === 0) {
-    gridX += inverseLerp(topLeft, topRight, level);
-  } else if (edge === 1) {
-    gridX += 1;
-    gridY += inverseLerp(topRight, bottomRight, level);
-  } else if (edge === 2) {
-    gridX += inverseLerp(bottomLeft, bottomRight, level);
-    gridY += 1;
-  } else {
-    gridY += inverseLerp(topLeft, bottomLeft, level);
-  }
-  return {
-    x: (gridX / denominator) * (MINIMAP_RESOLUTION - 1),
-    y: (gridY / denominator) * (MINIMAP_RESOLUTION - 1),
-  };
-}
-
-function inverseLerp(from: number, to: number, value: number): number {
-  const span = to - from;
-  if (Math.abs(span) <= 1e-8) return 0.5;
-  return clamp01((value - from) / span);
 }
 
 function waterBoundaryStrength(

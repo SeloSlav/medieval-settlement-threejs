@@ -168,7 +168,7 @@ export class TerrainMinimapOverlay {
       this.mapCanvas.setAttribute('role', 'img');
       this.mapCanvas.setAttribute(
         'aria-label',
-        'Illustrated parchment map with ink roads, true building footprints, and resource woodcuts',
+        'Illustrated parchment map with dotted elevation contours, ink roads, true building footprints, and resource woodcuts',
       );
       this.stampCanvas = document.createElement('canvas');
       this.stampCanvas.width = image.canvas.width;
