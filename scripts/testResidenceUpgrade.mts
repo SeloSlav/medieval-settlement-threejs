@@ -60,8 +60,9 @@ import {
 const householdMarket = building('household-market', 'marketplace', 2);
 Object.assign(householdMarket, {
   firewood: 12,
-  food: 100,
+  ryeBread: 100,
   berries: 100,
+  foodInventoryMigrated: true,
   cloth: 12,
   shoes: 12,
 });
@@ -387,14 +388,14 @@ assert.equal(
 );
 
 const tierThree = residence('tier-three', 3, 10);
-tierThree.food = 100;
+tierThree.ryeBread = 100;
 tierThree.berries = 100;
 tierThree.meat = 100;
 tierThree.fish = 100;
 tierThree.foodInventoryMigrated = true;
 const householdStockedTierThree = residence('household-stocked-tier-three', 3, 10);
 Object.assign(householdStockedTierThree, {
-  food: 100,
+  ryeBread: 100,
   berries: 100,
   meat: 100,
   fish: 100,
