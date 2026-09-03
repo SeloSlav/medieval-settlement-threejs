@@ -141,7 +141,7 @@ const RESIDENCE_NEED_ICON_RESOURCES: Record<ResidenceNeedKind, ResourceCostKind>
   firewood: 'firewood',
   water: 'water',
   church: 'candles',
-  foodVariety: 'vegetables',
+  foodVariety: 'cabbage',
   cloth: 'cloth',
   shoes: 'shoes',
   preservedFood: 'preservedFood',
@@ -1117,12 +1117,6 @@ export function residenceFoodNeedSources(residence: ResidenceState): ResidenceFo
       : [];
   });
   const legacyCandidates: ResidenceFoodNeedSource[] = [
-    {
-      kind: 'vegetables',
-      label: 'Mixed vegetables',
-      amount: Math.max(0, residence.vegetables ?? 0),
-      mealEquivalent: Math.max(0, residence.vegetables ?? 0),
-    },
     {
       kind: 'preservedFood',
       label: 'Preserved staples',

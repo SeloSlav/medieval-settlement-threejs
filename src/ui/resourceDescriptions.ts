@@ -68,7 +68,6 @@ export const RESOURCE_DESCRIPTIONS: Readonly<Record<ResourceCostKind, string>> =
   cherries: 'Orchard cherries eaten fresh with household meals.',
   aronia: 'Aronia berries from backyard orchards, eaten fresh or made into jam.',
   rosehips: 'Rosehips from backyard orchards, eaten fresh or made into jam.',
-  vegetables: 'Garden vegetables for household meals.',
   cabbage: 'Cabbages grown in backyard gardens for household meals.',
   carrots: 'Carrots grown in backyard gardens for household meals.',
   beetroot: 'Beetroot grown in backyard gardens for household meals.',

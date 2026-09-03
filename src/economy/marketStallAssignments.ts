@@ -182,7 +182,6 @@ function marketStallDisplayKind(
     case 'pears':
     case 'cherries':
     case 'grapes': return 'fruit';
-    case 'vegetables':
     case 'cabbage':
     case 'carrots':
     case 'beetroot': return 'vegetables';

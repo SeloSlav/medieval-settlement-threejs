@@ -116,7 +116,6 @@ export function syncResidences(
       cherries: wholeResourceUnits(row.cherries),
       aronia: wholeResourceUnits(upgradeRow.aronia),
       rosehips: wholeResourceUnits(upgradeRow.rosehips),
-      vegetables: wholeResourceUnits(row.vegetables),
       cabbage: wholeResourceUnits(upgradeRow.cabbage),
       carrots: wholeResourceUnits(upgradeRow.carrots),
       beetroot: wholeResourceUnits(upgradeRow.beetroot),

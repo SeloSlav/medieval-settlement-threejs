@@ -47,7 +47,6 @@ export const DELIVERY_CARGO_KINDS = [
   'cherries',
   'aronia',
   'rosehips',
-  'vegetables',
   'cabbage',
   'carrots',
   'beetroot',
@@ -386,8 +385,6 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'apples';
     case 34:
       return 'cherries';
-    case 35:
-      return 'vegetables';
     case 36:
       return 'eggs';
     case 37:
@@ -571,8 +568,6 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
       return 'Aronia berries';
     case 'rosehips':
       return 'Rosehips';
-    case 'vegetables':
-      return 'Legacy mixed vegetables';
     case 'cabbage':
       return 'Cabbage';
     case 'carrots':
@@ -1036,7 +1031,6 @@ export function cargoColor(kind: DeliveryCargoKind): number {
     case 'cherries':
     case 'aronia':
     case 'rosehips':
-    case 'vegetables':
     case 'cabbage':
     case 'carrots':
     case 'beetroot':

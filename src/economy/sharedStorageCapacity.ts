@@ -75,7 +75,6 @@ function storageKeyForResource(kind: ResourceKind): string | null {
     case 'cherries':
     case 'aronia':
     case 'rosehips':
-    case 'vegetables':
     case 'cabbage':
     case 'carrots':
     case 'beetroot':

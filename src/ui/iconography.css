@@ -912,7 +912,6 @@
 .resource-cost__item[data-resource-cost='milk'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='apples'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='cherries'] .resource-cost__icon,
-.resource-cost__item[data-resource-cost='vegetables'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='eggs'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='grapes'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='curedMeat'] .resource-cost__icon,
@@ -930,7 +929,6 @@
 .resource-cost__item[data-resource-cost='milk'] .resource-cost__icon { background-position: 33.333% 33.333%; }
 .resource-cost__item[data-resource-cost='apples'] .resource-cost__icon { background-position: 66.667% 33.333%; }
 .resource-cost__item[data-resource-cost='cherries'] .resource-cost__icon { background-position: 100% 33.333%; }
-.resource-cost__item[data-resource-cost='vegetables'] .resource-cost__icon { background-position: 0 66.667%; }
 .resource-cost__item[data-resource-cost='eggs'] .resource-cost__icon { background-position: 33.333% 66.667%; }
 .resource-cost__item[data-resource-cost='grapes'] .resource-cost__icon { background-position: 66.667% 66.667%; }
 .resource-cost__item[data-resource-cost='curedMeat'] .resource-cost__icon { background-position: 0 100%; }
@@ -1005,7 +1003,6 @@
 .settlement-hud__food-card[data-food-resource='milk']::before { background-position: 33.333% 33.333%; }
 .settlement-hud__food-card[data-food-resource='apples']::before { background-position: 66.667% 33.333%; }
 .settlement-hud__food-card[data-food-resource='cherries']::before { background-position: 100% 33.333%; }
-.settlement-hud__food-card[data-food-resource='vegetables']::before { background-position: 0 66.667%; }
 .settlement-hud__food-card[data-food-resource='eggs']::before { background-position: 33.333% 66.667%; }
 .settlement-hud__food-card[data-food-resource='grapes']::before { background-position: 66.667% 66.667%; }
 .settlement-hud__food-card[data-food-resource='curedMeat']::before { background-position: 0 100%; }

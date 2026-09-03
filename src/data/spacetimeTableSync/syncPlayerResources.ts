@@ -130,7 +130,6 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       cherries: wholeResourceUnits(row.cherries),
       aronia: wholeResourceUnits(leatherRow.aronia),
       rosehips: wholeResourceUnits(leatherRow.rosehips),
-      vegetables: wholeResourceUnits(row.vegetables),
       cabbage: wholeResourceUnits(leatherRow.cabbage),
       carrots: wholeResourceUnits(leatherRow.carrots),
       beetroot: wholeResourceUnits(leatherRow.beetroot),

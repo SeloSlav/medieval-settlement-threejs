@@ -1,4 +1,4 @@
-export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt', 'ryeFlour', 'maslinFlour', 'ale', 'cider', 'pearCider', 'mead', 'preservedFood', 'honey', 'wax', 'candles', 'wine', 'wool', 'flax', 'yarn', 'linen', 'cloth', 'pelts', 'hides', 'leather', 'shoes', 'ironwork', 'polearms', 'sidearms', 'shields', 'bows', 'crossbows', 'paddedArmor', 'mailArmor', 'ammunition', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'manure', 'remedies', 'roofTiles', 'gold', 'ryeBread', 'maslinBread', 'meat', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips', 'vegetables', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam', 'animalFeed'] as const;
+export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt', 'ryeFlour', 'maslinFlour', 'ale', 'cider', 'pearCider', 'mead', 'preservedFood', 'honey', 'wax', 'candles', 'wine', 'wool', 'flax', 'yarn', 'linen', 'cloth', 'pelts', 'hides', 'leather', 'shoes', 'ironwork', 'polearms', 'sidearms', 'shields', 'bows', 'crossbows', 'paddedArmor', 'mailArmor', 'ammunition', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'manure', 'remedies', 'roofTiles', 'gold', 'ryeBread', 'maslinBread', 'meat', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam', 'animalFeed'] as const;
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 
 export const RESOURCE_NODE_KINDS = ['quarry', 'game', 'berries', 'mushrooms', 'fish'] as const;
@@ -185,7 +185,6 @@ export type BuildingState = {
   cherries?: number;
   aronia?: number;
   rosehips?: number;
-  vegetables?: number;
   cabbage?: number;
   carrots?: number;
   beetroot?: number;
@@ -496,7 +495,6 @@ export type ResidenceState = {
   cherries?: number;
   aronia?: number;
   rosehips?: number;
-  vegetables?: number;
   cabbage?: number;
   carrots?: number;
   beetroot?: number;

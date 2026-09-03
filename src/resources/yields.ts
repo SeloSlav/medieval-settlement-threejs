@@ -60,8 +60,6 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
       return `${Math.round(amount)} aronia berries`;
     case 'rosehips':
       return `${Math.round(amount)} rosehips`;
-    case 'vegetables':
-      return `${Math.round(amount)} legacy mixed vegetables`;
     case 'cabbage':
       return `${Math.round(amount)} cabbage`;
     case 'carrots':

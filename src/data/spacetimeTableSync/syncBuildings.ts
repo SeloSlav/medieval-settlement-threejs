@@ -182,7 +182,6 @@ function buildingStateFromRow(
     cherries: wholeResourceUnits(row.cherries),
     aronia: wholeResourceUnits(materialRow.aronia),
     rosehips: wholeResourceUnits(materialRow.rosehips),
-    vegetables: wholeResourceUnits(row.vegetables),
     cabbage: wholeResourceUnits(materialRow.cabbage),
     carrots: wholeResourceUnits(materialRow.carrots),
     beetroot: wholeResourceUnits(materialRow.beetroot),

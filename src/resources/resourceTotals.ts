@@ -127,7 +127,6 @@ export type ResourceTotals = {
   cherries: number;
   aronia: number;
   rosehips: number;
-  vegetables: number;
   cabbage: number;
   carrots: number;
   beetroot: number;
@@ -324,7 +323,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let cherries = ledger?.cherries ?? 0;
   let aronia = ledger?.aronia ?? 0;
   let rosehips = ledger?.rosehips ?? 0;
-  let vegetables = ledger?.vegetables ?? 0;
   let cabbage = ledger?.cabbage ?? 0;
   let carrots = ledger?.carrots ?? 0;
   let beetroot = ledger?.beetroot ?? 0;
@@ -363,7 +361,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let reservedCherries = 0;
   let reservedAronia = 0;
   let reservedRosehips = 0;
-  let reservedVegetables = 0;
   let reservedCabbage = 0;
   let reservedCarrots = 0;
   let reservedBeetroot = 0;
@@ -446,7 +443,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     cherries += building.cherries ?? 0;
     aronia += building.aronia ?? 0;
     rosehips += building.rosehips ?? 0;
-    vegetables += building.vegetables ?? 0;
     cabbage += building.cabbage ?? 0;
     carrots += building.carrots ?? 0;
     beetroot += building.beetroot ?? 0;
@@ -476,7 +472,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
       reservedCherries += Math.max(0, building.cherries ?? 0);
       reservedAronia += Math.max(0, building.aronia ?? 0);
       reservedRosehips += Math.max(0, building.rosehips ?? 0);
-      reservedVegetables += Math.max(0, building.vegetables ?? 0);
       reservedCabbage += Math.max(0, building.cabbage ?? 0);
       reservedCarrots += Math.max(0, building.carrots ?? 0);
       reservedBeetroot += Math.max(0, building.beetroot ?? 0);
@@ -535,7 +530,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     const pantryCherries = Math.max(0, residence.cherries ?? 0);
     const pantryAronia = Math.max(0, residence.aronia ?? 0);
     const pantryRosehips = Math.max(0, residence.rosehips ?? 0);
-    const pantryVegetables = Math.max(0, residence.vegetables ?? 0);
     const pantryCabbage = Math.max(0, residence.cabbage ?? 0);
     const pantryCarrots = Math.max(0, residence.carrots ?? 0);
     const pantryBeetroot = Math.max(0, residence.beetroot ?? 0);
@@ -561,7 +555,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     cherries += pantryCherries;
     aronia += pantryAronia;
     rosehips += pantryRosehips;
-    vegetables += pantryVegetables;
     cabbage += pantryCabbage;
     carrots += pantryCarrots;
     beetroot += pantryBeetroot;
@@ -587,7 +580,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     reservedCherries += pantryCherries;
     reservedAronia += pantryAronia;
     reservedRosehips += pantryRosehips;
-    reservedVegetables += pantryVegetables;
     reservedCabbage += pantryCabbage;
     reservedCarrots += pantryCarrots;
     reservedBeetroot += pantryBeetroot;
@@ -634,7 +626,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     + cherries * foodMealValue('cherries')
     + aronia * foodMealValue('aronia')
     + rosehips * foodMealValue('rosehips')
-    + vegetables * foodMealValue('vegetables')
     + cabbage * foodMealValue('cabbage')
     + carrots * foodMealValue('carrots')
     + beetroot * foodMealValue('beetroot')
@@ -708,7 +699,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     cherries,
     aronia,
     rosehips,
-    vegetables,
     cabbage,
     carrots,
     beetroot,
@@ -739,7 +729,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   const surplusCherries = Math.max(0, cherries - reservedCherries);
   const surplusAronia = Math.max(0, aronia - reservedAronia);
   const surplusRosehips = Math.max(0, rosehips - reservedRosehips);
-  const surplusVegetables = Math.max(0, vegetables - reservedVegetables);
   const surplusCabbage = Math.max(0, cabbage - reservedCabbage);
   const surplusCarrots = Math.max(0, carrots - reservedCarrots);
   const surplusBeetroot = Math.max(0, beetroot - reservedBeetroot);
@@ -769,7 +758,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     + surplusCherries * foodMealValue('cherries')
     + surplusAronia * foodMealValue('aronia')
     + surplusRosehips * foodMealValue('rosehips')
-    + surplusVegetables * foodMealValue('vegetables')
     + surplusCabbage * foodMealValue('cabbage')
     + surplusCarrots * foodMealValue('carrots')
     + surplusBeetroot * foodMealValue('beetroot')
@@ -807,7 +795,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     cherries: surplusCherries,
     aronia: surplusAronia,
     rosehips: surplusRosehips,
-    vegetables: surplusVegetables,
     cabbage: surplusCabbage,
     carrots: surplusCarrots,
     beetroot: surplusBeetroot,
@@ -873,7 +860,6 @@ export function computeInTransitResourceTotals(
     + totals.cherries * foodMealValue('cherries')
     + totals.aronia * foodMealValue('aronia')
     + totals.rosehips * foodMealValue('rosehips')
-    + totals.vegetables * foodMealValue('vegetables')
     + totals.cabbage * foodMealValue('cabbage')
     + totals.carrots * foodMealValue('carrots')
     + totals.beetroot * foodMealValue('beetroot')
@@ -1262,7 +1248,6 @@ function emptyResourceTotals(): ResourceTotals {
     cherries: 0,
     aronia: 0,
     rosehips: 0,
-    vegetables: 0,
     cabbage: 0,
     carrots: 0,
     beetroot: 0,

@@ -89,7 +89,6 @@ export default __t.row({
   milk: __t.f64(),
   apples: __t.f64(),
   cherries: __t.f64(),
-  vegetables: __t.f64(),
   eggs: __t.f64(),
   grapes: __t.f64(),
   curedMeat: __t.f64().name("cured_meat"),

@@ -32,7 +32,7 @@ export const HUD_FOOD_GROUPS: readonly HudFoodGroup[] = [
 export const HUD_FOOD_RESOURCE_KINDS = HUD_FOOD_GROUPS.flatMap(group => group.kinds);
 
 export function hudFoodResourceLabel(kind: HudFoodResourceKind): string {
-  const label = kind === 'vegetables' ? 'vegetables' : resourceCostLabel(kind);
+  const label = resourceCostLabel(kind);
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 

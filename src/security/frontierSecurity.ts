@@ -393,7 +393,6 @@ type PortableRaidStoresLike = {
   milk?: number;
   apples?: number;
   cherries?: number;
-  vegetables?: number;
   eggs?: number;
   grapes?: number;
   curedMeat?: number;
@@ -1077,7 +1076,6 @@ function portableRaidValue(stores: PortableRaidStoresLike): number {
     + positivePortableAmount(stores.milk)
     + positivePortableAmount(stores.apples)
     + positivePortableAmount(stores.cherries)
-    + positivePortableAmount(stores.vegetables)
     + positivePortableAmount(stores.eggs)
     + positivePortableAmount(stores.grapes)
     + positivePortableAmount(stores.curedMeat)
@@ -1196,7 +1194,6 @@ const DELIVERY_CARGO_RAID_VALUE: Partial<Record<DeliveryCargoKind, number>> = {
   milk: 1,
   apples: 1,
   cherries: 1,
-  vegetables: 1,
   eggs: 1,
   grapes: 1,
   curedMeat: 1,

@@ -20,7 +20,6 @@ export const FRESH_FOOD_KINDS = [
   'cherries',
   'aronia',
   'rosehips',
-  'vegetables',
   'cabbage',
   'carrots',
   'beetroot',
@@ -119,7 +118,6 @@ export const FOOD_MEAL_VALUES: Readonly<Record<FoodInventoryKind, number>> = {
   cherries: 1,
   aronia: 1,
   rosehips: 1,
-  vegetables: 1,
   cabbage: 1,
   carrots: 1,
   beetroot: 1,
@@ -149,7 +147,6 @@ export const FOOD_SPOILAGE_MULTIPLIERS: Readonly<Record<FoodInventoryKind, numbe
   cherries: 1,
   aronia: 1.3,
   rosehips: 1.2,
-  vegetables: 1,
   cabbage: 0.8,
   carrots: 0.7,
   beetroot: 0.75,
@@ -227,7 +224,6 @@ export function foodCategory(kind: FoodInventoryKind): FoodCategory {
     case 'maslinBread':
     case 'preservedFood':
       return 'grains';
-    case 'vegetables':
     case 'cabbage':
     case 'carrots':
     case 'beetroot':

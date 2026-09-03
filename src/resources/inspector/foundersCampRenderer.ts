@@ -50,7 +50,6 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
     case 'cherries':
     case 'aronia':
     case 'rosehips':
-    case 'vegetables':
     case 'cabbage':
     case 'carrots':
     case 'beetroot':

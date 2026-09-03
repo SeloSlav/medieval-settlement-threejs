@@ -128,7 +128,6 @@ function addCargo(
     case 'cherries':
     case 'aronia':
     case 'rosehips':
-    case 'vegetables':
     case 'cabbage':
     case 'carrots':
     case 'beetroot':
