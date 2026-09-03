@@ -527,7 +527,11 @@ export function createRiverWaterMesh(
   if (indices.length === 0) return null;
 
   const sampleStillSurface = (gx: number, gz: number): number => {
-    if (riverField.layout.terrainPreset !== 'kupa_valley') {
+    if (
+      riverField.layout.terrainPreset !== 'kupa_valley'
+      && riverField.layout.terrainPreset !== 'gomirje_meadows'
+      && riverField.layout.terrainPreset !== 'mrkopalj_polje'
+    ) {
       return sampleFloatGridBilinear(sim.terrain, nx, nz, gx, gz)
         + sampleFloatGridBilinear(baseDepth, nx, nz, gx, gz);
     }

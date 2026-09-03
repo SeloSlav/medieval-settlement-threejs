@@ -109,7 +109,10 @@ export function createRegionalResourcePlan(
   const variety = clampPercent(settings.resourceVariety);
   const adjustedVariety = clampPercent(variety + sizeBudget.varietyBonus);
   const abundance = clampPercent(settings.resourceAbundance);
-  const includeFish = settings.terrainPreset === 'delnice_meadow' || adjustedVariety >= 40;
+  const includeFish = settings.terrainPreset === 'delnice_meadow'
+    || settings.terrainPreset === 'mrkopalj_polje'
+    || settings.terrainPreset === 'gomirje_meadows'
+    || adjustedVariety >= 40;
   const requestedFishCount = includeFish
     ? Math.max(1, Math.min(3, Math.round(sizeBudget.minimumFoodNodes / 4)))
     : 0;

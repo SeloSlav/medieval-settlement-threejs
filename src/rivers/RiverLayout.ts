@@ -1,6 +1,10 @@
 import type { TerrainBounds } from '../terrain/Terrain.ts';
 import type { WorldTerrainPreset } from '../world/worldTerrainPresets.ts';
 import { createLicPoljeHydrologyAnchors } from '../terrain/LicPoljeTerrainField.ts';
+import {
+  flatlandBankDatum,
+  FLATLAND_BANK_TO_WATER_DROP,
+} from '../terrain/RegionalFlatlandTerrainField.ts';
 import { hashF64 } from './riverHash.ts';
 
 export type RiverPoint = {
@@ -105,6 +109,17 @@ export class RiverLayout {
     const tributaryCount = options.tributaryCount ?? 1;
     const drain = options.drain ?? { x: 0, z: -88 };
     const terrainPreset = options.terrainPreset ?? 'custom';
+
+    if (terrainPreset === 'gomirje_meadows') {
+      const corridor = buildGomirjeCorridor(bounds, seed);
+      const mouth = corridor.points[corridor.points.length - 1];
+      return new RiverLayout(bounds, seed, { x: mouth.x, z: mouth.z }, [corridor], [], terrainPreset);
+    }
+
+    if (terrainPreset === 'mrkopalj_polje') {
+      const pond = buildMrkopaljPond(bounds, seed);
+      return new RiverLayout(bounds, seed, { x: pond.x, z: pond.z }, [], [pond], terrainPreset);
+    }
 
     if (terrainPreset === 'kupa_valley') {
       const corridor = buildKupaCorridor(bounds, seed);
@@ -231,6 +246,9 @@ export class RiverLayout {
    * bounded-water profile.
    */
   getWaterColumnDepth(x: number, z: number): number | null {
+    if (this.terrainPreset === 'gomirje_meadows' || this.terrainPreset === 'mrkopalj_polje') {
+      return Math.max(0.08, this.getValleyDepression(x, z) - FLATLAND_BANK_TO_WATER_DROP);
+    }
     if (this.terrainPreset !== 'kupa_valley') return null;
     const hit = this.sampleCorridor(x, z);
     if (!hit) return null;
@@ -276,6 +294,9 @@ export class RiverLayout {
   }
 
   getWaterSurfaceOverride(_x: number, _z: number): number | null {
+    if (this.terrainPreset === 'gomirje_meadows' || this.terrainPreset === 'mrkopalj_polje') {
+      return flatlandBankDatum(this.terrainPreset, _x) - FLATLAND_BANK_TO_WATER_DROP;
+    }
     if (this.terrainPreset === 'vinodol_coast') return -4.4;
     const bankDatum = this.getHydraulicBankDatum(_x, _z);
     return bankDatum === null
@@ -424,6 +445,32 @@ export class RiverLayout {
       Math.floor(z / SEGMENT_CELL_SIZE),
     )) ?? [];
   }
+}
+
+function buildGomirjeCorridor(bounds: TerrainBounds, seed: number): RiverCorridor {
+  const spanX = bounds.maxX - bounds.minX;
+  const spanZ = bounds.maxZ - bounds.minZ;
+  const centerZ = (bounds.minZ + bounds.maxZ) * 0.5 - spanZ * 0.2;
+  const phase = hashF64(seed ^ 0x474f, 3, 11) * TAU;
+  // Continue beyond both visible edges so neither end becomes an inland pool.
+  const reach = 28;
+  const pointCount = Math.ceil((spanX + reach * 2) / 2.6) + 1;
+  const points: RiverPoint[] = [];
+  for (let index = 0; index < pointCount; index++) {
+    const progress = index / (pointCount - 1);
+    const x = lerp(bounds.minX - reach, bounds.maxX + reach, progress);
+    const along = (x - bounds.minX) / spanX;
+    const meander = Math.sin(along * TAU * 1.15 + phase) * spanZ * 0.036
+      + Math.sin(along * TAU * 2.4 - phase * 0.6) * spanZ * 0.009;
+    points.push({
+      x,
+      z: centerZ + meander,
+      progress,
+      halfWidth: 18 + Math.sin(along * TAU * 1.8 + phase) * 2,
+      channelDepth: 2.5,
+    });
+  }
+  return { points };
 }
 
 function buildKupaCorridor(bounds: TerrainBounds, seed: number): RiverCorridor {
@@ -746,6 +793,22 @@ function buildDelnicePond(bounds: TerrainBounds, seed: number): InlandWaterBody 
   };
 }
 
+function buildMrkopaljPond(bounds: TerrainBounds, seed: number): InlandWaterBody {
+  const span = Math.min(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ);
+  const angle = hashF64(seed ^ 0x4d52, 7, 3) * TAU;
+  const distance = span * (0.2 + hashF64(seed ^ 0x504f, 5, 9) * 0.045);
+  const radius = Math.max(30, Math.min(42, span * 0.04));
+  return {
+    x: (bounds.minX + bounds.maxX) * 0.5 + Math.cos(angle) * distance,
+    z: (bounds.minZ + bounds.maxZ) * 0.5 + Math.sin(angle) * distance,
+    radiusX: radius * 1.12,
+    radiusZ: radius * 0.86,
+    rotation: hashF64(seed ^ 0x4e44, 13, 5) * Math.PI,
+    depth: 3,
+    kind: 'pond',
+  };
+}
+
 function defaultInlandWaterBodies(
   bounds: TerrainBounds,
   seed: number,
@@ -753,8 +816,10 @@ function defaultInlandWaterBodies(
   terrainPreset: WorldTerrainPreset,
 ): InlandWaterBody[] {
   if (terrainPreset === 'delnice_meadow') return [buildDelnicePond(bounds, seed)];
+  if (terrainPreset === 'mrkopalj_polje') return [buildMrkopaljPond(bounds, seed)];
   if (
     terrainPreset === 'kupa_valley'
+    || terrainPreset === 'gomirje_meadows'
     || terrainPreset === 'vinodol_coast'
     || terrainPreset === 'lic_polje'
   ) return [];

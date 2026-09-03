@@ -29,7 +29,7 @@ const WATER_THRESHOLD = 0.48;
 const MASK_DILATE_THRESHOLD = 0.38;
 export const RENDER_WATER_MASK_THRESHOLD = MASK_DILATE_THRESHOLD;
 const MASK_DILATE_RADIUS = 1.75;
-const KUPA_MASK_DILATE_RADIUS = 0;
+const AUTHORED_MASK_DILATE_RADIUS = 0;
 const SHORE_BAND_MAX = 5.2;
 const SHORE_MUD_FADE_START = 0.18;
 const SHORE_MUD_FADE_SPAN = 10.8;
@@ -85,12 +85,13 @@ export class RiverField {
     const stepX = spanX / (resolution - 1);
     const stepZ = spanZ / (resolution - 1);
     const riverMask = layout.buildRiverMaskGrid(resolution);
-    // The Kupa cross-section owns an explicit bank/waterline contract. Its
-    // wide legacy dilation climbed the new 3.2 m bank ramp and rendered a thin
-    // water film metres above the channel. Other procedural rivers retain the
-    // connectivity dilation that closes narrow mask gaps at confluences.
+    // Authored banks and level ponds keep their original shoreline masks.
+    // Dilating these masks would push water onto the dry bank; generated
+    // confluences still need dilation to close narrow connectivity gaps.
     const dilationRadius = layout.terrainPreset === 'kupa_valley'
-      ? KUPA_MASK_DILATE_RADIUS
+      || layout.terrainPreset === 'gomirje_meadows'
+      || layout.terrainPreset === 'mrkopalj_polje'
+      ? AUTHORED_MASK_DILATE_RADIUS
       : MASK_DILATE_RADIUS;
     const connectedMask = dilateRiverMask(
       riverMask,

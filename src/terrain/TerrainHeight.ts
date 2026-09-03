@@ -13,6 +13,7 @@ import {
   type WorldGenerationSettings,
 } from '../world/worldGenerationSettings.ts';
 import { sampleLicPoljeTerrainFields } from './LicPoljeTerrainField.ts';
+import { sampleRegionalFlatlandTerrainFields } from './RegionalFlatlandTerrainField.ts';
 
 let activeRiverLayout: RiverLayout | null = null;
 let activeQuarryLayout: QuarryLayout | null = null;
@@ -387,6 +388,11 @@ export function sampleWorldRawTerrainHeight(
   const basinX = layout?.drain.x ?? 0;
   const basinZ = layout?.drain.z ?? -88;
   const relief = topographyScale(settings.topography);
+  if (settings.terrainPreset === 'gomirje_meadows' || settings.terrainPreset === 'mrkopalj_polje') {
+    return sampleRegionalFlatlandTerrainFields(
+      x, z, settings.terrainPreset, settings.seed, relief, dimensions, layout,
+    ).height;
+  }
   if (settings.terrainPreset === 'kupa_valley') {
     return sampleKupaValleyHeight(x, z, relief, settings.seed, dimensions, layout);
   }

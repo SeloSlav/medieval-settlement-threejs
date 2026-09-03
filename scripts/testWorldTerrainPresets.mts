@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
-import { KUPA_HYDRAULIC_GRADE } from '../src/rivers/RiverLayout.ts';
+import { KUPA_HYDRAULIC_GRADE, RiverLayout } from '../src/rivers/RiverLayout.ts';
 import {
   sampleNaturalTerrainHeight,
+  sampleWorldRawTerrainHeight,
   setActiveQuarryLayout,
   setActiveRiverLayout,
 } from '../src/terrain/TerrainHeight.ts';
@@ -12,12 +13,14 @@ import {
   MAP_SIZE_PRESETS,
   normalizeWorldGenerationSettings,
   resolveWorldDimensions,
+  type WorldMapSize,
 } from '../src/world/worldGenerationSettings.ts';
 import {
   applyTerrainPreset,
   isTerrainPresetAvailableForMapSize,
   seedForTerrainPreset,
   terrainPresetFromSeed,
+  SMALL_MAP_FALLBACK_TERRAIN_PRESET,
   type WorldTerrainPreset,
 } from '../src/world/worldTerrainPresets.ts';
 import {
@@ -33,6 +36,8 @@ const authoredPresets = [
   'delnice_meadow',
   'vinodol_coast',
   'lic_polje',
+  'gomirje_meadows',
+  'mrkopalj_polje',
 ] as const;
 
 for (const preset of authoredPresets) {
@@ -41,17 +46,19 @@ for (const preset of authoredPresets) {
 }
 assert.equal(isTerrainPresetAvailableForMapSize('kupa_valley', 'small'), false);
 assert.equal(isTerrainPresetAvailableForMapSize('vinodol_coast', 'small'), false);
-for (const preset of ['risnjak_pass', 'delnice_meadow', 'lic_polje', 'custom'] as const) {
+assert.equal(isTerrainPresetAvailableForMapSize('risnjak_pass', 'small'), false);
+for (const preset of ['delnice_meadow', 'lic_polje', 'gomirje_meadows', 'mrkopalj_polje', 'custom'] as const) {
   assert.equal(isTerrainPresetAvailableForMapSize(preset, 'small'), true);
 }
 
-for (const restrictedPreset of ['kupa_valley', 'vinodol_coast'] as const) {
+for (const restrictedPreset of ['kupa_valley', 'vinodol_coast', 'risnjak_pass'] as const) {
   const normalized = normalizeWorldGenerationSettings({
     seed: seedForTerrainPreset(0x1234_5678, restrictedPreset),
     mapSize: 'small',
   });
-  assert.equal(normalized.terrainPreset, 'delnice_meadow');
-  assert.equal(terrainPresetFromSeed(normalized.seed), 'delnice_meadow');
+  assert.equal(normalized.terrainPreset, SMALL_MAP_FALLBACK_TERRAIN_PRESET);
+  assert.equal(terrainPresetFromSeed(normalized.seed), SMALL_MAP_FALLBACK_TERRAIN_PRESET);
+  assert.ok(normalized.topography <= 15, 'Small-map fallback must replace the mountain settings.');
 }
 
 for (const [mapSize, preset] of Object.entries(MAP_SIZE_PRESETS)) {
@@ -351,6 +358,91 @@ assert.equal(parseLicPoljeTerrainFieldDebugMode('?lic-polje-debug=ponor'), 'pono
 assert.equal(parseLicPoljeTerrainFieldDebugMode('?lic-polje-debug=unknown'), 'final');
 assert.notEqual(licPoljeTerrainDebugWeights(licFields, 'composite'), null);
 
+const flatlandMetrics: object[] = [];
+for (const preset of ['gomirje_meadows', 'mrkopalj_polje'] as const) {
+  for (const mapSize of ['small', 'medium', 'large'] as const) {
+    for (const variation of [0, 0x714b2, 0xfffff]) {
+      const { settings, layout } = preparePreset(preset, variation, mapSize);
+      const dims = resolveWorldDimensions(mapSize);
+      const water = layout.riverLayout;
+      const label = [preset, mapSize, variation].join('/');
+      const heightAt = (x: number, z: number) => sampleWorldRawTerrainHeight(x, z, settings, dims, water)
+        - water.getValleyDepression(x, z);
+      assert.deepEqual(RiverLayout.fromSerialized(water.serialize()).serialize(), water.serialize());
+      assert.equal(water.isWaterAt(0, 0), false, label + ': founding centre must be dry');
+      assert.equal(water.corridors.length, preset === 'gomirje_meadows' ? 1 : 0);
+      assert.equal(water.inlandWaterBodies.length, preset === 'mrkopalj_polje' ? 1 : 0);
+      const waterShare = sampleWaterShare(water, dims.playableHalf, 161);
+      assert.ok(waterShare > 0 && waterShare < 0.035, label + ': water must leave the field open');
+      let drySamples = 0;
+      let gentleSamples = 0;
+      let edgeSamples = 0;
+      let gentleEdgeSamples = 0;
+      let minHeight = Infinity;
+      let maxHeight = -Infinity;
+      const resolution = 81;
+      for (let zi = 0; zi < resolution; zi++) {
+        const z = -dims.playableHalf + zi / (resolution - 1) * dims.playableSize;
+        for (let xi = 0; xi < resolution; xi++) {
+          const x = -dims.playableHalf + xi / (resolution - 1) * dims.playableSize;
+          if (water.isWaterAt(x, z)) continue;
+          const height = heightAt(x, z);
+          minHeight = Math.min(minHeight, height);
+          maxHeight = Math.max(maxHeight, height);
+          const grade = Math.hypot(
+            (heightAt(x + 3, z) - heightAt(x - 3, z)) / 6,
+            (heightAt(x, z + 3) - heightAt(x, z - 3)) / 6,
+          );
+          const gentle = grade < 0.08;
+          drySamples++;
+          if (gentle) gentleSamples++;
+          if (Math.max(Math.abs(x), Math.abs(z)) >= dims.playableHalf * 0.8) {
+            edgeSamples++;
+            if (gentle) gentleEdgeSamples++;
+          }
+        }
+      }
+      assert.ok(maxHeight - minHeight < 7, label + ': entire field must have low relief');
+      assert.ok(gentleSamples / drySamples > 0.97, label + ': at least 97% of dry ground must be gently graded');
+      assert.ok(gentleEdgeSamples / edgeSamples > 0.97, label + ': map edges must remain gently graded');
+      assert.ok(layout.foragingLayout.sites.some(site => site.kind === 'fish'), label + ': water needs fish');
+      assert.equal(layout.clayDepositLayout.sites.length, layout.resourcePlan.ordinaryClayDepositCount + layout.resourcePlan.richClayDepositCount, label + ': all rolled clay deposits must be placed');
+      for (const site of [...layout.clayDepositLayout.sites, ...layout.quarryLayout.sites, ...layout.mineralDepositLayout.sites]) {
+        assert.equal(water.isWaterAt(site.x, site.z), false, label + ': deposits need dry ground');
+        assert.ok(layout.resourceTerrainAccessibility.isAccessible(site.x, site.z), label + ': deposits must be reachable');
+      }
+      if (preset === 'gomirje_meadows') {
+        const points = water.corridors[0].points;
+        assert.ok(points[0].x < -dims.playableHalf && points.at(-1)!.x > dims.playableHalf);
+        let previousSurface = Infinity;
+        for (const point of points) {
+          const surface = water.getWaterSurfaceOverride(point.x, point.z)!;
+          assert.ok(surface < previousSurface, label + ': river must fall downstream');
+          assert.ok(surface - heightAt(point.x, point.z) > 1.5, label + ': river bed must stay submerged');
+          previousSurface = surface;
+        }
+      } else {
+        const pond = water.inlandWaterBodies[0];
+        assert.equal(pond.kind, 'pond');
+        const surface = water.getWaterSurfaceOverride(pond.x, pond.z)!;
+        for (const dx of [-8, 0, 8]) {
+          for (const dz of [-8, 0, 8]) {
+            assert.equal(water.getWaterSurfaceOverride(pond.x + dx, pond.z + dz), surface);
+            assert.ok(surface - heightAt(pond.x + dx, pond.z + dz) > 1, label + ': pond bed must stay submerged');
+          }
+        }
+      }
+      flatlandMetrics.push({ preset, mapSize, variation,
+        gentleDryPercent: +(gentleSamples / drySamples * 100).toFixed(2),
+        gentleEdgePercent: +(gentleEdgeSamples / edgeSamples * 100).toFixed(2),
+        relief: +(maxHeight - minHeight).toFixed(2),
+        waterPercent: +(waterShare * 100).toFixed(2),
+      });
+    }
+  }
+}
+console.table(flatlandMetrics);
+
 console.log('world terrain preset tests passed', {
   kupaWaterWidth: Number(kupaWaterWidth.toFixed(1)),
   kupaHydraulicFall: Number(kupaHydraulicFall.toFixed(2)),
@@ -369,12 +461,12 @@ console.log('world terrain preset tests passed', {
   licMinimumSeededBorderRise: Number(licMinimumSeededBorderRise.toFixed(1)),
 });
 
-function preparePreset(preset: Exclude<WorldTerrainPreset, 'custom'>, variation: number) {
+function preparePreset(preset: Exclude<WorldTerrainPreset, 'custom'>, variation: number, mapSize: WorldMapSize = 'medium') {
   const settings = applyTerrainPreset(
     {
       ...DEFAULT_WORLD_GENERATION_SETTINGS,
       seed: variation,
-      mapSize: 'medium',
+      mapSize,
     },
     preset,
   );

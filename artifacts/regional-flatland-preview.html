@@ -1,0 +1,38 @@
+<!doctype html><html lang="en"><meta charset="UTF-8"><title>Regional flatland terrain study</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#17211d;color:#e9e5d3;font:14px system-ui}header{padding:22px 28px;display:flex;gap:20px;align-items:center;flex-wrap:wrap}h1{margin:0;font:25px Georgia}p{color:#b7c6b3}label{display:flex;gap:8px;align-items:center}select,input,button{background:#263a2e;color:#f3edd9;border:1px solid #5b705e;padding:8px;border-radius:5px}main{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:20px}section{border:1px solid #405849;border-radius:8px;overflow:hidden}h2{font:22px Georgia;margin:18px 20px 5px}section p{margin:8px 20px}.view{height:480px}canvas{display:block;width:100%;height:100%}footer{padding:0 28px 20px;color:#b7c6b3}#status{font:12px monospace}@media(max-width:850px){main{grid-template-columns:1fr}.view{height:420px}}</style>
+<header><div><h1>Gorski Kotar · Open field floors</h1><p>Generated heights and water footprints · drag to orbit · scroll to zoom</p></div><label>Size <select id="size"><option>small</option><option>medium</option><option>large</option></select></label><label>Field <select id="field"><option value="final">Terrain</option><option value="height">Height</option><option value="slope">Slope</option><option value="drainageGrade">Drainage grade</option><option value="meadowUndulation">Meadow undulation</option><option value="lowTerrace">Low terrace</option><option value="waterBankBlend">Water bank blend</option></select></label><label>Seed <input id="seed" value="464050" size="7"></label><button id="apply">Apply</button></header>
+<main><section><h2>Gomirje Meadows</h2><p>Dobra-side meadow · one through-river · low grassy banks</p><div class="view" id="gomirje_meadows"></div></section><section><h2>Mrkopaljsko Polje</h2><p>Open upland pasture · one pond · no rivers</p><div class="view" id="mrkopalj_polje"></div></section></main><footer><p>No post-processing or height exaggeration. Landform study; woodland and buildings omitted.</p><p id="status">Preparing terrain…</p></footer>
+<script type="module">
+import * as THREE from '/node_modules/three/build/three.module.js';
+import { OrbitControls } from '/node_modules/three/examples/jsm/controls/OrbitControls.js';
+import { createWorldLayout } from '/src/resources/WorldLayout.ts';
+import { sampleWorldRawTerrainHeight } from '/src/terrain/TerrainHeight.ts';
+import { sampleRegionalFlatlandTerrainFields } from '/src/terrain/RegionalFlatlandTerrainField.ts';
+import { applyTerrainPreset } from '/src/world/worldTerrainPresets.ts';
+import { DEFAULT_WORLD_GENERATION_SETTINGS, resolveWorldDimensions, topographyScale } from '/src/world/worldGenerationSettings.ts';
+const params = new URLSearchParams(location.search), size = ['small','medium','large'].includes(params.get('size')) ? params.get('size') : 'small', field = params.get('field') || 'final', seed = Number(params.get('seed') || 464050) >>> 0;
+for(const [key,value]of Object.entries({size,field,seed}))document.getElementById(key).value=value;
+document.querySelector('#apply').onclick=()=>{location.search=new URLSearchParams(Object.fromEntries(['size','field','seed'].map(key=>[key,document.getElementById(key).value])))};
+const views=[];
+for(const preset of ['gomirje_meadows','mrkopalj_polje']){
+ const settings=applyTerrainPreset({...DEFAULT_WORLD_GENERATION_SETTINGS,mapSize:size,seed},preset), layout=createWorldLayout(settings), river=layout.riverLayout, dims=resolveWorldDimensions(size);
+ const height=(x,z)=>sampleWorldRawTerrainHeight(x,z,settings,dims,river)-river.getValleyDepression(x,z),host=document.getElementById(preset),scene=new THREE.Scene();scene.background=new THREE.Color('#24362b');
+ const camera=new THREE.PerspectiveCamera(38,host.clientWidth/host.clientHeight,1,10000);camera.position.set(dims.playableSize*.78,dims.playableSize*.75,dims.playableSize*.95);
+ const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(2,devicePixelRatio));renderer.setSize(host.clientWidth,host.clientHeight);host.append(renderer.domElement);
+ const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,0,0);controls.update();scene.add(new THREE.HemisphereLight(0xeef7ff,0x526336,2));const light=new THREE.DirectionalLight(0xffe8be,2.1);light.position.set(-350,800,250);scene.add(light);
+ const geometry=new THREE.PlaneGeometry(dims.playableSize,dims.playableSize,256,256);geometry.rotateX(-Math.PI/2);const pos=geometry.attributes.position,colors=new Float32Array(pos.count*3);
+ for(let i=0;i<pos.count;i++){
+  const x=pos.getX(i),z=pos.getZ(i),y=height(x,z);pos.setY(i,y);const fields=sampleRegionalFlatlandTerrainFields(x,z,preset,settings.seed,topographyScale(settings.topography),dims,river);let color;
+  if(field==='final')color=new THREE.Color('#758d4c').lerp(new THREE.Color('#b6b579'),.35+fields.meadowUndulation*.35).lerp(new THREE.Color('#736a4d'),river.sampleRiverMask(x,z)*.55);
+  else{const grade=Math.hypot((height(x+3,z)-height(x-3,z))/6,(height(x,z+3)-height(x,z-3))/6),value=field==='height'?(y+3)/9:field==='slope'?grade/.2:field==='drainageGrade'?(fields.drainageGrade+1.5)/3:field==='meadowUndulation'?fields.meadowUndulation+.5:field==='lowTerrace'?fields.lowTerrace/1.3:fields.waterBankBlend;color=new THREE.Color().setHSL(.62-THREE.MathUtils.clamp(value,0,1)*.62,.65,.52)}colors.set(color.toArray(),i*3);
+ }
+ geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));geometry.computeVertexNormals();scene.add(new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,side:THREE.DoubleSide})));
+ const waterPositions=[],waterIndices=[],step=dims.playableSize/512;
+ for(let iz=0;iz<512;iz++)for(let ix=0;ix<512;ix++){const x=-dims.playableHalf+ix*step,z=-dims.playableHalf+iz*step;if(river.sampleRiverMask(x+step*.5,z+step*.5)<.38)continue;const start=waterPositions.length/3;for(const[dx,dz]of[[0,0],[0,1],[1,1],[1,0]])waterPositions.push(x+dx*step,river.getWaterSurfaceOverride(x+dx*step,z+dz*step)+.02,z+dz*step);waterIndices.push(start,start+1,start+2,start,start+2,start+3)}
+ const waterGeometry=new THREE.BufferGeometry();waterGeometry.setAttribute('position',new THREE.Float32BufferAttribute(waterPositions,3));waterGeometry.setIndex(waterIndices);waterGeometry.computeVertexNormals();scene.add(new THREE.Mesh(waterGeometry,new THREE.MeshStandardMaterial({color:'#398f91',roughness:.4,side:THREE.DoubleSide})));
+ scene.add(new THREE.Box3Helper(new THREE.Box3(new THREE.Vector3(-dims.playableHalf,-.3,-dims.playableHalf),new THREE.Vector3(dims.playableHalf,0,dims.playableHalf)),0xc9b985));views.push({renderer,scene,camera,host,controls});
+}
+document.querySelector('#status').textContent='Ready · '+size+' · variation '+seed+' · field '+field+' · 257² terrain / 512² water sampling';document.body.dataset.ready='true';
+function render(){for(const v of views)v.renderer.render(v.scene,v.camera);requestAnimationFrame(render)}render();
+window.addEventListener('resize',()=>{for(const v of views){v.camera.aspect=v.host.clientWidth/v.host.clientHeight;v.camera.updateProjectionMatrix();v.renderer.setSize(v.host.clientWidth,v.host.clientHeight)}});
+</script></html>

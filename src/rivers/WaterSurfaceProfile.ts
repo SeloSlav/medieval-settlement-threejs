@@ -69,6 +69,6 @@ export function waterSurfaceProfileForPreset(
   terrainPreset: WorldTerrainPreset,
 ): WaterSurfaceProfile {
   if (terrainPreset === 'vinodol_coast') return COASTAL_WATER_PROFILE;
-  if (terrainPreset === 'kupa_valley') return RIVER_WATER_PROFILE;
+  if (terrainPreset === 'kupa_valley' || terrainPreset === 'gomirje_meadows') return RIVER_WATER_PROFILE;
   return INLAND_WATER_PROFILE;
 }
