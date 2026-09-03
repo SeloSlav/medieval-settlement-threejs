@@ -5,8 +5,8 @@
  */
 .noble-setup-backdrop,
 .world-setup-backdrop {
-  --craft-hide: url('/assets/ui/startup-craft/ledger-leather.png');
-  --craft-oak: url('/assets/ui/startup-craft/smoked-oak.png');
+  --craft-hide: url('/assets/ui/startup-craft/ledger-leather.webp');
+  --craft-oak: url('/assets/ui/startup-craft/smoked-oak.webp');
   --craft-frame: url('/assets/ui/startup-craft/iron-frame.svg');
   --craft-ivory: #e8dfca;
   --craft-muted: #bcb3a0;
@@ -47,7 +47,9 @@
 }
 
 .noble-setup-heading::after {
-  /* Keep the existing title-rule box, but remove its luminous gold stroke. */
+  /* Only this out-of-flow ornament grows; title metrics stay untouched. */
+  height: 12px;
+  bottom: -6px;
   background: url('/assets/ui/startup-craft/carved-rule.svg') center / 100% 100% no-repeat;
   box-shadow: 0 1px #090e0b66;
 }
@@ -106,6 +108,7 @@
 /* Mouldings overlay the portraits without resizing or recropping images. */
 .noble-setup-portrait-frame,
 .noble-setup-heraldry-portrait-frame {
+  isolation: isolate;
   border-color: #4e4b3e;
   border-radius: 0;
   box-shadow: 0 9px 20px #0008, 0 0 0 1px #111811;
@@ -144,6 +147,7 @@
 .noble-setup-heraldry-profile,
 .noble-setup-editor-panel,
 .noble-setup-presets {
+  position: relative;
   border-color: #77736573;
   border-radius: 1px;
   background:
@@ -151,6 +155,17 @@
     var(--craft-hide) 20% 40% / 490px 490px repeat,
     #202820;
   box-shadow: inset 0 1px #c3b39933, inset 0 0 0 3px #0b130b66, 0 2px 6px #0005;
+}
+.noble-setup-heraldry-profile::before,
+.noble-setup-editor-panel::before,
+.noble-setup-presets::before {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  content: '';
+  border: 0 solid transparent;
+  border-image: var(--craft-frame) 24 / 8px / 0 stretch;
+  pointer-events: none;
 }
 .noble-setup-editor-title {
   border-bottom-color: #96836859;
@@ -325,6 +340,15 @@
 .world-setup-landscape-option::after {
   background: url('/assets/ui/startup-craft/carved-rule.svg') center / 100% 100% no-repeat;
 }
+.world-setup-landscape-option::before {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  content: '';
+  border: 0 solid transparent;
+  border-image: var(--craft-frame) 24 / 7px / 0 stretch;
+  pointer-events: none;
+}
 .world-setup-landscape-option__requirement {
   color: #d3c7ae;
   border-top-color: #93836b66;
@@ -377,7 +401,7 @@
   border-radius: 1px;
   background:
     linear-gradient(#141e16cc, #101b14dd),
-    url('/assets/ui/startup-craft/ledger-leather.png') center / 430px 430px repeat,
+    url('/assets/ui/startup-craft/ledger-leather.webp') center / 430px 430px repeat,
     #1e2a20;
   box-shadow: inset 0 1px #bfb2924d, 0 8px 26px #0009;
 }

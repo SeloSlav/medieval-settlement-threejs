@@ -121,9 +121,14 @@ function createCamp(seed: number): CampVisual {
   const standard = createCampStandardAnchor('bandit');
   standard.position.set(-4.5, 0, 2.5);
   root.add(standard);
-  root.traverse((object) => {
+  const enablePhysicalShadows = (object: THREE.Object3D): void => {
+    // The shared fire already owns its hearth shadows; don't turn animated
+    // smoke puffs or sparks into opaque shadow casters.
+    if (object === campfire) return;
     if (object instanceof THREE.Mesh && object !== ground) object.castShadow = true;
-  });
+    for (const child of object.children) enablePhysicalShadows(child);
+  };
+  enablePhysicalShadows(root);
   return { root, campfire };
 }
 

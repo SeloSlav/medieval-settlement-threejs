@@ -345,7 +345,7 @@ export function buildingMarkerSignatures(
       ].join(':');
       return {
         id: building.id,
-        visual: `${structural}:occupied-${building.assignedLabor > 0 ? 1 : 0}${foundingState}${salvageState}${treasuryState}${localReceiptState}${marketState}${timberState}${storehouseState}${hayState}${woolState}${flaxState}${yarnState}${linenState}${clothState}${leatherChainState}${chandleryState}${foodStockState}${bulkStockState}${armoryStockState}${seasonalStockState}${marketplaceSpecialtyStockState}${monasteryStockState}`,
+        visual: `${structural}:occupied-${building.constructionComplete !== false && building.assignedLabor > 0 ? 1 : 0}${foundingState}${salvageState}${treasuryState}${localReceiptState}${marketState}${timberState}${storehouseState}${hayState}${woolState}${flaxState}${yarnState}${linenState}${clothState}${leatherChainState}${chandleryState}${foodStockState}${bulkStockState}${armoryStockState}${seasonalStockState}${marketplaceSpecialtyStockState}${monasteryStockState}`,
         collider: structural,
       };
     })

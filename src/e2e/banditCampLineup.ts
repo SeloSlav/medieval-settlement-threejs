@@ -8,11 +8,17 @@ import { CampStandardRenderer } from '../settlement/CampStandardRenderer.ts';
 import { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
 import type { BuildingState } from '../resources/types.ts';
 import { fireEffectFromRoot } from '../fires/FireEffect.ts';
+import {
+  beginRendererFrame,
+  configureRendererFrameStats,
+  readRendererFrameStats,
+} from '../scene/rendererFrameStats.ts';
 
 const params = new URLSearchParams(location.search);
 const host = document.querySelector<HTMLElement>('#app')!;
 const backend = await createPreferredRenderer();
 const renderer = backend.renderer;
+configureRendererFrameStats(renderer.info);
 await initializeBuildingMaterialLibrary(backend.maxAnisotropy);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.setSize(innerWidth, innerHeight);
@@ -119,6 +125,7 @@ for (const [text, x] of [['ACTIVE BANDIT CAMP', -8], [params.has('hunters') ? "H
 
 let lastFrameMs = performance.now();
 let simulationFrames = 0;
+let frameStats = { drawCalls: 0, renderPasses: 0, triangles: 0 };
 const metrics = document.querySelector<HTMLElement>('.qa span');
 function frame(nowMs = performance.now()): void {
   const dt = params.has('paused') ? (simulationFrames < 90 ? 1 / 30 : 0) : Math.min(0.05, (nowMs - lastFrameMs) / 1000);
@@ -129,10 +136,12 @@ function frame(nowMs = performance.now()): void {
   founderStandards.sync(founders ? [founders] : [], dt);
   const fire = founders?.getObjectByName(FOUNDERS_CAMPFIRE_NAME);
   if (fire instanceof THREE.Group) animateCampfire(fire, dt);
+  const frameBoundary = beginRendererFrame(renderer.info);
   renderer.render(scene, camera);
+  frameStats = readRendererFrameStats(renderer.info, frameBoundary);
   if (metrics && simulationFrames % 30 === 0) {
     const flags = camps.standardDiagnostics();
-    metrics.textContent = `${backend.kind} · seed ${campSeed} · ${params.has('noPost') ? 'no post' : 'final'} · ${flags?.standards ?? 0} outlaw / ${founderStandards.diagnostics()?.standards ?? 0} founders flags · ${flags?.simulationNodes ?? 0} cloth nodes · ${flags?.drawCalls ?? 0} flag draws · max stretch ${flags?.maxStretchRatio.toFixed(3) ?? '—'}`;
+    metrics.textContent = `${backend.kind} · seed ${campSeed} · ${params.has('noPost') ? 'no post' : 'final'} · ${flags?.standards ?? 0} outlaw / ${founderStandards.diagnostics()?.standards ?? 0} founders flags · ${flags?.simulationNodes ?? 0} cloth nodes · ${flags?.drawCalls ?? 0} flag draws · max stretch ${flags?.maxStretchRatio.toFixed(3) ?? '—'}${params.has('hunters') ? ` · hunter ${hunterState.assignedLabor > 0 ? 'staffed / lit' : 'unstaffed / unlit'}` : ''} · ${frameStats.drawCalls} draws / ${frameStats.triangles} triangles`;
   }
   requestAnimationFrame(frame);
 }
@@ -147,7 +156,7 @@ addEventListener('resize', () => {
   backend: backend.kind,
   standards: () => ({ bandit: camps.standardDiagnostics(), founders: founderStandards.diagnostics() }),
   activeCampCount: 1,
-  renderer: () => ({ calls: renderer.info.render.calls, triangles: renderer.info.render.triangles }),
+  renderer: () => ({ calls: frameStats.drawCalls, triangles: frameStats.triangles }),
   campfires: () => {
     const effects: unknown[] = [];
     parent.traverse((object) => {

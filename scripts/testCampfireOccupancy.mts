@@ -76,7 +76,10 @@ assert.equal(hunterFire.active, false, 'a destroyed occupied building cannot emi
 markers.setDestroyedBuildingIds(new Set());
 assert.equal(hunterFire.active, true);
 
+const beforeRepairSignature = signature(hunter);
 hunter = { ...hunter, constructionComplete: false, fireRepairActive: true };
+assert.notEqual(signature(hunter).visual, beforeRepairSignature.visual, 'repair occupancy changes must reach the renderer');
+assert.equal(signature(hunter).collider, beforeRepairSignature.collider);
 sync();
 assert.equal(fireEffectFromRoot(hunterRoot), hunterFire, 'repairs retain the completed mesh');
 assert.equal(hunterFire.active, false, 'repair workers do not occupy an unfinished worksite');

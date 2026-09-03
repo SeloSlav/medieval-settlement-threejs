@@ -6,6 +6,7 @@ import { addCampAFrameShelter } from '../src/buildings/meshes/foundersCampMesh.t
 import { sharedBuildingDetailMaterial } from '../src/buildings/buildingMaterials.ts';
 import { CAMP_HIDE_METERS_PER_REPEAT, CAMP_HIDE_TEXTURE_ROOT } from '../src/buildings/campHideSurface.ts';
 import { getBuildingFootprintHalfExtents } from '../src/buildings/BuildingFootprint.ts';
+import { CAMP_CANOPY_DRAPE, createDrapedCanopyGeometry } from '../src/buildings/meshes/drapedCanopyGeometry.ts';
 
 const camp = createHuntersHallMesh();
 camp.updateMatrixWorld(true);
@@ -58,6 +59,12 @@ for (const panel of physicalPanels) {
   assert.equal(material.userData.buildingMaterialAtlas, undefined, 'hide must not sample linen atlas UVs');
   assert.equal(material.side, THREE.DoubleSide);
   assert.equal(material.metalness, 0);
+  const physical = material as THREE.MeshPhysicalMaterial & { isMeshPhysicalNodeMaterial: boolean };
+  assert.equal(physical.isMeshPhysicalNodeMaterial, true, 'hide must use the physical fibre/sheen BRDF');
+  assert.ok(physical.sheen > 0 && physical.sheen <= 0.3, 'hide sheen should stay subtle');
+  assert.ok(physical.sheenRoughness >= 0.9, 'hide must not look like glossy silk');
+  assert.equal(physical.transmission, 0, 'hide is not transparent glass');
+  assert.equal(physical.clearcoat, 0, 'hide has no varnish coat');
   assert.equal(material.map?.colorSpace, THREE.SRGBColorSpace);
   assert.equal(material.normalMap?.colorSpace, THREE.NoColorSpace);
   for (const map of [material.map, material.normalMap]) {
@@ -83,6 +90,56 @@ for (const panel of physicalPanels) {
     `${panel.name} stretches hide across its V axis`,
   );
 }
+
+const flyGeometry = physicalPanels[0]!.geometry;
+const drape = flyGeometry.userData.clothDrape as {
+  method: string;
+  seed: number;
+  columns: number;
+  rows: number;
+  supports: [number, number, number][];
+  contactVertexIndices: number[];
+};
+assert.equal(drape.method, 'baked-four-contact-drape');
+assert.equal(drape.contactVertexIndices.length, 4);
+assert.equal(camp.children.filter((part) => part.name === 'Hunter hide canopy post binding').length, 4);
+const flyPositions = flyGeometry.getAttribute('position');
+const flyNormals = flyGeometry.getAttribute('normal');
+for (const [index, vertex] of drape.contactVertexIndices.entries()) {
+  const [x, y, z] = drape.supports[index]!;
+  assert.ok(Math.abs(flyPositions.getX(vertex) - x) < 1e-5);
+  assert.ok(Math.abs(flyPositions.getZ(vertex) - z) < 1e-5);
+  assert.ok(Math.abs(flyPositions.getY(vertex) - y - CAMP_CANOPY_DRAPE.contactLift) < 0.001,
+    'hide must contact the post crown with only its thin material clearance');
+}
+const centerVertex = Math.floor(drape.rows / 2) * drape.columns + Math.floor(drape.columns / 2);
+const averageSupportY = drape.supports.reduce((sum, point) => sum + point[1], 0) / 4;
+assert.ok(averageSupportY - flyPositions.getY(centerVertex) > 0.4, 'four-point cloth must visibly sag between its supports');
+assert.ok(flyNormals.getY(centerVertex) > 0.9, 'canopy top must face up');
+for (const [index, vertex] of [0, drape.columns - 1, flyPositions.count - 1, flyPositions.count - drape.columns].entries()) {
+  assert.ok(flyPositions.getY(vertex) < drape.supports[index]![1] - 0.3,
+    'free corners must fold down past their supporting wood spikes');
+}
+const indices = flyGeometry.getIndex()!;
+const a = new THREE.Vector3();
+const b = new THREE.Vector3();
+const c = new THREE.Vector3();
+for (let index = 0; index < indices.count; index += 3) {
+  a.fromBufferAttribute(flyPositions, indices.getX(index));
+  b.fromBufferAttribute(flyPositions, indices.getX(index + 1)).sub(a);
+  c.fromBufferAttribute(flyPositions, indices.getX(index + 2)).sub(a);
+  assert.ok(b.cross(c).lengthSq() > 1e-12, 'draped hem contains a collapsed triangle');
+}
+const supports = drape.supports.map((point) => new THREE.Vector3(...point)) as [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3];
+const repeatedDrape = createDrapedCanopyGeometry(supports, CAMP_HIDE_METERS_PER_REPEAT, drape.seed);
+assert.deepEqual(repeatedDrape.getAttribute('position').array, flyPositions.array, 'same seed must bake the same folds');
+for (const seed of [1, 89, 4049]) {
+  const variant = createDrapedCanopyGeometry(supports, CAMP_HIDE_METERS_PER_REPEAT, seed);
+  assert.ok(Array.from(variant.getAttribute('position').array).every(Number.isFinite));
+  assert.deepEqual(variant.getAttribute('uv').array, flyGeometry.getAttribute('uv').array, 'fold seeds must not swim the hide texture');
+  variant.dispose();
+}
+repeatedDrape.dispose();
 
 assert.equal(stones.length, 11, 'hearth stone ring changed unexpectedly');
 assert.equal(fireLogs.length, 3, 'hearth must retain a compact three-log fuel pile');

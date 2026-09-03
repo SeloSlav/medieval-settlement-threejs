@@ -617,15 +617,35 @@ const relocation = planFoundingStockyardRelocation({
   roadPathDistance: (ax, _az, bx) => Math.abs(bx - ax),
 });
 assert.equal(relocation.blocker, 'ready');
-assert.equal(relocation.commodity, 'timber');
+assert.equal(
+  relocation.commodity,
+  'firewood',
+  'cleared yards follow the canonical commodity order, which hauls fuel before timber',
+);
 assert.equal(relocation.targetBuildingId, nearStorehouse.id);
-assert.equal(relocation.targetRoom, 48);
-assert.equal(relocation.loadAmount, STOREHOUSE_HAUL_PER_WORKER);
+assert.equal(relocation.targetRoom, clearedCamp.firewood);
+assert.equal(relocation.loadAmount, clearedCamp.firewood);
 assert.equal(relocation.routeDistance, 24);
+
+const fuelClearedCamp = { ...clearedCamp, firewood: 0 } satisfies BuildingState;
+const timberRelocation = planFoundingStockyardRelocation({
+  state: {
+    ...relocationState,
+    buildings: new Map(relocationState.buildings).set(clearedCamp.id, fuelClearedCamp),
+  },
+  camp: fuelClearedCamp,
+  availableLabor: 1,
+  roadPathDistance: (ax, _az, bx) => Math.abs(bx - ax),
+});
+assert.equal(timberRelocation.blocker, 'ready');
+assert.equal(timberRelocation.commodity, 'timber', 'timber leaves after the fuel has been cleared');
+assert.equal(timberRelocation.targetBuildingId, nearStorehouse.id);
+assert.equal(timberRelocation.targetRoom, 48);
+assert.equal(timberRelocation.loadAmount, STOREHOUSE_HAUL_PER_WORKER);
 
 assert.deepEqual(
   OCCUPIED_SHELTER_RELOCATION_COMMODITIES,
-  ['food', 'ryeBread', 'maslinBread', 'firewood', 'ironwork'],
+  ['ryeBread', 'maslinBread', 'firewood', 'ironwork'],
   'occupied shelters must stage edible starter stock before draining bulk fuel',
 );
 const boundedFoundingLoad = foundingRelocationLoadAmount(240, 100);
@@ -672,7 +692,7 @@ const emptyClearedCamp = {
   polearms: 0,
 } satisfies BuildingState;
 const permanentStorageCases = [
-  ['food', 'granary'],
+  ['berries', 'granary'],
   ['ryeSheaves', 'granary'],
   ['ryeGrain', 'granary'],
   ['oatGrain', 'granary'],
@@ -684,7 +704,7 @@ const permanentStorageCases = [
   ['honey', 'trading_post'],
   ['wine', 'trading_post'],
   ['cloth', 'village_storehouse'],
-  ['wool', 'weaver'],
+  ['wool', 'spinning_retting_house'],
   ['flax', 'granary'],
   ['ironwork', 'carpenter'],
   ['polearms', 'guardhouse'],
@@ -732,7 +752,9 @@ for (const [commodity, destinationKind] of permanentStorageCases) {
     : commodity === 'ryeFlour'
         || commodity === 'maslinFlour'
       ? 'flour'
-      : commodity;
+      : commodity === 'berries'
+        ? 'food'
+        : commodity;
   const destinationCapacity = (
     BUILDING_STORAGE_CAPS[destinationKind] as Record<string, number | undefined>
   )[capacityCommodity] ?? 0;
@@ -741,7 +763,7 @@ for (const [commodity, destinationKind] of permanentStorageCases) {
 
 const foodCamp = {
   ...emptyClearedCamp,
-  food: 20,
+  berries: 20,
 } satisfies BuildingState;
 const closeMarket = {
   ...nearStorehouse,
@@ -896,8 +918,8 @@ assert.equal(breadWithGranary.targetRoom, 17);
 const occupiedStarterCamp = {
   ...emptyClearedCamp,
   foundingShelterActive: true,
-  food: 9,
   ryeBread: 17,
+  maslinBread: 9,
   firewood: 200,
 } satisfies BuildingState;
 const occupiedStarterState = {
@@ -908,18 +930,18 @@ const occupiedStarterState = {
     [nearStorehouse.id, nearStorehouse],
   ]),
 } satisfies GameState;
-const occupiedLegacyFoodPlan = planFoundingStockyardRelocation({
+const occupiedRyeBreadPlan = planFoundingStockyardRelocation({
   state: occupiedStarterState,
   camp: occupiedStarterCamp,
   availableLabor: 1,
   roadPathDistance: (ax, _az, bx) => Math.abs(bx - ax),
 });
-assert.equal(occupiedLegacyFoodPlan.blocker, 'ready');
-assert.equal(occupiedLegacyFoodPlan.commodity, 'food');
-assert.equal(occupiedLegacyFoodPlan.targetBuildingId, breadGranary.id);
-assert.equal(occupiedLegacyFoodPlan.loadAmount, 9);
+assert.equal(occupiedRyeBreadPlan.blocker, 'ready');
+assert.equal(occupiedRyeBreadPlan.commodity, 'ryeBread');
+assert.equal(occupiedRyeBreadPlan.targetBuildingId, breadGranary.id);
+assert.equal(occupiedRyeBreadPlan.loadAmount, 17);
 
-const occupiedBreadCamp = { ...occupiedStarterCamp, food: 0 } satisfies BuildingState;
+const occupiedBreadCamp = { ...occupiedStarterCamp, ryeBread: 0 } satisfies BuildingState;
 const occupiedBreadPlan = planFoundingStockyardRelocation({
   state: {
     ...occupiedStarterState,
@@ -933,12 +955,12 @@ const occupiedBreadPlan = planFoundingStockyardRelocation({
   availableLabor: 1,
   roadPathDistance: (ax, _az, bx) => Math.abs(bx - ax),
 });
-assert.equal(occupiedBreadPlan.commodity, 'ryeBread');
-assert.equal(occupiedBreadPlan.loadAmount, 17);
+assert.equal(occupiedBreadPlan.commodity, 'maslinBread');
+assert.equal(occupiedBreadPlan.loadAmount, 9);
 
 const occupiedFuelCamp = {
   ...occupiedBreadCamp,
-  ryeBread: 0,
+  maslinBread: 0,
 } satisfies BuildingState;
 const occupiedFuelPlan = planFoundingStockyardRelocation({
   state: {
@@ -1183,9 +1205,19 @@ for (const accessor of ['treasury_timber', 'treasury_stone', 'treasury_ironwork'
     `${accessor} must hide the compatibility row after goods become physical`,
   );
 }
-assert.match(
-  storageServer,
-  /let ledger_gold = resources[\s\S]*?filter\(\|resources\| !resources\.physical_founding_site_enabled\)/,
+const treasuryGoldSource = storageServer.slice(
+  storageServer.indexOf('pub fn treasury_gold('),
+  storageServer.indexOf('pub fn spend_treasury_gold('),
+);
+const physicalGoldBranch = treasuryGoldSource.match(
+  /let held_gold = if resources\.physical_founding_site_enabled \{([\s\S]*?)\} else \{/,
+)?.[1];
+assert.ok(physicalGoldBranch, 'treasury availability must distinguish physical civic seats from the abstract ledger');
+assert.match(physicalGoldBranch, /"founders_camp" \| "salvage_pile" \| "town_hall"/);
+assert.match(physicalGoldBranch, /\.map\(\|building\| whole_units\(building\.gold\)\)/);
+assert.doesNotMatch(
+  physicalGoldBranch,
+  /resources\.gold/,
   'physical civic spending must not fall back to disembodied compatibility gold',
 );
 const reclamationServer = read('server/src/simulation/reclamation.rs');
@@ -1287,7 +1319,7 @@ assert.match(
 );
 assert.match(
   appSource,
-  /if \(this\.visualQaConditions\) \{[\s\S]*?this\.sessionLifecycle\.onReady\(\);[\s\S]*?\} else \{\s*this\.gameRuntime\.start\(\);\s*\}/,
+  /if \(this\.visualQaConditions \|\| this\.combatPlaytestRequest\) \{[\s\S]*?this\.sessionLifecycle\.onReady\(\);[\s\S]*?\} else \{\s*this\.gameRuntime\.start\(\);\s*\}/,
   'visual-QA capture mode must become presentation-ready without starting GameRuntime',
 );
 assert.match(

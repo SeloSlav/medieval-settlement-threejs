@@ -671,6 +671,15 @@
 .heraldry-shield--pattern { width: 24px; filter: none; }
 .heraldry-shield--pattern .heraldry-shield__field { inset: 2px; }
 
+/* Picker icons identify patterns; the main shield previews the chosen tiling.
+   Override on the child so the shared renderer's inline pixel size is not
+   inherited. Shield-relative tiles stay legible at both 24px and 16px. */
+.heraldry-shield--pattern .heraldry-shield__pattern {
+  --pattern-size: 32cqw;
+}
+
+.heraldry-shield--pattern .heraldry-shield__charges { display: none; }
+
 .noble-setup-charges {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

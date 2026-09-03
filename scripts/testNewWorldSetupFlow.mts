@@ -56,6 +56,17 @@ assert.match(noblePanel, /class="noble-setup-heraldry-profile"/);
 assert.match(noblePanel, /data-heraldry-preview-portrait/);
 assert.match(noblePanel, /class="noble-setup-heraldry-shield" data-main-shield/);
 assert.match(noblePanel, /class="noble-setup-heraldry-editor"/);
+assert.match(
+  nobleCss,
+  /\.heraldry-shield--pattern \.heraldry-shield__pattern\s*\{\s*--pattern-size: 32cqw;\s*\}/,
+  'pattern picker tiles must scale with the icon, independently of the live shield tiling',
+);
+assert.match(
+  nobleCss,
+  /\.heraldry-shield--pattern \.heraldry-shield__charges\s*\{\s*display: none;\s*\}/,
+  'pattern icons must not be obscured by charges',
+);
+assert.doesNotMatch(noblePanel, /chargeScale: 0\.01/, 'do not use a clamped charge scale to hide picker charges');
 assert.doesNotMatch(noblePanel, /<h2[^>]*>Your Noble<\/h2>/);
 assert.doesNotMatch(noblePanel, /<p class="noble-setup-eyebrow">Coat of Arms<\/p>/);
 assert.doesNotMatch(noblePanel, /Heraldry of Your House/);

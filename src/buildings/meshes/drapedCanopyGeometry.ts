@@ -8,10 +8,10 @@ export const CAMP_CANOPY_DRAPE = {
   overhangLength: 0.38,
   postRollRadius: 0.10,
   contactLift: 0.018,
-  sagAcross: 0.16,
-  sagAlong: 0.13,
-  tensionFoldAmplitude: 0.065,
-  hemRippleAmplitude: 0.025,
+  sagAcross: 0.28,
+  sagAlong: 0.20,
+  tensionFoldAmplitude: 0.09,
+  hemRippleAmplitude: 0.06,
 } as const;
 
 type Supports = readonly [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3];
@@ -24,13 +24,19 @@ type Supports = readonly [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vec
 export function createDrapedCanopyGeometry(
   supports: Supports,
   metersPerRepeat: number,
-  seed = CAMP_CANOPY_DRAPE.seed,
+  seed: number = CAMP_CANOPY_DRAPE.seed,
 ): THREE.BufferGeometry {
   const style = CAMP_CANOPY_DRAPE;
   const [a, b, c, d] = supports;
   const width = b.x - a.x;
   const depth = d.z - a.z;
-  if (width <= 0 || depth <= 0 || metersPerRepeat <= 0) {
+  if (
+    !supports.every((point) => point.toArray().every(Number.isFinite))
+    || !Number.isFinite(metersPerRepeat) || !Number.isFinite(seed)
+    || width <= 0 || depth <= 0 || metersPerRepeat <= 0
+    || Math.abs(c.x - b.x) > 1e-6 || Math.abs(d.x - a.x) > 1e-6
+    || Math.abs(b.z - a.z) > 1e-6 || Math.abs(c.z - d.z) > 1e-6
+  ) {
     throw new Error('Canopy requires positive dimensions and physical texture scale.');
   }
   const sampleAxis = (span: number): number[] => [
@@ -45,6 +51,7 @@ export function createDrapedCanopyGeometry(
   const positions: number[] = [];
   const uvs: number[] = [];
   const indices: number[] = [];
+  const pins = [[0, 0], [width, 0], [width, depth], [0, depth]] as const;
 
   const rollOverEdge = (distance: number, span: number, along: number) => {
     if (distance >= 0 && distance <= span) return { horizontal: distance, drop: 0 };
@@ -54,11 +61,14 @@ export function createDrapedCanopyGeometry(
     const loose = Math.max(0, excess - style.postRollRadius * Math.PI / 2);
     const ripple = Math.sin(along * Math.PI * 11 + seed * 0.37)
       * style.hemRippleAmplitude * loose / style.overhangLength;
+    const unevenHem = (Math.sin(along * Math.PI * 7 + seed * 0.29) * 0.065
+      + Math.sin(along * Math.PI * 13 - seed * 0.13) * 0.025)
+      * (excess / style.overhangLength) ** 2;
     return {
       horizontal: (side < 0 ? 0 : span) + side * (
         Math.sin(angle) * style.postRollRadius + loose * 0.16 + ripple
       ),
-      drop: (1 - Math.cos(angle)) * style.postRollRadius + loose,
+      drop: (1 - Math.cos(angle)) * style.postRollRadius + loose + unevenHem,
     };
   };
 
@@ -77,7 +87,7 @@ export function createDrapedCanopyGeometry(
         + Math.sin(Math.PI * t) * style.sagAlong;
       let tensionFolds = 0;
       // Folds fan away from the four contact points and die out in the field.
-      for (const [index, [pinU, pinV]] of [[0, 0], [width, 0], [width, depth], [0, depth]].entries()) {
+      for (const [index, [pinU, pinV]] of pins.entries()) {
         const dx = u - pinU;
         const dz = v - pinV;
         const radius = Math.hypot(dx, dz);

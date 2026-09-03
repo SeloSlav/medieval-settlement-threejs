@@ -432,8 +432,6 @@ export class NobleSetupPanel {
       const patternHeraldry: Heraldry = {
         ...this.draft.heraldry,
         pattern: pattern.id,
-        chargeCount: 1,
-        chargeScale: 0.01,
       };
       applyHeraldryToElement(shield, patternHeraldry);
       button.append(shield, document.createTextNode(pattern.name));
@@ -549,7 +547,6 @@ export class NobleSetupPanel {
         applyHeraldryToElement(shield, {
           ...heraldry,
           pattern: button.dataset.patternChoice as HeraldryPattern,
-          chargeScale: 0.01,
         });
       }
     }

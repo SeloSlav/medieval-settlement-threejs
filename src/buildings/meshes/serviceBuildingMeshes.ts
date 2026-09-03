@@ -273,10 +273,10 @@ function addHunterProcessingFly(group: THREE.Group): void {
   const z0 = -1.98;
   const z1 = 1.91;
   const corners = [
-    new THREE.Vector3(x0, 2.42, z0),
-    new THREE.Vector3(x1, 2.3, z0),
-    new THREE.Vector3(x1, 2.18, z1),
-    new THREE.Vector3(x0, 2.5, z1),
+    new THREE.Vector3(x0, 2.62, z0),
+    new THREE.Vector3(x1, 2.5, z0),
+    new THREE.Vector3(x1, 2.38, z1),
+    new THREE.Vector3(x0, 2.7, z1),
   ] as const;
   for (const corner of corners) {
     addRoundPoleBetween(
