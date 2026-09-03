@@ -2047,7 +2047,7 @@ assert.equal(
     placementBlocked: true,
     buildingCost: { timber: 20, stone: 8 },
   }),
-  'Blocked: This building must be placed beside open water | Cost 20 timber, 8 stone',
+  'Blocked: This building must be placed beside open water | Cost 20 timber, 8 stone · L-drag rotate off road · L-click place',
 );
 assert.equal(
   describeBuildingPlacementBlocker('water'),
@@ -2070,7 +2070,7 @@ assert.equal(
     placementReady: true,
     buildingCost: { timber: 180, stone: 120 },
   }),
-  'Ready: population, civic buildings, and road links confirmed | Cost 180 timber, 120 stone',
+  'Ready: population, civic buildings, and road links confirmed | Cost 180 timber, 120 stone · L-drag rotate off road · L-click place',
 );
 assert.equal(
   describeToolbarStatus({
@@ -2081,7 +2081,7 @@ assert.equal(
     placementReady: true,
     buildingCost: { timber: 50, stone: 12 },
   }),
-  'Ready: field work extent 150 m | Cost 50 timber, 12 stone',
+  'Ready: field work extent 150 m | Cost 50 timber, 12 stone · L-drag rotate off road · L-click place',
 );
 assert.equal(
   describeToolbarStatus({
@@ -2175,7 +2175,7 @@ const buildingResourceDepositGate = buildingReducer.slice(
 );
 assert.match(
   buildingResourceDepositGate,
-  /let on_rich_stone = kind == "large_quarry" && has_rich_stone_at_center\(ctx, x, z\);[\s\S]*let on_mineworks_deposit = kind == "mine" && has_mineworks_deposit_at_center\(ctx, x, z\);[\s\S]*if !on_rich_stone[\s\S]*&& !on_mineworks_deposit[\s\S]*&& building_overlaps_resource_deposit\(ctx, owner, &kind, x, z\)/,
+  /let on_rich_stone = kind == "large_quarry" && has_rich_stone_at_center\(ctx, x, z\);[\s\S]*let on_mineworks_deposit = kind == "mine" && has_mineworks_deposit_at_center\(ctx, x, z\);[\s\S]*if !on_rich_stone[\s\S]*&& !on_mineworks_deposit[\s\S]*&& building_overlaps_resource_deposit\(ctx, &kind, x, z, placement_yaw\)/,
   'the authority must allow only a centered rich-stone Quarry or rich-mineral Mineworks to occupy its required deposit',
 );
 for (const [source, label] of [
