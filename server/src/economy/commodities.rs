@@ -274,7 +274,7 @@ pub enum FoodCategory {
     Meats = 4,
     Fishes = 5,
     Foraged = 6,
-    Honey = 7,
+    SweetPreserves = 7,
 }
 
 impl FoodCategory {
@@ -286,7 +286,7 @@ impl FoodCategory {
         Self::Meats,
         Self::Fishes,
         Self::Foraged,
-        Self::Honey,
+        Self::SweetPreserves,
     ];
 
     pub fn bit(self) -> u8 {
@@ -316,9 +316,10 @@ pub fn food_category(kind: CommodityKind) -> Option<FoodCategory> {
         | CommodityKind::Mushrooms
         | CommodityKind::Aronia
         | CommodityKind::Rosehips
-        | CommodityKind::AroniaJam
-        | CommodityKind::RosehipJam => Some(FoodCategory::Foraged),
-        CommodityKind::Honey => Some(FoodCategory::Honey),
+        => Some(FoodCategory::Foraged),
+        CommodityKind::Honey | CommodityKind::AroniaJam | CommodityKind::RosehipJam => {
+            Some(FoodCategory::SweetPreserves)
+        }
         _ => None,
     }
 }
@@ -1306,7 +1307,7 @@ fn food_progression_slots(categories: u8, grain_ready: bool, tier: u8) -> u8 {
     let produce_or_forage = FoodCategory::Vegetables.bit()
         | FoodCategory::Fruits.bit()
         | FoodCategory::Foraged.bit()
-        | FoodCategory::Honey.bit();
+        | FoodCategory::SweetPreserves.bit();
     if tier == 3 {
         let land_animal_food = FoodCategory::AnimalProduce.bit() | FoodCategory::Meats.bit();
         return u8::from(grain_ready)
@@ -1377,11 +1378,11 @@ pub fn food_commodity_advances_residence_progression(
         FoodCategory::Vegetables
         | FoodCategory::Fruits
         | FoodCategory::Foraged
-        | FoodCategory::Honey => {
+        | FoodCategory::SweetPreserves => {
             let produce_or_forage = FoodCategory::Vegetables.bit()
                 | FoodCategory::Fruits.bit()
                 | FoodCategory::Foraged.bit()
-                | FoodCategory::Honey.bit();
+                | FoodCategory::SweetPreserves.bit();
             categories & produce_or_forage == 0
         }
         FoodCategory::AnimalProduce if tier >= 4 => {

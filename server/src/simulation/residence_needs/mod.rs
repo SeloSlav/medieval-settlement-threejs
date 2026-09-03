@@ -322,7 +322,7 @@ fn food_matches_slot(commodity: CommodityKind, slot: MonthlyFoodSlot) -> bool {
             FoodCategory::Vegetables
                 | FoodCategory::Fruits
                 | FoodCategory::Foraged
-                | FoodCategory::Honey
+                | FoodCategory::SweetPreserves
         ),
         MonthlyFoodSlot::LandAnimal => {
             matches!(category, FoodCategory::AnimalProduce | FoodCategory::Meats)
