@@ -18,7 +18,7 @@ export function resolveTerrainContourLevels(minimum: number, maximum: number): {
   const minimumInterval = MAP_CONTOUR_LEVELS.minimumIntervalMeters;
   const desired = Math.max(minimumInterval, range / MAP_CONTOUR_LEVELS.targetLevelCount);
   const magnitude = minimumInterval * 10 ** Math.floor(Math.log10(desired / minimumInterval));
-  const multiplier = [1, 2, 5, 10].find((value) => value * magnitude >= desired)!;
+  const multiplier = [1, 2, 4, 5, 10].find((value) => value * magnitude >= desired)!;
   const intervalMeters = multiplier * magnitude;
   const levels: number[] = [];
   for (let index = Math.floor(minimum / intervalMeters) + 1;

@@ -2,13 +2,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   ILLUSTRATED_TERRAIN_FIELD_CONTRACT,
-  ILLUSTRATED_TERRAIN_FIELDS,
   ILLUSTRATED_TERRAIN_STYLE,
-  isGuaranteedIllustratedMountainSummit,
   resolveIllustratedElevationStats,
-  sampleIllustratedElevationField,
   sampleIllustratedWoodlandField,
 } from '../src/map/illustratedTerrainFields.ts';
+import {
+  MAP_CONTOUR_LEVELS,
+  resolveTerrainContourLevels,
+  traceTerrainContours,
+} from '../src/map/terrainContours.ts';
 import {
   projectIllustratedWoodland,
   type IllustratedWoodlandSourceTree,
@@ -16,7 +18,7 @@ import {
 
 assert.equal(
   ILLUSTRATED_TERRAIN_FIELD_CONTRACT,
-  'world-xz>accepted-tree-placements,elevation,slope-ridge>exact-tree-glyphs,mountain-prominence>species-glyphs,ridge-marks',
+  'world-xz>accepted-tree-placements,terrain-height>exact-tree-glyphs,equal-height-paths>species-glyphs,dotted-charcoal-contours',
   'the map art should publish its stable-coordinate field contract',
 );
 
@@ -138,85 +140,67 @@ assert.deepEqual(
 );
 
 const flatStats = resolveIllustratedElevationStats(new Float32Array(96).fill(12));
-const flatField = sampleIllustratedElevationField({
-  height: 12,
-  neighbourRange: 0,
-  heightAboveNeighbourMean: 0,
-  edgeProximity: 1,
-  stats: flatStats,
-});
-assert.equal(flatStats.reliefGate, 0);
-assert.equal(
-  flatField.mountainProminence,
-  0,
-  'a flat map edge must never be decorated as a mountain',
-);
-assert.equal(
-  isGuaranteedIllustratedMountainSummit(flatField),
-  false,
-  'the non-random summit fallback must remain closed on flat edges',
-);
+assert.deepEqual(resolveTerrainContourLevels(flatStats.minimum, flatStats.maximum).levels, [],
+  'flat terrain must not acquire invented elevation rings');
+assert.deepEqual(traceTerrainContours(new Float32Array(25).fill(12), 5, 12), []);
+assert.deepEqual(resolveIllustratedElevationStats([]), { minimum: 0, maximum: 0 });
 
-const narrowSummitSamples = Float32Array.from(
-  { length: 1_000 },
-  (_, index) => index >= 970 ? 160 : 0,
-);
-const narrowSummitStats = resolveIllustratedElevationStats(narrowSummitSamples);
-const narrowSummit = sampleIllustratedElevationField({
-  height: 160,
-  neighbourRange: 148,
-  heightAboveNeighbourMean: 112,
-  edgeProximity: 0.2,
-  stats: narrowSummitStats,
-});
-assert.equal(
-  narrowSummitStats.broadRelief,
-  0,
-  'the fixture summit should occupy too little area to reach the broad 95th percentile',
-);
-assert.ok(
-  narrowSummitStats.reliefGate > 0.99,
-  'a genuine sub-five-percent summit should still open the relief gate',
-);
-assert.equal(
-  isGuaranteedIllustratedMountainSummit(narrowSummit),
-  true,
-  'the exhaustive sampled-summit audit should guarantee a range for narrow high terrain',
-);
+for (const [minimum, maximum] of [[-17, 23], [0, 160], [0, 600], [241, 244]]) {
+  const { intervalMeters, levels } = resolveTerrainContourLevels(minimum, maximum);
+  assert.ok(levels.length <= MAP_CONTOUR_LEVELS.targetLevelCount);
+  assert.ok(intervalMeters >= 2 && intervalMeters % 2 === 0,
+    'map contours must coarsen the placement overlay’s 2 m interval');
+  for (let index = 0; index < levels.length; index++) {
+    assert.ok(levels[index] > minimum && levels[index] < maximum);
+    if (index > 0) assert.equal(levels[index] - levels[index - 1], intervalMeters,
+      'equal contour gaps must describe equal rises, not height quantiles');
+  }
+}
 
-const ridgeSamples = Float32Array.from({ length: 100 }, (_, index) => index < 68 ? 0 : 100);
-const ridgeStats = resolveIllustratedElevationStats(ridgeSamples);
-const centralHighland = sampleIllustratedElevationField({
-  height: 72,
-  neighbourRange: 0,
-  heightAboveNeighbourMean: 0,
-  edgeProximity: 0,
-  stats: ridgeStats,
-});
-const edgeHighland = sampleIllustratedElevationField({
-  height: 72,
-  neighbourRange: 0,
-  heightAboveNeighbourMean: 0,
-  edgeProximity: 1,
-  stats: ridgeStats,
-});
-assert.ok(ridgeStats.reliefGate > 0.99, 'mountain-scale relief should open the mountain field gate');
-assert.ok(
-  edgeHighland.mountainProminence > centralHighland.mountainProminence,
-  'genuinely high Delnice/Kupa-style map edges should receive stronger ridge marks',
-);
+function heightGrid(resolution: number, sample: (x: number, y: number) => number): Float32Array {
+  return Float32Array.from({ length: resolution * resolution }, (_, index) => (
+    sample((index % resolution) / (resolution - 1), Math.floor(index / resolution) / (resolution - 1))
+  ));
+}
+const slope = heightGrid(17, (x, y) => x * 40 + y * 20);
+const slopePaths = traceTerrainContours(slope, 17, 23);
+assert.equal(slopePaths.length, 1, 'a ramp should yield one connected path across grid cells');
+assert.equal(slopePaths[0].closed, false);
+assert.ok(slopePaths[0].points.length > 10);
+for (const point of slopePaths[0].points) {
+  assert.ok(Math.abs(point.x * 40 + point.y * 20 - 23) < 1e-5,
+    'each vertex must lie on the requested world height');
+}
+assert.deepEqual(slopePaths, traceTerrainContours(slope, 17, 23),
+  'repeated bakes must preserve contour ordering and therefore charcoal placement');
 
-const ruggedSummit = sampleIllustratedElevationField({
-  height: 100,
-  neighbourRange: 74,
-  heightAboveNeighbourMean: 42,
-  edgeProximity: 0.75,
-  stats: ridgeStats,
-});
-assert.ok(
-  ruggedSummit.mountainProminence >= 0.95,
-  'high, sloped, locally prominent terrain should read as a mountain range',
-);
+const hill = heightGrid(41, (x, y) => 100 - 300 * ((x - 0.5) ** 2 + (y - 0.5) ** 2));
+const summitPaths = traceTerrainContours(hill, 41, 80);
+assert.equal(summitPaths.length, 1);
+assert.equal(summitPaths[0].closed, true, 'an isolated hill should receive a closed elevation ring');
+assert.deepEqual(summitPaths[0].points[0], summitPaths[0].points.at(-1));
+for (const point of summitPaths[0].points) {
+  assert.ok(Math.abs(Math.hypot(point.x - 0.5, point.y - 0.5) - Math.sqrt(20 / 300)) < 0.002);
+}
+
+// A summit occupying far less than 5% of the map must survive level selection.
+const narrowHill = heightGrid(65, (x, y) => Math.max(0, 160 * (1 - Math.hypot(x - 0.5, y - 0.5) / 0.06)));
+const narrowStats = resolveIllustratedElevationStats(narrowHill);
+const narrowLevels = resolveTerrainContourLevels(narrowStats.minimum, narrowStats.maximum).levels;
+assert.ok(narrowLevels.some((level) => level >= 120));
+assert.equal(traceTerrainContours(narrowHill, 65, 120).some((path) => path.closed), true);
+
+// The same diagonal peaks merge below a pass and separate above it.
+const saddle = new Float32Array([4, 0, 0, 4]);
+const lowSaddle = traceTerrainContours(saddle, 2, 1);
+const highSaddle = traceTerrainContours(saddle, 2, 3);
+assert.equal(lowSaddle.length, 2);
+assert.equal(highSaddle.length, 2);
+assert.ok(lowSaddle.some(({ points }) => points.every((point) => point.x - point.y > 0.7)),
+  'below the pass, the contour should surround the low corner');
+assert.ok(highSaddle.some(({ points }) => points.every((point) => point.x + point.y < 0.3)),
+  'above the pass, the contour should surround the high corner');
+
 assert.ok(
   ILLUSTRATED_TERRAIN_STYLE.woodland.minimumGlyphSpacingAuthorPixels >= 2.6
     && ILLUSTRATED_TERRAIN_STYLE.woodland.minimumGlyphSpacingAuthorPixels <= 3.2,
@@ -225,10 +209,6 @@ assert.ok(
 assert.ok(
   ILLUSTRATED_TERRAIN_STYLE.woodland.maximumGlyphCount >= 5_000,
   'the illustrated forest ceiling should remain dense enough to read as real groves',
-);
-assert.ok(
-  ILLUSTRATED_TERRAIN_FIELDS.elevation.mountainSpacingAuthorPixels >= 50,
-  'mountain ranges should not occupy adjacent legacy grid slots',
 );
 assert.ok(
   ILLUSTRATED_TERRAIN_STYLE.paper.base.r >= 176

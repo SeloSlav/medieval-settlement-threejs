@@ -293,7 +293,7 @@ assert.match(
 );
 for (const renderer of [
   'drawReliefLines',
-  'drawMountainRanges',
+  'drawCharcoalContour',
   'drawGrassGlyphs',
   'drawForestGlyphs',
   'drawWaterHatching',
@@ -321,23 +321,13 @@ assert.match(
 );
 assert.match(
   terrainMinimapSource,
-  /dataset\.mountainRanges = String\(diagnostics\.elevation\.mountainRangeCount\)/,
-  'the one-time terrain bake should publish its mountain-range diagnostic count',
+  /dataset\.contourIntervalMeters = String\(diagnostics\.elevation\.contourIntervalMeters\)/,
+  'both map views should publish their shared elevation interval',
 );
-assert.match(
+assert.doesNotMatch(
   terrainMinimapSource,
-  /findStrongestGuaranteedMountainCandidate\(/,
-  'the one-time terrain bake should exhaustively audit sampled summits beyond its sparse glyph lattice',
-);
-assert.match(
-  terrainMinimapSource,
-  /forcedMountainRangeCount = 1/,
-  'an uncovered prominent summit should receive one deterministic non-random mountain range',
-);
-assert.match(
-  terrainMinimapSource,
-  /dataset\.mountainSummitCovered = String\(diagnostics\.elevation\.summitCoverageGuaranteed\)/,
-  'the terrain canvas should expose whether its highest eligible summit was covered',
+  /drawMountain|mountainFootprints/,
+  'height contours should replace pictorial mountains and their tree exclusion zones',
 );
 assert.match(
   terrainMinimapSource,

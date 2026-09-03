@@ -12,7 +12,12 @@ const host = document.querySelector<HTMLElement>('#map-host');
 const metrics = document.querySelector<HTMLElement>('#metrics');
 if (!host || !metrics) throw new Error('Illustrated map fixture host is missing.');
 
-const requestedView = new URLSearchParams(window.location.search).get('view');
+const parameters = new URLSearchParams(window.location.search);
+const requestedView = parameters.get('view');
+const requestedRelief = parameters.get('relief');
+const reliefScale = requestedRelief === 'flat' ? 0 : requestedRelief === 'gentle' ? 0.15
+  : requestedRelief === 'steep' ? 5 : 1;
+const contoursOnly = parameters.get('layer') === 'elevation';
 document.body.dataset.view = requestedView === 'near' || requestedView === 'far'
   ? requestedView
   : 'design';
@@ -48,7 +53,7 @@ const terrain: Pick<Terrain, 'getHeightAt' | 'generationSize' | 'size'> = {
     );
     const hills = Math.sin(u * 8.1) * 12 + Math.cos(v * 7.3) * 10;
     const edgeRise = Math.pow(Math.max(Math.abs(u), Math.abs(v)) * 2, 2.5) * 48;
-    return 28 + hills + ridge * 34 + edgeRise;
+    return 28 + (hills + ridge * 34 + edgeRise) * reliefScale;
   },
 };
 
@@ -56,7 +61,7 @@ const treePlacements = createFixtureWoodland(FIXTURE_SEED, 9_800);
 const result = await createTerrainMinimapImage({
   riverField,
   terrain,
-  treePlacements,
+  treePlacements: contoursOnly ? [] : treePlacements,
   seed: FIXTURE_SEED,
 });
 const bakeDurationMs = performance.now() - bakeStartedAt;
