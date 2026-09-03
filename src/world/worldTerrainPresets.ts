@@ -108,7 +108,7 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     topography: 76,
     hydrology: 0,
     forestDensity: 30,
-    minMapSize: 'small',
+    minMapSize: 'medium',
   },
   {
     id: 'vinodol_coast',
@@ -137,7 +137,7 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     topography: 84,
     hydrology: 34,
     forestDensity: 42,
-    minMapSize: 'small',
+    minMapSize: 'medium',
   },
   {
     id: 'custom',

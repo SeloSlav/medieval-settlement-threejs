@@ -268,16 +268,18 @@
 }
 
 .world-setup-landscape-option__requirement {
-  justify-self: start;
-  padding: 2px 5px;
-  color: rgba(244, 206, 128, 0.9);
+  position: absolute;
+  inset: auto 0 0;
+  padding: 6px 8px;
+  color: #261e10;
   font-size: 11px;
   font-weight: 800;
+  line-height: 1.2;
   letter-spacing: 0.04em;
+  text-align: center;
   text-transform: uppercase;
-  border: 1px solid rgba(215, 180, 99, 0.28);
-  border-radius: 2px;
-  background: rgba(0, 0, 0, 0.18);
+  border-top: 1px solid #efd28a;
+  background: #d7b463;
 }
 
 .world-setup-landscape-option__description {
@@ -316,6 +318,11 @@
 .world-setup-landscape-option:disabled,
 .world-setup-landscape-option.is-unavailable {
   cursor: not-allowed;
+  padding-bottom: 34px;
+}
+
+.world-setup-landscape-option:disabled > :not(.world-setup-landscape-option__requirement),
+.world-setup-landscape-option.is-unavailable > :not(.world-setup-landscape-option__requirement) {
   opacity: 0.46;
   filter: saturate(0.55);
 }

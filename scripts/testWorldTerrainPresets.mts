@@ -47,11 +47,12 @@ for (const preset of authoredPresets) {
 assert.equal(isTerrainPresetAvailableForMapSize('kupa_valley', 'small'), false);
 assert.equal(isTerrainPresetAvailableForMapSize('vinodol_coast', 'small'), false);
 assert.equal(isTerrainPresetAvailableForMapSize('risnjak_pass', 'small'), false);
-for (const preset of ['delnice_meadow', 'lic_polje', 'gomirje_meadows', 'mrkopalj_polje', 'custom'] as const) {
+for (const preset of ['gomirje_meadows', 'mrkopalj_polje', 'custom'] as const) {
   assert.equal(isTerrainPresetAvailableForMapSize(preset, 'small'), true);
 }
 
-for (const restrictedPreset of ['kupa_valley', 'vinodol_coast', 'risnjak_pass'] as const) {
+for (const restrictedPreset of ['kupa_valley', 'vinodol_coast', 'risnjak_pass', 'delnice_meadow', 'lic_polje'] as const) {
+  assert.equal(isTerrainPresetAvailableForMapSize(restrictedPreset, 'small'), false);
   const normalized = normalizeWorldGenerationSettings({
     seed: seedForTerrainPreset(0x1234_5678, restrictedPreset),
     mapSize: 'small',

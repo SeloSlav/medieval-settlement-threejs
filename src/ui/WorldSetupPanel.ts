@@ -423,6 +423,8 @@ export class WorldSetupPanel {
         option.classList.toggle('is-selected', isSelected);
         option.setAttribute('aria-pressed', String(isSelected));
         option.title = isAvailable ? '' : 'Requires a Medium or Large map.';
+        const requirement = option.querySelector<HTMLElement>('.world-setup-landscape-option__requirement');
+        if (requirement) requirement.hidden = isAvailable;
       }
     };
 
@@ -746,7 +748,7 @@ export class WorldSetupPanel {
       const unavailable = available ? '' : ' is-unavailable';
       const sizeRequirement = preset.minMapSize === 'small'
         ? ''
-        : `<span class="world-setup-landscape-option__requirement">${preset.minMapSize} map or larger</span>`;
+        : `<span class="world-setup-landscape-option__requirement"${available ? ' hidden' : ''}>${preset.minMapSize} map or larger</span>`;
       const features = preset.features
         .map((feature) => `<span>${feature}</span>`)
         .join('');
@@ -761,10 +763,10 @@ export class WorldSetupPanel {
           <span class="world-setup-landscape-option__heading">
             <strong>${preset.name}</strong>
             ${preset.region ? `<small>${preset.region}</small>` : ''}
-            ${sizeRequirement}
           </span>
           <span class="world-setup-landscape-option__description">${preset.description}</span>
           <span class="world-setup-landscape-option__features">${features}</span>
+          ${sizeRequirement}
         </button>
       `;
     }).join('');
