@@ -7,6 +7,10 @@ import type {
 } from '../scene/RendererBackend.ts';
 import type { GrassStreamTelemetry } from '../grass/GrassBladeField.ts';
 import type { ForestCanopyOcclusionDebugMode } from '../terrain/ForestCanopyOcclusion.ts';
+import type {
+  TerrainHorizonDebugMode,
+  TerrainHorizonDiagnostics,
+} from '../terrain/TerrainHorizon.ts';
 import type { SeedThreeForestProfileBreakdown } from '../vegetation/seedthree/seedThreeForestTypes.ts';
 import {
   createVisualGpuTimestampProfiler,
@@ -45,6 +49,7 @@ type RuntimeSceneManager = {
   selectionGroup: THREE.Group;
   previewGroup: THREE.Group;
   terrain: { mesh: THREE.Mesh };
+  terrainHorizon?: { mesh: THREE.Mesh };
   grassField: {
     group: THREE.Group;
     getStreamTelemetry(target?: GrassStreamTelemetry): GrassStreamTelemetry;
@@ -55,6 +60,8 @@ type RuntimeSceneManager = {
     setForestFloorDebugMode?(mode: ForestCanopyOcclusionDebugMode): void;
   } | null;
   getRendererAdapterEvidence(): RendererAdapterEvidence;
+  setTerrainHorizonDebugMode?(mode: TerrainHorizonDebugMode): void;
+  getTerrainHorizonDiagnostics?(): TerrainHorizonDiagnostics;
   getVisualGpuFrameTiming?(frameTimestampMs: number): VisualGpuFrameTiming;
   getVisualGpuTimingEvidence?(): VisualGpuTimingEvidence;
   getSlowFrameContext?(frameTimestampMs: number): VisualSlowFrameContext | null;
@@ -515,6 +522,8 @@ export type VisualPerformanceHooks = {
   reset(): void;
   setEnabled(subsystem: ProfileSubsystem, enabled: boolean): void;
   setForestFloorDebugMode(mode: ForestCanopyOcclusionDebugMode): void;
+  setTerrainHorizonDebugMode(mode: TerrainHorizonDebugMode): void;
+  getTerrainHorizonDiagnostics(): TerrainHorizonDiagnostics | null;
 };
 
 export type VisualPerformanceDomPublicationEvidence = {
@@ -1181,6 +1190,7 @@ export function installVisualPerformanceHooksIfRequested(
     selectionVisible: manager.selectionGroup.visible,
     previewVisible: manager.previewGroup.visible,
     terrainVisible: manager.terrain.mesh.visible,
+    terrainHorizonVisible: manager.terrainHorizon?.mesh.visible ?? true,
     // Vegetation is intentionally constructed after App.start resolves.
     // Both groups default visible when they appear, so the profiling baseline
     // must not capture their temporary pre-build absence as "disabled".
@@ -1321,6 +1331,9 @@ export function installVisualPerformanceHooksIfRequested(
         break;
       case 'terrain':
         manager.terrain.mesh.visible = enabled && initial.terrainVisible;
+        if (manager.terrainHorizon) {
+          manager.terrainHorizon.mesh.visible = enabled && initial.terrainHorizonVisible;
+        }
         break;
       case 'groundcover':
         if (manager.grassField) {
@@ -1473,6 +1486,12 @@ export function installVisualPerformanceHooksIfRequested(
     setForestFloorDebugMode: (mode) => {
       manager.forestManager?.setForestFloorDebugMode?.(mode);
     },
+    setTerrainHorizonDebugMode: (mode) => {
+      manager.setTerrainHorizonDebugMode?.(mode);
+    },
+    getTerrainHorizonDiagnostics: () => (
+      manager.getTerrainHorizonDiagnostics?.() ?? null
+    ),
   };
   (window as typeof window & { __visualPerf?: VisualPerformanceHooks })
     .__visualPerf = installedHooks;

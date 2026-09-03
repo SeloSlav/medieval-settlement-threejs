@@ -137,7 +137,7 @@
 .development-legend .is-learned { background: #d9c18a; border-color: #d9c18a; }
 .development-legend .is-available { border-color: #d9c18a; }
 .development-legend .is-locked { background: #5f5d50; }
-.development-ledger { align-self: center; max-height: calc(100dvh - 124px); overflow: auto; padding: 4px 10px 12px 0; scrollbar-width: thin; scrollbar-color: #665838 transparent; }
+.development-ledger { align-self: center; max-height: calc(100dvh - 124px); overflow: auto; padding: 20px 22px 22px; scrollbar-width: thin; scrollbar-color: #665838 transparent; }
 .development-budget { display: flex; gap: 18px; align-items: center; }
 .development-budget__number { white-space: nowrap; }
 .development-budget__number strong { color: #ead39a; font-size: 60px; font-weight: 400; line-height: 1; }

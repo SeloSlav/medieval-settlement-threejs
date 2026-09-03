@@ -87,6 +87,10 @@ assert.match(menuStyles, /\.development-branch-art \{[\s\S]*?position: absolute;
 for (const color of ['#7563408c', '#3b58668c', '#75443f8c', '#48633c8c']) {
   assert.ok(gameplayStyles.includes(color), `development quadrant color ${color} must be preserved`);
 }
+assert.match(menuStyles, /\.development-ledger \{[^}]*padding: 20px 22px 22px;/, 'development ledger needs breathing room inside its frame');
+const ironCoverRule = gameplayStyles.match(/\/\* Iron-bound covers:[\s\S]*?\n\}/)?.[0] ?? '';
+assert.ok(ironCoverRule.includes('.development-ledger,'), 'development ledger must share the established iron frame');
+assert.ok(ironCoverRule.includes('border-image: var(--estate-frame)'), 'development ledger must use the approved iron-frame asset');
 for (const skill of DEVELOPMENT_SKILLS) {
   assert.ok(document.includes(skill.name), `Missing skill in design document: ${skill.name}`);
   assert.ok(document.includes(skill.description), `Description differs in design document: ${skill.name}`);
