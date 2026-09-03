@@ -280,7 +280,7 @@ test('keeps the camera zoom visible beside compact calendar controls', async ({ 
           <strong class="settlement-vitals__zoom-value" data-stat="zoom">37%</strong>
         </div>
         <div class="settlement-hud__clock" data-settlement-clock>
-          <span class="settlement-hud__clock-date">27 March, Year 1</span>
+          <span class="settlement-hud__clock-date">28 September, Year 999</span>
           <span class="settlement-hud__season">Spring rain</span>
           <div class="settlement-hud__speed" role="group" aria-label="Simulation speed">
             <button class="settlement-hud__speed-button settlement-hud__speed-button--pause"><span class="settlement-hud__speed-value">&#x23F8;</span></button>
@@ -326,7 +326,7 @@ test('keeps the camera zoom visible beside compact calendar controls', async ({ 
         .map((element) => element.className),
     };
   });
-  expect(layout.width).toBeLessThanOrEqual(240);
+  expect(layout.width).toBeLessThanOrEqual(320);
   expect(layout.height).toBeLessThanOrEqual(50);
   expect(layout.zoomWidth).toBeGreaterThanOrEqual(50);
   expect(layout.separated).toBe(true);

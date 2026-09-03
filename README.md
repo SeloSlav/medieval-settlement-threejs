@@ -1,16 +1,16 @@
 # Selo Empire — Medieval City Builder & Settlement Sim
 
 <p align="center">
-  <img src="docs/screenshots/selo-empire-noble-house-customization.png" alt="Selo Empire noble house selection and coat of arms customization" width="100%">
+  <img src="docs/screenshots/selo-empire-trailer-village-overview.jpg" alt="Selo Empire village with red-roofed homes, gardens, and connected roads amid mountain forests" width="100%">
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/selo-empire-world-setup.png" alt="Selo Empire world setup with map size, settlement mode, landscape, and world seed options" width="100%">
+  <img src="docs/screenshots/selo-empire-trailer-battle.jpg" alt="Selo Empire infantry and cavalry fighting beneath checkered banners in a mountain valley" width="100%">
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/medieval-settlement-first-person-garden.png" alt="Walking through a cultivated medieval settlement garden" width="49%">
-  <img src="docs/screenshots/medieval-settlement-valley-overview.png" alt="Overhead view of a medieval settlement in a forested river valley" width="49%">
+  <img src="docs/screenshots/selo-empire-trailer-farms.jpg" alt="Selo Empire crop fields and household gardens beside a forested village" width="49%">
+  <img src="docs/screenshots/selo-empire-trailer-village-life.jpg" alt="Selo Empire village life with fenced gardens, orchards, a well, and road-going hauling carts" width="49%">
 </p>
 
 ## Run the game locally

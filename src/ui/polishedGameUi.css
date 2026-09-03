@@ -114,7 +114,8 @@ select:focus-visible {
 }
 
 .settlement-vitals {
-  --settlement-vitals-width: min(240px, calc(100vw - 28px));
+  /* Reserve space for a two-digit day, the widest month, and a three-digit year. */
+  --settlement-vitals-width: min(320px, calc(100vw - 28px));
   position: fixed;
   right: max(14px, env(safe-area-inset-right, 0px));
   bottom: max(14px, env(safe-area-inset-bottom, 0px));

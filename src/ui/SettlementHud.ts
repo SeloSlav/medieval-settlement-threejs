@@ -1,7 +1,6 @@
 import type { SettlementSchedule } from '../world/settlementSchedule.ts';
 import {
   formatCalendarDate,
-  formatCalendarMonthDay,
   formatWeekday,
   gameClock,
 } from '../world/gameCalendar.ts';
@@ -1855,9 +1854,9 @@ export class SettlementHud {
     schedule: SettlementSchedule,
     presentationIsNight = schedule.dayNight.isNight,
   ): void {
-    const date = formatCalendarMonthDay(schedule.clock);
+    const date = formatCalendarDate(schedule.clock);
     const weekday = formatWeekday(schedule.clock);
-    const fullDate = `${weekday}, ${formatCalendarDate(schedule.clock)}`;
+    const fullDate = `${weekday}, ${date}`;
     const pauseLabel = schedule.laborPauseLabel;
     const detail = pauseLabel
       ? `${weekday} · ${pauseLabel}`
