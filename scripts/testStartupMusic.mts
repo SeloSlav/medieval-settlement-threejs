@@ -374,7 +374,7 @@ const startupIndex = appSource.indexOf('this.startupMusic = new StartupMusicCont
 const bootstrapIndex = appSource.indexOf('session = await bootstrapAppSession');
 assert.ok(startupIndex >= 0 && bootstrapIndex > startupIndex, 'music must start before setup prompts');
 assert.match(appSource, /deferGameplayMusic: this\.startupMusic !== null/);
-assert.match(appSource, /onFirstPlayable: \(\) => this\.handoffStartupMusic\(\)/);
+assert.match(appSource, /onFirstPlayable: \(\) => \{[\s\S]*?this\.handoffStartupMusic\(\);/);
 assert.match(appSource, /markMusicTrackPlayed\(STARTUP_MUSIC_TRACK_ID\)/);
 const handoffSource = appSource.slice(appSource.indexOf('private handoffStartupMusic'));
 const markPlayedIndex = handoffSource.indexOf('markMusicTrackPlayed(STARTUP_MUSIC_TRACK_ID)');

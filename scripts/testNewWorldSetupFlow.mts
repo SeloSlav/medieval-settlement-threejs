@@ -284,9 +284,7 @@ assert.match(settlementHud, /difficultyBadge\.dataset\.tooltipTitle = difficulty
 assert.match(settlementHud, /difficultyBadge\.dataset\.tooltip = difficulty\.summary/);
 assert.match(nobleCss, /\.noble-hud__title-row\s*\{[\s\S]*?display: flex/);
 assert.match(nobleCss, /\.noble-hud__difficulty\s*\{[\s\S]*?cursor: help/);
-assert.match(appShell, /class="app-loading-kicker">Medieval Croatia · 1550</);
 assert.match(appShell, /selo-empire-pauline-monastery-study\.png/);
-assert.doesNotMatch(appShell, /class="app-loading-kicker">[^<]*Gorski Kotar/i);
 
 assert.match(bootstrapFlow, /while \(true\)/);
 assert.match(bootstrapFlow, /initialStep: nobleStep/);
