@@ -13,6 +13,7 @@ import {
 import {
   applyTerrainPreset,
   isTerrainPresetAvailableForMapSize,
+  SMALL_MAP_FALLBACK_TERRAIN_PRESET,
   seedForTerrainPreset,
   WORLD_TERRAIN_PRESETS,
   type WorldTerrainPreset,
@@ -106,7 +107,7 @@ export class WorldSetupPanel {
           ...DEFAULT_WORLD_SETUP_DIFFICULTY.settings,
           mapSize: 'small',
         },
-        'delnice_meadow',
+        SMALL_MAP_FALLBACK_TERRAIN_PRESET,
       );
     this.backdrop = document.createElement('div');
     this.backdrop.className = 'world-setup-backdrop';
@@ -583,7 +584,7 @@ export class WorldSetupPanel {
     bindArrowSelector(mapSizeSelector, (step) => {
       this.draft.mapSize = cycleValue(MAP_SIZE_ORDER, this.draft.mapSize, step);
       if (!isTerrainPresetAvailableForMapSize(this.draft.terrainPreset, this.draft.mapSize)) {
-        this.draft = applyTerrainPreset(this.draft, 'delnice_meadow');
+        this.draft = applyTerrainPreset(this.draft, SMALL_MAP_FALLBACK_TERRAIN_PRESET);
       }
       syncMapSizeControl();
       syncLandscapeControls();
@@ -739,11 +740,7 @@ export class WorldSetupPanel {
 
   private renderTerrainPresetOptions(): void {
     const grid = this.backdrop.querySelector<HTMLElement>('[data-landscape-grid]')!;
-    const displayPresets = [
-      ...WORLD_TERRAIN_PRESETS.filter((preset) => preset.id === 'delnice_meadow'),
-      ...WORLD_TERRAIN_PRESETS.filter((preset) => preset.id !== 'delnice_meadow'),
-    ];
-    grid.innerHTML = displayPresets.map((preset) => {
+    grid.innerHTML = WORLD_TERRAIN_PRESETS.map((preset) => {
       const selected = preset.id === this.draft.terrainPreset ? ' is-selected' : '';
       const available = isTerrainPresetAvailableForMapSize(preset.id, this.draft.mapSize);
       const unavailable = available ? '' : ' is-unavailable';

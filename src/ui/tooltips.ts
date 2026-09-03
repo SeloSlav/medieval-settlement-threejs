@@ -217,7 +217,15 @@ export function mountTooltips(root: HTMLElement, variantClass?: string): () => v
     if (related instanceof Node && anchor.contains(related)) return;
     const nextAnchor = findTooltipAnchor(related);
     if (nextAnchor && isTooltipAnchorAvailable(nextAnchor, root)) return;
-    scheduleActiveAnchorReconciliation();
+    // A live anchor can still exist after the pointer has left it. In
+    // particular, map stamps share one renderer target, so no later DOM
+    // mouseover will arrive to dismiss their mirrored resource tooltip.
+    if (isTooltipAnchorAvailable(anchor, root)) {
+      hide();
+    } else {
+      // Retain the one-frame handoff only for rows replaced by live panels.
+      scheduleActiveAnchorReconciliation();
+    }
   };
 
   const onFocusIn = (event: FocusEvent): void => {

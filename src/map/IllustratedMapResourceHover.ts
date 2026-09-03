@@ -29,6 +29,8 @@ export class IllustratedMapResourceHover {
     );
     options.domElement.addEventListener('pointermove', this.onPointerMove);
     options.domElement.addEventListener('pointerleave', this.onPointerLeave);
+    options.domElement.addEventListener('pointercancel', this.onPointerLeave);
+    options.uiRoot.ownerDocument.addEventListener('visibilitychange', this.onVisibilityChange);
     options.uiRoot.ownerDocument.defaultView?.addEventListener('blur', this.onWindowBlur);
   }
 
@@ -45,7 +47,7 @@ export class IllustratedMapResourceHover {
     let closest: HTMLButtonElement | null = null;
     let closestDistanceSquared = Number.POSITIVE_INFINITY;
     for (const anchor of this.anchors) {
-      if (anchor.hidden) continue;
+      if (!anchor.isConnected || anchor.closest('[hidden], [inert]')) continue;
       const projectedDistanceSquared = projectedMapButtonHitDistanceSquared(
         anchor,
         this.pointerX,
@@ -91,6 +93,8 @@ export class IllustratedMapResourceHover {
     this.setActiveAnchor(null);
     this.options.domElement.removeEventListener('pointermove', this.onPointerMove);
     this.options.domElement.removeEventListener('pointerleave', this.onPointerLeave);
+    this.options.domElement.removeEventListener('pointercancel', this.onPointerLeave);
+    this.options.uiRoot.ownerDocument.removeEventListener('visibilitychange', this.onVisibilityChange);
     this.options.uiRoot.ownerDocument.defaultView?.removeEventListener('blur', this.onWindowBlur);
   }
 
@@ -98,6 +102,9 @@ export class IllustratedMapResourceHover {
     this.pointerX = event.clientX;
     this.pointerY = event.clientY;
     this.pointerInside = true;
+    // Respond at the stamp boundary without waiting for the next render frame.
+    // update() still runs each frame for camera movement under a still cursor.
+    this.update();
   };
 
   private readonly onPointerLeave = (): void => {
@@ -106,8 +113,11 @@ export class IllustratedMapResourceHover {
   };
 
   private readonly onWindowBlur = (): void => {
-    this.pointerInside = false;
-    this.setActiveAnchor(null);
+    this.onPointerLeave();
+  };
+
+  private readonly onVisibilityChange = (): void => {
+    if (this.options.uiRoot.ownerDocument.hidden) this.onPointerLeave();
   };
 
   private setActiveAnchor(next: HTMLButtonElement | null): void {
@@ -120,12 +130,16 @@ export class IllustratedMapResourceHover {
       previous.dispatchEvent(new MouseEventConstructor('mouseout', {
         bubbles: true,
         relatedTarget: next,
+        clientX: this.pointerX,
+        clientY: this.pointerY,
       }));
     }
     if (next) {
       next.dispatchEvent(new MouseEventConstructor('mouseover', {
         bubbles: true,
         relatedTarget: previous,
+        clientX: this.pointerX,
+        clientY: this.pointerY,
       }));
     }
   }

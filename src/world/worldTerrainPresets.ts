@@ -9,6 +9,8 @@ export type WorldTerrainPreset =
   | 'delnice_meadow'
   | 'vinodol_coast'
   | 'lic_polje'
+  | 'gomirje_meadows'
+  | 'mrkopalj_polje'
   | 'custom';
 
 export type WorldTerrainPresetDefinition = {
@@ -33,9 +35,45 @@ const PRESET_SEED_SIGNATURES = {
   delnice_meadow: 0x4310_0000,
   vinodol_coast: 0x5600_0000,
   lic_polje: 0x4c10_0000,
+  gomirje_meadows: 0x4740_0000,
+  mrkopalj_polje: 0x4d50_0000,
 } as const satisfies Record<Exclude<WorldTerrainPreset, 'custom'>, number>;
 
+export const SMALL_MAP_FALLBACK_TERRAIN_PRESET = 'mrkopalj_polje' as const;
+
 export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
+  // These profiles frame the fields themselves, keeping the surrounding
+  // regional mountains outside the playable footprint.
+  // Gomirje's field has the Dobra along its northern side:
+  // https://dizbi.hazu.hr/d17b118n/main/k/g1/63k/kg163kiol22r.pdf
+  {
+    id: 'gomirje_meadows',
+    name: 'Gomirje Meadows',
+    region: 'Dobra · Gorski Kotar',
+    description:
+      'Flat riverside fields with a gently winding Dobra and low grassy banks.',
+    features: ['Single through-river', 'Broad building ground', 'Gentle map edges'],
+    topography: 12,
+    hydrology: 40,
+    forestDensity: 32,
+    minMapSize: 'small',
+  },
+  // Mrkopalj occupies Mrko polje and is documented from 1477. The modest
+  // pastoral pond is an authored gameplay feature, not a named historic lake.
+  // https://www.enciklopedija.hr/clanak/mrkopalj
+  // https://mrkopalj.hr/o-mrkoplju/
+  {
+    id: 'mrkopalj_polje',
+    name: 'Mrkopaljsko Polje',
+    region: 'Mrkopalj · Gorski Kotar',
+    description:
+      'Level upland pasture with one small fish pond and scattered woodland.',
+    features: ['No rivers', 'Pasture pond', 'Flat ground to the edges'],
+    topography: 8,
+    hydrology: 0,
+    forestDensity: 28,
+    minMapSize: 'small',
+  },
   {
     id: 'kupa_valley',
     name: 'Kupa Valley',
@@ -58,7 +96,7 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     topography: 92,
     hydrology: 46,
     forestDensity: 84,
-    minMapSize: 'small',
+    minMapSize: 'medium',
   },
   {
     id: 'delnice_meadow',

@@ -99,6 +99,12 @@ class FakeMouseEvent extends Event {
 
 class HoverAnchor extends EventTarget {
   hidden = false;
+  isConnected = true;
+  parentHidden = false;
+
+  closest(): HoverAnchor | null {
+    return this.hidden || this.parentHidden ? this : null;
+  }
 
   getBoundingClientRect(): DOMRect {
     return {
@@ -120,10 +126,10 @@ const hoverRenderer = new EventTarget();
 const hoverWindow = new EventTarget() as EventTarget & { MouseEvent: typeof FakeMouseEvent };
 hoverWindow.MouseEvent = FakeMouseEvent;
 const hoverUiRoot = new EventTarget() as EventTarget & {
-  ownerDocument: { defaultView: typeof hoverWindow };
+  ownerDocument: EventTarget & { defaultView: typeof hoverWindow; hidden: boolean };
   querySelectorAll: () => HoverAnchor[];
 };
-hoverUiRoot.ownerDocument = { defaultView: hoverWindow };
+hoverUiRoot.ownerDocument = Object.assign(new EventTarget(), { defaultView: hoverWindow, hidden: false });
 hoverUiRoot.querySelectorAll = () => [hoverAnchor];
 let illustratedMapActive = true;
 let hoverBlocked = false;
@@ -161,14 +167,44 @@ Object.defineProperties(pointerMove, {
   clientY: { value: 100 },
 });
 hoverRenderer.dispatchEvent(pointerMove);
-illustratedHover.update();
-assert.equal(mouseOverCount, 1, 'a renderer-side stamp hit should activate its tooltip anchor');
+assert.equal(mouseOverCount, 1, 'pointer movement should activate a stamp without waiting for a render frame');
 illustratedHover.update();
 assert.equal(repositionCount, 1, 'an active card should follow its projected stamp each frame');
 assert.equal(pointerMove.defaultPrevented, false, 'hover hit testing must not consume camera input');
+const moveOutside = new Event('pointermove');
+Object.defineProperties(moveOutside, {
+  clientX: { value: 121 },
+  clientY: { value: 100 },
+});
+hoverRenderer.dispatchEvent(moveOutside);
+assert.equal(mouseOutCount, 1, 'moving one pixel beyond the stamp must dismiss immediately');
+hoverRenderer.dispatchEvent(pointerMove);
+assert.equal(mouseOverCount, 2, 'returning to the stamp must reopen its tooltip');
+// The map can move under a stationary mouse without another pointer event.
+setProjectedMapButtonHitBounds(hoverAnchor as unknown as HTMLButtonElement, 200, 100, 40, 40);
+illustratedHover.update();
+assert.equal(mouseOutCount, 2, 'panning a stamp away from the cursor must dismiss it');
+setProjectedMapButtonHitBounds(hoverAnchor as unknown as HTMLButtonElement, 100, 100, 40, 40);
+illustratedHover.update();
+assert.equal(mouseOverCount, 3);
+hoverRenderer.dispatchEvent(new Event('pointercancel'));
+assert.equal(mouseOutCount, 3, 'cancelled pointer input must release the hovered resource');
+illustratedHover.update();
+assert.equal(mouseOverCount, 3, 'cancelled input must not restore a stale hover');
+hoverRenderer.dispatchEvent(pointerMove);
+hoverAnchor.parentHidden = true;
+illustratedHover.update();
+assert.equal(mouseOutCount, 4, 'hidden resource layers must not retain a hover');
+hoverAnchor.parentHidden = false;
+hoverRenderer.dispatchEvent(pointerMove);
+hoverUiRoot.ownerDocument.hidden = true;
+hoverUiRoot.ownerDocument.dispatchEvent(new Event('visibilitychange'));
+assert.equal(mouseOutCount, 5, 'a hidden page must release the hovered resource');
+hoverUiRoot.ownerDocument.hidden = false;
+hoverRenderer.dispatchEvent(pointerMove);
 hoverBlocked = true;
 illustratedHover.update();
-assert.equal(mouseOutCount, 1, 'a blocking overlay should close the active resource card');
+assert.equal(mouseOutCount, 6, 'a blocking overlay should close the active resource card');
 hoverBlocked = false;
 illustratedMapActive = false;
 illustratedHover.update();

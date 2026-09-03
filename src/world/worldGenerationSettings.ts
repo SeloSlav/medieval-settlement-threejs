@@ -3,6 +3,7 @@ import {
   isTerrainPresetAvailableForMapSize,
   seedForTerrainPreset,
   terrainPresetFromSeed,
+  SMALL_MAP_FALLBACK_TERRAIN_PRESET,
   type WorldTerrainPreset,
 } from './worldTerrainPresets.ts';
 
@@ -204,7 +205,7 @@ export function normalizeWorldGenerationSettings(
   const requestedTerrainPreset = terrainPresetFromSeed(requestedSeed);
   const terrainPreset = isTerrainPresetAvailableForMapSize(requestedTerrainPreset, mapSize)
     ? requestedTerrainPreset
-    : 'delnice_meadow';
+    : SMALL_MAP_FALLBACK_TERRAIN_PRESET;
   const seed = terrainPreset === requestedTerrainPreset
     ? requestedSeed
     : seedForTerrainPreset(requestedSeed, terrainPreset);

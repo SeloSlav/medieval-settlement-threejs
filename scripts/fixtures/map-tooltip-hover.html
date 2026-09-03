@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Map resource tooltip regression</title>
+<style>
+  body { margin: 24px; background: #24251f; color: #e0d6c2; font: 15px system-ui; }
+  #renderer { position: relative; width: 620px; height: 340px; background: #b8aea0; margin: 20px 0; }
+  .stamp { position: absolute; width: 90px; height: 90px; pointer-events: none; }
+  #clay-art { left: 130px; top: 100px; }
+  #iron-art { left: 360px; top: 100px; }
+  .map-anchor { position: fixed; width: 90px; height: 90px; padding: 0; border: 0; pointer-events: none; opacity: 0; }
+  button { padding: 10px; }
+  #results { white-space: pre-wrap; }
+  .ui-tooltip { position: fixed; z-index: 10; pointer-events: none; padding: 12px; color: #e0d6c2; background: #131810; border-left: 2px solid #bba156; }
+</style>
+<h1>Map resource tooltip regression</h1>
+<p>Hover the resource art, then move to empty map space. The card should disappear immediately.</p>
+<button id="run">Run hover regression checks</button>
+<div id="renderer" aria-label="Map input surface">
+  <img id="clay-art" class="stamp" src="/assets/ui/map-stamps/clay-normal.png" alt="Clay resource">
+  <img id="iron-art" class="stamp" src="/assets/ui/map-stamps/iron-normal.png" alt="Iron resource">
+</div>
+<div id="ui-root">
+  <div id="resources">
+    <button id="clay" class="map-anchor foraging-map-icon" data-tooltip="Clay deposit" aria-label="Clay tooltip anchor"></button>
+    <button id="iron" class="map-anchor quarry-map-icon" data-tooltip="Iron deposit" aria-label="Iron tooltip anchor"></button>
+  </div>
+  <button id="ordinary" data-tooltip="Ordinary control"><span>Ordinary control</span></button>
+  <div id="live-panel"><button data-tooltip="Live amount: 10">Live resource row</button></div>
+</div>
+<pre id="results" role="status">Ready</pre>
+<script type="module">
+  import { mountTooltips } from '/src/ui/tooltips.ts';
+  import { IllustratedMapResourceHover } from '/src/map/IllustratedMapResourceHover.ts';
+  import { setProjectedMapButtonHitBounds } from '/src/map/projectedMapButtonHitBounds.ts';
+
+  const root = document.querySelector('#ui-root');
+  const renderer = document.querySelector('#renderer');
+  const resources = document.querySelector('#resources');
+  const clay = document.querySelector('#clay');
+  const iron = document.querySelector('#iron');
+  const ordinary = document.querySelector('#ordinary');
+  const panel = document.querySelector('#live-panel');
+  const results = document.querySelector('#results');
+  let active = true;
+  let blocked = false;
+  const unmount = mountTooltips(root);
+  const hover = new IllustratedMapResourceHover({
+    uiRoot: root, domElement: renderer, isActive: () => active, isBlocked: () => blocked,
+  });
+  const tooltip = document.querySelector('#ui-tooltip');
+  const boundsFor = (anchor) => document.querySelector(`#${anchor.id}-art`).getBoundingClientRect();
+  const syncBounds = () => {
+    for (const anchor of [clay, iron]) {
+      const rect = boundsFor(anchor);
+      anchor.style.left = `${rect.left}px`;
+      anchor.style.top = `${rect.top}px`;
+      setProjectedMapButtonHitBounds(anchor, rect.left + rect.width / 2, rect.top + rect.height / 2, rect.width, rect.height);
+    }
+  };
+  syncBounds();
+  window.addEventListener('resize', syncBounds);
+  let frame;
+  const tick = () => { hover.update(); frame = requestAnimationFrame(tick); };
+  tick();
+  window.addEventListener('pagehide', () => { cancelAnimationFrame(frame); hover.dispose(); unmount(); });
+
+  const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+  const pointAt = (anchor) => {
+    const rect = boundsFor(anchor);
+    return { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 };
+  };
+  const moveTo = (point) => renderer.dispatchEvent(new PointerEvent('pointermove', { ...point, bubbles: true }));
+  document.querySelector('#run').addEventListener('click', async () => {
+    const checks = [];
+    const check = (condition, message) => {
+      if (!condition) throw new Error(message);
+      checks.push(`PASS ${message}`);
+      results.textContent = checks.join('\n');
+    };
+    results.textContent = 'Running…';
+    try {
+      syncBounds();
+      moveTo(pointAt(clay));
+      check(!tooltip.hidden && tooltip.textContent.includes('Clay'), 'Hover opens without waiting for a game frame');
+      await nextFrame();
+      check(tooltip.classList.contains('is-visible'), 'Clay card becomes visible');
+      const outside = { clientX: boundsFor(clay).right + 1, clientY: pointAt(clay).clientY };
+      moveTo(outside);
+      check(tooltip.hidden && !clay.hasAttribute('aria-describedby'), 'One pixel outside the resource dismisses immediately');
+      await nextFrame();
+      check(tooltip.hidden, 'The next animation frame cannot revive the departed tooltip');
+      moveTo(pointAt(clay));
+      moveTo(outside);
+      await nextFrame();
+      check(tooltip.hidden, 'Rapid enter/leave cancels the pending reveal');
+      moveTo(pointAt(clay));
+      moveTo(pointAt(iron));
+      check(!tooltip.hidden && tooltip.textContent.includes('Iron') && !clay.hasAttribute('aria-describedby'), 'Switching resources transfers ownership cleanly');
+      renderer.dispatchEvent(new PointerEvent('pointerleave'));
+      check(tooltip.hidden, 'Leaving the map dismisses the card');
+      moveTo(pointAt(clay));
+      const point = pointAt(clay);
+      setProjectedMapButtonHitBounds(clay, point.clientX + 160, point.clientY, 90, 90);
+      hover.update();
+      check(tooltip.hidden, 'Moving the map beneath a stationary cursor dismisses the card');
+      syncBounds();
+      moveTo(pointAt(clay));
+      resources.hidden = true;
+      hover.update();
+      await nextFrame();
+      check(tooltip.hidden, 'Hiding the resource layer dismisses the card');
+      resources.hidden = false;
+      moveTo(pointAt(clay));
+      renderer.dispatchEvent(new PointerEvent('pointercancel'));
+      check(tooltip.hidden, 'Pointer cancellation dismisses the card');
+      moveTo(pointAt(clay));
+      window.dispatchEvent(new Event('blur'));
+      check(tooltip.hidden, 'Window blur dismisses the card');
+      moveTo(pointAt(clay));
+      blocked = true;
+      hover.update();
+      check(tooltip.hidden, 'Blocking game overlays dismiss the card');
+      blocked = false;
+      moveTo(pointAt(clay));
+      active = false;
+      hover.update();
+      check(tooltip.hidden, 'Leaving illustrated-map mode dismisses the card');
+      active = true;
+      renderer.dispatchEvent(new PointerEvent('pointerleave'));
+
+      ordinary.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      ordinary.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: ordinary.firstElementChild }));
+      check(!tooltip.hidden, 'Moving within a control does not flicker its tooltip');
+      ordinary.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: renderer }));
+      check(tooltip.hidden, 'Ordinary tooltip anchors dismiss on exit too');
+      ordinary.focus();
+      check(!tooltip.hidden, 'Keyboard focus still opens a tooltip');
+      ordinary.blur();
+      check(tooltip.hidden, 'Keyboard focus exit still dismisses it');
+
+      const row = panel.firstElementChild;
+      const rect = row.getBoundingClientRect();
+      row.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, clientX: rect.left + 10, clientY: rect.top + 10 }));
+      await nextFrame();
+      const replacement = row.cloneNode(true);
+      replacement.dataset.tooltip = 'Live amount: 11';
+      row.replaceWith(replacement);
+      await nextFrame();
+      await nextFrame();
+      check(!tooltip.hidden && tooltip.textContent.includes('11'), 'Replacing a live panel row preserves and refreshes its tooltip');
+      replacement.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
+      check(tooltip.hidden, 'The replacement row also dismisses on pointer exit');
+      results.dataset.passed = String(checks.length);
+      results.textContent += `\n${checks.length} checks passed`;
+    } catch (error) {
+      results.textContent += `\nFAIL ${error.message}`;
+      results.dataset.failed = 'true';
+      throw error;
+    }
+  });
+</script>
+</html>
