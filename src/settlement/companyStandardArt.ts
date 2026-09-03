@@ -69,6 +69,7 @@ export type LordHeraldryBannerArt = Readonly<{
   patternAngleDegrees: number;
   charge: HeraldryCharge;
   chargeColor: string;
+  chargeOutlineColor: string;
   chargeMaskUrl: string;
   chargePlacements: readonly CompanyStandardChargePlacement[];
   trimColor: string;
@@ -214,6 +215,7 @@ export function resolvePlayerCompanyStandardArt(
     patternAngleDegrees: heraldry.patternAngle,
     charge: heraldry.charge,
     chargeColor: heraldry.chargeColor,
+    chargeOutlineColor: heraldry.chargeOutlineColor,
     chargeMaskUrl: chargeAssetUrl(heraldry.charge),
     chargePlacements: chargePlacements(heraldry.chargeCount, heraldry.chargeScale),
     trimColor: COMPANY_STANDARD_TRIM_COLOR,
@@ -427,6 +429,7 @@ function standardArtCacheKey(profile: NobleProfile): string {
     heraldry.patternAngle,
     heraldry.charge,
     heraldry.chargeColor,
+    heraldry.chargeOutlineColor,
     heraldry.chargeCount,
     heraldry.chargeScale,
   ].join('|');
@@ -503,6 +506,7 @@ function normalizeStandardProfile(profile: NobleProfile): NobleProfile {
       patternAngle: clamp(heraldry?.patternAngle, -45, 45, fallback.heraldry.patternAngle),
       charge,
       chargeColor: validHexColor(heraldry?.chargeColor, fallback.heraldry.chargeColor),
+      chargeOutlineColor: validHexColor(heraldry?.chargeOutlineColor, fallback.heraldry.chargeOutlineColor),
       chargeCount: Math.round(clamp(heraldry?.chargeCount, 1, 5, fallback.heraldry.chargeCount)),
       chargeScale: clamp(heraldry?.chargeScale, 0.24, 0.84, fallback.heraldry.chargeScale),
     },

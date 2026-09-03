@@ -39,6 +39,7 @@ const customProfile: NobleProfile = {
     patternAngle: 15,
     charge: 'double-headed-eagle',
     chargeColor: '#b68b38',
+    chargeOutlineColor: '#17395f',
     chargeCount: 5,
     chargeScale: 0.58,
   },
@@ -59,6 +60,7 @@ assert.equal(art.upper.patternTiling, customProfile.heraldry.patternTiling);
 assert.equal(art.upper.patternAngleDegrees, customProfile.heraldry.patternAngle);
 assert.equal(art.upper.charge, customProfile.heraldry.charge);
 assert.equal(art.upper.chargeColor, customProfile.heraldry.chargeColor);
+assert.equal(art.upper.chargeOutlineColor, customProfile.heraldry.chargeOutlineColor);
 assert.equal(
   art.upper.chargeMaskUrl,
   '/assets/ui/noble-setup/charges/double-headed-eagle.png',
@@ -110,6 +112,7 @@ for (const [label, changed] of [
   ['lord name', { ...customProfile, displayName: 'Another house' }],
   ['field color', { ...customProfile, heraldry: { ...customProfile.heraldry, fieldColor: '#813126' } }],
   ['charge', { ...customProfile, heraldry: { ...customProfile.heraldry, charge: 'falcon' as const } }],
+  ['charge outline color', { ...customProfile, heraldry: { ...customProfile.heraldry, chargeOutlineColor: '#d8d1bb' } }],
 ] as const) {
   assert.notEqual(resolvePlayerCompanyStandardArt(changed).cacheKey, art.cacheKey, `${label} must invalidate artwork`);
 }

@@ -33,6 +33,7 @@ function heraldryMatches(left: Heraldry, right: Heraldry): boolean {
     && left.patternAngle === right.patternAngle
     && left.charge === right.charge
     && left.chargeColor === right.chargeColor
+    && left.chargeOutlineColor === right.chargeOutlineColor
     && left.chargeCount === right.chargeCount
     && left.chargeScale === right.chargeScale;
 }
@@ -64,6 +65,7 @@ export class NobleSetupPanel {
   private readonly fieldColorRow: HTMLElement;
   private readonly patternColorRow: HTMLElement;
   private readonly chargeColorRow: HTMLElement;
+  private readonly chargeOutlineColorRow: HTMLElement;
   private readonly tilingInput: HTMLInputElement;
   private readonly angleInput: HTMLInputElement;
   private readonly countInput: HTMLInputElement;
@@ -208,6 +210,10 @@ export class NobleSetupPanel {
                       <span>Charge Color</span>
                       <div class="noble-setup-colors" data-charge-colors></div>
                     </div>
+                    <div class="noble-setup-color-setting">
+                      <span>Outline Color</span>
+                      <div class="noble-setup-colors" role="group" aria-label="Charge outline color" data-charge-outline-colors></div>
+                    </div>
                     <div class="noble-setup-charges" data-charge-grid></div>
                     <label class="noble-setup-slider-row" for="noble-charge-count">
                       <span>Number of Charges</span>
@@ -262,6 +268,7 @@ export class NobleSetupPanel {
     this.fieldColorRow = this.mustElement('[data-field-colors]');
     this.patternColorRow = this.mustElement('[data-pattern-colors]');
     this.chargeColorRow = this.mustElement('[data-charge-colors]');
+    this.chargeOutlineColorRow = this.mustElement('[data-charge-outline-colors]');
     this.tilingInput = this.mustInput('[data-tiling]');
     this.angleInput = this.mustInput('[data-angle]');
     this.countInput = this.mustInput('[data-count]');
@@ -281,6 +288,7 @@ export class NobleSetupPanel {
     this.renderColorRow(this.fieldColorRow, 'fieldColor');
     this.renderColorRow(this.patternColorRow, 'patternColor');
     this.renderColorRow(this.chargeColorRow, 'chargeColor');
+    this.renderColorRow(this.chargeOutlineColorRow, 'chargeOutlineColor');
     this.bindEvents();
     this.syncAll();
     this.syncStep(true);
@@ -461,7 +469,7 @@ export class NobleSetupPanel {
 
   private renderColorRow(
     target: HTMLElement,
-    key: 'fieldColor' | 'patternColor' | 'chargeColor',
+    key: 'fieldColor' | 'patternColor' | 'chargeColor' | 'chargeOutlineColor',
   ): void {
     HERALDRY_TINCTURES.forEach((tincture) => {
       const button = document.createElement('button');
@@ -551,7 +559,7 @@ export class NobleSetupPanel {
       button.setAttribute('aria-pressed', String(selected));
     }
     for (const button of this.backdrop.querySelectorAll<HTMLButtonElement>('[data-color-key]')) {
-      const key = button.dataset.colorKey as 'fieldColor' | 'patternColor' | 'chargeColor';
+      const key = button.dataset.colorKey as 'fieldColor' | 'patternColor' | 'chargeColor' | 'chargeOutlineColor';
       const selected = button.dataset.colorValue === heraldry[key];
       button.classList.toggle('is-selected', selected);
       button.setAttribute('aria-pressed', String(selected));

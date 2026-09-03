@@ -291,6 +291,7 @@ export type Heraldry = {
   patternAngle: number;
   charge: HeraldryCharge;
   chargeColor: string;
+  chargeOutlineColor: string;
   chargeCount: number;
   chargeScale: number;
 };
@@ -302,21 +303,21 @@ export type NobleProfile = {
 };
 
 export const HERALDRY_PRESETS: readonly Heraldry[] = [
-  { pattern: 'checky', fieldColor: '#d8d1bb', patternColor: '#8d3027', patternTiling: 4, patternAngle: 0, charge: 'falcon', chargeColor: '#c59b48', chargeCount: 1, chargeScale: 0.63 },
-  { pattern: 'per-pale', fieldColor: '#25251f', patternColor: '#c59b48', patternTiling: 1, patternAngle: 0, charge: 'lion', chargeColor: '#d8d1bb', chargeCount: 1, chargeScale: 0.68 },
-  { pattern: 'bend', fieldColor: '#8d3027', patternColor: '#d8d1bb', patternTiling: 1, patternAngle: -5, charge: 'wolf', chargeColor: '#25251f', chargeCount: 1, chargeScale: 0.64 },
-  { pattern: 'quarterly', fieldColor: '#2e5266', patternColor: '#d8d1bb', patternTiling: 1, patternAngle: 0, charge: 'tower', chargeColor: '#c59b48', chargeCount: 1, chargeScale: 0.61 },
-  { pattern: 'per-fess', fieldColor: '#43593b', patternColor: '#c59b48', patternTiling: 1, patternAngle: 0, charge: 'stag', chargeColor: '#d8d1bb', chargeCount: 1, chargeScale: 0.67 },
-  { pattern: 'saltire', fieldColor: '#66445b', patternColor: '#d8d1bb', patternTiling: 1, patternAngle: 0, charge: 'star', chargeColor: '#c59b48', chargeCount: 1, chargeScale: 0.5 },
-  { pattern: 'stripes', fieldColor: '#25251f', patternColor: '#8d3027', patternTiling: 4, patternAngle: 0, charge: 'eagle', chargeColor: '#d8d1bb', chargeCount: 1, chargeScale: 0.72 },
-  { pattern: 'solid', fieldColor: '#2e5266', patternColor: '#2e5266', patternTiling: 1, patternAngle: 0, charge: 'crescent', chargeColor: '#d8d1bb', chargeCount: 3, chargeScale: 0.34 },
-  { pattern: 'lozengy', fieldColor: '#d8d1bb', patternColor: '#43593b', patternTiling: 3, patternAngle: 0, charge: 'bear', chargeColor: '#25251f', chargeCount: 1, chargeScale: 0.66 },
-  { pattern: 'cross', fieldColor: '#8d3027', patternColor: '#d8d1bb', patternTiling: 1, patternAngle: 0, charge: 'key', chargeColor: '#c59b48', chargeCount: 2, chargeScale: 0.38 },
-  { pattern: 'chevron', fieldColor: '#25251f', patternColor: '#c59b48', patternTiling: 1, patternAngle: 0, charge: 'boar', chargeColor: '#d8d1bb', chargeCount: 1, chargeScale: 0.59 },
-  { pattern: 'bend-sinister', fieldColor: '#43593b', patternColor: '#d8d1bb', patternTiling: 1, patternAngle: 6, charge: 'axes', chargeColor: '#c59b48', chargeCount: 1, chargeScale: 0.6 },
-  { pattern: 'per-pale', fieldColor: '#66445b', patternColor: '#25251f', patternTiling: 1, patternAngle: 0, charge: 'fleur-de-lis', chargeColor: '#d8d1bb', chargeCount: 3, chargeScale: 0.33 },
-  { pattern: 'checky', fieldColor: '#2e5266', patternColor: '#d8d1bb', patternTiling: 3, patternAngle: 0, charge: 'sword', chargeColor: '#c59b48', chargeCount: 1, chargeScale: 0.65 },
-  { pattern: 'solid', fieldColor: '#8d3027', patternColor: '#8d3027', patternTiling: 1, patternAngle: 0, charge: 'oak-branch', chargeColor: '#d8d1bb', chargeCount: 1, chargeScale: 0.62 },
+  { pattern: 'solid', fieldColor: '#43593b', patternColor: '#43593b', patternTiling: 1, patternAngle: 0, charge: 'bear', chargeColor: '#d8d1bb', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.66 },
+  { pattern: 'per-pale', fieldColor: '#25251f', patternColor: '#c59b48', patternTiling: 1, patternAngle: 0, charge: 'lion', chargeColor: '#d8d1bb', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.68 },
+  { pattern: 'bend', fieldColor: '#8d3027', patternColor: '#d8d1bb', patternTiling: 1, patternAngle: -5, charge: 'wolf', chargeColor: '#25251f', chargeOutlineColor: '#d8d1bb', chargeCount: 1, chargeScale: 0.64 },
+  { pattern: 'quarterly', fieldColor: '#2e5266', patternColor: '#d8d1bb', patternTiling: 1, patternAngle: 0, charge: 'tower', chargeColor: '#c59b48', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.61 },
+  { pattern: 'per-fess', fieldColor: '#43593b', patternColor: '#c59b48', patternTiling: 1, patternAngle: 0, charge: 'stag', chargeColor: '#d8d1bb', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.67 },
+  { pattern: 'saltire', fieldColor: '#66445b', patternColor: '#d8d1bb', patternTiling: 1, patternAngle: 0, charge: 'star', chargeColor: '#c59b48', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.5 },
+  { pattern: 'stripes', fieldColor: '#25251f', patternColor: '#8d3027', patternTiling: 4, patternAngle: 0, charge: 'eagle', chargeColor: '#d8d1bb', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.72 },
+  { pattern: 'solid', fieldColor: '#2e5266', patternColor: '#2e5266', patternTiling: 1, patternAngle: 0, charge: 'crescent', chargeColor: '#d8d1bb', chargeOutlineColor: '#25251f', chargeCount: 3, chargeScale: 0.34 },
+  { pattern: 'lozengy', fieldColor: '#d8d1bb', patternColor: '#43593b', patternTiling: 3, patternAngle: 0, charge: 'bear', chargeColor: '#25251f', chargeOutlineColor: '#d8d1bb', chargeCount: 1, chargeScale: 0.66 },
+  { pattern: 'cross', fieldColor: '#8d3027', patternColor: '#d8d1bb', patternTiling: 1, patternAngle: 0, charge: 'key', chargeColor: '#c59b48', chargeOutlineColor: '#25251f', chargeCount: 2, chargeScale: 0.38 },
+  { pattern: 'chevron', fieldColor: '#25251f', patternColor: '#c59b48', patternTiling: 1, patternAngle: 0, charge: 'boar', chargeColor: '#d8d1bb', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.59 },
+  { pattern: 'bend-sinister', fieldColor: '#43593b', patternColor: '#d8d1bb', patternTiling: 1, patternAngle: 6, charge: 'axes', chargeColor: '#c59b48', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.6 },
+  { pattern: 'per-pale', fieldColor: '#66445b', patternColor: '#25251f', patternTiling: 1, patternAngle: 0, charge: 'fleur-de-lis', chargeColor: '#d8d1bb', chargeOutlineColor: '#25251f', chargeCount: 3, chargeScale: 0.33 },
+  { pattern: 'checky', fieldColor: '#2e5266', patternColor: '#d8d1bb', patternTiling: 3, patternAngle: 0, charge: 'sword', chargeColor: '#c59b48', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.65 },
+  { pattern: 'solid', fieldColor: '#8d3027', patternColor: '#8d3027', patternTiling: 1, patternAngle: 0, charge: 'oak-branch', chargeColor: '#d8d1bb', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.62 },
 ];
 
 export const DEFAULT_NOBLE_PROFILE: NobleProfile = {
@@ -337,6 +338,10 @@ export function getCurrentNobleProfile(): NobleProfile {
 
 export function setCurrentNobleProfile(profile: NobleProfile): void {
   currentProfile = normalizeProfile(profile);
+}
+
+/** Remember the profile only once its world is playable, not while editing setup. */
+export function persistCurrentNobleProfile(): void {
   try {
     window.localStorage.setItem(NOBLE_PROFILE_STORAGE_KEY, JSON.stringify(currentProfile));
   } catch {
@@ -374,6 +379,7 @@ export function applyHeraldryToElement(element: HTMLElement, heraldry: Heraldry)
   element.style.setProperty('--pattern-size', `${Math.max(12, 58 / normalized.patternTiling)}px`);
   element.style.setProperty('--pattern-angle', `${normalized.patternAngle}deg`);
   element.style.setProperty('--charge-color', normalized.chargeColor);
+  element.style.setProperty('--charge-outline-color', normalized.chargeOutlineColor);
   element.style.setProperty('--charge-scale', String(normalized.chargeScale));
   element.style.setProperty('--charge-mask', `url("${chargeAssetUrl(normalized.charge)}")`);
 }
@@ -416,6 +422,7 @@ function normalizeHeraldry(heraldry?: Heraldry): Heraldry {
     fieldColor: validColor(heraldry?.fieldColor, fallback.fieldColor),
     patternColor: validColor(heraldry?.patternColor, fallback.patternColor),
     chargeColor: validColor(heraldry?.chargeColor, fallback.chargeColor),
+    chargeOutlineColor: validColor(heraldry?.chargeOutlineColor, fallback.chargeOutlineColor),
     patternTiling: clampNumber(heraldry?.patternTiling, 1, 6, fallback.patternTiling),
     patternAngle: clampNumber(heraldry?.patternAngle, -45, 45, fallback.patternAngle),
     chargeCount: Math.round(clampNumber(heraldry?.chargeCount, 1, 5, fallback.chargeCount)),

@@ -92,7 +92,7 @@ import { WorldGenerationMismatchError } from '../world/worldConfigAuthority.ts';
 import { formatSettlementClock, gameClock } from '../world/gameCalendar.ts';
 import { worldAnimationDelta } from '../world/gameSpeed.ts';
 import { trailerClock } from './trailerClock.ts';
-import { getCurrentNobleProfile, setCurrentNobleProfile } from '../ui/nobleProfile.ts';
+import { persistCurrentNobleProfile } from '../ui/nobleProfile.ts';
 import {
   environmentFor,
   nextDayEnvironmentOutlook,
@@ -304,13 +304,6 @@ export class App {
   }
 
   async start(): Promise<void> {
-    if (import.meta.env.DEV && new URLSearchParams(location.search).has('trailer')) {
-      const profile = getCurrentNobleProfile();
-      setCurrentNobleProfile({ ...profile, heraldry: {
-        ...profile.heraldry, charge: 'latin-cross', chargeColor: '#e5bd45',
-        chargeCount: 1, chargeScale: 0.72,
-      } });
-    }
     if (
       import.meta.env.VITE_E2E_TEST !== '1'
       && !this.visualQaConditions
@@ -516,7 +509,12 @@ export class App {
             && this.spacetimeStore?.snapshot.identityHex !== null,
         );
       },
-      onFirstPlayable: () => this.handoffStartupMusic(),
+      onFirstPlayable: () => {
+        if (!this.visualQaConditions && !this.combatPlaytestRequest) {
+          persistCurrentNobleProfile();
+        }
+        this.handoffStartupMusic();
+      },
     });
 
     if (!this.visualQaConditions) {

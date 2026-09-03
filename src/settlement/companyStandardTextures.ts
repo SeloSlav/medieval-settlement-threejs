@@ -248,6 +248,13 @@ function paintHeraldryCharges(
   maskContext.fillRect(0, 0, mask.width, mask.height);
   maskContext.globalCompositeOperation = 'source-over';
   context.save();
+  const outlineWidth = shortest * 0.01;
+  context.filter = [
+    `drop-shadow(-${outlineWidth}px 0 0 ${art.chargeOutlineColor})`,
+    `drop-shadow(${outlineWidth}px 0 0 ${art.chargeOutlineColor})`,
+    `drop-shadow(0 -${outlineWidth}px 0 ${art.chargeOutlineColor})`,
+    `drop-shadow(0 ${outlineWidth}px 0 ${art.chargeOutlineColor})`,
+  ].join(' ');
   context.shadowColor = 'rgba(25, 15, 7, 0.42)';
   context.shadowBlur = 4;
   context.shadowOffsetY = 3;

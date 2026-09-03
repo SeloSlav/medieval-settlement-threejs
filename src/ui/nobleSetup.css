@@ -6,11 +6,14 @@
   --pattern-angle: 0deg;
   --pattern-size: 22px;
   --charge-color: #c59b48;
+  --charge-outline-color: #25251f;
+  --charge-outline-width: max(0.35px, 1cqw);
   --charge-scale: 0.62;
   --shield-clip: polygon(7% 0, 93% 0, 91% 59%, 84% 73%, 68% 87%, 50% 100%, 32% 87%, 16% 73%, 9% 59%);
   position: relative;
   display: block;
   width: 86px;
+  container-type: inline-size;
   aspect-ratio: 0.82;
   filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.48));
 }
@@ -120,6 +123,12 @@
 
 .heraldry-shield__charges {
   inset: 7% 8% 16%;
+  /* Outline the masked children so the border follows each charge silhouette. */
+  filter:
+    drop-shadow(calc(-1 * var(--charge-outline-width)) 0 0 var(--charge-outline-color))
+    drop-shadow(var(--charge-outline-width) 0 0 var(--charge-outline-color))
+    drop-shadow(0 calc(-1 * var(--charge-outline-width)) 0 var(--charge-outline-color))
+    drop-shadow(0 var(--charge-outline-width) 0 var(--charge-outline-color));
 }
 
 .heraldry-shield__charges i {
@@ -128,7 +137,6 @@
   width: calc(var(--charge-scale) * 100%);
   aspect-ratio: 1;
   background: var(--charge-color);
-  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.13)) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.24));
   mask: var(--charge-mask) center / contain no-repeat;
   transform: translate(-50%, -50%);
 }
