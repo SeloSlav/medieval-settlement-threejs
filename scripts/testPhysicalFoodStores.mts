@@ -98,7 +98,7 @@ assert.notEqual(
 const smokehouse = building('smokehouse', {
   firewood: 12,
   meat: 30,
-  preservedFood: 36,
+  curedMeat: 36,
   salt: 8,
   pottery: 4,
 });
@@ -151,7 +151,7 @@ const granary = building('granary', {
   ryeFlour: 130,
   flax: 90,
   ryeBread: 261,
-  preservedFood: 50,
+  smokedFish: 50,
 });
 const granaryMarker = createBuildingMesh('granary');
 syncFoodStockpileVisuals(granaryMarker, granary);
@@ -219,7 +219,7 @@ const perfBuildings = Array.from({ length: 100_000 }, (_, index) => {
     berries: index % 341,
     firewood: index % 61,
     ale: index % 201,
-    preservedFood: index % 181,
+    cheese: index % 181,
     salt: index % 25,
     pottery: index % 13,
   });
@@ -268,7 +268,9 @@ function building(
     | 'berries'
     | 'firewood'
     | 'ale'
-    | 'preservedFood'
+    | 'curedMeat'
+    | 'smokedFish'
+    | 'cheese'
     | 'salt'
     | 'pottery'
   >> = {},
@@ -286,7 +288,9 @@ function building(
     grain: 0,
     flour: 0,
     ale: 0,
-    preservedFood: 0,
+    curedMeat: 0,
+    smokedFish: 0,
+    cheese: 0,
     honey: 0,
     wine: 0,
     firewood: 0,

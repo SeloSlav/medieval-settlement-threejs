@@ -154,13 +154,18 @@ assert.match(
 const deliveryCargo = readFileSync('server/src/simulation/delivery_cargo.rs', 'utf8');
 assert.match(
   deliveryCargo,
-  /PRESERVED_ORDER[\s\S]*CommodityKind::AroniaJam[\s\S]*CommodityKind::RosehipJam/,
-  'both backyard jams must remain distinct preserved-food deliveries',
+  /FRESH_ORDER[\s\S]*CommodityKind::AroniaJam[\s\S]*CommodityKind::RosehipJam/,
+  'both backyard jams must remain distinct general-food deliveries',
 );
 assert.match(
   deliveryCargo,
-  /ResidenceNeedKind::PreservedFood => &PRESERVED_ORDER/,
-  'backyard jams must satisfy the Tier-4 preserved-food need through physical carts',
+  /ResidenceNeedKind::SavoryPreserves => &PRESERVED_ORDER/,
+  'the Tier-4 savory-preserve need must use its dedicated physical-cart order',
+);
+assert.doesNotMatch(
+  deliveryCargo.match(/const PRESERVED_ORDER:[\s\S]*?\];/)?.[0] ?? '',
+  /AroniaJam|RosehipJam|Honey/,
+  'sweet preserves must not satisfy the Tier-4 savory-preserve need',
 );
 
 for (const root of ['src/generated', 'server/src/generated']) {

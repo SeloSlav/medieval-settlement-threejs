@@ -87,7 +87,8 @@ closeTo(
 const sixHomeState = emptyGameState();
 for (let index = 0; index < 6; index += 1) {
   const home = residence(`tier-1-${index}`, 1, 3, index);
-  home.food = 12;
+  home.ryeBread = 12;
+  home.foodInventoryMigrated = true;
   home.needs.food.stock = 12;
   home.needs.firewood.stock = 12;
   sixHomeState.residences.set(home.id, home);
@@ -159,7 +160,8 @@ closeTo(
 
 const monthlyReadinessState = emptyGameState();
 const underfilledTierFour = residence('underfilled-tier-4', 4, 2, 0);
-underfilledTierFour.food = 1;
+underfilledTierFour.ryeBread = 1;
+underfilledTierFour.foodInventoryMigrated = true;
 underfilledTierFour.needs.food.stock = 1;
 underfilledTierFour.needs.firewood.stock = 0.5;
 monthlyReadinessState.residences.set(underfilledTierFour.id, underfilledTierFour);
@@ -182,7 +184,7 @@ assert.equal(
 );
 
 const screenshotState = emptyGameState();
-screenshotState.stockpile.food = 193;
+screenshotState.stockpile.ryeBread = 193;
 screenshotState.stockpile.firewood = 55;
 for (const [index, population] of [3, 3, 3, 3, 2, 2, 2].entries()) {
   const home = residence(`screenshot-tier-1-${index}`, 1, population, index);
@@ -281,7 +283,8 @@ for (const [id, tier, population] of [
   ['tier-4-small', 4, 2],
 ] as const) {
   const home = residence(id, tier, population, tier);
-  home.food = 30;
+  home.ryeBread = 30;
+  home.foodInventoryMigrated = true;
   home.needs.food.stock = 30;
   home.needs.firewood.stock = 30;
   mixedTierState.residences.set(home.id, home);
@@ -353,13 +356,17 @@ function residence(
       firewood: { stock: 0, deficitSeconds: 0 },
       water: { stock: 0, deficitSeconds: 0 },
       food: { stock: 0, deficitSeconds: 0 },
-      preservedFood: { stock: 0, deficitSeconds: 0 },
+      savoryPreserves: { stock: 0, deficitSeconds: 0 },
       ale: { stock: 0, deficitSeconds: 0 },
       cloth: { stock: 0, deficitSeconds: 0 },
       pottery: { stock: 0, deficitSeconds: 0 },
     },
     food: 0,
-    preservedFood: 0,
+    ryeBread: 0,
+    curedMeat: 0,
+    smokedFish: 0,
+    cheese: 0,
+    foodInventoryMigrated: true,
     abandoned: false,
     householdWealth: 0,
   };
@@ -382,7 +389,10 @@ function emptyGameState(): GameState {
       grain: 0,
       flour: 0,
       ale: 0,
-      preservedFood: 0,
+      ryeBread: 0,
+      curedMeat: 0,
+      smokedFish: 0,
+      cheese: 0,
       honey: 0,
       wine: 0,
       polearms: 0,
