@@ -328,8 +328,6 @@ pub struct PlayerResources {
     #[default(0.0)]
     pub cherries: f64,
     #[default(0.0)]
-    pub vegetables: f64,
-    #[default(0.0)]
     pub eggs: f64,
     #[default(0.0)]
     pub grapes: f64,
@@ -931,8 +929,6 @@ pub struct Building {
     pub apples: f64,
     #[default(0.0)]
     pub cherries: f64,
-    #[default(0.0)]
-    pub vegetables: f64,
     #[default(0.0)]
     pub eggs: f64,
     #[default(0.0)]
@@ -1719,8 +1715,6 @@ pub struct Residence {
     pub apples: f64,
     #[default(0.0)]
     pub cherries: f64,
-    #[default(0.0)]
-    pub vegetables: f64,
     #[default(0.0)]
     pub eggs: f64,
     #[default(0.0)]

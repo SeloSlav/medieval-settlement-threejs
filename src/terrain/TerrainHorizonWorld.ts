@@ -46,7 +46,7 @@ type HorizonWaterPoint = RiverPoint & { surfaceY: number };
 type HorizonWaterPath = { points: HorizonWaterPoint[] };
 type HorizonLake = InlandWaterBody & { surfaceY: number };
 
-const WATER_PATH_SPACING = 82;
+const WATER_PATH_SPACING = 28;
 const WATER_FIELD_RESOLUTION = 256;
 const MAX_WATER_PATHS = 4;
 const MAX_SEEDTHREE_OVERVIEW_TREES = 7_200;
@@ -174,8 +174,46 @@ export class TerrainHorizonWorld {
   };
 
   sampleForestBlend = (x: number, z: number): number => {
-    const suitability = this.sampleForestSuitability(x, z);
-    return smoothstep(0.56, 0.78, suitability) * 0.9;
+    const outside = Math.max(Math.abs(x), Math.abs(z)) - this.innerHalfExtent;
+    if (outside < 0 || outside > this.extensionDistance * 0.84) return 0;
+    if (this.settings.terrainPreset === 'vinodol_coast') {
+      const shoreX = this.sourceRiverLayout?.getCoastalShoreX(z);
+      if (shoreX !== null && shoreX !== undefined && x < shoreX + 26) return 0;
+    }
+    const maximumAxis = Math.max(Math.abs(x), Math.abs(z));
+    const boundaryScale = maximumAxis > 1e-6
+      ? this.innerHalfExtent / maximumAxis
+      : 0;
+    const inheritedForest = this.sampleSourceForestBlend(
+      x * boundaryScale,
+      z * boundaryScale,
+    );
+    const seedX = ((this.settings.seed >>> 4) & 0x7fff) * 0.021;
+    const seedZ = (this.settings.seed & 0x7fff) * -0.019;
+    // Ground shading deliberately uses only a broad field. Stand-scale noise
+    // belongs to the SeedThree placement field; baking it into sparse horizon
+    // vertices produces giant triangular brown/green wedges after interpolation.
+    const broadWoodland = fbm2(
+      (x + seedX) * 0.00125,
+      (z + seedZ) * 0.00125,
+      3,
+    );
+    const regionalGround = THREE.MathUtils.clamp(
+      0.12 + this.settings.forestDensity / 100 * 0.54 + (broadWoodland - 0.5) * 0.22,
+      0.08,
+      0.72,
+    );
+    const regionalHandoff = smoothstep(
+      FOREST_SEAM_CLEARANCE,
+      Math.min(340, this.extensionDistance * 0.16),
+      outside,
+    );
+    const farFade = 1 - smoothstep(
+      this.extensionDistance * 0.68,
+      this.extensionDistance * 0.84,
+      outside,
+    );
+    return THREE.MathUtils.lerp(inheritedForest, regionalGround, regionalHandoff) * farFade;
   };
 
   sampleShoreBlend = (x: number, z: number): number => {
@@ -184,11 +222,10 @@ export class TerrainHorizonWorld {
       if (shoreX === null || shoreX === undefined) return 0;
       return 1 - smoothstep(3, 30, Math.abs(x - shoreX));
     }
-    const path = nearestWaterPathSample(this.waterPaths, x, z);
-    if (!path) return 0;
-    const bankDistance = Math.abs(path.distance - path.halfWidth * 0.72);
-    return (1 - smoothstep(1.5, 15, bankDistance))
-      * smoothstep(path.halfWidth * 0.28, path.halfWidth * 1.3, path.distance);
+    // Inland bank detail is narrower than the far mesh footprint. The exact
+    // water ribbon owns its feather; a per-vertex bank mask would interpolate
+    // into hundred-metre wedges across the coarse terrain rings.
+    return 0;
   };
 
   sampleHydrologyDebug = (x: number, z: number): number => {
@@ -289,15 +326,35 @@ export class TerrainHorizonWorld {
       sourcePoint.x,
       sourcePoint.z,
     );
-    let previousSurface = authoredSurface
-      ?? this.sampleUncarvedHeight(sourcePoint.x, sourcePoint.z) - 0.62;
+    const sourceGround = this.sampleUncarvedHeight(sourcePoint.x, sourcePoint.z);
+    const sourceWaterOffset = (authoredSurface ?? sourceGround - 0.62) - sourceGround;
+    let previousSurface = sourceGround + sourceWaterOffset;
     const points = corridor.points.map((point, index) => {
       if (index > 0) {
-        const target = this.sampleUncarvedHeight(point.x, point.z) - 0.62;
+        const previous = corridor.points[Math.max(0, index - 1)]!;
+        const next = corridor.points[Math.min(corridor.points.length - 1, index + 1)]!;
+        const tangentX = next.x - previous.x;
+        const tangentZ = next.z - previous.z;
+        const inverseLength = 1 / Math.max(1e-6, Math.hypot(tangentX, tangentZ));
+        const sideX = -tangentZ * inverseLength;
+        const sideZ = tangentX * inverseLength;
+        const bankProbe = point.halfWidth * 0.82;
+        const terrainCeiling = Math.max(
+          this.sampleUncarvedHeight(point.x, point.z),
+          this.sampleUncarvedHeight(point.x + sideX * bankProbe, point.z + sideZ * bankProbe),
+          this.sampleUncarvedHeight(point.x - sideX * bankProbe, point.z - sideZ * bankProbe),
+        );
+        const outside = Math.max(Math.abs(point.x), Math.abs(point.z)) - this.innerHalfExtent;
+        const visibleOffset = THREE.MathUtils.lerp(
+          sourceWaterOffset,
+          0.14,
+          smoothstep(0, 180, outside),
+        );
+        const target = terrainCeiling + visibleOffset;
         previousSurface = THREE.MathUtils.clamp(
-          THREE.MathUtils.lerp(previousSurface, target, 0.2),
-          previousSurface - 0.52,
-          previousSurface + 0.34,
+          THREE.MathUtils.lerp(previousSurface, target, 0.42),
+          previousSurface - 0.4,
+          previousSurface + 0.68,
         );
       }
       return { ...point, surfaceY: previousSurface };
@@ -748,14 +805,14 @@ function createSeedThreeHorizonPlacements(
   const rng = mulberry32(settings.seed ^ 0x53454544);
   const target = Math.min(
     MAX_SEEDTHREE_OVERVIEW_TREES,
-    Math.round(settings.forestDensity * 72),
+    Math.round(settings.forestDensity * 90),
   );
   // Spend real SeedThree instances where they actually continue the playable
   // forest silhouette. Beyond this band the terrain's inherited woodland mask,
   // mountain relief, and aerial perspective carry the same regional field.
   const visibleOuter = Math.min(
     outerHalfExtent - 40,
-    innerHalfExtent + Math.min(820, extensionDistance * 0.38),
+    innerHalfExtent + Math.min(560, extensionDistance * 0.38),
   );
   const placements: ForestTreePlacement[] = [];
   const placementGrid = new Map<string, ForestTreePlacement[]>();
@@ -790,7 +847,7 @@ function createSeedThreeHorizonPlacements(
       form: species === 'beech' || species === 'hornbeam' || species === 'sessileOak'
         ? (rng() < 0.62 ? 'broad' : 'midstory')
         : 'narrow',
-      scale: 0.68 + rng() * 0.48,
+      scale: 0.82 + rng() * 0.5,
       visualOnly: 'terrain-horizon',
     };
     placements.push(placement);

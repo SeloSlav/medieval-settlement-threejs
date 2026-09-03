@@ -62,7 +62,6 @@ pub struct DeliveryCargoTotals {
     pub milk: f64,
     pub apples: f64,
     pub cherries: f64,
-    pub vegetables: f64,
     pub eggs: f64,
     pub grapes: f64,
     pub cured_meat: f64,
@@ -146,7 +145,6 @@ impl DeliveryCargoTotals {
             CommodityKind::Milk => self.milk += amount,
             CommodityKind::Apples => self.apples += amount,
             CommodityKind::Cherries => self.cherries += amount,
-            CommodityKind::Vegetables => self.vegetables += amount,
             CommodityKind::Eggs => self.eggs += amount,
             CommodityKind::Grapes => self.grapes += amount,
             CommodityKind::CuredMeat => self.cured_meat += amount,
@@ -357,7 +355,7 @@ pub fn selected_food_delivery_commodity(
     building: &Building,
     need_kind: ResidenceNeedKind,
 ) -> Option<CommodityKind> {
-    const FRESH_ORDER: [CommodityKind; 20] = [
+    const FRESH_ORDER: [CommodityKind; 19] = [
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
@@ -372,7 +370,6 @@ pub fn selected_food_delivery_commodity(
         CommodityKind::Cabbage,
         CommodityKind::Carrots,
         CommodityKind::Beetroot,
-        CommodityKind::Vegetables,
         CommodityKind::Eggs,
         CommodityKind::RyeBread,
         CommodityKind::MaslinBread,
@@ -408,14 +405,13 @@ pub fn selected_food_delivery_commodity(
             FRESH_ORDER[15],
             FRESH_ORDER[16],
             FRESH_ORDER[17],
-            FRESH_ORDER[18],
             PRESERVED_ORDER[0],
             PRESERVED_ORDER[1],
             PRESERVED_ORDER[2],
             PRESERVED_ORDER[3],
             PRESERVED_ORDER[4],
             PRESERVED_ORDER[5],
-            FRESH_ORDER[19],
+            FRESH_ORDER[18],
         ],
         ResidenceNeedKind::PreservedFood => &PRESERVED_ORDER,
         _ => return None,
@@ -484,7 +480,7 @@ pub fn selected_food_delivery_commodity_for_residence(
     if need_kind != ResidenceNeedKind::Food {
         return selected_food_delivery_commodity(building, need_kind);
     }
-    const ORDER: [CommodityKind; 26] = [
+    const ORDER: [CommodityKind; 25] = [
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
@@ -499,7 +495,6 @@ pub fn selected_food_delivery_commodity_for_residence(
         CommodityKind::Cabbage,
         CommodityKind::Carrots,
         CommodityKind::Beetroot,
-        CommodityKind::Vegetables,
         CommodityKind::Eggs,
         CommodityKind::RyeBread,
         CommodityKind::MaslinBread,

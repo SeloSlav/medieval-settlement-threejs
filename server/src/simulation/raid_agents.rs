@@ -2293,7 +2293,6 @@ pub(super) fn reclamation_from_raid_stores(stores: RaidPortableStores) -> Reclam
         milk: stores.milk,
         apples: stores.apples,
         cherries: stores.cherries,
-        vegetables: stores.vegetables,
         eggs: stores.eggs,
         grapes: stores.grapes,
         cured_meat: stores.cured_meat,

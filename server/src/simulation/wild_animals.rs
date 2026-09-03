@@ -755,7 +755,6 @@ fn steal_residence_food(residence: &mut crate::tables::Residence, amount: f64) -
         CommodityKind::SmokedFish,
         CommodityKind::Cheese,
         CommodityKind::OatGrain,
-        CommodityKind::Vegetables,
         CommodityKind::Apples,
         CommodityKind::Berries,
         CommodityKind::Mushrooms,

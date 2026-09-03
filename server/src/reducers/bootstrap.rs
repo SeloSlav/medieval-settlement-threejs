@@ -357,7 +357,6 @@ pub(crate) fn place_founding_camp(
         milk: resources.milk.max(0.0),
         apples: resources.apples.max(0.0),
         cherries: resources.cherries.max(0.0),
-        vegetables: resources.vegetables.max(0.0),
         eggs: resources.eggs.max(0.0),
         grapes: resources.grapes.max(0.0),
         cured_meat: resources.cured_meat.max(0.0),
@@ -483,7 +482,6 @@ pub(crate) fn place_founding_camp(
     resources.milk = 0.0;
     resources.apples = 0.0;
     resources.cherries = 0.0;
-    resources.vegetables = 0.0;
     resources.eggs = 0.0;
     resources.grapes = 0.0;
     resources.cured_meat = 0.0;

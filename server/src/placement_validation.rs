@@ -38,10 +38,6 @@ struct BuildingPadParams {
     outer_fade: f64,
 }
 
-pub fn building_pick_radius(kind: &str) -> Option<f64> {
-    building_def(kind).map(|def| def.pick_radius)
-}
-
 pub fn building_site_contains_point_at_yaw(
     kind: &str,
     building_x: f64,

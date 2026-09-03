@@ -303,7 +303,6 @@ pub struct RaidPortableStores {
     pub milk: f64,
     pub apples: f64,
     pub cherries: f64,
-    pub vegetables: f64,
     pub eggs: f64,
     pub grapes: f64,
     pub cured_meat: f64,
@@ -398,7 +397,6 @@ impl RaidPortableStores {
             milk,
             apples,
             cherries,
-            vegetables,
             eggs,
             grapes,
             cured_meat,
@@ -475,7 +473,6 @@ impl RaidPortableStores {
             + positive_store(self.milk)
             + positive_store(self.apples)
             + positive_store(self.cherries)
-            + positive_store(self.vegetables)
             + positive_store(self.eggs)
             + positive_store(self.grapes)
             + positive_store(self.cured_meat)
@@ -549,7 +546,6 @@ impl RaidPortableStores {
             + positive_store(self.milk)
             + positive_store(self.apples)
             + positive_store(self.cherries)
-            + positive_store(self.vegetables)
             + positive_store(self.eggs)
             + positive_store(self.grapes)
             + positive_store(self.cured_meat)
@@ -640,7 +636,6 @@ impl RaidPortableStores {
         plunder_good!(milk);
         plunder_good!(apples);
         plunder_good!(cherries);
-        plunder_good!(vegetables);
         plunder_good!(eggs);
         plunder_good!(grapes);
         plunder_good!(cured_meat);
@@ -729,7 +724,6 @@ impl RaidPortableStores {
             milk: removed!(milk),
             apples: removed!(apples),
             cherries: removed!(cherries),
-            vegetables: removed!(vegetables),
             eggs: removed!(eggs),
             grapes: removed!(grapes),
             cured_meat: removed!(cured_meat),

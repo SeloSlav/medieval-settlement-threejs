@@ -213,7 +213,6 @@ pub fn step_fresh_food_spoilage(
         spoil_fresh!(milk, CommodityKind::Milk);
         spoil_fresh!(apples, CommodityKind::Apples);
         spoil_fresh!(cherries, CommodityKind::Cherries);
-        spoil_fresh!(vegetables, CommodityKind::Vegetables);
         spoil_fresh!(eggs, CommodityKind::Eggs);
         spoil_fresh!(grapes, CommodityKind::Grapes);
         spoil_fresh!(pears, CommodityKind::Pears);
@@ -266,7 +265,6 @@ fn normalize_building_food(building: &mut Building) {
         milk,
         apples,
         cherries,
-        vegetables,
         eggs,
         grapes,
         pears,

@@ -286,7 +286,6 @@ mod tests {
             cherries: 0.0,
             aronia: 0.0,
             rosehips: 0.0,
-            vegetables: 0.0,
             cabbage: 0.0,
             carrots: 0.0,
             beetroot: 0.0,

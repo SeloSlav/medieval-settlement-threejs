@@ -106,35 +106,6 @@ pub fn convex_zones_overlap(a: &[Point2; 4], b: &[Point2; 4]) -> bool {
     convex_polygons_overlap(a, b, ZONE_BOUNDARY_EPSILON)
 }
 
-const BUILDING_FOOTPRINT_SCALE: f64 = 0.9;
-
-pub fn building_footprint_polygon(x: f64, z: f64, pick_radius: f64) -> [Point2; 4] {
-    let radius = pick_radius * BUILDING_FOOTPRINT_SCALE;
-    [
-        Point2 {
-            x: x - radius,
-            z: z - radius,
-        },
-        Point2 {
-            x: x + radius,
-            z: z - radius,
-        },
-        Point2 {
-            x: x + radius,
-            z: z + radius,
-        },
-        Point2 {
-            x: x - radius,
-            z: z + radius,
-        },
-    ]
-}
-
-pub fn zone_overlaps_footprint(zone: &[Point2; 4], x: f64, z: f64, pick_radius: f64) -> bool {
-    let footprint = building_footprint_polygon(x, z, pick_radius);
-    convex_polygons_overlap(zone, &footprint, ZONE_BOUNDARY_EPSILON)
-}
-
 pub fn oriented_footprint_polygon(
     x: f64,
     z: f64,

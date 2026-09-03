@@ -29,33 +29,6 @@ macro_rules! normalize_fields {
     };
 }
 
-/// Generic vegetable stock was retired once cabbage, carrots, and beetroot
-/// became the only live croft outputs. Preserve every whole unit from old
-/// saves while distributing it across the three canonical commodities.
-fn split_legacy_vegetables(total: f64) -> (f64, f64, f64) {
-    let total = whole_units(total);
-    let base = (total / 3.0).floor();
-    let remainder = (total - base * 3.0) as u8;
-    (
-        base + if remainder >= 1 { 1.0 } else { 0.0 },
-        base + if remainder >= 2 { 1.0 } else { 0.0 },
-        base,
-    )
-}
-
-fn retire_legacy_vegetable_stock(
-    vegetables: &mut f64,
-    cabbage: &mut f64,
-    carrots: &mut f64,
-    beetroot: &mut f64,
-) {
-    let (legacy_cabbage, legacy_carrots, legacy_beetroot) = split_legacy_vegetables(*vegetables);
-    *vegetables = 0.0;
-    *cabbage = whole_units(*cabbage + legacy_cabbage);
-    *carrots = whole_units(*carrots + legacy_carrots);
-    *beetroot = whole_units(*beetroot + legacy_beetroot);
-}
-
 fn incoming_cottage_material(
     ctx: &ReducerContext,
     residence_id: u64,
@@ -221,7 +194,6 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
             milk,
             apples,
             cherries,
-            vegetables,
             eggs,
             grapes,
             cured_meat,
@@ -262,12 +234,6 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
             wax,
             candles,
             pelts,
-        );
-        retire_legacy_vegetable_stock(
-            &mut row.vegetables,
-            &mut row.cabbage,
-            &mut row.carrots,
-            &mut row.beetroot,
         );
         ctx.db.player_resources().owner().update(row);
     }
@@ -326,7 +292,6 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
             milk,
             apples,
             cherries,
-            vegetables,
             eggs,
             grapes,
             cured_meat,
@@ -368,12 +333,6 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
             candles,
             pelts,
         );
-        retire_legacy_vegetable_stock(
-            &mut row.vegetables,
-            &mut row.cabbage,
-            &mut row.carrots,
-            &mut row.beetroot,
-        );
         ctx.db.building().id().update(row);
     }
 
@@ -404,7 +363,6 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
             milk,
             apples,
             cherries,
-            vegetables,
             eggs,
             grapes,
             cured_meat,
@@ -422,12 +380,6 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
             aronia_jam,
             rosehip_jam,
         );
-        retire_legacy_vegetable_stock(
-            &mut row.vegetables,
-            &mut row.cabbage,
-            &mut row.carrots,
-            &mut row.beetroot,
-        );
         ctx.db.residence().id().update(row);
     }
 
@@ -437,14 +389,6 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
     }
     for mut row in ctx.db.delivery_trip().iter() {
         row.amount = whole_units(row.amount);
-        if row.cargo_kind == CommodityKind::Vegetables.as_u8() {
-            row.cargo_kind = match row.id % 3 {
-                0 => CommodityKind::Cabbage,
-                1 => CommodityKind::Carrots,
-                _ => CommodityKind::Beetroot,
-            }
-            .as_u8();
-        }
         ctx.db.delivery_trip().id().update(row);
     }
     for mut row in ctx.db.quarry().iter() {
@@ -508,16 +452,10 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
         if row.carried_loot_json.is_empty() {
             continue;
         }
-        let Ok(mut stores) = serde_json::from_str::<RaidPortableStores>(&row.carried_loot_json)
+        let Ok(stores) = serde_json::from_str::<RaidPortableStores>(&row.carried_loot_json)
         else {
             continue;
         };
-        retire_legacy_vegetable_stock(
-            &mut stores.vegetables,
-            &mut stores.cabbage,
-            &mut stores.carrots,
-            &mut stores.beetroot,
-        );
         let Ok(normalized_json) = serde_json::to_string(&stores.normalized_whole()) else {
             continue;
         };
@@ -529,10 +467,6 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
     for mut row in ctx.db.trading_post_trade_rule().iter() {
         normalize_fields!(row, target_surplus, last_trade_amount);
         row.last_trade_gold = whole_signed_units(row.last_trade_gold);
-        if row.commodity_kind == CommodityKind::Vegetables.as_u8() {
-            row.mode = 0;
-            row.target_surplus = 0.0;
-        }
         ctx.db.trading_post_trade_rule().id().update(row);
     }
 

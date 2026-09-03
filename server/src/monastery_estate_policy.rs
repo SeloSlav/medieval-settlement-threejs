@@ -302,8 +302,7 @@ pub fn monastery_estate_yields(
     MonasteryEstateYields {
         apples: 0.45 * multiplier * orchard_multiplier,
         pears: 0.30 * multiplier * orchard_multiplier,
-        // The kitchen croft keeps the three canonical vegetable identities;
-        // the retired aggregate `Vegetables` commodity is migration-only.
+        // The kitchen croft keeps the three canonical vegetable identities.
         cabbage: 0.20 * multiplier,
         carrots: 0.16 * multiplier,
         beetroot: 0.14 * multiplier,

@@ -30,7 +30,7 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 75] = [
+const RECOVERY_ORDER: [CommodityKind; 74] = [
     CommodityKind::Gold,
     CommodityKind::Remedies,
     CommodityKind::RyeSheaves,
@@ -58,7 +58,6 @@ const RECOVERY_ORDER: [CommodityKind; 75] = [
     CommodityKind::Aronia,
     CommodityKind::Rosehips,
     CommodityKind::Cherries,
-    CommodityKind::Vegetables,
     CommodityKind::Cabbage,
     CommodityKind::Carrots,
     CommodityKind::Beetroot,
@@ -159,7 +158,6 @@ pub struct ReclamationStock {
     pub milk: f64,
     pub apples: f64,
     pub cherries: f64,
-    pub vegetables: f64,
     pub eggs: f64,
     pub grapes: f64,
     pub cured_meat: f64,
@@ -366,10 +364,6 @@ impl ReclamationStock {
                 cherries: amount,
                 ..Self::default()
             },
-            CommodityKind::Vegetables => Self {
-                vegetables: amount,
-                ..Self::default()
-            },
             CommodityKind::Eggs => Self {
                 eggs: amount,
                 ..Self::default()
@@ -532,7 +526,6 @@ impl ReclamationStock {
             milk,
             apples,
             cherries,
-            vegetables,
             eggs,
             grapes,
             cured_meat,
@@ -627,7 +620,6 @@ impl ReclamationStock {
             milk: cargo.milk,
             apples: cargo.apples,
             cherries: cargo.cherries,
-            vegetables: cargo.vegetables,
             eggs: cargo.eggs,
             grapes: cargo.grapes,
             cured_meat: cargo.cured_meat,
@@ -657,7 +649,7 @@ impl ReclamationStock {
         .normalized()
     }
 
-    pub fn commodities() -> [CommodityKind; 75] {
+    pub fn commodities() -> [CommodityKind; 74] {
         RECOVERY_ORDER
     }
 
@@ -720,7 +712,6 @@ impl ReclamationStock {
             milk,
             apples,
             cherries,
-            vegetables,
             eggs,
             grapes,
             cured_meat,
@@ -808,7 +799,6 @@ impl ReclamationStock {
             milk: resources.milk.max(0.0),
             apples: resources.apples.max(0.0),
             cherries: resources.cherries.max(0.0),
-            vegetables: resources.vegetables.max(0.0),
             eggs: resources.eggs.max(0.0),
             grapes: resources.grapes.max(0.0),
             cured_meat: resources.cured_meat.max(0.0),
@@ -889,7 +879,6 @@ impl ReclamationStock {
             CommodityKind::Milk => self.milk,
             CommodityKind::Apples => self.apples,
             CommodityKind::Cherries => self.cherries,
-            CommodityKind::Vegetables => self.vegetables,
             CommodityKind::Eggs => self.eggs,
             CommodityKind::Grapes => self.grapes,
             CommodityKind::CuredMeat => self.cured_meat,
@@ -979,7 +968,6 @@ impl ReclamationStock {
             milk,
             apples,
             cherries,
-            vegetables,
             eggs,
             grapes,
             cured_meat,
@@ -1181,7 +1169,6 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.milk = 0.0;
     resources.apples = 0.0;
     resources.cherries = 0.0;
-    resources.vegetables = 0.0;
     resources.eggs = 0.0;
     resources.grapes = 0.0;
     resources.rye_sheaves = 0.0;
@@ -1455,7 +1442,6 @@ pub fn insert_reclamation_pile(
         milk: stock.milk.max(0.0),
         apples: stock.apples.max(0.0),
         cherries: stock.cherries.max(0.0),
-        vegetables: stock.vegetables.max(0.0),
         eggs: stock.eggs.max(0.0),
         grapes: stock.grapes.max(0.0),
         cured_meat: stock.cured_meat.max(0.0),
@@ -1888,7 +1874,6 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
         | CommodityKind::Aronia
         | CommodityKind::Rosehips
         | CommodityKind::Cherries
-        | CommodityKind::Vegetables
         | CommodityKind::Cabbage
         | CommodityKind::Carrots
         | CommodityKind::Beetroot

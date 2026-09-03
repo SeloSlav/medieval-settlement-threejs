@@ -812,7 +812,6 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         milk: building.milk,
         apples: building.apples,
         cherries: building.cherries,
-        vegetables: building.vegetables,
         eggs: building.eggs,
         grapes: building.grapes,
         cured_meat: building.cured_meat,
@@ -1025,7 +1024,6 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::Milk) => stores.milk = amount,
         Some(CommodityKind::Apples) => stores.apples = amount,
         Some(CommodityKind::Cherries) => stores.cherries = amount,
-        Some(CommodityKind::Vegetables) => stores.vegetables = amount,
         Some(CommodityKind::Eggs) => stores.eggs = amount,
         Some(CommodityKind::Grapes) => stores.grapes = amount,
         Some(CommodityKind::RyeSheaves) => stores.rye_sheaves = amount,
@@ -1106,7 +1104,6 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Milk) => stores.milk,
         Some(CommodityKind::Apples) => stores.apples,
         Some(CommodityKind::Cherries) => stores.cherries,
-        Some(CommodityKind::Vegetables) => stores.vegetables,
         Some(CommodityKind::Eggs) => stores.eggs,
         Some(CommodityKind::Grapes) => stores.grapes,
         Some(CommodityKind::RyeSheaves) => stores.rye_sheaves,
@@ -1245,7 +1242,6 @@ fn treasury_portable_stores(
         milk: treasury.milk,
         apples: treasury.apples,
         cherries: treasury.cherries,
-        vegetables: treasury.vegetables,
         eggs: treasury.eggs,
         grapes: treasury.grapes,
         cured_meat: treasury.cured_meat,
@@ -1377,7 +1373,6 @@ pub(super) fn retain_unplundered_stores(building: &mut Building, stores: RaidPor
     building.milk = stores.milk;
     building.apples = stores.apples;
     building.cherries = stores.cherries;
-    building.vegetables = stores.vegetables;
     building.eggs = stores.eggs;
     building.grapes = stores.grapes;
     building.cured_meat = stores.cured_meat;
@@ -1457,7 +1452,6 @@ fn retain_unplundered_treasury_stores(
     subtract_loss!(milk);
     subtract_loss!(apples);
     subtract_loss!(cherries);
-    subtract_loss!(vegetables);
     subtract_loss!(eggs);
     subtract_loss!(grapes);
     subtract_loss!(cured_meat);
