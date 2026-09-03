@@ -103,20 +103,20 @@ export function developmentSkillPosition(branch: DevelopmentBranch, index: numbe
 }
 
 export function developmentIconUrl(icon: string): string {
-  // Existing painted woodcuts, not the single-color heraldic charge masks.
+  // Dedicated transparent emblems replace building cards; compact existing icons remain shared.
   const artwork: Record<string, string> = {
     ploughshare: 'icons/affinities/cultivation.png', bull: 'icons/actions/cattle-herd.png',
     'oak-branch': 'icons/affinities/forestry.png', scythe: 'icons/provisions/rye-sheaves.png',
     'grape-cluster': 'icons/backyards/orchard.png', 'wheat-sheaf': 'icons/provisions/rye-bread.png',
     'blacksmith-hammer': 'icons/affinities/industry.png', 'single-axe': 'icons/materials/charcoal.png',
     'open-gospel': 'icons/monastery/scriptorium-archive.png', anvil: 'icons/materials/iron.png',
-    'wagon-wheel': 'build-menu/cards/trading-post.webp', 'sailing-ship': 'build-menu/cards/market.webp',
+    'wagon-wheel': 'icons/developments/carters-guild.png', 'sailing-ship': 'icons/developments/chartered-markets.png',
     castle: 'icons/upgrades/residence-tier-2.png', 'chalice-and-host': 'icons/monastery/infirmary-wing.png',
-    tower: 'build-menu/cards/watchtower.webp', 'closed-gospel': 'icons/upgrades/residence-tier-3.png',
+    tower: 'icons/developments/watch-fires.png', 'closed-gospel': 'icons/upgrades/residence-tier-3.png',
     spear: 'icons/actions/trained-spears.png', 'round-shield': 'icons/materials/shields.png',
     stag: 'icons/materials/pelts.png', bee: 'icons/backyards/herb-garden.png',
-    fish: 'build-menu/cards/fishing-camp.webp', 'hunting-horn': 'icons/affinities/pollination.png',
-    manure: 'icons/materials/manure.png', reforester: 'build-menu/cards/reforester.webp',
+    fish: 'icons/developments/river-wardens.png', 'hunting-horn': 'icons/affinities/pollination.png',
+    manure: 'icons/materials/manure.png', reforester: 'icons/developments/coppice-craft.png',
   };
   return `/assets/ui/${artwork[icon]}`;
 }

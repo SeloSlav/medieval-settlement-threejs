@@ -89,13 +89,16 @@ import {
   CombatAudio,
   combatAudioLoadoutForFighter,
   combatAudioGain,
+  combatVoiceGain,
   combatVoiceSideForFaction,
   COMBAT_AUDIO_CHARGE_POOL_SIZE,
   COMBAT_AUDIO_CUTOFF_DISTANCE,
   COMBAT_AUDIO_MAX_EDGE_PLAYS_PER_TICK,
+  COMBAT_AUDIO_MAX_SCHEDULED_PLAYS_PER_TICK,
   COMBAT_AUDIO_MAX_SOURCES,
   COMBAT_AUDIO_MAX_VOICE_EDGE_PLAYS_PER_TICK,
   COMBAT_AUDIO_MAX_ZOOM_DISTANCE,
+  COMBAT_AUDIO_VOICE_MAX_ZOOM_DISTANCE,
   COMBAT_AUDIO_VOICE_POOL_SIZE,
   COMBAT_AUDIO_WEAPON_POOL_SIZE,
   createCombatAudioSourceWorkspace,
@@ -1066,6 +1069,25 @@ async function main(): Promise<void> {
     }) === 0,
     'melee audio must be silent at strategic overview zoom',
   );
+  const midZoomCombatView = {
+    ...closeCombatView,
+    orbitDistance: 60,
+  };
+  invariant(
+    combatAudioGain(0, 0, midZoomCombatView) > 0
+    && combatAudioGain(0, 0, midZoomCombatView) < 1,
+    'weapon Foley should fade continuously with camera zoom before its cutoff',
+  );
+  invariant(
+    combatVoiceGain(0, 0, closeCombatView) > 0
+    && combatVoiceGain(0, 0, closeCombatView)
+      < combatAudioGain(0, 0, closeCombatView)
+    && combatVoiceGain(0, 0, {
+      ...closeCombatView,
+      orbitDistance: COMBAT_AUDIO_VOICE_MAX_ZOOM_DISTANCE,
+    }) === 0,
+    'human reactions must use a tighter close-camera envelope than weapons',
+  );
   const engagementSources = buildCombatAudioSources([
     { id: 'guard', faction: 'guard', status: 'fighting', health: 80, x: 0, z: 0, attackCooldown: 0.1, issuedPolearms: 1 },
     { id: 'raider', faction: 'raider', status: 'fighting', health: 70, x: 2, z: 0, attackCooldown: 0.2 },
@@ -1332,12 +1354,13 @@ async function main(): Promise<void> {
   });
   try {
     invariant(
-      COMBAT_AUDIO_WEAPON_POOL_SIZE === 18
+      COMBAT_AUDIO_WEAPON_POOL_SIZE === 36
       && COMBAT_AUDIO_CHARGE_POOL_SIZE === 6
-      && COMBAT_AUDIO_MAX_EDGE_PLAYS_PER_TICK === 4
-      && COMBAT_AUDIO_VOICE_POOL_SIZE === 8
-      && COMBAT_AUDIO_MAX_VOICE_EDGE_PLAYS_PER_TICK === 2,
-      'combat mix must keep its polyphonic pools and simultaneous-edge budget explicit and bounded',
+      && COMBAT_AUDIO_MAX_EDGE_PLAYS_PER_TICK === 8
+      && COMBAT_AUDIO_MAX_SCHEDULED_PLAYS_PER_TICK === 3
+      && COMBAT_AUDIO_VOICE_POOL_SIZE === 4
+      && COMBAT_AUDIO_MAX_VOICE_EDGE_PLAYS_PER_TICK === 1,
+      'combat mix must favor a large weapon bed while keeping human reactions tightly bounded',
     );
     const edgeSources = buildCombatAudioSources([
       { id: 'edge-pike', faction: 'spearman', status: 'fighting', health: 80, x: 0, z: 0, attackCooldown: 0 },
@@ -1354,8 +1377,8 @@ async function main(): Promise<void> {
     invariant(
       weaponVoices.length === COMBAT_AUDIO_WEAPON_POOL_SIZE
       && weaponVoices.filter((audio) => audio.plays > 0).length
-        === COMBAT_AUDIO_MAX_EDGE_PLAYS_PER_TICK,
-      'one update should preserve up to four real cooldown-reset attacks as overlapping voices',
+        === Math.min(edgeSources.length, COMBAT_AUDIO_MAX_EDGE_PLAYS_PER_TICK),
+      'one update should preserve real cooldown-reset attacks as overlapping weapon voices',
     );
     invariant(
       weaponVoices
@@ -1417,6 +1440,30 @@ async function main(): Promise<void> {
     );
     fallbackMixer.dispose();
 
+    const meleeBedStart = combatPlayback.length;
+    const meleeBedMixer = new CombatAudio();
+    const meleeBedSources = buildCombatAudioSources(Array.from(
+      { length: 16 },
+      (_, index) => ({
+        id: `melee-bed-${index}`,
+        faction: index % 2 === 0 ? 'guard' as const : 'raider' as const,
+        status: 'fighting' as const,
+        health: 80,
+        x: index * 0.15,
+        z: index % 3 * 0.2,
+      }),
+    ));
+    meleeBedMixer.tick(0, meleeBedSources, closeCombatView);
+    meleeBedMixer.tick(0.4, meleeBedSources, closeCombatView);
+    const meleeBedVoices = combatPlayback.slice(meleeBedStart)
+      .filter((audio) => audio.plays === 1);
+    invariant(
+      meleeBedVoices.length === COMBAT_AUDIO_MAX_SCHEDULED_PLAYS_PER_TICK
+      && new Set(meleeBedVoices.map((audio) => audio.playbackRate)).size > 1,
+      'a dense melee tick should layer three independently pitched weapon clashes',
+    );
+    meleeBedMixer.dispose();
+
     const chargeStart = combatPlayback.length;
     const chargeMixer = new CombatAudio();
     const chargeSources = buildCombatAudioSources([
@@ -1424,7 +1471,7 @@ async function main(): Promise<void> {
       { id: 'charge-two', faction: 'raider', status: 'advancing', health: 80, x: 1, z: 0, targetKind: 'combat-agent' },
     ]);
     chargeMixer.tick(0, chargeSources, closeCombatView);
-    chargeMixer.tick(0.6, chargeSources, closeCombatView);
+    chargeMixer.tick(1.8, chargeSources, closeCombatView);
     const chargeVoices = combatPlayback.slice(chargeStart);
     const chargeHumanVoices = chargeVoices.slice(0, COMBAT_AUDIO_VOICE_POOL_SIZE);
     const chargeMovementVoices = chargeVoices.slice(COMBAT_AUDIO_VOICE_POOL_SIZE);
@@ -1439,7 +1486,7 @@ async function main(): Promise<void> {
         audio.plays === 1
         && /\/sounds\/combat\/voices\/(?:defender|raider)_charge_\d+\.mp3/.test(audio.src)
       )).length === 1,
-      'combat-target advances should layer bounded formation movement and nonverbal charge effort',
+      'combat-target advances should layer bounded formation movement and one quiet charge effort',
     );
     chargeMixer.dispose();
 
@@ -1464,18 +1511,14 @@ async function main(): Promise<void> {
     const reactionVoices = combatPlayback.slice(reactionStart);
     invariant(
       reactionVoices.length === COMBAT_AUDIO_VOICE_POOL_SIZE
-      && reactionVoices.some((audio) => (
+      && reactionVoices.filter((audio) => (
         audio.plays === 1
         && /\/sounds\/combat\/voices\/defender_damage_\d+\.mp3/.test(audio.src)
-      ))
-      && reactionVoices.some((audio) => (
-        audio.plays === 1
-        && /\/sounds\/combat\/voices\/defender_rout_\d+\.mp3/.test(audio.src)
-      ))
+      )).length === 1
       && reactionVoices.every((audio) => (
         !/(?:selo|person_attack|angry_fighting)/i.test(audio.src)
       )),
-      'health and retreat edges should route to nonverbal damage and rout reactions only',
+      'back-to-back health and retreat edges should collapse to one quiet nonverbal reaction',
     );
     reactionMixer.dispose();
 
@@ -1490,7 +1533,7 @@ async function main(): Promise<void> {
       z: 0,
     }]);
     battleVoiceMixer.tick(0, battleVoiceSources, closeCombatView);
-    battleVoiceMixer.tick(2.3, battleVoiceSources, closeCombatView);
+    battleVoiceMixer.tick(6.5, battleVoiceSources, closeCombatView);
     invariant(
       combatPlayback.slice(battleVoiceStart).some((audio) => (
         audio.plays === 1
@@ -1511,7 +1554,7 @@ async function main(): Promise<void> {
       z: 0,
     }]);
     fleeVoiceMixer.tick(0, fleeVoiceSources, closeCombatView);
-    fleeVoiceMixer.tick(1.2, fleeVoiceSources, closeCombatView);
+    fleeVoiceMixer.tick(3.5, fleeVoiceSources, closeCombatView);
     invariant(
       combatPlayback.slice(fleeVoiceStart).some((audio) => (
         audio.plays === 1
@@ -1543,9 +1586,44 @@ async function main(): Promise<void> {
       && voiceStressPool.length === COMBAT_AUDIO_VOICE_POOL_SIZE
       && voiceStressPool.filter((audio) => audio.plays === 1).length
         === COMBAT_AUDIO_MAX_VOICE_EDGE_PLAYS_PER_TICK,
-      'a 100-plus-agent damage burst must remain capped at two overlapping reactions in an eight-voice pool',
+      'a 100-plus-agent damage burst must collapse to one reaction in a four-voice pool',
     );
     voiceStressMixer.dispose();
+
+    const deathStart = combatPlayback.length;
+    const deathMixer = new CombatAudio();
+    const superCloseCombatView = {
+      ...closeCombatView,
+      orbitDistance: 8,
+    };
+    invariant(
+      deathMixer.playDeath('death-one', 'man', 0, 0, superCloseCombatView)
+      && !deathMixer.playDeath('death-clustered', 'woman', 0, 0, superCloseCombatView)
+      && !deathMixer.playDeath('death-far', 'man', 0, 0, {
+        ...superCloseCombatView,
+        orbitDistance: COMBAT_AUDIO_VOICE_MAX_ZOOM_DISTANCE,
+      }),
+      'death voices should play only near the camera and collapse clustered casualties',
+    );
+    deathMixer.tick(0.5, [], superCloseCombatView);
+    invariant(
+      deathMixer.playDeath('death-two', 'woman', 0, 0, superCloseCombatView),
+      'a later nearby casualty should remain audible after the death-voice interval',
+    );
+    const deathVoices = combatPlayback.slice(deathStart);
+    const playedDeathVoices = deathVoices.filter((audio) => audio.plays === 1);
+    invariant(
+      deathVoices.length === 2
+      && playedDeathVoices.length === 2
+      && playedDeathVoices.every((audio) => (
+        audio.volume > 0
+        && audio.volume < 0.04
+        && /\/sounds\/combat\/selo\/(?:male|female)_dying_\d+\.mp3/.test(audio.src)
+      ))
+      && playedDeathVoices[0]?.playbackRate !== playedDeathVoices[1]?.playbackRate,
+      'death voices should stay far below weapon level and vary character pitch',
+    );
+    deathMixer.dispose();
   } finally {
     if (audioDescriptor) {
       Object.defineProperty(globalThis, 'Audio', audioDescriptor);

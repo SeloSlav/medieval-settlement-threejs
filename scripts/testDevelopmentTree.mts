@@ -54,12 +54,50 @@ const independent = new DevelopmentState();
 assert.equal(independent.points, 9, 'new map sessions start fresh');
 const menu = readFileSync('src/ui/DevelopmentMenu.ts', 'utf8');
 const model = readFileSync('src/ui/developmentTree.ts', 'utf8');
+const menuStyles = readFileSync('src/ui/developmentMenu.css', 'utf8');
+const gameplayStyles = readFileSync('src/ui/gameplayCraft.css', 'utf8');
 const document = readFileSync('docs/DEVELOPMENT_POINTS.md', 'utf8');
+assert.doesNotMatch(menu, /<strong>Your estate<\/strong>/, 'the central heraldry must not be obscured by redundant copy');
+assert.doesNotMatch(model, /build-menu\/cards\//, 'development seals must use isolated icons, never parchment-backed building cards');
+for (const id of ['carters-guild', 'chartered-markets', 'watch-fires', 'coppice-craft', 'river-wardens']) {
+  const skill = DEVELOPMENT_SKILL_BY_ID.get(id)!;
+  const url = developmentIconUrl(skill.icon);
+  assert.match(url, /^\/assets\/ui\/icons\/developments\//, `${id} must use a dedicated development icon`);
+  const png = readFileSync(`public${url}`);
+  assert.equal(png.readUInt32BE(16), 512, `${id} icon width changed`);
+  assert.equal(png.readUInt32BE(20), 512, `${id} icon height changed`);
+  assert.ok(png[25] === 4 || png[25] === 6, `${id} icon must retain an alpha channel`);
+  assert.ok(png.length < 600_000, `${id} icon is too large for runtime UI`);
+}
+for (const [branch, asset] of [
+  ['land', 'land-harvest-woodcut.png'],
+  ['craft', 'craft-trade-woodcut.png'],
+  ['hearth', 'hearth-watch-woodcut.png'],
+  ['woodland', 'woodland-waters-woodcut.png'],
+] as const) {
+  assert.match(menu, new RegExp(`development-branch-art--${branch}[^>]*aria-hidden="true"`), `${branch} art must stay decorative`);
+  assert.match(menuStyles, new RegExp(`development-branch-art--${branch}[\\s\\S]*?${asset.replace('.', '\\.')}`), `${branch} must use its dedicated woodcut`);
+  const png = readFileSync(`public/assets/ui/development-backgrounds/${asset}`);
+  assert.equal(png.readUInt32BE(16), 512, `${branch} woodcut width changed`);
+  assert.equal(png.readUInt32BE(20), 341, `${branch} woodcut height changed`);
+  assert.ok(png[25] === 4 || png[25] === 6, `${branch} woodcut must retain an alpha channel`);
+  assert.ok(png.length < 500_000, `${branch} woodcut is too large for runtime UI`);
+}
+assert.match(menuStyles, /\.development-branch-art \{[\s\S]*?position: absolute;[\s\S]*?pointer-events: none;/, 'branch art must remain a non-layout decorative layer');
+for (const color of ['#7563408c', '#3b58668c', '#75443f8c', '#48633c8c']) {
+  assert.ok(gameplayStyles.includes(color), `development quadrant color ${color} must be preserved`);
+}
 for (const skill of DEVELOPMENT_SKILLS) {
   assert.ok(document.includes(skill.name), `Missing skill in design document: ${skill.name}`);
   assert.ok(document.includes(skill.description), `Description differs in design document: ${skill.name}`);
 }
 assert.doesNotMatch(menu + model, /\.reducers\b|localStorage|sessionStorage|fetch\(/, 'prototype must not mutate or persist simulation data');
+for (const cardinalRule of [
+  /development-branch-label--land \{ left: 50%; top: 0;/,
+  /development-branch-label--craft \{ left: 100%; top: 50%;/,
+  /development-branch-label--hearth \{ left: 50%; top: 100%;/,
+  /development-branch-label--woodland \{ right: 100%; top: 50%;/,
+]) assert.match(menuStyles, cardinalRule, 'branch labels must follow their cardinal branch axes');
 const toolbar = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
 assert.match(toolbar, /this\.settlementHud\.root\.append\(developmentButton\)/);
 assert.match(toolbar, /return this\.developmentMenu\.isOpen\(\) \|\|/);

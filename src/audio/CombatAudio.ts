@@ -1,9 +1,12 @@
 import {
   COMBAT_AUDIO_CLIPS,
   COMBAT_DEATH_CLIPS,
+  COMBAT_VOICE_CLIPS,
   type AudioClipDefinition,
   type CombatAudioSoundKind,
+  type CombatVoiceCue,
   type CombatVoiceSide,
+  type CombatVoiceSoundKind,
 } from './audioCatalog.ts';
 import {
   getSoundEffectsVolume,
@@ -16,9 +19,14 @@ import type {
 } from '../security/combatAgents.ts';
 import type { CrowdViewState } from '../settlement/crowdView.ts';
 
-export const COMBAT_AUDIO_MAX_ZOOM_DISTANCE = 90;
+export const COMBAT_AUDIO_MAX_ZOOM_DISTANCE = 100;
+export const COMBAT_AUDIO_FULL_ZOOM_DISTANCE = 20;
 export const COMBAT_AUDIO_FULL_VOLUME_DISTANCE = 10;
-export const COMBAT_AUDIO_CUTOFF_DISTANCE = 70;
+export const COMBAT_AUDIO_CUTOFF_DISTANCE = 90;
+export const COMBAT_AUDIO_VOICE_MAX_ZOOM_DISTANCE = 32;
+export const COMBAT_AUDIO_VOICE_FULL_ZOOM_DISTANCE = 11;
+export const COMBAT_AUDIO_VOICE_FULL_VOLUME_DISTANCE = 7;
+export const COMBAT_AUDIO_VOICE_CUTOFF_DISTANCE = 28;
 /** Retained as the legacy melee-pair radius for diagnostics and old callers. */
 export const COMBAT_AUDIO_MAX_PAIR_DISTANCE = 6.5;
 /** Triple the original 12-per-side battle fits without an unbounded source list. */
@@ -26,12 +34,15 @@ export const COMBAT_AUDIO_MAX_SOURCES = 72;
 export const COMBAT_AUDIO_WEAPON_POOL_SIZE = 36;
 export const COMBAT_AUDIO_CHARGE_POOL_SIZE = 6;
 export const COMBAT_AUDIO_MAX_EDGE_PLAYS_PER_TICK = 8;
-export const COMBAT_AUDIO_VOICE_POOL_SIZE = 8;
-export const COMBAT_AUDIO_MAX_VOICE_EDGE_PLAYS_PER_TICK = 2;
+export const COMBAT_AUDIO_MAX_SCHEDULED_PLAYS_PER_TICK = 3;
+export const COMBAT_AUDIO_VOICE_POOL_SIZE = 4;
+export const COMBAT_AUDIO_MAX_VOICE_EDGE_PLAYS_PER_TICK = 1;
 
 const MAX_SOURCES_PER_SIDE = COMBAT_AUDIO_MAX_SOURCES / 2;
-const DEATH_POOL_SIZE = 3;
-const SCHEDULED_GLOBAL_INTERVAL_SECONDS = 0.065;
+const DEATH_POOL_SIZE = 2;
+const CHARGE_GLOBAL_INTERVAL_SECONDS = 0.24;
+const VOICE_GLOBAL_INTERVAL_SECONDS = 0.9;
+const DEATH_GLOBAL_INTERVAL_SECONDS = 0.45;
 
 export type CombatWeaponSoundKind = Exclude<CombatAudioSoundKind, 'charge'>;
 type CombatAudioPhase = 'attack' | 'charge' | 'flee';
@@ -146,6 +157,11 @@ type CombatSoundSchedule = {
   activeGeneration: number;
   phase: CombatAudioPhase;
   previousAttackCooldown: number | null;
+  nextVoiceAt: number;
+  nextDamageVoiceAt: number;
+  voiceSequence: number;
+  previousHealth: number;
+  previousStatus: CombatAgentStatus;
 };
 
 type CombatSoundCandidate = {
@@ -154,6 +170,11 @@ type CombatSoundCandidate = {
   attackEdge: boolean;
   scheduledDue: boolean;
   sequence: number;
+  voiceGain: number;
+  voiceCue: CombatVoiceCue | null;
+  voiceEdge: boolean;
+  voicePriority: number;
+  voiceSequence: number;
 };
 
 export function combatAudioGain(
@@ -168,15 +189,40 @@ export function combatAudioGain(
   ) {
     return 0;
   }
+  const zoomGain = distanceGain(
+    view.orbitDistance,
+    COMBAT_AUDIO_FULL_ZOOM_DISTANCE,
+    COMBAT_AUDIO_MAX_ZOOM_DISTANCE,
+  );
   const listenerX = view.listenerX ?? view.centerX;
   const listenerZ = view.listenerZ ?? view.centerZ;
   const distance = Math.hypot(x - listenerX, z - listenerZ);
-  if (distance <= COMBAT_AUDIO_FULL_VOLUME_DISTANCE) return 1;
   if (distance >= COMBAT_AUDIO_CUTOFF_DISTANCE) return 0;
-  return 1 - (
-    distance - COMBAT_AUDIO_FULL_VOLUME_DISTANCE
-  ) / (
-    COMBAT_AUDIO_CUTOFF_DISTANCE - COMBAT_AUDIO_FULL_VOLUME_DISTANCE
+  return zoomGain * distanceGain(
+    distance,
+    COMBAT_AUDIO_FULL_VOLUME_DISTANCE,
+    COMBAT_AUDIO_CUTOFF_DISTANCE,
+  );
+}
+
+/** Human reactions belong to the intimate camera, not the strategic mix. */
+export function combatVoiceGain(
+  x: number,
+  z: number,
+  view: CrowdViewState | undefined,
+): number {
+  if (!view || view.orbitDistance == null) return 0;
+  const listenerX = view.listenerX ?? view.centerX;
+  const listenerZ = view.listenerZ ?? view.centerZ;
+  const distance = Math.hypot(x - listenerX, z - listenerZ);
+  return distanceGain(
+    view.orbitDistance,
+    COMBAT_AUDIO_VOICE_FULL_ZOOM_DISTANCE,
+    COMBAT_AUDIO_VOICE_MAX_ZOOM_DISTANCE,
+  ) * distanceGain(
+    distance,
+    COMBAT_AUDIO_VOICE_FULL_VOLUME_DISTANCE,
+    COMBAT_AUDIO_VOICE_CUTOFF_DISTANCE,
   );
 }
 
@@ -395,16 +441,23 @@ function pushCombatAudioSource(
   sources.push(source);
 }
 
-/** Weapon Foley follows attack events with bounded polyphony; casualties remain one-shots. */
+/**
+ * Weapon Foley owns the battlefield mix. Human reactions use a separate,
+ * close-camera envelope and a much smaller global voice budget.
+ */
 export class CombatAudio {
   private readonly weaponPool: HTMLAudioElement[] = [];
+  private readonly chargePool: HTMLAudioElement[] = [];
+  private readonly voicePool: HTMLAudioElement[] = [];
   private readonly deathPool: HTMLAudioElement[] = [];
   private readonly schedules = new Map<string, CombatSoundSchedule>();
   private readonly candidatePool: CombatSoundCandidate[] = [];
   private readonly candidates: CombatSoundCandidate[] = [];
   private activeGeneration = 0;
   private elapsedSeconds = 0;
-  private lastScheduledPlayAt = Number.NEGATIVE_INFINITY;
+  private lastChargePlayAt = Number.NEGATIVE_INFINITY;
+  private lastVoicePlayAt = Number.NEGATIVE_INFINITY;
+  private lastDeathPlayAt = Number.NEGATIVE_INFINITY;
 
   tick(
     dtSeconds: number,
@@ -446,6 +499,11 @@ export class CombatAudio {
           attackEdge: false,
           scheduledDue: false,
           sequence: 0,
+          voiceGain: 0,
+          voiceCue: null,
+          voiceEdge: false,
+          voicePriority: 0,
+          voiceSequence: 0,
         };
         this.candidatePool.push(candidate);
       }
@@ -454,6 +512,11 @@ export class CombatAudio {
       candidate.attackEdge = false;
       candidate.scheduledDue = false;
       candidate.sequence = 0;
+      candidate.voiceGain = combatVoiceGain(source.x, source.z, view);
+      candidate.voiceCue = null;
+      candidate.voiceEdge = false;
+      candidate.voicePriority = 0;
+      candidate.voiceSequence = 0;
       candidates.push(candidate);
     }
     if (candidates.length > 1) {
@@ -474,11 +537,44 @@ export class CombatAudio {
         schedule.phase = source.phase;
         schedule.previousAttackCooldown = source.attackCooldown;
         schedule.nextScheduledAt = this.initialScheduleAt(source);
+        schedule.nextVoiceAt = this.initialVoiceAt(source);
+      }
+
+      const previousStatus = schedule.previousStatus;
+      const enteredRout = source.status === 'retreating'
+        && previousStatus !== 'retreating';
+      const tookDamage = source.health < schedule.previousHealth - 0.001
+        && this.elapsedSeconds >= schedule.nextDamageVoiceAt;
+      schedule.previousStatus = source.status;
+      schedule.previousHealth = source.health;
+
+      const scheduledVoiceDue = this.elapsedSeconds >= schedule.nextVoiceAt;
+      if (enteredRout) {
+        candidate.voiceCue = 'rout';
+        candidate.voiceEdge = true;
+        candidate.voicePriority = 3;
+      } else if (tookDamage) {
+        candidate.voiceCue = 'damage';
+        candidate.voiceEdge = true;
+        candidate.voicePriority = 2;
+      } else if (scheduledVoiceDue) {
+        candidate.voiceCue = voiceCueForPhase(source.phase);
+        candidate.voicePriority = 1;
+      }
+      if (enteredRout || tookDamage) {
+        schedule.nextDamageVoiceAt = this.elapsedSeconds
+          + this.damageVoiceCooldownSeconds(source, schedule.voiceSequence);
+      }
+      if (candidate.voiceCue) {
+        candidate.voiceSequence = schedule.voiceSequence;
+        schedule.voiceSequence += 1;
+        schedule.nextVoiceAt = this.elapsedSeconds
+          + this.voiceCadenceSeconds(source, schedule.voiceSequence);
       }
 
       const attackEdge = source.phase === 'attack'
         && this.observeAttackReset(schedule, source.attackCooldown, dt);
-      const scheduledDue = source.phase === 'attack'
+      const scheduledDue = source.phase !== 'flee'
         && this.elapsedSeconds >= schedule.nextScheduledAt;
       if (!attackEdge && !scheduledDue) continue;
       candidate.attackEdge = attackEdge;
@@ -496,43 +592,102 @@ export class CombatAudio {
       if (this.playAttack(candidate, true)) edgePlays += 1;
     }
 
+    if (
+      this.elapsedSeconds - this.lastVoicePlayAt >= VOICE_GLOBAL_INTERVAL_SECONDS
+    ) {
+      let voiceEdgePlays = 0;
+      let voicePlayed = false;
+      for (let priority = 3; priority >= 1 && !voicePlayed; priority -= 1) {
+        for (const candidate of candidates) {
+          if (
+            !candidate.voiceCue
+            || candidate.voicePriority !== priority
+            || candidate.voiceGain <= 0
+            || (candidate.voiceEdge
+              && voiceEdgePlays >= COMBAT_AUDIO_MAX_VOICE_EDGE_PLAYS_PER_TICK)
+          ) {
+            continue;
+          }
+          if (this.playVoice(candidate)) {
+            if (candidate.voiceEdge) voiceEdgePlays += 1;
+            this.lastVoicePlayAt = this.elapsedSeconds;
+            voicePlayed = true;
+            break;
+          }
+        }
+      }
+    }
+
+    let scheduledPlays = 0;
     for (const candidate of candidates) {
       if (!candidate.scheduledDue) continue;
-      if (
-        this.elapsedSeconds - this.lastScheduledPlayAt
-          < SCHEDULED_GLOBAL_INTERVAL_SECONDS
-      ) {
+      if (candidate.source.phase === 'charge') {
+        if (
+          this.elapsedSeconds - this.lastChargePlayAt
+            < CHARGE_GLOBAL_INTERVAL_SECONDS
+        ) {
+          continue;
+        }
+        if (this.play(
+          this.chargePool,
+          COMBAT_AUDIO_CHARGE_POOL_SIZE,
+          COMBAT_AUDIO_CLIPS.charge,
+          `${candidate.source.id}:charge:${candidate.sequence}`,
+          candidate.gain * 0.68,
+          0.9,
+          1.08,
+        )) {
+          this.lastChargePlayAt = this.elapsedSeconds;
+        }
         continue;
       }
-      if (this.playAttack(candidate, false)) {
-        this.lastScheduledPlayAt = this.elapsedSeconds;
-      }
+      if (scheduledPlays >= COMBAT_AUDIO_MAX_SCHEDULED_PLAYS_PER_TICK) break;
+      if (this.playAttack(candidate, false)) scheduledPlays += 1;
     }
   }
 
   dispose(): void {
     this.stopAll();
     for (const audio of this.weaponPool) audio.removeAttribute('src');
+    for (const audio of this.chargePool) audio.removeAttribute('src');
+    for (const audio of this.voicePool) audio.removeAttribute('src');
     for (const audio of this.deathPool) audio.removeAttribute('src');
     this.weaponPool.length = 0;
+    this.chargePool.length = 0;
+    this.voicePool.length = 0;
     this.deathPool.length = 0;
     this.schedules.clear();
     this.candidates.length = 0;
     this.candidatePool.length = 0;
   }
 
-  /** Event-driven casualty reaction; never part of automatic combat chatter. */
-  playDeath(id: string, variant: 'man' | 'woman'): void {
-    if (!isGameAudioEnabled()) return;
-    this.play(
+  /** Event-driven casualty reaction, culled and attenuated like other voices. */
+  playDeath(
+    id: string,
+    variant: 'man' | 'woman',
+    x: number,
+    z: number,
+    view: CrowdViewState | undefined,
+  ): boolean {
+    if (!isGameAudioEnabled()) return false;
+    const gain = combatVoiceGain(x, z, view);
+    if (
+      gain <= 0
+      || this.elapsedSeconds - this.lastDeathPlayAt < DEATH_GLOBAL_INTERVAL_SECONDS
+    ) {
+      return false;
+    }
+    const played = this.play(
       this.deathPool,
       DEATH_POOL_SIZE,
       COMBAT_DEATH_CLIPS[variant],
       `${id}:death`,
-      0.9,
-      0.98,
-      0.01,
+      gain * 0.32,
+      0.84,
+      1.16,
     );
+    if (played) this.lastDeathPlayAt = this.elapsedSeconds;
+    return played;
   }
 
   private playAttack(candidate: CombatSoundCandidate, edge: boolean): boolean {
@@ -543,9 +698,24 @@ export class CombatAudio {
       COMBAT_AUDIO_WEAPON_POOL_SIZE,
       COMBAT_AUDIO_CLIPS[kind],
       `${candidate.source.id}:${kind}:${candidate.sequence}:${edge ? 'edge' : 'cadence'}`,
-      candidate.gain * (edge ? 1.25 : 1.05),
-      pitch.base,
-      pitch.step,
+      candidate.gain * (edge ? 1.14 : 0.94),
+      pitch.minimum,
+      pitch.maximum,
+    );
+  }
+
+  private playVoice(candidate: CombatSoundCandidate): boolean {
+    const cue = candidate.voiceCue;
+    if (!cue) return false;
+    const kind = combatVoiceSoundKind(candidate.source.voiceSide, cue);
+    return this.play(
+      this.voicePool,
+      COMBAT_AUDIO_VOICE_POOL_SIZE,
+      COMBAT_VOICE_CLIPS[kind],
+      `${candidate.source.id}:${kind}:${candidate.voiceSequence}`,
+      candidate.voiceGain * (candidate.voiceEdge ? 0.42 : 0.3),
+      0.84,
+      1.16,
     );
   }
 
@@ -558,6 +728,11 @@ export class CombatAudio {
       activeGeneration: this.activeGeneration,
       phase: source.phase,
       previousAttackCooldown: source.attackCooldown,
+      nextVoiceAt: this.initialVoiceAt(source),
+      nextDamageVoiceAt: this.elapsedSeconds,
+      voiceSequence: 0,
+      previousHealth: source.health,
+      previousStatus: source.status,
     };
     this.schedules.set(source.id, schedule);
     return schedule;
@@ -569,6 +744,31 @@ export class CombatAudio {
     return this.elapsedSeconds
       + base
       + deterministicUnit(`${source.id}:${source.phase}:start`) * spread;
+  }
+
+  private initialVoiceAt(source: CombatAudioSource): number {
+    const [minimum, spread] = initialVoiceRange(source.phase);
+    return this.elapsedSeconds
+      + minimum
+      + deterministicUnit(`${source.id}:${source.phase}:voice:start`) * spread;
+  }
+
+  private voiceCadenceSeconds(
+    source: CombatAudioSource,
+    sequence: number,
+  ): number {
+    const cue = voiceCueForPhase(source.phase);
+    const [minimum, spread] = voiceCadenceRange(cue);
+    return minimum
+      + deterministicUnit(`${source.id}:${cue}:voice:cadence:${sequence}`) * spread;
+  }
+
+  private damageVoiceCooldownSeconds(
+    source: CombatAudioSource,
+    sequence: number,
+  ): number {
+    return 4
+      + deterministicUnit(`${source.id}:damage:cooldown:${sequence}`) * 3;
   }
 
   private cadenceSeconds(source: CombatAudioSource, sequence: number): number {
@@ -600,8 +800,8 @@ export class CombatAudio {
     clips: readonly AudioClipDefinition[],
     key: string,
     gain: number,
-    baseRate: number,
-    rateStep: number,
+    minimumRate: number,
+    maximumRate: number,
   ): boolean {
     if (typeof Audio === 'undefined' || clips.length === 0) return false;
     while (pool.length < poolSize) {
@@ -618,14 +818,16 @@ export class CombatAudio {
     audio.volume = clamp01(
       (clip.volume ?? 1) * gain * getSoundEffectsVolume(),
     );
-    audio.playbackRate = baseRate
-      + deterministicIndex(`${key}:pitch`, 7) * rateStep;
+    audio.playbackRate = minimumRate
+      + deterministicUnit(`${key}:pitch`) * (maximumRate - minimumRate);
     void audio.play().catch(() => undefined);
     return true;
   }
 
   private stopAll(): void {
     this.stopPool(this.weaponPool);
+    this.stopPool(this.chargePool);
+    this.stopPool(this.voicePool);
   }
 
   private stopPool(pool: readonly HTMLAudioElement[]): void {
@@ -645,11 +847,48 @@ function attackSoundKind(
   return source.weaponFamily;
 }
 
+function combatVoiceSoundKind(
+  side: CombatVoiceSide,
+  cue: CombatVoiceCue,
+): CombatVoiceSoundKind {
+  return `${side}-${cue}`;
+}
+
+function voiceCueForPhase(phase: CombatAudioPhase): CombatVoiceCue {
+  switch (phase) {
+    case 'attack': return 'battle';
+    case 'charge': return 'charge';
+    case 'flee': return 'flee';
+  }
+}
+
+function initialVoiceRange(
+  phase: CombatAudioPhase,
+): readonly [number, number] {
+  switch (phase) {
+    case 'attack': return [2.4, 3.8];
+    case 'charge': return [0.4, 1.2];
+    case 'flee': return [1.2, 2.2];
+  }
+}
+
+function voiceCadenceRange(
+  cue: CombatVoiceCue,
+): readonly [number, number] {
+  switch (cue) {
+    case 'battle': return [7, 6];
+    case 'charge': return [8, 5];
+    case 'damage': return [7, 6];
+    case 'flee': return [5, 4];
+    case 'rout': return [6, 4];
+  }
+}
+
 function cadenceRange(kind: CombatAudioSoundKind): readonly [number, number] {
   switch (kind) {
-    case 'sword-sidearm': return [0.36, 0.34];
-    case 'spear-pike': return [0.44, 0.38];
-    case 'halberd-polearm': return [0.52, 0.42];
+    case 'sword-sidearm': return [0.28, 0.28];
+    case 'spear-pike': return [0.34, 0.32];
+    case 'halberd-polearm': return [0.42, 0.34];
     case 'bow': return [0.78, 0.42];
     case 'crossbow': return [1.2, 0.72];
     case 'shield-armor': return [0.48, 0.4];
@@ -659,15 +898,30 @@ function cadenceRange(kind: CombatAudioSoundKind): readonly [number, number] {
 
 function attackPitch(
   kind: CombatWeaponSoundKind,
-): { base: number; step: number } {
+): { minimum: number; maximum: number } {
   switch (kind) {
-    case 'spear-pike': return { base: 0.93, step: 0.014 };
-    case 'sword-sidearm': return { base: 0.95, step: 0.012 };
-    case 'halberd-polearm': return { base: 0.92, step: 0.013 };
-    case 'bow': return { base: 0.97, step: 0.008 };
-    case 'crossbow': return { base: 0.98, step: 0.006 };
-    case 'shield-armor': return { base: 0.94, step: 0.012 };
+    case 'spear-pike': return { minimum: 0.88, maximum: 1.13 };
+    case 'sword-sidearm': return { minimum: 0.9, maximum: 1.12 };
+    case 'halberd-polearm': return { minimum: 0.86, maximum: 1.1 };
+    case 'bow': return { minimum: 0.94, maximum: 1.08 };
+    case 'crossbow': return { minimum: 0.95, maximum: 1.07 };
+    case 'shield-armor': return { minimum: 0.89, maximum: 1.12 };
   }
+}
+
+function distanceGain(
+  distance: number,
+  fullGainDistance: number,
+  cutoffDistance: number,
+): number {
+  if (distance <= fullGainDistance) return 1;
+  if (distance >= cutoffDistance) return 0;
+  const linear = 1 - (
+    distance - fullGainDistance
+  ) / (
+    cutoffDistance - fullGainDistance
+  );
+  return linear * linear * (3 - 2 * linear);
 }
 
 function deterministicUnit(value: string): number {

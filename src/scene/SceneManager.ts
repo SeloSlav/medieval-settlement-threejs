@@ -15,6 +15,11 @@ import { createRiverSystem, type RiverSystem } from '../rivers/RiverSystem.ts';
 import { updateTerrainRoadWear } from '../terrain/TerrainRoadWear.ts';
 import { RiverField } from '../rivers/RiverField.ts';
 import { setActiveRiverLayout, setActiveQuarryLayout, getActivePlacedBuildingLayout } from '../terrain/TerrainHeight.ts';
+import {
+  TerrainHorizon,
+  type TerrainHorizonDebugMode,
+  type TerrainHorizonDiagnostics,
+} from '../terrain/TerrainHorizon.ts';
 import { loadTerrainStartupData } from '../terrain/loadTerrainStartupData.ts';
 import { createQuarrySystem, type QuarrySystem } from '../quarries/QuarrySystem.ts';
 import { createClayDepositSystem, type ClayDepositSystem } from '../clay/ClayDepositSystem.ts';
@@ -205,6 +210,7 @@ export class SceneManager {
   private readonly maxAnisotropy: number;
   readonly cameraTarget = new THREE.Vector3();
   readonly terrain: Terrain;
+  readonly terrainHorizon: TerrainHorizon;
   private readonly fairTerrainMaterial: THREE.Material;
   readonly terrainProjector: TerrainProjector;
   readonly materials: RoadMaterialFactory;
@@ -382,6 +388,14 @@ export class SceneManager {
     this.shadowKeyDirection.copy(this.sunDirection);
     this.terrain = terrain;
     this.fairTerrainMaterial = terrain.mesh.material as THREE.Material;
+    this.terrainHorizon = new TerrainHorizon({
+      sourceGeometry: terrain.mesh.geometry,
+      material: this.fairTerrainMaterial,
+      terrainSize: terrain.size,
+      sourceResolution: terrain.resolution,
+      farDistance: this.camera.far,
+      seed: worldLayout.settings.seed,
+    });
     this.terrainProjector = new TerrainProjector(this.terrain, this.camera, this.renderer.domElement);
     this.sky = new SkyCloudMesh({
       sunDirection: this.sunDirection,
@@ -435,6 +449,7 @@ export class SceneManager {
 
     this.scene.add(
       this.sky,
+      this.terrainHorizon.mesh,
       this.terrain.mesh,
       this.riverSystem.group,
       this.quarrySystem.group,
@@ -1023,6 +1038,14 @@ export class SceneManager {
 
   setTerrainTopographyVisible(visible: boolean): void {
     setTerrainTopographyVisibility(this.fairTerrainMaterial, visible ? 1 : 0);
+  }
+
+  setTerrainHorizonDebugMode(mode: TerrainHorizonDebugMode): void {
+    this.terrainHorizon.setDebugMode(mode);
+  }
+
+  getTerrainHorizonDiagnostics(): TerrainHorizonDiagnostics {
+    return this.terrainHorizon.getDiagnostics();
   }
 
   setRoadDraftActive(active: boolean): void {
@@ -1802,6 +1825,7 @@ export class SceneManager {
     // Terrain owns its generated fair-weather node material. Restore it before
     // disposal if the scene happens to close while the shared rain material is
     // active; RoadMaterialFactory disposes the latter exactly once.
+    this.terrainHorizon.dispose();
     this.terrain.mesh.material = this.fairTerrainMaterial;
     this.terrain.dispose();
     this.materials.dispose();

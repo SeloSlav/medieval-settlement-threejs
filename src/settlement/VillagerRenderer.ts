@@ -753,6 +753,9 @@ export class VillagerRenderer {
           || seed % 2 === 0
             ? 'man'
             : 'woman',
+          state.x,
+          state.z,
+          this.lastView,
         );
       }
       nextVisuals.set(state.id, {
@@ -900,6 +903,9 @@ export class VillagerRenderer {
         this.combatAudio.playDeath(
           `civilian:${corpse.id}`,
           pickVillagerModelVariant(appearanceSeed) === 'man' ? 'man' : 'woman',
+          corpse.x,
+          corpse.z,
+          this.lastView,
         );
       }
     }

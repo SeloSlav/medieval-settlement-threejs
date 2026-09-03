@@ -41,6 +41,10 @@ export class DevelopmentMenu {
       <div class="development-content">
         <div class="development-atlas">
           <div class="development-wheel" role="group" aria-label="Four-branch development tree">
+            <div class="development-branch-art development-branch-art--land" aria-hidden="true"></div>
+            <div class="development-branch-art development-branch-art--craft" aria-hidden="true"></div>
+            <div class="development-branch-art development-branch-art--hearth" aria-hidden="true"></div>
+            <div class="development-branch-art development-branch-art--woodland" aria-hidden="true"></div>
             <svg class="development-connections" viewBox="0 0 900 900" aria-hidden="true">
               <circle class="development-ring" cx="450" cy="450" r="440"/>
               <circle class="development-ring development-ring--inner" cx="450" cy="450" r="429"/>
@@ -56,7 +60,7 @@ export class DevelopmentMenu {
                 }).join('');
               }).join('')).join('')}
             </svg>
-            <div class="development-center"><span data-development-heraldry></span><strong>Your estate</strong></div>
+            <div class="development-center"><span data-development-heraldry></span></div>
             ${DEVELOPMENT_BRANCHES.map(branch => `
               <div class="development-branch-label development-branch-label--${branch.id}"><span>${branch.name}</span><small data-branch-count="${branch.id}">0 / 6</small></div>
               ${branch.skills.map((skill, index) => {

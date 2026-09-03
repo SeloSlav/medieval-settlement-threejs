@@ -62,16 +62,50 @@
   box-shadow: 0 0 55px #0004, inset 0 0 50px #0008;
 }
 .development-wheel::before { content: ''; position: absolute; inset: 2.1%; border: 1px dashed #a6966633; border-radius: 50%; pointer-events: none; }
-.development-connections { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.development-branch-art {
+  position: absolute;
+  inset: 2.4%;
+  z-index: 0;
+  border-radius: 50%;
+  background-repeat: no-repeat;
+  opacity: .22;
+  filter: grayscale(1) sepia(.45) saturate(.55) contrast(1.08) brightness(.76);
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+.development-branch-art--land {
+  background-image: url('/assets/ui/development-backgrounds/land-harvest-woodcut.png');
+  background-position: 50% 3%;
+  background-size: 58% auto;
+  clip-path: polygon(0 0, 100% 0, 50% 50%);
+}
+.development-branch-art--craft {
+  background-image: url('/assets/ui/development-backgrounds/craft-trade-woodcut.png');
+  background-position: 97% 50%;
+  background-size: 58% auto;
+  clip-path: polygon(100% 0, 100% 100%, 50% 50%);
+}
+.development-branch-art--hearth {
+  background-image: url('/assets/ui/development-backgrounds/hearth-watch-woodcut.png');
+  background-position: 50% 97%;
+  background-size: 58% auto;
+  clip-path: polygon(100% 100%, 0 100%, 50% 50%);
+}
+.development-branch-art--woodland {
+  background-image: url('/assets/ui/development-backgrounds/woodland-waters-woodcut.png');
+  background-position: 3% 50%;
+  background-size: 58% auto;
+  clip-path: polygon(0 100%, 0 0, 50% 50%);
+}
+.development-connections { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .development-ring { fill: none; stroke: #897543; stroke-width: 3; opacity: .55; }
 .development-ring--inner { stroke-width: 1; opacity: .4; }
 .development-dividers { stroke: #b2985a; stroke-width: 2; opacity: .21; }
 .development-link { fill: none; stroke: #0e110dd9; stroke-width: 4; stroke-linecap: round; }
 .development-link.is-ready { stroke: #a38b51; stroke-width: 3; }
 .development-link.is-learned { stroke: #e2ca87; stroke-width: 4; filter: drop-shadow(0 0 4px #ddc77b40); }
-.development-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 19%; display: grid; justify-items: center; gap: 4px; text-align: center; }
+.development-center { position: absolute; left: 50%; top: 50%; z-index: 2; transform: translate(-50%, -50%); width: 19%; display: grid; justify-items: center; gap: 4px; text-align: center; }
 .development-heraldry { width: 8cqw; height: 9.4cqw; filter: saturate(.7); }
-.development-center strong { font-size: clamp(12px, 1.8cqw, 16px); font-weight: 400; }
 .development-node { position: absolute; z-index: 2; display: grid; justify-items: center; align-content: start; gap: 5px; width: 14%; padding: 0; color: #c7bda5; border: 0; background: none; transform: translate(-50%, -29%); cursor: pointer; }
 .development-node:focus-visible { outline: none !important; }
 .development-node:focus-visible .development-node__seal { outline: 2px solid #f5e2a5; outline-offset: 5px; }
@@ -90,12 +124,13 @@
 .development-node[aria-pressed='true'] .development-node__seal { outline: 1px solid #eee1b9; outline-offset: 5px; }
 .development-node:hover .development-node__seal { filter: brightness(1.15); }
 .development-node--mastery .development-node__seal { border-radius: 18% 18% 45% 45%; }
-.development-branch-label { position: absolute; width: 24%; color: #c8b994; font-size: clamp(11px, 1.85cqw, 16px); letter-spacing: .025em; text-align: center; pointer-events: none; }
+.development-branch-label { position: absolute; z-index: 3; width: 24%; color: #c8b994; font-size: clamp(11px, 1.85cqw, 16px); letter-spacing: .025em; text-align: center; pointer-events: none; }
 .development-branch-label small { display: block; margin-top: 5px; color: #968963; font: 11px system-ui, sans-serif; }
-.development-branch-label--land { right: 0; top: 5%; }
-.development-branch-label--craft { right: 0; bottom: 5%; }
-.development-branch-label--hearth { left: 0; bottom: 5%; }
-.development-branch-label--woodland { left: 0; top: 5%; }
+/* Match the branch angles: craft 0°, hearth 90°, woodland 180°, land 270°. */
+.development-branch-label--land { left: 50%; top: 0; transform: translate(-50%, -115%); }
+.development-branch-label--craft { left: 100%; top: 50%; transform: translate(8%, -50%); }
+.development-branch-label--hearth { left: 50%; top: 100%; transform: translate(-50%, 115%); }
+.development-branch-label--woodland { right: 100%; top: 50%; transform: translate(-8%, -50%); }
 .development-legend { display: flex; gap: 24px; margin-top: 10px; font: 11px system-ui, sans-serif; color: #aa9e83; }
 .development-legend > span { display: flex; gap: 7px; align-items: center; }
 .development-legend i { width: 7px; height: 7px; border: 1px solid #746b53; border-radius: 50%; }

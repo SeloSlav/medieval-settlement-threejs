@@ -292,16 +292,16 @@ export const COMBAT_VOICE_CLIPS: Record<
   CombatVoiceSoundKind,
   readonly AudioClipDefinition[]
 > = {
-  'defender-battle': combatVoiceVariants('defender', 'battle', 0.13),
-  'defender-charge': combatVoiceVariants('defender', 'charge', 0.14),
-  'defender-damage': combatVoiceVariants('defender', 'damage', 0.15),
-  'defender-flee': combatVoiceVariants('defender', 'flee', 0.13),
-  'defender-rout': combatVoiceVariants('defender', 'rout', 0.15),
-  'raider-battle': combatVoiceVariants('raider', 'battle', 0.13),
-  'raider-charge': combatVoiceVariants('raider', 'charge', 0.14),
-  'raider-damage': combatVoiceVariants('raider', 'damage', 0.15),
-  'raider-flee': combatVoiceVariants('raider', 'flee', 0.13),
-  'raider-rout': combatVoiceVariants('raider', 'rout', 0.15),
+  'defender-battle': combatVoiceVariants('defender', 'battle', 0.075),
+  'defender-charge': combatVoiceVariants('defender', 'charge', 0.085),
+  'defender-damage': combatVoiceVariants('defender', 'damage', 0.065),
+  'defender-flee': combatVoiceVariants('defender', 'flee', 0.07),
+  'defender-rout': combatVoiceVariants('defender', 'rout', 0.075),
+  'raider-battle': combatVoiceVariants('raider', 'battle', 0.075),
+  'raider-charge': combatVoiceVariants('raider', 'charge', 0.085),
+  'raider-damage': combatVoiceVariants('raider', 'damage', 0.065),
+  'raider-flee': combatVoiceVariants('raider', 'flee', 0.07),
+  'raider-rout': combatVoiceVariants('raider', 'rout', 0.075),
 };
 
 function combatDeathVariants(
@@ -309,7 +309,7 @@ function combatDeathVariants(
 ): readonly AudioClipDefinition[] {
   return Array.from({ length: 5 }, (_, index) => ({
     path: `/sounds/combat/selo/${voice}_dying_${index + 1}.mp3`,
-    volume: 0.2,
+    volume: 0.11,
   }));
 }
 
