@@ -106,6 +106,7 @@ import { planSeedThreeForestInteractionWork } from './seedThreeForestInteraction
 
 type SpeciesBucket = {
   preset: SeedThreePresetKey;
+  horizonOnly: boolean;
   slots: TreeSlot[];
   nearSet: InstancedLodSet;
   nearShadowSet: InstancedLodSet;
@@ -298,6 +299,7 @@ function createInstancedLodSet(
     toneVariation?: number;
     crownUnderlayMeshes?: THREE.InstancedMesh[];
     overviewCards?: boolean;
+    overviewFade?: boolean;
     ownedOverviewFadeMaterials?: Set<THREE.Material>;
   } = {},
 ): InstancedLodSet {
@@ -320,10 +322,10 @@ function createInstancedLodSet(
           forestBarkMaterial(mesh.material as THREE.Material),
         ),
       );
-      const material = options.overviewCards === true
+      const material = options.overviewCards === true && options.overviewFade !== false
         ? createSeedThreeOverviewBarkFadeMaterial(sourceMaterial)
         : sourceMaterial;
-      if (options.overviewCards === true) {
+      if (options.overviewCards === true && options.overviewFade !== false) {
         options.ownedOverviewFadeMaterials?.add(material);
       }
       options.snowCardMaterials?.add(material);
@@ -404,7 +406,7 @@ function createInstancedLodSet(
           if (options.seasonalDeciduous) {
             applySeedThreeWholeCardDormancy(fmat);
           }
-          applySeedThreeOverviewBillboardFade(fmat);
+          if (options.overviewFade !== false) applySeedThreeOverviewBillboardFade(fmat);
         }
         if (options.seasonalDeciduous) {
           options.seasonalCardMaterials?.add(fmat as THREE.Material);
@@ -459,36 +461,41 @@ function createSpeciesBucket(
   snowCardMaterials: Set<THREE.Material>,
   crownUnderlayMeshes: THREE.InstancedMesh[],
   ownedOverviewFadeMaterials: Set<THREE.Material>,
+  horizonOnly = false,
 ): SpeciesBucket {
   const nearLevel = findLodLevel(prototype, 'LOD2');
   // LOD4's crossed whole-limb cards read as flat green triangles from the
   // settlement camera. LOD3 retains real primary branches and overlapping
   // terminal-twig cards, spending available headroom on a volumetric silhouette.
-  const overviewLevel = findLodLevel(prototype, 'LOD3')
-    ?? findLodLevel(prototype, 'LOD4')
-    ?? nearLevel;
+  const overviewLevel = horizonOnly
+    ? findLodLevel(prototype, 'LOD4') ?? findLodLevel(prototype, 'LOD3') ?? nearLevel
+    : findLodLevel(prototype, 'LOD3') ?? findLodLevel(prototype, 'LOD4') ?? nearLevel;
   const overviewTone = OVERVIEW_CANOPY_TONE[presetKey];
   const seasonalDeciduous = slots.some((slot) => slot.seasonalDeciduous);
   const autumnColor = autumnFoliageColorForPreset(presetKey);
-  const nearSet = createInstancedLodSet(
-    nearLevel,
-    slots,
-    rng,
-    `${presetKey} near LOD2`,
-    {
-      castShadow: false,
-      seasonalDeciduous,
-      seasonalCardMaterials,
-      snowCardMaterials,
-      autumnColor,
-      crownUnderlayMeshes,
-      ownedOverviewFadeMaterials,
-    },
-  );
-  const nearShadowSet = createSeedThreeExactShadowLodSet(
-    nearSet,
-    `${presetKey} exact shadow LOD2`,
-  );
+  const nearSet = horizonOnly
+    ? { branches: null, cards: [] }
+    : createInstancedLodSet(
+        nearLevel,
+        slots,
+        rng,
+        `${presetKey} near LOD2`,
+        {
+          castShadow: false,
+          seasonalDeciduous,
+          seasonalCardMaterials,
+          snowCardMaterials,
+          autumnColor,
+          crownUnderlayMeshes,
+          ownedOverviewFadeMaterials,
+        },
+      );
+  const nearShadowSet = horizonOnly
+    ? { branches: null, cards: [] }
+    : createSeedThreeExactShadowLodSet(
+        nearSet,
+        `${presetKey} exact shadow LOD2`,
+      );
   const overviewSet = createInstancedLodSet(
     overviewLevel,
     slots,
@@ -501,14 +508,16 @@ function createSpeciesBucket(
       canopyTint: overviewTone.tint,
       autumnColor,
       toneVariation: overviewTone.variation,
-      crownUnderlayMeshes,
+      ...(horizonOnly ? {} : { crownUnderlayMeshes }),
       overviewCards: true,
+      overviewFade: !horizonOnly,
       ownedOverviewFadeMaterials,
       castShadow: false,
     },
   );
-  // The real LOD2 tree stays resident under every far-card slot. Zooming then
-  // changes only one opacity uniform; no geometry swaps at the fade boundary.
+  // Gameplay trees keep their real LOD2 layer under the far-card crossfade.
+  // The outer-world forest is a separate permanent SeedThree LOD4 layer: it
+  // never allocates LOD2 or shadow geometry and does not disappear at close zoom.
   const colorSelection = createSeedThreeStableColorSlotSelection(slots);
   const shadowSelection = createSeedThreeStableRtsShadowSlotSelection(slots);
   const nearSlotIndices = colorSelection.near;
@@ -518,6 +527,7 @@ function createSpeciesBucket(
   writeSeedThreeLodMatrices(overviewSet, slots, overviewSlotIndices);
   return {
     preset: presetKey,
+    horizonOnly,
     slots,
     nearSet,
     nearShadowSet,
@@ -598,6 +608,11 @@ export async function createSeedThreeForest(
   overviewBillboardGroup.name = 'SeedThree overview tree billboards';
   overviewBillboardGroup.visible = false;
   group.add(overviewBillboardGroup);
+  const horizonForestGroup = new THREE.Group();
+  horizonForestGroup.name = 'SeedThree permanent terrain-horizon forest';
+  horizonForestGroup.userData.gameplay = false;
+  horizonForestGroup.userData.terrainHorizon = true;
+  group.add(horizonForestGroup);
 
   const assetsByPreset = new Map<SeedThreePresetKey, SeedThreeSpeciesAssets>();
   const prototypeByPreset = new Map<SeedThreePresetKey, THREE.LOD>();
@@ -648,7 +663,10 @@ export async function createSeedThreeForest(
   }
 
   const placementStartedAt = performance.now();
-  const placementsByPreset = new Map<SeedThreePresetKey, TreeSlot[]>();
+  const placementsByPreset = new Map<SeedThreePresetKey, {
+    gameplay: TreeSlot[];
+    horizon: TreeSlot[];
+  }>();
   const visibilityItems: Array<{
     x: number;
     y: number;
@@ -692,16 +710,21 @@ export async function createSeedThreeForest(
       overviewOnly: placement.visualOnly === 'terrain-horizon',
       seasonalDeciduous: gorskiKotarSpeciesIsDeciduous(placement.species),
     };
-    visibilityItems[layoutIndex] = {
-      x: visibilityCenter.x,
-      y: visibilityCenter.y,
-      z: visibilityCenter.z,
-      radius: visibilityRadius,
-      forceOverview: slot.forceOverview,
-    };
-    const bucket = placementsByPreset.get(preset) ?? [];
-    bucket.push(slot);
-    placementsByPreset.set(preset, bucket);
+    // Horizon cards are permanently resident color scenery and can never cast
+    // a gameplay shadow. Park them together in one remote selector cell so a
+    // dense outer forest adds constant O(1) camera-selection work.
+    visibilityItems[layoutIndex] = slot.overviewOnly
+      ? { x: 10_000_000, y: 0, z: 10_000_000, radius: 1, forceOverview: true }
+      : {
+          x: visibilityCenter.x,
+          y: visibilityCenter.y,
+          z: visibilityCenter.z,
+          radius: visibilityRadius,
+          forceOverview: slot.forceOverview,
+        };
+    const grouped = placementsByPreset.get(preset) ?? { gameplay: [], horizon: [] };
+    (slot.overviewOnly ? grouped.horizon : grouped.gameplay).push(slot);
+    placementsByPreset.set(preset, grouped);
   }
   const placementMs = performance.now() - placementStartedAt;
 
@@ -713,36 +736,45 @@ export async function createSeedThreeForest(
   const ownedOverviewFadeMaterials = new Set<THREE.Material>();
 
   for (const presetKey of GORSKI_KOTAR_PRESETS) {
-    const slots = placementsByPreset.get(presetKey);
-    if (!slots?.length) continue;
+    const grouped = placementsByPreset.get(presetKey);
+    if (!grouped) continue;
     const prototype = prototypeByPreset.get(presetKey);
     if (!prototype) continue;
+    const slotGroups = [
+      { slots: grouped.gameplay, horizonOnly: false },
+      { slots: grouped.horizon, horizonOnly: true },
+    ] as const;
+    for (const slotGroup of slotGroups) {
+      const { slots, horizonOnly } = slotGroup;
+      if (!slots.length) continue;
+      const bucketIndex = buckets.length;
+      slots.forEach((slot, slotIndex) => {
+        slotByLayoutIndex[slot.layoutIndex] = { bucketIndex, slotIndex };
+      });
 
-    const bucketIndex = buckets.length;
-    slots.forEach((slot, slotIndex) => {
-      slotByLayoutIndex[slot.layoutIndex] = { bucketIndex, slotIndex };
-    });
-
-    const bucket = createSpeciesBucket(
-      presetKey,
-      slots,
-      prototype,
-      new Rng(`bucket:${presetKey}:${treeSeed}`),
-      seasonalCardMaterials,
-      snowCardMaterials,
-      crownUnderlayMeshes,
-      ownedOverviewFadeMaterials,
-    );
-    buckets.push(bucket);
-    if (bucket.nearSet.branches) group.add(bucket.nearSet.branches);
-    for (const cardMesh of bucket.nearSet.cards) {
-      if (cardMesh.userData.crownUnderlay === true) overviewBillboardGroup.add(cardMesh);
-      else group.add(cardMesh);
+      const bucket = createSpeciesBucket(
+        presetKey,
+        slots,
+        prototype,
+        new Rng(`bucket:${presetKey}:${treeSeed}:${horizonOnly ? 'horizon' : 'gameplay'}`),
+        seasonalCardMaterials,
+        snowCardMaterials,
+        crownUnderlayMeshes,
+        ownedOverviewFadeMaterials,
+        horizonOnly,
+      );
+      buckets.push(bucket);
+      if (bucket.nearSet.branches) group.add(bucket.nearSet.branches);
+      for (const cardMesh of bucket.nearSet.cards) {
+        if (cardMesh.userData.crownUnderlay === true) overviewBillboardGroup.add(cardMesh);
+        else group.add(cardMesh);
+      }
+      if (bucket.nearShadowSet.branches) group.add(bucket.nearShadowSet.branches);
+      for (const cardMesh of bucket.nearShadowSet.cards) group.add(cardMesh);
+      const overviewParent = horizonOnly ? horizonForestGroup : overviewBillboardGroup;
+      if (bucket.overviewSet.branches) overviewParent.add(bucket.overviewSet.branches);
+      for (const cardMesh of bucket.overviewSet.cards) overviewParent.add(cardMesh);
     }
-    if (bucket.nearShadowSet.branches) group.add(bucket.nearShadowSet.branches);
-    for (const cardMesh of bucket.nearShadowSet.cards) group.add(cardMesh);
-    if (bucket.overviewSet.branches) overviewBillboardGroup.add(bucket.overviewSet.branches);
-    for (const cardMesh of bucket.overviewSet.cards) overviewBillboardGroup.add(cardMesh);
   }
 
   // The fading canopy does not write depth. Composite it after transparent
@@ -750,7 +782,9 @@ export async function createSeedThreeForest(
   // straight strips through the crowns. Set each mesh's order: changing the
   // group's order would also move it above unrelated effects and UI overlays.
   // Opaque roads, terrain, and buildings still occlude it through depth testing.
-  for (const mesh of overviewBillboardGroup.children) mesh.renderOrder = 13;
+  for (const mesh of [...overviewBillboardGroup.children, ...horizonForestGroup.children]) {
+    mesh.renderOrder = 13;
+  }
 
   // Start from a deterministic close-camera state so all three global modes
   // behave correctly before the first camera update (and never flash one frame).

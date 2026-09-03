@@ -397,6 +397,7 @@ export class SceneManager {
       seed: worldLayout.settings.seed,
       settings: worldLayout.settings,
       riverLayout: worldLayout.riverLayout,
+      sampleForestBlend: terrain.getForestBlendAt.bind(terrain),
     });
     this.terrainProjector = new TerrainProjector(this.terrain, this.camera, this.renderer.domElement);
     this.sky = new SkyCloudMesh({

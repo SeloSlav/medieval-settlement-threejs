@@ -54,6 +54,7 @@ export type TerrainHorizonOptions = {
   farDistance: number;
   seed: number;
   sampleHeight?: (x: number, z: number) => number;
+  sampleForestBlend?: (x: number, z: number) => number;
   settings?: TerrainHorizonWorldSettings;
   riverLayout?: RiverLayout | null;
 };
@@ -79,7 +80,7 @@ export const TERRAIN_HORIZON_PARAMETERS = Object.freeze({
     maximumDrawCalls: 2,
     maximumTerrainTriangles: 12_288,
     maximumWaterTriangles: 8_192,
-    maximumSeedThreeOverviewTrees: 180,
+    maximumSeedThreeOverviewTrees: 3_600,
   }),
 });
 
@@ -123,6 +124,7 @@ export class TerrainHorizon {
       settings,
       riverLayout: options.riverLayout ?? null,
       sampleBaseHeight: options.sampleHeight ?? sampleBaseTerrainHeight,
+      sampleSourceForestBlend: options.sampleForestBlend,
     });
     const geometryResult = createTerrainHorizonGeometry({
       ...options,

@@ -40,6 +40,7 @@ export type TerrainHorizonWorldOptions = {
   settings: TerrainHorizonWorldSettings;
   riverLayout: RiverLayout | null;
   sampleBaseHeight: (x: number, z: number) => number;
+  sampleSourceForestBlend?: (x: number, z: number) => number;
 };
 
 type HorizonWaterPoint = RiverPoint & { surfaceY: number };
@@ -49,8 +50,9 @@ type HorizonLake = InlandWaterBody & { surfaceY: number };
 const WATER_PATH_SPACING = 82;
 const WATER_FIELD_RESOLUTION = 192;
 const MAX_WATER_PATHS = 4;
-const MAX_SEEDTHREE_OVERVIEW_TREES = 180;
-const FOREST_SEAM_CLEARANCE = 72;
+const MAX_SEEDTHREE_OVERVIEW_TREES = 3_600;
+const FOREST_SEAM_CLEARANCE = 18;
+const FOREST_MINIMUM_SPACING = 22;
 const WATER_VERTEX_COLUMNS = [-1, -0.44, 0.44, 1] as const;
 const WATER_VERTEX_FEATHER = [0.08, 1, 1, 0.08] as const;
 const WATER_VERTEX_FOAM = [0.85, 0.12, 0.12, 0.85] as const;
@@ -72,6 +74,7 @@ export class TerrainHorizonWorld {
   readonly settings: TerrainHorizonWorldSettings;
   private readonly sourceRiverLayout: RiverLayout | null;
   private readonly sampleBaseHeight: (x: number, z: number) => number;
+  private readonly sampleSourceForestBlend: (x: number, z: number) => number;
   readonly waterPaths: HorizonWaterPath[];
   readonly lakes: HorizonLake[];
   private readonly outerRiverLayout: RiverLayout | null;
@@ -86,6 +89,7 @@ export class TerrainHorizonWorld {
     this.settings = options.settings;
     this.sourceRiverLayout = options.riverLayout;
     this.sampleBaseHeight = options.sampleBaseHeight;
+    this.sampleSourceForestBlend = options.sampleSourceForestBlend ?? (() => 0);
     this.topologyAmplitudeMeters = regionalTopologyAmplitude(options.settings);
 
     const pathSkeletons = createOuterWaterPathSkeletons(options);
@@ -246,7 +250,7 @@ export class TerrainHorizonWorld {
 
   private sampleForestSuitability(x: number, z: number): number {
     const outside = Math.max(Math.abs(x), Math.abs(z)) - this.innerHalfExtent;
-    if (outside < FOREST_SEAM_CLEARANCE || outside > this.extensionDistance * 0.78) return 0;
+    if (outside < 0 || outside > this.extensionDistance * 0.78) return 0;
     if (this.settings.terrainPreset === 'vinodol_coast') {
       const shoreX = this.sourceRiverLayout?.getCoastalShoreX(z);
       if (shoreX !== null && shoreX !== undefined && x < shoreX + 26) return 0;
@@ -263,11 +267,28 @@ export class TerrainHorizonWorld {
     ) / (step * 2);
     const density = this.settings.forestDensity / 100;
     const hillWoodland = smoothstep(0.08, 0.5, outside / this.extensionDistance) * 0.12;
-    return THREE.MathUtils.clamp(
+    const regionalSuitability = THREE.MathUtils.clamp(
       regional * 0.54 + stands * 0.2 + density * 0.38 + hillWoodland - slope * 0.22,
       0,
       1,
     );
+    // Continue the authored woodland mask through the seam before gradually
+    // handing it to the larger regional habitat field. This is what prevents a
+    // wooded playable edge from turning into a conspicuous strip of bare grass.
+    const maximumAxis = Math.max(Math.abs(x), Math.abs(z));
+    const boundaryScale = maximumAxis > 1e-6
+      ? this.innerHalfExtent / maximumAxis
+      : 0;
+    const inheritedForest = this.sampleSourceForestBlend(
+      x * boundaryScale,
+      z * boundaryScale,
+    );
+    const regionalHandoff = smoothstep(
+      FOREST_SEAM_CLEARANCE,
+      Math.min(340, this.extensionDistance * 0.16),
+      outside,
+    );
+    return THREE.MathUtils.lerp(inheritedForest, regionalSuitability, regionalHandoff);
   }
 
   private resolveWaterPath(corridor: RiverCorridor): HorizonWaterPath {
@@ -344,45 +365,57 @@ function extendCorridorEndpoint(
   endpoint: RiverPoint,
   adjacent: RiverPoint,
 ): RiverCorridor {
-  let dx = endpoint.x - adjacent.x;
-  let dz = endpoint.z - adjacent.z;
-  const directionLength = Math.max(1e-6, Math.hypot(dx, dz));
-  dx /= directionLength;
-  dz /= directionLength;
+  let sourceDx = endpoint.x - adjacent.x;
+  let sourceDz = endpoint.z - adjacent.z;
+  const directionLength = Math.max(1e-6, Math.hypot(sourceDx, sourceDz));
+  sourceDx /= directionLength;
+  sourceDz /= directionLength;
   const normal = outwardSquareNormal(endpoint.x, endpoint.z);
-  if (dx * normal.x + dz * normal.z < 0.52) {
-    dx += normal.x * 1.5;
-    dz += normal.z * 1.5;
-    const correctedLength = Math.max(1e-6, Math.hypot(dx, dz));
-    dx /= correctedLength;
-    dz /= correctedLength;
+  let exitDx = sourceDx;
+  let exitDz = sourceDz;
+  if (exitDx * normal.x + exitDz * normal.z < 0.52) {
+    exitDx += normal.x * 1.5;
+    exitDz += normal.z * 1.5;
+    const correctedLength = Math.max(1e-6, Math.hypot(exitDx, exitDz));
+    exitDx /= correctedLength;
+    exitDz /= correctedLength;
   }
 
-  let startX = endpoint.x;
-  let startZ = endpoint.z;
-  for (let step = 0; step < 96 && maxAbs(startX, startZ) < options.innerHalfExtent; step++) {
-    startX += dx * 12;
-    startZ += dz * 12;
-  }
   const travel = Math.max(
     WATER_PATH_SPACING * 2,
-    (options.outerHalfExtent - maxAbs(startX, startZ)) * 1.18,
+    (options.outerHalfExtent - maxAbs(endpoint.x, endpoint.z)) * 1.3,
   );
   const count = Math.ceil(travel / WATER_PATH_SPACING) + 1;
-  const phase = hash01(options.settings.seed, Math.round(startX), Math.round(startZ)) * Math.PI * 2;
-  const perpendicularX = -dz;
-  const perpendicularZ = dx;
+  const phase = hash01(options.settings.seed, Math.round(endpoint.x), Math.round(endpoint.z)) * Math.PI * 2;
+  const steeringDistance = Math.min(240, travel * 0.18);
+  const controlX = endpoint.x + sourceDx * steeringDistance;
+  const controlZ = endpoint.z + sourceDz * steeringDistance;
+  const exitX = endpoint.x + exitDx * travel;
+  const exitZ = endpoint.z + exitDz * travel;
   const points: RiverPoint[] = [];
   for (let index = 0; index < count; index++) {
     const progress = index / Math.max(1, count - 1);
-    const distance = progress * travel;
+    const inverseProgress = 1 - progress;
+    const baseX = inverseProgress * inverseProgress * endpoint.x
+      + 2 * inverseProgress * progress * controlX
+      + progress * progress * exitX;
+    const baseZ = inverseProgress * inverseProgress * endpoint.z
+      + 2 * inverseProgress * progress * controlZ
+      + progress * progress * exitZ;
+    const tangentX = 2 * inverseProgress * (controlX - endpoint.x)
+      + 2 * progress * (exitX - controlX);
+    const tangentZ = 2 * inverseProgress * (controlZ - endpoint.z)
+      + 2 * progress * (exitZ - controlZ);
+    const inverseTangentLength = 1 / Math.max(1e-6, Math.hypot(tangentX, tangentZ));
+    const perpendicularX = -tangentZ * inverseTangentLength;
+    const perpendicularZ = tangentX * inverseTangentLength;
     const meander = (
       Math.sin(progress * Math.PI * 4.1 + phase) * 0.7
       + Math.sin(progress * Math.PI * 9.2 - phase * 0.6) * 0.3
-    ) * THREE.MathUtils.lerp(8, 34, progress);
+    ) * THREE.MathUtils.lerp(8, 34, progress) * smoothstep(0, 0.16, progress);
     points.push({
-      x: startX + dx * distance + perpendicularX * meander,
-      z: startZ + dz * distance + perpendicularZ * meander,
+      x: baseX + perpendicularX * meander,
+      z: baseZ + perpendicularZ * meander,
       progress,
       halfWidth: endpoint.halfWidth * THREE.MathUtils.lerp(1, 1.18, progress),
       channelDepth: endpoint.channelDepth * THREE.MathUtils.lerp(1, 1.12, progress),
@@ -643,20 +676,27 @@ function createSeedThreeHorizonPlacements(
   const rng = mulberry32(settings.seed ^ 0x53454544);
   const target = Math.min(
     MAX_SEEDTHREE_OVERVIEW_TREES,
-    Math.round(52 + settings.forestDensity * 1.28),
+    Math.round(settings.forestDensity * 36),
   );
-  const visibleOuter = Math.min(outerHalfExtent - 40, innerHalfExtent + Math.min(1_650, extensionDistance * 0.72));
+  // Spend real SeedThree instances where they actually continue the playable
+  // forest silhouette. Beyond this band the terrain's inherited woodland mask,
+  // mountain relief, and aerial perspective carry the same regional field.
+  const visibleOuter = Math.min(
+    outerHalfExtent - 40,
+    innerHalfExtent + Math.min(820, extensionDistance * 0.38),
+  );
   const placements: ForestTreePlacement[] = [];
+  const placementGrid = new Map<string, ForestTreePlacement[]>();
   let attempts = 0;
-  while (placements.length < target && attempts < target * 42) {
+  while (placements.length < target && attempts < target * 34) {
     attempts++;
     const x = THREE.MathUtils.lerp(-visibleOuter, visibleOuter, rng());
     const z = THREE.MathUtils.lerp(-visibleOuter, visibleOuter, rng());
     const outside = maxAbs(x, z) - innerHalfExtent;
     if (outside < FOREST_SEAM_CLEARANCE) continue;
     const suitability = world.sampleForestDebug(x, z);
-    if (suitability < 0.5 || rng() > smoothstep(0.48, 0.86, suitability)) continue;
-    if (placements.some((tree) => Math.hypot(tree.x - x, tree.z - z) < 34)) continue;
+    if (suitability < 0.34 || rng() > smoothstep(0.32, 0.78, suitability) * 0.94) continue;
+    if (hasNearbyHorizonTree(placementGrid, x, z)) continue;
     const altitude = world.getHeightAt(x, z);
     const coldBias = THREE.MathUtils.clamp(
       0.44 + outside / Math.max(1, extensionDistance) * 0.34 + altitude / 520,
@@ -671,7 +711,7 @@ function createSeedThreeHorizonPlacements(
         : speciesRoll < coldBias
           ? 'silverFir'
           : 'beech';
-    placements.push({
+    const placement: ForestTreePlacement = {
       x,
       z,
       species,
@@ -680,9 +720,35 @@ function createSeedThreeHorizonPlacements(
         : 'narrow',
       scale: 0.68 + rng() * 0.48,
       visualOnly: 'terrain-horizon',
-    });
+    };
+    placements.push(placement);
+    const cellX = Math.floor(x / FOREST_MINIMUM_SPACING);
+    const cellZ = Math.floor(z / FOREST_MINIMUM_SPACING);
+    const key = `${cellX}:${cellZ}`;
+    const cell = placementGrid.get(key) ?? [];
+    cell.push(placement);
+    placementGrid.set(key, cell);
   }
   return placements;
+}
+
+function hasNearbyHorizonTree(
+  grid: ReadonlyMap<string, readonly ForestTreePlacement[]>,
+  x: number,
+  z: number,
+): boolean {
+  const cellX = Math.floor(x / FOREST_MINIMUM_SPACING);
+  const cellZ = Math.floor(z / FOREST_MINIMUM_SPACING);
+  for (let offsetZ = -1; offsetZ <= 1; offsetZ++) {
+    for (let offsetX = -1; offsetX <= 1; offsetX++) {
+      const cell = grid.get(`${cellX + offsetX}:${cellZ + offsetZ}`);
+      if (!cell) continue;
+      if (cell.some((tree) => Math.hypot(tree.x - x, tree.z - z) < FOREST_MINIMUM_SPACING)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 function nearestWaterPathSample(
