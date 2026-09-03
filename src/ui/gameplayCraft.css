@@ -1,0 +1,499 @@
+/* Player-facing estate furniture, shared with the approved startup finish.
+ * PAINT ONLY: existing components retain all geometry, typography, scrolling,
+ * hit areas, imagery and state logic. No global tokens or debug selectors.
+ * Border images paint inward without introducing wrappers or pseudo-elements.
+ */
+:where(
+  .noble-hud, .settlement-hud, .settlement-vitals, .construction-dock,
+  .construction-menu, .map-overlay-menu, .road-tools, .road-controls-panel,
+  .burgage-layout-hud, .builder-status-bar, .starter-camp-button,
+  .floating-build-button, .construction-road-snap, .hud-menu-button,
+  .resource-inspector-panel, .villager-inspector-panel, .city-admin-panel,
+  .town-report-panel, .game-menu-backdrop, .game-controls-backdrop,
+  .development-menu, .military-menu, .crop-suitability-legend,
+  .alert-dialog-backdrop, .town-name-dialog-backdrop, .tutorial-dialog,
+  .delete-popup, .toast, .compass-hud, .fp-placement-panel, .session-connection-card,
+  .ui-tooltip:not(.ui-tooltip--noble-setup):not(.ui-tooltip--world-setup)
+) {
+  --estate-hide: url('/assets/ui/startup-craft/ledger-leather.webp');
+  --estate-oak: url('/assets/ui/startup-craft/smoked-oak.webp');
+  --estate-frame: url('/assets/ui/startup-craft/iron-frame.svg');
+  --estate-rule: url('/assets/ui/startup-craft/carved-rule.svg');
+  --estate-cover:
+    linear-gradient(110deg, #202b22ad, #101811cf),
+    var(--estate-hide) center / 630px 630px repeat, #222a22;
+  --estate-leaf:
+    linear-gradient(125deg, #29392cb0, #111e16bb),
+    var(--estate-hide) 20% 40% / 490px 490px repeat, #202b22;
+  --estate-wood:
+    linear-gradient(#30362a91, #142018bb),
+    var(--estate-oak) center / 440px 220px repeat, #343a2c;
+  --estate-inset:
+    linear-gradient(#0d1711c4, #131c14b8),
+    var(--estate-hide) center / 360px 360px repeat, #172019;
+  --estate-seal:
+    linear-gradient(#7a4835b8, #412c22d4),
+    var(--estate-oak) center / 440px 220px repeat, #563a2c;
+  --ui-edge: #8b826659;
+  --ui-edge-strong: #b1a08099;
+  --ui-brass: #b4a07b;
+  --ui-brass-bright: #e7d9b9;
+  --accent: #b4a07b;
+}
+
+/* Iron-bound covers: the ledger and the compact HUD belong to one set. */
+.noble-hud,
+.settlement-hud,
+.settlement-vitals,
+.construction-dock,
+.construction-menu.construction-menu--unified,
+.map-overlay-menu,
+.road-tools,
+.road-controls-panel,
+.burgage-layout-hud,
+.resource-inspector-panel,
+.villager-inspector-panel,
+.city-admin-panel,
+.town-report-panel,
+.game-menu-backdrop .game-menu-dialog,
+.game-controls-dialog,
+.town-name-dialog,
+.alert-dialog,
+.compass-hud__frame,
+.fp-placement-panel,
+.session-connection-overlay .session-connection-card,
+.hud-right-stack > .crop-suitability-legend {
+  border-color: #777463;
+  border-radius: 1px;
+  border-image: var(--estate-frame) 24 / 10px / 0 stretch;
+  background: var(--estate-cover);
+  box-shadow: 0 12px 32px #0008, inset 0 0 18px #050d0980;
+  backdrop-filter: none;
+}
+
+/* Shallow strips get finer fittings, not oversized panel corners. */
+.settlement-hud,
+.settlement-vitals,
+.construction-dock,
+.road-tools,
+.burgage-layout-hud,
+.compass-hud__frame {
+  border-image-width: 7px;
+  background: var(--estate-wood);
+  box-shadow: 0 5px 15px #0008, inset 0 1px #c5b79a44, inset 0 -2px #09130dcc;
+}
+
+/* Replace only the old decorative gold strokes; icon pseudo-elements stay intact. */
+.noble-hud::before,
+.settlement-hud::before,
+.settlement-vitals::before,
+.resource-inspector-panel::before {
+  background: #817c6359;
+}
+.settlement-hud::after,
+.settlement-vitals::after,
+.construction-dock::before {
+  border-color: #b4aa8724;
+  border-radius: 1px;
+}
+
+/* The circular portrait and its overlapping heraldry keep their original crop. */
+.noble-hud__portrait {
+  border-color: #827b66;
+  box-shadow: 0 0 0 1px #0b140e, 0 0 0 2px #b3a18166, 0 4px 12px #0009;
+}
+.noble-hud__title-row { border-bottom-color: #a8997559; }
+.noble-hud__name { color: #e8dfca; text-shadow: 0 2px 2px #070d09; }
+.noble-hud__difficulty {
+  border-color: #887d624d;
+  color: #bfb79f;
+  background: #18231b;
+}
+.noble-hud__eye {
+  border-color: #95856a;
+  background: var(--estate-wood);
+  color: #e4d7bb;
+  box-shadow: inset 0 1px #c7b79859, 0 2px 4px #0009;
+}
+
+/* Oak heading rails and carved rules. These are backgrounds, never layout. */
+.game-menu-header,
+.game-controls-dialog__header,
+.city-admin-panel__header,
+.town-report-panel__header,
+.resource-inspector-header,
+.villager-inspector-header,
+.noble-hud__reports-header,
+.town-name-dialog__header,
+.construction-menu__header,
+.map-overlay-menu__header {
+  border-bottom-color: #8a7f625c;
+  background:
+    var(--estate-rule) center bottom / 100px 7px no-repeat,
+    var(--estate-wood);
+  box-shadow: inset 0 1px #c4b79829, 0 1px #07100b99;
+}
+.game-menu-title,
+.game-controls-dialog__title,
+.city-admin-panel__title,
+.town-report-panel__header h2,
+.resource-inspector-header h2,
+.construction-menu__header > strong,
+.map-overlay-menu__header > strong { color: #e8dfca; text-shadow: 0 1px 2px #08110b; }
+
+/* Recessed leaves: settings, treasury, stores, trade and household records. */
+.game-menu-section,
+.game-menu-actions,
+.settlement-hud__approval-panel,
+.settlement-hud__food-breakdown,
+.settlement-hud__stores-grid,
+.settlement-hud__animals-panel,
+.settlement-hud__people-panel,
+.settlement-hud__resource-panel,
+.settlement-hud__food-grid,
+.settlement-hud__fuel-grid,
+.noble-hud__reports,
+.trading-post-ledger,
+.resource-inspector-details,
+.resource-inspector-labor,
+.marketplace-trade-bulletin,
+.military-company-card,
+.farm-rotation-planner,
+.villager-inspector-current,
+.city-admin-panel__stat,
+.town-report-panel__table {
+  border-color: #8b80654d;
+  border-radius: 1px;
+  background: var(--estate-leaf);
+  box-shadow: inset 0 1px #c8b79726, inset 0 0 0 2px #0b160d4d;
+  backdrop-filter: none;
+}
+.settlement-hud__approval-panel,
+.settlement-hud__food-breakdown,
+.settlement-hud__stores-grid,
+.settlement-hud__animals-panel,
+.settlement-hud__people-panel,
+.settlement-hud__resource-panel,
+.settlement-hud__food-grid,
+.settlement-hud__fuel-grid,
+.noble-hud__reports {
+  border-image: var(--estate-frame) 24 / 7px / 0 stretch;
+  box-shadow: 0 8px 22px #0009, inset 0 1px #c8b79733;
+}
+.game-menu-section__header,
+.settlement-hud__approval-panel-header,
+.settlement-hud__food-breakdown-header,
+.settlement-hud__stores-grid-header,
+.trading-post-ledger__header,
+.resource-inspector-scroll,
+.resource-inspector-footer,
+.build-menu-categories,
+.military-menu__order-group + .military-menu__order-group {
+  border-color: #9484674d;
+}
+
+/* Square action tablets. Artwork is on child nodes and remains untouched. */
+.construction-dock-button,
+.construction-menu__scroll,
+.road-tool-button,
+.burgage-layout-hud-button,
+.burgage-layout-hud-frontage,
+.hud-menu-button,
+.game-menu-action,
+.game-menu-return,
+.game-controls-dialog__close,
+.game-controls-list__keys,
+.city-admin-panel__close,
+.town-report-panel__rename,
+.town-report-panel__action,
+.town-name-dialog__actions button,
+.alert-dialog__actions button,
+.villager-inspector-close,
+.resource-inspector-close,
+.resource-action-button:not(:where(.resource-inspector-coverage)),
+.inspector-jump-button,
+.resource-inspector-demolish,
+.settlement-hud__food-breakdown-close,
+.settlement-hud__food-breakdown-locate,
+.military-order,
+.military-menu__scroll,
+.development-unlock,
+.delete-popup button {
+  border-color: #8c8068;
+  border-radius: 1px;
+  border-image: var(--estate-frame) 24 / 5px / 0 stretch;
+  color: #e3d8bf;
+  background: var(--estate-wood);
+  box-shadow: inset 0 1px #c8b99847, inset 0 -2px #07110bb3, 0 2px 4px #0005;
+  text-shadow: 0 1px 2px #08110b;
+}
+.fp-placement-panel button,
+.session-connection-overlay .session-connection-card .app-loading-retry {
+  border-color: #8c8068;
+  border-radius: 1px;
+  color: #e3d8bf;
+  background: var(--estate-wood);
+  box-shadow: inset 0 1px #c8b99847, inset 0 -2px #07110bb3;
+}
+.alert-dialog {
+  box-shadow: inset 3px 0 #b5755e, 0 12px 32px #0009, inset 0 0 18px #050d0980;
+}
+.starter-camp-button,
+.game-menu-return,
+.development-unlock:not(:disabled),
+.town-name-dialog__actions button[type='submit'] {
+  color: #f1e4c9;
+  border-color: #a8906e;
+  border-radius: 1px;
+  border-image: var(--estate-frame) 24 / 7px / 0 stretch;
+  background: var(--estate-seal);
+  box-shadow: inset 0 1px #d1ac8559, inset 0 -2px #20140dcc, 0 3px 8px #0007;
+  text-shadow: 0 1px 2px #120c08;
+}
+.map-overlay-option,
+.map-overlay-crops button,
+.backyard-picker-option,
+.marketplace-trade-option,
+.monastery-extension-choice,
+.farm-field-layout-button,
+.military-formation-button {
+  border-color: #827c665e;
+  border-radius: 1px;
+  background: var(--estate-leaf);
+  box-shadow: inset 0 1px #c8b79726, inset 0 -1px #08130bb3;
+}
+
+/* Raised brass/iron edges indicate interaction; selected controls use oxblood. */
+:is(
+  .construction-dock-button, .construction-menu__scroll, .road-tool-button,
+  .burgage-layout-hud-button, .burgage-layout-hud-frontage, .hud-menu-button,
+  .game-menu-action, .game-menu-return, .game-controls-dialog__close,
+  .city-admin-panel__close, .town-report-panel__rename, .town-report-panel__action,
+  .villager-inspector-close, .resource-inspector-close, .resource-action-button,
+  .inspector-jump-button, .settlement-hud__food-breakdown-close,
+  .settlement-hud__food-breakdown-locate, .military-order, .military-menu__scroll,
+  .map-overlay-option, .map-overlay-crops button, .backyard-picker-option,
+  .marketplace-trade-option, .monastery-extension-choice, .farm-field-layout-button
+):hover:not(:disabled):not([aria-disabled='true']) {
+  border-color: #cbb891;
+  color: #f1e6d0;
+  box-shadow: inset 0 0 0 1px #b8a27a99, inset 0 1px #e7d4b359, 0 2px 5px #0006;
+}
+:is(
+  .construction-dock-button, .road-tool-button, .military-order,
+  .map-overlay-option, .map-overlay-crops button, .backyard-picker-option,
+  .marketplace-trade-option, .monastery-extension-choice, .military-formation-button
+):is(.is-active, .is-selected, [aria-pressed='true']) {
+  color: #f2e5ca;
+  border-color: #bda17c;
+  background: var(--estate-seal);
+  box-shadow: inset 0 0 0 1px #d3b28873, inset 0 1px #edd5b359;
+}
+.game-menu-action--danger:hover:not(:disabled),
+.alert-dialog__actions .alert-dialog__button--confirm,
+.resource-inspector-demolish:hover:not(:disabled),
+.delete-popup [data-action='confirm-delete'] {
+  color: #f0c5b5;
+  background: var(--estate-seal);
+  border-color: #b57f66;
+}
+.development-unlock:disabled {
+  color: #a9a18e;
+  border-color: #716b5559;
+  border-image: none;
+  background: var(--estate-inset);
+  box-shadow: inset 0 1px 4px #0006;
+}
+
+/* Small HUD controls stay flat and readable rather than becoming tiny frames. */
+.settlement-hud__speed-button {
+  border-color: #83795e45;
+  background: var(--estate-inset);
+  box-shadow: inset 0 1px #0006;
+}
+.settlement-hud__speed-button.is-active {
+  border-color: #b59d78;
+  background: var(--estate-seal);
+  box-shadow: inset 0 1px #d4b48a59;
+}
+.settlement-hud__speed-button.is-active .settlement-hud__speed-value {
+  color: #f0e3c8;
+  text-shadow: 0 1px #150e09;
+}
+.settlement-hud__clock-date { color: #e1d5bb; }
+.settlement-hud__speed-value { color: #c6bba3; }
+.settlement-hud__speed,
+.settlement-vitals__zoom { border-color: #a18d6952; }
+.development-launcher { border-color: #9585674d; }
+.development-launcher__badge,
+.construction-dock-button__hotkey {
+  color: #dccbad;
+  border-color: #958365;
+  background: var(--estate-inset);
+  box-shadow: inset 0 1px #c2af872e, 0 1px 3px #0008;
+}
+.construction-dock-button.is-active .construction-dock-button__hotkey {
+  color: #251b13;
+  border-color: #d0b890;
+  background: #d7c39d;
+}
+.build-menu-category__icon {
+  border-color: #928269;
+  background: var(--estate-wood);
+}
+.build-menu-category.is-active { color: #e8d5b4; }
+.build-menu-category.is-active .build-menu-category__icon {
+  border-color: #c9ab83;
+  background: var(--estate-seal);
+  box-shadow: inset 0 1px #dec49a59, 0 0 0 2px #453c2d;
+}
+.construction-card {
+  border-color: #8f826966;
+  border-image: var(--estate-frame) 24 / 6px / 0 stretch;
+  background-color: #283126;
+}
+.military-menu__rail {
+  border-color: #8d7861;
+  border-radius: 1px;
+  border-image: var(--estate-frame) 24 / 7px / 0 stretch;
+  background: var(--estate-seal);
+}
+/* Keep the authored unit-card silhouettes and portraits. Only their edging changes. */
+.military-unit-card__frame { background: var(--estate-wood); }
+.military-unit-card.is-selected .military-unit-card__frame { background: #d8c8a5; }
+
+/* Inkwells, toggles and slider pigments share the same quiet palette. */
+.game-menu-select select,
+.town-name-dialog__field input,
+.inspector-policy-select select,
+.trading-post-ledger__target input,
+.trading-post-ledger__stepper input {
+  color: #e6dcc4;
+  border-color: #8a7c60;
+  border-radius: 1px;
+  background: var(--estate-inset);
+  box-shadow: inset 0 2px 5px #0008, inset 0 -1px #ac9a7440;
+}
+.game-menu-option input,
+.game-menu-volume input,
+.city-admin-panel__slider,
+.construction-road-snap input { accent-color: #a89c77; }
+.construction-road-snap,
+.builder-status-bar,
+.delete-popup {
+  color: #d8ceb7;
+  border-color: #867d65;
+  border-radius: 1px;
+  background: var(--estate-cover);
+  box-shadow: 0 3px 10px #0008, inset 0 1px #b4a38138;
+}
+
+/* Developments: the existing four-color wheel becomes a dyed leather chart.
+ * Node positions, ring geometry, branch hues, silhouettes and lock icons stay.
+ */
+.development-menu {
+  background: var(--estate-cover);
+  color: #e8dfca;
+  box-shadow: inset 0 0 100px #060d0999;
+}
+.development-header {
+  background: var(--estate-rule) center bottom / 180px 8px no-repeat;
+  text-shadow: 0 2px 2px #070d09;
+}
+.development-close {
+  color: #dbceb4;
+  text-shadow: 0 1px #08100b;
+}
+.development-close kbd {
+  border-color: #8c8068;
+  border-radius: 1px;
+  background: var(--estate-wood);
+  box-shadow: inset 0 1px #c9b68e3d;
+}
+.development-wheel {
+  background:
+    radial-gradient(circle, #19221b 0 11%, transparent 25% 62%, #172019ed 72%),
+    conic-gradient(from -45deg, #7563408c 0deg 90deg, #3b58668c 90deg 180deg, #75443f8c 180deg 270deg, #48633c8c 270deg 360deg),
+    var(--estate-hide) center / 570px 570px repeat, #273026;
+  box-shadow: 0 5px 35px #0007, inset 0 0 38px #07100b99;
+}
+.development-wheel::before { border-color: #b3a8874d; }
+.development-ring { stroke: #aaa18a; }
+.development-dividers { stroke: #b7a889; }
+.development-link.is-ready { stroke: #a59a79; }
+.development-link.is-learned { stroke: #c5d0a7; filter: drop-shadow(0 1px 2px #152416); }
+.development-node__seal,
+.development-detail__heading > img {
+  border-color: #aaa083;
+  background:
+    linear-gradient(135deg, #d4c8a7d9, #9e8d69c9),
+    var(--estate-hide) center / 250px 250px repeat, #aaa080;
+  box-shadow: 0 0 0 3px #111c16c9, inset 0 1px #e8d9b280, 0 3px 7px #0008;
+}
+.development-node[data-status='available'] .development-node__seal {
+  border-color: #d4c39f;
+  box-shadow: 0 0 0 3px #8b7d5a73, inset 0 1px #eedcb973, 0 3px 8px #0007;
+}
+.development-node[data-status='learned'] .development-node__seal {
+  border-color: #d4ddba;
+  background:
+    linear-gradient(135deg, #d2d8b0d9, #8d9d70cc),
+    var(--estate-hide) center / 250px 250px repeat, #a8b38d;
+  box-shadow: 0 0 0 3px #465640, inset 0 1px #e5e8c880, 0 3px 8px #0007;
+}
+.development-node[data-status='learned'] .development-node__state {
+  color: #152116;
+  border-color: #c9d0af;
+  background: #b9c49a;
+}
+.development-node[aria-pressed='true'] .development-node__seal { outline-color: #efdfb9; }
+.development-ledger {
+  background: var(--estate-leaf);
+  box-shadow: 0 0 0 1px #8b80654d, 0 4px 14px #0004;
+  scrollbar-color: #817c64 #142019;
+}
+.development-detail { border-color: #99876966; }
+.development-budget__number strong { color: #e3d5b6; }
+.development-budget__marks i { background: #aab68b; }
+.development-budget__marks .is-spent { background: #374234; }
+.development-legend .is-learned { background: #b9c49a; border-color: #b9c49a; }
+.development-legend .is-available { border-color: #d4c39f; }
+
+/* Supporting messages. Preserve warning colors, maps, pictograms and progress. */
+.toast {
+  border-color: #857c61;
+  border-radius: 1px;
+  background: var(--estate-cover);
+  box-shadow: 0 4px 15px #0008, inset 0 1px #bbaa8238;
+}
+.toast--error { border-left-color: #bd7864; }
+.toast--success { border-left-color: #a7bb82; }
+.toast--info { border-left-color: #839da1; }
+.ui-tooltip:not(.ui-tooltip--noble-setup):not(.ui-tooltip--world-setup),
+.construction-card__tooltip {
+  border-color: #97896e;
+  border-radius: 1px;
+  background: var(--estate-cover);
+  box-shadow: inset 0 1px #c1b29240, 0 8px 24px #0009;
+}
+/* The tutorial's illustrated paper is already authored; only its action gets the finish. */
+.tutorial-dialog__confirm {
+  border-color: #887350;
+  border-radius: 1px;
+  background: var(--estate-wood);
+  color: #eadfc4;
+  box-shadow: inset 0 1px #d0bd9759, 0 3px 6px #0005;
+}
+
+/* Strong focus without a change to type, spacing or the visible hit targets. */
+:where(
+  .noble-hud, .settlement-hud, .settlement-vitals, .construction-dock,
+  .construction-menu, .map-overlay-menu, .road-tools, .burgage-layout-hud,
+  .resource-inspector-panel, .villager-inspector-panel, .city-admin-panel,
+  .town-report-panel, .game-menu-backdrop, .game-controls-backdrop,
+  .military-menu, .town-name-dialog, .alert-dialog, .delete-popup,
+  .fp-placement-panel, .session-connection-card
+) :is(button, input, select, summary):focus-visible {
+  outline: 2px solid #e3d2ac;
+  outline-offset: -3px;
+}

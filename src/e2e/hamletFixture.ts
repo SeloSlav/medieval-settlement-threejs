@@ -967,7 +967,7 @@ const { zones, residences } = createHamletResidences(
   settlementRoot,
   structureShadowBatch,
 );
-const burgageFencing = new BurgageFencing(settlementRoot);
+const burgageFencing = new BurgageFencing(settlementRoot, roadNetwork);
 burgageFencing.syncZones(zones, residences, hamletHeightAt);
 
 for (const landmark of HAMLET_LANDMARKS) {

@@ -530,6 +530,11 @@ export async function bootstrapAppSession(
         buildingMarkers,
         forceMeshUpdate: true,
       });
+      burgageFencing.syncZones(
+        liveContext.gameState.burgageZones.values(),
+        liveContext.gameState.residences.values(),
+        (x, z) => sceneManager.terrain.getHeightAt(x, z),
+      );
       buildingMarkers.refreshRoadFacingOrientations();
       sceneManager.syncBuildingAccessRoads(buildingMarkers.getRoadConnectionSources());
       roadSelection.refresh();
@@ -843,7 +848,7 @@ export async function bootstrapAppSession(
     maxAnisotropy: sceneManager.textureAnisotropy,
     useSeedThree: sceneManager.rendererBackend === 'webgpu',
   });
-  const burgageFencing = new BurgageFencing(sceneManager.selectionGroup);
+  const burgageFencing = new BurgageFencing(sceneManager.selectionGroup, roadNetwork);
   const farmFieldMarkers = new FarmFieldMarkers(
     sceneManager.selectionGroup,
     (x, z) => sceneManager.terrain.getHeightAt(x, z),

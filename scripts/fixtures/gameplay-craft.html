@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Estate UI material review</title></head>
+<body>
+  <div id="app"><div data-ui-root></div></div>
+  <aside class="craft-review-controls">
+    <label><input type="checkbox" data-craft-toggle checked> Crafted finish</label>
+    <button data-review="settings">Settings</button><button data-review="development">Developments</button>
+    <button data-review="alert">Confirmation</button><button data-review="rename">Town name</button>
+    <button data-review="debug">Debug menu (M)</button>
+    <button data-review="hide">Hide review controls</button>
+    <output data-review-result>Offline · production panels · no world connection</output>
+  </aside>
+  <script type="module">
+    import '/src/style.css';
+    import '/src/ui/iconography.css';
+    import '/src/ui/startupCraft.css';
+    import '/src/ui/gameplayCraft.css';
+    import { BuildToolbar } from '/src/ui/BuildToolbar.ts';
+    import { DebugMenu } from '/src/ui/DebugMenu.ts';
+    import { AlertDialog } from '/src/ui/AlertDialog.ts';
+    import { TownNameDialog } from '/src/ui/TownNameDialog.ts';
+    import { mountTooltips } from '/src/ui/tooltips.ts';
+    const root = document.querySelector('[data-ui-root]');
+    const result = document.querySelector('[data-review-result]');
+    const toolbar = new BuildToolbar(root, {
+      onOpenRoads() {}, onBuildRoad() {}, onSelectBuilding() {}, onSelectDryStoneWall() {},
+      onPlaceStarterCamp() {}, onSelectResidences() {}, onCancelPlacement() {}, onToggleCityAdministration() {},
+      onSetGameSpeed(speed) {
+        root.querySelectorAll('[data-game-speed]').forEach(button => {
+          const active = Number(button.dataset.gameSpeed) === speed;
+          button.setAttribute('aria-pressed', String(active));
+          button.classList.toggle('is-active', active);
+        });
+        result.textContent = 'Simulation speed: ' + speed;
+      },
+    });
+    toolbar.setStarterCampRequired(false);
+    toolbar.setGameplayEnabled(true);
+    const debug = new DebugMenu(root, {
+      domElement: document.querySelector('#app'), getDate: () => ({year:1,month:3,monthDay:1}),
+      pickMapPoint: () => null, onGrantResources: async () => {}, onSetDate: async () => {}, onRunMapAction: async () => {},
+    });
+    const alert = new AlertDialog(root);
+    const rename = new TownNameDialog(root);
+    mountTooltips(root);
+    document.querySelector('[data-craft-toggle]').addEventListener('change', event => {
+      document.querySelector('style[data-vite-dev-id$="/gameplayCraft.css"]').disabled = !event.target.checked;
+    });
+    document.querySelector('[data-review="settings"]').onclick = () => root.querySelector('[data-action="settings"]').click();
+    document.querySelector('[data-review="development"]').onclick = () => root.querySelector('[data-action="developments"]').click();
+    document.querySelector('[data-review="alert"]').onclick = () => alert.confirm({title:'Remove building?', description:'This action removes the selected building.', confirmLabel:'Remove building'});
+    document.querySelector('[data-review="rename"]').onclick = () => rename.prompt('Delnice');
+    document.querySelector('[data-review="debug"]').onclick = () => window.dispatchEvent(new KeyboardEvent('keydown', {key:'m', bubbles:true}));
+    document.querySelector('[data-review="hide"]').onclick = () => document.querySelector('.craft-review-controls').hidden = true;
+    window.addEventListener('pagehide', () => { toolbar.dispose(); debug.dispose(); alert.dispose(); rename.dispose(); }, {once:true});
+  </script>
+  <style>
+    body { background: radial-gradient(ellipse at 38% 40%, #586044, #263429 65%, #17241c); }
+    .craft-review-controls { position:fixed; left:14px; top:130px; z-index:100; display:grid; gap:5px; padding:9px; color:#ddd; background:#151a14ed; font:11px/1.4 system-ui; max-width:168px; pointer-events:auto; }
+    .craft-review-controls button { background:#303b2d; border:1px solid #77836b; color:#eee; padding:4px; }
+    .craft-review-controls[hidden] { display:none; }
+    .craft-review-controls label { display:flex; gap:6px; align-items:center; }
+  </style>
+</body>
+</html>

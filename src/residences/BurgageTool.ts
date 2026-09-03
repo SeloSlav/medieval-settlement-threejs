@@ -1046,9 +1046,22 @@ export class BurgageTool {
   }
 
   private snapFrontagePointToExistingPlots(point: THREE.Vector3): THREE.Vector3 {
+    const roadCenter = this.hoverCenter;
+    if (!roadCenter) return point;
+    // The plot magnet reaches across a standard road. Keep the side chosen by
+    // the road snap authoritative, using its world-space normal rather than an
+    // edge-relative sign (road edges can be stored in either direction).
+    const sideX = point.x - roadCenter.x;
+    const sideZ = point.z - roadCenter.z;
+    const roadIndex = this.options.roadNetwork.getSpatialIndex();
     const snapped = snapBurgageFrontagePoint(
       point,
       this.options.getState().burgageZones.values(),
+      undefined,
+      (candidate) => (
+        (candidate.x - roadCenter.x) * sideX + (candidate.z - roadCenter.z) * sideZ > 1e-6
+        && !roadIndex.isOnRoadSurface(candidate.x, candidate.z, 0)
+      ),
     );
     if (Math.hypot(snapped.x - point.x, snapped.z - point.z) <= 1e-6) return point;
 

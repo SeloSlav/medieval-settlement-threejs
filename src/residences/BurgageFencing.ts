@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Point2 } from '../utils/polygonGeometry.ts';
 import type { BurgageZoneState } from '../resources/types.ts';
+import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { timberMaterial } from '../buildings/buildingMaterials.ts';
 import { hashStringSeed, mulberry32 } from '../utils/random.ts';
 import {
@@ -11,6 +12,7 @@ import {
   type ResolvedParcelFenceOpening,
 } from './burgageLayout.ts';
 import { layoutFromBurgageZone } from './burgageZoneLayout.ts';
+import { createBurgageFenceRoadClipper } from './burgageFenceRoadClearance.ts';
 import {
   pickResidenceAppearance,
   residenceGroundDoorLocalX,
@@ -263,6 +265,7 @@ function collectFenceLayout(
 }
 
 export class BurgageFencing {
+  private readonly roadNetwork: RoadNetwork | undefined;
   private readonly root = new THREE.Group();
   private readonly posts: THREE.InstancedMesh;
   private readonly rails: THREE.InstancedMesh;
@@ -277,7 +280,8 @@ export class BurgageFencing {
   private readonly railDirection = new THREE.Vector3();
   private lastSignature = '';
 
-  constructor(parent: THREE.Group) {
+  constructor(parent: THREE.Group, roadNetwork?: RoadNetwork) {
+    this.roadNetwork = roadNetwork;
     this.root.name = 'Burgage fencing';
     this.root.frustumCulled = false;
 
@@ -327,7 +331,14 @@ export class BurgageFencing {
     getHeightAt: (x: number, z: number) => number,
     options: BurgageFenceSyncOptions = {},
   ): void {
-    const { segments, gateways } = collectFenceLayout(zones, residences);
+    const layout = collectFenceLayout(zones, residences);
+    // Re-read the current network on every sync, including after road hydration
+    // or edits. Never let reconstructed parcel chords run through the road.
+    const roadClipper = this.roadNetwork && createBurgageFenceRoadClipper(this.roadNetwork);
+    const segments = roadClipper ? layout.segments.flatMap(roadClipper.clip) : layout.segments;
+    const gateways = roadClipper
+      ? layout.gateways.filter((gateway) => roadClipper.isClear([gateway.start, gateway.end]))
+      : layout.gateways;
     const segmentBays = segments.map(([start, end]) => (
       sampleTerrainFenceBays(start, end, getHeightAt)
     ));

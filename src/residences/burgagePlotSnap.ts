@@ -113,18 +113,20 @@ function pairedSideBoundaryCandidates(
 /**
  * A new frontage may join an existing row at either end. Restricting frontage
  * snapping to endpoints avoids pulling a new zone into the middle of occupied
- * road frontage, while the normal overlap check remains authoritative.
+ * road frontage. Filter targets before choosing the nearest so an invalid
+ * opposite-side endpoint cannot hide a valid same-side join.
  */
 export function snapBurgageFrontagePoint(
   point: Point2,
   zones: Iterable<BurgageZoneState>,
   maxDistance = BURGAGE_PLOT_SNAP_DISTANCE,
+  candidateFilter?: CandidateFilter,
 ): Point2 {
   const endpoints: Point2[] = [];
   for (const zone of zones) {
     endpoints.push(...getZoneEdge(zoneCorners(zone), zone.frontageEdge));
   }
-  return nearestCandidate(point, endpoints, maxDistance);
+  return nearestCandidate(point, endpoints, maxDistance, candidateFilter);
 }
 
 /** Magnetize a rear corner to the outer boundary of any existing burgage zone. */

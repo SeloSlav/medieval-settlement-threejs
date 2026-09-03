@@ -71,7 +71,7 @@ import {
   backyardGardenClearancePolygon,
   backyardGardenPlacementForParcel,
 } from '../src/residences/backyardPosition.ts';
-import { resolveCurvedFrontageLine } from '../src/residences/burgageRoadFrontage.ts';
+import { BURGAGE_ROAD_SETBACK, resolveCurvedFrontageLine } from '../src/residences/burgageRoadFrontage.ts';
 import { resolveRoadCenterPathForFrontage } from '../src/residences/burgageFrontagePath.ts';
 import {
   MIN_ZONE_DEPTH,
@@ -92,6 +92,7 @@ import {
 import type {
   BuildingKind,
   BuildingState,
+  BurgageZoneState,
   ForagingNodeState,
   GameState,
   ResidenceState,
@@ -574,6 +575,113 @@ function testBurgageFrontageDirectionAndRoadSideSelection(): void {
     'the rendered frontage must connect each accepted endpoint without crossing the plot',
   );
   assert(curved.every((point) => point.z > 0), 'reverse-drawn frontage must stay on its selected road side');
+}
+
+function testOppositeBurgageFrontagesKeepTheirRoadSide(): void {
+  for (const yaw of [0, Math.PI / 2, 0.63]) {
+    for (const side of [-1, 1]) {
+      for (const direction of [-1, 1]) {
+        const transform = (x: number, z: number) => new THREE.Vector3(
+          80 + x * Math.cos(yaw) - z * Math.sin(yaw),
+          0,
+          -40 + x * Math.sin(yaw) + z * Math.cos(yaw),
+        );
+        const roads = new RoadNetwork();
+        roads.addRoadPath([transform(-60 * direction, 0), transform(60 * direction, 0)]);
+        const setback = 2.1 + BURGAGE_ROAD_SETBACK;
+        const existing: BurgageZoneState = {
+          id: 'opposite-row',
+          cornerA: transform(-12, -side * setback),
+          cornerB: transform(12, -side * setback),
+          cornerC: transform(12, -side * (setback + 24)),
+          cornerD: transform(-12, -side * (setback + 24)),
+          frontageEdge: 0,
+          plotCount: 2,
+        };
+        const zones = new Map([[existing.id, existing]]);
+        let cursor = transform(-12 * direction, side * 5);
+        const tool = Object.create(BurgageTool.prototype) as BurgageTool;
+        Object.assign(tool, {
+          options: {
+            roadNetwork: roads,
+            terrainProjector: { pick: () => cursor.clone() },
+            getState: () => ({ burgageZones: zones }),
+            getHeightAt: () => 0,
+          },
+          placementStage: 0,
+          points: [],
+          frontageCenters: [],
+          frontageOffsetSide: null,
+          hoverOffsetSide: null,
+          hoverCenter: null,
+        });
+        const internals = tool as unknown as {
+          pickPoint: (x: number, y: number) => THREE.Vector3;
+          recordFrontageCenter: (x: number, y: number, point: THREE.Vector3) => void;
+          resolvePreviewOutline: () => { points: THREE.Vector3[]; frontagePointCount: number };
+          points: THREE.Vector3[];
+          placementStage: number;
+        };
+        for (const x of [-12 * direction, 12 * direction]) {
+          // After accepting the first corner, even moving the pointer across
+          // the road must not let the existing row defeat the locked side.
+          cursor = transform(x, side * (internals.placementStage === 0 ? 5 : -5));
+          const point = internals.pickPoint(0, 0);
+          assert.ok(point.distanceTo(transform(x, side * setback)) < 1e-6,
+            'the complete road + plot snap must keep both frontage corners on their own side');
+          internals.recordFrontageCenter(0, 0, point);
+          internals.points.push(point);
+          internals.placementStage++;
+        }
+        for (const x of [12 * direction, -12 * direction]) {
+          cursor = transform(x, side * (setback + 24));
+          internals.points.push(internals.pickPoint(0, 0));
+          internals.placementStage++;
+        }
+        const preview = internals.resolvePreviewOutline();
+        assert.ok(preview.points.slice(0, preview.frontagePointCount).every((point) => (
+          (-(point.x - 80) * Math.sin(yaw) + (point.z + 40) * Math.cos(yaw)) * side > 0
+        )), 'the preview must agree with the accepted frontage side');
+        assert.equal(validateBurgagePlacement({
+          corners: internals.points,
+          frontageEdge: 0,
+          plotCount: 2,
+          stockpile: { timber: 10000, stone: 10000 },
+          existingZones: zones.values(),
+          existingBuildings: [],
+          roadNetwork: roads,
+          isWaterAt: () => false,
+          getNaturalHeightAt: () => 0,
+        }).ok, true, 'a complete residence row directly opposite another row must remain placeable');
+
+        // Rejecting the nearest opposite-side target must not disable a valid
+        // same-side endpoint that is slightly farther away inside the magnet.
+        const sameSide: BurgageZoneState = {
+          ...existing,
+          id: 'same-side-row',
+          cornerA: transform(-6.5 * direction, side * setback),
+          cornerB: transform(20 * direction, side * setback),
+          cornerC: transform(20 * direction, side * (setback + 24)),
+          cornerD: transform(-6.5 * direction, side * (setback + 24)),
+        };
+        zones.set(sameSide.id, sameSide);
+        internals.placementStage = 0;
+        Object.assign(tool, { frontageOffsetSide: null });
+        cursor = transform(-12 * direction, side * 5);
+        assert.ok(internals.pickPoint(0, 0).distanceTo(transform(-6.5 * direction, side * setback)) < 1e-6,
+          'same-side row joins must still snap even when an opposite-side endpoint is closer');
+
+        zones.clear();
+        zones.set('inside-road', {
+          ...sameSide,
+          id: 'inside-road',
+          cornerA: transform(-12 * direction, side),
+        });
+        assert.ok(internals.pickPoint(0, 0).distanceTo(transform(-12 * direction, side * setback)) < 1e-6,
+          'a saved frontage endpoint inside the road must not pull a new plot off the clear verge');
+      }
+    }
+  }
 }
 
 function testMovableBuildingsSnapToRoadSides(): void {
@@ -2025,6 +2133,7 @@ testBurgageTerrainRulesAreLotFriendly();
 testBurgageBuildingOverlapUsesVisibleFootprints();
 testOrganicBurgagePlotsAndPreviewIcons();
 testBurgageFrontageDirectionAndRoadSideSelection();
+testOppositeBurgageFrontagesKeepTheirRoadSide();
 testPlacementOverlaysFollowTerrainHeight();
 testPlacementPreviewLimitsRadiusOverlaysToWildlifeWarnings();
 testPlacementPreviewShowsAdvisoryWildlifeWarnings();
