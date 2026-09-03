@@ -11,6 +11,9 @@ description = "SpacetimeDB module - authoritative server for Medieval Road Syste
 [lib]
 crate-type = ["cdylib"]
 
+[features]
+trailer = []
+
 [dependencies]
 log = "0.4"
 spacetimedb = "2.0"

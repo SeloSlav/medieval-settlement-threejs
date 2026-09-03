@@ -939,10 +939,10 @@ export class SceneManager {
     this.communityReachOverlay?.setVisible(mode === 'communities');
   }
 
-  resize(): void {
+  resize(captureViewport?: { width: number; height: number }): void {
     const rect = this.container.getBoundingClientRect();
-    const width = Math.max(1, Math.floor(rect.width));
-    const height = Math.max(1, Math.floor(rect.height));
+    const width = Math.max(1, Math.floor(captureViewport?.width ?? rect.width));
+    const height = Math.max(1, Math.floor(captureViewport?.height ?? rect.height));
     this.terrainProjector.setViewportRect(rect);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();

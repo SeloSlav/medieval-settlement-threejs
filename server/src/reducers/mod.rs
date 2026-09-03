@@ -4,6 +4,8 @@ pub mod bootstrap;
 pub mod buildings;
 pub mod cavalry_horses;
 pub mod cheats;
+#[cfg(feature = "trailer")]
+pub mod trailer;
 pub mod farm_fields;
 pub mod fire_recovery;
 pub mod graveyards;

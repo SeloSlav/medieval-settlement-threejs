@@ -40,7 +40,7 @@ type HorseVisual = {
 };
 
 /** The authored saddle contact point above terrain, in metres. */
-export const CAVALRY_SADDLE_HEIGHT = 1.48;
+export const CAVALRY_SADDLE_HEIGHT = 1.08;
 
 const HORSE_MODEL_URL = '/assets/models/horses/quaternius-horse.gltf';
 const HORSE_TARGET_HEIGHT = 1.7;

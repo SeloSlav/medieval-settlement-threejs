@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { trailerClock } from '../app/trailerClock.ts';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
@@ -270,7 +271,7 @@ export class OxenRenderer {
     const realDt = Number.isFinite(dtSeconds)
       ? Math.min(0.08, Math.max(0, dtSeconds))
       : 0;
-    const simulationDt = agentPacedDelta(realDt, this.getGameSpeed());
+    const simulationDt = agentPacedDelta(realDt, trailerClock.active ? trailerClock.speed : this.getGameSpeed());
     const freeMovementSpeed = OX_WALK_SPEED;
     const effectiveFreeMovementSpeed = freeMovementSpeed
       * WORKFORCE_MOVEMENT_SPEED_MULTIPLIER;

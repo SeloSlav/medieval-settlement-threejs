@@ -91,6 +91,8 @@ import { bootstrapAppSession, type BootstrappedSession, type SessionLiveContext 
 import { WorldGenerationMismatchError } from '../world/worldConfigAuthority.ts';
 import { formatSettlementClock, gameClock } from '../world/gameCalendar.ts';
 import { worldAnimationDelta } from '../world/gameSpeed.ts';
+import { trailerClock } from './trailerClock.ts';
+import { getCurrentNobleProfile, setCurrentNobleProfile } from '../ui/nobleProfile.ts';
 import {
   environmentFor,
   nextDayEnvironmentOutlook,
@@ -302,6 +304,13 @@ export class App {
   }
 
   async start(): Promise<void> {
+    if (import.meta.env.DEV && new URLSearchParams(location.search).has('trailer')) {
+      const profile = getCurrentNobleProfile();
+      setCurrentNobleProfile({ ...profile, heraldry: {
+        ...profile.heraldry, charge: 'latin-cross', chargeColor: '#e5bd45',
+        chargeCount: 1, chargeScale: 0.72,
+      } });
+    }
     if (
       import.meta.env.VITE_E2E_TEST !== '1'
       && !this.visualQaConditions
@@ -805,6 +814,10 @@ export class App {
     }
     this.startCombatPlaytest(session);
     this.startBattleShowcase(session);
+    if (import.meta.env.DEV && new URLSearchParams(location.search).has('trailer')) {
+      const { installTrailerDirector } = await import('./trailerDirector.ts');
+      installTrailerDirector(session.sceneManager, session.cameraController, () => this.villagers?.authoredCrowdDiagnostics());
+    }
     if (import.meta.env.VITE_E2E_TEST !== '1') {
       // Run scene-owner handoffs inside Three's renderer lifecycle. Its common
       // animation loop advances the NodeFrame immediately before this callback,
@@ -902,6 +915,12 @@ export class App {
 
   private readonly tick = (time: number): void => {
     if (this.disposed) return;
+    if (trailerClock.active) {
+      if (!trailerClock.pending) return;
+      trailerClock.pending = false;
+      time = trailerClock.timeMs;
+      this.lastTime = time - 1000 / 30;
+    }
     const frameProfiler = this.visualFrameProfiler;
     frameProfiler?.beginFrame(time, performance.now());
     const rawDt = (time - this.lastTime) / 1000;
@@ -910,7 +929,7 @@ export class App {
     this.lastTime = time;
 
     const firstPersonActive = this.firstPersonController?.isActive() ?? false;
-    const gameSpeed = this.spacetimeStore?.snapshot.gameSpeed ?? 1;
+    const gameSpeed = trailerClock.active ? trailerClock.speed : this.spacetimeStore?.snapshot.gameSpeed ?? 1;
     const worldDt = worldAnimationDelta(dt, gameSpeed);
     this.syncCombatPlaytest(time, dt);
     this.syncBattleShowcase(time);
@@ -939,6 +958,9 @@ export class App {
       renderCameraInteractionActive =
         this.firstPersonController?.isCameraNavigationActive() ?? false;
     } else {
+      // Session-readiness callbacks can re-enable input during the first take.
+      // The export director owns the camera until that take has finished.
+      if (trailerClock.active) this.cameraController?.setInputEnabled(false);
       this.cameraController?.update(dt);
       this.firstPersonController?.updatePlacement();
       this.toolbar?.setFirstPersonMode(false);
@@ -982,6 +1004,7 @@ export class App {
     this.villagerInspector?.tick();
     this.ambientAudio?.setWorldPaused(gameSpeed === 0);
     this.ambientAudio?.tick(dt);
+    trailerClock.onFrame?.();
     if (frameProfiler) {
       const phase = firstPersonActive
         ? 'road-eye'

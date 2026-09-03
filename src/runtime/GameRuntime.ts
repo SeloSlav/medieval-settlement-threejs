@@ -144,7 +144,13 @@ export class GameRuntime {
     const server = this.store.getAuthoritativeWorldGeneration();
     assertWorldGenerationCompatible(local, server, this.store.snapshot.simTick);
     try {
-      await this.store.configureWorld(local);
+      // The trailer director attaches to an established realm. The complete
+      // generation contract was checked immediately above; do not republish
+      // setup rules while its authoring cheats are staging a running save.
+      const existingTrailerRealm = import.meta.env.DEV
+        && new URLSearchParams(window.location.search).has('trailer')
+        && server?.configured && this.store.snapshot.simTick > 0;
+      if (!existingTrailerRealm) await this.store.configureWorld(local);
     } catch (error) {
       if (isWorldSetupLockError(error)) {
         const current = this.store.getAuthoritativeWorldGeneration();

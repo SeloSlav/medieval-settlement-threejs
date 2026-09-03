@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { trailerClock } from '../app/trailerClock.ts';
 import {
   deliveryLegRemainingMeters,
   deliveryTripHasVisibleCargo,
@@ -221,7 +222,7 @@ export class DeliveryAgentRenderer {
 
   update(dt: number, _view?: CrowdViewState): void {
     const realDt = Number.isFinite(dt) ? Math.max(0, dt) : 0;
-    const gameSpeed = this.getGameSpeed();
+    const gameSpeed = trailerClock.active ? trailerClock.speed : this.getGameSpeed();
     const simulationDt = realDt * gameSpeed * SIM_REALTIME_RATE;
     const animationDt = agentPacedDelta(realDt, gameSpeed);
     for (const [tripId, visual] of this.visuals) {

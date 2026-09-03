@@ -36,6 +36,9 @@ artifacts/kenney_survival-kit.zip
 # Reproducible visual-gauntlet build snapshots (public evidence stays tracked)
 artifacts/visual-gauntlet/
 
+# Local gameplay trailer production outputs
+/artifacts/trailer/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

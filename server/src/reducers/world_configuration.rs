@@ -21,6 +21,10 @@ pub fn set_game_speed(ctx: &ReducerContext, speed: u8) -> Result<(), String> {
         .id()
         .find(&0)
         .ok_or_else(|| "world_config row missing".to_string())?;
+    // Reasserting the current speed must not discard a partial simulation step.
+    if config.game_speed == speed {
+        return Ok(());
+    }
     ctx.db.world_config().id().update(WorldConfig {
         game_speed: speed,
         ..config

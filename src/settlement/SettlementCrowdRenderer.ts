@@ -625,6 +625,10 @@ export class SettlementCrowdRenderer {
         disposeWorkerToolSources(tools);
         return false;
       }
+      // The raider pack has no seated clip. Reuse the worker's authored seated
+      // motion on its matching named skeleton, preserving the raider's proportions.
+      raider.clips.sit = retargetSeatedClip(man, raider);
+      raider.clips.rest = raider.clips.sit;
       this.sources = { man, woman, cleric, raider };
       this.toolSources = tools;
       this.battlefieldWeaponDrops.configureSources(tools);
@@ -1377,6 +1381,41 @@ async function loadVillagerSource(
   };
 }
 
+function retargetSeatedClip(source: VillagerSource, target: VillagerSource): THREE.AnimationClip {
+  const clip = source.clips.sit.clone();
+  clip.name = 'sit:mounted-raider';
+  const rotation = new THREE.Quaternion();
+  const offset = new THREE.Quaternion();
+  for (const track of clip.tracks) {
+    const split = track.name.lastIndexOf('.');
+    const boneName = track.name.slice(0, split);
+    const property = track.name.slice(split + 1);
+    const from = source.scene.getObjectByName(boneName);
+    const to = target.scene.getObjectByName(boneName);
+    if (!from || !to) throw new Error(`Missing seated-animation bone ${boneName}`);
+    if (property === 'quaternion') {
+      offset.copy(to.quaternion).multiply(from.quaternion.clone().invert());
+      for (let i = 0; i < track.values.length; i += 4) {
+        rotation.fromArray(track.values, i).premultiply(offset).normalize().toArray(track.values, i);
+      }
+    } else if (property === 'position') {
+      const ratio = from.position.length() > 0.01 ? to.position.length() / from.position.length() : 1;
+      for (let i = 0; i < track.values.length; i += 3) {
+        track.values[i] = to.position.x + (track.values[i] - from.position.x) * ratio;
+        track.values[i + 1] = to.position.y + (track.values[i + 1] - from.position.y) * ratio;
+        track.values[i + 2] = to.position.z + (track.values[i + 2] - from.position.z) * ratio;
+      }
+    } else if (property === 'scale') {
+      for (let i = 0; i < track.values.length; i += 3) {
+        track.values[i] *= to.scale.x / from.scale.x;
+        track.values[i + 1] *= to.scale.y / from.scale.y;
+        track.values[i + 2] *= to.scale.z / from.scale.z;
+      }
+    }
+  }
+  return clip;
+}
+
 export function createSemanticWorkerClipSet(
   animations: readonly THREE.AnimationClip[],
 ): Record<VillagerRenderMode, THREE.AnimationClip> {
@@ -2011,7 +2050,7 @@ export function workerToolVisibleInMode(
 
 /** Keeps ranged and polearm legs neutral while the post-mixer combat rig owns the strike. */
 export function combatBaseActionMode(agent: CrowdRenderAgent): VillagerRenderMode {
-  if (agent.mounted && agent.mode !== 'fall' && agent.mode !== 'hurt') return 'sit';
+  if (agent.mounted && agent.mode !== 'fall') return 'sit';
   if (
     agent.mode !== 'fight'
     || !agent.tool

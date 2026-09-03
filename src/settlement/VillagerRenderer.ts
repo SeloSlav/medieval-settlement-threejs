@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { presentationNow, trailerClock } from '../app/trailerClock.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import {
   OxenRenderer,
@@ -724,7 +725,7 @@ export class VillagerRenderer {
     const nextVisuals = new Map<string, CombatAgentVisual>();
     const nextGuardSlots = new Set<string>();
     const nextMilitaryPeople = new Set<string>();
-    const nowMs = performance.now();
+    const nowMs = presentationNow();
     for (const state of agents.values()) {
       const prior = this.combatAgentVisuals.get(state.id);
       const tookHit = Boolean(
@@ -1551,7 +1552,9 @@ export class VillagerRenderer {
   tick(dt: number, view?: CrowdViewState): void {
     this.lastView = view;
     const realDt = Number.isFinite(dt) ? Math.max(0, dt) : 0;
-    const simulationDt = agentPacedDelta(realDt, this.getGameSpeed());
+    // Export steps the server while paused, but every captured frame still
+    // advances the same character presentation used during live play.
+    const simulationDt = agentPacedDelta(realDt, trailerClock.active ? trailerClock.speed : this.getGameSpeed());
     this.advanceCampAmbientCycle(simulationDt);
     this.advanceChapelAmbientCycle(simulationDt);
     this.advanceCombatAgentVisuals(simulationDt > 0 ? realDt : 0);
@@ -2313,7 +2316,7 @@ export class VillagerRenderer {
         }
       }
     }
-    const combatNowMs = performance.now();
+    const combatNowMs = presentationNow();
     this.combatAnimalPoses.length = 0;
     this.cavalryHorsePoses.length = 0;
     const cavalryHorseByCombatAgent = new Map<string, CavalryHorseState>();
