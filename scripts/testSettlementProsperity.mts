@@ -294,7 +294,7 @@ assert.equal(localPromotion.immediateResidents, 6);
 assert.equal(localPromotion.immediateSustainable, false);
 assert.equal(localPromotion.immediateHeadroomResidents, -1);
 assert.equal(localPromotion.fullPipelineSustainable, false);
-assert.equal(localPromotion.limitingLabel, 'preserved food');
+assert.equal(localPromotion.limitingLabel, 'savory preserves');
 assert.equal(
   projectTierFourUpgrade(
     localPromotionPlan,
@@ -372,7 +372,7 @@ assert.match(inspector, /Promotion load/);
 assert.match(inspector, /Local prosperity branch/);
 assert.doesNotMatch(inspector, /this road branch/);
 assert.match(inspector, /Prosperity planning load/);
-assert.match(inspector, /winter-peak preserved ration/);
+assert.match(inspector, /winter-peak savory preserves/);
 assert.doesNotMatch(inspector, /Warning: promoting the current occupants immediately exceeds/);
 assert.match(
   inspector,

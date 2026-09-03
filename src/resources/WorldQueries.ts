@@ -1005,7 +1005,7 @@ export class WorldQueries {
     return this.getGameState().buildings.get(supplierId) ?? null;
   }
 
-  getServingPreservedFoodSupplierForResidence(residence: ResidenceState): BuildingState | null {
+  getServingSavoryPreservesSupplierForResidence(residence: ResidenceState): BuildingState | null {
     const state = this.getGameState();
     if (fireDisabledResidenceIds(state.fireIncidents.values()).has(residence.id)) {
       return null;
@@ -1320,7 +1320,7 @@ export class WorldQueries {
             ? this.getServingShoesSupplierForResidence(residence)
           : needKind === 'pottery'
             ? this.getServingPotterySupplierForResidence(residence)
-          : this.getServingPreservedFoodSupplierForResidence(residence);
+          : this.getServingSavoryPreservesSupplierForResidence(residence);
       return serving?.id === supplier.id;
     });
   }

@@ -61,9 +61,11 @@ import {
   freshFoodMealEquivalents,
   freshFoodSpoilageExposure,
   isFreshFoodCargo,
-  isPreservedFoodCargo,
+  isSavoryPreserveCargo,
   preservedFoodMealEquivalents,
   preservedFoodSpoilageExposure,
+  savoryPreservesMealEquivalents,
+  savoryPreservesSpoilageExposure,
 } from './foodInventory.ts';
 import {
   householdFirewoodUnitsPerDay,
@@ -232,7 +234,7 @@ function finiteStock(value: number | undefined): number {
 }
 
 function preservedFoodStockForResidence(residence: ResidenceState): number {
-  return preservedFoodMealEquivalents(residence);
+  return savoryPreservesMealEquivalents(residence);
 }
 
 function addBranchFoodStock(
@@ -500,10 +502,10 @@ export function computeSettlementProvisioning(input: {
   let householdPantryFoodStock = 0;
   let usablePreservedFoodStock = state.physicalFoundingSiteEnabled === true
     ? 0
-    : preservedFoodMealEquivalents(state.stockpile);
+    : savoryPreservesMealEquivalents(state.stockpile);
   let usablePreservedFoodWeightedStock = state.physicalFoundingSiteEnabled === true
     ? 0
-    : preservedFoodSpoilageExposure(state.stockpile)
+    : savoryPreservesSpoilageExposure(state.stockpile)
       * PRESERVED_FOOD_STORAGE_TREASURY_FACTOR;
   let householdBufferHouseholds = 0;
   let householdBufferReadyHouseholds = 0;
@@ -568,7 +570,7 @@ export function computeSettlementProvisioning(input: {
         grossFoodNeeded,
       );
       usablePreservedFoodStock += householdPreservedStock;
-      usablePreservedFoodWeightedStock += preservedFoodSpoilageExposure(residence)
+      usablePreservedFoodWeightedStock += savoryPreservesSpoilageExposure(residence)
         * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR;
       householdPreservedFoodRotationTargetPerDay += preservedFoodNeeded;
       householdPreservedFoodRotationPerDay += preservedFoodRotationUsed;
@@ -590,7 +592,7 @@ export function computeSettlementProvisioning(input: {
         roadBranch,
         householdPreservedStock,
         PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
-        preservedFoodSpoilageExposure(residence),
+        savoryPreservesSpoilageExposure(residence),
       );
       roadBranch.firstResidenceId = roadBranch.firstResidenceId === null
         || compareStableEntityIds(residence.id, roadBranch.firstResidenceId) < 0
@@ -686,7 +688,7 @@ export function computeSettlementProvisioning(input: {
       fireQuarantinedFirewoodStock += finiteStock(building.firewood)
         + householdCharcoal * CHARCOAL_HOUSEHOLD_FUEL_VALUE;
       fireQuarantinedFoodStock += edibleFoodMealEquivalents(building);
-      fireQuarantinedPreservedFoodStock += preservedFoodMealEquivalents(building);
+      fireQuarantinedPreservedFoodStock += savoryPreservesMealEquivalents(building);
     }
     if (roadProvisionBranches && roadComponentFor) {
       // Monastery charity has parish and route-length restrictions inside a
@@ -732,7 +734,7 @@ export function computeSettlementProvisioning(input: {
       }
       if (
         operationalPreservedFoodSupplier
-        && preservedFoodMealEquivalents(building) > 1e-6
+        && savoryPreservesMealEquivalents(building) > 1e-6
       ) {
         const branch = roadProvisionBranch(
           roadProvisionBranches,
@@ -742,16 +744,16 @@ export function computeSettlementProvisioning(input: {
         );
         addBranchPreservedFoodStock(
           branch,
-          preservedFoodMealEquivalents(building),
+          savoryPreservesMealEquivalents(building),
           buildingPreservedFoodStorageFactor(building.kind),
-          preservedFoodSpoilageExposure(building),
+          savoryPreservesSpoilageExposure(building),
         );
       }
     }
     if (operationalPreservedFoodSupplier) {
-      const stock = preservedFoodMealEquivalents(building);
+      const stock = savoryPreservesMealEquivalents(building);
       usablePreservedFoodStock += stock;
-      usablePreservedFoodWeightedStock += preservedFoodSpoilageExposure(building)
+      usablePreservedFoodWeightedStock += savoryPreservesSpoilageExposure(building)
         * buildingPreservedFoodStorageFactor(building.kind);
     }
   }
@@ -759,7 +761,7 @@ export function computeSettlementProvisioning(input: {
   const guardPayrollInTransitGold = 0;
   for (const trip of state.deliveryTrips.values()) {
     if (
-      isPreservedFoodCargo(trip.cargoKind)
+      isSavoryPreserveCargo(trip.cargoKind)
       && trip.phase !== 'inbound'
       && trip.amount > 1e-9
     ) {
@@ -826,7 +828,14 @@ export function computeSettlementProvisioning(input: {
           fireDisabledBuildings.has(targetBuilding.id)
           ||
           (
-            (isFreshFoodCargo(trip.cargoKind) || trip.cargoKind === 'honey')
+            (
+              isFreshFoodCargo(trip.cargoKind)
+              || trip.cargoKind === 'honey'
+              || (
+                isPreservedFoodCargo(trip.cargoKind)
+                && !isSavoryPreserveCargo(trip.cargoKind)
+              )
+            )
             && (
               targetBuilding.kind === 'monastery'
               || !isOperationalFoodSupplier(targetBuilding)
@@ -837,7 +846,7 @@ export function computeSettlementProvisioning(input: {
             && !isOperationalFirewoodSupplier(targetBuilding)
           )
           || (
-            isPreservedFoodCargo(trip.cargoKind)
+            isSavoryPreserveCargo(trip.cargoKind)
             && (
               !isOperationalSpecialtySupplier(targetBuilding)
               || !SAVORY_PRESERVE_SUPPLIER_KINDS.includes(targetBuilding.kind)
@@ -856,7 +865,14 @@ export function computeSettlementProvisioning(input: {
         destinationKind,
         roadComponentFor,
       );
-      if (isFreshFoodCargo(trip.cargoKind) || trip.cargoKind === 'honey') {
+      if (
+        isFreshFoodCargo(trip.cargoKind)
+        || trip.cargoKind === 'honey'
+        || (
+          isPreservedFoodCargo(trip.cargoKind)
+          && !isSavoryPreserveCargo(trip.cargoKind)
+        )
+      ) {
         const foodKind = trip.cargoKind as Parameters<typeof foodMealValue>[0];
         const stock = trip.amount * foodMealValue(foodKind);
         addBranchFoodStock(

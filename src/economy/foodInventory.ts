@@ -421,6 +421,13 @@ export function preservedFoodMealEquivalents(inventory: FoodInventoryLike): numb
   );
 }
 
+export function savoryPreservesMealEquivalents(inventory: FoodInventoryLike): number {
+  return SAVORY_PRESERVE_KINDS.reduce(
+    (total, kind) => total + finiteFood(inventory[kind]) * foodMealValue(kind),
+    0,
+  );
+}
+
 export function edibleFoodMealEquivalents(inventory: FoodInventoryLike): number {
   return freshFoodMealEquivalents(inventory)
     + preservedFoodMealEquivalents(inventory)
@@ -447,6 +454,16 @@ export function preservedFoodSpoilageExposure(inventory: FoodInventoryLike): num
   );
 }
 
+export function savoryPreservesSpoilageExposure(inventory: FoodInventoryLike): number {
+  return SAVORY_PRESERVE_KINDS.reduce(
+    (total, kind) => total
+      + finiteFood(inventory[kind])
+        * foodMealValue(kind)
+        * foodSpoilageMultiplier(kind),
+    0,
+  );
+}
+
 /** Fresh inputs the smokehouse can actually cure, smoke, or turn into cheese. */
 export function preservableFoodStock(inventory: FoodInventoryLike): number {
   return finiteFood(inventory.meat)
@@ -460,6 +477,10 @@ export function isFreshFoodCargo(kind: DeliveryCargoKind): boolean {
 
 export function isPreservedFoodCargo(kind: DeliveryCargoKind): boolean {
   return (PRESERVED_FOOD_KINDS as readonly string[]).includes(kind);
+}
+
+export function isSavoryPreserveCargo(kind: DeliveryCargoKind): boolean {
+  return (SAVORY_PRESERVE_KINDS as readonly string[]).includes(kind);
 }
 
 export function isEdibleFoodCargo(kind: DeliveryCargoKind): boolean {

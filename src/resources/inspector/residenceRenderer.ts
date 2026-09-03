@@ -275,8 +275,8 @@ export function renderResidenceInspector(
   const servingWell = context.worldQueries.getServingWellForResidence(residence);
   const servingFoodSupplier = context.worldQueries.getServingFoodSupplierForResidence(residence);
   const servingChapel = context.worldQueries.getServingChapelForResidence(residence);
-  const servingPreservedFoodSupplier = residence.tier >= 4
-    ? context.worldQueries.getServingPreservedFoodSupplierForResidence(residence)
+  const servingSavoryPreservesSupplier = residence.tier >= 4
+    ? context.worldQueries.getServingSavoryPreservesSupplierForResidence(residence)
     : null;
   const servingAleSupplier = residence.tier >= 2
     ? context.worldQueries.getServingAleSupplierForResidence(residence)
@@ -345,8 +345,8 @@ export function renderResidenceInspector(
         stocked: upgradeSupplierHasStock('water', servingWell),
       },
       savoryPreserves: {
-        supplier: servingPreservedFoodSupplier,
-        stocked: servingPreservedFoodSupplier != null,
+        supplier: servingSavoryPreservesSupplier,
+        stocked: servingSavoryPreservesSupplier != null,
       },
       ale: {
         supplier: servingAleSupplier,
@@ -468,7 +468,7 @@ export function renderResidenceInspector(
     servingLodgeId: servingFirewoodSupplier?.id ?? null,
     servingWellId: servingWell?.id ?? null,
     servingFoodSupplierId: servingFoodSupplier?.id ?? null,
-    servingSavoryPreservesSupplierId: servingPreservedFoodSupplier?.id ?? null,
+    servingSavoryPreservesSupplierId: servingSavoryPreservesSupplier?.id ?? null,
     servingAleSupplierId: servingAleSupplier?.id ?? null,
     servingClothSupplierId: servingClothSupplier?.id ?? null,
     servingPotterySupplierId: servingPotterySupplier?.id ?? null,
@@ -537,7 +537,7 @@ export function renderResidenceInspector(
   const firewoodSupplierLabel = supplierLabel(servingFirewoodSupplier);
   const wellLabel = supplierLabel(servingWell);
   const foodSupplierLabel = supplierLabel(servingFoodSupplier);
-  const preservedFoodSupplierLabel = supplierLabel(servingPreservedFoodSupplier);
+  const savoryPreservesSupplierLabel = supplierLabel(servingSavoryPreservesSupplier);
   const aleSupplierLabel = supplierLabel(servingAleSupplier);
   const clothSupplierLabel = supplierLabel(servingClothSupplier);
   const shoesSupplierLabel = supplierLabel(servingShoesSupplier);
@@ -686,7 +686,7 @@ export function renderResidenceInspector(
               amount: householdPreservedFood,
               title: 'Savory preserves',
               amountLabel: `Stock · cap ${RESIDENCE_PRESERVED_FOOD_CAPACITY}`,
-              detail: `${preservedFoodRunwayLabel} runway · ${preservedFoodSupplierLabel}`,
+              detail: `${preservedFoodRunwayLabel} runway · ${savoryPreservesSupplierLabel}`,
               className: getNeed(residence.needs, 'savoryPreserves').deficitTicks > 0 ? 'is-warning' : '',
             }]
           : []),
@@ -896,7 +896,7 @@ export function renderResidenceInspector(
       ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Monthly cured slot</span><span>${preservedFoodRotationPerMonth.toFixed(0)} cured unit per bill &middot; replaces one food category unit rather than adding another charge</span></li>` : ''}
       ${residence.tier >= 2 ? `<li data-inspector-primary data-inspector-section="${foodAndDrinkSection}"><span>Beverages</span><span>${Math.round(getNeedStock(residence.needs, 'ale'))} / ${RESIDENCE_ALE_CAPACITY} · ${aleRunwayLabel} runway</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Fresh-food supplier</span><span>${foodSupplierLabel}</span></li>` : ''}
-      ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Savory-preserves supplier</span><span>${preservedFoodSupplierLabel}</span></li>` : ''}
+      ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Savory-preserves supplier</span><span>${savoryPreservesSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 2 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Beverage service</span><span>${aleSupplierLabel}</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${fuelAndWaterSection}"><span>Firewood</span><span>${Math.round(getNeedStock(residence.needs, 'firewood'))} / ${RESIDENCE_FIREWOOD_CAPACITY} · ${firewoodRunwayLabel} runway</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${fuelAndWaterSection}"><span>Water</span><span>${Math.round(getNeedStock(residence.needs, 'water'))} / ${RESIDENCE_WATER_CAPACITY} · ${waterRunwayLabel} runway</span></li>` : ''}

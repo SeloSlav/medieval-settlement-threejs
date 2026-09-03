@@ -33,7 +33,11 @@ import {
   buildingPreservedFoodStorageFactor,
   spoilageAdjustedRunwayDays,
 } from './foodPreservation.ts';
-import { householdFoodPerDay, isPreservedFoodCargo, preservedFoodStock } from './foodInventory.ts';
+import {
+  householdFoodPerDay,
+  isSavoryPreserveCargo,
+  savoryPreservesStock,
+} from './foodInventory.ts';
 
 /**
  * A month of substitute provisions is demanding enough to make autumn
@@ -200,7 +204,7 @@ export function computeSettlementPreservationReservePlan(
   };
 
   for (const building of state.buildings.values()) {
-    const preserved = preservedFoodStock(building);
+    const preserved = savoryPreservesStock(building);
     if (fireDisabledBuildings.has(building.id)) {
       quarantinedPreservedStock += preserved;
       continue;
@@ -269,7 +273,7 @@ export function computeSettlementPreservationReservePlan(
 
   for (const residence of state.residences.values()) {
     const preserved = Math.max(
-      preservedFoodStock(residence),
+      savoryPreservesStock(residence),
       residence.foodInventoryMigrated === true
         ? 0
         : finiteStock(getNeedStock(residence.needs, 'savoryPreserves')),
@@ -300,7 +304,7 @@ export function computeSettlementPreservationReservePlan(
 
   for (const trip of state.deliveryTrips.values()) {
     if (
-      !isPreservedFoodCargo(trip.cargoKind)
+      !isSavoryPreserveCargo(trip.cargoKind)
       && trip.cargoKind !== 'salt'
       && trip.cargoKind !== 'pottery'
     ) {
@@ -314,7 +318,7 @@ export function computeSettlementPreservationReservePlan(
       branchFor,
     );
     if (!branch) continue;
-    if (isPreservedFoodCargo(trip.cargoKind)) {
+    if (isSavoryPreserveCargo(trip.cargoKind)) {
       branch.preservedInTransit += amount;
     } else if (trip.cargoKind === 'salt') {
       branch.saltInTransit += amount;
@@ -325,11 +329,11 @@ export function computeSettlementPreservationReservePlan(
 
   if (
     state.physicalFoundingSiteEnabled !== true
-    && preservedFoodStock(state.stockpile) > 1e-9
+    && savoryPreservesStock(state.stockpile) > 1e-9
   ) {
     const key = 'legacy:treasury';
     const branch = branches.get(key) ?? emptyBranch(key);
-    const stock = preservedFoodStock(state.stockpile);
+    const stock = savoryPreservesStock(state.stockpile);
     branch.preservedStock += stock;
     branch.weightedPreservedStock +=
       stock * PRESERVED_FOOD_STORAGE_TREASURY_FACTOR;

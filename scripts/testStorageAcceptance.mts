@@ -216,7 +216,7 @@ const doubledCampStorageView = withBuildingLocalStorage({
 } as BuildingState);
 assert.match(doubledCampStorageView.detailsHtml, /Founding supplies/);
 assert.match(doubledCampStorageView.detailsHtml, /outbound only/);
-assert.match(doubledCampStorageView.detailsHtml, /does not accept deliveries/);
+assert.match(doubledCampStorageView.detailsHtml, /accepts no incoming deliveries/);
 assert.doesNotMatch(doubledCampStorageView.detailsHtml, /1600|capacity|Local storage/);
 assert.equal(BUILDING_STORAGE_CAPS.salvage_pile.total, 500);
 assert.equal(BUILDING_STORAGE_CAPS.marketplace.total, 400);

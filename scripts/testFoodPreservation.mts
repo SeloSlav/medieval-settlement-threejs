@@ -345,12 +345,12 @@ fireQuarantineState.residences.set(
   'fire-home',
   residence('fire-home', 40),
 );
-fireQuarantineState.stockpile.preservedFood = 10;
-fireQuarantineState.buildings.get('fire-granary')!.preservedFood = 20;
-fireQuarantineState.buildings.get('fire-hunter')!.preservedFood = 30;
-fireQuarantineState.buildings.get('healthy-market')!.preservedFood = 10;
-fireQuarantineState.residences.get('fire-home')!.needs.preservedFood.stock = 40;
-fireQuarantineState.residences.get('fire-home')!.preservedFood = 40;
+fireQuarantineState.stockpile.curedMeat = 10;
+fireQuarantineState.buildings.get('fire-granary')!.curedMeat = 20;
+fireQuarantineState.buildings.get('fire-hunter')!.curedMeat = 30;
+fireQuarantineState.buildings.get('healthy-market')!.curedMeat = 10;
+fireQuarantineState.residences.get('fire-home')!.needs.savoryPreserves.stock = 40;
+fireQuarantineState.residences.get('fire-home')!.curedMeat = 40;
 const fireQuarantine = analyzeFreshFoodPreservation(
   fireQuarantineState,
   ambientSpoilage,
@@ -373,7 +373,7 @@ assert.ok(
   Math.abs(
     fireQuarantine.preservedFood.quarantinedSpoilagePerDay
     - PRESERVED_FOOD_SPOILAGE_PER_DAY
-      * foodSpoilageMultiplier('preservedFood') * (
+      * foodSpoilageMultiplier('curedMeat') * (
       20 * PRESERVED_FOOD_STORAGE_GRANARY_FACTOR
       + 30 * PRESERVED_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR
       + 40 * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR
@@ -518,10 +518,10 @@ assert.match(
   /preserved_food_spoilage_fraction_per_second\(\)[\s\S]*PRESERVED_FOOD_COMMODITIES[\s\S]*building_commodity_stock[\s\S]*preserved_rate[\s\S]*withdraw_building_commodity/,
   'every ordinary physical building store must lose cured provisions according to its storage quality',
 );
-assert.match(
+assert.doesNotMatch(
   serverFoodSpoilage,
-  /macro_rules! spoil_preserved[\s\S]*PRESERVED_FOOD_STORAGE_TREASURY_FACTOR[\s\S]*spoil_preserved!\(preserved_food,\s*CommodityKind::PreservedFood\)[\s\S]*spoil_preserved!\(cheese,\s*CommodityKind::Cheese\)/,
-  'legacy compatibility stock must not become an immortal cured reserve',
+  /CommodityKind::PreservedFood|spoil_preserved!\(preserved_food/,
+  'the spoilage pass must not retain the removed aggregate preserve',
 );
 assert.doesNotMatch(
   residenceProvisions,
@@ -551,7 +551,7 @@ const granaryPerfState = emptyGameState();
 const fireDisabledGranaries = new Set<string>();
 for (let index = 0; index < 100_000; index += 1) {
   const granary = building(`granary-${index}`, 'granary', index % 341);
-  granary.preservedFood = index % 181;
+  granary.curedMeat = index % 181;
   granary.granaryFreshFoodTargetPercent = [25, 50, 75, 90][index % 4];
   granaryPerfState.buildings.set(granary.id, granary);
   if (index % 2 === 0) fireDisabledGranaries.add(granary.id);
@@ -613,7 +613,9 @@ function building(
     grain: 0,
     flour: 0,
     ale: 0,
-    preservedFood: 0,
+    curedMeat: 0,
+    smokedFish: 0,
+    cheese: 0,
     honey: 0,
     wine: 0,
     polearms: 0,
@@ -652,12 +654,14 @@ function residence(id: string, food: number): ResidenceState {
     food: 0,
     ryeBread: food,
     foodInventoryMigrated: true,
-    preservedFood: 0,
+    curedMeat: 0,
+    smokedFish: 0,
+    cheese: 0,
     needs: {
       firewood: { stock: 0, deficitSeconds: 0 },
       water: { stock: 0, deficitSeconds: 0 },
       food: { stock: food, deficitSeconds: 0 },
-      preservedFood: { stock: 0, deficitSeconds: 0 },
+      savoryPreserves: { stock: 0, deficitSeconds: 0 },
       ale: { stock: 0, deficitSeconds: 0 },
     },
     abandoned: false,
@@ -711,7 +715,9 @@ function emptyGameState(): GameState {
       grain: 0,
       flour: 0,
       ale: 0,
-      preservedFood: 0,
+      curedMeat: 0,
+      smokedFish: 0,
+      cheese: 0,
       honey: 0,
       wine: 0,
       polearms: 0,

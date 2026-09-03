@@ -298,7 +298,8 @@ function buildProsperityRoadPlan(
         supported: safeRatio(
           Math.min(
             raw.clothOutputPerDay,
-            raw.textileIntermediateOutputPerDay
+            (raw.textileIntermediateOutputPerDay
+              ?? raw.clothOutputPerDay * WEAVER_YARN_PER_CYCLE / WEAVER_CLOTH_PER_CYCLE)
               * WEAVER_CLOTH_PER_CYCLE
               / WEAVER_YARN_PER_CYCLE,
           )
