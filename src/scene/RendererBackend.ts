@@ -464,11 +464,11 @@ function configureRenderer(renderer: SupportedRenderer): void {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   // Day/night presentation refines exposure every clock update. Keep startup
   // neutral so the first frame does not flash brighter than the settled grade.
-  renderer.toneMappingExposure = 1.04;
+  renderer.toneMappingExposure = 0.86;
   renderer.shadowMap.enabled = true;
-  // Restore the original soft filtering for the authored tree/building atlas.
-  // Manual refresh and the view-fitted 2048px frustum retain the existing cost
-  // controls while preserving natural foliage penumbrae.
+  // The camera-fitted 4096px atlas keeps eaves and canopy silhouettes readable.
+  // Static casters retain manual invalidation; soft filtering is shared by the
+  // near and overview views.
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.setClearColor(0x9bb8c8, 1);
 

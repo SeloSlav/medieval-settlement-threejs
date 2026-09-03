@@ -6,6 +6,9 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import BloomNode from 'three/examples/jsm/tsl/display/BloomNode.js';
 import { RenderPipeline, type WebGPURenderer } from 'three/webgpu';
+import { sceneTsl } from './sceneTsl.ts';
+import { createSceneAmbientOcclusion, type SceneAmbientLights } from './SceneAmbientOcclusion.ts';
+import type { SceneAtmosphere } from './SceneAtmosphere.ts';
 import {
   abs,
   distance,
@@ -79,11 +82,12 @@ type PassNodeLike = Disposable & {
   getTextureNode(name?: string): TextureNodeLike;
 };
 
+const { renderOutput } = sceneTsl;
 const DEFAULT_GRADE = DEFAULT_DAY_NIGHT_GRADE;
 const DEFAULT_BLOOM = Object.freeze({
-  radius: 0.38,
-  strength: 0.12,
-  threshold: 0.82,
+  radius: 0.3,
+  strength: 0.055,
+  threshold: 1.25,
 });
 const ACTIVE_BLOOM = CROATIAN_NAIVE_ART_POST_PROCESSING_ENABLED
   ? {
@@ -95,10 +99,11 @@ const ACTIVE_BLOOM = CROATIAN_NAIVE_ART_POST_PROCESSING_ENABLED
 
 /**
  * Native fullscreen submissions made after the scene pass: bloom high-pass,
- * five horizontal/vertical blur pairs, bloom composite, and final grade/output.
+ * five horizontal/vertical blur pairs, bloom composite, half-resolution GTAO,
+ * and final denoise/grade/output. Denoising is folded into the final shader.
  */
 export const WEBGPU_BLOOM_FULLSCREEN_PASS_COUNT = 12;
-export const WEBGPU_POST_FULLSCREEN_PASS_COUNT = WEBGPU_BLOOM_FULLSCREEN_PASS_COUNT + 1;
+export const WEBGPU_POST_FULLSCREEN_PASS_COUNT = WEBGPU_BLOOM_FULLSCREEN_PASS_COUNT + 2;
 
 const DAYLIGHT_GRADE_SHADER = {
   uniforms: {
@@ -116,6 +121,7 @@ const DAYLIGHT_GRADE_SHADER = {
 };
 
 export type ScenePostProcessor = {
+  setDiagnostic(mode: string): void;
   dispose(): void;
   render(dt: number): void;
   renderIllustratedMap(): void;
@@ -130,6 +136,8 @@ export function createPostProcessor(
   scene: THREE.Scene,
   camera: THREE.PerspectiveCamera,
   illustratedMapScene: THREE.Scene = scene,
+  ambientLights?: SceneAmbientLights,
+  atmosphere?: SceneAtmosphere,
 ): ScenePostProcessor {
   if (supportsNodeMaterials(backend.kind)) {
     return new WebGPUPostProcessor(
@@ -137,6 +145,8 @@ export function createPostProcessor(
       scene,
       camera,
       illustratedMapScene,
+      ambientLights,
+      atmosphere,
     );
   }
 
@@ -156,6 +166,7 @@ function applyGradeUniforms(
 }
 
 class WebGLPostProcessor implements ScenePostProcessor {
+  setDiagnostic(): void { /* The game requires WebGPU; legacy fixture path only. */ }
   private readonly renderer: THREE.WebGLRenderer;
   private readonly camera: THREE.PerspectiveCamera;
   private readonly illustratedMapScene: THREE.Scene;
@@ -185,8 +196,10 @@ class WebGLPostProcessor implements ScenePostProcessor {
       ),
     );
     this.gradePass = new ShaderPass(DAYLIGHT_GRADE_SHADER);
-    this.composer.addPass(this.gradePass);
+    // The legacy composer grades the tone-mapped image; its shader decodes the
+    // OutputPass sRGB texture to display-linear RGB and re-encodes its result.
     this.composer.addPass(new OutputPass());
+    this.composer.addPass(this.gradePass);
   }
 
   dispose(): void {
@@ -231,9 +244,12 @@ class WebGLPostProcessor implements ScenePostProcessor {
 }
 
 class WebGPUPostProcessor implements ScenePostProcessor {
+  private diagnostic = 'final';
+  private readonly diagnosticOutputs: Record<string, unknown>;
+  private readonly ambientOcclusion?: ReturnType<typeof createSceneAmbientOcclusion>;
   private readonly renderer: WebGPURenderer;
   private readonly bloomPass: Disposable;
-  private readonly pipeline: RenderPipeline;
+  private readonly pipeline: RenderPipeline & { outputColorTransform: boolean; needsUpdate: boolean };
   private readonly scenePass: PassNodeLike;
   private readonly illustratedMapPipeline: RenderPipeline;
   private readonly illustratedMapPass: PassNodeLike;
@@ -256,15 +272,24 @@ class WebGPUPostProcessor implements ScenePostProcessor {
     scene: THREE.Scene,
     camera: THREE.PerspectiveCamera,
     illustratedMapScene: THREE.Scene,
+    ambientLights?: SceneAmbientLights,
+    atmosphere?: SceneAtmosphere,
   ) {
     this.renderer = renderer;
-    this.pipeline = new RenderPipeline(renderer);
-    this.scenePass = pass(scene, camera) as PassNodeLike;
+    this.pipeline = new RenderPipeline(renderer) as typeof this.pipeline;
+    const scenePass = pass(scene, camera);
+    this.scenePass = scenePass as PassNodeLike;
+    if (ambientLights && atmosphere) {
+      this.ambientOcclusion = createSceneAmbientOcclusion(scenePass, camera, ambientLights, atmosphere);
+    }
     this.illustratedMapPipeline = new RenderPipeline(renderer);
     this.illustratedMapPass = pass(illustratedMapScene, camera) as PassNodeLike;
     this.illustratedMapPipeline.outputNode = this.illustratedMapPass.getTextureNode('output');
 
     const sceneColor = this.scenePass.getTextureNode('output');
+    const shadedColor = (this.ambientOcclusion?.color ?? sceneColor) as unknown as TslNode;
+    // Bloom uses scene-linear highlights independently of contact occlusion.
+    // This also keeps the no-AO comparison from executing the gather/filter.
     this.bloomPass = new StableSizeBloomNode(
       sceneColor,
       ACTIVE_BLOOM.strength,
@@ -276,9 +301,12 @@ class WebGPUPostProcessor implements ScenePostProcessor {
       : null;
     const gradeInput = naiveArtBasis
       ? naiveArtBasis.color.add(this.bloomPass)
-      : sceneColor.add(this.bloomPass);
-    this.pipeline.outputNode = buildGradeNode(
-      gradeInput,
+      : shadedColor.add(this.bloomPass);
+    // One explicit tone map to display-linear RGB, then creative grade and
+    // one sRGB conversion. Bloom extraction remains in scene-linear HDR.
+    const toneMapped = renderOutput(gradeInput as never, THREE.ACESFilmicToneMapping, THREE.LinearSRGBColorSpace);
+    const graded = buildGradeNode(
+      toneMapped as unknown as TslNode,
       this.gradeSaturation,
       this.gradeContrast,
       this.gradeWarmth,
@@ -287,10 +315,35 @@ class WebGPUPostProcessor implements ScenePostProcessor {
       naiveArtBasis?.structureEdge ?? null,
       this.weatherNaiveArtRetention,
     );
+    const final = renderOutput(graded as never, THREE.NoToneMapping, THREE.SRGBColorSpace);
+    const toneMap = (value: unknown) => renderOutput(value as never, THREE.ACESFilmicToneMapping, THREE.SRGBColorSpace);
+    this.diagnosticOutputs = {
+      final,
+      lighting: toneMap(sceneColor),
+      'no-ao': renderOutput(buildGradeNode(
+        renderOutput(sceneColor.add(this.bloomPass) as never, THREE.ACESFilmicToneMapping, THREE.LinearSRGBColorSpace) as unknown as TslNode,
+        this.gradeSaturation, this.gradeContrast, this.gradeWarmth, this.gradeNightBlue, this.gradeVignette,
+        null, float(1),
+      ) as never, THREE.NoToneMapping, THREE.SRGBColorSpace),
+      ao: vec4(vec3(this.ambientOcclusion?.visibility ?? 1), 1),
+      normal: vec4(this.ambientOcclusion?.normal ?? vec3(0.5), 1),
+      depth: vec4(vec3(this.ambientOcclusion?.depth ?? 1), 1),
+      indirect: toneMap(this.ambientOcclusion?.indirect ?? vec4(0)),
+    };
+    this.pipeline.outputColorTransform = false;
+    this.pipeline.outputNode = final;
+  }
+
+  setDiagnostic(mode: string): void {
+    if (!(mode in this.diagnosticOutputs) || mode === this.diagnostic) return;
+    this.diagnostic = mode;
+    this.pipeline.outputNode = this.diagnosticOutputs[mode] as never;
+    this.pipeline.needsUpdate = true;
   }
 
   dispose(): void {
     this.pipeline.dispose();
+    this.ambientOcclusion?.dispose();
     this.scenePass.dispose();
     this.bloomPass.dispose();
     this.illustratedMapPipeline.dispose();
@@ -380,7 +433,7 @@ function buildGradeNode(
   const [nr, ng, nb] = GRADE_NIGHT_BLUE_TINT;
   const luma = dot(inputColor.rgb, vec3(lr, lg, lb));
   const saturated = mix(vec3(luma), inputColor.rgb, saturationValue) as TslNode;
-  const contrasted = saturated.sub(float(0.5)).mul(contrastValue).add(float(0.5));
+  const contrasted = saturated.sub(float(0.18)).mul(contrastValue).add(float(0.18));
   const warmed = mix(
     contrasted,
     contrasted.mul(vec3(wr, wg, wb)),

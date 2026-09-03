@@ -3,6 +3,7 @@ import type { SceneManager } from '../scene/SceneManager.ts';
 import { getConnection, getConnectionToken, getSpacetimeConfig } from '../network/spacetimedbClient.ts';
 import { trailerClock } from './trailerClock.ts';
 import { enterWorld } from '../data/spacetimeReducers.ts';
+import { installLightingReview } from './lightingReview.ts';
 
 type Pose = [number, number, number, number, number];
 type Shot = { from: Pose; to: Pose; seconds: number };
@@ -85,6 +86,7 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
   button('8× simulation',()=>{trailerClock.active=false;return call('set_game_speed',[8]);});
   button('1× simulation',()=>{trailerClock.active=false;return call('set_game_speed',[1]);});
   button('Pause',()=>call('set_game_speed',[0]));
+  button('Attach built city',()=>readyConnection());
   button('Save audit',async()=>{await fetch('http://127.0.0.1:5180/json/economy-'+Date.now(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(audit(),(_k,v)=>typeof v==='bigint'?v.toString():v)});});
 
   function audit(){const c=getConnection();if(!c)return{};return{capturedAt:new Date().toISOString(),captureSpeed:trailerClock.speed,crowd:crowdDiagnostics(),world:[...c.db.world_config.iter()],buildings:[...c.db.building.iter()],residences:[...c.db.residence.iter()],needs:[...c.db.residence_need.iter()],deliveries:[...c.db.delivery_trip.iter()],companies:[...c.db.military_company.iter()],combatants:[...c.db.combat_agent.iter()],farms:[...c.db.farm_field.iter()]};}
@@ -95,7 +97,9 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
     panel.querySelector('#trailer-metrics')!.textContent=JSON.stringify(metrics,null,1);
     void fetch('http://127.0.0.1:5180/json/progress',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:status.textContent,...metrics})}).catch(()=>{});
   },2000);
-  import.meta.hot?.accept((updated)=>{clearInterval(metricsTimer);panel.remove();updated?.installTrailerDirector(scene,camera,crowdDiagnostics);});
+  const disposeLightingReview = installLightingReview(scene, camera, panel);
+  panel.style.maxHeight = 'calc(100vh - 130px)'; panel.style.overflowY = 'auto';
+  import.meta.hot?.accept((updated)=>{clearInterval(metricsTimer);disposeLightingReview();panel.remove();updated?.installTrailerDirector(scene,camera,crowdDiagnostics);});
   const pose=(p:Pose)=>camera.applyShowcaseView(...p);
   const clearArena=()=>{
     const forest=scene.getForestManager();

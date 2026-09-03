@@ -28,8 +28,8 @@ export const GRADE_SPLIT_HIGHLIGHT_END = 1.05;
 export const GRADE_SPLIT_HIGHLIGHT_STRENGTH = 0.065;
 export const GRADE_SPLIT_HIGHLIGHT_TINT = [1.045, 1.012, 0.94] as const;
 export const GRADE_FILMIC_PIVOT = 0.18;
-export const GRADE_FILMIC_POWER = 1.035;
-export const GRADE_FILMIC_BLEND = 0.34;
+export const GRADE_FILMIC_POWER = 1.075;
+export const GRADE_FILMIC_BLEND = 0.6;
 export const GRADE_GRAIN_STRENGTH = 0.0025;
 
 export function buildGradeGlslVertexShader(): string {
@@ -88,9 +88,10 @@ export function buildGradeGlslFragmentShader(
       ${sourceColorInitialization}
       float naiveArtStructureEdge = 0.0;
       ${naiveArtBasisApplication}
-      vec3 color = sourceColor;
+      // OutputPass has already applied the tone map and sRGB transfer.
+      vec3 color = sRGBTransferEOTF(vec4(sourceColor, 1.0)).rgb;
       color = adjustSaturation(color, saturation);
-      color = (color - 0.5) * contrast + 0.5;
+      color = (color - 0.18) * contrast + 0.18;
       color = mix(color, color * vec3(${wr}, ${wg}, ${wb}), warmth);
       color = mix(color, color * vec3(${nr}, ${ng}, ${nb}), nightBlue);
       float shadowLuma = dot(color, vec3(${lr}, ${lg}, ${lb}));
@@ -160,7 +161,7 @@ export function buildGradeGlslFragmentShader(
       float edge = smoothstep(${GRADE_VIGNETTE_INNER}, ${GRADE_VIGNETTE_OUTER}, distanceFromCenter);
       color *= mix(1.0, 1.0 - vignette, edge);
       ${naiveArtToneApplication}
-      gl_FragColor = vec4(max(color, vec3(0.0)), 1.0);
+      gl_FragColor = sRGBTransferOETF(vec4(max(color, vec3(0.0)), 1.0));
     }
   `;
 }

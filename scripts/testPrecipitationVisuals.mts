@@ -90,11 +90,11 @@ assert.equal(
 assert.equal(fair.kind, 'none');
 assert.equal(fair.intensity, 0);
 assert.equal(fair.wetness, 0);
-assert.equal(fair.atmosphericBlend, 0.42);
-assert.equal(fair.sunlightMultiplier, 0.32);
-assert.equal(fair.fogDensityMultiplier, 1.38);
+assert.equal(fair.atmosphericBlend, 0.2);
+assert.equal(fair.sunlightMultiplier, 0.65);
+assert.equal(fair.fogDensityMultiplier, 1.05);
 assert.equal(fair.fogTint, 0x8295a1);
-assert.equal(fair.saturationMultiplier, 0.74);
+assert.equal(fair.saturationMultiplier, 0.9);
 assert.equal(rain.kind, 'rain');
 assert.equal(rain.intensity, 0.78);
 assert.equal(rain.wetness, 1);
@@ -350,7 +350,7 @@ assert.doesNotMatch(
   'weather must not fan out global standard-material shader variants',
 );
 assert.match(sceneSource, /fog\.density\s*=\s*state\.fogDensity\s*\*\s*weather\.fogDensityMultiplier/);
-assert.match(sceneSource, /0\.00042,\s*0\.001,/);
+assert.match(sceneSource, /0\.00042,\s*0\.0018,/);
 assert.match(
   appSource,
   /precipitationPreviewEnvironment\(environment,\s*window\.location\.search\)/,

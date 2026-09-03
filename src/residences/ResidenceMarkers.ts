@@ -20,6 +20,11 @@ import {
   timberMaterial,
 } from '../buildings/buildingMaterials.ts';
 import { areBuildingShadowsEnabled } from '../scene/shadowPreference.ts';
+import {
+  applyRoofToneTint,
+  FIRED_CLAY_TONE_TINTS,
+  SHINGLE_TONE_TINTS,
+} from '../buildings/buildingRoofTones.ts';
 import { ChimneySmokeEmitter } from './ResidenceChimneySmoke.ts';
 import {
   pickResidenceAppearance,
@@ -171,18 +176,6 @@ function dimensionsForTier(
   return base;
 }
 
-const SHINGLE_TONE_TINTS: Record<ResidenceRoofTone, readonly [number, number, number]> = {
-  'earth-brown': [0.8, 0.68, 0.53],
-  'smoke-brown': [0.66, 0.58, 0.5],
-  'mossed-brown': [0.69, 0.67, 0.5],
-};
-
-const FIRED_CLAY_TONE_TINTS: Record<ResidenceRoofTone, readonly [number, number, number]> = {
-  'earth-brown': [0.6, 0.38, 0.25],
-  'smoke-brown': [0.48, 0.3, 0.24],
-  'mossed-brown': [0.54, 0.35, 0.23],
-};
-
 /**
  * Keeps all residences on the shared shingle/tile materials while making the
  * seeded roof tone part of the geometry's batchable vertex-colour payload.
@@ -200,15 +193,7 @@ function applyResidenceRoofTone(
     if (weathering !== 'shingle' && weathering !== 'roof') return;
     const colors = object.geometry.getAttribute('color');
     if (!colors) return;
-    for (let index = 0; index < colors.count; index += 1) {
-      colors.setXYZ(
-        index,
-        colors.getX(index) * tint[0],
-        colors.getY(index) * tint[1],
-        colors.getZ(index) * tint[2],
-      );
-    }
-    colors.needsUpdate = true;
+    applyRoofToneTint(object.geometry, tint);
     object.userData.residenceRoofTone = tone;
     object.geometry.userData.residenceRoofTone = tone;
     object.geometry.userData.residenceRoofToneTint = [...tint];

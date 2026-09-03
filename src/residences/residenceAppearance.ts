@@ -2,12 +2,16 @@ import {
   type ResidenceFacadeColor,
 } from '../buildings/buildingMaterials.ts';
 import { mulberry32, pick } from '../utils/random.ts';
+import {
+  ROOF_TONE_VARIANTS,
+  type BuildingRoofTone,
+} from '../buildings/buildingRoofTones.ts';
 
 export type FacadeColor = ResidenceFacadeColor;
 export type RoofColor = 'brown';
 export type ResidenceArchetype = 'stone_portal' | 'timber_balcony' | 'working_lean_to';
 export type ResidenceTrimColor = 'wood' | 'red' | 'blue' | 'green';
-export type ResidenceRoofTone = 'earth-brown' | 'smoke-brown' | 'mossed-brown';
+export type ResidenceRoofTone = BuildingRoofTone;
 export type ResidenceFootprintProfile = 'narrow-deep' | 'balanced' | 'broad-shallow';
 export type TierOneWallFinish = 'earthy-daub' | 'fieldstone' | 'weathered-timber';
 export type TierOneWallFace = 'front' | 'rear' | 'left' | 'right';
@@ -56,13 +60,6 @@ const TRIM_COLORS: readonly ResidenceTrimColor[] = [
 
 const ENTRY_SIDES = [-1, 1] as const;
 
-const ROOF_TONES: readonly ResidenceRoofTone[] = [
-  'earth-brown',
-  'earth-brown',
-  'smoke-brown',
-  'mossed-brown',
-] as const;
-
 const FOOTPRINT_PROFILES: readonly ResidenceFootprintProfile[] = [
   'narrow-deep',
   'balanced',
@@ -100,7 +97,7 @@ export function pickResidenceAppearance(seed: number): ResidenceAppearance {
   const facade = pick(FACADE_COLORS, rng);
   // Reuse the old reserved roof roll so the established archetype, entry, and
   // trim sequence remains stable while roofs gain a bounded earthy tone.
-  const roofTone = pick(ROOF_TONES, rng);
+  const roofTone = pick(ROOF_TONE_VARIANTS, rng);
   const roof: RoofColor = 'brown';
   const archetype = pick(ARCHETYPES, rng);
   const entrySide = pick(ENTRY_SIDES, rng);

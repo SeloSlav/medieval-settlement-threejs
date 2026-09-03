@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { BuildingKind } from '../../resources/types.ts';
+import { applyBuildingRoofTones } from '../buildingRoofTones.ts';
 import { isDynamicBuildingBatchBoundary } from '../staticBuildingBatch.ts';
 import { PROCEDURAL_ARCHITECTURE_VERSION } from './catalog.ts';
 import { finalizeProceduralBuilding } from './finalize.ts';
@@ -43,6 +44,7 @@ export function compileProceduralBuilding(
   const root = input.generate();
   const generatorMilliseconds = performance.now() - startedAt;
   const runtimeOwnedBoundaries = markRuntimeBoundaries(root);
+  applyBuildingRoofTones(root, input.kind, input.request.seed);
 
   const finalized = finalizeProceduralBuilding(root, input.kind, {
     seed: input.request.seed,

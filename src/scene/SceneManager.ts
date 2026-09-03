@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { SceneAtmosphere } from './SceneAtmosphere.ts';
+import { deciduousFoliageForSeasonPreview } from '../world/deciduousFoliagePolicy.ts';
 import type { BuildingTerrainSource } from '../buildings/BuildingTerrainLayout.ts';
 import { createForestProps } from '../props/ForestProps.ts';
 import type { ForestManager, ForestTreeLayout } from '../props/ForestManager.ts';
@@ -219,6 +221,11 @@ export class SceneManager {
   private readonly lastShadowKeyDirection = new THREE.Vector3(Number.NaN, Number.NaN, Number.NaN);
   private sunLight!: THREE.DirectionalLight;
   private hemiLight!: THREE.HemisphereLight;
+  private atmosphere!: SceneAtmosphere;
+  private lightingReviewState: DayNightLightingState | null = null;
+  private lightingReviewEnvironment: 'live' | 'summer' | 'rain' = 'live';
+  private sourceEnvironment: EnvironmentState | null = null;
+  private lightingReviewExposureScale = 1;
   private ambientLight!: THREE.AmbientLight;
   private skyFillLight!: THREE.DirectionalLight;
   private skyAnimationTime = 0;
@@ -363,6 +370,10 @@ export class SceneManager {
     this.scene = new THREE.Scene();
     this.scene.background = null;
     this.scene.fog = new THREE.FogExp2(FAIR_DAY_FOG_COLOR, 0.00072);
+    this.atmosphere = new SceneAtmosphere(this.scene.fog);
+    if (this.rendererBackend !== 'webgl') {
+      (this.scene as THREE.Scene & { fogNode: unknown }).fogNode = this.atmosphere.node as never;
+    }
     // A slightly longer lens keeps the broad settlement readable while making
     // the layered Dinaric landscape feel less miniaturised.
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2600);
@@ -441,6 +452,8 @@ export class SceneManager {
       this.scene,
       this.camera,
       this.illustratedMap.scene,
+      { hemisphere: this.hemiLight, ambient: this.ambientLight },
+      this.atmosphere,
     );
     this.unsubscribeShadowPreferences = subscribeShadowPreferences(() => this.applyShadowPreferences());
     this.applyShadowPreferences();
@@ -1209,6 +1222,7 @@ export class SceneManager {
 
   applyDayNight(state: DayNightLightingState): void {
     this.lastDayNightState = state;
+    state = this.lightingReviewState ?? state;
     const weather = this.weatherPresentation;
     const atmosphericBlend = weather.atmosphericBlend;
     const weatherFogTint = weather.fogTint.getHex();
@@ -1276,13 +1290,13 @@ export class SceneManager {
     // Gentle photographic adaptation preserves night legibility without
     // flattening noon or washing out the warm low sun.
     this.renderer.toneMappingExposure = THREE.MathUtils.clamp(
-      THREE.MathUtils.lerp(1.08, 1.28, state.nightAmount)
+      THREE.MathUtils.lerp(0.86, 1.28, state.nightAmount)
         + goldenHour * 0.075
         + atmosphericBlend * 0.012
         - weather.wetness * 0.025,
-      1.03,
+      0.8,
       1.34,
-    );
+    ) * this.lightingReviewExposureScale;
     if (this.scene.fog instanceof THREE.FogExp2) {
       this.scene.fog.color.setHex(blendColorHex(state.fogColor, weatherFogTint, atmosphericBlend));
       this.scene.fog.density = state.fogDensity * weather.fogDensityMultiplier;
@@ -1290,7 +1304,7 @@ export class SceneManager {
         this.scene.fog.density
           * THREE.MathUtils.lerp(1, 1.06, state.nightAmount),
         0.00042,
-        0.001,
+        0.0018,
       );
     }
     this.dayNightGrade.saturation =
@@ -1308,6 +1322,14 @@ export class SceneManager {
   }
 
   setEnvironment(environment: EnvironmentState): void {
+    this.sourceEnvironment = environment;
+    if (this.lightingReviewEnvironment !== 'live') {
+      environment = {
+        ...environment, season: 'summer', snowCoverage: 0,
+        weather: this.lightingReviewEnvironment === 'rain' ? 'rain' : 'fair',
+        deciduousFoliage: deciduousFoliageForSeasonPreview('summer'),
+      };
+    }
     this.environment = environment;
     this.weatherPresentationTarget = createWeatherPresentationState(environment);
     // Keep the authored zoom-responsive terrain material in rain. The old
@@ -1327,6 +1349,60 @@ export class SceneManager {
     this.berryPatchVisuals?.setEnvironment(environment);
     this.applyForagingVisualState();
     if (this.lastDayNightState) this.applyDayNight(this.lastDayNightState);
+  }
+
+  setLightingReviewState(state: DayNightLightingState | null): void {
+    this.lightingReviewState = state;
+    if (this.lastDayNightState) this.applyDayNight(this.lastDayNightState);
+    this.lastShadowTargetX = Number.NaN;
+    this.refreshShadowMap();
+  }
+
+  setLightingDiagnostic(mode: string): void {
+    this.postProcessor.setDiagnostic(mode);
+  }
+
+  setLightingReviewEnvironment(mode: 'live' | 'summer' | 'rain'): void {
+    this.lightingReviewEnvironment = mode;
+    if (this.sourceEnvironment) this.setEnvironment(this.sourceEnvironment);
+    // A held review frame must show the selected conditions immediately.
+    // The normal weather transition clamps dt, so a large step cannot settle it.
+    Object.assign(this.weatherPresentation, this.weatherPresentationTarget, {
+      fogTint: this.weatherPresentationTarget.fogTint.clone(),
+    });
+    this.materials.updateWeather(10);
+    if (this.lastDayNightState) this.applyDayNight(this.lastDayNightState);
+    this.refreshShadowMap();
+  }
+
+  setLightingReviewTuning(exposure: number, clearDistance: number, brightness: number, density: number): void {
+    if (![exposure, clearDistance, brightness, density].every(Number.isFinite)) return;
+    this.lightingReviewExposureScale = THREE.MathUtils.clamp(exposure, 0.25, 2);
+    this.atmosphere.clearDistance.value = THREE.MathUtils.clamp(clearDistance, 0, 500);
+    this.atmosphere.brightness.value = THREE.MathUtils.clamp(brightness, 0.1, 2);
+    this.atmosphere.densityScale.value = THREE.MathUtils.clamp(density, 0.1, 3);
+    if (this.lastDayNightState) this.applyDayNight(this.lastDayNightState);
+  }
+
+  setAtmosphereEnabled(enabled: boolean): void {
+    this.atmosphere.enabled.value = enabled ? 1 : 0;
+  }
+
+  getLightingDiagnostics() {
+    const shadow = this.sunLight.shadow;
+    return {
+      sun: +this.sunLight.intensity.toFixed(3), sky: +this.hemiLight.intensity.toFixed(3),
+      exposure: this.renderer.toneMappingExposure,
+      haze: { near: this.atmosphere.clearDistance.value, brightness: this.atmosphere.brightness.value, density: this.atmosphere.densityScale.value },
+      reviewEnvironment: this.lightingReviewEnvironment,
+      shadowMap: shadow.mapSize.toArray(),
+      shadowTexelMeters: +((shadow.camera.right - shadow.camera.left) / shadow.mapSize.x).toFixed(3),
+      camera: this.camera.position.toArray().map(v => +v.toFixed(3)),
+      target: this.cameraTarget.toArray().map(v => +v.toFixed(3)),
+      projection: { fov: this.camera.fov, near: this.camera.near, far: this.camera.far },
+      viewport: [this.renderer.domElement.width, this.renderer.domElement.height],
+      ...this.getPerformanceStats(),
+    };
   }
 
   private updateWeatherPresentation(dt: number): void {
@@ -1786,7 +1862,7 @@ export class SceneManager {
     sun.name = 'Sun';
     sun.position.copy(this.sunDirection).multiplyScalar(180);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(4096, 4096);
     sun.shadow.bias = -0.00008;
     sun.shadow.normalBias = 0.008;
     sun.shadow.radius = 1.8;

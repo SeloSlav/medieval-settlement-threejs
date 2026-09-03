@@ -50,14 +50,14 @@ const FAIR_PROFILE: PrecipitationProfile = {
   fallSpeed: 0,
   windX: 0,
   windZ: 0,
-  // The former rain presentation is now the house look: soft, cool and
-  // restrained even on a dry day. Actual rain deepens it only slightly.
-  atmosphericBlend: 0.42,
-  sunlightMultiplier: 0.32,
-  fogDensityMultiplier: 1.38,
+  // Directional daylight reveals crowns and building mass. Cooler air remains
+  // strongest in the distant, lower parts of the landscape.
+  atmosphericBlend: 0.2,
+  sunlightMultiplier: 0.65,
+  fogDensityMultiplier: 1.05,
   fogTint: 0x8295a1,
-  saturationMultiplier: 0.74,
-  warmthOffset: -0.0336,
+  saturationMultiplier: 0.9,
+  warmthOffset: 0.025,
 };
 
 const FAIR_ROAD_PROFILE: RoadWeatherProfile = {

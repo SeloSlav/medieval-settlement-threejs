@@ -741,6 +741,13 @@ export async function createSeedThreeForest(
     for (const cardMesh of bucket.overviewSet.cards) overviewBillboardGroup.add(cardMesh);
   }
 
+  // The fading canopy does not write depth. Composite it after transparent
+  // river banks and road shoulders (orders 9–12), or those ground layers paint
+  // straight strips through the crowns. Set each mesh's order: changing the
+  // group's order would also move it above unrelated effects and UI overlays.
+  // Opaque roads, terrain, and buildings still occlude it through depth testing.
+  for (const mesh of overviewBillboardGroup.children) mesh.renderOrder = 13;
+
   // Start from a deterministic close-camera state so all three global modes
   // behave correctly before the first camera update (and never flash one frame).
   // Crown-fill cards share the overview crossfade group. Keep the meshes live;

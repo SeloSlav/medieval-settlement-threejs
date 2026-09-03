@@ -377,7 +377,7 @@ const viewSpecs = architectureKitViewSpecs ?? (constructionKind
       ...selectedKinds.map((kind) => {
         const mesh = kind === 'wayside_shrine' && architectureDebugMode !== 'final'
           ? createWaysideShrineMesh(architectureDebugMode)
-          : kind === 'spinning_retting_house'
+          : kind === 'spinning_retting_house' && architectureDebugMode !== 'final'
             ? createSpinningRettingHouseMesh(architectureDebugMode)
           : createBuildingMesh(kind, kind === 'chapel' ? requestedChapelTier : undefined);
         if (showStockedState) {

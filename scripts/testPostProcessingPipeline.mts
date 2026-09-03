@@ -14,7 +14,7 @@ const stockBloomSource = readFileSync(
 assert.match(postSource, /WEBGPU_BLOOM_FULLSCREEN_PASS_COUNT = 12/);
 assert.match(
   postSource,
-  /WEBGPU_POST_FULLSCREEN_PASS_COUNT = WEBGPU_BLOOM_FULLSCREEN_PASS_COUNT \+ 1/,
+  /WEBGPU_POST_FULLSCREEN_PASS_COUNT = WEBGPU_BLOOM_FULLSCREEN_PASS_COUNT \+ 2/,
 );
 assert.match(postSource, /class StableSizeBloomNode extends BloomNode/);
 assert.match(postSource, /if \(width === this\.width && height === this\.height\) return/);

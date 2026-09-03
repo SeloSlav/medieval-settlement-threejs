@@ -77,6 +77,10 @@ export class SessionLifecycleController {
   onPresentationReady(): void {
     this.presentationReady = true;
     this.dismissLoadingWhenPlayable();
+    // A transport can close while the first scene is compiling, before the
+    // session has ever reached ready. Resume that handshake after presentation
+    // startup instead of leaving the completed loading screen waiting forever.
+    if (!this.deps.sessionGate.isReady()) this.scheduleReconnect();
   }
 
   onBootstrapFailed(error: unknown, retry: () => void): void {
@@ -167,6 +171,7 @@ export class SessionLifecycleController {
     }
 
     if (!this.deps.sessionGate.hasEverBeenReady()) {
+      if (this.presentationReady) this.scheduleReconnect();
       return;
     }
 

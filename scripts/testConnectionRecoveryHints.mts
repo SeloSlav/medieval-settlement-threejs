@@ -167,10 +167,28 @@ const offline = formatConnectionUnavailable();
 assert.equal(offline.showNewWorldAction, false);
 assert.match(offline.recoveryHint, /retry/i);
 
+const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+const lifecycleTimers = new Map<number, () => void>();
+let nextLifecycleTimer = 1;
+Object.defineProperty(globalThis, 'window', {
+  configurable: true,
+  value: {
+    setTimeout(callback: () => void) {
+      const id = nextLifecycleTimer++;
+      lifecycleTimers.set(id, callback);
+      return id;
+    },
+    clearTimeout(id: number) { lifecycleTimers.delete(id); },
+  },
+});
+
 function createLifecycleHarness() {
   const gate = new SessionConnectionGate();
   let dismissCount = 0;
   let firstPlayableCount = 0;
+  let connected = false;
+  let connectCount = 0;
+  let snapshotListener: ((snapshot: { connected: boolean; identityHex: string | null }) => void) | null = null;
   const controller = new SessionLifecycleController({
     sessionGate: gate,
     loadingScreen: {
@@ -186,15 +204,18 @@ function createLifecycleHarness() {
       hide: () => undefined,
     },
     spacetimeStore: {
-      subscribe: () => () => undefined,
+      subscribe: (listener: typeof snapshotListener) => {
+        snapshotListener = listener;
+        return () => { snapshotListener = null; };
+      },
       get isConnected() {
-        return false;
+        return connected;
       },
       snapshot: {
         connected: false,
         identityHex: null,
       },
-      connect: () => undefined,
+      connect: () => { connectCount += 1; },
     },
     toolbar: null,
     roadTool: null,
@@ -208,6 +229,11 @@ function createLifecycleHarness() {
   } as never);
   return {
     controller,
+    emitConnection(value: boolean) {
+      connected = value;
+      snapshotListener?.({ connected, identityHex: connected ? 'test-player' : null });
+    },
+    get connectCount() { return connectCount; },
     get dismissCount() {
       return dismissCount;
     },
@@ -247,6 +273,26 @@ sessionFirst.controller.onPresentationReady();
 assert.equal(sessionFirst.dismissCount, 1);
 assert.equal(sessionFirst.firstPlayableCount, 1);
 sessionFirst.controller.dispose();
+
+const interruptedStartup = createLifecycleHarness();
+interruptedStartup.emitConnection(true);
+interruptedStartup.emitConnection(false);
+assert.equal(lifecycleTimers.size, 0, 'first-scene construction should finish before scheduling recovery');
+interruptedStartup.controller.onPresentationReady();
+assert.equal(lifecycleTimers.size, 1, 'an early disconnect must recover after the first scene is ready');
+for (const [id, callback] of [...lifecycleTimers]) {
+  lifecycleTimers.delete(id);
+  callback();
+}
+assert.equal(interruptedStartup.connectCount, 1);
+assert.equal(interruptedStartup.dismissCount, 0, 'reconnect attempts cannot dismiss the loading cover');
+interruptedStartup.emitConnection(true);
+interruptedStartup.controller.onReady();
+assert.equal(interruptedStartup.dismissCount, 1);
+assert.equal(lifecycleTimers.size, 0, 'successful entry cancels the pending retry');
+interruptedStartup.controller.dispose();
+if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow);
+else Reflect.deleteProperty(globalThis, 'window');
 
 const overlaySource = readFileSync(
   new URL('../src/ui/SessionConnectionOverlay.ts', import.meta.url),
