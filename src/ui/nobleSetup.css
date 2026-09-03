@@ -1,12 +1,12 @@
 /* Shared heraldry ------------------------------------------------------ */
 
 .heraldry-shield {
-  --field-a: #8d3027;
-  --field-b: #d8d1bb;
+  --field-a: #a44132;
+  --field-b: #e2dac2;
   --pattern-angle: 0deg;
   --pattern-size: 22px;
-  --charge-color: #c59b48;
-  --charge-outline-color: #25251f;
+  --charge-color: #c7a64e;
+  --charge-outline-color: #272824;
   --charge-outline-width: max(0.35px, 1cqw);
   --charge-scale: 0.62;
   --shield-clip: polygon(7% 0, 93% 0, 91% 59%, 84% 73%, 68% 87%, 50% 100%, 32% 87%, 16% 73%, 9% 59%);
@@ -618,13 +618,16 @@
 
 .noble-setup-colors {
   display: grid;
-  grid-template-columns: repeat(7, 24px);
-  gap: 5px;
+  /* Keep the original row footprint; only the swatches share its spare width. */
+  min-width: 198px;
+  grid-template-columns: repeat(10, minmax(0, 24px));
+  gap: 3px;
 }
 
 .noble-setup-color {
   position: relative;
-  width: 24px;
+  width: 100%;
+  min-width: 0;
   height: 24px;
   padding: 3px;
   border-radius: 2px;
@@ -1108,8 +1111,8 @@
   .noble-setup-editor-title h3 { font-size: 11px; }
   .noble-setup-color-setting { grid-template-columns: 1fr; gap: 2px; }
   .noble-setup-color-setting > span { font-size: 6px; }
-  .noble-setup-colors { grid-template-columns: repeat(7, 14px); gap: 2px; }
-  .noble-setup-color { width: 14px; height: 14px; padding: 1px; }
+  .noble-setup-colors { min-width: 110px; grid-template-columns: repeat(10, minmax(0, 14px)); gap: 2px; }
+  .noble-setup-color { height: 14px; padding: 1px; }
   .noble-setup-patterns,
   .noble-setup-charges { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
   .noble-setup-pattern {

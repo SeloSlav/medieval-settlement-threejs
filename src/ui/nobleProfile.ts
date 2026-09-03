@@ -131,14 +131,44 @@ export const NOBLES = [
 
 export type NobleId = (typeof NOBLES)[number]['id'];
 
+// Art-directed cloth colors, not measurements of surviving regional textiles.
+// The first seven are conventional tinctures; the last three extend the cloth
+// palette, without claiming they were standard Croatian heraldic tinctures.
+// Historical rationale and sources: artifacts/startup-ui/heraldry-palette.md.
+export const HERALDRY_CLOTH_COLORS = {
+  red: '#a44132',
+  blue: '#355f83',
+  green: '#526b3d',
+  black: '#272824',
+  purple: '#705574',
+  white: '#e2dac2',
+  yellow: '#c7a64e',
+  crimson: '#862f46',
+  russet: '#ae6638',
+  brown: '#735039',
+} as const;
+
 export const HERALDRY_TINCTURES = [
-  { id: 'gules', name: 'Red', value: '#8d3027' },
-  { id: 'azure', name: 'Blue', value: '#2e5266' },
-  { id: 'vert', name: 'Green', value: '#43593b' },
-  { id: 'sable', name: 'Black', value: '#25251f' },
-  { id: 'purpure', name: 'Purple', value: '#66445b' },
-  { id: 'argent', name: 'Silver', value: '#d8d1bb' },
-  { id: 'or', name: 'Gold', value: '#c59b48' },
+  { id: 'gules', name: 'Red', value: HERALDRY_CLOTH_COLORS.red,
+    dye: 'Madder red', description: 'Madder root dyes wool a warm, strong red. A well-established European cloth dye.' },
+  { id: 'azure', name: 'Blue', value: HERALDRY_CLOTH_COLORS.blue,
+    dye: 'Woad blue', description: 'Woad vat-dyeing produces blue cloth; repeated dips can deepen the shade.' },
+  { id: 'vert', name: 'Green', value: HERALDRY_CLOTH_COLORS.green,
+    dye: 'Weld and woad green', description: 'Yellow from weld combined with woad blue produces a leafy green.' },
+  { id: 'sable', name: 'Black', value: HERALDRY_CLOTH_COLORS.black,
+    dye: 'Tannin black', description: 'Oak-gall tannins and iron salts produce black. A deep, even black required careful dyeing.' },
+  { id: 'purpure', name: 'Purple', value: HERALDRY_CLOTH_COLORS.purple,
+    dye: 'Madder and woad purple', description: 'Red and blue dye baths produce a subdued purple, without rare shellfish dye.' },
+  { id: 'argent', name: 'White', value: HERALDRY_CLOTH_COLORS.white,
+    dye: 'Wool white · Argent', description: 'Light, undyed wool gives a warm off-white. White cloth stands for heraldic silver.' },
+  { id: 'or', name: 'Yellow', value: HERALDRY_CLOTH_COLORS.yellow,
+    dye: 'Weld yellow · Or', description: 'Weld flowers and leaves produce yellow. Yellow cloth stands for heraldic gold.' },
+  { id: 'crimson', name: 'Crimson', value: HERALDRY_CLOTH_COLORS.crimson,
+    dye: 'Kermes crimson', description: 'Kermes insects provide a rich red dye. A costly luxury option known in sixteenth-century textiles.' },
+  { id: 'russet', name: 'Russet', value: HERALDRY_CLOTH_COLORS.russet,
+    dye: 'Madder russet', description: 'A warm orange-brown in the range of madder dyes, distinct from the deeper red.' },
+  { id: 'walnut', name: 'Brown', value: HERALDRY_CLOTH_COLORS.brown,
+    dye: 'Walnut brown', description: 'The green husks of common walnut provide a warm brown cloth dye.' },
 ] as const;
 
 export const HERALDRY_PATTERNS = [
@@ -302,22 +332,24 @@ export type NobleProfile = {
   heraldry: Heraldry;
 };
 
+const cloth = HERALDRY_CLOTH_COLORS;
+
 export const HERALDRY_PRESETS: readonly Heraldry[] = [
-  { pattern: 'solid', fieldColor: '#43593b', patternColor: '#43593b', patternTiling: 1, patternAngle: 0, charge: 'bear', chargeColor: '#d8d1bb', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.66 },
-  { pattern: 'per-pale', fieldColor: '#25251f', patternColor: '#c59b48', patternTiling: 1, patternAngle: 0, charge: 'lion', chargeColor: '#d8d1bb', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.68 },
-  { pattern: 'bend', fieldColor: '#8d3027', patternColor: '#d8d1bb', patternTiling: 1, patternAngle: -5, charge: 'wolf', chargeColor: '#25251f', chargeOutlineColor: '#d8d1bb', chargeCount: 1, chargeScale: 0.64 },
-  { pattern: 'quarterly', fieldColor: '#2e5266', patternColor: '#d8d1bb', patternTiling: 1, patternAngle: 0, charge: 'tower', chargeColor: '#c59b48', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.61 },
-  { pattern: 'per-fess', fieldColor: '#43593b', patternColor: '#c59b48', patternTiling: 1, patternAngle: 0, charge: 'stag', chargeColor: '#d8d1bb', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.67 },
-  { pattern: 'saltire', fieldColor: '#66445b', patternColor: '#d8d1bb', patternTiling: 1, patternAngle: 0, charge: 'star', chargeColor: '#c59b48', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.5 },
-  { pattern: 'stripes', fieldColor: '#25251f', patternColor: '#8d3027', patternTiling: 4, patternAngle: 0, charge: 'eagle', chargeColor: '#d8d1bb', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.72 },
-  { pattern: 'solid', fieldColor: '#2e5266', patternColor: '#2e5266', patternTiling: 1, patternAngle: 0, charge: 'crescent', chargeColor: '#d8d1bb', chargeOutlineColor: '#25251f', chargeCount: 3, chargeScale: 0.34 },
-  { pattern: 'lozengy', fieldColor: '#d8d1bb', patternColor: '#43593b', patternTiling: 3, patternAngle: 0, charge: 'bear', chargeColor: '#25251f', chargeOutlineColor: '#d8d1bb', chargeCount: 1, chargeScale: 0.66 },
-  { pattern: 'cross', fieldColor: '#8d3027', patternColor: '#d8d1bb', patternTiling: 1, patternAngle: 0, charge: 'key', chargeColor: '#c59b48', chargeOutlineColor: '#25251f', chargeCount: 2, chargeScale: 0.38 },
-  { pattern: 'chevron', fieldColor: '#25251f', patternColor: '#c59b48', patternTiling: 1, patternAngle: 0, charge: 'boar', chargeColor: '#d8d1bb', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.59 },
-  { pattern: 'bend-sinister', fieldColor: '#43593b', patternColor: '#d8d1bb', patternTiling: 1, patternAngle: 6, charge: 'axes', chargeColor: '#c59b48', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.6 },
-  { pattern: 'per-pale', fieldColor: '#66445b', patternColor: '#25251f', patternTiling: 1, patternAngle: 0, charge: 'fleur-de-lis', chargeColor: '#d8d1bb', chargeOutlineColor: '#25251f', chargeCount: 3, chargeScale: 0.33 },
-  { pattern: 'checky', fieldColor: '#2e5266', patternColor: '#d8d1bb', patternTiling: 3, patternAngle: 0, charge: 'sword', chargeColor: '#c59b48', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.65 },
-  { pattern: 'solid', fieldColor: '#8d3027', patternColor: '#8d3027', patternTiling: 1, patternAngle: 0, charge: 'oak-branch', chargeColor: '#d8d1bb', chargeOutlineColor: '#25251f', chargeCount: 1, chargeScale: 0.62 },
+  { pattern: 'solid', fieldColor: cloth.green, patternColor: cloth.green, patternTiling: 1, patternAngle: 0, charge: 'bear', chargeColor: cloth.white, chargeOutlineColor: cloth.black, chargeCount: 1, chargeScale: 0.66 },
+  { pattern: 'per-pale', fieldColor: cloth.black, patternColor: cloth.yellow, patternTiling: 1, patternAngle: 0, charge: 'lion', chargeColor: cloth.white, chargeOutlineColor: cloth.black, chargeCount: 1, chargeScale: 0.68 },
+  { pattern: 'bend', fieldColor: cloth.red, patternColor: cloth.white, patternTiling: 1, patternAngle: -5, charge: 'wolf', chargeColor: cloth.black, chargeOutlineColor: cloth.white, chargeCount: 1, chargeScale: 0.64 },
+  { pattern: 'quarterly', fieldColor: cloth.blue, patternColor: cloth.white, patternTiling: 1, patternAngle: 0, charge: 'tower', chargeColor: cloth.yellow, chargeOutlineColor: cloth.black, chargeCount: 1, chargeScale: 0.61 },
+  { pattern: 'per-fess', fieldColor: cloth.green, patternColor: cloth.yellow, patternTiling: 1, patternAngle: 0, charge: 'stag', chargeColor: cloth.white, chargeOutlineColor: cloth.black, chargeCount: 1, chargeScale: 0.67 },
+  { pattern: 'saltire', fieldColor: cloth.purple, patternColor: cloth.white, patternTiling: 1, patternAngle: 0, charge: 'star', chargeColor: cloth.yellow, chargeOutlineColor: cloth.black, chargeCount: 1, chargeScale: 0.5 },
+  { pattern: 'stripes', fieldColor: cloth.black, patternColor: cloth.red, patternTiling: 4, patternAngle: 0, charge: 'eagle', chargeColor: cloth.white, chargeOutlineColor: cloth.black, chargeCount: 1, chargeScale: 0.72 },
+  { pattern: 'solid', fieldColor: cloth.blue, patternColor: cloth.blue, patternTiling: 1, patternAngle: 0, charge: 'crescent', chargeColor: cloth.white, chargeOutlineColor: cloth.black, chargeCount: 3, chargeScale: 0.34 },
+  { pattern: 'lozengy', fieldColor: cloth.white, patternColor: cloth.green, patternTiling: 3, patternAngle: 0, charge: 'bear', chargeColor: cloth.black, chargeOutlineColor: cloth.white, chargeCount: 1, chargeScale: 0.66 },
+  { pattern: 'cross', fieldColor: cloth.red, patternColor: cloth.white, patternTiling: 1, patternAngle: 0, charge: 'key', chargeColor: cloth.yellow, chargeOutlineColor: cloth.black, chargeCount: 2, chargeScale: 0.38 },
+  { pattern: 'chevron', fieldColor: cloth.black, patternColor: cloth.yellow, patternTiling: 1, patternAngle: 0, charge: 'boar', chargeColor: cloth.white, chargeOutlineColor: cloth.black, chargeCount: 1, chargeScale: 0.59 },
+  { pattern: 'bend-sinister', fieldColor: cloth.green, patternColor: cloth.white, patternTiling: 1, patternAngle: 6, charge: 'axes', chargeColor: cloth.yellow, chargeOutlineColor: cloth.black, chargeCount: 1, chargeScale: 0.6 },
+  { pattern: 'per-pale', fieldColor: cloth.purple, patternColor: cloth.black, patternTiling: 1, patternAngle: 0, charge: 'fleur-de-lis', chargeColor: cloth.white, chargeOutlineColor: cloth.black, chargeCount: 3, chargeScale: 0.33 },
+  { pattern: 'checky', fieldColor: cloth.blue, patternColor: cloth.white, patternTiling: 3, patternAngle: 0, charge: 'sword', chargeColor: cloth.yellow, chargeOutlineColor: cloth.black, chargeCount: 1, chargeScale: 0.65 },
+  { pattern: 'solid', fieldColor: cloth.red, patternColor: cloth.red, patternTiling: 1, patternAngle: 0, charge: 'oak-branch', chargeColor: cloth.white, chargeOutlineColor: cloth.black, chargeCount: 1, chargeScale: 0.62 },
 ];
 
 export const DEFAULT_NOBLE_PROFILE: NobleProfile = {

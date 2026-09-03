@@ -477,7 +477,9 @@ export class NobleSetupPanel {
       button.dataset.colorValue = tincture.value;
       button.style.setProperty('--swatch-color', tincture.value);
       button.setAttribute('aria-label', tincture.name);
-      button.title = tincture.name;
+      button.dataset.tooltipTitle = tincture.dye;
+      button.dataset.tooltip = tincture.description;
+      button.dataset.tooltipPlacement = 'above';
       button.addEventListener('click', () => {
         this.setupAudio.play('setup_choice');
         this.draft.heraldry[key] = tincture.value;
