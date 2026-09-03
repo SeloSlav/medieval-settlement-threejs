@@ -207,10 +207,9 @@ export function applySeedThreeWholeCardDormancy(
   return material;
 }
 
-/** Clone a cached forest material so fading overview geometry cannot fade near trees. */
-export function createSeedThreeOverviewFadeMaterial(
+/** Clone a cached forest material while retaining its live seasonal uniforms. */
+export function cloneSeedThreeForestMaterial(
   source: THREE.Material,
-  wholeCardDormancy = false,
 ): THREE.Material {
   const material = source.clone();
   // NodeMaterial.clone() omits these standard texture/node properties in the
@@ -248,6 +247,15 @@ export function createSeedThreeOverviewFadeMaterial(
     const value = source.userData[property];
     if (value !== undefined) material.userData[property] = value;
   }
+  return material;
+}
+
+/** Clone a cached forest material so fading overview geometry cannot fade near trees. */
+export function createSeedThreeOverviewFadeMaterial(
+  source: THREE.Material,
+  wholeCardDormancy = false,
+): THREE.Material {
+  const material = cloneSeedThreeForestMaterial(source);
   material.userData.seedThreeOwnedOverviewFadeMaterial = true;
   if (wholeCardDormancy) applySeedThreeWholeCardDormancy(material);
   return applySeedThreeOverviewBillboardFade(material);

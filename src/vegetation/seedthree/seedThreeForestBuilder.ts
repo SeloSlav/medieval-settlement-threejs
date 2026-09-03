@@ -82,6 +82,7 @@ import {
   applySeedThreeForestCardMotion,
   applySeedThreeOverviewBillboardFade,
   applySeedThreeWholeCardDormancy,
+  cloneSeedThreeForestMaterial,
   createSeedThreeOverviewBarkFadeMaterial,
   createSeedThreeOverviewFadeMaterial,
   resolveSeedThreeForestCardMotion,
@@ -376,17 +377,24 @@ function createInstancedLodSet(
         }
 
         const sourceMaterial = instanced.material as THREE.Material;
+        const cachedForestMaterial = stabilizeSeedThreeForestCardMaterial(
+          (instanced.userData.shareMaterial
+          ? instanced.material
+          : forestCardMaterial(instanced.material as THREE.Material, {
+              seasonalDeciduous: options.seasonalDeciduous,
+              canopyTint: options.canopyTint,
+              autumnColor: options.autumnColor,
+              toneVariation: options.toneVariation,
+            })) as THREE.Material,
+        );
+        const isolatedForestMaterial = options.overviewCards === true
+          ? cloneSeedThreeForestMaterial(cachedForestMaterial)
+          : cachedForestMaterial;
+        if (options.overviewCards === true) {
+          options.ownedOverviewFadeMaterials?.add(isolatedForestMaterial);
+        }
         const baseForestMaterial = applySeedThreeForestCardMotion(
-          stabilizeSeedThreeForestCardMaterial(
-            (instanced.userData.shareMaterial
-            ? instanced.material
-            : forestCardMaterial(instanced.material as THREE.Material, {
-                seasonalDeciduous: options.seasonalDeciduous,
-                canopyTint: options.canopyTint,
-                autumnColor: options.autumnColor,
-                toneVariation: options.toneVariation,
-              })) as THREE.Material,
-          ),
+          isolatedForestMaterial,
           resolveSeedThreeForestCardMotion(
             options.overviewCards === true,
             crownUnderlay,

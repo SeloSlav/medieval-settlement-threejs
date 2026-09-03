@@ -7,11 +7,10 @@ import {
   type RiverCorridor,
   type RiverPoint,
 } from '../rivers/RiverLayout.ts';
-import { RiverField } from '../rivers/RiverField.ts';
 import {
   computeWaterFeatherAlpha,
-  createRiverWaterShoreMaps,
   disposeRiverWaterShoreMaps,
+  encodeWaterFlowDirection,
   type RiverWaterShoreMaps,
 } from '../rivers/riverWaterShoreMaps.ts';
 import { createRiverWaterMaterial } from '../rivers/RiverWaterMaterial.ts';
@@ -48,11 +47,11 @@ type HorizonWaterPath = { points: HorizonWaterPoint[] };
 type HorizonLake = InlandWaterBody & { surfaceY: number };
 
 const WATER_PATH_SPACING = 82;
-const WATER_FIELD_RESOLUTION = 192;
+const WATER_FIELD_RESOLUTION = 256;
 const MAX_WATER_PATHS = 4;
-const MAX_SEEDTHREE_OVERVIEW_TREES = 3_600;
+const MAX_SEEDTHREE_OVERVIEW_TREES = 7_200;
 const FOREST_SEAM_CLEARANCE = 18;
-const FOREST_MINIMUM_SPACING = 22;
+const FOREST_MINIMUM_SPACING = 16;
 const WATER_VERTEX_COLUMNS = [-1, -0.44, 0.44, 1] as const;
 const WATER_VERTEX_FEATHER = [0.08, 1, 1, 0.08] as const;
 const WATER_VERTEX_FOAM = [0.85, 0.12, 0.12, 0.85] as const;
@@ -102,14 +101,7 @@ export class TerrainHorizonWorld {
       this.shoreMaps = options.settings.terrainPreset === 'vinodol_coast'
         ? createCoastalShoreMaps(options)
         : this.outerRiverLayout
-          ? createRiverWaterShoreMaps(
-              RiverField.fromLayout({
-                bounds: horizonBounds(options.outerHalfExtent),
-                layout: this.outerRiverLayout,
-                resolution: WATER_FIELD_RESOLUTION,
-              }),
-              { includeChannelRocks: false },
-            )
+          ? createHorizonRiverFlowMaps(this, options)
           : null;
       if (!this.shoreMaps) {
         waterGeometry.dispose();
@@ -626,6 +618,86 @@ function appendCoastalGeometry(
   }
 }
 
+function createHorizonRiverFlowMaps(
+  world: TerrainHorizonWorld,
+  options: TerrainHorizonWorldOptions,
+): RiverWaterShoreMaps {
+  const resolution = WATER_FIELD_RESOLUTION;
+  const span = options.outerHalfExtent * 2;
+  const step = span / (resolution - 1);
+  const data = new Uint8Array(resolution * resolution * 4);
+  // The ribbon's exact analytic feather is carried per vertex. Keep the red
+  // channel fully wet so a world-scale low-resolution texture can never punch
+  // gaps into a narrow continuation river; this texture only supplies current.
+  for (let index = 0; index < resolution * resolution; index++) {
+    const offset = index * 4;
+    data[offset] = 255;
+    data[offset + 1] = 0;
+    data[offset + 2] = 128;
+    data[offset + 3] = 128;
+  }
+
+  for (const path of world.waterPaths) {
+    for (let pointIndex = 0; pointIndex < path.points.length - 1; pointIndex++) {
+      const a = path.points[pointIndex]!;
+      const b = path.points[pointIndex + 1]!;
+      const vx = b.x - a.x;
+      const vz = b.z - a.z;
+      const lengthSquared = vx * vx + vz * vz;
+      const inverseLength = 1 / Math.max(1e-6, Math.sqrt(lengthSquared));
+      const [flowX, flowZ] = encodeWaterFlowDirection({
+        dx: vx * inverseLength,
+        dz: vz * inverseLength,
+      });
+      const reach = Math.max(a.halfWidth, b.halfWidth) + step * 1.5;
+      const minimumX = Math.max(0, Math.floor((Math.min(a.x, b.x) - reach + options.outerHalfExtent) / step));
+      const maximumX = Math.min(resolution - 1, Math.ceil((Math.max(a.x, b.x) + reach + options.outerHalfExtent) / step));
+      const minimumZ = Math.max(0, Math.floor((Math.min(a.z, b.z) - reach + options.outerHalfExtent) / step));
+      const maximumZ = Math.min(resolution - 1, Math.ceil((Math.max(a.z, b.z) + reach + options.outerHalfExtent) / step));
+      for (let iz = minimumZ; iz <= maximumZ; iz++) {
+        const z = -options.outerHalfExtent + iz * step;
+        for (let ix = minimumX; ix <= maximumX; ix++) {
+          const x = -options.outerHalfExtent + ix * step;
+          const t = lengthSquared <= 1e-6
+            ? 0
+            : THREE.MathUtils.clamp(((x - a.x) * vx + (z - a.z) * vz) / lengthSquared, 0, 1);
+          const px = THREE.MathUtils.lerp(a.x, b.x, t);
+          const pz = THREE.MathUtils.lerp(a.z, b.z, t);
+          const halfWidth = THREE.MathUtils.lerp(a.halfWidth, b.halfWidth, t);
+          if (Math.hypot(x - px, z - pz) > halfWidth + step) continue;
+          const offset = (iz * resolution + ix) * 4;
+          data[offset + 2] = flowX;
+          data[offset + 3] = flowZ;
+        }
+      }
+    }
+  }
+
+  const shoreTexture = new THREE.DataTexture(
+    data,
+    resolution,
+    resolution,
+    THREE.RGBAFormat,
+    THREE.UnsignedByteType,
+  );
+  shoreTexture.colorSpace = THREE.NoColorSpace;
+  shoreTexture.wrapS = THREE.ClampToEdgeWrapping;
+  shoreTexture.wrapT = THREE.ClampToEdgeWrapping;
+  shoreTexture.minFilter = THREE.LinearFilter;
+  shoreTexture.magFilter = THREE.LinearFilter;
+  shoreTexture.generateMipmaps = false;
+  shoreTexture.needsUpdate = true;
+  return {
+    shoreTexture,
+    originX: -options.outerHalfExtent,
+    originZ: -options.outerHalfExtent,
+    invSpanX: 1 / span,
+    invSpanZ: 1 / span,
+    resolution,
+    channelRockCount: 0,
+  };
+}
+
 function createCoastalShoreMaps(options: TerrainHorizonWorldOptions): RiverWaterShoreMaps {
   const resolution = 128;
   const span = options.outerHalfExtent * 2;
@@ -676,7 +748,7 @@ function createSeedThreeHorizonPlacements(
   const rng = mulberry32(settings.seed ^ 0x53454544);
   const target = Math.min(
     MAX_SEEDTHREE_OVERVIEW_TREES,
-    Math.round(settings.forestDensity * 36),
+    Math.round(settings.forestDensity * 72),
   );
   // Spend real SeedThree instances where they actually continue the playable
   // forest silhouette. Beyond this band the terrain's inherited woodland mask,

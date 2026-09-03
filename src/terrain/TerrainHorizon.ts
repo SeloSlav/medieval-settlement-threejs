@@ -80,7 +80,7 @@ export const TERRAIN_HORIZON_PARAMETERS = Object.freeze({
     maximumDrawCalls: 2,
     maximumTerrainTriangles: 12_288,
     maximumWaterTriangles: 8_192,
-    maximumSeedThreeOverviewTrees: 3_600,
+    maximumSeedThreeOverviewTrees: 7_200,
   }),
 });
 

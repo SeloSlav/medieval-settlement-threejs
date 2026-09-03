@@ -4,6 +4,7 @@ import {
   TerrainHorizon,
   TERRAIN_HORIZON_PARAMETERS,
 } from '../src/terrain/TerrainHorizon.ts';
+import { TerrainHorizonWorld } from '../src/terrain/TerrainHorizonWorld.ts';
 import { RiverLayout } from '../src/rivers/RiverLayout.ts';
 import { WORLD_TERRAIN_PRESETS } from '../src/world/worldTerrainPresets.ts';
 
@@ -34,6 +35,7 @@ function createSourceGeometry(): THREE.BufferGeometry {
       normals.set([-0.1, 1, -0.05], index * 3);
       uvs.set([x / 48, z / 48], index * 2);
       colors.set([0.6, 0.25, 0.15], index * 3);
+      staticMasks[index * 3] = 1;
     }
   }
   const geometry = new THREE.BufferGeometry();
@@ -62,6 +64,7 @@ function createHorizon(source: THREE.BufferGeometry, material: THREE.Material): 
     farDistance: FAR_DISTANCE,
     seed: 0x71a2e0d,
     sampleHeight: testHeight,
+    sampleForestBlend: () => 1,
   });
 }
 
@@ -102,6 +105,10 @@ assert.ok(
     <= TERRAIN_HORIZON_PARAMETERS.budget.maximumSeedThreeOverviewTrees,
   'outer SeedThree placement budget must remain bounded',
 );
+assert.ok(
+  diagnostics.seedThreeOverviewTrees >= 2_000,
+  `a normal-density map must receive a genuinely dense SeedThree outer forest; got ${diagnostics.seedThreeOverviewTrees}`,
+);
 assert.equal(diagnostics.seedThreeNearTrees, 0);
 assert.equal(diagnostics.seedThreeShadowTrees, 0);
 assert.ok(diagnostics.hydrologyPaths >= 1, 'wet custom terrain should receive an outer watershed');
@@ -126,8 +133,10 @@ for (let index = 1; index < diagnostics.lodRows.length; index++) {
 
 const horizonPositions = horizon.mesh.geometry.getAttribute('position');
 const horizonIndices = horizon.mesh.geometry.getIndex();
+const horizonForestBlend = horizon.mesh.geometry.getAttribute('forestBlend');
 assert.ok(horizonIndices);
 let seamVertices = 0;
+let inheritedForestVertices = 0;
 for (let index = 0; index < horizonPositions.count; index++) {
   const x = horizonPositions.getX(index);
   const y = horizonPositions.getY(index);
@@ -140,8 +149,62 @@ for (let index = 0; index < horizonPositions.count; index++) {
     seamVertices++;
     assert.ok(Math.abs(y - testHeight(x, z)) <= 1e-5, 'the horizon seam must copy source height exactly');
   }
+  if (
+    Math.max(Math.abs(x), Math.abs(z)) > playableHalf
+    && Math.max(Math.abs(x), Math.abs(z)) < playableHalf + 80
+  ) {
+    inheritedForestVertices++;
+    assert.ok(
+      horizonForestBlend.getX(index) > 0.72,
+      'authored woodland at the map edge must continue into the outer-world handoff',
+    );
+  }
 }
 assert.equal(seamVertices, 4 * RESOLUTION, 'every source boundary vertex must be copied once per side');
+assert.ok(inheritedForestVertices > 0, 'the test must cover the forest handoff outside the seam');
+
+const authoredRiverEndpoint = { x: 39, z: 6 };
+const authoredRiver = RiverLayout.fromSerialized({
+  bounds: { minX: -40, maxX: 40, minZ: -40, maxZ: 40 },
+  seed: 0x12345678,
+  drain: authoredRiverEndpoint,
+  terrainPreset: 'custom',
+  corridors: [{
+    points: [
+      { x: 14, z: 3, progress: 0, halfWidth: 9, channelDepth: 2.6 },
+      { ...authoredRiverEndpoint, progress: 1, halfWidth: 11, channelDepth: 2.9 },
+    ],
+  }],
+  inlandWaterBodies: [],
+});
+const riverContinuationWorld = new TerrainHorizonWorld({
+  innerHalfExtent: 40,
+  outerHalfExtent: 720,
+  settings: {
+    seed: 0x12345678,
+    terrainPreset: 'custom',
+    topography: 45,
+    hydrology: 72,
+    forestDensity: 50,
+  },
+  riverLayout: authoredRiver,
+  sampleBaseHeight: testHeight,
+  sampleSourceForestBlend: () => 0.8,
+});
+const continuedRiver = riverContinuationWorld.waterPaths[0]?.points;
+assert.ok(continuedRiver && continuedRiver.length > 2, 'authored edge river must continue into the outer world');
+assert.equal(continuedRiver[0]!.x, authoredRiverEndpoint.x, 'outer water must start on the authored river endpoint');
+assert.equal(continuedRiver[0]!.z, authoredRiverEndpoint.z, 'outer water must not leave a seam gap');
+const authoredDirection = new THREE.Vector2(25, 3).normalize();
+const continuedDirection = new THREE.Vector2(
+  continuedRiver[1]!.x - continuedRiver[0]!.x,
+  continuedRiver[1]!.z - continuedRiver[0]!.z,
+).normalize();
+assert.ok(
+  authoredDirection.dot(continuedDirection) > 0.82,
+  'outer water must preserve the source corridor tangent through the map edge',
+);
+riverContinuationWorld.dispose();
 for (let triangle = 0; triangle < horizonIndices.count; triangle += 3) {
   const a = horizonIndices.getX(triangle);
   const b = horizonIndices.getX(triangle + 1);
@@ -235,7 +298,14 @@ for (const preset of WORLD_TERRAIN_PRESETS) {
   );
   assert.ok(
     presetHorizon.getForestPlacements().length > 0,
-    `${preset.id} should seed a sparse SeedThree horizon forest`,
+    `${preset.id} should seed a dense SeedThree horizon forest`,
+  );
+  assert.ok(
+    presetHorizon.getForestPlacements().length >= Math.min(
+      TERRAIN_HORIZON_PARAMETERS.budget.maximumSeedThreeOverviewTrees,
+      preset.forestDensity * 15,
+    ),
+    `${preset.id} should retain enough SeedThree crowns to read as regional woodland; got ${presetHorizon.getForestPlacements().length}`,
   );
   if (preset.hydrology >= 18 || preset.id === 'vinodol_coast') {
     assert.equal(evidence.waterDrawCalls, 1, `${preset.id} should render outer hydrology`);
