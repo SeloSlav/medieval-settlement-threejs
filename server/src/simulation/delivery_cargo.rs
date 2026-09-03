@@ -353,7 +353,7 @@ pub fn selected_food_delivery_commodity(
     building: &Building,
     need_kind: ResidenceNeedKind,
 ) -> Option<CommodityKind> {
-    const FRESH_ORDER: [CommodityKind; 19] = [
+    const FRESH_ORDER: [CommodityKind; 21] = [
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
@@ -373,6 +373,8 @@ pub fn selected_food_delivery_commodity(
         CommodityKind::MaslinBread,
         CommodityKind::OatGrain,
         CommodityKind::Honey,
+        CommodityKind::AroniaJam,
+        CommodityKind::RosehipJam,
     ];
     const PRESERVED_ORDER: [CommodityKind; 3] = [
         CommodityKind::Cheese,
@@ -404,6 +406,8 @@ pub fn selected_food_delivery_commodity(
             PRESERVED_ORDER[1],
             PRESERVED_ORDER[2],
             FRESH_ORDER[18],
+            FRESH_ORDER[19],
+            FRESH_ORDER[20],
         ],
         ResidenceNeedKind::SavoryPreserves => &PRESERVED_ORDER,
         _ => return None,
