@@ -877,7 +877,6 @@ pub(crate) fn place_building_internal(
         water: 0.0,
         food: 0.0,
         ale: 0.0,
-        preserved_food: 0.0,
         honey: 0.0,
         wine: 0.0,
         ironwork: 0.0,
@@ -1295,7 +1294,7 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
         ProcessorOutputKind::Flour => Some(CommodityKind::RyeFlour),
         ProcessorOutputKind::Food => Some(CommodityKind::RyeBread),
         ProcessorOutputKind::Ale => Some(CommodityKind::Ale),
-        ProcessorOutputKind::PreservedFood => Some(CommodityKind::PreservedFood),
+        ProcessorOutputKind::PreservedFood => None,
         ProcessorOutputKind::TextileIntermediate => Some(CommodityKind::Yarn),
         ProcessorOutputKind::Cloth => Some(CommodityKind::Cloth),
         ProcessorOutputKind::Charcoal => Some(CommodityKind::Charcoal),
@@ -1311,7 +1310,7 @@ fn processor_output_room(building: &Building) -> Option<f64> {
     if building.kind == "smokehouse" {
         return Some(processor_output_headroom(
             crate::economy::building_preserved_food_stock(building),
-            building_commodity_cap(&building.kind, CommodityKind::PreservedFood),
+            building_commodity_cap(&building.kind, CommodityKind::CuredMeat),
             building.processor_output_target_percent,
         ));
     }
@@ -2532,7 +2531,6 @@ pub fn set_granary_policy(
         CommodityKind::Cherries,
         CommodityKind::Eggs,
         CommodityKind::Grapes,
-        CommodityKind::PreservedFood,
         CommodityKind::CuredMeat,
         CommodityKind::SmokedFish,
         CommodityKind::Cheese,

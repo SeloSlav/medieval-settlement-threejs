@@ -199,7 +199,7 @@ function outputLabel(
 ): string {
   const output = processorOutputCommodityForBuilding(building)
     ?? processorOutputCommodity(building.kind);
-  return output === 'preservedFood' ? 'preserved staples' : output;
+  return output;
 }
 
 function hasHigherAttention(

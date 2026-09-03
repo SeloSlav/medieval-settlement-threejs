@@ -21,7 +21,7 @@ use crate::economy::{
     building_food_progression_met, credit_settlement_household_income, credit_treasury_commodity,
     credit_treasury_stone, credit_treasury_timber, reconcile_building_labor,
     residence_food_progression_met, residence_population_for_parcel,
-    residence_preserved_food_stock, residence_zone_cost, residence_zone_cost_for_units,
+    residence_savory_preserves_stock, residence_zone_cost, residence_zone_cost_for_units,
     spend_aggregate_roof_tiles, spend_aggregate_stone, spend_aggregate_timber, spend_treasury_gold,
     total_roof_tiles, total_stone, total_timber, treasury_gold, CommodityKind, ResourceAmount,
     STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
@@ -296,7 +296,6 @@ pub fn place_burgage_zone(
             upgrade_delivered_roof_tiles: 0.0,
             upgrade_reserved_roof_tiles: 0.0,
             food: 0.0,
-            preserved_food: 0.0,
             honey: 0.0,
             meat: 0.0,
             fish: 0.0,
@@ -781,7 +780,7 @@ fn first_unmet_current_tier_promotion_need(
                 need_stock(&needs, *need),
                 residence_food_progression_met(residence, 1),
                 residence_food_progression_met(residence, residence.tier),
-                residence_preserved_food_stock(residence),
+                residence_savory_preserves_stock(residence),
                 residence.aronia_jam + residence.rosehip_jam,
             ) {
                 return false;
@@ -838,7 +837,7 @@ fn first_unmet_current_tier_promotion_need(
                     ResidenceNeedKind::PreservedFood => {
                         building.kind == "marketplace"
                             && building.construction_complete
-                            && crate::economy::building_preserved_food_stock(building) > 1e-6
+                            && crate::economy::building_savory_preserves_stock(building) > 1e-6
                     }
                     ResidenceNeedKind::Cloth => {
                         building.kind == "marketplace"

@@ -92,8 +92,7 @@ pub fn price_multiplier_for(state: &MarketState, resource: TradeResource) -> f64
         | TradeResource::Cider
         | TradeResource::PearCider
         | TradeResource::Wine => state.drink_price_mult,
-        TradeResource::PreservedFood
-        | TradeResource::Honey
+        TradeResource::Honey
         | TradeResource::CuredMeat
         | TradeResource::SmokedFish
         | TradeResource::Cheese
@@ -257,8 +256,7 @@ pub fn record_market_trade(
             state.regional_drink_demand =
                 adjust_demand_index(state.regional_drink_demand, direction, amount);
         }
-        TradeResource::PreservedFood
-        | TradeResource::Honey
+        TradeResource::Honey
         | TradeResource::CuredMeat
         | TradeResource::SmokedFish
         | TradeResource::Cheese

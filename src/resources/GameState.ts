@@ -108,7 +108,6 @@ export function placeBuilding(state: GameState, kind: BuildingKind, x: number, z
     ale: 0,
     cider: 0,
     mead: 0,
-    preservedFood: 0,
     honey: 0,
     wax: 0,
     candles: 0,

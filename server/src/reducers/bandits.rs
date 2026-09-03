@@ -1405,6 +1405,13 @@ fn require_cost(ctx: &ReducerContext, owner: Identity, cost: MilitaryCost) -> Re
             ));
         }
     }
+    let savory_available = aggregate_savory_preserves_stock(ctx, owner);
+    if savory_available + 1e-6 < cost.preserved_food as f64 {
+        return Err(format!(
+            "Not enough savory preserves (need {} more).",
+            (cost.preserved_food as f64 - savory_available).ceil() as u32
+        ));
+    }
     if treasury_gold(ctx, owner) + 1e-6 < cost.gold as f64 {
         return Err(format!(
             "Not enough civic treasury gold (need {} more).",
@@ -1421,6 +1428,7 @@ fn spend_cost(ctx: &ReducerContext, owner: Identity, cost: MilitaryCost) -> Resu
         }
         spend_commodity(ctx, owner, kind, amount as f64)?;
     }
+    spend_savory_preserves(ctx, owner, cost.preserved_food as f64)?;
     spend_treasury_gold(ctx, owner, cost.gold as f64)
 }
 
@@ -1434,16 +1442,11 @@ fn spend_non_equipment_cost(
     cost: MilitaryCost,
 ) -> Result<(), String> {
     spend_commodity(ctx, owner, CommodityKind::Ale, cost.ale as f64)?;
-    spend_commodity(
-        ctx,
-        owner,
-        CommodityKind::PreservedFood,
-        cost.preserved_food as f64,
-    )?;
+    spend_savory_preserves(ctx, owner, cost.preserved_food as f64)?;
     spend_treasury_gold(ctx, owner, cost.gold as f64)
 }
 
-fn commodity_costs(cost: MilitaryCost) -> [(CommodityKind, u32, &'static str); 10] {
+fn commodity_costs(cost: MilitaryCost) -> [(CommodityKind, u32, &'static str); 9] {
     [
         (CommodityKind::Polearms, cost.polearms, "polearms"),
         (CommodityKind::Sidearms, cost.sidearms, "sidearms"),
@@ -1458,12 +1461,45 @@ fn commodity_costs(cost: MilitaryCost) -> [(CommodityKind, u32, &'static str); 1
         (CommodityKind::MailArmor, cost.mail_armor, "mail armor"),
         (CommodityKind::Ammunition, cost.ammunition, "ammunition"),
         (CommodityKind::Ale, cost.ale, "ale"),
-        (
-            CommodityKind::PreservedFood,
-            cost.preserved_food,
-            "preserved food",
-        ),
     ]
+}
+
+fn aggregate_savory_preserves_stock(ctx: &ReducerContext, owner: Identity) -> f64 {
+    [
+        CommodityKind::Cheese,
+        CommodityKind::SmokedFish,
+        CommodityKind::CuredMeat,
+    ]
+    .into_iter()
+    .map(|kind| aggregate_commodity_stock(ctx, owner, kind))
+    .sum()
+}
+
+fn spend_savory_preserves(
+    ctx: &ReducerContext,
+    owner: Identity,
+    amount: f64,
+) -> Result<(), String> {
+    let mut remaining = amount.floor().max(0.0);
+    for kind in [
+        CommodityKind::Cheese,
+        CommodityKind::SmokedFish,
+        CommodityKind::CuredMeat,
+    ] {
+        if remaining <= 1e-6 {
+            break;
+        }
+        let spend = aggregate_commodity_stock(ctx, owner, kind).min(remaining);
+        if spend >= 1.0 {
+            spend_commodity(ctx, owner, kind, spend)?;
+            remaining -= spend;
+        }
+    }
+    if remaining <= 1e-6 {
+        Ok(())
+    } else {
+        Err("Savory preserve stock changed before it could be issued.".into())
+    }
 }
 
 fn aggregate_commodity_stock(ctx: &ReducerContext, owner: Identity, kind: CommodityKind) -> f64 {
@@ -1588,7 +1624,9 @@ fn treasury_commodity(resources: &crate::tables::PlayerResources, kind: Commodit
         CommodityKind::MailArmor => resources.mail_armor,
         CommodityKind::Ammunition => resources.ammunition,
         CommodityKind::Ale => resources.ale,
-        CommodityKind::PreservedFood => resources.preserved_food,
+        CommodityKind::CuredMeat => resources.cured_meat,
+        CommodityKind::SmokedFish => resources.smoked_fish,
+        CommodityKind::Cheese => resources.cheese,
         _ => 0.0,
     }
 }
@@ -1610,7 +1648,9 @@ fn withdraw_treasury_commodity(
         CommodityKind::MailArmor => resources.mail_armor -= withdrew,
         CommodityKind::Ammunition => resources.ammunition -= withdrew,
         CommodityKind::Ale => resources.ale -= withdrew,
-        CommodityKind::PreservedFood => resources.preserved_food -= withdrew,
+        CommodityKind::CuredMeat => resources.cured_meat -= withdrew,
+        CommodityKind::SmokedFish => resources.smoked_fish -= withdrew,
+        CommodityKind::Cheese => resources.cheese -= withdrew,
         _ => return 0.0,
     }
     withdrew

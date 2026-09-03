@@ -118,8 +118,6 @@ pub struct PlayerResources {
     #[default(0.0)]
     pub ale: f64,
     #[default(0.0)]
-    pub preserved_food: f64,
-    #[default(0.0)]
     pub honey: f64,
     #[default(0.0)]
     pub wine: f64,
@@ -310,9 +308,8 @@ pub struct PlayerResources {
     /// Fresh production remains physically at a kiln until hauled.
     #[default(0.0)]
     pub roof_tiles: f64,
-    /// Typed ready-to-eat provisions. `food` and `preserved_food` above remain
-    /// legacy mixed stores so existing saves migrate additively without
-    /// fabricating a composition that can no longer be recovered.
+    /// Typed ready-to-eat provisions. Physical food remains identifiable from
+    /// production through storage, delivery, and consumption.
     #[default(0.0)]
     pub meat: f64,
     #[default(0.0)]
@@ -642,8 +639,6 @@ pub struct Building {
     pub food: f64,
     #[default(0.0)]
     pub ale: f64,
-    #[default(0.0)]
-    pub preserved_food: f64,
     #[default(0.0)]
     pub honey: f64,
     #[default(0.0)]
@@ -1697,8 +1692,6 @@ pub struct Residence {
     /// Physical pantry composition. Food-need rows retain only derived
     /// meal-equivalent availability and deficit state; these fields are the
     /// authoritative goods consumed by the household.
-    #[default(0.0)]
-    pub preserved_food: f64,
     #[default(0.0)]
     pub honey: f64,
     #[default(0.0)]

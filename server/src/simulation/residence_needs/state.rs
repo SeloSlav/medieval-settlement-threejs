@@ -2,7 +2,7 @@ use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{RESIDENCE_CLOTH_CAPACITY, RESIDENCE_POTTERY_CAPACITY};
 use crate::db::*;
-use crate::economy::{residence_edible_food_stock, residence_preserved_food_stock};
+use crate::economy::{residence_edible_food_stock, residence_savory_preserves_stock};
 use crate::resource_units::whole_units;
 use crate::simulation::residence_needs::kinds::ResidenceNeedKind;
 use crate::tables::{Residence, ResidenceNeed};
@@ -126,8 +126,8 @@ pub fn persist_needs(ctx: &ReducerContext, residence_id: u64, needs: &[NeedState
     }
 }
 
-/// Move old pantry values into concrete commodities exactly once, then make
-/// the Food and PreservedFood rows derived read models.
+/// Move the retired mixed-food pantry into rye bread exactly once, then keep
+/// the food and savory-preserve need rows as derived read models.
 pub fn migrate_and_sync_food_inventory(
     _ctx: &ReducerContext,
     residence: &mut Residence,
@@ -143,16 +143,12 @@ pub fn migrate_and_sync_food_inventory(
         residence.rye_bread = whole_units(residence.rye_bread) + legacy_food;
     }
     residence.food = 0.0;
-    if !residence.food_inventory_migrated {
-        residence.preserved_food = whole_units(residence.preserved_food)
-            + whole_units(need_stock(needs, ResidenceNeedKind::PreservedFood));
-        residence.food_inventory_migrated = true;
-    }
+    residence.food_inventory_migrated = true;
     if let Some(food_need) = find_need_mut(needs, ResidenceNeedKind::Food) {
         food_need.stock = residence_edible_food_stock(residence);
     }
     if let Some(preserved_need) = find_need_mut(needs, ResidenceNeedKind::PreservedFood) {
-        preserved_need.stock = residence_preserved_food_stock(residence);
+        preserved_need.stock = residence_savory_preserves_stock(residence);
     }
 }
 
@@ -162,7 +158,7 @@ pub fn sync_food_need_rows(ctx: &ReducerContext, residence: &Residence) {
         food_need.stock = residence_edible_food_stock(residence);
     }
     if let Some(preserved_need) = find_need_mut(&mut needs, ResidenceNeedKind::PreservedFood) {
-        preserved_need.stock = residence_preserved_food_stock(residence);
+        preserved_need.stock = residence_savory_preserves_stock(residence);
     }
     persist_needs(ctx, residence.id, &needs);
 }

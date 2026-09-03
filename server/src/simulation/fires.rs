@@ -711,7 +711,6 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             building.malt = 0.0;
             building.flax = 0.0;
             building.ale = 0.0;
-            building.preserved_food = 0.0;
             building.honey = 0.0;
             building.wine = 0.0;
             building.wool = 0.0;
@@ -775,7 +774,6 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             clear_residence_needs(ctx, residence.id);
             clear_backyard_garden_for_residence(ctx, residence.id);
             residence.food = 0.0;
-            residence.preserved_food = 0.0;
             residence.honey = 0.0;
             residence.meat = 0.0;
             residence.fish = 0.0;

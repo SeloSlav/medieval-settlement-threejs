@@ -27,7 +27,6 @@ export function createVisualQaFoundersCampFixture(
     water: 0,
     food: 0,
     ale: 0,
-    preservedFood: 0,
     honey: 0,
     wine: 0,
     wool: 0,

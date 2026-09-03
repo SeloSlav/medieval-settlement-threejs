@@ -523,7 +523,7 @@ fn camp_clear_reward_from_entropy(entropy: u64) -> RaidPortableStores {
     // One recognizable food cache is always present.
     match reward_variant(entropy, 0x20, 5) {
         0 => reward.apples = reward_units(entropy, 0x21, 6, 12),
-        1 => reward.preserved_food = reward_units(entropy, 0x22, 5, 10),
+        1 => reward.cured_meat = reward_units(entropy, 0x22, 5, 10),
         2 => reward.rye_bread = reward_units(entropy, 0x23, 5, 10),
         3 => {
             reward.cheese = reward_units(entropy, 0x24, 3, 6);
@@ -662,7 +662,7 @@ mod tests {
                 "{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}",
                 reward.gold,
                 reward.apples,
-                reward.preserved_food,
+                reward.cured_meat,
                 reward.rye_bread,
                 reward.cheese,
                 reward.smoked_fish,

@@ -61,7 +61,6 @@ export type ProcessorOutputCommodity =
   | 'cider'
   | 'pearCider'
   | 'mead'
-  | 'preservedFood'
   | 'curedMeat'
   | 'smokedFish'
   | 'cheese'
@@ -117,7 +116,7 @@ const OUTPUT_BY_KIND: Record<
   windmill: 'flour',
   bakery: 'bread',
   brewery: 'ale',
-  smokehouse: 'preservedFood',
+  smokehouse: 'curedMeat',
   spinning_retting_house: 'yarn',
   weaver: 'cloth',
   charcoal_burner: 'charcoal',

@@ -214,6 +214,10 @@
   pointer-events: none;
 }
 
+.military-company-map-icons.is-interaction-blocked .military-company-map-icon {
+  pointer-events: none;
+}
+
 .quarry-map-icon::before,
 .foraging-map-icon::before {
   position: absolute;

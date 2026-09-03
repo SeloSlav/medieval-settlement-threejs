@@ -263,7 +263,6 @@ pub struct RaidPortableStores {
     pub cider: f64,
     pub pear_cider: f64,
     pub mead: f64,
-    pub preserved_food: f64,
     pub honey: f64,
     pub wax: f64,
     pub candles: f64,
@@ -357,7 +356,6 @@ impl RaidPortableStores {
             cider,
             pear_cider,
             mead,
-            preserved_food,
             honey,
             wax,
             candles,
@@ -433,7 +431,6 @@ impl RaidPortableStores {
             + positive_store(self.cider)
             + positive_store(self.pear_cider)
             + positive_store(self.mead)
-            + positive_store(self.preserved_food)
             + positive_store(self.honey)
             + positive_store(self.wax) * 1.5
             + positive_store(self.candles) * 2.0
@@ -507,7 +504,6 @@ impl RaidPortableStores {
             + positive_store(self.cider)
             + positive_store(self.pear_cider)
             + positive_store(self.mead)
-            + positive_store(self.preserved_food)
             + positive_store(self.honey)
             + positive_store(self.wax)
             + positive_store(self.candles)
@@ -597,7 +593,6 @@ impl RaidPortableStores {
         plunder_good!(cider);
         plunder_good!(pear_cider);
         plunder_good!(mead);
-        plunder_good!(preserved_food);
         plunder_good!(honey);
         plunder_good!(wax);
         plunder_good!(candles);
@@ -684,7 +679,6 @@ impl RaidPortableStores {
             cider: removed!(cider),
             pear_cider: removed!(pear_cider),
             mead: removed!(mead),
-            preserved_food: removed!(preserved_food),
             honey: removed!(honey),
             wax: removed!(wax),
             candles: removed!(candles),

@@ -28,6 +28,9 @@ type Options = {
   getAgentPosition?: (id: string) => Readonly<{ x: number; z: number }> | null;
   getZoomPercent?: () => number;
   isBlocked: () => boolean;
+  isVisibilityBlocked?: () => boolean;
+  isIllustratedMapActive?: () => boolean;
+  getIllustratedMapY?: () => number;
   onCommand: (
     ids: string[],
     x: number,
@@ -116,6 +119,9 @@ export class MilitiaCommandController {
       getZoomPercent: options.getZoomPercent ?? (() => 100),
       getHeightAt: options.getHeightAt,
       isBlocked: options.isBlocked,
+      isVisibilityBlocked: options.isVisibilityBlocked,
+      isIllustratedMapActive: options.isIllustratedMapActive,
+      getIllustratedMapY: options.getIllustratedMapY,
       onSelect: this.selectCompany,
       onHostileFocus: (marker) => options.onHostileFocus?.(marker.x, marker.z),
     });

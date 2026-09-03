@@ -14,6 +14,7 @@ import {
   projectedCompanyBodyHeightPx,
   resolveStrategicCompanyIconVisibility,
   strategicCompanyIconOpacity,
+  strategicCompanyIconWorldY,
   strategicCompanyPositionBlend,
 } from '../src/security/MilitaryCompanyStrategicOverlay.ts';
 import * as THREE from 'three';
@@ -37,10 +38,23 @@ assert.equal(resolveStrategicCompanyIconVisibility(false, 72), true);
 assert.equal(resolveStrategicCompanyIconVisibility(true, 80), true);
 assert.equal(resolveStrategicCompanyIconVisibility(true, 88), false);
 assert.equal(resolveStrategicCompanyIconVisibility(true, 50, true), false);
+assert.equal(
+  resolveStrategicCompanyIconVisibility(false, 100, false, true),
+  true,
+  'the illustrated overworld map must force strategic company icons visible',
+);
+assert.equal(resolveStrategicCompanyIconVisibility(true, 50, true, true), false);
 assert.equal(strategicCompanyIconOpacity(72), 1);
 assert.ok(strategicCompanyIconOpacity(80) > 0.45);
 assert.ok(strategicCompanyIconOpacity(80) < 0.55);
 assert.equal(strategicCompanyIconOpacity(88), 0);
+assert.equal(strategicCompanyIconOpacity(100, true), 1);
+assert.equal(strategicCompanyIconWorldY(14, false, 80), 17.15);
+assert.equal(
+  strategicCompanyIconWorldY(14, true, 80.12),
+  80.12,
+  'illustrated-map icons must project against the flat map plane, not live terrain',
+);
 assert.deepEqual(
   hostileCompanyMarkerPresentation(HOSTILE_COMPANY_READABLE_HEIGHT_PX, false),
   { opacity: 1, scale: 1, compact: false },
@@ -160,6 +174,8 @@ assert.match(controllerSource, /strategicIcons\.update/);
 assert.match(controllerSource, /member\.status === 'advancing'[\s\S]*?member\.routeProgress/);
 assert.match(controllerSource, /moving: company\.moving/);
 assert.match(controllerSource, /onSelect: this\.selectCompany/);
+assert.match(controllerSource, /isVisibilityBlocked: options\.isVisibilityBlocked/);
+assert.match(controllerSource, /getIllustratedMapY: options\.getIllustratedMapY/);
 assert.match(controllerSource, /hostileGrouped/);
 assert.match(controllerSource, /hostile:\s*true/);
 assert.match(controllerSource, /members\[0\]!\.faction === 'bandit' \? 'bandits'/);
@@ -172,5 +188,10 @@ assert.match(appSource, /getMilitaryCompanyOverride: \(\) => this\.combatPlaytes
 assert.match(appSource, /this\.resourceInspector\?\.refreshSelection\(\)/);
 assert.match(bootstrapSource, /getMilitaryCompanyOverride\?\.\(\)/);
 assert.match(bootstrapSource, /onHostileFocus:[\s\S]*?focusWorldPositionAtZoom/);
+assert.match(
+  bootstrapSource,
+  /isVisibilityBlocked:[\s\S]*?isIllustratedMapActive\(\)[\s\S]*?isOverlayBlocked/,
+  'the charcoal overworld map must not count as a military-icon visibility blocker',
+);
 
 console.log('Military company strategic icons and playtest unit-card contracts passed.');

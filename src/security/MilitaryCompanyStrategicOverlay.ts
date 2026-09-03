@@ -29,6 +29,7 @@ const STRATEGIC_COMPANY_BODY_HEIGHT_METERS = 1.72;
 const STRATEGIC_COMPANY_MOVING_RESPONSE = 12;
 const STRATEGIC_COMPANY_STATIONARY_RESPONSE = 4.5;
 const MAX_POSITION_FILTER_DELTA_SECONDS = 0.05;
+const STRATEGIC_COMPANY_ICON_LIFT = 3.15;
 
 export type StrategicCompanyMarker = {
   id: string;
@@ -48,6 +49,9 @@ type StrategicCompanyIconOptions = {
   getZoomPercent: () => number;
   getHeightAt: (x: number, z: number) => number;
   isBlocked: () => boolean;
+  isVisibilityBlocked?: () => boolean;
+  isIllustratedMapActive?: () => boolean;
+  getIllustratedMapY?: () => number;
   onSelect: (companyId: string) => void;
   onHostileFocus?: (marker: StrategicCompanyMarker) => void;
 };
@@ -93,15 +97,21 @@ export function resolveStrategicCompanyIconVisibility(
   wasVisible: boolean,
   zoomPercent: number,
   blocked = false,
+  forceVisible = false,
 ): boolean {
   if (blocked || !Number.isFinite(zoomPercent)) return false;
+  if (forceVisible) return true;
   return wasVisible
     ? zoomPercent < STRATEGIC_COMPANY_ICON_HIDE_ZOOM_PERCENT
     : zoomPercent <= STRATEGIC_COMPANY_ICON_REVEAL_ZOOM_PERCENT;
 }
 
-export function strategicCompanyIconOpacity(zoomPercent: number): number {
+export function strategicCompanyIconOpacity(
+  zoomPercent: number,
+  forceVisible = false,
+): number {
   if (!Number.isFinite(zoomPercent)) return 0;
+  if (forceVisible) return 1;
   const span = STRATEGIC_COMPANY_ICON_HIDE_ZOOM_PERCENT
     - STRATEGIC_COMPANY_ICON_REVEAL_ZOOM_PERCENT;
   return THREE.MathUtils.smoothstep(
@@ -109,6 +119,16 @@ export function strategicCompanyIconOpacity(zoomPercent: number): number {
     0,
     1,
   );
+}
+
+export function strategicCompanyIconWorldY(
+  terrainY: number,
+  illustratedMapActive: boolean,
+  illustratedMapY?: number,
+): number {
+  return illustratedMapActive && Number.isFinite(illustratedMapY)
+    ? illustratedMapY!
+    : terrainY + STRATEGIC_COMPANY_ICON_LIFT;
 }
 
 /** Hostile markers hand off to authored bodies only when those bodies are both
@@ -226,11 +246,16 @@ export class MilitaryCompanyStrategicOverlay {
       ? 0
       : Math.max(0, (timeMs - this.lastUpdateTimeMs) / 1000);
     this.lastUpdateTimeMs = timeMs;
-    const blocked = this.options.isBlocked();
+    const interactionBlocked = this.options.isBlocked();
+    const blocked = this.options.isVisibilityBlocked?.() ?? interactionBlocked;
+    const illustratedMapActive = this.options.isIllustratedMapActive?.() ?? false;
+    toggleClassIfChanged(this.root, 'is-illustrated-map', illustratedMapActive);
+    toggleClassIfChanged(this.root, 'is-interaction-blocked', interactionBlocked);
     this.friendlyVisible = resolveStrategicCompanyIconVisibility(
       this.friendlyVisible,
       this.options.getZoomPercent(),
       blocked,
+      illustratedMapActive,
     );
     if (blocked || this.entries.size === 0) {
       this.root.hidden = true;
@@ -259,10 +284,15 @@ export class MilitaryCompanyStrategicOverlay {
       entry.displayX += offsetX * positionBlend;
       entry.displayZ += offsetZ * positionBlend;
       const groundY = this.options.getHeightAt(entry.displayX, entry.displayZ);
+      const iconY = strategicCompanyIconWorldY(
+        groundY,
+        illustratedMapActive,
+        this.options.getIllustratedMapY?.(),
+      );
       entry.projected
         .set(
           entry.displayX,
-          groundY + 3.15,
+          iconY,
           entry.displayZ,
         )
         .project(this.options.camera);
@@ -272,28 +302,36 @@ export class MilitaryCompanyStrategicOverlay {
         && entry.projected.x <= 1.08
         && entry.projected.y >= -1.08
         && entry.projected.y <= 1.08;
-      let markerOpacity = strategicCompanyIconOpacity(this.options.getZoomPercent());
+      let markerOpacity = strategicCompanyIconOpacity(
+        this.options.getZoomPercent(),
+        illustratedMapActive,
+      );
       let markerScale = 1;
       let compact = false;
       if (entry.marker.hostile) {
-        entry.feetProjected
-          .set(entry.displayX, groundY + 0.02, entry.displayZ)
-          .project(this.options.camera);
-        entry.headProjected
-          .set(
-            entry.displayX,
-            groundY + STRATEGIC_COMPANY_BODY_HEIGHT_METERS,
-            entry.displayZ,
-          )
-          .project(this.options.camera);
+        if (!illustratedMapActive) {
+          entry.feetProjected
+            .set(entry.displayX, groundY + 0.02, entry.displayZ)
+            .project(this.options.camera);
+          entry.headProjected
+            .set(
+              entry.displayX,
+              groundY + STRATEGIC_COMPANY_BODY_HEIGHT_METERS,
+              entry.displayZ,
+            )
+            .project(this.options.camera);
+        }
         const presentation = hostileCompanyMarkerPresentation(
-          projectedCompanyBodyHeightPx(
-            entry.feetProjected,
-            entry.headProjected,
-            rect.width,
-            rect.height,
-          ),
-          crowdView !== undefined
+          illustratedMapActive
+            ? Number.NaN
+            : projectedCompanyBodyHeightPx(
+                entry.feetProjected,
+                entry.headProjected,
+                rect.width,
+                rect.height,
+              ),
+          !illustratedMapActive
+            && crowdView !== undefined
             && inView
             && entry.feetProjected.z >= -1
             && entry.feetProjected.z <= 1
@@ -392,5 +430,15 @@ export class MilitaryCompanyStrategicOverlay {
     if (count && count.textContent !== countText) count.textContent = countText;
     button.classList.toggle('is-selected', marker.id === this.selectedCompanyId);
     button.setAttribute('aria-pressed', String(marker.id === this.selectedCompanyId));
+  }
+}
+
+function toggleClassIfChanged(
+  element: HTMLElement,
+  className: string,
+  active: boolean,
+): void {
+  if (element.classList.contains(className) !== active) {
+    element.classList.toggle(className, active);
   }
 }

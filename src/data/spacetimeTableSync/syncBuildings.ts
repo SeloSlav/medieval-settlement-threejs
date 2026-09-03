@@ -140,7 +140,6 @@ function buildingStateFromRow(
     cider: wholeResourceUnits(materialRow.cider),
     pearCider: wholeResourceUnits(materialRow.pearCider),
     mead: wholeResourceUnits(materialRow.mead),
-    preservedFood: wholeResourceUnits(row.preservedFood),
     honey: wholeResourceUnits(row.honey),
     wax: wholeResourceUnits(row.wax),
     candles: wholeResourceUnits(row.candles),

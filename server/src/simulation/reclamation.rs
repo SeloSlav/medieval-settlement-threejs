@@ -30,7 +30,7 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 74] = [
+const RECOVERY_ORDER: [CommodityKind; 73] = [
     CommodityKind::Gold,
     CommodityKind::Remedies,
     CommodityKind::RyeSheaves,
@@ -45,7 +45,6 @@ const RECOVERY_ORDER: [CommodityKind; 74] = [
     CommodityKind::Malt,
     CommodityKind::RyeFlour,
     CommodityKind::MaslinFlour,
-    CommodityKind::PreservedFood,
     CommodityKind::RyeBread,
     CommodityKind::MaslinBread,
     CommodityKind::Meat,
@@ -117,7 +116,6 @@ pub struct ReclamationStock {
     pub cider: f64,
     pub pear_cider: f64,
     pub mead: f64,
-    pub preserved_food: f64,
     pub honey: f64,
     pub wax: f64,
     pub candles: f64,
@@ -219,10 +217,6 @@ impl ReclamationStock {
             },
             CommodityKind::Mead => Self {
                 mead: amount,
-                ..Self::default()
-            },
-            CommodityKind::PreservedFood => Self {
-                preserved_food: amount,
                 ..Self::default()
             },
             CommodityKind::Honey => Self {
@@ -485,7 +479,6 @@ impl ReclamationStock {
             cider,
             pear_cider,
             mead,
-            preserved_food,
             honey,
             wax,
             candles,
@@ -579,7 +572,6 @@ impl ReclamationStock {
             cider: cargo.cider,
             pear_cider: cargo.pear_cider,
             mead: cargo.mead,
-            preserved_food: cargo.preserved_food,
             honey: cargo.honey,
             wax: cargo.wax,
             candles: cargo.candles,
@@ -649,7 +641,7 @@ impl ReclamationStock {
         .normalized()
     }
 
-    pub fn commodities() -> [CommodityKind; 74] {
+    pub fn commodities() -> [CommodityKind; 73] {
         RECOVERY_ORDER
     }
 
@@ -671,7 +663,6 @@ impl ReclamationStock {
             cider,
             pear_cider,
             mead,
-            preserved_food,
             honey,
             wax,
             candles,
@@ -758,7 +749,6 @@ impl ReclamationStock {
             cider: resources.cider.max(0.0),
             pear_cider: resources.pear_cider.max(0.0),
             mead: resources.mead.max(0.0),
-            preserved_food: resources.preserved_food.max(0.0),
             honey: resources.honey.max(0.0),
             wax: resources.wax.max(0.0),
             candles: resources.candles.max(0.0),
@@ -838,7 +828,6 @@ impl ReclamationStock {
             CommodityKind::Cider => self.cider,
             CommodityKind::PearCider => self.pear_cider,
             CommodityKind::Mead => self.mead,
-            CommodityKind::PreservedFood => self.preserved_food,
             CommodityKind::Honey => self.honey,
             CommodityKind::Wax => self.wax,
             CommodityKind::Candles => self.candles,
@@ -927,7 +916,6 @@ impl ReclamationStock {
             cider,
             pear_cider,
             mead,
-            preserved_food,
             honey,
             wax,
             candles,
@@ -1130,7 +1118,6 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.cider = 0.0;
     resources.pear_cider = 0.0;
     resources.mead = 0.0;
-    resources.preserved_food = 0.0;
     resources.honey = 0.0;
     resources.wax = 0.0;
     resources.candles = 0.0;
@@ -1323,7 +1310,6 @@ pub fn insert_reclamation_pile(
         cider: stock.cider.max(0.0),
         pear_cider: stock.pear_cider.max(0.0),
         mead: stock.mead.max(0.0),
-        preserved_food: stock.preserved_food.max(0.0),
         honey: stock.honey.max(0.0),
         wax: stock.wax.max(0.0),
         candles: stock.candles.max(0.0),
@@ -1893,8 +1879,7 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
         | CommodityKind::MaslinGrain
         | CommodityKind::Barley
         | CommodityKind::RyeFlour
-        | CommodityKind::MaslinFlour
-        | CommodityKind::PreservedFood => match kind {
+        | CommodityKind::MaslinFlour => match kind {
             "granary" => Some(0),
             "brewery" if commodity == CommodityKind::Barley => Some(0),
             "marketplace" => Some(1),

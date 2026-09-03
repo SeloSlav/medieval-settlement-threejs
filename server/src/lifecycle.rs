@@ -163,7 +163,6 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         gold: STARTING_GOLD,
         food: 0.0,
         ale: 0.0,
-        preserved_food: 0.0,
         honey: 0.0,
         wine: 0.0,
         ironwork: STARTING_IRONWORK,

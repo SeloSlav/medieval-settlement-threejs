@@ -26,10 +26,12 @@ import {
   isBuildingPlacementBlocked,
   isFarmFieldPlacementBlocked,
   isForestryWorkAreaPlacementBlocked,
+  isOverlayBlocked,
   isRoadPlacementBlocked,
   isWorldInspectionBlocked,
   type PlacementInteractionGate,
 } from '../input/PlacementInteractionGate.ts';
+import { ILLUSTRATED_MAP_STAMP_LIFT } from '../map/IllustratedMapPlane.ts';
 import { SessionConnectionGate } from '../network/SessionConnectionGate.ts';
 import { createInitialGameState } from '../resources/GameState.ts';
 import type { GameState } from '../resources/types.ts';
@@ -1530,6 +1532,11 @@ export async function bootstrapAppSession(
     getAgentPosition: (id) => villagers.getCombatAgentPosition(id),
     getZoomPercent: () => cameraController.getZoomPercent(),
     isBlocked: () => isWorldInspectionBlocked(placementGate),
+    isVisibilityBlocked: () => cameraController.isIllustratedMapActive()
+      ? isOverlayBlocked(placementGate)
+      : isWorldInspectionBlocked(placementGate),
+    isIllustratedMapActive: () => cameraController.isIllustratedMapActive(),
+    getIllustratedMapY: () => sceneManager.cameraTarget.y + ILLUSTRATED_MAP_STAMP_LIFT,
     onCommand: (ids, x, z, campId, targetAgentId, order, deployment) => {
       const command = deployment
         ? spacetimeStore.deployMilitaryFormation(ids, x, z, deployment.facingX, deployment.facingZ, deployment.frontage)

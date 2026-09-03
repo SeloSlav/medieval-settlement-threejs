@@ -80,7 +80,6 @@ fn resource_ledger_slot(
         CommodityKind::Water => Some(&mut resources.water),
         CommodityKind::Timber => Some(&mut resources.timber),
         CommodityKind::Ale => Some(&mut resources.ale),
-        CommodityKind::PreservedFood => Some(&mut resources.preserved_food),
         CommodityKind::Honey => Some(&mut resources.honey),
         CommodityKind::Wine => Some(&mut resources.wine),
         CommodityKind::Stone => Some(&mut resources.stone),

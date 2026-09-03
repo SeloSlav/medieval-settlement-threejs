@@ -14,7 +14,6 @@ pub enum CommodityKind {
     Water,
     Timber,
     Ale,
-    PreservedFood,
     Honey,
     Wine,
     Stone,
@@ -89,12 +88,11 @@ pub enum CommodityKind {
 /// Canonical exhaustive commodity iteration order. Systems that must prove a
 /// physical holder is empty (temporary camps, reclamation piles, diagnostics)
 /// use this list so adding a commodity cannot silently strand stock.
-pub const ALL_COMMODITIES: &[CommodityKind; 74] = &[
+pub const ALL_COMMODITIES: &[CommodityKind; 73] = &[
     CommodityKind::Firewood,
     CommodityKind::Water,
     CommodityKind::Timber,
     CommodityKind::Ale,
-    CommodityKind::PreservedFood,
     CommodityKind::Honey,
     CommodityKind::Wine,
     CommodityKind::Stone,
@@ -187,13 +185,18 @@ pub const FRESH_FOOD_COMMODITIES: [CommodityKind; 18] = [
     CommodityKind::Beetroot,
 ];
 
-pub const PRESERVED_FOOD_COMMODITIES: [CommodityKind; 6] = [
-    CommodityKind::PreservedFood,
+pub const PRESERVED_FOOD_COMMODITIES: [CommodityKind; 5] = [
     CommodityKind::CuredMeat,
     CommodityKind::SmokedFish,
     CommodityKind::Cheese,
     CommodityKind::AroniaJam,
     CommodityKind::RosehipJam,
+];
+
+pub const SAVORY_PRESERVE_COMMODITIES: [CommodityKind; 3] = [
+    CommodityKind::CuredMeat,
+    CommodityKind::SmokedFish,
+    CommodityKind::Cheese,
 ];
 
 pub const PRESERVABLE_FOOD_COMMODITIES: [CommodityKind; 3] = [
@@ -202,7 +205,7 @@ pub const PRESERVABLE_FOOD_COMMODITIES: [CommodityKind; 3] = [
     CommodityKind::Milk,
 ];
 
-pub const EDIBLE_COMMODITIES: [CommodityKind; 25] = [
+pub const EDIBLE_COMMODITIES: [CommodityKind; 24] = [
     CommodityKind::OatGrain,
     CommodityKind::RyeBread,
     CommodityKind::MaslinBread,
@@ -215,7 +218,6 @@ pub const EDIBLE_COMMODITIES: [CommodityKind; 25] = [
     CommodityKind::Cherries,
     CommodityKind::Eggs,
     CommodityKind::Grapes,
-    CommodityKind::PreservedFood,
     CommodityKind::CuredMeat,
     CommodityKind::SmokedFish,
     CommodityKind::Cheese,
@@ -233,7 +235,7 @@ pub const EDIBLE_COMMODITIES: [CommodityKind; 25] = [
 /// Consume the shortest-lived foods first so mixed pantries and institutions
 /// naturally preserve durable reserves. Combined food buckets remain available
 /// for producers whose output is intentionally not crop-specific.
-pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 25] = [
+pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 24] = [
     CommodityKind::Meat,
     CommodityKind::Fish,
     CommodityKind::Milk,
@@ -255,7 +257,6 @@ pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 25] = [
     CommodityKind::Cheese,
     CommodityKind::SmokedFish,
     CommodityKind::CuredMeat,
-    CommodityKind::PreservedFood,
     CommodityKind::AroniaJam,
     CommodityKind::RosehipJam,
     CommodityKind::Honey,
@@ -274,11 +275,12 @@ pub enum FoodCategory {
     Meats = 4,
     Fishes = 5,
     Foraged = 6,
-    SweetPreserves = 7,
+    SavoryPreserves = 7,
+    SweetPreserves = 8,
 }
 
 impl FoodCategory {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::Grains,
         Self::Vegetables,
         Self::Fruits,
@@ -286,11 +288,12 @@ impl FoodCategory {
         Self::Meats,
         Self::Fishes,
         Self::Foraged,
+        Self::SavoryPreserves,
         Self::SweetPreserves,
     ];
 
-    pub fn bit(self) -> u8 {
-        1 << self as u8
+    pub fn bit(self) -> u16 {
+        1_u16 << self as u8
     }
 }
 
@@ -298,8 +301,7 @@ pub fn food_category(kind: CommodityKind) -> Option<FoodCategory> {
     match kind {
         CommodityKind::OatGrain
         | CommodityKind::RyeBread
-        | CommodityKind::MaslinBread
-        | CommodityKind::PreservedFood => Some(FoodCategory::Grains),
+        | CommodityKind::MaslinBread => Some(FoodCategory::Grains),
         CommodityKind::Cabbage | CommodityKind::Carrots | CommodityKind::Beetroot => {
             Some(FoodCategory::Vegetables)
         }
@@ -307,19 +309,34 @@ pub fn food_category(kind: CommodityKind) -> Option<FoodCategory> {
         | CommodityKind::Cherries
         | CommodityKind::Grapes
         | CommodityKind::Pears => Some(FoodCategory::Fruits),
-        CommodityKind::Milk | CommodityKind::Eggs | CommodityKind::Cheese => {
+        CommodityKind::Milk | CommodityKind::Eggs => {
             Some(FoodCategory::AnimalProduce)
         }
-        CommodityKind::Meat | CommodityKind::CuredMeat => Some(FoodCategory::Meats),
-        CommodityKind::Fish | CommodityKind::SmokedFish => Some(FoodCategory::Fishes),
+        CommodityKind::Meat => Some(FoodCategory::Meats),
+        CommodityKind::Fish => Some(FoodCategory::Fishes),
         CommodityKind::Berries
         | CommodityKind::Mushrooms
         | CommodityKind::Aronia
         | CommodityKind::Rosehips => Some(FoodCategory::Foraged),
+        CommodityKind::CuredMeat | CommodityKind::SmokedFish | CommodityKind::Cheese => {
+            Some(FoodCategory::SavoryPreserves)
+        }
         CommodityKind::Honey | CommodityKind::AroniaJam | CommodityKind::RosehipJam => {
             Some(FoodCategory::SweetPreserves)
         }
         _ => None,
+    }
+}
+
+/// Preserve the food-family role of each processed good for residence
+/// progression while allowing the menu and variety system to group the
+/// finished goods together as savory preserves.
+pub fn food_progression_category(kind: CommodityKind) -> Option<FoodCategory> {
+    match kind {
+        CommodityKind::CuredMeat => Some(FoodCategory::Meats),
+        CommodityKind::SmokedFish => Some(FoodCategory::Fishes),
+        CommodityKind::Cheese => Some(FoodCategory::AnimalProduce),
+        _ => food_category(kind),
     }
 }
 
@@ -330,7 +347,6 @@ impl CommodityKind {
             Self::Water => 1,
             Self::Timber => 3,
             Self::Ale => 6,
-            Self::PreservedFood => 7,
             Self::Honey => 8,
             Self::Wine => 9,
             Self::Stone => 10,
@@ -409,7 +425,6 @@ impl CommodityKind {
             1 => Some(Self::Water),
             3 => Some(Self::Timber),
             6 => Some(Self::Ale),
-            7 => Some(Self::PreservedFood),
             8 => Some(Self::Honey),
             9 => Some(Self::Wine),
             10 => Some(Self::Stone),
@@ -491,6 +506,10 @@ impl CommodityKind {
         PRESERVED_FOOD_COMMODITIES.contains(&self)
     }
 
+    pub fn is_savory_preserve(self) -> bool {
+        SAVORY_PRESERVE_COMMODITIES.contains(&self)
+    }
+
     pub fn is_edible(self) -> bool {
         EDIBLE_COMMODITIES.contains(&self)
     }
@@ -523,8 +542,7 @@ impl CommodityKind {
     /// oats: one whole oat unit remains edible but supplies only half a meal.
     pub fn meal_value(self) -> f64 {
         match self {
-            Self::PreservedFood
-            | Self::Honey
+            Self::Honey
             | Self::Meat
             | Self::Fish
             | Self::Berries
@@ -575,7 +593,6 @@ impl CommodityKind {
             Self::Beetroot => 0.75,
             Self::Eggs => 0.9,
             Self::Grapes => 1.2,
-            Self::PreservedFood => 0.75,
             Self::CuredMeat => 0.55,
             Self::SmokedFish => 0.7,
             Self::Honey => 0.0,
@@ -602,7 +619,6 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::Ale => building.ale,
         CommodityKind::Cider => building.cider,
         CommodityKind::Mead => building.mead,
-        CommodityKind::PreservedFood => building.preserved_food,
         CommodityKind::Honey => building.honey,
         CommodityKind::Wine => building.wine,
         CommodityKind::Stone => building.stone,
@@ -689,7 +705,6 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         CommodityKind::Ale => def.storage_ale,
         CommodityKind::Cider => def.storage_cider,
         CommodityKind::Mead => def.storage_mead,
-        CommodityKind::PreservedFood => def.storage_preserved_food,
         CommodityKind::Honey => def.storage_honey,
         CommodityKind::Wine => def.storage_wine,
         CommodityKind::Stone => def.storage_stone,
@@ -879,6 +894,13 @@ pub fn building_preserved_food_stock(building: &Building) -> f64 {
         .sum()
 }
 
+pub fn building_savory_preserves_stock(building: &Building) -> f64 {
+    SAVORY_PRESERVE_COMMODITIES
+        .into_iter()
+        .map(|kind| building_commodity_stock(building, kind).max(0.0) * kind.meal_value())
+        .sum()
+}
+
 pub fn building_preservable_food_stock(building: &Building) -> f64 {
     PRESERVABLE_FOOD_COMMODITIES
         .into_iter()
@@ -922,7 +944,6 @@ pub fn withdraw_building_commodity(
         CommodityKind::Ale => building.ale -= withdrawn,
         CommodityKind::Cider => building.cider -= withdrawn,
         CommodityKind::Mead => building.mead -= withdrawn,
-        CommodityKind::PreservedFood => building.preserved_food -= withdrawn,
         CommodityKind::Honey => building.honey -= withdrawn,
         CommodityKind::Wine => building.wine -= withdrawn,
         CommodityKind::Stone => building.stone -= withdrawn,
@@ -1007,7 +1028,6 @@ pub fn deposit_building_commodity(
         CommodityKind::Ale => building.ale += deposited,
         CommodityKind::Cider => building.cider += deposited,
         CommodityKind::Mead => building.mead += deposited,
-        CommodityKind::PreservedFood => building.preserved_food += deposited,
         CommodityKind::Honey => building.honey += deposited,
         CommodityKind::Wine => building.wine += deposited,
         CommodityKind::Stone => building.stone += deposited,
@@ -1103,7 +1123,6 @@ pub fn credit_treasury_commodity(
         CommodityKind::Ale => treasury.ale += amount,
         CommodityKind::Cider => treasury.cider += amount,
         CommodityKind::Mead => treasury.mead += amount,
-        CommodityKind::PreservedFood => treasury.preserved_food += amount,
         CommodityKind::Honey => treasury.honey += amount,
         CommodityKind::Wine => treasury.wine += amount,
         CommodityKind::Stone => treasury.stone += amount,
@@ -1187,7 +1206,6 @@ pub fn credit_treasury_commodity(
 
 pub fn residence_commodity_stock(residence: &Residence, kind: CommodityKind) -> f64 {
     match kind {
-        CommodityKind::PreservedFood => residence.preserved_food,
         CommodityKind::Honey => residence.honey,
         CommodityKind::OatGrain => residence.oat_grain,
         CommodityKind::Meat => residence.meat,
@@ -1231,6 +1249,13 @@ pub fn residence_preserved_food_stock(residence: &Residence) -> f64 {
         .sum()
 }
 
+pub fn residence_savory_preserves_stock(residence: &Residence) -> f64 {
+    SAVORY_PRESERVE_COMMODITIES
+        .into_iter()
+        .map(|kind| residence_commodity_stock(residence, kind).max(0.0) * kind.meal_value())
+        .sum()
+}
+
 pub fn residence_edible_food_stock(residence: &Residence) -> f64 {
     residence_fresh_food_stock(residence) + residence_preserved_food_stock(residence)
 }
@@ -1249,9 +1274,9 @@ pub fn residence_food_category_stock(residence: &Residence, category: FoodCatego
         .sum()
 }
 
-pub fn residence_food_category_mask(residence: &Residence) -> u8 {
+pub fn residence_food_category_mask(residence: &Residence) -> u16 {
     let qualifying_stock = food_category_qualifying_stock(residence.population);
-    FoodCategory::ALL.into_iter().fold(0_u8, |mask, category| {
+    FoodCategory::ALL.into_iter().fold(0_u16, |mask, category| {
         if residence_food_category_stock(residence, category) + 1e-6 >= qualifying_stock {
             mask | category.bit()
         } else {
@@ -1260,12 +1285,30 @@ pub fn residence_food_category_mask(residence: &Residence) -> u8 {
     })
 }
 
-fn building_food_category_mask(building: &Building, population: u32) -> u8 {
-    let qualifying_stock = food_category_qualifying_stock(population);
-    FoodCategory::ALL.into_iter().fold(0_u8, |mask, category| {
+fn residence_food_progression_category_mask(residence: &Residence) -> u16 {
+    let qualifying_stock = food_category_qualifying_stock(residence.population);
+    FoodCategory::ALL.into_iter().fold(0_u16, |mask, category| {
         let stock = EDIBLE_COMMODITIES
             .into_iter()
-            .filter(|commodity| food_category(*commodity) == Some(category))
+            .filter(|commodity| food_progression_category(*commodity) == Some(category))
+            .map(|commodity| {
+                residence_commodity_stock(residence, commodity).max(0.0) * commodity.meal_value()
+            })
+            .sum::<f64>();
+        if stock + 1e-6 >= qualifying_stock {
+            mask | category.bit()
+        } else {
+            mask
+        }
+    })
+}
+
+fn building_food_progression_category_mask(building: &Building, population: u32) -> u16 {
+    let qualifying_stock = food_category_qualifying_stock(population);
+    FoodCategory::ALL.into_iter().fold(0_u16, |mask, category| {
+        let stock = EDIBLE_COMMODITIES
+            .into_iter()
+            .filter(|commodity| food_progression_category(*commodity) == Some(category))
             .map(|commodity| {
                 building_commodity_stock(building, commodity).max(0.0) * commodity.meal_value()
             })
@@ -1283,14 +1326,14 @@ fn building_food_category_mask(building: &Building, population: u32) -> u8 {
 /// other category. Tier 3+ keeps that staple and asks for produce/forage,
 /// land-based animal food, and fish as distinct parts of the diet. Tier 4
 /// splits animal produce from meat, so eggs/milk and pork no longer satisfy
-/// the same late-game food goal. Its cured-food standard remains the separate
-/// PreservedFood need.
+/// the same late-game food goal. Its savory-preserve standard remains a
+/// separate need.
 pub fn residence_food_progression_slots(residence: &Residence, tier: u8) -> u8 {
-    let categories = residence_food_category_mask(residence);
+    let categories = residence_food_progression_category_mask(residence);
     food_progression_slots(categories, residence_grain_food_ready(residence), tier)
 }
 
-fn food_progression_slots(categories: u8, grain_ready: bool, tier: u8) -> u8 {
+fn food_progression_slots(categories: u16, grain_ready: bool, tier: u8) -> u8 {
     if tier == 0 {
         return 0;
     }
@@ -1326,7 +1369,7 @@ fn food_progression_slots(categories: u8, grain_ready: bool, tier: u8) -> u8 {
 /// current tier. Regional imports and local output share the same physical
 /// Marketplace inventory, so promotion must not distinguish their origin.
 pub fn building_food_progression_met(building: &Building, population: u32, tier: u8) -> bool {
-    let categories = building_food_category_mask(building, population);
+    let categories = building_food_progression_category_mask(building, population);
     let qualifying_stock = food_category_qualifying_stock(population);
     let grain_stock = [
         CommodityKind::OatGrain,
@@ -1360,10 +1403,10 @@ pub fn food_commodity_advances_residence_progression(
     tier: u8,
     commodity: CommodityKind,
 ) -> bool {
-    let Some(category) = food_category(commodity) else {
+    let Some(category) = food_progression_category(commodity) else {
         return false;
     };
-    let categories = residence_food_category_mask(residence);
+    let categories = residence_food_progression_category_mask(residence);
     if tier <= 1 {
         return categories == 0;
     }
@@ -1393,6 +1436,7 @@ pub fn food_commodity_advances_residence_progression(
             categories & land_animal_food == 0
         }
         FoodCategory::Fishes => categories & FoodCategory::Fishes.bit() == 0,
+        FoodCategory::SavoryPreserves => false,
     }
 }
 
@@ -1423,7 +1467,6 @@ pub fn withdraw_residence_commodity(
 ) -> f64 {
     let withdrawn = whole_transfer(residence_commodity_stock(residence, kind), amount);
     match kind {
-        CommodityKind::PreservedFood => residence.preserved_food -= withdrawn,
         CommodityKind::Honey => residence.honey -= withdrawn,
         CommodityKind::OatGrain => residence.oat_grain -= withdrawn,
         CommodityKind::Meat => residence.meat -= withdrawn,
@@ -1469,7 +1512,6 @@ pub fn deposit_residence_commodity(
     };
     let deposited = whole_units(room / kind.meal_value().max(1e-9)).min(whole_units(amount));
     match kind {
-        CommodityKind::PreservedFood => residence.preserved_food += deposited,
         CommodityKind::Honey => residence.honey += deposited,
         CommodityKind::OatGrain => residence.oat_grain += deposited,
         CommodityKind::Meat => residence.meat += deposited,

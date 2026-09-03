@@ -1854,7 +1854,6 @@ pub fn step_granary(
                     CommodityKind::Cheese,
                     CommodityKind::SmokedFish,
                     CommodityKind::CuredMeat,
-                    CommodityKind::PreservedFood,
                     CommodityKind::AroniaJam,
                     CommodityKind::RosehipJam,
                     CommodityKind::Honey,
@@ -2960,7 +2959,6 @@ pub fn step_smokehouse(
         CommodityKind::Cheese,
         CommodityKind::SmokedFish,
         CommodityKind::CuredMeat,
-        CommodityKind::PreservedFood,
     ] {
         dispatch_to_building_where(
             ctx,
@@ -4757,7 +4755,7 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
         ProcessorOutputKind::Flour => Some(CommodityKind::RyeFlour),
         ProcessorOutputKind::Food => Some(CommodityKind::RyeBread),
         ProcessorOutputKind::Ale => Some(CommodityKind::Ale),
-        ProcessorOutputKind::PreservedFood => Some(CommodityKind::PreservedFood),
+        ProcessorOutputKind::PreservedFood => None,
         ProcessorOutputKind::TextileIntermediate => Some(CommodityKind::Yarn),
         ProcessorOutputKind::Cloth => Some(CommodityKind::Cloth),
         ProcessorOutputKind::Charcoal => Some(CommodityKind::Charcoal),

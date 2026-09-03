@@ -46,7 +46,6 @@ const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   ale: 'Ale',
   cider: 'Apple cider',
   pearCider: 'Pear cider',
-  preservedFood: 'Preserved food',
   honey: 'Honey',
   wax: 'Beeswax',
   candles: 'Candles',
@@ -372,8 +371,7 @@ function tradeStorageResource(
     || resource === 'maslinBread'
   ) return 'freshFood';
   if (
-    resource === 'preservedFood'
-    || resource === 'curedMeat'
+    resource === 'curedMeat'
     || resource === 'smokedFish'
     || resource === 'cheese'
   ) return 'preservedFood';

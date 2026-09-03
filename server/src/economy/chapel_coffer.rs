@@ -185,7 +185,6 @@ mod tests {
             rye_flour: 0.0,
             maslin_flour: 0.0,
             ale: 0.0,
-            preserved_food: 0.0,
             honey: 0.0,
             wine: 0.0,
             ironwork: 0.0,

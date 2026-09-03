@@ -74,7 +74,7 @@ let hunterState = {
   id: 'campfire-qa-hunter', kind: 'hunters_hall', x: 11, z: 0, yaw: 0,
   workRadius: 0, actionCooldown: 999, assignedLabor: params.has('unstaffed') ? 0 : 1,
   timber: 0, firewood: 0, stone: 0, water: 0, food: 0,
-  ale: 0, preservedFood: 0, honey: 0, wine: 0, wool: 0, cloth: 0,
+  ale: 0, honey: 0, wine: 0, wool: 0, cloth: 0,
   ironwork: 0, polearms: 0, gold: 0, waterCapacity: 0,
   constructionComplete: true, constructionProgress: 1,
   constructionRequiredTimber: 0, constructionRequiredStone: 0,

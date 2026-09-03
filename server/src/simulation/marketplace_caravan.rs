@@ -12,7 +12,7 @@ use crate::balance_generated::{
 use crate::db::*;
 use crate::economy::{
     building_commodity_room, building_commodity_stock, building_edible_food_stock,
-    building_preserved_food_stock, mark_local_civic_receipts_dispatched,
+    building_savory_preserves_stock, mark_local_civic_receipts_dispatched,
     marketplace_proceeds_cart_load, physical_treasury_seat_for_settlement, private_export_proceeds,
     CommodityKind,
 };
@@ -103,7 +103,7 @@ pub fn try_dispatch_marketplace_caravan(
         ResidenceNeedKind::Firewood => building.firewood,
         ResidenceNeedKind::Food => building_edible_food_stock(building),
         ResidenceNeedKind::Water => building.water,
-        ResidenceNeedKind::PreservedFood => building_preserved_food_stock(building),
+        ResidenceNeedKind::PreservedFood => building_savory_preserves_stock(building),
         ResidenceNeedKind::Ale => building.ale,
         ResidenceNeedKind::Cloth => building.cloth,
         ResidenceNeedKind::Shoes => building.shoes,

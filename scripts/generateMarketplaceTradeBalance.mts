@@ -3,7 +3,7 @@ export const MARKETPLACE_TRADE_RESOURCES = [
   'ryeGrain', 'oatGrain', 'maslinGrain',
   'ryeFlour', 'maslinFlour',
   'ryeBread', 'maslinBread', 'ale', 'cider', 'pearCider',
-  'preservedFood', 'honey', 'wax', 'candles', 'wine', 'ironwork', 'polearms',
+  'honey', 'wax', 'candles', 'wine', 'ironwork', 'polearms',
   'sidearms', 'shields', 'bows', 'crossbows', 'paddedArmor', 'mailArmor', 'ammunition',
   'wool', 'cloth',
   'pelts', 'hides', 'leather', 'shoes',

@@ -2253,7 +2253,6 @@ pub(super) fn reclamation_from_raid_stores(stores: RaidPortableStores) -> Reclam
         cider: stores.cider,
         pear_cider: stores.pear_cider,
         mead: stores.mead,
-        preserved_food: stores.preserved_food,
         honey: stores.honey,
         wax: stores.wax,
         candles: stores.candles,

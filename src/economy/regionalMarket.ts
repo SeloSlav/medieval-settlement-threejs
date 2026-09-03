@@ -105,7 +105,6 @@ export function priceMultiplierFor(
     case 'pearCider':
     case 'wine':
       return state.drinkPriceMult;
-    case 'preservedFood':
     case 'honey':
     case 'curedMeat':
     case 'smokedFish':

@@ -221,7 +221,6 @@ pub fn step_fresh_food_spoilage(
         spoil_fresh!(cabbage, CommodityKind::Cabbage);
         spoil_fresh!(carrots, CommodityKind::Carrots);
         spoil_fresh!(beetroot, CommodityKind::Beetroot);
-        spoil_preserved!(preserved_food, CommodityKind::PreservedFood);
         spoil_preserved!(cured_meat, CommodityKind::CuredMeat);
         spoil_preserved!(smoked_fish, CommodityKind::SmokedFish);
         spoil_preserved!(cheese, CommodityKind::Cheese);
@@ -273,7 +272,6 @@ fn normalize_building_food(building: &mut Building) {
         cabbage,
         carrots,
         beetroot,
-        preserved_food,
         cured_meat,
         smoked_fish,
         cheese,

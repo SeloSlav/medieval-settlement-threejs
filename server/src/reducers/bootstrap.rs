@@ -252,7 +252,6 @@ pub(crate) fn place_founding_camp(
         water: resources.water.max(0.0),
         food: 0.0,
         ale: resources.ale.max(0.0),
-        preserved_food: resources.preserved_food.max(0.0),
         honey: resources.honey.max(0.0),
         wine: resources.wine.max(0.0),
         ironwork: first_camp_goods(
@@ -458,7 +457,6 @@ pub(crate) fn place_founding_camp(
     resources.padded_armor = 0.0;
     resources.mail_armor = 0.0;
     resources.ammunition = 0.0;
-    resources.preserved_food = 0.0;
     resources.honey = 0.0;
     resources.wine = 0.0;
     resources.ironwork = 0.0;

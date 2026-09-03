@@ -101,7 +101,6 @@ export function syncResidences(
       settlementTicks: Number(row.settlementTicks ?? 0),
       needs: needsByResidence.get(residenceId) ?? createDefaultNeeds(),
       food: wholeResourceUnits(row.food),
-      preservedFood: wholeResourceUnits(row.preservedFood),
       honey: wholeResourceUnits(row.honey),
       oatGrain: wholeResourceUnits(row.oatGrain),
       ryeBread: wholeResourceUnits(row.ryeBread),

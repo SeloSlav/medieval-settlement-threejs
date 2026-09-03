@@ -4,9 +4,9 @@ use spacetimedb::ReducerContext;
 
 use crate::balance_generated::CHARCOAL_HOUSEHOLD_FUEL_VALUE;
 use crate::economy::{
-    building_commodity_stock, building_edible_food_stock, building_preserved_food_stock,
+    building_commodity_stock, building_edible_food_stock, building_savory_preserves_stock,
     food_category, food_commodity_advances_residence_progression, residence_food_category_mask,
-    residence_fresh_food_stock, residence_preserved_food_stock, withdraw_building,
+    residence_fresh_food_stock, residence_savory_preserves_stock, withdraw_building,
     withdraw_building_commodity, withdraw_building_water, CommodityKind,
 };
 use crate::resource_units::whole_units;
@@ -23,7 +23,6 @@ pub struct DeliveryCargoTotals {
     pub cider: f64,
     pub pear_cider: f64,
     pub mead: f64,
-    pub preserved_food: f64,
     pub honey: f64,
     pub wax: f64,
     pub candles: f64,
@@ -106,7 +105,6 @@ impl DeliveryCargoTotals {
             CommodityKind::Cider => self.cider += amount,
             CommodityKind::PearCider => self.pear_cider += amount,
             CommodityKind::Mead => self.mead += amount,
-            CommodityKind::PreservedFood => self.preserved_food += amount,
             CommodityKind::Honey => self.honey += amount,
             CommodityKind::Wax => self.wax += amount,
             CommodityKind::Candles => self.candles += amount,
@@ -187,7 +185,7 @@ pub fn building_delivery_stock(building: &Building, kind: ResidenceNeedKind) -> 
         ResidenceNeedKind::Ale => {
             building.ale + building.cider + building.pear_cider + building.mead
         }
-        ResidenceNeedKind::PreservedFood => building_preserved_food_stock(building),
+        ResidenceNeedKind::PreservedFood => building_savory_preserves_stock(building),
         ResidenceNeedKind::Cloth => building.cloth,
         ResidenceNeedKind::Shoes => building.shoes,
         ResidenceNeedKind::Pottery => building.pottery,
@@ -376,13 +374,10 @@ pub fn selected_food_delivery_commodity(
         CommodityKind::OatGrain,
         CommodityKind::Honey,
     ];
-    const PRESERVED_ORDER: [CommodityKind; 6] = [
-        CommodityKind::AroniaJam,
-        CommodityKind::RosehipJam,
+    const PRESERVED_ORDER: [CommodityKind; 3] = [
         CommodityKind::Cheese,
         CommodityKind::SmokedFish,
         CommodityKind::CuredMeat,
-        CommodityKind::PreservedFood,
     ];
 
     let candidates: &[CommodityKind] = match need_kind {
@@ -408,9 +403,6 @@ pub fn selected_food_delivery_commodity(
             PRESERVED_ORDER[0],
             PRESERVED_ORDER[1],
             PRESERVED_ORDER[2],
-            PRESERVED_ORDER[3],
-            PRESERVED_ORDER[4],
-            PRESERVED_ORDER[5],
             FRESH_ORDER[18],
         ],
         ResidenceNeedKind::PreservedFood => &PRESERVED_ORDER,
@@ -480,7 +472,7 @@ pub fn selected_food_delivery_commodity_for_residence(
     if need_kind != ResidenceNeedKind::Food {
         return selected_food_delivery_commodity(building, need_kind);
     }
-    const ORDER: [CommodityKind; 25] = [
+    const ORDER: [CommodityKind; 24] = [
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
@@ -504,7 +496,6 @@ pub fn selected_food_delivery_commodity_for_residence(
         CommodityKind::Cheese,
         CommodityKind::SmokedFish,
         CommodityKind::CuredMeat,
-        CommodityKind::PreservedFood,
         CommodityKind::Honey,
     ];
     let present = residence_food_category_mask(residence);
@@ -574,7 +565,7 @@ pub fn residence_commodity_delivery_room(
     if commodity.is_preserved_food() {
         return whole_units(
             (provisions::stock_capacity(ResidenceNeedKind::PreservedFood)
-                - residence_preserved_food_stock(residence))
+                - residence_savory_preserves_stock(residence))
             .max(0.0)
                 / commodity.meal_value().max(1e-9),
         );

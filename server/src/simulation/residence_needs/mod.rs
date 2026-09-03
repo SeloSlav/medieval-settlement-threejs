@@ -27,9 +27,10 @@ use spacetimedb::ReducerContext;
 
 use crate::db::*;
 use crate::economy::{
-    building_edible_food_stock, food_category, reconcile_building_labor, residence_commodity_stock,
-    residence_edible_food_stock, residence_food_progression_slots, withdraw_building_edible_food,
-    withdraw_residence_commodity, CommodityKind, FoodCategory, EDIBLE_COMMODITIES,
+    building_edible_food_stock, food_progression_category, reconcile_building_labor,
+    residence_commodity_stock, residence_edible_food_stock, residence_food_progression_slots,
+    withdraw_building_edible_food, withdraw_residence_commodity, CommodityKind, FoodCategory,
+    EDIBLE_COMMODITIES,
     FRESH_FOOD_COMMODITIES, PRESERVED_FOOD_COMMODITIES,
 };
 use crate::monastery_estate_policy::{
@@ -304,7 +305,7 @@ fn monthly_food_slots(tier: u8) -> &'static [MonthlyFoodSlot] {
 }
 
 fn food_matches_slot(commodity: CommodityKind, slot: MonthlyFoodSlot) -> bool {
-    let Some(category) = food_category(commodity) else {
+    let Some(category) = food_progression_category(commodity) else {
         return false;
     };
     match slot {
@@ -314,7 +315,6 @@ fn food_matches_slot(commodity: CommodityKind, slot: MonthlyFoodSlot) -> bool {
             CommodityKind::OatGrain
                 | CommodityKind::RyeBread
                 | CommodityKind::MaslinBread
-                | CommodityKind::PreservedFood
         ),
         MonthlyFoodSlot::NonGrain => category != FoodCategory::Grains,
         MonthlyFoodSlot::ProduceOrForage => matches!(
@@ -339,7 +339,7 @@ fn first_food_for_slot(
     preserved_only: bool,
 ) -> Option<CommodityKind> {
     EDIBLE_COMMODITIES.into_iter().find(|commodity| {
-        (!preserved_only || commodity.is_preserved_food())
+        (!preserved_only || commodity.is_savory_preserve())
             && food_matches_slot(*commodity, slot)
             && residence_commodity_stock(residence, *commodity) >= 1.0
     })

@@ -28,12 +28,17 @@ export const FRESH_FOOD_KINDS = [
 ] as const;
 
 export const PRESERVED_FOOD_KINDS = [
-  'preservedFood',
   'curedMeat',
   'smokedFish',
   'cheese',
   'aroniaJam',
   'rosehipJam',
+] as const;
+
+export const SAVORY_PRESERVE_KINDS = [
+  'curedMeat',
+  'smokedFish',
+  'cheese',
 ] as const;
 
 export const NAMED_FOOD_KINDS = [
@@ -123,7 +128,6 @@ export const FOOD_MEAL_VALUES: Readonly<Record<FoodInventoryKind, number>> = {
   beetroot: 1,
   eggs: 1,
   grapes: 1,
-  preservedFood: 1,
   curedMeat: 1,
   smokedFish: 1,
   cheese: 1,
@@ -152,7 +156,6 @@ export const FOOD_SPOILAGE_MULTIPLIERS: Readonly<Record<FoodInventoryKind, numbe
   beetroot: 0.75,
   eggs: 0.9,
   grapes: 1.2,
-  preservedFood: 0.75,
   curedMeat: 0.55,
   smokedFish: 0.7,
   cheese: 1,
@@ -192,6 +195,7 @@ export const FOOD_CATEGORY_LABELS = {
   meats: 'Meat',
   fishes: 'Fish',
   foraged: 'Foraged food',
+  savoryPreserves: 'Savory preserves',
   sweetPreserves: 'Sweet preserves',
 } as const;
 export type FoodCategory = keyof typeof FOOD_CATEGORY_LABELS;
@@ -222,7 +226,6 @@ export function foodCategory(kind: FoodInventoryKind): FoodCategory {
     case 'oatGrain':
     case 'ryeBread':
     case 'maslinBread':
-    case 'preservedFood':
       return 'grains';
     case 'cabbage':
     case 'carrots':
@@ -235,23 +238,33 @@ export function foodCategory(kind: FoodInventoryKind): FoodCategory {
       return 'fruits';
     case 'milk':
     case 'eggs':
-    case 'cheese':
       return 'animalProduce';
     case 'meat':
-    case 'curedMeat':
       return 'meats';
     case 'fish':
-    case 'smokedFish':
       return 'fishes';
     case 'berries':
     case 'aronia':
     case 'rosehips':
     case 'mushrooms':
       return 'foraged';
+    case 'curedMeat':
+    case 'smokedFish':
+    case 'cheese':
+      return 'savoryPreserves';
     case 'aroniaJam':
     case 'rosehipJam':
     case 'honey':
       return 'sweetPreserves';
+  }
+}
+
+function foodProgressionCategory(kind: FoodInventoryKind): FoodCategory {
+  switch (kind) {
+    case 'curedMeat': return 'meats';
+    case 'smokedFish': return 'fishes';
+    case 'cheese': return 'animalProduce';
+    default: return foodCategory(kind);
   }
 }
 
@@ -293,6 +306,24 @@ export function foodVarietyCount(inventory: FoodInventoryLike, population: numbe
   return presentFoodCategories(inventory, population).length;
 }
 
+function presentFoodProgressionCategories(
+  inventory: FoodInventoryLike,
+  population: number,
+): Set<FoodCategory> {
+  const minimum = foodCategoryQualifyingStock(population);
+  const stocks = new Map<FoodCategory, number>();
+  for (const kind of [...FRESH_FOOD_KINDS, ...PRESERVED_FOOD_KINDS, 'honey'] as const) {
+    const category = foodProgressionCategory(kind);
+    stocks.set(category, (stocks.get(category) ?? 0)
+      + finiteFood(inventory[kind]) * foodMealValue(kind));
+  }
+  return new Set(
+    [...stocks.entries()]
+      .filter(([, stock]) => stock + 1e-6 >= minimum)
+      .map(([category]) => category),
+  );
+}
+
 /**
  * Residence food progression follows broad Manor-Lords-style food families
  * without importing its late-game item counts wholesale. Tier 1 accepts any
@@ -308,6 +339,7 @@ export function foodProgressionStatus(
 ): FoodProgressionStatus {
   const suppliedCategories = presentFoodCategories(inventory, population);
   const categories = new Set(suppliedCategories);
+  const progressionCategories = presentFoodProgressionCategories(inventory, population);
   const requiredSlots: readonly FoodProgressionSlot[] = tier === 1
     ? ['anyFood']
     : tier === 2
@@ -327,10 +359,10 @@ export function foodProgressionStatus(
     .some((category) => categories.has(category as FoodCategory))) {
     supplied.add('produceAndForage');
   }
-  if (categories.has('animalProduce') || categories.has('meats')) supplied.add('animalFoods');
-  if (categories.has('animalProduce')) supplied.add('animalProduce');
-  if (categories.has('meats')) supplied.add('meat');
-  if (categories.has('fishes')) supplied.add('fish');
+  if (progressionCategories.has('animalProduce') || progressionCategories.has('meats')) supplied.add('animalFoods');
+  if (progressionCategories.has('animalProduce')) supplied.add('animalProduce');
+  if (progressionCategories.has('meats')) supplied.add('meat');
+  if (progressionCategories.has('fishes')) supplied.add('fish');
 
   const satisfiedSlots = requiredSlots.filter((slot) => supplied.has(slot));
   const missingSlots = requiredSlots.filter((slot) => !supplied.has(slot));
@@ -357,6 +389,13 @@ export function freshFoodStock(inventory: FoodInventoryLike): number {
 
 export function preservedFoodStock(inventory: FoodInventoryLike): number {
   return PRESERVED_FOOD_KINDS.reduce(
+    (total, kind) => total + finiteFood(inventory[kind]),
+    0,
+  );
+}
+
+export function savoryPreservesStock(inventory: FoodInventoryLike): number {
+  return SAVORY_PRESERVE_KINDS.reduce(
     (total, kind) => total + finiteFood(inventory[kind]),
     0,
   );

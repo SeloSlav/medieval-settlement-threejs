@@ -2431,7 +2431,7 @@ export const BACKYARD_GARDEN_COSTS = {
 export const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS = 8;
 export const REGIONAL_EXCHANGE_INTERVAL_SECONDS = 30;
 
-export const TRADE_RESOURCE_KINDS = ["timber","stone","firewood","water","ryeGrain","oatGrain","maslinGrain","ryeFlour","maslinFlour","ryeBread","maslinBread","ale","cider","pearCider","preservedFood","honey","wax","candles","wine","ironwork","polearms","sidearms","shields","bows","crossbows","paddedArmor","mailArmor","ammunition","wool","cloth","pelts","hides","leather","shoes","barley","malt","flax","iron","clay","salt","charcoal","pottery","manure","remedies","roofTiles","meat","fish","berries","mushrooms","milk","apples","pears","cherries","aronia","rosehips","cabbage","carrots","beetroot","eggs","grapes","curedMeat","smokedFish","cheese","aroniaJam","rosehipJam","ryeSheaves","oatSheaves","barleySheaves","maslinSheaves","yarn","linen"] as const;
+export const TRADE_RESOURCE_KINDS = ["timber","stone","firewood","water","ryeGrain","oatGrain","maslinGrain","ryeFlour","maslinFlour","ryeBread","maslinBread","ale","cider","pearCider","honey","wax","candles","wine","ironwork","polearms","sidearms","shields","bows","crossbows","paddedArmor","mailArmor","ammunition","wool","cloth","pelts","hides","leather","shoes","barley","malt","flax","iron","clay","salt","charcoal","pottery","manure","remedies","roofTiles","meat","fish","berries","mushrooms","milk","apples","pears","cherries","aronia","rosehips","cabbage","carrots","beetroot","eggs","grapes","curedMeat","smokedFish","cheese","aroniaJam","rosehipJam","ryeSheaves","oatSheaves","barleySheaves","maslinSheaves","yarn","linen"] as const;
 export type TradeResourceKind = (typeof TRADE_RESOURCE_KINDS)[number];
 
 export type TradeResourceSpendScope = 'marketAccessible' | 'treasury';
@@ -2451,7 +2451,6 @@ export const TRADE_RESOURCE_SPEND_SCOPES = {
   ale: 'marketAccessible',
   cider: 'marketAccessible',
   pearCider: 'marketAccessible',
-  preservedFood: 'marketAccessible',
   honey: 'marketAccessible',
   wax: 'marketAccessible',
   candles: 'marketAccessible',
@@ -2565,8 +2564,6 @@ export const MARKETPLACE_TRADE_OFFERS = [
   {"id":"sell_maslin_bread","kind":"goldSell","resource":"maslinBread","amount":10,"goldYield":12},
   {"id":"buy_ale","kind":"goldBuy","resource":"ale","amount":12,"goldCost":18},
   {"id":"sell_ale","kind":"goldSell","resource":"ale","amount":12,"goldYield":11},
-  {"id":"buy_preserved_food","kind":"goldBuy","resource":"preservedFood","amount":10,"goldCost":18},
-  {"id":"sell_preserved_food","kind":"goldSell","resource":"preservedFood","amount":10,"goldYield":12},
   {"id":"buy_honey","kind":"goldBuy","resource":"honey","amount":8,"goldCost":20},
   {"id":"sell_honey","kind":"goldSell","resource":"honey","amount":8,"goldYield":13},
   {"id":"buy_wax","kind":"goldBuy","resource":"wax","amount":8,"goldCost":24},
@@ -2690,7 +2687,7 @@ export const MARKETPLACE_TRADE_OFFERS = [
 
 export type MarketplaceTradeOfferId = (typeof MARKETPLACE_TRADE_OFFERS)[number]['id'];
 
-export const MARKETPLACE_PENDING_TRADE_IDS = {"1":"sell_timber","2":"sell_stone","3":"sell_firewood","5":"timber_for_stone","6":"stone_for_timber","7":"timber_for_firewood","8":"sell_pottery","9":"sell_water","10":"sell_rye_grain","11":"sell_oat_grain","12":"sell_maslin_grain","13":"sell_rye_flour","14":"sell_maslin_flour","15":"sell_rye_bread","16":"sell_maslin_bread","17":"sell_ale","18":"sell_preserved_food","19":"sell_honey","20":"sell_wax","21":"sell_candles","22":"sell_wine","23":"sell_polearms","24":"sell_sidearms","25":"sell_shields","26":"sell_bows","27":"sell_crossbows","28":"sell_padded_armor","29":"sell_mail_armor","30":"sell_ammunition","31":"sell_wool","32":"sell_cloth","33":"sell_hides","34":"sell_leather","35":"sell_shoes","36":"sell_barley","37":"sell_malt","38":"sell_flax","39":"sell_ironwork","40":"sell_iron","41":"sell_clay","42":"sell_salt","43":"sell_charcoal","44":"sell_manure","45":"sell_remedies","46":"sell_roof_tiles","47":"sell_meat","48":"sell_fish","49":"sell_berries","50":"sell_mushrooms","51":"sell_milk","52":"sell_apples","53":"sell_pears","54":"sell_cherries","55":"sell_aronia","56":"sell_rosehips","57":"sell_cabbage","58":"sell_carrots","59":"sell_beetroot","60":"sell_eggs","61":"sell_grapes","62":"sell_cured_meat","63":"sell_smoked_fish","64":"sell_cheese","65":"sell_aronia_jam","66":"sell_rosehip_jam","67":"sell_rye_sheaves","68":"sell_oat_sheaves","69":"sell_barley_sheaves","70":"sell_maslin_sheaves","71":"sell_cider","72":"sell_pear_cider","73":"sell_yarn","74":"sell_linen","75":"sell_pelts"} as const;
+export const MARKETPLACE_PENDING_TRADE_IDS = {"1":"sell_timber","2":"sell_stone","3":"sell_firewood","5":"timber_for_stone","6":"stone_for_timber","7":"timber_for_firewood","8":"sell_pottery","9":"sell_water","10":"sell_rye_grain","11":"sell_oat_grain","12":"sell_maslin_grain","13":"sell_rye_flour","14":"sell_maslin_flour","15":"sell_rye_bread","16":"sell_maslin_bread","17":"sell_ale","18":"sell_honey","19":"sell_wax","20":"sell_candles","21":"sell_wine","22":"sell_polearms","23":"sell_sidearms","24":"sell_shields","25":"sell_bows","26":"sell_crossbows","27":"sell_padded_armor","28":"sell_mail_armor","29":"sell_ammunition","30":"sell_wool","31":"sell_cloth","32":"sell_hides","33":"sell_leather","34":"sell_shoes","35":"sell_barley","36":"sell_malt","37":"sell_flax","38":"sell_ironwork","39":"sell_iron","40":"sell_clay","41":"sell_salt","42":"sell_charcoal","43":"sell_manure","44":"sell_remedies","45":"sell_roof_tiles","46":"sell_meat","47":"sell_fish","48":"sell_berries","49":"sell_mushrooms","50":"sell_milk","51":"sell_apples","52":"sell_pears","53":"sell_cherries","54":"sell_aronia","55":"sell_rosehips","56":"sell_cabbage","57":"sell_carrots","58":"sell_beetroot","59":"sell_eggs","60":"sell_grapes","61":"sell_cured_meat","62":"sell_smoked_fish","63":"sell_cheese","64":"sell_aronia_jam","65":"sell_rosehip_jam","66":"sell_rye_sheaves","67":"sell_oat_sheaves","68":"sell_barley_sheaves","69":"sell_maslin_sheaves","70":"sell_cider","71":"sell_pear_cider","72":"sell_yarn","73":"sell_linen","74":"sell_pelts"} as const;
 
 export const MARKET_PRICE_UPDATE_INTERVAL_TICKS = 150;
 export const MARKET_PRICE_MULTIPLIER_MIN = 0.78;
