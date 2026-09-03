@@ -1453,6 +1453,11 @@ export async function bootstrapAppSession(
         residenceIds,
         liveContext.gameState,
       );
+      buildingMarkers.setWellServiceCoverage(
+        kind === 'well' && serviceBuildingId != null
+          ? liveContext.gameState.buildings.get(serviceBuildingId) ?? null
+          : null,
+      );
     },
     onTargetSelected: (target) => {
       if (

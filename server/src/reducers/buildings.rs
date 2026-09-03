@@ -119,33 +119,6 @@ use crate::year_round_labor_policy::{
     is_year_round_labor_kind, year_round_labor_rotation, YearRoundLaborSite,
 };
 
-fn overlaps_same_kind_functional_extent(
-    ctx: &ReducerContext,
-    owner: spacetimedb::Identity,
-    kind: &str,
-    x: f64,
-    z: f64,
-) -> bool {
-    let Some(def) = building_def(kind) else {
-        return false;
-    };
-    if def.work_radius <= 0.0 {
-        return false;
-    }
-
-    for building in ctx.db.building().owner().filter(&owner) {
-        if building.kind != kind {
-            continue;
-        }
-        let dx = building.x - x;
-        let dz = building.z - z;
-        if dx * dx + dz * dz < def.work_radius * def.work_radius {
-            return true;
-        }
-    }
-    false
-}
-
 fn is_too_close_to_buildings(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
@@ -711,12 +684,6 @@ pub(crate) fn place_building_internal(
         return Err("Cannot build on a road.".to_string());
     }
 
-    if overlaps_same_kind_functional_extent(ctx, owner, &kind, x, z) {
-        return Err(
-            "Another building of the same type already covers this functional extent.".to_string(),
-        );
-    }
-
     if def.requires_mature_trees && !has_mature_tree_in_radius(ctx, x, z, def.work_radius) {
         return Err("No mature trees within work range.".to_string());
     }
@@ -758,6 +725,7 @@ pub(crate) fn place_building_internal(
         return Err("No fish shoal within work range.".to_string());
     }
 
+    // Work and service areas may overlap; physical building sites still need clearance.
     if is_too_close_to_buildings(
         ctx,
         owner,

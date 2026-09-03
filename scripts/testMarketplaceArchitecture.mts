@@ -207,7 +207,7 @@ assert.ok(
     <= PROCEDURAL_BUILDING_CATALOG.marketplace.drawCallTarget,
   'permanent marketplace architecture exceeds its material-slot draw target',
 );
-assert.equal(effectiveVisibleMeshCount(marketplace), 5, 'idle marketplace must draw only permanent material slots');
+assert.equal(effectiveVisibleMeshCount(marketplace), 4, 'idle marketplace must draw only permanent material slots');
 assert.equal(
   deterministicSignature(marketplace),
   deterministicSignature(createMarketplaceMesh()),

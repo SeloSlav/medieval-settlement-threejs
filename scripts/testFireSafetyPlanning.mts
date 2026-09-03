@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
+import { validateBuildingPlacement } from '../src/buildings/BuildingPlacementValidation.ts';
 import {
   createBuildingPreviewMesh,
   disposeBuildingPreviewMesh,
@@ -11,6 +12,7 @@ import {
   describePlacementFireSafety,
 } from '../src/fires/fireRiskPolicy.ts';
 import {
+  BUILDING_DEFINITIONS,
   FIRE_MINIMUM_BUCKET_WATER,
 } from '../src/generated/gameBalance.ts';
 import type {
@@ -100,6 +102,54 @@ const target = building('hot-yard', 'charcoal_burner', 0, 0, {
   firewood: 80,
 });
 assert.ok(buildingFlammability(target) > buildingBaseFlammability(target.kind));
+
+// A distant ready well must not prevent adding a closer emergency source.
+const distantWell = building('distant-well', 'well', 0, 0, {
+  workRadius: BUILDING_DEFINITIONS.well.workRadius,
+  water: 80,
+});
+const lumberMill = building('lumber-mill', 'lumber_mill', 81, 0);
+const closeWell = building('close-well', 'well', 70, 20, {
+  workRadius: distantWell.workRadius,
+  water: 80,
+});
+const wellPlacementContext = {
+  buildings: [distantWell, lumberMill],
+  residences: [],
+  burgageZones: [],
+  quarries: [],
+  foragingNodes: [],
+  stockpile: { timber: 10_000, stone: 10_000, ironwork: 10_000, roofTiles: 10_000, gold: 10_000 },
+  isWaterAt: () => false,
+  getNaturalHeightAt: () => 0,
+};
+assert.deepEqual(
+  validateBuildingPlacement('well', closeWell.x, closeWell.z, wellPlacementContext),
+  { ok: true },
+  'a closer well inside an existing service radius must be buildable near a lumber mill',
+);
+assert.deepEqual(
+  validateBuildingPlacement('well', 0, 0, wellPlacementContext),
+  { ok: false, reason: 'too_close' },
+  'overlapping service must not allow overlapping physical well footprints',
+);
+assert.deepEqual(
+  validateBuildingPlacement('well', closeWell.x, closeWell.z, {
+    ...wellPlacementContext,
+    buildings: [{ ...distantWell, constructionComplete: false }, lumberMill],
+  }),
+  { ok: true },
+  'unfinished wells must not reserve their full service radius against another well',
+);
+const beforeCloserWell = assessBuildingFireSafety(lumberMill, {
+  buildings: [distantWell, lumberMill],
+});
+const afterCloserWell = assessBuildingFireSafety(lumberMill, {
+  buildings: [distantWell, lumberMill, closeWell],
+});
+assert.equal(beforeCloserWell.nearestWellId, distantWell.id);
+assert.equal(afterCloserWell.nearestWellId, closeWell.id);
+assert.ok(afterCloserWell.firstBucketSeconds! < beforeCloserWell.firstBucketSeconds!);
 
 const readyWell = building('10', 'well', 40, 0, {
   assignedLabor: 1,

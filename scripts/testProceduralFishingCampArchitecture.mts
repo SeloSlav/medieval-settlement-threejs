@@ -122,7 +122,10 @@ for (const [label, obstacleBounds] of [
   for (const door of doors) {
     const protectedApproach = new THREE.Box3()
       .setFromObject(door)
-      .expandByVector(new THREE.Vector3(0.12, 0, 0.12));
+      .expandByVector(new THREE.Vector3(0.4, 0, 0.12));
+    // Protect a person's walk-up beyond the steps, not just the door leaf.
+    protectedApproach.max.z += 1.8;
+    protectedApproach.min.y = 0;
     assert.equal(
       protectedApproach.intersectsBox(obstacleBounds),
       false,
@@ -131,7 +134,45 @@ for (const [label, obstacleBounds] of [
   }
 }
 
-console.log('procedural fishing camp architecture passed (open frontage, clear doors, connected brown-timber frames and rack)');
+const boat = fishingCamp.getObjectByName('Pulled-up fishing boat');
+assert.ok(boat, 'the fishing camp must include its pulled-up boat');
+const hull = boat.getObjectByName('Fishing boat closed hull') as THREE.Mesh;
+assert.ok(hull?.isMesh, 'the boat needs a hull enclosing its floor and sides');
+assertSharedBrownTimber(hull, 'boat hull');
+
+// Single-sided ray hits prove the bottom, both side walls and both ends are
+// present and face the viewer correctly inside and beneath the open cockpit.
+for (const [label, origin, direction] of [
+  ['interior floor', [0, 0.4, 0.3], [0, -1, 0]],
+  ['underside', [0, -1, 0], [0, 1, 0]],
+  ['port side', [0, 0.45, 0.3], [-1, 0, 0]],
+  ['starboard side', [0, 0.45, 0.3], [1, 0, 0]],
+  ['stern', [0, 0.55, -1.5], [0, 0, -1]],
+  ['bow', [0, 0.65, 1.5], [0, 0, 1]],
+] as const) {
+  const hits = new THREE.Raycaster(
+    boat.localToWorld(new THREE.Vector3(...origin)),
+    new THREE.Vector3(...direction).transformDirection(boat.matrixWorld),
+    0,
+    2,
+  ).intersectObject(hull, false);
+  assert.ok(hits.length > 0, `the boat is missing a correctly facing ${label}`);
+}
+const floorHit = new THREE.Raycaster(
+  boat.localToWorld(new THREE.Vector3(0, 1.5, 0.3)),
+  new THREE.Vector3(0, -1, 0),
+).intersectObject(hull, false)[0];
+assert.ok(floorHit && boat.worldToLocal(floorHit.point.clone()).y < 0.25,
+  'the cockpit must remain open down to its recessed floor');
+
+const boatClearance = new THREE.Box3().setFromObject(boat).expandByScalar(0.3);
+for (const object of fishingCamp.children) {
+  if (!(object as THREE.Mesh).isMesh) continue;
+  assert.equal(boatClearance.intersectsBox(new THREE.Box3().setFromObject(object)), false,
+    `the boat needs at least 0.3 m clearance from ${object.name || 'camp architecture'}`);
+}
+
+console.log('procedural fishing camp architecture passed (clear walk-ups, closed boat hull, boat clearance, connected timber frames)');
 
 function boundsOf(objects: readonly THREE.Object3D[]): THREE.Box3 {
   assert.ok(objects.length > 0, 'cannot measure an empty fishing architecture assembly');

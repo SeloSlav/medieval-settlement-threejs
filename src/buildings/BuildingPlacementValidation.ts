@@ -16,7 +16,6 @@ import { buildingFootprintPolygon, buildingOverlapsResidenceZone } from '../plac
 import { convexPolygonsOverlap2 } from '../utils/polygonGeometry.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { isOnRoadSurface } from '../roads/roadConnectivity.ts';
-import { getBuildingExtent } from './buildingExtents.ts';
 import {
   BERRY_PATCH_MAX_SPAWN_RADIUS,
   MUSHROOM_PATCH_MAX_SPAWN_RADIUS,
@@ -44,7 +43,6 @@ export type BuildingPlacementFailureReason =
   | 'requires_hillside'
   | 'too_steep'
   | 'too_close'
-  | 'overlapping_extent'
   | 'within_residence_zone'
   | 'within_farm_field'
   | 'within_pasture'
@@ -226,10 +224,6 @@ export function validateBuildingPlacement(
     }
   }
 
-  if (overlapsSameKindFunctionalExtent(kind, x, z, buildings)) {
-    return { ok: false, reason: 'overlapping_extent' };
-  }
-
   if (
     kind === 'guardhouse'
     && !hasCompletedBuilding(buildings, 'watchtower')
@@ -340,6 +334,7 @@ export function validateBuildingPlacement(
     }
   }
 
+  // Work and service areas may overlap; only the physical building sites need clearance.
   for (const building of buildings) {
     if (buildingFootprintsTooClose(kind, x, z, building, context.roadNetwork, context.yaw)) {
       return { ok: false, reason: 'too_close' };
@@ -516,26 +511,6 @@ function footprintHeightDelta(
     maxHeight = Math.max(maxHeight, height);
   }
   return maxHeight - minHeight;
-}
-
-function overlapsSameKindFunctionalExtent(
-  kind: BuildingKind,
-  x: number,
-  z: number,
-  buildings: Iterable<BuildingState>,
-): boolean {
-  const definition = getBuildingDefinition(kind);
-  const extent = getBuildingExtent(kind, definition.workRadius);
-  if (!extent || extent.type === 'coverage') return false;
-
-  for (const building of buildings) {
-    if (building.kind !== kind) continue;
-    const distance = Math.hypot(building.x - x, building.z - z);
-    if (distance < extent.radius) {
-      return true;
-    }
-  }
-  return false;
 }
 
 function hasSurfaceDepositInRadius(

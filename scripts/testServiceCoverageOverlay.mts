@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
+import { WellServiceCoverage } from '../src/buildings/WellServiceCoverage.ts';
+import { ResourceInspector } from '../src/resources/ResourceInspector.ts';
 import { ResidenceMarkers } from '../src/residences/ResidenceMarkers.ts';
 import { createDefaultNeeds } from '../src/residences/residenceNeedState.ts';
 import {
@@ -8,7 +10,7 @@ import {
   marketplaceServiceResidenceIds,
   serviceCoverageLabel,
 } from '../src/resources/serviceCoverage.ts';
-import type { ResidenceState } from '../src/resources/types.ts';
+import type { BuildingState, ResidenceState } from '../src/resources/types.ts';
 
 function residence(
   id: string,
@@ -179,6 +181,64 @@ assert.equal(firstOverlay.visible, false);
 markers.dispose();
 assert.equal(parent.getObjectByName('Residence service coverage'), undefined);
 
+let terrainLift = 0;
+const heightAt = (x: number, z: number) => x * 0.05 + z * 0.02 + terrainLift;
+const wellCoverage = new WellServiceCoverage(parent, { getHeightAt: heightAt });
+const wells = new Map([
+  ['well-a', { id: 'well-a', kind: 'well', x: 25, z: -15, workRadius: 90, constructionComplete: true } as BuildingState],
+  ['well-b', { id: 'well-b', kind: 'well', x: -30, z: 40, workRadius: 75, constructionComplete: true } as BuildingState],
+]);
+const coverageEvents: Array<string | null> = [];
+const coverageInspector = Object.create(ResourceInspector.prototype) as ResourceInspector;
+Object.assign(coverageInspector, {
+  serviceCoverageBuildingId: 'well-a',
+  serviceCoverageEmittedBuildingId: null,
+  serviceCoverageResidenceIds: new Set(),
+  serviceCoverageMarketplaceFulfillment: new Map(),
+  options: {
+    onServiceCoverageChange: (_ids: unknown, kind: string | null, _fulfillment: unknown, id: string | null) => {
+      coverageEvents.push(id);
+      wellCoverage.sync(kind === 'well' && id != null ? wells.get(id)! : null);
+    },
+  },
+});
+coverageInspector['refreshServiceCoverage']({ kind: 'well', residenceIds: [] });
+const waterRing = parent.getObjectByName('Well water service coverage ring');
+assert.ok(waterRing instanceof THREE.Mesh && waterRing.visible);
+assert.deepEqual(coverageEvents, ['well-a'], 'zero served homes must still activate coverage');
+assert.equal((waterRing.material as THREE.MeshBasicMaterial).color.getHex(), 0x57c9ff);
+const ringPositions = waterRing.geometry.getAttribute('position');
+for (let index = 0; index < ringPositions.count; index++) {
+  const x = ringPositions.getX(index);
+  const z = ringPositions.getZ(index);
+  assert.ok(Math.abs(Math.hypot(x - 25, z + 15) - 90) < 0.45, 'the ring must trace the full 90 m service reach');
+  assert.ok(Math.abs(ringPositions.getY(index) - heightAt(x, z) - 0.18) < 1e-5, 'the ring must follow sloping terrain');
+}
+coverageInspector['refreshServiceCoverage']({ kind: 'well', residenceIds: [] });
+assert.equal(coverageEvents.length, 1, 'unchanged coverage must not rebuild each inspector refresh');
+assert.equal(waterRing.geometry.getAttribute('position'), ringPositions);
+coverageInspector['clearServiceCoverage']();
+assert.equal(waterRing.visible, false);
+Object.assign(coverageInspector, { serviceCoverageBuildingId: 'well-a' });
+coverageInspector['refreshServiceCoverage']({ kind: 'well', residenceIds: [] });
+assert.equal(waterRing.visible, true, 're-enabling an empty well must show its radius again');
+Object.assign(coverageInspector, { serviceCoverageBuildingId: 'well-b' });
+coverageInspector['refreshServiceCoverage']({ kind: 'well', residenceIds: [] });
+assert.equal(coverageEvents.at(-1), 'well-b', 'switching wells with identical home sets must change the ring');
+const secondPositions = waterRing.geometry.getAttribute('position');
+assert.ok(Math.abs(Math.hypot(secondPositions.getX(0) + 30, secondPositions.getZ(0) - 40) - 75) < 0.45);
+const priorHeight = secondPositions.getY(0);
+terrainLift = 4;
+wellCoverage.sync(wells.get('well-b')!, true);
+assert.ok(Math.abs(waterRing.geometry.getAttribute('position').getY(0) - priorHeight - 4) < 1e-5);
+wellCoverage.sync({ ...wells.get('well-b')!, constructionComplete: false });
+assert.equal(waterRing.visible, false, 'unfinished wells must not advertise active coverage');
+wellCoverage.sync(wells.get('well-b')!);
+wellCoverage.sync(null);
+assert.equal(waterRing.visible, false, 'deselected or removed wells must hide their ring');
+wellCoverage.dispose();
+assert.equal(parent.getObjectByName('Well water service coverage ring'), undefined);
+
 const inspectorSource = fs.readFileSync(
   'src/resources/ResourceInspector.ts',
   'utf8',
@@ -229,6 +289,11 @@ assert.match(
   inspectorSource,
   /event\.key !== 'Tab'[\s\S]*serviceCoverageTabPreviewBuildingId[\s\S]*endServiceCoverageTabPreview/,
   'the Tab shortcut should be a momentary preview that ends on key release',
+);
+assert.match(
+  appBootstrapSource,
+  /setWellServiceCoverage\([\s\S]*kind === 'well'/,
+  'the water coverage toggle must show the well radius alongside residence mesh highlights',
 );
 assert.match(
   appBootstrapSource,

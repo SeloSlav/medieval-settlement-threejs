@@ -1053,16 +1053,7 @@ function addMarketProceedsChest(group: THREE.Group): void {
   group.add(chest);
 }
 
-function addMarketplaceGroundAndTollShelter(writer: ProceduralGeometryWriter): void {
-  writer.addBox({
-    semanticId: 'marketplace-packed-earth-open-lane',
-    moduleId: 'open-market-lane',
-    materialRole: 'packed-earth',
-    structuralUse: 'yard-and-floor-surface',
-    center: [0, 0.04, 0],
-    size: [10.2, 0.08, 5.9],
-  });
-
+function addMarketplaceTollShelter(writer: ProceduralGeometryWriter): void {
   const centerX = 4.3;
   const centerZ = -2.3;
   const postHalfX = 0.72;
@@ -1182,13 +1173,12 @@ export function createMarketplaceMesh(): THREE.Group {
   group.userData.architecturePlan = MARKETPLACE_ARCHITECTURE_PLAN;
 
   const writer = new ProceduralGeometryWriter([
-    'packed-earth',
     'fieldstone',
     'rough-timber',
     'weathered-boards',
     'split-shingles',
   ]);
-  addMarketplaceGroundAndTollShelter(writer);
+  addMarketplaceTollShelter(writer);
   const compiled = writer.build();
   const slots = addProceduralMaterialSlotMeshes(group, compiled, {
     namePrefix: 'Marketplace',
@@ -1197,8 +1187,6 @@ export function createMarketplaceMesh(): THREE.Group {
       'rough-timber': { source: 'construction', key: 'timberMid' },
     },
   });
-  const earth = slots.meshes.get('packed-earth');
-  if (earth) earth.name = 'Marketplace open packed-earth lane and workyard';
   const footing = slots.meshes.get('fieldstone');
   if (footing) footing.name = 'Marketplace discrete toll-shelter fieldstone footings';
   const timber = slots.meshes.get('rough-timber');

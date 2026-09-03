@@ -21,8 +21,8 @@ const WORK_EXTENT_KINDS = new Set<BuildingKind>([
 ]);
 
 /**
- * Returns gameplay extent metadata for validation and inspector readouts.
- * World-space radius overlays are intentionally not derived from this data.
+ * Returns gameplay extent metadata for inspector readouts, not placement exclusions.
+ * Wells can display their service radius through the inspector coverage toggle.
  */
 export function getBuildingExtent(kind: BuildingKind, workRadius: number): BuildingExtent | null {
   if (kind === 'monastery') {

@@ -10,7 +10,6 @@ export const TOAST_MESSAGES = {
   'building.placement.requires_hillside': 'The Pauline monastery needs a hillside bench — find sloped ground above the valley floor',
   'building.placement.too_steep': 'The slope is too steep here',
   'building.placement.too_close': 'Too close to another building',
-  'building.placement.overlapping_extent': 'Another building of the same type already covers this functional extent',
   'building.placement.within_residence_zone': 'Cannot build inside a residence plot',
   'building.placement.within_farm_field': 'Cannot build inside cultivated farmland',
   'building.placement.within_pasture': 'Cannot build inside a fenced pasture',
@@ -118,8 +117,6 @@ export function buildingPlacementReasonToToastId(reason: BuildingPlacementFailur
       return 'building.placement.too_steep';
     case 'too_close':
       return 'building.placement.too_close';
-    case 'overlapping_extent':
-      return 'building.placement.overlapping_extent';
     case 'within_residence_zone':
       return 'building.placement.within_residence_zone';
     case 'within_farm_field':

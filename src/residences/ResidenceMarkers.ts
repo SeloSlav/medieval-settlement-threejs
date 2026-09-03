@@ -2452,10 +2452,11 @@ function finishAuthoredTierOneResidence(
   const firewoodPile = new THREE.Group();
   firewoodPile.name = 'FirewoodPile';
   firewoodPile.visible = false;
+  firewoodPile.position.set(1.28, 0, -4.08);
   group.add(firewoodPile);
   // Runtime inventory remains behind the house, clear of the fixed threshold
   // and the public facade. syncFirewoodPile owns visibility and fill scale.
-  addLogPile(firewoodPile, 1.28, -4.08, 0, 4, 2.15, 0.19);
+  addLogPile(firewoodPile, 0, 0, 0, 4, 2.15, 0.19);
   addResidenceUpgradeWorks(group, AUTHORED_TIER_ONE_DIMENSIONS);
   return group;
 }
@@ -2563,16 +2564,13 @@ function finishAuthoredKitResidence(
   const firewoodPile = new THREE.Group();
   firewoodPile.name = 'FirewoodPile';
   firewoodPile.visible = false;
-  group.add(firewoodPile);
-  addLogPile(
-    firewoodPile,
+  firewoodPile.position.set(
     dimensions.width * 0.32,
-    -dimensions.depth * 0.5 - 0.68,
     0,
-    4,
-    2.15,
-    0.19,
+    -dimensions.depth * 0.5 - 0.68,
   );
+  group.add(firewoodPile);
+  addLogPile(firewoodPile, 0, 0, 0, 4, 2.15, 0.19);
   addResidenceUpgradeWorks(group, dimensions);
   return group;
 }
@@ -3199,8 +3197,10 @@ export function createResidenceMesh(
   const firewoodPile = new THREE.Group();
   firewoodPile.name = 'FirewoodPile';
   firewoodPile.visible = false;
+  // Scale stock around its ground anchor so smaller piles stay outside the house.
+  firewoodPile.position.set(entrySide * (halfW - 0.72), 0, -halfD - 0.72);
   group.add(firewoodPile);
-  addLogPile(firewoodPile, entrySide * (halfW - 0.72), -halfD - 0.72, 0, 4, 2.15, 0.19);
+  addLogPile(firewoodPile, 0, 0, 0, 4, 2.15, 0.19);
   addResidenceUpgradeWorks(group, dimensions);
   applyResidenceRoofTone(group, roofTone, tier);
 

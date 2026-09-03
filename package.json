@@ -222,6 +222,7 @@
     "test:spacetime-schema-parity": "node --experimental-strip-types scripts/testSpacetimeSchemaParity.mts",
     "test:building-rotation": "node --experimental-strip-types scripts/testBuildingRotation.mts",
     "test:placement-regressions": "node --experimental-strip-types scripts/testPlacementRegressions.mts",
+    "test:building-work-area-placement": "node --experimental-strip-types scripts/testBuildingWorkAreaPlacement.mts",
     "test:road-building-connections": "npx tsx scripts/testRoadBuildingConnections.mts",
     "test:road-boundary-snapping": "npx tsx scripts/testRoadBoundarySnapping.mts",
     "test:road-junction-topology": "npx tsx scripts/testRoadJunctionTopology.mts",

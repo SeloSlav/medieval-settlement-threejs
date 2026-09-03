@@ -2291,10 +2291,10 @@ assert.doesNotMatch(
   'placement status must not claim that a hidden radius is visible',
 );
 
-assert.match(
+assert.doesNotMatch(
   buildingReducer,
-  /fn overlaps_same_kind_functional_extent\([\s\S]{0,220}owner: spacetimedb::Identity[\s\S]{0,300}building\(\)\.owner\(\)\.filter\(&owner\)/,
-  'functional extents from an invisible foreign settlement must not block placement',
+  /overlaps_same_kind_functional_extent|already covers this functional extent/,
+  'work and service radii must not become placement exclusion zones',
 );
 assert.match(
   buildingReducer,

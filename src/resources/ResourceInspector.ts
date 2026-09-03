@@ -448,6 +448,7 @@ export class ResourceInspector {
   private heroImageSource: string | null = null;
   private heroImageRequestId = 0;
   private serviceCoverageBuildingId: string | null = null;
+  private serviceCoverageEmittedBuildingId: string | null = null;
   private serviceCoverageResidenceIds = new Set<string>();
   private serviceCoverageMarketplaceFulfillment = new Map<
     string,
@@ -3041,12 +3042,14 @@ export class ResourceInspector {
     const residenceIds = new Set(projection.residenceIds);
     const marketplaceFulfillment = new Map(projection.marketplaceFulfillment ?? []);
     if (
-      setsHaveSameValues(this.serviceCoverageResidenceIds, residenceIds)
+      this.serviceCoverageEmittedBuildingId === this.serviceCoverageBuildingId
+      && setsHaveSameValues(this.serviceCoverageResidenceIds, residenceIds)
       && mapsHaveSameValues(
         this.serviceCoverageMarketplaceFulfillment,
         marketplaceFulfillment,
       )
     ) return;
+    this.serviceCoverageEmittedBuildingId = this.serviceCoverageBuildingId;
     this.serviceCoverageResidenceIds = residenceIds;
     this.serviceCoverageMarketplaceFulfillment = marketplaceFulfillment;
     this.options.onServiceCoverageChange?.(
@@ -3066,6 +3069,7 @@ export class ResourceInspector {
       return;
     }
     this.serviceCoverageBuildingId = null;
+    this.serviceCoverageEmittedBuildingId = null;
     this.serviceCoverageResidenceIds = new Set();
     this.serviceCoverageMarketplaceFulfillment = new Map();
     this.options.onServiceCoverageChange?.(

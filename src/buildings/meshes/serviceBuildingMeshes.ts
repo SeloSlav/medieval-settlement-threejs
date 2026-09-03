@@ -10,6 +10,7 @@ import {
   timberMaterial,
 } from '../buildingMaterials.ts';
 import { getSharedWellWaterMaterial } from '../WellWaterMaterial.ts';
+import { createFishingBoatMesh } from './fishingBoatMesh.ts';
 import {
   addBarrel,
   addGableShell,
@@ -713,25 +714,7 @@ function addWickerFishTrap(group: THREE.Group, x: number, z: number, scale = 1):
 }
 
 function addPulledUpBoat(group: THREE.Group, x: number, z: number): void {
-  const boat = new THREE.Group();
-  boat.name = 'Pulled-up fishing boat';
-  for (const side of [-1, 1] as const) {
-    addMesh(
-      boat,
-      new THREE.BoxGeometry(0.14, 0.62, 4.25),
-      timberMaterial(side > 0 ? 'mid' : 'weathered'),
-      new THREE.Vector3(side * 0.68, 0.42, 0),
-      new THREE.Euler(0, 0, side * -0.48),
-    );
-  }
-  for (const localZ of [-1.45, -0.5, 0.5, 1.45]) {
-    addMesh(
-      boat,
-      new THREE.BoxGeometry(1.2, 0.11, 0.18),
-      timberMaterial('dark'),
-      new THREE.Vector3(0, 0.62, localZ),
-    );
-  }
+  const boat = createFishingBoatMesh();
   boat.position.set(x, 0, z);
   boat.rotation.y = -0.22;
   group.add(boat);
@@ -800,16 +783,16 @@ export function createFishingCampMesh(): THREE.Group {
   addSmallWindow(group, -0.48, 1.58, shell.frontZ + 0.02, 0.68, 0.8);
   addFishingServiceShed(group, 4.05, -0.48);
 
-  // Keep the shared yard open: the rack is east of both door axes, and the
-  // cans/barrels sit beside it instead of clipping a facade or circulation.
-  const rackX = 5.95;
-  const rackZ = 2.8;
+  // Leave a broad walk-up to the service shed; the drying station sits farther
+  // out in the east workyard with its cans and barrel alongside it.
+  const rackX = 6.8;
+  const rackZ = 3.7;
   addFishingRack(group, rackX, rackZ);
   addFishingWorkCans(group, rackX + 1.25, rackZ - 0.25);
   addBarrel(group, rackX + 1.62, rackZ + 0.52, 0.72);
   addWickerFishTrap(group, 2.4, -2.15, 0.92);
   addWickerFishTrap(group, 3.25, -2.45, 0.78);
-  addPulledUpBoat(group, -5.65, -0.35);
+  addPulledUpBoat(group, -6.7, -0.35);
   group.userData.enclosure = 'none';
   group.userData.clearDoorApproaches = [
     { x: -2.72, z: shell.frontZ + 1.1, width: 1.5 },
