@@ -72,7 +72,6 @@ export class DevelopmentMenu {
                 </button>`;
               }).join('')}`).join('')}
           </div>
-          <div class="development-legend" aria-label="Skill states"><span><i class="is-learned"></i>Learned</span><span><i class="is-available"></i>Available</span><span><i class="is-locked"></i>Locked</span></div>
         </div>
         <aside class="development-ledger" aria-label="Development details">
           <div class="development-budget"><div class="development-budget__number"><strong data-development-points>9</strong><span>/ ${DEVELOPMENT_POINT_CAP}</span></div><h2>Development points</h2></div>

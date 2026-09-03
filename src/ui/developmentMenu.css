@@ -131,12 +131,6 @@
 .development-branch-label--craft { left: 100%; top: 50%; transform: translate(8%, -50%); }
 .development-branch-label--hearth { left: 50%; top: 100%; transform: translate(-50%, 115%); }
 .development-branch-label--woodland { right: 100%; top: 50%; transform: translate(-8%, -50%); }
-.development-legend { display: flex; gap: 24px; margin-top: 10px; font: 11px system-ui, sans-serif; color: #aa9e83; }
-.development-legend > span { display: flex; gap: 7px; align-items: center; }
-.development-legend i { width: 7px; height: 7px; border: 1px solid #746b53; border-radius: 50%; }
-.development-legend .is-learned { background: #d9c18a; border-color: #d9c18a; }
-.development-legend .is-available { border-color: #d9c18a; }
-.development-legend .is-locked { background: #5f5d50; }
 .development-ledger { align-self: center; max-height: calc(100dvh - 124px); overflow: auto; padding: 20px 22px 22px; scrollbar-width: thin; scrollbar-color: #665838 transparent; }
 .development-budget { display: flex; gap: 18px; align-items: center; }
 .development-budget__number { white-space: nowrap; }
@@ -190,6 +184,5 @@
   .development-close kbd { font-size: 11px; }
   .development-atlas { overflow-x: auto; justify-items: start; padding: 8px; }
   .development-wheel { width: 520px; min-width: 520px; }
-  .development-legend { justify-self: center; }
 }
 @media (prefers-reduced-motion: reduce) { .development-node__seal { transition: none; } }
