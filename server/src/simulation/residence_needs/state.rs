@@ -147,7 +147,7 @@ pub fn migrate_and_sync_food_inventory(
     if let Some(food_need) = find_need_mut(needs, ResidenceNeedKind::Food) {
         food_need.stock = residence_edible_food_stock(residence);
     }
-    if let Some(preserved_need) = find_need_mut(needs, ResidenceNeedKind::PreservedFood) {
+    if let Some(preserved_need) = find_need_mut(needs, ResidenceNeedKind::SavoryPreserves) {
         preserved_need.stock = residence_savory_preserves_stock(residence);
     }
 }
@@ -157,7 +157,7 @@ pub fn sync_food_need_rows(ctx: &ReducerContext, residence: &Residence) {
     if let Some(food_need) = find_need_mut(&mut needs, ResidenceNeedKind::Food) {
         food_need.stock = residence_edible_food_stock(residence);
     }
-    if let Some(preserved_need) = find_need_mut(&mut needs, ResidenceNeedKind::PreservedFood) {
+    if let Some(preserved_need) = find_need_mut(&mut needs, ResidenceNeedKind::SavoryPreserves) {
         preserved_need.stock = residence_savory_preserves_stock(residence);
     }
     persist_needs(ctx, residence.id, &needs);

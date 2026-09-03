@@ -212,7 +212,6 @@ function foundingDestinationPriority(
     case 'barley':
     case 'ryeFlour':
     case 'maslinFlour':
-    case 'preservedFood':
       if (building.kind === 'granary') return 0;
       if (commodity === 'barley' && building.kind === 'brewery') return 0;
       if (building.kind === 'marketplace') return 1;

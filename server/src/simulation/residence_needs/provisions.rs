@@ -45,7 +45,7 @@ pub fn apply_delivery(need: &NeedState, delivered: f64) -> NeedState {
 pub fn stock_capacity(kind: ResidenceNeedKind) -> f64 {
     match kind {
         ResidenceNeedKind::Ale => RESIDENCE_ALE_CAPACITY,
-        ResidenceNeedKind::PreservedFood => RESIDENCE_PRESERVED_FOOD_CAPACITY,
+        ResidenceNeedKind::SavoryPreserves => RESIDENCE_PRESERVED_FOOD_CAPACITY,
         ResidenceNeedKind::Cloth => RESIDENCE_CLOTH_CAPACITY,
         ResidenceNeedKind::Shoes => RESIDENCE_SHOES_CAPACITY,
         ResidenceNeedKind::Pottery => RESIDENCE_POTTERY_CAPACITY,

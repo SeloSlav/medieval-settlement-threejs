@@ -41,7 +41,6 @@ import type { BuildingKind, BuildingState } from '../resources/types.ts';
 import { compareStableEntityIds } from './roadLogistics.ts';
 import {
   preservableFoodStock,
-  preservedFoodStock,
   type FoodInventoryLike,
 } from '../economy/foodInventory.ts';
 import { buildingSharedStorageRoom } from '../economy/sharedStorageCapacity.ts';
@@ -54,7 +53,6 @@ export type DirectProcessorInputCommodity =
   | 'ryeFlour'
   | 'maslinFlour'
   | 'food'
-  | 'preservedFood'
   | 'wool'
   | 'flax'
   | 'yarn'
@@ -95,7 +93,6 @@ type ProcessorInputDestinationLike = Pick<
   | 'ryeFlour'
   | 'maslinFlour'
   | 'food'
-  | 'preservedFood'
   | 'wool'
   | 'flax'
   | 'yarn'
@@ -137,7 +134,6 @@ const TARGET_KINDS: Record<
   ryeFlour: ['bakery', 'granary'],
   maslinFlour: ['bakery', 'granary'],
   food: ['smokehouse'],
-  preservedFood: ['granary'],
   wool: ['spinning_retting_house'],
   flax: ['spinning_retting_house', 'granary'],
   yarn: ['weaver'],
@@ -192,8 +188,6 @@ export function directlyDispatchedProcessorInputPerCycle(
       return targetKind === 'bakery' ? BAKERY_FLOUR_PER_CYCLE : 0;
     case 'food':
       return SMOKEHOUSE_FOOD_PER_CYCLE;
-    case 'preservedFood':
-      return 0;
     case 'wool':
       return SPINNING_RETTING_WOOL_PER_CYCLE;
     case 'flax':
@@ -248,9 +242,8 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
  * surplus up to a staffed Trading Post's selected reserve, where imports cover
  * only any remaining gap;
  * kiln pottery is collected into staffed local storage before becoming export
- * stock. Preserved food is a
- * storage-only overflow route to the nearest granary that accepts perishable
- * surplus, never a processor input.
+ * stock. Named savory preserves use storage-only overflow routes to the nearest
+ * granary that accepts perishable surplus; they are never processor inputs.
  * Flour centralizes at a staffed granary once bakery working buffers are
  * covered; bakery warehouse overflow remains available only as a last resort.
  * Other inputs resume nearest storage overflow once buffers are covered.
@@ -277,11 +270,6 @@ export function selectDirectProcessorInputTarget<
         && target.assignedLabor <= 0)
       || hasInboundSupply(target)
       || !acceptsInput(target)
-      || (
-        commodity === 'preservedFood'
-        && target.kind === 'granary'
-        && target.granaryAcceptsFreshFood === false
-      )
     ) {
       continue;
     }
@@ -382,7 +370,6 @@ export function processorInputCommodityStock(
   commodity: DirectProcessorInputCommodity,
 ): number {
   if (commodity === 'food') return preservableFoodStock(inventory);
-  if (commodity === 'preservedFood') return preservedFoodStock(inventory);
   if (commodity === 'ryeFlour' || commodity === 'maslinFlour') {
     return Math.max(0, Number(inventory[commodity] ?? 0));
   }
@@ -780,10 +767,9 @@ function directMaterialCommodityRank(
     case 'ryeFlour': return 9;
     case 'maslinFlour': return 10;
     case 'food': return 11;
-    case 'preservedFood': return 12;
-    case 'wool': return 13;
-    case 'flax': return 14;
-    case 'yarn': return 15;
-    case 'linen': return 16;
+    case 'wool': return 12;
+    case 'flax': return 13;
+    case 'yarn': return 14;
+    case 'linen': return 15;
   }
 }

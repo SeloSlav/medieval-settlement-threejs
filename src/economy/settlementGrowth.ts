@@ -53,7 +53,7 @@ const EMPTY_WAITING_COUNTS = (): Record<ResidenceNeedKind, number> => ({
   firewood: 0,
   water: 0,
   food: 0,
-  preservedFood: 0,
+  savoryPreserves: 0,
   ale: 0,
   cloth: 0,
   shoes: 0,

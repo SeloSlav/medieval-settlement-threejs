@@ -351,7 +351,6 @@
 .settlement-hud__stat[data-resource='ale']::before,
 .settlement-hud__stat[data-resource='cider']::before,
 .settlement-hud__stat[data-resource='mead']::before,
-.settlement-hud__stat[data-resource='preservedFood']::before,
 .settlement-hud__stat[data-resource='honey']::before,
 .settlement-hud__stat[data-resource='wine']::before,
 .settlement-hud__stat[data-resource='wool']::before {
@@ -366,7 +365,6 @@
 .settlement-hud__stat[data-resource='ale']::before { background-position: 50% 50%; }
 .settlement-hud__stat[data-resource='cider']::before { background-position: 50% 50%; }
 .settlement-hud__stat[data-resource='mead']::before { background-position: 50% 50%; }
-.settlement-hud__stat[data-resource='preservedFood']::before { background-position: 100% 50%; }
 .settlement-hud__stat[data-resource='honey']::before { background-position: 0 100%; }
 .settlement-hud__stat[data-resource='wine']::before { background-position: 50% 100%; }
 .settlement-hud__stat[data-resource='wool']::before { background-position: 100% 100%; }
@@ -656,7 +654,7 @@
 .resource-cost__item[data-resource-cost='ale'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='cider'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='mead'] .resource-cost__icon,
-.resource-cost__item[data-resource-cost='preservedFood'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='savoryPreserves'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='honey'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='wine'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='wool'] .resource-cost__icon {
@@ -671,7 +669,7 @@
 .resource-cost__item[data-resource-cost='ale'] .resource-cost__icon { background-position: 50% 50%; }
 .resource-cost__item[data-resource-cost='cider'] .resource-cost__icon { background-position: 50% 50%; }
 .resource-cost__item[data-resource-cost='mead'] .resource-cost__icon { background-position: 50% 50%; }
-.resource-cost__item[data-resource-cost='preservedFood'] .resource-cost__icon { background-position: 100% 50%; }
+.resource-cost__item[data-resource-cost='savoryPreserves'] .resource-cost__icon { background-position: 100% 50%; }
 .resource-cost__item[data-resource-cost='honey'] .resource-cost__icon { background-position: 0 100%; }
 .resource-cost__item[data-resource-cost='wine'] .resource-cost__icon { background-position: 50% 100%; }
 .resource-cost__item[data-resource-cost='wool'] .resource-cost__icon { background-position: 100% 100%; }
@@ -1009,12 +1007,6 @@
 .settlement-hud__food-card[data-food-resource='smokedFish']::before { background-position: 33.333% 100%; }
 .settlement-hud__food-card[data-food-resource='cheese']::before { background-position: 66.667% 100%; }
 .settlement-hud__food-card[data-food-resource='honey']::before { background-position: 100% 100%; }
-
-.settlement-hud__food-card[data-food-resource='preservedFood']::before {
-  background-image: url('/assets/ui/icons/hud-resources-goods-a.png');
-  background-position: 100% 50%;
-  background-size: 300% 300%;
-}
 
 /* Exact backyard commodities use individual artwork so their identities are
    preserved in pantry cards, costs, trade rows, and the beverage HUD. */

@@ -334,11 +334,15 @@ export function marketplaceResourceRoom(
   resource: TradeResourceKind,
 ): number {
   const storageResource = tradeStorageResource(resource);
-  const storageKey = storageResource === 'freshFood' ? 'food' : storageResource;
+  const storageKey = storageResource === 'freshFood'
+    ? 'food'
+    : storageResource === 'savoryPreserves'
+      ? 'preservedFood'
+      : storageResource;
   const cap = (BUILDING_STORAGE_CAPS.trading_post as Record<string, number | undefined>)[storageKey] ?? 0;
   const stock = storageResource === 'freshFood'
     ? freshFoodStock(building)
-    : storageResource === 'preservedFood'
+    : storageResource === 'savoryPreserves'
       ? preservedFoodStock(building)
       : storageResource === 'grain'
         ? breadGrainStock(building)
@@ -350,7 +354,7 @@ export function marketplaceResourceRoom(
 
 function tradeStorageResource(
   resource: TradeResourceKind,
-): TradeResourceKind | 'freshFood' | 'grain' | 'flour' {
+): TradeResourceKind | 'freshFood' | 'savoryPreserves' | 'grain' | 'flour' {
   if (
     resource === 'meat'
     || resource === 'fish'
@@ -374,7 +378,7 @@ function tradeStorageResource(
     resource === 'curedMeat'
     || resource === 'smokedFish'
     || resource === 'cheese'
-  ) return 'preservedFood';
+  ) return 'savoryPreserves';
   if (resource === 'ryeGrain' || resource === 'oatGrain' || resource === 'maslinGrain') {
     return 'grain';
   }

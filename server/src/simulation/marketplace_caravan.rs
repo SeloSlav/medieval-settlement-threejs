@@ -54,7 +54,7 @@ pub struct MarketCaravanDispatch {
 
 const TRADING_POST_SERVICE_ROUTES: [(ResidenceNeedKind, Option<CommodityKind>); 13] = [
     (ResidenceNeedKind::Food, None),
-    (ResidenceNeedKind::PreservedFood, None),
+    (ResidenceNeedKind::SavoryPreserves, None),
     (ResidenceNeedKind::Firewood, None),
     (ResidenceNeedKind::Water, None),
     (ResidenceNeedKind::Ale, Some(CommodityKind::Ale)),
@@ -74,7 +74,7 @@ fn trading_post_service_destination_kind(need_kind: ResidenceNeedKind) -> Option
         ResidenceNeedKind::Ale => Some("tavern"),
         ResidenceNeedKind::Food
         | ResidenceNeedKind::Firewood
-        | ResidenceNeedKind::PreservedFood
+        | ResidenceNeedKind::SavoryPreserves
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Shoes
         | ResidenceNeedKind::Pottery
@@ -103,7 +103,7 @@ pub fn try_dispatch_marketplace_caravan(
         ResidenceNeedKind::Firewood => building.firewood,
         ResidenceNeedKind::Food => building_edible_food_stock(building),
         ResidenceNeedKind::Water => building.water,
-        ResidenceNeedKind::PreservedFood => building_savory_preserves_stock(building),
+        ResidenceNeedKind::SavoryPreserves => building_savory_preserves_stock(building),
         ResidenceNeedKind::Ale => building.ale,
         ResidenceNeedKind::Cloth => building.cloth,
         ResidenceNeedKind::Shoes => building.shoes,
@@ -196,7 +196,7 @@ pub fn try_dispatch_marketplace_caravan(
         ResidenceNeedKind::Firewood => (FIREWOOD_DELIVERY_SPEED_MPS, FIREWOOD_DELIVERY_UNLOAD_SEC),
         ResidenceNeedKind::Food => (FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC),
         ResidenceNeedKind::Water => (WATER_DELIVERY_SPEED_MPS, WATER_DELIVERY_UNLOAD_SEC),
-        ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Ale => {
+        ResidenceNeedKind::SavoryPreserves | ResidenceNeedKind::Ale => {
             (FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC)
         }
         ResidenceNeedKind::Cloth | ResidenceNeedKind::Shoes | ResidenceNeedKind::Pottery => {
@@ -280,7 +280,7 @@ fn try_dispatch_trading_post_stock_to_local_service(
     ) {
         let (need_kind, routed_commodity) = TRADING_POST_SERVICE_ROUTES[route_index];
         let commodity = routed_commodity.or_else(|| match need_kind {
-            ResidenceNeedKind::Food | ResidenceNeedKind::PreservedFood => {
+            ResidenceNeedKind::Food | ResidenceNeedKind::SavoryPreserves => {
                 selected_food_delivery_commodity(trading_post, need_kind)
             }
             ResidenceNeedKind::Firewood if trading_post.firewood > 1e-6 => {
@@ -342,7 +342,7 @@ fn try_dispatch_trading_post_stock_to_local_service(
                 crate::balance_generated::MARKET_CARAVAN_FIREWOOD_PER_DELIVERY,
             ),
             ResidenceNeedKind::Food
-            | ResidenceNeedKind::PreservedFood
+            | ResidenceNeedKind::SavoryPreserves
             | ResidenceNeedKind::Luxury => (
                 FOOD_DELIVERY_SPEED_MPS,
                 FOOD_DELIVERY_UNLOAD_SEC,
@@ -668,7 +668,7 @@ mod tests {
     fn imported_household_goods_have_their_serving_outlet_route() {
         for route in [
             (ResidenceNeedKind::Food, None),
-            (ResidenceNeedKind::PreservedFood, None),
+            (ResidenceNeedKind::SavoryPreserves, None),
             (ResidenceNeedKind::Firewood, None),
             (ResidenceNeedKind::Water, None),
             (ResidenceNeedKind::Ale, Some(CommodityKind::Ale)),

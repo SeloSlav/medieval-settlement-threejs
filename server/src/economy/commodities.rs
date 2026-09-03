@@ -1547,7 +1547,7 @@ mod tests {
 
     use super::{
         building_shared_storage_capacity, food_category, food_category_qualifying_stock,
-        CommodityKind, FoodCategory, ALL_COMMODITIES,
+        food_progression_category, CommodityKind, FoodCategory, ALL_COMMODITIES,
     };
 
     #[test]
@@ -1563,12 +1563,12 @@ mod tests {
 
     #[test]
     fn commodity_ids_remain_stable_and_round_trip() {
-        for id in 0_u8..=68 {
-            let commodity =
-                CommodityKind::from_u8(id).unwrap_or_else(|| panic!("missing commodity id {id}"));
-            assert_eq!(commodity.as_u8(), id);
+        for commodity in ALL_COMMODITIES.iter().copied() {
+            assert_eq!(CommodityKind::from_u8(commodity.as_u8()), Some(commodity));
         }
-        assert_eq!(CommodityKind::from_u8(69), None);
+        for removed_id in [2, 7, 35] {
+            assert_eq!(CommodityKind::from_u8(removed_id), None);
+        }
     }
 
     #[test]
@@ -1578,10 +1578,7 @@ mod tests {
             .copied()
             .map(CommodityKind::as_u8)
             .collect::<HashSet<_>>();
-        assert_eq!(ids.len(), 69);
-        for id in 0_u8..=68 {
-            assert!(ids.contains(&id), "ALL_COMMODITIES omits commodity id {id}");
-        }
+        assert_eq!(ids.len(), ALL_COMMODITIES.len());
     }
 
     #[test]
@@ -1633,10 +1630,26 @@ mod tests {
             food_category(CommodityKind::Cabbage),
             food_category(CommodityKind::Apples)
         );
-        assert_eq!(
+        assert_ne!(
             food_category(CommodityKind::Milk),
             food_category(CommodityKind::Cheese)
         );
+        assert_eq!(
+            food_progression_category(CommodityKind::Milk),
+            food_progression_category(CommodityKind::Cheese)
+        );
+    }
+
+    #[test]
+    fn cured_meat_smoked_fish_and_cheese_share_savory_preserves() {
+        for commodity in [
+            CommodityKind::CuredMeat,
+            CommodityKind::SmokedFish,
+            CommodityKind::Cheese,
+        ] {
+            assert_eq!(food_category(commodity), Some(FoodCategory::SavoryPreserves));
+            assert!(commodity.is_savory_preserve());
+        }
     }
 
     #[test]

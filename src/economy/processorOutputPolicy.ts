@@ -257,7 +257,7 @@ export function processorOutputTargetForBuilding(
   const output = processorOutputCommodityForBuilding(building);
   if (!output || !isProcessorOutputTargetKind(building.kind)) return null;
   const capacities = BUILDING_STORAGE_CAPS[building.kind] as Partial<
-    Record<ProcessorOutputCommodity | 'food', number>
+    Record<ProcessorOutputCommodity | 'food' | 'preservedFood', number>
   >;
   const capacity = output === 'bread'
     ? capacities.food ?? 0

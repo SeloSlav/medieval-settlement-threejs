@@ -43,7 +43,7 @@ import {
   presentFoodCategories,
   FOOD_CATEGORY_LABELS,
   FOOD_PROGRESSION_SLOT_LABELS,
-  preservedFoodStock,
+  savoryPreservesStock,
 } from '../../economy/foodInventory.ts';
 import {
   formatFoodRunwayDays,
@@ -144,7 +144,7 @@ const RESIDENCE_NEED_ICON_RESOURCES: Record<ResidenceNeedKind, ResourceCostKind>
   foodVariety: 'cabbage',
   cloth: 'cloth',
   shoes: 'shoes',
-  preservedFood: 'preservedFood',
+  savoryPreserves: 'savoryPreserves',
   ale: 'ale',
   pottery: 'pottery',
   luxury: 'candles',
@@ -152,12 +152,9 @@ const RESIDENCE_NEED_ICON_RESOURCES: Record<ResidenceNeedKind, ResourceCostKind>
 
 const NEED_SOURCE_FLOWER_LUXURY = 65_534;
 const PRESERVED_NEED_SOURCE_KINDS = new Set<ResourceCostKind>([
-  'preservedFood',
   'curedMeat',
   'smokedFish',
   'cheese',
-  'aroniaJam',
-  'rosehipJam',
 ]);
 const AGGREGATE_NEED_SOURCE_KINDS: Partial<
   Record<ResidenceNeedKind, readonly ResourceCostKind[]>
@@ -347,7 +344,7 @@ export function renderResidenceInspector(
         supplier: servingWell,
         stocked: upgradeSupplierHasStock('water', servingWell),
       },
-      preservedFood: {
+      savoryPreserves: {
         supplier: servingPreservedFoodSupplier,
         stocked: servingPreservedFoodSupplier != null,
       },
@@ -432,19 +429,19 @@ export function renderResidenceInspector(
     : 0;
   const grossFoodPerMonth = householdFoodUnitsPerMonthForTier(residence.tier);
   const grossFoodPerDay = householdFoodUnitsPerDayForTier(residence.tier);
-  const physicalPreservedFood = preservedFoodStock(residence);
+  const physicalSavoryPreserves = savoryPreservesStock(residence);
   const physicalFreshMeals = Math.max(
     0,
-    edibleFoodStock(residence) - physicalPreservedFood,
+    edibleFoodStock(residence) - physicalSavoryPreserves,
   );
   const householdFreshMeals = residence.foodInventoryMigrated === true
     ? physicalFreshMeals
     : Math.max(physicalFreshMeals, getNeedStock(residence.needs, 'food'));
   const householdPreservedFood = residence.foodInventoryMigrated === true
-    ? physicalPreservedFood
+    ? physicalSavoryPreserves
     : Math.max(
-        physicalPreservedFood,
-        getNeedStock(residence.needs, 'preservedFood'),
+        physicalSavoryPreserves,
+        getNeedStock(residence.needs, 'savoryPreserves'),
       );
   const billAllocation = allocatePreservedMeal(
     householdFreshMeals,
@@ -471,7 +468,7 @@ export function renderResidenceInspector(
     servingLodgeId: servingFirewoodSupplier?.id ?? null,
     servingWellId: servingWell?.id ?? null,
     servingFoodSupplierId: servingFoodSupplier?.id ?? null,
-    servingPreservedFoodSupplierId: servingPreservedFoodSupplier?.id ?? null,
+    servingSavoryPreservesSupplierId: servingPreservedFoodSupplier?.id ?? null,
     servingAleSupplierId: servingAleSupplier?.id ?? null,
     servingClothSupplierId: servingClothSupplier?.id ?? null,
     servingPotterySupplierId: servingPotterySupplier?.id ?? null,
@@ -564,8 +561,8 @@ export function renderResidenceInspector(
     : null;
   const activeNeedsLabel = activeResidenceNeedKinds(residence.tier)
     .map((kind) =>
-      kind === 'preservedFood'
-        ? 'preserved food'
+      kind === 'savoryPreserves'
+        ? 'savory preserves'
         : kind === 'cloth'
           ? 'clothing'
           : kind === 'pottery'
@@ -685,12 +682,12 @@ export function renderResidenceInspector(
         },
         ...(residence.tier >= 4
           ? [{
-              kind: 'preservedFood' as const,
+              kind: 'savoryPreserves' as const,
               amount: householdPreservedFood,
-              title: 'Cured provisions',
+              title: 'Savory preserves',
               amountLabel: `Stock · cap ${RESIDENCE_PRESERVED_FOOD_CAPACITY}`,
               detail: `${preservedFoodRunwayLabel} runway · ${preservedFoodSupplierLabel}`,
-              className: getNeed(residence.needs, 'preservedFood').deficitTicks > 0 ? 'is-warning' : '',
+              className: getNeed(residence.needs, 'savoryPreserves').deficitTicks > 0 ? 'is-warning' : '',
             }]
           : []),
         ...(residence.tier >= 2
@@ -890,7 +887,7 @@ export function renderResidenceInspector(
       ${residence.tier > 0 ? householdFoodVarietyRow(residence, foodAndDrinkSection) : ''}
       ${residence.tier > 0 ? householdFoodContentsRow(residence, foodAndDrinkSection) : ''}
       ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Next monthly food bill</span><span>${billAllocation.freshUsed.toFixed(0)} fresh + ${preservedBillUse.toFixed(0)} cured${billAllocation.preservedFallbackUsed > 1e-6 ? ` (${billAllocation.preservedFallbackUsed.toFixed(0)} fallback)` : ''}${billAllocation.unmet > 1e-6 ? ` &middot; ${billAllocation.unmet.toFixed(0)} unmet` : ''} &middot; ${grossFoodPerMonth.toFixed(0)} units due</span></li>` : ''}
-      ${residence.tier >= 4 ? `<li data-inspector-primary data-inspector-section="${foodAndDrinkSection}"><span>Cured provisions</span><span>${householdPreservedFood.toFixed(1)} / ${RESIDENCE_PRESERVED_FOOD_CAPACITY} · ${preservedFoodRunwayLabel} runway</span></li>` : ''}
+      ${residence.tier >= 4 ? `<li data-inspector-primary data-inspector-section="${foodAndDrinkSection}"><span>Savory preserves</span><span>${householdPreservedFood.toFixed(1)} / ${RESIDENCE_PRESERVED_FOOD_CAPACITY} · ${preservedFoodRunwayLabel} runway</span></li>` : ''}
       ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Cupboard aging</span><span>${formatPreservedFoodLoss(
         householdPreservedFood
         * environment.preservedFoodSpoilageFractionPerDay
@@ -899,7 +896,7 @@ export function renderResidenceInspector(
       ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Monthly cured slot</span><span>${preservedFoodRotationPerMonth.toFixed(0)} cured unit per bill &middot; replaces one food category unit rather than adding another charge</span></li>` : ''}
       ${residence.tier >= 2 ? `<li data-inspector-primary data-inspector-section="${foodAndDrinkSection}"><span>Beverages</span><span>${Math.round(getNeedStock(residence.needs, 'ale'))} / ${RESIDENCE_ALE_CAPACITY} · ${aleRunwayLabel} runway</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Fresh-food supplier</span><span>${foodSupplierLabel}</span></li>` : ''}
-      ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Preserved-food supplier</span><span>${preservedFoodSupplierLabel}</span></li>` : ''}
+      ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Savory-preserves supplier</span><span>${preservedFoodSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 2 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Beverage service</span><span>${aleSupplierLabel}</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${fuelAndWaterSection}"><span>Firewood</span><span>${Math.round(getNeedStock(residence.needs, 'firewood'))} / ${RESIDENCE_FIREWOOD_CAPACITY} · ${firewoodRunwayLabel} runway</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${fuelAndWaterSection}"><span>Water</span><span>${Math.round(getNeedStock(residence.needs, 'water'))} / ${RESIDENCE_WATER_CAPACITY} · ${waterRunwayLabel} runway</span></li>` : ''}
@@ -1056,7 +1053,7 @@ export function residenceNeedSource(
         }
       : null;
   }
-  if (kind === 'preservedFood') {
+  if (kind === 'savoryPreserves') {
     const sources = foodSources.filter(({ kind: sourceKind }) =>
       PRESERVED_NEED_SOURCE_KINDS.has(sourceKind));
     const primary = sources[0];
@@ -1116,17 +1113,7 @@ export function residenceFoodNeedSources(residence: ResidenceState): ResidenceFo
         }]
       : [];
   });
-  const legacyCandidates: ResidenceFoodNeedSource[] = [
-    {
-      kind: 'preservedFood',
-      label: 'Preserved staples',
-      amount: Math.max(0, residence.preservedFood ?? 0),
-      mealEquivalent: Math.max(0, residence.preservedFood ?? 0),
-    },
-  ];
-  const legacySources = legacyCandidates.filter(({ amount }) => amount > 1e-6);
-
-  return [...namedSources, ...legacySources].sort((left, right) =>
+  return namedSources.sort((left, right) =>
     right.mealEquivalent - left.mealEquivalent
       || right.amount - left.amount
       || left.label.localeCompare(right.label));
@@ -1161,7 +1148,7 @@ function residenceNeedIconLabel(kind: ResidenceNeedKind): string {
     case 'foodVariety': return 'Food variety';
     case 'cloth': return 'Clothing';
     case 'shoes': return 'Footwear';
-    case 'preservedFood': return 'Cured provisions';
+    case 'savoryPreserves': return 'Savory preserves';
     case 'ale': return 'Beverages';
     case 'pottery': return 'Household pottery';
     case 'luxury': return 'Luxury comfort';
@@ -1285,7 +1272,7 @@ function residenceProsperityRows(
     <li><span>Settlement prosperity</span><span>${plan.currentResidents} / ${usableCapacity} road-matched residents at installed capacity${plan.roadPlan && plan.roadPlan.fragmentationResidentCapacity > 0 ? ` · ${plan.roadPlan.fragmentationResidentCapacity} capacity split between branches` : ''} · assumes fully supplied staffed workshops</span></li>
     ${projection.roadBranchScoped ? `<li><span>Local prosperity branch</span><span>${localCurrentResidents} current / ${localCapacity} resident capacity · ${projection.limitingLabel} limited</span></li>` : ''}
     <li><span>Promotion load</span><span>+${projection.occupantsPromotedNow} prosperous consumers now · +${projection.targetHouseCapacity} with this house full · ${immediateStatus}</span></li>
-    <li><span>Prosperity planning load</span><span>+${projection.immediateDemand.preservedFood.toFixed(2)} winter-peak preserved ration/day · +${projection.immediateDemand.ale.toFixed(2)} beverages/day · +${projection.immediateDemand.cloth.toFixed(3)} clothing/day · +${projection.immediateDemand.pottery.toFixed(2)} pottery/day</span></li>
+    <li><span>Prosperity planning load</span><span>+${projection.immediateDemand.savoryPreserves.toFixed(2)} winter-peak savory preserves/day · +${projection.immediateDemand.ale.toFixed(2)} beverages/day · +${projection.immediateDemand.cloth.toFixed(3)} clothing/day · +${projection.immediateDemand.pottery.toFixed(2)} pottery/day</span></li>
   `;
 }
 
@@ -1370,7 +1357,7 @@ function upgradeSupplierHasStock(
   }
   if (kind === 'water') return supplier.water > 1e-6;
   if (kind === 'food') return edibleFoodStock(supplier) > 1e-6;
-  if (kind === 'preservedFood') return preservedFoodStock(supplier) > 1e-6;
+  if (kind === 'savoryPreserves') return savoryPreservesStock(supplier) > 1e-6;
   if (kind === 'ale') {
     return supplier.ale
       + (supplier.cider ?? 0)
@@ -1394,9 +1381,6 @@ function householdFoodContentsRow(
     .map((kind) => ({ kind, amount: Math.max(0, residence[kind] ?? 0) }))
     .filter(({ amount }) => amount > 1e-6)
     .map(({ kind, amount }) => `${NAMED_FOOD_LABELS[kind]} ${amount.toFixed(1)}`);
-  if ((residence.preservedFood ?? 0) > 1e-6) {
-    contents.push(`Legacy preserved staples ${residence.preservedFood!.toFixed(1)}`);
-  }
   return `<li data-inspector-secondary data-inspector-section="${section}"><span>Pantry contents</span><span>${contents.length > 0 ? contents.join(' · ') : 'Empty'}</span></li>`;
 }
 
@@ -1440,7 +1424,7 @@ function compactNeedLabel(
   kind: ReturnType<typeof activeResidenceNeedKinds>[number],
 ): string {
   switch (kind) {
-    case 'preservedFood': return 'preserved food';
+    case 'savoryPreserves': return 'savory preserves';
     case 'foodVariety': return 'food variety';
     case 'cloth': return 'clothing';
     case 'pottery': return 'pottery';

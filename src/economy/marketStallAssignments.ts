@@ -6,16 +6,16 @@ import {
 } from '../generated/gameBalance.ts';
 import {
   FRESH_FOOD_KINDS,
-  PRESERVED_FOOD_KINDS,
+  SAVORY_PRESERVE_KINDS,
   freshFoodStock,
-  preservedFoodStock,
+  savoryPreservesStock,
   type FoodInventoryKind,
 } from './foodInventory.ts';
 import { combinedFuelEquivalent } from './fuelReservePolicy.ts';
 
 export const MARKET_FOOD_STALL_NEEDS = [
   'food',
-  'preservedFood',
+  'savoryPreserves',
   'luxury',
 ] as const satisfies readonly ResidenceNeedKind[];
 
@@ -113,7 +113,7 @@ export type MarketStallRoadDistance = (
 
 const MARKET_STALL_LABELS: Readonly<Record<MarketStallNeed, string>> = {
   food: 'Fresh food',
-  preservedFood: 'Preserved food',
+  savoryPreserves: 'Savory preserves',
   luxury: 'Luxury provisions',
   firewood: 'Fuel',
   cloth: 'Clothing',
@@ -129,7 +129,7 @@ const MARKET_STALL_COMMODITIES_BY_NEED: Readonly<
   Record<MarketStallNeed, readonly MarketStallCommodityKind[]>
 > = {
   food: [...FRESH_FOOD_KINDS, 'honey'],
-  preservedFood: PRESERVED_FOOD_KINDS,
+  savoryPreserves: SAVORY_PRESERVE_KINDS,
   luxury: ['wine', 'honey'],
   firewood: ['firewood', 'charcoal'],
   cloth: ['cloth'],
@@ -441,8 +441,8 @@ export function marketStallStock(
   switch (needKind) {
     case 'food':
       return freshFoodStock(building) + finiteStock(building.honey);
-    case 'preservedFood':
-      return preservedFoodStock(building);
+    case 'savoryPreserves':
+      return savoryPreservesStock(building);
     case 'luxury':
       return finiteStock(building.wine) + finiteStock(building.honey);
     case 'firewood':
@@ -463,7 +463,7 @@ function stallNeedRank(needKind: MarketStallNeed): number {
   switch (needKind) {
     case 'food': return 0;
     case 'firewood': return 0;
-    case 'preservedFood': return 1;
+    case 'savoryPreserves': return 1;
     case 'luxury': return 2;
     case 'cloth': return 1;
     case 'shoes': return 2;

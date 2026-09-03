@@ -125,7 +125,9 @@ type StockKey =
   | 'cider'
   | 'pearCider'
   | 'mead'
-  | 'preservedFood'
+  | 'curedMeat'
+  | 'smokedFish'
+  | 'cheese'
   | 'wool'
   | 'flax'
   | 'yarn'
@@ -181,7 +183,7 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
       { key: 'firewood', label: 'firewood', required: SMOKEHOUSE_FIREWOOD_PER_CYCLE, deliveryHint: 'household-cleared lodge/storehouse surplus follows lowest runway' },
       { key: 'salt', label: 'salt', required: SMOKEHOUSE_SALT_PER_CYCLE, deliveryHint: 'mine or market carts may supply it' },
     ],
-    output: 'preservedFood',
+    output: 'curedMeat',
     outputPerCycle: SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
     operatingLabel: 'Smoking and preserving food',
     idleNoWorkersLabel: 'Idle — assign workers to preserve food',
@@ -353,7 +355,6 @@ function stockAmount(building: BuildingState, key: StockKey): number {
 }
 
 function stockLabel(key: StockKey): string {
-  if (key === 'preservedFood') return 'preserved staples';
   return key.replace(/([A-Z])/g, ' $1').toLowerCase();
 }
 

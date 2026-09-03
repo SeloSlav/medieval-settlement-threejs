@@ -16,7 +16,7 @@ import { spoilageAdjustedRunwayDays } from '../economy/foodPreservation.ts';
 import { householdFoodUnitsPerDay } from '../economy/householdBillDemand.ts';
 import type { BuildingKind, BuildingState, ResidenceState } from '../resources/types.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
-import { preservedFoodStock } from '../economy/foodInventory.ts';
+import { savoryPreservesStock } from '../economy/foodInventory.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import {
   compareStableEntityIds,
@@ -28,7 +28,7 @@ export const SPECIALTY_CONSUMPTION_SECONDS_PER_DAY = CALENDAR_SECONDS_PER_DAY;
 
 export const MONASTERY_MIN_PARISH_POPULATION = 12;
 
-export type SpecialtyNeedKind = 'ale' | 'preservedFood' | 'cloth' | 'shoes' | 'pottery';
+export type SpecialtyNeedKind = 'ale' | 'savoryPreserves' | 'cloth' | 'shoes' | 'pottery';
 
 const PRESERVED_FOOD_PRODUCER_KINDS: readonly BuildingKind[] = [
   'smokehouse',
@@ -172,10 +172,10 @@ export function residencePreservedFoodRunwaySeconds(
 ): number | null {
   if (residence.abandoned || residence.population === 0 || residence.tier < 4) return null;
   const stock = Math.max(
-    preservedFoodStock(residence),
+    savoryPreservesStock(residence),
     residence.foodInventoryMigrated === true
       ? 0
-      : getNeedStock(residence.needs, 'preservedFood'),
+      : getNeedStock(residence.needs, 'savoryPreserves'),
   );
   const usePerDay = householdFoodUnitsPerDay(1);
   if (usePerDay <= 1e-9) return null;
@@ -342,7 +342,7 @@ function supplierKindsForNeed(needKind: SpecialtyNeedKind): readonly BuildingKin
 function upgradeSupplierKindsForNeed(
   needKind: SpecialtyNeedKind,
 ): readonly BuildingKind[] {
-  return needKind === 'preservedFood'
+  return needKind === 'savoryPreserves'
     ? PRESERVED_FOOD_PRODUCER_KINDS
     : needKind === 'ale'
       ? ALE_PRODUCER_KINDS
@@ -366,7 +366,7 @@ function specialtySupplierStock(
   if (needKind === 'cloth') return building.cloth ?? 0;
   if (needKind === 'shoes') return building.shoes ?? 0;
   if (needKind === 'pottery') return building.pottery ?? 0;
-  return preservedFoodStock(building);
+  return savoryPreservesStock(building);
 }
 
 function specialtyCapacity(needKind: SpecialtyNeedKind): number {

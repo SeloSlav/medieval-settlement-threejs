@@ -58,9 +58,10 @@ assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('remedies'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('wax'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('candles'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('pelts'));
-assert.equal(GRANARY_STORAGE_COMMODITIES.length, 40);
+assert.equal(GRANARY_STORAGE_COMMODITIES.length, 39);
 assert.equal(GRANARY_STORAGE_COMMODITIES.includes('food'), false);
 assert.equal(GRANARY_STORAGE_COMMODITIES.includes('vegetables'), false);
+assert.equal((GRANARY_STORAGE_COMMODITIES as readonly string[]).includes('preservedFood'), false);
 assert.ok(GRANARY_STORAGE_COMMODITIES.includes('mead'));
 assert.equal(
   'animalFeed' in STORAGE_COMMODITY_CODES,

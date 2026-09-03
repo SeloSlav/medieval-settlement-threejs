@@ -124,11 +124,13 @@ assert.equal(foodCategory('aroniaJam'), 'sweetPreserves');
 assert.equal(foodCategory('rosehipJam'), 'sweetPreserves');
 assert.equal(foodCategory('honey'), 'sweetPreserves');
 assert.equal(foodCategory('milk'), 'animalProduce');
-assert.equal(foodCategory('cheese'), 'animalProduce');
+assert.equal(foodCategory('curedMeat'), 'savoryPreserves');
+assert.equal(foodCategory('smokedFish'), 'savoryPreserves');
+assert.equal(foodCategory('cheese'), 'savoryPreserves');
 assert.equal(
   foodVarietyCount({ apples: 2, cherries: 2, cabbage: 3, milk: 1, cheese: 1 }, 1),
-  3,
-  'close substitutes must not inflate household variety',
+  4,
+  'cheese must count as a savory preserve rather than raw animal produce',
 );
 assert.equal(
   foodVarietyCount({ cabbage: 2, carrots: 2, beetroot: 2 }, 1),
@@ -158,9 +160,14 @@ assert.equal(
   'one monthly bill unit must qualify the vegetable category',
 );
 assert.equal(
-  foodVarietyCount({ milk: 0.63, cheese: 0.5 }, 6),
+  foodVarietyCount({ milk: 0.63, eggs: 0.5 }, 6),
   1,
-  'close substitutes may combine to qualify their one shared category',
+  'raw animal produce may combine to qualify its shared category',
+);
+assert.equal(
+  foodVarietyCount({ cheese: 0.63, curedMeat: 0.5 }, 6),
+  1,
+  'named savory preserves may combine to qualify their shared category',
 );
 assert.equal(
   foodProgressionStatus({ ryeBread: 1 }, 3, 1).ready,
@@ -229,6 +236,7 @@ const typedCargoKinds = [
   [62, 'rosehipJam'],
 ] as const;
 assert.equal(cargoKindFromId(2), null, 'retired aggregate food cargo id 2 must stay unmapped');
+assert.equal(cargoKindFromId(7), null, 'retired aggregate preserved-food cargo id 7 must stay unmapped');
 assert.equal(cargoKindFromId(35), null, 'removed aggregate vegetable cargo id must stay unmapped');
 for (const [id, kind] of typedCargoKinds) {
   assert.equal(cargoKindFromId(id), kind, `cargo id ${id} must remain ${kind}`);
@@ -292,7 +300,11 @@ assert.equal(
 );
 
 assert.equal(processorInputCommodityStock(pantry, 'food'), 6);
-assert.equal(processorInputCommodityStock(pantry, 'preservedFood'), 21);
+assert.equal(
+  (RESOURCE_KINDS as readonly string[]).includes('preservedFood'),
+  false,
+  'retired aggregate preserved food must not remain a client resource',
+);
 
 const commoditiesSource = readFileSync(
   'server/src/economy/commodities.rs',
@@ -322,6 +334,16 @@ assert.doesNotMatch(
   tablesSource,
   /pub vegetables:\s*f64/,
   'retired aggregate vegetables must not remain in persisted resource schemas',
+);
+assert.doesNotMatch(
+  tablesSource,
+  /pub preserved_food:\s*f64/,
+  'retired aggregate preserved food must not remain in persisted resource schemas',
+);
+assert.doesNotMatch(
+  commodityEnumSource,
+  /\bPreservedFood\b/,
+  'retired aggregate preserved food must not remain a server commodity',
 );
 assert.doesNotMatch(
   commoditiesSource,

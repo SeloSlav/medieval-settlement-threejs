@@ -338,7 +338,7 @@ export function workerProductionBlockerDescription(
     case 'charcoal_target': return 'the charcoal target has been reached';
     case 'ironwork_target': return 'the ironwork target has been reached';
     case 'pottery_target': return 'the pottery target has been reached';
-    case 'preserved_food_target': return 'the preserved-food target has been reached';
+    case 'preserved_food_target': return 'the savory-preserve target has been reached';
     case 'candles_target': return 'the candle target has been reached';
     case 'firewood': return 'there is no firewood on site';
     case 'iron': return 'there is no raw iron on site';

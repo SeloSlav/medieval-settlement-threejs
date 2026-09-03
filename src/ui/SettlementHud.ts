@@ -743,11 +743,6 @@ const SETTLEMENT_HUD_HTML = `
               <strong class="settlement-hud__value" data-stockpile="honey">0</strong>
               <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="honey" hidden></span>
             </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="preservedFood" data-tooltip="${RESOURCE_DESCRIPTIONS.preservedFood}">
-              <span class="settlement-hud__label">Preserved</span>
-              <strong class="settlement-hud__value" data-stockpile="preservedFood">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="preservedFood" hidden></span>
-            </div>
             <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="animalFeed" data-tooltip="${RESOURCE_DESCRIPTIONS.animalFeed}">
               <span class="settlement-hud__label">Animal feed</span>
               <strong class="settlement-hud__value" data-stockpile="animalFeed">0</strong>

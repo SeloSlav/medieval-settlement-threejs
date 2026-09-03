@@ -3,7 +3,7 @@ export type ResidenceNeedKind =
   | 'water'
   | 'food'
   | 'ale'
-  | 'preservedFood'
+  | 'savoryPreserves'
   | 'cloth'
   | 'shoes'
   | 'pottery'
@@ -19,7 +19,7 @@ export const RESIDENCE_NEED_KINDS: readonly ResidenceNeedKind[] = [
   'foodVariety',
   'cloth',
   'shoes',
-  'preservedFood',
+  'savoryPreserves',
   'ale',
   'pottery',
   'luxury',
@@ -40,7 +40,7 @@ export const RESIDENCE_NEED_CATEGORIES: readonly ResidenceNeedCategory[] = [
   {
     id: 'food-and-drink',
     label: 'Food & drink',
-    kinds: ['food', 'foodVariety', 'preservedFood', 'ale'],
+    kinds: ['food', 'foodVariety', 'savoryPreserves', 'ale'],
   },
   {
     id: 'fuel-and-water',
@@ -81,7 +81,7 @@ export const RESIDENCE_NEED_KIND_IDS: Record<ResidenceNeedKind, number> = {
   water: 1,
   food: 2,
   ale: 6,
-  preservedFood: 7,
+  savoryPreserves: 7,
   cloth: 14,
   shoes: 60,
   // Must mirror CommodityKind::Pottery because delivery_trip.cargo_kind is
@@ -105,7 +105,7 @@ export type ResidenceNeedSupplyContext = {
   servingLodgeId: string | null;
   servingWellId: string | null;
   servingFoodSupplierId: string | null;
-  servingPreservedFoodSupplierId?: string | null;
+  servingSavoryPreservesSupplierId?: string | null;
   servingAleSupplierId?: string | null;
   servingClothSupplierId?: string | null;
   servingShoesSupplierId?: string | null;
@@ -151,7 +151,7 @@ export function createDefaultNeeds(): ResidenceNeedsState {
     water: { stock: 0, deficitTicks: 0, sourceKind: null },
     food: { stock: 0, deficitTicks: 0, sourceKind: null },
     ale: { stock: 0, deficitTicks: 0, sourceKind: null },
-    preservedFood: { stock: 0, deficitTicks: 0, sourceKind: null },
+    savoryPreserves: { stock: 0, deficitTicks: 0, sourceKind: null },
     cloth: { stock: 0, deficitTicks: 0, sourceKind: null },
     shoes: { stock: 0, deficitTicks: 0, sourceKind: null },
     pottery: { stock: 0, deficitTicks: 0, sourceKind: null },
@@ -171,8 +171,8 @@ export function needKindFromId(id: number): ResidenceNeedKind | null {
       return 'food';
     case RESIDENCE_NEED_KIND_IDS.ale:
       return 'ale';
-    case RESIDENCE_NEED_KIND_IDS.preservedFood:
-      return 'preservedFood';
+    case RESIDENCE_NEED_KIND_IDS.savoryPreserves:
+      return 'savoryPreserves';
     case RESIDENCE_NEED_KIND_IDS.cloth:
       return 'cloth';
     case RESIDENCE_NEED_KIND_IDS.shoes:

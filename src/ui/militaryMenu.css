@@ -55,7 +55,7 @@
   clip-path: polygon(50% 0, 100% 12%, 100% 88%, 50% 100%, 0 88%, 0 12%);
 }
 .military-unit-card__frame::after { content: ''; position: absolute; inset: 55% 3px 3px; background: linear-gradient(transparent, #181b13db); pointer-events: none; }
-.military-unit-card__type { position: absolute; z-index: 1; right: 7px; top: 21px; width: 24px; height: 24px; background-color: #272b22e8; background-size: 90%; background-position: center; background-repeat: no-repeat; border: 1px solid #dbcb9a; border-radius: 50%; }
+.military-unit-card__type { position: absolute; z-index: 1; right: 7px; top: 21px; width: 24px; height: 24px; background-color: #a51f2d; background-size: 84%; background-position: center; background-repeat: no-repeat; border: 1px solid #fff8e8; border-radius: 50%; box-shadow: 0 1px 3px #0009; }
 .military-unit-card__count { position: absolute; z-index: 1; bottom: 12px; left: 50%; transform: translateX(-50%); padding: 1px 7px 2px; background: #f2ead5; color: #56342a; box-shadow: 0 2px 5px #0005; font-size: 14px; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .military-unit-card.is-selected .military-unit-card__frame { background: #fff; filter: brightness(1.12); }
 .military-unit-card:hover .military-unit-card__frame { background: #f1d6a3; filter: brightness(1.12); }

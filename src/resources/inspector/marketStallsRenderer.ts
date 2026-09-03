@@ -2,9 +2,9 @@ import { getBuildingCost } from '../buildingEconomy.ts';
 import type { InspectableTarget } from '../types.ts';
 import {
   FRESH_FOOD_KINDS,
-  PRESERVED_FOOD_KINDS,
+  SAVORY_PRESERVE_KINDS,
   freshFoodStock,
-  preservedFoodStock,
+  savoryPreservesStock,
 } from '../../economy/foodInventory.ts';
 import {
   assignMarketplaceStallRoster,
@@ -181,7 +181,7 @@ export function renderMarketStallsInspector(
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
   const stockedNeeds = [
     freshFoodStock(building) + Math.max(0, building.honey),
-    preservedFoodStock(building),
+    savoryPreservesStock(building),
     fuelEquivalent,
     building.cloth,
     building.shoes,
@@ -193,7 +193,7 @@ export function renderMarketStallsInspector(
   const heldTax = Math.max(0, building.gold ?? 0);
   const localStorageItems = buildingLocalStorageItems(building);
   const freshKinds = new Set<string>([...FRESH_FOOD_KINDS, 'honey']);
-  const preservedKinds = new Set<string>(PRESERVED_FOOD_KINDS);
+  const preservedKinds = new Set<string>(SAVORY_PRESERVE_KINDS);
   const fuelKinds = new Set<string>(['firewood', 'charcoal']);
   const representedKinds = new Set<string>([
     ...freshKinds,
@@ -225,11 +225,11 @@ export function renderMarketStallsInspector(
       resources: resourcesIn(freshKinds),
     },
     {
-      kind: 'preservedFood',
-      amount: preservedFoodStock(building),
-      title: 'Preserved food',
+      kind: 'savoryPreserves',
+      amount: savoryPreservesStock(building),
+      title: 'Savory preserves',
       detail: assignmentDetail(
-        'preservedFood',
+        'savoryPreserves',
         MARKETPLACE_FOOD_STALL_SLOTS,
         'No stocked Granary table',
       ),

@@ -17,7 +17,7 @@ import type {
   SettlementProductionCapacity,
 } from './settlementProduction.ts';
 
-export type ProsperityCommodity = 'preservedFood' | 'ale' | 'cloth' | 'shoes' | 'pottery';
+export type ProsperityCommodity = 'savoryPreserves' | 'ale' | 'cloth' | 'shoes' | 'pottery';
 
 export type ProsperityChain = {
   kind: ProsperityCommodity;
@@ -84,7 +84,7 @@ export type ProsperityRoadPlan = {
 };
 
 const PER_RESIDENT_PER_DAY: Record<ProsperityCommodity, number> = {
-  preservedFood:
+  savoryPreserves:
     RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
     * CALENDAR_SECONDS_PER_DAY
     * RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
@@ -132,8 +132,8 @@ export function computeSettlementProsperityPlan(
   );
   const chains = [
     prosperityChain(
-      'preservedFood',
-      'preserved food',
+      'savoryPreserves',
+      'savory preserves',
       production.preservedFoodOutputPerDay,
       production.preservedFoodDemandPerDay,
     ),
@@ -175,7 +175,7 @@ export function computeSettlementProsperityPlan(
     ? wholeResidents(Math.max(
         safeRatio(
           growth.additionalPreservedFoodPerDay,
-          PER_RESIDENT_PER_DAY.preservedFood,
+          PER_RESIDENT_PER_DAY.savoryPreserves,
         ),
         safeRatio(growth.additionalAlePerDay, PER_RESIDENT_PER_DAY.ale),
         safeRatio(growth.additionalClothPerDay, PER_RESIDENT_PER_DAY.cloth),
@@ -279,10 +279,10 @@ function buildProsperityRoadPlan(
   for (const [key, raw] of source) {
     const capacities = [
       {
-        kind: 'preservedFood' as const,
+        kind: 'savoryPreserves' as const,
         supported: safeRatio(
           raw.preservedFoodOutputPerDay,
-          PER_RESIDENT_PER_DAY.preservedFood,
+          PER_RESIDENT_PER_DAY.savoryPreserves,
         ),
       },
       {
@@ -434,7 +434,7 @@ function prosperityChain(
 }
 
 function prosperityCommodityLabel(kind: ProsperityCommodity): string {
-  if (kind === 'preservedFood') return 'preserved food';
+  if (kind === 'savoryPreserves') return 'savory preserves';
   if (kind === 'pottery') return 'household pottery';
   return kind;
 }
@@ -443,7 +443,7 @@ function demandForResidents(
   residents: number,
 ): Record<ProsperityCommodity, number> {
   return {
-    preservedFood: residents * PER_RESIDENT_PER_DAY.preservedFood,
+    savoryPreserves: residents * PER_RESIDENT_PER_DAY.savoryPreserves,
     ale: residents * PER_RESIDENT_PER_DAY.ale,
     cloth: residents * PER_RESIDENT_PER_DAY.cloth,
     shoes: residents * PER_RESIDENT_PER_DAY.shoes,

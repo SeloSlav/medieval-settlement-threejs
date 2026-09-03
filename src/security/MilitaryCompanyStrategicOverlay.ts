@@ -384,14 +384,14 @@ export class MilitaryCompanyStrategicOverlay {
       }
       this.options.onSelect(current.id);
     });
-    const woodcut = document.createElement('img');
-    woodcut.className = 'military-company-map-icon__woodcut';
-    woodcut.alt = '';
-    woodcut.draggable = false;
+    const symbol = document.createElement('img');
+    symbol.className = 'military-company-map-icon__symbol';
+    symbol.alt = '';
+    symbol.draggable = false;
     const count = document.createElement('span');
     count.className = 'military-company-map-icon__count';
     count.setAttribute('aria-hidden', 'true');
-    button.append(woodcut, count);
+    button.append(symbol, count);
     this.syncButton(button, marker);
     return button;
   }
@@ -420,11 +420,11 @@ export class MilitaryCompanyStrategicOverlay {
         ? `${label}, ${marker.livingMembers} living. Focus enemy company.`
         : `${label}, ${marker.livingMembers} living. Select military company.`,
     );
-    const woodcut = button.querySelector<HTMLImageElement>('.military-company-map-icon__woodcut');
+    const symbol = button.querySelector<HTMLImageElement>('.military-company-map-icon__symbol');
     const art = hostileKind
       ? HOSTILE_COMPANY_STRATEGIC_ICON_ART[hostileKind]
       : MILITARY_COMPANY_STRATEGIC_ICON_ART[marker.kind as MilitaryCompanyKind];
-    if (woodcut?.getAttribute('src') !== art) woodcut?.setAttribute('src', art);
+    if (symbol?.getAttribute('src') !== art) symbol?.setAttribute('src', art);
     const count = button.querySelector<HTMLElement>('.military-company-map-icon__count');
     const countText = String(marker.livingMembers);
     if (count && count.textContent !== countText) count.textContent = countText;

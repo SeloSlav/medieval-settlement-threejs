@@ -7,27 +7,28 @@ import {
   type MilitaryCompanyKind,
 } from './militaryProgression.ts';
 
+/** High-contrast strategic silhouettes are deliberately separate from the
+ * detailed recruitment art so every company reads at the far map stops. */
 export const MILITARY_COMPANY_STRATEGIC_ICON_ART = {
-  militia: '/assets/ui/icons/actions/militia.png',
-  spearmen: '/assets/ui/icons/actions/spearmen.png',
-  'men-at-arms': '/assets/ui/icons/actions/men-at-arms.png',
-  crossbows: '/assets/ui/icons/actions/crossbows.png',
-  'mercenary-spears': '/assets/ui/icons/actions/mercenaries.png',
-  footmen: '/assets/ui/icons/actions/footmen.png',
-  polearms: '/assets/ui/icons/actions/polearms.png',
-  bowmen: '/assets/ui/icons/actions/bowmen.png',
-  hussars: '/assets/ui/icons/actions/spearmen.png',
-  'armored-lancers': '/assets/ui/icons/actions/men-at-arms.png',
-  'mounted-archers': '/assets/ui/icons/actions/bowmen.png',
+  militia: '/assets/ui/icons/military-map/militia.png',
+  spearmen: '/assets/ui/icons/military-map/spearmen.png',
+  'men-at-arms': '/assets/ui/icons/military-map/men-at-arms.png',
+  crossbows: '/assets/ui/icons/military-map/crossbows.png',
+  'mercenary-spears': '/assets/ui/icons/military-map/mercenary-spears.png',
+  footmen: '/assets/ui/icons/military-map/footmen.png',
+  polearms: '/assets/ui/icons/military-map/polearms.png',
+  bowmen: '/assets/ui/icons/military-map/bowmen.png',
+  hussars: '/assets/ui/icons/military-map/hussars.png',
+  'armored-lancers': '/assets/ui/icons/military-map/armored-lancers.png',
+  'mounted-archers': '/assets/ui/icons/military-map/mounted-archers.png',
 } as const satisfies Record<MilitaryCompanyKind, string>;
 
 export type HostileCompanyStrategicKind = 'raiders' | 'bandits';
 
-/** Hostile formations share the same painted, circular strategic vocabulary as
- * resource nodes while retaining a clearly hostile edge treatment. */
+/** Hostile formations use the same crimson badge and white silhouette system. */
 export const HOSTILE_COMPANY_STRATEGIC_ICON_ART = {
-  raiders: '/assets/ui/icons/actions/men-at-arms.png',
-  bandits: '/assets/ui/icons/actions/mercenaries.png',
+  raiders: '/assets/ui/icons/military-map/raiders.png',
+  bandits: '/assets/ui/icons/military-map/bandits.png',
 } as const satisfies Record<HostileCompanyStrategicKind, string>;
 
 export function hostileCompanyStrategicLabel(kind: HostileCompanyStrategicKind): string {

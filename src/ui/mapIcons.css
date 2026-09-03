@@ -104,26 +104,26 @@
 }
 
 .military-company-map-icon {
-  --company-edge: #d6b45e;
+  --company-red: #a51f2d;
+  --company-edge: #fff8e6;
   position: fixed;
   z-index: 6;
   display: grid;
   place-items: center;
-  width: 43px;
-  height: 43px;
-  margin: -22px 0 0 -22px;
-  padding: 4px;
-  border: 2px solid color-mix(in srgb, var(--company-edge) 82%, #f6e6b3 18%);
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
+  padding: 0;
+  border: 3px solid var(--company-edge);
   border-radius: 999px;
-  color: #f7e8bd;
+  color: #fff;
   background:
-    radial-gradient(circle at 38% 30%, rgba(255, 242, 196, 0.19), transparent 42%),
-    rgba(28, 27, 21, 0.92);
+    radial-gradient(circle at 38% 30%, rgba(255, 255, 255, 0.16), transparent 43%),
+    var(--company-red);
   box-shadow:
-    0 9px 22px rgba(0, 0, 0, 0.42),
-    0 0 0 2px rgba(41, 31, 17, 0.58),
-    inset 0 0 0 1px rgba(255, 238, 183, 0.12);
-  backdrop-filter: blur(8px);
+    0 8px 18px rgba(0, 0, 0, 0.5),
+    0 0 0 2px rgba(61, 9, 15, 0.82),
+    inset 0 0 0 1px rgba(74, 6, 14, 0.42);
   pointer-events: auto;
   cursor: pointer;
   transform-origin: 50% 70%;
@@ -136,56 +136,56 @@
 .military-company-map-icon.is-selected {
   outline: none;
   transform: translateY(-2px) scale(calc(var(--company-marker-scale, 1) * 1.09));
-  border-color: #f0c84d;
+  border-color: #fff;
   box-shadow:
-    0 11px 26px rgba(0, 0, 0, 0.48),
-    0 0 0 3px rgba(225, 181, 56, 0.25),
-    inset 0 0 0 1px rgba(255, 241, 187, 0.22);
+    0 11px 24px rgba(0, 0, 0, 0.56),
+    0 0 0 4px rgba(255, 255, 255, 0.24),
+    inset 0 0 0 1px rgba(73, 5, 13, 0.5);
 }
 
 .military-company-map-icon[data-controllable='false'] {
-  --company-edge: #c97948;
+  --company-red: #7d2630;
 }
 
 .military-company-map-icon[data-hostile='true'] {
-  --company-edge: #b84936;
+  --company-red: #76141f;
   pointer-events: auto;
   cursor: crosshair;
   background:
-    radial-gradient(circle at 38% 30%, rgba(255, 190, 147, 0.16), transparent 42%),
-    rgba(38, 22, 19, 0.94);
+    radial-gradient(circle at 38% 30%, rgba(255, 255, 255, 0.14), transparent 43%),
+    var(--company-red);
   box-shadow:
-    0 9px 22px rgba(0, 0, 0, 0.46),
-    0 0 0 2px rgba(69, 23, 16, 0.64),
-    inset 0 0 0 1px rgba(255, 196, 157, 0.11);
+    0 8px 18px rgba(0, 0, 0, 0.52),
+    0 0 0 2px rgba(47, 4, 9, 0.9),
+    inset 0 0 0 1px rgba(47, 4, 9, 0.58);
 }
 
-.military-company-map-icon[data-hostile='true'].is-compact .military-company-map-icon__woodcut,
+.military-company-map-icon[data-hostile='true'].is-compact .military-company-map-icon__symbol,
 .military-company-map-icon[data-hostile='true'].is-compact .military-company-map-icon__count {
   opacity: 0;
 }
 
 .military-company-map-icon[data-hostile='true']:hover,
 .military-company-map-icon[data-hostile='true']:focus-visible {
-  border-color: #dc765e;
+  border-color: #fff;
   box-shadow:
-    0 11px 26px rgba(0, 0, 0, 0.5),
-    0 0 0 3px rgba(166, 54, 38, 0.24),
-    inset 0 0 0 1px rgba(255, 210, 176, 0.16);
+    0 11px 24px rgba(0, 0, 0, 0.58),
+    0 0 0 4px rgba(255, 255, 255, 0.22),
+    inset 0 0 0 1px rgba(47, 4, 9, 0.62);
 }
 
 .military-company-map-icon[data-hostile='true'] .military-company-map-icon__count {
-  border-color: rgba(244, 171, 143, 0.82);
-  background: #6b2c24;
+  color: #6f111c;
+  border-color: #5a0b14;
+  background: #fff;
 }
 
-.military-company-map-icon__woodcut {
+.military-company-map-icon__symbol {
   display: block;
-  width: 31px;
-  height: 31px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
-  filter: sepia(0.32) saturate(0.72) brightness(1.15) contrast(1.08)
-    drop-shadow(0 1px 1px rgba(0, 0, 0, 0.72));
+  filter: drop-shadow(0 1px 1px rgba(49, 3, 9, 0.7));
   pointer-events: none;
   user-select: none;
   transition: opacity 0.14s ease;
@@ -193,19 +193,19 @@
 
 .military-company-map-icon__count {
   position: absolute;
-  right: -5px;
-  bottom: -5px;
+  right: -6px;
+  bottom: -6px;
   display: grid;
   place-items: center;
-  min-width: 18px;
-  height: 18px;
+  min-width: 20px;
+  height: 20px;
   padding: 0 4px;
-  border: 1px solid rgba(246, 224, 164, 0.78);
+  border: 2px solid #67101a;
   border-radius: 999px;
-  color: #fff3ce;
-  background: #54401f;
+  color: #8f1724;
+  background: #fff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.48);
-  font: 800 10px/1 Inter, ui-sans-serif, system-ui, sans-serif;
+  font: 900 10px/1 Inter, ui-sans-serif, system-ui, sans-serif;
   pointer-events: none;
   transition: opacity 0.14s ease;
 }

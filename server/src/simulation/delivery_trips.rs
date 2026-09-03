@@ -2509,7 +2509,7 @@ fn unload_food_to_residence(
         trip.amount,
         crate::simulation::residence_needs::food::stock_capacity(),
         crate::simulation::residence_needs::provisions::stock_capacity(
-            ResidenceNeedKind::PreservedFood,
+            ResidenceNeedKind::SavoryPreserves,
         ),
     );
     if delivered <= 1e-6 {

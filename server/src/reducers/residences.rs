@@ -834,7 +834,7 @@ fn first_unmet_current_tier_promotion_need(
                                 + building_commodity_stock(building, CommodityKind::Mead)
                                 > 1e-6
                     }
-                    ResidenceNeedKind::PreservedFood => {
+                    ResidenceNeedKind::SavoryPreserves => {
                         building.kind == "marketplace"
                             && building.construction_complete
                             && crate::economy::building_savory_preserves_stock(building) > 1e-6
@@ -898,8 +898,8 @@ fn current_tier_promotion_remedy(kind: ResidenceNeedKind, current_tier: u8) -> S
             "stock the household with beverages, or stage ale, cider, or mead at a staffed reachable Tavern"
                 .to_string()
         }
-        ResidenceNeedKind::PreservedFood => {
-            "stock the household with cured provisions, or stage them at a reachable Marketplace"
+        ResidenceNeedKind::SavoryPreserves => {
+            "stock the household with savory preserves, or stage them at a reachable Marketplace"
                 .to_string()
         }
         ResidenceNeedKind::Cloth => {

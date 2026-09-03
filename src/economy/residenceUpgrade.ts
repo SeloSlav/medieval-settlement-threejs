@@ -35,7 +35,7 @@ import {
   normalizeConstructionPriority,
   type ConstructionPriority,
 } from '../logistics/constructionPriority.ts';
-import { foodProgressionStatus, preservedFoodStock } from './foodInventory.ts';
+import { foodProgressionStatus, savoryPreservesStock } from './foodInventory.ts';
 import { residenceServiceState } from './residenceSatisfaction.ts';
 
 export type ResidenceUpgradeServiceKind = ResidenceNeedKind;
@@ -212,7 +212,7 @@ const SERVICE_LABELS: Record<ResidenceUpgradeServiceKind, string> = {
   food: 'Food supply',
   firewood: 'Firewood',
   water: 'Water',
-  preservedFood: 'Cured provisions',
+  savoryPreserves: 'Savory preserves',
   ale: 'Beverages',
   cloth: 'Clothing',
   shoes: 'Shoes',
@@ -250,8 +250,8 @@ function householdPromotionNeedReady(
         || stock > 1e-6;
     case 'foodVariety':
       return foodProgressionStatus(residence, residence.population, currentTier).ready;
-    case 'preservedFood':
-      return preservedFoodStock(residence) > 1e-6 || stock > 1e-6;
+    case 'savoryPreserves':
+      return savoryPreservesStock(residence) > 1e-6 || stock > 1e-6;
     case 'luxury':
       return Math.max(0, residence.aroniaJam ?? 0)
         + Math.max(0, residence.rosehipJam ?? 0) > 1e-6
@@ -299,7 +299,7 @@ function promotionOutletReady(
       && input.stocked;
   }
   if (
-    kind === 'preservedFood'
+    kind === 'savoryPreserves'
     || kind === 'cloth'
     || kind === 'shoes'
     || kind === 'pottery'
@@ -326,8 +326,8 @@ function promotionNeedBlocker(kind: ResidenceUpgradeServiceKind, label: string):
       return 'food supply unmet — stock the household pantry or a reachable Marketplace';
     case 'firewood':
       return 'firewood unmet — stock the household or a reachable Marketplace';
-    case 'preservedFood':
-      return 'cured provisions unmet — stock the household or a reachable Marketplace';
+    case 'savoryPreserves':
+      return 'savory preserves unmet — stock the household or a reachable Marketplace';
     case 'cloth':
       return 'clothing unmet — stock the household or a reachable Marketplace goods stall';
     case 'shoes':

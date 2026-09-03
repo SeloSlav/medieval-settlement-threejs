@@ -51,7 +51,7 @@ pub fn household_stock_satisfies_promotion_need(
         ResidenceNeedKind::Water | ResidenceNeedKind::Church => false,
         ResidenceNeedKind::Food => tier_one_food_ready || need_stock > 1e-6,
         ResidenceNeedKind::FoodVariety => current_food_standard_ready,
-        ResidenceNeedKind::PreservedFood => preserved_food_stock > 1e-6 || need_stock > 1e-6,
+        ResidenceNeedKind::SavoryPreserves => preserved_food_stock > 1e-6 || need_stock > 1e-6,
         ResidenceNeedKind::Luxury => household_luxury_stock > 1e-6 || need_stock > 1e-6,
         ResidenceNeedKind::Firewood
         | ResidenceNeedKind::Ale
@@ -353,7 +353,7 @@ mod tests {
         );
         assert!(!residence_promotion_needs(1).contains(&ResidenceNeedKind::Ale));
         assert!(!residence_promotion_needs(2).contains(&ResidenceNeedKind::Shoes));
-        assert!(!residence_promotion_needs(3).contains(&ResidenceNeedKind::PreservedFood));
+        assert!(!residence_promotion_needs(3).contains(&ResidenceNeedKind::SavoryPreserves));
         assert!(!residence_promotion_needs(3).contains(&ResidenceNeedKind::Pottery));
         assert!(!residence_promotion_needs(3).contains(&ResidenceNeedKind::Luxury));
     }
@@ -364,7 +364,7 @@ mod tests {
             ResidenceNeedKind::Firewood,
             ResidenceNeedKind::Food,
             ResidenceNeedKind::Ale,
-            ResidenceNeedKind::PreservedFood,
+            ResidenceNeedKind::SavoryPreserves,
             ResidenceNeedKind::Cloth,
             ResidenceNeedKind::Shoes,
             ResidenceNeedKind::Pottery,
@@ -395,7 +395,7 @@ mod tests {
             0.0,
         ));
         assert!(household_stock_satisfies_promotion_need(
-            ResidenceNeedKind::PreservedFood,
+            ResidenceNeedKind::SavoryPreserves,
             0.0,
             false,
             false,

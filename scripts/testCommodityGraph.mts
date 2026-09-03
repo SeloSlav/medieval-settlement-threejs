@@ -91,10 +91,12 @@ const authoritativeEntries = [...asU8Body.matchAll(/Self::([A-Z][A-Za-z0-9]*)\s*
     code: Number(match[2]),
   }))
   .sort((left, right) => left.code - right.code);
-assert.equal(authoritativeEntries.length, 74, 'the audit must cover every authoritative commodity');
+assert.equal(authoritativeEntries.length, 73, 'the audit must cover every authoritative commodity');
 assert.deepEqual(
   authoritativeEntries.map(({ code }) => code),
-  Array.from({ length: 76 }, (_, code) => code).filter((code) => code !== 2 && code !== 35),
+  Array.from({ length: 76 }, (_, code) => code).filter(
+    (code) => code !== 2 && code !== 7 && code !== 35,
+  ),
   'CommodityKind codes must remain unique and must not map removed aggregate resource ids',
 );
 
@@ -126,8 +128,8 @@ assertSameSet(
 );
 assertSameSet(
   RESOURCE_COST_KINDS,
-  [...authoritativeResources, 'food'],
-  'resource-cost labels and icons must cover every authoritative commodity plus the retired mixed-food compatibility cost',
+  [...authoritativeResources, 'food', 'savoryPreserves'],
+  'resource-cost labels and icons must cover every physical commodity plus aggregate meal and savory-preserve costs',
 );
 assertSameSet(
   DELIVERY_CARGO_KINDS,

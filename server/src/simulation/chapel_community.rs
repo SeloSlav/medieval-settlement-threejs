@@ -43,7 +43,7 @@ pub fn recovery_stock_min(
         ResidenceNeedKind::Firewood => RESIDENCE_RECOVERY_FIREWOOD_MIN,
         ResidenceNeedKind::Water => RESIDENCE_RECOVERY_WATER_MIN,
         ResidenceNeedKind::Food => RESIDENCE_RECOVERY_FOOD_MIN,
-        ResidenceNeedKind::PreservedFood => 4.0,
+        ResidenceNeedKind::SavoryPreserves => 4.0,
         ResidenceNeedKind::Ale => 3.0,
         ResidenceNeedKind::Cloth => 2.0,
         ResidenceNeedKind::Shoes => 2.0,

@@ -26,7 +26,10 @@ import {
 } from '../src/security/militaryCompanyPresentation.ts';
 import { CombatPlaytestSimulation } from '../src/app/combatPlaytest.ts';
 import { renderSelectedMilitaryCompanyInspector } from '../src/resources/inspector/militaryCompanyRenderer.ts';
-import { militaryCompanyGainsExperience } from '../src/security/militaryProgression.ts';
+import {
+  MILITARY_KINDS,
+  militaryCompanyGainsExperience,
+} from '../src/security/militaryProgression.ts';
 
 assert.ok(
   STRATEGIC_COMPANY_ICON_REVEAL_ZOOM_PERCENT
@@ -129,11 +132,29 @@ assert.deepEqual([
 ]);
 assert.equal(militaryCompanyKindForFaction('raider'), null);
 for (const art of Object.values(MILITARY_COMPANY_STRATEGIC_ICON_ART)) {
-  assert.ok(existsSync(join(process.cwd(), 'public', art.slice(1))), `missing woodcut ${art}`);
+  const assetPath = join(process.cwd(), 'public', art.slice(1));
+  assert.ok(existsSync(assetPath), `missing map symbol ${art}`);
+  assert.match(art, /\/military-map\/.+\.png$/);
+  const png = readFileSync(assetPath);
+  assert.equal(png.subarray(1, 4).toString('ascii'), 'PNG');
+  assert.equal(png.readUInt32BE(16), 256);
+  assert.equal(png.readUInt32BE(20), 256);
 }
+assert.equal(
+  new Set(Object.values(MILITARY_COMPANY_STRATEGIC_ICON_ART)).size,
+  MILITARY_KINDS.length,
+  'every military company kind needs its own strategic-map silhouette',
+);
 for (const art of Object.values(HOSTILE_COMPANY_STRATEGIC_ICON_ART)) {
-  assert.ok(existsSync(join(process.cwd(), 'public', art.slice(1))), `missing hostile woodcut ${art}`);
+  const assetPath = join(process.cwd(), 'public', art.slice(1));
+  assert.ok(existsSync(assetPath), `missing hostile map symbol ${art}`);
+  assert.match(art, /\/military-map\/.+\.png$/);
+  const png = readFileSync(assetPath);
+  assert.equal(png.subarray(1, 4).toString('ascii'), 'PNG');
+  assert.equal(png.readUInt32BE(16), 256);
+  assert.equal(png.readUInt32BE(20), 256);
 }
+assert.equal(new Set(Object.values(HOSTILE_COMPANY_STRATEGIC_ICON_ART)).size, 2);
 assert.equal(hostileCompanyStrategicLabel('raiders'), 'Enemy raiders');
 assert.equal(hostileCompanyStrategicLabel('bandits'), 'Bandit company');
 

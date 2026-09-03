@@ -187,7 +187,7 @@ pub struct MilitaryCost {
     pub mail_armor: u32,
     pub ammunition: u32,
     pub ale: u32,
-    pub preserved_food: u32,
+    pub savory_preserves: u32,
     pub gold: u32,
 }
 
@@ -206,7 +206,7 @@ impl MilitaryCost {
                 shields: n,
                 padded_armor: n,
                 ale: n.div_ceil(2),
-                preserved_food: n * 2,
+                savory_preserves: n * 2,
                 gold: n,
                 ..Self::default()
             },
@@ -216,7 +216,7 @@ impl MilitaryCost {
                 shields: n,
                 mail_armor: n,
                 ale: n,
-                preserved_food: n * 3,
+                savory_preserves: n * 3,
                 gold: n * 4,
                 ..Self::default()
             },
@@ -226,7 +226,7 @@ impl MilitaryCost {
                 padded_armor: n,
                 ammunition: n,
                 ale: n.div_ceil(2),
-                preserved_food: n * 3,
+                savory_preserves: n * 3,
                 gold: n * 2,
                 ..Self::default()
             },
@@ -242,7 +242,7 @@ impl MilitaryCost {
                 shields: n,
                 padded_armor: n,
                 ale: n.div_ceil(2),
-                preserved_food: n * 2,
+                savory_preserves: n * 2,
                 gold: n * 2,
                 ..Self::default()
             },
@@ -250,14 +250,14 @@ impl MilitaryCost {
                 polearms: n,
                 padded_armor: n,
                 ale: n.div_ceil(2),
-                preserved_food: n * 3,
+                savory_preserves: n * 3,
                 gold: n * 2,
                 ..Self::default()
             },
             MilitaryKind::Bowmen => Self {
                 bows: n,
                 ammunition: n,
-                preserved_food: n * 2,
+                savory_preserves: n * 2,
                 gold: n,
                 ..Self::default()
             },
@@ -269,7 +269,7 @@ impl MilitaryCost {
                 shields: n,
                 padded_armor: n,
                 ale: n.div_ceil(2),
-                preserved_food: n * 3,
+                savory_preserves: n * 3,
                 gold: n * 5,
                 ..Self::default()
             },
@@ -279,7 +279,7 @@ impl MilitaryCost {
                 sidearms: n,
                 mail_armor: n,
                 ale: n,
-                preserved_food: n * 4,
+                savory_preserves: n * 4,
                 gold: n * 8,
                 ..Self::default()
             },
@@ -291,7 +291,7 @@ impl MilitaryCost {
                 padded_armor: n,
                 ammunition: n,
                 ale: n.div_ceil(2),
-                preserved_food: n * 3,
+                savory_preserves: n * 3,
                 gold: n * 5,
                 ..Self::default()
             },
@@ -310,17 +310,17 @@ impl MilitaryCost {
         match normalize_military_demands(demands) {
             MILITARY_DEMAND_MUSTER_ONLY => {
                 cost.ale = 0;
-                cost.preserved_food = 0;
+                cost.savory_preserves = 0;
                 cost.gold = 0;
             }
             MILITARY_DEMAND_LIGHT_RATIONS => {
                 cost.ale = 0;
-                cost.preserved_food = n;
+                cost.savory_preserves = n;
                 cost.gold = 0;
             }
             MILITARY_DEMAND_FULL_UPKEEP => {
                 cost.ale = n;
-                cost.preserved_food = n;
+                cost.savory_preserves = n;
             }
             _ => unreachable!(),
         }
@@ -362,12 +362,12 @@ pub fn military_resupply_cost(living_soldiers: u32, demands: u8) -> MilitaryCost
     match normalize_military_demands(demands) {
         MILITARY_DEMAND_MUSTER_ONLY => MilitaryCost::default(),
         MILITARY_DEMAND_LIGHT_RATIONS => MilitaryCost {
-            preserved_food: n,
+            savory_preserves: n,
             ..MilitaryCost::default()
         },
         MILITARY_DEMAND_FULL_UPKEEP => MilitaryCost {
             ale: n,
-            preserved_food: n,
+            savory_preserves: n,
             ..MilitaryCost::default()
         },
         _ => unreachable!(),
@@ -1008,7 +1008,7 @@ mod tests {
                 + cost.mail_armor
                 + cost.ammunition
                 + cost.ale
-                + cost.preserved_food
+                + cost.savory_preserves
                 + cost.gold;
             assert!(total > 0);
         }
@@ -1033,14 +1033,14 @@ mod tests {
             MILITARY_DEMAND_MUSTER_ONLY,
         );
         assert_eq!((easy.polearms, easy.shields, easy.padded_armor), (8, 8, 8));
-        assert_eq!((easy.preserved_food, easy.ale, easy.gold), (0, 0, 0));
+        assert_eq!((easy.savory_preserves, easy.ale, easy.gold), (0, 0, 0));
 
         let normal = MilitaryCost::for_company_with_demands(
             MilitaryKind::Spearmen,
             8,
             MILITARY_DEMAND_LIGHT_RATIONS,
         );
-        assert_eq!((normal.preserved_food, normal.ale, normal.gold), (8, 0, 0));
+        assert_eq!((normal.savory_preserves, normal.ale, normal.gold), (8, 0, 0));
 
         let full = MilitaryCost::for_company_with_demands(
             MilitaryKind::Spearmen,
@@ -1048,9 +1048,9 @@ mod tests {
             MILITARY_DEMAND_FULL_UPKEEP,
         );
         assert_eq!((full.polearms, full.shields, full.padded_armor), (8, 8, 8));
-        assert_eq!((full.preserved_food, full.ale, full.gold), (8, 8, 8));
+        assert_eq!((full.savory_preserves, full.ale, full.gold), (8, 8, 8));
         let resupply = military_resupply_cost(8, MILITARY_DEMAND_FULL_UPKEEP);
-        assert_eq!((resupply.preserved_food, resupply.ale), (8, 8));
+        assert_eq!((resupply.savory_preserves, resupply.ale), (8, 8));
         assert!(!local_company_requires_provisions(
             MilitaryKind::MercenarySpears,
             MILITARY_DEMAND_FULL_UPKEEP,

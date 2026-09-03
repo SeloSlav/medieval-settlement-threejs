@@ -34,7 +34,7 @@ export const RESOURCE_DESCRIPTIONS: Readonly<Record<ResourceCostKind, string>> =
   cider: 'Cider made from apples at a Brewhouse and served in Taverns.',
   pearCider: 'Cider made from pears at a Brewhouse and served in Taverns.',
   mead: 'Mead fermented from honey at a Brewhouse and served in Taverns.',
-  preservedFood: 'Cured meat, smoked fish, cheese, and fruit preserves kept for meals, winter, and shortages.',
+  savoryPreserves: 'Cured meat, smoked fish, or cheese used for household and military provisioning.',
   honey: 'Honey from apiaries, eaten at the table or fermented into mead at a Brewhouse.',
   wax: 'Beeswax from backyard and forest apiaries, made into candles at a Chandlery.',
   candles: 'Beeswax candles made at a Chandlery for household comforts, church services, and trade.',

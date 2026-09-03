@@ -272,7 +272,7 @@ export function computeSettlementPreservationReservePlan(
       preservedFoodStock(residence),
       residence.foodInventoryMigrated === true
         ? 0
-        : finiteStock(getNeedStock(residence.needs, 'preservedFood')),
+        : finiteStock(getNeedStock(residence.needs, 'savoryPreserves')),
     );
     if (fireDisabledResidences.has(residence.id)) {
       quarantinedPreservedStock += preserved;

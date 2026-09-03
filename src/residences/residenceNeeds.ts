@@ -160,14 +160,14 @@ function evaluateNeedRecovery(
         threshold,
         supplyAvailable: supply.servingFoodSupplierId != null,
       };
-    case 'preservedFood':
+    case 'savoryPreserves':
       return {
         kind,
-        label: 'Cured provisions',
-        ready: supply.servingPreservedFoodSupplierId != null && need.stock + 1e-6 >= threshold,
+        label: 'Savory preserves',
+        ready: supply.servingSavoryPreservesSupplierId != null && need.stock + 1e-6 >= threshold,
         stock: need.stock,
         threshold,
-        supplyAvailable: supply.servingPreservedFoodSupplierId != null,
+        supplyAvailable: supply.servingSavoryPreservesSupplierId != null,
       };
     case 'ale':
       return {
@@ -389,9 +389,9 @@ function describeActiveNeed(
       }
       return null;
     }
-    case 'preservedFood':
+    case 'savoryPreserves':
       return getNeed(residence.needs, kind).stock <= 1e-6
-        ? { label: 'Out of cured provisions — awaiting preservation supply', state: 'warning' }
+        ? { label: 'Out of savory preserves — awaiting supply', state: 'warning' }
         : null;
     case 'ale':
       return getNeed(residence.needs, kind).stock <= 1e-6
@@ -493,8 +493,8 @@ function needLabel(kind: ResidenceNeedKind): string {
       return 'Food';
     case 'ale':
       return 'Beverages';
-    case 'preservedFood':
-      return 'Cured provisions';
+    case 'savoryPreserves':
+      return 'Savory preserves';
     case 'cloth':
       return 'Clothing';
     case 'shoes':

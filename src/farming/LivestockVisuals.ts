@@ -795,8 +795,8 @@ export function pastureGateWaypoints(
 export function livestockCullDepartureCount(
   previous: Pick<LivestockHerdState, 'headCount' | 'lastCulled' | 'lastFoodOutput' | 'lastPreservedOutput'>,
   current: Pick<LivestockHerdState, 'headCount' | 'lastCulled' | 'lastFoodOutput' | 'lastPreservedOutput'>,
-  previousBuilding?: Pick<BuildingState, 'meat' | 'preservedFood' | 'hides'>,
-  currentBuilding?: Pick<BuildingState, 'meat' | 'preservedFood' | 'hides'>,
+  previousBuilding?: Pick<BuildingState, 'meat' | 'curedMeat' | 'hides'>,
+  currentBuilding?: Pick<BuildingState, 'meat' | 'curedMeat' | 'hides'>,
 ): number {
   const removedHeads = Math.max(0, previous.headCount - current.headCount);
   const reportedCull = Math.max(0, current.lastCulled);
@@ -808,7 +808,7 @@ export function livestockCullDepartureCount(
   );
   const physicalOutputArrived = Boolean(previousBuilding && currentBuilding && (
     (currentBuilding.meat ?? 0) > (previousBuilding.meat ?? 0)
-    || currentBuilding.preservedFood > previousBuilding.preservedFood
+    || (currentBuilding.curedMeat ?? 0) > (previousBuilding.curedMeat ?? 0)
     || (currentBuilding.hides ?? 0) > (previousBuilding.hides ?? 0)
   ));
   return cullMarkerChanged || cycleOutputChanged || physicalOutputArrived

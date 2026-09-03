@@ -4,7 +4,6 @@ export const STORAGE_COMMODITY_CODES = {
   firewood: 0,
   timber: 3,
   ale: 6,
-  preservedFood: 7,
   honey: 8,
   wine: 9,
   stone: 10,
@@ -77,7 +76,6 @@ export const STORAGE_COMMODITY_LABELS: Record<StorageCommodity, string> = {
   firewood: 'Firewood',
   timber: 'Timber',
   ale: 'Ale',
-  preservedFood: 'Preserved provisions',
   honey: 'Honey',
   wine: 'Wine',
   stone: 'Stone',
@@ -164,13 +162,9 @@ export const GRANARY_STORAGE_GROUPS = [
       'beetroot', 'eggs', 'grapes',
     ],
   },
-  {
-    label: 'Preserved provisions',
-    commodities: [
-      'preservedFood', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam',
-      'rosehipJam', 'honey', 'ale', 'cider', 'pearCider', 'mead', 'wine',
-    ],
-  },
+  { label: 'Savory preserves', commodities: ['curedMeat', 'smokedFish', 'cheese'] },
+  { label: 'Sweet preserves', commodities: ['honey', 'aroniaJam', 'rosehipJam'] },
+  { label: 'Drinks', commodities: ['ale', 'cider', 'pearCider', 'mead', 'wine'] },
   {
     label: 'Harvest and grain',
     commodities: [
@@ -196,7 +190,7 @@ const GRANARY_LEGACY_FRESH = new Set<StorageCommodity>([
   'oatGrain', 'ryeBread', 'maslinBread', 'meat', 'fish', 'berries',
   'mushrooms', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips',
   'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes',
-  'preservedFood', 'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam',
+  'curedMeat', 'smokedFish', 'cheese', 'aroniaJam', 'rosehipJam',
 ]);
 
 function masksAccept(

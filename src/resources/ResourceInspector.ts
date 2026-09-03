@@ -649,7 +649,6 @@ export class ResourceInspector {
       cider: this.mustElement(options.uiRoot, '[data-stockpile="cider"]'),
       pearCider: this.mustElement(options.uiRoot, '[data-stockpile="pearCider"]'),
       mead: this.mustElement(options.uiRoot, '[data-stockpile="mead"]'),
-      preservedFood: this.mustElement(options.uiRoot, '[data-stockpile="preservedFood"]'),
       honey: this.mustElement(options.uiRoot, '[data-stockpile="honey"]'),
       wax: this.mustElement(options.uiRoot, '[data-stockpile="wax"]'),
       candles: this.mustElement(options.uiRoot, '[data-stockpile="candles"]'),
@@ -2234,9 +2233,7 @@ export class ResourceInspector {
     const showingTotal = this.resourceTotalsPresentation === 'total';
     const amountLabel = showingTotal ? 'Total stored' : 'Available surplus';
     for (const kind of FOOD_BREAKDOWN_ROW_KINDS) {
-      // The preservedFood total includes cheese, cured meat, fish, and jams;
-      // this row shows only the staples, with each other food listed separately.
-      const resource = kind === 'preservedFood' ? 'legacyPreservedFood' : kind;
+      const resource = kind;
       const stored = Math.max(0, this.storedTotals[resource]);
       const transit = Math.max(0, this.inTransitTotals?.[resource] ?? 0);
       const surplus = Math.max(0, this.surplusTotals[resource]);

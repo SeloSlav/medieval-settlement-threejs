@@ -1406,10 +1406,10 @@ fn require_cost(ctx: &ReducerContext, owner: Identity, cost: MilitaryCost) -> Re
         }
     }
     let savory_available = aggregate_savory_preserves_stock(ctx, owner);
-    if savory_available + 1e-6 < cost.preserved_food as f64 {
+    if savory_available + 1e-6 < cost.savory_preserves as f64 {
         return Err(format!(
             "Not enough savory preserves (need {} more).",
-            (cost.preserved_food as f64 - savory_available).ceil() as u32
+            (cost.savory_preserves as f64 - savory_available).ceil() as u32
         ));
     }
     if treasury_gold(ctx, owner) + 1e-6 < cost.gold as f64 {
@@ -1428,7 +1428,7 @@ fn spend_cost(ctx: &ReducerContext, owner: Identity, cost: MilitaryCost) -> Resu
         }
         spend_commodity(ctx, owner, kind, amount as f64)?;
     }
-    spend_savory_preserves(ctx, owner, cost.preserved_food as f64)?;
+    spend_savory_preserves(ctx, owner, cost.savory_preserves as f64)?;
     spend_treasury_gold(ctx, owner, cost.gold as f64)
 }
 
@@ -1442,7 +1442,7 @@ fn spend_non_equipment_cost(
     cost: MilitaryCost,
 ) -> Result<(), String> {
     spend_commodity(ctx, owner, CommodityKind::Ale, cost.ale as f64)?;
-    spend_savory_preserves(ctx, owner, cost.preserved_food as f64)?;
+    spend_savory_preserves(ctx, owner, cost.savory_preserves as f64)?;
     spend_treasury_gold(ctx, owner, cost.gold as f64)
 }
 

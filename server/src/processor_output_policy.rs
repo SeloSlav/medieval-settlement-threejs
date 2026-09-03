@@ -12,7 +12,7 @@ pub enum ProcessorOutputKind {
     Flour,
     Food,
     Ale,
-    PreservedFood,
+    SavoryPreserves,
     TextileIntermediate,
     Cloth,
     Charcoal,
@@ -51,7 +51,7 @@ pub fn processor_output_kind(kind: &str) -> Option<ProcessorOutputKind> {
         "watermill" | "windmill" => Some(ProcessorOutputKind::Flour),
         "bakery" => Some(ProcessorOutputKind::Food),
         "brewery" => Some(ProcessorOutputKind::Ale),
-        "smokehouse" => Some(ProcessorOutputKind::PreservedFood),
+        "smokehouse" => Some(ProcessorOutputKind::SavoryPreserves),
         "spinning_retting_house" => Some(ProcessorOutputKind::TextileIntermediate),
         "weaver" => Some(ProcessorOutputKind::Cloth),
         "charcoal_burner" => Some(ProcessorOutputKind::Charcoal),
@@ -181,7 +181,7 @@ mod tests {
         );
         assert_eq!(
             processor_output_kind("smokehouse"),
-            Some(ProcessorOutputKind::PreservedFood)
+            Some(ProcessorOutputKind::SavoryPreserves)
         );
     }
 

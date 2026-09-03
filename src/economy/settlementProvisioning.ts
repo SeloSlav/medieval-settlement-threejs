@@ -465,7 +465,7 @@ export function computeSettlementProvisioning(input: {
       + finiteStock(market.honey) * foodMealValue('honey');
     return freshStock > 1e-6
       ? marketHasActiveStall(market, 'food')
-      : marketHasActiveStall(market, 'preservedFood');
+      : marketHasActiveStall(market, 'savoryPreserves');
   };
 
   const calendarDaySeconds = CALENDAR_SECONDS_PER_DAY;
@@ -681,7 +681,7 @@ export function computeSettlementProvisioning(input: {
       !fireDisabled
       && PRESERVED_FOOD_SUPPLIER_KINDS.includes(building.kind)
       && isOperationalSpecialtySupplier(building)
-      && marketHasActiveStall(building, 'preservedFood');
+      && marketHasActiveStall(building, 'savoryPreserves');
     if (fireDisabled) {
       fireQuarantinedFirewoodStock += finiteStock(building.firewood)
         + householdCharcoal * CHARCOAL_HOUSEHOLD_FUEL_VALUE;
@@ -1106,7 +1106,7 @@ export function formatHouseholdBufferReadiness(
     ['food', provisioning.householdBufferFoodShortHomes],
     ['fuel', provisioning.householdBufferFirewoodShortHomes],
     ['water', provisioning.householdBufferWaterShortHomes],
-    ['preserved food', provisioning.householdBufferPreservedFoodShortHomes],
+    ['savory preserves', provisioning.householdBufferPreservedFoodShortHomes],
     ['ale', provisioning.householdBufferAleShortHomes],
     ['clothing', provisioning.householdBufferClothShortHomes],
     ['pottery', provisioning.householdBufferPotteryShortHomes],

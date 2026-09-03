@@ -368,7 +368,6 @@ type PortableRaidStoresLike = {
   ryeFlour?: number;
   maslinFlour?: number;
   ale: number;
-  preservedFood: number;
   honey: number;
   wax?: number;
   candles?: number;
@@ -1051,7 +1050,6 @@ function portableRaidValue(stores: PortableRaidStoresLike): number {
     + positivePortableAmount(stores.ryeFlour)
     + positivePortableAmount(stores.maslinFlour)
     + positivePortableAmount(stores.ale)
-    + positivePortableAmount(stores.preservedFood)
     + positivePortableAmount(stores.honey)
     + positivePortableAmount(stores.wax) * 1.5
     + positivePortableAmount(stores.candles) * 2
@@ -1100,7 +1098,6 @@ const RAID_PORTABLE_STORE_SUMMARY = [
   ['ryeFlour', 'rye flour', 1],
   ['maslinFlour', 'maslin flour', 1],
   ['ale', 'ale', 1],
-  ['preservedFood', 'preserved staples', 1],
   ['honey', 'honey', 1],
   ['wax', 'beeswax', 1.5],
   ['candles', 'candles', 2],
@@ -1168,7 +1165,6 @@ const DELIVERY_CARGO_RAID_VALUE: Partial<Record<DeliveryCargoKind, number>> = {
   ryeFlour: 1,
   maslinFlour: 1,
   ale: 1,
-  preservedFood: 1,
   honey: 1,
   wax: 1.5,
   candles: 2,
@@ -1215,7 +1211,6 @@ function deliveryTripRaidSummary(trip: DeliveryTripState | undefined): string {
 
 function deliveryCargoLabel(kind: DeliveryCargoKind): string {
   switch (kind) {
-    case 'preservedFood': return 'preserved staples';
     case 'curedMeat': return 'cured meat';
     case 'smokedFish': return 'smoked fish';
     default: return kind;

@@ -698,7 +698,7 @@ fn try_distribute_backyard_food_batches(
             requested_self,
             food::stock_capacity(),
             crate::simulation::residence_needs::provisions::stock_capacity(
-                ResidenceNeedKind::PreservedFood,
+                ResidenceNeedKind::SavoryPreserves,
             ),
         );
         let mut remaining = (amount - kept).max(0.0);
@@ -714,7 +714,7 @@ fn try_distribute_backyard_food_batches(
                 remaining,
                 food::stock_capacity(),
                 crate::simulation::residence_needs::provisions::stock_capacity(
-                    ResidenceNeedKind::PreservedFood,
+                    ResidenceNeedKind::SavoryPreserves,
                 ),
             );
             remaining = (remaining - recovered).max(0.0);

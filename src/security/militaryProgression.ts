@@ -123,7 +123,7 @@ export type MilitaryRecruitmentCost = {
   mailArmor?: number;
   ammunition?: number;
   ale?: number;
-  preservedFood?: number;
+  savoryPreserves?: number;
   gold?: number;
 };
 
@@ -151,7 +151,7 @@ export const MILITARY_RECRUITMENT: Record<MilitaryCompanyKind, {
     label: 'Spear company',
     shortLabel: 'Spearmen',
     size: 8,
-    cost: { polearms: 8, shields: 8, paddedArmor: 8, ale: 4, preservedFood: 16, gold: 8 },
+    cost: { polearms: 8, shields: 8, paddedArmor: 8, ale: 4, savoryPreserves: 16, gold: 8 },
     source: 'guardhouse',
     residentMen: true,
     icon: 'spearmen',
@@ -161,7 +161,7 @@ export const MILITARY_RECRUITMENT: Record<MilitaryCompanyKind, {
     label: 'Men-at-Arms company',
     shortLabel: 'Men-at-Arms',
     size: 8,
-    cost: { sidearms: 8, shields: 8, mailArmor: 8, ale: 8, preservedFood: 24, gold: 32 },
+    cost: { sidearms: 8, shields: 8, mailArmor: 8, ale: 8, savoryPreserves: 24, gold: 32 },
     source: 'guardhouse',
     residentMen: true,
     icon: 'men-at-arms',
@@ -171,7 +171,7 @@ export const MILITARY_RECRUITMENT: Record<MilitaryCompanyKind, {
     label: 'Crossbow company',
     shortLabel: 'Crossbows',
     size: 6,
-    cost: { crossbows: 6, paddedArmor: 6, ammunition: 6, ale: 3, preservedFood: 18, gold: 12 },
+    cost: { crossbows: 6, paddedArmor: 6, ammunition: 6, ale: 3, savoryPreserves: 18, gold: 12 },
     source: 'guardhouse',
     residentMen: true,
     icon: 'crossbows',
@@ -189,37 +189,37 @@ export const MILITARY_RECRUITMENT: Record<MilitaryCompanyKind, {
   },
   footmen: {
     label: 'Footman company', shortLabel: 'Footmen', size: 8,
-    cost: { sidearms: 8, shields: 8, paddedArmor: 8, ale: 4, preservedFood: 16, gold: 16 },
+    cost: { sidearms: 8, shields: 8, paddedArmor: 8, ale: 4, savoryPreserves: 16, gold: 16 },
     source: 'guardhouse', residentMen: true, icon: 'footmen',
     summary: 'Eight sidearm-and-small-shield infantry. Fast sustained offense breaks ordinary spear lines and runs down missile troops, but polearms punish their armor.',
   },
   polearms: {
     label: 'Polearm company', shortLabel: 'Polearms', size: 8,
-    cost: { polearms: 8, paddedArmor: 8, ale: 4, preservedFood: 24, gold: 16 },
+    cost: { polearms: 8, paddedArmor: 8, ale: 4, savoryPreserves: 24, gold: 16 },
     source: 'guardhouse', residentMen: true, icon: 'polearms',
     summary: 'Eight halberd-style armor breakers. Excellent into Men-at-Arms and other heavy infantry, but exposed to bow and crossbow fire without shields.',
   },
   bowmen: {
     label: 'Bow company', shortLabel: 'Bowmen', size: 8,
-    cost: { bows: 8, ammunition: 8, preservedFood: 16, gold: 8 },
+    cost: { bows: 8, ammunition: 8, savoryPreserves: 16, gold: 8 },
     source: 'guardhouse', residentMen: true, icon: 'bowmen',
     summary: 'Eight inexpensive fast-firing bowmen with twenty-four arrows each. Strong against light troops; crossbows remain the better armored-target answer.',
   },
   hussars: {
     label: 'Frontier hussar company', shortLabel: 'Hussars', size: 6,
-    cost: { polearms: 6, sidearms: 6, shields: 6, paddedArmor: 6, ale: 3, preservedFood: 18, gold: 30 },
+    cost: { polearms: 6, sidearms: 6, shields: 6, paddedArmor: 6, ale: 3, savoryPreserves: 18, gold: 30 },
     source: 'cavalry-yard', residentMen: true, icon: 'hussars',
     summary: 'Six Croatian-Hungarian light horse with lance, sidearm, small shield, and padded coat. Fast flanking cavalry that excels at overrunning missile troops.',
   },
   'armored-lancers': {
     label: 'Armored lancer company', shortLabel: 'Armored lancers', size: 6,
-    cost: { polearms: 6, sidearms: 6, mailArmor: 6, ale: 6, preservedFood: 24, gold: 48 },
+    cost: { polearms: 6, sidearms: 6, mailArmor: 6, ale: 6, savoryPreserves: 24, gold: 48 },
     source: 'cavalry-yard', residentMen: true, icon: 'armored-lancers',
     summary: 'Six mail-armored lancers who collect reserved pasture horses before mustering. The strongest charge and holding power of the mounted roster, with severe horse, armor, and wage costs.',
   },
   'mounted-archers': {
     label: 'Mounted archer company', shortLabel: 'Mounted archers', size: 6,
-    cost: { bows: 6, sidearms: 6, paddedArmor: 6, ammunition: 6, ale: 3, preservedFood: 18, gold: 30 },
+    cost: { bows: 6, sidearms: 6, paddedArmor: 6, ammunition: 6, ale: 3, savoryPreserves: 18, gold: 30 },
     source: 'cavalry-yard', residentMen: true, icon: 'mounted-archers',
     summary: 'Six frontier horse archers with bows, sidearms, and twenty-four arrows each. Highly mobile skirmishers that need spacing and suffer against braced spear or polearm troops.',
   },
@@ -249,17 +249,17 @@ export function militaryReinforcementCost(
   switch (normalizeMilitaryDemands(demands)) {
     case 0:
       cost.ale = 0;
-      cost.preservedFood = 0;
+      cost.savoryPreserves = 0;
       cost.gold = 0;
       break;
     case 1:
       cost.ale = 0;
-      cost.preservedFood = count;
+      cost.savoryPreserves = count;
       cost.gold = 0;
       break;
     case 2:
       cost.ale = count;
-      cost.preservedFood = count;
+      cost.savoryPreserves = count;
       break;
   }
   return cost;
@@ -289,8 +289,8 @@ export function militaryResupplyCost(
   const living = Math.max(0, Math.floor(livingSoldiers));
   switch (normalizeMilitaryDemands(demands)) {
     case 0: return {};
-    case 1: return { preservedFood: living };
-    case 2: return { preservedFood: living, ale: living };
+    case 1: return { savoryPreserves: living };
+    case 2: return { savoryPreserves: living, ale: living };
   }
 }
 
@@ -439,7 +439,7 @@ export function militaryCostText(cost: MilitaryRecruitmentCost): string {
     polearms: 'polearms', sidearms: 'sidearms', shields: 'shields', bows: 'bows',
     crossbows: 'crossbows', paddedArmor: 'padded armor', mailArmor: 'mail armor',
     ammunition: 'ammunition bundles', ale: 'ale',
-    preservedFood: 'preserved food', gold: 'civic treasury gold',
+    savoryPreserves: 'savory preserves', gold: 'civic treasury gold',
   };
   return (Object.entries(cost) as Array<[keyof MilitaryRecruitmentCost, number]>)
     .filter(([, amount]) => amount > 0)

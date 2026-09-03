@@ -10,7 +10,7 @@ pub const MARKET_STALL_GROUP_FOOD: u8 = 0;
 pub const MARKET_STALL_GROUP_GOODS: u8 = 1;
 pub const MARKET_FOOD_STALL_NEEDS: [ResidenceNeedKind; 3] = [
     ResidenceNeedKind::Food,
-    ResidenceNeedKind::PreservedFood,
+    ResidenceNeedKind::SavoryPreserves,
     ResidenceNeedKind::Luxury,
 ];
 pub const MARKET_GOODS_STALL_NEEDS: [ResidenceNeedKind; 4] = [
@@ -84,7 +84,7 @@ pub fn assign_marketplace_stall_candidates(
 pub fn stall_group_for_need(need_kind: ResidenceNeedKind) -> Option<u8> {
     match need_kind {
         ResidenceNeedKind::Food
-        | ResidenceNeedKind::PreservedFood
+        | ResidenceNeedKind::SavoryPreserves
         | ResidenceNeedKind::Ale
         | ResidenceNeedKind::Luxury => Some(MARKET_STALL_GROUP_FOOD),
         ResidenceNeedKind::Firewood
@@ -116,7 +116,7 @@ pub fn stall_slots_for_group(group: u8) -> u32 {
 fn stall_need_rank(need_kind: ResidenceNeedKind) -> u8 {
     match need_kind {
         ResidenceNeedKind::Food | ResidenceNeedKind::Firewood => 0,
-        ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Cloth => 1,
+        ResidenceNeedKind::SavoryPreserves | ResidenceNeedKind::Cloth => 1,
         ResidenceNeedKind::Shoes => 2,
         ResidenceNeedKind::Ale | ResidenceNeedKind::Pottery | ResidenceNeedKind::Luxury => 2,
         ResidenceNeedKind::Water | ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => 3,

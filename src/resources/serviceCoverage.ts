@@ -31,7 +31,7 @@ export type MarketplaceServiceFulfillment =
 const MARKETPLACE_FULFILLED_NEEDS = new Set<ResidenceNeedKind>([
   'food',
   'firewood',
-  'preservedFood',
+  'savoryPreserves',
   'cloth',
   'shoes',
   'pottery',

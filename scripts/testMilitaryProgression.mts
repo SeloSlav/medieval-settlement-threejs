@@ -74,12 +74,12 @@ assert.match(policy, /militia:[\s\S]*cost: \{ polearms: 5 \}/);
 assert.match(policy, /crossbows:[\s\S]*ammunition|Crossbow company[\s\S]*eighteen bolts each/i);
 assert.match(policy, /'mercenary-spears':[\s\S]*cost: \{ gold: 96 \}/);
 assert.deepEqual(militaryRecruitmentCost('spearmen', 0), {
-  polearms: 8, shields: 8, paddedArmor: 8, ale: 0, preservedFood: 0, gold: 0,
+  polearms: 8, shields: 8, paddedArmor: 8, ale: 0, savoryPreserves: 0, gold: 0,
 });
-assert.deepEqual(militaryResupplyCost(8, 1), { preservedFood: 8 });
-assert.deepEqual(militaryResupplyCost(8, 2), { preservedFood: 8, ale: 8 });
+assert.deepEqual(militaryResupplyCost(8, 1), { savoryPreserves: 8 });
+assert.deepEqual(militaryResupplyCost(8, 2), { savoryPreserves: 8, ale: 8 });
 assert.deepEqual(militaryRecruitmentCost('spearmen', 2), {
-  polearms: 8, shields: 8, paddedArmor: 8, ale: 8, preservedFood: 8, gold: 8,
+  polearms: 8, shields: 8, paddedArmor: 8, ale: 8, savoryPreserves: 8, gold: 8,
 });
 assert.deepEqual(militaryRecruitmentCost('mercenary-spears', 0), { gold: 96 });
 assert.deepEqual(militaryRecruitmentCost('mercenary-spears', 2), { gold: 96 });

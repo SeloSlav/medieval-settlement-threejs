@@ -159,7 +159,6 @@ function addCargo(
     case 'mead':
       addAleLoad(group);
       break;
-    case 'preservedFood':
     case 'curedMeat':
     case 'smokedFish':
     case 'cheese':
@@ -511,14 +510,14 @@ function addAleLoad(group: THREE.Group): void {
 function addPreservedFoodLoad(group: THREE.Group): void {
   addCrate(
     group,
-    'Preserved food crock crate',
+    'Savory preserves crock crate',
     new THREE.Vector3(0, 0.64, 0),
     1.05,
   );
   for (const [index, x] of [-0.2, 0, 0.2].entries()) {
     addCrock(
       group,
-      `Preserved food crock ${index + 1}`,
+      `Savory preserves crock ${index + 1}`,
       new THREE.Vector3(x, 0.86 + (index % 2) * 0.025, 0),
       0.78,
       CARGO_MATERIALS.terracotta,

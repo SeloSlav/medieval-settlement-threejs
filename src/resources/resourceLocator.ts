@@ -3,8 +3,6 @@ import {
   edibleFoodStock,
   foodMealValue,
   isEdibleFoodCargo,
-  isPreservedFoodCargo,
-  preservedFoodStock,
   type FoodInventoryKind,
 } from '../economy/foodInventory.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
@@ -43,7 +41,6 @@ const RESOURCE_LABELS: Record<HudResourceKind, string> = {
   cider: 'Apple cider',
   pearCider: 'Pear cider',
   mead: 'Mead',
-  preservedFood: 'Preserved staples',
   honey: 'Honey',
   wax: 'Beeswax',
   candles: 'Candles',
@@ -80,7 +77,6 @@ const RESIDENCE_NEED_RESOURCES = new Set<ResidenceNeedKind>([
   'water',
   'food',
   'ale',
-  'preservedFood',
   'cloth',
   'shoes',
   'pottery',
@@ -177,14 +173,7 @@ export function locatePhysicalResource(
               edibleFoodStock(residence),
               finitePositive(getNeedStock(residence.needs, 'food')),
             )
-        : resource === 'preservedFood'
-          ? residence.foodInventoryMigrated === true
-            ? preservedFoodStock(residence)
-            : Math.max(
-                preservedFoodStock(residence),
-                finitePositive(getNeedStock(residence.needs, 'preservedFood')),
-              )
-          : finitePositive(getNeedStock(residence.needs, need));
+        : finitePositive(getNeedStock(residence.needs, need));
       if (amount <= EPSILON) continue;
       stores.push(residenceLocation(residence, amount));
     }
@@ -193,12 +182,10 @@ export function locatePhysicalResource(
   for (const trip of state.deliveryTrips.values()) {
     const matches = resource === 'food'
       ? isEdibleFoodCargo(trip.cargoKind)
-      : resource === 'preservedFood'
-        ? isPreservedFoodCargo(trip.cargoKind)
-        : trip.cargoKind === resource;
+      : trip.cargoKind === resource;
     if (!matches) continue;
     const physicalAmount = finitePositive(trip.amount);
-    const amount = resource === 'food' || resource === 'preservedFood'
+    const amount = resource === 'food'
       ? physicalAmount * foodMealValue(trip.cargoKind as FoodInventoryKind)
       : physicalAmount;
     if (amount <= EPSILON) continue;
@@ -225,9 +212,7 @@ export function locatePhysicalResource(
   if (state.physicalFoundingSiteEnabled !== true) {
     const ledgerAmount = resource === 'food'
       ? edibleFoodStock(state.stockpile)
-      : resource === 'preservedFood'
-        ? preservedFoodStock(state.stockpile)
-        : finitePositive(state.stockpile[resource] ?? 0);
+      : finitePositive(state.stockpile[resource] ?? 0);
     if (ledgerAmount > EPSILON) {
       locations.push({
         kind: 'legacy-ledger',
@@ -251,14 +236,6 @@ function buildingResourceHolding(
       detail: building.constructionComplete === false
         ? 'meals held at this construction site'
         : 'food stored on site',
-    };
-  }
-  if (resource === 'preservedFood') {
-    return {
-      amount: preservedFoodStock(building),
-      detail: building.constructionComplete === false
-        ? 'preserved provisions held at this construction site'
-        : 'preserved staples stored on site',
     };
   }
   if (resource !== 'gold') {

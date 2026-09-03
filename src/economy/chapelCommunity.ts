@@ -119,7 +119,7 @@ function recoveryStockBase(kind: ResidenceNeedKind): number {
       return RESIDENCE_RECOVERY_FOOD_MIN;
     case 'ale':
       return 3;
-    case 'preservedFood':
+    case 'savoryPreserves':
       return 4;
     case 'cloth':
       return 2;

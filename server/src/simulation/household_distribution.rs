@@ -39,7 +39,7 @@ use crate::tavern_service_policy::{tavern_household_issue_lot, tavern_issue_inte
 const MARKET_NEEDS: [ResidenceNeedKind; 8] = [
     ResidenceNeedKind::Food,
     ResidenceNeedKind::Firewood,
-    ResidenceNeedKind::PreservedFood,
+    ResidenceNeedKind::SavoryPreserves,
     ResidenceNeedKind::Cloth,
     ResidenceNeedKind::Shoes,
     ResidenceNeedKind::Pottery,
@@ -331,7 +331,7 @@ fn household_issue_target(
                 * RESIDENCE_FOOD_UNITS_PER_SLOT_PER_MONTH
         }
         ResidenceNeedKind::Firewood => RESIDENCE_FIREWOOD_UNITS_PER_MONTH,
-        ResidenceNeedKind::PreservedFood => f64::from(residence.tier >= 4),
+        ResidenceNeedKind::SavoryPreserves => f64::from(residence.tier >= 4),
         ResidenceNeedKind::Ale => RESIDENCE_ALE_UNITS_PER_MONTH,
         ResidenceNeedKind::Cloth | ResidenceNeedKind::Shoes | ResidenceNeedKind::Pottery => 1.0,
         ResidenceNeedKind::Luxury => RESIDENCE_LUXURY_UNITS_PER_MONTH,
@@ -349,7 +349,7 @@ fn household_issue_target(
                 need_kind,
                 ResidenceNeedKind::Firewood
                     | ResidenceNeedKind::Food
-                    | ResidenceNeedKind::PreservedFood
+                    | ResidenceNeedKind::SavoryPreserves
             ),
             stock,
             monthly_lot,
@@ -500,7 +500,7 @@ fn distribute_to_residence(
 ) {
     if matches!(
         need_kind,
-        ResidenceNeedKind::Food | ResidenceNeedKind::PreservedFood
+        ResidenceNeedKind::Food | ResidenceNeedKind::SavoryPreserves
     ) {
         distribute_food_to_residence(ctx, source, residence_id, need_kind, target_stock);
         return;
@@ -568,7 +568,7 @@ fn distribute_food_to_residence(
             withdrawn,
             crate::simulation::residence_needs::food::stock_capacity(),
             crate::simulation::residence_needs::provisions::stock_capacity(
-                ResidenceNeedKind::PreservedFood,
+                ResidenceNeedKind::SavoryPreserves,
             ),
         );
         if deposited + 1e-9 < withdrawn {

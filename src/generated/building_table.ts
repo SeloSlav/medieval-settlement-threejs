@@ -24,7 +24,6 @@ export default __t.row({
   water: __t.f64(),
   food: __t.f64(),
   ale: __t.f64(),
-  preservedFood: __t.f64().name("preserved_food"),
   honey: __t.f64(),
   wine: __t.f64(),
   polearms: __t.f64(),

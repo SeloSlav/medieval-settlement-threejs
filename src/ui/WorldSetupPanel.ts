@@ -521,8 +521,8 @@ export class WorldSetupPanel {
       };
       const militaryCopy: Record<WorldMilitaryDemands, readonly [string, string]> = {
         0: ['Muster only', 'Equipment and available resident men only.'],
-        1: ['Light rations', 'One preserved ration per soldier for three field days.'],
-        2: ['Full upkeep', 'One preserved ration and one ale per soldier, plus wages, every three field days.'],
+        1: ['Light rations', 'One savory-preserve ration per soldier for three field days.'],
+        2: ['Full upkeep', 'One savory-preserve ration and one ale per soldier, plus wages, every three field days.'],
       };
       const approval = approvalCopy[this.draft.approvalDeclineRate];
       approvalDeclineIcon.dataset.state = String(this.draft.approvalDeclineRate);

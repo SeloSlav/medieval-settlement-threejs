@@ -556,7 +556,7 @@ function formatGrowthBottlenecks(plan: SettlementGrowthPlan): string {
     ['food', 'food'],
     ['firewood', 'firewood'],
     ['water', 'water'],
-    ['preservedFood', 'preserved food'],
+    ['savoryPreserves', 'savory preserves'],
     ['ale', 'ale'],
     ['cloth', 'clothing'],
     ['pottery', 'pottery'],
@@ -604,7 +604,7 @@ function formatProsperityRoads(plan: ProsperityRoadPlan | null): string {
   if (plan.activeBranches === 0) {
     return 'No staffed specialty chain or tier-4 housing';
   }
-  const pairing = `${plan.matchedBranches} / ${plan.activeBranches} branches contain preserved-food, beverage, clothing, and pottery capacity`;
+  const pairing = `${plan.matchedBranches} / ${plan.activeBranches} branches contain savory-preserve, beverage, clothing, and pottery capacity`;
   const fragmentation = plan.fragmentationResidentCapacity > 0
     ? ` · ${plan.fragmentationResidentCapacity} resident capacity stranded between specialized branches`
     : ' · no installed capacity stranded';
@@ -1576,7 +1576,7 @@ export function renderPreservationReserveRows(
   if (plan.tierFourResidents <= 0) {
     return `<li><span>Winter fallback reserve</span><span>No active prosperous residents yet &middot; ${Math.round(
       plan.preservedStock + plan.preservedInTransit
-    )} preserved food can be stockpiled before tier-4 promotions</span></li>`;
+    )} savory preserves can be stockpiled before tier-4 promotions</span></li>`;
   }
 
   const residenceInspect = plan.firstExposedResidenceId === null
@@ -1626,7 +1626,7 @@ export function renderPreservationReserveRows(
       : null,
   ].filter(Boolean).join(' &middot; ');
   return `
-    <li><span>${plan.targetDays}-day winter fallback</span><span>${Math.round(plan.roadMatchedStock)} / ${Math.ceil(plan.targetStock)} preserved food road-matched for ${plan.tierFourResidents} tier-4 residents &middot; ${plan.preparedBranches} / ${plan.targetBranches} branches ready${plan.roadMatchedShortfall > 0.05 ? ` &middot; short ${Math.ceil(plan.roadMatchedShortfall)}` : ''}${storedDetail ? ` &middot; ${storedDetail}` : ''}${residenceInspect}</span></li>
+    <li><span>${plan.targetDays}-day winter fallback</span><span>${Math.round(plan.roadMatchedStock)} / ${Math.ceil(plan.targetStock)} savory preserves road-matched for ${plan.tierFourResidents} tier-4 residents &middot; ${plan.preparedBranches} / ${plan.targetBranches} branches ready${plan.roadMatchedShortfall > 0.05 ? ` &middot; short ${Math.ceil(plan.roadMatchedShortfall)}` : ''}${storedDetail ? ` &middot; ${storedDetail}` : ''}${residenceInspect}</span></li>
     <li><span>Reserve completion</span><span>${completion} &middot; the shortfall requires ${renderResourceCost({ food: plan.freshFoodRequired, firewood: plan.firewoodRequired, salt: plan.saltRequired }, { compact: true })}${buildingInspect}</span></li>
     <li><span>Salt supply</span><span>${Math.round(plan.saltStock + plan.saltInTransit)} stored or inbound &middot; ${localSalt} &middot; ${saltImports} &middot; ${saltWarnings}${plan.saltImportLots > 0 ? ` &middot; repeated imports can tighten the regional rate${marketInspect}` : ''}</span></li>
   `;
@@ -2053,7 +2053,7 @@ export function renderTownHallInspector(
   const prosperityHouseholdFireOutageRow =
     production.fireDisabledTierFourHomes === 0
       ? ''
-      : `<li><span>Tier-4 household outages</span><span>${production.fireDisabledTierFourResidents} tier-4 ${production.fireDisabledTierFourResidents === 1 ? 'resident is' : 'residents are'} excluded from active preserved-food, beverage, clothing, and pottery demand across ${production.fireDisabledTierFourHomes} fire-disabled ${production.fireDisabledTierFourHomes === 1 ? 'home' : 'homes'} · ${production.fireDisabledTierFourHousingCapacity} tier-4 places return to the housing pipeline after recovery</span></li>`;
+      : `<li><span>Tier-4 household outages</span><span>${production.fireDisabledTierFourResidents} tier-4 ${production.fireDisabledTierFourResidents === 1 ? 'resident is' : 'residents are'} excluded from active savory-preserve, beverage, clothing, and pottery demand across ${production.fireDisabledTierFourHomes} fire-disabled ${production.fireDisabledTierFourHomes === 1 ? 'home' : 'homes'} · ${production.fireDisabledTierFourHousingCapacity} tier-4 places return to the housing pipeline after recovery</span></li>`;
   const flourBalance = grainChainBalanceLabel(production);
   const farmPlan = buildSettlementFarmPlan(
     context.gameState,
@@ -2204,7 +2204,7 @@ export function renderTownHallInspector(
   const livestockDairyRows = livestockFodder.pastoralHoldings === 0
     ? ''
     : `
-      <li><span>Farmhouse cheese</span><span>${livestockFodder.productiveDairyHeads.toFixed(1)} productive cattle/sheep head · ${livestockFodder.dairyPreservedFoodPerDay.toFixed(1)} preserved food / day potential · ${livestockFodder.dairySaltPerDay.toFixed(2)} salt / day</span></li>
+      <li><span>Farmhouse cheese</span><span>${livestockFodder.productiveDairyHeads.toFixed(1)} productive cattle/sheep head · ${livestockFodder.dairyPreservedFoodPerDay.toFixed(1)} cheese / day potential · ${livestockFodder.dairySaltPerDay.toFixed(2)} salt / day</span></li>
       <li><span>Cheese-making salt</span><span>${Math.round(livestockFodder.dairySaltStock)} / ${Math.round(livestockFodder.dairySaltTarget)} onsite across staffed holdings${livestockFodder.dairySaltShortfall > 0.05 ? ` · short ${Math.ceil(livestockFodder.dairySaltShortfall)} across ${livestockFodder.dairySaltShortHoldings} holdings · first runway ${formatProvisionRunway(livestockFodder.firstDairySaltRunwayDays)}${livestockFodder.firstDairySaltShortBuildingId ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${livestockFodder.firstDairySaltShortBuildingId}" aria-label="Inspect first cheese-making salt shortfall">Inspect</button>` : ''}` : ' · working buffers covered'} · local extraction and market carts share salt with smokehouses; fresh milk continues when empty</span></li>
     `;
   const livestockFodderRows = livestockFodder.holdingCount === 0
@@ -2326,7 +2326,7 @@ export function renderTownHallInspector(
       <li><span>Next settler</span><span>${growth.nextArrivalSeconds === null ? growth.vacantSlots > 0 ? 'Paused until household buffers recover' : growth.fireDisabledVacantSlots > 0 ? `${growth.fireDisabledVacantSlots} vacant places return after structural recovery` : 'No vacant housing' : formatGrowthDuration(growth.nextArrivalSeconds)}</span></li>
       <li><span>Growth bottlenecks</span><span>${formatGrowthBottlenecks(growth)}${growthInspectButton}</span></li>
       <li><span>At full housing</span><span>+${growth.additionalFoodPerDay.toFixed(1)} winter fresh food/day after cured-ration displacement · ${growth.additionalGrossFoodPerDay.toFixed(1)} gross meal demand · +${growth.additionalWaterPerDay.toFixed(1)} water/day · +${growth.additionalWinterFirewoodPerDay.toFixed(1)} winter firewood/day</span></li>
-      ${growth.additionalPreservedFoodPerDay + growth.additionalAlePerDay + growth.additionalClothPerDay + growth.additionalPotteryPerDay > 1e-6 ? `<li><span>Prosperous-house growth</span><span>+${growth.additionalPreservedFoodPerDay.toFixed(1)} winter-peak preserved ration/day · +${growth.additionalAlePerDay.toFixed(1)} beverages/day · +${growth.additionalClothPerDay.toFixed(2)} clothing/day · +${growth.additionalPotteryPerDay.toFixed(2)} pottery/day</span></li>` : ''}
+      ${growth.additionalPreservedFoodPerDay + growth.additionalAlePerDay + growth.additionalClothPerDay + growth.additionalPotteryPerDay > 1e-6 ? `<li><span>Prosperous-house growth</span><span>+${growth.additionalPreservedFoodPerDay.toFixed(1)} winter-peak savory preserves/day · +${growth.additionalAlePerDay.toFixed(1)} beverages/day · +${growth.additionalClothPerDay.toFixed(2)} clothing/day · +${growth.additionalPotteryPerDay.toFixed(2)} pottery/day</span></li>` : ''}
       ${readout.backyardEconomy ? renderSettlementBackyardEconomyRows(readout.backyardEconomy) : ''}
       <li><span>Trade productivity</span><span>${readout.productivityLabel}</span></li>
       <li><span>Household prosperity</span><span>${readout.householdProsperityLabel}</span></li>
@@ -2374,7 +2374,7 @@ export function renderTownHallInspector(
       <li><span>Mill buffers</span><span>Input ${formatProcessorInputBuffer(production.millInputBuffer)} · flour room ${formatProcessorOutputRoom(production.millOutputRoom)} ${processorInspectButton('mill', production.millInputBuffer, production.millOutputRoom)}</span></li>
       <li><span>Bakery buffers</span><span>Input ${formatProcessorInputBuffer(production.bakeryInputBuffer)} · bread room ${formatProcessorOutputRoom(production.bakeryOutputRoom)} ${processorInspectButton('bakery', production.bakeryInputBuffer, production.bakeryOutputRoom)}</span></li>
       <li><span>Brewery buffers</span><span>Input ${formatProcessorInputBuffer(production.breweryInputBuffer)} · ale room ${formatProcessorOutputRoom(production.breweryOutputRoom)} ${processorInspectButton('brewery', production.breweryInputBuffer, production.breweryOutputRoom)}</span></li>
-      <li><span>Smokehouse buffers</span><span>Input ${formatProcessorInputBuffer(production.smokehouseInputBuffer)} · preserved-food room ${formatProcessorOutputRoom(production.smokehouseOutputRoom)} ${processorInspectButton('smokehouse', production.smokehouseInputBuffer, production.smokehouseOutputRoom)}</span></li>
+      <li><span>Smokehouse buffers</span><span>Input ${formatProcessorInputBuffer(production.smokehouseInputBuffer)} · savory-preserve room ${formatProcessorOutputRoom(production.smokehouseOutputRoom)} ${processorInspectButton('smokehouse', production.smokehouseInputBuffer, production.smokehouseOutputRoom)}</span></li>
       <li><span>Fibre-workshop buffers</span><span>Raw fibre ${formatProcessorInputBuffer(production.spinnerInputBuffer)} · yarn / linen room ${formatProcessorOutputRoom(production.spinnerOutputRoom)} ${processorInspectButton('spinning and retting', production.spinnerInputBuffer, production.spinnerOutputRoom)}</span></li>
       <li><span>Weaver buffers</span><span>Input ${formatProcessorInputBuffer(production.weaverInputBuffer)} · clothing room ${formatProcessorOutputRoom(production.weaverOutputRoom)} ${processorInspectButton('weaver', production.weaverInputBuffer, production.weaverOutputRoom)}</span></li>
       <li><span>Charcoal-yard buffers</span><span>Input ${formatProcessorInputBuffer(production.charcoalInputBuffer)} &middot; charcoal room ${formatProcessorOutputRoom(production.charcoalOutputRoom)} ${processorInspectButton('charcoal yard', production.charcoalInputBuffer, production.charcoalOutputRoom)}</span></li>

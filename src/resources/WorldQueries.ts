@@ -1014,7 +1014,7 @@ export class WorldQueries {
       residence,
       this.fireEnabledBuildings(state),
       this.getRoadNetwork(),
-      'preservedFood',
+      'savoryPreserves',
     );
   }
 
@@ -1029,7 +1029,7 @@ export class WorldQueries {
       residence,
       this.fireEnabledBuildings(state),
       this.getRoadNetwork(),
-      'preservedFood',
+      'savoryPreserves',
     );
   }
 
@@ -1436,9 +1436,6 @@ export class WorldQueries {
       target: BuildingState,
       material: DirectProcessorInputCommodity,
     ): boolean => {
-      if (material === 'preservedFood') {
-        return storageAcceptsCommodity(target, material);
-      }
       if (isStorageCommodity(material) && !storageAcceptsCommodity(target, material)) return false;
       if (!processorRequestsInput(target, material)) return false;
       if (!processorAcceptsInput(target, material)) return false;

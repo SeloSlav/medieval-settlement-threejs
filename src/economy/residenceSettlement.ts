@@ -40,7 +40,7 @@ const NEED_LABELS: Record<ResidenceNeedKind, string> = {
   firewood: 'firewood',
   water: 'water',
   food: 'food',
-  preservedFood: 'preserved food',
+  savoryPreserves: 'savory preserves',
   ale: 'ale',
   cloth: 'clothing',
   shoes: 'footwear',

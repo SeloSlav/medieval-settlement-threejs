@@ -185,7 +185,7 @@ pub fn building_delivery_stock(building: &Building, kind: ResidenceNeedKind) -> 
         ResidenceNeedKind::Ale => {
             building.ale + building.cider + building.pear_cider + building.mead
         }
-        ResidenceNeedKind::PreservedFood => building_savory_preserves_stock(building),
+        ResidenceNeedKind::SavoryPreserves => building_savory_preserves_stock(building),
         ResidenceNeedKind::Cloth => building.cloth,
         ResidenceNeedKind::Shoes => building.shoes,
         ResidenceNeedKind::Pottery => building.pottery,
@@ -244,7 +244,7 @@ pub fn withdraw_delivery_cargo(
             }
             withdrawn
         }
-        ResidenceNeedKind::PreservedFood => selected_food_delivery_commodity(building, kind)
+        ResidenceNeedKind::SavoryPreserves => selected_food_delivery_commodity(building, kind)
             .map(|commodity| withdraw_building_commodity(building, commodity, amount))
             .unwrap_or(0.0),
         ResidenceNeedKind::Cloth => {
@@ -305,7 +305,7 @@ pub fn withdraw_delivery_cargo_with_source(
         ResidenceNeedKind::Pottery => &POTTERY_SOURCES,
         ResidenceNeedKind::Luxury => &LUXURY_SOURCES,
         ResidenceNeedKind::Food
-        | ResidenceNeedKind::PreservedFood
+        | ResidenceNeedKind::SavoryPreserves
         | ResidenceNeedKind::Church
         | ResidenceNeedKind::FoodVariety => &FOOD_SOURCES,
     };
@@ -405,7 +405,7 @@ pub fn selected_food_delivery_commodity(
             PRESERVED_ORDER[2],
             FRESH_ORDER[18],
         ],
-        ResidenceNeedKind::PreservedFood => &PRESERVED_ORDER,
+        ResidenceNeedKind::SavoryPreserves => &PRESERVED_ORDER,
         _ => return None,
     };
     candidates
@@ -426,7 +426,7 @@ pub fn selected_need_delivery_commodity(
             .into_iter()
             .find(|commodity| building_commodity_stock(building, *commodity) >= 1.0),
         ResidenceNeedKind::Water => (building.water >= 1.0).then_some(CommodityKind::Water),
-        ResidenceNeedKind::Food | ResidenceNeedKind::PreservedFood => {
+        ResidenceNeedKind::Food | ResidenceNeedKind::SavoryPreserves => {
             selected_food_delivery_commodity(building, need_kind)
         }
         ResidenceNeedKind::Ale => [
@@ -525,7 +525,7 @@ pub fn delivery_stock_room(kind: ResidenceNeedKind, stock: f64) -> f64 {
         ResidenceNeedKind::Water => (water::stock_capacity() - stock).max(0.0),
         ResidenceNeedKind::Food => (food::stock_capacity() - stock).max(0.0),
         ResidenceNeedKind::Ale
-        | ResidenceNeedKind::PreservedFood
+        | ResidenceNeedKind::SavoryPreserves
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Shoes
         | ResidenceNeedKind::Pottery
@@ -540,7 +540,7 @@ pub fn has_delivery_stock_room(kind: ResidenceNeedKind, stock: f64) -> bool {
         ResidenceNeedKind::Water => water::has_stock_room(stock),
         ResidenceNeedKind::Food => food::has_stock_room(stock),
         ResidenceNeedKind::Ale
-        | ResidenceNeedKind::PreservedFood
+        | ResidenceNeedKind::SavoryPreserves
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Shoes
         | ResidenceNeedKind::Pottery
@@ -564,7 +564,7 @@ pub fn residence_commodity_delivery_room(
 ) -> f64 {
     if commodity.is_preserved_food() {
         return whole_units(
-            (provisions::stock_capacity(ResidenceNeedKind::PreservedFood)
+            (provisions::stock_capacity(ResidenceNeedKind::SavoryPreserves)
                 - residence_savory_preserves_stock(residence))
             .max(0.0)
                 / commodity.meal_value().max(1e-9),

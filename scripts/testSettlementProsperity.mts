@@ -57,8 +57,8 @@ assert.equal(plan.currentHeadroomResidents, 30);
 assert.equal(plan.fullHousingHeadroomResidents, 10);
 assert.equal(plan.currentSustainable, true);
 assert.equal(plan.fullExistingHousingSustainable, true);
-assert.equal(plan.limitingKind, 'preservedFood');
-assert.equal(plan.limitingLabel, 'preserved food');
+assert.equal(plan.limitingKind, 'savoryPreserves');
+assert.equal(plan.limitingLabel, 'savory preserves');
 approx(
   plan.chains.find((chain) => chain.kind === 'ale')?.supportedResidents ?? -1,
   120,
@@ -75,12 +75,12 @@ assert.equal(promotion.fullPipelineResidents, 80);
 assert.equal(promotion.immediateSustainable, true);
 assert.equal(promotion.fullPipelineSustainable, true);
 assert.equal(promotion.immediateHeadroomResidents, 24);
-approx(promotion.immediateDemand.preservedFood, preservedPerResident * 6);
+approx(promotion.immediateDemand.savoryPreserves, preservedPerResident * 6);
 approx(promotion.immediateDemand.ale, alePerResident * 6);
 approx(promotion.immediateDemand.cloth, clothPerResident * 6);
 approx(promotion.immediateDemand.shoes, shoesPerResident * 6);
 approx(promotion.immediateDemand.pottery, potteryPerResident * 6);
-approx(promotion.fullHouseDemand.preservedFood, preservedPerResident * 10);
+approx(promotion.fullHouseDemand.savoryPreserves, preservedPerResident * 10);
 
 const immediateShortfall = computeSettlementProsperityPlan({
   ...production,

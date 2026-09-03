@@ -1257,7 +1257,7 @@ impl SimTickContext {
                     .then(|| {
                         roster
                             .workplace_by_market_need
-                            .get(&(marketplace.id, ResidenceNeedKind::PreservedFood))
+                            .get(&(marketplace.id, ResidenceNeedKind::SavoryPreserves))
                             .copied()
                     })
                     .flatten()
@@ -1507,7 +1507,7 @@ impl SimTickContext {
 
 fn stall_need_for_commodity(commodity: CommodityKind) -> Option<ResidenceNeedKind> {
     if commodity.is_preserved_food() {
-        Some(ResidenceNeedKind::PreservedFood)
+        Some(ResidenceNeedKind::SavoryPreserves)
     } else if commodity.is_fresh_food() || commodity == CommodityKind::Honey {
         Some(ResidenceNeedKind::Food)
     } else {

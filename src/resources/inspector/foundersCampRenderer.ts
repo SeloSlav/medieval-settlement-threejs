@@ -70,7 +70,6 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
     case 'barley':
     case 'ryeFlour':
     case 'maslinFlour':
-    case 'preservedFood':
       return 'a Granary or another compatible provision store';
     case 'malt':
       return 'a Brewhouse with dry malt storage';

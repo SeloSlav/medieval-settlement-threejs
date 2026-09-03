@@ -57,7 +57,6 @@ export default __t.row({
   upgradeDeliveredRoofTiles: __t.f64().name("upgrade_delivered_roof_tiles"),
   upgradeReservedRoofTiles: __t.f64().name("upgrade_reserved_roof_tiles"),
   food: __t.f64(),
-  preservedFood: __t.f64().name("preserved_food"),
   honey: __t.f64(),
   meat: __t.f64(),
   fish: __t.f64(),

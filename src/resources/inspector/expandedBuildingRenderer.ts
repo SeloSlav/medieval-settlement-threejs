@@ -547,7 +547,7 @@ function outboundTripTarget(
     const curedHouseholdTarget = preservedFoodStock(building) > 1e-6
       ? context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(
         building,
-        'preservedFood',
+        'savoryPreserves',
       )
       : null;
     const householdTarget = householdFoodTarget ?? curedHouseholdTarget;
@@ -568,11 +568,8 @@ function outboundTripTarget(
     case 'smokehouse':
       return context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(
         building,
-        'preservedFood',
-      ) ?? context.worldQueries.getNextDirectProcessorInputDispatch(
-        building,
-        'preservedFood',
-      )?.target ?? null;
+        'savoryPreserves',
+      );
     default:
       return null;
   }

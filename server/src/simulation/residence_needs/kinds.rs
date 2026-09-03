@@ -4,7 +4,7 @@ pub enum ResidenceNeedKind {
     Water,
     Food,
     Ale,
-    PreservedFood,
+    SavoryPreserves,
     Cloth,
     Shoes,
     Pottery,
@@ -18,7 +18,7 @@ impl ResidenceNeedKind {
         Self::Firewood,
         Self::Water,
         Self::Food,
-        Self::PreservedFood,
+        Self::SavoryPreserves,
         Self::Ale,
         Self::Cloth,
         Self::Shoes,
@@ -33,7 +33,7 @@ impl ResidenceNeedKind {
             Self::Food | Self::Firewood | Self::Water | Self::Church => tier >= 1,
             Self::FoodVariety | Self::Cloth | Self::Ale => tier >= 2,
             Self::Shoes => tier >= 3,
-            Self::PreservedFood | Self::Pottery | Self::Luxury => tier >= 4,
+            Self::SavoryPreserves | Self::Pottery | Self::Luxury => tier >= 4,
         }
     }
 
@@ -50,7 +50,7 @@ impl ResidenceNeedKind {
             Self::Water => 1,
             Self::Food => 2,
             Self::Ale => 6,
-            Self::PreservedFood => 7,
+            Self::SavoryPreserves => 7,
             Self::Cloth => 14,
             Self::Shoes => 60,
             // Residence delivery cargo ids mirror CommodityKind so the
@@ -69,7 +69,7 @@ impl ResidenceNeedKind {
             1 => Some(Self::Water),
             2 => Some(Self::Food),
             6 => Some(Self::Ale),
-            7 => Some(Self::PreservedFood),
+            7 => Some(Self::SavoryPreserves),
             14 => Some(Self::Cloth),
             60 => Some(Self::Shoes),
             23 => Some(Self::Pottery),
@@ -105,7 +105,7 @@ mod tests {
         assert!(ResidenceNeedKind::Ale.is_active_for_tier(2));
         assert!(!ResidenceNeedKind::Shoes.is_active_for_tier(2));
         assert!(ResidenceNeedKind::Shoes.is_active_for_tier(3));
-        assert!(!ResidenceNeedKind::PreservedFood.is_active_for_tier(2));
+        assert!(!ResidenceNeedKind::SavoryPreserves.is_active_for_tier(2));
         assert!(!ResidenceNeedKind::Pottery.is_active_for_tier(3));
         assert!(ResidenceNeedKind::Pottery.is_active_for_tier(4));
         assert!(ResidenceNeedKind::Luxury.is_active_for_tier(4));

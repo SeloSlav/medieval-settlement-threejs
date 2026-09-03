@@ -83,7 +83,7 @@ pub fn need_units_due(
         ResidenceNeedKind::Luxury => monthly_household_bill_due(residence_id, clock)
             .then_some(RESIDENCE_LUXURY_UNITS_PER_MONTH),
         ResidenceNeedKind::Food
-        | ResidenceNeedKind::PreservedFood
+        | ResidenceNeedKind::SavoryPreserves
         | ResidenceNeedKind::Church
         | ResidenceNeedKind::FoodVariety => None,
     }?;

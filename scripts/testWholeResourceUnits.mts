@@ -265,7 +265,6 @@ assert.equal((playerState as { monasteryPolicy: { titheShare: number } })
 
 const residencePantryFields = [
   'food',
-  'preservedFood',
   'honey',
   'oatGrain',
   'ryeBread',

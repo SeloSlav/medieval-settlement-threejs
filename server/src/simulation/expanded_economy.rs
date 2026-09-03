@@ -4755,7 +4755,7 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
         ProcessorOutputKind::Flour => Some(CommodityKind::RyeFlour),
         ProcessorOutputKind::Food => Some(CommodityKind::RyeBread),
         ProcessorOutputKind::Ale => Some(CommodityKind::Ale),
-        ProcessorOutputKind::PreservedFood => None,
+        ProcessorOutputKind::SavoryPreserves => None,
         ProcessorOutputKind::TextileIntermediate => Some(CommodityKind::Yarn),
         ProcessorOutputKind::Cloth => Some(CommodityKind::Cloth),
         ProcessorOutputKind::Charcoal => Some(CommodityKind::Charcoal),

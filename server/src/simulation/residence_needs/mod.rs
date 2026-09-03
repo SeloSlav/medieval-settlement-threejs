@@ -111,7 +111,7 @@ pub fn step_residence_needs(
                 variety.deficit_ticks = u32::from(!result.all_slots_met);
             }
             if residence.tier >= 4 {
-                if let Some(preserved) = find_need_mut(&mut needs, ResidenceNeedKind::PreservedFood)
+                if let Some(preserved) = find_need_mut(&mut needs, ResidenceNeedKind::SavoryPreserves)
                 {
                     preserved.deficit_ticks = u32::from(!result.preserved_slot_met);
                 }
@@ -156,8 +156,8 @@ pub fn step_residence_needs(
             } else {
                 ConsumeResult::Unmet
             }
-        } else if kind == ResidenceNeedKind::PreservedFood {
-            // Tier-four preserved food replaces one matching monthly category
+        } else if kind == ResidenceNeedKind::SavoryPreserves {
+            // Tier-four savory preserves replace one matching monthly category
             // slot; it never adds a sixth calorie charge.
             if need.deficit_ticks == 0 {
                 ConsumeResult::Met(*need)
@@ -800,7 +800,7 @@ fn consume_need(kind: ResidenceNeedKind, need: &NeedState, units: f64) -> Consum
             provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
         },
         ResidenceNeedKind::Food
-        | ResidenceNeedKind::PreservedFood
+        | ResidenceNeedKind::SavoryPreserves
         | ResidenceNeedKind::Church
         | ResidenceNeedKind::FoodVariety => ConsumeResult::Unmet,
     }
@@ -812,7 +812,7 @@ fn on_unmet_need(kind: ResidenceNeedKind, need: &NeedState) -> NeedState {
         ResidenceNeedKind::Water => water::on_unmet(need),
         ResidenceNeedKind::Food => food::on_unmet(need),
         ResidenceNeedKind::Ale
-        | ResidenceNeedKind::PreservedFood
+        | ResidenceNeedKind::SavoryPreserves
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Shoes
         | ResidenceNeedKind::Pottery
@@ -827,7 +827,7 @@ fn apply_delivery_for_kind(kind: ResidenceNeedKind, need: &NeedState, delivered:
         ResidenceNeedKind::Water => water::apply_delivery(need, delivered),
         ResidenceNeedKind::Food => food::apply_delivery(need, delivered),
         ResidenceNeedKind::Ale
-        | ResidenceNeedKind::PreservedFood
+        | ResidenceNeedKind::SavoryPreserves
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Shoes
         | ResidenceNeedKind::Pottery

@@ -33,7 +33,6 @@ pub const STOREHOUSE_ACCEPTANCE_MASK_HIGH: u64 = high_bit(64) // wax
     | high_bit(75); // ammunition
 
 pub const GRANARY_ACCEPTANCE_MASK: u64 = bit(6) // ale
-    | bit(7) // legacy preserved food
     | bit(8) // honey
     | bit(9) // wine
     | bit(16) // barley

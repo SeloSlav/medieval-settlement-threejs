@@ -27,7 +27,7 @@ pub use commodities::{
     household_food_units_per_day_for_tier, residence_commodity_stock, residence_edible_food_stock,
     residence_food_category_mask, residence_food_progression_met,
     residence_food_progression_required_slots, residence_food_progression_slots,
-    residence_fresh_food_stock, residence_preserved_food_stock, residence_savory_preserves_stock,
+    residence_fresh_food_stock, residence_savory_preserves_stock,
     storage_accepts_commodity,
     withdraw_building_commodity, withdraw_building_edible_food, withdraw_residence_commodity,
     CommodityKind, FoodCategory, ALL_COMMODITIES, EDIBLE_COMMODITIES, FRESH_FOOD_COMMODITIES,
