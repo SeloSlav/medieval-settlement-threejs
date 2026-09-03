@@ -18,7 +18,6 @@ export type WorldTerrainPresetDefinition = {
   name: string;
   region: string;
   description: string;
-  features: readonly string[];
   topography: number;
   hydrology: number;
   forestDensity: number;
@@ -52,7 +51,6 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     region: 'Dobra · Gorski Kotar',
     description:
       'Flat riverside fields with a gently winding Dobra and low grassy banks.',
-    features: ['Single through-river', 'Broad building ground', 'Gentle map edges'],
     topography: 12,
     hydrology: 40,
     forestDensity: 32,
@@ -68,7 +66,6 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     region: 'Mrkopalj · Gorski Kotar',
     description:
       'Level upland pasture with one small fish pond and scattered woodland.',
-    features: ['No rivers', 'Pasture pond', 'Flat ground to the edges'],
     topography: 8,
     hydrology: 0,
     forestDensity: 28,
@@ -80,7 +77,6 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     region: 'Gusti Laz · Gorski Kotar',
     description:
       'Wide river valley with a broad village bench and wooded mountain walls.',
-    features: ['25–35 m river', 'Broad valley floor', '500+ m valley sides'],
     topography: 78,
     hydrology: 58,
     forestDensity: 70,
@@ -92,7 +88,6 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     region: 'Risnjak · Gorski Kotar',
     description:
       'Rugged forest saddle with streams and a sheltered upland meadow.',
-    features: ['High mountain saddle', 'Headwater streams', 'Dense fir and beech'],
     topography: 92,
     hydrology: 46,
     forestDensity: 84,
@@ -104,7 +99,6 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     region: 'Delnice · Gorski Kotar',
     description:
       'Open upland meadow with a fish pond and mountain-ringed forest.',
-    features: ['Open meadow floor', 'Spring-fed fish pond', 'Mountain ring'],
     topography: 76,
     hydrology: 0,
     forestDensity: 30,
@@ -116,7 +110,6 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     region: 'Vinodol · Primorje',
     description:
       'Buildable Adriatic coast beneath a limestone ridge.',
-    features: ['One-fifth sea', 'Coastal settlement shelf', 'Karst ridge'],
     topography: 68,
     hydrology: 38,
     forestDensity: 45,
@@ -133,7 +126,6 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     region: 'Lič · Gorski Kotar',
     description:
       'High karst grazing field with a stream that vanishes into a ponor.',
-    features: ['Disappearing stream', 'Open grazing basin', 'Karst mountain ring'],
     topography: 84,
     hydrology: 34,
     forestDensity: 42,
@@ -145,7 +137,6 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     region: '',
     description:
       'Shape the terrain, waterways, and woodland.',
-    features: ['Mountain-scale relief', 'Adjustable waterways', 'Adjustable woodland'],
     topography: 50,
     hydrology: 50,
     forestDensity: 50,

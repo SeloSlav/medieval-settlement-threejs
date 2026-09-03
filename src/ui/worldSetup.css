@@ -223,6 +223,7 @@
 .world-setup-landscape-option {
   position: relative;
   display: grid;
+  align-content: start;
   gap: 7px;
   min-width: 0;
   min-height: 142px;
@@ -287,23 +288,6 @@
   color: var(--muted);
   font-size: 16px;
   line-height: 1.35;
-}
-
-.world-setup-landscape-option__features {
-  display: flex;
-  align-self: end;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.world-setup-landscape-option__features span {
-  padding: 2px 5px;
-  color: rgba(224, 214, 190, 0.78);
-  font-size: 13px;
-  line-height: 1.35;
-  border: 1px solid rgba(215, 180, 99, 0.16);
-  border-radius: 2px;
-  background: rgba(0, 0, 0, 0.14);
 }
 
 .world-setup-landscape-option:hover,
@@ -745,11 +729,6 @@
   .world-setup-landscape-option__description {
     font-size: 12px;
     line-height: 1.25;
-  }
-
-  .world-setup-landscape-option__features span {
-    padding: 1px 3px;
-    font-size: 10px;
   }
 
   .world-setup-difficulty-preset {

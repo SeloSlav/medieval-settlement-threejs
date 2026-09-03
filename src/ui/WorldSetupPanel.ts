@@ -147,7 +147,6 @@ export class WorldSetupPanel {
             <section class="world-setup-section world-setup-landscape" aria-label="Landscape">
               <div class="world-setup-section-heading">
                 <h2 class="world-setup-section__title">Landscape</h2>
-                <span>Seeded regional profiles</span>
               </div>
               <div class="world-setup-landscape-grid" data-landscape-grid></div>
             </section>
@@ -302,7 +301,6 @@ export class WorldSetupPanel {
             <div class="world-setup-footer-seed" data-map-seed-section>
               <label class="world-setup-footer-seed__label" for="world-setup-seed">
                 <span>World seed</span>
-                <small>Repeatable terrain</small>
               </label>
               <div class="world-setup-seed-row">
                 <input id="world-setup-seed" class="world-setup-seed-input" type="text" inputmode="text" spellcheck="false" autocomplete="off" aria-label="World seed" data-seed-input value="${formatSeedHex(this.draft.seed)}" />
@@ -749,9 +747,6 @@ export class WorldSetupPanel {
       const sizeRequirement = preset.minMapSize === 'small'
         ? ''
         : `<span class="world-setup-landscape-option__requirement"${available ? ' hidden' : ''}>${preset.minMapSize} map or larger</span>`;
-      const features = preset.features
-        .map((feature) => `<span>${feature}</span>`)
-        .join('');
       return `
         <button
           type="button"
@@ -765,7 +760,6 @@ export class WorldSetupPanel {
             ${preset.region ? `<small>${preset.region}</small>` : ''}
           </span>
           <span class="world-setup-landscape-option__description">${preset.description}</span>
-          <span class="world-setup-landscape-option__features">${features}</span>
           ${sizeRequirement}
         </button>
       `;
