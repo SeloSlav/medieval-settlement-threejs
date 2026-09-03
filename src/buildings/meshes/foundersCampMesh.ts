@@ -1881,5 +1881,4 @@ export function addCampStumpSeat(parent: THREE.Group, x: number, z: number): voi
     new THREE.Euler(0, 0.18, 0),
   );
   stumpSeatTop.name = 'Camp fireside stump seat top';
-
 }
