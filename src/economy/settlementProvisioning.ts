@@ -61,6 +61,7 @@ import {
   freshFoodMealEquivalents,
   freshFoodSpoilageExposure,
   isFreshFoodCargo,
+  isPreservedFoodCargo,
   isSavoryPreserveCargo,
   savoryPreservesMealEquivalents,
   savoryPreservesSpoilageExposure,

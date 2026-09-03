@@ -144,8 +144,8 @@ assert.match(
 );
 assert.match(
   residenceNeeds,
-  /Tier-four preserved food replaces one matching monthly category[\s\S]{0,120}never adds a sixth calorie charge/,
-  'authoritative tier-four consumption must replace a food slot with preserved food instead of adding another meal charge',
+  /Tier-four savory preserves replace one matching monthly category[\s\S]{0,120}never adds a sixth calorie charge/,
+  'authoritative tier-four consumption must replace a food slot with savory preserves instead of adding another meal charge',
 );
 assert.match(
   residenceNeeds,
@@ -203,7 +203,7 @@ assert.match(
 );
 assert.match(
   householdDistribution,
-  /MarketIssueCycle::Daily[\s\S]*daily_market_issue_target_days\([\s\S]*ResidenceNeedKind::Firewood[\s\S]*ResidenceNeedKind::Food[\s\S]*ResidenceNeedKind::PreservedFood/,
+  /MarketIssueCycle::Daily[\s\S]*daily_market_issue_target_days\([\s\S]*ResidenceNeedKind::Firewood[\s\S]*ResidenceNeedKind::Food[\s\S]*ResidenceNeedKind::SavoryPreserves/,
   'daily checks must preserve daily lot targets and the Town Hall critical-food and heat safeguard',
 );
 assert.match(
@@ -707,7 +707,7 @@ const curedBranchSmokehouse = building(
   0,
 );
 curedBranchSmokehouse.x = 7;
-curedBranchSmokehouse.preservedFood = 14;
+curedBranchSmokehouse.curedMeat = 14;
 curedBranchState.buildings.set(
   curedBranchSmokehouse.id,
   curedBranchSmokehouse,
@@ -730,7 +730,7 @@ assert.ok(Math.abs(
   curedBranch.preservedFoodSpoilagePerDay
   - 14
     * PRESERVED_FOOD_SPOILAGE_PER_DAY
-    * foodSpoilageMultiplier('preservedFood')
+    * foodSpoilageMultiplier('curedMeat')
     * PRESERVED_FOOD_STORAGE_MARKETPLACE_FACTOR,
 ) < 1e-9);
 assert.ok(
@@ -969,8 +969,8 @@ assert.equal(tierFourShort.householdBufferPotteryShortHomes, 1);
 
 const seasonalRationState = emptyGameState();
 const seasonalRationHome = residence('seasonal-ration-home', 4, 5);
-seasonalRationHome.needs.preservedFood.stock = householdFoodUnitsPerMonth(1);
-seasonalRationHome.preservedFood = seasonalRationHome.needs.preservedFood.stock;
+seasonalRationHome.needs.savoryPreserves.stock = householdFoodUnitsPerMonth(1);
+seasonalRationHome.curedMeat = seasonalRationHome.needs.savoryPreserves.stock;
 seasonalRationState.residences.set(
   seasonalRationHome.id,
   seasonalRationHome,
@@ -1151,8 +1151,8 @@ for (const [id, tier, population] of [
       * CALENDAR_SECONDS_PER_DAY;
   }
   if (tier >= 4) {
-    home.needs.preservedFood.stock = householdFoodUnitsPerMonth(1);
-    home.preservedFood = home.needs.preservedFood.stock;
+    home.needs.savoryPreserves.stock = householdFoodUnitsPerMonth(1);
+    home.curedMeat = home.needs.savoryPreserves.stock;
     home.needs.pottery.stock = population
       * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
       * CALENDAR_SECONDS_PER_DAY;
