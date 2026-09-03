@@ -28,7 +28,7 @@ type ClayTextureSet = {
 type ClayDepositVisual = {
   nodeId: string;
   isRich: boolean;
-  exposedStrata: THREE.Mesh[];
+  clods: THREE.Mesh[];
 };
 
 export function createClayDepositSystem(
@@ -62,17 +62,17 @@ export function createClayDepositSystem(
   }
 
   const visuals: ClayDepositVisual[] = layout.sites.map((site, index) => {
-    const visual = createClayBankPatch(terrain, site, materials, clodGeometry);
+    const visual = createClayDepositVisual(terrain, site, materials, clodGeometry);
     group.add(visual.group);
     return {
       nodeId: clayDepositNodeId(site, index),
       isRich: site.kind === 'rich',
-      exposedStrata: visual.exposedStrata,
+      clods: visual.clods,
     };
   });
   const shadowBatch = new StaticInstancedShadowBatch(
     group,
-    visuals.flatMap((visual) => visual.exposedStrata),
+    visuals.flatMap((visual) => visual.clods),
     'Clay deposit exact caster batches',
   );
 
@@ -86,9 +86,9 @@ export function createClayDepositSystem(
         const hasExposedClay = visual.isRich
           || !node
           || node.remaining > 1e-6;
-        for (const stratum of visual.exposedStrata) {
-          if (stratum.visible === hasExposedClay) continue;
-          stratum.visible = hasExposedClay;
+        for (const clod of visual.clods) {
+          if (clod.visible === hasExposedClay) continue;
+          clod.visible = hasExposedClay;
           changed = true;
         }
       }
@@ -110,14 +110,13 @@ export function createClayDepositSystem(
   };
 }
 
-function createClayBankPatch(
+function createClayDepositVisual(
   terrain: Terrain,
   site: ClayDepositSite,
   materials: readonly THREE.MeshStandardMaterial[],
   clodGeometry: THREE.BufferGeometry,
-): { group: THREE.Group; exposedStrata: THREE.Mesh[] } {
+): { group: THREE.Group; clods: THREE.Mesh[] } {
   const group = new THREE.Group();
-  const exposedStrata: THREE.Mesh[] = [];
   const gradeLabel = site.kind === 'rich' ? 'rich' : 'ordinary';
   const formationLabel = site.formation === 'coastal'
     ? 'coastal'
@@ -126,35 +125,10 @@ function createClayBankPatch(
       : 'alluvial';
   group.name = `Exposed ${gradeLabel} ${formationLabel} clay`;
 
-  const strata = [
-    { scale: 0.76, offset: -0.9, lift: 0.085, crown: 0.3, materialIndex: 1 },
-    { scale: 0.52, offset: 1.4, lift: 0.15, crown: 0.34, materialIndex: 2 },
-  ].slice(0, site.kind === 'rich' ? 2 : 1);
-  for (let index = 0; index < strata.length; index++) {
-    const layer = strata[index];
-    const seam = new THREE.Mesh(
-      createTerrainConformingPatch(
-        terrain,
-        site,
-        layer.scale,
-        layer.offset,
-        layer.lift,
-        layer.crown,
-      ),
-      materials[layer.materialIndex],
-    );
-    seam.name = `${site.kind === 'rich' ? 'Rich' : 'Ordinary'} clay exposed stratum ${index + 1}`;
-    seam.castShadow = true;
-    seam.receiveShadow = true;
-    exposedStrata.push(seam);
-    group.add(seam);
-  }
-
   const clods = createClayClods(terrain, site, materials, clodGeometry);
-  exposedStrata.push(...clods);
   group.add(...clods);
 
-  return { group, exposedStrata };
+  return { group, clods };
 }
 
 function createClayClods(
@@ -199,76 +173,6 @@ function createClayClods(
   }
 
   return clods;
-}
-
-function createTerrainConformingPatch(
-  terrain: Terrain,
-  site: ClayDepositSite,
-  scale: number,
-  lateralOffset: number,
-  lift = 0.025,
-  crownHeight = 0,
-): THREE.BufferGeometry {
-  const segments = 48;
-  const radialSegments = 4;
-  const positions: number[] = [];
-  const uvs: number[] = [];
-  const indices: number[] = [];
-  const cos = Math.cos(site.rotation);
-  const sin = Math.sin(site.rotation);
-  const centerX = site.x - sin * lateralOffset;
-  const centerZ = site.z + cos * lateralOffset;
-  const centerY = terrain.getHeightAt(centerX, centerZ) + lift + crownHeight;
-  positions.push(centerX, centerY, centerZ);
-  uvs.push(0.5, 0.5);
-
-  for (let ring = 1; ring <= radialSegments; ring++) {
-    const radialT = ring / radialSegments;
-    const crown = Math.pow(1 - radialT, 1.65) * crownHeight;
-    for (let index = 0; index < segments; index++) {
-      const angle = index / segments * Math.PI * 2;
-      const irregularity =
-        0.9
-        + Math.sin(angle * 3 + site.x * 0.017) * 0.06
-        + Math.sin(angle * 7 + site.z * 0.013) * 0.035;
-      const localX = Math.cos(angle) * site.radiusX * scale * radialT * irregularity;
-      const localZ = Math.sin(angle) * site.radiusZ * scale * radialT * irregularity;
-      const x = centerX + localX * cos - localZ * sin;
-      const z = centerZ + localX * sin + localZ * cos;
-      positions.push(x, terrain.getHeightAt(x, z) + lift + crown, z);
-      uvs.push(
-        0.5 + localX / (site.radiusX * scale * 2),
-        0.5 + localZ / (site.radiusZ * scale * 2),
-      );
-    }
-  }
-
-  for (let index = 0; index < segments; index++) {
-    indices.push(0, (index + 1) % segments + 1, index + 1);
-  }
-  for (let ring = 1; ring < radialSegments; ring++) {
-    const innerStart = 1 + (ring - 1) * segments;
-    const outerStart = 1 + ring * segments;
-    for (let index = 0; index < segments; index++) {
-      const next = (index + 1) % segments;
-      indices.push(
-        innerStart + index,
-        outerStart + next,
-        outerStart + index,
-        innerStart + index,
-        innerStart + next,
-        outerStart + next,
-      );
-    }
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  geometry.computeBoundingSphere();
-  return geometry;
 }
 
 function createClayTextureSet(): ClayTextureSet {

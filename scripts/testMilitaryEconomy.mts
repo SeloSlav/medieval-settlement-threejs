@@ -13,7 +13,6 @@ const buildMenu = read('src/ui/buildMenuCards.ts');
 const expandedBuildingInspector = read('src/resources/inspector/expandedBuildingRenderer.ts');
 const cardArt = read('src/resources/buildingCardArt.ts');
 const hud = read('src/ui/SettlementHud.ts');
-const inspector = read('src/resources/ResourceInspector.ts');
 const logistics = read('src/logistics/deliveryTrips.ts');
 const tables = read('server/src/tables.rs');
 
@@ -109,7 +108,6 @@ assert.match(hud, /data-military-stores/);
 assert.match(hud, />Arms</);
 assert.match(hud, />Protection</);
 assert.match(hud, />Ammunition</);
-assert.match(inspector, /Spear .*foot .*ranged .*bottleneck/);
 
 for (const asset of [
   'public/assets/ui/build-menu/cards/weaponsmith-armorer.webp',
@@ -120,4 +118,4 @@ for (const asset of [
   assert.ok(statSync(asset).size > 200, `${asset} must contain authored art`);
 }
 
-console.log('Military economy contract valid: seven finished equipment goods, two all-mode physical workshops, balanced recipes, carted muster requisitions, finished-kit-only recruitment, Military stores bottleneck HUD, trade/storage coverage, and authored card/icon art.');
+console.log('Military economy contract valid: seven finished equipment goods, two all-mode physical workshops, balanced recipes, carted muster requisitions, finished-kit-only recruitment, Military stores HUD, trade/storage coverage, and authored card/icon art.');

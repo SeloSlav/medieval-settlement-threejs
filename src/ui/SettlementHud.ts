@@ -150,7 +150,6 @@ const SETTLEMENT_HUD_HTML = `
         <circle cx="7.5" cy="7.5" r="4.75"></circle>
         <path d="m11 11 4 4"></path>
       </svg>
-      <span class="settlement-vitals__zoom-label">Zoom</span>
       <strong class="settlement-vitals__zoom-value" data-stat="zoom">100%</strong>
     </div>
     <div class="settlement-hud__clock" data-settlement-clock>
@@ -764,13 +763,12 @@ const SETTLEMENT_HUD_HTML = `
         <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="sidearms" data-tooltip="Swords, axes, and sidearms issued to close infantry."><span class="settlement-hud__label">Sidearms</span><strong class="settlement-hud__value" data-stockpile="sidearms">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="sidearms" hidden></span></div>
         <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="bows" data-tooltip="Finished bows for ranged companies."><span class="settlement-hud__label">Bows</span><strong class="settlement-hud__value" data-stockpile="bows">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="bows" hidden></span></div>
         <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="crossbows" data-tooltip="Finished crossbows for armored ranged companies."><span class="settlement-hud__label">Crossbows</span><strong class="settlement-hud__value" data-stockpile="crossbows">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="crossbows" hidden></span></div>
-        <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2"><strong>Protection</strong><span>Issued by company role</span></div>
+        <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2"><strong>Protection</strong></div>
         <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="shields" data-tooltip="Shields issued to spear and close-infantry companies."><span class="settlement-hud__label">Shields</span><strong class="settlement-hud__value" data-stockpile="shields">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="shields" hidden></span></div>
         <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="paddedArmor" data-tooltip="Padded protection used by most trained companies."><span class="settlement-hud__label">Padded</span><strong class="settlement-hud__value" data-stockpile="paddedArmor">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="paddedArmor" hidden></span></div>
         <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="mailArmor" data-tooltip="Mail protection reserved for men-at-arms."><span class="settlement-hud__label">Mail</span><strong class="settlement-hud__value" data-stockpile="mailArmor">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="mailArmor" hidden></span></div>
-        <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2"><strong>Ammunition</strong><span>Bundled field supply</span></div>
+        <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2"><strong>Ammunition</strong></div>
         <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ammunition" data-tooltip="Arrow and bolt bundles consumed by ranged companies and resupply."><span class="settlement-hud__label">Ammunition</span><strong class="settlement-hud__value" data-stockpile="ammunition">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ammunition" hidden></span></div>
-        <div class="settlement-hud__stores-grid-header settlement-hud__military-readiness" role="status"><strong>Complete kits</strong><span data-military-kit-readiness>None ready · bottleneck: polearms</span></div>
       </div>
     </details>
   </div>

@@ -119,47 +119,32 @@ ordinaryClayVisual.traverse((object) => {
   if (object instanceof THREE.Mesh) ordinaryClayMeshes.push(object);
 });
 assert.ok(
-  ordinaryClayMeshes.some((mesh) => mesh.name.startsWith('Ordinary clay clod')),
-  'ordinary clay must include raised 3D clods rather than only a terrain-colored decal',
+  ordinaryClayMeshes.length > 0
+    && ordinaryClayMeshes.every((mesh) => mesh.name.startsWith('Ordinary clay clod')),
+  'ordinary clay must consist only of raised 3D clods',
 );
-assert.equal(
-  ordinaryClayVisual.getObjectByName('Ordinary clay bank surface'),
-  undefined,
-  'clay deposits must not retain a broad wet-ground patch beneath the raised material',
-);
-const ordinarySurface = ordinaryClayVisual.getObjectByName('Ordinary clay exposed stratum 1');
-assert.ok(ordinarySurface instanceof THREE.Mesh);
-ordinarySurface.geometry.computeBoundingBox();
+const ordinaryClod = ordinaryClayMeshes[0];
+const ordinaryClodBounds = new THREE.Box3().setFromObject(ordinaryClod);
 assert.ok(
-  (ordinarySurface.geometry.boundingBox?.max.y ?? 0)
-    - (ordinarySurface.geometry.boundingBox?.min.y ?? 0) >= 0.2,
-  'the clay bank surface must have modeled vertical relief at close zoom',
+  ordinaryClodBounds.min.y < 0 && ordinaryClodBounds.max.y > 0.2,
+  'clay clods must emerge from the terrain with visible vertical relief',
 );
-const ordinarySurfaceMaterial = ordinarySurface.material as THREE.MeshStandardMaterial;
+const ordinaryClodMaterial = ordinaryClod.material as THREE.MeshStandardMaterial;
 assert.ok(
-  ordinarySurfaceMaterial.map instanceof THREE.DataTexture
-    && ordinarySurfaceMaterial.normalMap instanceof THREE.DataTexture
-    && ordinarySurfaceMaterial.roughnessMap instanceof THREE.DataTexture
-    && ordinarySurfaceMaterial.map.image.width === 64
-    && ordinarySurfaceMaterial.map.image.height === 64
-    && ordinarySurfaceMaterial.normalScale.x >= 0.4
-    && ordinarySurfaceMaterial.userData.claySurface?.revision === 'alluvial-clay-v2',
-  'clay banks must carry shared granular albedo, normal, and roughness detail',
+  ordinaryClodMaterial.map instanceof THREE.DataTexture
+    && ordinaryClodMaterial.normalMap instanceof THREE.DataTexture
+    && ordinaryClodMaterial.roughnessMap instanceof THREE.DataTexture
+    && ordinaryClodMaterial.map.image.width === 64
+    && ordinaryClodMaterial.map.image.height === 64
+    && ordinaryClodMaterial.normalScale.x >= 0.4
+    && ordinaryClodMaterial.userData.claySurface?.revision === 'alluvial-clay-v2',
+  'clay clods must carry shared granular albedo, normal, and roughness detail',
 );
 assert.ok(
-  ordinarySurface.geometry.getAttribute('uv') !== undefined,
-  'the terrain-conforming bank needs UVs so surface texture remains visible across the patch',
+  ordinaryClod.geometry.getAttribute('uv') !== undefined,
+  'clay clods need UVs so their surface texture remains visible',
 );
-const ordinarySurfaceNormals = ordinarySurface.geometry.getAttribute('normal') as THREE.BufferAttribute;
-let upwardNormalCount = 0;
-for (let index = 0; index < ordinarySurfaceNormals.count; index++) {
-  if (ordinarySurfaceNormals.getY(index) > 0) upwardNormalCount++;
-}
-assert.ok(
-  upwardNormalCount / ordinarySurfaceNormals.count >= 0.9,
-  'the clay bank faces must wind upward so the raised surface is visible rather than backface-culled',
-);
-const clayAlbedoData = ordinarySurfaceMaterial.map.image.data as Uint8Array;
+const clayAlbedoData = ordinaryClodMaterial.map.image.data as Uint8Array;
 let clayAlbedoMinimum = 255;
 let clayAlbedoMaximum = 0;
 for (let offset = 0; offset < clayAlbedoData.length; offset += 4) {
@@ -198,10 +183,10 @@ const countClayCasterInstances = (): number => {
 assert.equal(
   countClayCasterInstances(),
   layout.clayDepositLayout.sites.reduce(
-    (count, site) => count + (site.kind === 'rich' ? 20 : 12),
+    (count, site) => count + (site.kind === 'rich' ? 18 : 11),
     0,
   ),
-  'the exact caster batches must initially contain every authored clay stratum and clod',
+  'the exact caster batches must initially contain every clay clod and no ground layers',
 );
 const depletedClayVisualNodes = layout.clayDepositLayout.sites.map(
   (site, index): ResourceNodeState => ({
@@ -218,8 +203,8 @@ const depletedClayVisualNodes = layout.clayDepositLayout.sites.map(
 assert.equal(clayVisualSystem.syncNodes(depletedClayVisualNodes), true);
 assert.equal(
   countClayCasterInstances(),
-  layout.clayDepositLayout.sites.filter((site) => site.kind === 'rich').length * 20,
-  'ordinary clay depletion must remove the same exact caster instances while rich seams remain',
+  layout.clayDepositLayout.sites.filter((site) => site.kind === 'rich').length * 18,
+  'ordinary clay depletion must remove the same exact caster instances while rich clods remain',
 );
 
 const previousLocalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
@@ -558,8 +543,8 @@ assert.match(
 const clayVisuals = readFileSync('src/clay/ClayDepositSystem.ts', 'utf8');
 assert.match(
   clayVisuals,
-  /syncNodes:[\s\S]*node\.remaining > 1e-6[\s\S]*stratum\.visible = hasExposedClay/,
-  'the exposed ordinary clay stratum must visually clear when its physical reserve is exhausted',
+  /syncNodes:[\s\S]*node\.remaining > 1e-6[\s\S]*clod\.visible = hasExposedClay/,
+  'the ordinary clay clods must visually clear when their physical reserve is exhausted',
 );
 const bootstrapReducer = readFileSync('server/src/reducers/bootstrap.rs', 'utf8');
 assert.match(

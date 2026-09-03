@@ -412,7 +412,6 @@ export class ResourceInspector {
   private readonly fuelFirewoodAmount: HTMLElement;
   private readonly specialtyStoresModeLabel: HTMLElement;
   private readonly militaryStoresModeLabel: HTMLElement;
-  private readonly militaryKitReadiness: HTMLElement;
   private readonly resourceCardAmounts: Record<HudResourceCardKind, HTMLElement>;
   private readonly resourceCardModeLabels: Record<HudResourceCardKind, HTMLElement>;
   private readonly resourceCardDetails: Record<HudResourceCardKind, HTMLElement>;
@@ -613,10 +612,6 @@ export class ResourceInspector {
     this.militaryStoresModeLabel = this.mustElement(
       options.uiRoot,
       '[data-military-stores-mode-label]',
-    );
-    this.militaryKitReadiness = this.mustElement(
-      options.uiRoot,
-      '[data-military-kit-readiness]',
     );
     this.resourceCardAmounts = Object.fromEntries(
       HUD_RESOURCE_CARD_KINDS.map((resource) => [
@@ -2230,24 +2225,9 @@ export class ResourceInspector {
         [...MILITARY_HUD_RESOURCE_KINDS].reduce((sum, resource) => sum + totals[resource], 0),
       ).toString();
     }
-    const spearKits = Math.floor(Math.min(totals.polearms, totals.shields, totals.paddedArmor));
-    const footKits = Math.floor(Math.min(totals.sidearms, totals.shields, totals.paddedArmor));
-    const rangedKits = Math.floor(Math.min(totals.bows + totals.crossbows, totals.ammunition));
-    const bottleneck = [
-      ['polearms', totals.polearms],
-      ['sidearms', totals.sidearms],
-      ['shields', totals.shields],
-      ['padded armor', totals.paddedArmor],
-      ['mail armor', totals.mailArmor],
-      ['bows/crossbows', totals.bows + totals.crossbows],
-      ['ammunition', totals.ammunition],
-    ] as const;
-    const bottleneckLabel = bottleneck.reduce((least, candidate) =>
-      candidate[1] < least[1] ? candidate : least)[0];
-    this.militaryKitReadiness.textContent = `Spear ${spearKits} · foot ${footKits} · ranged ${rangedKits} · bottleneck: ${bottleneckLabel}`;
     militaryStoreSummary?.setAttribute(
       'aria-label',
-      `Military stores, ${stockedMilitary.length} stocked categories. ${this.militaryKitReadiness.textContent}`,
+      `Military stores, ${stockedMilitary.length} stocked categories`,
     );
   }
 

@@ -276,7 +276,6 @@ test('keeps the camera zoom visible beside compact calendar controls', async ({ 
             <circle cx="7.5" cy="7.5" r="4.75"></circle>
             <path d="m11 11 4 4"></path>
           </svg>
-          <span class="settlement-vitals__zoom-label">Zoom</span>
           <strong class="settlement-vitals__zoom-value" data-stat="zoom">37%</strong>
         </div>
         <div class="settlement-hud__clock" data-settlement-clock>

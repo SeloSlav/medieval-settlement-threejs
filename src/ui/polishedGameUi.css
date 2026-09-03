@@ -179,7 +179,8 @@ select:focus-visible {
 .settlement-vitals__zoom {
   position: relative;
   display: grid;
-  grid-template-rows: 13px 12px 13px;
+  grid-template-rows: 13px 13px;
+  row-gap: 2px;
   place-items: center;
   align-content: center;
   min-width: 0;
@@ -205,15 +206,6 @@ select:focus-visible {
   stroke: currentColor;
   stroke-linecap: round;
   stroke-width: 1.4;
-}
-
-.settlement-vitals__zoom-label {
-  color: #8f8675;
-  font-size: 6px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  line-height: 1;
-  text-transform: uppercase;
 }
 
 .settlement-vitals__zoom-value {
