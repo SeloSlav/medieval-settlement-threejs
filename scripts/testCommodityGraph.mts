@@ -91,11 +91,11 @@ const authoritativeEntries = [...asU8Body.matchAll(/Self::([A-Z][A-Za-z0-9]*)\s*
     code: Number(match[2]),
   }))
   .sort((left, right) => left.code - right.code);
-assert.equal(authoritativeEntries.length, 75, 'the audit must cover every authoritative commodity');
+assert.equal(authoritativeEntries.length, 74, 'the audit must cover every authoritative commodity');
 assert.deepEqual(
   authoritativeEntries.map(({ code }) => code),
-  Array.from({ length: 76 }, (_, code) => code).filter((code) => code !== 2),
-  'CommodityKind codes must remain unique and append-only while preserving the retired legacy Food code 2 as a tombstone',
+  Array.from({ length: 76 }, (_, code) => code).filter((code) => code !== 2 && code !== 35),
+  'CommodityKind codes must remain unique and must not map removed aggregate resource ids',
 );
 
 const authoritativeResources = authoritativeEntries.map(({ resource }) => resource);
@@ -191,8 +191,8 @@ const explicitNonTrade = [...tradeResourceSource.matchAll(
 )].map((match) => lowerCamel(match[1]));
 assertSameSet(
   explicitNonTrade,
-  ['animalFeed', 'gold', 'mead', 'vegetables'],
-  'only currency, local-only mead, local-only Animal Feed, and retired aggregate vegetables may lack trade',
+  ['animalFeed', 'gold', 'mead'],
+  'only currency, local-only mead, and local-only Animal Feed may lack trade',
 );
 assertSameSet(
   TRADE_RESOURCE_KINDS,

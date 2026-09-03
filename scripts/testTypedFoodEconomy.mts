@@ -107,17 +107,22 @@ assert.equal(
   false,
   'retired aggregate vegetables must not appear in the household or HUD food catalog',
 );
+assert.equal(
+  (RESOURCE_KINDS as readonly string[]).includes('vegetables'),
+  false,
+  'retired aggregate vegetables must not remain a client resource',
+);
 assert.equal(foodCategory('apples'), 'fruits');
 assert.equal(foodCategory('pears'), 'fruits');
 assert.equal(foodCategory('cherries'), 'fruits');
-assert.equal(foodCategory('vegetables'), 'vegetables');
 assert.equal(foodCategory('cabbage'), 'vegetables');
 assert.equal(foodCategory('carrots'), 'vegetables');
 assert.equal(foodCategory('beetroot'), 'vegetables');
 assert.equal(foodCategory('aronia'), 'foraged');
 assert.equal(foodCategory('rosehips'), 'foraged');
-assert.equal(foodCategory('aroniaJam'), 'foraged');
-assert.equal(foodCategory('rosehipJam'), 'foraged');
+assert.equal(foodCategory('aroniaJam'), 'sweetPreserves');
+assert.equal(foodCategory('rosehipJam'), 'sweetPreserves');
+assert.equal(foodCategory('honey'), 'sweetPreserves');
 assert.equal(foodCategory('milk'), 'animalProduce');
 assert.equal(foodCategory('cheese'), 'animalProduce');
 assert.equal(
@@ -132,8 +137,13 @@ assert.equal(
 );
 assert.equal(
   foodVarietyCount({ aronia: 2, rosehips: 2, aroniaJam: 2, rosehipJam: 2 }, 1),
+  2,
+  'fresh hedgerow fruit and sweet preserves remain distinct dietary categories',
+);
+assert.equal(
+  foodVarietyCount({ aroniaJam: 2, rosehipJam: 2, honey: 2 }, 1),
   1,
-  'fresh and preserved hedgerow fruit remain one dietary category',
+  'honey and both jams share the Sweet preserves category',
 );
 assert.equal(foodCategoryQualifyingStock(1), 1);
 assert.equal(foodCategoryQualifyingStock(6), 1);
@@ -206,7 +216,6 @@ const typedCargoKinds = [
   [32, 'milk'],
   [33, 'apples'],
   [34, 'cherries'],
-  [35, 'vegetables'],
   [36, 'eggs'],
   [37, 'grapes'],
   [38, 'cabbage'],
@@ -220,6 +229,7 @@ const typedCargoKinds = [
   [62, 'rosehipJam'],
 ] as const;
 assert.equal(cargoKindFromId(2), null, 'retired aggregate food cargo id 2 must stay unmapped');
+assert.equal(cargoKindFromId(35), null, 'removed aggregate vegetable cargo id must stay unmapped');
 for (const [id, kind] of typedCargoKinds) {
   assert.equal(cargoKindFromId(id), kind, `cargo id ${id} must remain ${kind}`);
   assert.notEqual(cargoKindLabel(kind), 'Food');
@@ -288,6 +298,10 @@ const commoditiesSource = readFileSync(
   'server/src/economy/commodities.rs',
   'utf8',
 );
+const tablesSource = readFileSync(
+  'server/src/tables.rs',
+  'utf8',
+);
 const supplyPolicySource = readFileSync(
   'server/src/supply_policy.rs',
   'utf8',
@@ -295,6 +309,20 @@ const supplyPolicySource = readFileSync(
 assert.match(commoditiesSource, /Self::Meat => Some\(Self::CuredMeat\)/);
 assert.match(commoditiesSource, /Self::Fish => Some\(Self::SmokedFish\)/);
 assert.match(commoditiesSource, /Self::Milk => Some\(Self::Cheese\)/);
+const commodityEnumSource = commoditiesSource.match(
+  /pub enum CommodityKind \{([\s\S]*?)\n\}/,
+)?.[1];
+assert.ok(commodityEnumSource, 'CommodityKind enum must remain discoverable');
+assert.doesNotMatch(
+  commodityEnumSource,
+  /\bVegetables\b/,
+  'retired aggregate vegetables must not remain a server commodity',
+);
+assert.doesNotMatch(
+  tablesSource,
+  /pub vegetables:\s*f64/,
+  'retired aggregate vegetables must not remain in persisted resource schemas',
+);
 assert.doesNotMatch(
   commoditiesSource,
   /CommodityKind::Food|\bFood\s*=\s*2\b/,

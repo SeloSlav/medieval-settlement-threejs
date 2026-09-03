@@ -280,7 +280,6 @@ const residencePantryFields = [
   'cherries',
   'aronia',
   'rosehips',
-  'vegetables',
   'cabbage',
   'carrots',
   'beetroot',

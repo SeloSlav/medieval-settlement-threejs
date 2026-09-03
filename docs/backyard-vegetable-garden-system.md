@@ -16,7 +16,7 @@ These are temperate succession-cropping abstractions. The first-maturity clock m
 
 ## Economy and state
 
-All three crops remain the typed `Vegetables` commodity so they continue through existing household food storage, Marketplace overflow, spoilage, food-needs, tax, and wealth systems. Their identity remains on the backyard kind, where it controls timing, yield, inspector language, and visuals.
+Cabbage, carrots, and beetroot remain distinct physical commodities through household storage, Marketplace overflow, spoilage, food needs, tax, and wealth systems. They share the `Vegetables` dietary category while their exact crop identity controls timing, yield, inspector language, and visuals.
 
 Seed gold uses the same protected household-savings and civic shortfall rules as orchard planting and animal stocking. Demolition removes the specialization and returns the parcel to the ordinary backyard-extension picker after reclaimed materials are hauled away.
 

@@ -300,9 +300,9 @@ pub fn food_category(kind: CommodityKind) -> Option<FoodCategory> {
         | CommodityKind::RyeBread
         | CommodityKind::MaslinBread
         | CommodityKind::PreservedFood => Some(FoodCategory::Grains),
-        CommodityKind::Cabbage
-        | CommodityKind::Carrots
-        | CommodityKind::Beetroot => Some(FoodCategory::Vegetables),
+        CommodityKind::Cabbage | CommodityKind::Carrots | CommodityKind::Beetroot => {
+            Some(FoodCategory::Vegetables)
+        }
         CommodityKind::Apples
         | CommodityKind::Cherries
         | CommodityKind::Grapes
@@ -315,8 +315,7 @@ pub fn food_category(kind: CommodityKind) -> Option<FoodCategory> {
         CommodityKind::Berries
         | CommodityKind::Mushrooms
         | CommodityKind::Aronia
-        | CommodityKind::Rosehips
-        => Some(FoodCategory::Foraged),
+        | CommodityKind::Rosehips => Some(FoodCategory::Foraged),
         CommodityKind::Honey | CommodityKind::AroniaJam | CommodityKind::RosehipJam => {
             Some(FoodCategory::SweetPreserves)
         }
@@ -1595,6 +1594,22 @@ mod tests {
         assert_eq!(
             food_category(CommodityKind::Milk),
             food_category(CommodityKind::Cheese)
+        );
+    }
+
+    #[test]
+    fn honey_and_jams_share_the_sweet_preserves_category() {
+        assert_eq!(
+            food_category(CommodityKind::Honey),
+            Some(FoodCategory::SweetPreserves)
+        );
+        assert_eq!(
+            food_category(CommodityKind::AroniaJam),
+            food_category(CommodityKind::Honey)
+        );
+        assert_eq!(
+            food_category(CommodityKind::RosehipJam),
+            food_category(CommodityKind::Honey)
         );
     }
 

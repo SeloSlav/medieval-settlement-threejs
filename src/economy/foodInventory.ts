@@ -192,7 +192,7 @@ export const FOOD_CATEGORY_LABELS = {
   meats: 'Meat',
   fishes: 'Fish',
   foraged: 'Foraged food',
-  honey: 'Honey',
+  sweetPreserves: 'Sweet preserves',
 } as const;
 export type FoodCategory = keyof typeof FOOD_CATEGORY_LABELS;
 
@@ -246,12 +246,12 @@ export function foodCategory(kind: FoodInventoryKind): FoodCategory {
     case 'berries':
     case 'aronia':
     case 'rosehips':
-    case 'aroniaJam':
-    case 'rosehipJam':
     case 'mushrooms':
       return 'foraged';
+    case 'aroniaJam':
+    case 'rosehipJam':
     case 'honey':
-      return 'honey';
+      return 'sweetPreserves';
   }
 }
 
@@ -323,7 +323,7 @@ export function foodProgressionStatus(
   if (suppliedCategories.length > 0) supplied.add('anyFood');
   if (grainStock + 1e-6 >= minimum) supplied.add('grains');
   if (suppliedCategories.some((category) => category !== 'grains')) supplied.add('otherFood');
-  if (['vegetables', 'fruits', 'foraged', 'honey']
+  if (['vegetables', 'fruits', 'foraged', 'sweetPreserves']
     .some((category) => categories.has(category as FoodCategory))) {
     supplied.add('produceAndForage');
   }

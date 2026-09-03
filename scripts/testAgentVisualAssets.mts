@@ -432,7 +432,6 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   cherries: 'Fresh food basket',
   aronia: 'Fresh food basket',
   rosehips: 'Fresh food basket',
-  vegetables: 'Food root vegetables',
   cabbage: 'Fresh food basket',
   carrots: 'Food root vegetables',
   beetroot: 'Food root vegetables',

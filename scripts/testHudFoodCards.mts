@@ -3,11 +3,15 @@ import { BREAD_GRAIN_KINDS, BREAD_KINDS, FLOUR_KINDS, GRAIN_SHEAF_KINDS } from '
 import { FRESH_FOOD_KINDS, PRESERVED_FOOD_KINDS } from '../src/economy/foodInventory.ts';
 import { TRADE_RESOURCE_KINDS } from '../src/generated/gameBalance.ts';
 import { HUD_RESOURCE_KINDS } from '../src/resources/resourceTotals.ts';
-import { HUD_FOOD_RESOURCE_KINDS, hudFoodResourceLabel, hudFoodResourceTooltip } from '../src/ui/hudFoodCards.ts';
+import { HUD_FOOD_GROUPS, HUD_FOOD_RESOURCE_KINDS, hudFoodResourceLabel, hudFoodResourceTooltip } from '../src/ui/hudFoodCards.ts';
 import { RESOURCE_COST_KINDS } from '../src/ui/resourceCost.ts';
 
 const foods = new Set<string>(HUD_FOOD_RESOURCE_KINDS);
 assert.equal(foods.size, HUD_FOOD_RESOURCE_KINDS.length, 'Each food should appear once in the food panel');
+const sweetPreserves = HUD_FOOD_GROUPS.find(({ id }) => id === 'sweetPreserves');
+assert.equal(sweetPreserves?.label, 'Sweet preserves');
+assert.deepEqual(sweetPreserves?.kinds, ['aroniaJam', 'rosehipJam', 'honey']);
+assert.equal(HUD_FOOD_GROUPS.some(({ id }) => id === 'honey'), false);
 for (const kind of [
   ...FRESH_FOOD_KINDS, ...PRESERVED_FOOD_KINDS, ...BREAD_GRAIN_KINDS,
   ...BREAD_KINDS, ...FLOUR_KINDS, ...GRAIN_SHEAF_KINDS, 'barley', 'malt', 'honey',
