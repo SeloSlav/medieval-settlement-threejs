@@ -79,7 +79,7 @@ const allServices: ResidenceUpgradeServices = {
   food: { supplier: householdMarket, stocked: true },
   firewood: { supplier: householdMarket, stocked: true },
   water: { supplier: well, stocked: false },
-  preservedFood: { supplier: smokehouse, stocked: false },
+  savoryPreserves: { supplier: smokehouse, stocked: false },
   ale: { supplier: tavern, stocked: true },
   cloth: { supplier: householdMarket, stocked: true },
   shoes: { supplier: householdMarket, stocked: true },
@@ -302,7 +302,7 @@ assert.equal(serviceStrainedPlan.ready, false);
 assert.match(serviceStrainedPlan.blockers.join(' '), /sustained household needs/);
 
 const tierTwo = residence('tier-two', 2, 6);
-tierTwo.food = 100;
+tierTwo.ryeBread = 100;
 tierTwo.berries = 100;
 tierTwo.foodInventoryMigrated = true;
 const basicChurchTierThreePlan = evaluateResidenceUpgrade(tierTwo, richTotals, allServices);
@@ -460,10 +460,10 @@ assert.deepEqual(
   ],
 );
 assert.equal(tierFourPlan.ready, true);
-for (const futureNeed of ['preservedFood', 'pottery', 'luxury'] as const) {
+for (const futureNeed of ['savoryPreserves', 'pottery', 'luxury'] as const) {
   assert.equal(tierFourPlan.services.some((service) => service.kind === futureNeed), false);
 }
-assert.match(tierFourPlan.addedNeeds, /cured provisions/i);
+assert.match(tierFourPlan.addedNeeds, /savory preserves/i);
 assert.match(tierFourPlan.addedNeeds, /pottery/i);
 assert.match(tierFourPlan.addedNeeds, /luxury/i);
 assert.equal(
@@ -513,17 +513,17 @@ const network = {
   }),
 } as unknown as RoadNetwork;
 const emptyNearbySmokehouse = building('empty-nearby', 'smokehouse', 2);
-emptyNearbySmokehouse.preservedFood = 0;
+emptyNearbySmokehouse.curedMeat = 0;
 const stockedDistantSmokehouse = building('stocked-distant', 'smokehouse', 8);
-stockedDistantSmokehouse.preservedFood = 40;
+stockedDistantSmokehouse.smokedFish = 40;
 const stockedMarketplace = building('stocked-market', 'marketplace', 6);
-stockedMarketplace.preservedFood = 40;
+stockedMarketplace.cheese = 40;
 assert.equal(
   findRoadLinkedSupplierForResidence(
     tierTwo,
     [emptyNearbySmokehouse, stockedDistantSmokehouse, stockedMarketplace],
     network,
-    'preservedFood',
+    'savoryPreserves',
   )?.id,
   stockedMarketplace.id,
   'live deliveries must use stocked Marketplace inventory',
@@ -870,7 +870,7 @@ assert.match(
 );
 assert.match(residenceReducer, /residence_promotion_needs\(residence\.tier\)/);
 assert.match(residenceReducer, /required_chapel_tier\(residence\.tier\)/);
-assert.doesNotMatch(residenceReducer, /CLOTH_PRODUCER_KINDS|SHOES_PRODUCER_KINDS|PRESERVED_FOOD_PRODUCER_KINDS|POTTERY_PRODUCER_KINDS/);
+assert.doesNotMatch(residenceReducer, /CLOTH_PRODUCER_KINDS|SHOES_PRODUCER_KINDS|SAVORY_PRESERVE_PRODUCER_KINDS|POTTERY_PRODUCER_KINDS/);
 assert.match(
   residenceReducer,
   /ResidenceNeedKind::Cloth[\s\S]*building\.kind == "marketplace"[\s\S]*CommodityKind::Cloth/,
@@ -1135,7 +1135,7 @@ function residence(
       firewood: { stock: 0, deficitTicks: 0 },
       water: { stock: 0, deficitTicks: 0 },
       food: { stock: 0, deficitTicks: 0 },
-      preservedFood: { stock: 0, deficitTicks: 0 },
+      savoryPreserves: { stock: 0, deficitTicks: 0 },
       ale: { stock: 0, deficitTicks: 0 },
       cloth: { stock: 0, deficitTicks: 0 },
       shoes: { stock: 0, deficitTicks: 0 },
@@ -1169,7 +1169,9 @@ function building(
     grain: 0,
     flour: 0,
     ale: 0,
-    preservedFood: 0,
+    curedMeat: 0,
+    smokedFish: 0,
+    cheese: 0,
     honey: 0,
     wine: 0,
     polearms: 0,
