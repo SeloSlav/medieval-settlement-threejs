@@ -14,6 +14,7 @@ import {
   addPlankDoor,
 } from './buildingMeshKit.ts';
 import { addLeanToSupportFrame } from './ruralWorkshopStructureKit.ts';
+import { addSegmentedFirewoodStockpile } from '../firewoodPileMesh.ts';
 import {
   CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS,
   POTTER_FIREWOOD_VISUAL_SEGMENTS,
@@ -239,39 +240,6 @@ function addPot(
   );
 }
 
-function addFirewoodStockpile(
-  group: THREE.Group,
-  containerName: string,
-  segmentName: string,
-  placements: readonly (readonly [x: number, y: number, z: number, yaw: number])[],
-): void {
-  const stockpile = new THREE.Group();
-  stockpile.name = containerName;
-  stockpile.visible = false;
-  for (const [x, y, z, yaw] of placements) {
-    const segment = new THREE.Group();
-    segment.name = segmentName;
-    segment.position.set(x, y, z);
-    segment.rotation.y = yaw;
-    segment.visible = false;
-    for (let log = 0; log < 3; log++) {
-      addMesh(
-        segment,
-        new THREE.CylinderGeometry(0.12, 0.14, 0.86, 7),
-        timberMaterial(log % 2 === 0 ? 'mid' : 'weathered'),
-        new THREE.Vector3(
-          0,
-          0.14 + Math.floor(log / 2) * 0.22,
-          (log % 2) * 0.24,
-        ),
-        new THREE.Euler(0, 0, Math.PI * 0.5),
-      );
-    }
-    stockpile.add(segment);
-  }
-  group.add(stockpile);
-}
-
 export function createCharcoalBurnerMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = "Charcoal burner's yard";
@@ -348,7 +316,7 @@ export function createCharcoalBurnerMesh(): THREE.Group {
       new THREE.Vector3(x, 0.38 + (index % 2) * 0.08, z),
     );
   }
-  addFirewoodStockpile(
+  addSegmentedFirewoodStockpile(
     group,
     'CharcoalBurnerFirewoodStockpile',
     'CharcoalBurnerFirewoodSegment',
@@ -751,7 +719,7 @@ export function createPotterKilnMesh(): THREE.Group {
       ).name = 'Stacked fired roof tile';
     }
   }
-  addFirewoodStockpile(
+  addSegmentedFirewoodStockpile(
     group,
     'PotterFirewoodStockpile',
     'PotterFirewoodSegment',

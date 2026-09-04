@@ -47,6 +47,7 @@ import {
 } from '../buildingStockpileVisuals.ts';
 import { GUARDHOUSE_POLEARM_VISUAL_SEGMENTS } from '../armoryStockpileVisuals.ts';
 import { addStockedPolearmRack } from './polearmRack.ts';
+import { addSegmentedFirewoodStockpile } from '../firewoodPileMesh.ts';
 
 const earth = sharedBuildingDetailMaterial('earth');
 type TimberMember = Readonly<{
@@ -579,25 +580,14 @@ export function createVillageStorehouseMesh(): THREE.Group {
   group.add(stoneStock);
 
   addMesh(group, new THREE.BoxGeometry(3.4, 0.12, 2.2), timberMaterial('dark'), new THREE.Vector3(0, 0.08, -4.2));
-  const firewoodStock = new THREE.Group();
-  firewoodStock.name = 'StorehouseFirewoodStockpile';
-  firewoodStock.visible = false;
-  for (let i = 0; i < STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS; i++) {
-    const segment = new THREE.Group();
-    segment.name = 'StorehouseFirewoodSegment';
-    segment.visible = false;
-    for (let row = 0; row < 3; row++) {
-      addMesh(
-        segment,
-        new THREE.CylinderGeometry(0.12, 0.15, 0.95, 7),
-        timberMaterial('dark'),
-        new THREE.Vector3(-1.25 + i * 0.48, 0.2 + row * 0.27, -4.2),
-        new THREE.Euler(0, 0, Math.PI * 0.5),
-      );
-    }
-    firewoodStock.add(segment);
-  }
-  group.add(firewoodStock);
+  addSegmentedFirewoodStockpile(
+    group,
+    'StorehouseFirewoodStockpile',
+    'StorehouseFirewoodSegment',
+    Array.from({ length: STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS }, (_, index) => (
+      [-1.25 + index * 0.48, 0.08, -4.2, 0] as const
+    )),
+  );
 
   const ironStock = new THREE.Group();
   ironStock.name = 'StorehouseIronStockpile';

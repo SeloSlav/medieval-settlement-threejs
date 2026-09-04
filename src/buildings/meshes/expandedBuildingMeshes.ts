@@ -41,6 +41,9 @@ import {
   CARPENTER_TIMBER_VISUAL_SEGMENTS,
 } from '../armoryStockpileVisuals.ts';
 import {
+  addSegmentedFirewoodStockpile,
+} from '../firewoodPileMesh.ts';
+import {
   APIARY_HONEY_VISUAL_SEGMENTS,
   THRESHING_GRAIN_VISUAL_SEGMENTS,
 } from '../seasonalStockpileVisuals.ts';
@@ -151,13 +154,17 @@ export const PROCESSOR_WORKSHOP_ARCHITECTURE_PLANS = Object.freeze({
       'BreweryAleStockpile',
       'BreweryBarleyStockpile',
       'BreweryMaltStockpile',
+      'BreweryFirewoodStockpile',
     ]),
   }),
   bakery: Object.freeze({
     semanticId: 'bakery-attached-masonry-oven-v1',
     typology: 'compact-lime-rendered-bakehouse-with-attached-oven',
     literalOpenings: 2,
-    dynamicAnchors: Object.freeze(['BakeryFoodStockpile']),
+    dynamicAnchors: Object.freeze([
+      'BakeryFoodStockpile',
+      'BakeryFirewoodStockpile',
+    ]),
   }),
   smokehouse: Object.freeze({
     semanticId: 'smokehouse-sealed-log-chamber-v1',
@@ -883,6 +890,16 @@ export function createBreweryMesh(): THREE.Group {
     [[4.75, 0, 3.75, 0.86], [5.2, 0, 4.15, 0.72]],
     (segment, scale) => addSack(segment, 0, 0, scale),
   );
+  addSegmentedFirewoodStockpile(
+    group,
+    'BreweryFirewoodStockpile',
+    'BreweryFirewoodSegment',
+    [
+      [4.72, 0, 1.8, Math.PI * 0.5],
+      [4.72, 0, 1.15, Math.PI * 0.5],
+      [4.72, 0, 0.5, Math.PI * 0.5],
+    ],
+  );
   return group;
 }
 
@@ -962,6 +979,16 @@ export function createBakeryMesh(): THREE.Group {
     ],
     (segment, scale) => addSack(segment, 0, 0, scale),
   );
+  addSegmentedFirewoodStockpile(
+    group,
+    'BakeryFirewoodStockpile',
+    'BakeryFirewoodSegment',
+    [
+      [3.5, 0, 4.05, 0.05],
+      [3.5, 0, 3.42, -0.04],
+      [3.5, 0, 2.79, 0.03],
+    ],
+  );
   return group;
 }
 
@@ -1011,24 +1038,16 @@ export function createSmokehouseMesh(): THREE.Group {
       { semanticId: 'smokehouse-fuel-bay-back-rafter', start: [-5.31, 1.84, -0.92], end: [-3.14, 2.15, -0.92], structuralUse: 'roof-frame' },
     ],
   );
-  const fuelStockpile = new THREE.Group();
-  fuelStockpile.name = 'SmokehouseFirewoodStockpile';
-  fuelStockpile.visible = false;
-  for (let row = 0; row < SMOKEHOUSE_FIREWOOD_VISUAL_SEGMENTS; row++) {
-    const segment = new THREE.Group();
-    segment.name = 'SmokehouseFirewoodSegment';
-    segment.visible = false;
-    for (let i = 0; i < 4; i++) {
-      addMesh(
-        segment,
-        new THREE.CylinderGeometry(0.13, 0.16, 1.05, 8),
-        timberMaterial(i % 2 ? 'light' : 'mid'),
-        new THREE.Vector3(-4.1 + i * 0.42, 0.22 + row * 0.34, 0.2),
-      );
-    }
-    fuelStockpile.add(segment);
-  }
-  group.add(fuelStockpile);
+  addSegmentedFirewoodStockpile(
+    group,
+    'SmokehouseFirewoodStockpile',
+    'SmokehouseFirewoodSegment',
+    ([
+      [-4.72, 0, -0.55, 0],
+      [-4.72, 0, 0.08, 0],
+      [-3.85, 0, -0.24, 0],
+    ] as const).slice(0, SMOKEHOUSE_FIREWOOD_VISUAL_SEGMENTS),
+  );
   addMesh(group, new THREE.BoxGeometry(2.55, 0.1, 0.1), timberMaterial('weathered'), new THREE.Vector3(0, 1.85, 4.0));
   const rawFoodStockpile = new THREE.Group();
   rawFoodStockpile.name = 'SmokehouseFreshFoodStockpile';

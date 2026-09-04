@@ -1,12 +1,17 @@
 import * as THREE from 'three';
-import { addLogPile } from '../buildings/logPile.ts';
+import {
+  addSharedFirewoodPile,
+  FIREWOOD_LOG_LENGTH,
+  FIREWOOD_LOG_RADIUS,
+} from '../buildings/firewoodPileMesh.ts';
 import { RESIDENCE_FIREWOOD_CAPACITY } from '../generated/gameBalance.ts';
 
 // Fill from a supported central triangle outwards, then upwards. Each visible
 // piece represents stored fuel, not one literal inventory unit (capacity 60).
 const LOG_FILL_ORDER = [1, 2, 5, 0, 3, 4, 6, 7, 8, 9] as const;
-const LOG_HALF_LENGTH = 2.15 / 2;
-const PILE_HALF_DEPTH = (3 * 0.19 * 1.72) / 2 + 0.19 * 1.05;
+const LOG_HALF_LENGTH = FIREWOOD_LOG_LENGTH / 2;
+const PILE_HALF_DEPTH = (3 * FIREWOOD_LOG_RADIUS * 1.72) / 2
+  + FIREWOOD_LOG_RADIUS * 1.05;
 const GROUND_SAMPLES = [
   [0, 0],
   [-LOG_HALF_LENGTH, -PILE_HALF_DEPTH],
@@ -21,7 +26,7 @@ export function createResidenceFirewoodPile(x: number, z: number): THREE.Group {
   pile.visible = false;
   pile.position.set(x, 0, z);
   pile.rotation.y = Math.PI / 2;
-  addLogPile(pile, 0, 0, 0, 4, 2.15, 0.19);
+  addSharedFirewoodPile(pile, 0, 0, 0, 4, 'Residence split firewood billet');
   return pile;
 }
 

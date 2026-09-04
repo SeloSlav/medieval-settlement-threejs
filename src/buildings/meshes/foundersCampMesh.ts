@@ -34,6 +34,7 @@ import {
   FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
   FOUNDERS_CAMPFIRE_POSITION,
 } from '../foundersCampLandmarks.ts';
+import { sharedFirewoodLogGeometry } from '../firewoodPileMesh.ts';
 
 export const FOUNDERS_CAMPFIRE_NAME = 'FoundingCampfire';
 export const FOUNDERS_CAMP_TIMBER_WINTER_ACCUMULATION_NAME =
@@ -676,12 +677,19 @@ function addFoundingUtilityStores(parent: THREE.Group): void {
   );
   sacks.userData.fpNoCollision = true;
 
+  const spareWheelRadius = 0.68;
+  const spareWheelTubeRadius = 0.075;
+  const spareWheelLean = 0.42;
   const wheel = addMesh(
     stores,
-    new THREE.TorusGeometry(0.68, 0.075, 7, 18),
+    new THREE.TorusGeometry(spareWheelRadius, spareWheelTubeRadius, 7, 18),
     timberMaterial('dark'),
-    new THREE.Vector3(5.92, 0.78, -0.9),
-    new THREE.Euler(0.04, -0.18, 0.08),
+    new THREE.Vector3(
+      6.15,
+      0.02 + spareWheelRadius * Math.cos(spareWheelLean) + spareWheelTubeRadius,
+      -0.46,
+    ),
+    new THREE.Euler(spareWheelLean, 0, 0),
   );
   wheel.name = 'Spare founding cart wheel';
   wheel.userData.fpNoCollision = true;
@@ -714,7 +722,7 @@ function addFoundingUtilityStores(parent: THREE.Group): void {
   const firewood = addCampInstances(
     stores,
     'Stacked cut camp firewood',
-    new THREE.CylinderGeometry(0.105, 0.13, 1.72, 6),
+    sharedFirewoodLogGeometry(),
     timberMaterial('light'),
     firewoodPlacements,
   );

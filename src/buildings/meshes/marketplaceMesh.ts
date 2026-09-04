@@ -37,6 +37,7 @@ import type {
   MarketStallDisplayKind,
   MarketStallGroup,
 } from '../../economy/marketStallAssignments.ts';
+import { addSharedFirewoodLog } from '../firewoodPileMesh.ts';
 
 export const MARKET_STAGING_VISUAL_SEGMENTS = 5;
 export const MARKET_RECEIPT_VISUAL_SEGMENTS = 3;
@@ -630,12 +631,12 @@ function addCheeseCounter(display: THREE.Group): void {
 
 function addFirewoodCounter(display: THREE.Group): void {
   for (let index = 0; index < 4; index += 1) {
-    addMesh(
+    addSharedFirewoodLog(
       display,
-      new THREE.CylinderGeometry(0.09, 0.11, 0.62, 6),
-      timberMaterial(index % 2 === 0 ? 'weathered' : 'mid'),
+      `Marketplace split firewood billet ${index + 1}`,
       new THREE.Vector3(-0.42 + index * 0.28, 0.12 + (index % 2) * 0.1, 0),
-      new THREE.Euler(0, 0, Math.PI * 0.5),
+      'x',
+      index % 2 === 0 ? 'weathered' : 'mid',
     );
   }
 }

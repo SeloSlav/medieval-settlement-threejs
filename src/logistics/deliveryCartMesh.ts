@@ -6,6 +6,7 @@ import {
   timberMaterial,
 } from '../buildings/buildingMaterials.ts';
 import type { DeliveryCargoKind } from './deliveryTrips.ts';
+import { addSharedFirewoodLog } from '../buildings/firewoodPileMesh.ts';
 
 const MODEL_URL = '/assets/models/delivery-cart/quaternius-medieval-cart.glb';
 const MODEL_TARGET_HEIGHT = 1.56;
@@ -268,20 +269,18 @@ function addCargo(
 
 function addFirewoodLoad(group: THREE.Group): void {
   const rows = [
-    { y: 0.64, z: -0.16, length: 0.58, radius: 0.075 },
-    { y: 0.64, z: 0, length: 0.62, radius: 0.078 },
-    { y: 0.64, z: 0.16, length: 0.56, radius: 0.072 },
-    { y: 0.77, z: -0.09, length: 0.54, radius: 0.07 },
-    { y: 0.77, z: 0.09, length: 0.6, radius: 0.074 },
-    { y: 0.89, z: 0, length: 0.5, radius: 0.068 },
+    { y: 0.64, z: -0.16 },
+    { y: 0.64, z: 0 },
+    { y: 0.64, z: 0.16 },
+    { y: 0.77, z: -0.09 },
+    { y: 0.77, z: 0.09 },
+    { y: 0.89, z: 0 },
   ] as const;
   for (const [index, log] of rows.entries()) {
-    addCutLog(
+    addSharedFirewoodLog(
       group,
       `Firewood split log ${index + 1}`,
       new THREE.Vector3(0, log.y, log.z),
-      log.length,
-      log.radius,
       'x',
       index % 2 === 0 ? 'weathered' : 'mid',
     );

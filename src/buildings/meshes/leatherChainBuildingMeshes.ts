@@ -16,6 +16,7 @@ import {
   addSmallWindow,
 } from './buildingMeshKit.ts';
 import { addLeanToSupportFrame } from './ruralWorkshopStructureKit.ts';
+import { addSegmentedFirewoodStockpile } from '../firewoodPileMesh.ts';
 
 const LEATHER = sharedBuildingDetailMaterial('canvas');
 const DARK_LEATHER = sharedBuildingMaterial('timberDark');
@@ -241,6 +242,16 @@ export function createTanneryMesh(): THREE.Group {
     [new THREE.Vector3(2.65, 0.03, 2.25), new THREE.Vector3(3.3, 0.03, 2.25), new THREE.Vector3(2.95, 0.42, 2.25)],
     (segment) => addLeatherRoll(segment, 0.9),
   );
+  addSegmentedFirewoodStockpile(
+    group,
+    'TanneryFirewoodStockpile',
+    'TanneryFirewoodSegment',
+    [
+      [3.92, 0, -1.4, Math.PI * 0.5],
+      [3.92, 0, -0.76, Math.PI * 0.5],
+      [3.92, 0, -0.12, Math.PI * 0.5],
+    ],
+  );
 
   addDiagnostics(group, 'gorski-tannery-v1', [
     'wet-work-shed',
@@ -249,6 +260,7 @@ export function createTanneryMesh(): THREE.Group {
     'louvered-drying-loft',
     'hide-frames',
     'typed-stock-props',
+    'typed-firewood-stock',
   ]);
   return group;
 }

@@ -10,6 +10,7 @@ import {
 } from '../buildingMaterials.ts';
 import { addTriangularGableWall } from '../meshPrimitives.ts';
 import { addLogPile } from '../logPile.ts';
+import { addSharedFirewoodPile } from '../firewoodPileMesh.ts';
 import { ProceduralGeometryWriter } from '../proceduralArchitecture/geometryWriter.ts';
 import { addProceduralMaterialSlotMeshes } from '../proceduralArchitecture/materialSlotMeshes.ts';
 import {
@@ -700,7 +701,7 @@ function createWoodcuttersFirewoodStockpile(): THREE.Group {
   for (const [x, z] of positions) {
     const segment = new THREE.Group();
     segment.name = 'WoodcuttersFirewoodSegment';
-    addLogPile(segment, x, z, 0, 3, 1.42, 0.14);
+    addSharedFirewoodPile(segment, x, z, 0, 3, 'Woodcutters split firewood billet');
     stockpile.add(segment);
   }
   return stockpile;

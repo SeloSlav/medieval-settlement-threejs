@@ -4,13 +4,14 @@ import {
   LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
   MINE_TIMBER_SUPPORT_PER_CYCLE,
 } from '../generated/gameBalance.ts';
-import type { BuildingState } from '../resources/types.ts';
+import type { BuildingKind, BuildingState } from '../resources/types.ts';
 import {
   stockpileVisualLevel,
   syncStockpileSegments,
 } from './buildingStockpileVisuals.ts';
 
 export const WOODCUTTERS_FIREWOOD_VISUAL_SEGMENTS = 4;
+export const PROCESSOR_FIREWOOD_VISUAL_SEGMENTS = 3;
 export const STONE_QUARRY_STONE_VISUAL_SEGMENTS = 3;
 export const MINING_PIT_IRON_VISUAL_SEGMENTS = 3;
 export const MINING_PIT_SALT_VISUAL_SEGMENTS = 3;
@@ -26,21 +27,94 @@ export const MINE_CLAY_VISUAL_SEGMENTS = 6;
 export const MINE_SUPPORT_TIMBER_VISUAL_SEGMENTS = 4;
 export const MINE_SUPPORT_TIMBER_VISUAL_CAPACITY =
   MINE_SUPPORT_TIMBER_VISUAL_SEGMENTS * MINE_TIMBER_SUPPORT_PER_CYCLE;
-export const CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS = 3;
+export const CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS = PROCESSOR_FIREWOOD_VISUAL_SEGMENTS;
 export const CHARCOAL_BURNER_CHARCOAL_VISUAL_SEGMENTS = 5;
 export const SMITHY_IRON_VISUAL_SEGMENTS = 4;
 export const SMITHY_CHARCOAL_VISUAL_SEGMENTS = 3;
 export const SMITHY_IRONWORK_VISUAL_SEGMENTS = 4;
 export const SMITHY_WATER_VISUAL_SEGMENTS = 3;
 export const POTTER_CLAY_VISUAL_SEGMENTS = 5;
-export const POTTER_FIREWOOD_VISUAL_SEGMENTS = 3;
+export const POTTER_FIREWOOD_VISUAL_SEGMENTS = PROCESSOR_FIREWOOD_VISUAL_SEGMENTS;
 export const POTTER_POTTERY_VISUAL_SEGMENTS = 5;
 export const POTTER_ROOF_TILE_VISUAL_SEGMENTS = 5;
 export const POTTER_WATER_VISUAL_SEGMENTS = 3;
 export const CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS = 4;
 
+export type IndustrialFirewoodStockpileContract = Readonly<{
+  containerName: string;
+  segmentName: string;
+  segmentCount: number;
+}>;
+
+/**
+ * Coverage oracle for every workshop that produces, stores, or consumes
+ * firewood. Mesh generators and runtime stock syncing share these exact IDs.
+ */
+export const INDUSTRIAL_FIREWOOD_STOCKPILE_CONTRACTS = Object.freeze({
+  woodcutters_lodge: {
+    containerName: 'WoodcuttersFirewoodStockpile',
+    segmentName: 'WoodcuttersFirewoodSegment',
+    segmentCount: WOODCUTTERS_FIREWOOD_VISUAL_SEGMENTS,
+  },
+  bakery: {
+    containerName: 'BakeryFirewoodStockpile',
+    segmentName: 'BakeryFirewoodSegment',
+    segmentCount: PROCESSOR_FIREWOOD_VISUAL_SEGMENTS,
+  },
+  brewery: {
+    containerName: 'BreweryFirewoodStockpile',
+    segmentName: 'BreweryFirewoodSegment',
+    segmentCount: PROCESSOR_FIREWOOD_VISUAL_SEGMENTS,
+  },
+  smokehouse: {
+    containerName: 'SmokehouseFirewoodStockpile',
+    segmentName: 'SmokehouseFirewoodSegment',
+    segmentCount: PROCESSOR_FIREWOOD_VISUAL_SEGMENTS,
+  },
+  charcoal_burner: {
+    containerName: 'CharcoalBurnerFirewoodStockpile',
+    segmentName: 'CharcoalBurnerFirewoodSegment',
+    segmentCount: CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS,
+  },
+  potter_kiln: {
+    containerName: 'PotterFirewoodStockpile',
+    segmentName: 'PotterFirewoodSegment',
+    segmentCount: POTTER_FIREWOOD_VISUAL_SEGMENTS,
+  },
+  tannery: {
+    containerName: 'TanneryFirewoodStockpile',
+    segmentName: 'TanneryFirewoodSegment',
+    segmentCount: PROCESSOR_FIREWOOD_VISUAL_SEGMENTS,
+  },
+  chandlery: {
+    containerName: 'ChandleryFirewoodStockpile',
+    segmentName: 'ChandleryFirewoodSegment',
+    segmentCount: PROCESSOR_FIREWOOD_VISUAL_SEGMENTS,
+  },
+} satisfies Partial<Record<BuildingKind, IndustrialFirewoodStockpileContract>>);
+
+function industrialFirewoodContract(
+  kind: BuildingKind,
+): IndustrialFirewoodStockpileContract | undefined {
+  return (INDUSTRIAL_FIREWOOD_STOCKPILE_CONTRACTS as Partial<
+    Record<BuildingKind, IndustrialFirewoodStockpileContract>
+  >)[kind];
+}
+
+function industrialFirewoodVisualSignature(building: BuildingState): string {
+  const contract = industrialFirewoodContract(building.kind);
+  if (!contract) return '';
+  const capacity = BUILDING_STORAGE_CAPS[building.kind].firewood ?? 0;
+  return `:firewood:${stockpileVisualLevel(
+    building.firewood,
+    capacity,
+    contract.segmentCount,
+  )}`;
+}
+
 export function bulkStockpileVisualSignature(building: BuildingState): string {
   if (building.constructionComplete === false) return '';
+  const firewoodState = industrialFirewoodVisualSignature(building);
   switch (building.kind) {
     case 'lumber_mill':
       return `:tools:${stockpileVisualLevel(
@@ -49,11 +123,7 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS,
       )}`;
     case 'woodcutters_lodge':
-      return `:bulk-store:${stockpileVisualLevel(
-        building.firewood,
-        BUILDING_STORAGE_CAPS.woodcutters_lodge.firewood,
-        WOODCUTTERS_FIREWOOD_VISUAL_SEGMENTS,
-      )}`;
+      return firewoodState;
     case 'stone_quarry':
       return `:bulk-store:${stockpileVisualLevel(
         building.stone,
@@ -126,11 +196,7 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS,
       )}`;
     case 'charcoal_burner':
-      return `:bulk-store:${stockpileVisualLevel(
-        building.firewood,
-        BUILDING_STORAGE_CAPS.charcoal_burner.firewood,
-        CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS,
-      )}:${stockpileVisualLevel(
+      return `${firewoodState}:bulk-store:${stockpileVisualLevel(
         building.charcoal ?? 0,
         BUILDING_STORAGE_CAPS.charcoal_burner.charcoal,
         CHARCOAL_BURNER_CHARCOAL_VISUAL_SEGMENTS,
@@ -154,14 +220,10 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         SMITHY_WATER_VISUAL_SEGMENTS,
       )}`;
     case 'potter_kiln':
-      return `:bulk-store:${stockpileVisualLevel(
+      return `${firewoodState}:bulk-store:${stockpileVisualLevel(
         building.clay ?? 0,
         BUILDING_STORAGE_CAPS.potter_kiln.clay,
         POTTER_CLAY_VISUAL_SEGMENTS,
-      )}:${stockpileVisualLevel(
-        building.firewood,
-        BUILDING_STORAGE_CAPS.potter_kiln.firewood,
-        POTTER_FIREWOOD_VISUAL_SEGMENTS,
       )}:${stockpileVisualLevel(
        building.pottery ?? 0,
        BUILDING_STORAGE_CAPS.potter_kiln.pottery,
@@ -176,7 +238,7 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         POTTER_WATER_VISUAL_SEGMENTS,
       )}`;
     default:
-      return '';
+      return firewoodState;
   }
 }
 
@@ -184,18 +246,21 @@ export function syncBulkStockpileVisuals(
   marker: THREE.Group,
   building: BuildingState,
 ): void {
+  const firewoodContract = industrialFirewoodContract(building.kind);
+  if (firewoodContract) {
+    syncNamedStockpile(
+      marker,
+      firewoodContract.containerName,
+      firewoodContract.segmentName,
+      building.firewood,
+      BUILDING_STORAGE_CAPS[building.kind].firewood ?? 0,
+    );
+  }
   switch (building.kind) {
     case 'lumber_mill':
       syncCivilianToolStockpile(marker, building);
       break;
     case 'woodcutters_lodge':
-      syncNamedStockpile(
-        marker,
-        'WoodcuttersFirewoodStockpile',
-        'WoodcuttersFirewoodSegment',
-        building.firewood,
-        BUILDING_STORAGE_CAPS.woodcutters_lodge.firewood,
-      );
       break;
     case 'stone_quarry':
       syncNamedStockpile(
@@ -286,13 +351,6 @@ export function syncBulkStockpileVisuals(
     case 'charcoal_burner':
       syncNamedStockpile(
         marker,
-        'CharcoalBurnerFirewoodStockpile',
-        'CharcoalBurnerFirewoodSegment',
-        building.firewood,
-        BUILDING_STORAGE_CAPS.charcoal_burner.firewood,
-      );
-      syncNamedStockpile(
-        marker,
         'CharcoalBurnerStockpile',
         'CharcoalBurnerCharcoalSegment',
         building.charcoal ?? 0,
@@ -336,13 +394,6 @@ export function syncBulkStockpileVisuals(
         'PotterClaySegment',
         building.clay ?? 0,
         BUILDING_STORAGE_CAPS.potter_kiln.clay,
-      );
-      syncNamedStockpile(
-        marker,
-        'PotterFirewoodStockpile',
-        'PotterFirewoodSegment',
-        building.firewood,
-        BUILDING_STORAGE_CAPS.potter_kiln.firewood,
       );
       syncNamedStockpile(
         marker,

@@ -16,6 +16,7 @@ import {
 import {
   addProceduralWindow,
 } from './facadeOpeningKit.ts';
+import { addSegmentedFirewoodStockpile } from '../firewoodPileMesh.ts';
 
 export type ChandleryDebugMode = 'final' | 'massing';
 export type ChandleryFacade = 'front' | 'back' | 'left' | 'right';
@@ -43,6 +44,7 @@ export type ChandleryModuleId =
   | 'trade-sign'
   | 'wax-stock'
   | 'candle-stock'
+  | 'firewood-stock'
   | 'approach-step';
 
 export type ChandleryMassPlan = {
@@ -236,6 +238,7 @@ export function createChandleryPlan(
     modulePlacement('hanging-candle-sign', 'trade-sign', 'ornament', 'anchor:front-sign', { x: 3.48, y: 2.82, z: 3.36 }, ['timber', 'iron', 'wax']),
     modulePlacement('beeswax-working-stock', 'wax-stock', 'stock', 'anchor:wax-store', { x: -3.42, y: 0, z: 1.76 }, ['timber', 'wax']),
     modulePlacement('finished-candle-stock', 'candle-stock', 'stock', 'anchor:candle-store', { x: 2.65, y: 0, z: 3.86 }, ['timber', 'wax']),
+    modulePlacement('hearth-firewood-stock', 'firewood-stock', 'stock', 'anchor:firewood-store', { x: 4.62, y: 0, z: 0.22 }, ['timber']),
     modulePlacement('worn-roadside-step', 'approach-step', 'approach', 'anchor:front-approach', { x: -2.45, y: 0, z: 4.12 }, ['masonry']),
   ];
 
@@ -533,6 +536,19 @@ function emitCandleStock({ module }: ChandleryCompileContext): void {
   module.add(stock);
 }
 
+function emitFirewoodStock({ module, placement }: ChandleryCompileContext): void {
+  addSegmentedFirewoodStockpile(
+    module,
+    'ChandleryFirewoodStockpile',
+    'ChandleryFirewoodSegment',
+    [
+      [placement.anchor.x, 0, placement.anchor.z + 0.54, Math.PI * 0.5],
+      [placement.anchor.x, 0, placement.anchor.z, Math.PI * 0.5],
+      [placement.anchor.x, 0, placement.anchor.z - 0.54, Math.PI * 0.5],
+    ],
+  );
+}
+
 function emitApproach({ module }: ChandleryCompileContext): void {
   namedMesh(module, 'Chandlery worn roadside threshold step', new THREE.BoxGeometry(1.62, 0.2, 0.72), stoneMaterial('mid'), new THREE.Vector3(-2.45, 0.1, 3.68));
   namedMesh(module, 'Chandlery road approach stone', new THREE.BoxGeometry(1.92, 0.12, 0.78), stoneMaterial('mid'), new THREE.Vector3(-2.45, 0.06, 4.34));
@@ -552,6 +568,7 @@ const CHANDLERY_MODULE_REGISTRY: Record<ChandleryModuleId, ChandleryModuleEmitte
   'trade-sign': emitTradeSign,
   'wax-stock': emitWaxStock,
   'candle-stock': emitCandleStock,
+  'firewood-stock': emitFirewoodStock,
   'approach-step': emitApproach,
 };
 

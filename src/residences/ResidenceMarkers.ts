@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { addTriangularGableWall } from '../buildings/meshPrimitives.ts';
-import { addLogPile } from '../buildings/logPile.ts';
+import { addSharedFirewoodPile } from '../buildings/firewoodPileMesh.ts';
 import {
   BatchedBuildingShadowProxies,
   setBuildingDetailShadowsEnabled,
@@ -2456,7 +2456,7 @@ function finishAuthoredTierOneResidence(
   group.add(firewoodPile);
   // Runtime inventory remains behind the house, clear of the fixed threshold
   // and the public facade. syncFirewoodPile owns visibility and fill scale.
-  addLogPile(firewoodPile, 0, 0, 0, 4, 2.15, 0.19);
+  addSharedFirewoodPile(firewoodPile, 0, 0, 0, 4, 'Residence split firewood billet');
   addResidenceUpgradeWorks(group, AUTHORED_TIER_ONE_DIMENSIONS);
   return group;
 }
@@ -2570,7 +2570,7 @@ function finishAuthoredKitResidence(
     -dimensions.depth * 0.5 - 0.68,
   );
   group.add(firewoodPile);
-  addLogPile(firewoodPile, 0, 0, 0, 4, 2.15, 0.19);
+  addSharedFirewoodPile(firewoodPile, 0, 0, 0, 4, 'Residence split firewood billet');
   addResidenceUpgradeWorks(group, dimensions);
   return group;
 }
