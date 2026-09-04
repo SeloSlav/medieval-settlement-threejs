@@ -386,6 +386,15 @@ assert.equal(submittedMaterials[1]!.map, fixture.textures[1]);
 assert.equal(submittedMaterials[1]!.side, THREE.DoubleSide);
 assert.equal(submittedMaterials[1]!.transparent, true);
 assert.equal(submittedMaterials[1]!.alphaTest, 0.35);
+for (const material of submittedMaterials) {
+  assert.equal(
+    Boolean((material as THREE.MeshStandardMaterial & {
+      castShadowPositionNode?: { isNode?: boolean };
+    }).castShadowPositionNode?.isNode),
+    true,
+    'the shadow override must deform each instance through the live pose palette',
+  );
+}
 
 // Regression: production Tripo humans are a single baked material. Their color
 // pass must explicitly bind Three's complete materialColor node, never an
@@ -455,6 +464,7 @@ semanticTintFixture.geometry.dispose();
 // above can pass even when a custom setupPosition() creates a recursive node
 // graph that stalls the browser's first render.
 const webgpuRuntime = await import('three/webgpu') as unknown as {
+  ShadowNodeMaterial: new () => THREE.Material & { positionNode: unknown };
   WGSLNodeBuilder: new (object: THREE.Object3D, renderer: unknown) => {
     camera: THREE.Camera;
     context: Record<string, unknown>;
@@ -509,6 +519,30 @@ assert.ok(wgslBuilder.fragmentShader.includes('@fragment'));
 assert.ok(
   wgslBuildDurationMs < 1_000,
   `exact authored skinning WGSL build took ${wgslBuildDurationMs.toFixed(1)}ms`,
+);
+
+// Build the same position node through Three's shadow override material. This
+// is the pass that used to fall back to source geometry and cast a T-pose even
+// while the visible batch was seated or walking.
+const shadowMaterial = new webgpuRuntime.ShadowNodeMaterial();
+shadowMaterial.positionNode = (submittedMaterials[0] as THREE.MeshStandardMaterial & {
+  castShadowPositionNode: unknown;
+}).castShadowPositionNode;
+const shadowWgslBuilder = new webgpuRuntime.WGSLNodeBuilder(
+  submittedMeshes[0]!,
+  builderRenderer,
+);
+shadowWgslBuilder.material = shadowMaterial;
+shadowWgslBuilder.camera = new THREE.OrthographicCamera();
+shadowWgslBuilder.scene = new THREE.Scene();
+shadowWgslBuilder.context.material = shadowMaterial;
+shadowWgslBuilder.lightsNode = tslRuntime.lights();
+shadowWgslBuilder.build();
+assert.ok(shadowWgslBuilder.vertexShader.includes('@vertex'));
+assert.match(
+  shadowWgslBuilder.vertexShader,
+  /skinIndex/,
+  'shadow WGSL must read authored skin weights instead of submitting the source T-pose',
 );
 
 batch.reserve(7);

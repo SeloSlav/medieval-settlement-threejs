@@ -49,7 +49,7 @@ type SkinNode = {
 };
 
 type SkinTslApi = {
-  Fn(callback: () => void, layout?: string): () => SkinNode;
+  Fn(callback: () => void | SkinNode, layout?: string): () => SkinNode;
   attribute(name: string, type: string): SkinNode;
   instanceIndex: SkinNode;
   instancedMesh(object: THREE.InstancedMesh): SkinNode;
@@ -92,6 +92,7 @@ type PaletteSkinningBuilder = {
 
 type PaletteSkinningMaterial = AuthoredNodeMaterial & {
   setupPosition(builder: PaletteSkinningBuilder): SkinNode;
+  bindPaletteShadowPosition(object: THREE.InstancedMesh): void;
 };
 
 export type AuthoredSkinnedInstanceBatchOptions = {
@@ -562,6 +563,9 @@ export class AuthoredSkinnedInstanceBatch {
         ? materials[0]!
         : materials;
       const mesh = new THREE.InstancedMesh(source.geometry, material, capacity);
+      for (const paletteMaterial of materials as PaletteSkinningMaterial[]) {
+        paletteMaterial.bindPaletteShadowPosition(mesh);
+      }
       mesh.name = `${this.group.name}: authored layer ${layerIndex + 1}`;
       mesh.instanceMatrix = this.instanceMatrices;
       mesh.count = Math.min(this.countValue, capacity);
@@ -845,6 +849,21 @@ function createPaletteMaterial(
     applyPaletteSkinning();
     instancedMesh(builder.object);
     return positionLocal;
+  };
+  // WebGPU renders shadow maps with a shared override material. Three can copy
+  // explicit position nodes into that pass, but it cannot copy this material's
+  // custom setupPosition() method. Supply the same pose-palette deformation as
+  // an explicit shadow position node so every caster uses its current authored
+  // pose instead of the source GLB's T-pose. Re-applying instancing after the
+  // palette write is intentional: the override material's default setup runs
+  // instancing before this node, and palette skinning resets positionLocal from
+  // positionGeometry.
+  paletteMaterial.bindPaletteShadowPosition = (object): void => {
+    paletteMaterial.castShadowPositionNode = Fn(() => {
+      applyPaletteSkinning();
+      instancedMesh(object);
+      return positionLocal;
+    })() as never;
   };
   return material;
 }
