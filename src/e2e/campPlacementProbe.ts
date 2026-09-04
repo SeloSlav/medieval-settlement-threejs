@@ -1,4 +1,5 @@
-// @ts-nocheck -- Temporary runtime probe; removed after the production-path diagnosis.
+// @ts-nocheck -- Opt-in diagnostic instrumentation of browser/Three internals.
+// Injected only by scripts/camp-placement-debug-server.mjs, never by the game.
 import { BuildingTool } from '../buildings/BuildingTool.ts';
 import { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
 import { SceneManager } from '../scene/SceneManager.ts';
@@ -10,6 +11,11 @@ import { WebGPURenderer } from 'three/webgpu';
 export function installCampPlacementProbe(app) {
   const events = [];
   let placementStart = 0;
+  let pendingStart = 0;
+  let pendingFenceSubmitted = false;
+  let renderDepth = 0;
+  let renderResources = null;
+  let lastLights = '';
   const record = (name, details = {}) => {
     events.push({ t: Math.round(performance.now() * 100) / 100, name, ...details });
   };
@@ -18,6 +24,34 @@ export function installCampPlacementProbe(app) {
     if (typeof original !== 'function' || original.__campProbe) return;
     const fn = function (...args) {
       const start = performance.now();
+      if (key === 'showPendingPlacement') { pendingStart = start; pendingFenceSubmitted = false; }
+      const outerRender = prefix === 'WebGPURenderer' && key === 'render' && renderDepth++ === 0;
+      if (outerRender) {
+        renderResources = { objects: {}, shaders: 0, pipelines: 0, uploads: 0, bytes: 0 };
+        if (this._objects && !this._objects.__campProbe) {
+          this._objects.__campProbe = true;
+          const create = this._objects.createRenderObject;
+          this._objects.createRenderObject = function (...a) {
+            if (renderResources) {
+              const name = `${a[3]?.name || a[3]?.type} / ${a[4]?.name || a[4]?.type}`;
+              renderResources.objects[name] = (renderResources.objects[name] ?? 0) + 1;
+            }
+            return create.apply(this, a);
+          };
+        }
+        const lights = [];
+        app.sceneManager?.scene.traverseVisible(o => { if (o.isLight) lights.push({ id: o.id, type: o.type, name: o.name }); });
+        const signature = JSON.stringify(lights);
+        if (signature !== lastLights) {
+          record('lights-changed', { lights });
+          lastLights = signature;
+        }
+      }
+      if (renderResources) {
+        if (key === 'createShaderModule') renderResources.shaders++;
+        if (key === 'createRenderPipeline' || key === 'createRenderPipelineAsync') renderResources.pipelines++;
+        if (key === 'writeBuffer') { renderResources.uploads++; renderResources.bytes += args[2]?.byteLength ?? 0; }
+      }
       try {
         const value = original.apply(this, args);
         if (value?.then && /prewarm|prepare|compile|start|placeAt/i.test(key)) {
@@ -26,6 +60,16 @@ export function installCampPlacementProbe(app) {
         return value;
       } finally {
         const ms = performance.now() - start;
+        if (prefix === 'WebGPURenderer' && key === 'render') renderDepth--;
+        if (outerRender) {
+          if (ms > 100 || Object.keys(renderResources.objects).length) record('render-resources', { ms, ...renderResources });
+          if (pendingStart && !pendingFenceSubmitted) {
+            pendingFenceSubmitted = true;
+            record('pending-first-submit', { ms: performance.now() - pendingStart, renderMs: ms, ...renderResources });
+            this.backend.device.queue.onSubmittedWorkDone().then(() => record('pending-gpu-complete', { ms: performance.now() - pendingStart }));
+          }
+          renderResources = null;
+        }
         if (ms > 3 || /showPendingPlacement|placeAt|setMode|beginFirstPlayable|beginFoundersCamp/.test(key)) {
           record(`${prefix}.${key}`, { ms });
         }
@@ -47,7 +91,12 @@ export function installCampPlacementProbe(app) {
   for (const key of ['submit', 'writeBuffer', 'writeTexture']) wrap(globalThis.GPUQueue?.prototype, key, 'GPUQueue');
   document.addEventListener('pointerdown', e => {
     record('pointerdown', { x: e.clientX, y: e.clientY, target: e.target?.tagName, mode: app.buildingTool?.getMode() });
-    if (e.target?.tagName === 'CANVAS' && app.buildingTool?.getMode() === 'founders_camp') placementStart = performance.now();
+    if (e.target?.tagName === 'CANVAS' && app.buildingTool?.getMode() === 'founders_camp') {
+      placementStart = performance.now();
+      record('placement-manifest', { viewport: [innerWidth, innerHeight], dpr: devicePixelRatio,
+        camera: app.sceneManager.camera.matrixWorld.toArray(), projection: app.sceneManager.camera.projectionMatrix.toArray(),
+        stats: app.sceneManager.getPerformanceStats(), adapter: app.sceneManager.getRendererAdapterEvidence() });
+    }
   }, true);
   document.addEventListener('pointerup', e => record('pointerup', { target: e.target?.tagName }), true);
   new PerformanceObserver(list => {
@@ -75,4 +124,26 @@ export function installCampPlacementProbe(app) {
     fetch('/__camp_probe', { method: 'POST', body }).catch(() => {});
   }, 1000);
   record('probe-installed');
+  setTimeout(() => record('adapter', { evidence: app.sceneManager?.getRendererAdapterEvidence() }), 20000);
+  const controls = document.createElement('div');
+  controls.style.cssText = 'position:fixed;bottom:3px;left:3px;z-index:99999;display:flex;gap:4px';
+  for (const [name, zoom] of [['Near camp', 220], ['Design camp', 110], ['Far camp', 37]]) {
+    const button = document.createElement('button');
+    button.textContent = name;
+    button.onclick = () => {
+      const camp = [...(app.gameState?.buildings.values() ?? [])].find(b => b.kind === 'founders_camp');
+      if (camp) app.cameraController.focusWorldPositionAtZoom(camp.x, camp.z, zoom);
+    };
+    controls.append(button);
+  }
+  const noPost = document.createElement('button');
+  noPost.textContent = 'Toggle post';
+  let savedRender;
+  noPost.onclick = () => {
+    const manager = app.sceneManager;
+    if (savedRender) { manager.postProcessor.render = savedRender; savedRender = null; }
+    else { savedRender = manager.postProcessor.render; manager.postProcessor.render = () => manager.renderer.render(manager.scene, manager.camera); }
+  };
+  controls.append(noPost);
+  document.body.append(controls);
 }

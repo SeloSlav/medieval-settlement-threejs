@@ -60,6 +60,7 @@ import {
 } from './meshes/foundersCampMesh.ts';
 import { refreshFoundersCampColorBatches } from './foundersCampColorBatch.ts';
 import { setFireEffectActive } from '../fires/FireEffect.ts';
+import { ResidentFireLight } from '../fires/ResidentFireLight.ts';
 import {
   constructionDeliveredRatio,
   createConstructionSiteMesh,
@@ -154,6 +155,7 @@ export class BuildingMarkers {
   private pendingPlacementX = 0;
   private pendingPlacementZ = 0;
   private prewarmedFoundersCamp: THREE.Group | null = null;
+  private foundersCampResidentLight: ResidentFireLight | null = null;
   private prewarmedFoundersCampPreview: THREE.Group | null = null;
   private destroyedBuildingIds = new Set<string>();
 
@@ -533,6 +535,7 @@ export class BuildingMarkers {
     for (const campfires of this.campfiresByMarker.values()) {
       for (const campfire of campfires) animateCampfire(campfire, dtSeconds);
     }
+    this.foundersCampResidentLight?.sync();
     const wheelRotation = Math.min(Math.max(dtSeconds, 0), 0.1)
       * 0.55
       * this.watermillThroughputMultiplier;
@@ -567,6 +570,11 @@ export class BuildingMarkers {
     ) return;
     if (!this.prewarmedFoundersCamp) {
       this.prewarmedFoundersCamp = createBuildingMesh('founders_camp');
+      this.prewarmedFoundersCamp.traverse((object) => {
+        if (this.foundersCampResidentLight || !(object instanceof THREE.Group)
+          || object.userData.runtimeCampfireEffect !== true) return;
+        this.foundersCampResidentLight = new ResidentFireLight(object, this.group);
+      });
       syncInitialFoundersCampVisualState(this.prewarmedFoundersCamp);
       setFoundersCampWinterAccumulation(
         this.prewarmedFoundersCamp,
@@ -613,12 +621,17 @@ export class BuildingMarkers {
       marker.visible = true;
       marker.position.set(0, this.terrain.getHeightAt(0, 0), 0);
       this.group.add(marker);
+      this.foundersCampResidentLight?.sync();
       objects.push(marker);
+      const standardPrewarm = this.campStandards.beginGpuPrewarm(marker);
+      objects.push(...standardPrewarm.objects);
+      restores.push(standardPrewarm.restore);
       restores.push(() => {
         if (marker === this.prewarmedFoundersCamp && marker.parent === this.group) {
           marker.removeFromParent();
           marker.visible = previousVisible;
           marker.position.copy(previousPosition);
+          this.foundersCampResidentLight?.sync();
         }
       });
     }
@@ -669,6 +682,7 @@ export class BuildingMarkers {
     this.pendingPlacementX = x;
     this.pendingPlacementZ = z;
     this.group.add(marker);
+    this.foundersCampResidentLight?.sync();
   }
 
   clearPendingPlacement(): void {
@@ -681,6 +695,7 @@ export class BuildingMarkers {
     }
     this.pendingPlacement = null;
     this.pendingPlacementKind = null;
+    this.foundersCampResidentLight?.sync();
   }
 
   setPlacementPreview(
@@ -728,6 +743,8 @@ export class BuildingMarkers {
 
   dispose(): void {
     this.campStandards.dispose();
+    this.foundersCampResidentLight?.dispose();
+    this.foundersCampResidentLight = null;
     this.clearPendingPlacement();
     if (this.prewarmedFoundersCamp) {
       disposeObject3D(this.prewarmedFoundersCamp);

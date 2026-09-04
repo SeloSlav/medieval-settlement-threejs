@@ -38,6 +38,9 @@ artifacts/kenney_survival-kit.zip
 # Reproducible visual-gauntlet build snapshots (public evidence stays tracked)
 artifacts/visual-gauntlet/
 
+# Local full-graphics placement traces (summary and harness stay tracked)
+/artifacts/camp-placement/*.jsonl
+
 # Local gameplay trailer production outputs
 /artifacts/trailer/
 

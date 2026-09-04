@@ -1,10 +1,11 @@
 import { createServer } from 'vite';
-import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync } from 'node:fs';
 
-process.env.VITE_SPACETIME_DB_NAME = 'camp-placement-repro-0904';
+const database = process.argv[2];
+if (!database) throw new Error('Pass an isolated local test database name. This harness places real buildings.');
+process.env.VITE_SPACETIME_DB_NAME = database;
 process.env.VITE_SPACETIME_URI = 'http://127.0.0.1:3000';
 mkdirSync('artifacts/camp-placement', { recursive: true });
-writeFileSync('artifacts/camp-placement/events.jsonl', '');
 const server = await createServer({
   server: { host: '127.0.0.1', port: 5177, strictPort: true, hmr: false, watch: null },
   plugins: [{

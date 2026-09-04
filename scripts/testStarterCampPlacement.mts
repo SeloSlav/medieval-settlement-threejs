@@ -246,6 +246,7 @@ campMarkers.prewarmFoundersCampPlacement();
 const campGpuPrewarm = campMarkers.beginFoundersCampGpuPrewarm();
 const gpuPrewarmedCamp = markerParent.getObjectByName("Founders' camp and open stockyard");
 const gpuPrewarmedPreview = markerParent.getObjectByName('Terrain-hugging building footprint');
+const gpuPrewarmedStandards = markerParent.getObjectByName('Planted camp standards');
 assert.ok(
   gpuPrewarmedCamp,
   'the prebuilt camp should be attached while startup compiles live-scene shaders',
@@ -254,12 +255,25 @@ assert.ok(
   gpuPrewarmedPreview,
   'the prebuilt camp preview should be attached while startup compiles live-scene shaders',
 );
-assert.deepEqual(
-  campGpuPrewarm.objects,
-  [gpuPrewarmedCamp, gpuPrewarmedPreview],
-  'targeted startup compilation should receive the detailed camp and its reusable preview',
-);
+assert.equal(campGpuPrewarm.objects.length, 3);
+assert.equal(campGpuPrewarm.objects[0], gpuPrewarmedCamp);
+assert.equal(campGpuPrewarm.objects[1], gpuPrewarmedStandards,
+  'targeted compilation must include the separately rendered planted banner');
+assert.equal(campGpuPrewarm.objects[2], gpuPrewarmedPreview);
+const residentLight = markerParent.getObjectByName('FireEffectLight') as THREE.PointLight;
+assert.ok(residentLight?.isPointLight);
+assert.ok(residentLight.intensity > 0, 'covered warmup retains the authored campfire lighting');
 campGpuPrewarm.restore();
+assert.equal(markerParent.getObjectByName('FireEffectLight'), residentLight,
+  'removing the warmup model must not evict the global lighting shader signature');
+assert.equal(residentLight.intensity, 0, 'the unplaced camp must not light the ground');
+gpuPrewarmedStandards!.traverseVisible(object => {
+  if ((object as THREE.Mesh).isMesh) {
+    assert.ok((object as THREE.InstancedMesh).count === 0
+      || (object as THREE.Mesh).geometry.drawRange.count === 0,
+    'the unplaced camp must not leave a banner on the ground');
+  }
+});
 assert.equal(
   markerParent.getObjectByName("Founders' camp and open stockyard"),
   undefined,
@@ -281,6 +295,8 @@ assert.equal(
 campMarkers.clearPlacementPreview();
 const campRevealStarted = performance.now();
 campMarkers.showPendingPlacement('founders_camp', 12, -8);
+assert.equal(markerParent.getObjectByName('FireEffectLight'), residentLight);
+assert.ok(residentLight.intensity > 0, 'pending placement restores the existing light by uniforms only');
 const campRevealElapsed = performance.now() - campRevealStarted;
 const markerGroup = markerParent.getObjectByName('Building markers');
 const optimisticCamp = markerGroup?.getObjectByName('Pending building placement');

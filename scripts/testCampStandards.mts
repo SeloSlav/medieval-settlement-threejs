@@ -17,6 +17,18 @@ const founderAnchor = founders.getObjectByName(CAMP_STANDARD_ANCHOR_NAME)!;
 assert.ok(founderAnchor, 'founders camp owns a planted standard anchor');
 batchCompletedBuildingStaticMeshes(founders);
 assert.equal(founders.getObjectByName(CAMP_STANDARD_ANCHOR_NAME), founderAnchor, 'batching retains the flag anchor');
+const prewarm = flags.beginGpuPrewarm(founders);
+assert.equal(prewarm.objects[0], world.getObjectByName('Planted camp standards'));
+const preparedCloth = world.getObjectByName('Player heraldic standard cloth') as THREE.Mesh;
+const preparedGeometry = preparedCloth.geometry;
+const preparedMaterial = preparedCloth.material;
+assert.ok(preparedCloth.visible);
+prewarm.restore();
+assert.equal(flags.diagnostics()?.standards, 0);
+assert.equal(preparedCloth.visible, false, 'covered warmup cannot leave a floating flag');
+flags.sync([founders]);
+assert.equal(preparedCloth.geometry, preparedGeometry, 'placement reuses uploaded cloth buffers');
+assert.equal(preparedCloth.material, preparedMaterial, 'placement reuses compiled cloth material');
 
 const bandit = new THREE.Group();
 bandit.position.set(-10, 0, 0);

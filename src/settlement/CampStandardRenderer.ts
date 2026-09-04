@@ -115,6 +115,13 @@ export class CampStandardRenderer {
 
   diagnostics() { return this.renderer?.diagnostics() ?? null; }
 
+  /** The planted banner lives outside the building root. Warm its exact cloth
+   * and hardware buffers with the camp, then leave only empty resident batches. */
+  beginGpuPrewarm(camp: THREE.Object3D): { objects: readonly THREE.Object3D[]; restore: () => void } {
+    this.sync([camp]);
+    return { objects: [this.parent], restore: () => this.sync([]) };
+  }
+
   dispose(): void {
     this.renderer?.dispose();
     this.playerTextures?.dispose();
