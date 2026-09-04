@@ -385,8 +385,6 @@
 .tutorial-dialog__eyebrow,
 .new-game-setup-steps li,
 .new-game-setup-steps li > span,
-.world-setup-footer-seed__label,
-.world-setup-footer-seed__label small,
 .compass-hud__label {
   font-size: var(--ui-readable-secondary);
   line-height: 1.4;

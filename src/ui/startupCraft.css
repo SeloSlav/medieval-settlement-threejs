@@ -372,9 +372,7 @@
 .world-setup-pressure,
 .world-setup-custom-landscape { border-color: #817b634d; }
 .world-setup-setting-row { background: #101c1238; }
-.noble-setup-slider-row,
-.world-setup-footer-seed__label,
-.world-setup-footer-seed__label small { color: var(--craft-muted); }
+.noble-setup-slider-row { color: var(--craft-muted); }
 .noble-setup-slider-row strong,
 .world-setup-slider-label strong { color: #cfc4a5; }
 .noble-setup-slider-row input,

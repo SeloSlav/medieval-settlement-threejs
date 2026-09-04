@@ -167,6 +167,8 @@ assert.match(worldPanel, /this\.selectorResizeObserver\.disconnect\(\);[\s\S]*?t
 assert.match(worldPanel, /this\.disposeTooltips\(\);[\s\S]*?this\.backdrop\.remove\(\)/);
 assert.match(worldPanel, /data-setup-back[^>]*>[\s\S]*?Back to Heraldry/);
 assert.match(worldPanel, /data-map-seed-section/);
+assert.match(worldPanel, /aria-label="World seed"/);
+assert.doesNotMatch(worldPanel, /world-setup-footer-seed__label|<span>World seed<\/span>/);
 assert.match(worldPanel, /data-randomize-seed>Randomize seed/);
 assert.match(worldPanel, /<nav class="world-setup-actions__navigation" aria-label="Setup navigation">/);
 assert.match(worldPanel, /world-setup-column world-setup-column--terrain/);
@@ -233,11 +235,10 @@ assert.match(worldCss, /\.world-setup-column--rules\s*\{[\s\S]*?overflow: hidden
 assert.match(worldCss, /\.world-setup-game-rules\s*\{[\s\S]*?grid-template-rows: auto auto minmax\(0, 1fr\)/);
 assert.match(worldCss, /\.world-setup-setting-list\s*\{[\s\S]*?overflow-y: auto/);
 assert.match(worldCss, /\.world-setup-back\s*\{[\s\S]*?margin: 9px 0 9px 22px/);
-assert.match(worldCss, /\.world-setup-footer-seed\s*\{[\s\S]*?grid-template-columns: auto auto;[\s\S]*?justify-self: center/);
+assert.match(worldCss, /\.world-setup-footer-seed\s*\{[\s\S]*?grid-template-columns: auto;[\s\S]*?justify-self: center/);
 assert.match(worldCss, /\.world-setup-footer-seed\s*\{[\s\S]*?grid-column: 2;[\s\S]*?grid-row: 1/);
-assert.match(worldCss, /\.world-setup-footer-seed__label\s*\{[\s\S]*?align-self: center;[\s\S]*?padding-bottom: 0/);
 assert.match(worldCss, /\.world-setup-footer-seed \.world-setup-seed-row\s*\{[\s\S]*?grid-template-columns: 140px auto/);
-assert.match(worldCss, /\.world-setup-footer-seed__label small,[\s\S]*?\.world-setup-randomize\s*\{[\s\S]*?white-space: nowrap/);
+assert.match(worldCss, /\.world-setup-randomize\s*\{[\s\S]*?white-space: nowrap/);
 assert.match(worldCss, /\.world-setup-back\s*\{[\s\S]*?grid-column: 1;[\s\S]*?grid-row: 1/);
 assert.match(worldCss, /\.world-setup-start\s*\{[\s\S]*?grid-column: 3;[\s\S]*?grid-row: 1/);
 assert.match(worldCss, /\.world-setup-section__title\s*\{[\s\S]*?font-size: 17px/);
