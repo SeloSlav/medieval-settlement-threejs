@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { FireLighting } from '../fires/FireLighting.ts';
+import { beginCloseGroundGpuPrewarm, type CloseGroundGpuPrewarm } from './CloseGroundGpuPrewarm.ts';
 import { SceneAtmosphere } from './SceneAtmosphere.ts';
 import { deciduousFoliageForSeasonPreview } from '../world/deciduousFoliagePolicy.ts';
 import type { BuildingTerrainSource } from '../buildings/BuildingTerrainLayout.ts';
@@ -248,6 +249,7 @@ export class SceneManager {
     this.resolveForestTreeLayoutsReady = resolve;
   });
   private grassField: GrassBladeField | null = null;
+  private closeGroundGpuPrewarmActive = false;
   private berryPatchVisuals: BerryPatchVisuals | null = null;
   private mushroomPatchVisuals: MushroomPatchVisuals | null = null;
   private deerWildlifeVisuals: DeerWildlifeVisuals | null = null;
@@ -644,6 +646,26 @@ export class SceneManager {
 
   waitForFirstPlayableGpuWork(): Promise<void> {
     return this.waitForSubmittedWork();
+  }
+
+  beginCloseGroundGpuPrewarm(): CloseGroundGpuPrewarm {
+    if (this.closeGroundGpuPrewarmActive) throw new Error('Close-ground GPU prewarm already active');
+    const prewarm = beginCloseGroundGpuPrewarm([
+      ...(this.grassField ? [this.grassField.group] : []),
+      this.riverSystem.reedsGroup,
+      ...(this.forestManager?.getCloseGroundGpuPrewarmRoots() ?? []),
+    ]);
+    this.closeGroundGpuPrewarmActive = true;
+    let restored = false;
+    return {
+      objects: prewarm.objects,
+      restore: () => {
+        if (restored) return;
+        restored = true;
+        prewarm.restore();
+        this.closeGroundGpuPrewarmActive = false;
+      },
+    };
   }
 
   /** Builds forest and grass after the first frame — same bundle, no dynamic import. */
@@ -1130,12 +1152,14 @@ export class SceneManager {
     this.materials.updateWeather(dt);
     this.updateWeatherPresentation(dt);
     updateTerrainZoomBlend(this.terrain, cameraDistance, firstPersonActive);
-    this.grassField?.updateCameraState(
-      this.camera.position,
-      this.cameraTarget,
-      cameraDistance,
-      firstPersonActive,
-    );
+    if (!this.closeGroundGpuPrewarmActive) {
+      this.grassField?.updateCameraState(
+        this.camera.position,
+        this.cameraTarget,
+        cameraDistance,
+        firstPersonActive,
+      );
+    }
     const forestShadowCastersChanged = this.forestManager?.updateCameraState(
       this.camera,
       cameraDistance,
@@ -1143,13 +1167,16 @@ export class SceneManager {
       shadowBounds,
       cameraInteractionActive,
       dt,
+      this.closeGroundGpuPrewarmActive,
     ) ?? false;
-    this.riverSystem.updateCameraState(
-      this.camera.position,
-      this.cameraTarget,
-      cameraDistance,
-      firstPersonActive,
-    );
+    if (!this.closeGroundGpuPrewarmActive) {
+      this.riverSystem.updateCameraState(
+        this.camera.position,
+        this.cameraTarget,
+        cameraDistance,
+        firstPersonActive,
+      );
+    }
     this.sky.updateCamera(this.camera);
     this.sky.updateSun(this.sunDirection);
     this.sky.updateTime(this.skyAnimationTime);

@@ -106,6 +106,18 @@ assert.ok(stone instanceof THREE.Group);
 assert.ok(ironwork instanceof THREE.Group);
 assert.ok(chest instanceof THREE.Group);
 assert.ok(campfire instanceof THREE.Group);
+const campfireHearthStones = campfire.getObjectsByProperty(
+  'name',
+  'Founding campfire hearth stone',
+) as THREE.Mesh[];
+assert.equal(campfireHearthStones.length, 10);
+for (const hearthStone of campfireHearthStones) {
+  assert.equal(
+    (hearthStone.material as THREE.Material).userData.buildingMaterialAtlasTile,
+    'quarry-stone',
+    'loose campfire-ring rocks must use a raw rock surface, never ashlar or mortar',
+  );
+}
 const winterAccumulation: THREE.Object3D[] = [];
 mesh.traverse((object) => {
   if (object.userData.foundersCampWinterAccumulation === true) {
@@ -402,12 +414,11 @@ const stoneSegments = stone.children.filter(
 assert.equal(stoneSegments.length, FOUNDING_STONE_VISUAL_SEGMENTS);
 const stoneTiers = [
   stoneSegments.filter((segment) => segment.position.y < 0.6),
-  stoneSegments.filter((segment) => segment.position.y >= 0.6),
 ];
 assert.deepEqual(
   stoneTiers.map((tier) => tier.length),
-  [5, 2],
-  'founding stone should stop at a supported two-stone upper tier',
+  [5],
+  'founding stone should remain a single ground-level layer',
 );
 const stoneBaseBounds = new THREE.Box3().setFromPoints(
   stoneTiers[0]!.map((segment) => segment.position),
@@ -417,22 +428,6 @@ assert.ok(
     && stoneBaseBounds.max.z - stoneBaseBounds.min.z > 0.7,
   'the founding stone base must spread in both ground axes instead of standing one stone deep',
 );
-for (let tierIndex = 1; tierIndex < stoneTiers.length; tierIndex += 1) {
-  for (const segment of stoneTiers[tierIndex]!) {
-    const radius = (segment.geometry as THREE.DodecahedronGeometry).parameters.radius;
-    const supportCount = stoneTiers[tierIndex - 1]!.filter((support) => {
-      const supportRadius = (
-        support.geometry as THREE.DodecahedronGeometry
-      ).parameters.radius;
-      return segment.position.distanceTo(support.position)
-        <= (radius + supportRadius) * 1.05;
-    }).length;
-    assert.ok(
-      supportCount >= 2,
-      'each raised founding stone must visibly bear on two stones below it',
-    );
-  }
-}
 for (const segment of stoneSegments) {
   assert.equal(
     (segment.material as THREE.Material).userData.buildingMaterialAtlasTile,

@@ -8,6 +8,7 @@ import { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
 import { CampStandardRenderer } from '../settlement/CampStandardRenderer.ts';
 import { WebGPURenderer } from 'three/webgpu';
 import { installFireTransitionControls } from './fireLightingProbe.ts';
+import { installCloseGroundZoomControls } from './closeGroundZoomProbe.ts';
 
 export function installCampPlacementProbe(app) {
   const events = [];
@@ -128,7 +129,7 @@ export function installCampPlacementProbe(app) {
   record('probe-installed');
   setTimeout(() => record('adapter', { evidence: app.sceneManager?.getRendererAdapterEvidence() }), 20000);
   const controls = document.createElement('div');
-  controls.style.cssText = 'position:fixed;bottom:3px;left:3px;z-index:99999;display:flex;gap:4px';
+  controls.style.cssText = 'position:fixed;bottom:3px;left:3px;z-index:99999;display:flex;flex-wrap:wrap;gap:4px';
   for (const [name, zoom] of [['Near camp', 220], ['Design camp', 110], ['Far camp', 37]]) {
     const button = document.createElement('button');
     button.textContent = name;
@@ -148,5 +149,6 @@ export function installCampPlacementProbe(app) {
   };
   controls.append(noPost);
   installFireTransitionControls(app, controls, record, phase => { firePhase = phase; });
+  installCloseGroundZoomControls(app, controls, record, phase => { firePhase = phase; });
   document.body.append(controls);
 }

@@ -80,7 +80,7 @@ import {
   type CrowdViewState,
 } from './crowdView.ts';
 import {
-  combatAnimationCadenceScale,
+  villagerAnimationCadenceScale,
   seatedVillagerContactHeight,
   SettlementCrowdRenderer,
   type CrowdRenderAgent,
@@ -2405,7 +2405,7 @@ export class VillagerRenderer {
         : visual.yaw;
       const renderAgent = this.renderAgentFor(`combat:${combat.id}`);
       clearCrowdCombatPresentation(renderAgent);
-      renderAgent.animationRateScale = combatAnimationCadenceScale(appearanceSeed);
+      renderAgent.animationRateScale = villagerAnimationCadenceScale(appearanceSeed);
       renderAgent.slot = slot++;
       renderAgent.x = visual.displayX;
       const combatGroundY = this.resolveGroundY(visual.displayX, visual.displayZ) + 0.02;

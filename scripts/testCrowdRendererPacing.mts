@@ -3,10 +3,11 @@ import { performance } from 'node:perf_hooks';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import {
-  combatAnimationCadenceScale,
   restartPooledVillagerActions,
   SettlementCrowdRenderer,
+  villagerAnimationCadenceScale,
   villagerAnimationStartTime,
+  villagerStaticSeatedPoseTime,
   type CrowdRenderAgent,
   type VillagerRenderMode,
 } from '../src/settlement/SettlementCrowdRenderer.ts';
@@ -113,7 +114,7 @@ const pooledActions = Object.fromEntries(actionModes.map((mode) => [
 pooledActions.idle.play();
 animationMixer.update(0.4);
 const appearanceSeed = 431;
-const animationRateScale = combatAnimationCadenceScale(appearanceSeed);
+const animationRateScale = villagerAnimationCadenceScale(appearanceSeed);
 restartPooledVillagerActions(
   animationMixer,
   pooledActions,
@@ -136,14 +137,30 @@ assert.notEqual(
   villagerAnimationStartTime('walk', appearanceSeed, 2),
   'each looping semantic clip should have an independently salted phase',
 );
-const combatCadences = Array.from(
+const villagerCadences = Array.from(
   { length: 64 },
-  (_, index) => combatAnimationCadenceScale(index * 2_654_435_761 >>> 0),
+  (_, index) => villagerAnimationCadenceScale(index * 2_654_435_761 >>> 0),
 );
-assert.ok(combatCadences.every((cadence) => cadence >= 0.96 && cadence <= 1.04));
-assert.ok(new Set(combatCadences.map((cadence) => cadence.toFixed(5))).size > 56);
+assert.ok(villagerCadences.every((cadence) => cadence >= 0.96 && cadence <= 1.04));
+assert.ok(new Set(villagerCadences.map((cadence) => cadence.toFixed(5))).size > 56);
+const seatedPoseTimes = Array.from(
+  { length: 32 },
+  (_, index) => villagerStaticSeatedPoseTime('sit', index * 2_654_435_761 >>> 0, 2)!,
+);
+assert.ok(seatedPoseTimes.every((time) => time >= 1.16 && time <= 1.88));
+assert.ok(new Set(seatedPoseTimes.map((time) => time.toFixed(4))).size > 28);
+assert.equal(villagerStaticSeatedPoseTime('idle', appearanceSeed, 2), null);
+assert.equal(pooledActions.walk.paused, false);
+assert.match(
+  source,
+  /resolvedAnimationRateScale\(\s*agent\.animationRateScale,\s*agent\.appearanceSeed,/,
+  'ordinary villagers should receive their deterministic cadence without caller opt-in',
+);
+assert.match(source, /actions\.sit\.setEffectiveTimeScale\(1\.15 \* rate\)/);
+assert.match(source, /actions\.rest\.setEffectiveTimeScale\(0\.72 \* rate\)/);
+assert.match(source, /configureVillagerActionStart\(nextAction, nextActionMode, appearanceSeed\)/);
 assert.match(source, /this\.transition\(visual, agent\.mode, nextActionMode, agent\.appearanceSeed\)/);
-assert.match(source, /nextAction\.time = villagerAnimationStartTime/);
+assert.match(source, /configureVillagerActionStart\(nextAction, nextActionMode, appearanceSeed\)/);
 
 console.log(
   `Exact crowd selection verified: ${agents.length} authored rigs at near and strategic zoom (${elapsedMs.toFixed(1)}ms selection benchmark).`,

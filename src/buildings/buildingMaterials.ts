@@ -105,6 +105,7 @@ export type BuildingMaterialKey =
   | 'masonryLight'
   | 'masonryMid'
   | 'masonryDark'
+  | 'looseRock'
   | 'timberDark'
   | 'timberMid'
   | 'timberLight'
@@ -151,6 +152,7 @@ const MATERIAL_DEFINITIONS: Record<BuildingMaterialKey, MaterialDefinition> = {
   masonryLight: { color: 0xf3eadb, roughness: 0.96, metalness: 0, atlasTile: 'limestone-ashlar', atlasMetersPerTile: 2.4, atlasTintStrength: 0.16, textureFamily: 'masonry', normalScale: 0.76, weathering: 'masonry', uniformIndirectLight: true },
   masonryMid: { color: 0xd8d0c2, roughness: 0.97, metalness: 0, atlasTile: 'fieldstone-mortar', atlasMetersPerTile: 2.4, atlasTintStrength: 0.2, textureFamily: 'masonry', normalScale: 0.82, weathering: 'masonry', uniformIndirectLight: true },
   masonryDark: { color: 0x858688, roughness: 0.98, metalness: 0, atlasTile: 'quarry-stone', atlasMetersPerTile: 2.4, atlasTintStrength: 0.36, textureFamily: 'masonry', normalScale: 0.82, weathering: 'masonry' },
+  looseRock: { color: 0x5b6066, roughness: 0.99, metalness: 0, atlasTile: 'quarry-stone', atlasMetersPerTile: 0.68, atlasTintStrength: 0.72, textureFamily: 'masonry', normalScale: 1.05, weathering: 'masonry' },
   timberDark: { color: GORSKI_PALETTE.timberDark, roughness: 0.94, metalness: 0, atlasTile: 'rough-hewn-timber', atlasMetersPerTile: 2, atlasTintStrength: GORSKI_TIMBER_TINT_STRENGTHS.dark, textureFamily: 'woodPlanks', normalScale: 0.76, weathering: 'timber', uniformIndirectLight: true },
   timberMid: { color: GORSKI_PALETTE.timberMid, roughness: 0.9, metalness: 0, atlasTile: 'rough-hewn-timber', atlasMetersPerTile: 2, atlasTintStrength: GORSKI_TIMBER_TINT_STRENGTHS.mid, textureFamily: 'woodPlanks', normalScale: 0.58, weathering: 'timber' },
   timberLight: { color: GORSKI_PALETTE.timberLight, roughness: 0.9, metalness: 0, atlasTile: 'sawn-planks', atlasMetersPerTile: 2, atlasTintStrength: GORSKI_TIMBER_TINT_STRENGTHS.light, textureFamily: 'woodPlanks', normalScale: 0.55, weathering: 'timber' },

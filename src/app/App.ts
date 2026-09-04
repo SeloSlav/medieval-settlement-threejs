@@ -755,9 +755,11 @@ export class App {
     let gpuReady = true;
     const villagerPrewarm = session.villagers.beginFirstPlayableGpuPrewarm();
     const foundersCampPrewarm = session.buildingMarkers.beginFoundersCampGpuPrewarm();
+    const closeGroundPrewarm = session.sceneManager.beginCloseGroundGpuPrewarm();
     const targetedPrewarmObjects = [
       ...foundersCampPrewarm.objects,
       ...villagerPrewarm.objects,
+      ...closeGroundPrewarm.objects,
     ];
     let gpuCoveredSubmissionCount = 0;
     let prewarmObjectsRestored = false;
@@ -766,6 +768,7 @@ export class App {
       prewarmObjectsRestored = true;
       foundersCampPrewarm.restore();
       villagerPrewarm.restore();
+      closeGroundPrewarm.restore();
       // The covered warmup may have populated the cached directional shadow
       // atlas with temporary casters. The first live frame must rebuild it.
       session.sceneManager.invalidateStaticShadows();

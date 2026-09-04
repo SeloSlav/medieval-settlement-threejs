@@ -167,6 +167,7 @@
     "test:playable-map-boundary": "npx tsx scripts/testPlayableMapBoundary.mts",
     "test:regional-resources": "npx tsx scripts/testRegionalResourceDistribution.mts",
     "test:startup-chunking": "node --experimental-strip-types scripts/testStartupChunking.mts",
+    "test:close-ground-prewarm": "node --experimental-strip-types scripts/testCloseGroundGpuPrewarm.mts",
     "test:visual-performance-hooks": "node --experimental-strip-types scripts/testVisualPerformanceHooks.mts",
     "test:renderer-frame-stats": "node --experimental-strip-types scripts/testRendererFrameStats.mts",
     "test:connection-recovery": "npx tsx scripts/testConnectionRecoveryHints.mts",

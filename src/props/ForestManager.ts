@@ -476,6 +476,12 @@ export class ForestManager {
     });
   }
 
+  /** Only the close-detail roots; never traverse/precompile the whole forest. */
+  getCloseGroundGpuPrewarmRoots(): THREE.Object3D[] {
+    return [this.undergrowth, this.forestFloorIvy, this.forestFloorNettles, this.forestFloorTwigs]
+      .flatMap(layer => layer ? [layer.group] : []);
+  }
+
   updateCameraState(
     camera: THREE.Camera,
     cameraDistance: number,
@@ -483,6 +489,7 @@ export class ForestManager {
     casterBounds: TerrainBounds,
     cameraInteractionActive = false,
     deltaSeconds = 1 / 60,
+    closeGroundGpuPrewarmActive = false,
   ): boolean {
     const shadowCastersChanged = this.seedThreeForest?.updateCamera(
       camera,
@@ -501,6 +508,11 @@ export class ForestManager {
       harvestStumpsVisible !== this.harvestStumps.group.visible;
     if (harvestStumpVisibilityChanged) {
       this.harvestStumps.group.visible = harvestStumpsVisible;
+    }
+    // The startup owner temporarily exposes these exact meshes, including
+    // their dedicated shadow proxies. Do not hide or compact them mid-warmup.
+    if (closeGroundGpuPrewarmActive) {
+      return shadowCastersChanged || harvestStumpVisibilityChanged;
     }
     if (
       !this.undergrowth

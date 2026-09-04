@@ -110,8 +110,11 @@ const CLAMPED_ACTION_MODES = new Set<VillagerRenderMode>([
   'hurt',
   'fall',
 ]);
-const MIN_COMBAT_ANIMATION_CADENCE = 0.96;
-const MAX_COMBAT_ANIMATION_CADENCE = 1.04;
+const STATIC_SEATED_POSE_MODES = new Set<VillagerRenderMode>(['sit', 'rest']);
+const MIN_VILLAGER_ANIMATION_CADENCE = 0.96;
+const MAX_VILLAGER_ANIMATION_CADENCE = 1.04;
+const MIN_STATIC_SEATED_POSE_FRACTION = 0.58;
+const MAX_STATIC_SEATED_POSE_FRACTION = 0.94;
 
 type VillagerSource = {
   scene: THREE.Group;
@@ -286,12 +289,12 @@ function mixAnimationSeed(appearanceSeed: number, salt: string): number {
   return (hash ^ (hash >>> 16)) >>> 0;
 }
 
-/** Stable, subtle cadence variation for combatants using the same clip. */
-export function combatAnimationCadenceScale(appearanceSeed: number): number {
-  const unit = mixAnimationSeed(appearanceSeed, 'combat-cadence') / 0xffff_ffff;
+/** Stable, subtle cadence variation for villagers sharing the same authored clip. */
+export function villagerAnimationCadenceScale(appearanceSeed: number): number {
+  const unit = mixAnimationSeed(appearanceSeed, 'villager-cadence') / 0xffff_ffff;
   return THREE.MathUtils.lerp(
-    MIN_COMBAT_ANIMATION_CADENCE,
-    MAX_COMBAT_ANIMATION_CADENCE,
+    MIN_VILLAGER_ANIMATION_CADENCE,
+    MAX_VILLAGER_ANIMATION_CADENCE,
     unit,
   );
 }
@@ -305,6 +308,32 @@ export function villagerAnimationStartTime(
 ): number {
   if (CLAMPED_ACTION_MODES.has(mode) || !Number.isFinite(duration) || duration <= 0) return 0;
   return mixAnimationSeed(appearanceSeed, `phase:${mode}`) / 0x1_0000_0000 * duration;
+}
+
+/**
+ * Samples the late, already-seated portion of the one-shot sitting clip.
+ * Keeping each actor on a stable authored frame avoids a synchronized terminal
+ * pose without replaying the stand-to-sit transition or moving hips off their
+ * bench/stump contact point.
+ */
+export function villagerStaticSeatedPoseTime(
+  mode: VillagerRenderMode,
+  appearanceSeed: number,
+  duration: number,
+): number | null {
+  if (
+    !STATIC_SEATED_POSE_MODES.has(mode)
+    || !Number.isFinite(duration)
+    || duration <= 0
+  ) {
+    return null;
+  }
+  const unit = mixAnimationSeed(appearanceSeed, `static-pose:${mode}`) / 0xffff_ffff;
+  return duration * THREE.MathUtils.lerp(
+    MIN_STATIC_SEATED_POSE_FRACTION,
+    MAX_STATIC_SEATED_POSE_FRACTION,
+    unit,
+  );
 }
 
 /**
@@ -784,7 +813,10 @@ export class SettlementCrowdRenderer {
       if (visual.mode !== agent.mode || visual.actionMode !== nextActionMode) {
         this.transition(visual, agent.mode, nextActionMode, agent.appearanceSeed);
       }
-      const animationRateScale = resolvedAnimationRateScale(agent.animationRateScale);
+      const animationRateScale = resolvedAnimationRateScale(
+        agent.animationRateScale,
+        agent.appearanceSeed,
+      );
       if (visual.animationRateScale !== animationRateScale) {
         configureActionSpeeds(visual.actions, agent.movementSpeed, animationRateScale);
         visual.animationRateScale = animationRateScale;
@@ -954,15 +986,15 @@ export class SettlementCrowdRenderer {
         action.setLoop(THREE.LoopRepeat, Number.POSITIVE_INFINITY);
       }
     }
-    const animationRateScale = resolvedAnimationRateScale(agent.animationRateScale);
+    const animationRateScale = resolvedAnimationRateScale(
+      agent.animationRateScale,
+      agent.appearanceSeed,
+    );
     configureActionSpeeds(actions, agent.movementSpeed, animationRateScale);
     const actionMode = combatBaseActionMode(agent);
-    actions[actionMode].play();
-    actions[actionMode].time = villagerAnimationStartTime(
-      actionMode,
-      agent.appearanceSeed,
-      actions[actionMode].getClip().duration,
-    );
+    const activeAction = actions[actionMode];
+    activeAction.play();
+    configureVillagerActionStart(activeAction, actionMode, agent.appearanceSeed);
 
     return {
       id: agent.id,
@@ -1011,7 +1043,10 @@ export class SettlementCrowdRenderer {
     visual.mode = agent.mode;
     visual.actionMode = combatBaseActionMode(agent);
     visual.movementSpeed = agent.movementSpeed;
-    visual.animationRateScale = resolvedAnimationRateScale(agent.animationRateScale);
+    visual.animationRateScale = resolvedAnimationRateScale(
+      agent.animationRateScale,
+      agent.appearanceSeed,
+    );
     if (visual.combatRig) resetCombatWeaponRig(visual.combatRig);
     visual.root.name = `${sourceKey === 'cleric' ? 'Cleric' : sourceKey === 'raider' ? 'Ottoman raider' : agent.variant === 'woman' ? 'Woman' : 'Man'} villager ${agent.id}`;
     visual.root.userData.villagerId = agent.id;
@@ -1048,11 +1083,7 @@ export class SettlementCrowdRenderer {
     if (visual.actionMode !== nextActionMode) {
       visual.actions[visual.actionMode].fadeOut(0.18);
       const nextAction = visual.actions[nextActionMode].reset();
-      nextAction.time = villagerAnimationStartTime(
-        nextActionMode,
-        appearanceSeed,
-        nextAction.getClip().duration,
-      );
+      configureVillagerActionStart(nextAction, nextActionMode, appearanceSeed);
       nextAction.fadeIn(0.18).play();
     }
     if (visual.tool && visual.toolKind) {
@@ -1293,8 +1324,8 @@ function configureActionSpeeds(
 ): void {
   const rate = resolvedAnimationRateScale(animationRateScale);
   configureLocomotionActionSpeeds(actions, movementSpeed, rate);
-  actions.sit.setEffectiveTimeScale(1.15);
-  actions.rest.setEffectiveTimeScale(0.72);
+  actions.sit.setEffectiveTimeScale(1.15 * rate);
+  actions.rest.setEffectiveTimeScale(0.72 * rate);
   actions.idle.setEffectiveTimeScale(rate);
   actions.talk.setEffectiveTimeScale(0.82 * rate);
   actions.pray.setEffectiveTimeScale(0.72 * rate);
@@ -1336,10 +1367,15 @@ function configureLocomotionActionSpeeds(
   );
 }
 
-function resolvedAnimationRateScale(value: number | undefined): number {
+function resolvedAnimationRateScale(
+  value: number | undefined,
+  appearanceSeed?: number,
+): number {
   return Number.isFinite(value)
     ? THREE.MathUtils.clamp(value!, 0.9, 1.1)
-    : 1;
+    : Number.isFinite(appearanceSeed)
+      ? villagerAnimationCadenceScale(appearanceSeed!)
+      : 1;
 }
 
 export function restartPooledVillagerActions(
@@ -1355,11 +1391,18 @@ export function restartPooledVillagerActions(
   configureActionSpeeds(actions, movementSpeed, animationRateScale);
   const activeAction = actions[mode];
   activeAction.reset().play();
-  activeAction.time = villagerAnimationStartTime(
-    mode,
-    appearanceSeed,
-    activeAction.getClip().duration,
-  );
+  configureVillagerActionStart(activeAction, mode, appearanceSeed);
+}
+
+function configureVillagerActionStart(
+  action: THREE.AnimationAction,
+  mode: VillagerRenderMode,
+  appearanceSeed: number,
+): void {
+  const duration = action.getClip().duration;
+  const staticPoseTime = villagerStaticSeatedPoseTime(mode, appearanceSeed, duration);
+  action.paused = staticPoseTime !== null;
+  action.time = staticPoseTime ?? villagerAnimationStartTime(mode, appearanceSeed, duration);
 }
 
 function sourceKeyForAgent(agent: CrowdRenderAgent): VillagerSourceKey {

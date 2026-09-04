@@ -2,6 +2,7 @@ import { createServer } from 'vite';
 import { appendFileSync, mkdirSync } from 'node:fs';
 
 const database = process.argv[2];
+const zoomOnly = process.argv.includes('--zoom-only');
 if (!database) throw new Error('Pass an isolated local test database name. This harness places real buildings.');
 process.env.VITE_SPACETIME_DB_NAME = database;
 process.env.VITE_SPACETIME_URI = 'http://127.0.0.1:3000';
@@ -13,6 +14,10 @@ const server = await createServer({
     enforce: 'pre',
     transform(source, id) {
       if (!id.replaceAll('\\', '/').endsWith('/src/main.ts')) return;
+      if (zoomOnly) {
+        return source.replace('const app = new App(root);', 'const app = new App(root);\ninstallCloseGroundZoomProbe(app);')
+          + '\nimport { installCloseGroundZoomProbe } from "/src/e2e/closeGroundZoomProbe.ts";\n';
+      }
       return source.replace("const app = new App(root);", "const app = new App(root);\ninstallCampPlacementProbe(app);")
         + '\nimport { installCampPlacementProbe } from "/src/e2e/campPlacementProbe.ts";\n';
     },

@@ -5,7 +5,7 @@ import {
   FOUNDERS_CAMP_BENCH,
   FOUNDERS_CAMP_BENCH_SEATS,
   FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT,
-  FOUNDERS_CAMP_SEATED_EDGE_INSET,
+  FOUNDERS_CAMP_SEATED_ROOT_BACKSHIFT,
   FOUNDERS_CAMP_SEAT_LANDMARKS,
   FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
   FOUNDERS_CAMP_WORKYARD_STUMP_SEAT,
@@ -60,7 +60,7 @@ for (const [index, landmark] of FOUNDERS_CAMP_BENCH_SEATS.entries()) {
   assert.ok(
     Math.abs(
       destinationLocal.z
-        - (FOUNDERS_CAMP_BENCH.depth / 2 - FOUNDERS_CAMP_SEATED_EDGE_INSET),
+        - (FOUNDERS_CAMP_BENCH.depth / 2 - FOUNDERS_CAMP_SEATED_ROOT_BACKSHIFT),
     ) < 1e-9,
     'bench occupants should sit far enough inside the plank edge to support their hips',
   );
@@ -89,7 +89,9 @@ for (const [landmark, name] of physicalStumps) {
   assert.ok(
     Math.abs(
       occupantSupportGap
-        - (top.geometry.parameters.radiusBottom - FOUNDERS_CAMP_SEATED_EDGE_INSET),
+        - Math.abs(
+          top.geometry.parameters.radiusBottom - FOUNDERS_CAMP_SEATED_ROOT_BACKSHIFT,
+        ),
     ) < 1e-9,
     'stump occupants should sit far enough inside the support edge to support their hips',
   );

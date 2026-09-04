@@ -3,10 +3,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   addMesh,
   metalMaterial,
-  quarryRockMaterial,
   sharedBuildingDetailMaterial,
   sharedBuildingMaterial,
-  stoneMaterial,
   timberMaterial,
 } from '../buildingMaterials.ts';
 import {
@@ -1243,10 +1241,6 @@ function addStoneStock(parent: THREE.Group): void {
     { x: centerX + 0.75, y: 0.46, z: centerZ - 0.34, radius: 0.46 },
     { x: centerX - 0.4, y: 0.43, z: centerZ + 0.34, radius: 0.43 },
     { x: centerX + 0.4, y: 0.45, z: centerZ + 0.32, radius: 0.45 },
-    // Each raised stone bridges multiple contacts instead of balancing in a
-    // vertical wall.
-    { x: centerX - 0.36, y: 1.13, z: centerZ - 0.02, radius: 0.42 },
-    { x: centerX + 0.38, y: 1.16, z: centerZ - 0.02, radius: 0.46 },
   ] as const satisfies readonly {
     x: number;
     y: number;
@@ -1261,7 +1255,7 @@ function addStoneStock(parent: THREE.Group): void {
     const stone = addMesh(
       stockpile,
       new THREE.DodecahedronGeometry(slot.radius, 0),
-      quarryRockMaterial(index % 2 === 0 ? 'dark' : 'spoil'),
+      sharedBuildingMaterial('looseRock'),
       position,
       new THREE.Euler(index * 0.23, index * 0.41, index * 0.17),
     );
@@ -1597,7 +1591,7 @@ export function addCampfire(
     const stone = addMesh(
       campfire,
       new THREE.DodecahedronGeometry(0.22 + (index % 2) * 0.04, 0),
-      stoneMaterial(index % 3 === 0 ? 'light' : 'mid'),
+      sharedBuildingMaterial('looseRock'),
       new THREE.Vector3(Math.cos(angle) * 0.82, 0.2, Math.sin(angle) * 0.82),
       new THREE.Euler(index * 0.13, angle, index * 0.19),
     );
