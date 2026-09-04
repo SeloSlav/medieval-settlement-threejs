@@ -28,9 +28,9 @@ import {
 } from './processorOutputPolicy.ts';
 import {
   BREWERY_RECIPE_AUTO,
-  BREWERY_RECIPE_CIDER,
+  BREWERY_RECIPE_CIDER_APPLES,
   BREWERY_RECIPE_MEAD,
-  BREWERY_RECIPE_PEAR_CIDER,
+  BREWERY_RECIPE_CIDER_PEARS,
   normalizeBreweryRecipePolicy,
 } from './breweryRecipePolicy.ts';
 import {
@@ -284,18 +284,18 @@ function processorInputRecipes(
         ['water'],
         ['firewood'],
       ];
-      const appleCider: ProcessorInputRecipe = [['apples']];
-      const pearCider: ProcessorInputRecipe = [['pears']];
+      const appleRecipe: ProcessorInputRecipe = [['apples']];
+      const pearRecipe: ProcessorInputRecipe = [['pears']];
       const mead: ProcessorInputRecipe = [['honey']];
       switch (normalizeBreweryRecipePolicy(building.breweryRecipePolicy)) {
-        case BREWERY_RECIPE_CIDER:
-          return [appleCider];
-        case BREWERY_RECIPE_PEAR_CIDER:
-          return [pearCider];
+        case BREWERY_RECIPE_CIDER_APPLES:
+          return [appleRecipe];
+        case BREWERY_RECIPE_CIDER_PEARS:
+          return [pearRecipe];
         case BREWERY_RECIPE_MEAD:
           return [mead];
         case BREWERY_RECIPE_AUTO:
-          return [ale, appleCider, pearCider, mead];
+          return [ale, appleRecipe, pearRecipe, mead];
         default:
           return [ale];
       }

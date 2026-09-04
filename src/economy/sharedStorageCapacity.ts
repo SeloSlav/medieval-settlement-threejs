@@ -85,7 +85,6 @@ function storageKeyForResource(kind: ResourceKind): string | null {
     case 'smokedFish':
     case 'cheese':
     case 'jam':
-    case 'jam':
       return 'preservedFood';
     case 'cider':
       return 'cider';

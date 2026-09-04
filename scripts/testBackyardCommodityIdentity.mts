@@ -11,8 +11,8 @@ import {
   STOREHOUSE_STORAGE_COMMODITIES,
 } from '../src/economy/storageAcceptancePolicy.ts';
 import {
-  BREWERY_RECIPE_CIDER,
-  BREWERY_RECIPE_PEAR_CIDER,
+  BREWERY_RECIPE_CIDER_APPLES,
+  BREWERY_RECIPE_CIDER_PEARS,
   breweryPolicyOutput,
 } from '../src/economy/breweryRecipePolicy.ts';
 import { RESOURCE_KINDS } from '../src/resources/types.ts';
@@ -21,11 +21,11 @@ import { TRADE_RESOURCE_KINDS } from '../src/generated/gameBalance.ts';
 const freshIdentities = [
   'pears', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot',
 ] as const;
-const preservedIdentities = ['aroniaJam', 'rosehipJam'] as const;
-const allIdentities = [...freshIdentities, ...preservedIdentities, 'cider', 'pearCider'] as const;
+const preservedIdentities = ['jam'] as const;
+const allIdentities = [...freshIdentities, ...preservedIdentities, 'cider'] as const;
 const backyardGranaryOutputs = [
   'apples', 'cherries', 'pears', 'aronia', 'rosehips', 'cabbage', 'carrots',
-  'beetroot', 'eggs', 'milk', 'meat', 'honey', 'aroniaJam', 'rosehipJam',
+  'beetroot', 'eggs', 'milk', 'meat', 'honey', 'jam',
 ] as const;
 const backyardStorehouseOutputs = ['remedies', 'hides'] as const;
 
@@ -76,12 +76,9 @@ for (const commodity of backyardStorehouseOutputs) {
   );
 }
 
-assert.equal(NAMED_FOOD_LABELS.aroniaJam, 'Aronia jam');
-assert.equal(NAMED_FOOD_LABELS.rosehipJam, 'Rosehip jam');
-assert.notEqual(STORAGE_COMMODITY_CODES.aroniaJam, STORAGE_COMMODITY_CODES.rosehipJam);
-assert.notEqual(STORAGE_COMMODITY_CODES.cider, STORAGE_COMMODITY_CODES.pearCider);
-assert.equal(breweryPolicyOutput(BREWERY_RECIPE_CIDER), 'cider');
-assert.equal(breweryPolicyOutput(BREWERY_RECIPE_PEAR_CIDER), 'pearCider');
+assert.equal(NAMED_FOOD_LABELS.jam, 'Jam');
+assert.equal(breweryPolicyOutput(BREWERY_RECIPE_CIDER_APPLES), 'cider');
+assert.equal(breweryPolicyOutput(BREWERY_RECIPE_CIDER_PEARS), 'cider');
 
 const backyardSimulation = readFileSync('server/src/simulation/backyard_garden.rs', 'utf8');
 for (const mapping of [
@@ -97,8 +94,7 @@ for (const mapping of [
   /GoatPen => Some\(CommodityKind::Milk\)/,
   /PigPen => Some\(CommodityKind::Meat\)/,
   /BackyardApiary => Some\(CommodityKind::Honey\)/,
-  /AroniaOrchard => Some\(CommodityKind::AroniaJam\)/,
-  /RosehipOrchard => Some\(CommodityKind::RosehipJam\)/,
+  /AroniaOrchard \| BackyardGardenKind::RosehipOrchard[\s\S]*Some\(CommodityKind::Jam\)/,
 ]) {
   assert.match(backyardSimulation, mapping);
 }
@@ -130,7 +126,7 @@ const granaryHouseholdDuty = expandedEconomy.match(
 )?.[1] ?? '';
 for (const commodity of [
   'Apples', 'Cherries', 'Pears', 'Aronia', 'Rosehips', 'Cabbage', 'Carrots',
-  'Beetroot', 'Eggs', 'Milk', 'Meat', 'Honey', 'AroniaJam', 'RosehipJam',
+  'Beetroot', 'Eggs', 'Milk', 'Meat', 'Honey', 'Jam',
 ]) {
   assert.match(
     granaryHouseholdDuty,
@@ -154,8 +150,8 @@ assert.match(
 const deliveryCargo = readFileSync('server/src/simulation/delivery_cargo.rs', 'utf8');
 assert.match(
   deliveryCargo,
-  /FRESH_ORDER[\s\S]*CommodityKind::AroniaJam[\s\S]*CommodityKind::RosehipJam/,
-  'both backyard jams must remain distinct general-food deliveries',
+  /FRESH_ORDER[\s\S]*CommodityKind::Jam/,
+  'backyard jam must remain a general-food delivery',
 );
 assert.match(
   deliveryCargo,
@@ -164,7 +160,7 @@ assert.match(
 );
 assert.doesNotMatch(
   deliveryCargo.match(/const PRESERVED_ORDER:[\s\S]*?\];/)?.[0] ?? '',
-  /AroniaJam|RosehipJam|Honey/,
+  /Jam|Honey/,
   'sweet preserves must not satisfy the Tier-4 savory-preserve need',
 );
 
@@ -172,14 +168,14 @@ for (const root of ['src/generated', 'server/src/generated']) {
   const backyardTable = readFileSync(`${root}/backyard_garden_table.ts`, 'utf8');
   const types = readFileSync(`${root}/types.ts`, 'utf8');
   assert.doesNotMatch(backyardTable, /jamStock|jam_stock/);
-  for (const field of ['pears', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot', 'aroniaJam', 'rosehipJam', 'pearCider']) {
+  for (const field of ['pears', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot', 'jam', 'cider']) {
     assert.match(types, new RegExp(`\\b${field}:`));
   }
 }
 
 for (const icon of [
   'pears', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot',
-  'aronia-jam', 'rosehip-jam',
+  'jam',
 ]) {
   const path = `public/assets/ui/icons/provisions/${icon}.png`;
   assert.ok(existsSync(path), `${icon} needs its own generated raster icon`);
@@ -193,12 +189,15 @@ for (const icon of ['orchard', 'vegetable-garden', 'animal-pen']) {
   assert.ok(existsSync(path), `${icon} shell needs its own generated raster icon`);
 }
 assert.ok(existsSync('public/assets/ui/icons/resource-cider.png'));
-assert.ok(existsSync('public/assets/ui/icons/resource-pear-cider.png'));
+assert.ok(existsSync('public/assets/ui/icons/provisions/jam.png'));
+assert.ok(!existsSync('public/assets/ui/icons/resource-pear-cider.png'));
+assert.ok(!existsSync('public/assets/ui/icons/provisions/aronia-jam.png'));
+assert.ok(!existsSync('public/assets/ui/icons/provisions/rosehip-jam.png'));
 
 const iconography = readFileSync('src/ui/iconography.css', 'utf8');
 const backyardIcons = readFileSync('src/ui/polishedGameUi.css', 'utf8');
 for (const rejectedSvg of [
-  'apple-cider', 'pear-cider', 'pears', 'aronia', 'rosehips', 'cabbage',
+  'pear-cider', 'pears', 'aronia', 'rosehips', 'cabbage',
   'carrots', 'beetroot', 'aronia-jam', 'rosehip-jam', 'hides', 'leather', 'shoes',
 ]) {
   assert.doesNotMatch(iconography, new RegExp(`${rejectedSvg}\\.svg`));
@@ -214,4 +213,4 @@ for (const [kind, filename] of [
   );
 }
 
-console.log('Distinct backyard crops, jams, ciders, storage, trade, bindings, and raster icon contracts passed.');
+console.log('Distinct backyard crops with unified jam and cider storage, trade, bindings, and raster icon contracts passed.');

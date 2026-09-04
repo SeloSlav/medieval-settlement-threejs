@@ -15,7 +15,6 @@ export const DELIVERY_CARGO_KINDS = [
   'timber',
   'ale',
   'cider',
-  'cider',
   'mead',
   'honey',
   'wine',
@@ -69,7 +68,6 @@ export const DELIVERY_CARGO_KINDS = [
   'hides',
   'leather',
   'shoes',
-  'jam',
   'jam',
   'animalFeed',
   'wax',
@@ -424,8 +422,6 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'cider';
     case 56:
       return 'mead';
-    case 57:
-      return 'cider';
     case 58:
       return 'hides';
     case 59:
@@ -433,8 +429,6 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
     case 60:
       return 'shoes';
     case 61:
-      return 'jam';
-    case 62:
       return 'jam';
     case 63:
       return 'animalFeed';
@@ -534,9 +528,7 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
     case 'ale':
       return 'Ale';
     case 'cider':
-      return 'Apple cider';
-    case 'cider':
-      return 'Pear cider';
+      return 'Cider';
     case 'mead':
       return 'Mead';
     case 'ryeBread':
@@ -580,9 +572,7 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
     case 'cheese':
       return 'Cheese';
     case 'jam':
-      return 'Aronia jam';
-    case 'jam':
-      return 'Rosehip jam';
+      return 'Jam';
     case 'honey':
       return 'Honey';
     case 'wax':
@@ -1055,14 +1045,11 @@ export function cargoColor(kind: DeliveryCargoKind): number {
       return 0xb8860b;
     case 'cider':
       return 0xc27c32;
-    case 'cider':
-      return 0xb59b38;
     case 'mead':
       return 0xd4a017;
     case 'curedMeat':
     case 'smokedFish':
     case 'cheese':
-    case 'jam':
     case 'jam':
       return 0x8b5a3c;
     case 'honey':

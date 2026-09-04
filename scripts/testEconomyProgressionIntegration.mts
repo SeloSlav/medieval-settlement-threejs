@@ -1188,13 +1188,13 @@ function tierNeedRecoveryState(
   const potteryNeedStock = byKind.get(RESIDENCE_NEED_KIND_IDS.pottery)?.stock ?? 0;
   const luxuryNeedStock = byKind.get(RESIDENCE_NEED_KIND_IDS.luxury)?.stock ?? 0;
   const aleOutletStock = tavern
-    ? tavern.ale + tavern.cider + tavern.pearCider + tavern.mead
+    ? tavern.ale + tavern.cider + tavern.mead
     : 0;
   const clothOutletStock = marketplace?.cloth ?? 0;
   const shoesOutletStock = marketplace?.shoes ?? 0;
   const preservedOutletStock = marketplace
     ? marketplace.preservedFood + marketplace.curedMeat + marketplace.smokedFish
-      + marketplace.cheese + marketplace.aroniaJam + marketplace.rosehipJam
+      + marketplace.cheese + marketplace.jam
     : 0;
   const potteryOutletStock = marketplace?.pottery ?? 0;
   const luxuryOutletStock = marketplace

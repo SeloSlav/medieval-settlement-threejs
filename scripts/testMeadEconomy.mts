@@ -24,7 +24,6 @@ assert.equal(
     honey: 3,
     ale: 0,
     cider: 0,
-    pearCider: 0,
     mead: 0,
   }),
   BREWERY_RECIPE_MEAD,
@@ -82,7 +81,7 @@ assert.match(
 const cargo = readFileSync('server/src/simulation/delivery_cargo.rs', 'utf8');
 assert.match(
   cargo,
-  /ResidenceNeedKind::Ale => \{[\s\S]*CommodityKind::Cider[\s\S]*CommodityKind::PearCider[\s\S]*CommodityKind::Ale[\s\S]*CommodityKind::Mead/,
+  /ResidenceNeedKind::Ale => \{[\s\S]*CommodityKind::Cider[\s\S]*CommodityKind::Ale[\s\S]*CommodityKind::Mead/,
   'Tavern service must count and withdraw Mead as a Beverage',
 );
 assert.match(
@@ -105,7 +104,7 @@ assert.match(
 );
 assert.match(inspector, /staffed Tavern/);
 const buildCards = readFileSync('src/ui/buildMenuCards.ts', 'utf8');
-assert.match(buildCards, /Malts barley for ale, makes apple or pear cider, and ferments honey into mead/);
+assert.match(buildCards, /Malts barley for ale, presses apples or pears into cider, and ferments honey into mead/);
 assert.match(buildCards, /harvests honey and beeswax in autumn/);
 const settlementHud = readFileSync('src/ui/SettlementHud.ts', 'utf8');
 assert.match(settlementHud, /RESOURCE_DESCRIPTIONS\.honey/);

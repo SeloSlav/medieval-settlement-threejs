@@ -6,8 +6,8 @@
 use std::collections::HashMap;
 
 use crate::brewery_recipe_policy::{
-    normalize_brewery_recipe_policy, BREWERY_RECIPE_AUTO, BREWERY_RECIPE_CIDER,
-    BREWERY_RECIPE_MEAD, BREWERY_RECIPE_PEAR_CIDER,
+    normalize_brewery_recipe_policy, BREWERY_RECIPE_AUTO, BREWERY_RECIPE_CIDER_APPLES,
+    BREWERY_RECIPE_MEAD, BREWERY_RECIPE_CIDER_PEARS,
 };
 use crate::smokehouse_recipe_policy::{
     normalize_smokehouse_recipe_policy, SMOKEHOUSE_RECIPE_AUTO, SMOKEHOUSE_RECIPE_CHEESE,
@@ -59,8 +59,8 @@ pub fn alternative_processor_recipe_ready(
     available: ProcessorRecipeAvailability,
 ) -> Option<bool> {
     let ale_ready = (available.barley || available.malt) && available.water && available.firewood;
-    let apple_cider_ready = available.apples;
-    let pear_cider_ready = available.pears;
+    let apple_recipe_ready = available.apples;
+    let pear_recipe_ready = available.pears;
     let mead_ready = available.honey;
 
     match kind {
@@ -72,10 +72,10 @@ pub fn alternative_processor_recipe_ready(
         ),
         "brewery" => Some(
             match normalize_brewery_recipe_policy(recipe_policy) {
-                BREWERY_RECIPE_CIDER => apple_cider_ready,
-                BREWERY_RECIPE_PEAR_CIDER => pear_cider_ready,
+                BREWERY_RECIPE_CIDER_APPLES => apple_recipe_ready,
+                BREWERY_RECIPE_CIDER_PEARS => pear_recipe_ready,
                 BREWERY_RECIPE_MEAD => mead_ready,
-                BREWERY_RECIPE_AUTO => ale_ready || apple_cider_ready || pear_cider_ready || mead_ready,
+                BREWERY_RECIPE_AUTO => ale_ready || apple_recipe_ready || pear_recipe_ready || mead_ready,
                 _ => ale_ready,
             },
         ),
@@ -269,7 +269,7 @@ pub fn stalled_labor_target(
 mod tests {
     use super::*;
     use crate::brewery_recipe_policy::{
-        BREWERY_RECIPE_ALE, BREWERY_RECIPE_AUTO, BREWERY_RECIPE_CIDER,
+        BREWERY_RECIPE_ALE, BREWERY_RECIPE_AUTO, BREWERY_RECIPE_CIDER_APPLES,
     };
     use std::cell::Cell;
 
@@ -484,7 +484,7 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            alternative_processor_recipe_ready("brewery", BREWERY_RECIPE_CIDER, apples_only),
+            alternative_processor_recipe_ready("brewery", BREWERY_RECIPE_CIDER_APPLES, apples_only),
             Some(true),
         );
         assert_eq!(

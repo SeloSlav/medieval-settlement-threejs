@@ -568,7 +568,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     reservedSmokedFish += pantrySmokedFish;
     reservedCheese += pantryCheese;
     reservedJam += pantryJam;
-    reservedJam += pantryJam;
     const householdAle = Math.max(0, getNeedStock(residence.needs, 'ale'));
     const householdCloth = Math.max(0, getNeedStock(residence.needs, 'cloth'));
     const householdShoes = Math.max(0, getNeedStock(residence.needs, 'shoes'));

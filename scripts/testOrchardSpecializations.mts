@@ -151,7 +151,7 @@ assert.match(
 );
 assert.match(reducerSource, /garden\.flower_luxury_upgraded = true/);
 assert.match(simulationSource, /first_harvest_day > clock\.total_days/);
-assert.match(simulationSource, /backyard_jam_commodity[\s\S]*CommodityKind::AroniaJam[\s\S]*CommodityKind::RosehipJam/);
+assert.match(simulationSource, /backyard_jam_commodity[\s\S]*AroniaOrchard \| BackyardGardenKind::RosehipOrchard[\s\S]*CommodityKind::Jam/);
 assert.match(simulationSource, /jam_per_person_per_sec[\s\S]*distribute_backyard_food/);
 assert.match(needsSource, /ResidenceNeedKind::Luxury[\s\S]*consume_backyard_luxury/);
 assert.match(needsSource, /garden\.flower_luxury_upgraded[\s\S]*stock: 1\.0/);
@@ -159,14 +159,13 @@ assert.match(policySource, /allocate_backyard_jam_meal[\s\S]*food_used:[\s\S]*lu
 assert.match(needsSource, /consume_food_with_preserved[\s\S]*consume_household_jam_meal/);
 assert.match(needsSource, /jam_meal\.luxury_met[\s\S]*remaining_stock/);
 assert.match(needStateSource, /residence_edible_food_stock\(residence\)/);
-assert.match(needsSource, /residence\.aronia_jam[\s\S]*residence\.rosehip_jam/);
+assert.match(needsSource, /residence\.jam/);
 assert.doesNotMatch(needsSource, /garden\.jam_stock - demand/);
 for (const field of ['first_harvest_day', 'flower_luxury_upgraded']) {
   assert.match(tablesSource, new RegExp(`pub ${field}:`));
 }
 assert.doesNotMatch(tablesSource, /pub jam_stock:/);
-assert.match(tablesSource, /pub aronia_jam: f64/);
-assert.match(tablesSource, /pub rosehip_jam: f64/);
+assert.match(tablesSource, /pub jam: f64/);
 assert.match(clientReducerSource, /specializeOrchard[\s\S]*specialize_orchard/);
 assert.match(clientReducerSource, /upgradeFlowerGardenLuxury[\s\S]*upgrade_flower_garden_luxury/);
 assert.match(inspectorSource, /renderOrchardSpecializationPicker/);

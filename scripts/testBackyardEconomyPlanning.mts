@@ -978,8 +978,10 @@ assert.match(
   /gross_expected[\s\S]*jam_expected[\s\S]*jam_share[\s\S]*gross_food \* jam_share[\s\S]*\.min\(gross_food\)[\s\S]*split_backyard_orchard_harvest\(gross_food, jam\)[\s\S]*backyard_jam_commodity[\s\S]*orchard_harvest\.jam/,
   'jam must consume a bounded share of the same physical fruit harvest',
 );
-assert.match(serverStepSource, /AroniaOrchard => Some\(CommodityKind::AroniaJam\)/);
-assert.match(serverStepSource, /RosehipOrchard => Some\(CommodityKind::RosehipJam\)/);
+assert.match(
+  serverStepSource,
+  /AroniaOrchard \| BackyardGardenKind::RosehipOrchard[\s\S]*Some\(CommodityKind::Jam\)/,
+);
 assert.match(serverPolicySource, /AppleOrchard \| CherryOrchard \| PearOrchard/);
 assert.match(serverPolicySource, /def\.harvest_start_month[\s\S]*def\.harvest_end_month/);
 assert.match(serverPolicySource, /12\.0 \/ window \* def\.yield_efficiency/);

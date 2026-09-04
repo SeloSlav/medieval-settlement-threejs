@@ -49,7 +49,7 @@ assert.equal(freshFoodStock(pantry), 15);
 assert.equal(preservableFoodStock(pantry), 6);
 assert.equal(preservedFoodStock(pantry), 21);
 assert.equal(
-  savoryPreservesStock({ curedMeat: 6, smokedFish: 7, cheese: 8, aroniaJam: 9, rosehipJam: 10, honey: 11 }),
+  savoryPreservesStock({ curedMeat: 6, smokedFish: 7, cheese: 8, jam: 9, honey: 11 }),
   21,
   'sweet preserves must remain outside the Tier-4 and military savory-preserve role',
 );
@@ -82,7 +82,7 @@ assert.equal(foodSpoilageLabel('honey'), 'Shelf-stable');
 assert.equal(foodSpoilageLabel('ryeBread'), 'Slow spoilage');
 assert.equal(foodSpoilageLabel('eggs'), 'Moderate spoilage');
 assert.equal(foodSpoilageLabel('milk'), 'Fast spoilage');
-assert.equal(NAMED_FOOD_KINDS.length, 24);
+assert.equal(NAMED_FOOD_KINDS.length, 23);
 assert.equal(
   (FRESH_FOOD_KINDS as readonly string[]).includes('food'),
   false,
@@ -126,8 +126,7 @@ assert.equal(foodCategory('carrots'), 'vegetables');
 assert.equal(foodCategory('beetroot'), 'vegetables');
 assert.equal(foodCategory('aronia'), 'foraged');
 assert.equal(foodCategory('rosehips'), 'foraged');
-assert.equal(foodCategory('aroniaJam'), 'sweetPreserves');
-assert.equal(foodCategory('rosehipJam'), 'sweetPreserves');
+assert.equal(foodCategory('jam'), 'sweetPreserves');
 assert.equal(foodCategory('honey'), 'sweetPreserves');
 assert.equal(foodCategory('milk'), 'animalProduce');
 assert.equal(foodCategory('curedMeat'), 'savoryPreserves');
@@ -144,14 +143,14 @@ assert.equal(
   'separate vegetable commodities remain one dietary category',
 );
 assert.equal(
-  foodVarietyCount({ aronia: 2, rosehips: 2, aroniaJam: 2, rosehipJam: 2 }, 1),
+  foodVarietyCount({ aronia: 2, rosehips: 2, jam: 2 }, 1),
   2,
   'fresh hedgerow fruit and sweet preserves remain distinct dietary categories',
 );
 assert.equal(
-  foodVarietyCount({ aroniaJam: 2, rosehipJam: 2, honey: 2 }, 1),
+  foodVarietyCount({ jam: 2, honey: 2 }, 1),
   1,
-  'honey and both jams share the Sweet preserves category',
+  'honey and jam share the Sweet preserves category',
 );
 assert.equal(foodCategoryQualifyingStock(1), 1);
 assert.equal(foodCategoryQualifyingStock(6), 1);
@@ -237,13 +236,14 @@ const typedCargoKinds = [
   [41, 'cheese'],
   [50, 'carrots'],
   [53, 'beetroot'],
-  [57, 'pearCider'],
-  [61, 'aroniaJam'],
-  [62, 'rosehipJam'],
+  [55, 'cider'],
+  [61, 'jam'],
 ] as const;
 assert.equal(cargoKindFromId(2), null, 'retired aggregate food cargo id 2 must stay unmapped');
 assert.equal(cargoKindFromId(7), null, 'retired aggregate preserved-food cargo id 7 must stay unmapped');
 assert.equal(cargoKindFromId(35), null, 'removed aggregate vegetable cargo id must stay unmapped');
+assert.equal(cargoKindFromId(57), null, 'removed second cider cargo id must stay unmapped');
+assert.equal(cargoKindFromId(62), null, 'removed second jam cargo id must stay unmapped');
 for (const [id, kind] of typedCargoKinds) {
   assert.equal(cargoKindFromId(id), kind, `cargo id ${id} must remain ${kind}`);
   assert.notEqual(cargoKindLabel(kind), 'Food');
@@ -358,7 +358,7 @@ assert.doesNotMatch(
 );
 assert.match(
   commoditiesSource,
-  /pub fn meal_value[\s\S]*Self::RosehipJam => 1\.0,[\s\S]*Self::OatGrain => OAT_GRAIN_MEAL_VALUE,[\s\S]*_ => 0\.0/,
+  /pub fn meal_value[\s\S]*Self::Jam => 1\.0,[\s\S]*Self::OatGrain => OAT_GRAIN_MEAL_VALUE,[\s\S]*_ => 0\.0/,
   'the server must make oats the sole half-meal edible commodity and reject non-food goods',
 );
 assert.match(

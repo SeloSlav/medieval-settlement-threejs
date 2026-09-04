@@ -469,7 +469,7 @@ assert.match(tierFourPlan.addedNeeds, /pottery/i);
 assert.match(tierFourPlan.addedNeeds, /luxury/i);
 assert.equal(
   residenceHasHouseholdLuxuryOption(
-    { aroniaJam: 0, rosehipJam: 0 },
+    { jam: 0 },
     { kind: 'flower_garden', flowerLuxuryUpgraded: true },
   ),
   true,
@@ -477,7 +477,7 @@ assert.equal(
 );
 assert.equal(
   residenceHasHouseholdLuxuryOption(
-    { aroniaJam: 0, rosehipJam: 0 },
+    { jam: 0 },
     { kind: 'aronia_orchard', flowerLuxuryUpgraded: false },
   ),
   true,
@@ -485,11 +485,19 @@ assert.equal(
 );
 assert.equal(
   residenceHasHouseholdLuxuryOption(
-    { aroniaJam: 1, rosehipJam: 0 },
+    { jam: 1 },
     null,
   ),
   true,
   'existing household preserves must satisfy the Tier-4 promotion gate',
+);
+assert.equal(
+  residenceHasHouseholdLuxuryOption(
+    { jam: 0.0000006 },
+    null,
+  ),
+  false,
+  'unified jam stock must be evaluated once rather than double-counted',
 );
 const tierFourHouseholdLuxuryPlan = evaluateResidenceUpgrade(tierThree, richTotals, {
   ...allServices,

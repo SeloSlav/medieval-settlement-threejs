@@ -84,14 +84,14 @@ const alternativeHome = residence({
   smokedFish: 5,
 });
 alternativeHome.needs.firewood = { stock: 8, deficitTicks: 0, sourceKind: 22 };
-alternativeHome.needs.ale = { stock: 4, deficitTicks: 0, sourceKind: 57 };
+alternativeHome.needs.ale = { stock: 4, deficitTicks: 0, sourceKind: 55 };
 alternativeHome.needs.preservedFood.stock = 7;
 alternativeHome.needs.luxury = { stock: 1, deficitTicks: 0, sourceKind: 65_534 };
 assert.equal(residenceNeedSource(alternativeHome, 'firewood')?.key, 'charcoal');
 assert.equal(
   residenceNeedSource(alternativeHome, 'ale')?.key,
   'cider',
-  'commodity 57 must remain pear cider rather than colliding with the Luxury need id',
+  'commodity 55 must resolve to the unified cider resource',
 );
 assert.equal(residenceNeedSource(alternativeHome, 'preservedFood')?.key, 'smokedFish');
 assert.equal(residenceNeedSource(alternativeHome, 'luxury')?.key, 'luxuryFlowers');

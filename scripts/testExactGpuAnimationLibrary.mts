@@ -291,12 +291,83 @@ const animalAssets = [
   'public/assets/models/livestock/quaternius-bull.glb',
   'public/assets/models/livestock/quaternius-chicken.glb',
   'public/assets/models/livestock/quaternius-cow.glb',
+  'public/assets/models/livestock/quaternius-goat.glb',
   'public/assets/models/livestock/quaternius-pig.glb',
   'public/assets/models/livestock/quaternius-sheep.glb',
 ] as const;
 
+function assertHeadWeightedQuaterniusEyes(gltf: GLTF, path: string): void {
+  const eyeMeshes: THREE.SkinnedMesh[] = [];
+  const eyeMaterials = new Set<string>();
+  gltf.scene.traverse((object) => {
+    const mesh = object as THREE.SkinnedMesh;
+    if (!mesh.isSkinnedMesh) return;
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    if (!materials.some((material) => /^Eye_(?:Black|White)$/.test(material.name))) return;
+    eyeMeshes.push(mesh);
+    for (const material of materials) eyeMaterials.add(material.name);
+  });
+
+  assert.deepEqual(
+    [...eyeMaterials].sort(),
+    ['Eye_Black', 'Eye_White'],
+    `${path} should preserve the Quaternius black-eye and white-catchlight materials`,
+  );
+  assert.equal(eyeMeshes.length, 2, `${path} should export one skinned primitive per eye material`);
+  for (const mesh of eyeMeshes) {
+    const headIndex = mesh.skeleton.bones.findIndex((bone) => bone.name === 'Head');
+    assert.ok(headIndex >= 0, `${path} eye skeleton should contain the Head bone`);
+    const joints = mesh.geometry.getAttribute('skinIndex');
+    const weights = mesh.geometry.getAttribute('skinWeight');
+    assert.ok(joints && weights, `${path} eye geometry should be skinned`);
+    for (let vertex = 0; vertex < joints.count; vertex += 1) {
+      let headWeight = 0;
+      for (let lane = 0; lane < 4; lane += 1) {
+        if (joints.array[vertex * 4 + lane] === headIndex) {
+          headWeight += weights.array[vertex * 4 + lane]!;
+        }
+      }
+      assert.ok(headWeight > 0.999, `${path} eye vertex ${vertex} should follow Head exactly`);
+    }
+  }
+}
+
+function assertHeadWeightedQuaterniusHorns(gltf: GLTF, path: string): void {
+  const hornMeshes: THREE.SkinnedMesh[] = [];
+  gltf.scene.traverse((object) => {
+    const mesh = object as THREE.SkinnedMesh;
+    if (!mesh.isSkinnedMesh) return;
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    if (materials.some((material) => material.name === 'Horns')) hornMeshes.push(mesh);
+  });
+  assert.equal(hornMeshes.length, 1, `${path} should export one Quaternius horn primitive`);
+  const hornMesh = hornMeshes[0]!;
+  const headIndex = hornMesh.skeleton.bones.findIndex((bone) => bone.name === 'Head');
+  assert.ok(headIndex >= 0, `${path} horn skeleton should contain the Head bone`);
+  const joints = hornMesh.geometry.getAttribute('skinIndex');
+  const weights = hornMesh.geometry.getAttribute('skinWeight');
+  assert.ok(joints && weights, `${path} horn geometry should be skinned`);
+  for (let vertex = 0; vertex < joints.count; vertex += 1) {
+    let headWeight = 0;
+    for (let lane = 0; lane < 4; lane += 1) {
+      if (joints.array[vertex * 4 + lane] === headIndex) {
+        headWeight += weights.array[vertex * 4 + lane]!;
+      }
+    }
+    assert.ok(headWeight > 0.999, `${path} horn vertex ${vertex} should follow Head exactly`);
+  }
+}
+
 for (const path of animalAssets) {
   const gltf = await loadGlb(path);
+  if (
+    path.endsWith('quaternius-goat.glb')
+    || path.endsWith('quaternius-pig.glb')
+    || path.endsWith('quaternius-sheep.glb')
+  ) {
+    assertHeadWeightedQuaterniusEyes(gltf, path);
+  }
+  if (path.endsWith('quaternius-goat.glb')) assertHeadWeightedQuaterniusHorns(gltf, path);
   const library = new ExactGpuAnimationLibrary({
     sourceRoot: gltf.scene,
     clips: gltf.animations,

@@ -63,9 +63,7 @@ assert.equal(
   'Trading Posts use two dedicated cart-hauler slots',
 );
 assert.equal(BUILDING_STORAGE_CAPS.trading_post.cider, 180);
-assert.equal(BUILDING_STORAGE_CAPS.trading_post.pearCider, 180);
 assert.equal(BUILDING_STORAGE_CAPS.tavern.cider, 60);
-assert.equal(BUILDING_STORAGE_CAPS.tavern.pearCider, 60);
 
 const categorized = TRADING_POST_TRADE_CATEGORIES.flatMap((section) => section.resources);
 assert.deepEqual(
@@ -368,8 +366,8 @@ assert.match(
 );
 assert.match(
   localDistribution,
-  /ResidenceNeedKind::Ale, Some\(CommodityKind::Ale\)[\s\S]*ResidenceNeedKind::Ale, Some\(CommodityKind::Cider\)[\s\S]*ResidenceNeedKind::Ale, Some\(CommodityKind::PearCider\)/,
-  'all imported beverage identities must remain distinct in local routing',
+  /ResidenceNeedKind::Ale, Some\(CommodityKind::Ale\)[\s\S]*ResidenceNeedKind::Ale, Some\(CommodityKind::Cider\)/,
+  'imported cider must retain its identity in local routing',
 );
 assert.match(
   localDistribution,
@@ -378,7 +376,7 @@ assert.match(
 );
 assert.match(
   localDistribution,
-  /building\.ale > 1e-6[\s\S]*building\.cider > 1e-6[\s\S]*building\.pear_cider > 1e-6/,
+  /building\.ale > 1e-6[\s\S]*building\.cider > 1e-6/,
   'a cider-only Trading Post must remain eligible for local distribution',
 );
 

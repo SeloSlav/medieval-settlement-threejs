@@ -87,9 +87,9 @@ import {
   type ResourceCostAmounts,
 } from '../../ui/resourceCost.ts';
 import {
-  BREWERY_RECIPE_CIDER,
+  BREWERY_RECIPE_CIDER_APPLES,
   BREWERY_RECIPE_MEAD,
-  BREWERY_RECIPE_PEAR_CIDER,
+  BREWERY_RECIPE_CIDER_PEARS,
   breweryRecipePolicyLabel,
   normalizeBreweryRecipePolicy,
   selectedBreweryRecipePolicy,
@@ -122,7 +122,6 @@ type StockKey =
   | 'ryeBread'
   | 'maslinBread'
   | 'ale'
-  | 'cider'
   | 'cider'
   | 'mead'
   | 'curedMeat'
@@ -556,7 +555,7 @@ function getBreweryStatus(
   const selectedRecipe = selectedBreweryRecipePolicy(configuredRecipe, building);
   const policyRow = `<li><span>Active recipe</span><span>${breweryRecipePolicyLabel(configuredRecipe)}${configuredRecipe !== selectedRecipe ? ` → ${breweryRecipePolicyLabel(selectedRecipe)}` : ''}</span></li>`;
 
-  if (selectedRecipe === BREWERY_RECIPE_CIDER) {
+  if (selectedRecipe === BREWERY_RECIPE_CIDER_APPLES) {
     const profile: ProcessorProfile = {
       requiresLabor: true,
       waterPerCycle: 0,
@@ -578,7 +577,7 @@ function getBreweryStatus(
     return status;
   }
 
-  if (selectedRecipe === BREWERY_RECIPE_PEAR_CIDER) {
+  if (selectedRecipe === BREWERY_RECIPE_CIDER_PEARS) {
     const profile: ProcessorProfile = {
       requiresLabor: true,
       waterPerCycle: 0,

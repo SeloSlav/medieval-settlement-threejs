@@ -91,11 +91,11 @@ const authoritativeEntries = [...asU8Body.matchAll(/Self::([A-Z][A-Za-z0-9]*)\s*
     code: Number(match[2]),
   }))
   .sort((left, right) => left.code - right.code);
-assert.equal(authoritativeEntries.length, 73, 'the audit must cover every authoritative commodity');
+assert.equal(authoritativeEntries.length, 71, 'the audit must cover every authoritative commodity');
 assert.deepEqual(
   authoritativeEntries.map(({ code }) => code),
   Array.from({ length: 76 }, (_, code) => code).filter(
-    (code) => code !== 2 && code !== 7 && code !== 35,
+    (code) => code !== 2 && code !== 7 && code !== 35 && code !== 57 && code !== 62,
   ),
   'CommodityKind codes must remain unique and must not map removed aggregate resource ids',
 );
@@ -382,7 +382,7 @@ for (const commodity of ['shoes', 'honey', 'wine'] as const) {
     `the Marketplace serving route needs positive ${commodity} destination capacity`,
   );
 }
-for (const commodity of ['ale', 'cider', 'pearCider'] as const) {
+for (const commodity of ['ale', 'cider', 'mead'] as const) {
   assert.ok(
     (BUILDING_STORAGE_CAPS.tavern[commodity] ?? 0) > 0,
     `the Tavern serving route needs positive ${commodity} destination capacity`,
@@ -415,7 +415,7 @@ assert.ok((BUILDING_STORAGE_CAPS.brewery.mead ?? 0) > 0);
 assert.ok((BUILDING_STORAGE_CAPS.tavern.mead ?? 0) > 0);
 assert.match(
   deliveryCargoSource,
-  /building\.ale \+ building\.cider \+ building\.pear_cider \+ building\.mead/,
+  /building\.ale \+ building\.cider \+ building\.mead/,
   'local-only mead needs a Tavern/household consumption path',
 );
 

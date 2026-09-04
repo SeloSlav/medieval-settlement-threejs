@@ -58,7 +58,7 @@ assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('remedies'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('wax'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('candles'));
 assert.ok(STOREHOUSE_STORAGE_COMMODITIES.includes('pelts'));
-assert.equal(GRANARY_STORAGE_COMMODITIES.length, 39);
+assert.equal(GRANARY_STORAGE_COMMODITIES.length, 37);
 assert.equal(GRANARY_STORAGE_COMMODITIES.includes('food'), false);
 assert.equal(GRANARY_STORAGE_COMMODITIES.includes('vegetables'), false);
 assert.equal((GRANARY_STORAGE_COMMODITIES as readonly string[]).includes('preservedFood'), false);
@@ -76,7 +76,7 @@ assert.equal(BUILDING_STORAGE_CAPS.granary.animalFeed ?? 0, 0);
 assert.equal(BUILDING_STORAGE_CAPS.village_storehouse.animalFeed ?? 0, 0);
 for (const commodity of [
   'pears', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot',
-  'aroniaJam', 'rosehipJam', 'cider', 'pearCider', 'mead', 'wine',
+  'jam', 'cider', 'mead', 'wine',
 ] as const) {
   assert.ok(GRANARY_STORAGE_COMMODITIES.includes(commodity));
 }
@@ -84,11 +84,8 @@ assert.equal(BUILDING_STORAGE_CAPS.granary.total, 2500);
 assert.equal(BUILDING_STORAGE_CAPS.village_storehouse.total, 2500);
 assert.equal(BUILDING_STORAGE_CAPS.granary.mead, 2500);
 assert.equal(BUILDING_STORAGE_CAPS.granary.cider, 2500);
-assert.equal(BUILDING_STORAGE_CAPS.granary.pearCider, 2500);
 assert.equal(BUILDING_STORAGE_CAPS.trading_post.cider, 180);
-assert.equal(BUILDING_STORAGE_CAPS.trading_post.pearCider, 180);
 assert.equal(BUILDING_STORAGE_CAPS.tavern.cider, 60);
-assert.equal(BUILDING_STORAGE_CAPS.tavern.pearCider, 60);
 assert.equal(buildingSharedStorageCapacity('granary'), 2500);
 assert.equal(buildingSharedStorageCapacity('village_storehouse'), 2500);
 assert.equal(buildingSharedStorageCapacity('marketplace'), 400);
@@ -373,8 +370,8 @@ assert.match(
 );
 assert.match(
   expandedEconomy,
-  /GranaryDispatchDuty::Households[\s\S]*CommodityKind::PearCider,[\s\S]*CommodityKind::Mead,[\s\S]*&\["tavern"\]/,
-  'Granaries must route every accepted typed beverage onward to staffed Taverns',
+  /GranaryDispatchDuty::Households[\s\S]*CommodityKind::Cider,[\s\S]*CommodityKind::Mead,[\s\S]*&\["tavern"\]/,
+  'Granaries must route accepted beverages onward to staffed Taverns',
 );
 assert.match(
   expandedEconomy,

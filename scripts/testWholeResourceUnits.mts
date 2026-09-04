@@ -287,8 +287,7 @@ const residencePantryFields = [
   'curedMeat',
   'smokedFish',
   'cheese',
-  'aroniaJam',
-  'rosehipJam',
+  'jam',
 ] as const;
 const residencePantryInput = Object.fromEntries(
   residencePantryFields.map((field, index) => [field, index === 0 ? -3.25 : index + 1.875]),

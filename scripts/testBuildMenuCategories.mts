@@ -163,6 +163,12 @@ assert.ok(pastoralFlow.outputs.includes('animalFeed'));
 const swineFlow = cardResourceFlow('swineherd');
 assert.ok(swineFlow.inputs.includes('animalFeed'));
 assert.ok(!swineFlow.inputs.includes('oatGrain'), 'swineherds must receive prepared feed rather than raw oats');
+const tavernFlow = cardResourceFlow('tavern');
+assert.deepEqual(
+  tavernFlow,
+  { inputs: ['ale', 'cider', 'mead'], outputs: [] },
+  'the Tavern hover card must list each unified beverage exactly once',
+);
 assert.match(
   renderedCards,
   /<img class="construction-card__art"[^>]*alt=""[^>]*>[\s\S]*?<span class="construction-card__art-fallback" aria-hidden="true" hidden>/,
@@ -474,14 +480,13 @@ assert.equal(
   'every build-card tooltip must request the above-menu placement',
 );
 assert.ok(fs.existsSync('public/assets/ui/icons/resource-cider.png'));
-assert.ok(fs.existsSync('public/assets/ui/icons/resource-pear-cider.png'));
+assert.ok(fs.existsSync('public/assets/ui/icons/provisions/jam.png'));
+assert.equal(fs.existsSync('public/assets/ui/icons/resource-pear-cider.png'), false);
 assert.ok(fs.existsSync('public/assets/ui/icons/resource-mead.png'));
 const iconography = fs.readFileSync('src/ui/iconography.css', 'utf8');
 assert.match(iconography, /data-resource='cider'[\s\S]*?resource-cider\.png/);
-assert.match(iconography, /data-resource='pearCider'[\s\S]*?resource-pear-cider\.png/);
 assert.match(iconography, /data-resource='mead'[\s\S]*?resource-mead\.png/);
 assert.match(iconography, /data-resource-cost='cider'[\s\S]*?resource-cider\.png/);
-assert.match(iconography, /data-resource-cost='pearCider'[\s\S]*?resource-pear-cider\.png/);
 assert.match(iconography, /data-resource-cost='mead'[\s\S]*?resource-mead\.png/);
 const descriptions = [...renderedCards.matchAll(/data-tooltip="([^"]+)"/g)]
   .map((match) => match[1]);

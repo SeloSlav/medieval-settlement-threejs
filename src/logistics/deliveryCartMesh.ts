@@ -155,14 +155,12 @@ function addCargo(
       break;
     case 'ale':
     case 'cider':
-    case 'cider':
     case 'mead':
       addAleLoad(group);
       break;
     case 'curedMeat':
     case 'smokedFish':
     case 'cheese':
-    case 'jam':
     case 'jam':
       addPreservedFoodLoad(group);
       break;

@@ -391,7 +391,6 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   malt: 'Grain sack',
   ale: 'Ale keg',
   cider: 'Ale keg',
-  cider: 'Ale keg',
   mead: 'Ale keg',
   preservedFood: 'Preserved food crock 1',
   honey: 'Honey crock 1',
@@ -456,7 +455,6 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   hides: 'Woven cloth roll 1',
   leather: 'Woven cloth roll 1',
   shoes: 'Fired pottery vessel 1',
-  jam: 'Preserved food crock 1',
   jam: 'Preserved food crock 1',
 };
 for (const [index, kind] of DELIVERY_CARGO_KINDS.entries()) {

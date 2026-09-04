@@ -210,7 +210,6 @@ const brewery = building('brewery', 'brewery', 18);
 const tavern = {
   ...building('tavern', 'tavern', 4),
   ale: 0,
-  cider: 0,
   cider: 12,
   mead: 0,
 };
@@ -222,7 +221,7 @@ assert.equal(
     'ale',
   )?.id,
   tavern.id,
-  'a staffed Tavern must serve pear cider as a full Beverage substitute',
+  'a staffed Tavern must serve cider as a full Beverage substitute',
 );
 const weaver = { ...building('weaver', 'weaver', 6), cloth: 12 };
 const goodsMarket = {
@@ -267,7 +266,6 @@ assert.doesNotMatch(
 const emptyTavern = {
   ...building('empty-tavern', 'tavern', 2),
   ale: 0,
-  cider: 0,
   cider: 0,
   mead: 0,
 };

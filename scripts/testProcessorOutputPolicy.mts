@@ -25,9 +25,9 @@ import {
 import {
   BREWERY_RECIPE_ALE,
   BREWERY_RECIPE_AUTO,
-  BREWERY_RECIPE_CIDER,
+  BREWERY_RECIPE_CIDER_APPLES,
   BREWERY_RECIPE_MEAD,
-  BREWERY_RECIPE_PEAR_CIDER,
+  BREWERY_RECIPE_CIDER_PEARS,
   breweryRecipeRequestsInput,
   selectedBreweryRecipePolicy,
 } from '../src/economy/breweryRecipePolicy.ts';
@@ -156,14 +156,14 @@ assert.equal(BREWERY_CIDER_PER_CYCLE, 1);
 assert.equal(BREWERY_HONEY_PER_MEAD_CYCLE, 1);
 assert.equal(BREWERY_MEAD_PER_CYCLE, 1);
 const ciderBrewery = processor('cider-brewery', 'brewery');
-ciderBrewery.breweryRecipePolicy = BREWERY_RECIPE_CIDER;
+ciderBrewery.breweryRecipePolicy = BREWERY_RECIPE_CIDER_APPLES;
 assert.equal(processorOutputCommodityForBuilding(ciderBrewery), 'cider');
 const meadBrewery = processor('mead-brewery', 'brewery');
 meadBrewery.breweryRecipePolicy = BREWERY_RECIPE_MEAD;
 assert.equal(processorOutputCommodityForBuilding(meadBrewery), 'mead');
 assert.equal(
   selectedBreweryRecipePolicy(BREWERY_RECIPE_AUTO, { barley: 3, apples: 8, honey: 1 }),
-  BREWERY_RECIPE_CIDER,
+  BREWERY_RECIPE_CIDER_APPLES,
   'Auto must choose the greatest complete-batch readiness',
 );
 for (const input of ['barley', 'malt', 'water', 'firewood', 'apples', 'pears', 'honey'] as const) {
@@ -171,14 +171,14 @@ for (const input of ['barley', 'malt', 'water', 'firewood', 'apples', 'pears', '
 }
 for (const input of ['barley', 'malt', 'water', 'firewood'] as const) {
   assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_ALE, input), true);
-  assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_CIDER, input), false);
+  assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_CIDER_APPLES, input), false);
 }
-assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_CIDER, 'apples'), true);
-assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_CIDER, 'pears'), false);
+assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_CIDER_APPLES, 'apples'), true);
+assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_CIDER_APPLES, 'pears'), false);
 assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_MEAD, 'honey'), true);
 assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_MEAD, 'apples'), false);
-assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_PEAR_CIDER, 'pears'), true);
-assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_PEAR_CIDER, 'apples'), false);
+assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_CIDER_PEARS, 'pears'), true);
+assert.equal(breweryRecipeRequestsInput(BREWERY_RECIPE_CIDER_PEARS, 'apples'), false);
 assert.equal(processorRequestsInput(ciderBrewery, 'apples'), true);
 assert.equal(processorRequestsInput(ciderBrewery, 'barley'), false);
 assert.equal(
@@ -189,8 +189,8 @@ assert.equal(
 const breweryRecipePanel = renderProcessorOutputTargetPanel(processor('brewery-panel', 'brewery'));
 assert.match(breweryRecipePanel ?? '', /resource-action-button--icon/);
 assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="0"[^>]*data-tooltip="3 barley \+ 3 water \+ 1 firewood → 4 ale"/);
-assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="1"[^>]*data-tooltip="4 apples → 1 apple cider"/);
-assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="4"[^>]*data-tooltip="4 pears → 1 pear cider"/);
+assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="1"[^>]*data-tooltip="2 apples → 1 cider"/);
+assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="4"[^>]*data-tooltip="2 pears → 1 cider"/);
 assert.match(breweryRecipePanel ?? '', /data-brewery-recipe-policy="2"[^>]*data-tooltip="1 honey → 1 mead"/);
 const recipeSmokehouse = processor('smokehouse-panel', 'smokehouse');
 recipeSmokehouse.meat = 3;

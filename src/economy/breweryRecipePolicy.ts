@@ -1,15 +1,15 @@
 export const BREWERY_RECIPE_ALE = 0;
-export const BREWERY_RECIPE_CIDER = 1;
+export const BREWERY_RECIPE_CIDER_APPLES = 1;
 export const BREWERY_RECIPE_MEAD = 2;
 export const BREWERY_RECIPE_AUTO = 3;
-export const BREWERY_RECIPE_PEAR_CIDER = 4;
+export const BREWERY_RECIPE_CIDER_PEARS = 4;
 
 export type BreweryRecipePolicy =
   | typeof BREWERY_RECIPE_ALE
-  | typeof BREWERY_RECIPE_CIDER
+  | typeof BREWERY_RECIPE_CIDER_APPLES
   | typeof BREWERY_RECIPE_MEAD
   | typeof BREWERY_RECIPE_AUTO
-  | typeof BREWERY_RECIPE_PEAR_CIDER;
+  | typeof BREWERY_RECIPE_CIDER_PEARS;
 
 export type BreweryRecipeInput =
   | 'barley'
@@ -27,12 +27,12 @@ export const BREWERY_RECIPE_PRESETS = [
     hint: 'Malt barley, then brew it with water and firewood.',
   },
   {
-    policy: BREWERY_RECIPE_CIDER,
+    policy: BREWERY_RECIPE_CIDER_APPLES,
     label: 'Cider · apples',
     hint: 'Press 2 apples into 1 cider.',
   },
   {
-    policy: BREWERY_RECIPE_PEAR_CIDER,
+    policy: BREWERY_RECIPE_CIDER_PEARS,
     label: 'Cider · pears',
     hint: 'Press 2 pears into 1 cider.',
   },
@@ -51,10 +51,10 @@ export const BREWERY_RECIPE_PRESETS = [
 export function normalizeBreweryRecipePolicy(
   policy: number | undefined,
 ): BreweryRecipePolicy {
-  return policy === BREWERY_RECIPE_CIDER
+  return policy === BREWERY_RECIPE_CIDER_APPLES
     || policy === BREWERY_RECIPE_MEAD
     || policy === BREWERY_RECIPE_AUTO
-    || policy === BREWERY_RECIPE_PEAR_CIDER
+    || policy === BREWERY_RECIPE_CIDER_PEARS
     ? policy
     : BREWERY_RECIPE_ALE;
 }
@@ -81,9 +81,9 @@ export function breweryRecipeRequestsInput(
     case 'firewood':
       return normalized === BREWERY_RECIPE_ALE;
     case 'apples':
-      return normalized === BREWERY_RECIPE_CIDER;
+      return normalized === BREWERY_RECIPE_CIDER_APPLES;
     case 'pears':
-      return normalized === BREWERY_RECIPE_PEAR_CIDER;
+      return normalized === BREWERY_RECIPE_CIDER_PEARS;
     case 'honey':
       return normalized === BREWERY_RECIPE_MEAD;
   }
@@ -114,11 +114,11 @@ export function selectedBreweryRecipePolicy(
       ),
     },
     {
-      policy: BREWERY_RECIPE_CIDER,
+      policy: BREWERY_RECIPE_CIDER_APPLES,
       readiness: Math.max(0, inventory.apples ?? 0) / BREWERY_FRUIT_PER_CIDER_CYCLE,
     },
     {
-      policy: BREWERY_RECIPE_PEAR_CIDER,
+      policy: BREWERY_RECIPE_CIDER_PEARS,
       readiness: Math.max(0, inventory.pears ?? 0) / BREWERY_FRUIT_PER_CIDER_CYCLE,
     },
     {
@@ -136,9 +136,9 @@ export function breweryPolicyOutput(
   inventory: BreweryRecipeInventory = {},
 ): BreweryBeverageCommodity {
   switch (selectedBreweryRecipePolicy(policy, inventory)) {
-    case BREWERY_RECIPE_CIDER:
+    case BREWERY_RECIPE_CIDER_APPLES:
       return 'cider';
-    case BREWERY_RECIPE_PEAR_CIDER:
+    case BREWERY_RECIPE_CIDER_PEARS:
       return 'cider';
     case BREWERY_RECIPE_MEAD:
       return 'mead';

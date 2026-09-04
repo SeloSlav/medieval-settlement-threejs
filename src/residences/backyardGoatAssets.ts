@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
-/** CC0 Quaternius Farm Animal Pack source used for the runtime goat variant. */
-export const BACKYARD_GOAT_SOURCE_MODEL_PATH = '/assets/models/livestock/quaternius-sheep.glb';
+/** Blender-authored CC0 Quaternius sheep-and-cow derivative used for the goat. */
+export const BACKYARD_GOAT_SOURCE_MODEL_PATH = '/assets/models/livestock/quaternius-goat.glb';
 
 export type BackyardGoatSource = {
   scene: THREE.Group;
@@ -43,7 +43,8 @@ export function createBackyardGoatModel(
     const sourceMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     const goatMaterials = sourceMaterials.map((sourceMaterial) => {
       const material = sourceMaterial.clone();
-      if ('color' in material && material.color instanceof THREE.Color) {
+      const preservesQuaterniusDetailPalette = /^(?:eye_(?:black|white)|horns)$/i.test(sourceMaterial.name);
+      if (!preservesQuaterniusDetailPalette && 'color' in material && material.color instanceof THREE.Color) {
         material.color.multiply(new THREE.Color(0x9a8064));
       }
       material.userData.backyardGoatVariant = true;
@@ -57,17 +58,7 @@ export function createBackyardGoatModel(
   });
 
   const root = model;
-  root.name = 'Animated sheep-derived CC0 goat';
-  const hornMaterial = new THREE.MeshStandardMaterial({ color: 0x6e624e, roughness: 0.86 });
-  for (const side of [-1, 1]) {
-    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.24, 7), hornMaterial);
-    horn.name = 'Procedural goat horn';
-    horn.position.set(side * 0.1, targetHeight * 0.82, targetHeight * 0.28);
-    horn.rotation.set(side * 0.32, 0, side * -0.38);
-    horn.castShadow = true;
-    horn.receiveShadow = true;
-    root.add(horn);
-  }
+  root.name = 'Animated sheep-derived CC0 goat with Quaternius horns';
   const beard = new THREE.Mesh(
     new THREE.ConeGeometry(0.055, 0.22, 7),
     new THREE.MeshStandardMaterial({ color: 0x51463a, roughness: 0.95 }),

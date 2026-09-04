@@ -92,9 +92,9 @@ import {
   processorOutputTargetForBuilding,
 } from './processorOutputPolicy.ts';
 import {
-  BREWERY_RECIPE_CIDER,
+  BREWERY_RECIPE_CIDER_APPLES,
   BREWERY_RECIPE_MEAD,
-  BREWERY_RECIPE_PEAR_CIDER,
+  BREWERY_RECIPE_CIDER_PEARS,
   selectedBreweryRecipePolicy,
 } from './breweryRecipePolicy.ts';
 import {
@@ -1265,20 +1265,20 @@ function completedProcessorOverview(
           building.breweryRecipePolicy,
           building,
         );
-        const beverageCycles = recipe === BREWERY_RECIPE_CIDER
-          || recipe === BREWERY_RECIPE_PEAR_CIDER
+        const beverageCycles = recipe === BREWERY_RECIPE_CIDER_APPLES
+          || recipe === BREWERY_RECIPE_CIDER_PEARS
           || recipe === BREWERY_RECIPE_MEAD
           ? workCycles
           : workCycles / 2;
-        const outputPerCycle = recipe === BREWERY_RECIPE_CIDER
-          || recipe === BREWERY_RECIPE_PEAR_CIDER
+        const outputPerCycle = recipe === BREWERY_RECIPE_CIDER_APPLES
+          || recipe === BREWERY_RECIPE_CIDER_PEARS
           ? BREWERY_CIDER_PER_CYCLE
           : recipe === BREWERY_RECIPE_MEAD
             ? BREWERY_MEAD_PER_CYCLE
             : BREWERY_ALE_PER_CYCLE;
-        const outputKind = recipe === BREWERY_RECIPE_CIDER
+        const outputKind = recipe === BREWERY_RECIPE_CIDER_APPLES
           ? 'cider'
-          : recipe === BREWERY_RECIPE_PEAR_CIDER
+          : recipe === BREWERY_RECIPE_CIDER_PEARS
             ? 'cider'
           : recipe === BREWERY_RECIPE_MEAD
             ? 'mead'
@@ -1287,8 +1287,8 @@ function completedProcessorOverview(
         beverageOutputPerDay += outputPerDay;
         const aleCycles = workCycles / 2;
         if (
-          recipe !== BREWERY_RECIPE_CIDER
-          && recipe !== BREWERY_RECIPE_PEAR_CIDER
+          recipe !== BREWERY_RECIPE_CIDER_APPLES
+          && recipe !== BREWERY_RECIPE_CIDER_PEARS
           && recipe !== BREWERY_RECIPE_MEAD
         ) {
           beverageBarleyPerDay += aleCycles * BREWERY_BARLEY_PER_MALT_CYCLE;
@@ -1310,7 +1310,7 @@ function completedProcessorOverview(
         );
         let limitingInput: ProcessorInput;
         let runway: InputRunway;
-        if (recipe === BREWERY_RECIPE_CIDER) {
+        if (recipe === BREWERY_RECIPE_CIDER_APPLES) {
           limitingInput = 'apples';
           runway = buildingInputRunway(
             deliveries,
@@ -1318,7 +1318,7 @@ function completedProcessorOverview(
             'apples',
             beverageCycles * BREWERY_FRUIT_PER_CIDER_CYCLE,
           );
-        } else if (recipe === BREWERY_RECIPE_PEAR_CIDER) {
+        } else if (recipe === BREWERY_RECIPE_CIDER_PEARS) {
           limitingInput = 'pears';
           runway = buildingInputRunway(
             deliveries,

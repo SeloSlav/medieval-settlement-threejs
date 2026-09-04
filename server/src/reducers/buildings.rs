@@ -9,7 +9,7 @@ use crate::balance_generated::{
 };
 use crate::brewery_recipe_policy::{
     is_valid_brewery_recipe_policy, normalize_brewery_recipe_policy, BREWERY_RECIPE_AUTO,
-    BREWERY_RECIPE_CIDER, BREWERY_RECIPE_MEAD, BREWERY_RECIPE_PEAR_CIDER,
+    BREWERY_RECIPE_CIDER_APPLES, BREWERY_RECIPE_MEAD, BREWERY_RECIPE_CIDER_PEARS,
 };
 use crate::building_defs::{building_def, building_def_or_err};
 use crate::burgage::Point2;
@@ -1322,8 +1322,8 @@ fn processor_output_room(building: &Building) -> Option<f64> {
             )
         };
         return Some(match policy {
-            BREWERY_RECIPE_CIDER => headroom(CommodityKind::Cider),
-            BREWERY_RECIPE_PEAR_CIDER => headroom(CommodityKind::Cider),
+            BREWERY_RECIPE_CIDER_APPLES => headroom(CommodityKind::Cider),
+            BREWERY_RECIPE_CIDER_PEARS => headroom(CommodityKind::Cider),
             BREWERY_RECIPE_MEAD => headroom(CommodityKind::Mead),
             BREWERY_RECIPE_AUTO => headroom(CommodityKind::Ale)
                 .max(headroom(CommodityKind::Cider))

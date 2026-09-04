@@ -10,7 +10,7 @@ const foods = new Set<string>(HUD_FOOD_RESOURCE_KINDS);
 assert.equal(foods.size, HUD_FOOD_RESOURCE_KINDS.length, 'Each food should appear once in the food panel');
 const sweetPreserves = HUD_FOOD_GROUPS.find(({ id }) => id === 'sweetPreserves');
 assert.equal(sweetPreserves?.label, 'Sweet preserves');
-assert.deepEqual(sweetPreserves?.kinds, ['jam', 'jam', 'honey']);
+assert.deepEqual(sweetPreserves?.kinds, ['jam', 'honey']);
 const savoryPreserves = HUD_FOOD_GROUPS.find(({ id }) => id === 'savoryPreserves');
 assert.equal(savoryPreserves?.label, 'Savory preserves');
 assert.deepEqual(savoryPreserves?.kinds, ['curedMeat', 'smokedFish', 'cheese']);

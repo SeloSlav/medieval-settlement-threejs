@@ -20,6 +20,10 @@ Assets and source pages:
   Original Sheep.fbx from the official Farm Animal Pack download:
   https://quaternius.com/packs/farmanimal.html
 
+- quaternius-goat.glb
+  Blender-authored goat derivative using the Quaternius Sheep body and the
+  original Quaternius Cow horn geometry and material listed above.
+
 - quaternius-pig.glb
   "Pig" by Quaternius
   Original Pig.fbx from the official Farm Animal Pack download:
@@ -34,10 +38,17 @@ Their authored Idle and Jump actions are preserved. Idle-derived Walk and
 Idle_Eating action aliases keep the game's livestock motion-state contract
 without altering the source rig or mesh.
 
-The backyard goat visual reuses `quaternius-sheep.glb` from the same CC0 Farm
-Animal Pack. The game creates the goat variant at runtime with a leaner scale,
-goat-colored material clones, and procedural horns and beard while retaining
-the source rig and animations. The published Farm Animal Pack does not include
+Their eyes reuse the original Quaternius cow's low-poly `Eye_Black` geometry,
+triangular `Eye_White` catchlights, and material values. The copied eye facets
+are fitted to each head in Blender and weighted to the existing Head bone, so
+they follow every authored animation. The sheep-derived goat inherits the same
+eye geometry and preserves its black-and-white palette at runtime.
+
+The backyard goat visual uses `quaternius-goat.glb`. Blender fits the original
+cow's faceted `Horns` meshes and material to the Sheep skull and weights every
+horn vertex to the existing Head bone. The game applies a leaner scale,
+goat-colored body-material clones, and a procedural beard while preserving the
+authored horn and eye palettes. The published Farm Animal Pack does not include
 a separate goat file; this derivative keeps the requested pack provenance and
 CC0 terms without importing a differently licensed model.
 

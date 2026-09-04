@@ -106,7 +106,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   granary: ['Granary', 'Stores grain, fresh food, and preserved provisions for the settlement.'],
   bakery: ['Bakery', 'Bakes rye or maslin flour into bread for the settlement.', flow(['ryeFlour', 'maslinFlour', 'water', 'firewood'], ['ryeBread', 'maslinBread'])],
   brewery: ['Brewhouse', 'Malts barley for ale, presses apples or pears into cider, and ferments honey into mead.', flow(['barley', 'apples', 'pears', 'honey', 'water', 'firewood'], ['ale', 'cider', 'mead'])],
-  tavern: ['Tavern', 'Serves ale, cider, and mead to settlement households; up to three innkeepers increase refill speed.', flow(['ale', 'cider', 'cider', 'mead'], [])],
+  tavern: ['Tavern', 'Serves ale, cider, and mead to settlement households; up to three innkeepers increase refill speed.', flow(['ale', 'cider', 'mead'], [])],
   smokehouse: ['Smokehouse', 'Cures meat, smokes fish, and makes cheese using firewood and salt.', flow(['meat', 'fish', 'milk', 'firewood', 'salt'], ['curedMeat', 'smokedFish', 'cheese'])],
   apiary: ['Forest apiary', 'Tends hives through spring and summer, then harvests honey and beeswax in autumn.', flow([], ['honey', 'wax'])],
   carpenter: ['Carpenter & wheelwright', 'Crafts frames, carts, and wheels for settlement building and transport.'],

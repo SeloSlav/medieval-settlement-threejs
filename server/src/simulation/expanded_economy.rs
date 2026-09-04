@@ -48,7 +48,7 @@ use crate::balance_generated::{
 };
 use crate::brewery_recipe_policy::{
     brewery_recipe_requests_input, normalize_brewery_recipe_policy, BREWERY_RECIPE_ALE,
-    BREWERY_RECIPE_AUTO, BREWERY_RECIPE_CIDER, BREWERY_RECIPE_MEAD, BREWERY_RECIPE_PEAR_CIDER,
+    BREWERY_RECIPE_AUTO, BREWERY_RECIPE_CIDER_APPLES, BREWERY_RECIPE_MEAD, BREWERY_RECIPE_CIDER_PEARS,
 };
 use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
@@ -2537,7 +2537,7 @@ pub fn step_brewery(
         processor_input_staging_cycles(brewery.processor_output_target_percent);
     let recipe = selected_brewery_recipe(&brewery);
     match recipe {
-        BREWERY_RECIPE_CIDER => {
+        BREWERY_RECIPE_CIDER_APPLES => {
             brewery = step_processor(
                 ctx,
                 tick,
@@ -2547,7 +2547,7 @@ pub fn step_brewery(
                 &[(CommodityKind::Cider, BREWERY_CIDER_PER_CYCLE)],
             );
         }
-        BREWERY_RECIPE_PEAR_CIDER => {
+        BREWERY_RECIPE_CIDER_PEARS => {
             brewery = step_processor(
                 ctx,
                 tick,
@@ -2674,7 +2674,7 @@ fn selected_brewery_recipe(building: &Building) -> u8 {
             },
         ),
         (
-            BREWERY_RECIPE_CIDER,
+            BREWERY_RECIPE_CIDER_APPLES,
             if brewery_output_headroom(building, CommodityKind::Cider) > 1e-6 {
                 building.apples / BREWERY_FRUIT_PER_CIDER_CYCLE.max(1e-9)
             } else {
@@ -2682,7 +2682,7 @@ fn selected_brewery_recipe(building: &Building) -> u8 {
             },
         ),
         (
-            BREWERY_RECIPE_PEAR_CIDER,
+            BREWERY_RECIPE_CIDER_PEARS,
             if brewery_output_headroom(building, CommodityKind::Cider) > 1e-6 {
                 building.pears / BREWERY_FRUIT_PER_CIDER_CYCLE.max(1e-9)
             } else {
@@ -2736,7 +2736,7 @@ fn request_brewery_recipe_inputs(
             },
         );
     }
-    if selected_recipe == BREWERY_RECIPE_CIDER || policy == BREWERY_RECIPE_AUTO {
+    if selected_recipe == BREWERY_RECIPE_CIDER_APPLES || policy == BREWERY_RECIPE_AUTO {
         request_connected_commodity(
             ctx,
             tick,
@@ -2747,7 +2747,7 @@ fn request_brewery_recipe_inputs(
             BREWERY_FRUIT_PER_CIDER_CYCLE * staging_cycles,
         );
     }
-    if selected_recipe == BREWERY_RECIPE_PEAR_CIDER || policy == BREWERY_RECIPE_AUTO {
+    if selected_recipe == BREWERY_RECIPE_CIDER_PEARS || policy == BREWERY_RECIPE_AUTO {
         request_connected_commodity(
             ctx,
             tick,
@@ -5004,8 +5004,8 @@ fn brewery_input_recipe(commodity: CommodityKind) -> Option<u8> {
         | CommodityKind::Malt
         | CommodityKind::Water
         | CommodityKind::Firewood => Some(BREWERY_RECIPE_ALE),
-        CommodityKind::Apples => Some(BREWERY_RECIPE_CIDER),
-        CommodityKind::Pears => Some(BREWERY_RECIPE_PEAR_CIDER),
+        CommodityKind::Apples => Some(BREWERY_RECIPE_CIDER_APPLES),
+        CommodityKind::Pears => Some(BREWERY_RECIPE_CIDER_PEARS),
         CommodityKind::Honey => Some(BREWERY_RECIPE_MEAD),
         _ => None,
     }

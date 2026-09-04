@@ -8,7 +8,7 @@ import {
 import {
   BREWERY_RECIPE_ALE,
   BREWERY_RECIPE_AUTO,
-  BREWERY_RECIPE_CIDER,
+  BREWERY_RECIPE_CIDER_APPLES,
 } from '../src/economy/breweryRecipePolicy.ts';
 import { SMOKEHOUSE_RECIPE_CURED_MEAT } from '../src/economy/smokehouseRecipePolicy.ts';
 import {
@@ -268,7 +268,7 @@ const recoveringBakery = building('recipe-recovering-bakery', 'bakery', 1, 60, 0
 recoveringBakery.ryeFlour = 0.1;
 recoveringBakery.firewood = 0.1;
 const ciderBrewery = building('recipe-cider-brewery', 'brewery', 1, 80, 0);
-ciderBrewery.breweryRecipePolicy = BREWERY_RECIPE_CIDER;
+ciderBrewery.breweryRecipePolicy = BREWERY_RECIPE_CIDER_APPLES;
 ciderBrewery.apples = 0.1;
 const aleBrewery = building('recipe-ale-brewery', 'brewery', 1, 100, 0);
 aleBrewery.breweryRecipePolicy = BREWERY_RECIPE_ALE;

@@ -73,8 +73,8 @@ const ANIMALS: readonly AnimalSpec[] = [
     scaleMode: 'height', x: DOMESTIC_X[2], z: BACK_ROW_Z, yaw: -0.08,
   },
   {
-    id: 'goat', label: 'Goat', detail: 'Sheep-derived variant', category: 'domestic',
-    url: '/assets/models/livestock/quaternius-sheep.glb', targetMeters: 0.86,
+    id: 'goat', label: 'Goat', detail: 'Quaternius horned variant', category: 'domestic',
+    url: '/assets/models/livestock/quaternius-goat.glb', targetMeters: 0.86,
     scaleMode: 'height', x: DOMESTIC_X[3], z: BACK_ROW_Z, yaw: 0,
   },
   {
@@ -124,6 +124,29 @@ const ANIMALS: readonly AnimalSpec[] = [
   },
 ] as const;
 
+const REVIEW_PARAMS = new URLSearchParams(window.location.search);
+const IS_EYE_REVIEW = REVIEW_PARAMS.get('view') === 'eyes';
+const REQUESTED_EYE_REVIEW_ANIMAL = REVIEW_PARAMS.get('animal');
+const EYE_REVIEW_IDS = REQUESTED_EYE_REVIEW_ANIMAL
+  && ['cow', 'sheep', 'goat', 'pig'].includes(REQUESTED_EYE_REVIEW_ANIMAL)
+  ? [REQUESTED_EYE_REVIEW_ANIMAL]
+  : ['cow', 'sheep', 'goat', 'pig'];
+const EYE_REVIEW_X = [-2, -0.67, 0.67, 2] as const;
+const ACTIVE_ANIMALS: readonly AnimalSpec[] = IS_EYE_REVIEW
+  ? EYE_REVIEW_IDS.map((id, index) => {
+      const source = ANIMALS.find((animal) => animal.id === id)!;
+      const isSingleAnimalReview = EYE_REVIEW_IDS.length === 1;
+      return {
+        ...source,
+        x: isSingleAnimalReview ? 0 : EYE_REVIEW_X[index]!,
+        z: 0,
+        yaw: isSingleAnimalReview
+          ? -0.58
+          : [-0.5, -0.42, 0.42, 0.5][index]!,
+      };
+    })
+  : ANIMALS;
+
 const host = document.querySelector<HTMLElement>('#lineup-root');
 const status = document.querySelector<HTMLElement>('#status');
 const errorHost = document.querySelector<HTMLElement>('#error');
@@ -171,7 +194,7 @@ try {
   scene.add(createBackdrop());
 
   const loader = new GLTFLoader();
-  const standardSpecs = ANIMALS.filter((spec) => spec.id !== 'goat');
+  const standardSpecs = ACTIVE_ANIMALS.filter((spec) => spec.id !== 'goat');
   const [standardGltfs, goatSource] = await Promise.all([
     Promise.all(standardSpecs.map((spec) => loader.loadAsync(spec.url))),
     loadBackyardGoatSource(),
@@ -181,7 +204,7 @@ try {
   standardSpecs.forEach((spec, index) => gltfById.set(spec.id, standardGltfs[index]!));
 
   let animatedCount = 0;
-  for (const spec of ANIMALS) {
+  for (const spec of ACTIVE_ANIMALS) {
     const lineupAnimal = spec.id === 'goat'
       ? createGoatLineupAnimal(spec, goatSource)
       : createLineupAnimal(spec, gltfById.get(spec.id)!);
@@ -192,9 +215,26 @@ try {
     if (spec.id === 'fish') scene.add(createFishPool(spec));
   }
 
-  const cameraTarget = new THREE.Vector3(0, 0.9, 0.55);
-  const camera = new THREE.PerspectiveCamera(34, 16 / 9, 0.08, 80);
-  camera.position.set(0, 8.5, 18.8);
+  const isSingleAnimalReview = IS_EYE_REVIEW && ACTIVE_ANIMALS.length === 1;
+  const singleReviewId = isSingleAnimalReview ? ACTIVE_ANIMALS[0]!.id : null;
+  const singleReviewCamera = singleReviewId === 'cow'
+    ? { targetX: -0.6, targetY: 1.18, targetZ: 0.52, positionY: 1.34, positionZ: 2.35 }
+    : singleReviewId === 'pig'
+      ? { targetX: -0.36, targetY: 0.55, targetZ: 0.48, positionY: 0.68, positionZ: 1.48 }
+      : { targetX: -0.24, targetY: 0.79, targetZ: 0.42, positionY: 0.9, positionZ: 1.62 };
+  const cameraTarget = IS_EYE_REVIEW
+    ? new THREE.Vector3(
+        isSingleAnimalReview ? singleReviewCamera.targetX : 0,
+        isSingleAnimalReview ? singleReviewCamera.targetY : 0.72,
+        isSingleAnimalReview ? singleReviewCamera.targetZ : 0,
+      )
+    : new THREE.Vector3(0, 0.9, 0.55);
+  const camera = new THREE.PerspectiveCamera(IS_EYE_REVIEW ? 27 : 34, 16 / 9, 0.08, 80);
+  camera.position.set(
+    isSingleAnimalReview ? singleReviewCamera.targetX : 0,
+    isSingleAnimalReview ? singleReviewCamera.positionY : IS_EYE_REVIEW ? 2.5 : 8.5,
+    isSingleAnimalReview ? singleReviewCamera.positionZ : IS_EYE_REVIEW ? 10.5 : 18.8,
+  );
   camera.lookAt(cameraTarget);
   scene.add(camera);
 
@@ -229,9 +269,9 @@ try {
   }));
 
   window.__ANIMAL_LINEUP_DIAGNOSTICS__ = {
-    presentationCount: ANIMALS.length,
-    distinctSourceCount: new Set(ANIMALS.map((spec) => spec.url)).size,
-    loadedIds: ANIMALS.map((spec) => spec.id),
+    presentationCount: ACTIVE_ANIMALS.length,
+    distinctSourceCount: new Set(ACTIVE_ANIMALS.map((spec) => spec.url)).size,
+    loadedIds: ACTIVE_ANIMALS.map((spec) => spec.id),
     animatedCount,
     triangleCount: renderer.info.render.triangles,
     drawCalls: renderer.info.render.calls,
@@ -243,8 +283,20 @@ try {
   };
   window.__ANIMAL_LINEUP_READY__ = true;
   document.body.dataset.ready = 'true';
-  document.body.dataset.lineupSignature = ANIMALS.map((spec) => spec.id).join(',');
-  status.textContent = `${ANIMALS.length} presentations · ${animatedCount} animated · true scale`;
+  document.body.dataset.lineupSignature = ACTIVE_ANIMALS.map((spec) => spec.id).join(',');
+  status.textContent = IS_EYE_REVIEW
+    ? singleReviewId === 'goat'
+      ? 'Quaternius horn construction · close review'
+      : 'Quaternius eye construction · close review'
+    : `${ACTIVE_ANIMALS.length} presentations · ${animatedCount} animated · true scale`;
+  if (IS_EYE_REVIEW) {
+    const heading = document.querySelector<HTMLElement>('h1');
+    const caption = document.querySelector<HTMLElement>('#caption');
+    if (heading) heading.textContent = singleReviewId === 'goat' ? 'Goat Horn Review' : 'Animal Eye Review';
+    if (caption) caption.textContent = singleReviewId === 'goat'
+      ? 'Cow-source horn facets · original material · fully weighted to the goat head'
+      : 'Cow reference · head-weighted black eye geometry · white catchlight facets';
+  }
   requestAnimationFrame(animate);
 
   window.addEventListener('beforeunload', () => {

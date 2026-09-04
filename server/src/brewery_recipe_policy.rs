@@ -1,19 +1,19 @@
 //! Stable brewhouse recipe policy persisted on each building.
 
 pub const BREWERY_RECIPE_ALE: u8 = 0;
-pub const BREWERY_RECIPE_CIDER: u8 = 1;
+pub const BREWERY_RECIPE_CIDER_APPLES: u8 = 1;
 pub const BREWERY_RECIPE_MEAD: u8 = 2;
 pub const BREWERY_RECIPE_AUTO: u8 = 3;
-pub const BREWERY_RECIPE_PEAR_CIDER: u8 = 4;
+pub const BREWERY_RECIPE_CIDER_PEARS: u8 = 4;
 
 pub fn is_valid_brewery_recipe_policy(policy: u8) -> bool {
     matches!(
         policy,
         BREWERY_RECIPE_ALE
-            | BREWERY_RECIPE_CIDER
+            | BREWERY_RECIPE_CIDER_APPLES
             | BREWERY_RECIPE_MEAD
             | BREWERY_RECIPE_AUTO
-            | BREWERY_RECIPE_PEAR_CIDER
+            | BREWERY_RECIPE_CIDER_PEARS
     )
 }
 
@@ -41,12 +41,12 @@ mod tests {
     #[test]
     fn existing_breweries_remain_on_ale_and_all_recipe_choices_are_stable() {
         assert_eq!(normalize_brewery_recipe_policy(0), BREWERY_RECIPE_ALE);
-        assert_eq!(normalize_brewery_recipe_policy(1), BREWERY_RECIPE_CIDER);
+        assert_eq!(normalize_brewery_recipe_policy(1), BREWERY_RECIPE_CIDER_APPLES);
         assert_eq!(normalize_brewery_recipe_policy(2), BREWERY_RECIPE_MEAD);
         assert_eq!(normalize_brewery_recipe_policy(3), BREWERY_RECIPE_AUTO);
         assert_eq!(
             normalize_brewery_recipe_policy(4),
-            BREWERY_RECIPE_PEAR_CIDER
+            BREWERY_RECIPE_CIDER_PEARS
         );
         assert_eq!(normalize_brewery_recipe_policy(255), BREWERY_RECIPE_ALE);
     }
@@ -55,22 +55,22 @@ mod tests {
     fn focused_recipes_request_only_their_own_inputs_while_auto_requests_all() {
         for recipe in [
             BREWERY_RECIPE_ALE,
-            BREWERY_RECIPE_CIDER,
+            BREWERY_RECIPE_CIDER_APPLES,
             BREWERY_RECIPE_MEAD,
-            BREWERY_RECIPE_PEAR_CIDER,
+            BREWERY_RECIPE_CIDER_PEARS,
         ] {
             assert!(brewery_recipe_requests_input(BREWERY_RECIPE_AUTO, recipe));
         }
         assert!(brewery_recipe_requests_input(
-            BREWERY_RECIPE_CIDER,
-            BREWERY_RECIPE_CIDER
+            BREWERY_RECIPE_CIDER_APPLES,
+            BREWERY_RECIPE_CIDER_APPLES
         ));
         assert!(!brewery_recipe_requests_input(
-            BREWERY_RECIPE_CIDER,
+            BREWERY_RECIPE_CIDER_APPLES,
             BREWERY_RECIPE_ALE
         ));
         assert!(!brewery_recipe_requests_input(
-            BREWERY_RECIPE_CIDER,
+            BREWERY_RECIPE_CIDER_APPLES,
             BREWERY_RECIPE_MEAD
         ));
         assert!(!brewery_recipe_requests_input(

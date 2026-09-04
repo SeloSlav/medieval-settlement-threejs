@@ -254,37 +254,37 @@ const ciderBrewery = makeBuilding({
   z: 0,
   assignedLabor: 1,
   breweryRecipePolicy: 1,
-  apples: 4,
+  apples: 2,
   water: 0,
   firewood: 0,
 });
 assert.equal(
   getBuildingProcessorStatus(ciderBrewery, noWellQueries)?.statusText,
-  'Pressing apples into apple cider',
+  'Pressing apples into cider',
 );
 assert.match(
   getBuildingProcessorStatus(ciderBrewery, noWellQueries)?.waterDetailHtml ?? '',
-  /Apple cider recipe<\/span><span>4 apples → 1 apple cider/,
+  /Cider · apples<\/span><span>2 apples → 1 cider/,
 );
 
-const ciderBrewery = makeBuilding({
-  id: 'brewery-pear-cider',
+const pearRecipeBrewery = makeBuilding({
+  id: 'brewery-cider-pears',
   kind: 'brewery',
   x: 0,
   z: 0,
   assignedLabor: 1,
   breweryRecipePolicy: 4,
-  pears: 4,
+  pears: 2,
   water: 0,
   firewood: 0,
 });
 assert.equal(
-  getBuildingProcessorStatus(ciderBrewery, noWellQueries)?.statusText,
-  'Pressing pears into pear cider',
+  getBuildingProcessorStatus(pearRecipeBrewery, noWellQueries)?.statusText,
+  'Pressing pears into cider',
 );
 assert.match(
-  getBuildingProcessorStatus(ciderBrewery, noWellQueries)?.waterDetailHtml ?? '',
-  /Pear cider recipe<\/span><span>4 pears → 1 pear cider/,
+  getBuildingProcessorStatus(pearRecipeBrewery, noWellQueries)?.waterDetailHtml ?? '',
+  /Cider · pears<\/span><span>2 pears → 1 cider/,
 );
 
 const meadBrewery = makeBuilding({
@@ -314,8 +314,7 @@ const tavern = makeBuilding({
   z: 0,
   assignedLabor: 1,
   ale: 0,
-  cider: 6,
-  cider: 4,
+  cider: 10,
   mead: 0,
 });
 assert.equal(
@@ -328,7 +327,7 @@ assert.match(tavernDetails, /Household service/);
 assert.match(tavernDetails, /1 \/ 3 innkeepers on site · 33% household refill rate/);
 assert.doesNotMatch(
   tavernDetails,
-  /Beverage cellar|10 total · 0 ale · 6 apple cider · 4 pear cider · 0 mead/,
+  /Beverage cellar|10 total · 0 ale · 10 cider · 0 mead/,
   'the Local storage hover owns the tavern inventory breakdown',
 );
 

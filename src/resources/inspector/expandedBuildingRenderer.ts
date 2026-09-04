@@ -181,8 +181,8 @@ import {
 } from '../../economy/potterFiringPolicy.ts';
 import {
   BREWERY_RECIPE_AUTO,
-  BREWERY_RECIPE_CIDER,
-  BREWERY_RECIPE_PEAR_CIDER,
+  BREWERY_RECIPE_CIDER_APPLES,
+  BREWERY_RECIPE_CIDER_PEARS,
   BREWERY_RECIPE_PRESETS,
   breweryPolicyOutput,
   normalizeBreweryRecipePolicy,
@@ -311,7 +311,6 @@ function buildingHasOutboundStock(
         || (building.pears ?? 0) > 0
         || (building.honey ?? 0) > 0
         || building.ale > 0
-        || (building.cider ?? 0) > 0
         || (building.cider ?? 0) > 0
         || (building.mead ?? 0) > 0;
     case 'smokehouse':
@@ -1573,9 +1572,9 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
       const icon = preset.policy === BREWERY_RECIPE_AUTO
         ? renderResourceCost({ ale: 1, cider: 1, mead: 1 }, { compact: true })
         : renderResourceCost({ [output]: 1 }, { compact: true });
-      const conversion = preset.policy === BREWERY_RECIPE_CIDER
+      const conversion = preset.policy === BREWERY_RECIPE_CIDER_APPLES
         ? `${BREWERY_FRUIT_PER_CIDER_CYCLE} apples → ${BREWERY_CIDER_PER_CYCLE} cider`
-        : preset.policy === BREWERY_RECIPE_PEAR_CIDER
+        : preset.policy === BREWERY_RECIPE_CIDER_PEARS
           ? `${BREWERY_FRUIT_PER_CIDER_CYCLE} pears → ${BREWERY_CIDER_PER_CYCLE} cider`
           : output === 'mead'
             ? `${BREWERY_HONEY_PER_MEAD_CYCLE} honey → ${BREWERY_MEAD_PER_CYCLE} mead`
