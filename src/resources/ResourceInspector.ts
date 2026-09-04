@@ -423,6 +423,7 @@ export class ResourceInspector {
   private readonly oxTeamHint: HTMLElement;
   private readonly oxTeamDecrease: HTMLButtonElement;
   private readonly oxTeamIncrease: HTMLButtonElement;
+  private readonly headerAffinities: HTMLElement;
   private readonly supplementalPanelSection: HTMLElement;
   private readonly deleteDialog: AlertDialog;
   private readonly marker: THREE.Mesh;
@@ -444,6 +445,7 @@ export class ResourceInspector {
   private renderedDetailsHtml: string | null = null;
   private renderedDetailsTarget: string | undefined;
   private renderedDetailRows: { html: string; row: HTMLElement }[] = [];
+  private renderedHeaderAffinitiesHtml = '';
   private renderedSupplementalPanelHtml = '';
   private selectedX = 0;
   private selectedZ = 0;
@@ -495,13 +497,14 @@ export class ResourceInspector {
             <p class="road-controls-status resource-inspector-status" data-inspector-status>Click terrain to inspect quarries, buildings, residences, or river access.</p>
           </div>
           <div class="resource-inspector-header-actions">
+            <button class="resource-inspector-close" type="button" data-inspector-close aria-label="Close inspector">×</button>
             <button class="resource-action-button resource-action-button--icon resource-action-button--toggle resource-inspector-coverage" type="button" data-service-coverage-toggle aria-label="Show served homes" aria-pressed="false" data-tooltip="Show served homes" hidden>
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="12" cy="12" r="2.2"></circle>
                 <path d="M7.9 16.1a5.8 5.8 0 0 1 0-8.2M16.1 7.9a5.8 5.8 0 0 1 0 8.2M4.7 19.3a10.3 10.3 0 0 1 0-14.6M19.3 4.7a10.3 10.3 0 0 1 0 14.6"></path>
               </svg>
             </button>
-            <button class="resource-inspector-close" type="button" data-inspector-close aria-label="Close inspector">×</button>
+            <div class="resource-inspector-header-affinities" data-inspector-header-affinities role="group" aria-label="Realm-wide land-use benefits" hidden></div>
           </div>
         </header>
         <div class="resource-inspector-scroll">
@@ -676,6 +679,7 @@ export class ResourceInspector {
     this.oxTeamHint = this.mustElement(options.uiRoot, '[data-inspector-ox-hint]');
     this.oxTeamDecrease = this.mustButton(options.uiRoot, '[data-ox-posting-delta="-1"]');
     this.oxTeamIncrease = this.mustButton(options.uiRoot, '[data-ox-posting-delta="1"]');
+    this.headerAffinities = this.mustElement(options.uiRoot, '[data-inspector-header-affinities]');
     this.supplementalPanelSection = this.mustElement(options.uiRoot, '[data-inspector-supplemental]');
 
     this.marker = createSelectionMarker();
@@ -2770,6 +2774,7 @@ export class ResourceInspector {
     );
     this.applyPresentation(target);
     this.syncServiceCoverageButton(target, view.serviceCoverage);
+    this.renderHeaderAffinities(view.headerAffinitiesHtml);
     this.renderDetails(view.detailsHtml);
 
     const primaryActionHtml = view.primaryActionHtml?.trim() ?? '';
@@ -2901,6 +2906,7 @@ export class ResourceInspector {
     this.applyHeroImage(view.image);
     this.serviceCoverageButton.hidden = true;
     this.serviceCoverageButton.setAttribute('aria-pressed', 'false');
+    this.renderHeaderAffinities();
     this.renderDetails(view.detailsHtml);
 
     this.primaryActionSection.hidden = true;
@@ -3099,7 +3105,6 @@ export class ResourceInspector {
         .filter(({ row }) =>
           row.hasAttribute('data-local-storage')
           || row.hasAttribute('data-fire-safety')
-          || row.hasAttribute('data-land-use-affinities')
           || row.hasAttribute('data-construction-summary'))
         .map(({ row }) => row);
       this.syncDetailRows(withInspectorSectionHeadings(compactRows));
@@ -3137,6 +3142,15 @@ export class ResourceInspector {
 
     const visibleRows = rows.filter((row) => primaryRows.has(row));
     this.syncDetailRows(withInspectorSectionHeadings(visibleRows));
+  }
+
+  private renderHeaderAffinities(headerAffinitiesHtml?: string): void {
+    const html = headerAffinitiesHtml?.trim() ?? '';
+    if (this.renderedHeaderAffinitiesHtml !== html) {
+      this.headerAffinities.innerHTML = html;
+      this.renderedHeaderAffinitiesHtml = html;
+    }
+    this.headerAffinities.hidden = html.length === 0;
   }
 
   private syncDetailRows(rows: readonly HTMLElement[]): void {

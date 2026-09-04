@@ -27,6 +27,10 @@ export type ForestSpawnConfig = {
   saplingTargetCount: number;
 };
 
+export type ForestCorePlacementOptions = {
+  isCenterAllowed?: (x: number, z: number) => boolean;
+};
+
 const LEGACY_PLAYABLE_SIZE = 496;
 const LEGACY_TERRAIN_SIZE = 1080;
 // Density comes from real neighbouring trees. At the default world settings
@@ -82,7 +86,11 @@ export function getEdgeHillFactor(
   return smoothstep(hillStart, hillEnd, edgeDistance);
 }
 
-export function createForestCores(rng: () => number, spawnConfig: ForestSpawnConfig): ForestCore[] {
+export function createForestCores(
+  rng: () => number,
+  spawnConfig: ForestSpawnConfig,
+  options: ForestCorePlacementOptions = {},
+): ForestCore[] {
   const cores: ForestCore[] = [];
   const edgeMargin = spawnConfig.extent * 0.06;
   const minCoreDistance = spawnConfig.extent * 0.15;
@@ -92,6 +100,7 @@ export function createForestCores(rng: () => number, spawnConfig: ForestSpawnCon
     attempts++;
     const x = (rng() * 2 - 1) * (spawnConfig.extent - edgeMargin);
     const z = (rng() * 2 - 1) * (spawnConfig.extent - edgeMargin);
+    if (options.isCenterAllowed && !options.isCenterAllowed(x, z)) continue;
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 24) continue;
     if (!hasMinimumDistance(cores, x, z, minCoreDistance)) continue;
 

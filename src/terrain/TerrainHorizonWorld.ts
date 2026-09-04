@@ -1,6 +1,15 @@
 import * as THREE from 'three';
 import type { ForestTreePlacement } from '../props/forestPlacements.ts';
-import { fbm2, mulberry32 } from '../props/forestField.ts';
+import {
+  createForestCores,
+  createForestSpawnConfig,
+  fbm2,
+  forestCoreInfluence,
+  mulberry32,
+  pick,
+  samplePointInForestCore,
+  type ForestCore,
+} from '../props/forestField.ts';
 import {
   RiverLayout,
   type InlandWaterBody,
@@ -15,6 +24,7 @@ import {
 } from '../rivers/riverWaterShoreMaps.ts';
 import { createRiverWaterMaterial } from '../rivers/RiverWaterMaterial.ts';
 import { waterSurfaceProfileForPreset } from '../rivers/WaterSurfaceProfile.ts';
+import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 
 export type TerrainHorizonWorldSettings = Pick<
@@ -28,6 +38,7 @@ export type TerrainHorizonWorldDiagnostics = {
   hydrologyLakes: number;
   waterTriangles: number;
   waterDrawCalls: 0 | 1;
+  forestStandCount: number;
   seedThreeOverviewTrees: number;
   seedThreeNearTrees: 0;
   seedThreeShadowTrees: 0;
@@ -51,7 +62,11 @@ const WATER_FIELD_RESOLUTION = 256;
 const MAX_WATER_PATHS = 4;
 const MAX_SEEDTHREE_OVERVIEW_TREES = 7_200;
 const FOREST_SEAM_CLEARANCE = 18;
-const FOREST_MINIMUM_SPACING = 16;
+const FOREST_STAND_SEAM_INSET = 34;
+const FOREST_STAND_OUTER_MARGIN = 46;
+const FOREST_PLACEMENT_CORE_SHARE = 0.96;
+const FOREST_PLACEMENT_MIN_SPACING = 8.5;
+const FOREST_PLACEMENT_MAX_SPACING = 13.5;
 const WATER_VERTEX_COLUMNS = [-1, -0.44, 0.44, 1] as const;
 const WATER_VERTEX_FEATHER = [0.08, 1, 1, 0.08] as const;
 const WATER_VERTEX_FOAM = [0.85, 0.12, 0.12, 0.85] as const;
@@ -76,6 +91,7 @@ export class TerrainHorizonWorld {
   private readonly sampleSourceForestBlend: (x: number, z: number) => number;
   readonly waterPaths: HorizonWaterPath[];
   readonly lakes: HorizonLake[];
+  private readonly forestCores: readonly ForestCore[];
   private readonly outerRiverLayout: RiverLayout | null;
   private readonly waterMaterial: THREE.Material | null;
   private readonly shoreMaps: RiverWaterShoreMaps | null;
@@ -95,6 +111,7 @@ export class TerrainHorizonWorld {
     this.waterPaths = pathSkeletons.map((corridor) => this.resolveWaterPath(corridor));
     this.lakes = createOuterLakes(options, (x, z) => this.sampleUncarvedHeight(x, z));
     this.outerRiverLayout = createOuterRiverLayout(options, this.waterPaths, this.lakes);
+    this.forestCores = createHorizonForestCores(this);
 
     const waterGeometry = createOuterWaterGeometry(this, options);
     if (waterGeometry.getIndex()?.count) {
@@ -144,6 +161,7 @@ export class TerrainHorizonWorld {
       hydrologyLakes: this.lakes.length,
       waterTriangles,
       waterDrawCalls: this.waterMesh ? 1 : 0,
+      forestStandCount: this.forestCores.length,
       seedThreeOverviewTrees: this.forestPlacements.length,
       seedThreeNearTrees: 0,
       seedThreeShadowTrees: 0,
@@ -173,6 +191,10 @@ export class TerrainHorizonWorld {
     return height;
   };
 
+  getForestCores(): readonly ForestCore[] {
+    return this.forestCores;
+  }
+
   sampleForestBlend = (x: number, z: number): number => {
     const outside = Math.max(Math.abs(x), Math.abs(z)) - this.innerHalfExtent;
     if (outside < 0 || outside > this.extensionDistance * 0.84) return 0;
@@ -190,18 +212,28 @@ export class TerrainHorizonWorld {
     );
     const seedX = ((this.settings.seed >>> 4) & 0x7fff) * 0.021;
     const seedZ = (this.settings.seed & 0x7fff) * -0.019;
-    // Ground shading deliberately uses only a broad field. Stand-scale noise
-    // belongs to the SeedThree placement field; baking it into sparse horizon
-    // vertices produces giant triangular brown/green wedges after interpolation.
+    const forestStand = this.sampleForestStandDensity(x, z);
     const broadWoodland = fbm2(
       (x + seedX) * 0.00125,
       (z + seedZ) * 0.00125,
       3,
     );
-    const regionalGround = THREE.MathUtils.clamp(
-      0.12 + this.settings.forestDensity / 100 * 0.54 + (broadWoodland - 0.5) * 0.22,
-      0.08,
-      0.72,
+    const edgeBreakup = fbm2(
+      (x - seedZ) * 0.0064,
+      (z + seedX) * 0.0064,
+      3,
+    );
+    // Use the same broad elliptical stands that own the tree placements. Their
+    // scale survives the coarser horizon mesh while leaving genuine far-grass
+    // clearings between woods; the two low-amplitude fields only soften edges.
+    const standGround = forestStand
+      * THREE.MathUtils.lerp(0.78, 1.08, this.settings.forestDensity / 100)
+      + (broadWoodland - 0.5) * 0.1
+      + (edgeBreakup - 0.5) * 0.16;
+    const regionalGround = smoothstep(
+      0.14,
+      0.86,
+      standGround,
     );
     const regionalHandoff = smoothstep(
       FOREST_SEAM_CLEARANCE,
@@ -289,15 +321,18 @@ export class TerrainHorizonWorld {
     const seedZ = (this.settings.seed & 0x7fff) * -0.019;
     const regional = fbm2((x + seedX) * 0.0027, (z + seedZ) * 0.0027, 4);
     const stands = fbm2((x - seedZ) * 0.0072, (z + seedX) * 0.0072, 3);
+    const forestStand = this.sampleForestStandDensity(x, z);
     const step = 18;
     const slope = Math.hypot(
       this.sampleUncarvedHeight(x + step, z) - this.sampleUncarvedHeight(x - step, z),
       this.sampleUncarvedHeight(x, z + step) - this.sampleUncarvedHeight(x, z - step),
     ) / (step * 2);
     const density = this.settings.forestDensity / 100;
-    const hillWoodland = smoothstep(0.08, 0.5, outside / this.extensionDistance) * 0.12;
     const regionalSuitability = THREE.MathUtils.clamp(
-      regional * 0.54 + stands * 0.2 + density * 0.38 + hillWoodland - slope * 0.22,
+      forestStand * THREE.MathUtils.lerp(0.82, 1.08, density)
+        + (regional - 0.5) * 0.12
+        + (stands - 0.5) * 0.2
+        - slope * 0.22,
       0,
       1,
     );
@@ -318,6 +353,14 @@ export class TerrainHorizonWorld {
       outside,
     );
     return THREE.MathUtils.lerp(inheritedForest, regionalSuitability, regionalHandoff);
+  }
+
+  private sampleForestStandDensity(x: number, z: number): number {
+    let density = 0;
+    for (const core of this.forestCores) {
+      density = Math.max(density, forestCoreInfluence(x, z, core) * core.strength);
+    }
+    return THREE.MathUtils.clamp(density, 0, 1);
   }
 
   private resolveWaterPath(corridor: RiverCorridor): HorizonWaterPath {
@@ -810,28 +853,37 @@ function createSeedThreeHorizonPlacements(
   // Spend real SeedThree instances where they actually continue the playable
   // forest silhouette. Beyond this band the terrain's inherited woodland mask,
   // mountain relief, and aerial perspective carry the same regional field.
-  const visibleOuter = Math.min(
-    outerHalfExtent - 40,
-    innerHalfExtent + Math.min(560, extensionDistance * 0.38),
-  );
+  const visibleOuter = resolveVisibleForestOuter(world);
+  const forestCores = world.getForestCores();
   const placements: ForestTreePlacement[] = [];
-  const placementGrid = new Map<string, ForestTreePlacement[]>();
+  const placementIndex = new SpatialHash2D<ForestTreePlacement>(FOREST_PLACEMENT_MAX_SPACING);
   let attempts = 0;
-  while (placements.length < target && attempts < target * 34) {
+  while (placements.length < target && attempts < target * 54) {
     attempts++;
-    const x = THREE.MathUtils.lerp(-visibleOuter, visibleOuter, rng());
-    const z = THREE.MathUtils.lerp(-visibleOuter, visibleOuter, rng());
+    const core = forestCores.length > 0 && rng() < FOREST_PLACEMENT_CORE_SHARE
+      ? pick(forestCores, rng)
+      : undefined;
+    const sampled = core
+      ? samplePointInForestCore(core, rng)
+      : {
+          x: THREE.MathUtils.lerp(-visibleOuter, visibleOuter, rng()),
+          z: THREE.MathUtils.lerp(-visibleOuter, visibleOuter, rng()),
+        };
+    const { x, z } = sampled;
     const outside = maxAbs(x, z) - innerHalfExtent;
     if (outside < FOREST_SEAM_CLEARANCE) continue;
+    if (maxAbs(x, z) > visibleOuter) continue;
     const suitability = world.sampleForestDebug(x, z);
     if (suitability < 0.34 || rng() > smoothstep(0.32, 0.78, suitability) * 0.94) continue;
-    if (hasNearbyHorizonTree(placementGrid, x, z)) continue;
     const altitude = world.getHeightAt(x, z);
-    const coldBias = THREE.MathUtils.clamp(
+    const regionalColdBias = THREE.MathUtils.clamp(
       0.44 + outside / Math.max(1, extensionDistance) * 0.34 + altitude / 520,
       0.25,
       0.88,
     );
+    const coldBias = core
+      ? THREE.MathUtils.lerp(regionalColdBias, core.coniferBias, 0.72)
+      : regionalColdBias;
     const speciesRoll = rng();
     const species: ForestTreePlacement['species'] = settings.terrainPreset === 'vinodol_coast'
       ? speciesRoll < 0.38 ? 'blackPine' : speciesRoll < 0.62 ? 'hornbeam' : 'sessileOak'
@@ -840,44 +892,69 @@ function createSeedThreeHorizonPlacements(
         : speciesRoll < coldBias
           ? 'silverFir'
           : 'beech';
+    const form: ForestTreePlacement['form'] = species === 'beech'
+      || species === 'hornbeam'
+      || species === 'sessileOak'
+      ? (rng() < 0.62 ? 'broad' : 'midstory')
+      : 'narrow';
+    const spacing = THREE.MathUtils.lerp(
+      FOREST_PLACEMENT_MAX_SPACING,
+      FOREST_PLACEMENT_MIN_SPACING,
+      smoothstep(0.34, 0.92, suitability),
+    ) * (form === 'midstory' ? 0.78 : 1) * (0.92 + rng() * 0.16);
+    if (placementIndex.hasPointWithin(x, z, spacing)) continue;
     const placement: ForestTreePlacement = {
       x,
       z,
       species,
-      form: species === 'beech' || species === 'hornbeam' || species === 'sessileOak'
-        ? (rng() < 0.62 ? 'broad' : 'midstory')
-        : 'narrow',
+      form,
       scale: 0.82 + rng() * 0.5,
       visualOnly: 'terrain-horizon',
     };
     placements.push(placement);
-    const cellX = Math.floor(x / FOREST_MINIMUM_SPACING);
-    const cellZ = Math.floor(z / FOREST_MINIMUM_SPACING);
-    const key = `${cellX}:${cellZ}`;
-    const cell = placementGrid.get(key) ?? [];
-    cell.push(placement);
-    placementGrid.set(key, cell);
+    placementIndex.add(placement);
   }
   return placements;
 }
 
-function hasNearbyHorizonTree(
-  grid: ReadonlyMap<string, readonly ForestTreePlacement[]>,
-  x: number,
-  z: number,
-): boolean {
-  const cellX = Math.floor(x / FOREST_MINIMUM_SPACING);
-  const cellZ = Math.floor(z / FOREST_MINIMUM_SPACING);
-  for (let offsetZ = -1; offsetZ <= 1; offsetZ++) {
-    for (let offsetX = -1; offsetX <= 1; offsetX++) {
-      const cell = grid.get(`${cellX + offsetX}:${cellZ + offsetZ}`);
-      if (!cell) continue;
-      if (cell.some((tree) => Math.hypot(tree.x - x, tree.z - z) < FOREST_MINIMUM_SPACING)) {
+function createHorizonForestCores(world: TerrainHorizonWorld): ForestCore[] {
+  if (world.settings.forestDensity <= 0) return [];
+  const visibleOuter = resolveVisibleForestOuter(world);
+  const densityScale = THREE.MathUtils.clamp(world.settings.forestDensity / 50, 0.25, 1.7);
+  const coreConfig = createForestSpawnConfig(
+    visibleOuter * 2,
+    visibleOuter * 2,
+    densityScale,
+  );
+  const ringAreaShare = 1 - (world.innerHalfExtent / visibleOuter) ** 2;
+  const forestCoreCount = Math.max(
+    8,
+    Math.round(coreConfig.forestCoreCount * ringAreaShare * 0.68),
+  );
+  const rng = mulberry32(world.settings.seed ^ 0x48465243);
+  return createForestCores(
+    rng,
+    { ...coreConfig, forestCoreCount },
+    {
+      isCenterAllowed: (x, z) => {
+        const maximumAxis = maxAbs(x, z);
+        if (maximumAxis < world.innerHalfExtent + FOREST_STAND_SEAM_INSET) return false;
+        if (maximumAxis > visibleOuter - FOREST_STAND_OUTER_MARGIN) return false;
+        if (world.settings.terrainPreset === 'vinodol_coast') {
+          const shoreX = world.sampleHydrologyDebug(x, z) > 0.5;
+          if (shoreX) return false;
+        }
         return true;
-      }
-    }
-  }
-  return false;
+      },
+    },
+  );
+}
+
+function resolveVisibleForestOuter(world: TerrainHorizonWorld): number {
+  return Math.min(
+    world.outerHalfExtent - 40,
+    world.innerHalfExtent + Math.min(560, world.extensionDistance * 0.38),
+  );
 }
 
 function nearestWaterPathSample(

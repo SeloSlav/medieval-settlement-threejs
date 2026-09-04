@@ -41,6 +41,7 @@ export type TerrainHorizonDiagnostics = {
   hydrologyLakes: number;
   waterTriangles: number;
   waterDrawCalls: 0 | 1;
+  forestStandCount: number;
   seedThreeOverviewTrees: number;
   seedThreeNearTrees: 0;
   seedThreeShadowTrees: 0;

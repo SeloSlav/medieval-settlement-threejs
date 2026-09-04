@@ -268,100 +268,64 @@
   background-image: url('/assets/ui/icons/actions/graveyard.png');
 }
 
-.resource-inspector-details [data-inspector-details] > li[data-land-use-affinities] {
-  min-height: 62px;
-  overflow: visible;
-  border-color: rgba(164, 184, 105, 0.34);
-  background:
-    linear-gradient(145deg, rgba(93, 123, 59, 0.2), rgba(36, 38, 26, 0.04)),
-    rgba(255, 255, 255, 0.018);
-}
-
-.resource-inspector-details [data-land-use-affinities] > .land-use-affinity-strip {
+.resource-inspector-header-affinities {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 3px;
 }
 
-.land-use-affinity-badge {
-  position: relative;
-  display: inline-grid;
-  grid-template-columns: 32px auto;
-  align-items: center;
-  min-width: 60px;
-  height: 34px;
-  overflow: hidden;
-  color: #f0dfb7;
-  border: 1px solid rgba(220, 193, 127, 0.35);
-  border-radius: 3px;
-  background: #171a12;
-  box-shadow:
-    inset 0 0 0 1px rgba(16, 14, 9, 0.75),
-    0 1px 3px rgba(0, 0, 0, 0.42);
+.resource-inspector-header-affinities[hidden] {
+  display: none;
+}
+
+.land-use-affinity-token {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  flex: 0 0 28px;
+  border-radius: 50%;
   cursor: help;
-  isolation: isolate;
 }
 
-.land-use-affinity-badge::after {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  content: '';
-  background:
-    linear-gradient(90deg, transparent 42%, rgba(13, 15, 10, 0.88) 64%),
-    repeating-linear-gradient(165deg, rgba(255, 238, 191, 0.035) 0 1px, transparent 1px 4px);
-  pointer-events: none;
-}
-
-.land-use-affinity-badge:hover,
-.land-use-affinity-badge:focus-visible {
-  border-color: rgba(239, 204, 120, 0.82);
+.land-use-affinity-token:hover,
+.land-use-affinity-token:focus-visible {
   outline: none;
-  box-shadow:
-    inset 0 0 0 1px rgba(16, 14, 9, 0.75),
-    0 0 0 1px rgba(218, 180, 91, 0.2),
-    0 2px 5px rgba(0, 0, 0, 0.5);
+  filter: brightness(1.18);
+}
+
+.land-use-affinity-token:focus-visible {
+  box-shadow: 0 0 0 1px rgba(231, 199, 123, 0.82);
 }
 
 .land-use-affinity-icon {
   display: block;
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   background-position: center;
   background-repeat: no-repeat;
-  background-size: 30px 30px;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.72));
+  background-size: contain;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.78));
 }
 
-.land-use-affinity-badge strong {
-  position: relative;
-  padding: 0 5px 0 3px;
-  font-family: var(--ui-display);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  text-shadow: 0 1px 2px #000;
-  white-space: nowrap;
-}
-
-.land-use-affinity-badge[data-land-use-kind='meadow'] .land-use-affinity-icon {
+.land-use-affinity-token[data-land-use-kind='meadow'] .land-use-affinity-icon {
   background-image: url('/assets/ui/icons/affinities/pollination.png');
 }
 
-.land-use-affinity-badge[data-land-use-kind='woodland'] .land-use-affinity-icon {
+.land-use-affinity-token[data-land-use-kind='woodland'] .land-use-affinity-icon {
   background-image: url('/assets/ui/icons/affinities/forestry.png');
 }
 
-.land-use-affinity-badge[data-land-use-kind='farmland'] .land-use-affinity-icon {
+.land-use-affinity-token[data-land-use-kind='farmland'] .land-use-affinity-icon {
   background-image: url('/assets/ui/icons/affinities/cultivation.png');
 }
 
-.land-use-affinity-badge[data-land-use-kind='rural'] .land-use-affinity-icon {
+.land-use-affinity-token[data-land-use-kind='rural'] .land-use-affinity-icon {
   background-image: url('/assets/ui/icons/affinities/husbandry.png');
 }
 
-.land-use-affinity-badge[data-land-use-kind='urban'] .land-use-affinity-icon {
+.land-use-affinity-token[data-land-use-kind='urban'] .land-use-affinity-icon {
   background-image: url('/assets/ui/icons/affinities/industry.png');
 }
 

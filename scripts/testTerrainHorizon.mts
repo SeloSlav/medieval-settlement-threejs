@@ -205,6 +205,59 @@ assert.ok(
   'outer water must preserve the source corridor tangent through the map edge',
 );
 riverContinuationWorld.dispose();
+
+const clumpedForestWorld = new TerrainHorizonWorld({
+  innerHalfExtent: 80,
+  outerHalfExtent: 900,
+  settings: {
+    seed: 0x71a2e0d,
+    terrainPreset: 'custom',
+    topography: 35,
+    hydrology: 0,
+    forestDensity: 50,
+  },
+  riverLayout: null,
+  sampleBaseHeight: () => 0,
+  sampleSourceForestBlend: () => 0,
+});
+const clumpedPlacements = clumpedForestWorld.forestPlacements;
+const macroCellSize = 72;
+const occupiedMacroCells = new Map<string, number>();
+let treeGroundBlendSum = 0;
+for (const placement of clumpedPlacements) {
+  const key = `${Math.floor(placement.x / macroCellSize)}:${Math.floor(placement.z / macroCellSize)}`;
+  occupiedMacroCells.set(key, (occupiedMacroCells.get(key) ?? 0) + 1);
+  treeGroundBlendSum += clumpedForestWorld.sampleForestBlend(placement.x, placement.z);
+}
+let sampledGroundCount = 0;
+let farGrassSamples = 0;
+let leafLitterSamples = 0;
+let sampledGroundBlendSum = 0;
+for (let x = -380; x <= 380; x += 20) {
+  for (let z = -380; z <= 380; z += 20) {
+    const outside = Math.max(Math.abs(x), Math.abs(z)) - 80;
+    if (outside < 30 || outside > 290) continue;
+    const blend = clumpedForestWorld.sampleForestBlend(x, z);
+    sampledGroundCount++;
+    sampledGroundBlendSum += blend;
+    if (blend < 0.05) farGrassSamples++;
+    if (blend > 0.55) leafLitterSamples++;
+  }
+}
+const occupiedCounts = [...occupiedMacroCells.values()];
+console.log({
+  clumpedForestDiagnostics: clumpedForestWorld.diagnostics,
+  macroCells: occupiedMacroCells.size,
+  macroCellMaximum: Math.max(...occupiedCounts),
+  macroCellMean: clumpedPlacements.length / occupiedMacroCells.size,
+  farGrassSamples,
+  leafLitterSamples,
+  sampledGroundCount,
+  sampledGroundMean: sampledGroundBlendSum / sampledGroundCount,
+  treeGroundMean: treeGroundBlendSum / clumpedPlacements.length,
+});
+clumpedForestWorld.dispose();
+
 for (let triangle = 0; triangle < horizonIndices.count; triangle += 3) {
   const a = horizonIndices.getX(triangle);
   const b = horizonIndices.getX(triangle + 1);

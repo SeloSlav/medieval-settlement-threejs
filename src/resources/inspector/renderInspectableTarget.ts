@@ -59,6 +59,7 @@ export type InspectorView = {
   statusText: string;
   statusState: string;
   detailsHtml: string;
+  headerAffinitiesHtml?: string;
   demolish: InspectorDemolishView;
   labor: InspectorLaborView;
   oxTeam?: InspectorOxTeamView;

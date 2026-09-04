@@ -3,24 +3,38 @@
 <meta charset="utf-8">
 <title>Realm benefits refresh regression</title>
 <style>
-  body { margin: 24px; background: #24251f; color: #e0d6c2; font: 15px system-ui; }
-  button { padding: 10px; margin-bottom: 16px; }
-  .resource-inspector-details { width: 420px; }
-  [data-inspector-details] { list-style: none; padding: 0; }
-  [data-inspector-details] > li { display: flex; align-items: center; gap: 12px; padding: 12px; }
-  .inspector-detail-value { margin-left: auto; }
+  body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 30% 20%, #4d5143, #191d18 66%); color: #e0d6c2; font: 15px system-ui; }
+  body > h1, body > p, body > button, #results { margin-left: 470px; }
+  body > h1 { padding-top: 48px; }
   .ui-tooltip { position: fixed; z-index: 10; pointer-events: none; max-width: 340px; padding: 12px; background: #131810; border: 1px solid #bba156; }
   #results { white-space: pre-wrap; }
 </style>
 <h1>Realm benefits refresh regression</h1>
-<p>Checks that live inspector refreshes preserve unchanged badges, keyboard focus, and tooltips.</p>
+<p>Checks that live inspector refreshes preserve unchanged affinity icons, keyboard focus, and tooltips.</p>
 <button id="run">Run refresh regression checks</button>
-<div id="ui-root" data-inspector-target="building">
-  <section class="resource-inspector-details"><ul data-inspector-details></ul></section>
+<div id="ui-root" class="resource-inspector-panel" data-inspector-target="building" data-inspector-kind="building">
+  <header class="resource-inspector-header">
+    <div class="resource-inspector-hero-art has-art" aria-hidden="true">
+      <span class="resource-inspector-hero-symbol">♜</span>
+    </div>
+    <div class="resource-inspector-heading">
+      <p class="road-controls-eyebrow">Building</p>
+      <h2 class="road-controls-title">Pastoral Farmstead</h2>
+      <p class="road-controls-status resource-inspector-status">Working · grazing and haymaking</p>
+    </div>
+    <div class="resource-inspector-header-actions">
+      <button class="resource-inspector-close" type="button" aria-label="Close inspector">×</button>
+      <div class="resource-inspector-header-affinities" data-inspector-header-affinities hidden></div>
+    </div>
+  </header>
+  <div class="resource-inspector-scroll">
+    <section class="resource-inspector-details"><ul class="road-controls-list" data-inspector-details></ul></section>
+  </div>
 </div>
 <pre id="results" role="status">Loading…</pre>
 <script type="module">
-  import '/src/ui/inspectorSupplemental.css';
+  import '/src/style.css';
+  import '/src/ui/gameplayCraft.css';
   import { ResourceInspector } from '/src/resources/ResourceInspector.ts';
   import { withBuildingLandUseAffinities } from '/src/resources/inspector/buildingLandUseAffinityRenderer.ts';
   import { computeLandUseProfile } from '/src/regions/landUseProfile.ts';
@@ -29,6 +43,7 @@
 
   const root = document.querySelector('#ui-root');
   const list = root.querySelector('[data-inspector-details]');
+  const headerAffinities = root.querySelector('[data-inspector-header-affinities]');
   const results = document.querySelector('#results');
   const profile = computeLandUseProfile(DEFAULT_WORLD_GENERATION_SETTINGS, {
     buildings: [], residences: [], farmFields: [], pastures: [], vineyardParcels: [],
@@ -36,15 +51,20 @@
   // Exercise the real rendering methods without constructing the 3D selection system.
   const inspector = Object.assign(Object.create(ResourceInspector.prototype), {
     panel: root, detailList: list, renderedDetailsHtml: null,
-    renderedDetailsTarget: undefined, renderedDetailRows: [],
+    renderedDetailsTarget: undefined, renderedDetailRows: [], headerAffinities,
+    renderedHeaderAffinitiesHtml: '',
   });
   const details = (stock = 10, hiddenValue = 0, landUse = profile, kind = 'pastoral_farmstead') => (
     withBuildingLandUseAffinities({
       detailsHtml: `<li data-local-storage data-inspector-section="Stores"><span>Stored goods</span><span>${stock}</span></li>
+        <li data-fire-safety data-inspector-state="positive"><span>Fire safety</span><span>Covered by stocked well</span></li>
         <li><span>Hidden production detail</span><span>${hiddenValue}</span></li>`,
-    }, { kind }, landUse).detailsHtml
+    }, { kind }, landUse)
   );
-  const render = (html) => inspector.renderDetails(html);
+  const render = (view) => {
+    inspector.renderHeaderAffinities(view.headerAffinitiesHtml);
+    inspector.renderDetails(view.detailsHtml);
+  };
   const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
   const unmount = mountTooltips(root);
   window.addEventListener('pagehide', unmount);
@@ -62,10 +82,9 @@
     try {
       root.dataset.inspectorTarget = 'building';
       render(details());
-      const row = list.querySelector('[data-land-use-affinities]');
-      const badge = row.querySelector('.land-use-affinity-badge');
-      const icon = badge.querySelector('.land-use-affinity-icon');
-      badge.focus();
+      const token = headerAffinities.querySelector('.land-use-affinity-token');
+      const icon = token.querySelector('.land-use-affinity-icon');
+      token.focus();
       await frame();
       const tooltip = document.querySelector('#ui-tooltip');
       check(!tooltip.hidden && tooltip.classList.contains('is-visible'), 'Keyboard focus opens the benefit tooltip');
@@ -85,15 +104,12 @@
       for (let tick = 1; tick <= 20; tick++) {
         render(details(10 + tick, tick));
         await frame();
-        check(badge.isConnected && document.activeElement === badge && !tooltip.hidden,
-          `Refresh ${tick} preserves the focused badge and visible tooltip`);
+        check(token.isConnected && document.activeElement === token && !tooltip.hidden,
+          `Refresh ${tick} preserves the focused icon and visible tooltip`);
       }
-      check(list.querySelector('[data-land-use-affinities]') === row
-        && row.querySelector('.land-use-affinity-icon') === icon,
-        'Unchanged realm row and icon retain their original DOM nodes');
-      check(!mutations.some((record) => record.target === row || row.contains(record.target)
-        || [...record.removedNodes].some((node) => node === row || node.contains(row))),
-        'Nearby updates neither mutate nor detach the realm benefits row');
+      check(headerAffinities.querySelector('.land-use-affinity-token') === token
+        && token.querySelector('.land-use-affinity-icon') === icon,
+        'Unchanged header affinity icon retains its original DOM node');
       check(list.querySelector('[data-local-storage]').textContent.includes('30'), 'Changing storage values still update');
       check(list.querySelectorAll('.inspector-detail-section').length === 1, 'Section headings remain unique');
       observer.disconnect();
@@ -104,29 +120,29 @@
         bonuses: { ...profile.bonuses, meadow: 0.25 },
       };
       render(details(30, 20, changedProfile));
-      const changedBadge = list.querySelector('[data-land-use-kind="meadow"]');
-      check(changedBadge.textContent.includes('+5%') && changedBadge.dataset.tooltip.includes('25% of the realm'),
-        'Real benefit changes refresh both the displayed bonus and tooltip');
+      const changedToken = headerAffinities.querySelector('[data-land-use-kind="meadow"]');
+      check(changedToken.dataset.tooltipTitle.includes('+5%') && changedToken.dataset.tooltip.includes('25% of the realm'),
+        'Real benefit changes refresh the icon tooltip');
 
       render(details(3, 0, profile, 'fishing_camp'));
-      check(!list.querySelector('[data-land-use-affinities]'), 'Selecting a building without benefits removes old badges');
-      render('');
+      check(headerAffinities.hidden && !headerAffinities.firstElementChild, 'Selecting a building without benefits removes old icons');
+      render({ detailsHtml: '' });
       check(list.children.length === 0 && list.parentElement.hidden, 'Empty details clear and hide the section');
       render(details());
-      check(!list.parentElement.hidden && list.querySelector('[data-land-use-affinities]'), 'Returning to a building restores its benefits');
+      check(!headerAffinities.hidden && headerAffinities.querySelector('.land-use-affinity-token'), 'Returning to a building restores its icons');
 
       const summary = '<li data-residence-summary data-inspector-section="Household"><span>Residents</span><span>4 / 4</span></li>';
       root.dataset.inspectorTarget = 'residence';
-      render(summary);
+      render({ detailsHtml: summary });
       const residenceRow = list.querySelector('[data-residence-summary]');
-      render(summary);
+      render({ detailsHtml: summary });
       check(residenceRow?.isConnected && list.querySelectorAll('.inspector-detail-section').length === 1,
         'Residence summary rows and headings still render correctly');
       root.dataset.inspectorTarget = 'building';
-      render(summary);
+      render({ detailsHtml: summary });
       check(list.children.length === 0, 'Changing inspector target reruns filtering even with identical input HTML');
       root.dataset.inspectorTarget = 'resource';
-      render('<li><span>Available stone</span><span>20 / 40</span></li>');
+      render({ detailsHtml: '<li><span>Available stone</span><span>20 / 40</span></li>' });
       check(list.textContent.includes('20 / 40'), 'Other inspector targets retain their ranked details');
 
       root.dataset.inspectorTarget = 'building';

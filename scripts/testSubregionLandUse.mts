@@ -175,10 +175,12 @@ const swineAffinityView = withBuildingLandUseAffinities(
   { kind: 'swineherd' } as BuildingState,
   empty,
 );
-assert.match(swineAffinityView.detailsHtml, /data-land-use-kind="woodland"/);
-assert.match(swineAffinityView.detailsHtml, /data-tooltip-title="Mast and pannage/);
-assert.match(swineAffinityView.detailsHtml, /Placement inside the colored zone is not required/);
-assert.match(swineAffinityView.detailsHtml, /tabindex="0"/);
+assert.equal(swineAffinityView.detailsHtml, '');
+assert.match(swineAffinityView.headerAffinitiesHtml ?? '', /data-land-use-kind="woodland"/);
+assert.match(swineAffinityView.headerAffinitiesHtml ?? '', /data-tooltip-title="Mast and pannage/);
+assert.match(swineAffinityView.headerAffinitiesHtml ?? '', /Placement inside the colored zone is not required/);
+assert.match(swineAffinityView.headerAffinitiesHtml ?? '', /tabindex="0"/);
+assert.doesNotMatch(swineAffinityView.headerAffinitiesHtml ?? '', /<strong>|Realm benefits/);
 
 const tanneryAffinityView = withBuildingLandUseAffinities(
   {
@@ -199,10 +201,10 @@ const tanneryAffinityView = withBuildingLandUseAffinities(
   { kind: 'tannery' } as BuildingState,
   empty,
 );
-assert.match(tanneryAffinityView.detailsHtml, /data-land-use-kind="woodland"/);
-assert.match(tanneryAffinityView.detailsHtml, /data-tooltip-title="Bark gathering/);
-assert.match(tanneryAffinityView.detailsHtml, /tanning bark and experienced bark gatherers/);
-assert.match(tanneryAffinityView.detailsHtml, /combined/);
+assert.match(tanneryAffinityView.headerAffinitiesHtml ?? '', /data-land-use-kind="woodland"/);
+assert.match(tanneryAffinityView.headerAffinitiesHtml ?? '', /data-tooltip-title="Bark gathering/);
+assert.match(tanneryAffinityView.headerAffinitiesHtml ?? '', /tanning bark and experienced bark gatherers/);
+assert.match(tanneryAffinityView.headerAffinitiesHtml ?? '', /data-land-use-kind="urban"/);
 
 const serverAffinity = readFileSync('server/src/subregion_affinity.rs', 'utf8');
 const serverEconomy = readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
