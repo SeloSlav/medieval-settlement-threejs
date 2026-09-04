@@ -24,6 +24,8 @@ export type ThreatApproachAlert = {
   x: number;
   z: number;
   count: number;
+  /** Stable live group identity used when a report is opened after it moved. */
+  combatGroupId: string | null;
 };
 
 type ThreatGroup = {
@@ -37,6 +39,39 @@ function threatKind(agent: CombatAgentState): ThreatApproachKind | null {
   if (agent.faction === 'bandit') return 'bandit';
   if (agent.faction === 'raider') return 'ottoman';
   return null;
+}
+
+export function threatCombatGroupId(
+  agent: Pick<CombatAgentState, 'faction' | 'raidId'>,
+): string | null {
+  const kind = threatKind(agent as CombatAgentState);
+  return kind ? `${kind}:${agent.raidId}` : null;
+}
+
+/** Finds a report's current hostile centroid, preferring the same interpolated
+ * positions used by the actor renderer. Downed or dead members no longer pull
+ * the camera toward an old battlefield location. */
+export function liveThreatCombatGroupPosition(
+  agents: Iterable<CombatAgentState>,
+  combatGroupId: string,
+  getAgentPosition?: (id: string) => Readonly<{ x: number; z: number }> | null,
+): Readonly<{ x: number; z: number; count: number }> | null {
+  let x = 0;
+  let z = 0;
+  let count = 0;
+  for (const agent of agents) {
+    if (
+      agent.status === 'downed'
+      || !Number.isFinite(agent.health)
+      || agent.health <= 0
+      || threatCombatGroupId(agent) !== combatGroupId
+    ) continue;
+    const position = getAgentPosition?.(agent.id) ?? agent;
+    x += position.x;
+    z += position.z;
+    count += 1;
+  }
+  return count > 0 ? { x: x / count, z: z / count, count } : null;
 }
 
 function isCommittedThreat(agent: CombatAgentState): boolean {
@@ -53,7 +88,7 @@ function threatGroups(agents: Iterable<CombatAgentState>): Map<string, ThreatGro
     if (!isCommittedThreat(agent)) continue;
     const kind = threatKind(agent);
     if (!kind) continue;
-    const key = `${kind}:${agent.raidId}`;
+    const key = threatCombatGroupId(agent)!;
     const group = groups.get(key) ?? { key, kind, agents: [] };
     group.agents.push(agent);
     groups.set(key, group);
@@ -130,6 +165,7 @@ function alertForGroup(
     x: center.x / group.agents.length,
     z: center.z / group.agents.length,
     count: group.agents.length,
+    combatGroupId: group.key,
   };
 }
 
@@ -145,6 +181,7 @@ function campEstablishedAlert(camp: BanditCampState, simTick: number): ThreatApp
     x: camp.x,
     z: camp.z,
     count: 1,
+    combatGroupId: null,
   };
 }
 

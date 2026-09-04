@@ -26,6 +26,13 @@ export type RiverAudioConfig = {
   getWaterSurfaceY: (x: number, z: number) => number;
 };
 
+/** Still inland water such as ponds must never enable the rushing river loop. */
+export function hasAmbientRiverSound(
+  riverLayout: Pick<RiverLayout, 'corridors'>,
+): boolean {
+  return riverLayout.corridors.some((corridor) => corridor.points.length >= 2);
+}
+
 /**
  * Models the river as an extended sound source by returning the closest point
  * on its water surface, rather than treating the whole river as one emitter.
@@ -135,7 +142,7 @@ export class RiverAudio {
     this.listener = config.listener ?? new THREE.AudioListener();
     this.ownsListener = config.listener == null;
     this.source = new THREE.PositionalAudio(this.listener);
-    this.hasRiverSound = config.riverLayout.terrainPreset !== 'delnice_meadow';
+    this.hasRiverSound = hasAmbientRiverSound(config.riverLayout);
     this.source.name = 'Spatial river water audio';
     this.source.panner.panningModel = 'HRTF';
     this.source

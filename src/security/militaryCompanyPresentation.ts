@@ -23,16 +23,28 @@ export const MILITARY_COMPANY_STRATEGIC_ICON_ART = {
   'mounted-archers': '/assets/ui/icons/military-map/mounted-archers.png',
 } as const satisfies Record<MilitaryCompanyKind, string>;
 
-export type HostileCompanyStrategicKind = 'raiders' | 'bandits';
+export type HostileCompanyStrategicKind = 'raiders' | 'bandits' | 'wildlife';
 
 /** Hostile formations use the same crimson badge and white silhouette system. */
 export const HOSTILE_COMPANY_STRATEGIC_ICON_ART = {
   raiders: '/assets/ui/icons/military-map/raiders.png',
   bandits: '/assets/ui/icons/military-map/bandits.png',
+  wildlife: '/assets/ui/icons/military-map/wildlife.png',
 } as const satisfies Record<HostileCompanyStrategicKind, string>;
 
 export function hostileCompanyStrategicLabel(kind: HostileCompanyStrategicKind): string {
-  return kind === 'bandits' ? 'Bandit company' : 'Enemy raiders';
+  if (kind === 'bandits') return 'Bandit company';
+  if (kind === 'wildlife') return 'Hostile wild animals';
+  return 'Enemy raiders';
+}
+
+export function hostileCompanyStrategicKindForFaction(
+  faction: CombatAgentFaction,
+): HostileCompanyStrategicKind | null {
+  if (faction === 'raider') return 'raiders';
+  if (faction === 'bandit') return 'bandits';
+  if (faction === 'fox' || faction === 'wolf') return 'wildlife';
+  return null;
 }
 
 /** Converts the per-soldier simulation faction back to its selectable company

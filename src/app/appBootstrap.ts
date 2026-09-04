@@ -79,6 +79,7 @@ import type { FireEffectsRenderer } from '../fires/FireEffectsRenderer.ts';
 import { BanditCampRenderer } from '../security/BanditCampRenderer.ts';
 import { MilitiaCommandController } from '../security/MilitiaCommandController.ts';
 import type { CombatAgentState } from '../security/combatAgents.ts';
+import { liveThreatCombatGroupPosition } from '../security/threatApproachAlerts.ts';
 import type { MilitaryCompanyState } from '../security/militaryProgression.ts';
 import type { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
 import { beginProgressiveStartupTextureLoad } from '../scene/startupTextures.ts';
@@ -1707,6 +1708,20 @@ export async function bootstrapAppSession(
         focusZ = residence.z;
         targetPresent = true;
       }
+    } else if (target.kind === 'combat-group') {
+      resourceInspector.clearSelection();
+      villagerInspector.clearSelection();
+      const position = liveThreatCombatGroupPosition(
+        bridge.getCombatAgentOverride?.()
+          ?? spacetimeStore.snapshot.combatAgents.values(),
+        target.id,
+        (id) => villagers.getCombatAgentPosition(id),
+      );
+      if (position) {
+        focusX = position.x;
+        focusZ = position.z;
+        targetPresent = true;
+      }
     } else {
       resourceInspector.clearSelection();
       villagerInspector.clearSelection();
@@ -1717,7 +1732,9 @@ export async function bootstrapAppSession(
       resourceInspector.clearSelection();
       villagerInspector.clearSelection();
       toastManager.show(
-        'That holding is no longer present. Showing its last reported location.',
+        target.kind === 'combat-group'
+          ? 'That hostile group is no longer active. Showing its last reported location.'
+          : 'That holding is no longer present. Showing its last reported location.',
         { variant: 'info', durationMs: 3600 },
       );
     }

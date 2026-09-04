@@ -2107,8 +2107,8 @@ export class App {
         detail: alert.detail,
         timeLabel: formatSettlementClock(snapshot.simTick),
         target: {
-          kind: 'world',
-          id: alert.id,
+          kind: alert.combatGroupId ? 'combat-group' : 'world',
+          id: alert.combatGroupId ?? alert.id,
           x: alert.x,
           z: alert.z,
         },

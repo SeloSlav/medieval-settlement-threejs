@@ -83,7 +83,10 @@ import {
   DEFAULT_MUSIC_VOLUME,
   DEFAULT_SOUND_EFFECTS_VOLUME,
 } from '../src/audio/audioPreferences.ts';
-import { riverAudioGain } from '../src/audio/RiverAudio.ts';
+import {
+  hasAmbientRiverSound,
+  riverAudioGain,
+} from '../src/audio/RiverAudio.ts';
 import { productionPocketVolume } from '../src/audio/ProductionPocketAudio.ts';
 import {
   buildProductionPocketTargets,
@@ -261,6 +264,21 @@ async function main(): Promise<void> {
       riverAudioGain(0.5) - (RIVER_WATER_CLIP.volume ?? 1) * 0.5,
     ) < 1e-9,
     'The ambience volume must scale the positional river loop',
+  );
+  invariant(
+    !hasAmbientRiverSound({ corridors: [] }),
+    'Pond-only water layouts must not emit the spatial rushing-river loop',
+  );
+  invariant(
+    hasAmbientRiverSound({
+      corridors: [{
+        points: [
+          { x: 0, z: 0, progress: 0, halfWidth: 4, channelDepth: 2 },
+          { x: 12, z: 4, progress: 1, halfWidth: 5, channelDepth: 2 },
+        ],
+      }],
+    }),
+    'A real river corridor must retain spatial river ambience',
   );
   invariant(
     OVERVIEW_ENTER_DISTANCE - OVERVIEW_EXIT_DISTANCE >= 20,

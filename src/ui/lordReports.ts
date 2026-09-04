@@ -38,7 +38,7 @@ export type LordReportContext = {
 };
 
 export type LordReportTarget = {
-  kind: 'building' | 'residence' | 'world';
+  kind: 'building' | 'residence' | 'world' | 'combat-group';
   id: string;
   x: number;
   z: number;

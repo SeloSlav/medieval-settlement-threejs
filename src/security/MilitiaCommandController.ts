@@ -13,6 +13,7 @@ import {
 } from './MilitaryOrderFeedbackRenderer.ts';
 import { MilitaryCompanyStrategicOverlay } from './MilitaryCompanyStrategicOverlay.ts';
 import {
+  hostileCompanyStrategicKindForFaction,
   militaryCompanyKindForAgents,
 } from './militaryCompanyPresentation.ts';
 import type { MilitaryCompanyKind } from './militaryProgression.ts';
@@ -118,6 +119,7 @@ export class MilitiaCommandController {
       camera: options.camera,
       getZoomPercent: options.getZoomPercent ?? (() => 100),
       getHeightAt: options.getHeightAt,
+      getAgentPosition: options.getAgentPosition,
       isBlocked: options.isBlocked,
       isVisibilityBlocked: options.isVisibilityBlocked,
       isIllustratedMapActive: options.isIllustratedMapActive,
@@ -169,14 +171,16 @@ export class MilitiaCommandController {
     const hostileGrouped = new Map<string, CombatAgentState[]>();
     for (const agent of agents.values()) {
       if (
-        (agent.faction === 'raider' || agent.faction === 'bandit')
-        && agent.status !== 'downed'
+        agent.status !== 'downed'
       ) {
-        this.hostilePositions.push({ id: agent.id, x: agent.x, z: agent.z });
-        const hostileId = `hostile:${agent.faction}:${agent.raidId}`;
-        const hostileMembers = hostileGrouped.get(hostileId) ?? [];
-        hostileMembers.push(agent);
-        hostileGrouped.set(hostileId, hostileMembers);
+        const hostileKind = hostileCompanyStrategicKindForFaction(agent.faction);
+        if (hostileKind) {
+          this.hostilePositions.push({ id: agent.id, x: agent.x, z: agent.z });
+          const hostileId = `hostile:${hostileKind}:${agent.raidId}`;
+          const hostileMembers = hostileGrouped.get(hostileId) ?? [];
+          hostileMembers.push(agent);
+          hostileGrouped.set(hostileId, hostileMembers);
+        }
       }
       const companyId = selectablePlayerMilitaryCompanyId(agent);
       if (!companyId) continue;
@@ -204,6 +208,7 @@ export class MilitiaCommandController {
     const friendlyMarkers = [...this.companies.values()].map((company) => ({
       id: company.id,
       kind: company.kind,
+      agentIds: company.agents.map((agent) => agent.id),
       x: company.x,
       z: company.z,
       livingMembers: company.agents.length,
@@ -213,7 +218,8 @@ export class MilitiaCommandController {
     }));
     const hostileMarkers = [...hostileGrouped.entries()].map(([id, members]) => ({
       id,
-      kind: members[0]!.faction === 'bandit' ? 'bandits' as const : 'raiders' as const,
+      kind: hostileCompanyStrategicKindForFaction(members[0]!.faction)!,
+      agentIds: members.map((member) => member.id),
       x: members.reduce((sum, member) => sum + member.x, 0) / members.length,
       z: members.reduce((sum, member) => sum + member.z, 0) / members.length,
       livingMembers: members.length,
@@ -221,6 +227,7 @@ export class MilitiaCommandController {
       moving: members.some((member) => (
         member.status === 'advancing'
         || member.status === 'retreating'
+        || member.status === 'returning'
         || (member.routeProgress ?? 0) > 0.25
       )),
       hostile: true,

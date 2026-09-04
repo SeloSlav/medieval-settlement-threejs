@@ -34,6 +34,7 @@ const STRATEGIC_COMPANY_ICON_LIFT = 3.15;
 export type StrategicCompanyMarker = {
   id: string;
   kind: MilitaryCompanyKind | HostileCompanyStrategicKind;
+  agentIds: readonly string[];
   x: number;
   z: number;
   livingMembers: number;
@@ -48,6 +49,7 @@ type StrategicCompanyIconOptions = {
   camera: THREE.Camera;
   getZoomPercent: () => number;
   getHeightAt: (x: number, z: number) => number;
+  getAgentPosition?: (id: string) => Readonly<{ x: number; z: number }> | null;
   isBlocked: () => boolean;
   isVisibilityBlocked?: () => boolean;
   isIllustratedMapActive?: () => boolean;
@@ -181,6 +183,31 @@ export function projectedCompanyBodyHeightPx(
   );
 }
 
+/** Resolves a whole-company marker from the same interpolated actor positions
+ * that are submitted to the renderer. This prevents a second, stale server
+ * centroid from drifting away from moving bandits or wildlife. */
+export function liveStrategicCompanyCenter(
+  marker: Pick<StrategicCompanyMarker, 'agentIds' | 'x' | 'z'>,
+  getAgentPosition?: (id: string) => Readonly<{ x: number; z: number }> | null,
+): Readonly<{ x: number; z: number; live: boolean }> {
+  if (!getAgentPosition || marker.agentIds.length === 0) {
+    return { x: marker.x, z: marker.z, live: false };
+  }
+  let x = 0;
+  let z = 0;
+  let count = 0;
+  for (const id of marker.agentIds) {
+    const position = getAgentPosition(id);
+    if (!position) continue;
+    x += position.x;
+    z += position.z;
+    count += 1;
+  }
+  return count > 0
+    ? { x: x / count, z: z / count, live: true }
+    : { x: marker.x, z: marker.z, live: false };
+}
+
 /** Lightweight DOM projection for whole-company strategic markers. One button
  * is retained per active company; there are no per-soldier DOM allocations. */
 export class MilitaryCompanyStrategicOverlay {
@@ -274,9 +301,15 @@ export class MilitaryCompanyStrategicOverlay {
     }
     this.options.camera.updateMatrixWorld();
     for (const entry of this.entries.values()) {
-      const offsetX = entry.marker.x - entry.displayX;
-      const offsetZ = entry.marker.z - entry.displayZ;
-      const positionBlend = strategicCompanyPositionBlend(
+      const center = liveStrategicCompanyCenter(
+        entry.marker,
+        this.options.getAgentPosition,
+      );
+      const offsetX = center.x - entry.displayX;
+      const offsetZ = center.z - entry.displayZ;
+      const positionBlend = entry.marker.hostile && entry.marker.moving && center.live
+        ? 1
+        : strategicCompanyPositionBlend(
         Math.hypot(offsetX, offsetZ),
         entry.marker.moving,
         deltaSeconds,
@@ -337,7 +370,7 @@ export class MilitaryCompanyStrategicOverlay {
             && entry.feetProjected.z <= 1
             && entry.headProjected.z >= -1
             && entry.headProjected.z <= 1
-            && isWithinCrowdView(entry.marker.x, entry.marker.z, crowdView),
+            && isWithinCrowdView(center.x, center.z, crowdView),
         );
         markerOpacity = presentation.opacity;
         markerScale = presentation.scale;
@@ -351,8 +384,8 @@ export class MilitaryCompanyStrategicOverlay {
       entry.button.style.setProperty('--company-marker-scale', markerScale.toFixed(3));
       entry.button.classList.toggle('is-compact', compact);
       if (!markerVisible) {
-        entry.displayX = entry.marker.x;
-        entry.displayZ = entry.marker.z;
+        entry.displayX = center.x;
+        entry.displayZ = center.z;
         continue;
       }
       entry.button.style.left = `${rect.left + (entry.projected.x * 0.5 + 0.5) * rect.width}px`;
