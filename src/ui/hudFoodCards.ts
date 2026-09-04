@@ -1,4 +1,10 @@
-import { FLOUR_KINDS, GRAIN_SHEAF_KINDS, type GrainSheafKind, type FlourKind } from '../economy/cropGoods.ts';
+import {
+  BREAD_KINDS,
+  FLOUR_KINDS,
+  GRAIN_SHEAF_KINDS,
+  type FlourKind,
+  type GrainSheafKind,
+} from '../economy/cropGoods.ts';
 import {
   FOOD_CATEGORY_LABELS, FOOD_MEAL_VALUES, foodCategory,
   FRESH_FOOD_KINDS, PRESERVED_FOOD_KINDS, type FoodInventoryKind,
@@ -19,13 +25,22 @@ const edibleKinds = [...FRESH_FOOD_KINDS, ...PRESERVED_FOOD_KINDS, 'honey'] as c
 
 /** Include the whole food chain without treating unprocessed crops as meals. */
 export const HUD_FOOD_GROUPS: readonly HudFoodGroup[] = [
-  { id: 'sheaves', label: 'Sheaves', kinds: GRAIN_SHEAF_KINDS },
-  { id: 'rawGrains', label: 'Grains & malt', kinds: ['ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt'] },
-  { id: 'flour', label: 'Flour', kinds: FLOUR_KINDS },
-  ...Object.entries(FOOD_CATEGORY_LABELS).map(([id, label]) => ({
+  {
+    id: 'cereals',
+    label: 'Cereals & bread',
+    kinds: [
+      ...GRAIN_SHEAF_KINDS,
+      'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt',
+      ...FLOUR_KINDS,
+      ...BREAD_KINDS,
+    ],
+  },
+  ...Object.entries(FOOD_CATEGORY_LABELS)
+    .filter(([id]) => id !== 'grains')
+    .map(([id, label]) => ({
     id,
-    label: id === 'grains' ? 'Bread & staples' : label,
-    kinds: edibleKinds.filter(kind => kind !== 'oatGrain' && foodCategory(kind) === id),
+    label,
+    kinds: edibleKinds.filter(kind => foodCategory(kind) === id),
   })),
 ];
 

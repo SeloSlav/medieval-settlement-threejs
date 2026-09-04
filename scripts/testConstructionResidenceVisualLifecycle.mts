@@ -540,7 +540,22 @@ function testBackyardConstructionOwnership(): void {
   assert.equal(orchardPreview.userData.backyardPlantingPreview, true);
   assert.equal(orchardPreview.userData.backyardConstructionSite, undefined);
   assert.equal(orchardPreview.userData.plantingLayout?.plots.length ?? 0, 0);
-  assert.equal(orchardPreview.children.length, 0, 'an unselected orchard project should leave the backyard blank');
+  const orchardPreviewBarrels = orchardPreview.children.filter(
+    (child) => child.name === 'Orchard harvest barrel',
+  );
+  assert.equal(orchardPreviewBarrels.length, 3, 'an unselected orchard project should stage a few barrels');
+  assert.ok(
+    orchardPreviewBarrels.every((barrel) => (
+      barrel.userData.orchardBarrelFenceSide === 'right'
+      && barrel.userData.orchardBarrelFilledForSpecialization === false
+    )),
+    'preview barrels should remain empty and grouped beside the fence',
+  );
+  assert.equal(
+    orchardPreview.getObjectByName('Textured garden soil bed'),
+    undefined,
+    'orchard barrel staging must not add soil or planting holes',
+  );
 
   const residenceInspectorSource = readFileSync(
     'src/resources/inspector/residenceRenderer.ts',

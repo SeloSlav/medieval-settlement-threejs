@@ -8,6 +8,7 @@ import {
   BACKYARD_GROUND_SOIL_SAMPLE_SPACING,
   conformBackyardGroundSoilToTerrain,
   createBackyardGardenMesh,
+  createOrchardBarrelPlan,
   createBackyardPlantingLayout,
   disposeBackyardGardenMesh,
   syncBackyardGardenSeasonVisuals,
@@ -116,6 +117,35 @@ for (const kind of ['apple_orchard', 'cherry_orchard', 'pear_orchard'] as const)
   assert.deepEqual(createBackyardPlantingLayout(kind, 7.2, 8.4, 2).plots, []);
 }
 
+for (const { width, depth, expectedCount } of [
+  { width: 3.8, depth: 1.8, expectedCount: 2 },
+  { width: 4.4, depth: 2.1, expectedCount: 2 },
+  { width: 6.2, depth: 5.4, expectedCount: 3 },
+  { width: 9.6, depth: 8.1, expectedCount: 3 },
+]) {
+  const plan = createOrchardBarrelPlan(width, depth);
+  assert.equal(plan.positions.length, expectedCount, 'orchards should stage a small fence-side barrel cluster');
+  assert.equal(plan.fenceSide, 'right');
+  for (const position of plan.positions) {
+    assert.ok(
+      Math.abs(position.x) + plan.radius <= width * 0.5 - plan.fenceClearance + 1e-9,
+      'barrels must remain fully inside the fitted backyard width',
+    );
+    assert.ok(
+      Math.abs(position.z) + plan.radius <= depth * 0.5 - plan.fenceClearance + 1e-9,
+      'barrels must remain fully inside the fitted backyard depth',
+    );
+  }
+  for (let index = 1; index < plan.positions.length; index++) {
+    const previous = plan.positions[index - 1]!;
+    const current = plan.positions[index]!;
+    assert.ok(
+      Math.hypot(current.x - previous.x, current.z - previous.z) >= plan.radius * 2 + 0.1,
+      'fence-side orchard barrels must not overlap each other',
+    );
+  }
+}
+
 const quarterTurnClearance = backyardGardenClearancePolygon(
   { x: 10, z: -4, width: 6, depth: 4, yaw: Math.PI * 0.5 },
   0,
@@ -192,11 +222,16 @@ for (const kind of kinds) {
   assert.equal(garden.userData.gardenKind, kind, `${kind} should retain its gameplay identity`);
   assert.equal(garden.userData.usesSeedThree, false, `${kind} should report that SeedThree is not yet attached`);
   if (kind === 'orchard') {
-    assert.equal(meshCount, 0, 'the unselected orchard backyard should remain completely blank');
-    assert.equal(garden.children.length, 0);
+    const barrelPlan = createOrchardBarrelPlan(width, depth);
+    assert.equal(meshCount, barrelPlan.positions.length * 3, 'the unselected orchard should show only shared barrel meshes');
+    assert.equal(garden.children.length, barrelPlan.positions.length);
+    assert.ok(garden.children.every((child) => child.name === 'Orchard harvest barrel'));
+    assert.ok(garden.children.every((child) => child.userData.orchardBarrelFilledForSpecialization === false));
     assert.equal(garden.userData.orchardAwaitingSpecialization, true);
-    assert.equal(garden.userData.orchardVisualState, 'awaiting-specialization-empty');
+    assert.equal(garden.userData.orchardVisualState, 'awaiting-specialization-barrels');
+    assert.deepEqual(garden.userData.orchardBarrelPlan, barrelPlan);
     assert.equal(garden.userData.plantingLayout, undefined);
+    assert.equal(soilBeds.length, 0, 'barrel staging must not disturb the orchard grass');
     disposeBackyardGardenMesh(garden);
     continue;
   }
@@ -399,6 +434,29 @@ assert.deepEqual(
   'deep orchard trees should align evenly along the backyard length',
 );
 disposeBackyardGardenMesh(deepOrchard);
+
+const wideDeepOrchard = createBackyardGardenMesh('pear_orchard', {
+  width: 9.6,
+  depth: 8.1,
+  seed: 99,
+});
+const wideDeepTrees: THREE.Object3D[] = [];
+wideDeepOrchard.traverse((object) => {
+  if (object.name.startsWith('PearTree:')) wideDeepTrees.push(object);
+});
+assert.deepEqual(wideDeepOrchard.userData.orchardGrid, { columns: 4, rows: 3 });
+assert.equal(wideDeepTrees.length, 12, 'wide and deep yards should grow the orchard in both axes');
+const wideDeepTreeXs = wideDeepTrees.map((tree) => tree.position.x);
+const wideDeepTreeZs = wideDeepTrees.map((tree) => tree.position.z);
+assert.ok(
+  Math.max(...wideDeepTreeXs) - Math.min(...wideDeepTreeXs) >= 9.6 * 0.7,
+  'tree columns should occupy most of a wide backyard',
+);
+assert.ok(
+  Math.max(...wideDeepTreeZs) - Math.min(...wideDeepTreeZs) >= 8.1 * 0.65,
+  'tree rows should occupy most of a deep backyard',
+);
+disposeBackyardGardenMesh(wideDeepOrchard);
 
 const vegetableShell = createBackyardGardenMesh('vegetable_garden', {
   width: 6.2,
@@ -676,19 +734,32 @@ for (const proxy of collisionProxies) {
   assert.ok(Number(parameters.height) <= 1.72, 'apple collision should stop below the spreading crown');
   assert.equal(proxy.material.visible, false, 'collision proxies should never render');
 }
-assert.equal(harvestBarrels.length, 1);
-assert.equal(
-  harvestBarrels[0]!.userData.orchardBarrelAsset,
-  'buildingMeshKit.addBarrel',
-  'orchards should reuse the established coopered barrel asset',
+const collisionBarrelPlan = createOrchardBarrelPlan(6.2, 5.4);
+assert.equal(harvestBarrels.length, collisionBarrelPlan.positions.length);
+assert.deepEqual(collisionOrchard.userData.orchardBarrelPlan, collisionBarrelPlan);
+assert.deepEqual(
+  harvestBarrels.map((barrel) => ({ x: barrel.position.x, z: barrel.position.z })),
+  collisionBarrelPlan.positions,
+  'completed orchard barrels should retain the prepared fence-side staging positions',
 );
-assert.equal(harvestBarrels[0]!.getObjectByName('Shared coopered barrel body')?.type, 'Mesh');
-assert.equal(harvestBarrels[0]!.getObjectByName('Shared coopered barrel lower hoop')?.type, 'Mesh');
-assert.equal(harvestBarrels[0]!.getObjectByName('Shared coopered barrel upper hoop')?.type, 'Mesh');
+for (const barrel of harvestBarrels) {
+  assert.equal(
+    barrel.userData.orchardBarrelAsset,
+    'buildingMeshKit.addBarrel',
+    'orchards should reuse the established coopered barrel asset',
+  );
+  assert.equal(barrel.userData.orchardBarrelFilledForSpecialization, true);
+  assert.equal(barrel.getObjectByName('Shared coopered barrel body')?.type, 'Mesh');
+  assert.equal(barrel.getObjectByName('Shared coopered barrel lower hoop')?.type, 'Mesh');
+  assert.equal(barrel.getObjectByName('Shared coopered barrel upper hoop')?.type, 'Mesh');
+}
 assert.ok(orchardFruit.length > 0);
-assert.ok(barrelFruit.length > 0);
+assert.equal(barrelFruit.length, harvestBarrels.length * 5, 'each staged apple barrel should receive harvest fruit');
 assert.equal(orchardFoliage.length, collisionTrees.length);
-assert.equal(harvestBarrels[0]!.userData.fpCollisionAggregate, true, 'the harvest barrel should use one close aggregate collider');
+assert.ok(
+  harvestBarrels.every((barrel) => barrel.userData.fpCollisionAggregate === true),
+  'each harvest barrel should use one close aggregate collider',
+);
 assert.equal(orchardStones.length, 0, 'orchards should leave their grass paths free of stepping stones');
 syncBackyardGardenSeasonVisuals(collisionOrchard, 'apple_orchard', 1);
 assert.ok(orchardFruit.every((fruit) => !fruit.visible), 'dormant orchards should show no fruit on trees');
@@ -796,10 +867,20 @@ for (const [kind, signature] of [
 const preparedOrchard = createBackyardGardenMesh('orchard', { width: 6.2, depth: 5.4, seed: 91 });
 assert.equal(preparedOrchard.userData.orchardAwaitingSpecialization, true);
 let preparedPlantCount = 0;
+const preparedBarrels: THREE.Object3D[] = [];
 preparedOrchard.traverse((object) => {
   if (object.userData.backyardMaturityAnchor === true) preparedPlantCount += 1;
+  if (object.name === 'Orchard harvest barrel') preparedBarrels.push(object);
 });
-assert.equal(preparedOrchard.children.length, 0, 'the unselected orchard slot should leave its backyard blank');
+const preparedBarrelPlan = createOrchardBarrelPlan(6.2, 5.4);
+assert.equal(preparedOrchard.children.length, preparedBarrelPlan.positions.length);
+assert.equal(preparedBarrels.length, preparedBarrelPlan.positions.length);
+assert.deepEqual(
+  preparedBarrels.map((barrel) => ({ x: barrel.position.x, z: barrel.position.z })),
+  preparedBarrelPlan.positions,
+  'the unselected orchard should stage its persistent barrels beside the fence',
+);
+assert.ok(preparedBarrels.every((barrel) => barrel.userData.orchardBarrelFilledForSpecialization === false));
 assert.equal(preparedOrchard.userData.plantingLayout, undefined);
 assert.equal(preparedPlantCount, 0, 'the orchard shell must remain unplanted until selected');
 disposeBackyardGardenMesh(preparedOrchard);

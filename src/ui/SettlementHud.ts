@@ -55,6 +55,7 @@ import {
 } from './lordReports.ts';
 import { HUD_RESOURCE_CARD_PRESENTATION } from './hudResourceCards.ts';
 import { HUD_FOOD_GROUPS, hudFoodResourceLabel, hudFoodResourceTooltip } from './hudFoodCards.ts';
+import { HUD_PROVISION_GROUPS, hudProvisionResourceLabel } from './hudProvisionCards.ts';
 import { RESOURCE_DESCRIPTIONS } from './resourceDescriptions.ts';
 import type { SettlementAnimalsView } from './settlementAnimals.ts';
 import {
@@ -584,172 +585,18 @@ const SETTLEMENT_HUD_HTML = `
             <strong>Goods &amp; provisions</strong>
             <span data-specialty-stores-mode-label>Available surplus</span>
           </div>
-          <section class="settlement-hud__stores-section" data-provision-category="productionInputs" aria-labelledby="settlement-provision-category-productionInputs">
-            <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3" id="settlement-provision-category-productionInputs"><strong>Production inputs</strong></div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ryeGrain" data-tooltip="${RESOURCE_DESCRIPTIONS.ryeGrain}">
-              <span class="settlement-hud__label">Rye grain</span>
-              <strong class="settlement-hud__value" data-stockpile="ryeGrain">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ryeGrain" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="oatGrain" data-tooltip="${RESOURCE_DESCRIPTIONS.oatGrain}">
-              <span class="settlement-hud__label">Oats</span>
-              <strong class="settlement-hud__value" data-stockpile="oatGrain">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="oatGrain" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="maslinGrain" data-tooltip="${RESOURCE_DESCRIPTIONS.maslinGrain}">
-              <span class="settlement-hud__label">Maslin grain</span>
-              <strong class="settlement-hud__value" data-stockpile="maslinGrain">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="maslinGrain" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="barley" data-tooltip="${RESOURCE_DESCRIPTIONS.barley}">
-              <span class="settlement-hud__label">Barley</span>
-              <strong class="settlement-hud__value" data-stockpile="barley">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="barley" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="malt" data-tooltip="${RESOURCE_DESCRIPTIONS.malt}">
-              <span class="settlement-hud__label">Malt</span>
-              <strong class="settlement-hud__value" data-stockpile="malt">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="malt" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ryeFlour" data-tooltip="${RESOURCE_DESCRIPTIONS.ryeFlour}">
-              <span class="settlement-hud__label">Rye flour</span>
-              <strong class="settlement-hud__value" data-stockpile="ryeFlour">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ryeFlour" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="maslinFlour" data-tooltip="${RESOURCE_DESCRIPTIONS.maslinFlour}">
-              <span class="settlement-hud__label">Maslin flour</span>
-              <strong class="settlement-hud__value" data-stockpile="maslinFlour">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="maslinFlour" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="iron" data-tooltip="${RESOURCE_DESCRIPTIONS.iron}">
-              <span class="settlement-hud__label">Iron</span>
-              <strong class="settlement-hud__value" data-stockpile="iron">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="iron" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="clay" data-tooltip="${RESOURCE_DESCRIPTIONS.clay}">
-              <span class="settlement-hud__label">Clay</span>
-              <strong class="settlement-hud__value" data-stockpile="clay">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="clay" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="salt" data-tooltip="${RESOURCE_DESCRIPTIONS.salt}">
-              <span class="settlement-hud__label">Salt</span>
-              <strong class="settlement-hud__value" data-stockpile="salt">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="salt" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="manure" data-tooltip="${RESOURCE_DESCRIPTIONS.manure}">
-              <span class="settlement-hud__label">Manure</span>
-              <strong class="settlement-hud__value" data-stockpile="manure">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="manure" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="remedies" data-tooltip="${RESOURCE_DESCRIPTIONS.remedies}">
-              <span class="settlement-hud__label">Remedies</span>
-              <strong class="settlement-hud__value" data-stockpile="remedies">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="remedies" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wool" data-tooltip="${RESOURCE_DESCRIPTIONS.wool}">
-              <span class="settlement-hud__label">Wool</span>
-              <strong class="settlement-hud__value" data-stockpile="wool">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wool" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="flax" data-tooltip="${RESOURCE_DESCRIPTIONS.flax}">
-              <span class="settlement-hud__label">Flax</span>
-              <strong class="settlement-hud__value" data-stockpile="flax">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="flax" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="yarn" data-tooltip="${RESOURCE_DESCRIPTIONS.yarn}">
-              <span class="settlement-hud__label">Yarn</span>
-              <strong class="settlement-hud__value" data-stockpile="yarn">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="yarn" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="linen" data-tooltip="${RESOURCE_DESCRIPTIONS.linen}">
-              <span class="settlement-hud__label">Linen</span>
-              <strong class="settlement-hud__value" data-stockpile="linen">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="linen" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="hides" data-tooltip="${RESOURCE_DESCRIPTIONS.hides}">
-              <span class="settlement-hud__label">Hides</span>
-              <strong class="settlement-hud__value" data-stockpile="hides">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="hides" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="leather" data-tooltip="${RESOURCE_DESCRIPTIONS.leather}">
-              <span class="settlement-hud__label">Leather</span>
-              <strong class="settlement-hud__value" data-stockpile="leather">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="leather" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wax" data-tooltip="${RESOURCE_DESCRIPTIONS.wax}">
-              <span class="settlement-hud__label">Beeswax</span>
-              <strong class="settlement-hud__value" data-stockpile="wax">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wax" hidden></span>
-            </div>
-          </section>
-          <section class="settlement-hud__stores-section" data-provision-category="commodities" aria-labelledby="settlement-provision-category-commodities">
-            <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3" id="settlement-provision-category-commodities"><strong>Commodities</strong></div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ironwork" data-tooltip="${RESOURCE_DESCRIPTIONS.ironwork}">
-              <span class="settlement-hud__label">Ironwork</span>
-              <strong class="settlement-hud__value" data-stockpile="ironwork">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ironwork" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pottery" data-tooltip="${RESOURCE_DESCRIPTIONS.pottery}">
-              <span class="settlement-hud__label">Pottery</span>
-              <strong class="settlement-hud__value" data-stockpile="pottery">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="pottery" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="roofTiles" data-tooltip="${RESOURCE_DESCRIPTIONS.roofTiles}">
-              <span class="settlement-hud__label">Roof tiles</span>
-              <strong class="settlement-hud__value" data-stockpile="roofTiles">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="roofTiles" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="cloth" data-tooltip="${RESOURCE_DESCRIPTIONS.cloth}">
-              <span class="settlement-hud__label">Clothing</span>
-              <strong class="settlement-hud__value" data-stockpile="cloth">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="cloth" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="shoes" data-tooltip="${RESOURCE_DESCRIPTIONS.shoes}">
-              <span class="settlement-hud__label">Shoes</span>
-              <strong class="settlement-hud__value" data-stockpile="shoes">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="shoes" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ale" data-tooltip="${RESOURCE_DESCRIPTIONS.ale}">
-              <span class="settlement-hud__label">Ale</span>
-              <strong class="settlement-hud__value" data-stockpile="ale">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ale" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="cider" data-tooltip="${RESOURCE_DESCRIPTIONS.cider}">
-              <span class="settlement-hud__label">Cider</span>
-              <strong class="settlement-hud__value" data-stockpile="cider">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="cider" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="mead" data-tooltip="${RESOURCE_DESCRIPTIONS.mead}">
-              <span class="settlement-hud__label">Mead</span>
-              <strong class="settlement-hud__value" data-stockpile="mead">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="mead" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wine" data-tooltip="${RESOURCE_DESCRIPTIONS.wine}">
-              <span class="settlement-hud__label">Wine</span>
-              <strong class="settlement-hud__value" data-stockpile="wine">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wine" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="candles" data-tooltip="${RESOURCE_DESCRIPTIONS.candles}">
-              <span class="settlement-hud__label">Candles</span>
-              <strong class="settlement-hud__value" data-stockpile="candles">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="candles" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="honey" data-tooltip="${RESOURCE_DESCRIPTIONS.honey}">
-              <span class="settlement-hud__label">Honey</span>
-              <strong class="settlement-hud__value" data-stockpile="honey">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="honey" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="animalFeed" data-tooltip="${RESOURCE_DESCRIPTIONS.animalFeed}">
-              <span class="settlement-hud__label">Animal feed</span>
-              <strong class="settlement-hud__value" data-stockpile="animalFeed">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="animalFeed" hidden></span>
-            </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pelts" data-tooltip="${RESOURCE_DESCRIPTIONS.pelts}">
-              <span class="settlement-hud__label">Pelts</span>
-              <strong class="settlement-hud__value" data-stockpile="pelts">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="pelts" hidden></span>
-            </div>
-          </section>
+          ${HUD_PROVISION_GROUPS.map(({ id: category, label, kinds }) => `
+            <section class="settlement-hud__stores-section" data-provision-category="${category}" aria-labelledby="settlement-provision-category-${category}">
+              <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3" id="settlement-provision-category-${category}"><strong>${label}</strong></div>
+              ${kinds.map((kind) => `
+                <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="${kind}" data-tooltip-title="${hudProvisionResourceLabel(kind)}" data-tooltip="${RESOURCE_DESCRIPTIONS[kind]}">
+                  <span class="settlement-hud__label">${hudProvisionResourceLabel(kind)}</span>
+                  <strong class="settlement-hud__value" data-stockpile="${kind}">0</strong>
+                  <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="${kind}" hidden></span>
+                </div>
+              `).join('')}
+            </section>
+          `).join('')}
         </div>
       </div>
     </details>

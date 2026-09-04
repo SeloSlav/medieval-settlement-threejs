@@ -12,9 +12,15 @@ import {
   type ResourceTotals,
 } from './resourceTotals.ts';
 import { HUD_FOOD_RESOURCE_KINDS, hudFoodResourceTooltip, type HudFoodResourceKind } from '../ui/hudFoodCards.ts';
+import { HUD_PROVISION_RESOURCE_KINDS } from '../ui/hudProvisionCards.ts';
 
 const FOOD_BREAKDOWN_ROW_KINDS = HUD_FOOD_RESOURCE_KINDS;
 type FoodBreakdownRowKind = HudFoodResourceKind;
+type StandaloneHudResourceKind = Exclude<HudResourceKind, HudFoodResourceKind>;
+const STANDALONE_HUD_RESOURCE_KINDS = HUD_RESOURCE_KINDS.filter(
+  (resource): resource is StandaloneHudResourceKind =>
+    !(HUD_FOOD_RESOURCE_KINDS as readonly string[]).includes(resource),
+);
 type FoodBreakdownRowElements = {
   row: HTMLElement;
   stored: HTMLElement;
@@ -349,16 +355,6 @@ type ResourceInspectorOptions = {
 const DEFAULT_TOTAL_RESOURCE_TOOLTIP =
   'All stored stock, including household reserves and goods committed to active projects. Goods in transit are counted separately until unloaded.';
 
-const NON_SPECIALTY_HUD_RESOURCE_KINDS = new Set<HudResourceKind>([
-  'timber',
-  'stone',
-  'firewood',
-  'water',
-  'food',
-  'gold',
-  'charcoal',
-]);
-
 const MILITARY_HUD_RESOURCE_KINDS = new Set<HudResourceKind>([
   'polearms',
   'sidearms',
@@ -370,10 +366,7 @@ const MILITARY_HUD_RESOURCE_KINDS = new Set<HudResourceKind>([
   'ammunition',
 ]);
 
-const SPECIALTY_HUD_RESOURCE_KINDS = HUD_RESOURCE_KINDS.filter(
-  (resource) => !NON_SPECIALTY_HUD_RESOURCE_KINDS.has(resource)
-    && !MILITARY_HUD_RESOURCE_KINDS.has(resource),
-);
+const SPECIALTY_HUD_RESOURCE_KINDS = HUD_PROVISION_RESOURCE_KINDS;
 
 export class ResourceInspector {
   private readonly options: ResourceInspectorOptions;
@@ -388,8 +381,8 @@ export class ResourceInspector {
   private readonly closeButton: HTMLButtonElement;
   private readonly detailList: HTMLElement;
   private readonly stockpileRoot: HTMLElement;
-  private readonly stockpileValues: Record<HudResourceKind, HTMLElement>;
-  private readonly stockpileTransitValues: Record<HudResourceKind, HTMLElement>;
+  private readonly stockpileValues: Record<StandaloneHudResourceKind, HTMLElement>;
+  private readonly stockpileTransitValues: Record<StandaloneHudResourceKind, HTMLElement>;
   private readonly foodBreakdownRows: Record<
     FoodBreakdownRowKind,
     FoodBreakdownRowElements
@@ -641,67 +634,24 @@ export class ResourceInspector {
       options.uiRoot,
       '[data-resource-card-reading-label="gold"]',
     );
-    this.stockpileValues = {
-      timber: this.mustElement(options.uiRoot, '[data-stockpile="timber"]'),
-      stone: this.mustElement(options.uiRoot, '[data-stockpile="stone"]'),
-      firewood: this.mustElement(options.uiRoot, '[data-stockpile="firewood"]'),
-      water: this.mustElement(options.uiRoot, '[data-stockpile="water"]'),
-      food: this.mustElement(options.uiRoot, '[data-stockpile="food"]'),
-      gold: this.mustElement(options.uiRoot, '[data-stockpile="gold"]'),
-      ryeGrain: this.mustElement(options.uiRoot, '[data-stockpile="ryeGrain"]'),
-      oatGrain: this.mustElement(options.uiRoot, '[data-stockpile="oatGrain"]'),
-      animalFeed: this.mustElement(options.uiRoot, '[data-stockpile="animalFeed"]'),
-      maslinGrain: this.mustElement(options.uiRoot, '[data-stockpile="maslinGrain"]'),
-      barley: this.mustElement(options.uiRoot, '[data-stockpile="barley"]'),
-      malt: this.mustElement(options.uiRoot, '[data-stockpile="malt"]'),
-      ryeFlour: this.mustElement(options.uiRoot, '[data-stockpile="ryeFlour"]'),
-      maslinFlour: this.mustElement(options.uiRoot, '[data-stockpile="maslinFlour"]'),
-      ale: this.mustElement(options.uiRoot, '[data-stockpile="ale"]'),
-      cider: this.mustElement(options.uiRoot, '[data-stockpile="cider"]'),
-      mead: this.mustElement(options.uiRoot, '[data-stockpile="mead"]'),
-      honey: this.mustElement(options.uiRoot, '[data-stockpile="honey"]'),
-      wax: this.mustElement(options.uiRoot, '[data-stockpile="wax"]'),
-      candles: this.mustElement(options.uiRoot, '[data-stockpile="candles"]'),
-      wine: this.mustElement(options.uiRoot, '[data-stockpile="wine"]'),
-      wool: this.mustElement(options.uiRoot, '[data-stockpile="wool"]'),
-      flax: this.mustElement(options.uiRoot, '[data-stockpile="flax"]'),
-      yarn: this.mustElement(options.uiRoot, '[data-stockpile="yarn"]'),
-      linen: this.mustElement(options.uiRoot, '[data-stockpile="linen"]'),
-      cloth: this.mustElement(options.uiRoot, '[data-stockpile="cloth"]'),
-      pelts: this.mustElement(options.uiRoot, '[data-stockpile="pelts"]'),
-      hides: this.mustElement(options.uiRoot, '[data-stockpile="hides"]'),
-      leather: this.mustElement(options.uiRoot, '[data-stockpile="leather"]'),
-      shoes: this.mustElement(options.uiRoot, '[data-stockpile="shoes"]'),
-      ironwork: this.mustElement(options.uiRoot, '[data-stockpile="ironwork"]'),
-      polearms: this.mustElement(options.uiRoot, '[data-stockpile="polearms"]'),
-      sidearms: this.mustElement(options.uiRoot, '[data-stockpile="sidearms"]'),
-      shields: this.mustElement(options.uiRoot, '[data-stockpile="shields"]'),
-      bows: this.mustElement(options.uiRoot, '[data-stockpile="bows"]'),
-      crossbows: this.mustElement(options.uiRoot, '[data-stockpile="crossbows"]'),
-      paddedArmor: this.mustElement(options.uiRoot, '[data-stockpile="paddedArmor"]'),
-      mailArmor: this.mustElement(options.uiRoot, '[data-stockpile="mailArmor"]'),
-      ammunition: this.mustElement(options.uiRoot, '[data-stockpile="ammunition"]'),
-      iron: this.mustElement(options.uiRoot, '[data-stockpile="iron"]'),
-      clay: this.mustElement(options.uiRoot, '[data-stockpile="clay"]'),
-      salt: this.mustElement(options.uiRoot, '[data-stockpile="salt"]'),
-      manure: this.mustElement(options.uiRoot, '[data-stockpile="manure"]'),
-      remedies: this.mustElement(options.uiRoot, '[data-stockpile="remedies"]'),
-      charcoal: this.mustElement(options.uiRoot, '[data-stockpile="charcoal"]'),
-      pottery: this.mustElement(options.uiRoot, '[data-stockpile="pottery"]'),
-      roofTiles: this.mustElement(options.uiRoot, '[data-stockpile="roofTiles"]'),
-    };
-    for (const resource of HUD_RESOURCE_KINDS) {
+    this.stockpileValues = Object.fromEntries(
+      STANDALONE_HUD_RESOURCE_KINDS.map((resource) => [
+        resource,
+        this.mustElement(options.uiRoot, `[data-stockpile="${resource}"]`),
+      ]),
+    ) as Record<StandaloneHudResourceKind, HTMLElement>;
+    for (const resource of STANDALONE_HUD_RESOURCE_KINDS) {
       const stat = this.stockpileValues[resource]
         .closest<HTMLElement>('.settlement-hud__stat');
       const tooltip = stat?.dataset.tooltip;
       if (tooltip) this.surplusResourceTooltips.set(resource, tooltip);
     }
     this.stockpileTransitValues = Object.fromEntries(
-      HUD_RESOURCE_KINDS.map((resource) => [
+      STANDALONE_HUD_RESOURCE_KINDS.map((resource) => [
         resource,
         this.mustElement(options.uiRoot, `[data-stockpile-transit="${resource}"]`),
       ]),
-    ) as Record<HudResourceKind, HTMLElement>;
+    ) as Record<StandaloneHudResourceKind, HTMLElement>;
     this.foodBreakdownRows = Object.fromEntries(
       FOOD_BREAKDOWN_ROW_KINDS.map((kind) => [
         kind,
@@ -898,7 +848,7 @@ export class ResourceInspector {
       ? 'Total civic gold held'
       : 'Spendable civic gold';
 
-    for (const resource of HUD_RESOURCE_KINDS) {
+    for (const resource of STANDALONE_HUD_RESOURCE_KINDS) {
       const stat = this.stockpileValues[resource]
         .closest<HTMLElement>('.settlement-hud__stat');
       if (!stat) continue;
@@ -2156,7 +2106,7 @@ export class ResourceInspector {
       : this.surplusTotals;
     if (!totals) return;
 
-    for (const resource of HUD_RESOURCE_KINDS) {
+    for (const resource of STANDALONE_HUD_RESOURCE_KINDS) {
       this.stockpileValues[resource].textContent = Math.round(totals[resource]).toString();
     }
     for (const resource of HUD_CONSTRUCTION_RESOURCE_KINDS) {
@@ -2173,11 +2123,11 @@ export class ResourceInspector {
     const amountLabel = this.resourceTotalsPresentation === 'total'
       ? 'Total stored'
       : 'Available surplus';
-    for (const resource of HUD_RESOURCE_KINDS) {
+    for (const resource of STANDALONE_HUD_RESOURCE_KINDS) {
       this.setHudTooltipAmount(this.stockpileValues[resource], totals[resource], amountLabel);
     }
     this.renderFoodBreakdown();
-    for (const resource of HUD_RESOURCE_KINDS) {
+    for (const resource of STANDALONE_HUD_RESOURCE_KINDS) {
       const transit = this.stockpileTransitValues[resource];
       const amount = Math.max(0, this.inTransitTotals?.[resource] ?? 0);
       const details = [];

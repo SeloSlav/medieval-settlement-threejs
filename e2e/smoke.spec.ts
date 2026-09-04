@@ -209,11 +209,13 @@ test('centers Development between civic status and right-aligned resource contro
       <button class="development-launcher" aria-label="Developments"></button>
       <div class="settlement-hud__ribbon-side settlement-hud__ribbon-side--resources" data-settlement-resource-strip>
         <div class="settlement-hud__body settlement-hud__body--resources">
-          <div class="settlement-hud__stat" data-resource-group="construction">
-            <span class="settlement-hud__construction-summary">
-              <span data-construction-kind="timber"><i></i><strong>400</strong></span>
-              <span data-construction-kind="stone"><i></i><strong>240</strong></span>
-            </span>
+          <div class="settlement-hud__people-card settlement-hud__resource-card settlement-hud__construction-card">
+            <div class="settlement-hud__stat" data-resource-group="construction">
+              <span class="settlement-hud__construction-summary">
+                <span data-construction-kind="timber"><i></i><strong>400</strong></span>
+                <span data-construction-kind="stone"><i></i><strong>240</strong></span>
+              </span>
+            </div>
           </div>
         </div>
         <details class="settlement-hud__stores" data-specialty-stores>
@@ -287,6 +289,22 @@ test('centers Development between civic status and right-aligned resource contro
     expect.stringContaining('hud-resources-core.png'),
   ]);
   expect(constructionIcons[0]?.position).not.toBe(constructionIcons[1]?.position);
+
+  const constructionSpacing = await page.locator('[data-resource-group="construction"]').evaluate((button) => {
+    const buttonBox = button.getBoundingClientRect();
+    const materials = Array.from(
+      button.querySelectorAll<HTMLElement>('[data-construction-kind]'),
+      (material) => material.getBoundingClientRect(),
+    );
+    return {
+      constructionIconDisplay: getComputedStyle(button, '::before').display,
+      leftInset: materials[0]!.left - buttonBox.left,
+      rightInset: buttonBox.right - materials[1]!.right,
+    };
+  });
+  expect(constructionSpacing.constructionIconDisplay).toBe('none');
+  expect(constructionSpacing.leftInset).toBeGreaterThanOrEqual(6.5);
+  expect(constructionSpacing.rightInset).toBeGreaterThanOrEqual(6.5);
 
   const armsTriggerIcon = await page.locator('[data-military-stores] > summary').evaluate((element) => (
     getComputedStyle(element, '::before').backgroundImage

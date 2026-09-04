@@ -691,9 +691,17 @@ select:focus-visible {
 .settlement-hud__stat[data-resource='population']::before { content: '\265F'; color: #d2c7af; }
 .settlement-hud__stat[data-resource='housing']::before { content: '\2302'; color: #ceb17a; }
 .settlement-hud__stat[data-resource='labor']::before { content: '\2692'; color: #b7b0a1; }
-.settlement-hud__stat[data-resource-group='construction']::before {
-  content: '\2692';
-  color: #d0aa70;
+.settlement-hud__construction-card
+  > .settlement-hud__stat[data-resource-group='construction'] {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  padding-inline: 7px;
+}
+
+.settlement-hud__construction-card
+  > .settlement-hud__stat[data-resource-group='construction']::before {
+  display: none;
+  content: none;
 }
 
 .settlement-hud__construction-summary {
@@ -708,6 +716,15 @@ select:focus-visible {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+}
+
+.settlement-hud__construction-card
+  > .settlement-hud__stat[data-resource-group='construction']
+  > .settlement-hud__construction-summary {
+  grid-column: 1;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
 }
 
 .settlement-hud__construction-summary > span {

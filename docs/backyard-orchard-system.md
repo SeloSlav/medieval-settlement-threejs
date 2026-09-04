@@ -2,14 +2,14 @@
 
 ## Player flow
 
-1. A completed residence starts an **Orchard** backyard project without a scaffold/worksite animation. The backyard stays visually unchanged until the household selects a plant.
+1. A completed residence starts an **Orchard** backyard project without a scaffold/worksite animation. Two or three empty harvest barrels appear beside the fence as the only prepared visual; there are no soil beds or planting holes.
 2. Timber and stone are still delivered physically and one free household laborer resolves it through the existing residence-project pipeline.
-3. The completed orchard is an empty specialization slot and produces nothing.
+3. The completed orchard remains an unplanted specialization slot and produces nothing. Its fence-side barrels persist through specialization and visibly fill with the selected fruit during harvest.
 4. Selecting the orchard opens five planting choices: apple, cherry, pear, aronia, and rosehip.
 5. Planting starts the species maturity timer. Output remains zero until the timer has elapsed and the species' harvest window is open.
 6. Demolition removes either the prepared orchard or its specialization. After salvage is hauled away, the plot can select any backyard extension again.
 
-Apple, cherry, and pear trees grow directly from the natural grass surface. Fruiting bush orchards retain cultivated rows.
+Apple, cherry, and pear trees grow directly from the natural grass surface. Their column and row counts expand independently with the fitted backyard width and depth, while fruiting bush orchards retain cultivated rows.
 
 The development schema intentionally makes Orchard the canonical first kind. Fruit and berry specialization ids are grouped after it, and the server rejects direct specialized-orchard construction; every planting therefore receives its full maturity timer.
 
@@ -45,10 +45,11 @@ A tier-3 household preparing for promotion, or an existing tier-4 household, can
 
 The fixed close views are:
 
+- `/backyard-lineup.html?view=orchard-close`
 - `/backyard-lineup.html?view=pear-close`
 - `/backyard-lineup.html?view=aronia-close`
 - `/backyard-lineup.html?view=rosehip-close`
 
-The Playwright contract captures all three through `e2e/backyard-lineup.spec.ts`. The broader geometry contract checks deterministic rows, maturity scaling, harvest visibility, fruit attachment, the unplanted orchard shell, luxury bouquets, texture channels, GLB presence, and winter foliage in `scripts/testBackyardGardenVisuals.mts`.
+The Playwright contract captures all four through `e2e/backyard-lineup.spec.ts`. The broader geometry contract checks deterministic width/depth scaling, fence-safe persistent barrels, maturity scaling, harvest visibility, fruit attachment, the unplanted orchard shell, luxury bouquets, texture channels, GLB presence, and winter foliage in `scripts/testBackyardGardenVisuals.mts`.
 
 The gameplay/schema contract is `scripts/testOrchardSpecializations.mts`.

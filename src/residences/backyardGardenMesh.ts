@@ -48,6 +48,10 @@ const ORCHARD_AUTUMN_LEAF_COLOR = {
   cherry: 0xc84d32,
   pear: 0xc79932,
 } as const;
+const ORCHARD_BARREL_SCALE = 0.82;
+const ORCHARD_BARREL_RADIUS = 0.38 * ORCHARD_BARREL_SCALE;
+const ORCHARD_BARREL_FENCE_CLEARANCE = 0.18;
+const ORCHARD_BARREL_SPACING = ORCHARD_BARREL_RADIUS * 2 + 0.12;
 
 function createFlowerStemMaps(): {
   albedo: THREE.DataTexture;
@@ -980,19 +984,19 @@ function addHarvestBarrel(
   fruit: THREE.Material,
   fruitRadius = 0.095,
   fruitCount = 5,
-): void {
+): THREE.Group {
   const barrel = new THREE.Group();
   barrel.name = 'Orchard harvest barrel';
   barrel.position.set(x, 0, z);
   barrel.userData.fpCollisionAggregate = true;
   barrel.userData.orchardBarrelAsset = 'buildingMeshKit.addBarrel';
   group.add(barrel);
-  addBarrel(barrel, 0, 0, 0.82);
+  addBarrel(barrel, 0, 0, ORCHARD_BARREL_SCALE);
   const [body, lowerHoop, upperHoop] = barrel.children;
   if (body) body.name = 'Shared coopered barrel body';
   if (lowerHoop) lowerHoop.name = 'Shared coopered barrel lower hoop';
   if (upperHoop) upperHoop.name = 'Shared coopered barrel upper hoop';
-  if (!filled) return;
+  if (!filled) return barrel;
   for (let i = 0; i < fruitCount; i++) {
     const angle = (i / fruitCount) * Math.PI * 2;
     const ring = fruitRadius < 0.06 ? 0.07 + (i % 2) * 0.065 : 0.13;
@@ -1009,6 +1013,62 @@ function addHarvestBarrel(
     );
     barrelFruit.userData.backyardSeasonalRole = 'barrel-produce';
   }
+  return barrel;
+}
+
+export type OrchardBarrelPlan = {
+  fenceSide: 'right';
+  scale: number;
+  radius: number;
+  fenceClearance: number;
+  positions: Array<{ x: number; z: number }>;
+};
+
+/**
+ * Keeps a small, persistent barrel cluster beside the right/rear fence. The
+ * fitted backyard footprint is already inset from the physical burgage fence;
+ * this additional clearance keeps every barrel fully inside that usable area.
+ */
+export function createOrchardBarrelPlan(width: number, depth: number): OrchardBarrelPlan {
+  const fittedWidth = Math.max(3.8, width);
+  const fittedDepth = Math.max(1.8, depth);
+  const centerInset = ORCHARD_BARREL_RADIUS + ORCHARD_BARREL_FENCE_CLEARANCE;
+  const availableCenterSpan = Math.max(0, fittedDepth - centerInset * 2);
+  const maximumCount = Math.max(1, Math.floor(availableCenterSpan / ORCHARD_BARREL_SPACING) + 1);
+  const desiredCount = fittedDepth >= 3 ? 3 : 2;
+  const count = Math.min(desiredCount, maximumCount);
+  const x = fittedWidth * 0.5 - centerInset;
+  const startZ = -fittedDepth * 0.5 + centerInset;
+  const positions = Array.from({ length: count }, (_, index) => ({
+    x,
+    z: startZ + index * ORCHARD_BARREL_SPACING,
+  }));
+  return {
+    fenceSide: 'right',
+    scale: ORCHARD_BARREL_SCALE,
+    radius: ORCHARD_BARREL_RADIUS,
+    fenceClearance: ORCHARD_BARREL_FENCE_CLEARANCE,
+    positions,
+  };
+}
+
+function addOrchardBarrels(
+  group: THREE.Group,
+  width: number,
+  depth: number,
+  filled: boolean,
+  fruit: THREE.Material,
+  fruitRadius = 0.095,
+  fruitCount = 5,
+): void {
+  const plan = createOrchardBarrelPlan(width, depth);
+  group.userData.orchardBarrelPlan = plan;
+  plan.positions.forEach(({ x, z }, index) => {
+    const barrel = addHarvestBarrel(group, x, z, filled, fruit, fruitRadius, fruitCount);
+    barrel.userData.orchardBarrelSlot = index;
+    barrel.userData.orchardBarrelFenceSide = plan.fenceSide;
+    barrel.userData.orchardBarrelFilledForSpecialization = filled;
+  });
 }
 
 function addFruitClusters(
@@ -1139,10 +1199,10 @@ function addOrchard(
   const { columns, rows, positions } = orchardTreeGrid(width, depth);
   group.userData.orchardGrid = { columns, rows };
   positions.forEach(([x, z], index) => addFruitTree(group, kind, x!, z!, index, seed + index * 997, plants));
-  addHarvestBarrel(
+  addOrchardBarrels(
     group,
-    width * 0.34,
-    -depth * 0.34,
+    width,
+    depth,
     true,
     kind === 'apple' ? MATERIALS.apple : kind === 'cherry' ? MATERIALS.cherry : MATERIALS.pear,
     kind === 'apple' ? 0.09 : kind === 'cherry' ? 0.036 : 0.082,
@@ -1150,9 +1210,10 @@ function addOrchard(
   );
 }
 
-function addPreparedOrchard(group: THREE.Group): void {
+function addPreparedOrchard(group: THREE.Group, width: number, depth: number): void {
   group.userData.orchardAwaitingSpecialization = true;
-  group.userData.orchardVisualState = 'awaiting-specialization-empty';
+  group.userData.orchardVisualState = 'awaiting-specialization-barrels';
+  addOrchardBarrels(group, width, depth, false, MATERIALS.apple);
 }
 
 function orchardBushGrid(width: number, depth: number): Array<[number, number]> {
@@ -1233,10 +1294,10 @@ function addBushOrchard(
   positions.forEach(([x, z], index) => (
     addFruitBush(group, kind, x, z, index, seed + index * 617, plants)
   ));
-  addHarvestBarrel(
+  addOrchardBarrels(
     group,
-    width * 0.36,
-    -depth * 0.39,
+    width,
+    depth,
     true,
     kind === 'aronia' ? MATERIALS.aronia : MATERIALS.rosehip,
     kind === 'aronia' ? 0.027 : 0.045,
@@ -1894,12 +1955,13 @@ export function createBackyardGardenMesh(
     group.name = `BackyardPlantingPreview:${kind}`;
     group.userData.backyardPlantingPreview = true;
     addPlantingSoil(group, kind, width, depth, seed);
+    if (kind === 'orchard') addPreparedOrchard(group, width, depth);
     return group;
   }
 
   switch (kind) {
     case 'orchard':
-      addPreparedOrchard(group);
+      addPreparedOrchard(group, width, depth);
       break;
     case 'apple_orchard':
       addOrchard(group, 'apple', width, depth, seed, plants);
@@ -2039,7 +2101,7 @@ function syncOrchardDeciduousFoliage(
 /**
  * Applies calendar phenology without rebuilding deterministic garden geometry.
  * Fruit stays attached to its tree, mature mixed rows appear at different
- * rates, and only the actual orchard harvest fills the basket.
+ * rates, and only the actual orchard harvest fills the fence-side barrels.
  */
 export function syncBackyardGardenSeasonVisuals(
   group: THREE.Group,
