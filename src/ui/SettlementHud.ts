@@ -384,38 +384,38 @@ const SETTLEMENT_HUD_HTML = `
         <section
           id="settlement-animals-roster"
           class="settlement-hud__animals-panel"
-          aria-label="Livestock ledger"
+          aria-label="Animals ledger"
           aria-live="off"
         >
           <header class="settlement-hud__animals-header">
-            <strong>Livestock</strong>
-            <span data-animals-meta>No livestock recorded</span>
+            <strong>Animals</strong>
+            <span data-animals-meta>No animals recorded</span>
           </header>
           <section class="settlement-hud__animals-section settlement-hud__animals-section--draft">
             <header><strong>Draft oxen</strong><span data-animals-stable-capacity>0 / 0 bays</span></header>
-            <div class="settlement-hud__animals-metrics" aria-label="Ox assignment summary">
-              <span><strong data-animals-posted>0</strong> Posted</span>
-              <span><strong data-animals-automatic>0</strong> Auto</span>
-              <span><strong data-animals-working>0</strong> Tasked</span>
+            <div class="settlement-hud__animals-metrics" aria-label="Oxen assigned and unassigned summary">
+              <span><strong data-animals-posted>0</strong> Assigned</span>
+              <span><strong data-animals-automatic>0</strong> Unassigned</span>
+              <span><strong data-animals-working>0</strong> Working now</span>
             </div>
             <div class="settlement-hud__animals-list" data-animals-list>
               <p class="settlement-hud__animals-empty">Build a Stable and purchase an ox to begin the roster.</p>
             </div>
             <p class="settlement-hud__animals-note">
-              Posted oxen stay with one workplace. Auto oxen choose useful work.
+              Assigned oxen stay with one workplace. Unassigned oxen remain available for a posting and can take automatic work.
             </p>
           </section>
           <section class="settlement-hud__animals-section settlement-hud__animals-section--dogs" data-animals-dogs>
             <header><strong>Guard dogs</strong><span data-animals-dog-meta>0 / 0 bays</span></header>
-            <div class="settlement-hud__animals-metrics" aria-label="Dog assignment summary">
-              <span><strong data-animals-dog-assigned>0</strong> Hunting</span>
-              <span><strong data-animals-dog-free>0</strong> Free patrol</span>
+            <div class="settlement-hud__animals-metrics" aria-label="Dogs assigned and unassigned summary">
+              <span><strong data-animals-dog-assigned>0</strong> Assigned</span>
+              <span><strong data-animals-dog-free>0</strong> Unassigned</span>
             </div>
             <div class="settlement-hud__animals-list" data-animals-dog-list>
               <p class="settlement-hud__animals-empty">Build a Kennel and purchase a dog to begin the roster.</p>
             </div>
             <p class="settlement-hud__animals-note">
-              Hunting dogs work from one camp. Free dogs wander and protect the settlement.
+              Assigned dogs work from one Hunting Camp. Unassigned dogs free-patrol and remain available for assignment.
             </p>
           </section>
           <section class="settlement-hud__animals-section" data-animals-herds>
@@ -1130,14 +1130,14 @@ export class SettlementHud {
     const knownHeads = view.ledger?.headCount ?? view.total;
     const backyardPens = view.ledger?.backyard.penCount ?? 0;
     const dogs = view.ledger?.dogs;
-    const hasLivestock = knownHeads > 0 || backyardPens > 0;
+    const hasAnimals = knownHeads > 0 || backyardPens > 0;
     this.animalsCount.textContent = `${knownHeads}${backyardPens > 0 ? '+' : ''}`;
     this.animalsPosted.textContent = view.posted.toString();
     this.animalsAutomatic.textContent = view.automatic.toString();
     this.animalsWorking.textContent = view.working.toString();
-    this.animals.classList.toggle('has-animals', hasLivestock);
-    this.animalsMeta.textContent = !hasLivestock
-      ? 'No livestock recorded'
+    this.animals.classList.toggle('has-animals', hasAnimals);
+    this.animalsMeta.textContent = !hasAnimals
+      ? 'No animals recorded'
       : `${knownHeads} known ${knownHeads === 1 ? 'head' : 'heads'}${backyardPens > 0 ? ` · ${backyardPens} household ${backyardPens === 1 ? 'pen' : 'pens'}` : ''}`;
     const stable = view.ledger?.stable;
     this.animalsStableCapacity.textContent = stable && stable.capacity > 0
@@ -1156,9 +1156,10 @@ export class SettlementHud {
       `Animals: ${knownHeads} known ${knownHeads === 1 ? 'head' : 'heads'}`,
       backyardPens > 0 ? `${backyardPens} household ${backyardPens === 1 ? 'pen' : 'pens'}` : null,
       `${view.total} draft ${view.total === 1 ? 'ox' : 'oxen'}`,
-      `${dogs?.total ?? 0} guard ${(dogs?.total ?? 0) === 1 ? 'dog' : 'dogs'}`,
-      `${view.posted} posted`,
-      `${view.automatic} automatic`,
+      `${view.posted} assigned ${view.posted === 1 ? 'ox' : 'oxen'}`,
+      `${view.automatic} unassigned ${view.automatic === 1 ? 'ox' : 'oxen'}`,
+      `${dogs?.assigned ?? 0} assigned ${(dogs?.assigned ?? 0) === 1 ? 'dog' : 'dogs'}`,
+      `${dogs?.free ?? 0} unassigned ${(dogs?.free ?? 0) === 1 ? 'dog' : 'dogs'}`,
     ].filter((part): part is string => part !== null).join(', ');
     this.animalsSummary.setAttribute('aria-label', summary);
     delete this.animalsSummary.dataset.tooltipTitle;
@@ -1181,7 +1182,7 @@ export class SettlementHud {
       name.textContent = `Ox ${index + 1}`;
       const mode = document.createElement('span');
       mode.className = 'settlement-hud__animal-mode';
-      mode.textContent = entry.mode === 'posted' ? 'Posted' : 'Auto';
+      mode.textContent = entry.mode === 'posted' ? 'Assigned' : 'Unassigned';
       header.append(name, mode);
 
       const home = document.createElement('p');
@@ -1234,7 +1235,7 @@ export class SettlementHud {
       name.textContent = `Dog ${index + 1}`;
       const mode = document.createElement('span');
       mode.className = 'settlement-hud__animal-mode';
-      mode.textContent = entry.assignmentBuildingId ? 'Hunting' : 'Free';
+      mode.textContent = entry.assignmentBuildingId ? 'Assigned' : 'Unassigned';
       header.append(name, mode);
 
       const home = document.createElement('p');

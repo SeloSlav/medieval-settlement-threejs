@@ -101,7 +101,13 @@ export function renderMilitaryOrders(companies: readonly MilitaryCompanyState[])
     ['retain', 'Retain company', 'mercenaries'], ['disband', 'Disband company', 'disband-company'],
   ] as const;
   const lifecycle = actions.filter(([kind]) => companies.every((company) => militaryOrderAvailable(company, { kind })))
-    .map(([kind, label, icon]) => `<button type="button" class="military-order" data-military-order="${kind}" aria-label="${label}" data-tooltip="${label}"><span class="inspector-action-icon" data-action-icon="${icon}" aria-hidden="true"></span></button>`).join('');
+    .map(([kind, label, icon]) => {
+      const danger = kind === 'disband';
+      const artwork = danger
+        ? '<svg class="military-order__disband-icon" viewBox="0 0 28 28" aria-hidden="true" focusable="false"><path d="M7 7l14 14M21 7 7 21"/></svg>'
+        : `<span class="inspector-action-icon" data-action-icon="${icon}" aria-hidden="true"></span>`;
+      return `<button type="button" class="military-order${danger ? ' military-order--danger' : ''}" data-military-order="${kind}" aria-label="${label}" data-tooltip="${label}">${artwork}</button>`;
+    }).join('');
   const toggle = (kind: 'running' | 'fire-at-will', current: boolean, label: string, description: string, icon: string) => {
     const value = current ? 0 : 1;
     const enabled = companies.every(company => militaryOrderAvailable(company, { kind, value }));

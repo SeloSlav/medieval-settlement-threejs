@@ -190,6 +190,7 @@ for (const company of companies.values()) {
 const controllerSource = readFileSync('src/security/MilitiaCommandController.ts', 'utf8');
 const appSource = readFileSync('src/app/App.ts', 'utf8');
 const bootstrapSource = readFileSync('src/app/appBootstrap.ts', 'utf8');
+const mapIconsCss = readFileSync('src/ui/mapIcons.css', 'utf8');
 assert.match(controllerSource, /strategicIcons\.sync/);
 assert.match(controllerSource, /strategicIcons\.update/);
 assert.match(controllerSource, /member\.status === 'advancing'[\s\S]*?member\.routeProgress/);
@@ -213,6 +214,11 @@ assert.match(
   bootstrapSource,
   /isVisibilityBlocked:[\s\S]*?isIllustratedMapActive\(\)[\s\S]*?isOverlayBlocked/,
   'the charcoal overworld map must not count as a military-icon visibility blocker',
+);
+assert.match(
+  mapIconsCss,
+  /\.military-company-map-icon\[hidden\]\s*\{\s*display:\s*none;/,
+  'off-screen military markers must not remain painted at their last projected position',
 );
 
 console.log('Military company strategic icons and playtest unit-card contracts passed.');

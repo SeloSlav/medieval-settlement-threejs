@@ -189,7 +189,12 @@ test('centers Development between civic status and right-aligned resource contro
           ${['labor', 'population', 'housing'].map((resource) => `
             <div class="settlement-hud__stat" data-resource="${resource}"><strong class="settlement-hud__value">10</strong></div>
           `).join('')}
-          <details class="settlement-hud__animals"><summary class="settlement-hud__animals-summary"></summary></details>
+          <details class="settlement-hud__animals">
+            <summary class="settlement-hud__animals-summary" aria-label="Animals">
+              <span class="settlement-hud__animals-label">Animals</span>
+              <strong class="settlement-hud__animals-status">12</strong>
+            </summary>
+          </details>
         </div>
       </div>
       <button class="development-launcher" aria-label="Developments"></button>
@@ -271,6 +276,31 @@ test('centers Development between civic status and right-aligned resource contro
   expect(layout.totalsAtFarRight).toBe(true);
   await expect(page.locator('[data-resource="water"]')).toHaveCount(0);
 
+  const animalsCategory = page.locator('.settlement-hud__animals-summary');
+  await expect(animalsCategory).toHaveAttribute('aria-label', 'Animals');
+  await expect(animalsCategory.locator('.settlement-hud__animals-status')).toBeHidden();
+  const animalsIconAlignment = await animalsCategory.evaluate((summary) => {
+    const style = getComputedStyle(summary, '::before');
+    return {
+      gridColumn: style.gridColumnStart,
+      justifySelf: style.justifySelf,
+    };
+  });
+  expect(animalsIconAlignment).toEqual({ gridColumn: '1', justifySelf: 'center' });
+
+  const categorySelector = [
+    '.settlement-hud__body--resources > .settlement-hud__construction-card',
+    '.settlement-hud__body--resources > .settlement-hud__fuel-stores',
+    '.settlement-hud__body--resources > .settlement-hud__food-stores:not(.settlement-hud__fuel-stores)',
+    '[data-specialty-stores]',
+    '[data-military-stores]',
+    '.settlement-hud__totals-mode',
+  ].join(', ');
+  const categoryWidths = await page.locator(categorySelector).evaluateAll((categories) => (
+    categories.map((category) => category.getBoundingClientRect().width)
+  ));
+  expect(Math.max(...categoryWidths) - Math.min(...categoryWidths)).toBeLessThan(1);
+
   const constructionCategory = await page.locator('[data-resource-group="construction"]').evaluate((button) => {
     const style = getComputedStyle(button, '::before');
     return {
@@ -294,6 +324,15 @@ test('centers Development between civic status and right-aligned resource contro
   for (const value of await topLevelSupplyValues.all()) await expect(value).toBeHidden();
   await expect(page.locator('[data-specialty-stores] > summary .settlement-hud__stores-status')).toBeHidden();
   await expect(page.locator('[data-military-stores] > summary .settlement-hud__stores-status')).toBeHidden();
+
+  await page.setViewportSize({ width: 400, height: 720 });
+  const compactCategoryWidths = await page.locator(categorySelector).evaluateAll((categories) => (
+    categories
+      .filter((category) => getComputedStyle(category).display !== 'none')
+      .map((category) => category.getBoundingClientRect().width)
+  ));
+  expect(compactCategoryWidths).toHaveLength(4);
+  expect(Math.max(...compactCategoryWidths) - Math.min(...compactCategoryWidths)).toBeLessThan(1);
 
   const armsTriggerIcon = await page.locator('[data-military-stores] > summary').evaluate((element) => (
     getComputedStyle(element, '::before').backgroundImage

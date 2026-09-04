@@ -131,6 +131,13 @@
   transition: opacity 0.14s ease, transform 0.14s ease, border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
+/* The class display above outranks the browser's default [hidden] rule in some
+   engines. Enforce the projection result so an off-screen company cannot leave
+   its button painted at the last in-view position. */
+.military-company-map-icon[hidden] {
+  display: none;
+}
+
 .military-company-map-icon:hover,
 .military-company-map-icon:focus-visible,
 .military-company-map-icon.is-selected {

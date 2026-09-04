@@ -403,30 +403,30 @@ export class BuildToolbar {
         </button>
 
         <nav class="construction-dock" data-construction-dock aria-label="Base menu">
-        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="road" data-tooltip="Roads (R)" aria-label="Roads (R)" aria-pressed="false">
+        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="road" data-ui-sound="game_panel" data-tooltip="Roads (R)" aria-label="Roads (R)" aria-pressed="false">
           <span class="gk-icon gk-icon--construction gk-icon--road" aria-hidden="true"></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">R</span>
         </button>
-        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="build-menu" data-tooltip="Build menu (B)" aria-label="Build menu (B)" aria-controls="build-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false">
+        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="build-menu" data-ui-sound="game_panel" data-tooltip="Build menu (B)" aria-label="Build menu (B)" aria-controls="build-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false">
           <span class="gk-icon gk-icon--construction gk-icon--hammer" aria-hidden="true"></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">B</span>
         </button>
-        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="military-menu" data-tooltip="Military (V)" aria-label="Military (V)" aria-keyshortcuts="V" aria-controls="military-menu" aria-expanded="false" aria-pressed="false">
+        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="military-menu" data-ui-sound="game_panel" data-tooltip="Military (V)" aria-label="Military (V)" aria-keyshortcuts="V" aria-controls="military-menu" aria-expanded="false" aria-pressed="false">
           <span class="military-launcher-icon" aria-hidden="true"></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">V</span>
         </button>
-        <button type="button" class="construction-dock-button construction-dock-button--hotkey construction-dock-button--overlay" data-action="overlay-menu" data-tooltip="Map overlays (O)" aria-label="Map overlays (O)" aria-controls="map-overlay-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false">
+        <button type="button" class="construction-dock-button construction-dock-button--hotkey construction-dock-button--overlay" data-action="overlay-menu" data-ui-sound="game_panel" data-tooltip="Map overlays (O)" aria-label="Map overlays (O)" aria-controls="map-overlay-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false">
           <span class="map-overlay-launcher-icon" aria-hidden="true"><i></i><i></i><i></i></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">O</span>
         </button>
-        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="city-admin" data-tooltip="Select Town Hall administration (I)" aria-label="Select Town Hall administration (I)" aria-pressed="false">
+        <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="city-admin" data-ui-sound="game_panel" data-tooltip="Select Town Hall administration (I)" aria-label="Select Town Hall administration (I)" aria-pressed="false">
           <span class="gk-icon gk-icon--construction gk-icon--town-hall" aria-hidden="true"></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">I</span>
         </button>
-        <button type="button" class="construction-dock-button construction-dock-button--tutorial" data-action="tutorials" data-tooltip="Tutorials" aria-label="Open tutorials">
+        <button type="button" class="construction-dock-button construction-dock-button--tutorial" data-action="tutorials" data-ui-sound="game_panel" data-tooltip="Tutorials" aria-label="Open tutorials">
           <span class="construction-dock-button__question" aria-hidden="true">?</span>
         </button>
-        <button type="button" class="construction-dock-button" data-action="settings" data-tooltip="Settings (Esc)" aria-label="Settings (Esc)">
+        <button type="button" class="construction-dock-button" data-action="settings" data-ui-sound="game_panel" data-tooltip="Settings (Esc)" aria-label="Settings (Esc)">
           <span class="gk-icon gk-icon--construction gk-icon--settings" aria-hidden="true"></span>
         </button>
       </nav>

@@ -43,9 +43,22 @@ assert.equal(decide({ override: 'none' }), null);
 assert.deepEqual(decide({ override: 'game_transaction' }), { id: 'game_transaction' });
 assert.deepEqual(decide({ override: 'development_unlock' }), { id: 'development_unlock' });
 assert.deepEqual(decide({ override: 'game_cancel' }), { id: 'game_cancel' });
+assert.deepEqual(decide({ override: 'game_panel', text: 'demolish road' }), { id: 'game_panel' });
 
 const developmentMenu = readFileSync('src/ui/DevelopmentMenu.ts', 'utf8');
 assert.match(developmentMenu, /data-development-unlock data-ui-sound="development_unlock"/);
+const buildToolbar = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
+const constructionDock = buildToolbar.match(
+  /<nav class="construction-dock"[\s\S]*?<\/nav>/,
+)?.[0];
+assert(constructionDock, 'Construction dock markup must remain available for audio coverage');
+const constructionDockButtons = constructionDock.match(
+  /<button\b[^>]*class="construction-dock-button[^>]*>/g,
+) ?? [];
+assert.equal(constructionDockButtons.length, 7);
+for (const button of constructionDockButtons) {
+  assert.match(button, /data-ui-sound="game_panel"/);
+}
 
 const source = readFileSync('src/audio/UiInteractionAudio.ts', 'utf8');
 assert.match(source, /getPlayRevision\(\)/);
