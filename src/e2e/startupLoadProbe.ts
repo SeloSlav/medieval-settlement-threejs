@@ -2,7 +2,7 @@
 import { SceneManager } from '../scene/SceneManager.ts';
 import { LoadingScreen } from '../ui/LoadingScreen.ts';
 
-export function installStartupLoadProbe(app) {
+export function installStartupLoadProbe(app, variant = 'unlabeled') {
   const events = [];
   let active = true;
   let stage = 'bootstrap';
@@ -14,11 +14,9 @@ export function installStartupLoadProbe(app) {
     }).catch(() => {});
   };
   const interval = setInterval(flush, 1000);
-  const restores = [];
   const wrap = (owner, key, make) => {
     const original = owner[key];
     owner[key] = make(original);
-    restores.push(() => { owner[key] = original; });
   };
   for (const key of ['createShaderModule', 'createRenderPipeline', 'createRenderPipelineAsync']) {
     wrap(GPUDevice.prototype, key, original => function (...args) {
@@ -78,7 +76,7 @@ export function installStartupLoadProbe(app) {
       resources: Object.fromEntries(Object.entries(counters).map(([k, v]) => [k, v - (before[k] ?? 0)])) }); }
   });
   wrap(LoadingScreen.prototype, 'dismiss', original => function (...args) {
-    record('startup-ready', { startup: window.__medievalRoadStartup,
+    record('startup-ready', { variant, startup: window.__medievalRoadStartup,
       viewport: [innerWidth, innerHeight], dpr: devicePixelRatio,
       adapter: app.sceneManager?.getRendererAdapterEvidence(), resources: counters });
     const result = original.apply(this, args);
@@ -89,5 +87,37 @@ export function installStartupLoadProbe(app) {
     flush();
     return result;
   });
-  record('startup-probe-installed');
+  record('startup-probe-installed', { variant });
+  const diagnostic = document.createElement('button');
+  diagnostic.textContent = 'Inspect ungraded lighting';
+  diagnostic.style.cssText = 'position:fixed;right:3px;bottom:3px;z-index:99999';
+  let lighting = false;
+  diagnostic.onclick = () => {
+    if (!app.sceneManager) return;
+    lighting = !lighting;
+    app.sceneManager.setLightingDiagnostic(lighting ? 'lighting' : 'final');
+    diagnostic.textContent = lighting ? 'Restore final image' : 'Inspect ungraded lighting';
+  };
+  document.body.append(diagnostic);
+}
+
+/** Isolate compositor animation from GPU work using the real loader markup. */
+export function startLoadingSpinnerTest() {
+  const loading = new LoadingScreen();
+  loading.setProgress({ label: 'Spinner stress test', detail: 'Ready for an eight-second main-thread block', percent: 55 });
+  const button = document.createElement('button');
+  button.textContent = 'Block main thread for eight seconds';
+  button.style.cssText = 'position:fixed;top:8px;left:8px;z-index:99999';
+  document.body.append(button);
+  button.onclick = () => {
+    button.disabled = true;
+    loading.setProgress({ label: 'Spinner stress test', detail: 'CPU block begins in two seconds', percent: 55 });
+    setTimeout(() => {
+      const startedAt = performance.now();
+      while (performance.now() - startedAt < 8000) { /* Deliberate isolated diagnostic. */ }
+      loading.setProgress({ label: 'Spinner stress test', detail: 'CPU block complete', percent: 55 });
+      button.disabled = false;
+    }, 2000);
+  };
+  return Promise.resolve();
 }

@@ -69,6 +69,7 @@ pub struct RoadNetwork {
     /// stops deliberately covers the edge instead of merely visiting a random
     /// nearby building.
     patrol_stops: Vec<(f64, f64)>,
+    patrol_edge_indices: Vec<usize>,
     weighted_graph: HashMap<String, Vec<(String, f64)>>,
     component_by_node: HashMap<String, u32>,
     edge_lookup: HashMap<String, HashMap<String, (usize, bool)>>,
@@ -189,7 +190,7 @@ impl RoadNetwork {
                 .then_with(|| left.end_node_id.cmp(&right.end_node_id))
         });
         let mut patrol_stops = Vec::with_capacity(patrol_edge_indices.len() * 2);
-        for index in patrol_edge_indices {
+        for &index in &patrol_edge_indices {
             let edge = &snapshot.edges[index];
             if let (Some(&start), Some(&end)) = (
                 nodes.get(&edge.start_node_id),
@@ -207,6 +208,7 @@ impl RoadNetwork {
             nodes,
             edges: snapshot.edges,
             patrol_stops,
+            patrol_edge_indices,
             weighted_graph,
             component_by_node,
             edge_lookup,
@@ -282,6 +284,39 @@ impl RoadNetwork {
         self.patrol_stops
             .get(usize::try_from(ordinal).ok()?)
             .copied()
+    }
+
+    /// Approach each edge's start, then walk its authored centerline to the
+    /// end. A shortest path between endpoints can skip a winding road when
+    /// another branch is shorter, leaving that road permanently unpatrolled.
+    pub fn road_patrol_route(&self, ordinal: u64, x: f64, z: f64) -> Option<RoadPathRoute> {
+        let (target_x, target_z) = self.road_patrol_stop(ordinal)?;
+        if ordinal % 2 == 0 {
+            return self.road_path_route(x, z, target_x, target_z).or_else(|| {
+                self.road_path_route_from_external_access(x, z, target_x, target_z, 1.6)
+            });
+        }
+        let edge = self.edges.get(*self.patrol_edge_indices.get(ordinal as usize / 2)?)?;
+        let origin = project_point_to_polyline(x, z, &edge.sampled_path)?;
+        let end = project_point_to_polyline(target_x, target_z, &edge.sampled_path)?;
+        let mut polyline = Vec::new();
+        if origin.access_distance <= 2.0 {
+            append_point(&mut polyline, x, z);
+            append_point(&mut polyline, origin.point[0], origin.point[1]);
+            append_projected_edge_span(&mut polyline, &edge.sampled_path, origin, end);
+        } else {
+            // Road editing or a pursuit may leave the dog away from this leg.
+            let approach = self.road_patrol_route(ordinal - 1, x, z)?;
+            append_polyline(&mut polyline, &approach.polyline);
+            for point in &edge.sampled_path {
+                append_point(&mut polyline, point[0], point[2]);
+            }
+        }
+        append_point(&mut polyline, target_x, target_z);
+        self.polyline_avoids_open_water(&polyline).then(|| RoadPathRoute {
+            distance: Self::polyline_length_xz(&polyline),
+            polyline,
+        })
     }
 
     pub fn is_on_road_surface(&self, x: f64, z: f64) -> bool {
@@ -1917,5 +1952,31 @@ mod tests {
         assert_eq!(network.road_patrol_stop(2), Some((10.0, 0.0)));
         assert_eq!(network.road_patrol_stop(3), Some((20.0, 0.0)));
         assert_eq!(network.road_patrol_stop(4), None);
+    }
+
+    #[test]
+    fn patrol_follows_winding_edge_even_when_another_road_is_shorter() {
+        let network = RoadNetwork::from_snapshot_json(&serde_json::json!({
+            "nodes": [
+                { "id": "a", "position": [0, 0, 0] },
+                { "id": "b", "position": [60, 0, 0] },
+                { "id": "c", "position": [30, 0, 0] }
+            ],
+            "edges": [
+                { "startNodeId": "a", "endNodeId": "b", "sampledPath": [[0,0,0], [0,0,80], [60,0,80], [60,0,0]] },
+                { "startNodeId": "a", "endNodeId": "c", "sampledPath": [[0,0,0], [30,0,0]] },
+                { "startNodeId": "c", "endNodeId": "b", "sampledPath": [[30,0,0], [60,0,0]] }
+            ]
+        }).to_string()).unwrap();
+        let shortcut = network.road_path_route(0.0, 0.0, 60.0, 0.0).unwrap();
+        assert!(shortcut.distance < 100.0);
+        let patrol = network.road_patrol_route(1, 0.0, 0.0).unwrap();
+        assert_eq!(patrol.distance, 220.0);
+        assert!(patrol.polyline.contains(&[0.0, 80.0]));
+        assert!(patrol.polyline.contains(&[60.0, 80.0]));
+        let remaining = network.road_patrol_route(1, 30.0, 80.0).unwrap();
+        assert_eq!(remaining.distance, 110.0);
+        assert_eq!(remaining.polyline.last(), Some(&[60.0, 0.0]));
+        assert!(network.road_patrol_route(6, 0.0, 0.0).is_none());
     }
 }

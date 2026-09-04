@@ -4,6 +4,11 @@ use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
+use crate::dog_patrol_policy::{
+    is_road_patrol_target, is_woodland_tree_target, open_ground_patrol_point,
+    patrol_target_matches_duty, woodland_tree_target_id, woodland_tree_target_position,
+    ROAD_PATROL_TARGET_TAG,
+};
 use crate::economy::{
     building_edible_food_stock, residence_edible_food_stock, withdraw_building_edible_food,
     withdraw_residence_commodity, CommodityKind,
@@ -32,13 +37,7 @@ const TARGET_STABLE_OX: u8 = 8;
 const CONTACT_DISTANCE: f64 = 2.15;
 const HUNTING_DOG_RUN_SPEED: f64 = 2.85;
 const HUNTING_DOG_MIN_WOODLAND_RANGE: f64 = 10.0;
-const WOODLAND_TREE_TARGET_TAG: u64 = 0xd06d_0000_0000_0000;
-const WOODLAND_TREE_TARGET_TAG_MASK: u64 = 0xffff_0000_0000_0000;
-const ROAD_PATROL_TARGET_TAG: u64 = 0xd06e_0000_0000_0000;
 const ROAD_PATROL_ORDINAL_MASK: u64 = 0x0000_ffff_ffff_ffff;
-const WOODLAND_COORDINATE_MASK: u64 = 0x00ff_ffff;
-const WOODLAND_COORDINATE_SIGN: i32 = 0x0080_0000;
-const WOODLAND_COORDINATE_SCALE: f64 = 100.0;
 
 #[derive(Clone, Copy)]
 struct Target {
@@ -383,27 +382,30 @@ fn patrol_dog(
     dt: f64,
     road_network: Option<&RoadNetwork>,
 ) {
+    dog.engagement_target_id = 0;
+    let assigned = dog.assigned_building_id > 0;
+    let recovering = dog.health + 1e-6 < dog.max_health;
     let target = dog_target_position(ctx, dog.target_kind, dog.target_id, road_network);
-    if target.is_none()
+    if !patrol_target_matches_duty(
+        dog.target_kind, dog.target_id, assigned, dog.source_building_id, recovering,
+        road_network.is_some_and(|network| network.road_patrol_stop_count() > 0),
+    ) || target.is_none()
         || target.is_some_and(|target| distance(dog.x, dog.z, target.x, target.z) < 1.3)
     {
         if let Some(patrol) = dog_patrol_target(ctx, dog, dog.id ^ tick / 90, road_network) {
             dog.target_kind = patrol.kind;
             dog.target_id = patrol.id;
-            dog.state = if is_woodland_tree_target(patrol.kind, patrol.id)
-                || is_road_patrol_target(patrol.kind, patrol.id)
-            {
-                ADVANCING
-            } else {
-                RETURNING
-            };
         } else {
             dog.target_kind = TARGET_GROUND;
             dog.target_id = 0;
             dog.state = HOLDING;
         }
     }
+    dog.velocity_x = 0.0;
+    dog.velocity_z = 0.0;
     if let Some(target) = dog_target_position(ctx, dog.target_kind, dog.target_id, road_network) {
+        // Movement state alone does not imply combat; the target owns intent.
+        dog.state = if recovering { RETURNING } else { ADVANCING };
         let speed = if is_woodland_tree_target(target.kind, target.id) {
             HUNTING_DOG_RUN_SPEED
         } else {
@@ -977,23 +979,21 @@ fn dog_patrol_target(
     seed: u64,
     road_network: Option<&RoadNetwork>,
 ) -> Option<Target> {
-    // Healthy posted dogs range through the mature woodland inside their
-    // Hunter's Hall work area rather than orbiting the building. Wounded dogs
-    // still return to their kennel first so durable hunting duty cannot block
-    // ordinary recovery.
-    if dog.assigned_building_id > 0 {
-        if dog.health + 1e-6 < dog.max_health {
-            let kennel = ctx.db.building().id().find(&dog.source_building_id)?;
-            return (kennel.owner == dog.owner && kennel.construction_complete)
-                .then(|| target_building(kennel));
+    // All wounded dogs return to their kennel, regardless of posting.
+    if dog.health + 1e-6 < dog.max_health {
+        if let Some(kennel) = ctx.db.building().id().find(&dog.source_building_id) {
+            if kennel.owner == dog.owner && kennel.construction_complete {
+                return Some(target_building(kennel));
+            }
         }
+    }
+    if dog.assigned_building_id > 0 {
         if let Some(hunters_hall) = ctx.db.building().id().find(&dog.assigned_building_id) {
             if hunters_hall.owner == dog.owner
                 && hunters_hall.kind == "hunters_hall"
                 && hunters_hall.construction_complete
             {
-                return hunting_dog_woodland_target(ctx, dog, &hunters_hall, seed)
-                    .or_else(|| Some(target_building(hunters_hall)));
+                return hunting_dog_woodland_target(ctx, dog, &hunters_hall, seed);
             }
         }
     }
@@ -1040,7 +1040,7 @@ fn next_road_patrol_target(
         return None;
     }
     let start = road_patrol_target_ordinal(dog.target_kind, dog.target_id).map_or_else(
-        || mix(seed, 0x524f_4144_444f_47) as usize % count,
+        || (mix(seed, 0x524f_4144_444f_47) as usize % (count / 2)) * 2,
         |ordinal| (ordinal as usize + 1) % count,
     );
     for offset in 0..count {
@@ -1088,7 +1088,11 @@ fn hunting_dog_woodland_target(
         })
         .collect::<Vec<_>>();
     if trees.is_empty() {
-        return None;
+        let (x, z) = open_ground_patrol_point(
+            hunters_hall.x, hunters_hall.z, hunters_hall.work_radius,
+            mix(seed, dog.target_id),
+        );
+        return Some(Target { kind: TARGET_GROUND, id: woodland_tree_target_id(x, z), x, z });
     }
 
     // Prefer the actual woods beyond the camp clearing whenever they exist.
@@ -1128,43 +1132,12 @@ fn hunting_dog_woodland_target(
     })
 }
 
-fn woodland_tree_target_id(x: f64, z: f64) -> u64 {
-    let encode = |coordinate: f64| {
-        let scaled = (coordinate * WOODLAND_COORDINATE_SCALE)
-            .round()
-            .clamp(-8_388_608.0, 8_388_607.0) as i64;
-        scaled as u64 & WOODLAND_COORDINATE_MASK
-    };
-    WOODLAND_TREE_TARGET_TAG | encode(x) | (encode(z) << 24)
-}
-
-fn is_woodland_tree_target(kind: u8, id: u64) -> bool {
-    kind == TARGET_GROUND && id & WOODLAND_TREE_TARGET_TAG_MASK == WOODLAND_TREE_TARGET_TAG
-}
-
 fn road_patrol_target_id(ordinal: u64) -> u64 {
     ROAD_PATROL_TARGET_TAG | (ordinal & ROAD_PATROL_ORDINAL_MASK)
 }
 
 fn road_patrol_target_ordinal(kind: u8, id: u64) -> Option<u64> {
     is_road_patrol_target(kind, id).then_some(id & ROAD_PATROL_ORDINAL_MASK)
-}
-
-fn is_road_patrol_target(kind: u8, id: u64) -> bool {
-    kind == TARGET_GROUND && id & WOODLAND_TREE_TARGET_TAG_MASK == ROAD_PATROL_TARGET_TAG
-}
-
-fn woodland_tree_target_position(id: u64) -> (f64, f64) {
-    let decode = |packed: u64| {
-        let raw = (packed & WOODLAND_COORDINATE_MASK) as i32;
-        let signed = if raw & WOODLAND_COORDINATE_SIGN != 0 {
-            raw | !(WOODLAND_COORDINATE_MASK as i32)
-        } else {
-            raw
-        };
-        f64::from(signed) / WOODLAND_COORDINATE_SCALE
-    };
-    (decode(id), decode(id >> 24))
 }
 
 fn nearest_hostile(ctx: &ReducerContext, dog: &CombatAgent, radius: f64) -> Option<CombatAgent> {
@@ -1269,7 +1242,9 @@ fn move_dog_over_roads(
         move_toward(dog, target_x, target_z, speed, dt);
         return;
     };
-    let route = network
+    let route = if let Some(ordinal) = road_patrol_target_ordinal(dog.target_kind, dog.target_id) {
+        network.road_patrol_route(ordinal, dog.x, dog.z)
+    } else { network
         .road_path_route(dog.x, dog.z, target_x, target_z)
         .or_else(|| {
             network.road_path_route_from_external_access(
@@ -1279,8 +1254,12 @@ fn move_dog_over_roads(
                 target_z,
                 1.6,
             )
-        });
+        }) };
     let Some(route) = route else {
+        if is_road_patrol_target(dog.target_kind, dog.target_id) {
+            dog.target_id = 0;
+            return;
+        }
         move_toward(dog, target_x, target_z, speed, dt);
         return;
     };

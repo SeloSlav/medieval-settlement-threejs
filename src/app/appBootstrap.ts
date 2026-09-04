@@ -346,6 +346,7 @@ export async function bootstrapAppSession(
       return cameraController?.getOrbitDistance() ?? 240;
     },
     isFirstPersonActive: () => firstPersonController?.isActive() ?? false,
+    isIllustratedMapActive: () => cameraController?.isIllustratedMapActive() ?? false,
     getForestCanopyCover: (x, z) => (
       sceneManager.getForestManager()?.sampleAudioCanopyCover(x, z) ?? 0
     ),

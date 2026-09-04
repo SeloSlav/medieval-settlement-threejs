@@ -37,6 +37,9 @@ pub mod delivery_trip_policy;
 #[path = "../../src/devotional_candle_policy.rs"]
 pub mod devotional_candle_policy;
 
+#[path = "../../src/dog_patrol_policy.rs"]
+pub mod dog_patrol_policy;
+
 // The extraction matrix is pure, but the authoritative WASM crate maps it to
 // its larger database-backed commodity enum.  This minimal host-test shim
 // keeps the exact same policy source native-testable without linking the

@@ -72,6 +72,7 @@ export type AmbientAudioControllerConfig = {
   getCameraTarget: () => { x: number; z: number };
   getOrbitDistance: () => number;
   isFirstPersonActive: () => boolean;
+  isIllustratedMapActive: () => boolean;
   getForestCanopyCover: (x: number, z: number) => number;
   getBuildings: () => ReadonlyMap<string, BuildingState>;
   getBurgageZones: () => Iterable<BurgageZoneState>;
@@ -235,7 +236,8 @@ export class AmbientAudioController {
       this.ambientRuleState.foundersCampActive = ambient.state.foundersCampActive;
       this.ambientRuleState.villageActive = ambient.state.villageActive;
       this.ambientRuleState.townInteriorActive = ambient.state.townInteriorActive;
-      this.audio.setAmbientMix({
+      // The paper map is viewed at a table, outside the world's ambient soundscape.
+      this.audio.setAmbientMix(this.config.isIllustratedMapActive() ? { baseLayer: null } : {
         baseLayer: ambient.baseLayer,
         overlayLayer: ambient.overlayLayer,
         overlayVolume: ambient.overlayLayer
