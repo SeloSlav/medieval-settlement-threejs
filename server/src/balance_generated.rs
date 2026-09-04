@@ -447,7 +447,7 @@ pub const BREWERY_MALT_PER_ALE_CYCLE: f64 = 3.0;
 pub const BREWERY_BREWING_WATER_PER_CYCLE: f64 = 2.0;
 pub const BREWERY_BREWING_FIREWOOD_PER_CYCLE: f64 = 0.0;
 pub const BREWERY_ALE_PER_CYCLE: f64 = 4.0;
-pub const BREWERY_APPLES_PER_CIDER_CYCLE: f64 = 4.0;
+pub const BREWERY_FRUIT_PER_CIDER_CYCLE: f64 = 2.0;
 pub const BREWERY_CIDER_PER_CYCLE: f64 = 1.0;
 pub const BREWERY_HONEY_PER_MEAD_CYCLE: f64 = 1.0;
 pub const BREWERY_MEAD_PER_CYCLE: f64 = 1.0;
@@ -538,7 +538,7 @@ pub const MONASTERY_TITHE_SHARE_DEFAULT: f64 = 0.3;
 pub const MONASTERY_CHARITY_FOOD_PER_DELIVERY: f64 = 4.0;
 pub const SPECIALTY_EXPORT_GOLD_PER_HONEY: f64 = 0.8;
 pub const SPECIALTY_EXPORT_GOLD_PER_ALE: f64 = 1.15;
-pub const SPECIALTY_EXPORT_GOLD_PER_CIDER: f64 = 1.3;
+pub const SPECIALTY_EXPORT_GOLD_PER_CIDER: f64 = 1.5;
 pub const SPECIALTY_EXPORT_GOLD_PER_WINE: f64 = 1.6;
 pub const SPECIALTY_EXPORT_GOLD_PER_CLOTH: f64 = 1.5;
 pub const SPECIALTY_EXPORT_GOLD_PER_CHEESE: f64 = 1.1;
@@ -4969,7 +4969,6 @@ pub enum TradeResource {
     MaslinBread,
     Ale,
     Cider,
-    PearCider,
     Honey,
     Wax,
     Candles,
@@ -5018,8 +5017,7 @@ pub enum TradeResource {
     CuredMeat,
     SmokedFish,
     Cheese,
-    AroniaJam,
-    RosehipJam,
+    Jam,
     RyeSheaves,
     OatSheaves,
     BarleySheaves,
@@ -5051,7 +5049,6 @@ impl TradeResource {
             Self::MaslinBread => TradeResourceSpendScope::MarketAccessible,
             Self::Ale => TradeResourceSpendScope::MarketAccessible,
             Self::Cider => TradeResourceSpendScope::MarketAccessible,
-            Self::PearCider => TradeResourceSpendScope::MarketAccessible,
             Self::Honey => TradeResourceSpendScope::MarketAccessible,
             Self::Wax => TradeResourceSpendScope::MarketAccessible,
             Self::Candles => TradeResourceSpendScope::MarketAccessible,
@@ -5102,8 +5099,7 @@ impl TradeResource {
             Self::CuredMeat => TradeResourceSpendScope::MarketAccessible,
             Self::SmokedFish => TradeResourceSpendScope::MarketAccessible,
             Self::Cheese => TradeResourceSpendScope::MarketAccessible,
-            Self::AroniaJam => TradeResourceSpendScope::MarketAccessible,
-            Self::RosehipJam => TradeResourceSpendScope::MarketAccessible,
+            Self::Jam => TradeResourceSpendScope::MarketAccessible,
             Self::RyeSheaves => TradeResourceSpendScope::MarketAccessible,
             Self::OatSheaves => TradeResourceSpendScope::MarketAccessible,
             Self::BarleySheaves => TradeResourceSpendScope::MarketAccessible,
@@ -6200,39 +6196,21 @@ const TRADE_SELL_CHEESE: MarketplaceTradeOffer = MarketplaceTradeOffer {
     },
 };
 
-const TRADE_BUY_ARONIA_JAM: MarketplaceTradeOffer = MarketplaceTradeOffer {
-    id: "buy_aronia_jam",
+const TRADE_BUY_JAM: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_jam",
     kind: MarketplaceTradeKind::GoldBuy {
-        resource: TradeResource::AroniaJam,
+        resource: TradeResource::Jam,
         amount: 8.0,
         gold_cost: 22.0,
     },
 };
 
-const TRADE_SELL_ARONIA_JAM: MarketplaceTradeOffer = MarketplaceTradeOffer {
-    id: "sell_aronia_jam",
+const TRADE_SELL_JAM: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_jam",
     kind: MarketplaceTradeKind::GoldSell {
-        resource: TradeResource::AroniaJam,
+        resource: TradeResource::Jam,
         amount: 8.0,
         gold_yield: 15.0,
-    },
-};
-
-const TRADE_BUY_ROSEHIP_JAM: MarketplaceTradeOffer = MarketplaceTradeOffer {
-    id: "buy_rosehip_jam",
-    kind: MarketplaceTradeKind::GoldBuy {
-        resource: TradeResource::RosehipJam,
-        amount: 8.0,
-        gold_cost: 21.0,
-    },
-};
-
-const TRADE_SELL_ROSEHIP_JAM: MarketplaceTradeOffer = MarketplaceTradeOffer {
-    id: "sell_rosehip_jam",
-    kind: MarketplaceTradeKind::GoldSell {
-        resource: TradeResource::RosehipJam,
-        amount: 8.0,
-        gold_yield: 14.0,
     },
 };
 
@@ -6353,24 +6331,6 @@ const TRADE_SELL_CIDER: MarketplaceTradeOffer = MarketplaceTradeOffer {
         resource: TradeResource::Cider,
         amount: 12.0,
         gold_yield: 12.0,
-    },
-};
-
-const TRADE_BUY_PEAR_CIDER: MarketplaceTradeOffer = MarketplaceTradeOffer {
-    id: "buy_pear_cider",
-    kind: MarketplaceTradeKind::GoldBuy {
-        resource: TradeResource::PearCider,
-        amount: 12.0,
-        gold_cost: 21.0,
-    },
-};
-
-const TRADE_SELL_PEAR_CIDER: MarketplaceTradeOffer = MarketplaceTradeOffer {
-    id: "sell_pear_cider",
-    kind: MarketplaceTradeKind::GoldSell {
-        resource: TradeResource::PearCider,
-        amount: 12.0,
-        gold_yield: 13.0,
     },
 };
 
@@ -6547,10 +6507,8 @@ const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[
     TRADE_SELL_SMOKED_FISH,
     TRADE_BUY_CHEESE_BULK,
     TRADE_SELL_CHEESE,
-    TRADE_BUY_ARONIA_JAM,
-    TRADE_SELL_ARONIA_JAM,
-    TRADE_BUY_ROSEHIP_JAM,
-    TRADE_SELL_ROSEHIP_JAM,
+    TRADE_BUY_JAM,
+    TRADE_SELL_JAM,
     TRADE_BUY_RYE_SHEAVES,
     TRADE_SELL_RYE_SHEAVES,
     TRADE_BUY_OAT_SHEAVES,
@@ -6564,8 +6522,6 @@ const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[
     TRADE_TIMBER_FOR_FIREWOOD,
     TRADE_BUY_CIDER,
     TRADE_SELL_CIDER,
-    TRADE_BUY_PEAR_CIDER,
-    TRADE_SELL_PEAR_CIDER,
     TRADE_BUY_YARN,
     TRADE_SELL_YARN,
     TRADE_BUY_LINEN,
@@ -6659,17 +6615,15 @@ pub fn marketplace_trade_contract_code(id: &str) -> Option<u8> {
         "sell_cured_meat" => Some(61),
         "sell_smoked_fish" => Some(62),
         "sell_cheese" => Some(63),
-        "sell_aronia_jam" => Some(64),
-        "sell_rosehip_jam" => Some(65),
-        "sell_rye_sheaves" => Some(66),
-        "sell_oat_sheaves" => Some(67),
-        "sell_barley_sheaves" => Some(68),
-        "sell_maslin_sheaves" => Some(69),
-        "sell_cider" => Some(70),
-        "sell_pear_cider" => Some(71),
-        "sell_yarn" => Some(72),
-        "sell_linen" => Some(73),
-        "sell_pelts" => Some(74),
+        "sell_jam" => Some(64),
+        "sell_rye_sheaves" => Some(65),
+        "sell_oat_sheaves" => Some(66),
+        "sell_barley_sheaves" => Some(67),
+        "sell_maslin_sheaves" => Some(68),
+        "sell_cider" => Some(69),
+        "sell_yarn" => Some(70),
+        "sell_linen" => Some(71),
+        "sell_pelts" => Some(72),
         _ => None,
     }
 }
@@ -6740,17 +6694,15 @@ pub fn marketplace_trade_offer_for_contract_code(
         61 => "sell_cured_meat",
         62 => "sell_smoked_fish",
         63 => "sell_cheese",
-        64 => "sell_aronia_jam",
-        65 => "sell_rosehip_jam",
-        66 => "sell_rye_sheaves",
-        67 => "sell_oat_sheaves",
-        68 => "sell_barley_sheaves",
-        69 => "sell_maslin_sheaves",
-        70 => "sell_cider",
-        71 => "sell_pear_cider",
-        72 => "sell_yarn",
-        73 => "sell_linen",
-        74 => "sell_pelts",
+        64 => "sell_jam",
+        65 => "sell_rye_sheaves",
+        66 => "sell_oat_sheaves",
+        67 => "sell_barley_sheaves",
+        68 => "sell_maslin_sheaves",
+        69 => "sell_cider",
+        70 => "sell_yarn",
+        71 => "sell_linen",
+        72 => "sell_pelts",
         _ => return None,
     };
     marketplace_trade_offer(id)

@@ -320,8 +320,7 @@ pub fn place_burgage_zone(
             cabbage: 0.0,
             carrots: 0.0,
             beetroot: 0.0,
-            aronia_jam: 0.0,
-            rosehip_jam: 0.0,
+            jam: 0.0,
             settlement_id,
             smallholding: false,
         });
@@ -781,7 +780,7 @@ fn first_unmet_current_tier_promotion_need(
                 residence_food_progression_met(residence, 1),
                 residence_food_progression_met(residence, residence.tier),
                 residence_savory_preserves_stock(residence),
-                residence.aronia_jam + residence.rosehip_jam,
+                residence.jam,
             ) {
                 return false;
             }
@@ -830,7 +829,6 @@ fn first_unmet_current_tier_promotion_need(
                             && building.assigned_labor > 0
                             && building_commodity_stock(building, CommodityKind::Ale)
                                 + building_commodity_stock(building, CommodityKind::Cider)
-                                + building_commodity_stock(building, CommodityKind::PearCider)
                                 + building_commodity_stock(building, CommodityKind::Mead)
                                 > 1e-6
                     }

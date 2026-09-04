@@ -68,8 +68,6 @@ pub enum CommodityKind {
     Carrots,
     Beetroot,
     Jam,
-    Jam,
-    Cider,
     AnimalFeed,
     Wax,
     Candles,
@@ -88,7 +86,7 @@ pub enum CommodityKind {
 /// Canonical exhaustive commodity iteration order. Systems that must prove a
 /// physical holder is empty (temporary camps, reclamation piles, diagnostics)
 /// use this list so adding a commodity cannot silently strand stock.
-pub const ALL_COMMODITIES: &[CommodityKind; 73] = &[
+pub const ALL_COMMODITIES: &[CommodityKind; 71] = &[
     CommodityKind::Firewood,
     CommodityKind::Water,
     CommodityKind::Timber,
@@ -147,8 +145,6 @@ pub const ALL_COMMODITIES: &[CommodityKind; 73] = &[
     CommodityKind::Carrots,
     CommodityKind::Beetroot,
     CommodityKind::Jam,
-    CommodityKind::Jam,
-    CommodityKind::Cider,
     CommodityKind::AnimalFeed,
     CommodityKind::Wax,
     CommodityKind::Candles,
@@ -185,11 +181,10 @@ pub const FRESH_FOOD_COMMODITIES: [CommodityKind; 18] = [
     CommodityKind::Beetroot,
 ];
 
-pub const PRESERVED_FOOD_COMMODITIES: [CommodityKind; 5] = [
+pub const PRESERVED_FOOD_COMMODITIES: [CommodityKind; 4] = [
     CommodityKind::CuredMeat,
     CommodityKind::SmokedFish,
     CommodityKind::Cheese,
-    CommodityKind::Jam,
     CommodityKind::Jam,
 ];
 
@@ -205,7 +200,7 @@ pub const PRESERVABLE_FOOD_COMMODITIES: [CommodityKind; 3] = [
     CommodityKind::Milk,
 ];
 
-pub const EDIBLE_COMMODITIES: [CommodityKind; 24] = [
+pub const EDIBLE_COMMODITIES: [CommodityKind; 23] = [
     CommodityKind::OatGrain,
     CommodityKind::RyeBread,
     CommodityKind::MaslinBread,
@@ -229,13 +224,12 @@ pub const EDIBLE_COMMODITIES: [CommodityKind; 24] = [
     CommodityKind::Carrots,
     CommodityKind::Beetroot,
     CommodityKind::Jam,
-    CommodityKind::Jam,
 ];
 
 /// Consume the shortest-lived foods first so mixed pantries and institutions
 /// naturally preserve durable reserves. Combined food buckets remain available
 /// for producers whose output is intentionally not crop-specific.
-pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 24] = [
+pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 23] = [
     CommodityKind::Meat,
     CommodityKind::Fish,
     CommodityKind::Milk,
@@ -257,7 +251,6 @@ pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 24] = [
     CommodityKind::Cheese,
     CommodityKind::SmokedFish,
     CommodityKind::CuredMeat,
-    CommodityKind::Jam,
     CommodityKind::Jam,
     CommodityKind::Honey,
 ];
@@ -321,7 +314,7 @@ pub fn food_category(kind: CommodityKind) -> Option<FoodCategory> {
         CommodityKind::CuredMeat | CommodityKind::SmokedFish | CommodityKind::Cheese => {
             Some(FoodCategory::SavoryPreserves)
         }
-        CommodityKind::Honey | CommodityKind::Jam | CommodityKind::Jam => {
+        CommodityKind::Honey | CommodityKind::Jam => {
             Some(FoodCategory::SweetPreserves)
         }
         _ => None,
@@ -400,9 +393,7 @@ impl CommodityKind {
             Self::Cabbage => 38,
             Self::Carrots => 50,
             Self::Beetroot => 53,
-            Self::Cider => 57,
             Self::Jam => 61,
-            Self::Jam => 62,
             Self::AnimalFeed => 63,
             Self::Wax => 64,
             Self::Candles => 65,
@@ -478,9 +469,7 @@ impl CommodityKind {
             38 => Some(Self::Cabbage),
             50 => Some(Self::Carrots),
             53 => Some(Self::Beetroot),
-            57 => Some(Self::Cider),
             61 => Some(Self::Jam),
-            62 => Some(Self::Jam),
             63 => Some(Self::AnimalFeed),
             64 => Some(Self::Wax),
             65 => Some(Self::Candles),
@@ -515,7 +504,7 @@ impl CommodityKind {
     }
 
     pub fn is_beverage(self) -> bool {
-        matches!(self, Self::Ale | Self::Cider | Self::Cider | Self::Mead)
+        matches!(self, Self::Ale | Self::Cider | Self::Mead)
     }
 
     pub fn is_bread_grain_bulk(self) -> bool {
@@ -563,7 +552,6 @@ impl CommodityKind {
             | Self::Cabbage
             | Self::Carrots
             | Self::Beetroot
-            | Self::Jam
             | Self::Jam => 1.0,
             Self::OatGrain => OAT_GRAIN_MEAL_VALUE,
             _ => 0.0,
@@ -596,7 +584,7 @@ impl CommodityKind {
             Self::CuredMeat => 0.55,
             Self::SmokedFish => 0.7,
             Self::Honey => 0.0,
-            Self::Jam | Self::Jam => 0.35,
+            Self::Jam => 0.35,
             _ => 0.0,
         }
     }
@@ -671,8 +659,6 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::Carrots => building.carrots,
         CommodityKind::Beetroot => building.beetroot,
         CommodityKind::Jam => building.jam,
-        CommodityKind::Jam => building.jam,
-        CommodityKind::Cider => building.cider,
         CommodityKind::AnimalFeed => building.animal_feed,
         CommodityKind::Wax => building.wax,
         CommodityKind::Candles => building.candles,
@@ -715,7 +701,6 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         CommodityKind::Hides => def.storage_hides,
         CommodityKind::Leather => def.storage_leather,
         CommodityKind::Shoes => def.storage_shoes,
-        CommodityKind::Cider => def.storage_cider,
         CommodityKind::Gold => {
             if matches!(
                 kind,
@@ -773,7 +758,6 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         CommodityKind::CuredMeat
         | CommodityKind::SmokedFish
         | CommodityKind::Cheese
-        | CommodityKind::Jam
         | CommodityKind::Jam => def.storage_preserved_food,
         CommodityKind::AnimalFeed => def.storage_animal_feed,
         CommodityKind::Wax => def.storage_wax,
@@ -996,8 +980,6 @@ pub fn withdraw_building_commodity(
         CommodityKind::Carrots => building.carrots -= withdrawn,
         CommodityKind::Beetroot => building.beetroot -= withdrawn,
         CommodityKind::Jam => building.jam -= withdrawn,
-        CommodityKind::Jam => building.jam -= withdrawn,
-        CommodityKind::Cider => building.cider -= withdrawn,
         CommodityKind::AnimalFeed => building.animal_feed -= withdrawn,
         CommodityKind::Wax => building.wax -= withdrawn,
         CommodityKind::Candles => building.candles -= withdrawn,
@@ -1080,8 +1062,6 @@ pub fn deposit_building_commodity(
         CommodityKind::Carrots => building.carrots += deposited,
         CommodityKind::Beetroot => building.beetroot += deposited,
         CommodityKind::Jam => building.jam += deposited,
-        CommodityKind::Jam => building.jam += deposited,
-        CommodityKind::Cider => building.cider += deposited,
         CommodityKind::AnimalFeed => building.animal_feed += deposited,
         CommodityKind::Wax => building.wax += deposited,
         CommodityKind::Candles => building.candles += deposited,
@@ -1178,8 +1158,6 @@ pub fn credit_treasury_commodity(
         CommodityKind::Carrots => treasury.carrots += amount,
         CommodityKind::Beetroot => treasury.beetroot += amount,
         CommodityKind::Jam => treasury.jam += amount,
-        CommodityKind::Jam => treasury.jam += amount,
-        CommodityKind::Cider => treasury.cider += amount,
         // Prepared fodder exists only in physical livestock stores.
         CommodityKind::AnimalFeed => return,
         CommodityKind::Wax => treasury.wax += amount,
@@ -1228,7 +1206,6 @@ pub fn residence_commodity_stock(residence: &Residence, kind: CommodityKind) -> 
         CommodityKind::Cabbage => residence.cabbage,
         CommodityKind::Carrots => residence.carrots,
         CommodityKind::Beetroot => residence.beetroot,
-        CommodityKind::Jam => residence.jam,
         CommodityKind::Jam => residence.jam,
         _ => 0.0,
     }
@@ -1490,7 +1467,6 @@ pub fn withdraw_residence_commodity(
         CommodityKind::Carrots => residence.carrots -= withdrawn,
         CommodityKind::Beetroot => residence.beetroot -= withdrawn,
         CommodityKind::Jam => residence.jam -= withdrawn,
-        CommodityKind::Jam => residence.jam -= withdrawn,
         _ => return 0.0,
     }
     withdrawn
@@ -1534,7 +1510,6 @@ pub fn deposit_residence_commodity(
         CommodityKind::Cabbage => residence.cabbage += deposited,
         CommodityKind::Carrots => residence.carrots += deposited,
         CommodityKind::Beetroot => residence.beetroot += deposited,
-        CommodityKind::Jam => residence.jam += deposited,
         CommodityKind::Jam => residence.jam += deposited,
         _ => return 0.0,
     }
@@ -1657,10 +1632,6 @@ mod tests {
         assert_eq!(
             food_category(CommodityKind::Honey),
             Some(FoodCategory::SweetPreserves)
-        );
-        assert_eq!(
-            food_category(CommodityKind::Jam),
-            food_category(CommodityKind::Honey)
         );
         assert_eq!(
             food_category(CommodityKind::Jam),

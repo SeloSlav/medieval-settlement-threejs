@@ -9,7 +9,7 @@ import {
   APIARY_POLLINATION_BONUS_MAX,
   APIARY_WINTER_HONEY_REQUIRED,
   BREWERY_ALE_PER_CYCLE,
-  BREWERY_APPLES_PER_CIDER_CYCLE,
+  BREWERY_FRUIT_PER_CIDER_CYCLE,
   BREWERY_BARLEY_PER_MALT_CYCLE,
   BREWERY_BREWING_FIREWOOD_PER_CYCLE,
   BREWERY_BREWING_WATER_PER_CYCLE,
@@ -181,6 +181,8 @@ import {
 } from '../../economy/potterFiringPolicy.ts';
 import {
   BREWERY_RECIPE_AUTO,
+  BREWERY_RECIPE_CIDER,
+  BREWERY_RECIPE_PEAR_CIDER,
   BREWERY_RECIPE_PRESETS,
   breweryPolicyOutput,
   normalizeBreweryRecipePolicy,
@@ -1569,17 +1571,17 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
     controls = BREWERY_RECIPE_PRESETS.map((preset) => {
       const output = breweryPolicyOutput(preset.policy);
       const icon = preset.policy === BREWERY_RECIPE_AUTO
-        ? renderResourceCost({ ale: 1, cider: 1, cider: 1, mead: 1 }, { compact: true })
+        ? renderResourceCost({ ale: 1, cider: 1, mead: 1 }, { compact: true })
         : renderResourceCost({ [output]: 1 }, { compact: true });
-      const conversion = output === 'cider'
-        ? `${BREWERY_APPLES_PER_CIDER_CYCLE} apples → ${BREWERY_CIDER_PER_CYCLE} apple cider`
-        : output === 'cider'
-          ? `${BREWERY_APPLES_PER_CIDER_CYCLE} pears → ${BREWERY_CIDER_PER_CYCLE} pear cider`
+      const conversion = preset.policy === BREWERY_RECIPE_CIDER
+        ? `${BREWERY_FRUIT_PER_CIDER_CYCLE} apples → ${BREWERY_CIDER_PER_CYCLE} cider`
+        : preset.policy === BREWERY_RECIPE_PEAR_CIDER
+          ? `${BREWERY_FRUIT_PER_CIDER_CYCLE} pears → ${BREWERY_CIDER_PER_CYCLE} cider`
           : output === 'mead'
             ? `${BREWERY_HONEY_PER_MEAD_CYCLE} honey → ${BREWERY_MEAD_PER_CYCLE} mead`
             : `${BREWERY_BARLEY_PER_MALT_CYCLE} barley + ${BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE} water + ${BREWERY_MALTING_FIREWOOD_PER_CYCLE + BREWERY_BREWING_FIREWOOD_PER_CYCLE} firewood → ${BREWERY_ALE_PER_CYCLE} ale`;
       const tooltip = preset.policy === BREWERY_RECIPE_AUTO
-        ? `Auto: ${BREWERY_BARLEY_PER_MALT_CYCLE} barley + ${BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE} water + ${BREWERY_MALTING_FIREWOOD_PER_CYCLE + BREWERY_BREWING_FIREWOOD_PER_CYCLE} firewood → ${BREWERY_ALE_PER_CYCLE} ale; ${BREWERY_APPLES_PER_CIDER_CYCLE} apples → ${BREWERY_CIDER_PER_CYCLE} apple cider; ${BREWERY_APPLES_PER_CIDER_CYCLE} pears → ${BREWERY_CIDER_PER_CYCLE} pear cider; ${BREWERY_HONEY_PER_MEAD_CYCLE} honey → ${BREWERY_MEAD_PER_CYCLE} mead.`
+        ? `Auto: ${BREWERY_BARLEY_PER_MALT_CYCLE} barley + ${BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE} water + ${BREWERY_MALTING_FIREWOOD_PER_CYCLE + BREWERY_BREWING_FIREWOOD_PER_CYCLE} firewood → ${BREWERY_ALE_PER_CYCLE} ale; ${BREWERY_FRUIT_PER_CIDER_CYCLE} apples or pears → ${BREWERY_CIDER_PER_CYCLE} cider; ${BREWERY_HONEY_PER_MEAD_CYCLE} honey → ${BREWERY_MEAD_PER_CYCLE} mead.`
         : conversion;
       return button(
         'data-brewery-recipe-policy',

@@ -31,8 +31,7 @@ export const PRESERVED_FOOD_KINDS = [
   'curedMeat',
   'smokedFish',
   'cheese',
-  'aroniaJam',
-  'rosehipJam',
+  'jam',
 ] as const;
 
 export const SAVORY_PRESERVE_KINDS = [
@@ -63,8 +62,7 @@ export const NAMED_FOOD_KINDS = [
   'curedMeat',
   'smokedFish',
   'cheese',
-  'aroniaJam',
-  'rosehipJam',
+  'jam',
   'honey',
 ] as const;
 
@@ -96,8 +94,7 @@ export const NAMED_FOOD_LABELS: Record<NamedFoodKind, string> = {
   curedMeat: 'Cured meat',
   smokedFish: 'Smoked fish',
   cheese: 'Cheese',
-  aroniaJam: 'Aronia jam',
-  rosehipJam: 'Rosehip jam',
+  jam: 'Jam',
   honey: 'Honey',
 };
 
@@ -131,8 +128,7 @@ export const FOOD_MEAL_VALUES: Readonly<Record<FoodInventoryKind, number>> = {
   curedMeat: 1,
   smokedFish: 1,
   cheese: 1,
-  aroniaJam: 1,
-  rosehipJam: 1,
+  jam: 1,
   honey: 1,
 };
 
@@ -159,8 +155,7 @@ export const FOOD_SPOILAGE_MULTIPLIERS: Readonly<Record<FoodInventoryKind, numbe
   curedMeat: 0.55,
   smokedFish: 0.7,
   cheese: 1,
-  aroniaJam: 0.35,
-  rosehipJam: 0.35,
+  jam: 0.35,
   honey: 0,
 };
 
@@ -252,8 +247,7 @@ export function foodCategory(kind: FoodInventoryKind): FoodCategory {
     case 'smokedFish':
     case 'cheese':
       return 'savoryPreserves';
-    case 'aroniaJam':
-    case 'rosehipJam':
+    case 'jam':
     case 'honey':
       return 'sweetPreserves';
   }

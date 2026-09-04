@@ -77,7 +77,6 @@ const STORAGE_CHANNEL_LABELS: Record<keyof StorageCaps, string> = {
   flour: 'Flour room',
   ale: 'Ale store',
   cider: 'Cider cellar',
-  pearCider: 'Pear-cider cellar',
   mead: 'Mead store',
   preservedFood: 'Preserve store',
   honey: 'Honey store',

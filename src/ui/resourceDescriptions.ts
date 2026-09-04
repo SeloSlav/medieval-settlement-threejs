@@ -31,8 +31,7 @@ export const RESOURCE_DESCRIPTIONS: Readonly<Record<ResourceCostKind, string>> =
   ryeFlour: 'Milled rye grain baked into rye bread at a Bakery.',
   maslinFlour: 'Milled wheat and rye grain baked into maslin bread at a Bakery.',
   ale: 'Ale brewed from malted barley at a Brewhouse and served in Taverns.',
-  cider: 'Cider made from apples at a Brewhouse and served in Taverns.',
-  cider: 'Cider made from pears at a Brewhouse and served in Taverns.',
+  cider: 'Cider pressed from apples or pears at a Brewhouse and served in Taverns.',
   mead: 'Mead fermented from honey at a Brewhouse and served in Taverns.',
   savoryPreserves: 'Cured meat, smoked fish, or cheese used for household and military provisioning.',
   honey: 'Honey from apiaries, eaten at the table or fermented into mead at a Brewhouse.',
@@ -76,8 +75,7 @@ export const RESOURCE_DESCRIPTIONS: Readonly<Record<ResourceCostKind, string>> =
   curedMeat: 'Salted and cured meat kept for meals and winter stores.',
   smokedFish: 'Fish preserved with smoke and salt at a Smokehouse.',
   cheese: 'Milk preserved with salt at livestock holdings or a Smokehouse.',
-  jam: 'Aronia berries preserved as jam in backyard orchards.',
-  jam: 'Rosehips preserved as jam in backyard orchards.',
+  jam: 'Aronia berries or rosehips preserved as jam in backyard orchards.',
 };
 
 export function foodResourceTooltip(kind: FoodInventoryKind): string {

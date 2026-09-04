@@ -200,8 +200,7 @@ function foundingDestinationPriority(
     case 'curedMeat':
     case 'smokedFish':
     case 'cheese':
-    case 'aroniaJam':
-    case 'rosehipJam':
+    case 'jam':
     case 'ryeSheaves':
     case 'oatSheaves':
     case 'barleySheaves':
@@ -223,7 +222,6 @@ function foundingDestinationPriority(
       return building.kind === 'brewery' ? 0 : 3;
     case 'ale':
     case 'cider':
-    case 'pearCider':
     case 'mead':
       if (building.kind === 'tavern') return 0;
       if (building.kind === 'granary') return 1;

@@ -1,4 +1,4 @@
-export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt', 'ryeFlour', 'maslinFlour', 'ale', 'cider', 'cider', 'mead', 'honey', 'wax', 'candles', 'wine', 'wool', 'flax', 'yarn', 'linen', 'cloth', 'pelts', 'hides', 'leather', 'shoes', 'ironwork', 'polearms', 'sidearms', 'shields', 'bows', 'crossbows', 'paddedArmor', 'mailArmor', 'ammunition', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'manure', 'remedies', 'roofTiles', 'gold', 'ryeBread', 'maslinBread', 'meat', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes', 'curedMeat', 'smokedFish', 'cheese', 'jam', 'jam', 'animalFeed'] as const;
+export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt', 'ryeFlour', 'maslinFlour', 'ale', 'cider', 'mead', 'honey', 'wax', 'candles', 'wine', 'wool', 'flax', 'yarn', 'linen', 'cloth', 'pelts', 'hides', 'leather', 'shoes', 'ironwork', 'polearms', 'sidearms', 'shields', 'bows', 'crossbows', 'paddedArmor', 'mailArmor', 'ammunition', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'manure', 'remedies', 'roofTiles', 'gold', 'ryeBread', 'maslinBread', 'meat', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes', 'curedMeat', 'smokedFish', 'cheese', 'jam', 'animalFeed'] as const;
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 
 export const RESOURCE_NODE_KINDS = ['quarry', 'game', 'berries', 'mushrooms', 'fish'] as const;
@@ -139,7 +139,6 @@ export type BuildingState = {
   maslinFlour?: number;
   ale: number;
   cider?: number;
-  cider?: number;
   mead?: number;
   honey: number;
   /** Additive candle-chain inventories; absent only while legacy bindings are active. */
@@ -193,7 +192,6 @@ export type BuildingState = {
   smokedFish?: number;
   cheese?: number;
   jam?: number;
-  jam?: number;
   gold: number;
   waterCapacity: number;
   assignedLabor: number;
@@ -237,7 +235,7 @@ export type BuildingState = {
   productionRatePercent?: number;
   /** Dedicated pastoral holding milk allocation; 0/missing reads the legacy field. */
   milkUsePolicy?: number;
-  /** 0 ale, 1 apple cider, 2 mead, 3 automatic, 4 pear cider. */
+  /** 0 ale, 1 cider from apples, 2 mead, 3 automatic, 4 cider from pears. */
   breweryRecipePolicy?: number;
   /** 0 automatic, 1 cured meat, 2 smoked fish, 3 cheese. */
   smokehouseRecipePolicy?: number;
@@ -501,7 +499,6 @@ export type ResidenceState = {
   curedMeat?: number;
   smokedFish?: number;
   cheese?: number;
-  jam?: number;
   jam?: number;
   foodInventoryMigrated?: boolean;
   /** Deprecated replicated save field. Runtime homes are never abandoned. */

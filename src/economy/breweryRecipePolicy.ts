@@ -28,13 +28,13 @@ export const BREWERY_RECIPE_PRESETS = [
   },
   {
     policy: BREWERY_RECIPE_CIDER,
-    label: 'Apple cider',
-    hint: 'Make 1 apple cider from 4 apples.',
+    label: 'Cider · apples',
+    hint: 'Press 2 apples into 1 cider.',
   },
   {
     policy: BREWERY_RECIPE_PEAR_CIDER,
-    label: 'Pear cider',
-    hint: 'Make 1 pear cider from 4 pears.',
+    label: 'Cider · pears',
+    hint: 'Press 2 pears into 1 cider.',
   },
   {
     policy: BREWERY_RECIPE_MEAD,
@@ -89,7 +89,7 @@ export function breweryRecipeRequestsInput(
   }
 }
 
-export type BreweryBeverageCommodity = 'ale' | 'cider' | 'pearCider' | 'mead';
+export type BreweryBeverageCommodity = 'ale' | 'cider' | 'mead';
 
 export type BreweryRecipeInventory = {
   barley?: number;
@@ -115,11 +115,11 @@ export function selectedBreweryRecipePolicy(
     },
     {
       policy: BREWERY_RECIPE_CIDER,
-      readiness: Math.max(0, inventory.apples ?? 0) / BREWERY_APPLES_PER_CIDER_CYCLE,
+      readiness: Math.max(0, inventory.apples ?? 0) / BREWERY_FRUIT_PER_CIDER_CYCLE,
     },
     {
       policy: BREWERY_RECIPE_PEAR_CIDER,
-      readiness: Math.max(0, inventory.pears ?? 0) / BREWERY_APPLES_PER_CIDER_CYCLE,
+      readiness: Math.max(0, inventory.pears ?? 0) / BREWERY_FRUIT_PER_CIDER_CYCLE,
     },
     {
       policy: BREWERY_RECIPE_MEAD,
@@ -139,7 +139,7 @@ export function breweryPolicyOutput(
     case BREWERY_RECIPE_CIDER:
       return 'cider';
     case BREWERY_RECIPE_PEAR_CIDER:
-      return 'pearCider';
+      return 'cider';
     case BREWERY_RECIPE_MEAD:
       return 'mead';
     default:
@@ -147,7 +147,7 @@ export function breweryPolicyOutput(
   }
 }
 import {
-  BREWERY_APPLES_PER_CIDER_CYCLE,
+  BREWERY_FRUIT_PER_CIDER_CYCLE,
   BREWERY_BARLEY_PER_MALT_CYCLE,
   BREWERY_HONEY_PER_MEAD_CYCLE,
   BREWERY_MALT_PER_ALE_CYCLE,

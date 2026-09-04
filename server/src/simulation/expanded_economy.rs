@@ -12,7 +12,7 @@ use crate::balance_generated::{
     BACKYARD_APIARY_POLLINATION_CONTRIBUTION, BACKYARD_APIARY_POLLINATION_RADIUS,
     BAKERY_FIREWOOD_PER_CYCLE, BAKERY_FLOUR_PER_CYCLE, BAKERY_MASLIN_BREAD_PER_CYCLE,
     BAKERY_RYE_BREAD_PER_CYCLE, BAKERY_WATER_PER_CYCLE, BREWERY_ALE_PER_CYCLE,
-    BREWERY_APPLES_PER_CIDER_CYCLE, BREWERY_BARLEY_PER_MALT_CYCLE,
+    BREWERY_FRUIT_PER_CIDER_CYCLE, BREWERY_BARLEY_PER_MALT_CYCLE,
     BREWERY_BREWING_FIREWOOD_PER_CYCLE, BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_CIDER_PER_CYCLE,
     BREWERY_HONEY_PER_MEAD_CYCLE, BREWERY_MALTING_FIREWOOD_PER_CYCLE,
     BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE, BREWERY_MALT_PER_CYCLE,
@@ -2545,7 +2545,7 @@ pub fn step_brewery(
                 tick,
                 clock,
                 brewery,
-                &[(CommodityKind::Apples, BREWERY_APPLES_PER_CIDER_CYCLE)],
+                &[(CommodityKind::Apples, BREWERY_FRUIT_PER_CIDER_CYCLE)],
                 &[(CommodityKind::Cider, BREWERY_CIDER_PER_CYCLE)],
             );
         }
@@ -2555,7 +2555,7 @@ pub fn step_brewery(
                 tick,
                 clock,
                 brewery,
-                &[(CommodityKind::Pears, BREWERY_APPLES_PER_CIDER_CYCLE)],
+                &[(CommodityKind::Pears, BREWERY_FRUIT_PER_CIDER_CYCLE)],
                 &[(CommodityKind::Cider, BREWERY_CIDER_PER_CYCLE)],
             );
         }
@@ -2680,7 +2680,7 @@ fn selected_brewery_recipe(building: &Building) -> u8 {
         (
             BREWERY_RECIPE_CIDER,
             if brewery_output_headroom(building, CommodityKind::Cider) > 1e-6 {
-                building.apples / BREWERY_APPLES_PER_CIDER_CYCLE.max(1e-9)
+                building.apples / BREWERY_FRUIT_PER_CIDER_CYCLE.max(1e-9)
             } else {
                 -1.0
             },
@@ -2688,7 +2688,7 @@ fn selected_brewery_recipe(building: &Building) -> u8 {
         (
             BREWERY_RECIPE_PEAR_CIDER,
             if brewery_output_headroom(building, CommodityKind::Cider) > 1e-6 {
-                building.pears / BREWERY_APPLES_PER_CIDER_CYCLE.max(1e-9)
+                building.pears / BREWERY_FRUIT_PER_CIDER_CYCLE.max(1e-9)
             } else {
                 -1.0
             },
@@ -2748,7 +2748,7 @@ fn request_brewery_recipe_inputs(
             brewery,
             CommodityKind::Apples,
             &["granary", "trading_post"],
-            BREWERY_APPLES_PER_CIDER_CYCLE * staging_cycles,
+            BREWERY_FRUIT_PER_CIDER_CYCLE * staging_cycles,
         );
     }
     if selected_recipe == BREWERY_RECIPE_PEAR_CIDER || policy == BREWERY_RECIPE_AUTO {
@@ -2759,7 +2759,7 @@ fn request_brewery_recipe_inputs(
             brewery,
             CommodityKind::Pears,
             &["granary", "trading_post"],
-            BREWERY_APPLES_PER_CIDER_CYCLE * staging_cycles,
+            BREWERY_FRUIT_PER_CIDER_CYCLE * staging_cycles,
         );
     }
 }

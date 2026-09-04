@@ -261,7 +261,6 @@ pub struct RaidPortableStores {
     pub maslin_bread: f64,
     pub ale: f64,
     pub cider: f64,
-    pub cider: f64,
     pub mead: f64,
     pub honey: f64,
     pub wax: f64,
@@ -313,7 +312,6 @@ pub struct RaidPortableStores {
     pub cabbage: f64,
     pub carrots: f64,
     pub beetroot: f64,
-    pub jam: f64,
     pub jam: f64,
 }
 
@@ -677,7 +675,6 @@ impl RaidPortableStores {
             maslin_bread: removed!(maslin_bread),
             ale: removed!(ale),
             cider: removed!(cider),
-            cider: removed!(cider),
             mead: removed!(mead),
             honey: removed!(honey),
             wax: removed!(wax),
@@ -729,7 +726,6 @@ impl RaidPortableStores {
             cabbage: removed!(cabbage),
             carrots: removed!(carrots),
             beetroot: removed!(beetroot),
-            jam: removed!(jam),
             jam: removed!(jam),
         }
     }

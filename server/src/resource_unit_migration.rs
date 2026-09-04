@@ -227,9 +227,7 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
             cabbage,
             carrots,
             beetroot,
-            aronia_jam,
-            rosehip_jam,
-            pear_cider,
+            jam,
             wax,
             candles,
             pelts,
@@ -323,9 +321,7 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
             cabbage,
             carrots,
             beetroot,
-            aronia_jam,
-            rosehip_jam,
-            pear_cider,
+            jam,
             animal_feed,
             wax,
             candles,
@@ -374,8 +370,7 @@ pub fn migrate_legacy_fractional_resources(ctx: &ReducerContext) {
             cabbage,
             carrots,
             beetroot,
-            aronia_jam,
-            rosehip_jam,
+            jam,
         );
         ctx.db.residence().id().update(row);
     }

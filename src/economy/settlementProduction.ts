@@ -1,6 +1,6 @@
 import {
   BREWERY_ALE_PER_CYCLE,
-  BREWERY_APPLES_PER_CIDER_CYCLE,
+  BREWERY_FRUIT_PER_CIDER_CYCLE,
   BREWERY_BARLEY_PER_MALT_CYCLE,
   BREWERY_BREWING_FIREWOOD_PER_CYCLE,
   BREWERY_BREWING_WATER_PER_CYCLE,
@@ -1316,7 +1316,7 @@ function completedProcessorOverview(
             deliveries,
             building,
             'apples',
-            beverageCycles * BREWERY_APPLES_PER_CIDER_CYCLE,
+            beverageCycles * BREWERY_FRUIT_PER_CIDER_CYCLE,
           );
         } else if (recipe === BREWERY_RECIPE_PEAR_CIDER) {
           limitingInput = 'pears';
@@ -1324,7 +1324,7 @@ function completedProcessorOverview(
             deliveries,
             building,
             'pears',
-            beverageCycles * BREWERY_APPLES_PER_CIDER_CYCLE,
+            beverageCycles * BREWERY_FRUIT_PER_CIDER_CYCLE,
           );
         } else if (recipe === BREWERY_RECIPE_MEAD) {
           limitingInput = 'honey';

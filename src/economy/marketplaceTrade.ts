@@ -44,8 +44,7 @@ const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   ryeBread: 'Rye bread',
   maslinBread: 'Maslin bread',
   ale: 'Ale',
-  cider: 'Apple cider',
-  cider: 'Pear cider',
+  cider: 'Cider',
   honey: 'Honey',
   wax: 'Beeswax',
   candles: 'Candles',
@@ -96,8 +95,7 @@ const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   curedMeat: 'Cured meat',
   smokedFish: 'Smoked fish',
   cheese: 'Cheese',
-  jam: 'Aronia jam',
-  jam: 'Rosehip jam',
+  jam: 'Jam',
   gold: 'Gold',
 };
 

@@ -50,7 +50,6 @@ function buildingStateFromRow(
     constructionReservedRoofTiles: number;
     constructionTreasuryRoofTiles: number;
     cider: number;
-    cider: number;
     mead: number;
     breweryRecipePolicy: number;
     smokehouseRecipePolicy: number;
@@ -76,7 +75,6 @@ function buildingStateFromRow(
     cabbage: number;
     carrots: number;
     beetroot: number;
-    jam: number;
     jam: number;
     treeWorkAreaX: number;
     treeWorkAreaZ: number;
@@ -138,7 +136,6 @@ function buildingStateFromRow(
     maslinFlour: wholeResourceUnits(row.maslinFlour),
     ale: wholeResourceUnits(row.ale),
     cider: wholeResourceUnits(materialRow.cider),
-    cider: wholeResourceUnits(materialRow.cider),
     mead: wholeResourceUnits(materialRow.mead),
     honey: wholeResourceUnits(row.honey),
     wax: wholeResourceUnits(row.wax),
@@ -189,7 +186,6 @@ function buildingStateFromRow(
     curedMeat: wholeResourceUnits(row.curedMeat),
     smokedFish: wholeResourceUnits(row.smokedFish),
     cheese: wholeResourceUnits(row.cheese),
-    jam: wholeResourceUnits(materialRow.jam),
     jam: wholeResourceUnits(materialRow.jam),
     gold: wholeResourceUnits(row.gold),
     waterCapacity: wholeResourceUnits(row.waterCapacity),

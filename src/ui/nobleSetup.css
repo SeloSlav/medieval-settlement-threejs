@@ -9,6 +9,10 @@
   --charge-outline-color: #272824;
   --charge-outline-width: max(0.35px, 1cqw);
   --charge-scale: 0.62;
+  --surface-weave-light: rgba(255, 246, 218, 0.14);
+  --surface-weave-shadow: rgba(37, 22, 10, 0.15);
+  --surface-age-mark: rgba(45, 27, 12, 0.2);
+  --surface-texture-opacity: 0.62;
   --shield-clip: polygon(7% 0, 93% 0, 91% 59%, 84% 73%, 68% 87%, 50% 100%, 32% 87%, 16% 73%, 9% 59%);
   position: relative;
   display: block;
@@ -37,6 +41,7 @@
 
 .heraldry-shield__field {
   inset: 4px 4px 5px;
+  isolation: isolate;
   overflow: hidden;
   clip-path: var(--shield-clip);
   background: var(--field-a);
@@ -44,6 +49,36 @@
     inset 0 0 0 2px rgba(27, 21, 13, 0.72),
     inset 0 0 18px rgba(0, 0, 0, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+/*
+ * One deterministic textile pass sits above both the tinctures and charges.
+ * The crossed threads keep the face woven while the offset pinpricks suggest
+ * worn pigment and age without turning the heraldry into a noisy photograph.
+ */
+.heraldry-shield__field::after {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 23% 19%, var(--surface-age-mark) 0 0.55px, transparent 0.9px),
+    radial-gradient(circle at 71% 64%, var(--surface-age-mark) 0 0.45px, transparent 0.85px),
+    repeating-linear-gradient(0deg, var(--surface-weave-light) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, var(--surface-weave-shadow) 0 1px, transparent 1px 3px);
+  background-size: 19px 23px, 29px 31px, 3px 3px, 3px 3px;
+  mix-blend-mode: soft-light;
+  opacity: var(--surface-texture-opacity);
+}
+
+/* Surface diagnostics for visual QA: isolate the weave or recover the flat baseline. */
+.heraldry-shield[data-surface-debug='weave'] {
+  --surface-age-mark: transparent;
+}
+
+.heraldry-shield[data-surface-debug='flat'] .heraldry-shield__field::after {
+  display: none;
 }
 
 .heraldry-shield__pattern {

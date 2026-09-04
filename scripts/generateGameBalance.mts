@@ -34,7 +34,6 @@ type BuildingBalance = {
     flour?: number;
     ale?: number;
     cider?: number;
-    cider?: number;
     mead?: number;
     preservedFood?: number;
     honey?: number;
@@ -670,7 +669,7 @@ export type GameBalance = {
     breweryBrewingWaterPerCycle: number;
     breweryBrewingFirewoodPerCycle: number;
     breweryAlePerCycle: number;
-    breweryApplesPerCiderCycle: number;
+    breweryFruitPerCiderCycle: number;
     breweryCiderPerCycle: number;
     breweryHoneyPerMeadCycle: number;
     breweryMeadPerCycle: number;
@@ -1379,7 +1378,7 @@ function generateRust(): string {
     `pub const BREWERY_BREWING_WATER_PER_CYCLE: f64 = ${rustF64(b.production.breweryBrewingWaterPerCycle)};`,
     `pub const BREWERY_BREWING_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.breweryBrewingFirewoodPerCycle)};`,
     `pub const BREWERY_ALE_PER_CYCLE: f64 = ${rustF64(b.production.breweryAlePerCycle)};`,
-    `pub const BREWERY_APPLES_PER_CIDER_CYCLE: f64 = ${rustF64(b.production.breweryApplesPerCiderCycle)};`,
+    `pub const BREWERY_FRUIT_PER_CIDER_CYCLE: f64 = ${rustF64(b.production.breweryFruitPerCiderCycle)};`,
     `pub const BREWERY_CIDER_PER_CYCLE: f64 = ${rustF64(b.production.breweryCiderPerCycle)};`,
     `pub const BREWERY_HONEY_PER_MEAD_CYCLE: f64 = ${rustF64(b.production.breweryHoneyPerMeadCycle)};`,
     `pub const BREWERY_MEAD_PER_CYCLE: f64 = ${rustF64(b.production.breweryMeadPerCycle)};`,
@@ -2509,7 +2508,7 @@ function generateTypeScript(): string {
     `export const BREWERY_BREWING_WATER_PER_CYCLE = ${b.production.breweryBrewingWaterPerCycle};`,
     `export const BREWERY_BREWING_FIREWOOD_PER_CYCLE = ${b.production.breweryBrewingFirewoodPerCycle};`,
     `export const BREWERY_ALE_PER_CYCLE = ${b.production.breweryAlePerCycle};`,
-    `export const BREWERY_APPLES_PER_CIDER_CYCLE = ${b.production.breweryApplesPerCiderCycle};`,
+    `export const BREWERY_FRUIT_PER_CIDER_CYCLE = ${b.production.breweryFruitPerCiderCycle};`,
     `export const BREWERY_CIDER_PER_CYCLE = ${b.production.breweryCiderPerCycle};`,
     `export const BREWERY_HONEY_PER_MEAD_CYCLE = ${b.production.breweryHoneyPerMeadCycle};`,
     `export const BREWERY_MEAD_PER_CYCLE = ${b.production.breweryMeadPerCycle};`,
@@ -2820,7 +2819,6 @@ function generateTypeScript(): string {
     '  flour?: number;',
     '  ale?: number;',
     '  cider?: number;',
-    '  cider?: number;',
     '  mead?: number;',
     '  preservedFood?: number;',
     '  honey?: number;',
@@ -2931,7 +2929,6 @@ function generateTypeScript(): string {
     const flour = def.storage.flour ?? 0;
     const ale = def.storage.ale ?? 0;
     const cider = def.storage.cider ?? 0;
-    const cider = def.storage.cider ?? 0;
     const mead = def.storage.mead ?? 0;
     const preservedFood = def.storage.preservedFood ?? 0;
     const honey = def.storage.honey ?? 0;
@@ -2974,7 +2971,6 @@ function generateTypeScript(): string {
     if (malt > 0) extras.push(`malt: ${malt}`);
     if (flour > 0) extras.push(`flour: ${flour}`);
     if (ale > 0) extras.push(`ale: ${ale}`);
-    if (cider > 0) extras.push(`cider: ${cider}`);
     if (cider > 0) extras.push(`cider: ${cider}`);
     if (mead > 0) extras.push(`mead: ${mead}`);
     if (preservedFood > 0) extras.push(`preservedFood: ${preservedFood}`);

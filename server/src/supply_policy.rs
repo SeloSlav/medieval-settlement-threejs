@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use crate::balance_generated::{
     BAKERY_FIREWOOD_PER_CYCLE, BAKERY_FLOUR_PER_CYCLE, BAKERY_WATER_PER_CYCLE,
-    BREWERY_APPLES_PER_CIDER_CYCLE, BREWERY_BARLEY_PER_MALT_CYCLE,
+    BREWERY_FRUIT_PER_CIDER_CYCLE, BREWERY_BARLEY_PER_MALT_CYCLE,
     BREWERY_BREWING_FIREWOOD_PER_CYCLE, BREWERY_BREWING_WATER_PER_CYCLE,
     BREWERY_HONEY_PER_MEAD_CYCLE, BREWERY_MALTING_FIREWOOD_PER_CYCLE,
     BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE,
@@ -522,7 +522,7 @@ pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodit
         ("weaver", "linen") => WEAVER_LINEN_PER_CYCLE,
         ("brewery", "barley") => BREWERY_BARLEY_PER_MALT_CYCLE,
         ("brewery", "malt") => BREWERY_MALT_PER_ALE_CYCLE,
-        ("brewery", "apples") => BREWERY_APPLES_PER_CIDER_CYCLE,
+        ("brewery", "apples" | "pears") => BREWERY_FRUIT_PER_CIDER_CYCLE,
         ("brewery", "honey") => BREWERY_HONEY_PER_MEAD_CYCLE,
         ("brewery", "water") => BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE,
         ("potter_kiln", "clay") => POTTER_CLAY_PER_CYCLE,

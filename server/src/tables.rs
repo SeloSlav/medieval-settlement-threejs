@@ -420,11 +420,6 @@ pub struct PlayerResources {
     pub beetroot: f64,
     #[default(0.0)]
     pub jam: f64,
-    #[default(0.0)]
-    pub jam: f64,
-    /// Pear cider is distinct from the established `cider` (apple cider) stock.
-    #[default(0.0)]
-    pub cider: f64,
     /// Beeswax and finished candles recovered from physical stores or interrupted hauling.
     #[default(0.0)]
     pub wax: f64,
@@ -1023,7 +1018,7 @@ pub struct Building {
     /// Honey wine held by brewhouses, taverns, and haulers.
     #[default(0.0)]
     pub mead: f64,
-    /// Brewhouse active recipe: 0 ale, 1 apple cider, 2 mead, 3 automatic, 4 pear cider.
+    /// Brewhouse active recipe: 0 ale, 1 cider from apples, 2 mead, 3 automatic, 4 cider from pears.
     #[default(0u8)]
     pub brewery_recipe_policy: u8,
     /// Monastery orchard: 0 apples, 1 grapevines.
@@ -1084,10 +1079,6 @@ pub struct Building {
     pub beetroot: f64,
     #[default(0.0)]
     pub jam: f64,
-    #[default(0.0)]
-    pub jam: f64,
-    #[default(0.0)]
-    pub cider: f64,
     /// Optional player-authored tree-work circle center and radius. A zero
     /// radius preserves the building-centered balance-defined work extent.
     /// Appended together for additive save compatibility.
@@ -1749,8 +1740,6 @@ pub struct Residence {
     pub carrots: f64,
     #[default(0.0)]
     pub beetroot: f64,
-    #[default(0.0)]
-    pub jam: f64,
     #[default(0.0)]
     pub jam: f64,
     /// The household's durable home community. Territory visuals may evolve,

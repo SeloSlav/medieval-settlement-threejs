@@ -1019,8 +1019,6 @@ pub(crate) fn place_building_internal(
         carrots: 0.0,
         beetroot: 0.0,
         jam: 0.0,
-        jam: 0.0,
-        cider: 0.0,
         settlement_id,
         animal_feed: 0.0,
         storage_acceptance_mask_high: u64::MAX,
@@ -1328,7 +1326,6 @@ fn processor_output_room(building: &Building) -> Option<f64> {
             BREWERY_RECIPE_PEAR_CIDER => headroom(CommodityKind::Cider),
             BREWERY_RECIPE_MEAD => headroom(CommodityKind::Mead),
             BREWERY_RECIPE_AUTO => headroom(CommodityKind::Ale)
-                .max(headroom(CommodityKind::Cider))
                 .max(headroom(CommodityKind::Cider))
                 .max(headroom(CommodityKind::Mead)),
             _ => headroom(CommodityKind::Ale),
@@ -2347,7 +2344,7 @@ pub fn set_brewery_recipe_policy(
 ) -> Result<(), String> {
     if !is_valid_brewery_recipe_policy(recipe_policy) {
         return Err(
-            "Brewery recipe must be Ale, Apple Cider, Pear Cider, Mead, or Auto.".to_string(),
+            "Brewery recipe must be Ale, Cider (apples), Cider (pears), Mead, or Auto.".to_string(),
         );
     }
     let owner = ctx.sender();

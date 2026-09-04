@@ -450,7 +450,7 @@ export const BREWERY_MALT_PER_ALE_CYCLE = 3;
 export const BREWERY_BREWING_WATER_PER_CYCLE = 2;
 export const BREWERY_BREWING_FIREWOOD_PER_CYCLE = 0;
 export const BREWERY_ALE_PER_CYCLE = 4;
-export const BREWERY_APPLES_PER_CIDER_CYCLE = 4;
+export const BREWERY_FRUIT_PER_CIDER_CYCLE = 2;
 export const BREWERY_CIDER_PER_CYCLE = 1;
 export const BREWERY_HONEY_PER_MEAD_CYCLE = 1;
 export const BREWERY_MEAD_PER_CYCLE = 1;
@@ -541,7 +541,7 @@ export const MONASTERY_TITHE_SHARE_DEFAULT = 0.3;
 export const MONASTERY_CHARITY_FOOD_PER_DELIVERY = 4;
 export const SPECIALTY_EXPORT_GOLD_PER_HONEY = 0.8;
 export const SPECIALTY_EXPORT_GOLD_PER_ALE = 1.15;
-export const SPECIALTY_EXPORT_GOLD_PER_CIDER = 1.3;
+export const SPECIALTY_EXPORT_GOLD_PER_CIDER = 1.5;
 export const SPECIALTY_EXPORT_GOLD_PER_WINE = 1.6;
 export const SPECIALTY_EXPORT_GOLD_PER_CLOTH = 1.5;
 export const SPECIALTY_EXPORT_GOLD_PER_CHEESE = 1.1;
@@ -900,7 +900,6 @@ export type StorageCaps = {
   flour?: number;
   ale?: number;
   cider?: number;
-  pearCider?: number;
   mead?: number;
   preservedFood?: number;
   honey?: number;
@@ -1922,7 +1921,7 @@ export const BUILDING_STORAGE_CAPS = {
   chapel: { timber: 0, firewood: 0, stone: 0 },
   wayside_shrine: { timber: 0, firewood: 0, stone: 0 },
   marketplace: { timber: 0, firewood: 80, stone: 0, total: 400, food: 96, grain: 96, ale: 120, preservedFood: 120, honey: 48, wax: 96, candles: 96, wine: 72, cloth: 120, charcoal: 80, pottery: 96, hides: 80, leather: 96, shoes: 96, remedies: 48 },
-  trading_post: { timber: 180, firewood: 120, stone: 180, total: 760, water: 72, food: 160, grain: 120, barley: 120, malt: 120, flour: 120, ale: 180, cider: 180, pearCider: 180, preservedFood: 120, honey: 140, wax: 160, candles: 160, wine: 160, wool: 120, yarn: 160, linen: 160, flax: 120, cloth: 160, pelts: 160, ironwork: 96, polearms: 80, sidearms: 80, shields: 80, bows: 80, crossbows: 80, paddedArmor: 80, mailArmor: 80, ammunition: 160, iron: 96, clay: 120, salt: 120, charcoal: 120, pottery: 144, hides: 160, leather: 160, shoes: 160, roofTiles: 120, manure: 160, remedies: 72 },
+  trading_post: { timber: 180, firewood: 120, stone: 180, total: 760, water: 72, food: 160, grain: 120, barley: 120, malt: 120, flour: 120, ale: 180, cider: 180, preservedFood: 120, honey: 140, wax: 160, candles: 160, wine: 160, wool: 120, yarn: 160, linen: 160, flax: 120, cloth: 160, pelts: 160, ironwork: 96, polearms: 80, sidearms: 80, shields: 80, bows: 80, crossbows: 80, paddedArmor: 80, mailArmor: 80, ammunition: 160, iron: 96, clay: 120, salt: 120, charcoal: 120, pottery: 144, hides: 160, leather: 160, shoes: 160, roofTiles: 120, manure: 160, remedies: 72 },
   town_hall: { timber: 0, firewood: 0, stone: 0, total: 320, polearms: 120, sidearms: 120, shields: 120, bows: 120, crossbows: 120, paddedArmor: 120, mailArmor: 120, ammunition: 240 },
   stable: { timber: 0, firewood: 0, stone: 0 },
   cavalry_yard: { timber: 0, firewood: 0, stone: 0, total: 720, water: 180, food: 96, grain: 120, polearms: 120, sidearms: 120, shields: 120, bows: 120, paddedArmor: 120, mailArmor: 120, ammunition: 240 },
@@ -1935,10 +1934,10 @@ export const BUILDING_STORAGE_CAPS = {
   pastoral_farmstead: { timber: 0, firewood: 0, stone: 0, total: 250, water: 48, food: 80, grain: 100, preservedFood: 50, wool: 80, salt: 12, hides: 24, manure: 100, animalFeed: 100 },
   swineherd: { timber: 0, firewood: 0, stone: 0, total: 180, water: 36, food: 80, grain: 80, animalFeed: 80 },
   monastery: { timber: 0, firewood: 0, stone: 0, total: 250, food: 100, grain: 80, cider: 40, mead: 40, preservedFood: 40, honey: 60, wine: 60 },
-  brewery: { timber: 0, firewood: 24, stone: 0, total: 150, water: 60, food: 40, barley: 48, malt: 36, ale: 72, cider: 72, pearCider: 72, mead: 72, honey: 36 },
-  tavern: { timber: 0, firewood: 0, stone: 0, total: 120, ale: 60, cider: 60, pearCider: 60, mead: 60 },
+  brewery: { timber: 0, firewood: 24, stone: 0, total: 150, water: 60, food: 40, barley: 48, malt: 36, ale: 72, cider: 72, mead: 72, honey: 36 },
+  tavern: { timber: 0, firewood: 0, stone: 0, total: 120, ale: 60, cider: 60, mead: 60 },
   smokehouse: { timber: 0, firewood: 20, stone: 0, total: 100, food: 48, preservedFood: 60, salt: 12, pottery: 6 },
-  granary: { timber: 0, firewood: 0, stone: 0, total: 2500, food: 2500, grain: 2500, barley: 2500, flour: 2500, ale: 2500, cider: 2500, pearCider: 2500, mead: 2500, preservedFood: 2500, honey: 2500, wine: 2500, flax: 2500 },
+  granary: { timber: 0, firewood: 0, stone: 0, total: 2500, food: 2500, grain: 2500, barley: 2500, flour: 2500, ale: 2500, cider: 2500, mead: 2500, preservedFood: 2500, honey: 2500, wine: 2500, flax: 2500 },
   bakery: { timber: 0, firewood: 18, stone: 0, total: 80, water: 24, food: 48, flour: 36 },
   apiary: { timber: 0, firewood: 0, stone: 0, total: 60, food: 20, honey: 45, wax: 12 },
   watermill: { timber: 0, firewood: 0, stone: 0, total: 100, water: 24, grain: 48, flour: 60, ironwork: 3 },
@@ -2431,7 +2430,7 @@ export const BACKYARD_GARDEN_COSTS = {
 export const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS = 8;
 export const REGIONAL_EXCHANGE_INTERVAL_SECONDS = 30;
 
-export const TRADE_RESOURCE_KINDS = ["timber","stone","firewood","water","ryeGrain","oatGrain","maslinGrain","ryeFlour","maslinFlour","ryeBread","maslinBread","ale","cider","pearCider","honey","wax","candles","wine","ironwork","polearms","sidearms","shields","bows","crossbows","paddedArmor","mailArmor","ammunition","wool","cloth","pelts","hides","leather","shoes","barley","malt","flax","iron","clay","salt","charcoal","pottery","manure","remedies","roofTiles","meat","fish","berries","mushrooms","milk","apples","pears","cherries","aronia","rosehips","cabbage","carrots","beetroot","eggs","grapes","curedMeat","smokedFish","cheese","aroniaJam","rosehipJam","ryeSheaves","oatSheaves","barleySheaves","maslinSheaves","yarn","linen"] as const;
+export const TRADE_RESOURCE_KINDS = ["timber","stone","firewood","water","ryeGrain","oatGrain","maslinGrain","ryeFlour","maslinFlour","ryeBread","maslinBread","ale","cider","honey","wax","candles","wine","ironwork","polearms","sidearms","shields","bows","crossbows","paddedArmor","mailArmor","ammunition","wool","cloth","pelts","hides","leather","shoes","barley","malt","flax","iron","clay","salt","charcoal","pottery","manure","remedies","roofTiles","meat","fish","berries","mushrooms","milk","apples","pears","cherries","aronia","rosehips","cabbage","carrots","beetroot","eggs","grapes","curedMeat","smokedFish","cheese","jam","ryeSheaves","oatSheaves","barleySheaves","maslinSheaves","yarn","linen"] as const;
 export type TradeResourceKind = (typeof TRADE_RESOURCE_KINDS)[number];
 
 export type TradeResourceSpendScope = 'marketAccessible' | 'treasury';
@@ -2450,7 +2449,6 @@ export const TRADE_RESOURCE_SPEND_SCOPES = {
   maslinBread: 'marketAccessible',
   ale: 'marketAccessible',
   cider: 'marketAccessible',
-  pearCider: 'marketAccessible',
   honey: 'marketAccessible',
   wax: 'marketAccessible',
   candles: 'marketAccessible',
@@ -2501,8 +2499,7 @@ export const TRADE_RESOURCE_SPEND_SCOPES = {
   curedMeat: 'marketAccessible',
   smokedFish: 'marketAccessible',
   cheese: 'marketAccessible',
-  aroniaJam: 'marketAccessible',
-  rosehipJam: 'marketAccessible',
+  jam: 'marketAccessible',
   ryeSheaves: 'marketAccessible',
   oatSheaves: 'marketAccessible',
   barleySheaves: 'marketAccessible',
@@ -2658,10 +2655,8 @@ export const MARKETPLACE_TRADE_OFFERS = [
   {"id":"sell_smoked_fish","kind":"goldSell","resource":"smokedFish","amount":8,"goldYield":13},
   {"id":"buy_cheese_bulk","kind":"goldBuy","resource":"cheese","amount":8,"goldCost":20},
   {"id":"sell_cheese","kind":"goldSell","resource":"cheese","amount":8,"goldYield":13},
-  {"id":"buy_aronia_jam","kind":"goldBuy","resource":"aroniaJam","amount":8,"goldCost":22},
-  {"id":"sell_aronia_jam","kind":"goldSell","resource":"aroniaJam","amount":8,"goldYield":15},
-  {"id":"buy_rosehip_jam","kind":"goldBuy","resource":"rosehipJam","amount":8,"goldCost":21},
-  {"id":"sell_rosehip_jam","kind":"goldSell","resource":"rosehipJam","amount":8,"goldYield":14},
+  {"id":"buy_jam","kind":"goldBuy","resource":"jam","amount":8,"goldCost":22},
+  {"id":"sell_jam","kind":"goldSell","resource":"jam","amount":8,"goldYield":15},
   {"id":"buy_rye_sheaves","kind":"goldBuy","resource":"ryeSheaves","amount":24,"goldCost":12},
   {"id":"sell_rye_sheaves","kind":"goldSell","resource":"ryeSheaves","amount":24,"goldYield":6},
   {"id":"buy_oat_sheaves","kind":"goldBuy","resource":"oatSheaves","amount":24,"goldCost":13},
@@ -2675,8 +2670,6 @@ export const MARKETPLACE_TRADE_OFFERS = [
   {"id":"timber_for_firewood","kind":"barter","give":"timber","giveAmount":10,"receive":"firewood","receiveAmount":18},
   {"id":"buy_cider","kind":"goldBuy","resource":"cider","amount":12,"goldCost":20},
   {"id":"sell_cider","kind":"goldSell","resource":"cider","amount":12,"goldYield":12},
-  {"id":"buy_pear_cider","kind":"goldBuy","resource":"pearCider","amount":12,"goldCost":21},
-  {"id":"sell_pear_cider","kind":"goldSell","resource":"pearCider","amount":12,"goldYield":13},
   {"id":"buy_yarn","kind":"goldBuy","resource":"yarn","amount":8,"goldCost":18},
   {"id":"sell_yarn","kind":"goldSell","resource":"yarn","amount":8,"goldYield":12},
   {"id":"buy_linen","kind":"goldBuy","resource":"linen","amount":8,"goldCost":19},
@@ -2687,7 +2680,7 @@ export const MARKETPLACE_TRADE_OFFERS = [
 
 export type MarketplaceTradeOfferId = (typeof MARKETPLACE_TRADE_OFFERS)[number]['id'];
 
-export const MARKETPLACE_PENDING_TRADE_IDS = {"1":"sell_timber","2":"sell_stone","3":"sell_firewood","5":"timber_for_stone","6":"stone_for_timber","7":"timber_for_firewood","8":"sell_pottery","9":"sell_water","10":"sell_rye_grain","11":"sell_oat_grain","12":"sell_maslin_grain","13":"sell_rye_flour","14":"sell_maslin_flour","15":"sell_rye_bread","16":"sell_maslin_bread","17":"sell_ale","18":"sell_honey","19":"sell_wax","20":"sell_candles","21":"sell_wine","22":"sell_polearms","23":"sell_sidearms","24":"sell_shields","25":"sell_bows","26":"sell_crossbows","27":"sell_padded_armor","28":"sell_mail_armor","29":"sell_ammunition","30":"sell_wool","31":"sell_cloth","32":"sell_hides","33":"sell_leather","34":"sell_shoes","35":"sell_barley","36":"sell_malt","37":"sell_flax","38":"sell_ironwork","39":"sell_iron","40":"sell_clay","41":"sell_salt","42":"sell_charcoal","43":"sell_manure","44":"sell_remedies","45":"sell_roof_tiles","46":"sell_meat","47":"sell_fish","48":"sell_berries","49":"sell_mushrooms","50":"sell_milk","51":"sell_apples","52":"sell_pears","53":"sell_cherries","54":"sell_aronia","55":"sell_rosehips","56":"sell_cabbage","57":"sell_carrots","58":"sell_beetroot","59":"sell_eggs","60":"sell_grapes","61":"sell_cured_meat","62":"sell_smoked_fish","63":"sell_cheese","64":"sell_aronia_jam","65":"sell_rosehip_jam","66":"sell_rye_sheaves","67":"sell_oat_sheaves","68":"sell_barley_sheaves","69":"sell_maslin_sheaves","70":"sell_cider","71":"sell_pear_cider","72":"sell_yarn","73":"sell_linen","74":"sell_pelts"} as const;
+export const MARKETPLACE_PENDING_TRADE_IDS = {"1":"sell_timber","2":"sell_stone","3":"sell_firewood","5":"timber_for_stone","6":"stone_for_timber","7":"timber_for_firewood","8":"sell_pottery","9":"sell_water","10":"sell_rye_grain","11":"sell_oat_grain","12":"sell_maslin_grain","13":"sell_rye_flour","14":"sell_maslin_flour","15":"sell_rye_bread","16":"sell_maslin_bread","17":"sell_ale","18":"sell_honey","19":"sell_wax","20":"sell_candles","21":"sell_wine","22":"sell_polearms","23":"sell_sidearms","24":"sell_shields","25":"sell_bows","26":"sell_crossbows","27":"sell_padded_armor","28":"sell_mail_armor","29":"sell_ammunition","30":"sell_wool","31":"sell_cloth","32":"sell_hides","33":"sell_leather","34":"sell_shoes","35":"sell_barley","36":"sell_malt","37":"sell_flax","38":"sell_ironwork","39":"sell_iron","40":"sell_clay","41":"sell_salt","42":"sell_charcoal","43":"sell_manure","44":"sell_remedies","45":"sell_roof_tiles","46":"sell_meat","47":"sell_fish","48":"sell_berries","49":"sell_mushrooms","50":"sell_milk","51":"sell_apples","52":"sell_pears","53":"sell_cherries","54":"sell_aronia","55":"sell_rosehips","56":"sell_cabbage","57":"sell_carrots","58":"sell_beetroot","59":"sell_eggs","60":"sell_grapes","61":"sell_cured_meat","62":"sell_smoked_fish","63":"sell_cheese","64":"sell_jam","65":"sell_rye_sheaves","66":"sell_oat_sheaves","67":"sell_barley_sheaves","68":"sell_maslin_sheaves","69":"sell_cider","70":"sell_yarn","71":"sell_linen","72":"sell_pelts"} as const;
 
 export const MARKET_PRICE_UPDATE_INTERVAL_TICKS = 150;
 export const MARKET_PRICE_MULTIPLIER_MIN = 0.78;

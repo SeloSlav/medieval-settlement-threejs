@@ -52,14 +52,13 @@ pub struct MarketCaravanDispatch {
     pub exact_load_amount: Option<f64>,
 }
 
-const TRADING_POST_SERVICE_ROUTES: [(ResidenceNeedKind, Option<CommodityKind>); 13] = [
+const TRADING_POST_SERVICE_ROUTES: [(ResidenceNeedKind, Option<CommodityKind>); 12] = [
     (ResidenceNeedKind::Food, None),
     (ResidenceNeedKind::SavoryPreserves, None),
     (ResidenceNeedKind::Firewood, None),
     (ResidenceNeedKind::Water, None),
     (ResidenceNeedKind::Ale, Some(CommodityKind::Ale)),
     (ResidenceNeedKind::Ale, Some(CommodityKind::Cider)),
-    (ResidenceNeedKind::Ale, Some(CommodityKind::PearCider)),
     (ResidenceNeedKind::Cloth, None),
     (ResidenceNeedKind::Shoes, None),
     (ResidenceNeedKind::Pottery, None),
@@ -478,7 +477,6 @@ pub fn step_marketplace_caravans(
                             || building.remedies > 1e-6
                             || building.ale > 1e-6
                             || building.cider > 1e-6
-                            || building.pear_cider > 1e-6
                             || building.honey > 1e-6
                             || building.candles > 1e-6
                             || building.wine > 1e-6
@@ -673,7 +671,6 @@ mod tests {
             (ResidenceNeedKind::Water, None),
             (ResidenceNeedKind::Ale, Some(CommodityKind::Ale)),
             (ResidenceNeedKind::Ale, Some(CommodityKind::Cider)),
-            (ResidenceNeedKind::Ale, Some(CommodityKind::PearCider)),
             (ResidenceNeedKind::Cloth, None),
             (ResidenceNeedKind::Shoes, None),
             (ResidenceNeedKind::Pottery, None),

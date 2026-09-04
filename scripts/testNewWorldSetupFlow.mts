@@ -66,6 +66,16 @@ assert.match(
   /\.heraldry-shield--pattern \.heraldry-shield__charges\s*\{\s*display: none;\s*\}/,
   'pattern icons must not be obscured by charges',
 );
+assert.match(
+  nobleCss,
+  /\.heraldry-shield__field::after\s*\{[\s\S]*?radial-gradient[\s\S]*?repeating-linear-gradient\(0deg[\s\S]*?repeating-linear-gradient\(90deg[\s\S]*?mix-blend-mode: soft-light/,
+  'the shared lord shield must layer deterministic age marks and woven grain over the full painted face',
+);
+assert.match(
+  nobleCss,
+  /\.heraldry-shield\[data-surface-debug='flat'\] \.heraldry-shield__field::after\s*\{\s*display: none;/,
+  'visual QA must retain an inspectable flat heraldry baseline',
+);
 assert.doesNotMatch(noblePanel, /chargeScale: 0\.01/, 'do not use a clamped charge scale to hide picker charges');
 assert.doesNotMatch(noblePanel, /<h2[^>]*>Your Noble<\/h2>/);
 assert.doesNotMatch(noblePanel, /<p class="noble-setup-eyebrow">Coat of Arms<\/p>/);

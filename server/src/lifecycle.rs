@@ -271,8 +271,6 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         carrots: 0.0,
         beetroot: 0.0,
         jam: 0.0,
-        jam: 0.0,
-        cider: 0.0,
         wax: 0.0,
         candles: 0.0,
         pelts: 0.0,

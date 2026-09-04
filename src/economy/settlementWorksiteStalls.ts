@@ -284,18 +284,18 @@ function processorInputRecipes(
         ['water'],
         ['firewood'],
       ];
-      const cider: ProcessorInputRecipe = [['apples']];
-      const cider: ProcessorInputRecipe = [['pears']];
+      const appleCider: ProcessorInputRecipe = [['apples']];
+      const pearCider: ProcessorInputRecipe = [['pears']];
       const mead: ProcessorInputRecipe = [['honey']];
       switch (normalizeBreweryRecipePolicy(building.breweryRecipePolicy)) {
         case BREWERY_RECIPE_CIDER:
-          return [cider];
+          return [appleCider];
         case BREWERY_RECIPE_PEAR_CIDER:
-          return [cider];
+          return [pearCider];
         case BREWERY_RECIPE_MEAD:
           return [mead];
         case BREWERY_RECIPE_AUTO:
-          return [ale, cider, cider, mead];
+          return [ale, appleCider, pearCider, mead];
         default:
           return [ale];
       }

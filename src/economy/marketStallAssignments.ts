@@ -188,8 +188,7 @@ function marketStallDisplayKind(
     case 'eggs': return 'eggs';
     case 'honey': return 'honey';
     case 'wine': return 'wine';
-    case 'aroniaJam':
-    case 'rosehipJam': return 'preserves';
+    case 'jam': return 'preserves';
     case 'curedMeat': return 'curedMeat';
     case 'smokedFish': return 'smokedFish';
     case 'cheese': return 'cheese';

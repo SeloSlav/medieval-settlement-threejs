@@ -47,7 +47,6 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       carrots: number;
       beetroot: number;
       jam: number;
-      jam: number;
       cider: number;
       yarn: number;
       linen: number;
@@ -85,7 +84,6 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       maslinFlour: wholeResourceUnits(row.maslinFlour),
       ale: wholeResourceUnits(row.ale),
       cider: wholeResourceUnits(row.cider),
-      cider: wholeResourceUnits(leatherRow.cider),
       mead: wholeResourceUnits(row.mead),
       honey: wholeResourceUnits(row.honey),
       wax: wholeResourceUnits(row.wax),
@@ -137,7 +135,6 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       curedMeat: wholeResourceUnits(row.curedMeat),
       smokedFish: wholeResourceUnits(row.smokedFish),
       cheese: wholeResourceUnits(row.cheese),
-      jam: wholeResourceUnits(leatherRow.jam),
       jam: wholeResourceUnits(leatherRow.jam),
     };
     state.physicalFoundingSiteEnabled = row.physicalFoundingSiteEnabled ?? false;

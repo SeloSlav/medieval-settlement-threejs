@@ -30,7 +30,6 @@ export const RESOURCE_COST_KINDS = [
   'maslinFlour',
   'ale',
   'cider',
-  'pearCider',
   'mead',
   'savoryPreserves',
   'honey',
@@ -74,8 +73,7 @@ export const RESOURCE_COST_KINDS = [
   'curedMeat',
   'smokedFish',
   'cheese',
-  'aroniaJam',
-  'rosehipJam',
+  'jam',
 ] as const;
 
 export type ResourceCostKind = (typeof RESOURCE_COST_KINDS)[number];
@@ -119,8 +117,7 @@ const RESOURCE_COST_LABELS: Record<ResourceCostKind, string> = {
   ryeFlour: 'rye flour',
   maslinFlour: 'maslin flour',
   ale: 'ale',
-  cider: 'apple cider',
-  pearCider: 'pear cider',
+  cider: 'cider',
   mead: 'mead',
   savoryPreserves: 'savory preserves',
   honey: 'honey',
@@ -164,8 +161,7 @@ const RESOURCE_COST_LABELS: Record<ResourceCostKind, string> = {
   curedMeat: 'cured meat',
   smokedFish: 'smoked fish',
   cheese: 'cheese',
-  aroniaJam: 'aronia jam',
-  rosehipJam: 'rosehip jam',
+  jam: 'jam',
 };
 
 export function isResourceCostKind(value: string): value is ResourceCostKind {

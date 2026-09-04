@@ -17,15 +17,22 @@ Assets and source pages:
 
 - quaternius-sheep.glb
   "Sheep" by Quaternius
-  https://poly.pizza/m/rgJXF570ZK
+  Original Sheep.fbx from the official Farm Animal Pack download:
+  https://quaternius.com/packs/farmanimal.html
 
 - quaternius-pig.glb
   "Pig" by Quaternius
-  https://poly.pizza/m/u35l6uP5vj
+  Original Pig.fbx from the official Farm Animal Pack download:
+  https://quaternius.com/packs/farmanimal.html
 
 - quaternius-chicken.glb
   "Chicken" by Quaternius
   https://poly.pizza/m/ineV9pU5VL
+
+The pig and sheep GLBs were converted in Blender from the official FBX files.
+Their authored Idle and Jump actions are preserved. Idle-derived Walk and
+Idle_Eating action aliases keep the game's livestock motion-state contract
+without altering the source rig or mesh.
 
 The backyard goat visual reuses `quaternius-sheep.glb` from the same CC0 Farm
 Animal Pack. The game creates the goat variant at runtime with a leaner scale,

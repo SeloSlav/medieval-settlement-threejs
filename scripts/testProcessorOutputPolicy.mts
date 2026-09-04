@@ -52,7 +52,7 @@ import {
   weaverRecipeRequestsInput,
 } from '../src/economy/weaverInputPolicy.ts';
 import {
-  BREWERY_APPLES_PER_CIDER_CYCLE,
+  BREWERY_FRUIT_PER_CIDER_CYCLE,
   BREWERY_CIDER_PER_CYCLE,
   BREWERY_HONEY_PER_MEAD_CYCLE,
   BREWERY_MEAD_PER_CYCLE,
@@ -151,7 +151,7 @@ assert.equal(processorOutputCommodity('potter_kiln'), 'pottery');
 assert.equal(processorOutputCommodity('tannery'), 'leather');
 assert.equal(processorOutputCommodity('cobbler'), 'shoes');
 assert.equal(processorOutputCommodity('chandlery'), 'candles');
-assert.equal(BREWERY_APPLES_PER_CIDER_CYCLE, 4);
+assert.equal(BREWERY_FRUIT_PER_CIDER_CYCLE, 2);
 assert.equal(BREWERY_CIDER_PER_CYCLE, 1);
 assert.equal(BREWERY_HONEY_PER_MEAD_CYCLE, 1);
 assert.equal(BREWERY_MEAD_PER_CYCLE, 1);

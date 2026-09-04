@@ -1,6 +1,6 @@
 import {
   BREWERY_ALE_PER_CYCLE,
-  BREWERY_APPLES_PER_CIDER_CYCLE,
+  BREWERY_FRUIT_PER_CIDER_CYCLE,
   BREWERY_BARLEY_PER_MALT_CYCLE,
   BREWERY_BREWING_FIREWOOD_PER_CYCLE,
   BREWERY_BREWING_WATER_PER_CYCLE,
@@ -563,18 +563,18 @@ function getBreweryStatus(
       inputs: [{
         key: 'apples',
         label: 'apples',
-        required: BREWERY_APPLES_PER_CIDER_CYCLE,
+        required: BREWERY_FRUIT_PER_CIDER_CYCLE,
         deliveryHint: 'orchards, granaries, or market carts may supply',
       }],
       output: 'cider',
       outputPerCycle: BREWERY_CIDER_PER_CYCLE,
-      operatingLabel: 'Pressing apples into apple cider',
-      idleNoWorkersLabel: 'Idle — assign brewers to press apple cider',
+      operatingLabel: 'Pressing apples into cider',
+      idleNoWorkersLabel: 'Idle — assign brewers to press cider',
     };
     const status = buildProcessorStatus(building, profile, null, onsiteLabor);
     status.waterDetailHtml = policyRow
       + status.waterDetailHtml
-      + `<li><span>Apple cider recipe</span><span>${BREWERY_APPLES_PER_CIDER_CYCLE} apples → ${BREWERY_CIDER_PER_CYCLE} apple cider</span></li>`;
+      + `<li><span>Cider · apples</span><span>${BREWERY_FRUIT_PER_CIDER_CYCLE} apples → ${BREWERY_CIDER_PER_CYCLE} cider</span></li>`;
     return status;
   }
 
@@ -585,18 +585,18 @@ function getBreweryStatus(
       inputs: [{
         key: 'pears',
         label: 'pears',
-        required: BREWERY_APPLES_PER_CIDER_CYCLE,
+        required: BREWERY_FRUIT_PER_CIDER_CYCLE,
         deliveryHint: 'pear orchards, granaries, or market carts may supply',
       }],
       output: 'cider',
       outputPerCycle: BREWERY_CIDER_PER_CYCLE,
-      operatingLabel: 'Pressing pears into pear cider',
-      idleNoWorkersLabel: 'Idle — assign brewers to press pear cider',
+      operatingLabel: 'Pressing pears into cider',
+      idleNoWorkersLabel: 'Idle — assign brewers to press cider',
     };
     const status = buildProcessorStatus(building, profile, null, onsiteLabor);
     status.waterDetailHtml = policyRow
       + status.waterDetailHtml
-      + `<li><span>Pear cider recipe</span><span>${BREWERY_APPLES_PER_CIDER_CYCLE} pears → ${BREWERY_CIDER_PER_CYCLE} pear cider</span></li>`;
+      + `<li><span>Cider · pears</span><span>${BREWERY_FRUIT_PER_CIDER_CYCLE} pears → ${BREWERY_CIDER_PER_CYCLE} cider</span></li>`;
     return status;
   }
 
@@ -742,9 +742,8 @@ function getTavernStatus(
 ): BuildingProcessorStatus {
   const ale = Math.max(0, building.ale);
   const cider = Math.max(0, building.cider ?? 0);
-  const cider = Math.max(0, building.cider ?? 0);
   const mead = Math.max(0, building.mead ?? 0);
-  const total = ale + cider + cider + mead;
+  const total = ale + cider + mead;
   const maxLabor = Math.max(1, getBuildingDefinition('tavern').maxLabor);
   const servicePercent = Math.round(Math.min(1, onsiteLabor / maxLabor) * 100);
   const details = `

@@ -31,7 +31,6 @@ export const WATERMILL_FLOUR_VISUAL_SEGMENTS = 3;
 function breweryBeverageStock(building: BuildingState): number {
   return building.ale
     + (building.cider ?? 0)
-    + (building.pearCider ?? 0)
     + (building.mead ?? 0);
 }
 
