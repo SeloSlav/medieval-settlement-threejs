@@ -64,9 +64,10 @@ class BuildingDetailCasterBatches {
   private readonly root: THREE.Object3D;
   private readonly group = new THREE.Group();
   private readonly buckets: DetailCasterBucket[] = [];
-  private readonly rootWorldInverse = new THREE.Matrix4();
   private readonly instanceMatrix = new THREE.Matrix4();
+  private readonly sourceRelativeMatrix = new THREE.Matrix4();
   private readonly relativeMatrix = new THREE.Matrix4();
+  private readonly relativeChain: THREE.Object3D[] = [];
   private rejectedSources = 0;
 
   constructor(root: THREE.Object3D, name: string) {
@@ -130,7 +131,6 @@ class BuildingDetailCasterBatches {
   refresh(): boolean {
     if (this.buckets.length === 0) return false;
     this.root.updateWorldMatrix(true, true);
-    this.rootWorldInverse.copy(this.root.matrixWorld).invert();
     let changed = false;
     for (let bucketIndex = 0; bucketIndex < this.buckets.length; bucketIndex += 1) {
       const bucket = this.buckets[bucketIndex]!;
@@ -179,7 +179,12 @@ class BuildingDetailCasterBatches {
       // Moving or rotating a whole building therefore cannot invalidate it.
       // Hashing world matrices here made authoritative adoption of the
       // prewarmed founders' camp rebuild every shadow bucket on the click.
-      this.relativeMatrix.multiplyMatrices(this.rootWorldInverse, source.matrixWorld);
+      matrixRelativeToAncestor(
+        source,
+        this.root,
+        this.relativeMatrix,
+        this.relativeChain,
+      );
       const relativeElements = this.relativeMatrix.elements;
       for (let elementIndex = 0; elementIndex < 16; elementIndex += 1) {
         const value = relativeElements[elementIndex]!;
@@ -216,6 +221,12 @@ class BuildingDetailCasterBatches {
     for (const source of bucket.sources) {
       if (!visibleThroughRoot(source, this.root)) continue;
       const triangles = geometryTriangles(source.geometry);
+      matrixRelativeToAncestor(
+        source,
+        this.root,
+        this.sourceRelativeMatrix,
+        this.relativeChain,
+      );
       if ((source as THREE.InstancedMesh).isInstancedMesh) {
         const instanced = source as THREE.InstancedMesh;
         if (instanced.count <= 0) continue;
@@ -224,16 +235,13 @@ class BuildingDetailCasterBatches {
         for (let index = 0; index < instanced.count; index += 1) {
           instanced.getMatrixAt(index, this.instanceMatrix);
           this.relativeMatrix
-            .multiplyMatrices(source.matrixWorld, this.instanceMatrix)
-            .premultiply(this.rootWorldInverse);
+            .multiplyMatrices(this.sourceRelativeMatrix, this.instanceMatrix);
           transformed.push(source.geometry.clone().applyMatrix4(this.relativeMatrix));
         }
       } else {
         sourceDraws += 1;
         sourceTriangles += triangles;
-        this.relativeMatrix
-          .multiplyMatrices(this.rootWorldInverse, source.matrixWorld);
-        transformed.push(source.geometry.clone().applyMatrix4(this.relativeMatrix));
+        transformed.push(source.geometry.clone().applyMatrix4(this.sourceRelativeMatrix));
       }
     }
 
@@ -264,6 +272,33 @@ class BuildingDetailCasterBatches {
     bucket.sourceTriangles = sourceTriangles;
     previousGeometry.dispose();
   }
+}
+
+/**
+ * Compose the authored local chain directly. Cancelling two world matrices is
+ * algebraically equivalent, but rotation/translation round-off changes the
+ * last few bits and defeats the exact no-op signature used during placement.
+ */
+function matrixRelativeToAncestor(
+  object: THREE.Object3D,
+  ancestor: THREE.Object3D,
+  target: THREE.Matrix4,
+  chain: THREE.Object3D[],
+): THREE.Matrix4 {
+  chain.length = 0;
+  let current: THREE.Object3D | null = object;
+  while (current && current !== ancestor) {
+    chain.push(current);
+    current = current.parent;
+  }
+  if (current !== ancestor) {
+    throw new Error('Building detail caster must descend from its batching root.');
+  }
+  target.identity();
+  for (let index = chain.length - 1; index >= 0; index -= 1) {
+    target.multiply(chain[index]!.matrix);
+  }
+  return target;
 }
 
 function isMergeableCaster(source: DetailCaster): boolean {

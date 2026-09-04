@@ -23,8 +23,11 @@ import {
 import { markBuildingDetailShadowCaster } from '../buildingShadowProxy.ts';
 import { createCampStandardAnchor } from '../../settlement/CampStandardRenderer.ts';
 import {
-  installBuildingDetailCasterBatches,
-} from '../buildingDetailShadowBatch.ts';
+  FOUNDERS_CAMP_COLOR_BATCH_FLAG,
+  installFoundersCampColorBatches,
+  refreshFoundersCampColorBatches,
+} from '../foundersCampColorBatch.ts';
+import { installFoundersCampShadowCasters } from '../foundersCampShadowCasters.ts';
 import {
   FOUNDERS_CAMP_BENCH_SEAT,
   FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT,
@@ -1802,6 +1805,7 @@ export function setFoundersCampWinterAccumulation(
     if (object.userData.foundersCampWinterAccumulation !== true) return;
     object.visible = enabled;
   });
+  refreshFoundersCampColorBatches(camp);
 }
 
 export function createFoundersCampMesh(): THREE.Group {
@@ -1867,11 +1871,13 @@ export function createFoundersCampMesh(): THREE.Group {
   addStoneStock(group);
   addIronworkStock(group);
   addTreasuryChest(group);
+  installFoundersCampColorBatches(group);
   group.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (
       mesh.isMesh
       && !mesh.name.startsWith('Animated fire')
+      && mesh.userData[FOUNDERS_CAMP_COLOR_BATCH_FLAG] !== true
       && mesh.userData.campGrounding !== true
       && mesh.userData.campSmoke !== true
       && mesh.userData.foundersCampWinterAccumulation !== true
@@ -1879,7 +1885,7 @@ export function createFoundersCampMesh(): THREE.Group {
       markBuildingDetailShadowCaster(mesh);
     }
   });
-  installBuildingDetailCasterBatches(group, 'Founders exact caster batches');
+  installFoundersCampShadowCasters(group);
   return group;
 }
 

@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { AmbientAudio } from '../src/audio/AmbientAudio.ts';
-import { AmbientAudioController } from '../src/audio/AmbientAudioController.ts';
 import {
   nearestRiverSoundPoint,
   type RiverSoundPoint,
@@ -26,7 +25,6 @@ import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 testResidenceSmokeStateIsEventDriven();
 const residenceLightingElapsed = testResidenceLightingPresentationInvalidation();
 testAmbientLayerIterationReuse();
-testChapelSnapshotIdentityCache();
 const riverElapsed = testRiverSoundPointScratchEquivalence();
 const fireElapsed = testFireWaterJetScratchReuse();
 const toolbarElapsed = testBurgageHudDomWriteCache();
@@ -598,104 +596,6 @@ function testAmbientLayerIterationReuse(): void {
     0,
     'ambient audio must reuse its stable layer list instead of allocating Object.keys arrays per frame',
   );
-}
-
-function testChapelSnapshotIdentityCache(): void {
-  let buildingValuesReads = 0;
-  const observedChapelX: number[] = [];
-  const instrumentValues = (buildings: Map<string, object>): Map<string, object> => {
-    const values = buildings.values.bind(buildings);
-    Object.defineProperty(buildings, 'values', {
-      value: () => {
-        buildingValuesReads += 1;
-        return values();
-      },
-    });
-    return buildings;
-  };
-  let currentBuildings = instrumentValues(new Map([
-    ['chapel-a', { kind: 'chapel', constructionComplete: true, x: 4, z: 7 }],
-  ]));
-  const chapelPositions: Array<{ x: number; z: number }> = [];
-  const controller = Object.create(AmbientAudioController.prototype) as AmbientAudioController;
-  Object.assign(controller as object, {
-    running: true,
-    audio: {
-      getEnabled: () => true,
-      setScoreActive: () => undefined,
-      tick: () => undefined,
-    },
-    forestWind: {
-      setScoreActive: () => undefined,
-      tick: () => undefined,
-    },
-    chapelBell: {
-      tick: (params: { chapels: Array<{ x: number }> }) => {
-        observedChapelX.push(params.chapels[0]?.x ?? Number.NaN);
-      },
-    },
-    riverAudio: { tick: () => undefined },
-    soundtrack: { tick: () => undefined, isAudible: () => false },
-    fireAudio: { tick: () => undefined },
-    buildingAudio: { tick: () => undefined },
-    worldFoley: { tick: () => undefined },
-    buildingAudioView: {
-      centerX: 0,
-      centerZ: 0,
-      viewRadius: 120,
-      orbitDistance: 40,
-    },
-    config: {
-      getBuildings: () => currentBuildings,
-      getResidences: () => new Map(),
-      getDeliveryTrips: () => new Map(),
-      getFireIncidents: () => new Map(),
-      getLivestockHerds: () => new Map(),
-      getPastures: () => new Map(),
-      getBackyardGardens: () => new Map(),
-      getForagingNodes: () => new Map(),
-      getGraveyards: () => new Map(),
-      getCombatAgents: () => new Map(),
-      getCameraTarget: () => ({ x: 0, z: 0 }),
-      getOrbitDistance: () => 40,
-      isFirstPersonActive: () => false,
-      getForestCanopyCover: () => 0,
-    },
-    chapelPositions,
-    chapelTick: {
-      dtSeconds: 0,
-      clockHour: 0,
-      calendarMinute: 0,
-      chapels: chapelPositions,
-      listener: { x: 0, z: 0 },
-      orbitDistance: 0,
-      enabled: true,
-    },
-    schedule: {
-      clock: { hour: 12, minute: 0, totalDays: 0 },
-      dayNight: { isNight: false },
-    },
-    lastAmbientEvalAtMs: performance.now(),
-    lastChapelBuildingSnapshot: null,
-  });
-
-  controller.tick(1 / 60);
-  controller.tick(1 / 60);
-  assert.equal(
-    buildingValuesReads,
-    1,
-    'unchanged authoritative building snapshots must not rescan every building each frame',
-  );
-  currentBuildings = instrumentValues(new Map([
-    ['chapel-b', { kind: 'chapel', constructionComplete: true, x: 19, z: -3 }],
-  ]));
-  controller.tick(1 / 60);
-  assert.equal(
-    buildingValuesReads,
-    2,
-    'same-sized replacement snapshots with changed contents must invalidate the chapel cache',
-  );
-  assert.deepEqual(observedChapelX, [4, 4, 19]);
 }
 
 function testRiverSoundPointScratchEquivalence(): number {

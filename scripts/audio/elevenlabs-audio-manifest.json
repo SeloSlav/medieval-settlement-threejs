@@ -96,7 +96,7 @@
       "group": "chapel-bells",
       "kind": "sound-effect",
       "output": "public/sounds/buildings/chapel_bell.mp3",
-      "prompt": "One immediate authentic medieval church-bell strike: a cast-bronze bell rings once from a timber-and-stone belfry with a clear rounded toll and short natural decay, suitable both for selecting a church and for each spatial Angelus stroke, no voices, music, ambience, or electronic sound",
+      "prompt": "One immediate authentic medieval church-bell strike: a cast-bronze bell rings once from a timber-and-stone belfry with a clear rounded toll and short natural decay, used only when the player selects a church, no scheduled ringing, voices, music, ambience, or electronic sound",
       "durationSeconds": 1,
       "loop": false,
       "promptInfluence": 0.95
@@ -1412,16 +1412,6 @@
       "promptInfluence": 0.82
     },
     {
-      "id": "building-monastery",
-      "group": "building-foley",
-      "kind": "sound-effect",
-      "output": "public/sounds/buildings/monastery.mp3",
-      "prompt": "Short hushed medieval monastery Foley: one parchment page turns in a stone cloister and a small wooden book rest creaks softly, spacious but intimate, no bell, no chant, no voices, no music",
-      "durationSeconds": 2.5,
-      "loop": false,
-      "promptInfluence": 0.85
-    },
-    {
       "id": "building-brewery",
       "group": "building-foley",
       "kind": "sound-effect",
@@ -2480,16 +2470,6 @@
       "durationSeconds": 3.0,
       "loop": false,
       "promptInfluence": 0.99
-    },
-    {
-      "id": "world-event-building-complete",
-      "group": "gameplay-gap-pass-v1",
-      "kind": "sound-effect",
-      "output": "public/sounds/world/event_building_complete.mp3",
-      "prompt": "Short restrained remote construction-complete notification: one firm wooden mallet seats a final oak peg, followed by a warm brief timber-frame settling creak and tiny iron fitting tick, satisfying but humble, no voice, fanfare, music, electronic or arcade sound",
-      "durationSeconds": 1.8,
-      "loop": false,
-      "promptInfluence": 0.97
     },
     {
       "id": "music-charter-beneath-firs",

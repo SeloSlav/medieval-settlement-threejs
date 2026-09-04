@@ -4,6 +4,7 @@ import {
   installBuildingDetailCasterBatches,
   type BuildingDetailCasterBatchStats,
 } from '../buildingDetailShadowBatch.ts';
+import { getFoundersCampShadowCasterStats } from '../foundersCampShadowCasters.ts';
 import { markBuildingDetailShadowCaster } from '../buildingShadowProxy.ts';
 import { isDynamicBuildingBatchBoundary } from '../staticBuildingBatch.ts';
 
@@ -19,6 +20,16 @@ export function installProceduralShadowCasters(
   name: string,
   isRuntimeBoundary: (object: THREE.Object3D) => boolean = isDynamicBuildingBatchBoundary,
 ): BuildingDetailCasterBatchStats {
+  const foundersCamp = getFoundersCampShadowCasterStats(root);
+  if (foundersCamp) {
+    return {
+      sourceDraws: foundersCamp.authoredSourceDraws,
+      batchDraws: foundersCamp.shadowDraws,
+      sourceTriangles: foundersCamp.authoredSourceTriangles,
+      batchTriangles: foundersCamp.shadowTriangles,
+      rejectedSources: 0,
+    };
+  }
   const existing = getBuildingDetailCasterBatchStats(root);
   if (existing) return existing;
 

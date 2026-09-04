@@ -64,6 +64,7 @@ export class ProductionPocketAudio {
       audio.setMaxDistance(PRODUCTION_POCKET_CUTOFF_DISTANCE);
       audio.setRolloffFactor(1);
       audio.setLoop(clip.loop ?? true);
+      audio.setPlaybackRate(1);
       audio.setVolume(0);
       config.parent.add(audio);
       this.sources[kind] = {

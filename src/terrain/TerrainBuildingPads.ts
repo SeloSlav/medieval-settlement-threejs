@@ -49,6 +49,7 @@ export function updateTerrainBuildingPads(terrain: Terrain, layout: BuildingTerr
     }
   }
 
+  setAttributeUpdateRanges(positions, changedIndexBounds, resolution, 0);
   positions.needsUpdate = true;
 
   if (normals) {
@@ -63,11 +64,50 @@ export function updateTerrainBuildingPads(terrain: Terrain, layout: BuildingTerr
         bounds.maxZ,
       );
     }
+    setAttributeUpdateRanges(normals, changedIndexBounds, resolution, 2);
     normals.needsUpdate = true;
   }
 
   geometry.computeBoundingSphere();
   lastAppliedBounds = currentBounds;
+}
+
+/**
+ * Buffer updates are expressed in component offsets. One compact span per
+ * changed pad keeps the first placement from re-uploading the complete terrain
+ * position and normal buffers (roughly 14 MB at production resolution).
+ */
+function setAttributeUpdateRanges(
+  attribute: THREE.BufferAttribute,
+  boundsList: readonly TerrainBounds[],
+  resolution: number,
+  halo: number,
+): void {
+  const ranges = boundsList.map((bounds) => {
+    const minX = Math.max(0, bounds.minX - halo);
+    const maxX = Math.min(resolution - 1, bounds.maxX + halo);
+    const minZ = Math.max(0, bounds.minZ - halo);
+    const maxZ = Math.min(resolution - 1, bounds.maxZ + halo);
+    const start = (minZ * resolution + minX) * attribute.itemSize;
+    const end = (maxZ * resolution + maxX + 1) * attribute.itemSize;
+    return { start, end };
+  }).sort((left, right) => left.start - right.start);
+
+  attribute.clearUpdateRanges();
+  let active: { start: number; end: number } | null = null;
+  for (const range of ranges) {
+    if (!active) {
+      active = { ...range };
+      continue;
+    }
+    if (range.start <= active.end) {
+      active.end = Math.max(active.end, range.end);
+      continue;
+    }
+    attribute.addUpdateRange(active.start, active.end - active.start);
+    active = { ...range };
+  }
+  if (active) attribute.addUpdateRange(active.start, active.end - active.start);
 }
 
 export function resetTerrainBuildingPadHistory(): void {

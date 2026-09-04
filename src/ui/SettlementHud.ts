@@ -469,13 +469,11 @@ const SETTLEMENT_HUD_HTML = `
               <span class="settlement-hud__construction-material-name">Timber</span>
               <strong class="settlement-hud__value" data-stockpile="timber" data-resource-card-amount="timber">0</strong>
               <div class="settlement-hud__resource-transit" data-resource-card-transit-row="timber" hidden><span>Movement</span><strong data-stockpile-transit="timber"></strong></div>
-              <p class="settlement-hud__resource-detail" data-resource-card-detail="timber">${HUD_RESOURCE_CARD_PRESENTATION.timber.surplusDetail}</p>
             </div>
             <div class="settlement-hud__stat settlement-hud__construction-material" tabindex="0" data-resource="stone">
               <span class="settlement-hud__construction-material-name">Stone</span>
               <strong class="settlement-hud__value" data-stockpile="stone" data-resource-card-amount="stone">0</strong>
               <div class="settlement-hud__resource-transit" data-resource-card-transit-row="stone" hidden><span>Movement</span><strong data-stockpile-transit="stone"></strong></div>
-              <p class="settlement-hud__resource-detail" data-resource-card-detail="stone">${HUD_RESOURCE_CARD_PRESENTATION.stone.surplusDetail}</p>
             </div>
           </section>
           <section class="settlement-hud__construction-section" aria-labelledby="settlement-construction-finished-materials">
@@ -484,16 +482,13 @@ const SETTLEMENT_HUD_HTML = `
               <span class="settlement-hud__construction-material-name">Ironwork</span>
               <strong class="settlement-hud__value" data-stockpile="ironwork" data-resource-card-amount="ironwork">0</strong>
               <div class="settlement-hud__resource-transit" data-resource-card-transit-row="ironwork" hidden><span>Movement</span><strong data-stockpile-transit="ironwork"></strong></div>
-              <p class="settlement-hud__resource-detail" data-resource-card-detail="ironwork">${HUD_RESOURCE_CARD_PRESENTATION.ironwork.surplusDetail}</p>
             </div>
             <div class="settlement-hud__stat settlement-hud__construction-material" tabindex="0" data-resource="roofTiles">
               <span class="settlement-hud__construction-material-name">Roof tiles</span>
               <strong class="settlement-hud__value" data-stockpile="roofTiles" data-resource-card-amount="roofTiles">0</strong>
               <div class="settlement-hud__resource-transit" data-resource-card-transit-row="roofTiles" hidden><span>Movement</span><strong data-stockpile-transit="roofTiles"></strong></div>
-              <p class="settlement-hud__resource-detail" data-resource-card-detail="roofTiles">${HUD_RESOURCE_CARD_PRESENTATION.roofTiles.surplusDetail}</p>
             </div>
           </section>
-          <p class="settlement-hud__resource-note">Activate a material to locate its physical holdings in the world.</p>
         </section>
       </div>
       <details class="settlement-hud__food-stores settlement-hud__fuel-stores" data-fuel-stores>

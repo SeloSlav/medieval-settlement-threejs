@@ -167,6 +167,8 @@ const EXPECTED_USER_DEVELOPMENT_UNLOCK_SHA256 =
   '38e10625738380fac0495a6c577322fa0b54e4c01b9ced1b70ed8f4eaf73d54c';
 const EXPECTED_USER_RIVER_WATER_SHA256 =
   '883cbb48bc7f4a7858ac06f1d4a012084eb6164b46fcb2e208c630d72a6145e9';
+const EXPECTED_USER_MONASTERY_SHA256 =
+  'e236b988dca2183ab62ce3b21f4be85bf1ef74488195b802cef2ac43d9a921c5';
 
 function invariant(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -686,6 +688,13 @@ async function main(): Promise<void> {
   for (const kind of runtimeBuildingKinds) {
     const clip = BUILDING_AUDIO_CLIPS[kind];
     invariant(clip, `Missing building Foley runtime mapping: ${kind}`);
+    if (kind === 'monastery') {
+      invariant(
+        clip.path === '/sounds/buildings/monastery.mp3',
+        'The monastery must retain its dedicated user-provided selection cue',
+      );
+      continue;
+    }
     const asset = buildingAssets.find((candidate) => (
       clip.path === `/${candidate.output.replace(/^public[\\/]/, '').replaceAll('\\', '/')}`
     ));
@@ -748,17 +757,62 @@ async function main(): Promise<void> {
     'utf8',
   );
   invariant(
-    (worldFoleySource.match(/playNotification\('event_building_complete'\)/g) ?? []).length === 2
+    !/event_building_complete/.test(worldFoleySource)
     && !/construction_(?:timber|stone)/.test(worldFoleySource)
     && !/playAt\('event_residence_complete'/.test(worldFoleySource),
-    'Building and residence completion must use only the non-positional notification',
+    'Building and residence completion must remain silent',
+  );
+  const appSource = await readFile(
+    path.join(PROJECT_ROOT, 'src', 'app', 'App.ts'),
+    'utf8',
+  );
+  invariant(
+    /ambientAudio\?\.tick\(dt\)/.test(appSource)
+    && !/ambientAudio\?\.tick\(worldDt\)/.test(appSource),
+    'Ambient audio must use real frame time rather than simulation-scaled time',
+  );
+  const ambientControllerSource = await readFile(
+    path.join(PROJECT_ROOT, 'src', 'audio', 'AmbientAudioController.ts'),
+    'utf8',
+  );
+  invariant(
+    !/ChapelBellPlayer|chapelBell\.tick|calendarMinute/.test(ambientControllerSource)
+    && /playChapelSelection\([\s\S]{0,180}this\.buildingAudio\.playChapel/.test(ambientControllerSource),
+    'The chapel bell must play only through explicit chapel selection',
+  );
+  const realtimeAmbientSources = await Promise.all([
+    'AmbientAudio.ts',
+    'ForestWindAudio.ts',
+    'FireAudio.ts',
+    'FarmWorkerSongAudio.ts',
+  ].map((filename) => readFile(
+    path.join(PROJECT_ROOT, 'src', 'audio', filename),
+    'utf8',
+  )));
+  invariant(
+    realtimeAmbientSources.every((source) => (
+      /defaultPlaybackRate\s*=\s*1/.test(source)
+      && /playbackRate\s*=\s*1/.test(source)
+    )),
+    'HTML ambient loops must explicitly retain real-time playback rates',
+  );
+  const spatialAmbientSources = await Promise.all([
+    'ProductionPocketAudio.ts',
+    'RiverAudio.ts',
+  ].map((filename) => readFile(
+    path.join(PROJECT_ROOT, 'src', 'audio', filename),
+    'utf8',
+  )));
+  invariant(
+    spatialAmbientSources.every((source) => /setPlaybackRate\(1\)/.test(source)),
+    'Spatial ambient loops must explicitly retain real-time playback rates',
   );
   const chapelBellAssets = manifest.assets.filter((asset) => (
     asset.group === 'chapel-bells'
   ));
   invariant(
     chapelBellAssets.length === 1,
-    'Church selection and Angelus must share one canonical bell recording',
+    'Church selection must retain one canonical bell recording',
   );
   const chapelBellAsset = chapelBellAssets[0];
   invariant(
@@ -983,8 +1037,8 @@ async function main(): Promise<void> {
   ));
   invariant(
     worldAssets.length === Object.keys(WORLD_FOLEY_CLIPS).length
-    && worldAssets.length === 69,
-    'World Foley manifest and runtime catalog must retain all 69 cues',
+    && worldAssets.length === 68,
+    'World Foley manifest and runtime catalog must retain all 68 cues',
   );
   for (const [id, clip] of Object.entries(WORLD_FOLEY_CLIPS)) {
     const asset = worldAssets.find((candidate) => (
@@ -1089,6 +1143,14 @@ async function main(): Promise<void> {
   invariant(
     await sha256(riverWaterPath) === EXPECTED_USER_RIVER_WATER_SHA256,
     'The user-provided river-water ambience does not match its recorded source hash.',
+  );
+  const monasteryPath = path.resolve(
+    PROJECT_ROOT,
+    `public${BUILDING_AUDIO_CLIPS.monastery.path}`,
+  );
+  invariant(
+    await sha256(monasteryPath) === EXPECTED_USER_MONASTERY_SHA256,
+    'The user-provided monastery selection cue does not match its recorded source hash.',
   );
 
   invariant(

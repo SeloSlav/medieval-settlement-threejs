@@ -6,13 +6,25 @@ import {
 } from '../src/buildings/buildingShadowProxy.ts';
 import {
   BUILDING_DETAIL_CASTER_BATCH_FLAG,
-  BUILDING_DETAIL_CASTER_BATCH_SOURCE_FLAG,
   getBuildingDetailCasterBatchStats,
   installBuildingDetailCasterBatches,
   refreshBuildingDetailCasterBatches,
 } from '../src/buildings/buildingDetailShadowBatch.ts';
+import {
+  FOUNDERS_CAMP_MAJOR_SHADOW_CASTER_FLAG,
+  FOUNDERS_CAMP_SHADOW_SOURCE_FLAG,
+  getFoundersCampShadowCasterStats,
+} from '../src/buildings/foundersCampShadowCasters.ts';
+import {
+  FOUNDERS_CAMP_COLOR_BATCH_FLAG,
+  FOUNDERS_CAMP_COLOR_BATCH_SOURCE_FLAG,
+  getFoundersCampColorBatchStats,
+  refreshFoundersCampColorBatches,
+} from '../src/buildings/foundersCampColorBatch.ts';
 import { createFoundersCampMesh } from '../src/buildings/meshes/foundersCampMesh.ts';
 import { markBuildingDetailShadowCaster } from '../src/buildings/buildingShadowProxy.ts';
+import { batchCompletedBuildingStaticMeshes } from '../src/buildings/staticBuildingBatch.ts';
+import { TREE_SHADOW_CAST_LAYER } from '../src/scene/SceneLayers.ts';
 
 const parent = new THREE.Group();
 const batch = new BatchedBuildingShadowProxies(
@@ -87,57 +99,124 @@ batch.dispose();
 assert.equal(parent.children.length, 0);
 
 const founders = createFoundersCampMesh();
-const foundersStats = getBuildingDetailCasterBatchStats(founders);
-assert.ok(foundersStats, 'founders camp must install its exact detail caster batches');
-assert.equal(foundersStats.rejectedSources, 0);
-assert.ok(foundersStats.sourceDraws >= 120, 'fixture must retain the dense authored camp');
+const foundersColorStats = getFoundersCampColorBatchStats(founders);
+assert.ok(foundersColorStats, 'founders camp must install its local color batches');
 assert.ok(
-  foundersStats.batchDraws <= 20,
-  `authored camp casters must collapse to at most 20 exact submissions (${foundersStats.batchDraws})`,
+  foundersColorStats.sourceDraws >= 120,
+  'the regression fixture must retain the original dense authored camp source set',
+);
+assert.ok(
+  foundersColorStats.batchDraws + foundersColorStats.retainedDraws <= 25,
+  `founders camp must stay within 25 visible color draws (got ${foundersColorStats.batchDraws + foundersColorStats.retainedDraws})`,
 );
 assert.equal(
-  foundersStats.batchTriangles,
-  foundersStats.sourceTriangles,
-  'merged camp casters must submit every authored triangle exactly once',
+  foundersColorStats.batchTriangles,
+  foundersColorStats.sourceTriangles,
+  'camp color batching must preserve every transformed source triangle',
 );
-assertVertexMoments(
-  casterVertexMoments(founders, false),
-  casterVertexMoments(founders, true),
-  'merged camp casters must retain every authored transformed vertex',
+assert.ok(
+  foundersColorSources(founders).every((mesh) => !mesh.layers.isEnabled(0)),
+  'batched camp sources must not remain duplicate color submissions',
+);
+assert.equal(
+  foundersColorBatches(founders).length,
+  foundersColorStats.batchDraws,
+  'every visible camp color batch must be represented in its measured budget',
+);
+const foundersStats = getFoundersCampShadowCasterStats(founders);
+assert.ok(foundersStats, 'founders camp must install its major-form shadow caster');
+assert.equal(
+  getBuildingDetailCasterBatchStats(founders),
+  null,
+  'the founders camp must not install material-preserving exact caster buckets',
+);
+assert.ok(foundersStats.authoredSourceDraws >= 1, 'fixture must retain authored color geometry');
+assert.ok(
+  foundersStats.authoredSourceTriangles > 1_000,
+  'the coarse caster must replace a substantially denser authored color model',
+);
+assert.equal(foundersStats.tentCount, 3);
+assert.equal(foundersStats.shadowDraws, 1, 'all three dominant tents must cast in one draw');
+assert.equal(foundersStats.shadowTriangles, 24, 'coarse A-frame tents need only eight triangles each');
+const foundersCasters = foundersShadowCasters(founders);
+assert.equal(foundersCasters.length, 1);
+const foundersCaster = foundersCasters[0]!;
+assert.deepEqual(
+  activeShadowCasters(founders),
+  [foundersCaster],
+  'the completed camp graph must contain exactly one active shadow submission',
+);
+assert.equal(foundersCaster.castShadow, true);
+assert.equal(foundersCaster.receiveShadow, false);
+assert.equal(foundersCaster.layers.isEnabled(TREE_SHADOW_CAST_LAYER), true);
+assert.equal((foundersCaster.material as THREE.Material).side, THREE.DoubleSide);
+assert.ok(
+  foundersShadowSources(founders).every((mesh) => !mesh.castShadow),
+  'fine authored color meshes must not remain duplicate shadow casters',
+);
+foundersCaster.geometry.computeBoundingBox();
+assert.ok(
+  (foundersCaster.geometry.boundingBox?.min.y ?? 0) >= 0.19,
+  'major-form camp shadows must begin at the tent eaves rather than form a footprint slab',
+);
+const foundersCasterPositions = foundersCaster.geometry.getAttribute('position');
+for (let tentIndex = 0; tentIndex < foundersStats.tentCount; tentIndex += 1) {
+  const tentVertexOffset = tentIndex * 24;
+  const repeatedFrontLeft = [0, 3, 12, 18, 21]
+    .map((offset) => tuple3(foundersCasterPositions, tentVertexOffset + offset));
+  assert.ok(
+    repeatedFrontLeft.every((value) => value === repeatedFrontLeft[0]),
+    'each coarse-tent corner must receive its authored transform exactly once',
+  );
+}
+
+founders.position.set(37.25, 4.5, -19.75);
+founders.rotation.y = Math.PI * 0.37;
+const originalColorBatchGeometries = foundersColorBatches(founders)
+  .map((mesh) => mesh.geometry);
+assert.equal(
+  refreshFoundersCampColorBatches(founders),
+  false,
+  'moving the whole camp must not rebuild camp-local color geometry',
 );
 assert.deepEqual(
-  casterMaterialTriangles(founders, true),
-  casterMaterialTriangles(founders, false),
-  'merged camp casters must preserve exact material/shadow-state triangle buckets',
+  foundersColorBatches(founders).map((mesh) => mesh.geometry),
+  originalColorBatchGeometries,
 );
-
-const originalBatchMeshes = detailBatchMeshes(founders);
-const hiddenProbe = founders.getObjectByName('Weathered tent canvas shell');
-assert.ok(hiddenProbe instanceof THREE.Mesh);
-const hiddenProbeTriangles = geometryTriangles(hiddenProbe.geometry);
-hiddenProbe.visible = false;
-assert.equal(refreshBuildingDetailCasterBatches(founders), true);
-const hiddenStats = getBuildingDetailCasterBatchStats(founders);
-assert.ok(hiddenStats);
 assert.equal(
-  hiddenStats.sourceTriangles,
-  foundersStats.sourceTriangles - hiddenProbeTriangles,
-  'authored visibility must remove exactly the hidden caster triangles',
+  refreshBuildingDetailCasterBatches(founders),
+  false,
+  'moving the whole camp must not invoke the retired exact caster rebuild path',
 );
-assert.equal(hiddenStats.batchTriangles, hiddenStats.sourceTriangles);
-assert.deepEqual(detailBatchMeshes(founders), originalBatchMeshes);
-hiddenProbe.visible = true;
-assert.equal(refreshBuildingDetailCasterBatches(founders), true);
-assert.deepEqual(getBuildingDetailCasterBatchStats(founders), foundersStats);
+assert.equal(getFoundersCampShadowCasterStats(founders), foundersStats);
+const shelters = founders.getObjectByName('FoundingShelters');
+assert.ok(shelters instanceof THREE.Group);
+shelters.visible = false;
+assert.equal(refreshFoundersCampColorBatches(founders), true);
+assert.ok(
+  (getFoundersCampColorBatchStats(founders)?.sourceTriangles ?? Infinity)
+    < foundersColorStats.sourceTriangles,
+  'packing up the shelters must remove their geometry from the color batches',
+);
+assert.equal(visibleFoundersShadowCasters(founders).length, 0);
+shelters.visible = true;
+assert.equal(refreshFoundersCampColorBatches(founders), true);
+assert.deepEqual(getFoundersCampColorBatchStats(founders), foundersColorStats);
+assert.equal(visibleFoundersShadowCasters(founders).length, 1);
 
 setBuildingDetailShadowsEnabled(founders, false);
-assert.ok(detailBatchMeshes(founders).every((mesh) => mesh.castShadow === false));
-assert.ok(detailBatchSources(founders).every((mesh) => mesh.castShadow === false));
+assert.equal(foundersCaster.castShadow, false);
 setBuildingDetailShadowsEnabled(founders, true);
-assert.ok(detailBatchMeshes(founders).every((mesh) => mesh.castShadow === true));
+assert.equal(foundersCaster.castShadow, true);
 assert.ok(
-  detailBatchSources(founders).every((mesh) => mesh.castShadow === false),
+  foundersShadowSources(founders).every((mesh) => mesh.castShadow === false),
   'preference toggles must never re-enable duplicate authored submissions',
+);
+batchCompletedBuildingStaticMeshes(founders);
+assert.equal(
+  foundersShadowCasters(founders).filter((mesh) => mesh.castShadow).length,
+  1,
+  'completed-building color batching must preserve exactly one camp shadow submission',
 );
 
 const rejectedRoot = new THREE.Group();
@@ -189,12 +268,90 @@ assert.deepEqual(
   grouped.geometry.groups,
   'single-material group metadata must survive exact caster batching',
 );
+rejectedRoot.position.set(-18.5, 3.25, 41.75);
+rejectedRoot.rotation.y = Math.PI * 0.43;
+assert.equal(
+  refreshBuildingDetailCasterBatches(rejectedRoot),
+  false,
+  'moving a completed building must not rebuild root-relative shadow geometry',
+);
+assert.equal(detailBatchMeshes(rejectedRoot)[0], groupedBatch);
 
 console.log(
   `Building shadow tests passed (${stats.proxies} coarse footprint proxies / ${stats.shadowDraws} draws; `
-    + `${foundersStats.sourceDraws} founders detail draws -> ${foundersStats.batchDraws} exact draws / `
-    + `${foundersStats.sourceTriangles} unchanged triangles).`,
+    + `${foundersColorStats.sourceDraws + foundersColorStats.retainedDraws} -> `
+    + `${foundersColorStats.batchDraws + foundersColorStats.retainedDraws} founders color draws; `
+    + `${foundersStats.authoredSourceDraws} founders detail draws -> `
+    + `${foundersStats.shadowDraws} major-form draw / ${foundersStats.shadowTriangles} triangles).`,
 );
+
+function foundersShadowCasters(root: THREE.Object3D): THREE.Mesh[] {
+  const meshes: THREE.Mesh[] = [];
+  root.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (mesh.isMesh && mesh.userData[FOUNDERS_CAMP_MAJOR_SHADOW_CASTER_FLAG] === true) {
+      meshes.push(mesh);
+    }
+  });
+  return meshes;
+}
+
+function tuple3(attribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute, index: number): string {
+  return `${attribute.getX(index)}|${attribute.getY(index)}|${attribute.getZ(index)}`;
+}
+
+function foundersColorSources(root: THREE.Object3D): THREE.Mesh[] {
+  const meshes: THREE.Mesh[] = [];
+  root.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (mesh.isMesh && mesh.userData[FOUNDERS_CAMP_COLOR_BATCH_SOURCE_FLAG] === true) {
+      meshes.push(mesh);
+    }
+  });
+  return meshes;
+}
+
+function foundersColorBatches(root: THREE.Object3D): THREE.Mesh[] {
+  const meshes: THREE.Mesh[] = [];
+  root.traverseVisible((object) => {
+    const mesh = object as THREE.Mesh;
+    if (mesh.isMesh && mesh.userData[FOUNDERS_CAMP_COLOR_BATCH_FLAG] === true) {
+      meshes.push(mesh);
+    }
+  });
+  return meshes;
+}
+
+function visibleFoundersShadowCasters(root: THREE.Object3D): THREE.Mesh[] {
+  const meshes: THREE.Mesh[] = [];
+  root.traverseVisible((object) => {
+    const mesh = object as THREE.Mesh;
+    if (mesh.isMesh && mesh.userData[FOUNDERS_CAMP_MAJOR_SHADOW_CASTER_FLAG] === true) {
+      meshes.push(mesh);
+    }
+  });
+  return meshes;
+}
+
+function foundersShadowSources(root: THREE.Object3D): THREE.Mesh[] {
+  const meshes: THREE.Mesh[] = [];
+  root.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (mesh.isMesh && mesh.userData[FOUNDERS_CAMP_SHADOW_SOURCE_FLAG] === true) {
+      meshes.push(mesh);
+    }
+  });
+  return meshes;
+}
+
+function activeShadowCasters(root: THREE.Object3D): THREE.Mesh[] {
+  const meshes: THREE.Mesh[] = [];
+  root.traverseVisible((object) => {
+    const mesh = object as THREE.Mesh;
+    if (mesh.isMesh && mesh.castShadow) meshes.push(mesh);
+  });
+  return meshes;
+}
 
 function detailBatchMeshes(root: THREE.Object3D): THREE.Mesh[] {
   const meshes: THREE.Mesh[] = [];
@@ -205,116 +362,4 @@ function detailBatchMeshes(root: THREE.Object3D): THREE.Mesh[] {
     }
   });
   return meshes;
-}
-
-function detailBatchSources(root: THREE.Object3D): THREE.Mesh[] {
-  const meshes: THREE.Mesh[] = [];
-  root.traverse((object) => {
-    const mesh = object as THREE.Mesh;
-    if (mesh.isMesh && mesh.userData[BUILDING_DETAIL_CASTER_BATCH_SOURCE_FLAG] === true) {
-      meshes.push(mesh);
-    }
-  });
-  return meshes;
-}
-
-function casterMaterialTriangles(
-  root: THREE.Object3D,
-  sources: boolean,
-): Array<[string, number]> {
-  const triangles = new Map<string, number>();
-  root.traverseVisible((object) => {
-    const mesh = object as THREE.Mesh<THREE.BufferGeometry, THREE.Material>;
-    const selected = sources
-      ? mesh.userData[BUILDING_DETAIL_CASTER_BATCH_SOURCE_FLAG] === true
-      : mesh.userData[BUILDING_DETAIL_CASTER_BATCH_FLAG] === true;
-    if (!mesh.isMesh || !selected) return;
-    const instances = (mesh as THREE.InstancedMesh).isInstancedMesh
-      ? (mesh as THREE.InstancedMesh).count
-      : 1;
-    const key = [
-      mesh.material.uuid,
-      mesh.material.side,
-      mesh.material.shadowSide ?? '',
-      mesh.material.alphaTest,
-      mesh.material.clippingPlanes?.length ?? 0,
-      mesh.material.clipShadows ? 1 : 0,
-      mesh.customDepthMaterial?.uuid ?? '',
-      mesh.customDistanceMaterial?.uuid ?? '',
-    ].join('|');
-    triangles.set(
-      key,
-      (triangles.get(key) ?? 0) + geometryTriangles(mesh.geometry) * instances,
-    );
-  });
-  return [...triangles.entries()].sort(([left], [right]) => left.localeCompare(right));
-}
-
-function casterVertexMoments(root: THREE.Object3D, sources: boolean): number[] {
-  root.updateWorldMatrix(true, true);
-  const rootInverse = root.matrixWorld.clone().invert();
-  const instance = new THREE.Matrix4();
-  const relative = new THREE.Matrix4();
-  const vertex = new THREE.Vector3();
-  let count = 0;
-  const sum = new THREE.Vector3();
-  const sumSquares = new THREE.Vector3();
-  const bounds = new THREE.Box3();
-  root.traverseVisible((object) => {
-    const mesh = object as THREE.Mesh<THREE.BufferGeometry, THREE.Material>;
-    const selected = sources
-      ? mesh.userData[BUILDING_DETAIL_CASTER_BATCH_SOURCE_FLAG] === true
-      : mesh.userData[BUILDING_DETAIL_CASTER_BATCH_FLAG] === true;
-    if (!mesh.isMesh || !selected) return;
-    const position = mesh.geometry.getAttribute('position');
-    const instances = (mesh as THREE.InstancedMesh).isInstancedMesh
-      ? (mesh as THREE.InstancedMesh).count
-      : 1;
-    for (let instanceIndex = 0; instanceIndex < instances; instanceIndex += 1) {
-      if ((mesh as THREE.InstancedMesh).isInstancedMesh) {
-        (mesh as THREE.InstancedMesh).getMatrixAt(instanceIndex, instance);
-        relative
-          .multiplyMatrices(mesh.matrixWorld, instance)
-          .premultiply(rootInverse);
-      } else {
-        relative.multiplyMatrices(rootInverse, mesh.matrixWorld);
-      }
-      for (let index = 0; index < position.count; index += 1) {
-        vertex.fromBufferAttribute(position, index).applyMatrix4(relative);
-        count += 1;
-        sum.add(vertex);
-        sumSquares.x += vertex.x * vertex.x;
-        sumSquares.y += vertex.y * vertex.y;
-        sumSquares.z += vertex.z * vertex.z;
-        bounds.expandByPoint(vertex);
-      }
-    }
-  });
-  return [
-    count,
-    ...sum.toArray(),
-    ...sumSquares.toArray(),
-    ...bounds.min.toArray(),
-    ...bounds.max.toArray(),
-  ];
-}
-
-function assertVertexMoments(
-  actual: readonly number[],
-  expected: readonly number[],
-  message: string,
-): void {
-  assert.equal(actual.length, expected.length, message);
-  assert.equal(actual[0], expected[0], `${message}: vertex count`);
-  for (let index = 1; index < actual.length; index += 1) {
-    const tolerance = Math.max(1e-4, Math.abs(expected[index]!) * 2e-7);
-    assert.ok(
-      Math.abs(actual[index]! - expected[index]!) <= tolerance,
-      `${message}: moment ${index} differs (${actual[index]} vs ${expected[index]})`,
-    );
-  }
-}
-
-function geometryTriangles(geometry: THREE.BufferGeometry): number {
-  return (geometry.index?.count ?? geometry.getAttribute('position').count) / 3;
 }

@@ -1040,9 +1040,11 @@ export class SceneManager {
     }
     this.buildInteractionActive = active;
     this.grassField?.setBuildInteractionActive(active);
-    if (!active) {
-      this.refreshShadowMap();
-    }
+    // Entering or leaving a build tool only changes grass streaming cadence;
+    // it does not change any shadow caster. Refreshes are requested by the
+    // systems that actually add, remove, or move static geometry. Invalidating
+    // here made the first camp click synchronously submit a full 4096² atlas
+    // before its optimistic marker could reach the screen.
   }
 
   setTerrainTopographyVisible(visible: boolean): void {

@@ -638,6 +638,12 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
             inner_fade: 0.9,
             outer_fade: 1.3,
         },
+        "kennel" => BuildingPadParams {
+            radius_x: 5.1,
+            radius_z: 4.5,
+            inner_fade: 0.9,
+            outer_fade: 1.3,
+        },
         "hunters_hall" => BuildingPadParams {
             radius_x: 5.2,
             radius_z: 4.8,
@@ -881,6 +887,31 @@ mod tests {
 
         assert!(!building_overlaps_road_surface(
             &network, "stable", 0.0, snapped_z
+        ));
+    }
+
+    #[test]
+    fn snapped_kennel_clears_the_road_with_the_client_footprint() {
+        let snapshot = r#"{
+            "nodes": [
+                {"id":"node-1","position":[-30.0,0.0,0.0]},
+                {"id":"node-2","position":[30.0,0.0,0.0]}
+            ],
+            "edges": [{
+                "startNodeId":"node-1",
+                "endNodeId":"node-2",
+                "width":4.2,
+                "sampledPath":[[-30.0,0.0,0.0],[30.0,0.0,0.0]]
+            }]
+        }"#;
+        let network = RoadNetwork::from_snapshot_json(snapshot).expect("valid straight road");
+
+        // Match the client snap: road half-width, construction-site front
+        // depth (the 3.726 m footprint plus 1.48 m), and road clearance.
+        let snapped_z = 4.2 * 0.5 + (4.5 * 0.9 * BUILDING_FOOTPRINT_SCALE + 1.48) + 0.65;
+
+        assert!(!building_overlaps_road_surface(
+            &network, "kennel", 0.0, snapped_z
         ));
     }
 

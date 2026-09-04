@@ -514,7 +514,13 @@ export class SettlementCrowdRenderer {
     seeds: readonly VillagerRigPoolSeed[],
     onProgress?: (completed: number, total: number) => void,
   ): Promise<number> {
-    if (this.disposed || !this.sources || seeds.length === 0) return 0;
+    if (
+      this.disposed
+      || !this.sources
+      || !this.authoredBatches
+      || seeds.length === 0
+    ) return 0;
+    const authoredBatches = this.authoredBatches;
 
     const desiredByVariant = new Map<VillagerModelVariant, VillagerRigPoolSeed[]>();
     for (const seed of seeds) {
@@ -555,6 +561,7 @@ export class SettlementCrowdRenderer {
         active: false,
       };
       const visual = this.createAnimatedVillager(agent);
+      authoredBatches[seed.variant].prepareCloneBinding(visual.model);
       visual.mixer.stopAllAction();
       visual.root.visible = false;
       const poolKey = animatedPoolKey(seed.variant, null);

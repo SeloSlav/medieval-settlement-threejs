@@ -1039,7 +1039,7 @@ select:focus-visible {
 
 .settlement-hud__construction-panel .settlement-hud__construction-material {
   grid-template-columns: 24px minmax(0, 1fr) auto;
-  grid-template-rows: auto auto auto;
+  grid-template-rows: auto;
   gap: 3px 8px;
   min-height: 0;
   padding: 7px 8px;
@@ -1076,13 +1076,6 @@ select:focus-visible {
   grid-column: 2 / -1;
   grid-row: 2;
   margin-top: 3px;
-}
-
-.settlement-hud__construction-material > .settlement-hud__resource-detail {
-  grid-column: 1 / -1;
-  grid-row: 3;
-  padding-top: 4px;
-  border-top: 1px solid rgba(220, 191, 127, 0.09);
 }
 
 .settlement-hud__resource-reading {

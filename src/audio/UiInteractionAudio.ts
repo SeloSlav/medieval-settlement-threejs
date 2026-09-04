@@ -26,6 +26,7 @@ const INTERACTION_SOUND_IDS = [
   'game_panel',
   'game_cancel',
   'game_transaction',
+  'setup_choice',
   'setup_adjust',
   'chicken_coop_select',
   'goat_pen_select',
@@ -60,6 +61,9 @@ export function uiSoundForSemantics(control: UiControlSemantics): UiSoundDecisio
   const explicit = explicitDecision(control.override);
   if (explicit !== undefined) return explicit;
   if (control.disabled) return null;
+  if (control.text.includes('+') || control.text.includes('−')) {
+    return { id: 'setup_choice' };
+  }
   return { id: 'game_press' };
 }
 

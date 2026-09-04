@@ -389,6 +389,18 @@ export class AuthoredSkinnedInstanceBatch {
     );
   }
 
+  /**
+   * Resolves and validates an immutable clone hierarchy without publishing an
+   * instance. Pooling a rig alone is not sufficient: the first visible frame
+   * would otherwise still pay the complete bone/topology binding walk.
+   */
+  prepareCloneBinding(posedRoot: THREE.Object3D): void {
+    this.assertAlive();
+    if (this.posedCloneBindings.has(posedRoot)) return;
+    posedRoot.updateWorldMatrix(true, true);
+    this.posedCloneBindings.set(posedRoot, this.bindPosedClone(posedRoot));
+  }
+
   validateSkeleton(skeleton: THREE.Skeleton, label = 'posed skeleton'): void {
     if (this.validatedSkeletons.has(skeleton)) return;
     validateSkeletonLayout(

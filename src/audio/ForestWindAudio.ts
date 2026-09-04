@@ -101,6 +101,9 @@ export class ForestWindAudio {
     if (this.audio) return;
     const audio = new Audio(FOREST_WIND_URL);
     audio.loop = true;
+    audio.defaultPlaybackRate = 1;
+    audio.playbackRate = 1;
+    audio.preservesPitch = true;
     audio.preload = 'auto';
     audio.volume = 0;
     audio.addEventListener('error', () => {

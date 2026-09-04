@@ -1048,6 +1048,7 @@ export class App {
     this.updateFps(time, rawDt);
     this.villagerInspector?.tick();
     this.ambientAudio?.setWorldPaused(gameSpeed === 0);
+    // Audio fades and playback stay on wall-clock time at every simulation speed.
     this.ambientAudio?.tick(dt);
     trailerClock.onFrame?.();
     if (frameProfiler) {

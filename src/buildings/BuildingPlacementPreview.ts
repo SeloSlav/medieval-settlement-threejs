@@ -595,6 +595,7 @@ function flattenBuildingGhostGeometry(source: THREE.Group): {
 
   source.traverseVisible((object) => {
     if (!(object instanceof THREE.Mesh)) return;
+    if (!object.layers.isEnabled(0)) return;
     const materials = Array.isArray(object.material) ? object.material : [object.material];
     if (materials.every((material) => !material.visible)) return;
 

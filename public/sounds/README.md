@@ -55,6 +55,15 @@ Its SHA-256 digest is
 It retains the existing river volume, loop, HRTF positioning, and linear
 distance falloff and is absent from the generation manifest and report.
 
+## Monastery selection
+
+`buildings/monastery.mp3` is an unchanged copy of the user-provided
+`AAA_medieval_RTS_sou_#1-1788537279488.mp3` recording, adopted on 2026-09-04.
+Its SHA-256 digest is
+`e236b988dca2183ab62ce3b21f4be85bf1ef74488195b802cef2ac43d9a921c5`.
+It plays through the existing monastery building-selection route and is absent
+from the ElevenLabs generation manifest and report.
+
 ## Forest wind
 
 `ambient/forest_wind.mp3` is an unchanged copy of the user-provided

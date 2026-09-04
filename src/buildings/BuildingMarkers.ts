@@ -58,6 +58,7 @@ import {
   setCampfireNightLighting,
   setFoundersCampWinterAccumulation,
 } from './meshes/foundersCampMesh.ts';
+import { refreshFoundersCampColorBatches } from './foundersCampColorBatch.ts';
 import { setFireEffectActive } from '../fires/FireEffect.ts';
 import {
   constructionDeliveredRatio,
@@ -1097,6 +1098,7 @@ function syncBuildingVisualState(
     marker.userData.foundingTimberSegments = FOUNDING_TIMBER_VISUAL_SEGMENTS;
     marker.userData.foundingStoneSegments = FOUNDING_STONE_VISUAL_SEGMENTS;
     marker.userData.foundingIronworkSegments = FOUNDING_IRONWORK_VISUAL_SEGMENTS;
+    refreshFoundersCampColorBatches(marker);
   }
   if (building.kind === 'town_hall') {
     const chest = marker.getObjectByName('TownHallTreasuryChest');
@@ -1504,6 +1506,7 @@ function syncInitialFoundersCampVisualState(marker: THREE.Group): void {
       BUILDING_STORAGE_CAPS.founders_camp.ironwork ?? 0,
     );
   }
+  refreshFoundersCampColorBatches(marker);
   refreshBuildingDetailCasterBatches(marker);
 }
 

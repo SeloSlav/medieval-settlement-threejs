@@ -399,7 +399,7 @@ export class ResourceInspector {
   private readonly militaryStoresModeLabel: HTMLElement;
   private readonly resourceCardAmounts: Record<HudResourceCardKind, HTMLElement>;
   private readonly resourceCardModeLabels: HTMLElement[];
-  private readonly resourceCardDetails: Record<HudResourceCardKind, HTMLElement>;
+  private readonly resourceCardDetails: Partial<Record<HudResourceCardKind, HTMLElement>>;
   private readonly goldResourceReadingLabel: HTMLElement;
   private readonly surplusResourceTooltips = new Map<HudResourceKind, string>();
   private readonly populationValue: HTMLElement;
@@ -613,12 +613,13 @@ export class ResourceInspector {
     this.resourceCardModeLabels = [
       ...options.uiRoot.querySelectorAll<HTMLElement>('[data-resource-card-mode-label]'),
     ];
-    this.resourceCardDetails = Object.fromEntries(
-      HUD_RESOURCE_CARD_KINDS.map((resource) => [
-        resource,
-        this.mustElement(options.uiRoot, `[data-resource-card-detail="${resource}"]`),
-      ]),
-    ) as Record<HudResourceCardKind, HTMLElement>;
+    this.resourceCardDetails = {};
+    for (const resource of HUD_RESOURCE_CARD_KINDS) {
+      const detail = options.uiRoot.querySelector<HTMLElement>(
+        `[data-resource-card-detail="${resource}"]`,
+      );
+      if (detail) this.resourceCardDetails[resource] = detail;
+    }
     this.goldResourceReadingLabel = this.mustElement(
       options.uiRoot,
       '[data-resource-card-reading-label="gold"]',
@@ -830,9 +831,11 @@ export class ResourceInspector {
     }
     for (const resource of HUD_RESOURCE_CARD_KINDS) {
       const presentation = HUD_RESOURCE_CARD_PRESENTATION[resource];
-      this.resourceCardDetails[resource].textContent = showingTotal
+      const detail = this.resourceCardDetails[resource];
+      const copy = showingTotal
         ? presentation.totalDetail
         : presentation.surplusDetail;
+      if (detail && copy) detail.textContent = copy;
     }
     this.goldResourceReadingLabel.textContent = showingTotal
       ? 'Total civic gold held'

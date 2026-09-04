@@ -176,7 +176,6 @@
     "test:tutorial-progress": "npx tsx scripts/testTutorialProgress.mts",
     "test:building-processor-status": "npx tsx scripts/testBuildingProcessorStatus.mts",
     "test:industrial-water-logistics": "node --experimental-strip-types scripts/testIndustrialWaterLogistics.mts",
-    "test:chapel-bell-schedule": "npx tsx scripts/testChapelBellSchedule.mts",
     "test:expanded-settlement": "npx tsx scripts/testExpandedSettlement.mts",
     "test:farming": "npx tsx scripts/testFarming.mts",
     "test:farm-field-visuals": "npx tsx scripts/testFarmFieldVisuals.mts",

@@ -18,6 +18,10 @@ import {
   FIRE_EFFECT_SMOKE_NAME,
 } from '../src/fires/FireEffect.ts';
 import { isBuildingDetailShadowCaster } from '../src/buildings/buildingShadowProxy.ts';
+import {
+  FOUNDERS_CAMP_MAJOR_SHADOW_CASTER_FLAG,
+  getFoundersCampShadowCasterStats,
+} from '../src/buildings/foundersCampShadowCasters.ts';
 import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignature.ts';
 import {
   FOUNDING_IRONWORK_VISUAL_SEGMENTS,
@@ -255,9 +259,11 @@ mesh.traverse((object) => {
   if (isBuildingDetailShadowCaster(object)) shadowCasters.push(object);
 });
 assert.ok(
-  shadowCasters.length >= 12,
-  'the camp should retain several exact material-aware caster batches instead of one blockout box',
+  shadowCasters.length === 1
+    && shadowCasters[0]?.userData[FOUNDERS_CAMP_MAJOR_SHADOW_CASTER_FLAG] === true,
+  'the camp should cast one bounded major-form tent shadow instead of detail or footprint batches',
 );
+assert.equal(getFoundersCampShadowCasterStats(mesh)?.shadowTriangles, 24);
 const campfireLight = campfire.getObjectByName(FIRE_EFFECT_LIGHT_NAME);
 assert.ok(campfireLight instanceof THREE.PointLight);
 assert.equal(

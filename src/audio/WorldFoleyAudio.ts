@@ -58,7 +58,6 @@ type LocalPlaybackOptions = {
 };
 
 type StructureSnapshot = {
-  complete: boolean;
   stone: boolean;
   x: number;
   z: number;
@@ -320,10 +319,6 @@ export class WorldFoleyAudio {
 
     for (const building of buildings.values()) {
       const next = structureSnapshot(building);
-      const prior = this.buildingSnapshots.get(building.id);
-      if (prior && !prior.complete && next.complete) {
-        this.playNotification('event_building_complete');
-      }
       this.buildingSnapshots.set(building.id, next);
     }
     for (const id of this.buildingSnapshots.keys()) {
@@ -333,9 +328,7 @@ export class WorldFoleyAudio {
     for (const residence of residences.values()) {
       const next = residenceSnapshot(residence);
       const prior = this.residenceSnapshots.get(residence.id);
-      if (prior && prior.tier === 0 && next.tier > 0) {
-        this.playNotification('event_building_complete');
-      } else if (prior && next.tier > prior.tier) {
+      if (prior && prior.tier > 0 && next.tier > prior.tier) {
         this.playAt('event_residence_upgrade', next.x, next.z);
       }
       this.residenceSnapshots.set(residence.id, next);
@@ -659,7 +652,6 @@ function structureSnapshot(building: BuildingState): StructureSnapshot {
   const timber = Math.max(0, building.constructionRequiredTimber);
   const stone = Math.max(0, building.constructionRequiredStone);
   return {
-    complete: building.constructionComplete !== false,
     stone: STONE_STRUCTURE_KINDS.has(building.kind)
       || stone >= Math.max(1, timber * 0.45),
     x: building.x,

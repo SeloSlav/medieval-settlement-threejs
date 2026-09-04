@@ -377,17 +377,6 @@
       "sha256": "d161c64da7c35f02aa899ea49cacab8fce2933366a7ba0ea727a63c7f3d31927"
     },
     {
-      "id": "building-monastery",
-      "output": "public/sounds/buildings/monastery.mp3",
-      "generatedAt": "2026-08-04T10:05:41.485Z",
-      "endpoint": "/v1/sound-generation",
-      "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "25",
-      "byteLength": 40586,
-      "sha256": "69954be86edfb30c21195e221d65b837be4626ad6448725b1b7ff1a4449a47fe"
-    },
-    {
       "id": "building-palisaded-refuge",
       "output": "public/sounds/buildings/palisaded_refuge.mp3",
       "generatedAt": "2026-08-04T10:05:28.623Z",
@@ -2377,17 +2366,6 @@
       "characterCost": "30",
       "byteLength": 48945,
       "sha256": "b4034e3df9f5141ffc470f6f8e1cf83146f7363cffc859c716ee1d0d253798c8"
-    },
-    {
-      "id": "world-event-building-complete",
-      "output": "public/sounds/world/event_building_complete.mp3",
-      "generatedAt": "2026-09-02T16:24:00.544Z",
-      "endpoint": "/v1/sound-generation",
-      "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "18",
-      "byteLength": 29301,
-      "sha256": "2c3896acd9be51bdea49ae8592d4aa44445a1090dec2d884541751a20fa1421c"
     },
     {
       "id": "world-event-burial",

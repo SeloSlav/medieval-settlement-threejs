@@ -134,8 +134,7 @@ export type WorldNotificationSoundId =
   | 'event_mercenary_leaving'
   | 'event_mercenary_departure'
   | 'event_raid_victory'
-  | 'event_raid_loss'
-  | 'event_building_complete';
+  | 'event_raid_loss';
 
 export type WorldFoleySoundId =
   | 'cart_roll_1'
@@ -200,7 +199,7 @@ export const PRODUCTION_POCKET_CLIPS: Record<ProductionPocketKind, AudioClipDefi
   'textile-leather': { path: '/sounds/ambient/worksite_textile_leather.mp3', volume: 0.14, loop: true },
 };
 
-/** One canonical church bell shared by church selection and every Angelus stroke. */
+/** Church-selection cue; never scheduled from the game clock. */
 export const CHAPEL_BELL_CLIP: AudioClipDefinition = {
   path: '/sounds/buildings/chapel_bell.mp3',
   volume: 0.28,
@@ -570,7 +569,6 @@ export const WORLD_FOLEY_CLIPS: Record<WorldFoleySoundId, AudioClipDefinition> =
   event_mercenary_departure: worldFoleyClip('event_mercenary_departure', 0.14),
   event_raid_victory: worldFoleyClip('event_raid_victory', 0.18),
   event_raid_loss: worldFoleyClip('event_raid_loss', 0.2),
-  event_building_complete: worldFoleyClip('event_building_complete', 0.11),
   event_ottoman_raiders_detected: worldFoleyClip('event_ottoman_raiders_detected', 0.54),
   event_bandit_camp_established: worldFoleyClip('event_bandit_camp_established', 0.14),
   event_bandits_town_entry: worldFoleyClip('event_bandits_town_entry', 0.18),

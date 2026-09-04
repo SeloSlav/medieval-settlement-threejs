@@ -144,6 +144,7 @@ export class RiverAudio {
       .setMaxDistance(RIVER_AUDIO_CUTOFF_DISTANCE)
       .setRolloffFactor(1);
     this.source.setLoop(RIVER_WATER_CLIP.loop ?? true);
+    this.source.setPlaybackRate(1);
     this.source.setVolume(0);
     if (this.ownsListener) config.camera.add(this.listener);
     config.parent.add(this.source);

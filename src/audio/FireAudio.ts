@@ -161,6 +161,9 @@ export class FireAudio {
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
         audio.loop = FIRE_CRACKLE_CLIP.loop ?? true;
+        audio.defaultPlaybackRate = 1;
+        audio.playbackRate = 1;
+        audio.preservesPitch = true;
         audio.volume = 0;
         this.blobUrl = url;
         this.audio = audio;

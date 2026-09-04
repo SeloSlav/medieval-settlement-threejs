@@ -259,6 +259,10 @@ export class AmbientAudio {
   ): HTMLAudioElement {
     const audio = new Audio(src);
     audio.loop = clip.loop ?? true;
+    // Ambient beds always follow wall-clock time, independent of simulation speed.
+    audio.defaultPlaybackRate = 1;
+    audio.playbackRate = 1;
+    audio.preservesPitch = true;
     audio.volume = 0;
     audio.addEventListener('error', () => {
       const state = this.ambientTracks[layerId];

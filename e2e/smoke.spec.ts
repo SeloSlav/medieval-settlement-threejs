@@ -724,9 +724,6 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
     const smallCopy = [
       ...foodGrid.querySelectorAll<HTMLElement>('.settlement-hud__supply-line'),
       ...fuelGrid.querySelectorAll<HTMLElement>('.settlement-hud__supply-line'),
-      ...constructionPanel.querySelectorAll<HTMLElement>(
-        '.settlement-hud__resource-detail, .settlement-hud__resource-note',
-      ),
     ].map((element) => Number.parseFloat(getComputedStyle(element).fontSize));
     return {
       foodWidth: Number.parseFloat(getComputedStyle(foodGrid).width),
@@ -777,6 +774,8 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   );
   await expect(constructionCard.locator('[data-resource-card-amount="ironwork"]')).toHaveText('9000');
   await expect(constructionCard.locator('[data-resource-card-amount="roofTiles"]')).toHaveText(/^\d+$/);
+  await expect(constructionPanel.locator('.settlement-hud__resource-detail')).toHaveCount(0);
+  await expect(constructionPanel.locator('.settlement-hud__resource-note')).toHaveCount(0);
   await expect(tooltip).toBeHidden();
   await expect(foodStores).not.toHaveAttribute('open', '');
   await totalsMode.hover();

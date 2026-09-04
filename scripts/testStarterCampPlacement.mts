@@ -692,6 +692,10 @@ assert.match(
 
 const buildingMarkers = read('src/buildings/BuildingMarkers.ts');
 const placedTerrainSync = read('src/app/placedBuildingTerrainSync.ts');
+const sceneManager = read('src/scene/SceneManager.ts');
+const terrainBuildingPads = read('src/terrain/TerrainBuildingPads.ts');
+const crowdRenderer = read('src/settlement/SettlementCrowdRenderer.ts');
+const authoredSkinBatch = read('src/scene/AuthoredSkinnedInstanceBatch.ts');
 assert.match(
   placedTerrainSync,
   /updateTerrainBuildingPads\([\s\S]*?buildingMarkers\?\.refreshTerrainHeights\(\)/,
@@ -701,6 +705,30 @@ assert.match(
   buildingMarkers,
   /prewarmFoundersCampPlacement\(\)[\s\S]*?createBuildingMesh\('founders_camp'\)[\s\S]*?createBuildingPreviewMesh\([\s\S]*?'founders_camp'/,
   'the detailed founders camp and placement preview should be constructed before the first click',
+);
+const buildInteractionMethod = sceneManager.slice(
+  sceneManager.indexOf('setBuildInteractionActive(active: boolean)'),
+  sceneManager.indexOf('setTerrainTopographyVisible', sceneManager.indexOf('setBuildInteractionActive(active: boolean)')),
+);
+assert.doesNotMatch(
+  buildInteractionMethod,
+  /refreshShadowMap/,
+  'leaving the placement tool must not force a 4096px shadow-atlas submission before the optimistic camp paints',
+);
+assert.match(
+  terrainBuildingPads,
+  /setAttributeUpdateRanges\(positions,[\s\S]*?positions\.needsUpdate = true;[\s\S]*?setAttributeUpdateRanges\(normals,[\s\S]*?normals\.needsUpdate = true;/,
+  'camp terrain-pad edits must upload bounded position and normal ranges instead of both complete terrain buffers',
+);
+assert.match(
+  crowdRenderer,
+  /prepareUnarmedRigPool\([\s\S]*?createAnimatedVillager\(agent\);[\s\S]*?prepareCloneBinding\(visual\.model\)/,
+  'founder prewarm must prime each pooled rig in the exact authored skinning batch',
+);
+assert.match(
+  authoredSkinBatch,
+  /prepareCloneBinding\(posedRoot: THREE\.Object3D\)[\s\S]*?posedCloneBindings\.set\(posedRoot, this\.bindPosedClone\(posedRoot\)\)/,
+  'authored batch prewarm must cache the immutable clone binding before first placement',
 );
 assert.match(
   buildingMarkers,

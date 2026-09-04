@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { FOUNDERS_CAMP_COLOR_BATCH_SOURCE_FLAG } from './foundersCampColorBatch.ts';
 import { isProceduralRuntimeOwned } from './proceduralArchitecture/runtimeOwnership.ts';
 
 export type StaticBuildingBatchStats = {
@@ -60,6 +61,7 @@ export function isDynamicBuildingBatchBoundary(object: THREE.Object3D): boolean 
     || object.userData.fpNoCollision === true
     || object.userData.fpCollisionAggregate === true
     || object.userData.fpCollisionChildrenOnly === true
+    || object.userData[FOUNDERS_CAMP_COLOR_BATCH_SOURCE_FLAG] === true
     || object.userData.foundersCampWinterAccumulation === true
     || object.userData.campSmoke === true
     || object.userData.buildingDetailCasterBatch === true

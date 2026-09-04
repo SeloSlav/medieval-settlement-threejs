@@ -26,6 +26,8 @@ assert.deepEqual(decide({ text: 'overlay', pressed: 'true' }), { id: 'game_press
 assert.deepEqual(decide({ text: 'upgrade residence' }), { id: 'game_press' });
 assert.deepEqual(decide({ text: 'demolish building' }), { id: 'game_press' });
 assert.deepEqual(decide({ text: 'confirm rename' }), { id: 'game_press' });
+assert.deepEqual(decide({ text: 'increase labor +' }), { id: 'setup_choice' });
+assert.deepEqual(decide({ text: 'decrease labor −' }), { id: 'setup_choice' });
 assert.equal(decide({ disabled: true }), null);
 assert.equal(decide({ override: 'none' }), null);
 assert.deepEqual(decide({ override: 'game_transaction' }), { id: 'game_transaction' });
@@ -83,6 +85,7 @@ assert.match(source, /getPlayRevision\(\)/);
 assert.match(source, /clickRevision\.get\(event\) !== this\.audio\.getPlayRevision\(\)/);
 assert.match(source, /queueMicrotask\(\(\) => this\.playCapturedClick/);
 assert.match(source, /ADJUSTMENT_INTERVAL_MS = 45/);
+assert.match(source, /INTERACTION_SOUND_IDS[\s\S]*?'setup_choice'/);
 assert.match(source, /INTERACTION_SOUND_IDS[\s\S]*?'setup_adjust'/);
 assert.match(source, /INTERACTION_SOUND_IDS[\s\S]*?'chicken_coop_select'/);
 assert.match(source, /INTERACTION_SOUND_IDS[\s\S]*?'goat_pen_select'/);

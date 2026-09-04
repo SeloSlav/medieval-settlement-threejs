@@ -7,6 +7,11 @@ import {
   isDynamicBuildingBatchBoundary,
 } from '../src/buildings/staticBuildingBatch.ts';
 import { BuildingStaticBatches } from '../src/buildings/BuildingStaticBatches.ts';
+import {
+  FOUNDERS_CAMP_COLOR_BATCH_SOURCE_FLAG,
+  getFoundersCampColorBatchStats,
+  refreshFoundersCampColorBatches,
+} from '../src/buildings/foundersCampColorBatch.ts';
 
 type RenderSnapshot = {
   readonly draws: number;
@@ -22,6 +27,7 @@ type RenderSnapshot = {
   readonly tangentFingerprint: readonly string[];
 };
 
+const foundersCampColor = testFoundersCampColorBatching();
 const perKind: string[] = [];
 for (const [kindIndex, kind] of BUILDING_KINDS.entries()) {
   const root = createBuildingMesh(kind);
@@ -185,6 +191,8 @@ const repeated = testRepeatedBuildingCrossBatches();
 
 console.log(
   'building static batching passed '
+    + `(founders-camp color ${foundersCampColor.authoredDraws}->${foundersCampColor.batchedDraws}, `
+    + `${foundersCampColor.sourceTriangles} exact triangles; `
     + `(${denseBeforeColorDraws} -> ${denseAfter.colorDraws} dense-${denseKinds.length} color render objects; `
     + `${denseBeforeDraws} -> ${denseAfter.draws} including shadow-only; `
     + `${denseLocalStaticDraws} -> ${denseStats.renderObjects} eligible local-to-cross static objects; `
@@ -202,6 +210,149 @@ console.log(
     + `${repeated.registrationMs.toFixed(1)}ms registration + `
     + `${repeated.compactionMs.toFixed(1)}ms compaction; ${perKind.join(', ')})`,
 );
+
+function testFoundersCampColorBatching(): {
+  authoredDraws: number;
+  batchedDraws: number;
+  sourceTriangles: number;
+} {
+  const camp = createBuildingMesh('founders_camp');
+  const stats = getFoundersCampColorBatchStats(camp);
+  assert.ok(stats, 'founders camp must install its color batches during generation');
+
+  const batchGroup = camp.getObjectByName('Founders camp color batches');
+  assert.ok(batchGroup instanceof THREE.Group, 'founders camp must expose its color batch group');
+  const sourceMeshes: THREE.Mesh[] = [];
+  camp.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (mesh.userData[FOUNDERS_CAMP_COLOR_BATCH_SOURCE_FLAG] === true) {
+      assert.ok(mesh.isMesh, 'every founders-camp color source must remain a mesh');
+      sourceMeshes.push(mesh);
+    }
+  });
+  assert.ok(sourceMeshes.length >= stats.sourceDraws, 'hidden runtime sources must remain attached');
+
+  const sourceLayerMasks = sourceMeshes.map((source) => source.layers.mask);
+  for (const source of sourceMeshes) source.layers.enable(0);
+  batchGroup.visible = false;
+  const authored = renderSnapshot(camp);
+  for (let index = 0; index < sourceMeshes.length; index += 1) {
+    sourceMeshes[index]!.layers.mask = sourceLayerMasks[index]!;
+  }
+  batchGroup.visible = true;
+  const batched = renderSnapshot(camp);
+
+  assert.ok(
+    authored.colorDraws >= 130,
+    `founders-camp fixture must retain its reviewed authored load (got ${authored.colorDraws})`,
+  );
+  assert.equal(
+    authored.colorDraws,
+    stats.sourceDraws + stats.retainedDraws,
+    'founders-camp source stats must account for every authored color submission',
+  );
+  assert.equal(
+    batched.colorDraws,
+    stats.batchDraws + stats.retainedDraws,
+    'founders-camp batch stats must account for every submitted color object',
+  );
+  assert.ok(
+    batched.colorDraws <= 25,
+    `founders-camp first placement must stay at or below 25 color submissions (got ${batched.colorDraws})`,
+  );
+  assert.equal(stats.batchTriangles, stats.sourceTriangles, 'founders-camp color triangle parity');
+  assert.equal(batched.triangles, authored.triangles, 'founders-camp whole-graph triangle parity');
+  assert.deepEqual(batched.materials, authored.materials, 'founders-camp material identity parity');
+  assert.deepEqual(batched.buckets, authored.buckets, 'founders-camp material/pipeline bucket parity');
+  assertBoundsEqual(batched.bounds, authored.bounds, 'founders-camp visible world bounds');
+  assert.deepEqual(batched.uvFingerprint, authored.uvFingerprint, 'founders-camp UV parity');
+  assertDirectionFingerprintsEqual(
+    batched.normalFingerprint,
+    authored.normalFingerprint,
+    'founders-camp world-normal parity',
+  );
+  assert.deepEqual(
+    batched.tangentFingerprint,
+    authored.tangentFingerprint,
+    'founders-camp world-tangent parity',
+  );
+
+  const requiredRuntimeNames = [
+    'FoundingShelters',
+    'FoundingCampfire',
+    'FoundingTimberStockpile',
+    'FoundingStoneStockpile',
+    'FoundingIronworkStockpile',
+    'FoundingTreasuryChest',
+    'Planted camp standard anchor',
+    'Founders camp winter accumulation',
+  ] as const;
+  const runtimeObjects = requiredRuntimeNames.map((name) => {
+    const object = camp.getObjectByName(name);
+    assert.ok(object, `founders-camp runtime subtree must remain addressable: ${name}`);
+    return object;
+  });
+
+  camp.position.set(317.25, -0.4, -184.75);
+  camp.rotation.set(0.015, 1.137, -0.025);
+  camp.scale.set(0.992, 0.947, 0.989);
+  camp.updateMatrix();
+  assert.equal(
+    refreshFoundersCampColorBatches(camp),
+    false,
+    'adopting or moving a prewarmed founders camp must not rebuild local color geometry',
+  );
+
+  const shelters = camp.getObjectByName('FoundingShelters')!;
+  shelters.visible = false;
+  assert.equal(refreshFoundersCampColorBatches(camp), true, 'shelter teardown must refresh batches');
+  const hiddenShelterStats = getFoundersCampColorBatchStats(camp)!;
+  assert.ok(
+    hiddenShelterStats.sourceTriangles < stats.sourceTriangles,
+    'shelter teardown must remove its geometry from the submitted color batches',
+  );
+  assert.equal(
+    hiddenShelterStats.batchTriangles,
+    hiddenShelterStats.sourceTriangles,
+    'shelter teardown must retain exact triangle parity',
+  );
+  shelters.visible = true;
+  assert.equal(refreshFoundersCampColorBatches(camp), true, 'shelter restoration must refresh batches');
+  assert.deepEqual(
+    getFoundersCampColorBatchStats(camp),
+    stats,
+    'restoring shelters must recover the exact original submission contract',
+  );
+
+  const collisionBounds = aggregateBuildingBounds(camp);
+  batchCompletedBuildingStaticMeshes(camp);
+  assertBoundsEqual(
+    aggregateBuildingBounds(camp),
+    collisionBounds,
+    'founders-camp local batching must preserve its first-person collision bounds',
+  );
+  for (const runtimeObject of runtimeObjects) {
+    assert.equal(
+      camp.getObjectByProperty('uuid', runtimeObject.uuid),
+      runtimeObject,
+      `founders-camp runtime subtree must survive completed batching: ${runtimeObject.name}`,
+    );
+  }
+  for (const source of sourceMeshes) {
+    assert.equal(
+      camp.getObjectByProperty('uuid', source.uuid),
+      source,
+      `founders-camp authored collision source must survive completed batching: ${source.name}`,
+    );
+  }
+
+  disposeGeometry(camp);
+  return {
+    authoredDraws: authored.colorDraws,
+    batchedDraws: batched.colorDraws,
+    sourceTriangles: stats.sourceTriangles,
+  };
+}
 
 function testRepeatedBuildingCrossBatches(): {
   drawsBefore: number;
@@ -410,6 +561,7 @@ function renderSnapshot(root: THREE.Object3D): RenderSnapshot {
   root.traverseVisible((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh) return;
+    if (mesh.layers.mask === 0) return;
     const geometry = mesh.geometry;
     liveGeometries.add(geometry);
     if ((mesh.layers.mask & 1) !== 0) colorGeometries.add(geometry);
@@ -447,45 +599,44 @@ function renderSnapshot(root: THREE.Object3D): RenderSnapshot {
     }
     if (!meshRendered) return;
     const uv = geometry.getAttribute('uv');
-    if (uv) {
-      for (let index = 0; index < uv.count; index += 1) {
-        uvFingerprint.push(tuple(uv.getX(index), uv.getY(index)));
-      }
-    }
     const normal = geometry.getAttribute('normal');
-    if (normal) {
-      normalMatrix.getNormalMatrix(mesh.matrixWorld);
-      for (let index = 0; index < normal.count; index += 1) {
-        direction.fromBufferAttribute(normal, index).applyNormalMatrix(normalMatrix);
-        normalFingerprint.push(tuple(direction.x, direction.y, direction.z));
-      }
-    }
     const tangent = geometry.getAttribute('tangent');
-    if (tangent) {
-      for (let index = 0; index < tangent.count; index += 1) {
-        direction.set(tangent.getX(index), tangent.getY(index), tangent.getZ(index));
-        direction.transformDirection(mesh.matrixWorld);
-        tangentFingerprint.push(tuple(
-          direction.x,
-          direction.y,
-          direction.z,
-          tangent.getW(index),
-        ));
-      }
-    }
-    if ((mesh as THREE.InstancedMesh).isInstancedMesh) {
-      const instanced = mesh as THREE.InstancedMesh;
-      for (let index = 0; index < instanced.count; index += 1) {
-        instanced.getMatrixAt(index, instanceMatrix);
+    const instanced = (mesh as THREE.InstancedMesh).isInstancedMesh
+      ? mesh as THREE.InstancedMesh
+      : null;
+    for (let renderIndex = 0; renderIndex < instanceCount; renderIndex += 1) {
+      if (instanced) {
+        instanced.getMatrixAt(renderIndex, instanceMatrix);
         worldMatrix.multiplyMatrices(mesh.matrixWorld, instanceMatrix);
-        for (let vertexIndex = 0; vertexIndex < position.count; vertexIndex += 1) {
-          vertex.fromBufferAttribute(position, vertexIndex).applyMatrix4(worldMatrix);
-          bounds.expandByPoint(vertex);
+      } else {
+        worldMatrix.copy(mesh.matrixWorld);
+      }
+      if (uv) {
+        for (let index = 0; index < uv.count; index += 1) {
+          uvFingerprint.push(tuple(uv.getX(index), uv.getY(index)));
         }
       }
-    } else {
+      if (normal) {
+        normalMatrix.getNormalMatrix(worldMatrix);
+        for (let index = 0; index < normal.count; index += 1) {
+          direction.fromBufferAttribute(normal, index).applyNormalMatrix(normalMatrix);
+          normalFingerprint.push(tuple(direction.x, direction.y, direction.z));
+        }
+      }
+      if (tangent) {
+        for (let index = 0; index < tangent.count; index += 1) {
+          direction.set(tangent.getX(index), tangent.getY(index), tangent.getZ(index));
+          direction.transformDirection(worldMatrix);
+          tangentFingerprint.push(tuple(
+            direction.x,
+            direction.y,
+            direction.z,
+            tangent.getW(index),
+          ));
+        }
+      }
       for (let vertexIndex = 0; vertexIndex < position.count; vertexIndex += 1) {
-        vertex.fromBufferAttribute(position, vertexIndex).applyMatrix4(mesh.matrixWorld);
+        vertex.fromBufferAttribute(position, vertexIndex).applyMatrix4(worldMatrix);
         bounds.expandByPoint(vertex);
       }
     }

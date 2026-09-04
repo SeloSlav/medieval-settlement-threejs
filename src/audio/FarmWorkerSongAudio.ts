@@ -131,6 +131,9 @@ export class FarmWorkerSongAudio {
         }
         const audio = new Audio(url);
         audio.loop = FARM_WORKERS_SINGING_CLIP.loop ?? true;
+        audio.defaultPlaybackRate = 1;
+        audio.playbackRate = 1;
+        audio.preservesPitch = true;
         audio.volume = 0;
         this.audio = audio;
         this.blobUrl = url;

@@ -32,8 +32,6 @@ import {
   selectAmbientWeatherLayer,
   type AmbientRuleState,
 } from './ambientRules.ts';
-import { ChapelBellPlayer } from './ChapelBellPlayer.ts';
-import type { ChapelBellPosition, ChapelBellTick } from './ChapelBellPlayer.ts';
 import { RiverAudio } from './RiverAudio.ts';
 import { SoundtrackAudio } from './SoundtrackAudio.ts';
 import { UiAudio } from './UiAudio.ts';
@@ -100,7 +98,6 @@ export class AmbientAudioController {
   private readonly audio = new AmbientAudio();
   private readonly spatialListener: THREE.AudioListener;
   private readonly forestWind = new ForestWindAudio();
-  private readonly chapelBell = new ChapelBellPlayer();
   private readonly riverAudio: RiverAudio;
   private readonly productionPocketAudio: ProductionPocketAudio;
   private readonly soundtrack = new SoundtrackAudio();
@@ -111,18 +108,7 @@ export class AmbientAudioController {
   private readonly buildingAudio = new BuildingAudio();
   private readonly worldFoley = new WorldFoleyAudio();
   private readonly config: AmbientAudioControllerConfig;
-  private readonly chapelPositions: ChapelBellPosition[] = [];
   private lastMilitaryOrderSoundId: MilitaryOrderSoundId | null = null;
-  private lastChapelBuildingSnapshot: ReadonlyMap<string, BuildingState> | null = null;
-  private readonly chapelTick: ChapelBellTick = {
-    dtSeconds: 0,
-    clockHour: 0,
-    calendarMinute: 0,
-    chapels: this.chapelPositions,
-    listener: { x: 0, z: 0 },
-    orbitDistance: 0,
-    enabled: true,
-  };
   private readonly ambientRuleState: AmbientRuleState = {
     overviewActive: false,
     foundersCampActive: false,
@@ -231,20 +217,6 @@ export class AmbientAudioController {
     const schedule = this.schedule;
     const buildingSnapshot = this.config.getBuildings();
     const residenceSnapshot = this.config.getResidences();
-    if (schedule) {
-      if (buildingSnapshot !== this.lastChapelBuildingSnapshot) {
-        syncPlacedChapels(buildingSnapshot.values(), this.chapelPositions);
-        this.lastChapelBuildingSnapshot = buildingSnapshot;
-      }
-      this.chapelTick.dtSeconds = dtSeconds;
-      this.chapelTick.clockHour = schedule.clock.hour;
-      this.chapelTick.calendarMinute = schedule.clock.totalDays * 24 * 60
-        + schedule.clock.hour * 60
-        + schedule.clock.minute;
-      this.chapelTick.listener = this.config.getCameraTarget();
-      this.chapelTick.orbitDistance = this.config.getOrbitDistance();
-      this.chapelBell.tick(this.chapelTick);
-    }
 
     const nowMs = performance.now();
     if (nowMs - this.lastAmbientEvalAtMs >= 100) {
@@ -349,7 +321,6 @@ export class AmbientAudioController {
     this.agentSelectionAudio.setEnabled(enabled);
     if (!enabled) {
       this.running = false;
-      this.chapelBell.stop();
     } else if (this.unlocked) {
       this.start();
     }
@@ -408,7 +379,6 @@ export class AmbientAudioController {
     this.buildingAudio.setVolume(volume);
     this.worldFoley.setVolume(volume);
     this.fireAudio.setVolume(volume);
-    this.chapelBell.setVolume(volume);
     this.uiAudio.setVolume(volume);
     this.agentSelectionAudio.setVolume(volume);
   }
@@ -467,7 +437,6 @@ export class AmbientAudioController {
     window.removeEventListener('keydown', this.onUnlock, { capture: true });
     this.audio.dispose();
     this.forestWind.dispose();
-    this.chapelBell.dispose();
     this.riverAudio.dispose();
     this.productionPocketAudio.dispose();
     this.spatialListener.removeFromParent();
@@ -480,8 +449,6 @@ export class AmbientAudioController {
     this.running = false;
     this.unlocked = false;
     this.schedule = null;
-    this.lastChapelBuildingSnapshot = null;
-    this.chapelPositions.length = 0;
     this.isRaining = false;
   }
 
@@ -493,32 +460,6 @@ export class AmbientAudioController {
     this.lastSettlementSignature = signature;
     this.settlementZones = buildSettlementZones(buildings, burgageZones);
   }
-}
-
-function syncPlacedChapels(
-  buildings: Iterable<BuildingState>,
-  chapels: ChapelBellPosition[],
-): void {
-  let chapelCount = 0;
-  for (const building of buildings) {
-    if (building.kind === 'chapel' && building.constructionComplete !== false) {
-      let chapel = chapels[chapelCount];
-      if (!chapel) {
-        chapel = {
-          x: building.x,
-          z: building.z,
-          tier: building.chapelTier ?? 3,
-        };
-        chapels.push(chapel);
-      } else {
-        chapel.x = building.x;
-        chapel.z = building.z;
-        chapel.tier = building.chapelTier ?? 3;
-      }
-      chapelCount += 1;
-    }
-  }
-  chapels.length = chapelCount;
 }
 
 function settlementSignature(buildings: BuildingState[], burgageZones: BurgageZoneState[]): string {
