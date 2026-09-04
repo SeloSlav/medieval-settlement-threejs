@@ -5,6 +5,7 @@ import {
   createForestSpawnConfig,
   fbm2,
   forestCoreInfluence,
+  forestEdgeStandDensityAt,
   mulberry32,
   pick,
   samplePointInForestCore,
@@ -214,12 +215,28 @@ export class TerrainHorizonWorld {
       x,
       z,
     );
+    // Copy the baked playable mask only across the mesh join itself. Beyond
+    // the clearance used by outer tree placement, world-space habitat owns
+    // both trees and litter, so no square boundary projection can survive.
+    const boundaryScale = maximumAxis > 1e-6
+      ? this.innerHalfExtent / maximumAxis
+      : 0;
+    const inheritedForest = this.sampleSourceForestBlend(
+      x * boundaryScale,
+      z * boundaryScale,
+    );
+    const seamHandoff = smoothstep(0, FOREST_SEAM_CLEARANCE, outside);
+    const seamlessForestFloor = THREE.MathUtils.lerp(
+      inheritedForest,
+      forestFloor,
+      seamHandoff,
+    );
     const outerFade = 1 - smoothstep(
       visibleOuter - FOREST_GROUND_OUTER_FADE_METERS,
       visibleOuter,
       maximumAxis,
     );
-    return forestFloor * outerFade;
+    return seamlessForestFloor * outerFade;
   };
 
   sampleShoreBlend = (x: number, z: number): number => {
@@ -320,23 +337,12 @@ export class TerrainHorizonWorld {
       0,
       1,
     );
-    // Continue the authored woodland mask through the seam before gradually
-    // handing it to the larger regional habitat field. This is what prevents a
-    // wooded playable edge from turning into a conspicuous strip of bare grass.
-    const maximumAxis = Math.max(Math.abs(x), Math.abs(z));
-    const boundaryScale = maximumAxis > 1e-6
-      ? this.innerHalfExtent / maximumAxis
-      : 0;
-    const inheritedForest = this.sampleSourceForestBlend(
-      x * boundaryScale,
-      z * boundaryScale,
+    const edgeStandSuitability = smoothstep(
+      0.34,
+      0.72,
+      forestEdgeStandDensityAt(x, z),
     );
-    const regionalHandoff = smoothstep(
-      FOREST_SEAM_CLEARANCE,
-      Math.min(340, this.extensionDistance * 0.16),
-      outside,
-    );
-    return THREE.MathUtils.lerp(inheritedForest, regionalSuitability, regionalHandoff);
+    return Math.max(regionalSuitability, edgeStandSuitability);
   }
 
   private sampleForestStandDensity(x: number, z: number): number {

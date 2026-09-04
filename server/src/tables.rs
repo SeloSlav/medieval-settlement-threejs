@@ -2009,7 +2009,7 @@ pub struct CombatAgent {
     #[default(0u64)]
     pub assigned_building_id: u64,
     /// 0 = building, 1 = residence, 2 = cart, 3/4 = treasury at building/home,
-    /// 5 = bandit camp, 6 = commanded ground position.
+    /// 5 = bandit camp, 6 = commanded ground position or tagged dog woodland/road landmark.
     pub target_kind: u8,
     pub target_id: u64,
     /// Dedicated retained physical opponent. Raiders keep their economic

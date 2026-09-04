@@ -318,7 +318,11 @@ export class VillagerInspector {
     setTextIfChanged(this.activity, inspection.activity);
     setTextIfChanged(this.current, inspection.activity);
     setDatasetIfChanged(this.activity, 'state', inspection.activityState);
-    setDatasetIfChanged(this.initials, 'portraitVariant', inspection.modelVariant);
+    setDatasetIfChanged(
+      this.initials,
+      'portraitVariant',
+      inspection.portraitVariant ?? inspection.modelVariant,
+    );
     setTextIfChanged(this.initials, inspection.initials);
     setTextIfChanged(this.occupation, inspection.occupation);
     setTextIfChanged(this.workplace, inspection.workplace);

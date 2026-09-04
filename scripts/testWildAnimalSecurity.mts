@@ -57,6 +57,16 @@ assert.match(wildlife, /loot_progress >= 15\.0/);
 assert.match(wildlife, /down_guard_dog\([\s\S]{0,360}source_building_id = 0/);
 assert.match(wildlife, /dog\.assigned_building_id > 0/);
 assert.match(wildlife, /dog\.assigned_building_id = 0/);
+assert.match(wildlife, /HUNTING_DOG_RUN_SPEED/);
+assert.match(wildlife, /hunting_dog_woodland_target/);
+assert.match(wildlife, /tree_entity\(\)[\s\S]{0,300}tree\.phase == "mature"/);
+assert.match(wildlife, /WOODLAND_TREE_TARGET_TAG/);
+assert.match(wildlife, /ROAD_PATROL_TARGET_TAG/);
+assert.match(wildlife, /next_road_patrol_target/);
+assert.match(wildlife, /move_dog_over_roads/);
+const roadNetwork = read('server/src/roads/network.rs');
+assert.match(roadNetwork, /pub fn road_patrol_stop_count/);
+assert.match(roadNetwork, /pub fn road_patrol_stop/);
 assert.match(wildlife, /kill_stable_ox\([\s\S]{0,700}trip\.ox_id = 0[\s\S]{0,240}stable_ox\(\)\.id\(\)\.delete/);
 assert.match(wildlife, /head_count = herd\.head_count\.saturating_sub\(1\)/);
 assert.match(wildlife, /clear_backyard_garden_for_residence/);
@@ -94,14 +104,38 @@ for (const animal of ['husky', 'fox', 'wolf']) {
 }
 assert.match(renderer, /status === 'fighting'\) return 'Attack'/);
 assert.match(renderer, /status === 'looting'\) return 'Eating'/);
+assert.doesNotMatch(renderer, /model\.rotation\.y = Math\.PI/);
+assert.match(renderer, /smoothAnimalYaw/);
+const kennelRenderer = read('src/resources/inspector/kennelRenderer.ts');
+const gameUiCss = read('src/ui/polishedGameUi.css');
+assert.match(kennelRenderer, /stable-ox-slots--kennel/);
+assert.match(gameUiCss, /stable-ox-slots--kennel[\s\S]{0,120}repeat\(4/);
+assert.match(gameUiCss, /data-kennel-dog-slot[\s\S]{0,180}hud-dog\.png/);
+assert.ok(existsSync('public/assets/ui/icons/hud-dog.png'));
 assert.match(read('src/settlement/VillagerRenderer.ts'), /route: this\.combatInspectionRoute\(visual\)/);
 assert.match(
   read('src/settlement/VillagerRenderer.ts'),
   /selectionAudioKind: combat\.faction === 'dog' \? 'dog' : undefined/,
 );
 assert.match(
+  read('src/settlement/VillagerRenderer.ts'),
+  /portraitVariant: combat\.faction === 'dog' \? 'dog' : undefined/,
+);
+assert.match(
   read('src/ui/VillagerInspector.ts'),
   /inspection\.selectionAudioKind \?\? inspection\.modelVariant/,
+);
+assert.match(
+  read('src/ui/VillagerInspector.ts'),
+  /inspection\.portraitVariant \?\? inspection\.modelVariant/,
+);
+assert.match(
+  gameUiCss,
+  /portrait-variant='dog'[\s\S]{0,300}hud-dog\.png/,
+);
+assert.match(
+  gameUiCss,
+  /portrait-variant='ox'[\s\S]{0,300}hud-livestock\.png/,
 );
 
 const easy = WORLD_DIFFICULTY_PRESETS.find((preset) => preset.id === 'easy')!;

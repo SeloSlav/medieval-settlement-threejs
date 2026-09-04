@@ -17,6 +17,11 @@ import {
   disposeBackyardGardenMesh,
 } from '../src/residences/backyardGardenMesh.ts';
 import {
+  BACKYARD_GOAT_COAT_TINT,
+  BACKYARD_GOAT_SOURCE_MODEL_PATH,
+  backyardGoatBatchMaterialColors,
+} from '../src/residences/backyardGoatAssets.ts';
+import {
   backyardGardenMarketChannel,
   backyardGardenPhenology,
 } from '../src/economy/backyardGardenTick.ts';
@@ -196,9 +201,30 @@ assert.match(inspectorSource, /Untanned hides/);
 assert.match(foleySource, /garden\.kind === 'chicken_pen'/);
 assert.match(foleySource, /garden\.kind === 'pig_pen'/);
 
-for (const file of ['quaternius-chicken.glb', 'quaternius-pig.glb', 'quaternius-sheep.glb']) {
+for (const file of [
+  'quaternius-chicken.glb',
+  'quaternius-goat.glb',
+  'quaternius-pig.glb',
+  'quaternius-sheep.glb',
+]) {
   const path = join(process.cwd(), 'public/assets/models/livestock', file);
   assert.ok(existsSync(path) && statSync(path).size > 50_000, `${file} must remain a real rigged GLB`);
 }
+
+assert.equal(BACKYARD_GOAT_SOURCE_MODEL_PATH, '/assets/models/livestock/quaternius-goat.glb');
+assert.deepEqual(
+  backyardGoatBatchMaterialColors([
+    { index: 0, name: 'Main' },
+    { index: 1, name: 'Main_Light' },
+    { index: 2, name: 'Eye_Black' },
+    { index: 3, name: 'Eye_White' },
+    { index: 4, name: 'Horns' },
+  ]),
+  [
+    { materialSlot: 0, color: BACKYARD_GOAT_COAT_TINT },
+    { materialSlot: 1, color: BACKYARD_GOAT_COAT_TINT },
+  ],
+  'the exact-model backyard batch should use the brown goat coat without tinting eyes or horns',
+);
 
 console.log('Animal Pen perimeter ownership, livestock lifecycle, supply-chain, hide, and visual contracts passed.');

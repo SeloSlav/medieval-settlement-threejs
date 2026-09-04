@@ -8,7 +8,11 @@ use crate::economy::{
     building_edible_food_stock, residence_edible_food_stock, withdraw_building_edible_food,
     withdraw_residence_commodity, CommodityKind,
 };
+use crate::roads::RoadNetwork;
 use crate::tables::{cavalry_horse, CombatAgent, Corpse};
+
+use super::raid_agents::move_along_combat_route;
+use super::SharedRoadNetworks;
 
 const DOG: u8 = 12;
 const FOX: u8 = 13;
@@ -26,6 +30,15 @@ const TARGET_GROUND: u8 = 6;
 const TARGET_COMBAT_AGENT: u8 = 7;
 const TARGET_STABLE_OX: u8 = 8;
 const CONTACT_DISTANCE: f64 = 2.15;
+const HUNTING_DOG_RUN_SPEED: f64 = 2.85;
+const HUNTING_DOG_MIN_WOODLAND_RANGE: f64 = 10.0;
+const WOODLAND_TREE_TARGET_TAG: u64 = 0xd06d_0000_0000_0000;
+const WOODLAND_TREE_TARGET_TAG_MASK: u64 = 0xffff_0000_0000_0000;
+const ROAD_PATROL_TARGET_TAG: u64 = 0xd06e_0000_0000_0000;
+const ROAD_PATROL_ORDINAL_MASK: u64 = 0x0000_ffff_ffff_ffff;
+const WOODLAND_COORDINATE_MASK: u64 = 0x00ff_ffff;
+const WOODLAND_COORDINATE_SIGN: i32 = 0x0080_0000;
+const WOODLAND_COORDINATE_SCALE: f64 = 100.0;
 
 #[derive(Clone, Copy)]
 struct Target {
@@ -43,6 +56,7 @@ pub fn step_wild_animal_world(
     map_size: u8,
     enabled: bool,
     elapsed: f64,
+    road_networks: Option<&SharedRoadNetworks>,
 ) {
     if !elapsed.is_finite() || elapsed <= 0.0 {
         return;
@@ -52,7 +66,7 @@ pub fn step_wild_animal_world(
     } else {
         spawn_due_incursions(ctx, sim_tick, spawn_through_tick, seed, map_size);
     }
-    step_guard_dogs(ctx, sim_tick, elapsed);
+    step_guard_dogs(ctx, sim_tick, elapsed, road_networks);
     if enabled {
         step_foxes(ctx, sim_tick, elapsed);
         step_wolves(ctx, sim_tick, elapsed);
@@ -296,7 +310,12 @@ fn insert_animal(
     });
 }
 
-fn step_guard_dogs(ctx: &ReducerContext, tick: u64, dt: f64) {
+fn step_guard_dogs(
+    ctx: &ReducerContext,
+    tick: u64,
+    dt: f64,
+    road_networks: Option<&SharedRoadNetworks>,
+) {
     let dogs = ctx
         .db
         .combat_agent()
@@ -308,6 +327,7 @@ fn step_guard_dogs(ctx: &ReducerContext, tick: u64, dt: f64) {
             continue;
         }
         dog.attack_cooldown = (dog.attack_cooldown - dt).max(0.0);
+        let road_network = road_networks.and_then(|networks| networks.get(&dog.owner));
         let threat = nearest_hostile(ctx, &dog, 52.0);
         if let Some(enemy) = threat {
             dog.target_kind = TARGET_COMBAT_AGENT;
@@ -321,7 +341,7 @@ fn step_guard_dogs(ctx: &ReducerContext, tick: u64, dt: f64) {
                 dog_attack(ctx, &mut dog, enemy, tick);
             }
         } else {
-            patrol_dog(ctx, &mut dog, tick, dt);
+            patrol_dog(ctx, &mut dog, tick, dt, road_network);
         }
         ctx.db.combat_agent().id().update(dog);
     }
@@ -356,23 +376,44 @@ fn dog_attack(ctx: &ReducerContext, dog: &mut CombatAgent, mut enemy: CombatAgen
     ctx.db.combat_agent().id().update(enemy);
 }
 
-fn patrol_dog(ctx: &ReducerContext, dog: &mut CombatAgent, tick: u64, dt: f64) {
-    let target = target_position(ctx, dog.target_kind, dog.target_id);
+fn patrol_dog(
+    ctx: &ReducerContext,
+    dog: &mut CombatAgent,
+    tick: u64,
+    dt: f64,
+    road_network: Option<&RoadNetwork>,
+) {
+    let target = dog_target_position(ctx, dog.target_kind, dog.target_id, road_network);
     if target.is_none()
         || target.is_some_and(|target| distance(dog.x, dog.z, target.x, target.z) < 1.3)
     {
-        if let Some(patrol) = dog_patrol_target(ctx, dog, dog.id ^ tick / 90) {
+        if let Some(patrol) = dog_patrol_target(ctx, dog, dog.id ^ tick / 90, road_network) {
             dog.target_kind = patrol.kind;
             dog.target_id = patrol.id;
-            dog.state = RETURNING;
+            dog.state = if is_woodland_tree_target(patrol.kind, patrol.id)
+                || is_road_patrol_target(patrol.kind, patrol.id)
+            {
+                ADVANCING
+            } else {
+                RETURNING
+            };
         } else {
             dog.target_kind = TARGET_GROUND;
             dog.target_id = 0;
             dog.state = HOLDING;
         }
     }
-    if let Some(target) = target_position(ctx, dog.target_kind, dog.target_id) {
-        move_toward(dog, target.x, target.z, 1.65, dt);
+    if let Some(target) = dog_target_position(ctx, dog.target_kind, dog.target_id, road_network) {
+        let speed = if is_woodland_tree_target(target.kind, target.id) {
+            HUNTING_DOG_RUN_SPEED
+        } else {
+            1.65
+        };
+        if is_woodland_tree_target(target.kind, target.id) {
+            move_toward(dog, target.x, target.z, speed, dt);
+        } else {
+            move_dog_over_roads(dog, target.x, target.z, speed, dt, road_network);
+        }
     }
     if dog.health < dog.max_health && distance(dog.x, dog.z, dog.home_x, dog.home_z) < 8.0 {
         dog.health = (dog.health + dog.max_health * 0.01 * dt).min(dog.max_health);
@@ -930,21 +971,36 @@ fn wolf_target(ctx: &ReducerContext, owner: Identity, seed: u64) -> Option<Targe
     }
 }
 
-fn dog_patrol_target(ctx: &ReducerContext, dog: &CombatAgent, seed: u64) -> Option<Target> {
-    // Posted hunting dogs remain close enough to their camp to improve the
-    // hunt and intercept local threats. Wounded dogs return to their kennel
-    // first so durable hunting duty does not prevent ordinary recovery.
+fn dog_patrol_target(
+    ctx: &ReducerContext,
+    dog: &CombatAgent,
+    seed: u64,
+    road_network: Option<&RoadNetwork>,
+) -> Option<Target> {
+    // Healthy posted dogs range through the mature woodland inside their
+    // Hunter's Hall work area rather than orbiting the building. Wounded dogs
+    // still return to their kennel first so durable hunting duty cannot block
+    // ordinary recovery.
     if dog.assigned_building_id > 0 {
-        let posted_target_id = if dog.health + 1e-6 < dog.max_health {
-            dog.source_building_id
-        } else {
-            dog.assigned_building_id
-        };
-        if let Some(building) = ctx.db.building().id().find(&posted_target_id) {
-            if building.owner == dog.owner && building.construction_complete {
-                return Some(target_building(building));
+        if dog.health + 1e-6 < dog.max_health {
+            let kennel = ctx.db.building().id().find(&dog.source_building_id)?;
+            return (kennel.owner == dog.owner && kennel.construction_complete)
+                .then(|| target_building(kennel));
+        }
+        if let Some(hunters_hall) = ctx.db.building().id().find(&dog.assigned_building_id) {
+            if hunters_hall.owner == dog.owner
+                && hunters_hall.kind == "hunters_hall"
+                && hunters_hall.construction_complete
+            {
+                return hunting_dog_woodland_target(ctx, dog, &hunters_hall, seed)
+                    .or_else(|| Some(target_building(hunters_hall)));
             }
         }
+    }
+    if let Some(target) =
+        road_network.and_then(|network| next_road_patrol_target(dog, seed, network))
+    {
+        return Some(target);
     }
     let owner = dog.owner;
     let buildings = ctx
@@ -972,6 +1028,143 @@ fn dog_patrol_target(ctx: &ReducerContext, dog: &CombatAgent, seed: u64) -> Opti
             residences[index - buildings.len()].clone(),
         ))
     }
+}
+
+fn next_road_patrol_target(
+    dog: &CombatAgent,
+    seed: u64,
+    network: &RoadNetwork,
+) -> Option<Target> {
+    let count = network.road_patrol_stop_count();
+    if count == 0 {
+        return None;
+    }
+    let start = road_patrol_target_ordinal(dog.target_kind, dog.target_id).map_or_else(
+        || mix(seed, 0x524f_4144_444f_47) as usize % count,
+        |ordinal| (ordinal as usize + 1) % count,
+    );
+    for offset in 0..count {
+        let ordinal = (start + offset) % count;
+        let Some((x, z)) = network.road_patrol_stop(ordinal as u64) else {
+            continue;
+        };
+        // Patrol only the kennel's connected road component. An off-road
+        // recovery may rejoin that component, but it must not make a dog cut
+        // cross-country between disconnected road systems.
+        let reachable = network
+            .road_path_route(dog.home_x, dog.home_z, x, z)
+            .is_some();
+        if reachable {
+            return Some(Target {
+                kind: TARGET_GROUND,
+                id: road_patrol_target_id(ordinal as u64),
+                x,
+                z,
+            });
+        }
+    }
+    None
+}
+
+fn hunting_dog_woodland_target(
+    ctx: &ReducerContext,
+    dog: &CombatAgent,
+    hunters_hall: &crate::tables::Building,
+    seed: u64,
+) -> Option<Target> {
+    let maximum_range_sq = hunters_hall.work_radius.max(0.0).powi(2);
+    if maximum_range_sq <= 1e-6 {
+        return None;
+    }
+
+    let mut trees = ctx
+        .db
+        .tree_entity()
+        .iter()
+        .filter(|tree| tree.phase == "mature")
+        .filter(|tree| {
+            let range_sq = (tree.x - hunters_hall.x).powi(2) + (tree.z - hunters_hall.z).powi(2);
+            range_sq <= maximum_range_sq
+        })
+        .collect::<Vec<_>>();
+    if trees.is_empty() {
+        return None;
+    }
+
+    // Prefer the actual woods beyond the camp clearing whenever they exist.
+    // A close mature tree remains a useful fallback on sparse maps.
+    let minimum_range_sq = HUNTING_DOG_MIN_WOODLAND_RANGE.powi(2);
+    if trees.iter().any(|tree| {
+        (tree.x - hunters_hall.x).powi(2) + (tree.z - hunters_hall.z).powi(2) >= minimum_range_sq
+    }) {
+        trees.retain(|tree| {
+            (tree.x - hunters_hall.x).powi(2) + (tree.z - hunters_hall.z).powi(2)
+                >= minimum_range_sq
+        });
+    }
+    trees.sort_by(|left, right| {
+        left.layout_index
+            .cmp(&right.layout_index)
+            .then_with(|| left.tree_id.cmp(&right.tree_id))
+    });
+
+    let index = if trees.len() == 1 {
+        0
+    } else if let Some(current_index) = trees
+        .iter()
+        .position(|tree| woodland_tree_target_id(tree.x, tree.z) == dog.target_id)
+    {
+        let stride = 1 + mix(seed, 0x4855_4e54_444f_47) as usize % (trees.len() - 1);
+        (current_index + stride) % trees.len()
+    } else {
+        mix(seed, 0x574f_4f44_4c41_4e44) as usize % trees.len()
+    };
+    let tree = &trees[index];
+    Some(Target {
+        kind: TARGET_GROUND,
+        id: woodland_tree_target_id(tree.x, tree.z),
+        x: tree.x,
+        z: tree.z,
+    })
+}
+
+fn woodland_tree_target_id(x: f64, z: f64) -> u64 {
+    let encode = |coordinate: f64| {
+        let scaled = (coordinate * WOODLAND_COORDINATE_SCALE)
+            .round()
+            .clamp(-8_388_608.0, 8_388_607.0) as i64;
+        scaled as u64 & WOODLAND_COORDINATE_MASK
+    };
+    WOODLAND_TREE_TARGET_TAG | encode(x) | (encode(z) << 24)
+}
+
+fn is_woodland_tree_target(kind: u8, id: u64) -> bool {
+    kind == TARGET_GROUND && id & WOODLAND_TREE_TARGET_TAG_MASK == WOODLAND_TREE_TARGET_TAG
+}
+
+fn road_patrol_target_id(ordinal: u64) -> u64 {
+    ROAD_PATROL_TARGET_TAG | (ordinal & ROAD_PATROL_ORDINAL_MASK)
+}
+
+fn road_patrol_target_ordinal(kind: u8, id: u64) -> Option<u64> {
+    is_road_patrol_target(kind, id).then_some(id & ROAD_PATROL_ORDINAL_MASK)
+}
+
+fn is_road_patrol_target(kind: u8, id: u64) -> bool {
+    kind == TARGET_GROUND && id & WOODLAND_TREE_TARGET_TAG_MASK == ROAD_PATROL_TARGET_TAG
+}
+
+fn woodland_tree_target_position(id: u64) -> (f64, f64) {
+    let decode = |packed: u64| {
+        let raw = (packed & WOODLAND_COORDINATE_MASK) as i32;
+        let signed = if raw & WOODLAND_COORDINATE_SIGN != 0 {
+            raw | !(WOODLAND_COORDINATE_MASK as i32)
+        } else {
+            raw
+        };
+        f64::from(signed) / WOODLAND_COORDINATE_SCALE
+    };
+    (decode(id), decode(id >> 24))
 }
 
 fn nearest_hostile(ctx: &ReducerContext, dog: &CombatAgent, radius: f64) -> Option<CombatAgent> {
@@ -1042,8 +1235,73 @@ fn target_position(ctx: &ReducerContext, kind: u8, id: u64) -> Option<Target> {
                 z: building.z,
             })
         }
+        TARGET_GROUND if is_woodland_tree_target(kind, id) => {
+            let (x, z) = woodland_tree_target_position(id);
+            Some(Target { kind, id, x, z })
+        }
         _ => None,
     }
+}
+
+fn dog_target_position(
+    ctx: &ReducerContext,
+    kind: u8,
+    id: u64,
+    road_network: Option<&RoadNetwork>,
+) -> Option<Target> {
+    if let Some(ordinal) = road_patrol_target_ordinal(kind, id) {
+        return road_network
+            .and_then(|network| network.road_patrol_stop(ordinal))
+            .map(|(x, z)| Target { kind, id, x, z });
+    }
+    target_position(ctx, kind, id)
+}
+
+fn move_dog_over_roads(
+    dog: &mut CombatAgent,
+    target_x: f64,
+    target_z: f64,
+    speed: f64,
+    dt: f64,
+    road_network: Option<&RoadNetwork>,
+) {
+    let Some(network) = road_network else {
+        move_toward(dog, target_x, target_z, speed, dt);
+        return;
+    };
+    let route = network
+        .road_path_route(dog.x, dog.z, target_x, target_z)
+        .or_else(|| {
+            network.road_path_route_from_external_access(
+                dog.x,
+                dog.z,
+                target_x,
+                target_z,
+                1.6,
+            )
+        });
+    let Some(route) = route else {
+        move_toward(dog, target_x, target_z, speed, dt);
+        return;
+    };
+    let previous_x = dog.x;
+    let previous_z = dog.z;
+    let route_move = move_along_combat_route(
+        dog.x,
+        dog.z,
+        0.0,
+        route.distance,
+        &route.polyline,
+        speed,
+        dt,
+        true,
+        Some(network),
+    );
+    dog.x = route_move.x;
+    dog.z = route_move.z;
+    dog.route_progress = route_move.progress;
+    dog.velocity_x = (dog.x - previous_x) / dt.max(1e-9);
+    dog.velocity_z = (dog.z - previous_z) / dt.max(1e-9);
 }
 
 fn target_building(building: crate::tables::Building) -> Target {
@@ -1162,7 +1420,10 @@ fn identity_seed(identity: Identity) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{mix, recurring_phase_crossed, wolf_pack_offset};
+    use super::{
+        is_woodland_tree_target, mix, recurring_phase_crossed, wolf_pack_offset,
+        woodland_tree_target_id, woodland_tree_target_position, TARGET_GROUND,
+    };
 
     #[test]
     fn recurring_spawn_phase_survives_multi_tick_speed_steps() {
@@ -1177,5 +1438,14 @@ mod tests {
         assert_eq!(wolf_pack_offset(0), (0.0, 0.0));
         assert_ne!(wolf_pack_offset(1), wolf_pack_offset(2));
         assert_eq!(mix(7, 11), mix(7, 11));
+    }
+
+    #[test]
+    fn woodland_targets_round_trip_signed_world_coordinates() {
+        let id = woodland_tree_target_id(-317.245, 842.716);
+        assert!(is_woodland_tree_target(TARGET_GROUND, id));
+        let (x, z) = woodland_tree_target_position(id);
+        assert!((x + 317.25).abs() < 1e-9);
+        assert!((z - 842.72).abs() < 1e-9);
     }
 }

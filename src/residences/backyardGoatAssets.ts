@@ -4,6 +4,29 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 
 /** Blender-authored CC0 Quaternius sheep-and-cow derivative used for the goat. */
 export const BACKYARD_GOAT_SOURCE_MODEL_PATH = '/assets/models/livestock/quaternius-goat.glb';
+export const BACKYARD_GOAT_COAT_TINT = 0x9a8064;
+
+type GoatMaterialSlot = Readonly<{
+  index: number;
+  name: string;
+}>;
+
+export function isBackyardGoatDetailMaterial(materialName: string): boolean {
+  return /^(?:eye_(?:black|white)|horns)$/i.test(materialName);
+}
+
+/**
+ * The exact-model batch renders from the unmodified GLB source rather than the
+ * individually tinted evaluator clones. Supply the same coat multiplier to
+ * that path while preserving the authored eye and horn palette.
+ */
+export function backyardGoatBatchMaterialColors(
+  materialSlots: readonly GoatMaterialSlot[],
+): Array<{ materialSlot: number; color: THREE.ColorRepresentation }> {
+  return materialSlots.flatMap((slot) => isBackyardGoatDetailMaterial(slot.name)
+    ? []
+    : [{ materialSlot: slot.index, color: BACKYARD_GOAT_COAT_TINT }]);
+}
 
 export type BackyardGoatSource = {
   scene: THREE.Group;
@@ -43,9 +66,10 @@ export function createBackyardGoatModel(
     const sourceMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     const goatMaterials = sourceMaterials.map((sourceMaterial) => {
       const material = sourceMaterial.clone();
-      const preservesQuaterniusDetailPalette = /^(?:eye_(?:black|white)|horns)$/i.test(sourceMaterial.name);
-      if (!preservesQuaterniusDetailPalette && 'color' in material && material.color instanceof THREE.Color) {
-        material.color.multiply(new THREE.Color(0x9a8064));
+      if (!isBackyardGoatDetailMaterial(sourceMaterial.name)
+        && 'color' in material
+        && material.color instanceof THREE.Color) {
+        material.color.multiply(new THREE.Color(BACKYARD_GOAT_COAT_TINT));
       }
       material.userData.backyardGoatVariant = true;
       return material;

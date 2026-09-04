@@ -90,13 +90,13 @@ export function renderKennelInspector(
       ${buildingExtentRow(building.kind)}
       <li data-inspector-primary><span>Guard dogs</span><span>${housed} / ${KENNEL_DOG_SLOTS} · ${openSlots} open</span></li>
       <li><span>Assignments</span><span>${assigned} hunting · ${free} free patrol</span></li>
-      <li><span>Patrol</span><span>Free dogs cover roads, homes, and civic stores · autonomous</span></li>
+      <li><span>Patrol</span><span>Free dogs traverse the connected road network · autonomous</span></li>
       <li><span>Response</span><span>Singles out raiders, bandits, foxes, and wolves</span></li>
       <li><span>Keeper</span><span>At least one assigned worker is required for purchases</span></li>
     `,
     supplementalPanelHtml: `<div class="inspector-action-panel stable-ox-panel" data-inspector-panel-title="Dog team">
       <p class="resource-inspector-note">Dogs persist as individually selectable guard agents with health, patrol routes, and combat behavior.</p>
-      <ol class="stable-ox-slots" aria-label="Kennel dog bays">${slots}</ol>
+      <ol class="stable-ox-slots stable-ox-slots--kennel" aria-label="Kennel dog bays">${slots}</ol>
       <p class="inspector-action-panel__hint">${unavailable} Civic treasury: ${renderResourceAmount('gold', treasuryGold, { compact: true })}.</p>
     </div>`,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },

@@ -27,7 +27,11 @@ type AnimalInstance = {
   actions: Map<string, THREE.AnimationAction>;
   actionName: string;
   faction: AnimalCombatPose['faction'];
+  yaw: number;
 };
+
+const ANIMAL_TURN_RESPONSE = 12;
+const ANIMAL_MAX_TURN_SPEED = 5.5;
 
 const SOURCES: Record<AnimalCombatPose['faction'], string> = {
   dog: '/assets/models/wild-animals/quaternius-husky.gltf',
@@ -61,12 +65,13 @@ export class AnimalCombatRenderer {
       let instance = this.instances.get(pose.id);
       if (!instance || instance.faction !== pose.faction) {
         if (instance) this.removeInstance(pose.id, instance);
-        const created = this.createInstance(pose.id, pose.faction);
+        const created = this.createInstance(pose.id, pose.faction, pose.yaw);
         if (!created) continue;
         instance = created;
       }
       instance.root.position.set(pose.x, pose.y, pose.z);
-      instance.root.rotation.y = pose.yaw;
+      instance.yaw = smoothAnimalYaw(instance.yaw, pose.yaw, dt);
+      instance.root.rotation.y = instance.yaw;
       const nextAction = animationForPose(pose);
       if (instance.actionName !== nextAction) {
         this.play(instance, nextAction, pose.status === 'downed');
@@ -129,11 +134,17 @@ export class AnimalCombatRenderer {
     }
   }
 
-  private createInstance(id: string, faction: AnimalCombatPose['faction']): AnimalInstance | null {
+  private createInstance(
+    id: string,
+    faction: AnimalCombatPose['faction'],
+    initialYaw: number,
+  ): AnimalInstance | null {
     const asset = this.assets.get(faction);
     if (!asset) return null;
     const model = cloneSkinned(asset.scene) as THREE.Group;
-    model.rotation.y = Math.PI;
+    // Quaternius' quadrupeds are authored facing local +Z, which is also the
+    // settlement renderer's forward direction. Flipping the model here made
+    // its walk cycle travel tail-first even though steering yaw was correct.
     model.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(model);
     const size = bounds.getSize(new THREE.Vector3());
@@ -148,7 +159,16 @@ export class AnimalCombatRenderer {
     for (const clip of asset.animations) {
       actions.set(shortAnimationName(clip.name), mixer.clipAction(clip));
     }
-    const instance: AnimalInstance = { root, model, mixer, actions, actionName: '', faction };
+    const instance: AnimalInstance = {
+      root,
+      model,
+      mixer,
+      actions,
+      actionName: '',
+      faction,
+      yaw: initialYaw,
+    };
+    root.rotation.y = initialYaw;
     this.instances.set(id, instance);
     this.group.add(root);
     this.play(instance, 'Idle', false);
@@ -187,6 +207,16 @@ export class AnimalCombatRenderer {
       batch.endFrame();
     }
   }
+}
+
+function smoothAnimalYaw(current: number, target: number, dt: number): number {
+  const frameDt = Math.min(0.1, Math.max(0, dt));
+  if (frameDt <= 0) return current;
+  const delta = Math.atan2(Math.sin(target - current), Math.cos(target - current));
+  const responsiveStep = delta * (1 - Math.exp(-frameDt * ANIMAL_TURN_RESPONSE));
+  const maxStep = ANIMAL_MAX_TURN_SPEED * frameDt;
+  const next = current + THREE.MathUtils.clamp(responsiveStep, -maxStep, maxStep);
+  return Math.atan2(Math.sin(next), Math.cos(next));
 }
 
 function assetFromGltf(gltf: GLTF): AnimalAsset {

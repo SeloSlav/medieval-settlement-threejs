@@ -434,6 +434,8 @@ export type VillagerInspection = {
   militaryCompanyId: string | null;
   /** Non-human direct-click acknowledgement; people use modelVariant. */
   selectionAudioKind?: 'dog';
+  /** Optional inspector artwork override for non-human agents. */
+  portraitVariant?: VillagerModelVariant | 'dog';
   modelVariant: VillagerModelVariant;
   name: string;
   initials: string;
@@ -2103,6 +2105,7 @@ export class VillagerRenderer {
       personIdentity,
       militaryCompanyId: selectablePlayerMilitaryCompanyId(combat),
       selectionAudioKind: combat.faction === 'dog' ? 'dog' : undefined,
+      portraitVariant: combat.faction === 'dog' ? 'dog' : undefined,
       modelVariant: residentSoldier?.modelVariant ?? ordinaryGuard?.modelVariant ?? 'man',
       name,
       initials: residentSoldier || ordinaryGuard

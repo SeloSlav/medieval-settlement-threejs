@@ -44,6 +44,19 @@ async function assertRasterDecodes(path: string, label: string): Promise<void> {
   );
 }
 
+async function assertRasterHasTransparency(path: string, label: string): Promise<void> {
+  const decoded = await sharp(path).raw().toBuffer({ resolveWithObject: true });
+  assert.equal(decoded.info.channels, 4, `${label} must include an alpha channel`);
+  let hasTransparentPixel = false;
+  for (let alpha = 3; alpha < decoded.data.byteLength; alpha += 4) {
+    if (decoded.data[alpha]! < 255) {
+      hasTransparentPixel = true;
+      break;
+    }
+  }
+  assert.ok(hasTransparentPixel, `${label} must contain transparent background pixels`);
+}
+
 const backyardCss = readFileSync('src/ui/polishedGameUi.css', 'utf8');
 const actionCss = readFileSync('src/ui/inspectorSupplemental.css', 'utf8');
 const backyardRenderer = readFileSync('src/resources/inspector/backyardRenderer.ts', 'utf8');
@@ -388,6 +401,8 @@ assert.match(
   'posted oxen should reuse the dedicated ox artwork instead of the workforce hammer',
 );
 await assertRasterDecodes('public/assets/ui/icons/hud-livestock.png', 'posted-ox artwork');
+await assertRasterDecodes('public/assets/ui/icons/hud-dog.png', 'kennel dog artwork');
+await assertRasterHasTransparency('public/assets/ui/icons/hud-dog.png', 'kennel dog artwork');
 assert.match(backyardCss, /resource-action-button--toggle\[aria-pressed='true'\]/);
 assert.match(backyardCss, /resource-action-button--toggle\.is-pending/);
 

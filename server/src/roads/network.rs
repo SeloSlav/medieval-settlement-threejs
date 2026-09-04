@@ -64,6 +64,11 @@ struct RiverNavigationGrid {
 pub struct RoadNetwork {
     nodes: HashMap<String, (f64, f64)>,
     edges: Vec<RoadEdgeRow>,
+    /// Stable pairs of edge endpoints used by autonomous road patrols. Each
+    /// edge contributes its start followed by its end, so walking consecutive
+    /// stops deliberately covers the edge instead of merely visiting a random
+    /// nearby building.
+    patrol_stops: Vec<(f64, f64)>,
     weighted_graph: HashMap<String, Vec<(String, f64)>>,
     component_by_node: HashMap<String, u32>,
     edge_lookup: HashMap<String, HashMap<String, (usize, bool)>>,
@@ -167,12 +172,41 @@ impl RoadNetwork {
         }
         let component_by_node = build_component_ids(&nodes, &adjacency);
 
+        let mut patrol_edge_indices = snapshot
+            .edges
+            .iter()
+            .enumerate()
+            .filter(|(_, edge)| {
+                nodes.contains_key(&edge.start_node_id) && nodes.contains_key(&edge.end_node_id)
+            })
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+        patrol_edge_indices.sort_unstable_by(|left, right| {
+            let left = &snapshot.edges[*left];
+            let right = &snapshot.edges[*right];
+            left.start_node_id
+                .cmp(&right.start_node_id)
+                .then_with(|| left.end_node_id.cmp(&right.end_node_id))
+        });
+        let mut patrol_stops = Vec::with_capacity(patrol_edge_indices.len() * 2);
+        for index in patrol_edge_indices {
+            let edge = &snapshot.edges[index];
+            if let (Some(&start), Some(&end)) = (
+                nodes.get(&edge.start_node_id),
+                nodes.get(&edge.end_node_id),
+            ) {
+                patrol_stops.push(start);
+                patrol_stops.push(end);
+            }
+        }
+
         let (surface_edge_cells, surface_node_cells, max_surface_half_width) =
             build_surface_spatial_index(&nodes, &snapshot.edges, &endpoint_half_width);
 
         Some(Self {
             nodes,
             edges: snapshot.edges,
+            patrol_stops,
             weighted_graph,
             component_by_node,
             edge_lookup,
@@ -235,6 +269,19 @@ impl RoadNetwork {
         }
 
         best_point
+    }
+
+    /// Number of stable edge-endpoint stops available to an autonomous road
+    /// patrol. Stops are stored in start/end pairs, one pair per road edge.
+    pub fn road_patrol_stop_count(&self) -> usize {
+        self.patrol_stops.len()
+    }
+
+    /// Resolve a stable road-patrol ordinal to its exact centerline point.
+    pub fn road_patrol_stop(&self, ordinal: u64) -> Option<(f64, f64)> {
+        self.patrol_stops
+            .get(usize::try_from(ordinal).ok()?)
+            .copied()
     }
 
     pub fn is_on_road_surface(&self, x: f64, z: f64) -> bool {
@@ -1836,5 +1883,39 @@ mod tests {
              batch {batched_elapsed:?}, pairwise {pairwise_elapsed:?}",
             targets.len()
         );
+    }
+
+    #[test]
+    fn patrol_stops_pair_every_road_edge_in_stable_order() {
+        let snapshot = serde_json::json!({
+            "nodes": [
+                { "id": "c", "position": [20.0, 0.0, 0.0] },
+                { "id": "a", "position": [0.0, 0.0, 0.0] },
+                { "id": "b", "position": [10.0, 0.0, 0.0] }
+            ],
+            "edges": [
+                {
+                    "startNodeId": "b",
+                    "endNodeId": "c",
+                    "width": 4.2,
+                    "sampledPath": [[10.0, 0.0, 0.0], [20.0, 0.0, 0.0]]
+                },
+                {
+                    "startNodeId": "a",
+                    "endNodeId": "b",
+                    "width": 4.2,
+                    "sampledPath": [[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]]
+                }
+            ]
+        })
+        .to_string();
+        let network = RoadNetwork::from_snapshot_json(&snapshot).expect("patrol road network");
+
+        assert_eq!(network.road_patrol_stop_count(), 4);
+        assert_eq!(network.road_patrol_stop(0), Some((0.0, 0.0)));
+        assert_eq!(network.road_patrol_stop(1), Some((10.0, 0.0)));
+        assert_eq!(network.road_patrol_stop(2), Some((10.0, 0.0)));
+        assert_eq!(network.road_patrol_stop(3), Some((20.0, 0.0)));
+        assert_eq!(network.road_patrol_stop(4), None);
     }
 }

@@ -188,7 +188,6 @@ const horizonIndices = horizon.mesh.geometry.getIndex();
 const horizonForestBlend = horizon.mesh.geometry.getAttribute('forestBlend');
 assert.ok(horizonIndices);
 let seamVertices = 0;
-let inheritedForestVertices = 0;
 for (let index = 0; index < horizonPositions.count; index++) {
   const x = horizonPositions.getX(index);
   const y = horizonPositions.getY(index);
@@ -200,20 +199,14 @@ for (let index = 0; index < horizonPositions.count; index++) {
   if (Math.abs(Math.max(Math.abs(x), Math.abs(z)) - playableHalf) <= 1e-6) {
     seamVertices++;
     assert.ok(Math.abs(y - testHeight(x, z)) <= 1e-5, 'the horizon seam must copy source height exactly');
-  }
-  if (
-    Math.max(Math.abs(x), Math.abs(z)) > playableHalf
-    && Math.max(Math.abs(x), Math.abs(z)) < playableHalf + 80
-  ) {
-    inheritedForestVertices++;
-    assert.ok(
-      horizonForestBlend.getX(index) > 0.72,
-      'authored woodland at the map edge must continue into the outer-world handoff',
+    assert.equal(
+      horizonForestBlend.getX(index),
+      1,
+      'the horizon seam must copy the source forest floor exactly',
     );
   }
 }
 assert.equal(seamVertices, 4 * RESOLUTION, 'every source boundary vertex must be copied once per side');
-assert.ok(inheritedForestVertices > 0, 'the test must cover the forest handoff outside the seam');
 
 const authoredRiverEndpoint = { x: 39, z: 6 };
 const authoredRiver = RiverLayout.fromSerialized({

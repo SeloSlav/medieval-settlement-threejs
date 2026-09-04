@@ -4,12 +4,15 @@ use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
+use crate::raid_agent_policy::route_progress_for_position;
+use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::security_policy::RaidPortableStores;
 use crate::tables::{BanditCamp, BanditIncident, CombatAgent};
 
-use super::raid_agents::reclamation_from_raid_stores;
+use super::raid_agents::{move_along_combat_route, reclamation_from_raid_stores};
 use super::reclamation::{credit_remote_recovery_to_settlement, ReclamationStock};
 use super::settlement_security::{building_portable_stores, retain_unplundered_stores};
+use super::SharedRoadNetworks;
 
 const BANDIT: u8 = 2;
 const ADVANCING: u8 = 0;
@@ -34,14 +37,15 @@ pub fn step_bandit_world(
     map_size: u8,
     enabled: bool,
     elapsed: f64,
+    road_networks: Option<&SharedRoadNetworks>,
 ) {
     if !enabled {
         clear_bandits(ctx);
         return;
     }
     ensure_camps(ctx, sim_tick, seed, map_size);
-    dispatch_thefts(ctx, sim_tick);
-    step_bandits(ctx, sim_tick, elapsed);
+    dispatch_thefts(ctx, sim_tick, road_networks);
+    step_bandits(ctx, sim_tick, elapsed, road_networks);
     cleanup_downed(ctx, elapsed);
 }
 
@@ -295,7 +299,11 @@ fn camp_spawn_position(
         .unwrap_or((0.0, -half * 0.72))
 }
 
-fn dispatch_thefts(ctx: &ReducerContext, tick: u64) {
+fn dispatch_thefts(
+    ctx: &ReducerContext,
+    tick: u64,
+    road_networks: Option<&SharedRoadNetworks>,
+) {
     for mut camp in ctx
         .db
         .bandit_camp()
@@ -303,6 +311,7 @@ fn dispatch_thefts(ctx: &ReducerContext, tick: u64) {
         .filter(|c| c.active && tick >= c.next_theft_tick)
         .collect::<Vec<_>>()
     {
+        let road_network = road_networks.and_then(|networks| networks.get(&camp.owner));
         let target = ctx
             .db
             .building()
@@ -312,6 +321,9 @@ fn dispatch_thefts(ctx: &ReducerContext, tick: u64) {
                 b.construction_complete
                     && matches!(b.kind.as_str(), "granary" | "village_storehouse")
                     && building_portable_stores(b).goods_amount() >= 1.0
+                    && road_network.is_some_and(|network| {
+                        bandit_theft_route(network, camp.x, camp.z, b.x, b.z).is_some()
+                    })
             })
             .max_by(|a, b| {
                 building_portable_stores(a)
@@ -325,6 +337,7 @@ fn dispatch_thefts(ctx: &ReducerContext, tick: u64) {
             actor.state = ADVANCING;
             actor.target_kind = 0;
             actor.target_id = target.id;
+            actor.route_progress = 0.0;
             actor.state_changed_tick = tick;
             ctx.db.combat_agent().id().update(actor);
             camp.next_theft_tick = tick.saturating_add(day_ticks().saturating_mul(4));
@@ -335,7 +348,12 @@ fn dispatch_thefts(ctx: &ReducerContext, tick: u64) {
     }
 }
 
-fn step_bandits(ctx: &ReducerContext, tick: u64, dt: f64) {
+fn step_bandits(
+    ctx: &ReducerContext,
+    tick: u64,
+    dt: f64,
+    road_networks: Option<&SharedRoadNetworks>,
+) {
     for mut agent in ctx
         .db
         .combat_agent()
@@ -343,8 +361,11 @@ fn step_bandits(ctx: &ReducerContext, tick: u64, dt: f64) {
         .filter(|a| a.faction == BANDIT && a.state != DOWNED)
         .collect::<Vec<_>>()
     {
+        let road_network = road_networks.and_then(|networks| networks.get(&agent.owner));
         if agent.state == FIGHTING {
-            agent.state = if agent.carried_loot_json.is_empty() {
+            agent.state = if agent.carried_loot_json.is_empty()
+                && dist(agent.x, agent.z, agent.home_x, agent.home_z) <= 8.0
+            {
                 HOLDING
             } else {
                 RETURNING
@@ -353,7 +374,20 @@ fn step_bandits(ctx: &ReducerContext, tick: u64, dt: f64) {
         match agent.state {
             ADVANCING => {
                 if let Some(target) = ctx.db.building().id().find(&agent.target_id) {
-                    walk(&mut agent, target.x, target.z, 2.15, dt);
+                    if !walk_bandit_theft_route(
+                        &mut agent,
+                        target.x,
+                        target.z,
+                        true,
+                        2.15,
+                        dt,
+                        road_network,
+                    ) {
+                        // A theft patrol is only dispatched onto a real road
+                        // route. If that route disappears after dispatch, turn
+                        // back instead of cutting through burgage yards.
+                        agent.state = RETURNING;
+                    }
                     if dist(agent.x, agent.z, target.x, target.z) <= CONTACT + 1.5 {
                         agent.state = LOOTING;
                         agent.loot_progress = 0.0;
@@ -371,15 +405,60 @@ fn step_bandits(ctx: &ReducerContext, tick: u64, dt: f64) {
             }
             RETURNING => {
                 let (hx, hz) = (agent.home_x, agent.home_z);
-                walk(&mut agent, hx, hz, 2.15, dt);
+                let routed = agent.target_kind == 0
+                    && ctx
+                        .db
+                        .building()
+                        .id()
+                        .find(&agent.target_id)
+                        .is_some_and(|target| {
+                            walk_bandit_theft_route(
+                                &mut agent,
+                                target.x,
+                                target.z,
+                                false,
+                                2.15,
+                                dt,
+                                road_network,
+                            )
+                        });
+                if !routed {
+                    walk(&mut agent, hx, hz, 2.15, dt);
+                }
                 if dist(agent.x, agent.z, hx, hz) <= CONTACT {
                     deposit(ctx, &mut agent);
                     agent.state = HOLDING;
                     agent.target_kind = 5;
                     agent.target_id = agent.raid_anchor_building_id;
+                    agent.route_progress = 0.0;
                 }
             }
             HOLDING => {
+                if dist(agent.x, agent.z, agent.home_x, agent.home_z) > 8.0 {
+                    // Combat can interrupt a theft patrol before any goods are
+                    // taken. Such a bandit still has to return over the road;
+                    // treating it as already at camp caused diagonal backyard
+                    // shortcuts and residence-collision stalls.
+                    agent.state = RETURNING;
+                    if let Some(target) = (agent.target_kind == 0)
+                        .then(|| ctx.db.building().id().find(&agent.target_id))
+                        .flatten()
+                    {
+                        let _ = walk_bandit_theft_route(
+                            &mut agent,
+                            target.x,
+                            target.z,
+                            false,
+                            2.15,
+                            dt,
+                            road_network,
+                        );
+                    }
+                    agent.attack_cooldown = (agent.attack_cooldown - dt).max(0.0);
+                    agent.state_changed_tick = tick;
+                    ctx.db.combat_agent().id().update(agent);
+                    continue;
+                }
                 let phase = tick as f64 * 0.013 + agent.source_slot as f64 * 1.9;
                 let (hx, hz) = (agent.home_x, agent.home_z);
                 walk(
@@ -396,6 +475,66 @@ fn step_bandits(ctx: &ReducerContext, tick: u64, dt: f64) {
         agent.state_changed_tick = tick;
         ctx.db.combat_agent().id().update(agent);
     }
+}
+
+fn bandit_theft_route(
+    network: &RoadNetwork,
+    camp_x: f64,
+    camp_z: f64,
+    target_x: f64,
+    target_z: f64,
+) -> Option<RoadPathRoute> {
+    network.road_path_route_from_external_access(
+        camp_x,
+        camp_z,
+        target_x,
+        target_z,
+        1.6,
+    )
+}
+
+fn walk_bandit_theft_route(
+    agent: &mut CombatAgent,
+    target_x: f64,
+    target_z: f64,
+    outbound: bool,
+    speed: f64,
+    dt: f64,
+    road_network: Option<&RoadNetwork>,
+) -> bool {
+    let Some(network) = road_network else {
+        return false;
+    };
+    let Some(route) = bandit_theft_route(
+        network,
+        agent.home_x,
+        agent.home_z,
+        target_x,
+        target_z,
+    ) else {
+        return false;
+    };
+    let progress = route_progress_for_position(&route.polyline, agent.x, agent.z)
+        .clamp(0.0, route.distance);
+    let previous_x = agent.x;
+    let previous_z = agent.z;
+    let route_move = move_along_combat_route(
+        agent.x,
+        agent.z,
+        progress,
+        route.distance,
+        &route.polyline,
+        speed,
+        dt,
+        outbound,
+        Some(network),
+    );
+    agent.x = route_move.x;
+    agent.z = route_move.z;
+    agent.route_progress = route_move.progress;
+    agent.velocity_x = (agent.x - previous_x) / dt.max(1e-9);
+    agent.velocity_z = (agent.z - previous_z) / dt.max(1e-9);
+    true
 }
 
 fn steal(ctx: &ReducerContext, agent: &mut CombatAgent, tick: u64) {

@@ -128,6 +128,7 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
             config.map_size,
             config.bandit_camps_enabled,
             heartbeat_sim_seconds,
+            shared_road_networks.as_ref(),
         );
         step_wild_animal_world(
             ctx,
@@ -137,6 +138,7 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
             config.map_size,
             config.wild_animal_attacks_enabled,
             heartbeat_sim_seconds,
+            shared_road_networks.as_ref(),
         );
         // Every CombatAgent faction has now performed its one behavior/path
         // integration. The military step updates player-company behavior and

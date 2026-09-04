@@ -7,6 +7,7 @@ import {
   type BackyardChickenSource,
 } from './backyardChickenAssets.ts';
 import {
+  backyardGoatBatchMaterialColors,
   createBackyardGoatModel,
   disposeBackyardGoatModel,
   disposeBackyardGoatSource,
@@ -46,6 +47,7 @@ import { isPlantableBackyardGardenKind } from './backyardGarden.ts';
 import {
   AuthoredAnimalInstanceBatch,
   setAuthoredAnimalEvaluatorOnly,
+  type AuthoredAnimalMaterialColor,
 } from '../scene/AuthoredAnimalInstanceBatch.ts';
 
 type ChickenVisual = {
@@ -109,6 +111,7 @@ export class BackyardGardenMarkers {
   private pigSource: BackyardPigSource | null = null;
   private chickenBatch: AuthoredAnimalInstanceBatch | null = null;
   private goatBatch: AuthoredAnimalInstanceBatch | null = null;
+  private goatBatchMaterialColors: AuthoredAnimalMaterialColor[] = [];
   private pigBatch: AuthoredAnimalInstanceBatch | null = null;
   private latestInput: ReplayableGardenSyncInput | null = null;
   private deciduousFoliage: DeciduousFoliagePresentation | null = null;
@@ -148,6 +151,9 @@ export class BackyardGardenMarkers {
           source.scene,
           'Backyard small-ruminant exact-model instances',
         );
+        this.goatBatchMaterialColors = this.goatBatch
+          ? backyardGoatBatchMaterialColors(this.goatBatch.materialSlots())
+          : [];
         if (this.latestInput) this.syncReplayable(this.latestInput, true);
       },
       (error: unknown) => {
@@ -615,6 +621,7 @@ export class BackyardGardenMarkers {
     this.chickenBatch = null;
     this.goatBatch?.dispose();
     this.goatBatch = null;
+    this.goatBatchMaterialColors = [];
     this.pigBatch?.dispose();
     this.pigBatch = null;
     for (const marker of this.meshes.values()) {
@@ -661,15 +668,20 @@ export class BackyardGardenMarkers {
     const submit = (
       batch: AuthoredAnimalInstanceBatch | null,
       visuals: Iterable<ChickenVisual | GoatVisual | PigVisual>,
+      materialColors: readonly AuthoredAnimalMaterialColor[] = [],
     ): void => {
       if (!batch) return;
       const visible = [...visuals].filter((visual) => visual.root.visible);
       batch.beginFrame(visible.length);
-      for (const visual of visible) batch.submit(visual.model);
+      for (const visual of visible) batch.submit(visual.model, materialColors);
       batch.endFrame();
     };
     submit(this.chickenBatch, [...this.chickens.values()].flat());
-    submit(this.goatBatch, [...this.goats.values()].flat());
+    submit(
+      this.goatBatch,
+      [...this.goats.values()].flat(),
+      this.goatBatchMaterialColors,
+    );
     submit(this.pigBatch, [...this.pigs.values()].flat());
   }
 }

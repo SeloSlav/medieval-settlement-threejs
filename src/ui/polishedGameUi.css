@@ -2732,6 +2732,10 @@ select:focus-visible {
   list-style: none;
 }
 
+.stable-ox-slots--kennel {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .stable-ox-slot {
   position: relative;
   min-width: 0;
@@ -2873,7 +2877,7 @@ select:focus-visible {
 }
 
 .stable-ox-slot[data-kennel-dog-slot] .stable-ox-slot__portrait {
-  background-image: url('/assets/ui/noble-setup/charges/hound.png');
+  background-image: url('/assets/ui/icons/hud-dog.png');
 }
 
 .stable-ox-slot[data-state='occupied'] .stable-ox-slot__plus {
@@ -3291,6 +3295,15 @@ select:focus-visible {
   background-image:
     radial-gradient(circle at 50% 44%, rgba(221, 185, 112, 0.2), transparent 58%),
     url('/assets/ui/icons/hud-livestock.png');
+  background-position: center, center;
+  background-size: cover, 68%;
+}
+
+.villager-inspector-portrait[data-portrait-variant='dog'] {
+  background-color: #332d21;
+  background-image:
+    radial-gradient(circle at 50% 44%, rgba(221, 185, 112, 0.2), transparent 58%),
+    url('/assets/ui/icons/hud-dog.png');
   background-position: center, center;
   background-size: cover, 68%;
 }
