@@ -204,6 +204,12 @@ export type CrowdRenderAgent = {
   combatTargetZ?: number;
 };
 
+export type VillagerRigPoolSeed = {
+  id: string;
+  appearanceSeed: number;
+  variant: VillagerModelVariant;
+};
+
 export function compareCrowdAnimationPriority(
   left: CrowdRenderAgent,
   right: CrowdRenderAgent,
@@ -495,6 +501,75 @@ export class SettlementCrowdRenderer {
         }
       },
     };
+  }
+
+  /**
+   * Builds the otherwise first-use-only skinned clones and AnimationMixer
+   * bindings while the loading screen is still opaque. A new settlement adds
+   * all ten founders in one authoritative update; constructing every rig and
+   * semantic action on that confirmation frame can block the main thread for
+   * seconds even when the shared instanced draw shaders are already compiled.
+   */
+  async prepareUnarmedRigPool(
+    seeds: readonly VillagerRigPoolSeed[],
+    onProgress?: (completed: number, total: number) => void,
+  ): Promise<number> {
+    if (this.disposed || !this.sources || seeds.length === 0) return 0;
+
+    const desiredByVariant = new Map<VillagerModelVariant, VillagerRigPoolSeed[]>();
+    for (const seed of seeds) {
+      const desired = desiredByVariant.get(seed.variant) ?? [];
+      desired.push(seed);
+      desiredByVariant.set(seed.variant, desired);
+    }
+
+    const missing: VillagerRigPoolSeed[] = [];
+    for (const [variant, desired] of desiredByVariant) {
+      const poolKey = animatedPoolKey(variant, null);
+      const pooled = this.animatedPool.get(poolKey)?.length ?? 0;
+      missing.push(...desired.slice(Math.min(pooled, desired.length)));
+    }
+
+    let created = 0;
+    onProgress?.(0, missing.length);
+    for (const seed of missing) {
+      if (this.disposed || !this.sources || this.idlePooledVisualCount >= MAX_IDLE_RIG_POOL) {
+        break;
+      }
+      const agent: CrowdRenderAgent = {
+        id: `prewarmed-founder:${seed.id}`,
+        slot: created,
+        x: 0,
+        y: 0,
+        z: 0,
+        yaw: 0,
+        appearanceSeed: seed.appearanceSeed,
+        variant: seed.variant,
+        presentation: 'common',
+        mode: 'idle',
+        tunicColor: 0xffffff,
+        skinColor: 0xffffff,
+        hairColor: 0xffffff,
+        tool: null,
+        movementSpeed: 0,
+        active: false,
+      };
+      const visual = this.createAnimatedVillager(agent);
+      visual.mixer.stopAllAction();
+      visual.root.visible = false;
+      const poolKey = animatedPoolKey(seed.variant, null);
+      const pool = this.animatedPool.get(poolKey) ?? [];
+      if (!this.animatedPool.has(poolKey)) this.animatedPool.set(poolKey, pool);
+      pool.push(visual);
+      this.idlePooledVisualCount += 1;
+      created += 1;
+      onProgress?.(created, missing.length);
+
+      // Let the opaque loading screen repaint between expensive rig clones.
+      // The work stays serialized so it cannot race the live placement path.
+      await nextPresentationFrame();
+    }
+    return created;
   }
 
   drainCombatAttackEvents(target: CrowdCombatAttackEvent[] = []): CrowdCombatAttackEvent[] {
@@ -1191,6 +1266,11 @@ export class SettlementCrowdRenderer {
     this.lastAppearanceColorWrites += 1;
   }
 
+}
+
+function nextPresentationFrame(): Promise<void> {
+  if (typeof requestAnimationFrame !== 'function') return Promise.resolve();
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 
 function configureActionSpeeds(

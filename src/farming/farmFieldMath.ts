@@ -51,6 +51,7 @@ export type CropRegionalProfile = {
 const REGIONAL_CROPS: readonly FarmCrop[] = ['rye', 'oats', 'barley', 'flax', 'wheat'];
 const UINT32_RANGE = 0x1_0000_0000;
 const FULL_TURN = Math.PI * 2;
+const CROP_SUITABILITY_DISPLAY_CURVE = 2.4;
 
 export function rectangleFromBaseline(a: Point2, b: Point2, depthPoint: Point2): FarmFieldCorners | null {
   const dx = b.x - a.x;
@@ -349,8 +350,11 @@ export function initialFieldFertility(
 }
 
 /**
- * Normalized first-crop productivity at a point before parcel shape and size.
- * Fallow shows predicted starting soil because it has no crop yield.
+ * Perceptually normalized first-crop productivity before parcel shape and size.
+ * The real harvest keeps the underlying multiplicative penalties, while this
+ * planning score expands their compressed upper range so broad viable land is
+ * legible instead of nearly every site reading as poor. Fallow shows predicted
+ * starting soil because it has no crop yield.
  */
 export function cropSiteSuitability(
   crop: FarmCrop,
@@ -362,7 +366,7 @@ export function cropSiteSuitability(
 ): number {
   const fertility = initialFieldFertility(groundwater, averageSlopeDegrees, x, z);
   if (cropProduce(crop) === 'none') return fertility / 0.95;
-  return Math.max(
+  const rawProductivity = Math.max(
     0,
     Math.min(
       1,
@@ -371,6 +375,7 @@ export function cropSiteSuitability(
         * cropSlopeSuitability(crop, averageSlopeDegrees),
     ),
   );
+  return 1 - Math.pow(1 - rawProductivity, CROP_SUITABILITY_DISPLAY_CURVE);
 }
 
 export function expectedFieldYield(

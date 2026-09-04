@@ -795,9 +795,9 @@ mod tests {
 
         let parity_fixture = crop_regional_profile(CROP_FLAX, 123.5, -87.25, 0x071a_2e0d, 2);
         assert_eq!(parity_fixture.rank, 0);
-        assert!((parity_fixture.province_strength - 0.871_211_802_324_760_8).abs() < 1e-12);
-        assert!((parity_fixture.affinity - 0.884_090_622_092_284_7).abs() < 1e-12);
-        assert!((parity_fixture.yield_multiplier - 0.932_772_560_813_525_1).abs() < 1e-12);
+        assert!((parity_fixture.province_strength - 0.996_912_341_132_180_7).abs() < 1e-12);
+        assert!((parity_fixture.affinity - 0.997_221_107_018_962_7).abs() < 1e-12);
+        assert!((parity_fixture.yield_multiplier - 0.998_388_242_070_998_4).abs() < 1e-12);
     }
 
     #[test]

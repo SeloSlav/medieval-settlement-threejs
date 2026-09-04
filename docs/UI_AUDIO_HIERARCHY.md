@@ -1,8 +1,8 @@
 # UI audio hierarchy
 
-The interface uses sound to explain intent and consequence, not merely to
-acknowledge that a pointer was pressed. Cues share carved wood, parchment,
-restrained brass, and wax so they belong to one late-medieval material world.
+The live-game interface uses the Lord-portrait selection cue as its common
+button press. Explicit result cues still explain consequences such as accepted
+placement, rejection, animal selection, and military orders.
 
 ## New-world setup vocabulary
 
@@ -30,13 +30,13 @@ after a panel unmounts so transitions never cut off their semantic feedback.
 
 ## Live-game vocabulary
 
-The live interface uses delegated semantic audio at the shared UI root. This
-covers existing and dynamically mounted controls without adding a click call
-to every panel.
+The live interface uses one delegated `game_press` cue at the shared UI root.
+This covers existing and dynamically mounted buttons while explicit result and
+specialized selection cues can still replace it for the same interaction.
 
 | Cue | Meaning | Examples | Relative weight |
 | --- | --- | --- | --- |
-| `game_press` | Routine action | Ordinary utility button | 1 |
+| `game_press` | Common live-game button press | Every ordinary button, including the entire lower construction dock | Lord-portrait selection cue |
 | `game_tab` | Move within a peer set | Build category, formation, speed | 2 |
 | `game_toggle` | Change binary state | Road tool, overlay, checkbox | 3 |
 | `game_panel` | Change UI depth | Open menu, inspector, close/back | 4 |

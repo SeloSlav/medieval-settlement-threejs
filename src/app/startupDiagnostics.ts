@@ -19,6 +19,8 @@ export type FirstPlayableAssetReadiness = {
   buildingMaterialHydrationMs: number;
   vineyardHydrationMs: number;
   villagerVisualHydrationMs: number;
+  founderRigPrewarmMs: number;
+  founderRigPrewarmCount: number;
   gpuPrecompileMs: number;
   gpuTargetedObjectCount: number;
   gpuCoveredSubmissionCount: number;

@@ -572,6 +572,12 @@
 .map-overlay-crops[hidden] { display: none; }
 
 .map-overlay-crops button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 38px;
   padding: 6px 5px;
   color: var(--muted);
   font-size: 10px;
@@ -580,6 +586,42 @@
   border-radius: 4px;
   background: rgba(34, 38, 30, 0.72);
   cursor: pointer;
+}
+
+.map-overlay-crop__icon {
+  display: block;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.72));
+  pointer-events: none;
+}
+
+.map-overlay-crop__icon[data-overlay-crop-icon='rye'] {
+  background-image: url('/assets/ui/icons/provisions/rye-grain.png');
+}
+
+.map-overlay-crop__icon[data-overlay-crop-icon='oats'] {
+  background-image: url('/assets/ui/icons/provisions/oat-grain.png');
+}
+
+.map-overlay-crop__icon[data-overlay-crop-icon='barley'] {
+  background-image: url('/assets/ui/icons/hud-resources-goods-a.png');
+  background-position: 50% 0;
+  background-size: 300% 300%;
+}
+
+.map-overlay-crop__icon[data-overlay-crop-icon='flax'] {
+  background-image: url('/assets/ui/icons/hud-resources-goods-b.png');
+  background-position: 0 0;
+  background-size: 200% 200%;
+}
+
+.map-overlay-crop__icon[data-overlay-crop-icon='wheat'] {
+  background-image: url('/assets/ui/icons/provisions/maslin-grain.png');
 }
 
 .map-overlay-crops button:hover,

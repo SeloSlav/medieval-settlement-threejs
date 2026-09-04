@@ -85,6 +85,7 @@ import {
   SettlementCrowdRenderer,
   type CrowdRenderAgent,
   type VillagerModelVariant,
+  type VillagerRigPoolSeed,
   type VillagerRenderMode,
 } from './SettlementCrowdRenderer.ts';
 import {
@@ -599,6 +600,25 @@ export class VillagerRenderer {
     restore: () => void;
   } {
     return this.renderer.beginFirstPlayableGpuPrewarm();
+  }
+
+  async prepareFoundersCampForFirstPlayable(
+    onProgress?: (completed: number, total: number) => void,
+  ): Promise<number> {
+    // A loaded settlement already owns its live founder/resident rigs. This is
+    // specifically the reserve needed by the first founding-camp action.
+    if (this.foundingCamp) return 0;
+    const seeds: VillagerRigPoolSeed[] = [];
+    for (let founderIndex = 0; founderIndex < STARTING_POPULATION; founderIndex += 1) {
+      const id = `starting-population:${founderIndex}`;
+      const appearanceSeed = pickVillagerAppearanceSeed(id, 0);
+      seeds.push({
+        id,
+        appearanceSeed,
+        variant: pickVillagerModelVariant(appearanceSeed),
+      });
+    }
+    return this.renderer.prepareUnarmedRigPool(seeds, onProgress);
   }
 
   companyStandardDiagnostics() {

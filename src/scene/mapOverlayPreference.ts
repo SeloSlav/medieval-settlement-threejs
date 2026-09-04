@@ -14,6 +14,12 @@ export const FERTILITY_OVERLAY_CROPS = [
   'wheat',
 ] as const satisfies readonly FarmCrop[];
 
+export function fertilityOverlayCropLabel(crop: FarmCrop): string {
+  return crop === 'wheat'
+    ? 'Maslin'
+    : crop[0].toUpperCase() + crop.slice(1);
+}
+
 const STORAGE_KEY = 'medieval-road-system.mapOverlay';
 const LEGACY_WATER_KEY = 'medieval-road-system.hydrologyOverlayEnabled';
 const DEFAULT_SELECTION: MapOverlaySelection = { mode: 'none', crop: 'wheat' };

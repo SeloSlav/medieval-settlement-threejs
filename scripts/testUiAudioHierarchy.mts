@@ -18,26 +18,14 @@ function decide(overrides: Partial<UiControlSemantics> = {}) {
 }
 
 assert.deepEqual(decide({ text: 'ordinary button' }), { id: 'game_press' });
-assert.deepEqual(decide({ text: 'build menu', hasPopup: true, expanded: 'true' }), {
-  id: 'game_panel',
-  playbackRate: 1.06,
-});
-assert.deepEqual(decide({ text: 'close town report' }), {
-  id: 'game_panel',
-  playbackRate: 0.92,
-});
-assert.deepEqual(decide({ text: 'resources', expanded: 'false' }), {
-  id: 'game_panel',
-  playbackRate: 0.92,
-});
-assert.deepEqual(decide({ text: 'construction category card' }), { id: 'game_tab' });
-assert.deepEqual(decide({ text: 'overlay', pressed: 'true' }), {
-  id: 'game_toggle',
-  playbackRate: 1.06,
-});
-assert.deepEqual(decide({ text: 'upgrade residence' }), { id: 'game_transaction' });
-assert.deepEqual(decide({ text: 'demolish building' }), { id: 'game_danger' });
-assert.deepEqual(decide({ text: 'confirm rename' }), { id: 'confirm' });
+assert.deepEqual(decide({ text: 'build menu', hasPopup: true, expanded: 'true' }), { id: 'game_press' });
+assert.deepEqual(decide({ text: 'close town report' }), { id: 'game_press' });
+assert.deepEqual(decide({ text: 'resources', expanded: 'false' }), { id: 'game_press' });
+assert.deepEqual(decide({ text: 'construction category card' }), { id: 'game_press' });
+assert.deepEqual(decide({ text: 'overlay', pressed: 'true' }), { id: 'game_press' });
+assert.deepEqual(decide({ text: 'upgrade residence' }), { id: 'game_press' });
+assert.deepEqual(decide({ text: 'demolish building' }), { id: 'game_press' });
+assert.deepEqual(decide({ text: 'confirm rename' }), { id: 'game_press' });
 assert.equal(decide({ disabled: true }), null);
 assert.equal(decide({ override: 'none' }), null);
 assert.deepEqual(decide({ override: 'game_transaction' }), { id: 'game_transaction' });
@@ -60,7 +48,7 @@ const constructionDockButtons = constructionDock.match(
 ) ?? [];
 assert.equal(constructionDockButtons.length, 7);
 for (const button of constructionDockButtons) {
-  assert.match(button, /data-ui-sound="game_panel"/);
+  assert.match(button, /data-ui-sound="game_press"/);
 }
 
 const backyardRenderer = readFileSync('src/resources/inspector/backyardRenderer.ts', 'utf8');

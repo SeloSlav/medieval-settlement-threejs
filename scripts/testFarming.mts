@@ -104,6 +104,7 @@ import {
   AGRICULTURE_BUILD_MENU_ENTRIES,
   renderBuildMenuCards,
 } from '../src/ui/buildMenuCards.ts';
+import { fertilityOverlayCropLabel } from '../src/scene/mapOverlayPreference.ts';
 
 const rectangle = rectangleFromBaseline(
   { x: 0, z: 0 },
@@ -255,8 +256,8 @@ for (const mapSize of ['small', 'medium', 'large'] as const) {
     const primeCoverage = primeSamples / totalSamples;
     if (represented) {
       assert.ok(
-        primeCoverage >= 0.02 && primeCoverage <= 0.06,
-        `${crop} should have limited but meaningful prime coverage on ${mapSize} maps`,
+        primeCoverage >= 0.075 && primeCoverage <= 0.1,
+        `${crop} should have a broad prime province on ${mapSize} maps`,
       );
     } else {
       assert.equal(primeCoverage, 0, `${crop} should have no prime province on ${mapSize} maps`);
@@ -270,9 +271,9 @@ const parityFixture = cropRegionalProfile(
   { worldSeed: 0x071a_2e0d, mapSize: 'large' },
 );
 assert.equal(parityFixture.rank, 0);
-assert.ok(Math.abs(parityFixture.provinceStrength - 0.8712118023247608) < 1e-12);
-assert.ok(Math.abs(parityFixture.affinity - 0.8840906220922847) < 1e-12);
-assert.ok(Math.abs(parityFixture.yieldMultiplier - 0.9327725608135251) < 1e-12);
+assert.ok(Math.abs(parityFixture.provinceStrength - 0.9969123411321807) < 1e-12);
+assert.ok(Math.abs(parityFixture.affinity - 0.9972211070189627) < 1e-12);
+assert.ok(Math.abs(parityFixture.yieldMultiplier - 0.9983882420709984) < 1e-12);
 const smallMapSpecialtySets = new Set<string>();
 for (const worldSeed of [1, 2, 3, 4, 5, 0x071a_2e0d]) {
   smallMapSpecialtySets.add(strategicCrops
@@ -327,6 +328,44 @@ assert.ok(
   performance.now() - suitabilityRasterStarted < 150,
   'the complete placement raster should generate below interactive latency',
 );
+for (let worldSeed = 1; worldSeed <= 64; worldSeed += 1) {
+  const generationHalf = resolveWorldDimensions('small').generationHalf;
+  const coverage = strategicCrops.map((crop) => {
+    let viableSamples = 0;
+    let primeSamples = 0;
+    let totalSamples = 0;
+    for (let zIndex = 0; zIndex <= 40; zIndex += 1) {
+      for (let xIndex = 0; xIndex <= 40; xIndex += 1) {
+        const x = -generationHalf + generationHalf * 2 * xIndex / 40;
+        const z = -generationHalf + generationHalf * 2 * zIndex / 40;
+        const score = cropSiteSuitability(
+          crop,
+          sampleAuthoritativeGroundwaterScore(x, z),
+          3,
+          x,
+          z,
+          { worldSeed, mapSize: 'small' },
+        );
+        if (score >= 0.55) viableSamples += 1;
+        if (score >= 0.7) primeSamples += 1;
+        totalSamples += 1;
+      }
+    }
+    return {
+      represented: cropRegionalProfile(crop, 0, 0, { worldSeed, mapSize: 'small' }).represented,
+      viableCoverage: viableSamples / totalSamples,
+      primeCoverage: primeSamples / totalSamples,
+    };
+  }).filter((entry) => entry.represented);
+  assert.ok(
+    coverage.filter((entry) => entry.viableCoverage >= 0.2).length >= 2,
+    `small-map seed ${worldSeed} should give at least two crops large viable swaths`,
+  );
+  assert.ok(
+    coverage.filter((entry) => entry.primeCoverage >= 0.06).length >= 2,
+    `small-map seed ${worldSeed} should give at least two crops visible prime land`,
+  );
+}
 
 const goodYield = expectedFieldYield({
   area: 400,
@@ -1112,6 +1151,7 @@ const cropSuitabilityOverlay = fs.readFileSync(
 const sceneManager = fs.readFileSync('src/scene/SceneManager.ts', 'utf8');
 const appSource = fs.readFileSync('src/app/App.ts', 'utf8');
 const buildToolbar = fs.readFileSync('src/ui/BuildToolbar.ts', 'utf8');
+const constructionDockCss = fs.readFileSync('src/ui/constructionDock.css', 'utf8');
 assert.match(cropSuitabilityOverlay, /createDrapedOverlayGeometry/);
 assert.match(cropSuitabilityOverlay, /sampleAuthoritativeGroundwaterScore/);
 assert.match(cropSuitabilityOverlay, /private readonly textures = new Map/);
@@ -1125,6 +1165,14 @@ assert.match(appSource, /setVineyardSuitabilityOverlayVisible\(vineyardPlacement
 assert.match(buildToolbar, /data-crop-suitability-legend/);
 assert.match(buildToolbar, /first-crop site potential/);
 assert.match(buildToolbar, /Grape suitability/);
+assert.equal(fertilityOverlayCropLabel('wheat'), 'Maslin');
+assert.equal(fertilityOverlayCropLabel('rye'), 'Rye');
+assert.match(buildToolbar, /data-overlay-crop-icon="\$\{crop\}"/);
+assert.match(constructionDockCss, /rye-grain\.png/);
+assert.match(constructionDockCss, /oat-grain\.png/);
+assert.match(constructionDockCss, /maslin-grain\.png/);
+assert.match(constructionDockCss, /data-overlay-crop-icon='barley'/);
+assert.match(constructionDockCss, /data-overlay-crop-icon='flax'/);
 
 const farmsteadInspector = fs.readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8');
 const livestockInspector = fs.readFileSync('src/resources/inspector/livestockBuildingRenderer.ts', 'utf8');

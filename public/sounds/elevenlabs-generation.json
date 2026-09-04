@@ -1655,13 +1655,13 @@
     {
       "id": "ui-game-press",
       "output": "public/sounds/ui/game_press.mp3",
-      "generatedAt": "2026-09-02T08:50:11.882Z",
+      "generatedAt": "2026-09-02T08:30:50.405Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
       "outputFormat": "mp3_44100_128",
       "characterCost": "5",
       "byteLength": 8821,
-      "sha256": "d0a0da0cef6feada7ae97b582d697a49233f3dfbc4884c3702b55a23c2e95f06"
+      "sha256": "770dcfd137473cf27d6a1bc869627fca189e4fd26bebaccbb8ba3393d6e1320a"
     },
     {
       "id": "ui-game-tab",

@@ -634,6 +634,8 @@ export class App {
     let buildingMaterialHydrationMs = 0;
     let vineyardHydrationMs = 0;
     let villagerVisualHydrationMs = 0;
+    let founderRigPrewarmMs = 0;
+    let founderRigPrewarmCount = 0;
     let villagerVisualsReady = false;
     session.loadingScreen?.setProgress({
       label: 'Finishing world…',
@@ -716,6 +718,33 @@ export class App {
           : 'source model or batch construction failed',
       );
     }
+    if (import.meta.env.VITE_E2E_TEST !== '1' && villagerVisualsReady) {
+      session.loadingScreen?.setProgress({
+        label: 'Gathering founders…',
+        detail: 'Preparing the founding party',
+        phase: 'vegetation',
+        fraction: 0.9,
+      });
+      const founderRigPrewarmStartedAt = performance.now();
+      try {
+        founderRigPrewarmCount = await session.villagers.prepareFoundersCampForFirstPlayable(
+          (completed, total) => {
+            if (total <= 0) return;
+            session.loadingScreen?.setProgress({
+              label: 'Gathering founders…',
+              detail: `Preparing founding party ${completed} / ${total}`,
+              phase: 'vegetation',
+              fraction: 0.9 + completed / total * 0.03,
+            });
+          },
+        );
+      } catch (error) {
+        console.warn('Founding-party rig prewarm is unavailable:', error);
+      } finally {
+        founderRigPrewarmMs = performance.now() - founderRigPrewarmStartedAt;
+      }
+      if (this.disposed) return;
+    }
     session.loadingScreen?.setProgress({
       label: 'Finishing world…',
       detail: 'Uploading textures and compiling shaders',
@@ -793,6 +822,8 @@ export class App {
       buildingMaterialHydrationMs: roundStartupDuration(buildingMaterialHydrationMs),
       vineyardHydrationMs: roundStartupDuration(vineyardHydrationMs),
       villagerVisualHydrationMs: roundStartupDuration(villagerVisualHydrationMs),
+      founderRigPrewarmMs: roundStartupDuration(founderRigPrewarmMs),
+      founderRigPrewarmCount,
       gpuPrecompileMs: roundStartupDuration(gpuPrecompileMs),
       gpuTargetedObjectCount: targetedPrewarmObjects.length,
       gpuCoveredSubmissionCount,

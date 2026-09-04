@@ -308,9 +308,18 @@ assert.ok(
 assert.ok(
   startupDiagnostics.includes('firstPlayableAssets?: FirstPlayableAssetReadiness;')
     && startupDiagnostics.includes('celestialGenerationMs: number | null;')
+    && startupDiagnostics.includes('founderRigPrewarmMs: number;')
+    && startupDiagnostics.includes('founderRigPrewarmCount: number;')
     && startupDiagnostics.includes('villagerVisualsReady: boolean;')
     && app.includes('markFirstPlayableAssetsReady({'),
   'startup diagnostics must quantify celestial generation and exact asset readiness',
+);
+assert.ok(
+  app.includes('await session.villagers.prepareFoundersCampForFirstPlayable(')
+    && app.includes("label: 'Gathering founders…'")
+    && app.indexOf('await session.villagers.prepareFoundersCampForFirstPlayable(')
+      < app.indexOf('const villagerPrewarm = session.villagers.beginFirstPlayableGpuPrewarm();'),
+  'all first-camp animation rigs must be pooled behind the loader before GPU prewarm and play',
 );
 
 assert.equal(

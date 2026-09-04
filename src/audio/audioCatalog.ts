@@ -372,7 +372,7 @@ export const UI_SOUNDS: Record<UiSoundId, AudioClipDefinition> = {
   setup_back: { path: '/sounds/ui/setup_back.mp3', volume: 0.24 },
   setup_advance: { path: '/sounds/ui/setup_advance.mp3', volume: 0.45 },
   setup_commit: { path: '/sounds/ui/setup_commit.mp3', volume: 0.42 },
-  game_press: { path: '/sounds/ui/game_press.mp3', volume: 0.13 },
+  game_press: { path: '/sounds/ui/game_press.mp3', volume: 0.16 },
   game_tab: { path: '/sounds/ui/game_tab.mp3', volume: 0.35 },
   game_toggle: { path: '/sounds/ui/game_toggle.mp3', volume: 0.15 },
   game_panel: { path: '/sounds/ui/game_panel.mp3', volume: 0.11 },

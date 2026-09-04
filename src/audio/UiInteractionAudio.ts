@@ -39,12 +39,6 @@ const INTERACTION_SOUND_IDS = [
 const CONTROL_SELECTOR = 'button, [role="button"]';
 const ADJUSTMENT_INTERVAL_MS = 45;
 
-const DANGER_PATTERN = /\b(delete|demolish|destroy|remove|reset|abandon|disband|new world|danger)\b/;
-const TRANSACTION_PATTERN = /\b(buy|sell|trade|upgrade|repair|rebuild|hire|recruit|pay|purchase|order)\b/;
-const PANEL_PATTERN = /\b(open|close|back|cancel|return|menu|settings|controls|tutorial|report|inspect)\b/;
-const TAB_PATTERN = /\b(tab|category|filter|formation|speed|preset|card)\b/;
-const CONFIRM_PATTERN = /\b(confirm|continue|save|apply|accept|start|rename|grant|deploy|build)\b/;
-
 function semanticText(control: HTMLElement): string {
   return [
     control.dataset.action,
@@ -66,27 +60,6 @@ export function uiSoundForSemantics(control: UiControlSemantics): UiSoundDecisio
   const explicit = explicitDecision(control.override);
   if (explicit !== undefined) return explicit;
   if (control.disabled) return null;
-
-  const semantics = control.text;
-  if (DANGER_PATTERN.test(semantics)) return { id: 'game_danger' };
-  if (TRANSACTION_PATTERN.test(semantics)) return { id: 'game_transaction' };
-
-  if (
-    (control.role === 'tab' || TAB_PATTERN.test(semantics))
-    && !control.hasPopup
-    && control.expanded === null
-  ) return { id: 'game_tab' };
-
-  if (PANEL_PATTERN.test(semantics) || control.hasPopup || control.expanded !== null) {
-    const closing = control.expanded === 'false' || /\b(close|back|cancel|return)\b/.test(semantics);
-    return { id: 'game_panel', playbackRate: closing ? 0.92 : 1.06 };
-  }
-
-  if (control.pressed !== null) {
-    return { id: 'game_toggle', playbackRate: control.pressed === 'true' ? 1.06 : 0.94 };
-  }
-
-  if (CONFIRM_PATTERN.test(semantics)) return { id: 'confirm' };
   return { id: 'game_press' };
 }
 
