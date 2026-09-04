@@ -131,8 +131,10 @@ pub fn set_building_dogs(
     if assigned_dogs < current.len() as u32 {
         for mut dog in current.into_iter().skip(assigned_dogs as usize) {
             dog.assigned_building_id = 0;
-            dog.target_kind = 0;
-            dog.target_id = dog.source_building_id;
+            dog.target_kind = 6;
+            dog.target_id = 0;
+            dog.state = 9;
+            dog.route_progress = 0.0;
             ctx.db.combat_agent().id().update(dog);
         }
         return Ok(());
@@ -163,8 +165,10 @@ pub fn set_building_dogs(
     }
     for mut dog in available.into_iter().take(needed) {
         dog.assigned_building_id = building_id;
-        dog.target_kind = 0;
-        dog.target_id = building_id;
+        dog.target_kind = 6;
+        dog.target_id = 0;
+        dog.state = 9;
+        dog.route_progress = 0.0;
         ctx.db.combat_agent().id().update(dog);
     }
     Ok(())

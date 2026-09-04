@@ -387,7 +387,11 @@ fn patrol_dog(
     let recovering = dog.health + 1e-6 < dog.max_health;
     let target = dog_target_position(ctx, dog.target_kind, dog.target_id, road_network);
     if !patrol_target_matches_duty(
-        dog.target_kind, dog.target_id, assigned, dog.source_building_id, recovering,
+        dog.target_kind,
+        dog.target_id,
+        assigned,
+        dog.source_building_id,
+        recovering,
         road_network.is_some_and(|network| network.road_patrol_stop_count() > 0),
     ) || target.is_none()
         || target.is_some_and(|target| distance(dog.x, dog.z, target.x, target.z) < 1.3)
@@ -997,8 +1001,7 @@ fn dog_patrol_target(
             }
         }
     }
-    if let Some(target) =
-        road_network.and_then(|network| next_road_patrol_target(dog, seed, network))
+    if let Some(target) = road_network.and_then(|network| next_road_patrol_target(dog, seed, network))
     {
         return Some(target);
     }
@@ -1039,6 +1042,7 @@ fn next_road_patrol_target(
     if count == 0 {
         return None;
     }
+    let (road_x, road_z) = network.nearest_point(dog.home_x, dog.home_z, f64::MAX)?;
     let start = road_patrol_target_ordinal(dog.target_kind, dog.target_id).map_or_else(
         || (mix(seed, 0x524f_4144_444f_47) as usize % (count / 2)) * 2,
         |ordinal| (ordinal as usize + 1) % count,
@@ -1048,11 +1052,10 @@ fn next_road_patrol_target(
         let Some((x, z)) = network.road_patrol_stop(ordinal as u64) else {
             continue;
         };
-        // Patrol only the kennel's connected road component. An off-road
-        // recovery may rejoin that component, but it must not make a dog cut
-        // cross-country between disconnected road systems.
+        // Join the roads nearest the kennel even if it is beyond the ordinary
+        // building snap radius, then keep the circuit on that component.
         let reachable = network
-            .road_path_route(dog.home_x, dog.home_z, x, z)
+            .road_path_route(road_x, road_z, x, z)
             .is_some();
         if reachable {
             return Some(Target {
@@ -1087,12 +1090,21 @@ fn hunting_dog_woodland_target(
             range_sq <= maximum_range_sq
         })
         .collect::<Vec<_>>();
-    if trees.is_empty() {
+    if trees.is_empty()
+        || (trees.len() == 1 && distance(dog.x, dog.z, trees[0].x, trees[0].z) < 4.0)
+    {
         let (x, z) = open_ground_patrol_point(
-            hunters_hall.x, hunters_hall.z, hunters_hall.work_radius,
+            hunters_hall.x,
+            hunters_hall.z,
+            hunters_hall.work_radius,
             mix(seed, dog.target_id),
         );
-        return Some(Target { kind: TARGET_GROUND, id: woodland_tree_target_id(x, z), x, z });
+        return Some(Target {
+            kind: TARGET_GROUND,
+            id: woodland_tree_target_id(x, z),
+            x,
+            z,
+        });
     }
 
     // Prefer the actual woods beyond the camp clearing whenever they exist.
@@ -1244,17 +1256,13 @@ fn move_dog_over_roads(
     };
     let route = if let Some(ordinal) = road_patrol_target_ordinal(dog.target_kind, dog.target_id) {
         network.road_patrol_route(ordinal, dog.x, dog.z)
-    } else { network
-        .road_path_route(dog.x, dog.z, target_x, target_z)
-        .or_else(|| {
-            network.road_path_route_from_external_access(
-                dog.x,
-                dog.z,
-                target_x,
-                target_z,
-                1.6,
-            )
-        }) };
+    } else {
+        network
+            .road_path_route(dog.x, dog.z, target_x, target_z)
+            .or_else(|| {
+                network.road_path_route_from_external_access(dog.x, dog.z, target_x, target_z, 1.6)
+            })
+    };
     let Some(route) = route else {
         if is_road_patrol_target(dog.target_kind, dog.target_id) {
             dog.target_id = 0;

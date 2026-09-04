@@ -9,6 +9,20 @@ import {
   KENNEL_DOG_HUNTING_RATE_BONUS,
 } from '../src/generated/gameBalance.ts';
 import { WORLD_DIFFICULTY_PRESETS } from '../src/world/worldDifficulty.ts';
+import { guardDogActivity } from '../src/security/dogActivity.ts';
+
+const dog = {
+  status: 'advancing' as const, targetKind: 'building' as const, targetId: 'building-2',
+  assignedBuildingId: 'building-2', sourceBuildingId: 'building-1', health: 80, maxHealth: 80,
+};
+assert.equal(guardDogActivity(dog).status, 'Woodland patrol');
+assert.match(guardDogActivity(dog).activity, /work area/);
+assert.doesNotMatch(guardDogActivity(dog).activity, /attack|intercept/);
+assert.equal(guardDogActivity({ ...dog, targetKind: 'ground', assignedBuildingId: null }).status, 'Road patrol');
+assert.equal(guardDogActivity({ ...dog, targetKind: 'combat-agent' }).status, 'Pursuing a threat');
+assert.equal(guardDogActivity({ ...dog, targetKind: 'combat-agent', status: 'fighting' }).status, 'Fighting');
+assert.equal(guardDogActivity({ ...dog, targetId: dog.sourceBuildingId, health: 40 }).status, 'Recovering');
+assert.equal(guardDogActivity({ ...dog, targetKind: 'combat-agent', status: 'downed' }).status, 'Downed');
 
 const read = (path: string): string => readFileSync(path, 'utf8');
 
@@ -60,7 +74,7 @@ assert.match(wildlife, /dog\.assigned_building_id = 0/);
 assert.match(wildlife, /HUNTING_DOG_RUN_SPEED/);
 assert.match(wildlife, /hunting_dog_woodland_target/);
 assert.match(wildlife, /tree_entity\(\)[\s\S]{0,300}tree\.phase == "mature"/);
-assert.match(wildlife, /WOODLAND_TREE_TARGET_TAG/);
+assert.match(read('server/src/dog_patrol_policy.rs'), /WOODLAND_TREE_TARGET_TAG/);
 assert.match(wildlife, /ROAD_PATROL_TARGET_TAG/);
 assert.match(wildlife, /next_road_patrol_target/);
 assert.match(wildlife, /move_dog_over_roads/);

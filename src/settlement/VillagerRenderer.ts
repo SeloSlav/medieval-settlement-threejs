@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { guardDogActivity } from '../security/dogActivity.ts';
 import { presentationNow, trailerClock } from '../app/trailerClock.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import {
@@ -2079,9 +2080,13 @@ export class VillagerRenderer {
           ordinaryGuard.modelVariant,
         )
       : combatUnitName(combat);
-    const status = combatStatusLabel(combat.status);
-    const target = this.combatTargetLabel(combat);
-    const activity = combatActivityLabel(combat, target);
+    const huntingCamp = combat.assignedBuildingId ? this.buildings.get(combat.assignedBuildingId) : null;
+    const dogActivity = combat.faction === 'dog'
+      ? guardDogActivity(combat, huntingCamp ? getBuildingDefinition(huntingCamp.kind).label : undefined)
+      : null;
+    const status = dogActivity?.status ?? combatStatusLabel(combat.status);
+    const target = dogActivity?.objective ?? this.combatTargetLabel(combat);
+    const activity = dogActivity?.activity ?? combatActivityLabel(combat, target);
     const equipment = combat.faction === 'dog'
       ? 'Teeth, speed, and trained protective instinct'
       : combat.faction === 'fox'
@@ -6507,7 +6512,6 @@ function combatActivityLabel(
   switch (combat.status) {
     case 'advancing':
       return combat.faction === 'guard' || isPlayerMilitaryFaction(combat.faction)
-        || combat.faction === 'dog'
         ? `Moving to intercept the attack near ${target}`
         : `Advancing on ${target}`;
     case 'fighting':
