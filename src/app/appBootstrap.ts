@@ -417,7 +417,9 @@ export async function bootstrapAppSession(
   const villagers = new VillagerRenderer({
     parent: sceneManager.selectionGroup,
     getGameSpeed: () => spacetimeStore.snapshot.gameSpeed,
-    getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
+    // Walk on the triangles actually drawn. Bilinear cell heights can place
+    // small animals (and feet) underneath uneven ground between vertices.
+    getHeightAt: (x, z) => sceneManager.terrain.getSurfaceHeightAt(x, z),
     getRoadDeckY: (x, z) => sceneManager.sampleRoadDeckY(x, z),
     isWaterAt: (x, z) => sceneManager.riverField.isRenderedWetAt(x, z),
     routePathAroundObstacles: (path) => firstPersonCollisionWorld.routeAgentPath(path),
@@ -1548,6 +1550,7 @@ export async function bootstrapAppSession(
     parent: sceneManager.selectionGroup,
     getHeightAt: (x, z) => sceneManager.terrain.getSurfaceHeightAt(x, z),
     getAgentPosition: (id) => villagers.getCombatAgentPosition(id),
+    getAgentBodyHeight: (id) => villagers.getCombatAgentBodyHeight(id),
     getZoomPercent: () => cameraController.getZoomPercent(),
     isBlocked: () => isWorldInspectionBlocked(placementGate),
     isVisibilityBlocked: () => cameraController.isIllustratedMapActive()

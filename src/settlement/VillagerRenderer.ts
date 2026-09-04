@@ -1772,6 +1772,15 @@ export class VillagerRenderer {
     return this.combatAgentVisuals.get(id)?.renderPosition ?? null;
   }
 
+  /** A live position alone does not prove an authored body was submitted. */
+  getCombatAgentBodyHeight(id: string): number | null {
+    const visual = this.combatAgentVisuals.get(id);
+    if (!visual) return null;
+    return isAnimalCombatFaction(visual.state.faction)
+      ? this.combatAnimals.getRenderedBodyHeight(id)
+      : this.renderer.getRenderedBodyHeight(`combat:${id}`);
+  }
+
   inspectOx(oxId: string): OxInspection | null {
     return this.oxen.inspectOx(oxId);
   }

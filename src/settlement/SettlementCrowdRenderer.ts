@@ -653,6 +653,13 @@ export class SettlementCrowdRenderer {
       && this.authoredBatchList.some((batch) => batch.count > 0);
   }
 
+  getRenderedBodyHeight(id: string): number | null {
+    const visual = this.animated.get(id);
+    if (!this.group.visible || !visual?.root.visible || !this.sources
+      || !this.authoredBatches?.[visual.sourceKey].count) return null;
+    return this.sources[visual.sourceKey].sourceHeight * visual.model.scale.y;
+  }
+
   authoredCrowdDiagnostics(): AuthoredCrowdDiagnostic {
     const batches = this.authoredBatches;
     const diagnostics = {} as Record<

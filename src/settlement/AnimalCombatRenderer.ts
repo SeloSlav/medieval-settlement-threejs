@@ -28,6 +28,7 @@ type AnimalInstance = {
   actionName: string;
   faction: AnimalCombatPose['faction'];
   yaw: number;
+  bodyHeight: number;
 };
 
 const ANIMAL_TURN_RESPONSE = 12;
@@ -102,6 +103,11 @@ export class AnimalCombatRenderer {
     return this.group.visible && this.instances.size > 0;
   }
 
+  getRenderedBodyHeight(id: string): number | null {
+    const instance = this.instances.get(id);
+    return this.group.visible && instance?.root.visible ? instance.bodyHeight : null;
+  }
+
   private async loadAssets(): Promise<boolean> {
     try {
       const loader = new GLTFLoader();
@@ -167,6 +173,7 @@ export class AnimalCombatRenderer {
       actionName: '',
       faction,
       yaw: initialYaw,
+      bodyHeight: size.y * scale,
     };
     root.rotation.y = initialYaw;
     this.instances.set(id, instance);

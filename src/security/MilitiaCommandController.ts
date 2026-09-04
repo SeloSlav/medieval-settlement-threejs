@@ -27,6 +27,7 @@ type Options = {
   parent: THREE.Group;
   getHeightAt: (x: number, z: number) => number;
   getAgentPosition?: (id: string) => Readonly<{ x: number; z: number }> | null;
+  getAgentBodyHeight?: (id: string) => number | null;
   getZoomPercent?: () => number;
   isBlocked: () => boolean;
   isVisibilityBlocked?: () => boolean;
@@ -120,6 +121,7 @@ export class MilitiaCommandController {
       getZoomPercent: options.getZoomPercent ?? (() => 100),
       getHeightAt: options.getHeightAt,
       getAgentPosition: options.getAgentPosition,
+      getAgentBodyHeight: options.getAgentBodyHeight,
       isBlocked: options.isBlocked,
       isVisibilityBlocked: options.isVisibilityBlocked,
       isIllustratedMapActive: options.isIllustratedMapActive,

@@ -25,7 +25,6 @@ export const HOSTILE_COMPANY_COMPACT_MARKER_HEIGHT_PX = 22;
 /** At this height the authored company is readable without a marker. */
 export const HOSTILE_COMPANY_READABLE_HEIGHT_PX = 34;
 export const HOSTILE_COMPANY_COMPACT_MARKER_SCALE = 0.64;
-const STRATEGIC_COMPANY_BODY_HEIGHT_METERS = 1.72;
 const STRATEGIC_COMPANY_MOVING_RESPONSE = 12;
 const STRATEGIC_COMPANY_STATIONARY_RESPONSE = 4.5;
 const MAX_POSITION_FILTER_DELTA_SECONDS = 0.05;
@@ -50,6 +49,7 @@ type StrategicCompanyIconOptions = {
   getZoomPercent: () => number;
   getHeightAt: (x: number, z: number) => number;
   getAgentPosition?: (id: string) => Readonly<{ x: number; z: number }> | null;
+  getAgentBodyHeight?: (id: string) => number | null;
   isBlocked: () => boolean;
   isVisibilityBlocked?: () => boolean;
   isIllustratedMapActive?: () => boolean;
@@ -181,6 +181,22 @@ export function projectedCompanyBodyHeightPx(
     (head.x - feet.x) * viewportWidth * 0.5,
     (head.y - feet.y) * viewportHeight * 0.5,
   );
+}
+
+/** Keep the marker until every member has a submitted model. Use the smallest
+ * actual body so a fox cannot disappear at a human-sized readability threshold. */
+export function renderedCompanyBodyHeight(
+  agentIds: readonly string[],
+  getAgentBodyHeight?: (id: string) => number | null,
+): number | null {
+  if (!getAgentBodyHeight || agentIds.length === 0) return null;
+  let height = Infinity;
+  for (const id of agentIds) {
+    const memberHeight = getAgentBodyHeight(id);
+    if (memberHeight == null || !Number.isFinite(memberHeight) || memberHeight <= 0) return null;
+    height = Math.min(height, memberHeight);
+  }
+  return height;
 }
 
 /** Resolves a whole-company marker from the same interpolated actor positions
@@ -342,6 +358,10 @@ export class MilitaryCompanyStrategicOverlay {
       let markerScale = 1;
       let compact = false;
       if (entry.marker.hostile) {
+        const bodyHeight = renderedCompanyBodyHeight(
+          entry.marker.agentIds,
+          this.options.getAgentBodyHeight,
+        );
         if (!illustratedMapActive) {
           entry.feetProjected
             .set(entry.displayX, groundY + 0.02, entry.displayZ)
@@ -349,7 +369,7 @@ export class MilitaryCompanyStrategicOverlay {
           entry.headProjected
             .set(
               entry.displayX,
-              groundY + STRATEGIC_COMPANY_BODY_HEIGHT_METERS,
+              groundY + 0.02 + (bodyHeight ?? 0),
               entry.displayZ,
             )
             .project(this.options.camera);
@@ -364,6 +384,7 @@ export class MilitaryCompanyStrategicOverlay {
                 rect.height,
               ),
           !illustratedMapActive
+            && bodyHeight !== null
             && crowdView !== undefined
             && inView
             && entry.feetProjected.z >= -1
