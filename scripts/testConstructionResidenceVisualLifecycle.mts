@@ -522,6 +522,26 @@ function testBackyardConstructionOwnership(): void {
     'instant planting previews should still conform their soil to the parcel terrain',
   );
 
+  const orchardKindId = BACKYARD_GARDEN_KINDS.indexOf('orchard') + 1;
+  const unselectedOrchardResidence = {
+    ...backyardProjectResidence(0.35, orchardKindId),
+    id: 'visual-lifecycle-empty-orchard-preview',
+  };
+  residenceMarkers.syncResidences([unselectedOrchardResidence], () => 0);
+  backyardMarkers.syncGardens({
+    residences: [unselectedOrchardResidence],
+    zones: [zone],
+    gardens: new Map(),
+    getHeightAt: () => 0,
+  });
+  const orchardPreview = backyardInternals.meshes.get(unselectedOrchardResidence.id);
+  assert.ok(orchardPreview);
+  assert.equal(orchardPreview.name, 'BackyardPlantingPreview:orchard');
+  assert.equal(orchardPreview.userData.backyardPlantingPreview, true);
+  assert.equal(orchardPreview.userData.backyardConstructionSite, undefined);
+  assert.equal(orchardPreview.userData.plantingLayout?.plots.length ?? 0, 0);
+  assert.equal(orchardPreview.children.length, 0, 'an unselected orchard project should leave the backyard blank');
+
   const residenceInspectorSource = readFileSync(
     'src/resources/inspector/residenceRenderer.ts',
     'utf8',

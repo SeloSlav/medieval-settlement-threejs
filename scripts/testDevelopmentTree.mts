@@ -103,6 +103,8 @@ for (const cardinalRule of [
   /development-branch-label--woodland \{ right: 100%; top: 50%;/,
 ]) assert.match(menuStyles, cardinalRule, 'branch labels must follow their cardinal branch axes');
 const toolbar = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
-assert.match(toolbar, /this\.settlementHud\.root\.append\(developmentButton\)/);
+assert.match(toolbar, /resourceStrip\.before\(developmentButton\)/);
+assert.doesNotMatch(toolbar + menu, /data-development-badge|development-launcher__badge/);
+assert.doesNotMatch(menu, /Developments, \$\{this\.state\.points\}|Developments · \$\{this\.state\.points\}/);
 assert.match(toolbar, /return this\.developmentMenu\.isOpen\(\) \|\|/);
 console.log('Development tree passed: 24 skills, all four complete branches, both-parent locks, nine-point cap, double-spend safety, refunds, assets, and client-only boundary.');

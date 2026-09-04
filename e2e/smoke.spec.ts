@@ -206,7 +206,7 @@ test('centers Development between civic status and right-aligned resource contro
           <details class="settlement-hud__animals"><summary class="settlement-hud__animals-summary"></summary></details>
         </div>
       </div>
-      <button class="development-launcher"><span class="development-launcher__badge">9</span></button>
+      <button class="development-launcher" aria-label="Developments"></button>
       <div class="settlement-hud__ribbon-side settlement-hud__ribbon-side--resources" data-settlement-resource-strip>
         <div class="settlement-hud__body settlement-hud__body--resources">
           <div class="settlement-hud__stat" data-resource="timber"><strong class="settlement-hud__value">400</strong></div>

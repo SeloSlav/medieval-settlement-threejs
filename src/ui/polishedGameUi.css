@@ -717,20 +717,13 @@ select:focus-visible {
 }
 
 .settlement-hud__construction-summary i {
-  color: #c0ad81;
-  font-family: var(--ui-display);
-  font-size: 13px;
-  font-style: normal;
-}
-
-.settlement-hud__construction-summary [data-construction-kind='timber'] i::before {
-  content: '\2571';
-  color: #c6965e;
-}
-
-.settlement-hud__construction-summary [data-construction-kind='stone'] i::before {
-  content: '\25C6';
-  color: #aaa9a0;
+  display: block;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78));
 }
 
 .settlement-hud__label {

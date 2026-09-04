@@ -21,6 +21,7 @@ import type { BackyardGardenKind } from '../src/generated/gameBalance.ts';
 import {
   BACKYARD_GARDEN_DEFINITIONS,
   BACKYARD_GARDEN_PICKER_KINDS,
+  backyardGardenUsesCultivatedSoil,
   isPlantableBackyardGardenKind,
 } from '../src/residences/backyardGarden.ts';
 import type { BackyardPlantCatalog } from '../src/vegetation/seedthree/backyardPlantAssets.ts';
@@ -47,7 +48,7 @@ const kinds: BackyardGardenKind[] = [
 ];
 
 const signatures: Record<BackyardGardenKind, string> = {
-  orchard: 'Prepared orchard planting pit',
+  orchard: 'BackyardGarden:orchard',
   apple_orchard: 'AppleTree:',
   cherry_orchard: 'CherryTree:',
   pear_orchard: 'PearTree:',
@@ -104,9 +105,15 @@ assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('backyard_apiary'), true);
 for (const kind of kinds) {
   assert.equal(
     backyardGardenClearsGroundcover(kind),
-    isPlantableBackyardGardenKind(kind),
-    `${kind} should ${isPlantableBackyardGardenKind(kind) ? '' : 'not '}clear grass and wildflowers`,
+    backyardGardenUsesCultivatedSoil(kind),
+    `${kind} should ${backyardGardenUsesCultivatedSoil(kind) ? '' : 'not '}clear grass and wildflowers`,
   );
+}
+assert.equal(isPlantableBackyardGardenKind('orchard'), true, 'orchards should still skip construction visuals');
+assert.equal(backyardGardenUsesCultivatedSoil('orchard'), false, 'unselected orchards should not disturb the yard');
+for (const kind of ['apple_orchard', 'cherry_orchard', 'pear_orchard'] as const) {
+  assert.equal(backyardGardenUsesCultivatedSoil(kind), false, `${kind} should grow from natural grass`);
+  assert.deepEqual(createBackyardPlantingLayout(kind, 7.2, 8.4, 2).plots, []);
 }
 
 const quarterTurnClearance = backyardGardenClearancePolygon(
@@ -184,9 +191,16 @@ for (const kind of kinds) {
 
   assert.equal(garden.userData.gardenKind, kind, `${kind} should retain its gameplay identity`);
   assert.equal(garden.userData.usesSeedThree, false, `${kind} should report that SeedThree is not yet attached`);
-  const minimumMeshCountWithoutStreamedPlants = kind === 'orchard'
-    ? 10
-    : kind.endsWith('_orchard')
+  if (kind === 'orchard') {
+    assert.equal(meshCount, 0, 'the unselected orchard backyard should remain completely blank');
+    assert.equal(garden.children.length, 0);
+    assert.equal(garden.userData.orchardAwaitingSpecialization, true);
+    assert.equal(garden.userData.orchardVisualState, 'awaiting-specialization-empty');
+    assert.equal(garden.userData.plantingLayout, undefined);
+    disposeBackyardGardenMesh(garden);
+    continue;
+  }
+  const minimumMeshCountWithoutStreamedPlants = kind.endsWith('_orchard')
       ? 7
       : kind.endsWith('_pen')
         ? 7
@@ -211,13 +225,8 @@ for (const kind of kinds) {
     ? 0.25
     : 0.4;
   assert.ok(size.y > minimumHeight, `${kind} should have readable vertical structure at its real crop scale`);
-  if (kind === 'vegetable_garden'
-    || kind === 'cabbage_garden'
-    || kind === 'carrot_garden'
-    || kind === 'beetroot_garden'
-    || kind === 'flower_garden'
-    || kind === 'herb_garden') {
-    assert.ok(soilBeds.length >= 2, `${kind} should expose its individual textured soil beds`);
+  if (backyardGardenUsesCultivatedSoil(kind)) {
+    assert.ok(soilBeds.length >= 1, `${kind} should expose its fitted textured soil plots`);
     for (const bed of soilBeds) {
       const material = bed.material as THREE.MeshStandardMaterial;
       assert.equal(material.name, 'Textured dark garden-bed soil');
@@ -227,6 +236,8 @@ for (const kind of kinds) {
         roughness: '/assets/textures/terrain/mammoth_terrain_dirt/roughness.png',
       });
     }
+  } else {
+    assert.equal(soilBeds.length, 0, `${kind} should preserve the natural backyard surface`);
   }
   if (soilBeds.length > 0) {
     assert.equal(bedRails.length, 0, `${kind} should not have timber frames around its beds`);
@@ -784,14 +795,13 @@ for (const [kind, signature] of [
 
 const preparedOrchard = createBackyardGardenMesh('orchard', { width: 6.2, depth: 5.4, seed: 91 });
 assert.equal(preparedOrchard.userData.orchardAwaitingSpecialization, true);
-let preparedPitCount = 0;
 let preparedPlantCount = 0;
 preparedOrchard.traverse((object) => {
-  if (object.name === 'Prepared orchard planting pit') preparedPitCount += 1;
   if (object.userData.backyardMaturityAnchor === true) preparedPlantCount += 1;
 });
-assert.equal(preparedPitCount, 4);
-assert.equal(preparedPlantCount, 0, 'the constructed orchard shell must remain unplanted until selected');
+assert.equal(preparedOrchard.children.length, 0, 'the unselected orchard slot should leave its backyard blank');
+assert.equal(preparedOrchard.userData.plantingLayout, undefined);
+assert.equal(preparedPlantCount, 0, 'the orchard shell must remain unplanted until selected');
 disposeBackyardGardenMesh(preparedOrchard);
 
 const flowerDetail = createBackyardGardenMesh('flower_garden', { width: 6.2, depth: 5.4, seed: 4271 });

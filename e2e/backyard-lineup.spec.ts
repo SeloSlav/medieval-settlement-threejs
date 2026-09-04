@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 type BackyardDiagnostics = NonNullable<Window['__BACKYARD_LINEUP_DIAGNOSTICS__']>;
 
 const reviewedRendererBaselines = {
-  'pear-close': { drawCalls: 26, submittedTriangles: 211_462, renderObjects: 24, instances: 22_370, geometryBytes: 3_707_524 },
+  'pear-close': { drawCalls: 23, submittedTriangles: 210_664, renderObjects: 21, instances: 22_367, geometryBytes: 3_683_536 },
   'aronia-close': { drawCalls: 46, submittedTriangles: 190_038, renderObjects: 44, instances: 132, geometryBytes: 1_214_808 },
   'rosehip-close': { drawCalls: 41, submittedTriangles: 145_146, renderObjects: 39, instances: 111, geometryBytes: 792_612 },
   'pig-close': { drawCalls: 22, submittedTriangles: 1_982, renderObjects: 20, instances: 20, geometryBytes: 86_284 },
@@ -88,6 +88,27 @@ for (const [view, label] of views) {
     });
   });
 }
+
+test('Unselected orchard leaves the backyard visually blank', async ({ page }, testInfo) => {
+  const { runtimeErrors, failedRequests } = monitorRuntime(page);
+  await page.goto('/backyard-lineup.html?view=orchard-close');
+  await page.waitForFunction(() => document.body.dataset.ready === 'true');
+  await expect(page.locator('.label')).toHaveText('Prepared orchard');
+  const diagnostics = await page.evaluate(() => window.__BACKYARD_LINEUP_DIAGNOSTICS__);
+  console.log(`[backyard-lineup] orchard-close: ${JSON.stringify(diagnostics)}`);
+  expect(diagnostics?.gardenCount).toBe(1);
+  expect(diagnostics?.triangleCount).toBe(0);
+  expect(diagnostics?.submittedTriangles).toBe(0);
+  expect(diagnostics?.renderObjects).toBe(0);
+  expect(diagnostics?.instances).toBe(0);
+  expect(diagnostics?.geometryBytes).toBe(0);
+  expect(diagnostics?.plantingLayouts).toEqual([]);
+  expectCleanRuntime(runtimeErrors, failedRequests);
+  await page.screenshot({
+    path: testInfo.outputPath('backyard-orchard-close.png'),
+    fullPage: true,
+  });
+});
 
 const animalViews = [
   ['pig-close', ['Pig pen']],

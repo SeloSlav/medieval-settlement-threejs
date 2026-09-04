@@ -15,7 +15,6 @@
 }
 .development-launcher img { width: 36px; height: 36px; object-fit: contain; filter: sepia(.35); }
 .development-launcher:hover { background: #d6b2631c; }
-.development-launcher__badge { position: absolute; right: 1px; bottom: 0; display: grid; place-items: center; min-width: 18px; height: 18px; border: 1px solid #a88c53; border-radius: 50%; background: #29271d; font: 12px Georgia, serif; }
 
 [data-ui-root].has-development-open > :not(.development-menu) { visibility: hidden !important; pointer-events: none !important; }
 [data-ui-root].has-development-open > :not(.development-menu) * { visibility: hidden !important; }

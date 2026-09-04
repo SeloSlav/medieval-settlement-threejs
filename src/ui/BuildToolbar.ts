@@ -475,7 +475,7 @@ export class BuildToolbar {
     developmentButton.setAttribute('aria-controls', 'development-menu');
     developmentButton.setAttribute('aria-haspopup', 'dialog');
     developmentButton.setAttribute('aria-expanded', 'false');
-    developmentButton.innerHTML = '<img src="/assets/ui/icons/monastery/scriptorium-archive.png" alt=""/><span class="development-launcher__badge" data-development-badge>9</span>';
+    developmentButton.innerHTML = '<img src="/assets/ui/icons/monastery/scriptorium-archive.png" alt=""/>';
     const resourceStrip = this.settlementHud.root.querySelector<HTMLElement>(
       '[data-settlement-resource-strip]',
     );

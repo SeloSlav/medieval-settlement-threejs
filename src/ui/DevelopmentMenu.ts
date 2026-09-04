@@ -202,9 +202,8 @@ export class DevelopmentMenu {
 
   private render(): void {
     this.element.querySelector('[data-development-points]')!.textContent = String(this.state.points);
-    this.launcher.querySelector('[data-development-badge]')!.textContent = String(this.state.points);
-    this.launcher.setAttribute('aria-label', `Developments, ${this.state.points} points available`);
-    this.launcher.dataset.tooltip = `Developments · ${this.state.points} points available`;
+    this.launcher.setAttribute('aria-label', 'Developments');
+    this.launcher.dataset.tooltip = 'Open the development tree.';
     this.element.querySelectorAll('.development-budget__marks i').forEach((mark, i) => mark.classList.toggle('is-spent', i >= this.state.points));
     for (const branch of DEVELOPMENT_BRANCHES) {
       this.element.querySelector(`[data-branch-count="${branch.id}"]`)!.textContent = `${branch.skills.filter(skill => this.state.has(skill.id)).length} / 6`;
