@@ -11,7 +11,11 @@ import {
 } from '../buildingMaterials.ts';
 import { getSharedWellWaterMaterial } from '../WellWaterMaterial.ts';
 import { createFishingBoatMesh } from './fishingBoatMesh.ts';
-import { addCampAFrameShelter, createCampfireEffects } from './foundersCampMesh.ts';
+import {
+  addCampAFrameShelter,
+  batchCampAFrameShelterRigging,
+  createCampfireEffects,
+} from './foundersCampMesh.ts';
 import { CAMP_HIDE_METERS_PER_REPEAT } from '../campHideSurface.ts';
 import { createDrapedCanopyGeometry } from './drapedCanopyGeometry.ts';
 import {
@@ -260,6 +264,7 @@ function addHunterSleepingTent(group: THREE.Group): void {
   // patch, guy ropes, stakes and bedroll. Its authored entrance faces -Z.
   const tent = addCampAFrameShelter(group, -2.55, -0.9, Math.PI, 0);
   tent.userData.fabricRole = 'sleeping-tent';
+  batchCampAFrameShelterRigging(tent);
 }
 
 function addHunterProcessingFly(group: THREE.Group): void {

@@ -4,6 +4,7 @@ import {
   type CombatMotion, type CombatLocomotion,
 } from './combatMotion.ts';
 import { SIM_REALTIME_RATE } from '../generated/gameBalance.ts';
+import { banditOnTheftMission } from '../security/banditEquipment.ts';
 import { guardDogActivity } from '../security/dogActivity.ts';
 import { presentationNow, trailerClock } from '../app/trailerClock.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
@@ -333,6 +334,7 @@ type CombatAgentVisual = {
   renderPosition: { x: number; z: number };
   displayMoveSpeed: number;
   locomotion: CombatLocomotion;
+  onTheftMission: boolean;
   yaw: number;
   hurtUntilMs: number;
   threatenUntilMs: number;
@@ -803,6 +805,7 @@ export class VillagerRenderer {
         renderPosition: prior?.renderPosition ?? { x: state.x, z: state.z },
         displayMoveSpeed: prior?.displayMoveSpeed ?? 0,
         locomotion: prior?.locomotion ?? 'idle',
+        onTheftMission: banditOnTheftMission(state, prior?.onTheftMission),
         yaw: prior?.yaw ?? Math.atan2(
           state.x - state.homeX,
           state.z - state.homeZ,
@@ -2504,7 +2507,8 @@ export class VillagerRenderer {
         standard.faction = standardAssignment.side;
         renderAgent.companyStandard = standard;
       }
-      renderAgent.tool = carriedStandardSidearm ? 'sidearm' : combatToolFor(combat);
+      renderAgent.tool = visual.onTheftMission ? null
+        : carriedStandardSidearm ? 'sidearm' : combatToolFor(combat);
       if (shouldCreateBattlefieldWeaponDrop(combat.status, renderAgent.tool)) {
         renderAgent.battlefieldWeaponDrop = {
           ownerId: combat.id,

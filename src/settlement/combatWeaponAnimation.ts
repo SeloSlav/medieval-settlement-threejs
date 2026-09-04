@@ -213,6 +213,7 @@ export type CombatWeaponRig = {
   model: THREE.Group;
   tool: THREE.Group | null;
   rangedMount: THREE.Group | null;
+  shieldMount: THREE.Group | null;
   nockedArrow: THREE.Group | null;
   bowString: THREE.Line | null;
   bowStringRestCenter: THREE.Vector3 | null;
@@ -314,6 +315,8 @@ export function bindCombatWeaponRig(
     model,
     tool,
     rangedMount,
+    shieldMount: mounts?.find(mount => mount.parent === armBones.leftHand
+      && mount.userData.workerToolCombatRole === 'always') ?? null,
     nockedArrow,
     bowString,
     bowStringRestCenter,
@@ -357,6 +360,65 @@ export function restoreCombatWeaponPose(rig: CombatWeaponRig): void {
     rig.ownedBones[index]!.quaternion.copy(rig.baseQuaternions[index]!);
   }
   rig.overlayApplied = false;
+}
+
+const CARRY_RIGHT: ArmTarget = [-0.42, -0.5, 0.18];
+const CARRY_LEFT: ArmTarget = [0.42, -0.5, 0.18];
+const CARRY_CROSSBOW: ArmTarget = [-0.2, -0.32, 0.52];
+const UPRIGHT_CARRY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.06);
+const LOW_BLADE_CARRY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 2.7);
+const CROSSBOW_CARRY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 1.25);
+const SHIELD_CARRY = new THREE.Quaternion();
+
+/** Like the standard bearer, own only the carrying arm after the base mixer.
+ * Keep the wrist relative to the model's facing, so torso sway cannot whip a
+ * long pole back and forth. The free arm, torso and legs keep their animation. */
+export function applyMilitaryCarryPose(rig: CombatWeaponRig, tool: WorkerToolKind, mode: string): boolean {
+  if (!rig.tool || !resolveCombatWeaponPresentation(tool, Infinity)
+    || !['walk', 'run', 'flee', 'idle', 'wait', 'relax'].includes(mode)) return false;
+  if (!rig.overlayApplied) captureBaseQuaternions(rig);
+  const primaryLeft = tool === 'bow';
+  const primaryMount = primaryLeft ? rig.rangedMount ?? rig.tool : rig.tool;
+  const orientation = tool === 'crossbow' ? CROSSBOW_CARRY
+    : tool === 'sidearm' || tool === 'sidearm-shield' || tool === 'sword-shield'
+      ? LOW_BLADE_CARRY : UPRIGHT_CARRY;
+  poseCarryArm(rig, primaryLeft, tool === 'crossbow' ? CARRY_CROSSBOW
+    : primaryLeft ? CARRY_LEFT : CARRY_RIGHT);
+  orientCarryGrip(rig, primaryLeft ? rig.armBones.leftHand : rig.armBones.rightHand,
+    primaryMount, orientation);
+  if (tool === 'crossbow') {
+    const grip = primaryMount.userData.workerToolSupportGripLocal as readonly [number, number, number] | undefined;
+    if (grip) {
+      rig.armBones.leftClavicle.quaternion.copy(rig.referenceQuaternions.get(rig.armBones.leftClavicle)!);
+      rig.armBones.leftHand.quaternion.copy(rig.referenceQuaternions.get(rig.armBones.leftHand)!);
+      rig.model.updateWorldMatrix(true, true);
+      const target = primaryMount.localToWorld(rig.scratchVectors[13]!.set(...grip));
+      solveArmToWorld(rig, rig.armBones.leftUpperArm, rig.armBones.leftForearm, rig.armBones.leftHand, target, 1);
+    }
+  } else if (rig.shieldMount) {
+    poseCarryArm(rig, true, CARRY_LEFT);
+    orientCarryGrip(rig, rig.armBones.leftHand, rig.shieldMount, SHIELD_CARRY);
+  }
+  rig.model.updateWorldMatrix(true, true);
+  return true;
+}
+
+function poseCarryArm(rig: CombatWeaponRig, left: boolean, target: ArmTarget): void {
+  const clavicle = left ? rig.armBones.leftClavicle : rig.armBones.rightClavicle;
+  const hand = left ? rig.armBones.leftHand : rig.armBones.rightHand;
+  clavicle.quaternion.copy(rig.referenceQuaternions.get(clavicle)!);
+  hand.quaternion.copy(rig.referenceQuaternions.get(hand)!);
+  rig.model.updateWorldMatrix(true, true);
+  solveArm(rig, left ? rig.armBones.leftUpperArm : rig.armBones.rightUpperArm,
+    left ? rig.armBones.leftForearm : rig.armBones.rightForearm, hand, target, left ? 1 : -1);
+}
+
+function orientCarryGrip(rig: CombatWeaponRig, hand: THREE.Bone, mount: THREE.Group, orientation: THREE.Quaternion): void {
+  const desiredWorld = rig.model.getWorldQuaternion(rig.scratchQuaternions[0]!).multiply(orientation);
+  const parentInverse = hand.parent!.getWorldQuaternion(rig.scratchQuaternions[1]!).invert();
+  const mountInverse = rig.scratchQuaternions[2]!.copy(mount.quaternion).invert();
+  hand.quaternion.copy(parentInverse).multiply(desiredWorld).multiply(mountInverse).normalize();
+  hand.updateWorldMatrix(true, true);
 }
 
 /**

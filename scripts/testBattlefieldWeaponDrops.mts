@@ -185,7 +185,7 @@ assert.ok(
 );
 assert.match(
   villagerRendererSource,
-  /carriedStandardSidearm[\s\S]{0,160}fallenCompanyStandardBearers\.has\(combat\.id\)[\s\S]{0,800}renderAgent\.tool = carriedStandardSidearm \? 'sidearm'/,
+  /carriedStandardSidearm[\s\S]{0,160}fallenCompanyStandardBearers\.has\(combat\.id\)[\s\S]{0,800}renderAgent\.tool = visual\.onTheftMission \? null\s*: carriedStandardSidearm \? 'sidearm'/,
   'the old standard bearer must drop the sword players actually saw in his hand',
 );
 const crowdRendererSource = readFileSync(

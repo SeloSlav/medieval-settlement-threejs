@@ -242,8 +242,14 @@ function testFoundersCampColorBatching(): {
   batchGroup.visible = true;
   const batched = renderSnapshot(camp);
 
+  const sparkBatch = camp.getObjectByName('Animated fire spark');
   assert.ok(
-    authored.colorDraws >= 130,
+    sparkBatch instanceof THREE.InstancedMesh,
+    'founders-camp sparks must share one instanced draw',
+  );
+  assert.equal(sparkBatch.count, 7, 'founders-camp spark population changed');
+  assert.ok(
+    authored.colorDraws >= 124,
     `founders-camp fixture must retain its reviewed authored load (got ${authored.colorDraws})`,
   );
   assert.equal(

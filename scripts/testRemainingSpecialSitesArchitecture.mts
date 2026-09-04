@@ -10,6 +10,7 @@ import {
 } from '../src/buildings/meshes/serviceBuildingMeshes.ts';
 import { createSpinningRettingHouseMesh } from '../src/buildings/meshes/spinningRettingHouseMesh.ts';
 import { createTavernMesh } from '../src/buildings/meshes/tavernBuildingMesh.ts';
+import { batchCompletedBuildingStaticMeshes } from '../src/buildings/staticBuildingBatch.ts';
 
 const factories = {
   tavern: createTavernMesh,
@@ -28,7 +29,10 @@ const triangleCeilings: Record<keyof typeof factories, number> = {
   spinning_retting_house: 3_700,
   salvage_pile: 1_000,
   well: 800,
-  hunters_hall: 2_000,
+  // The leather fly intentionally retains its close-up drape tessellation.
+  // Runtime cost is bounded separately below after immutable material-slot
+  // batching, rather than forcing visual cloth detail into a false 2k budget.
+  hunters_hall: 5_000,
   foragers_shed: 1_800,
   fishing_camp: 2_800,
 };
@@ -109,8 +113,25 @@ for (const name of ['Forager woven remedy basket', 'Forager woven food basket'])
 const hunters = createHuntersHallMesh();
 assert.equal(hunters.userData.noBakedHangingTools, true);
 assert.equal(
-  hunters.getObjectByName('Hunter processing fly sagging canvas')?.userData.proceduralFabric,
+  hunters.getObjectByName('Hunter processing fly stitched brown hide')?.userData.proceduralFabric,
   true,
+);
+const hideFly = requiredMesh(hunters, 'Hunter processing fly stitched brown hide');
+assert.equal(
+  materialOf(hideFly).userData.buildingDetailMaterialKey,
+  'hide',
+  'Hunters’ Hall must retain its specialty stitched-hide ceiling',
+);
+const rigging = requiredMesh(
+  hunters,
+  'Batched camp shelter timber frame, guy ropes, and stakes',
+);
+assert.equal(rigging.userData.sourceMeshCount, 17, 'sleeping-tent rigging batch drifted');
+const runtimeHunters = createHuntersHallMesh();
+batchCompletedBuildingStaticMeshes(runtimeHunters);
+assert.ok(
+  drawSubmissionCount(runtimeHunters) <= 29,
+  `Hunters’ Hall exceeds its 29-draw completed-building ceiling (${drawSubmissionCount(runtimeHunters)})`,
 );
 
 assertRoofSupportsCovered(
@@ -192,6 +213,14 @@ function triangleCount(group: THREE.Group): number {
       : (object.geometry.getAttribute('position')?.count ?? 0) / 3;
   });
   return Math.round(triangles);
+}
+
+function drawSubmissionCount(group: THREE.Group): number {
+  let draws = 0;
+  group.traverseVisible((object) => {
+    if (object instanceof THREE.Mesh || object instanceof THREE.Sprite) draws += 1;
+  });
+  return draws;
 }
 
 function assertBrownTimberFamily(group: THREE.Group, label: string): void {

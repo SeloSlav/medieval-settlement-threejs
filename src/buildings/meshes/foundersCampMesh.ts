@@ -873,6 +873,62 @@ export function addCampAFrameShelter(
   return shelter;
 }
 
+/**
+ * Compile the immutable roundwood rig of one shelter into a single material
+ * slot. The cloth, repair, stitched seam instance, dark interior, and bedroll
+ * remain independent, so the close-up silhouette and every authored surface
+ * are unchanged. This is opt-in because founders' and bandit shelters have
+ * different runtime ownership rules.
+ */
+export function batchCampAFrameShelterRigging(
+  shelter: THREE.Group,
+): THREE.Mesh | null {
+  if (shelter.userData.fpCollisionAggregate !== true) {
+    throw new Error('Shelter rigging batching requires an aggregate collision owner.');
+  }
+  shelter.updateMatrixWorld(true);
+  const sources: THREE.Mesh<THREE.BufferGeometry, THREE.Material>[] = [];
+  shelter.traverse((object) => {
+    if (!(object instanceof THREE.Mesh) || object instanceof THREE.InstancedMesh) return;
+    if (![
+      'Tent frame pole',
+      'Taut tent guy rope',
+      'Tent stake',
+    ].includes(object.name)) return;
+    if (Array.isArray(object.material) || object.material.transparent) return;
+    sources.push(object as THREE.Mesh<THREE.BufferGeometry, THREE.Material>);
+  });
+  if (sources.length < 2) return null;
+
+  const inverseShelter = new THREE.Matrix4().copy(shelter.matrixWorld).invert();
+  const transformed = sources.map((source) => {
+    const geometry = source.geometry.clone();
+    geometry.applyMatrix4(
+      new THREE.Matrix4().multiplyMatrices(inverseShelter, source.matrixWorld),
+    );
+    return geometry;
+  });
+  const geometry = mergeGeometries(transformed, false);
+  for (const entry of transformed) entry.dispose();
+  if (!geometry) return null;
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+
+  const first = sources[0]!;
+  const rigging = new THREE.Mesh(geometry, first.material);
+  rigging.name = 'Batched camp shelter timber frame, guy ropes, and stakes';
+  rigging.castShadow = first.castShadow;
+  rigging.receiveShadow = first.receiveShadow;
+  rigging.userData.sourceMeshCount = sources.length;
+  rigging.userData.materialSlot = 'dark-roundwood-rigging';
+  shelter.add(rigging);
+  for (const source of sources) {
+    source.removeFromParent();
+    source.geometry.dispose();
+  }
+  return rigging;
+}
+
 function createAFrameCanvasGeometry(): THREE.BufferGeometry {
   const parts = [
     createTentSideGeometry(-1),

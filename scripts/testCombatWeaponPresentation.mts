@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import { banditOnTheftMission } from '../src/security/banditEquipment.ts';
+import type { CombatAgentState } from '../src/security/combatAgents.ts';
 import {
   applyCompanyStandardBearerPose,
+  applyMilitaryCarryPose,
   applyCombatWeaponPose,
   bindCombatWeaponRig,
   disposeCombatWeaponRig,
@@ -39,6 +42,58 @@ assert.equal(release.phase, 'release');
 assert.equal(release.releaseEdge, true);
 
 const sources = createMilitaryEquipmentSources();
+const campBandit = {faction:'bandit',status:'holding',targetKind:'bandit-camp',x:0,z:0,
+  homeX:0,homeZ:0,carryingLoot:false} as CombatAgentState;
+assert.equal(banditOnTheftMission(campBandit),false);
+assert.equal(banditOnTheftMission({...campBandit,status:'advancing',targetKind:'building'}),true,
+  'the thief leaves the spear behind before walking away');
+for (const status of ['fighting','returning','downed'] as const) {
+  assert.equal(banditOnTheftMission({...campBandit,status,targetKind:'combat-agent'},true),true,
+    'retargeting, escape or death must not make a spear reappear during the theft');
+}
+assert.equal(banditOnTheftMission({...campBandit,status:'fighting',x:40}),true,
+  'reconnecting during a fight in town still shows the thief without a spear');
+assert.equal(banditOnTheftMission(campBandit,true),false,'only returning to camp restores the spear');
+assert.equal(banditOnTheftMission({...campBandit,faction:'spearman',status:'advancing'}),false);
+
+for (const [kind, source] of Object.entries(sources)) {
+  const model = createSemanticCombatRig();
+  const legs = bone('Legs',0,0,0); model.add(legs);
+  const tool = attachMilitaryEquipment(model,source);
+  const rig = bindCombatWeaponRig(model,source.kind,tool)!;
+  const primaryHand = source.kind === 'bow' ? rig.armBones.leftHand : rig.armBones.rightHand;
+  const mountRotations: THREE.Quaternion[] = [];
+  for (let frame=0;frame<32;frame++) {
+    restoreCombatWeaponPose(rig);
+    for (const arm of [rig.armBones.leftUpperArm,rig.armBones.rightUpperArm]) {
+      arm.quaternion.setFromEuler(new THREE.Euler(Math.sin(frame)*0.8,0,Math.cos(frame)*0.5));
+    }
+    rig.torsoBones.spineUpper!.quaternion.setFromEuler(new THREE.Euler(0.04,Math.sin(frame)*0.14,0));
+    legs.quaternion.setFromEuler(new THREE.Euler(Math.sin(frame)*0.6,0,0));
+    model.rotation.y=frame*0.08;
+    const before = rig.ownedBones.map(b=>b.quaternion.clone());
+    const legBefore = legs.quaternion.clone();
+    assert.equal(applyMilitaryCarryPose(rig,source.kind,frame%2 ? 'run':'walk'),true);
+    const orientation = tool.getWorldQuaternion(new THREE.Quaternion());
+    orientation.premultiply(model.getWorldQuaternion(new THREE.Quaternion()).invert());
+    mountRotations.push(orientation.normalize());
+    assert.ok(legs.quaternion.angleTo(legBefore)<1e-7,'carrying must not freeze the legs');
+    assert.ok(rig.torsoBones.spineUpper!.quaternion.angleTo(before[9]!)<1e-7,'torso gait stays animated');
+    if (source.kind==='spear' || source.kind==='pike-kit' || source.kind==='halberd' || source.kind==='sidearm') {
+      assert.ok(rig.armBones.leftUpperArm.quaternion.angleTo(before[1]!)<1e-7,'the free arm keeps swinging');
+    }
+    assert.ok(primaryHand.position.length()>0,'the wrist remains on its original skeleton');
+    restoreCombatWeaponPose(rig);
+    rig.ownedBones.forEach((b,i)=>assert.ok(b.quaternion.angleTo(before[i]!)<1e-7,'next frame restores the mixer pose'));
+  }
+  const carryAngle = Math.max(...mountRotations.map(q=>q.angleTo(mountRotations[0]!)));
+  assert.ok(carryAngle<1e-5,`${kind} carry varied by ${carryAngle} radians with the walk/run swing`);
+  const resting = rig.ownedBones.map(b=>b.quaternion.clone());
+  assert.equal(applyMilitaryCarryPose(rig,source.kind,'fight'),false);
+  assert.equal(applyMilitaryCarryPose(rig,source.kind,'fall'),false);
+  rig.ownedBones.forEach((b,i)=>assert.ok(b.quaternion.angleTo(resting[i]!)<1e-7,'combat and casualties retain pose ownership'));
+  disposeCombatWeaponRig(rig);
+}
 const bowRigModel = createSemanticCombatRig();
 const bowTool = attachMilitaryEquipment(bowRigModel, sources.bow);
 const bowRig = bindCombatWeaponRig(bowRigModel, 'bow', bowTool);

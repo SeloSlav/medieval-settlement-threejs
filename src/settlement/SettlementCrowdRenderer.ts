@@ -27,6 +27,7 @@ import {
 } from './workerTools.ts';
 import {
   applyCompanyStandardBearerPose,
+  applyMilitaryCarryPose,
   applyCombatWeaponPose,
   bindCombatWeaponRig,
   combatWeaponReleaseOrigin,
@@ -1156,6 +1157,7 @@ export class SettlementCrowdRenderer {
           visual.tool,
           defaultPresentation?.stance ?? 'melee',
         );
+        if (visual.combatRig) applyMilitaryCarryPose(visual.combatRig, agent.tool, agent.mode);
       }
       return;
     }

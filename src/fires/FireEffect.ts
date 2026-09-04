@@ -47,7 +47,8 @@ type AnimatedSmoke = {
 };
 
 type AnimatedSpark = {
-  mesh: THREE.Mesh;
+  mesh: THREE.InstancedMesh;
+  instanceIndex: number;
   phase: number;
 };
 
@@ -92,6 +93,7 @@ const SPARK_MATERIAL = new THREE.MeshBasicMaterial({
   toneMapped: false,
 });
 SPARK_MATERIAL.userData.sharedBuildingMaterial = true;
+const sparkInstanceTransform = new THREE.Object3D();
 
 /**
  * Creates the shared fire presentation used by campfires and structural fires.
@@ -167,13 +169,14 @@ export function createFireEffect(options: FireEffectOptions = {}): FireEffect {
 
   const sparks: AnimatedSpark[] = [];
   if (options.withSparks !== false) {
+    const mesh = new THREE.InstancedMesh(SPARK_GEOMETRY, SPARK_MATERIAL, 7);
+    mesh.name = 'Animated fire spark';
+    mesh.renderOrder = 19;
+    mesh.frustumCulled = false;
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    sparksRoot.add(mesh);
     for (let index = 0; index < 7; index += 1) {
-      const mesh = new THREE.Mesh(SPARK_GEOMETRY, SPARK_MATERIAL);
-      mesh.name = 'Animated fire spark';
-      mesh.renderOrder = 19;
-      mesh.frustumCulled = false;
-      sparksRoot.add(mesh);
-      sparks.push({ mesh, phase: index * 2.17 });
+      sparks.push({ mesh, instanceIndex: index, phase: index * 2.17 });
     }
   }
 
@@ -294,14 +297,21 @@ export function updateFireEffect(
       + index / Math.max(1, effect.sparks.length)
     ) % 1;
     const angle = spark.phase + elapsed * 0.76;
-    spark.mesh.visible = effect.intensity > 0.18 && age < 0.76;
-    spark.mesh.position.set(
+    sparkInstanceTransform.position.set(
       Math.cos(angle) * (0.08 + age * effect.spread * 0.52),
       0.5 + age * (1.35 + effect.intensity * 0.7),
       Math.sin(angle) * (0.08 + age * effect.spread * 0.42),
     );
-    spark.mesh.scale.setScalar(0.72 + (1 - age) * 0.58);
+    sparkInstanceTransform.scale.setScalar(
+      effect.intensity > 0.18 && age < 0.76
+        ? 0.72 + (1 - age) * 0.58
+        : 0,
+    );
+    sparkInstanceTransform.updateMatrix();
+    spark.mesh.setMatrixAt(spark.instanceIndex, sparkInstanceTransform.matrix);
   }
+  const sparkMesh = effect.sparks[0]?.mesh;
+  if (sparkMesh) sparkMesh.instanceMatrix.needsUpdate = true;
 
   const flicker = Math.sin(elapsed * 10.9) * 0.08 + Math.sin(elapsed * 17.3) * 0.035;
   effect.light.intensity = Math.max(
