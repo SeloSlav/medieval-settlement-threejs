@@ -209,7 +209,12 @@ test('centers Development between civic status and right-aligned resource contro
       <button class="development-launcher" aria-label="Developments"></button>
       <div class="settlement-hud__ribbon-side settlement-hud__ribbon-side--resources" data-settlement-resource-strip>
         <div class="settlement-hud__body settlement-hud__body--resources">
-          <div class="settlement-hud__stat" data-resource="timber"><strong class="settlement-hud__value">400</strong></div>
+          <div class="settlement-hud__stat" data-resource-group="construction">
+            <span class="settlement-hud__construction-summary">
+              <span data-construction-kind="timber"><i></i><strong>400</strong></span>
+              <span data-construction-kind="stone"><i></i><strong>240</strong></span>
+            </span>
+          </div>
         </div>
         <details class="settlement-hud__stores" data-specialty-stores>
           <summary class="settlement-hud__stores-summary"><strong class="settlement-hud__stores-status">1</strong></summary>
@@ -270,6 +275,18 @@ test('centers Development between civic status and right-aligned resource contro
   expect(layout.resourcesMeetDevelopment).toBe(true);
   expect(layout.totalsAtFarRight).toBe(true);
   await expect(page.locator('[data-resource="water"]')).toHaveCount(0);
+
+  const constructionIcons = await page.locator('[data-construction-kind] i').evaluateAll(
+    (icons) => icons.map((icon) => ({
+      image: getComputedStyle(icon).backgroundImage,
+      position: getComputedStyle(icon).backgroundPosition,
+    })),
+  );
+  expect(constructionIcons.map(({ image }) => image)).toEqual([
+    expect.stringContaining('hud-resources-core.png'),
+    expect.stringContaining('hud-resources-core.png'),
+  ]);
+  expect(constructionIcons[0]?.position).not.toBe(constructionIcons[1]?.position);
 
   const armsTriggerIcon = await page.locator('[data-military-stores] > summary').evaluate((element) => (
     getComputedStyle(element, '::before').backgroundImage

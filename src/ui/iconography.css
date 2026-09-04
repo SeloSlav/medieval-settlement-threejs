@@ -312,13 +312,17 @@
 .settlement-hud__stat[data-resource='gold']::before,
 .settlement-hud__stat[data-resource='population']::before,
 .settlement-hud__stat[data-resource='housing']::before,
-.settlement-hud__stat[data-resource='labor']::before {
+.settlement-hud__stat[data-resource='labor']::before,
+.settlement-hud__construction-summary [data-construction-kind='timber'] i,
+.settlement-hud__construction-summary [data-construction-kind='stone'] i {
   background-image: url('/assets/ui/icons/hud-resources-core.png');
   background-size: 300% 300%;
 }
 
-.settlement-hud__stat[data-resource='timber']::before { background-position: 0 0; }
-.settlement-hud__stat[data-resource='stone']::before { background-position: 50% 0; }
+.settlement-hud__stat[data-resource='timber']::before,
+.settlement-hud__construction-summary [data-construction-kind='timber'] i { background-position: 0 0; }
+.settlement-hud__stat[data-resource='stone']::before,
+.settlement-hud__construction-summary [data-construction-kind='stone'] i { background-position: 50% 0; }
 .settlement-hud__stat[data-resource='firewood']::before { background-position: 100% 0; }
 .settlement-hud__stat[data-resource='water']::before { background-position: 0 50%; }
 .settlement-hud__stat[data-resource='food']::before { background-position: 50% 50%; }
