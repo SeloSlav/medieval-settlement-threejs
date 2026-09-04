@@ -761,7 +761,7 @@ function getTavernStatus(
   }
   if (total <= 1e-6) {
     return {
-      statusText: 'Waiting for ale, apple cider, pear cider, or mead',
+      statusText: 'Waiting for ale, cider, or mead',
       statusState: 'warning',
       waterDetailHtml: details,
     };

@@ -21,7 +21,6 @@ pub struct DeliveryCargoTotals {
     pub water: f64,
     pub ale: f64,
     pub cider: f64,
-    pub cider: f64,
     pub mead: f64,
     pub honey: f64,
     pub wax: f64,
@@ -87,7 +86,6 @@ pub struct DeliveryCargoTotals {
     pub carrots: f64,
     pub beetroot: f64,
     pub jam: f64,
-    pub jam: f64,
     pub animal_feed: f64,
 }
 
@@ -102,7 +100,6 @@ impl DeliveryCargoTotals {
             CommodityKind::Firewood => self.firewood += amount,
             CommodityKind::Water => self.water += amount,
             CommodityKind::Ale => self.ale += amount,
-            CommodityKind::Cider => self.cider += amount,
             CommodityKind::Cider => self.cider += amount,
             CommodityKind::Mead => self.mead += amount,
             CommodityKind::Honey => self.honey += amount,
@@ -169,7 +166,6 @@ impl DeliveryCargoTotals {
             CommodityKind::Carrots => self.carrots += amount,
             CommodityKind::Beetroot => self.beetroot += amount,
             CommodityKind::Jam => self.jam += amount,
-            CommodityKind::Jam => self.jam += amount,
             CommodityKind::AnimalFeed => self.animal_feed += amount,
         }
     }
@@ -183,7 +179,7 @@ pub fn building_delivery_stock(building: &Building, kind: ResidenceNeedKind) -> 
         ResidenceNeedKind::Water => building.water,
         ResidenceNeedKind::Food => building_edible_food_stock(building),
         ResidenceNeedKind::Ale => {
-            building.ale + building.cider + building.cider + building.mead
+            building.ale + building.cider + building.mead
         }
         ResidenceNeedKind::SavoryPreserves => building_savory_preserves_stock(building),
         ResidenceNeedKind::Cloth => building.cloth,
@@ -230,7 +226,6 @@ pub fn withdraw_delivery_cargo(
             let mut remaining = amount.max(0.0);
             let mut withdrawn = 0.0;
             for beverage in [
-                CommodityKind::Cider,
                 CommodityKind::Cider,
                 CommodityKind::Ale,
                 CommodityKind::Mead,
@@ -281,8 +276,7 @@ pub fn withdraw_delivery_cargo_with_source(
     const FIREWOOD_SOURCES: [CommodityKind; 2] = [CommodityKind::Charcoal, CommodityKind::Firewood];
     const WATER_SOURCES: [CommodityKind; 1] = [CommodityKind::Water];
     const FOOD_SOURCES: [CommodityKind; 0] = [];
-    const BEVERAGE_SOURCES: [CommodityKind; 4] = [
-        CommodityKind::Cider,
+    const BEVERAGE_SOURCES: [CommodityKind; 3] = [
         CommodityKind::Cider,
         CommodityKind::Ale,
         CommodityKind::Mead,
@@ -336,7 +330,6 @@ pub fn residence_need_for_delivery_commodity(
         CommodityKind::Water => Some(ResidenceNeedKind::Water),
         CommodityKind::Ale
         | CommodityKind::Cider
-        | CommodityKind::Cider
         | CommodityKind::Mead => Some(ResidenceNeedKind::Ale),
         CommodityKind::Cloth => Some(ResidenceNeedKind::Cloth),
         CommodityKind::Shoes => Some(ResidenceNeedKind::Shoes),
@@ -353,7 +346,7 @@ pub fn selected_food_delivery_commodity(
     building: &Building,
     need_kind: ResidenceNeedKind,
 ) -> Option<CommodityKind> {
-    const FRESH_ORDER: [CommodityKind; 21] = [
+    const FRESH_ORDER: [CommodityKind; 20] = [
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
@@ -373,7 +366,6 @@ pub fn selected_food_delivery_commodity(
         CommodityKind::MaslinBread,
         CommodityKind::OatGrain,
         CommodityKind::Honey,
-        CommodityKind::Jam,
         CommodityKind::Jam,
     ];
     const PRESERVED_ORDER: [CommodityKind; 3] = [
@@ -407,7 +399,6 @@ pub fn selected_food_delivery_commodity(
             PRESERVED_ORDER[2],
             FRESH_ORDER[18],
             FRESH_ORDER[19],
-            FRESH_ORDER[20],
         ],
         ResidenceNeedKind::SavoryPreserves => &PRESERVED_ORDER,
         _ => return None,
@@ -434,7 +425,6 @@ pub fn selected_need_delivery_commodity(
             selected_food_delivery_commodity(building, need_kind)
         }
         ResidenceNeedKind::Ale => [
-            CommodityKind::Cider,
             CommodityKind::Cider,
             CommodityKind::Ale,
             CommodityKind::Mead,
@@ -476,7 +466,7 @@ pub fn selected_food_delivery_commodity_for_residence(
     if need_kind != ResidenceNeedKind::Food {
         return selected_food_delivery_commodity(building, need_kind);
     }
-    const ORDER: [CommodityKind; 24] = [
+    const ORDER: [CommodityKind; 23] = [
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
@@ -495,7 +485,6 @@ pub fn selected_food_delivery_commodity_for_residence(
         CommodityKind::RyeBread,
         CommodityKind::MaslinBread,
         CommodityKind::OatGrain,
-        CommodityKind::Jam,
         CommodityKind::Jam,
         CommodityKind::Cheese,
         CommodityKind::SmokedFish,

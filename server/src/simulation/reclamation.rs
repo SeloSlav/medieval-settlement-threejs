@@ -30,7 +30,7 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 73] = [
+const RECOVERY_ORDER: [CommodityKind; 71] = [
     CommodityKind::Gold,
     CommodityKind::Remedies,
     CommodityKind::RyeSheaves,
@@ -66,9 +66,7 @@ const RECOVERY_ORDER: [CommodityKind; 73] = [
     CommodityKind::SmokedFish,
     CommodityKind::Cheese,
     CommodityKind::Jam,
-    CommodityKind::Jam,
     CommodityKind::Ale,
-    CommodityKind::Cider,
     CommodityKind::Cider,
     CommodityKind::Mead,
     CommodityKind::Honey,
@@ -113,7 +111,6 @@ pub struct ReclamationStock {
     pub stone: f64,
     pub water: f64,
     pub ale: f64,
-    pub cider: f64,
     pub cider: f64,
     pub mead: f64,
     pub honey: f64,
@@ -180,7 +177,6 @@ pub struct ReclamationStock {
     pub carrots: f64,
     pub beetroot: f64,
     pub jam: f64,
-    pub jam: f64,
 }
 
 impl ReclamationStock {
@@ -205,10 +201,6 @@ impl ReclamationStock {
             },
             CommodityKind::Ale => Self {
                 ale: amount,
-                ..Self::default()
-            },
-            CommodityKind::Cider => Self {
-                cider: amount,
                 ..Self::default()
             },
             CommodityKind::Cider => Self {
@@ -454,10 +446,6 @@ impl ReclamationStock {
                 jam: amount,
                 ..Self::default()
             },
-            CommodityKind::Jam => Self {
-                jam: amount,
-                ..Self::default()
-            },
         }
     }
 
@@ -476,7 +464,6 @@ impl ReclamationStock {
             stone,
             water,
             ale,
-            cider,
             cider,
             mead,
             honey,
@@ -543,7 +530,6 @@ impl ReclamationStock {
             carrots,
             beetroot,
             jam,
-            jam,
         );
         self
     }
@@ -569,7 +555,6 @@ impl ReclamationStock {
             stone: cargo.stone,
             water: cargo.water,
             ale: cargo.ale,
-            cider: cargo.cider,
             cider: cargo.cider,
             mead: cargo.mead,
             honey: cargo.honey,
@@ -636,12 +621,11 @@ impl ReclamationStock {
             carrots: cargo.carrots,
             beetroot: cargo.beetroot,
             jam: cargo.jam,
-            jam: cargo.jam,
         }
         .normalized()
     }
 
-    pub fn commodities() -> [CommodityKind; 73] {
+    pub fn commodities() -> [CommodityKind; 71] {
         RECOVERY_ORDER
     }
 
@@ -660,7 +644,6 @@ impl ReclamationStock {
             stone,
             water,
             ale,
-            cider,
             cider,
             mead,
             honey,
@@ -727,7 +710,6 @@ impl ReclamationStock {
             carrots,
             beetroot,
             jam,
-            jam,
         );
         merged
     }
@@ -746,7 +728,6 @@ impl ReclamationStock {
             stone: resources.stone.max(0.0),
             water: resources.water.max(0.0),
             ale: resources.ale.max(0.0),
-            cider: resources.cider.max(0.0),
             cider: resources.cider.max(0.0),
             mead: resources.mead.max(0.0),
             honey: resources.honey.max(0.0),
@@ -813,7 +794,6 @@ impl ReclamationStock {
             carrots: resources.carrots.max(0.0),
             beetroot: resources.beetroot.max(0.0),
             jam: resources.jam.max(0.0),
-            jam: resources.jam.max(0.0),
         }
         .normalized()
     }
@@ -825,7 +805,6 @@ impl ReclamationStock {
             CommodityKind::Stone => self.stone,
             CommodityKind::Water => self.water,
             CommodityKind::Ale => self.ale,
-            CommodityKind::Cider => self.cider,
             CommodityKind::Cider => self.cider,
             CommodityKind::Mead => self.mead,
             CommodityKind::Honey => self.honey,
@@ -892,7 +871,6 @@ impl ReclamationStock {
             CommodityKind::Carrots => self.carrots,
             CommodityKind::Beetroot => self.beetroot,
             CommodityKind::Jam => self.jam,
-            CommodityKind::Jam => self.jam,
         }
     }
 
@@ -913,7 +891,6 @@ impl ReclamationStock {
             stone,
             water,
             ale,
-            cider,
             cider,
             mead,
             honey,
@@ -979,7 +956,6 @@ impl ReclamationStock {
             cabbage,
             carrots,
             beetroot,
-            jam,
             jam,
         );
     }
@@ -1116,7 +1092,6 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.food = 0.0;
     resources.ale = 0.0;
     resources.cider = 0.0;
-    resources.cider = 0.0;
     resources.mead = 0.0;
     resources.honey = 0.0;
     resources.wax = 0.0;
@@ -1178,7 +1153,6 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.cabbage = 0.0;
     resources.carrots = 0.0;
     resources.beetroot = 0.0;
-    resources.jam = 0.0;
     resources.jam = 0.0;
 }
 
@@ -1307,7 +1281,6 @@ pub fn insert_reclamation_pile(
         water: stock.water.max(0.0),
         food: 0.0,
         ale: stock.ale.max(0.0),
-        cider: stock.cider.max(0.0),
         cider: stock.cider.max(0.0),
         mead: stock.mead.max(0.0),
         honey: stock.honey.max(0.0),
@@ -1439,7 +1412,6 @@ pub fn insert_reclamation_pile(
         cabbage: stock.cabbage.max(0.0),
         carrots: stock.carrots.max(0.0),
         beetroot: stock.beetroot.max(0.0),
-        jam: stock.jam.max(0.0),
         jam: stock.jam.max(0.0),
         rye_sheaves: stock.rye_sheaves.max(0.0),
         oat_sheaves: stock.oat_sheaves.max(0.0),
@@ -1869,7 +1841,6 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
         | CommodityKind::SmokedFish
         | CommodityKind::Cheese
         | CommodityKind::Jam
-        | CommodityKind::Jam
         | CommodityKind::RyeSheaves
         | CommodityKind::OatSheaves
         | CommodityKind::BarleySheaves
@@ -1892,7 +1863,6 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
             _ => Some(2),
         },
         CommodityKind::Ale
-        | CommodityKind::Cider
         | CommodityKind::Cider
         | CommodityKind::Mead => match kind {
             "tavern" => Some(0),

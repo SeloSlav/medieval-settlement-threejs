@@ -1,7 +1,5 @@
-/// Every commodity keeps the stable numeric code used by delivery cargo and
-/// Trading Post rules. Reusing that code as the bit position keeps the saved
-/// mask compact. Commodity codes 64-127 live in the companion high mask so
-/// established codes and saved policies never need to be renumbered.
+/// Commodity codes double as storage-acceptance bit positions. Codes 64-127
+/// live in the companion high mask.
 pub const STOREHOUSE_ACCEPTANCE_MASK: u64 = bit(0) // firewood
     | bit(3) // timber
     | bit(10) // stone
@@ -66,11 +64,9 @@ pub const GRANARY_ACCEPTANCE_MASK: u64 = bit(6) // ale
     | bit(38) // cabbage
     | bit(50) // carrots
     | bit(53) // beetroot
-    | bit(55) // apple cider
+    | bit(55) // cider
     | bit(56) // mead
-    | bit(57) // pear cider
-    | bit(61) // aronia jam
-    | bit(62); // rosehip jam
+    | bit(61); // jam
 
 pub const GRANARY_ACCEPTANCE_MASK_HIGH: u64 = 0;
 

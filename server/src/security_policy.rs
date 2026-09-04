@@ -352,7 +352,6 @@ impl RaidPortableStores {
             maslin_bread,
             ale,
             cider,
-            cider,
             mead,
             honey,
             wax,
@@ -405,7 +404,6 @@ impl RaidPortableStores {
             carrots,
             beetroot,
             jam,
-            jam,
         );
         self
     }
@@ -426,7 +424,6 @@ impl RaidPortableStores {
             + positive_store(self.rye_bread)
             + positive_store(self.maslin_bread)
             + positive_store(self.ale)
-            + positive_store(self.cider)
             + positive_store(self.cider)
             + positive_store(self.mead)
             + positive_store(self.honey)
@@ -480,7 +477,6 @@ impl RaidPortableStores {
             + positive_store(self.carrots)
             + positive_store(self.beetroot)
             + positive_store(self.jam)
-            + positive_store(self.jam)
     }
 
     pub fn goods_amount(self) -> f64 {
@@ -499,7 +495,6 @@ impl RaidPortableStores {
             + positive_store(self.rye_bread)
             + positive_store(self.maslin_bread)
             + positive_store(self.ale)
-            + positive_store(self.cider)
             + positive_store(self.cider)
             + positive_store(self.mead)
             + positive_store(self.honey)
@@ -552,7 +547,6 @@ impl RaidPortableStores {
             + positive_store(self.carrots)
             + positive_store(self.beetroot)
             + positive_store(self.jam)
-            + positive_store(self.jam)
     }
 
     pub fn plunder(self, loss_fraction: f64) -> RaidPlunder {
@@ -588,7 +582,6 @@ impl RaidPortableStores {
         plunder_good!(rye_bread);
         plunder_good!(maslin_bread);
         plunder_good!(ale);
-        plunder_good!(cider);
         plunder_good!(cider);
         plunder_good!(mead);
         plunder_good!(honey);
@@ -640,7 +633,6 @@ impl RaidPortableStores {
         plunder_good!(cabbage);
         plunder_good!(carrots);
         plunder_good!(beetroot);
-        plunder_good!(jam);
         plunder_good!(jam);
         let (gold, wealth_lost) = plunder_store(source.gold, fraction);
         remaining.gold = gold;

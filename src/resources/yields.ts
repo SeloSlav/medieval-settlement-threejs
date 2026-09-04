@@ -97,9 +97,7 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
     case 'ale':
       return `${Math.round(amount)} ale`;
     case 'cider':
-      return `${Math.round(amount)} apple cider`;
-    case 'cider':
-      return `${Math.round(amount)} pear cider`;
+      return `${Math.round(amount)} cider`;
     case 'mead':
       return `${Math.round(amount)} mead`;
     case 'curedMeat':
@@ -109,9 +107,7 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
     case 'cheese':
       return `${Math.round(amount)} cheese`;
     case 'jam':
-      return `${Math.round(amount)} aronia jam`;
-    case 'jam':
-      return `${Math.round(amount)} rosehip jam`;
+      return `${Math.round(amount)} jam`;
     case 'honey':
       return `${Math.round(amount)} honey`;
     case 'wax':

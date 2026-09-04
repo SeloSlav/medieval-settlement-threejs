@@ -770,7 +770,6 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         maslin_bread: building.maslin_bread,
         ale: building.ale,
         cider: building.cider,
-        cider: building.cider,
         mead: building.mead,
         honey: building.honey,
         wax: building.wax,
@@ -822,7 +821,6 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         cabbage: building.cabbage,
         carrots: building.carrots,
         beetroot: building.beetroot,
-        jam: building.jam,
         jam: building.jam,
     }
     .normalized_whole()
@@ -1037,7 +1035,6 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::MaslinFlour) => stores.maslin_flour = amount,
         Some(CommodityKind::Ale) => stores.ale = amount,
         Some(CommodityKind::Cider) => stores.cider = amount,
-        Some(CommodityKind::Cider) => stores.cider = amount,
         Some(CommodityKind::Mead) => stores.mead = amount,
         Some(CommodityKind::CuredMeat) => stores.cured_meat = amount,
         Some(CommodityKind::SmokedFish) => stores.smoked_fish = amount,
@@ -1048,7 +1045,6 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::Cabbage) => stores.cabbage = amount,
         Some(CommodityKind::Carrots) => stores.carrots = amount,
         Some(CommodityKind::Beetroot) => stores.beetroot = amount,
-        Some(CommodityKind::Jam) => stores.jam = amount,
         Some(CommodityKind::Jam) => stores.jam = amount,
         Some(CommodityKind::Honey) => stores.honey = amount,
         Some(CommodityKind::Wax) => stores.wax = amount,
@@ -1116,7 +1112,6 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::MaslinFlour) => stores.maslin_flour,
         Some(CommodityKind::Ale) => stores.ale,
         Some(CommodityKind::Cider) => stores.cider,
-        Some(CommodityKind::Cider) => stores.cider,
         Some(CommodityKind::Mead) => stores.mead,
         Some(CommodityKind::CuredMeat) => stores.cured_meat,
         Some(CommodityKind::SmokedFish) => stores.smoked_fish,
@@ -1127,7 +1122,6 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Cabbage) => stores.cabbage,
         Some(CommodityKind::Carrots) => stores.carrots,
         Some(CommodityKind::Beetroot) => stores.beetroot,
-        Some(CommodityKind::Jam) => stores.jam,
         Some(CommodityKind::Jam) => stores.jam,
         Some(CommodityKind::Honey) => stores.honey,
         Some(CommodityKind::Wax) => stores.wax,
@@ -1197,7 +1191,6 @@ fn treasury_portable_stores(
         maslin_bread: treasury.maslin_bread,
         ale: treasury.ale,
         cider: treasury.cider,
-        cider: treasury.cider,
         mead: treasury.mead,
         honey: treasury.honey,
         wax: treasury.wax,
@@ -1249,7 +1242,6 @@ fn treasury_portable_stores(
         cabbage: treasury.cabbage,
         carrots: treasury.carrots,
         beetroot: treasury.beetroot,
-        jam: treasury.jam,
         jam: treasury.jam,
     }
     .normalized_whole()
@@ -1327,7 +1319,6 @@ pub(super) fn retain_unplundered_stores(building: &mut Building, stores: RaidPor
     building.maslin_bread = stores.maslin_bread;
     building.ale = stores.ale;
     building.cider = stores.cider;
-    building.cider = stores.cider;
     building.mead = stores.mead;
     building.honey = stores.honey;
     building.wax = stores.wax;
@@ -1380,7 +1371,6 @@ pub(super) fn retain_unplundered_stores(building: &mut Building, stores: RaidPor
     building.carrots = stores.carrots;
     building.beetroot = stores.beetroot;
     building.jam = stores.jam;
-    building.jam = stores.jam;
     building.civic_receipts_gold = whole_units(building.civic_receipts_gold).min(building.gold);
     building.private_export_proceeds_gold = whole_units(building.private_export_proceeds_gold)
         .min((building.gold - building.civic_receipts_gold).max(0.0));
@@ -1412,7 +1402,6 @@ fn retain_unplundered_treasury_stores(
     subtract_loss!(rye_bread);
     subtract_loss!(maslin_bread);
     subtract_loss!(ale);
-    subtract_loss!(cider);
     subtract_loss!(cider);
     subtract_loss!(mead);
     subtract_loss!(honey);
@@ -1457,7 +1446,6 @@ fn retain_unplundered_treasury_stores(
     subtract_loss!(cabbage);
     subtract_loss!(carrots);
     subtract_loss!(beetroot);
-    subtract_loss!(jam);
     subtract_loss!(jam);
 }
 

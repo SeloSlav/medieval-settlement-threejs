@@ -1855,7 +1855,6 @@ pub fn step_granary(
                     CommodityKind::SmokedFish,
                     CommodityKind::CuredMeat,
                     CommodityKind::Jam,
-                    CommodityKind::Jam,
                     CommodityKind::Honey,
                     CommodityKind::Wine,
                 ] {
@@ -1877,7 +1876,6 @@ pub fn step_granary(
                     &["tavern"],
                 );
                 for beverage in [
-                    CommodityKind::Cider,
                     CommodityKind::Cider,
                     CommodityKind::Mead,
                 ] {
@@ -2610,7 +2608,6 @@ pub fn step_brewery(
     request_brewery_recipe_inputs(ctx, tick, clock, &brewery, recipe, input_staging_cycles);
     for beverage in [
         CommodityKind::Cider,
-        CommodityKind::Cider,
         CommodityKind::Ale,
         CommodityKind::Mead,
     ] {
@@ -2628,7 +2625,6 @@ pub fn step_brewery(
     // take the batch. Its own logistics crew later supplies Taverns using the
     // same typed beverage, so cider and mead never collapse into generic ale.
     for beverage in [
-        CommodityKind::Cider,
         CommodityKind::Cider,
         CommodityKind::Ale,
         CommodityKind::Mead,

@@ -81,8 +81,7 @@ export default __t.row({
   cabbage: __t.f64(),
   carrots: __t.f64(),
   beetroot: __t.f64(),
-  aroniaJam: __t.f64().name("aronia_jam"),
-  rosehipJam: __t.f64().name("rosehip_jam"),
+  jam: __t.f64(),
   settlementId: __t.u64().name("settlement_id"),
   smallholding: __t.bool(),
 });

@@ -225,7 +225,6 @@ pub fn step_fresh_food_spoilage(
         spoil_preserved!(smoked_fish, CommodityKind::SmokedFish);
         spoil_preserved!(cheese, CommodityKind::Cheese);
         spoil_preserved!(jam, CommodityKind::Jam);
-        spoil_preserved!(jam, CommodityKind::Jam);
         ctx.db.player_resources().owner().update(resources);
     }
 }
@@ -275,7 +274,6 @@ fn normalize_building_food(building: &mut Building) {
         cured_meat,
         smoked_fish,
         cheese,
-        jam,
         jam,
     );
 }

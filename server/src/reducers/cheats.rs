@@ -134,8 +134,6 @@ fn resource_ledger_slot(
         CommodityKind::Carrots => Some(&mut resources.carrots),
         CommodityKind::Beetroot => Some(&mut resources.beetroot),
         CommodityKind::Jam => Some(&mut resources.jam),
-        CommodityKind::Jam => Some(&mut resources.jam),
-        CommodityKind::Cider => Some(&mut resources.cider),
         CommodityKind::AnimalFeed => None,
         CommodityKind::Wax => Some(&mut resources.wax),
         CommodityKind::Candles => Some(&mut resources.candles),
