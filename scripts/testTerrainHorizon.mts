@@ -7,6 +7,8 @@ import {
 import { TerrainHorizonWorld } from '../src/terrain/TerrainHorizonWorld.ts';
 import { RiverLayout } from '../src/rivers/RiverLayout.ts';
 import { WORLD_TERRAIN_PRESETS } from '../src/world/worldTerrainPresets.ts';
+import { forestDensityAt } from '../src/props/forestField.ts';
+import { forestFloorBlendAtPosition } from '../src/terrain/terrainGeometryData.ts';
 
 const TERRAIN_SIZE = 80;
 const RESOLUTION = 9;
@@ -73,6 +75,56 @@ const material = new THREE.MeshStandardMaterial({ vertexColors: true });
 const horizon = createHorizon(source, material);
 const diagnostics = horizon.getDiagnostics();
 const playableHalf = TERRAIN_SIZE * 0.5;
+
+// Regression for the former square leaf-litter band around the real playable
+// boundary. Sample a complete perimeter in the production medium-map edge
+// band: it must contain both genuine woodland and broad meadow gaps.
+const forestGenerationHalf = 620;
+const forestTerrainHalf = 817;
+const forestEdgeRadius = 800;
+let denseEdgeSamples = 0;
+let openEdgeSamples = 0;
+const edgeSampleCount = 512;
+for (let index = 0; index < edgeSampleCount; index++) {
+  const side = Math.floor(index / (edgeSampleCount / 4));
+  const sideIndex = index % (edgeSampleCount / 4);
+  const along = THREE.MathUtils.lerp(
+    -forestEdgeRadius,
+    forestEdgeRadius,
+    sideIndex / (edgeSampleCount / 4 - 1),
+  );
+  const x = side === 0
+    ? -forestEdgeRadius
+    : side === 1
+      ? forestEdgeRadius
+      : along;
+  const z = side === 2
+    ? -forestEdgeRadius
+    : side === 3
+      ? forestEdgeRadius
+      : along;
+  const floorBlend = forestFloorBlendAtPosition(
+    forestDensityAt(
+      x,
+      z,
+      [],
+      forestGenerationHalf,
+      forestTerrainHalf,
+    ),
+    x,
+    z,
+  );
+  if (floorBlend > 0.5) denseEdgeSamples++;
+  if (floorBlend < 0.05) openEdgeSamples++;
+}
+assert.ok(
+  denseEdgeSamples > edgeSampleCount * 0.08,
+  'the playable perimeter must retain substantial organic woodland stands',
+);
+assert.ok(
+  openEdgeSamples > edgeSampleCount * 0.5,
+  'the playable perimeter must retain broad meadow gaps instead of a square litter ring',
+);
 
 assert.ok(
   diagnostics.drawCalls <= TERRAIN_HORIZON_PARAMETERS.budget.maximumDrawCalls,
