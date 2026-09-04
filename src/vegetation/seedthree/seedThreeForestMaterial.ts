@@ -19,6 +19,7 @@ import {
 
 /** Forest foliage is diffuse/transmissive; a sun-driven glossy lobe reads as shimmer. */
 export const SEEDTHREE_FOREST_CARD_SPECULAR_INTENSITY = 0;
+export const SEEDTHREE_HORIZON_CARD_ALPHA_CUTOFF = 0.5;
 
 export type SeedThreeForestCardMotion = 'full' | 'sway' | 'static';
 
@@ -154,6 +155,34 @@ export function applySeedThreeOverviewBillboardFade(
   material.transparent = true;
   material.depthWrite = false;
   material.userData.seedThreeOverviewBillboardFade = true;
+  material.needsUpdate = true;
+  return material;
+}
+
+/**
+ * Keep permanent terrain-horizon cards as strict cutouts. Their baked atlas is
+ * sampled from very small mip levels, where soft alpha coverage can otherwise
+ * turn the transparent card margin into a faint rectangular veil.
+ */
+export function applySeedThreeHorizonCardCutout(
+  material: THREE.Material,
+): THREE.Material {
+  if (material.userData.seedThreeHorizonCardCutout === true) return material;
+  const target = material as SeedThreeFoliageNodeMaterial;
+  const sourceOpacity = target.opacityNode
+    ?? (target.map
+      ? (texture(target.map) as unknown as TslVectorNode).a
+      : float(1) as TslNode);
+  target.opacityNode = tslStep(
+    float(SEEDTHREE_HORIZON_CARD_ALPHA_CUTOFF),
+    sourceOpacity,
+  );
+  material.alphaTest = SEEDTHREE_HORIZON_CARD_ALPHA_CUTOFF;
+  material.alphaHash = false;
+  material.alphaToCoverage = false;
+  material.transparent = false;
+  material.depthWrite = true;
+  material.userData.seedThreeHorizonCardCutout = true;
   material.needsUpdate = true;
   return material;
 }

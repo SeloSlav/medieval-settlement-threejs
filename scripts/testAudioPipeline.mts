@@ -731,6 +731,20 @@ async function main(): Promise<void> {
     !/building\.kind\s*!==\s*['"]wayside_shrine['"]/.test(appBootstrapSource),
     'Wayside Shrine has an authored selection cue and must not be muted by the click handler',
   );
+  invariant(
+    (appBootstrapSource.match(/playUiSound\('building_place'\)/g) ?? []).length === 3,
+    'Every building, residence, and vineyard placement path must share building_place',
+  );
+  const worldFoleySource = await readFile(
+    path.join(PROJECT_ROOT, 'src', 'audio', 'WorldFoleyAudio.ts'),
+    'utf8',
+  );
+  invariant(
+    (worldFoleySource.match(/playNotification\('event_building_complete'\)/g) ?? []).length === 2
+    && !/construction_(?:timber|stone)/.test(worldFoleySource)
+    && !/playAt\('event_residence_complete'/.test(worldFoleySource),
+    'Building and residence completion must use only the non-positional notification',
+  );
   const chapelBellAssets = manifest.assets.filter((asset) => (
     asset.group === 'chapel-bells'
   ));

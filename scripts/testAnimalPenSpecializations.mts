@@ -179,6 +179,18 @@ for (const field of [
 }
 assert.match(inspectorSource, /renderAnimalPenSpecializationPicker/);
 assert.match(inspectorSource, /data-inspector-action="specialize-animal-pen"/);
+assert.match(
+  inspectorSource,
+  /kind === 'chicken_pen' \? 'data-ui-sound="chicken_coop_select"'/,
+);
+assert.match(
+  inspectorSource,
+  /kind === 'goat_pen' \? 'data-ui-sound="goat_pen_select"'/,
+);
+assert.match(
+  inspectorSource,
+  /kind === 'pig_pen' \? 'data-ui-sound="pig_pen_select"'/,
+);
 assert.match(inspectorSource, /Gestation \/ maturity/);
 assert.match(inspectorSource, /Untanned hides/);
 assert.match(foleySource, /garden\.kind === 'chicken_pen'/);

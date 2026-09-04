@@ -62,6 +62,7 @@ const WATER_FIELD_RESOLUTION = 256;
 const MAX_WATER_PATHS = 4;
 const MAX_SEEDTHREE_OVERVIEW_TREES = 7_200;
 const FOREST_SEAM_CLEARANCE = 18;
+const FOREST_GROUND_HANDOFF_END = 96;
 const FOREST_STAND_SEAM_INSET = 34;
 const FOREST_STAND_OUTER_MARGIN = 46;
 const FOREST_PLACEMENT_CORE_SHARE = 0.96;
@@ -197,7 +198,7 @@ export class TerrainHorizonWorld {
 
   sampleForestBlend = (x: number, z: number): number => {
     const outside = Math.max(Math.abs(x), Math.abs(z)) - this.innerHalfExtent;
-    if (outside < 0 || outside > this.extensionDistance * 0.84) return 0;
+    if (outside < 0 || outside > FOREST_GROUND_HANDOFF_END) return 0;
     if (this.settings.terrainPreset === 'vinodol_coast') {
       const shoreX = this.sourceRiverLayout?.getCoastalShoreX(z);
       if (shoreX !== null && shoreX !== undefined && x < shoreX + 26) return 0;
@@ -210,42 +211,17 @@ export class TerrainHorizonWorld {
       x * boundaryScale,
       z * boundaryScale,
     );
-    const seedX = ((this.settings.seed >>> 4) & 0x7fff) * 0.021;
-    const seedZ = (this.settings.seed & 0x7fff) * -0.019;
-    const forestStand = this.sampleForestStandDensity(x, z);
-    const broadWoodland = fbm2(
-      (x + seedX) * 0.00125,
-      (z + seedZ) * 0.00125,
-      3,
-    );
-    const edgeBreakup = fbm2(
-      (x - seedZ) * 0.0064,
-      (z + seedX) * 0.0064,
-      3,
-    );
-    // Use the same broad elliptical stands that own the tree placements. Their
-    // scale survives the coarser horizon mesh while leaving genuine far-grass
-    // clearings between woods; the two low-amplitude fields only soften edges.
-    const standGround = forestStand
-      * THREE.MathUtils.lerp(0.78, 1.08, this.settings.forestDensity / 100)
-      + (broadWoodland - 0.5) * 0.1
-      + (edgeBreakup - 0.5) * 0.16;
-    const regionalGround = smoothstep(
-      0.14,
-      0.86,
-      standGround,
-    );
-    const regionalHandoff = smoothstep(
+    // Forest cores remain placement-only on the horizon. Projecting their
+    // elliptical density into this coarse vertex mask exposes the LOD cells as
+    // pale fields around distant tree groups. Carry authored forest floor only
+    // far enough to close the playable seam, then leave every outer stand on
+    // the continuous far-grass material.
+    const seamFade = 1 - smoothstep(
       FOREST_SEAM_CLEARANCE,
-      Math.min(340, this.extensionDistance * 0.16),
+      FOREST_GROUND_HANDOFF_END,
       outside,
     );
-    const farFade = 1 - smoothstep(
-      this.extensionDistance * 0.68,
-      this.extensionDistance * 0.84,
-      outside,
-    );
-    return THREE.MathUtils.lerp(inheritedForest, regionalGround, regionalHandoff) * farFade;
+    return inheritedForest * seamFade;
   };
 
   sampleShoreBlend = (x: number, z: number): number => {
@@ -270,6 +246,10 @@ export class TerrainHorizonWorld {
 
   sampleForestDebug = (x: number, z: number): number =>
     this.sampleForestSuitability(x, z);
+
+  sampleForestPlacementSuitability(x: number, z: number, preferredCore?: ForestCore): number {
+    return this.sampleForestSuitability(x, z, preferredCore);
+  }
 
   dispose(): void {
     this.waterMesh?.geometry.dispose();
@@ -309,7 +289,7 @@ export class TerrainHorizonWorld {
     return base + seam * (rolling + mountains);
   }
 
-  private sampleForestSuitability(x: number, z: number): number {
+  private sampleForestSuitability(x: number, z: number, preferredCore?: ForestCore): number {
     const outside = Math.max(Math.abs(x), Math.abs(z)) - this.innerHalfExtent;
     if (outside < 0 || outside > this.extensionDistance * 0.78) return 0;
     if (this.settings.terrainPreset === 'vinodol_coast') {
@@ -321,7 +301,13 @@ export class TerrainHorizonWorld {
     const seedZ = (this.settings.seed & 0x7fff) * -0.019;
     const regional = fbm2((x + seedX) * 0.0027, (z + seedZ) * 0.0027, 4);
     const stands = fbm2((x - seedZ) * 0.0072, (z + seedX) * 0.0072, 3);
-    const forestStand = this.sampleForestStandDensity(x, z);
+    const forestStand = preferredCore
+      ? THREE.MathUtils.clamp(
+          forestCoreInfluence(x, z, preferredCore) * preferredCore.strength,
+          0,
+          1,
+        )
+      : this.sampleForestStandDensity(x, z);
     const step = 18;
     const slope = Math.hypot(
       this.sampleUncarvedHeight(x + step, z) - this.sampleUncarvedHeight(x - step, z),
@@ -846,15 +832,16 @@ function createSeedThreeHorizonPlacements(
   const { settings, innerHalfExtent, extensionDistance } = world;
   if (settings.forestDensity <= 0) return [];
   const rng = mulberry32(settings.seed ^ 0x53454544);
+  const forestCores = world.getForestCores();
   const target = Math.min(
     MAX_SEEDTHREE_OVERVIEW_TREES,
     Math.round(settings.forestDensity * 90),
+    Math.round(forestCores.length * 140),
   );
   // Spend real SeedThree instances where they actually continue the playable
   // forest silhouette. Beyond this band the terrain's inherited woodland mask,
   // mountain relief, and aerial perspective carry the same regional field.
   const visibleOuter = resolveVisibleForestOuter(world);
-  const forestCores = world.getForestCores();
   const placements: ForestTreePlacement[] = [];
   const placementIndex = new SpatialHash2D<ForestTreePlacement>(FOREST_PLACEMENT_MAX_SPACING);
   let attempts = 0;
@@ -873,7 +860,7 @@ function createSeedThreeHorizonPlacements(
     const outside = maxAbs(x, z) - innerHalfExtent;
     if (outside < FOREST_SEAM_CLEARANCE) continue;
     if (maxAbs(x, z) > visibleOuter) continue;
-    const suitability = world.sampleForestDebug(x, z);
+    const suitability = world.sampleForestPlacementSuitability(x, z, core);
     if (suitability < 0.34 || rng() > smoothstep(0.32, 0.78, suitability) * 0.94) continue;
     const altitude = world.getHeightAt(x, z);
     const regionalColdBias = THREE.MathUtils.clamp(

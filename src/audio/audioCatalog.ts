@@ -60,6 +60,9 @@ export type UiSoundId =
   | 'edit_undo'
   | 'edit_redo'
   | 'building_place'
+  | 'chicken_coop_select'
+  | 'goat_pen_select'
+  | 'pig_pen_select'
   | 'confirm'
   | 'error'
   | 'setup_portrait_select'
@@ -352,6 +355,9 @@ export const UI_SOUNDS: Record<UiSoundId, AudioClipDefinition> = {
   edit_undo: { path: '/sounds/ui/edit_undo.mp3', volume: 0.13 },
   edit_redo: { path: '/sounds/ui/edit_redo.mp3', volume: 0.13 },
   building_place: { path: '/sounds/ui/building_place.mp3', volume: 0.34 },
+  chicken_coop_select: { path: '/sounds/ui/chicken_coop_select.mp3', volume: 0.2 },
+  goat_pen_select: { path: '/sounds/ui/goat_pen_select.mp3', volume: 0.2 },
+  pig_pen_select: { path: '/sounds/ui/pig_pen_select.mp3', volume: 0.2 },
   confirm: { path: '/sounds/ui/confirm.mp3', volume: 0.28 },
   error: { path: '/sounds/ui/error.mp3', volume: 0.3 },
   // New-world setup uses a coherent material palette while transient weight
@@ -404,6 +410,12 @@ export const OX_SELECTION_CLIPS: readonly AudioClipDefinition[] = Array.from(
     volume: 0.48,
   }),
 );
+
+/** Dedicated acknowledgement for direct guard-dog agent clicks. */
+export const DOG_SELECTION_CLIP: AudioClipDefinition = {
+  path: '/sounds/animals/dog_selected.mp3',
+  volume: 0.42,
+};
 
 /** Selection-only character cues for finished buildings and occupied homes. */
 export const BUILDING_AUDIO_CLIPS: Record<

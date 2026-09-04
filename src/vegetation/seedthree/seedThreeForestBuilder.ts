@@ -80,6 +80,7 @@ import {
   applySeedThreeBarkSnow,
   applySeedThreeForestBarkMotion,
   applySeedThreeForestCardMotion,
+  applySeedThreeHorizonCardCutout,
   applySeedThreeOverviewBillboardFade,
   applySeedThreeWholeCardDormancy,
   cloneSeedThreeForestMaterial,
@@ -414,7 +415,11 @@ function createInstancedLodSet(
           if (options.seasonalDeciduous) {
             applySeedThreeWholeCardDormancy(fmat);
           }
-          if (options.overviewFade !== false) applySeedThreeOverviewBillboardFade(fmat);
+          if (options.overviewFade !== false) {
+            applySeedThreeOverviewBillboardFade(fmat);
+          } else {
+            applySeedThreeHorizonCardCutout(fmat);
+          }
         }
         if (options.seasonalDeciduous) {
           options.seasonalCardMaterials?.add(fmat as THREE.Material);

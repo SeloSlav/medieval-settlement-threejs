@@ -223,31 +223,28 @@ const clumpedForestWorld = new TerrainHorizonWorld({
 const clumpedPlacements = clumpedForestWorld.forestPlacements;
 const macroCellSize = 72;
 const occupiedMacroCells = new Map<string, number>();
-let treeGroundBlendSum = 0;
+let maximumTreeGroundBlend = 0;
 for (const placement of clumpedPlacements) {
   const key = `${Math.floor(placement.x / macroCellSize)}:${Math.floor(placement.z / macroCellSize)}`;
   occupiedMacroCells.set(key, (occupiedMacroCells.get(key) ?? 0) + 1);
-  treeGroundBlendSum += clumpedForestWorld.sampleForestBlend(placement.x, placement.z);
+  maximumTreeGroundBlend = Math.max(
+    maximumTreeGroundBlend,
+    clumpedForestWorld.sampleForestBlend(placement.x, placement.z),
+  );
 }
 let sampledGroundCount = 0;
 let farGrassSamples = 0;
-let leafLitterSamples = 0;
-let sampledGroundBlendSum = 0;
 for (let x = -380; x <= 380; x += 20) {
   for (let z = -380; z <= 380; z += 20) {
     const outside = Math.max(Math.abs(x), Math.abs(z)) - 80;
     if (outside < 30 || outside > 290) continue;
     const blend = clumpedForestWorld.sampleForestBlend(x, z);
     sampledGroundCount++;
-    sampledGroundBlendSum += blend;
     if (blend < 0.05) farGrassSamples++;
-    if (blend > 0.55) leafLitterSamples++;
   }
 }
 const occupiedCounts = [...occupiedMacroCells.values()];
 const macroCellMean = clumpedPlacements.length / occupiedMacroCells.size;
-const sampledGroundMean = sampledGroundBlendSum / sampledGroundCount;
-const treeGroundMean = treeGroundBlendSum / clumpedPlacements.length;
 assert.ok(
   clumpedForestWorld.diagnostics.forestStandCount >= 8,
   'the horizon must author multiple broad woodland stands',
@@ -261,16 +258,12 @@ assert.ok(
   'tree occupancy must peak inside organic clumps instead of remaining uniform',
 );
 assert.ok(
-  farGrassSamples > sampledGroundCount * 0.25,
-  'woodland stands must leave substantial far-grass clearings',
+  farGrassSamples === sampledGroundCount,
+  'outer terrain must remain continuous far grass instead of exposing forest-mask polygons',
 );
 assert.ok(
-  leafLitterSamples > sampledGroundCount * 0.12,
-  'woodland interiors must retain visible leaf-litter ground',
-);
-assert.ok(
-  treeGroundMean > sampledGroundMean + 0.35,
-  'leaf litter must correlate with tree clumps instead of carpeting the outer terrain',
+  maximumTreeGroundBlend < 0.05,
+  'visual-only tree clumps must not stamp visible forest-floor fields into the horizon',
 );
 clumpedForestWorld.dispose();
 

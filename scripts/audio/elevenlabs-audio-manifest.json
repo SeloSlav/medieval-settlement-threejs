@@ -886,10 +886,40 @@
       "group": "ui",
       "kind": "sound-effect",
       "output": "public/sounds/ui/building_place.mp3",
-      "prompt": "Very short tactile strategy-game UI confirmation: wooden beam settles onto stone with one compact mallet knock, warm and satisfying, no melody, no voice",
-      "durationSeconds": 0.9,
+      "prompt": "Immediate premium medieval RTS construction placement confirmation: a compact timber building frame is set firmly onto its foundation with one weighty wooden impact, a short restrained mallet-and-timber accent, grounded and satisfying for every building type, no voice, no melody, no electronic or science-fiction sound",
+      "durationSeconds": 1,
       "loop": false,
-      "promptInfluence": 0.85
+      "promptInfluence": 0.95
+    },
+    {
+      "id": "ui-chicken-coop-select",
+      "group": "ui",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/chicken_coop_select.mp3",
+      "prompt": "Immediate premium medieval RTS selection cue for a chicken-coop backyard extension: a short tactile wooden coop accent with a restrained chicken character, close and readable for both choosing the coop option and selecting the finished extension, no music, no voice, no electronic or science-fiction sound",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.95
+    },
+    {
+      "id": "ui-goat-pen-select",
+      "group": "ui",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/goat_pen_select.mp3",
+      "prompt": "Immediate premium medieval RTS selection cue for a Goat Pen backyard extension: short natural goat bleats in a small timber enclosure, close and readable for both choosing goats and selecting the finished extension, no music, no human voice, no electronic or science-fiction sound",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.95
+    },
+    {
+      "id": "ui-pig-pen-select",
+      "group": "ui",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/pig_pen_select.mp3",
+      "prompt": "Immediate premium medieval RTS selection cue for a Pig Pen backyard extension: short natural pig grunts and snuffling in a small timber enclosure, close and readable for both choosing pigs and selecting the finished extension, no music, no human voice, no electronic or science-fiction sound",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.95
     },
     {
       "id": "ui-confirm",

@@ -16,7 +16,11 @@ import {
   writeSeedThreeLodMatrices,
   type SeedThreeTreeSlot,
 } from '../src/vegetation/seedthree/seedThreeForestCompaction.ts';
-import { stabilizeSeedThreeForestCardMaterial } from '../src/vegetation/seedthree/seedThreeForestMaterial.ts';
+import {
+  applySeedThreeHorizonCardCutout,
+  SEEDTHREE_HORIZON_CARD_ALPHA_CUTOFF,
+  stabilizeSeedThreeForestCardMaterial,
+} from '../src/vegetation/seedthree/seedThreeForestMaterial.ts';
 import { planSeedThreeForestInteractionWork } from '../src/vegetation/seedthree/seedThreeForestInteraction.ts';
 import {
   planForestBucketUpdates,
@@ -73,6 +77,29 @@ assert.equal(
   'enabling alpha-to-coverage should invalidate any compiled shared-material pipeline',
 );
 alphaCutoutMaterial.dispose();
+
+const horizonCutoutMaterial = new THREE.MeshBasicMaterial({
+  alphaTest: 0.35,
+  alphaToCoverage: true,
+  transparent: true,
+  depthWrite: false,
+});
+const horizonCutoutVersion = horizonCutoutMaterial.version;
+assert.equal(
+  applySeedThreeHorizonCardCutout(horizonCutoutMaterial),
+  horizonCutoutMaterial,
+  'horizon cutout should preserve the isolated overview material instance',
+);
+assert.equal(horizonCutoutMaterial.alphaTest, SEEDTHREE_HORIZON_CARD_ALPHA_CUTOFF);
+assert.equal(horizonCutoutMaterial.alphaToCoverage, false);
+assert.equal(horizonCutoutMaterial.transparent, false);
+assert.equal(horizonCutoutMaterial.depthWrite, true);
+assert.equal(
+  horizonCutoutMaterial.version,
+  horizonCutoutVersion + 1,
+  'hardening a horizon card should invalidate its compiled material pipeline',
+);
+horizonCutoutMaterial.dispose();
 
 function makeLodSet(capacity: number) {
   const branchGeometry = new THREE.BoxGeometry(1, 1, 1);

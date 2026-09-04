@@ -1534,13 +1534,24 @@
     {
       "id": "ui-building-place",
       "output": "public/sounds/ui/building_place.mp3",
-      "generatedAt": "2026-07-28T05:57:27.500Z",
+      "generatedAt": "2026-09-04T12:34:13.752Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "9",
-      "byteLength": 15090,
-      "sha256": "55ac41d8e7fe7ab8c638a8a7c18e5738e340277612e4b68c5356fbc348dd43cc"
+      "outputFormat": "mp3_48000_192",
+      "characterCost": "10",
+      "byteLength": 25389,
+      "sha256": "d9402d17804fc146928b1924314fa237d01d3f099ec47b9622da69c2f575e4ee"
+    },
+    {
+      "id": "ui-chicken-coop-select",
+      "output": "public/sounds/ui/chicken_coop_select.mp3",
+      "generatedAt": "2026-09-04T12:38:43.564Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_48000_192",
+      "characterCost": "10",
+      "byteLength": 25389,
+      "sha256": "0fb15b14572beff15f1296225ffc79380a177c367096b12f5145e97a91c662e6"
     },
     {
       "id": "ui-confirm",
@@ -1686,6 +1697,17 @@
       "sha256": "dd7a93d86627ce0aca250c9a6e46ca7dc8b08dad7e928078309a07183d82ee2e"
     },
     {
+      "id": "ui-goat-pen-select",
+      "output": "public/sounds/ui/goat_pen_select.mp3",
+      "generatedAt": "2026-09-04T12:39:38.059Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_48000_192",
+      "characterCost": "10",
+      "byteLength": 25389,
+      "sha256": "24dc458c0012748e8fad6c255521407b6fff72e1fccdcb0ae5d9c3cc02adf8fd"
+    },
+    {
       "id": "ui-military-attack-order",
       "output": "public/sounds/ui/military_attack_order.mp3",
       "generatedAt": "2026-09-02T16:23:25.298Z",
@@ -1717,6 +1739,17 @@
       "characterCost": "8",
       "byteLength": 13836,
       "sha256": "02abd097b0c4dd0221a3a4ee18abd43867378972785121a9301f927a747959d1"
+    },
+    {
+      "id": "ui-pig-pen-select",
+      "output": "public/sounds/ui/pig_pen_select.mp3",
+      "generatedAt": "2026-09-04T12:40:42.762Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_48000_192",
+      "characterCost": "10",
+      "byteLength": 25389,
+      "sha256": "68216f1eb99acfdc6f85c54f6b574a1f42c275346c2adb3865d07f8e9e32af87"
     },
     {
       "id": "ui-quarry-select",

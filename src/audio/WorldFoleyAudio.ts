@@ -322,15 +322,7 @@ export class WorldFoleyAudio {
       const next = structureSnapshot(building);
       const prior = this.buildingSnapshots.get(building.id);
       if (prior && !prior.complete && next.complete) {
-        const localGain = worldFoleyGain(next.x, next.z, this.view ?? undefined);
-        if (localGain > 0) {
-          this.playLocal(
-            next.stone ? 'construction_stone' : 'construction_timber',
-            localGain,
-          );
-        } else {
-          this.playNotification('event_building_complete');
-        }
+        this.playNotification('event_building_complete');
       }
       this.buildingSnapshots.set(building.id, next);
     }
@@ -342,7 +334,7 @@ export class WorldFoleyAudio {
       const next = residenceSnapshot(residence);
       const prior = this.residenceSnapshots.get(residence.id);
       if (prior && prior.tier === 0 && next.tier > 0) {
-        this.playAt('event_residence_complete', next.x, next.z);
+        this.playNotification('event_building_complete');
       } else if (prior && next.tier > prior.tier) {
         this.playAt('event_residence_upgrade', next.x, next.z);
       }

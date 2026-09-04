@@ -20,12 +20,10 @@ const cereals = HUD_FOOD_GROUPS.find(({ id }) => id === 'cereals');
 assert.equal(cereals?.label, 'Cereals & bread');
 assert.deepEqual(cereals?.kinds, [
   ...GRAIN_SHEAF_KINDS,
-  ...BREAD_GRAIN_KINDS,
-  'barley',
-  'malt',
-  ...FLOUR_KINDS,
+  'ryeGrain', 'oatGrain', 'barley', 'maslinGrain',
+  'ryeFlour', 'malt', 'maslinFlour',
   ...BREAD_KINDS,
-]);
+], 'Cereal resources should follow four crop lanes with their processed goods below them');
 assert.equal(HUD_FOOD_GROUPS.some(({ id }) => id === 'sheaves'), false);
 assert.equal(HUD_FOOD_GROUPS.some(({ id }) => id === 'rawGrains'), false);
 assert.equal(HUD_FOOD_GROUPS.some(({ id }) => id === 'flour'), false);

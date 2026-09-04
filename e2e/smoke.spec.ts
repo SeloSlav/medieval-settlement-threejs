@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { HUD_FOOD_GROUPS } from '../src/ui/hudFoodCards.ts';
 import { HUD_PROVISION_RESOURCE_KINDS } from '../src/ui/hudProvisionCards.ts';
 import { RESOURCE_COST_KINDS } from '../src/ui/resourceCost.ts';
 
@@ -92,6 +93,52 @@ test('gives rye, oat, and maslin bread distinct provision icons', async ({ page 
   }
 
   expect(new Set(foodCardIcons).size).toBe(3);
+});
+
+test('keeps cereal resources aligned by crop and production chain', async ({ page }) => {
+  const cereals = HUD_FOOD_GROUPS.find(({ id }) => id === 'cereals');
+  expect(cereals).toBeDefined();
+
+  await page.setContent(`
+    <style>* { box-sizing: border-box; }</style>
+    <div class="settlement-hud__stores-grid settlement-hud__food-grid" style="position: static">
+      <div class="settlement-hud__stores-scroll">
+        <section class="settlement-hud__stores-section" data-food-category="cereals">
+          <div class="settlement-hud__stores-grid-header"><strong>Cereals &amp; bread</strong></div>
+          ${cereals!.kinds.map((kind) => `
+            <div class="settlement-hud__stat settlement-hud__stat--store settlement-hud__food-card" data-food-resource="${kind}">
+              <strong class="settlement-hud__value">0</strong>
+            </div>
+          `).join('')}
+        </section>
+      </div>
+    </div>
+  `);
+  await page.addStyleTag({ path: 'src/ui/settlementHud.css' });
+  await page.addStyleTag({ path: 'src/ui/polishedGameUi.css' });
+
+  const positions = await page.locator('[data-food-resource]').evaluateAll((cards) => Object.fromEntries(
+    cards.map((card) => {
+      const box = card.getBoundingClientRect();
+      return [card.getAttribute('data-food-resource')!, { left: box.left, top: box.top }];
+    }),
+  ));
+  const sameColumn = (upper: string, lower: string) => (
+    Math.abs(positions[upper].left - positions[lower].left) < 1
+  );
+  const sameRow = (left: string, right: string) => (
+    Math.abs(positions[left].top - positions[right].top) < 1
+  );
+
+  expect(sameRow('ryeGrain', 'oatGrain')).toBe(true);
+  expect(sameRow('oatGrain', 'barley')).toBe(true);
+  expect(sameRow('barley', 'maslinGrain')).toBe(true);
+  expect(positions.barley.left).toBeLessThan(positions.maslinGrain.left);
+  expect(sameColumn('ryeGrain', 'ryeFlour')).toBe(true);
+  expect(sameColumn('ryeFlour', 'ryeBread')).toBe(true);
+  expect(sameColumn('barley', 'malt')).toBe(true);
+  expect(sameColumn('maslinGrain', 'maslinFlour')).toBe(true);
+  expect(sameColumn('maslinFlour', 'maslinBread')).toBe(true);
 });
 
 test('gives every stored item an icon and keeps the four crop sheaves distinct', async ({ page }) => {
@@ -249,6 +296,10 @@ test('centers Development between civic status and right-aligned resource contro
     const civicBox = hud.querySelector<HTMLElement>('[data-settlement-civic-strip]')!.getBoundingClientRect();
     const developmentBox = hud.querySelector<HTMLElement>('.development-launcher')!.getBoundingClientRect();
     const resourcesBox = hud.querySelector<HTMLElement>('[data-settlement-resource-strip]')!.getBoundingClientRect();
+    const civicCategoryWidths = Array.from(
+      hud.querySelectorAll<HTMLElement>('.settlement-hud__body--civic > *'),
+      (category) => category.getBoundingClientRect().width,
+    );
     const goodsBox = hud.querySelector<HTMLElement>('[data-specialty-stores]')!.getBoundingClientRect();
     const armsBox = hud.querySelector<HTMLElement>('[data-military-stores]')!.getBoundingClientRect();
     const totalsBox = hud.querySelector<HTMLElement>('.settlement-hud__totals-mode')!.getBoundingClientRect();
@@ -264,6 +315,7 @@ test('centers Development between civic status and right-aligned resource contro
       civicMeetsDevelopment: Math.abs(civicBox.right - developmentBox.left) < 1,
       resourcesMeetDevelopment: Math.abs(resourcesBox.left - developmentBox.right) < 1,
       totalsAtFarRight: Math.abs(totalsBox.right - resourcesBox.right) < 1,
+      civicCategoryWidths,
     };
   });
   expect(layout.width).toBe(900);
@@ -274,11 +326,12 @@ test('centers Development between civic status and right-aligned resource contro
   expect(layout.civicMeetsDevelopment).toBe(true);
   expect(layout.resourcesMeetDevelopment).toBe(true);
   expect(layout.totalsAtFarRight).toBe(true);
+  expect(Math.max(...layout.civicCategoryWidths) - Math.min(...layout.civicCategoryWidths)).toBeLessThan(1);
   await expect(page.locator('[data-resource="water"]')).toHaveCount(0);
 
   const animalsCategory = page.locator('.settlement-hud__animals-summary');
   await expect(animalsCategory).toHaveAttribute('aria-label', 'Animals');
-  await expect(animalsCategory.locator('.settlement-hud__animals-status')).toBeHidden();
+  await expect(animalsCategory.locator('.settlement-hud__animals-status')).toBeVisible();
   const animalsIconAlignment = await animalsCategory.evaluate((summary) => {
     const style = getComputedStyle(summary, '::before');
     return {

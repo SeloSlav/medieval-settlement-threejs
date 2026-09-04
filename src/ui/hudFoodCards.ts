@@ -1,6 +1,5 @@
 import {
   BREAD_KINDS,
-  FLOUR_KINDS,
   GRAIN_SHEAF_KINDS,
   type FlourKind,
   type GrainSheafKind,
@@ -30,8 +29,8 @@ export const HUD_FOOD_GROUPS: readonly HudFoodGroup[] = [
     label: 'Cereals & bread',
     kinds: [
       ...GRAIN_SHEAF_KINDS,
-      'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt',
-      ...FLOUR_KINDS,
+      'ryeGrain', 'oatGrain', 'barley', 'maslinGrain',
+      'ryeFlour', 'malt', 'maslinFlour',
       ...BREAD_KINDS,
     ],
   },

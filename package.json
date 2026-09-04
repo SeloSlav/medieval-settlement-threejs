@@ -163,6 +163,7 @@
     "test:noble-profile-persistence": "node --experimental-strip-types scripts/testNobleProfilePersistence.mts",
     "test:world-terrain-presets": "npx tsx scripts/testWorldTerrainPresets.mts",
     "test:terrain-horizon": "npx tsx scripts/testTerrainHorizon.mts",
+    "test:playable-map-boundary": "npx tsx scripts/testPlayableMapBoundary.mts",
     "test:regional-resources": "npx tsx scripts/testRegionalResourceDistribution.mts",
     "test:startup-chunking": "node --experimental-strip-types scripts/testStartupChunking.mts",
     "test:visual-performance-hooks": "node --experimental-strip-types scripts/testVisualPerformanceHooks.mts",

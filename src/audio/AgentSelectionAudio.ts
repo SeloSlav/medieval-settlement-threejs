@@ -1,14 +1,15 @@
 import type { VillagerModelVariant } from '../settlement/SettlementCrowdRenderer.ts';
 import {
+  DOG_SELECTION_CLIP,
   OX_SELECTION_CLIPS,
   PERSON_SELECTION_CLIPS,
   type AudioClipDefinition,
   type PersonSelectionVoice,
 } from './audioCatalog.ts';
 
-export type AgentSelectionKind = VillagerModelVariant | 'ox';
+export type AgentSelectionKind = VillagerModelVariant | 'ox' | 'dog';
 
-type SelectionGroup = PersonSelectionVoice | 'ox';
+type SelectionGroup = PersonSelectionVoice | 'ox' | 'dog';
 
 /**
  * One-shot acknowledgement player for deliberate world clicks on people and oxen.
@@ -30,7 +31,9 @@ export class AgentSelectionAudio {
     const group = selectionGroup(kind);
     const clips = group === 'ox'
       ? OX_SELECTION_CLIPS
-      : PERSON_SELECTION_CLIPS[group];
+      : group === 'dog'
+        ? [DOG_SELECTION_CLIP]
+        : PERSON_SELECTION_CLIPS[group];
     const clipIndex = pickSelectionClipIndex(
       clips.length,
       this.lastClipIndex.get(group) ?? -1,
@@ -90,6 +93,7 @@ export function pickSelectionClipIndex(
 
 function selectionGroup(kind: AgentSelectionKind): SelectionGroup {
   if (kind === 'ox') return 'ox';
+  if (kind === 'dog') return 'dog';
   return kind === 'woman' ? 'female' : 'male';
 }
 

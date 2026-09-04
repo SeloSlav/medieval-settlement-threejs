@@ -616,6 +616,11 @@ select:focus-visible {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.settlement-hud__body--civic > * {
+  width: 100%;
+  min-width: 0;
+}
+
 .settlement-hud__body--resources {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -1198,10 +1203,11 @@ select:focus-visible {
 
 .settlement-hud__animals-summary {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: 20px max-content;
   grid-template-rows: 1fr;
-  place-items: center;
-  gap: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   width: 100%;
   height: 100%;
   min-height: 58px;
@@ -1233,7 +1239,13 @@ select:focus-visible {
 }
 
 .settlement-hud__animals-status {
-  display: none;
+  grid-column: 2;
+  grid-row: 1;
+  color: #e1dbc9;
+  font-family: var(--ui-display);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .settlement-hud__animals:not(.has-animals) > .settlement-hud__animals-summary {
@@ -1722,6 +1734,32 @@ select:focus-visible {
 
 .settlement-hud__food-grid .settlement-hud__food-card {
   cursor: help;
+}
+
+/* Keep each cereal chain in one vertical lane: crop, processed input, food. */
+.settlement-hud__stores-section[data-food-category='cereals'] > [data-food-resource='ryeFlour'] {
+  grid-column: 1;
+  grid-row: 4;
+}
+
+.settlement-hud__stores-section[data-food-category='cereals'] > [data-food-resource='malt'] {
+  grid-column: 3;
+  grid-row: 4;
+}
+
+.settlement-hud__stores-section[data-food-category='cereals'] > [data-food-resource='maslinFlour'] {
+  grid-column: 4;
+  grid-row: 4;
+}
+
+.settlement-hud__stores-section[data-food-category='cereals'] > [data-food-resource='ryeBread'] {
+  grid-column: 1;
+  grid-row: 5;
+}
+
+.settlement-hud__stores-section[data-food-category='cereals'] > [data-food-resource='maslinBread'] {
+  grid-column: 4;
+  grid-row: 5;
 }
 
 .settlement-hud__stores-grid .settlement-hud__value {
@@ -4467,9 +4505,9 @@ select:focus-visible {
   }
 
   .settlement-hud__animals-summary {
-    grid-template-columns: 1fr;
+    grid-template-columns: 16px max-content;
     grid-template-rows: 1fr;
-    gap: 0;
+    gap: 3px;
     padding: 4px 2px;
   }
 
@@ -4480,7 +4518,10 @@ select:focus-visible {
   }
 
   .settlement-hud__animals-status {
-    display: none;
+    grid-column: 2;
+    grid-row: 1;
+    display: block;
+    font-size: 11px;
   }
 
   .settlement-hud__animals-panel {

@@ -396,7 +396,7 @@ const SETTLEMENT_HUD_HTML = `
             <div class="settlement-hud__animals-metrics" aria-label="Oxen assigned and unassigned summary">
               <span><strong data-animals-posted>0</strong> Assigned</span>
               <span><strong data-animals-automatic>0</strong> Unassigned</span>
-              <span><strong data-animals-working>0</strong> Working now</span>
+              <span><strong data-animals-working>0</strong> Working</span>
             </div>
             <div class="settlement-hud__animals-list" data-animals-list>
               <p class="settlement-hud__animals-empty">Build a Stable and purchase an ox to begin the roster.</p>

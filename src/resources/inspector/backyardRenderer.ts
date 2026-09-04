@@ -429,6 +429,9 @@ function renderAnimalPenSpecializationPicker(
     return `<li class="backyard-picker-row">
       <button type="button" class="resource-action-button backyard-picker-option${funding.ready ? '' : ' backyard-picker-option--disabled'}"
         data-inspector-action="specialize-animal-pen" data-garden-kind="${kind}"
+        ${kind === 'chicken_pen' ? 'data-ui-sound="chicken_coop_select"' : ''}
+        ${kind === 'goat_pen' ? 'data-ui-sound="goat_pen_select"' : ''}
+        ${kind === 'pig_pen' ? 'data-ui-sound="pig_pen_select"' : ''}
         data-tooltip-title="${actionLabel}" data-tooltip="${optionDetail}"
         data-tooltip-cost="${encodeResourceCostTooltip({ gold: stockingGold })}"
         data-tooltip-cost-label="Stocking cost" data-tooltip-cost-affordable="${funding.ready}"

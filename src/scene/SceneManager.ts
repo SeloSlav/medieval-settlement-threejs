@@ -20,6 +20,7 @@ import {
   type TerrainHorizonDebugMode,
   type TerrainHorizonDiagnostics,
 } from '../terrain/TerrainHorizon.ts';
+import { PlayableMapBoundary } from '../terrain/PlayableMapBoundary.ts';
 import { loadTerrainStartupData } from '../terrain/loadTerrainStartupData.ts';
 import { createQuarrySystem, type QuarrySystem } from '../quarries/QuarrySystem.ts';
 import { createClayDepositSystem, type ClayDepositSystem } from '../clay/ClayDepositSystem.ts';
@@ -211,6 +212,7 @@ export class SceneManager {
   readonly cameraTarget = new THREE.Vector3();
   readonly terrain: Terrain;
   readonly terrainHorizon: TerrainHorizon;
+  private readonly playableMapBoundary: PlayableMapBoundary;
   private readonly fairTerrainMaterial: THREE.Material;
   readonly terrainProjector: TerrainProjector;
   readonly materials: RoadMaterialFactory;
@@ -399,6 +401,7 @@ export class SceneManager {
       riverLayout: worldLayout.riverLayout,
       sampleForestBlend: terrain.getForestBlendAt.bind(terrain),
     });
+    this.playableMapBoundary = new PlayableMapBoundary(this.terrain);
     this.terrainProjector = new TerrainProjector(this.terrain, this.camera, this.renderer.domElement);
     this.sky = new SkyCloudMesh({
       sunDirection: this.sunDirection,
@@ -454,6 +457,7 @@ export class SceneManager {
       this.sky,
       this.terrainHorizon.group,
       this.terrain.mesh,
+      this.playableMapBoundary.mesh,
       this.riverSystem.group,
       this.quarrySystem.group,
       this.clayDepositSystem.group,
@@ -1099,6 +1103,7 @@ export class SceneManager {
       return;
     }
     const cameraDistance = orbitDistance ?? this.camera.position.distanceTo(this.cameraTarget);
+    this.playableMapBoundary.update(cameraDistance, firstPersonActive);
     // The RTS target is intentionally frozen while first-person mode is active.
     // Center streaming and fitted shadows on the player instead, otherwise the
     // resident forest envelope is left behind as the player walks away.
@@ -1831,6 +1836,7 @@ export class SceneManager {
     // disposal if the scene happens to close while the shared rain material is
     // active; RoadMaterialFactory disposes the latter exactly once.
     this.terrainHorizon.dispose();
+    this.playableMapBoundary.dispose();
     this.terrain.mesh.material = this.fairTerrainMaterial;
     this.terrain.dispose();
     this.materials.dispose();

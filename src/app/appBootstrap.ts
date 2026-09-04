@@ -1468,6 +1468,21 @@ export async function bootstrapAppSession(
     },
     onTargetSelected: (target) => {
       if (
+        target.kind === 'backyard'
+        && target.garden?.kind === 'chicken_pen'
+      ) {
+        ambientAudio.playUiSound('chicken_coop_select');
+      } else if (
+        target.kind === 'backyard'
+        && target.garden?.kind === 'goat_pen'
+      ) {
+        ambientAudio.playUiSound('goat_pen_select');
+      } else if (
+        target.kind === 'backyard'
+        && target.garden?.kind === 'pig_pen'
+      ) {
+        ambientAudio.playUiSound('pig_pen_select');
+      } else if (
         target.kind === 'building'
         && target.building.constructionComplete !== false
       ) {
