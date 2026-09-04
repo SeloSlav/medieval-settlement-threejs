@@ -65,6 +65,8 @@ const MAX_WATER_PATHS = 4;
 const MAX_SEEDTHREE_OVERVIEW_TREES = 7_200;
 const FOREST_SEAM_CLEARANCE = 18;
 const FOREST_GROUND_OUTER_FADE_METERS = 88;
+const FOREST_GROUND_TREE_CORE_RADIUS = 10;
+const FOREST_GROUND_TREE_OUTER_RADIUS = 27;
 const FOREST_STAND_SEAM_INSET = 34;
 const FOREST_STAND_OUTER_MARGIN = 46;
 const FOREST_PLACEMENT_CORE_SHARE = 0.96;
@@ -95,6 +97,7 @@ export class TerrainHorizonWorld {
   readonly waterPaths: HorizonWaterPath[];
   readonly lakes: HorizonLake[];
   private readonly forestCores: readonly ForestCore[];
+  private readonly forestPlacementIndex: SpatialHash2D<ForestTreePlacement>;
   private readonly outerRiverLayout: RiverLayout | null;
   private readonly waterMaterial: THREE.Material | null;
   private readonly shoreMaps: RiverWaterShoreMaps | null;
@@ -155,6 +158,10 @@ export class TerrainHorizonWorld {
     }
 
     this.forestPlacements = createSeedThreeHorizonPlacements(this);
+    this.forestPlacementIndex = new SpatialHash2D(
+      FOREST_GROUND_TREE_OUTER_RADIUS,
+      this.forestPlacements,
+    );
     const waterTriangles = this.waterMesh?.geometry.getIndex()?.count
       ? this.waterMesh.geometry.getIndex()!.count / 3
       : 0;
@@ -210,11 +217,22 @@ export class TerrainHorizonWorld {
     // The exact suitability field that accepts outer trees also owns their
     // leaf-litter footprint. This replaces the old projection of the square
     // playable edge with broad, irregular stand-shaped coverage.
-    const forestFloor = forestFloorBlendAtPosition(
+    const habitatFloor = forestFloorBlendAtPosition(
       this.sampleForestSuitability(x, z),
       x,
       z,
     );
+    const nearestTreeDistance = this.forestPlacementIndex.distanceToNearestWithin(
+      x,
+      z,
+      FOREST_GROUND_TREE_OUTER_RADIUS,
+    );
+    const treeFootprint = 1 - smoothstep(
+      FOREST_GROUND_TREE_CORE_RADIUS,
+      FOREST_GROUND_TREE_OUTER_RADIUS,
+      nearestTreeDistance,
+    );
+    const forestFloor = habitatFloor * treeFootprint;
     // Copy the baked playable mask only across the mesh join itself. Beyond
     // the clearance used by outer tree placement, world-space habitat owns
     // both trees and litter, so no square boundary projection can survive.
