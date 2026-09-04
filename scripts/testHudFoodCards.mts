@@ -10,8 +10,8 @@ import { RESOURCE_COST_KINDS } from '../src/ui/resourceCost.ts';
 
 assert.deepEqual(
   HUD_CONSTRUCTION_RESOURCE_KINDS,
-  ['timber', 'stone'],
-  'The Construction hover card should own the raw building materials',
+  ['timber', 'stone', 'ironwork', 'roofTiles'],
+  'The Construction hover card should own every building material',
 );
 
 const foods = new Set<string>(HUD_FOOD_RESOURCE_KINDS);
@@ -43,6 +43,13 @@ assert.equal(
   HUD_PROVISION_RESOURCE_KINDS.length,
   'Each non-food provision should appear once in Goods & provisions',
 );
+for (const kind of HUD_CONSTRUCTION_RESOURCE_KINDS) {
+  assert.equal(
+    provisions.has(kind),
+    false,
+    `${kind} must appear only in the Construction hover card`,
+  );
+}
 assert.deepEqual(
   HUD_PROVISION_GROUPS.find(({ id }) => id === 'beverages')?.kinds,
   ['ale', 'cider', 'mead', 'wine'],

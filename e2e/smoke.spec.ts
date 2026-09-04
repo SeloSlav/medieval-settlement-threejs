@@ -1,8 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import {
-  HUD_RESOURCE_KINDS,
-  type HudResourceKind,
-} from '../src/resources/resourceTotals.ts';
+import { HUD_PROVISION_RESOURCE_KINDS } from '../src/ui/hudProvisionCards.ts';
 import { RESOURCE_COST_KINDS } from '../src/ui/resourceCost.ts';
 
 const STARTING_TIMBER = 160;
@@ -10,18 +7,7 @@ const REFORESTER_TIMBER_COST = 35;
 const STARTING_POPULATION = 10;
 const STARTUP_TIMEOUT_MS = 90_000;
 const SYNC_TIMEOUT_MS = 45_000;
-const CORE_HUD_RESOURCE_KINDS = new Set<HudResourceKind>([
-  'timber',
-  'stone',
-  'firewood',
-  'water',
-  'food',
-  'gold',
-  'charcoal',
-]);
-const EXPECTED_PROVISION_RESOURCE_KINDS = HUD_RESOURCE_KINDS.filter(
-  (resource) => !CORE_HUD_RESOURCE_KINDS.has(resource),
-);
+const EXPECTED_PROVISION_RESOURCE_KINDS = HUD_PROVISION_RESOURCE_KINDS;
 
 type ProvisionValueSnapshot = {
   resource: string;
@@ -211,10 +197,7 @@ test('centers Development between civic status and right-aligned resource contro
         <div class="settlement-hud__body settlement-hud__body--resources">
           <div class="settlement-hud__people-card settlement-hud__resource-card settlement-hud__construction-card">
             <div class="settlement-hud__stat" data-resource-group="construction">
-              <span class="settlement-hud__construction-summary">
-                <span data-construction-kind="timber"><i></i><strong>400</strong></span>
-                <span data-construction-kind="stone"><i></i><strong>240</strong></span>
-              </span>
+              <span class="settlement-hud__label">Construction</span>
             </div>
           </div>
         </div>
@@ -278,33 +261,24 @@ test('centers Development between civic status and right-aligned resource contro
   expect(layout.totalsAtFarRight).toBe(true);
   await expect(page.locator('[data-resource="water"]')).toHaveCount(0);
 
-  const constructionIcons = await page.locator('[data-construction-kind] i').evaluateAll(
-    (icons) => icons.map((icon) => ({
-      image: getComputedStyle(icon).backgroundImage,
-      position: getComputedStyle(icon).backgroundPosition,
-    })),
-  );
-  expect(constructionIcons.map(({ image }) => image)).toEqual([
-    expect.stringContaining('hud-resources-core.png'),
-    expect.stringContaining('hud-resources-core.png'),
-  ]);
-  expect(constructionIcons[0]?.position).not.toBe(constructionIcons[1]?.position);
-
-  const constructionSpacing = await page.locator('[data-resource-group="construction"]').evaluate((button) => {
-    const buttonBox = button.getBoundingClientRect();
-    const materials = Array.from(
-      button.querySelectorAll<HTMLElement>('[data-construction-kind]'),
-      (material) => material.getBoundingClientRect(),
-    );
+  const constructionCategory = await page.locator('[data-resource-group="construction"]').evaluate((button) => {
+    const style = getComputedStyle(button, '::before');
     return {
-      constructionIconDisplay: getComputedStyle(button, '::before').display,
-      leftInset: materials[0]!.left - buttonBox.left,
-      rightInset: buttonBox.right - materials[1]!.right,
+      iconDisplay: style.display,
+      iconImage: style.backgroundImage,
+      iconWidth: Number.parseFloat(style.width),
+      justifySelf: style.justifySelf,
+      visibleText: button.textContent?.trim() ?? '',
     };
   });
-  expect(constructionSpacing.constructionIconDisplay).toBe('none');
-  expect(constructionSpacing.leftInset).toBeGreaterThanOrEqual(6.5);
-  expect(constructionSpacing.rightInset).toBeGreaterThanOrEqual(6.5);
+  expect(constructionCategory.iconDisplay).toBe('block');
+  expect(constructionCategory.iconImage).toContain('construction-actions.png');
+  expect(constructionCategory.iconWidth).toBe(24);
+  expect(constructionCategory.justifySelf).toBe('center');
+  expect(constructionCategory.visibleText).toBe('Construction');
+  await expect(page.locator('[data-resource-group="construction"] strong')).toHaveCount(0);
+  await expect(page.locator('[data-specialty-stores] > summary .settlement-hud__stores-status')).toBeHidden();
+  await expect(page.locator('[data-military-stores] > summary .settlement-hud__stores-status')).toBeHidden();
 
   const armsTriggerIcon = await page.locator('[data-military-stores] > summary').evaluate((element) => (
     getComputedStyle(element, '::before').backgroundImage
@@ -412,7 +386,7 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await aquiferPrevious.click();
   await expect(aquiferState).toHaveAttribute('data-value', 'even');
 
-  const timberHud = page.locator('[data-construction-stockpile="timber"]');
+  const timberHud = page.locator('[data-resource-card-amount="timber"]');
   const startWorld = page.getByRole('button', { name: 'Start world' });
   await startWorld.click();
   await expect.poll(
@@ -489,12 +463,13 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   const constructionCard = page.locator('[data-resource-card="construction"]');
   const constructionSummary = constructionCard.locator('[data-resource-group="construction"]');
   const constructionPanel = constructionCard.locator('.settlement-hud__construction-panel');
+  await expect(constructionSummary.locator('strong')).toHaveCount(0);
   await expect(page.locator('[data-settlement-hud] [data-resource="water"]')).toHaveCount(0);
   await expect(page.locator('[data-settlement-hud] [data-resource-card="water"]')).toHaveCount(0);
   const goldSummary = page.locator('[data-resource-card="gold"] > [data-resource="gold"]');
   await expect(goldSummary).not.toHaveAttribute('data-tooltip');
   await expect(goldSummary).not.toHaveAttribute('data-tooltip-title');
-  for (const resource of ['timber', 'stone']) {
+  for (const resource of ['timber', 'stone', 'ironwork', 'roofTiles']) {
     const material = constructionPanel.locator(`[data-resource="${resource}"]`);
     await expect(material).not.toHaveAttribute('data-tooltip');
     await expect(material).not.toHaveAttribute('data-tooltip-title');
@@ -600,6 +575,7 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   );
   const foodStores = page.locator('[data-food-stores]');
   const foodSummary = foodStores.locator('> summary');
+  await expect(foodSummary.locator('.settlement-hud__supply-value')).toBeHidden();
   await foodSummary.hover();
   await expect(foodStores).toHaveAttribute('open', '');
   await expect(foodStores.getByRole('heading', { name: 'Food supply' })).toBeVisible();
@@ -609,6 +585,7 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(page.locator('#ui-tooltip')).toBeHidden();
   const fuelStores = page.locator('[data-fuel-stores]');
   const fuelSummary = fuelStores.locator('> summary');
+  await expect(fuelSummary.locator('.settlement-hud__supply-value')).toBeHidden();
   await fuelSummary.hover();
   await expect(fuelStores).toHaveAttribute('open', '');
   await expect(fuelStores.getByRole('heading', { name: 'Fuel supply' })).toBeVisible();
@@ -691,6 +668,8 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(constructionCard.locator('[data-resource-card-amount="timber"]')).toHaveText(
     String(timberBefore - REFORESTER_TIMBER_COST),
   );
+  await expect(constructionCard.locator('[data-resource-card-amount="ironwork"]')).toHaveText('9000');
+  await expect(constructionCard.locator('[data-resource-card-amount="roofTiles"]')).toHaveText(/^\d+$/);
   await expect(tooltip).toBeHidden();
   await expect(foodStores).not.toHaveAttribute('open', '');
   await totalsMode.hover();
@@ -699,7 +678,8 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   const specialtyStores = page.locator('[data-specialty-stores]');
   await expect(page.locator('[data-geology-alert]')).toHaveCount(0);
   await expect(specialtyStores).not.toHaveClass(/has-geology-alert/);
-  await expect(specialtyStores.locator('[data-specialty-stores-status]')).toBeVisible();
+  await expect(specialtyStores.locator('[data-specialty-stores-status]')).toBeHidden();
+  await expect(specialtyStores.locator('[data-resource="ironwork"], [data-resource="roofTiles"]')).toHaveCount(0);
   const specialtySummary = specialtyStores.locator('> summary');
   await specialtySummary.hover();
   await expect(specialtyStores).toHaveAttribute('open', '');
@@ -727,14 +707,6 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   );
   const hidesSurplus = surplusProvisionValues.find(({ resource }) => resource === 'hides');
   expect(Number(hidesSurplus?.tooltipAmount.replace(/[^\d.-]/g, '') ?? 0)).toBeGreaterThan(0);
-  const ironworkValue = page.locator('[data-stockpile="ironwork"]');
-  await expect(ironworkValue).toHaveText('9000');
-  await ironworkValue.hover();
-  await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Ironwork');
-  await expect(tooltip.locator('.ui-tooltip__amount-label')).toHaveText('Available surplus');
-  await expect(tooltip.locator('.ui-tooltip__amount-value')).toHaveText('9,000');
-  const ironworkTooltipParagraphs = tooltip.locator('.ui-tooltip__paragraph');
-  await expect(ironworkTooltipParagraphs).toHaveCount(1);
   await totalsMode.click();
   await expect(timberHud).toHaveText(String(timberBefore));
   await expect(totalsMode).toHaveAttribute(
@@ -753,6 +725,7 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(constructionCard.locator('[data-resource-card-amount="timber"]')).toHaveText(
     String(timberBefore),
   );
+  await expect(constructionCard.locator('[data-resource-card-amount="ironwork"]')).toHaveText('9000');
   await expect(tooltip).toBeHidden();
   await expect(specialtyStores.locator('[data-specialty-stores-mode-label]')).toHaveText(
     'Total stored',
@@ -763,10 +736,6 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await specialtySummary.hover();
   await expect(specialtyStores).toHaveAttribute('open', '');
   await expectProvisionValuesToMatchTooltips(page, 'Total stored');
-  await ironworkValue.hover();
-  await expect(tooltip.locator('.ui-tooltip__amount-label')).toHaveText('Total stored');
-  await expect(tooltip.locator('.ui-tooltip__amount-value')).toHaveText('9,000');
-  await expect(ironworkTooltipParagraphs).toHaveCount(1);
   await foodSummary.hover();
   await page.locator('[data-food-resource="ryeBread"]').hover();
   await expect(tooltip.locator('.ui-tooltip__amount-label')).toHaveText('Total stored');

@@ -692,55 +692,47 @@ select:focus-visible {
 .settlement-hud__stat[data-resource='housing']::before { content: '\2302'; color: #ceb17a; }
 .settlement-hud__stat[data-resource='labor']::before { content: '\2692'; color: #b7b0a1; }
 .settlement-hud__construction-card
-  > .settlement-hud__stat[data-resource-group='construction'] {
+  > .settlement-hud__stat[data-resource-group='construction'],
+.settlement-hud__body--resources
+  > .settlement-hud__food-stores
+  > .settlement-hud__stat {
   grid-template-columns: minmax(0, 1fr);
+  place-items: center;
   gap: 0;
-  padding-inline: 7px;
+  padding-inline: 4px;
 }
 
 .settlement-hud__construction-card
-  > .settlement-hud__stat[data-resource-group='construction']::before {
-  display: none;
-  content: none;
-}
-
-.settlement-hud__construction-summary {
-  grid-column: 2;
-  grid-row: 1;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-  color: #ded5c1;
-  font-family: var(--ui-display);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-
-.settlement-hud__construction-card
-  > .settlement-hud__stat[data-resource-group='construction']
-  > .settlement-hud__construction-summary {
+  > .settlement-hud__stat[data-resource-group='construction']::before,
+.settlement-hud__body--resources
+  > .settlement-hud__food-stores
+  > .settlement-hud__stat::before {
   grid-column: 1;
-  justify-content: space-between;
-  width: 100%;
-  gap: 8px;
+  grid-row: 1;
+  justify-self: center;
 }
 
-.settlement-hud__construction-summary > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
+.settlement-hud__body--resources
+  > .settlement-hud__food-stores
+  > .settlement-hud__stat
+  > .settlement-hud__supply-value {
+  display: none;
 }
 
-.settlement-hud__construction-summary i {
-  display: block;
-  flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
-  background-color: transparent;
-  background-repeat: no-repeat;
-  filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78));
+.settlement-hud__ribbon-side--resources
+  > .settlement-hud__stores
+  > .settlement-hud__stores-summary {
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+  gap: 0;
+  padding-inline: 4px;
+}
+
+.settlement-hud__ribbon-side--resources
+  > .settlement-hud__stores
+  > .settlement-hud__stores-summary
+  > .settlement-hud__stores-status {
+  display: none;
 }
 
 .settlement-hud__label {

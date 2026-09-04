@@ -22,12 +22,12 @@ export const HUD_PROVISION_GROUPS = [
   {
     id: 'processedMaterials',
     label: 'Processed materials',
-    kinds: ['ironwork', 'yarn', 'linen', 'leather'],
+    kinds: ['yarn', 'linen', 'leather'],
   },
   {
-    id: 'householdBuildingGoods',
-    label: 'Household & building goods',
-    kinds: ['pottery', 'roofTiles', 'candles', 'remedies'],
+    id: 'householdGoods',
+    label: 'Household goods',
+    kinds: ['pottery', 'candles', 'remedies'],
   },
   {
     id: 'apparel',

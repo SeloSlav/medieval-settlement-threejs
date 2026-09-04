@@ -54,7 +54,12 @@ import {
   type LordReportTarget,
 } from './lordReports.ts';
 import { HUD_RESOURCE_CARD_PRESENTATION } from './hudResourceCards.ts';
-import { HUD_FOOD_GROUPS, hudFoodResourceLabel, hudFoodResourceTooltip } from './hudFoodCards.ts';
+import {
+  HUD_FOOD_GROUPS,
+  HUD_FOOD_RESOURCE_KINDS,
+  hudFoodResourceLabel,
+  hudFoodResourceTooltip,
+} from './hudFoodCards.ts';
 import { HUD_PROVISION_GROUPS, hudProvisionResourceLabel } from './hudProvisionCards.ts';
 import { RESOURCE_DESCRIPTIONS } from './resourceDescriptions.ts';
 import type { SettlementAnimalsView } from './settlementAnimals.ts';
@@ -444,13 +449,9 @@ const SETTLEMENT_HUD_HTML = `
           tabindex="0"
           data-resource-group="construction"
           aria-describedby="settlement-construction-card"
-          aria-label="Construction materials: 0 timber and 0 stone. Hover or focus for the material ledger."
+          aria-label="Construction materials. Hover or focus for the material ledger."
         >
           <span class="settlement-hud__label">Construction</span>
-          <span class="settlement-hud__construction-summary" aria-hidden="true">
-            <span data-construction-kind="timber"><i></i><strong data-construction-stockpile="timber">0</strong></span>
-            <span data-construction-kind="stone"><i></i><strong data-construction-stockpile="stone">0</strong></span>
-          </span>
         </div>
         <section
           id="settlement-construction-card"
@@ -462,22 +463,34 @@ const SETTLEMENT_HUD_HTML = `
             <strong>Construction</strong>
             <span data-resource-card-mode-label="construction">Available surplus</span>
           </header>
-          <section class="settlement-hud__construction-section" aria-labelledby="settlement-construction-woodworks">
-            <h3 id="settlement-construction-woodworks">Woodworks</h3>
+          <section class="settlement-hud__construction-section" aria-labelledby="settlement-construction-structural-materials">
+            <h3 id="settlement-construction-structural-materials">Structural materials</h3>
             <div class="settlement-hud__stat settlement-hud__construction-material" tabindex="0" data-resource="timber">
               <span class="settlement-hud__construction-material-name">Timber</span>
               <strong class="settlement-hud__value" data-stockpile="timber" data-resource-card-amount="timber">0</strong>
               <div class="settlement-hud__resource-transit" data-resource-card-transit-row="timber" hidden><span>Movement</span><strong data-stockpile-transit="timber"></strong></div>
               <p class="settlement-hud__resource-detail" data-resource-card-detail="timber">${HUD_RESOURCE_CARD_PRESENTATION.timber.surplusDetail}</p>
             </div>
-          </section>
-          <section class="settlement-hud__construction-section" aria-labelledby="settlement-construction-stoneworks">
-            <h3 id="settlement-construction-stoneworks">Stoneworks</h3>
             <div class="settlement-hud__stat settlement-hud__construction-material" tabindex="0" data-resource="stone">
               <span class="settlement-hud__construction-material-name">Stone</span>
               <strong class="settlement-hud__value" data-stockpile="stone" data-resource-card-amount="stone">0</strong>
               <div class="settlement-hud__resource-transit" data-resource-card-transit-row="stone" hidden><span>Movement</span><strong data-stockpile-transit="stone"></strong></div>
               <p class="settlement-hud__resource-detail" data-resource-card-detail="stone">${HUD_RESOURCE_CARD_PRESENTATION.stone.surplusDetail}</p>
+            </div>
+          </section>
+          <section class="settlement-hud__construction-section" aria-labelledby="settlement-construction-finished-materials">
+            <h3 id="settlement-construction-finished-materials">Finished materials</h3>
+            <div class="settlement-hud__stat settlement-hud__construction-material" tabindex="0" data-resource="ironwork">
+              <span class="settlement-hud__construction-material-name">Ironwork</span>
+              <strong class="settlement-hud__value" data-stockpile="ironwork" data-resource-card-amount="ironwork">0</strong>
+              <div class="settlement-hud__resource-transit" data-resource-card-transit-row="ironwork" hidden><span>Movement</span><strong data-stockpile-transit="ironwork"></strong></div>
+              <p class="settlement-hud__resource-detail" data-resource-card-detail="ironwork">${HUD_RESOURCE_CARD_PRESENTATION.ironwork.surplusDetail}</p>
+            </div>
+            <div class="settlement-hud__stat settlement-hud__construction-material" tabindex="0" data-resource="roofTiles">
+              <span class="settlement-hud__construction-material-name">Roof tiles</span>
+              <strong class="settlement-hud__value" data-stockpile="roofTiles" data-resource-card-amount="roofTiles">0</strong>
+              <div class="settlement-hud__resource-transit" data-resource-card-transit-row="roofTiles" hidden><span>Movement</span><strong data-stockpile-transit="roofTiles"></strong></div>
+              <p class="settlement-hud__resource-detail" data-resource-card-detail="roofTiles">${HUD_RESOURCE_CARD_PRESENTATION.roofTiles.surplusDetail}</p>
             </div>
           </section>
           <p class="settlement-hud__resource-note">Activate a material to locate its physical holdings in the world.</p>
@@ -912,7 +925,10 @@ export class SettlementHud {
     this.zoomValue = this.mustElement('[data-stat="zoom"]');
     this.zoomStat = this.mustElement('[data-stat-row="zoom"]');
     for (const resource of HUD_RESOURCE_KINDS) {
-      if (resource === 'water') continue;
+      if (
+        resource === 'water'
+        || (HUD_FOOD_RESOURCE_KINDS as readonly string[]).includes(resource)
+      ) continue;
       const row = this.mustElement(`[data-resource="${resource}"]`);
       const label = row.querySelector<HTMLElement>('.settlement-hud__label')
         ?.textContent

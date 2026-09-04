@@ -3,6 +3,8 @@ import type { HudResourceKind } from '../resources/resourceTotals.ts';
 export const HUD_CONSTRUCTION_RESOURCE_KINDS = [
   'timber',
   'stone',
+  'ironwork',
+  'roofTiles',
 ] as const satisfies readonly HudResourceKind[];
 
 export type HudConstructionResourceKind =
@@ -11,6 +13,8 @@ export type HudConstructionResourceKind =
 export const HUD_RESOURCE_CARD_KINDS = [
   'timber',
   'stone',
+  'ironwork',
+  'roofTiles',
   'gold',
 ] as const satisfies readonly HudResourceKind[];
 
@@ -35,6 +39,16 @@ export const HUD_RESOURCE_CARD_PRESENTATION: Record<
     label: 'Stone',
     surplusDetail: 'Unreserved stone in quarry yards and depots.',
     totalDetail: 'All stored stone, including supplies reserved for construction and home improvements. Stone in transit is counted separately until unloaded.',
+  },
+  ironwork: {
+    label: 'Ironwork',
+    surplusDetail: 'Unreserved iron fittings available for construction and improvements.',
+    totalDetail: 'All stored ironwork, including fittings reserved for construction and home improvements. Ironwork in transit is counted separately until unloaded.',
+  },
+  roofTiles: {
+    label: 'Roof tiles',
+    surplusDetail: 'Unreserved fired roof tiles available for construction and improvements.',
+    totalDetail: 'All stored roof tiles, including tiles reserved for construction and home improvements. Roof tiles in transit are counted separately until unloaded.',
   },
   gold: {
     label: 'Civic treasury',

@@ -64,11 +64,9 @@ import {
 import { renderBuildingResourceCost } from '../ui/resourceCost.ts';
 import { BACKYARD_EXTENSION_CARD_ART } from '../ui/buildMenuCards.ts';
 import {
-  HUD_CONSTRUCTION_RESOURCE_KINDS,
   HUD_RESOURCE_CARD_KINDS,
   HUD_RESOURCE_CARD_PRESENTATION,
   isHudResourceCardKind,
-  type HudConstructionResourceKind,
   type HudResourceCardKind,
 } from '../ui/hudResourceCards.ts';
 import {
@@ -399,8 +397,6 @@ export class ResourceInspector {
   private readonly fuelFirewoodAmount: HTMLElement;
   private readonly specialtyStoresModeLabel: HTMLElement;
   private readonly militaryStoresModeLabel: HTMLElement;
-  private readonly constructionStat: HTMLElement;
-  private readonly constructionSummaryAmounts: Record<HudConstructionResourceKind, HTMLElement>;
   private readonly resourceCardAmounts: Record<HudResourceCardKind, HTMLElement>;
   private readonly resourceCardModeLabels: HTMLElement[];
   private readonly resourceCardDetails: Record<HudResourceCardKind, HTMLElement>;
@@ -605,16 +601,6 @@ export class ResourceInspector {
       options.uiRoot,
       '[data-military-stores-mode-label]',
     );
-    this.constructionStat = this.mustElement(
-      options.uiRoot,
-      '[data-resource-group="construction"]',
-    );
-    this.constructionSummaryAmounts = Object.fromEntries(
-      HUD_CONSTRUCTION_RESOURCE_KINDS.map((resource) => [
-        resource,
-        this.mustElement(options.uiRoot, `[data-construction-stockpile="${resource}"]`),
-      ]),
-    ) as Record<HudConstructionResourceKind, HTMLElement>;
     this.resourceCardAmounts = Object.fromEntries(
       HUD_RESOURCE_CARD_KINDS.map((resource) => [
         resource,
@@ -2109,13 +2095,6 @@ export class ResourceInspector {
     for (const resource of STANDALONE_HUD_RESOURCE_KINDS) {
       this.stockpileValues[resource].textContent = Math.round(totals[resource]).toString();
     }
-    for (const resource of HUD_CONSTRUCTION_RESOURCE_KINDS) {
-      this.constructionSummaryAmounts[resource].textContent = Math.round(totals[resource]).toString();
-    }
-    this.constructionStat.setAttribute(
-      'aria-label',
-      `Construction materials: ${Math.round(totals.timber)} timber and ${Math.round(totals.stone)} stone. Hover or focus for the material ledger.`,
-    );
     for (const resource of HUD_RESOURCE_CARD_KINDS) {
       this.resourceCardAmounts[resource].textContent = Math.round(totals[resource]).toString();
     }

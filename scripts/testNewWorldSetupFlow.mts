@@ -235,6 +235,7 @@ assert.match(worldCss, /\.world-setup-setting-list\s*\{[\s\S]*?overflow-y: auto/
 assert.match(worldCss, /\.world-setup-back\s*\{[\s\S]*?margin: 9px 0 9px 22px/);
 assert.match(worldCss, /\.world-setup-footer-seed\s*\{[\s\S]*?grid-template-columns: auto auto;[\s\S]*?justify-self: center/);
 assert.match(worldCss, /\.world-setup-footer-seed\s*\{[\s\S]*?grid-column: 2;[\s\S]*?grid-row: 1/);
+assert.match(worldCss, /\.world-setup-footer-seed__label\s*\{[\s\S]*?align-self: center;[\s\S]*?padding-bottom: 0/);
 assert.match(worldCss, /\.world-setup-footer-seed \.world-setup-seed-row\s*\{[\s\S]*?grid-template-columns: 140px auto/);
 assert.match(worldCss, /\.world-setup-footer-seed__label small,[\s\S]*?\.world-setup-randomize\s*\{[\s\S]*?white-space: nowrap/);
 assert.match(worldCss, /\.world-setup-back\s*\{[\s\S]*?grid-column: 1;[\s\S]*?grid-row: 1/);

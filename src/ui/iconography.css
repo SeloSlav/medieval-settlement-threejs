@@ -304,6 +304,18 @@
   text-shadow: none;
 }
 
+.settlement-hud__stat[data-resource-group='construction']::before {
+  display: block;
+  width: 24px;
+  height: 24px;
+  content: '';
+  background-image: url('/assets/ui/icons/construction-actions.png');
+  background-position: 50% 0;
+  background-repeat: no-repeat;
+  background-size: 300% 300%;
+  filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.8));
+}
+
 .settlement-hud__stat[data-resource='timber']::before,
 .settlement-hud__stat[data-resource='stone']::before,
 .settlement-hud__stat[data-resource='firewood']::before,
@@ -312,17 +324,13 @@
 .settlement-hud__stat[data-resource='gold']::before,
 .settlement-hud__stat[data-resource='population']::before,
 .settlement-hud__stat[data-resource='housing']::before,
-.settlement-hud__stat[data-resource='labor']::before,
-.settlement-hud__construction-summary [data-construction-kind='timber'] i,
-.settlement-hud__construction-summary [data-construction-kind='stone'] i {
+.settlement-hud__stat[data-resource='labor']::before {
   background-image: url('/assets/ui/icons/hud-resources-core.png');
   background-size: 300% 300%;
 }
 
-.settlement-hud__stat[data-resource='timber']::before,
-.settlement-hud__construction-summary [data-construction-kind='timber'] i { background-position: 0 0; }
-.settlement-hud__stat[data-resource='stone']::before,
-.settlement-hud__construction-summary [data-construction-kind='stone'] i { background-position: 50% 0; }
+.settlement-hud__stat[data-resource='timber']::before { background-position: 0 0; }
+.settlement-hud__stat[data-resource='stone']::before { background-position: 50% 0; }
 .settlement-hud__stat[data-resource='firewood']::before { background-position: 100% 0; }
 .settlement-hud__stat[data-resource='water']::before { background-position: 0 50%; }
 .settlement-hud__stat[data-resource='food']::before { background-position: 50% 50%; }
