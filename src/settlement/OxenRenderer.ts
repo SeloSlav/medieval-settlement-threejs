@@ -354,6 +354,14 @@ export class OxenRenderer {
     return this.batch?.diagnostics() ?? null;
   }
 
+  hasVisibleShadowCasters(): boolean {
+    if (!this.root.visible) return false;
+    for (const visual of this.visuals.values()) {
+      if (visual.root.visible) return true;
+    }
+    return false;
+  }
+
   dispose(): void {
     this.disposed = true;
     for (const visual of this.visuals.values()) this.removeVisual(visual);

@@ -316,6 +316,7 @@ export class SceneManager {
   private lastShadowTargetZ = Number.NaN;
   private lastShadowDistance = Number.NaN;
   private lastDirectionalShadowRefreshMs = Number.NEGATIVE_INFINITY;
+  private lastDynamicCasterShadowRefreshMs = Number.NEGATIVE_INFINITY;
   private readonly pendingDirectionalShadowReasons =
     new Set<DirectionalShadowInvalidationReason>();
   private directionalShadowRefreshes = 0;
@@ -1079,6 +1080,7 @@ export class SceneManager {
     firstPersonActive = false,
     firstPersonCrouching = false,
     cameraInteractionActive = false,
+    dynamicAgentShadowCastersActive = false,
   ): void {
     const rendererInfo = this.renderer.info as unknown as RendererInfoLike;
     const rendererFrameBoundary = beginRendererFrame(rendererInfo);
@@ -1169,13 +1171,24 @@ export class SceneManager {
     this.fishWildlifeVisuals?.update(dt, cameraDistance, firstPersonActive);
     this.mushroomPatchVisuals?.updateCameraState(cameraDistance, firstPersonActive);
     this.renderFrame++;
-    // Settlement agents are advanced before SceneManager.render. Refresh the
-    // shared atlas from those exact interpolated transforms and animation
-    // palettes so the color and shadow passes never describe different poses.
-    if (shouldRefreshDynamicAgentDirectionalShadow(dt)) {
-      this.refreshShadowMap('dynamic-casters');
-    }
     const shadowRefreshNowMs = performance.now();
+    const visibleDynamicCasters = dynamicAgentShadowCastersActive
+      || Boolean(
+        this.deerWildlifeVisuals?.group.visible
+        && this.deerWildlifeVisuals.deerCount > 0,
+      );
+    // Moving characters are tiny relative to the 4096px shared atlas. Update
+    // their shadows at the same bounded cadence as the sun instead of forcing
+    // a full atlas submission on every advancing frame (including empty
+    // worlds). Their color animation remains full-rate.
+    if (shouldRefreshDynamicAgentDirectionalShadow(
+      dt,
+      visibleDynamicCasters,
+      shadowRefreshNowMs - this.lastDynamicCasterShadowRefreshMs,
+    )) {
+      this.refreshShadowMap('dynamic-casters');
+      this.lastDynamicCasterShadowRefreshMs = shadowRefreshNowMs;
+    }
     const shadowCameraNeedsRefit = this.shouldRefitShadowMap(
       cameraDistance,
       shadowRefreshNowMs,

@@ -1644,6 +1644,13 @@ export class VillagerRenderer {
     this.oxen.tick(dt, view);
   }
 
+  hasVisibleDynamicShadowCasters(): boolean {
+    return this.renderer.hasVisibleShadowCasters()
+      || this.oxen.hasVisibleShadowCasters()
+      || this.combatAnimals.hasVisibleShadowCasters()
+      || this.cavalryHorsesRenderer.hasVisibleShadowCasters();
+  }
+
   /**
    * Returns the live positions of lumber-mill crews while they follow a tree-work
    * loop. The retained array and records are rewritten on each call so the frame

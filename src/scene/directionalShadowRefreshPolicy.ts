@@ -47,15 +47,19 @@ export function shouldRefreshFirstPersonDirectionalShadow(
 }
 
 /**
- * Animated agents write interpolated world transforms and skinning palettes on
- * every advancing simulation frame. The shared atlas must render after those
- * writes in the same frame; caching it would leave a previous pose on the
- * ground and make otherwise smooth movement appear to jump.
+ * Animated agents write interpolated transforms every frame, but their small
+ * silhouettes do not justify rebuilding the shared 4096px atlas at display
+ * refresh rate. Keep the color animation full-rate and pace only its shadow.
  */
 export function shouldRefreshDynamicAgentDirectionalShadow(
   simulationDeltaSeconds: number,
+  hasVisibleDynamicCasters: boolean,
+  elapsedSinceRefreshMs: number,
 ): boolean {
-  return Number.isFinite(simulationDeltaSeconds) && simulationDeltaSeconds > 0;
+  return hasVisibleDynamicCasters
+    && Number.isFinite(simulationDeltaSeconds)
+    && simulationDeltaSeconds > 0
+    && elapsedSinceRefreshMs >= DIRECTIONAL_SHADOW_MIN_REFRESH_INTERVAL_MS;
 }
 
 /**

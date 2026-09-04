@@ -594,6 +594,12 @@ export class SettlementCrowdRenderer {
     return this.battlefieldWeaponDrops.diagnostics();
   }
 
+  hasVisibleShadowCasters(): boolean {
+    return this.group.visible
+      && this.visibleAgents.length > 0
+      && this.authoredBatchList.some((batch) => batch.count > 0);
+  }
+
   authoredCrowdDiagnostics(): AuthoredCrowdDiagnostic {
     const batches = this.authoredBatches;
     const diagnostics = {} as Record<

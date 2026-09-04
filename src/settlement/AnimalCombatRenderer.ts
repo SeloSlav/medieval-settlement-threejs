@@ -93,6 +93,10 @@ export class AnimalCombatRenderer {
     );
   }
 
+  hasVisibleShadowCasters(): boolean {
+    return this.group.visible && this.instances.size > 0;
+  }
+
   private async loadAssets(): Promise<boolean> {
     try {
       const loader = new GLTFLoader();

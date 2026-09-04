@@ -103,6 +103,10 @@ export class CavalryHorseRenderer {
     return this.batch?.diagnostics() ?? null;
   }
 
+  hasVisibleShadowCasters(): boolean {
+    return this.group.visible && this.visuals.size > 0;
+  }
+
   dispose(): void {
     this.disposed = true;
     for (const visual of this.visuals.values()) this.removeVisual(visual);

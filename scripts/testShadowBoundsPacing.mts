@@ -14,12 +14,22 @@ import {
 } from '../src/scene/directionalShadowRefreshPolicy.ts';
 
 assert.equal(
-  shouldRefreshDynamicAgentDirectionalShadow(1 / 60),
+  shouldRefreshDynamicAgentDirectionalShadow(1 / 60, true, 100),
   true,
-  'an advancing agent frame must refresh the directional atlas',
+  'visible moving agents must refresh the directional atlas at the bounded cadence',
 );
 assert.equal(
-  shouldRefreshDynamicAgentDirectionalShadow(0),
+  shouldRefreshDynamicAgentDirectionalShadow(1 / 60, false, 100),
+  false,
+  'an empty world must not refresh the directional atlas for nonexistent agents',
+);
+assert.equal(
+  shouldRefreshDynamicAgentDirectionalShadow(1 / 60, true, 99),
+  false,
+  'dynamic character shadows must not force a 4096px atlas every rendered frame',
+);
+assert.equal(
+  shouldRefreshDynamicAgentDirectionalShadow(0, true, 100),
   false,
   'a paused world may retain the cached directional atlas',
 );
@@ -67,8 +77,13 @@ assert.ok(
 const sceneManagerSource = readFileSync('src/scene/SceneManager.ts', 'utf8');
 assert.match(
   sceneManagerSource,
-  /shouldRefreshDynamicAgentDirectionalShadow\(dt\)[\s\S]{0,160}refreshShadowMap\('dynamic-casters'\)/,
-  'advancing agents must invalidate the shared directional atlas every rendered frame',
+  /shouldRefreshDynamicAgentDirectionalShadow\([\s\S]{0,240}?visibleDynamicCasters[\s\S]{0,240}?refreshShadowMap\('dynamic-casters'\)/,
+  'visible advancing agents must invalidate the shared atlas on a bounded cadence',
+);
+assert.match(
+  tickSource,
+  /sceneManager\?\.render\([\s\S]{0,300}?hasVisibleDynamicShadowCasters\(\)/,
+  'the live render path must report whether any submitted animated caster exists',
 );
 assert.deepEqual(
   directionalShadowRefreshReasons(false, false, false, true),
