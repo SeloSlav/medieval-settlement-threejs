@@ -395,6 +395,17 @@ assert.ok((kennelRoof.userData.proceduralPrimitiveDiagnostics as Array<{ primiti
 ));
 const [kennelFrame] = assertNamedCount(kennel, 'Kennel joined bay, roof, fence, and gate frame', 1);
 assert.equal(kennelFrame?.userData.structuralConnection, 'joined-endpoint-authored');
+const [kennelTroughWater] = assertNamedCount(kennel, 'Kennel shallow trough water', 1) as THREE.Mesh[];
+assert.equal(kennelTroughWater?.material.name, 'Shared building detail material: water');
+assert.ok(Number(kennelTroughWater?.userData.waterDepthMeters) > 0);
+assert.ok(
+  Number(kennelTroughWater?.userData.waterDepthMeters) <= 0.07,
+  'the kennel trough should hold only a shallow amount of water',
+);
+assert.ok(
+  Number(kennelTroughWater?.userData.troughRimClearanceMeters) >= 0.2,
+  'kennel water should sit visibly below the timber rim',
+);
 for (const bay of KENNEL_ARCHITECTURE_PLAN.bays) {
   assertClearRay(kennel, `${bay.id} opening`, [bay.centerX, 1.05, 0.42], [0, 0, -1], 0.9);
 }

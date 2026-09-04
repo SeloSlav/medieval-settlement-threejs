@@ -430,6 +430,10 @@ function assertTierOneWallVariation(
   assert.ok(shell instanceof THREE.Group);
   assert.deepEqual(shell.userData.residenceWallPlan, expected);
   assert.deepEqual(root.userData.residenceTierOneWallPlan, expected);
+  assert.equal(
+    root.userData.residenceTierOneWallTextureContract,
+    'irregular-quarry-stone-no-brick',
+  );
 
   const surfaces = collectTierOneWallSurfaces(root);
   assert.deepEqual(
@@ -445,6 +449,22 @@ function assertTierOneWallVariation(
     (surface) => surface.userData.residenceWallFinish === 'fieldstone',
   ).length;
   assert.ok(stoneWallCount >= 1 && stoneWallCount <= 2);
+  const stoneWalls = surfaces.filter(
+    (surface) => surface.userData.residenceWallFinish === 'fieldstone',
+  );
+  assert.deepEqual(
+    new Set(stoneWalls.map(materialName)),
+    new Set(['Shared building material: masonryDark']),
+    'tier-one stone wall faces must use irregular quarry stone rather than regular brick-like courses',
+  );
+  assert.ok(
+    stoneWalls.every((surface) => surface.userData.residenceWallAtlasTile === 'quarry-stone'),
+    'tier-one stone wall faces must resolve to the quarry-stone atlas tile',
+  );
+  assert.ok(
+    surfaces.every((surface) => !String(surface.userData.residenceWallAtlasTile).includes('clay')),
+    'tier-one wall faces must never sample fired-clay or brick-like atlas surfaces',
+  );
   const timberGables: THREE.Mesh[] = [];
   root.traverse((object) => {
     if (object instanceof THREE.Mesh && object.userData.residenceGableFinish === 'weathered-timber') {

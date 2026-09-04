@@ -1,5 +1,8 @@
 import * as THREE from 'three';
-import { advanceCombatMotion, receiveCombatMotion, type CombatMotion } from './combatMotion.ts';
+import {
+  advanceCombatMotion, receiveCombatMotion, combatLocomotion, combatAnimationMovementSpeed,
+  type CombatMotion, type CombatLocomotion,
+} from './combatMotion.ts';
 import { SIM_REALTIME_RATE } from '../generated/gameBalance.ts';
 import { guardDogActivity } from '../security/dogActivity.ts';
 import { presentationNow, trailerClock } from '../app/trailerClock.ts';
@@ -329,6 +332,7 @@ type CombatAgentVisual = {
    * including wildlife that never enters the humanoid render-agent map. */
   renderPosition: { x: number; z: number };
   displayMoveSpeed: number;
+  locomotion: CombatLocomotion;
   yaw: number;
   hurtUntilMs: number;
   threatenUntilMs: number;
@@ -793,11 +797,12 @@ export class VillagerRenderer {
       }
       nextVisuals.set(state.id, {
         state,
-        motion: receiveCombatMotion(state, prior?.motion),
+        motion: receiveCombatMotion(state, prior?.motion, nowMs / 1000),
         displayX: prior?.displayX ?? state.x,
         displayZ: prior?.displayZ ?? state.z,
         renderPosition: prior?.renderPosition ?? { x: state.x, z: state.z },
         displayMoveSpeed: prior?.displayMoveSpeed ?? 0,
+        locomotion: prior?.locomotion ?? 'idle',
         yaw: prior?.yaw ?? Math.atan2(
           state.x - state.homeX,
           state.z - state.homeZ,
@@ -2382,6 +2387,9 @@ export class VillagerRenderer {
       }
     }
     const combatNowMs = presentationNow();
+    const combatGameSpeed = trailerClock.active ? trailerClock.speed : this.getGameSpeed();
+    const combatAnimationRate = agentPacedDelta(1, combatGameSpeed);
+    const combatSimulationRate = combatGameSpeed * SIM_REALTIME_RATE;
     this.combatAnimalPoses.length = 0;
     this.cavalryHorsePoses.length = 0;
     const cavalryHorseByCombatAgent = new Map<string, CavalryHorseState>();
@@ -2469,10 +2477,10 @@ export class VillagerRenderer {
       renderAgent.presentation = combat.faction === 'raider' ? 'raider' : 'common';
       renderAgent.mode = combatRenderMode(
         combat,
-        combat.running ?? ((combat.routeProgress ?? 0) > 14),
+        combat.running ?? (visual.locomotion === 'run'),
         visual.hurtUntilMs > combatNowMs,
         visual.threatenUntilMs > combatNowMs,
-        visual.displayMoveSpeed,
+        visual.locomotion,
       );
       renderAgent.tunicColor = residentSoldier?.tunicColor
         ?? ordinaryGuard?.tunicColor
@@ -2522,14 +2530,11 @@ export class VillagerRenderer {
           target.displayZ,
         ) + 1.08;
         renderAgent.combatTargetZ = target.displayZ;
-        renderAgent.combatLocomotion = visual.displayMoveSpeed > 1.85
-          ? 'run'
-          : visual.displayMoveSpeed > 0.12 ? 'walk' : 'idle';
+        renderAgent.combatLocomotion = visual.locomotion;
       }
-      // Drive the feet from the smoothed distance actually covered on screen.
-      // Authoritative intent speeds made the run clip race while replicated
-      // movement was still interpolating, producing a treadmill effect.
-      renderAgent.movementSpeed = Math.max(0, visual.displayMoveSpeed);
+      // Villagers supply metres per paced animation second. Combat movement
+      // is measured in real seconds, so undo that clock before the shared mixer.
+      renderAgent.movementSpeed = combatAnimationMovementSpeed(visual.displayMoveSpeed, combatAnimationRate);
       renderAgent.active = true;
       renderAgents.push(renderAgent);
       if (audioDt > 0) this.pushCombatAudioFighter(visual, renderAgent);
@@ -2579,7 +2584,7 @@ export class VillagerRenderer {
     }
     const activeView = view ?? this.lastView;
     this.renderer.syncAgents(renderAgents, activeView, animationDt);
-    this.combatAnimals.sync(this.combatAnimalPoses, activeView, animationDt, audioDt);
+    this.combatAnimals.sync(this.combatAnimalPoses, activeView, animationDt, audioDt, combatSimulationRate);
     this.cavalryHorsesRenderer.sync(this.cavalryHorsePoses, activeView, animationDt);
     const audioPaused = this.getGameSpeed() === 0;
     this.farmWorkerSongAudio.setPaused(audioPaused);
@@ -2638,16 +2643,15 @@ export class VillagerRenderer {
   }
 
   private advanceCombatAgentVisuals(realDt: number): void {
-    const frameDt = Math.min(0.1, Math.max(0, realDt));
-    const blend = 1 - Math.exp(-frameDt * 14);
+    const frameDt = Math.max(0, realDt);
     const speedBlend = 1 - Math.exp(-frameDt * 12);
     const simulationRate = (trailerClock.active ? trailerClock.speed : this.getGameSpeed()) * SIM_REALTIME_RATE;
     for (const visual of this.combatAgentVisuals.values()) {
       const previousX = visual.displayX;
       const previousZ = visual.displayZ;
       advanceCombatMotion(visual.motion, frameDt, simulationRate);
-      visual.displayX += (visual.motion.targetX - visual.displayX) * blend;
-      visual.displayZ += (visual.motion.targetZ - visual.displayZ) * blend;
+      visual.displayX = visual.motion.targetX;
+      visual.displayZ = visual.motion.targetZ;
       visual.renderPosition.x = visual.displayX;
       visual.renderPosition.z = visual.displayZ;
       const dx = visual.displayX - previousX;
@@ -2656,6 +2660,10 @@ export class VillagerRenderer {
         ? Math.hypot(dx, dz) / frameDt
         : 0;
       visual.displayMoveSpeed += (measuredSpeed - visual.displayMoveSpeed) * speedBlend;
+      if (simulationRate > 0) {
+        visual.locomotion = combatLocomotion(
+          visual.displayMoveSpeed / (simulationRate * visual.motion.cadenceScale), visual.locomotion);
+      }
       if (dx * dx + dz * dz > 1e-8) {
         visual.yaw = Math.atan2(dx, dz);
       }
@@ -6204,7 +6212,7 @@ function combatRenderMode(
   running = false,
   reactingToHit = false,
   threatening = false,
-  displayMoveSpeed = 0,
+  locomotion: CombatLocomotion = 'idle',
 ): VillagerRenderMode {
   if (combat.status === 'downed') return 'fall';
   if (reactingToHit) return 'hurt';
@@ -6222,7 +6230,7 @@ function combatRenderMode(
       return combat.targetKind !== 'cart' ? 'fight' : 'gather';
     }
     case 'recovering': return 'rest';
-    case 'advancing': return running ? 'run' : 'walk';
+    case 'advancing': return locomotion === 'idle' ? 'idle' : running ? 'run' : 'walk';
     case 'retreating': return combat.faction === 'raider' ? 'flee' : 'walk';
     case 'returning':
     case 'wounded-returning':
@@ -6232,7 +6240,7 @@ function combatRenderMode(
       // Camp patrols retain the authoritative "holding" status while moving
       // between nearby posts. Drive their animation from actual screen-space
       // locomotion so they never slide around in an idle pose.
-      if (displayMoveSpeed > 0.12) return displayMoveSpeed > 1.85 ? 'run' : 'walk';
+      if (locomotion !== 'idle') return locomotion;
       if (combat.faction !== 'raider') return 'idle';
       const variations: VillagerRenderMode[] = ['idle', 'relax', 'look', 'wait'];
       return variations[combatAppearanceSeed(combat) % variations.length] ?? 'idle';

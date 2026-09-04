@@ -949,6 +949,7 @@ function addTierOneWallShellWithOpenings(
     wall.userData.residenceWallConstruction = 'segmented-around-openings';
     wall.userData.residenceWallFace = face.id;
     wall.userData.residenceWallFinish = finish;
+    wall.userData.residenceWallAtlasTile = materials[finish].userData.buildingMaterialAtlasTile;
     wall.userData.residenceSurfaceRole = finish === 'earthy-daub'
       ? 'clay-lime-daub'
       : finish;
@@ -2620,7 +2621,9 @@ export function createResidenceMesh(
       : residenceFacadeMaterial(facade);
   const tierOneWallMaterials: Readonly<Record<TierOneWallFinish, THREE.Material>> = {
     'earthy-daub': wallMaterial,
-    fieldstone: stoneMaterial('mid'),
+    // The regular mortared fieldstone tile reads as brick at cottage scale.
+    // Tier one uses the irregular quarry-stone surface for every stone wall.
+    fieldstone: tierOneResidenceMaterial('foundation-stone'),
     'weathered-timber': tierOneWeatheredMaterial,
   };
   const roofFinish = residenceRoofFinishForTier(tier);
@@ -2654,6 +2657,9 @@ export function createResidenceMesh(
   group.userData.residenceRoofTone = roofTone;
   group.userData.residenceFootprintProfile = footprint;
   group.userData.residenceTierOneWallPlan = { ...tierOneWalls };
+  group.userData.residenceTierOneWallTextureContract = tier === 1
+    ? 'irregular-quarry-stone-no-brick'
+    : undefined;
   group.userData.residenceTierThreeFeature = tierThreeFeature;
   group.userData.residenceTierFourGablePosition = tierFourGablePosition;
   group.userData.residenceTierTwoUpperFinish = tierTwoUpperFinish;

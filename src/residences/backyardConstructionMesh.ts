@@ -4,6 +4,11 @@ import {
   sharedBuildingMaterial,
 } from '../buildings/buildingMaterials.ts';
 import type { BackyardGardenKind } from '../generated/gameBalance.ts';
+import {
+  createAnimalPenVisualPlan,
+  isAnimalPenKind,
+  type AnimalPenVisualPlan,
+} from './animalPenArchitecture.ts';
 
 export type BackyardConstructionMeshOptions = {
   width?: number;
@@ -53,6 +58,250 @@ function addConstructionMesh(
   return mesh;
 }
 
+function populateAnimalHouseConstruction(
+  root: THREE.Group,
+  plan: AnimalPenVisualPlan,
+): void {
+  const { shelter } = plan;
+  const workWidth = shelter.width + 0.58;
+  const workDepth = shelter.depth + 0.58;
+  const halfWorkWidth = workWidth * 0.5;
+  const halfWorkDepth = workDepth * 0.5;
+  root.userData.footprint = { width: workWidth, depth: workDepth };
+  root.userData.backyardConstructionPlan = {
+    profile: 'animal-house',
+    typology: plan.typology,
+    footprint: { width: workWidth, depth: workDepth },
+    yardFootprint: { ...plan.footprint },
+    animalHouse: { ...shelter },
+    boundaryPostCount: 0,
+    railSegmentCount: 0,
+    scaffoldPostCount: 4,
+    scaffoldRailCount: 6,
+  };
+
+  addConstructionMesh(
+    root,
+    new THREE.BoxGeometry(workWidth, 0.06, workDepth),
+    MATERIALS.earth,
+    'Animal house construction earthworks',
+    new THREE.Vector3(shelter.x, 0.025, shelter.z),
+    0.04,
+  );
+
+  const stakeGeometry = new THREE.CylinderGeometry(0.045, 0.055, 0.68, 6);
+  for (const [index, [xSign, zSign]] of [
+    [-1, -1],
+    [1, -1],
+    [-1, 1],
+    [1, 1],
+  ].entries()) {
+    addConstructionMesh(
+      root,
+      stakeGeometry,
+      MATERIALS.weatheredTimber,
+      `Animal house setting-out stake ${index}`,
+      new THREE.Vector3(
+        shelter.x + xSign * (shelter.width * 0.5 + 0.08),
+        0.34,
+        shelter.z + zSign * (shelter.depth * 0.5 + 0.08),
+      ),
+      0,
+      0.42,
+    );
+  }
+
+  addConstructionMesh(
+    root,
+    new THREE.BoxGeometry(shelter.width + 0.18, shelter.foundationHeight, shelter.depth + 0.16),
+    MATERIALS.stone,
+    'Animal house rising fieldstone sill',
+    new THREE.Vector3(shelter.x, shelter.foundationHeight * 0.5, shelter.z),
+    0.12,
+  );
+
+  let memberIndex = 0;
+  for (const xSign of [-1, 1] as const) {
+    for (const zSign of [-1, 1] as const) {
+      addConstructionMesh(
+        root,
+        new THREE.BoxGeometry(0.15, shelter.eaveHeight, 0.15),
+        MATERIALS.darkTimber,
+        `Animal house structural post ${memberIndex}`,
+        new THREE.Vector3(
+          shelter.x + xSign * (shelter.width * 0.5 - 0.08),
+          shelter.eaveHeight * 0.5,
+          shelter.z + zSign * (shelter.depth * 0.5 - 0.08),
+        ),
+        0.22 + memberIndex * 0.045,
+      );
+      memberIndex += 1;
+    }
+  }
+  for (const [index, zSign] of [-1, 1].entries()) {
+    addConstructionMesh(
+      root,
+      new THREE.BoxGeometry(shelter.width + 0.12, 0.16, 0.16),
+      MATERIALS.darkTimber,
+      `Animal house connected eave beam ${index}`,
+      new THREE.Vector3(
+        shelter.x,
+        shelter.eaveHeight - 0.07,
+        shelter.z + zSign * (shelter.depth * 0.5 - 0.06),
+      ),
+      0.38 + index * 0.06,
+    );
+  }
+  addConstructionMesh(
+    root,
+    new THREE.BoxGeometry(shelter.width + 0.24, 0.13, 0.15),
+    MATERIALS.darkTimber,
+    'Animal house ridge beam',
+    new THREE.Vector3(shelter.x, shelter.ridgeHeight, shelter.z),
+    0.5,
+  );
+
+  const halfRun = shelter.depth * 0.5 + 0.2;
+  const rise = shelter.ridgeHeight - shelter.eaveHeight;
+  const slopeLength = Math.hypot(halfRun, rise);
+  const pitch = Math.atan2(rise, halfRun);
+  for (const side of [-1, 1] as const) {
+    addConstructionMesh(
+      root,
+      new THREE.BoxGeometry(shelter.width + 0.34, 0.09, slopeLength),
+      MATERIALS.weatheredTimber,
+      `Animal house roof boarding ${side}`,
+      new THREE.Vector3(
+        shelter.x,
+        shelter.eaveHeight + rise * 0.5,
+        shelter.z + side * halfRun * 0.5,
+      ),
+      0.65 + (side > 0 ? 0.09 : 0),
+      Number.POSITIVE_INFINITY,
+      new THREE.Euler(side > 0 ? pitch : -pitch, 0, 0),
+    );
+  }
+  addConstructionMesh(
+    root,
+    new THREE.BoxGeometry(shelter.width - 0.16, shelter.eaveHeight - shelter.foundationHeight - 0.08, 0.13),
+    MATERIALS.weatheredTimber,
+    'Animal house weathered rear enclosure',
+    new THREE.Vector3(
+      shelter.x,
+      shelter.foundationHeight + (shelter.eaveHeight - shelter.foundationHeight - 0.08) * 0.5,
+      shelter.z - shelter.depth * 0.5 + 0.07,
+    ),
+    0.58,
+  );
+
+  const scaffoldPostGeometry = new THREE.CylinderGeometry(0.045, 0.055, shelter.eaveHeight + 0.3, 6);
+  for (const [index, [xSign, zSign]] of [
+    [-1, -1],
+    [1, -1],
+    [-1, 1],
+    [1, 1],
+  ].entries()) {
+    addConstructionMesh(
+      root,
+      scaffoldPostGeometry,
+      MATERIALS.weatheredTimber,
+      `Animal house scaffold post ${index}`,
+      new THREE.Vector3(
+        shelter.x + xSign * halfWorkWidth,
+        (shelter.eaveHeight + 0.3) * 0.5,
+        shelter.z + zSign * halfWorkDepth,
+      ),
+      0.08,
+      0.94,
+    );
+  }
+  let scaffoldRailCount = 0;
+  for (const y of [0.62, 1.18]) {
+    for (const zSign of [-1, 1] as const) {
+      addConstructionMesh(
+        root,
+        new THREE.BoxGeometry(workWidth, 0.07, 0.07),
+        MATERIALS.weatheredTimber,
+        `Animal house scaffold width rail ${scaffoldRailCount++}`,
+        new THREE.Vector3(shelter.x, y, shelter.z + zSign * halfWorkDepth),
+        0.08,
+        0.94,
+      );
+    }
+    addConstructionMesh(
+      root,
+      new THREE.BoxGeometry(0.07, 0.07, workDepth),
+      MATERIALS.weatheredTimber,
+      `Animal house scaffold rear rail ${scaffoldRailCount++}`,
+      new THREE.Vector3(shelter.x - halfWorkWidth, y, shelter.z),
+      0.08,
+      0.94,
+    );
+  }
+
+  const benchX = shelter.x + halfWorkWidth + 0.42;
+  const benchZ = shelter.z + halfWorkDepth * 0.4;
+  addConstructionMesh(
+    root,
+    new THREE.BoxGeometry(0.9, 0.1, 0.42),
+    MATERIALS.darkTimber,
+    'Backyard construction workbench',
+    new THREE.Vector3(benchX, 0.62, benchZ),
+    0.3,
+  );
+  const hammerPivot = new THREE.Group();
+  hammerPivot.name = 'Backyard construction hammer';
+  hammerPivot.position.set(benchX, 0.7, benchZ);
+  hammerPivot.userData.backyardConstructionRevealAt = 0.3;
+  hammerPivot.userData.backyardConstructionRemoveAt = 0.96;
+  hammerPivot.userData.backyardConstructionBaseRotation = -0.42;
+  root.add(hammerPivot);
+  addConstructionMesh(
+    hammerPivot,
+    new THREE.BoxGeometry(0.05, 0.52, 0.05),
+    MATERIALS.weatheredTimber,
+    'Backyard construction hammer handle',
+    new THREE.Vector3(0, 0.23, 0),
+  );
+  addConstructionMesh(
+    hammerPivot,
+    new THREE.BoxGeometry(0.31, 0.11, 0.13),
+    MATERIALS.iron,
+    'Backyard construction hammer head',
+    new THREE.Vector3(0, 0.5, 0),
+  );
+
+  for (let index = 0; index < 6; index += 1) {
+    addConstructionMesh(
+      root,
+      new THREE.CylinderGeometry(0.06, 0.075, 0.92, 7),
+      index % 2 === 0 ? MATERIALS.timber : MATERIALS.weatheredTimber,
+      `BackyardConstructionTimberSegment:${index}`,
+      new THREE.Vector3(
+        shelter.x - halfWorkWidth - 0.42,
+        0.08 + Math.floor(index / 2) * 0.1,
+        shelter.z + halfWorkDepth * 0.45 + (index % 2) * 0.14,
+      ),
+      0,
+      Number.POSITIVE_INFINITY,
+      new THREE.Euler(0, 0, Math.PI * 0.5),
+    );
+  }
+  for (let index = 0; index < 6; index += 1) {
+    addConstructionMesh(
+      root,
+      new THREE.BoxGeometry(0.28, 0.18, 0.24),
+      MATERIALS.stone,
+      `BackyardConstructionStoneSegment:${index}`,
+      new THREE.Vector3(
+        shelter.x + halfWorkWidth + 0.34 + (index % 2) * 0.22,
+        0.09 + Math.floor(index / 4) * 0.18,
+        shelter.z - halfWorkDepth * 0.56 + Math.floor((index % 4) / 2) * 0.22,
+      ),
+    );
+  }
+}
+
 /**
  * A backyard project is its own architectural module. Its setting-out boards,
  * delivered materials, boundary frame, and working shelter all live in the
@@ -71,6 +320,20 @@ export function createBackyardConstructionMesh(
   root.userData.backyardProjectKind = kind;
   root.userData.backyardConstructionSeed = seed;
   root.userData.footprint = { width, depth };
+
+  if (isAnimalPenKind(kind)) {
+    populateAnimalHouseConstruction(
+      root,
+      createAnimalPenVisualPlan(kind, width, depth, seed),
+    );
+    syncBackyardConstructionProgress(root, {
+      progress: 0,
+      assignedLabor: 0,
+      timberFill: 0,
+      stoneFill: 0,
+    });
+    return root;
+  }
 
   const halfWidth = width * 0.5;
   const halfDepth = depth * 0.5;
@@ -199,7 +462,7 @@ export function createBackyardConstructionMesh(
     }
   }
   root.userData.backyardConstructionPlan = {
-    profile: kind.endsWith('_pen') || kind === 'animal_pen' ? 'animal-enclosure' : 'fixture',
+    profile: 'fixture',
     footprint: { width, depth },
     boundaryPostCount: boundaryPosts.length,
     railSegmentCount: railIndex,

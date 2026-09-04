@@ -1118,9 +1118,14 @@ export class SettlementCrowdRenderer {
   ): void {
     if (visual.mode === nextMode && visual.actionMode === nextActionMode) return;
     if (visual.actionMode !== nextActionMode) {
-      visual.actions[visual.actionMode].fadeOut(0.18);
+      const previousAction = visual.actions[visual.actionMode];
+      const preserveStride = ['walk', 'run', 'flee'].includes(visual.actionMode)
+        && ['walk', 'run', 'flee'].includes(nextActionMode);
+      const stridePhase = previousAction.time / previousAction.getClip().duration;
+      previousAction.fadeOut(0.18);
       const nextAction = visual.actions[nextActionMode].reset();
       configureVillagerActionStart(nextAction, nextActionMode, appearanceSeed);
+      if (preserveStride) nextAction.time = (stridePhase % 1) * nextAction.getClip().duration;
       nextAction.fadeIn(0.18).play();
     }
     if (visual.tool && visual.toolKind) {

@@ -30,7 +30,8 @@ const ground = new THREE.Mesh(new THREE.PlaneGeometry(60,60),new THREE.MeshStand
 ground.receiveShadow=true;
 const post = createPostProcessor({kind:'webgpu',renderer} as any,scene,camera,scene,{hemisphere,ambient},{visibility:float(1)} as any);
 let usePost=true;
-const villagers = new VillagerRenderer({parent,getGameSpeed:()=>1,getHeightAt:()=>0});
+const gameSpeed = Number(new URLSearchParams(location.search).get('speed') ?? 1) as 1 | 4 | 8;
+const villagers = new VillagerRenderer({parent,getGameSpeed:()=>gameSpeed,getHeightAt:()=>0});
 const ready = await villagers.visualAssetsReady;
 const factions = ['bandit','dog','fox','wolf'] as const;
 const agents = new Map<string, CombatAgentState>(factions.map((faction,i)=>[String(i+1),{
@@ -55,13 +56,17 @@ const icons = new MilitaryCompanyStrategicOverlay({
  isBlocked:()=>false,onSelect:()=>{},
 });
 icons.sync(hostileStrategicMarkers(agents.values()));
-let elapsed=0, previous=0;
+// Captured live arrival cadence, including scheduler and network jitter.
+const packetIntervals=[.218,.223,.257,.256,.257,.214,.249,.248,.248,.223,.245,.252,.241,.224,.256,.244];
+let elapsed=0, previous=0, nextPacket=3, packet=0, serverTime=0;
 renderer.setAnimationLoop(time=>{
  const dt=Math.min(0.05,(time-previous)/1000);previous=time;elapsed+=dt;
- if(elapsed > 3 && Math.floor(elapsed*5)!==Math.floor((elapsed-dt)*5)){
+ if(elapsed >= nextPacket){
+  nextPacket+=packetIntervals[packet++ % packetIntervals.length]!;
+  serverTime+=0.2*0.75*gameSpeed;
   for(const a of agents.values()) if(a.status==='advancing') {
-   a.z=200+Math.sin(elapsed*0.5)*3;
-   a.velocityZ=Math.cos(elapsed*0.5)*2;
+   a.z=200+Math.sin(serverTime*0.5)*3;
+   a.velocityZ=Math.cos(serverTime*0.5)*1.5;
   }
   villagers.setCombatAgents(new Map([...agents].map(([id,a])=>[id,{...a}])));
   icons.sync(hostileStrategicMarkers(agents.values()));
@@ -70,5 +75,7 @@ renderer.setAnimationLoop(time=>{
  if(usePost) post.render(dt);else renderer.render(scene,camera);
  icons.update(time,view);
  const d = villagers.authoredCrowdDiagnostics();
- status.textContent=JSON.stringify({ready,post:usePost,time:elapsed.toFixed(1),humanoids:d.submittedInstances,parties:hostileStrategicMarkers(agents.values()).map(m=>({members:m.agentIds,x:m.x,z:m.z})),bodyHeights:Object.fromEntries([...agents.values()].map(a=>[a.faction,villagers.getCombatAgentBodyHeight(a.id)])),errors},null,2);
+ status.textContent=JSON.stringify({ready,post:usePost,gameSpeed,time:elapsed.toFixed(1),humanoids:d.submittedInstances,
+  motion:[...(villagers as any).combatAgentVisuals.values()].filter((v:any)=>Number(v.state.id)<=4).map((v:any)=>({faction:v.state.faction,speed:Number(v.displayMoveSpeed.toFixed(2)),clockScale:Number(v.motion.cadenceScale.toFixed(2)),gait:v.locomotion})),
+  errors},null,2);
 });

@@ -151,6 +151,11 @@ assert.ok(seatedPoseTimes.every((time) => time >= 1.16 && time <= 1.88));
 assert.ok(new Set(seatedPoseTimes.map((time) => time.toFixed(4))).size > 28);
 assert.equal(villagerStaticSeatedPoseTime('idle', appearanceSeed, 2), null);
 assert.equal(pooledActions.walk.paused, false);
+pooledActions.walk.time = 1.3;
+const transitionVisual = { mode: 'walk', actionMode: 'walk', actions: pooledActions, tool: null };
+(SettlementCrowdRenderer.prototype as any).transition(transitionVisual, 'run', 'run', appearanceSeed);
+assert.ok(Math.abs(pooledActions.run.time - 1.3) < 1e-10,
+  'changing humanoid gait must preserve foot phase instead of restarting the stride');
 assert.match(
   source,
   /resolvedAnimationRateScale\(\s*agent\.animationRateScale,\s*agent\.appearanceSeed,/,

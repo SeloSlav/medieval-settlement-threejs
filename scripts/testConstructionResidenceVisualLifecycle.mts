@@ -451,16 +451,33 @@ function testBackyardConstructionOwnership(): void {
   });
   const compactPlan = compactPenWorks.userData.backyardConstructionPlan as {
     profile: string;
+    typology: string;
+    footprint: { width: number; depth: number };
+    yardFootprint: { width: number; depth: number };
     boundaryPostCount: number;
     railSegmentCount: number;
+    scaffoldPostCount: number;
+    scaffoldRailCount: number;
   };
   const broadPlan = broadPenWorks.userData.backyardConstructionPlan as typeof compactPlan;
-  assert.equal(compactPlan.profile, 'animal-enclosure');
-  assert.ok(broadPlan.boundaryPostCount > compactPlan.boundaryPostCount);
+  assert.equal(compactPlan.profile, 'animal-house');
+  assert.equal(compactPlan.typology, 'open-gable-stock-shelter');
+  assert.equal(compactPlan.boundaryPostCount, 0);
+  assert.equal(broadPlan.boundaryPostCount, 0);
+  assert.equal(compactPlan.railSegmentCount, 0);
+  assert.equal(broadPlan.railSegmentCount, 0);
+  assert.equal(compactPlan.scaffoldPostCount, 4);
+  assert.equal(compactPlan.scaffoldRailCount, 6);
+  assert.deepEqual(broadPlan.yardFootprint, { width: 9.4, depth: 8.2 });
   assert.ok(
-    broadPlan.railSegmentCount > compactPlan.railSegmentCount,
-    'animal-pen construction should add staged posts and rails as its parcel footprint grows',
+    broadPlan.footprint.width < broadPlan.yardFootprint.width * 0.5
+      && broadPlan.footprint.depth < broadPlan.yardFootprint.depth * 0.5,
+    'animal-pen construction should frame the animal house rather than the entire yard',
   );
+  assert.equal(compactPenWorks.getObjectByName('Backyard installed boundary post 0'), undefined);
+  assert.ok(compactPenWorks.getObjectByName('Animal house rising fieldstone sill'));
+  assert.ok(compactPenWorks.getObjectByName('Animal house ridge beam'));
+  assert.ok(compactPenWorks.getObjectByName('Animal house scaffold post 0'));
   disposeBackyardConstructionMesh(compactPenWorks);
   disposeBackyardConstructionMesh(broadPenWorks);
 

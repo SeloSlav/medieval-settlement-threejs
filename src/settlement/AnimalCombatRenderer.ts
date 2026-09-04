@@ -58,7 +58,7 @@ export class AnimalCombatRenderer {
     this.ready = this.loadAssets();
   }
 
-  sync(poses: readonly AnimalCombatPose[], view: CrowdViewState | undefined, dt: number, motionDt = dt): void {
+  sync(poses: readonly AnimalCombatPose[], view: CrowdViewState | undefined, dt: number, motionDt = dt, simulationRate = 1): void {
     const active = new Set<string>();
     for (const pose of poses) {
       if (!isWithinAnimalCrowdView(pose.x, pose.z, view)) continue;
@@ -73,14 +73,17 @@ export class AnimalCombatRenderer {
       instance.root.position.set(pose.x, pose.y, pose.z);
       instance.yaw = smoothAnimalYaw(instance.yaw, pose.yaw, motionDt);
       instance.root.rotation.y = instance.yaw;
-      const nextAction = animalCombatAnimation(pose, instance.actionName);
+      const gaitSpeed = simulationRate > 0 ? pose.moveSpeed / simulationRate : 0;
+      const nextAction = simulationRate > 0
+        ? animalCombatAnimation(pose, instance.actionName, simulationRate)
+        : instance.actionName;
       if (instance.actionName !== nextAction) {
         this.play(instance, nextAction, pose.status === 'downed');
       }
       // displayMoveSpeed is measured in real seconds. Convert back from the
       // paced animation delta so faster game speeds don't multiply feet twice.
       instance.mixer.timeScale = nextAction === 'Walk' || nextAction === 'Gallop'
-        ? animalCombatLocomotionRate(nextAction, pose.moveSpeed) * (dt > 0 ? motionDt / dt : 0)
+        ? animalCombatLocomotionRate(nextAction, gaitSpeed) * (dt > 0 ? simulationRate * motionDt / dt : 0)
         : 1;
       instance.mixer.update(Math.max(0, dt));
     }
@@ -192,11 +195,17 @@ export class AnimalCombatRenderer {
       ?? instance.actions.get(requested.startsWith('Idle') ? 'Idle' : 'Walk')
       ?? instance.actions.values().next().value;
     if (!next) return;
+    const previous = instance.actions.get(instance.actionName);
+    const preserveStride = (requested === 'Walk' || requested === 'Gallop')
+      && (instance.actionName === 'Walk' || instance.actionName === 'Gallop');
+    const phase = preserveStride && previous
+      ? previous.time / previous.getClip().duration : 0;
     for (const action of instance.actions.values()) {
       if (action === next) continue;
       action.fadeOut(0.16);
     }
     next.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(0.12);
+    if (preserveStride) next.time = (phase % 1) * next.getClip().duration;
     next.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, once ? 1 : Infinity);
     next.clampWhenFinished = once;
     next.play();
@@ -244,12 +253,13 @@ function shortAnimationName(name: string): string {
   return name.split('|').at(-1) ?? name;
 }
 
-export function animalCombatAnimation(pose: Pick<AnimalCombatPose, 'status' | 'moveSpeed'>, current = ''): string {
+export function animalCombatAnimation(pose: Pick<AnimalCombatPose, 'status' | 'moveSpeed'>, current = '', simulationRate = 1): string {
   if (pose.status === 'downed') return 'Death';
   if (pose.status === 'fighting') return 'Attack';
   if (pose.status === 'looting') return 'Eating';
-  if (pose.moveSpeed > (current === 'Gallop' ? 1.85 : 2.35)) return 'Gallop';
-  if (pose.moveSpeed > (current === 'Walk' ? 0.07 : 0.15)) return 'Walk';
+  const speed = simulationRate > 0 ? pose.moveSpeed / simulationRate : 0;
+  if (speed > (current === 'Gallop' ? 1.85 : 2.35)) return 'Gallop';
+  if (speed > (current === 'Walk' ? 0.07 : 0.15)) return 'Walk';
   return pose.status === 'holding' ? 'Idle_2' : 'Idle';
 }
 

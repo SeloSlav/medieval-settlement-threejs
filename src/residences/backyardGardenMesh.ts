@@ -27,6 +27,16 @@ import {
   backyardGardenUsesCultivatedSoil,
   isPlantableBackyardGardenKind,
 } from './backyardGarden.ts';
+import {
+  createAnimalPenVisualPlan,
+  type AnimalPenVisualPlan,
+} from './animalPenArchitecture.ts';
+
+export {
+  createAnimalPenVisualPlan,
+  type AnimalPenVisualPlan,
+  type AnimalPenVisualSpecies,
+} from './animalPenArchitecture.ts';
 
 export type BackyardGardenMeshOptions = {
   width?: number;
@@ -204,6 +214,8 @@ const MATERIALS = {
   timber: sharedBuildingMaterial('timberMid'),
   darkTimber: sharedBuildingMaterial('timberDark'),
   lightTimber: sharedBuildingMaterial('timberLight'),
+  weatheredTimber: sharedBuildingMaterial('timberWeathered'),
+  shingles: sharedBuildingMaterial('shingle'),
   wicker: sharedBuildingDetailMaterial('wicker'),
   stone: sharedBuildingMaterial('masonryMid'),
   leaf: new THREE.MeshStandardMaterial({ color: 0x527a3d, roughness: 0.9 }),
@@ -1813,59 +1825,6 @@ function addHerbGarden(group: THREE.Group, width: number, depth: number, seed: n
   addDryingRack(group, rackX, depth * 0.17, 2);
 }
 
-export type AnimalPenVisualSpecies = 'unstocked' | 'chickens' | 'goats' | 'pigs';
-
-export type AnimalPenVisualPlan = {
-  seed: number;
-  species: AnimalPenVisualSpecies;
-  footprint: { width: number; depth: number };
-  enclosure: {
-    owner: 'residence-perimeter';
-  };
-  shelter: { x: number; z: number; width: number; depth: number; wallHeight: number };
-  fixtures: readonly ('trough' | 'nesting-boxes' | 'milking-stand' | 'mud-wallow')[];
-};
-
-/** Serializable authored plan compiled by the animal-pen mesh emitter below. */
-export function createAnimalPenVisualPlan(
-  kind: Extract<BackyardGardenKind, 'animal_pen' | 'chicken_pen' | 'goat_pen' | 'pig_pen'>,
-  width: number,
-  depth: number,
-  seed: number,
-): AnimalPenVisualPlan {
-  const species: AnimalPenVisualSpecies = kind === 'chicken_pen'
-    ? 'chickens'
-    : kind === 'goat_pen'
-      ? 'goats'
-      : kind === 'pig_pen'
-        ? 'pigs'
-        : 'unstocked';
-  const shelterWidth = Math.min(species === 'chickens' ? 2.25 : 2.7, width * 0.44);
-  const fixtures = species === 'chickens'
-    ? ['trough', 'nesting-boxes'] as const
-    : species === 'goats'
-      ? ['trough', 'milking-stand'] as const
-      : species === 'pigs'
-        ? ['trough', 'mud-wallow'] as const
-        : ['trough'] as const;
-  return {
-    seed,
-    species,
-    footprint: { width, depth },
-    enclosure: {
-      owner: 'residence-perimeter',
-    },
-    shelter: {
-      x: -width * 0.24,
-      z: -depth * 0.25,
-      width: shelterWidth,
-      depth: Math.min(1.9, depth * 0.36),
-      wallHeight: species === 'chickens' ? 1.05 : 1.25,
-    },
-    fixtures,
-  };
-}
-
 function addAnimalPen(
   group: THREE.Group,
   kind: Extract<BackyardGardenKind, 'animal_pen' | 'chicken_pen' | 'goat_pen' | 'pig_pen'>,
@@ -1885,37 +1844,293 @@ function compileAnimalPenFixtures(group: THREE.Group, plan: AnimalPenVisualPlan)
   const { shelter } = plan;
   const shelterGroup = new THREE.Group();
   shelterGroup.name = 'Animal pen weather shelter';
-  shelterGroup.userData.architectureModule = 'shelter';
+  shelterGroup.position.set(shelter.x, 0, shelter.z);
+  shelterGroup.userData.architectureModule = plan.typology;
+  shelterGroup.userData.animalPenSpecies = plan.species;
   group.add(shelterGroup);
-  addMesh(shelterGroup, new THREE.BoxGeometry(shelter.width, shelter.wallHeight, 0.12), MATERIALS.timber, shelter.x, shelter.wallHeight * 0.5, shelter.z - shelter.depth * 0.5);
-  for (const x of [shelter.x - shelter.width * 0.5, shelter.x + shelter.width * 0.5]) {
-    addMesh(shelterGroup, new THREE.BoxGeometry(0.12, shelter.wallHeight, shelter.depth), MATERIALS.timber, x, shelter.wallHeight * 0.5, shelter.z);
-  }
-  addMesh(shelterGroup, new THREE.ConeGeometry(Math.max(shelter.width, shelter.depth) * 0.72, 0.72, 4), MATERIALS.darkTimber, shelter.x, shelter.wallHeight + 0.38, shelter.z, new THREE.Euler(0, Math.PI * 0.25, 0));
-  addMesh(shelterGroup, new THREE.BoxGeometry(shelter.width * 0.88, 0.08, shelter.depth * 0.82), MATERIALS.straw, shelter.x, 0.06, shelter.z, undefined, undefined, 'AnimalPenBedding');
 
-  if (plan.fixtures.includes('trough')) {
-    addMesh(group, new THREE.BoxGeometry(1.35, 0.22, 0.46), MATERIALS.darkTimber, plan.footprint.width * 0.2, 0.23, -plan.footprint.depth * 0.19, undefined, undefined, 'AnimalPenTrough');
-    addMesh(group, new THREE.BoxGeometry(1.12, 0.06, 0.28), MATERIALS.water, plan.footprint.width * 0.2, 0.36, -plan.footprint.depth * 0.19);
+  addMesh(
+    shelterGroup,
+    new THREE.BoxGeometry(shelter.width + 0.18, shelter.foundationHeight, shelter.depth + 0.16),
+    MATERIALS.stone,
+    0,
+    shelter.foundationHeight * 0.5,
+    0,
+    undefined,
+    undefined,
+    'Animal pen low fieldstone sill',
+  );
+  const wallBottom = shelter.foundationHeight;
+  const wallHeight = shelter.eaveHeight - wallBottom - 0.08;
+  addMesh(
+    shelterGroup,
+    new THREE.BoxGeometry(shelter.width - 0.16, wallHeight, 0.13),
+    MATERIALS.weatheredTimber,
+    0,
+    wallBottom + wallHeight * 0.5,
+    -shelter.depth * 0.5 + 0.07,
+    undefined,
+    undefined,
+    'Animal pen weathered rear wall',
+  );
+  for (const side of [-1, 1] as const) {
+    addMesh(
+      shelterGroup,
+      new THREE.BoxGeometry(0.13, wallHeight, shelter.depth * 0.78),
+      MATERIALS.weatheredTimber,
+      side * (shelter.width * 0.5 - 0.07),
+      wallBottom + wallHeight * 0.5,
+      -shelter.depth * 0.1,
+      undefined,
+      undefined,
+      `Animal pen weathered side wall ${side}`,
+    );
+  }
+  for (const x of [-shelter.width * 0.5 + 0.08, shelter.width * 0.5 - 0.08]) {
+    for (const z of [-shelter.depth * 0.5 + 0.08, shelter.depth * 0.5 - 0.08]) {
+      addMesh(
+        shelterGroup,
+        new THREE.BoxGeometry(0.15, shelter.eaveHeight, 0.15),
+        MATERIALS.darkTimber,
+        x,
+        shelter.eaveHeight * 0.5,
+        z,
+        undefined,
+        undefined,
+        'Animal pen hewn corner post',
+      );
+    }
+  }
+  for (const z of [-shelter.depth * 0.5 + 0.06, shelter.depth * 0.5 - 0.06]) {
+    addMesh(
+      shelterGroup,
+      new THREE.BoxGeometry(shelter.width + 0.12, 0.16, 0.16),
+      MATERIALS.darkTimber,
+      0,
+      shelter.eaveHeight - 0.07,
+      z,
+      undefined,
+      undefined,
+      'Animal pen connected eave beam',
+    );
+  }
+  addAnimalPenGableRoof(shelterGroup, plan);
+  addMesh(
+    shelterGroup,
+    new THREE.BoxGeometry(shelter.width * 0.88, 0.07, shelter.depth * 0.78),
+    MATERIALS.straw,
+    0,
+    shelter.foundationHeight + 0.045,
+    -shelter.depth * 0.04,
+    undefined,
+    undefined,
+    'AnimalPenBedding',
+  );
+
+  if (plan.species === 'chickens') addChickenHouseFront(shelterGroup, plan);
+  if (plan.species === 'pigs') addPigstyFront(shelterGroup, plan);
+  if (plan.fixtures.includes('water-trough')) addAnimalPenWaterTrough(group, plan);
+  if (plan.fixtures.includes('hay-rack')) addAnimalPenHayRack(group, plan);
+}
+
+function addAnimalPenGableRoof(group: THREE.Group, plan: AnimalPenVisualPlan): void {
+  const { shelter } = plan;
+  const halfRun = shelter.depth * 0.5 + 0.2;
+  const rise = shelter.ridgeHeight - shelter.eaveHeight;
+  const slopeLength = Math.hypot(halfRun, rise);
+  const pitch = Math.atan2(rise, halfRun);
+  for (const side of [-1, 1] as const) {
+    const roof = addMesh(
+      group,
+      new THREE.BoxGeometry(shelter.width + 0.46, 0.11, slopeLength),
+      MATERIALS.shingles,
+      0,
+      shelter.eaveHeight + rise * 0.5,
+      side * halfRun * 0.5,
+      new THREE.Euler(side > 0 ? pitch : -pitch, 0, 0),
+      undefined,
+      `Animal pen joined split-shingle roof ${side}`,
+    );
+    roof.userData.residenceRoofSurface = false;
+    roof.userData.animalPenRoofPanel = side > 0 ? 'front' : 'rear';
+  }
+  addMesh(
+    group,
+    new THREE.BoxGeometry(shelter.width + 0.5, 0.13, 0.15),
+    MATERIALS.weatheredTimber,
+    0,
+    shelter.ridgeHeight + 0.015,
+    0,
+    undefined,
+    undefined,
+    'Animal pen weathered ridge cap',
+  );
+}
+
+function addAnimalPenWaterTrough(group: THREE.Group, plan: AnimalPenVisualPlan): void {
+  const { trough } = plan;
+  const troughGroup = new THREE.Group();
+  troughGroup.name = 'AnimalPenTrough';
+  troughGroup.position.set(trough.x, 0, trough.z);
+  troughGroup.userData.architectureModule = 'shallow-water-trough';
+  troughGroup.userData.waterDepthMeters = trough.waterDepth;
+  troughGroup.userData.rimClearanceMeters = trough.rimClearance;
+  group.add(troughGroup);
+  const baseY = 0.12;
+  const board = 0.085;
+  addMesh(
+    troughGroup,
+    new THREE.BoxGeometry(trough.width, trough.bottomThickness, trough.depth),
+    MATERIALS.weatheredTimber,
+    0,
+    baseY + trough.bottomThickness * 0.5,
+    0,
+    undefined,
+    undefined,
+    'Animal pen trough bottom',
+  );
+  for (const z of [-trough.depth * 0.5 + board * 0.5, trough.depth * 0.5 - board * 0.5]) {
+    addMesh(
+      troughGroup,
+      new THREE.BoxGeometry(trough.width, trough.wallHeight, board),
+      MATERIALS.weatheredTimber,
+      0,
+      baseY + trough.wallHeight * 0.5,
+      z,
+      undefined,
+      undefined,
+      'Animal pen trough side',
+    );
+  }
+  for (const x of [-trough.width * 0.5 + board * 0.5, trough.width * 0.5 - board * 0.5]) {
+    addMesh(
+      troughGroup,
+      new THREE.BoxGeometry(board, trough.wallHeight, trough.depth - board * 2),
+      MATERIALS.weatheredTimber,
+      x,
+      baseY + trough.wallHeight * 0.5,
+      0,
+      undefined,
+      undefined,
+      'Animal pen trough end',
+    );
+  }
+  for (const x of [-trough.width * 0.33, trough.width * 0.33]) {
+    addMesh(
+      troughGroup,
+      new THREE.BoxGeometry(0.12, 0.12, trough.depth + 0.16),
+      MATERIALS.darkTimber,
+      x,
+      0.06,
+      0,
+      undefined,
+      undefined,
+      'Animal pen trough sleeper',
+    );
+  }
+  const waterSurfaceY = baseY + trough.bottomThickness + trough.waterDepth;
+  const water = addMesh(
+    troughGroup,
+    new THREE.BoxGeometry(
+      trough.width - board * 2 - 0.025,
+      0.018,
+      trough.depth - board * 2 - 0.025,
+    ),
+    MATERIALS.water,
+    0,
+    waterSurfaceY - 0.009,
+    0,
+    undefined,
+    undefined,
+    'AnimalPenTroughWater',
+  );
+  water.castShadow = false;
+  water.userData.waterDepthMeters = trough.waterDepth;
+  water.userData.troughRimClearanceMeters = trough.rimClearance;
+  water.userData.waterSurface = 'static-shallow-trough';
+}
+
+function addChickenHouseFront(group: THREE.Group, plan: AnimalPenVisualPlan): void {
+  const { shelter } = plan;
+  const frontZ = shelter.depth * 0.5 - 0.065;
+  const floorY = 0.42;
+  const sideWidth = (shelter.width - shelter.frontOpeningWidth) * 0.5;
+  for (const side of [-1, 1] as const) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(sideWidth, shelter.eaveHeight - floorY, 0.13),
+      MATERIALS.weatheredTimber,
+      side * (shelter.frontOpeningWidth * 0.5 + sideWidth * 0.5),
+      floorY + (shelter.eaveHeight - floorY) * 0.5,
+      frontZ,
+      undefined,
+      undefined,
+      `Chicken house boarded front ${side}`,
+    );
+  }
+  addMesh(group, new THREE.BoxGeometry(shelter.width * 0.9, 0.1, shelter.depth * 0.84), MATERIALS.darkTimber, 0, floorY, 0, undefined, undefined, 'Chicken house raised floor');
+  addMesh(group, new THREE.BoxGeometry(shelter.frontOpeningWidth, 0.13, 0.14), MATERIALS.darkTimber, 0, shelter.eaveHeight - 0.08, frontZ + 0.02, undefined, undefined, 'Chicken house hatch lintel');
+  const rampLength = 0.92;
+  const rampPitch = Math.atan2(floorY - 0.08, rampLength);
+  addMesh(group, new THREE.BoxGeometry(shelter.frontOpeningWidth * 0.78, 0.07, rampLength), MATERIALS.lightTimber, 0, floorY * 0.52, shelter.depth * 0.5 + rampLength * 0.42, new THREE.Euler(rampPitch, 0, 0), undefined, 'Chicken house roost ramp');
+}
+
+function addPigstyFront(group: THREE.Group, plan: AnimalPenVisualPlan): void {
+  const { shelter } = plan;
+  const sideWidth = (shelter.width - shelter.frontOpeningWidth) * 0.5;
+  for (const side of [-1, 1] as const) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(sideWidth, 0.56, 0.14),
+      MATERIALS.weatheredTimber,
+      side * (shelter.frontOpeningWidth * 0.5 + sideWidth * 0.5),
+      shelter.foundationHeight + 0.28,
+      shelter.depth * 0.5 - 0.07,
+      undefined,
+      undefined,
+      `Pigsty low front wall ${side}`,
+    );
   }
 }
 
 function addChickenPenFixtures(group: THREE.Group, plan: AnimalPenVisualPlan): void {
   const { shelter } = plan;
-  addMesh(group, new THREE.BoxGeometry(shelter.width * 0.72, 0.58, 0.18), MATERIALS.darkTimber, shelter.x, 0.46, shelter.z + shelter.depth * 0.44, undefined, undefined, 'ChickenNestingBoxes');
-  for (let rung = 0; rung < 4; rung++) {
-    addMesh(group, new THREE.BoxGeometry(0.82, 0.07, 0.08), MATERIALS.lightTimber, shelter.x + 0.25, 0.14 + rung * 0.15, shelter.z + shelter.depth * 0.55 + rung * 0.11);
+  const boxes = new THREE.Group();
+  boxes.name = 'ChickenNestingBoxes';
+  boxes.position.set(shelter.x, 0, shelter.z);
+  group.add(boxes);
+  for (const x of [-0.54, 0, 0.54]) {
+    addMesh(boxes, new THREE.BoxGeometry(0.46, 0.42, 0.34), MATERIALS.darkTimber, x * Math.min(1, shelter.width / 2.2), 0.72, -shelter.depth * 0.34, undefined, undefined, 'Chicken individual nesting box');
   }
+  for (let rung = 0; rung < 4; rung++) {
+    addMesh(boxes, new THREE.BoxGeometry(shelter.frontOpeningWidth * 0.74, 0.055, 0.055), MATERIALS.lightTimber, 0, 0.17 + rung * 0.12, shelter.depth * 0.5 + 0.22 + rung * 0.11, undefined, undefined, 'Chicken ramp cleat');
+  }
+}
+
+function addAnimalPenHayRack(group: THREE.Group, plan: AnimalPenVisualPlan): void {
+  const { shelter } = plan;
+  const rack = new THREE.Group();
+  rack.name = plan.species === 'goats' ? 'GoatHayRack' : 'AnimalPenHayRack';
+  rack.position.set(shelter.x + shelter.width * 0.25, 0, shelter.z + shelter.depth * 0.55);
+  group.add(rack);
+  for (const x of [-0.44, -0.22, 0, 0.22, 0.44]) {
+    addMesh(rack, new THREE.BoxGeometry(0.055, 0.82, 0.055), MATERIALS.lightTimber, x, 0.62, 0, new THREE.Euler(0, 0, x < 0 ? -0.22 : 0.22), undefined, 'Goat hay-rack slat');
+  }
+  addMesh(rack, new THREE.BoxGeometry(1.06, 0.09, 0.12), MATERIALS.darkTimber, 0, 0.26, 0, undefined, undefined, 'Goat hay-rack lower rail');
+  addMesh(rack, new THREE.BoxGeometry(1.06, 0.09, 0.12), MATERIALS.darkTimber, 0, 1.0, 0, undefined, undefined, 'Goat hay-rack upper rail');
 }
 
 function addGoatPenFixtures(group: THREE.Group, plan: AnimalPenVisualPlan): void {
   const { footprint } = plan;
-  addMesh(group, new THREE.BoxGeometry(1.05, 0.12, 0.62), MATERIALS.lightTimber, footprint.width * 0.22, 0.18, footprint.depth * 0.18, undefined, undefined, 'GoatMilkingStand');
+  addMesh(group, new THREE.BoxGeometry(1.16, 0.13, 0.68), MATERIALS.lightTimber, footprint.width * 0.1, 0.19, footprint.depth * 0.19, undefined, undefined, 'GoatMilkingStand');
+  for (const x of [-0.5, 0.5]) {
+    addMesh(group, new THREE.BoxGeometry(0.1, 0.28, 0.1), MATERIALS.darkTimber, footprint.width * 0.1 + x, 0.08, footprint.depth * 0.19);
+  }
 }
 
 function addPigPenFixtures(group: THREE.Group, plan: AnimalPenVisualPlan): void {
   const { footprint } = plan;
-  addMesh(group, new THREE.CylinderGeometry(0.82, 1.0, 0.035, 18), MATERIALS.mud, footprint.width * 0.22, 0.025, footprint.depth * 0.19, new THREE.Euler(), new THREE.Vector3(1, 1, 0.55), 'PigMudWallow');
+  addMesh(group, new THREE.CylinderGeometry(0.84, 1.02, 0.04, 24), MATERIALS.mud, -footprint.width * 0.08, 0.025, footprint.depth * 0.18, new THREE.Euler(), new THREE.Vector3(1, 1, 0.62), 'PigMudWallow');
 }
 
 function addBackyardApiary(group: THREE.Group, width: number, depth: number, seed: number): void {

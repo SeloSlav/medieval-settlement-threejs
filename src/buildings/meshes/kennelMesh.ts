@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { sharedBuildingDetailMaterial } from '../buildingMaterials.ts';
 import { ProceduralGeometryWriter } from '../proceduralArchitecture/geometryWriter.ts';
 import { addProceduralMaterialSlotMeshes } from '../proceduralArchitecture/materialSlotMeshes.ts';
 
@@ -131,6 +132,15 @@ const ROOF_HALF_WIDTH = 3.95;
 const ROOF_FRONT_EAVE_Z = 0.1;
 const ROOF_REAR_EAVE_Z = -3.02;
 const ROOF_EAVE_Y = 2.57;
+const KENNEL_TROUGH = {
+  x: 2.45,
+  z: 2.12,
+  width: 1.48,
+  depth: 0.64,
+  bottomTopY: 0.25,
+  rimTopY: 0.56,
+  waterDepth: 0.07,
+} as const;
 
 function addTimberMember(
   writer: ProceduralGeometryWriter,
@@ -348,15 +358,13 @@ function addKennelYard(writer: ProceduralGeometryWriter): void {
     });
   }
 
-  const troughX = 2.45;
-  const troughZ = 2.12;
   writer.addBox({
     semanticId: 'kennel-water-trough-bottom',
     moduleId: 'water-trough',
     materialRole: 'weathered-boards',
     structuralUse: 'board-cladding',
-    center: [troughX, 0.2, troughZ],
-    size: [1.48, 0.1, 0.64],
+    center: [KENNEL_TROUGH.x, 0.2, KENNEL_TROUGH.z],
+    size: [KENNEL_TROUGH.width, 0.1, KENNEL_TROUGH.depth],
   });
   for (const zOffset of [-0.32, 0.32] as const) {
     writer.addBox({
@@ -364,8 +372,8 @@ function addKennelYard(writer: ProceduralGeometryWriter): void {
       moduleId: 'water-trough',
       materialRole: 'weathered-boards',
       structuralUse: 'board-cladding',
-      center: [troughX, 0.36, troughZ + zOffset],
-      size: [1.48, 0.4, 0.09],
+      center: [KENNEL_TROUGH.x, 0.36, KENNEL_TROUGH.z + zOffset],
+      size: [KENNEL_TROUGH.width, 0.4, 0.09],
     });
   }
   for (const xOffset of [-0.71, 0.71] as const) {
@@ -374,10 +382,30 @@ function addKennelYard(writer: ProceduralGeometryWriter): void {
       moduleId: 'water-trough',
       materialRole: 'weathered-boards',
       structuralUse: 'board-cladding',
-      center: [troughX + xOffset, 0.36, troughZ],
-      size: [0.09, 0.4, 0.64],
+      center: [KENNEL_TROUGH.x + xOffset, 0.36, KENNEL_TROUGH.z],
+      size: [0.09, 0.4, KENNEL_TROUGH.depth],
     });
   }
+}
+
+function addKennelTroughWater(group: THREE.Group): void {
+  const waterSurfaceY = KENNEL_TROUGH.bottomTopY + KENNEL_TROUGH.waterDepth;
+  const water = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      KENNEL_TROUGH.width - 0.2,
+      0.018,
+      KENNEL_TROUGH.depth - 0.2,
+    ),
+    sharedBuildingDetailMaterial('water'),
+  );
+  water.name = 'Kennel shallow trough water';
+  water.position.set(KENNEL_TROUGH.x, waterSurfaceY - 0.009, KENNEL_TROUGH.z);
+  water.castShadow = false;
+  water.receiveShadow = true;
+  water.userData.waterDepthMeters = KENNEL_TROUGH.waterDepth;
+  water.userData.troughRimClearanceMeters = KENNEL_TROUGH.rimTopY - waterSurfaceY;
+  water.userData.dynamicSlot = 'water-surface';
+  group.add(water);
 }
 
 function addDogRestAnchors(group: THREE.Group): void {
@@ -434,6 +462,7 @@ export function createKennelMesh(): THREE.Group {
   }
   const wicker = slots.meshes.get('wicker');
   if (wicker) wicker.name = 'Kennel woven rest beds and open gate leaves';
+  addKennelTroughWater(group);
 
   group.userData.architectureCompiler = {
     planTypology: KENNEL_ARCHITECTURE_PLAN.typology,

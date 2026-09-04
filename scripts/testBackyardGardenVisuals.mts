@@ -7,6 +7,7 @@ import {
   BACKYARD_GROUND_SOIL_LIFT,
   BACKYARD_GROUND_SOIL_SAMPLE_SPACING,
   conformBackyardGroundSoilToTerrain,
+  createAnimalPenVisualPlan,
   createBackyardGardenMesh,
   createOrchardBarrelPlan,
   createBackyardPlantingLayout,
@@ -374,6 +375,43 @@ for (const kind of kinds) {
   }
 
   disposeBackyardGardenMesh(garden);
+}
+
+const animalPenContracts = [
+  { kind: 'animal_pen' as const, typology: 'open-gable-stock-shelter', signature: 'AnimalPenHayRack' },
+  { kind: 'chicken_pen' as const, typology: 'raised-boarded-henhouse', signature: 'ChickenNestingBoxes' },
+  { kind: 'goat_pen' as const, typology: 'deep-eave-goat-shed', signature: 'GoatHayRack' },
+  { kind: 'pig_pen' as const, typology: 'low-walled-pigsty', signature: 'PigMudWallow' },
+] as const;
+for (const contract of animalPenContracts) {
+  const plan = createAnimalPenVisualPlan(contract.kind, 6.2, 5.4, 4271);
+  assert.equal(plan.typology, contract.typology);
+  assert.equal(plan.enclosure.owner, 'residence-perimeter');
+  assert.equal(plan.diagnostics.shelterInsideFootprint, true);
+  assert.equal(plan.diagnostics.troughInsideFootprint, true);
+  assert.ok(plan.diagnostics.shelterTroughClearance > 0.1);
+  assert.ok(plan.trough.waterDepth > 0 && plan.trough.waterDepth <= 0.07);
+  assert.ok(plan.trough.rimClearance >= 0.15, 'trough water must sit visibly below its rim');
+
+  const pen = createBackyardGardenMesh(contract.kind, { width: 6.2, depth: 5.4, seed: 4271 });
+  const shelter = pen.getObjectByName('Animal pen weather shelter');
+  const trough = pen.getObjectByName('AnimalPenTrough');
+  const water = pen.getObjectByName('AnimalPenTroughWater') as THREE.Mesh | undefined;
+  assert.ok(shelter instanceof THREE.Group);
+  assert.equal(shelter.userData.architectureModule, contract.typology);
+  assert.equal(
+    shelter.children.filter((child) => child.name.startsWith('Animal pen joined split-shingle roof')).length,
+    2,
+    `${contract.kind} should use a connected two-slope shelter roof instead of a pyramid primitive`,
+  );
+  assert.ok(trough instanceof THREE.Group);
+  assert.equal(trough.userData.architectureModule, 'shallow-water-trough');
+  assert.ok(water?.isMesh);
+  assert.equal(water?.material.name, 'Shared building detail material: water');
+  assert.equal(water?.userData.waterDepthMeters, plan.trough.waterDepth);
+  assert.equal(water?.userData.troughRimClearanceMeters, plan.trough.rimClearance);
+  assert.ok(pen.getObjectByName(contract.signature));
+  disposeBackyardGardenMesh(pen);
 }
 
 const terrainConformingGarden = createBackyardGardenMesh('vegetable_garden', {
