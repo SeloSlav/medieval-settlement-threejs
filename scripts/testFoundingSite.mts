@@ -331,6 +331,18 @@ assert.deepEqual(
 );
 const timberSize = new THREE.Box3().setFromObject(timber).getSize(new THREE.Vector3());
 assert.ok(timberSize.x > 3.3 && timberSize.z > 1.3);
+for (const removedProp of [
+  'Timber tool rack',
+  'Long handled founding tools',
+  'Forged founding axe heads',
+  'Split firewood by chopping block',
+]) {
+  assert.equal(
+    mesh.getObjectByName(removedProp),
+    undefined,
+    `${removedProp} should not remain in the simplified founding workyard`,
+  );
+}
 const firewood = mesh.getObjectByName('Stacked cut camp firewood');
 assert.ok(firewood instanceof THREE.InstancedMesh);
 assert.equal(firewood.count, 21, 'the cut-log pile should use a complete six-row triangle');
@@ -348,14 +360,50 @@ assert.deepEqual(
   [6, 5, 4, 3, 2, 1],
   'cut firewood should rise in a stable triangular profile',
 );
-assert.equal(
-  stone.children.filter((child) => child.name === 'FoundingStoneSegment').length,
-  FOUNDING_STONE_VISUAL_SEGMENTS,
+const stoneSegments = stone.children.filter(
+  (child): child is THREE.Mesh => child instanceof THREE.Mesh
+    && child.name === 'FoundingStoneSegment',
 );
+assert.equal(stoneSegments.length, FOUNDING_STONE_VISUAL_SEGMENTS);
+const stoneTiers = [
+  stoneSegments.filter((segment) => segment.position.y < 0.6),
+  stoneSegments.filter(
+    (segment) => segment.position.y >= 0.6 && segment.position.y < 1.5,
+  ),
+  stoneSegments.filter((segment) => segment.position.y >= 1.5),
+];
+assert.deepEqual(
+  stoneTiers.map((tier) => tier.length),
+  [4, 3, 1],
+  'founding stone should form a supported four-three-one triangular pile',
+);
+for (let tierIndex = 1; tierIndex < stoneTiers.length; tierIndex += 1) {
+  for (const segment of stoneTiers[tierIndex]!) {
+    const radius = (segment.geometry as THREE.DodecahedronGeometry).parameters.radius;
+    const supportCount = stoneTiers[tierIndex - 1]!.filter((support) => {
+      const supportRadius = (
+        support.geometry as THREE.DodecahedronGeometry
+      ).parameters.radius;
+      return segment.position.distanceTo(support.position)
+        <= (radius + supportRadius) * 1.05;
+    }).length;
+    assert.ok(
+      supportCount >= 2,
+      'each raised founding stone must visibly bear on two stones below it',
+    );
+  }
+}
+for (const segment of stoneSegments) {
+  assert.equal(
+    (segment.material as THREE.Material).userData.buildingMaterialAtlasTile,
+    'quarry-stone',
+    'loose founding rocks must use the gathered-stone surface instead of masonry courses',
+  );
+}
 assert.equal(
   ironwork.children.filter((child) => child.name === 'FoundingIronworkSegment').length,
   FOUNDING_IRONWORK_VISUAL_SEGMENTS,
-  'the persistent founding stockyard must model its large ironwork reserve',
+  'the persistent founding stockyard needs one ironwork box',
 );
 const ironworkSegments = ironwork.children.filter(
   (child) => child.name === 'FoundingIronworkSegment',
@@ -849,12 +897,12 @@ const depletedRemainingStores = {
   ...remainingStores,
   ironwork: 1,
 } satisfies BuildingState;
-assert.notEqual(
+assert.equal(
   buildingMarkerSignatures(new Map([[remainingStores.id, remainingStores]])).visual,
   buildingMarkerSignatures(
     new Map([[depletedRemainingStores.id, depletedRemainingStores]]),
   ).visual,
-  'crossing a founding ironwork visual level must invalidate the marker collection',
+  'one non-empty ironwork box should remain stable while its contents are depleted',
 );
 remainingStoresMarkers.syncBuildings([depletedRemainingStores]);
 assert.equal(

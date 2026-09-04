@@ -3,13 +3,13 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   addMesh,
   metalMaterial,
+  quarryRockMaterial,
   sharedBuildingDetailMaterial,
   sharedBuildingMaterial,
   stoneMaterial,
   timberMaterial,
 } from '../buildingMaterials.ts';
 import {
-  FOUNDING_IRONWORK_VISUAL_SEGMENTS,
   FOUNDING_STONE_VISUAL_SEGMENTS,
   FOUNDING_TIMBER_VISUAL_SEGMENTS,
 } from '../buildingStockpileVisuals.ts';
@@ -590,54 +590,6 @@ function addFoundingWorkyard(parent: THREE.Group): void {
   const workyard = new THREE.Group();
   workyard.name = 'Founding timber workyard';
 
-  addCampInstances(
-    workyard,
-    'Timber tool rack',
-    new THREE.BoxGeometry(1, 1, 1),
-    timberMaterial('dark'),
-    [
-      {
-        position: new THREE.Vector3(-5.35, 0.88, -0.05),
-        scale: new THREE.Vector3(0.15, 1.76, 0.15),
-      },
-      {
-        position: new THREE.Vector3(-3.65, 0.88, -0.05),
-        scale: new THREE.Vector3(0.15, 1.76, 0.15),
-      },
-      {
-        position: new THREE.Vector3(-4.5, 1.57, -0.05),
-        scale: new THREE.Vector3(1.86, 0.16, 0.16),
-      },
-    ],
-  );
-
-  const toolHandles = [
-    { x: -5.05, yaw: -0.07, roll: -0.1 },
-    { x: -4.52, yaw: 0.04, roll: 0.08 },
-    { x: -3.94, yaw: -0.03, roll: -0.06 },
-  ];
-  addCampInstances(
-    workyard,
-    'Long handled founding tools',
-    new THREE.CylinderGeometry(0.042, 0.052, 1.48, 6),
-    timberMaterial('light'),
-    toolHandles.map(({ x, yaw, roll }) => ({
-      position: new THREE.Vector3(x, 0.78, -0.2),
-      rotation: new THREE.Euler(roll, yaw, roll),
-    })),
-  );
-  addCampInstances(
-    workyard,
-    'Forged founding axe heads',
-    new THREE.ConeGeometry(0.18, 0.42, 4),
-    metalMaterial('iron'),
-    toolHandles.slice(0, 2).map(({ x }, index) => ({
-      position: new THREE.Vector3(x + (index === 0 ? -0.04 : 0.04), 1.48, -0.2),
-      rotation: new THREE.Euler(0, 0, Math.PI * 0.5),
-      scale: new THREE.Vector3(1, 1, 0.48),
-    })),
-  );
-
   const block = addMesh(
     workyard,
     new THREE.CylinderGeometry(0.55, 0.63, 0.72, 9),
@@ -645,26 +597,6 @@ function addFoundingWorkyard(parent: THREE.Group): void {
     new THREE.Vector3(-4.48, 0.37, -1.2),
   );
   block.name = 'Founding chopping block';
-  addCampInstances(
-    workyard,
-    'Split firewood by chopping block',
-    new THREE.CylinderGeometry(0.1, 0.13, 0.86, 6),
-    timberMaterial('light'),
-    [
-      {
-        position: new THREE.Vector3(-5.18, 0.22, -1.3),
-        rotation: new THREE.Euler(Math.PI * 0.5, 0.2, 0),
-      },
-      {
-        position: new THREE.Vector3(-4.95, 0.25, -1.62),
-        rotation: new THREE.Euler(Math.PI * 0.5, -0.35, 0),
-      },
-      {
-        position: new THREE.Vector3(-3.85, 0.2, -1.38),
-        rotation: new THREE.Euler(Math.PI * 0.5, 0.65, 0),
-      },
-    ],
-  );
 
   parent.add(workyard);
 }
@@ -1353,17 +1285,30 @@ function addStoneStock(parent: THREE.Group): void {
   const stockpile = new THREE.Group();
   stockpile.name = 'FoundingStoneStockpile';
   const winterAccumulationPlacements: CampInstance[] = [];
-  for (let index = 0; index < FOUNDING_STONE_VISUAL_SEGMENTS; index += 1) {
-    const radius = 0.42 + (index % 3) * 0.08;
-    const position = new THREE.Vector3(
-      4.2 + (index % 4) * 0.62,
-      0.34 + Math.floor(index / 4) * 0.42,
-      -3.65,
-    );
+  const stackSlots = [
+    { x: 4.2, y: 0.39, z: -3.7, radius: 0.44 },
+    { x: 4.92, y: 0.42, z: -3.62, radius: 0.48 },
+    { x: 5.68, y: 0.4, z: -3.72, radius: 0.46 },
+    { x: 6.42, y: 0.38, z: -3.63, radius: 0.43 },
+    { x: 4.56, y: 1.12, z: -3.64, radius: 0.42 },
+    { x: 5.31, y: 1.16, z: -3.67, radius: 0.46 },
+    { x: 6.05, y: 1.11, z: -3.64, radius: 0.41 },
+    { x: 5.68, y: 1.84, z: -3.66, radius: 0.43 },
+  ] as const satisfies readonly {
+    x: number;
+    y: number;
+    z: number;
+    radius: number;
+  }[];
+  if (stackSlots.length !== FOUNDING_STONE_VISUAL_SEGMENTS) {
+    throw new Error('Founding stone stack slots must match its visual segments.');
+  }
+  for (const [index, slot] of stackSlots.entries()) {
+    const position = new THREE.Vector3(slot.x, slot.y, slot.z);
     const stone = addMesh(
       stockpile,
-      new THREE.DodecahedronGeometry(radius, 0),
-      stoneMaterial(index % 3 === 0 ? 'light' : 'mid'),
+      new THREE.DodecahedronGeometry(slot.radius, 0),
+      quarryRockMaterial(index % 2 === 0 ? 'dark' : 'spoil'),
       position,
       new THREE.Euler(index * 0.23, index * 0.41, index * 0.17),
     );
@@ -1371,7 +1316,7 @@ function addStoneStock(parent: THREE.Group): void {
     winterAccumulationPlacements.push({
       position: new THREE.Vector3(
         position.x,
-        position.y + radius * 0.76,
+        position.y + slot.radius * 0.76,
         position.z,
       ),
       rotation: new THREE.Euler(0, index * 0.49, 0),
@@ -1428,76 +1373,70 @@ function addIronworkStock(parent: THREE.Group): void {
   const stockpile = new THREE.Group();
   stockpile.name = 'FoundingIronworkStockpile';
   stockpile.visible = false;
-  stockpile.position.set(-4.2, 0, 0);
-  stockpile.rotation.y = -0.08;
+  stockpile.position.set(-5.2, 0, -0.45);
+  stockpile.rotation.y = -0.12;
 
-  for (let index = 0; index < FOUNDING_IRONWORK_VISUAL_SEGMENTS; index += 1) {
-    const segment = new THREE.Group();
-    segment.name = 'FoundingIronworkSegment';
-    const column = index % 3;
-    const row = Math.floor(index / 3);
-    segment.position.set((column - 1) * 1.02, 0, (row - 0.5) * 0.9);
-    segment.rotation.y = (column - 1) * 0.04 + (row === 0 ? -0.03 : 0.03);
+  const segment = new THREE.Group();
+  segment.name = 'FoundingIronworkSegment';
 
-    addMergedAssemblyMesh(
-      segment,
-      'Founding ironwork open crate',
-      timberMaterial(index % 2 === 0 ? 'dark' : 'weathered'),
-      [
-        {
-          geometry: new THREE.BoxGeometry(0.96, 0.12, 0.76),
-          position: new THREE.Vector3(0, 0.06, 0),
-        },
-        {
-          geometry: new THREE.BoxGeometry(0.76, 0.08, 0.58),
-          position: new THREE.Vector3(0, 0.18, 0),
-        },
-        ...[-0.31, 0.31].map((z) => ({
-          geometry: new THREE.BoxGeometry(0.82, 0.38, 0.08),
-          position: new THREE.Vector3(0, 0.38, z),
-        })),
-        ...[-0.37, 0.37].map((x) => ({
-          geometry: new THREE.BoxGeometry(0.08, 0.38, 0.54),
-          position: new THREE.Vector3(x, 0.38, 0),
-        })),
-      ],
-    );
+  addMergedAssemblyMesh(
+    segment,
+    'Founding ironwork open crate',
+    timberMaterial('dark'),
+    [
+      {
+        geometry: new THREE.BoxGeometry(0.96, 0.12, 0.76),
+        position: new THREE.Vector3(0, 0.06, 0),
+      },
+      {
+        geometry: new THREE.BoxGeometry(0.76, 0.08, 0.58),
+        position: new THREE.Vector3(0, 0.18, 0),
+      },
+      ...[-0.31, 0.31].map((z) => ({
+        geometry: new THREE.BoxGeometry(0.82, 0.38, 0.08),
+        position: new THREE.Vector3(0, 0.38, z),
+      })),
+      ...[-0.37, 0.37].map((x) => ({
+        geometry: new THREE.BoxGeometry(0.08, 0.38, 0.54),
+        position: new THREE.Vector3(x, 0.38, 0),
+      })),
+    ],
+  );
 
-    addMergedAssemblyMesh(
-      segment,
-      'Founding ironwork crate reinforcement',
-      metalMaterial('iron'),
-      [-0.27, 0.27].flatMap((x) => [-0.355, 0.355].map((z) => ({
-        geometry: new THREE.BoxGeometry(0.065, 0.34, 0.035),
-        position: new THREE.Vector3(x, 0.38, z),
-      }))),
-    );
+  addMergedAssemblyMesh(
+    segment,
+    'Founding ironwork crate reinforcement',
+    metalMaterial('iron'),
+    [-0.27, 0.27].flatMap((x) => [-0.355, 0.355].map((z) => ({
+      geometry: new THREE.BoxGeometry(0.065, 0.34, 0.035),
+      position: new THREE.Vector3(x, 0.38, z),
+    }))),
+  );
 
-    addMergedAssemblyMesh(
-      segment,
-      'Founding ironwork nested fittings',
-      metalMaterial('iron'),
-      [
-        {
-          geometry: new THREE.BoxGeometry(0.56, 0.1, 0.12),
-          position: new THREE.Vector3(-0.03, 0.27, -0.13),
-          rotation: new THREE.Euler(0, -0.22, 0),
-        },
-        {
-          geometry: new THREE.CylinderGeometry(0.055, 0.055, 0.52, 7),
-          position: new THREE.Vector3(0.04, 0.35, 0),
-          rotation: new THREE.Euler(0, 0, Math.PI * 0.5),
-        },
-        {
-          geometry: new THREE.BoxGeometry(0.52, 0.1, 0.12),
-          position: new THREE.Vector3(0.02, 0.42, 0.11),
-          rotation: new THREE.Euler(0, 0.24, 0),
-        },
-      ],
-    );
+  addMergedAssemblyMesh(
+    segment,
+    'Founding ironwork nested fittings',
+    metalMaterial('iron'),
+    [
+      {
+        geometry: new THREE.BoxGeometry(0.56, 0.1, 0.12),
+        position: new THREE.Vector3(-0.03, 0.27, -0.13),
+        rotation: new THREE.Euler(0, -0.22, 0),
+      },
+      {
+        geometry: new THREE.CylinderGeometry(0.055, 0.055, 0.52, 7),
+        position: new THREE.Vector3(0.04, 0.35, 0),
+        rotation: new THREE.Euler(0, 0, Math.PI * 0.5),
+      },
+      {
+        geometry: new THREE.BoxGeometry(0.52, 0.1, 0.12),
+        position: new THREE.Vector3(0.02, 0.42, 0.11),
+        rotation: new THREE.Euler(0, 0.24, 0),
+      },
+    ],
+  );
 
-    stockpile.add(segment);
-  }
+  stockpile.add(segment);
 
   parent.add(stockpile);
 }
