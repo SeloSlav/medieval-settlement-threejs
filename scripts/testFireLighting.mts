@@ -21,7 +21,7 @@ const sync = () => {
   scene.traverseVisible(o => { if (o instanceof THREE.Light) visible.push(o); });
   node.setLights(visible);
   node.updateBefore({ camera } as never);
-  return node.customCacheKey();
+  return `${node.customCacheKey()}/${node.getCacheKey(true)}`;
 };
 const signature = sync();
 assert.ok(node.hasLights, 'zero fires must still compile the shared loop');
@@ -36,7 +36,7 @@ scene.add(root);
 assert.equal(sync(), signature, 'first fire cannot change the shader key');
 assert.equal(node.data.count, 1);
 const position = effect.light.getWorldPosition(new THREE.Vector3()).applyMatrix4(camera.matrixWorldInverse);
-const values = node.data.texture.image.data as Float32Array;
+const values = node.data.attribute.array as Float32Array;
 for (const [index, expected] of [...position.toArray(), 23,
   effect.light.color.r * effect.light.intensity, effect.light.color.g * effect.light.intensity,
   effect.light.color.b * effect.light.intensity, effect.light.decay].entries()) {
@@ -70,9 +70,9 @@ assert.equal(node.data.count, 1, 'unbounded lights must not be culled as zero-ra
 disposeFireEffect(effect);
 scene.remove(root);
 
-const initialTexture = node.data.texture;
-let disposedTexture = false;
-initialTexture.addEventListener('dispose', () => { disposedTexture = true; });
+const initialAttribute = node.data.attribute;
+const disposedAttributes: THREE.BufferAttribute[] = [];
+node.data.releaseAttribute = attribute => { disposedAttributes.push(attribute); };
 for (let i = 0; i < 257; i++) {
   const light = new THREE.PointLight(0xff7430, 1, 23, 1.7);
   light.userData.runtimeFireLight = true;
@@ -81,8 +81,8 @@ for (let i = 0; i < 257; i++) {
 }
 assert.equal(sync(), signature, 'growth beyond the initial upload capacity cannot change shaders');
 assert.equal(node.data.count, 257, 'dense lights must not be silently capped');
-assert.equal(node.data.texture.image.height, 4);
-assert.ok(disposedTexture, 'replaced GPU texture must be disposed');
+assert.equal(node.data.attribute.count, 1024);
+assert.ok(disposedAttributes.includes(initialAttribute), 'replaced GPU buffer must be disposed');
 const visible = node.getLights();
 node.setLights([...visible, ...visible]);
 node.updateBefore({ camera } as never);
@@ -94,8 +94,6 @@ lighting.beginRender(scene);
 node.setLights([]);
 lighting.finishRender(scene);
 assert.equal(node.getLights(), beforeNested, 'nested render restores the source lights');
-let disposed = false;
-node.data.texture.addEventListener('dispose', () => { disposed = true; });
 lighting.dispose();
-assert.ok(disposed);
+assert.ok(disposedAttributes.includes(node.data.attribute));
 console.log('Shared fire lighting: stable lifecycle keys, exact values, culling, growth, nested scenes, disposal passed.');

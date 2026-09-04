@@ -26,6 +26,7 @@ export const FOUNDERS_CAMPFIRE_POSITION: FoundersCampLandmarkPoint = {
  */
 export const FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT = 0.395;
 export const FOUNDERS_CAMP_STUMP_TOP_RADIUS = 0.38;
+export const FOUNDERS_CAMP_SEATED_EDGE_INSET = 0.12;
 
 export const FOUNDERS_CAMP_BENCH = {
   center: { x: -1.9, z: -0.2 },
@@ -36,10 +37,9 @@ export const FOUNDERS_CAMP_BENCH = {
   legOffsets: [-0.82, 0.82],
 } as const;
 
-const SEATED_OCCUPANT_FRONT_CLEARANCE = 0.01;
 const BENCH_APPROACH_FRONT_CLEARANCE = 0.48;
 const STUMP_OCCUPANT_SUPPORT_GAP = FOUNDERS_CAMP_STUMP_TOP_RADIUS
-  + SEATED_OCCUPANT_FRONT_CLEARANCE;
+  - FOUNDERS_CAMP_SEATED_EDGE_INSET;
 
 function keepDistanceFrom(
   point: FoundersCampLandmarkPoint,
@@ -71,11 +71,11 @@ function benchSeatLandmark(id: string, along: number): FoundersCampSeatLandmark 
     behavior: 'sit',
     support: 'bench',
     supportPosition: benchPoint(along, 0),
-    // The character root remains just beyond the front edge while the sitting
-    // clip settles the hips backward onto the shared plank.
+    // Inset the character root into the plank footprint so the sitting clip
+    // settles the hips firmly onto the seat instead of catching its front edge.
     destination: benchPoint(
       along,
-      FOUNDERS_CAMP_BENCH.depth / 2 + SEATED_OCCUPANT_FRONT_CLEARANCE,
+      FOUNDERS_CAMP_BENCH.depth / 2 - FOUNDERS_CAMP_SEATED_EDGE_INSET,
     ),
     approach: benchPoint(
       along,
@@ -101,7 +101,7 @@ export const FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT: FoundersCampSeatLandmark = {
   support: 'stump',
   // This support is behind the character root when they face the fire, so
   // the authored sitting motion settles the hips onto the stump. The root is
-  // kept just outside the stump footprint to leave the bent legs clear.
+  // inset into the stump footprint so the hips settle firmly onto the top.
   supportPosition: { x: 2.68, z: 0.2 },
   destination: keepDistanceFrom(
     { x: 2.32, z: 0 },

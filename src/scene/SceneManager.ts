@@ -364,9 +364,6 @@ export class SceneManager {
   ) {
     this.container = container;
     this.renderer = backend.renderer;
-    if (backend.kind !== 'webgl') {
-      (this.renderer as unknown as { lighting: FireLighting }).lighting = new FireLighting();
-    }
     configureRendererFrameStats(this.renderer.info as unknown as RendererInfoLike);
     this.rendererBackend = backend.kind;
     this.rendererAdapterEvidence = {

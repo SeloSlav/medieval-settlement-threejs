@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { WebGPURenderer } from 'three/webgpu';
+import { FireLighting } from '../fires/FireLighting.ts';
 
 type WebGPUPowerPreference = 'low-power' | 'high-performance';
 
@@ -185,6 +186,9 @@ export async function createPreferredRenderer(
       alpha: true,
       device: webGPU.device,
     });
+    // init() captures lighting in RenderLists. Installing after init silently
+    // leaves material compilation on the old per-light path.
+    (renderer as unknown as { lighting: FireLighting }).lighting = new FireLighting();
     configureRenderer(renderer);
 
     await dependencies.waitForStartup(
@@ -203,6 +207,8 @@ export async function createPreferredRenderer(
       waitForSubmittedWork: () => waitForNativeWebGPUSubmittedWork(renderer!),
     };
   } catch (error) {
+    const lighting = (renderer as unknown as { lighting?: FireLighting } | null)?.lighting;
+    if (lighting instanceof FireLighting) lighting.dispose();
     renderer?.dispose();
     throw webGPURequiredError(error);
   }

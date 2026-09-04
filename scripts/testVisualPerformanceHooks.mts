@@ -41,6 +41,7 @@ import {
   WEBGPU_REQUIRED_MESSAGE,
   webGPUAdapterRequestOptionsForPlatform,
 } from '../src/scene/RendererBackend.ts';
+import { FireLighting } from '../src/fires/FireLighting.ts';
 
 class FakeGpuBuffer {
   readonly data: ArrayBuffer;
@@ -793,6 +794,8 @@ const integratedBackend = await createPreferredRenderer({
       dispose: () => {},
       getMaxAnisotropy: () => 16,
       init: async () => {
+        assert.ok((renderer as unknown as { lighting: unknown }).lighting instanceof FireLighting,
+          'shared lighting must be installed before init captures it in RenderLists');
         // Three requests its own adapter when no device is supplied. Model that
         // behavior so removing the production device bridge fails this test.
         if (options.device === undefined) {

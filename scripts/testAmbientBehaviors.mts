@@ -11,6 +11,7 @@ import {
   FOUNDERS_CAMP_BENCH_SEAT,
   FOUNDERS_CAMP_BENCH_SEATS,
   FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT,
+  FOUNDERS_CAMP_SEATED_EDGE_INSET,
   FOUNDERS_CAMP_SEAT_LANDMARKS,
   FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
   FOUNDERS_CAMP_WORKYARD_STUMP_SEAT,
@@ -199,13 +200,16 @@ for (let index = 1; index < benchSeatLocalOffsets.length; index += 1) {
   );
 }
 assert.ok(
-  Math.hypot(
-    FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.destination.x
-      - FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.x,
-    FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.destination.z
-      - FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.z,
-  ) > stumpTopGeometry.parameters.radiusBottom,
-  'the stump occupant root must remain in front of the stump footprint',
+  Math.abs(
+    Math.hypot(
+      FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.destination.x
+        - FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.x,
+      FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.destination.z
+        - FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.z,
+    )
+      - (stumpTopGeometry.parameters.radiusBottom - FOUNDERS_CAMP_SEATED_EDGE_INSET),
+  ) < 1e-9,
+  'the stump occupant root should be inset enough to support the hips',
 );
 assert.ok(
   Math.abs(

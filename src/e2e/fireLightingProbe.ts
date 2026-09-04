@@ -3,8 +3,25 @@ import * as THREE from 'three';
 import { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
 import { BanditCampRenderer } from '../security/BanditCampRenderer.ts';
 import { FireEffectsRenderer } from '../fires/FireEffectsRenderer.ts';
+import { createVisualGpuTimestampProfiler } from './webGpuTimestampProfiler.ts';
 
 export function installFireTransitionControls(app, controls, record, setPhase) {
+  const parity = document.createElement('button');
+  parity.textContent = 'Verify light pixels';
+  controls.append(parity);
+  parity.onclick = async () => {
+    if (parity.disabled) return;
+    parity.disabled = true;
+    parity.textContent = 'Comparing light pixels…';
+    try {
+      const { verifyFireLightingPixels } = await import('./fireLightingParityProbe.ts');
+      await verifyFireLightingPixels(app.sceneManager.renderer.backend.device, record);
+      parity.textContent = 'Light pixels match';
+    } catch (error) {
+      record('fire-pixel-error', { message: String(error), stack: error?.stack });
+      parity.textContent = 'Light pixel test FAILED';
+    }
+  };
   const button = document.createElement('button');
   button.textContent = 'Test fire transitions';
   controls.append(button);
@@ -14,6 +31,19 @@ export function installFireTransitionControls(app, controls, record, setPhase) {
     button.disabled = true;
     const manager = app.sceneManager;
     const renderer = manager.renderer;
+    const gpu = createVisualGpuTimestampProfiler({ kind: 'webgpu', renderer });
+    const timedFrames = [];
+    let phase = 'warmup';
+    const originalRender = manager.render;
+    manager.render = function (...args) {
+      const start = performance.now();
+      const handle = gpu.beginFrame(start);
+      try { return originalRender.apply(this, args); }
+      finally {
+        gpu.endFrame(handle);
+        timedFrames.push({ phase, t: start, cpuMs: performance.now() - start });
+      }
+    };
     const root = new THREE.Group();
     root.name = 'Isolated fire lifecycle test';
     manager.scene.add(root);
@@ -28,10 +58,14 @@ export function installFireTransitionControls(app, controls, record, setPhase) {
     const syncIncident = status => disasters.syncIncidents([{ ...incident, status }], new Map(), new Map());
     const frames = async count => { for (let i = 0; i < count; i++) await new Promise(requestAnimationFrame); };
     const sample = async (name, change) => {
+      phase = name;
       setPhase(name);
       const start = performance.now();
       record('fire-phase-start', { phase: name });
       change();
+      // These isolated renderers aren't owned by App's regular animation loop.
+      // In production this tick relights a reactivated incident next frame.
+      disasters.tick(0);
       const changeMs = performance.now() - start;
       await frames(2);
       const submittedMs = performance.now() - start;
@@ -40,7 +74,7 @@ export function installFireTransitionControls(app, controls, record, setPhase) {
       await frames(10);
       const data = renderer.lighting.getNode(manager.scene).data;
       record('fire-phase-complete', { phase: name, changeMs, submittedMs, fenceMs,
-        activeLights: data.count, lightTexture: [data.texture.image.width, data.texture.image.height],
+        activeLights: data.count, lightBufferBytes: data.attribute.array.byteLength,
         stats: manager.getPerformanceStats() });
       setPhase(null);
     };
@@ -83,6 +117,12 @@ export function installFireTransitionControls(app, controls, record, setPhase) {
       record('fire-test-error', { message: String(error), stack: error?.stack });
       button.textContent = 'Fire test FAILED';
     } finally {
+      manager.render = originalRender;
+      await renderer.backend.device.queue.onSubmittedWorkDone();
+      record('fire-gpu-timings', { evidence: gpu.getEvidence(), frames: timedFrames.map(frame => ({
+        ...frame, gpu: gpu.getFrameTiming(frame.t),
+      })) });
+      gpu.dispose();
       setPhase(null);
       root.removeFromParent();
     }

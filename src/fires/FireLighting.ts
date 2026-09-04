@@ -1,43 +1,43 @@
 import {
-  DataTexture, FloatType, Frustum, Light, Matrix4,
-  PointLight, RGBAFormat, Sphere, Vector3, type Camera, type Object3D,
+  Frustum, Light, Matrix4, PointLight, Sphere, Vector3,
+  type BufferAttribute, type Camera, type Object3D,
 } from 'three';
-import Lighting from 'three/src/renderers/common/Lighting.js';
-import LightsNode from 'three/src/nodes/lighting/LightsNode.js';
-import { NodeUpdateType } from 'three/src/nodes/core/constants.js';
+import * as WebGPU from 'three/webgpu';
+import * as TSL from 'three/tsl';
+import type LightsNodeType from 'three/src/nodes/lighting/LightsNode.js';
 import type NodeBuilder from 'three/src/nodes/core/NodeBuilder.js';
 import type NodeFrame from 'three/src/nodes/core/NodeFrame.js';
 import type Node from 'three/src/nodes/core/Node.js';
-// Leaf imports avoid this project's deliberately minimal ambient TSL facade.
-import { Fn, If, dot, int, ivec2, uniform } from 'three/src/nodes/tsl/TSLBase.js';
-import { Loop } from 'three/src/nodes/utils/LoopNode.js';
-import { directPointLight } from 'three/src/nodes/lighting/PointLightNode.js';
-import { positionView } from 'three/src/nodes/accessors/Position.js';
-import { texture, textureLoad } from 'three/src/nodes/accessors/TextureNode.js';
+// This project's ambient facades omit these APIs. Use leaf modules for TYPES
+// only: runtime leaf imports create a second TSL stack, breaking lighting-model
+// assignments made by the bundled WebGPURenderer.
+const { Lighting, LightsNode, NodeUpdateType, StorageBufferAttribute } = WebGPU as unknown as {
+  Lighting: typeof import('three/src/renderers/common/Lighting.js').default;
+  LightsNode: typeof LightsNodeType;
+  NodeUpdateType: typeof import('three/src/nodes/core/constants.js').NodeUpdateType;
+  StorageBufferAttribute: typeof import('three/src/renderers/common/StorageBufferAttribute.js').default;
+};
+const { Fn, If, dot, int, uniform, Loop, directPointLight, positionView, storage, renderGroup } = TSL as unknown as
+  Pick<typeof import('three/src/nodes/tsl/TSLBase.js'), 'Fn' | 'If' | 'dot' | 'int' | 'uniform'> &
+  Pick<typeof import('three/src/nodes/utils/LoopNode.js'), 'Loop'> &
+  Pick<typeof import('three/src/nodes/lighting/PointLightNode.js'), 'directPointLight'> &
+  Pick<typeof import('three/src/nodes/accessors/Position.js'), 'positionView'> &
+  Pick<typeof import('three/src/nodes/accessors/StorageBufferNode.js'), 'storage'> &
+  Pick<typeof import('three/src/nodes/core/UniformGroupNode.js'), 'renderGroup'>;
 
-// Two adjacent RGBA texels per light. Height grows without changing the
-// texture-node identity or shader layout; there is no scene/per-tile light cap.
-const TEXTURE_WIDTH = 256;
-const LIGHTS_PER_ROW = TEXTURE_WIDTH / 2;
+// Two vec4s per light. An unsized, read-only storage array can grow without
+// recompiling, and doesn't consume the terrain's already-full texture budget.
+const INITIAL_CAPACITY = 128;
 
 /** Exact fire-light data, omitting only zero-energy/out-of-view lights. */
 export class FireLightData {
-  texture = this.createTexture(1);
+  attribute = new StorageBufferAttribute(INITIAL_CAPACITY * 2, 4);
   count = 0;
+  releaseAttribute: ((attribute: BufferAttribute) => void) | null = null;
   private readonly frustum = new Frustum();
   private readonly projectionView = new Matrix4();
   private readonly sphere = new Sphere();
   private readonly viewPosition = new Vector3();
-
-  private createTexture(height: number): DataTexture {
-    const result = new DataTexture(
-      new Float32Array(TEXTURE_WIDTH * height * 4), TEXTURE_WIDTH, height,
-      RGBAFormat, FloatType,
-    );
-    result.name = 'Shared fire-light data';
-    result.needsUpdate = true;
-    return result;
-  }
 
   update(lights: readonly PointLight[], camera: Camera): void {
     this.projectionView.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
@@ -45,13 +45,12 @@ export class FireLightData {
       this.projectionView, camera.coordinateSystem, camera.reversedDepth,
     );
     // Reserve for every candidate; never truncate dense/overlapping fires.
-    const rows = Math.max(1, Math.ceil(lights.length / LIGHTS_PER_ROW));
-    if (rows > this.texture.image.height) {
-      const previous = this.texture;
-      this.texture = this.createTexture(2 ** Math.ceil(Math.log2(rows)));
-      previous.dispose();
+    if (lights.length * 2 > this.attribute.count) {
+      const previous = this.attribute;
+      this.attribute = new StorageBufferAttribute(2 ** Math.ceil(Math.log2(lights.length)) * 2, 4);
+      this.releaseAttribute?.(previous);
     }
-    const data = this.texture.image.data as Float32Array;
+    const data = this.attribute.array as Float32Array;
     this.count = 0;
     for (const light of lights) {
       if (light.intensity === 0) continue;
@@ -71,18 +70,20 @@ export class FireLightData {
       data[offset + 6] = light.color.b * light.intensity;
       data[offset + 7] = light.decay;
     }
-    if (this.count > 0) this.texture.needsUpdate = true;
+    if (this.count > 0) this.attribute.needsUpdate = true;
   }
 
-  dispose(): void { this.texture.dispose(); }
+  dispose(): void { this.releaseAttribute?.(this.attribute); }
 }
 
 /** Fire lifecycle changes data, never the world's light-dependent shader key. */
 export class FireLightsNode extends LightsNode {
   static get type(): string { return 'FireLightsNode'; }
   readonly data = new FireLightData();
-  private readonly lightTexture = texture(this.data.texture);
-  private readonly lightCount = uniform(0, 'int');
+  // Keep resizable storage out of material texture groups: r185 caches those
+  // groups by texture IDs and can otherwise reuse the old buffer after growth.
+  private readonly lightBuffer = storage(this.data.attribute, 'vec4', 0).toReadOnly().setGroup(renderGroup);
+  private readonly lightCount = uniform(0, 'int').setGroup(renderGroup);
   private fireLights: PointLight[] = [];
   private allLights: Light[] = [];
 
@@ -114,13 +115,21 @@ export class FireLightsNode extends LightsNode {
   override get hasLights(): boolean { return true; }
 
   override updateBefore(frame: NodeFrame): undefined {
+    // Three has no public disposal API for standalone storage attributes. Use
+    // the same owner as geometry disposal, keeping allocation counters correct.
+    if (frame.renderer && !this.data.releaseAttribute) {
+      const attributes = (frame.renderer as unknown as {
+        _attributes: { delete(attribute: BufferAttribute): void };
+      })._attributes;
+      this.data.releaseAttribute = attribute => attributes.delete(attribute);
+    }
     this.data.update(this.fireLights, frame.camera!);
-    this.lightTexture.value = this.data.texture;
+    this.lightBuffer.value = this.data.attribute;
     this.lightCount.value = this.data.count;
     return undefined;
   }
 
-  override setupLights(builder: NodeBuilder, lightNodes: Parameters<LightsNode['setupLights']>[1]): void {
+  override setupLights(builder: NodeBuilder, lightNodes: Parameters<LightsNodeType['setupLights']>[1]): void {
     // Declare accumulators outside the loop, as in Three's batched lighting.
     const { reflectedLight } = builder.context as {
       reflectedLight: { directDiffuse: Node; directSpecular: Node };
@@ -131,12 +140,11 @@ export class FireLightsNode extends LightsNode {
     Fn(() => {
       Loop({ start: 0, end: this.lightCount, type: 'int' }, ({ i }) => {
         const index = int(i);
-        const uv = ivec2(index.mod(LIGHTS_PER_ROW).mul(2), index.div(LIGHTS_PER_ROW));
-        const positionRange = textureLoad(this.lightTexture, uv).toVar();
+        const positionRange = this.lightBuffer.element(index.mul(2)).toVar();
         const vector = positionRange.xyz.sub(positionView).toVar();
         const distance = positionRange.w;
         If(distance.equal(0).or(dot(vector, vector).lessThanEqual(distance.mul(distance))), () => {
-          const colorDecay = textureLoad(this.lightTexture, uv.add(ivec2(1, 0))).toVar();
+          const colorDecay = this.lightBuffer.element(index.mul(2).add(1)).toVar();
           this.setupDirectLight(builder, this, directPointLight({
             color: colorDecay.rgb,
             // @types/three still calls this lightViewPosition; r185 uses lightVector.
@@ -159,7 +167,7 @@ export class FireLighting extends Lighting {
     return new FireLightsNode().setLights(lights);
   }
 
-  override getNode(scene: Object3D): LightsNode {
+  override getNode(scene: Object3D): LightsNodeType {
     if (scene.type !== 'Scene' && scene.type !== 'Group') return this.unlit;
     let node = this.nodes.get(scene);
     if (!node) {
