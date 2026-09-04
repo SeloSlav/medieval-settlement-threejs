@@ -86,6 +86,24 @@ export function getEdgeHillFactor(
   return smoothstep(hillStart, hillEnd, edgeDistance);
 }
 
+/**
+ * Organic woodland availability shared by the hill-edge tree population and
+ * the terrain forest-floor mask. The edge-distance ramp decides where remote
+ * woodland may occur; this world-space field decides where actual stands and
+ * meadow openings occur, so the square map extent can never become a solid
+ * square of leaf litter.
+ */
+export function forestEdgeStandDensityAt(x: number, z: number): number {
+  const macro = fbm2(x * 0.0028 + 18.7, z * 0.0028 - 27.4, 4);
+  const warpedX = x + (macro - 0.5) * 118;
+  const warpedZ = z + (
+    fbm2(x * 0.0023 - 31.6, z * 0.0023 + 14.9, 3) - 0.5
+  ) * 118;
+  const stand = fbm2(warpedX * 0.0064 - 9.8, warpedZ * 0.0064 + 22.1, 4);
+  const breakup = fbm2(warpedX * 0.014 + 43.2, warpedZ * 0.014 - 7.5, 2);
+  return smoothstep(0.43, 0.67, macro * 0.58 + stand * 0.31 + breakup * 0.11);
+}
+
 export function createForestCores(
   rng: () => number,
   spawnConfig: ForestSpawnConfig,
@@ -138,8 +156,10 @@ export function forestDensityAt(
   const playableSize = extent * 2;
   const terrainSize = (terrainExtent ?? extent) * 2;
   const hillFactor = getEdgeHillFactor(x, z, playableSize, terrainSize);
-  const edgeWoods = smoothstep(extent * 0.58, extent * 0.9, edgeDistance) * 0.24;
-  const hillEdgeWoods = hillFactor * 0.96;
+  const edgeStand = forestEdgeStandDensityAt(x, z);
+  const edgeWoods = smoothstep(extent * 0.58, extent * 0.9, edgeDistance)
+    * (0.05 + edgeStand * 0.21);
+  const hillEdgeWoods = hillFactor * edgeStand * 0.96;
   const canopyNoise = fbm2(x * 0.006 + 5.4, z * 0.006 - 8.8, 4);
   const pocketNoise = fbm2(x * 0.024 - 14.2, z * 0.024 + 3.7, 3);
   const regionalNoise = fbm2(x * 0.0028 + 21.6, z * 0.0028 - 17.4, 3);

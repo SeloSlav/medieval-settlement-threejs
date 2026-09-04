@@ -59,6 +59,9 @@ import {
 export type { ToolbarStats };
 
 const DEFAULT_BUILD_MENU_CATEGORY: BuildMenuCategoryId = 'civic';
+const DEFAULT_BUILD_MENU_CATEGORY_DEFINITION = BUILD_MENU_CATEGORIES.find(
+  (category) => category.id === DEFAULT_BUILD_MENU_CATEGORY,
+)!;
 const BUILD_MENU_ACTION_CATEGORY = new Map(
   BUILD_MENU_CATEGORIES.flatMap((category) => category.entries.map((entry) => [entry.action, category.id] as const)),
 );
@@ -343,13 +346,13 @@ export class BuildToolbar {
           <button type="button" class="construction-menu__scroll construction-menu__scroll--previous" data-build-menu-scroll="previous" aria-label="Scroll buildings left" disabled><span aria-hidden="true">&#8249;</span></button>
           <div class="construction-menu__viewport" data-build-menu-viewport>
             <div class="construction-menu__cards" data-build-menu-cards>
-              ${renderBuildMenuCards(BUILD_MENU_CATEGORIES[0].entries, { mapSize: this.mapSize })}
+              ${renderBuildMenuCards(DEFAULT_BUILD_MENU_CATEGORY_DEFINITION.entries, { mapSize: this.mapSize })}
             </div>
           </div>
           <button type="button" class="construction-menu__scroll construction-menu__scroll--next" data-build-menu-scroll="next" aria-label="Scroll buildings right"><span aria-hidden="true">&#8250;</span></button>
           <nav class="build-menu-categories" aria-label="Build categories">
-            ${BUILD_MENU_CATEGORIES.map((category, index) => `
-              <button type="button" class="build-menu-category${index === 0 ? ' is-active' : ''}" data-build-category="${category.id}" data-tooltip="${category.label}: ${category.hint}" aria-label="${category.label}. ${category.hint}" aria-pressed="${index === 0}" ${category.conflictOnly ? 'hidden' : ''}>
+            ${BUILD_MENU_CATEGORIES.map((category) => `
+              <button type="button" class="build-menu-category${category.id === DEFAULT_BUILD_MENU_CATEGORY ? ' is-active' : ''}" data-build-category="${category.id}" data-tooltip="${category.label}: ${category.hint}" aria-label="${category.label}. ${category.hint}" aria-pressed="${category.id === DEFAULT_BUILD_MENU_CATEGORY}" ${category.conflictOnly ? 'hidden' : ''}>
                 ${renderBuildMenuCategoryIcon(category.icon)}
                 <span>${category.label}</span>
               </button>

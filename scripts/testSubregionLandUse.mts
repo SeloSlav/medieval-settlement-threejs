@@ -178,7 +178,7 @@ const swineAffinityView = withBuildingLandUseAffinities(
 assert.equal(swineAffinityView.detailsHtml, '');
 assert.match(swineAffinityView.headerAffinitiesHtml ?? '', /data-land-use-kind="woodland"/);
 assert.match(swineAffinityView.headerAffinitiesHtml ?? '', /data-tooltip-title="Mast and pannage/);
-assert.match(swineAffinityView.headerAffinitiesHtml ?? '', /Placement inside the colored zone is not required/);
+assert.doesNotMatch(swineAffinityView.headerAffinitiesHtml ?? '', /Placement inside the colored zone is not required/);
 assert.match(swineAffinityView.headerAffinitiesHtml ?? '', /tabindex="0"/);
 assert.doesNotMatch(swineAffinityView.headerAffinitiesHtml ?? '', /<strong>|Realm benefits/);
 

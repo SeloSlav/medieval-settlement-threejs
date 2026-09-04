@@ -18,6 +18,7 @@ import {
 } from '../src/vegetation/seedthree/seedThreeForestCompaction.ts';
 import {
   applySeedThreeHorizonCardCutout,
+  applySeedThreeOverviewBillboardFade,
   SEEDTHREE_HORIZON_CARD_ALPHA_CUTOFF,
   stabilizeSeedThreeForestCardMaterial,
 } from '../src/vegetation/seedthree/seedThreeForestMaterial.ts';
@@ -100,6 +101,28 @@ assert.equal(
   'hardening a horizon card should invalidate its compiled material pipeline',
 );
 horizonCutoutMaterial.dispose();
+
+const overviewFadeMaterial = new THREE.MeshBasicMaterial({
+  alphaTest: 0.35,
+  alphaToCoverage: true,
+  transparent: false,
+  depthWrite: true,
+});
+assert.equal(
+  applySeedThreeOverviewBillboardFade(overviewFadeMaterial),
+  overviewFadeMaterial,
+  'overview fade should preserve the isolated card material instance',
+);
+assert.equal(overviewFadeMaterial.alphaTest, 0);
+assert.equal(overviewFadeMaterial.alphaToCoverage, false);
+assert.equal(overviewFadeMaterial.transparent, true);
+assert.equal(overviewFadeMaterial.depthWrite, false);
+assert.equal(
+  overviewFadeMaterial.userData.seedThreeOverviewHardCutout,
+  true,
+  'fading overview cards must clip atlas margins before the global dissolve',
+);
+overviewFadeMaterial.dispose();
 
 function makeLodSet(capacity: number) {
   const branchGeometry = new THREE.BoxGeometry(1, 1, 1);

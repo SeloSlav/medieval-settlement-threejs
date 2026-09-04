@@ -16,7 +16,6 @@ export const KENNEL_DOG_REST_ANCHORS = [
 ] as const satisfies readonly KennelDogRestAnchor[];
 
 const KENNEL_MODULE_IDS = [
-  'packed-earth-exercise-yard',
   'fieldstone-range-footing',
   'four-dog-bays',
   'connected-kennel-frame',
@@ -156,14 +155,6 @@ function addTimberMember(
 }
 
 function addKennelShell(writer: ProceduralGeometryWriter): void {
-  writer.addBox({
-    semanticId: 'kennel-packed-earth-exercise-yard',
-    moduleId: 'packed-earth-exercise-yard',
-    materialRole: 'packed-earth',
-    structuralUse: 'yard-and-floor-surface',
-    center: [0, 0.04, 0.15],
-    size: [7.8, 0.08, 6.1],
-  });
   writer.addBox({
     semanticId: 'kennel-continuous-fieldstone-footing',
     moduleId: 'fieldstone-range-footing',
@@ -408,7 +399,6 @@ export function createKennelMesh(): THREE.Group {
   group.userData.dogRestAnchors = KENNEL_DOG_REST_ANCHORS;
 
   const writer = new ProceduralGeometryWriter([
-    'packed-earth',
     'fieldstone',
     'rough-timber',
     'weathered-boards',
@@ -427,8 +417,6 @@ export function createKennelMesh(): THREE.Group {
     },
   });
 
-  const earth = slots.meshes.get('packed-earth');
-  if (earth) earth.name = 'Kennel packed-earth exercise yard';
   const foundation = slots.meshes.get('fieldstone');
   if (foundation) foundation.name = 'Kennel continuous fieldstone range footing';
   const frame = slots.meshes.get('rough-timber');

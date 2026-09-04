@@ -184,7 +184,7 @@ const CIVIC_SERVICES_BUILD_MENU_ENTRIES = [
   entry('residences'), entry('well'), entry('stable'), entry('kennel'), entry('founders_camp'), entry('town_hall'),
 ] as const;
 const TRADE_BUILD_MENU_ENTRIES = [
-  entry('marketplace'), entry('trading_post'), entry('village_storehouse'), entry('granary'),
+  entry('marketplace'), entry('village_storehouse'), entry('granary'), entry('trading_post'),
 ] as const;
 const FOOD_BUILD_MENU_ENTRIES = [
   entry('watermill'), entry('windmill'), entry('bakery'), entry('brewery'), entry('tavern'), entry('smokehouse'),
@@ -197,9 +197,9 @@ const DECORATION_BUILD_MENU_ENTRIES = [entry('wayside_shrine'), entry('dry_stone
 
 /** The single build palette's icon-driven, deliberately granular category model. */
 export const BUILD_MENU_CATEGORIES: readonly BuildMenuCategory[] = [
+  { id: 'gathering', label: 'Gathering', hint: 'Wood, stone, game, forage, and fish', icon: 'gathering', entries: GATHERING_BUILD_MENU_ENTRIES },
   { id: 'civic', label: 'Civic', hint: 'Homes, water, draft power, and settlement government', icon: 'civic', entries: CIVIC_SERVICES_BUILD_MENU_ENTRIES },
   { id: 'trade', label: 'Trade & storage', hint: 'Markets, exchange, and shared stores', icon: 'trade', entries: TRADE_BUILD_MENU_ENTRIES },
-  { id: 'gathering', label: 'Gathering', hint: 'Wood, stone, game, forage, and fish', icon: 'gathering', entries: GATHERING_BUILD_MENU_ENTRIES },
   { id: 'agriculture', label: 'Agriculture', hint: 'Fields, orchards, and livestock', icon: 'agriculture', entries: AGRICULTURE_BUILD_MENU_ENTRIES },
   { id: 'food', label: 'Food & drink', hint: 'Milling, baking, brewing, and preservation', icon: 'food', entries: FOOD_BUILD_MENU_ENTRIES },
   { id: 'industry', label: 'Industry', hint: 'Fuel, crafts, textiles, leather, candles, metal, and pottery', icon: 'industry', entries: WORKSHOP_BUILD_MENU_ENTRIES },

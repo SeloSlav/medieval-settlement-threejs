@@ -26,6 +26,7 @@ import { createRiverWaterMaterial } from '../rivers/RiverWaterMaterial.ts';
 import { waterSurfaceProfileForPreset } from '../rivers/WaterSurfaceProfile.ts';
 import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
+import { forestFloorBlendAtPosition } from './terrainGeometryData.ts';
 
 export type TerrainHorizonWorldSettings = Pick<
   WorldGenerationSettings,
@@ -62,7 +63,7 @@ const WATER_FIELD_RESOLUTION = 256;
 const MAX_WATER_PATHS = 4;
 const MAX_SEEDTHREE_OVERVIEW_TREES = 7_200;
 const FOREST_SEAM_CLEARANCE = 18;
-const FOREST_GROUND_HANDOFF_END = 96;
+const FOREST_GROUND_OUTER_FADE_METERS = 88;
 const FOREST_STAND_SEAM_INSET = 34;
 const FOREST_STAND_OUTER_MARGIN = 46;
 const FOREST_PLACEMENT_CORE_SHARE = 0.96;
@@ -198,30 +199,27 @@ export class TerrainHorizonWorld {
 
   sampleForestBlend = (x: number, z: number): number => {
     const outside = Math.max(Math.abs(x), Math.abs(z)) - this.innerHalfExtent;
-    if (outside < 0 || outside > FOREST_GROUND_HANDOFF_END) return 0;
+    const visibleOuter = resolveVisibleForestOuter(this);
+    const maximumAxis = Math.max(Math.abs(x), Math.abs(z));
+    if (outside < 0 || maximumAxis > visibleOuter) return 0;
     if (this.settings.terrainPreset === 'vinodol_coast') {
       const shoreX = this.sourceRiverLayout?.getCoastalShoreX(z);
       if (shoreX !== null && shoreX !== undefined && x < shoreX + 26) return 0;
     }
-    const maximumAxis = Math.max(Math.abs(x), Math.abs(z));
-    const boundaryScale = maximumAxis > 1e-6
-      ? this.innerHalfExtent / maximumAxis
-      : 0;
-    const inheritedForest = this.sampleSourceForestBlend(
-      x * boundaryScale,
-      z * boundaryScale,
+    // The exact suitability field that accepts outer trees also owns their
+    // leaf-litter footprint. This replaces the old projection of the square
+    // playable edge with broad, irregular stand-shaped coverage.
+    const forestFloor = forestFloorBlendAtPosition(
+      this.sampleForestSuitability(x, z),
+      x,
+      z,
     );
-    // Forest cores remain placement-only on the horizon. Projecting their
-    // elliptical density into this coarse vertex mask exposes the LOD cells as
-    // pale fields around distant tree groups. Carry authored forest floor only
-    // far enough to close the playable seam, then leave every outer stand on
-    // the continuous far-grass material.
-    const seamFade = 1 - smoothstep(
-      FOREST_SEAM_CLEARANCE,
-      FOREST_GROUND_HANDOFF_END,
-      outside,
+    const outerFade = 1 - smoothstep(
+      visibleOuter - FOREST_GROUND_OUTER_FADE_METERS,
+      visibleOuter,
+      maximumAxis,
     );
-    return inheritedForest * seamFade;
+    return forestFloor * outerFade;
   };
 
   sampleShoreBlend = (x: number, z: number): number => {
@@ -838,9 +836,9 @@ function createSeedThreeHorizonPlacements(
     Math.round(settings.forestDensity * 90),
     Math.round(forestCores.length * 140),
   );
-  // Spend real SeedThree instances where they actually continue the playable
-  // forest silhouette. Beyond this band the terrain's inherited woodland mask,
-  // mountain relief, and aerial perspective carry the same regional field.
+  // Spend real SeedThree instances where they continue the playable forest
+  // silhouette. The same suitability field paints the leaf-litter footprint,
+  // while mountain relief and aerial perspective carry the farther landscape.
   const visibleOuter = resolveVisibleForestOuter(world);
   const placements: ForestTreePlacement[] = [];
   const placementIndex = new SpatialHash2D<ForestTreePlacement>(FOREST_PLACEMENT_MAX_SPACING);

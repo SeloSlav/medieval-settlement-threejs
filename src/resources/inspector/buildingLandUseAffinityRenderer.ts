@@ -15,7 +15,7 @@ export function withBuildingLandUseAffinities(
     const share = formatPercent(affinity.share);
     const bonus = formatPercent(affinity.bonus);
     const title = `${affinity.label} · +${bonus}`;
-    const detail = `${share} of the realm is ${affinity.kind}. This gives +${bonus} ${affinity.effect}. ${affinity.reason} Placement inside the colored zone is not required.`;
+    const detail = `${share} of the realm is ${affinity.kind}. This gives +${bonus} ${affinity.effect}. ${affinity.reason}`;
     return `<span class="land-use-affinity-token" data-land-use-kind="${affinity.kind}" tabindex="0" data-tooltip-title="${escapeHtml(title)}" data-tooltip="${escapeHtml(detail)}" aria-label="${escapeHtml(`${title}. ${detail}`)}">
       <span class="land-use-affinity-icon" aria-hidden="true"></span>
     </span>`;

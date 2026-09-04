@@ -94,11 +94,11 @@ assert.deepEqual(keys(INDUSTRY_BUILD_MENU_ENTRIES), [
 ]);
 
 assert.deepEqual(BUILD_MENU_CATEGORIES.map((category) => category.id), [
-  'civic', 'trade', 'gathering', 'agriculture',
+  'gathering', 'civic', 'trade', 'agriculture',
   'food', 'industry', 'faith', 'decorations', 'military',
 ]);
 assert.deepEqual(categoryKeys('civic'), ['residences', 'well', 'stable', 'kennel', 'founders_camp', 'town_hall']);
-assert.deepEqual(categoryKeys('trade'), ['marketplace', 'trading_post', 'village_storehouse', 'granary']);
+assert.deepEqual(categoryKeys('trade'), ['marketplace', 'village_storehouse', 'granary', 'trading_post']);
 assert.deepEqual(categoryKeys('gathering'), [
   'lumber_mill', 'woodcutters_lodge', 'reforester', 'stone_quarry', 'large_quarry', 'mine', 'hunters_hall', 'foragers_shed', 'fishing_camp',
 ]);
@@ -542,6 +542,11 @@ assert.doesNotMatch(
   'the category title must not repeat the word Build in the menu header',
 );
 assert.match(toolbarSource, /setBuildMenuCategory\(DEFAULT_BUILD_MENU_CATEGORY, true\)/);
+assert.match(
+  toolbarSource,
+  /category\.id === DEFAULT_BUILD_MENU_CATEGORY \? ' is-active' : ''/,
+  'the leftmost category and the initially active category must remain independent',
+);
 const buildMenuOpenSource = toolbarSource.match(
   /private setBuildMenuOpen\(open: boolean\): void \{[\s\S]*?\n  \}\n\n  private setBuildMenuCategory/,
 )?.[0] ?? '';

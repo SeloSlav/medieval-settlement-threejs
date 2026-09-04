@@ -154,7 +154,11 @@ function createHillEdgeTreePlacements(
     if (hillFactor < 0.06) continue;
 
     const density = forestDensityAt(x, z, [], spawnConfig.extent, spawnConfig.terrainExtent);
-    if (rng() > 0.22 + hillFactor * 0.74) continue;
+    const standChance = smoothstep(0.24, 0.72, density);
+    if (
+      density < 0.22
+      || rng() > (0.12 + hillFactor * 0.82) * standChance
+    ) continue;
 
     const habitat = sampleLocalForestHabitat(
       x,

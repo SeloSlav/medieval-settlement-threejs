@@ -145,16 +145,23 @@ export function applySeedThreeOverviewBillboardFade(
   if (material.userData.seedThreeOverviewBillboardFade === true) return material;
   const target = material as SeedThreeOpacityNodeMaterial;
   const baseOpacity = target.opacityNode ?? (float(1) as TslNode);
-  target.opacityNode = baseOpacity.mul(overviewBillboardFadeOpacity);
-  // Both alpha hashing and an animated alpha-test threshold change foliage
-  // coverage discontinuously while zooming. The overview layer is small and
-  // temporary, so conventional blending is the stable crossfade here.
+  // Fade only the binary foliage silhouette. Blending the atlas alpha itself
+  // reveals low-alpha mip bleed across the entire card as a rectangular veil,
+  // especially when looking through edge trees into the pale outer world.
+  target.opacityNode = tslStep(
+    float(SEEDTHREE_HORIZON_CARD_ALPHA_CUTOFF),
+    baseOpacity,
+  ).mul(overviewBillboardFadeOpacity);
+  // Alpha hashing and an animated alpha-test threshold change foliage coverage
+  // discontinuously while zooming. Conventional blending still owns the global
+  // dissolve, but transparent atlas margins have already been hard-clipped.
   material.alphaTest = 0;
   material.alphaHash = false;
   material.alphaToCoverage = false;
   material.transparent = true;
   material.depthWrite = false;
   material.userData.seedThreeOverviewBillboardFade = true;
+  material.userData.seedThreeOverviewHardCutout = true;
   material.needsUpdate = true;
   return material;
 }

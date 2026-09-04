@@ -385,6 +385,7 @@ assert.deepEqual(kennel.userData.dogRestAnchors, KENNEL_DOG_REST_ANCHORS);
 assert.equal(objectsWithData(kennel, 'kennelDogSlotIndex').length, KENNEL_DOG_REST_ANCHORS.length);
 assertNamedCount(kennel, 'Kennel timber range', 0);
 assertNamedCount(kennel, 'Kennel dark dog-bay opening', 0);
+assertNamedCount(kennel, 'Kennel packed-earth exercise yard', 0);
 const [kennelRoof] = assertNamedCount(kennel, 'Kennel joined split-shingle roof', 1) as THREE.Mesh[];
 assert.ok(kennelRoof?.isMesh);
 assert.equal(kennelRoof.userData.proceduralRoofAttachment, 'joined-gable');

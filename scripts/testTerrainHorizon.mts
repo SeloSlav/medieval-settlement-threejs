@@ -234,6 +234,7 @@ for (const placement of clumpedPlacements) {
 }
 let sampledGroundCount = 0;
 let farGrassSamples = 0;
+let forestFloorSamples = 0;
 for (let x = -380; x <= 380; x += 20) {
   for (let z = -380; z <= 380; z += 20) {
     const outside = Math.max(Math.abs(x), Math.abs(z)) - 80;
@@ -241,6 +242,7 @@ for (let x = -380; x <= 380; x += 20) {
     const blend = clumpedForestWorld.sampleForestBlend(x, z);
     sampledGroundCount++;
     if (blend < 0.05) farGrassSamples++;
+    if (blend > 0.5) forestFloorSamples++;
   }
 }
 const occupiedCounts = [...occupiedMacroCells.values()];
@@ -258,12 +260,16 @@ assert.ok(
   'tree occupancy must peak inside organic clumps instead of remaining uniform',
 );
 assert.ok(
-  farGrassSamples === sampledGroundCount,
-  'outer terrain must remain continuous far grass instead of exposing forest-mask polygons',
+  forestFloorSamples > sampledGroundCount * 0.04,
+  'outer tree stands must paint a visible leaf-litter footprint',
 );
 assert.ok(
-  maximumTreeGroundBlend < 0.05,
-  'visual-only tree clumps must not stamp visible forest-floor fields into the horizon',
+  farGrassSamples > sampledGroundCount * 0.25,
+  'organic outer woodland must retain broad meadow openings instead of filling a square ring',
+);
+assert.ok(
+  maximumTreeGroundBlend > 0.72,
+  'dense visual-only tree clumps must share their field with the forest-floor material',
 );
 clumpedForestWorld.dispose();
 
