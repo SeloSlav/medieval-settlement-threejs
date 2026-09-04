@@ -200,6 +200,16 @@ test('centers Development between civic status and right-aligned resource contro
               <span class="settlement-hud__label">Construction</span>
             </div>
           </div>
+          <details class="settlement-hud__food-stores settlement-hud__fuel-stores">
+            <summary class="settlement-hud__stat" data-resource="firewood">
+              <strong class="settlement-hud__value settlement-hud__supply-value">12 months</strong>
+            </summary>
+          </details>
+          <details class="settlement-hud__food-stores">
+            <summary class="settlement-hud__stat" data-resource="food">
+              <strong class="settlement-hud__value settlement-hud__supply-value">8 months</strong>
+            </summary>
+          </details>
         </div>
         <details class="settlement-hud__stores" data-specialty-stores>
           <summary class="settlement-hud__stores-summary"><strong class="settlement-hud__stores-status">1</strong></summary>
@@ -277,6 +287,11 @@ test('centers Development between civic status and right-aligned resource contro
   expect(constructionCategory.justifySelf).toBe('center');
   expect(constructionCategory.visibleText).toBe('Construction');
   await expect(page.locator('[data-resource-group="construction"] strong')).toHaveCount(0);
+  const topLevelSupplyValues = page.locator(
+    '.settlement-hud__body--resources .settlement-hud__supply-value',
+  );
+  await expect(topLevelSupplyValues).toHaveCount(2);
+  for (const value of await topLevelSupplyValues.all()) await expect(value).toBeHidden();
   await expect(page.locator('[data-specialty-stores] > summary .settlement-hud__stores-status')).toBeHidden();
   await expect(page.locator('[data-military-stores] > summary .settlement-hud__stores-status')).toBeHidden();
 

@@ -946,10 +946,10 @@
       "group": "ui-hierarchy",
       "kind": "sound-effect",
       "output": "public/sounds/ui/setup_adjust.mp3",
-      "prompt": "Immediate ultra-short premium medieval strategy game UI adjustment detent: one tiny dry wooden ratchet tick with a nearly inaudible soft brass pin, delicate and low energy for repeated slider and arrow changes, isolated transient, absolutely no tail, no reverb, no melody, no voice",
+      "prompt": "Immediate short close-miked physical Foley for a medieval strategy game adjustment: a small carved wooden object drags a few centimeters across a rough oak tabletop, with dry wood-on-wood friction and a soft natural stop, restrained enough for repeated slider and arrow changes, no metal, no electronic tone, no reverb, no melody, no voice",
       "durationSeconds": 0.5,
       "loop": false,
-      "promptInfluence": 0.92
+      "promptInfluence": 0.95
     },
     {
       "id": "ui-setup-back",

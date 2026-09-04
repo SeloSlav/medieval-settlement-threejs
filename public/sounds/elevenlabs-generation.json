@@ -1754,13 +1754,13 @@
     {
       "id": "ui-setup-adjust",
       "output": "public/sounds/ui/setup_adjust.mp3",
-      "generatedAt": "2026-09-02T08:31:15.600Z",
+      "generatedAt": "2026-09-04T11:20:13.786Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
+      "outputFormat": "mp3_48000_192",
       "characterCost": "5",
-      "byteLength": 8821,
-      "sha256": "e996c879e4363507bb596c41ea5a515e834dbe28ca0a47441d8e582d17f65959"
+      "byteLength": 12717,
+      "sha256": "051e500c479ec5e70d0176b391d513446b78120bd15b868173e4cc0867313323"
     },
     {
       "id": "ui-setup-advance",
