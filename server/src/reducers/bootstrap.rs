@@ -401,9 +401,9 @@ pub(crate) fn place_founding_camp(
         cabbage: resources.cabbage.max(0.0),
         carrots: resources.carrots.max(0.0),
         beetroot: resources.beetroot.max(0.0),
-        aronia_jam: resources.aronia_jam.max(0.0),
-        rosehip_jam: resources.rosehip_jam.max(0.0),
-        pear_cider: resources.pear_cider.max(0.0),
+        jam: resources.jam.max(0.0),
+        jam: resources.jam.max(0.0),
+        cider: resources.cider.max(0.0),
         settlement_id: settlement.id,
         animal_feed: 0.0,
         storage_acceptance_mask_high: u64::MAX,
@@ -442,9 +442,9 @@ pub(crate) fn place_founding_camp(
     resources.cabbage = 0.0;
     resources.carrots = 0.0;
     resources.beetroot = 0.0;
-    resources.aronia_jam = 0.0;
-    resources.rosehip_jam = 0.0;
-    resources.pear_cider = 0.0;
+    resources.jam = 0.0;
+    resources.jam = 0.0;
+    resources.cider = 0.0;
     resources.wax = 0.0;
     resources.candles = 0.0;
     resources.pelts = 0.0;

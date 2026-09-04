@@ -18,6 +18,7 @@ import {
   isForagingHarvestAvailable,
   isForagingRegrowthSeason,
 } from '../src/foraging/foragingSeason.ts';
+import { displayedMushroomPatchCount } from '../src/foraging/MushroomPatchVisuals.ts';
 import {
   HARVEST_RESERVE_DEFAULT_PERCENT,
   harvestableWildStock,
@@ -58,14 +59,17 @@ import {
   GAME_PATCH_MAX_YIELD,
   MUSHROOM_PATCH_MAX_YIELD,
   MUSHROOM_PATCH_MAX_SPAWN_RADIUS,
+  MUSHROOM_PATCH_VISUAL_CAPACITY,
   RICH_BERRY_PATCH_MAX_YIELD,
   RICH_BERRY_PATCH_PICK_RADIUS,
   RICH_GAME_PATCH_MAX_YIELD,
   RICH_GAME_PATCH_PICK_RADIUS,
   RICH_MUSHROOM_PATCH_MAX_YIELD,
   RICH_MUSHROOM_PATCH_PICK_RADIUS,
+  RICH_MUSHROOM_PATCH_VISUAL_CAPACITY,
   gamePatchSpawnRadius,
   isRichForagingCapacity,
+  logarithmicPopulationVisualCount,
 } from '../src/foraging/foragingYields.ts';
 import { forestDensityAt } from '../src/props/forestField.ts';
 import { MUSHROOM_ICON_HTML } from '../src/map/resourceMapIconArt.ts';
@@ -647,7 +651,8 @@ const mushroomVisuals = readFileSync(
 );
 assert.match(mushroomVisuals, /InstancedMesh/);
 assert.match(mushroomVisuals, /CLOSE_WORLD_MAX_CAMERA_DISTANCE/);
-assert.match(mushroomVisuals, /placement\.visibilityNoise\s*<\s*ratio/);
+assert.match(mushroomVisuals, /stems\.count\s*=\s*visibleCount/);
+assert.match(mushroomVisuals, /caps\.count\s*=\s*visibleCount/);
 assert.match(mushroomVisuals, /createMushroomSurfaceTextures/);
 assert.match(mushroomVisuals, /map:\s*surfaceTextures\.(stem|cap)\.map/);
 assert.match(mushroomVisuals, /roughnessMap:\s*surfaceTextures\.(stem|cap)\.roughnessMap/);
@@ -657,6 +662,43 @@ assert.match(
   /const radialMottle[\s\S]*spotMask[\s\S]*const height[\s\S]*roughness:/,
   'mushroom cap color, relief, and roughness must derive from the same authored causes',
 );
+assert.equal(displayedMushroomPatchCount(0, MUSHROOM_PATCH_MAX_YIELD), 0);
+assert.equal(
+  displayedMushroomPatchCount(MUSHROOM_PATCH_MAX_YIELD, MUSHROOM_PATCH_MAX_YIELD),
+  MUSHROOM_PATCH_VISUAL_CAPACITY,
+);
+assert.equal(
+  displayedMushroomPatchCount(17, RICH_MUSHROOM_PATCH_MAX_YIELD),
+  17,
+  'small rich mushroom populations should remain literal',
+);
+assert.ok(
+  displayedMushroomPatchCount(17, RICH_MUSHROOM_PATCH_MAX_YIELD)
+    < displayedMushroomPatchCount(53, RICH_MUSHROOM_PATCH_MAX_YIELD),
+  'rich mushroom beds must regain representative instances as their population regrows',
+);
+assert.ok(
+  displayedMushroomPatchCount(53, RICH_MUSHROOM_PATCH_MAX_YIELD) < 53,
+  'large rich mushroom populations should be logarithmically compressed',
+);
+assert.equal(
+  displayedMushroomPatchCount(
+    RICH_MUSHROOM_PATCH_MAX_YIELD,
+    RICH_MUSHROOM_PATCH_MAX_YIELD,
+  ),
+  RICH_MUSHROOM_PATCH_VISUAL_CAPACITY,
+);
+assert.equal(
+  displayedMushroomPatchCount(
+    RICH_MUSHROOM_PATCH_MAX_YIELD,
+    RICH_MUSHROOM_PATCH_MAX_YIELD,
+    false,
+  ),
+  0,
+  'out-of-season mushroom beds must not submit dormant mushrooms to the draw range',
+);
+assert.equal(logarithmicPopulationVisualCount(5, 240, 120, 24), 5);
+assert.equal(logarithmicPopulationVisualCount(240, 240, 120, 24), 28);
 
 const berryVisuals = readFileSync(
   `${projectRoot}src/foraging/BerryPatchVisuals.ts`,

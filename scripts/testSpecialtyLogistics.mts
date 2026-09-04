@@ -211,7 +211,7 @@ const tavern = {
   ...building('tavern', 'tavern', 4),
   ale: 0,
   cider: 0,
-  pearCider: 12,
+  cider: 12,
   mead: 0,
 };
 assert.equal(
@@ -268,7 +268,7 @@ const emptyTavern = {
   ...building('empty-tavern', 'tavern', 2),
   ale: 0,
   cider: 0,
-  pearCider: 0,
+  cider: 0,
   mead: 0,
 };
 assert.equal(

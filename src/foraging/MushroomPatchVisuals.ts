@@ -4,7 +4,13 @@ import type { ForagingNodeState } from '../resources/types.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { ForagingSite } from './ForagingLayout.ts';
 import { isForagingHarvestAvailable } from './foragingSeason.ts';
-import { MUSHROOM_PATCH_MAX_SPAWN_RADIUS } from './foragingYields.ts';
+import {
+  MUSHROOM_PATCH_MAX_YIELD,
+  MUSHROOM_PATCH_MAX_SPAWN_RADIUS,
+  MUSHROOM_PATCH_VISUAL_CAPACITY,
+  logarithmicPopulationVisualCount,
+  mushroomPatchVisualCapacity,
+} from './foragingYields.ts';
 
 export type MushroomPatchVisuals = {
   group: THREE.Group;
@@ -16,6 +22,7 @@ export type MushroomPatchVisuals = {
 
 type MushroomPlacement = {
   nodeId: string;
+  populationIndex: number;
   x: number;
   z: number;
   yaw: number;
@@ -30,10 +37,23 @@ type MushroomTextureSet = {
 };
 
 const TAU = Math.PI * 2;
-const MUSHROOMS_PER_PATCH = 26;
-const RICH_MUSHROOMS_PER_PATCH = 40;
 const CLOSE_WORLD_MAX_CAMERA_DISTANCE = 155;
 const MUSHROOM_TEXTURE_SIZE = 128;
+
+/** Representative mushroom count for an ordinary or rich authoritative bed. */
+export function displayedMushroomPatchCount(
+  remaining: number,
+  maxYield: number,
+  seasonAvailable = true,
+): number {
+  if (!seasonAvailable) return 0;
+  return logarithmicPopulationVisualCount(
+    remaining,
+    maxYield,
+    MUSHROOM_PATCH_MAX_YIELD,
+    MUSHROOM_PATCH_VISUAL_CAPACITY,
+  );
+}
 
 /** Close-zoom, low-poly mushrooms for persistent deep-forest resource beds. */
 export function createMushroomPatchVisuals(
@@ -47,6 +67,13 @@ export function createMushroomPatchVisuals(
   const rng = mulberry32(seed ^ 0x5a17c3);
   const placements = createPlacements(mushroomSites, rng, isBlockedAt);
   const capacity = Math.max(placements.length, 1);
+  const visualCapacityByNode = new Map<string, number>();
+  for (const placement of placements) {
+    visualCapacityByNode.set(
+      placement.nodeId,
+      Math.max(visualCapacityByNode.get(placement.nodeId) ?? 0, placement.populationIndex + 1),
+    );
+  }
 
   const stemGeometry = new THREE.CylinderGeometry(0.055, 0.085, 0.42, 7, 1);
   stemGeometry.translate(0, 0.21, 0);
@@ -80,8 +107,8 @@ export function createMushroomPatchVisuals(
   const caps = new THREE.InstancedMesh(capGeometry, capMaterial, capacity);
   stems.name = 'Harvestable mushroom stems';
   caps.name = 'Harvestable mushroom caps';
-  stems.count = placements.length;
-  caps.count = placements.length;
+  stems.count = 0;
+  caps.count = 0;
   stems.castShadow = false;
   caps.castShadow = false;
   stems.receiveShadow = true;
@@ -127,27 +154,45 @@ export function createMushroomPatchVisuals(
   }));
   group.add(stems, caps);
 
-  const hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
   const sync = (nodes: Iterable<ForagingNodeState>, month: number): void => {
     const byId = new Map(Array.from(nodes, (node) => [node.nodeId, node] as const));
     const seasonAvailable = isForagingHarvestAvailable('mushrooms', month);
+    const visibleCountsByNode = new Map<string, number>();
+    for (const [nodeId, node] of byId) {
+      if (node.kind !== 'mushrooms') continue;
+      visibleCountsByNode.set(
+        nodeId,
+        displayedMushroomPatchCount(
+          node.remaining,
+          node.maxYield,
+          seasonAvailable,
+        ),
+      );
+    }
+
+    let visibleCount = 0;
     placements.forEach((placement, index) => {
-      const node = byId.get(placement.nodeId);
-      const ratio = node && node.maxYield > 0
-        ? THREE.MathUtils.clamp(node.remaining / node.maxYield, 0, 1)
-        : 0;
-      const visible = seasonAvailable && placement.visibilityNoise < ratio;
-      const next = visible ? baseMatrices[index] : hiddenMatrix;
-      stems.setMatrixAt(index, next);
-      caps.setMatrixAt(index, next);
+      const visibleNodeCount = Math.min(
+        visibleCountsByNode.get(placement.nodeId) ?? 0,
+        visualCapacityByNode.get(placement.nodeId) ?? 0,
+      );
+      if (placement.populationIndex >= visibleNodeCount) return;
+      stems.setMatrixAt(visibleCount, baseMatrices[index]);
+      caps.setMatrixAt(visibleCount, baseMatrices[index]);
+      visibleCount++;
     });
+    stems.count = visibleCount;
+    caps.count = visibleCount;
     stems.instanceMatrix.needsUpdate = true;
     caps.instanceMatrix.needsUpdate = true;
+    group.userData.visibleMushroomCount = visibleCount;
   };
 
   return {
     group,
-    mushroomCount: placements.length,
+    get mushroomCount() {
+      return stems.count;
+    },
     sync,
     updateCameraState: (cameraDistance, firstPersonActive) => {
       group.visible = firstPersonActive || cameraDistance <= CLOSE_WORLD_MAX_CAMERA_DISTANCE;
@@ -342,7 +387,7 @@ function createPlacements(
   const placements: MushroomPlacement[] = [];
   sites.forEach((site, siteIndex) => {
     const patch: MushroomPlacement[] = [];
-    const targetCount = site.isRich ? RICH_MUSHROOMS_PER_PATCH : MUSHROOMS_PER_PATCH;
+    const targetCount = mushroomPatchVisualCapacity(site.isRich === true);
     let attempts = 0;
     while (patch.length < targetCount && attempts < targetCount * 24) {
       attempts++;
@@ -354,6 +399,7 @@ function createPlacements(
       if (patch.some((entry) => Math.hypot(entry.x - x, entry.z - z) < 0.62)) continue;
       patch.push({
         nodeId: `foraging-mushrooms-${siteIndex}`,
+        populationIndex: -1,
         x,
         z,
         yaw: random() * TAU,
@@ -361,6 +407,12 @@ function createPlacements(
         visibilityNoise: random(),
       });
     }
+    // A stable, spatially scattered order makes depletion and regrowth change
+    // the exact draw count without making the patch collapse from one edge.
+    patch.sort((left, right) => left.visibilityNoise - right.visibilityNoise);
+    patch.forEach((placement, populationIndex) => {
+      placement.populationIndex = populationIndex;
+    });
     placements.push(...patch);
   });
   return placements;

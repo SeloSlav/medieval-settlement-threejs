@@ -65,11 +65,11 @@ const RECOVERY_ORDER: [CommodityKind; 73] = [
     CommodityKind::CuredMeat,
     CommodityKind::SmokedFish,
     CommodityKind::Cheese,
-    CommodityKind::AroniaJam,
-    CommodityKind::RosehipJam,
+    CommodityKind::Jam,
+    CommodityKind::Jam,
     CommodityKind::Ale,
     CommodityKind::Cider,
-    CommodityKind::PearCider,
+    CommodityKind::Cider,
     CommodityKind::Mead,
     CommodityKind::Honey,
     CommodityKind::Candles,
@@ -114,7 +114,7 @@ pub struct ReclamationStock {
     pub water: f64,
     pub ale: f64,
     pub cider: f64,
-    pub pear_cider: f64,
+    pub cider: f64,
     pub mead: f64,
     pub honey: f64,
     pub wax: f64,
@@ -179,8 +179,8 @@ pub struct ReclamationStock {
     pub cabbage: f64,
     pub carrots: f64,
     pub beetroot: f64,
-    pub aronia_jam: f64,
-    pub rosehip_jam: f64,
+    pub jam: f64,
+    pub jam: f64,
 }
 
 impl ReclamationStock {
@@ -211,8 +211,8 @@ impl ReclamationStock {
                 cider: amount,
                 ..Self::default()
             },
-            CommodityKind::PearCider => Self {
-                pear_cider: amount,
+            CommodityKind::Cider => Self {
+                cider: amount,
                 ..Self::default()
             },
             CommodityKind::Mead => Self {
@@ -450,12 +450,12 @@ impl ReclamationStock {
                 beetroot: amount,
                 ..Self::default()
             },
-            CommodityKind::AroniaJam => Self {
-                aronia_jam: amount,
+            CommodityKind::Jam => Self {
+                jam: amount,
                 ..Self::default()
             },
-            CommodityKind::RosehipJam => Self {
-                rosehip_jam: amount,
+            CommodityKind::Jam => Self {
+                jam: amount,
                 ..Self::default()
             },
         }
@@ -477,7 +477,7 @@ impl ReclamationStock {
             water,
             ale,
             cider,
-            pear_cider,
+            cider,
             mead,
             honey,
             wax,
@@ -542,8 +542,8 @@ impl ReclamationStock {
             cabbage,
             carrots,
             beetroot,
-            aronia_jam,
-            rosehip_jam,
+            jam,
+            jam,
         );
         self
     }
@@ -570,7 +570,7 @@ impl ReclamationStock {
             water: cargo.water,
             ale: cargo.ale,
             cider: cargo.cider,
-            pear_cider: cargo.pear_cider,
+            cider: cargo.cider,
             mead: cargo.mead,
             honey: cargo.honey,
             wax: cargo.wax,
@@ -635,8 +635,8 @@ impl ReclamationStock {
             cabbage: cargo.cabbage,
             carrots: cargo.carrots,
             beetroot: cargo.beetroot,
-            aronia_jam: cargo.aronia_jam,
-            rosehip_jam: cargo.rosehip_jam,
+            jam: cargo.jam,
+            jam: cargo.jam,
         }
         .normalized()
     }
@@ -661,7 +661,7 @@ impl ReclamationStock {
             water,
             ale,
             cider,
-            pear_cider,
+            cider,
             mead,
             honey,
             wax,
@@ -726,8 +726,8 @@ impl ReclamationStock {
             cabbage,
             carrots,
             beetroot,
-            aronia_jam,
-            rosehip_jam,
+            jam,
+            jam,
         );
         merged
     }
@@ -747,7 +747,7 @@ impl ReclamationStock {
             water: resources.water.max(0.0),
             ale: resources.ale.max(0.0),
             cider: resources.cider.max(0.0),
-            pear_cider: resources.pear_cider.max(0.0),
+            cider: resources.cider.max(0.0),
             mead: resources.mead.max(0.0),
             honey: resources.honey.max(0.0),
             wax: resources.wax.max(0.0),
@@ -812,8 +812,8 @@ impl ReclamationStock {
             cabbage: resources.cabbage.max(0.0),
             carrots: resources.carrots.max(0.0),
             beetroot: resources.beetroot.max(0.0),
-            aronia_jam: resources.aronia_jam.max(0.0),
-            rosehip_jam: resources.rosehip_jam.max(0.0),
+            jam: resources.jam.max(0.0),
+            jam: resources.jam.max(0.0),
         }
         .normalized()
     }
@@ -826,7 +826,7 @@ impl ReclamationStock {
             CommodityKind::Water => self.water,
             CommodityKind::Ale => self.ale,
             CommodityKind::Cider => self.cider,
-            CommodityKind::PearCider => self.pear_cider,
+            CommodityKind::Cider => self.cider,
             CommodityKind::Mead => self.mead,
             CommodityKind::Honey => self.honey,
             CommodityKind::Wax => self.wax,
@@ -891,8 +891,8 @@ impl ReclamationStock {
             CommodityKind::Cabbage => self.cabbage,
             CommodityKind::Carrots => self.carrots,
             CommodityKind::Beetroot => self.beetroot,
-            CommodityKind::AroniaJam => self.aronia_jam,
-            CommodityKind::RosehipJam => self.rosehip_jam,
+            CommodityKind::Jam => self.jam,
+            CommodityKind::Jam => self.jam,
         }
     }
 
@@ -914,7 +914,7 @@ impl ReclamationStock {
             water,
             ale,
             cider,
-            pear_cider,
+            cider,
             mead,
             honey,
             wax,
@@ -979,8 +979,8 @@ impl ReclamationStock {
             cabbage,
             carrots,
             beetroot,
-            aronia_jam,
-            rosehip_jam,
+            jam,
+            jam,
         );
     }
 
@@ -1116,7 +1116,7 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.food = 0.0;
     resources.ale = 0.0;
     resources.cider = 0.0;
-    resources.pear_cider = 0.0;
+    resources.cider = 0.0;
     resources.mead = 0.0;
     resources.honey = 0.0;
     resources.wax = 0.0;
@@ -1178,8 +1178,8 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.cabbage = 0.0;
     resources.carrots = 0.0;
     resources.beetroot = 0.0;
-    resources.aronia_jam = 0.0;
-    resources.rosehip_jam = 0.0;
+    resources.jam = 0.0;
+    resources.jam = 0.0;
 }
 
 fn recovery_pile_position_beside_building(
@@ -1308,7 +1308,7 @@ pub fn insert_reclamation_pile(
         food: 0.0,
         ale: stock.ale.max(0.0),
         cider: stock.cider.max(0.0),
-        pear_cider: stock.pear_cider.max(0.0),
+        cider: stock.cider.max(0.0),
         mead: stock.mead.max(0.0),
         honey: stock.honey.max(0.0),
         wax: stock.wax.max(0.0),
@@ -1439,8 +1439,8 @@ pub fn insert_reclamation_pile(
         cabbage: stock.cabbage.max(0.0),
         carrots: stock.carrots.max(0.0),
         beetroot: stock.beetroot.max(0.0),
-        aronia_jam: stock.aronia_jam.max(0.0),
-        rosehip_jam: stock.rosehip_jam.max(0.0),
+        jam: stock.jam.max(0.0),
+        jam: stock.jam.max(0.0),
         rye_sheaves: stock.rye_sheaves.max(0.0),
         oat_sheaves: stock.oat_sheaves.max(0.0),
         barley_sheaves: stock.barley_sheaves.max(0.0),
@@ -1868,8 +1868,8 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
         | CommodityKind::CuredMeat
         | CommodityKind::SmokedFish
         | CommodityKind::Cheese
-        | CommodityKind::AroniaJam
-        | CommodityKind::RosehipJam
+        | CommodityKind::Jam
+        | CommodityKind::Jam
         | CommodityKind::RyeSheaves
         | CommodityKind::OatSheaves
         | CommodityKind::BarleySheaves
@@ -1893,7 +1893,7 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
         },
         CommodityKind::Ale
         | CommodityKind::Cider
-        | CommodityKind::PearCider
+        | CommodityKind::Cider
         | CommodityKind::Mead => match kind {
             "tavern" => Some(0),
             "founders_camp" => Some(1),

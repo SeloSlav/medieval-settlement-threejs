@@ -46,9 +46,9 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       cabbage: number;
       carrots: number;
       beetroot: number;
-      aroniaJam: number;
-      rosehipJam: number;
-      pearCider: number;
+      jam: number;
+      jam: number;
+      cider: number;
       yarn: number;
       linen: number;
       sidearms: number;
@@ -85,7 +85,7 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       maslinFlour: wholeResourceUnits(row.maslinFlour),
       ale: wholeResourceUnits(row.ale),
       cider: wholeResourceUnits(row.cider),
-      pearCider: wholeResourceUnits(leatherRow.pearCider),
+      cider: wholeResourceUnits(leatherRow.cider),
       mead: wholeResourceUnits(row.mead),
       honey: wholeResourceUnits(row.honey),
       wax: wholeResourceUnits(row.wax),
@@ -137,8 +137,8 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       curedMeat: wholeResourceUnits(row.curedMeat),
       smokedFish: wholeResourceUnits(row.smokedFish),
       cheese: wholeResourceUnits(row.cheese),
-      aroniaJam: wholeResourceUnits(leatherRow.aroniaJam),
-      rosehipJam: wholeResourceUnits(leatherRow.rosehipJam),
+      jam: wholeResourceUnits(leatherRow.jam),
+      jam: wholeResourceUnits(leatherRow.jam),
     };
     state.physicalFoundingSiteEnabled = row.physicalFoundingSiteEnabled ?? false;
     state.legacyUnhousedPopulationBonusEnabled =

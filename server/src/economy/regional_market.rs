@@ -90,14 +90,14 @@ pub fn price_multiplier_for(state: &MarketState, resource: TradeResource) -> f64
         | TradeResource::Grapes => state.food_price_mult,
         TradeResource::Ale
         | TradeResource::Cider
-        | TradeResource::PearCider
+        | TradeResource::Cider
         | TradeResource::Wine => state.drink_price_mult,
         TradeResource::Honey
         | TradeResource::CuredMeat
         | TradeResource::SmokedFish
         | TradeResource::Cheese
-        | TradeResource::AroniaJam
-        | TradeResource::RosehipJam => state.provision_price_mult,
+        | TradeResource::Jam
+        | TradeResource::Jam => state.provision_price_mult,
         TradeResource::Wool
         | TradeResource::Yarn
         | TradeResource::Linen
@@ -251,7 +251,7 @@ pub fn record_market_trade(
         }
         TradeResource::Ale
         | TradeResource::Cider
-        | TradeResource::PearCider
+        | TradeResource::Cider
         | TradeResource::Wine => {
             state.regional_drink_demand =
                 adjust_demand_index(state.regional_drink_demand, direction, amount);
@@ -260,8 +260,8 @@ pub fn record_market_trade(
         | TradeResource::CuredMeat
         | TradeResource::SmokedFish
         | TradeResource::Cheese
-        | TradeResource::AroniaJam
-        | TradeResource::RosehipJam => {
+        | TradeResource::Jam
+        | TradeResource::Jam => {
             state.regional_provision_demand =
                 adjust_demand_index(state.regional_provision_demand, direction, amount);
         }
@@ -432,12 +432,12 @@ pub fn specialty_family_for_commodity(commodity: CommodityKind) -> Option<Specia
     match commodity {
         CommodityKind::Ale
         | CommodityKind::Cider
-        | CommodityKind::PearCider
+        | CommodityKind::Cider
         | CommodityKind::Wine => Some(SpecialtyMarketFamily::Drink),
         CommodityKind::Honey
         | CommodityKind::Cheese
-        | CommodityKind::AroniaJam
-        | CommodityKind::RosehipJam => Some(SpecialtyMarketFamily::Provision),
+        | CommodityKind::Jam
+        | CommodityKind::Jam => Some(SpecialtyMarketFamily::Provision),
         CommodityKind::Cloth | CommodityKind::Shoes | CommodityKind::Pottery => {
             Some(SpecialtyMarketFamily::Wares)
         }

@@ -261,7 +261,7 @@ pub struct RaidPortableStores {
     pub maslin_bread: f64,
     pub ale: f64,
     pub cider: f64,
-    pub pear_cider: f64,
+    pub cider: f64,
     pub mead: f64,
     pub honey: f64,
     pub wax: f64,
@@ -313,8 +313,8 @@ pub struct RaidPortableStores {
     pub cabbage: f64,
     pub carrots: f64,
     pub beetroot: f64,
-    pub aronia_jam: f64,
-    pub rosehip_jam: f64,
+    pub jam: f64,
+    pub jam: f64,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -354,7 +354,7 @@ impl RaidPortableStores {
             maslin_bread,
             ale,
             cider,
-            pear_cider,
+            cider,
             mead,
             honey,
             wax,
@@ -406,8 +406,8 @@ impl RaidPortableStores {
             cabbage,
             carrots,
             beetroot,
-            aronia_jam,
-            rosehip_jam,
+            jam,
+            jam,
         );
         self
     }
@@ -429,7 +429,7 @@ impl RaidPortableStores {
             + positive_store(self.maslin_bread)
             + positive_store(self.ale)
             + positive_store(self.cider)
-            + positive_store(self.pear_cider)
+            + positive_store(self.cider)
             + positive_store(self.mead)
             + positive_store(self.honey)
             + positive_store(self.wax) * 1.5
@@ -481,8 +481,8 @@ impl RaidPortableStores {
             + positive_store(self.cabbage)
             + positive_store(self.carrots)
             + positive_store(self.beetroot)
-            + positive_store(self.aronia_jam)
-            + positive_store(self.rosehip_jam)
+            + positive_store(self.jam)
+            + positive_store(self.jam)
     }
 
     pub fn goods_amount(self) -> f64 {
@@ -502,7 +502,7 @@ impl RaidPortableStores {
             + positive_store(self.maslin_bread)
             + positive_store(self.ale)
             + positive_store(self.cider)
-            + positive_store(self.pear_cider)
+            + positive_store(self.cider)
             + positive_store(self.mead)
             + positive_store(self.honey)
             + positive_store(self.wax)
@@ -553,8 +553,8 @@ impl RaidPortableStores {
             + positive_store(self.cabbage)
             + positive_store(self.carrots)
             + positive_store(self.beetroot)
-            + positive_store(self.aronia_jam)
-            + positive_store(self.rosehip_jam)
+            + positive_store(self.jam)
+            + positive_store(self.jam)
     }
 
     pub fn plunder(self, loss_fraction: f64) -> RaidPlunder {
@@ -591,7 +591,7 @@ impl RaidPortableStores {
         plunder_good!(maslin_bread);
         plunder_good!(ale);
         plunder_good!(cider);
-        plunder_good!(pear_cider);
+        plunder_good!(cider);
         plunder_good!(mead);
         plunder_good!(honey);
         plunder_good!(wax);
@@ -642,8 +642,8 @@ impl RaidPortableStores {
         plunder_good!(cabbage);
         plunder_good!(carrots);
         plunder_good!(beetroot);
-        plunder_good!(aronia_jam);
-        plunder_good!(rosehip_jam);
+        plunder_good!(jam);
+        plunder_good!(jam);
         let (gold, wealth_lost) = plunder_store(source.gold, fraction);
         remaining.gold = gold;
 
@@ -677,7 +677,7 @@ impl RaidPortableStores {
             maslin_bread: removed!(maslin_bread),
             ale: removed!(ale),
             cider: removed!(cider),
-            pear_cider: removed!(pear_cider),
+            cider: removed!(cider),
             mead: removed!(mead),
             honey: removed!(honey),
             wax: removed!(wax),
@@ -729,8 +729,8 @@ impl RaidPortableStores {
             cabbage: removed!(cabbage),
             carrots: removed!(carrots),
             beetroot: removed!(beetroot),
-            aronia_jam: removed!(aronia_jam),
-            rosehip_jam: removed!(rosehip_jam),
+            jam: removed!(jam),
+            jam: removed!(jam),
         }
     }
 }

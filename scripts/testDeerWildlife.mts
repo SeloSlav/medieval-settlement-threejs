@@ -18,11 +18,13 @@ import {
 } from '../src/foraging/DeerWildlifeBehavior.ts';
 import {
   createGameHerdSpawnPoints,
+  displayedGameHerdCount,
   nearestGameHabitatDisturbanceSource,
 } from '../src/foraging/DeerWildlifeVisuals.ts';
 import {
-  GAME_PATCH_MAX_YIELD,
+  GAME_PATCH_VISUAL_CAPACITY,
   RICH_GAME_PATCH_MAX_YIELD,
+  RICH_GAME_PATCH_VISUAL_CAPACITY,
   displayedGameAnimalCount,
 } from '../src/foraging/foragingYields.ts';
 import { formatResourceAmount } from '../src/resources/yields.ts';
@@ -45,9 +47,18 @@ function fixedRandom(values: number[]): () => number {
     { x: -30, z: 40, kind: 'game', isRich: true },
     fixedRandom([0.12, 0.64, 0.37, 0.88]),
   );
-  assert.equal(standardHerd.length, GAME_PATCH_MAX_YIELD);
-  assert.equal(largeHerd.length, RICH_GAME_PATCH_MAX_YIELD);
+  assert.equal(standardHerd.length, GAME_PATCH_VISUAL_CAPACITY);
+  assert.equal(largeHerd.length, RICH_GAME_PATCH_VISUAL_CAPACITY);
   assert.equal(displayedGameAnimalCount(7.99), 7);
+  assert.equal(displayedGameHerdCount(1, RICH_GAME_PATCH_MAX_YIELD), 1);
+  assert.ok(
+    displayedGameHerdCount(8, RICH_GAME_PATCH_MAX_YIELD)
+      < displayedGameHerdCount(17, RICH_GAME_PATCH_MAX_YIELD),
+  );
+  assert.equal(
+    displayedGameHerdCount(RICH_GAME_PATCH_MAX_YIELD, RICH_GAME_PATCH_MAX_YIELD),
+    RICH_GAME_PATCH_VISUAL_CAPACITY,
+  );
   assert.equal(formatResourceAmount('game', 7.99), '7 game');
 }
 

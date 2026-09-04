@@ -1018,9 +1018,9 @@ pub(crate) fn place_building_internal(
         cabbage: 0.0,
         carrots: 0.0,
         beetroot: 0.0,
-        aronia_jam: 0.0,
-        rosehip_jam: 0.0,
-        pear_cider: 0.0,
+        jam: 0.0,
+        jam: 0.0,
+        cider: 0.0,
         settlement_id,
         animal_feed: 0.0,
         storage_acceptance_mask_high: u64::MAX,
@@ -1325,11 +1325,11 @@ fn processor_output_room(building: &Building) -> Option<f64> {
         };
         return Some(match policy {
             BREWERY_RECIPE_CIDER => headroom(CommodityKind::Cider),
-            BREWERY_RECIPE_PEAR_CIDER => headroom(CommodityKind::PearCider),
+            BREWERY_RECIPE_PEAR_CIDER => headroom(CommodityKind::Cider),
             BREWERY_RECIPE_MEAD => headroom(CommodityKind::Mead),
             BREWERY_RECIPE_AUTO => headroom(CommodityKind::Ale)
                 .max(headroom(CommodityKind::Cider))
-                .max(headroom(CommodityKind::PearCider))
+                .max(headroom(CommodityKind::Cider))
                 .max(headroom(CommodityKind::Mead)),
             _ => headroom(CommodityKind::Ale),
         });

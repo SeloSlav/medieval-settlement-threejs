@@ -59,7 +59,7 @@ export type ProcessorOutputCommodity =
   | 'bread'
   | 'ale'
   | 'cider'
-  | 'pearCider'
+  | 'cider'
   | 'mead'
   | 'curedMeat'
   | 'smokedFish'

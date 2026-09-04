@@ -1854,8 +1854,8 @@ pub fn step_granary(
                     CommodityKind::Cheese,
                     CommodityKind::SmokedFish,
                     CommodityKind::CuredMeat,
-                    CommodityKind::AroniaJam,
-                    CommodityKind::RosehipJam,
+                    CommodityKind::Jam,
+                    CommodityKind::Jam,
                     CommodityKind::Honey,
                     CommodityKind::Wine,
                 ] {
@@ -1878,7 +1878,7 @@ pub fn step_granary(
                 );
                 for beverage in [
                     CommodityKind::Cider,
-                    CommodityKind::PearCider,
+                    CommodityKind::Cider,
                     CommodityKind::Mead,
                 ] {
                     dispatch_to_building(ctx, tick, clock, &mut granary, beverage, &["tavern"]);
@@ -2556,7 +2556,7 @@ pub fn step_brewery(
                 clock,
                 brewery,
                 &[(CommodityKind::Pears, BREWERY_APPLES_PER_CIDER_CYCLE)],
-                &[(CommodityKind::PearCider, BREWERY_CIDER_PER_CYCLE)],
+                &[(CommodityKind::Cider, BREWERY_CIDER_PER_CYCLE)],
             );
         }
         BREWERY_RECIPE_MEAD => {
@@ -2610,7 +2610,7 @@ pub fn step_brewery(
     request_brewery_recipe_inputs(ctx, tick, clock, &brewery, recipe, input_staging_cycles);
     for beverage in [
         CommodityKind::Cider,
-        CommodityKind::PearCider,
+        CommodityKind::Cider,
         CommodityKind::Ale,
         CommodityKind::Mead,
     ] {
@@ -2629,7 +2629,7 @@ pub fn step_brewery(
     // same typed beverage, so cider and mead never collapse into generic ale.
     for beverage in [
         CommodityKind::Cider,
-        CommodityKind::PearCider,
+        CommodityKind::Cider,
         CommodityKind::Ale,
         CommodityKind::Mead,
     ] {
@@ -2687,7 +2687,7 @@ fn selected_brewery_recipe(building: &Building) -> u8 {
         ),
         (
             BREWERY_RECIPE_PEAR_CIDER,
-            if brewery_output_headroom(building, CommodityKind::PearCider) > 1e-6 {
+            if brewery_output_headroom(building, CommodityKind::Cider) > 1e-6 {
                 building.pears / BREWERY_APPLES_PER_CIDER_CYCLE.max(1e-9)
             } else {
                 -1.0

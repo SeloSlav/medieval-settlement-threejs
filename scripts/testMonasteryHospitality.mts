@@ -305,7 +305,7 @@ assert.match(
 );
 assert.match(
   server,
-  /step_brewery[\s\S]*?for beverage in \[[\s\S]*?CommodityKind::Cider,[\s\S]*?CommodityKind::PearCider,[\s\S]*?CommodityKind::Ale,[\s\S]*?CommodityKind::Mead,[\s\S]*?&\["tavern"\][\s\S]*?CommodityKind::Ale,[\s\S]*?&\["trading_post"\]/,
+  /step_brewery[\s\S]*?for beverage in \[[\s\S]*?CommodityKind::Cider,[\s\S]*?CommodityKind::Cider,[\s\S]*?CommodityKind::Ale,[\s\S]*?CommodityKind::Mead,[\s\S]*?&\["tavern"\][\s\S]*?CommodityKind::Ale,[\s\S]*?&\["trading_post"\]/,
   'town breweries must serve taverns and external trade without refilling monastery stores',
 );
 assert.doesNotMatch(

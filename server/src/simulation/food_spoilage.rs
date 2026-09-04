@@ -224,8 +224,8 @@ pub fn step_fresh_food_spoilage(
         spoil_preserved!(cured_meat, CommodityKind::CuredMeat);
         spoil_preserved!(smoked_fish, CommodityKind::SmokedFish);
         spoil_preserved!(cheese, CommodityKind::Cheese);
-        spoil_preserved!(aronia_jam, CommodityKind::AroniaJam);
-        spoil_preserved!(rosehip_jam, CommodityKind::RosehipJam);
+        spoil_preserved!(jam, CommodityKind::Jam);
+        spoil_preserved!(jam, CommodityKind::Jam);
         ctx.db.player_resources().owner().update(resources);
     }
 }
@@ -275,8 +275,8 @@ fn normalize_building_food(building: &mut Building) {
         cured_meat,
         smoked_fish,
         cheese,
-        aronia_jam,
-        rosehip_jam,
+        jam,
+        jam,
     );
 }
 

@@ -1011,25 +1011,25 @@
 /* Exact backyard commodities use individual artwork so their identities are
    preserved in pantry cards, costs, trade rows, and the beverage HUD. */
 .settlement-hud__stat[data-resource='cider']::before,
-.settlement-hud__stat[data-resource='pearCider']::before,
+.settlement-hud__stat[data-resource='cider']::before,
 .resource-cost__item[data-resource-cost='cider'] .resource-cost__icon,
-.resource-cost__item[data-resource-cost='pearCider'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='cider'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='pears'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='aronia'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='rosehips'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='cabbage'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='carrots'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='beetroot'] .resource-cost__icon,
-.resource-cost__item[data-resource-cost='aroniaJam'] .resource-cost__icon,
-.resource-cost__item[data-resource-cost='rosehipJam'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='jam'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='jam'] .resource-cost__icon,
 .settlement-hud__food-card[data-food-resource='pears']::before,
 .settlement-hud__food-card[data-food-resource='aronia']::before,
 .settlement-hud__food-card[data-food-resource='rosehips']::before,
 .settlement-hud__food-card[data-food-resource='cabbage']::before,
 .settlement-hud__food-card[data-food-resource='carrots']::before,
 .settlement-hud__food-card[data-food-resource='beetroot']::before,
-.settlement-hud__food-card[data-food-resource='aroniaJam']::before,
-.settlement-hud__food-card[data-food-resource='rosehipJam']::before {
+.settlement-hud__food-card[data-food-resource='jam']::before,
+.settlement-hud__food-card[data-food-resource='jam']::before {
   background-position: center;
   background-repeat: no-repeat;
   background-size: contain;
@@ -1040,8 +1040,8 @@
   background-image: url('/assets/ui/icons/resource-cider.png');
 }
 
-.settlement-hud__stat[data-resource='pearCider']::before,
-.resource-cost__item[data-resource-cost='pearCider'] .resource-cost__icon {
+.settlement-hud__stat[data-resource='cider']::before,
+.resource-cost__item[data-resource-cost='cider'] .resource-cost__icon {
   background-image: url('/assets/ui/icons/resource-pear-cider.png');
 }
 
@@ -1075,13 +1075,13 @@
   background-image: url('/assets/ui/icons/provisions/beetroot.png');
 }
 
-.resource-cost__item[data-resource-cost='aroniaJam'] .resource-cost__icon,
-.settlement-hud__food-card[data-food-resource='aroniaJam']::before {
+.resource-cost__item[data-resource-cost='jam'] .resource-cost__icon,
+.settlement-hud__food-card[data-food-resource='jam']::before {
   background-image: url('/assets/ui/icons/provisions/aronia-jam.png');
 }
 
-.resource-cost__item[data-resource-cost='rosehipJam'] .resource-cost__icon,
-.settlement-hud__food-card[data-food-resource='rosehipJam']::before {
+.resource-cost__item[data-resource-cost='jam'] .resource-cost__icon,
+.settlement-hud__food-card[data-food-resource='jam']::before {
   background-image: url('/assets/ui/icons/provisions/rosehip-jam.png');
 }
 

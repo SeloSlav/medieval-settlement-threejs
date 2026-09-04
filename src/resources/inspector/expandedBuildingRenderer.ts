@@ -310,7 +310,7 @@ function buildingHasOutboundStock(
         || (building.honey ?? 0) > 0
         || building.ale > 0
         || (building.cider ?? 0) > 0
-        || (building.pearCider ?? 0) > 0
+        || (building.cider ?? 0) > 0
         || (building.mead ?? 0) > 0;
     case 'smokehouse':
       return preservedFoodStock(building) > 0;
@@ -1569,11 +1569,11 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
     controls = BREWERY_RECIPE_PRESETS.map((preset) => {
       const output = breweryPolicyOutput(preset.policy);
       const icon = preset.policy === BREWERY_RECIPE_AUTO
-        ? renderResourceCost({ ale: 1, cider: 1, pearCider: 1, mead: 1 }, { compact: true })
+        ? renderResourceCost({ ale: 1, cider: 1, cider: 1, mead: 1 }, { compact: true })
         : renderResourceCost({ [output]: 1 }, { compact: true });
       const conversion = output === 'cider'
         ? `${BREWERY_APPLES_PER_CIDER_CYCLE} apples → ${BREWERY_CIDER_PER_CYCLE} apple cider`
-        : output === 'pearCider'
+        : output === 'cider'
           ? `${BREWERY_APPLES_PER_CIDER_CYCLE} pears → ${BREWERY_CIDER_PER_CYCLE} pear cider`
           : output === 'mead'
             ? `${BREWERY_HONEY_PER_MEAD_CYCLE} honey → ${BREWERY_MEAD_PER_CYCLE} mead`

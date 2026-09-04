@@ -7,7 +7,9 @@ import type { Terrain } from '../terrain/Terrain.ts';
 import type { ForagingSite } from './ForagingLayout.ts';
 import {
   FISH_SHOAL_MAX_YIELD,
-  RICH_FISH_SHOAL_MAX_YIELD,
+  FISH_SHOAL_VISUAL_CAPACITY,
+  fishShoalVisualCapacity,
+  logarithmicPopulationVisualCount,
 } from './foragingYields.ts';
 import {
   AuthoredAnimalInstanceBatch,
@@ -112,17 +114,19 @@ export type FishBreachPose = {
 };
 
 /**
- * Fish stock is an authoritative whole-fish population. Fractional regrowth is
- * not yet an actor; each whole fish is represented by one full authored model.
+ * Fish stock is authoritative; the rendered school follows it on a logarithmic
+ * curve so low stocks remain literal without overdraw at large populations.
  */
 export function displayedFishSchoolCount(
   remaining: number,
-  _maxYield: number,
-  _isRich = false,
+  maxYield: number,
 ): number {
-  return Number.isFinite(remaining)
-    ? Math.max(0, Math.floor(remaining + 1e-6))
-    : 0;
+  return logarithmicPopulationVisualCount(
+    remaining,
+    maxYield,
+    FISH_SHOAL_MAX_YIELD,
+    FISH_SHOAL_VISUAL_CAPACITY,
+  );
 }
 
 /** Whole-body arc layered over the authored out-of-water skeletal animation. */
@@ -137,8 +141,8 @@ export function sampleFishBreach(progress: number, height: number): FishBreachPo
 }
 
 /**
- * Adds one authored animated fish for every whole fish at the authoritative
- * nodes. Population loss controls school size; a decrease while the shoal is
+ * Adds a logarithmically representative authored school at each authoritative
+ * node. Population loss controls school size; a decrease while the shoal is
  * visible causes one fish to break the surface with the authored animation.
  */
 export async function createFishWildlifeVisuals(
@@ -166,9 +170,7 @@ export async function createFishWildlifeVisuals(
   const source = await loadFishModel(FISH_MODEL_URL);
   let batch: AuthoredAnimalInstanceBatch | null = null;
   const totalCapacity = fishSites.reduce(
-    (sum, site) => sum + (
-      site.isRich ? RICH_FISH_SHOAL_MAX_YIELD : FISH_SHOAL_MAX_YIELD
-    ),
+    (sum, site) => sum + fishShoalVisualCapacity(site.isRich === true),
     0,
   );
   try {
@@ -267,9 +269,7 @@ export async function createFishWildlifeVisuals(
   for (let siteIndex = 0; siteIndex < fishSites.length; siteIndex++) {
     const site = fishSites[siteIndex];
     const nodeId = `foraging-fish-${site.isRich ? 'rich' : 'small'}-${siteIndex}`;
-    const capacity = site.isRich
-      ? RICH_FISH_SHOAL_MAX_YIELD
-      : FISH_SHOAL_MAX_YIELD;
+    const capacity = fishShoalVisualCapacity(site.isRich === true);
     const radius = site.isRich ? RICH_SCHOOL_RADIUS : SMALL_SCHOOL_RADIUS;
     const school: FishSchool = {
       nodeId,
@@ -339,7 +339,7 @@ export async function createFishWildlifeVisuals(
       const node = fishNodes.get(school.nodeId);
       const priorRemaining = previousRemaining.get(school.nodeId);
       const visibleCount = node
-        ? displayedFishSchoolCount(node.remaining, node.maxYield, node.isRich === true)
+        ? displayedFishSchoolCount(node.remaining, node.maxYield)
         : 0;
 
       while (school.fish.length < visibleCount) addFishToSchool(school);
@@ -374,7 +374,13 @@ export async function createFishWildlifeVisuals(
   return {
     group,
     get fishCount() {
-      return schools.reduce((total, school) => total + school.fish.length, 0);
+      return schools.reduce(
+        (total, school) => total + school.fish.reduce(
+          (schoolTotal, fish) => schoolTotal + Number(fish.root.visible),
+          0,
+        ),
+        0,
+      );
     },
     update,
     sync,

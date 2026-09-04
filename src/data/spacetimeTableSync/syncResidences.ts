@@ -79,8 +79,8 @@ export function syncResidences(
       cabbage: number;
       carrots: number;
       beetroot: number;
-      aroniaJam: number;
-      rosehipJam: number;
+      jam: number;
+      jam: number;
       settlementId: bigint;
       smallholding: boolean;
     }>;
@@ -123,8 +123,8 @@ export function syncResidences(
       curedMeat: wholeResourceUnits(row.curedMeat),
       smokedFish: wholeResourceUnits(row.smokedFish),
       cheese: wholeResourceUnits(row.cheese),
-      aroniaJam: wholeResourceUnits(upgradeRow.aroniaJam),
-      rosehipJam: wholeResourceUnits(upgradeRow.rosehipJam),
+      jam: wholeResourceUnits(upgradeRow.jam),
+      jam: wholeResourceUnits(upgradeRow.jam),
       foodInventoryMigrated: row.foodInventoryMigrated,
       // Kept in the replicated schema for old saves only. Completed homes are
       // permanent housing and empty capacity immediately re-enters settlement.

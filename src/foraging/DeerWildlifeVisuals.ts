@@ -6,9 +6,12 @@ import type { Terrain } from '../terrain/Terrain.ts';
 import type { ForagingSite } from './ForagingLayout.ts';
 import type { GameHabitatDisturbanceSource } from './gameHabitatDisturbance.ts';
 import {
+  GAME_PATCH_MAX_YIELD,
+  GAME_PATCH_VISUAL_CAPACITY,
   displayedGameAnimalCount,
-  gamePatchMaxYield,
+  gamePatchVisualCapacity,
   gamePatchSpawnRadius,
+  logarithmicPopulationVisualCount,
 } from './foragingYields.ts';
 import type { ForagingNodeState } from '../resources/types.ts';
 import {
@@ -88,8 +91,8 @@ const DOE_TARGET_HEIGHT = 1.7;
 const STAG_TARGET_HEIGHT = 2;
 const TAU = Math.PI * 2;
 /**
- * Adds every whole authoritative game animal to its habitat. Map icons remain
- * an independent strategic overlay, never a replacement for these GLB actors.
+ * Adds a representative authored herd to every habitat. Low populations remain
+ * literal while larger populations use a logarithmic visual density curve.
  */
 export async function createDeerWildlifeVisuals(
   terrain: Terrain,
@@ -142,7 +145,7 @@ export async function createDeerWildlifeVisuals(
   };
   const batches = new Map<DeerSex, AuthoredAnimalInstanceBatch>();
   const initialCapacity = gameSites.reduce(
-    (sum, site) => sum + gamePatchMaxYield(site.isRich === true),
+    (sum, site) => sum + gamePatchVisualCapacity(site.isRich === true),
     0,
   );
   for (const sex of ['doe', 'stag'] as const) {
@@ -292,7 +295,7 @@ export async function createDeerWildlifeVisuals(
     for (const visual of deer) {
       const node = byId.get(visual.nodeId);
       const visiblePopulation = node && node.remaining > 0
-        ? displayedGameAnimalCount(node.remaining)
+        ? displayedGameHerdCount(node.remaining, node.maxYield)
         : 0;
       const visibleSexCounts = herdSexCounts(visiblePopulation);
       const visible = visual.sex === 'stag'
@@ -344,9 +347,21 @@ export async function createDeerWildlifeVisuals(
 
   return {
     group,
-    deerCount: deer.length,
-    doeCount,
-    stagCount,
+    get deerCount() {
+      return deer.reduce((count, visual) => count + Number(visual.root.visible), 0);
+    },
+    get doeCount() {
+      return deer.reduce(
+        (count, visual) => count + Number(visual.sex === 'doe' && visual.root.visible),
+        0,
+      );
+    },
+    get stagCount() {
+      return deer.reduce(
+        (count, visual) => count + Number(visual.sex === 'stag' && visual.root.visible),
+        0,
+      );
+    },
     update,
     sync,
     diagnostics: () => Object.fromEntries(
@@ -469,7 +484,7 @@ export function createGameHerdSpawnPoints(
   random: () => number,
   isBlockedAt?: (x: number, z: number) => boolean,
 ): Array<{ x: number; z: number }> {
-  const herdSize = gamePatchMaxYield(site.isRich === true);
+  const herdSize = gamePatchVisualCapacity(site.isRich === true);
   const spawnRadius = gamePatchSpawnRadius(site.isRich === true);
   const points: Array<{ x: number; z: number }> = [];
   let attempts = 0;
@@ -502,6 +517,18 @@ export function createGameHerdSpawnPoints(
     points.push({ x, z });
   }
   return points;
+}
+
+export function displayedGameHerdCount(
+  remaining: number,
+  maxYield: number,
+): number {
+  return logarithmicPopulationVisualCount(
+    displayedGameAnimalCount(remaining),
+    maxYield,
+    GAME_PATCH_MAX_YIELD,
+    GAME_PATCH_VISUAL_CAPACITY,
+  );
 }
 
 function configureModelMeshes(model: THREE.Object3D): void {

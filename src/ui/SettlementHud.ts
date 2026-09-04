@@ -718,10 +718,10 @@ const SETTLEMENT_HUD_HTML = `
               <strong class="settlement-hud__value" data-stockpile="cider">0</strong>
               <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="cider" hidden></span>
             </div>
-            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pearCider" data-tooltip="${RESOURCE_DESCRIPTIONS.pearCider}">
+            <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="cider" data-tooltip="${RESOURCE_DESCRIPTIONS.cider}">
               <span class="settlement-hud__label">Pear cider</span>
-              <strong class="settlement-hud__value" data-stockpile="pearCider">0</strong>
-              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="pearCider" hidden></span>
+              <strong class="settlement-hud__value" data-stockpile="cider">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="cider" hidden></span>
             </div>
             <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="mead" data-tooltip="${RESOURCE_DESCRIPTIONS.mead}">
               <span class="settlement-hud__label">Mead</span>

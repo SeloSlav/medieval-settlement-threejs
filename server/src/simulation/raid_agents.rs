@@ -2251,7 +2251,7 @@ pub(super) fn reclamation_from_raid_stores(stores: RaidPortableStores) -> Reclam
         maslin_bread: stores.maslin_bread,
         ale: stores.ale,
         cider: stores.cider,
-        pear_cider: stores.pear_cider,
+        cider: stores.cider,
         mead: stores.mead,
         honey: stores.honey,
         wax: stores.wax,
@@ -2303,8 +2303,8 @@ pub(super) fn reclamation_from_raid_stores(stores: RaidPortableStores) -> Reclam
         cabbage: stores.cabbage,
         carrots: stores.carrots,
         beetroot: stores.beetroot,
-        aronia_jam: stores.aronia_jam,
-        rosehip_jam: stores.rosehip_jam,
+        jam: stores.jam,
+        jam: stores.jam,
         ..ReclamationStock::default()
     }
 }

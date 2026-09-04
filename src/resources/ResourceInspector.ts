@@ -647,7 +647,7 @@ export class ResourceInspector {
       maslinFlour: this.mustElement(options.uiRoot, '[data-stockpile="maslinFlour"]'),
       ale: this.mustElement(options.uiRoot, '[data-stockpile="ale"]'),
       cider: this.mustElement(options.uiRoot, '[data-stockpile="cider"]'),
-      pearCider: this.mustElement(options.uiRoot, '[data-stockpile="pearCider"]'),
+      cider: this.mustElement(options.uiRoot, '[data-stockpile="cider"]'),
       mead: this.mustElement(options.uiRoot, '[data-stockpile="mead"]'),
       honey: this.mustElement(options.uiRoot, '[data-stockpile="honey"]'),
       wax: this.mustElement(options.uiRoot, '[data-stockpile="wax"]'),

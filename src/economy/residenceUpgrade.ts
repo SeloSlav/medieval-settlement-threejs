@@ -224,10 +224,10 @@ const SERVICE_LABELS: Record<ResidenceUpgradeServiceKind, string> = {
 
 /** Options a Tier-3 household can prepare for the future Tier-4 luxury need. */
 export function residenceHasHouseholdLuxuryOption(
-  residence: Pick<ResidenceState, 'aroniaJam' | 'rosehipJam'>,
+  residence: Pick<ResidenceState, 'jam' | 'jam'>,
   garden: Pick<BackyardGardenState, 'kind' | 'flowerLuxuryUpgraded'> | null | undefined,
 ): boolean {
-  return Math.max(0, residence.aroniaJam ?? 0) + Math.max(0, residence.rosehipJam ?? 0) > 1e-6
+  return Math.max(0, residence.jam ?? 0) + Math.max(0, residence.jam ?? 0) > 1e-6
     || garden?.flowerLuxuryUpgraded === true
     || garden?.kind === 'aronia_orchard'
     || garden?.kind === 'rosehip_orchard';
@@ -253,8 +253,8 @@ function householdPromotionNeedReady(
     case 'savoryPreserves':
       return savoryPreservesStock(residence) > 1e-6 || stock > 1e-6;
     case 'luxury':
-      return Math.max(0, residence.aroniaJam ?? 0)
-        + Math.max(0, residence.rosehipJam ?? 0) > 1e-6
+      return Math.max(0, residence.jam ?? 0)
+        + Math.max(0, residence.jam ?? 0) > 1e-6
         || stock > 1e-6;
     case 'firewood':
     case 'ale':

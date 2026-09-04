@@ -38,6 +38,9 @@ const illustratedMapLineupEntry = fileURLToPath(
 const soldierLineupEntry = fileURLToPath(
   new URL('./soldier-lineup.html', import.meta.url),
 );
+const animalLineupEntry = fileURLToPath(
+  new URL('./animal-lineup.html', import.meta.url),
+);
 const battleSceneEntry = fileURLToPath(
   new URL('./battle-scene.html', import.meta.url),
 );
@@ -121,6 +124,9 @@ export default defineConfig(({ mode }) => {
   }
   if (mode === 'e2e' && existsSync(soldierLineupEntry)) {
     buildInputs['soldier-lineup'] = soldierLineupEntry;
+  }
+  if (mode === 'e2e' && existsSync(animalLineupEntry)) {
+    buildInputs['animal-lineup'] = animalLineupEntry;
   }
   if (mode === 'e2e' && existsSync(battleSceneEntry)) {
     buildInputs['battle-scene'] = battleSceneEntry;

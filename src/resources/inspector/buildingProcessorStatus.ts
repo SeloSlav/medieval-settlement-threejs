@@ -123,7 +123,7 @@ type StockKey =
   | 'maslinBread'
   | 'ale'
   | 'cider'
-  | 'pearCider'
+  | 'cider'
   | 'mead'
   | 'curedMeat'
   | 'smokedFish'
@@ -588,7 +588,7 @@ function getBreweryStatus(
         required: BREWERY_APPLES_PER_CIDER_CYCLE,
         deliveryHint: 'pear orchards, granaries, or market carts may supply',
       }],
-      output: 'pearCider',
+      output: 'cider',
       outputPerCycle: BREWERY_CIDER_PER_CYCLE,
       operatingLabel: 'Pressing pears into pear cider',
       idleNoWorkersLabel: 'Idle — assign brewers to press pear cider',
@@ -742,9 +742,9 @@ function getTavernStatus(
 ): BuildingProcessorStatus {
   const ale = Math.max(0, building.ale);
   const cider = Math.max(0, building.cider ?? 0);
-  const pearCider = Math.max(0, building.pearCider ?? 0);
+  const cider = Math.max(0, building.cider ?? 0);
   const mead = Math.max(0, building.mead ?? 0);
-  const total = ale + cider + pearCider + mead;
+  const total = ale + cider + cider + mead;
   const maxLabor = Math.max(1, getBuildingDefinition('tavern').maxLabor);
   const servicePercent = Math.round(Math.min(1, onsiteLabor / maxLabor) * 100);
   const details = `

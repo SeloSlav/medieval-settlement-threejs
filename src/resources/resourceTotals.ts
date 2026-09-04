@@ -83,7 +83,7 @@ export type ResourceTotals = {
   maslinFlour: number;
   ale: number;
   cider: number;
-  pearCider: number;
+  cider: number;
   mead: number;
   preservedFood: number;
   honey: number;
@@ -135,8 +135,8 @@ export type ResourceTotals = {
   curedMeat: number;
   smokedFish: number;
   cheese: number;
-  aroniaJam: number;
-  rosehipJam: number;
+  jam: number;
+  jam: number;
 };
 
 export const FOOD_RESOURCE_KINDS = NAMED_FOOD_KINDS;
@@ -161,7 +161,7 @@ export const HUD_RESOURCE_KINDS = [
   'maslinFlour',
   'ale',
   'cider',
-  'pearCider',
+  'cider',
   'mead',
   'honey',
   'wax',
@@ -276,7 +276,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let maslinFlour = ledger?.maslinFlour ?? 0;
   let ale = ledger?.ale ?? 0;
   let cider = ledger?.cider ?? 0;
-  let pearCider = ledger?.pearCider ?? 0;
+  let cider = ledger?.cider ?? 0;
   let mead = ledger?.mead ?? 0;
   let honey = ledger?.honey ?? 0;
   let wax = ledger?.wax ?? 0;
@@ -327,8 +327,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let curedMeat = ledger?.curedMeat ?? 0;
   let smokedFish = ledger?.smokedFish ?? 0;
   let cheese = ledger?.cheese ?? 0;
-  let aroniaJam = ledger?.aroniaJam ?? 0;
-  let rosehipJam = ledger?.rosehipJam ?? 0;
+  let jam = ledger?.jam ?? 0;
+  let jam = ledger?.jam ?? 0;
   let gold = ledger?.gold ?? 0;
   let reservedTimber = 0;
   let reservedStone = 0;
@@ -364,8 +364,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let reservedCuredMeat = 0;
   let reservedSmokedFish = 0;
   let reservedCheese = 0;
-  let reservedAroniaJam = 0;
-  let reservedRosehipJam = 0;
+  let reservedJam = 0;
+  let reservedJam = 0;
 
   for (const building of state.buildings.values()) {
     timber += building.timber;
@@ -394,7 +394,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     maslinFlour += building.maslinFlour ?? 0;
     ale += building.ale;
     cider += building.cider ?? 0;
-    pearCider += building.pearCider ?? 0;
+    cider += building.cider ?? 0;
     mead += building.mead ?? 0;
     honey += building.honey;
     wax += building.wax ?? 0;
@@ -445,8 +445,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     curedMeat += building.curedMeat ?? 0;
     smokedFish += building.smokedFish ?? 0;
     cheese += building.cheese ?? 0;
-    aroniaJam += building.aroniaJam ?? 0;
-    rosehipJam += building.rosehipJam ?? 0;
+    jam += building.jam ?? 0;
+    jam += building.jam ?? 0;
     // Monastery provisions belong to the enclosed estate economy. Keep them in
     // the physical-storage ledger for inspection, but never advertise them as
     // food available to the town's household provisioning plan.
@@ -473,8 +473,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
       reservedCuredMeat += Math.max(0, building.curedMeat ?? 0);
       reservedSmokedFish += Math.max(0, building.smokedFish ?? 0);
       reservedCheese += Math.max(0, building.cheese ?? 0);
-      reservedAroniaJam += Math.max(0, building.aroniaJam ?? 0);
-      reservedRosehipJam += Math.max(0, building.rosehipJam ?? 0);
+      reservedJam += Math.max(0, building.jam ?? 0);
+      reservedJam += Math.max(0, building.jam ?? 0);
     }
     if (
       building.kind === 'founders_camp'
@@ -530,8 +530,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     const pantryCuredMeat = Math.max(0, residence.curedMeat ?? 0);
     const pantrySmokedFish = Math.max(0, residence.smokedFish ?? 0);
     const pantryCheese = Math.max(0, residence.cheese ?? 0);
-    const pantryAroniaJam = Math.max(0, residence.aroniaJam ?? 0);
-    const pantryRosehipJam = Math.max(0, residence.rosehipJam ?? 0);
+    const pantryJam = Math.max(0, residence.jam ?? 0);
+    const pantryJam = Math.max(0, residence.jam ?? 0);
     oatGrain += pantryOatGrain;
     honey += pantryHoney;
     ryeBread += pantryRyeBread;
@@ -554,8 +554,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     curedMeat += pantryCuredMeat;
     smokedFish += pantrySmokedFish;
     cheese += pantryCheese;
-    aroniaJam += pantryAroniaJam;
-    rosehipJam += pantryRosehipJam;
+    jam += pantryJam;
+    jam += pantryJam;
     reservedOatGrain += pantryOatGrain;
     reservedHoney += pantryHoney;
     reservedRyeBread += pantryRyeBread;
@@ -578,8 +578,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     reservedCuredMeat += pantryCuredMeat;
     reservedSmokedFish += pantrySmokedFish;
     reservedCheese += pantryCheese;
-    reservedAroniaJam += pantryAroniaJam;
-    reservedRosehipJam += pantryRosehipJam;
+    reservedJam += pantryJam;
+    reservedJam += pantryJam;
     const householdAle = Math.max(0, getNeedStock(residence.needs, 'ale'));
     const householdCloth = Math.max(0, getNeedStock(residence.needs, 'cloth'));
     const householdShoes = Math.max(0, getNeedStock(residence.needs, 'shoes'));
@@ -600,8 +600,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   const storedPreservedFood = curedMeat * foodMealValue('curedMeat')
     + smokedFish * foodMealValue('smokedFish')
     + cheese * foodMealValue('cheese')
-    + aroniaJam * foodMealValue('aroniaJam')
-    + rosehipJam * foodMealValue('rosehipJam');
+    + jam * foodMealValue('jam')
+    + jam * foodMealValue('jam');
   const storedFood = oatGrain * foodMealValue('oatGrain')
     + ryeBread * foodMealValue('ryeBread')
     + maslinBread * foodMealValue('maslinBread')
@@ -644,7 +644,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     maslinFlour,
     ale,
     cider,
-    pearCider,
+    cider,
     mead,
     preservedFood: storedPreservedFood,
     honey,
@@ -696,8 +696,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     curedMeat,
     smokedFish,
     cheese,
-    aroniaJam,
-    rosehipJam,
+    jam,
+    jam,
   };
   const surplusOatGrain = Math.max(0, oatGrain - reservedOatGrain);
   const surplusHoney = Math.max(0, honey - reservedHoney);
@@ -721,13 +721,13 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   const surplusCuredMeat = Math.max(0, curedMeat - reservedCuredMeat);
   const surplusSmokedFish = Math.max(0, smokedFish - reservedSmokedFish);
   const surplusCheese = Math.max(0, cheese - reservedCheese);
-  const surplusAroniaJam = Math.max(0, aroniaJam - reservedAroniaJam);
-  const surplusRosehipJam = Math.max(0, rosehipJam - reservedRosehipJam);
+  const surplusJam = Math.max(0, jam - reservedJam);
+  const surplusJam = Math.max(0, jam - reservedJam);
   const surplusPreservedFood = surplusCuredMeat * foodMealValue('curedMeat')
     + surplusSmokedFish * foodMealValue('smokedFish')
     + surplusCheese * foodMealValue('cheese')
-    + surplusAroniaJam * foodMealValue('aroniaJam')
-    + surplusRosehipJam * foodMealValue('rosehipJam');
+    + surplusJam * foodMealValue('jam')
+    + surplusJam * foodMealValue('jam');
   const surplusFood = surplusOatGrain * foodMealValue('oatGrain')
     + surplusRyeBread * foodMealValue('ryeBread')
     + surplusMaslinBread * foodMealValue('maslinBread')
@@ -786,8 +786,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     curedMeat: surplusCuredMeat,
     smokedFish: surplusSmokedFish,
     cheese: surplusCheese,
-    aroniaJam: surplusAroniaJam,
-    rosehipJam: surplusRosehipJam,
+    jam: surplusJam,
+    jam: surplusJam,
   };
   cachedState = state;
   return cachedTotals;
@@ -822,8 +822,8 @@ export function computeInTransitResourceTotals(
   totals.preservedFood = totals.curedMeat * foodMealValue('curedMeat')
     + totals.smokedFish * foodMealValue('smokedFish')
     + totals.cheese * foodMealValue('cheese')
-    + totals.aroniaJam * foodMealValue('aroniaJam')
-    + totals.rosehipJam * foodMealValue('rosehipJam');
+    + totals.jam * foodMealValue('jam')
+    + totals.jam * foodMealValue('jam');
   totals.food = totals.oatGrain * foodMealValue('oatGrain')
     + totals.ryeBread * foodMealValue('ryeBread')
     + totals.maslinBread * foodMealValue('maslinBread')
@@ -1181,7 +1181,7 @@ function emptyResourceTotals(): ResourceTotals {
     maslinFlour: 0,
     ale: 0,
     cider: 0,
-    pearCider: 0,
+    cider: 0,
     mead: 0,
     preservedFood: 0,
     honey: 0,
@@ -1233,7 +1233,7 @@ function emptyResourceTotals(): ResourceTotals {
     curedMeat: 0,
     smokedFish: 0,
     cheese: 0,
-    aroniaJam: 0,
-    rosehipJam: 0,
+    jam: 0,
+    jam: 0,
   };
 }

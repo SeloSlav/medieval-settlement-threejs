@@ -285,17 +285,17 @@ function processorInputRecipes(
         ['firewood'],
       ];
       const cider: ProcessorInputRecipe = [['apples']];
-      const pearCider: ProcessorInputRecipe = [['pears']];
+      const cider: ProcessorInputRecipe = [['pears']];
       const mead: ProcessorInputRecipe = [['honey']];
       switch (normalizeBreweryRecipePolicy(building.breweryRecipePolicy)) {
         case BREWERY_RECIPE_CIDER:
           return [cider];
         case BREWERY_RECIPE_PEAR_CIDER:
-          return [pearCider];
+          return [cider];
         case BREWERY_RECIPE_MEAD:
           return [mead];
         case BREWERY_RECIPE_AUTO:
-          return [ale, cider, pearCider, mead];
+          return [ale, cider, cider, mead];
         default:
           return [ale];
       }

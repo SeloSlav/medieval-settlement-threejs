@@ -26,6 +26,12 @@ import {
   displayedFishSchoolCount,
   sampleFishBreach,
 } from '../src/foraging/FishWildlifeVisuals.ts';
+import {
+  FISH_SHOAL_MAX_YIELD,
+  FISH_SHOAL_VISUAL_CAPACITY,
+  RICH_FISH_SHOAL_MAX_YIELD,
+  RICH_FISH_SHOAL_VISUAL_CAPACITY,
+} from '../src/foraging/foragingYields.ts';
 import { claimResidencesForFoodSuppliers } from '../src/logistics/roadLogistics.ts';
 import { FISH_ICON_HTML } from '../src/map/resourceMapIconArt.ts';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
@@ -314,11 +320,26 @@ assert.ok(
   'fishing camp build card should exist',
 );
 
-assert.equal(displayedFishSchoolCount(0, 120), 0);
-assert.equal(displayedFishSchoolCount(120, 120), 120);
-assert.equal(displayedFishSchoolCount(240, 240, true), 240);
-assert.equal(displayedFishSchoolCount(60, 120), 60);
-assert.equal(displayedFishSchoolCount(0.01, 120), 0);
+assert.equal(displayedFishSchoolCount(0, FISH_SHOAL_MAX_YIELD), 0);
+assert.equal(displayedFishSchoolCount(1, FISH_SHOAL_MAX_YIELD), 1);
+assert.equal(
+  displayedFishSchoolCount(FISH_SHOAL_MAX_YIELD, FISH_SHOAL_MAX_YIELD),
+  FISH_SHOAL_VISUAL_CAPACITY,
+);
+assert.equal(
+  displayedFishSchoolCount(RICH_FISH_SHOAL_MAX_YIELD, RICH_FISH_SHOAL_MAX_YIELD),
+  RICH_FISH_SHOAL_VISUAL_CAPACITY,
+);
+assert.ok(
+  displayedFishSchoolCount(73, RICH_FISH_SHOAL_MAX_YIELD)
+    < displayedFishSchoolCount(181, RICH_FISH_SHOAL_MAX_YIELD),
+  'rich shoals must visibly grow while compressing their high population',
+);
+assert.ok(
+  displayedFishSchoolCount(181, RICH_FISH_SHOAL_MAX_YIELD) < 181,
+  'large rich shoals must not render one actor per authoritative fish',
+);
+assert.equal(displayedFishSchoolCount(0.01, FISH_SHOAL_MAX_YIELD), 0);
 
 const breachStart = sampleFishBreach(0, 0.9);
 const breachQuarter = sampleFishBreach(0.25, 0.9);

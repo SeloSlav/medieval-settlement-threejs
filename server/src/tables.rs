@@ -419,12 +419,12 @@ pub struct PlayerResources {
     #[default(0.0)]
     pub beetroot: f64,
     #[default(0.0)]
-    pub aronia_jam: f64,
+    pub jam: f64,
     #[default(0.0)]
-    pub rosehip_jam: f64,
+    pub jam: f64,
     /// Pear cider is distinct from the established `cider` (apple cider) stock.
     #[default(0.0)]
-    pub pear_cider: f64,
+    pub cider: f64,
     /// Beeswax and finished candles recovered from physical stores or interrupted hauling.
     #[default(0.0)]
     pub wax: f64,
@@ -1083,11 +1083,11 @@ pub struct Building {
     #[default(0.0)]
     pub beetroot: f64,
     #[default(0.0)]
-    pub aronia_jam: f64,
+    pub jam: f64,
     #[default(0.0)]
-    pub rosehip_jam: f64,
+    pub jam: f64,
     #[default(0.0)]
-    pub pear_cider: f64,
+    pub cider: f64,
     /// Optional player-authored tree-work circle center and radius. A zero
     /// radius preserves the building-centered balance-defined work extent.
     /// Appended together for additive save compatibility.
@@ -1750,9 +1750,9 @@ pub struct Residence {
     #[default(0.0)]
     pub beetroot: f64,
     #[default(0.0)]
-    pub aronia_jam: f64,
+    pub jam: f64,
     #[default(0.0)]
-    pub rosehip_jam: f64,
+    pub jam: f64,
     /// The household's durable home community. Territory visuals may evolve,
     /// but an occupied home never changes town merely because a road is added.
     #[default(0u64)]

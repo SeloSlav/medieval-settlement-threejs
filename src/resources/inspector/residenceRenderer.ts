@@ -160,7 +160,7 @@ const AGGREGATE_NEED_SOURCE_KINDS: Partial<
   Record<ResidenceNeedKind, readonly ResourceCostKind[]>
 > = {
   firewood: ['firewood', 'charcoal'],
-  ale: ['ale', 'cider', 'pearCider', 'mead'],
+  ale: ['ale', 'cider', 'cider', 'mead'],
   luxury: ['candles', 'wine', 'honey'],
 };
 
@@ -1361,7 +1361,7 @@ function upgradeSupplierHasStock(
   if (kind === 'ale') {
     return supplier.ale
       + (supplier.cider ?? 0)
-      + (supplier.pearCider ?? 0)
+      + (supplier.cider ?? 0)
       + (supplier.mead ?? 0) > 1e-6;
   }
   if (kind === 'cloth') return (supplier.cloth ?? 0) > 1e-6;

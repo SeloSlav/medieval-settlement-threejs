@@ -21,7 +21,7 @@ pub struct DeliveryCargoTotals {
     pub water: f64,
     pub ale: f64,
     pub cider: f64,
-    pub pear_cider: f64,
+    pub cider: f64,
     pub mead: f64,
     pub honey: f64,
     pub wax: f64,
@@ -86,8 +86,8 @@ pub struct DeliveryCargoTotals {
     pub cabbage: f64,
     pub carrots: f64,
     pub beetroot: f64,
-    pub aronia_jam: f64,
-    pub rosehip_jam: f64,
+    pub jam: f64,
+    pub jam: f64,
     pub animal_feed: f64,
 }
 
@@ -103,7 +103,7 @@ impl DeliveryCargoTotals {
             CommodityKind::Water => self.water += amount,
             CommodityKind::Ale => self.ale += amount,
             CommodityKind::Cider => self.cider += amount,
-            CommodityKind::PearCider => self.pear_cider += amount,
+            CommodityKind::Cider => self.cider += amount,
             CommodityKind::Mead => self.mead += amount,
             CommodityKind::Honey => self.honey += amount,
             CommodityKind::Wax => self.wax += amount,
@@ -168,8 +168,8 @@ impl DeliveryCargoTotals {
             CommodityKind::Cabbage => self.cabbage += amount,
             CommodityKind::Carrots => self.carrots += amount,
             CommodityKind::Beetroot => self.beetroot += amount,
-            CommodityKind::AroniaJam => self.aronia_jam += amount,
-            CommodityKind::RosehipJam => self.rosehip_jam += amount,
+            CommodityKind::Jam => self.jam += amount,
+            CommodityKind::Jam => self.jam += amount,
             CommodityKind::AnimalFeed => self.animal_feed += amount,
         }
     }
@@ -183,7 +183,7 @@ pub fn building_delivery_stock(building: &Building, kind: ResidenceNeedKind) -> 
         ResidenceNeedKind::Water => building.water,
         ResidenceNeedKind::Food => building_edible_food_stock(building),
         ResidenceNeedKind::Ale => {
-            building.ale + building.cider + building.pear_cider + building.mead
+            building.ale + building.cider + building.cider + building.mead
         }
         ResidenceNeedKind::SavoryPreserves => building_savory_preserves_stock(building),
         ResidenceNeedKind::Cloth => building.cloth,
@@ -231,7 +231,7 @@ pub fn withdraw_delivery_cargo(
             let mut withdrawn = 0.0;
             for beverage in [
                 CommodityKind::Cider,
-                CommodityKind::PearCider,
+                CommodityKind::Cider,
                 CommodityKind::Ale,
                 CommodityKind::Mead,
             ] {
@@ -283,7 +283,7 @@ pub fn withdraw_delivery_cargo_with_source(
     const FOOD_SOURCES: [CommodityKind; 0] = [];
     const BEVERAGE_SOURCES: [CommodityKind; 4] = [
         CommodityKind::Cider,
-        CommodityKind::PearCider,
+        CommodityKind::Cider,
         CommodityKind::Ale,
         CommodityKind::Mead,
     ];
@@ -336,7 +336,7 @@ pub fn residence_need_for_delivery_commodity(
         CommodityKind::Water => Some(ResidenceNeedKind::Water),
         CommodityKind::Ale
         | CommodityKind::Cider
-        | CommodityKind::PearCider
+        | CommodityKind::Cider
         | CommodityKind::Mead => Some(ResidenceNeedKind::Ale),
         CommodityKind::Cloth => Some(ResidenceNeedKind::Cloth),
         CommodityKind::Shoes => Some(ResidenceNeedKind::Shoes),
@@ -373,8 +373,8 @@ pub fn selected_food_delivery_commodity(
         CommodityKind::MaslinBread,
         CommodityKind::OatGrain,
         CommodityKind::Honey,
-        CommodityKind::AroniaJam,
-        CommodityKind::RosehipJam,
+        CommodityKind::Jam,
+        CommodityKind::Jam,
     ];
     const PRESERVED_ORDER: [CommodityKind; 3] = [
         CommodityKind::Cheese,
@@ -435,7 +435,7 @@ pub fn selected_need_delivery_commodity(
         }
         ResidenceNeedKind::Ale => [
             CommodityKind::Cider,
-            CommodityKind::PearCider,
+            CommodityKind::Cider,
             CommodityKind::Ale,
             CommodityKind::Mead,
         ]
@@ -495,8 +495,8 @@ pub fn selected_food_delivery_commodity_for_residence(
         CommodityKind::RyeBread,
         CommodityKind::MaslinBread,
         CommodityKind::OatGrain,
-        CommodityKind::AroniaJam,
-        CommodityKind::RosehipJam,
+        CommodityKind::Jam,
+        CommodityKind::Jam,
         CommodityKind::Cheese,
         CommodityKind::SmokedFish,
         CommodityKind::CuredMeat,

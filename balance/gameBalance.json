@@ -281,7 +281,7 @@
         "maslinBread": "marketAccessible",
         "ale": "marketAccessible",
         "cider": "marketAccessible",
-        "pearCider": "marketAccessible",
+        "cider": "marketAccessible",
         "honey": "marketAccessible",
         "wax": "marketAccessible",
         "candles": "marketAccessible",
@@ -332,8 +332,8 @@
         "curedMeat": "marketAccessible",
         "smokedFish": "marketAccessible",
         "cheese": "marketAccessible",
-        "aroniaJam": "marketAccessible",
-        "rosehipJam": "marketAccessible",
+        "jam": "marketAccessible",
+        "jam": "marketAccessible",
         "ryeSheaves": "marketAccessible",
         "oatSheaves": "marketAccessible",
         "barleySheaves": "marketAccessible",
@@ -458,10 +458,10 @@
       { "id": "sell_smoked_fish", "kind": "goldSell", "resource": "smokedFish", "amount": 8, "goldYield": 13 },
       { "id": "buy_cheese_bulk", "kind": "goldBuy", "resource": "cheese", "amount": 8, "goldCost": 20 },
       { "id": "sell_cheese", "kind": "goldSell", "resource": "cheese", "amount": 8, "goldYield": 13 },
-      { "id": "buy_aronia_jam", "kind": "goldBuy", "resource": "aroniaJam", "amount": 8, "goldCost": 22 },
-      { "id": "sell_aronia_jam", "kind": "goldSell", "resource": "aroniaJam", "amount": 8, "goldYield": 15 },
-      { "id": "buy_rosehip_jam", "kind": "goldBuy", "resource": "rosehipJam", "amount": 8, "goldCost": 21 },
-      { "id": "sell_rosehip_jam", "kind": "goldSell", "resource": "rosehipJam", "amount": 8, "goldYield": 14 },
+      { "id": "buy_jam", "kind": "goldBuy", "resource": "jam", "amount": 8, "goldCost": 22 },
+      { "id": "sell_jam", "kind": "goldSell", "resource": "jam", "amount": 8, "goldYield": 15 },
+      { "id": "buy_jam", "kind": "goldBuy", "resource": "jam", "amount": 8, "goldCost": 21 },
+      { "id": "sell_jam", "kind": "goldSell", "resource": "jam", "amount": 8, "goldYield": 14 },
       { "id": "buy_rye_sheaves", "kind": "goldBuy", "resource": "ryeSheaves", "amount": 24, "goldCost": 12 },
       { "id": "sell_rye_sheaves", "kind": "goldSell", "resource": "ryeSheaves", "amount": 24, "goldYield": 6 },
       { "id": "buy_oat_sheaves", "kind": "goldBuy", "resource": "oatSheaves", "amount": 24, "goldCost": 13 },
@@ -475,8 +475,8 @@
       { "id": "timber_for_firewood", "kind": "barter", "give": "timber", "giveAmount": 10, "receive": "firewood", "receiveAmount": 18 },
       { "id": "buy_cider", "kind": "goldBuy", "resource": "cider", "amount": 12, "goldCost": 20 },
       { "id": "sell_cider", "kind": "goldSell", "resource": "cider", "amount": 12, "goldYield": 12 }
-      ,{ "id": "buy_pear_cider", "kind": "goldBuy", "resource": "pearCider", "amount": 12, "goldCost": 21 }
-      ,{ "id": "sell_pear_cider", "kind": "goldSell", "resource": "pearCider", "amount": 12, "goldYield": 13 }
+      ,{ "id": "buy_cider", "kind": "goldBuy", "resource": "cider", "amount": 12, "goldCost": 21 }
+      ,{ "id": "sell_cider", "kind": "goldSell", "resource": "cider", "amount": 12, "goldYield": 13 }
       ,{ "id": "buy_yarn", "kind": "goldBuy", "resource": "yarn", "amount": 8, "goldCost": 18 }
       ,{ "id": "sell_yarn", "kind": "goldSell", "resource": "yarn", "amount": 8, "goldYield": 12 }
       ,{ "id": "buy_linen", "kind": "goldBuy", "resource": "linen", "amount": 8, "goldCost": 19 }
@@ -1655,7 +1655,7 @@
     "trading_post": {
       "label": "Trading Post",
       "cost": { "timber": 64, "stone": 0 },
-      "storage": { "total": 760, "timber": 180, "firewood": 120, "stone": 180, "water": 72, "food": 160, "preservedFood": 120, "grain": 120, "barley": 120, "malt": 120, "flax": 120, "flour": 120, "ale": 180, "cider": 180, "pearCider": 180, "honey": 140, "wax": 160, "candles": 160, "wine": 160, "wool": 120, "yarn": 160, "linen": 160, "cloth": 160, "pelts": 160, "hides": 160, "leather": 160, "shoes": 160, "ironwork": 96, "polearms": 80, "sidearms": 80, "shields": 80, "bows": 80, "crossbows": 80, "paddedArmor": 80, "mailArmor": 80, "ammunition": 160, "iron": 96, "clay": 120, "salt": 120, "charcoal": 120, "pottery": 144, "roofTiles": 120, "manure": 160, "remedies": 72 },
+      "storage": { "total": 760, "timber": 180, "firewood": 120, "stone": 180, "water": 72, "food": 160, "preservedFood": 120, "grain": 120, "barley": 120, "malt": 120, "flax": 120, "flour": 120, "ale": 180, "cider": 180, "cider": 180, "honey": 140, "wax": 160, "candles": 160, "wine": 160, "wool": 120, "yarn": 160, "linen": 160, "cloth": 160, "pelts": 160, "hides": 160, "leather": 160, "shoes": 160, "ironwork": 96, "polearms": 80, "sidearms": 80, "shields": 80, "bows": 80, "crossbows": 80, "paddedArmor": 80, "mailArmor": 80, "ammunition": 160, "iron": 96, "clay": 120, "salt": 120, "charcoal": 120, "pottery": 144, "roofTiles": 120, "manure": 160, "remedies": 72 },
       "workRadius": 0,
       "pickRadius": 10,
       "harvestInterval": 0,
@@ -1928,7 +1928,7 @@
     "brewery": {
       "label": "Brewhouse",
       "cost": { "timber": 48, "stone": 24 },
-      "storage": { "total": 150, "timber": 0, "firewood": 24, "stone": 0, "water": 60, "food": 40, "barley": 48, "malt": 36, "ale": 72, "cider": 72, "pearCider": 72, "mead": 72, "honey": 36 },
+      "storage": { "total": 150, "timber": 0, "firewood": 24, "stone": 0, "water": 60, "food": 40, "barley": 48, "malt": 36, "ale": 72, "cider": 72, "cider": 72, "mead": 72, "honey": 36 },
       "workRadius": 0,
       "pickRadius": 9,
       "harvestInterval": 700,
@@ -1946,7 +1946,7 @@
     "tavern": {
       "label": "Tavern",
       "cost": { "timber": 42, "stone": 20 },
-      "storage": { "total": 120, "timber": 0, "firewood": 0, "stone": 0, "ale": 60, "cider": 60, "pearCider": 60, "mead": 60 },
+      "storage": { "total": 120, "timber": 0, "firewood": 0, "stone": 0, "ale": 60, "cider": 60, "cider": 60, "mead": 60 },
       "workRadius": 0,
       "pickRadius": 9,
       "harvestInterval": 0,
@@ -1983,7 +1983,7 @@
     "granary": {
       "label": "Granary",
       "cost": { "timber": 50, "stone": 30 },
-      "storage": { "total": 2500, "timber": 0, "firewood": 0, "stone": 0, "grain": 2500, "barley": 2500, "flax": 2500, "flour": 2500, "food": 2500, "preservedFood": 2500, "honey": 2500, "ale": 2500, "cider": 2500, "pearCider": 2500, "mead": 2500, "wine": 2500 },
+      "storage": { "total": 2500, "timber": 0, "firewood": 0, "stone": 0, "grain": 2500, "barley": 2500, "flax": 2500, "flour": 2500, "food": 2500, "preservedFood": 2500, "honey": 2500, "ale": 2500, "cider": 2500, "cider": 2500, "mead": 2500, "wine": 2500 },
       "workRadius": 0,
       "pickRadius": 9,
       "harvestInterval": 4,

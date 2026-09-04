@@ -1,4 +1,4 @@
-/** Game stock is an animal count so visible deer disappear one-for-one. */
+/** Game stock is an authoritative whole-animal count. */
 export const GAME_PATCH_MAX_YIELD = 12;
 /** The second, larger habitat supports a visibly broader herd. */
 export const RICH_GAME_PATCH_MAX_YIELD = 20;
@@ -13,6 +13,14 @@ export const RICH_MUSHROOM_PATCH_MAX_YIELD = 72;
 /** Fish values are persistent population carrying capacities. */
 export const FISH_SHOAL_MAX_YIELD = 120;
 export const RICH_FISH_SHOAL_MAX_YIELD = 240;
+
+/** Maximum representative actors submitted for a full ordinary/rich node. */
+export const GAME_PATCH_VISUAL_CAPACITY = 12;
+export const RICH_GAME_PATCH_VISUAL_CAPACITY = 15;
+export const MUSHROOM_PATCH_VISUAL_CAPACITY = 26;
+export const RICH_MUSHROOM_PATCH_VISUAL_CAPACITY = 30;
+export const FISH_SHOAL_VISUAL_CAPACITY = 24;
+export const RICH_FISH_SHOAL_VISUAL_CAPACITY = 28;
 
 export const GAME_PATCH_PICK_RADIUS = 42;
 export const RICH_GAME_PATCH_PICK_RADIUS = 60;
@@ -38,6 +46,61 @@ export function berryPatchMaxYield(isRich = false): number {
 
 export function mushroomPatchMaxYield(isRich = false): number {
   return isRich ? RICH_MUSHROOM_PATCH_MAX_YIELD : MUSHROOM_PATCH_MAX_YIELD;
+}
+
+export function gamePatchVisualCapacity(isRich = false): number {
+  return isRich ? RICH_GAME_PATCH_VISUAL_CAPACITY : GAME_PATCH_VISUAL_CAPACITY;
+}
+
+export function mushroomPatchVisualCapacity(isRich = false): number {
+  return isRich ? RICH_MUSHROOM_PATCH_VISUAL_CAPACITY : MUSHROOM_PATCH_VISUAL_CAPACITY;
+}
+
+export function fishShoalVisualCapacity(isRich = false): number {
+  return isRich ? RICH_FISH_SHOAL_VISUAL_CAPACITY : FISH_SHOAL_VISUAL_CAPACITY;
+}
+
+/**
+ * Maps authoritative stock to a representative actor count. The clamp keeps
+ * very small populations literal, while the logarithmic curve increasingly
+ * compresses larger populations and still reaches the authored visual cap.
+ */
+export function logarithmicPopulationVisualCount(
+  remaining: number,
+  maxYield: number,
+  referenceMaxYield: number,
+  referenceVisualCount: number,
+): number {
+  if (
+    !Number.isFinite(remaining)
+    || !Number.isFinite(maxYield)
+    || !Number.isFinite(referenceMaxYield)
+    || !Number.isFinite(referenceVisualCount)
+  ) return 0;
+
+  const wholeMaximum = Math.max(0, Math.floor(maxYield + 1e-6));
+  const wholeRemaining = Math.min(
+    wholeMaximum,
+    Math.max(0, Math.floor(remaining + 1e-6)),
+  );
+  const wholeReferenceMaximum = Math.max(0, Math.floor(referenceMaxYield + 1e-6));
+  const wholeReferenceVisualCount = Math.min(
+    wholeReferenceMaximum,
+    Math.max(0, Math.floor(referenceVisualCount + 1e-6)),
+  );
+  if (
+    wholeRemaining === 0
+    || wholeMaximum === 0
+    || wholeReferenceMaximum === 0
+    || wholeReferenceVisualCount === 0
+  ) return 0;
+
+  const scaled = Math.ceil(
+    wholeReferenceVisualCount
+      * Math.log1p(wholeRemaining)
+      / Math.log1p(wholeReferenceMaximum),
+  );
+  return Math.min(wholeRemaining, Math.max(1, scaled));
 }
 
 export function isRichForagingCapacity(

@@ -58,8 +58,8 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
     case 'curedMeat':
     case 'smokedFish':
     case 'cheese':
-    case 'aroniaJam':
-    case 'rosehipJam':
+    case 'jam':
+    case 'jam':
     case 'ryeSheaves':
     case 'oatSheaves':
     case 'barleySheaves':
@@ -75,7 +75,7 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
       return 'a Brewhouse with dry malt storage';
     case 'ale':
     case 'cider':
-    case 'pearCider':
+    case 'cider':
     case 'mead':
       return 'a staffed Tavern, Brewery, or accepting Granary';
     case 'honey':

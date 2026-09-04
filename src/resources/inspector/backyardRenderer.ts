@@ -193,7 +193,7 @@ export function renderBackyardInspector(
              : ''}`
         : ''}
       ${BACKYARD_GARDEN_DEFINITIONS[garden.kind].jamPerPersonPerSec > 0
-        ? `<li><span>${garden.kind === 'aronia_orchard' ? 'Aronia jam' : 'Rosehip jam'}</span><span>${Math.max(0, garden.kind === 'aronia_orchard' ? residence.aroniaJam ?? 0 : residence.rosehipJam ?? 0).toFixed(1)} jars in the household pantry · household labor preserves this share of the harvested fruit rather than creating extra output · transferable sweet preserves for meals and trade</span></li>`
+        ? `<li><span>${garden.kind === 'aronia_orchard' ? 'Aronia jam' : 'Rosehip jam'}</span><span>${Math.max(0, garden.kind === 'aronia_orchard' ? residence.jam ?? 0 : residence.jam ?? 0).toFixed(1)} jars in the household pantry · household labor preserves this share of the harvested fruit rather than creating extra output · transferable sweet preserves for meals and trade</span></li>`
         : ''}
       ${producesFood
         ? `<li><span>${isLivestockPen ? 'Average primary home food/day' : 'Home food today'}</span><span>${economy.selfFoodPerDay.toFixed(1)} (${hasMarketAccess ? `fills the tier ${residence.tier} ${reserveDays}-day reserve first` : '100% kept without a staffed stall'})</span></li>

@@ -377,8 +377,8 @@ fn backyard_food_commodity(kind: BackyardGardenKind) -> Option<CommodityKind> {
 
 fn backyard_jam_commodity(kind: BackyardGardenKind) -> Option<CommodityKind> {
     match kind {
-        BackyardGardenKind::AroniaOrchard => Some(CommodityKind::AroniaJam),
-        BackyardGardenKind::RosehipOrchard => Some(CommodityKind::RosehipJam),
+        BackyardGardenKind::AroniaOrchard => Some(CommodityKind::Jam),
+        BackyardGardenKind::RosehipOrchard => Some(CommodityKind::Jam),
         _ => None,
     }
 }

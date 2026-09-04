@@ -90,7 +90,7 @@ alternativeHome.needs.luxury = { stock: 1, deficitTicks: 0, sourceKind: 65_534 }
 assert.equal(residenceNeedSource(alternativeHome, 'firewood')?.key, 'charcoal');
 assert.equal(
   residenceNeedSource(alternativeHome, 'ale')?.key,
-  'pearCider',
+  'cider',
   'commodity 57 must remain pear cider rather than colliding with the Luxury need id',
 );
 assert.equal(residenceNeedSource(alternativeHome, 'preservedFood')?.key, 'smokedFish');

@@ -34,7 +34,7 @@ type BuildingBalance = {
     flour?: number;
     ale?: number;
     cider?: number;
-    pearCider?: number;
+    cider?: number;
     mead?: number;
     preservedFood?: number;
     honey?: number;
@@ -2820,7 +2820,7 @@ function generateTypeScript(): string {
     '  flour?: number;',
     '  ale?: number;',
     '  cider?: number;',
-    '  pearCider?: number;',
+    '  cider?: number;',
     '  mead?: number;',
     '  preservedFood?: number;',
     '  honey?: number;',
@@ -2931,7 +2931,7 @@ function generateTypeScript(): string {
     const flour = def.storage.flour ?? 0;
     const ale = def.storage.ale ?? 0;
     const cider = def.storage.cider ?? 0;
-    const pearCider = def.storage.pearCider ?? 0;
+    const cider = def.storage.cider ?? 0;
     const mead = def.storage.mead ?? 0;
     const preservedFood = def.storage.preservedFood ?? 0;
     const honey = def.storage.honey ?? 0;
@@ -2975,7 +2975,7 @@ function generateTypeScript(): string {
     if (flour > 0) extras.push(`flour: ${flour}`);
     if (ale > 0) extras.push(`ale: ${ale}`);
     if (cider > 0) extras.push(`cider: ${cider}`);
-    if (pearCider > 0) extras.push(`pearCider: ${pearCider}`);
+    if (cider > 0) extras.push(`cider: ${cider}`);
     if (mead > 0) extras.push(`mead: ${mead}`);
     if (preservedFood > 0) extras.push(`preservedFood: ${preservedFood}`);
     if (honey > 0) extras.push(`honey: ${honey}`);

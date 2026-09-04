@@ -1279,7 +1279,7 @@ function completedProcessorOverview(
         const outputKind = recipe === BREWERY_RECIPE_CIDER
           ? 'cider'
           : recipe === BREWERY_RECIPE_PEAR_CIDER
-            ? 'pearCider'
+            ? 'cider'
           : recipe === BREWERY_RECIPE_MEAD
             ? 'mead'
             : 'ale';
