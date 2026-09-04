@@ -1697,15 +1697,70 @@
       "sha256": "24dc458c0012748e8fad6c255521407b6fff72e1fccdcb0ae5d9c3cc02adf8fd"
     },
     {
-      "id": "ui-military-attack-order",
-      "output": "public/sounds/ui/military_attack_order.mp3",
-      "generatedAt": "2026-09-02T16:23:25.298Z",
+      "id": "ui-military-order-1",
+      "output": "public/sounds/ui/military_order_1.mp3",
+      "generatedAt": "2026-09-04T13:33:30.006Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "9",
-      "byteLength": 15090,
-      "sha256": "e58214bea89a5ebe6b5a2b1011422956d8c56995add09fa4b3b7b75fbbc89653"
+      "outputFormat": "mp3_48000_192",
+      "characterCost": "10",
+      "byteLength": 25389,
+      "sha256": "4c800341e904b70611c93bb48a14d7859ece3fd4b64475f19f865a13d4447cd0"
+    },
+    {
+      "id": "ui-military-order-2",
+      "output": "public/sounds/ui/military_order_2.mp3",
+      "generatedAt": "2026-09-04T13:33:35.747Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_48000_192",
+      "characterCost": "10",
+      "byteLength": 25389,
+      "sha256": "a2f9f1f241aab328193fa7b488048f66b5367cb7ec478683fa9d9025fdebd1b2"
+    },
+    {
+      "id": "ui-military-order-3",
+      "output": "public/sounds/ui/military_order_3.mp3",
+      "generatedAt": "2026-09-04T13:33:39.299Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_48000_192",
+      "characterCost": "10",
+      "byteLength": 25389,
+      "sha256": "722528ec20747d1b01307597bfb6389089c755da728dc1dbd44574521208509b"
+    },
+    {
+      "id": "ui-military-order-4",
+      "output": "public/sounds/ui/military_order_4.mp3",
+      "generatedAt": "2026-09-04T13:33:43.405Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_48000_192",
+      "characterCost": "10",
+      "byteLength": 25389,
+      "sha256": "0a5db3a6f5e12de9d8d905faa94d0093a4772f5e087ff56d123feddac9c8b8a0"
+    },
+    {
+      "id": "ui-military-order-5",
+      "output": "public/sounds/ui/military_order_5.mp3",
+      "generatedAt": "2026-09-04T13:34:08.031Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_48000_192",
+      "characterCost": "10",
+      "byteLength": 25389,
+      "sha256": "19f561c029b54ea99555d02a046b9cba6e6f3d0e0c5fed8b8cf3dce1e8712392"
+    },
+    {
+      "id": "ui-military-order-6",
+      "output": "public/sounds/ui/military_order_6.mp3",
+      "generatedAt": "2026-09-04T13:34:13.801Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_48000_192",
+      "characterCost": "10",
+      "byteLength": 25389,
+      "sha256": "145d33443baf1a6b7eb8fa606c95500093544a41cdd2633e22c59f42e9f89e5a"
     },
     {
       "id": "ui-military-company-select",
@@ -1717,17 +1772,6 @@
       "characterCost": "8",
       "byteLength": 13836,
       "sha256": "c65519c5641dac0284a27f17b650514cedc5bfe8139810e6eac26def6575ec35"
-    },
-    {
-      "id": "ui-military-move-order",
-      "output": "public/sounds/ui/military_move_order.mp3",
-      "generatedAt": "2026-09-02T16:23:22.731Z",
-      "endpoint": "/v1/sound-generation",
-      "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "8",
-      "byteLength": 13836,
-      "sha256": "02abd097b0c4dd0221a3a4ee18abd43867378972785121a9301f927a747959d1"
     },
     {
       "id": "ui-pig-pen-select",

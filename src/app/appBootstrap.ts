@@ -1552,14 +1552,12 @@ export async function bootstrapAppSession(
       : isWorldInspectionBlocked(placementGate),
     isIllustratedMapActive: () => cameraController.isIllustratedMapActive(),
     getIllustratedMapY: () => sceneManager.cameraTarget.y + ILLUSTRATED_MAP_STAMP_LIFT,
-    onCommand: (ids, x, z, campId, targetAgentId, order, deployment) => {
+    onCommand: (ids, x, z, campId, targetAgentId, _order, deployment) => {
       const command = deployment
         ? spacetimeStore.deployMilitaryFormation(ids, x, z, deployment.facingX, deployment.facingZ, deployment.frontage)
         : spacetimeStore.commandMilitia(ids, x, z, campId, targetAgentId);
       void command.then(() => {
-        ambientAudio.playUiSound(
-          order === 'attack' ? 'military_attack_order' : 'military_move_order',
-        );
+        ambientAudio.playMilitaryOrderAcknowledgement();
       }).catch((error) => {
         ambientAudio.playUiSound('error');
         toastManager?.show(
@@ -1574,7 +1572,7 @@ export async function bootstrapAppSession(
         toolbar.selectMilitaryCompanies(militiaCommands.getSelectedCompanyIds());
         return;
       }
-      ambientAudio.playUiSound('military_company_select');
+      ambientAudio.playAgentSelection('military-company');
       villagerInspector.clearSelection();
       worldMapUi.townReport.close();
       resourceInspector.clearSelection();

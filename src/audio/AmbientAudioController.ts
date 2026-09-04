@@ -21,7 +21,11 @@ import type {
 } from '../world/seasonPolicy.ts';
 import type { SettlementSchedule } from '../world/settlementSchedule.ts';
 import { AmbientAudio } from './AmbientAudio.ts';
-import { AMBIENT_LAYERS } from './audioCatalog.ts';
+import {
+  AMBIENT_LAYERS,
+  MILITARY_ORDER_SOUND_IDS,
+  pickMilitaryOrderSoundId,
+} from './audioCatalog.ts';
 import {
   buildSettlementZones,
   evaluateAmbientRules,
@@ -38,6 +42,7 @@ import type {
   BuildingAudioKind,
   ChapelBellTier,
   FootstepEvent,
+  MilitaryOrderSoundId,
   MusicTrackId,
   ThreatAlertSoundKind,
   UiSoundId,
@@ -58,6 +63,7 @@ import { ForestWindAudio } from './ForestWindAudio.ts';
 import { forestWindTargetMix } from './forestWindRules.ts';
 import { setExternalSoundtrackActive } from './audioPlaybackState.ts';
 import {
+  agentSelectionZoomGain,
   AgentSelectionAudio,
   type AgentSelectionKind,
 } from './AgentSelectionAudio.ts';
@@ -106,6 +112,7 @@ export class AmbientAudioController {
   private readonly worldFoley = new WorldFoleyAudio();
   private readonly config: AmbientAudioControllerConfig;
   private readonly chapelPositions: ChapelBellPosition[] = [];
+  private lastMilitaryOrderSoundId: MilitaryOrderSoundId | null = null;
   private lastChapelBuildingSnapshot: ReadonlyMap<string, BuildingState> | null = null;
   private readonly chapelTick: ChapelBellTick = {
     dtSeconds: 0,
@@ -335,7 +342,10 @@ export class AmbientAudioController {
       enabled && this.musicEnabled && this.gameplayMusicActive,
     );
     this.uiAudio.setEnabled(enabled);
-    if (enabled) this.uiInteractionAudio.preload();
+    if (enabled) {
+      this.uiInteractionAudio.preload();
+      this.uiAudio.preload(MILITARY_ORDER_SOUND_IDS);
+    }
     this.agentSelectionAudio.setEnabled(enabled);
     if (!enabled) {
       this.running = false;
@@ -407,8 +417,20 @@ export class AmbientAudioController {
     this.uiAudio.play(id);
   }
 
+  playMilitaryOrderAcknowledgement(): void {
+    const id = pickMilitaryOrderSoundId(this.lastMilitaryOrderSoundId);
+    this.lastMilitaryOrderSoundId = id;
+    this.uiAudio.play(id);
+  }
+
   playAgentSelection(kind: AgentSelectionKind): void {
-    this.agentSelectionAudio.play(kind);
+    this.agentSelectionAudio.play(
+      kind,
+      agentSelectionZoomGain(
+        this.config.getOrbitDistance(),
+        this.config.isFirstPersonActive(),
+      ),
+    );
   }
 
   playFootstep(event: FootstepEvent): void {

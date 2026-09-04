@@ -49,10 +49,15 @@ to every panel.
 | `road_place` / `dry_stone_wall_place` | Commit terrain infrastructure | Road or wall accepted | Material-specific |
 | `road_remove` / `dry_stone_wall_remove` | Remove terrain infrastructure | Road or wall deleted | Material-specific |
 | `edit_undo` / `edit_redo` | Reverse or restore a road edit | Road-tool history | Directional |
-| `military_move_order` | Accepted tactical movement | Right-click open ground | Tactical |
-| `military_attack_order` | Accepted hostile order | Right-click enemy or camp | Tactical, heavier |
+| `military_order_1` … `military_order_6` | Accepted tactical order | Move or attack order for any militia or mercenary company | Random six-clip pool |
 | `military_company_select` | Formation selected | Click or drag-select company | Tactical |
 | `quarry_select` / `foraging_select` | Strategic resource selected | Map resource icons | Material-specific |
+
+Direct click acknowledgements for people, laborers, animals, and military
+companies use a close-camera gain curve. They reach full volume only at the
+closest RTS zoom or in first person, and sit at a six-percent floor from the
+baseline view outward. Move and attack order acknowledgements do not use this
+falloff and remain legible from the strategic camera.
 
 Open/on directions use a slightly raised playback rate; close/off directions
 use a lowered rate. Sliders map their value continuously to pitch and are

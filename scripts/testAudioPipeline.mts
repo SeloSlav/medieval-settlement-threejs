@@ -16,6 +16,7 @@ import {
   DOG_SELECTION_CLIP,
   FARM_WORKERS_SINGING_CLIP,
   FIRE_CRACKLE_CLIP,
+  MILITARY_ORDER_SOUND_IDS,
   MUSIC_TRACKS,
   OX_SELECTION_CLIPS,
   PERSON_SELECTION_CLIPS,
@@ -24,10 +25,15 @@ import {
   UI_SOUNDS,
   WORKER_ACTIVITY_CLIPS,
   WORLD_FOLEY_CLIPS,
+  pickMilitaryOrderSoundId,
   type AudioClipDefinition,
 } from '../src/audio/audioCatalog.ts';
 import {
+  AGENT_SELECTION_FULL_VOLUME_ORBIT_DISTANCE,
+  AGENT_SELECTION_QUIET_GAIN,
+  AGENT_SELECTION_QUIET_ORBIT_DISTANCE,
   AgentSelectionAudio,
+  agentSelectionZoomGain,
   pickSelectionClipIndex,
 } from '../src/audio/AgentSelectionAudio.ts';
 import { BUILDING_KINDS } from '../src/generated/gameBalance.ts';
@@ -781,6 +787,15 @@ async function main(): Promise<void> {
     && DOG_SELECTION_CLIP.path === '/sounds/animals/dog_selected.mp3',
     'Direct agent selection needs six lines per voice, three ox reactions, and one dog reaction',
   );
+  invariant(
+    agentSelectionZoomGain(AGENT_SELECTION_FULL_VOLUME_ORBIT_DISTANCE) === 1
+    && agentSelectionZoomGain(AGENT_SELECTION_QUIET_ORBIT_DISTANCE) === AGENT_SELECTION_QUIET_GAIN
+    && agentSelectionZoomGain(240) === AGENT_SELECTION_QUIET_GAIN
+    && agentSelectionZoomGain(240, true) === 1
+    && agentSelectionZoomGain(44) > AGENT_SELECTION_QUIET_GAIN
+    && agentSelectionZoomGain(44) < 1,
+    'Click-to-select acknowledgements must fall to a quiet floor outside intimate zoom',
+  );
   for (const voice of ['male', 'female'] as const) {
     PERSON_SELECTION_CLIPS[voice].forEach((clip, index) => {
       invariant(
@@ -838,23 +853,27 @@ async function main(): Promise<void> {
     selectionMixer.play('woman');
     selectionMixer.play('ox');
     selectionMixer.play('dog');
+    selectionMixer.play('military-company', AGENT_SELECTION_QUIET_GAIN);
     invariant(
-      selectionPlays.length === 5
+      selectionPlays.length === 6
       && selectionPlays[0]?.src === PERSON_SELECTION_CLIPS.male[0]?.path
       && selectionPlays[1]?.src === PERSON_SELECTION_CLIPS.male[1]?.path
       && selectionPlays[2]?.src === PERSON_SELECTION_CLIPS.female[0]?.path
       && selectionPlays[3]?.src === OX_SELECTION_CLIPS[0]?.path
-      && selectionPlays[4]?.src === DOG_SELECTION_CLIP.path,
-      'Direct clicks must choose the matching person voice, ox clip, or dog clip without repeating',
+      && selectionPlays[4]?.src === DOG_SELECTION_CLIP.path
+      && selectionPlays[5]?.src === UI_SOUNDS.military_company_select.path,
+      'Direct clicks must choose the matching person, animal, or company acknowledgement',
     );
     invariant(
       selectionPlays[0]?.volume === (PERSON_SELECTION_CLIPS.male[0]?.volume ?? 1) * 0.5
+      && selectionPlays[5]?.volume
+        === (UI_SOUNDS.military_company_select.volume ?? 1) * 0.5 * AGENT_SELECTION_QUIET_GAIN
       && selectionPlays.every((play) => play.playbackRate >= 0.96 && play.playbackRate <= 1.04),
-      'Selection acknowledgements must respect effects volume and restrained pitch variation',
+      'Selection acknowledgements must respect effects volume, zoom falloff, and restrained pitch variation',
     );
     selectionMixer.setEnabled(false);
     selectionMixer.play('man');
-    invariant(selectionPlays.length === 5, 'Master audio mute must suppress selection cues');
+    invariant(selectionPlays.length === 6, 'Master audio mute must suppress selection cues');
     selectionMixer.dispose();
   } finally {
     if (selectionAudioDescriptor) {
@@ -941,6 +960,17 @@ async function main(): Promise<void> {
     viewRadius: 120,
     orbitDistance: 18,
   };
+  invariant(
+    MILITARY_ORDER_SOUND_IDS.length === 6
+    && new Set(MILITARY_ORDER_SOUND_IDS.map((id) => UI_SOUNDS[id].path)).size === 6,
+    'Military move and attack orders must share six distinct acknowledgement clips',
+  );
+  invariant(
+    pickMilitaryOrderSoundId(null, 0) === 'military_order_1'
+    && pickMilitaryOrderSoundId(null, 0.999999) === 'military_order_6'
+    && pickMilitaryOrderSoundId('military_order_1', 0) !== 'military_order_1',
+    'Military order acknowledgement selection must cover the pool without immediate repeats',
+  );
   const worldAssets = manifest.assets.filter((asset) => (
     asset.group === 'world-foley'
     || asset.group === 'movement-foley'

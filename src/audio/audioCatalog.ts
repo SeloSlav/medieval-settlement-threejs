@@ -52,6 +52,8 @@ export type CombatVoiceSide = 'defender' | 'raider';
 export type CombatVoiceCue = 'battle' | 'charge' | 'damage' | 'flee' | 'rout';
 export type CombatVoiceSoundKind = `${CombatVoiceSide}-${CombatVoiceCue}`;
 
+export type MilitaryOrderSoundId = `military_order_${1 | 2 | 3 | 4 | 5 | 6}`;
+
 export type UiSoundId =
   | 'road_place'
   | 'dry_stone_wall_place'
@@ -80,8 +82,7 @@ export type UiSoundId =
   | 'game_transaction'
   | 'development_unlock'
   | 'game_danger'
-  | 'military_move_order'
-  | 'military_attack_order'
+  | MilitaryOrderSoundId
   | 'military_company_select'
   | 'quarry_select'
   | 'foraging_select';
@@ -378,12 +379,39 @@ export const UI_SOUNDS: Record<UiSoundId, AudioClipDefinition> = {
   game_transaction: { path: '/sounds/ui/game_transaction.mp3', volume: 0.19 },
   development_unlock: { path: '/sounds/ui/development_unlock.mp3', volume: 0.65 },
   game_danger: { path: '/sounds/ui/game_danger.mp3', volume: 0.23 },
-  military_move_order: { path: '/sounds/ui/military_move_order.mp3', volume: 0.2 },
-  military_attack_order: { path: '/sounds/ui/military_attack_order.mp3', volume: 0.24 },
+  military_order_1: { path: '/sounds/ui/military_order_1.mp3', volume: 0.22 },
+  military_order_2: { path: '/sounds/ui/military_order_2.mp3', volume: 0.22 },
+  military_order_3: { path: '/sounds/ui/military_order_3.mp3', volume: 0.22 },
+  military_order_4: { path: '/sounds/ui/military_order_4.mp3', volume: 0.22 },
+  military_order_5: { path: '/sounds/ui/military_order_5.mp3', volume: 0.22 },
+  military_order_6: { path: '/sounds/ui/military_order_6.mp3', volume: 0.22 },
   military_company_select: { path: '/sounds/ui/military_company_select.mp3', volume: 0.18 },
   quarry_select: { path: '/sounds/ui/quarry_select.mp3', volume: 0.14 },
   foraging_select: { path: '/sounds/ui/foraging_select.mp3', volume: 0.13 },
 };
+
+export const MILITARY_ORDER_SOUND_IDS = [
+  'military_order_1',
+  'military_order_2',
+  'military_order_3',
+  'military_order_4',
+  'military_order_5',
+  'military_order_6',
+] as const satisfies readonly MilitaryOrderSoundId[];
+
+export function pickMilitaryOrderSoundId(
+  previous: MilitaryOrderSoundId | null,
+  randomValue = Math.random(),
+): MilitaryOrderSoundId {
+  const candidates = previous == null
+    ? MILITARY_ORDER_SOUND_IDS
+    : MILITARY_ORDER_SOUND_IDS.filter((id) => id !== previous);
+  const boundedRandom = Number.isFinite(randomValue)
+    ? Math.max(0, Math.min(0.999999999, randomValue))
+    : 0;
+  return candidates[Math.floor(boundedRandom * candidates.length)]
+    ?? MILITARY_ORDER_SOUND_IDS[0];
+}
 
 function personSelectionVariants(
   voice: PersonSelectionVoice,

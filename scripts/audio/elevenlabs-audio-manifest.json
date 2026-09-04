@@ -2272,22 +2272,62 @@
       "promptInfluence": 0.97
     },
     {
-      "id": "ui-military-move-order",
+      "id": "ui-military-order-1",
       "group": "gameplay-gap-pass-v1",
       "kind": "sound-effect",
-      "output": "public/sounds/ui/military_move_order.mp3",
-      "prompt": "Short grounded medieval tactical move acknowledgement: a wooden command baton taps a parchment map once, followed by one leather harness shift and planted boot on packed earth, decisive but restrained, no voice, shout, horn, music, magic, electronic or arcade sound",
-      "durationSeconds": 0.8,
+      "output": "public/sounds/ui/military_order_1.mp3",
+      "prompt": "Short grounded medieval RTS military-company acknowledgement for an accepted move or attack order, variation one, immediate and readable for militia and mercenary formations, no music or electronic sound",
+      "durationSeconds": 1,
       "loop": false,
-      "promptInfluence": 0.97
+      "promptInfluence": 0.98
     },
     {
-      "id": "ui-military-attack-order",
+      "id": "ui-military-order-2",
       "group": "gameplay-gap-pass-v1",
       "kind": "sound-effect",
-      "output": "public/sounds/ui/military_attack_order.mp3",
-      "prompt": "Short grounded medieval tactical attack acknowledgement: a steel sidearm clears a leather scabbard by a few inches with one firm shield-grip thump, controlled and dangerous, no clash, battle, voice, shout, horn, music, electronic or arcade sound",
-      "durationSeconds": 0.9,
+      "output": "public/sounds/ui/military_order_2.mp3",
+      "prompt": "Short grounded medieval RTS military-company acknowledgement for an accepted move or attack order, variation two, immediate and readable for militia and mercenary formations, no music or electronic sound",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.98
+    },
+    {
+      "id": "ui-military-order-3",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/military_order_3.mp3",
+      "prompt": "Short grounded medieval RTS military-company acknowledgement for an accepted move or attack order, variation three, immediate and readable for militia and mercenary formations, no music or electronic sound",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.98
+    },
+    {
+      "id": "ui-military-order-4",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/military_order_4.mp3",
+      "prompt": "Short grounded medieval RTS military-company acknowledgement for an accepted move or attack order, variation four, immediate and readable for militia and mercenary formations, no music or electronic sound",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.98
+    },
+    {
+      "id": "ui-military-order-5",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/military_order_5.mp3",
+      "prompt": "Short grounded medieval RTS military-company acknowledgement for an accepted move or attack order, variation five, immediate and readable for militia and mercenary formations, no music or electronic sound",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.98
+    },
+    {
+      "id": "ui-military-order-6",
+      "group": "gameplay-gap-pass-v1",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/military_order_6.mp3",
+      "prompt": "Short grounded medieval RTS military-company acknowledgement for an accepted move or attack order, variation six, immediate and readable for militia and mercenary formations, no music or electronic sound",
+      "durationSeconds": 1,
       "loop": false,
       "promptInfluence": 0.98
     },

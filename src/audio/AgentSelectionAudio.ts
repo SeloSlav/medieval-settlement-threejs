@@ -3,16 +3,22 @@ import {
   DOG_SELECTION_CLIP,
   OX_SELECTION_CLIPS,
   PERSON_SELECTION_CLIPS,
+  UI_SOUNDS,
   type AudioClipDefinition,
   type PersonSelectionVoice,
 } from './audioCatalog.ts';
 
-export type AgentSelectionKind = VillagerModelVariant | 'ox' | 'dog';
+export const AGENT_SELECTION_FULL_VOLUME_ORBIT_DISTANCE = 10;
+export const AGENT_SELECTION_QUIET_ORBIT_DISTANCE = 88;
+export const AGENT_SELECTION_QUIET_GAIN = 0.06;
 
-type SelectionGroup = PersonSelectionVoice | 'ox' | 'dog';
+export type AgentSelectionKind = VillagerModelVariant | 'ox' | 'dog' | 'military-company';
+
+type SelectionGroup = PersonSelectionVoice | 'ox' | 'dog' | 'military-company';
 
 /**
- * One-shot acknowledgement player for deliberate world clicks on people and oxen.
+ * One-shot acknowledgement player for deliberate world clicks on people,
+ * animals, and military companies.
  * A new click replaces the prior acknowledgement so rapid inspection stays legible.
  */
 export class AgentSelectionAudio {
@@ -26,14 +32,16 @@ export class AgentSelectionAudio {
     this.random = random;
   }
 
-  play(kind: AgentSelectionKind): void {
+  play(kind: AgentSelectionKind, zoomGain = 1): void {
     if (!this.enabled || typeof Audio === 'undefined') return;
     const group = selectionGroup(kind);
     const clips = group === 'ox'
       ? OX_SELECTION_CLIPS
       : group === 'dog'
         ? [DOG_SELECTION_CLIP]
-        : PERSON_SELECTION_CLIPS[group];
+        : group === 'military-company'
+          ? [UI_SOUNDS.military_company_select]
+          : PERSON_SELECTION_CLIPS[group];
     const clipIndex = pickSelectionClipIndex(
       clips.length,
       this.lastClipIndex.get(group) ?? -1,
@@ -42,7 +50,7 @@ export class AgentSelectionAudio {
     const clip = clips[clipIndex];
     if (!clip) return;
     this.lastClipIndex.set(group, clipIndex);
-    this.playClip(clip, group === 'ox');
+    this.playClip(clip, group === 'ox', zoomGain);
   }
 
   setEnabled(enabled: boolean): void {
@@ -63,14 +71,14 @@ export class AgentSelectionAudio {
     this.lastClipIndex.clear();
   }
 
-  private playClip(clip: AudioClipDefinition, isOx: boolean): void {
+  private playClip(clip: AudioClipDefinition, isOx: boolean, zoomGain: number): void {
     const audio = this.audio ?? new Audio();
     this.audio = audio;
     audio.preload = 'auto';
     audio.pause();
     audio.currentTime = 0;
     audio.src = clip.path;
-    audio.volume = clamp01((clip.volume ?? 1) * this.volume);
+    audio.volume = clamp01((clip.volume ?? 1) * this.volume * clamp01(zoomGain));
     const pitchRange = isOx ? 0.035 : 0.04;
     audio.playbackRate = 1 - pitchRange + this.random() * pitchRange * 2;
     void audio.play().catch(() => undefined);
@@ -94,7 +102,27 @@ export function pickSelectionClipIndex(
 function selectionGroup(kind: AgentSelectionKind): SelectionGroup {
   if (kind === 'ox') return 'ox';
   if (kind === 'dog') return 'dog';
+  if (kind === 'military-company') return 'military-company';
   return kind === 'woman' ? 'female' : 'male';
+}
+
+export function agentSelectionZoomGain(
+  orbitDistance: number,
+  firstPersonActive = false,
+): number {
+  if (firstPersonActive) return 1;
+  if (!Number.isFinite(orbitDistance)) return AGENT_SELECTION_QUIET_GAIN;
+  if (orbitDistance <= AGENT_SELECTION_FULL_VOLUME_ORBIT_DISTANCE) return 1;
+  if (orbitDistance >= AGENT_SELECTION_QUIET_ORBIT_DISTANCE) {
+    return AGENT_SELECTION_QUIET_GAIN;
+  }
+  const progress = (
+    orbitDistance - AGENT_SELECTION_FULL_VOLUME_ORBIT_DISTANCE
+  ) / (
+    AGENT_SELECTION_QUIET_ORBIT_DISTANCE - AGENT_SELECTION_FULL_VOLUME_ORBIT_DISTANCE
+  );
+  const smoothed = progress * progress * (3 - 2 * progress);
+  return 1 + (AGENT_SELECTION_QUIET_GAIN - 1) * smoothed;
 }
 
 function clamp01(value: number): number {
