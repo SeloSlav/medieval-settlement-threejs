@@ -75,17 +75,26 @@ export function isVegetableGardenSpecialization(
   return BACKYARD_GARDEN_DEFINITIONS[kind].specializationOf === 'vegetable_garden';
 }
 
-/**
- * Cultivated extensions are prepared ground, not little buildings. Their
- * active project is represented by the planted footprint immediately; only
- * fixtures such as livestock pens and apiaries use a construction worksite.
- */
+/** Planting projects skip the fixture/scaffold construction presentation. */
 export function isPlantableBackyardGardenKind(kind: BackyardGardenKind): boolean {
   return kind === 'orchard'
     || kind === 'vegetable_garden'
     || kind === 'flower_garden'
     || kind === 'herb_garden'
     || isOrchardSpecialization(kind)
+    || isVegetableGardenSpecialization(kind);
+}
+
+/**
+ * Only bed-grown plants replace the natural yard surface. Tree orchards grow
+ * directly from grass, while the unselected orchard shell remains invisible.
+ */
+export function backyardGardenUsesCultivatedSoil(kind: BackyardGardenKind): boolean {
+  return kind === 'aronia_orchard'
+    || kind === 'rosehip_orchard'
+    || kind === 'vegetable_garden'
+    || kind === 'flower_garden'
+    || kind === 'herb_garden'
     || isVegetableGardenSpecialization(kind);
 }
 

@@ -23,7 +23,10 @@ import {
   CULTIVATED_SOIL_TEXTURE_PATHS,
   CULTIVATED_SOIL_TEXTURES,
 } from '../terrain/cultivatedSoilAssets.ts';
-import { isPlantableBackyardGardenKind } from './backyardGarden.ts';
+import {
+  backyardGardenUsesCultivatedSoil,
+  isPlantableBackyardGardenKind,
+} from './backyardGarden.ts';
 
 export type BackyardGardenMeshOptions = {
   width?: number;
@@ -812,7 +815,7 @@ export function createBackyardPlantingLayout(
   depth: number,
   seed: number,
 ): BackyardPlantingLayout {
-  if (!isPlantableBackyardGardenKind(kind)) {
+  if (!backyardGardenUsesCultivatedSoil(kind)) {
     return { pattern: 'full', splitAxis: 'x', plots: [], cultivatedCoverage: 0 };
   }
 
@@ -1133,7 +1136,6 @@ function addOrchard(
   seed: number,
   plants: BackyardPlantCatalog | null,
 ): void {
-  addPlantingSoil(group, `${kind}_orchard` as BackyardGardenKind, width, depth, seed);
   const { columns, rows, positions } = orchardTreeGrid(width, depth);
   group.userData.orchardGrid = { columns, rows };
   positions.forEach(([x, z], index) => addFruitTree(group, kind, x!, z!, index, seed + index * 997, plants));
@@ -1148,41 +1150,9 @@ function addOrchard(
   );
 }
 
-function addPreparedOrchard(
-  group: THREE.Group,
-  width: number,
-  depth: number,
-  seed: number,
-): void {
-  addPlantingSoil(group, 'orchard', width, depth, seed);
-  const { columns, rows, positions } = orchardTreeGrid(width, depth);
-  group.userData.orchardGrid = { columns, rows };
+function addPreparedOrchard(group: THREE.Group): void {
   group.userData.orchardAwaitingSpecialization = true;
-  for (const [x, z] of positions) {
-    addMesh(
-      group,
-      new THREE.CylinderGeometry(0.48, 0.58, 0.055, 14),
-      MATERIALS.darkSoil,
-      x,
-      0.03,
-      z,
-      undefined,
-      undefined,
-      'Prepared orchard planting pit',
-    );
-    addMesh(
-      group,
-      new THREE.CylinderGeometry(0.025, 0.04, 1.15, 6),
-      MATERIALS.darkTimber,
-      x + 0.34,
-      0.575,
-      z,
-      new THREE.Euler(0, 0, -0.04),
-      undefined,
-      'Orchard planting stake',
-    );
-  }
-  addHarvestBarrel(group, width * 0.34, -depth * 0.34, false, MATERIALS.apple);
+  group.userData.orchardVisualState = 'awaiting-specialization-empty';
 }
 
 function orchardBushGrid(width: number, depth: number): Array<[number, number]> {
@@ -1929,7 +1899,7 @@ export function createBackyardGardenMesh(
 
   switch (kind) {
     case 'orchard':
-      addPreparedOrchard(group, width, depth, seed);
+      addPreparedOrchard(group);
       break;
     case 'apple_orchard':
       addOrchard(group, 'apple', width, depth, seed, plants);

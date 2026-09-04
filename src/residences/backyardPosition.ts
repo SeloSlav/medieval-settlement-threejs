@@ -12,8 +12,8 @@ import type {
 } from '../resources/types.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
 import {
+  backyardGardenUsesCultivatedSoil,
   backyardGardenKindFromId,
-  isPlantableBackyardGardenKind,
 } from './backyardGarden.ts';
 
 export type BackyardGardenPlacement = {
@@ -37,7 +37,7 @@ const BACKYARD_FIT_SAMPLE_SPACING = 0.25;
 export const BACKYARD_GROUNDCOVER_CLEARANCE_MARGIN = 0.55;
 
 export function backyardGardenClearsGroundcover(kind: BackyardGardenState['kind']): boolean {
-  return isPlantableBackyardGardenKind(kind);
+  return backyardGardenUsesCultivatedSoil(kind);
 }
 
 export function backyardGardenClearancePolygon(
@@ -85,7 +85,7 @@ export function collectBackyardGardenClearancePolygons(
   for (const residence of residenceById.values()) {
     if (clearedResidenceIds.has(residence.id)) continue;
     const projectKind = backyardGardenKindFromId(residence.backyardProjectKind ?? 0);
-    if (!projectKind || !isPlantableBackyardGardenKind(projectKind)) continue;
+    if (!projectKind || !backyardGardenUsesCultivatedSoil(projectKind)) continue;
     const zone = zoneById.get(residence.zoneId);
     if (!zone) continue;
     const placement = backyardGardenPlacement(residence, zone);

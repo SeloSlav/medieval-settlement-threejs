@@ -2,12 +2,14 @@
 
 ## Player flow
 
-1. A completed residence starts an **Orchard** backyard project and its prepared soil appears immediately across the fitted parcel; cultivated ground does not use a scaffold/worksite animation.
+1. A completed residence starts an **Orchard** backyard project without a scaffold/worksite animation. The backyard stays visually unchanged until the household selects a plant.
 2. Timber and stone are still delivered physically and one free household laborer resolves it through the existing residence-project pipeline.
-3. The completed orchard is prepared but unplanted and produces nothing.
+3. The completed orchard is an empty specialization slot and produces nothing.
 4. Selecting the orchard opens five planting choices: apple, cherry, pear, aronia, and rosehip.
 5. Planting starts the species maturity timer. Output remains zero until the timer has elapsed and the species' harvest window is open.
 6. Demolition removes either the prepared orchard or its specialization. After salvage is hauled away, the plot can select any backyard extension again.
+
+Apple, cherry, and pear trees grow directly from the natural grass surface. Fruiting bush orchards retain cultivated rows.
 
 The development schema intentionally makes Orchard the canonical first kind. Fruit and berry specialization ids are grouped after it, and the server rejects direct specialized-orchard construction; every planting therefore receives its full maturity timer.
 
