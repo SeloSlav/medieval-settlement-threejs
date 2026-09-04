@@ -156,6 +156,8 @@ export type WorldFoleySoundId =
   | 'animal_cattle_2'
   | 'animal_sheep_1'
   | 'animal_sheep_2'
+  | 'animal_goat_1'
+  | 'animal_goat_2'
   | 'animal_swine_1'
   | 'animal_swine_2'
   | 'animal_chicken_1'
@@ -513,6 +515,8 @@ export const WORLD_FOLEY_CLIPS: Record<WorldFoleySoundId, AudioClipDefinition> =
   animal_cattle_2: worldFoleyClip('animal_cattle_2', 0.045),
   animal_sheep_1: worldFoleyClip('animal_sheep_1', 0.045),
   animal_sheep_2: worldFoleyClip('animal_sheep_2', 0.045),
+  animal_goat_1: worldFoleyClip('animal_goat_1', 0.045),
+  animal_goat_2: worldFoleyClip('animal_goat_2', 0.045),
   animal_swine_1: worldFoleyClip('animal_swine_1', 0.045),
   animal_swine_2: worldFoleyClip('animal_swine_2', 0.045),
   animal_chicken_1: worldFoleyClip('animal_chicken_1', 0.04),

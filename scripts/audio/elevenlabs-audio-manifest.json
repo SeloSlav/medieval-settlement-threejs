@@ -1206,10 +1206,10 @@
       "group": "building-foley",
       "kind": "sound-effect",
       "output": "public/sounds/buildings/cavalry_yard.mp3",
-      "prompt": "Short distinctive late-medieval cavalry-yard Foley: a horse stamps one firm hoof on packed earth, then a saddle stirrup and bridle rings give a restrained leather-and-iron jingle. No neigh, gallop, human voice, battle, or music",
-      "durationSeconds": 2.3,
+      "prompt": "Immediate natural horse acknowledgement for selecting a medieval Cavalry Yard: one close, recognizable horse reaction with restrained stable-yard character, short and readable as a building-selection cue, no rider, speech, battle, music, or electronic sound",
+      "durationSeconds": 1,
       "loop": false,
-      "promptInfluence": 0.92
+      "promptInfluence": 0.95
     },
     {
       "id": "building-kennel",
@@ -1902,6 +1902,26 @@
       "promptInfluence": 0.86
     },
     {
+      "id": "world-animal-goat-1",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/animal_goat_1.mp3",
+      "prompt": "Immediate premium medieval RTS selection cue for a Goat Pen backyard extension: short natural goat bleats in a small timber enclosure, close and readable for both choosing goats and selecting the finished extension, no music, no human voice, no electronic or science-fiction sound",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.95
+    },
+    {
+      "id": "world-animal-goat-2",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/animal_goat_2.mp3",
+      "prompt": "Immediate premium medieval RTS selection cue for a Goat Pen backyard extension: short natural goat bleats in a small timber enclosure, close and readable for both choosing goats and selecting the finished extension, no music, no human voice, no electronic or science-fiction sound",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.95
+    },
+    {
       "id": "world-animal-swine-1",
       "group": "world-foley",
       "kind": "sound-effect",
@@ -1926,10 +1946,10 @@
       "group": "world-foley",
       "kind": "sound-effect",
       "output": "public/sounds/world/animal_chicken_1.mp3",
-      "prompt": "Short gentle hen-yard one-shot: one hen gives two quiet clucks while scratching dry soil and straw, no rooster, no flock chorus, no human voices, no music",
-      "durationSeconds": 2,
+      "prompt": "Immediate premium medieval RTS selection cue for a chicken-coop backyard extension: a short tactile wooden coop accent with a restrained chicken character, close and readable for both choosing the coop option and selecting the finished extension, no music, no voice, no electronic or science-fiction sound",
+      "durationSeconds": 1,
       "loop": false,
-      "promptInfluence": 0.86
+      "promptInfluence": 0.95
     },
     {
       "id": "world-animal-chicken-2",
@@ -2306,10 +2326,10 @@
       "group": "gameplay-gap-pass-v1",
       "kind": "sound-effect",
       "output": "public/sounds/world/animal_horse_1.mp3",
-      "prompt": "One isolated realistic calm pasture horse sound at medium distance: a soft low nasal nicker with one quiet breath, adult farm horse, natural outdoor perspective, no hoofbeat, harness, rider, stable crowd, human voice, music, or other animals",
-      "durationSeconds": 1.2,
+      "prompt": "Immediate natural horse acknowledgement for selecting a medieval Cavalry Yard: one close, recognizable horse reaction with restrained stable-yard character, short and readable as a building-selection cue, no rider, speech, battle, music, or electronic sound",
+      "durationSeconds": 1,
       "loop": false,
-      "promptInfluence": 0.96
+      "promptInfluence": 0.95
     },
     {
       "id": "world-animal-horse-2",

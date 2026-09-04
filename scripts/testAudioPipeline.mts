@@ -953,8 +953,8 @@ async function main(): Promise<void> {
   ));
   invariant(
     worldAssets.length === Object.keys(WORLD_FOLEY_CLIPS).length
-    && worldAssets.length === 67,
-    'World Foley manifest and runtime catalog must retain all 67 cues',
+    && worldAssets.length === 69,
+    'World Foley manifest and runtime catalog must retain all 69 cues',
   );
   for (const [id, clip] of Object.entries(WORLD_FOLEY_CLIPS)) {
     const asset = worldAssets.find((candidate) => (

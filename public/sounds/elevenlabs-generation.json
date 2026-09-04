@@ -214,13 +214,13 @@
     {
       "id": "building-cavalry-yard",
       "output": "public/sounds/buildings/cavalry_yard.mp3",
-      "generatedAt": "2026-09-02T09:11:49.192Z",
+      "generatedAt": "2026-09-04T13:25:00.645Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "23",
-      "byteLength": 37660,
-      "sha256": "9325046651a34135cfeb9e37db8a302852fca9235678ec103512de7ce9506253"
+      "outputFormat": "mp3_48000_192",
+      "characterCost": "10",
+      "byteLength": 25389,
+      "sha256": "dd996e984ea6222b455f0b8429f1a95db5df2d74fd0d9b88be5c90c64a9b4cc2"
     },
     {
       "id": "building-chandlery",
@@ -2040,13 +2040,13 @@
     {
       "id": "world-animal-chicken-1",
       "output": "public/sounds/world/animal_chicken_1.mp3",
-      "generatedAt": "2026-08-04T10:42:32.739Z",
+      "generatedAt": "2026-09-04T12:38:43.564Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "20",
-      "byteLength": 33062,
-      "sha256": "3ff96409bc7490290214ff23f5002ce4a719ac2c256fa98eaaf217f1037413fc"
+      "outputFormat": "mp3_48000_192",
+      "characterCost": "10",
+      "byteLength": 25389,
+      "sha256": "0fb15b14572beff15f1296225ffc79380a177c367096b12f5145e97a91c662e6"
     },
     {
       "id": "world-animal-chicken-2",
@@ -2084,13 +2084,13 @@
     {
       "id": "world-animal-horse-1",
       "output": "public/sounds/world/animal_horse_1.mp3",
-      "generatedAt": "2026-09-02T16:23:33.775Z",
+      "generatedAt": "2026-09-04T13:25:00.645Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "12",
-      "byteLength": 20106,
-      "sha256": "1d5752495bd54426b7e1a37d26a896d36d38998bfd211dc8105104c3171e7047"
+      "outputFormat": "mp3_48000_192",
+      "characterCost": "10",
+      "byteLength": 25389,
+      "sha256": "dd996e984ea6222b455f0b8429f1a95db5df2d74fd0d9b88be5c90c64a9b4cc2"
     },
     {
       "id": "world-animal-horse-2",
@@ -2124,6 +2124,28 @@
       "characterCost": "20",
       "byteLength": 33062,
       "sha256": "f5132c4ee5f8071976b503a859f0b5bcea8c2e70e95044ac906e6c126738c295"
+    },
+    {
+      "id": "world-animal-goat-1",
+      "output": "public/sounds/world/animal_goat_1.mp3",
+      "generatedAt": "2026-09-04T12:39:38.059Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_48000_192",
+      "characterCost": "10",
+      "byteLength": 25389,
+      "sha256": "24dc458c0012748e8fad6c255521407b6fff72e1fccdcb0ae5d9c3cc02adf8fd"
+    },
+    {
+      "id": "world-animal-goat-2",
+      "output": "public/sounds/world/animal_goat_2.mp3",
+      "generatedAt": "2026-09-04T12:39:38.059Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_48000_192",
+      "characterCost": "10",
+      "byteLength": 25389,
+      "sha256": "24dc458c0012748e8fad6c255521407b6fff72e1fccdcb0ae5d9c3cc02adf8fd"
     },
     {
       "id": "world-animal-swine-1",

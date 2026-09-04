@@ -77,7 +77,7 @@ type FireSnapshot = {
 
 type AnimalCandidate = {
   id: string;
-  kind: 'cattle' | 'sheep' | 'swine' | 'chicken' | 'deer' | 'horse';
+  kind: 'cattle' | 'sheep' | 'goat' | 'swine' | 'chicken' | 'deer' | 'horse';
   x: number;
   z: number;
 };
@@ -493,7 +493,7 @@ export class WorldFoleyAudio {
       const kind = garden.kind === 'chicken_pen'
         ? 'chicken'
         : garden.kind === 'goat_pen'
-          ? 'sheep'
+          ? 'goat'
           : garden.kind === 'pig_pen'
             ? 'swine'
             : null;
