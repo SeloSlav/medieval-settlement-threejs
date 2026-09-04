@@ -1,9 +1,13 @@
 import * as THREE from 'three';
-import type { WebGPURenderer } from 'three/webgpu';
-
-type CompileStateRenderer = Pick<WebGPURenderer,
-  'getRenderTarget' | 'setRenderTarget' | 'getMRT' | 'setMRT'
-  | 'toneMapping' | 'outputColorSpace'>;
+// Three's WebGPURenderer declarations omit these common Renderer methods.
+export type CompileStateRenderer = {
+  getRenderTarget(): THREE.RenderTarget | null;
+  setRenderTarget(target: THREE.RenderTarget | null): void;
+  getMRT(): unknown;
+  setMRT(mrt: unknown): void;
+  toneMapping: THREE.ToneMapping;
+  outputColorSpace: string;
+};
 type CompilePass = {
   renderTarget: ReturnType<CompileStateRenderer['getRenderTarget']>;
   getMRT(): ReturnType<CompileStateRenderer['getMRT']>;

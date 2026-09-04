@@ -610,6 +610,59 @@ export class App {
         fraction: 0.35,
       });
     }
+    const firstPlayableAssetStartedAt = performance.now();
+    let celestialSkyHydrationMs = 0;
+    let buildingMaterialHydrationMs = 0;
+    let vineyardHydrationMs = 0;
+    let villagerVisualHydrationMs = 0;
+    let founderRigPrewarmMs = 0;
+    let founderRigPrewarmCount = 0;
+    let villagerVisualsReady = false;
+    // Fetch/decode independent assets during vegetation preparation. Do not
+    // upload here: forest atlas baking temporarily owns the shared renderer.
+    const firstPlayableAssetResultsPromise = Promise.allSettled([
+      (async () => {
+        const startedAt = performance.now();
+        try {
+          await session.sceneManager.loadCelestialSky();
+        } finally {
+          celestialSkyHydrationMs = performance.now() - startedAt;
+        }
+      })(),
+      ...(import.meta.env.VITE_E2E_TEST !== '1'
+        ? [
+            (async () => {
+              const startedAt = performance.now();
+              try {
+                await initializeBuildingMaterialLibrary(
+                  session.sceneManager.textureAnisotropy,
+                );
+              } finally {
+                buildingMaterialHydrationMs = performance.now() - startedAt;
+              }
+            })(),
+            (async () => {
+              const startedAt = performance.now();
+              try {
+                await initializeVineyardVineResources(
+                  session.sceneManager.textureAnisotropy,
+                  session.sceneManager.rendererBackend,
+                );
+              } finally {
+                vineyardHydrationMs = performance.now() - startedAt;
+              }
+            })(),
+            (async () => {
+              const startedAt = performance.now();
+              try {
+                villagerVisualsReady = await session.villagers.visualAssetsReady;
+              } finally {
+                villagerVisualHydrationMs = performance.now() - startedAt;
+              }
+            })(),
+          ]
+        : []),
+    ]);
     session.sceneManager.render(0, session.cameraController.getOrbitDistance());
     if (import.meta.env.VITE_E2E_TEST !== '1') {
       session.loadingScreen?.setProgress({
@@ -629,65 +682,32 @@ export class App {
         this.toastManager?.show('Forest vegetation failed to load. Try refreshing the page.', { variant: 'error' });
       }
     }
-    const firstPlayableAssetStartedAt = performance.now();
-    let celestialSkyHydrationMs = 0;
-    let buildingMaterialHydrationMs = 0;
-    let vineyardHydrationMs = 0;
-    let villagerVisualHydrationMs = 0;
-    let founderRigPrewarmMs = 0;
-    let founderRigPrewarmCount = 0;
-    let villagerVisualsReady = false;
     session.loadingScreen?.setProgress({
       label: 'Finishing world…',
       detail: 'Hydrating sky and material textures',
       phase: 'vegetation',
       fraction: 0.86,
     });
-    const firstPlayableAssetResults = await Promise.allSettled([
-      (async () => {
-        const startedAt = performance.now();
-        try {
-          await session.sceneManager.loadCelestialSky();
-        } finally {
-          celestialSkyHydrationMs = performance.now() - startedAt;
-        }
-      })(),
-      ...(import.meta.env.VITE_E2E_TEST !== '1'
-        ? [
-            (async () => {
-              const startedAt = performance.now();
-              try {
-                await initializeBuildingMaterialLibrary(
-                  session.sceneManager.textureAnisotropy,
-                  (texture) => session.sceneManager.preloadTexture(texture),
-                );
-              } finally {
-                buildingMaterialHydrationMs = performance.now() - startedAt;
-              }
-            })(),
-            (async () => {
-              const startedAt = performance.now();
-              try {
-                await initializeVineyardVineResources(
-                  session.sceneManager.textureAnisotropy,
-                  session.sceneManager.rendererBackend,
-                  (texture) => session.sceneManager.preloadTexture(texture),
-                );
-              } finally {
-                vineyardHydrationMs = performance.now() - startedAt;
-              }
-            })(),
-            (async () => {
-              const startedAt = performance.now();
-              try {
-                villagerVisualsReady = await session.villagers.visualAssetsReady;
-              } finally {
-                villagerVisualHydrationMs = performance.now() - startedAt;
-              }
-            })(),
-          ]
-        : []),
+    const firstPlayableAssetResults = await firstPlayableAssetResultsPromise;
+    if (this.disposed) return;
+    // Hydration is cached; these calls upload the same full-quality textures
+    // only after the vegetation renderer lease has ended.
+    const textureUploadStartedAt = performance.now();
+    const textureUploads = await Promise.allSettled([
+      ...(firstPlayableAssetResults[1]?.status === 'fulfilled' ? [
+        initializeBuildingMaterialLibrary(session.sceneManager.textureAnisotropy,
+          (texture) => session.sceneManager.preloadTexture(texture)),
+      ] : []),
+      ...(firstPlayableAssetResults[2]?.status === 'fulfilled' ? [
+        initializeVineyardVineResources(session.sceneManager.textureAnisotropy,
+          session.sceneManager.rendererBackend,
+          (texture) => session.sceneManager.preloadTexture(texture)),
+      ] : []),
     ]);
+    const textureUploadMs = performance.now() - textureUploadStartedAt;
+    for (const result of textureUploads) {
+      if (result.status === 'rejected') console.warn('Startup texture upload deferred to covered render:', result.reason);
+    }
     if (this.disposed) return;
     if (firstPlayableAssetResults[0]?.status === 'rejected') {
       console.warn(
@@ -752,6 +772,11 @@ export class App {
       fraction: 0.94,
     });
     const gpuPrecompileStartedAt = performance.now();
+    let gpuTargetedCompileMs = 0;
+    let gpuCoveredRenderMs = 0;
+    let gpuCoveredWaitMs = 0;
+    let gpuCleanRenderMs = 0;
+    let gpuCleanWaitMs = 0;
     let gpuReady = true;
     const villagerPrewarm = session.villagers.beginFirstPlayableGpuPrewarm();
     const foundersCampPrewarm = session.buildingMarkers.beginFoundersCampGpuPrewarm();
@@ -774,6 +799,7 @@ export class App {
       session.sceneManager.invalidateStaticShadows();
     };
     try {
+      const compileStartedAt = performance.now();
       try {
         // This work cannot be cancelled by a timeout. Await it while the loader
         // is opaque so an unfinished WebGPU compile cannot collide with the
@@ -782,13 +808,19 @@ export class App {
       } catch (error) {
         // A targeted compile failure must not skip the live post/shadow warmup.
         console.warn('Targeted first-playable shader compile is unavailable:', error);
+      } finally {
+        gpuTargetedCompileMs = performance.now() - compileStartedAt;
       }
       // Keep the temporary roots attached for one covered submission so the
       // exact offscreen post and shadow paths are resident before interaction.
       session.sceneManager.invalidateStaticShadows();
+      const coveredRenderStartedAt = performance.now();
       session.sceneManager.render(0, session.cameraController.getOrbitDistance());
+      gpuCoveredRenderMs = performance.now() - coveredRenderStartedAt;
       gpuCoveredSubmissionCount += 1;
+      const coveredWaitStartedAt = performance.now();
       await session.sceneManager.waitForFirstPlayableGpuWork();
+      gpuCoveredWaitMs = performance.now() - coveredWaitStartedAt;
     } catch (error) {
       gpuReady = false;
       console.warn('Live first-playable GPU prewarm is unavailable:', error);
@@ -800,9 +832,13 @@ export class App {
       // Replacing the warmup framebuffer is mandatory: the loading overlay
       // fades, so presenting before this clean submission exposes the camp at
       // the camera target for the duration of that transition.
+      const cleanRenderStartedAt = performance.now();
       session.sceneManager.render(0, session.cameraController.getOrbitDistance());
+      gpuCleanRenderMs = performance.now() - cleanRenderStartedAt;
       gpuCoveredSubmissionCount += 1;
+      const cleanWaitStartedAt = performance.now();
       await session.sceneManager.waitForFirstPlayableGpuWork();
+      gpuCleanWaitMs = performance.now() - cleanWaitStartedAt;
     } catch (error) {
       gpuReady = false;
       console.error('Clean first-playable GPU submission is unavailable:', error);
@@ -828,6 +864,12 @@ export class App {
       founderRigPrewarmMs: roundStartupDuration(founderRigPrewarmMs),
       founderRigPrewarmCount,
       gpuPrecompileMs: roundStartupDuration(gpuPrecompileMs),
+      textureUploadMs: roundStartupDuration(textureUploadMs),
+      gpuTargetedCompileMs: roundStartupDuration(gpuTargetedCompileMs),
+      gpuCoveredRenderMs: roundStartupDuration(gpuCoveredRenderMs),
+      gpuCoveredWaitMs: roundStartupDuration(gpuCoveredWaitMs),
+      gpuCleanRenderMs: roundStartupDuration(gpuCleanRenderMs),
+      gpuCleanWaitMs: roundStartupDuration(gpuCleanWaitMs),
       gpuTargetedObjectCount: targetedPrewarmObjects.length,
       gpuCoveredSubmissionCount,
       totalMs: roundStartupDuration(performance.now() - firstPlayableAssetStartedAt),

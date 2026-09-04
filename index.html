@@ -242,11 +242,13 @@
 
       .app-loading-progress__fill {
         display: block;
-        width: var(--loading-progress, 0%);
+        width: 100%;
         height: 100%;
         border-radius: inherit;
         background: linear-gradient(90deg, #7d5720 0%, #b98b3d 100%);
-        transition: width 180ms ease;
+        transform-origin: left center;
+        transform: scaleX(var(--loading-progress, 0));
+        transition: transform 180ms ease;
       }
 
       .app-loading-label {

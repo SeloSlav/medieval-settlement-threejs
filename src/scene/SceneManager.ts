@@ -627,11 +627,10 @@ export class SceneManager {
   }
 
   /**
-   * Compiles only the temporarily exposed first-interaction roots against the
-   * live scene's lights/environment. A full-scene compile walks the entire
-   * SeedThree woodland and then duplicates that work in the covered post/
-   * shadow submission; targeting the authored actors and founders camp keeps
-   * compilation bounded while preserving the exact live material variants.
+   * Compile the same visible render list as the covered frame, including the
+   * temporarily exposed first-interaction roots. This runs in the live post
+   * pass's target state so its pipelines are reused by that frame. Hidden and
+   * out-of-frustum woodland stays hidden; there is no all-world visibility sweep.
    */
   async precompileFirstPlayableObjects(
     objects: readonly THREE.Object3D[],
@@ -640,9 +639,10 @@ export class SceneManager {
     this.sky.preloadCelestialTexture(renderer);
     const uniqueObjects = [...new Set(objects)].filter((object) => object.parent !== null);
     const compile = async (): Promise<void> => {
-      for (const object of uniqueObjects) {
-        await renderer.compileAsync(object, this.camera, this.scene);
-      }
+      // All warmup leases attach their roots to this scene. One render list
+      // avoids ten light traversals and also prepares visible terrain/trees
+      // that would otherwise compile synchronously inside the covered render.
+      if (uniqueObjects.length > 0) await renderer.compileAsync(this.scene, this.camera);
     };
     if (this.postProcessor.withSceneCompileState) {
       await this.postProcessor.withSceneCompileState(compile);

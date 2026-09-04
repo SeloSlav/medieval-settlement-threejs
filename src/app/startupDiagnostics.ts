@@ -22,6 +22,12 @@ export type FirstPlayableAssetReadiness = {
   founderRigPrewarmMs: number;
   founderRigPrewarmCount: number;
   gpuPrecompileMs: number;
+  textureUploadMs: number;
+  gpuTargetedCompileMs: number;
+  gpuCoveredRenderMs: number;
+  gpuCoveredWaitMs: number;
+  gpuCleanRenderMs: number;
+  gpuCleanWaitMs: number;
   gpuTargetedObjectCount: number;
   gpuCoveredSubmissionCount: number;
   totalMs: number;

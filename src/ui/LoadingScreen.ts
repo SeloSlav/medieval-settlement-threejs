@@ -151,6 +151,6 @@ export class LoadingScreen {
       this.percentEl.textContent = `${rounded}%`;
       this.progressBarEl.setAttribute('aria-valuenow', String(rounded));
     }
-    this.progressBarEl.style.setProperty('--loading-progress', `${percent}%`);
+    this.progressBarEl.style.setProperty('--loading-progress', String(percent / 100));
   }
 }

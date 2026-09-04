@@ -127,10 +127,15 @@ const hoverWindow = new EventTarget() as EventTarget & { MouseEvent: typeof Fake
 hoverWindow.MouseEvent = FakeMouseEvent;
 const hoverUiRoot = new EventTarget() as EventTarget & {
   ownerDocument: EventTarget & { defaultView: typeof hoverWindow; hidden: boolean };
-  querySelectorAll: () => HoverAnchor[];
+  querySelectorAll: (selector: string) => HoverAnchor[];
 };
 hoverUiRoot.ownerDocument = Object.assign(new EventTarget(), { defaultView: hoverWindow, hidden: false });
-hoverUiRoot.querySelectorAll = () => [hoverAnchor];
+const hoverAnchors: HoverAnchor[] = [];
+let hoverAnchorSelector = '';
+hoverUiRoot.querySelectorAll = (selector) => {
+  hoverAnchorSelector = selector;
+  return hoverAnchors;
+};
 let illustratedMapActive = true;
 let hoverBlocked = false;
 let mouseOverCount = 0;
@@ -145,6 +150,9 @@ const illustratedHover = new IllustratedMapResourceHover({
   isActive: () => illustratedMapActive,
   isBlocked: () => hoverBlocked,
 });
+// Military markers are simulation-owned and are commonly mounted after the
+// illustrated-map hover helper has already been constructed.
+hoverAnchors.push(hoverAnchor);
 setProjectedMapButtonHitBounds(
   hoverAnchor as unknown as HTMLButtonElement,
   100,
@@ -168,6 +176,11 @@ Object.defineProperties(pointerMove, {
 });
 hoverRenderer.dispatchEvent(pointerMove);
 assert.equal(mouseOverCount, 1, 'pointer movement should activate a stamp without waiting for a render frame');
+assert.match(
+  hoverAnchorSelector,
+  /\.military-company-map-icon/,
+  'illustrated-map hover hit testing should include live bandit-company markers',
+);
 illustratedHover.update();
 assert.equal(repositionCount, 1, 'an active card should follow its projected stamp each frame');
 assert.equal(pointerMove.defaultPrevented, false, 'hover hit testing must not consume camera input');

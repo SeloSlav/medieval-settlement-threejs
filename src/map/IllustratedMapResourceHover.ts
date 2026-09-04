@@ -8,7 +8,11 @@ type IllustratedMapResourceHoverOptions = {
   isBlocked: () => boolean;
 };
 
-const RESOURCE_ANCHOR_SELECTOR = '.quarry-map-icon, .foraging-map-icon';
+const MAP_TOOLTIP_ANCHOR_SELECTOR = [
+  '.quarry-map-icon',
+  '.foraging-map-icon',
+  '.military-company-map-icon',
+].join(', ');
 
 /**
  * Keeps the renderer as the real pointer target so map wheel/orbit/pan input
@@ -16,7 +20,6 @@ const RESOURCE_ANCHOR_SELECTOR = '.quarry-map-icon, .foraging-map-icon';
  */
 export class IllustratedMapResourceHover {
   private readonly options: IllustratedMapResourceHoverOptions;
-  private readonly anchors: readonly HTMLButtonElement[];
   private pointerX = 0;
   private pointerY = 0;
   private pointerInside = false;
@@ -24,9 +27,6 @@ export class IllustratedMapResourceHover {
 
   constructor(options: IllustratedMapResourceHoverOptions) {
     this.options = options;
-    this.anchors = Array.from(
-      options.uiRoot.querySelectorAll<HTMLButtonElement>(RESOURCE_ANCHOR_SELECTOR),
-    );
     options.domElement.addEventListener('pointermove', this.onPointerMove);
     options.domElement.addEventListener('pointerleave', this.onPointerLeave);
     options.domElement.addEventListener('pointercancel', this.onPointerLeave);
@@ -46,7 +46,13 @@ export class IllustratedMapResourceHover {
 
     let closest: HTMLButtonElement | null = null;
     let closestDistanceSquared = Number.POSITIVE_INFINITY;
-    for (const anchor of this.anchors) {
+    // Resource anchors are mounted with the map UI, but military-company
+    // anchors follow live simulation state and can appear after this helper is
+    // constructed. Querying here keeps new bandit companies hoverable too.
+    const anchors = this.options.uiRoot.querySelectorAll<HTMLButtonElement>(
+      MAP_TOOLTIP_ANCHOR_SELECTOR,
+    );
+    for (const anchor of anchors) {
       if (!anchor.isConnected || anchor.closest('[hidden], [inert]')) continue;
       const projectedDistanceSquared = projectedMapButtonHitDistanceSquared(
         anchor,
