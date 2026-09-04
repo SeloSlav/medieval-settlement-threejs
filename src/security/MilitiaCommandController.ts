@@ -12,6 +12,7 @@ import {
   type MilitaryOrderFeedbackDiagnostics,
 } from './MilitaryOrderFeedbackRenderer.ts';
 import { MilitaryCompanyStrategicOverlay } from './MilitaryCompanyStrategicOverlay.ts';
+import { hostileStrategicMarkers } from './hostileStrategicMarkers.ts';
 import {
   hostileCompanyStrategicKindForFaction,
   militaryCompanyKindForAgents,
@@ -170,7 +171,6 @@ export class MilitiaCommandController {
     this.camps.clear();
     this.hostilePositions.length = 0;
     const grouped = new Map<string, CombatAgentState[]>();
-    const hostileGrouped = new Map<string, CombatAgentState[]>();
     for (const agent of agents.values()) {
       if (
         agent.status !== 'downed'
@@ -178,10 +178,6 @@ export class MilitiaCommandController {
         const hostileKind = hostileCompanyStrategicKindForFaction(agent.faction);
         if (hostileKind) {
           this.hostilePositions.push({ id: agent.id, x: agent.x, z: agent.z });
-          const hostileId = `hostile:${hostileKind}:${agent.raidId}`;
-          const hostileMembers = hostileGrouped.get(hostileId) ?? [];
-          hostileMembers.push(agent);
-          hostileGrouped.set(hostileId, hostileMembers);
         }
       }
       const companyId = selectablePlayerMilitaryCompanyId(agent);
@@ -218,22 +214,7 @@ export class MilitiaCommandController {
       moving: company.moving,
       hostile: false,
     }));
-    const hostileMarkers = [...hostileGrouped.entries()].map(([id, members]) => ({
-      id,
-      kind: hostileCompanyStrategicKindForFaction(members[0]!.faction)!,
-      agentIds: members.map((member) => member.id),
-      x: members.reduce((sum, member) => sum + member.x, 0) / members.length,
-      z: members.reduce((sum, member) => sum + member.z, 0) / members.length,
-      livingMembers: members.length,
-      controllable: false,
-      moving: members.some((member) => (
-        member.status === 'advancing'
-        || member.status === 'retreating'
-        || member.status === 'returning'
-        || (member.routeProgress ?? 0) > 0.25
-      )),
-      hostile: true,
-    }));
+    const hostileMarkers = hostileStrategicMarkers(agents.values());
     this.strategicIcons.sync([...friendlyMarkers, ...hostileMarkers]);
     this.strategicIcons.setSelected(this.selected.size === 1
       ? this.selected.values().next().value ?? null

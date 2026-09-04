@@ -58,7 +58,7 @@ export class AnimalCombatRenderer {
     this.ready = this.loadAssets();
   }
 
-  sync(poses: readonly AnimalCombatPose[], view: CrowdViewState | undefined, dt: number): void {
+  sync(poses: readonly AnimalCombatPose[], view: CrowdViewState | undefined, dt: number, motionDt = dt): void {
     const active = new Set<string>();
     for (const pose of poses) {
       if (!isWithinAnimalCrowdView(pose.x, pose.z, view)) continue;
@@ -71,12 +71,17 @@ export class AnimalCombatRenderer {
         instance = created;
       }
       instance.root.position.set(pose.x, pose.y, pose.z);
-      instance.yaw = smoothAnimalYaw(instance.yaw, pose.yaw, dt);
+      instance.yaw = smoothAnimalYaw(instance.yaw, pose.yaw, motionDt);
       instance.root.rotation.y = instance.yaw;
-      const nextAction = animationForPose(pose);
+      const nextAction = animalCombatAnimation(pose, instance.actionName);
       if (instance.actionName !== nextAction) {
         this.play(instance, nextAction, pose.status === 'downed');
       }
+      // displayMoveSpeed is measured in real seconds. Convert back from the
+      // paced animation delta so faster game speeds don't multiply feet twice.
+      instance.mixer.timeScale = nextAction === 'Walk' || nextAction === 'Gallop'
+        ? animalCombatLocomotionRate(nextAction, pose.moveSpeed) * (dt > 0 ? motionDt / dt : 0)
+        : 1;
       instance.mixer.update(Math.max(0, dt));
     }
     for (const [id, instance] of this.instances) {
@@ -239,11 +244,16 @@ function shortAnimationName(name: string): string {
   return name.split('|').at(-1) ?? name;
 }
 
-function animationForPose(pose: AnimalCombatPose): string {
+export function animalCombatAnimation(pose: Pick<AnimalCombatPose, 'status' | 'moveSpeed'>, current = ''): string {
   if (pose.status === 'downed') return 'Death';
   if (pose.status === 'fighting') return 'Attack';
   if (pose.status === 'looting') return 'Eating';
-  if (pose.moveSpeed > 2.1) return 'Gallop';
-  if (pose.moveSpeed > 0.12) return 'Walk';
+  if (pose.moveSpeed > (current === 'Gallop' ? 1.85 : 2.35)) return 'Gallop';
+  if (pose.moveSpeed > (current === 'Walk' ? 0.07 : 0.15)) return 'Walk';
   return pose.status === 'holding' ? 'Idle_2' : 'Idle';
+}
+
+export function animalCombatLocomotionRate(action: 'Walk' | 'Gallop', moveSpeed: number): number {
+  const authoredSpeed = action === 'Gallop' ? 3.25 : 1.25;
+  return THREE.MathUtils.clamp(Number.isFinite(moveSpeed) ? moveSpeed / authoredSpeed : 0, 0.1, 3);
 }

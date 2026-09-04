@@ -1,4 +1,5 @@
 import type { CombatAgentState } from './combatAgents.ts';
+import { hostileStrategicMarkers } from './hostileStrategicMarkers.ts';
 import type { BanditCampState } from './banditState.ts';
 import type { ThreatAlertSoundKind } from '../audio/audioCatalog.ts';
 
@@ -50,30 +51,29 @@ export function threatCombatGroupId(
   return kind ? `${kind}:${agent.raidId}` : null;
 }
 
-/** Finds a report's current hostile centroid, preferring the same interpolated
- * positions used by the actor renderer. Downed or dead members no longer pull
- * the camera toward an old battlefield location. */
+/** Follow a real local party, prioritizing the intruders over camp sentries.
+ * A raid identity can contain groups on opposite ends of the map. */
 export function liveThreatCombatGroupPosition(
   agents: Iterable<CombatAgentState>,
   combatGroupId: string,
   getAgentPosition?: (id: string) => Readonly<{ x: number; z: number }> | null,
 ): Readonly<{ x: number; z: number; count: number }> | null {
+  const members = [...agents].filter(agent => agent.status !== 'downed'
+    && Number.isFinite(agent.health) && agent.health > 0
+    && threatCombatGroupId(agent) === combatGroupId);
+  const committed = members.filter(isCommittedThreat);
+  const parties = hostileStrategicMarkers(committed.length > 0 ? committed : members);
+  const party = parties.sort((a, b) => b.livingMembers - a.livingMembers || a.id.localeCompare(b.id))[0];
+  if (!party) return null;
   let x = 0;
   let z = 0;
-  let count = 0;
-  for (const agent of agents) {
-    if (
-      agent.status === 'downed'
-      || !Number.isFinite(agent.health)
-      || agent.health <= 0
-      || threatCombatGroupId(agent) !== combatGroupId
-    ) continue;
+  for (const id of party.agentIds) {
+    const agent = members.find(member => member.id === id)!;
     const position = getAgentPosition?.(agent.id) ?? agent;
     x += position.x;
     z += position.z;
-    count += 1;
   }
-  return count > 0 ? { x: x / count, z: z / count, count } : null;
+  return { x: x / party.livingMembers, z: z / party.livingMembers, count: party.livingMembers };
 }
 
 function isCommittedThreat(agent: CombatAgentState): boolean {

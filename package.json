@@ -85,6 +85,7 @@
     "test:combat-presentation": "npx tsx scripts/testCombatWeaponPresentation.mts",
     "test:battlefield-weapon-drops": "npx tsx scripts/testBattlefieldWeaponDrops.mts",
     "test:locomotion-animation": "node --experimental-strip-types scripts/testLocomotionAnimation.mts",
+    "test:combat-motion": "npx tsx scripts/testCombatMotion.mts",
     "test:company-standards": "npx tsx scripts/testCompanyStandardRenderer.mts",
     "test:company-standard-integration": "npx tsx scripts/testCompanyStandardIntegration.mts",
     "test:military-equipment-materials": "npx tsx scripts/testMilitaryEquipmentMaterials.mts",

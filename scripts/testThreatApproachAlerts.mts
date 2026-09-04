@@ -164,6 +164,13 @@ assert.equal(campAlerts[0]?.combatGroupId, null);
 assert.deepEqual(lifecycleTracker.update([], 32, 'world-c', [establishedCamp]), []);
 
 const enteringBandits = [agent('b2', 'bandit', 'advancing', 'camp-2', 22, 18, 35)];
+assert.deepEqual(liveThreatCombatGroupPosition([
+  ...enteringBandits,
+  agent('b1', 'bandit', 'holding', 'camp-2', 200, 200),
+  agent('b3', 'bandit', 'holding', 'camp-2', 201, 200),
+  agent('b4', 'bandit', 'holding', 'camp-2', 202, 200),
+], 'bandit:camp-2'), { x: 22, z: 18, count: 1 },
+'the town-entry report must focus the lone intruder rather than average it with three camp sentries');
 const banditEntry = lifecycleTracker.update(
   enteringBandits,
   33,

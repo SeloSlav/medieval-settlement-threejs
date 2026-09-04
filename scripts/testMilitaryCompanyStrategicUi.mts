@@ -20,6 +20,8 @@ import {
   strategicCompanyPositionBlend,
 } from '../src/security/MilitaryCompanyStrategicOverlay.ts';
 import * as THREE from 'three';
+import { hostileStrategicMarkers, HOSTILE_MARKER_MAX_PARTY_DIAMETER } from '../src/security/hostileStrategicMarkers.ts';
+import type { CombatAgentState } from '../src/security/combatAgents.ts';
 import {
   HOSTILE_COMPANY_STRATEGIC_ICON_ART,
   MILITARY_COMPANY_STRATEGIC_ICON_ART,
@@ -212,6 +214,31 @@ const playtest = new CombatPlaytestSimulation({
   preset: 'field',
   seed: 0x431a2e0d,
 });
+
+const hostile = (id: string, x: number, status: CombatAgentState['status'] = 'holding', faction: CombatAgentState['faction'] = 'bandit') => ({
+  id, x, z: 0, status, faction, raidId: 'camp-1', health: 70, routeProgress: 0,
+}) as CombatAgentState;
+const sentries = [hostile('1', 0), hostile('3', 3), hostile('4', -3)];
+const loneThief = hostile('2', 140, 'advancing');
+const splitMarkers = hostileStrategicMarkers([...sentries, loneThief]);
+assert.equal(splitMarkers.length, 2);
+assert.equal(splitMarkers.find(marker => marker.agentIds.includes('2'))?.x, 140,
+  'a lone thief entering town must not share a midpoint marker with its camp sentries');
+assert.equal(splitMarkers.find(marker => marker.agentIds.includes('1'))?.livingMembers, 3);
+assert.equal(hostileStrategicMarkers([...sentries, { ...loneThief, x: 1 }]).length, 2,
+  'departure intent splits the thief from the camp before it has walked away');
+assert.deepEqual(hostileStrategicMarkers([loneThief, ...sentries].reverse()), splitMarkers);
+const pack = [hostile('10', 0, 'advancing', 'wolf'), hostile('11', 3, 'advancing', 'wolf')];
+assert.equal(hostileStrategicMarkers(pack)[0]?.livingMembers, 2);
+assert.equal(hostileStrategicMarkers([pack[0]!, { ...pack[1]!, x: 80 }]).length, 2);
+assert.equal(hostileStrategicMarkers([pack[0]!, { ...pack[1]!, raidId: 'another-pack' }]).length, 2);
+assert.equal(hostileStrategicMarkers([pack[0]!, { ...pack[1]!, status: 'downed' }])[0]?.livingMembers, 1);
+const spread = Array.from({ length: 6 }, (_, i) => hostile(String(i), i * 10, 'advancing'));
+for (const marker of hostileStrategicMarkers(spread)) {
+  const members = spread.filter(agent => marker.agentIds.includes(agent.id));
+  assert.ok(Math.max(...members.map(a => a.x)) - Math.min(...members.map(a => a.x)) <= HOSTILE_MARKER_MAX_PARTY_DIAMETER,
+    'a chain of nearby units must not create another empty midpoint across town');
+}
 const companies = playtest.companyStates();
 assert.equal(companies.size, 8, 'field sandbox should expose all eight friendly companies');
 for (const company of companies.values()) {
@@ -246,11 +273,9 @@ assert.match(controllerSource, /moving: company\.moving/);
 assert.match(controllerSource, /onSelect: this\.selectCompany/);
 assert.match(controllerSource, /isVisibilityBlocked: options\.isVisibilityBlocked/);
 assert.match(controllerSource, /getIllustratedMapY: options\.getIllustratedMapY/);
-assert.match(controllerSource, /hostileGrouped/);
-assert.match(controllerSource, /hostile:\s*true/);
+assert.match(controllerSource, /hostileStrategicMarkers\(agents\.values\(\)\)/);
 assert.match(controllerSource, /hostileCompanyStrategicKindForFaction/);
 assert.match(controllerSource, /getAgentPosition: options\.getAgentPosition/);
-assert.match(controllerSource, /agentIds: members\.map/);
 assert.match(
   readFileSync('src/security/MilitaryCompanyStrategicOverlay.ts', 'utf8'),
   /onHostileFocus\?\.\(\{[\s\S]*?x: entry\?\.displayX[\s\S]*?z: entry\?\.displayZ/,

@@ -30,6 +30,7 @@ use crate::raid_agent_policy::{
     OTTOMAN_ROLE_AKINCI, OTTOMAN_ROLE_AZAB, OTTOMAN_ROLE_JANISSARY, OTTOMAN_ROLE_SIPAHI,
 };
 use crate::roads::RoadNetwork;
+use crate::wildlife_combat_policy::{GUARD_DOG_CHASE_SPEED, FOX_FLEE_SPEED, WOLF_FLEE_SPEED};
 use crate::security_policy::RaidPortableStores;
 use crate::tables::{
     cavalry_horse, mercenary_contract, CombatAgent, Corpse, MercenaryContract, MilitaryCompany,
@@ -52,6 +53,7 @@ use super::SharedRoadNetworks;
 
 const RAIDER: u8 = 1;
 const BANDIT: u8 = 2;
+const DOG: u8 = 12;
 const FOX: u8 = 13;
 const WOLF: u8 = 14;
 const ADVANCING: u8 = 0;
@@ -2009,8 +2011,9 @@ fn canonical_steering_goal(
                 }
             }
             BANDIT => 2.15,
-            FOX => 3.35,
-            WOLF => 3.0,
+            DOG => GUARD_DOG_CHASE_SPEED,
+            FOX => FOX_FLEE_SPEED,
+            WOLF => WOLF_FLEE_SPEED,
             _ => 2.4,
         }
     };

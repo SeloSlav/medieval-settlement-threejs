@@ -67,6 +67,9 @@ export type CombatAgentState = {
   targetId: string;
   x: number;
   z: number;
+  /** Final server steering velocity, in metres per simulation second. */
+  velocityX?: number;
+  velocityZ?: number;
   homeX: number;
   homeZ: number;
   health: number;
@@ -268,6 +271,8 @@ export function syncCombatAgents(
       targetId: combatTargetClientId(targetKind, row.targetId),
       x: row.x,
       z: row.z,
+      velocityX: row.velocityX,
+      velocityZ: row.velocityZ,
       homeX: row.homeX,
       homeZ: row.homeZ,
       health: Math.max(0, row.health),

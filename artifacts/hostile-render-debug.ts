@@ -4,6 +4,8 @@ import { VillagerRenderer } from '../src/settlement/VillagerRenderer.ts';
 import { buildCrowdViewState } from '../src/settlement/crowdView.ts';
 import { createPostProcessor } from '../src/scene/PostProcessing.ts';
 import { MilitaryCompanyStrategicOverlay } from '../src/security/MilitaryCompanyStrategicOverlay.ts';
+import { hostileStrategicMarkers } from '../src/security/hostileStrategicMarkers.ts';
+import type { CombatAgentState } from '../src/security/combatAgents.ts';
 import { float } from 'three/tsl';
 import '../src/ui/mapIcons.css';
 const status = document.querySelector('#status')!;
@@ -31,12 +33,13 @@ let usePost=true;
 const villagers = new VillagerRenderer({parent,getGameSpeed:()=>1,getHeightAt:()=>0});
 const ready = await villagers.visualAssetsReady;
 const factions = ['bandit','dog','fox','wolf'] as const;
-const agents = new Map(factions.map((faction,i)=>[String(i+1),{
+const agents = new Map<string, CombatAgentState>(factions.map((faction,i)=>[String(i+1),{
  id:String(i+1),raidId:'debug',faction,sourceBuildingId:null,sourceSlot:0,ottomanRole:null,
- targetKind:'ground',targetId:'ground-0',x:96+i*2.5,z:200,homeX:96+i*2.5,homeZ:190,
+ targetKind:'ground',targetId:'ground-0',x:96+i*2.5,z:200,velocityX:0,velocityZ:0,homeX:96+i*2.5,homeZ:190,
  health:70,maxHealth:70,readiness:1,status:'advancing',attackCooldown:0,lootProgress:0,carryingLoot:false,
  issuedPolearms:0,raidAnchorBuildingId:null,banditCampId:null,companyId:null,homeResidenceId:null,personIdentity:null,stateChangedTick:0,
 }]));
+for(let i=5;i<=7;i++) agents.set(String(i),{...agents.get('1')!,id:String(i),status:'holding',x:85+i-5,z:195});
 // Let empty batches participate in the live frame before an incursion spawns.
 const view = buildCrowdViewState(100,200,20);
 for(const [id,distance] of [['near',20],['design',65],['far',150]] as const){
@@ -51,17 +54,21 @@ const icons = new MilitaryCompanyStrategicOverlay({
  getAgentPosition:id=>villagers.getCombatAgentPosition(id),getAgentBodyHeight:id=>villagers.getCombatAgentBodyHeight(id),
  isBlocked:()=>false,onSelect:()=>{},
 });
-icons.sync([...agents.values()].filter(a=>a.faction!=='dog').map(a=>({id:a.id,kind:a.faction==='bandit'?'bandits':'wildlife',agentIds:[a.id],x:a.x,z:a.z,livingMembers:1,controllable:false,moving:true,hostile:true})));
+icons.sync(hostileStrategicMarkers(agents.values()));
 let elapsed=0, previous=0;
 renderer.setAnimationLoop(time=>{
  const dt=Math.min(0.05,(time-previous)/1000);previous=time;elapsed+=dt;
  if(elapsed > 3 && Math.floor(elapsed*5)!==Math.floor((elapsed-dt)*5)){
-  for(const a of agents.values()) a.z=200+Math.sin(elapsed*0.5)*3;
-  villagers.setCombatAgents(new Map([...agents].map(([id,a])=>[id,{...a}])) as any);
+  for(const a of agents.values()) if(a.status==='advancing') {
+   a.z=200+Math.sin(elapsed*0.5)*3;
+   a.velocityZ=Math.cos(elapsed*0.5)*2;
+  }
+  villagers.setCombatAgents(new Map([...agents].map(([id,a])=>[id,{...a}])));
+  icons.sync(hostileStrategicMarkers(agents.values()));
  }
  villagers.tick(dt,view);
  if(usePost) post.render(dt);else renderer.render(scene,camera);
  icons.update(time,view);
  const d = villagers.authoredCrowdDiagnostics();
- status.textContent=JSON.stringify({ready,post:usePost,time:elapsed.toFixed(1),humanoids:d.submittedInstances,bodyHeights:Object.fromEntries([...agents.values()].map(a=>[a.faction,villagers.getCombatAgentBodyHeight(a.id)])),errors},null,2);
+ status.textContent=JSON.stringify({ready,post:usePost,time:elapsed.toFixed(1),humanoids:d.submittedInstances,parties:hostileStrategicMarkers(agents.values()).map(m=>({members:m.agentIds,x:m.x,z:m.z})),bodyHeights:Object.fromEntries([...agents.values()].map(a=>[a.faction,villagers.getCombatAgentBodyHeight(a.id)])),errors},null,2);
 });

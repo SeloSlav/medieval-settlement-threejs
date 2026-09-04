@@ -14,6 +14,10 @@ use crate::economy::{
     withdraw_residence_commodity, CommodityKind,
 };
 use crate::roads::RoadNetwork;
+use crate::wildlife_combat_policy::{
+    guard_dog_pursuit_step, ANIMAL_CONTACT_DISTANCE as CONTACT_DISTANCE,
+    FOX_FLEE_SPEED, WOLF_FLEE_SPEED, GUARD_DOG_BITE_DAMAGE, GUARD_DOG_BITE_INTERVAL,
+};
 use crate::tables::{cavalry_horse, CombatAgent, Corpse};
 
 use super::raid_agents::move_along_combat_route;
@@ -34,7 +38,6 @@ const TARGET_RESIDENCE: u8 = 1;
 const TARGET_GROUND: u8 = 6;
 const TARGET_COMBAT_AGENT: u8 = 7;
 const TARGET_STABLE_OX: u8 = 8;
-const CONTACT_DISTANCE: f64 = 2.15;
 const HUNTING_DOG_RUN_SPEED: f64 = 2.85;
 const HUNTING_DOG_MIN_WOODLAND_RANGE: f64 = 10.0;
 const ROAD_PATROL_ORDINAL_MASK: u64 = 0x0000_ffff_ffff_ffff;
@@ -331,13 +334,17 @@ fn step_guard_dogs(
         if let Some(enemy) = threat {
             dog.target_kind = TARGET_COMBAT_AGENT;
             dog.target_id = enemy.id;
-            let range = distance(dog.x, dog.z, enemy.x, enemy.z);
-            if range > CONTACT_DISTANCE {
-                dog.state = ADVANCING;
-                move_toward(&mut dog, enemy.x, enemy.z, 3.15, dt);
-            } else {
+            let (x, z, contact) = guard_dog_pursuit_step(dog.x, dog.z, enemy.x, enemy.z, dt);
+            dog.velocity_x = (x - dog.x) / dt.max(1e-9);
+            dog.velocity_z = (z - dog.z) / dt.max(1e-9);
+            dog.x = x;
+            dog.z = z;
+            dog.route_progress = distance(x, z, enemy.x, enemy.z);
+            if contact {
                 dog.state = FIGHTING;
                 dog_attack(ctx, &mut dog, enemy, tick);
+            } else {
+                dog.state = ADVANCING;
             }
         } else {
             patrol_dog(ctx, &mut dog, tick, dt, road_network);
@@ -350,8 +357,8 @@ fn dog_attack(ctx: &ReducerContext, dog: &mut CombatAgent, mut enemy: CombatAgen
     if dog.attack_cooldown > 0.0 {
         return;
     }
-    enemy.health = (enemy.health - 13.0).max(0.0);
-    dog.attack_cooldown = 1.05;
+    enemy.health = (enemy.health - GUARD_DOG_BITE_DAMAGE).max(0.0);
+    dog.attack_cooldown = GUARD_DOG_BITE_INTERVAL;
     if enemy.faction == FOX && enemy.health > 0.0 {
         enemy.state = RETREATING;
         enemy.target_kind = TARGET_GROUND;
@@ -364,13 +371,8 @@ fn dog_attack(ctx: &ReducerContext, dog: &mut CombatAgent, mut enemy: CombatAgen
         enemy.state = FIGHTING;
         enemy.target_kind = TARGET_COMBAT_AGENT;
         enemy.target_id = dog.id;
-        if enemy.attack_cooldown <= 0.0 && enemy.faction == WOLF {
-            dog.health = (dog.health - 9.0).max(0.0);
-            enemy.attack_cooldown = 1.15;
-            if dog.health <= 0.0 {
-                down_guard_dog(dog, tick);
-            }
-        }
+        // Wolves own their bite and cooldown in step_wolves. Retaliating here
+        // too allowed two wolf bites in one high-speed heartbeat.
     }
     ctx.db.combat_agent().id().update(enemy);
 }
@@ -442,7 +444,7 @@ fn step_foxes(ctx: &ReducerContext, tick: u64, dt: f64) {
         }
         if fox.state == RETREATING || fox.state == RETURNING {
             let (home_x, home_z) = (fox.home_x, fox.home_z);
-            move_toward(&mut fox, home_x, home_z, 3.35, dt);
+            move_toward(&mut fox, home_x, home_z, FOX_FLEE_SPEED, dt);
             if distance(fox.x, fox.z, fox.home_x, fox.home_z) < 2.0 {
                 ctx.db.combat_agent().id().delete(fox.id);
                 continue;
@@ -489,7 +491,7 @@ fn step_wolves(ctx: &ReducerContext, tick: u64, dt: f64) {
         wolf.attack_cooldown = (wolf.attack_cooldown - dt).max(0.0);
         if wolf.state == RETREATING || wolf.state == RETURNING {
             let (home_x, home_z) = (wolf.home_x, wolf.home_z);
-            move_toward(&mut wolf, home_x, home_z, 3.0, dt);
+            move_toward(&mut wolf, home_x, home_z, WOLF_FLEE_SPEED, dt);
             if distance(wolf.x, wolf.z, wolf.home_x, wolf.home_z) < 2.4 {
                 ctx.db.combat_agent().id().delete(wolf.id);
                 continue;

@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { advanceCombatMotion, receiveCombatMotion, type CombatMotion } from './combatMotion.ts';
+import { SIM_REALTIME_RATE } from '../generated/gameBalance.ts';
 import { guardDogActivity } from '../security/dogActivity.ts';
 import { presentationNow, trailerClock } from '../app/trailerClock.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
@@ -320,6 +322,7 @@ type PendingCampSeatAssignment = {
 
 type CombatAgentVisual = {
   state: CombatAgentState;
+  motion: CombatMotion;
   displayX: number;
   displayZ: number;
   /** Stable allocation exposed to markers and report focus for every faction,
@@ -790,6 +793,7 @@ export class VillagerRenderer {
       }
       nextVisuals.set(state.id, {
         state,
+        motion: receiveCombatMotion(state, prior?.motion),
         displayX: prior?.displayX ?? state.x,
         displayZ: prior?.displayZ ?? state.z,
         renderPosition: prior?.renderPosition ?? { x: state.x, z: state.z },
@@ -2575,7 +2579,7 @@ export class VillagerRenderer {
     }
     const activeView = view ?? this.lastView;
     this.renderer.syncAgents(renderAgents, activeView, animationDt);
-    this.combatAnimals.sync(this.combatAnimalPoses, activeView, animationDt);
+    this.combatAnimals.sync(this.combatAnimalPoses, activeView, animationDt, audioDt);
     this.cavalryHorsesRenderer.sync(this.cavalryHorsePoses, activeView, animationDt);
     const audioPaused = this.getGameSpeed() === 0;
     this.farmWorkerSongAudio.setPaused(audioPaused);
@@ -2637,11 +2641,13 @@ export class VillagerRenderer {
     const frameDt = Math.min(0.1, Math.max(0, realDt));
     const blend = 1 - Math.exp(-frameDt * 14);
     const speedBlend = 1 - Math.exp(-frameDt * 12);
+    const simulationRate = (trailerClock.active ? trailerClock.speed : this.getGameSpeed()) * SIM_REALTIME_RATE;
     for (const visual of this.combatAgentVisuals.values()) {
       const previousX = visual.displayX;
       const previousZ = visual.displayZ;
-      visual.displayX += (visual.state.x - visual.displayX) * blend;
-      visual.displayZ += (visual.state.z - visual.displayZ) * blend;
+      advanceCombatMotion(visual.motion, frameDt, simulationRate);
+      visual.displayX += (visual.motion.targetX - visual.displayX) * blend;
+      visual.displayZ += (visual.motion.targetZ - visual.displayZ) * blend;
       visual.renderPosition.x = visual.displayX;
       visual.renderPosition.z = visual.displayZ;
       const dx = visual.displayX - previousX;
