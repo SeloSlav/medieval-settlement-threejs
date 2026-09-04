@@ -204,7 +204,7 @@ type DetailMaterialDefinition = Omit<THREE.MeshStandardMaterialParameters, 'norm
 const DETAIL_MATERIAL_DEFINITIONS: Record<BuildingDetailMaterialKey, DetailMaterialDefinition> = {
   brass: { color: 0x9b7134, roughness: 0.48, metalness: 0.72, atlasTile: 'aged-brass', atlasMetersPerTile: 1.2, atlasTintStrength: 0.16, buildingNormalScale: 0.5 },
   firedClay: { color: 0xd47d50, roughness: 0.88, metalness: 0, atlasTile: 'fired-clay', atlasMetersPerTile: 1.2, atlasTintStrength: 0.2, buildingNormalScale: 0.55 },
-  wicker: { color: 0xc19a69, roughness: 0.94, metalness: 0, atlasTile: 'wicker-weave', atlasMetersPerTile: 1.1, atlasTintStrength: 0.16, buildingNormalScale: 0.58 },
+  wicker: { color: 0xc19a69, roughness: 0.94, metalness: 0, atlasTile: 'wicker-weave', atlasMetersPerTile: 1.1, atlasTintStrength: 0.16, buildingNormalScale: 0.58, side: THREE.DoubleSide },
   paintRed: { color: 0xb75a4d, roughness: 0.89, metalness: 0, atlasTile: 'weathered-planks', atlasMetersPerTile: 2, atlasTintStrength: 0.72, textureFamily: 'woodPlanks', buildingNormalScale: 0.22 },
   paintBlue: { color: 0x668996, roughness: 0.9, metalness: 0, atlasTile: 'weathered-planks', atlasMetersPerTile: 2, atlasTintStrength: 0.72, textureFamily: 'woodPlanks', buildingNormalScale: 0.22 },
   paintOchre: { color: 0xd4ae62, roughness: 0.91, metalness: 0, atlasTile: 'weathered-planks', atlasMetersPerTile: 2, atlasTintStrength: 0.68, textureFamily: 'woodPlanks', buildingNormalScale: 0.22 },

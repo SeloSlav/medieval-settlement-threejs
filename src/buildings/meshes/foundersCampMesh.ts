@@ -720,99 +720,36 @@ function addFoundingUtilityStores(parent: THREE.Group): void {
   );
   firewood.userData.fpNoCollision = true;
 
+  const prepBoardThickness = 0.14;
+  const prepBoardCenter = new THREE.Vector3(-0.95, 0.78, -2.15);
+  const prepBoardYaw = -0.16;
   const prepBoard = addMesh(
     stores,
-    new THREE.BoxGeometry(1.78, 0.14, 0.68),
+    new THREE.BoxGeometry(1.78, prepBoardThickness, 0.68),
     timberMaterial('weathered'),
-    new THREE.Vector3(-0.95, 0.78, -2.15),
-    new THREE.Euler(0, -0.16, 0),
+    prepBoardCenter,
+    new THREE.Euler(0, prepBoardYaw, 0),
   );
   prepBoard.name = 'Camp cook preparation board';
+  const prepLegBottom = 0.02;
+  const prepLegHeight = prepBoardCenter.y - prepBoardThickness / 2 - prepLegBottom;
   const prepLegs = addCampInstances(
     stores,
     'Camp preparation trestles',
-    new THREE.BoxGeometry(0.14, 0.72, 0.14),
+    new THREE.BoxGeometry(0.14, prepLegHeight, 0.14),
     timberMaterial('dark'),
-    [
-      { position: new THREE.Vector3(-1.6, 0.38, -2.05) },
-      { position: new THREE.Vector3(-0.3, 0.38, -2.25) },
-    ],
-  );
-  prepLegs.userData.fpNoCollision = true;
-  const cookware = addCampInstances(
-    stores,
-    'Iron bowls and kettle by fire',
-    new THREE.SphereGeometry(0.22, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.58),
-    metalMaterial('iron'),
-    [
-      {
-        position: new THREE.Vector3(-1.2, 0.89, -2.11),
-        rotation: new THREE.Euler(Math.PI, 0, 0),
-        scale: new THREE.Vector3(1.2, 0.48, 1),
-      },
-      {
-        position: new THREE.Vector3(-0.72, 0.89, -2.18),
-        rotation: new THREE.Euler(Math.PI, 0.2, 0),
-        scale: new THREE.Vector3(0.92, 0.42, 0.86),
-      },
-    ],
-  );
-  cookware.userData.fpNoCollision = true;
-
-  parent.add(stores);
-}
-
-function addLivedInTextiles(parent: THREE.Group): void {
-  const textiles = new THREE.Group();
-  textiles.name = 'Founders drying wool and blankets';
-
-  const lineStart = new THREE.Vector3(-1.55, 1.72, -3.38);
-  const lineEnd = new THREE.Vector3(2.65, 1.61, -3.18);
-  addCampInstances(
-    textiles,
-    'Freestanding founders clothesline poles',
-    new THREE.CylinderGeometry(0.055, 0.075, 1.74, 7),
-    timberMaterial('dark'),
-    [lineStart, lineEnd].map((point, index) => ({
-      position: new THREE.Vector3(point.x, 0.87, point.z),
-      rotation: new THREE.Euler(0, 0, index === 0 ? -0.025 : 0.035),
+    [-0.65, 0.65].map((localX) => ({
+      position: new THREE.Vector3(
+        prepBoardCenter.x + localX * Math.cos(prepBoardYaw),
+        prepLegBottom + prepLegHeight / 2,
+        prepBoardCenter.z - localX * Math.sin(prepBoardYaw),
+      ),
+      rotation: new THREE.Euler(0, prepBoardYaw, 0),
     })),
   );
-  addRopeBetween(
-    textiles,
-    lineStart,
-    lineEnd,
-  );
-  const redCloths = addCampInstances(
-    textiles,
-    'Drying red wool cloths',
-    new THREE.BoxGeometry(1, 1, 0.035),
-    sharedBuildingDetailMaterial('paintRed'),
-    [
-      {
-        position: new THREE.Vector3(-0.62, 1.3, -3.33),
-        rotation: new THREE.Euler(0.03, -0.04, 0.045),
-        scale: new THREE.Vector3(0.68, 0.72, 1),
-      },
-      {
-        position: new THREE.Vector3(1.83, 1.25, -3.22),
-        rotation: new THREE.Euler(-0.025, 0.06, -0.035),
-        scale: new THREE.Vector3(0.58, 0.62, 1),
-      },
-    ],
-  );
-  redCloths.userData.fpNoCollision = true;
-  const ochreCloth = addMesh(
-    textiles,
-    new THREE.BoxGeometry(0.82, 0.84, 0.035),
-    sharedBuildingDetailMaterial('paintOchre'),
-    new THREE.Vector3(0.56, 1.23, -3.28),
-    new THREE.Euler(0.02, 0.03, 0.028),
-  );
-  ochreCloth.name = 'Drying ochre wool blanket';
-  ochreCloth.userData.fpNoCollision = true;
+  prepLegs.userData.fpNoCollision = true;
 
-  parent.add(textiles);
+  parent.add(stores);
 }
 
 export function addCampAFrameShelter(
@@ -1285,15 +1222,20 @@ function addStoneStock(parent: THREE.Group): void {
   const stockpile = new THREE.Group();
   stockpile.name = 'FoundingStoneStockpile';
   const winterAccumulationPlacements: CampInstance[] = [];
+  const centerX = 5.35;
+  const centerZ = -3.65;
   const stackSlots = [
-    { x: 4.2, y: 0.39, z: -3.7, radius: 0.44 },
-    { x: 4.92, y: 0.42, z: -3.62, radius: 0.48 },
-    { x: 5.68, y: 0.4, z: -3.72, radius: 0.46 },
-    { x: 6.42, y: 0.38, z: -3.63, radius: 0.43 },
-    { x: 4.56, y: 1.12, z: -3.64, radius: 0.42 },
-    { x: 5.31, y: 1.16, z: -3.67, radius: 0.46 },
-    { x: 6.05, y: 1.11, z: -3.64, radius: 0.41 },
-    { x: 5.68, y: 1.84, z: -3.66, radius: 0.43 },
+    // Five ground stones make a broad, two-deep base. Since stock depletion
+    // keeps the earliest segments, this foundation is also the last part left.
+    { x: centerX - 0.75, y: 0.44, z: centerZ - 0.38, radius: 0.44 },
+    { x: centerX, y: 0.48, z: centerZ - 0.45, radius: 0.48 },
+    { x: centerX + 0.75, y: 0.46, z: centerZ - 0.34, radius: 0.46 },
+    { x: centerX - 0.4, y: 0.43, z: centerZ + 0.34, radius: 0.43 },
+    { x: centerX + 0.4, y: 0.45, z: centerZ + 0.32, radius: 0.45 },
+    // Each raised stone bridges multiple contacts instead of balancing in a
+    // vertical wall.
+    { x: centerX - 0.36, y: 1.13, z: centerZ - 0.02, radius: 0.42 },
+    { x: centerX + 0.38, y: 1.16, z: centerZ - 0.02, radius: 0.46 },
   ] as const satisfies readonly {
     x: number;
     y: number;
@@ -1804,7 +1746,6 @@ export function createFoundersCampMesh(): THREE.Group {
   addFoundingProvisions(shelters);
   addFoundingWorkyard(shelters);
   addFoundingUtilityStores(shelters);
-  addLivedInTextiles(shelters);
   addFoundersCampWinterAccumulation(shelters);
   addTimberStock(group);
   addStoneStock(group);

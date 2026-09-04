@@ -37,6 +37,8 @@ const OUTLINE_LIFT = 0.24;
 const BUILDING_OUTLINE_LIFT = 0.08;
 const OUTLINE_RENDER_ORDER = 100;
 const SCALE_CHANGE_THRESHOLD = 0.015;
+const BUILDING_CLICK_PULSE_HOLD_MS = 80;
+const BUILDING_CLICK_PULSE_FADE_MS = 260;
 
 /**
  * Shows one high-contrast, terrain-following perimeter for the authored object
@@ -57,6 +59,23 @@ export class PlayerAuthoredHoverOutline {
     polygonOffsetUnits: -2,
   });
   private readonly mesh = new THREE.Mesh(this.geometry, this.material);
+  private readonly clickPulseGeometry = new THREE.BufferGeometry();
+  private readonly clickPulseMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 1,
+    depthTest: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    toneMapped: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  });
+  private readonly clickPulseMesh = new THREE.Mesh(
+    this.clickPulseGeometry,
+    this.clickPulseMaterial,
+  );
   private readonly perimeterCenter = new THREE.Vector3();
   private readonly viewCenter = new THREE.Vector3();
   private currentPerimeter: HoverPerimeter | null = null;
@@ -66,6 +85,8 @@ export class PlayerAuthoredHoverOutline {
   private pointerY = 0;
   private pendingFrame = 0;
   private cameraFrame = 0;
+  private clickPulseFrame = 0;
+  private clickPulseStartedAt = 0;
 
   constructor(options: PlayerAuthoredHoverOutlineOptions) {
     this.options = options;
@@ -76,20 +97,33 @@ export class PlayerAuthoredHoverOutline {
     this.mesh.raycast = () => {};
     options.parent.add(this.mesh);
 
+    this.clickPulseMesh.name = 'Building click outline pulse';
+    this.clickPulseMesh.visible = false;
+    this.clickPulseMesh.frustumCulled = false;
+    this.clickPulseMesh.renderOrder = OUTLINE_RENDER_ORDER + 1;
+    this.clickPulseMesh.raycast = () => {};
+    options.parent.add(this.clickPulseMesh);
+
     options.domElement.addEventListener('pointermove', this.onPointerMove);
+    options.domElement.addEventListener('pointerdown', this.onPointerDown);
     options.domElement.addEventListener('pointerleave', this.onPointerLeave);
     window.addEventListener('blur', this.onPointerLeave);
   }
 
   dispose(): void {
     this.options.domElement.removeEventListener('pointermove', this.onPointerMove);
+    this.options.domElement.removeEventListener('pointerdown', this.onPointerDown);
     this.options.domElement.removeEventListener('pointerleave', this.onPointerLeave);
     window.removeEventListener('blur', this.onPointerLeave);
     if (this.pendingFrame !== 0) cancelAnimationFrame(this.pendingFrame);
     if (this.cameraFrame !== 0) cancelAnimationFrame(this.cameraFrame);
+    if (this.clickPulseFrame !== 0) cancelAnimationFrame(this.clickPulseFrame);
     this.options.parent.remove(this.mesh);
+    this.options.parent.remove(this.clickPulseMesh);
     this.geometry.dispose();
     this.material.dispose();
+    this.clickPulseGeometry.dispose();
+    this.clickPulseMaterial.dispose();
   }
 
   private readonly onPointerMove = (event: PointerEvent): void => {
@@ -107,6 +141,39 @@ export class PlayerAuthoredHoverOutline {
     if (this.pendingFrame !== 0) cancelAnimationFrame(this.pendingFrame);
     this.pendingFrame = 0;
     this.hide();
+  };
+
+  private readonly onPointerDown = (event: PointerEvent): void => {
+    if (
+      event.button !== 0
+      || event.pointerType === 'touch'
+      || event.altKey
+      || this.options.isBlocked()
+    ) return;
+
+    this.pointerX = event.clientX;
+    this.pointerY = event.clientY;
+    const point = this.options.terrainProjector.pick(this.pointerX, this.pointerY);
+    if (!point) return;
+    const perimeter = findPlayerAuthoredHoverPerimeter(
+      this.options.getState(),
+      { x: point.x, z: point.z },
+      this.options.getRoadNetwork(),
+    );
+    if (!perimeter?.key.startsWith('building:')) {
+      this.stopClickPulse();
+      return;
+    }
+
+    if (perimeter.key !== this.currentKey) {
+      this.stopClickPulse();
+      this.material.depthTest = true;
+      this.currentPerimeter = perimeter;
+      this.currentKey = perimeter.key;
+      this.mesh.visible = true;
+    }
+    this.startClickPulse();
+    this.ensureCameraTracking();
   };
 
   private readonly updateFromPointer = (): void => {
@@ -133,6 +200,7 @@ export class PlayerAuthoredHoverOutline {
       this.ensureCameraTracking();
       return;
     }
+    this.stopClickPulse();
     const isBuilding = perimeter.key.startsWith('building:');
     this.material.depthTest = isBuilding;
     this.currentPerimeter = perimeter;
@@ -190,20 +258,72 @@ export class PlayerAuthoredHoverOutline {
 
     this.lastWorldUnitsPerPixel = worldUnitsPerPixel;
     const dashLength = worldUnitsPerPixel * OUTLINE_DASH_LENGTH_PX;
+    const ribbonOptions = {
+      width: worldUnitsPerPixel * OUTLINE_WIDTH_PX,
+      lift: perimeter.key.startsWith('building:')
+        ? BUILDING_OUTLINE_LIFT
+        : OUTLINE_LIFT,
+      sampleSpacing: Math.max(0.1, dashLength * 0.25),
+    };
     updateTerrainRibbonGeometry(
       this.geometry,
       polygonSegments(perimeter.polygon),
       this.options.getHeightAt,
       {
-        width: worldUnitsPerPixel * OUTLINE_WIDTH_PX,
-        lift: perimeter.key.startsWith('building:')
-          ? BUILDING_OUTLINE_LIFT
-          : OUTLINE_LIFT,
-        sampleSpacing: Math.max(0.1, dashLength * 0.25),
+        ...ribbonOptions,
         dashLength,
         gapLength: worldUnitsPerPixel * OUTLINE_GAP_LENGTH_PX,
       },
     );
+    if (this.clickPulseMesh.visible) {
+      updateTerrainRibbonGeometry(
+        this.clickPulseGeometry,
+        polygonSegments(perimeter.polygon),
+        this.options.getHeightAt,
+        ribbonOptions,
+      );
+    }
+  }
+
+  private startClickPulse(): void {
+    if (this.clickPulseFrame !== 0) cancelAnimationFrame(this.clickPulseFrame);
+    this.clickPulseFrame = 0;
+    this.clickPulseStartedAt = performance.now();
+    this.clickPulseMaterial.opacity = 1;
+    this.clickPulseMesh.visible = true;
+    this.lastWorldUnitsPerPixel = Number.NaN;
+    this.updateGeometryForCamera(true);
+    this.clickPulseFrame = requestAnimationFrame(this.updateClickPulse);
+  }
+
+  private readonly updateClickPulse = (timestamp: number): void => {
+    this.clickPulseFrame = 0;
+    if (!this.clickPulseMesh.visible || !this.currentKey.startsWith('building:')) return;
+
+    const fadeElapsed = timestamp
+      - this.clickPulseStartedAt
+      - BUILDING_CLICK_PULSE_HOLD_MS;
+    if (fadeElapsed >= BUILDING_CLICK_PULSE_FADE_MS) {
+      this.stopClickPulse();
+      return;
+    }
+    if (fadeElapsed > 0) {
+      const fadeProgress = THREE.MathUtils.clamp(
+        fadeElapsed / BUILDING_CLICK_PULSE_FADE_MS,
+        0,
+        1,
+      );
+      this.clickPulseMaterial.opacity = 1
+        - THREE.MathUtils.smoothstep(fadeProgress, 0, 1);
+    }
+    this.clickPulseFrame = requestAnimationFrame(this.updateClickPulse);
+  };
+
+  private stopClickPulse(): void {
+    if (this.clickPulseFrame !== 0) cancelAnimationFrame(this.clickPulseFrame);
+    this.clickPulseFrame = 0;
+    this.clickPulseMesh.visible = false;
+    this.clickPulseMaterial.opacity = 1;
   }
 
   private hide(): void {
@@ -213,6 +333,7 @@ export class PlayerAuthoredHoverOutline {
     this.currentKey = '';
     this.lastWorldUnitsPerPixel = Number.NaN;
     this.mesh.visible = false;
+    this.stopClickPulse();
   }
 }
 

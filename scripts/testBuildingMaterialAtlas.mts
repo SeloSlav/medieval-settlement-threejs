@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { DoubleSide } from 'three';
 import {
   disposeBuildingMaterialLibrary,
   GORSKI_PALETTE,
@@ -242,6 +243,11 @@ for (const key of detailKeys) {
   assertRuntimeAtlasScale(key, material);
   usedTiles.add(String(material.userData.buildingMaterialAtlasTile));
 }
+assert.equal(
+  sharedBuildingDetailMaterial('wicker').side,
+  DoubleSide,
+  'open wicker baskets and wattle panels must render their woven interior faces',
+);
 for (const key of specialConstructionKeys) {
   assert.equal(
     sharedBuildingMaterial(key).userData.buildingMaterialAtlas,

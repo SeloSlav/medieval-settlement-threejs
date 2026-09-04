@@ -209,7 +209,6 @@ for (let left = 0; left < tentBounds.length; left += 1) {
 const tentAdjacentProps = [
   'Coopered provision barrels',
   'Woven provision basket',
-  'Founders drying wool and blankets',
   'Founding timber workyard',
   'Founders lived-in utility stores',
   'FoundingTimberStockpile',
@@ -251,7 +250,6 @@ const assertSeparated = (leftName: string, rightName: string): void => {
 };
 assertSeparated('Coopered provision barrels', 'Founders lived-in utility stores');
 assertSeparated('Woven provision basket', 'Founders lived-in utility stores');
-assertSeparated('Founders drying wool and blankets', 'Founders lived-in utility stores');
 assertSeparated('FoundingTimberStockpile', 'Founding timber workyard');
 assertSeparated('FoundingStoneStockpile', 'Founders lived-in utility stores');
 const shadowCasters: THREE.Object3D[] = [];
@@ -336,6 +334,11 @@ for (const removedProp of [
   'Long handled founding tools',
   'Forged founding axe heads',
   'Split firewood by chopping block',
+  'Founders drying wool and blankets',
+  'Freestanding founders clothesline poles',
+  'Drying red wool cloths',
+  'Drying ochre wool blanket',
+  'Iron bowls and kettle by fire',
 ]) {
   assert.equal(
     mesh.getObjectByName(removedProp),
@@ -343,6 +346,38 @@ for (const removedProp of [
     `${removedProp} should not remain in the simplified founding workyard`,
   );
 }
+const preparationBoard = mesh.getObjectByName('Camp cook preparation board');
+const preparationTrestles = mesh.getObjectByName('Camp preparation trestles');
+assert.ok(preparationBoard instanceof THREE.Mesh);
+assert.ok(preparationTrestles instanceof THREE.InstancedMesh);
+assert.equal(preparationTrestles.count, 2);
+const preparationBoardGeometry = preparationBoard.geometry as THREE.BoxGeometry;
+const preparationLegGeometry = preparationTrestles.geometry as THREE.BoxGeometry;
+const preparationLegMatrix = new THREE.Matrix4();
+const preparationLegPositions: THREE.Vector3[] = [];
+for (let index = 0; index < preparationTrestles.count; index += 1) {
+  preparationTrestles.getMatrixAt(index, preparationLegMatrix);
+  const position = new THREE.Vector3().setFromMatrixPosition(preparationLegMatrix);
+  preparationLegPositions.push(position);
+  const boardLocalOffset = position.clone()
+    .sub(preparationBoard.position)
+    .applyAxisAngle(new THREE.Vector3(0, 1, 0), -preparationBoard.rotation.y);
+  assert.ok(
+    Math.abs(boardLocalOffset.z) < 1e-6,
+    'both preparation-bench legs must follow the rotated board centerline',
+  );
+  assert.ok(
+    Math.abs(
+      position.y + preparationLegGeometry.parameters.height / 2
+        - (preparationBoard.position.y - preparationBoardGeometry.parameters.height / 2),
+    ) < 1e-6,
+    'both preparation-bench legs must meet the board underside at one height',
+  );
+}
+assert.ok(
+  Math.abs(preparationLegPositions[0]!.y - preparationLegPositions[1]!.y) < 1e-6,
+  'the preparation-bench legs must stand at equal heights',
+);
 const firewood = mesh.getObjectByName('Stacked cut camp firewood');
 assert.ok(firewood instanceof THREE.InstancedMesh);
 assert.equal(firewood.count, 21, 'the cut-log pile should use a complete six-row triangle');
@@ -367,15 +402,20 @@ const stoneSegments = stone.children.filter(
 assert.equal(stoneSegments.length, FOUNDING_STONE_VISUAL_SEGMENTS);
 const stoneTiers = [
   stoneSegments.filter((segment) => segment.position.y < 0.6),
-  stoneSegments.filter(
-    (segment) => segment.position.y >= 0.6 && segment.position.y < 1.5,
-  ),
-  stoneSegments.filter((segment) => segment.position.y >= 1.5),
+  stoneSegments.filter((segment) => segment.position.y >= 0.6),
 ];
 assert.deepEqual(
   stoneTiers.map((tier) => tier.length),
-  [4, 3, 1],
-  'founding stone should form a supported four-three-one triangular pile',
+  [5, 2],
+  'founding stone should stop at a supported two-stone upper tier',
+);
+const stoneBaseBounds = new THREE.Box3().setFromPoints(
+  stoneTiers[0]!.map((segment) => segment.position),
+);
+assert.ok(
+  stoneBaseBounds.max.x - stoneBaseBounds.min.x > 1.4
+    && stoneBaseBounds.max.z - stoneBaseBounds.min.z > 0.7,
+  'the founding stone base must spread in both ground axes instead of standing one stone deep',
 );
 for (let tierIndex = 1; tierIndex < stoneTiers.length; tierIndex += 1) {
   for (const segment of stoneTiers[tierIndex]!) {
