@@ -487,7 +487,7 @@ export const BUILDING_AUDIO_CLIPS: Record<
   brewery: { path: '/sounds/buildings/brewery.mp3', volume: 0.05 },
   tavern: { path: '/sounds/buildings/tavern.mp3', volume: 0.05 },
   smokehouse: { path: '/sounds/buildings/smokehouse.mp3', volume: 0.045 },
-  granary: { path: '/sounds/buildings/granary.mp3', volume: 0.045 },
+  granary: { path: '/sounds/buildings/village_storehouse.mp3', volume: 0.045 },
   bakery: { path: '/sounds/buildings/bakery.mp3', volume: 0.05 },
   apiary: { path: '/sounds/buildings/apiary.mp3', volume: 0.04 },
   watermill: { path: '/sounds/buildings/watermill.mp3', volume: 0.055 },
