@@ -40,6 +40,14 @@
         font-family: Georgia, serif; font-size: clamp(10px, .8vw, 13px);
         line-height: 1.08; letter-spacing: .025em;
       }
+      #camera-help {
+        position: absolute; z-index: 2; top: 12px; right: 14px;
+        padding: 7px 10px; border: 1px solid rgba(229,214,176,.26);
+        border-radius: 4px; background: rgba(24,26,20,.82); color: #e8dfca;
+        font-size: 11px; line-height: 1.25; letter-spacing: .025em;
+        pointer-events: none; user-select: none; backdrop-filter: blur(3px);
+      }
+      .cell.is-active .label { color: #fff7df; box-shadow: inset 0 2px #bba156; }
     </style>
   </head>
   <body>
@@ -47,7 +55,10 @@
       <h1>Settlement Building Lineup</h1>
       <p>Shared plaster · masonry · timber · clay tile material library</p>
     </header>
-    <main id="lineup-root"><div id="labels" aria-hidden="true"></div></main>
+    <main id="lineup-root">
+      <div id="camera-help">Middle-drag / Q E orbit · Right-drag / WASD pan · Scroll zoom</div>
+      <div id="labels" aria-hidden="true"></div>
+    </main>
     <script type="module" src="/src/e2e/buildingLineup.ts"></script>
   </body>
 </html>

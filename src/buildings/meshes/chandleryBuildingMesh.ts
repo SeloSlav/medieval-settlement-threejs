@@ -546,6 +546,7 @@ function emitFirewoodStock({ module, placement }: ChandleryCompileContext): void
       [placement.anchor.x, 0, placement.anchor.z, Math.PI * 0.5],
       [placement.anchor.x, 0, placement.anchor.z - 0.54, Math.PI * 0.5],
     ],
+    1,
   );
 }
 

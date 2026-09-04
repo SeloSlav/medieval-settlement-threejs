@@ -96,10 +96,18 @@ export type CameraControllerConfig = {
   onIllustratedMapModeChanged?: (active: boolean) => void;
   /** The owner already renders every animation frame, so view changes only invalidate that frame. */
   continuousRenderLoop?: boolean;
+  /** Keep the ordinary orbit pose at every distance for isolated asset inspection. */
+  orbitOnly?: boolean;
+  /** Preserve an authored inspection lens instead of adopting the live-world FOV. */
+  orbitFov?: number;
+  /** Optional scale-aware orbit envelope for isolated preview scenes. */
+  minimumOrbitDistance?: number;
+  maximumOrbitDistance?: number;
 };
 
 export class CameraController {
   private readonly config: CameraControllerConfig;
+  private readonly minimumOrbitDistance: number;
   private readonly liveWorldMaxDistance: number;
   private illustratedMapZoomStops: readonly number[] = [];
   private illustratedMapFarPlane = 0;
@@ -147,12 +155,19 @@ export class CameraController {
 
   constructor(config: CameraControllerConfig) {
     this.config = config;
-    this.liveWorldMaxDistance = Math.min(
-      LIVE_WORLD_MAX_DISTANCE,
-      computeMaxOrbitDistance(
-        config.bounds,
-        DEFAULT_FOV,
-        RTS_ORBIT_PITCH,
+    this.minimumOrbitDistance = Math.max(
+      0.1,
+      config.minimumOrbitDistance ?? MIN_DISTANCE,
+    );
+    this.liveWorldMaxDistance = Math.max(
+      this.minimumOrbitDistance,
+      config.maximumOrbitDistance ?? Math.min(
+        LIVE_WORLD_MAX_DISTANCE,
+        computeMaxOrbitDistance(
+          config.bounds,
+          config.orbitFov ?? DEFAULT_FOV,
+          RTS_ORBIT_PITCH,
+        ),
       ),
     );
     this.config.target.set(0, config.getHeightAt(0, 0), 0);
@@ -860,7 +875,9 @@ export class CameraController {
   }
 
   private getMinDistance(): number {
-    return MIN_DISTANCE + Math.max(0, this.config.getHeightAt(this.config.target.x, this.config.target.z)) * 0.08;
+    if (this.config.minimumOrbitDistance !== undefined) return this.minimumOrbitDistance;
+    return this.minimumOrbitDistance
+      + Math.max(0, this.config.getHeightAt(this.config.target.x, this.config.target.z)) * 0.08;
   }
 
   private getMinimumPitch(): number {
@@ -1142,6 +1159,21 @@ export class CameraController {
       Math.cos(this.currentPitch) * Math.sin(this.currentYaw),
     );
 
+    if (this.config.orbitOnly) {
+      const camera = this.config.camera;
+      camera.position.copy(target).addScaledVector(
+        this.orbitDirection,
+        this.currentDistance,
+      );
+      camera.lookAt(target);
+      const fov = this.config.orbitFov ?? DEFAULT_FOV;
+      if (Math.abs(camera.fov - fov) > 0.01) {
+        camera.fov = fov;
+        camera.updateProjectionMatrix();
+      }
+      return;
+    }
+
     const forward = this.getForwardXZ();
     const camX = target.x - forward.x * CLOSE_BACK_DISTANCE;
     const camZ = target.z - forward.z * CLOSE_BACK_DISTANCE;
@@ -1202,7 +1234,7 @@ export class CameraController {
     this.lookAtPoint.lerp(target, 1 - closeBlend);
     camera.lookAt(this.lookAtPoint);
 
-    const fov = THREE.MathUtils.lerp(DEFAULT_FOV, CLOSE_FOV, closeBlend);
+    const fov = THREE.MathUtils.lerp(this.config.orbitFov ?? DEFAULT_FOV, CLOSE_FOV, closeBlend);
     if (Math.abs(camera.fov - fov) > 0.01) {
       camera.fov = fov;
       camera.updateProjectionMatrix();

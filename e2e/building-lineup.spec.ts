@@ -64,3 +64,73 @@ for (const [label, url, maxDrawCalls, maxTriangles, maxCpuFrameMs] of cases) {
     expect(failedRequests).toEqual([]);
   });
 }
+
+test('Building lineup uses the live-game orbit, pan, and zoom controls', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('/building-lineup.html?kind=founders_camp&camera=design&stocked=1');
+  await page.waitForFunction(() => window.__BUILDING_LINEUP_READY__ === true);
+
+  await expect(page.locator('#camera-help')).toContainText('Middle-drag / Q E orbit');
+  const canvas = page.locator('canvas');
+  const bounds = await canvas.boundingBox();
+  expect(bounds).toBeTruthy();
+  const x = bounds!.x + bounds!.width * 0.5;
+  const y = bounds!.y + bounds!.height * 0.45;
+  const initial = await page.evaluate(() => window.__BUILDING_LINEUP_CAMERA_STATE__!);
+  expect(initial.controls).toBe('game-camera');
+  expect(initial.activeViewIndex).toBe(0);
+
+  await page.mouse.move(x, y);
+  await page.mouse.wheel(0, -160);
+  await page.waitForFunction(
+    (distance) => window.__BUILDING_LINEUP_CAMERA_STATE__!.views[0]!.orbitDistance < distance,
+    initial.views[0]!.orbitDistance,
+  );
+
+  const beforeOrbit = await page.evaluate(() => window.__BUILDING_LINEUP_CAMERA_STATE__!.views[0]!);
+  await page.mouse.down({ button: 'middle' });
+  await page.mouse.move(x + 90, y - 45, { steps: 4 });
+  await page.mouse.up({ button: 'middle' });
+  await page.waitForFunction(
+    (yaw) => Math.abs(window.__BUILDING_LINEUP_CAMERA_STATE__!.views[0]!.yaw - yaw) > 0.05,
+    beforeOrbit.yaw,
+  );
+
+  const beforePan = await page.evaluate(() => window.__BUILDING_LINEUP_CAMERA_STATE__!.views[0]!);
+  await page.mouse.move(x, y);
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.move(x + 70, y + 35, { steps: 4 });
+  await page.mouse.up({ button: 'right' });
+  await page.waitForFunction(
+    ([targetX, targetZ]) => {
+      const target = window.__BUILDING_LINEUP_CAMERA_STATE__!.views[0]!.target;
+      return Math.hypot(target[0] - targetX, target[2] - targetZ) > 0.05;
+    },
+    [beforePan.target[0], beforePan.target[2]],
+  );
+});
+
+test('Building lineup routes camera input to the hovered comparison cell', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('/building-lineup.html?compare=residences&camera=design');
+  await page.waitForFunction(() => window.__BUILDING_LINEUP_READY__ === true);
+  const canvas = page.locator('canvas');
+  const bounds = await canvas.boundingBox();
+  expect(bounds).toBeTruthy();
+  const before = await page.evaluate(() => window.__BUILDING_LINEUP_CAMERA_STATE__!);
+
+  await page.mouse.move(
+    bounds!.x + bounds!.width * 0.375,
+    bounds!.y + bounds!.height * 0.42,
+  );
+  await page.mouse.wheel(0, -160);
+  await page.waitForFunction(
+    () => window.__BUILDING_LINEUP_CAMERA_STATE__!.activeViewIndex === 1,
+  );
+  await page.waitForFunction(
+    (distance) => window.__BUILDING_LINEUP_CAMERA_STATE__!.views[1]!.orbitDistance < distance,
+    before.views[1]!.orbitDistance,
+  );
+  const after = await page.evaluate(() => window.__BUILDING_LINEUP_CAMERA_STATE__!);
+  expect(after.views[0]!.orbitDistance).toBeCloseTo(before.views[0]!.orbitDistance, 6);
+});

@@ -29,9 +29,11 @@ import {
 } from '../foundersCampColorBatch.ts';
 import { installFoundersCampShadowCasters } from '../foundersCampShadowCasters.ts';
 import {
-  FOUNDERS_CAMP_BENCH_SEAT,
+  FOUNDERS_CAMP_BENCH,
+  FOUNDERS_CAMP_BENCH_SEATS,
   FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT,
   FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
+  FOUNDERS_CAMP_WORKYARD_STUMP_SEAT,
   FOUNDERS_CAMPFIRE_POSITION,
 } from '../foundersCampLandmarks.ts';
 import { sharedFirewoodLogGeometry } from '../firewoodPileMesh.ts';
@@ -113,13 +115,37 @@ function addFoundersCampWinterAccumulation(parent: THREE.Group): void {
 
   // Work surfaces retain deliberately incomplete cover so timber, iron, and
   // canvas continue to identify the camp beneath the pale winter read.
-  addHorizontalWinterPatch(parts, 2.28, 0.36, -1.9, 0.63, -0.15);
-  addHorizontalWinterPatch(parts, 1.62, 0.54, -0.95, 0.865, -2.15, -0.16);
-  addHorizontalWinterPatch(parts, 0.82, 0.62, 5.56, 0.87, -1.42, 0.18);
-  addHorizontalWinterPatch(parts, 0.64, 0.52, 4.65, 0.73, -1.66, -0.12);
-  addHorizontalWinterPatch(parts, 0.55, 0.46, 5.2, 1.32, -1.34, 0.08);
+  addHorizontalWinterPatch(
+    parts,
+    FOUNDERS_CAMP_BENCH.length * 0.95,
+    FOUNDERS_CAMP_BENCH.depth * 0.68,
+    FOUNDERS_CAMP_BENCH.center.x,
+    FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
+    FOUNDERS_CAMP_BENCH.center.z,
+    FOUNDERS_CAMP_BENCH.yaw,
+  );
+  addHorizontalWinterPatch(parts, 0.82, 0.68, 5.54, 0.82, -1.45, 0.05);
+  addHorizontalWinterPatch(parts, 0.68, 0.6, 4.52, 0.82, -1.55, -0.04);
+  addHorizontalWinterPatch(parts, 0.58, 0.52, 5.04, 1.36, -1.49, 0.01);
   addHorizontalWinterPatch(parts, 0.16, 1.25, 2.38, 1.43, -1.8, 0.02);
-  addHorizontalWinterDisc(parts, 0.5, -4.48, 0.75, -1.2, 9, 0.18);
+  addHorizontalWinterDisc(
+    parts,
+    0.36,
+    FOUNDERS_CAMP_WORKYARD_STUMP_SEAT.supportPosition.x,
+    FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
+    FOUNDERS_CAMP_WORKYARD_STUMP_SEAT.supportPosition.z,
+    10,
+    0.18,
+  );
+  addHorizontalWinterDisc(
+    parts,
+    0.36,
+    FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.x,
+    FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
+    FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.z,
+    10,
+    0.18,
+  );
   addHorizontalWinterDisc(parts, 0.45, 6.15, 1.2, 0.3, 10, -0.12);
   addHorizontalWinterDisc(parts, 0.43, 7.35, 1.2, 0.43, 10, 0.16);
 
@@ -584,6 +610,33 @@ function addFoundingProvisions(parent: THREE.Group): void {
   );
   basketRim.name = 'Woven basket rim';
   basketRim.userData.fpNoCollision = true;
+  const basketBase = addMesh(
+    provisions,
+    new THREE.CylinderGeometry(0.31, 0.31, 0.04, 10),
+    sharedBuildingDetailMaterial('wicker'),
+    new THREE.Vector3(7.55, 0.04, -0.95),
+  );
+  basketBase.name = 'Woven basket base';
+  basketBase.userData.fpNoCollision = true;
+  const bread = addCampInstances(
+    provisions,
+    'Basket bread loaves',
+    new THREE.CapsuleGeometry(0.095, 0.28, 2, 6),
+    sharedBuildingDetailMaterial('bread'),
+    [
+      {
+        // The loaf's broad underside rests on the solid wicker base while its
+        // crown rises close enough to the rim to keep the basket visibly full.
+        position: new THREE.Vector3(7.55, 0.3, -0.95),
+        rotation: new THREE.Euler(0, 0, Math.PI * 0.5),
+        scale: new THREE.Vector3(2.5, 1.15, 1.8),
+      },
+    ],
+  );
+  bread.userData.fpNoCollision = true;
+  bread.userData.provisionContents = 'bread';
+  bread.userData.containerName = basket.name;
+  bread.userData.support = basketBase.name;
   parent.add(provisions);
 }
 
@@ -591,13 +644,12 @@ function addFoundingWorkyard(parent: THREE.Group): void {
   const workyard = new THREE.Group();
   workyard.name = 'Founding timber workyard';
 
-  const block = addMesh(
+  addCampStumpSeat(
     workyard,
-    new THREE.CylinderGeometry(0.55, 0.63, 0.72, 9),
-    timberMaterial('dark'),
-    new THREE.Vector3(-4.48, 0.37, -1.2),
+    FOUNDERS_CAMP_WORKYARD_STUMP_SEAT.supportPosition.x,
+    FOUNDERS_CAMP_WORKYARD_STUMP_SEAT.supportPosition.z,
+    'Camp workyard stump seat',
   );
-  block.name = 'Founding chopping block';
 
   parent.add(workyard);
 }
@@ -606,101 +658,80 @@ function addFoundingUtilityStores(parent: THREE.Group): void {
   const stores = new THREE.Group();
   stores.name = 'Founders lived-in utility stores';
 
+  const supplyCrates: readonly CampInstance[] = [
+    {
+      position: new THREE.Vector3(5.54, 0.41, -1.45),
+      rotation: new THREE.Euler(0, 0.05, 0),
+      scale: new THREE.Vector3(0.98, 0.78, 0.82),
+    },
+    {
+      position: new THREE.Vector3(4.52, 0.41, -1.55),
+      rotation: new THREE.Euler(0, -0.04, 0),
+      scale: new THREE.Vector3(0.82, 0.78, 0.74),
+    },
+    {
+      position: new THREE.Vector3(5.04, 1.07, -1.49),
+      rotation: new THREE.Euler(0, 0.01, 0),
+      scale: new THREE.Vector3(0.72, 0.54, 0.66),
+    },
+  ];
   addCampInstances(
     stores,
     'Asymmetric founding supply crates',
     new THREE.BoxGeometry(1, 1, 1),
     timberMaterial('mid'),
-    [
-      {
-        position: new THREE.Vector3(5.56, 0.43, -1.42),
-        rotation: new THREE.Euler(0, 0.18, 0),
-        scale: new THREE.Vector3(0.98, 0.84, 0.82),
-      },
-      {
-        position: new THREE.Vector3(4.65, 0.36, -1.66),
-        rotation: new THREE.Euler(0, -0.12, 0),
-        scale: new THREE.Vector3(0.76, 0.7, 0.72),
-      },
-      {
-        position: new THREE.Vector3(5.2, 1.03, -1.34),
-        rotation: new THREE.Euler(0.03, 0.08, -0.02),
-        scale: new THREE.Vector3(0.68, 0.54, 0.62),
-      },
-    ],
+    supplyCrates,
   );
   addCampInstances(
     stores,
     'Dark crate braces',
     new THREE.BoxGeometry(1, 1, 1),
     timberMaterial('dark'),
-    [
-      {
-        position: new THREE.Vector3(5.56, 0.52, -1.84),
-        rotation: new THREE.Euler(0, 0.18, 0),
-        scale: new THREE.Vector3(0.86, 0.1, 0.06),
-      },
-      {
-        position: new THREE.Vector3(4.65, 0.43, -2.03),
-        rotation: new THREE.Euler(0, -0.12, 0),
-        scale: new THREE.Vector3(0.66, 0.09, 0.055),
-      },
-      {
-        position: new THREE.Vector3(5.2, 1.08, -1.66),
-        rotation: new THREE.Euler(0.03, 0.08, -0.02),
-        scale: new THREE.Vector3(0.58, 0.085, 0.05),
-      },
-    ],
+    supplyCrates.map((crate) => {
+      const size = crate.scale!;
+      const yaw = crate.rotation?.y ?? 0;
+      const faceOffset = new THREE.Vector3(
+        0,
+        size.y * 0.11,
+        -size.z * 0.5 - 0.025,
+      ).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+      return {
+        position: crate.position.clone().add(faceOffset),
+        rotation: new THREE.Euler(0, yaw, 0),
+        scale: new THREE.Vector3(size.x * 0.88, Math.max(0.075, size.y * 0.12), 0.055),
+      };
+    }),
   );
-  const sacks = addCampInstances(
-    stores,
-    'Slumped canvas provision sacks',
-    new THREE.SphereGeometry(0.5, 8, 6),
-    getAgedTentCanvasMaterial(1),
-    [
-      {
-        position: new THREE.Vector3(4.2, 0.38, -1.04),
-        rotation: new THREE.Euler(0.04, 0.24, -0.2),
-        scale: new THREE.Vector3(0.72, 0.9, 0.58),
-      },
-      {
-        position: new THREE.Vector3(4.65, 0.31, -0.82),
-        rotation: new THREE.Euler(-0.08, -0.32, 0.34),
-        scale: new THREE.Vector3(0.64, 0.72, 0.54),
-      },
-      {
-        position: new THREE.Vector3(5.08, 0.27, -0.72),
-        rotation: new THREE.Euler(0.13, 0.15, -0.48),
-        scale: new THREE.Vector3(0.58, 0.63, 0.52),
-      },
-    ],
-  );
-  sacks.userData.fpNoCollision = true;
 
   const spareWheelRadius = 0.68;
   const spareWheelTubeRadius = 0.075;
   const spareWheelLean = 0.42;
+  const wheelAssembly = new THREE.Group();
+  wheelAssembly.name = 'Spare founding cart wheel assembly';
+  wheelAssembly.position.set(
+    6.15,
+    0.02 + spareWheelRadius * Math.cos(spareWheelLean) + spareWheelTubeRadius,
+    -0.46,
+  );
+  wheelAssembly.rotation.x = spareWheelLean;
+  wheelAssembly.userData.fpNoCollision = true;
+  stores.add(wheelAssembly);
   const wheel = addMesh(
-    stores,
+    wheelAssembly,
     new THREE.TorusGeometry(spareWheelRadius, spareWheelTubeRadius, 7, 18),
     timberMaterial('dark'),
-    new THREE.Vector3(
-      6.15,
-      0.02 + spareWheelRadius * Math.cos(spareWheelLean) + spareWheelTubeRadius,
-      -0.46,
-    ),
-    new THREE.Euler(spareWheelLean, 0, 0),
+    new THREE.Vector3(),
   );
   wheel.name = 'Spare founding cart wheel';
   wheel.userData.fpNoCollision = true;
   const spokes = addCampInstances(
-    stores,
+    wheelAssembly,
     'Spare wheel spokes',
     new THREE.BoxGeometry(0.1, 1.22, 0.085),
     timberMaterial('weathered'),
     Array.from({ length: 6 }, (_, index) => ({
-      position: new THREE.Vector3(5.92, 0.78, -0.9),
-      rotation: new THREE.Euler(0.04, -0.18, index * Math.PI / 6 + 0.08),
+      position: new THREE.Vector3(),
+      rotation: new THREE.Euler(0, 0, index * Math.PI / 6 + 0.08),
     })),
   );
   spokes.userData.fpNoCollision = true;
@@ -723,39 +754,10 @@ function addFoundingUtilityStores(parent: THREE.Group): void {
     stores,
     'Stacked cut camp firewood',
     sharedFirewoodLogGeometry(),
-    timberMaterial('light'),
+    timberMaterial('weathered'),
     firewoodPlacements,
   );
   firewood.userData.fpNoCollision = true;
-
-  const prepBoardThickness = 0.14;
-  const prepBoardCenter = new THREE.Vector3(-0.95, 0.78, -2.15);
-  const prepBoardYaw = -0.16;
-  const prepBoard = addMesh(
-    stores,
-    new THREE.BoxGeometry(1.78, prepBoardThickness, 0.68),
-    timberMaterial('weathered'),
-    prepBoardCenter,
-    new THREE.Euler(0, prepBoardYaw, 0),
-  );
-  prepBoard.name = 'Camp cook preparation board';
-  const prepLegBottom = 0.02;
-  const prepLegHeight = prepBoardCenter.y - prepBoardThickness / 2 - prepLegBottom;
-  const prepLegs = addCampInstances(
-    stores,
-    'Camp preparation trestles',
-    new THREE.BoxGeometry(0.14, prepLegHeight, 0.14),
-    timberMaterial('dark'),
-    [-0.65, 0.65].map((localX) => ({
-      position: new THREE.Vector3(
-        prepBoardCenter.x + localX * Math.cos(prepBoardYaw),
-        prepLegBottom + prepLegHeight / 2,
-        prepBoardCenter.z - localX * Math.sin(prepBoardYaw),
-      ),
-      rotation: new THREE.Euler(0, prepBoardYaw, 0),
-    })),
-  );
-  prepLegs.userData.fpNoCollision = true;
 
   parent.add(stores);
 }
@@ -1717,30 +1719,43 @@ export function createFoundersCampMesh(): THREE.Group {
 
   addCampfire(shelters);
   const benchSeatThickness = 0.18;
-  const benchSeatDepth = 0.54;
   const benchSeatBottom = FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT
     - benchSeatThickness;
+  const bench = new THREE.Group();
+  bench.name = 'Camp fireside bench';
+  bench.position.set(
+    FOUNDERS_CAMP_BENCH.center.x,
+    0,
+    FOUNDERS_CAMP_BENCH.center.z,
+  );
+  bench.rotation.y = FOUNDERS_CAMP_BENCH.yaw;
+  bench.userData.seatIds = FOUNDERS_CAMP_BENCH_SEATS.map((seat) => seat.id);
+  shelters.add(bench);
   const benchSeat = addMesh(
-    shelters,
-    new THREE.BoxGeometry(2.4, benchSeatThickness, benchSeatDepth),
+    bench,
+    new THREE.BoxGeometry(
+      FOUNDERS_CAMP_BENCH.length,
+      benchSeatThickness,
+      FOUNDERS_CAMP_BENCH.depth,
+    ),
     timberMaterial('weathered'),
     new THREE.Vector3(
-      FOUNDERS_CAMP_BENCH_SEAT.supportPosition.x,
+      0,
       FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT - benchSeatThickness / 2,
-      FOUNDERS_CAMP_BENCH_SEAT.supportPosition.z,
+      0,
     ),
   );
   benchSeat.name = 'Camp bench seat';
-  for (const x of [-2.72, -1.08]) {
+  for (const localX of FOUNDERS_CAMP_BENCH.legOffsets) {
     const legHeight = benchSeatBottom - 0.02;
     const leg = addMesh(
-      shelters,
+      bench,
       new THREE.BoxGeometry(0.18, legHeight, 0.38),
       timberMaterial('dark'),
       new THREE.Vector3(
-        x,
+        localX,
         0.02 + legHeight / 2,
-        FOUNDERS_CAMP_BENCH_SEAT.supportPosition.z,
+        0,
       ),
     );
     leg.name = 'Camp bench leg';
@@ -1778,7 +1793,12 @@ export function createFoundersCampMesh(): THREE.Group {
 }
 
 /** Shared full-height log seat, including its separate weathered cut top. */
-export function addCampStumpSeat(parent: THREE.Group, x: number, z: number): void {
+export function addCampStumpSeat(
+  parent: THREE.Group,
+  x: number,
+  z: number,
+  name = 'Camp fireside stump seat',
+): void {
   const stumpCapThickness = 0.05;
   const stumpBodyHeight = FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT
     - stumpCapThickness;
@@ -1793,7 +1813,7 @@ export function addCampStumpSeat(parent: THREE.Group, x: number, z: number): voi
     ),
     new THREE.Euler(0, 0.18, 0),
   );
-  stumpSeat.name = 'Camp fireside stump seat';
+  stumpSeat.name = name;
   const stumpSeatTop = addMesh(
     parent,
     new THREE.CylinderGeometry(0.37, 0.38, stumpCapThickness, 10),
@@ -1805,5 +1825,5 @@ export function addCampStumpSeat(parent: THREE.Group, x: number, z: number): voi
     ),
     new THREE.Euler(0, 0.18, 0),
   );
-  stumpSeatTop.name = 'Camp fireside stump seat top';
+  stumpSeatTop.name = `${name} top`;
 }

@@ -37,7 +37,7 @@ import type {
   MarketStallDisplayKind,
   MarketStallGroup,
 } from '../../economy/marketStallAssignments.ts';
-import { addSharedFirewoodLog } from '../firewoodPileMesh.ts';
+import { addSharedFirewoodLog, FIREWOOD_LOG_MESH_ID } from '../firewoodPileMesh.ts';
 
 export const MARKET_STAGING_VISUAL_SEGMENTS = 5;
 export const MARKET_RECEIPT_VISUAL_SEGMENTS = 3;
@@ -422,8 +422,8 @@ function addBreadCounter(display: THREE.Group): void {
   for (const [index, x] of [-0.42, 0, 0.42].entries()) {
     const loaf = addMesh(
       display,
-      new THREE.DodecahedronGeometry(0.18, 0),
-      residenceFacadeMaterial('lightOrange'),
+      new THREE.SphereGeometry(0.18, 12, 8),
+      sharedBuildingDetailMaterial('bread'),
       new THREE.Vector3(x, 0.17 + (index % 2) * 0.04, 0),
       new THREE.Euler(0, index === 1 ? -0.18 : 0.16, 0),
       new THREE.Vector3(1.45, 0.72, 0.82),
@@ -630,6 +630,7 @@ function addCheeseCounter(display: THREE.Group): void {
 }
 
 function addFirewoodCounter(display: THREE.Group): void {
+  display.userData.firewoodMeshId = FIREWOOD_LOG_MESH_ID;
   for (let index = 0; index < 4; index += 1) {
     addSharedFirewoodLog(
       display,

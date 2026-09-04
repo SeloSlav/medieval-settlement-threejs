@@ -26,19 +26,56 @@ export const FOUNDERS_CAMPFIRE_POSITION: FoundersCampLandmarkPoint = {
  */
 export const FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT = 0.395;
 
-export const FOUNDERS_CAMP_BENCH_SEAT: FoundersCampSeatLandmark = {
-  id: 'camp-bench-seat',
-  behavior: 'sit',
-  support: 'bench',
-  supportPosition: { x: -1.9, z: -0.2 },
-  // The authored sitting clip moves the hips slightly backward onto the
-  // support. Keep the character root just beyond the front edge of the plank
-  // so the thighs and shins do not pass through the seat.
-  destination: { x: -1.9, z: -0.54 },
-  approach: { x: -1.9, z: -0.9 },
-  lookAt: { x: -1.9, z: -2 },
-  surfaceHeight: FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
-};
+export const FOUNDERS_CAMP_BENCH = {
+  center: { x: -1.9, z: -0.2 },
+  yaw: Math.PI * 0.5,
+  length: 2.4,
+  depth: 0.54,
+  seatOffsets: [-0.72, 0, 0.72],
+  legOffsets: [-0.82, 0.82],
+} as const;
+
+const BENCH_OCCUPANT_FRONT_CLEARANCE = 0.08;
+const BENCH_APPROACH_FRONT_CLEARANCE = 0.48;
+
+function benchPoint(along: number, forward: number): FoundersCampLandmarkPoint {
+  const cosYaw = Math.cos(FOUNDERS_CAMP_BENCH.yaw);
+  const sinYaw = Math.sin(FOUNDERS_CAMP_BENCH.yaw);
+  return {
+    x: FOUNDERS_CAMP_BENCH.center.x + cosYaw * along + sinYaw * forward,
+    z: FOUNDERS_CAMP_BENCH.center.z - sinYaw * along + cosYaw * forward,
+  };
+}
+
+function benchSeatLandmark(id: string, along: number): FoundersCampSeatLandmark {
+  return {
+    id,
+    behavior: 'sit',
+    support: 'bench',
+    supportPosition: benchPoint(along, 0),
+    // The character root remains just beyond the front edge while the sitting
+    // clip settles the hips backward onto the shared plank.
+    destination: benchPoint(
+      along,
+      FOUNDERS_CAMP_BENCH.depth / 2 + BENCH_OCCUPANT_FRONT_CLEARANCE,
+    ),
+    approach: benchPoint(
+      along,
+      FOUNDERS_CAMP_BENCH.depth / 2 + BENCH_APPROACH_FRONT_CLEARANCE,
+    ),
+    lookAt: FOUNDERS_CAMPFIRE_POSITION,
+    surfaceHeight: FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
+  };
+}
+
+export const FOUNDERS_CAMP_BENCH_SEATS: readonly FoundersCampSeatLandmark[] = [
+  benchSeatLandmark('camp-bench-seat-left', FOUNDERS_CAMP_BENCH.seatOffsets[0]),
+  benchSeatLandmark('camp-bench-seat', FOUNDERS_CAMP_BENCH.seatOffsets[1]),
+  benchSeatLandmark('camp-bench-seat-right', FOUNDERS_CAMP_BENCH.seatOffsets[2]),
+];
+
+/** Central seat used by single-seat callers and handoff checks. */
+export const FOUNDERS_CAMP_BENCH_SEAT = FOUNDERS_CAMP_BENCH_SEATS[1]!;
 
 export const FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT: FoundersCampSeatLandmark = {
   id: 'fireside-stump-seat',
@@ -53,7 +90,21 @@ export const FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT: FoundersCampSeatLandmark = {
   surfaceHeight: FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
 };
 
+export const FOUNDERS_CAMP_WORKYARD_STUMP_SEAT: FoundersCampSeatLandmark = {
+  id: 'workyard-stump-seat',
+  behavior: 'rest',
+  support: 'stump',
+  supportPosition: { x: -4.48, z: -1.2 },
+  destination: { x: -4, z: -1.14 },
+  approach: { x: -3.5, z: -1.08 },
+  lookAt: FOUNDERS_CAMPFIRE_POSITION,
+  surfaceHeight: FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
+};
+
 export const FOUNDERS_CAMP_SEAT_LANDMARKS: readonly FoundersCampSeatLandmark[] = [
   FOUNDERS_CAMP_BENCH_SEAT,
   FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT,
+  FOUNDERS_CAMP_WORKYARD_STUMP_SEAT,
+  FOUNDERS_CAMP_BENCH_SEATS[0]!,
+  FOUNDERS_CAMP_BENCH_SEATS[2]!,
 ];

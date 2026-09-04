@@ -7,10 +7,14 @@ import {
   type AmbientBehaviorSlot,
 } from '../src/settlement/ambientBehaviors.ts';
 import {
+  FOUNDERS_CAMP_BENCH,
   FOUNDERS_CAMP_BENCH_SEAT,
+  FOUNDERS_CAMP_BENCH_SEATS,
   FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT,
   FOUNDERS_CAMP_SEAT_LANDMARKS,
   FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
+  FOUNDERS_CAMP_WORKYARD_STUMP_SEAT,
+  FOUNDERS_CAMPFIRE_POSITION,
 } from '../src/buildings/foundersCampLandmarks.ts';
 import { buildingPlacementYaw } from '../src/buildings/buildingPlacement.ts';
 import { createFoundersCampMesh } from '../src/buildings/meshes/foundersCampMesh.ts';
@@ -70,12 +74,12 @@ const campWorld = (point: { x: number; z: number }) => ({
   x: camp.x + Math.cos(campYaw) * point.x + Math.sin(campYaw) * point.z,
   z: camp.z - Math.sin(campYaw) * point.x + Math.cos(campYaw) * point.z,
 });
-const actorIds = Array.from({ length: 5 }, (_, index) => `founder-camp:${index}`);
+const actorIds = Array.from({ length: 7 }, (_, index) => `founder-camp:${index}`);
 const campPlan = planFoundersCampAmbientBehaviors(camp, actorIds, 0);
 assert.deepEqual(
   [...campPlan.values()].map((assignment) => assignment.kind).sort(),
-  ['rest', 'sit', 'talk', 'talk', 'wander'],
-  'a full founding crowd should visibly talk, sit, rest, and move at once',
+  ['rest', 'rest', 'sit', 'sit', 'sit', 'talk', 'talk'],
+  'a seven-person founding crowd should visibly use every physical seat at once',
 );
 const plannedSeats = [...campPlan.values()].filter(
   (assignment) => assignment.kind === 'sit' || assignment.kind === 'rest',
@@ -128,29 +132,72 @@ assert.deepEqual(
 );
 
 const campMesh = createFoundersCampMesh();
+const benchGroup = campMesh.getObjectByName('Camp fireside bench');
 const benchMesh = campMesh.getObjectByName('Camp bench seat');
 const stumpMesh = campMesh.getObjectByName('Camp fireside stump seat');
 const stumpTopMesh = campMesh.getObjectByName('Camp fireside stump seat top');
+const workyardStumpMesh = campMesh.getObjectByName('Camp workyard stump seat');
+const workyardStumpTopMesh = campMesh.getObjectByName('Camp workyard stump seat top');
+assert.ok(benchGroup, 'the camp must expose one dimensioned fireside bench assembly');
 assert.ok(benchMesh, 'the planned bench seat must have visible supporting geometry');
 assert.ok(stumpMesh, 'the fireside rest pose must have a visible stump beneath it');
 assert.ok(stumpTopMesh, 'the fireside stump must expose a visible sitting surface');
+assert.ok(workyardStumpMesh, 'the second stump rest pose must have visible supporting geometry');
+assert.ok(workyardStumpTopMesh, 'the second stump must expose a visible sitting surface');
 assert.deepEqual(
-  { x: benchMesh.position.x, z: benchMesh.position.z },
-  FOUNDERS_CAMP_BENCH_SEAT.supportPosition,
+  { x: benchGroup.position.x, z: benchGroup.position.z },
+  FOUNDERS_CAMP_BENCH.center,
 );
+assert.ok(Math.abs(benchGroup.rotation.y - Math.PI * 0.5) < 1e-9,
+  'the sole bench must be rotated exactly 90 degrees toward the fire');
+assert.equal(
+  campMesh.getObjectsByProperty('name', 'Camp fireside bench').length,
+  1,
+  'the camp must contain exactly one bench assembly',
+);
+assert.equal(campMesh.getObjectByName('Camp cook preparation board'), undefined,
+  'the former preparation board must not continue reading as a second bench');
+assert.equal(campMesh.getObjectsByProperty('name', 'Camp bench leg').length, 2,
+  'the one bench must retain two evenly grounded legs');
 assert.deepEqual(
   { x: stumpMesh.position.x, z: stumpMesh.position.z },
   FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition,
 );
+assert.deepEqual(
+  { x: workyardStumpMesh.position.x, z: workyardStumpMesh.position.z },
+  FOUNDERS_CAMP_WORKYARD_STUMP_SEAT.supportPosition,
+);
 const benchGeometry = (benchMesh as THREE.Mesh).geometry as THREE.BoxGeometry;
 const stumpTopGeometry = (stumpTopMesh as THREE.Mesh).geometry as THREE.CylinderGeometry;
-assert.ok(
-  Math.abs(
-    FOUNDERS_CAMP_BENCH_SEAT.destination.z
-      - FOUNDERS_CAMP_BENCH_SEAT.supportPosition.z,
-  ) > benchGeometry.parameters.depth / 2,
-  'the bench occupant root must remain in front of the plank footprint',
-);
+assert.equal(benchGeometry.parameters.width, FOUNDERS_CAMP_BENCH.length);
+assert.equal(benchGeometry.parameters.depth, FOUNDERS_CAMP_BENCH.depth);
+const benchSeatLocalOffsets = FOUNDERS_CAMP_BENCH_SEATS.map((seat) => (
+  new THREE.Vector3(
+    seat.supportPosition.x - FOUNDERS_CAMP_BENCH.center.x,
+    0,
+    seat.supportPosition.z - FOUNDERS_CAMP_BENCH.center.z,
+  ).applyAxisAngle(new THREE.Vector3(0, 1, 0), -FOUNDERS_CAMP_BENCH.yaw)
+));
+for (const [index, seat] of FOUNDERS_CAMP_BENCH_SEATS.entries()) {
+  const supportLocal = benchSeatLocalOffsets[index]!;
+  const destinationLocal = new THREE.Vector3(
+    seat.destination.x - FOUNDERS_CAMP_BENCH.center.x,
+    0,
+    seat.destination.z - FOUNDERS_CAMP_BENCH.center.z,
+  ).applyAxisAngle(new THREE.Vector3(0, 1, 0), -FOUNDERS_CAMP_BENCH.yaw);
+  assert.ok(Math.abs(supportLocal.x) < FOUNDERS_CAMP_BENCH.length / 2 - 0.3);
+  assert.ok(Math.abs(supportLocal.z) < 1e-9);
+  assert.ok(destinationLocal.z > benchGeometry.parameters.depth / 2,
+    'every bench occupant root must remain in front of the plank footprint');
+  assert.deepEqual(seat.lookAt, FOUNDERS_CAMPFIRE_POSITION,
+    'every bench occupant must face the campfire');
+}
+for (let index = 1; index < benchSeatLocalOffsets.length; index += 1) {
+  assert.ok(
+    benchSeatLocalOffsets[index]!.distanceTo(benchSeatLocalOffsets[index - 1]!) >= 0.7,
+    'bench seating locations must leave shoulder clearance between founders',
+  );
+}
 assert.ok(
   Math.hypot(
     FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.destination.x
@@ -176,23 +223,20 @@ assert.ok(
   ) < 1e-9,
   'the fireside log top must match the shared sitting surface',
 );
+const workyardStumpTopGeometry = (workyardStumpTopMesh as THREE.Mesh)
+  .geometry as THREE.CylinderGeometry;
+assert.ok(
+  Math.abs(
+    workyardStumpTopMesh.position.y
+      + workyardStumpTopGeometry.parameters.height / 2
+      - FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
+  ) < 1e-9,
+  'the second stump top must match the shared sitting surface',
+);
 campMesh.position.set(camp.x, 0, camp.z);
 campMesh.rotation.y = campYaw;
 campMesh.updateMatrixWorld(true);
-const preparationBoard = campMesh.getObjectByName('Camp cook preparation board');
-assert.ok(preparationBoard, 'the camp conversation must account for the preparation table');
-const preparationGeometry = (preparationBoard as THREE.Mesh).geometry as THREE.BoxGeometry;
-for (const talker of conversation) {
-  const tableLocal = preparationBoard.worldToLocal(
-    new THREE.Vector3(talker.destination.x, preparationBoard.position.y, talker.destination.z),
-  );
-  assert.ok(
-    Math.abs(tableLocal.x) > preparationGeometry.parameters.width / 2 + 0.2
-      || Math.abs(tableLocal.z) > preparationGeometry.parameters.depth / 2 + 0.2,
-    'camp conversations must leave body clearance around the preparation table',
-  );
-}
-const benchSupportWorld = benchMesh.getWorldPosition(new THREE.Vector3());
+const benchSupportWorld = benchGroup.getWorldPosition(new THREE.Vector3());
 const expectedBenchSupportWorld = campWorld(FOUNDERS_CAMP_BENCH_SEAT.supportPosition);
 assert.ok(
   Math.hypot(

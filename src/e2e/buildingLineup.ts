@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CameraController } from '../camera/CameraController.ts';
 import { CampStandardRenderer } from '../settlement/CampStandardRenderer.ts';
 import { createBuildingMesh } from '../buildings/BuildingMeshes.ts';
 import { initializeBuildingMaterialLibrary } from '../buildings/buildingMaterials.ts';
@@ -17,8 +18,7 @@ import {
   animateCampfire,
 } from '../buildings/meshes/foundersCampMesh.ts';
 import {
-  FOUNDERS_CAMP_BENCH_SEAT,
-  FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT,
+  FOUNDERS_CAMP_SEAT_LANDMARKS,
   type FoundersCampSeatLandmark,
 } from '../buildings/foundersCampLandmarks.ts';
 import {
@@ -61,6 +61,16 @@ declare global {
       cpuFrameMs: number;
       renderTargets: number;
       stableOxVisuals: number;
+    };
+    __BUILDING_LINEUP_CAMERA_STATE__?: {
+      activeViewIndex: number;
+      controls: 'game-camera';
+      views: Array<{
+        position: readonly [number, number, number];
+        target: readonly [number, number, number];
+        orbitDistance: number;
+        yaw: number;
+      }>;
     };
   }
 }
@@ -431,6 +441,44 @@ const comparisonLookY = comparisonMode
       : new THREE.Box3().setFromObject(viewSpecs[0]!.mesh).getSize(new THREE.Vector3()).y) * 0.4
   : null;
 
+const viewControls: CameraController[] = [];
+const viewCells: HTMLElement[] = [];
+let activeViewIndex = -1;
+
+function viewIndexAtClientPoint(clientX: number, clientY: number): number {
+  const rect = root!.getBoundingClientRect();
+  const localX = clientX - rect.left;
+  const localY = clientY - rect.top;
+  if (localX < 0 || localY < 0 || localX >= rect.width || localY >= rect.height) return -1;
+  const cellWidth = rect.width / COLS;
+  const cellHeight = rect.height / ROWS;
+  const col = Math.min(COLS - 1, Math.floor(localX / cellWidth));
+  const row = Math.min(ROWS - 1, Math.floor(localY / cellHeight));
+  if (localY - row * cellHeight >= cellHeight - labelBandHeight) return -1;
+  const index = row * COLS + col;
+  return index < viewSpecs.length ? index : -1;
+}
+
+function activateView(index: number): void {
+  if (index < 0 || index >= viewControls.length || activeViewIndex === index) return;
+  activeViewIndex = index;
+  viewControls.forEach((control, controlIndex) => control.setInputEnabled(controlIndex === index));
+  viewCells.forEach((cell, cellIndex) => cell.classList.toggle('is-active', cellIndex === index));
+}
+
+const onLineupMouseDown = (event: MouseEvent): void => {
+  activateView(viewIndexAtClientPoint(event.clientX, event.clientY));
+};
+const onLineupWheel = (event: WheelEvent): void => {
+  activateView(viewIndexAtClientPoint(event.clientX, event.clientY));
+};
+const onLineupMouseMove = (event: MouseEvent): void => {
+  if (event.buttons === 0) activateView(viewIndexAtClientPoint(event.clientX, event.clientY));
+};
+renderer.domElement.addEventListener('mousedown', onLineupMouseDown, { capture: true });
+renderer.domElement.addEventListener('wheel', onLineupWheel, { capture: true });
+renderer.domElement.addEventListener('mousemove', onLineupMouseMove);
+
 // Inspection-only materials: no atlas, vertex tint, emissive fill, or extra
 // passes. These expose silhouette/joins and face ownership independently.
 const residenceProofMaterials = (compareResidences || compareChurchTiers || selectedKinds[0] === 'chapel')
@@ -449,7 +497,7 @@ if (residenceMaterialProof) {
   if (subtitle) subtitle.textContent = 'Material ownership · Stone blue · Daub ochre · Timber brown · Roof green';
 }
 
-const views = viewSpecs.map((spec) => {
+const views = viewSpecs.map((spec, viewIndex) => {
   if (Number.isFinite(requestedClockHour)) {
     setTierOneChurchClockTime(spec.mesh, {
       hour: Math.floor(requestedClockHour),
@@ -593,8 +641,9 @@ const views = viewSpecs.map((spec) => {
         )
   ).normalize();
   const lookY = comparisonLookY ?? Math.max(1.2, size.y * 0.43);
-  camera.position.copy(direction.multiplyScalar(distance)).add(new THREE.Vector3(0, lookY, 0));
-  camera.lookAt(0, lookY, 0);
+  const cameraTarget = new THREE.Vector3(0, lookY, 0);
+  camera.position.copy(direction.multiplyScalar(distance)).add(cameraTarget);
+  camera.lookAt(cameraTarget);
 
   const campSeating = building.name === "Founders' camp and open stockyard"
     && showCampSeating
@@ -613,27 +662,26 @@ const views = viewSpecs.map((spec) => {
     ? createStableOxPreview(scene, building)
     : null;
   if (campSeating) {
-    const benchFocus = building.localToWorld(new THREE.Vector3(
-      FOUNDERS_CAMP_BENCH_SEAT.supportPosition.x,
-      FOUNDERS_CAMP_BENCH_SEAT.surfaceHeight,
-      FOUNDERS_CAMP_BENCH_SEAT.supportPosition.z,
-    ));
-    const stumpFocus = building.localToWorld(new THREE.Vector3(
-      FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.x,
-      FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.surfaceHeight,
-      FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.z,
-    ));
-    const seatFocus = benchFocus.add(stumpFocus).multiplyScalar(0.5);
+    const seatFocus = FOUNDERS_CAMP_SEAT_LANDMARKS.reduce(
+      (sum, seat) => sum.add(building.localToWorld(new THREE.Vector3(
+        seat.supportPosition.x,
+        seat.surfaceHeight,
+        seat.supportPosition.z,
+      ))),
+      new THREE.Vector3(),
+    ).multiplyScalar(1 / FOUNDERS_CAMP_SEAT_LANDMARKS.length);
+    cameraTarget.copy(seatFocus);
     camera.position.copy(new THREE.Vector3(0.72, 0.46, -1).normalize())
       .multiplyScalar(9)
-      .add(seatFocus);
-    camera.lookAt(seatFocus);
+      .add(cameraTarget);
+    camera.lookAt(cameraTarget);
   }
   if (clericPreview) {
     const clericFocus = building.localToWorld(new THREE.Vector3(0, 1.4, 11.2));
     const clericCamera = building.localToWorld(new THREE.Vector3(11.5, 7.2, 19));
+    cameraTarget.copy(clericFocus);
     camera.position.copy(clericCamera);
-    camera.lookAt(clericFocus);
+    camera.lookAt(cameraTarget);
   }
 
   const cell = document.createElement('div');
@@ -643,8 +691,61 @@ const views = viewSpecs.map((spec) => {
   label.textContent = spec.label;
   cell.append(label);
   labels.append(cell);
-  return { scene, camera, campSeating, waysidePrayer, clericPreview, stableOxen };
+  viewCells.push(cell);
+
+  const initialOffset = camera.position.clone().sub(cameraTarget);
+  const initialDistance = Math.max(0.001, initialOffset.length());
+  const initialYaw = Math.atan2(initialOffset.z, initialOffset.x);
+  const initialPitch = Math.asin(THREE.MathUtils.clamp(initialOffset.y / initialDistance, -1, 1));
+  const minimumOrbitDistance = Math.max(1.4, Math.min(4, largest * 0.12));
+  const maximumOrbitDistance = Math.max(initialDistance * 3, largest * 5, groundRadius * 4);
+  const panExtent = Math.max(groundRadius * 1.4, largest * 1.25);
+  camera.far = Math.max(camera.far, maximumOrbitDistance + largest * 4);
+  camera.updateProjectionMatrix();
+  if (scene.fog instanceof THREE.Fog) {
+    scene.fog.far = Math.max(scene.fog.far, maximumOrbitDistance + largest * 2.5);
+  }
+  const cameraController = new CameraController({
+    camera,
+    target: new THREE.Vector3(),
+    domElement: renderer.domElement,
+    bounds: {
+      minX: cameraTarget.x - panExtent,
+      maxX: cameraTarget.x + panExtent,
+      minZ: cameraTarget.z - panExtent,
+      maxZ: cameraTarget.z + panExtent,
+    },
+    getHeightAt: () => cameraTarget.y,
+    shouldIgnoreInput: (event) => (
+      viewIndexAtClientPoint(event.clientX, event.clientY) !== viewIndex
+    ),
+    isIllustratedMapReady: () => false,
+    onViewChanged: () => render(),
+    orbitOnly: true,
+    orbitFov: camera.fov,
+    minimumOrbitDistance,
+    maximumOrbitDistance,
+  });
+  cameraController.applyShowcaseView(
+    cameraTarget.x,
+    cameraTarget.z,
+    initialYaw,
+    initialPitch,
+    initialDistance,
+  );
+  viewControls.push(cameraController);
+  return {
+    scene,
+    camera,
+    cameraController,
+    campSeating,
+    waysidePrayer,
+    clericPreview,
+    stableOxen,
+  };
 });
+
+activateView(0);
 
 for (let index = views.length; index < COLS * ROWS; index++) {
   const cell = document.createElement('div');
@@ -692,6 +793,18 @@ function render(): void {
   renderer.setScissorTest(false);
   lastRendererFrameStats = readRendererFrameStats(renderer.info, frameBoundary);
   lastRenderCpuMs = performance.now() - frameStartedAt;
+  const cameraState: NonNullable<Window['__BUILDING_LINEUP_CAMERA_STATE__']> = {
+    activeViewIndex,
+    controls: 'game-camera',
+    views: views.map((view) => ({
+      position: view.camera.position.toArray() as [number, number, number],
+      target: view.cameraController.getTargetPosition().toArray() as [number, number, number],
+      orbitDistance: view.cameraController.getOrbitDistance(),
+      yaw: view.cameraController.getYaw(),
+    })),
+  };
+  window.__BUILDING_LINEUP_CAMERA_STATE__ = cameraState;
+  document.body.dataset.lineupCameraState = JSON.stringify(cameraState);
 }
 
 await initializeBuildingMaterialLibrary(rendererBackend.maxAnisotropy);
@@ -749,6 +862,12 @@ document.body.dataset.ready = 'true';
 document.body.dataset.rendererBackend = rendererBackend.kind;
 document.body.dataset.lightingMode = lightingMode;
 window.addEventListener('resize', render);
+window.addEventListener('pagehide', () => {
+  renderer.domElement.removeEventListener('mousedown', onLineupMouseDown, true);
+  renderer.domElement.removeEventListener('wheel', onLineupWheel, true);
+  renderer.domElement.removeEventListener('mousemove', onLineupMouseMove);
+  viewControls.forEach((control) => control.dispose());
+}, { once: true });
 
 function createServiceCoveragePreview(
   kind: 'well' | 'marketplace' | 'chapel',
@@ -984,25 +1103,34 @@ function createCampSeatingPreview(
   agents: CrowdRenderAgent[];
 } {
   camp.updateMatrixWorld(true);
-  const seats: ReadonlyArray<{
-    landmark: FoundersCampSeatLandmark;
+  const previewStyles: ReadonlyArray<{
     variant: VillagerModelVariant;
     appearanceSeed: number;
     tunicColor: number;
   }> = [
     {
-      landmark: FOUNDERS_CAMP_BENCH_SEAT,
       variant: 'man',
       appearanceSeed: 0x0080_0000,
       tunicColor: 0x6d402c,
     },
     {
-      landmark: FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT,
       variant: 'woman',
       appearanceSeed: 0x007f_0000,
       tunicColor: 0x4e5f77,
     },
+    { variant: 'man', appearanceSeed: 0x0049_0000, tunicColor: 0x5a6742 },
+    { variant: 'woman', appearanceSeed: 0x0037_0000, tunicColor: 0x765137 },
+    { variant: 'man', appearanceSeed: 0x0062_0000, tunicColor: 0x485b67 },
   ];
+  const seats: ReadonlyArray<{
+    landmark: FoundersCampSeatLandmark;
+    variant: VillagerModelVariant;
+    appearanceSeed: number;
+    tunicColor: number;
+  }> = FOUNDERS_CAMP_SEAT_LANDMARKS.map((landmark, index) => ({
+    landmark,
+    ...previewStyles[index % previewStyles.length]!,
+  }));
   const campGroundY = camp.localToWorld(new THREE.Vector3()).y;
   const agents = seats.map((seat, index): CrowdRenderAgent => {
     const destination = camp.localToWorld(new THREE.Vector3(

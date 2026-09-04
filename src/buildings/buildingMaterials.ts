@@ -191,7 +191,8 @@ export type BuildingDetailMaterialKey =
   | 'canvas'
   | 'hide'
   | 'foliage'
-  | 'crop';
+  | 'crop'
+  | 'bread';
 
 type DetailMaterialDefinition = Omit<THREE.MeshStandardMaterialParameters, 'normalScale'> & {
   atlasTile?: BuildingMaterialAtlasTile;
@@ -215,6 +216,7 @@ const DETAIL_MATERIAL_DEFINITIONS: Record<BuildingDetailMaterialKey, DetailMater
   hide: { color: 0xd0b395, roughness: 0.94, metalness: 0, atlasMetersPerTile: CAMP_HIDE_METERS_PER_REPEAT, side: THREE.DoubleSide },
   foliage: { color: 0x526f3b, roughness: 1, metalness: 0 },
   crop: { color: 0xb69a48, roughness: 1, metalness: 0 },
+  bread: { color: 0xd9c7a2, roughness: 0.96, metalness: 0 },
 };
 
 const detailMaterialCache = new Map<BuildingDetailMaterialKey, BuildingAtlasMaterial>();

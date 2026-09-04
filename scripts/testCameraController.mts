@@ -1638,4 +1638,34 @@ function scrollToLiveWorldMaximum(
   );
 }
 
+{
+  const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 300);
+  const target = new THREE.Vector3();
+  const domElement = createDomElement();
+  const controller = new CameraController({
+    camera,
+    target,
+    domElement,
+    bounds: { minX: -20, maxX: 20, minZ: -20, maxZ: 20 },
+    getHeightAt: () => 4,
+    isIllustratedMapReady: () => false,
+    continuousRenderLoop: true,
+    orbitOnly: true,
+    orbitFov: 34,
+    minimumOrbitDistance: 2,
+    maximumOrbitDistance: 120,
+  });
+  controller.applyShowcaseView(0, 0, 0.7, THREE.MathUtils.degToRad(5), 2);
+  assert.ok(Math.abs(camera.position.distanceTo(target) - 2) < 1e-9,
+    'inspection orbit must retain its authored close distance instead of entering the ground-eye curve');
+  assert.equal(camera.fov, 34,
+    'inspection orbit must preserve the lineup lens while navigating');
+  controller.applyShowcaseView(0, 0, 0.7, THREE.MathUtils.degToRad(70), 999);
+  assert.equal(controller.getOrbitDistance(), 120,
+    'inspection orbit must retain its scale-aware maximum distance');
+  assert.ok(Math.abs(measureOrbitPitch(camera, target) - THREE.MathUtils.degToRad(70)) < 1e-9,
+    'inspection orbit must preserve the full live-game pitch envelope');
+  controller.dispose();
+}
+
 console.log('test:camera-controller passed');

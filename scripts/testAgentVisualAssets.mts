@@ -791,8 +791,8 @@ assert.match(workerToolLicense, /Quaternius/);
 const buildingLineupSource = fs.readFileSync('src/e2e/buildingLineup.ts', 'utf8');
 assert.match(
   buildingLineupSource,
-  /showCampSeating[\s\S]*FOUNDERS_CAMP_BENCH_SEAT[\s\S]*FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT/,
-  'the deterministic building lineup should expose both founding-camp seating landmarks',
+  /showCampSeating[\s\S]*FOUNDERS_CAMP_SEAT_LANDMARKS/,
+  'the deterministic building lineup should expose every founding-camp seating landmark',
 );
 assert.match(
   buildingLineupSource,

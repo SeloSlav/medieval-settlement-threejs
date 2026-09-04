@@ -170,7 +170,7 @@ const detailKeys: readonly BuildingDetailMaterialKey[] = [
   'earth', 'canvas',
 ];
 const specialDetailKeys: readonly BuildingDetailMaterialKey[] = [
-  'water', 'smoke', 'foliage', 'crop',
+  'water', 'smoke', 'foliage', 'crop', 'bread',
 ];
 
 const manifestTilesById = new Map(

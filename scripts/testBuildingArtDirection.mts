@@ -814,8 +814,8 @@ if (stats.constructionMaterials > 22) {
   throw new Error(`Shared construction palette grew beyond 22 materials (${stats.constructionMaterials}).`);
 }
 // One dedicated sewn-hide surface is shared by every hunter processing fly.
-if (stats.detailMaterials > 13) {
-  throw new Error(`Shared building-detail palette grew beyond 13 materials (${stats.detailMaterials}).`);
+if (stats.detailMaterials > 14) {
+  throw new Error(`Shared building-detail palette grew beyond 14 materials (${stats.detailMaterials}).`);
 }
 const backyardMaterialStats = getBackyardGardenMaterialLibraryStats();
 if (backyardMaterialStats.meshMaterials > 34 || backyardMaterialStats.spriteMaterials > 3) {
@@ -916,9 +916,9 @@ if (
   finalStats.constructionMaterials < 15
   || finalStats.constructionMaterials > 22
   || finalStats.detailMaterials < 12
-  || finalStats.detailMaterials > 13
+  || finalStats.detailMaterials > 14
 ) {
-  throw new Error(`Expected a 15–22 construction + 12–13 detail shared palette; found ${finalStats.constructionMaterials} + ${finalStats.detailMaterials}.`);
+  throw new Error(`Expected a 15–22 construction + 12–14 detail shared palette; found ${finalStats.constructionMaterials} + ${finalStats.detailMaterials}.`);
 }
 const finalMaterialCeiling =
   finalStats.constructionMaterials

@@ -270,9 +270,10 @@ const ROLE_INDEPENDENT_DETAIL_MATERIALS = new Set<BuildingDetailMaterialKey>([
   'smoke',
   'foliage',
   'crop',
+  'bread',
 ]);
 
-const NON_STRUCTURAL_PROP_PATTERN = /(?:\bstock\b|sample|delivered|stored|storage|bundle|bale|roll|barrel|basket|bucket|\bcan\b|crate|goods|ore|clay|salt|wax|candle|hide|fodder|grain|fish|meat|manure|tool|utensil|vessel|pottery|sign emblem|trade sign|survey flag|target)/i;
+const NON_STRUCTURAL_PROP_PATTERN = /(?:\bstock\b|sample|delivered|stored|storage|bundle|bale|roll|barrel|basket|bucket|\bcan\b|crate|goods|ore|clay|salt|wax|candle|hide|fodder|grain|bread|loaf|fish|meat|manure|tool|utensil|vessel|pottery|sign emblem|trade sign|survey flag|target)/i;
 const STRUCTURAL_CANVAS_PATTERN = /(?:canvas|tent|awning|canopy|weather fly|processing fly|market.*cloth|stall.*cloth|shelter.*cloth|fabric panel)/i;
 const STRUCTURAL_WICKER_PATTERN = /(?:wattle|woven (?:wall|panel|screen)|wicker (?:wall|panel|screen)|hurdle|lightweight screen)/i;
 const STRUCTURAL_EARTH_PATTERN = /(?:packed earth|yard (?:floor|surface)|stall floor|work floor|walking surface|thermal cover|clamp cover|earth cover)/i;
