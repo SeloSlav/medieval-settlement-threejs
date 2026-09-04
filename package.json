@@ -280,7 +280,7 @@
     "test:roof-tile-construction": "node --experimental-strip-types scripts/testRoofTileConstruction.mts",
     "test:founding-site": "npx tsx scripts/testFoundingSite.mts",
     "test:campfire-occupancy": "node --experimental-strip-types scripts/testCampfireOccupancy.mts",
-    "test:resident-fire-light": "node --experimental-strip-types scripts/testResidentFireLight.mts",
+    "test:fire-lighting": "node --experimental-strip-types scripts/testFireLighting.mts",
     "test:starter-camp": "npx tsx scripts/testStarterCampPlacement.mts",
     "test:demolition-reclamation": "npx tsx scripts/testDemolitionReclamation.mts",
     "test:delivery-pacing": "node --experimental-strip-types scripts/testDeliveryPacing.mts",

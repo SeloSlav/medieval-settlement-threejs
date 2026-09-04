@@ -184,6 +184,7 @@ export function createFireEffect(options: FireEffectOptions = {}): FireEffect {
     1.7,
   );
   light.name = FIRE_EFFECT_LIGHT_NAME;
+  light.userData.runtimeFireLight = true;
   light.position.y = 0.9;
   root.add(light);
 

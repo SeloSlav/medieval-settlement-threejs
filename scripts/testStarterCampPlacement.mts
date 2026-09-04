@@ -264,9 +264,8 @@ const residentLight = markerParent.getObjectByName('FireEffectLight') as THREE.P
 assert.ok(residentLight?.isPointLight);
 assert.ok(residentLight.intensity > 0, 'covered warmup retains the authored campfire lighting');
 campGpuPrewarm.restore();
-assert.equal(markerParent.getObjectByName('FireEffectLight'), residentLight,
-  'removing the warmup model must not evict the global lighting shader signature');
-assert.equal(residentLight.intensity, 0, 'the unplaced camp must not light the ground');
+assert.equal(markerParent.getObjectByName('FireEffectLight'), undefined,
+  'the unplaced camp and its light must leave the scene; shared lighting keeps shaders stable');
 gpuPrewarmedStandards!.traverseVisible(object => {
   if ((object as THREE.Mesh).isMesh) {
     assert.ok((object as THREE.InstancedMesh).count === 0
@@ -296,7 +295,7 @@ campMarkers.clearPlacementPreview();
 const campRevealStarted = performance.now();
 campMarkers.showPendingPlacement('founders_camp', 12, -8);
 assert.equal(markerParent.getObjectByName('FireEffectLight'), residentLight);
-assert.ok(residentLight.intensity > 0, 'pending placement restores the existing light by uniforms only');
+assert.ok(residentLight.intensity > 0, 'pending placement restores the original authored light');
 const campRevealElapsed = performance.now() - campRevealStarted;
 const markerGroup = markerParent.getObjectByName('Building markers');
 const optimisticCamp = markerGroup?.getObjectByName('Pending building placement');

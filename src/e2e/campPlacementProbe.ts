@@ -7,6 +7,7 @@ import { SettlementCrowdRenderer } from '../settlement/SettlementCrowdRenderer.t
 import { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
 import { CampStandardRenderer } from '../settlement/CampStandardRenderer.ts';
 import { WebGPURenderer } from 'three/webgpu';
+import { installFireTransitionControls } from './fireLightingProbe.ts';
 
 export function installCampPlacementProbe(app) {
   const events = [];
@@ -19,6 +20,7 @@ export function installCampPlacementProbe(app) {
   const record = (name, details = {}) => {
     events.push({ t: Math.round(performance.now() * 100) / 100, name, ...details });
   };
+  let firePhase = null;
   const wrap = (target, key, prefix) => {
     const original = target?.[key];
     if (typeof original !== 'function' || original.__campProbe) return;
@@ -62,7 +64,7 @@ export function installCampPlacementProbe(app) {
         const ms = performance.now() - start;
         if (prefix === 'WebGPURenderer' && key === 'render') renderDepth--;
         if (outerRender) {
-          if (ms > 100 || Object.keys(renderResources.objects).length) record('render-resources', { ms, ...renderResources });
+          if (firePhase || ms > 100 || Object.keys(renderResources.objects).length) record('render-resources', { phase: firePhase, ms, ...renderResources });
           if (pendingStart && !pendingFenceSubmitted) {
             pendingFenceSubmitted = true;
             record('pending-first-submit', { ms: performance.now() - pendingStart, renderMs: ms, ...renderResources });
@@ -145,5 +147,6 @@ export function installCampPlacementProbe(app) {
     else { savedRender = manager.postProcessor.render; manager.postProcessor.render = () => manager.renderer.render(manager.scene, manager.camera); }
   };
   controls.append(noPost);
+  installFireTransitionControls(app, controls, record, phase => { firePhase = phase; });
   document.body.append(controls);
 }

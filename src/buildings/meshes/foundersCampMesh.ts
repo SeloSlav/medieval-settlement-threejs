@@ -33,6 +33,7 @@ import {
   FOUNDERS_CAMP_BENCH_SEATS,
   FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT,
   FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
+  FOUNDERS_CAMP_STUMP_TOP_RADIUS,
   FOUNDERS_CAMP_WORKYARD_STUMP_SEAT,
   FOUNDERS_CAMPFIRE_POSITION,
 } from '../foundersCampLandmarks.ts';
@@ -1804,7 +1805,12 @@ export function addCampStumpSeat(
     - stumpCapThickness;
   const stumpSeat = addMesh(
     parent,
-    new THREE.CylinderGeometry(0.38, 0.43, stumpBodyHeight, 10),
+    new THREE.CylinderGeometry(
+      FOUNDERS_CAMP_STUMP_TOP_RADIUS,
+      0.43,
+      stumpBodyHeight,
+      10,
+    ),
     timberMaterial('dark'),
     new THREE.Vector3(
       x,
@@ -1816,7 +1822,12 @@ export function addCampStumpSeat(
   stumpSeat.name = name;
   const stumpSeatTop = addMesh(
     parent,
-    new THREE.CylinderGeometry(0.37, 0.38, stumpCapThickness, 10),
+    new THREE.CylinderGeometry(
+      0.37,
+      FOUNDERS_CAMP_STUMP_TOP_RADIUS,
+      stumpCapThickness,
+      10,
+    ),
     timberMaterial('weathered'),
     new THREE.Vector3(
       x,

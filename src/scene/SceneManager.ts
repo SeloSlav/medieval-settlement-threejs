@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { FireLighting } from '../fires/FireLighting.ts';
 import { SceneAtmosphere } from './SceneAtmosphere.ts';
 import { deciduousFoliageForSeasonPreview } from '../world/deciduousFoliagePolicy.ts';
 import type { BuildingTerrainSource } from '../buildings/BuildingTerrainLayout.ts';
@@ -363,6 +364,9 @@ export class SceneManager {
   ) {
     this.container = container;
     this.renderer = backend.renderer;
+    if (backend.kind !== 'webgl') {
+      (this.renderer as unknown as { lighting: FireLighting }).lighting = new FireLighting();
+    }
     configureRendererFrameStats(this.renderer.info as unknown as RendererInfoLike);
     this.rendererBackend = backend.kind;
     this.rendererAdapterEvidence = {
@@ -1857,6 +1861,8 @@ export class SceneManager {
     this.materials.dispose();
     disposeVineyardVineResources();
     disposeBuildingMaterialLibrary();
+    const lighting = (this.renderer as unknown as { lighting?: FireLighting }).lighting;
+    if (lighting instanceof FireLighting) lighting.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }

@@ -25,6 +25,7 @@ export const FOUNDERS_CAMPFIRE_POSITION: FoundersCampLandmarkPoint = {
  * roots from drifting apart when any one of them is adjusted.
  */
 export const FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT = 0.395;
+export const FOUNDERS_CAMP_STUMP_TOP_RADIUS = 0.38;
 
 export const FOUNDERS_CAMP_BENCH = {
   center: { x: -1.9, z: -0.2 },
@@ -35,8 +36,25 @@ export const FOUNDERS_CAMP_BENCH = {
   legOffsets: [-0.82, 0.82],
 } as const;
 
-const BENCH_OCCUPANT_FRONT_CLEARANCE = 0.08;
+const SEATED_OCCUPANT_FRONT_CLEARANCE = 0.01;
 const BENCH_APPROACH_FRONT_CLEARANCE = 0.48;
+const STUMP_OCCUPANT_SUPPORT_GAP = FOUNDERS_CAMP_STUMP_TOP_RADIUS
+  + SEATED_OCCUPANT_FRONT_CLEARANCE;
+
+function keepDistanceFrom(
+  point: FoundersCampLandmarkPoint,
+  target: FoundersCampLandmarkPoint,
+  distance: number,
+): FoundersCampLandmarkPoint {
+  const deltaX = point.x - target.x;
+  const deltaZ = point.z - target.z;
+  const length = Math.hypot(deltaX, deltaZ);
+  if (length <= distance) return point;
+  return {
+    x: target.x + deltaX / length * distance,
+    z: target.z + deltaZ / length * distance,
+  };
+}
 
 function benchPoint(along: number, forward: number): FoundersCampLandmarkPoint {
   const cosYaw = Math.cos(FOUNDERS_CAMP_BENCH.yaw);
@@ -57,7 +75,7 @@ function benchSeatLandmark(id: string, along: number): FoundersCampSeatLandmark 
     // clip settles the hips backward onto the shared plank.
     destination: benchPoint(
       along,
-      FOUNDERS_CAMP_BENCH.depth / 2 + BENCH_OCCUPANT_FRONT_CLEARANCE,
+      FOUNDERS_CAMP_BENCH.depth / 2 + SEATED_OCCUPANT_FRONT_CLEARANCE,
     ),
     approach: benchPoint(
       along,
@@ -85,7 +103,11 @@ export const FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT: FoundersCampSeatLandmark = {
   // the authored sitting motion settles the hips onto the stump. The root is
   // kept just outside the stump footprint to leave the bent legs clear.
   supportPosition: { x: 2.68, z: 0.2 },
-  destination: { x: 2.32, z: 0 },
+  destination: keepDistanceFrom(
+    { x: 2.32, z: 0 },
+    { x: 2.68, z: 0.2 },
+    STUMP_OCCUPANT_SUPPORT_GAP,
+  ),
   lookAt: FOUNDERS_CAMPFIRE_POSITION,
   surfaceHeight: FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
 };
@@ -95,7 +117,11 @@ export const FOUNDERS_CAMP_WORKYARD_STUMP_SEAT: FoundersCampSeatLandmark = {
   behavior: 'rest',
   support: 'stump',
   supportPosition: { x: -4.48, z: -1.2 },
-  destination: { x: -4, z: -1.14 },
+  destination: keepDistanceFrom(
+    { x: -4, z: -1.14 },
+    { x: -4.48, z: -1.2 },
+    STUMP_OCCUPANT_SUPPORT_GAP,
+  ),
   approach: { x: -3.5, z: -1.08 },
   lookAt: FOUNDERS_CAMPFIRE_POSITION,
   surfaceHeight: FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,

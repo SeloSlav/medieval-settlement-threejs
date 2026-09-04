@@ -56,7 +56,11 @@ for (const [index, landmark] of FOUNDERS_CAMP_BENCH_SEATS.entries()) {
   ).applyAxisAngle(yAxis, -FOUNDERS_CAMP_BENCH.yaw);
   assert.ok(Math.abs(supportLocal.x) <= FOUNDERS_CAMP_BENCH.length / 2 - 0.3);
   assert.ok(Math.abs(supportLocal.z) < 1e-9);
-  assert.ok(destinationLocal.z > FOUNDERS_CAMP_BENCH.depth / 2);
+  assert.ok(
+    destinationLocal.z > FOUNDERS_CAMP_BENCH.depth / 2
+      && destinationLocal.z <= FOUNDERS_CAMP_BENCH.depth / 2 + 0.02,
+    'bench occupants should sit close to the plank edge without clipping their legs',
+  );
   assert.deepEqual(landmark.lookAt, FOUNDERS_CAMPFIRE_POSITION);
   assert.equal(landmark.surfaceHeight, FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT);
   if (index > 0) assert.ok(supportLocal.distanceTo(benchLocalSupports[index - 1]!) >= 0.7);
@@ -75,6 +79,15 @@ for (const [landmark, name] of physicalStumps) {
   assert.ok(Math.abs(
     top.position.y + top.geometry.parameters.height / 2 - landmark.surfaceHeight,
   ) < 1e-9);
+  const occupantSupportGap = new THREE.Vector2(
+    landmark.destination.x - landmark.supportPosition.x,
+    landmark.destination.z - landmark.supportPosition.z,
+  ).length();
+  assert.ok(
+    occupantSupportGap > top.geometry.parameters.radiusBottom
+      && occupantSupportGap <= top.geometry.parameters.radiusBottom + 0.02,
+    'stump occupants should sit just beyond the support edge without clipping their legs',
+  );
 }
 
 assert.equal(FOUNDERS_CAMP_SEAT_LANDMARKS.length, 5);
