@@ -703,6 +703,11 @@ async function main(): Promise<void> {
     Object.keys(BUILDING_AUDIO_CLIPS).length === runtimeBuildingKinds.length,
     'Building Foley runtime catalog must cover every non-chapel building kind plus residences',
   );
+  invariant(
+    BUILDING_AUDIO_CLIPS.granary.path === BUILDING_AUDIO_CLIPS.village_storehouse.path
+    && BUILDING_AUDIO_CLIPS.granary.volume === BUILDING_AUDIO_CLIPS.village_storehouse.volume,
+    'Granary selection must reuse the Storehouse click cue at the same gain',
+  );
   for (const kind of runtimeBuildingKinds) {
     const clip = BUILDING_AUDIO_CLIPS[kind];
     invariant(clip, `Missing building Foley runtime mapping: ${kind}`);
