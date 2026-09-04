@@ -36,7 +36,7 @@ async function advanceToMapGeneration(page: Page): Promise<void> {
   await page.getByRole('button', { name: /Continue to Heraldry/ }).click();
   await expect(page.getByRole('heading', { name: 'Design Your Heraldry' })).toBeVisible();
   await page.getByRole('button', { name: /Continue to Map Generation/ }).click();
-  await expect(page.locator('[data-setup-progress="map"]')).toBeVisible();
+  await expect(page.locator('[data-setup-progress="map"][aria-current="step"]')).toBeVisible();
 }
 
 async function expectProvisionValuesToMatchTooltips(
@@ -349,7 +349,7 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await aquiferPrevious.click();
   await expect(aquiferState).toHaveAttribute('data-value', 'even');
 
-  const timberHud = page.locator('[data-stockpile="timber"]');
+  const timberHud = page.locator('[data-construction-stockpile="timber"]');
   const startWorld = page.getByRole('button', { name: 'Start world' });
   await startWorld.click();
   await expect.poll(
@@ -423,12 +423,18 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   const totalsMode = page.locator('button[data-resource-totals-mode]');
   const tooltip = page.locator('#ui-tooltip');
   const residentsCard = page.locator('[data-resident-card]');
-  const timberCard = page.locator('[data-resource-card="timber"]');
-  const timberPanel = timberCard.locator('.settlement-hud__resource-panel');
-  for (const resource of ['timber', 'stone', 'water', 'gold']) {
+  const constructionCard = page.locator('[data-resource-card="construction"]');
+  const constructionSummary = constructionCard.locator('[data-resource-group="construction"]');
+  const constructionPanel = constructionCard.locator('.settlement-hud__construction-panel');
+  for (const resource of ['water', 'gold']) {
     const summary = page.locator(`[data-resource-card="${resource}"] > [data-resource="${resource}"]`);
     await expect(summary).not.toHaveAttribute('data-tooltip');
     await expect(summary).not.toHaveAttribute('data-tooltip-title');
+  }
+  for (const resource of ['timber', 'stone']) {
+    const material = constructionPanel.locator(`[data-resource="${resource}"]`);
+    await expect(material).not.toHaveAttribute('data-tooltip');
+    await expect(material).not.toHaveAttribute('data-tooltip-title');
   }
   await residentsCard.locator('[data-resource="population"]').hover();
   await expect(residentsCard.locator('.settlement-hud__residents-panel')).toBeVisible();
@@ -556,10 +562,10 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
     const provisionsGrid = hud.querySelector<HTMLElement>(
       '[data-specialty-stores] > .settlement-hud__stores-grid',
     )!;
-    const timberPanel = hud.querySelector<HTMLElement>(
-      '[data-resource-card="timber"] .settlement-hud__resource-panel',
+    const constructionPanel = hud.querySelector<HTMLElement>(
+      '[data-resource-card="construction"] .settlement-hud__construction-panel',
     )!;
-    const headerMetrics = [foodGrid, fuelGrid, provisionsGrid, timberPanel].map((panel) => {
+    const headerMetrics = [foodGrid, fuelGrid, provisionsGrid, constructionPanel].map((panel) => {
       const title = panel.querySelector<HTMLElement>('.settlement-hud__people-header strong')!;
       const meta = panel.querySelector<HTMLElement>('.settlement-hud__people-header span')!;
       return {
@@ -571,7 +577,7 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
     const smallCopy = [
       ...foodGrid.querySelectorAll<HTMLElement>('.settlement-hud__supply-line'),
       ...fuelGrid.querySelectorAll<HTMLElement>('.settlement-hud__supply-line'),
-      ...timberPanel.querySelectorAll<HTMLElement>(
+      ...constructionPanel.querySelectorAll<HTMLElement>(
         '.settlement-hud__resource-detail, .settlement-hud__resource-note',
       ),
     ].map((element) => Number.parseFloat(getComputedStyle(element).fontSize));
@@ -614,12 +620,12 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
     'Available surplus',
   );
   await expect(page.locator('#ui-tooltip .ui-tooltip__body')).toHaveText('Slow spoilage');
-  await timberHud.hover();
-  await expect(timberPanel).toBeVisible();
-  await expect(timberCard.locator('[data-resource-card-mode-label="timber"]')).toHaveText(
+  await constructionSummary.hover();
+  await expect(constructionPanel).toBeVisible();
+  await expect(constructionCard.locator('[data-resource-card-mode-label="construction"]')).toHaveText(
     'Available surplus',
   );
-  await expect(timberCard.locator('[data-resource-card-amount="timber"]')).toHaveText(
+  await expect(constructionCard.locator('[data-resource-card-amount="timber"]')).toHaveText(
     String(timberBefore - REFORESTER_TIMBER_COST),
   );
   await expect(tooltip).toBeHidden();
@@ -676,12 +682,12 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(tooltip.locator('.ui-tooltip__body')).toContainText(
     'All stored goods',
   );
-  await timberHud.hover();
-  await expect(timberPanel).toBeVisible();
-  await expect(timberCard.locator('[data-resource-card-mode-label="timber"]')).toHaveText(
+  await constructionSummary.hover();
+  await expect(constructionPanel).toBeVisible();
+  await expect(constructionCard.locator('[data-resource-card-mode-label="construction"]')).toHaveText(
     'Total stored',
   );
-  await expect(timberCard.locator('[data-resource-card-amount="timber"]')).toHaveText(
+  await expect(constructionCard.locator('[data-resource-card-amount="timber"]')).toHaveText(
     String(timberBefore),
   );
   await expect(tooltip).toBeHidden();

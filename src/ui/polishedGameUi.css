@@ -597,7 +597,7 @@ select:focus-visible {
     repeat(3, minmax(48px, 0.7fr))
     minmax(52px, 0.8fr)
     minmax(76px, 1.2fr)
-    repeat(2, minmax(72px, 1.12fr))
+    minmax(110px, 1.6fr)
     minmax(66px, 1fr)
     minmax(66px, 1fr);
   align-content: stretch;
@@ -676,6 +676,47 @@ select:focus-visible {
 .settlement-hud__stat[data-resource='population']::before { content: '\265F'; color: #d2c7af; }
 .settlement-hud__stat[data-resource='housing']::before { content: '\2302'; color: #ceb17a; }
 .settlement-hud__stat[data-resource='labor']::before { content: '\2692'; color: #b7b0a1; }
+.settlement-hud__stat[data-resource-group='construction']::before {
+  content: '\2692';
+  color: #d0aa70;
+}
+
+.settlement-hud__construction-summary {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: #ded5c1;
+  font-family: var(--ui-display);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.settlement-hud__construction-summary > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.settlement-hud__construction-summary i {
+  color: #c0ad81;
+  font-family: var(--ui-display);
+  font-size: 13px;
+  font-style: normal;
+}
+
+.settlement-hud__construction-summary [data-construction-kind='timber'] i::before {
+  content: '\2571';
+  color: #c6965e;
+}
+
+.settlement-hud__construction-summary [data-construction-kind='stone'] i::before {
+  content: '\25C6';
+  color: #aaa9a0;
+}
 
 .settlement-hud__label {
   display: none;
@@ -814,6 +855,7 @@ select:focus-visible {
 }
 
 .settlement-hud__people-card:hover .settlement-hud__people-panel,
+.settlement-hud__people-card:focus-within .settlement-hud__people-panel,
 .settlement-hud__people-card:has(> .settlement-hud__stat:focus-visible) .settlement-hud__people-panel {
   opacity: 1;
   pointer-events: auto;
@@ -822,6 +864,7 @@ select:focus-visible {
 }
 
 .settlement-hud__people-card:hover > .settlement-hud__stat,
+.settlement-hud__people-card:focus-within > .settlement-hud__stat,
 .settlement-hud__people-card:has(> .settlement-hud__stat:focus-visible) > .settlement-hud__stat {
   border-radius: 2px;
   background: rgba(224, 198, 135, 0.06);
@@ -943,6 +986,81 @@ select:focus-visible {
 .settlement-hud__resource-panel {
   gap: 6px;
   width: min(282px, calc(100vw - 28px));
+}
+
+.settlement-hud__construction-panel {
+  gap: 8px;
+  width: min(360px, calc(100vw - 28px));
+  padding: 11px;
+}
+
+.settlement-hud__construction-section {
+  display: grid;
+  gap: 4px;
+}
+
+.settlement-hud__construction-section + .settlement-hud__construction-section {
+  padding-top: 4px;
+  border-top: 1px solid rgba(220, 191, 127, 0.13);
+}
+
+.settlement-hud__construction-section h3 {
+  margin: 0;
+  padding: 0 3px;
+  color: #bda875;
+  font-family: var(--ui-display);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.settlement-hud__construction-panel .settlement-hud__construction-material {
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto;
+  gap: 3px 8px;
+  min-height: 0;
+  padding: 7px 8px;
+  border: 1px solid rgba(218, 190, 127, 0.1);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.018);
+  cursor: pointer;
+}
+
+.settlement-hud__construction-panel .settlement-hud__construction-material::before {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  font-size: 18px;
+}
+
+.settlement-hud__construction-material-name {
+  grid-column: 2;
+  grid-row: 1;
+  color: #dfd4bd;
+  font-family: var(--ui-display);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.settlement-hud__construction-panel .settlement-hud__construction-material > .settlement-hud__value {
+  grid-column: 3;
+  grid-row: 1;
+  color: #e4c98c;
+  font-size: 17px;
+}
+
+.settlement-hud__construction-material > .settlement-hud__resource-transit {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  margin-top: 3px;
+}
+
+.settlement-hud__construction-material > .settlement-hud__resource-detail {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  padding-top: 4px;
+  border-top: 1px solid rgba(220, 191, 127, 0.09);
 }
 
 .settlement-hud__resource-reading {

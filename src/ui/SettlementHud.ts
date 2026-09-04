@@ -449,36 +449,49 @@ const SETTLEMENT_HUD_HTML = `
           <p class="settlement-hud__resource-note">Activate to locate physical holdings in the world.</p>
         </section>
       </div>
-      <div class="settlement-hud__people-card settlement-hud__resource-card" data-hud-card data-resource-card="timber">
-        <div class="settlement-hud__stat" tabindex="0" data-resource="timber" aria-describedby="settlement-timber-card">
-          <span class="settlement-hud__label">Timber</span>
-          <strong class="settlement-hud__value" data-stockpile="timber">0</strong>
+      <div class="settlement-hud__people-card settlement-hud__resource-card settlement-hud__resource-card--right settlement-hud__construction-card" data-hud-card data-resource-card="construction">
+        <div
+          class="settlement-hud__stat settlement-hud__stat--construction"
+          tabindex="0"
+          data-resource-group="construction"
+          aria-describedby="settlement-construction-card"
+          aria-label="Construction materials: 0 timber and 0 stone. Hover or focus for the material ledger."
+        >
+          <span class="settlement-hud__label">Construction</span>
+          <span class="settlement-hud__construction-summary" aria-hidden="true">
+            <span data-construction-kind="timber"><i></i><strong data-construction-stockpile="timber">0</strong></span>
+            <span data-construction-kind="stone"><i></i><strong data-construction-stockpile="stone">0</strong></span>
+          </span>
         </div>
-        <section id="settlement-timber-card" class="settlement-hud__people-panel settlement-hud__resource-panel" aria-label="Timber ledger" aria-live="off">
+        <section
+          id="settlement-construction-card"
+          class="settlement-hud__people-panel settlement-hud__resource-panel settlement-hud__construction-panel"
+          aria-label="Construction materials ledger"
+          aria-live="off"
+        >
           <header class="settlement-hud__people-header">
-            <strong>Timber</strong>
-            <span data-resource-card-mode-label="timber">Available surplus</span>
+            <strong>Construction</strong>
+            <span data-resource-card-mode-label="construction">Available surplus</span>
           </header>
-          <div class="settlement-hud__resource-reading"><strong data-resource-card-amount="timber">0</strong><span>Timber on hand</span></div>
-          <div class="settlement-hud__resource-transit" data-resource-card-transit-row="timber" hidden><span>Movement</span><strong data-stockpile-transit="timber"></strong></div>
-          <p class="settlement-hud__resource-detail" data-resource-card-detail="timber">${HUD_RESOURCE_CARD_PRESENTATION.timber.surplusDetail}</p>
-          <p class="settlement-hud__resource-note">Activate to locate physical holdings in the world.</p>
-        </section>
-      </div>
-      <div class="settlement-hud__people-card settlement-hud__resource-card settlement-hud__resource-card--right" data-hud-card data-resource-card="stone">
-        <div class="settlement-hud__stat" tabindex="0" data-resource="stone" aria-describedby="settlement-stone-card">
-          <span class="settlement-hud__label">Stone</span>
-          <strong class="settlement-hud__value" data-stockpile="stone">0</strong>
-        </div>
-        <section id="settlement-stone-card" class="settlement-hud__people-panel settlement-hud__resource-panel" aria-label="Stone ledger" aria-live="off">
-          <header class="settlement-hud__people-header">
-            <strong>Stone</strong>
-            <span data-resource-card-mode-label="stone">Available surplus</span>
-          </header>
-          <div class="settlement-hud__resource-reading"><strong data-resource-card-amount="stone">0</strong><span>Stone on hand</span></div>
-          <div class="settlement-hud__resource-transit" data-resource-card-transit-row="stone" hidden><span>Movement</span><strong data-stockpile-transit="stone"></strong></div>
-          <p class="settlement-hud__resource-detail" data-resource-card-detail="stone">${HUD_RESOURCE_CARD_PRESENTATION.stone.surplusDetail}</p>
-          <p class="settlement-hud__resource-note">Activate to locate physical holdings in the world.</p>
+          <section class="settlement-hud__construction-section" aria-labelledby="settlement-construction-woodworks">
+            <h3 id="settlement-construction-woodworks">Woodworks</h3>
+            <div class="settlement-hud__stat settlement-hud__construction-material" tabindex="0" data-resource="timber">
+              <span class="settlement-hud__construction-material-name">Timber</span>
+              <strong class="settlement-hud__value" data-stockpile="timber" data-resource-card-amount="timber">0</strong>
+              <div class="settlement-hud__resource-transit" data-resource-card-transit-row="timber" hidden><span>Movement</span><strong data-stockpile-transit="timber"></strong></div>
+              <p class="settlement-hud__resource-detail" data-resource-card-detail="timber">${HUD_RESOURCE_CARD_PRESENTATION.timber.surplusDetail}</p>
+            </div>
+          </section>
+          <section class="settlement-hud__construction-section" aria-labelledby="settlement-construction-stoneworks">
+            <h3 id="settlement-construction-stoneworks">Stoneworks</h3>
+            <div class="settlement-hud__stat settlement-hud__construction-material" tabindex="0" data-resource="stone">
+              <span class="settlement-hud__construction-material-name">Stone</span>
+              <strong class="settlement-hud__value" data-stockpile="stone" data-resource-card-amount="stone">0</strong>
+              <div class="settlement-hud__resource-transit" data-resource-card-transit-row="stone" hidden><span>Movement</span><strong data-stockpile-transit="stone"></strong></div>
+              <p class="settlement-hud__resource-detail" data-resource-card-detail="stone">${HUD_RESOURCE_CARD_PRESENTATION.stone.surplusDetail}</p>
+            </div>
+          </section>
+          <p class="settlement-hud__resource-note">Activate a material to locate its physical holdings in the world.</p>
         </section>
       </div>
       <details class="settlement-hud__food-stores settlement-hud__fuel-stores" data-fuel-stores>

@@ -4,7 +4,14 @@ import { FRESH_FOOD_KINDS, PRESERVED_FOOD_KINDS } from '../src/economy/foodInven
 import { TRADE_RESOURCE_KINDS } from '../src/generated/gameBalance.ts';
 import { HUD_RESOURCE_KINDS } from '../src/resources/resourceTotals.ts';
 import { HUD_FOOD_GROUPS, HUD_FOOD_RESOURCE_KINDS, hudFoodResourceLabel, hudFoodResourceTooltip } from '../src/ui/hudFoodCards.ts';
+import { HUD_CONSTRUCTION_RESOURCE_KINDS } from '../src/ui/hudResourceCards.ts';
 import { RESOURCE_COST_KINDS } from '../src/ui/resourceCost.ts';
+
+assert.deepEqual(
+  HUD_CONSTRUCTION_RESOURCE_KINDS,
+  ['timber', 'stone'],
+  'The Construction hover card should own the raw building materials',
+);
 
 const foods = new Set<string>(HUD_FOOD_RESOURCE_KINDS);
 assert.equal(foods.size, HUD_FOOD_RESOURCE_KINDS.length, 'Each food should appear once in the food panel');

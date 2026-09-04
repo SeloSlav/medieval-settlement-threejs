@@ -1,5 +1,13 @@
 import type { HudResourceKind } from '../resources/resourceTotals.ts';
 
+export const HUD_CONSTRUCTION_RESOURCE_KINDS = [
+  'timber',
+  'stone',
+] as const satisfies readonly HudResourceKind[];
+
+export type HudConstructionResourceKind =
+  (typeof HUD_CONSTRUCTION_RESOURCE_KINDS)[number];
+
 export const HUD_RESOURCE_CARD_KINDS = [
   'timber',
   'stone',
