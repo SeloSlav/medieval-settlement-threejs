@@ -410,9 +410,14 @@ export class MilitaryCompanyStrategicOverlay {
       event.preventDefault();
       event.stopPropagation();
       if (this.options.isBlocked()) return;
-      const current = this.entries.get(marker.id)?.marker ?? marker;
+      const entry = this.entries.get(marker.id);
+      const current = entry?.marker ?? marker;
       if (current.hostile) {
-        this.options.onHostileFocus?.(current);
+        this.options.onHostileFocus?.({
+          ...current,
+          x: entry?.displayX ?? current.x,
+          z: entry?.displayZ ?? current.z,
+        });
         return;
       }
       this.options.onSelect(current.id);

@@ -34,7 +34,9 @@ type ThreatGroup = {
   agents: CombatAgentState[];
 };
 
-function threatKind(agent: CombatAgentState): ThreatApproachKind | null {
+function threatKind(
+  agent: Pick<CombatAgentState, 'faction'>,
+): ThreatApproachKind | null {
   if (agent.faction === 'fox' || agent.faction === 'wolf') return 'wildlife';
   if (agent.faction === 'bandit') return 'bandit';
   if (agent.faction === 'raider') return 'ottoman';
@@ -44,7 +46,7 @@ function threatKind(agent: CombatAgentState): ThreatApproachKind | null {
 export function threatCombatGroupId(
   agent: Pick<CombatAgentState, 'faction' | 'raidId'>,
 ): string | null {
-  const kind = threatKind(agent as CombatAgentState);
+  const kind = threatKind(agent);
   return kind ? `${kind}:${agent.raidId}` : null;
 }
 

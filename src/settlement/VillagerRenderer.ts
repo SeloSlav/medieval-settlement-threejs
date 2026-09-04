@@ -322,6 +322,9 @@ type CombatAgentVisual = {
   state: CombatAgentState;
   displayX: number;
   displayZ: number;
+  /** Stable allocation exposed to markers and report focus for every faction,
+   * including wildlife that never enters the humanoid render-agent map. */
+  renderPosition: { x: number; z: number };
   displayMoveSpeed: number;
   yaw: number;
   hurtUntilMs: number;
@@ -789,6 +792,7 @@ export class VillagerRenderer {
         state,
         displayX: prior?.displayX ?? state.x,
         displayZ: prior?.displayZ ?? state.z,
+        renderPosition: prior?.renderPosition ?? { x: state.x, z: state.z },
         displayMoveSpeed: prior?.displayMoveSpeed ?? 0,
         yaw: prior?.yaw ?? Math.atan2(
           state.x - state.homeX,
@@ -1762,9 +1766,10 @@ export class VillagerRenderer {
     return this.oxen.pickOx(clientX, clientY, camera, domElement);
   }
 
-  /** Final interpolated ground position shared by soldier selection rings. */
+  /** Final interpolated ground position shared by selection rings, hostile
+   * markers, and report focus for both human and animal combat actors. */
   getCombatAgentPosition(id: string): Readonly<{ x: number; z: number }> | null {
-    return this.renderAgentsById.get(`combat:${id}`) ?? null;
+    return this.combatAgentVisuals.get(id)?.renderPosition ?? null;
   }
 
   inspectOx(oxId: string): OxInspection | null {
@@ -2628,6 +2633,8 @@ export class VillagerRenderer {
       const previousZ = visual.displayZ;
       visual.displayX += (visual.state.x - visual.displayX) * blend;
       visual.displayZ += (visual.state.z - visual.displayZ) * blend;
+      visual.renderPosition.x = visual.displayX;
+      visual.renderPosition.z = visual.displayZ;
       const dx = visual.displayX - previousX;
       const dz = visual.displayZ - previousZ;
       const measuredSpeed = frameDt > 1e-5

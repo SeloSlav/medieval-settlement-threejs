@@ -11,6 +11,7 @@ import {
   STRATEGIC_COMPANY_POSITION_SNAP_DISTANCE,
   STRATEGIC_COMPANY_STATIONARY_DEAD_ZONE,
   hostileCompanyMarkerPresentation,
+  liveStrategicCompanyCenter,
   projectedCompanyBodyHeightPx,
   resolveStrategicCompanyIconVisibility,
   strategicCompanyIconOpacity,
@@ -22,6 +23,7 @@ import {
   HOSTILE_COMPANY_STRATEGIC_ICON_ART,
   MILITARY_COMPANY_STRATEGIC_ICON_ART,
   hostileCompanyStrategicLabel,
+  hostileCompanyStrategicKindForFaction,
   militaryCompanyKindForFaction,
 } from '../src/security/militaryCompanyPresentation.ts';
 import { CombatPlaytestSimulation } from '../src/app/combatPlaytest.ts';
@@ -111,6 +113,22 @@ const oneThirtyFpsStep = strategicCompanyPositionBlend(2, true, 1 / 30);
 const twoSixtyFpsSteps = 1 - (1 - movingBlend) ** 2;
 assert.ok(Math.abs(oneThirtyFpsStep - twoSixtyFpsSteps) < 1e-9);
 
+assert.deepEqual(
+  liveStrategicCompanyCenter(
+    { agentIds: ['bandit-1', 'bandit-2'], x: -90, z: 70 },
+    (id) => id === 'bandit-1' ? { x: 10, z: 20 } : { x: 14, z: 24 },
+  ),
+  { x: 12, z: 22, live: true },
+  'moving hostile markers must use the rendered company centroid instead of stale server coordinates',
+);
+assert.deepEqual(
+  liveStrategicCompanyCenter(
+    { agentIds: ['missing'], x: -90, z: 70 },
+    () => null,
+  ),
+  { x: -90, z: 70, live: false },
+);
+
 assert.deepEqual([
   militaryCompanyKindForFaction('militia'),
   militaryCompanyKindForFaction('spearman'),
@@ -154,9 +172,15 @@ for (const art of Object.values(HOSTILE_COMPANY_STRATEGIC_ICON_ART)) {
   assert.equal(png.readUInt32BE(16), 256);
   assert.equal(png.readUInt32BE(20), 256);
 }
-assert.equal(new Set(Object.values(HOSTILE_COMPANY_STRATEGIC_ICON_ART)).size, 2);
+assert.equal(new Set(Object.values(HOSTILE_COMPANY_STRATEGIC_ICON_ART)).size, 3);
 assert.equal(hostileCompanyStrategicLabel('raiders'), 'Enemy raiders');
 assert.equal(hostileCompanyStrategicLabel('bandits'), 'Bandit company');
+assert.equal(hostileCompanyStrategicLabel('wildlife'), 'Hostile wild animals');
+assert.equal(hostileCompanyStrategicKindForFaction('raider'), 'raiders');
+assert.equal(hostileCompanyStrategicKindForFaction('bandit'), 'bandits');
+assert.equal(hostileCompanyStrategicKindForFaction('fox'), 'wildlife');
+assert.equal(hostileCompanyStrategicKindForFaction('wolf'), 'wildlife');
+assert.equal(hostileCompanyStrategicKindForFaction('guard'), null);
 
 const playtest = new CombatPlaytestSimulation({
   site: { x: 0, z: 0, axisX: 1, axisZ: 0 },
@@ -200,7 +224,14 @@ assert.match(controllerSource, /isVisibilityBlocked: options\.isVisibilityBlocke
 assert.match(controllerSource, /getIllustratedMapY: options\.getIllustratedMapY/);
 assert.match(controllerSource, /hostileGrouped/);
 assert.match(controllerSource, /hostile:\s*true/);
-assert.match(controllerSource, /members\[0\]!\.faction === 'bandit' \? 'bandits'/);
+assert.match(controllerSource, /hostileCompanyStrategicKindForFaction/);
+assert.match(controllerSource, /getAgentPosition: options\.getAgentPosition/);
+assert.match(controllerSource, /agentIds: members\.map/);
+assert.match(
+  readFileSync('src/security/MilitaryCompanyStrategicOverlay.ts', 'utf8'),
+  /onHostileFocus\?\.\(\{[\s\S]*?x: entry\?\.displayX[\s\S]*?z: entry\?\.displayZ/,
+  'clicking a moving hostile marker must focus the same live position where it is drawn',
+);
 assert.match(
   appSource,
   /cameraController\?\.update\(dt\)[\s\S]*?worldMapUi\?\.update\(\)[\s\S]*?militiaCommands\?\.update\(time, crowdView\)/,

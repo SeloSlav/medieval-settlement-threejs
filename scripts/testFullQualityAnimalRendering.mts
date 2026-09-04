@@ -68,4 +68,15 @@ const adapter = read('src/scene/AuthoredAnimalInstanceBatch.ts');
 assert.match(adapter, /setFromCloneAt\(slot, model\)/);
 assert.doesNotMatch(adapter, /CapsuleGeometry|SphereGeometry|BoxGeometry|CylinderGeometry/);
 
+const villagerRenderer = read('src/settlement/VillagerRenderer.ts');
+assert.match(
+  villagerRenderer,
+  /getCombatAgentPosition[\s\S]*?combatAgentVisuals\.get\(id\)\?\.renderPosition/,
+  'wildlife must expose its interpolated render position to map icons and report focus',
+);
+assert.match(
+  villagerRenderer,
+  /visual\.renderPosition\.x = visual\.displayX;[\s\S]*?visual\.renderPosition\.z = visual\.displayZ;/,
+);
+
 console.log('full-quality animal rendering contract passed (population-scaled exact GLBs, no visual LOD)');

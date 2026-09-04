@@ -3,7 +3,10 @@ import { existsSync, readFileSync } from 'node:fs';
 
 import type { CombatAgentState } from '../src/security/combatAgents.ts';
 import type { BanditCampState } from '../src/security/banditState.ts';
-import { ThreatApproachTracker } from '../src/security/threatApproachAlerts.ts';
+import {
+  ThreatApproachTracker,
+  liveThreatCombatGroupPosition,
+} from '../src/security/threatApproachAlerts.ts';
 import { WORLD_FOLEY_CLIPS } from '../src/audio/audioCatalog.ts';
 
 function agent(
@@ -106,6 +109,28 @@ assert.equal(wildlifeBreachAlerts.length, 1, 'a coordinated pack receives one br
 assert.equal(wildlifeBreachAlerts[0]?.kind, 'wildlife');
 assert.equal(wildlifeBreachAlerts[0]?.x, 12);
 assert.equal(wildlifeBreachAlerts[0]?.z, 22);
+assert.equal(wildlifeBreachAlerts[0]?.combatGroupId, 'wildlife:wolves-20');
+assert.deepEqual(
+  liveThreatCombatGroupPosition(
+    wildlifeBreach,
+    wildlifeBreachAlerts[0]!.combatGroupId!,
+    (id) => id === 'w1'
+      ? { x: 31, z: 40 }
+      : id === 'w2'
+        ? { x: 35, z: 44 }
+        : { x: 33, z: 42 },
+  ),
+  { x: 33, z: 42, count: 3 },
+  'opening the wildlife report must follow the pack to its live rendered centroid',
+);
+assert.equal(
+  liveThreatCombatGroupPosition(
+    wildlifeBreach.map((animal) => ({ ...animal, status: 'downed' })),
+    'wildlife:wolves-20',
+  ),
+  null,
+  'a defeated wildlife group should fall back to the report location instead of a corpse centroid',
+);
 
 const ottomans = [
   agent('r1', 'raider', 'advancing', 'raid-7', -60, 4),
@@ -135,6 +160,7 @@ assert.equal(campAlerts.length, 1);
 assert.equal(campAlerts[0]?.phase, 'camp-established');
 assert.equal(campAlerts[0]?.sound, 'bandit-camp-established');
 assert.equal(campAlerts[0]?.x, 140);
+assert.equal(campAlerts[0]?.combatGroupId, null);
 assert.deepEqual(lifecycleTracker.update([], 32, 'world-c', [establishedCamp]), []);
 
 const enteringBandits = [agent('b2', 'bandit', 'advancing', 'camp-2', 22, 18, 35)];
@@ -186,7 +212,8 @@ assert.match(WORLD_FOLEY_CLIPS.event_wildlife_town_entry.path, /wildlife_town_en
 const app = readFileSync('src/app/App.ts', 'utf8');
 assert.match(app, /notifyThreatApproaches\(snapshot\)/);
 assert.match(app, /setGameSpeed\(1\)/);
-assert.match(app, /kind: 'world'/);
+assert.match(app, /kind: alert\.combatGroupId \? 'combat-group' : 'world'/);
+assert.match(app, /id: alert\.combatGroupId \?\? alert\.id/);
 assert.match(app, /playThreatAlert\(alert\.sound\)/);
 assert.match(app, /snapshot\.banditCamps\.values\(\)/);
 
