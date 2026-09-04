@@ -51,7 +51,11 @@ const LOGGING_WORK_EXTENT_COLOR = 0xd7b463;
 const LOGGING_WORK_EXTENT_LIFT = 0.18;
 const LOGGING_WORK_EXTENT_WIDTH = 0.72;
 
-export function createBuildingPreviewMesh(kind: BuildingKind): THREE.Group {
+/** `ghostSource`, when supplied, is borrowed and remains owned by its caller. */
+export function createBuildingPreviewMesh(
+  kind: BuildingKind,
+  ghostSource?: THREE.Group,
+): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Terrain-hugging building footprint';
   group.userData.previewKind = kind;
@@ -162,7 +166,7 @@ export function createBuildingPreviewMesh(kind: BuildingKind): THREE.Group {
     group.add(loggingWorkExtent);
   }
 
-  group.add(createBuildingGhost(kind));
+  group.add(createBuildingGhost(kind, ghostSource));
 
   return group;
 }
@@ -519,8 +523,10 @@ function createTerrainWarningFill(
   return fill;
 }
 
-function createBuildingGhost(kind: BuildingKind): THREE.Group {
-  const source = createBuildingMesh(kind);
+function createBuildingGhost(
+  kind: BuildingKind,
+  source = createBuildingMesh(kind),
+): THREE.Group {
   source.updateMatrixWorld(true);
 
   const ghost = new THREE.Group();

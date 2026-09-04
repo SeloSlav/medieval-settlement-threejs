@@ -153,6 +153,7 @@ export class BuildingMarkers {
   private pendingPlacementX = 0;
   private pendingPlacementZ = 0;
   private prewarmedFoundersCamp: THREE.Group | null = null;
+  private prewarmedFoundersCampPreview: THREE.Group | null = null;
   private destroyedBuildingIds = new Set<string>();
 
   constructor(options: BuildingMarkersOptions) {
@@ -560,28 +561,40 @@ export class BuildingMarkers {
 
   prewarmFoundersCampPlacement(): void {
     if (
-      this.prewarmedFoundersCamp
-      || this.pendingPlacementKind === 'founders_camp'
+      this.pendingPlacementKind === 'founders_camp'
       || [...this.buildingStates.values()].some((building) => building.kind === 'founders_camp')
     ) return;
-    this.prewarmedFoundersCamp = createBuildingMesh('founders_camp');
-    syncInitialFoundersCampVisualState(this.prewarmedFoundersCamp);
-    setFoundersCampWinterAccumulation(
-      this.prewarmedFoundersCamp,
-      this.foundersCampWinterAccumulation,
-    );
-    batchCompletedBuildingStaticMeshes(this.prewarmedFoundersCamp);
-    setBuildingDetailShadowsEnabled(
-      this.prewarmedFoundersCamp,
-      areBuildingShadowsEnabled(),
-    );
+    if (!this.prewarmedFoundersCamp) {
+      this.prewarmedFoundersCamp = createBuildingMesh('founders_camp');
+      syncInitialFoundersCampVisualState(this.prewarmedFoundersCamp);
+      setFoundersCampWinterAccumulation(
+        this.prewarmedFoundersCamp,
+        this.foundersCampWinterAccumulation,
+      );
+      batchCompletedBuildingStaticMeshes(this.prewarmedFoundersCamp);
+      setBuildingDetailShadowsEnabled(
+        this.prewarmedFoundersCamp,
+        areBuildingShadowsEnabled(),
+      );
+    }
+    if (
+      !this.prewarmedFoundersCampPreview
+      && !(this.previewBuilding && this.previewKind === 'founders_camp')
+    ) {
+      // Flatten the already-created camp instead of constructing the entire
+      // authored model a second time solely for its placement ghost.
+      this.prewarmedFoundersCampPreview = createBuildingPreviewMesh(
+        'founders_camp',
+        this.prewarmedFoundersCamp,
+      );
+    }
   }
 
   /**
-   * Temporarily exposes the prebuilt founding camp while the loading screen is
-   * compiling the live scene. Keeping the mesh detached during normal startup
-   * avoids a stray world object, but excluding it from compileAsync made the
-   * first placement click pay the entire shader compilation cost.
+   * Temporarily exposes the prebuilt founding camp and reusable placement
+   * preview while the loading screen is compiling the live scene. Keeping the
+   * roots detached during normal startup avoids stray world objects, but
+   * excluding them from compileAsync makes the first click pay that cost.
    */
   beginFoundersCampGpuPrewarm(): {
     objects: readonly THREE.Object3D[];
@@ -589,22 +602,55 @@ export class BuildingMarkers {
   } {
     this.prewarmFoundersCampPlacement();
     const marker = this.prewarmedFoundersCamp;
-    if (!marker || marker.parent) return { objects: [], restore: () => {} };
+    const preview = this.prewarmedFoundersCampPreview;
+    const objects: THREE.Object3D[] = [];
+    const restores: Array<() => void> = [];
 
-    const previousVisible = marker.visible;
-    const previousPosition = marker.position.clone();
-    marker.visible = true;
-    marker.position.set(0, this.terrain.getHeightAt(0, 0), 0);
-    this.group.add(marker);
-
-    return {
-      objects: [marker],
-      restore: () => {
+    if (marker && !marker.parent) {
+      const previousVisible = marker.visible;
+      const previousPosition = marker.position.clone();
+      marker.visible = true;
+      marker.position.set(0, this.terrain.getHeightAt(0, 0), 0);
+      this.group.add(marker);
+      objects.push(marker);
+      restores.push(() => {
         if (marker === this.prewarmedFoundersCamp && marker.parent === this.group) {
           marker.removeFromParent();
           marker.visible = previousVisible;
           marker.position.copy(previousPosition);
         }
+      });
+    }
+
+    if (preview && !preview.parent) {
+      const previousVisible = preview.visible;
+      updateBuildingPreviewAppearance(preview, true);
+      updateBuildingPreviewGeometry(
+        preview,
+        'founders_camp',
+        0,
+        0,
+        buildingPlacementYaw('founders_camp', 0, 0, this.getRoadNetwork?.() ?? null),
+        this.terrain.getHeightAt.bind(this.terrain),
+      );
+      preview.visible = true;
+      this.group.add(preview);
+      objects.push(preview);
+      restores.push(() => {
+        if (
+          preview === this.prewarmedFoundersCampPreview
+          && preview.parent === this.group
+        ) {
+          preview.removeFromParent();
+          preview.visible = previousVisible;
+        }
+      });
+    }
+
+    return {
+      objects,
+      restore: () => {
+        for (const restore of restores) restore();
       },
     };
   }
@@ -659,7 +705,9 @@ export class BuildingMarkers {
         disposeBuildingPreviewMesh(this.previewBuilding);
         this.previewBuilding.removeFromParent();
       }
-      this.previewBuilding = createBuildingPreviewMesh(kind);
+      this.previewBuilding = kind === 'founders_camp'
+        ? this.takeFoundersCampPreview()
+        : createBuildingPreviewMesh(kind);
       this.previewKind = kind;
       this.group.add(this.previewBuilding);
     }
@@ -683,6 +731,11 @@ export class BuildingMarkers {
     if (this.prewarmedFoundersCamp) {
       disposeObject3D(this.prewarmedFoundersCamp);
       this.prewarmedFoundersCamp = null;
+    }
+    if (this.prewarmedFoundersCampPreview) {
+      this.prewarmedFoundersCampPreview.removeFromParent();
+      disposeBuildingPreviewMesh(this.prewarmedFoundersCampPreview);
+      this.prewarmedFoundersCampPreview = null;
     }
     if (this.previewBuilding) {
       disposeBuildingPreviewMesh(this.previewBuilding);
@@ -735,6 +788,13 @@ export class BuildingMarkers {
     livestock?: LivestockBuildingVisualState,
     issuedGuardPolearms = 0,
   ): void {
+    if (building.kind === 'founders_camp' && this.prewarmedFoundersCampPreview) {
+      // An already-founded world cannot enter starter-camp placement. Release
+      // the unused detached preview instead of carrying it through GPU warmup.
+      this.prewarmedFoundersCampPreview.removeFromParent();
+      disposeBuildingPreviewMesh(this.prewarmedFoundersCampPreview);
+      this.prewarmedFoundersCampPreview = null;
+    }
     let marker = this.buildingMeshes.get(building.id);
     let markerNeedsRegistration = false;
     let adoptedPendingFoundersCamp = false;
@@ -887,6 +947,13 @@ export class BuildingMarkers {
     const marker = this.prewarmedFoundersCamp ?? createBuildingMesh('founders_camp');
     this.prewarmedFoundersCamp = null;
     return marker;
+  }
+
+  private takeFoundersCampPreview(): THREE.Group {
+    const preview = this.prewarmedFoundersCampPreview
+      ?? createBuildingPreviewMesh('founders_camp');
+    this.prewarmedFoundersCampPreview = null;
+    return preview;
   }
 
   private removeBuilding(id: string): void {

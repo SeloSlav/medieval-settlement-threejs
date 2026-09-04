@@ -1032,6 +1032,16 @@
       "promptInfluence": 0.9
     },
     {
+      "id": "ui-illustrated-map-enter",
+      "group": "ui-game-hierarchy",
+      "kind": "sound-effect",
+      "output": "public/sounds/ui/illustrated_map_enter.mp3",
+      "prompt": "Short physical medieval map-unfolding transition: parchment opens across a wooden table with a restrained dry paper movement and soft final settle, suitable for entering a charcoal strategic map, no voice, music, magic, electronic, or science-fiction sound",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.95
+    },
+    {
       "id": "ui-game-transaction",
       "group": "ui-game-hierarchy",
       "kind": "sound-effect",

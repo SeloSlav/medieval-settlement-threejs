@@ -278,8 +278,13 @@ assert.ok(
 );
 assert.equal(
   app.match(/waitForFirstPlayableGpuWork\(\)/g)?.length,
-  1,
-  'startup must await exactly one covered GPU submission instead of duplicating the full scene',
+  2,
+  'startup must await the covered warmup and a clean replacement before dismissing the loader',
+);
+assert.equal(
+  app.includes('waitForStartupStage('),
+  false,
+  'non-cancellable GPU startup work must not outlive a timeout and collide with gameplay',
 );
 assert.equal(
   sceneManager.includes('renderer.compileAsync(this.scene, this.camera)'),

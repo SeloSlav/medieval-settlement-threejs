@@ -49,6 +49,7 @@ to every panel.
 | `road_place` / `dry_stone_wall_place` | Commit terrain infrastructure | Road or wall accepted | Material-specific |
 | `road_remove` / `dry_stone_wall_remove` | Remove terrain infrastructure | Road or wall deleted | Material-specific |
 | `edit_undo` / `edit_redo` | Reverse or restore a road edit | Road-tool history | Directional |
+| `illustrated_map_enter` | Cross into the charcoal overworld map | Outward threshold only; silent on return | Restrained map unfolding |
 | `military_order_1` … `military_order_6` | Accepted tactical order | Move or attack order for any militia or mercenary company | Random six-clip pool |
 | `military_company_select` | Formation selected | Click or drag-select company | Tactical |
 | `quarry_select` / `foraging_select` | Strategic resource selected | Map resource icons | Material-specific |

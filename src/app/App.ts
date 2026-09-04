@@ -165,7 +165,6 @@ import {
   startLiveBattleCapture,
 } from './liveBattleCapture.ts';
 
-const FIRST_PLAYABLE_GPU_STAGE_TIMEOUT_MS = 12_000;
 import {
   CombatPlaytestOverlay,
   CombatPlaytestSimulation,
@@ -728,8 +727,8 @@ export class App {
     const villagerPrewarm = session.villagers.beginFirstPlayableGpuPrewarm();
     const foundersCampPrewarm = session.buildingMarkers.beginFoundersCampGpuPrewarm();
     const targetedPrewarmObjects = [
-      ...villagerPrewarm.objects,
       ...foundersCampPrewarm.objects,
+      ...villagerPrewarm.objects,
     ];
     let gpuCoveredSubmissionCount = 0;
     let prewarmObjectsRestored = false;
@@ -744,32 +743,47 @@ export class App {
     };
     try {
       try {
-        await waitForStartupStage(
-          session.sceneManager.precompileFirstPlayableObjects(targetedPrewarmObjects),
-          FIRST_PLAYABLE_GPU_STAGE_TIMEOUT_MS,
-          'targeted first-interaction shader compilation',
-        );
+        // This work cannot be cancelled by a timeout. Await it while the loader
+        // is opaque so an unfinished WebGPU compile cannot collide with the
+        // player's first placement interaction.
+        await session.sceneManager.precompileFirstPlayableObjects(targetedPrewarmObjects);
       } catch (error) {
         // A targeted compile failure must not skip the live post/shadow warmup.
         console.warn('Targeted first-playable shader compile is unavailable:', error);
       }
-      // The one covered submission warms the exact offscreen post and shadow
-      // path. Do not follow it with a second blocking full-scene submission:
-      // restoring/invalidation makes the first live frame the clean frame.
+      // Keep the temporary roots attached for one covered submission so the
+      // exact offscreen post and shadow paths are resident before interaction.
       session.sceneManager.invalidateStaticShadows();
       session.sceneManager.render(0, session.cameraController.getOrbitDistance());
       gpuCoveredSubmissionCount += 1;
-      await waitForStartupStage(
-        session.sceneManager.waitForFirstPlayableGpuWork(),
-        FIRST_PLAYABLE_GPU_STAGE_TIMEOUT_MS,
-        'first covered GPU submission',
-      );
-      restorePrewarmObjects();
+      await session.sceneManager.waitForFirstPlayableGpuWork();
     } catch (error) {
       gpuReady = false;
       console.warn('Live first-playable GPU prewarm is unavailable:', error);
     } finally {
       restorePrewarmObjects();
+    }
+    if (this.disposed) return;
+    try {
+      // Replacing the warmup framebuffer is mandatory: the loading overlay
+      // fades, so presenting before this clean submission exposes the camp at
+      // the camera target for the duration of that transition.
+      session.sceneManager.render(0, session.cameraController.getOrbitDistance());
+      gpuCoveredSubmissionCount += 1;
+      await session.sceneManager.waitForFirstPlayableGpuWork();
+    } catch (error) {
+      gpuReady = false;
+      console.error('Clean first-playable GPU submission is unavailable:', error);
+      session.loadingScreen?.setErrorState(
+        {
+          label: 'Graphics initialization failed',
+          detail: 'The first playable frame could not be prepared safely.',
+        },
+        () => window.location.reload(),
+      );
+      // Never fade the loader over the last warmup framebuffer: that frame may
+      // still contain the temporary camp at the camera target.
+      return;
     }
     if (this.disposed) return;
     const gpuPrecompileMs = performance.now() - gpuPrecompileStartedAt;
@@ -2327,24 +2341,6 @@ function publishBattleShowcaseFrame(
 
 function isShowcaseMode(): boolean {
   return new URLSearchParams(window.location.search).get('showcase') === '1';
-}
-
-async function waitForStartupStage<T>(
-  work: Promise<T>,
-  timeoutMs: number,
-  label: string,
-): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_resolve, reject) => {
-    timeoutId = setTimeout(() => {
-      reject(new Error(`${label} exceeded ${timeoutMs} ms`));
-    }, timeoutMs);
-  });
-  try {
-    return await Promise.race([work, timeout]);
-  } finally {
-    if (timeoutId !== undefined) clearTimeout(timeoutId);
-  }
 }
 
 function resourceUiNeedsSync(current: GameState, previous: GameState | null): boolean {

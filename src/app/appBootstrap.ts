@@ -472,6 +472,7 @@ export async function bootstrapAppSession(
     },
     onIllustratedMapModeChanged: (active) => {
       sceneManager.setIllustratedMapActive(active);
+      if (active) ambientAudio.playUiSound('illustrated_map_enter');
       document.documentElement.dataset.cameraView = active
         ? 'illustrated-map'
         : 'world';

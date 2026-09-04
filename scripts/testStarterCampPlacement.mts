@@ -245,14 +245,19 @@ const campMarkers = new BuildingMarkers({
 campMarkers.prewarmFoundersCampPlacement();
 const campGpuPrewarm = campMarkers.beginFoundersCampGpuPrewarm();
 const gpuPrewarmedCamp = markerParent.getObjectByName("Founders' camp and open stockyard");
+const gpuPrewarmedPreview = markerParent.getObjectByName('Terrain-hugging building footprint');
 assert.ok(
   gpuPrewarmedCamp,
   'the prebuilt camp should be attached while startup compiles live-scene shaders',
 );
+assert.ok(
+  gpuPrewarmedPreview,
+  'the prebuilt camp preview should be attached while startup compiles live-scene shaders',
+);
 assert.deepEqual(
   campGpuPrewarm.objects,
-  [gpuPrewarmedCamp],
-  'targeted startup compilation should receive only the detailed founders camp root',
+  [gpuPrewarmedCamp, gpuPrewarmedPreview],
+  'targeted startup compilation should receive the detailed camp and its reusable preview',
 );
 campGpuPrewarm.restore();
 assert.equal(
@@ -260,6 +265,20 @@ assert.equal(
   undefined,
   'the covered startup prewarm should detach the camp before play',
 );
+assert.equal(
+  markerParent.getObjectByName('Terrain-hugging building footprint'),
+  undefined,
+  'the covered startup prewarm should detach the placement preview before play',
+);
+const campPreviewRevealStarted = performance.now();
+campMarkers.setPlacementPreview('founders_camp', 12, -8, true, true);
+const campPreviewRevealElapsed = performance.now() - campPreviewRevealStarted;
+assert.equal(
+  markerParent.getObjectByName('Terrain-hugging building footprint'),
+  gpuPrewarmedPreview,
+  'the first starter-camp tool activation should adopt the prebuilt preview',
+);
+campMarkers.clearPlacementPreview();
 const campRevealStarted = performance.now();
 campMarkers.showPendingPlacement('founders_camp', 12, -8);
 const campRevealElapsed = performance.now() - campRevealStarted;
@@ -369,6 +388,10 @@ assert.equal(
 assert.ok(
   confirmedCampRoots[0] === optimisticCamp,
   'repeated authoritative sync should retain the originally revealed camp',
+);
+assert.ok(
+  campPreviewRevealElapsed < 10,
+  `prewarmed camp preview reveal took ${campPreviewRevealElapsed.toFixed(2)} ms`,
 );
 assert.ok(
   campRevealElapsed < 10,
@@ -676,18 +699,18 @@ assert.match(
 );
 assert.match(
   buildingMarkers,
-  /prewarmFoundersCampPlacement\(\)[\s\S]*?createBuildingMesh\('founders_camp'\)/,
-  'the detailed founders camp should be constructed before the placement click',
+  /prewarmFoundersCampPlacement\(\)[\s\S]*?createBuildingMesh\('founders_camp'\)[\s\S]*?createBuildingPreviewMesh\([\s\S]*?'founders_camp'/,
+  'the detailed founders camp and placement preview should be constructed before the first click',
 );
 assert.match(
   buildingMarkers,
-  /beginFoundersCampGpuPrewarm\(\)[\s\S]*?this\.group\.add\(marker\)/,
-  'the prebuilt camp should join the covered startup scene for shader compilation',
+  /beginFoundersCampGpuPrewarm\(\)[\s\S]*?this\.group\.add\(marker\)[\s\S]*?this\.group\.add\(preview\)/,
+  'the prebuilt camp and preview should join the covered startup scene for shader compilation',
 );
 assert.match(
   app,
-  /beginFoundersCampGpuPrewarm\(\)[\s\S]*?precompileFirstPlayableObjects\(targetedPrewarmObjects\)[\s\S]*?invalidateStaticShadows\(\);[\s\S]*?sceneManager\.render\(0,[\s\S]*?waitForFirstPlayableGpuWork\(\)[\s\S]*?restorePrewarmObjects\(\);/,
-  'startup should target-compile the temporary camp and submit exactly one covered live post/shadow frame',
+  /beginFoundersCampGpuPrewarm\(\)[\s\S]*?\.\.\.foundersCampPrewarm\.objects[\s\S]*?\.\.\.villagerPrewarm\.objects[\s\S]*?await session\.sceneManager\.precompileFirstPlayableObjects\(targetedPrewarmObjects\)[\s\S]*?sceneManager\.render\(0,[\s\S]*?waitForFirstPlayableGpuWork\(\)[\s\S]*?finally \{[\s\S]*?restorePrewarmObjects\(\);[\s\S]*?sceneManager\.render\(0,[\s\S]*?waitForFirstPlayableGpuWork\(\)/,
+  'startup should compile the camp first, finish the warmup frame, restore it, and finish a clean frame under the loader',
 );
 assert.match(
   app,
@@ -696,8 +719,18 @@ assert.match(
 );
 assert.equal(
   app.match(/waitForFirstPlayableGpuWork\(\)/g)?.length,
-  1,
-  'the loading cover must own one bounded GPU submission, not two duplicate scene submissions',
+  2,
+  'the loading cover must await both the warmup submission and its clean replacement',
+);
+assert.equal(
+  app.includes('waitForStartupStage('),
+  false,
+  'non-cancellable GPU startup work must not escape into gameplay through a timeout race',
+);
+assert.match(
+  app,
+  /Clean first-playable GPU submission is unavailable:[\s\S]*?loadingScreen\?\.setErrorState\([\s\S]*?return;/,
+  'a failed clean frame must keep the loading cover visible instead of exposing the warmup framebuffer',
 );
 assert.match(
   app,
@@ -798,7 +831,8 @@ assert.match(
 
 console.log(
   `Starter-camp placement flow checks passed (${profileElapsed.toFixed(1)} ms for 10,000 advisory assessments; `
-  + `${campRevealElapsed.toFixed(2)} ms reveal; ${campConfirmationElapsed.toFixed(2)} ms confirmation; `
+  + `${campPreviewRevealElapsed.toFixed(2)} ms preview; ${campRevealElapsed.toFixed(2)} ms reveal; `
+  + `${campConfirmationElapsed.toFixed(2)} ms confirmation; `
   + `${campResyncElapsed.toFixed(2)} ms unchanged resync; `
   + `${(campConfirmationArrayBufferGrowth / 1024).toFixed(1)} / `
   + `${(campResyncArrayBufferGrowth / 1024).toFixed(1)} KiB confirmation/resync ArrayBuffer growth).`,

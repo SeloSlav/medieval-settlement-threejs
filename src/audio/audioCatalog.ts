@@ -82,6 +82,7 @@ export type UiSoundId =
   | 'game_transaction'
   | 'development_unlock'
   | 'game_danger'
+  | 'illustrated_map_enter'
   | MilitaryOrderSoundId
   | 'military_company_select'
   | 'quarry_select'
@@ -379,6 +380,7 @@ export const UI_SOUNDS: Record<UiSoundId, AudioClipDefinition> = {
   game_transaction: { path: '/sounds/ui/game_transaction.mp3', volume: 0.19 },
   development_unlock: { path: '/sounds/ui/development_unlock.mp3', volume: 0.65 },
   game_danger: { path: '/sounds/ui/game_danger.mp3', volume: 0.23 },
+  illustrated_map_enter: { path: '/sounds/ui/illustrated_map_enter.mp3', volume: 0.14 },
   military_order_1: { path: '/sounds/ui/military_order_1.mp3', volume: 0.22 },
   military_order_2: { path: '/sounds/ui/military_order_2.mp3', volume: 0.22 },
   military_order_3: { path: '/sounds/ui/military_order_3.mp3', volume: 0.22 },

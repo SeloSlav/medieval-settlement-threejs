@@ -1642,6 +1642,17 @@
       "sha256": "b4973cb21ba457cf41aa54feeb88bd185752e9cdd042b205f4c5657d01d18aac"
     },
     {
+      "id": "ui-illustrated-map-enter",
+      "output": "public/sounds/ui/illustrated_map_enter.mp3",
+      "generatedAt": "2026-09-04T14:20:08.279Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_48000_192",
+      "characterCost": "10",
+      "byteLength": 25389,
+      "sha256": "5c51e2e413c8d77f431dcf8a3feb197e38d20515646cf4515a20564c43cd3f43"
+    },
+    {
       "id": "ui-game-press",
       "output": "public/sounds/ui/game_press.mp3",
       "generatedAt": "2026-09-02T08:50:11.882Z",

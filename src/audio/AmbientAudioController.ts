@@ -344,7 +344,7 @@ export class AmbientAudioController {
     this.uiAudio.setEnabled(enabled);
     if (enabled) {
       this.uiInteractionAudio.preload();
-      this.uiAudio.preload(MILITARY_ORDER_SOUND_IDS);
+      this.uiAudio.preload([...MILITARY_ORDER_SOUND_IDS, 'illustrated_map_enter']);
     }
     this.agentSelectionAudio.setEnabled(enabled);
     if (!enabled) {
