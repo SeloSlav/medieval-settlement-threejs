@@ -11,7 +11,6 @@ export type HudConstructionResourceKind =
 export const HUD_RESOURCE_CARD_KINDS = [
   'timber',
   'stone',
-  'water',
   'gold',
 ] as const satisfies readonly HudResourceKind[];
 
@@ -36,11 +35,6 @@ export const HUD_RESOURCE_CARD_PRESENTATION: Record<
     label: 'Stone',
     surplusDetail: 'Unreserved stone in quarry yards and depots.',
     totalDetail: 'All stored stone, including supplies reserved for construction and home improvements. Stone in transit is counted separately until unloaded.',
-  },
-  water: {
-    label: 'Water',
-    surplusDetail: 'Water available in wells and workplaces after household reserves are set aside.',
-    totalDetail: 'All water stored in wells, workplaces, and homes. Water in transit is counted separately until unloaded.',
   },
   gold: {
     label: 'Civic treasury',

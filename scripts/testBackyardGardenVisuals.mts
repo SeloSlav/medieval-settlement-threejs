@@ -8,6 +8,7 @@ import {
   BACKYARD_GROUND_SOIL_SAMPLE_SPACING,
   conformBackyardGroundSoilToTerrain,
   createBackyardGardenMesh,
+  createBackyardPlantingLayout,
   disposeBackyardGardenMesh,
   syncBackyardGardenSeasonVisuals,
 } from '../src/residences/backyardGardenMesh.ts';
@@ -20,6 +21,7 @@ import type { BackyardGardenKind } from '../src/generated/gameBalance.ts';
 import {
   BACKYARD_GARDEN_DEFINITIONS,
   BACKYARD_GARDEN_PICKER_KINDS,
+  isPlantableBackyardGardenKind,
 } from '../src/residences/backyardGarden.ts';
 import type { BackyardPlantCatalog } from '../src/vegetation/seedthree/backyardPlantAssets.ts';
 import { BACKYARD_PLANT_SPECIES } from '../src/vegetation/seedthree/backyardPlantPresets.ts';
@@ -102,13 +104,8 @@ assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('backyard_apiary'), true);
 for (const kind of kinds) {
   assert.equal(
     backyardGardenClearsGroundcover(kind),
-    kind === 'vegetable_garden'
-      || kind === 'cabbage_garden'
-      || kind === 'carrot_garden'
-      || kind === 'beetroot_garden'
-      || kind === 'flower_garden'
-      || kind === 'herb_garden',
-    `${kind} should ${kind.endsWith('_garden') ? '' : 'not '}clear grass and wildflowers`,
+    isPlantableBackyardGardenKind(kind),
+    `${kind} should ${isPlantableBackyardGardenKind(kind) ? '' : 'not '}clear grass and wildflowers`,
   );
 }
 
@@ -137,6 +134,31 @@ assert.ok(
     && Math.min(...expandedGardenClearance.map((point) => point.z)) <= -6.5
     && Math.max(...expandedGardenClearance.map((point) => point.z)) >= -1.5,
   'the default groundcover exclusion should extend at least half a metre beyond every garden edge',
+);
+
+const vegetableLayoutVariants = [0, 1, 2].map((seed) => (
+  createBackyardPlantingLayout('vegetable_garden', 7.2, 8.4, seed)
+));
+assert.deepEqual(
+  vegetableLayoutVariants.map((layout) => layout.plots.length),
+  [1, 2, 3],
+  'garden seeds should deterministically select one full plot or two-to-three separated plots',
+);
+for (const layout of vegetableLayoutVariants) {
+  assert.ok(
+    layout.cultivatedCoverage >= 0.7,
+    'plantable layouts should cultivate most of the usable backyard instead of fixed tiny strips',
+  );
+  for (const plot of layout.plots) {
+    assert.ok(Math.abs(plot.x) + plot.width * 0.5 <= 7.2 * 0.5 + 1e-6);
+    assert.ok(Math.abs(plot.z) + plot.depth * 0.5 <= 8.4 * 0.5 + 1e-6);
+  }
+}
+const flowerRowLayout = createBackyardPlantingLayout('flower_garden', 7.2, 8.4, 2);
+assert.equal(flowerRowLayout.pattern, 'rows');
+assert.ok(
+  flowerRowLayout.plots.length >= 4,
+  'flower gardens should use extra access rows so residents do not walk through blossoms',
 );
 
 for (const kind of kinds) {
@@ -606,18 +628,18 @@ const collisionOrchard = createBackyardGardenMesh('apple_orchard', {
 });
 const collisionTrees: THREE.Object3D[] = [];
 const collisionProxies: THREE.Mesh[] = [];
-const harvestBaskets: THREE.Object3D[] = [];
+const harvestBarrels: THREE.Object3D[] = [];
 const orchardStones: THREE.Object3D[] = [];
 const orchardFruit: THREE.Object3D[] = [];
-const basketFruit: THREE.Object3D[] = [];
+const barrelFruit: THREE.Object3D[] = [];
 const orchardFoliage: THREE.InstancedMesh[] = [];
 collisionOrchard.traverse((object) => {
   if (object.name.startsWith('AppleTree:')) collisionTrees.push(object);
   if (object.userData.fpCollisionProxy === true) collisionProxies.push(object as THREE.Mesh);
-  if (object.name === 'Harvest basket') harvestBaskets.push(object);
+  if (object.name === 'Orchard harvest barrel') harvestBarrels.push(object);
   if (object.name === 'Orchard stepping stone') orchardStones.push(object);
   if (object.userData.backyardSeasonalRole === 'orchard-fruit') orchardFruit.push(object);
-  if (object.userData.backyardSeasonalRole === 'basket-produce') basketFruit.push(object);
+  if (object.userData.backyardSeasonalRole === 'barrel-produce') barrelFruit.push(object);
   if (object.userData.backyardDeciduousFoliage === true) {
     orchardFoliage.push(object as THREE.InstancedMesh);
   }
@@ -643,15 +665,23 @@ for (const proxy of collisionProxies) {
   assert.ok(Number(parameters.height) <= 1.72, 'apple collision should stop below the spreading crown');
   assert.equal(proxy.material.visible, false, 'collision proxies should never render');
 }
-assert.equal(harvestBaskets.length, 1);
+assert.equal(harvestBarrels.length, 1);
+assert.equal(
+  harvestBarrels[0]!.userData.orchardBarrelAsset,
+  'buildingMeshKit.addBarrel',
+  'orchards should reuse the established coopered barrel asset',
+);
+assert.equal(harvestBarrels[0]!.getObjectByName('Shared coopered barrel body')?.type, 'Mesh');
+assert.equal(harvestBarrels[0]!.getObjectByName('Shared coopered barrel lower hoop')?.type, 'Mesh');
+assert.equal(harvestBarrels[0]!.getObjectByName('Shared coopered barrel upper hoop')?.type, 'Mesh');
 assert.ok(orchardFruit.length > 0);
-assert.ok(basketFruit.length > 0);
+assert.ok(barrelFruit.length > 0);
 assert.equal(orchardFoliage.length, collisionTrees.length);
-assert.equal(harvestBaskets[0]!.userData.fpCollisionAggregate, true, 'the harvest basket should use one close aggregate collider');
+assert.equal(harvestBarrels[0]!.userData.fpCollisionAggregate, true, 'the harvest barrel should use one close aggregate collider');
 assert.equal(orchardStones.length, 0, 'orchards should leave their grass paths free of stepping stones');
 syncBackyardGardenSeasonVisuals(collisionOrchard, 'apple_orchard', 1);
 assert.ok(orchardFruit.every((fruit) => !fruit.visible), 'dormant orchards should show no fruit on trees');
-assert.ok(basketFruit.every((fruit) => !fruit.visible), 'dormant orchard baskets should be empty');
+assert.ok(barrelFruit.every((fruit) => !fruit.visible), 'dormant orchard barrels should show no harvested fruit');
 assert.ok(
   orchardFoliage.every((foliage) => !foliage.visible && foliage.count === 0),
   'apple orchards should retain their branches but drop every leaf in winter',
@@ -664,14 +694,14 @@ assert.ok(
 assert.equal(seasonalFoliageTintAmount.value, 0.72);
 syncBackyardGardenSeasonVisuals(collisionOrchard, 'apple_orchard', 8);
 assert.ok(orchardFruit.every((fruit) => fruit.visible), 'August fruit should be visibly ripening on trees');
-assert.ok(basketFruit.every((fruit) => !fruit.visible), 'ripening fruit should not fill baskets before harvest');
+assert.ok(barrelFruit.every((fruit) => !fruit.visible), 'ripening fruit should not appear at the barrel before harvest');
 assert.equal(seasonalFoliageTintAmount.value, 0, 'summer orchard leaves should use their mature authored color');
 syncBackyardGardenSeasonVisuals(collisionOrchard, 'apple_orchard', 9);
 assert.ok(orchardFruit.every((fruit) => fruit.visible));
-assert.ok(basketFruit.every((fruit) => fruit.visible), 'September harvest should fill orchard baskets');
+assert.ok(barrelFruit.every((fruit) => fruit.visible), 'September harvest should place fruit on the orchard barrel');
 syncBackyardGardenSeasonVisuals(collisionOrchard, 'apple_orchard', 10);
 assert.ok(orchardFruit.every((fruit) => !fruit.visible), 'post-harvest trees should be cleared of fruit');
-assert.ok(basketFruit.every((fruit) => !fruit.visible), 'post-harvest baskets should be cleared');
+assert.ok(barrelFruit.every((fruit) => !fruit.visible), 'post-harvest barrel produce should be cleared');
 assert.ok(seasonalFoliageTintAmount.value > 0.6, 'October apple foliage should receive the shared autumn progression');
 assert.equal(seasonalFoliageTintColor.value.getHex(), 0xd1762b);
 syncBackyardGardenSeasonVisuals(collisionOrchard, 'apple_orchard', 11, {

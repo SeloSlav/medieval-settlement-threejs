@@ -3,18 +3,18 @@ import { expect, test, type Page } from '@playwright/test';
 type BackyardDiagnostics = NonNullable<Window['__BACKYARD_LINEUP_DIAGNOSTICS__']>;
 
 const reviewedRendererBaselines = {
-  'pear-close': { drawCalls: 22, submittedTriangles: 210_564, renderObjects: 20, instances: 22_366, geometryBytes: 3_677_512 },
-  'aronia-close': { drawCalls: 42, submittedTriangles: 189_140, renderObjects: 40, instances: 128, geometryBytes: 1_184_796 },
-  'rosehip-close': { drawCalls: 37, submittedTriangles: 144_248, renderObjects: 35, instances: 107, geometryBytes: 762_600 },
-  'pig-close': { drawCalls: 31, submittedTriangles: 8_888, renderObjects: 29, instances: 29, geometryBytes: 265_768 },
-  'animals-design': { drawCalls: 149, submittedTriangles: 32_294, renderObjects: 147, instances: 147, geometryBytes: 628_836 },
-  'animals-far': { drawCalls: 149, submittedTriangles: 32_294, renderObjects: 147, instances: 147, geometryBytes: 628_836 },
-  'animals-no-post': { drawCalls: 149, submittedTriangles: 32_294, renderObjects: 147, instances: 147, geometryBytes: 628_836 },
-  'beetroot-close': { drawCalls: 11, submittedTriangles: 330, renderObjects: 6, instances: 6, geometryBytes: 23_100 },
-  'vegetables-design': { drawCalls: 34, submittedTriangles: 2_160, renderObjects: 23, instances: 23, geometryBytes: 150_944 },
-  'vegetables-far': { drawCalls: 34, submittedTriangles: 2_160, renderObjects: 23, instances: 23, geometryBytes: 150_944 },
-  'vegetables-no-post': { drawCalls: 34, submittedTriangles: 2_160, renderObjects: 23, instances: 23, geometryBytes: 150_944 },
-  'vegetables-stress': { drawCalls: 34, submittedTriangles: 2_160, renderObjects: 23, instances: 23, geometryBytes: 150_944 },
+  'pear-close': { drawCalls: 26, submittedTriangles: 211_462, renderObjects: 24, instances: 22_370, geometryBytes: 3_707_524 },
+  'aronia-close': { drawCalls: 46, submittedTriangles: 190_038, renderObjects: 44, instances: 132, geometryBytes: 1_214_808 },
+  'rosehip-close': { drawCalls: 41, submittedTriangles: 145_146, renderObjects: 39, instances: 111, geometryBytes: 792_612 },
+  'pig-close': { drawCalls: 22, submittedTriangles: 1_982, renderObjects: 20, instances: 20, geometryBytes: 86_284 },
+  'animals-design': { drawCalls: 92, submittedTriangles: 19_652, renderObjects: 90, instances: 90, geometryBytes: 350_760 },
+  'animals-far': { drawCalls: 92, submittedTriangles: 19_652, renderObjects: 90, instances: 90, geometryBytes: 350_760 },
+  'animals-no-post': { drawCalls: 92, submittedTriangles: 19_652, renderObjects: 90, instances: 90, geometryBytes: 350_760 },
+  'beetroot-close': { drawCalls: 11, submittedTriangles: 1_158, renderObjects: 6, instances: 6, geometryBytes: 49_188 },
+  'vegetables-design': { drawCalls: 25, submittedTriangles: 5_828, renderObjects: 17, instances: 17, geometryBytes: 277_816 },
+  'vegetables-far': { drawCalls: 25, submittedTriangles: 5_828, renderObjects: 17, instances: 17, geometryBytes: 277_816 },
+  'vegetables-no-post': { drawCalls: 25, submittedTriangles: 5_828, renderObjects: 17, instances: 17, geometryBytes: 277_816 },
+  'vegetables-stress': { drawCalls: 24, submittedTriangles: 5_336, renderObjects: 16, instances: 16, geometryBytes: 239_312 },
 } as const;
 
 function monitorRuntime(page: Page): { runtimeErrors: string[]; failedRequests: string[] } {
@@ -68,7 +68,7 @@ const views = [
 ] as const;
 
 for (const [view, label] of views) {
-  test(`${label} authored backyard visual`, async ({ page }) => {
+  test(`${label} authored backyard visual`, async ({ page }, testInfo) => {
     const { runtimeErrors, failedRequests } = monitorRuntime(page);
     await page.goto(`/backyard-lineup.html?view=${view}`);
     await page.waitForFunction(() => document.body.dataset.ready === 'true');
@@ -83,7 +83,7 @@ for (const [view, label] of views) {
     expect(box?.height ?? 0).toBeGreaterThan(500);
     expectCleanRuntime(runtimeErrors, failedRequests);
     await page.screenshot({
-      path: `artifacts/backyard-${view}.png`,
+      path: testInfo.outputPath(`backyard-${view}.png`),
       fullPage: true,
     });
   });
@@ -97,7 +97,7 @@ const animalViews = [
 ] as const;
 
 for (const [view, labels] of animalViews) {
-  test(`Animal Pen authored visual — ${view}`, async ({ page }) => {
+  test(`Animal Pen authored visual — ${view}`, async ({ page }, testInfo) => {
     const { runtimeErrors, failedRequests } = monitorRuntime(page);
     await page.goto(`/backyard-lineup.html?view=${view}`);
     await page.waitForFunction(() => document.body.dataset.ready === 'true');
@@ -111,7 +111,7 @@ for (const [view, labels] of animalViews) {
     expect(diagnostics?.animalPlanKinds).toHaveLength(labels.length);
     expectCleanRuntime(runtimeErrors, failedRequests);
     await page.screenshot({
-      path: `artifacts/backyard-${view}.png`,
+      path: testInfo.outputPath(`backyard-${view}.png`),
       fullPage: true,
     });
   });
@@ -126,7 +126,7 @@ const vegetableViews = [
 ] as const;
 
 for (const [view, labels] of vegetableViews) {
-  test(`Vegetable Garden authored visual — ${view}`, async ({ page }) => {
+  test(`Vegetable Garden authored visual — ${view}`, async ({ page }, testInfo) => {
     const { runtimeErrors, failedRequests } = monitorRuntime(page);
     await page.goto(`/backyard-lineup.html?view=${view}`);
     await page.waitForFunction(() => document.body.dataset.ready === 'true');
@@ -135,6 +135,11 @@ for (const [view, labels] of vegetableViews) {
     console.log(`[backyard-lineup] ${view}: ${JSON.stringify(diagnostics)}`);
     expectWithinRendererBudget(view, diagnostics);
     expect(diagnostics?.gardenCount).toBe(labels.length);
+    expect(diagnostics?.plantingLayouts).toHaveLength(labels.length);
+    for (const layout of diagnostics?.plantingLayouts ?? []) {
+      expect(layout.plotCount).toBeGreaterThanOrEqual(1);
+      expect(layout.cultivatedCoverage).toBeGreaterThanOrEqual(0.65);
+    }
     expect(diagnostics?.triangleCount ?? 0).toBeGreaterThan(100);
     expect(diagnostics?.triangleCount ?? Number.POSITIVE_INFINITY).toBeLessThan(75_000);
     if (labels.length === 4) {
@@ -149,7 +154,7 @@ for (const [view, labels] of vegetableViews) {
     }
     expectCleanRuntime(runtimeErrors, failedRequests);
     await page.screenshot({
-      path: `artifacts/backyard-${view}.png`,
+      path: testInfo.outputPath(`backyard-${view}.png`),
       fullPage: true,
     });
   });

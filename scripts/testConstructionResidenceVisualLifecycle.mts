@@ -16,6 +16,10 @@ import {
   ResidenceMarkers,
 } from '../src/residences/ResidenceMarkers.ts';
 import { BackyardGardenMarkers } from '../src/residences/BackyardGardenMarkers.ts';
+import {
+  createBackyardConstructionMesh,
+  disposeBackyardConstructionMesh,
+} from '../src/residences/backyardConstructionMesh.ts';
 import { backyardGardenPlacement } from '../src/residences/backyardPosition.ts';
 import { layoutFromBurgageZone } from '../src/residences/burgageZoneLayout.ts';
 import { createDefaultNeeds } from '../src/residences/residenceNeedState.ts';
@@ -379,7 +383,7 @@ function testBackyardConstructionOwnership(): void {
   const residenceInternals = residenceMarkers as unknown as {
     meshes: Map<string, THREE.Group>;
   };
-  const kind = 'vegetable_garden' as const;
+  const kind = 'animal_pen' as const;
   const kindId = BACKYARD_GARDEN_KINDS.indexOf(kind) + 1;
   let residenceMarker: THREE.Group | null = null;
   let constructionMarker: THREE.Group | null = null;
@@ -435,6 +439,31 @@ function testBackyardConstructionOwnership(): void {
     'assigned backyard labor must animate the construction tool at the extension',
   );
 
+  const compactPenWorks = createBackyardConstructionMesh('animal_pen', {
+    width: 4.2,
+    depth: 2.4,
+    seed: 1,
+  });
+  const broadPenWorks = createBackyardConstructionMesh('animal_pen', {
+    width: 9.4,
+    depth: 8.2,
+    seed: 1,
+  });
+  const compactPlan = compactPenWorks.userData.backyardConstructionPlan as {
+    profile: string;
+    boundaryPostCount: number;
+    railSegmentCount: number;
+  };
+  const broadPlan = broadPenWorks.userData.backyardConstructionPlan as typeof compactPlan;
+  assert.equal(compactPlan.profile, 'animal-enclosure');
+  assert.ok(broadPlan.boundaryPostCount > compactPlan.boundaryPostCount);
+  assert.ok(
+    broadPlan.railSegmentCount > compactPlan.railSegmentCount,
+    'animal-pen construction should add staged posts and rails as its parcel footprint grows',
+  );
+  disposeBackyardConstructionMesh(compactPenWorks);
+  disposeBackyardConstructionMesh(broadPenWorks);
+
   const completedResidence = {
     ...backyardProjectResidence(1, 0),
     backyardProjectKind: 0,
@@ -463,7 +492,35 @@ function testBackyardConstructionOwnership(): void {
   assert.ok(completedBackyard);
   assert.notStrictEqual(completedBackyard, constructionMarker);
   assert.equal(constructionMarker.parent, null);
-  assert.equal(completedBackyard.name, 'BackyardGarden:vegetable_garden');
+  assert.equal(completedBackyard.name, 'BackyardGarden:animal_pen');
+
+  const plantingKind = 'vegetable_garden' as const;
+  const plantingKindId = BACKYARD_GARDEN_KINDS.indexOf(plantingKind) + 1;
+  const plantingResidence = {
+    ...backyardProjectResidence(0.35, plantingKindId),
+    id: 'visual-lifecycle-planting-preview',
+  };
+  residenceMarkers.syncResidences([plantingResidence], () => 0);
+  backyardMarkers.syncGardens({
+    residences: [plantingResidence],
+    zones: [zone],
+    gardens: new Map(),
+    getHeightAt: () => 0,
+  });
+  const plantingMarker = backyardInternals.meshes.get(plantingResidence.id);
+  assert.ok(plantingMarker);
+  assert.equal(plantingMarker.name, 'BackyardPlantingPreview:vegetable_garden');
+  assert.equal(plantingMarker.userData.backyardPlantingPreview, true);
+  assert.notEqual(plantingMarker.userData.backyardConstructionSite, true);
+  assert.equal(
+    plantingMarker.getObjectByName('Backyard construction hammer'),
+    undefined,
+    'cultivated projects should place prepared ground without a building-work animation',
+  );
+  assert.ok(
+    Number(plantingMarker.userData.backyardTerrainSurfaceCount) > 0,
+    'instant planting previews should still conform their soil to the parcel terrain',
+  );
 
   const residenceInspectorSource = readFileSync(
     'src/resources/inspector/residenceRenderer.ts',

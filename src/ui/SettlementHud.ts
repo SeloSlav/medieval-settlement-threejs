@@ -218,6 +218,12 @@ const SETTLEMENT_HUD_HTML = `
       </div>
     </div>
     </div>
+    <div
+      class="settlement-hud__ribbon-side settlement-hud__ribbon-side--civic"
+      data-settlement-civic-strip
+      role="group"
+      aria-label="Settlement status"
+    >
     <div class="settlement-hud__approval-shell" data-approval-shell>
       <button
         type="button"
@@ -287,20 +293,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value settlement-hud__value--fps" data-stat="fps">--</strong>
       </div>
     </div>
-    <button
-      type="button"
-      class="settlement-hud__totals-mode"
-      data-resource-totals-mode
-      data-mode="surplus"
-      data-tooltip-title="Realm surplus (default)"
-      data-tooltip="Available goods after construction and home-project commitments. Activate to show every holding."
-      aria-label="Showing realm-wide surplus goods. Show total realm holdings."
-      aria-pressed="false"
-    >
-      <span class="settlement-hud__totals-mode-icon" aria-hidden="true">⇄</span>
-      <span class="settlement-hud__totals-mode-label" data-resource-totals-mode-label>Realm · Surplus</span>
-    </button>
-    <div class="settlement-hud__body">
+    <div class="settlement-hud__body settlement-hud__body--civic">
       <div class="settlement-hud__people-card settlement-hud__people-card--labor" data-people-card="labor">
         <div class="settlement-hud__stat" tabindex="0" data-resource="labor" aria-label="Labor ledger awaiting settlement data">
           <span class="settlement-hud__label">Labor</span>
@@ -433,22 +426,17 @@ const SETTLEMENT_HUD_HTML = `
           </section>
         </section>
       </details>
-      <div class="settlement-hud__people-card settlement-hud__resource-card" data-hud-card data-resource-card="water">
-        <div class="settlement-hud__stat settlement-hud__stat--water" tabindex="0" data-resource="water" aria-describedby="settlement-water-card">
-          <span class="settlement-hud__label">Water</span>
-          <strong class="settlement-hud__value" data-stockpile="water">0</strong>
-        </div>
-        <section id="settlement-water-card" class="settlement-hud__people-panel settlement-hud__resource-panel" aria-label="Water ledger" aria-live="off">
-          <header class="settlement-hud__people-header">
-            <strong>Water</strong>
-            <span data-resource-card-mode-label="water">Available surplus</span>
-          </header>
-          <div class="settlement-hud__resource-reading"><strong data-resource-card-amount="water">0</strong><span>Water on hand</span></div>
-          <div class="settlement-hud__resource-transit" data-resource-card-transit-row="water" hidden><span>Movement</span><strong data-stockpile-transit="water"></strong></div>
-          <p class="settlement-hud__resource-detail" data-resource-card-detail="water">${HUD_RESOURCE_CARD_PRESENTATION.water.surplusDetail}</p>
-          <p class="settlement-hud__resource-note">Activate to locate physical holdings in the world.</p>
-        </section>
-      </div>
+    </div>
+    </div>
+    <div
+      class="settlement-hud__ribbon-side settlement-hud__ribbon-side--resources"
+      data-settlement-resource-strip
+      role="group"
+      aria-label="Realm resources"
+    >
+      <span data-stockpile="water" hidden>0</span>
+      <span data-stockpile-transit="water" hidden></span>
+      <div class="settlement-hud__body settlement-hud__body--resources">
       <div class="settlement-hud__people-card settlement-hud__resource-card settlement-hud__resource-card--right settlement-hud__construction-card" data-hud-card data-resource-card="construction">
         <div
           class="settlement-hud__stat settlement-hud__stat--construction"
@@ -581,7 +569,7 @@ const SETTLEMENT_HUD_HTML = `
           </div>
         </div>
       </details>
-    </div>
+      </div>
     <details class="settlement-hud__stores" data-specialty-stores>
       <summary
         class="settlement-hud__stores-summary"
@@ -788,6 +776,20 @@ const SETTLEMENT_HUD_HTML = `
         <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ammunition" data-tooltip="${RESOURCE_DESCRIPTIONS.ammunition}"><span class="settlement-hud__label">Ammunition</span><strong class="settlement-hud__value" data-stockpile="ammunition">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ammunition" hidden></span></div>
       </div>
     </details>
+    <button
+      type="button"
+      class="settlement-hud__totals-mode"
+      data-resource-totals-mode
+      data-mode="surplus"
+      data-tooltip-title="Realm surplus (default)"
+      data-tooltip="Available goods after construction and home-project commitments. Activate to show every holding."
+      aria-label="Showing realm-wide surplus goods. Show total realm holdings."
+      aria-pressed="false"
+    >
+      <span class="settlement-hud__totals-mode-icon" aria-hidden="true">⇄</span>
+      <span class="settlement-hud__totals-mode-label" data-resource-totals-mode-label>Realm · Surplus</span>
+    </button>
+    </div>
   </div>
 `;
 
@@ -1063,6 +1065,7 @@ export class SettlementHud {
     this.zoomValue = this.mustElement('[data-stat="zoom"]');
     this.zoomStat = this.mustElement('[data-stat-row="zoom"]');
     for (const resource of HUD_RESOURCE_KINDS) {
+      if (resource === 'water') continue;
       const row = this.mustElement(`[data-resource="${resource}"]`);
       const label = row.querySelector<HTMLElement>('.settlement-hud__label')
         ?.textContent

@@ -10,6 +10,7 @@ import {
   sharedBuildingDetailMaterial,
   sharedBuildingMaterial,
 } from '../buildings/buildingMaterials.ts';
+import { addBarrel } from '../buildings/meshes/buildingMeshKit.ts';
 import { prepareBuildingGeometryUvs } from '../buildings/buildingMetricUvs.ts';
 import { mulberry32 } from '../utils/random.ts';
 import type { BackyardPlantCatalog } from '../vegetation/seedthree/backyardPlantAssets.ts';
@@ -22,6 +23,7 @@ import {
   CULTIVATED_SOIL_TEXTURE_PATHS,
   CULTIVATED_SOIL_TEXTURES,
 } from '../terrain/cultivatedSoilAssets.ts';
+import { isPlantableBackyardGardenKind } from './backyardGarden.ts';
 
 export type BackyardGardenMeshOptions = {
   width?: number;
@@ -29,6 +31,8 @@ export type BackyardGardenMeshOptions = {
   seed?: number;
   plants?: BackyardPlantCatalog | null;
   flowerLuxuryUpgraded?: boolean;
+  /** Active cultivated projects show their prepared earth immediately. */
+  plantingPreview?: boolean;
 };
 
 const FLOWER_STEM_MAP_SIZE = 64;
@@ -771,6 +775,137 @@ function addSoilBed(
   soil.userData.backyardTerrainSurface = true;
 }
 
+export type BackyardPlantingPlot = {
+  x: number;
+  z: number;
+  width: number;
+  depth: number;
+};
+
+export type BackyardPlantingLayout = {
+  pattern: 'full' | 'rows' | 'plots';
+  splitAxis: 'x' | 'z';
+  plots: BackyardPlantingPlot[];
+  cultivatedCoverage: number;
+};
+
+type PlantingLayoutFamily = 'orchard' | 'vegetable' | 'flowers' | 'herbs';
+
+function plantingLayoutFamily(kind: BackyardGardenKind): PlantingLayoutFamily {
+  if (kind === 'flower_garden') return 'flowers';
+  if (kind === 'herb_garden') return 'herbs';
+  if (kind === 'vegetable_garden'
+    || kind === 'cabbage_garden'
+    || kind === 'carrot_garden'
+    || kind === 'beetroot_garden') return 'vegetable';
+  return 'orchard';
+}
+
+/**
+ * Produces an inspectable, deterministic ground plan before any plants are
+ * emitted. Insets stay small, so parcel width/depth materially changes the
+ * cultivated footprint instead of surrounding a fixed-size garden prop.
+ */
+export function createBackyardPlantingLayout(
+  kind: BackyardGardenKind,
+  width: number,
+  depth: number,
+  seed: number,
+): BackyardPlantingLayout {
+  if (!isPlantableBackyardGardenKind(kind)) {
+    return { pattern: 'full', splitAxis: 'x', plots: [], cultivatedCoverage: 0 };
+  }
+
+  const family = plantingLayoutFamily(kind);
+  const rng = mulberry32(seed ^ 0x51f15e5d);
+  const edgeX = Math.min(0.42, Math.max(0.2, width * 0.045));
+  const edgeZ = Math.min(0.42, Math.max(0.2, depth * 0.05));
+  const fixtureAisle = family === 'herbs'
+    ? Math.min(1.12, Math.max(0.9, width * 0.16))
+    : 0;
+  const usableWidth = Math.max(0.8, width - edgeX * 2 - fixtureAisle);
+  const usableDepth = Math.max(0.8, depth - edgeZ * 2);
+  const desiredCount = family === 'flowers'
+    ? 3 + (seed % 3)
+    : family === 'orchard'
+      ? 1 + ((seed >>> 2) % 3)
+      : 1 + (seed % 3);
+  const splitAxis: 'x' | 'z' = family === 'flowers'
+    ? 'x'
+    : depth > width * 1.35 && ((seed >>> 4) & 1) === 1
+      ? 'z'
+      : 'x';
+  const splitSpan = splitAxis === 'x' ? usableWidth : usableDepth;
+  const crossSpan = splitAxis === 'x' ? usableDepth : usableWidth;
+  const gap = family === 'flowers'
+    ? THREE.MathUtils.lerp(0.32, 0.46, rng())
+    : THREE.MathUtils.lerp(0.26, 0.38, rng());
+  // The soil edge feather needs a genuine opaque interior; very narrow strips
+  // would become all transition and read as faint decals from above.
+  const minimumPlotSpan = family === 'flowers' ? 1.12 : 0.88;
+  const maximumCount = Math.max(1, Math.floor((splitSpan + gap) / (minimumPlotSpan + gap)));
+  const count = Math.max(1, Math.min(desiredCount, maximumCount));
+  const availableForPlots = Math.max(minimumPlotSpan, splitSpan - gap * (count - 1));
+  const weights = Array.from({ length: count }, () => 0.86 + rng() * 0.28);
+  const weightTotal = weights.reduce((sum, weight) => sum + weight, 0);
+  let cursor = -splitSpan * 0.5;
+  const plots = weights.map((weight): BackyardPlantingPlot => {
+    const span = availableForPlots * weight / weightTotal;
+    const center = cursor + span * 0.5;
+    cursor += span + gap;
+    if (splitAxis === 'x') {
+      return {
+        x: center - fixtureAisle * 0.5,
+        z: 0,
+        width: span,
+        depth: crossSpan,
+      };
+    }
+    return {
+      x: -fixtureAisle * 0.5,
+      z: center,
+      width: crossSpan,
+      depth: span,
+    };
+  });
+  const cultivatedArea = plots.reduce((sum, plot) => sum + plot.width * plot.depth, 0);
+  return {
+    pattern: count === 1 ? 'full' : family === 'flowers' ? 'rows' : 'plots',
+    splitAxis,
+    plots,
+    cultivatedCoverage: cultivatedArea / Math.max(1e-6, width * depth),
+  };
+}
+
+function addPlantingSoil(
+  group: THREE.Group,
+  kind: BackyardGardenKind,
+  width: number,
+  depth: number,
+  seed: number,
+): BackyardPlantingLayout {
+  const layout = createBackyardPlantingLayout(kind, width, depth, seed);
+  group.userData.plantingLayout = layout;
+  layout.plots.forEach((plot, index) => {
+    addSoilBed(group, plot.x, plot.z, plot.width, plot.depth, {
+      edgeSeed: seed + index * 1013,
+    });
+  });
+  return layout;
+}
+
+function samplePlantingPlot(
+  plots: readonly BackyardPlantingPlot[],
+  rng: () => number,
+  inset = 0.12,
+): { x: number; z: number } {
+  const plot = plots[Math.min(plots.length - 1, Math.floor(rng() * plots.length))]!;
+  return {
+    x: plot.x + (rng() - 0.5) * Math.max(0, plot.width - inset * 2),
+    z: plot.z + (rng() - 0.5) * Math.max(0, plot.depth - inset * 2),
+  };
+}
+
 /**
  * Warps only flush soil patches onto the rendered terrain. The source plane's
  * local Z axis becomes world-up after its -90 degree X rotation, so changing
@@ -834,7 +969,7 @@ export function conformBackyardGroundSoilToTerrain(
   return diagnostics;
 }
 
-function addBasket(
+function addHarvestBarrel(
   group: THREE.Group,
   x: number,
   z: number,
@@ -843,49 +978,33 @@ function addBasket(
   fruitRadius = 0.095,
   fruitCount = 5,
 ): void {
-  const basket = new THREE.Group();
-  basket.name = 'Harvest basket';
-  basket.position.set(x, 0, z);
-  basket.userData.fpCollisionAggregate = true;
-  group.add(basket);
-  addMesh(
-    basket,
-    new THREE.CylinderGeometry(0.3, 0.23, 0.32, 10, 1, true),
-    MATERIALS.wicker,
-    0,
-    0.17,
-    0,
-    undefined,
-    undefined,
-    'Wicker basket body',
-  );
-  addMesh(
-    basket,
-    new THREE.TorusGeometry(0.27, 0.035, 5, 12),
-    MATERIALS.darkTimber,
-    0,
-    0.45,
-    0,
-    new THREE.Euler(Math.PI * 0.5, 0, 0),
-    undefined,
-    'Wicker basket handle',
-  );
+  const barrel = new THREE.Group();
+  barrel.name = 'Orchard harvest barrel';
+  barrel.position.set(x, 0, z);
+  barrel.userData.fpCollisionAggregate = true;
+  barrel.userData.orchardBarrelAsset = 'buildingMeshKit.addBarrel';
+  group.add(barrel);
+  addBarrel(barrel, 0, 0, 0.82);
+  const [body, lowerHoop, upperHoop] = barrel.children;
+  if (body) body.name = 'Shared coopered barrel body';
+  if (lowerHoop) lowerHoop.name = 'Shared coopered barrel lower hoop';
+  if (upperHoop) upperHoop.name = 'Shared coopered barrel upper hoop';
   if (!filled) return;
   for (let i = 0; i < fruitCount; i++) {
     const angle = (i / fruitCount) * Math.PI * 2;
-    const ring = fruitRadius < 0.06 ? 0.08 + (i % 2) * 0.07 : 0.14;
-    const basketFruit = addMesh(
-      basket,
+    const ring = fruitRadius < 0.06 ? 0.07 + (i % 2) * 0.065 : 0.13;
+    const barrelFruit = addMesh(
+      barrel,
       new THREE.IcosahedronGeometry(fruitRadius, 1),
       fruit,
       Math.cos(angle) * ring,
-      0.32 + fruitRadius + (i % 3) * fruitRadius * 0.45,
+      0.59 + fruitRadius * 0.55 + (i % 3) * fruitRadius * 0.42,
       Math.sin(angle) * ring,
       undefined,
       undefined,
-      'Basket fruit',
+      'Barrel-top fruit',
     );
-    basketFruit.userData.backyardSeasonalRole = 'basket-produce';
+    barrelFruit.userData.backyardSeasonalRole = 'barrel-produce';
   }
 }
 
@@ -984,9 +1103,14 @@ function orchardTreeGrid(width: number, depth: number): {
   rows: number;
   positions: Array<[number, number]>;
 } {
-  const roomy = width > 5.3 && depth > 4.6;
-  const columns = roomy || width >= depth ? 2 : 1;
-  const rows = roomy || width < depth ? 2 : 1;
+  const axisCount = (span: number, otherSpan: number): number => {
+    if (span >= 9.2) return 4;
+    if (span >= 7.2) return 3;
+    if (span > 4.6 || span >= otherSpan) return 2;
+    return 1;
+  };
+  const columns = axisCount(width, depth);
+  const rows = axisCount(depth, width);
   const positions: Array<[number, number]> = [];
 
   for (let row = 0; row < rows; row++) {
@@ -1009,10 +1133,11 @@ function addOrchard(
   seed: number,
   plants: BackyardPlantCatalog | null,
 ): void {
+  addPlantingSoil(group, `${kind}_orchard` as BackyardGardenKind, width, depth, seed);
   const { columns, rows, positions } = orchardTreeGrid(width, depth);
   group.userData.orchardGrid = { columns, rows };
   positions.forEach(([x, z], index) => addFruitTree(group, kind, x!, z!, index, seed + index * 997, plants));
-  addBasket(
+  addHarvestBarrel(
     group,
     width * 0.34,
     -depth * 0.34,
@@ -1027,7 +1152,9 @@ function addPreparedOrchard(
   group: THREE.Group,
   width: number,
   depth: number,
+  seed: number,
 ): void {
+  addPlantingSoil(group, 'orchard', width, depth, seed);
   const { columns, rows, positions } = orchardTreeGrid(width, depth);
   group.userData.orchardGrid = { columns, rows };
   group.userData.orchardAwaitingSpecialization = true;
@@ -1055,12 +1182,12 @@ function addPreparedOrchard(
       'Orchard planting stake',
     );
   }
-  addBasket(group, width * 0.34, -depth * 0.34, false, MATERIALS.apple);
+  addHarvestBarrel(group, width * 0.34, -depth * 0.34, false, MATERIALS.apple);
 }
 
 function orchardBushGrid(width: number, depth: number): Array<[number, number]> {
-  const columns = width > 4.6 ? 2 : 1;
-  const rows = Math.max(2, Math.min(4, Math.floor(depth / 1.25)));
+  const columns = width >= 8.4 ? 3 : width > 4.6 ? 2 : 1;
+  const rows = Math.max(2, Math.min(6, Math.floor(depth / 1.25)));
   const positions: Array<[number, number]> = [];
   for (let row = 0; row < rows; row++) {
     for (let column = 0; column < columns; column++) {
@@ -1126,15 +1253,17 @@ function addBushOrchard(
   seed: number,
   plants: BackyardPlantCatalog | null,
 ): void {
+  addPlantingSoil(group, `${kind}_orchard` as BackyardGardenKind, width, depth, seed);
   const positions = orchardBushGrid(width, depth);
+  const columns = width >= 8.4 ? 3 : width > 4.6 ? 2 : 1;
   group.userData.orchardGrid = {
-    columns: width > 4.6 ? 2 : 1,
-    rows: positions.length / (width > 4.6 ? 2 : 1),
+    columns,
+    rows: positions.length / columns,
   };
   positions.forEach(([x, z], index) => (
     addFruitBush(group, kind, x, z, index, seed + index * 617, plants)
   ));
-  addBasket(
+  addHarvestBarrel(
     group,
     width * 0.36,
     -depth * 0.39,
@@ -1297,11 +1426,8 @@ function addVegetableGarden(
   seed: number,
   crop: VegetableCropKind | null,
 ): void {
-  const bedCount = 3;
-  const gap = 0.3;
-  const bedWidth = (width - gap * (bedCount + 1)) / bedCount;
-  const bedDepth = Math.max(1.15, depth - 0.62);
-  const bedZ = 0;
+  const gardenKind: BackyardGardenKind = crop ? `${crop}_garden` : 'vegetable_garden';
+  const layout = addPlantingSoil(group, gardenKind, width, depth, seed);
   const cropDefinition = crop === 'cabbage'
     ? { name: 'CabbageRows', add: addCabbage, spacing: 0.58 }
     : crop === 'carrot'
@@ -1309,33 +1435,30 @@ function addVegetableGarden(
       : crop === 'beetroot'
         ? { name: 'BeetrootRows', add: addBeetroot, spacing: 0.48 }
         : null;
-  for (let bed = 0; bed < bedCount; bed++) {
-    const x = -width * 0.5 + gap + bedWidth * 0.5 + bed * (bedWidth + gap);
-    addSoilBed(group, x, bedZ, bedWidth, bedDepth, {
-      edgeSeed: seed + bed * 1013,
-    });
+  for (let bed = 0; bed < layout.plots.length; bed++) {
+    const plot = layout.plots[bed]!;
     if (!cropDefinition || !crop) continue;
     const cropGroup = new THREE.Group();
     cropGroup.name = `${cropDefinition.name}:${bed + 1}`;
     cropGroup.userData.backyardCropKind = crop;
     group.add(cropGroup);
     const spacing = cropDefinition.spacing;
-    const naturalCols = Math.max(2, Math.floor(bedWidth / spacing));
-    const naturalRows = Math.max(2, Math.floor(bedDepth / spacing));
+    const naturalCols = Math.max(2, Math.floor(plot.width / spacing));
+    const naturalRows = Math.max(2, Math.floor(plot.depth / spacing));
     const cols = Math.min(MAX_GARDEN_GRID_COLUMNS, naturalCols);
     const rows = Math.min(MAX_GARDEN_GRID_ROWS, naturalRows);
     const columnSpan = naturalCols > cols
-      ? Math.max(spacing, bedWidth - 0.5)
+      ? Math.max(spacing, plot.width - 0.5)
       : (cols - 1) * spacing;
     const rowSpan = naturalRows > rows
-      ? Math.max(spacing, bedDepth - 0.5)
+      ? Math.max(spacing, plot.depth - 0.5)
       : (rows - 1) * spacing;
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         cropDefinition.add(
           cropGroup,
-          x - columnSpan * 0.5 + col * columnSpan / Math.max(1, cols - 1),
-          bedZ - rowSpan * 0.5 + row * rowSpan / Math.max(1, rows - 1),
+          plot.x - columnSpan * 0.5 + col * columnSpan / Math.max(1, cols - 1),
+          plot.z - rowSpan * 0.5 + row * rowSpan / Math.max(1, rows - 1),
           seed + bed * 101 + row * 17 + col,
         );
       }
@@ -1462,14 +1585,16 @@ function addFlowerGarden(
   plants: BackyardPlantCatalog | null,
   luxuryUpgraded: boolean,
 ): void {
-  const sideWidth = Math.max(1.25, width * 0.34);
-  addSoilBed(group, -width * 0.29, 0, sideWidth, depth * 0.82, { edgeSeed: seed });
-  addSoilBed(group, width * 0.29, 0, sideWidth, depth * 0.82, { edgeSeed: seed + 1013 });
-  const roseCount = width > 5.2 ? 4 : 3;
+  const layout = addPlantingSoil(group, 'flower_garden', width, depth, seed);
+  const roseCount = Math.max(3, Math.min(8, Math.round(width * depth / 8)));
   for (let i = 0; i < roseCount; i++) {
-    const side = i % 2 ? 1 : -1;
-    const row = Math.floor(i / 2);
-    addRoseShrub(group, side * width * 0.28, (row - 0.5) * Math.min(1.75, depth * 0.35), i, seed + i * 311, plants);
+    const plot = layout.plots[i % layout.plots.length]!;
+    const row = Math.floor(i / layout.plots.length);
+    const rowsInPlot = Math.ceil((roseCount - (i % layout.plots.length)) / layout.plots.length);
+    const roseX = plot.x + (i % 2 ? 1 : -1) * Math.min(plot.width * 0.18, 0.22);
+    const roseZ = plot.z + ((row + 1) / (rowsInPlot + 1) - 0.5)
+      * Math.max(0, plot.depth - 0.72);
+    addRoseShrub(group, roseX, roseZ, i, seed + i * 311, plants);
   }
   const rng = mulberry32(seed ^ 0xaf413);
   const flowerCount = Math.min(
@@ -1477,9 +1602,9 @@ function addFlowerGarden(
     Math.max(12, Math.floor(width * depth * 0.7)),
   );
   for (let i = 0; i < flowerCount; i++) {
-    const side = i % 2 ? 1 : -1;
-    const x = side * (width * 0.16 + rng() * width * 0.26);
-    const z = (rng() - 0.5) * depth * 0.72;
+    const point = samplePlantingPlot(layout.plots, rng, 0.16);
+    const x = point.x;
+    const z = point.z;
     const h = 0.18 + rng() * 0.22;
     const wildflower = new THREE.Group();
     wildflower.name = `Swaying cottage flower ${i + 1}`;
@@ -1626,33 +1751,28 @@ function addDryingRack(
 }
 
 function addHerbGarden(group: THREE.Group, width: number, depth: number, seed: number): void {
-  const plotDepth = Math.max(1.1, depth - 0.65);
-  const plotZ = 0;
+  const layout = addPlantingSoil(group, 'herb_garden', width, depth, seed);
   const rackAisleWidth = Math.min(1.15, Math.max(0.9, width * 0.16));
-  const bedAreaWidth = width - rackAisleWidth;
-  const bedAreaX = -rackAisleWidth * 0.5;
-  const plotW = (bedAreaWidth - 0.75) * 0.5;
-  for (let side = 0; side < 2; side++) {
-    const x = bedAreaX + (side ? 1 : -1) * (plotW * 0.5 + 0.18);
-    addSoilBed(group, x, plotZ, plotW, plotDepth, { edgeSeed: seed + side * 1013 });
-    const naturalCols = Math.max(2, Math.floor(plotW / 0.65));
-    const naturalRows = Math.max(2, Math.floor(plotDepth / 0.72));
+  for (let plotIndex = 0; plotIndex < layout.plots.length; plotIndex++) {
+    const plot = layout.plots[plotIndex]!;
+    const naturalCols = Math.max(2, Math.floor(plot.width / 0.65));
+    const naturalRows = Math.max(2, Math.floor(plot.depth / 0.72));
     const cols = Math.min(MAX_GARDEN_GRID_COLUMNS, naturalCols);
     const rows = Math.min(MAX_GARDEN_GRID_ROWS, naturalRows);
     const columnSpan = naturalCols > cols
-      ? Math.max(0.58, plotW - 0.5)
+      ? Math.max(0.58, plot.width - 0.5)
       : (cols - 1) * 0.58;
     const rowSpan = naturalRows > rows
-      ? Math.max(0.66, plotDepth - 0.5)
+      ? Math.max(0.66, plot.depth - 0.5)
       : (rows - 1) * 0.66;
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         addHerbClump(
           group,
-          x - columnSpan * 0.5 + col * columnSpan / Math.max(1, cols - 1),
-          plotZ - rowSpan * 0.5 + row * rowSpan / Math.max(1, rows - 1),
-          (side + row + col) % 3,
-          seed + side * 101 + row * 13 + col,
+          plot.x - columnSpan * 0.5 + col * columnSpan / Math.max(1, cols - 1),
+          plot.z - rowSpan * 0.5 + row * rowSpan / Math.max(1, rows - 1),
+          (plotIndex + row + col) % 3,
+          seed + plotIndex * 101 + row * 13 + col,
         );
       }
     }
@@ -1800,9 +1920,16 @@ export function createBackyardGardenMesh(
   group.userData.footprint = { width, depth };
   group.userData.usesSeedThree = Boolean(plants);
 
+  if (options.plantingPreview && isPlantableBackyardGardenKind(kind)) {
+    group.name = `BackyardPlantingPreview:${kind}`;
+    group.userData.backyardPlantingPreview = true;
+    addPlantingSoil(group, kind, width, depth, seed);
+    return group;
+  }
+
   switch (kind) {
     case 'orchard':
-      addPreparedOrchard(group, width, depth);
+      addPreparedOrchard(group, width, depth, seed);
       break;
     case 'apple_orchard':
       addOrchard(group, 'apple', width, depth, seed, plants);
@@ -1978,7 +2105,7 @@ export function syncBackyardGardenSeasonVisuals(
       object.visible = phenology.produceVisibility !== 'none';
       return;
     }
-    if (role === 'basket-produce') {
+    if (role === 'barrel-produce') {
       object.visible = phenology.produceVisibility === 'harvest';
       return;
     }

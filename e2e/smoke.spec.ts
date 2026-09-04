@@ -187,61 +187,89 @@ test('keeps at least three specialty digits visible before truncation', async ({
   });
 });
 
-test('keeps Goods and Arms adjacent in the widened top ribbon', async ({ page }) => {
+test('centers Development between civic status and right-aligned resource controls', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 720 });
   await page.setContent(`
     <style>* { box-sizing: border-box; }</style>
     <div class="settlement-hud">
-      <div class="settlement-hud__approval-shell">
-        <button class="settlement-hud__approval-button">
-          <span class="settlement-hud__approval-icon">✓</span>
-          <span class="settlement-hud__approval-copy"><strong>60%</strong></span>
-        </button>
-      </div>
-      <button class="settlement-hud__totals-mode"><span class="settlement-hud__totals-mode-icon">⇄</span></button>
-      <div class="settlement-hud__body">
-        <div class="settlement-hud__stat" data-resource="timber"><strong class="settlement-hud__value">400</strong></div>
-      </div>
-      <details class="settlement-hud__stores" data-specialty-stores>
-        <summary class="settlement-hud__stores-summary"><strong class="settlement-hud__stores-status">1</strong></summary>
-      </details>
-      <details class="settlement-hud__stores settlement-hud__military-stores" data-military-stores>
-        <summary class="settlement-hud__stores-summary"><strong class="settlement-hud__stores-status">1</strong></summary>
-        <div>
-          ${[
-            'polearms',
-            'sidearms',
-            'shields',
-            'bows',
-            'crossbows',
-            'paddedArmor',
-            'mailArmor',
-            'ammunition',
-          ].map((resource) => `<span class="settlement-hud__stat" data-resource="${resource}"></span>`).join('')}
+      <div class="settlement-hud__ribbon-side settlement-hud__ribbon-side--civic" data-settlement-civic-strip>
+        <div class="settlement-hud__approval-shell">
+          <button class="settlement-hud__approval-button">
+            <span class="settlement-hud__approval-icon">✓</span>
+            <span class="settlement-hud__approval-copy"><strong>60%</strong></span>
+          </button>
         </div>
-      </details>
+        <div class="settlement-hud__body settlement-hud__body--civic">
+          ${['labor', 'population', 'housing'].map((resource) => `
+            <div class="settlement-hud__stat" data-resource="${resource}"><strong class="settlement-hud__value">10</strong></div>
+          `).join('')}
+          <details class="settlement-hud__animals"><summary class="settlement-hud__animals-summary"></summary></details>
+        </div>
+      </div>
+      <button class="development-launcher"><span class="development-launcher__badge">9</span></button>
+      <div class="settlement-hud__ribbon-side settlement-hud__ribbon-side--resources" data-settlement-resource-strip>
+        <div class="settlement-hud__body settlement-hud__body--resources">
+          <div class="settlement-hud__stat" data-resource="timber"><strong class="settlement-hud__value">400</strong></div>
+        </div>
+        <details class="settlement-hud__stores" data-specialty-stores>
+          <summary class="settlement-hud__stores-summary"><strong class="settlement-hud__stores-status">1</strong></summary>
+        </details>
+        <details class="settlement-hud__stores settlement-hud__military-stores" data-military-stores>
+          <summary class="settlement-hud__stores-summary"><strong class="settlement-hud__stores-status">1</strong></summary>
+          <div>
+            ${[
+              'polearms',
+              'sidearms',
+              'shields',
+              'bows',
+              'crossbows',
+              'paddedArmor',
+              'mailArmor',
+              'ammunition',
+            ].map((resource) => `<span class="settlement-hud__stat" data-resource="${resource}"></span>`).join('')}
+          </div>
+        </details>
+        <button class="settlement-hud__totals-mode"><span class="settlement-hud__totals-mode-icon">⇄</span></button>
+      </div>
     </div>
   `);
   await page.addStyleTag({ path: 'src/ui/settlementHud.css' });
   await page.addStyleTag({ path: 'src/ui/polishedGameUi.css' });
   await page.addStyleTag({ path: 'src/ui/nobleSetup.css' });
   await page.addStyleTag({ path: 'src/ui/iconography.css' });
+  await page.addStyleTag({ path: 'src/ui/developmentMenu.css' });
 
   const layout = await page.locator('.settlement-hud').evaluate((hud) => {
     const rootBox = hud.getBoundingClientRect();
+    const civicBox = hud.querySelector<HTMLElement>('[data-settlement-civic-strip]')!.getBoundingClientRect();
+    const developmentBox = hud.querySelector<HTMLElement>('.development-launcher')!.getBoundingClientRect();
+    const resourcesBox = hud.querySelector<HTMLElement>('[data-settlement-resource-strip]')!.getBoundingClientRect();
     const goodsBox = hud.querySelector<HTMLElement>('[data-specialty-stores]')!.getBoundingClientRect();
     const armsBox = hud.querySelector<HTMLElement>('[data-military-stores]')!.getBoundingClientRect();
+    const totalsBox = hud.querySelector<HTMLElement>('.settlement-hud__totals-mode')!.getBoundingClientRect();
     return {
       width: rootBox.width,
       height: rootBox.height,
       sameRow: Math.abs(goodsBox.top - armsBox.top) < 1,
       adjacent: Math.abs(goodsBox.right - armsBox.left) < 1,
+      developmentCenterOffset: Math.abs(
+        (developmentBox.left + developmentBox.right) / 2
+          - (rootBox.left + rootBox.right) / 2,
+      ),
+      civicMeetsDevelopment: Math.abs(civicBox.right - developmentBox.left) < 1,
+      resourcesMeetDevelopment: Math.abs(resourcesBox.left - developmentBox.right) < 1,
+      totalsAtFarRight: Math.abs(totalsBox.right - resourcesBox.right) < 1,
     };
   });
   expect(layout.width).toBe(900);
   expect(layout.height).toBeLessThan(80);
   expect(layout.sameRow).toBe(true);
   expect(layout.adjacent).toBe(true);
+  expect(layout.developmentCenterOffset).toBeLessThan(1);
+  expect(layout.civicMeetsDevelopment).toBe(true);
+  expect(layout.resourcesMeetDevelopment).toBe(true);
+  expect(layout.totalsAtFarRight).toBe(true);
+  await expect(page.locator('[data-resource="water"]')).toHaveCount(0);
 
   const armsTriggerIcon = await page.locator('[data-military-stores] > summary').evaluate((element) => (
     getComputedStyle(element, '::before').backgroundImage
@@ -426,11 +454,11 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   const constructionCard = page.locator('[data-resource-card="construction"]');
   const constructionSummary = constructionCard.locator('[data-resource-group="construction"]');
   const constructionPanel = constructionCard.locator('.settlement-hud__construction-panel');
-  for (const resource of ['water', 'gold']) {
-    const summary = page.locator(`[data-resource-card="${resource}"] > [data-resource="${resource}"]`);
-    await expect(summary).not.toHaveAttribute('data-tooltip');
-    await expect(summary).not.toHaveAttribute('data-tooltip-title');
-  }
+  await expect(page.locator('[data-settlement-hud] [data-resource="water"]')).toHaveCount(0);
+  await expect(page.locator('[data-settlement-hud] [data-resource-card="water"]')).toHaveCount(0);
+  const goldSummary = page.locator('[data-resource-card="gold"] > [data-resource="gold"]');
+  await expect(goldSummary).not.toHaveAttribute('data-tooltip');
+  await expect(goldSummary).not.toHaveAttribute('data-tooltip-title');
   for (const resource of ['timber', 'stone']) {
     const material = constructionPanel.locator(`[data-resource="${resource}"]`);
     await expect(material).not.toHaveAttribute('data-tooltip');

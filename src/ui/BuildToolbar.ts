@@ -476,7 +476,13 @@ export class BuildToolbar {
     developmentButton.setAttribute('aria-haspopup', 'dialog');
     developmentButton.setAttribute('aria-expanded', 'false');
     developmentButton.innerHTML = '<img src="/assets/ui/icons/monastery/scriptorium-archive.png" alt=""/><span class="development-launcher__badge" data-development-badge>9</span>';
-    this.settlementHud.root.append(developmentButton);
+    const resourceStrip = this.settlementHud.root.querySelector<HTMLElement>(
+      '[data-settlement-resource-strip]',
+    );
+    if (!resourceStrip) {
+      throw new Error('Settlement resource strip is missing.');
+    }
+    resourceStrip.before(developmentButton);
     // Install its keyboard owner before toolbar/settings listeners.
     this.developmentMenu = new DevelopmentMenu(root, developmentButton, (open) => {
       if (open) {

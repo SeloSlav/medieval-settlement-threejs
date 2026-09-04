@@ -2,7 +2,7 @@
 
 ## Construction and seed choice
 
-`vegetable_garden` is a completed shell: three prepared household beds built by free laborers for 5 timber, 2 stone, and 2 gold. It has no crop and produces no food until the player purchases one seed specialization. Direct construction of a specialized crop garden is rejected by the server.
+`vegetable_garden` is a completed shell: one to three parcel-filling prepared household plots resolved by free laborers for 5 timber, 2 stone, and 2 gold. The cultivated soil appears immediately instead of playing a building-work animation. It has no crop and produces no food until the player purchases one seed specialization. Direct construction of a specialized crop garden is rejected by the server.
 
 The seed choice fills every bed and remains fixed until the whole backyard extension is demolished.
 
@@ -28,6 +28,6 @@ The system reuses the existing authored kitchen-crop textures and plant builders
 - carrots use the existing feathery frond cards;
 - beetroot uses the existing broad root-crop leaf asset, renamed semantically, plus a visible burgundy root shoulder.
 
-The empty shell shows only prepared soil beds and a seed-choice marker. A specialized garden has three homogeneous crop groups, deterministic row placement, bounded plant counts, maturity scaling, and calendar scaling. No mixed cabbage/carrot/beetroot bed remains.
+The empty shell shows only prepared soil plots and a seed-choice marker. A specialized garden fills every generated plot with one homogeneous crop, using deterministic one-to-three-plot variation, bounded plant counts, maturity scaling, and calendar scaling. No mixed cabbage/carrot/beetroot bed remains.
 
 Fixed visual validation covers the shell and all crops at close, design, far, and no-post views. Diagnostics assert that each selected garden exposes exactly one crop identity.

@@ -76,8 +76,6 @@ export function createBackyardConstructionMesh(
   const halfDepth = depth * 0.5;
   const stakeGeometry = new THREE.CylinderGeometry(0.045, 0.055, 0.72, 6);
   const postGeometry = new THREE.CylinderGeometry(0.065, 0.08, 1.36, 7);
-  const railWidthGeometry = new THREE.BoxGeometry(Math.max(0.6, width - 0.34), 0.075, 0.09);
-  const railDepthGeometry = new THREE.BoxGeometry(0.09, 0.075, Math.max(0.6, depth - 0.34));
 
   addConstructionMesh(
     root,
@@ -136,11 +134,20 @@ export function createBackyardConstructionMesh(
     );
   }
 
-  const boundaryPosts = [
-    ...cornerPositions,
-    [0, -halfDepth + 0.12] as const,
-    [0, halfDepth - 0.12] as const,
-  ];
+  const usableWidth = Math.max(0.6, width - 0.24);
+  const usableDepth = Math.max(0.6, depth - 0.24);
+  const widthSegments = Math.max(2, Math.ceil(usableWidth / 2.35));
+  const depthSegments = Math.max(1, Math.ceil(usableDepth / 2.35));
+  const boundaryPosts: Array<readonly [number, number]> = [];
+  for (let segment = 0; segment <= widthSegments; segment++) {
+    const x = -usableWidth * 0.5 + usableWidth * segment / widthSegments;
+    boundaryPosts.push([x, -usableDepth * 0.5], [x, usableDepth * 0.5]);
+  }
+  for (let segment = 1; segment < depthSegments; segment++) {
+    const z = -usableDepth * 0.5 + usableDepth * segment / depthSegments;
+    boundaryPosts.push([-usableWidth * 0.5, z], [usableWidth * 0.5, z]);
+  }
+  const boundaryRevealSpan = Math.max(1, boundaryPosts.length - 1);
   boundaryPosts.forEach(([x, z], index) => {
     addConstructionMesh(
       root,
@@ -148,34 +155,57 @@ export function createBackyardConstructionMesh(
       MATERIALS.timber,
       `Backyard installed boundary post ${index}`,
       new THREE.Vector3(x, 0.68, z),
-      0.18 + index * 0.035,
+      0.18 + index / boundaryRevealSpan * 0.28,
     );
   });
 
-  for (const [index, z] of [-halfDepth + 0.12, halfDepth - 0.12].entries()) {
-    for (const [level, y] of [0.48, 0.94].entries()) {
-      addConstructionMesh(
-        root,
-        railWidthGeometry,
-        MATERIALS.timber,
-        `Backyard installed width rail ${index}:${level}`,
-        new THREE.Vector3(0, y, z),
-        0.42 + index * 0.045 + level * 0.075,
-      );
+  let railIndex = 0;
+  const railCount = (widthSegments * 2 + depthSegments * 2) * 2;
+  const addRail = (
+    geometry: THREE.BoxGeometry,
+    x: number,
+    y: number,
+    z: number,
+    label: string,
+  ): void => {
+    addConstructionMesh(
+      root,
+      geometry,
+      MATERIALS.timber,
+      `Backyard installed ${label} rail ${railIndex}`,
+      new THREE.Vector3(x, y, z),
+      0.46 + railIndex / Math.max(1, railCount - 1) * 0.28,
+    );
+    railIndex += 1;
+  };
+  const widthRailLength = usableWidth / widthSegments;
+  const widthRailGeometry = new THREE.BoxGeometry(widthRailLength + 0.05, 0.075, 0.09);
+  for (const z of [-usableDepth * 0.5, usableDepth * 0.5]) {
+    for (let segment = 0; segment < widthSegments; segment++) {
+      const x = -usableWidth * 0.5 + widthRailLength * (segment + 0.5);
+      for (const y of [0.48, 0.94]) {
+        addRail(widthRailGeometry, x, y, z, 'width');
+      }
     }
   }
-  for (const [index, x] of [-halfWidth + 0.12, halfWidth - 0.12].entries()) {
-    for (const [level, y] of [0.48, 0.94].entries()) {
-      addConstructionMesh(
-        root,
-        railDepthGeometry,
-        MATERIALS.timber,
-        `Backyard installed depth rail ${index}:${level}`,
-        new THREE.Vector3(x, y, 0),
-        0.48 + index * 0.045 + level * 0.075,
-      );
+  const depthRailLength = usableDepth / depthSegments;
+  const depthRailGeometry = new THREE.BoxGeometry(0.09, 0.075, depthRailLength + 0.05);
+  for (const x of [-usableWidth * 0.5, usableWidth * 0.5]) {
+    for (let segment = 0; segment < depthSegments; segment++) {
+      const z = -usableDepth * 0.5 + depthRailLength * (segment + 0.5);
+      for (const y of [0.48, 0.94]) {
+        addRail(depthRailGeometry, x, y, z, 'depth');
+      }
     }
   }
+  root.userData.backyardConstructionPlan = {
+    profile: kind.endsWith('_pen') || kind === 'animal_pen' ? 'animal-enclosure' : 'fixture',
+    footprint: { width, depth },
+    boundaryPostCount: boundaryPosts.length,
+    railSegmentCount: railIndex,
+    widthSegments,
+    depthSegments,
+  };
 
   const shelterWidth = Math.min(2.15, width * 0.42);
   const shelterDepth = Math.min(1.35, depth * 0.52);

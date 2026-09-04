@@ -75,6 +75,20 @@ export function isVegetableGardenSpecialization(
   return BACKYARD_GARDEN_DEFINITIONS[kind].specializationOf === 'vegetable_garden';
 }
 
+/**
+ * Cultivated extensions are prepared ground, not little buildings. Their
+ * active project is represented by the planted footprint immediately; only
+ * fixtures such as livestock pens and apiaries use a construction worksite.
+ */
+export function isPlantableBackyardGardenKind(kind: BackyardGardenKind): boolean {
+  return kind === 'orchard'
+    || kind === 'vegetable_garden'
+    || kind === 'flower_garden'
+    || kind === 'herb_garden'
+    || isOrchardSpecialization(kind)
+    || isVegetableGardenSpecialization(kind);
+}
+
 export function backyardGardenKindFromId(id: number): BackyardGardenKind | null {
   const kind = BACKYARD_GARDEN_KINDS[id - 1];
   return kind ?? null;

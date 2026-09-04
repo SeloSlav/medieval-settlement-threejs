@@ -2,8 +2,8 @@
 
 ## Player flow
 
-1. A completed residence starts an **Orchard** backyard worksite.
-2. Timber and stone are delivered physically and one free household laborer builds it through the existing residence-project pipeline.
+1. A completed residence starts an **Orchard** backyard project and its prepared soil appears immediately across the fitted parcel; cultivated ground does not use a scaffold/worksite animation.
+2. Timber and stone are still delivered physically and one free household laborer resolves it through the existing residence-project pipeline.
 3. The completed orchard is prepared but unplanted and produces nothing.
 4. Selecting the orchard opens five planting choices: apple, cherry, pear, aronia, and rosehip.
 5. Planting starts the species maturity timer. Output remains zero until the timer has elapsed and the species' harvest window is open.

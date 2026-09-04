@@ -1310,16 +1310,6 @@
   .settlement-hud {
     width: min(900px, calc(100vw - 32px));
   }
-
-  .settlement-hud__body {
-    grid-template-columns:
-      repeat(3, minmax(48px, 0.7fr))
-      minmax(52px, 0.8fr)
-      minmax(76px, 1.2fr)
-      repeat(2, minmax(72px, 1.12fr))
-      minmax(66px, 1fr)
-      minmax(66px, 1fr);
-  }
 }
 
 .noble-hud {

@@ -48,6 +48,11 @@ declare global {
       renderPasses: number;
       animalPlanKinds: string[];
       vegetableCropKinds: string[][];
+      plantingLayouts: Array<{
+        pattern: string;
+        plotCount: number;
+        cultivatedCoverage: number;
+      }>;
     };
   }
 }
@@ -428,6 +433,18 @@ window.__BACKYARD_LINEUP_DIAGNOSTICS__ = {
     });
     return [...crops];
   }),
+  plantingLayouts: gardens
+    .map((garden) => garden.userData.plantingLayout as {
+      pattern: string;
+      plots: unknown[];
+      cultivatedCoverage: number;
+    } | undefined)
+    .filter((layout): layout is NonNullable<typeof layout> => Boolean(layout))
+    .map((layout) => ({
+      pattern: layout.pattern,
+      plotCount: layout.plots.length,
+      cultivatedCoverage: layout.cultivatedCoverage,
+    })),
 };
 window.__BACKYARD_LINEUP_READY__ = true;
 document.body.dataset.ready = 'true';

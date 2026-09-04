@@ -11,6 +11,10 @@ import type {
   ResidenceState,
 } from '../resources/types.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
+import {
+  backyardGardenKindFromId,
+  isPlantableBackyardGardenKind,
+} from './backyardGarden.ts';
 
 export type BackyardGardenPlacement = {
   x: number;
@@ -33,12 +37,7 @@ const BACKYARD_FIT_SAMPLE_SPACING = 0.25;
 export const BACKYARD_GROUNDCOVER_CLEARANCE_MARGIN = 0.55;
 
 export function backyardGardenClearsGroundcover(kind: BackyardGardenState['kind']): boolean {
-  return kind === 'vegetable_garden'
-    || kind === 'cabbage_garden'
-    || kind === 'carrot_garden'
-    || kind === 'beetroot_garden'
-    || kind === 'flower_garden'
-    || kind === 'herb_garden';
+  return isPlantableBackyardGardenKind(kind);
 }
 
 export function backyardGardenClearancePolygon(
@@ -71,10 +70,22 @@ export function collectBackyardGardenClearancePolygons(
   for (const zone of zones) zoneById.set(zone.id, zone);
 
   const polygons: Point2[][] = [];
+  const clearedResidenceIds = new Set<string>();
   for (const garden of gardens) {
     if (!backyardGardenClearsGroundcover(garden.kind)) continue;
     const residence = residenceById.get(garden.residenceId);
     if (!residence) continue;
+    const zone = zoneById.get(residence.zoneId);
+    if (!zone) continue;
+    const placement = backyardGardenPlacement(residence, zone);
+    if (!placement) continue;
+    polygons.push(backyardGardenClearancePolygon(placement));
+    clearedResidenceIds.add(residence.id);
+  }
+  for (const residence of residenceById.values()) {
+    if (clearedResidenceIds.has(residence.id)) continue;
+    const projectKind = backyardGardenKindFromId(residence.backyardProjectKind ?? 0);
+    if (!projectKind || !isPlantableBackyardGardenKind(projectKind)) continue;
     const zone = zoneById.get(residence.zoneId);
     if (!zone) continue;
     const placement = backyardGardenPlacement(residence, zone);

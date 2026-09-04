@@ -42,6 +42,7 @@ import type { BackyardPlantCatalog } from '../vegetation/seedthree/backyardPlant
 import type { CrowdViewState } from '../settlement/crowdView.ts';
 import { isWithinAnimalCrowdView } from '../settlement/crowdView.ts';
 import type { DeciduousFoliagePresentation } from '../world/deciduousFoliagePolicy.ts';
+import { isPlantableBackyardGardenKind } from './backyardGarden.ts';
 import {
   AuthoredAnimalInstanceBatch,
   setAuthoredAnimalEvaluatorOnly,
@@ -238,8 +239,10 @@ export class BackyardGardenMarkers {
       let marker = this.meshes.get(residence.id);
       const kind = projectKind ?? garden!.kind;
       const projectActive = projectKind !== null;
+      const plantingPreview = projectActive && isPlantableBackyardGardenKind(kind);
+      const constructionVisual = projectActive && !plantingPreview;
       const visualKey = [
-        projectActive ? 'construction' : 'complete',
+        constructionVisual ? 'construction' : plantingPreview ? 'planting-preview' : 'complete',
         kind,
         placement.width.toFixed(2),
         placement.depth.toFixed(2),
@@ -261,7 +264,7 @@ export class BackyardGardenMarkers {
           this.root.remove(marker);
           disposeBackyardMarker(marker);
         }
-        marker = projectActive
+        marker = constructionVisual
           ? createBackyardConstructionMesh(kind, {
               width: placement.width,
               depth: placement.depth,
@@ -271,8 +274,9 @@ export class BackyardGardenMarkers {
               width: placement.width,
               depth: placement.depth,
               seed: hashStringSeed(residence.id),
-              plants: this.plants,
-              flowerLuxuryUpgraded: garden!.flowerLuxuryUpgraded,
+              plants: plantingPreview ? null : this.plants,
+              flowerLuxuryUpgraded: garden?.flowerLuxuryUpgraded ?? false,
+              plantingPreview,
             });
         marker.userData.visualKey = visualKey;
         this.root.add(marker);
@@ -309,10 +313,10 @@ export class BackyardGardenMarkers {
       const y = input.getHeightAt(placement.x, placement.z);
       marker.position.set(placement.x, y, placement.z);
       marker.rotation.y = placement.yaw;
-      if (projectActive) {
+      if (constructionVisual) {
         syncBackyardConstructionProgress(marker, backyardConstructionProgress(residence));
       } else {
-        marker.userData.firstHarvestDay = garden!.firstHarvestDay;
+        if (garden) marker.userData.firstHarvestDay = garden.firstHarvestDay;
         const terrainConformanceKey = [
           placement.x.toFixed(3),
           y.toFixed(3),
@@ -323,13 +327,15 @@ export class BackyardGardenMarkers {
           conformBackyardGroundSoilToTerrain(marker, input.getHeightAt);
           marker.userData.terrainConformanceKey = terrainConformanceKey;
         }
-        syncBackyardGardenSeasonVisuals(
-          marker,
-          kind,
-          input.month ?? 1,
-          this.deciduousFoliage ?? undefined,
-          Math.max(0, garden!.firstHarvestDay - (input.totalDays ?? 0)),
-        );
+        if (garden) {
+          syncBackyardGardenSeasonVisuals(
+            marker,
+            kind,
+            input.month ?? 1,
+            this.deciduousFoliage ?? undefined,
+            Math.max(0, garden.firstHarvestDay - (input.totalDays ?? 0)),
+          );
+        }
       }
     }
 
