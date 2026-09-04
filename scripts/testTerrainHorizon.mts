@@ -245,17 +245,33 @@ for (let x = -380; x <= 380; x += 20) {
   }
 }
 const occupiedCounts = [...occupiedMacroCells.values()];
-console.log({
-  clumpedForestDiagnostics: clumpedForestWorld.diagnostics,
-  macroCells: occupiedMacroCells.size,
-  macroCellMaximum: Math.max(...occupiedCounts),
-  macroCellMean: clumpedPlacements.length / occupiedMacroCells.size,
-  farGrassSamples,
-  leafLitterSamples,
-  sampledGroundCount,
-  sampledGroundMean: sampledGroundBlendSum / sampledGroundCount,
-  treeGroundMean: treeGroundBlendSum / clumpedPlacements.length,
-});
+const macroCellMean = clumpedPlacements.length / occupiedMacroCells.size;
+const sampledGroundMean = sampledGroundBlendSum / sampledGroundCount;
+const treeGroundMean = treeGroundBlendSum / clumpedPlacements.length;
+assert.ok(
+  clumpedForestWorld.diagnostics.forestStandCount >= 8,
+  'the horizon must author multiple broad woodland stands',
+);
+assert.ok(
+  clumpedPlacements.length >= 1_000,
+  'clumping must retain a convincing outer-world tree mass',
+);
+assert.ok(
+  Math.max(...occupiedCounts) > macroCellMean * 2,
+  'tree occupancy must peak inside organic clumps instead of remaining uniform',
+);
+assert.ok(
+  farGrassSamples > sampledGroundCount * 0.25,
+  'woodland stands must leave substantial far-grass clearings',
+);
+assert.ok(
+  leafLitterSamples > sampledGroundCount * 0.12,
+  'woodland interiors must retain visible leaf-litter ground',
+);
+assert.ok(
+  treeGroundMean > sampledGroundMean + 0.35,
+  'leaf litter must correlate with tree clumps instead of carpeting the outer terrain',
+);
 clumpedForestWorld.dispose();
 
 for (let triangle = 0; triangle < horizonIndices.count; triangle += 3) {

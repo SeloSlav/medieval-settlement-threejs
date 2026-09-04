@@ -843,7 +843,7 @@ function createCoastalShoreMaps(options: TerrainHorizonWorldOptions): RiverWater
 function createSeedThreeHorizonPlacements(
   world: TerrainHorizonWorld,
 ): ForestTreePlacement[] {
-  const { settings, innerHalfExtent, outerHalfExtent, extensionDistance } = world;
+  const { settings, innerHalfExtent, extensionDistance } = world;
   if (settings.forestDensity <= 0) return [];
   const rng = mulberry32(settings.seed ^ 0x53454544);
   const target = Math.min(
