@@ -8,6 +8,7 @@ import BloomNode from 'three/examples/jsm/tsl/display/BloomNode.js';
 import { RenderPipeline, type WebGPURenderer } from 'three/webgpu';
 import { sceneTsl } from './sceneTsl.ts';
 import { withScenePassCompileState, type CompileStateRenderer } from './scenePassCompileState.ts';
+import { withStartupPipelineBatch, type StartupPipelineRenderer } from './startupPipelineBatch.ts';
 import { createSceneAmbientOcclusion, type SceneAmbientLights } from './SceneAmbientOcclusion.ts';
 import type { SceneAtmosphere } from './SceneAtmosphere.ts';
 import {
@@ -349,7 +350,8 @@ class WebGPUPostProcessor implements ScenePostProcessor {
     // The initial covered frame has already configured the live pass's MRT,
     // sample count and texture formats. Reuse that exact target; a canvas
     // compile creates variants that the real HDR/post path cannot reuse.
-    return withScenePassCompileState(this.renderer as unknown as CompileStateRenderer, this.scenePass, compile);
+    return withScenePassCompileState(this.renderer as unknown as CompileStateRenderer, this.scenePass,
+      () => withStartupPipelineBatch(this.renderer as unknown as StartupPipelineRenderer, compile));
   }
 
   dispose(): void {

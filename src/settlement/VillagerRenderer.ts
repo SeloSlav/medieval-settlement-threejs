@@ -217,6 +217,7 @@ import {
   type FireIncidentState,
 } from '../fires/fireIncident.ts';
 import {
+  isHostileCombatFaction,
   isMountedCombatAgent,
   isPlayerMilitaryFaction,
   ottomanRaiderIsRanged,
@@ -1731,6 +1732,7 @@ export class VillagerRenderer {
       };
     }
     for (const visual of this.combatAgentVisuals.values()) {
+      if (isHostileCombatFaction(visual.state.faction)) continue;
       const y = this.resolveGroundY(visual.displayX, visual.displayZ) + 0.02;
       const distance = projectedAgentHitDistance(
         clientX,
@@ -6165,8 +6167,8 @@ function combatFactionsAreHostile(
   left: CombatAgentState['faction'],
   right: CombatAgentState['faction'],
 ): boolean {
-  const leftHostile = left === 'raider' || left === 'bandit' || left === 'fox' || left === 'wolf';
-  const rightHostile = right === 'raider' || right === 'bandit' || right === 'fox' || right === 'wolf';
+  const leftHostile = isHostileCombatFaction(left);
+  const rightHostile = isHostileCombatFaction(right);
   return leftHostile !== rightHostile;
 }
 

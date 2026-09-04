@@ -131,6 +131,15 @@ export function isPlayerMilitaryFaction(faction: CombatAgentFaction): boolean {
     || faction === 'mounted-archer';
 }
 
+/** Actors controlled by hostile simulation systems must never enter the
+ * player's individual-unit selection flow. */
+export function isHostileCombatFaction(faction: CombatAgentFaction): boolean {
+  return faction === 'raider'
+    || faction === 'bandit'
+    || faction === 'fox'
+    || faction === 'wolf';
+}
+
 /** Returns the atomic RTS company that owns this fighter's primary selection.
  * Mustering, casualties, and recovery actors remain individually inspectable
  * because MilitiaCommandController intentionally does not group them. Returning

@@ -18,6 +18,7 @@ type ListenerEntry = {
 };
 
 class FakeElement {
+  private readonly classes = new Set<string>();
   readonly style = {
     setProperty(name: string, value: string): void {
       (this as unknown as Record<string, string>)[name] = value;
@@ -25,7 +26,15 @@ class FakeElement {
   } as CSSStyleDeclaration;
   readonly children: unknown[] = [];
   readonly dataset: Record<string, string> = {};
-  readonly classList = { toggle: (_name: string, _enabled?: boolean) => false };
+  readonly classList = {
+    contains: (name: string) => this.classes.has(name),
+    toggle: (name: string, enabled?: boolean) => {
+      const active = enabled ?? !this.classes.has(name);
+      if (active) this.classes.add(name);
+      else this.classes.delete(name);
+      return active;
+    },
+  };
   className = '';
   hidden = false;
   innerHTML = '';
@@ -132,7 +141,7 @@ const { MilitiaCommandController } = await import(
 const { shouldYieldDirectAgentClickToMilitaryCompany } = await import(
   '../src/ui/VillagerInspector.ts'
 );
-const { selectablePlayerMilitaryCompanyId } = await import(
+const { isHostileCombatFaction, selectablePlayerMilitaryCompanyId } = await import(
   '../src/security/combatAgents.ts'
 );
 
@@ -144,8 +153,22 @@ assert.equal(
 assert.equal(
   shouldYieldDirectAgentClickToMilitaryCompany({ militaryCompanyId: null }),
   false,
-  'ordinary villagers and non-company combatants remain individually inspectable',
+  'ordinary villagers and player-aligned non-company defenders remain individually inspectable',
 );
+for (const faction of ['bandit', 'raider', 'fox', 'wolf'] as const) {
+  assert.equal(
+    isHostileCombatFaction(faction),
+    true,
+    `${faction} actors must stay outside the player-unit selection path`,
+  );
+}
+for (const faction of ['guard', 'dog', 'militia'] as const) {
+  assert.equal(
+    isHostileCombatFaction(faction),
+    false,
+    `${faction} actors should keep their player-aligned selection behavior`,
+  );
+}
 
 const selectableMilitia = combatAgent('selection-active', 'militia', 'company-a', 0, 0);
 assert.equal(selectablePlayerMilitaryCompanyId(selectableMilitia), 'company-a');

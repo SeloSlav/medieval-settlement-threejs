@@ -637,6 +637,9 @@ export class SceneManager {
   ): Promise<void> {
     const renderer = this.renderer as StartupPrecompilableRenderer;
     this.sky.preloadCelestialTexture(renderer);
+    // Resolve the newly attached forest's LODs, shadow proxies and weather
+    // before collecting the compile list, not for the first time afterwards.
+    this.render(0, undefined, false, false, false, false, true);
     const uniqueObjects = [...new Set(objects)].filter((object) => object.parent !== null);
     const compile = async (): Promise<void> => {
       // All warmup leases attach their roots to this scene. One render list
@@ -1111,6 +1114,7 @@ export class SceneManager {
     firstPersonCrouching = false,
     cameraInteractionActive = false,
     dynamicAgentShadowCastersActive = false,
+    prepareOnly = false,
   ): void {
     const rendererInfo = this.renderer.info as unknown as RendererInfoLike;
     const rendererFrameBoundary = beginRendererFrame(rendererInfo);
@@ -1125,6 +1129,7 @@ export class SceneManager {
     this.worldAnimationElapsedSeconds += Math.max(0, dt);
     setWorldAnimationTime(this.worldAnimationElapsedSeconds);
     if (this.getRenderOwner() === 'illustrated-map') {
+      if (prepareOnly) return;
       // The plane follows only the target's elevation. Its X/Z transform stays
       // fixed to world coordinates, preserving pan and orbit semantics.
       this.illustratedMap.setElevation(this.cameraTarget.y);
@@ -1253,6 +1258,7 @@ export class SceneManager {
     const shadowRefreshReasons = shadowRefreshRequested
       ? this.snapshotDirectionalShadowReasons()
       : [];
+    if (prepareOnly) return;
     if (import.meta.env.VITE_E2E_TEST === '1') {
       // The smoke test exercises the real node-material terrain through the
       // required WebGPU backend. It does not need to spend minutes raymarching

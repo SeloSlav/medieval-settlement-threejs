@@ -53,6 +53,15 @@ export function installStartupLoadProbe(app) {
     if (!active) return original.apply(this, args);
     if (!rendererWrapped) {
       rendererWrapped = true;
+      // Only log newly constructed render objects, not each draw call.
+      wrap(this.renderer._objects, 'createRenderObject', create => function (...a) {
+        const result = create.apply(this, a);
+        if (active) record('startup-render-object', {
+          object: a[3]?.name || a[3]?.type, material: a[4]?.name || a[4]?.type,
+          target: result.context?.textures?.map(t => t.name),
+        });
+        return result;
+      });
       wrap(this.renderer, 'compileAsync', compile => async function (object, ...rest) {
         const start = performance.now();
         const before = { ...counters };

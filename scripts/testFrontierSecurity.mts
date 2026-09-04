@@ -2187,8 +2187,8 @@ assert.match(
 );
 assert.match(
   villagerRenderer,
-  /pickVillager\([\s\S]*for \(const visual of this\.combatAgentVisuals\.values\(\)\)[\s\S]*describeCombatAgent\(visual\)/,
-  'replicated fighters must participate in the same click-selection pass as ordinary villagers',
+  /pickVillager\([\s\S]*for \(const visual of this\.combatAgentVisuals\.values\(\)\) \{[\s\S]*if \(isHostileCombatFaction\(visual\.state\.faction\)\) continue;[\s\S]*describeCombatAgent\(visual\)/,
+  'only player-aligned replicated fighters may enter ordinary individual selection',
 );
 assert.match(
   villagerRenderer,
@@ -2422,10 +2422,9 @@ assert.match(clientCombatAgents, /breaching a refuge/);
     }),
   } as HTMLElement;
   assert.equal(
-    combatPresentation.pickVillager(500, 500, camera, domElement)
-      ?.personIdentity,
-    `combat:${inspectedRaider.id}`,
-    'a visible live fighter should be selectable through the normal person inspector',
+    combatPresentation.pickVillager(500, 500, camera, domElement),
+    null,
+    'clicking a visible raider must not open the player-style individual unit card',
   );
   combatPresentation.dispose();
   await new Promise((resolve) => setTimeout(resolve, 0));

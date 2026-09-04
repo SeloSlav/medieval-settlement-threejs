@@ -5,6 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@11.19.0",
   "scripts": {
+    "test:startup-loading": "npx tsx scripts/testStartupLoading.mts",
     "dev": "concurrently --kill-others --names spacetimedb,client --prefix-colors magenta,cyan \"node scripts/startSpacetimeDB.mjs\" \"vite --host 127.0.0.1 --port 5173 --strictPort\"",
     "dev:db": "node scripts/startSpacetimeDB.mjs",
     "dev:client": "vite --host 127.0.0.1 --port 5173 --strictPort",
