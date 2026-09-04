@@ -345,7 +345,7 @@ export class NobleSetupPanel {
       this.syncHeraldry();
     });
     this.backButton.addEventListener('click', () => {
-      this.setupAudio.play('setup_back');
+      this.setupAudio.play('setup_advance');
       this.step = 'house';
       this.syncStep(true);
     });
@@ -387,7 +387,7 @@ export class NobleSetupPanel {
       applyHeraldryToElement(shield, preset);
       button.appendChild(shield);
       button.addEventListener('click', () => {
-        this.setupAudio.play('setup_preset');
+        this.setupAudio.play('setup_portrait_select');
         this.draft.heraldry = { ...preset };
         this.selectedPreset = index;
         this.syncHeraldry();
@@ -436,7 +436,7 @@ export class NobleSetupPanel {
       applyHeraldryToElement(shield, patternHeraldry);
       button.append(shield, document.createTextNode(pattern.name));
       button.addEventListener('click', () => {
-        this.setupAudio.play('setup_choice');
+        this.setupAudio.play('setup_portrait_select');
         this.draft.heraldry.pattern = pattern.id as HeraldryPattern;
         this.clearPresetSelection();
         this.syncHeraldry();
@@ -456,7 +456,7 @@ export class NobleSetupPanel {
       icon.style.setProperty('--charge-icon', `url("${chargeAssetUrl(charge.id)}")`);
       button.append(icon, document.createTextNode(charge.name));
       button.addEventListener('click', () => {
-        this.setupAudio.play('setup_choice');
+        this.setupAudio.play('setup_portrait_select');
         this.draft.heraldry.charge = charge.id as HeraldryCharge;
         this.clearPresetSelection();
         this.syncHeraldry();
@@ -481,7 +481,7 @@ export class NobleSetupPanel {
       button.dataset.tooltip = tincture.description;
       button.dataset.tooltipPlacement = 'above';
       button.addEventListener('click', () => {
-        this.setupAudio.play('setup_choice');
+        this.setupAudio.play('setup_portrait_select');
         this.draft.heraldry[key] = tincture.value;
         this.clearPresetSelection();
         this.syncHeraldry();

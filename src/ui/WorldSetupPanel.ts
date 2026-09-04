@@ -427,7 +427,7 @@ export class WorldSetupPanel {
       button.addEventListener('click', () => {
         const preset = button.dataset.terrainPreset as WorldTerrainPreset;
         if (!isTerrainPresetAvailableForMapSize(preset, this.draft.mapSize)) return;
-        this.setupAudio.play('setup_choice');
+        this.setupAudio.play('setup_portrait_select');
         this.draft = applyTerrainPreset(this.draft, preset);
         syncLandscapeControls();
       });
@@ -566,13 +566,11 @@ export class WorldSetupPanel {
     const bindArrowSelector = (
       selector: HTMLElement,
       onStep: (step: number) => void,
-      feedback: 'adjust' | 'preset' = 'adjust',
     ): void => {
       for (const button of selector.querySelectorAll<HTMLButtonElement>('[data-selector-step]')) {
         button.addEventListener('click', () => {
           const step = Number(button.dataset.selectorStep);
-          if (feedback === 'preset') this.setupAudio.play('setup_preset');
-          else this.setupAudio.playDirectionalAdjustment(step);
+          this.setupAudio.play('setup_choice');
           onStep(step);
         });
       }
@@ -592,7 +590,7 @@ export class WorldSetupPanel {
       const nextPreset = WORLD_DIFFICULTY_PRESETS.find((preset) => preset.id === nextPresetId)!;
       Object.assign(this.draft, nextPreset.settings);
       syncGameplayControls();
-    }, 'preset');
+    });
     bindArrowSelector(conflictModeSelector, (step) => {
       this.draft.conflictMode = cycleValue(CONFLICT_MODE_ORDER, this.draft.conflictMode, step);
       if (this.draft.conflictMode === 'frontier' && this.draft.enemyPressure <= 0) {
@@ -714,7 +712,7 @@ export class WorldSetupPanel {
     };
 
     backButton.addEventListener('click', () => {
-      this.setupAudio.play('setup_back');
+      this.setupAudio.play('setup_advance');
       const settings = readSettings();
       this.selectorResizeObserver.disconnect();
       this.disposeTooltips();

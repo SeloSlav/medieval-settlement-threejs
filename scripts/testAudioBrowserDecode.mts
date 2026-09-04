@@ -394,14 +394,17 @@ async function main(): Promise<void> {
       + ` ${productionPocketRms.map((rms) => rms.toFixed(4)).join(', ')})`,
     );
     invariant(
-      setupAdjustRms < setupChoiceRms
-      && setupAdjustRms < setupBackRms
+      setupBackRms < setupChoiceRms
       && setupChoiceRms < setupPortraitRms
-      && setupBackRms < setupPortraitRms
       && setupPortraitRms < setupPresetRms
       && setupPresetRms < setupAdvanceRms
       && setupAdvanceRms < setupCommitRms,
-      'Decoded setup cues must preserve the authored adjustment-to-commit hierarchy',
+      'Decoded setup navigation cues must preserve the authored hierarchy',
+    );
+    invariant(
+      setupAdjustRms >= setupPresetRms
+      && setupAdjustRms < setupCommitRms * 0.5,
+      'The wood-drag slider cue must be prominent without rivaling final commitment',
     );
     invariant(
       setupCommitRms >= setupAdvanceRms * 1.3,

@@ -26,6 +26,7 @@ const INTERACTION_SOUND_IDS = [
   'game_panel',
   'game_cancel',
   'game_transaction',
+  'setup_adjust',
   'development_unlock',
   'game_danger',
   'confirm',
@@ -177,8 +178,8 @@ export class UiInteractionAudio {
     const max = Number(input.max || 100);
     const range = Math.max(1, max - min);
     const normalized = Math.max(0, Math.min(1, (Number(input.value) - min) / range));
-    this.audio.play('game_toggle', {
-      playbackRate: 0.9 + normalized * 0.2,
+    this.audio.play('setup_adjust', {
+      playbackRate: 0.92 + normalized * 0.16,
       preservePitch: false,
     });
   };

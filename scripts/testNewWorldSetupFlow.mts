@@ -21,10 +21,34 @@ assert.match(noblePanel, /data-setup-step="house"/);
 assert.match(noblePanel, /data-setup-step="heraldry"/);
 assert.match(noblePanel, /Choose Your Legacy/);
 assert.match(noblePanel, /setup_portrait_select/);
+assert.doesNotMatch(noblePanel, /setup_choice|setup_preset/);
+assert.match(
+  worldPanel,
+  /landscapeGrid\.querySelectorAll[\s\S]*?this\.setupAudio\.play\('setup_portrait_select'\)/,
+);
 assert.match(noblePanel, /setup_advance/);
-assert.match(noblePanel, /setup_back/);
+assert.doesNotMatch(noblePanel, /setup_back/);
+assert.doesNotMatch(worldPanel, /setup_back/);
+assert.match(
+  noblePanel,
+  /this\.backButton\.addEventListener\('click',[\s\S]*?this\.setupAudio\.play\('setup_advance'\)/,
+);
+assert.match(
+  worldPanel,
+  /backButton\.addEventListener\('click',[\s\S]*?this\.setupAudio\.play\('setup_advance'\)/,
+);
 assert.match(worldPanel, /setup_commit/);
-assert.match(worldPanel, /playDirectionalAdjustment/);
+assert.doesNotMatch(worldPanel, /playDirectionalAdjustment/);
+assert.match(
+  worldPanel,
+  /const bindArrowSelector = \([\s\S]*?this\.setupAudio\.play\('setup_choice'\)/,
+);
+assert.match(
+  worldPanel,
+  /pressureSlider\.addEventListener\('input',[\s\S]*?playAdjustment\(\s*this\.draft\.enemyPressure/,
+);
+assert.equal((worldPanel.match(/this\.setupAudio\.playAdjustment\(/g) ?? []).length, 4);
+assert.equal((noblePanel.match(/this\.setupAudio\.playAdjustment\(/g) ?? []).length, 4);
 assert.match(setupUiAudio, /ADJUSTMENT_SOUND_INTERVAL_MS = 42/);
 assert.match(setupUiAudio, /0\.92 \+ normalized \* 0\.16/);
 for (const sound of [
@@ -225,6 +249,7 @@ assert.match(
 );
 assert.match(worldPanel, /this\.resolve\(\{ action: 'start', settings \}\)/);
 assert.match(worldCss, /\.world-setup-actions\s*\{[\s\S]*?grid-template-rows: auto auto/);
+assert.match(worldCss, /grid-template-columns: minmax\(0, 1fr\) auto auto/);
 assert.match(worldCss, /\.world-setup-actions__navigation\s*\{[\s\S]*?justify-content: space-between/);
 assert.match(worldCss, /\.world-setup-back\s*\{[\s\S]*?min-width: 210px/);
 assert.match(worldCss, /\.world-setup-start\s*\{[\s\S]*?height: 38px;[\s\S]*?min-height: 38px/);
@@ -235,6 +260,7 @@ assert.match(worldCss, /\.world-setup-column--rules\s*\{[\s\S]*?overflow: hidden
 assert.match(worldCss, /\.world-setup-game-rules\s*\{[\s\S]*?grid-template-rows: auto auto minmax\(0, 1fr\)/);
 assert.match(worldCss, /\.world-setup-setting-list\s*\{[\s\S]*?overflow-y: auto/);
 assert.match(worldCss, /\.world-setup-back\s*\{[\s\S]*?margin: 9px 0 9px 22px/);
+assert.match(worldCss, /\.world-setup-back\s*\{[\s\S]*?justify-self: start/);
 assert.match(worldCss, /\.world-setup-footer-seed\s*\{[\s\S]*?grid-template-columns: auto;[\s\S]*?justify-self: center/);
 assert.match(worldCss, /\.world-setup-footer-seed\s*\{[\s\S]*?grid-column: 2;[\s\S]*?grid-row: 1/);
 assert.match(worldCss, /\.world-setup-footer-seed \.world-setup-seed-row\s*\{[\s\S]*?grid-template-columns: 140px auto/);

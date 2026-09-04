@@ -746,7 +746,7 @@
 
   .world-setup-actions {
     grid-template-rows: auto;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: stretch;
   }
 
@@ -780,6 +780,7 @@
   .world-setup-back {
     grid-column: 1;
     grid-row: 1;
+    justify-self: start;
     margin: 9px 0 9px 22px;
   }
 

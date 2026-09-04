@@ -52,6 +52,8 @@ assert.match(source, /getPlayRevision\(\)/);
 assert.match(source, /clickRevision\.get\(event\) !== this\.audio\.getPlayRevision\(\)/);
 assert.match(source, /queueMicrotask\(\(\) => this\.playCapturedClick/);
 assert.match(source, /ADJUSTMENT_INTERVAL_MS = 45/);
-assert.match(source, /0\.9 \+ normalized \* 0\.2/);
+assert.match(source, /INTERACTION_SOUND_IDS[\s\S]*?'setup_adjust'/);
+assert.match(source, /this\.audio\.play\('setup_adjust'/);
+assert.match(source, /0\.92 \+ normalized \* 0\.16/);
 
 console.log('UI audio hierarchy tests passed');

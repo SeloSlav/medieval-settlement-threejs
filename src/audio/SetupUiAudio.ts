@@ -29,7 +29,6 @@ export class SetupUiAudio {
         'setup_choice',
         'setup_preset',
         'setup_adjust',
-        'setup_back',
         'setup_advance',
         'setup_commit',
         'error',
@@ -51,10 +50,6 @@ export class SetupUiAudio {
     const range = Math.max(1, max - min);
     const normalized = Math.max(0, Math.min(1, (value - min) / range));
     this.play('setup_adjust', 0.92 + normalized * 0.16);
-  }
-
-  playDirectionalAdjustment(step: number): void {
-    this.play('setup_adjust', step < 0 ? 0.94 : 1.06);
   }
 
   disposeAfterTail(): void {

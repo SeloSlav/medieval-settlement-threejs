@@ -359,7 +359,7 @@ export const UI_SOUNDS: Record<UiSoundId, AudioClipDefinition> = {
   setup_portrait_select: { path: '/sounds/ui/setup_portrait_select.mp3', volume: 0.16 },
   setup_choice: { path: '/sounds/ui/setup_choice.mp3', volume: 0.24 },
   setup_preset: { path: '/sounds/ui/setup_preset.mp3', volume: 0.13 },
-  setup_adjust: { path: '/sounds/ui/setup_adjust.mp3', volume: 0.04 },
+  setup_adjust: { path: '/sounds/ui/setup_adjust.mp3', volume: 0.09 },
   setup_back: { path: '/sounds/ui/setup_back.mp3', volume: 0.24 },
   setup_advance: { path: '/sounds/ui/setup_advance.mp3', volume: 0.45 },
   setup_commit: { path: '/sounds/ui/setup_commit.mp3', volume: 0.42 },

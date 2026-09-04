@@ -108,6 +108,7 @@ test('new-world setup moves backward and forward without losing choices', async 
   expect(mapRandomizeBox).not.toBeNull();
   expect(mapSeedInputBox).not.toBeNull();
   expect(mapActionsBox).not.toBeNull();
+  expect(mapBackBox!.width).toBe(heraldryBackBox!.width);
   expect(mapBackBox!.height).toBe(heraldryBackBox!.height);
   expect(mapStartBox!.height).toBe(heraldryBackBox!.height);
   expect(mapRandomizeBox!.height).toBe(heraldryBackBox!.height);
@@ -117,6 +118,7 @@ test('new-world setup moves backward and forward without losing choices', async 
   expect(Math.abs(mapBackBox!.y - mapStartBox!.y)).toBeLessThan(2);
   expect(mapBackBox!.x + mapBackBox!.width).toBeLessThan(mapRandomizeBox!.x);
   expect(mapRandomizeBox!.x + mapRandomizeBox!.width).toBeLessThan(mapStartBox!.x);
+  expect(mapStartBox!.x - (mapRandomizeBox!.x + mapRandomizeBox!.width)).toBeLessThanOrEqual(14);
   await expectActiveStep(page, 'map');
 
   await page.locator('[data-world-selector="map-size"] [data-selector-step="1"]').click();

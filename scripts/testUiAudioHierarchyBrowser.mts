@@ -117,8 +117,8 @@ try {
     { id: 'game_toggle', rate: 1.06 },
     { id: 'game_tab', rate: null },
   ]);
-  assert.equal(result.plays[12]?.id, 'game_toggle');
-  assert(Math.abs((result.plays[12]?.rate ?? 0) - 0.94) < 1e-9);
+  assert.equal(result.plays[12]?.id, 'setup_adjust');
+  assert(Math.abs((result.plays[12]?.rate ?? 0) - 0.952) < 1e-9);
   assert.equal(result.plays.length, result.beforeDispose);
   console.log('UI audio browser behavior tests passed');
 } finally {
