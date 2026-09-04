@@ -198,6 +198,10 @@
         border-radius: 50%;
         border: 2px solid rgba(238, 232, 220, 0.14);
         border-top-color: #d7b463;
+        /* Rasterize once on its own layer. Rotation must not depend on the
+           progress label's layout/paint while the world is being prepared. */
+        will-change: transform;
+        transform: rotate(0deg);
         animation: app-loading-spin 900ms linear infinite;
       }
 

@@ -30,6 +30,8 @@ export class LoadingScreen {
   private retryHandler: (() => void) | null = null;
   private recoveryHandler: (() => void) | null = null;
   private displayedPercent = 0;
+  private renderedPercent = -1;
+  private renderedRoundedPercent = -1;
 
   constructor() {
     const root = document.getElementById(LOADING_ROOT_ID);
@@ -76,9 +78,11 @@ export class LoadingScreen {
     // connection/bootstrap error is actionable, late texture progress must not
     // erase its Retry controls and leave a misleading 100% loading screen.
     if (this.dismissed || this.retryHandler !== null) return;
-    this.clearErrorState();
-    this.labelEl.textContent = progress.label;
-    this.detailEl.textContent = progress.detail ?? '';
+    // Error recovery is explicit. Rewriting hidden/aria state on every asset
+    // callback needlessly invalidates the spinner's surrounding card.
+    if (this.labelEl.textContent !== progress.label) this.labelEl.textContent = progress.label;
+    const detail = progress.detail ?? '';
+    if (this.detailEl.textContent !== detail) this.detailEl.textContent = detail;
 
     const nextPercent = this.resolvePercent(progress);
     if (nextPercent != null) {
@@ -139,9 +143,14 @@ export class LoadingScreen {
   }
 
   private renderPercent(percent: number): void {
+    if (percent === this.renderedPercent) return;
+    this.renderedPercent = percent;
     const rounded = Math.round(percent);
-    this.percentEl.textContent = `${rounded}%`;
+    if (rounded !== this.renderedRoundedPercent) {
+      this.renderedRoundedPercent = rounded;
+      this.percentEl.textContent = `${rounded}%`;
+      this.progressBarEl.setAttribute('aria-valuenow', String(rounded));
+    }
     this.progressBarEl.style.setProperty('--loading-progress', `${percent}%`);
-    this.progressBarEl.setAttribute('aria-valuenow', String(rounded));
   }
 }

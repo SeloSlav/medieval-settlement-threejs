@@ -639,8 +639,15 @@ export class SceneManager {
     const renderer = this.renderer as StartupPrecompilableRenderer;
     this.sky.preloadCelestialTexture(renderer);
     const uniqueObjects = [...new Set(objects)].filter((object) => object.parent !== null);
-    for (const object of uniqueObjects) {
-      await renderer.compileAsync(object, this.camera, this.scene);
+    const compile = async (): Promise<void> => {
+      for (const object of uniqueObjects) {
+        await renderer.compileAsync(object, this.camera, this.scene);
+      }
+    };
+    if (this.postProcessor.withSceneCompileState) {
+      await this.postProcessor.withSceneCompileState(compile);
+    } else {
+      await compile();
     }
   }
 

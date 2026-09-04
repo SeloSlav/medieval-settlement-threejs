@@ -7,6 +7,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import BloomNode from 'three/examples/jsm/tsl/display/BloomNode.js';
 import { RenderPipeline, type WebGPURenderer } from 'three/webgpu';
 import { sceneTsl } from './sceneTsl.ts';
+import { withScenePassCompileState } from './scenePassCompileState.ts';
 import { createSceneAmbientOcclusion, type SceneAmbientLights } from './SceneAmbientOcclusion.ts';
 import type { SceneAtmosphere } from './SceneAtmosphere.ts';
 import {
@@ -80,6 +81,8 @@ type Disposable = {
 
 type PassNodeLike = Disposable & {
   getTextureNode(name?: string): TextureNodeLike;
+  renderTarget: THREE.RenderTarget;
+  getMRT(): ReturnType<WebGPURenderer['getMRT']>;
 };
 
 const { renderOutput } = sceneTsl;
@@ -121,6 +124,7 @@ const DAYLIGHT_GRADE_SHADER = {
 };
 
 export type ScenePostProcessor = {
+  withSceneCompileState?(compile: () => Promise<void>): Promise<void>;
   setDiagnostic(mode: string): void;
   dispose(): void;
   render(dt: number): void;
@@ -339,6 +343,13 @@ class WebGPUPostProcessor implements ScenePostProcessor {
     this.diagnostic = mode;
     this.pipeline.outputNode = this.diagnosticOutputs[mode] as never;
     this.pipeline.needsUpdate = true;
+  }
+
+  withSceneCompileState(compile: () => Promise<void>): Promise<void> {
+    // The initial covered frame has already configured the live pass's MRT,
+    // sample count and texture formats. Reuse that exact target; a canvas
+    // compile creates variants that the real HDR/post path cannot reuse.
+    return withScenePassCompileState(this.renderer, this.scenePass, compile);
   }
 
   dispose(): void {

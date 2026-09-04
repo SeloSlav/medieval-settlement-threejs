@@ -115,6 +115,8 @@ const MIN_VILLAGER_ANIMATION_CADENCE = 0.96;
 const MAX_VILLAGER_ANIMATION_CADENCE = 1.04;
 const MIN_STATIC_SEATED_POSE_FRACTION = 0.58;
 const MAX_STATIC_SEATED_POSE_FRACTION = 0.94;
+const COMMON_SOCIAL_ACTION_MODES = ['talk', 'greet', 'agree', 'laugh'] as const;
+const COMMON_STANDING_ACTION_MODES = ['relax', 'look', 'wait'] as const;
 
 type VillagerSource = {
   scene: THREE.Group;
@@ -297,6 +299,28 @@ export function villagerAnimationCadenceScale(appearanceSeed: number): number {
     MAX_VILLAGER_ANIMATION_CADENCE,
     unit,
   );
+}
+
+/**
+ * Gives a standing civilian one stable conversational role. The authored
+ * actions still start at a seeded phase and cadence, so a pair alternates
+ * speaker/listener gestures instead of mirroring one loop.
+ */
+export function villagerSocialActionMode(
+  appearanceSeed: number,
+): (typeof COMMON_SOCIAL_ACTION_MODES)[number] {
+  const index = mixAnimationSeed(appearanceSeed, 'civilian-social-role')
+    % COMMON_SOCIAL_ACTION_MODES.length;
+  return COMMON_SOCIAL_ACTION_MODES[index]!;
+}
+
+/** Uses the three calm standing takes shipped in each worker GLB. */
+export function villagerStandingActionMode(
+  appearanceSeed: number,
+): (typeof COMMON_STANDING_ACTION_MODES)[number] {
+  const index = mixAnimationSeed(appearanceSeed, 'civilian-standing-role')
+    % COMMON_STANDING_ACTION_MODES.length;
+  return COMMON_STANDING_ACTION_MODES[index]!;
 }
 
 /** Deterministic start phase for looping clips. Mode salting prevents an actor
@@ -746,6 +770,12 @@ export class SettlementCrowdRenderer {
       // motion on its matching named skeleton, preserving the raider's proportions.
       raider.clips.sit = retargetSeatedClip(man, raider);
       raider.clips.rest = raider.clips.sit;
+      // The reduced worker exports omit their original social takes, while the
+      // compatible cleric rig still ships greet, agree, laugh, and broad-address
+      // motion. Retarget those authored tracks onto both civilian bodies rather
+      // than leaving every camp conversation in standing_relax.
+      installWorkerSocialClips(cleric, man);
+      if (woman.scene !== man.scene) installWorkerSocialClips(cleric, woman);
       this.sources = { man, woman, cleric, raider };
       this.toolSources = tools;
       this.battlefieldWeaponDrops.configureSources(tools);
@@ -1518,17 +1548,31 @@ async function loadVillagerSource(
 }
 
 function retargetSeatedClip(source: VillagerSource, target: VillagerSource): THREE.AnimationClip {
-  const clip = source.clips.sit.clone();
-  clip.name = 'sit:mounted-raider';
+  return retargetVillagerAnimationClip(
+    source.scene,
+    target.scene,
+    source.clips.sit,
+    'sit:mounted-raider',
+  );
+}
+
+export function retargetVillagerAnimationClip(
+  sourceScene: THREE.Object3D,
+  targetScene: THREE.Object3D,
+  sourceClip: THREE.AnimationClip,
+  name: string,
+): THREE.AnimationClip {
+  const clip = sourceClip.clone();
+  clip.name = name;
   const rotation = new THREE.Quaternion();
   const offset = new THREE.Quaternion();
   for (const track of clip.tracks) {
     const split = track.name.lastIndexOf('.');
     const boneName = track.name.slice(0, split);
     const property = track.name.slice(split + 1);
-    const from = source.scene.getObjectByName(boneName);
-    const to = target.scene.getObjectByName(boneName);
-    if (!from || !to) throw new Error(`Missing seated-animation bone ${boneName}`);
+    const from = sourceScene.getObjectByName(boneName);
+    const to = targetScene.getObjectByName(boneName);
+    if (!from || !to) throw new Error(`Missing retarget-animation bone ${boneName}`);
     if (property === 'quaternion') {
       offset.copy(to.quaternion).multiply(from.quaternion.clone().invert());
       for (let i = 0; i < track.values.length; i += 4) {
@@ -1552,6 +1596,29 @@ function retargetSeatedClip(source: VillagerSource, target: VillagerSource): THR
   return clip;
 }
 
+function installWorkerSocialClips(
+  socialSource: VillagerSource,
+  workerTarget: VillagerSource,
+): void {
+  const sourceModeByTarget = {
+    // The broader greet_04 take reads as the principal speaker.
+    talk: 'sermon',
+    greet: 'greet',
+    agree: 'agree',
+    laugh: 'laugh',
+  } as const satisfies Partial<Record<VillagerRenderMode, VillagerRenderMode>>;
+  for (const [targetMode, sourceMode] of Object.entries(sourceModeByTarget) as Array<
+    [keyof typeof sourceModeByTarget, (typeof sourceModeByTarget)[keyof typeof sourceModeByTarget]]
+  >) {
+    workerTarget.clips[targetMode] = retargetVillagerAnimationClip(
+      socialSource.scene,
+      workerTarget.scene,
+      socialSource.clips[sourceMode],
+      `${socialSource.clips[sourceMode].name}:worker-${targetMode}`,
+    );
+  }
+}
+
 export function createSemanticWorkerClipSet(
   animations: readonly THREE.AnimationClip[],
 ): Record<VillagerRenderMode, THREE.AnimationClip> {
@@ -1570,8 +1637,9 @@ export function createSemanticWorkerClipSet(
     // Both seated behavior states must end on the authored seated pose because
     // their world roots are aligned to benches and fireside supports.
     rest: forMode('sit', 'rest'),
-    // V002 deliberately omits social gestures. Conversation and devotion keep
-    // their gameplay states and facing, but use calm neutral authored motion.
+    // The reduced worker file itself omits social gestures. This neutral clip
+    // is replaced at source-load time by motion retargeted from the compatible
+    // shipped cleric rig.
     talk: forMode('standing_relax', 'talk'),
     pray: forMode('wait', 'pray'),
     chop: forMode('chop', 'chop'),
@@ -2186,6 +2254,13 @@ export function workerToolVisibleInMode(
 
 /** Keeps ranged and polearm legs neutral while the post-mixer combat rig owns the strike. */
 export function combatBaseActionMode(agent: CrowdRenderAgent): VillagerRenderMode {
+  if (
+    agent.mode === 'talk'
+    && agent.presentation !== 'cleric'
+    && agent.presentation !== 'raider'
+  ) {
+    return villagerSocialActionMode(agent.appearanceSeed);
+  }
   if (agent.mounted && agent.mode !== 'fall') return 'sit';
   if (
     agent.mode !== 'fight'

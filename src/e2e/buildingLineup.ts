@@ -102,6 +102,7 @@ const constructionKind = requestedConstructionKind
 const showStockedState = lineupParams.get('stocked') === '1'
   || showClearedFoundingStockyard;
 const showCampSeating = lineupParams.get('seating') === '1';
+const showCampSocial = lineupParams.get('social') === '1';
 const showStableOxen = lineupParams.get('oxen') === '3';
 const compareResidences = lineupParams.get('compare') === 'residences';
 const residenceMaterialProof = compareResidences && lineupParams.get('debug') === 'materials';
@@ -646,7 +647,7 @@ const views = viewSpecs.map((spec, viewIndex) => {
   camera.lookAt(cameraTarget);
 
   const campSeating = building.name === "Founders' camp and open stockyard"
-    && showCampSeating
+    && (showCampSeating || showCampSocial)
     ? createCampSeatingPreview(scene, building)
     : null;
   const waysidePrayer = showWaysidePrayerVisitors
@@ -1127,10 +1128,12 @@ function createCampSeatingPreview(
     variant: VillagerModelVariant;
     appearanceSeed: number;
     tunicColor: number;
-  }> = FOUNDERS_CAMP_SEAT_LANDMARKS.map((landmark, index) => ({
-    landmark,
-    ...previewStyles[index % previewStyles.length]!,
-  }));
+  }> = showCampSeating
+    ? FOUNDERS_CAMP_SEAT_LANDMARKS.map((landmark, index) => ({
+        landmark,
+        ...previewStyles[index % previewStyles.length]!,
+      }))
+    : [];
   const campGroundY = camp.localToWorld(new THREE.Vector3()).y;
   const agents = seats.map((seat, index): CrowdRenderAgent => {
     const destination = camp.localToWorld(new THREE.Vector3(
@@ -1163,6 +1166,46 @@ function createCampSeatingPreview(
       active: true,
     };
   });
+  if (showCampSocial) {
+    const conversation = [
+      {
+        local: new THREE.Vector3(-0.35, 0, -1.35),
+        partner: new THREE.Vector3(1.25, 0, -1.35),
+        variant: 'man',
+        appearanceSeed: 0x006a_3219,
+        tunicColor: 0x6d402c,
+      },
+      {
+        local: new THREE.Vector3(1.25, 0, -1.35),
+        partner: new THREE.Vector3(-0.35, 0, -1.35),
+        variant: 'woman',
+        appearanceSeed: 0x003f_92d1,
+        tunicColor: 0x4e5f77,
+      },
+    ] as const;
+    for (const [index, entry] of conversation.entries()) {
+      const destination = camp.localToWorld(entry.local.clone());
+      const lookAt = camp.localToWorld(entry.partner.clone());
+      agents.push({
+        id: `camp-social-preview-${index}`,
+        slot: agents.length,
+        x: destination.x,
+        y: campGroundY + 0.02,
+        z: destination.z,
+        yaw: Math.atan2(lookAt.x - destination.x, lookAt.z - destination.z),
+        appearanceSeed: entry.appearanceSeed,
+        variant: entry.variant,
+        presentation: 'common',
+        mode: 'talk',
+        tunicColor: entry.tunicColor,
+        skinColor: 0xb87952,
+        hairColor: 0x3a2418,
+        tool: null,
+        movementSpeed: 0,
+        active: true,
+      });
+    }
+  }
   const crowdParent = new THREE.Group();
   crowdParent.name = 'Camp seating preview';
   scene.add(crowdParent);

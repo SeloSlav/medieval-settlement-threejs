@@ -81,6 +81,7 @@ import {
 } from './crowdView.ts';
 import {
   villagerAnimationCadenceScale,
+  villagerStandingActionMode,
   seatedVillagerContactHeight,
   SettlementCrowdRenderer,
   type CrowdRenderAgent,
@@ -5519,9 +5520,11 @@ export class VillagerRenderer {
       : 'fellowship';
     agent.mode = agent.routinePhase === 'at_mass' && this.isPriestAgent(agent)
       ? clericMassAnimation(massPhase ?? 'fellowship', agent.pathSeed) as VillagerMode
-      : assignment.kind === 'wander' || assignment.kind === 'idle'
+      : assignment.kind === 'wander'
         ? 'idle'
-        : assignment.kind;
+        : assignment.kind === 'idle'
+          ? villagerStandingActionMode(agent.pathSeed)
+          : assignment.kind;
     const cycleSeconds = agent.routinePhase === 'at_mass'
       ? CHAPEL_GATHERING_AMBIENT_CYCLE_SECONDS
       : FOUNDERS_CAMP_AMBIENT_CYCLE_SECONDS;
