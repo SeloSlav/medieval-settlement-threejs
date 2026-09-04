@@ -431,6 +431,8 @@ export type VillagerInspection = {
    * inspector exposes this routing hint so its capture-phase click handler can
    * yield to the company selection controller instead of consuming the click. */
   militaryCompanyId: string | null;
+  /** Non-human direct-click acknowledgement; people use modelVariant. */
+  selectionAudioKind?: 'dog';
   modelVariant: VillagerModelVariant;
   name: string;
   initials: string;
@@ -2073,6 +2075,7 @@ export class VillagerRenderer {
     return {
       personIdentity,
       militaryCompanyId: selectablePlayerMilitaryCompanyId(combat),
+      selectionAudioKind: combat.faction === 'dog' ? 'dog' : undefined,
       modelVariant: residentSoldier?.modelVariant ?? ordinaryGuard?.modelVariant ?? 'man',
       name,
       initials: residentSoldier || ordinaryGuard

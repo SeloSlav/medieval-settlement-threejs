@@ -3,6 +3,17 @@
   "note": "Generated files only; the ElevenLabs API key is never stored here.",
   "generations": [
     {
+      "id": "agent-selection-dog",
+      "output": "public/sounds/animals/dog_selected.mp3",
+      "generatedAt": "2026-09-04T12:40:13.894Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_48000_192",
+      "characterCost": "10",
+      "byteLength": 25389,
+      "sha256": "f2943d812b734b22cf2aacfc53e3e05fb3191abfadbf5629cb543479bbc551c4"
+    },
+    {
       "id": "agent-selection-ox-1",
       "output": "public/sounds/animals/ox_selected_1.mp3",
       "generatedAt": "2026-08-28T12:37:02.386Z",
@@ -674,37 +685,15 @@
       "sha256": "8cf9f1001a910ec3b2cf9364df1bef645dc90d96357620a42b2d84a98b5cde4f"
     },
     {
-      "id": "chapel-bell-tier-1",
-      "output": "public/sounds/buildings/chapel_bell_tier_1.mp3",
-      "generatedAt": "2026-08-19T09:24:15.054Z",
+      "id": "chapel-bell",
+      "output": "public/sounds/buildings/chapel_bell.mp3",
+      "generatedAt": "2026-09-04T12:52:00.372Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "60",
-      "byteLength": 97010,
-      "sha256": "5b860bcb80df6255467bfffa3ae49a3bc3a41ffbf40c7cd94bdc980ed76cf942"
-    },
-    {
-      "id": "chapel-bell-tier-2",
-      "output": "public/sounds/buildings/chapel_bell_tier_2.mp3",
-      "generatedAt": "2026-08-19T09:24:52.684Z",
-      "endpoint": "/v1/sound-generation",
-      "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "70",
-      "byteLength": 112893,
-      "sha256": "f1fc706ee709c7bef58d65b3094d600b7168e493d589b70987d6b38748b7cae7"
-    },
-    {
-      "id": "chapel-bell-tier-3",
-      "output": "public/sounds/buildings/chapel_bell_tier_3.mp3",
-      "generatedAt": "2026-08-19T09:25:27.510Z",
-      "endpoint": "/v1/sound-generation",
-      "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "80",
-      "byteLength": 129193,
-      "sha256": "cc69cbd9a8aa9e5eec159c8398fb33141ea0c6660b37a8b3180a033e33524192"
+      "outputFormat": "mp3_48000_192",
+      "characterCost": "10",
+      "byteLength": 25389,
+      "sha256": "a7e20862762b7dbe0a48a69922c478cc0a2aba6262504b11d30b04c5748bff70"
     },
     {
       "id": "combat-arquebus-attack-1",

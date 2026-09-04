@@ -73,7 +73,7 @@ effects=[
  ('ambient/village_day.mp3',13,4,0.16),
  ('ambient/worksite_food_farm.mp3',17,4,0.2),
  ('ambient/worksite_metal_stone.mp3',21,3,0.2),
- ('buildings/chapel_bell_tier_3.mp3',24,4,0.18),
+ ('buildings/chapel_bell.mp3',24,4,0.18),
  ('ambient/village_day.mp3',29,4,0.2),
  ('buildings/marketplace.mp3',33,3,0.2),
  ('buildings/cavalry_yard.mp3',36,4,0.2),

@@ -10,10 +10,11 @@ import { chromium } from 'playwright';
 import {
   AMBIENT_LAYERS,
   BUILDING_AUDIO_CLIPS,
-  CHAPEL_BELL_CLIPS,
+  CHAPEL_BELL_CLIP,
   COMBAT_AUDIO_CLIPS,
   COMBAT_DEATH_CLIPS,
   COMBAT_VOICE_CLIPS,
+  DOG_SELECTION_CLIP,
   FARM_WORKERS_SINGING_CLIP,
   FIRE_CRACKLE_CLIP,
   MUSIC_TRACKS,
@@ -77,7 +78,7 @@ function invariant(condition: unknown, message: string): asserts condition {
 function runtimeClips(): AudioClipDefinition[] {
   return [
     ...Object.values(AMBIENT_LAYERS),
-    ...Object.values(CHAPEL_BELL_CLIPS),
+    CHAPEL_BELL_CLIP,
     ...Object.values(PRODUCTION_POCKET_CLIPS),
     RIVER_WATER_CLIP,
     FARM_WORKERS_SINGING_CLIP,
@@ -86,6 +87,7 @@ function runtimeClips(): AudioClipDefinition[] {
     ...Object.values(UI_SOUNDS),
     ...Object.values(PERSON_SELECTION_CLIPS).flat(),
     ...OX_SELECTION_CLIPS,
+    DOG_SELECTION_CLIP,
     ...Object.values(WORKER_ACTIVITY_CLIPS).flat(),
     ...Object.values(COMBAT_AUDIO_CLIPS).flat(),
     ...Object.values(COMBAT_VOICE_CLIPS).flat(),

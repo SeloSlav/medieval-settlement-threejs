@@ -95,6 +95,14 @@ for (const animal of ['husky', 'fox', 'wolf']) {
 assert.match(renderer, /status === 'fighting'\) return 'Attack'/);
 assert.match(renderer, /status === 'looting'\) return 'Eating'/);
 assert.match(read('src/settlement/VillagerRenderer.ts'), /route: this\.combatInspectionRoute\(visual\)/);
+assert.match(
+  read('src/settlement/VillagerRenderer.ts'),
+  /selectionAudioKind: combat\.faction === 'dog' \? 'dog' : undefined/,
+);
+assert.match(
+  read('src/ui/VillagerInspector.ts'),
+  /inspection\.selectionAudioKind \?\? inspection\.modelVariant/,
+);
 
 const easy = WORLD_DIFFICULTY_PRESETS.find((preset) => preset.id === 'easy')!;
 const normal = WORLD_DIFFICULTY_PRESETS.find((preset) => preset.id === 'normal')!;

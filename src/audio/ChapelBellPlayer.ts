@@ -1,5 +1,5 @@
 import {
-  CHAPEL_BELL_CLIPS,
+  CHAPEL_BELL_CLIP,
   type AudioClipDefinition,
   type ChapelBellTier,
 } from './audioCatalog.ts';
@@ -81,7 +81,6 @@ export class ChapelBellPlayer {
   private lastObservedAbsoluteHour = CHAPEL_BELL_UNPRIMED_HOUR;
   private patternElapsedSeconds = 0;
   private nextStrokeIndex = ANGELUS_STROKE_TIMES_SECONDS.length;
-  private activeTier: ChapelBellTier = 1;
   private lastSpatialGain = 0;
   private volume = 1;
 
@@ -94,7 +93,7 @@ export class ChapelBellPlayer {
     } else if (absoluteHour !== this.lastObservedAbsoluteHour) {
       this.lastObservedAbsoluteHour = absoluteHour;
       if (params.chapels.length > 0 && isChapelBellHour(params.clockHour)) {
-        this.beginAngelus(nearestChapel(params.chapels, params.listener)?.tier ?? 1);
+        this.beginAngelus();
       }
     }
 
@@ -110,7 +109,7 @@ export class ChapelBellPlayer {
       );
       const nextStrokeAt = ANGELUS_STROKE_TIMES_SECONDS[this.nextStrokeIndex];
       if (nextStrokeAt != null && this.patternElapsedSeconds >= nextStrokeAt) {
-        this.playStroke(CHAPEL_BELL_CLIPS[this.activeTier]);
+        this.playStroke(CHAPEL_BELL_CLIP);
         this.nextStrokeIndex += 1;
       }
     }
@@ -139,8 +138,7 @@ export class ChapelBellPlayer {
     this.updatePlayingVolumes();
   }
 
-  private beginAngelus(tier: ChapelBellTier): void {
-    this.activeTier = tier;
+  private beginAngelus(): void {
     this.patternElapsedSeconds = 0;
     this.nextStrokeIndex = 0;
   }
@@ -193,21 +191,6 @@ function buildAngelusStrokeTimes(): readonly number[] {
     groupStart = (times.at(-1) ?? groupStart) + ANGELUS_GROUP_PAUSE_SECONDS;
   }
   return Object.freeze(times);
-}
-
-function nearestChapel(
-  chapels: readonly ChapelBellPosition[],
-  listener: Pick<ChapelBellPosition, 'x' | 'z'>,
-): ChapelBellPosition | null {
-  let nearest: ChapelBellPosition | null = null;
-  let nearestDistance = Number.POSITIVE_INFINITY;
-  for (const chapel of chapels) {
-    const distance = Math.hypot(chapel.x - listener.x, chapel.z - listener.z);
-    if (distance >= nearestDistance) continue;
-    nearest = chapel;
-    nearestDistance = distance;
-  }
-  return nearest;
 }
 
 function inverseSmoothstep(edge0: number, edge1: number, value: number): number {

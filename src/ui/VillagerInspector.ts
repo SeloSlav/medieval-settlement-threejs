@@ -283,7 +283,9 @@ export class VillagerInspector {
     this.selectedPersonIdentity = inspection.personIdentity;
     this.panel.hidden = false;
     this.renderVillager(inspection);
-    this.options.onDirectAgentClick?.(inspection.modelVariant);
+    this.options.onDirectAgentClick?.(
+      inspection.selectionAudioKind ?? inspection.modelVariant,
+    );
     this.options.onSelectionChange?.(true);
   };
 

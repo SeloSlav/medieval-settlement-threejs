@@ -92,32 +92,12 @@
       "promptInfluence": 0.76
     },
     {
-      "id": "chapel-bell-tier-1",
+      "id": "chapel-bell",
       "group": "chapel-bells",
       "kind": "sound-effect",
-      "output": "public/sounds/buildings/chapel_bell_tier_1.mp3",
-      "prompt": "One isolated realistic BONG from a compact thick-walled cast-bronze medieval chapel bell in a timber belfry, struck once with a heavy wooden clapper, dominant deep rounded fundamental, dark warm bronze body, soft overtones, long smooth natural outdoor decay, close authentic field recording",
-      "durationSeconds": 6,
-      "loop": false,
-      "promptInfluence": 0.95
-    },
-    {
-      "id": "chapel-bell-tier-2",
-      "group": "chapel-bells",
-      "kind": "sound-effect",
-      "output": "public/sounds/buildings/chapel_bell_tier_2.mp3",
-      "prompt": "One isolated realistic deep BONG from a heavy thick-walled medium cast-bronze medieval church bell in a stone bell cote, struck once by a solid oak clapper, dominant low rounded fundamental, dark full bronze body, soft upper partials, long smooth natural outdoor decay, authentic field recording",
-      "durationSeconds": 7,
-      "loop": false,
-      "promptInfluence": 0.95
-    },
-    {
-      "id": "chapel-bell-tier-3",
-      "group": "chapel-bells",
-      "kind": "sound-effect",
-      "output": "public/sounds/buildings/chapel_bell_tier_3.mp3",
-      "prompt": "One isolated realistic enormous deep BONG from a very large thick-walled cast-bronze medieval church tower bell, struck once by a massive oak clapper, dominant very-low rounded fundamental, dark thunderous bronze body, soft upper partials, majestic long smooth decay across a mountain valley, authentic field recording",
-      "durationSeconds": 8,
+      "output": "public/sounds/buildings/chapel_bell.mp3",
+      "prompt": "One immediate authentic medieval church-bell strike: a cast-bronze bell rings once from a timber-and-stone belfry with a clear rounded toll and short natural decay, suitable both for selecting a church and for each spatial Angelus stroke, no voices, music, ambience, or electronic sound",
+      "durationSeconds": 1,
       "loop": false,
       "promptInfluence": 0.95
     },
@@ -2100,6 +2080,16 @@
       "durationSeconds": 2.4,
       "loop": false,
       "promptInfluence": 0.88
+    },
+    {
+      "id": "agent-selection-dog",
+      "group": "agent-selection-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/animals/dog_selected.mp3",
+      "prompt": "Immediate natural guard-dog selection acknowledgement for a medieval RTS: one alert working dog gives a short friendly bark with a faint collar movement, close and unmistakable for selecting the individual dog agent, no pack, growling, human voice, ambience, music, or electronic sound",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.95
     },
     {
       "id": "agent-selection-ox-1",

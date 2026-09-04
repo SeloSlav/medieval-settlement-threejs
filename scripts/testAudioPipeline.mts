@@ -9,10 +9,11 @@ import { fileURLToPath } from 'node:url';
 import {
   AMBIENT_LAYERS,
   BUILDING_AUDIO_CLIPS,
-  CHAPEL_BELL_CLIPS,
+  CHAPEL_BELL_CLIP,
   COMBAT_AUDIO_CLIPS,
   COMBAT_DEATH_CLIPS,
   COMBAT_VOICE_CLIPS,
+  DOG_SELECTION_CLIP,
   FARM_WORKERS_SINGING_CLIP,
   FIRE_CRACKLE_CLIP,
   MUSIC_TRACKS,
@@ -182,7 +183,7 @@ function normalizedAssetOutput(output: string): string {
 function runtimeClips(): AudioClipDefinition[] {
   return [
     ...Object.values(AMBIENT_LAYERS),
-    ...Object.values(CHAPEL_BELL_CLIPS),
+    CHAPEL_BELL_CLIP,
     ...Object.values(PRODUCTION_POCKET_CLIPS),
     RIVER_WATER_CLIP,
     FARM_WORKERS_SINGING_CLIP,
@@ -191,6 +192,7 @@ function runtimeClips(): AudioClipDefinition[] {
     ...Object.values(UI_SOUNDS),
     ...Object.values(PERSON_SELECTION_CLIPS).flat(),
     ...OX_SELECTION_CLIPS,
+    DOG_SELECTION_CLIP,
     ...Object.values(WORKER_ACTIVITY_CLIPS).flat(),
     ...Object.values(COMBAT_AUDIO_CLIPS).flat(),
     ...Object.values(COMBAT_VOICE_CLIPS).flat(),
@@ -749,27 +751,23 @@ async function main(): Promise<void> {
     asset.group === 'chapel-bells'
   ));
   invariant(
-    chapelBellAssets.length === 3,
-    'Chapel bells must provide one isolated toll for each church tier',
+    chapelBellAssets.length === 1,
+    'Church selection and Angelus must share one canonical bell recording',
   );
-  for (const tier of [1, 2, 3] as const) {
-    const asset = chapelBellAssets.find((candidate) => (
-      candidate.id === `chapel-bell-tier-${tier}`
-    ));
-    invariant(asset, `Missing tier-${tier} chapel bell`);
-    invariant(
-      asset.loop === false
-      && asset.durationSeconds != null
-      && asset.durationSeconds >= 6
-      && asset.durationSeconds <= 8,
-      `Tier-${tier} chapel bell must be one non-looping natural-decay toll`,
-    );
-    invariant(
-      CHAPEL_BELL_CLIPS[tier].path
-        === `/${asset.output.replace(/^public[\\/]/, '').replaceAll('\\', '/')}`,
-      `Tier-${tier} chapel bell runtime path differs from its manifest output`,
-    );
-  }
+  const chapelBellAsset = chapelBellAssets[0];
+  invariant(
+    chapelBellAsset?.id === 'chapel-bell'
+    && chapelBellAsset.loop === false
+    && chapelBellAsset.durationSeconds != null
+    && chapelBellAsset.durationSeconds >= 0.5
+    && chapelBellAsset.durationSeconds <= 3,
+    'The canonical church bell must be one short non-looping toll',
+  );
+  invariant(
+    CHAPEL_BELL_CLIP.path
+      === `/${chapelBellAsset.output.replace(/^public[\\/]/, '').replaceAll('\\', '/')}`,
+    'The canonical church bell runtime path differs from its manifest output',
+  );
   invariant(
     buildingAudioTailGain(BUILDING_AUDIO_TAIL_SECONDS) === 1
     && buildingAudioTailGain(BUILDING_AUDIO_TAIL_SECONDS * 0.5) === 0.5
@@ -779,8 +777,9 @@ async function main(): Promise<void> {
   invariant(
     PERSON_SELECTION_CLIPS.male.length === 6
     && PERSON_SELECTION_CLIPS.female.length === 6
-    && OX_SELECTION_CLIPS.length === 3,
-    'Direct agent selection needs six legacy lines per voice and three ox reactions',
+    && OX_SELECTION_CLIPS.length === 3
+    && DOG_SELECTION_CLIP.path === '/sounds/animals/dog_selected.mp3',
+    'Direct agent selection needs six lines per voice, three ox reactions, and one dog reaction',
   );
   for (const voice of ['male', 'female'] as const) {
     PERSON_SELECTION_CLIPS[voice].forEach((clip, index) => {
@@ -838,13 +837,15 @@ async function main(): Promise<void> {
     selectionMixer.play('man');
     selectionMixer.play('woman');
     selectionMixer.play('ox');
+    selectionMixer.play('dog');
     invariant(
-      selectionPlays.length === 4
+      selectionPlays.length === 5
       && selectionPlays[0]?.src === PERSON_SELECTION_CLIPS.male[0]?.path
       && selectionPlays[1]?.src === PERSON_SELECTION_CLIPS.male[1]?.path
       && selectionPlays[2]?.src === PERSON_SELECTION_CLIPS.female[0]?.path
-      && selectionPlays[3]?.src === OX_SELECTION_CLIPS[0]?.path,
-      'Direct clicks must choose the matching person voice or ox clip without repeating',
+      && selectionPlays[3]?.src === OX_SELECTION_CLIPS[0]?.path
+      && selectionPlays[4]?.src === DOG_SELECTION_CLIP.path,
+      'Direct clicks must choose the matching person voice, ox clip, or dog clip without repeating',
     );
     invariant(
       selectionPlays[0]?.volume === (PERSON_SELECTION_CLIPS.male[0]?.volume ?? 1) * 0.5
@@ -853,7 +854,7 @@ async function main(): Promise<void> {
     );
     selectionMixer.setEnabled(false);
     selectionMixer.play('man');
-    invariant(selectionPlays.length === 4, 'Master audio mute must suppress selection cues');
+    invariant(selectionPlays.length === 5, 'Master audio mute must suppress selection cues');
     selectionMixer.dispose();
   } finally {
     if (selectionAudioDescriptor) {
@@ -921,10 +922,10 @@ async function main(): Promise<void> {
     invariant(
       buildingPlayback.some((audio) => (
         audio.plays === 1
-        && audio.src === CHAPEL_BELL_CLIPS[2].path
+        && audio.src === CHAPEL_BELL_CLIP.path
         && audio.playbackRate === 1
       )),
-      'Explicit chapel selection must use its tier toll at the original pitch',
+      'Explicit chapel selection must use the canonical toll at the original pitch',
     );
     buildingMixer.dispose();
   } finally {

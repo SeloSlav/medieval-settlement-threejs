@@ -196,11 +196,10 @@ export const PRODUCTION_POCKET_CLIPS: Record<ProductionPocketKind, AudioClipDefi
   'textile-leather': { path: '/sounds/ambient/worksite_textile_leather.mp3', volume: 0.14, loop: true },
 };
 
-/** One authentic bell toll per church tier, reused for clicks and Angelus strokes. */
-export const CHAPEL_BELL_CLIPS: Record<ChapelBellTier, AudioClipDefinition> = {
-  1: { path: '/sounds/buildings/chapel_bell_tier_1.mp3', volume: 0.24 },
-  2: { path: '/sounds/buildings/chapel_bell_tier_2.mp3', volume: 0.26 },
-  3: { path: '/sounds/buildings/chapel_bell_tier_3.mp3', volume: 0.28 },
+/** One canonical church bell shared by church selection and every Angelus stroke. */
+export const CHAPEL_BELL_CLIP: AudioClipDefinition = {
+  path: '/sounds/buildings/chapel_bell.mp3',
+  volume: 0.28,
 };
 
 /** Continuous rushing water used by the river's spatial audio source. */

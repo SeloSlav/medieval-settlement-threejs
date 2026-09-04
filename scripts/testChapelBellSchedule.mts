@@ -15,7 +15,7 @@ import {
   chapelBellGain,
 } from '../src/audio/ChapelBellPlayer.ts';
 import { BuildingAudio } from '../src/audio/BuildingAudio.ts';
-import { CHAPEL_BELL_CLIPS } from '../src/audio/audioCatalog.ts';
+import { CHAPEL_BELL_CLIP } from '../src/audio/audioCatalog.ts';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -129,18 +129,18 @@ try {
   for (let frame = 0; frame < 600; frame += 1) tick(0.1, 360, 6);
   assert(playedPaths.length === 18, 'one Angelus prayer must play exactly 18 strokes');
   assert(
-    playedPaths.every((path) => path === CHAPEL_BELL_CLIPS[2].path)
+    playedPaths.every((path) => path === CHAPEL_BELL_CLIP.path)
     && playedRates.every((rate) => rate === 1),
-    'the Angelus must use the nearest church tier bell without pitch-speed changes',
+    'the Angelus must use the canonical church bell without pitch-speed changes',
   );
   player.dispose();
 
   const buildingAudio = new BuildingAudio();
   buildingAudio.playChapel(3, 'building:test-tier-3-church');
   assert(
-    playedPaths.at(-1) === CHAPEL_BELL_CLIPS[3].path
+    playedPaths.at(-1) === CHAPEL_BELL_CLIP.path
     && playedRates.at(-1) === 1,
-    'selecting a church must play its tier bell once at exactly 1.0x speed',
+    'selecting a church must play the canonical bell once at exactly 1.0x speed',
   );
   buildingAudio.dispose();
 } finally {

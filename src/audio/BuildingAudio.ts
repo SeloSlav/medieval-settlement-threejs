@@ -1,6 +1,6 @@
 import {
   BUILDING_AUDIO_CLIPS,
-  CHAPEL_BELL_CLIPS,
+  CHAPEL_BELL_CLIP,
   type AudioClipDefinition,
   type BuildingAudioKind,
   type ChapelBellTier,
@@ -43,8 +43,8 @@ export class BuildingAudio {
     this.playClip(BUILDING_AUDIO_CLIPS[kind], sourceId, true);
   }
 
-  playChapel(tier: ChapelBellTier, sourceId: string): void {
-    this.playClip(CHAPEL_BELL_CLIPS[tier], sourceId, false);
+  playChapel(_tier: ChapelBellTier, sourceId: string): void {
+    this.playClip(CHAPEL_BELL_CLIP, sourceId, false);
   }
 
   private playClip(
