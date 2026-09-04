@@ -5,25 +5,25 @@ export const SEASON_ALMANAC = {
     label: 'Spring',
     months: 'March–May',
     icon: '❀',
-    description: 'Spring rain speeds crop growth and shallow-well recharge but slows dirt roads. Spring oats are sown; raspberries and mushrooms regrow, fish recover, pasture livestock breed faster, and staffed apiaries begin accumulating their Autumn honey crop.',
+    description: 'Sow spring oats and use the faster crop growth and well recharge, but expect slower dirt roads. Forage and fish recover, livestock breed faster, and apiaries begin storing their Autumn honey crop.',
   },
   summer: {
     label: 'Summer',
     months: 'June–August',
     icon: '☀',
-    description: 'Crops mature while cattle and sheep graze, holdings cut local winter hay, shearing peaks, staffed apiaries continue accumulating their honey crop, and homes use less fuel.',
+    description: 'Harvest maturing crops and cut winter hay while livestock graze and apiaries build their honey crop. Shearing peaks, and homes use less fuel.',
   },
   autumn: {
     label: 'Autumn',
     months: 'September–November',
     icon: '❧',
-    description: 'Finish the late harvest, including extracting the Spring/Summer crop from staffed apiaries, then plough and sow winter crops in October–November. Oat sheaves become edible oats at threshing barns; staffed pastoral farmsteads turn those oats into stored Animal Feed. Woodland swine feed best on autumn mast.',
+    description: 'Finish crops and collect apiary honey, then plough and sow winter fields by November. Thresh oat sheaves into oats; pastoral farmsteads turn them into Animal Feed, while woodland pigs thrive on mast.',
   },
   winter: {
     label: 'Winter',
     months: 'December–February',
     icon: '❄',
-    description: 'Foraging, fishing, field work, apiary work, shearing, and cattle milking stop; unharvested hive yield is lost. Pasture and mast thin: cattle and sheep use local hay before prepared Animal Feed, while pigs use remaining mast before Animal Feed. Frozen roads slow carts, while heated homes need twice their normal fuel.',
+    description: 'Foraging, fishing, farming, apiary work, shearing, and milking stop; unharvested honey is lost. Stock hay, Animal Feed, and firewood: winter slows carts and doubles home fuel use.',
   },
 } as const satisfies Record<Season, {
   label: string;
@@ -33,7 +33,7 @@ export const SEASON_ALMANAC = {
 }>;
 
 const SEVERE_WEATHER_SUMMER_DESCRIPTION =
-  'Crops mature while cattle and sheep graze, holdings cut local winter hay, shearing peaks, staffed apiaries continue accumulating their honey crop, and homes use less fuel. Drought may slow crops, cut well recharge, thin pasture and fish, reduce hay, and weaken mills.';
+  'Harvest maturing crops and cut winter hay while livestock graze and apiaries build their honey crop. Drought may slow crops, cut well recharge, thin pasture and fish, reduce hay, and weaken mills.';
 
 function buildSeasonAlmanacTooltip(severeWeatherEnabled: boolean): string {
   return Object.values(SEASON_ALMANAC)

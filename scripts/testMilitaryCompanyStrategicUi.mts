@@ -13,6 +13,7 @@ import {
   hostileCompanyMarkerPresentation,
   liveStrategicCompanyCenter,
   projectedCompanyBodyHeightPx,
+  renderedCompanyBodyHeight,
   resolveStrategicCompanyIconVisibility,
   strategicCompanyIconOpacity,
   strategicCompanyIconWorldY,
@@ -100,6 +101,29 @@ assert.equal(
   strategicCompanyPositionBlend(STRATEGIC_COMPANY_STATIONARY_DEAD_ZONE, false, 1 / 60),
   0,
   'stationary formation jitter should stay inside the marker dead zone',
+);
+
+// A position from replication must not be mistaken for a submitted body.
+assert.equal(renderedCompanyBodyHeight(['bandit']), null);
+assert.equal(renderedCompanyBodyHeight([], () => 1.72), null);
+for (const missingHeight of [null, 0, -1, NaN, Infinity]) {
+  assert.equal(renderedCompanyBodyHeight(['bandit'], () => missingHeight), null);
+}
+assert.equal(renderedCompanyBodyHeight(['wolf', 'missing'], id => id === 'wolf' ? 0.85 : null), null);
+assert.equal(renderedCompanyBodyHeight(['wolf', 'fox'], id => id === 'wolf' ? 0.85 : 0.4), 0.4);
+const bodyCamera = new THREE.PerspectiveCamera(45, 1280 / 720, 0.1, 1000);
+bodyCamera.position.set(0, 7, 20);
+bodyCamera.lookAt(0, 0, 0);
+bodyCamera.updateMatrixWorld();
+const bodyPixels = (height: number) => projectedCompanyBodyHeightPx(
+  new THREE.Vector3(0, 0, 0).project(bodyCamera),
+  new THREE.Vector3(0, height, 0).project(bodyCamera),
+  1280, 720,
+);
+assert.equal(hostileCompanyMarkerPresentation(bodyPixels(1.72), true).opacity, 0);
+assert.equal(
+  hostileCompanyMarkerPresentation(bodyPixels(0.4), true).opacity, 1,
+  'a small fox keeps its marker at a distance where a human is already readable',
 );
 const movingBlend = strategicCompanyPositionBlend(2, true, 1 / 60);
 const stationaryBlend = strategicCompanyPositionBlend(2, false, 1 / 60);

@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import * as THREE from 'three';
+import { sampleTerrainMeshHeight, sampleTerrainMeshSurfaceHeight } from '../src/terrain/TerrainMeshHeight.ts';
+import { resolveRoadAwareGroundY } from '../src/roads/RoadSurfaceSampling.ts';
 import { livestockVisualHeadCount } from '../src/farming/LivestockVisuals.ts';
 import { displayedFishSchoolCount } from '../src/foraging/FishWildlifeVisuals.ts';
 import {
@@ -14,6 +17,29 @@ import {
 } from '../src/settlement/crowdView.ts';
 
 const read = (path: string): string => readFileSync(path, 'utf8');
+
+// Non-planar cells must ground actors on the visible triangles. Bilinear
+// interpolation cuts through this ridge and can bury an entire small animal.
+const terrainCell = new THREE.BufferGeometry();
+terrainCell.setAttribute('position', new THREE.Float32BufferAttribute([
+  -1, 0, -1, 1, 4, -1, -1, 4, 1, 1, 0, 1,
+], 3));
+terrainCell.setIndex([0, 2, 1, 1, 2, 3]);
+const surfaceY = sampleTerrainMeshSurfaceHeight(terrainCell, 0, 0, 2, 2);
+assert.equal(surfaceY, 4);
+assert.equal(sampleTerrainMeshHeight(terrainCell, 0, 0, 2, 2), 2);
+const terrainMesh = new THREE.Mesh(terrainCell, new THREE.MeshBasicMaterial());
+const ray = new THREE.Raycaster(new THREE.Vector3(0, 10, 0), new THREE.Vector3(0, -1, 0));
+assert.equal(ray.intersectObject(terrainMesh)[0]?.point.y, surfaceY);
+assert.equal(resolveRoadAwareGroundY(surfaceY, 5), 5, 'bridge decks still lift agents');
+assert.equal(resolveRoadAwareGroundY(surfaceY, 1), surfaceY, 'roads cannot sink actors under terrain');
+terrainCell.dispose();
+terrainMesh.material.dispose();
+assert.match(
+  read('src/app/appBootstrap.ts'),
+  /new VillagerRenderer\(\{[\s\S]*?getHeightAt: \(x, z\) => sceneManager\.terrain\.getSurfaceHeightAt\(x, z\)/,
+  'live villagers and hostile animals must use the rendered terrain surface',
+);
 
 assert.equal(livestockVisualHeadCount('cattle', 500), 500);
 assert.equal(livestockVisualHeadCount('sheep', 1_024), 1_024);

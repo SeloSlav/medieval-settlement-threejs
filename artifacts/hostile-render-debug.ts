@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import { WebGPURenderer } from 'three/webgpu';
 import { VillagerRenderer } from '../src/settlement/VillagerRenderer.ts';
 import { buildCrowdViewState } from '../src/settlement/crowdView.ts';
+import { createPostProcessor } from '../src/scene/PostProcessing.ts';
+import { MilitaryCompanyStrategicOverlay } from '../src/security/MilitaryCompanyStrategicOverlay.ts';
+import { float } from 'three/tsl';
+import '../src/ui/mapIcons.css';
 const status = document.querySelector('#status')!;
 const errors: string[] = [];
 window.addEventListener('error', e => { errors.push(e.message); status.textContent = errors.join('\n'); });
@@ -13,10 +17,17 @@ renderer.setSize(innerWidth,innerHeight); document.body.append(renderer.domEleme
 await renderer.init();
 const camera = new THREE.PerspectiveCamera(45,innerWidth/innerHeight,0.1,2000);
 camera.position.set(108,8,215); camera.lookAt(100,0.5,200);
-scene.add(new THREE.HemisphereLight(0xffffff,0x666666,2));
+const hemisphere = new THREE.HemisphereLight(0xffffff,0x666666,2);
+const ambient = new THREE.AmbientLight(0xffffff,0.15);
+scene.add(hemisphere,ambient);
 const sun = new THREE.DirectionalLight(0xffffff,3); sun.position.set(100,20,205);scene.add(sun);
+sun.target.position.set(100,0,200); scene.add(sun.target);sun.castShadow=true;
+sun.shadow.camera.left=-20;sun.shadow.camera.right=20;sun.shadow.camera.top=20;sun.shadow.camera.bottom=-20;
+renderer.shadowMap.enabled=true;
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(60,60),new THREE.MeshStandardMaterial({color:0x83926c})); ground.rotation.x=-Math.PI/2; ground.position.set(100,-0.01,200);scene.add(ground);
-scene.add(new THREE.GridHelper(60,60));
+ground.receiveShadow=true;
+const post = createPostProcessor({kind:'webgpu',renderer} as any,scene,camera,scene,{hemisphere,ambient},{visibility:float(1)} as any);
+let usePost=true;
 const villagers = new VillagerRenderer({parent,getGameSpeed:()=>1,getHeightAt:()=>0});
 const ready = await villagers.visualAssetsReady;
 const factions = ['bandit','dog','fox','wolf'] as const;
@@ -28,6 +39,19 @@ const agents = new Map(factions.map((faction,i)=>[String(i+1),{
 }]));
 // Let empty batches participate in the live frame before an incursion spawns.
 const view = buildCrowdViewState(100,200,20);
+for(const [id,distance] of [['near',20],['design',65],['far',150]] as const){
+ document.getElementById(id)!.onclick=()=>{
+  camera.position.set(100+distance*0.4,distance*0.4,200+distance*0.75);camera.lookAt(100,0.5,200);
+  buildCrowdViewState(100,200,distance,100,200,view);
+ };
+}
+document.getElementById('post')!.onclick=()=>{usePost=!usePost;};
+const icons = new MilitaryCompanyStrategicOverlay({
+ uiRoot:document.body,domElement:renderer.domElement,camera,getZoomPercent:()=>100,getHeightAt:()=>0,
+ getAgentPosition:id=>villagers.getCombatAgentPosition(id),getAgentBodyHeight:id=>villagers.getCombatAgentBodyHeight(id),
+ isBlocked:()=>false,onSelect:()=>{},
+});
+icons.sync([...agents.values()].filter(a=>a.faction!=='dog').map(a=>({id:a.id,kind:a.faction==='bandit'?'bandits':'wildlife',agentIds:[a.id],x:a.x,z:a.z,livingMembers:1,controllable:false,moving:true,hostile:true})));
 let elapsed=0, previous=0;
 renderer.setAnimationLoop(time=>{
  const dt=Math.min(0.05,(time-previous)/1000);previous=time;elapsed+=dt;
@@ -36,7 +60,8 @@ renderer.setAnimationLoop(time=>{
   villagers.setCombatAgents(new Map([...agents].map(([id,a])=>[id,{...a}])) as any);
  }
  villagers.tick(dt,view);
- renderer.render(scene,camera);
+ if(usePost) post.render(dt);else renderer.render(scene,camera);
+ icons.update(time,view);
  const d = villagers.authoredCrowdDiagnostics();
- status.textContent=JSON.stringify({ready,time:elapsed.toFixed(1),humanoids:d.submittedInstances,animals:Object.fromEntries(Object.entries((villagers as any).combatAnimals.diagnostics()).map(([k,v]:any)=>[k,{count:v.count,drawCalls:v.drawCalls}])),errors},null,2);
+ status.textContent=JSON.stringify({ready,post:usePost,time:elapsed.toFixed(1),humanoids:d.submittedInstances,bodyHeights:Object.fromEntries([...agents.values()].map(a=>[a.faction,villagers.getCombatAgentBodyHeight(a.id)])),errors},null,2);
 });
