@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { AuthoredRigEvaluatorGroup } from './AuthoredRigEvaluatorGroup.ts';
 import {
   AuthoredSkinnedInstanceBatch,
   type AuthoredSkinnedInstanceBatchDiagnostic,
@@ -82,6 +83,16 @@ export function setAuthoredAnimalEvaluatorOnly(
   model: THREE.Object3D,
   evaluatorOnly: boolean,
 ): void {
+  if (evaluatorOnly && model.parent && !(model.parent instanceof AuthoredRigEvaluatorGroup)) {
+    const parent = model.parent;
+    const evaluators = new AuthoredRigEvaluatorGroup();
+    parent.add(evaluators);
+    evaluators.add(model);
+  } else if (!evaluatorOnly && model.parent instanceof AuthoredRigEvaluatorGroup) {
+    const evaluators = model.parent;
+    evaluators.parent?.add(model);
+    evaluators.removeFromParent();
+  }
   model.traverse((object) => {
     const mesh = object as THREE.SkinnedMesh;
     if (mesh.isSkinnedMesh) mesh.visible = !evaluatorOnly;

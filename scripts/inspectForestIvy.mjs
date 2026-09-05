@@ -16,7 +16,7 @@ try {
   if (process.argv.includes('--world')) {
     await page.goto('http://127.0.0.1:5187/environment-lineup.html', { timeout: 120000 });
     await page.waitForFunction(() => window.__ENVIRONMENT_GAUNTLET__, {}, { timeout: 300000 });
-    const result = await page.evaluate(async ({ normalTrial, profile, installed }) => {
+    const result = await page.evaluate(async ({ normalTrial, profile, installed, balanced }) => {
       const manager = window.__ENVIRONMENT_GAUNTLET__.manager;
       const ivy = manager.getForestManager().forestFloorIvy;
       await window.__ENVIRONMENT_GAUNTLET__.capture({view:'ground', sampleCount:1});
@@ -108,14 +108,16 @@ try {
               await renderFrames(360,1/60);
               for(let attempt=0;attempt<12 && !manager.grassField.isStreamSettled();attempt++) await renderFrames(60,1/60);
               if(!manager.grassField.isStreamSettled()) throw new Error('Unsettled ivy profile grass stream');
-              for(let arm=0;arm<6;arm++) {
-                const corrected=arm%2===1;
+              const armCount=balanced?24:6;
+              const frameCount=balanced?60:360;
+              for(let arm=0;arm<armCount;arm++) {
+                const corrected=balanced?[false,true,true,false][arm%4]:arm%2===1;
                 ivy.mesh.material.normalNode=corrected?vertexNormal:originalNormal;
                 ivy.mesh.material.needsUpdate=true;
-                await renderFrames(60);
+                await renderFrames(balanced?8:60);
                 const samples=[];
                 let last;
-                for(let frame=0;frame<360;frame++) {
+                for(let frame=0;frame<frameCount;frame++) {
                   const time=await new Promise(requestAnimationFrame);
                   const start=performance.now();
                   const handle=gpu.beginFrame(time);
@@ -171,7 +173,7 @@ try {
       return { placement, images, evidence, shaders, profiles, gpuEvidence, adapter:manager.getRendererAdapterEvidence(), receiveShadow: ivy.mesh.receiveShadow,
         castShadow: ivy.mesh.castShadow, shadowPolicy: ivy.mesh.userData.groundCoverShadowPolicy,
         residents: ivy.mesh.count, textureColorSpace: ivy.textures.albedo.colorSpace };
-    }, { normalTrial: process.argv.includes('--normal'), profile: process.argv.includes('--profile'), installed:process.argv.includes('--installed') });
+    }, { normalTrial: process.argv.includes('--normal'), profile: process.argv.includes('--profile'), installed:process.argv.includes('--installed'), balanced:process.argv.includes('--balanced') });
     for (const [name,png] of Object.entries(result.images)) writeFileSync(`${out}/world-${name}.png`, Buffer.from(png.split(',')[1],'base64'));
     delete result.images;
     writeFileSync(`${out}/world.json`, JSON.stringify(result,null,2));

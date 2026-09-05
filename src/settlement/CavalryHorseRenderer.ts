@@ -164,12 +164,12 @@ export class CavalryHorseRenderer {
     model.scale.setScalar(scale);
     model.position.y = -this.source.bounds.min.y * scale;
     configureHorseMeshes(model, pose.appearanceSeed, this.batch === null);
-    setAuthoredAnimalEvaluatorOnly(model, this.batch !== null);
 
     const root = new THREE.Group();
     root.name = `Quaternius cavalry horse ${pose.id}`;
     root.userData.cavalryHorseId = pose.id;
     root.add(model);
+    setAuthoredAnimalEvaluatorOnly(model, this.batch !== null);
 
     const mixer = new THREE.AnimationMixer(model);
     const actions: Record<HorseMotionMode, THREE.AnimationAction> = {

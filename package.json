@@ -275,6 +275,8 @@
     "test:glb-animation-labeler": "node --experimental-strip-types scripts/testGlbAnimationLabeler.mts",
     "test:ambient-behaviors": "node --experimental-strip-types scripts/testAmbientBehaviors.mts",
     "test:worker-agents": "node --experimental-strip-types scripts/testWorkerAgents.mts",
+    "test:hunting-work": "npx tsx scripts/testHuntingWork.mts",
+    "test:hunting-work-browser": "node --experimental-strip-types scripts/testHuntingWorkBrowser.mts",
     "test:cleric-agents": "node --experimental-strip-types scripts/testClericAgents.mts",
     "test:worker-local-avoidance": "node --experimental-strip-types scripts/testWorkerLocalAvoidance.mts",
     "test:smallholding": "node --experimental-strip-types scripts/testSmallholding.mts",

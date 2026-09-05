@@ -416,6 +416,7 @@ export async function bootstrapAppSession(
     sceneManager.selectionGroup,
   );
   const villagers = new VillagerRenderer({
+    findHuntingTarget: query => sceneManager.findHuntingTarget(query),
     parent: sceneManager.selectionGroup,
     getGameSpeed: () => spacetimeStore.snapshot.gameSpeed,
     // Walk on the triangles actually drawn. Bilinear cell heights can place

@@ -642,7 +642,9 @@ function isPartVisible(part: MeshPart | LinePart): boolean {
   if (part.source === part.mount) return true;
   let cursor = part.source.parent;
   while (cursor) {
-    if (!cursor.visible) return false;
+    // This boundary hides the duplicate CPU rig from render traversal. It does
+    // not hide its exact batched attachments; actor/tool visibility still does.
+    if (!cursor.visible && cursor.userData.authoredRigEvaluatorGroup !== true) return false;
     if (cursor === part.mount) return true;
     cursor = cursor.parent;
   }

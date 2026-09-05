@@ -153,6 +153,7 @@ export type WorkerTarget = PointXZ & {
 
 export type WorkerActivityKind =
   | 'chop'
+  | 'hunt'
   | 'mine'
   | 'gather'
   | 'plant'
@@ -955,7 +956,7 @@ function workerActivityFor(
   if (building.kind === 'reforester' && target.kind === 'tree') return 'plant';
   if (building.kind === 'stone_quarry' && target.kind === 'quarry') return 'mine';
   if (building.kind === 'large_quarry' && target.kind === 'quarry') return 'mine';
-  if (building.kind === 'hunters_hall' && target.kind === 'game') return 'gather';
+  if (building.kind === 'hunters_hall' && target.kind === 'game') return 'hunt';
   if (
     building.kind === 'foragers_shed'
     && (target.kind === 'berries' || target.kind === 'mushrooms')
@@ -1257,16 +1258,18 @@ function resourceWorkLoop(
     z: (start.z + target.z) * 0.5 + normalZ * bend,
   });
   const approachAngle = rng() * Math.PI * 2;
-  const approachRadius = target.kind === 'tree'
-    ? 1.8
-    : target.kind === 'workstation'
-      ? 1.15
-      : 2.4;
+  const approachRadius = target.kind === 'game'
+    ? 12
+    : target.kind === 'tree'
+      ? 1.8
+      : target.kind === 'workstation'
+        ? 1.15
+        : 2.4;
   const approach = clampResourceWorkPoint(building, target, {
     x: target.x + Math.sin(approachAngle) * approachRadius,
     z: target.z + Math.cos(approachAngle) * approachRadius,
   });
-  const workStep = 1.6 + rng() * 1.4;
+  const workStep = target.kind === 'game' ? 10 + rng() * 4 : 1.6 + rng() * 1.4;
   const around = clampResourceWorkPoint(building, target, {
     x: target.x + Math.sin(approachAngle + Math.PI * 0.62) * workStep,
     z: target.z + Math.cos(approachAngle + Math.PI * 0.62) * workStep,

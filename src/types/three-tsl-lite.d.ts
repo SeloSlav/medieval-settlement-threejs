@@ -33,6 +33,7 @@ declare module 'three/tsl' {
   export const floor: (value: unknown) => unknown;
   export const fract: (value: unknown) => unknown;
   export const modelWorldMatrix: unknown;
+  export const materialOpacity: unknown;
   export const normalLocal: unknown;
   export const positionLocal: unknown;
   export const positionGeometry: unknown;

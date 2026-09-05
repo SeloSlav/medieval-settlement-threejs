@@ -1,5 +1,6 @@
 // @ts-nocheck -- Opt-in local visual gauntlet; uses the complete game renderer.
 import * as THREE from 'three';
+import { materialOpacity } from 'three/tsl';
 import { SceneManager } from '../scene/SceneManager.ts';
 import { DEFAULT_WORLD_GENERATION_SETTINGS } from '../world/worldGenerationSettings.ts';
 import { setDraftWorldGeneration } from '../world/worldGenerationContext.ts';
@@ -144,7 +145,17 @@ async function frames(count, collect = false, dt = 0) {
 const gpu = createVisualGpuTimestampProfiler({ kind: manager.rendererBackend, renderer: manager.renderer });
 setView(activeView);
 await frames(150, false, 1 / 60);
+const grassFadeMaterials = [...new Set(manager.grassField.group.children
+  .map(mesh => mesh.material).filter(material => material?.name === 'SeedThree close meadow grass'))];
+const grassOpacityNodes = grassFadeMaterials.map(material => material.opacityNode);
 window.__ENVIRONMENT_GAUNTLET__ = {
+  // Use with an archived pre-fix cohort to compare the missing opacity factor.
+  setGrassOpacityCorrection(enabled) {
+    grassFadeMaterials.forEach((material,i) => {
+      material.opacityNode = enabled ? grassOpacityNodes[i].mul(materialOpacity) : grassOpacityNodes[i];
+      material.needsUpdate = true;
+    });
+  },
   survey,
   settlement,
   setAccessGrassClearance(enabled) {

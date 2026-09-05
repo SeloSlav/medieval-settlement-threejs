@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { AuthoredRigWorldMatrices } from './AuthoredRigWorldMatrices.ts';
 import {
   MeshPhysicalNodeMaterial,
   MeshStandardNodeMaterial,
@@ -163,6 +164,7 @@ type SubmittedLayer = {
 };
 
 type PosedCloneBinding = {
+  worldMatrices: AuthoredRigWorldMatrices;
   /** The one skeleton palette shared by every authored source layer. */
   paletteSkeleton: THREE.Skeleton;
   /** Mesh space that owns the instanced body transform for this clone. */
@@ -370,10 +372,9 @@ export class AuthoredSkinnedInstanceBatch {
       binding = this.bindPosedClone(posedRoot);
       this.posedCloneBindings.set(posedRoot, binding);
     } else {
-      // AnimationMixer and combat poses can affect bones as well as mounted
-      // descendants. Keep Three's authoritative hierarchy propagation; the
-      // cached binding removes only immutable validation/traversal work.
-      posedRoot.updateWorldMatrix(true, true);
+      // AnimationMixer and combat corrections still own every local transform.
+      // Reuse the immutable hierarchy and compose only changed local TRS values.
+      binding.worldMatrices.update();
     }
 
     this.posedMeshWorld.copy(binding.paletteMesh.matrixWorld);
@@ -650,6 +651,7 @@ export class AuthoredSkinnedInstanceBatch {
     return {
       paletteSkeleton,
       paletteMesh,
+      worldMatrices: new AuthoredRigWorldMatrices(posedRoot),
     };
   }
 

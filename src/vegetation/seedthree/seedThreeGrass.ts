@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {
   attribute,
   float,
+  materialOpacity,
   mix,
   positionLocal,
   sin,
@@ -42,6 +43,7 @@ type TslNode = {
 const tsl = {
   attribute: attribute as (name: string, type: string) => TslNode,
   float: float as (value: number) => TslNode,
+  materialOpacity: materialOpacity as TslNode,
   mix: mix as (left: unknown, right: unknown, amount: unknown) => TslNode,
   positionLocal: positionLocal as TslNode,
   sin: sin as (value: unknown) => TslNode,
@@ -258,6 +260,9 @@ function applySeedThreeGrassSeasonMaterial(
     base.a,
   );
   target.opacityNode = base.a
+    // A custom opacityNode replaces Three's materialOpacity path. Keep the
+    // live zoom fade owned by GrassBladeField alongside seasonal attenuation.
+    .mul(tsl.materialOpacity)
     .mul(tsl.float(1).sub(dormancy.mul(0.24)))
     .mul(tsl.float(1).sub(snowCoverage.mul(0.64)));
   if (target.thicknessColorNode) {

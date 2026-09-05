@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { AuthoredRigEvaluatorGroup } from '../scene/AuthoredRigEvaluatorGroup.ts';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {
@@ -39,6 +40,7 @@ import {
   type CombatWeaponRig,
 } from './combatWeaponAnimation.ts';
 import { CombatProjectileRenderer } from './CombatProjectileRenderer.ts';
+import { HUNTING_DRAW_SECONDS, type HuntingTarget } from './huntingWork.ts';
 import {
   BattlefieldWeaponDropRenderer,
   type BattlefieldWeaponDropDiagnostic,
@@ -130,6 +132,7 @@ type VillagerSource = {
 };
 
 type AnimatedVillager = {
+  huntingBow: boolean;
   id: string;
   variant: VillagerModelVariant;
   sourceKey: VillagerSourceKey;
@@ -177,6 +180,10 @@ function uniqueSourceScenes(
 }
 
 export type CrowdRenderAgent = {
+  /** Civilian hunting is the only bow-equipment exception for women. */
+  huntingBow?: boolean;
+  huntingTarget?: HuntingTarget;
+  huntingShotCooldown?: number;
   id: string;
   slot: number;
   x: number;
@@ -391,6 +398,7 @@ export class SettlementCrowdRenderer {
   readonly ready: Promise<boolean>;
   private readonly group = new THREE.Group();
   private readonly animatedGroup = new THREE.Group();
+  private readonly evaluatorGroup = new AuthoredRigEvaluatorGroup();
   private readonly battlefieldWeaponDrops: BattlefieldWeaponDropRenderer;
   private readonly companyStandards: CompanyStandardRenderer;
   private readonly mountedAttachments: ExactMountedAttachmentBatch;
@@ -436,6 +444,7 @@ export class SettlementCrowdRenderer {
     this.group.name = 'Villagers';
     this.animatedGroup.name = 'Animated villagers';
     this.group.add(this.animatedGroup);
+    this.animatedGroup.add(this.evaluatorGroup);
     options.parent.add(this.group);
     this.mountedAttachments = new ExactMountedAttachmentBatch(this.animatedGroup, {
       initialCapacity: INITIAL_AUTHORED_BATCH_CAPACITY,
@@ -839,6 +848,7 @@ export class SettlementCrowdRenderer {
         || visual.variant !== agent.variant
         || visual.sourceKey !== sourceKey
         || visual.toolKind !== agent.tool
+        || visual.huntingBow !== isHuntingBowAgent(agent)
       ) {
         if (visual) this.removeAnimatedVillager(agent.id);
         visual = this.acquireAnimatedVillager(agent);
@@ -973,17 +983,18 @@ export class SettlementCrowdRenderer {
     root.userData.villagerId = agent.id;
     root.userData.villagerGender = agent.variant;
     root.add(model);
-    this.animatedGroup.add(root);
+    this.evaluatorGroup.add(root);
 
     const tool = agent.tool && this.toolSources
-      && (agent.variant === 'man' || !isMilitaryEquipmentKind(agent.tool))
+      && (agent.variant === 'man' || isHuntingBowAgent(agent) || !isMilitaryEquipmentKind(agent.tool))
       ? attachWorkerTool(model, this.toolSources[agent.tool])
       : null;
     if (tool && agent.tool) {
       setWorkerToolVisible(tool, workerToolVisibleInMode(agent.tool, agent.mode));
       setWorkerToolDropped(tool, Boolean(agent.battlefieldWeaponDrop));
     }
-    const combatRig = agent.variant === 'man' ? bindCombatWeaponRig(model, agent.tool, tool) : null;
+    const combatRig = agent.variant === 'man' || isHuntingBowAgent(agent)
+      ? bindCombatWeaponRig(model, agent.tool, tool) : null;
     // Register after binding so the nocked ammunition joins the shared batches.
     if (tool) this.mountedAttachments.registerTool(tool);
 
@@ -1043,6 +1054,7 @@ export class SettlementCrowdRenderer {
       id: agent.id,
       variant: agent.variant,
       sourceKey,
+      huntingBow: isHuntingBowAgent(agent),
       toolKind: agent.tool,
       tool,
       root,
@@ -1060,7 +1072,7 @@ export class SettlementCrowdRenderer {
   }
 
   private acquireAnimatedVillager(agent: CrowdRenderAgent): AnimatedVillager {
-    const poolKey = animatedPoolKey(sourceKeyForAgent(agent), agent.tool);
+    const poolKey = animatedPoolKey(sourceKeyForAgent(agent), agent.tool, isHuntingBowAgent(agent));
     const pool = this.animatedPool.get(poolKey);
     const pooledVisual = pool?.pop();
     if (pooledVisual) this.idlePooledVisualCount -= 1;
@@ -1151,11 +1163,16 @@ export class SettlementCrowdRenderer {
     agent: CrowdRenderAgent,
     dt: number,
   ): void {
+    const hunting = isHuntingBowAgent(agent);
+    const huntingTarget = hunting ? agent.huntingTarget : undefined;
+    const attackCooldown = hunting
+      ? huntingTarget?.active ? agent.huntingShotCooldown : undefined
+      : agent.combatAttackCooldown;
     if (
       !visual.combatRig
       || !visual.tool
       || !agent.tool
-      || agent.combatAttackCooldown === undefined
+      || attackCooldown === undefined
     ) {
       if (visual.combatRig?.family) resetCombatWeaponRig(visual.combatRig);
       if (visual.tool && agent.tool && isMilitaryEquipmentKind(agent.tool)) {
@@ -1170,11 +1187,11 @@ export class SettlementCrowdRenderer {
     }
     const result = applyCombatWeaponPose(visual.combatRig, {
       tool: agent.tool,
-      targetDistance: agent.combatTargetDistance ?? Infinity,
-      attackCooldown: agent.combatAttackCooldown,
-      attackSeconds: agent.combatAttackSeconds,
+      targetDistance: hunting ? Infinity : agent.combatTargetDistance ?? Infinity,
+      attackCooldown,
+      attackSeconds: hunting ? HUNTING_DRAW_SECONDS : agent.combatAttackSeconds,
       dtSeconds: dt,
-      logicalMode: agent.mode,
+      logicalMode: hunting ? 'fight' : agent.mode,
       mounted: agent.mounted,
       defensive: agent.combatDefending,
       moving: agent.combatLocomotion === 'walk' || agent.combatLocomotion === 'run',
@@ -1183,10 +1200,10 @@ export class SettlementCrowdRenderer {
     setWorkerToolCombatStance(visual.tool, result.presentation.stance);
     if (!result.event) return;
 
-    const targetX = agent.combatTargetX
+    const targetX = huntingTarget?.x ?? agent.combatTargetX
       ?? agent.x + Math.sin(agent.yaw) * Math.max(2, agent.combatTargetDistance ?? 5);
-    const targetY = agent.combatTargetY ?? agent.y + 1.05;
-    const targetZ = agent.combatTargetZ
+    const targetY = huntingTarget?.y ?? agent.combatTargetY ?? agent.y + 1.05;
+    const targetZ = huntingTarget?.z ?? agent.combatTargetZ
       ?? agent.z + Math.cos(agent.yaw) * Math.max(2, agent.combatTargetDistance ?? 5);
     const event: CrowdCombatAttackEvent = {
       ...result.event,
@@ -1198,10 +1215,10 @@ export class SettlementCrowdRenderer {
       targetY,
       targetZ,
     };
-    if (this.pendingCombatAttackEvents.length >= 128) {
-      this.pendingCombatAttackEvents.shift();
+    if (!hunting) {
+      if (this.pendingCombatAttackEvents.length >= 128) this.pendingCombatAttackEvents.shift();
+      this.pendingCombatAttackEvents.push(event);
     }
-    this.pendingCombatAttackEvents.push(event);
     if (result.event.type !== 'projectile-release' || !result.event.projectile) return;
     combatWeaponReleaseOrigin(visual.combatRig, this.combatOrigin);
     this.combatTarget.set(targetX, targetY, targetZ);
@@ -1227,7 +1244,7 @@ export class SettlementCrowdRenderer {
       this.disposeAnimatedVillager(visual);
       return;
     }
-    const poolKey = animatedPoolKey(visual.sourceKey, visual.toolKind);
+    const poolKey = animatedPoolKey(visual.sourceKey, visual.toolKind, visual.huntingBow);
     let pool = this.animatedPool.get(poolKey);
     if (!pool) {
       pool = [];
@@ -1468,8 +1485,13 @@ function sourceKeyForAgent(agent: CrowdRenderAgent): VillagerSourceKey {
 function animatedPoolKey(
   variant: VillagerSourceKey,
   tool: WorkerToolKind | null,
+  huntingBow = false,
 ): string {
-  return `${variant}:${tool ?? 'unarmed'}`;
+  return `${variant}:${tool ?? 'unarmed'}${huntingBow ? ':hunting' : ''}`;
+}
+
+function isHuntingBowAgent(agent: CrowdRenderAgent): boolean {
+  return agent.huntingBow === true && agent.tool === 'bow';
 }
 
 async function loadVillagerSource(

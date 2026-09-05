@@ -105,6 +105,7 @@ import {
 import type { LoadingPhase } from '../ui/loadingProgress.ts';
 import { createBerryPatchVisuals, type BerryPatchVisuals } from '../foraging/BerryPatchVisuals.ts';
 import type { DeerWildlifeVisuals } from '../foraging/DeerWildlifeVisuals.ts';
+import type { HuntingTarget, HuntingTargetQuery } from '../settlement/huntingWork.ts';
 import type { GameHabitatDisturbanceSource } from '../foraging/gameHabitatDisturbance.ts';
 import type { FishWildlifeVisuals } from '../foraging/FishWildlifeVisuals.ts';
 import {
@@ -1700,6 +1701,10 @@ export class SceneManager {
     const network = this.roadNetworkRef;
     if (!network) return null;
     return sampleRoadSurfaceY(network.edges.values(), x, z);
+  }
+
+  findHuntingTarget(query: HuntingTargetQuery): HuntingTarget | null {
+    return this.deerWildlifeVisuals?.findHuntingTarget(query) ?? null;
   }
 
   setGameHabitatLoggingDisturbances(

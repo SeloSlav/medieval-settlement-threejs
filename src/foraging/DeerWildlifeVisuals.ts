@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { findHuntingTarget, type HuntingTarget, type HuntingTargetQuery } from '../settlement/huntingWork.ts';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { mulberry32 } from '../props/forestField.ts';
@@ -41,6 +42,7 @@ type DeerAnimationSet = {
 };
 
 type DeerVisual = {
+  huntingTarget: HuntingTarget;
   nodeId: string;
   sex: DeerSex;
   sexIndex: number;
@@ -63,6 +65,7 @@ type DeerModelSource = {
 };
 
 export type DeerWildlifeVisuals = {
+  findHuntingTarget: (query: HuntingTargetQuery) => HuntingTarget | null;
   group: THREE.Group;
   deerCount: number;
   doeCount: number;
@@ -128,6 +131,7 @@ export async function createDeerWildlifeVisuals(
       deerCount: 0,
       doeCount: 0,
       stagCount: 0,
+      findHuntingTarget: () => null,
       update: () => undefined,
       sync: () => undefined,
       diagnostics: () => ({}),
@@ -165,6 +169,7 @@ export async function createDeerWildlifeVisuals(
 
   const rng = mulberry32(seed ^ 0xd33f51);
   const deer: DeerVisual[] = [];
+  const huntingTargets: HuntingTarget[] = [];
   let doeCount = 0;
   let stagCount = 0;
 
@@ -226,7 +231,14 @@ export async function createDeerWildlifeVisuals(
       firstAction.time = rng() * firstAction.getClip().duration;
       root.position.set(spawn.x, terrain.getHeightAt(spawn.x, spawn.z), spawn.z);
       root.rotation.y = heading;
+      const huntingTarget: HuntingTarget = {
+        id: `${nodeId}:${sex}:${sexIndex}`, nodeId, active: true,
+        x: root.position.x, y: root.position.y + source.targetHeight * sizeVariation * 0.55,
+        z: root.position.z,
+      };
+      huntingTargets.push(huntingTarget);
       deer.push({
+        huntingTarget,
         nodeId,
         sex,
         sexIndex,
@@ -302,6 +314,7 @@ export async function createDeerWildlifeVisuals(
         ? visual.sexIndex < visibleSexCounts.stagCount
         : visual.sexIndex < visibleSexCounts.doeCount;
       visual.root.visible = visible;
+      visual.huntingTarget.active = visible;
     }
 
     for (const [nodeId, previousCenter] of habitatCenters) {
@@ -364,6 +377,7 @@ export async function createDeerWildlifeVisuals(
     },
     update,
     sync,
+    findHuntingTarget: (query) => group.visible ? findHuntingTarget(huntingTargets, query) : null,
     diagnostics: () => Object.fromEntries(
       [...batches].map(([sex, batch]) => [sex, batch.diagnostics()]),
     ),
@@ -426,12 +440,16 @@ function rebaseDeerMotion(state: DeerMotionState, dx: number, dz: number): void 
 }
 
 function syncDeerVisualTransform(visual: DeerVisual, terrain: Terrain): void {
+  const bodyHeight = visual.huntingTarget.y - visual.root.position.y;
   visual.root.position.set(
     visual.motion.x,
     terrain.getHeightAt(visual.motion.x, visual.motion.z),
     visual.motion.z,
   );
   visual.root.rotation.y = visual.motion.heading;
+  visual.huntingTarget.x = visual.root.position.x;
+  visual.huntingTarget.y = visual.root.position.y + bodyHeight;
+  visual.huntingTarget.z = visual.root.position.z;
 }
 
 async function loadDeerModel(

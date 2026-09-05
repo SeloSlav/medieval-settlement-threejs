@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { resizeBatchedMeshGeometry, resizeBatchedMeshInstances } from '../scene/resizeBatchedMesh.ts';
 
 const COLLAPSED_INSTANCE_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0);
 
@@ -246,7 +247,7 @@ export class BuildingStaticBatches {
           usedVertices !== record.vertexCapacity
           || (record.indexed && usedIndices !== record.indexCapacity)
         ) {
-          record.mesh.setGeometrySize(usedVertices, usedIndices);
+          resizeBatchedMeshGeometry(record.mesh, usedVertices, usedIndices);
           record.vertexCapacity = usedVertices;
           record.indexCapacity = usedIndices;
         }
@@ -439,7 +440,7 @@ export class BuildingStaticBatches {
       || indexCapacity !== record.indexCapacity
     ) {
       record.mesh.optimize();
-      record.mesh.setGeometrySize(vertexCapacity, indexCapacity);
+      resizeBatchedMeshGeometry(record.mesh, vertexCapacity, indexCapacity);
       record.vertexCapacity = vertexCapacity;
       record.indexCapacity = indexCapacity;
     }
@@ -447,7 +448,7 @@ export class BuildingStaticBatches {
 
   private ensureInstanceCapacity(record: BuildingBatchRecord): void {
     if (record.activeInstances < record.mesh.maxInstanceCount) return;
-    record.mesh.setInstanceCount(Math.max(
+    resizeBatchedMeshInstances(record.mesh, Math.max(
       record.activeInstances + 1,
       record.mesh.maxInstanceCount * 2,
     ));

@@ -133,6 +133,10 @@ import {
   type WorkerToolKind,
 } from './workerTools.ts';
 import { resolveCombatWeaponPresentation } from './combatWeaponAnimation.ts';
+import {
+  HUNTING_SHOT_SECONDS, HUNTING_WALK_BETWEEN_SHOTS, huntingShotCooldown,
+  type HuntingTarget, type HuntingTargetQuery,
+} from './huntingWork.ts';
 import { shouldCreateBattlefieldWeaponDrop } from './militaryWeaponDropPolicy.ts';
 import {
   villagerDisplayName,
@@ -408,6 +412,7 @@ type VillagerAgent = {
   workTarget: PointXZ & Partial<WorkerTarget> | null;
   workStopDistance: number;
   workRemaining: number;
+  huntingTarget?: HuntingTarget | null;
   workPerformed: boolean;
   idleRemaining: number;
   walkSpeed: number;
@@ -472,6 +477,7 @@ export type VillagerInspection = {
 };
 
 export type VillagerRendererOptions = {
+  findHuntingTarget?: (query: HuntingTargetQuery) => HuntingTarget | null;
   parent: THREE.Group;
   getGameSpeed: () => GameSpeed;
   getHeightAt: (x: number, z: number) => number;
@@ -502,6 +508,7 @@ export class VillagerRenderer {
   private readonly fallenCompanyStandardBearers = new Set<string>();
   private readonly getGameSpeed: () => GameSpeed;
   private readonly getHeightAt: (x: number, z: number) => number;
+  private readonly findHuntingTarget: VillagerRendererOptions['findHuntingTarget'];
   private readonly getRoadDeckY: ((x: number, z: number) => number | null) | null;
   private readonly isWaterAt: ((x: number, z: number) => boolean) | null;
   private readonly routePathAroundObstacles:
@@ -588,6 +595,7 @@ export class VillagerRenderer {
   constructor(options: VillagerRendererOptions) {
     this.getGameSpeed = options.getGameSpeed;
     this.getHeightAt = options.getHeightAt;
+    this.findHuntingTarget = options.findHuntingTarget;
     this.getRoadDeckY = options.getRoadDeckY ?? null;
     this.isWaterAt = options.isWaterAt ?? null;
     this.routePathAroundObstacles = options.routePathAroundObstacles ?? null;
@@ -2370,6 +2378,14 @@ export class VillagerRenderer {
       renderAgent.skinColor = agent.skinColor;
       renderAgent.hairColor = agent.hairColor;
       renderAgent.tool = this.workerToolFor(agent);
+      renderAgent.huntingBow = workplace?.kind === 'hunters_hall' && renderAgent.tool === 'bow';
+      if (renderAgent.huntingBow && agent.workActivity === 'hunt'
+        && agent.routinePhase === 'work' && agent.pathPurpose === 'worker_work_loop'
+        && agent.workRemaining > 0 && agent.huntingTarget?.active) {
+        renderAgent.huntingTarget = agent.huntingTarget;
+        renderAgent.huntingShotCooldown = huntingShotCooldown(agent.workRemaining);
+        renderAgent.yaw = Math.atan2(agent.huntingTarget.x - renderX, agent.huntingTarget.z - renderZ);
+      }
       renderAgent.movementSpeed = agent.currentMoveSpeed;
       renderAgent.active = true;
       renderAgents.push(renderAgent);
@@ -2793,6 +2809,24 @@ export class VillagerRenderer {
   }
 
   private simStep(agent: VillagerAgent, dt: number): void {
+    if (agent.workActivity === 'hunt' && agent.workplaceId) {
+      const eligible = (this.workerTargets.get(agent.workplaceId) ?? [])
+        .some(target => target.id === agent.workTarget?.id && target.kind === 'game');
+      if (!eligible) {
+        if (agent.workRemaining > 0) this.finishWorkerActivity(agent);
+        agent.workActivity = null;
+        agent.huntingTarget = null;
+        agent.workPerformed = true;
+      } else if (agent.workRemaining > 0) {
+        const target = this.huntingTargetFor(agent, agent.huntingTarget?.id);
+        // A deer that leaves the work area or disappears cancels this draw.
+        if (!target || target.id !== agent.huntingTarget?.id) {
+          this.finishWorkerActivity(agent);
+          return;
+        }
+        agent.yaw = Math.atan2(target.x - agent.x, target.z - agent.z);
+      }
+    }
     // A tree's authoritative work target vanishes when it falls or becomes
     // logs. Never keep swinging at the old upright trunk or a depleted log.
     if (agent.workTarget?.kind === 'tree' && agent.workplaceId && !agent.workPerformed) {
@@ -3051,11 +3085,12 @@ export class VillagerRenderer {
     }
     agent.mode = workplace && isClericWorkplaceKind(workplace.kind)
       ? clericDutyAnimation(agent.workTarget.clericDuty, agent.pathSeed) as VillagerMode
-      : agent.workActivity;
+      : agent.workActivity === 'hunt' ? 'wait' : agent.workActivity;
     agent.simPathCursor = agent.workStopDistance;
     agent.pathCursor = agent.workStopDistance;
     agent.displayPathCursor = agent.workStopDistance;
-    agent.workRemaining = WORKER_ACTIVITY_SECONDS;
+    agent.workRemaining = agent.workActivity === 'hunt' ? HUNTING_SHOT_SECONDS : WORKER_ACTIVITY_SECONDS;
+    agent.currentMoveSpeed = 0;
 
     const sample = samplePolylineXZ(agent.path, agent.workStopDistance);
     if (sample) {
@@ -3067,6 +3102,22 @@ export class VillagerRenderer {
       agent.workTarget.z - agent.z,
     );
     agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
+    if (agent.workActivity === 'hunt') {
+      agent.huntingTarget = this.huntingTargetFor(agent);
+      if (!agent.huntingTarget) this.finishWorkerActivity(agent);
+      else agent.yaw = Math.atan2(agent.huntingTarget.x - agent.x, agent.huntingTarget.z - agent.z);
+    }
+  }
+
+  private huntingTargetFor(agent: VillagerAgent, preferredId?: string): HuntingTarget | null {
+    const workplace = agent.workplaceId ? this.buildings.get(agent.workplaceId) : null;
+    if (!workplace || workplace.kind !== 'hunters_hall' || agent.routinePhase !== 'work'
+      || agent.pathPurpose !== 'worker_work_loop' || !agent.workTarget?.id
+      || this.workerToolFor(agent) !== 'bow') return null;
+    return this.findHuntingTarget?.({
+      x: agent.x, z: agent.z, nodeId: agent.workTarget.id, preferredId,
+      areaX: workplace.x, areaZ: workplace.z, areaRadius: workplace.workRadius,
+    }) ?? null;
   }
 
   private finishWorkerActivity(agent: VillagerAgent): void {
@@ -3079,6 +3130,11 @@ export class VillagerRenderer {
     );
     agent.pathCursor = agent.simPathCursor;
     agent.displayPathCursor = agent.simPathCursor;
+    agent.huntingTarget = null;
+    if (agent.workActivity === 'hunt') {
+      agent.workStopDistance = Math.min(agent.pathDistance, agent.workStopDistance + HUNTING_WALK_BETWEEN_SHOTS);
+      agent.workPerformed = agent.workStopDistance >= agent.pathDistance;
+    }
   }
 
   private tryBeginWalk(agent: VillagerAgent, residence: ResidenceState): boolean {
@@ -5187,6 +5243,7 @@ export class VillagerRenderer {
   }
 
   private clearWorkerActivity(agent: VillagerAgent): void {
+    agent.huntingTarget = null;
     agent.workActivity = null;
     agent.workTarget = null;
     agent.workStopDistance = 0;
@@ -5710,6 +5767,7 @@ export class VillagerRenderer {
     if (workplace?.constructionComplete === false) return 'hammer';
     if (workplace && workerProductionBlocker(workplace)) return null;
     const kind = workplace?.kind;
+    if (kind === 'hunters_hall') return 'bow';
     if (kind === 'monastery' && agent.workTarget?.clericDuty === 'pruning') {
       return 'hatchet';
     }
@@ -5994,6 +6052,11 @@ function describeVillagerActivity(
           return `Waiting at ${workplaceLabel} — ${workerProductionBlockerDescription(blocker)}`;
         }
       }
+      if (agent.workActivity === 'hunt' && workplace?.kind === 'hunters_hall') {
+        return agent.workRemaining > 0
+          ? `Hunting deer with a bow near ${workplaceLabel}`
+          : `Stalking game near ${workplaceLabel}`;
+      }
       if (agent.mode === 'chop') {
         return workplace?.kind === 'woodcutters_lodge'
           ? `Cutting firewood near ${workplaceLabel}`
@@ -6010,7 +6073,6 @@ function describeVillagerActivity(
       if (agent.mode === 'sow') return `Broadcast sowing seed for ${workplaceLabel}`;
       if (agent.mode === 'fish') return `Fishing near ${workplaceLabel}`;
       if (agent.mode === 'gather') {
-        if (workplace?.kind === 'hunters_hall') return `Checking game near ${workplaceLabel}`;
         if (workplace?.kind === 'swineherd') return `Collecting mast near ${workplaceLabel}`;
         if (workplace?.kind === 'apiary') return `Inspecting hives at ${workplaceLabel}`;
         if (workplace?.kind === 'monastery' && agent.workTarget?.id?.includes(':monastery:vineyard:')) {
@@ -6332,6 +6394,9 @@ function combatWeaponSoundFamily(
 }
 
 export function clearCrowdCombatPresentation(renderAgent: CrowdRenderAgent): void {
+  renderAgent.huntingBow = undefined;
+  renderAgent.huntingTarget = undefined;
+  renderAgent.huntingShotCooldown = undefined;
   renderAgent.animationRateScale = undefined;
   renderAgent.mounted = undefined;
   renderAgent.companyStandard = undefined;

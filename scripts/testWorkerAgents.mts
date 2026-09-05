@@ -442,7 +442,7 @@ assert.ok(lodgeChopPlan, 'woodcutters should visibly chop at their selected matu
 assert.equal(lodgeChopPlan.target?.id, 'tree-mature');
 
 for (const [kind, nodeKind, expectedActivity] of [
-  ['hunters_hall', 'game', 'gather'],
+  ['hunters_hall', 'game', 'hunt'],
   ['foragers_shed', 'berries', 'gather'],
   ['fishing_camp', 'fish', 'fish'],
 ] as const) {

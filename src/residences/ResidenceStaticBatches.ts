@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { resizeBatchedMeshGeometry, resizeBatchedMeshInstances } from '../scene/resizeBatchedMesh.ts';
 
 type ResidenceBatchEntry = {
   readonly record: ResidenceBatchRecord;
@@ -153,7 +154,7 @@ export class ResidenceStaticBatches {
         usedVertices !== record.vertexCapacity
         || (record.indexed && usedIndices !== record.indexCapacity)
       ) {
-        record.mesh.setGeometrySize(usedVertices, usedIndices);
+        resizeBatchedMeshGeometry(record.mesh, usedVertices, usedIndices);
         record.vertexCapacity = usedVertices;
         record.indexCapacity = usedIndices;
       }
@@ -265,12 +266,12 @@ export class ResidenceStaticBatches {
       || indexCapacity !== record.indexCapacity
     ) {
       record.mesh.optimize();
-      record.mesh.setGeometrySize(vertexCapacity, indexCapacity);
+      resizeBatchedMeshGeometry(record.mesh, vertexCapacity, indexCapacity);
       record.vertexCapacity = vertexCapacity;
       record.indexCapacity = indexCapacity;
     }
     if (record.activeInstances >= record.mesh.maxInstanceCount) {
-      record.mesh.setInstanceCount(Math.max(
+      resizeBatchedMeshInstances(record.mesh, Math.max(
         record.activeInstances + 1,
         record.mesh.maxInstanceCount * 2,
       ));
