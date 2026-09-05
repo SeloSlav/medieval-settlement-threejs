@@ -323,6 +323,13 @@ and maximum contract term remain the current contract design.
   damage in both melee and missile combat; side hits bypass the shield without
   receiving the rear multiplier. Stationary, facing braced spear/polearm ranks
   cancel and reflect the incoming charge bonus.
+- Armor penetration applies to the soldier's combined base protection and
+  issued militia armor. Penetration remaining after the base protection is
+  exhausted continues through padded or mail equipment.
+- A running melee contact retains its initial charge bonus while the soldier
+  waits for attack cooldown. The first available strike against that same
+  enemy consumes it; disengagement, withdrawal, missile fire, or a change of
+  target clears the pending impact.
 - Fatigue affects both attack and defense. Terrain elevation is sampled with
   the existing river-navigation snapshot, so uphill movement and fighting are
   disadvantaged and downhill fighting is favored. Surrounding enemies and

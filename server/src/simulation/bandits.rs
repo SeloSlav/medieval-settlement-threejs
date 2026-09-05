@@ -168,6 +168,7 @@ fn spawn_camp_defenders(ctx: &ReducerContext, camp: &BanditCamp, tick: u64) {
             target_kind: 5,
             target_id: camp.id,
             engagement_target_id: 0,
+            pending_charge_target_id: 0,
             assigned_building_id: 0,
             x: camp.x + angle.cos() * 5.0,
             z: camp.z + angle.sin() * 5.0,

@@ -81,7 +81,15 @@ for (const name of ['worker-male-common-01-v002', 'ottoman-raider-common-01-v001
         const armLength = shoulder.distanceTo(elbow) + elbow.distanceTo(wrist);
         const reach = wrist.clone().sub(shoulder).applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion()).invert()).divideScalar(armLength);
         assert.ok(reach.distanceTo(mirroredReach) < .001, 'shield reach mirrors the approved crossbow carry');
-        assert.ok(outward.clone().divideScalar(armLength).distanceTo(mirroredElbow) < .04, 'shield elbow mirrors the crossbow within authored left/right limb proportions');
+        // The asset's left forearm is longer than the right. Preserve that
+        // anatomy while comparing the same crossbow reach and bend plane.
+        const direction = mirroredReach.clone().normalize(), distance = mirroredReach.length();
+        const bendDirection = mirroredElbow.clone().addScaledVector(direction, -mirroredElbow.dot(direction)).normalize();
+        const upperFraction = shoulder.distanceTo(elbow) / armLength, lowerFraction = elbow.distanceTo(wrist) / armLength;
+        const along = (upperFraction ** 2 - lowerFraction ** 2 + distance ** 2) / (2 * distance);
+        const expectedElbow = direction.multiplyScalar(along).addScaledVector(bendDirection, Math.sqrt(upperFraction ** 2 - along ** 2));
+        assert.ok(outward.clone().divideScalar(armLength).distanceTo(expectedElbow) < .001, 'shield elbow uses the mirrored crossbow bend plane with original limb proportions');
+        rig.ownedBones.forEach((b, i) => assert.deepEqual(b.position.toArray(), before[i]!.slice(0, 3), `${b.name}: carrying cannot lengthen the arm`));
         const current = leftBones.map(b => b.getWorldQuaternion(new THREE.Quaternion()).normalize());
         if (previous && frame < 60) current.forEach((q, i) => { maxJointStep = Math.max(maxJointStep, q.angleTo(previous![i]!)); });
         previous = current;

@@ -2017,6 +2017,9 @@ pub struct CombatAgent {
     /// safely overload those fields.
     #[default(0u64)]
     pub engagement_target_id: u64,
+    /// Melee opponent owed the initial charge bonus once attack cooldown ends.
+    /// Zero means no pending impact; disengaging or changing targets clears it.
+    pub pending_charge_target_id: u64,
     pub x: f64,
     pub z: f64,
     /// Canonical planar velocity used by deterministic combat steering.

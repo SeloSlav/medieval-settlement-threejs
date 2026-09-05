@@ -5,6 +5,7 @@ import { MILITARY_GRIP_BONES, MILITARY_LEFT_GRIP_BONES } from './militaryHandGri
 import { CROSSBOW_FRAME } from './militaryWeaponGeometry.ts';
 import { bowHandGrip, bowPalmLocal } from './bowHandGrip.ts';
 import { SHIELD_HAND_FRAME, shieldHandFit } from './shieldGrip.ts';
+import { bindCarryElbowSurfaces, setCarryElbowVolume, type CarryElbowSurface } from './carryElbowVolume.ts';
 import { acquireAmmunitionAssets, type AmmunitionKind } from './rangedAmmunition.ts';
 import { createWeaponAttackMotion, sampleWeaponAttackMotion, type WeaponAttackMotion } from './weaponAttackMotion.ts';
 
@@ -224,6 +225,7 @@ export type CombatWeaponRig = {
   shieldMount: THREE.Group | null;
   shieldBasePosition: THREE.Vector3;
   shieldBaseQuaternion: THREE.Quaternion;
+  carryElbowSurfaces: CarryElbowSurface[];
   carryGripMount: THREE.Group | null;
   carryGripBaseQuaternion: THREE.Quaternion;
   carryGripBasePosition: THREE.Vector3;
@@ -362,6 +364,8 @@ export function bindCombatWeaponRig(
     shieldMount,
     shieldBasePosition: shieldMount?.position.clone() ?? new THREE.Vector3(),
     shieldBaseQuaternion: shieldMount?.quaternion.clone() ?? new THREE.Quaternion(),
+    carryElbowSurfaces: shieldMount ? bindCarryElbowSurfaces(model, 'shield')
+      : toolKind === 'bow' ? bindCarryElbowSurfaces(model, 'bow-carry') : [],
     carryGripMount: null,
     carryGripBaseQuaternion: new THREE.Quaternion(),
     carryGripBasePosition: new THREE.Vector3(),
@@ -414,6 +418,7 @@ function findRigBone(model: THREE.Group, aliases: readonly string[]): THREE.Bone
 
 export function restoreCombatWeaponPose(rig: CombatWeaponRig): void {
   if (!rig.overlayApplied) return;
+  setCarryElbowVolume(rig.carryElbowSurfaces, false);
   if (rig.shieldMount) {
     rig.shieldMount.position.copy(rig.shieldBasePosition);
     rig.shieldMount.quaternion.copy(rig.shieldBaseQuaternion);
@@ -503,6 +508,8 @@ export function applyMilitaryCarryPose(rig: CombatWeaponRig, tool: WorkerToolKin
   updateArmTwist(rig, primaryLeft);
   if (!primaryLeft && (tool === 'crossbow' || rig.shieldMount)) updateArmTwist(rig, true);
   rig.model.updateWorldMatrix(true, true);
+  setCarryElbowVolume(rig.carryElbowSurfaces, Boolean(rig.shieldMount)
+    || tool === 'bow' && ['walk', 'idle', 'wait', 'relax'].includes(mode));
   return true;
 }
 
@@ -617,6 +624,7 @@ function orientCarryPalm(rig: CombatWeaponRig, left: boolean, mount: THREE.Group
  */
 export function applyCompanyStandardBearerPose(rig: CombatWeaponRig): void {
   if (!rig.overlayApplied) captureBaseQuaternions(rig);
+  setCarryElbowVolume(rig.carryElbowSurfaces, false);
   poseCarryArm(rig, true, [.46, -.48, .16]);
   const hand = rig.armBones.leftHand;
   const world = rig.model.getWorldQuaternion(rig.scratchQuaternions[3]!).multiply(PALM_WEAPON_FRAME);
@@ -1202,6 +1210,7 @@ function applyTimelinePose(rig: CombatWeaponRig, timeline: CombatAttackTimeline,
   mount.quaternion.copy(mount.parent!.getWorldQuaternion(rig.scratchQuaternions[0]!).invert()).multiply(rig.attackOrientation).normalize();
   updateArmTwist(rig, false); updateArmTwist(rig, true);
   rig.model.updateWorldMatrix(true, true);
+  setCarryElbowVolume(rig.carryElbowSurfaces, Boolean(rig.shieldMount));
 }
 function applyTorsoOffset(rig: CombatWeaponRig, lean: number, twist: number): void {
   // Work in the fighter's facing frame. Adding local Euler rotations on top

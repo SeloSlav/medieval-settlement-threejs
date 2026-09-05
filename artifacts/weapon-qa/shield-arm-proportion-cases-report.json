@@ -15,7 +15,7 @@
         "paused": true,
         "standard": false
       },
-      "frame": 3,
+      "frame": 4,
       "errors": [],
       "bones": {
         "leftClavicle": [
@@ -49,39 +49,39 @@
           0.044932176010489974
         ],
         "rightForearm": [
-          -0.15635639635722445,
-          1.063290320764351,
-          0.09914015377151222
+          -0.15579974218270318,
+          1.0584222848875429,
+          0.03580053076712317
         ],
         "rightHand": [
-          -0.16847928913583393,
-          0.8733725106497379,
-          0.08177056124104634
+          -0.16847929645046045,
+          0.8733725332465211,
+          0.08177064887297007
         ]
       },
       "backend": "WebGPUBackend",
-      "drawCalls": 6,
-      "triangles": 25254,
+      "drawCalls": 8,
+      "triangles": 25389,
       "memory": {
-        "attributes": 136,
-        "attributesSize": 4407764,
-        "geometries": 44,
-        "indexAttributes": 6,
-        "indexAttributesSize": 503280,
+        "attributes": 141,
+        "attributesSize": 5191252,
+        "geometries": 45,
+        "indexAttributes": 7,
+        "indexAttributesSize": 627240,
         "indirectStorageAttributes": 0,
         "indirectStorageAttributesSize": 0,
-        "programs": 63,
-        "programsSize": 295349,
+        "programs": 64,
+        "programsSize": 299688,
         "readbackBuffers": 0,
         "readbackBuffersSize": 0,
         "renderTargets": 1,
-        "storageAttributes": 8,
-        "storageAttributesSize": 3637248,
+        "storageAttributes": 10,
+        "storageAttributesSize": 4620288,
         "textures": 25,
         "texturesSize": 106389602,
-        "uniformBuffers": 112,
-        "uniformBuffersSize": 898400,
-        "total": 116131643
+        "uniformBuffers": 113,
+        "uniformBuffersSize": 898720,
+        "total": 118026790
       },
       "camera": {
         "position": [
@@ -147,39 +147,39 @@
           0.016102196344600604
         ],
         "rightForearm": [
-          -0.19883617927357747,
-          1.005114924083138,
-          0.07031031978766417
+          -0.19827953175353616,
+          1.0002468843216896,
+          0.0069705656551576605
         ],
         "rightHand": [
-          -0.21095909307549118,
-          0.8151970105169443,
-          0.05294070323783017
+          -0.2109591006617001,
+          0.8151969865528448,
+          0.05294062572251884
         ]
       },
       "backend": "WebGPUBackend",
       "drawCalls": 36,
-      "triangles": 28016,
+      "triangles": 28286,
       "memory": {
-        "attributes": 136,
-        "attributesSize": 4407764,
-        "geometries": 44,
-        "indexAttributes": 6,
-        "indexAttributesSize": 503280,
+        "attributes": 141,
+        "attributesSize": 5191252,
+        "geometries": 45,
+        "indexAttributes": 7,
+        "indexAttributesSize": 627240,
         "indirectStorageAttributes": 0,
         "indirectStorageAttributesSize": 0,
-        "programs": 63,
-        "programsSize": 295349,
+        "programs": 64,
+        "programsSize": 299688,
         "readbackBuffers": 0,
         "readbackBuffersSize": 0,
         "renderTargets": 1,
-        "storageAttributes": 8,
-        "storageAttributesSize": 3637248,
+        "storageAttributes": 10,
+        "storageAttributesSize": 4620288,
         "textures": 25,
         "texturesSize": 106389602,
-        "uniformBuffers": 112,
-        "uniformBuffersSize": 898400,
-        "total": 116131643
+        "uniformBuffers": 113,
+        "uniformBuffersSize": 898720,
+        "total": 118026790
       },
       "camera": {
         "position": [
@@ -211,7 +211,7 @@
         "paused": true,
         "standard": false
       },
-      "frame": 34,
+      "frame": 33,
       "errors": [],
       "bones": {
         "leftClavicle": [
@@ -256,28 +256,28 @@
         ]
       },
       "backend": "WebGPUBackend",
-      "drawCalls": 68,
-      "triangles": 28016,
+      "drawCalls": 66,
+      "triangles": 28286,
       "memory": {
-        "attributes": 136,
-        "attributesSize": 4407764,
-        "geometries": 44,
-        "indexAttributes": 6,
-        "indexAttributesSize": 503280,
+        "attributes": 141,
+        "attributesSize": 5191252,
+        "geometries": 45,
+        "indexAttributes": 7,
+        "indexAttributesSize": 627240,
         "indirectStorageAttributes": 0,
         "indirectStorageAttributesSize": 0,
-        "programs": 63,
-        "programsSize": 295349,
+        "programs": 64,
+        "programsSize": 299688,
         "readbackBuffers": 0,
         "readbackBuffersSize": 0,
         "renderTargets": 1,
-        "storageAttributes": 8,
-        "storageAttributesSize": 3637248,
+        "storageAttributes": 10,
+        "storageAttributesSize": 4620288,
         "textures": 25,
         "texturesSize": 106389602,
-        "uniformBuffers": 112,
-        "uniformBuffersSize": 898400,
-        "total": 116131643
+        "uniformBuffers": 113,
+        "uniformBuffersSize": 898720,
+        "total": 118026790
       },
       "camera": {
         "position": [
@@ -309,7 +309,7 @@
         "paused": true,
         "standard": false
       },
-      "frame": 66,
+      "frame": 64,
       "errors": [],
       "bones": {
         "leftClavicle": [
@@ -343,39 +343,39 @@
           -0.050600761619428884
         ],
         "rightForearm": [
-          -0.27649712958685285,
-          1.0645013848444944,
-          0.002451834274511802
+          -0.27594817409146993,
+          1.0597005863403417,
+          -0.06001302999683284
         ],
         "rightHand": [
-          -0.288733960641594,
-          0.873742609442989,
-          -0.014414062957729373
+          -0.28873395256167217,
+          0.8737426125680015,
+          -0.014414113624403209
         ]
       },
       "backend": "WebGPUBackend",
-      "drawCalls": 132,
-      "triangles": 28138,
+      "drawCalls": 128,
+      "triangles": 28093,
       "memory": {
-        "attributes": 136,
-        "attributesSize": 4407764,
-        "geometries": 44,
-        "indexAttributes": 6,
-        "indexAttributesSize": 503280,
+        "attributes": 141,
+        "attributesSize": 5191252,
+        "geometries": 45,
+        "indexAttributes": 7,
+        "indexAttributesSize": 627240,
         "indirectStorageAttributes": 0,
         "indirectStorageAttributesSize": 0,
-        "programs": 63,
-        "programsSize": 295349,
+        "programs": 64,
+        "programsSize": 299688,
         "readbackBuffers": 0,
         "readbackBuffersSize": 0,
         "renderTargets": 1,
-        "storageAttributes": 8,
-        "storageAttributesSize": 3637248,
+        "storageAttributes": 10,
+        "storageAttributesSize": 4620288,
         "textures": 25,
         "texturesSize": 106389602,
-        "uniformBuffers": 112,
-        "uniformBuffersSize": 898400,
-        "total": 116131643
+        "uniformBuffers": 113,
+        "uniformBuffersSize": 898720,
+        "total": 118026790
       },
       "camera": {
         "position": [
@@ -407,7 +407,7 @@
         "paused": true,
         "standard": false
       },
-      "frame": 83,
+      "frame": 81,
       "errors": [],
       "bones": {
         "leftClavicle": [
@@ -452,28 +452,28 @@
         ]
       },
       "backend": "WebGPUBackend",
-      "drawCalls": 166,
-      "triangles": 28634,
+      "drawCalls": 162,
+      "triangles": 28589,
       "memory": {
-        "attributes": 154,
-        "attributesSize": 4712852,
-        "geometries": 50,
-        "indexAttributes": 6,
-        "indexAttributesSize": 503280,
+        "attributes": 159,
+        "attributesSize": 5479060,
+        "geometries": 51,
+        "indexAttributes": 7,
+        "indexAttributesSize": 627240,
         "indirectStorageAttributes": 0,
         "indirectStorageAttributesSize": 0,
-        "programs": 73,
-        "programsSize": 330819,
+        "programs": 74,
+        "programsSize": 335158,
         "readbackBuffers": 0,
         "readbackBuffersSize": 0,
         "renderTargets": 1,
-        "storageAttributes": 8,
-        "storageAttributesSize": 3637248,
+        "storageAttributes": 10,
+        "storageAttributesSize": 4620288,
         "textures": 28,
         "texturesSize": 106651679,
-        "uniformBuffers": 132,
-        "uniformBuffersSize": 1065440,
-        "total": 116901318
+        "uniformBuffers": 133,
+        "uniformBuffersSize": 1065760,
+        "total": 118779185
       },
       "camera": {
         "position": [
@@ -505,7 +505,7 @@
         "paused": true,
         "standard": false
       },
-      "frame": 97,
+      "frame": 98,
       "errors": [],
       "bones": {
         "leftClavicle": [
@@ -539,39 +539,39 @@
           0.002736490353750157
         ],
         "rightForearm": [
-          -0.21358213117558572,
-          1.1274388556959654,
-          0.061442764673421406
+          -0.21297929385058056,
+          1.1221668684280126,
+          -0.007152885164305249
         ],
         "rightHand": [
-          -0.22671099376601242,
-          0.9217616628791278,
-          0.04263183204572106
+          -0.2267110025024585,
+          0.9217616402644135,
+          0.042631749015506176
         ]
       },
       "backend": "WebGPUBackend",
-      "drawCalls": 194,
-      "triangles": 27936,
+      "drawCalls": 196,
+      "triangles": 28206,
       "memory": {
-        "attributes": 172,
-        "attributesSize": 4922708,
-        "geometries": 56,
-        "indexAttributes": 6,
-        "indexAttributesSize": 503280,
+        "attributes": 177,
+        "attributesSize": 5671636,
+        "geometries": 57,
+        "indexAttributes": 7,
+        "indexAttributesSize": 627240,
         "indirectStorageAttributes": 0,
         "indirectStorageAttributesSize": 0,
-        "programs": 83,
-        "programsSize": 366289,
+        "programs": 84,
+        "programsSize": 370628,
         "readbackBuffers": 0,
         "readbackBuffersSize": 0,
         "renderTargets": 1,
-        "storageAttributes": 8,
-        "storageAttributesSize": 3637248,
+        "storageAttributes": 10,
+        "storageAttributesSize": 4620288,
         "textures": 28,
         "texturesSize": 106651679,
-        "uniformBuffers": 152,
-        "uniformBuffersSize": 1232480,
-        "total": 117313684
+        "uniformBuffers": 153,
+        "uniformBuffersSize": 1232800,
+        "total": 119174271
       },
       "camera": {
         "position": [
@@ -603,7 +603,7 @@
         "paused": true,
         "standard": false
       },
-      "frame": 111,
+      "frame": 115,
       "errors": [],
       "bones": {
         "leftClavicle": [
@@ -648,28 +648,28 @@
         ]
       },
       "backend": "WebGPUBackend",
-      "drawCalls": 222,
-      "triangles": 26986,
+      "drawCalls": 230,
+      "triangles": 26941,
       "memory": {
-        "attributes": 172,
-        "attributesSize": 4922708,
-        "geometries": 56,
-        "indexAttributes": 6,
-        "indexAttributesSize": 503280,
+        "attributes": 177,
+        "attributesSize": 5671636,
+        "geometries": 57,
+        "indexAttributes": 7,
+        "indexAttributesSize": 627240,
         "indirectStorageAttributes": 0,
         "indirectStorageAttributesSize": 0,
-        "programs": 83,
-        "programsSize": 366289,
+        "programs": 84,
+        "programsSize": 370628,
         "readbackBuffers": 0,
         "readbackBuffersSize": 0,
         "renderTargets": 1,
-        "storageAttributes": 8,
-        "storageAttributesSize": 3637248,
+        "storageAttributes": 10,
+        "storageAttributesSize": 4620288,
         "textures": 28,
         "texturesSize": 106651679,
-        "uniformBuffers": 152,
-        "uniformBuffersSize": 1232480,
-        "total": 117313684
+        "uniformBuffers": 153,
+        "uniformBuffersSize": 1232800,
+        "total": 119174271
       },
       "camera": {
         "position": [

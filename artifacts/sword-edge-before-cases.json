@@ -1,0 +1,5 @@
+[
+  {"name":"sword-edge-before-sidearm-wind","weapon":"sidearm","variant":"man","mode":"attack","view":"front","phase":0.84,"seed":431},
+  {"name":"sword-edge-before-sidearm-cut","weapon":"sidearm","variant":"man","mode":"attack","view":"side","phase":0.92,"seed":431},
+  {"name":"sword-edge-before-sword-grip","weapon":"sword-shield","variant":"raider","mode":"attack","view":"grip","phase":0.92,"seed":431}
+]

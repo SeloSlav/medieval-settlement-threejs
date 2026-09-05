@@ -297,6 +297,7 @@ export const CombatAgent = __t.object("CombatAgent", {
   targetKind: __t.u8(),
   targetId: __t.u64(),
   engagementTargetId: __t.u64(),
+  pendingChargeTargetId: __t.u64(),
   x: __t.f64(),
   z: __t.f64(),
   velocityX: __t.f64(),

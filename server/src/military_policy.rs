@@ -684,6 +684,29 @@ pub fn bracing_cancels_charge(kind: MilitaryKind, formation: u8, stationary: boo
     kind.can_brace() && formation == MILITARY_FORMATION_BRACE && stationary && frontal
 }
 
+/// A melee impact belongs to one opponent until the first available strike.
+/// Call with `melee_contact = false` when disengaging or using a missile weapon.
+/// The returned target is persisted by the caller; the bonus is consumed once.
+pub fn resolve_melee_charge(
+    pending_target: u64,
+    target: u64,
+    melee_contact: bool,
+    charged_into_contact: bool,
+    strike_ready: bool,
+) -> (u64, bool) {
+    if !melee_contact || target == 0 {
+        return (0, false);
+    }
+    let charged = charged_into_contact || pending_target == target;
+    if !charged {
+        (0, false)
+    } else if strike_ready {
+        (0, true)
+    } else {
+        (target, false)
+    }
+}
+
 pub fn missile_evasion_chance(formation: u8, stance: u8) -> f64 {
     let base = if formation == MILITARY_FORMATION_LOOSE { 0.25 } else { 0.10 };
     base * if stance == MILITARY_STANCE_MISSILE_ALERT { 2.0 } else { 1.0 }
@@ -902,6 +925,8 @@ pub fn shield_wall_damage_multiplier(kind: MilitaryKind, formation: u8) -> f64 {
 pub struct CompanyDefense {
     pub kind: MilitaryKind,
     pub member_seed: u64,
+    /// Protection issued in addition to the unit's ordinary combat profile.
+    pub extra_armor: f64,
     pub formation: u8,
     pub stance: u8,
     pub level: u32,
@@ -924,7 +949,7 @@ pub fn incoming_company_damage_multiplier(
     attack: IncomingMilitaryAttack,
 ) -> f64 {
     let profile = member_combat_profile(defense.kind, defense.member_seed);
-    let armor = (profile.armor - attack.penetration).max(0.0);
+    let armor = (profile.armor + defense.extra_armor - attack.penetration).max(0.0);
     let armor_multiplier = 1.0 / (1.0 + armor * 0.055);
     let shield_multiplier = if attack.frontal {
         (1.0 - profile.shield * 0.022).clamp(0.64, 1.0)
@@ -1233,6 +1258,7 @@ mod tests {
         let defense = CompanyDefense {
             kind: MilitaryKind::Polearms,
             member_seed: 42,
+            extra_armor: 0.0,
             formation: MILITARY_FORMATION_BRACE,
             stance: MILITARY_STANCE_BALANCED,
             level: 1,
@@ -1267,6 +1293,7 @@ mod tests {
         let defense = CompanyDefense {
             kind: MilitaryKind::Spearmen,
             member_seed: 7,
+            extra_armor: 0.0,
             formation: MILITARY_FORMATION_SHIELD_WALL,
             stance: MILITARY_STANCE_BALANCED,
             level: 1,
@@ -1339,6 +1366,114 @@ mod tests {
         assert_eq!(ordered_run_multiplier(true, 1.0), 1.0);
         assert_eq!(fatigue_effectiveness(0.5), 0.5);
         assert!(equipment_exertion_multiplier(15.0, 8.0) > equipment_exertion_multiplier(2.0, 0.0));
+    }
+
+    #[test]
+    fn penetration_reaches_militia_issued_armor_after_exhausting_base_armor() {
+        let defense = CompanyDefense {
+            kind: MilitaryKind::Militia,
+            member_seed: 42,
+            extra_armor: 0.0,
+            formation: MILITARY_FORMATION_LINE,
+            stance: MILITARY_STANCE_BALANCED,
+            level: 1,
+            cohesion: 1.0,
+            stationary: true,
+        };
+        let base_armor = member_combat_profile(defense.kind, defense.member_seed).armor;
+        for issued_armor in [5.0, 12.0] {
+            let equipped = CompanyDefense { extra_armor: issued_armor, ..defense };
+            // Four penetration points remain after passing through base armor.
+            let attack = IncomingMilitaryAttack {
+                penetration: base_armor + 4.0,
+                ranged: false,
+                frontal: true,
+                charging: false,
+            };
+            let unarmored = incoming_company_damage_multiplier(defense, attack);
+            let partial = incoming_company_damage_multiplier(equipped, attack);
+            let at_base = incoming_company_damage_multiplier(equipped,
+                IncomingMilitaryAttack { penetration: base_armor, ..attack });
+            let fully_penetrated = incoming_company_damage_multiplier(equipped,
+                IncomingMilitaryAttack { penetration: base_armor + issued_armor, ..attack });
+            let excess_penetration = incoming_company_damage_multiplier(equipped,
+                IncomingMilitaryAttack { penetration: base_armor + issued_armor + 100.0, ..attack });
+            assert!(at_base < partial && partial < fully_penetrated);
+            assert!((fully_penetrated - unarmored).abs() < 1e-12);
+            assert_eq!(fully_penetrated, excess_penetration);
+        }
+    }
+
+    #[test]
+    fn penetration_of_issued_armor_preserves_directional_shield_defense() {
+        let defense = CompanyDefense {
+            kind: MilitaryKind::Spearmen,
+            member_seed: 7,
+            extra_armor: 12.0,
+            formation: MILITARY_FORMATION_LINE,
+            stance: MILITARY_STANCE_BALANCED,
+            level: 1,
+            cohesion: 1.0,
+            stationary: true,
+        };
+        let attack = IncomingMilitaryAttack {
+            penetration: 100.0,
+            ranged: false,
+            frontal: true,
+            charging: false,
+        };
+        for ranged in [false, true] {
+            let front = IncomingMilitaryAttack { ranged, ..attack };
+            let rear = IncomingMilitaryAttack { frontal: false, ..front };
+            assert!(incoming_company_damage_multiplier(defense, front)
+                < incoming_company_damage_multiplier(defense, rear));
+            assert_eq!(incoming_company_damage_multiplier(defense, front),
+                incoming_company_damage_multiplier(CompanyDefense { extra_armor: 0.0, ..defense }, front));
+        }
+    }
+
+    #[test]
+    fn charge_waits_through_cooldown_and_is_consumed_on_only_the_first_strike() {
+        let (mut pending, hit) = resolve_melee_charge(0, 73, true, true, false);
+        assert_eq!((pending, hit), (73, false));
+        // The soldier has stopped advancing, but remains in contact while
+        // cooldown runs down over several simulation heartbeats.
+        for _ in 0..4 {
+            let (next, hit) = resolve_melee_charge(pending, 73, true, false, false);
+            assert_eq!((next, hit), (73, false));
+            pending = next;
+        }
+        let (pending, hit) = resolve_melee_charge(pending, 73, true, false, true);
+        assert_eq!((pending, hit), (0, true));
+        assert_eq!(resolve_melee_charge(pending, 73, true, false, true), (0, false));
+    }
+
+    #[test]
+    fn charge_can_strike_immediately_or_after_a_fresh_reengagement() {
+        assert_eq!(resolve_melee_charge(0, 73, true, true, true), (0, true));
+        let (pending, _) = resolve_melee_charge(0, 73, true, true, false);
+        let (pending, hit) = resolve_melee_charge(pending, 73, false, false, false);
+        assert_eq!((pending, hit), (0, false));
+        assert_eq!(resolve_melee_charge(pending, 73, true, false, true), (0, false));
+        assert_eq!(resolve_melee_charge(pending, 73, true, true, true), (0, true));
+    }
+
+    #[test]
+    fn pending_charge_cannot_transfer_to_another_enemy_or_a_missile_shot() {
+        assert_eq!(resolve_melee_charge(73, 74, true, false, true), (0, false));
+        assert_eq!(resolve_melee_charge(73, 74, true, false, false), (0, false));
+        assert_eq!(resolve_melee_charge(73, 73, false, false, true), (0, false));
+        assert_eq!(resolve_melee_charge(0, 73, false, true, true), (0, false));
+        assert_eq!(resolve_melee_charge(73, 0, true, false, true), (0, false));
+        // A genuine new running contact may arm a different enemy.
+        assert_eq!(resolve_melee_charge(73, 74, true, true, false), (74, false));
+    }
+
+    #[test]
+    fn ordinary_melee_contact_does_not_award_a_charge() {
+        assert_eq!(resolve_melee_charge(0, 73, true, false, false), (0, false));
+        assert_eq!(resolve_melee_charge(0, 73, true, false, true), (0, false));
+        assert_eq!(resolve_melee_charge(0, 0, true, true, true), (0, false));
     }
 
     #[test]

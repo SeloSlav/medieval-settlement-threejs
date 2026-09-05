@@ -1,0 +1,13 @@
+[
+ {"name":"elbow-volume-shield-front","weapon":"sidearm-shield","variant":"man","mode":"walk","time":0.35,"view":"elbow-left"},
+ {"name":"elbow-volume-shield-back","weapon":"sidearm-shield","variant":"man","mode":"attack","phase":0.95,"view":"elbow-left-back"},
+ {"name":"elbow-volume-bow-front","weapon":"bow","variant":"man","mode":"walk","time":0.35,"view":"elbow-left"},
+ {"name":"elbow-volume-bow-back","weapon":"bow","variant":"man","mode":"idle","time":0.65,"view":"elbow-left-back"},
+ {"name":"elbow-volume-bow-whole","weapon":"bow","variant":"man","mode":"walk","time":0.35,"view":"left-front"},
+ {"name":"elbow-volume-shield-whole","weapon":"sidearm-shield","variant":"man","mode":"walk","time":0.35,"view":"left-front"},
+ {"name":"elbow-volume-spear-stress","weapon":"spear-shield","variant":"man","mode":"attack","phase":0.95,"view":"left-front","seed":4294967295},
+ {"name":"elbow-volume-sword-far","weapon":"sword-shield","variant":"man","mode":"walk","time":0.25,"view":"far","seed":9821},
+ {"name":"elbow-volume-raider","weapon":"sidearm-shield","variant":"raider","mode":"walk","time":0.75,"view":"elbow-left"},
+ {"name":"elbow-volume-bow-fire-locked","weapon":"bow","variant":"man","mode":"attack","phase":0.95,"view":"elbow-left"},
+ {"name":"elbow-volume-crossbow-locked","weapon":"crossbow","variant":"man","mode":"walk","time":0.35,"view":"left-front"}
+]

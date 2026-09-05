@@ -62,6 +62,7 @@ pub fn purchase_kennel_dog(ctx: &ReducerContext, kennel_id: u64) -> Result<(), S
         target_kind: 0,
         target_id: kennel_id,
         engagement_target_id: 0,
+        pending_charge_target_id: 0,
         x: kennel.x + local_x,
         z: kennel.z + 1.1,
         velocity_x: 0.0,

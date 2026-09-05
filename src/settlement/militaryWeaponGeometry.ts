@@ -110,6 +110,9 @@ export function swordBladeGeometry(length:number,width:number):THREE.BufferGeome
 
 export function createRealisticSword(materials:MilitaryEquipmentMaterials,longSword:boolean):THREE.Group{
  const group=new THREE.Group();group.name=longSword?'Procedural longsword':'Procedural arming sword';
+ // Roll the complete hilt/blade about its +Y handle axis so the cutting edge
+ // leads the slash. Assembly batching bakes this without changing the palm fit.
+ group.rotation.y=Math.PI/2;
  group.userData.equipmentIdentity=longSword?'mail-company-longsword':'infantry-sidearm';
  const gripLength=longSword?.20:.17,span=longSword?.14:.115;
  group.userData.modelGripLocal=[0,-.028-gripLength*.5,0];

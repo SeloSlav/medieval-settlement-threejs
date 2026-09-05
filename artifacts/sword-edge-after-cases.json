@@ -1,0 +1,15 @@
+[
+  {"name":"sword-edge-after-sidearm-wind","weapon":"sidearm","variant":"man","mode":"attack","view":"front","phase":0.84,"seed":431},
+  {"name":"sword-edge-after-sidearm-cut","weapon":"sidearm","variant":"man","mode":"attack","view":"side","phase":0.92,"seed":431},
+  {"name":"sword-edge-after-sword-grip","weapon":"sword-shield","variant":"raider","mode":"attack","view":"grip","phase":0.92,"seed":431},
+  {"name":"sword-edge-after-sidearm-contact","weapon":"sidearm","variant":"man","mode":"attack","view":"side","phase":1,"seed":431},
+  {"name":"sword-edge-after-sidearm-shield-cut","weapon":"sidearm-shield","variant":"man","mode":"attack","view":"side","phase":0.92,"seed":431},
+  {"name":"sword-edge-after-sword-cut","weapon":"sword-shield","variant":"man","mode":"attack","view":"side","phase":0.92,"seed":431},
+  {"name":"sword-edge-after-raider-cut","weapon":"sidearm","variant":"raider","mode":"attack","view":"side","phase":0.92,"seed":431},
+  {"name":"sword-edge-after-raider-shield-cut","weapon":"sidearm-shield","variant":"raider","mode":"attack","view":"side","phase":0.92,"seed":431},
+  {"name":"sword-edge-after-sword-far","weapon":"sword-shield","variant":"raider","mode":"attack","view":"far","phase":0.92,"seed":821},
+  {"name":"sword-edge-after-carry-grip","weapon":"sidearm","variant":"man","mode":"walk","view":"grip","phase":0.4,"seed":431},
+  {"name":"sword-edge-after-raider-carry","weapon":"sword-shield","variant":"raider","mode":"run","view":"side","phase":0.4,"seed":431},
+  {"name":"sword-edge-after-bow-fallback","weapon":"bow","variant":"man","mode":"fallback","view":"side","phase":0.92,"seed":431},
+  {"name":"sword-edge-after-crossbow-fallback","weapon":"crossbow","variant":"raider","mode":"fallback","view":"grip","phase":0.92,"seed":431}
+]

@@ -664,6 +664,8 @@ function createCrossbowQuiver(materials: Materials, ammunitionMaterial: THREE.Me
 /** Compact belt dagger used only when a bow or crossbowman is forced into contact. */
 function createFallbackDagger(materials: Materials): THREE.Group {
   const group = new THREE.Group();
+  // This sidearm uses the sword slash timeline, so match its edge orientation.
+  group.rotation.y = Math.PI / 2;
   add(
     group,
     shapeGeometry([[-0.018, 0], [-0.023, 0.22], [0, 0.32], [0.023, 0.22], [0.018, 0]], 0.004, 0.001),

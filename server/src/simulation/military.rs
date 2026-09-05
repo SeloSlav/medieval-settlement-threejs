@@ -10,7 +10,7 @@ use crate::economy::spend_treasury_gold;
 use crate::military_policy::{
     deployed_formation_offset, ordered_run_multiplier, fatigue_effectiveness,
     equipment_exertion_multiplier, stance_morale_required, is_rear_attack,
-    shot_lane_intersection, bracing_cancels_charge,
+    shot_lane_intersection, bracing_cancels_charge, resolve_melee_charge,
     company_wage_periods_due, company_wages_enabled, local_company_requires_provisions, matchup_damage_multiplier,
     formation_charge_multiplier, formation_speed_multiplier, is_front_attack,
     member_combat_profile, military_battle_end_ticks, military_day_ticks,
@@ -714,6 +714,10 @@ fn step_active_member(
     melee_rank_hint: Option<DenseEngagementRank>,
     road_network: Option<&RoadNetwork>,
 ) {
+    // Every non-contact path clears the old impact, including retreat and
+    // explicit movement orders. Only continued melee can restore it below.
+    let pending_charge_target_id = std::mem::take(&mut agent.pending_charge_target_id);
+    let pending_charge_target_id = if agent.state == FIGHTING { pending_charge_target_id } else { 0 };
     if company.state >= 2 {
         member.phase = 2;
         ctx.db.military_member().combat_agent_id().update(member);
@@ -960,6 +964,14 @@ fn step_active_member(
                 && company.running && company.fatigue < 0.95
                 && agent.state == ADVANCING
                 && agent.velocity_x.hypot(agent.velocity_z) >= stats.speed * 0.55;
+            let (pending_target, charged_strike) = resolve_melee_charge(
+                pending_charge_target_id,
+                enemy.id,
+                !can_shoot,
+                charged_into_contact,
+                agent.attack_cooldown <= 0.0,
+            );
+            agent.pending_charge_target_id = pending_target;
             let enemy_was_advancing = enemy.state == ADVANCING;
             let enemy_was_charging = enemy_was_advancing
                 && enemy.velocity_x.hypot(enemy.velocity_z) >= 1.0;
@@ -1012,7 +1024,7 @@ fn step_active_member(
                     * veteran_damage_multiplier(company.level)
                     * stance_damage_multiplier(company.stance)
                     * readiness.max(0.025)
-                    * if charged_into_contact {
+                    * if charged_strike {
                         (1.0 + profile.charge) * formation_charge_multiplier(company.formation)
                     } else {
                         1.0
@@ -1681,6 +1693,7 @@ fn mitigate_player_damage(
         CompanyDefense {
             kind,
             member_seed: member_seed(member),
+            extra_armor: militia_kit_armor(kind, defender),
             formation: company.formation,
             stance: company.stance,
             level: company.level,
@@ -1705,10 +1718,7 @@ fn mitigate_player_damage(
     let braced = bracing_cancels_charge(kind, company.formation, defender_was_stationary, incoming_front);
     let charge = if attacker_was_charging && !incoming_ranged && !braced { 1.35 } else { 1.0 };
     let rear = is_rear_attack(company.facing_x, company.facing_z, defender.x, defender.z, attacker.x, attacker.z);
-    let extra_armor = militia_kit_armor(kind, defender);
-    let base_armor = (profile.armor - penetration).max(0.0);
-    let armor = (1.0 + base_armor * 0.055) / (1.0 + (base_armor + extra_armor) * 0.055);
-    raw_damage.max(0.0) * mitigation * charge * armor * if rear { 2.0 } else { 1.0 }
+    raw_damage.max(0.0) * mitigation * charge * if rear { 2.0 } else { 1.0 }
         * battlefield_effectiveness(ctx, attacker, defender, incoming_ranged)
         / (fatigue_effectiveness(company.fatigue) * battlefield_effectiveness(ctx, defender, attacker, false)).max(0.05)
 }

@@ -37,9 +37,9 @@ try {
       const equipment = attachMilitaryEquipment(model, sources[kind]);
       const rig = api.bindCombatWeaponRig(model, kind, equipment)!;
       const allBones: THREE.Bone[] = [];
-      model.traverse(b => { if (b instanceof THREE.Bone && !b.name.startsWith('L_ShieldCuff')) allBones.push(b); });
-      const shieldBones = new Set([rig.armBones.leftUpperArm, rig.armBones.leftForearm, rig.armBones.leftHand,
-        ...rig.twistBones.left, ...rig.leftGripBones]);
+      model.traverse(b => { if (b instanceof THREE.Bone) allBones.push(b); });
+      const originalGeometry = new Map<THREE.SkinnedMesh, THREE.BufferGeometry>();
+      model.traverse(mesh => { if (mesh instanceof THREE.SkinnedMesh) originalGeometry.set(mesh, mesh.geometry); });
       const mixer = new THREE.AnimationMixer(model);
       for (const mode of ['idle', 'walk', 'run', 'flee', 'hurt', 'fall', 'attack', 'hit', 'fallback', 'standard-walk', 'standard-attack']) {
         const standard = mode.startsWith('standard-');
@@ -58,16 +58,14 @@ try {
           else api.applyMilitaryCarryPose(rig, kind, standard ? 'walk' : mode);
           if (standard) api.applyCompanyStandardBearerPose(rig);
           model.updateMatrixWorld(true);
-          // Only an active shield's left arm may change. Bow/crossbow,
-          // primary weapons, torso, legs, falls and standard poses are locked.
-          const shieldArm = Boolean(rig.shieldMount) && !standard && mode !== 'fall';
-          if (!shieldArm) model.traverse(b => { if (b instanceof THREE.Bone && b.name.startsWith('L_ShieldCuff')) {
-            assert.ok(b.position.length() < 1e-10 && b.quaternion.angleTo(new THREE.Quaternion()) < 1e-7,
-              `${kind}/${mode}: shield cuff correction leaked into a protected pose`);
-          } });
-          const bones = allBones.filter(b => !shieldArm || !shieldBones.has(b));
-          const mounts = (equipment.userData.workerToolMounts as THREE.Group[]).filter(m => !shieldArm || m !== rig.shieldMount);
-          const values = [...bones.flatMap(b => [...b.position.toArray(), ...b.quaternion.toArray(), ...b.scale.toArray()]),
+          // The user approved the mirrored shield pose before requesting
+          // fuller elbow surfaces. Every bone and mount is now locked too.
+          const roundedCarry = !standard && (Boolean(rig.shieldMount) && mode !== 'fall'
+            || kind === 'bow' && ['idle', 'walk'].includes(mode));
+          if (!roundedCarry) for (const [mesh, geometry] of originalGeometry) assert.equal(mesh.geometry, geometry,
+            `${kind}/${mode}: a carry surface leaked into a protected animation`);
+          const mounts = equipment.userData.workerToolMounts as THREE.Group[];
+          const values = [...allBones.flatMap(b => [...b.position.toArray(), ...b.quaternion.toArray(), ...b.scale.toArray()]),
             ...mounts.flatMap(m => [...m.matrixWorld.elements, Number(m.visible)])];
           // Ignore floating-point noise below a hundred-millionth of a unit.
           hash.update(values.map(v => (Math.round(v * 1e8) / 1e8).toString()).join(',')); hash.update('\n');
@@ -86,6 +84,6 @@ try {
     assert.equal(poses, fixture.poses);
     for (const [key, hash] of Object.entries(hashes)) assert.equal(hash, fixture.hashes[key], `${key}: a pose outside the shield arm changed`);
     assert.equal(Object.keys(hashes).length, Object.keys(fixture.hashes).length);
-    console.log(`${poses} protected poses match the approved baseline, including complete bow/crossbow cycles, falls, melee fallback and standard overrides.`);
+    console.log(`${poses} complete poses match the approved baseline: all bones and mounts, including shield arms, bow/crossbow cycles, falls, melee fallback and standards. Geometry overrides remain confined to their requested carries.`);
   }
 } finally { if (reference) unlinkSync(temporaryPath); }
