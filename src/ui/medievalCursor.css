@@ -1,0 +1,15 @@
+:root {
+  --medieval-cursor: url('/assets/ui/cursors/medieval-pointer.png') 2 2, auto;
+}
+
+html, body, #app { cursor: var(--medieval-cursor); }
+
+/* Ordinary interactive chrome keeps the authored pointer; editing, resizing,
+ * dragging and disabled controls retain their purpose-specific cursors. */
+#app :where(button:not(:disabled), a, summary, [role='button']:not(:disabled), [data-tooltip]:not(:disabled)) {
+  cursor: var(--medieval-cursor);
+}
+
+#app :where(input:not([type='checkbox']):not([type='radio']):not([type='range']), textarea, [contenteditable='true']) {
+  cursor: text;
+}

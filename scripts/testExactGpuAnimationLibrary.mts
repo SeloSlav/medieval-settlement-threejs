@@ -141,7 +141,7 @@ const assets = [
   {
     label: 'female villager',
     path: 'public/assets/models/villagers/worker-female-common-01-v001.glb',
-    expectedClips: 15,
+    expectedClips: 14,
     expectedBones: 41,
   },
   {
@@ -154,6 +154,10 @@ const assets = [
 
 for (const asset of assets) {
   const gltf = await loadGlb(asset.path);
+  if (asset.label === 'female villager') {
+    // Test civilian source motions only; the game never installs her slash take.
+    gltf.animations = gltf.animations.filter(clip => clip.name.toLowerCase() !== 'slash');
+  }
   const compileStartedAt = performance.now();
   const library = new ExactGpuAnimationLibrary({
     sourceRoot: gltf.scene,

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>World hover and construction wheel checks</title>
+<link rel="stylesheet" href="/src/style.css">
+<link rel="stylesheet" href="/src/ui/medievalCursor.css">
+<style>
+  #renderer { position: absolute; inset: 0; background: #394134; }
+  #legend { position: fixed; left: 24px; top: 24px; pointer-events: none; font: 16px Georgia; }
+  #hud { position: fixed; right: 20px; top: 20px; padding: 20px; }
+</style>
+<div id="app"><canvas id="renderer"></canvas><div data-ui-root></div>
+<div id="legend">World hover / construction UI fixture</div><button id="hud">HUD control</button></div>
+<script type="module">
+  import * as THREE from '/node_modules/three/build/three.module.js';
+  import { PlayerAuthoredHoverOutline, findPlayerAuthoredHoverPerimeter } from '/src/resources/PlayerAuthoredHoverOutline.ts';
+  import { ConstructionMapIcons } from '/src/map/ConstructionMapIcons.ts';
+  import { FARM_CROPS } from '/src/resources/types.ts';
+  import { BUILDING_KINDS } from '/src/generated/gameBalance.ts';
+  const domElement = document.querySelector('#renderer');
+  domElement.width = innerWidth; domElement.height = innerHeight;
+  const uiRoot = document.querySelector('[data-ui-root]');
+  const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 1000);
+  camera.position.set(0, 130, 95); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
+  const rect = (x, z, size = 10) => [
+    {x:x-size,z:z-size},{x:x+size,z:z-size},{x:x+size,z:z+size},{x:x-size,z:z+size},
+  ];
+  const building = { id: 'mill', kind: 'lumber_mill', x: -30, z: 0, yaw: 0,
+    constructionComplete: false, constructionProgress: 0.35 };
+  const home = { id: 'home', zoneId: 'zone', parcelIndex: 0, tier: 1, x: 0, z: 0,
+    upgradeTargetTier: 0, upgradeProgress: 0 };
+  const corners = rect(0, 0);
+  const state = {
+    buildings: new Map([[building.id, building]]),
+    residences: new Map([[home.id, home]]),
+    burgageZones: new Map([['zone', {id:'zone',cornerA:corners[0],cornerB:corners[1],
+      cornerC:corners[2],cornerD:corners[3],frontageEdge:0,plotCount:1}]]),
+    farmFields: new Map([['field', {id:'field',corners:rect(30,0),crop:'oats',nextCrop:'rye'}]]),
+    pastures: new Map([['pasture',{id:'pasture',corners:rect(60,0)}]]),
+    livestockHerds: new Map([['pasture',{pastureId:'pasture',species:'sheep'}]]),
+    graveyards: new Map(), vineyardParcels: new Map(),
+  };
+  const raycaster = new THREE.Raycaster();
+  const plane = new THREE.Plane(new THREE.Vector3(0,1,0),0);
+  let offsetX = 0, blocked = false;
+  const terrainProjector = { pick(x,y) {
+    raycaster.setFromCamera(new THREE.Vector2(x / innerWidth * 2 - 1, 1 - y / innerHeight * 2), camera);
+    const hit = raycaster.ray.intersectPlane(plane, new THREE.Vector3());
+    if (hit) hit.x += offsetX;
+    return hit;
+  }};
+  const parent = new THREE.Group();
+  const hover = new PlayerAuthoredHoverOutline({uiRoot,domElement,camera,terrainProjector,parent,
+    getState:()=>state,getRoadNetwork:()=>null,getHeightAt:()=>0,isBlocked:()=>blocked});
+  const rings = new ConstructionMapIcons({uiRoot,domElement,terrain:{getHeightAt:()=>0},
+    getState:()=>state,getCamera:()=>camera,isBlocked:()=>blocked});
+  let frame;
+  const tick = () => { rings.update(); frame = requestAnimationFrame(tick); }; tick();
+  const project = (x,z,y=0) => {
+    camera.updateMatrixWorld();
+    const p = new THREE.Vector3(x,y,z).project(camera);
+    return {x:(p.x*.5+.5)*innerWidth,y:(.5-p.y*.5)*innerHeight};
+  };
+  const ctx = domElement.getContext('2d');
+  ctx.font = '14px Georgia'; ctx.fillStyle = '#e6ddc8';
+  for (const [name,x] of [['Lumber mill',-30],['Residence',0],['Field',30],['Pasture',60]]) {
+    const p=project(x,0); ctx.strokeStyle='#b9bba980';ctx.strokeRect(p.x-36,p.y-24,72,48);
+    ctx.fillText(name,p.x-35,p.y+48);
+  }
+  window.fixture = {state,building,home,camera,project,FARM_CROPS,BUILDING_KINDS,
+    find: (point)=>findPlayerAuthoredHoverPerimeter(state,point,null),
+    setOffset:x=>offsetX=x,setBlocked:value=>blocked=value,
+    dispose:()=>{cancelAnimationFrame(frame);hover.dispose();rings.dispose();},
+  };
+</script>
+</html>

@@ -1,0 +1,9 @@
+[
+  {"name":"bow-fingers-man-front","weapon":"bow","variant":"man","mode":"attack","phase":0.8,"view":"grip"},
+  {"name":"bow-fingers-man-inside","weapon":"bow","variant":"man","mode":"attack","phase":0.8,"view":"grip-inside"},
+  {"name":"bow-fingers-man-back","weapon":"bow","variant":"man","mode":"attack","phase":0.8,"view":"grip-back"},
+  {"name":"bow-fingers-man-nock","weapon":"bow","variant":"man","mode":"attack","phase":0.18,"view":"grip"},
+  {"name":"bow-fingers-man-carry","weapon":"bow","variant":"man","mode":"walk","phase":0.8,"view":"grip"},
+  {"name":"bow-fingers-raider-front","weapon":"bow","variant":"raider","mode":"attack","phase":0.8,"view":"grip"},
+  {"name":"bow-fingers-raider-back","weapon":"bow","variant":"raider","mode":"attack","phase":0.8,"view":"grip-back"}
+]

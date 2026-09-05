@@ -1,0 +1,11 @@
+[
+  {"name":"arrow-nock-close","weapon":"bow","variant":"man","mode":"attack","phase":0.8,"view":"nock"},
+  {"name":"arrow-quiver-close","weapon":"bow","variant":"man","mode":"attack","phase":0.8,"view":"quiver"},
+  {"name":"arrow-draw-side","weapon":"bow","variant":"man","mode":"attack","phase":0.8,"view":"side"},
+  {"name":"arrow-raider-nock","weapon":"bow","variant":"raider","mode":"attack","phase":0.8,"view":"nock","seed":9821},
+  {"name":"arrow-raider-quiver","weapon":"bow","variant":"raider","mode":"attack","phase":0.8,"view":"quiver","seed":9821},
+  {"name":"arrow-far","weapon":"bow","variant":"man","mode":"attack","phase":0.8,"view":"far"},
+  {"name":"bolt-loaded","weapon":"crossbow","variant":"man","mode":"attack","phase":0.8,"view":"grip"},
+  {"name":"arrow-flight-isolated","weapon":"bow","variant":"man","mode":"attack","phase":0.8,"view":"projectile"},
+  {"name":"bolt-flight-isolated","weapon":"crossbow","variant":"man","mode":"attack","phase":0.8,"view":"projectile"}
+]

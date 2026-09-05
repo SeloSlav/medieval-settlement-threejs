@@ -1,5 +1,6 @@
 import { ForagingMapIcons } from '../map/ForagingMapIcons.ts';
 import { QuarryMapIcons } from '../map/QuarryMapIcons.ts';
+import { ConstructionMapIcons } from '../map/ConstructionMapIcons.ts';
 import { SettlementMapIcons } from '../map/SettlementMapIcons.ts';
 import { TerrainMinimapOverlay } from '../map/TerrainMinimapOverlay.ts';
 import type {
@@ -138,6 +139,10 @@ export function createWorldMapUi(options: {
   });
 
   const townNameDialog = new TownNameDialog(uiRoot);
+  const construction = new ConstructionMapIcons({
+    uiRoot, domElement, terrain, getState: getGameState, getCamera,
+    isBlocked: () => isWorldResourceIconVisibilityBlocked(placementGate),
+  });
   const requestSettlementRename = async (settlementId: string): Promise<void> => {
     const settlement = getGameState().settlements.get(settlementId);
     if (!settlement || !onSettlementRename) return;
@@ -203,6 +208,7 @@ export function createWorldMapUi(options: {
       sharedFrameRect = null;
       quarry.update(getFrameRect);
       foraging.update(getFrameRect);
+      construction.update(getFrameRect);
       settlement.update(getFrameRect);
       townReport.refresh();
       illustratedResourceHover.update();
@@ -210,6 +216,7 @@ export function createWorldMapUi(options: {
     dispose(): void {
       illustratedResourceHover.dispose();
       quarry.dispose();
+      construction.dispose();
       foraging.dispose();
       settlement.dispose();
       townReport.dispose();

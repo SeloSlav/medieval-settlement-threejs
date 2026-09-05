@@ -1249,7 +1249,7 @@ export class CameraController {
 
   private applyCursor(): void {
     const override = this.config.getCursorOverride?.();
-    let cursor = override ?? 'default';
+    let cursor = override ?? 'var(--medieval-cursor, default)';
     if (!override && this.isPanning) cursor = 'move';
     if (!override && this.isRotating) cursor = 'grabbing';
     if (cursor === this.activeCursor) return;

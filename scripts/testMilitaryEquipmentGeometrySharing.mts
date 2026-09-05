@@ -49,15 +49,15 @@ for (const source of Object.values(sources)) {
 }
 assert.equal(
   defaultVisibleBatchKeys.size,
-  63,
-  'the simplified quivers and scabbard-free bow/pike kits must collapse to 63 mesh draws',
+  57,
+  'the shared ammunition and simplified quivers must collapse to 57 mesh draws',
 );
 
 for (const source of Object.values(sources)) disposeMilitaryEquipmentSource(source);
 
 console.log(
   'Military equipment exact geometry sharing passed '
-  + '(63 identity batches; no visual substitutions).',
+  + '(57 identity batches; no visual substitutions).',
 );
 
 function assertSameRenderableIdentity(

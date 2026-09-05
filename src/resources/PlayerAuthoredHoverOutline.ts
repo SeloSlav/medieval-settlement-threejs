@@ -13,8 +13,10 @@ import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import { isPointInPolygon2, type Point2 } from '../utils/polygonGeometry.ts';
 import type { GameState } from './types.ts';
+import { buildingHoverLabel, fieldHoverLabel, pastureHoverLabel, residenceHoverLabel } from './worldHoverPresentation.ts';
 
 type PlayerAuthoredHoverOutlineOptions = {
+  uiRoot: HTMLElement;
   domElement: HTMLElement;
   camera: THREE.PerspectiveCamera;
   terrainProjector: TerrainProjector;
@@ -28,6 +30,7 @@ type PlayerAuthoredHoverOutlineOptions = {
 type HoverPerimeter = {
   key: string;
   polygon: readonly Point2[];
+  label: string;
 };
 
 const OUTLINE_WIDTH_PX = 4.5;
@@ -78,11 +81,15 @@ export class PlayerAuthoredHoverOutline {
   );
   private readonly perimeterCenter = new THREE.Vector3();
   private readonly viewCenter = new THREE.Vector3();
+  private readonly tooltip = document.createElement('div');
   private currentPerimeter: HoverPerimeter | null = null;
   private currentKey = '';
   private lastWorldUnitsPerPixel = Number.NaN;
   private pointerX = 0;
   private pointerY = 0;
+  private pointerInside = false;
+  private pointerButtons = 0;
+  private lastPointerRefresh = 0;
   private pendingFrame = 0;
   private cameraFrame = 0;
   private clickPulseFrame = 0;
@@ -90,6 +97,10 @@ export class PlayerAuthoredHoverOutline {
 
   constructor(options: PlayerAuthoredHoverOutlineOptions) {
     this.options = options;
+    this.tooltip.className = 'world-hover-label';
+    this.tooltip.setAttribute('role', 'tooltip');
+    this.tooltip.hidden = true;
+    options.uiRoot.appendChild(this.tooltip);
     this.mesh.name = 'Player-authored hover perimeter';
     this.mesh.visible = false;
     this.mesh.frustumCulled = false;
@@ -106,6 +117,8 @@ export class PlayerAuthoredHoverOutline {
 
     options.domElement.addEventListener('pointermove', this.onPointerMove);
     options.domElement.addEventListener('pointerdown', this.onPointerDown);
+    options.domElement.addEventListener('pointerup', this.onPointerMove);
+    options.domElement.addEventListener('pointercancel', this.onPointerLeave);
     options.domElement.addEventListener('pointerleave', this.onPointerLeave);
     window.addEventListener('blur', this.onPointerLeave);
   }
@@ -113,6 +126,8 @@ export class PlayerAuthoredHoverOutline {
   dispose(): void {
     this.options.domElement.removeEventListener('pointermove', this.onPointerMove);
     this.options.domElement.removeEventListener('pointerdown', this.onPointerDown);
+    this.options.domElement.removeEventListener('pointerup', this.onPointerMove);
+    this.options.domElement.removeEventListener('pointercancel', this.onPointerLeave);
     this.options.domElement.removeEventListener('pointerleave', this.onPointerLeave);
     window.removeEventListener('blur', this.onPointerLeave);
     if (this.pendingFrame !== 0) cancelAnimationFrame(this.pendingFrame);
@@ -124,26 +139,36 @@ export class PlayerAuthoredHoverOutline {
     this.material.dispose();
     this.clickPulseGeometry.dispose();
     this.clickPulseMaterial.dispose();
+    this.tooltip.remove();
   }
 
   private readonly onPointerMove = (event: PointerEvent): void => {
-    if (event.pointerType === 'touch' || this.options.isBlocked()) {
-      this.hide();
+    if (event.pointerType === 'touch') {
+      this.onPointerLeave();
       return;
     }
+    this.pointerInside = true;
+    this.pointerButtons = event.buttons;
     this.pointerX = event.clientX;
     this.pointerY = event.clientY;
+    this.ensureCameraTracking();
     if (this.pendingFrame !== 0) return;
     this.pendingFrame = requestAnimationFrame(this.updateFromPointer);
   };
 
   private readonly onPointerLeave = (): void => {
+    this.pointerInside = false;
+    this.pointerButtons = 0;
+    if (this.cameraFrame !== 0) cancelAnimationFrame(this.cameraFrame);
+    this.cameraFrame = 0;
     if (this.pendingFrame !== 0) cancelAnimationFrame(this.pendingFrame);
     this.pendingFrame = 0;
     this.hide();
   };
 
   private readonly onPointerDown = (event: PointerEvent): void => {
+    this.pointerButtons = event.buttons;
+    this.tooltip.hidden = true;
     if (
       event.button !== 0
       || event.pointerType === 'touch'
@@ -178,10 +203,13 @@ export class PlayerAuthoredHoverOutline {
 
   private readonly updateFromPointer = (): void => {
     this.pendingFrame = 0;
-    if (this.options.isBlocked()) {
+    this.lastPointerRefresh = performance.now();
+    if (!this.pointerInside || this.pointerButtons !== 0 || this.options.isBlocked()
+      || document.elementFromPoint(this.pointerX, this.pointerY) !== this.options.domElement) {
       this.hide();
       return;
     }
+    this.options.camera.updateMatrixWorld();
     const point = this.options.terrainProjector.pick(this.pointerX, this.pointerY);
     if (!point) {
       this.hide();
@@ -196,6 +224,7 @@ export class PlayerAuthoredHoverOutline {
       this.hide();
       return;
     }
+    this.showTooltip(perimeter.label);
     if (perimeter.key === this.currentKey) {
       this.ensureCameraTracking();
       return;
@@ -213,13 +242,18 @@ export class PlayerAuthoredHoverOutline {
 
   private readonly updateFromCamera = (): void => {
     this.cameraFrame = 0;
-    if (!this.mesh.visible || !this.currentPerimeter) return;
-    this.updateGeometryForCamera(false);
+    if (!this.pointerInside) return;
+    // Refresh live labels and re-pick when the camera moves beneath a still pointer.
+    if (performance.now() - this.lastPointerRefresh >= 80 && this.pendingFrame === 0) {
+      this.updateFromPointer();
+    }
+    if (this.options.isBlocked()) this.hide();
+    if (this.mesh.visible) this.updateGeometryForCamera(false);
     this.ensureCameraTracking();
   };
 
   private ensureCameraTracking(): void {
-    if (this.cameraFrame !== 0 || !this.mesh.visible) return;
+    if (this.cameraFrame !== 0 || !this.pointerInside) return;
     this.cameraFrame = requestAnimationFrame(this.updateFromCamera);
   }
 
@@ -327,13 +361,24 @@ export class PlayerAuthoredHoverOutline {
   }
 
   private hide(): void {
-    if (this.cameraFrame !== 0) cancelAnimationFrame(this.cameraFrame);
-    this.cameraFrame = 0;
+    this.tooltip.hidden = true;
     this.currentPerimeter = null;
     this.currentKey = '';
     this.lastWorldUnitsPerPixel = Number.NaN;
     this.mesh.visible = false;
     this.stopClickPulse();
+  }
+
+  private showTooltip(label: string): void {
+    if (this.tooltip.textContent !== label) this.tooltip.textContent = label;
+    this.tooltip.hidden = false;
+    const { width, height } = this.tooltip.getBoundingClientRect();
+    let left = this.pointerX + 22;
+    let top = this.pointerY + 24;
+    if (left + width > window.innerWidth - 10) left = this.pointerX - width - 16;
+    if (top + height > window.innerHeight - 10) top = this.pointerY - height - 16;
+    this.tooltip.style.left = `${Math.round(Math.max(10, left))}px`;
+    this.tooltip.style.top = `${Math.round(Math.max(10, top))}px`;
   }
 }
 
@@ -361,39 +406,49 @@ export function findPlayerAuthoredHoverPerimeter(
       building.z,
       yaw,
     );
-    return { key: `building:${building.id}`, polygon };
+    return { key: `building:${building.id}`, polygon, label: buildingHoverLabel(building) };
   }
 
   for (const zone of state.burgageZones.values()) {
     const zonePolygon = [zone.cornerA, zone.cornerB, zone.cornerC, zone.cornerD];
     if (!isPointInPolygon2(point, zonePolygon)) continue;
     const layout = layoutFromBurgageZone(zone);
-    if (!layout) return { key: `burgage-zone:${zone.id}`, polygon: zonePolygon };
+    if (!layout) return { key: `burgage-zone:${zone.id}`, polygon: zonePolygon, label: 'Residence plot' };
     const parcel = layout.parcels.find((candidate) =>
       isPointInPolygon2(point, candidate.polygon)
     );
+    const residence = parcel ? [...state.residences.values()].find((home) =>
+      home.zoneId === zone.id && home.parcelIndex === parcel.index
+    ) : undefined;
+    const label = residence ? residenceHoverLabel(residence) : 'Residence plot';
     return parcel
-      ? { key: `burgage-parcel:${zone.id}:${parcel.index}`, polygon: parcel.polygon }
-      : { key: `burgage-zone:${zone.id}`, polygon: zonePolygon };
+      ? { key: `burgage-parcel:${zone.id}:${parcel.index}`, polygon: parcel.polygon, label }
+      : { key: `burgage-zone:${zone.id}`, polygon: zonePolygon, label };
   }
 
   for (const graveyard of state.graveyards?.values() ?? []) {
     if (isPointInPolygon2(point, graveyard.corners)) {
-      return { key: `graveyard:${graveyard.id}`, polygon: graveyard.corners };
+      return { key: `graveyard:${graveyard.id}`, polygon: graveyard.corners, label: 'Graveyard' };
     }
   }
 
   for (const pasture of state.pastures.values()) {
     if (isPointInPolygon2(point, pasture.corners)) {
-      return { key: `pasture:${pasture.id}`, polygon: pasture.corners };
+      return { key: `pasture:${pasture.id}`, polygon: pasture.corners,
+        label: pastureHoverLabel(state.livestockHerds.get(pasture.id)?.species) };
     }
   }
 
   for (const field of state.farmFields.values()) {
     if (isPointInPolygon2(point, field.corners)) {
-      return { key: `farm-field:${field.id}`, polygon: field.corners };
+      return { key: `farm-field:${field.id}`, polygon: field.corners, label: fieldHoverLabel(field.crop) };
     }
   }
 
+  for (const vineyard of state.vineyardParcels?.values() ?? []) {
+    if (isPointInPolygon2(point, vineyard.corners)) {
+      return { key: `vineyard:${vineyard.id}`, polygon: vineyard.corners, label: 'Vineyard' };
+    }
+  }
   return null;
 }

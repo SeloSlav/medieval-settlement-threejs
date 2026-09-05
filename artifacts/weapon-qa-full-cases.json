@@ -296,25 +296,9 @@
     "view": "front"
   },
   {
-    "name": "review-03-spear-shield-woman",
-    "weapon": "spear-shield",
-    "variant": "woman",
-    "mode": "attack",
-    "phase": 0.95,
-    "view": "front"
-  },
-  {
     "name": "review-03-sidearm-shield-man",
     "weapon": "sidearm-shield",
     "variant": "man",
-    "mode": "attack",
-    "phase": 0.95,
-    "view": "front"
-  },
-  {
-    "name": "review-03-sidearm-shield-woman",
-    "weapon": "sidearm-shield",
-    "variant": "woman",
     "mode": "attack",
     "phase": 0.95,
     "view": "front"
@@ -325,62 +309,6 @@
     "variant": "man",
     "mode": "attack",
     "phase": 0.95,
-    "view": "front"
-  },
-  {
-    "name": "review-03-sword-shield-woman",
-    "weapon": "sword-shield",
-    "variant": "woman",
-    "mode": "attack",
-    "phase": 0.95,
-    "view": "front"
-  },
-  {
-    "name": "review-03-spear-woman",
-    "weapon": "spear",
-    "variant": "woman",
-    "mode": "attack",
-    "phase": 0.92,
-    "view": "front"
-  },
-  {
-    "name": "review-03-sidearm-woman",
-    "weapon": "sidearm",
-    "variant": "woman",
-    "mode": "attack",
-    "phase": 0.92,
-    "view": "front"
-  },
-  {
-    "name": "review-03-halberd-woman",
-    "weapon": "halberd",
-    "variant": "woman",
-    "mode": "attack",
-    "phase": 0.92,
-    "view": "front"
-  },
-  {
-    "name": "review-03-bow-woman",
-    "weapon": "bow",
-    "variant": "woman",
-    "mode": "attack",
-    "phase": 0.92,
-    "view": "front"
-  },
-  {
-    "name": "review-03-crossbow-woman",
-    "weapon": "crossbow",
-    "variant": "woman",
-    "mode": "attack",
-    "phase": 0.92,
-    "view": "front"
-  },
-  {
-    "name": "review-03-pike-kit-woman",
-    "weapon": "pike-kit",
-    "variant": "woman",
-    "mode": "attack",
-    "phase": 0.92,
     "view": "front"
   }
 ]

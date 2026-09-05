@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { installMilitaryHandGrip } from '../src/settlement/militaryHandGrip.ts';
+import { bowPalmLocal } from '../src/settlement/bowHandGrip.ts';
 import { applyCombatWeaponPose, bindCombatWeaponRig, resetCombatWeaponRig, restoreCombatWeaponPose, resolveCombatWeaponPresentation } from '../src/settlement/combatWeaponAnimation.ts';
 import { attachMilitaryEquipment, createMilitaryEquipmentSources, setMilitaryEquipmentCombatStance } from '../src/settlement/militaryEquipment.ts';
 
@@ -11,7 +12,7 @@ Object.assign(globalThis, {self:globalThis, createImageBitmap:async()=>({width:1
 Object.defineProperty(globalThis,'ProgressEvent',{value:class{constructor(public type:string){}}});
 const sources=createMilitaryEquipmentSources();
 const benchmarkRigs: {rig:NonNullable<ReturnType<typeof bindCombatWeaponRig>>,kind:keyof typeof sources,duration:number}[]=[];
-for(const [name,height] of [['worker-male-common-01-v002',1.72],['worker-female-common-01-v001',1.64],['ottoman-raider-common-01-v001',1.72]] as const){
+for(const [name,height] of [['worker-male-common-01-v002',1.72],['ottoman-raider-common-01-v001',1.72]] as const){
  const bytes=readFileSync(`public/assets/models/villagers/${name}.glb`);
  const gltf=await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');
  installMilitaryHandGrip(gltf.scene);
@@ -49,7 +50,7 @@ for(const [name,height] of [['worker-male-common-01-v002',1.72],['worker-female-
    if(kind==='bow' && rig.nockedArrow?.visible){
     const draw=rig.armBones.rightHand.localToWorld(new THREE.Vector3(-.026,.056,-.0071)
       .multiplyScalar(Number(rig.armBones.rightHand.userData.militaryGripScale??1)));
-    const nock=rig.nockedArrow.localToWorld(new THREE.Vector3(0,0,-.21));
+    const nock=rig.nockedArrow.localToWorld(new THREE.Vector3());
     assert.ok(nock.distanceTo(draw)<.001,'arrow nock stays at the drawing fingers');
     const local=rig.rangedMount!.worldToLocal(nock.clone());
     const direction=new THREE.Vector3(0,0,1).applyQuaternion(rig.nockedArrow.quaternion);
@@ -70,7 +71,7 @@ for(const [name,height] of [['worker-male-common-01-v002',1.72],['worker-female-
    const hand=kind==='bow'?rig.armBones.leftHand:rig.armBones.rightHand;
    const mount=kind==='bow'?rig.rangedMount!:equipment;
    const center=mount.localToWorld(new THREE.Vector3(...mount.userData.workerToolGripLocal));
-   const palm=hand.localToWorld(new THREE.Vector3(kind==='bow'?.005:-.01,kind==='bow'?.0383:.044,-.0071).multiplyScalar(kind==='bow'?1:Number(hand.userData.militaryGripScale??1)));
+   const palm=hand.localToWorld(kind==='bow'?bowPalmLocal(hand,new THREE.Vector3()):new THREE.Vector3(-.01,.044,-.0071).multiplyScalar(Number(hand.userData.militaryGripScale??1)));
    if(kind!=='crossbow'||frame<=14||frame>=72)primaryError=Math.max(primaryError,center.distanceTo(palm));
    if(mount.userData.workerToolSupportGripLocal){
     const left=rig.armBones.leftHand;

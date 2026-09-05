@@ -746,12 +746,7 @@ export class SettlementCrowdRenderer {
         MODEL_URLS.man,
         TARGET_HEIGHTS.man,
       );
-      const womanPromise = variantsShareModelSource('man', 'woman')
-        ? manPromise.then((source) => ({
-            ...source,
-            targetHeight: TARGET_HEIGHTS.woman,
-          }))
-        : loadVillagerSource(MODEL_URLS.woman, TARGET_HEIGHTS.woman);
+      const womanPromise = loadVillagerSource(MODEL_URLS.woman, TARGET_HEIGHTS.woman, false);
       const clericPromise = loadVillagerSource(
         MODEL_URLS.cleric,
         TARGET_HEIGHTS.cleric,
@@ -759,6 +754,7 @@ export class SettlementCrowdRenderer {
       const raiderPromise = loadVillagerSource(
         MODEL_URLS.raider,
         TARGET_HEIGHTS.raider,
+        true,
         createRaiderClipSet,
       );
       const [man, woman, cleric, raider, tools] = await Promise.all([
@@ -894,7 +890,7 @@ export class SettlementCrowdRenderer {
     let index = 0;
     for (const agent of agents) {
       const assignment = agent.companyStandard;
-      if (!assignment) continue;
+      if (!assignment || agent.variant === 'woman') continue;
       let standard = this.companyStandardAgentPool[index];
       if (!standard) {
         standard = {
@@ -974,14 +970,16 @@ export class SettlementCrowdRenderer {
     this.animatedGroup.add(root);
 
     const tool = agent.tool && this.toolSources
+      && (agent.variant === 'man' || !isMilitaryEquipmentKind(agent.tool))
       ? attachWorkerTool(model, this.toolSources[agent.tool])
       : null;
     if (tool && agent.tool) {
       setWorkerToolVisible(tool, workerToolVisibleInMode(agent.tool, agent.mode));
       setWorkerToolDropped(tool, Boolean(agent.battlefieldWeaponDrop));
-      this.mountedAttachments.registerTool(tool);
     }
-    const combatRig = bindCombatWeaponRig(model, agent.tool, tool);
+    const combatRig = agent.variant === 'man' ? bindCombatWeaponRig(model, agent.tool, tool) : null;
+    // Register after binding so the nocked ammunition joins the shared batches.
+    if (tool) this.mountedAttachments.registerTool(tool);
 
     const mixer = new THREE.AnimationMixer(model);
     const actions: Record<VillagerRenderMode, THREE.AnimationAction> = {
@@ -1466,12 +1464,15 @@ function animatedPoolKey(
 async function loadVillagerSource(
   url: string,
   targetHeight: number,
+  combatEnabled = true,
   clipFactory?: (
     animations: readonly THREE.AnimationClip[],
   ) => Record<VillagerRenderMode, THREE.AnimationClip>,
 ): Promise<VillagerSource> {
   const gltf = await new GLTFLoader().loadAsync(url);
-  installMilitaryHandGrip(gltf.scene);
+  // Female villagers only perform civilian roles; keep their original hands
+  // and omit the extra combat finger bones and attack action.
+  if (combatEnabled) installMilitaryHandGrip(gltf.scene);
   const bounds = new THREE.Box3().setFromObject(gltf.scene);
   const sourceHeight = bounds.max.y - bounds.min.y;
   if (!Number.isFinite(sourceHeight) || sourceHeight <= 0.001) {
@@ -1492,7 +1493,7 @@ async function loadVillagerSource(
     const clips = findAnimationClip(gltf.animations, 'greet_04')
       && findAnimationClip(gltf.animations, 'laugh_01')
       ? createClericClipSet(gltf.animations)
-      : createSemanticWorkerClipSet(gltf.animations);
+      : createSemanticWorkerClipSet(gltf.animations, combatEnabled);
     return {
       scene: gltf.scene,
       bounds,
@@ -1519,8 +1520,8 @@ async function loadVillagerSource(
   plant.name = `${swing.name}:worker-plant`;
   const build = swing.clone();
   build.name = `${swing.name}:worker-build`;
-  const fight = swing.clone();
-  fight.name = `${swing.name}:combat-fight`;
+  const fight = combatEnabled ? swing.clone() : idle;
+  if (combatEnabled) fight.name = `${swing.name}:combat-fight`;
   const gather = createGatherAnimationClip(gltf.scene);
   const sow = createSowAnimationClip(gltf.scene);
   const fish = createFishingAnimationClip(gltf.scene);
@@ -1637,6 +1638,7 @@ function installWorkerSocialClips(
 
 export function createSemanticWorkerClipSet(
   animations: readonly THREE.AnimationClip[],
+  combatEnabled = true,
 ): Record<VillagerRenderMode, THREE.AnimationClip> {
   const forMode = (sourceName: string, mode: VillagerRenderMode): THREE.AnimationClip => {
     const source = findAnimationClip(animations, sourceName);
@@ -1646,6 +1648,7 @@ export function createSemanticWorkerClipSet(
     return clip;
   };
 
+  const wait = forMode('wait', 'wait');
   return {
     idle: forMode('idle', 'idle'),
     walk: forMode('walk', 'walk'),
@@ -1666,10 +1669,10 @@ export function createSemanticWorkerClipSet(
     fish: forMode('wait', 'fish'),
     tend: forMode('shovel', 'tend'),
     build: forMode('chop', 'build'),
-    fight: forMode('slash', 'fight'),
+    fight: combatEnabled ? forMode('slash', 'fight') : wait,
     relax: forMode('standing_relax', 'relax'),
     look: forMode('look_around', 'look'),
-    wait: forMode('wait', 'wait'),
+    wait,
     laugh: forMode('standing_relax', 'laugh'),
     greet: forMode('standing_relax', 'greet'),
     sermon: forMode('standing_relax', 'sermon'),
@@ -2270,6 +2273,7 @@ export function workerToolVisibleInMode(
 
 /** Keeps ranged and polearm legs neutral while the post-mixer combat rig owns the strike. */
 export function combatBaseActionMode(agent: CrowdRenderAgent): VillagerRenderMode {
+  if (agent.variant === 'woman' && agent.mode === 'fight') return 'wait';
   if (
     agent.mode === 'talk'
     && agent.presentation !== 'cleric'

@@ -101,7 +101,7 @@ function installHand(root: THREE.Group, left: boolean): void {
         }
         // The thumb lies on +Z and ends before the long fingers. Blend its
         // webbing smoothly; a hard Z cutoff leaves strips of the index finger
-        // unbent (especially the female model's glove and rings).
+        // unbent at the transition into the palm.
         const thumb = THREE.MathUtils.smoothstep(local.z, 0.012, 0.027)
           * (1 - THREE.MathUtils.smoothstep(local.y, 0.062, 0.078));
         const finger = local.z > 0.005 ? 0 : local.z > -0.01 ? 1 : local.z > -0.026 ? 2 : 3;

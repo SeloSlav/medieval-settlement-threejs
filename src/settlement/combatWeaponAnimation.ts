@@ -3,6 +3,8 @@ import type { WorkerToolKind } from './workerTools.ts';
 import type { MilitaryEquipmentCombatStance } from './militaryEquipment.ts';
 import { MILITARY_GRIP_BONES, MILITARY_LEFT_GRIP_BONES } from './militaryHandGrip.ts';
 import { CROSSBOW_FRAME } from './militaryWeaponGeometry.ts';
+import { bowHandGrip, bowPalmLocal } from './bowHandGrip.ts';
+import { acquireAmmunitionAssets, type AmmunitionKind } from './rangedAmmunition.ts';
 import { createWeaponAttackMotion, sampleWeaponAttackMotion, type WeaponAttackMotion } from './weaponAttackMotion.ts';
 
 export type CombatWeaponFamily =
@@ -465,7 +467,7 @@ export function applyMilitaryCarryPose(rig: CombatWeaponRig, tool: WorkerToolKin
     const poses = orientation === LOW_BLADE_CARRY || tool === 'crossbow' ? SWORD_FINGER_POSES : POLE_FINGER_POSES;
     for (let i = 0; i < 8; i++) rig.gripBones[i]?.quaternion.copy(poses[i]!);
     rig.gripBones[8]?.quaternion.copy(CLOSED_THUMB_POSE);
-  } else closeSupportFingers(rig);
+  } else closeBowFingers(rig);
   if (tool === 'crossbow') {
     const grip = primaryMount.userData.workerToolSupportGripLocal as readonly [number, number, number] | undefined;
     if (grip) {
@@ -520,18 +522,35 @@ function orientCarryPalm(rig: CombatWeaponRig, left: boolean, mount: THREE.Group
     rig.carryGripBaseQuaternion.copy(mount.quaternion);
     rig.carryGripBasePosition.copy(mount.position);
   }
-  const handModel = rig.scratchQuaternions[3]!.copy(orientation).multiply(PALM_WEAPON_FRAME);
-  if (diagonal) handModel.multiply(SWORD_GRIP_CANT);
   const hand = left ? rig.armBones.leftHand : rig.armBones.rightHand;
-  const handWorld = rig.model.getWorldQuaternion(rig.scratchQuaternions[0]!).multiply(handModel);
-  const parentInverse = hand.parent!.getWorldQuaternion(rig.scratchQuaternions[1]!).invert();
-  hand.quaternion.copy(parentInverse).multiply(handWorld).normalize();
-  mount.quaternion.copy(handModel).invert().multiply(orientation).normalize();
+  if (left) {
+    // Preserve the fitted palm/handle relationship while carrying as well.
+    // Twisting the wrist against the forearm pulls the glove webbing into it.
+    const upper = rig.armBones.leftUpperArm, forearm = rig.armBones.leftForearm;
+    const upperDirection = forearm.getWorldPosition(rig.scratchVectors[14]!)
+      .sub(upper.getWorldPosition(rig.scratchVectors[0]!)).normalize();
+    const lowerDirection = hand.getWorldPosition(rig.scratchVectors[15]!)
+      .sub(forearm.getWorldPosition(rig.scratchVectors[0]!)).normalize();
+    rig.attackOrientation.copy(rig.model.getWorldQuaternion(rig.scratchQuaternions[0]!)).multiply(orientation);
+    alignBowArmFrame(rig, upper, upperDirection);
+    alignBowArmFrame(rig, forearm, lowerDirection);
+    hand.quaternion.identity();
+    mount.quaternion.copy(PALM_WEAPON_FRAME);
+  } else {
+    const handModel = rig.scratchQuaternions[3]!.copy(orientation).multiply(PALM_WEAPON_FRAME);
+    if (diagonal) handModel.multiply(SWORD_GRIP_CANT);
+    const handWorld = rig.model.getWorldQuaternion(rig.scratchQuaternions[0]!).multiply(handModel);
+    const parentInverse = hand.parent!.getWorldQuaternion(rig.scratchQuaternions[1]!).invert();
+    hand.quaternion.copy(parentInverse).multiply(handWorld).normalize();
+    mount.quaternion.copy(handModel).invert().multiply(orientation).normalize();
+  }
   const grip = mount.userData.workerToolGripLocal as readonly [number, number, number] | undefined;
   const offset = rig.scratchVectors[14]!.set(...(grip ?? [0, 0, 0] as const))
     .multiply(mount.scale).applyQuaternion(mount.quaternion);
   const handSize = left ? 1 : Number(hand.userData.militaryGripScale ?? 1);
-  mount.position.set(left ? 0.005 : -0.01, left ? 0.0383 : 0.044, -0.0071).multiplyScalar(handSize).sub(offset);
+  if (left) bowPalmLocal(hand, mount.position);
+  else mount.position.set(-.01, .044, -.0071);
+  mount.position.multiplyScalar(handSize).sub(offset);
   hand.updateWorldMatrix(true, false);
 }
 
@@ -587,6 +606,11 @@ export function disposeCombatWeaponRig(rig: CombatWeaponRig): void {
 function disposeTransientEquipment(equipment: THREE.Group | null): void {
   if (!equipment) return;
   equipment.removeFromParent();
+  const release = ammunitionOwners.get(equipment);
+  if (release) {
+    release(); ammunitionOwners.delete(equipment);
+    return;
+  }
   equipment.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh) return;
@@ -676,7 +700,10 @@ export function combatWeaponReleaseOrigin(
 ): THREE.Vector3 {
   rig.model.updateWorldMatrix(true, true);
   if (rig.family === 'bow' && rig.nockedArrow) {
-    return rig.nockedArrow.localToWorld(target.set(0, 0, 0.64));
+    return rig.nockedArrow.localToWorld(target.set(0, 0, 0));
+  }
+  if (rig.family === 'crossbow' && rig.loadedCrossbowBolt) {
+    return rig.loadedCrossbowBolt.localToWorld(target.set(0, 0, 0));
   }
   if (rig.rangedMount) {
     const muzzle = rig.rangedMount.userData.workerToolMuzzleLocal as
@@ -690,82 +717,35 @@ export function combatWeaponReleaseOrigin(
   return rig.armBones.rightHand.getWorldPosition(target);
 }
 
+const ammunitionOwners = new WeakMap<THREE.Group, () => void>();
+
+function createCarriedAmmunition(parent: THREE.Group, kind: AmmunitionKind): THREE.Group {
+  const group = new THREE.Group();
+  const assets = acquireAmmunitionAssets(kind);
+  const mesh = new THREE.Mesh(assets.geometry, assets.material);
+  mesh.name = `${kind} � shaft, point and banded feathers`;
+  mesh.castShadow = false; mesh.receiveShadow = false; mesh.frustumCulled = false;
+  group.add(mesh); parent.add(group);
+  ammunitionOwners.set(group, assets.release);
+  // Weapon mounts normalize their source geometry to the requested kit size.
+  // Ammunition has its own metre-based dimensions, shared with projectiles.
+  const scale = parent.getWorldScale(new THREE.Vector3());
+  group.scale.set(1 / scale.x, 1 / scale.y, 1 / scale.z);
+  return group;
+}
+
 function createNockedArrow(parent: THREE.Group): THREE.Group {
-  const arrow = new THREE.Group();
-  arrow.name = 'Combat bow · nocked arrow';
-  const shaftMaterial = new THREE.MeshStandardMaterial({
-    color: 0x8c6335,
-    roughness: 0.86,
-    metalness: 0,
-  });
-  const ironMaterial = new THREE.MeshStandardMaterial({
-    color: 0xaab0b3,
-    roughness: 0.38,
-    metalness: 0.72,
-  });
-  const featherMaterial = new THREE.MeshStandardMaterial({
-    color: 0xd7d0bc,
-    roughness: 0.92,
-    metalness: 0,
-    side: THREE.DoubleSide,
-  });
-  const shaft = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.0045, 0.0045, 0.82, 6),
-    shaftMaterial,
-  );
-  shaft.rotation.x = Math.PI / 2;
-  shaft.position.z = 0.2;
-  const point = new THREE.Mesh(
-    new THREE.ConeGeometry(0.014, 0.045, 6),
-    ironMaterial,
-  );
-  point.rotation.x = Math.PI / 2;
-  point.position.z = 0.632;
-  const fletching = new THREE.Mesh(
-    new THREE.BoxGeometry(0.04, 0.0025, 0.085),
-    featherMaterial,
-  );
-  fletching.position.z = -0.19;
-  for (const mesh of [shaft, point, fletching]) {
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
-    mesh.frustumCulled = false;
-    arrow.add(mesh);
-  }
-  arrow.position.set(0, 0.01, -0.035);
+  const arrow = createCarriedAmmunition(parent, 'arrow');
+  arrow.name = 'Combat bow � nocked arrow';
   arrow.visible = false;
-  parent.add(arrow);
   return arrow;
 }
 
 function createLoadedCrossbowBolt(parent: THREE.Group): THREE.Group {
-  const bolt = new THREE.Group();
-  bolt.name = 'Combat crossbow · loaded bolt';
-  const shaft = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.004, 0.004, 0.36, 7),
-    new THREE.MeshStandardMaterial({
-      color: 0x8c6335,
-      roughness: 0.86,
-      metalness: 0,
-    }),
-  );
-  shaft.position.set(0, CROSSBOW_FRAME.nutY + 0.18, CROSSBOW_FRAME.muzzle[2]);
-  const point = new THREE.Mesh(
-    new THREE.ConeGeometry(0.009, 0.025, 6),
-    new THREE.MeshStandardMaterial({
-      color: 0xaab0b3,
-      roughness: 0.38,
-      metalness: 0.72,
-    }),
-  );
-  point.position.set(0, CROSSBOW_FRAME.nutY + 0.3725, CROSSBOW_FRAME.muzzle[2]);
-  for (const mesh of [shaft, point]) {
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
-    mesh.frustumCulled = false;
-    bolt.add(mesh);
-  }
-  parent.add(bolt);
+  const bolt = createCarriedAmmunition(parent, 'bolt');
+  bolt.name = 'Combat crossbow � loaded bolt';
+  bolt.rotation.x = -Math.PI / 2;
+  bolt.position.set(0, CROSSBOW_FRAME.nutY, CROSSBOW_FRAME.muzzle[2]);
   return bolt;
 }
 
@@ -789,8 +769,8 @@ function updateRangedAmmoVisuals(
       const direction = rig.scratchVectors[14]!.set(.027, .068, 0)
         .sub(rig.equipmentScratch).normalize();
       arrow.quaternion.setFromUnitVectors(rig.scratchVectors[13]!.set(0, 0, 1), direction);
-      // The modeled nock is 0.21 m behind the arrow's origin.
-      arrow.position.copy(rig.equipmentScratch).addScaledVector(direction, .21);
+      // The shared arrow's origin is its string contact, including on release.
+      arrow.position.copy(rig.equipmentScratch);
       updateBowStringCenter(rig, rig.equipmentScratch);
     } else {
       restoreBowString(rig);
@@ -838,6 +818,12 @@ function captureBaseQuaternions(rig: CombatWeaponRig): void {
 }
 
 type ArmTarget = [lateral: number, vertical: number, forward: number];
+function closeBowFingers(rig: CombatWeaponRig): void {
+  const fit = bowHandGrip(rig.armBones.leftHand);
+  for (let i = 0; i < 8; i++) rig.leftGripBones[i]?.quaternion.copy(fit.fingers[i]!);
+  rig.leftGripBones[8]?.quaternion.copy(fit.thumb);
+}
+
 function closeSupportFingers(rig: CombatWeaponRig, diagonal = false): void {
   for (let i = 0; i < 8; i++) {
     const bone = rig.leftGripBones[i];
@@ -968,7 +954,7 @@ function poseBowHoldingArm(rig: CombatWeaponRig, grip: readonly [number, number,
   const elbow = forearm.getWorldPosition(rig.scratchVectors[1]!);
   const wrist = hand.getWorldPosition(rig.scratchVectors[2]!);
   const upperLength = shoulder.distanceTo(elbow), lowerLength = elbow.distanceTo(wrist);
-  const offset = rig.scratchVectors[3]!.set(.005, .0383, -.0071)
+  const offset = bowPalmLocal(hand, rig.scratchVectors[3]!)
     .multiply(hand.getWorldScale(rig.scratchVectors[4]!)).applyQuaternion(handWorld);
   const target = rig.scratchVectors[13]!.copy(attackContact(rig, grip)).sub(offset).sub(shoulder);
   // Aim forward from the leading shoulder rather than across the chest.
@@ -989,7 +975,10 @@ function poseBowHoldingArm(rig: CombatWeaponRig, grip: readonly [number, number,
   alignBowArmFrame(rig, forearm, lowerDirection);
   hand.quaternion.identity();
   hand.updateWorldMatrix(true, false);
-  rig.attackOrigin.set(.005, .0383, -.0071);
+  // The oval handle follows the palm through the draw. Holding the bow rigidly
+  // upright while the hand tilts makes the same fingers intersect it again.
+  rig.attackOrientation.copy(hand.getWorldQuaternion(rig.scratchQuaternions[0]!)).multiply(PALM_WEAPON_FRAME);
+  bowPalmLocal(hand, rig.attackOrigin);
   hand.localToWorld(rig.attackOrigin);
   rig.attackOrigin.sub(rig.scratchVectors[0]!.set(...grip).multiply(rig.attackScale).applyQuaternion(rig.attackOrientation));
   rig.attackMatrix.compose(rig.attackOrigin, rig.attackOrientation, rig.attackScale);
@@ -1038,7 +1027,7 @@ function applyTimelinePose(rig: CombatWeaponRig, timeline: CombatAttackTimeline,
   if (timeline.family === 'bow') {
     handWorld.copy(rig.attackOrientation).multiply(PALM_WEAPON_FRAME);
     poseBowHoldingArm(rig, primaryGrip, handWorld);
-    closeSupportFingers(rig);
+    closeBowFingers(rig);
     const restNock = attackContact(rig, [0, .068, -.135]);
     const cheek = bodyPoint(rig, BOW_CHEEK_ANCHOR, rig.scratchVectors[15]!);
     restNock.lerp(cheek, motion.draw);

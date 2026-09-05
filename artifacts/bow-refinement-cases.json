@@ -5,7 +5,6 @@
   {"name":"bow-refined-raise-side","weapon":"bow","variant":"man","mode":"attack","phase":0.4,"view":"side"},
   {"name":"bow-refined-half-draw","weapon":"bow","variant":"man","mode":"attack","phase":0.55,"view":"side"},
   {"name":"bow-refined-grip","weapon":"bow","variant":"man","mode":"attack","phase":0.8,"view":"grip"},
-  {"name":"bow-refined-female","weapon":"bow","variant":"woman","mode":"attack","phase":0.8,"view":"side"},
   {"name":"bow-refined-raider","weapon":"bow","variant":"raider","mode":"attack","phase":0.8,"view":"front"},
   {"name":"bow-refined-carry-back","weapon":"bow","variant":"man","mode":"idle","phase":0.8,"view":"back"},
   {"name":"bow-refined-elbow","weapon":"bow","variant":"man","mode":"attack","phase":0.8,"view":"elbow-left"},

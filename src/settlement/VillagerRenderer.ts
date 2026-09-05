@@ -783,15 +783,9 @@ export class VillagerRenderer {
         && state.status === 'downed'
         && prior?.state.status !== 'downed'
       ) {
-        const seed = combatAppearanceSeed(state);
         this.combatAudio.playDeath(
           state.id,
-          state.faction === 'bandit'
-          || state.faction === 'raider'
-          || isPlayerMilitaryFaction(state.faction)
-          || seed % 2 === 0
-            ? 'man'
-            : 'woman',
+          'man',
           state.x,
           state.z,
           this.lastView,
@@ -1378,7 +1372,7 @@ export class VillagerRenderer {
           musterTowerId: null,
           musterSlot: -1,
           appearanceSeed,
-          modelVariant: isClericWorkplaceKind(building.kind)
+          modelVariant: isClericWorkplaceKind(building.kind) || isGuardWorkplaceKind(building.kind)
             ? 'man'
             : pickVillagerModelVariant(appearanceSeed),
           tunicColor: colors.tunic,
@@ -1420,7 +1414,7 @@ export class VillagerRenderer {
         if (agent.appearanceSeed !== appearanceSeed) {
           const colors = pickVillagerColors(appearanceSeed);
           agent.appearanceSeed = appearanceSeed;
-          agent.modelVariant = isClericWorkplaceKind(building.kind)
+          agent.modelVariant = isClericWorkplaceKind(building.kind) || isGuardWorkplaceKind(building.kind)
             ? 'man'
             : pickVillagerModelVariant(appearanceSeed);
           agent.tunicColor = colors.tunic;
@@ -1433,7 +1427,7 @@ export class VillagerRenderer {
           );
           agent.pathSeed = appearanceSeed ^ 0x27d4eb2d;
         }
-        if (isClericWorkplaceKind(building.kind)) agent.modelVariant = 'man';
+        if (isClericWorkplaceKind(building.kind) || isGuardWorkplaceKind(building.kind)) agent.modelVariant = 'man';
         const previousBuilding = previousBuildings.get(assignment.buildingId);
         const dutyChanged = previousHomeResidenceId !== assignment.homeResidenceId
           || !previousBuilding
@@ -2099,11 +2093,11 @@ export class VillagerRenderer {
       : null;
     const personIdentity = combat.personIdentity ?? `combat:${combat.id}`;
     const name = residentSoldier
-      ? villagerDisplayName(residentSoldier.personIdentity, residentSoldier.modelVariant)
+      ? villagerDisplayName(residentSoldier.personIdentity, 'man')
       : ordinaryGuard
       ? villagerDisplayName(
           ordinaryGuard.personIdentity,
-          ordinaryGuard.modelVariant,
+          'man',
         )
       : combatUnitName(combat);
     const huntingCamp = combat.assignedBuildingId ? this.buildings.get(combat.assignedBuildingId) : null;
@@ -2140,7 +2134,7 @@ export class VillagerRenderer {
       militaryCompanyId: selectablePlayerMilitaryCompanyId(combat),
       selectionAudioKind: combat.faction === 'dog' ? 'dog' : undefined,
       portraitVariant: combat.faction === 'dog' ? 'dog' : undefined,
-      modelVariant: residentSoldier?.modelVariant ?? ordinaryGuard?.modelVariant ?? 'man',
+      modelVariant: 'man',
       name,
       initials: residentSoldier || ordinaryGuard
         ? name
@@ -2450,11 +2444,8 @@ export class VillagerRenderer {
       renderAgent.z = visual.displayZ;
       renderAgent.yaw = yaw;
       renderAgent.appearanceSeed = appearanceSeed;
-      renderAgent.variant = residentSoldier?.modelVariant
-        ?? ordinaryGuard?.modelVariant
-        ?? (combat.faction === 'bandit' || combat.faction === 'raider' || isPlayerMilitaryFaction(combat.faction)
-          ? 'man'
-          : appearanceSeed % 2 === 0 ? 'man' : 'woman');
+      // All humanoid combat roles use male models, including guard fallbacks.
+      renderAgent.variant = 'man';
       const pairedHorse = cavalryHorseByCombatAgent.get(combat.id);
       const mounted = isMountedCombatAgent(combat)
         && combat.status !== 'downed'
@@ -6250,6 +6241,10 @@ function combatRenderMode(
       return variations[combatAppearanceSeed(combat) % variations.length] ?? 'idle';
     }
   }
+}
+
+function isGuardWorkplaceKind(kind: string): boolean {
+  return kind === 'guardhouse' || kind === 'watchtower';
 }
 
 function combatToolFor(combat: CombatAgentState): WorkerToolKind | null {

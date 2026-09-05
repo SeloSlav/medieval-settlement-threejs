@@ -2,6 +2,7 @@
 import './ui/iconography.css';
 import './ui/startupCraft.css';
 import './ui/gameplayCraft.css';
+import './ui/medievalCursor.css';
 import { App } from './app/App.ts';
 import { installSpacetimeProtocolRecovery } from './network/spacetimeProtocolRecovery.ts';
 

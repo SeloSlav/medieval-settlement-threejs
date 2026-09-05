@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { CombatProjectileKind } from './combatWeaponAnimation.ts';
+import { acquireAmmunitionAssets } from './rangedAmmunition.ts';
 
 const MAX_PROJECTILES = 96;
 const FORWARD = new THREE.Vector3(0, 0, 1);
@@ -49,26 +50,16 @@ export function sampleCombatProjectile(
 export class CombatProjectileRenderer {
   private readonly group = new THREE.Group();
   private readonly projectilePool: ProjectileVisual[] = [];
-  private readonly arrowGeometry = projectileShaftGeometry(0.006, 0.72);
-  private readonly boltGeometry = projectileShaftGeometry(0.009, 0.46);
-  private readonly arrowMaterial = new THREE.MeshStandardMaterial({
-    color: 0x8c6335,
-    roughness: 0.82,
-    metalness: 0.04,
-  });
-  private readonly boltMaterial = new THREE.MeshStandardMaterial({
-    color: 0x6e5140,
-    roughness: 0.72,
-    metalness: 0.12,
-  });
+  private readonly arrowAssets = acquireAmmunitionAssets('arrow');
+  private readonly boltAssets = acquireAmmunitionAssets('bolt');
   private readonly arrowInstances = new THREE.InstancedMesh(
-    this.arrowGeometry,
-    this.arrowMaterial,
+    this.arrowAssets.geometry,
+    this.arrowAssets.material,
     MAX_PROJECTILES,
   );
   private readonly boltInstances = new THREE.InstancedMesh(
-    this.boltGeometry,
-    this.boltMaterial,
+    this.boltAssets.geometry,
+    this.boltAssets.material,
     MAX_PROJECTILES,
   );
   private readonly sample: CombatProjectileSample = {
@@ -154,10 +145,8 @@ export class CombatProjectileRenderer {
       this.arrowInstances,
       this.boltInstances,
     ]) mesh.removeFromParent();
-    this.arrowGeometry.dispose();
-    this.boltGeometry.dispose();
-    this.arrowMaterial.dispose();
-    this.boltMaterial.dispose();
+    this.arrowAssets.release();
+    this.boltAssets.release();
     this.group.removeFromParent();
   }
 
@@ -205,14 +194,6 @@ export class CombatProjectileRenderer {
     mesh.count = count;
     if (count > 0 || changed) mesh.instanceMatrix.needsUpdate = true;
   }
-}
-
-function projectileShaftGeometry(radius: number, length: number): THREE.BufferGeometry {
-  const geometry = new THREE.CylinderGeometry(radius, radius, length, 6);
-  geometry.rotateX(Math.PI / 2);
-  geometry.translate(0, 0, length * 0.5);
-  geometry.computeBoundingSphere();
-  return geometry;
 }
 
 function signedUnitHash(value: number): number {

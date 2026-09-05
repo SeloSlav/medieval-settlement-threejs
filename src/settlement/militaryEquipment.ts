@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CROSSBOW_FRAME, createRealisticCrossbow, createRealisticSword } from './militaryWeaponGeometry.ts';
+import { BOW_GRIP } from './bowHandGrip.ts';
+import { createAmmunitionGeometry, createAmmunitionMaterial } from './rangedAmmunition.ts';
 import {
   createMilitaryEquipmentMaterials,
   type MilitaryEquipmentMaterials,
@@ -106,6 +108,7 @@ const NATURAL_RIGHT_HAND = [0, 0, 0, 1] as const;
 
 export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
   const materials = createMilitaryEquipmentMaterials();
+  const ammunitionMaterial = createAmmunitionMaterial();
   // Several kits use the exact same physical object at a different bone or in
   // a different stance. Build each repeated assembly once and clone its
   // already-optimized graph so clones retain geometry/material identity. This
@@ -127,7 +130,7 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
     'pike-kit': source('pike-kit', createPike(materials), UPRIGHT_RIGHT_HAND),
     crossbow: source('crossbow', crossbowAssembly, FORWARD_RIGHT_HAND, [
       mount(
-        createBoltCase(materials),
+        createBoltCase(materials, ammunitionMaterial),
         ['Spine02', 'Spine2', 'Spine01', 'Spine'],
         0.54,
         [0.065, 0.02, 0.085],
@@ -147,7 +150,7 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
     halberd: source('halberd', createHalberd(materials), UPRIGHT_RIGHT_HAND),
     bow: source('bow', bowAssembly, FORWARD_LEFT_HAND, [
       mount(
-        createQuiver(materials, 12, 0.78),
+        createQuiver(materials, 8, 0.78, ammunitionMaterial),
         ['Spine02', 'Spine2', 'Spine01', 'Spine'],
         0.86,
         [0.065, 0.02, 0.085],
@@ -575,15 +578,24 @@ function createBow(materials: Materials): THREE.Group {
     group,
     staveGeometry(
       points,
-      (fraction) => THREE.MathUtils.lerp(0.009, 0.024, Math.sin(Math.PI * fraction) ** 0.72),
-      (fraction) => THREE.MathUtils.lerp(0.006, 0.014, Math.sin(Math.PI * fraction) ** 0.58),
+      (fraction) => THREE.MathUtils.lerp(0.009, 0.024, Math.sin(Math.PI * fraction) ** 0.72)
+        * (.6 + .4 * THREE.MathUtils.smoothstep(Math.abs(fraction - .5), .025, .065)),
+      (fraction) => THREE.MathUtils.lerp(0.006, 0.014, Math.sin(Math.PI * fraction) ** 0.58)
+        * (.6 + .4 * THREE.MathUtils.smoothstep(Math.abs(fraction - .5), .025, .065)),
     ),
     materials.ash,
     'Self bow · tapered D-section stave',
   );
-  add(group, new RoundedBoxGeometry(0.052, 0.125, 0.036, 4, 0.012), materials.leather, 'Self bow · stitched leather grip', [0, 0, 0]);
-  for (const y of [-0.045, -0.022, 0, 0.022, 0.045]) {
-    add(group, new THREE.TorusGeometry(0.0255, 0.0028, 5, 10), materials.oxblood, 'Self bow · spiral grip binding', [0, y, 0], [Math.PI / 2, 0, 0]);
+  const grip = new THREE.LatheGeometry([
+    new THREE.Vector2(0, -BOW_GRIP.halfLength), new THREE.Vector2(.58, -BOW_GRIP.halfLength),
+    new THREE.Vector2(.75, -.05), new THREE.Vector2(.88, -.03), new THREE.Vector2(1, 0),
+    new THREE.Vector2(1, .043), new THREE.Vector2(.85, BOW_GRIP.halfLength), new THREE.Vector2(0, BOW_GRIP.halfLength),
+  ], 20).scale(BOW_GRIP.radiusZ, 1, BOW_GRIP.radiusX);
+  add(group, grip, materials.leather, 'Self bow · stitched leather grip', [0, 0, 0]);
+  for (const [y, taper] of [[-.056, .68], [.056, .9]]) {
+    const binding = new THREE.TorusGeometry(BOW_GRIP.radiusZ * taper!, .001, 5, 20);
+    binding.rotateX(Math.PI / 2).scale(1, 1, BOW_GRIP.radiusX / BOW_GRIP.radiusZ);
+    add(group, binding, materials.oxblood, 'Self bow · grip end binding', [0, y!, 0]);
   }
   add(group, new THREE.CylinderGeometry(0.009, 0.014, 0.064, 8), materials.bone, 'Self bow · lower horn nock', [points[0]!.x, points[0]!.y, 0], [0, 0, 0.17]);
   add(group, new THREE.CylinderGeometry(0.014, 0.009, 0.064, 8), materials.bone, 'Self bow · upper horn nock', [points.at(-1)!.x, points.at(-1)!.y, 0], [0, 0, -0.17]);
@@ -605,26 +617,7 @@ function createCrossbow(materials: Materials): THREE.Group {
   return createRealisticCrossbow(materials);
 }
 
-function createArrow(materials: Materials, length: number): THREE.Group {
-  const arrow = new THREE.Group();
-  add(arrow, new THREE.CylinderGeometry(0.004, 0.004, length, 6), materials.ash, 'Arrow · ash shaft', [0, length * 0.5, 0]);
-  add(arrow, new THREE.ConeGeometry(0.014, 0.04, 6), materials.steel, 'Arrow · forged point', [0, length + 0.02, 0]);
-  add(arrow, new THREE.TorusGeometry(0.007, 0.002, 4, 8), materials.bluedSteel, 'Arrow · point socket binding', [0, length - 0.002, 0], [Math.PI / 2, 0, 0]);
-  add(arrow, new THREE.CylinderGeometry(0.006, 0.005, 0.025, 6), materials.walnut, 'Arrow · reinforced hardwood self nock', [0, 0.002, 0]);
-  for (let vane = 0; vane < 3; vane += 1) {
-    add(
-      arrow,
-      shapeGeometry([[-0.021, 0], [0.02, 0], [0.012, 0.085], [-0.008, 0.095]], 0.0025, 0.0008),
-      materials.feather,
-      'Arrow · bound goose-feather vane',
-      [0, 0.02, 0],
-      [0, vane / 3 * Math.PI * 2, 0],
-    );
-  }
-  return arrow;
-}
-
-function createQuiver(materials: Materials, arrowCount: number, arrowLength: number): THREE.Group {
+function createQuiver(materials: Materials, arrowCount: number, arrowLength: number, ammunitionMaterial: THREE.MeshStandardMaterial): THREE.Group {
   const group = new THREE.Group();
   // One continuous leather shell: closed floor, tapered outside, rolled rim,
   // and a visible inner wall. No oversized backing strip or metal decoration.
@@ -640,12 +633,14 @@ function createQuiver(materials: Materials, arrowCount: number, arrowLength: num
     'Bow kit · leather base seam', [0, -0.036, 0], [Math.PI / 2, 0, 0]);
   for (let index = 0; index < arrowCount; index += 1) {
     const angle = index / arrowCount * Math.PI * 2;
-    const arrow = createArrow(materials, arrowLength);
+    const arrow = new THREE.Mesh(createAmmunitionGeometry(arrowLength > .5 ? 'arrow' : 'bolt', true), ammunitionMaterial);
+    arrow.name = 'Quiver arrow � matching nock and banded goose-feather vanes';
+    arrow.userData.semanticWeaponPart = arrow.name;
     arrow.position.set(Math.cos(angle) * .038, Math.max(.56, arrowLength + .005) + (index % 3) * .006, Math.sin(angle) * .038);
-    // Nocks fan out gently; the points converge inside the floor instead of
-    // piercing the tapered wall or protruding through the bottom.
-    arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0),
+    // The shortened shafts end below the mouth. Hidden points are omitted.
+    arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1),
       new THREE.Vector3(-Math.cos(angle) * .016, -arrowLength - .04, -Math.sin(angle) * .016).normalize());
+    arrow.rotateZ(index * 2.39996);
     group.add(arrow);
   }
   group.name = 'Procedural bowman quiver and arrows';
@@ -653,8 +648,8 @@ function createQuiver(materials: Materials, arrowCount: number, arrowLength: num
   return group;
 }
 
-function createBoltCase(materials: Materials): THREE.Group {
-  const group = createQuiver(materials, 5, 0.34);
+function createBoltCase(materials: Materials, ammunitionMaterial: THREE.MeshStandardMaterial): THREE.Group {
+  const group = createQuiver(materials, 5, 0.34, ammunitionMaterial);
   add(group, new RoundedBoxGeometry(0.026, 0.32, 0.022, 2, 0.006), materials.bluedSteel, 'Crossbow kit · belt-carried cranequin rack', [0.13, 0.21, 0.02], [0, 0, -0.08]);
   add(group, new THREE.TorusGeometry(0.046, 0.012, 6, 16), materials.brass, 'Crossbow kit · cranequin gear housing', [0.13, 0.34, 0.035]);
   add(group, new RoundedBoxGeometry(0.16, 0.018, 0.018, 2, 0.005), materials.bluedSteel, 'Crossbow kit · folding cranequin crank', [0.18, 0.38, 0.04], [0, 0, -0.42]);
@@ -732,7 +727,7 @@ function optimizeAssembly(source: THREE.Group): THREE.Group {
     // Merge only a stable realtime attribute contract. Primitive helpers differ
     // in incidental attributes/indexing, which otherwise defeats batching.
     for (const attribute of Object.keys(normalized.attributes)) {
-      if (attribute !== 'position' && attribute !== 'normal' && attribute !== 'uv') {
+      if (attribute !== 'position' && attribute !== 'normal' && attribute !== 'uv' && attribute !== 'color') {
         normalized.deleteAttribute(attribute);
       }
     }

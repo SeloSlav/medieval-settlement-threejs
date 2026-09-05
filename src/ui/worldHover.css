@@ -1,0 +1,43 @@
+.world-hover-label {
+  position: fixed;
+  z-index: 15;
+  max-width: calc(100vw - 20px);
+  padding: 8px 14px;
+  color: #eee8dc;
+  background: rgba(20, 22, 18, 0.94);
+  box-shadow: 0 3px 12px #0004;
+  font: 600 14px/1.3 Georgia, 'Times New Roman', serif;
+  text-align: center;
+  pointer-events: none;
+}
+
+.construction-map-icons {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.construction-map-icon {
+  --resource-stock-angle: 0deg;
+  --resource-stock-color: #eee8dc;
+  position: fixed;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  padding: 4px;
+  border: 0;
+  border-radius: 50%;
+  background: #1a1d18c9;
+  color: #eee8dc;
+  pointer-events: none;
+  box-shadow: 0 2px 5px #0007;
+}
+
+.construction-map-icon::before { inset: -4px; }
+.construction-map-icon svg { width: 100%; height: 100%; }
+.world-hover-label[hidden],
+.construction-map-icons[hidden],
+.construction-map-icon[hidden] { display: none; }

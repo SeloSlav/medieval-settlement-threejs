@@ -40,7 +40,7 @@ const agents: CrowdRenderAgent[] = Array.from({ length: 1_024 }, (_, index) => (
   z: Math.floor(index / 64) * 5 - 40,
   yaw: index * 0.013,
   appearanceSeed: index * 2_654_435_761 >>> 0,
-  variant: index % 2 === 0 ? 'man' : 'woman',
+  variant: modes[index % modes.length] === 'fight' || index % 2 === 0 ? 'man' : 'woman',
   mode: modes[index % modes.length]!,
   tunicColor: 0x835f3f,
   skinColor: 0xc9946a,

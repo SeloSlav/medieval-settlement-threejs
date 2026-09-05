@@ -31,7 +31,6 @@ if(focus && new URLSearchParams(location.search).has('hand')){
 for(const agent of agents){
  agent.yaw=0;
  if(params.get('variant')==='raider')agent.presentation='raider';
- if(params.get('variant')==='woman')agent.variant='woman';
 }
 const angle=Number(params.get('angle')??0)*Math.PI/180;
 if(focus&&angle){

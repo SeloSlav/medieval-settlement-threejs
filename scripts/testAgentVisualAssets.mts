@@ -160,7 +160,7 @@ for (const asset of villagerAssets) {
     ],
     `${asset.variant} villager must use exactly the reduced v002 clip set`,
   );
-  const gameClips = createSemanticWorkerClipSet(gltf.animations);
+  const gameClips = createSemanticWorkerClipSet(gltf.animations, asset.variant === 'man');
   assert.match(gameClips.talk.name, /^standing_relax:game-talk$/);
   assert.match(gameClips.pray.name, /^wait:game-pray$/);
   assert.ok(

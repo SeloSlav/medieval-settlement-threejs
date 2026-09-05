@@ -23,8 +23,10 @@ case receives the same simpler leather container.
 - [Elbow close-up](weapon-qa/bow-refined-elbow.png)
 - [Motion capture](weapon-qa/bow-refinement-cases.webm)
 
-The capture manifest is `bow-refinement-cases.json`. It covers male, female
-and raider rigs, several draw phases, carry, close and far views. Captures
+The current capture manifest is `bow-refinement-cases.json`. It covers male
+villager and raider rigs, several draw phases, carry, close and far views.
+Earlier female combat captures are superseded: women have civilian roles only.
+Captures
 use the production WebGPU crowd renderer without post-processing, at
 1280x1000, DPR 1, seed 431. Camera and memory data are in the capture report.
 The recorded bow, spear, sword, halberd and crossbow sequences reported no

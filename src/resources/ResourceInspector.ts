@@ -472,6 +472,7 @@ export class ResourceInspector {
   constructor(options: ResourceInspectorOptions) {
     this.options = options;
     this.hoverOutline = new PlayerAuthoredHoverOutline({
+      uiRoot: options.uiRoot,
       domElement: options.domElement,
       camera: options.sceneManager.camera,
       terrainProjector: options.terrainProjector,

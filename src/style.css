@@ -26,6 +26,7 @@
 @import url('/src/ui/readability.css');
 @import url('./ui/militaryMenu.css');
 @import url('./ui/developmentMenu.css');
+@import url('./ui/worldHover.css');
 
 :root {
   --ink: #eee8dc;

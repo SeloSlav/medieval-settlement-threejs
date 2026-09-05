@@ -279,7 +279,7 @@ function validateOptimizedAssembly(label: string, assembly: THREE.Group): void {
     assert.ok(mesh.geometry.getAttribute('uv'), `${label} mesh requires UVs`);
     assert.deepEqual(
       Object.keys(mesh.geometry.attributes).sort(),
-      ['normal', 'position', 'uv'],
+      (mesh.material as THREE.MeshStandardMaterial).vertexColors ? ['color', 'normal', 'position', 'uv'] : ['normal', 'position', 'uv'],
       `${label} must strip incidental attributes that prevent stable material merging`,
     );
     const material = mesh.material as THREE.Material;
@@ -295,10 +295,15 @@ function validateOptimizedAssembly(label: string, assembly: THREE.Group): void {
       `${label} must retain a lit PBR material rather than a flat-color shortcut`,
     );
     const pbr = material as THREE.MeshStandardMaterial;
-    assert.ok(pbr.map, `${label} ${material.name} requires an authored albedo response`);
-    assert.ok(pbr.roughnessMap, `${label} ${material.name} requires causal roughness microstructure`);
-    assert.ok(pbr.normalMap, `${label} ${material.name} requires filtered close-up surface relief`);
-    assert.ok(pbr.map.anisotropy >= 4, `${label} ${material.name} must resist grazing-angle texture blur`);
+    if (pbr.vertexColors) {
+      assert.equal(pbr.name, 'Ash arrows · banded goose feathers', 'only tiny ammunition uses baked material colors');
+      assert.equal(mesh.geometry.getAttribute('color').count, mesh.geometry.getAttribute('position').count);
+    } else {
+      assert.ok(pbr.map, `${label} ${material.name} requires an authored albedo response`);
+      assert.ok(pbr.roughnessMap, `${label} ${material.name} requires causal roughness microstructure`);
+      assert.ok(pbr.normalMap, `${label} ${material.name} requires filtered close-up surface relief`);
+      assert.ok(pbr.map.anisotropy >= 4, `${label} ${material.name} must resist grazing-angle texture blur`);
+    }
     const position = mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
     for (let index = 0; index < position.count; index += 1) {
       assert.equal(

@@ -97,7 +97,7 @@
       "kind": "sound-effect",
       "output": "public/sounds/buildings/chapel_bell.mp3",
       "prompt": "One immediate authentic medieval church-bell strike: a cast-bronze bell rings once from a timber-and-stone belfry with a clear rounded toll and short natural decay, used only when the player selects a church, no scheduled ringing, voices, music, ambience, or electronic sound",
-      "durationSeconds": 1,
+      "durationSeconds": 3,
       "loop": false,
       "promptInfluence": 0.95
     },
@@ -1177,7 +1177,7 @@
       "kind": "sound-effect",
       "output": "public/sounds/buildings/well.mp3",
       "prompt": "Short unmistakable village-well selection Foley: a wooden bucket breaks the water surface with one clear close splash, water sloshes inside it, then wet rope pulls taut against the timber windlass. Water must be the dominant first sound; restrained wood creak only after the splash, no voices, no music, no river ambience",
-      "durationSeconds": 2.5,
+      "durationSeconds": 2.2,
       "loop": false,
       "promptInfluence": 0.87
     },

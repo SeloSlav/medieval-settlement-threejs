@@ -465,7 +465,7 @@ export const BUILDING_AUDIO_CLIPS: Record<
   weaponsmith_armorer: { path: '/sounds/buildings/weaponsmith_armorer.mp3', volume: 0.06 },
   bowyer_fletcher: { path: '/sounds/buildings/bowyer_fletcher.mp3', volume: 0.055 },
   potter_kiln: { path: '/sounds/buildings/potter_kiln.mp3', volume: 0.055 },
-  well: { path: '/sounds/buildings/well.mp3', volume: 0.6 },
+  well: { path: '/sounds/buildings/well.mp3', volume: 0.06 },
   hunters_hall: { path: '/sounds/buildings/hunters_hall.mp3', volume: 0.05 },
   foragers_shed: { path: '/sounds/buildings/foragers_shed.mp3', volume: 0.045 },
   fishing_camp: { path: '/sounds/buildings/fishing_camp.mp3', volume: 0.05 },

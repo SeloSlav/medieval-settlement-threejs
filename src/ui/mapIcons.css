@@ -226,7 +226,8 @@
 }
 
 .quarry-map-icon::before,
-.foraging-map-icon::before {
+.foraging-map-icon::before,
+.construction-map-icon::before {
   position: absolute;
   inset: -6px;
   content: '';

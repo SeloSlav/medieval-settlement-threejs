@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import { bowPalmLocal } from '../src/settlement/bowHandGrip.ts';
 import { banditOnTheftMission } from '../src/security/banditEquipment.ts';
 import type { CombatAgentState } from '../src/security/combatAgents.ts';
 import {
@@ -7,6 +8,7 @@ import {
   applyMilitaryCarryPose,
   applyCombatWeaponPose,
   bindCombatWeaponRig,
+  combatWeaponReleaseOrigin,
   disposeCombatWeaponRig,
   resolveCombatWeaponPresentation,
   restoreCombatWeaponPose,
@@ -85,8 +87,8 @@ for (const [kind, source] of Object.entries(sources)) {
     const wristToHandle=handle.clone().sub(primaryHand.getWorldPosition(new THREE.Vector3()))
       .applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion()).invert());
     assert.ok(palmFacing.dot(wristToHandle)>0,`${kind}: handle must sit on the palm side of the hand`);
-    const palm = primaryHand.localToWorld(new THREE.Vector3(source.kind==='bow' ? .005 : -.01,
-      source.kind==='bow' ? .0383 : .044,-.0071));
+    const palm = primaryHand.localToWorld(source.kind==='bow' ? bowPalmLocal(primaryHand,new THREE.Vector3())
+      : new THREE.Vector3(-.01,.044,-.0071));
     assert.ok(handle.distanceTo(palm)<1e-6,`${kind}: handle center must stay seated inside the palm`);
     assert.ok(legs.quaternion.angleTo(legBefore)<1e-7,'carrying must not freeze the legs');
     assert.ok(rig.torsoBones.spineUpper!.quaternion.angleTo(before[9]!)<1e-7,'torso gait stays animated');
@@ -228,6 +230,12 @@ for (let index = 0; index < 140; index += 1) {
 }
 projectileRenderer.update(0.2);
 const effectGroup = projectileParent.children[0] as THREE.Group;
+const flyingArrow = effectGroup.children[0] as THREE.InstancedMesh;
+const heldArrow = bowRig.nockedArrow.children[0] as THREE.Mesh;
+assert.equal(flyingArrow.geometry, heldArrow.geometry, 'the fired arrow keeps the nocked arrow geometry, including fletching');
+assert.equal(flyingArrow.material, heldArrow.material, 'held and fired arrows keep the same feather colors');
+assert.ok(bowRig.nockedArrow.getWorldScale(new THREE.Vector3()).distanceTo(new THREE.Vector3(1, 1, 1)) < 1e-5, 'ammunition retains its real dimensions under the scaled bow mount');
+assert.ok(combatWeaponReleaseOrigin(bowRig, new THREE.Vector3()).distanceTo(bowRig.nockedArrow.getWorldPosition(new THREE.Vector3())) < 1e-6, 'release begins at the nock, with no forward jump');
 const effectCounts = effectGroup.children.map((child) => (child as THREE.InstancedMesh).count);
 assert.ok(effectCounts[0]! + effectCounts[1]! <= 96, 'projectiles must remain in the bounded shared pool');
 assert.equal(effectGroup.children.length, COMBAT_PROJECTILE_DRAW_CALL_BUDGET);
