@@ -67,5 +67,5 @@ try {
   // Cross-building transforms can move a few rasterized edge pixels at float
   // precision. Missing walls affect thousands; the original growth defect
   // changed 30,000–64,000 pixels after nine buildings in these same views.
-  assert.ok(result.errors.every(x=>x.changed<250), 'Growing camera-sorted building batches must match individual mesh pixels');
+  assert.ok(result.errors.every(x=>x.settledChanged<250), 'Growing camera-sorted building batches must match individual mesh pixels after upload');
 } finally { await browser.close(); }

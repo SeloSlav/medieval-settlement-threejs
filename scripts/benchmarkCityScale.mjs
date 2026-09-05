@@ -13,11 +13,11 @@ try {
   await page.goto('http://127.0.0.1:5173/city-scale-probe');
   await page.evaluate(async () => { window.fixture = await (await import('/src/e2e/cityScaleFixture.ts')).createCityScaleFixture(); });
   const results = [];
-  for (const counts of (process.argv.includes('--profile') ? [[0,0,500,100]] : [[6,5,0,0], [6,5,60,12], [100,100,0,0], [0,0,500,100], [100,100,500,100]])) {
+  for (const counts of (process.argv.includes('--profile') ? [[0,0,500,100]] : [[6,5,0,0], [6,5,60,12], [100,100,0,0], [100,100,200,40], [0,0,500,100], [100,100,500,100]])) {
     console.log('cohort', counts);
     const cdp = process.argv.includes('--profile') ? await page.context().newCDPSession(page) : null;
     if (cdp) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.start'); }
-    const result = await page.evaluate(async counts => {
+    const result = await page.evaluate(async ({ counts, gpu }) => {
       const f = window.fixture;
       f.configure(...counts);
       const samples = [];
@@ -27,12 +27,15 @@ try {
         const start = performance.now();
         const update = f.update(1/60);
         const renderStart = performance.now();
+        const gpuHandle = gpu ? f.gpuProfiler.beginFrame(time) : null;
         f.render();
-        if (i >= 40) samples.push({ ...update, cpuMs: performance.now() - start, renderMs: performance.now() - renderStart, intervalMs: time - last });
+        if (gpuHandle) f.gpuProfiler.endFrame(gpuHandle);
+        if (i >= 40) samples.push({ ...update, cpuMs: performance.now() - start, renderMs: performance.now() - renderStart, intervalMs: time - last, timestamp: time });
         last = time;
       }
-      return { counts, samples, stats: f.stats() };
-    }, counts);
+      return { counts, samples, stats: f.stats(), gpuEvidence: gpu ? f.gpuProfiler.getEvidence() : null,
+        gpuTimings: gpu ? samples.map(s=>f.gpuProfiler.getFrameTiming(s.timestamp)) : [] };
+    }, { counts, gpu: process.argv.includes('--gpu') });
     results.push(result);
     if (cdp) {
       const { profile } = await cdp.send('Profiler.stop');

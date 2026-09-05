@@ -593,6 +593,7 @@ export class AuthoredSkinnedInstanceBatch {
   private disposeSubmittedLayers(): void {
     for (const layer of this.submittedLayers) {
       layer.mesh.removeFromParent();
+      layer.mesh.dispose();
       for (const material of layer.materials) material.dispose();
       // Source geometry and textures are borrowed, never disposed here.
     }

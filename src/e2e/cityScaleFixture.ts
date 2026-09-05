@@ -8,11 +8,13 @@ import { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
 import { createDefaultNeeds } from '../residences/residenceNeedState.ts';
 import { SettlementCrowdRenderer, type CrowdRenderAgent } from '../settlement/SettlementCrowdRenderer.ts';
 import { AnimalCombatRenderer, type AnimalCombatPose } from '../settlement/AnimalCombatRenderer.ts';
+import { createVisualGpuTimestampProfiler } from './webGpuTimestampProfiler.ts';
 
 /** Offline renderer fixture: original assets, no server or save mutations. */
 export async function createCityScaleFixture() {
   const backend = await createPreferredRenderer();
   const renderer = backend.renderer;
+  const gpuProfiler = createVisualGpuTimestampProfiler(backend);
   renderer.setSize(1280, 720);
   renderer.setPixelRatio(1);
   document.body.style.margin = '0';
@@ -99,7 +101,7 @@ export async function createCityScaleFixture() {
     return { peopleMs, dogsMs };
   }
   function render() { renderer.info.reset(); renderer.render(scene, camera); }
-  return { scene, renderer, camera, structures, people, animals, configure, update, render, cameraView,
+  return { scene, renderer, camera, structures, people, animals, configure, update, render, cameraView, gpuProfiler,
     stats: () => ({ buildings: batches.getStats(), crowd: crowd.authoredCrowdDiagnostics(), dogs: dogs.diagnostics(), render: { ...renderer.info.render }, adapter: backend.adapterEvidence }),
   };
 }

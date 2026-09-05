@@ -1,8 +1,11 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { createServer } from 'vite';
 
 const output = 'artifacts/city-performance';
 mkdirSync(output, { recursive: true });
+const server = await createServer({ server: { host: '127.0.0.1', port: 5191, strictPort: true, hmr: false } });
+await server.listen();
 const browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--enable-unsafe-webgpu'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
 const errors = [];
@@ -14,7 +17,7 @@ await page.route('**/src/main.ts*', async route => {
   await route.fulfill({ response, body });
 });
 try {
-  await page.goto('http://127.0.0.1:5173/?visualQa=daylight&visualProfile=1', { timeout: 120000 });
+  await page.goto('http://127.0.0.1:5191/?visualQa=daylight&visualProfile=1', { timeout: 120000 });
   for (let i = 0; i < 90; i++) {
     for(const name of [/Continue to Heraldry/, /Continue to Map Generation/, /^Start world$/]) {
       const button=page.getByRole('button',{name});
@@ -83,4 +86,5 @@ try {
   console.log('gameplay phases',JSON.stringify(measured.map(x=>({arm:x.arm,stats:x.stats,average:Object.fromEntries(Object.keys(x.samples[0]).map(k=>[k,x.samples.reduce((s,v)=>s+(v[k]??0),0)/x.samples.length]))}))));
 } finally {
   await browser.close();
+  await server.close();
 }

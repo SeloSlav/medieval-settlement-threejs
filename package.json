@@ -5,6 +5,8 @@
   "type": "module",
   "packageManager": "pnpm@11.19.0",
   "scripts": {
+    "test:authored-rig-world-matrices": "node --experimental-strip-types scripts/testAuthoredRigWorldMatrices.mts",
+    "test:batched-building-growth-browser": "node scripts/testBatchedBuildingGrowthBrowser.mjs",
     "test:startup-loading": "npx tsx scripts/testStartupLoading.mts",
     "dev": "concurrently --kill-others --names spacetimedb,client --prefix-colors magenta,cyan \"node scripts/startSpacetimeDB.mjs\" \"vite --host 127.0.0.1 --port 5173 --strictPort\"",
     "dev:db": "node scripts/startSpacetimeDB.mjs",
