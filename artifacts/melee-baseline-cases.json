@@ -1,0 +1,8 @@
+[
+ {"name":"melee-before-sword-wind","weapon":"sword-shield","mode":"attack","phase":0.84,"view":"front"},
+ {"name":"melee-before-sword-contact","weapon":"sword-shield","mode":"attack","phase":1,"view":"front"},
+ {"name":"melee-before-spear-wind","weapon":"spear","mode":"attack","phase":0.84,"view":"front"},
+ {"name":"melee-before-spear-contact","weapon":"spear","mode":"attack","phase":1,"view":"side"},
+ {"name":"melee-before-mounted-spear","unit":"armored-lancers","weapon":"spear","mode":"attack","phase":0.84,"view":"front"},
+ {"name":"melee-before-mounted-cut","unit":"hussars","weapon":"sidearm-shield","mode":"attack","phase":1,"view":"front"}
+]

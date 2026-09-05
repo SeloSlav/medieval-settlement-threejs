@@ -17,7 +17,7 @@ const REVIEW_UNITS={
  'mounted-archers':{label:'Mounted Archers',weapons:['bow','sidearm'],horse:'archer'},
 } as const;
 type ReviewUnit=keyof typeof REVIEW_UNITS;
-type ReviewState={unit:ReviewUnit;weapon:string;variant:typeof REVIEW_VARIANTS[number];mode:string;phase:number;time:number;view:string;seed:number;paused:boolean;standard:boolean};
+type ReviewState={unit:ReviewUnit;weapon:string;variant:typeof REVIEW_VARIANTS[number];mode:string;phase:number;time:number;view:string;seed:number;paused:boolean;standard:boolean;rawSkin?:boolean};
 const params=new URLSearchParams(location.search);
 const requestedUnit=params.get('unit')??'on-foot';
 const initialUnit:ReviewUnit=Object.hasOwn(REVIEW_UNITS,requestedUnit)?requestedUnit as ReviewUnit:'on-foot';
@@ -39,6 +39,7 @@ const view=buildCrowdViewState(0,0,25);
 const sources=createMilitaryEquipmentSources();
 const standalone=new THREE.Group();scene.add(standalone);
 let standaloneWeapon:THREE.Group|null=null;
+let skeletonDebug:THREE.SkeletonHelper|null=null;
 let standaloneProjectile:CombatProjectileRenderer|null=null;
 let frame=0,clock=0,last=performance.now();const errors:string[]=[];
 window.addEventListener('error',e=>errors.push(e.message));
@@ -60,14 +61,15 @@ renderer.domElement.addEventListener('mousedown',event=>{
 renderer.domElement.addEventListener('wheel',()=>{cameraUserAdjusted=true;},{capture:true});
 function agent():CrowdRenderAgent{
  const tool=state.weapon as CrowdRenderAgent['tool'];
- const attack=state.mode==='attack'||state.mode==='hit'||state.mode==='fallback';
+ const attack=state.mode==='attack'||state.mode==='hit'||state.mode==='fallback'||state.mode==='defend';
  const distance=state.mode==='fallback'?1.5:8;
  const presentation=resolveCombatWeaponPresentation(tool!,distance);
  const duration=presentation?.attackSeconds??1;
  const mounted=REVIEW_UNITS[state.unit].horse!==null&&state.mode!=='fall';
  return{id:'review',slot:0,x:0,y:mounted ? .02+CAVALRY_SADDLE_HEIGHT-seatedVillagerContactHeight('man',state.seed) : .02,z:0,yaw:0,appearanceSeed:state.seed,mounted,
   variant:'man',presentation:state.variant==='raider'?'raider':'common',
-  mode:state.mode==='attack'||state.mode==='fallback'?'fight':state.mode==='hit'?'hurt':state.mode as CrowdRenderAgent['mode'],
+  mode:state.mode==='attack'||state.mode==='fallback'||state.mode==='defend'?'fight':state.mode==='hit'?'hurt':state.mode as CrowdRenderAgent['mode'],
+  combatDefending:state.mode==='defend',
   tool,movementSpeed:state.mode==='run'||state.mode==='flee'?2.15:1.2,animationRateScale:1,
   tunicColor:0x835f3f,skinColor:0xc9946a,hairColor:0x3d2b22,active:true,
   ...(attack?{combatAttackCooldown:(1-state.phase)*duration,combatAttackSeconds:duration,combatTargetDistance:distance,combatTargetX:0,combatTargetY:1.15,combatTargetZ:distance}:{}),
@@ -191,6 +193,10 @@ function set(patch:Partial<ReviewState>){
  for(const el of document.querySelectorAll<HTMLSelectElement>('select[data-key]'))el.value=String(state[el.dataset.key as keyof ReviewState]);
  phase.value=String(state.phase);
  pose(true);
+ for(const batch of (crowd as any).authoredBatchList)batch.group.visible=!state.rawSkin;
+ rig().model.traverse((o:THREE.Object3D)=>{if(o instanceof THREE.SkinnedMesh)o.visible=Boolean(state.rawSkin);});
+ if(skeletonDebug){scene.remove(skeletonDebug);skeletonDebug.dispose();skeletonDebug=null;}
+ if(state.rawSkin){skeletonDebug=new THREE.SkeletonHelper(rig().model);(skeletonDebug.material as THREE.Material).depthTest=false;scene.add(skeletonDebug);}
  const isolated=state.view==='weapon'||state.view==='projectile';
  parent.visible=!isolated;standalone.visible=isolated;
  standaloneProjectile?.dispose();standaloneProjectile=null;
@@ -216,7 +222,7 @@ select('weapon',[...MILITARY_EQUIPMENT_KINDS]);select('variant',[...REVIEW_VARIA
 const phase=document.createElement('input');phase.type='range';phase.min='0';phase.max='1';phase.step='.01';phase.value=String(state.phase);phase.oninput=()=>set({phase:Number(phase.value),time:Number(phase.value),paused:true});controls.append(phase);
 const play=document.createElement('button');play.textContent='Play / pause';play.onclick=()=>set({paused:!state.paused});controls.append(play);
 const resetCamera=document.createElement('button');resetCamera.textContent='Reset camera';resetCamera.onclick=()=>{applyCameraPreset();render();};controls.append(resetCamera);
-(window as any).weaponReview={set,stats,state};set({});
+(window as any).weaponReview={set,stats,state,rig};set({});
 function animate(now:number){const dt=Math.min(.05,(now-last)/1000);last=now;if(!state.paused){clock+=dt/(resolveCombatWeaponPresentation(state.weapon as any,state.mode==='fallback'?1.5:8)?.attackSeconds??1);state.phase=clock%1;state.time=clock%1;phase.value=String(state.phase);pose(false,dt);}followAnimatedGrip();cameraController.update(dt);render();requestAnimationFrame(animate);}requestAnimationFrame(animate);
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();});
 window.addEventListener('pagehide',()=>{cameraController.dispose();horses.dispose();},{once:true});

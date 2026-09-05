@@ -10,6 +10,13 @@ const FINGER_JOINTS = [
   [0.045, -0.017, 0.024], [0.038, -0.033, 0.02],
 ] as const;
 
+/** Authored palm reference relative to a corrected anatomical wrist pivot. */
+export function offsetMilitaryHandGrip(hand: THREE.Bone, point: THREE.Vector3): THREE.Vector3 {
+  const origin = hand.userData.militaryGripOrigin as readonly number[] | undefined;
+  if (origin) { point.x += origin[0]!; point.y += origin[1]!; point.z += origin[2]!; }
+  return point;
+}
+
 /** Add finger and thumb hinges to the worker's otherwise rigid, open right hand.
  * This runs once on the shared source. Existing vertices, UVs and materials
  * are retained; neutral hinges reproduce the original skinning exactly.
@@ -24,6 +31,7 @@ function installHand(root: THREE.Group, left: boolean): void {
   const mirror = left ? -1 : 1;
   const hand = root.getObjectByName(left ? 'L_Hand' : 'R_Hand');
   if (!(hand instanceof THREE.Bone) || root.getObjectByName(names[0]!)) return;
+  const gripOrigin = offsetMilitaryHandGrip(hand, new THREE.Vector3());
   const meshes: THREE.SkinnedMesh[] = [];
   root.traverse(object => { if (object instanceof THREE.SkinnedMesh) meshes.push(object); });
   const skeleton = meshes[0]?.skeleton;
@@ -40,7 +48,7 @@ function installHand(root: THREE.Group, left: boolean): void {
       for (let slot = 0; slot < 4; slot++) {
         if (joints.getComponent(vertex, slot) !== handIndex || weights.getComponent(vertex, slot) < 0.8) continue;
         local.fromBufferAttribute(position, vertex).applyMatrix4(mesh.bindMatrix)
-          .applyMatrix4(skeleton.boneInverses[handIndex]!);
+          .applyMatrix4(skeleton.boneInverses[handIndex]!).sub(gripOrigin);
         handLength = Math.max(handLength, local.y);
       }
     }
@@ -52,13 +60,13 @@ function installHand(root: THREE.Group, left: boolean): void {
   for (let i = 0; i < FINGER_JOINTS.length; i++) {
     const [y, z, length] = FINGER_JOINTS[i]!;
     const finger = new THREE.Bone(); finger.name = names[i * 2]!;
-    finger.position.set(mirror * 0.01 * size, y * size, z * size);
+    finger.position.set(mirror * 0.01 * size, y * size, z * size).add(gripOrigin);
     const tip = new THREE.Bone(); tip.name = names[i * 2 + 1]!;
     tip.position.set(0, length * size, 0);
     hand.add(finger); finger.add(tip); gripBones.push(finger, tip);
   }
   const thumbBone = new THREE.Bone(); thumbBone.name = names[8]!;
-  thumbBone.position.set(mirror * 0.003 * size, 0.028 * size, 0.016 * size);
+  thumbBone.position.set(mirror * 0.003 * size, 0.028 * size, 0.016 * size).add(gripOrigin);
   hand.add(thumbBone); gripBones.push(thumbBone);
   root.updateMatrixWorld(true);
 
@@ -89,7 +97,7 @@ function installHand(root: THREE.Group, left: boolean): void {
     const weights = new THREE.Float32BufferAttribute(oldWeights.count * 4, 4);
     for (let vertex = 0; vertex < position.count; vertex++) {
       local.fromBufferAttribute(position, vertex).applyMatrix4(mesh.bindMatrix)
-        .applyMatrix4(skeleton.boneInverses[handIndex]!).divideScalar(size);
+        .applyMatrix4(skeleton.boneInverses[handIndex]!).sub(gripOrigin).divideScalar(size);
       const influences: Array<[number, number]> = [];
       for (let slot = 0; slot < 4; slot++) {
         const joint = oldJoints.getComponent(vertex, slot);

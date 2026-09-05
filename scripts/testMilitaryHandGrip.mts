@@ -11,7 +11,8 @@ Object.assign(globalThis, {self:globalThis,createImageBitmap:async()=>({width:1,
 Object.defineProperty(globalThis,'ProgressEvent',{value:class{constructor(public type:string){}}});
 const sources = createMilitaryEquipmentSources();
 for (const name of ['worker-male-common-01-v002','ottoman-raider-common-01-v001']) {
-  const bytes = readFileSync(`public/assets/models/villagers/${name}.glb`);
+  const bytes = readFileSync(name.startsWith('worker-') && process.env.WORKER_MODEL_OVERRIDE
+    ? process.env.WORKER_MODEL_OVERRIDE : `public/assets/models/villagers/${name}.glb`);
   const gltf = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');
   const original = clone(gltf.scene) as THREE.Group;
   // Installation owns the loaded source attributes. Keep the reference independent.

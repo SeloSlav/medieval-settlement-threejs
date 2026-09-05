@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { offsetMilitaryHandGrip } from './militaryHandGrip.ts';
 
 /** The oval handle and finger pose are authored together. Coordinates use
  * the bow's shooting frame (+Y shaft, +Z downrange) and the left hand frame. */
@@ -25,5 +26,5 @@ export function bowHandGrip(hand: THREE.Bone): typeof fits[number] {
 }
 
 export function bowPalmLocal(hand: THREE.Bone, out: THREE.Vector3): THREE.Vector3 {
-  return out.set(...bowHandGrip(hand).palm);
+  return offsetMilitaryHandGrip(hand, out.set(...bowHandGrip(hand).palm));
 }

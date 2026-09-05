@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { deflectWaterAroundRock, waterBankVelocityScale } from './WaterHydraulics.ts';
+import { getRiverWaterColumnDepth } from './RiverWaterLevel.ts';
 import {
   RENDER_WATER_MASK_THRESHOLD,
   type RiverField,
@@ -30,6 +32,8 @@ const RAPID_SOURCE_TEXEL_TAPS = [
 
 export type RiverWaterShoreMaps = {
   shoreTexture: THREE.DataTexture;
+  /** RG: velocity m/s, B: water depth m, A: signed shore distance m. */
+  hydraulicTexture?: THREE.DataTexture;
   originX: number;
   originZ: number;
   invSpanX: number;
@@ -97,6 +101,7 @@ export function createRiverWaterShoreMaps(
   const stepX = spanX / (resolution - 1);
   const stepZ = spanZ / (resolution - 1);
   const data = new Uint8Array(resolution * resolution * 4);
+  const hydraulic = new Float32Array(resolution * resolution * 4);
 
   for (let iz = 0; iz < resolution; iz++) {
     for (let ix = 0; ix < resolution; ix++) {
@@ -117,6 +122,11 @@ export function createRiverWaterShoreMaps(
       data[offset + 1] = 0;
       data[offset + 2] = flowX;
       data[offset + 3] = flowZ;
+      const speed = (layout.sampleFlowSpeed(wx, wz) ?? 0) * waterBankVelocityScale(foamSigned);
+      hydraulic[offset] = (flow?.dx ?? 0) * speed;
+      hydraulic[offset + 1] = (flow?.dz ?? 0) * speed;
+      hydraulic[offset + 2] = getRiverWaterColumnDepth(riverField, wx, wz, foamSigned);
+      hydraulic[offset + 3] = foamSigned;
     }
   }
 
@@ -151,6 +161,10 @@ export function createRiverWaterShoreMaps(
           layout.sampleRiverMask(wx, wz)
           < RENDER_WATER_MASK_THRESHOLD
         ) continue;
+        const h = i * 4;
+        const velocity = deflectWaterAroundRock(hydraulic[h], hydraulic[h + 1], wx, wz, rock);
+        hydraulic[h] = velocity[0];
+        hydraulic[h + 1] = velocity[1];
         const rapidFoam = sampleRapidSourceTexel(rock, wx, wz, stepX, stepZ);
         if (rapidFoam <= 0) continue;
         sampledPeak = Math.max(sampledPeak, rapidFoam);
@@ -194,8 +208,17 @@ export function createRiverWaterShoreMaps(
   shoreTexture.generateMipmaps = false;
   shoreTexture.needsUpdate = true;
 
+  const hydraulicHalf = new Uint16Array(hydraulic.length);
+  for (let i = 0; i < hydraulic.length; i++) hydraulicHalf[i] = THREE.DataUtils.toHalfFloat(hydraulic[i]);
+  const hydraulicTexture = new THREE.DataTexture(hydraulicHalf, resolution, resolution, THREE.RGBAFormat, THREE.HalfFloatType);
+  hydraulicTexture.name = 'Water velocity depth and signed shoreline';
+  hydraulicTexture.minFilter = hydraulicTexture.magFilter = THREE.LinearFilter;
+  hydraulicTexture.generateMipmaps = false;
+  hydraulicTexture.needsUpdate = true;
+
   return {
     shoreTexture,
+    hydraulicTexture,
     originX: startX,
     originZ: startZ,
     invSpanX: 1 / spanX,
@@ -279,4 +302,5 @@ function splatNearestRapidSource(
 
 export function disposeRiverWaterShoreMaps(maps: RiverWaterShoreMaps): void {
   maps.shoreTexture.dispose();
+  maps.hydraulicTexture?.dispose();
 }

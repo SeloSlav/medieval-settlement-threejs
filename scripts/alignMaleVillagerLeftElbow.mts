@@ -1,14 +1,18 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-// Authoring experiment: correct the left hinge against the intact right arm.
-// Write to an explicit output so the live asset is not replaced during review.
+// Correct the left hinge against the intact right arm. Rebuild from the
+// original with --source-ref=b148ae849b71a06b48154aabdf8809f517949202.
+// Write to an explicit output so the asset can be reviewed before replacement.
 const sourcePath = 'public/assets/models/villagers/worker-male-common-01-v002.glb';
 const output = process.argv[2] ?? 'artifacts/worker-left-elbow-aligned.glb';
-const bytes = fs.readFileSync(sourcePath), jsonLength = bytes.readUInt32LE(12);
+const sourceRef = process.argv.find(arg => arg.startsWith('--source-ref='))?.slice('--source-ref='.length);
+const bytes = sourceRef ? execFileSync('git', ['show', `${sourceRef}:${sourcePath}`], { maxBuffer: 16 * 1024 * 1024 }) : fs.readFileSync(sourcePath);
+const jsonLength = bytes.readUInt32LE(12);
 const doc = JSON.parse(bytes.subarray(20, 20 + jsonLength).toString());
 const binary = bytes.subarray(28 + jsonLength);
 assert.ok(!doc.meshes[0].extras.elbowAlignment, 'Use the original asset when rebuilding the alignment.');
@@ -53,11 +57,11 @@ function values(id: number): Float32Array {
   const data = binary.subarray(offset, offset + accessor.count * size * 4);
   return new Float32Array(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength));
 }
-function appendAccessor(old: number, data: Float32Array): number {
+function appendAccessor(old: number, data: THREE.TypedArray, count = doc.accessors[old].count): number {
   const bufferView = doc.bufferViews.length;
   doc.bufferViews.push({ buffer: 0, byteOffset: 0, byteLength: data.byteLength });
-  replacements.set(bufferView, Buffer.from(data.buffer));
-  const accessor = { ...doc.accessors[old], bufferView, byteOffset: 0 };
+  replacements.set(bufferView, Buffer.from(data.buffer, data.byteOffset, data.byteLength));
+  const accessor = { ...doc.accessors[old], bufferView, byteOffset: 0, count };
   delete accessor.min; delete accessor.max;
   doc.accessors.push(accessor); return doc.accessors.length - 1;
 }
@@ -67,6 +71,10 @@ for (const name of names) {
   const b = bone(name), node = doc.nodes[nodeIds.get(name)!];
   node.translation = b.position.toArray(); node.rotation = b.quaternion.toArray();
 }
+// Palm/finger placement belongs to the mesh, not the elbow-to-wrist length.
+// Preserve its authored frame when moving the wrist pivot proximally.
+const gripOrigin = hand.worldToLocal(oldWrist.clone()).toArray();
+doc.nodes[nodeIds.get('L_Hand')!].extras = { ...doc.nodes[nodeIds.get('L_Hand')!].extras, militaryGripOrigin: gripOrigin };
 const inverseId = doc.skins[0].inverseBindMatrices, inverse = values(inverseId);
 for (let i = 0; i < doc.skins[0].joints.length; i++) {
   const name = doc.nodes[doc.skins[0].joints[i]].name;
@@ -89,8 +97,41 @@ for (const animation of doc.animations) for (const channel of animation.channels
   }
   sampler.output = appendAccessor(sampler.output, data); retargeted++;
 }
+// Seven source cuff faces carry brown atlas stains. Give only those faces
+// their own UVs in the existing linen island; retain skin on the connector.
+const linenFaces = [5468, 5469, 5510, 8930, 9901, 9902, 9943];
+const primitive = doc.meshes[0].primitives[0];
+const mesh = root.getObjectByName(doc.nodes.find((n: { mesh?: number }) => n.mesh === 0).name) as THREE.SkinnedMesh;
+const attributes = { POSITION: 'position', NORMAL: 'normal', TEXCOORD_0: 'uv', JOINTS_0: 'skinIndex', WEIGHTS_0: 'skinWeight' } as const;
+const arrays = Object.fromEntries(Object.entries(attributes).map(([semantic, attribute]) => {
+  const accessor = doc.accessors[primitive.attributes[semantic]], view = doc.bufferViews[accessor.bufferView];
+  const Type = accessor.componentType === 5121 ? Uint8Array : accessor.componentType === 5123 ? Uint16Array : Float32Array;
+  const start = view.byteOffset + (accessor.byteOffset ?? 0);
+  const data = binary.subarray(start, start + accessor.count * mesh.geometry.getAttribute(attribute).itemSize * Type.BYTES_PER_ELEMENT);
+  return [semantic, Array.from(new Type(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)))];
+}));
+const indices = Array.from(mesh.geometry.index!.array);
+for (const triangle of linenFaces) for (let corner = 0; corner < 3; corner++) {
+  const src = indices[triangle * 3 + corner]!, vertex = arrays.POSITION!.length / 3;
+  const p = new THREE.Vector3().fromBufferAttribute(mesh.geometry.getAttribute('position'), src);
+  assert.ok(p.x > .27 && p.x < .305 && p.y > .79, 'Only the left rolled cuff can receive linen UVs.');
+  for (const [semantic, attribute] of Object.entries(attributes)) {
+    const width = mesh.geometry.getAttribute(attribute).itemSize;
+    if (semantic === 'TEXCOORD_0') arrays[semantic]!.push(.446 + (p.z + .02) * .2, .315 + (p.y - .81) * .3);
+    else arrays[semantic]!.push(...arrays[semantic]!.slice(src * width, (src + 1) * width));
+  }
+  indices[triangle * 3 + corner] = vertex;
+}
+for (const [semantic, attribute] of Object.entries(attributes)) {
+  const old = primitive.attributes[semantic], accessor = doc.accessors[old];
+  const Type = accessor.componentType === 5121 ? Uint8Array : accessor.componentType === 5123 ? Uint16Array : Float32Array;
+  const width = mesh.geometry.getAttribute(attribute).itemSize;
+  primitive.attributes[semantic] = appendAccessor(old, new Type(arrays[semantic]!), arrays[semantic]!.length / width);
+  if (semantic === 'POSITION') Object.assign(doc.accessors[primitive.attributes[semantic]], { min: accessor.min, max: accessor.max });
+}
+primitive.indices = appendAccessor(primitive.indices, new Uint16Array(indices), indices.length);
 doc.meshes[0].extras.elbowAlignment = { sourceSha256: createHash('sha256').update(bytes).digest('hex'),
-  oldElbow: oldElbow.toArray(), elbow: elbow.toArray(), oldWrist: oldWrist.toArray(), wrist: wrist.toArray(), retargeted };
+  oldElbow: oldElbow.toArray(), elbow: elbow.toArray(), oldWrist: oldWrist.toArray(), wrist: wrist.toArray(), retargeted, linenFaces, gripOrigin };
 const chunks: Buffer[] = []; let length = 0;
 for (let i = 0; i < doc.bufferViews.length; i++) {
   const view = doc.bufferViews[i], data = replacements.get(i) ?? binary.subarray(view.byteOffset, view.byteOffset + view.byteLength);

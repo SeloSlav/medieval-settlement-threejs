@@ -48,7 +48,7 @@ try{
   for(let start=0;start<reports.length;start+=6){
    const tiles=await Promise.all(reports.slice(start,start+6).map(async r=>`<figure><img src="data:image/png;base64,${(await fs.readFile(path.join(output,r.file))).toString('base64')}"><figcaption>${r.file}</figcaption></figure>`));
    await page.setContent(`<style>body{margin:0;background:#bbc5cc;display:grid;grid-template-columns:repeat(3,1fr);font:12px sans-serif}figure{margin:0}img{width:480px;height:375px}figcaption{height:20px;text-align:center}</style>${tiles.join('')}`);
-   await page.screenshot({path:path.join(output,`sheet-${Math.floor(start/6)+1}.png`)});
+   await page.screenshot({path:path.join(output,`${caseName}-sheet-${Math.floor(start/6)+1}.png`)});
   }
  }
  if(errors.length)throw new Error(errors.join('\n'));

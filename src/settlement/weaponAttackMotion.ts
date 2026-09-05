@@ -16,23 +16,44 @@ export type WeaponAttackMotion = {
  * Each cycle ends at contact/release and starts with its recovery. */
 const horizontal = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(
   new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0)));
-const keys = {
-  'spear-pike': [
-    key([-.02, -.48, .34], horizontal, .025, -.7),
-    key([-.04, -.48, .1], horizontal, -.015, -.75),
-    key([.04, -.36, .64], horizontal, .11, -.65),
-  ],
-  'sword-shield': [
-    key([-.36, -.16, .64], rotation(.32, -.18, -.1), .015, -.12),
-    key([-.5, .35, .43], rotation(-.62, -.25, -.26), -.035, -.3),
-    key([.12, -.4, .8], rotation(1.95, .3, .15), .1, .24),
-  ],
-  halberd: [
-    key([-.04, -.25, .5], rotation(.25, 0, -.06), .02, -.3),
-    key([.12, .05, .5], rotation(-.4, -.15, -.12), -.04, -.35),
-    key([.1, -.32, .4], rotation(1.35, .08, .06), .12, -.1),
-  ],
-} as const;
+export type MeleeAttackContext = { mounted?: boolean; shield?: boolean; dagger?: boolean; defensive?: boolean };
+// Continuous, cyclic tracks. Contact is at the server's cooldown wrap (0/1),
+// followed by deceleration, recovery, chambering, and a short committed strike.
+// Grip X stays outside the ribs; a two-handed shaft never sweeps through them.
+type MeleeKey = readonly [time: number, x: number, y: number, z: number,
+  pitch: number, yaw: number, roll: number, lean: number, turn: number];
+const cuts: readonly MeleeKey[] = [
+  [0, -.26, -.12, .84, 1.25, .18, -.38, .22, .46],
+  [.12, -.10, -.62, .60, 2.30, .28, -.32, .26, .58],
+  [.38, -.57, -.36, .40, .45, -.20, -.22, .04, -.18],
+  [.56, -.62, -.10, .36, .05, -.30, -.26, .02, -.36],
+  [.82, -.66, .39, .10, -.92, -.32, -.38, -.12, -.78],
+  [.91, -.54, .26, .62, .28, -.05, -.48, .08, -.08],
+];
+const mountedCuts: readonly MeleeKey[] = [
+  [0, -1.06, -.28, .55, 1.48, -.52, .55, .16, .22],
+  [.12, -1.10, -.62, .24, 2.12, -.60, .48, .20, .34],
+  [.38, -.78, -.16, .18, .20, -.35, -.18, .02, -.22],
+  [.56, -.76, .02, .14, -.15, -.40, -.22, 0, -.34],
+  [.82, -.78, .46, .02, -.82, -.50, -.42, -.10, -.65],
+  [.91, -1.00, .20, .42, .55, -.50, .24, .05, -.06],
+];
+const thrusts: readonly MeleeKey[] = [
+  [0, -.51, -.40, .41, -Math.PI / 2, 0, Math.PI, .17, -.64],
+  [.10, -.51, -.40, .42, -Math.PI / 2, 0, Math.PI, .19, -.62],
+  [.38, -.53, -.46, .28, -Math.PI / 2, 0, Math.PI, .03, -.65],
+  [.56, -.53, -.46, .26, -Math.PI / 2, 0, Math.PI, .02, -.67],
+  [.83, -.53, -.48, .04, -Math.PI / 2, 0, Math.PI, -.06, -.88],
+  [.92, -.52, -.42, .32, -Math.PI / 2, 0, Math.PI, .07, -.64],
+];
+const chops: readonly MeleeKey[] = [
+  [0, -.39, -.22, .42, 1.25, .08, -.10, .22, -.50],
+  [.12, -.39, -.40, .35, 1.65, .10, -.08, .28, -.32],
+  [.38, -.46, -.34, .40, .35, -.14, -.10, .04, -.25],
+  [.56, -.48, -.18, .38, .10, -.20, -.16, .02, -.38],
+  [.82, -.48, .20, .34, -.58, -.18, -.20, -.13, -.72],
+  [.91, -.43, .06, .55, .38, -.04, -.14, .06, -.20],
+];
 
 function rotation(x: number, y: number, z: number): THREE.Quaternion {
   return new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z));
@@ -49,7 +70,8 @@ export function createWeaponAttackMotion(): WeaponAttackMotion {
   return { grip: new THREE.Vector3(), orientation: new THREE.Quaternion(), lean: 0, turn: 0, draw: 0, extension: 0, reload: 0 };
 }
 
-export function sampleWeaponAttackMotion(family: AttackMotionFamily, progress: number, out: WeaponAttackMotion): WeaponAttackMotion {
+export function sampleWeaponAttackMotion(family: AttackMotionFamily, progress: number, out: WeaponAttackMotion,
+  context: MeleeAttackContext = {}): WeaponAttackMotion {
   const p = THREE.MathUtils.clamp(progress, 0, 1);
   out.draw = 0; out.extension = 0; out.reload = 0;
   if (family === 'bow') {
@@ -65,13 +87,40 @@ export function sampleWeaponAttackMotion(family: AttackMotionFamily, progress: n
     mix(crossbowAim, crossbowLoad, lower, out);
     out.reload = smooth(p, .2, .5);
   } else {
-    const [guard, wind, contact] = keys[family];
-    if (p < .28) mix(contact, guard, smooth(p, 0, .28), out);
-    else if (p < .56) mix(guard, guard, 0, out);
-    else if (p < .84) mix(guard, wind, smooth(p, .56, .84), out);
-    else mix(wind, contact, smooth(p, .84, 1), out);
+    const track = family === 'spear-pike' ? thrusts : family === 'halberd' ? chops : context.mounted ? mountedCuts : cuts;
+    sampleMelee(track, p, out);
+    if (family === 'spear-pike' && (context.shield || context.mounted)) {
+      out.grip.x -= context.mounted ? .24 : .12;
+      out.turn *= .65;
+      out.lean *= .75;
+    }
+    if (context.defensive) {
+      out.grip.set(context.mounted ? -.88 : -.66, -.72, .34);
+      out.orientation.copy(rotation(family === 'spear-pike' ? 1.32 : 2.30, -.32, .12));
+      out.lean = .10; out.turn = -.28;
+    }
   }
   return out;
+}
+
+const meleeEuler = new THREE.Euler();
+function sampleMelee(track: readonly MeleeKey[], p: number, out: WeaponAttackMotion): void {
+  let i = track.length - 1;
+  for (let j = 0; j < track.length - 1; j++) if (p < track[j + 1]![0]) { i = j; break; }
+  const a = track[i]!, b = track[(i + 1) % track.length]!;
+  const previous = track[(i + track.length - 1) % track.length]!, next = track[(i + 2) % track.length]!;
+  const dt = (b[0] - a[0] + 1) % 1, before = (a[0] - previous[0] + 1) % 1, after = (next[0] - b[0] + 1) % 1;
+  const t = (p - a[0]) / dt, t2 = t * t, t3 = t2 * t;
+  const component = (c: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8): number => {
+    const slope = (b[c] - a[c]) / dt;
+    const tangent = (l: number, r: number) => l * r <= 0 ? 0 : 2 * l * r / (l + r);
+    const m0 = tangent((a[c] - previous[c]) / before, slope) * dt;
+    const m1 = tangent(slope, (next[c] - b[c]) / after) * dt;
+    return (2*t3 - 3*t2 + 1)*a[c] + (t3 - 2*t2 + t)*m0 + (-2*t3 + 3*t2)*b[c] + (t3 - t2)*m1;
+  };
+  out.grip.set(component(1), component(2), component(3));
+  out.orientation.setFromEuler(meleeEuler.set(component(4), component(5), component(6)));
+  out.lean = component(7); out.turn = component(8);
 }
 
 function smooth(p: number, a: number, b: number): number { return THREE.MathUtils.smoothstep(p, a, b); }

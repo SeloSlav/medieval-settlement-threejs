@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { offsetMilitaryHandGrip } from './militaryHandGrip.ts';
 
 export type ShieldSize = 'small' | 'medium' | 'large';
 
@@ -27,7 +28,15 @@ const handFits = [
   handFit(.7255025, [.010, .029, -.0071], [[.9, 1.35], [.7, 1.35], [.5, 1.35], [.1, 1.1]], [0, 0, 0]),
   handFit(1.0345412, [.024, .030, -.0071], [[1.35, .8], [1.4, .6], [1.05, .95], [.65, 1]], [-.15, -.15, .15]),
 ];
+const pivotFits = new WeakMap<THREE.Bone, typeof handFits[number]>();
 export function shieldHandFit(hand: THREE.Bone): typeof handFits[number] {
   const size = Number(hand.userData.militaryGripScale ?? handFits[0]!.size);
-  return handFits.reduce((best, candidate) => Math.abs(candidate.size - size) < Math.abs(best.size - size) ? candidate : best);
+  const fit = handFits.reduce((best, candidate) => Math.abs(candidate.size - size) < Math.abs(best.size - size) ? candidate : best);
+  if (!hand.userData.militaryGripOrigin) return fit;
+  let adjusted = pivotFits.get(hand);
+  if (!adjusted) {
+    adjusted = { ...fit, palm: offsetMilitaryHandGrip(hand, new THREE.Vector3(...fit.palm)).toArray() as [number, number, number] };
+    pivotFits.set(hand, adjusted);
+  }
+  return adjusted;
 }

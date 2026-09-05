@@ -1,0 +1,71 @@
+{
+  "ready": true,
+  "view": "near",
+  "debugMode": "final",
+  "fixedAnimationTimeSeconds": 6.25,
+  "deterministicInput": "kupa-layout-4b757061-field-256",
+  "noPost": true,
+  "bankOverlay": {
+    "transparent": true,
+    "premultipliedAlpha": true,
+    "depthWrite": false,
+    "polygonOffsetFactor": -3,
+    "polygonOffsetUnits": -8,
+    "opacityContract": "smoothstep(0.08,0.62,uv.x)*0.94",
+    "surface": "pale-carbonate-waterline-moss"
+  },
+  "crossSection": {
+    "adjacentBankToWaterDropMeters": 3.203369678903561,
+    "centerWaterDepthMeters": 2.7379263999289654,
+    "requiredBankDropMeters": 3.2,
+    "requiredWaterDepthMeters": 2.15,
+    "waterClimbsBank": false
+  },
+  "channel": {
+    "rockCount": 27,
+    "stationCount": 16,
+    "mixedSideStationCount": 0,
+    "foamSourcePixels": 1401,
+    "peakFoamSource": 232,
+    "packedSurfaceMapBytes": 262144,
+    "cattailInstances": 204,
+    "cattailSubmergedInstances": 204,
+    "qualityTier": "hydraulic-flow-screen-optics",
+    "packedSurfaceTextureLookups": 1,
+    "travellingFoam": true
+  },
+  "renderer": {
+    "backend": "webgpu",
+    "drawCalls": 8,
+    "renderPasses": 2,
+    "triangles": 147067,
+    "geometries": 8,
+    "textures": 15,
+    "renderTargets": 1,
+    "pixelRatio": 1
+  },
+  "performance": {
+    "sampleCount": 45,
+    "medianFps": 163.93442622952287,
+    "onePercentLowFps": 161.29032258062622,
+    "p95FrameMs": 6.100000000000364,
+    "p95CpuSubmitMs": 1,
+    "framesOver25Ms": 0
+  },
+  "camera": {
+    "position": [
+      17.213023062742064,
+      4.591769678903561,
+      35.4996912120007
+    ],
+    "target": [
+      -17.2903634752662,
+      -2.7894601142861544,
+      22.24495400934247
+    ],
+    "fov": 42
+  },
+  "errors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+}

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { installMilitaryHandGrip } from '../src/settlement/militaryHandGrip.ts';
+import { installMilitaryHandGrip, offsetMilitaryHandGrip } from '../src/settlement/militaryHandGrip.ts';
 import { bowPalmLocal } from '../src/settlement/bowHandGrip.ts';
 import { applyCombatWeaponPose, bindCombatWeaponRig, resetCombatWeaponRig, restoreCombatWeaponPose, resolveCombatWeaponPresentation } from '../src/settlement/combatWeaponAnimation.ts';
 import { attachMilitaryEquipment, createMilitaryEquipmentSources, setMilitaryEquipmentCombatStance } from '../src/settlement/militaryEquipment.ts';
@@ -13,11 +13,13 @@ Object.defineProperty(globalThis,'ProgressEvent',{value:class{constructor(public
 const sources=createMilitaryEquipmentSources();
 const benchmarkRigs: {rig:NonNullable<ReturnType<typeof bindCombatWeaponRig>>,kind:keyof typeof sources,duration:number}[]=[];
 for(const [name,height] of [['worker-male-common-01-v002',1.72],['ottoman-raider-common-01-v001',1.72]] as const){
- const bytes=readFileSync(`public/assets/models/villagers/${name}.glb`);
+  const bytes = readFileSync(name.startsWith('worker-') && process.env.WORKER_MODEL_OVERRIDE
+    ? process.env.WORKER_MODEL_OVERRIDE : `public/assets/models/villagers/${name}.glb`);
  const gltf=await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');
  installMilitaryHandGrip(gltf.scene);
  const bounds=new THREE.Box3().setFromObject(gltf.scene);
  for(const kind of Object.keys(sources) as (keyof typeof sources)[]){
+  if(process.env.WEAPON_TEST_ONLY && !process.env.WEAPON_TEST_ONLY.split(',').includes(kind))continue;
   const model=clone(gltf.scene) as THREE.Group;model.scale.setScalar(height/(bounds.max.y-bounds.min.y));model.updateMatrixWorld(true);
   const equipment=attachMilitaryEquipment(model,sources[kind]);
   const rig=bindCombatWeaponRig(model,kind,equipment)!;
@@ -104,7 +106,7 @@ for(const [name,height] of [['worker-male-common-01-v002',1.72],['ottoman-raider
    if(mount.userData.workerToolSupportGripLocal){
     const left=rig.armBones.leftHand;
     const support=mount.localToWorld(new THREE.Vector3(...mount.userData.workerToolSupportGripLocal));
-    const anchor=left.localToWorld(new THREE.Vector3(kind==='crossbow'?.014:.005,.0383,-.0071));
+    const anchor=left.localToWorld(offsetMilitaryHandGrip(left,new THREE.Vector3(kind==='crossbow'?.014:.005,.0383,-.0071)));
     supportError=Math.max(supportError,support.distanceTo(anchor));
    }
    const wrist=hand.getWorldPosition(new THREE.Vector3());
@@ -130,7 +132,7 @@ for(const [name,height] of [['worker-male-common-01-v002',1.72],['ottoman-raider
   }
   if(kind==='spear'||kind==='pike-kit')assert.ok(points[100]!.z-points[84]!.z>.2,'both grips must advance in the thrust');
   assert.ok(primaryError<.002,`${name}/${kind}: primary hand lost the handle`);
-  assert.ok(supportError<.002,`${name}/${kind}: supporting hand cannot reach the handle`);
+  assert.ok(supportError<.002,`${name}/${kind}: supporting hand misses the handle by ${(supportError*1000).toFixed(3)} mm`);
   assert.ok(maxWrist<30,`${name}/${kind}: wrist folded ${maxWrist} degrees at ${worstFrame}`);
   assert.ok(maxOther<30,`${name}/${kind}: supporting/drawing wrist folded ${maxOther} degrees at ${otherFrame}`);
   assert.ok(maxStep<22,`${name}/${kind}: elbow/grip solution jumped ${maxStep} degrees at phase ${stepFrame/100}`);

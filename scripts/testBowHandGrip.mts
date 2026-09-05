@@ -14,7 +14,8 @@ const collisionMaterial = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }
 let checked = 0;
 
 for (const [name, height] of [['worker-male-common-01-v002', 1.72], ['ottoman-raider-common-01-v001', 1.72]] as const) {
-  const bytes = readFileSync(`public/assets/models/villagers/${name}.glb`);
+  const bytes = readFileSync(name.startsWith('worker-') && process.env.WORKER_MODEL_OVERRIDE
+    ? process.env.WORKER_MODEL_OVERRIDE : `public/assets/models/villagers/${name}.glb`);
   const gltf = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
   installMilitaryHandGrip(gltf.scene);
   const model = gltf.scene;

@@ -56,7 +56,7 @@ import {
 } from './companyStandardTextures.ts';
 import { configureVillagerMaterialLighting } from './villagerMaterialLighting.ts';
 import { locomotionAnimationTimeScale } from './locomotionAnimation.ts';
-import { installMilitaryHandGrip } from './militaryHandGrip.ts';
+import { installMilitaryHandGrip, offsetMilitaryHandGrip } from './militaryHandGrip.ts';
 import { applyMountedRidingPose, bindMountedRidingRig, restoreMountedRidingPose, type MountedRidingRig } from './mountedRidingPose.ts';
 import type {
   ClericAnimationMode,
@@ -205,6 +205,8 @@ export type CrowdRenderAgent = {
   /** Explicit casualty detach event; never inferred from hurt/fall animation alone. */
   battlefieldWeaponDrop?: BattlefieldWeaponDropOwnership;
   combatAttackCooldown?: number;
+  /** Braced shield stance; ordinary idle and locomotion stay intact. */
+  combatDefending?: boolean;
   combatAttackSeconds?: number;
   combatLocomotion?: 'idle' | 'walk' | 'run';
   combatTargetDistance?: number;
@@ -921,7 +923,7 @@ export class SettlementCrowdRenderer {
       standard.active = agent.active;
       const animated = this.animated.get(agent.id);
       if (animated?.combatRig) {
-        animated.combatRig.armBones.leftHand.localToWorld(this.companyStandardGrip.set(.005, .0383, -.0071));
+        animated.combatRig.armBones.leftHand.localToWorld(offsetMilitaryHandGrip(animated.combatRig.armBones.leftHand, this.companyStandardGrip.set(.005, .0383, -.0071)));
         this.group.worldToLocal(this.companyStandardGrip);
         const grip = standard.gripPose ?? {
           x: 0,
@@ -1173,6 +1175,9 @@ export class SettlementCrowdRenderer {
       attackSeconds: agent.combatAttackSeconds,
       dtSeconds: dt,
       logicalMode: agent.mode,
+      mounted: agent.mounted,
+      defensive: agent.combatDefending,
+      moving: agent.combatLocomotion === 'walk' || agent.combatLocomotion === 'run',
     });
     if (!result) return;
     setWorkerToolCombatStance(visual.tool, result.presentation.stance);

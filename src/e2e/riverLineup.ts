@@ -41,6 +41,7 @@ type CameraEvidence = {
 };
 
 type RiverLineupPerformance = {
+  medianGpuMs: number | null;
   sampleCount: number;
   medianFps: number;
   onePercentLowFps: number;
@@ -128,6 +129,7 @@ const requestedTime = Number(query.get('time'));
 const fixedAnimationTimeSeconds = Number.isFinite(requestedTime)
   ? Math.max(0, requestedTime)
   : 6.25;
+let currentAnimationTime = fixedAnimationTimeSeconds;
 const detail = document.querySelector<HTMLElement>('#contract-detail');
 if (detail) {
   detail.textContent = `${initialView} camera · ${initialDebugMode} output · fixed t=${fixedAnimationTimeSeconds.toFixed(2)}s · direct no-post render`;
@@ -157,7 +159,7 @@ const riverField = RiverField.fromLayout({
 });
 stageDataset.kupaRiverStage = 'field-ready';
 
-const renderer = new WebGPURenderer({ antialias: true, alpha: false });
+const renderer = new WebGPURenderer({ antialias: true, alpha: false, trackTimestamp: true } as ConstructorParameters<typeof WebGPURenderer>[0]);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -239,6 +241,14 @@ const river = await createRiverSystem(
 scene.add(river.group);
 stageDataset.kupaRiverStage = 'river-core-ready';
 await river.finishDetails();
+if (query.get('baseline') === '1') {
+  const baseline = await import('../rivers/WaterBaseline.ts');
+  const baselineMaps = createRiverWaterShoreMaps(riverField);
+  river.group.traverse(object => {
+    if (!(object instanceof THREE.Mesh) || !object.userData.water) return;
+    object.material = baseline.createRiverWaterMaterial(baselineMaps);
+  });
+}
 stageDataset.kupaRiverStage = 'river-details-ready';
 
 const channelRocks = createRiverChannelRockPlacements(riverField);
@@ -263,6 +273,8 @@ const waterEvidence = collectWaterEvidence();
 
 const frameIntervalsMs: number[] = [];
 const cpuSubmitMs: number[] = [];
+const gpuMs: number[] = [];
+let gpuPending = false;
 let previousFrameTimestamp = 0;
 let frameIndex = 0;
 let animationFrameId = 0;
@@ -282,13 +294,19 @@ const renderFrame = (timestamp: number): void => {
   const deltaMs = previousFrameTimestamp > 0 ? timestamp - previousFrameTimestamp : 0;
   previousFrameTimestamp = timestamp;
   const dt = Math.min(0.033, Math.max(0, deltaMs / 1000));
-  river.tick(dt, fixedAnimationTimeSeconds);
-  setWorldAnimationTime(fixedAnimationTimeSeconds);
+  river.tick(dt, currentAnimationTime);
+  setWorldAnimationTime(currentAnimationTime);
 
   const cpuStart = performance.now();
   resetRendererFrameInfo();
   renderer.render(scene, camera);
   const cpuEnd = performance.now();
+  if (rendererBackend === 'webgpu' && !gpuPending) {
+    gpuPending = true;
+    (renderer as unknown as { resolveTimestampsAsync(): Promise<number | undefined> }).resolveTimestampsAsync().then(value => {
+      if (frameIndex > PERFORMANCE_WARMUP_FRAMES && typeof value === 'number' && value > 0) gpuMs.push(value);
+    }).finally(() => { gpuPending = false; });
+  }
 
   if (frameIndex >= PERFORMANCE_WARMUP_FRAMES && deltaMs > 0) {
     frameIntervalsMs.push(deltaMs);
@@ -311,12 +329,13 @@ window.__KUPA_RIVER_LINEUP_CAPTURE__ = async (request = {}) => {
   const captureTime = Number.isFinite(request.animationTimeSeconds)
     ? Math.max(0, request.animationTimeSeconds!)
     : fixedAnimationTimeSeconds;
+  currentAnimationTime = captureTime;
   applyCamera(activeView);
   setSharedRiverWaterDebugMode(activeDebugMode);
   setWorldAnimationTime(captureTime);
   resetRendererFrameInfo();
   renderer.render(scene, camera);
-  await twoAnimationFrames();
+  for (let i = 0; i < 30; i++) await twoAnimationFrames();
   const evidence = buildEvidence(captureTime);
   window.__KUPA_RIVER_LINEUP_EVIDENCE__ = evidence;
   document.documentElement.dataset.kupaRiverEvidence = JSON.stringify(evidence);
@@ -673,6 +692,7 @@ function collectPerformanceEvidence(): RiverLineupPerformance {
   const slowest = [...intervals].sort((a, b) => b - a).slice(0, slowCount);
   const onePercentFrameMs = slowest.reduce((sum, value) => sum + value, 0) / slowest.length;
   return {
+    medianGpuMs: gpuMs.length ? percentile(gpuMs.slice(-PERFORMANCE_SAMPLE_FRAMES),0.5) : null,
     sampleCount: intervals.length,
     medianFps: medianFrameMs > 0 ? 1000 / medianFrameMs : 0,
     onePercentLowFps: onePercentFrameMs > 0 ? 1000 / onePercentFrameMs : 0,

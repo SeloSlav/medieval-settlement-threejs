@@ -11,7 +11,8 @@ Object.assign(globalThis, { self: globalThis, createImageBitmap: async () => ({ 
 Object.defineProperty(globalThis, 'ProgressEvent', { value: class { constructor(public type: string) {} } });
 const source = createMilitaryEquipmentSources().crossbow;
 for (const name of ['worker-male-common-01-v002', 'ottoman-raider-common-01-v001']) {
-  const bytes = readFileSync(`public/assets/models/villagers/${name}.glb`);
+  const bytes = readFileSync(name.startsWith('worker-') && process.env.WORKER_MODEL_OVERRIDE
+    ? process.env.WORKER_MODEL_OVERRIDE : `public/assets/models/villagers/${name}.glb`);
   const gltf = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
   installMilitaryHandGrip(gltf.scene);
   let maxWristAngle = 0, maxJointStep = 0;

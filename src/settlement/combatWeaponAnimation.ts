@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import type { WorkerToolKind } from './workerTools.ts';
 import type { MilitaryEquipmentCombatStance } from './militaryEquipment.ts';
-import { MILITARY_GRIP_BONES, MILITARY_LEFT_GRIP_BONES } from './militaryHandGrip.ts';
+import { MILITARY_GRIP_BONES, MILITARY_LEFT_GRIP_BONES, offsetMilitaryHandGrip } from './militaryHandGrip.ts';
 import { CROSSBOW_FRAME } from './militaryWeaponGeometry.ts';
 import { bowHandGrip, bowPalmLocal } from './bowHandGrip.ts';
 import { SHIELD_HAND_FRAME, shieldHandFit } from './shieldGrip.ts';
 import { acquireAmmunitionAssets, type AmmunitionKind } from './rangedAmmunition.ts';
 import { createWeaponAttackMotion, sampleWeaponAttackMotion, type WeaponAttackMotion } from './weaponAttackMotion.ts';
+import { applyMeleeBodyPose, bindMeleeBodyRig, restoreMeleeBodyPose, type MeleeBodyRig } from './meleeBodyPose.ts';
 
 export type CombatWeaponFamily =
   | 'spear-pike'
@@ -51,6 +52,9 @@ export type CombatWeaponPoseInput = {
   attackSeconds?: number;
   dtSeconds: number;
   logicalMode: string;
+  mounted?: boolean;
+  defensive?: boolean;
+  moving?: boolean;
 };
 
 export type CombatWeaponAttackEvent = {
@@ -218,6 +222,7 @@ function phaseRange(
 }
 
 export type CombatWeaponRig = {
+  meleeBody: MeleeBodyRig | null;
   model: THREE.Group;
   tool: THREE.Group | null;
   rangedMount: THREE.Group | null;
@@ -356,6 +361,7 @@ export function bindCombatWeaponRig(
     if (cord) cord.geometry = cord.geometry.clone();
   }
   return {
+    meleeBody: bindMeleeBodyRig(model),
     model,
     tool,
     rangedMount,
@@ -413,6 +419,7 @@ function findRigBone(model: THREE.Group, aliases: readonly string[]): THREE.Bone
 }
 
 export function restoreCombatWeaponPose(rig: CombatWeaponRig): void {
+  restoreMeleeBodyPose(rig.meleeBody);
   if (!rig.overlayApplied) return;
   if (rig.shieldMount) {
     rig.shieldMount.position.copy(rig.shieldBasePosition);
@@ -488,7 +495,7 @@ export function applyMilitaryCarryPose(rig: CombatWeaponRig, tool: WorkerToolKin
       rig.model.updateWorldMatrix(true, true);
       const target = primaryMount.localToWorld(rig.scratchVectors[13]!.set(...grip));
       const handScale = rig.armBones.leftHand.getWorldScale(rig.scratchVectors[15]!);
-      const palmOffset = rig.scratchVectors[14]!.set(0.006, 0.038, 0).multiply(handScale)
+      const palmOffset = offsetMilitaryHandGrip(rig.armBones.leftHand, rig.scratchVectors[14]!.set(0.006, 0.038, 0)).multiply(handScale)
         .applyQuaternion(CROSSBOW_SUPPORT_HAND)
         .applyQuaternion(rig.model.getWorldQuaternion(rig.scratchQuaternions[0]!));
       target.sub(palmOffset);
@@ -516,8 +523,8 @@ function poseCarryArm(rig: CombatWeaponRig, left: boolean, target: ArmTarget): v
 /** Mirror the approved crossbow carrying arm: same relaxed reach, tucked
  * elbow and neutral wrist. Fit the shield to that hand without stretching
  * the sleeve or moving the authored elbow/skinning pivots. */
-function poseShieldArm(rig: CombatWeaponRig): void {
-  poseCarryArm(rig, true, CARRY_SHIELD);
+function poseShieldArm(rig: CombatWeaponRig, raised = false): void {
+  poseCarryArm(rig, true, raised ? [-.38, -.10, .58] : CARRY_SHIELD);
   const mount = rig.shieldMount!, arm = rig.armBones;
   const upperDirection = arm.leftForearm.getWorldPosition(rig.scratchVectors[13]!)
     .sub(arm.leftUpperArm.getWorldPosition(rig.scratchVectors[0]!)).normalize();
@@ -727,10 +734,10 @@ export function applyCombatWeaponPose(
   rig.family = combatPresentation.family;
 
   captureBaseQuaternions(rig);
-  applyTimelinePose(rig, timeline, input.logicalMode);
+  applyTimelinePose(rig, timeline, input);
   updateRangedAmmoVisuals(rig, timeline);
 
-  const event = timeline.releaseEdge
+  const event = timeline.releaseEdge && !input.defensive
     ? {
         sequence: ++rig.eventSequence,
         family: combatPresentation.family,
@@ -936,7 +943,7 @@ function solveAttackHand(rig: CombatWeaponRig, left: boolean, contact: THREE.Vec
   const offset = rig.scratchVectors[14]!;
   if (drawing) offset.set(...STRING_GRIP_LOCAL);
   else offset.set(left ? supportStock ? .014 : .005 : -.01, left ? .0383 : .044, -.0071);
-  offset.multiplyScalar(size).multiply(hand.getWorldScale(rig.scratchVectors[15]!)).applyQuaternion(handWorld);
+  offsetMilitaryHandGrip(hand, offset.multiplyScalar(size)).multiply(hand.getWorldScale(rig.scratchVectors[15]!)).applyQuaternion(handWorld);
   const wristTarget = rig.scratchVectors[13]!.copy(contact).sub(offset);
   if (drawing) rig.elbowHandDirection.set(1, .5, 1).applyQuaternion(rig.bodyOrientation);
   else rig.elbowHandDirection.set(0, 1, 0).applyQuaternion(handWorld);
@@ -970,8 +977,8 @@ function alignAttackGrip(rig: CombatWeaponRig, left: boolean, contact: THREE.Vec
   const scale = hand.getWorldScale(rig.scratchVectors[4]!);
   const size = left ? 1 : Number(hand.userData.militaryGripScale ?? 1);
   for (let iteration = 0; iteration < 2; iteration++) {
-    const offset = rig.scratchVectors[5]!.set(left ? .005 : -.01, left ? .0383 : .044, -.0071)
-      .multiplyScalar(size).multiply(scale).applyQuaternion(handWorld);
+    const offset = offsetMilitaryHandGrip(hand, rig.scratchVectors[5]!.set(left ? .005 : -.01, left ? .0383 : .044, -.0071)
+      .multiplyScalar(size)).multiply(scale).applyQuaternion(handWorld);
     const direction = rig.scratchVectors[6]!.copy(contact).sub(offset).sub(shoulder);
     const distance = Math.max(1e-5, direction.length()); direction.divideScalar(distance);
     const fingers = rig.scratchVectors[7]!.set(0, 1, 0).applyQuaternion(handWorld);
@@ -986,10 +993,9 @@ function alignAttackGrip(rig: CombatWeaponRig, left: boolean, contact: THREE.Vec
     handPlane.normalize(); targetPlane.normalize();
     const align = Math.atan2(rig.scratchVectors[10]!.crossVectors(handPlane, targetPlane).dot(axis), handPlane.dot(targetPlane));
     const a = Math.atan2(Math.sin(align + around), Math.cos(align + around));
-    const b = Math.atan2(Math.sin(align - around), Math.cos(align - around));
     // Keep one anatomical branch for the complete cycle. Selecting whichever
     // roll is momentarily closest flips the elbow when the two costs cross.
-    const roll = left ? b : a;
+    const roll = a;
     handWorld.premultiply(rig.scratchQuaternions[3]!.setFromAxisAngle(axis, roll)).normalize();
   }
 }
@@ -1078,7 +1084,7 @@ function poseCrossbowSupportArm(rig: CombatWeaponRig, grip: readonly [number, nu
   handWorld.slerp(rig.scratchQuaternions[3]!.setFromRotationMatrix(rig.carryGripBasis.makeBasis(palmBack, forward, thumb)), .6 + .4 * extension);
   hand.quaternion.copy(hand.parent!.getWorldQuaternion(rig.scratchQuaternions[1]!).invert()).multiply(handWorld).normalize();
   hand.updateWorldMatrix(true, false);
-  hand.localToWorld(rig.attackOrigin.set(.014, .0383, -.0071));
+  hand.localToWorld(offsetMilitaryHandGrip(hand, rig.attackOrigin.set(.014, .0383, -.0071)));
   rig.attackOrigin.sub(rig.scratchVectors[13]!.set(...grip).multiply(rig.attackScale).applyQuaternion(rig.attackOrientation));
   rig.attackMatrix.compose(rig.attackOrigin, rig.attackOrientation, rig.attackScale);
 }
@@ -1091,9 +1097,14 @@ function alignCrossbowSupportBone(rig: CombatWeaponRig, bone: THREE.Bone,
   bone.updateWorldMatrix(true, false);
 }
 
-function applyTimelinePose(rig: CombatWeaponRig, timeline: CombatAttackTimeline, logicalMode: string): void {
-  const motion = sampleWeaponAttackMotion(timeline.family, timeline.poseProgress, rig.attackMotion);
-  if (logicalMode === 'fight') {
+function applyTimelinePose(rig: CombatWeaponRig, timeline: CombatAttackTimeline, input: CombatWeaponPoseInput): void {
+  const motion = sampleWeaponAttackMotion(timeline.family, timeline.poseProgress, rig.attackMotion, {
+    mounted: input.mounted, shield: Boolean(rig.shieldMount),
+    dagger: !timeline.ranged && (input.tool === 'bow' || input.tool === 'crossbow'),
+    defensive: input.defensive && Boolean(rig.shieldMount),
+  });
+  if (input.logicalMode === 'fight') {
+    if (!timeline.ranged && !input.mounted && !input.moving) applyMeleeBodyPose(rig.meleeBody, motion.turn, motion.lean);
     for (const key of TORSO_KEYS) {
       const bone = rig.torsoBones[key];
       if (bone) bone.quaternion.copy(rig.referenceQuaternions.get(bone)!);
@@ -1113,12 +1124,13 @@ function applyTimelinePose(rig: CombatWeaponRig, timeline: CombatAttackTimeline,
   const mount = timeline.ranged ? rig.rangedMount : mounts?.find(m => m.userData.workerToolCombatRole === 'melee-held') ?? rig.tool;
   if (!mount) return;
   const primaryGrip = mount.userData.workerToolGripLocal as [number, number, number] ?? [0, 0, 0];
-  const supportGrip = mount.userData.workerToolSupportGripLocal as [number, number, number] | undefined;
+  // A mounted lance is controlled by the right hand; the left retains reins
+  // or shield. Infantry uses the support grip on the same physical shaft.
+  const supportGrip = input.mounted && !timeline.ranged ? undefined
+    : mount.userData.workerToolSupportGripLocal as [number, number, number] | undefined;
   mount.getWorldScale(rig.attackScale);
   rig.attackOrientation.copy(rig.bodyOrientation).multiply(motion.orientation);
   bodyPoint(rig, motion.grip, rig.attackOrigin);
-  if (rig.shieldMount) rig.attackOrigin.add(rig.scratchVectors[14]!.set(timeline.family === 'spear-pike' ? -.4 : -.24, 0, 0)
-    .multiplyScalar(rig.armLength).applyQuaternion(rig.bodyOrientation));
   rig.attackOrigin.sub(rig.scratchVectors[14]!.set(...primaryGrip).multiply(rig.attackScale).applyQuaternion(rig.attackOrientation));
   rig.attackMatrix.compose(rig.attackOrigin, rig.attackOrientation, rig.attackScale);
   const handWorld = rig.scratchQuaternions[4]!;
@@ -1188,7 +1200,7 @@ function applyTimelinePose(rig: CombatWeaponRig, timeline: CombatAttackTimeline,
       solveAttackHand(rig, true, attackContact(rig, supportGrip), handWorld);
       closeSupportFingers(rig, timeline.family === 'spear-pike' || timeline.family === 'halberd');
     } else if (rig.shieldMount) {
-      poseShieldArm(rig);
+      poseShieldArm(rig, true);
     } else poseCarryArm(rig, true, CARRY_SWORD);
   }
   // Attachment still belongs to its original hand for shared batching/drop

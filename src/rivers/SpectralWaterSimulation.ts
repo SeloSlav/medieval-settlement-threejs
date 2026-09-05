@@ -572,7 +572,7 @@ function activeCascadeCount(profileId: WaterSurfaceProfileId): number {
 export class SpectralWaterSimulation {
   readonly binding: SpectralWaterBinding;
 
-  private readonly renderer: WebGPURenderer;
+  private readonly renderer: WebGPURenderer | null;
   private readonly timeNode = uniform(0);
   private readonly dtNode = uniform(1 / 60);
   private readonly foamPingNode = uniform(0);
@@ -586,7 +586,7 @@ export class SpectralWaterSimulation {
     return activeCascadeCount(profileId) > 0;
   }
 
-  constructor(renderer: WebGPURenderer, profileId: WaterSurfaceProfileId) {
+  constructor(renderer: WebGPURenderer | null, profileId: WaterSurfaceProfileId) {
     this.renderer = renderer;
     const size = SPECTRAL_WATER_RESOLUTION;
     const logSize = SPECTRAL_WATER_LOG_SIZE;
@@ -719,8 +719,8 @@ export class SpectralWaterSimulation {
     };
   }
 
-  update(timeSeconds: number, dtSeconds: number): void {
-    if (this.disposed || this.runtimes.length === 0) return;
+  update(timeSeconds: number, dtSeconds: number, renderer = this.renderer): void {
+    if (this.disposed || this.runtimes.length === 0 || !renderer) return;
     this.timeNode.value = Number.isFinite(timeSeconds) ? timeSeconds : 0;
     this.dtNode.value = THREE.MathUtils.clamp(
       Number.isFinite(dtSeconds) ? dtSeconds : 0,
@@ -731,7 +731,7 @@ export class SpectralWaterSimulation {
     // Dispatch boundaries preserve the exact evolution -> Stockham -> foam
     // dependency chain. Recording them in one compute pass removes fifteen
     // command encoders/submissions without changing any shader or workload.
-    this.renderer.compute(this.frameBatches[this.foamPing] as ComputeNode[]);
+    renderer.compute(this.frameBatches[this.foamPing] as ComputeNode[]);
     this.foamPing = 1 - this.foamPing;
     this.foamPingNode.value = this.foamPing;
   }
