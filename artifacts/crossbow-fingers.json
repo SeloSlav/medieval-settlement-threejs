@@ -1,8 +1,0 @@
-[
- {"name":"crossbow-fingers-man-inside","unit":"on-foot","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"grip-inside"},
- {"name":"crossbow-fingers-man-back","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"grip-back"},
- {"name":"crossbow-fingers-man-full","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"front"},
- {"name":"crossbow-fingers-raider-inside","weapon":"crossbow","variant":"raider","mode":"attack","phase":0.95,"view":"grip-inside"},
- {"name":"crossbow-fingers-raider-back","weapon":"crossbow","variant":"raider","mode":"attack","phase":0.95,"view":"grip-back"},
- {"name":"crossbow-fingers-raider-full","weapon":"crossbow","variant":"raider","mode":"attack","phase":0.95,"view":"front"}
-]

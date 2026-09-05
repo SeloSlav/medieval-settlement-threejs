@@ -1,8 +1,0 @@
-{
-  "Database": "city-builder",
-  "Server": "http://127.0.0.1:3000",
-  "UpdatedAt": "2026-09-05T20:59:03.0611910Z",
-  "WasmSHA256": "7DB83CF8BF235581B58893D734198BCC811F4605E39C569F45617D6747F9F37B",
-  "ForestrySchemaVerified": true,
-  "RegressionReducerExported": false
-}

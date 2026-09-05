@@ -32,18 +32,50 @@ playwright-report/
 test-results/
 blob-report/
 
-# Download-only asset source archives
-artifacts/kenney-survival-kit-extracted/
-artifacts/kenney_survival-kit.zip
+# Local QA output: captures, videos, traces, timings, generated PBR candidates,
+# downloaded archives and copied builds. Keep harnesses in scripts/, src/e2e/
+# or e2e/. Canonical game assets remain in public/ and art-source/.
+/artifacts/*
 
-# Reproducible visual-gauntlet build snapshots (public evidence stays tracked)
-artifacts/visual-gauntlet/
+# Existing authored harnesses, input cases and concise review notes.
+!/artifacts/*.html
+!/artifacts/*.ts
+!/artifacts/*.mts
+!/artifacts/*-cases.json
+!/artifacts/*.md
+!/artifacts/environment-pass/
+/artifacts/environment-pass/*
+!/artifacts/environment-pass/environment-design-review.md
+!/artifacts/forestry/
+/artifacts/forestry/*
+!/artifacts/forestry/README.md
+!/artifacts/pbr-material-review/
+/artifacts/pbr-material-review/*
+!/artifacts/pbr-material-review/README.md
+!/artifacts/startup-ui/
+/artifacts/startup-ui/*
+!/artifacts/startup-ui/*.md
+!/artifacts/lighting-reference/
 
-# Local full-graphics placement traces (summary and harness stay tracked)
-/artifacts/camp-placement/*.jsonl
+# These six historical captures are imported by the visual-gauntlet UI.
+!/artifacts/visual-qa/
+/artifacts/visual-qa/*
+!/artifacts/visual-qa/baseline-day-overview.png
+!/artifacts/visual-qa/baseline-night-overview.png
+!/artifacts/visual-qa/polished-world-setup.png
+!/artifacts/visual-qa/polished-world-initial.png
+!/artifacts/visual-qa/polished-day-overview.png
+!/artifacts/visual-qa/polished-close-world.png
 
-# Local gameplay trailer production outputs
-/artifacts/trailer/
+# Water review runs and local authoring scratch exports.
+/water-gauntlet-evidence/*
+!/water-gauntlet-evidence/.gitignore
+!/water-gauntlet-evidence/*.md
+/.codex-tmp/
+/.codex-work/
+/.tmp-*/
+/.tmp_*/
+*.tsbuildinfo
 
 # Editor directories and files
 .vscode/*

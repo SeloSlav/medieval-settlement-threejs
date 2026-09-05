@@ -1,1 +1,0 @@
-function e(){return new Promise(e=>{if(typeof requestIdleCallback==`function`){requestIdleCallback(()=>e(),{timeout:48});return}window.setTimeout(e,0)})}export{e as t};

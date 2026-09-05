@@ -1,4 +1,0 @@
-[
- {"name":"melee-skin-batch","unit":"on-foot","weapon":"sidearm","mode":"attack","phase":0.82,"view":"front","rawSkin":false},
- {"name":"melee-skin-source","unit":"on-foot","weapon":"sidearm","mode":"attack","phase":0.82,"view":"front","rawSkin":true}
-]

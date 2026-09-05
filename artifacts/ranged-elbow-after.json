@@ -1,8 +1,0 @@
-[
- {"name":"ranged-elbow-after-bow","weapon":"bow","variant":"man","mode":"attack","phase":0.95,"view":"left-back"},
- {"name":"ranged-elbow-after-crossbow","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"left-back"},
- {"name":"ranged-elbow-after-bow-close","weapon":"bow","variant":"man","mode":"attack","phase":0.95,"view":"elbow-left-back"},
- {"name":"ranged-elbow-after-crossbow-close","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"elbow-left-back"},
- {"name":"ranged-elbow-after-bow-front","weapon":"bow","variant":"man","mode":"attack","phase":0.95,"view":"left-front"},
- {"name":"ranged-elbow-after-crossbow-front","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"left-front"}
-]

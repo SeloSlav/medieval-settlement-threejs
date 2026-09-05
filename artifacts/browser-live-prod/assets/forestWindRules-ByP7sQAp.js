@@ -1,1 +1,0 @@
-import"./CameraCurves-B-Dzy5I0.js";var e=48,t=.3;function n(n){let a=r(.08,.72,n.canopyCover);return n.firstPersonActive?i(t,1,a):a*(1-r(22,e,n.orbitDistance))}function r(e,t,n){if(e===t)return n<e?0:1;let r=a((n-e)/(t-e));return r*r*(3-2*r)}function i(e,t,n){return e+(t-e)*n}function a(e){return Math.max(0,Math.min(1,e))}export{n as t};
