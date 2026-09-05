@@ -1,0 +1,8 @@
+[
+  {"name":"sword-elbow-man-walk-side","weapon":"sidearm","variant":"man","mode":"walk","view":"side","phase":0.5,"seed":431},
+  {"name":"sword-elbow-man-run-side","weapon":"sidearm","variant":"man","mode":"run","view":"side","phase":0.5,"seed":431},
+  {"name":"sword-elbow-man-walk-close","weapon":"sidearm","variant":"man","mode":"walk","view":"elbow-right","phase":0.5,"seed":431},
+  {"name":"sword-elbow-shield-run","weapon":"sword-shield","variant":"man","mode":"run","view":"side","phase":0.5,"seed":431},
+  {"name":"sword-elbow-raider-walk-side","weapon":"sidearm","variant":"raider","mode":"walk","view":"side","phase":0.5,"seed":431},
+  {"name":"sword-elbow-raider-run-close","weapon":"sidearm","variant":"raider","mode":"run","view":"elbow-right","phase":0.5,"seed":431}
+]

@@ -1,0 +1,9 @@
+[
+ {"name":"shield-arm-proportion-idle","weapon":"sidearm-shield","variant":"man","mode":"idle","time":0.35,"view":"left-front"},
+ {"name":"shield-arm-proportion-back","weapon":"sidearm-shield","variant":"man","mode":"walk","time":0.35,"view":"left-back"},
+ {"name":"shield-arm-proportion-close-back","weapon":"sidearm-shield","variant":"man","mode":"attack","phase":0.4,"view":"elbow-left-back"},
+ {"name":"shield-arm-proportion-raider","weapon":"sidearm-shield","variant":"raider","mode":"walk","time":0.75,"view":"left-front"},
+ {"name":"shield-arm-proportion-medium","weapon":"spear-shield","variant":"man","mode":"attack","phase":0.95,"view":"left-front","seed":4294967295},
+ {"name":"shield-arm-proportion-large","weapon":"sword-shield","variant":"man","mode":"walk","time":0.25,"view":"left-front"},
+ {"name":"shield-arm-proportion-far","weapon":"sword-shield","variant":"raider","mode":"attack","phase":0.95,"view":"far","seed":9821}
+]

@@ -6,7 +6,7 @@ import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { installMilitaryHandGrip } from '../src/settlement/militaryHandGrip.ts';
 import { applyCombatWeaponPose, applyMilitaryCarryPose, bindCombatWeaponRig, restoreCombatWeaponPose, resolveCombatWeaponPresentation } from '../src/settlement/combatWeaponAnimation.ts';
 import { attachMilitaryEquipment, createMilitaryEquipmentSources } from '../src/settlement/militaryEquipment.ts';
-import { createShieldArmStrap, shieldHandFit, SHIELD_HANDLE_RADII } from '../src/settlement/shieldGrip.ts';
+import { shieldHandFit, SHIELD_HANDLE_RADII } from '../src/settlement/shieldGrip.ts';
 
 Object.assign(globalThis, { self: globalThis, createImageBitmap: async () => ({ width: 1, height: 1, close() {} }) });
 Object.defineProperty(globalThis, 'ProgressEvent', { value: class { constructor(public type: string) {} } });
@@ -24,6 +24,10 @@ for (const name of ['worker-male-common-01-v002', 'ottoman-raider-common-01-v001
     const rig = bindCombatWeaponRig(model, kind, equipment)!;
     const shield = rig.shieldMount!;
     assert.ok(shield);
+    const shieldParts = shield.userData.semanticWeaponParts as string[];
+    assert.equal(shieldParts.filter(part => part.includes('vertical wooden hand grip')).length, 1, `${kind}: retain one rear handgrip`);
+    assert.equal(shieldParts.filter(part => /forearm loop|strap rivet/i.test(part)).length, 0, `${kind}: omit the redundant rear arm strap and its rivets`);
+    assert.equal(shield.userData.shieldStrapLocal, undefined, `${kind}: omit obsolete arm-strap metadata`);
     const mountPosition = shield.position.clone(), mountRotation = shield.quaternion.clone();
     const skins: { mesh: THREE.SkinnedMesh; vertices: Map<number, number>; faces: number[][] }[] = [];
     model.traverse(object => {
@@ -57,8 +61,8 @@ for (const name of ['worker-male-common-01-v002', 'ottoman-raider-common-01-v001
       maxWrist = Math.max(maxWrist, wristAngle);
       assert.ok(wristAngle < .001, `${kind}/${mode}: shield wrist folds instead of following the forearm`);
       const palm = new THREE.Vector3(1, 0, 0).applyQuaternion(handRotation);
-      minPalm = Math.min(minPalm, palm.dot(new THREE.Vector3(0, 0, -1).applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion()))));
-      assert.ok(minPalm > .85, 'shield palm faces inward while the shield covers the front quarter');
+      minPalm = Math.min(minPalm, palm.dot(new THREE.Vector3(-1, 0, 0).applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion()))));
+      assert.ok(minPalm > .85, 'shield palm faces inward in the mirrored carrying pose');
       const grip = shield.localToWorld(new THREE.Vector3(...shield.userData.shieldGripLocal));
       assert.ok(grip.distanceTo(hand.localToWorld(new THREE.Vector3(...shieldHandFit(hand).palm))) < 1e-6, 'hand stays on the authored rear grip');
       assert.ok(elbow.y < rig.armBones.leftUpperArm.getWorldPosition(new THREE.Vector3()).y - .1, 'elbow stays below the shoulder');
@@ -95,13 +99,4 @@ for (const name of ['worker-male-common-01-v002', 'ottoman-raider-common-01-v001
     console.log(`${name}/${kind}: wrist ${(maxWrist * 180 / Math.PI).toFixed(3)}deg; finger gap ${(worstGap * 1000).toFixed(2)}mm; overlap ${(worstOverlap * 1000).toFixed(2)}mm`);
   }
 }
-const strap = createShieldArmStrap(), position = strap.getAttribute('position'), index = strap.index!;
-let volume = 0;
-for (let i = 0; i < index.count; i += 3) {
-  const [a, b, c] = [0, 1, 2].map(j => new THREE.Vector3().fromBufferAttribute(position, index.getX(i + j)));
-  volume += a!.dot(b!.clone().cross(c!)) / 6;
-}
-assert.ok(volume > 0, 'leather strap must have outward faces and positive closed volume');
-assert.ok(index.count / 3 < 60, 'strap keeps a small geometry budget');
-strap.dispose();
 console.log(`Shield poses verified: ${poses} poses, ${surfaceSamples} hand surface samples.`);

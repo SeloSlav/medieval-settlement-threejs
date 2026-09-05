@@ -47,7 +47,7 @@ for (const name of ['worker-male-common-01-v002','ottoman-raider-common-01-v001'
     continue;
   }
 
-  for(const kind of ['spear','pike-kit','halberd','sidearm','sword-shield','crossbow'] as const) {
+  for(const kind of ['spear','pike-kit','halberd','sidearm','sidearm-shield','sword-shield','crossbow'] as const) {
     const model=clone(gltf.scene) as THREE.Group;
     const equipment=attachMilitaryEquipment(model,sources[kind]);
     const rig=bindCombatWeaponRig(model,kind,equipment)!;
@@ -61,6 +61,13 @@ for (const name of ['worker-male-common-01-v002','ottoman-raider-common-01-v001'
       const wrist=rig.armBones.rightHand.getWorldPosition(new THREE.Vector3());
       const armLength=shoulder.distanceTo(elbow)+elbow.distanceTo(wrist);
       assert.ok(elbow.y<shoulder.y-armLength*.32,`${name}/${kind}: elbow flared above its relaxed carrying range`);
+      if(kind==='sidearm'||kind==='sidearm-shield'||kind==='sword-shield') {
+        const reach=wrist.clone().sub(shoulder).normalize();
+        const bend=elbow.clone().sub(shoulder);
+        bend.addScaledVector(reach,-bend.dot(reach)).normalize();
+        const facing=new THREE.Vector3(0,0,1).applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion()));
+        assert.ok(bend.dot(facing)<-.8,`${name}/${kind}: sword elbow bends forward, inverting the arm hinge`);
+      }
       const forearm=wrist.clone().sub(elbow).normalize();
       const fingers=new THREE.Vector3(0,1,0).applyQuaternion(rig.armBones.rightHand.getWorldQuaternion(new THREE.Quaternion()));
       assert.ok(forearm.angleTo(fingers)<Math.PI*.27,`${name}/${kind}: wrist folded ${THREE.MathUtils.radToDeg(forearm.angleTo(fingers))} degrees`);

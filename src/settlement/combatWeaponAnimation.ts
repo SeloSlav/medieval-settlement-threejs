@@ -224,7 +224,6 @@ export type CombatWeaponRig = {
   shieldMount: THREE.Group | null;
   shieldBasePosition: THREE.Vector3;
   shieldBaseQuaternion: THREE.Quaternion;
-  shieldElbow: { cuff: THREE.Bone; forearm: THREE.Bone; bindOffset: THREE.Matrix4; basePosition: THREE.Vector3; active: boolean } | null;
   carryGripMount: THREE.Group | null;
   carryGripBaseQuaternion: THREE.Quaternion;
   carryGripBasePosition: THREE.Vector3;
@@ -305,7 +304,6 @@ export function bindCombatWeaponRig(
   ) ?? null;
   const shieldMount = mounts?.find(mount => mount.parent === armBones.leftHand
     && mount.userData.workerToolCombatRole === 'always') ?? null;
-  const shieldElbow = shieldMount ? bindShieldElbow(twistBones.left) : null;
   const nockedArrow = toolKind === 'bow' && rangedMount
     ? createNockedArrow(rangedMount)
     : null;
@@ -364,7 +362,6 @@ export function bindCombatWeaponRig(
     shieldMount,
     shieldBasePosition: shieldMount?.position.clone() ?? new THREE.Vector3(),
     shieldBaseQuaternion: shieldMount?.quaternion.clone() ?? new THREE.Quaternion(),
-    shieldElbow,
     carryGripMount: null,
     carryGripBaseQuaternion: new THREE.Quaternion(),
     carryGripBasePosition: new THREE.Vector3(),
@@ -407,14 +404,6 @@ export function bindCombatWeaponRig(
   };
 }
 
-function bindShieldElbow(bones: THREE.Bone[]): CombatWeaponRig['shieldElbow'] {
-  const cuff = bones[1], forearm = bones[2];
-  if (!cuff || !forearm) return null;
-  forearm.updateWorldMatrix(true, false); cuff.updateWorldMatrix(true, false);
-  return { cuff, forearm, basePosition: cuff.position.clone(), active: false,
-    bindOffset: new THREE.Matrix4().copy(forearm.matrixWorld).invert().multiply(cuff.matrixWorld) };
-}
-
 function findRigBone(model: THREE.Group, aliases: readonly string[]): THREE.Bone | null {
   for (const alias of aliases) {
     const object = model.getObjectByName(alias);
@@ -425,10 +414,6 @@ function findRigBone(model: THREE.Group, aliases: readonly string[]): THREE.Bone
 
 export function restoreCombatWeaponPose(rig: CombatWeaponRig): void {
   if (!rig.overlayApplied) return;
-  if (rig.shieldElbow) {
-    rig.shieldElbow.cuff.position.copy(rig.shieldElbow.basePosition);
-    rig.shieldElbow.active = false;
-  }
   if (rig.shieldMount) {
     rig.shieldMount.position.copy(rig.shieldBasePosition);
     rig.shieldMount.quaternion.copy(rig.shieldBaseQuaternion);
@@ -447,6 +432,7 @@ export function restoreCombatWeaponPose(rig: CombatWeaponRig): void {
 const CARRY_RIGHT: ArmTarget = [-0.12, -0.42, 0.5];
 const CARRY_LEFT: ArmTarget = [0.12, -0.42, 0.5];
 const CARRY_CROSSBOW: ArmTarget = [0.15, -0.45, 0.38];
+const CARRY_SHIELD: ArmTarget = [-0.15, -0.45, 0.38];
 const CARRY_SWORD: ArmTarget = [-0.08, -0.985, 0.075];
 const SWORD_GRIP_CANT = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 4);
 const POLE_FINGER_AXIS = new THREE.Vector3(0, 0, 1);
@@ -512,7 +498,7 @@ export function applyMilitaryCarryPose(rig: CombatWeaponRig, tool: WorkerToolKin
       rig.armBones.leftHand.quaternion.copy(parentInverse).multiply(handWorld).normalize();
     }
   } else if (rig.shieldMount) {
-    poseShieldArm(rig, false);
+    poseShieldArm(rig);
   }
   updateArmTwist(rig, primaryLeft);
   if (!primaryLeft && (tool === 'crossbow' || rig.shieldMount)) updateArmTwist(rig, true);
@@ -527,24 +513,20 @@ function poseCarryArm(rig: CombatWeaponRig, left: boolean, target: ArmTarget): v
     left ? rig.armBones.leftHand : rig.armBones.rightHand, target, left ? 1 : -1,
     target[1] < -.8 ? 'low' : 'upright');
 }
-/** The arm supports the shield across its rear face. Orient the upper arm and
- * forearm first, keeping the elbow below the shoulder and the wrist straight;
- * the shield then follows the palm and its authored grip/strap frame. */
-function poseShieldArm(rig: CombatWeaponRig, raised: boolean): void {
-  resetArm(rig, true);
-  if (rig.shieldElbow) rig.shieldElbow.active = true;
+/** Mirror the approved crossbow carrying arm: same relaxed reach, tucked
+ * elbow and neutral wrist. Fit the shield to that hand without stretching
+ * the sleeve or moving the authored elbow/skinning pivots. */
+function poseShieldArm(rig: CombatWeaponRig): void {
+  poseCarryArm(rig, true, CARRY_SHIELD);
   const mount = rig.shieldMount!, arm = rig.armBones;
-  const body = rig.model.getWorldQuaternion(rig.scratchQuaternions[4]!);
-  const upperDirection = rig.scratchVectors[13]!.set(.18, raised ? -.78 : -.94, raised ? .60 : .29).normalize().applyQuaternion(body);
-  const forearmDirection = rig.scratchVectors[14]!.set(-.86, .12, .50).normalize().applyQuaternion(body);
-  const palm = rig.scratchVectors[15]!.set(0, 0, -1).applyQuaternion(body);
-  // Both segments share the elbow's anatomical hinge. Palm rotation then
-  // belongs to the forearm twist chain; applying it at the elbow collapses
-  // the exposed skin between the rolled sleeve and the leather bracer.
-  const hinge = rig.scratchVectors[12]!.crossVectors(upperDirection, forearmDirection).normalize();
+  const upperDirection = arm.leftForearm.getWorldPosition(rig.scratchVectors[13]!)
+    .sub(arm.leftUpperArm.getWorldPosition(rig.scratchVectors[0]!)).normalize();
+  const forearmDirection = arm.leftHand.getWorldPosition(rig.scratchVectors[14]!)
+    .sub(arm.leftForearm.getWorldPosition(rig.scratchVectors[0]!)).normalize();
+  const hinge = rig.scratchVectors[15]!.crossVectors(upperDirection, forearmDirection).normalize();
   alignShieldBone(rig, arm.leftUpperArm, upperDirection, hinge);
   alignShieldBone(rig, arm.leftForearm, forearmDirection, hinge);
-  alignShieldBone(rig, arm.leftHand, forearmDirection, palm);
+  arm.leftHand.quaternion.identity();
   arm.leftHand.updateWorldMatrix(true, false);
   mount.quaternion.copy(SHIELD_HAND_FRAME);
   const grip = mount.userData.shieldGripLocal as readonly [number, number, number];
@@ -877,7 +859,6 @@ function restoreBowString(rig: CombatWeaponRig): void {
 }
 
 function captureBaseQuaternions(rig: CombatWeaponRig): void {
-  if (rig.shieldElbow) rig.shieldElbow.basePosition.copy(rig.shieldElbow.cuff.position);
   for (let index = 0; index < rig.ownedBones.length; index += 1) {
     rig.baseQuaternions[index]!.copy(rig.ownedBones[index]!.quaternion);
   }
@@ -906,10 +887,6 @@ function closeWeaponHand(rig: CombatWeaponRig, diagonal: boolean): void {
   rig.gripBones[8]?.quaternion.copy(CLOSED_THUMB_POSE);
 }
 function resetArm(rig: CombatWeaponRig, left: boolean): void {
-  if (left && rig.shieldElbow) {
-    rig.shieldElbow.cuff.position.copy(rig.shieldElbow.basePosition);
-    rig.shieldElbow.active = false;
-  }
   for (const bone of left ? rig.twistBones.left : rig.twistBones.right) bone.quaternion.copy(rig.referenceQuaternions.get(bone)!);
   for (const key of left ? LEFT_ARM_KEYS : RIGHT_ARM_KEYS) {
     const bone = rig.armBones[key];
@@ -935,17 +912,6 @@ function updateArmTwist(rig: CombatWeaponRig, left: boolean): void {
       bone.quaternion.copy(rig.referenceQuaternions.get(bone)!)
         .multiply(rig.scratchQuaternions[3]!.identity().slerp(twist, 1 / 3));
     }
-  }
-  if (left && rig.shieldElbow?.active) {
-    // Keep the rolled cuff and proximal bracer in the same skinning frame.
-    // Their narrow connecting skin stays rigid; the fuller sleeve above it
-    // absorbs the elbow bend. These leaf bones never move the hand/weapon.
-    const { cuff, forearm, bindOffset } = rig.shieldElbow;
-    cuff.parent!.updateWorldMatrix(true, false);
-    forearm.updateWorldMatrix(true, false);
-    rig.carryGripBasis.copy(cuff.parent!.matrixWorld).invert()
-      .multiply(forearm.matrixWorld).multiply(bindOffset)
-      .decompose(cuff.position, cuff.quaternion, rig.scratchVectors[0]!);
   }
 }
 
@@ -1222,7 +1188,7 @@ function applyTimelinePose(rig: CombatWeaponRig, timeline: CombatAttackTimeline,
       solveAttackHand(rig, true, attackContact(rig, supportGrip), handWorld);
       closeSupportFingers(rig, timeline.family === 'spear-pike' || timeline.family === 'halberd');
     } else if (rig.shieldMount) {
-      poseShieldArm(rig, true);
+      poseShieldArm(rig);
     } else poseCarryArm(rig, true, CARRY_SWORD);
   }
   // Attachment still belongs to its original hand for shared batching/drop
@@ -1324,7 +1290,9 @@ function solveArmToWorld(
   const bendDistance = Math.sqrt(Math.max(0, upperLength * upperLength - along * along));
   const preferredBend = rig.scratchVectors[8]!.copy(right).multiplyScalar(sideSign * (carrying ? 0.12 : 0.76))
     .addScaledVector(up, carrying ? -1 : -0.58)
-    .addScaledVector(forward, carrying === 'low' ? 0.45 : carrying ? -0.1 : 0.18);
+    // A low blade hangs ahead of the hip, so its elbow must flex behind the
+    // shoulder-to-wrist line. A forward bend makes the hinge read backward.
+    .addScaledVector(forward, carrying === 'low' ? -0.45 : carrying ? -0.1 : 0.18);
   if (rig.solveWithHandDirection) preferredBend.copy(rig.elbowHandDirection).negate();
   preferredBend.addScaledVector(direction, -preferredBend.dot(direction));
   if (preferredBend.lengthSq() < 1e-6) preferredBend.copy(right).multiplyScalar(sideSign);

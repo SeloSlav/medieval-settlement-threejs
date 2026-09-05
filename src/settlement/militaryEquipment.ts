@@ -3,7 +3,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CROSSBOW_FRAME, createRealisticCrossbow, createRealisticSword } from './militaryWeaponGeometry.ts';
 import { BOW_GRIP } from './bowHandGrip.ts';
-import { createShieldArmStrap, shieldGripLayout, SHIELD_HANDLE_RADII } from './shieldGrip.ts';
+import { shieldGripLayout, SHIELD_HANDLE_RADII } from './shieldGrip.ts';
 import { createAmmunitionGeometry, createAmmunitionMaterial } from './rangedAmmunition.ts';
 import {
   createMilitaryEquipmentMaterials,
@@ -531,7 +531,6 @@ function createShield(kind: 'small' | 'medium' | 'large', materials: Materials):
     );
   }
   const layout = shieldGripLayout(kind);
-  add(group, createShieldArmStrap(), materials.leather, `${kind} shield · raised leather forearm loop`, [layout.strapX, layout.strapY, 0]);
   const handle = new THREE.CylinderGeometry(SHIELD_HANDLE_RADII[1], SHIELD_HANDLE_RADII[1], layout.gripLength, 12);
   handle.scale(SHIELD_HANDLE_RADII[0] / SHIELD_HANDLE_RADII[1], 1, 1);
   add(group, handle, materials.walnut,
@@ -540,12 +539,10 @@ function createShield(kind: 'small' | 'medium' | 'large', materials: Materials):
     const y = layout.grip[1] + sign * layout.gripLength * .5;
     add(group, new THREE.BoxGeometry(.028, .008, .074), materials.leather,
       `${kind} shield · hand grip leather anchor`, [layout.grip[0], y, -.059]);
-    addRivet(group, materials.brass, `${kind} shield · rear strap rivet`, [layout.strapX, layout.strapY + sign * .067, -.025], .009);
   }
   group.name = `Procedural ${kind} shield`;
   group.userData.equipmentIdentity = `${kind}-shield`;
   group.userData.shieldGripLocal = layout.grip;
-  group.userData.shieldStrapLocal = [layout.strapX, layout.strapY, -.085];
   return group;
 }
 
