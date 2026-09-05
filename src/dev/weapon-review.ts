@@ -69,7 +69,9 @@ function pose(frozen=false,dt=0){
 function cameraFocus(out:THREE.Vector3){
  const visual=rig();if(!visual)return;
  const hand=state.weapon==='bow'&&state.mode!=='fallback'?visual.combatRig.armBones.leftHand:visual.combatRig.armBones.rightHand;
- if(state.view.startsWith('grip')){
+ if(state.view.startsWith('elbow')){
+  (state.view==='elbow-left'?visual.combatRig.armBones.leftForearm:visual.combatRig.armBones.rightForearm).getWorldPosition(out);
+ }else if(state.view.startsWith('grip')){
   hand.getWorldPosition(out);out.add(temp2.set(0,.01,.03));
  }else if(state.view==='weapon'){
   new THREE.Box3().setFromObject(standalone).getCenter(out);
@@ -80,7 +82,8 @@ function cameraFocus(out:THREE.Vector3){
 }
 function applyCameraPreset(){
  cameraFocus(temp);if(!Number.isFinite(temp.x))return;
- if(state.view.startsWith('grip'))cameraOffset.copy(state.view==='grip-inside'?temp2.set(.32,.1,.28):state.view==='grip-back'?temp2.set(-.32,.06,-.22):temp2.set(-.27,.11,.35));
+ if(state.view.startsWith('elbow'))cameraOffset.set(state.view==='elbow-left'?.38:-.38,.12,.38);
+ else if(state.view.startsWith('grip'))cameraOffset.copy(state.view==='grip-inside'?temp2.set(.32,.1,.28):state.view==='grip-back'?temp2.set(-.32,.06,-.22):temp2.set(-.27,.11,.35));
  else if(state.view==='weapon'){
   const size=new THREE.Box3().setFromObject(standalone).getSize(temp2);
   cameraOffset.set(size.y*.28,size.y*.12,Math.max(size.y,size.x)*1.8);
@@ -91,7 +94,7 @@ function applyCameraPreset(){
  cameraInitialized=true;cameraUserAdjusted=false;
 }
 function followAnimatedGrip(){
- if(cameraUserAdjusted||!state.view.startsWith('grip'))return;
+ if(cameraUserAdjusted||(!state.view.startsWith('grip')&&!state.view.startsWith('elbow')))return;
  cameraFocus(temp);orbitTarget.copy(temp);
 }
 function stats(){
@@ -119,7 +122,7 @@ function set(patch:Partial<ReviewState>){
 }
 const controls=document.querySelector('#controls')!;
 function select(key:keyof ReviewState,values:string[]){const el=document.createElement('select');el.dataset.key=key;for(const value of values)el.add(new Option(value,value));el.value=String(state[key]);el.onchange=()=>set({[key]:el.value});controls.append(el);}
-select('weapon',[...MILITARY_EQUIPMENT_KINDS]);select('variant',['man','woman','raider']);select('mode',['idle','walk','run','flee','hurt','attack','hit','fallback','fall']);select('view',['front','side','back','grip','grip-inside','grip-back','weapon','far']);
+select('weapon',[...MILITARY_EQUIPMENT_KINDS]);select('variant',['man','woman','raider']);select('mode',['idle','walk','run','flee','hurt','attack','hit','fallback','fall']);select('view',['front','side','back','grip','grip-inside','grip-back','elbow-right','elbow-left','weapon','far']);
 const phase=document.createElement('input');phase.type='range';phase.min='0';phase.max='1';phase.step='.01';phase.value=String(state.phase);phase.oninput=()=>set({phase:Number(phase.value),paused:true});controls.append(phase);
 const play=document.createElement('button');play.textContent='Play / pause';play.onclick=()=>set({paused:!state.paused});controls.append(play);
 const resetCamera=document.createElement('button');resetCamera.textContent='Reset camera';resetCamera.onclick=()=>{applyCameraPreset();render();};controls.append(resetCamera);

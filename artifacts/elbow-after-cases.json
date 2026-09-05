@@ -1,0 +1,11 @@
+[
+  {"name":"elbow-after-right-bow","weapon":"bow","variant":"man","mode":"attack","phase":0.75,"view":"elbow-right"},
+  {"name":"elbow-after-left-bow","weapon":"bow","variant":"man","mode":"attack","phase":0.75,"view":"elbow-left"},
+  {"name":"elbow-after-sword-close","weapon":"sidearm","variant":"man","mode":"attack","phase":0.4,"view":"elbow-right"},
+  {"name":"elbow-after-bow-side","weapon":"bow","variant":"man","mode":"attack","phase":0.75,"view":"side"},
+  {"name":"elbow-after-bow-front","weapon":"bow","variant":"man","mode":"attack","phase":0.75,"view":"front"},
+  {"name":"elbow-after-sword-front","weapon":"sidearm","variant":"man","mode":"attack","phase":0.4,"view":"front"},
+  {"name":"elbow-after-sword-cut","weapon":"sidearm","variant":"man","mode":"attack","phase":0.8,"view":"elbow-right"},
+  {"name":"elbow-after-bow-far","weapon":"bow","variant":"man","mode":"attack","phase":0.75,"view":"far"},
+  {"name":"elbow-after-bow-stress","weapon":"bow","variant":"man","mode":"attack","phase":0.75,"view":"front","seed":4294967295}
+]

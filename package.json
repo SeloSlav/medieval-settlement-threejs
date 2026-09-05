@@ -258,6 +258,7 @@
     "test:delivery-motion-stability": "node --experimental-strip-types scripts/testDeliveryMotionStability.mts",
     "test:settlement-people": "npx tsx scripts/testSettlementPeople.mts",
     "test:agent-visuals": "node --experimental-strip-types scripts/testAgentVisualAssets.mts",
+    "test:male-villager-elbows": "node --experimental-strip-types scripts/testMaleVillagerElbows.mts",
     "test:military-equipment": "node --experimental-strip-types scripts/testMilitaryEquipment.mts",
     "test:glb-animation-labeler": "node --experimental-strip-types scripts/testGlbAnimationLabeler.mts",
     "test:ambient-behaviors": "node --experimental-strip-types scripts/testAmbientBehaviors.mts",

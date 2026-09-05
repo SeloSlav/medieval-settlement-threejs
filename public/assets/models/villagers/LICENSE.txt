@@ -26,6 +26,9 @@ Assets and source pages:
   the Quaternius CC0 notice above. Its animation-index provenance and the
   SHA-256 of the original export are retained in
   worker-male-common-01-v002.animation-map.json.
+  Both open elbow joints were closed with skinned patches using the existing
+  texture atlas. Reproduction: scripts/repairMaleVillagerElbows.mts.
+  The original mesh vertices, skeleton and animation data are retained.
 
 - worker-female-common-01-v001.glb
   Project-supplied Tripo-generated worker asset. This file is not covered by

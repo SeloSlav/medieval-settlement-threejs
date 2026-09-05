@@ -1,0 +1,5 @@
+[
+  {"name":"elbow-before-bow-side","weapon":"bow","variant":"man","mode":"attack","phase":0.75,"view":"side"},
+  {"name":"elbow-before-bow-front","weapon":"bow","variant":"man","mode":"attack","phase":0.75,"view":"front"},
+  {"name":"elbow-before-sword-front","weapon":"sidearm","variant":"man","mode":"attack","phase":0.4,"view":"front"}
+]

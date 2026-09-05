@@ -1,0 +1,5 @@
+[
+  {"name":"elbow-close-before-right-bow","weapon":"bow","variant":"man","mode":"attack","phase":0.75,"view":"elbow-right"},
+  {"name":"elbow-close-before-left-bow","weapon":"bow","variant":"man","mode":"attack","phase":0.75,"view":"elbow-left"},
+  {"name":"elbow-close-before-sword","weapon":"sidearm","variant":"man","mode":"attack","phase":0.4,"view":"elbow-right"}
+]

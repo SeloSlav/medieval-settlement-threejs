@@ -30,7 +30,7 @@ try{
    const first=await page.evaluate(()=>(window as any).weaponReview.stats());
    await page.waitForTimeout(seconds*1000);
    const last=await page.evaluate(()=>(window as any).weaponReview.stats());
-   await page.screenshot({path:path.join(output,`motion-${weapon}.png`)});
+   await page.screenshot({path:path.join(output,`${caseName}-motion-${weapon}.png`)});
    motion.push({weapon,seconds,frames:last.frame-first.frame,errors:last.errors});
    console.log(`Motion: ${weapon}, ${last.frame-first.frame} frames / ${seconds}s`);
   }
