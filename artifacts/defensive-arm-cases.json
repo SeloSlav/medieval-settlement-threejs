@@ -1,0 +1,134 @@
+[
+  {
+    "name": "defensive-arm-man-sidearm-shield-front",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sidearm-shield",
+    "mode": "defend",
+    "phase": 0.6,
+    "view": "front",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "defensive-arm-man-sidearm-shield-side",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sidearm-shield",
+    "mode": "defend",
+    "phase": 0.6,
+    "view": "side",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "defensive-arm-man-sidearm-shield-elbow-right",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sidearm-shield",
+    "mode": "defend",
+    "phase": 0.6,
+    "view": "elbow-right",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "defensive-arm-man-sword-shield-front",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sword-shield",
+    "mode": "defend",
+    "phase": 0.6,
+    "view": "front",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "defensive-arm-man-sword-shield-side",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sword-shield",
+    "mode": "defend",
+    "phase": 0.6,
+    "view": "side",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "defensive-arm-man-sword-shield-elbow-right",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sword-shield",
+    "mode": "defend",
+    "phase": 0.6,
+    "view": "elbow-right",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "defensive-arm-raider-sidearm-shield-front",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "sidearm-shield",
+    "mode": "defend",
+    "phase": 0.6,
+    "view": "front",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "defensive-arm-raider-sidearm-shield-side",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "sidearm-shield",
+    "mode": "defend",
+    "phase": 0.6,
+    "view": "side",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "defensive-arm-raider-sidearm-shield-elbow-right",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "sidearm-shield",
+    "mode": "defend",
+    "phase": 0.6,
+    "view": "elbow-right",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "defensive-arm-raider-sword-shield-front",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "sword-shield",
+    "mode": "defend",
+    "phase": 0.6,
+    "view": "front",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "defensive-arm-raider-sword-shield-side",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "sword-shield",
+    "mode": "defend",
+    "phase": 0.6,
+    "view": "side",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "defensive-arm-raider-sword-shield-elbow-right",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "sword-shield",
+    "mode": "defend",
+    "phase": 0.6,
+    "view": "elbow-right",
+    "paused": true,
+    "standard": false
+  }
+]

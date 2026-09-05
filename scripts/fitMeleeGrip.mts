@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { installMilitaryHandGrip } from '../src/settlement/militaryHandGrip.ts';
+import { meleePalmLocal } from '../src/settlement/meleeHandGrip.ts';
 import { applyCombatWeaponPose, bindCombatWeaponRig, restoreCombatWeaponPose, resolveCombatWeaponPresentation } from '../src/settlement/combatWeaponAnimation.ts';
 import { attachMilitaryEquipment, createMilitaryEquipmentSources } from '../src/settlement/militaryEquipment.ts';
 Object.assign(globalThis,{self:globalThis,createImageBitmap:async()=>({width:1,height:1,close(){}})});
@@ -28,8 +29,9 @@ for(const name of ['worker-male-common-01-v002','ottoman-raider-common-01-v001']
   const phase=Number(process.argv.find(a=>a.startsWith('--phase='))?.slice(8)??.56);
   applyCombatWeaponPose(rig,{tool:kind,targetDistance:1.5,attackCooldown:(1-phase)*resolveCombatWeaponPresentation(kind,1.5)!.attackSeconds,logicalMode:'fight',dtSeconds:0,defensive});
   const hand=left?rig.armBones.leftHand:rig.armBones.rightHand,bones=left?rig.leftGripBones:rig.gripBones;
-  const axis=shieldFit||kind==='halberd'&&!left?new THREE.Vector3(0,0,1):new THREE.Vector3(0,Math.SQRT1_2,Math.SQRT1_2);
-  const center=mount.userData[shieldFit?'shieldGripLocal':left?'workerToolSupportGripLocal':'workerToolGripLocal'] as [number,number,number];
+  const axis=shieldFit?new THREE.Vector3(0,0,1):new THREE.Vector3(0,Math.SQRT1_2,Math.SQRT1_2);
+  const center=(shieldFit?mount.userData.shieldGripLocal:
+   mount.userData[left?'workerToolAttackSupportGripLocal':'workerToolAttackGripLocal']??mount.userData[left?'workerToolSupportGripLocal':'workerToolGripLocal']) as [number,number,number];
   const blade=!shieldFit&&(kind==='sidearm'||kind==='sidearm-shield'||kind==='sword-shield');
   const radius=shieldFit?.019:kind==='bow'?.022:kind==='spear'||kind==='spear-shield'?.0155:.018;
   const shift=Number(process.argv.find(a=>a.startsWith('--offset='))?.slice(9)??0);
@@ -51,10 +53,12 @@ for(const name of ['worker-male-common-01-v002','ottoman-raider-common-01-v001']
   }});
   const evaluatePose=(finger:number)=>{
    model.updateMatrixWorld(true);const inverse=mount.matrixWorld.clone().invert();
+   const centerY=left&&(kind==='spear'||kind==='pike-kit')
+    ?hand.localToWorld(meleePalmLocal(hand,true,new THREE.Vector3())).applyMatrix4(inverse).y:center[1];
    let overlap=0,gap=Infinity,count=0;
    const inspect=(p:THREE.Vector3)=>{
     p.sub(shiftWorld).applyMatrix4(inverse);
-    if(Math.abs(p.y-center[1])>.075)return;
+    if(Math.abs(p.y-centerY)>.075)return;
     const d=(shieldFit?(Math.hypot((p.x-center[0])/.019,(p.z-center[2])/.0135)-1)*.0135:Math.hypot(p.x,p.z/(blade?.84:1))-radius)*mount.getWorldScale(new THREE.Vector3()).x;
     overlap=Math.max(overlap,-d);gap=Math.min(gap,Math.abs(d));count++;
    };

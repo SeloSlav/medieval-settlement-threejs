@@ -1,7 +1,32 @@
 # Melee attack review — 5 September 2026
 
-Implementation, visual review and the final combined regression sweep passed.
-The source-hashed verification result is `weapon-qa/melee-stress.json`.
+## Follow-up: spear support arm
+
+The user rejected the earlier spear pose despite its passing contact tests:
+the left elbow crossed the chest and the hand appeared inverted. The infantry
+spear/pike now has a dedicated support solve with a lowered, nearly straight
+arm and a soft elbow. The shaft slides through the forward guiding hand while
+the right arm and weapon trajectory remain unchanged. The villager's little
+finger curl was adjusted to close its remaining contact gap.
+
+Current checks: 2,412 support poses across both male rigs, three heights and
+facings; 33 spear and six pike browser scenarios with sampled body/shield/horse
+clearance; 1,782 exact overlay restores; all melee-only custom attacks; both
+support-hand surface fits; TypeScript/production build. Support wrists remain
+within 10 degrees of their forearms, palms within 0.054 mm of the shaft, and
+the regression explicitly rejects raised/cross-chest or inverted elbows.
+The full custom-attack suite currently stops at the crossbow full-extension
+assertion; concurrent ranged skin-frame edits appeared in the shared source
+during this follow-up. Those ranged edits were not reverted or changed here.
+
+Review `spear-support-cases.json` and its images/video in `weapon-qa`, plus
+`weapon-qa/melee-stress-spear.json` and `weapon-qa/melee-stress-pike.json`.
+Run `npm run test:spear-support-arm` for the new posture regression.
+
+## Earlier broad review
+
+The earlier combined sweep is recorded in `weapon-qa/melee-stress.json`;
+its spear screenshots predate the support-arm correction above.
 
 The attack work covers both male combat rigs, all nine infantry equipment sets,
 and the issued weapons of Hussars, Armored Lancers, Mounted Archers, Akıncı and

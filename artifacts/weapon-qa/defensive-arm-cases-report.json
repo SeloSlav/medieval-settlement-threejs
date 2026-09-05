@@ -1,0 +1,1541 @@
+{
+  "errors": [],
+  "captures": [
+    {
+      "file": "defensive-arm-man-sidearm-shield-front.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "sidearm-shield",
+        "variant": "man",
+        "mode": "defend",
+        "phase": 0.6,
+        "time": 0.35,
+        "view": "front",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 3,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07617142496045984,
+          1.25330889770619,
+          0.034470325811375
+        ],
+        "leftUpperArm": [
+          0.2112363542526231,
+          1.2861812650212268,
+          0.09461644997201141
+        ],
+        "leftForearm": [
+          0.21771642378358808,
+          1.1245656910051705,
+          0.335088645095562
+        ],
+        "leftHand": [
+          0.05735840515078461,
+          1.2285024055540474,
+          0.33508873128789923
+        ],
+        "rightClavicle": [
+          0.012674840059384095,
+          1.2551316220523707,
+          0.0163028111062451
+        ],
+        "rightUpperArm": [
+          -0.12161656833905593,
+          1.2698379387406464,
+          -0.04232641424089098
+        ],
+        "rightForearm": [
+          -0.15768798606065917,
+          0.9768647263258865,
+          -0.09632653136442601
+        ],
+        "rightHand": [
+          -0.18067369870636954,
+          0.791064229786843,
+          -0.05802030732824123
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.1790732190929998,
+            0.4568783361372347,
+            0.26703177895986435
+          ],
+          "R_Calf": [
+            -0.12813837391351135,
+            0.38598086592119807,
+            0.04689479590714144
+          ],
+          "L_Foot": [
+            0.20601545042044866,
+            0.0327506613155904,
+            0.13113608504583904
+          ],
+          "R_Foot": [
+            -0.17736418208260535,
+            0.040240088484834846,
+            -0.1943523179685213
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 6,
+      "triangles": 25074,
+      "memory": {
+        "attributes": 168,
+        "attributesSize": 4638228,
+        "geometries": 52,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 73,
+        "programsSize": 365144,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 120,
+        "uniformBuffersSize": 900192,
+        "total": 116568422
+      },
+      "camera": {
+        "position": [
+          -1.205904608519418,
+          1.61,
+          3.4531531867449616
+        ],
+        "target": [
+          0.04409539148058221,
+          1.06,
+          0.15315318674496187
+        ],
+        "distance": 3.571414285685714,
+        "yaw": 1.9328837344886252,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "defensive-arm-man-sidearm-shield-side.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "sidearm-shield",
+        "variant": "man",
+        "mode": "defend",
+        "phase": 0.6,
+        "time": 0.35,
+        "view": "side",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 17,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07617142496045984,
+          1.25330889770619,
+          0.034470325811375
+        ],
+        "leftUpperArm": [
+          0.2112363542526231,
+          1.2861812650212268,
+          0.09461644997201141
+        ],
+        "leftForearm": [
+          0.21771642378358808,
+          1.1245656910051705,
+          0.335088645095562
+        ],
+        "leftHand": [
+          0.05735840515078461,
+          1.2285024055540474,
+          0.33508873128789923
+        ],
+        "rightClavicle": [
+          0.012674840059384095,
+          1.2551316220523707,
+          0.0163028111062451
+        ],
+        "rightUpperArm": [
+          -0.12161656833905593,
+          1.2698379387406464,
+          -0.04232641424089098
+        ],
+        "rightForearm": [
+          -0.15768798606065917,
+          0.9768647263258865,
+          -0.09632653136442601
+        ],
+        "rightHand": [
+          -0.18067369870636954,
+          0.791064229786843,
+          -0.05802030732824123
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.1790732190929998,
+            0.4568783361372347,
+            0.26703177895986435
+          ],
+          "R_Calf": [
+            -0.12813837391351135,
+            0.38598086592119807,
+            0.04689479590714144
+          ],
+          "L_Foot": [
+            0.20601545042044866,
+            0.0327506613155904,
+            0.13113608504583904
+          ],
+          "R_Foot": [
+            -0.17736418208260535,
+            0.040240088484834846,
+            -0.1943523179685213
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 34,
+      "triangles": 27656,
+      "memory": {
+        "attributes": 168,
+        "attributesSize": 4638228,
+        "geometries": 52,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 73,
+        "programsSize": 365144,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 120,
+        "uniformBuffersSize": 900192,
+        "total": 116568422
+      },
+      "camera": {
+        "position": [
+          -3.255904608519418,
+          1.4100000000000001,
+          0.30315318674496217
+        ],
+        "target": [
+          0.04409539148058221,
+          1.06,
+          0.15315318674496187
+        ],
+        "distance": 3.321897048374618,
+        "yaw": 3.096169374168216,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "defensive-arm-man-sidearm-shield-elbow-right.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "sidearm-shield",
+        "variant": "man",
+        "mode": "defend",
+        "phase": 0.6,
+        "time": 0.35,
+        "view": "elbow-right",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 36,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07617142496045984,
+          1.25330889770619,
+          0.034470325811375
+        ],
+        "leftUpperArm": [
+          0.2112363542526231,
+          1.2861812650212268,
+          0.09461644997201141
+        ],
+        "leftForearm": [
+          0.21771642378358808,
+          1.1245656910051705,
+          0.335088645095562
+        ],
+        "leftHand": [
+          0.05735840515078461,
+          1.2285024055540474,
+          0.33508873128789923
+        ],
+        "rightClavicle": [
+          0.012674840059384095,
+          1.2551316220523707,
+          0.0163028111062451
+        ],
+        "rightUpperArm": [
+          -0.12161656833905593,
+          1.2698379387406464,
+          -0.04232641424089098
+        ],
+        "rightForearm": [
+          -0.15768798606065917,
+          0.9768647263258865,
+          -0.09632653136442601
+        ],
+        "rightHand": [
+          -0.18067369870636954,
+          0.791064229786843,
+          -0.05802030732824123
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.1790732190929998,
+            0.4568783361372347,
+            0.26703177895986435
+          ],
+          "R_Calf": [
+            -0.12813837391351135,
+            0.38598086592119807,
+            0.04689479590714144
+          ],
+          "L_Foot": [
+            0.20601545042044866,
+            0.0327506613155904,
+            0.13113608504583904
+          ],
+          "R_Foot": [
+            -0.17736418208260535,
+            0.040240088484834846,
+            -0.1943523179685213
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 72,
+      "triangles": 27656,
+      "memory": {
+        "attributes": 168,
+        "attributesSize": 4638228,
+        "geometries": 52,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 73,
+        "programsSize": 365144,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 120,
+        "uniformBuffersSize": 900192,
+        "total": 116568422
+      },
+      "camera": {
+        "position": [
+          -0.5376879860606592,
+          1.0968647263258866,
+          0.2836734686355741
+        ],
+        "target": [
+          -0.15768798606065917,
+          0.9768647263258865,
+          -0.09632653136442601
+        ],
+        "distance": 0.5506359959174482,
+        "yaw": 2.356194490192345,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "defensive-arm-man-sword-shield-front.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "sword-shield",
+        "variant": "man",
+        "mode": "defend",
+        "phase": 0.6,
+        "time": 0.35,
+        "view": "front",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 67,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07617142496045984,
+          1.25330889770619,
+          0.034470325811375
+        ],
+        "leftUpperArm": [
+          0.2112363542526231,
+          1.2861812650212268,
+          0.09461644997201141
+        ],
+        "leftForearm": [
+          0.21771642378358808,
+          1.1245656910051705,
+          0.335088645095562
+        ],
+        "leftHand": [
+          0.05735840515078461,
+          1.2285024055540474,
+          0.33508873128789923
+        ],
+        "rightClavicle": [
+          0.012674840059384095,
+          1.2551316220523707,
+          0.0163028111062451
+        ],
+        "rightUpperArm": [
+          -0.12161656833905593,
+          1.2698379387406464,
+          -0.04232641424089098
+        ],
+        "rightForearm": [
+          -0.15768798606065917,
+          0.9768647263258865,
+          -0.09632653136442601
+        ],
+        "rightHand": [
+          -0.18067369870636954,
+          0.791064229786843,
+          -0.05802030732824123
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.1790732190929998,
+            0.4568783361372347,
+            0.26703177895986435
+          ],
+          "R_Calf": [
+            -0.12813837391351135,
+            0.38598086592119807,
+            0.04689479590714144
+          ],
+          "L_Foot": [
+            0.20601545042044866,
+            0.0327506613155904,
+            0.13113608504583904
+          ],
+          "R_Foot": [
+            -0.17736418208260535,
+            0.040240088484834846,
+            -0.1943523179685213
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 134,
+      "triangles": 27080,
+      "memory": {
+        "attributes": 186,
+        "attributesSize": 4830804,
+        "geometries": 58,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 83,
+        "programsSize": 400614,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 140,
+        "uniformBuffersSize": 1067232,
+        "total": 117225585
+      },
+      "camera": {
+        "position": [
+          -1.205904608519418,
+          1.61,
+          3.4531531867449616
+        ],
+        "target": [
+          0.04409539148058221,
+          1.06,
+          0.15315318674496187
+        ],
+        "distance": 3.571414285685714,
+        "yaw": 1.9328837344886252,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "defensive-arm-man-sword-shield-side.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "sword-shield",
+        "variant": "man",
+        "mode": "defend",
+        "phase": 0.6,
+        "time": 0.35,
+        "view": "side",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 85,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07617142496045984,
+          1.25330889770619,
+          0.034470325811375
+        ],
+        "leftUpperArm": [
+          0.2112363542526231,
+          1.2861812650212268,
+          0.09461644997201141
+        ],
+        "leftForearm": [
+          0.21771642378358808,
+          1.1245656910051705,
+          0.335088645095562
+        ],
+        "leftHand": [
+          0.05735840515078461,
+          1.2285024055540474,
+          0.33508873128789923
+        ],
+        "rightClavicle": [
+          0.012674840059384095,
+          1.2551316220523707,
+          0.0163028111062451
+        ],
+        "rightUpperArm": [
+          -0.12161656833905593,
+          1.2698379387406464,
+          -0.04232641424089098
+        ],
+        "rightForearm": [
+          -0.15768798606065917,
+          0.9768647263258865,
+          -0.09632653136442601
+        ],
+        "rightHand": [
+          -0.18067369870636954,
+          0.791064229786843,
+          -0.05802030732824123
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.1790732190929998,
+            0.4568783361372347,
+            0.26703177895986435
+          ],
+          "R_Calf": [
+            -0.12813837391351135,
+            0.38598086592119807,
+            0.04689479590714144
+          ],
+          "L_Foot": [
+            0.20601545042044866,
+            0.0327506613155904,
+            0.13113608504583904
+          ],
+          "R_Foot": [
+            -0.17736418208260535,
+            0.040240088484834846,
+            -0.1943523179685213
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 170,
+      "triangles": 26504,
+      "memory": {
+        "attributes": 186,
+        "attributesSize": 4830804,
+        "geometries": 58,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 83,
+        "programsSize": 400614,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 140,
+        "uniformBuffersSize": 1067232,
+        "total": 117225585
+      },
+      "camera": {
+        "position": [
+          -3.255904608519418,
+          1.4100000000000001,
+          0.30315318674496217
+        ],
+        "target": [
+          0.04409539148058221,
+          1.06,
+          0.15315318674496187
+        ],
+        "distance": 3.321897048374618,
+        "yaw": 3.096169374168216,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "defensive-arm-man-sword-shield-elbow-right.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "sword-shield",
+        "variant": "man",
+        "mode": "defend",
+        "phase": 0.6,
+        "time": 0.35,
+        "view": "elbow-right",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 103,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07617142496045984,
+          1.25330889770619,
+          0.034470325811375
+        ],
+        "leftUpperArm": [
+          0.2112363542526231,
+          1.2861812650212268,
+          0.09461644997201141
+        ],
+        "leftForearm": [
+          0.21771642378358808,
+          1.1245656910051705,
+          0.335088645095562
+        ],
+        "leftHand": [
+          0.05735840515078461,
+          1.2285024055540474,
+          0.33508873128789923
+        ],
+        "rightClavicle": [
+          0.012674840059384095,
+          1.2551316220523707,
+          0.0163028111062451
+        ],
+        "rightUpperArm": [
+          -0.12161656833905593,
+          1.2698379387406464,
+          -0.04232641424089098
+        ],
+        "rightForearm": [
+          -0.15768798606065917,
+          0.9768647263258865,
+          -0.09632653136442601
+        ],
+        "rightHand": [
+          -0.18067369870636954,
+          0.791064229786843,
+          -0.05802030732824123
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.1790732190929998,
+            0.4568783361372347,
+            0.26703177895986435
+          ],
+          "R_Calf": [
+            -0.12813837391351135,
+            0.38598086592119807,
+            0.04689479590714144
+          ],
+          "L_Foot": [
+            0.20601545042044866,
+            0.0327506613155904,
+            0.13113608504583904
+          ],
+          "R_Foot": [
+            -0.17736418208260535,
+            0.040240088484834846,
+            -0.1943523179685213
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 206,
+      "triangles": 26504,
+      "memory": {
+        "attributes": 186,
+        "attributesSize": 4830804,
+        "geometries": 58,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 83,
+        "programsSize": 400614,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 140,
+        "uniformBuffersSize": 1067232,
+        "total": 117225585
+      },
+      "camera": {
+        "position": [
+          -0.5376879860606592,
+          1.0968647263258866,
+          0.2836734686355741
+        ],
+        "target": [
+          -0.15768798606065917,
+          0.9768647263258865,
+          -0.09632653136442601
+        ],
+        "distance": 0.5506359959174482,
+        "yaw": 2.356194490192345,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "defensive-arm-raider-sidearm-shield-front.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "sidearm-shield",
+        "variant": "raider",
+        "mode": "defend",
+        "phase": 0.6,
+        "time": 0.35,
+        "view": "front",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 134,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.0806153579536091,
+          1.265206355472287,
+          0.05474477221719991
+        ],
+        "leftUpperArm": [
+          0.21407204343086056,
+          1.2819105166526445,
+          0.1139276006662136
+        ],
+        "leftForearm": [
+          0.2387230569837463,
+          1.1405304973914066,
+          0.34902711641389705
+        ],
+        "leftHand": [
+          0.06358272874545476,
+          1.2255412959770362,
+          0.3490089582665578
+        ],
+        "rightClavicle": [
+          0.016380560200554554,
+          1.2670503223514835,
+          0.03636613467967721
+        ],
+        "rightUpperArm": [
+          -0.11576202043203274,
+          1.2953039037471856,
+          -0.019557470334342734
+        ],
+        "rightForearm": [
+          -0.15070371956300826,
+          1.0116071318930626,
+          -0.07191093380419211
+        ],
+        "rightHand": [
+          -0.1737774530691194,
+          0.8250289766570282,
+          -0.033447946372919014
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.18045297820699596,
+            0.42373141580506785,
+            0.27709565789673635
+          ],
+          "R_Calf": [
+            -0.1399882040777189,
+            0.3731380165540991,
+            0.059864928933158965
+          ],
+          "L_Foot": [
+            0.21287186968653043,
+            0.06230633897717602,
+            0.1430409799835756
+          ],
+          "R_Foot": [
+            -0.1958106396817672,
+            0.039577529617741136,
+            -0.17202428440011008
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 268,
+      "triangles": 27202,
+      "memory": {
+        "attributes": 186,
+        "attributesSize": 4830804,
+        "geometries": 58,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 83,
+        "programsSize": 400614,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 140,
+        "uniformBuffersSize": 1067232,
+        "total": 117225585
+      },
+      "camera": {
+        "position": [
+          -1.2084967464012912,
+          1.61,
+          3.4573074501668164
+        ],
+        "target": [
+          0.041503253598708906,
+          1.06,
+          0.15730745016681646
+        ],
+        "distance": 3.571414285685714,
+        "yaw": 1.9328837344886252,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "defensive-arm-raider-sidearm-shield-side.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "sidearm-shield",
+        "variant": "raider",
+        "mode": "defend",
+        "phase": 0.6,
+        "time": 0.35,
+        "view": "side",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 152,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.0806153579536091,
+          1.265206355472287,
+          0.05474477221719991
+        ],
+        "leftUpperArm": [
+          0.21407204343086056,
+          1.2819105166526445,
+          0.1139276006662136
+        ],
+        "leftForearm": [
+          0.2387230569837463,
+          1.1405304973914066,
+          0.34902711641389705
+        ],
+        "leftHand": [
+          0.06358272874545476,
+          1.2255412959770362,
+          0.3490089582665578
+        ],
+        "rightClavicle": [
+          0.016380560200554554,
+          1.2670503223514835,
+          0.03636613467967721
+        ],
+        "rightUpperArm": [
+          -0.11576202043203274,
+          1.2953039037471856,
+          -0.019557470334342734
+        ],
+        "rightForearm": [
+          -0.15070371956300826,
+          1.0116071318930626,
+          -0.07191093380419211
+        ],
+        "rightHand": [
+          -0.1737774530691194,
+          0.8250289766570282,
+          -0.033447946372919014
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.18045297820699596,
+            0.42373141580506785,
+            0.27709565789673635
+          ],
+          "R_Calf": [
+            -0.1399882040777189,
+            0.3731380165540991,
+            0.059864928933158965
+          ],
+          "L_Foot": [
+            0.21287186968653043,
+            0.06230633897717602,
+            0.1430409799835756
+          ],
+          "R_Foot": [
+            -0.1958106396817672,
+            0.039577529617741136,
+            -0.17202428440011008
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 304,
+      "triangles": 27900,
+      "memory": {
+        "attributes": 186,
+        "attributesSize": 4830804,
+        "geometries": 58,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 83,
+        "programsSize": 400614,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 140,
+        "uniformBuffersSize": 1067232,
+        "total": 117225585
+      },
+      "camera": {
+        "position": [
+          -3.2584967464012915,
+          1.4100000000000001,
+          0.30730745016681676
+        ],
+        "target": [
+          0.041503253598708906,
+          1.06,
+          0.15730745016681646
+        ],
+        "distance": 3.321897048374618,
+        "yaw": 3.096169374168216,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "defensive-arm-raider-sidearm-shield-elbow-right.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "sidearm-shield",
+        "variant": "raider",
+        "mode": "defend",
+        "phase": 0.6,
+        "time": 0.35,
+        "view": "elbow-right",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 168,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.0806153579536091,
+          1.265206355472287,
+          0.05474477221719991
+        ],
+        "leftUpperArm": [
+          0.21407204343086056,
+          1.2819105166526445,
+          0.1139276006662136
+        ],
+        "leftForearm": [
+          0.2387230569837463,
+          1.1405304973914066,
+          0.34902711641389705
+        ],
+        "leftHand": [
+          0.06358272874545476,
+          1.2255412959770362,
+          0.3490089582665578
+        ],
+        "rightClavicle": [
+          0.016380560200554554,
+          1.2670503223514835,
+          0.03636613467967721
+        ],
+        "rightUpperArm": [
+          -0.11576202043203274,
+          1.2953039037471856,
+          -0.019557470334342734
+        ],
+        "rightForearm": [
+          -0.15070371956300826,
+          1.0116071318930626,
+          -0.07191093380419211
+        ],
+        "rightHand": [
+          -0.1737774530691194,
+          0.8250289766570282,
+          -0.033447946372919014
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.18045297820699596,
+            0.42373141580506785,
+            0.27709565789673635
+          ],
+          "R_Calf": [
+            -0.1399882040777189,
+            0.3731380165540991,
+            0.059864928933158965
+          ],
+          "L_Foot": [
+            0.21287186968653043,
+            0.06230633897717602,
+            0.1430409799835756
+          ],
+          "R_Foot": [
+            -0.1958106396817672,
+            0.039577529617741136,
+            -0.17202428440011008
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 336,
+      "triangles": 27900,
+      "memory": {
+        "attributes": 186,
+        "attributesSize": 4830804,
+        "geometries": 58,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 83,
+        "programsSize": 400614,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 140,
+        "uniformBuffersSize": 1067232,
+        "total": 117225585
+      },
+      "camera": {
+        "position": [
+          -0.5307037195630082,
+          1.1316071318930625,
+          0.30808906619580795
+        ],
+        "target": [
+          -0.15070371956300826,
+          1.0116071318930626,
+          -0.07191093380419211
+        ],
+        "distance": 0.5506359959174482,
+        "yaw": 2.356194490192345,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "defensive-arm-raider-sword-shield-front.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "sword-shield",
+        "variant": "raider",
+        "mode": "defend",
+        "phase": 0.6,
+        "time": 0.35,
+        "view": "front",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 205,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.0806153579536091,
+          1.265206355472287,
+          0.05474477221719991
+        ],
+        "leftUpperArm": [
+          0.21407204343086056,
+          1.2819105166526445,
+          0.1139276006662136
+        ],
+        "leftForearm": [
+          0.2387230569837463,
+          1.1405304973914066,
+          0.34902711641389705
+        ],
+        "leftHand": [
+          0.06358272874545476,
+          1.2255412959770362,
+          0.3490089582665578
+        ],
+        "rightClavicle": [
+          0.016380560200554554,
+          1.2670503223514835,
+          0.03636613467967721
+        ],
+        "rightUpperArm": [
+          -0.11576202043203274,
+          1.2953039037471856,
+          -0.019557470334342734
+        ],
+        "rightForearm": [
+          -0.15070371956300826,
+          1.0116071318930626,
+          -0.07191093380419211
+        ],
+        "rightHand": [
+          -0.1737774530691194,
+          0.8250289766570282,
+          -0.033447946372919014
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.18045297820699596,
+            0.42373141580506785,
+            0.27709565789673635
+          ],
+          "R_Calf": [
+            -0.1399882040777189,
+            0.3731380165540991,
+            0.059864928933158965
+          ],
+          "L_Foot": [
+            0.21287186968653043,
+            0.06230633897717602,
+            0.1430409799835756
+          ],
+          "R_Foot": [
+            -0.1958106396817672,
+            0.039577529617741136,
+            -0.17202428440011008
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 410,
+      "triangles": 27324,
+      "memory": {
+        "attributes": 186,
+        "attributesSize": 4830804,
+        "geometries": 58,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 83,
+        "programsSize": 400614,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 140,
+        "uniformBuffersSize": 1067232,
+        "total": 117225585
+      },
+      "camera": {
+        "position": [
+          -1.2084967464012912,
+          1.61,
+          3.4573074501668164
+        ],
+        "target": [
+          0.041503253598708906,
+          1.06,
+          0.15730745016681646
+        ],
+        "distance": 3.571414285685714,
+        "yaw": 1.9328837344886252,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "defensive-arm-raider-sword-shield-side.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "sword-shield",
+        "variant": "raider",
+        "mode": "defend",
+        "phase": 0.6,
+        "time": 0.35,
+        "view": "side",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 221,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.0806153579536091,
+          1.265206355472287,
+          0.05474477221719991
+        ],
+        "leftUpperArm": [
+          0.21407204343086056,
+          1.2819105166526445,
+          0.1139276006662136
+        ],
+        "leftForearm": [
+          0.2387230569837463,
+          1.1405304973914066,
+          0.34902711641389705
+        ],
+        "leftHand": [
+          0.06358272874545476,
+          1.2255412959770362,
+          0.3490089582665578
+        ],
+        "rightClavicle": [
+          0.016380560200554554,
+          1.2670503223514835,
+          0.03636613467967721
+        ],
+        "rightUpperArm": [
+          -0.11576202043203274,
+          1.2953039037471856,
+          -0.019557470334342734
+        ],
+        "rightForearm": [
+          -0.15070371956300826,
+          1.0116071318930626,
+          -0.07191093380419211
+        ],
+        "rightHand": [
+          -0.1737774530691194,
+          0.8250289766570282,
+          -0.033447946372919014
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.18045297820699596,
+            0.42373141580506785,
+            0.27709565789673635
+          ],
+          "R_Calf": [
+            -0.1399882040777189,
+            0.3731380165540991,
+            0.059864928933158965
+          ],
+          "L_Foot": [
+            0.21287186968653043,
+            0.06230633897717602,
+            0.1430409799835756
+          ],
+          "R_Foot": [
+            -0.1958106396817672,
+            0.039577529617741136,
+            -0.17202428440011008
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 442,
+      "triangles": 26748,
+      "memory": {
+        "attributes": 186,
+        "attributesSize": 4830804,
+        "geometries": 58,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 83,
+        "programsSize": 400614,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 140,
+        "uniformBuffersSize": 1067232,
+        "total": 117225585
+      },
+      "camera": {
+        "position": [
+          -3.2584967464012915,
+          1.4100000000000001,
+          0.30730745016681676
+        ],
+        "target": [
+          0.041503253598708906,
+          1.06,
+          0.15730745016681646
+        ],
+        "distance": 3.321897048374618,
+        "yaw": 3.096169374168216,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "defensive-arm-raider-sword-shield-elbow-right.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "sword-shield",
+        "variant": "raider",
+        "mode": "defend",
+        "phase": 0.6,
+        "time": 0.35,
+        "view": "elbow-right",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 240,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.0806153579536091,
+          1.265206355472287,
+          0.05474477221719991
+        ],
+        "leftUpperArm": [
+          0.21407204343086056,
+          1.2819105166526445,
+          0.1139276006662136
+        ],
+        "leftForearm": [
+          0.2387230569837463,
+          1.1405304973914066,
+          0.34902711641389705
+        ],
+        "leftHand": [
+          0.06358272874545476,
+          1.2255412959770362,
+          0.3490089582665578
+        ],
+        "rightClavicle": [
+          0.016380560200554554,
+          1.2670503223514835,
+          0.03636613467967721
+        ],
+        "rightUpperArm": [
+          -0.11576202043203274,
+          1.2953039037471856,
+          -0.019557470334342734
+        ],
+        "rightForearm": [
+          -0.15070371956300826,
+          1.0116071318930626,
+          -0.07191093380419211
+        ],
+        "rightHand": [
+          -0.1737774530691194,
+          0.8250289766570282,
+          -0.033447946372919014
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.18045297820699596,
+            0.42373141580506785,
+            0.27709565789673635
+          ],
+          "R_Calf": [
+            -0.1399882040777189,
+            0.3731380165540991,
+            0.059864928933158965
+          ],
+          "L_Foot": [
+            0.21287186968653043,
+            0.06230633897717602,
+            0.1430409799835756
+          ],
+          "R_Foot": [
+            -0.1958106396817672,
+            0.039577529617741136,
+            -0.17202428440011008
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 480,
+      "triangles": 26748,
+      "memory": {
+        "attributes": 186,
+        "attributesSize": 4830804,
+        "geometries": 58,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 83,
+        "programsSize": 400614,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 140,
+        "uniformBuffersSize": 1067232,
+        "total": 117225585
+      },
+      "camera": {
+        "position": [
+          -0.5307037195630082,
+          1.1316071318930625,
+          0.30808906619580795
+        ],
+        "target": [
+          -0.15070371956300826,
+          1.0116071318930626,
+          -0.07191093380419211
+        ],
+        "distance": 0.5506359959174482,
+        "yaw": 2.356194490192345,
+        "userAdjusted": false
+      }
+    }
+  ]
+}

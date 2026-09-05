@@ -14,7 +14,7 @@ try{
   const body=await fs.readFile(process.argv[modelFlag+1]!);
   await page.route('**/worker-male-common-01-v002.glb',route=>route.fulfill({contentType:'model/gltf-binary',body}));
  }
- await page.goto('http://127.0.0.1:5175/artifacts/weapon-review.html');
+ await page.goto(process.env.WEAPON_REVIEW_URL ?? 'http://127.0.0.1:5175/artifacts/weapon-review.html');
  await page.waitForFunction(()=>Boolean((window as any).weaponReview?.stats().ready),null,{timeout:60000});
  const options=process.argv[2]?JSON.parse(await fs.readFile(process.argv[2],'utf8')):[{}];
  const reports=[];

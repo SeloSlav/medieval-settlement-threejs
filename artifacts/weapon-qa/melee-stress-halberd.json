@@ -1,0 +1,236 @@
+{
+  "capturedAt": "2026-09-05T18:35:05.749Z",
+  "sources": {
+    "src/settlement/weaponAttackMotion.ts": "410624f56b21551dc4d1a19eca7f259a6e37bf5d99da7dad6dd5b8fc415f44ca",
+    "src/settlement/meleeBodyPose.ts": "223c04ee0a6e347188632c0bea6e20a97b0ef20303b8a5756506fc786b351872",
+    "src/settlement/combatWeaponAnimation.ts": "fc3e6e320c77725fdd243fe2a2e7dca4a26c4d8b5466abbe9c19def2ce60ae19",
+    "src/settlement/meleeHandGrip.ts": "2a3fb3af2617ffbe3d6dfb6616916a88d35c6c8bcbf5025a0f797406d0be3233",
+    "public/assets/models/villagers/worker-male-common-01-v002.glb": "b83b6fa6b58098304cecce9dbd76302c645db5d52f4377e1e7c2a17b656568f7",
+    "public/assets/models/villagers/ottoman-raider-common-01-v001.glb": "2159ac4dd1aae05aa0379f35bf3ea3166a06d859e3e60a1f08406f97e16b0a95"
+  },
+  "errors": [],
+  "reports": [
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "halberd",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {
+        "weapon/body:Spine01": [
+          0,
+          0.05,
+          0.1,
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35,
+          0.4,
+          1
+        ],
+        "weapon/body:Spine02": [
+          0,
+          0.05,
+          0.1,
+          0.15,
+          0.2,
+          1
+        ]
+      },
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 5.340890238003145,
+      "worstJoint": "R_GripMiddleTip",
+      "maxFootSlide": 3.756649667871381e-7,
+      "maxGripError": 0.00008749094828815476,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.5475070454182591
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "halberd",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {
+        "weapon/body:Spine01": [
+          0,
+          0.05,
+          0.1,
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35,
+          0.4,
+          1
+        ],
+        "weapon/body:Spine02": [
+          0,
+          0.05,
+          0.1,
+          0.15,
+          0.2,
+          1
+        ]
+      },
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 5.3409096803286324,
+      "worstJoint": "R_GripThumb",
+      "maxFootSlide": 3.9012017742701446e-7,
+      "maxGripError": 0.00009111103631702557,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.5690708523066197
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "halberd",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {
+        "weapon/body:Spine01": [
+          0,
+          0.05,
+          0.1,
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35,
+          0.4,
+          1
+        ],
+        "weapon/body:Spine02": [
+          0,
+          0.05,
+          0.1,
+          0.15,
+          0.2,
+          1
+        ]
+      },
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 5.340941680089298,
+      "worstJoint": "R_GripRingTip",
+      "maxFootSlide": 4.045952245557373e-7,
+      "maxGripError": 0.00009482921708488132,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.5904662125992276
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "halberd",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {
+        "weapon/body:Spine01": [
+          0,
+          0.05,
+          0.1,
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35,
+          1
+        ],
+        "weapon/body:Spine02": [
+          0.95
+        ]
+      },
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 7.1658935292508845,
+      "worstJoint": "L_GripMiddle",
+      "maxFootSlide": 1.739852268457134e-7,
+      "maxGripError": 0.002182376087702397,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.5601049124448265
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "halberd",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {
+        "weapon/body:Spine01": [
+          0,
+          0.05,
+          0.1,
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35,
+          1
+        ],
+        "weapon/body:Spine02": [
+          0.95
+        ]
+      },
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 7.231917414784927,
+      "worstJoint": "L_GripMiddle",
+      "maxFootSlide": 1.84720802350345e-7,
+      "maxGripError": 0.002255674146455344,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.5821956460799593
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "halberd",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {
+        "weapon/body:Spine01": [
+          0,
+          0.05,
+          0.1,
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35,
+          1
+        ],
+        "weapon/body:Spine02": [
+          0.95
+        ]
+      },
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 7.296901833896915,
+      "worstJoint": "L_GripPinky",
+      "maxFootSlide": 1.955730525851574e-7,
+      "maxGripError": 0.002328155138458673,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.6041138104988467
+    }
+  ]
+}

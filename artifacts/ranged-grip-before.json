@@ -1,0 +1,8 @@
+[
+ {"name":"bow-thumb-before-inside","weapon":"bow","variant":"man","mode":"attack","phase":0.95,"view":"grip-inside"},
+ {"name":"bow-thumb-before-back","weapon":"bow","variant":"man","mode":"attack","phase":0.95,"view":"grip-back"},
+ {"name":"crossbow-stock-before-20","weapon":"crossbow","variant":"man","mode":"attack","phase":0.20,"view":"grip-inside"},
+ {"name":"crossbow-stock-before-30","weapon":"crossbow","variant":"man","mode":"attack","phase":0.30,"view":"grip-inside"},
+ {"name":"crossbow-stock-before-54","weapon":"crossbow","variant":"man","mode":"attack","phase":0.54,"view":"grip-inside"},
+ {"name":"crossbow-stock-before-62","weapon":"crossbow","variant":"man","mode":"attack","phase":0.62,"view":"grip-inside"}
+]

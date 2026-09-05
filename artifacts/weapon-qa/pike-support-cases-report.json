@@ -1,0 +1,1541 @@
+{
+  "errors": [],
+  "captures": [
+    {
+      "file": "pike-support-man-0.83-front.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "pike-kit",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0.83,
+        "time": 0.35,
+        "view": "front",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 3,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.06132716576611437,
+          1.2657991459848321,
+          -0.03350448752267875
+        ],
+        "leftUpperArm": [
+          0.14086268100464316,
+          1.311814652334246,
+          0.08690045581984336
+        ],
+        "leftForearm": [
+          -0.02410715180376674,
+          1.1422625221487266,
+          0.2543087135508056
+        ],
+        "leftHand": [
+          -0.14632651303296154,
+          1.063473734064301,
+          0.378293679065723
+        ],
+        "rightClavicle": [
+          0.0192308260105162,
+          1.2627455238433507,
+          -0.08433527516122459
+        ],
+        "rightUpperArm": [
+          -0.057836479114468424,
+          1.2640027915251102,
+          -0.2098218636061226
+        ],
+        "rightForearm": [
+          -0.3488870807977492,
+          1.192133131651843,
+          -0.22304256759960442
+        ],
+        "rightHand": [
+          -0.2711833844472105,
+          1.0853532893579683,
+          -0.08492049226774345
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.16711056232169555,
+            0.46505991940550867,
+            0.23444549802661527
+          ],
+          "R_Calf": [
+            -0.1308803563550061,
+            0.40292093268162626,
+            0.02119789125299415
+          ],
+          "L_Foot": [
+            0.20601555929135246,
+            0.0327507951597098,
+            0.1311362377603616
+          ],
+          "R_Foot": [
+            -0.17736408859372793,
+            0.04024008146362984,
+            -0.19435226123012936
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 6,
+      "triangles": 22636,
+      "memory": {
+        "attributes": 153,
+        "attributesSize": 4390356,
+        "geometries": 47,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 72,
+        "programsSize": 361597,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 118,
+        "uniformBuffersSize": 883488,
+        "total": 116300299
+      },
+      "camera": {
+        "position": [
+          -1.2212613414116291,
+          1.61,
+          3.405376747034258
+        ],
+        "target": [
+          0.028738658588371005,
+          1.06,
+          0.10537674703425792
+        ],
+        "distance": 3.571414285685714,
+        "yaw": 1.9328837344886252,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "pike-support-man-0.83-side.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "pike-kit",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0.83,
+        "time": 0.35,
+        "view": "side",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 19,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.06132716576611437,
+          1.2657991459848321,
+          -0.03350448752267875
+        ],
+        "leftUpperArm": [
+          0.14086268100464316,
+          1.311814652334246,
+          0.08690045581984336
+        ],
+        "leftForearm": [
+          -0.02410715180376674,
+          1.1422625221487266,
+          0.2543087135508056
+        ],
+        "leftHand": [
+          -0.14632651303296154,
+          1.063473734064301,
+          0.378293679065723
+        ],
+        "rightClavicle": [
+          0.0192308260105162,
+          1.2627455238433507,
+          -0.08433527516122459
+        ],
+        "rightUpperArm": [
+          -0.057836479114468424,
+          1.2640027915251102,
+          -0.2098218636061226
+        ],
+        "rightForearm": [
+          -0.3488870807977492,
+          1.192133131651843,
+          -0.22304256759960442
+        ],
+        "rightHand": [
+          -0.2711833844472105,
+          1.0853532893579683,
+          -0.08492049226774345
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.16711056232169555,
+            0.46505991940550867,
+            0.23444549802661527
+          ],
+          "R_Calf": [
+            -0.1308803563550061,
+            0.40292093268162626,
+            0.02119789125299415
+          ],
+          "L_Foot": [
+            0.20601555929135246,
+            0.0327507951597098,
+            0.1311362377603616
+          ],
+          "R_Foot": [
+            -0.17736408859372793,
+            0.04024008146362984,
+            -0.19435226123012936
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 38,
+      "triangles": 22780,
+      "memory": {
+        "attributes": 153,
+        "attributesSize": 4390356,
+        "geometries": 47,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 72,
+        "programsSize": 361597,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 118,
+        "uniformBuffersSize": 883488,
+        "total": 116300299
+      },
+      "camera": {
+        "position": [
+          -3.271261341411629,
+          1.4100000000000001,
+          0.2553767470342582
+        ],
+        "target": [
+          0.028738658588371005,
+          1.06,
+          0.10537674703425792
+        ],
+        "distance": 3.321897048374618,
+        "yaw": 3.096169374168216,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "pike-support-man-0.83-back.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "pike-kit",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0.83,
+        "time": 0.35,
+        "view": "back",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 39,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.06132716576611437,
+          1.2657991459848321,
+          -0.03350448752267875
+        ],
+        "leftUpperArm": [
+          0.14086268100464316,
+          1.311814652334246,
+          0.08690045581984336
+        ],
+        "leftForearm": [
+          -0.02410715180376674,
+          1.1422625221487266,
+          0.2543087135508056
+        ],
+        "leftHand": [
+          -0.14632651303296154,
+          1.063473734064301,
+          0.378293679065723
+        ],
+        "rightClavicle": [
+          0.0192308260105162,
+          1.2627455238433507,
+          -0.08433527516122459
+        ],
+        "rightUpperArm": [
+          -0.057836479114468424,
+          1.2640027915251102,
+          -0.2098218636061226
+        ],
+        "rightForearm": [
+          -0.3488870807977492,
+          1.192133131651843,
+          -0.22304256759960442
+        ],
+        "rightHand": [
+          -0.2711833844472105,
+          1.0853532893579683,
+          -0.08492049226774345
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.16711056232169555,
+            0.46505991940550867,
+            0.23444549802661527
+          ],
+          "R_Calf": [
+            -0.1308803563550061,
+            0.40292093268162626,
+            0.02119789125299415
+          ],
+          "L_Foot": [
+            0.20601555929135246,
+            0.0327507951597098,
+            0.1311362377603616
+          ],
+          "R_Foot": [
+            -0.17736408859372793,
+            0.04024008146362984,
+            -0.19435226123012936
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 78,
+      "triangles": 22780,
+      "memory": {
+        "attributes": 153,
+        "attributesSize": 4390356,
+        "geometries": 47,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 72,
+        "programsSize": 361597,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 118,
+        "uniformBuffersSize": 883488,
+        "total": 116300299
+      },
+      "camera": {
+        "position": [
+          -2.4712613414116293,
+          1.46,
+          -2.7946232529657413
+        ],
+        "target": [
+          0.028738658588371005,
+          1.06,
+          0.10537674703425792
+        ],
+        "distance": 3.8496753109840314,
+        "yaw": -2.2822554525344048,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "pike-support-man-0-front.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "pike-kit",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0,
+        "time": 0.35,
+        "view": "front",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 55,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.08464657946207427,
+          1.244619547140217,
+          0.08504817655510286
+        ],
+        "leftUpperArm": [
+          0.1911274128417303,
+          1.2657683907671378,
+          0.19066653441607123
+        ],
+        "leftForearm": [
+          0.010998589506275441,
+          1.1289673430002078,
+          0.37185033779062693
+        ],
+        "leftHand": [
+          -0.11806181007959468,
+          1.0740229926875995,
+          0.5016272598459548
+        ],
+        "rightClavicle": [
+          0.03165240695758999,
+          1.2512947802368313,
+          0.04616045189336437
+        ],
+        "rightUpperArm": [
+          -0.07296290058410351,
+          1.2774207588541158,
+          -0.05414362881519807
+        ],
+        "rightForearm": [
+          -0.3358631211414723,
+          1.1987433441998179,
+          0.06728041873508803
+        ],
+        "rightHand": [
+          -0.2464159866079681,
+          1.1037366668826838,
+          0.20688858435586396
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.18147748858398233,
+            0.4472279415264384,
+            0.29448950414229635
+          ],
+          "R_Calf": [
+            -0.12401583239893749,
+            0.3814728358400365,
+            0.05237466526772071
+          ],
+          "L_Foot": [
+            0.20601552307085222,
+            0.03275066322167308,
+            0.1311360379195502
+          ],
+          "R_Foot": [
+            -0.17736412835831308,
+            0.04024008545343544,
+            -0.19435229611354826
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 110,
+      "triangles": 22780,
+      "memory": {
+        "attributes": 153,
+        "attributesSize": 4390356,
+        "geometries": 47,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 72,
+        "programsSize": 361597,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 118,
+        "uniformBuffersSize": 883488,
+        "total": 116300299
+      },
+      "camera": {
+        "position": [
+          -1.199186056862671,
+          1.61,
+          3.4740553850838913
+        ],
+        "target": [
+          0.05081394313732907,
+          1.06,
+          0.17405538508389165
+        ],
+        "distance": 3.571414285685714,
+        "yaw": 1.9328837344886252,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "pike-support-man-0-side.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "pike-kit",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0,
+        "time": 0.35,
+        "view": "side",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 70,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.08464657946207427,
+          1.244619547140217,
+          0.08504817655510286
+        ],
+        "leftUpperArm": [
+          0.1911274128417303,
+          1.2657683907671378,
+          0.19066653441607123
+        ],
+        "leftForearm": [
+          0.010998589506275441,
+          1.1289673430002078,
+          0.37185033779062693
+        ],
+        "leftHand": [
+          -0.11806181007959468,
+          1.0740229926875995,
+          0.5016272598459548
+        ],
+        "rightClavicle": [
+          0.03165240695758999,
+          1.2512947802368313,
+          0.04616045189336437
+        ],
+        "rightUpperArm": [
+          -0.07296290058410351,
+          1.2774207588541158,
+          -0.05414362881519807
+        ],
+        "rightForearm": [
+          -0.3358631211414723,
+          1.1987433441998179,
+          0.06728041873508803
+        ],
+        "rightHand": [
+          -0.2464159866079681,
+          1.1037366668826838,
+          0.20688858435586396
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.18147748858398233,
+            0.4472279415264384,
+            0.29448950414229635
+          ],
+          "R_Calf": [
+            -0.12401583239893749,
+            0.3814728358400365,
+            0.05237466526772071
+          ],
+          "L_Foot": [
+            0.20601552307085222,
+            0.03275066322167308,
+            0.1311360379195502
+          ],
+          "R_Foot": [
+            -0.17736412835831308,
+            0.04024008545343544,
+            -0.19435229611354826
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 140,
+      "triangles": 22780,
+      "memory": {
+        "attributes": 153,
+        "attributesSize": 4390356,
+        "geometries": 47,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 72,
+        "programsSize": 361597,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 118,
+        "uniformBuffersSize": 883488,
+        "total": 116300299
+      },
+      "camera": {
+        "position": [
+          -3.2491860568626714,
+          1.4100000000000001,
+          0.324055385083892
+        ],
+        "target": [
+          0.05081394313732907,
+          1.06,
+          0.17405538508389165
+        ],
+        "distance": 3.321897048374618,
+        "yaw": 3.096169374168216,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "pike-support-man-0-back.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "pike-kit",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0,
+        "time": 0.35,
+        "view": "back",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 86,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.08464657946207427,
+          1.244619547140217,
+          0.08504817655510286
+        ],
+        "leftUpperArm": [
+          0.1911274128417303,
+          1.2657683907671378,
+          0.19066653441607123
+        ],
+        "leftForearm": [
+          0.010998589506275441,
+          1.1289673430002078,
+          0.37185033779062693
+        ],
+        "leftHand": [
+          -0.11806181007959468,
+          1.0740229926875995,
+          0.5016272598459548
+        ],
+        "rightClavicle": [
+          0.03165240695758999,
+          1.2512947802368313,
+          0.04616045189336437
+        ],
+        "rightUpperArm": [
+          -0.07296290058410351,
+          1.2774207588541158,
+          -0.05414362881519807
+        ],
+        "rightForearm": [
+          -0.3358631211414723,
+          1.1987433441998179,
+          0.06728041873508803
+        ],
+        "rightHand": [
+          -0.2464159866079681,
+          1.1037366668826838,
+          0.20688858435586396
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.18147748858398233,
+            0.4472279415264384,
+            0.29448950414229635
+          ],
+          "R_Calf": [
+            -0.12401583239893749,
+            0.3814728358400365,
+            0.05237466526772071
+          ],
+          "L_Foot": [
+            0.20601552307085222,
+            0.03275066322167308,
+            0.1311360379195502
+          ],
+          "R_Foot": [
+            -0.17736412835831308,
+            0.04024008545343544,
+            -0.19435229611354826
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 172,
+      "triangles": 22780,
+      "memory": {
+        "attributes": 153,
+        "attributesSize": 4390356,
+        "geometries": 47,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 72,
+        "programsSize": 361597,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 118,
+        "uniformBuffersSize": 883488,
+        "total": 116300299
+      },
+      "camera": {
+        "position": [
+          -2.4491860568626715,
+          1.46,
+          -2.7259446149161075
+        ],
+        "target": [
+          0.05081394313732907,
+          1.06,
+          0.17405538508389165
+        ],
+        "distance": 3.8496753109840314,
+        "yaw": -2.2822554525344048,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "pike-support-raider-0.83-front.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "pike-kit",
+        "variant": "raider",
+        "mode": "attack",
+        "phase": 0.83,
+        "time": 0.35,
+        "view": "front",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 99,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.05860485748464388,
+          1.2793768139624848,
+          -0.010256375250285847
+        ],
+        "leftUpperArm": [
+          0.1364428327936804,
+          1.3092158342812172,
+          0.11075274194121534
+        ],
+        "leftForearm": [
+          -0.026733319998070132,
+          1.1498910666975517,
+          0.2652096213926704
+        ],
+        "leftHand": [
+          -0.15603397824066303,
+          1.0710210185825932,
+          0.38752821790904285
+        ],
+        "rightClavicle": [
+          0.016019054294108118,
+          1.2762877565858373,
+          -0.06167807233891018
+        ],
+        "rightUpperArm": [
+          -0.06003116942729776,
+          1.2914090367681046,
+          -0.18567439227763172
+        ],
+        "rightForearm": [
+          -0.34158850065365803,
+          1.222553520566737,
+          -0.20641192895020777
+        ],
+        "rightHand": [
+          -0.27546069109791393,
+          1.1084405210297401,
+          -0.06702558924507143
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.1704762610006612,
+            0.4334049024246145,
+            0.2437297602844679
+          ],
+          "R_Calf": [
+            -0.1426356183897156,
+            0.3892493186299943,
+            0.03546888400035861
+          ],
+          "L_Foot": [
+            0.2128718492996193,
+            0.06230628196783261,
+            0.14304091357893794
+          ],
+          "R_Foot": [
+            -0.1958105899910374,
+            0.039577539536431894,
+            -0.172024257897685
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 198,
+      "triangles": 22902,
+      "memory": {
+        "attributes": 153,
+        "attributesSize": 4390356,
+        "geometries": 47,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 72,
+        "programsSize": 361597,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 118,
+        "uniformBuffersSize": 883488,
+        "total": 116300299
+      },
+      "camera": {
+        "position": [
+          -1.2238590437476622,
+          1.61,
+          3.409513603319801
+        ],
+        "target": [
+          0.02614095625233813,
+          1.06,
+          0.10951360331980085
+        ],
+        "distance": 3.571414285685714,
+        "yaw": 1.9328837344886252,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "pike-support-raider-0.83-side.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "pike-kit",
+        "variant": "raider",
+        "mode": "attack",
+        "phase": 0.83,
+        "time": 0.35,
+        "view": "side",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 116,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.05860485748464388,
+          1.2793768139624848,
+          -0.010256375250285847
+        ],
+        "leftUpperArm": [
+          0.1364428327936804,
+          1.3092158342812172,
+          0.11075274194121534
+        ],
+        "leftForearm": [
+          -0.026733319998070132,
+          1.1498910666975517,
+          0.2652096213926704
+        ],
+        "leftHand": [
+          -0.15603397824066303,
+          1.0710210185825932,
+          0.38752821790904285
+        ],
+        "rightClavicle": [
+          0.016019054294108118,
+          1.2762877565858373,
+          -0.06167807233891018
+        ],
+        "rightUpperArm": [
+          -0.06003116942729776,
+          1.2914090367681046,
+          -0.18567439227763172
+        ],
+        "rightForearm": [
+          -0.34158850065365803,
+          1.222553520566737,
+          -0.20641192895020777
+        ],
+        "rightHand": [
+          -0.27546069109791393,
+          1.1084405210297401,
+          -0.06702558924507143
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.1704762610006612,
+            0.4334049024246145,
+            0.2437297602844679
+          ],
+          "R_Calf": [
+            -0.1426356183897156,
+            0.3892493186299943,
+            0.03546888400035861
+          ],
+          "L_Foot": [
+            0.2128718492996193,
+            0.06230628196783261,
+            0.14304091357893794
+          ],
+          "R_Foot": [
+            -0.1958105899910374,
+            0.039577539536431894,
+            -0.172024257897685
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 232,
+      "triangles": 23024,
+      "memory": {
+        "attributes": 153,
+        "attributesSize": 4390356,
+        "geometries": 47,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 72,
+        "programsSize": 361597,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 118,
+        "uniformBuffersSize": 883488,
+        "total": 116300299
+      },
+      "camera": {
+        "position": [
+          -3.2738590437476622,
+          1.4100000000000001,
+          0.25951360331980117
+        ],
+        "target": [
+          0.02614095625233813,
+          1.06,
+          0.10951360331980085
+        ],
+        "distance": 3.321897048374618,
+        "yaw": 3.096169374168216,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "pike-support-raider-0.83-back.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "pike-kit",
+        "variant": "raider",
+        "mode": "attack",
+        "phase": 0.83,
+        "time": 0.35,
+        "view": "back",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 133,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.05860485748464388,
+          1.2793768139624848,
+          -0.010256375250285847
+        ],
+        "leftUpperArm": [
+          0.1364428327936804,
+          1.3092158342812172,
+          0.11075274194121534
+        ],
+        "leftForearm": [
+          -0.026733319998070132,
+          1.1498910666975517,
+          0.2652096213926704
+        ],
+        "leftHand": [
+          -0.15603397824066303,
+          1.0710210185825932,
+          0.38752821790904285
+        ],
+        "rightClavicle": [
+          0.016019054294108118,
+          1.2762877565858373,
+          -0.06167807233891018
+        ],
+        "rightUpperArm": [
+          -0.06003116942729776,
+          1.2914090367681046,
+          -0.18567439227763172
+        ],
+        "rightForearm": [
+          -0.34158850065365803,
+          1.222553520566737,
+          -0.20641192895020777
+        ],
+        "rightHand": [
+          -0.27546069109791393,
+          1.1084405210297401,
+          -0.06702558924507143
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.1704762610006612,
+            0.4334049024246145,
+            0.2437297602844679
+          ],
+          "R_Calf": [
+            -0.1426356183897156,
+            0.3892493186299943,
+            0.03546888400035861
+          ],
+          "L_Foot": [
+            0.2128718492996193,
+            0.06230628196783261,
+            0.14304091357893794
+          ],
+          "R_Foot": [
+            -0.1958105899910374,
+            0.039577539536431894,
+            -0.172024257897685
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 266,
+      "triangles": 23024,
+      "memory": {
+        "attributes": 153,
+        "attributesSize": 4390356,
+        "geometries": 47,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 72,
+        "programsSize": 361597,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 118,
+        "uniformBuffersSize": 883488,
+        "total": 116300299
+      },
+      "camera": {
+        "position": [
+          -2.4738590437476624,
+          1.46,
+          -2.790486396680198
+        ],
+        "target": [
+          0.02614095625233813,
+          1.06,
+          0.10951360331980085
+        ],
+        "distance": 3.8496753109840314,
+        "yaw": -2.2822554525344048,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "pike-support-raider-0-front.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "pike-kit",
+        "variant": "raider",
+        "mode": "attack",
+        "phase": 0,
+        "time": 0.35,
+        "view": "front",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 150,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.08481596674072858,
+          1.2557906088771438,
+          0.10525450487680074
+        ],
+        "leftUpperArm": [
+          0.18956068702797535,
+          1.2609811682235994,
+          0.20818129966942725
+        ],
+        "leftForearm": [
+          0.010706374527177764,
+          1.1338792202293535,
+          0.37468653556431597
+        ],
+        "leftHand": [
+          -0.12627437981556874,
+          1.0800905497399014,
+          0.502138621383768
+        ],
+        "rightClavicle": [
+          0.03120565068991524,
+          1.262543498308005,
+          0.06591475039227265
+        ],
+        "rightUpperArm": [
+          -0.07187050088795434,
+          1.3018807958266778,
+          -0.03008139861084952
+        ],
+        "rightForearm": [
+          -0.3302061041725708,
+          1.2221945139314285,
+          0.07649471283336441
+        ],
+        "rightHand": [
+          -0.24871578284425105,
+          1.1224027338631177,
+          0.21870633454836774
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.18311901382646886,
+            0.41375399244876,
+            0.3019403773302868
+          ],
+          "R_Calf": [
+            -0.13661530943162617,
+            0.36868878635882113,
+            0.06532154190901165
+          ],
+          "L_Foot": [
+            0.21287185194252725,
+            0.062306337839946324,
+            0.14304100815036208
+          ],
+          "R_Foot": [
+            -0.1958106149357322,
+            0.039577520666882415,
+            -0.17202427729771752
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 300,
+      "triangles": 23024,
+      "memory": {
+        "attributes": 153,
+        "attributesSize": 4390356,
+        "geometries": 47,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 72,
+        "programsSize": 361597,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 118,
+        "uniformBuffersSize": 883488,
+        "total": 116300299
+      },
+      "camera": {
+        "position": [
+          -1.2017757268659044,
+          1.61,
+          3.478217267911319
+        ],
+        "target": [
+          0.048224273134095816,
+          1.06,
+          0.17821726791131876
+        ],
+        "distance": 3.571414285685714,
+        "yaw": 1.9328837344886252,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "pike-support-raider-0-side.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "pike-kit",
+        "variant": "raider",
+        "mode": "attack",
+        "phase": 0,
+        "time": 0.35,
+        "view": "side",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 170,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.08481596674072858,
+          1.2557906088771438,
+          0.10525450487680074
+        ],
+        "leftUpperArm": [
+          0.18956068702797535,
+          1.2609811682235994,
+          0.20818129966942725
+        ],
+        "leftForearm": [
+          0.010706374527177764,
+          1.1338792202293535,
+          0.37468653556431597
+        ],
+        "leftHand": [
+          -0.12627437981556874,
+          1.0800905497399014,
+          0.502138621383768
+        ],
+        "rightClavicle": [
+          0.03120565068991524,
+          1.262543498308005,
+          0.06591475039227265
+        ],
+        "rightUpperArm": [
+          -0.07187050088795434,
+          1.3018807958266778,
+          -0.03008139861084952
+        ],
+        "rightForearm": [
+          -0.3302061041725708,
+          1.2221945139314285,
+          0.07649471283336441
+        ],
+        "rightHand": [
+          -0.24871578284425105,
+          1.1224027338631177,
+          0.21870633454836774
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.18311901382646886,
+            0.41375399244876,
+            0.3019403773302868
+          ],
+          "R_Calf": [
+            -0.13661530943162617,
+            0.36868878635882113,
+            0.06532154190901165
+          ],
+          "L_Foot": [
+            0.21287185194252725,
+            0.062306337839946324,
+            0.14304100815036208
+          ],
+          "R_Foot": [
+            -0.1958106149357322,
+            0.039577520666882415,
+            -0.17202427729771752
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 340,
+      "triangles": 23024,
+      "memory": {
+        "attributes": 153,
+        "attributesSize": 4390356,
+        "geometries": 47,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 72,
+        "programsSize": 361597,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 118,
+        "uniformBuffersSize": 883488,
+        "total": 116300299
+      },
+      "camera": {
+        "position": [
+          -3.2517757268659047,
+          1.4100000000000001,
+          0.32821726791131905
+        ],
+        "target": [
+          0.048224273134095816,
+          1.06,
+          0.17821726791131876
+        ],
+        "distance": 3.321897048374618,
+        "yaw": 3.096169374168216,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "pike-support-raider-0-back.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "pike-kit",
+        "variant": "raider",
+        "mode": "attack",
+        "phase": 0,
+        "time": 0.35,
+        "view": "back",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 188,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.08481596674072858,
+          1.2557906088771438,
+          0.10525450487680074
+        ],
+        "leftUpperArm": [
+          0.18956068702797535,
+          1.2609811682235994,
+          0.20818129966942725
+        ],
+        "leftForearm": [
+          0.010706374527177764,
+          1.1338792202293535,
+          0.37468653556431597
+        ],
+        "leftHand": [
+          -0.12627437981556874,
+          1.0800905497399014,
+          0.502138621383768
+        ],
+        "rightClavicle": [
+          0.03120565068991524,
+          1.262543498308005,
+          0.06591475039227265
+        ],
+        "rightUpperArm": [
+          -0.07187050088795434,
+          1.3018807958266778,
+          -0.03008139861084952
+        ],
+        "rightForearm": [
+          -0.3302061041725708,
+          1.2221945139314285,
+          0.07649471283336441
+        ],
+        "rightHand": [
+          -0.24871578284425105,
+          1.1224027338631177,
+          0.21870633454836774
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.18311901382646886,
+            0.41375399244876,
+            0.3019403773302868
+          ],
+          "R_Calf": [
+            -0.13661530943162617,
+            0.36868878635882113,
+            0.06532154190901165
+          ],
+          "L_Foot": [
+            0.21287185194252725,
+            0.062306337839946324,
+            0.14304100815036208
+          ],
+          "R_Foot": [
+            -0.1958106149357322,
+            0.039577520666882415,
+            -0.17202427729771752
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 376,
+      "triangles": 23024,
+      "memory": {
+        "attributes": 153,
+        "attributesSize": 4390356,
+        "geometries": 47,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 72,
+        "programsSize": 361597,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 118,
+        "uniformBuffersSize": 883488,
+        "total": 116300299
+      },
+      "camera": {
+        "position": [
+          -2.451775726865905,
+          1.46,
+          -2.7217827320886805
+        ],
+        "target": [
+          0.048224273134095816,
+          1.06,
+          0.17821726791131876
+        ],
+        "distance": 3.8496753109840314,
+        "yaw": -2.2822554525344048,
+        "userAdjusted": false
+      }
+    }
+  ]
+}

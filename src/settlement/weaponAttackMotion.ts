@@ -47,12 +47,14 @@ const thrusts: readonly MeleeKey[] = [
   [.92, -.52, -.42, .32, -Math.PI / 2, 0, Math.PI, .07, -.64],
 ];
 const chops: readonly MeleeKey[] = [
-  [0, -.39, -.22, .38, 1.25, .08, -.22, .22, -.50],
-  [.12, -.39, -.40, .30, 1.65, .10, -.30, .28, -.32],
-  [.38, -.46, -.34, .40, .35, -.14, -.24, .04, -.25],
-  [.56, -.48, -.18, .38, .10, -.20, -.24, .02, -.38],
-  [.82, -.48, .20, .34, -.58, -.18, -.20, -.13, -.72],
-  [.91, -.43, .06, .46, .38, -.04, -.14, .06, -.20],
+  // The axe edge is local +X. A quarter turn around the haft puts it in
+  // the vertical swing plane; increasing pitch leads with the cutting edge.
+  [0, -.14, -.32, .42, 1.30, -Math.PI / 2, 0, .22, -.18],
+  [.12, -.14, -.40, .44, 1.65, -Math.PI / 2, 0, .28, -.10],
+  [.38, -.16, -.22, .48, .75, -Math.PI / 2, 0, .04, -.15],
+  [.56, -.14, .08, .56, .05, -Math.PI / 2, 0, -.02, -.24],
+  [.82, -.14, .24, .60, -.28, -Math.PI / 2, 0, -.13, -.30],
+  [.91, -.14, .02, .52, .55, -Math.PI / 2, 0, .08, -.20],
 ];
 
 function rotation(x: number, y: number, z: number): THREE.Quaternion {

@@ -90,8 +90,13 @@ function greyCoolRoadColor(map: TslNode, desaturate: number, tint: [number, numb
   return desaturated.mul(vec3(tint[0], tint[1], tint[2]) as TslNode);
 }
 
-function buildRoadColorNode(textures: TextureSet, desaturate: number, tint: [number, number, number]): TslNode {
-  const sample = texture(textures.albedo, uv() as TslNode) as TslNode;
+function buildRoadColorNode(
+  textures: TextureSet,
+  desaturate: number,
+  tint: [number, number, number],
+  surfaceUv: TslNode = uv() as TslNode,
+): TslNode {
+  const sample = texture(textures.albedo, surfaceUv) as TslNode;
   const baseColor = greyCoolRoadColor(sample, desaturate, tint);
   const world = positionWorld as TslNode;
   const macroA = (sin(
@@ -346,9 +351,17 @@ export function createRoadEdgeMaterial(
   material.polygonOffset = true;
   material.polygonOffsetFactor = -1;
   material.polygonOffsetUnits = -2;
-  const edgeColor = buildRoadColorNode(textures, 0.78, ROAD_DIRT_EDGE_REFERENCE_TINT);
+  // The shoulder is exposed ground. Its soil must not curl around the radial
+  // cap UVs or stretch at a junction. Keep those UVs for the feather mask and
+  // anchor the existing albedo/roughness samples to one shared ground plane.
+  const world = positionWorld as TslNode;
+  const shoulderUv = vec2(
+    world.x.mul(float(1 / 4.8) as TslNode),
+    world.z.mul(float(1 / 4.8) as TslNode),
+  ) as TslNode;
+  const edgeColor = buildRoadColorNode(textures, 0.78, ROAD_DIRT_EDGE_REFERENCE_TINT, shoulderUv);
   material.colorNode = applyRoadWeatherColor(edgeColor, weather, 1.12);
-  const edgeRoughness = (texture(textures.roughness, uv() as TslNode) as TslNode).r;
+  const edgeRoughness = (texture(textures.roughness, shoulderUv) as TslNode).r;
   material.roughnessNode = applyRoadWeatherRoughness(edgeRoughness, weather);
   let opacity = buildBankOpacityNode(textures);
   if (fadeBridgeEdges) {

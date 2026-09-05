@@ -47,11 +47,25 @@ try {
     const q=rig.ownedBones.map((b:any)=>b.getWorldQuaternion(new T.Quaternion()));
     if(previous.length)q.forEach((q:any,i:number)=>{const angle=q.angleTo(previous[i]);if(angle>maxStep){maxStep=angle;worstJoint=rig.ownedBones[i].name;}});
     previous=q;
-    const anchors=[mount.localToWorld(new T.Vector3(...mount.userData.workerToolGripLocal))];
+    const anchors=[mount.localToWorld(new T.Vector3(...(mount.userData.workerToolAttackGripLocal??mount.userData.workerToolGripLocal)))];
     maxGripError=Math.max(maxGripError,anchors[0].distanceTo(rig.armBones.rightHand.localToWorld(meleePalmLocal(rig.armBones.rightHand,false,new T.Vector3()))));
     if(input.unit==='on-foot'&&mount.userData.workerToolSupportGripLocal){
-     const support=mount.localToWorld(new T.Vector3(...mount.userData.workerToolSupportGripLocal));anchors.push(support);
-     maxGripError=Math.max(maxGripError,support.distanceTo(rig.armBones.leftHand.localToWorld(meleePalmLocal(rig.armBones.leftHand,true,new T.Vector3()))));
+     const anchor=rig.armBones.leftHand.localToWorld(meleePalmLocal(rig.armBones.leftHand,true,new T.Vector3()));
+     const local=new T.Vector3(...(mount.userData.workerToolAttackSupportGripLocal??mount.userData.workerToolSupportGripLocal));
+     if(input.weapon==='spear'||input.weapon==='pike-kit') {
+      local.y=mount.worldToLocal(anchor.clone()).y;
+      const s=rig.armBones.leftUpperArm.getWorldPosition(new T.Vector3());
+      const e=rig.armBones.leftForearm.getWorldPosition(new T.Vector3());
+      const w=rig.armBones.leftHand.getWorldPosition(new T.Vector3());
+      const inverse=visual.model.getWorldQuaternion(new T.Quaternion()).invert();
+      const upper=e.clone().sub(s).applyQuaternion(inverse);
+      const reach=w.clone().sub(s),length=s.distanceTo(e)+e.distanceTo(w);
+      const bend=e.clone().sub(s).addScaledVector(reach,-e.clone().sub(s).dot(reach)/reach.lengthSq()).applyQuaternion(inverse);
+      if(s.distanceTo(w)/length<.985||upper.y>-.22*upper.length()||bend.y>=0)note('spear support elbow must extend down',f/200);
+      if(anchor.distanceTo(anchors[0])<.15||local.y>localBounds.max.y-.2)note('spear support must guide the wooden shaft ahead of the driving hand',f/200);
+     }
+     const support=mount.localToWorld(local);anchors.push(support);
+     maxGripError=Math.max(maxGripError,support.distanceTo(anchor));
     }
     if(input.unit==='on-foot') {
      const current=['L_Foot','R_Foot'].map(n=>visual.model.getObjectByName(n).getWorldPosition(new T.Vector3()));

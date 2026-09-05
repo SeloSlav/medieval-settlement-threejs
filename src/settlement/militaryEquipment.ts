@@ -785,6 +785,12 @@ function configureMount(
       ?? (combatRole === 'melee-held' && (kind === 'bow' || kind === 'crossbow') ? [0, 0.01, 0] : [0, 0, 0]);
     const supportGrip = supportGripFor(kind, combatRole);
     if (supportGrip) mount.userData.workerToolSupportGripLocal = supportGrip;
+    if (kind === 'halberd') {
+      // A chopping grip uses the rear of the haft, leaving only a short butt
+      // behind the driving hand so the downstroke cannot cross the torso.
+      mount.userData.workerToolAttackGripLocal = [0, -.44, 0];
+      mount.userData.workerToolAttackSupportGripLocal = [0, -.16, 0];
+    }
     const muzzle = muzzleFor(kind, combatRole);
     if (muzzle) mount.userData.workerToolMuzzleLocal = muzzle;
   }

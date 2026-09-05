@@ -101,13 +101,17 @@ for(const [name,height] of [['worker-male-common-01-v002',1.72],['ottoman-raider
    }
    const hand=kind==='bow'?rig.armBones.leftHand:rig.armBones.rightHand;
    const mount=kind==='bow'?rig.rangedMount!:equipment;
-   const center=mount.localToWorld(new THREE.Vector3(...mount.userData.workerToolGripLocal));
+   const center=mount.localToWorld(new THREE.Vector3(...(mount.userData.workerToolAttackGripLocal??mount.userData.workerToolGripLocal)));
    const palm=hand.localToWorld(kind==='bow'?bowPalmLocal(hand,new THREE.Vector3()):new THREE.Vector3(-.01,.044,-.0071).multiplyScalar(Number(hand.userData.militaryGripScale??1)));
    if(kind!=='crossbow'||frame<=14||frame>=72)primaryError=Math.max(primaryError,center.distanceTo(palm));
    if(mount.userData.workerToolSupportGripLocal){
     const left=rig.armBones.leftHand;
-    const support=mount.localToWorld(new THREE.Vector3(...mount.userData.workerToolSupportGripLocal));
     const anchor=left.localToWorld(kind==='crossbow'?offsetMilitaryHandGrip(left,new THREE.Vector3(.014,.0383,-.0071)):meleePalmLocal(left,true,new THREE.Vector3()));
+    const supportLocal=new THREE.Vector3(...(mount.userData.workerToolAttackSupportGripLocal??mount.userData.workerToolSupportGripLocal));
+    // A thrust slides through the forward guiding hand; its contact remains
+    // on the shaft rather than at the carry pose's fixed handle spacing.
+    if(kind==='spear'||kind==='pike-kit')supportLocal.y=mount.worldToLocal(anchor.clone()).y;
+    const support=mount.localToWorld(supportLocal);
     supportError=Math.max(supportError,support.distanceTo(anchor));
    }
    const wrist=hand.getWorldPosition(new THREE.Vector3());

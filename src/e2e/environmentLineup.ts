@@ -10,6 +10,7 @@ import { createVisualGpuTimestampProfiler } from './webGpuTimestampProfiler.ts';
 import { windStrength } from '@seedthree/core/wind.js';
 import { GORSKI_KOTAR_SPECIES } from '../vegetation/seedthree/gorskiKotarPresets.ts';
 import { RoadNetwork } from '../roads/RoadNetwork.ts';
+import { loadSeedThreeGrassTextures } from '../vegetation/seedthree/seedThreeGrass.ts';
 
 const params = new URLSearchParams(location.search);
 if (params.get('conifers') === 'baseline') {
@@ -22,7 +23,7 @@ if (params.get('conifers') === 'baseline') {
     delete GORSKI_KOTAR_SPECIES[key].foliage.cardCoverage;
   }
 }
-const settings = { ...DEFAULT_WORLD_GENERATION_SETTINGS, mapSize: 'small', terrainPreset: 'mrkopalj_polje', seed: 0x4d5a2e0d, topography: 12, hydrology: 40 };
+const settings = { ...DEFAULT_WORLD_GENERATION_SETTINGS, mapSize: 'small', terrainPreset: 'mrkopalj_polje', seed: Number(params.get('seed') ?? 0x4d5a2e0d), topography: 12, hydrology: 40 };
 setDraftWorldGeneration(settings);
 const manager = await SceneManager.create(document.querySelector('#world'), settings, progress => {
   document.querySelector('#status').textContent = `${progress.label} · ${progress.detail}`;
@@ -32,7 +33,7 @@ await manager.finishVegetation();
 await manager.materials.whenTexturesReady();
 await manager.sky.ready;
 windStrength.value = 0;
-const conditions = parseVisualQaConditions(`?visualQa=${params.get('season') ?? 'daylight'}`);
+let conditions = parseVisualQaConditions(`?visualQa=${params.get('season') ?? 'daylight'}`);
 manager.setEnvironment(standaloneVisualQaEnvironment(conditions));
 manager.applyDayNight(computeDayNightState(applyVisualQaClock(gameClock(0), conditions), false));
 manager.setIllustratedMapActive(false);
@@ -47,6 +48,8 @@ const views = {
   design: { target: [190, -20], distance: 75 },
   edge: { target: [190, -20], distance: 25 },
   ground: { target: [190, -20], distance: 13.54 },
+  meadow: { target: [210, -5], distance: 18 },
+  cap: { target: [210, -28], distance: 16 },
 };
 const trees = manager.getForestManager().getTreeLayouts();
 const survey = [];
@@ -69,14 +72,14 @@ function setView(id) {
   manager.camera.updateMatrixWorld(true);
 }
 const nextFrame = () => new Promise(requestAnimationFrame);
-async function frames(count, collect = false) {
+async function frames(count, collect = false, dt = 0) {
   const samples = [];
   let last;
   for (let i = 0; i < count; i++) {
     const time = await nextFrame();
     const start = performance.now();
     const handle = collect ? gpu.beginFrame(time) : null;
-    manager.render(0, orbitDistance);
+    manager.render(dt, orbitDistance);
     if (handle) gpu.endFrame(handle);
     if (collect && last !== undefined) samples.push({ time, frameMs: time - last, cpuMs: performance.now() - start });
     last = time;
@@ -89,6 +92,20 @@ await frames(90);
 window.__ENVIRONMENT_GAUNTLET__ = {
   survey,
   views: Object.keys(views),
+  async setGrassImage(dataUrl) {
+    const source = await new THREE.TextureLoader().loadAsync(dataUrl);
+    const { albedo } = await loadSeedThreeGrassTextures(1);
+    albedo.image = source.image;
+    albedo.needsUpdate = true;
+    source.dispose();
+  },
+  async setConditions(preset) {
+    conditions = parseVisualQaConditions(`?visualQa=${preset}`);
+    manager.setEnvironment(standaloneVisualQaEnvironment(conditions));
+    manager.applyDayNight(computeDayNightState(applyVisualQaClock(gameClock(0), conditions), false));
+    await frames(360, false, 1 / 30);
+    windStrength.value = 0;
+  },
   async capture({ view, diagnostic = 'final', sampleCount = 240 }) {
     setView(view);
     manager.setLightingDiagnostic(diagnostic);

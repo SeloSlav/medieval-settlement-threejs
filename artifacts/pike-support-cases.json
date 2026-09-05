@@ -1,0 +1,134 @@
+[
+  {
+    "name": "pike-support-man-0.83-front",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0.83,
+    "view": "front",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "pike-support-man-0.83-side",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0.83,
+    "view": "side",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "pike-support-man-0.83-back",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0.83,
+    "view": "back",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "pike-support-man-0-front",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0,
+    "view": "front",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "pike-support-man-0-side",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0,
+    "view": "side",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "pike-support-man-0-back",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0,
+    "view": "back",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "pike-support-raider-0.83-front",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0.83,
+    "view": "front",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "pike-support-raider-0.83-side",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0.83,
+    "view": "side",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "pike-support-raider-0.83-back",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0.83,
+    "view": "back",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "pike-support-raider-0-front",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0,
+    "view": "front",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "pike-support-raider-0-side",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0,
+    "view": "side",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "pike-support-raider-0-back",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0,
+    "view": "back",
+    "paused": true,
+    "standard": false
+  }
+]

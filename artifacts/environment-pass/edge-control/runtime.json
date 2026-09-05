@@ -1,0 +1,6 @@
+{
+  "url": "http://127.0.0.1:5187/environment-lineup.html?conifers=baseline",
+  "errors": [
+    "profile.attenuationColor is not iterable (cannot read property undefined)"
+  ]
+}

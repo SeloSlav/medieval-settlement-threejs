@@ -14,7 +14,7 @@ function fit(handSize: number, palm: [number, number, number], fingers: number[]
 // Their measured hand lengths identify the source fit on skeleton clones.
 // The padded palms need different handle offsets, not just larger curls.
 const fits = [
-  fit(.7255025, [.010, .029, -.0071], [[.9, 1.35], [.7, 1.35], [.5, 1.35], [.1, 1.1]], [0, 0, 0]),
+  fit(.7255025, [.010, .047, -.0071], [[.4, .6], [0, 1.2], [0, .9], [.2, 0]], [0, 0, 0]),
   fit(1.0345412, [.024, .030, -.0071], [[1.35, .8], [1.4, .6], [1.05, .95], [.65, 1]], [-.15, -.15, .15]),
 ];
 

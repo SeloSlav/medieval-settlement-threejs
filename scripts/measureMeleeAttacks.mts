@@ -40,7 +40,9 @@ for(const name of ['worker-male-common-01-v002','ottoman-raider-common-01-v001']
      if(left&&(!mount.userData.workerToolSupportGripLocal||mounted))continue;
      const h=left?rig.armBones.leftHand:rig.armBones.rightHand,e=left?rig.armBones.leftForearm:rig.armBones.rightForearm;
      const offset=meleePalmLocal(h,left,new THREE.Vector3());
-     const contact=mount.localToWorld(new THREE.Vector3(...mount.userData[left?'workerToolSupportGripLocal':'workerToolGripLocal']));
+     const grip=new THREE.Vector3(...(mount.userData[left?'workerToolAttackSupportGripLocal':'workerToolAttackGripLocal']??mount.userData[left?'workerToolSupportGripLocal':'workerToolGripLocal']));
+     if(left&&(kind==='spear'||kind==='pike-kit'))grip.y=mount.worldToLocal(h.localToWorld(offset.clone())).y;
+     const contact=mount.localToWorld(grip);
      record(left?'leftError':'rightError',contact.distanceTo(h.localToWorld(offset)),p);
      record(left?'leftWrist':'rightWrist',THREE.MathUtils.radToDeg(new THREE.Vector3(0,1,0).applyQuaternion(rot(h)).angleTo(pos(h).sub(pos(e)))),p);
     }
