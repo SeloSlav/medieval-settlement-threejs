@@ -26,7 +26,9 @@ Validation:
   earlier implementation; unrelated bones and weapon transforms differ by
   exactly zero, including crossbow carries and melee fallback.
 - Hand-grip, combat-presentation, and 404-pose elbow-mesh checks pass.
-- `tsc --noEmit` passes.
+- `tsc --noEmit` passed after the carry fix. The final rerun encountered
+  unrelated concurrent `ResourceInspector.ts` edits (unused tooltip helpers
+  and an unresolved `hudFoodResourceTooltip` reference).
 - `testCrossbowCarry.mts`: 726 actual idle/walk/run clip samples on both male
   models, including a rotated/scaled root. Wrist bend stays below 0.003 degrees;
   adjacent right-arm joint changes stay below 5 degrees. Palm side, anatomical

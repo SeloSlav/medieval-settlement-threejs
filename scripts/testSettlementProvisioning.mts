@@ -209,6 +209,21 @@ assert.match(
   /\.settlement-hud__stat--fuel, \[data-fuel-resource\]/,
   'resource total updates must keep fuel-row tooltips disabled',
 );
+assert.match(
+  settlementHud,
+  /data-tooltip="\$\{hudFoodResourceLabel\(kind\)\}"/,
+  'food and produce rows must mount name-only tooltips',
+);
+assert.match(
+  settlementHud,
+  /data-tooltip="\$\{hudProvisionResourceLabel\(kind\)\}"/,
+  'goods and provisions rows must mount name-only tooltips',
+);
+assert.match(
+  settlementHud,
+  /data-resource="polearms" data-tooltip="Polearms"[\s\S]{0,600}data-resource="sidearms" data-tooltip="Sidearms"/,
+  'military-store rows must mount name-only tooltips',
+);
 assert.doesNotMatch(
   settlementHud,
   /meals \/ day|fuel \/ day|Less than 0\.1 month|amount\.toFixed\(1\)/,

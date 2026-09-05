@@ -125,15 +125,20 @@ assert.equal(backyardPresentation.kind, 'agriculture');
 assert.doesNotMatch(backyardRenderer, /data-tooltip-art/, 'backyard choice tooltips must remain text-only');
 assert.doesNotMatch(tooltipSource, /tooltipArt|ui-tooltip__art/, 'shared hover cards must not render card artwork');
 assert.doesNotMatch(readabilityCss, /ui-tooltip__art/, 'hover-card CSS must not reserve an image column');
-assert.match(
+assert.doesNotMatch(
   resourceInspector,
-  /DEFAULT_TOTAL_RESOURCE_TOOLTIP[\s\S]{0,260}household reserves and goods committed to active projects/,
-  'total-mode resource tooltips must describe committed and household stock instead of retaining surplus-only copy',
+  /DEFAULT_TOTAL_RESOURCE_TOOLTIP|surplusResourceTooltips|dataset\.tooltipAmount\s*=/,
+  'resource-row tooltips must not add descriptions, mode context, or amount rows',
 );
 assert.match(
   resourceInspector,
-  /const tooltip = showingTotal[\s\S]{0,100}\? \[description, DEFAULT_TOTAL_RESOURCE_TOOLTIP\][\s\S]{0,100}: description/,
-  'total-mode resource cards must retain their description alongside the explanation of stored amounts',
+  /stat\.dataset\.tooltip = label;/,
+  'surplus and total modes must both retain name-only resource tooltips',
+);
+assert.match(
+  resourceInspector,
+  /elements\.row\.dataset\.tooltip = hudFoodResourceLabel\(kind\);/,
+  'food and produce rows must retain name-only resource tooltips while totals refresh',
 );
 assert.match(backyardCss, /\.resource-inspector-hero-image\[hidden\]\s*\{\s*display:\s*none/);
 assert.match(backyardCss, /\.resource-inspector-hero-art\.is-art-unavailable\s*\{/);

@@ -2168,7 +2168,6 @@ export class ResourceInspector {
   private renderFoodBreakdown(): void {
     if (!this.storedTotals || !this.surplusTotals) return;
     const showingTotal = this.resourceTotalsPresentation === 'total';
-    const amountLabel = showingTotal ? 'Total stored' : 'Available surplus';
     for (const kind of FOOD_BREAKDOWN_ROW_KINDS) {
       const resource = kind;
       const stored = Math.max(0, this.storedTotals[resource]);
@@ -2181,9 +2180,10 @@ export class ResourceInspector {
       elements.row.hidden = false;
       elements.row.classList.toggle('is-empty', !stocked);
       elements.stored.textContent = formatTransitAmount(displayed);
-      elements.row.dataset.tooltipAmount = formatTransitAmount(displayed);
-      elements.row.dataset.tooltipAmountLabel = amountLabel;
-      elements.row.dataset.tooltip = hudFoodResourceTooltip(kind);
+      delete elements.row.dataset.tooltipTitle;
+      delete elements.row.dataset.tooltipAmount;
+      delete elements.row.dataset.tooltipAmountLabel;
+      elements.row.dataset.tooltip = hudFoodResourceLabel(kind);
       elements.transit.hidden = transit <= 1e-6;
       elements.transit.textContent = transit > 1e-6
         ? `+${formatTransitAmount(transit)} cart`
@@ -2201,22 +2201,6 @@ export class ResourceInspector {
       Math.max(0, stored - surplus),
     );
     this.foodBreakdownTotalSurplus.textContent = formatTransitAmount(surplus);
-  }
-
-  private setHudTooltipAmount(
-    valueElement: HTMLElement,
-    amount: number,
-    label: string,
-  ): void {
-    const stat = valueElement.closest<HTMLElement>('.settlement-hud__stat');
-    if (!stat) return;
-    if (!stat.dataset.tooltip?.trim() || stat.matches('[data-fuel-resource]')) {
-      delete stat.dataset.tooltipAmount;
-      delete stat.dataset.tooltipAmountLabel;
-      return;
-    }
-    stat.dataset.tooltipAmount = formatTransitAmount(Math.max(0, amount));
-    stat.dataset.tooltipAmountLabel = label;
   }
 
   selectQuarry(quarryId: string): void {
